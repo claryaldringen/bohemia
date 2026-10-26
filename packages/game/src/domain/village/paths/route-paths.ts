@@ -9,11 +9,14 @@ import { extractLines } from './network-lines';
 import { edgeSlot } from './network-search';
 import type { PathLine, PathPoint } from './network-types';
 import { routeCells } from './routes';
-import { wearAt } from './wear';
+import { wearNear } from './wear';
 
-/** Síla pěšiny z vyšlapanosti v bodě: vyšlapanost / práh cesty, nejvýš 1, pod viditelnou 0. */
+/**
+ * Síla pěšiny z vyšlapanosti v bodě čáry trasy (`wearNear` – buňka bodu a sousední): vyšlapanost /
+ * práh cesty, nejvýš 1, pod viditelnou 0.
+ */
 export function wearStrengthAt(wear: ReadonlyMap<number, number>, x: number, z: number): number {
-  const w = wearAt(wear, x, z);
+  const w = wearNear(wear, x, z);
   return w >= WEAR.visibleFrom ? Math.min(1, w / WEAR.roadAt) : 0;
 }
 

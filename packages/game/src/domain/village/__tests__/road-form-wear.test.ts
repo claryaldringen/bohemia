@@ -123,10 +123,11 @@ describe('formRoadsFromWear – cesta jen od kotvy ke kotvě', () => {
   });
 
   it('cíl bez vchodu stačí do 7,5 m, vchod jen do 3 m', () => {
-    // vyšlapáno jen do z < 52,5 (políčko 6) – poslední bod z 52, k cíli v z = 59 zbývá 7 m
+    // vyšlapáno jen do z < 50 (buňka 13 do 50,6 m; čára čte i sousední buňku – do 54,4 m), k cíli
+    // v z = 59 zbývá přes 4,6 m
     const line: RoadPoint[] = [LINE[0]!, { x: 3.75, z: 59 }];
     const wear = new Map<number, number>();
-    heat(wear, line, WARM, (p) => p.z < 52.5);
+    heat(wear, line, WARM, (p) => p.z < 50);
     heat(wear, line, HOT, (p) => p.z > 22 && p.z < 38);
     const goal = emptyRoads(DAY);
     const toGoal = anchorsAt([

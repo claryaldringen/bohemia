@@ -138,6 +138,9 @@ function trimKnown<T extends VillageView | VillageUnchanged | null | { error: st
       ? { routesKey: input.routesKey }
       : {}),
     ...('wearDay' in input && typeof input.wearDay === 'number' ? { wearDay: input.wearDay } : {}),
+    ...('wearCellM' in input && typeof input.wearCellM === 'number'
+      ? { wearCellM: input.wearCellM }
+      : {}),
   };
   return { ...result, scene: trimKnownSceneData(result.scene, known) };
 }

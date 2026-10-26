@@ -98,6 +98,11 @@ export interface TripGroup {
    */
   marks?: Uint8Array;
   reach?: number[];
+  /**
+   * Pochůzka s `nearCost`: podíl cest, který domácnosti po prvním kole zbyl (`weights` = váha ×
+   * podíl) – trasa si ho nese, aby se dala převážit bez hledání (`StoredRoute.scale`).
+   */
+  scale?: number[];
   /** Místo, ke kterému domácnost došla v prvním kole – směr pro A* dalších hledání. */
   goals?: number[];
   /** Stavba, jejíž provoz se počítá do `PathNetwork.visits` (`<druh>:<id>`). */
@@ -201,21 +206,12 @@ export function tripGroups(
       ENTRANCE_REACH_M,
     );
 
+  // pole je pole od umístění – stálá část nezávisí na stadiu dílů (paths.md – Stálé trasy,
+  // pravidlo 5: stadia mapu ani váhy tras nemění)
   for (const field of v.fields) {
-    const sown = field.parts.some((p) => p.stage === 'sown' || p.stage === 'ready');
-    const founding = field.parts.every((p) => p.stage === 'founding');
-    const base = sown || founding ? BASE_TRIPS.field : BASE_TRIPS.fallow;
-    // nově zakládané pole: pěšina se teprve vyšlapává
     const to = `field:${field.id}`;
-    target(
-      to,
-      'work',
-      squaresTarget(field.parts),
-      base + work(to),
-      founding ? 0.5 : 1,
-      undefined,
-      base,
-    );
+    const base = BASE_TRIPS.field;
+    target(to, 'work', squaresTarget(field.parts), base + work(to), 1, undefined, base);
   }
   // sad: zavedené místo jen k nejbližšímu sadu, práce dne tam, kde se dnes pracuje
   const orchards = v.orchards ?? [];

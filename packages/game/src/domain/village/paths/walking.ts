@@ -26,8 +26,8 @@ import {
 // Martin, 19. 10. 2026): po plné pěšině dne 1,3× (slabší úměrně síle – PATH_WALK), po pevné cestě
 // podle stupně (ROAD_WALK – vyšlapaná i vyježděná 1,5×, upravená 1,7×, hať a lávka 1,7× i přes
 // mokřinu; stromy u cesty přidají až 0,03, jabloně 0,05 – roads.md, Stromy u cesty zrychlí chůzi).
-// Mokřina 0,5× (bahno), brod + 30 m (po lávce bez zdržení), díl pole v osevu 0,5×
-// a strniště 0,8× (FIELD_WALK – pěšina dne přes osev nezrychlí, pevná cesta jde rychlostí cesty).
+// Mokřina 0,5× (bahno), brod + 30 m (po lávce bez zdržení), díl pole stálou rychlostí 0,875×
+// v každém stadiu (FIELD_WALK – pěšina dne přes pole nezrychlí, pevná cesta jde rychlostí cesty).
 // S krajinou (`WalkGround`) se mokřina, voda a pole počítají i rovně; bez ní (kalibrace) jen
 // délka. Čistá deterministická funkce – stejně na serveru i v prohlížeči; použije ji každý, kdo
 // měří cestu na pole, do sadu, do lesa.

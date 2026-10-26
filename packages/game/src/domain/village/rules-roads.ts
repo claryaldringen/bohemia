@@ -9,13 +9,16 @@ export const DISTANCE = { freeM: 100, percentPer10M: 1 } as const;
 // nezrychlí (platí FIELD_WALK). Stejná cena v síti pěšin i ve vzdálenosti chůze (fields.md –
 // Vzdálenost).
 export const PATH_WALK = { speed: 1.3 } as const;
-// fields.md – Vzdálenost, paths.md – ceny buněk (Martin 19. 10. 2026: „Pole, které zrovna neleží
-// ladem: 0.5.“ a „Neber strniště jako louku, ale dej mu drobný postih. Ber to třeba jako 0.8.“):
-// rychlost chůze přes díl pole proti louce – v osevu od orby nebo kopání po sklizeň (zoraný,
-// osetý, rostoucí, zralý, ve žni) 0,5, strniště po sklizni 0,8; úhor, příloh a zakládaný díl jako
-// louka. Pole není zákaz, jen cena – síť pěšin hledá nejrychlejší cestu („nejkratší cesta je ta
-// nejrychlejší“), přes pole jde, když je obcházení delší
-export const FIELD_WALK = { crop: 0.5, stubble: 0.8 } as const;
+// paths.md – Stálé trasy, pravidlo 1 (Martin 25. 10. 2026: „No a kdyby se cesta neměnila podle
+// toho, v jakém je pole stavu, ale použil by se nějaký průměr?“; číslo návrh Clauda, schváleno):
+// rychlost chůze přes pole proti louce je stálá – 0,875 (cena buňky 8 / 7 ≈ 1,14) v každém
+// stadiu dílu (zakládaný, zoraný, osetý, rostoucí, zralý, žeň, strniště, úhor). Martin 26. 10.
+// 2026 („A“): časový průměr dřívějších cen (v osevu 2, strniště 1,25, úhor a příloh jako louka 1
+// – Martin 19. 10. 2026) přes skutečný osevní postup (fields.md – Osevní postup po dílech: oběh
+// 12 let, ozim, jař a 10 let úhor) – oseto ≈ šestina dílů → 1,12, Vlkov (≈ 80 % ladem) → 1,14;
+// dřív 0,6 (1,67) podle trojpolí. Zarostlý díl (křoviny, mladý les) jako louka s cenou vegetace.
+// Pole není zákaz, jen cena – síť pěšin hledá nejrychlejší cestu
+export const FIELD_WALK = { field: 0.875 } as const;
 // roads.md – Dvě vrstvy cest (návrh Clauda, schváleno 18. 10. 2026): pevné cesty se počítají
 // jednou za rok k 1. 11. (po sklizni jablek) z celoroční práce; úsek, kudy se dva roky po sobě
 // chodí aspoň 3× denně (roční průměr), se stane pevnou cestou; vyšlapaná cesta, kudy se 5 let po
@@ -117,41 +120,32 @@ export const CART_ROUTES = {
 } as const;
 // wagons.md – Vozová síť – rychlosti (Martin, 19. 10. 2026: souhlas s odstupňováním podle druhu
 // cesty „jako u chůze“; čísla návrh Clauda): rychlost vozu proti louce (cena buňky = 1 / rychlost)
-// – louka, úhor a příloh 1, strniště 0,8, zoraný díl 0,6, mokřina bez cesty 0,55 (bahno);
+// – louka 1, mokřina bez cesty 0,55 (bahno), pole stálá cena (níž);
 // vyšlapaná cesta 1,3, vyježděná (vyšlapaná s příznakem vozová) 1,6, upravená 1,8, hať 1,8 i přes
 // mokřinu; vyšlapaná, vyježděná i upravená cesta přes mokřinu jako mokřina bez cesty. Na poli
 // platí nejpomalejší z povrchu a dílu; pod pevnou cestou jen cesta
 // roads.md – Vozová cesta (Martin, 20. 10. 2026: „Ta bude vozu dávat ještě větší rychlost, bude
 // mít vyježděné, ale zpevněné koleje.“; číslo návrh Clauda, schváleno): vozová cesta 2,2 i přes
 // mokřinu (zpevněné koleje drží jako hať), brod zůstává brodem (`CART_ROUTES.fordCost`)
-// wagons.md – Vůz přes zaseté pole (Martin, 23. 10. 2026: „Vůz smí přes zaseté pole“; čísla návrh
-// Clauda): osetý díl je pro vůz průjezdný, ale metr stojí jako 8 m louky (rychlost 0,125) – vůz ho
-// vezme, jen když jiná cesta není (objížďka až 8× delší); ztráta úrody viz CART_TRAMPLE
+// paths.md – Stálé trasy, pravidlo 1 (Martin 25. 10. 2026: „Ať je stejná cena jako u dvoukoláku.
+// 4 je asi dobrý průměr. Pokud vůz pojede přes pole, tak žádnou úrodu nepošlape – je to přiměřené
+// herní zjednodušení.“): pole má pro vůz stálou rychlost 0,25 (metr jako 4 m louky) v každém
+// stadiu dílu, dvoukolák i čtyřkolák – vůz přes pole jede, když je objížďka víc než 4× delší
 export const CART_SPEED = {
-  stubble: 0.8,
-  ploughed: 0.6,
+  field: 0.25,
   wet: 0.55,
-  sown: 0.125,
   road: { trodden: 1.3, cart: 1.6, improved: 1.8, wagon: 2.2 },
-} as const;
-// wagons.md – Vůz přes zaseté pole (návrh Clauda): stopa vozu přes osetý díl je široká `trackM`
-// a jede se tam i zpět (2 průjezdy na jízdu); úroda na pošlapané ploše je pryč celá (`lossShare`
-// 1); pošlapaná plocha dílu se nuluje po sklizni
-export const CART_TRAMPLE = {
-  trackM: 2,
-  passesPerTrip: 2,
-  lossShare: 1,
 } as const;
 // paths.md – Kudy (návrh Clauda, Úloha 2): zvyk – místo bez vyšlapané pěšiny stojí pro výběr trasy
 // o `offRoad` (25 %) víc, plně vyšlapané nic; čas chůze se počítá skutečnými rychlostmi
 export const ROUTE_HABIT = { offRoad: 0.25 } as const;
-// paths.md – Vyšlapanost a vznik cesty (návrh Clauda, Úloha 3a): číslo na políčko `cellM` (7,5 m)
-// v setinách cesty – trasa přidá své cesty za den, tráva ubere `regrowPerDay` (1 cesta), mezi 0
+// paths.md – Vyšlapanost a vznik cesty (návrh Clauda, Úloha 3a): číslo na políčko `cellM` (3,75 m =
+// buňka mřížky pěšin – Stálé trasy, pravidlo 4; trasa přidá jen buňkám, kudy vede) v setinách cesty – trasa přidá své cesty za den, tráva ubere `regrowPerDay` (1 cesta), mezi 0
 // a `max` (1 500 cest); cesta vznikne od `roadAt` (1 000), prodlouží se, kudy je aspoň `extendFrom`
 // (500), pěšina je vidět od `visibleFrom` (50); jízda vozu za `cartWeight` cesty. Stará ves dostane
 // podél loňských úseků nad prahem `seed` (500 – polovina prahu; paths.md – Převod starých vsí, bod 3)
 export const WEAR = {
-  cellM: 7.5,
+  cellM: 3.75,
   regrowPerDay: 100,
   max: 150_000,
   roadAt: 100_000,

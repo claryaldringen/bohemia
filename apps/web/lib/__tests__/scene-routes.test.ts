@@ -4,6 +4,7 @@ import {
   keepSceneData,
   knownSceneData,
   lostSceneData,
+  sceneRoutesKey,
   trimKnownSceneData,
 } from '../scene-routes';
 import type { SceneVillage } from '../village-view-scene-types';
@@ -72,5 +73,43 @@ describe('trasy a vyšlapanost jen při změně klíče', () => {
     expect(
       knownSceneData(trimKnownSceneData(scene('k1', 1), knownSceneData(scene('k1', 1)))),
     ).toEqual({});
+  });
+
+  it('vyšlapanost téhož dne s jinou stranou políčka (převod 7,5 → 3,75 m) se pošle znovu', () => {
+    const old = scene('k1', 30);
+    const known = knownSceneData(old);
+    expect(known.wearCellM).toBeUndefined();
+    const converted = { ...old, wear: { day: 30, cellM: 3.75, cells: 'abc' } } as SceneVillage;
+    expect(trimKnownSceneData(converted, known).wear?.cells).toBe('abc');
+    const again = knownSceneData(converted);
+    expect(again.wearCellM).toBe(3.75);
+    expect(trimKnownSceneData(converted, again).wear).toEqual({
+      day: 30,
+      cellM: 3.75,
+      cells: null,
+    });
+  });
+
+  it('klíč tras scény se změní i s trasami k práci dne a převážením (otisk mapy stejný)', () => {
+    const base = { day: 1, key: 'mapa', workKey: 'w1', list: [route as never] };
+    const key = sceneRoutesKey(base);
+    expect(sceneRoutesKey({ ...base, workKey: 'w2' })).not.toBe(key);
+    expect(sceneRoutesKey({ ...base, list: [{ ...route, trips: 120 } as never] })).not.toBe(key);
+    // převážení s týmž součtem cest
+    const two = {
+      ...base,
+      list: [
+        { ...route, trips: 60 },
+        { ...route, to: 'b', trips: 40 },
+      ],
+    };
+    const swapped = {
+      ...base,
+      list: [
+        { ...route, trips: 40 },
+        { ...route, to: 'b', trips: 60 },
+      ],
+    };
+    expect(sceneRoutesKey(swapped as never)).not.toBe(sceneRoutesKey(two as never));
   });
 });

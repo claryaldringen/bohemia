@@ -291,6 +291,7 @@ function seedWear(state: VillageState, landscape: Landscape): void {
     day: roads.wear?.day ?? state.lastDay + 1,
     cells: encodeWear(cells),
     labor: roads.wear?.labor ?? [],
+    cellM: WEAR.cellM,
   };
 }
 

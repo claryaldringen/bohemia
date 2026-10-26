@@ -1,89 +1,45 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { flushCartTrips } from '../cart-jobs';
+import { describe, expect, it, vi } from 'vitest';
+import { flushCartTrips, withoutTrampledParts } from '../cart-jobs';
 import type { CartTripLog, FieldPart, VillageState } from '../types';
-import { LANDSCAPE } from './paths-fixtures';
 
-// Jízdy vozů za den na jednom místě (wagons.md – Vůz přes zaseté pole): uhlí, ruda, svoz i voda
-// pošlapají úrodu stejně; voda, která metry přes díl zná, se nepočítá dvakrát.
+// Jízdy vozů za den na jednom místě (wagons.md – Vyjeté cesty): jen provoz cest – vůz úrodu
+// nepošlape (paths.md – Stálé trasy; Martin 25. 10. 2026: „Pokud vůz pojede přes pole, tak žádnou
+// úrodu nepošlape – je to přiměřené herní zjednodušení.“), trasy vozů se kvůli tomu nehledají.
 
-const routes = vi.hoisted(() => ({ sown: [] as { partId: number; m: number }[], calls: 0 }));
+const routes = vi.hoisted(() => ({ calls: 0 }));
 vi.mock('../paths/roads', async (orig) => ({
   ...(await orig<typeof import('../paths/roads')>()),
-  villageCartRoutes: (...args: unknown[]): unknown[] => {
+  villageCartRoutes: (): unknown[] => {
     routes.calls++;
-    const targets = args[5] as unknown[];
-    return targets.map(() => ({
-      reached: true,
-      cost: 0,
-      lengthM: 0,
-      points: [],
-      cells: [],
-      sown: routes.sown,
-    }));
+    return [];
   },
 }));
 
-const stateOf = (): VillageState =>
+const stateOf = (part: Partial<FieldPart> & Record<string, unknown> = {}): VillageState =>
   ({
-    parts: [{ id: 3, areaM2: 1000, state: 'sown' } as FieldPart],
+    parts: [{ id: 3, areaM2: 1000, state: 'sown', ...part } as FieldPart],
     roads: null,
   }) as unknown as VillageState;
 
-beforeEach(() => {
-  routes.sown = [{ partId: 3, m: 10 }];
-  routes.calls = 0;
-});
-
 describe('flushCartTrips', () => {
-  it('jízda pro uhlí a rudu přes osetý díl pošlape úrodu', () => {
+  it('jízdy přes osetý díl úrodu nepošlapou a trasy vozů se nehledají', () => {
     const s = stateOf();
     const log: CartTripLog = [
       { x: 1, z: 2, kind: 'two-wheel', trips: 2 },
-      { x: 5, z: 6, kind: 'two-wheel', trips: 1 },
+      { x: 5, z: 6, kind: 'four-wheel', trips: 1 },
     ];
-    // trasa pokaždé přes 10 m dílu; stopa 2 m × 2 průjezdy × 10 m × (2 + 1) jízdy = 120 m2
-    flushCartTrips(s, log, 0, LANDSCAPE, null);
-    expect(s.parts[0]!.trampledM2).toBe(120);
-  });
-
-  it('voda s uloženými metry se nepočítá dvakrát', () => {
-    const s = stateOf();
-    flushCartTrips(
-      s,
-      [{ x: 1, z: 2, kind: 'two-wheel', trips: 3, sown: [{ partId: 3, m: 10 }] }],
-      0,
-      LANDSCAPE,
-      null,
-    );
-    expect(s.parts[0]!.trampledM2).toBe(120);
+    flushCartTrips(s, log);
+    expect(s.parts[0]).toEqual({ id: 3, areaM2: 1000, state: 'sown' });
     expect(routes.calls).toBe(0);
   });
+});
 
-  it('díl, který vůz právě sklízí nebo seje, nepošlapá (svoz, osivo)', () => {
-    const s = stateOf();
-    flushCartTrips(
-      s,
-      [{ x: 1, z: 2, kind: 'two-wheel', trips: 2, spare: [3] }],
-      0,
-      LANDSCAPE,
-      null,
-    );
-    expect(s.parts[0]!.trampledM2).toBeUndefined();
-  });
-
-  it('voda bez dílu na trase nese prázdné metry a trasa se nehledá znovu', () => {
-    const s = stateOf();
-    flushCartTrips(s, [{ x: 1, z: 2, kind: 'two-wheel', trips: 1, sown: [] }], 0, LANDSCAPE, null);
-    expect(routes.calls).toBe(0);
-  });
-
-  it('díl, který už není osetý, a ves bez krajiny nepošlapává', () => {
-    const s = stateOf();
-    s.parts[0]!.state = 'ready';
-    flushCartTrips(s, [{ x: 1, z: 2, kind: 'two-wheel', trips: 1 }], 0, LANDSCAPE, null);
-    expect(s.parts[0]!.trampledM2).toBeUndefined();
-    s.parts[0]!.state = 'sown';
-    flushCartTrips(s, [{ x: 1, z: 2, kind: 'two-wheel', trips: 1 }], 0, null, null);
-    expect(s.parts[0]!.trampledM2).toBeUndefined();
+describe('withoutTrampledParts (převod starší vsi)', () => {
+  it('pošlapaná plocha z doby, kdy ji vozy šlapaly, zmizí – jednou a idempotentně', () => {
+    const old = stateOf({ trampledM2: 120 });
+    const once = withoutTrampledParts(old);
+    expect(once.parts[0]).toEqual({ id: 3, areaM2: 1000, state: 'sown' });
+    expect('trampledM2' in old.parts[0]!).toBe(true); // vstupní stav se nemění
+    expect(withoutTrampledParts(once)).toBe(once);
   });
 });

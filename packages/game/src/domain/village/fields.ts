@@ -168,7 +168,6 @@ export function partFoundingCost(
 export function endOfSeason(part: FieldPart, day: number): void {
   // příloh, ze kterého se díl loni vracel, už plán zkrátit nemůže (fields.md – Osev podle zásob)
   delete part.fallowBeforeSeason;
-  delete part.trampledM2;
   if (part.state === 'sown') {
     // díl prošel orbou – drn louky založené rádlem je rozoraný (oxen.md – Jen rádlo)
     delete part.sod;

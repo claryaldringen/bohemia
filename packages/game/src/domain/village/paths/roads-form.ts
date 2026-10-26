@@ -41,7 +41,7 @@ import {
 } from './roads-geometry';
 import { type RoadAnchors, nearAnchor } from './road-anchors';
 import { SpotContext, spotsForRoad } from './roads-trees';
-import { type TrafficField, trafficAt, wearAt } from './wear';
+import { type TrafficField, trafficAt, wearNear } from './wear';
 
 /** Pevné cesty prázdné vsi – práce se začne sčítat od dne `day`. */
 export function emptyRoads(day: number): VillageRoads {
@@ -140,7 +140,7 @@ export function roadTraffic(points: readonly RoadPoint[], traffic: PathTraffic):
 
 /**
  * Provoz nové cesty z provozního pole tras (cest za den): medián bodů osy po MEASURE_STEP_M
- * (`trafficAt` – celý provoz tras i se sousedními políčky). Na setiny.
+ * (`trafficAt` – celý provoz tras v pásu ± 1 políčka). Na setiny.
  */
 export function fieldTraffic(points: readonly RoadPoint[], field: TrafficField): number {
   const values = resample(points, null, MEASURE_STEP_M).points.map((p) =>
@@ -180,7 +180,7 @@ function eachWearRun(
   for (const [n, line] of lines.entries()) {
     const run = resample(line, null, SAMPLE_M).points;
     if (run.length < 2) continue;
-    const level = run.map((p) => wearAt(wear, p.x, p.z));
+    const level = run.map((p) => wearNear(wear, p.x, p.z));
     if (!level.some((w) => w >= WEAR.roadAt)) continue;
     roadAt ??= axisDistance(roads.roads.filter((r) => !r.abandoned).map((r) => r.points));
     const at = roadAt;

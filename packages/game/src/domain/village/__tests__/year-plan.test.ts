@@ -233,13 +233,6 @@ describe('harvestKg', () => {
     // nový rok zůstane, jak je
     expect(withOnceWeedingRates(plan)).toBe(plan);
   });
-  it('pošlapaná plocha (vůz přes zaseté pole) úrodu nedá', () => {
-    const trampled = part({ trampledM2: 1000 });
-    expect(harvestKg(springCrop(finished(plan)), [trampled], day)).toBeCloseTo(
-      623.2 * 0.9 - 175,
-      1,
-    );
-  });
   it('nic neosetého = 0, nikdy záporné', () => {
     expect(harvestKg(springCrop(plan), [part()], day)).toBe(0);
   });

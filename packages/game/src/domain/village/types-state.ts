@@ -246,16 +246,13 @@ export interface VillageState {
    */
   shapesChecked?: true;
   /**
-   * Otisk rozložení vsi (`walkLayoutKey` se stadii `walkStages`), pro které se naposledy spočítaly
-   * vzdálenosti chůze po pěšinách (`FieldPart.walkDistanceM`…). Chybí, dokud se nespočítaly
-   * (starší vsi, simulace bez krajiny); klíč z doby před měsíčními stadii se jednou přepočítá.
+   * Otisk mapy tras a míst (`routeMapKey`, `routePlacesKey`, pastvina – paths.md, Stálé trasy,
+   * pravidlo 5), pro který se naposledy spočítaly stálé trasy a vzdálenosti chůze po pěšinách
+   * (`FieldPart.walkDistanceM`…). Chybí, dokud se nespočítaly (starší vsi, simulace bez krajiny);
+   * otisk z doby před stálými trasami se jednou přepočítá. (Dřívější otisk stadií `walkStages`
+   * se při načtení smaže – `withoutWalkStages`.)
    */
   walkLayoutKey?: string;
-  /**
-   * Otisk stadií dílů a pastvy úhoru (`walkStageKey`) z posledního 1. dne v měsíci – do klíče
-   * chůze se stadia promítají jen jednou za měsíc (Martin, 18. 10. 2026). Chybí jako výše.
-   */
-  walkStages?: string;
   /**
    * Trasy sítě pěšin (paths.md – Kdy se trasy počítají a co se ukládá) – kudy kdo kam chodí,
    * spočítané s přepočtem chůze pro otisk `walkLayoutKey`. Chybí u vsí uložených dřív (doplní je

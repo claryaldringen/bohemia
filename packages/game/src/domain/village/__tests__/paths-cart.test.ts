@@ -190,7 +190,7 @@ describe('kudy vůz projede', () => {
     }
   });
 
-  it('čtyřkolák po louce a strništi kamkoli, na zoraný díl ne (wagons.md – Co se vozí a na čem)', () => {
+  it('čtyřkolák po louce a poli kamkoli, pole jako dvoukolák (paths.md – Stálé trasy)', () => {
     const four = (extra: Partial<PathVillage>, target: { x: number; z: number }): CartRoute =>
       cartRoutes({
         village: village(extra),
@@ -198,13 +198,13 @@ describe('kudy vůz projede', () => {
         kind: 'four-wheel',
         depots: [{ x: 0, z: 0 }],
         targets: [{ ...target, reachM: 4 }],
-        fourWheel: true,
       }).routes[0]!;
     // Martin: „Po strništích a loukách může libovolně“ – daleko od ohrady i bez cesty
     const far = { x: 60, z: 40 };
     expect(route({}, far).reached).toBe(true);
     expect(four({}, far).reached).toBe(true);
-    // přes strniště (připravený díl) rovně, zoraný (zakládaný) díl objede – dvoukolák přes něj
+    // stadium dílu nerozhoduje – přes strniště i zakládaný díl táž trasa (Martin 25. 10. 2026:
+    // „Ať je stejná cena jako u dvoukoláku.“)
     const fields = (stage: 'ready' | 'founding'): PathVillage['fields'] => [
       { id: 2, parts: [-15, 0, 15].map((x) => part(x, 52.5, stage)) },
     ];
@@ -212,8 +212,8 @@ describe('kudy vůz projede', () => {
     const stubble = four({ fields: fields('ready') }, behind);
     const ploughed = four({ fields: fields('founding') }, behind);
     expect(stubble.reached && ploughed.reached).toBe(true);
-    expect(ploughed.lengthM).toBeGreaterThan(stubble.lengthM + 10);
-    expect(route({ fields: fields('founding') }, behind).lengthM).toBeLessThan(ploughed.lengthM);
+    expect(ploughed.cells).toEqual(stubble.cells);
+    expect(ploughed.cost).toBe(stubble.cost);
   });
 
   it('přes vodu bez brodu ani po cestě s lávkou (lávka je jen pro pěší)', () => {
@@ -228,43 +228,33 @@ describe('kudy vůz projede', () => {
     );
   });
 
-  it('přes osetý díl ne – objede ho; přes úhor rovně', () => {
+  it('osetý díl i úhor stejně – stálá cena pole (paths.md – Stálé trasy)', () => {
     const fields = (stage: 'sown' | 'young-fallow'): PathVillage['fields'] => [
-      { id: 2, parts: [-15, 0, 15].map((x) => part(x - 7.5 + 7.5, 52.5, stage)) },
+      { id: 2, parts: [-15, 0, 15].map((x) => part(x, 52.5, stage)) },
     ];
     const target = { x: 0, z: 70 };
     const sown = route({ fields: fields('sown') }, target);
     const fallow = route({ fields: fields('young-fallow') }, target);
     expect(sown.reached && fallow.reached).toBe(true);
-    expect(sown.lengthM).toBeGreaterThan(fallow.lengthM + 10);
+    expect(sown.cells).toEqual(fallow.cells);
+    expect(sown.cost).toBe(fallow.cost);
   });
 
-  it('vůz bez jiné cesty projede zasetý díl (Martin 23. 10. 2026) a započítá metry přes něj', () => {
-    // pás osetých dílů přes celou šířku krajiny – objížďka není
+  it('vůz bez jiné cesty projede pole – metr jako 4 m louky (Martin 25. 10. 2026)', () => {
+    // pás dílů přes celou šířku krajiny – objížďka není
     const wall: PathVillage['fields'] = [
       {
         id: 2,
-        parts: Array.from({ length: 42 }, (_, k) => ({
-          ...part(-150 + (k % 21) * 15, 37.5 + Math.floor(k / 21) * 15, 'sown'),
-          partId: 7,
-        })),
+        parts: Array.from({ length: 42 }, (_, k) =>
+          part(-150 + (k % 21) * 15, 37.5 + Math.floor(k / 21) * 15, 'sown'),
+        ),
       },
     ];
     const target = { x: 0, z: 70 };
-    const sown = route({ fields: wall }, target);
-    expect(sown.reached).toBe(true);
-    const crossed = sown.sown.reduce((m, s) => m + s.m, 0);
-    expect(crossed).toBeGreaterThanOrEqual(7);
-    expect(sown.sown.every((s) => s.partId === 7)).toBe(true);
-    // jinak by trasa byla o řád levnější
-    expect(sown.cost).toBeGreaterThan(route({}, target).cost + crossed * 5);
-  });
-
-  it('s objížďkou vůz zasetý díl objede a nic nepošlape', () => {
-    const fields: PathVillage['fields'] = [
-      { id: 2, parts: [-15, 0, 15].map((x) => ({ ...part(x, 52.5, 'sown'), partId: 7 })) },
-    ];
-    expect(route({ fields }, { x: 0, z: 70 }).sown).toEqual([]);
+    const across = route({ fields: wall }, target);
+    expect(across.reached).toBe(true);
+    // přes ≈ 30 m pole – každý metr o 3 dráž než louka
+    expect(across.cost).toBeGreaterThan(route({}, target).cost + 60);
   });
 
   it('humno vůz objede jako stavbu (production-chains.md – Humno)', () => {
@@ -366,14 +356,14 @@ describe('rychlost vozu podle povrchu a cesty (wagons.md – Vozová síť, rych
     close(at(grid, 45, -30), CART_SPEED.road.improved);
     // táž cesta mimo mokřinu na ose
     close(at(grid, 0, -45), CART_SPEED.road.trodden);
-    // díly polí
-    close(at(grid, -37.5, 37.5), CART_SPEED.ploughed);
-    close(at(grid, -37.5, 52.5), CART_SPEED.stubble);
-    close(at(grid, -22.5, 37.5), 1);
-    close(at(grid, -22.5, 52.5), 1);
-    close(at(grid, -7.5, 37.5), CART_SPEED.sown);
-    // zoraný díl v mokřině – nejpomalejší z obou
-    close(at(grid, 45, 37.5), Math.min(CART_SPEED.wet, CART_SPEED.ploughed));
+    // díly polí – stálá cena v každém stadiu (paths.md – Stálé trasy)
+    close(at(grid, -37.5, 37.5), CART_SPEED.field);
+    close(at(grid, -37.5, 52.5), CART_SPEED.field);
+    close(at(grid, -22.5, 37.5), CART_SPEED.field);
+    close(at(grid, -22.5, 52.5), CART_SPEED.field);
+    close(at(grid, -7.5, 37.5), CART_SPEED.field);
+    // okraj dílu (úvrať) v mokřině – jako louka v mokřině
+    close(at(grid, 45, 37.5), CART_SPEED.wet);
     // cesta přes zakládaný díl – rychlost cesty
     close(at(grid, 97.5, 7.5), CART_SPEED.road.trodden);
     // pořadí rychlostí (CART_SPEED)
@@ -388,7 +378,7 @@ describe('rychlost vozu podle povrchu a cesty (wagons.md – Vozová síť, rych
     // upravená bez hatě (`unbridged`) v mokřině jako vyšlapaná – bahno
     expect(cartRoadSpeed('improved', false, true, 0, true)).toBe(CART_SPEED.wet);
     expect(cartRoadSpeed('trodden', true, true)).toBe(CART_SPEED.wet);
-    expect(cartPartSpeed('sown')).toBe(CART_SPEED.sown);
+    expect(cartPartSpeed('sown')).toBe(CART_SPEED.field);
     expect(cartPartSpeed('shrubs')).toBe(0);
     expect(cartPartSpeed('young-forest')).toBe(0);
   });

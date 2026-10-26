@@ -419,13 +419,19 @@ Sondy bez kováře (kovárna zrušená) na čerstvém stavu z 31. 1. 801, kdy ve
   vodu nejel; čísla návrh Clauda). Osetý díl je pro vůz **průjezdný, ale metr stojí jako 8 m
   louky** (`CART_SPEED.sown` 0,125) – vůz ho vezme, jen když by objížďka byla víc než 8× delší;
   s pevnou cestou, strništěm či loukou kolem jede jimi. Okraj dílu (úvrať, buňky na vnější hraně
-  pole) není osetý a jede se tam jako po louce, takže vůz po okraji jede sám, kde to jde. Přejetá
-  úroda se **pošlape**: každá jízda tam a zpět (`CART_TRAMPLE.passesPerTrip` 2 průjezdy) pošlape
-  na osetém dílu pruh široký `CART_TRAMPLE.trackM` (2 m) × ujeté metry; pošlapaná plocha
-  (`FieldPart.trampledM2`, nejvýš celý díl) úrodu nedá (`lossShare` 1) a při sklizni se úroda dílu
-  o její podíl zmenší; po konci hospodářského roku (`endOfSeason`) se nuluje. Čtyřkolák platí
-  stejně; zoraný díl čtyřkolák dál objede. Pošlapání platí u **všech** jízd vozů (voda, uhlí,
-  ruda, osivo, klády, svoz); díl, který už není osetý (např. právě sklízený), se nepošlapává.
+  pole) není osetý a jede se tam jako po louce, takže vůz po okraji jede sám, kde to jde. ~~Přejetá
+  úroda se pošlape (`CART_TRAMPLE`, `FieldPart.trampledM2`)~~ – **od 25. 10. 2026 vůz přes pole úrodu
+  nepošlape** (Martin 25. 10. 2026: „Pokud vůz pojede přes pole, tak žádnou úrodu nepošlape – je to
+  přiměřené herní zjednodušení.“); `CART_TRAMPLE`, `trampledM2` i související upozornění zmizí.
+  Čtyřkolák platí stejně jako dvoukolák.
+- **Stálé trasy vozů (Martin 25. 10. 2026 – [paths.md – Stálé trasy](paths.md#stálé-trasy-25-10-2026)):**
+  vozová síť nezná stadium dílu – **celé pole stojí vozu stálou průměrnou cenu 4** (Martin 25. 10. 2026: „Ať je stejná cena jako u dvoukoláku. 4 je asi dobrý průměr.“; rychlost
+  0,25 – časový průměr trojpolí: osetý díl 8, strniště 1,25, úhor 1) od chvíle, kdy ho hráč
+  umístí; úvrať jako louka, zarostlý díl neprůjezdný jako dosud. Trasa vozu k témuž cíli je tak
+  celý rok stejná a mřížka i trasy se drží v paměti podle mapy tras. Přes pole vůz jede, když je
+  objížďka víc než 4× delší; **úrodu nepošlape** (Martin 25. 10. 2026, herní zjednodušení).
+  Nahrazuje ceny dílů podle stadia v tabulce Rychlosti (osetý, zoraný, strniště, připravený díl)
+  i „zoraný díl čtyřkolák objede“ (čtyřkolák má stejnou cenu jako dvoukolák – Martin 25. 10. 2026).
 - **Vyježděné cesty** (Martin, 19. 10. 2026: „Cesty – pokud nějakou cestu vyjezdí vůz, bude to
   vyježděná cesta. Pokud vůz takhle vyjezdí vyšlapanou cestu, tak to vozová cesta přebije.“):
   **Nahrazeno (Martin, 22. 10. 2026 (zadání #6): „Cesty zakládají jen lidé tím, kudy chodí“):** vozy nové cesty nezakládají –
@@ -570,8 +576,10 @@ Návrh Clauda (19. 10. 2026) – detaily, které návrh výš nechal otevřené;
     doprostřed velkého osetého pole by nedojel. Snopy se ale svážejí z požatých dílů, kde stojí
     v panácích, a žeň jde od domu ven (fields.md – Postup práce po čtvercích) – díly sklízené
     plodiny se pro vůz postupně otevírají. Dosah žně proto síť počítá s díly sklízené plodiny jako
-    se strništěm (`harvestReachState` – stadium připraveného dílu, jede se jako po strništi 0,8); ostatní osetá pole
-    (jař a luštěniny při žni ozimu) vůz nepustí – snopy za nimi nosí lidé jako dřív. Proti
+    se strništěm ~~(`harvestReachState` – stadium připraveného dílu, jede se jako po strništi 0,8); ostatní osetá pole
+    (jař a luštěniny při žni ozimu) vůz nepustí – snopy za nimi nosí lidé jako dřív.~~ Od 25. 10. 2026
+    má pole pro vůz stálou cenu v každém stadiu a `harvestReachState` zmizel ([paths.md](paths.md) –
+    Stálé trasy, pravidlo 1). Proti
     variantě „jen k dílům na kraji osetého bloku“ by vůz ve velkém poli nevozil skoro nic, ač
     po strništi za žní jezdil; proti „všude“ zůstává překážkou cizí osetí, voda a les.
   - **Jízdy do ročního provozu cest:** vůz za den udělá 8 jízd (`CARTS.loadsPerCartDay`) – podle
@@ -658,11 +666,12 @@ v `paths/roads.ts`, čísla `CART_ROUTES` a `CART_ROADS` v `rules.ts`.
   - **Na poli platí nejpomalejší** z povrchu (mokřina) a dílu, ne součin – jako u chůze (dřív
     zoraný díl v mokřině 1,8 × 1,6). Pod pevnou cestou jen cesta (strniště, zoraný díl i mokřina –
     mokřinu tam pozná osa cesty).
-  - **Připravený díl je strniště** (rozhodnutí Clauda): vozová síť zná díl jen podle stadia
+  - ~~**Připravený díl je strniště**~~ (zrušeno 25. 10. 2026 – pole stálou cenou, [paths.md](paths.md) –
+    Stálé trasy, pravidlo 1) ~~(rozhodnutí Clauda): vozová síť zná díl jen podle stadia
     a dosah žně (`harvestReachState`) vidí sklízené díly jako připravené – vůz po nich jede
     po strništi. Skutečně připravený díl (založený, čeká na osev) do osevu sesedne – jede se po
     něm stejně; zakládaný díl (drn se právě rozrývá) jako zoraný. Díl plánu po orbě je osetý –
-    vůz po něm nejede (beze změny).
+    vůz po něm nejede (beze změny).~~
   - **Co se změní samo:** vše, co bere cenu vozové sítě – cesta spřežení k orbě (`tripCost`
     v `plough-trip.ts`, `TEAM_TRAVEL`), dosah svozu (mez hledání `maxCost`), trasy vozů dne ve
     scéně a roční síť vozů (vyjeté cesty). Vlkov (stav 27. 4. 796): cesta spřežení k bloku jaře
@@ -809,7 +818,7 @@ Návrh Clauda (19. 10. 2026) – jen zobrazení, simulace se nemění.
 | Voda ráno ve dny orby: pár od rádla sveze vodu, když orba dne nechá páru volnou chvíli nebo okno orby má rezervu (zbytek orby do poloviny kapacity zbývajících dnů); jinak orba přednost; od 24. 10. jen pár doma (v den výjezdu), pár na poli vodu nesveze                                                                                    | Martin 24. 10. 2026 („Rozhodne ekonomika“); čísla návrh Clauda       |
 | Vůz jede tolikrát, kolikrát se naplní, zbytek nesou lidé rovnoměrně mezi jízdy; klády s vozem vždy na voze, bez něj dva lidé na kládu; v panelu vozu nosnost a náklad                                                                                                                                                                          | Martin (22. 10. 2026)                                                |
 | Vozy vozí seno, snopy, klády a zboží obchodu místo nosičů                                                                                                                                                                                                                                                                                      | Martin (19. 10. 2026)                                                |
-| Vůz smí přes zaseté pole, když jiná cesta není (metr jako 8 m louky); úroda na pojeté stopě se pošlape                                                                                                                                                                                                                                         | Martin 23. 10. 2026 („Vůz smí přes zaseté pole“); čísla návrh Clauda |
+| Vůz smí přes zaseté pole, když jiná cesta není (metr jako 8 m louky); ~~úroda na pojeté stopě se pošlape~~ (od 25. 10. 2026 se nepošlape)                                                                                                                                                                                                      | Martin 23. 10. 2026 („Vůz smí přes zaseté pole“); čísla návrh Clauda |
 | Vozy mají vlastní síť – nevyjedou prudký svah, vyjezdí serpentiny a vlastní cesty                                                                                                                                                                                                                                                              | Martin                                                               |
 | Tesař vyrábí vozy, dřevěné nářadí (mírně celá ves) a výrazně zrychlí dřevěné části staveb                                                                                                                                                                                                                                                      | Martin                                                               |
 | Tesař nestaví specializované stavby – jen pomáhá ostatním                                                                                                                                                                                                                                                                                      | Martin                                                               |

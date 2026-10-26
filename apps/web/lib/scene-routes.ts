@@ -2,13 +2,30 @@
 // v dotazu na ves pošle klíč tras a den vyšlapanosti, které má, server při shodě pošle `null`
 // a klient drží poslední.
 
-import { decodeWear, routePaths, type PathLine } from '@bohemia/game';
+import {
+  decodeWear,
+  routePaths,
+  routesCacheKey,
+  type PathLine,
+  type VillageRoutes,
+} from '@bohemia/game';
 import type { SceneVillage } from './village-view-scene-types';
 
 /** Klíče, které klient má – příloha dotazu na ves. */
 export interface KnownSceneData {
   routesKey?: string;
   wearDay?: number;
+  /** Strana políčka vyšlapanosti, kterou klient má (převod 7,5 → 3,75 m týž den – `SceneWear`). */
+  wearCellM?: number;
+}
+
+/**
+ * Klíč tras pro scénu: otisk mapy tras (`VillageRoutes.key`) se nemění, když se 1. dne v měsíci
+ * jen převáží cesty za den nebo přepočítají trasy k práci dne (paths.md – Stálé trasy, pravidlo 5)
+ * – klíč scény proto nese i místa práce a součet cest za den.
+ */
+export function sceneRoutesKey(routes: VillageRoutes): string {
+  return `${routes.key}/${routes.workKey ?? ''}/${routesCacheKey(routes.list)}`;
 }
 
 /** Klíče tras a vyšlapanosti pohledu (pro dotaz na ves). */
@@ -16,6 +33,9 @@ export function knownSceneData(scene: SceneVillage | undefined): KnownSceneData 
   return {
     ...(scene?.routes?.list ? { routesKey: scene.routes.key } : {}),
     ...(scene?.wear?.cells !== null && scene?.wear ? { wearDay: scene.wear.day } : {}),
+    ...(scene?.wear?.cells !== null && scene?.wear?.cellM !== undefined
+      ? { wearCellM: scene.wear.cellM }
+      : {}),
   };
 }
 
@@ -26,12 +46,15 @@ export function trimKnownSceneData(scene: SceneVillage, known: KnownSceneData): 
     known.routesKey !== undefined &&
     scene.routes.key === known.routesKey;
   const sameWear =
-    scene.wear !== undefined && known.wearDay !== undefined && scene.wear.day === known.wearDay;
+    scene.wear !== undefined &&
+    known.wearDay !== undefined &&
+    scene.wear.day === known.wearDay &&
+    scene.wear.cellM === known.wearCellM;
   if (!sameRoutes && !sameWear) return scene;
   return {
     ...scene,
     ...(sameRoutes && scene.routes ? { routes: { key: scene.routes.key, list: null } } : {}),
-    ...(sameWear && scene.wear ? { wear: { day: scene.wear.day, cells: null } } : {}),
+    ...(sameWear && scene.wear ? { wear: { ...scene.wear, cells: null } } : {}),
   };
 }
 

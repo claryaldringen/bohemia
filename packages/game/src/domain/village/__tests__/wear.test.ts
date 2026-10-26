@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { WEAR } from '../rules-roads';
 import { type GridWindow } from '../paths/network-grid';
 import { encodeRoute } from '../paths/routes';
+import { wearStrengthAt } from '../paths/route-paths';
+import { pathCellM } from '../paths/terrain';
 import {
+  addCartWear,
   decodeWear,
   encodeWear,
   flushWear,
@@ -18,8 +21,9 @@ import {
   wearRevisionKey,
 } from '../paths/wear';
 import type { RoadWear, StoredRoute, VillageRoutes } from '../types';
+import { LANDSCAPE } from './paths-fixtures';
 
-/** Buňka mřížky pěšin – 3,75 m (políčko vyšlapanosti 7,5 m = 2 × 2 buňky). */
+/** Buňka mřížky pěšin – 3,75 m = políčko vyšlapanosti (paths.md – Stálé trasy, pravidlo 4). */
 const CELL = 3.75;
 const WINDOW: GridWindow = { width: 400, height: 400, originX: -750, originZ: -750, cellM: CELL };
 
@@ -87,17 +91,17 @@ describe('vyšlapanost – kódování', () => {
     expect(encodeWear(new Map())).toBe('');
   });
 
-  it('políčka trasy ± 1, každé jednou, seřazená', () => {
-    // buňky 0–7 (0–26,25 m) → políčka 0–3 v řadě 0, se sousedy −1–4 × −1–1
+  it('políčko = buňka mřížky pěšin 3,75 m; políčka trasy = její buňky bez sousedů, seřazená', () => {
+    expect(WEAR.cellM).toBe(CELL);
+    expect(WEAR.cellM).toBe(pathCellM(LANDSCAPE));
     const cells = wearCellsOf(route(0, 0, 7, 100), CELL);
-    expect(cells.length).toBe(6 * 3);
-    expect(new Set(cells).size).toBe(cells.length);
-    expect([...cells].sort((a, b) => a - b)).toEqual(cells);
-    expect(cells).toContain(wearKey(-1, -1));
-    expect(cells).toContain(wearKey(4, 1));
-    expect(cells).not.toContain(wearKey(5, 0));
-    // záporné souřadnice: buňka −1 (−3,75 m) leží v políčku −1
+    expect(cells).toEqual([0, 1, 2, 3, 4, 5, 6, 7].map((x) => wearKey(x, 0)));
+    expect(cells).not.toContain(wearKey(0, 1));
+    expect(cells).not.toContain(wearKey(-1, 0));
+    // bod světa padne do nejbližší buňky – střed buňky i bod do půl buňky od něj, i záporné
     expect(wearCellAt(-1 * CELL, -1 * CELL)).toBe(wearKey(-1, -1));
+    expect(wearCellAt(2 * CELL + 1.8, -2 * CELL - 1.8)).toBe(wearKey(2, -2));
+    expect(wearCellAt(2 * CELL - 1.8, 0)).toBe(wearKey(2, 0));
   });
 
   it('klíč práce = cíl trasy', () => {
@@ -141,12 +145,30 @@ describe('vyšlapanost – sčítání po intervalech', () => {
     expect(wear.cells).toBe('');
   });
 
-  it('trasa posunutá o políčko sčítá dál', () => {
+  it('trasa přidá jen svým buňkám – buňka vedle nic (bez tolerance)', () => {
     const wear = emptyWear();
     settle(wear, trafficField(routesOf([route(0, 0, 20, 300)]), CELL), 0, 250);
-    // o 2 buňky (7,5 m) vedle – políčko řady 1 je soused obou
-    settle(wear, trafficField(routesOf([route(0, 2, 20, 300)]), CELL), 250, 500);
-    expect(wearOfCell(wear, 10, 2)).toBe(WEAR.roadAt);
+    expect(wearOfCell(wear, 10, 0)).toBe(50_000);
+    expect(wearOfCell(wear, 10, 1)).toBe(0);
+    expect(wearOfCell(wear, 10, -1)).toBe(0);
+    expect(wearOfCell(wear, 21, 0)).toBe(0);
+    expect(decodeWear(wear.cells).size).toBe(21);
+  });
+
+  it('jízda vozu přidá jen buňce, kudy vůz jel', () => {
+    const wear = emptyWear();
+    const raw = new Float32Array(10 * 10);
+    raw[3 * 10 + 4] = 2; // buňka (4, 3) okna od (0, 0) – 2 jízdy za den
+    addCartWear(wear, { originX: 0, originZ: 0, cellM: CELL, width: 10, height: 10, raw }, 10);
+    flushWear(wear);
+    expect([...decodeWear(wear.cells)]).toEqual([[wearKey(4, 3), 2 * 10 * 100 * WEAR.cartWeight]]);
+  });
+
+  it('čára trasy čte vyšlapanost z buňky bodu a sousedních (vyhlazený bod až o buňku vedle)', () => {
+    const cells = new Map([[wearKey(5, 0), WEAR.roadAt]]);
+    expect(wearStrengthAt(cells, 5 * CELL, 0)).toBe(1);
+    expect(wearStrengthAt(cells, 5.4 * CELL, 1.4 * CELL)).toBe(1);
+    expect(wearStrengthAt(cells, 5 * CELL, 2 * CELL)).toBe(0);
   });
 
   it('dopočet 400 dní po 1 / 7 / 30 / 400 dnech je bit po bitu stejný', () => {
@@ -275,7 +297,8 @@ describe('vyšlapanost – sčítání po intervalech', () => {
       ),
       labor: [],
     };
-    expect(settle(wear, field, 0, 3)).toBe(18 + 2);
+    // 8 buněk trasy (i (0, 0)) a 3 vyšlapaná políčka mimo ni
+    expect(settle(wear, field, 0, 3)).toBe(8 + 3);
   });
 });
 
@@ -292,6 +315,9 @@ describe('provozní pole', () => {
     expect(sum).toBe(a.trips * cells.length);
     for (let x = 0; x <= 20; x++) expect(trafficAt(field, x * CELL, 0)).toBe(270);
     expect(trafficAt(field, 0, 50 * CELL)).toBe(0);
+    // provoz pro cesty z pásu ± 1 buňky (osa cesty je vyhlazená čára trasy), každá trasa jednou
+    expect(trafficAt(field, 10 * CELL, CELL)).toBe(270);
+    expect(trafficAt(field, 10 * CELL, 2 * CELL)).toBe(0);
     const both = trafficField(routesOf([a, route(0, 0, 20, 30)]), CELL);
     expect(trafficAt(both, 10 * CELL, 0)).toBe(300);
   });

@@ -10,7 +10,7 @@ import {
 } from '../paths/network';
 import { lineRoads, roadLining } from '../paths/road-lining';
 import { PATH_WATER, PATH_WETLAND, type PathTerrain } from '../paths/terrain';
-import { refreshWalkDistances, walkStageKey } from '../paths/village';
+import { refreshWalkDistances, routeMapKey } from '../paths/village';
 import { roadTreeSpeed, roadWalkSpeed } from '../paths/walk-speed';
 import {
   fastestWalkShare,
@@ -383,7 +383,7 @@ describe('olemování ve stavu vsi (lineRoads, refreshWalkDistances)', () => {
     // keře – zatím nic
     expect(s.roads!.roads[0]!.lined).toEqual({ trees: 0, apples: 0 });
     const before = far(s);
-    const stages = s.walkStages;
+    const stages = s.walkLayoutKey;
     // 15. 6. jsou to stromy, ale chůze se přepočítá až 1. 7.
     refreshWalkDistances(s, DAY + 14, LANDSCAPE, null);
     expect(s.roads!.roads[0]!.lined).toEqual({ trees: 0, apples: 0 });
@@ -391,17 +391,17 @@ describe('olemování ve stavu vsi (lineRoads, refreshWalkDistances)', () => {
     const july = dayIndexOf({ year: 600, month: 7, day: 1 });
     refreshWalkDistances(s, july, LANDSCAPE, null);
     expect(s.roads!.roads[0]!.lined!.trees).toBeGreaterThanOrEqual(0.9);
-    expect(s.walkStages).not.toBe(stages);
+    expect(s.walkLayoutKey).not.toBe(stages);
     expect(far(s)).toBeLessThan(before);
   });
 
-  it('bez stromů u cest klíč stadií beze změny a olemování nulové', () => {
+  it('bez stromů u cest klíč mapy tras beze změny a olemování nulové', () => {
     const s = withRoad();
     s.roads!.trees = [];
-    const key = walkStageKey(s, DAY + 2);
+    const key = routeMapKey(s, DAY + 2);
     lineRoads(s, DAY + 2, true);
     expect(s.roads!.roads[0]!.lined).toEqual({ trees: 0, apples: 0 });
-    expect(walkStageKey(s, DAY + 2)).toBe(key);
+    expect(routeMapKey(s, DAY + 2)).toBe(key);
   });
 
   it('určí jen chybějící, 1. dne v měsíci všechny; strom odstraněný stavbou se nepočítá', () => {

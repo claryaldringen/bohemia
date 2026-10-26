@@ -157,8 +157,8 @@ export interface RoadLaborShare {
 }
 
 /**
- * Vyšlapanost (paths.md – Vyšlapanost a vznik cesty): setiny cesty na políčko 7,5 m, sčítá se po
- * intervalech (`paths/wear.ts` – `settleWear`).
+ * Vyšlapanost (paths.md – Vyšlapanost a vznik cesty): setiny cesty na políčko 3,75 m (buňka mřížky
+ * pěšin), sčítá se po intervalech (`paths/wear.ts` – `settleWear`).
  */
 export interface RoadWear {
   /** Den posledního sčtu – `cells` platí na jeho začátek. */
@@ -167,6 +167,11 @@ export interface RoadWear {
   cells: string;
   /** Práce od `day` po místech (člověkodny celkem) – v intervalu ji nesou trasy za prací. */
   labor: RoadLaborShare[];
+  /**
+   * Strana políčka (m) – `WEAR.cellM`. Chybí = políčka 7,5 m z doby před 26. 10. 2026; převede je
+   * `withWearCells` při načtení (paths.md – Stálé trasy, pravidlo 4).
+   */
+  cellM?: number;
 }
 
 /**
@@ -389,8 +394,6 @@ export interface CartDrive {
   costM: number;
   x: number;
   z: number;
-  /** Kolik metrů trasy vede přes osetý díl pole (podle id dílu) – vůz tam pošlapává úrodu. */
-  sown?: { partId: number; m: number }[];
 }
 
 /** Jízdy vozů k jednomu cíli za rok cest (wagons.md – Vozová síť). */
@@ -399,13 +402,9 @@ export interface RoadCartTrips {
   z: number;
   kind: CartKind;
   trips: number;
-  /** Metry trasy přes osetý díl, když je známe (voda) – jinak je najde `flushCartTrips`. */
-  sown?: { partId: number; m: number }[];
-  /** Díly, které vůz právě sklízí nebo seje (cíl jízdy) – ty se nepošlapávají. */
-  spare?: readonly number[];
 }
 
-/** Deník jízd vozů za den – zapíše je `flushCartTrips` (provoz cest, pošlapání úrody). */
+/** Deník jízd vozů za den – zapíše je `flushCartTrips` (provoz cest). */
 export type CartTripLog = RoadCartTrips[];
 
 /**

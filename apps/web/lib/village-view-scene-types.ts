@@ -355,6 +355,8 @@ export interface SceneRoutes {
 /** Vyšlapanost vsi pro scénu (`RoadWear` bez práce); `cells` null = beze změny oproti klientovi. */
 export interface SceneWear {
   day: number;
+  /** Strana políčka vyšlapanosti (`RoadWear.cellM`) – chybí u políček 7,5 m z doby před převodem. */
+  cellM?: number;
   cells: string | null;
 }
 

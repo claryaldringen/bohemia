@@ -11,7 +11,7 @@ import { PASTURE, pastureGrazing, pastureParts } from '../pasture';
 import { isHayMeadow, mownPartIds } from '../hay';
 import { plantingBlocker } from '../paths/roads';
 import { pathTerrainOf, pathWindowFor, withObstacles } from '../paths/terrain';
-import { pastureGrazedParts, pathVillageOf, walkLayoutKey } from '../paths/village';
+import { pastureGrazedParts, pathVillageOf, routeMapKey } from '../paths/village';
 import { hasSod } from '../plough';
 import { partWork } from '../year-plan';
 import {
@@ -199,14 +199,14 @@ describe('zarostlý příloh – seno, orba, pěšiny', () => {
     s.fields = [{ id: 1 }];
     s.parts = [part(1, { areaM2: 10_000 }), part(2, { areaM2: 10_000, distanceM: 300 })];
     s.livestock!.herds = herds({ cow: 1 });
-    const before = walkLayoutKey(s, s.lastDay);
+    const before = routeMapKey(s, s.lastDay);
     const v = pathVillageOf(s, s.lastDay, landscape);
     expect(v.fields[0]!.parts.map((p) => p.grazed)).toEqual([true, false]);
     s.woods = [{ cell: { x: 5, y: 5 }, areaM2: 225, surface: 'meadow', day: NOV1 }];
     expect(pathVillageOf(s, s.lastDay, landscape).woods).toEqual([
       { cell: { x: 5, y: 5 }, x: -37.5, z: -37.5, size: 15, surface: 'meadow' },
     ]);
-    expect(walkLayoutKey(s, s.lastDay)).not.toBe(before);
+    expect(routeMapKey(s, s.lastDay)).not.toBe(before);
   });
 });
 

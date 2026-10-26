@@ -18,7 +18,6 @@ import {
   cartCondition,
   cartOrigin,
   cartsAway,
-  harvestReachState,
   obstacleIndex,
   seasonCrops,
   ploughBlockEndPart,
@@ -393,8 +392,8 @@ const CART_ROUTE_TOLERANCE_M = 0.6;
 /**
  * Trasa vozu dne (wagons.md – fáze 3): svoz – osa vozové sítě od ohrady k místu dnešní práce
  * (díl na čele žně / seče nejblíž těžišti dnešních dílů, políčko louky, strom stavby) stejnou
- * funkcí jako dosah svozu (`villageCartRoutes`; žeň po strništi sklízené plodiny –
- * `harvestReachState`), mimo svoz k milíři a na břeh pro vodu (wagons.md – Co vozy vozí); výprava
+ * funkcí jako dosah svozu (`villageCartRoutes` – pole stálou cenou, paths.md – Stálé trasy), mimo
+ * svoz k milíři a na břeh pro vodu (wagons.md – Co vozy vozí); výprava
  * – od ohrady na začátek zemské stezky a po ní ke kraji mapy. Kam vůz nedojede (nebo bez cíle),
  * null.
  */
@@ -457,13 +456,8 @@ function cartRouteToday(
     const parts = (field?.parts ?? []).filter((p) => p.id !== undefined && ids.has(p.id));
     const goal = nearestToCentroid(parts);
     if (!goal) return null;
-    // žeň – vůz jede po strništi sklízené plodiny (jako dosah svozu v jádru)
-    const work = state.season
-      ? seasonCrops(state.season).find((c) => c.work.partIds.some((id) => ids.has(id)))?.work
-      : undefined;
-    const reachState = job.load === 'sheaves' && work ? harvestReachState(state, work) : state;
-    axis = routeTo(reachState, goal, CARTS.reachM);
-    if (!axis && kind === 'four-wheel') axis = routeToAny(reachState, parts, CARTS.reachM);
+    axis = routeTo(state, goal, CARTS.reachM);
+    if (!axis && kind === 'four-wheel') axis = routeToAny(state, parts, CARTS.reachM);
   } else if (t.kind === 'meadow') {
     const cells = t.cells.map((c) => tileCenterWorld(landscape, c.x, c.y));
     const goal = nearestToCentroid(cells);

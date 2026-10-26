@@ -8,9 +8,9 @@ import {
   WALK_VERSION,
   refreshWalkDistances,
   villagePathNetwork,
+  routeMapKey,
+  routePlacesKey,
   walkLayoutHash,
-  walkLayoutKey,
-  walkStageKey,
 } from '../paths/village';
 import type { PathVillage } from '../paths/network';
 import {
@@ -29,7 +29,7 @@ import {
 } from '../paths/walking';
 import { waterFetchingLabor } from '../labor';
 import { isCropPart, partWalkSpeed, pathCostFactor, roadWalkSpeed } from '../paths/walk-speed';
-import { PATH_WALK } from '../rules';
+import { FIELD_WALK, PATH_WALK } from '../rules';
 import { advanceVillage } from '../simulate';
 import type { Person, VillageState } from '../types';
 import { partWork } from '../year-plan';
@@ -156,65 +156,41 @@ describe('vzdálenost chůze dílů pole (refreshWalkDistances)', () => {
     expect(parts.length).toBe(5);
     for (const p of parts) {
       expect(p.walkDistanceM).toBeDefined();
-      expect(p.walkDistanceM!).toBeLessThanOrEqual(p.distanceM);
-      expect(distanceFactor(partWalkDistance(p))).toBeLessThanOrEqual(distanceFactor(p.distanceM));
+      // po poli stálou cenou (FIELD_WALK.field) – nejvýš 1,14× vzdušná čára
+      expect(p.walkDistanceM!).toBeLessThanOrEqual(p.distanceM / FIELD_WALK.field);
+      expect(distanceFactor(partWalkDistance(p))).toBeLessThanOrEqual(
+        distanceFactor(p.distanceM / FIELD_WALK.field),
+      );
     }
-    // ve stavu jen otisky – stadia z prvního přepočtu (ráno 2. 6.); díly, které se ten den
-    // dozaložily (bez seče 1. 6. – oxen.md, Seno, dvě seče – má ves na zakládání víc práce), se do
-    // chůze promítnou až 1. dne v měsíci
-    expect(s.walkStages).toBe(walkLayoutHash(walkStageKey(withField(), DAY + 1)));
+    // ve stavu jen otisky – mapa tras a místa z prvního přepočtu (paths.md – Stálé
+    // trasy, pravidlo 5)
     expect(s.walkLayoutKey).toBe(
-      walkLayoutHash(`${walkLayoutKey(s, DAY + 1)}|${s.walkStages}|${WALK_VERSION}`),
+      walkLayoutHash(`${routeMapKey(s, DAY + 1)}|${routePlacesKey(s)}|${WALK_VERSION}`),
     );
     expect(s.walkLayoutKey).toMatch(/^[0-9a-f]{16}$/);
   });
 
-  it('stadia dílů se do chůze promítnou až 1. dne v měsíci, nový díl hned (Martin)', () => {
+  it('stadia dílů chůzi nemění ani 1. dne v měsíci, nový díl hned (paths.md – Stálé trasy)', () => {
     const s = advanceVillage(withField(), DAY + 1, null, LANDSCAPE);
     const [part, other] = s.parts.filter((p) => p.cell);
     part!.walkDistanceM = 1;
-    const stages = s.walkStages;
+    const key = s.walkLayoutKey;
     // díl se v půli měsíce oseje – vzdálenosti chůze zůstanou
     other!.state = other!.state === 'sown' ? 'ready' : 'sown';
     refreshWalkDistances(s, DAY + 2, LANDSCAPE, null);
     expect(part!.walkDistanceM).toBe(1);
-    expect(s.walkStages).toBe(stages);
-    // 1. 7. se stadia promítnou – přepočet
+    // 1. 7. – měsíční kontrola, mapa tras se nezměnila: bez přepočtu
     const july = dayIndexOf({ year: 600, month: 7, day: 1 });
     refreshWalkDistances(s, july, LANDSCAPE, null);
-    expect(part!.walkDistanceM).not.toBe(1);
-    expect(s.walkStages).not.toBe(stages);
-    // nový díl pole (strukturální změna) – přepočet hned, i v půli měsíce
-    part!.walkDistanceM = 1;
+    expect(part!.walkDistanceM).toBe(1);
+    expect(s.walkLayoutKey).toBe(key);
+    // nový díl pole (hráč umístil pole) – přepočet hned, i v půli měsíce
     refreshWalkDistances(s, july + 3, LANDSCAPE, null);
     expect(part!.walkDistanceM).toBe(1);
     s.parts.push({ ...other!, id: 999, cell: { x: 12, y: 8 } });
     refreshWalkDistances(s, july + 4, LANDSCAPE, null);
     expect(part!.walkDistanceM).not.toBe(1);
   });
-
-  it('do klíče chůze se promítne osev i strniště – rychlost chůze přes díl', () => {
-    // nové pole se založí, 1. 9. přijde do osevu, sklidí se a zůstane strniště
-    let s = advanceVillage(withField(), DAY + 1, null, LANDSCAPE);
-    const seen = new Set<string>();
-    const months = [
-      [600, 10],
-      [600, 12],
-      [601, 3],
-      [601, 5],
-      [601, 6],
-      [601, 8],
-      [601, 9],
-    ] as const;
-    for (const [year, month] of months) {
-      const day = dayIndexOf({ year, month, day: 1 });
-      s = advanceVillage(s, day, null, LANDSCAPE);
-      for (const speed of walkStageKey(s, day).match(/\/[0-9.]+/g) ?? []) seen.add(speed);
-    }
-    // v osevu 0,5, strniště 0,8 (FIELD_WALK)
-    expect(seen.has('/0.5')).toBe(true);
-    expect(seen.has('/0.8')).toBe(true);
-  }, 60_000);
 
   it('otisk klíče: stejný klíč stejný otisk, drobná změna jiný', () => {
     const key = JSON.stringify([['1:zemnice:0,0,0::1:10'], [], ['5:7,3:sown']]);
@@ -223,16 +199,20 @@ describe('vzdálenost chůze dílů pole (refreshWalkDistances)', () => {
     expect(walkLayoutHash('')).toMatch(/^[0-9a-f]{16}$/);
   });
 
-  it('s pěšinou na pole je chůze na vzdálené díly kratší než přímá', () => {
+  it('s pěšinou na pole je chůze na vzdálené díly kratší než přímo přes pole', () => {
     const s = advanceVillage(withField(), DAY + 1, null, LANDSCAPE);
     const network = villagePathNetwork(s, DAY + 1, LANDSCAPE, null)!;
     expect(network.lines.length).toBeGreaterThan(0);
     const far = s.parts.filter((p) => p.cell).sort((a, b) => b.distanceM - a.distanceM)[0]!;
-    expect(far.walkDistanceM!).toBeLessThan(far.distanceM);
-    // práce na dílu se počítá z kratší vzdálenosti
-    const before = partWork({ ...far, walkDistanceM: undefined }, DAY + 1, 0);
+    expect(far.walkDistanceM!).toBeLessThan(far.distanceM / FIELD_WALK.field);
+    // práce na dílu se počítá ze vzdálenosti chůze
+    const direct = partWork(
+      { ...far, walkDistanceM: far.distanceM / FIELD_WALK.field },
+      DAY + 1,
+      0,
+    );
     const after = partWork(far, DAY + 1, 0);
-    expect(after.dig).toBeLessThan(before.dig);
+    expect(after.dig).toBeLessThan(direct.dig);
   });
 
   it('beze změny rozložení se nepřepočítává', () => {
@@ -355,27 +335,24 @@ describe('rychlosti chůze (walk-speed.ts)', () => {
     expect(roadWalkSpeed('improved', true)).toBe(1.7);
     expect(roadWalkSpeed('improved', true, 0, true)).toBe(0.5);
     expect(FASTEST_WALK_SHARE).toBeCloseTo(1 / 1.7, 9);
-    // pole: v osevu od orby po žeň 0,5, strniště 0,8, úhor, příloh a zakládaný díl jako louka
-    for (const look of ['plowed', 'sown', 'sprouted', 'green', 'ripe', 'harvesting'] as const) {
-      expect(partWalkSpeed({ stage: 'sown', look }), look).toBe(0.5);
+    // pole: stálá rychlost 0,875 (cena 1,14) v každém stadiu a vzhledu (paths.md – Stálé trasy, pravidlo 1),
+    // zarostlý díl (křoviny, mladý les) jako louka – zdrží vegetace
+    for (const look of ['plowed', 'sown', 'green', 'harvesting', 'stubble'] as const) {
+      expect(partWalkSpeed({ stage: 'sown', look }), look).toBe(0.875);
     }
-    expect(partWalkSpeed({ stage: 'sown', look: 'stubble' })).toBe(0.8);
-    expect(isCropPart({ stage: 'sown', look: 'stubble' })).toBe(false);
-    for (const look of ['bare', 'pasture', 'young-fallow', 'meadow', 'mown'] as const) {
-      expect(partWalkSpeed({ stage: 'meadow', look }), look).toBe(1);
+    expect(isCropPart({ stage: 'sown', look: 'stubble' })).toBe(true);
+    for (const look of ['bare', 'pasture', 'meadow', 'mown'] as const) {
+      expect(partWalkSpeed({ stage: 'meadow', look }), look).toBe(0.875);
     }
-    expect(partWalkSpeed({ stage: 'founding' })).toBe(1);
-    expect(partWalkSpeed({ stage: 'young-fallow' })).toBe(1);
-    // rozpracovaný díl: platí část, které je víc (kopání strniště z 30 % – ještě strniště)
+    expect(partWalkSpeed({ stage: 'founding' })).toBe(0.875);
+    expect(partWalkSpeed({ stage: 'young-fallow' })).toBe(0.875);
+    expect(partWalkSpeed({ stage: 'shrubs' })).toBe(1);
     expect(partWalkSpeed({ stage: 'sown', look: 'plowed', work: 0.3, before: 'stubble' })).toBe(
-      0.8,
-    );
-    expect(partWalkSpeed({ stage: 'sown', look: 'plowed', work: 0.7, before: 'stubble' })).toBe(
-      0.5,
+      0.875,
     );
   });
 
-  it('rovně přes pole: v osevu 2× déle, strniště 1,25×; pěšina dne přes osev nezrychlí', () => {
+  it('rovně přes pole: v osevu i strništi 1,14× déle; pěšina dne přes pole nezrychlí', () => {
     const base = { terrain: pathTestTerrain() };
     // díly 15 × 15 m ve středu krajiny (bez mokřiny a vody); buňky terénu po 3,75 m – na kraji
     // dílu ± buňka
@@ -390,11 +367,11 @@ describe('rychlosti chůze (walk-speed.ts)', () => {
     expect(groundWalkLength(base, a, b)).toBeCloseTo(60, 6);
     const crop = withFieldWalk(base, strip('green'));
     const stubble = withFieldWalk(base, strip('stubble'));
-    expect(groundWalkLength(crop, a, b)).toBeCloseTo(120, -1);
-    expect(groundWalkLength(stubble, a, b)).toBeCloseTo(75, -1);
-    // pěšina dne: přes osev cena pole, přes strniště rychleji
-    expect(groundWalkLength(crop, a, b, 1)).toBeCloseTo(120, -1);
-    expect(groundWalkLength(stubble, a, b, 1)).toBeCloseTo(75 / 1.3, -1);
+    expect(groundWalkLength(crop, a, b)).toBeCloseTo(60 / 0.875, -1);
+    expect(groundWalkLength(stubble, a, b)).toBe(groundWalkLength(crop, a, b));
+    // pěšina dne přes pole nezrychlí – platí stálá cena pole
+    expect(groundWalkLength(crop, a, b, 1)).toBeCloseTo(60 / 0.875, -1);
+    expect(groundWalkLength(stubble, a, b, 1)).toBeCloseTo(60 / 0.875, -1);
   });
 
   it('pevná cesta přes díl v osevu jde rychlostí cesty', () => {
@@ -424,10 +401,10 @@ describe('rychlosti chůze (walk-speed.ts)', () => {
       ground,
     )[0]!;
     expect(walk).toBeCloseTo(60 / 1.5, 6);
-    // bez cesty přes osev
+    // bez cesty přes pole (stálá rychlost 0,875)
     expect(
       walkingDistances(walkGraph([], { ground }), [road.points[0]!], [road.points[1]!], ground)[0],
-    ).toBeCloseTo(120, -1);
+    ).toBeCloseTo(60 / 0.875, -1);
   });
 });
 

@@ -22,7 +22,7 @@ import {
   startRoadUpgrade,
   withBridgedRoads,
 } from '../road-upgrades';
-import { ROAD_UPGRADES, ROAD_WALK } from '../rules';
+import { FIELD_WALK, ROAD_UPGRADES, ROAD_WALK } from '../rules';
 import { advanceVillage } from '../simulate';
 import type { Dwelling, Person, Road, VillageState } from '../types';
 import { dwellingForestDistance } from '../wood';
@@ -426,7 +426,8 @@ describe('vzdálenost práce chůzí – pole, sad, palivo', () => {
     const beyond = s.parts.find((p) => p.cell?.y === 16)!;
     const before = s.parts.find((p) => p.cell?.y === 12)!;
     expect(partWalkDistance(beyond)).toBeGreaterThan(beyond.distanceM + 25);
-    expect(partWalkDistance(before)).toBeLessThanOrEqual(before.distanceM + 1e-9);
+    // před potokem nejvýš rovně přes pole (stálá cena pole – paths.md, Stálé trasy)
+    expect(partWalkDistance(before)).toBeLessThanOrEqual(before.distanceM / FIELD_WALK.field);
     const square = s.orchards![0]!.squares[0]!;
     expect(squareWalkDistance(square)).toBeGreaterThan(square.distanceM + 25);
     // práce v sadu podle chůze
