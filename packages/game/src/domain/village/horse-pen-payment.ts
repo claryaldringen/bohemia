@@ -2,6 +2,7 @@ import { paymentPool } from './craft-buying';
 import { horsePenValueKg } from './horse-stock';
 import { addHorses, horseValueKg, horsesForSale, horsesToSell, removeHorses } from './horse-trade';
 import { cattleForSale } from './cattle-trade';
+import { horsePens, isFoalByAge } from './horses';
 import { HORSE_GOODS } from './neighbours';
 import { addGood, sellPrice, sellValue } from './trade';
 import type { CraftCoverage, HorseGood, HorsePenPayment, TradedHorse, VillageState } from './types';
@@ -25,6 +26,8 @@ const ANIMALS: readonly ('cows' | HorseGood)[] = ['cows', ...HORSE_GOODS];
 
 /** Cena prodaného kusu `index` druhu `good` (kg obilí) – koně podle výcviku v pořadí prodeje. */
 function unitValues(state: VillageState, good: 'cows' | HorseGood, day: number): number[] {
+  // koně žijí v ohradách – bez hotové ohrady koní nemá ves co prodat
+  if (good !== 'cows' && !horsePens(state).some((pen) => pen.builtDay !== null)) return [];
   if (good === 'cows') {
     return Array.from({ length: cattleForSale(state, 'cows', day) }, () => sellPrice('cows'));
   }
@@ -64,25 +67,50 @@ export function horsePenPayment(
   // 2. zvířata – celé kusy, nejdřív ty, které se vejdou do zbytku
   const taken: Record<string, number> = {};
   const units = new Map(ANIMALS.map((g) => [g, unitValues(state, g, day)] as const));
-  const takeAnimals = (whole: boolean): void => {
+  const takeFitting = (): void => {
     for (const good of ANIMALS) {
       const values = units.get(good)!;
       let n = taken[good] ?? 0;
-      while (n < values.length && left > EPSILON && (!whole || values[n]! <= left + EPSILON)) {
+      while (n < values.length && left > EPSILON && values[n]! <= left + EPSILON) {
         left -= values[n]!;
         n++;
       }
       taken[good] = n;
     }
   };
-  takeAnimals(true);
-  // 3. obilí a luštěniny z přebytku nad pojistkou; nestačí-li, napřed ještě celý kus zvířete
+  // zbytek, který obilí nepokryje, doplatí jediný kus zvířete: nejlevnější, který ho pokryje
+  // (žádný takový → největší kus a zase zbytek)
+  const takeOverpay = (shortfall: number): boolean => {
+    let best: { good: 'cows' | HorseGood; value: number } | null = null;
+    for (const good of ANIMALS) {
+      const value = units.get(good)![taken[good] ?? 0];
+      if (value === undefined) continue;
+      const covers = value >= shortfall - EPSILON;
+      const bestCovers = best !== null && best.value >= shortfall - EPSILON;
+      if (
+        best === null ||
+        (covers && (!bestCovers || value < best.value)) ||
+        (!covers && !bestCovers && value > best.value)
+      ) {
+        best = { good, value };
+      }
+    }
+    if (!best) return false;
+    taken[best.good] = (taken[best.good] ?? 0) + 1;
+    left -= best.value;
+    return true;
+  };
+  takeFitting();
+  // 3. obilí a luštěniny z přebytku nad pojistkou; co nepokryjí, doplatí kus zvířete navíc
   const poolValue = (pool: ReturnType<typeof paymentPool>): number => {
     const grain = Math.min(pool.grainKg, pool.energyKg);
     const legumes = Math.min(pool.legumesKg, Math.max(0, pool.energyKg - grain));
     return grain * sellPrice('grain') + legumes * sellPrice('legumes');
   };
-  if (left > poolValue(paymentPool(state, day, coverage)) + EPSILON) takeAnimals(false);
+  const surplus = poolValue(paymentPool(state, day, coverage));
+  while (left > surplus + EPSILON && takeOverpay(left - surplus)) {
+    // další kus jen, když předchozí zbytek nepokryl
+  }
   if (left > EPSILON) {
     const pool = paymentPool(state, day, coverage);
     const grainKg = Math.min(left / sellPrice('grain'), pool.grainKg, pool.energyKg);
@@ -118,11 +146,26 @@ export function payHorsePen(state: VillageState, payment: HorsePenPayment, day: 
   addGood(state, 'legumes', -payment.legumesKg, day);
 }
 
-/** Vrátí zaplacené při zrušení stavby (mutuje stav) – přesně to, co se zaplatilo. */
+/** Cena koně v kg obilí, za kterou by ho soused vzal (hříbě, klisna, jezdecký kůň podle výcviku). */
+function tradedValue(horse: TradedHorse, day: number): number {
+  if (isFoalByAge(horse, day)) return sellPrice('foals');
+  return horse.sex === 'female' ? sellPrice('mares') : sellValue(horseValueKg(horse));
+}
+
+/**
+ * Vrátí zaplacené při zrušení stavby (mutuje stav) – přesně to, co se zaplatilo. Koně se vrátí jen
+ * do hotové ohrady koní; ves, která žádnou nemá (zbourána, nebo teprve stavěná), dostane za ně
+ * obilí v ceně, za kterou se prodali – nepřijdou na maso (horses.md – Koně se stavbou ohrady).
+ */
 export function refundHorsePen(state: VillageState, payment: HorsePenPayment, day: number): void {
   addGood(state, 'ironBars', payment.ironBarsKg, day);
   addGood(state, 'cows', payment.cows, day);
   addGood(state, 'grain', payment.grainKg, day);
   addGood(state, 'legumes', payment.legumesKg, day);
-  addHorses(state, payment.horses, day);
+  if (horsePens(state).some((pen) => pen.builtDay !== null)) {
+    addHorses(state, payment.horses, day);
+    return;
+  }
+  const value = payment.horses.reduce((sum, horse) => sum + tradedValue(horse, day), 0);
+  addGood(state, 'grain', value, day);
 }

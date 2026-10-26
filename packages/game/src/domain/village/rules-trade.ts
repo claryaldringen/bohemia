@@ -153,8 +153,8 @@ export const HORSE_TRADE = {
 /**
  * horses.md – Koně se stavbou ohrady (Martin 26. 10. 2026; čísla návrh Clauda): nově dokončená
  * ohrada koní přivede hřebce (jezdecký kůň 3 roky, bez výcviku) a dvě klisny (4 roky) – věky
- * z dolních mezí `HORSE_TRADE.ages`. Cena koní (`horsePenGrainKg`) se odvodí z cen obchodu
- * (`TRADE_GOOD_VALUES`) a platí se obilím předem.
+ * z dolních mezí `HORSE_TRADE.ages`. Cena koní (`horsePenValueKg`) se odvodí z cen obchodu
+ * (`TRADE_GOOD_VALUES`) a platí se předem z přebytku vsi: hřivny, zvířata, obilí (`horsePenPayment`).
  */
 export const HORSE_PEN_STOCK = {
   stallions: 1,

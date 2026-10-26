@@ -227,7 +227,23 @@ function horsePenOption(
     affordable: affordable && paid !== null,
     blocked: paid === null ? HORSE_PEN_NO_SURPLUS : null,
     payment,
+    extendAffordable: affordable,
   };
+}
+
+/**
+ * Jde druh stavby zahájit (tlačítko mřížky, klávesa)? Ohrada koní se platí koňmi jen při založení;
+ * rozšíření vybrané ohrady téhož druhu (`extending`) platbu nechce, i když přebytek na koně nestačí.
+ */
+export function isBuildAffordable(
+  option: BuildOption | null | undefined,
+  variant?: string,
+  extending = false,
+): boolean {
+  if (!option) return true;
+  const own = variant ? option.variants?.[variant] : undefined;
+  if (!own) return option.affordable;
+  return extending ? own.extendAffordable : own.affordable;
 }
 
 /**

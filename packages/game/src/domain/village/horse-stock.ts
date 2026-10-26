@@ -4,7 +4,7 @@ import type { Horse, Pen, VillageState } from './types';
 
 // Koně se stavbou ohrady (horses.md – Koně se stavbou ohrady; Martin 26. 10. 2026: „Když se
 // postaví ohrada pro koně, tak se v ní sami objeví hřebec a dvě klisny. Odkud se koupí je jedno,
-// je to prostě součást stavby.“). Cena koní je součástí ceny ohrady (obilí předem), koně se
+// je to prostě součást stavby.“). Cena koní je součástí ceny ohrady (hřivny, zvířata, obilí předem), koně se
 // objeví v den dokončení. Ohrady uložené dřív, které koně nikdy neměly, je dostanou při načtení.
 
 const DAYS_PER_YEAR = 365.25;

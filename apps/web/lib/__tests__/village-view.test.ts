@@ -433,6 +433,7 @@ describe('buildVillageView', () => {
             affordable: false,
             blocked: 'Na koně nestačí přebytek hřiven, zvířat ani obilí.',
             payment: [],
+            extendAffordable: false,
           },
         },
       },

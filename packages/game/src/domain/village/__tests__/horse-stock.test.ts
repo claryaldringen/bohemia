@@ -5,7 +5,14 @@ import { foundPen, foundVillage } from '../actions';
 import { cancelConstruction } from '../cancel-construction';
 import { craftCoverage } from '../crafts';
 import { paymentPool } from '../craft-buying';
-import { HORSE_PEN_NO_SURPLUS, horsePenPayment } from '../horse-pen-payment';
+import {
+  HORSE_PEN_NO_SURPLUS,
+  horsePenPayment,
+  payHorsePen,
+  refundHorsePen,
+} from '../horse-pen-payment';
+import { sowingTargets } from '../field-food';
+import { legumeNeedPerYear } from '../livestock';
 import { horsePenValueKg, withHorsePenStock } from '../horse-stock';
 import { penSquaresFromCells } from '../placement';
 import { HORSE_PEN_STOCK, HORSE_TRADE, TRADE_GOOD_VALUES } from '../rules';
@@ -116,6 +123,117 @@ describe('cena ohrady koní', () => {
     expect(back.crafts!.ironBarsKg).toBe(30);
     expect(back.livestock!.herds.cow).toBe(4);
     expect(back.storesKg).toBeCloseTo(200_000, 6);
+  });
+});
+
+/** Hotová ohrada koní se třemi hříbaty (roční) – ves má co prodat. */
+function withFoals(s: VillageState): VillageState {
+  s.pens = [
+    {
+      id: 4023,
+      species: 'horse',
+      cell: { x: 4, y: 4 },
+      x: 0,
+      z: 0,
+      builtDay: DAY - 100,
+      team: null,
+      training: null,
+      horses: [1, 2, 3].map((id) => ({
+        id: 9000 + id,
+        bornDay: DAY - 365,
+        sex: 'male' as const,
+        training: 0,
+      })),
+    },
+  ];
+  return s;
+}
+
+describe('přeplatek zvířetem a pojistka', () => {
+  it('zbytek po vejdoucích se kusech doplatí jediným nejlevnějším kusem, který ho pokryje', () => {
+    const s = withFoals(village());
+    s.livestock!.herds.cow = 4;
+    // zbytek ≈ 700: vejde se kráva (600), ze zbylých ≈ 100 doplatí jedna kráva – ne hříbě za 800
+    const bars = Math.floor((5600 - 700) / sellPrice('ironBars'));
+    const left = 5600 - bars * sellPrice('ironBars');
+    expect(left).toBeGreaterThan(sellPrice('cows'));
+    expect(left).toBeLessThanOrEqual(sellPrice('foals'));
+    s.crafts = { charcoalKg: 0, potteryKg: 0, ironBarsKg: bars };
+    const p = pay(s)!;
+    expect(p.ironBarsKg).toBe(bars);
+    expect(p.cows).toBe(2);
+    expect(p.horseCounts).toEqual({});
+  });
+
+  it('nejdřív obilí z přebytku, zvíře navíc jen na zbytek', () => {
+    const s = withFoals(village());
+    const bars = Math.floor((5600 - 2 * sellPrice('foals')) / sellPrice('ironBars'));
+    s.crafts = { charcoalKg: 0, potteryKg: 0, ironBarsKg: bars };
+    s.storesKg = 200_000;
+    const pool = paymentPool(s, s.lastDay, craftCoverage(s, s.lastDay));
+    const left = 5600 - bars * sellPrice('ironBars');
+    // obilí pokryje celý zbytek – žádné zvíře navíc kromě těch, co se vejdou
+    const p = pay(s)!;
+    const animalsValue = (p.horseCounts.foals ?? 0) * sellPrice('foals');
+    expect(animalsValue + p.grainKg * sellPrice('grain')).toBeGreaterThanOrEqual(left - 1e-6);
+    expect(p.grainKg).toBeLessThanOrEqual(pool.energyKg + 1e-6);
+    expect(p.cows).toBe(0);
+  });
+
+  it('po zaplacení pojistka zásob drží (přebytek nepadne pod nulu)', () => {
+    const s = village();
+    s.crafts = { charcoalKg: 0, potteryKg: 0, ironBarsKg: 20 };
+    s.livestock!.herds.cow = 4;
+    s.storesKg = 200_000;
+    const p = pay(s)!;
+    const next = structuredClone(s);
+    payHorsePen(next, p, next.lastDay);
+    const t = sowingTargets(
+      next,
+      next.lastDay,
+      legumeNeedPerYear(next, next.lastDay),
+      craftCoverage(next, next.lastDay).pottery,
+    );
+    expect(t.leftKg - t.bufferKg).toBeGreaterThanOrEqual(-1e-6);
+  });
+});
+
+describe('vrácení koní bez ohrady', () => {
+  const mare = { bornDay: DAY - 5 * 365, sex: 'female' as const, training: 0 };
+
+  it('ves bez hotové ohrady koní dostane za koně obilí, ne maso', () => {
+    const s = village();
+    const payment = {
+      ironBarsKg: 0,
+      cows: 0,
+      horseCounts: { mares: 1 },
+      horses: [mare],
+      grainKg: 0,
+      legumesKg: 0,
+    };
+    const meatBefore = JSON.stringify(s.livestock);
+    refundHorsePen(s, payment, s.lastDay);
+    expect(s.storesKg).toBeCloseTo(sellPrice('mares'), 6);
+    expect(JSON.stringify(s.livestock)).toBe(meatBefore);
+  });
+
+  it('ves s hotovou ohradou koní dostane koně zpět', () => {
+    const s = withFoals(village());
+    const before = s.pens![0]!.horses!.length;
+    refundHorsePen(
+      s,
+      {
+        ironBarsKg: 0,
+        cows: 0,
+        horseCounts: { mares: 1 },
+        horses: [mare],
+        grainKg: 0,
+        legumesKg: 0,
+      },
+      s.lastDay,
+    );
+    expect(s.pens![0]!.horses).toHaveLength(before + 1);
+    expect(s.storesKg).toBe(0);
   });
 });
 

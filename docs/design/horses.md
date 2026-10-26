@@ -220,8 +220,11 @@ Martin 26. 10. 2026: „Když se postaví ohrada pro koně, tak se v ní sami ob
   2. **zvířata, která by ves sama prodala** – krávy nad chovný pár a koně bez jezdce nad chovné (stejná pravidla jako obchod, cena jako při prodeji sousedovi); **voli se nikdy neberou** (spřežení ani výcvik nepřijdou o voly),
   3. **obilí a luštěniny jen z přebytku nad pojistkou** (stejný výpočet jako nákup u sousedů) – nehrozí hlad ani chybějící osivo.
      Poslední kus zvířete se vezme celý jen tehdy, když ho přebytek obilí nepokryje. Když se 5 600 poskládat nedá, stavba je zablokovaná (zašedlé tlačítko, červený důvod „Na koně nestačí přebytek hřiven, zvířat ani obilí.“).
-- **Zrušení rozestavěné ohrady** vrátí přesně to, co se zaplatilo (platba je uložená u stavby).
+- **Přeplatek:** nejdřív se doplatí obilím a luštěninami z přebytku; kus zvířete navíc (návrh Clauda) se vezme jen na zbytek, který obilí nepokryje, a to nejlevnější kus, který ho pokryje.
+- **Rozšíření ohrady koní** koně nepřiveze ani neplatí – tlačítko druhu zůstane dostupné i bez přebytku na koně, když je vybraná existující ohrada koní.
+- **Zrušení rozestavěné ohrady** vrátí přesně to, co se zaplatilo (platba je uložená u stavby). Koně se vrátí do hotové ohrady koní; když ji ves nemá, dostane za ně obilí v ceně, za kterou se prodali (návrh Clauda – nepřijdou na maso).
 - **UI:** v tooltipu ohrady koní ikony s čísly – práce, stromy a platba (hřivny, krávy, koně, obilí).
+- **Rozestavěná před touto změnou** (stavba bez uložené platby, `horsePenPaid` chybí): koně dostane po dokončení zdarma, platba se zpětně nevybírá (návrh Clauda).
 - **Starší vsi:** stojící ohrada koní, která koně nikdy neměla (`horses` chybí), je dostane při načtení zdarma (cenu zaplatila podle starých pravidel); jednou a idempotentně.
 
 ## Kování (Martin 26. 10. 2026; zatím jen návrh Clauda, neimplementováno)

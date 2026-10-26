@@ -99,6 +99,8 @@ export interface BuildOption {
     Pick<BuildOption, 'laborManDays' | 'upfront' | 'affordable' | 'blocked'> & {
       /** Čím ves koně zaplatí (hřivny, zvířata, obilí) – ikony s čísly; prázdné, když nestačí. */
       payment: { good: TradeGood; amount: number }[];
+      /** Rozšíření existující ohrady platbu nechce – dostupné podle surovin předem. */
+      extendAffordable: boolean;
     }
   >;
 }
