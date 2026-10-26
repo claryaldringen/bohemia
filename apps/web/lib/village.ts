@@ -291,15 +291,19 @@ export async function foundVillageForPlayer(
   playerId: string,
   input: { name: string; dwelling: Position; fieldCells?: TileCell[]; lordName?: string },
 ): Promise<VillageActionResult> {
-  const today = await playerToday(playerId);
-  if (!today.ok) return { error: today.error };
-  const { settlement, landscape } = await enterGameForPlayer(playerId);
-  const result = await exclusive(playerLockKey(playerId), () =>
-    foundVillageForSettlement(
+  // den se načte až uvnitř zámku – akce za skokem v čase dostane den po skoku
+  const inside = await exclusive(playerLockKey(playerId), async () => {
+    const today = await playerToday(playerId);
+    if (!today.ok) return { kind: 'failed' as const, error: today.error };
+    const { settlement, landscape } = await enterGameForPlayer(playerId);
+    const result = await foundVillageForSettlement(
       { villages: villages(), seeds: gameDeps().seeds },
       { settlementId: settlement.id, landscape, today: today.day, ...input },
-    ),
-  );
+    );
+    return { kind: 'found' as const, result, today, settlement, landscape };
+  });
+  if (inside.kind === 'failed') return { error: inside.error };
+  const { result, today, settlement, landscape } = inside;
   if (!result.ok) return { error: result.reason };
   return viewOf(
     {
