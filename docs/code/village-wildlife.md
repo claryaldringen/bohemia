@@ -148,3 +148,32 @@ backDay: bearBackDay(day) }`.
   (`HUNT.base.boar.foot` 0,15 × 0,3) ≈ 1 prase za zimu. Místo pro W5: `extraDay`, `lastExtraDay`, `HuntDay.extra`.
 - **Vlkov (kopie 5. 6. 820, 2 roky):** bez koní a s jedním dospělým synem rodu nikdo nelovil víc než
   zlomky (naděje prasat 0,35, jelenů 0,6), 2 psi; rok 56 s (dřív 59,9 s). `diag-wildlife/w4.txt`.
+
+## Obrana polí (W6, `field-patrol.ts`, `wildlife-damage.ts`)
+
+Pravidla: [wildlife.md](../design/wildlife.md) – Obrana polí. Čísla jsou `FIELD_GUARD`
+(`rules-wildlife.ts`). Škoda dílu = hrozba × (1 − jezdecká hlídka) × (1 − noční hlídka) – faktory jsou
+jen v `dailyThreatShare` (`wildlife-damage.ts`): jezdecký násobí vše, noční zvěř `1 − 0,6 × pokrytí`,
+vrány `1 − pokrytí`.
+
+- **Jezdecká hlídka:** `riderPatrol(state, day)` (`field-patrol.ts`) – jezdci z `lordRides`
+  (nepodkutý kůň, ne v hladový den na poli, ne ve žňový den cvičících mužů ani v den výpravy k hranici),
+  červen–říjen. Síla jezdce = `riderPower ÷ 100`; `cut = min(0,6; 0,25 × Σ sil × min(1,5; 1 + 0,1 × psi))`.
+  Pravidlo „jezdec jen když je silnější než pěšky“ (`ridesBetter` z W4) se zde nepoužívá – kdo jezdí
+  objížďku, určuje `lordRides`, ne lov. Jen čte stav.
+- **Úlovek z hlídky:** `patrolHuntDay` (v `simulateDay` hned za `huntDay`): `hope.boar += 0,01 × Σ sil ×
+prasata ÷ strop`, celé kusy z dospělých napřed, maso přes `butcher`, do `hunt.year` (kusy a kg,
+  `days` se nezvyšuje). `emptyHunt` se exportuje z `hunt.ts`.
+- **Noční hlídka – plán 1. 6.:** `planWatch` (volá `damageWindowStart`) uloží `WildlifeState.watch`
+  (`FieldWatch`): díly s hrozbou za sezónu (`dailyThreatShare` × délka okna plodiny, nejvýš `maxShare`)
+  aspoň 10 %, největší napřed. 1. stupeň zdarma – staří a výrostci 7–13 let mimo cvičící rodinu
+  (`nightGuards`), 1 hlídač na 5 ha → `free` 0–1 dílu. Kde po něm hrozba stále dosahuje 10 %, je
+  `adult`.
+- **2. stupeň:** `watchWanted(state, day)` = Σ nesklizená `adult` plocha × (1 − `free`) ÷ 5 ha × 0,3 čd.
+  `work()` ji přidá jako úlohu `'watch'` (`labor.ts`: `LaborTaskName`; `end` Infinity, `tie` 2) a
+  výsledek zapíše `payWatch` (`adultFrac` dne, součty `wantedManDays`/`paidManDays`). Nepokrytá část
+  úlohy = menší pokrytí dospělých, 1. stupeň platí vždy.
+- 31. 8. (`wildlifeSeasonEnd`) se `watch` zahodí.
+- **Vlkov (2 roky, 26. 10. 2026):** díly jsou čtverce 0,02 ha, hrozbu ≥ 10 % mají jen dvě desítky
+  a všechny kryje 1. stupeň (11 hlídačů), práce dospělých 0; jezdecká hlídka je slabá (koně nevycvičení,
+  průměrně `cut` ≈ 2 %). Škoda 471 → 452 kg (821), 353 → 335 kg (822).

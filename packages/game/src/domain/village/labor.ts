@@ -10,7 +10,7 @@ import type { Dwelling, OrchardTaskName, Person, TaskName } from './types';
  * (population.md – Práce): dojí a krmí ženy, pasou výrostci, domácí výrobu obstarají ženy.
  */
 export type LaborTaskName =
-  TaskName | OrchardTaskName | 'plough' | 'mow' | 'slaughter' | 'grain-pit';
+  TaskName | OrchardTaskName | 'plough' | 'mow' | 'slaughter' | 'grain-pit' | 'watch';
 
 /**
  * Úlohy, na které jde pomoc rodiny vojvody (`lordHelp`): jen práce potřebného osevu – vrácení a
@@ -236,6 +236,7 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     mow: 0,
     slaughter: 0,
     'grain-pit': 0,
+    watch: 0,
     'orchard-care': 0,
     'orchard-harvest': 0,
   };

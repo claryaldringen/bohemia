@@ -38,6 +38,27 @@ export interface WildlifeState {
   dogs?: ManorDogs;
   /** Velký lov rodu (W4; wildlife.md – Lov rodu); chybí = rod ještě nelovil. */
   hunt?: HuntState;
+  /** Noční hlídka polí letošní sezóny (W6; wildlife.md – Obrana polí); chybí = 1. 6. ještě nebylo. */
+  watch?: FieldWatch;
+}
+
+/**
+ * Noční hlídka polí (wildlife.md – Noční hlídka vesničanů): plán z 1. 6. (díly s hrozbou škody
+ * aspoň 10 % úrody za sezónu) a dnešní pokrytí dospělými. Po žních (31. 8.) se zahodí.
+ */
+export interface FieldWatch {
+  /** Den 1. 6. sezóny. */
+  fromDay: number;
+  /** Hlídané díly: plocha (ha), hrozba bez hlídky (podíl úrody), kryté 1. stupněm 0–1, potřebují dospělé. */
+  parts: { partId: number; ha: number; threat: number; free: number; adult: boolean }[];
+  /** Hlídači 1. stupně (staří a výrostci mimo dvorec). */
+  guards: { elders: number; youngsters: number };
+  /** Dnešní pokrytí dospělými: den a podíl chtěné práce, který ves dala. */
+  adultDay?: number;
+  adultFrac?: number;
+  /** Práce dospělých letos: chtěná a daná (člověkodny). */
+  wantedManDays: number;
+  paidManDays: number;
 }
 
 /** Smečka dvorce: počet s podílem kusu a zda ji ves naposled nakrmila (štěňata jen z nakrmené). */

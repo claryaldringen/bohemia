@@ -84,6 +84,16 @@ export const FIELD_DAMAGE = {
   defaultEdgeM: 120,
 } as const;
 
+/** Obrana polí (wildlife.md – Obrana polí; čísla návrh Clauda, noční hlídka Martin 24. 10. 2026: „Kombinace“). */
+export const FIELD_GUARD = {
+  /** Jezdecká hlídka (červen–říjen): `min(max; share × Σ sil × psi)`, psi `1 + perDog × psi`, nejvýš `dogMax`. */
+  rider: { fromMonth: 6, toMonth: 10, share: 0.25, max: 0.6, perDog: 0.1, dogMax: 1.5 },
+  /** Úlovek prasat z hlídky za den: `huntPerPower × Σ sil × prasata ÷ strop`. */
+  huntPerPower: 0.01,
+  /** Noční hlídka: díly od této hrozby škody za sezónu (podíl úrody), 1 hlídač na `haPerGuard` ha. */
+  night: { threat: 0.1, haPerGuard: 5, adultManDays: 0.3, effect: 0.6 },
+} as const;
+
 /** Šelmy na dobytku a slepicích (wildlife.md – Vlci na dobytku, Liška na slepicích). */
 export const PREDATION = {
   /** Smečka, při které jsou ztráty stáda jako dřív (vlčí díl platí pro tolik vlků). */
