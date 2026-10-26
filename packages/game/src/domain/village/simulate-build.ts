@@ -135,6 +135,13 @@ export function build(
     for (const part of foundingParts(founding, c)) {
       if (!part.clearing && part.foundingCost - part.foundingDone <= 0) {
         foundPart(state, day, part);
+      } else if (
+        part.clearing &&
+        part.clearing.felledDay === undefined &&
+        clearingStage(part, day) !== 'fell'
+      ) {
+        // pojistka: díl s nulovou prací kácení by bez zápisu pádu schnul navždy
+        fellDueTrees(state, part, day);
       }
     }
   }
@@ -239,7 +246,8 @@ export function invest(
   // pak schne), založí se jen díl, který dnes dohoří (nebo díl bez fází)
   let left = amount;
   let used = 0;
-  for (const part of clearingWorkOrder(foundingParts(founding, c), day)) {
+  const parts = foundingParts(founding, c);
+  for (const part of clearingWorkOrder(parts, day)) {
     const felling = clearingStage(part, day) === 'fell';
     const need = clearingNeedToday(part, day);
     if (completes || left >= need) {

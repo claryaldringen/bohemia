@@ -103,8 +103,7 @@ function fellingDone(part: Pick<FieldPart, 'clearing' | 'foundingCost' | 'foundi
  * Pokácí stromy dílu, na které došla práce kácení (mutuje stav; forest.md – Klučení lesa pro
  * pole – postup, bod 1): jedno `fellTrees` za díl a den, po každém stromu zůstane pařez. Strom,
  * který mezitím padl jinak (dřevo stavby, uhlíř) nebo zmizel, se přeskočí bez klády; dospělé
- * stromy dají klády na hromadu u lesa pole (kotva = střed čtverce, na kterém padl první dospělý
- * strom). Jakmile je kácení hotové, padnou všechny zbylé stromy a začne schnutí (`felledDay`).
+ * stromy dají klády na hromadu u lesa pole (kotva = střed čtverce dílu). Jakmile je kácení hotové, padnou všechny zbylé stromy a začne schnutí (`felledDay`).
  */
 export function fellDueTrees(state: VillageState, part: FieldPart, day: number): void {
   const clearing = part.clearing;
