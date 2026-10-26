@@ -385,7 +385,7 @@ kde to nestačí.
 | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
 | Jezdecká hlídka bez pravidla „kůň jen když je silnější“ (jede, kdo jede objížďku)                                                        | návrh Clauda (W6)                                      |
 | Noční hlídka: staří a výrostci se počítají 1. 6. na celou sezónu, dospělí denně                                                          | návrh Clauda (W6)                                      |
-| Plán hlídky bez jezdecké hlídky; hlídka dospělých za nutnou sečí; lovci a zranění hlídku nejedou, hlídka dne se počítá jednou           | návrh Clauda (W6, po recenzi)                          |
+| Plán hlídky bez jezdecké hlídky; hlídka dospělých za nutnou sečí; lovci a zranění hlídku nejedou, hlídka dne se počítá jednou            | návrh Clauda (W6, po recenzi)                          |
 | Divoké prase, jelen a laň, vlk, medvěd, zajíc, liška, ptáci, ryby – součást simulace                                                     | Martin (24. 10. 2026)                                  |
 | Stáda jako počty s rozmnožováním, ne na úkor náročnosti                                                                                  | Martin (24. 10. 2026)                                  |
 | Loví vojvoda a synové – ze dvorce na koních, ostatní pěšky s oštěpy a psy; vesničané jen drobné a ryby s prutem                          | Martin (24. 10. 2026)                                  |
@@ -400,7 +400,7 @@ kde to nestačí.
 | Jezdecká hlídka do 60 %, noční hlídka vesničanů −60 % za 0,3 čd na 5 ha, kde hrozí ≥ 10 %                                                | návrh Clauda                                           |
 | Smečka dvorce 1 pes na lovce + 1 (nejvýš 8), 0,3 kg obilí denně                                                                          | návrh Clauda                                           |
 | Velký lov listopad–únor každý 7. den jako výcvik; akumulátor úlovku; jeleni ne laně                                                      | návrh Clauda                                           |
-| Při hladu jde chytání ryb a ok před stavby (výjimka z „zbytku práce“) – čeká na potvrzení Martina                                          | návrh Clauda                                           |
+| Při hladu jde chytání ryb a ok před stavby (výjimka z „zbytku práce“)                                                                    | Martin 26. 10. 2026: „Ano, nech to tak“                |
 | Roční kvóta ryb a zajíců podle přírůstku (ryby nejvýš ¼ stropu, nad ½ stropu); maso z nich čerstvé                                       | návrh Clauda                                           |
 | Ryby a oka jen při potřebě bílkovin nebo hladu, z práce, která by propadla; rybáři s prutem u tůní                                       | návrh Clauda                                           |
 | Zvěř nezabíjí mimo lov; zranění jen na lovu, 60 dní                                                                                      | návrh Clauda                                           |
@@ -465,7 +465,7 @@ Martin: „Souhlasím se všemi návrhy“ – tři otázky z plánu jsou uzavř
 - **Zdroj práce:** v klidu ryby a oka jen ze **zbytku společné práce** po stavbách, opravách, dílech
   nad potřebu a seči navíc (Odpovědi Martina 26. 10. 2026, bod 2) – starší nad denním minimem
   a nepasoucí výrostci jsou v té společné práci už započtení, zvláštní zásobník nemají. **Při
-  hladu** (`hungry`) jde práce na ryby a oka hned za polními úlohami, před stavbami.
+  hladu** (`hungry`) jde práce na ryby a oka hned za polními úlohami, před stavbami (Martin 26. 10. 2026 na otázku, zda hladová ves smí na ryby a oka ještě před stavbami: „Ano, nech to tak“).
 - **Kolik lidí:** nejvýš 3 na tůň (`land.pools`; bez tůní, ale s vodou 1 loviště). V zimě oka
   stejný strop lidí.
 - **Úlovek a roční kvóta:** úlovek jak v návrhu, ale **za rok se vyloví nejvýš tolik, kolik
