@@ -25,7 +25,7 @@ import { pathTerrainOf, pathWindowFor } from '../paths/terrain';
 import { pathVillageOf } from '../paths/village';
 import { roadPieceCost } from '../paths/walking';
 import { roadWalkSpeed } from '../paths/walk-speed';
-import { balanceEarth, profileEdits, profileHeights } from '../paths/wagon-route';
+import { balanceEarth, profileEdits, profileHeights, wagonRoadGrid } from '../paths/wagon-route';
 import { CART_SPEED, ROAD_WALK, WAGON_ROAD } from '../rules';
 import { WAGON_DETOUR } from '../rules-roads';
 import { advanceVillage } from '../simulate';
@@ -45,6 +45,7 @@ import {
   startWagonRoad,
   wagonPlanInputOf,
   wagonChainStatus,
+  wagonHairpinAt,
   type WagonPlanInput,
   type WagonRoadPlan,
 } from '../wagon-road';
@@ -1239,5 +1240,58 @@ describe('serpentiny – objížďka prudkého kusu (roads.md – Postupná úpr
       ok: false,
       reason: WAGON_SACRED,
     });
+  });
+});
+
+describe('vozová cesta bez vlásenky (paths.md – Vozová cesta bez vlásenky)', () => {
+  // stará cesta z jihu na sever, nahoře vlásenka (15 m široká) a zpátky na jih, pak na východ
+  const HAIRPIN = [
+    { x: 0, z: -180 },
+    { x: 0, z: 30 },
+    { x: 15, z: 30 },
+    { x: 15, z: 0 },
+    { x: 180, z: 0 },
+  ];
+  const gridOf = (l: Landscape): ReturnType<typeof wagonRoadGrid> =>
+    wagonRoadGrid({
+      village: { dwellings: [], fields: [] },
+      terrain: pathTerrainOf(l, pathWindowFor(l, { minX: -60, minZ: -60, maxX: 90, maxZ: 90 })),
+      layer: null,
+      changes: NO_OBSTACLE_CHANGES,
+    });
+
+  it('vlásenka na rovině: plán ji odmítne a vede objížďkou mimo ni', () => {
+    expect(wagonHairpinAt(gridOf(FLAT), HAIRPIN)).toBeGreaterThanOrEqual(0);
+    const p = plan(FLAT, oldRoad(HAIRPIN));
+    expect(p.lengthM).toBeLessThan(p.oldLengthM - 40);
+    for (const q of p.profile) expect(q.z).toBeLessThan(15);
+    expect(p.bypassed.length).toBeGreaterThan(0);
+    expect(wagonHairpinAt(gridOf(FLAT), p.profile)).toBe(-1);
+  });
+
+  it('mírný oblouk vlásenkou není – vozová vede po staré cestě', () => {
+    const bend = [
+      { x: 0, z: -180 },
+      { x: 0, z: -60 },
+      { x: 30, z: 0 },
+      { x: 90, z: 40 },
+      { x: 180, z: 60 },
+    ];
+    expect(wagonHairpinAt(gridOf(FLAT), bend)).toBe(-1);
+    const p = plan(FLAT, oldRoad(bend));
+    expect(p.lengthM).toBeCloseTo(p.oldLengthM, 0);
+    for (const q of p.profile) expect(distanceToLine(bend, q)).toBeLessThan(0.01);
+  });
+
+  it('serpentina do svahu vlásenkou není – tětiva je prudší než mez sklonu', () => {
+    // ramena po vrstevnici, mezi nimi 15 m do svahu 15 % (2,25 m)
+    const turn = [
+      { x: 0, z: 0 },
+      { x: 30, z: 0 },
+      { x: 30, z: 15 },
+      { x: 0, z: 15 },
+    ];
+    expect(wagonHairpinAt(gridOf(hill(0.15, 0, 30)), turn)).toBe(-1);
+    expect(wagonHairpinAt(gridOf(FLAT), turn)).toBeGreaterThanOrEqual(0);
   });
 });

@@ -461,7 +461,11 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   `straightenStretches` v `wagon-road.ts` (`WAGON_STRAIGHTEN` – 1,3× / 3 m / 120 m) na osu po 6 m
   najde kličkující kusy, zkusí nejvýš 8 tětiv od nejvíc ušetřené délky (`wagonAxisBlocked` +
   `wagonProfile` bez vyhlazení, cena = zemní práce + zpevnění) a přijme tětivu, je-li levnější než
-  stará osa nebo stará nejde; plán nese `bypassed` a `footbridgeTrees`, `startWagonRoad` je uloží
+  stará osa nebo stará nejde; **vlásenku** (`WAGON_HAIRPIN` – kus do 60 m víc než 2× delší než
+  tětiva, tětiva ne prudší než 6 %, `isHairpin`) narovná i na rovině a bez ohledu na cenu (kus do
+  120 m); `planAlong` po průjezdu odmítne osu s vlásenkou (`wagonHairpinAt` – index uprostřed
+  nejostřejší ve `wagonAxisPoints`, důvod `WAGON_HAIRPIN_REASON`) a objížďka (`detourPlan`) ji
+  zkusí obejít (paths.md – Vozová cesta bez vlásenky); plán nese `bypassed` a `footbridgeTrees`, `startWagonRoad` je uloží
   (`RoadEarthwork.bypassed`, `Construction.wood`) a `wagonRoadsDay` po `absorbParallelRoads`
   označí obejité zbytky `Road.abandoned` (`abandonBypassed`). **Serpentiny** (Úloha B, roads.md –
   Postupná úprava a serpentiny): `planAlong` vrací i místo selhání (index ve `wagonAxisPoints` –

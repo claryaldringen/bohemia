@@ -653,6 +653,25 @@ Pravidlo (návrh Clauda, čísla `ROAD_BRAID_RING`):
   na západě vsi. Okruh vozových cest 936 + 1041 + 1054 kolem ohrady zůstává – všechny tři jsou
   vozové (1054 vede po téže ose jako 936 a 1041).
 
+## Vozová cesta bez vlásenky (26. 10. 2026)
+
+Martin 26. 10. 2026: „Udělej zrychlení a opravy cest“ (audit 25. 10. 2026, návrh 5): vozová cesta
+936 (dnes 1054) obchází ohradu po rovině vlásenkou – na 60 m je 3,16× delší než tětiva, přímo
+by vedla 25 m mezi ohradou a pozemkem.
+
+Pravidlo (návrh Clauda, čísla `WAGON_HAIRPIN`):
+
+- **Vlásenka** je kus osy nejvýš **60 m**, který je víc než **2×** delší než tětiva mezi svými konci.
+  Serpentina do svahu vlásenkou není – tětiva je tam prudší než mez vozové cesty (6 %), po ní by
+  vůz nevyjel ([roads.md – Postupná úprava a serpentiny](roads.md)).
+- Plán vozové cesty ji nepřijme: kus s vlásenkou (nejvýš 120 m jako narovnání) se nahradí
+  **tětivou**, kudy vůz projede a profil vyjde – i na rovině a i když by tětiva stála víc práce
+  (výjimka z „narovná se jen do svahu“, Martin 22. 10. 2026, #6 – vlásenka po rovině není klička
+  do svahu, ale chyba staré cesty). Nejde-li tětiva, hledá se objížďka jako u prudkého kusu; když
+  ani ta nevyjde bez vlásenky, úprava se nenabídne – „Cesta se pro vůz stáčí do vlásenky.“
+- Platí pro nové plány; postavené vozové cesty se nemění (převod není potřeba). Vlkov: plán po
+  1054 dřív vedl po vlásence (66,6 m), teď tětivou 24,8 m jižně od ohrady.
+
 ## Stavba přes cestu (Vlkov, Martin 23. 10. 2026)
 
 Ve Vlkově vůz pro vodu nejezdil: oplocený pozemek polozemnice stál přes cestu od ohrady volů

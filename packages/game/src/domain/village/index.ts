@@ -269,6 +269,7 @@ export * from './road-upgrades';
 export {
   WAGON_BUILDING,
   WAGON_EXISTS,
+  WAGON_HAIRPIN_REASON,
   WAGON_LOOP,
   WAGON_BLOCKED,
   WAGON_NO_ROAD,

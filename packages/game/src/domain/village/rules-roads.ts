@@ -310,6 +310,15 @@ export const WAGON_ROAD = {
  */
 export const WAGON_STRAIGHTEN = { ratio: 1.3, climbM: 3, maxM: 120 } as const;
 /**
+ * paths.md – Vozová cesta bez vlásenky (Martin 26. 10. 2026: „Udělej zrychlení a opravy cest“ –
+ * audit Vlkova 25. 10. 2026, návrh 5, vozová cesta kolem ohrady 3,16× delší než tětiva na 60 m;
+ * čísla návrh Clauda): kus osy nejvýš `spanM` m, který je víc než `ratio`× delší než tětiva mezi
+ * konci, je vlásenka – plán ji nepřijme: kus s ní (do `WAGON_STRAIGHTEN.maxM`) nahradí tětivou
+ * i na rovině, jinak hledá objížďku jako u prudkého kusu. Serpentina do svahu vlásenkou není:
+ * tětiva je tam prudší než `WAGON_ROAD.maxGrade` (po ní by vůz nevyjel).
+ */
+export const WAGON_HAIRPIN = { ratio: 2, spanM: 60 } as const;
+/**
  * roads.md – Postupná úprava a serpentiny (Martin, 24. 10. 2026: „Zemská stezka na sever nejde
  * upravit pro vozy s tím, že je pro vůz moc prudká, ale přesně tohle by ta úprava cesty pro vozy
  * vyřešit.“ a „Návrhy k cestám schvaluji“; čísla návrh Clauda): kde profil po staré ose nevyjde
