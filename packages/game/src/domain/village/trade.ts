@@ -44,7 +44,7 @@ import {
   offeredHorses,
   removeHorses,
 } from './horse-trade';
-import { addLogs, woodLogs } from './wood';
+import { addLogs, takeLogs, woodLogs } from './wood';
 import {
   TRADE_GOODS,
   isCattleGood,
@@ -169,7 +169,7 @@ export function addGood(state: VillageState, good: TradeGood, amount: number, da
       return;
     case 'logs':
       if (amount > 0) addLogs(state, amount);
-      else state.woodLogs = Math.max(0, woodLogs(state) + amount);
+      else takeLogs(state, -amount);
       return;
     case 'pottery': {
       const crafts = (state.crafts ??= { charcoalKg: 0, potteryKg: 0 });

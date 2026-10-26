@@ -597,7 +597,7 @@ export function foundVillage(input: {
     clearedIds: dwellingObstacleIds,
   });
   const zemnice = state.constructions[0]!;
-  zemnice.wood = takeWood(state, plan);
+  zemnice.wood = takeWood(state, plan, dwellingPosition);
   zemnice.cost = dwellingLaborManDays('zemnice', dwellingObstacleCost, plan);
   if (input.dwellingSpared) recordSpared(state, input.dwellingSpared, day);
   return state;
@@ -752,7 +752,7 @@ function addDwellingSite(
   const next = structuredClone(state);
   payUpfront(next, type);
   recordClearedObstacles(next, obstacleIds, day);
-  const wood = takeWood(next, plan);
+  const wood = takeWood(next, plan, position);
   next.constructions.push({
     id: next.nextId++,
     kind: 'dwelling',
@@ -828,7 +828,7 @@ export function startWorkshop(
   const next = structuredClone(state);
   payUpfront(next, craft);
   recordClearedObstacles(next, obstacleIds, day);
-  const wood = takeWood(next, plan);
+  const wood = takeWood(next, plan, position);
   next.constructions.push({
     id: next.nextId++,
     kind: 'dwelling',
@@ -1154,7 +1154,7 @@ export function startSacredBuilding(
     position: { ...position },
     dwellingId: null,
     fieldId: null,
-    wood: takeWood(next, plan),
+    wood: takeWood(next, plan, position),
   });
   // díly polí pod půdorysem se zmenší (fields.md – Pole jako krajina) – po plánu dřeva
   giveWayToBuilding(next, day, site.takenLand ?? [], kind);
@@ -1218,7 +1218,7 @@ export function startThreshingFloor(
   const next = structuredClone(state);
   payUpfront(next, 'threshing-floor');
   recordClearedObstacles(next, obstacleIds, day);
-  const wood = takeWood(next, plan);
+  const wood = takeWood(next, plan, position);
   const id = next.nextId++;
   next.constructions.push({
     id,

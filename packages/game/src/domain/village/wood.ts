@@ -65,6 +65,67 @@ export function addLogs(state: VillageState, logs: number): void {
   state.woodLogs = woodLogs(state) + logs;
 }
 
+/** Klády hromad u lesa (součet; zbytek `woodLogs` leží u vsi). */
+function stackedLogs(state: Pick<VillageState, 'logStacks'>): number {
+  let sum = 0;
+  for (const stack of state.logStacks ?? []) sum += stack.logs;
+  return sum;
+}
+
+/** Klády na hromadě u vsi (zásoba bez hromad u lesa) – pro scénu a souhrn. */
+export function pileLogs(state: Pick<VillageState, 'woodLogs' | 'logStacks'>): number {
+  return Math.max(0, woodLogs(state) - stackedLogs(state));
+}
+
+/**
+ * Přidá klády na hromadu u lesa polního dílu (mutuje stav): nová hromada s kotvou, existující
+ * hromada pole se jen doplní. Přičte i do `woodLogs`.
+ */
+export function addStackLogs(
+  state: VillageState,
+  fieldId: number,
+  anchor: { x: number; z: number },
+  logs: number,
+): void {
+  if (logs <= 0) return;
+  state.woodLogs = woodLogs(state) + logs;
+  const stacks = (state.logStacks ??= []);
+  const existing = stacks.find((s) => s.fieldId === fieldId);
+  if (existing) existing.logs += logs;
+  else stacks.push({ id: state.nextId++, fieldId, x: anchor.x, z: anchor.z, logs });
+}
+
+/**
+ * Vezme až `n` klád (celé kusy – `wholeLogs`): nejdřív z hromad u lesa od nejbližší k `near`
+ * (bez `near` od nejmenšího id), pak z hromady u vsi. Vrací, kolik vzal. Hromada pod půl klády
+ * zmizí. Mutuje stav.
+ */
+export function takeLogs(state: VillageState, n: number, near?: { x: number; z: number }): number {
+  let left = Math.min(Math.max(0, Math.floor(n)), wholeLogs(woodLogs(state)));
+  const taken = left;
+  const stacks = state.logStacks;
+  if (stacks && stacks.length > 0 && left > 0) {
+    const order = [...stacks].sort((a, b) =>
+      near
+        ? (a.x - near.x) ** 2 + (a.z - near.z) ** 2 - ((b.x - near.x) ** 2 + (b.z - near.z) ** 2) ||
+          a.id - b.id
+        : a.id - b.id,
+    );
+    for (const stack of order) {
+      if (left <= 0) break;
+      const take = Math.min(left, wholeLogs(stack.logs));
+      stack.logs -= take;
+      left -= take;
+    }
+  }
+  state.woodLogs = Math.max(0, woodLogs(state) - taken);
+  if (state.logStacks) {
+    state.logStacks = state.logStacks.filter((s) => wholeLogs(s.logs) > 0);
+    if (state.logStacks.length === 0) delete state.logStacks;
+  }
+  return taken;
+}
+
 /** Klády z mýcení – dospělé stromy na vymýcené ploše (1 kláda za strom). */
 export function logsFromClearedTrees(trees: number): number {
   return trees * LOGS_PER_CLEARED_TREE;
@@ -73,6 +134,7 @@ export function logsFromClearedTrees(trees: number): number {
 /** Jeden den hnití klád na hromadě (mutuje stav). */
 export function rotLogs(state: VillageState): void {
   if (state.woodLogs !== undefined && state.woodLogs > 0) state.woodLogs *= DAILY_LOG_KEEP;
+  for (const stack of state.logStacks ?? []) stack.logs *= DAILY_LOG_KEEP;
 }
 
 /** Práce za skácení a dovoz jednoho stromu podle vzdálenosti od staveniště (člověkodny). */
@@ -463,9 +525,13 @@ export function planWoodFrom(
  * Provede plán dřeva při zahájení stavby (mutuje stav – volat na klonu): klády z vyklízené
  * plochy na hromadu, klády stavby z hromady; vrátí dřevo stavby s vyhrazenými stromy.
  */
-export function takeWood(state: VillageState, plan: WoodPlan): ConstructionWood {
+export function takeWood(
+  state: VillageState,
+  plan: WoodPlan,
+  near?: { x: number; z: number },
+): ConstructionWood {
   addLogs(state, logsFromClearedTrees(plan.clearedTrees));
-  if (plan.fromPile > 0) state.woodLogs = Math.max(0, woodLogs(state) - plan.fromPile);
+  if (plan.fromPile > 0) takeLogs(state, plan.fromPile, near);
   return {
     trees: plan.fromPile + plan.fell.length,
     fromPile: plan.fromPile,

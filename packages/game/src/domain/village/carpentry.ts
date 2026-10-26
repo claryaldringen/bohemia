@@ -22,7 +22,7 @@ import type {
   Workshop,
   WorkshopActivity,
 } from './types';
-import { availableTrees, isTreeStanding, wholeLogs, woodLogs } from './wood';
+import { availableTrees, isTreeStanding, takeLogs, wholeLogs, woodLogs } from './wood';
 
 // Tesař (wagons.md – Tesař, Martin 19. 10. 2026): řemeslník v polozemnici s předsazenou střechou.
 // Vyrábí podle potřeby vsi vozy (jeden dvoukolák na spřežení, s hotovou zemskou stezkou čtyřkolák
@@ -284,7 +284,7 @@ function workCarpenter(
   /** Přidá do dílny kládu – z hromady, nebo kácením (vrátí false, když dnes kláda nepřibyla). */
   const getLog = (): boolean => {
     if (wholeLogs(woodLogs(state)) >= 1) {
-      state.woodLogs = Math.max(0, woodLogs(state) - 1);
+      takeLogs(state, 1, dwelling.position);
       workshop.timber = (workshop.timber ?? 0) + 1;
       return true;
     }
