@@ -576,6 +576,18 @@ const HORSE_KIND_NAMES: Record<VillageHorse['kind'], { icon: string; name: strin
   riding: { icon: 'horse', name: 'Jezdecký kůň' },
 };
 
+/** Popisek kování koní: dny do termínu, kdo kuje a cena cizího kováře (horses.md – Kování). */
+function shoeingName(s: NonNullable<VillageHorses['shoeing']>): string {
+  const when = s.unshod
+    ? 'Jezdecký kůň není podkutý – nejezdí a nevycvičuje se'
+    : `Dny do kování jezdeckých koní: ${formatInteger(Math.max(0, s.daysLeft))}`;
+  if (s.source === 'own') return `${when}; kuje vlastní kovář`;
+  if (s.source === 'foreign') {
+    return `${when}; kuje kovář z jiné vsi (cesta ${formatInteger(s.foreignDays)} ${plural(s.foreignDays, 'den', 'dny', 'dní')}, cena ${formatInteger(s.foreignKg)} kg obilí)`;
+  }
+  return `${when}; kovář chybí`;
+}
+
 /**
  * Koně ohrady koní (horses.md – Co hráč vidí): místa v ohradách koní / kolik koní ves chce
  * (červeně, když se nevejdou), obilí koní za den (červeně, když ho nemají), seno na zimu a seznam
@@ -611,6 +623,19 @@ function HorsesBlock({ horses, penId }: { horses: VillageHorses; penId: number }
         <Stat icon="hay" name="Seno koní na zimu" testId="selection-horses-hay">
           {formatTons(horses.hayWinterKg)}
         </Stat>
+        {horses.shoeing && (
+          <Stat
+            icon="horse"
+            name={shoeingName(horses.shoeing)}
+            testId="selection-horses-shoeing"
+            alert={horses.shoeing.unshod}
+          >
+            {formatInteger(Math.max(0, horses.shoeing.daysLeft))}
+            {horses.shoeing.source === 'foreign'
+              ? ` / ${formatInteger(horses.shoeing.foreignKg)}`
+              : ''}
+          </Stat>
+        )}
       </div>
       {mine.length > 0 && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">

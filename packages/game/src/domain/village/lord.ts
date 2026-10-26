@@ -1,6 +1,7 @@
 // Vojvodova rodina a dovednosti (docs/design/lord.md): kdo patří k rodině, výcvik den po dni, růst
 // a úbytek dovedností, denní minimum dvorce a kdy jde rodina na pole.
 import { assignRiders, NO_RIDERS, trainHorsesDay } from './horse-riders';
+import { isUnshod } from './horse-shoeing-term';
 import { horsePens, isGrainHorse, penHorses } from './horses';
 import { currentLord, isDynastyTracked, isLineMan, lineMen } from './dynasty';
 import { harvestHandsDay } from './harvest-hands';
@@ -464,6 +465,8 @@ export interface LordRides {
 export function lordRides(state: VillageState, day: number): LordRides | null {
   const family = trainingFamily(state, day);
   if (!family || state.lord?.field) return null;
+  // nepodkuté koně nikdo nevyvádí (horses.md – Kování)
+  if (isUnshod(state, day)) return null;
   // ve žňový den jdou cvičící muži na žeň (`manorLabor` – `harvest`) a nejezdí (kůň stojí)
   if (harvestHandsDay(state, day) && family.trainees.some((p) => ageGroup(p, day) !== 'child')) {
     return null;

@@ -366,6 +366,8 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
         : `V ohradě koní se narodila hříbata (${event.foals}).`;
     case 'horses-arrived':
       return 'Do ohrady koní přivedli hřebce a dvě klisny.';
+    case 'horses-shod':
+      return event.own ? 'Kovář okul koně.' : 'Koně okul kovář ze sousední vsi.';
     case 'horse-trained':
       return 'Kůň je vycvičený pod jezdcem.';
     case 'horse-retired':

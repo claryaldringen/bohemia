@@ -195,6 +195,8 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'horses-arrived'; penId: number; horses: number }
   /** Kůň pod jezdcem došel plného výcviku (horses.md – Výcvik koně a jezdec). */
   | { kind: 'horse-trained'; penId: number; horseId: number }
+  /** Jezdecké koně podkovali (horses.md – Kování; `own` – vlastní kovář, jinak z jiné vsi). */
+  | { kind: 'horses-shod'; horses: number; own: boolean }
   /**
    * Koně šli 1. 11. na maso (horses.md – Chov): dosloužili ve 20 letech (`age`), nebo jich ves má
    * víc, než chce (`surplus` – nejdřív nejstarší).
@@ -349,6 +351,8 @@ export type LaborActivity =
   | 'animal-care'
   /** Péče o koně u ohrady koní – krmení, voda a kydání, hodina denně na koně (horses.md – Péče). */
   | 'horse-care'
+  /** Kování jezdeckých koní vlastním kovářem u ohrady koní (horses.md – Kování). */
+  | 'horse-shoeing'
   /** Sezónní práce v sadech (orchard.md). */
   | 'orchard-care'
   | 'orchard-harvest'

@@ -146,6 +146,22 @@ export const HORSES = {
   borderRideEveryDays: 7,
 } as const;
 /**
+ * horses.md – Kování (Martin 26. 10. 2026: „Jezdeckého koně je potřeba každé dva měsíce kovat. To
+ * obstará ideálně kovář ve vsi, případně kovář z jiné vsi, ale bude to násobně dražší, protože
+ * musí přijít.“; čísla návrh Clauda):
+ * - `everyDays` – termín kování každého jezdeckého koně (2 měsíce),
+ * - `manDays` – práce kováře na koně: 0,2 čd osazení a 0,3 čd překování podkov (starých ze sady),
+ * - `ironBarsKg` – hřivny na koně: sada čtyř podkov váží ≈ 1 kg, po dvou měsících se obrousí asi
+ *   třetina a zbytek se překove – nové je jen ≈ 0,4 kg výrobků, tj. 0,5 kg hřiven (kování 1 kg
+ *   nástrojů z hřiven, `FORGE.barsKgPerKg` 1,2); celých 1 kg hřiven na koně by šest kování ročně
+ *   spotřebovalo víc železa než nástroje 12 lidí.
+ */
+export const HORSE_SHOEING = {
+  everyDays: 60,
+  manDays: 0.5,
+  ironBarsKg: 0.5,
+} as const;
+/**
  * oxen.md – Spřežení, Voli po kusech (návrh Clauda, Martin schválil): výcvik ≈ 2 roky, vůl slouží
  * ≈ 10 let, pak jde na maso; rádlo táhne pár (`teamSize`). Ves s ohradou volů drží aspoň `minCows`
  * krávy a na obměnu volů `cowsPerOx` krávy navíc na vola; telata na voly jen z přírůstku nad

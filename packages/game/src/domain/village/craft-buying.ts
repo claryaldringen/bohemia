@@ -158,7 +158,7 @@ export function purchaseRoute(
 }
 
 /** Nejbližší soused s řemeslníkem `craft` (nejméně dní cesty, při shodě v pořadí směrů). */
-function nearestCraftsman(
+export function nearestCraftsman(
   state: VillageState,
   craft: Craft,
   landscape: Landscape | null,

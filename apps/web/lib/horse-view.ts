@@ -11,9 +11,12 @@ import {
   horsesOverRoom,
   horsesWanted,
   penHorses,
+  craftCoverage,
+  shoeingView,
   stallionId,
   villageHorses,
   type HorseKind,
+  type ShoeingView,
   type VillageState,
 } from '@bohemia/game';
 
@@ -50,6 +53,8 @@ export interface VillageHorses {
   grainKgPerDay: number;
   /** Seno koní na celou zimu (kg). */
   hayWinterKg: number;
+  /** Kování jezdeckých koní (horses.md – Kování); ves bez jezdeckých koní null. */
+  shoeing?: ShoeingView | null;
   /** Koně po kusech od nejstaršího. */
   horses: VillageHorse[];
 }
@@ -86,6 +91,7 @@ export function horsesView(state: VillageState, day: number): VillageHorses | nu
     fed,
     grainKgPerDay: horseGrainToday(all, day),
     hayWinterKg: Math.round(horseHayDailyKg(all, day, fed) * HAY_WINTER_DAYS),
+    shoeing: shoeingView(state, day, craftCoverage(state, day)),
     horses,
   };
 }

@@ -429,3 +429,13 @@ Návrh: `docs/design/horses.md` – Koně se stavbou ohrady.
 - `finishPen` (`oxen.ts`) volá `giveHorsePenStock` při dokončení založení ohrady koní (rozšíření ne).
 - `horse-pen-payment.ts` – `horsePenPayment(state, day, coverage)` čistě poskládá platbu (hřivny → krávy a koně bez jezdce → obilí a luštěniny nad pojistkou přes `paymentPool` z `craft-buying.ts`; voli nikdy), `payHorsePen`, `refundHorsePen`. `foundPen` (`actions.ts`) ji odečte a uloží do `Construction.horsePenPaid`; bez platby `RangeError(HORSE_PEN_NO_SURPLUS)` (rozšíření platbu nechce); `cancelConstruction` ji vrátí (koně do hotové ohrady koní, jinak obilím v ceně prodeje). Přeplatek: obilí z přebytku napřed, kus zvířete navíc jen na zbytek (nejlevnější, který stačí). Stavba rozestavěná před změnou (bez `horsePenPaid`) dostane koně po dokončení zdarma.
 - Web: `BuildOption.variants.horse` (`village-view.ts` – `horsePenOption`) nese práci, stromy, platbu, důvod zablokování a `extendAffordable` (rozšíření vybrané ohrady koní – `isBuildAffordable`); tooltip v `BuildGrid.tsx` ukáže platbu ikonami.
+
+## Kování jezdeckých koní
+
+Návrh: `docs/design/horses.md` – Kování. Čísla: `HORSE_SHOEING` v `rules-livestock.ts`.
+
+- `horse-shoeing-term.ts` – `nextShoeingDay`, `isUnshod` (lehký modul bez cyklu). `horse-shoeing.ts` – `planShoeing` (plán dne: vlastní kovář, nebo platba cizímu; převod `state.shoeing`), `finishShoeing` (po rozdělení práce: odečte hřivny nebo platbu, posune termín, kronika `horses-shod`), `shoeingCosts` (člověkodny vlastní a cizí), `shoeingView` (panel). Cizí kovář: `nearestCraftsman` (`craft-buying.ts`) a `paymentPool`.
+- Pořadí ve dni: v `work()` (`simulate-work.ts`) hned po výpočtu péče o koně `planShoeing`; práce vlastního kováře (`shoeing` v `labor.ts`) se bere z práce vsi hned za péčí o koně, před výpravami; po rozdělení práce `finishShoeing` (kování se povede jen s celou prací). Výcvik (`trainLordDay` → `trainHorsesDay`) běží až po `work()`, takže kůň podkutý dnes ještě jezdí. Práce kováře je z práce vsi (ne z dílny), protože výrobu dílny škáluje jen počet dní, ne zakázky.
+- Nepodkutý kůň (`isUnshod`): `trainHorsesDay` nic nepřidá a `lordRides` vrací null (scéna nevyvádí koně).
+- Kovárna drží hřivny i na kování (`shoeingBarsKg` v `smithBarsTargetKg`, `crafts.ts`).
+- Web: `horse-view.ts` (`shoeing`), blok koní v `selection/fields.tsx`, upozornění `horses-unshod` a kronika `horses-shod` v `village-notices.ts`; činnost `horse-shoeing` ve scéně jako `horse-care` (cíl ohrada).
