@@ -3,7 +3,11 @@
 // znak base64 (lichý konec: poslední znak nese jeden krok a za ním `=`). Server i prohlížeč
 // z nich dopočítají osu trasy stejnými funkcemi – jen celá čísla, sčítání a násobení.
 
+import { length2 } from '../../landscape';
+import { FENCE_CLEARANCE } from '../rules-roads';
 import { type StoredRoute } from '../types';
+import { type FenceOutline } from './entrances';
+import { fenceClearance } from './fences';
 import { type GridWindow } from './network-grid';
 import { simplifyPathLine, smoothPathLine } from './network-lines';
 import {
@@ -98,10 +102,113 @@ export function routePoints(route: RouteCode, cellM: number): PathPoint[] {
   return routeCells(route).map(([x, z]) => ({ x: x * cellM, z: z * cellM }));
 }
 
-/** Osa trasy ve světě – středy buněk zjednodušené a vyhlazené jako čáry pěšin (network-lines.ts). */
-export function routeLine(route: RouteCode, cellM: number): PathPoint[] {
-  const simple = simplifyPathLine(routePoints(route, cellM), [], SIMPLIFY_M);
+/** Nejvýš tolik bodů trasy se kvůli plotu podrží (každý jedno vyhlazení navíc). */
+const FENCE_PINS = 12;
+/** Krok kontroly odstupu osy od plotu (m). */
+const FENCE_CHECK_M = 0.5;
+
+/** Středy buněk zjednodušené a vyhlazené jako čáry pěšin (network-lines.ts). */
+function smoothRun(points: readonly PathPoint[]): PathPoint[] {
+  const simple = simplifyPathLine(points, [], SIMPLIFY_M);
   return smoothPathLine(simple.points, [], SMOOTH_PASSES).points;
+}
+
+/** Vyhlazení po kusech mezi podrženými body `pins` (vzestupné vnitřní indexy) – ty zůstanou. */
+function smoothPinned(points: readonly PathPoint[], pins: readonly number[]): PathPoint[] {
+  const out: PathPoint[] = [];
+  let from = 0;
+  for (const k of [...pins, points.length - 1]) {
+    const piece = smoothRun(points.slice(from, k + 1));
+    out.push(...(out.length > 0 ? piece.slice(1) : piece));
+    from = k;
+  }
+  return out;
+}
+
+/**
+ * První místo osy `line` blíž plotu než `FENCE_CLEARANCE.axisM` (mimo `gateM` od začátku a konce
+ * trasy) → nejbližší nepodržený vnitřní bod trasy `raw` do dvou buněk, který se podrží; jinak −1.
+ */
+function fencePin(
+  line: readonly PathPoint[],
+  raw: readonly PathPoint[],
+  pins: readonly number[],
+  fences: readonly FenceOutline[],
+  cellM: number,
+): number {
+  const { axisM, gateM } = FENCE_CLEARANCE;
+  const start = raw[0]!;
+  const end = raw[raw.length - 1]!;
+  for (let k = 1; k < line.length; k++) {
+    const a = line[k - 1]!;
+    const b = line[k]!;
+    const steps = Math.max(1, Math.ceil(length2(b.x - a.x, b.z - a.z) / FENCE_CHECK_M));
+    for (let i = k === 1 ? 0 : 1; i <= steps; i++) {
+      const x = a.x + ((b.x - a.x) * i) / steps;
+      const z = a.z + ((b.z - a.z) * i) / steps;
+      if (length2(x - start.x, z - start.z) < gateM || length2(x - end.x, z - end.z) < gateM) {
+        continue;
+      }
+      if (fenceClearance(fences, x, z, axisM) >= axisM) continue;
+      // při shodě bod s menším indexem
+      let best = -1;
+      let bestD = Infinity;
+      for (let j = 1; j < raw.length - 1; j++) {
+        if (pins.includes(j)) continue;
+        const d = length2(raw[j]!.x - x, raw[j]!.z - z);
+        if (d < bestD) {
+          best = j;
+          bestD = d;
+        }
+      }
+      if (best >= 0 && bestD <= 2 * cellM) return best;
+    }
+  }
+  return -1;
+}
+
+/**
+ * Osa trasy ve světě – středy buněk zjednodušené a vyhlazené jako čáry pěšin (network-lines.ts).
+ * S ploty vsi (`fences` – paths.md, Odstup od plotu): kde by vyhlazená osa šla k plotu blíž než
+ * `FENCE_CLEARANCE.axisM` (usekla roh), podrží se nejbližší střed buňky trasy a vyhladí se kusy
+ * mezi podrženými body zvlášť. Trasa daleko od plotů beze změny.
+ */
+export function routeLine(
+  route: RouteCode,
+  cellM: number,
+  fences: readonly FenceOutline[] = [],
+): PathPoint[] {
+  const raw = routePoints(route, cellM);
+  if (fences.length === 0 || raw.length < 3) return smoothRun(raw);
+  let minX = Infinity;
+  let minZ = Infinity;
+  let maxX = -Infinity;
+  let maxZ = -Infinity;
+  for (const p of raw) {
+    minX = Math.min(minX, p.x);
+    minZ = Math.min(minZ, p.z);
+    maxX = Math.max(maxX, p.x);
+    maxZ = Math.max(maxZ, p.z);
+  }
+  const reach = FENCE_CLEARANCE.axisM + cellM;
+  const near = fences.filter(
+    (f) =>
+      f.minX - reach <= maxX &&
+      f.maxX + reach >= minX &&
+      f.minZ - reach <= maxZ &&
+      f.maxZ + reach >= minZ,
+  );
+  if (near.length === 0) return smoothRun(raw);
+  const pins: number[] = [];
+  let line = smoothRun(raw);
+  for (let round = 0; round < FENCE_PINS; round++) {
+    const pin = fencePin(line, raw, pins, near, cellM);
+    if (pin < 0) break;
+    pins.push(pin);
+    pins.sort((a, b) => a - b);
+    line = smoothPinned(raw, pins);
+  }
+  return line;
 }
 
 /**

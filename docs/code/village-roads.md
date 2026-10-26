@@ -96,6 +96,24 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
     svatyně) je průchodné: `PEN_COST` / `CEMETERY_COST` / `SHRINE_SITE_COST`. Branka odemyká jen
     buňky vlastního plotu.
     Martin 22. 10. 2026 (#3): „Lidi nesmí chodit přes ohrady. Vždyť jsou oplocené.“
+  - **Odstup od plotu** ([paths.md – Odstup od plotu](../design/paths.md#odstup-od-plotu-26-10-2026),
+    `FENCE_CLEARANCE` v `rules-roads.ts`, `WALK_VERSION` `routes-v5`): `fenceOutline(squares, inset)`
+    v `entrances.ts` – plot ve světě z `outlineRuns` (úsek nese `endInner`): rovné úseky, čtvrtkruhy
+    rohů (`WOVEN_FENCE_CORNER_M`), obdélník a `inside` (ostré rohy, čtverec `inset` kolem bodu ve
+    sjednocení); `fenceDistance` – k úsekům a obloukům (jen v úhlu čtvrtkruhu). `paths/fences.ts`:
+    `villageFences(v, plots)` – hotové hřbitovy (bez `pending`), hotové ohrady (`penPathSquares`)
+    s brankou, s `plots` i pozemky hotových obydlí (ne staveniště) (`FENCE_INSET_M`, dvorec i s dvorem); `fenceClearance`.
+    `villageGrid` → `nearFences` (po plotech a ohradách, ne pozemcích – ty jsou celé neprůchodné jako
+    stavba): střed uvnitř plotu → Infinity, do `axisM` → Infinity jen s aspoň třemi průchodnými sousedy mimo pruh (úzký průchod zůstane dražší; volá se až po stavbách na konci `villageGrid`), do `nearM` → × `nearCost` (ne pod
+    pevnou cestou), buňky branky všech plotů (`gateCells`) nic, buňka do `alleyM` od dvou plotů (ulička) jen
+    dražší. Projeví se i ve `villageBlockedAt` (ohyb do branky). `routeLine(route, cellM, fences)`
+    (`routes.ts`): když vyhlazená osa jde k plotu blíž než `axisM` (vzorky po 0,5 m, mimo `gateM` od
+    konců), podrží nejbližší vnitřní střed buňky do dvou buněk a vyhladí kusy mezi podrženými zvlášť
+    (`smoothPinned`, nejvýš 12 bodů); trasa bez plotu v dosahu dá tutéž osu bit po bitu. Ploty dodá
+    `fencesOf` v `roads.ts` (obrysy líně z `pathVillageOf`; mezipaměť čar `monthRoutes` ověřuje kromě sady tras i
+    `fenceLayoutKey` – čáry nezávisí na tom, kdy se spočtou) do `monthRoutes` a přes `GateGuard.fences`
+    (`gateGuardOf`) do `accessRoads` / `accessDue` / `gateBend`. Scéna (`path-router.ts`) a čáry
+    `routePaths` ploty nehlídají. Testy `fence-clearance.test.ts`.
 
 - **Pevné cesty a stromy u nich** ([docs/design/roads.md](../design/roads.md) – fáze 1; výběr,
   vylepšení a chůze podle stupně = fáze 2, jabloně = fáze 3): simulace vsi (server) – modul
@@ -800,7 +818,7 @@ Návrh `docs/design/paths.md` – Stálé trasy (25. 10. 2026), Úloha A1.
   a idempotentně.
 - **Mapa tras a klíč** (A2b, [paths.md – Stálé trasy, pravidlo 5](../design/paths.md#stálé-trasy-25-10-2026)):
   `refreshWalkDistances` (`paths/village.ts`) drží v `VillageState.walkLayoutKey` = `routes.key`
-  otisk `routeMapKey | routePlacesKey | WALK_VERSION` (`routes-v3`).
+  otisk `routeMapKey | routePlacesKey | WALK_VERSION` (`routes-v5` – odstup od plotů).
   - `routeMapKey` – obydlí a staveniště (poloha, natočení, druh, pozemek – bez obyvatel a stáří),
     díly polí (políčka, bez stadia), sady, hřbitovy, posvátná místa, ohrady (políčka, hotová),
     les vsi, milíře, humna, pevné cesty (`roadsKey`), olemování po desetinách (`lineKey`), zemní

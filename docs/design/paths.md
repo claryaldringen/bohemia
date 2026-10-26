@@ -684,6 +684,52 @@ Pravidlo (návrh Clauda, čísla `WAGON_HAIRPIN`):
 - Platí pro nové plány; postavené vozové cesty se nemění (převod není potřeba). Vlkov: plán po
   1054 dřív vedl po vlásence (66,6 m), teď tětivou 24,8 m jižně od ohrady.
 
+## Odstup od plotu (26. 10. 2026)
+
+Martin 26. 10. 2026: „Udělej zrychlení a opravy cest“ (audit 25. 10. 2026, chybějící pravidlo 3
+a návrh 4): vyšlapaná cesta u hřbitova 2058 vedla podél východního plotu 0,9–1,6 m na 13 m
+a jihovýchodní roh plotu přetínala o 3,5 m. Mřížka chodců pouštěla trasu po řadě buněk na hranici
+čtverců (1,5 m od plotu) a vyhlazení osy (zjednodušení a zaoblení) pak roh usekne – čím delší
+rovný kus před rohem, tím víc.
+
+Pravidla (návrh Clauda, čísla `FENCE_CLEARANCE` v `rules-roads.ts`):
+
+- **Ploty:** hotový hřbitov (bez rozšíření ve stavbě), hotová ohrada a oplocený pozemek obydlí –
+  pletený plot po obrysu čtverců se **zakulacenými rohy** (oblouk 1,25 m, vnitřní roh 0,5 m), jak
+  ho kreslí scéna. Vzdálenost se měří ke skutečné čáře plotu včetně oblouků, ne ke čtvercům.
+- **Neprůchodný pruh:** buňka mřížky chodců, jejíž střed leží uvnitř plotu nebo blíž než **1 m**
+  od něj, je neprůchodná – **jen když pruh nezavře průchod**: buňka do 1 m od plotu (střed mimo plot) se
+  zablokuje, jen když má aspoň tři průchodné sousedy mimo pruh (volnou stranu od plotu); u úzkého
+  průchodu mezi plotem a stavbou, vodou či lesem (světlá šířka 4–5 m = jedna řada buněk) a u konce
+  plotu zůstane průchodná, jen **1,5×** dražší (osu tam podrží až vyhlazení osy). Pruh se vyhodnocuje
+  po stavbách, ze stavu před úpravou, takže pořadí plotů nehraje roli. U natočené stavby (po 15°) to dřív neplatilo – buňka napůl za plotem
+  byla průchodná, střed mohl ležet až 2,6 m uvnitř.
+- **Dražší pruh:** buňka do **2 m** od plotu (u rovné stavby řada na hranici čtverců, 1,5 m od
+  plotu) stojí pro výběr trasy **1,5×** víc – trasa se drží o řadu dál (5,25 m), když to nevychází
+  o moc déle. Pod pevnou cestou se cena nemění (cesta je cesta), neprůchodnost platí i tam.
+- **Branka:** buňky branky (kruh u bodu před brankou – jako dřív) jsou výjimka z obou pruhů, i když
+  leží blíž než 1 m u plotu jiného (sousední ohrada) –
+  trasa k hřbitovu nebo ohradě dojde až do branky. Cesta, která jde kolem branky, se do ní ohne
+  (bod 1,5 m před brankou – `gateBend`, [Vchody](#vchody)); ohyb nesmí přes neprůchodný pruh.
+- **Ulička** mezi dvěma ploty (buňka do 3 m od obou) zůstává průchodná jako dřív, jen dražší –
+  mezi sousedními ohradami vede jediná řada buněk.
+- **Ploty rozestavěných obydlí** se osy nedrží – plot stojí jen u hotového domu.
+- **Osa trasy** (z ní vzniká cesta – [Vyšlapanost a vznik cesty](#vyšlapanost-a-vznik-cesty) – i
+  cesta k vchodu): kde by vyhlazená osa šla k plotu blíž než **1 m**, podrží se nejbližší střed
+  buňky trasy (roh) a kusy mezi podrženými body se vyhladí zvlášť – osa projde středem rohové
+  buňky (u rovné stavby 2,6 m od oblouku plotu), roh neusekne. Nehlídá se **4 m** u začátku a konce trasy (brána domu je 1 m
+  před brankou pozemku, cíl v brance). Trasa daleko od plotů se nemění.
+- **Mění trasy všude:** verze tras `routes-v5` – uložené trasy se přepočítají jednou při dalším
+  dni. Postavené cesty se nemění (jednorázová přestavba Vlkova je další úloha); nové trasy,
+  vyšlapávání a nové cesty jdou podle nových pravidel.
+- Čáry pěšin ve scéně a v chůzi (`routePaths`) se kreslí z týchž tras po hranách buněk a odstup od
+  plotu nehlídají – trasa už vede mimo pruh u plotu, jen zaoblení může roh přiblížit.
+- **Naměřeno (Vlkov, stav DB + 90 dní, 26. 10. 2026):** osy tras blíž než 1 m od plotu (mimo 4 m
+  u konců) u 25 ze 164 tras (76,5 m) → 0. Audit: podél plotu (j) 0 → 0, přes stavbu či pole (c)
+  11 → 12 – staré cesty se nemění, nový nález je rameno nové křižovatky (úsek 1060 přes dům 2137 –
+  ohyb ramene ke křižovatce stavby nehlídá, mimo tuto úlohu). Rok Vlkova CPU 30,9–33,0 s → 31,2–33,2 s
+  (stroj vytížený, load ≈ 80 – v šumu).
+
 ## Stavba přes cestu (Vlkov, Martin 23. 10. 2026)
 
 Ve Vlkově vůz pro vodu nejezdil: oplocený pozemek polozemnice stál přes cestu od ohrady volů

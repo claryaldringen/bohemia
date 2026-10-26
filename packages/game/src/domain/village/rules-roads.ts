@@ -145,6 +145,19 @@ export const CART_SPEED = {
 // paths.md – Kudy (návrh Clauda, Úloha 2): zvyk – místo bez vyšlapané pěšiny stojí pro výběr trasy
 // o `offRoad` (25 %) víc, plně vyšlapané nic; čas chůze se počítá skutečnými rychlostmi
 export const ROUTE_HABIT = { offRoad: 0.25 } as const;
+// paths.md – Odstup od plotu (návrh Clauda 26. 10. 2026 podle auditu Vlkova 25. 10.): buňka
+// mřížky chodců, jejíž střed je blíž než `axisM` plotu (hřbitov, ohrada), je neprůchodná, do `nearM`
+// (u rovné stavby řada na hranici čtverců 1,5 m od plotu) stojí pro výběr trasy `nearCost` krát
+// víc; buňky branky ne. Ulička mezi dvěma ploty (oba do `alleyM`) zůstává jen dražší. Osa trasy
+// (`routeLine`) se k plotu nepřiblíží pod `axisM` – kromě `gateM` u začátku a konce (brána domu,
+// branka)
+export const FENCE_CLEARANCE = {
+  axisM: 1,
+  nearM: 2,
+  nearCost: 1.5,
+  alleyM: 3,
+  gateM: 4,
+} as const;
 // paths.md – Vyšlapanost a vznik cesty (návrh Clauda, Úloha 3a): číslo na políčko `cellM` (3,75 m =
 // buňka mřížky pěšin – Stálé trasy, pravidlo 4; trasa přidá jen buňkám, kudy vede) v setinách cesty – trasa přidá své cesty za den, tráva ubere `regrowPerDay` (1 cesta), mezi 0
 // a `max` (1 500 cest); cesta vznikne od `roadAt` (1 000), prodlouží se, kudy je aspoň `extendFrom`

@@ -19,6 +19,7 @@ import {
 import { fieldTraffic, formRoad, plannedAxis } from './roads-form';
 import { type SpotContext } from './roads-trees';
 import { routeLine } from './routes';
+import { type FenceOutline } from './entrances';
 import { PATH_FORD, PATH_WATER, type PathTerrain } from './terrain';
 import { type TrafficField } from './wear';
 
@@ -35,9 +36,11 @@ export interface GateGuard {
   fixed: ReadonlySet<number>;
   /** Neprůchodné místo pro novou osu – plot, stavba, voda. Volá se jen u úseku, který by se ohnul. */
   blocked: (x: number, z: number) => boolean;
+  /** Ploty vsi – osa trasy k vchodu drží odstup (`routeLine`; paths.md – Odstup od plotu). */
+  fences: () => readonly FenceOutline[];
 }
 
-const NO_GUARD: GateGuard = { fixed: new Set(), blocked: () => false };
+const NO_GUARD: GateGuard = { fixed: new Set(), blocked: () => false, fences: () => [] };
 
 /**
  * Hlídka ohybu: zamčené úseky `fixed`, neprůchodná plocha vsi (`walk` – `villageBlockedAt`, plot,
@@ -48,6 +51,7 @@ export function gateGuardOf(
   fixed: ReadonlySet<number>,
   walk: () => ((x: number, z: number) => boolean) | null,
   terrain: () => PathTerrain,
+  fences: () => readonly FenceOutline[] = () => [],
 ): GateGuard {
   let fenced: ((x: number, z: number) => boolean) | null | undefined;
   let grid: PathTerrain | undefined;
@@ -61,6 +65,7 @@ export function gateGuardOf(
   };
   return {
     fixed,
+    fences,
     blocked: (x, z) => {
       if (fenced === undefined) fenced = walk();
       return (fenced?.(x, z) ?? false) || wet(x, z);
@@ -92,8 +97,9 @@ function gateWithoutRoad(
   roads: VillageRoads,
   route: StoredRoute,
   cellM: number,
+  fences: readonly FenceOutline[],
 ): { line: RoadPoint[]; near: (x: number, z: number) => number } | null {
-  const line = routeLine(route, cellM);
+  const line = routeLine(route, cellM, fences);
   if (line.length < 2) return null;
   const near = axisDistance(roads.roads.filter((r) => !r.abandoned).map((r) => r.points));
   const gate = line[line.length - 1]!;
@@ -111,8 +117,13 @@ interface AccessPlan {
  * Null, když vchod cestu má, nebo by byla kratší než `ROAD_ACCESS.minM` (nevznikla by – `formRoad`).
  * Nic nemění.
  */
-function accessPlan(roads: VillageRoads, route: StoredRoute, cellM: number): AccessPlan | null {
-  const missing = gateWithoutRoad(roads, route, cellM);
+function accessPlan(
+  roads: VillageRoads,
+  route: StoredRoute,
+  cellM: number,
+  fences: readonly FenceOutline[],
+): AccessPlan | null {
+  const missing = gateWithoutRoad(roads, route, cellM, fences);
   if (!missing) return null;
   const { line, near } = missing;
   const points: RoadPoint[] = [];
@@ -149,7 +160,7 @@ function gateBend(
   cellM: number,
   guard: GateGuard,
 ): GateBend | null {
-  const line = routeLine(route, cellM);
+  const line = routeLine(route, cellM, guard.fences());
   if (line.length < 2) return null;
   const gate = line[line.length - 1]!;
   const living = roads.roads.filter((r) => !r.abandoned && r.points.length >= 2);
@@ -213,7 +224,8 @@ export function accessDue(
 ): boolean {
   return accessRoutes(routes, built).some(
     (route) =>
-      accessPlan(roads, route, cellM) !== null || gateBend(roads, route, cellM, guard) !== null,
+      accessPlan(roads, route, cellM, guard.fences()) !== null ||
+      gateBend(roads, route, cellM, guard) !== null,
   );
 }
 
@@ -240,7 +252,7 @@ export function accessRoads(
   const traffic = (points: readonly RoadPoint[]): number =>
     field ? fieldTraffic(points, field) : 0;
   for (const route of accessRoutes(routes, built)) {
-    const plan = accessPlan(roads, route, cellM);
+    const plan = accessPlan(roads, route, cellM, guard.fences());
     if (!plan) {
       // cesta jde kolem vchodu – ohne se do něj (paths.md – Vchody, Cesta do branky)
       const bend = gateBend(roads, route, cellM, guard);

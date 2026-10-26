@@ -63,7 +63,9 @@ import { SpotContext, plantingBlocker, rootTrees } from './roads-trees';
 import { type RoadAnchors, roadAnchors } from './road-anchors';
 import { routeLine } from './routes';
 import { pathCellM, trailTerrain } from './terrain';
-import { pathVillageOf, settleVillageWear, villageBlockedAt } from './village';
+import { type FenceOutline } from './entrances';
+import { villageFences } from './fences';
+import { fenceLayoutKey, pathVillageOf, settleVillageWear, villageBlockedAt } from './village';
 import { type TrafficField, addCartWear, addWearLabor, trafficField, wearMap } from './wear';
 import { villageCemeteries } from '../cemetery';
 import { visitKey } from '../abandonment';
@@ -150,7 +152,12 @@ const MONTH_ROUTES = new Map<string, { check: string; value: MonthRoutes }>();
 const MONTH_ROUTES_KEPT = 8;
 
 /** Čáry tras a kotvy (`roadAnchors`) – jednou pro sadu tras (`routes.key`, jako `trafficField`). */
-function monthRoutes(routes: VillageRoutes, landscape: Landscape, cellM: number): MonthRoutes {
+function monthRoutes(
+  routes: VillageRoutes,
+  landscape: Landscape,
+  cellM: number,
+  fences: FenceSource,
+): MonthRoutes {
   const key = `${routes.key}|${cellM}|${landscape.size}`;
   let trips = 0;
   let steps = 0;
@@ -158,14 +165,18 @@ function monthRoutes(routes: VillageRoutes, landscape: Landscape, cellM: number)
     trips += r.trips;
     steps += r.steps.length;
   }
-  const check = `${routes.list.length}/${trips}/${steps}`;
+  // ploty se mění s rozložením, tedy s `routes.key` – klíč plotů jistí, že čáry nezávisí na tom,
+  // kdy se spočítají (stavba dokončená před přepočtem tras)
+  const check = `${routes.list.length}/${trips}/${steps}/${fences.key()}`;
   const cached = MONTH_ROUTES.get(key);
   if (cached && cached.check === check) return cached.value;
-  // nejsilnější trasy napřed (stálé pořadí – stejné trasy, stejné cesty)
+  // nejsilnější trasy napřed (stálé pořadí – stejné trasy, stejné cesty); osa drží odstup od
+  // plotů (paths.md – Odstup od plotu) – ploty jsou v rozložení, tedy v `routes.key`
+  const fenced = fences.outlines();
   const lines = routes.list
     .map((route, k) => ({ route, k }))
     .sort((a, b) => b.route.trips - a.route.trips || a.k - b.k)
-    .map(({ route }) => routeLine(route, cellM));
+    .map(({ route }) => routeLine(route, cellM, fenced));
   const value = { lines, anchors: roadAnchors(routes.list, landscape) };
   MONTH_ROUTES.delete(key);
   MONTH_ROUTES.set(key, { check, value });
@@ -173,11 +184,37 @@ function monthRoutes(routes: VillageRoutes, landscape: Landscape, cellM: number)
   return value;
 }
 
+/** Ploty vsi pro osy tras: klíč rozložení plotů a jejich obrysy – obojí líně. */
+interface FenceSource {
+  key: () => string;
+  outlines: () => readonly FenceOutline[];
+}
+
+/**
+ * Ploty vsi (hřbitovy, ohrady, pozemky – `villageFences`) pro osy tras – líně a jednou. Nezávisí
+ * na dni (jen na rozložení), takže je jedno, kdo čáry tras spočte první.
+ */
+function fencesOf(state: VillageState, landscape: Landscape, day: number): FenceSource {
+  let key: string | null = null;
+  let out: readonly FenceOutline[] | null = null;
+  return {
+    key: () => (key ??= fenceLayoutKey(state)),
+    outlines: () =>
+      (out ??= villageFences(pathVillageOf(state, day, landscape), true).map((f) => f.outline)),
+  };
+}
+
 /** Konce, kde smí cesta končit (kotvy z tras) – bez tras žádné. */
-function annualTermini(state: VillageState, landscape: Landscape): (p: RoadPoint) => boolean {
+function annualTermini(
+  state: VillageState,
+  landscape: Landscape,
+  day: number,
+): (p: RoadPoint) => boolean {
   const routes = state.routes;
   if (!routes || routes.list.length === 0) return () => false;
-  return anchorTermini(monthRoutes(routes, landscape, pathCellM(landscape)).anchors);
+  return anchorTermini(
+    monthRoutes(routes, landscape, pathCellM(landscape), fencesOf(state, landscape, day)).anchors,
+  );
 }
 
 /**
@@ -241,9 +278,9 @@ function roadsMonthRun(
   const routes = state.routes;
   if (!state.roads || !routes || routes.list.length === 0) return;
   const cellM = pathCellM(landscape);
-  const { lines, anchors } = monthRoutes(routes, landscape, cellM);
+  const { lines, anchors } = monthRoutes(routes, landscape, cellM, fencesOf(state, landscape, day));
   const buildings = ringBuildingsOf(state, day, landscape);
-  const entrances = entrancesOf(state, landscape);
+  const entrances = entrancesOf(state, landscape, day);
   // kontext míst na stromy a provozní pole jen, když se cesty opravdu mění
   let base: Omit<SpotContext, 'split'> | null = null;
   const baseOf = (): Omit<SpotContext, 'split'> =>
@@ -280,7 +317,17 @@ function roadsMonthRun(
   tidyMonth(
     state,
     routes,
-    { lines, anchors, day, cellM, walk, buildings, entrances, ...(width ? { width } : {}) },
+    {
+      lines,
+      anchors,
+      day,
+      cellM,
+      walk,
+      buildings,
+      entrances,
+      fences: fencesOf(state, landscape, day).outlines,
+      ...(width ? { width } : {}),
+    },
     baseOf,
     fieldOf,
   );
@@ -300,7 +347,7 @@ export function tidyRoadsNow(
   if (!roads || roads.roads.length === 0) return;
   const day = state.lastDay;
   const buildings = ringBuildingsOf(state, day, landscape);
-  const entrances = entrancesOf(state, landscape);
+  const entrances = entrancesOf(state, landscape, day);
   const baseOf = (): Omit<SpotContext, 'split'> => ({
     terrain: trailTerrain(landscape, obstacles),
     blocked: plantingBlocker(state, landscape),
@@ -314,14 +361,28 @@ export function tidyRoadsNow(
   delete roads.tidyKey;
   if (routes && routes.list.length > 0) {
     const cellM = pathCellM(landscape);
-    const { lines, anchors } = monthRoutes(routes, landscape, cellM);
+    const { lines, anchors } = monthRoutes(
+      routes,
+      landscape,
+      cellM,
+      fencesOf(state, landscape, day),
+    );
     const fieldOf = (): TrafficField => trafficField(routes, cellM);
     const walk = (): ((x: number, z: number) => boolean) | null =>
       villageBlockedAt(state, day, landscape);
     tidyMonth(
       state,
       routes,
-      { lines, anchors, day, cellM, walk, buildings, entrances },
+      {
+        lines,
+        anchors,
+        day,
+        cellM,
+        walk,
+        buildings,
+        entrances,
+        fences: fencesOf(state, landscape, day).outlines,
+      },
       baseOf,
       fieldOf,
     );
@@ -386,11 +447,20 @@ function ringBuildingsOf(
 }
 
 /** Vchody staveb (kotvy tras) pro copánek přes křižovatku – líně, ze stejných tras jako měsíční úklid. */
-function entrancesOf(state: VillageState, landscape: Landscape): () => readonly RoadPoint[] {
+function entrancesOf(
+  state: VillageState,
+  landscape: Landscape,
+  day: number,
+): () => readonly RoadPoint[] {
   return () => {
     const routes = state.routes;
     if (!routes || routes.list.length === 0) return [];
-    const { anchors } = monthRoutes(routes, landscape, pathCellM(landscape));
+    const { anchors } = monthRoutes(
+      routes,
+      landscape,
+      pathCellM(landscape),
+      fencesOf(state, landscape, day),
+    );
     return anchors.points.filter((a) => a.kind === 'entrance');
   };
 }
@@ -418,6 +488,8 @@ function tidyMonth(
     buildings: () => readonly (readonly RoadPoint[])[];
     /** Vchody staveb – jediný přístup k vchodu copánek nezruší (`entrancesOf`). */
     entrances: () => readonly RoadPoint[];
+    /** Ploty vsi – osa cesty k vchodu drží odstup (`fencesOf`). */
+    fences: () => readonly FenceOutline[];
   },
   base: () => Omit<SpotContext, 'split'>,
   field: () => TrafficField,
@@ -434,7 +506,12 @@ function tidyMonth(
   const built = (visit: string): boolean => !unbuilt.has(visit);
   // ohyb do vchodu jen u volných úseků a ne přes plot, stavbu ani vodu (paths.md – Cesta do branky)
   const guard = (): GateGuard =>
-    gateGuardOf(fixedRoadIds(state.constructions, state.trails), month.walk, () => base().terrain);
+    gateGuardOf(
+      fixedRoadIds(state.constructions, state.trails),
+      month.walk,
+      () => base().terrain,
+      month.fences,
+    );
   // křižovatky (krok 6) – ramena jen z živých cest; i bez úklidu, provoz se mění s trasami
   const junctions = (): boolean => {
     const frozen = fixedRoadIds(state.constructions, state.trails);
@@ -692,7 +769,7 @@ export function updateRoads(
       changes,
       seed: state.seed,
       buildings: ringBuildingsOf(state, day, landscape),
-      entrances: entrancesOf(state, landscape),
+      entrances: entrancesOf(state, landscape, day),
       split: (from, to) => {
         splitRoadWork(state.constructions, from, to);
         splitTrailPieces(state.trails, from, to);
@@ -714,7 +791,7 @@ export function updateRoads(
     tidyRoads(
       roads,
       state.constructions,
-      annualTermini(state, landscape),
+      annualTermini(state, landscape, day),
       context,
       undefined,
       state.trails,
