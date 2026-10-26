@@ -23,6 +23,12 @@ export type VillagerClip =
   | 'fruit'
   | 'carry-water'
   | 'water-idle'
+  // porážka (diet.md – Porážka ve scéně): řezník s nožem v kleku a vestoje, žena s miskou, nošení masa
+  | 'butcher'
+  | 'bleed'
+  | 'gut'
+  | 'carry-meat'
+  | 'carry-meat-idle'
   // jezdec a výcvik vojvodovy rodiny (horses.md, lord.md) – jen `man.glb`
   | 'ride'
   | 'ride-trot'
@@ -49,6 +55,12 @@ export const VILLAGER_CLIPS: readonly VillagerClip[] = [
   // pro vodu s vahadlem a vědry (provoz na cestách – villagers.md): chůze a stání
   'carry-water',
   'water-idle',
+  // porážka: nůž v kleku (butcher) a vestoje (gut), miska (bleed), kýta na rameni
+  'butcher',
+  'bleed',
+  'gut',
+  'carry-meat',
+  'carry-meat-idle',
   // jezdec (sed na koni) a výcvik s dřevěnými zbraněmi – klipy má jen `man.glb`
   'ride',
   'ride-trot',
@@ -132,9 +144,10 @@ export type PoseFn = (t: number, herds: readonly HerdView[], out: VillagerPose) 
  * (změřeno z GLB jako v prvním náhledu postav). Zmenšená postava jde pomaleji.
  */
 export const CLIP_SPEED_M_S: Record<VillagerKind, Partial<Record<VillagerClip, number>>> = {
-  // s vahadlem chůze jako `walk` (stejná animace, ruce drží provazy – people.json)
-  woman: { walk: 1.25, carry: 1.05, 'carry-wood': 1.05, 'carry-water': 1.25 },
-  man: { walk: 1.0, carry: 1.1, 'carry-wood': 1.0, 'carry-water': 1.0 },
+  // s vahadlem chůze jako `walk` (stejná animace, ruce drží provazy – people.json); s masem jako
+  // s dřevem (stejná kadence 1,25 s na dvojkrok a rozkmit stehna – carry_meat z 0 A.D.)
+  woman: { walk: 1.25, carry: 1.05, 'carry-wood': 1.05, 'carry-water': 1.25, 'carry-meat': 1.05 },
+  man: { walk: 1.0, carry: 1.1, 'carry-wood': 1.0, 'carry-water': 1.0, 'carry-meat': 1.0 },
 };
 
 /** Rychlost chůze postavy v klipu `clip` (m/s) – podle druhu a měřítka. */

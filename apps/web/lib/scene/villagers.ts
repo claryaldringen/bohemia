@@ -35,6 +35,7 @@ import { obstacleIndex, obstacleStatus, obstaclesNear, type ObstacleLayer } from
 import type { SceneVillage } from '../village-view';
 import { caravanPoints } from './caravan';
 import type { FuneralPlan } from './funeral-plan';
+import type { SlaughterPlan } from './slaughter-plan';
 import type { WeddingPlan } from './wedding-plan';
 import {
   createVillagerPose,
@@ -110,6 +111,11 @@ export interface VillagersEnvironment {
    */
   onWeddings?(plans: readonly WeddingPlan[]): void;
   /**
+   * Nový plán porážky (slaughter-plan.ts – stanoviště, kozlina, mršina, kýty): kreslí ho
+   * slaughter-renderer; bez porážky (nebo bez modelů postav) null. Volá se jen při změně.
+   */
+  onSlaughter?(plan: SlaughterPlan | null): void;
+  /**
    * Vybraný člověk (villagers.md – Výběr postavy): co jeho postava dělá, kde v pochůzce je a jestli
    * je vidět – volá se jen při změně (výběr, nový plán dne, postava vejde domů nebo vyjde).
    */
@@ -161,6 +167,8 @@ export class VillageVillagers {
   /** Svatby (kinship.md – Svatba ve scéně) – průvod, pár a podkova svatebčanů. */
   private weddings: WeddingPlan[] = [];
   private weddingsKey = '';
+  /** Porážka dne (diet.md – Porážka ve scéně) – kreslí ji slaughter-renderer. */
+  private slaughterKey = '';
   private readonly kinds = new Map<VillagerKind, Kind>();
   private shadow: { mesh: Mesh; matrices: Float32Array } | null = null;
   private models: Map<VillagerKind, BakedModel> | null = null;
@@ -526,6 +534,7 @@ export class VillageVillagers {
     if (!village || !this.models || !ground) {
       this.people = [];
       this.setCrew({ teams: [], carts: [] });
+      this.setSlaughter(null);
       for (const kind of this.kinds.values()) kind.mesh.setEnabled(false);
       this.shadow?.mesh.setEnabled(false);
       return had;
@@ -551,6 +560,7 @@ export class VillageVillagers {
       draft: this.draft,
     });
     this.setCrew(plan.crew);
+    this.setSlaughter(plan.slaughter);
     const planned = plan.people
       .filter((p) => this.models?.has(p.kind))
       .map((p) => {
@@ -558,13 +568,14 @@ export class VillageVillagers {
         if (!from) return p;
         probe.hidden = false;
         const to = p.pose(t, herds, probe);
-        // karavana (caravan.ts) jde podle výpravy a pohřeb podle obřadu – nepřecházejí pěšky;
-        // pochůzku na cestě postava dojde a nová začne ve dveřích (carryErrands níž)
+        // karavana (caravan.ts) jde podle výpravy, pohřeb a porážka podle svého dne – nepřecházejí
+        // pěšky; pochůzku na cestě postava dojde a nová začne ve dveřích (carryErrands níž)
         if (
           p.errand ||
           p.key.startsWith('caravan:') ||
           p.key.startsWith('funeral:') ||
-          p.key.startsWith('wedding:')
+          p.key.startsWith('wedding:') ||
+          p.key.startsWith('slaughter-crew:')
         ) {
           return p;
         }
@@ -672,6 +683,19 @@ export class VillageVillagers {
     if (key === this.weddingsKey) return;
     this.weddingsKey = key;
     this.env.onWeddings?.(plans);
+  }
+
+  /** Nový plán porážky – ohlásí ho scéně (`onSlaughter`), jen když se změnil. */
+  private setSlaughter(plan: SlaughterPlan | null): void {
+    const key = plan
+      ? `${plan.day}:${plan.window.startMs}:${plan.window.endMs}:` +
+        plan.stations
+          .map((st) => `${st.key}:${st.x.toFixed(2)},${st.z.toFixed(2)}:${st.crew.join(',')}`)
+          .join('|')
+      : '';
+    if (key === this.slaughterKey) return;
+    this.slaughterKey = key;
+    this.env.onSlaughter?.(plan);
   }
 
   private treesToken?: { layer: ObstacleLayer; key: string; token: object };

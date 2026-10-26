@@ -400,12 +400,14 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
     }
   }
   add('idle', { kind: 'village' }, allocation.common - invested);
+  const slaughtered = state.livestock?.slaughtered;
   return {
     day,
     shares,
     ...(work.herders !== undefined ? { herders: work.herders } : {}),
     ...(work.aside ? { aside: asideShares(state, work.aside) } : {}),
     ...(work.lord ? { lord: work.lord.counts } : {}),
+    ...(slaughtered?.day === day ? { slaughterHeads: { ...slaughtered.heads } } : {}),
   };
 }
 

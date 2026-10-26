@@ -245,6 +245,12 @@ function simulateDay(
   state.chronicle.push(...arrangeMarriages(state, day));
   state.chronicle.push(...extraWivesDay(state, day));
   const { satiation, energy, fruit, meat } = eat(state, day, coverage);
+  // nouzová porážka běží až v `eat()`, po `work()` – doplnit hlášení kusů do dnešního rozvrhu práce
+  // (jen hlášení pro scénu, simulaci to nemění)
+  const slaughteredToday = state.livestock?.slaughtered;
+  if (state.labor?.day === day && slaughteredToday?.day === day) {
+    state.labor.slaughterHeads = { ...slaughteredToday.heads };
+  }
   // vojvodova rodina (lord.md): při hladu jde od zítřka na pole, po 30 dnech plného přídělu zpět;
   // výcvik dne – kdo necvičil, zapomíná
   state.chronicle.push(...lordFieldMode(state, day));

@@ -818,6 +818,11 @@ export interface SceneLabor {
    */
   herders?: { children: number; elders?: number };
   /**
+   * Kusy poražené dnes (`LaborDay.slaughterHeads` – zimní den, 1. 11., nouzová porážka, porážka
+   * pro seno; i zlomky kusů): scéna z nich udělá stanoviště porážky. Bez údaje se neporáželo.
+   */
+  slaughter?: Partial<Record<HerdSpecies, number>>;
+  /**
    * Obydlené domácnosti pro provoz na cestách (villagers.md – Provoz na cestách): id obydlí, kolik
    * v něm bydlí lidí (cest pro vodu – WATER_FETCHING) a jakou část vody mu dnes přivezl vůz v sudech
    * (0–1 po desetinách – wagons.md, Co vozy vozí; bez údaje nic). Bez údaje (dřívější pohled) se

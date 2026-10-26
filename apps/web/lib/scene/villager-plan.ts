@@ -77,6 +77,8 @@ import {
   funeralFigures,
   weddingFigures,
 } from './villager-plan-events';
+import { slaughterFigures } from './villager-plan-slaughter';
+import type { SlaughterPlan } from './slaughter-plan';
 
 // Postavy ve vsi (docs/design/villagers.md): kdo kde je a co dělá, jako čistá funkce vsi pro
 // scénu – z rozdělení práce posledního dne (herní jádro, labor-report.ts), ne z vlastních
@@ -117,10 +119,10 @@ export function planVillagersWithCrew(
   village: SceneVillage,
   ground: VillagerGround,
   options: VillagerPlanOptions,
-): { people: PlannedVillager[]; crew: DraftCrew } {
+): { people: PlannedVillager[]; crew: DraftCrew; slaughter: SlaughterPlan | null } {
   const crew: DraftCrew = { teams: [], carts: [] };
   const labor = village.labor;
-  if (!labor || village.dwellings.length === 0) return { people: [], crew };
+  if (!labor || village.dwellings.length === 0) return { people: [], crew, slaughter: null };
   const ctx = context(
     village,
     ground,
@@ -211,6 +213,33 @@ export function planVillagersWithCrew(
     });
   // řemeslníci u své dílny, pak u každé stavby aspoň jeden, pak ostatní práce vsi
   all((share) => CRAFT_ACTIVITIES.has(share.activity));
+  // porážka (diet.md – Porážka ve scéně): parta u stanoviště (slaughter-plan.ts) – lidé party
+  // nedělají nic jiného, zbytek podílu porážky dělá, co dřív
+  const butchering = labor.shares.flatMap((share, s) =>
+    share.activity === 'slaughter' ? [s] : [],
+  );
+  const slaughter = slaughterFigures(
+    ctx,
+    labor,
+    butchering.length > 0 ? labor.shares[butchering[0]!]! : null,
+    butchering.reduce((sum, s) => sum + (counts[s] ?? 0), 0),
+    dayWindow,
+  );
+  let butchers = slaughter.used;
+  for (const s of butchering) {
+    const take = Math.min(butchers, counts[s] ?? 0);
+    counts[s] = (counts[s] ?? 0) - take;
+    butchers -= take;
+  }
+  // parta má aspoň 2 postavy i při menším podílu – nadbytek ubere z posledních (domácí práce,
+  // nečinní) a nepřipravených podílů, ať nikomu nechybí postava (jako svatby a pohřby)
+  for (let s = counts.length - 1; s >= 0 && butchers > 0; s--) {
+    const act = labor.shares[s]!.activity;
+    if (act === 'slaughter' || CRAFT_ACTIVITIES.has(act)) continue;
+    const take = Math.min(butchers, counts[s] ?? 0);
+    counts[s] = (counts[s] ?? 0) - take;
+    butchers -= take;
+  }
   for (const s of firstBuilders(labor.shares, counts)) if (wanted(s)) place(s, 0);
   all((share) => !LATE_ACTIVITIES.has(share.activity));
   const traffic = trafficFigures(ctx, labor, options.maxTraffic ?? MAX_TRAFFIC);
@@ -228,7 +257,8 @@ export function planVillagersWithCrew(
   people.push(...mourners);
   people.push(...celebrants);
   people.push(...fetchers);
-  return { people, crew };
+  people.push(...slaughter.people);
+  return { people, crew, slaughter: slaughter.plan };
 }
 
 /**
@@ -502,7 +532,8 @@ export function placer(ctx: Context, share: SceneLaborShare, count: number): Pla
       // kovář kuje koně u ohrady koní (horses.md – Kování), bez ohrady u domů
       return t.kind === 'pen' ? penFence(ctx, t.id) : domestic(ctx);
     case 'slaughter':
-      // porážka a uzení u vsi (diet.md) – na udusané zemi kousek od domů jako výmlat
+      // parta porážky stojí u stanoviště (villager-plan-slaughter.ts); zbytek podílu – uzení
+      // a práce kolem – na udusané zemi kousek od domů jako výmlat
       return threshing(ctx, count);
     case 'herding':
       // dospělí pasáci stojí u stád spolu s dětmi (`herders`, diet.md – Pasáci)

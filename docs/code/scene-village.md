@@ -253,6 +253,126 @@ kapacitu míst se nevykreslí (`horseAnimalsFor`, 4 na čtverec – jádro tolik
 koně a hříběte se stahují po druzích (`PenAnimals.load`, `morphKindsToLoad`), takže kůň, který
 přijde později, se vykreslí. Koně se v noci do ohrady nezahánějí – sdílený nedodělek se dnem a nocí.
 
+## Mršiny pro porážku (modely – kreslí `slaughter-renderer`, níž)
+
+`apps/web/public/models/fauna/carcass-{cow,pig,sheep,goat}.glb` (`fauna.json`, `fauna_from_0ad.py`):
+základ = **leží** (poslední snímek smrti z 0 A.D.), morph targety **`stands`** (první, p = +1) a
+**`hangs`** (druhý, p = −1; vzniklo natočením stojící pózy kolem kyčle o −90° hlavou dolů, zadní
+nohy o −180° vzhůru – klíč `hang` ve specifikaci; původní +90° věšelo zvíře hlavou nahoru, klíč
+byl 26. 10. přepočten ze stojící pózy). Visí břichem k místní −Z (plán ho natočí k řezníkovi). `loadGeometry` je načte jako `keyA/keyB`: pád = p 1 → 0,
+zvednutí na kozlinu p 0 → −1. Měřítko podle stojícího zvířete (`size_from`), takže sedí na živý
+model. Buffery: pozice, normála, uv, keyA, keyB, stav instance, matice = **7** (hlídá `fauna.test.ts`).
+**Mizení po čtvrtinách** bez dalšího bufferu: stojící souřadnice vrcholu = `position + keyA + keyB`
+(strana x, podél těla z); vertex shader z nich pošle varying a fragment `discard` podle bitů ve
+`stavu` (přední/zadní × levá/pravá čtvrť). Řez je rovný, vnitřnosti se nekreslí.
+Pózy v GLB nejsou na stejném místě (ležící má střed obalu v počátku, stojící je posunutá stranou
+a pod zemí, visící kotva háku jinde) – srovná je až `alignCarcass` při načtení (níž).
+
+### Rekvizity porážky
+
+`apps/web/public/models/slaughter/slaughter.glb` (`tools/blender/slaughter.py`, ≈ 40 kB, jeden atlas
+256 px, licence v `LICENSES.md`). Uzly, počátek každého na zemi pod středem, rozměry v metrech
+(Blender Z nahoru, −Y vpředu = ve scéně +Z):
+
+- `trestle-large` – kozlina na krávu: tři kůly (základna r 1,25 m, vrchol 2,97 m), bidlo podél X
+  ve výšce 2,83 m, provaz, rozpěrák ±0,22 m a dva háky; **hroty háků ve výšce 2,45 m** (kráva visí
+  za hlezna, kopyta 0,18 m nad háky, celá 2,33 m – hlava ≈ 30 cm nad zemí, nad okrajem neckí). Otevřená strana mezi
+  kůly je vpředu (−Y Blenderu). Střed háků je v ose (x = 0, y = 0).
+- `trestle-small` – totéž na prase, ovci a kozu (visí 1,34–1,42 m, kopyta 0,1 m nad háky): vrchol
+  2,0 m, základna r 0,85 m, **hroty háků ve výšce 1,50 m** – hlava 0,18–0,26 m nad zemí, v neckách.
+  Dvě velikosti proto, aby zvíře viselo hlavou nízko nad zemí.
+- `trough` – necky 1,4 × 0,5 m, výška 0,28 m, bez krve (Martin 26. 10. 2026: krev jen tmavá
+  hladina v misce); pod hlavou visícího zvířete.
+- `block` – špalek r 0,3 m, výška 0,55 m, nahoře prkno 0,7 × 0,34 m (vršek 0,59 m) pro kýty.
+- `bowl` – miska na zemi (r 0,19 m, výška 0,13 m, tmavá kůra a tmavá hnědočervená hladina, aby okraj
+  i hladina byly z výšky vidět) s krví; stojí vedle necek za jejich koncem (`BOWL_LOCAL`), řezník při
+  vyvržení stojí z boku (`gutLocal`), ne před zvířetem. Miska v ruce ženy v klipu `bleed` je prop
+  `bowl` v `people.json`.
+
+Výška počátku visícího zvířete = hroty háků − `CARCASS.hangTop` (výška háku nad počátkem visícího
+modelu, slaughter-plan.ts – s kopyty nad háky). Rekvizity kreslí `slaughter-renderer` (níž).
+
+### Data porážky ze simulace
+
+Scéna dostává z jádra **kusy poražené dnes** jako `SceneLabor.slaughter` (`Partial<Record<HerdSpecies,
+number>>`, i zlomky kusů; bez údaje se neporáželo) – z `LaborDay.slaughterHeads`
+(`labor-report.ts`; nouzovou porážku, která běží až v `eat()` po `work()`, doplní `simulateDay` do dnešního rozvrhu), ten z `LivestockState.slaughtered` (`{ day, heads }`, plní `noteSlaughtered`
+v `livestock.ts`: `slaughter()` – jen hned poražené, `winterSlaughterDay`, `hayShortSlaughter`,
+`emergencySlaughter`). Jen hlášení – simulace ho nečte. Dev náhled: `demoLabor` v listopadu
+(`app/dev/landscape/dev-labor.ts`) přidá `slaughter` s ukázkovými kusy. Převod zlomků na
+stanoviště je v plánu porážky (níž).
+
+### Plán porážky
+
+`apps/web/lib/scene/slaughter-plan.ts` – čistá funkce bez Babylonu (vzor `funeral-plan.ts`):
+
+- **Stanoviště** (`slaughterSites`): počet `stationCount` = zaokrouhlený součet dnešních kusů,
+  1 až `min(3, postavy / 2)`; zimní den s méně než jedním kusem má stanoviště jen s pravděpodobností rovnou součtu (`slaughterRoll(seed, den, 0)`), takže průměr přes zimu odpovídá kusům; 1. 11., nouzová a porážka pro seno víc.
+  Druh losem váženým kusy (zlomky jsou podíly, každé další stanoviště bez už vylosovaného kusu),
+  domácnost losem ze seedu a dne (`slaughterRoll`, každá nejvýš jednou). Kozlina 2–3 m před
+  vchodem (`STATION_FROM_DOOR_M`, stranou až 3 m), otevřenou stranou k vchodu; všechny body
+  `footprint` (nohy kozliny, ležící zvíře, špalek, místo řezníka) schůdné; kráva na velké kozlině
+  u branky hotové ohrady skotu (bez ní ohrady spřežení, bez ohrady u domu), ostatní na malé.
+- **Parta** (`SLAUGHTER_CREW`: ovce a koza 2, prase 3, kráva 4; role `butcher`, `bowl`, `holder`,
+  `helper`): postavy napřed po jednom řezníkovi na stanoviště, pak doplnit party; s jednou
+  postavou dělá řezník vše (bez misky). Jen dospělí 16+ (`SLAUGHTER_MIN_AGE`).
+- **Osa dne** (`SLAUGHTER_PHASES`, podíly okna herního dne, den se opakuje jako u jízd):
+  přivedení 0–6 %, omráčení 6–14 % (prase a kráva: 2–3 údery klipem `build` s palicí, pád ve 12 %
+  za 0,6 s; ovce a koza `hold` – jen přidržení, řezník podřízne vestoje `gut` a zvíře padne až
+  ve 14 %), vykrvení 14–35 % (řezník `butcher` u krku, žena `bleed` s miskou, pomocníci `weed`),
+  zavěšení 35–40 % (v 37,5 % se zvíře za 1,2 s – `liftS` – zvedne z místa, kde leží, pod háky,
+  otočí se a morph přejde leží → visí; lidé jdou kolem přední strany kozliny), vyvržení 40–62 %
+  (`gut` u visícího, pod ním necky), rozčtvrcení 62–85 % (4 kroky: půl kroku `fell` se sekerou,
+  v půlce čtvrtina zmizí, čtvrt kroku ji nosič nese `carry-meat` na prkno), odnos 85–100 %
+  (kýta j – nosič j % parta, stálou rychlostí `carryMS` ke vchodu domácnosti, uvnitř `insideS`,
+  zpět pro další; nakonec zůstanou doma – `hidden`).
+- **Výstup pro kreslení**: `SlaughterStation` – kozlina (`x`, `z`, natočení, `trestle`
+  large/small), `animal` (kde stojí a leží, hlavou k vchodu), `hang` (pod háky, natočení
+  `−heading`, výška počátku `lift` = háky − `CARCASS.hangTop`), `trough` (pod háky), `block`
+  (místa kýt `BLOCK.legSlots`, výška `boardY`), `bowl` (miska na zemi od střihu, jen se ženou
+  s miskou). Okamžik: `slaughterState` – fáze, `carcass` (`pose` 1 stojí / 0 leží / −1 visí,
+  poloha, `lift`, `quarters` a `cutMask` po `QUARTER_BITS`), `legsOnBoard`, `bowlOnGround`.
+  Lidé: `slaughterPose` – poloha, natočení, klip a tempo podle scénáře kroků (rekvizitu v ruce
+  dává klip).
+- **Postavy** (`villager-plan-slaughter.ts`, `slaughterFigures`): v `planVillagersWithCrew` hned
+  po řemeslnících; bez `labor.slaughter`, hodin světa nebo podílu `slaughter` nic. Postav je
+  tolik, kolik má podíl porážky (aspoň 2, nejvýš dospělých; nadbytek nad podílem se ubere z domácích prací a nečinných, ať nikomu nechybí postava); řezník muž a žena s miskou
+  přednostně z domácnosti stanoviště (`roster.take`), klíč `slaughter-crew:`. Lidé party
+  nedělají nic jiného – o ně se zmenší podíl porážky, jeho zbytek stojí jako dřív u výmlatu.
+  Plán vrací `planVillagersWithCrew` jako `slaughter` (pro `slaughter-renderer`). Nosič s masem
+  (`carry-meat`) jde jako s dřevem (`CLIP_SPEED_M_S`: žena 1,05, muž 1,0 m/s – stejná kadence).
+
+### Kreslení porážky
+
+`apps/web/lib/scene/slaughter-renderer.ts` (`SlaughterRenderer`, vzor `funeral-renderer.ts`):
+
+- **Háček:** `villagers.ts` po `planVillagersWithCrew` ohlásí plán `onSlaughter` (jen při změně,
+  klíč den + okno + stanoviště + parta; bez modelů postav null) → `landscape-scene.ts` →
+  `VillageRenderer.setSlaughter` → `set`. Animace: `animate()` scény volá
+  `VillageRenderer.animateSlaughter` (skutečný čas jako lidé); dispose s vsí.
+- **Modely líně**, až je porážka: `slaughter.glb` (`loadModelParts`, PBR s `applyGammaFog`)
+  a `carcass-<druh>.glb` jen pro druhy v plánu (`loadGeometry`).
+- **Rekvizity** – díl = mesh v instancích (instance = stanoviště, skrytá = nulová matice):
+  kozlina velká/malá, necky (pod háky, podél bidla), špalek; nehybné – matice jen
+  v `set` a po načtení. Miska na zemi od zavěšení (`bowlOnGround`). Nevrhají stín (jen den porážky).
+- **Mršina** – mesh `slaughter-carcass-<druh>`, instance = stanoviště tohoto druhu. `alignCarcass`
+  při načtení přepočítá základ a klíče: ležící a stojící střed obalu na počátek a spodek na zem,
+  visící kotva háku (kopyta – vrcholy do 8 cm pod vrcholem) nad počátek (výška beze změny –
+  `CARCASS.hangTop`). Matice: místo a natočení z `slaughterState` (při zvednutí plynule od ležícího
+  k hákům), výška terénu + `lift`. **`CarcassPlugin`** (GLSL i WGSL nad StandardMaterialem):
+  stav instance `carcassState` = (póza p, `cutMask`); vertex `position + A·p + B·p²` a varying
+  stojících souřadnic, fragment `discard` čtvrtiny podle bitu (přední z > 0, pravá x > 0; bit 1
+  přední pravá, 2 přední levá, 4 zadní pravá, 8 zadní levá – přední, dolní, se sekají první).
+  Buffery: pozice, normála, uv, `carcassKeyA/B`, `carcassState`, matice = **7**
+  (`slaughter-renderer.test.ts`, `fauna.test.ts`).
+- **Kýty na prkně** – komolý kužel (0,3 m, `LEG`) v instancích, 4 na stanoviště v místech
+  `BLOCK.legSlots` napříč prknem; měřítko podle druhu (`LEG_SCALE`); kolik, říká `legsOnBoard`.
+- **Kdy se kreslí:** `write` porovná stav každého stanoviště (viditelnost, póza, místo, výška,
+  natočení, `cutMask`, kýty, miska) se zapsaným a přepíše buffery jen při změně – `animate` pak
+  vrátí true a scéna nastaví `needsRender`. Plynule se mění jen pád (0,6 s) a zvednutí na háky
+  (1,2 s), jinak skokově (čtvrtiny, kýty, miska). Mimo záběr (obal stanovišť) a dál než 1,5 km
+  se nepřepisuje; při omezeném pohybu se `animate` nevolá – zůstane stav ze `set`.
+
 ## Jezdci (lord-horses Úloha 11)
 
 Kdo, kdy a na kterém koni jede, určuje jádro (`lordRides` → `SceneLord.riders`, `borderTrailId`,

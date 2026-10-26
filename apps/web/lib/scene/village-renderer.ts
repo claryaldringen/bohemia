@@ -70,6 +70,8 @@ import { draftTeamsToday, villageCartPlans } from './village-carts';
 import { penHerds, scenePenViews } from './village-pens';
 import { SACRED_SITE_KIND, sacredBuildingKey } from './sacred-layout';
 import { SacredRenderer } from './sacred-renderer';
+import type { SlaughterPlan } from './slaughter-plan';
+import { SlaughterRenderer } from './slaughter-renderer';
 import { ROUND_SITE_M, constructionState, sitePropPlace } from './village-construction';
 import {
   decalGrid,
@@ -211,6 +213,7 @@ export class VillageRenderer {
   private readonly funerals: FuneralRenderer;
   /** Svatby – oheň obřadu a věnec na posvátném dubu (kinship.md – Svatba ve scéně). */
   private readonly weddings: WeddingRenderer;
+  private readonly slaughter: SlaughterRenderer;
   /** Mohyly, které hranice ještě nenechala nasypat (klíč pro změnu). */
   private hiddenMoundsKey = '';
   /** Rudiště kovářů – jámy a hromady rudy (crafts.md – Uhlí a ruda kováře). */
@@ -284,6 +287,10 @@ export class VillageRenderer {
       onLoaded: () => context.requestRender(),
     });
     this.weddings = new WeddingRenderer(scene, { groundHeight: context.groundHeight });
+    this.slaughter = new SlaughterRenderer(scene, {
+      groundHeight: context.groundHeight,
+      onLoaded: () => context.requestRender(),
+    });
     this.ores = new OreSiteRenderer(scene, {
       decalHeight: context.decalHeight,
       addShadowCaster: (mesh) => context.addShadowCaster(mesh),
@@ -675,6 +682,27 @@ export class VillageRenderer {
     return funerals || mounds;
   }
 
+  /**
+   * Porážka (diet.md – Porážka ve scéně): plán dne z villagers.ts – kozlina, necky, špalek,
+   * miska, mršina a kýty (slaughter-renderer.ts). Vrátí true, když je co překreslit.
+   */
+  setSlaughter(plan: SlaughterPlan | null, nowMs: number): boolean {
+    return this.slaughter.set(plan, nowMs);
+  }
+
+  /**
+   * Posune mršinu, kýty a misku porážky na okamžik `nowMs` – true jen při změně stavu (pád
+   * a zvednutí na háky plynule, jinak skokově) a jen v záběru kamery.
+   */
+  animateSlaughter(nowMs: number, camera: Camera | null): boolean {
+    return this.slaughter.animate(nowMs, camera);
+  }
+
+  /** Kam namířit kameru na porážku – kozlina prvního stanoviště (vývojová ukázka). */
+  slaughterFocus(): { x: number; z: number } | null {
+    return this.slaughter.focus();
+  }
+
   /** Kam namířit kameru na pohřeb – máry v průvodu, jinak hranice (vývojová ukázka). */
   funeralFocus(nowMs: number): ReturnType<FuneralRenderer['focus']> {
     return this.funerals.focus(nowMs);
@@ -899,6 +927,7 @@ export class VillageRenderer {
     this.smoke.dispose();
     this.funerals.dispose();
     this.weddings.dispose();
+    this.slaughter.dispose();
     this.cemeteries.dispose();
     this.ores.dispose();
     this.grainPits.dispose();

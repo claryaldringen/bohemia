@@ -438,6 +438,10 @@ export class LandscapeScene {
       onWeddings: (plans) => {
         if (this.village?.setWeddings(plans, Date.now())) this.renderWhenReady();
       },
+      // porážka (diet.md – Porážka ve scéně): kozlina, mršina a kýty kreslí ves
+      onSlaughter: (plan) => {
+        if (this.village?.setSlaughter(plan, Date.now())) this.renderWhenReady();
+      },
       // vybraný člověk (villagers.md – Výběr postavy) – co dělá, panel postavy
       onPersonState: (state) => {
         this.personState = state;
@@ -989,6 +993,11 @@ export class LandscapeScene {
     this.needsRender = true;
   }
 
+  /** Kam se dívat na porážku (vývojová ukázka): kozlina prvního stanoviště; bez porážky null. */
+  slaughterFocus(): { x: number; z: number } | null {
+    return this.village?.slaughterFocus() ?? null;
+  }
+
   /**
    * Kam se dívat na pohřeb (vývojová ukázka – cemetery.md, Pohřeb ve scéně): máry v průvodu,
    * jinak hranice, a časy obřadu prvního pohřbu; bez pohřbu null.
@@ -1043,6 +1052,13 @@ export class LandscapeScene {
   }
 
   /** Bod krajiny (x, z) na obrazovce v CSS px plátna, nebo null mimo záběr (testovací háček). */
+  /** Testovací háček: jména a připravenost meshů porážky (`slaughter-*`) ve scéně. */
+  slaughterMeshes(): { name: string; ready: boolean }[] {
+    return this.scene.meshes
+      .filter((mesh) => mesh.name.startsWith('slaughter-'))
+      .map((mesh) => ({ name: mesh.name, ready: mesh.isReady(true) }));
+  }
+
   projectToScreen(x: number, z: number): { x: number; y: number } | null {
     const camera = this.rtsCamera?.camera;
     if (!camera || !this.groundHeight) return null;
@@ -1432,6 +1448,8 @@ export class LandscapeScene {
     if (this.villagers?.animate(epochMs, camera)) animated = true;
     // voli a krávy v ohradách a spřežení na poli (oxen.md) – skutečný čas jako zvířata
     if (this.village?.animateOxen(epochMs, camera)) animated = true;
+    // porážka – překreslí se jen při změně stavu (pád, zavěšení, čtvrtiny, kýty, miska)
+    if (this.village?.animateSlaughter(epochMs, camera)) animated = true;
     // obilí ve větru – jen zralé a zelené v záběru
     if (this.village?.animateFields(epochMs, camera)) animated = true;
     // den a noc – slunce jde po obloze (světlo se mění pomalu, stačí DAY_LIGHT_MS)

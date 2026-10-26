@@ -4,8 +4,9 @@ blender -b --factory-startup --python tools/blender/people_from_0ad.py -- \
     tools/blender/people.json <0ad>/binaries/data/mods/public/art apps/web/public/models/people
 
 people.json: [{"name", "height_m" | "length_m", "body": {"dae", "texture", "tint", "pattern"?,
-"flatten"?, "multiply"?, "coat"?}, "props": [{"name", "dae" | "procedural" (sickle | yoke), "point", "texture",
-"tint"?, "uv"?}], "clips": [{"name", "animation", "props": [jména propů viditelných v klipu],
+"flatten"?, "multiply"?, "coat"?}, "props": [{"name", "dae" | "procedural" (sickle | yoke | bowl), "point", "texture",
+"tint"?, "uv"?, "scale"? (měřítko kolem bodu, výchozí 1), "rotate_deg"? ([x, y, z] natočení v osách bodu),
+"offset_m"? ([x, y, z] posun v osách bodu, v metrech)}], "clips": [{"name", "animation", "props": [jména propů viditelných v klipu],
 "pose"?, "report"?}]}]
 
 Totéž umí i zvířata s kostrou (voli spřežení – tools/blender/plough-team.json): bez propů,
@@ -362,9 +363,50 @@ def procedural_yoke(uv_wood, uv_band, uv_rope):
     return {"matrix": Matrix.Identity(4), "positions": positions, "normals": normals, "uvs": uvs, "tris": tris}
 
 
+def procedural_bowl(uv_wood, uv_liquid):
+    """Miska na krev pro jelita (porážka ve scéně – docs/design/diet.md – Porážka ve scéně; 0 A.D. ji nemá):
+    mělká komolá miska otevřená nahoru (osa z bodu propu, dno v bodě), uvnitř tmavá hladina.
+    Bod propu „weapon_L“ má svislici v ose Y, proto je miska v people.json natočená o −90° kolem X."""
+    positions, normals, uvs, tris = [], [], [], []
+
+    def quad(a, b, c, d, na, nb, nc, nd, uv_rect, u0, u1, v0, v1):
+        base = len(positions)
+        positions.extend([Vector(a), Vector(b), Vector(c), Vector(d)])
+        normals.extend([Vector(na), Vector(nb), Vector(nc), Vector(nd)])
+        x0, y0, x1, y1 = uv_rect
+        uvs.extend([[x0 + (x1 - x0) * u0, y0 + (y1 - y0) * v0], [x0 + (x1 - x0) * u1, y0 + (y1 - y0) * v0], [x0 + (x1 - x0) * u1, y0 + (y1 - y0) * v1], [x0 + (x1 - x0) * u0, y0 + (y1 - y0) * v1]])
+        i = len(normals) - 4
+        tris.append(((base, i, base), (base + 1, i + 1, base + 1), (base + 2, i + 2, base + 2)))
+        tris.append(((base, i, base), (base + 2, i + 2, base + 2), (base + 3, i + 3, base + 3)))
+
+    sides, r_top, r_bottom, top, bottom = 10, 0.30, 0.17, 0.17, 0.0
+    slope = (r_top - r_bottom) / (top - bottom)
+    level = top - 0.05  # hladina kousek pod okrajem
+    r_level = r_bottom + (level - bottom) * slope
+    for j in range(sides):
+        a0, a1 = 2 * math.pi * j / sides, 2 * math.pi * (j + 1) / sides
+        c0, s0, c1, s1 = math.cos(a0), math.sin(a0), math.cos(a1), math.sin(a1)
+        n0 = Vector((c0, s0, -slope)).normalized()
+        n1 = Vector((c1, s1, -slope)).normalized()
+        lo0, lo1 = (c0 * r_bottom, s0 * r_bottom, bottom), (c1 * r_bottom, s1 * r_bottom, bottom)
+        hi0, hi1 = (c0 * r_top, s0 * r_top, top), (c1 * r_top, s1 * r_top, top)
+        quad(lo0, lo1, hi1, hi0, n0, n1, n1, n0, uv_wood, j / sides, (j + 1) / sides, 0.0, 1.0)
+        quad(hi0, hi1, lo1, lo0, -n0, -n1, -n1, -n0, uv_wood, j / sides, (j + 1) / sides, 0.0, 0.5)
+        # hladina: trojúhelník od středu
+        base = len(positions)
+        positions.extend([Vector((0, 0, level)), Vector((c1 * r_level, s1 * r_level, level)), Vector((c0 * r_level, s0 * r_level, level))])
+        normals.extend([Vector((0, 0, 1))] * 3)
+        x0, y0, x1, y1 = uv_liquid
+        uvs.extend([[(x0 + x1) / 2, (y0 + y1) / 2], [x0, y0], [x1, y0]])
+        i = len(normals) - 3
+        tris.append(((base, i, base), (base + 1, i + 1, base + 1), (base + 2, i + 2, base + 2)))
+    return {"matrix": Matrix.Identity(4), "positions": positions, "normals": normals, "uvs": uvs, "tris": tris}
+
+
 PROCEDURAL = {
     "sickle": lambda r: procedural_sickle(r["blade"], r["handle"]),
     "yoke": lambda r: procedural_yoke(r["wood"], r["band"], r["rope"]),
+    "bowl": lambda r: procedural_bowl(r["wood"], r["liquid"]),
 }
 
 
@@ -782,6 +824,12 @@ def convert(spec, art, out_dir):
         else:
             geo = load_static(os.path.join(art, part["dae"]))
             matrix = rest_world[part["joint"]] @ geo["matrix"]
+        if part["kind"] == "prop" and (part.get("scale", 1) != 1 or part.get("rotate_deg")):
+            # měřítko a natočení propu v souřadnicích jeho bodu (ruka, rameno) – vrcholy v klidové póze
+            rx, ry, rz = (math.radians(a) for a in part.get("rotate_deg", [0, 0, 0]))
+            local = Matrix.Rotation(rz, 4, "Z") @ Matrix.Rotation(ry, 4, "Y") @ Matrix.Rotation(rx, 4, "X") @ Matrix.Scale(part.get("scale", 1), 4)
+            local = Matrix.Translation(Vector(part.get("offset_m", [0, 0, 0])) / scale) @ local
+            matrix = rest_world[part["joint"]] @ local @ (rest_world[part["joint"]].inverted() @ matrix)
         normal_matrix = matrix.to_3x3().inverted().transposed()
         sx, sy, sw, sh = part["slot"]
         lookup = {}
@@ -813,6 +861,10 @@ def convert(spec, art, out_dir):
                     jnt.append(js)
                     wgt.append(ws)
                 idx.append(lookup[key])
+        if part["kind"] == "prop":
+            pp = [matrix @ q for q in geo["positions"]]
+            ext = [(max(c[i] for c in pp) - min(c[i] for c in pp)) * scale for i in range(3)]
+            print(f"  {part['name']}: rozměry (m) {ext[0]:.2f} x {ext[1]:.2f} x {ext[2]:.2f}")
         print(f"  {part.get('name', 'body')}: uv u[{uvs_seen[0]:.2f},{uvs_seen[1]:.2f}] v[{uvs_seen[2]:.2f},{uvs_seen[3]:.2f}]")
 
     pos = np.array(pos, np.float32)

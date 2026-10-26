@@ -131,6 +131,8 @@ describe('ves bez kováře a hrnčíře beze změny (crafts.md – Uhlí a ruda 
       'dynasty',
       // značka převodu na osevní postup (fields.md – Osevní postup po dílech, bod 7)
       'sowingRotation',
+      // kusy poražené dnes (hlášení pro scénu – LivestockState.slaughtered) – simulace je nečte
+      'slaughtered',
     ]);
     const stripped = JSON.stringify(legacyShape(next), (key, value: unknown) =>
       learning.has(key) ? undefined : value,

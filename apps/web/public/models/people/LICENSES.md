@@ -37,3 +37,10 @@ Rekvizity (výcvikové, dřevěné – všechny s texturou `props/wood_e.png`, �
 `props/bow_long_indian_a.dae` (luk), `props/broadsword_celt.dae` (výcvikový meč),
 `props/weap_shaft_wood_a.dae` (kopí bez hrotu), `props/shield/round_noboss_f.dae` (pletený štít).
 Jezdecké klipy 0 A.D. mají na koni sed – poloha jezdce na koni se odvozuje ve scéně.
+
+Porážka (oba soubory, klipy `butcher`, `bleed`, `gut`, `carry-meat`, `carry-meat-idle`): animace
+`animation/biped/gatherer/gather_meat.dae` (butcher), `gather_berries.dae` (bleed),
+`slaughter.dae` (gut), `carry_meat_f.dae` / `carry_meat_m.dae` a `idle_carry_meat_f.dae` /
+`idle_carry_meat_m.dae` (žena / muž). Rekvizity: nůž `props/weapons/dagger_01.dae` (textura
+`props/prop_weap.dds`), kýta `props/special/brontoburger.dae` (textura `props/shuttle_meat.png`).
+Miska na krev je nový jednoduchý model (skript, `procedural_bowl`) s texturou z `prop_weap.dds`.

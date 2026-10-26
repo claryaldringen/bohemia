@@ -394,3 +394,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 POSITION, NORMAL, TEXCOORD_0 jako dosud – 8 bufferů s VAT a barvou instance; hlídá `fauna.test.ts`).
 Klipy sedu mají sed na koni, poloha jezdce se odvodí z koně ve scéně (Úloha 11).
 `people_from_0ad.py` navíc umí `<polygons>` v COLLADA (luk, meč a štít z 0 A.D.).
+Porážka (návrh `slaughter`): klipy `butcher` (`gather_meat` + nůž, klek), `bleed` (klek s miskou),
+`gut` (`slaughter.dae` + nůž, vestoje), `carry-meat` a `carry-meat-idle` (kýta na rameni) a propy
+`knife` (`dagger_01`), `meat` (`brontoburger`) a `bowl` (procedurální `procedural_bowl`); sekvenci
+zatím nic nepoužívá, GLB jsou o ≈ 190 kB větší, VAT texturu tvoří ≈ 1400 řádků (man).
+Propy mají volitelná pole `scale` (měřítko kolem bodu), `rotate_deg` a `offset_m` (posun v osách bodu,
+metry): kýta má `scale` 0,55 (≈ 0,4 m), u muže `offset_m` ji snižuje o 0,3 m z výšky nad hlavou na rameno;
+miska je natočená o −90° kolem X (svislice bodu `weapon_L` je jeho osa Y) a dnem stojí v bodě ruky.

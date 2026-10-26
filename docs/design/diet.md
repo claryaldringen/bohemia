@@ -1125,6 +1125,25 @@ uhlídaný přes rok se počítal i za zimu, kdy se pasou jen prasata).
 - V panelu ohrady a u stád počty zvířat a nosnost (ikony + čísla); v panelu ohrady zvířata na noc
   / místa a čtverce; upozornění „Ovce se nevejdou do ohrad“, když se stádo do ohrad nevejde.
 
+## Porážka ve scéně
+
+Martin 26. 10. 2026: „Ideální by bylo, kdyby porážka měla vlastní sekvenci – omráčení, vykrvení,
+vyvržení a rozčtvrcení.“ K doporučením: „Zbytek je ok.“ Jen hlášení – simulace scénu nečte, na
+výsledek porážky (kusy, maso) nemá vliv. Podrobnosti a soubory: `docs/code/scene-village.md`
+(Porážka ve scéně).
+
+- Kolik kusů se dnes poráží, říká simulace; scéna z toho udělá 1 až 3 stanoviště a každé má
+  vlastní sekvenci podle herního dne: přivedení, omráčení, vykrvení, zavěšení na kozlinu,
+  vyvržení, rozčtvrcení a odnos kýt do domu.
+- **Dvůr u domu** (Martin 26. 10. 2026: „Zbytek je ok“ k doporučení dělat porážku u domu); **kráva u ohrady skotu** (velká kozlina
+  u branky).
+- **Omráčení jen prase a kráva** (palice); ovce a koza se jen přidrží a podříznou vestoje.
+- **Krev jen v misce** na zemi (a tmavá hladina v ní) – nikde jinde se nekreslí.
+- **Bez paření a udírny** – maso se neupravuje, kýty se odnášejí rovnou do domu.
+- Parta podle druhu (ovce a koza 2, prase 3, kráva 4 dospělí); kdo na porážku jde, nedělá nic
+  jiného.
+- Doba jednotlivých kroků, výška háků a podoba kozliny: návrh Clauda.
+
 ## Rozhodnutí
 
 | Rozhodnutí                                                                                                                                                                                                       | Kdo                                               |

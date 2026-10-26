@@ -26,6 +26,7 @@ import {
   HERD_SPECIES,
   LIVESTOCK,
   butcher,
+  noteSlaughtered,
   dailyEggsKg,
   freshMeatAheadEnergy,
   isSlaughterSeason,
@@ -278,6 +279,7 @@ export function emergencySlaughter(
     }
     livestock.herds[species] = left;
     animals[species] = Math.round(killed * 100) / 100;
+    noteSlaughtered(state, day, species, herd - left);
   }
   if (!isSlaughterSeason(day) && !livestock.slaughterWork?.emergency) {
     livestock.slaughterWork = { required: 0, done: 0, emergency: true };

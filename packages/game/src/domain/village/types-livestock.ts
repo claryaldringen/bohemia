@@ -21,6 +21,11 @@ export interface LivestockState {
    */
   land?: { meadowHa: number; forestHa: number };
   /**
+   * Kusy poražené v den `day` (i zlomky) – jen pro hlášení (`LaborDay.slaughterHeads`), simulace
+   * je nečte; starý den se přepíše.
+   */
+  slaughtered?: { day: number; heads: Partial<Record<HerdSpecies, number>> };
+  /**
    * Porážka a uzení (listopad) – potřebné a odvedené člověkodny; chybí = žádná. `emergency` –
    * práce nouzové porážky mimo listopad (diet.md – Nouzová porážka), dělá se hned.
    */
