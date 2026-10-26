@@ -74,3 +74,26 @@ windowDays` (ozim 61, jař 92) denně na každý nesklizený ohrožený díl. Mi
 - **Vlkov (kopie 5. 6. 820):** škoda 522 kg v sezóně 821 (8,1 % úrody) a 435 kg v 822 (8,3 %);
   sklizeň bez škod 6 441 / 5 354 kg. Hlad 0 dní, nejnižší zásoby shodné, rok se nezpomalil
   (+0,3 %). Zvěř ≈ 4–6 kg/den při 12–16 ha ohrožených polí (1 040 dílů po ≈ 0,02 ha).
+
+## Šelmy (W3, `predators.ts`, `fox-eggs.ts`)
+
+- **`LIVESTOCK.lossPerYear`** je základ bez vlků (ovce 9, kozy 7, prasata 10, skot 5 %; `herdLosses`
+  beze změny). **Vlčí díl** `PREDATION.wolfShare` (3 / 3 / 2 / 1 % při `fullPack` = 5 vlcích) dělá
+  `predationDay(state, day)` v `husbandryDay` hned po `herdLosses`. Roční zbytek vlky je
+  `(1 − základ − díl × vlci ÷ 5) ÷ (1 − základ)` (aby součet při 5 vlcích dal přesně dosavadních
+  12 / 10 / 12 / 6 %), rozpočtený na dny, kdy je stádo venku: ovce, kozy, skot duben–říjen
+  (214 dní), prasata 365 (`wolfDailyKeep`). Ves bez `wildlife` = 5 vlků (`wolvesOf`), ale bez
+  kroniky (nemá kam ukládat akumulátory). `yearlyMeatPerHead` počítá se základem + plným dílem
+  (kalibrace stád beze změny).
+- **Medvěd:** je-li `bear.present`, duben–listopad (244 dní) bere denně `2 ÷ 244` prasete
+  **absolutně** (ne podílem; nejvýš celé stádo) – malá ves s 2 prasaty o ně přijde, proto testy
+  bez medvěda nastavují `bear.present = false`.
+- **Kronika:** `WildlifeState.predation { acc, bearAcc, killDays, yearHeads }` vzniká líně;
+  zlomky kusů do `acc`, celé kusy → událost `predator-kill { species, by, heads }` (jedna za druh
+  a den; odchylka od plánu: `heads`), `killDays` posledních 30 dní, `yearHeads` od 1. 5.
+- **Liška:** `foxEggFactor(wildlife)` = 1 − min(8 %; 2 % × lišky), lišky = `foxCount(land)`
+  (strop z `wildlifeCaps`). Bere ho `dailyEggsKg` (jídlo, nouzová porážka, výhled) i
+  `proteinBudget` a plán velikosti stád (`eggsKg`). Ves bez `wildlife` = 1.
+- **Vlkov (kopie 5. 6. 820, 2 roky):** 0,6 vlka, les 112 ha, bez medvěda, 2 lišky → vlčí díl
+  skoro nulový (stáda rostou víc: ovce 45,9 vs 43,3), vejce −4 %, hlad 0, rok 59,9 s (dřív 60,3 s).
+  Podrobnosti `diag-wildlife/w3.txt`.

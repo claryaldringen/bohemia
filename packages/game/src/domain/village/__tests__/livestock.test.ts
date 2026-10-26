@@ -4,7 +4,9 @@ import { foundVillage } from '../actions';
 import { PROTEIN } from '../diet';
 import { hayLeftAvailable, hayWinterDaysLeft, winterHayAvailable } from '../hay';
 import { youngsterHerders } from '../herding';
+import { predationDay } from '../predators';
 import { HERD_BREEDING } from '../rules';
+import { WILDLIFE_LAND } from '../rules-wildlife';
 import {
   LIVESTOCK,
   goatBrowseHa,
@@ -28,6 +30,7 @@ import {
   yearlyMeatPerHead,
 } from '../livestock';
 import { advanceVillage } from '../simulate';
+import { freshWildlife } from '../wildlife';
 import type { FieldPart, HerdSpecies, VillageState } from '../types';
 import { withBuiltFirstDwelling, withRoomyPens } from './village-fixtures';
 
@@ -110,6 +113,9 @@ describe('výchozí stádo', () => {
     const s = village();
     delete s.livestock;
     delete s.meatKg;
+    // bez medvěda (bere prasata absolutně, wildlife.md – Vlci na dobytku): test hlídá výchozí stádo
+    s.wildlife = freshWildlife({ ...WILDLIFE_LAND.defaultLand }, 2);
+    s.wildlife.bear = { present: false, backDay: null };
     const json = JSON.parse(JSON.stringify(s)) as VillageState;
     const next = advanceVillage(json, s.lastDay + 1, null);
     // po prvním dni ztrát (diet.md – Roční ztráty stáda)
@@ -236,7 +242,11 @@ describe('růst a nosnost', () => {
     const s = village();
     s.livestock!.herds = herds({ sheep: 100, goat: 100, pig: 100, cow: 100 });
     s.livestock!.young = herds({ sheep: 10 });
-    for (let i = 0; i < 365; i++) herdLosses(s);
+    // základ + vlčí díl při plné smečce (ves bez zvěře má 5 vlků); rok od 1. 1.
+    for (let i = 0; i < 365; i++) {
+      herdLosses(s);
+      predationDay(s, at(600, 1, 1) + i);
+    }
     expect(s.livestock!.herds.sheep).toBeCloseTo(88, 6);
     expect(s.livestock!.herds.goat).toBeCloseTo(90, 6);
     expect(s.livestock!.herds.pig).toBeCloseTo(88, 6);

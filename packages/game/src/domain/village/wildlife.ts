@@ -3,6 +3,7 @@
 
 import { TOTAL_GAME_DAYS, dateOfDayIndex, dayIndexOf } from '../calendar';
 import type { Landscape } from '../landscape';
+import { foxCount } from './fox-eggs';
 import { villageHerds } from './livestock';
 import { CROWS, WILDLIFE_CAPS, WILDLIFE_LAND, WILDLIFE_YEAR } from './rules-wildlife';
 import type { VillageState, WildlifeCaps, WildlifeLand, WildlifeState } from './types';
@@ -22,10 +23,7 @@ export function wildlifeCaps(land: WildlifeLand, villagePigs: number): WildlifeC
     deer: (land.forestHa * WILDLIFE_CAPS.deerPer100Ha) / 100,
     boar: (wildForestHa * WILDLIFE_CAPS.boarPer100Ha) / 100,
     hares: (land.openHa * WILDLIFE_CAPS.haresPer100Ha) / 100,
-    foxes: Math.min(
-      WILDLIFE_CAPS.foxesMax,
-      Math.floor(((land.forestHa + land.openHa) * WILDLIFE_CAPS.foxesPer100Ha) / 100),
-    ),
+    foxes: foxCount(land),
     wolves: wolfShare * wolves.full,
     bear: land.forestHa >= WILDLIFE_CAPS.bearForestHa,
     fishKg: land.waterHa * WILDLIFE_CAPS.fishKgPerHa,

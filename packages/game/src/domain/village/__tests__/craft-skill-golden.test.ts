@@ -120,6 +120,7 @@ describe('ves bez dílen beze změny (crafts.md – Učení řemesla)', () => {
     const stripped = JSON.stringify(legacyShape(next), (key, value: unknown) =>
       marks.has(key) ? undefined : value,
     );
-    expect(hash(stripped)).toBe('39b51dd8');
+    // hash 5e3b6c4c (26. 10. 2026 (W3 šelmy; wildlife.md – Vlci na dobytku): vlčí díl ztrát jen venku a medvěd bere prasata, takže stáda jdou po dnech jinak; dřív 39b51dd8)
+    expect(hash(stripped)).toBe('5e3b6c4c');
   }, 120_000);
 });

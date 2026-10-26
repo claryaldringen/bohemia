@@ -81,3 +81,21 @@ export const FIELD_DAMAGE = {
   /** Vzdálenost od lesa dílu bez krajiny a mimo les (m) – typická ves (návrh Clauda). */
   defaultEdgeM: 120,
 } as const;
+
+/** Šelmy na dobytku a slepicích (wildlife.md – Vlci na dobytku, Liška na slepicích). */
+export const PREDATION = {
+  /** Smečka, při které jsou ztráty stáda jako dřív (vlčí díl platí pro tolik vlků). */
+  fullPack: 5,
+  /** Vlčí díl ročních ztrát při plné smečce; základ `LIVESTOCK.lossPerYear` je o něj nižší. */
+  wolfShare: { sheep: 0.03, goat: 0.03, pig: 0.02, cow: 0.01 },
+  /** Ovce, kozy a skot jsou venku (a vlci je berou) od `from` do `to` včetně (měsíce). */
+  pastureMonths: { from: 4, to: 10 },
+  /** Prasata v lese: celý rok. */
+  pigsAllYear: true,
+  /** Medvěd: prasat ročně z lesa a měsíce, kdy nespí (duben–listopad). */
+  bear: { pigsPerYear: 2, fromMonth: 4, toMonth: 11 },
+  /** Liška ubere tento podíl vajec, všechny lišky nejvýš `eggMax`. */
+  fox: { eggShare: 0.02, eggMax: 0.08 },
+  /** Kolik dní zpět se pamatují dny, kdy šelmy strhly celý kus. */
+  killDaysKept: 30,
+} as const;

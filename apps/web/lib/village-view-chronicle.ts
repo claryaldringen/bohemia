@@ -370,6 +370,17 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return event.own ? 'Kovář okul koně.' : 'Koně okul kovář ze sousední vsi.';
     case 'bear-returned':
       return 'V lesích se zase objevil medvěd.';
+    case 'predator-kill': {
+      const heads = event.heads;
+      if (event.by === 'bear') {
+        return heads === 1
+          ? 'Medvěd strhl prase v lese.'
+          : `Medvěd strhl prasata v lese (${heads}).`;
+      }
+      const one = { sheep: 'ovci', goat: 'kozu', pig: 'prase', cow: 'krávu' }[event.species];
+      const many = { sheep: 'ovce', goat: 'kozy', pig: 'prasata', cow: 'krávy' }[event.species];
+      return heads === 1 ? `Vlci strhli ${one}.` : `Vlci strhli ${many} (${heads}).`;
+    }
     case 'wildlife-damage':
       return `Zvěř a vrány zničily ${event.kg} kg obilí na polích.`;
     case 'horse-trained':

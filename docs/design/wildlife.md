@@ -137,6 +137,10 @@ vesničanů.
   v ohradě v zimě vlci neberou. Ztráta je podíl stáda den po dni jako dosud; celé kusy se
   odečítají do kroniky („Vlci strhli ovci“).
 - **Medvěd:** k vlčímu dílu přidá **2 prasata ročně** z prasat v lese (duben–listopad), je-li.
+- **Provedení W3** (návrh Clauda, 26. 10. 2026): vlčí díl se přidá k základu tak, aby součet při
+  5 vlcích dal přesně dosavadní 12 / 10 / 12 / 6 % (roční zbytek vlky = (1 − základ − díl) ÷ (1 −
+  základ), rozpočtený na dny, kdy je stádo venku). Medvěd bere prasata **absolutně** (2 ročně, ne
+  podíl stáda), nejvýš celé stádo. Ves bez údajů o zvěři má 5 vlků a žádnou lišku (beze změny).
 
 ### Liška na slepicích
 

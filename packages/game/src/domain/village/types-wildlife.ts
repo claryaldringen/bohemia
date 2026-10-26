@@ -1,6 +1,8 @@
 // Typy stavu divoké zvěře vsi (wildlife.md – Kde zvěř žije a kolik jí je).
 // Rozcestník je `types.ts`; další úlohy (škody, šelmy, lov…) přidávají jen volitelná pole.
 
+import type { HerdSpecies } from './types-livestock';
+
 /** Krajina zvěře do 1 km od středu vsi (wildlife.md – Kde zvěř žije), k 1. 5. nebo převodu. */
 export interface WildlifeLand {
   /** Souvislý les od 1 ha, bez čtverců vsi, s lesem vsi (ha). */
@@ -30,6 +32,20 @@ export interface WildlifeState {
   fishKg: number;
   /** Škody na polích letošní sezóny (W2); chybí = ves ještě nepřešla 1. 6. */
   damage?: FieldDamage;
+  /** Šelmy na dobytku (W3); chybí = ještě nic neměly. */
+  predation?: Predation;
+}
+
+/** Škody šelem na dobytku (wildlife.md – Vlci na dobytku): akumulátory celých kusů do kroniky. */
+export interface Predation {
+  /** Zlomky kusů strhnutých vlky; celé kusy odejdou do kroniky. */
+  acc: Record<HerdSpecies, number>;
+  /** Zlomek prasete, které vzal medvěd. */
+  bearAcc?: number;
+  /** Dny, kdy šelmy strhly celý kus, za posledních 30 dní (upozornění, lov vlků). */
+  killDays: number[];
+  /** Kusy strhnuté od 1. 5. po druzích (tooltip). */
+  yearHeads: Record<HerdSpecies, number>;
 }
 
 /**
