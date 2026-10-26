@@ -5,7 +5,7 @@ import { TOTAL_GAME_DAYS, dateOfDayIndex, dayIndexOf } from '../calendar';
 import type { Landscape } from '../landscape';
 import { foxCount } from './fox-eggs';
 import { villageHerds } from './livestock';
-import { CROWS, WILDLIFE_CAPS, WILDLIFE_LAND, WILDLIFE_YEAR } from './rules-wildlife';
+import { CROWS, PREDATION, WILDLIFE_CAPS, WILDLIFE_LAND, WILDLIFE_YEAR } from './rules-wildlife';
 import type { VillageState, WildlifeCaps, WildlifeLand, WildlifeState } from './types';
 import { wildlifeLandAt } from './wildlife-land';
 
@@ -71,7 +71,8 @@ function landOf(state: VillageState, landscape: Landscape | null): WildlifeLand 
 /**
  * Ves z doby před zvěří dostane zvěř na stropu (wildlife.md – Pro implementaci) – jednou
  * a idempotentně (ves se `wildlife` vrací týž objekt). Selže-li výpočet krajiny, ves dostane
- * výchozí krajinu a text chyby v `wildlifeFailed` (aplikace ho zapíše do logu).
+ * zvěř bez krajiny (`failedLand`: žádná zvěř, lišky ani medvěd; vlků jako dřív `fullPack`) a text
+ * chyby v `wildlifeFailed` (aplikace ho zapíše do logu) – chová se jako před zvěří.
  */
 export function withWildlife(state: VillageState, landscape: Landscape | null): VillageState {
   if (state.wildlife) return state;
@@ -79,11 +80,9 @@ export function withWildlife(state: VillageState, landscape: Landscape | null): 
     return { ...state, wildlife: freshWildlife(landOf(state, landscape), villagePigs(state)) };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return {
-      ...state,
-      wildlife: freshWildlife({ ...WILDLIFE_LAND.defaultLand }, villagePigs(state)),
-      wildlifeFailed: message,
-    };
+    const wildlife = freshWildlife({ ...WILDLIFE_LAND.failedLand }, villagePigs(state));
+    wildlife.wolves = PREDATION.fullPack;
+    return { ...state, wildlife, wildlifeFailed: message };
   }
 }
 

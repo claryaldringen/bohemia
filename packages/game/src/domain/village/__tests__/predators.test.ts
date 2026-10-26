@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dayIndexOf } from '../../calendar';
+import { dateOfDayIndex, dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
 import { dailyEggsKg, ensureLivestock, herdLosses, LIVESTOCK, villageChickens } from '../livestock';
 import { foxEggFactor } from '../fox-eggs';
@@ -109,6 +109,51 @@ describe('šelmy na dobytku', () => {
       0,
     );
     expect(bearHeads + (withBear.wildlife!.predation!.bearAcc ?? 0)).toBeCloseTo(2, 6);
+  });
+
+  it('medvěd bere jen z prasat nad chovný pár: stádo 2 prasat přežije, 3 prasata ztratí nejvýš 1', () => {
+    const two = village(0, true);
+    const calm = village(0, false);
+    for (const v of [two, calm]) v.livestock!.herds.pig = 2;
+    run(two, at(600, 1, 1), 365);
+    run(calm, at(600, 1, 1), 365);
+    expect(two.livestock!.herds.pig).toBeCloseTo(calm.livestock!.herds.pig, 9);
+    expect(two.wildlife!.predation?.bearAcc ?? 0).toBe(0);
+    const three = village(0, true);
+    const calm3 = village(0, false);
+    for (const v of [three, calm3]) v.livestock!.herds.pig = 3;
+    run(three, at(600, 1, 1), 365);
+    run(calm3, at(600, 1, 1), 365);
+    const lost = calm3.livestock!.herds.pig - three.livestock!.herds.pig;
+    expect(lost).toBeGreaterThan(0.5);
+    expect(lost).toBeLessThanOrEqual(1);
+  });
+
+  it('kronika šelem po měsících: poslední den měsíce, nejvýš jedna událost za druh a šelmu', () => {
+    const s = village(5, true);
+    const events = run(s, at(600, 1, 1), 366); // 600 je přestupný – do 31. 12. včetně
+    const kills = events.filter((e) => e.kind === 'predator-kill');
+    expect(kills.length).toBeGreaterThan(0);
+    // 12 měsíců × (4 druhy + medvěd) je strop, denně by bylo řádově víc
+    expect(kills.length).toBeLessThanOrEqual(12 * 5);
+    const keys = new Set<string>();
+    for (const e of kills) {
+      if (e.kind !== 'predator-kill') continue;
+      const date = dateOfDayIndex(e.day);
+      expect(dateOfDayIndex(e.day + 1).month).not.toBe(date.month);
+      const key = `${e.day}:${e.by}:${e.species}`;
+      expect(keys.has(key)).toBe(false);
+      keys.add(key);
+      expect(e.heads).toBeGreaterThanOrEqual(1);
+    }
+    // součet kusů v kronice = kusy za rok minus to, co čeká na konec posledního měsíce (nic: 31. 12.)
+    const sheep = kills.reduce(
+      (n, e) =>
+        n + (e.kind === 'predator-kill' && e.species === 'sheep' && e.by === 'wolf' ? e.heads : 0),
+      0,
+    );
+    expect(sheep).toBe(s.wildlife!.predation!.yearHeads.sheep);
+    expect(s.wildlife!.predation!.monthHeads).toBeUndefined();
   });
 
   it('medvěd v zimě prasata nebere', () => {

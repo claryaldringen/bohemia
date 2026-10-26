@@ -30,8 +30,11 @@ s `pool ≥ 0,5` do dosahu, sloučené po 60 m. Počítá se **jen při převodu
 
 - `withWildlife(state, landscape | null)` – chybí `wildlife` → zvěř na stropu; jinak týž objekt
   (idempotence). V `advanceVillageSteps` (`simulate.ts`) a v `update-village.ts` kolem
-  `withLivestockLand`. Bez krajiny výchozí `WILDLIFE_LAND.defaultLand` (les 190 ha…). Selhání
-  výpočtu krajiny → výchozí krajina a `wildlifeFailed` (log v `updateVillage`).
+  `withLivestockLand`. Bez krajiny výchozí `WILDLIFE_LAND.defaultLand` (les 190 ha…). Výchozí
+  krajina (les 190 ha → medvěd, 3 lišky) platí jen pro testy a kalibraci s `landscape = null`.
+  Selhání výpočtu krajiny → ves **bez zvěře** (`WILDLIFE_LAND.failedLand` samé nuly: bez medvěda
+  a lišek, 5 vlků jako před zvěří) a `wildlifeFailed` (log v `updateVillage`); příští 1. 5.
+  s krajinou se zvěř přepočítá podle skutečné krajiny.
 - `wildlifeYearDay(state, day, landscape)` – v `simulateDay` hned za `updateLordTraining`; jen
   1. 5.: krajina znovu (s krajinou), jelení zvěř (dospění, úbytek 10 % + 1 % na vlka, kolouši =
      laně × 0,6, nad stropem napřed kolouši a laně), prasata (úbytek 20 %, selata = dospělí, nad
@@ -88,12 +91,15 @@ windowDays` (ozim 61, jař 92) denně na každý nesklizený ohrožený díl. Mi
   (214 dní), prasata 365 (`wolfDailyKeep`). Ves bez `wildlife` = 5 vlků (`wolvesOf`), ale bez
   kroniky (nemá kam ukládat akumulátory). `yearlyMeatPerHead` počítá se základem + plným dílem
   (kalibrace stád beze změny).
-- **Medvěd:** je-li `bear.present`, duben–listopad (244 dní) bere denně `2 ÷ 244` prasete
-  **absolutně** (ne podílem; nejvýš celé stádo) – malá ves s 2 prasaty o ně přijde, proto testy
-  bez medvěda nastavují `bear.present = false`.
+- **Medvěd:** je-li `bear.present`, duben–listopad bere denně `2 ÷ dny` prasete **absolutně**
+  (ne podílem), ale jen z prasat nad chovný pár: `min(2 ÷ dny; max(0, prasata − keepPigs))`,
+  `PREDATION.bear.keepPigs` = 2 (stádo 2 prasat přežije). Dny sezón (`PASTURE_DAYS` 214,
+  `BEAR_DAYS` 244, rok 365) se odvozují z měsíců `PREDATION` a kalendáře (`monthLength`),
+  `PREDATION.pigsAllYear` řídí, zda jsou prasata v lese celý rok.
 - **Kronika:** `WildlifeState.predation { acc, bearAcc, killDays, yearHeads }` vzniká líně;
-  zlomky kusů do `acc`, celé kusy → událost `predator-kill { species, by, heads }` (jedna za druh
-  a den; odchylka od plánu: `heads`), `killDays` posledních 30 dní, `yearHeads` od 1. 5.
+  zlomky kusů do `acc`, celé kusy se sbírají v `monthHeads` a **poslední den měsíce** jdou do kroniky jako událost
+  `predator-kill { species, by, heads }` (jedna za druh a šelmu a měsíc; odchylka od plánu:
+  `heads`, ne denně – jinak by u velkých stád vytlačily z 500 událostí kroniky důležitější), `killDays` posledních 30 dní, `yearHeads` od 1. 5.
 - **Liška:** `foxEggFactor(wildlife)` = 1 − min(8 %; 2 % × lišky), lišky = `foxCount(land)`
   (strop z `wildlifeCaps`). Bere ho `dailyEggsKg` (jídlo, nouzová porážka, výhled) i
   `proteinBudget` a plán velikosti stád (`eggsKg`). Ves bez `wildlife` = 1.

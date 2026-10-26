@@ -42,6 +42,8 @@ export interface Predation {
   acc: Record<HerdSpecies, number>;
   /** Zlomek prasete, které vzal medvěd. */
   bearAcc?: number;
+  /** Celé kusy vlků a medvěda za rozpracovaný měsíc; poslední den měsíce jdou do kroniky. */
+  monthHeads?: { wolf: Record<HerdSpecies, number>; bear: number };
   /** Dny, kdy šelmy strhly celý kus, za posledních 30 dní (upozornění, lov vlků). */
   killDays: number[];
   /** Kusy strhnuté od 1. 5. po druzích (tooltip). */

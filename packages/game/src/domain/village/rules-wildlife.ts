@@ -12,6 +12,8 @@ export const WILDLIFE_LAND = {
   poolMin: 0.5,
   /** Krajina vsi bez údajů o krajině (testy, kalibrace) – typická ves z návrhu. */
   defaultLand: { forestHa: 190, openHa: 120, waterHa: 2.5, pools: 2 },
+  /** Ves, které převod krajiny selhal: bez zvěře (bez lišek a medvěda), vlci jako dřív (návrh Clauda). */
+  failedLand: { forestHa: 0, openHa: 0, waterHa: 0, pools: 0 },
 } as const;
 
 /** Stropy kusů (wildlife.md – Kde zvěř žije a kolik jí je, tabulka). */
@@ -92,8 +94,11 @@ export const PREDATION = {
   pastureMonths: { from: 4, to: 10 },
   /** Prasata v lese: celý rok. */
   pigsAllYear: true,
-  /** Medvěd: prasat ročně z lesa a měsíce, kdy nespí (duben–listopad). */
-  bear: { pigsPerYear: 2, fromMonth: 4, toMonth: 11 },
+  /**
+   * Medvěd: prasat ročně z lesa a měsíce, kdy nespí (duben–listopad). Bere jen z prasat nad
+   * chovný pár `keepPigs` (návrh Clauda: malá ves o poslední prasata nepřijde).
+   */
+  bear: { pigsPerYear: 2, fromMonth: 4, toMonth: 11, keepPigs: 2 },
   /** Liška ubere tento podíl vajec, všechny lišky nejvýš `eggMax`. */
   fox: { eggShare: 0.02, eggMax: 0.08 },
   /** Kolik dní zpět se pamatují dny, kdy šelmy strhly celý kus. */

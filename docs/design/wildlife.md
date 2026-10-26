@@ -142,7 +142,14 @@ vesničanů.
 - **Provedení W3** (návrh Clauda, 26. 10. 2026): vlčí díl se přidá k základu tak, aby součet při
   5 vlcích dal přesně dosavadní 12 / 10 / 12 / 6 % (roční zbytek vlky = (1 − základ − díl) ÷ (1 −
   základ), rozpočtený na dny, kdy je stádo venku). Medvěd bere prasata **absolutně** (2 ročně, ne
-  podíl stáda), nejvýš celé stádo. Ves bez údajů o zvěři má 5 vlků a žádnou lišku (beze změny).
+  podíl stáda) a **jen z prasat nad chovný pár** (`keepPigs` = 2: stádo 2 prasat medvěd
+  nechá, ze 3 vezme nejvýš 1; oprava po recenzi, návrh Clauda). Ves bez údajů o zvěři má
+  5 vlků a žádnou lišku (beze změny). Ves, které selhal převod krajiny, je **bez zvěře** (bez
+  medvěda, lišek, jelenů a prasat; 5 vlků jako dřív) – chová se jako před zvěří. Do kroniky
+  jdou kusy strhnuté šelmami **po měsících** (jedna událost za druh a šelmu poslední den
+  měsíce), ať u velkých stád nevytlačí z kroniky důležité události. Vlci berou jen stádo
+  (`herds`), ne mláďata a porážku (`young`, `culling`) – ta se zmenší stejným podílem, ale
+  kronika hlásí jen kusy ze stáda, tedy o něco méně (vědomé zjednodušení).
 
 ### Liška na slepicích
 

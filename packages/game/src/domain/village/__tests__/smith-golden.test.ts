@@ -151,6 +151,7 @@ describe('ves bez kováře a hrnčíře beze změny (crafts.md – Uhlí a ruda 
     // 25. 10. 2026 popáté (8c518a4a): jen přejmenování plánu na hospodářský rok (`season`, `crops`) –
     // bez klíčů `plan` a `season` zůstal a87dde34; dřív 573d22e4
     // 26. 10. 2026 (W3 šelmy; wildlife.md – Vlci na dobytku): vlčí díl ztrát jen venku a medvěd bere prasata, takže stáda jdou po dnech jinak; dřív 8c518a4a
-    expect(hash(stripped)).toBe('e3e385c3');
+    // 26. 10. 2026 podruhé (oprava po recenzi W3): medvěd bere jen z prasat nad chovný pár a kronika šelem jde po měsících (jiné události kroniky); dřív e3e385c3
+    expect(hash(stripped)).toBe('cc8c88e1');
   }, 120_000);
 });

@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
 import { TOTAL_GAME_DAYS } from '../../calendar';
-import { WILDLIFE_LAND } from '../rules-wildlife';
+import type { Landscape } from '../../landscape';
+import { foxCount, foxEggFactor } from '../fox-eggs';
+import { PREDATION, WILDLIFE_LAND } from '../rules-wildlife';
 import { advanceVillage } from '../simulate';
 import type { VillageState } from '../types';
 import {
@@ -73,6 +75,27 @@ describe('převod', () => {
     expect(once.wildlife?.land).toEqual(LAND);
     expect(withWildlife(once, null)).toBe(once);
     expect(once.wildlifeFailed).toBeUndefined();
+  });
+});
+
+describe('převod, kterému selže krajina', () => {
+  it('ves bez zvěře: bez medvěda a lišek, vlci jako dřív, chyba v wildlifeFailed', () => {
+    const broken = new Proxy(
+      {},
+      {
+        get() {
+          throw new Error('rozbitá krajina');
+        },
+      },
+    ) as unknown as Landscape;
+    const once = withWildlife(village(), broken);
+    expect(once.wildlifeFailed).toBe('rozbitá krajina');
+    const w = once.wildlife!;
+    expect(w.bear.present).toBe(false);
+    expect(w.wolves).toBe(PREDATION.fullPack);
+    expect(foxCount(w.land)).toBe(0);
+    expect(foxEggFactor(w)).toBe(1);
+    expect(w.deer.stags + w.deer.hinds + w.deer.calves).toBe(0);
   });
 });
 
