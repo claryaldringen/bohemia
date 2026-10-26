@@ -61,6 +61,11 @@ export const ROAD_JOIN = { gapM: 12 } as const;
 // obou větví nejvýš `maxM` m dlouhý a uvnitř leží nejvýš `maxInside` staveb a pozemků; Martin
 // 26. 10. 2026: „Ať kruhy kolem domů zůstanou“ – `maxInside` 0, okruh kolem stavby zůstane
 export const ROAD_BRAID_RING = { maxNodes: 2, maxM: 150, maxInside: 0 } as const;
+// paths.md – Zdvojená vozová cesta (Martin 26. 10. 2026: „určitě“ – audit Vlkova, okruh vozových cest
+// 936 + 1041 + 1054 kolem ohrady; čísla návrh Clauda): dvě hotové vozové cesty souběžné jako pěší
+// (do 12 m, směr do ≈ 37°) na aspoň 25 m – slabší se v souběžném kusu vyřízne jako souběžná pěší;
+// konec, který by tím zmizel, musí ležet do `endM` od osy silnější vozové cesty (spojení zůstane)
+export const WAGON_MERGE = { endM: 4 } as const;
 // paths.md – Jednorázová oprava sítě (číslo návrh Clauda): nenapojená vozová cesta bez provozu se
 // v opravě opustí, ale ne do `freshDays` od dostavění zemních prací (bez nich od vzniku úseku) – po
 // nové cestě zatím nikdo nejel; vozová cesta na hotových zemních pracích napojená aspoň jedním
@@ -84,8 +89,12 @@ export const ROAD_STUB = { remnantM: 30 } as const;
 // a průsek); kus staré stezky dál než `nearM` od nové sítě se vrátí; průchodů nejvýš `passes`.
 // Vozové cesty (R2): řetěz nové sítě s aspoň `share` délky do `nearM` od staré vozové osy se
 // přepočítá jako hotová vozová cesta; souvislý kus staré vozové osy dál než `nearM` od nové sítě
-// a aspoň `wagonPatchM` dlouhý (≈ úsek stavby – k okraji mapy, kudy se nechodí) se vrátí
+// a aspoň `wagonPatchM` dlouhý (≈ úsek stavby – k okraji mapy, kudy se nechodí) se vrátí.
+// `version` – verze přestavby (`VillageRoads.rebuilt`): 2 = přestavba podle pravidel 26. 10. 2026
+// (Martin 26. 10. 2026: „určitě“ – copánek přes křižovatku, vozová bez vlásenky, odstup od plotů,
+// zdvojená vozová cesta, ohyb ramene); ves s nižší verzí se přestaví znovu
 export const ROAD_REBUILD = {
+  version: 2,
   seedDays: 365,
   nearM: 4,
   share: 0.6,

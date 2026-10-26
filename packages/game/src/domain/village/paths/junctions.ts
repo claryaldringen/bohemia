@@ -30,6 +30,7 @@ import {
   SIMPLIFY_M,
   axisDistance,
   cm,
+  resample,
   roadLengthM,
   MIN_ROAD_M,
 } from './roads-geometry';
@@ -42,6 +43,27 @@ const DEG = Math.PI / 180;
 const STEP = JUNCTION.rotationStepDeg * DEG;
 /** Rozdíl součtu čtverců odchylek, který je ještě shoda (rad²) – pak rozhodne menší úhel a β. */
 const TIE = 1e-9;
+/** Krok vzorků osy při měření, kolik metrů ohnutého konce leží ve stavbě či u plotu (m). */
+const FOOTPRINT_STEP_M = 1;
+
+/**
+ * Vede ohnutá osa `after` stavbou či u plotu (`footprint`) větším podílem délky než neohnutá
+ * `before` (paths.md – Křižovatky, Ohyb ramene)? Vzorky po FOOTPRINT_STEP_M; podíl, ne počet
+ * vzorků – delší oblouk neprohraje jen délkou. Neohnutá mimo stavbu – oblouk nesmí do ní vůbec.
+ */
+export function bentFootprintWorse(
+  after: readonly RoadPoint[],
+  before: readonly RoadPoint[],
+  footprint: (p: RoadPoint) => boolean,
+): boolean {
+  const share = (points: readonly RoadPoint[]): { inside: number; all: number } => {
+    const samples = resample(points, null, FOOTPRINT_STEP_M).points;
+    return { inside: samples.filter((p) => footprint(p)).length, all: samples.length };
+  };
+  const bent = share(after);
+  const straight = share(before);
+  return bent.inside * straight.all > straight.inside * bent.all;
+}
 
 /** Úhel v [0, 2π). */
 function normAngle(angle: number): number {
@@ -381,6 +403,11 @@ export interface JunctionRoads {
   live: (road: Road, atStart: boolean) => boolean;
   /** Úseky, které se neohýbají: zemská stezka a cesta ve vylepšení (vozová cesta podle druhu). */
   fixed: ReadonlySet<number>;
+  /**
+   * Úseky z `fixed`, kvůli kterým uzel při rozestupu křižovatek nestojí a které se smí sloučit
+   * (`spaceJunctions`) – přestavba sítě: úseky zemských stezek (stezka se znovu najde).
+   */
+  loose?: ReadonlySet<number>;
   /** Kotva (vchod, cíl tras) – uzel v ní se při rozestupu křižovatek nehýbe. */
   anchor?: (p: RoadPoint) => boolean;
   /**
@@ -388,6 +415,12 @@ export interface JunctionRoads {
    * a ohnutý konec osy přes něj nevede (`bendEnd`).
    */
   blocked?: (p: RoadPoint) => boolean;
+  /**
+   * Stavba nebo plot přesně, ne po buňkách mřížky (obydlí, pozemek, dílna, ohrada, hřbitov – pruh
+   * u plotu): ohnutý konec osy přes ně nevede víc než neohnutý (`bendEnd`; paths.md – Křižovatky,
+   * Ohyb ramene).
+   */
+  footprint?: (p: RoadPoint) => boolean;
   /**
    * Šířka pásu úseku pro rozestup křižovatek (m), jiná než podle stupně – přestavba sítě: úsek, ze
    * kterého bude vozová cesta, má šířku vozové (křižovatka s vozovým ramenem se pak už nehne).
@@ -447,6 +480,7 @@ function bendEnd(
   entrance: RoadPoint,
   armDir: number,
   blocked?: (p: RoadPoint) => boolean,
+  footprint?: (p: RoadPoint) => boolean,
 ): boolean {
   const line = [...fromNode(end)].reverse();
   const gap = (p: RoadPoint): number => length2(p.x - entrance.x, p.z - entrance.z);
@@ -481,6 +515,8 @@ function bendEnd(
     const at = (x: number, z: number): boolean => blocked({ x, z });
     if (blockedRun(after, at) > blockedRun(before, at)) return false;
   }
+  // ani přes stavbu či plot (mřížka je hrubá – osa na kraji buňky vede domem)
+  if (footprint && bentFootprintWorse(after, before, footprint)) return false;
   end.road.points = after;
   return true;
 }
@@ -633,7 +669,7 @@ function fitNode(
   live.forEach((end, i) => {
     const k = fit.assign[i]!;
     arms[k] = end.road.id;
-    if (!fixed[i] && bendEnd(end, center, entrances[k]!, armDirs[k]!, net.blocked)) {
+    if (!fixed[i] && bendEnd(end, center, entrances[k]!, armDirs[k]!, net.blocked, net.footprint)) {
       bent = true;
       JUNCTION_RUNS.bends++;
     }
@@ -750,8 +786,13 @@ function hubsOf(nodes: Map<string, RoadEnd[]>, isLive: (end: RoadEnd) => boolean
 }
 
 /** Pevné rameno uzlu: zemská stezka, cesta ve vylepšení (`fixed`) nebo vozová cesta (zemní práce na její ose). */
+/** Pevný úsek, kvůli kterému uzel při rozestupu stojí (`fixed` kromě `loose`). */
+function holding(road: Road, net: JunctionRoads): boolean {
+  return net.fixed.has(road.id) && !(net.loose?.has(road.id) ?? false);
+}
+
 function hasFixedArm(hub: Hub, net: JunctionRoads): boolean {
-  return hub.ends.some((e) => net.fixed.has(e.road.id) || e.road.grade === 'wagon');
+  return hub.ends.some((e) => holding(e.road, net) || e.road.grade === 'wagon');
 }
 
 /**
@@ -820,7 +861,7 @@ function mergeable(
   net: JunctionRoads,
 ): boolean {
   return (
-    !net.fixed.has(link.id) &&
+    !holding(link, net) &&
     link.grade !== 'wagon' &&
     a.live.length - others(a) === 1 &&
     b.live.length - others(b) === 1 &&

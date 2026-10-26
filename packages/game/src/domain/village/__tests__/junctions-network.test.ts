@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { obstacleChangesAt } from '../obstacles';
 import { cartGrid } from '../paths/cart';
+import { inBuilding, type Building } from '../paths/network-grid';
 import {
+  bentFootprintWorse,
   drawLandmark,
   junctionArmDirs,
   junctionEntranceM,
@@ -133,6 +135,83 @@ describe('křižovatky v síti (updateJunctions)', () => {
     updateJunctions(roads, DAY, SEED, { ...allLive, blocked });
     expect(roads.junctions).toHaveLength(1);
     for (const r of roads.roads) expect(blockedRun(r.points)).toBeLessThan(5);
+  });
+
+  it('ohyb ramene přes stavbu se nedělá, i když ji mřížka nepozná (Vlkov – rameno 1060 přes dům)', () => {
+    // Vlkov 26. 10. 2026: oblouk ramene vedl krajem polozemnice – buňka mřížky na kraji domu byla
+    // průchodná (střed mimo dům), přesný obdélník domu ne
+    const make = (): VillageRoads => roadsOf([arm(1, 40, 0), arm(2, -40, 0), arm(3, 0, 40)]);
+    const offLines = axisDistance(make().roads.map((r) => r.points));
+    const free = make();
+    updateJunctions(free, DAY, SEED, allLive);
+    // dům (4 × 4 m) na místě, kudy vede oblouk mimo původní osy
+    const spot = free.roads
+      .flatMap((r) => resample(r.points, null, 1).points)
+      .find((p) => offLines(p.x, p.z) > 1)!;
+    expect(spot).toBeDefined();
+    const house = (p: RoadPoint): boolean =>
+      Math.abs(p.x - spot.x) < 2 && Math.abs(p.z - spot.z) < 2 && offLines(p.x, p.z) > 0.3;
+    const inHouse = (r: Road): number =>
+      resample(r.points, null, 1).points.filter((p) => house(p)).length;
+    expect(Math.max(...free.roads.map(inHouse))).toBeGreaterThan(0);
+    const roads = make();
+    updateJunctions(roads, DAY, SEED, { ...allLive, footprint: house });
+    expect(roads.junctions).toHaveLength(1);
+    for (const r of roads.roads) expect(inHouse(r)).toBe(0);
+    // ostatní ramena se ohnou dál – přes dům nevedou
+    expect(roads.roads.some((r) => r.points.some((p) => offLines(p.x, p.z) > 0.5))).toBe(true);
+  });
+
+  it('ohyb ramene přes natočenou stavbu se nedělá (přesný obdélník `inBuilding`)', () => {
+    const make = (): VillageRoads => roadsOf([arm(1, 40, 0), arm(2, -40, 0), arm(3, 0, 40)]);
+    const offLines = axisDistance(make().roads.map((r) => r.points));
+    const free = make();
+    updateJunctions(free, DAY, SEED, allLive);
+    // dům 1,4 × 1,4 m natočený o 30° na oblouku, nejméně 1,6 m od původních os
+    const spot = free.roads
+      .flatMap((r) => resample(r.points, null, 0.5).points)
+      .find((p) => offLines(p.x, p.z) > 1.6)!;
+    expect(spot).toBeDefined();
+    const house: Building = {
+      position: { x: spot.x, z: spot.z, rotation: Math.PI / 6 },
+      box: { minX: -0.7, maxX: 0.7, minZ: -0.7, maxZ: 0.7 },
+    };
+    const footprint = (p: RoadPoint): boolean => inBuilding(house, p.x, p.z, 0);
+    const inHouse = (r: Road): number =>
+      resample(r.points, null, 0.25).points.filter((p) => footprint(p)).length;
+    expect(Math.max(...free.roads.map(inHouse))).toBeGreaterThan(0);
+    const roads = make();
+    updateJunctions(roads, DAY, SEED, { ...allLive, footprint });
+    expect(roads.junctions).toHaveLength(1);
+    for (const r of roads.roads) expect(inHouse(r)).toBe(0);
+  });
+
+  it('ohyb přes stavbu: rozhoduje podíl délky, ne počet vzorků (delší oblouk neprohraje délkou)', () => {
+    // stavba = pás x ∈ (0,5; 3,5); neohnutá 10 m má v ní 2 vzorky z 11, oblouk 20 m 3 z 21
+    const inBand = (p: RoadPoint): boolean => p.x > 0.5 && p.x < 3.5;
+    const before: RoadPoint[] = [
+      { x: -8, z: 0 },
+      { x: 2, z: 0 },
+    ];
+    const after: RoadPoint[] = [
+      { x: -17, z: 0 },
+      { x: 3, z: 0 },
+    ];
+    expect(bentFootprintWorse(after, before, inBand)).toBe(false);
+    // stejná délka, víc ve stavbě – horší
+    expect(
+      bentFootprintWorse(
+        before.map((p) => ({ x: p.x + 1, z: p.z })),
+        before,
+        inBand,
+      ),
+    ).toBe(true);
+    // neohnutá mimo stavbu – oblouk do ní nesmí ani kouskem
+    const outside: RoadPoint[] = [
+      { x: -20, z: 0 },
+      { x: -10, z: 0 },
+    ];
+    expect(bentFootprintWorse(after, outside, inBand)).toBe(true);
   });
 
   it('pevné rameno (vozová cesta) leží přesně ve směru cesty a osa se neohýbá', () => {

@@ -658,7 +658,8 @@ Pravidlo (návrh Clauda, čísla `ROAD_BRAID_RING`):
   změny, takže **starší ves převod nepotřebuje** – copánek zmizí při nejbližším měsíčním kroku cest.
 - Vlkov: copánek přes křižovatku se řídí jen prázdným okruhem; okruhy kolem domů (např. 781 + 786 +
   940 kolem domu na stavu z auditu, den 115545) zůstanou. Okruh vozových cest 936 + 1041 + 1054
-  kolem ohrady zůstává také – všechny tři jsou vozové.
+  kolem ohrady zůstává také – všechny tři jsou vozové (řeší ho [Zdvojená vozová
+  cesta](#zdvojená-vozová-cesta-26-10-2026)).
 
 ## Vozová cesta bez vlásenky (26. 10. 2026)
 
@@ -720,7 +721,8 @@ Pravidla (návrh Clauda, čísla `FENCE_CLEARANCE` v `rules-roads.ts`):
   buňky (u rovné stavby 2,6 m od oblouku plotu), roh neusekne. Nehlídá se **4 m** u začátku a konce trasy (brána domu je 1 m
   před brankou pozemku, cíl v brance). Trasa daleko od plotů se nemění.
 - **Mění trasy všude:** verze tras `routes-v5` – uložené trasy se přepočítají jednou při dalším
-  dni. Postavené cesty se nemění (jednorázová přestavba Vlkova je další úloha); nové trasy,
+  dni. Postavené cesty se nemění (až [jednorázová přestavba podle nových
+  pravidel](#jednorázová-přestavba-podle-nových-pravidel-26-10-2026)); nové trasy,
   vyšlapávání a nové cesty jdou podle nových pravidel.
 - Čáry pěšin ve scéně a v chůzi (`routePaths`) se kreslí z týchž tras po hranách buněk a odstup od
   plotu nehlídají – trasa už vede mimo pruh u plotu, jen zaoblení může roh přiblížit.
@@ -729,6 +731,51 @@ Pravidla (návrh Clauda, čísla `FENCE_CLEARANCE` v `rules-roads.ts`):
   11 → 12 – staré cesty se nemění, nový nález je rameno nové křižovatky (úsek 1060 přes dům 2137 –
   ohyb ramene ke křižovatce stavby nehlídá, mimo tuto úlohu). Rok Vlkova CPU 30,9–33,0 s → 31,2–33,2 s
   (stroj vytížený, load ≈ 80 – v šumu).
+
+### Odstup od plotu i u vozové cesty (26. 10. 2026)
+
+Ověření přestavby na Vlkově: vozové cesty dál vedly přes ploty – vozová u hřbitova 2058 po ose
+ohnuté do branky usekla jihovýchodní roh plotu o 3,5 m, vozové u ohrad 2586 a 1958 šly k plotu na
+1–1,5 m. Odstup platil jen v mřížce chodců a ose trasy, plán vozové cesty ho neznal.
+
+Pravidla (návrh Clauda – **stejně jako chodci**, táž čísla `FENCE_CLEARANCE`, týž výpočet pruhu):
+
+- **Mřížka vozové cesty** (hledání trasy, objížďka, serpentina): buňky uvnitř plotu a do **1 m** od
+  něj neprůchodné (jen když pruh nezavře průchod), do **2 m** **1,5×** dražší; branka a ulička mezi
+  dvěma ploty výjimka. Narovnání trasy (přímé úseky) do pruhu do 2 m nově nevjede – jen kde už
+  trasa pruhem vede –, takže objížďka plot neobjímá.
+- **Osa vozové cesty** (po staré cestě, tětiva, vyhlazení, objížďka) se k plotu hřbitova či ohrady
+  nepřiblíží pod **1 m** – měří se přesně ke skutečné čáře plotu po 0,5 m. Vyhlazení, které by roh
+  usekl, se nevezme (roh trasy zůstane). Nehlídá se **4 m** u konců cesty (konec u branky).
+- **Stará cesta u plotu** (osa ohnutá k brance, roh): místo se objede jako prudký kus –
+  [serpentina](#jednorázová-přestavba-podle-nových-pravidel-26-10-2026) po mřížce s pruhem u plotu
+  (objížďka v oknech ±60–200 m po ose); stará osa přes vnitřek plotu (buňky uvnitř) zůstane jako
+  dřív nesjízdná („Vůz po této cestě neprojede – překáží stavba, plot nebo voda.“). Pozemek obydlí
+  hlídá dál okraj stavby s půl vozovkou.
+- Vozy svozu (vozová síť pro jízdy) se nemění – jezdí po pevných cestách.
+
+## Zdvojená vozová cesta (26. 10. 2026)
+
+Audit Vlkova po odstupu od plotů: okruh vozových cest 936 + 1041 + 1054 kolem ohrady (133 m) –
+vozová 1054 (66,6 m) vede vlásenkou po téže ose jako 936 a 1041, 4 m vedle. Úklid ho nechal, protože
+vozová cesta se jako slabší nikdy nemaže (hráč do ní investoval). Martin 26. 10. 2026 na otázku, zda
+zdvojené vozové cesty opravit a Vlkov jednou přestavět: „určitě“.
+
+Pravidlo (návrh Clauda, `WAGON_MERGE` v `rules-roads.ts`):
+
+- **Dvě hotové vozové cesty souběžné** stejně jako pěší (do **12 m**, směr do ≈ 37°) na aspoň
+  **25 m** – i když jedna leží po ose druhé tam a zpět (vlásenka) – se sloučí: ze slabší (pořadí síly
+  jako u souběžných cest – vyjetá, starší, víc provozu) se souběžný kus vyřízne, zbytky kratší než
+  15 m zmizí a konce zbytků se napojí na silnější (díry do 12 m). Vozová cesta se dál nikdy
+  nevyřízne pěší cestou ani copánkem.
+- **Spojení zůstane:** konec slabší vozové, který by vyříznutím zmizel, musí ležet do **4 m** od osy
+  silnější vozové cesty (např. sdílený uzel) – jinak se kus nevyřízne (konec u humna, dvorce či pole
+  by vozová síť ztratila).
+- **Jen hotová silnější:** rozestavěná vozová (úsek ve stavbě) za silnější neplatí – vůz po ní ještě
+  nejezdí, hotová se kvůli ní nevyřízne (návrh Clauda po recenzi 26. 10. 2026).
+- Zemní práce vyříznutého kusu zůstanou terénem (zjednodušení – svahy na rovině jsou skoro nulové).
+- Platí v každém úklidu (měsíční kontrola, převod, přestavba). Vlkov: měsíční kontrola 1054 sloučí
+  i bez přestavby (vozová síť 3 293 → 3 227 m, souběh vozových 1 → 0).
 
 ## Stavba přes cestu (Vlkov, Martin 23. 10. 2026)
 
@@ -864,6 +911,21 @@ Návrh Clauda:
   – Cesta přes pole](roads.md#cesta-přes-pole)).
 - **Pěšiny dne** rozcestí-plácky nemají (dřív jemný kruh `ribbonJunctions`) – čáry tras se jen
   potkají.
+
+### Ohyb ramene ne přes stavbu (26. 10. 2026)
+
+Audit Vlkova po odstupu od plotů: rameno nové křižovatky (úsek 1060) vedlo 4,5 m krajem polozemnice 2137. Ohyb konce do vchodu ramene hlídal jen mřížku chodců po buňkách – buňka na kraji domu se středem
+mimo dům je průchodná, osa jí vedla domem.
+
+Pravidlo (návrh Clauda – nejjednodušší správné): ohnutý konec osy nesmí mít ve stavbě nebo u plotu
+**větší podíl délky** (vzorky po 1 m) než neohnutá osa – podíl, ne počet vzorků, aby delší oblouk
+neprohrál jen tím, že je delší (recenze 26. 10. 2026); vede-li neohnutá osa mimo stavbu, oblouk do
+ní nesmí vůbec. Jinak se konec **neohne** (osa zůstane, rameno
+křižovatky vede rovně do středu jako dosud). Stavba se měří přesně – obdélník obydlí i se šíjí
+(s pozemkem celý pozemek), staveniště, milíř, modla, humno… jako v mřížce chodců – a plot hřbitova,
+ohrady a pozemku pruhem **1 m** (`FENCE_CLEARANCE.axisM`, [Odstup od plotu](#odstup-od-plotu-26-10-2026)).
+Hledat jiný oblouk se nevyplatí: konec bez ohybu je dnešní stav cesty, takže horší být nemůže, a měsíční
+kontrola ho neopouští. Vlkov po přestavbě: přes dům 2137 nevede nic.
 
 ## Vchody
 
@@ -1116,6 +1178,56 @@ vozové k okrajům mapy bez provozu, krátké kusy u křižovatek a západní zb
 i podle starého pole). **Zbývá** (návrhy 3–5 auditu): vozová spojka vede po
 staré ose a JV roh plotu hřbitova přetíná o 2,5 m (dřív vyšlapaná o 3,5 m – odstup od plotů);
 branka je 3,0 m od osy vozové cesty (na jejím okraji – vozová se neohýbá).
+
+## Jednorázová přestavba podle nových pravidel (26. 10. 2026)
+
+Martin 26. 10. 2026 („určitě“ – oprava zdvojených vozových cest a jednorázová přestavba Vlkova):
+postavené cesty nová pravidla nemění – vozové 1051, 936, 1054, 1041 a vyšlapaná 808 vedly přes
+ploty a rameno 1060 a úsek 801 domem. Přestavba sítě (výš) proto proběhne **ještě jednou** podle všech
+pravidel z 26. 10.: copánek přes křižovatku, vozová bez vlásenky (narovnání i na rovině – Martin 26. 10. 2026: „ano smí“), odstup od plotů (trasy `routes-v5`), zdvojená vozová cesta a ohyb ramene.
+
+Postup (návrh Clauda): stejná přestavba jako 24. 10. – vyšlapanost z dnešních tras, cesty znovu
+týmiž funkcemi jako za běhu, vylepšení se přenesou (upravená, vyjetá a průsek tam, kde nový úsek
+leží aspoň 60 % délky do 4 m od staré osy), vozové cesty se po nových osách naplánují a jsou hned
+hotové, kus staré vozové osy delší než 60 m, kam nová síť nedosáhne, se vrátí. Pak znovu
+[Jednorázová oprava sítě](#jednorázová-oprava-sítě-25-10-2026) (vozové spojky, volné vozové konce).
+
+- **Verze přestavby:** `roads.rebuilt` nese verzi (`ROAD_REBUILD.version` = 2). Ves s verzí 1 (nebo
+  bez přestavby) se při načtení přestaví jednou a idempotentně, smaže si příznak opravy a oprava
+  proběhne hned po ní; nová ves má verzi 2 od začátku. Chyba → ves zůstane jako dřív s verzí 2
+  a `rebuildFailed` (příště se nezkouší). Server dává mezi kroky přestávky jako dřív.
+- **Vlkov** (stav DB den 117 036 → načtení → dopočet 90 dní, měření ve scratchpadu `diag-roads-r3`):
+  přestavba 12,2 s (7 průchodů), oprava 0,25 s; 13 vozových cest naplánováno, 3 krátké řetězy „moc
+  krátká“. Živé úseky 28 → 26 (vozové 15 → 12, upravené 9 → 12), křižovatky 9 → 10; po 90 dnech beze
+  změny. Audit stav DB / 90 dní bez přestavby / po načtení / po 90 dnech: přes stavbu či pole
+  (c) 12 / 8 / 6 / 3, souběh 1 / 0 / 0 / 0, podél plotu (j) 0 / 0 / 0 / 0, smyčky (g) 6 / 4 / 6 / 6,
+  pahýly 14 / 14 / 11 / 11, kličky 9 / 8 / 8 / 8, konec mimo kotvu 3 / 0 / 0 / 0, vozová bez provozu
+  3 / 3 / 13 / 13 (nové vozové cesty mají provoz až po uzavření roku). Okruhy 936 + 1041 + 1054
+  (133 m) a 794 + 921 + 936 + 941 + 1042 (338 m) zmizely; zůstal okruh upravené 1116, vozové 1261
+  a 1271 (235 m, nad 150 m – dvě různé cesty). Přes dům 2137 nevede nic.
+- **Vozová síť:** 15 úseků / 3 293 m → 12 úseků / 3 227 m (o 66 m kratší – zdvojená vlásenka 1054);
+  vůz dojede ke všem 52 cílům (domy, humno, díly polí, ohrady, hřbitov, sad, milíř a oba konce každé
+  vozové cesty ze stavu DB) jako před přestavbou, celkem levněji (dvoukolák 9 592 → 9 183, čtyřkolák
+  11 271 → 10 870); nejhorší cíl dráž o 9 / 12 m jízdy.
+- **Zbývalo:** vozová 1257 u hřbitova vede po ose ohnuté do branky a za plotem v rohu má 3,5 m délky
+  (dřív 1051 2,5 m – plán vozové cesty jde po ose řetězu i s ohybem do branky), vozová 1251 u ohrady
+  2586 2 m a upravená 1121 u ohrady 1958 1,5 m (dřív vyšlapaná 808 4,5 m); křižovatky J1130–J1356
+  5,9 m od sebe (rozestup 12,1 m). Opraveno ve verzi 2 (níž).
+- **Rozestup křižovatek i při přestavbě** (návrh Clauda po ověření 26. 10. 2026): úsek, ze kterého
+  bude vozová cesta, je pro křižovatku nejen široký, ale i **živý jako vozová** (práh provozu vozové
+  – dřív uzel vznikl až po přepočtu vozových, kdy se s vozovými rameny už nehne); úsek **zemské
+  stezky** uzel při rozestupu nedrží a spojka po stezce se smí sloučit (stezka se po každém průchodu
+  znovu najde); po vrácení kusu staré vozové osy se síť **ustálí znovu ještě před přepočtem
+  vozových** – vrácený kus se napojí do nejbližšího uzlu, ve Vlkově na konec 6 m spojky u křižovatky
+  J1130. Za běhu hry se nic nemění.
+- **Vlkov po opravách** (`diag-roads-r3b`, stav DB → načtení → 90 dní): přestavba 11 průchodů (dřív
+  7, ≈ o 40 % déle), 14 vozových cest naplánováno, 1 řetěz „moc krátká“; živé úseky 27, křižovatky 8
+  → 7 (rameno bez provozu). Vozová osa blíž než 1 m od plotu (mimo 4 m u konců) 0 – nejbližší vozová
+  1,5 m (u hřbitova objede roh přes novou křižovatku, k brance vede 5 m spojka); křižovatky blíž než
+  rozestup 1 → 0. Audit po načtení / po 90 dnech: přes stavbu či pole (c) 4 / 1 (zbývá vyšlapaná
+  1121 1,15 m od plotu ohrady 1958 – audit měří plot o 1 m blíž), podél plotu (j) 0 / 0, souběh
+  0 / 0, smyčky 5 / 5, pahýly 11 / 11, kličky 5 / 5. Vůz dojede ke všem 52 cílům (dvoukolák
+  9 047, čtyřkolák 10 693).
 
 ## Co se ukládá a co se dopočítá
 

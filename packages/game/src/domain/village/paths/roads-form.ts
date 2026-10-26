@@ -4,7 +4,7 @@ import { length2, type Landscape, type ObstacleLayer } from '../../landscape';
 import { cloneState } from '../clone';
 import { restoredTrailPieces } from '../trail-axis';
 import { obstacleChangesAt, type ObstacleChanges } from '../obstacles';
-import { WEAR } from '../rules';
+import { ROAD_REBUILD, WEAR } from '../rules';
 import {
   type Construction,
   type Road,
@@ -55,7 +55,7 @@ export function emptyRoads(day: number): VillageRoads {
     bridgesSeeded: true,
     trailsRestored: true,
     v2: true,
-    rebuilt: 1,
+    rebuilt: ROAD_REBUILD.version,
     repaired: 1,
   };
 }

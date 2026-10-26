@@ -11,7 +11,7 @@ import { dateOfDayIndex } from '../../calendar';
 import { type Landscape, type ObstacleLayer } from '../../landscape';
 import { obstacleChangesAt, type ObstacleChanges } from '../obstacles';
 import { roadAppleStage, roadTreeLook } from '../road-trees';
-import { CART_ROADS, ROADS, WEAR } from '../rules';
+import { CART_ROADS, FENCE_CLEARANCE, ROAD_LAND, ROADS, WEAR } from '../rules';
 import {
   type ChronicleEvent,
   type Construction,
@@ -64,7 +64,9 @@ import { type RoadAnchors, roadAnchors } from './road-anchors';
 import { routeLine } from './routes';
 import { pathCellM, trailTerrain } from './terrain';
 import { type FenceOutline } from './entrances';
-import { villageFences } from './fences';
+import { fenceClearance, villageFences } from './fences';
+import { inBuilding } from './network-grid';
+import { villageBuildings } from './network-search';
 import { fenceLayoutKey, pathVillageOf, settleVillageWear, villageBlockedAt } from './village';
 import { type TrafficField, addCartWear, addWearLabor, trafficField, wearMap } from './wear';
 import { villageCemeteries } from '../cemetery';
@@ -258,8 +260,8 @@ function roadsMonthRun(
   day: number,
   landscape: Landscape,
   obstacles: ObstacleLayer | null,
-  /** Šířka úseku pro rozestup křižovatek (`JunctionRoads.width`) – jen přestavba sítě. */
-  width?: (road: Road) => number | undefined,
+  /** Jen přestavba sítě (`rebuildRoadsPass`). */
+  rebuild?: RebuildHints,
 ): void {
   settleVillageWear(state, day, landscape);
   const roads = state.roads;
@@ -326,7 +328,8 @@ function roadsMonthRun(
       buildings,
       entrances,
       fences: fencesOf(state, landscape, day).outlines,
-      ...(width ? { width } : {}),
+      footprint: footprintOf(state, landscape, day),
+      ...(rebuild ? { rebuild } : {}),
     },
     baseOf,
     fieldOf,
@@ -382,6 +385,7 @@ export function tidyRoadsNow(
         buildings,
         entrances,
         fences: fencesOf(state, landscape, day).outlines,
+        footprint: footprintOf(state, landscape, day),
       },
       baseOf,
       fieldOf,
@@ -408,11 +412,44 @@ export function rebuildRoadsPass(
   day: number,
   landscape: Landscape,
   obstacles: ObstacleLayer | null,
-  /** Šířka úseku pro rozestup křižovatek – úsek, ze kterého bude vozová cesta (R2). */
-  width?: (road: Road) => number | undefined,
+  rebuild: RebuildHints = {},
 ): void {
   if (state.roads) delete state.roads.tidyKey;
-  roadsMonthRun(state, day, landscape, obstacles, width);
+  roadsMonthRun(state, day, landscape, obstacles, rebuild);
+}
+
+/**
+ * Přestavba sítě pro křižovatky (paths.md – Jednorázová přestavba sítě, Rozestup křižovatek):
+ * úsek, ze kterého bude vozová cesta (`wagon`), má pro rozestup šířku vozové a je živý jako vozová
+ * (po přepočtu se křižovatka s vozovým ramenem už nehne – rozestup musí platit dřív); úsek zemské
+ * stezky křižovatku při rozestupu nedrží (stezka se po každém průchodu znovu najde).
+ */
+export interface RebuildHints {
+  wagon?: (road: Road) => boolean;
+}
+
+/**
+ * Křižovatky při přestavbě (`RebuildHints`): `asBuilt` – úsek budoucí vozové cesty jako vozová
+ * (práh živosti), `width` – její šířka pro rozestup, `loose` – úseky zemských stezek, které uzel
+ * nedrží. Mimo přestavbu úsek beze změny a nic dalšího.
+ */
+export function rebuildJunctionHints(
+  rebuild: RebuildHints | undefined,
+  trails: readonly Trail[] | undefined,
+): {
+  asBuilt: (road: Road) => Road;
+  loose?: ReadonlySet<number>;
+  width?: (road: Road) => number | undefined;
+} {
+  if (!rebuild) return { asBuilt: (road) => road };
+  const loose = new Set((trails ?? []).flatMap((t) => t.pieces.map((q) => q.roadId)));
+  const wagon = rebuild.wagon;
+  if (!wagon) return { asBuilt: (road) => road, loose };
+  return {
+    asBuilt: (road) => (road.grade !== 'wagon' && wagon(road) ? { ...road, grade: 'wagon' } : road),
+    loose,
+    width: (road) => (wagon(road) ? ROAD_LAND.widthM.wagon : undefined),
+  };
 }
 
 /** Kolikrát běžel měsíční úklid (`tidyMonth`) – pro testy a měření, hra ho nečte. */
@@ -431,6 +468,30 @@ function networkKey(roads: VillageRoads): number {
     for (const p of road.points) add(`${p.x},${p.z};`);
   }
   return hash;
+}
+
+/**
+ * Stavby a ploty vsi přesně, ne po buňkách mřížky (paths.md – Křižovatky, Ohyb ramene): bod
+ * v obdélníku stavby pro pěšiny (`villageBuildings` – obydlí i se šíjí nebo celým pozemkem,
+ * staveniště, milíř, modla, humno…) nebo blíž než `FENCE_CLEARANCE.axisM` k plotu hřbitova,
+ * ohrady či pozemku (i uvnitř). Spočítá se líně a jednou.
+ */
+function footprintOf(
+  state: VillageState,
+  landscape: Landscape,
+  day: number,
+): () => (x: number, z: number) => boolean {
+  let at: ((x: number, z: number) => boolean) | null = null;
+  return () => {
+    if (at) return at;
+    const village = pathVillageOf(state, day, landscape);
+    const buildings = villageBuildings(village).all;
+    const fences = villageFences(village, true).map((f) => f.outline);
+    const reach = FENCE_CLEARANCE.axisM;
+    at = (x, z) =>
+      buildings.some((b) => inBuilding(b, x, z, 0)) || fenceClearance(fences, x, z, reach) < reach;
+    return at;
+  };
 }
 
 /**
@@ -482,14 +543,16 @@ function tidyMonth(
     cellM: number;
     /** Neprůchodná plocha vsi (stavby, ploty, zemní práce) – jen když se křižovatka posouvá. */
     walk: () => ((x: number, z: number) => boolean) | null;
-    /** Šířka úseku pro rozestup křižovatek (`JunctionRoads.width`) – jen přestavba sítě. */
-    width?: (road: Road) => number | undefined;
+    /** Jen přestavba sítě (`RebuildHints`). */
+    rebuild?: RebuildHints;
     /** Stavby vsi pro copánek přes křižovatku (`ringBuildingsOf`). */
     buildings: () => readonly (readonly RoadPoint[])[];
     /** Vchody staveb – jediný přístup k vchodu copánek nezruší (`entrancesOf`). */
     entrances: () => readonly RoadPoint[];
     /** Ploty vsi – osa cesty k vchodu drží odstup (`fencesOf`). */
     fences: () => readonly FenceOutline[];
+    /** Stavby a ploty přesně – ohyb ramene ke křižovatce přes ně nevede (`footprintOf`). */
+    footprint: () => (x: number, z: number) => boolean;
   },
   base: () => Omit<SpotContext, 'split'>,
   field: () => TrafficField,
@@ -516,16 +579,22 @@ function tidyMonth(
   const junctions = (): boolean => {
     const frozen = fixedRoadIds(state.constructions, state.trails);
     const entrances = month.anchors.points.filter((a) => a.kind === 'entrance');
+    const hints = rebuildJunctionHints(month.rebuild, state.trails);
     const traffic = trafficOnRoads(routes.list, month.cellM);
     let walkable: ReturnType<typeof month.walk> | undefined;
+    let footprint: ReturnType<typeof month.footprint> | undefined;
     return updateJunctions(roads, month.day, state.seed, {
-      live: (road, atStart) => liveRoadEnd(road, atStart, traffic, entrances, frozen),
+      live: (road, atStart) =>
+        liveRoadEnd(hints.asBuilt(road), atStart, traffic, entrances, frozen),
       fixed: frozen,
+      ...(hints.loose ? { loose: hints.loose } : {}),
       // uzel u vchodu se při rozestupu křižovatek nehýbe – vchod by přišel o cestu
       anchor: (p) => nearEntrance(p, entrances),
       // nový střed křižovatky nesmí do domu, plotu ani zemních prací
       blocked: (p) => (walkable ??= month.walk())?.(p.x, p.z) ?? false,
-      ...(month.width ? { width: month.width } : {}),
+      // ohyb ramene ne přes stavbu ani plot (paths.md – Křižovatky, Ohyb ramene)
+      footprint: (p) => (footprint ??= month.footprint())(p.x, p.z),
+      ...(hints.width ? { width: hints.width } : {}),
     });
   };
   // cesty beze změny: úklid jen, když nové kotvy a trasy dají práci (pahýl, díra, okruh, vchod)

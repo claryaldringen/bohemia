@@ -103,9 +103,10 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
     sjednocení); `fenceDistance` – k úsekům a obloukům (jen v úhlu čtvrtkruhu). `paths/fences.ts`:
     `villageFences(v, plots)` – hotové hřbitovy (bez `pending`), hotové ohrady (`penPathSquares`)
     s brankou, s `plots` i pozemky hotových obydlí (ne staveniště) (`FENCE_INSET_M`, dvorec i s dvorem); `fenceClearance`.
-    `villageGrid` → `nearFences` (po plotech a ohradách, ne pozemcích – ty jsou celé neprůchodné jako
-    stavba): střed uvnitř plotu → Infinity, do `axisM` → Infinity jen s aspoň třemi průchodnými sousedy mimo pruh (úzký průchod zůstane dražší; volá se až po stavbách na konci `villageGrid`), do `nearM` → × `nearCost` (ne pod
-    pevnou cestou), buňky branky všech plotů (`gateCells`) nic, buňka do `alleyM` od dvou plotů (ulička) jen
+    `villageGrid` → `fenceBand(grid, gridFences(grid, v), passable)` v `network-grid.ts` (po plotech
+    a ohradách, ne pozemcích – ty jsou celé neprůchodné jako stavba; tentýž výpočet bere mřížka
+    vozové cesty `wagonRoadGrid`; vrací `blocked` a `near`): střed uvnitř plotu → Infinity, do `axisM` → Infinity jen s aspoň třemi průchodnými sousedy mimo pruh (úzký průchod zůstane dražší; volá se až po stavbách na konci `villageGrid`), do `nearM` → × `nearCost` (ne pod
+    pevnou cestou), buňky branky všech plotů (`entranceCells`) nic, buňka do `alleyM` od dvou plotů (ulička) jen
     dražší. Projeví se i ve `villageBlockedAt` (ohyb do branky). `routeLine(route, cellM, fences)`
     (`routes.ts`): když vyhlazená osa jde k plotu blíž než `axisM` (vzorky po 0,5 m, mimo `gateM` od
     konců), podrží nejbližší vnitřní střed buňky do dvou buněk a vyhladí kusy mezi podrženými zvlášť
@@ -135,7 +136,10 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
   `finishConstructions`, starší vsi při načtení `withMergedRoads` v `updateVillage`; id a den
   vzniku staršího, roads.md – Úseky a rozcestí; dva úseky mezi stejnými uzly do okruhu ne,
   nejrovnější pokračování první) → **souběžné cesty** (do 12 m stejným směrem) se sloučí (`mergeParallelRoads` – kus
-  slabší cesty souběžný aspoň 25 m se vyřízne, `removeBraids` – copánek přes 1–2 mezilehlé uzly
+  slabší cesty souběžný aspoň 25 m se vyřízne; vozová jen se souběžnou silnější vozovou a jen když
+  konec, který by zmizel, leží do `WAGON_MERGE.endM` od osy silnější vozové – `wagonCutKeepsEnds`;
+  u vozové jsou silnější i partner jen úseky mimo stavby (`roadsInWork`) – rozestavěná vozová ne,
+  paths.md – Zdvojená vozová cesta; zemní práce vyříznutého kusu zůstanou terénem), `removeBraids` – copánek přes 1–2 mezilehlé uzly
   (`ringBraid`, jen se stavbami vsi `SpotContext.buildings` – níž) a copánek mezi stejnými uzly do
   25 m: zmizí oklika; vše v `tidyRoads`) → **díry** (volný konec do 12 m od jiného
   úseku, který není u konce trasy roční sítě – brány, cíle) se napojí (`joinRoadGaps`, starší
@@ -247,7 +251,11 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
   nemění; oblouk po 1 m se uloží zjednodušený (`simplifyPathLine`, `SIMPLIFY_M`) – body osy
   zdražují chůzi a vozy. Oblouk, který by vedl neprůchodnou plochou (`JunctionRoads.blocked` –
   `villageBlockedAt`) víc než neohnutá osa (`blockedRun` v `roads-overgrow.ts`, nejdelší běh vzorků
-  po 1 m), se nepoužije – jinak by ho měsíční kontrola opustila a vznikal by znovu (obilná jáma ve
+  po 1 m), se nepoužije, stejně jako oblouk, který má ve stavbě či u plotu větší podíl délky (vzorky
+  po 1 m, `bentFootprintWorse`) než neohnutá osa (`JunctionRoads.footprint` – `footprintOf` v `roads.ts`: obdélníky
+  `villageBuildings` přesně, `inBuilding`, a pruh `FENCE_CLEARANCE.axisM` u plotů `villageFences`;
+  mřížka po buňkách kraj domu nepozná – Vlkov, rameno 1060 přes dům 2137; paths.md – Křižovatky,
+  Ohyb ramene) – jinak by ho měsíční kontrola opustila a vznikal by znovu (obilná jáma ve
   Vlkově). Neohýbá se vozová cesta, stezka, cesta ve vylepšení ani úsek kratší než
   `bendM` (`isFixed` – rameno přesně v jejich směru). Beze změny (`keptJunction` – ohnuté konce
   leží přesně ve vchodech, počet ramen sedí) jen nová id úseků v `arms`; jinak `fitNode` znovu
@@ -471,12 +479,17 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   souběžný s dostavěnou částí, pokud je souběžných aspoň `WAGON_ROAD.bypassShare` (80 %) délky. **Trasa po staré ose** (Úloha 11a; Martin 22. 10. 2026, #6: „vznikne ze staré pěší cesty a vede po ní“): osa = řetěz úseků cesty hráče
   (`chainAxis` v `wagon-road.ts`, od konce blíž vsi), bez vyhledávání a bez vyhlazení. Mřížka
   `paths/wagon-route.ts` (deterministická vrstva): `wagonRoadGrid` – zákazy jako vozová síť, ohrada
-  a hřbitov jen uvnitř plotu (`fencedCells`, ulička 3 m průjezdná – natočená ohrada jen buňky celé
-  uvnitř), pevná cesta pásem `roadBandCells` z `cart.ts` (díl pole ani samotný strom či keř na ní
+  a hřbitov uvnitř plotu (`fencedCells`, ulička 3 m průjezdná – natočená ohrada jen buňky celé
+  uvnitř) a po stavbách pruh u plotu jako u chodců (`fenceBand` → `blocked`, `nearFence` – v hledání
+  `findWagonRoute` krok × `FENCE_CLEARANCE.nearCost`; `fences` – obrysy plotů v okně; paths.md –
+  Odstup od plotu i u vozové cesty), pevná cesta pásem `roadBandCells` z `cart.ts` (díl pole ani samotný strom či keř na ní
   ji nezavřou), `barred` = zákazy bez okrajů staveb, mez úprav terénu `limit` u staveb a vody;
   `wagonAxisBlocked` – body osy po 2 m mimo 9 m u konců: `barred` (plot, voda mimo brod, sráz,
   balvan) nebo stavba blíž než půl šířky vozu (`inBuilding` přesně v bodě, ne po buňkách) →
-  `WAGON_BLOCKED`; posvátný strom přesně kácením (`wagonClearing` → `WAGON_SACRED`);
+  `WAGON_BLOCKED`, s `fences` (výchozí) i osa blíž plotu než `axisM` (`wagonAxisFenceAt` – vzorky po
+  0,5 m, `fenceClearance`, mimo `gateM` od konců; tětivy, narovnání v `rangeAlong`, vyhlazení
+  v `wagonProfile` totéž, narovnání navíc nově nevjede do pruhu `nearM`); `planAlong` vrátí osu
+  u plotu jako `WAGON_BLOCKED` s místem selhání → objížďka (`detourPlan`) po mřížce s pruhem; posvátný strom přesně kácením (`wagonClearing` → `WAGON_SACRED`);
   `wagonProfile(grid, osa, asIs = true)` – profil po ose jak je, nevyjde-li sklon 6 % ani s úvozem
   a náspem 3 m → `WAGON_STEEP` „Cesta je pro vůz moc prudká.“ **Narovnání** (Úloha 11b):
   `straightenStretches` v `wagon-road.ts` (`WAGON_STRAIGHTEN` – 1,3× / 3 m / 120 m) na osu po 6 m
@@ -724,9 +737,12 @@ landscape, obstacles)` v `paths/roads-v2.ts`, `updateVillage` ho volá po `withR
 - **Jednorázová přestavba sítě (Úloha R1, Martin 24. 10. 2026 – varianta A):** `withRoadsRebuilt(state,
 landscape, obstacles)` v `paths/roads-rebuild.ts`; `updateVillage` volá po `withRoadsV2` jeho
   kroky `withRoadsRebuiltSteps` (`rebuiltWithPauses` – port `Pause` mezi průchody a kolem přepočtu
-  vozových cest, generátor `rebuildRoadsSteps`). Výjimka v přestavbě → klon vstupu s `rebuilt: 1`
-  a `rebuildFailed: 1` (stará síť zůstane, příště se nezkouší); ves
-  s `roads.v2` bez `roads.rebuilt` (nová ves má `rebuilt: 1` z `emptyRoads`) a s trasami. Čistá
+  vozových cest, generátor `rebuildRoadsSteps`). `roads.rebuilt` je verze přestavby
+  (`ROAD_REBUILD.version`, 26. 10. 2026 verze 2 – paths.md, Jednorázová přestavba podle nových
+  pravidel): přestaví se ves s `roads.v2`, s trasami a s nižší nebo chybějící verzí (nová ves má
+  aktuální z `emptyRoads`); po přestavbě se smaže `repaired` / `repairFailed`, takže oprava
+  (`withRoadsRepaired`, volá se hned po ní) proběhne znovu. Výjimka v přestavbě → klon vstupu
+  s `rebuilt` a `rebuildFailed` = verze (stará síť zůstane, příště se nezkouší). Čistá
   `rebuildRoads`: `seedWear` (vyšlapanost z `trafficField(routes).cells` × `ROAD_REBUILD.seedDays`,
   max se stávající), zahodí úseky mimo pevné (`Construction.roadIds`, úseky nehotových stezek,
   vozové úseky na ose rozestavěných zemních prací – do `BUILDING_M` 1 m, opuštěné) a `junctions`,
@@ -752,10 +768,14 @@ landscape, obstacles)` v `paths/roads-rebuild.ts`; `updateVillage` volá po `wit
   osy (`chainPoints`) u staré vozové osy souvisle aspoň `wagonPatchM` (`nearStretches`) se naplánují
   samy – `planWagonRoad` s `roads: [kus]` (syntetický upravený úsek id −1, řetěz je jen on),
   `buildWagonRoadNow` geometricky (`absorbParallelRoads` vyřízne starou cestu pod ním), zbytky
-  napojí další ustálení. `patchAxes` napojuje konce vrácených kusů do `ROAD_JOIN.gapM` (12 m). Průchody před přepočtem dostanou `rebuildRoadsPass(…, width)` → `roadsMonthRun` →
-  `tidyMonth` → `JunctionRoads.width` (`spaceJunctions` – úsek u staré vozové osy má šířku
-  `ROAD_LAND.widthM.wagon`), takže křižovatky s budoucím vozovým ramenem se odsunou předem. Pak
-  znovu průchody až do ustálení. Kronika se vrátí na původní délku, `flushWear` na
+  napojí další ustálení. `patchAxes` napojuje konce vrácených kusů do `ROAD_JOIN.gapM` (12 m). Průchody dostanou `rebuildRoadsPass(…, RebuildHints)` → `roadsMonthRun` →
+  `tidyMonth` → `rebuildJunctionHints` (`roads.ts`): úsek u staré vozové osy (`wagon`) má pro
+  křižovatku šířku `ROAD_LAND.widthM.wagon` (`JunctionRoads.width`) a práh živosti vozové
+  (`asBuilt` → `liveRoadEnd`), úseky stezek jsou `JunctionRoads.loose` (uzel při rozestupu nedrží,
+  spojka se smí sloučit – stezka se znovu najde), takže křižovatky s budoucím vozovým ramenem se
+  odsunou či sloučí předem. Po `patchAxes` vozových os se síť ustálí znovu (`settle(futureWagon)`
+  – vrácený kus se napojí do uzlu u křižovatky, Vlkov J1130 5,9 m) a teprve pak se přepočítají
+  vozové. Pak znovu průchody až do ustálení. Kronika se vrátí na původní délku, `flushWear` na
   konci.
   Pozor: vznik cesty (`commitDraft`) nahradí `state.roads` kopií – po průchodu číst znovu ze stavu.
   `trailAxisRoads` (`trail-axis.ts`) bere křižovatky jako jeden uzel (`junctions`, konce ramen

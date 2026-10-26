@@ -19,6 +19,7 @@ import {
   terrainEditsOf,
   withTerrainEdits,
 } from '../paths/earthworks';
+import { fenceClearance, villageFences } from '../paths/fences';
 import type { PathVillage } from '../paths/network';
 import { joinedRoadsOf, roadLengthM, roadsMonth, updateRoads } from '../paths/roads';
 import { pathTerrainOf, pathWindowFor } from '../paths/terrain';
@@ -27,7 +28,7 @@ import { roadPieceCost } from '../paths/walking';
 import { roadWalkSpeed } from '../paths/walk-speed';
 import { balanceEarth, profileEdits, profileHeights, wagonRoadGrid } from '../paths/wagon-route';
 import { CART_SPEED, ROAD_WALK, WAGON_ROAD } from '../rules';
-import { WAGON_DETOUR } from '../rules-roads';
+import { FENCE_CLEARANCE, WAGON_DETOUR } from '../rules-roads';
 import { advanceVillage } from '../simulate';
 import type { Road, RoadProfilePoint, VillageState } from '../types';
 import {
@@ -238,6 +239,73 @@ describe('trasa a profil vozové cesty', () => {
         village: { dwellings: [], fields: [], pens },
       }),
     ).toEqual({ ok: false, reason: WAGON_BLOCKED });
+  });
+
+  describe('odstup od plotu (paths.md – Odstup od plotu, i vozová cesta)', () => {
+    // ohrada na políčku x, z ∈ (0, 15) – plot 1,5 m od okraje: x, z ∈ (1,5; 13,5)
+    const pens: NonNullable<PathVillage['pens']> = [
+      { id: 1, built: true, cell: { x: 15, y: 15 }, x: 7.5, z: 7.5, size: 15 },
+    ];
+    const village: PathVillage = { dwellings: [], fields: [], pens };
+    const outlines = villageFences(village, false).map((f) => f.outline);
+    /** Nejmenší odstup osy od plotu (vzorky po 0,25 m) mimo `skipM` od konců. */
+    function minClearance(points: readonly { x: number; z: number }[], skipM = 0): number {
+      const a0 = points[0]!;
+      const a1 = points[points.length - 1]!;
+      let min = Infinity;
+      for (let k = 1; k < points.length; k++) {
+        const a = points[k - 1]!;
+        const b = points[k]!;
+        const n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 0.25));
+        for (let i = 0; i <= n; i++) {
+          const x = a.x + ((b.x - a.x) * i) / n;
+          const z = a.z + ((b.z - a.z) * i) / n;
+          if (Math.hypot(x - a0.x, z - a0.z) < skipM || Math.hypot(x - a1.x, z - a1.z) < skipM) {
+            continue;
+          }
+          min = Math.min(min, fenceClearance(outlines, x, z, 10));
+        }
+      }
+      return min;
+    }
+    const along = (road: Road): WagonRoadPlan => planWagonRoad({ ...input(FLAT, road), village });
+
+    it('stará cesta 0,5 m podél plotu: vozová ji objede v odstupu, plot neobjímá', () => {
+      const road = oldRoad([
+        { x: 1, z: -180 },
+        { x: 1, z: 180 },
+      ]);
+      expect(minClearance(road.points)).toBeLessThan(1);
+      const p = along(road);
+      expect(p.ok).toBe(true);
+      // objížďka plot neobjímá – pruh do `nearM` je dražší a narovnání do něj nevjede
+      if (p.ok) expect(minClearance(p.profile)).toBeGreaterThanOrEqual(FENCE_CLEARANCE.nearM);
+    });
+
+    it('stará cesta přes roh plotu: vozová roh neusekne', () => {
+      // úhlopříčka x + z = 3 vede přes roh plotu (1,5; 1,5)
+      const road = oldRoad([
+        { x: -150, z: 153 },
+        { x: 153, z: -150 },
+      ]);
+      expect(minClearance(road.points)).toBeLessThan(0.6);
+      const p = along(road);
+      expect(p.ok).toBe(true);
+      if (p.ok) expect(minClearance(p.profile)).toBeGreaterThanOrEqual(1);
+    });
+
+    it('k brance ohrady vozová dojede (konec u branky odstup nehlídá)', () => {
+      const gate = villageFences(village, false)[0]!.gate!;
+      const at = { x: gate.x + gate.outX, z: gate.z + gate.outZ };
+      const road = oldRoad([{ x: at.x + gate.outX * 150, z: at.z + gate.outZ * 150 }, at]);
+      const p = along(road);
+      expect(p.ok).toBe(true);
+      if (p.ok) {
+        const end = p.profile[p.profile.length - 1]!;
+        expect(Math.hypot(end.x - at.x, end.z - at.z)).toBeLessThan(0.05);
+        expect(minClearance(p.profile, FENCE_CLEARANCE.gateM)).toBeGreaterThanOrEqual(1);
+      }
+    });
   });
 
   it('náhled v prohlížeči = plán serveru (krajina na cm, cesty jen s tím, co má scéna)', () => {
