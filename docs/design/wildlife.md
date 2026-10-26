@@ -512,3 +512,50 @@ Martin: „Souhlasím se všemi návrhy“ – tři otázky z plánu jsou uzavř
   při chůzi ho nemají (klip chůze s oštěpem by potřeboval nový převod z 0 A.D.).
 - **Noční hlídka se nekreslí** – hra nemá noc a oheň za plného světla by vypadal jako požár; ve
   dne na hlídaných dílech děti s řehtačkou (vrány), noční hlídku ukazuje ikona v panelu (W9).
+
+## Ověření (W12, 26. 10. 2026)
+
+Skripty mimo repo (`scratchpad/diag-wildlife/w12.mts`), dosavadní kód = `feat/landscape` před
+sloučením zvěře (56d5f030), stejné vstupy.
+
+**Vlkov 3 roky bez zásahu hráče** (start 5. 6. 820, 43 lidí; stav 1. 5. na konci období, kusy /
+strop):
+
+| období          | 1. 5. jelení / prasata / vlci | škoda kg (% úrody) | dní objížďky | lov rodu kg (prasata / jeleni) | ryby kg | zajíci | obilí psů kg | vejce kg (dosavadní) | dny hladu |
+| --------------- | ----------------------------- | ------------------ | ------------ | ------------------------------ | ------- | ------ | ------------ | -------------------- | --------- |
+| 5. 6. 820 – 821 | 6/6 · 3/3 · 0,6               | 0 (0 %)            | 33           | 0                              | 438     | 10,2   | 192          | 113 (118)            | 0         |
+| 1. 5. 821 – 822 | 6/6 · 2/2 · 0,6               | 450 (7,1 %)        | 37           | 135 (1 / 1)                    | 402     | 10,2   | 219          | 125 (130)            | 0         |
+| 1. 5. 822 – 823 | 6/6 · 2/2 · 0,6               | 314 (6,1 %)        | 37           | 90 (0 / 1)                     | 106     | 10,2   | 219          | 131 (137)            | 0         |
+
+- Úroda (bez škody) 7066 / 5903 / 4831 kg proti dosavadním 7066 / 6307 / 5383 kg; úroda se
+  škodou 6353 a 5145 kg – druhý rok o 238 kg méně i bez škody (práce na rybách a hlídkách).
+- Noční hlídka v žních 0 čd (Vlkov má pole daleko od lesa, ohrožené díly nestojí za hlídku),
+  strhnutý dobytek 0, úmrtí hladem i na lovu 0 (1 zranění na lovu), lidí 43 → 46 jako dosud.
+- **Lov rodu 90–135 kg ročně** – pod cílem 350–400 kg: Vlkov má malý strop zvěře (jelení 6,
+  prasata 2–3), lovit není co. Prasata 1. 5. na stropu (2 z 2) – cíl „pod 70 % stropu“ se při
+  tak malých číslech neprojeví.
+- **Determinismus:** po 1 dni (30×), 1 den + 29 dní a 30 dní naráz stejný otisk stavu.
+- **Výkon:** rok Vlkova naráz 27,91 s proti 27,75 s (+0,6 %, nejlepší ze dvou).
+
+**Čerstvé vsi 4 × 14 let** (skutečná krajina, seed 101–104, první pole 1,7 ha, les 194–215 m od
+vsi, bez rodu – bez lovu a objížďky):
+
+- Škoda 2,0 / 4,3 / 5,4 / 5,9 % úrody za 14 let (nejhorší rok 6,8 %), noční hlídka 0–13 čd.
+- Ryby 4,7–6,1 t za 14 let (≈ 340–435 kg ročně – nad odhadem 150–200 kg), zajíci 6–8 ročně,
+  strhnuto 0–26 kusů dobytka za 14 let, úmrtí hladem 0.
+- **Bez hráče** (ves bez staveb a nových polí, do 8 lidí na 1,7 ha) hladoví ves stavbou: 2930–3300
+  dní hladu za 14 let proti dosavadním 2520–2910 – zvěř hlad prodlouží o ≈ 10–25 %. **S hráčem**
+  (kalibrace `measure-village` 4 × 14 let – hráč staví i nestaví) beze změny: nasycení ≥ 0,95
+  ve 100 % let, bez hladu, porody 9,0 a úmrtí dětí 0,5 na ves jako dosud.
+
+**Ve scéně** (vývojová ukázka `/dev/landscape`, `e2e/wildlife-scene.spec.ts` s
+`WILDLIFE_DEV_URL`, WebGL 2 i WebGPU bez chyb konzole; běžný e2e `village.spec.ts` – modely
+`wild-*` se načtou, klik na zvíře otevře panel druhu):
+
+- Prasata na dílu se škodou a selata – velikost vůči lidem dobrá; psi u kůlu i na začátku lovu
+  dobíhají k lovcům bez skoku; jezdec lovu vyjíždí od kůlu.
+- **Jelení na okraji lesa** (pás −7 až +5 m od hranice lesa, stejný jako prasata vsi) jsou při
+  přiblížení **pod korunami** – zakryté; náprava = vlastní pás zvěře venku z lesa (např. 0 až
+  +8 m) – větší zásah do rastru pastvin, zatím ne.
+- Rybáře a děti s řehtačkou ukázka nevykreslila (ukázková ves nemá podíl práce `fish` ani volné
+  výrostky) – ověřeno jen testy plánů (`anglers.test.ts`).
