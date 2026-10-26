@@ -120,8 +120,8 @@ export class ThreshingFloorRenderer {
     }
     mesh.material = this.material;
     mesh.isPickable = false;
+    // nízké hromady stín nevrhají – síť se přestavuje a vrhač by zůstal v seznamu stínů
     mesh.receiveShadows = true;
-    this.context.addShadowCaster(mesh);
     return mesh;
   }
 
