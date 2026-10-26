@@ -31,6 +31,7 @@ export function isNeighbourTarget(target: VillageTarget): boolean {
     target.kind === 'sacred-oak' ||
     target.kind === 'grove' ||
     target.kind === 'person' ||
+    target.kind === 'wildlife' ||
     target.kind === 'plough-team' ||
     target.kind === 'cart'
   ) {

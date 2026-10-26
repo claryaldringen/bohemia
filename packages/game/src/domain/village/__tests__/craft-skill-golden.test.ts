@@ -104,6 +104,8 @@ describe('ves bez dílen beze změny (crafts.md – Učení řemesla)', () => {
       'dynasty',
       // značka převodu na osevní postup (fields.md – Osevní postup po dílech, bod 7)
       'sowingRotation',
+      // zvěř vsi (wildlife.md) – přibyl klíč `wildlife`; v rámci dne ovlivňuje i simulaci, ale zlatý běh ji neprojeví
+      'wildlife',
       // kusy poražené dnes (hlášení pro scénu – LivestockState.slaughtered) – simulace je nečte
       'slaughtered',
       // věk zemřelého v události úmrtí (happiness.md – Co ubírá) – jen zápis do kroniky
@@ -118,6 +120,12 @@ describe('ves bez dílen beze změny (crafts.md – Učení řemesla)', () => {
     const stripped = JSON.stringify(legacyShape(next), (key, value: unknown) =>
       marks.has(key) ? undefined : value,
     );
-    expect(hash(stripped)).toBe('39b51dd8');
+    // hash 5e3b6c4c (26. 10. 2026 (W3 šelmy; wildlife.md – Vlci na dobytku): vlčí díl ztrát jen venku a medvěd bere prasata, takže stáda jdou po dnech jinak; dřív 39b51dd8); 26. 10. 2026 podruhé (oprava po recenzi W3): medvěd bere jen z prasat nad chovný pár a kronika šelem jde po měsících (jiné události kroniky), dřív 5e3b6c4c)
+    // hash 89e5e1ce (26. 10. 2026 (W4 psi dvorce a velký lov rodu; wildlife.md – Psi, Lov rodu): obilí psů dvorce se sije z pole a pěší lovci a odešlí synové chybí v den lovu v práci vsi, takže se mění sklizeň, plán osevu a stav zvěře; dřív 5362ef6)
+    // hash c98b44a4 (26. 10. 2026, oprava po recenzi W4): psi dvorce vznikají hned (ne až 1. 5.), rodina na poli neloví a slabý jezdec jde pěšky – jiný lov, obilí psů a práce vsi; dřív 89e5e1ce
+    // hash 7fc9acc1 (26. 10. 2026, W7 ryby a oka; wildlife.md – Drobná zvěř a ryby): vesničané chytají ryby a zajíce z volné práce (nebo při hladu před stavbami), maso jde do zásoby bez porážky – jiná práce vsi, zásoby a stav zvěře; dřív c98b44a4
+    // hash 673f1d6b (26. 10. 2026, oprava po recenzi W7): roční kvóta ryb a zajíců, čerstvé maso a brzda letošním úlovkem – jiný úlovek, jídlo a stav zvěře; dřív 7fc9acc1
+    // hash 8498535 (26. 10. 2026, závěrečná oprava zvěře): drobná zvěř loňska se do chuti na bílkoviny nepočítá, jen letošní – jiný úlovek ryb a jídlo; dřív 673f1d6b
+    expect(hash(stripped)).toBe('8498535');
   }, 120_000);
 });

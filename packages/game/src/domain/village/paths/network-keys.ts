@@ -270,7 +270,9 @@ export function laborByTarget(village: PathVillage): [string, number][] {
             ? `edge:${t.direction}`
             : t.kind === 'water'
               ? `water:${t.x},${t.z}`
-              : `${t.kind}:${t.id}`;
+              : t.kind === 'pool'
+                ? `pool:${t.index}`
+                : `${t.kind}:${t.id}`;
     // na setiny jako ve scéně (village-view.ts) – server i prohlížeč pak sečtou totéž
     sums.set(key, (sums.get(key) ?? 0) + Math.round(share.manDays * 100) / 100);
   }

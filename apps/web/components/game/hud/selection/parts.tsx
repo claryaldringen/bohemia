@@ -7,12 +7,21 @@ import { CRAFT_LOOKS, DWELLING_NAMES, type Craft } from '@/lib/village-view';
 import { Tooltip } from '../Tooltip';
 
 /** Portrét a název – název na jeden řádek, delší rozšíří sloupec portrétu. */
-export function Portrait({ icon, name }: { icon: string; name: string }): ReactElement {
+export function Portrait({
+  icon,
+  name,
+  dir = 'build',
+}: {
+  icon: string;
+  name: string;
+  /** Složka ikon v `public/icons/` (zvěř je mezi surovinami). */
+  dir?: 'build' | 'resources';
+}): ReactElement {
   return (
     <div className="flex min-w-20 shrink-0 flex-col items-center gap-1">
       <div className="hud-inset h-20 w-20 overflow-hidden rounded">
         <img
-          src={`/icons/build/${icon}.png`}
+          src={`/icons/${dir}/${icon}.png`}
           alt=""
           width={128}
           height={128}

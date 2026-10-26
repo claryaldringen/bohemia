@@ -134,6 +134,7 @@ export function targetKey(target: LaborTarget): string {
     const first = target.cells[0];
     return first ? `meadow-${first.x}-${first.y}` : 'meadow';
   }
+  if (target.kind === 'pool') return `pool-${target.index}`;
   if (target.kind === 'edge') return `edge-${target.direction}`;
   if (target.kind === 'water') return `water-${target.x}-${target.z}`;
   return `${target.kind}-${target.id}`;

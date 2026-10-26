@@ -49,6 +49,7 @@ export {
   squareWaterDistanceM,
   waterDistanceM,
   withForestDistances,
+  villageOrigin,
   withLivestockLand,
 } from './placement-squares';
 export {

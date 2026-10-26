@@ -227,6 +227,29 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   stoupá s plností o `GRAIN_RISE_M`), u prázdné jámy hliněné dno `FLOOR`; materiál má `zOffset`,
   aby louka neprosvítala. Bez nové textury, jen barvy vrcholů.
 
+## Divoká zvěř, pes a prut (modely – wildlife Úloha W8; ve scéně W10–W11)
+
+`apps/web/public/models/fauna/wild-{boar,stag,hind,wolf,bear,fox,hare}.glb` a `dog.glb` (pes
+z mastifa; vše ≤ 200 kB, 0 A.D., licence v `LICENSES.md` vedle). Stejná pipeline jako dobytek
+(`tools/blender/fauna_from_0ad.py` + `fauna.json`): statický mesh a **tři morph targety**
+`stride_a`, `stride_b`, `graze` (pes `lie` – mastif ležení nemá, je to póza s hlavou u země),
+tedy 3 atributy + 3 targety + „stav“ instance = 7 vertex bufferů pod limitem WebGPU (8).
+Skutečné délky: prase 1,5 m, jelen 2,1 m (srnec/samice `wild-hind` 1,9 m), vlk 1,3 m, medvěd
+2 m, liška 1 m, zajíc 0,6 m, pes 1,1 m. Zajíc má v základní póze „sloupek“ (sedí), kroky jsou
+skok. Pozn.: `wild-hind` je ta samice bez paroží (`animal_deer_01`).
+
+- **Paroží jelena** (`wild-stag`): nové pole `props` ve `fauna.json` – `{"dae", "bone", "anchor"}`;
+  statický mesh se přilepí k bodu `prop-antler-node` kostry (v animaci není, dopočte se z klidové
+  matice a rodiče) a v každé póze, i klíčové, se hýbe s hlavou; mesh i textura se sloučí do
+  jednoho meshe. Klíč `smooth` místo normál 0 A.D. (po rozích, ztrojnásobí vrcholy) nechá Blender
+  spočítat normály (medvěd).
+- **Prut**: `tools/blender/people_from_0ad.py` – `procedural_rod` (kužel ≈ 3 m, CC0), prop
+  `fishing-rod` v `man.glb` a `woman.glb` u bodu `prop-weapon_R`, klip `fish` (klidová póza +
+  prut). Vlasec a splávek až ve scéně.
+- **Ikony** (`tools/blender/icons.py`): `resources/{boar,deer,wolf,bear,hare,fox,fish,dog}.png`
+  z modelů, `spear` (oštěp) a `watch-fire` (pochodeň hlídky) procedurálně.
+- Test `apps/web/lib/scene/__tests__/fauna.test.ts` hlídá buffery, morph targety a velikost GLB.
+
 ## Kůň a hříbě (modely – Úloha 8; ve scéně Úloha 10)
 
 `apps/web/public/models/fauna/horse.glb` (≈ 175 kB, 2,2 m dlouhý) a `foal.glb` (≈ 165 kB, 1,3 m,

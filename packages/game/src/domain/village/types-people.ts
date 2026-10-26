@@ -85,6 +85,11 @@ export interface Person {
    * v nástupnictví i po její smrti. Chybí – ne.
    */
   mainWifeSon?: true;
+  /**
+   * Zraněn na lovu (wildlife.md – Nebezpečí pro lidi): do tohoto dne (výjimečně) nepracuje, necvičí
+   * ani neloví. Chybí – zdráv.
+   */
+  injuredUntilDay?: number;
 }
 /** Luk, boj a jízda 0–100; `best` je nejvyšší dosažená hodnota (spodní hranice úbytku). */
 export interface ArmsSkills {

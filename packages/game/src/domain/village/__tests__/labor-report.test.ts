@@ -7,7 +7,7 @@ import { laborPerDay } from '../people';
 import { HARVEST_WORK_PER_HA } from '../rules';
 import { advanceVillage } from '../simulate';
 import type { Construction, LaborShare, VillageState } from '../types';
-import { withBuiltFirstDwelling, withThreshingFloor } from './village-fixtures';
+import { withBuiltFirstDwelling, withThreshingFloor, withoutSmallGame } from './village-fixtures';
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
 const POSITION = { x: 0, z: 0, rotation: 0 };
@@ -48,7 +48,7 @@ function bare(day: number): VillageState {
   s.constructions = [];
   s.season = null;
   s.storesKg = 5000;
-  return s;
+  return withoutSmallGame(s);
 }
 
 function dwellingSite(day: number, wood: Construction['wood'], done = 0): Construction {

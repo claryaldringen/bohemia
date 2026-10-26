@@ -67,8 +67,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   chovný pár zůstane; potřeba masa z bílkovin, které chybí i po luštěninách ze zásoby
   `meatNeedPerYear` / `proteinBudget`; vejce denně; `meatKg` se uzí 20 %/rok).
   **Stáda realističtěji** (diet.md, Martin 19. 10. 2026; čísla návrh Clauda podle rešerše
-  `research/2026-10-19-herds-hay-meat.md`): roční ztráty `LIVESTOCK.lossPerYear` (ovce 12, kozy
-  10, prasata 12, skot 6 %) po dnech (`herdLosses`, i z `young`); nosnost `winterTargets` –
+  `research/2026-10-19-herds-hay-meat.md`): roční ztráty `LIVESTOCK.lossPerYear` (základ bez vlků
+  ovce 9, kozy 7, prasata 10, skot 5 %; vlčí díl a medvěd viz [village-wildlife.md](village-wildlife.md) – Šelmy) po dnech (`herdLosses`, i z `young`); nosnost `winterTargets` –
   pastva a seno podle přednosti (`HERD_PRIORITY` od 24. 10. 2026: voli, krávy, ovce,
   kozy – napřed zarůstající příloh `goatBrowseHa`; dřív `GRAZING_ORDER` s ovcemi na vlnu napřed), seno po ztrátách ve stohu
   (`winterHayAvailable`), prasata podle lesa celý rok, nejvýš podíl uhlídaný pasáky (`herding`);

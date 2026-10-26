@@ -49,6 +49,7 @@ import {
 import { type HouseholdRelocation } from './relocation-view';
 
 import { type VillageManor } from './manor-view';
+import type { FieldDamageView, VillageWildlife } from './wildlife-view';
 import { type VillageHorses } from './horse-view';
 
 import { type VillageDugSite } from './ore-site-view';
@@ -618,6 +619,8 @@ export interface VillageView {
    * a obchod se sousedy; dokud zakladatelé první zemnici staví, null.
    */
   manor: VillageManor | null;
+  /** Divoká zvěř vsi – hrubé stavy druhů a podklady upozornění (wildlife.md); chybí = ještě není. */
+  wildlife?: VillageWildlife;
   /**
    * Rudiště kováren (crafts.md – Uhlí a ruda kováře) pro panel výběru – ložisko, hromada u jámy,
    * zásoba v kovárně, cesta, jámy a kdo tu dnes pracuje; chybí = žádné.
@@ -762,6 +765,8 @@ export interface VillageFieldPart {
   rest?: { share: number; years: number };
   /** Zakládaný díl: průběh 0–1 (setiny), zbývající práce (člověkodny) a dospělé stromy na klády. */
   founding?: { progress: number; laborLeft: number; trees: number };
+  /** Škoda zvěře letos (wildlife.md – Co hráč vidí): jen díl, který zvěř ohrožuje. */
+  damage?: FieldDamageView;
 }
 
 /** Čtverec sadu pro panel vybraného čtverce (klik na sad – orchard.md, Co hráč vidí). */

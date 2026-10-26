@@ -6,6 +6,7 @@ import {
   VillageView,
   DAYS_PER_YEAR,
 } from './village-view-types';
+import { fieldDamageViews, type FieldDamageView } from './wildlife-view';
 import { SceneFieldPart } from './village-view-scene-types';
 import {
   CELL_SIZE_M,
@@ -80,6 +81,7 @@ export function fieldViews(state: VillageState, day: number): VillageView['field
   const holdings = villageHoldings(state);
   const work = partYearWork(state, day);
   const rotation = partRotation(state, day, work);
+  const damage = fieldDamageViews(state, day);
   const holdingOf = (id: number): number | null => {
     const at = holdings.byPart.get(id);
     return at ? (holdings.sectors[at.sector]?.dwellingId ?? null) : null;
@@ -129,7 +131,14 @@ export function fieldViews(state: VillageState, day: number): VillageView['field
       ashBonus,
       overgrowingM2,
       parts: parts.map((p) =>
-        fieldPartView(p, day, holdingOf(p.id), work.get(p.id), rotation.get(p.id)),
+        fieldPartView(
+          p,
+          day,
+          holdingOf(p.id),
+          work.get(p.id),
+          rotation.get(p.id),
+          damage.get(p.id),
+        ),
       ),
     };
   });
@@ -145,6 +154,7 @@ function fieldPartView(
   holding: number | null,
   work: PartYearWork | undefined,
   rotation: PartRotation | undefined,
+  damage?: FieldDamageView,
 ): VillageFieldPart {
   const ash = forestBonus(part, day);
   const crop = work?.crop;
@@ -159,6 +169,7 @@ function fieldPartView(
     ...(ash > 0 ? { ashBonus: ash } : {}),
     ...(part.surface !== 'meadow' ? { surface: part.surface } : {}),
     walkM: Math.round(partWalkDistance(part)),
+    ...(damage ? { damage } : {}),
     ...(holding !== null ? { holding } : {}),
     ...(part.state === 'sown' ? { sownYears: part.sownYears } : {}),
     ...(part.state === 'fallow' ? { fallowYears: fallowYears(part, day) } : {}),

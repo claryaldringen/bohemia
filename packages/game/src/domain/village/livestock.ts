@@ -1,5 +1,7 @@
 import { dateOfDayIndex, dayIndexOf, isLeapYear } from '../calendar';
 import { dairyDams, yearlyMilk } from './dairy';
+import { foxEggFactor } from './fox-eggs';
+import { PREDATION } from './rules-wildlife';
 import {
   DIET,
   PROTEIN,
@@ -81,7 +83,11 @@ export const LIVESTOCK = {
     pig: HERD_BREEDING.femaleShare.pig * HERD_BREEDING.youngPerDam.pig,
     cow: HERD_BREEDING.femaleShare.cow * HERD_BREEDING.youngPerDam.cow,
   },
-  lossPerYear: { sheep: 0.12, goat: 0.1, pig: 0.12, cow: 0.06 },
+  /**
+   * Roční ztráty bez vlků (nemoci, úrazy; diet.md – Roční ztráty stáda). Vlčí díl `PREDATION.wolfShare`
+   * se přidá podle smečky (`predationDay`) – při plné smečce dohromady 12 / 10 / 12 / 6 %.
+   */
+  lossPerYear: { sheep: 0.09, goat: 0.07, pig: 0.1, cow: 0.05 },
   pastureHa: { sheep: 0.2, goat: 0.2, cow: 1 },
   oxPastureHa: 1,
   forestHaPerPig: 1,
@@ -327,7 +333,10 @@ export interface ProteinBudget {
 }
 
 /** Vesnice pro bilanci bílkovin. */
-type ProteinVillage = Pick<VillageState, 'people' | 'dwellings' | 'livestock' | 'legumesKg'>;
+type ProteinVillage = Pick<
+  VillageState,
+  'people' | 'dwellings' | 'livestock' | 'legumesKg' | 'wildlife'
+>;
 
 /** O kolik víc bílkovin (kg) dá kg luštěnin než obilí se stejnou energií. */
 const LEGUME_PROTEIN_GAIN = LEGUMES.protein - PROTEIN.perKg.grain * LEGUMES.energy;
@@ -368,7 +377,11 @@ export function proteinBudget(
     need,
     grain,
     milk: yearlyMilk(dams).proteinKg * LIVESTOCK.milkProteinKept,
-    eggs: villageChickens(state) * LIVESTOCK.eggsKgPerHen * PROTEIN.perKg.eggs,
+    eggs:
+      villageChickens(state) *
+      LIVESTOCK.eggsKgPerHen *
+      foxEggFactor(state.wildlife) *
+      PROTEIN.perKg.eggs,
     legumes: legumeKg * LEGUME_PROTEIN_GAIN,
   };
 }
@@ -450,8 +463,12 @@ export function workSlaughter(state: VillageState, amount: number): void {
 }
 
 /** Vejce dne (kg) – jí se čerstvá. */
-export function dailyEggsKg(state: Pick<VillageState, 'people' | 'dwellings'>): number {
-  return (villageChickens(state) * LIVESTOCK.eggsKgPerHen) / DAYS_PER_YEAR;
+export function dailyEggsKg(
+  state: Pick<VillageState, 'people' | 'dwellings' | 'wildlife'>,
+): number {
+  return (
+    (villageChickens(state) * LIVESTOCK.eggsKgPerHen * foxEggFactor(state.wildlife)) / DAYS_PER_YEAR
+  );
 }
 
 /** Jaro (1. 4.): mláďata – každé stádo přibude o svůj roční růst (mutuje stav). */
@@ -928,7 +945,9 @@ export function winterSlaughterDay(state: VillageState, day: number): void {
  * kusů.
  */
 export function yearlyMeatPerHead(species: HerdSpecies): number {
-  const surplus = (1 + LIVESTOCK.growth[species]) * (1 - LIVESTOCK.lossPerYear[species]) - 1;
+  // kalibrace beze změny: počítá se s plnou smečkou vlků (základ + vlčí díl)
+  const loss = LIVESTOCK.lossPerYear[species] + PREDATION.wolfShare[species];
+  const surplus = (1 + LIVESTOCK.growth[species]) * (1 - loss) - 1;
   return Math.max(0, surplus) * LIVESTOCK.meatKg[species];
 }
 
@@ -1059,7 +1078,7 @@ export function sizeHerdsToNeed(
     herdRecord(() => 0),
   );
   const required = budget.need * (1 + BALANCE.proteinReserve);
-  const eggsKg = villageChickens(state) * LIVESTOCK.eggsKgPerHen;
+  const eggsKg = villageChickens(state) * LIVESTOCK.eggsKgPerHen * foxEggFactor(state.wildlife);
   // bílkoviny, kdyby ves jedla jen obilí, a co k nim dají vejce a luštěniny ze zásoby (navíc proti
   // obilí se stejnou energií)
   const grainProtein = PROTEIN.perKg.grain;

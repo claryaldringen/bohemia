@@ -23,6 +23,7 @@ import {
   leaveVillageForPlayer,
   settleJourneyForPlayer,
   plantRoadApplesForPlayer,
+  declareHuntForPlayer,
   nameLineManForPlayer,
   renameVillageForPlayer,
   skipTimeForPlayerView,
@@ -51,6 +52,7 @@ import {
   parseLeaveVillageInput,
   parseSettleJourneyInput,
   parsePlantRoadApplesInput,
+  parseDeclareHuntInput,
   parseNameLineManInput,
   parseRenameVillageInput,
   parseRestartGameInput,
@@ -331,6 +333,16 @@ export async function placeWorkshop(input: unknown): Promise<VillageActionResult
  */
 export async function nameLineMan(input: unknown): Promise<VillageActionResult> {
   return villageAction(input, parseNameLineManInput, nameLineManForPlayer);
+}
+
+/**
+ * Lov navíc na zítřek (wildlife.md – Lov rodu: Kdy): `{ villageId }`. Hájení, 3 dny od minulého
+ * lovu, nikdo k lovu a už vyhlášený lov odmítne use-case s důvodem česky.
+ */
+export async function declareHunt(input: unknown): Promise<VillageActionResult> {
+  return villageAction(input, parseDeclareHuntInput, (id, villageId) =>
+    declareHuntForPlayer(id, villageId),
+  );
 }
 
 /** Přejmenování vsi: `{ villageId, name }`. */

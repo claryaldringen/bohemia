@@ -12,6 +12,7 @@ import {
   cancelUnfinishedConstruction,
   foundDevVillage,
   foundVillageForSettlement,
+  declareHuntInVillage,
   nameLineManInVillage,
   placeCemetery,
   placeDwelling,
@@ -470,6 +471,19 @@ export function nameLineManForPlayer(
     nameLineManInVillage(
       { villages: villages() },
       { villageId: ctx.villageId, today: ctx.day, landscape: ctx.landscape, ...input },
+    ),
+  );
+}
+
+/** Hráč vyhlásí lov navíc na zítřek (wildlife.md – Lov rodu: Kdy) – důvod odepření řeší use-case. */
+export function declareHuntForPlayer(
+  playerId: string,
+  villageId: string,
+): Promise<VillageActionResult> {
+  return actOn(playerId, villageId, (ctx) =>
+    declareHuntInVillage(
+      { villages: villages() },
+      { villageId: ctx.villageId, today: ctx.day, landscape: ctx.landscape },
     ),
   );
 }

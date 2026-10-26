@@ -10,6 +10,7 @@ import { ManorUpgrades } from '../ManorPanel';
 import { TradePanel } from '../TradePanel';
 import { LeaveControls, RelocateButtons, RelocationProgress } from '../RelocationControls';
 import { Stat, Bar, ROW, Commands, WoodToFell } from './parts';
+import { ManorHunt } from './wildlife';
 import { WorkshopRow, BuyingRow } from './crafts';
 
 /** Akce panelu nad obydlími – přestěhování domácnosti a jeho zrušení (migration.md). */
@@ -29,6 +30,8 @@ export interface RelocationActions {
 export interface ManorActions {
   /** Zadá stavbu zemské stezky do směru (server action) – hotovo, až se vrátí. */
   onBuildTrail?: (direction: Direction8) => Promise<void>;
+  /** Vyhlásí lov navíc na zítřek (server action) – vrátí důvod odepření, nebo null. */
+  onDeclareHunt?: () => Promise<string | null | void>;
   /**
    * Vyšle výpravu k sousedovi (server action) – hotovo, až se vrátí; vrátí důvod, proč ji server
    * odmítl, nebo null (panel obchodu ho ukáže pod tlačítkem).
@@ -48,6 +51,7 @@ export function DwellingBody({
   onCancelConstruction,
   onLeave,
   onBuildTrail,
+  onDeclareHunt,
   onSendExpedition,
 }: {
   details: Extract<SelectionDetails, { kind: 'dwelling' }>;
@@ -75,6 +79,7 @@ export function DwellingBody({
           </Stat>
         </div>
         <DwellingResidents residents={details.residents} onSelect={onSelectTarget} />
+        {details.manor?.hunt && <ManorHunt hunt={details.manor.hunt} />}
         <Bar value={details.condition} name="Stav" testId="selection-condition" />
         {details.rebuild && (
           <div className={ROW}>
@@ -96,6 +101,7 @@ export function DwellingBody({
             <ManorUpgrades
               manor={details.manor}
               onBuildTrail={onBuildTrail}
+              onDeclareHunt={onDeclareHunt}
               trade={() => (
                 <TradePanel
                   neighbours={details.manor?.neighbours ?? []}

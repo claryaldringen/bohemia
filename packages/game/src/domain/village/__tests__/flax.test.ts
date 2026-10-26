@@ -166,8 +166,20 @@ describe('len napřed – výběr s kapacitou (do Úlohy 5 pro páry k rádlům)
     // 25. 10. 2026): 2. 9. je v práci jen dávka, kterou ves za WORK_FRONT_DAYS stihne (dřív
     // 1018:b6da3f2c); a s díly nad potřebu po stavbách (fields.md – Osevní postup po dílech,
     // bod 3, 25. 10. 2026): ves bez staveb obdělá i díly nad potřebu – víc zásob, jiná potřeba
-    // úrody (dřív 167:3d9cb32c)
-    expect(fingerprint(plans)).toBe('171:fcbccd0e');
+    // úrody (dřív 167:3d9cb32c); a se škodami zvěře na polích (wildlife.md – Škody, 26. 10. 2026):
+    // od 1. 6. ubývá úroda dílů prasaty, jeleny a vranami, výhled jídla a plán osevu k 1. 9. to
+    // zná – jiný výběr dílů (dřív 171:fcbccd0e)
+    // a se šelmami na dobytku (wildlife.md – Vlci na dobytku, 26. 10. 2026): vlčí díl jen venku a
+    // medvěd – jiná stáda, jiné bílkoviny a plán osevu (dřív 165:b78c12b3); a s opravou škod zvěře
+    // (wildlife.md – Škody, 26. 10. 2026): násobek malé vsi se počítá jen z dosud nesklizených
+    // dílů (po sklizni ozimu se škoda jaře na ha nezvyšuje), výhled jídla bere jen dosud nasbíranou
+    // škodu, takže skutečná sklizeň a plán osevu k 1. 9. se mírně změnily (dřív 167:abb10b73)
+    // a se psy dvorce a velkým lovem rodu (wildlife.md – Psi, Lov rodu, 26. 10. 2026): obilí psů se
+    // sije z pole a pěší lovci chybí v práci vsi – jiný plán osevu k 1. 9. (dřív 168:48676c9e)
+    // 26. 10. 2026 (W7 ryby a oka): vesničané chytají ryby z volné práce, takže se mění plány vsi; dřív f2f1018c
+    // oprava po recenzi W7 (26. 10. 2026): roční kvóta ryb a zajíců a čerstvé maso mění práci vsi; dřív c856e421
+    // 161:edeabe8e (26. 10. 2026, závěrečná oprava zvěře): chuť na bílkoviny bez loňské drobné zvěře – jiné ryby a jídlo; dřív 161:c9dee13e
+    expect(fingerprint(plans)).toBe('161:edeabe8e');
   });
 });
 

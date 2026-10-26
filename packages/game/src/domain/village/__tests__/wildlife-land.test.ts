@@ -1,0 +1,96 @@
+import { describe, expect, it } from 'vitest';
+import { dayIndexOf } from '../../calendar';
+import { foundVillage } from '../actions';
+import { WILDLIFE_LAND } from '../rules-wildlife';
+import type { VillageState } from '../types';
+import { surfaceAt, tileCenterWorld } from '../../landscape';
+import { wildlifeLandAt } from '../wildlife-land';
+import { withBuiltFirstDwelling } from './village-fixtures';
+import { makeLandscape } from './placement-fixtures';
+
+const CELL_HA = (15 * 15) / 10_000;
+
+function village(): VillageState {
+  const day = dayIndexOf({ year: 600, month: 9, day: 2 });
+  return withBuiltFirstDwelling(
+    foundVillage({ seed: 7, day, dwellingPosition: { x: 0, z: 0, rotation: 0 } }),
+  );
+}
+
+describe('krajina zvěře', () => {
+  it('celý les do 1 km: kruh o poloměru 1 km bez políčka pod obydlím', () => {
+    const land = wildlifeLandAt(makeLandscape({ size: 128, surface: () => 'forest' }), village());
+    expect(land.forestHa).toBeGreaterThan(300);
+    expect(land.forestHa).toBeLessThan(330);
+    expect(land.openHa).toBe(0);
+    expect(land.waterHa).toBe(0);
+    expect(land.pools).toBe(0);
+  });
+
+  it('háj pod 1 ha se nepočítá, větší ano', () => {
+    const grove = (size: number) =>
+      wildlifeLandAt(
+        makeLandscape({
+          size: 128,
+          surface: (x, y) =>
+            x >= 80 && x < 80 + size && y >= 60 && y < 60 + size ? 'forest' : 'meadow',
+        }),
+        village(),
+      );
+    expect(grove(6).forestHa).toBe(0); // 36 políček = 0,81 ha
+    expect(grove(8).forestHa).toBeCloseTo(64 * CELL_HA, 6); // 1,44 ha
+  });
+
+  it('políčko pod obydlím není les a louky a voda se počítají zvlášť', () => {
+    const all = wildlifeLandAt(makeLandscape({ size: 128, surface: () => 'forest' }), village());
+    const meadow = wildlifeLandAt(makeLandscape({ size: 128, surface: () => 'meadow' }), village());
+    expect(meadow.forestHa).toBe(0);
+    // obydlí zabírá jedno políčko lesa i louky
+    expect(all.forestHa).toBeCloseTo(meadow.openHa, 6);
+    const water = wildlifeLandAt(
+      makeLandscape({ size: 128, surface: (x) => (x < 64 ? 'water' : 'forest') }),
+      village(),
+    );
+    expect(water.waterHa).toBeGreaterThan(100);
+  });
+
+  it('okraj 1 km: voda za dosahem se nepočítá', () => {
+    const far = wildlifeLandAt(
+      makeLandscape({ size: 128, surface: (x, y) => (x < 4 && y < 4 ? 'water' : 'meadow') }),
+      village(),
+    );
+    expect(far.waterHa).toBe(0);
+  });
+
+  it('ves bez obydlí dostane výchozí krajinu', () => {
+    const empty = { ...village(), dwellings: [], constructions: [] };
+    expect(wildlifeLandAt(makeLandscape({ size: 128 }), empty)).toEqual(WILDLIFE_LAND.defaultLand);
+  });
+
+  it('počítání jen v obdélníku kolem vsi dá totéž co průchod celou mapou', () => {
+    const surface = (x: number, y: number): 'forest' | 'water' | 'meadow' =>
+      x % 9 < 3 ? 'forest' : y % 11 === 0 ? 'water' : 'meadow';
+    const landscape = makeLandscape({ size: 128, surface });
+    const land = wildlifeLandAt(landscape, village());
+    // referenčně přes celou mapu (bez čtverců polí; jen obydlí na počátku)
+    let forest = 0;
+    let water = 0;
+    let open = 0;
+    for (let y = 0; y < 128; y++) {
+      for (let x = 0; x < 128; x++) {
+        const c = tileCenterWorld(landscape, x, y);
+        if (c.x * c.x + c.z * c.z > WILDLIFE_LAND.reachM * WILDLIFE_LAND.reachM) continue;
+        const kind = surfaceAt(landscape, x, y);
+        if (kind === 'water') water++;
+        else if (kind === 'forest') forest++;
+        else open++;
+      }
+    }
+    // políčko pod obydlím není les ani louka; pruhy lesa jsou široké 3 políčka, tedy vždy větší kus
+    expect(land.waterHa).toBeCloseTo(water * CELL_HA, 9);
+    expect(land.forestHa).toBeLessThanOrEqual(forest * CELL_HA + 1e-9);
+    expect(land.forestHa).toBeGreaterThan((forest - 2) * CELL_HA);
+    expect(land.openHa).toBeLessThanOrEqual(open * CELL_HA + 1e-9);
+    expect(land.openHa).toBeGreaterThan((open - 2) * CELL_HA);
+  });
+});

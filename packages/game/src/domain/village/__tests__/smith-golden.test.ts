@@ -131,6 +131,8 @@ describe('ves bez kováře a hrnčíře beze změny (crafts.md – Uhlí a ruda 
       'dynasty',
       // značka převodu na osevní postup (fields.md – Osevní postup po dílech, bod 7)
       'sowingRotation',
+      // zvěř vsi (wildlife.md) – přibyl klíč `wildlife`; v rámci dne ovlivňuje i simulaci, ale zlatý běh ji neprojeví
+      'wildlife',
       // kusy poražené dnes (hlášení pro scénu – LivestockState.slaughtered) – simulace je nečte
       'slaughtered',
     ]);
@@ -148,6 +150,12 @@ describe('ves bez kováře a hrnčíře beze změny (crafts.md – Uhlí a ruda 
     // posečené louky se stropem práce; nouzová porážka bere ovce před kravami; dřív e92e2e86
     // 25. 10. 2026 popáté (8c518a4a): jen přejmenování plánu na hospodářský rok (`season`, `crops`) –
     // bez klíčů `plan` a `season` zůstal a87dde34; dřív 573d22e4
-    expect(hash(stripped)).toBe('8c518a4a');
+    // 26. 10. 2026 (W3 šelmy; wildlife.md – Vlci na dobytku): vlčí díl ztrát jen venku a medvěd bere prasata, takže stáda jdou po dnech jinak; dřív 8c518a4a
+    // 26. 10. 2026 podruhé (oprava po recenzi W3): medvěd bere jen z prasat nad chovný pár a kronika šelem jde po měsících (jiné události kroniky); dřív e3e385c3
+    // 26. 10. 2026 (W4 psi dvorce a velký lov rodu; wildlife.md – Psi, Lov rodu): obilí psů dvorce se sije z pole a pěší lovci a odešlí synové chybí v den lovu v práci vsi, takže se mění sklizeň, plán osevu a stav zvěře; dřív cc8c88e1
+    // hash c3eb2c09 (26. 10. 2026, oprava po recenzi W4): psi dvorce vznikají hned, rodina na poli neloví, slabý jezdec jde pěšky a pěší lov je vydatnější – jiný lov a obilí psů; dřív f335bac8
+    // hash 13eb70fa (26. 10. 2026, W7 ryby a oka; wildlife.md – Drobná zvěř a ryby): vesničané chytají ryby a zajíce z volné práce (nebo při hladu před stavbami), maso jde do zásoby bez porážky – jiná práce vsi, zásoby a stav zvěře; dřív c3eb2c09
+    // hash 7bf72274 (26. 10. 2026, oprava po recenzi W7): roční kvóta ryb a zajíců, čerstvé maso a brzda letošním úlovkem – jiný úlovek, jídlo a stav zvěře; dřív 13eb70fa
+    expect(hash(stripped)).toBe('7bf72274');
   }, 120_000);
 });

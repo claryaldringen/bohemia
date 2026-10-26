@@ -7,6 +7,7 @@ import {
   villageLegumesKg,
 } from './legumes';
 import { horseGrainToday, villageHorses } from './horses';
+import { dogGrainToday } from './hunt-party';
 import { ageGroup } from './people';
 import { storageLossPerYear } from './productivity';
 import { FIELD_FOOD, FIELD_STORES, FOOD_NEED_KG_PER_YEAR, LEGUMES } from './rules';
@@ -150,7 +151,7 @@ export interface SowingTargets {
  * přičte do příští sklizně i rok po ní celé – koně jedí jen obilí z pole.
  */
 export function sowingTargets(
-  state: Pick<VillageState, 'people' | 'fieldFood' | 'pens'> & FieldStoresState,
+  state: Pick<VillageState, 'people' | 'fieldFood' | 'pens' | 'wildlife'> & FieldStoresState,
   day: number,
   legumeNeedKg: number,
   potteryCoverage: number,
@@ -168,7 +169,10 @@ export function sowingTargets(
   const share = fieldFoodShare(state);
   // obilí koní za rok podle dnešních jezdeckých koní; ves bez koní nic
   const horses = villageHorses(state);
-  const horseGrain = horses.length > 0 ? horseGrainToday(horses, day) * DAYS_PER_YEAR : 0;
+  // a obilí psů dvorce (wildlife.md – Psi)
+  const horseGrain =
+    (horses.length > 0 ? horseGrainToday(horses, day) : 0) * DAYS_PER_YEAR +
+    dogGrainToday(state) * DAYS_PER_YEAR;
   const need = share * yearly + horseGrain;
   const needAfter = share * yearlyAfter + horseGrain;
   const loss = storageLossPerYear(potteryCoverage);

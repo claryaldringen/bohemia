@@ -49,7 +49,7 @@ function daysBeforeYear(year: number): number {
 /** Počet herních dní mezi 1. 1. 500 a 1. 1. 1500. */
 export const TOTAL_GAME_DAYS = daysBeforeYear(END_YEAR);
 
-function monthLength(year: number, month: number): number {
+export function monthLength(year: number, month: number): number {
   return month === 2 && isLeapYear(year) ? 29 : MONTH_LENGTHS[month - 1]!;
 }
 

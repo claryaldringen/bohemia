@@ -359,6 +359,11 @@ export function parseNameLineManInput(value: unknown): { personId: number; name:
   return personId !== null && name !== null ? { personId, name } : null;
 }
 
+/** Vstup vyhlášení lovu navíc `{}` (jen `villageId`, který čte `villageAction`), jinak null. */
+export function parseDeclareHuntInput(value: unknown): Record<string, never> | null {
+  return isRecord(value) ? {} : null;
+}
+
 /** Vstup zrušení rozestavěné stavby `{ constructionId }`, jinak null. */
 export function parseCancelConstructionInput(value: unknown): { constructionId: number } | null {
   if (!isRecord(value)) return null;
