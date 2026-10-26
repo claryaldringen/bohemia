@@ -27,6 +27,7 @@ import {
 import { computePause } from './compute-pause';
 import { ownMapsAround } from './departure-view';
 import { getDatabase } from './db';
+import { exclusive, playerLockKey } from './exclusive';
 import { cachedLandscapes } from './landscape-cache';
 import { currentWorld, gameDayIndex } from './world';
 
@@ -154,7 +155,9 @@ function dynastyDeps(): Parameters<typeof dynastyStatus>[0] {
  * konec hry.
  */
 export function dynastyOfPlayer(playerId: string, today: number): Promise<DynastyStatus> {
-  return dynastyStatus(dynastyDeps(), { playerId, today });
+  return exclusive(playerLockKey(playerId), () =>
+    dynastyStatus(dynastyDeps(), { playerId, today }),
+  );
 }
 
 /**
@@ -187,9 +190,11 @@ export async function restartGameForPlayer(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const today = await playerToday(playerId);
   if (!today.ok) return today;
-  const result = await restartGame(
-    { ...dynastyDeps(), seeds: seeds() },
-    { playerId, today: today.day, abandon: options.abandon },
+  const result = await exclusive(playerLockKey(playerId), () =>
+    restartGame(
+      { ...dynastyDeps(), seeds: seeds() },
+      { playerId, today: today.day, abandon: options.abandon },
+    ),
   );
   return result.ok ? { ok: true } : { ok: false, error: result.reason };
 }
@@ -205,9 +210,11 @@ export async function skipTimeForPlayer(
 ): Promise<{ ok: true; offsetDays: number } | { ok: false; error: string }> {
   const world = gameDayIndex(Date.now(), currentWorld());
   if (!world.ok) return world;
-  const result = await skipTime(
-    { ...dynastyDeps(), offsets: timeOffsets() },
-    { playerId, devMode, worldDay: world.day, skip },
+  const result = await exclusive(playerLockKey(playerId), () =>
+    skipTime(
+      { ...dynastyDeps(), offsets: timeOffsets() },
+      { playerId, devMode, worldDay: world.day, skip },
+    ),
   );
   return result.ok
     ? { ok: true, offsetDays: result.offsetDays }

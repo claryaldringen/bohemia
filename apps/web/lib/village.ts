@@ -47,6 +47,7 @@ import {
   type PenSpecies,
 } from '@bohemia/game';
 import { getDatabase } from './db';
+import { exclusive, playerLockKey } from './exclusive';
 import {
   currentViewStampOfPlayer,
   dynastyOfPlayer,
@@ -182,7 +183,10 @@ async function actOn(
 ): Promise<VillageActionResult> {
   const guarded = await actionContext(playerId, villageId);
   if (!guarded.ok) return guarded.result;
-  return toActionResult(guarded.ctx, await action(guarded.ctx));
+  // jedna operace nad vsemi hráče naráz (exclusive.ts) – souběžná akce nebo dotaz počká
+  // a dopočte jen zbytek
+  const result = await exclusive(playerLockKey(playerId), () => action(guarded.ctx));
+  return toActionResult(guarded.ctx, result);
 }
 
 /**
@@ -275,9 +279,11 @@ export async function foundVillageForPlayer(
   const today = await playerToday(playerId);
   if (!today.ok) return { error: today.error };
   const { settlement, landscape } = await enterGameForPlayer(playerId);
-  const result = await foundVillageForSettlement(
-    { villages: villages(), seeds: gameDeps().seeds },
-    { settlementId: settlement.id, landscape, today: today.day, ...input },
+  const result = await exclusive(playerLockKey(playerId), () =>
+    foundVillageForSettlement(
+      { villages: villages(), seeds: gameDeps().seeds },
+      { settlementId: settlement.id, landscape, today: today.day, ...input },
+    ),
   );
   if (!result.ok) return { error: result.reason };
   return viewOf(
@@ -305,12 +311,9 @@ export async function foundDevVillageForPlayer(
   const guarded = await actionContext(playerId, villageId);
   if (!guarded.ok) return guarded.result;
   const { ctx } = guarded;
-  const result = await foundDevVillage(gameDeps(), {
-    playerId,
-    devMode,
-    villageId,
-    today: ctx.day,
-  });
+  const result = await exclusive(playerLockKey(playerId), () =>
+    foundDevVillage(gameDeps(), { playerId, devMode, villageId, today: ctx.day }),
+  );
   if (!result.ok) return { error: result.reason };
   return viewOf({ ...ctx, villageId: result.village.id }, result.village);
 }
@@ -604,13 +607,15 @@ export async function leaveVillageForPlayer(
   const guarded = await actionContext(playerId, villageId);
   if (!guarded.ok) return guarded.result;
   const { ctx } = guarded;
-  const result = await leaveVillage(gameDeps(), {
-    playerId,
-    villageId,
-    today: ctx.day,
-    dwellingIds: input.dwellingIds,
-    destination: input.destination,
-  });
+  const result = await exclusive(playerLockKey(playerId), () =>
+    leaveVillage(gameDeps(), {
+      playerId,
+      villageId,
+      today: ctx.day,
+      dwellingIds: input.dwellingIds,
+      destination: input.destination,
+    }),
+  );
   if (!result.ok) return { error: result.reason };
   return input.destination.kind === 'here'
     ? viewOf({ ...ctx, villageId: result.to.id }, result.to)
@@ -628,11 +633,13 @@ export async function settleJourneyForPlayer(
   const { ctx } = guarded;
   return toActionResult(
     ctx,
-    await settleJourney(gameDeps(), {
-      playerId,
-      villageId,
-      today: ctx.day,
-      dwelling: input.dwelling,
-    }),
+    await exclusive(playerLockKey(playerId), () =>
+      settleJourney(gameDeps(), {
+        playerId,
+        villageId,
+        today: ctx.day,
+        dwelling: input.dwelling,
+      }),
+    ),
   );
 }
