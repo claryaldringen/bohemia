@@ -92,14 +92,20 @@ export function planHuntDay(state: VillageState, day: number): void {
   const target: HuntDay['target'] = bear ? 'bear' : wolvesTroubling(w, day) ? 'wolves' : 'game';
   const riders: HuntDay['riders'] = [];
   const foot: number[] = [];
-  const mount = (p: Person): boolean => {
+  const onField = state.lord?.field !== undefined;
+  const mount = (p: Person, boy = false): boolean => {
     const horse = horseOf.get(p.id);
     if (target === 'bear' || !horse || !mounted.has(p.id)) return false;
+    // slabý jezdec je na koni horší než pěšky se psem – pak jde pěšky a kůň zůstane (návrh Clauda)
+    if (!boy && !ridesBetter(p, horse, day)) return false;
     riders.push({ personId: p.id, horseId: horse.id });
     return true;
   };
-  for (const p of pool.manor) if (!mount(p)) foot.push(p.id);
-  for (const p of pool.boys) mount(p);
+  // rodina na poli kvůli hladu neloví (jen odešlí synové); vesnice ji potřebuje v práci
+  if (!onField) {
+    for (const p of pool.manor) if (!mount(p)) foot.push(p.id);
+    for (const p of pool.boys) mount(p, true);
+  }
   for (const p of pool.away) foot.push(p.id);
   if (riders.length === 0 && foot.length === 0) return;
   hunt.today = { day, target, riders, foot, extra };
@@ -119,6 +125,20 @@ function footStrength(p: Person, withDog: boolean): number {
   return withDog ? base : base * HUNT.noDogShare;
 }
 
+/**
+ * Vyplatí se jezdci kůň? Úlovek jezdce i pěšího se váží koeficienty `HUNT.base` (jezdec uloví z téže
+ * síly víc), proto se porovnává příspěvek na prasata i jeleny, ne holá síla (návrh Clauda).
+ */
+function ridesBetter(p: Person, horse: Horse, day: number): boolean {
+  const rider = riderStrength(p, horse, day);
+  const foot = footStrength(p, true);
+  const { boar, deer } = HUNT.base;
+  return (
+    rider * boar.rider >= foot * boar.foot - EPSILON &&
+    rider * deer.rider >= foot * deer.foot - EPSILON
+  );
+}
+
 /** Podíl stavu na stropu (nejvýš 1); strop 0 s nenulovým stavem = 1. */
 function stockShare(stock: number, cap: number): number {
   if (stock <= EPSILON) return 0;
@@ -134,15 +154,21 @@ function takeWhole(hope: number, limit: number): { kills: number; hope: number }
 /**
  * Úlovek dne (mutuje stav; před `trainLordDay`): naděje druhu roste o sílu lovců × základ × stav ÷
  * strop, celé kusy se uloví a odečtou ze stavu zvěře, maso jde přes porážku (1 člověkoden na 20 kg
- * a uzení – Martin 26. 10. 2026). Rodina na poli při hladu (`lordFieldShare` > 0) na koních
- * nejede. Jedna událost kroniky za den se jménem nejlepšího lovce.
+ * a uzení – Martin 26. 10. 2026). Rodina na poli při hladu (`lordFieldShare` > 0) neloví
+ * (ani na koních, ani pěšky; odešlí synové smějí). Jedna událost kroniky za den se jménem nejlepšího lovce.
  */
 export function huntDay(state: VillageState, day: number, lordFieldShare = 0): ChronicleEvent[] {
   const w = state.wildlife;
   const hunt = w?.hunt;
   const today = hunt?.today;
   if (!w || !hunt || !today || today.day !== day) return [];
-  if (state.lord?.field && lordFieldShare > 0) today.riders = [];
+  if (state.lord?.field && lordFieldShare > 0) {
+    // rodina se dnes nechala strhnout polem: jezdci nejedou a pěší muži dvorce také ne
+    today.riders = [];
+    const family = trainingFamily(state, day);
+    const manorIds = new Set(family ? family.trainees.map((p) => p.id) : []);
+    today.foot = today.foot.filter((id) => !manorIds.has(id));
+  }
   const caps = wildlifeCaps(w.land, villageHerds(state).pig);
   const people = new Map(state.people.map((p) => [p.id, p]));
   const horses = new Map(villageHorses(state).map((h) => [h.id, h]));

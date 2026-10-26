@@ -481,6 +481,8 @@ describe('advanceVillage – sad', () => {
 
   it('plodící sad: sklizeň září–říjen, jablka se jí první a k 1. 3. shnijí', () => {
     const base = village(at(601, 8, 20));
+    // bez zvěře a psů: nakrmená smečka bere obilí jen vsi, která nešetří, a zkreslila by porovnání
+    delete base.wildlife;
     const s = withOrchard(base, 40, at(570, 4, 1)); // 32. rok sadu – plná úroda
     expect(s.orchardWork ?? null).toBeNull();
     const harvest = advanceVillage(s, at(601, 9, 1), null);

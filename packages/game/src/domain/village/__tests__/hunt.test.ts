@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { cloneState } from '../clone';
-import { feedDogs } from '../manor-dogs';
+import { dogsYear, feedDogs } from '../manor-dogs';
 import { huntDay, huntSeasonIndex, planHuntDay } from '../hunt';
 import { huntFootIds } from '../hunt-party';
 import { updateLordTraining } from '../lord';
@@ -118,9 +118,9 @@ describe('úlovek (wildlife.md – Lov rodu: Kolik)', () => {
     expect(hunts.length).toBeLessThanOrEqual(w.huntDays.length);
   });
 
-  it('bez koní zhruba jedno prase za zimu', () => {
+  it('bez koní zhruba jedno prase za zimu (návrh: ≈ 1 prase za zimu)', () => {
     const w = winter(huntVillage(0, 3));
-    expect(kills(w).boar).toBeLessThanOrEqual(1);
+    expect(kills(w).boar).toBeLessThanOrEqual(2);
   });
 
   it('jeleni, dokud jich je aspoň 1 na 3 laně; laně a kolouši ne', () => {
@@ -233,6 +233,79 @@ describe('lovci a výcvik (wildlife.md – Lov rodu: Kdo)', () => {
     const t = s.wildlife!.hunt!.today!;
     expect(t.riders).toHaveLength(0);
     expect([...t.foot].sort()).toEqual([LORD_ID, SON_ID, AWAY_ID].sort());
+  });
+});
+
+describe('slabý jezdec a hladová rodina (recenze W4)', () => {
+  it('jezdec s jízdou ≈ 3 jde pěšky, kůň zůstane; zdatný jede', () => {
+    const s = huntVillage(3, 3);
+    for (const p of s.people) if (p.id === LORD_ID && p.arms) p.arms = { ...p.arms, riding: 3 };
+    const day = START_WINTER;
+    updateLordTraining(s, day);
+    planHuntDay(s, day);
+    const t = s.wildlife!.hunt!.today!;
+    expect(t.riders.map((r) => r.personId)).not.toContain(LORD_ID);
+    expect(t.foot).toContain(LORD_ID);
+    expect(t.riders.map((r) => r.personId)).toContain(SON_ID);
+  });
+
+  it('rodina na poli kvůli hladu neloví ani pěšky, odešlý syn ano', () => {
+    const s = huntVillage(3, 3);
+    s.lord = { ...s.lord!, field: { since: START_WINTER - 3, reason: 'hunger' } };
+    updateLordTraining(s, START_WINTER);
+    planHuntDay(s, START_WINTER);
+    const t = s.wildlife!.hunt!.today!;
+    expect(t.riders).toHaveLength(0);
+    expect(t.foot).toEqual([AWAY_ID]);
+  });
+
+  it('rodina strhnutá polem v den lovu: huntDay vyřadí i pěší muže dvorce', () => {
+    const s = huntVillage(0, 3);
+    updateLordTraining(s, START_WINTER);
+    planHuntDay(s, START_WINTER);
+    expect(s.wildlife!.hunt!.today!.foot).toContain(LORD_ID);
+    s.lord = { ...s.lord!, field: { since: START_WINTER, reason: 'hunger' } };
+    huntDay(s, START_WINTER, 0.5);
+    expect(s.wildlife!.hunt!.today!.foot).toEqual([AWAY_ID]);
+  });
+});
+
+describe('pěší lov (recenze W4)', () => {
+  it('rod s jedním pěším lovcem a psy uloví prase do 3 zim', () => {
+    const s = huntVillage(0, 0, false);
+    // ostatní muži dvorce nic neumějí – lovec je jediný vojvoda
+    for (const p of s.people)
+      if (p.sex === 'male' && p.id !== LORD_ID) p.arms = { bow: 0, combat: 0, riding: 0 };
+    let boar = 0;
+    for (let year = 0; year < 3; year++) {
+      for (let day = at(601 + year, 11, 1); day <= at(602 + year, 2, 28); day++) {
+        dogsYear(s, day);
+        updateLordTraining(s, day);
+        planHuntDay(s, day);
+        for (const e of huntDay(s, day, 0)) if (e.kind === 'hunt') boar += e.kills.boar;
+      }
+    }
+    expect(s.wildlife!.dogs!.count).toBeGreaterThan(0);
+    expect(boar).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('psi hned (recenze W4)', () => {
+  it('existující dvorec bez smečky ji založí hned, ne až 1. 5.; podruhé nic nemění', () => {
+    const s = huntVillage(3, 0);
+    expect(s.wildlife!.dogs).toBeUndefined();
+    dogsYear(s, START_WINTER);
+    expect(s.wildlife!.dogs).toEqual({ count: 4, fed: true });
+    const before = JSON.stringify(s.wildlife);
+    dogsYear(s, START_WINTER + 1);
+    expect(JSON.stringify(s.wildlife)).toBe(before);
+  });
+
+  it('dvorec bez lovců psy nezaloží', () => {
+    const s = huntVillage(0, 0, false);
+    s.people = s.people.filter((p) => p.sex !== 'male');
+    dogsYear(s, START_WINTER);
+    expect(s.wildlife!.dogs).toBeUndefined();
   });
 });
 

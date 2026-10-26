@@ -133,9 +133,12 @@ export const HUNT = {
   bowPerSkill: 0.5,
   /** Pěší: `(luk + boj) ÷ 200`, bez psa tolik z toho. */
   noDogShare: 0.5,
-  /** Základ úlovku na den lovu: koeficient na sílu jezdců a pěších (wildlife.md – Kolik). */
+  /**
+   * Základ úlovku na den lovu: koeficient na sílu jezdců a pěších (wildlife.md – Kolik). Pěší prasata
+   * 0,3 (dřív 0,2, změřeno: typický rod bez koní ≈ 1 prase za zimu, ne za 2–3 zimy).
+   */
   base: {
-    boar: { rider: 0.15, foot: 0.15 * 0.2 },
+    boar: { rider: 0.15, foot: 0.15 * 0.3 },
     deer: { rider: 0.1, foot: 0.1 * 0.5 },
     wolves: { rider: 0.05, foot: 0.05 * 0.5 },
     bear: { rider: 0, foot: 0.2 },

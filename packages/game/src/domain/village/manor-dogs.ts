@@ -1,4 +1,4 @@
-// Psi dvorce (wildlife.md – Psi – smečka dvorce): chov 1. 5., krmení obilím po koních a lidech.
+// Psi dvorce (wildlife.md – Psi – smečka dvorce): chov 1. 5. (existující dvorec bez smečky ji založí hned), krmení obilím po koních a lidech.
 import { drawGrainPits } from './grain-pits';
 import { horseGrainToday, villageHorses } from './horses';
 import { dogsWanted, huntPool } from './hunt-party';
@@ -15,7 +15,15 @@ const EPSILON = 1e-6;
  */
 export function dogsYear(state: VillageState, day: number): void {
   const w = state.wildlife;
-  if (!w || !isWildlifeYearDay(day)) return;
+  if (!w) return;
+  // smečka vznikne hned, ne až 1. 5. (návrh Clauda): ves bez smečky má první zimu se psy; po vzniku
+  // `dogs` existuje, takže převod proběhne jednou
+  if (!w.dogs && !isWildlifeYearDay(day)) {
+    const wantedNow = dogsWanted(huntPool(state, day, lordFamily(state, day)));
+    if (wantedNow > 0) w.dogs = { count: wantedNow, fed: true };
+    return;
+  }
+  if (!isWildlifeYearDay(day)) return;
   const family = lordFamily(state, day);
   const wanted = dogsWanted(huntPool(state, day, family));
   const fed = w.dogs?.fed ?? true;

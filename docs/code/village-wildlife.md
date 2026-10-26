@@ -113,8 +113,8 @@ windowDays` (ozim 61, jař 92) denně na každý nesklizený ohrožený díl. Mi
   10–13 let (`boys`, jen s koněm jako doprovod, síla ½) a odešlí synové rodu (`away`: `lineMen` mimo
   dvorec, dospělí 14–44 let s `arms`) – jen pěšky. `dogsWanted` = počet lovců (`manor` + `away`) + 1,
   nejvýš 8 (`MANOR_DOGS`).
-- **Psi:** `WildlifeState.dogs { count, fed }` vzniká líně 1. 5. (`dogsYear` z `wildlifeYearDay`:
-  −10 %, nakrmená smečka dostane nejvýš 2 štěňata do chtěného počtu). `feedDogs` (`simulate-food.ts`,
+- **Psi:** `WildlifeState.dogs { count, fed }` vzniká hned (`dogsYear` zakládá smečku `wanted` psů, kdykoli ji ves nemá a má lovce;
+  jednou, `dogs` pak existuje) a dál 1. 5. (`wildlifeYearDay`: −10 %, nakrmená smečka dostane nejvýš 2 štěňata do chtěného počtu). `feedDogs` (`simulate-food.ts`,
   za `feedHorseGrain`) odebírá 0,3 kg obilí na psa ze zásob; hladová ves nebo nedostatek do sklizně
   (po odečtení obilí koní) = `fed = false`, štěňata nepřibudou. Obilí psů je i ve výhledu osevu
   (`sowingTargets` – `dogGrainToday`). Do lovu jde `huntingDogs` = celé kusy; psi jdou k pěším od
@@ -123,11 +123,13 @@ windowDays` (ozim 61, jař 92) denně na každý nesklizený ohrožený díl. Mi
   (`HuntDay { target, riders, foot, extra }`). Kalendář `huntSeasonIndex`: 1. 11. + 7k dní do
   konce února (18 dní, leden a únor se počítají od 61. dne sezóny); mimo ně `extraDay` (W5). Rodina
   musí cvičit (`trainingFamily`). Jezdec = muž s koněm po `assignRiders` (nepodkutý kůň –
-  `isUnshod` – nejezdí, všichni pěšky). Cíl: **medvěd** (listopad, každý druhý lov, jen když je;
+  `isUnshod` – nejezdí, všichni pěšky); jezdec jede jen když `ridesBetter` (příspěvek na prasata
+  i jeleny podle `HUNT.base` ≥ pěšího se psem), jinak jde pěšky. Rodina na poli (`state.lord.field`)
+  neloví vůbec (`pool.manor`, `pool.boys` se přeskočí), odešlí synové ano; `huntDay` při
+  `lordFieldShare > 0` vyřadí i pěší muže dvorce. Cíl: **medvěd** (listopad, každý druhý lov, jen když je;
   všichni pěšky), **vlci** (aspoň 2 dny škod v `predation.killDays` za 30 dní, ≥ 1 vlk), jinak
   **prasata a jeleni zároveň**. Pěší jsou mimo `villagersToday` (`huntFootIds`) – nepracují.
-- **Úlovek** (`huntDay` před `trainLordDay`, dostane `lordField`; při rodině na poli s prací dne
-  jezdci nejedou): síla jezdce `riderPower ÷ 100 × (0,5 + 0,5 × luk ÷ 100)`, pěšího `(luk + boj) ÷ 200`
+- **Úlovek** (`huntDay` před `trainLordDay`, dostane `lordField`): síla jezdce `riderPower ÷ 100 × (0,5 + 0,5 × luk ÷ 100)`, pěšího `(luk + boj) ÷ 200`
   (bez psa ½). `hunt.hope[druh] += (základ_jezdci × Σjezdci + základ_pěší × Σpěší) × min(1, stav ÷
 strop)` (`HUNT.base`); celé kusy se uloví, zbytek naděje nejvýš 1. Prasata dospělá napřed, selata
   jen bez dospělých; jelen, je-li jich ≥ ⅓ počtu laní (kontrola před úlovkem); laň jen nad
@@ -143,6 +145,6 @@ backDay: bearBackDay(day) }`.
   cvičí (`trainArms`) místo `decayArms`.
 - **Čísla:** typický rod (vojvoda, syn 17, chlapec 11 na vycvičených koních + odešlý syn, 3 psi,
   výchozí krajina): zima ≈ 4 prasata, 1 jelen a (v prvním roce) medvěd, ≈ 370 kg masa; bez koní
-  1 prase a 1 jelen. Místo pro W5: `extraDay`, `lastExtraDay`, `HuntDay.extra`.
+  (`HUNT.base.boar.foot` 0,15 × 0,3) ≈ 1 prase za zimu. Místo pro W5: `extraDay`, `lastExtraDay`, `HuntDay.extra`.
 - **Vlkov (kopie 5. 6. 820, 2 roky):** bez koní a s jedním dospělým synem rodu nikdo nelovil víc než
   zlomky (naděje prasat 0,35, jelenů 0,6), 2 psi; rok 56 s (dřív 59,9 s). `diag-wildlife/w4.txt`.

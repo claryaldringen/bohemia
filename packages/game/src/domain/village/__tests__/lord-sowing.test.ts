@@ -258,7 +258,8 @@ describe('práce dne (manorLabor, allocateDay)', () => {
 
 describe('nutná práce s rodinou (lordHelpDay)', () => {
   it('ves, která osev stihne bez rodiny – lordHelp chybí, rodina jen cvičí', () => {
-    const planned = advanceVillage(sowingVillage(8000), PLAN_DAY, null);
+    // zásoby s rezervou i na obilí psů, které dvorec zakládá hned (wildlife.md – Psi)
+    const planned = advanceVillage(sowingVillage(30000), PLAN_DAY, null);
     expect(planned.season).toBeDefined();
     expect(planned.season!.lordHelp).toBeUndefined();
     expect(planned.labor?.lord?.field).toBe(0);

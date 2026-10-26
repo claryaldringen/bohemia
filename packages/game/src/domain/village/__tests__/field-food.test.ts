@@ -399,7 +399,9 @@ describe('osev podle stravy v simulaci', () => {
     // ustat (dřív každý rok od prvního) – obilí (nutné i nad potřebu) ale seje každý rok od prvního
     // a nutné ke konci zase
     // 26. 10. 2026 (W4, wildlife.md – Psi): obilí psů dvorce (0,3 kg denně na psa) se sije z pole jako
-    // obilí koní – první rok proto ≈ 30 kg obilí (jen na psy), ne 0
+    // obilí koní – první rok proto nenulový osev jen kvůli psům. Smečka (2 psi × 0,3 kg × 365 ≈
+    // 219 kg obilí za rok) se z velké části kryje ze zásob, zasetá plocha proto čeká ≈ 30 kg čistého
+    // výnosu (naměřeno); práh 40 kg = „jen psi“, osev pro lidi je řádově výš
     const dogsKg = 40;
     expect(grain[0]).toBeLessThan(dogsKg);
     const first = grain.findIndex((kg) => kg > dogsKg);

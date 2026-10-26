@@ -212,7 +212,8 @@ kde to nestačí.
   Psi pasáků jsou dál jen v číslech pasení ([strava](diet.md) – Pasáci), hra je nevede.
 - **Krmení:** **0,3 kg obilí denně na psa** (≈ 110 kg ročně; zbytek kryjí droby a kosti z porážky
   a úlovků – návrh). Bez obilí smečka nedoroste.
-- **Počet:** k 1. 5. přibudou nejvýš **2 štěňata** do počtu, který dvorec chce, ubude **10 %**
+- **Počet:** existující dvorec bez smečky ji **založí hned** (návrh Clauda, oprava po recenzi:
+  první zima se psy, ne až po 1. 5.) na chtěný počet; dál k 1. 5. přibudou nejvýš **2 štěňata** do počtu, který dvorec chce, ubude **10 %**
   ročně (pes žije ≈ 10 let). Péče je bokem (rodina).
 - **Užitek:** pěší lovec se psem loví za dva (níž), psi na objížďce zesílí hlídku (výš).
 
@@ -226,8 +227,13 @@ kde to nestačí.
 - **Ostatní pěšky s oštěpy a psy** (Martin): muži dvorce bez koně a **synové rodu, kteří po
   sňatku z dvorce odešli** a pracují jako rolníci ([vojvodova rodina](lord.md) – Synové po
   sňatku). Den lovu jim chybí v práci vsi (v zimě, kdy práce většinou propadá).
-- **Rodina na poli při hladu** ([vojvodova rodina](lord.md) – Kdy jde rodina na pole) loví jen ve
-  dnech, kdy na poli práce není – jako výcvik.
+- **Rodina na poli při hladu** ([vojvodova rodina](lord.md) – Kdy jde rodina na pole) **neloví –
+  ani na koních, ani pěšky** (návrh Clauda, oprava po recenzi): hladová ves ji potřebuje v práci.
+  Odešlí synové smějí. Rodina strhnutá polem až v den lovu (práce dne pole zabrala) se z lovu
+  vyřadí také.
+- **Slabý jezdec jde pěšky** (návrh Clauda): člen rodu jede na koni jen tehdy, když mu kůň přinese
+  víc než pěší lov se psem (příspěvek na prasata i jeleny podle koeficientů níž); jinak jde pěšky
+  a kůň zůstane ve stáji. Jezdec s jízdou ≈ 3 tak lov nepokazí.
 
 ### Kdy
 
@@ -253,12 +259,12 @@ kde to nestačí.
 - **Úlovek se počítá akumulátorem** (bez náhody, jako zlomky stáda): každý den lovu se k „naději“
   druhu přičte síla × základ × stav ÷ strop, **celé kusy se uloví** a odečtou.
 
-| Druh                     | Základ na den lovu                                    | Maso do zásoby vsi                |
-| ------------------------ | ----------------------------------------------------- | --------------------------------- |
-| divoká prasata           | **0,15 × (jezdci + 0,2 × pěší)** – bez koně skoro nic | **45 kg** dospělé, **15 kg** sele |
-| jelení zvěř              | **0,10 × (jezdci + 0,5 × pěší)**                      | **90 kg** jelen, **50 kg** laň    |
-| vlci                     | **0,05 × (jezdci + 0,5 × pěší)**                      | – (bez masa)                      |
-| medvěd (jen v listopadu) | **0,2 × pěší** – všichni pěšky se psy                 | **100 kg**                        |
+| Druh                     | Základ na den lovu                               | Maso do zásoby vsi                |
+| ------------------------ | ------------------------------------------------ | --------------------------------- |
+| divoká prasata           | **0,15 × (jezdci + 0,3 × pěší)** – bez koně málo | **45 kg** dospělé, **15 kg** sele |
+| jelení zvěř              | **0,10 × (jezdci + 0,5 × pěší)**                 | **90 kg** jelen, **50 kg** laň    |
+| vlci                     | **0,05 × (jezdci + 0,5 × pěší)**                 | – (bez masa)                      |
+| medvěd (jen v listopadu) | **0,2 × pěší** – všichni pěšky se psy            | **100 kg**                        |
 
 - **Přednost (Martin – jeleni, ne laně):** na jelení zvěř se loví **jen jeleni**, dokud je jich
   aspoň **1 na 3 laně**; laně jen nad stropem; kolouši nikdy. Prasata napřed dospělá, selata až
@@ -268,7 +274,7 @@ kde to nestačí.
 - **Typický rod** (vojvoda a 2 synové na vycvičených koních, dovednosti ≈ 85, jeden odešlý syn
   pěšky se psem): za zimu **≈ 4 prasata a 1–2 jeleni**, v létě 1–2 prasata – **≈ 350–400 kg masa
   ročně** (maso ≈ 3–4 dospělých). Prasata 1. 5. dorostou jen na ≈ 60 % stropu → letní škoda klesne
-  o ≈ 40 %. Bez koní by rod za zimu ulovil ≈ 1 prase (Martin – bez koně téměř neulovitelná).
+  o ≈ 40 %. Bez koní by typický rod (3 lovci, dovednosti ≈ 85, psi) ulovil za zimu ≈ 1 prase (změřeno po opravě; koeficient pěších 0,2 → 0,3, návrh Clauda – s 0,2 vycházelo prase za 2–3 zimy, tj. třetina návrhu). Jelení zvěř omezuje spíš stav stáda (jeleni ≥ ⅓ laní) než lovci, takže jelen vychází spíš jednou za 2–3 zimy než každou.
 - **Maso** jde do **zásoby masa vsi** ([strava](diet.md) – uzení, kažení 20 % ročně) a počítá se do
   výhledu jako maso z porážky. Kůže a parohy se nevedou (ne-cíl).
 
