@@ -8,8 +8,10 @@ import { cast, figure } from './villager-plan-cast';
 import { doorPoint, walkRoute } from './villager-plan-geometry';
 import { type Context, type PlannedVillager } from './villager-plan-types';
 import {
+  alongRoute,
   fetcher,
   route,
+  type Route,
   type PoseFn,
   type VillagerClip,
   type VillagerKind,
@@ -125,6 +127,39 @@ function drillPose(
   };
 }
 
+/** Večerní odchod k vedlejší manželce začíná po konci dne rodiny (19 h), ráno se vrací v 7–8 h. */
+const VISIT_OUT_H: readonly [number, number] = [HOUSEHOLD_HOURS[1], HOUSEHOLD_HOURS[1] + 1];
+const VISIT_BACK_H: readonly [number, number] = [HOUSEHOLD_HOURS[0], HOUSEHOLD_HOURS[0] + 1];
+
+/**
+ * Návštěva vedlejší manželky (lord.md – Rod vojvody, Manželky; návrh Clauda): scéna nemá noc,
+ * proto „večer“ = hodina po konci dne rodiny (19–20 h) – vojvoda jde po trase `r` k manželce
+ * a v domě (skrytý) zůstane přes noc; „ráno“ = 7–8 h, kdy jde stejnou cestou zpět ke dvorku.
+ * Jinak platí `base` (výcvik, jízda i práce se nemění).
+ */
+function visitPose(base: PoseFn, r: Route, window: DayWindow | null): PoseFn {
+  const walk = (out: VillagerPose, d: number, reverse: boolean): VillagerPose => {
+    alongRoute(r, d, reverse, out);
+    out.clip = 'walk';
+    out.pace = 1;
+    out.hidden = false;
+    return out;
+  };
+  return (t, herds, out) => {
+    const hour = hourOf(window, t);
+    if (hour === null) return base(t, herds, out);
+    if (hour >= VISIT_OUT_H[0] && hour < VISIT_OUT_H[1])
+      return walk(out, (hour - VISIT_OUT_H[0]) * r.length, false);
+    if (hour >= VISIT_OUT_H[1] || hour < VISIT_BACK_H[0]) {
+      base(t, herds, out);
+      out.hidden = true;
+      return out;
+    }
+    if (hour < VISIT_BACK_H[1]) return walk(out, (1 - (hour - VISIT_BACK_H[0])) * r.length, true);
+    return base(t, herds, out);
+  };
+}
+
 /** Noc (mimo dobu, kdy je rodina vidět u dvorku). */
 function isNight(hour: number): boolean {
   return hour < HOUSEHOLD_HOURS[0] || hour >= HOUSEHOLD_HOURS[1];
@@ -169,6 +204,24 @@ function restSpot(ctx: Context, homeId: number, i: number): TrainingSpot {
   const hz = door.z - home.position.z;
   const n = Math.hypot(hx, hz) || 1;
   return { x: door.x, z: door.z, headingX: hx / n, headingZ: hz / n };
+}
+
+/** Trasa vojvody od dvorku k domu vedlejší manželky po pěšinách (`walkRoute`), jinak rovně. */
+function visitRoute(ctx: Context, lord: SceneLord, idx: number): Route | null {
+  const wife = lord.visit
+    ? (ctx.homes.find((h) => h.id === lord.visit!.home) ??
+      ctx.houses.find((h) => h.id === lord.visit!.home))
+    : undefined;
+  if (!wife || wife.id === lord.home) return null;
+  const from = restSpot(ctx, lord.home, idx);
+  const door = doorPoint({ ...wife, box: wife.own ?? wife.box }, 0);
+  const a = { x: from.x, z: from.z };
+  const walked = walkRoute(ctx, a, door, lord.home);
+  if (walked && walked.length > 0.1) return walked;
+  return route([
+    [a.x, a.z],
+    [door.x, door.z],
+  ]);
 }
 
 /** Místo boje `k`-tého bojujícího: napřed dvojice, pak kůl, ostatní čekají u kůlu. */
@@ -259,7 +312,13 @@ export function lordFigures(
       ride && mounted
         ? (t, herds, o) => (isRiding(ride, t) ? mounted(t, herds, o) : pose(t, herds, o))
         : pose;
-    out.push(figure(c, posed, 'natural', { kind: 'lord', household: false }));
+    const visit = lord.visit && lord.visit.lordId === hours.id ? visitRoute(ctx, lord, idx) : null;
+    out.push(
+      figure(c, visit ? visitPose(posed, visit, window) : posed, 'natural', {
+        kind: 'lord',
+        household: false,
+      }),
+    );
   }
   const home =
     ctx.homes.find((h) => h.id === lord.home) ?? ctx.houses.find((h) => h.id === lord.home);
