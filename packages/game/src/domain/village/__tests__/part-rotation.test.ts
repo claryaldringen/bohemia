@@ -75,7 +75,7 @@ describe('partRotation – co poroste příště', () => {
     const resting = part(1, { state: 'fallow', fertilityShare: 0.76, fallowSinceDay: 0 });
     const ready = part(2, { state: 'fallow', fertilityShare: 0.95, fallowSinceDay: 0 });
     const shown = partRotation(village([resting, ready]), at(600, 9, 10));
-    expect(shown.get(1)).toEqual({ next: 'fallow', rest: { share: 0.8, years: 8 } });
+    expect(shown.get(1)).toEqual({ next: 'fallow', rest: { share: 0.8, years: 4 } });
     expect(shown.get(2)).toEqual({ next: 'winter', onTurn: true });
   });
 

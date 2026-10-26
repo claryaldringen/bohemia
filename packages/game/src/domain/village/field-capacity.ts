@@ -7,11 +7,12 @@ import type { VillageState } from './types';
 const EPSILON = 1e-9;
 
 /**
- * Oběh dílu podle pravidel (fields.md – Osevní postup po dílech, Přílohová soustava): dva osevy
- * (`SOWN_ROUNDS`, úrodnost 100 → 88 → 76 %) a příloh do 95 % (8 let).
+ * Oběh odpočatého dílu podle pravidel (fields.md – Osevní postup po dílech, Přílohová soustava):
+ * ustálená ves síje díl, který se právě zotavil na `fallowReady` (95 %): dva osevy (`SOWN_ROUNDS`,
+ * úrodnost 95 → 83 → 71 %) a příloh zpět do 95 % (5 let při obnově 5 bodů ročně).
  */
 export function rotationYears(): { sown: number; fallow: number } {
-  let share = 1;
+  let share: number = FERTILITY.fallowReady;
   let sown = 0;
   while (sown < SOWN_ROUNDS && share >= FERTILITY.sowableMin - EPSILON) {
     share -= FERTILITY.sowDepletion;
@@ -26,16 +27,17 @@ export function rotationYears(): { sown: number; fallow: number } {
 }
 
 export const ROTATION = rotationYears();
-/** Pole na celý oběh ÷ osev (dnes 10 / 2 = 5,0). */
+/** Pole na celý oběh ÷ osev (dnes 7 / 2 = 3,5). */
 export const ROTATION_FACTOR = (ROTATION.sown + ROTATION.fallow) / ROTATION.sown;
 
 /**
- * Průměrný podíl přirozené úrodnosti za roky osevu (1; 0,88 → 0,94). Úroda je lineární
- * v úrodnosti, takže úroda při průměrném podílu = průměr úrod.
+ * Průměrný podíl přirozené úrodnosti za roky osevu odpočatého dílu (0,95; 0,83 → 0,89). Úroda je
+ * lineární v úrodnosti, takže úroda při průměrném podílu = průměr úrod.
  */
 export function averageSownShare(): number {
   let sum = 0;
-  for (let year = 0; year < ROTATION.sown; year++) sum += 1 - FERTILITY.sowDepletion * year;
+  for (let year = 0; year < ROTATION.sown; year++)
+    sum += FERTILITY.fallowReady - FERTILITY.sowDepletion * year;
   return sum / ROTATION.sown;
 }
 

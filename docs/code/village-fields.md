@@ -185,6 +185,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `sowingGroup` dává připravenému dílu s `next` skupinu 1. Sem se přesunuly i `sowParts`
   a `reclaimedLogs`.
   **Panel – Příště a Na řadě** (fields.md – Osevní postup po dílech, bod 6; Úloha 7):
+  Obnova přílohu `FERTILITY.fallowRecovery` = 0,05 ročně (26. 10. 2026, dřív 0,025): odpočatý díl
+  95 → 83 → 71 % a 5 let úhoru, `field-capacity.ts` (`rotationYears`, `ROTATION_FACTOR` 7 / 2,
+  `averageSownShare` 0,89) počítá oběh odpočatého dílu (začíná na `fallowReady`), ne čerstvého.
   `part-rotation.ts` – `partRotation(state, day, yearWork?)` → díl id → `PartRotation`: `next`
   (`NextCrop` – plodina nebo `'fallow'`; nezasetý díl letošní práce svou plodinu, zasetý postup na
   kopii dílu přes `rotateAfterSeason` k dalšímu 1. 9., díl na řadě ozim / jař podle

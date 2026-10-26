@@ -156,15 +156,15 @@ describe('přílohová soustava', () => {
     expect(p.sownYears).toBe(0);
   });
 
-  it('z 0,64 dosáhne příloh 0,95 po 13 letech, po 12 ne', () => {
+  it('z 0,64 dosáhne příloh 0,95 po 7 letech, po 6 ne (obnova 5 bodů ročně)', () => {
     const p = part({ state: 'fallow', fertilityShare: 0.64, fallowSinceDay: sept(600) });
-    for (let i = 1; i <= 12; i++) endOfSeason(p, sept(600 + i));
+    for (let i = 1; i <= 6; i++) endOfSeason(p, sept(600 + i));
     expect(p.fertilityShare).toBeLessThan(0.95);
-    endOfSeason(p, sept(613));
+    endOfSeason(p, sept(607));
     expect(p.fertilityShare).toBeGreaterThanOrEqual(0.95 - 1e-9);
   });
 
-  it('oběh dílu: 3 roky osevu a 12–13 let přílohu (pole ≈ 5–6× osevu)', () => {
+  it('oběh dílu: 3 roky osevu a 7 let přílohu (pole ≈ 3,3× osevu)', () => {
     const p = part({ state: 'sown' });
     let year = 600;
     let sown = 0;
@@ -178,10 +178,9 @@ describe('přílohová soustava', () => {
       fallow++;
     }
     expect(sown).toBe(3);
-    expect(fallow).toBeGreaterThanOrEqual(12);
-    expect(fallow).toBeLessThanOrEqual(13);
-    expect((sown + fallow) / sown).toBeGreaterThan(5);
-    expect((sown + fallow) / sown).toBeLessThan(6);
+    expect(fallow).toBe(7);
+    expect((sown + fallow) / sown).toBeGreaterThan(3);
+    expect((sown + fallow) / sown).toBeLessThan(4);
   });
 
   it('úrodnost příloh nepřeroste 1 a ostatní stavy se nemění', () => {

@@ -203,7 +203,7 @@ describe('buildVillageView – osevní postup v panelu (fields.md – Osevní po
     expect(shown.get(afterWinter!.id)).toMatchObject({ next: 'spring' });
     expect(shown.get(resting!.id)).toMatchObject({
       next: 'fallow',
-      rest: { share: 0.8, years: 8 },
+      rest: { share: 0.8, years: 4 },
     });
     // nezasetý díl nad potřebu – příště jeho plodina
     expect(shown.get(surplus!.id)).toMatchObject({ next: 'winter', work: { surplus: true } });

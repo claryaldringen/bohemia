@@ -56,15 +56,16 @@ export const YIELD_BASE_KG_PER_HA = 760; // × (0,4 + 0,6 × úrodnost / 100)
 export const SEED_KG_PER_HA = 175;
 // fields.md – Úroda (neopletený díl), Zarůstání
 export const UNWEEDED_YIELD = 0.6; // neopletý díl dá 60 % (návrh Clauda, kalibrace)
-// fields.md – Přílohová soustava (osev, příloh), Úroda (úrodnost). Obnova v přílohu 2,5 %
-// přirozené za rok (oprava podle rešerše, bylo 5 %): z 0,64 na 0,95 za 13 let. Nouzově (Nouzový
+// fields.md – Přílohová soustava (osev, příloh), Úroda (úrodnost). Obnova v přílohu 5 %
+// přirozené za rok (Martin 26. 10. 2026: varianta 1 – dvoupolí = přílohový systém, ladem 3–10 let;
+// dřív 2,5 %): z 0,71 na 0,95 za 5 let. Nouzově (Nouzový
 // osev) smí ves osít jen příloh aspoň na `emergencyMin` přirozené – Martin 19. 10. 2026: „ves
 // neoseje díly pod 40 % úrodnosti“ (díl na nule by se na 70 % vracel 28 let).
 // Osevní postup (fields.md – Osevní postup po dílech): díl dá dva osevy (ozim a jař) a jde do úhoru.
 export const SOWN_ROUNDS = 2;
 export const FERTILITY = {
   sowDepletion: 0.12,
-  fallowRecovery: 0.025,
+  fallowRecovery: 0.05,
   sowableMin: 0.7,
   emergencyMin: 0.4,
   fallowReady: 0.95,

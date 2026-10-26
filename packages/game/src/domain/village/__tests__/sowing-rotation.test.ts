@@ -133,7 +133,7 @@ describe('postup dílu – co poroste příště', () => {
     expect(sowingGroup(part(1))).toBe(2);
   });
 
-  it('odpočatý díl 95 %: ozim, jař, 10 let úhoru – za 12 sezón zase první osev', () => {
+  it('odpočatý díl 95 %: ozim, jař, 5 let úhoru – za 7 sezón zase první osev', () => {
     const p = fallow(1, FERTILITY.fallowReady);
     season(p, 'winter', 601);
     expect(p).toMatchObject({ state: 'ready', next: 'spring', sownYears: 1 });
@@ -144,21 +144,21 @@ describe('postup dílu – co poroste příště', () => {
     expect(p.next).toBeUndefined();
     expect(p.crop).toBeUndefined();
     expect(p.fertilityShare).toBeCloseTo(0.71, 9);
-    for (let year = 603; year <= 611; year++) season(p, null, year);
+    for (let year = 603; year <= 606; year++) season(p, null, year);
     expect(nextSowing(p)).toBe('late');
-    season(p, null, 612);
+    season(p, null, 607);
     expect(nextSowing(p)).toBe('first');
   });
 
-  it('čerstvý díl 100 %: ozim, jař a úhor 8 let', () => {
+  it('čerstvý díl 100 %: ozim, jař a úhor 4 roky', () => {
     const p = part(1, { bonusUntilDay: at(602, 9, 1) });
     season(p, 'winter', 601);
     expect(p.bonusUntilDay).toBe(at(602, 9, 1));
     season(p, 'spring', 602);
     expect(p.bonusUntilDay).toBeNull();
-    for (let year = 603; year <= 609; year++) season(p, null, year);
+    for (let year = 603; year <= 605; year++) season(p, null, year);
     expect(nextSowing(p)).toBe('late');
-    season(p, null, 610);
+    season(p, null, 606);
     expect(nextSowing(p)).toBe('first');
   });
 
@@ -179,24 +179,24 @@ describe('postup dílu – co poroste příště', () => {
     expect(nextSowing(p)).toBe('emergency');
   });
 
-  it('luštěniny po ozimu: úhor 4 roky; len po ozimu: úhor 12 let', () => {
+  it('luštěniny po ozimu: úhor 2 roky; len po ozimu: úhor 6 let', () => {
     const legume = fallow(1, FERTILITY.fallowReady);
     season(legume, 'winter', 601);
     season(legume, 'legume', 602);
     expect(legume.state).toBe('fallow');
     expect(legume.fertilityShare).toBeCloseTo(0.86, 9);
-    for (let year = 603; year <= 605; year++) season(legume, null, year);
+    for (let year = 603; year <= 603; year++) season(legume, null, year);
     expect(nextSowing(legume)).toBe('late');
-    season(legume, null, 606);
+    season(legume, null, 604);
     expect(nextSowing(legume)).toBe('first');
 
     const flax = fallow(2, FERTILITY.fallowReady);
     season(flax, 'winter', 601);
     season(flax, 'flax', 602);
     expect(flax.state).toBe('fallow');
-    for (let year = 603; year <= 613; year++) season(flax, null, year);
+    for (let year = 603; year <= 607; year++) season(flax, null, year);
     expect(nextSowing(flax)).not.toBe('first');
-    season(flax, null, 614);
+    season(flax, null, 608);
     expect(nextSowing(flax)).toBe('first');
   });
 
