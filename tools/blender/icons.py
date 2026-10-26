@@ -24,7 +24,8 @@ mezi pařezy skácených buků – crafts.md, Milíř u skácených buků) a kri
 jáma se zrnem, hroudami pečeti a lopatou – production-chains.md, Obilné jámy) – portréty do panelu
 výběru;
 (64 × 64 PNG) – `resources/` people, food, wood, labor, satiation, date, apples, happiness
-(štěstí – plamen ohniště nad zkříženými poleny v kruhu kamenů), hay (seno – kupka sena
+(štěstí – plamen ohniště nad zkříženými poleny v kruhu kamenů), fire (pálí se – hořící hromada
+větví, klučení lesa), hay (seno – kupka sena
 z `apps/web/public/models/fields/haystack.glb`), meat (maso – uzená kýta s kostí a provázkem),
 cheese (mléko a sýr – bochník sýra s vykrojeným klínem a hrouda tvarohu), eggs (vejce v hnízdě
 ze slámy), legumes (luštěniny – hromádka suchého hrachu a čočky, otevřený lusk s hrášky),
@@ -1220,6 +1221,25 @@ def icon_happiness():
     to_obj(inner, "core", glow_mat("core", (1.0, 0.78, 0.25), 3.5))
     sun(az=-40, el=50, strength=3.5)
     camera([Vector((-1.0, -1.0, 0)), Vector((1.0, 1.0, 1.35))], az=0, el=20, margin=1.04)
+    return True
+
+
+def icon_fire():
+    """Pálí se: hořící hromada větví a klestu na pasece – fáze pálení klučení (forest.md)."""
+    logs, outer, inner = bmesh.new(), bmesh.new(), bmesh.new()
+    for k in range(7):
+        a = 2 * math.pi * k / 7 + 0.2
+        d = Vector((math.cos(a), math.sin(a), 0))
+        cyl(logs, (d * 0.75 + Vector((0, 0, 0.08)))[:], (-d * 0.12 + Vector((0, 0, 0.5 + 0.05 * (k % 3))))[:], 0.09, 0.07, 8)
+    flame(outer, (0, 0, 0.25), 1.2, 0.4)
+    flame(outer, (0.22, 0.06, 0.2), 0.75, 0.22, tilt=(0.25, 0.05))
+    flame(outer, (-0.2, -0.07, 0.2), 0.8, 0.23, tilt=(-0.22, -0.05))
+    flame(inner, (0, -0.05, 0.25), 0.65, 0.2)
+    to_obj(logs, "branches", mat("branch", (0.2, 0.13, 0.07), 0.9, noise=26, bump=0.4))
+    to_obj(outer, "flame", glow_mat("flame", (1.0, 0.36, 0.04), 2.2))
+    to_obj(inner, "core", glow_mat("core", (1.0, 0.78, 0.25), 3.5))
+    sun(az=-40, el=50, strength=3.5)
+    camera([Vector((-0.9, -0.9, 0)), Vector((0.9, 0.9, 1.45))], az=0, el=20, margin=1.04)
     return True
 
 
@@ -2793,6 +2813,7 @@ RESOURCES = {
     "date": icon_date,
     "apples": icon_apples,
     "happiness": icon_happiness,
+    "fire": icon_fire,
     "hay": icon_hay,
     "meat": icon_meat,
     "cheese": icon_cheese,

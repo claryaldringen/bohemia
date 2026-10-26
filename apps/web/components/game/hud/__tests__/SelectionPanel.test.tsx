@@ -1,4 +1,5 @@
 import type { DwellingResident } from '@/lib/person-view';
+import type { VillageFieldPart } from '@/lib/village-view-types';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { SelectionDetails, SelectionWorkshop } from '@/lib/selection-details';
@@ -617,6 +618,50 @@ describe('SelectionPanel – díl pole a čtverec sadu (klik – fields.md, Co h
     expect(text(html, 'selection-labor-left')).toBe('4,3');
     expect(text(html, 'selection-trees')).toBe('3');
     expect(html).toContain('data-surface="forest"');
+  });
+
+  it('díl v lese po fázích: kácení s počtem stromů, schnutí s datem pálení, pálení ohněm', () => {
+    const forestPart = (clearing: NonNullable<VillageFieldPart['founding']>['clearing']): string =>
+      render(
+        part({
+          look: 'slash',
+          stage: 'founding',
+          surface: 'forest',
+          sownYears: null,
+          crop: null,
+          founding: { progress: 0.3, laborLeft: 4.25, trees: 0, clearing },
+        }),
+      );
+    const fell = forestPart({ stage: 'fell', treesLeft: 6 });
+    expect(text(fell, 'selection-clearing')).toBe('6');
+    expect(fell).not.toContain('fire.png');
+    const dry = forestPart({ stage: 'dry', treesLeft: 0, burnFrom: 60 });
+    expect(dry).toContain('hourglass.png');
+    expect(dry).toContain('pálí se od 1. března 500');
+    const burn = forestPart({ stage: 'burn', treesLeft: 0, burnFrom: 60 });
+    expect(burn).toContain('resources/fire.png');
+  });
+
+  it('pole: počty čtverců v lese po fázích jen u fází, které běží', () => {
+    const html = render({
+      kind: 'field',
+      id: 5,
+      areaM2: 4500,
+      fertility: 50,
+      stages: [],
+      surfaces: [],
+      crops: [],
+      turn: [],
+      resting: 0,
+      ashParts: 0,
+      ashBonus: 0,
+      overgrowingM2: 0,
+      founding: 0.4,
+      clearing: { fell: 3, dry: 0, burn: 2 },
+    });
+    expect(text(html, 'selection-clearing-fell')).toBe('3');
+    expect(text(html, 'selection-clearing-burn')).toBe('2');
+    expect(html).not.toContain('selection-clearing-dry');
   });
 
   it('čtverec sadu: stáří, úroda čtverce, cesta; obnova čeká, výsadba s průběhem', () => {

@@ -68,6 +68,18 @@ export function CursorReason({
                   {formatInteger(cost.trees)}
                 </span>
               )}
+              {(cost.burn ?? 0) > 0 && (
+                <span data-cost="burn" className="flex items-center gap-1">
+                  <img
+                    src="/icons/resources/fire.png"
+                    alt="Les se vykácí a vypálí"
+                    title="Les se vykácí, větve se vysuší a v březnu až říjnu vypálí"
+                    width={16}
+                    height={16}
+                  />
+                  {formatInteger(cost.burn ?? 0)}
+                </span>
+              )}
               {(cost.oaks ?? 0) > 0 && (
                 <span data-cost="oaks" className="flex items-center gap-1">
                   <img src="/icons/build/dub.png" alt="Duby" width={16} height={16} />

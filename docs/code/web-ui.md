@@ -344,3 +344,14 @@ místa to jsou a moci je také označit.“ ([paths.md – Síť – kotvy](../d
   cesta, nikam), `road-end-view.test.ts`, `RoadPanel.test.tsx`, `RoadEnds.behavior.test.tsx` (klik
   vybere cíl), `village-selection.test.ts` (výpis), e2e `village.spec.ts` – „panel cesty ukáže oba
   konce“ (testovací háček `selectRoad`).
+
+## Klučení lesa v panelu a liště
+
+Forest.md – Klučení lesa pro pole. Panel dílu (`selection/fields.tsx`, `ClearingStageFlag`):
+kácení = ikona `wood` s počtem stromů, které zbývá pokácet, schnutí = `hourglass` s datem pálení
+v popisku („pálí se od 1. března 500“), pálení = `fire` (`resources/fire.png`, render
+`icons.py fire`, CC0). Panel pole (`ClearingCounts`): počty čtverců v jednotlivých fázích, jen
+běžící. Horní lišta: popisek klád `woodName` – „u vsi N, u lesa M“, když leží hromada u lesa.
+Kurzor při malování pole (`fieldCost` v `build-items.ts`, `PlacementCost.burn`, `CursorReason`):
+ikona ohně s počtem čtverců lesa, které se vykácí a vypálí. Ukázky `/dev/panels?panel=pole`,
+`pole-dil-kaceni`, `pole-dil-schne`, `pole-dil-pali`.

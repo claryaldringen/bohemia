@@ -246,6 +246,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   jinak padnou stromy podle `treesDue`. Bez vrstvy nebo bez takového dílu vrací týž objekt;
   selhání jen poznamená `forestClearingFailed` (log v `updateVillage`). Vlkov (stav z 26. 10. 2026) žádný zakládaný díl nemá – převod je beze změny a rok dopočtu trvá jako dřív
   (≈ 30 s). Test `forest-clearing-migration.test.ts`.
+  **Pohled pro rozhraní** (`village-view-fields.ts`): `fieldPartView` dílu s `clearing` přidá
+  `founding.clearing` (`PartClearingView` – `stage` z `clearingStage`, `treesLeft` = `fell.length
+  - felled`, `burnFrom`z`burnFromDay`jen po pádu posledního stromu),`fieldViews`počty čtverců
+po fázích`clearing: { fell, dry, burn }`(jen když nějaké běží);`VillageView.woodLogsForest`=`summary.forestLogs`(klády u lesa, chybí při nule). Test`village-view.test.ts`.
 
 - **Hospodaření podle polohy domů** (Martin – fields.md): `holdings.ts` – díl patří k nejbližšímu
   domu (vzdušnou čarou; `villageHoldings`/`fieldHoldings`), hospodářství se dělí na úseky od domu

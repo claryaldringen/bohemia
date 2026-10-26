@@ -210,6 +210,17 @@ const dwelling = (kind: BuildableDwellingType, name: string, hotkeyLabel: string
 const squaresCost = (check: PlacementCheck, laborManDays: number): PlacementCost | null =>
   check.ok ? { laborManDays, trees: 0 } : null;
 
+/** Cena pole u kurzoru: práce a čtverce lesa, které se kácí, suší a pálí (díl se `standing`, jako v `createField`). */
+const fieldCost = (
+  check: PlacementCheck,
+  laborManDays: number,
+  parts: readonly { surface: string; standing?: unknown }[],
+): PlacementCost | null => {
+  const cost = squaresCost(check, laborManDays);
+  const burn = parts.filter((p) => p.surface === 'forest' && p.standing !== undefined).length;
+  return cost && burn > 0 ? { ...cost, burn } : cost;
+};
+
 /**
  * Cena obydlí u kurzoru: práce celkem jako při zahájení stavby (`dwellingLaborManDays` –
  * stavba, překážky na vyklízené ploše a kácení) a kolik stromů se skácí, když klády na hromadě
@@ -493,7 +504,7 @@ export const BUILD_ITEMS: readonly BuildItem[] = [
       return {
         check: result.check,
         blockedCells: result.blockedCells,
-        cost: squaresCost(result.check, result.foundingCost),
+        cost: fieldCost(result.check, result.foundingCost, result.parts),
       };
     },
   },

@@ -7,6 +7,7 @@ import {
   CRAFT_PRODUCTS,
   type RoadKind,
   type AbandonedStructure,
+  type ClearingStage,
   type BuildKind,
   type DietDay,
   type HerdSpecies,
@@ -450,6 +451,8 @@ export interface VillageView {
   roads: VillageRoad[];
   /** Klády na hromadě u vsi v kusech (forest.md). */
   woodLogs: number;
+  /** Z toho klády na hromadách u lesa (zbytek leží u vsi). */
+  woodLogsForest?: number;
   /** Řemesla – zásoby uhlí, nástrojů a keramiky, pokrytí a dílny (crafts.md). */
   crafts: VillageCrafts;
   storesMonths: number;
@@ -524,6 +527,8 @@ export interface VillageView {
     };
     /** Díly v okně bonusu úrodnosti po vymýcení lesa (fields.md – Úroda). */
     ashParts: number;
+    /** Zakládané díly v lese po fázích klučení (kácí se / schne / pálí se); chybí bez nich. */
+    clearing?: Record<ClearingStage, number>;
     /** Nejvyšší letošní bonus úrodnosti z popela (+40 první sezónu osevu, +20 druhou), jinak 0. */
     ashBonus: number;
     /**
@@ -761,7 +766,23 @@ export interface VillageFieldPart {
   /** Úhor: odpočinek k 95 % (setiny) a roky do osevu (≈). */
   rest?: { share: number; years: number };
   /** Zakládaný díl: průběh 0–1 (setiny), zbývající práce (člověkodny) a dospělé stromy na klády. */
-  founding?: { progress: number; laborLeft: number; trees: number };
+  founding?: {
+    progress: number;
+    laborLeft: number;
+    trees: number;
+    /** Díl v lese po fázích (forest.md – Klučení lesa pro pole): fáze, stromy ke kácení a den pálení. */
+    clearing?: PartClearingView;
+  };
+}
+
+/**
+ * Klučení dílu v lese pro panel: fáze (`clearingStage`), kolik stromů zbývá pokácet a první den
+ * pálení (`burnFromDay`, den hry) – jen po pádu posledního stromu.
+ */
+export interface PartClearingView {
+  stage: ClearingStage;
+  treesLeft: number;
+  burnFrom?: number;
 }
 
 /** Čtverec sadu pro panel vybraného čtverce (klik na sad – orchard.md, Co hráč vidí). */

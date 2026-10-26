@@ -17,6 +17,7 @@ import {
   type FieldSurface,
   type HerdPlaces,
   type HerdSpecies,
+  type ClearingStage,
   type PenSpecies,
   type PartStage,
   type NextCrop,
@@ -34,7 +35,7 @@ import type { VillageDugSite } from './ore-site-view';
 import type { VillageKiln } from './kiln-view';
 import type { VillageGrainPit } from './grain-pit-view';
 import type { VillageJunction } from './junction-view';
-import type { VillageThreshingFloor } from './village-view-types';
+import type { VillageFieldPart, VillageThreshingFloor } from './village-view-types';
 import type { HouseholdRelocation } from './relocation-view';
 import { TREE_GROWTH_YEARS } from './orchard-look';
 import {
@@ -237,6 +238,8 @@ type SelectionKinds =
       resting: number;
       /** Díly s popelem z vymýceného lesa (fields.md – Úroda). */
       ashParts: number;
+      /** Zakládané díly v lese po fázích klučení; null bez nich. */
+      clearing?: Record<ClearingStage, number>;
       /** Nejvyšší letošní bonus úrodnosti z popela (+40 první sezónu, +20 druhou), jinak 0. */
       ashBonus: number;
       /** Kolik z pole zarůstá (m² – fields.md, Zarůstání); 0 = nic. */
@@ -300,7 +303,7 @@ type SelectionKinds =
       /** Díl letošní práce nad potřebu – jen z volné práce, stavby mají přednost. */
       surplus: boolean;
       /** Zakládá se – průběh, zbývající práce (člověkodny) a stromy na klády; jinak null. */
-      founding: { progress: number; laborLeft: number; trees: number } | null;
+      founding: NonNullable<VillageFieldPart['founding']> | null;
       /** Id všech polí vsi – tlačítko „Označit všechna pole“. */
       fieldIds?: readonly number[];
     }
@@ -985,6 +988,7 @@ function selectionKinds(
     }),
     resting: field.turn.resting,
     ashParts: field.ashParts,
+    ...(field.clearing ? { clearing: field.clearing } : {}),
     ashBonus: field.ashBonus,
     overgrowingM2: field.overgrowingM2,
     founding: founding ? founding.progress : null,
