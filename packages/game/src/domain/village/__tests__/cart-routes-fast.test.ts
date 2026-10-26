@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createRandom, type Random } from '../../landscape/random';
 import { CART_ROUTES, CART_SPEED } from '../rules';
-import { cartRoutesOn, type CartGrid, type CartTarget } from '../paths/cart';
+import { cartRoutesOn, type CartGrid, type CartRoute, type CartTarget } from '../paths/cart';
 import type { PathPoint } from '../paths/network';
 import type { CartKind } from '../types';
 import { referenceCartRoutesOn } from './fixtures/cart-routes-reference';
@@ -115,5 +115,81 @@ describe('cartRoutesOn – rychlé hledání', () => {
     // mapy pokrývají dosažené i nedosažitelné cíle
     expect(reached).toBeGreaterThan(200);
     expect(unreached).toBeGreaterThan(20);
+  });
+
+  /** Shoda s referencí; `cost` a `lengthM` přes `Object.is` (Infinity, 0 a -0 se liší). */
+  function expectSame(grid: CartGrid, input: Parameters<typeof cartRoutesOn>[1]): CartRoute[] {
+    const expected = referenceCartRoutesOn(grid, input);
+    const actual = cartRoutesOn(grid, input);
+    expect(actual).toEqual(expected);
+    actual.forEach((route, k) => {
+      expect(Object.is(route.cost, expected[k]!.cost), `cost cíle ${k}`).toBe(true);
+      expect(Object.is(route.lengthM, expected[k]!.lengthM), `lengthM cíle ${k}`).toBe(true);
+    });
+    return actual;
+  }
+
+  const flat = (width: number, height: number, value = 1): CartGrid => ({
+    width,
+    height,
+    originX: 0,
+    originZ: 0,
+    cellM: CELL_M,
+    cost: new Float32Array(width * height).fill(value),
+    heights: null,
+  });
+  const at = (g: CartGrid, i: number, j: number): PathPoint => ({
+    x: g.originX + i * g.cellM,
+    z: g.originZ + j * g.cellM,
+  });
+
+  it('prázdné cíle dají prázdný výsledek', () => {
+    const grid = flat(10, 10);
+    expect(expectSame(grid, { kind: 'two-wheel', depots: [at(grid, 1, 1)], targets: [] })).toEqual(
+      [],
+    );
+  });
+
+  it('bez skladu nikdo nedojede', () => {
+    const grid = flat(10, 10);
+    const routes = expectSame(grid, {
+      kind: 'four-wheel',
+      depots: [],
+      targets: [{ ...at(grid, 5, 5), reachM: 4 }],
+    });
+    expect(routes.map((r) => r.reached)).toEqual([false]);
+  });
+
+  it('jediná úhlopříčná mezera ve zdi', () => {
+    const grid = flat(12, 12);
+    // zeď po úhlopříčce; jediná mezera uprostřed – dál se dá jen úhlopříčně
+    for (let q = 0; q < 12; q++) grid.cost[q * 12 + (11 - q)] = Infinity;
+    grid.cost[5 * 12 + 6] = 1;
+    const routes = expectSame(grid, {
+      kind: 'two-wheel',
+      depots: [at(grid, 1, 1)],
+      targets: [
+        { ...at(grid, 10, 10), reachM: 0.5 },
+        { ...at(grid, 3, 3), reachM: 0.5 },
+      ],
+    });
+    expect(routes).toHaveLength(2);
+    // cíl za zdí je dosažitelný jen přes mezeru
+    expect(routes[0]!.reached).toBe(true);
+    expect(routes[1]!.reached).toBe(true);
+  });
+
+  it('cíl za maxCost zůstane nedosažený', () => {
+    const grid = flat(60, 8, 1000);
+    const routes = expectSame(grid, {
+      kind: 'two-wheel',
+      depots: [at(grid, 0, 4)],
+      targets: [
+        { ...at(grid, 2, 4), reachM: 0.5 },
+        { ...at(grid, 59, 4), reachM: 0.5 },
+      ],
+    });
+    expect(routes[0]!.reached).toBe(true);
+    expect(routes[1]!.reached).toBe(false);
   });
 });

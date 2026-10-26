@@ -152,6 +152,8 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   ≈ 39 s. Nejvíc bere hledání tras vozu (`cartRoutesOn`, ≈ 38 %) a přepočet chůze se změnou mapy
   tras (`refreshWalkDistances`, ≈ 31 %). Mezipaměti jsou jen zrychlení – výsledek bit po bitu
   týž i po studeném startu (`cart-memo.test.ts`).
+  Souběžné požadavky téhož hráče dopočet nezdvojují: web je řadí do fronty (`apps/web/lib/exclusive.ts`,
+  web-ui.md – Jeden dopočet vsí naráz), druhý jen dopočte zbytek do svého dne.
 
 - **Čísla** pravidel jsou jen v `rules*.ts` (u každého odkaz na sekci návrhu); změna čísla = i
   text v návrhu. Kalibrace: `measure-village.ts` nasimuluje stovky vsí a vypíše cíle z Kalibrace

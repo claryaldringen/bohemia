@@ -47,9 +47,11 @@ import {
   type PenSpecies,
 } from '@bohemia/game';
 import { getDatabase } from './db';
+import { exclusive, playerLockKey } from './exclusive';
 import {
   currentViewStampOfPlayer,
   dynastyOfPlayer,
+  dynastyOfPlayerLocked,
   enterGameForPlayer,
   ownMapsOfPlayer,
   firstVillageOfPlayer,
@@ -109,21 +111,38 @@ async function context(playerId: string, villageId: string): Promise<Context> {
 }
 
 /**
- * Kontext akce, která mění stav: po konci hry (vymřely všechny vsi, nebo rod po meči) server akci
- * nepřijme a vrátí pohled s `gameOver` – klient ukáže obrazovku konce. Konec rodu se zjistí
- * dopočtem všech vsí hráče, takže platí hned, ne až v pohledu po akci.
+ * Akce, která mění stav, pod zámkem hráče (exclusive.ts). Den a kontext se načtou AŽ uvnitř
+ * zámku – akce zařazená za skok v čase nebo za jinou akci tak dostane aktuální den, ne ten
+ * z doby zařazení. Po konci hry (vymřely všechny vsi, nebo rod po meči) server akci nepřijme
+ * a vrátí pohled s `gameOver` – klient ukáže obrazovku konce. Konec rodu se zjistí dopočtem
+ * všech vsí hráče, takže platí hned, ne až v pohledu po akci.
  */
-async function actionContext(
+async function guardedAction<T>(
   playerId: string,
   villageId: string,
+  run: (ctx: Extract<Context, { ok: true }>) => Promise<T>,
 ): Promise<
-  { ok: true; ctx: Extract<Context, { ok: true }> } | { ok: false; result: VillageActionResult }
+  | { ok: true; ctx: Extract<Context, { ok: true }>; value: T }
+  | { ok: false; result: VillageActionResult }
 > {
-  const ctx = await context(playerId, villageId);
-  if (!ctx.ok) return { ok: false, result: { error: ctx.error } };
-  const status = await dynastyOfPlayer(playerId, ctx.day);
-  if (status.gameOver) return { ok: false, result: await viewOf(ctx) };
-  return { ok: true, ctx };
+  const inside = await exclusive(
+    playerLockKey(playerId),
+    async (): Promise<
+      | { kind: 'done'; ctx: Extract<Context, { ok: true }>; value: T }
+      | { kind: 'error'; error: string }
+      | { kind: 'over'; ctx: Extract<Context, { ok: true }> }
+    > => {
+      const ctx = await context(playerId, villageId);
+      if (!ctx.ok) return { kind: 'error', error: ctx.error };
+      // zámek už držíme – dopočet bez vnořeného exclusive
+      const status = await dynastyOfPlayerLocked(playerId, ctx.day);
+      if (status.gameOver) return { kind: 'over', ctx };
+      return { kind: 'done', ctx, value: await run(ctx) };
+    },
+  );
+  if (inside.kind === 'error') return { ok: false, result: { error: inside.error } };
+  if (inside.kind === 'over') return { ok: false, result: await viewOf(inside.ctx) };
+  return { ok: true, ctx: inside.ctx, value: inside.value };
 }
 
 /**
@@ -180,9 +199,9 @@ async function actOn(
   villageId: string,
   action: (ctx: Extract<Context, { ok: true }>) => Promise<VillageResult>,
 ): Promise<VillageActionResult> {
-  const guarded = await actionContext(playerId, villageId);
-  if (!guarded.ok) return guarded.result;
-  return toActionResult(guarded.ctx, await action(guarded.ctx));
+  const done = await guardedAction(playerId, villageId, action);
+  if (!done.ok) return done.result;
+  return toActionResult(done.ctx, done.value);
 }
 
 /**
@@ -275,9 +294,11 @@ export async function foundVillageForPlayer(
   const today = await playerToday(playerId);
   if (!today.ok) return { error: today.error };
   const { settlement, landscape } = await enterGameForPlayer(playerId);
-  const result = await foundVillageForSettlement(
-    { villages: villages(), seeds: gameDeps().seeds },
-    { settlementId: settlement.id, landscape, today: today.day, ...input },
+  const result = await exclusive(playerLockKey(playerId), () =>
+    foundVillageForSettlement(
+      { villages: villages(), seeds: gameDeps().seeds },
+      { settlementId: settlement.id, landscape, today: today.day, ...input },
+    ),
   );
   if (!result.ok) return { error: result.reason };
   return viewOf(
@@ -302,15 +323,11 @@ export async function foundDevVillageForPlayer(
   devMode: boolean,
   villageId: string,
 ): Promise<VillageActionResult> {
-  const guarded = await actionContext(playerId, villageId);
-  if (!guarded.ok) return guarded.result;
-  const { ctx } = guarded;
-  const result = await foundDevVillage(gameDeps(), {
-    playerId,
-    devMode,
-    villageId,
-    today: ctx.day,
-  });
+  const done = await guardedAction(playerId, villageId, (ctx) =>
+    foundDevVillage(gameDeps(), { playerId, devMode, villageId, today: ctx.day }),
+  );
+  if (!done.ok) return done.result;
+  const { ctx, value: result } = done;
   if (!result.ok) return { error: result.reason };
   return viewOf({ ...ctx, villageId: result.village.id }, result.village);
 }
@@ -601,16 +618,17 @@ export async function leaveVillageForPlayer(
   villageId: string,
   input: { dwellingIds: number[]; destination: LeaveDestination },
 ): Promise<VillageActionResult> {
-  const guarded = await actionContext(playerId, villageId);
-  if (!guarded.ok) return guarded.result;
-  const { ctx } = guarded;
-  const result = await leaveVillage(gameDeps(), {
-    playerId,
-    villageId,
-    today: ctx.day,
-    dwellingIds: input.dwellingIds,
-    destination: input.destination,
-  });
+  const done = await guardedAction(playerId, villageId, (ctx) =>
+    leaveVillage(gameDeps(), {
+      playerId,
+      villageId,
+      today: ctx.day,
+      dwellingIds: input.dwellingIds,
+      destination: input.destination,
+    }),
+  );
+  if (!done.ok) return done.result;
+  const { ctx, value: result } = done;
   if (!result.ok) return { error: result.reason };
   return input.destination.kind === 'here'
     ? viewOf({ ...ctx, villageId: result.to.id }, result.to)
@@ -623,12 +641,8 @@ export async function settleJourneyForPlayer(
   villageId: string,
   input: { dwelling: Position },
 ): Promise<VillageActionResult> {
-  const guarded = await actionContext(playerId, villageId);
-  if (!guarded.ok) return guarded.result;
-  const { ctx } = guarded;
-  return toActionResult(
-    ctx,
-    await settleJourney(gameDeps(), {
+  return actOn(playerId, villageId, (ctx) =>
+    settleJourney(gameDeps(), {
       playerId,
       villageId,
       today: ctx.day,
