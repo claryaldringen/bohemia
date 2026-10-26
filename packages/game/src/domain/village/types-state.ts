@@ -260,6 +260,8 @@ export interface VillageState {
   sowingRotationFailed?: string;
   /** Převod starších ohrad koní na koně zdarma selhal (`withHorsePenStock`) – text chyby, do logu. */
   horsePenStockFailed?: string;
+  /** Převod rozestavěných dílů v lese na fáze klučení selhal (`withForestClearing`) – text chyby, do logu. */
+  forestClearingFailed?: string;
   /**
    * Stavby uložené před variantami rozměrů (population.md – Varianty rozměrů) prošly kontrolou,
    * jestli se do své varianty vejdou (`withDwellingShapes`) – nové vsi ho mají od založení.

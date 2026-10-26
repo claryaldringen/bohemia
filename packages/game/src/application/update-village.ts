@@ -19,6 +19,7 @@ import {
   withObstacleClearing,
   withPenGrace,
   withoutTrampledParts,
+  withForestClearing,
   withHorsePenStock,
   withPenSpecies,
   withOxen,
@@ -235,7 +236,17 @@ export async function updateVillage(
     const neighbours = withNeighbours(base, await neighboursOf(villages, record, today));
     // ves z doby před obilnými jámami uloží zásoby do jam u humna nebo dvorce – jámy ne na půdě
     // jiných vsí (production-chains.md – Obilné jámy)
-    const attached = withGrainPits(neighbours, landscape, obstacles);
+    const pitted = withGrainPits(neighbours, landscape, obstacles);
+    // rozestavěné díly v lese dostanou fáze klučení (forest.md – Klučení lesa pro pole, Starší vsi)
+    const attached = withForestClearing(pitted, obstacles);
+    if (
+      attached.forestClearingFailed !== undefined &&
+      record.state.forestClearingFailed === undefined
+    ) {
+      console.error(
+        `Ves ${villageId}: převod klučení lesa selhal: ${attached.forestClearingFailed}`,
+      );
+    }
     const advanced = await advancedToTodayWithPauses(attached, today, obstacles, landscape, pause);
     // ves uložená před trasami (nebo s trasami jiného rozložení) si je spočítá – i když se jen
     // zobrazuje, ať je scéna má (paths.md – Kdy se trasy počítají a co se ukládá)

@@ -345,6 +345,7 @@ export {
   type ShoeingView,
 } from './horse-shoeing';
 export { horsePenValueKg, withHorsePenStock } from './horse-stock';
+export { withForestClearing } from './forest-clearing-migration';
 export { HORSE_PEN_NO_SURPLUS, horsePenPayment } from './horse-pen-payment';
 // výměna lidí se sousedem – příchod lidí (`settleNewcomers`) je krok simulace a zůstává uvnitř
 export {

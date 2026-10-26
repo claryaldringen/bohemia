@@ -7,6 +7,7 @@ import { finishPurchases, startPurchases } from './craft-buying';
 import { withCraftSkill } from './craft-skill';
 import { cartIronDay } from './cart-iron';
 import { cloneState } from './clone';
+import { withForestClearing } from './forest-clearing-migration';
 import { updateKilnRemnants } from './charcoal';
 import { craftCoverage, wearCraftStocks } from './crafts';
 import { updateHappiness } from './happiness';
@@ -129,6 +130,10 @@ export function* advanceVillageSteps(
       ),
     ),
   );
+  // rozestavěné díly v lese bez fází dostanou kácení, schnutí a pálení (forest.md – Klučení lesa
+  // pro pole – postup, Starší vsi) – jednou, idempotentně; potřebují vrstvu překážek
+  const cleared = withForestClearing(next, obstacles);
+  if (cleared !== next) Object.assign(next, cleared);
   // dosahy čtyřkoláku z doby „jen po pevných cestách“ se spočítají znovu (wagons.md)
   withFourWheelReach(next);
   // vymřelá, opuštěná a ves na cestě se nesimulují – jen se posune den (migration.md)
