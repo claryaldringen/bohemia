@@ -108,7 +108,7 @@ export const MAX_SLAUGHTER_STATIONS = 3;
  * nohou od středu (otevřená strana vpředu, lokální +Z), výška hrotů háků.
  */
 export const TRESTLE = {
-  large: { halfX: 1.13, front: 0.68, back: 1.3, hookY: 2.2 },
+  large: { halfX: 1.13, front: 0.68, back: 1.3, hookY: 2.45 },
   small: { halfX: 0.77, front: 0.47, back: 0.89, hookY: 1.5 },
 } as const;
 
@@ -122,7 +122,7 @@ export const BLOCK = { boardY: 0.59, legSlots: [-0.24, -0.08, 0.08, 0.24] } as c
  * nad počátkem visícího modelu (počátek visícího = hroty háků − `hangTop`). Visí hlavou dolů
  * za hlezna – kopyta trčí nad háky (špičky nohou visícího modelu: kráva 1,02 m nad počátkem,
  * prase 0,52, ovce 0,64, koza 0,74; nejnižší bod −1,31 / −0,82 / −0,78 / −0,64 m). Kráva
- * o 0,18 m, aby hlava nad zemí zůstala (≈ 5 cm na kozlině 2,2 m), ostatní o 0,1 m (hlava
+ * o 0,18 m, aby hlava nad zemí zůstala (≈ 30 cm na kozlině s háky v 2,45 m), ostatní o 0,1 m (hlava
  * 0,18–0,26 m nad zemí, v neckách).
  */
 export const CARCASS: Record<HerdSpecies, { length: number; halfWidth: number; hangTop: number }> =

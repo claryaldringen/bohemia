@@ -10,10 +10,10 @@ Prkna, provaz, železo a krev jsou procedurální (numpy). Jeden atlas 256 × 25
 Souřadnice Blenderu: Z nahoru, počátek každého dílu na zemi pod jeho středem. Rozměry jsou skutečné (m).
 
 Výstup slaughter.glb – díly (uzly):
-  trestle-large  kozlina na krávu: tři kůly (základna r 1,25 m, vrchol 2,72 m), bidlo podél X ve
-                 výšce 2,58 m, provaz a rozpěrák (±0,22 m podél X) se dvěma háky, **hroty háků ve
-                 výšce 2,20 m** (kráva visí hlavou dolů za hlezna, kopyta 0,18 m nad háky, celá
-                 2,33 m -> hlava ≈ 5 cm nad zemí; CARCASS.hangTop ve slaughter-plan.ts).
+  trestle-large  kozlina na krávu: tři kůly (základna r 1,25 m, vrchol 2,97 m), bidlo podél X ve
+                 výšce 2,83 m, provaz a rozpěrák (±0,22 m podél X) se dvěma háky, **hroty háků ve
+                 výšce 2,45 m** (kráva visí hlavou dolů za hlezna, kopyta 0,18 m nad háky, celá
+                 2,33 m -> hlava ≈ 30 cm nad zemí, nad okrajem neckí; CARCASS.hangTop ve slaughter-plan.ts).
   trestle-small  kozlina na prase, ovci a kozu (visí 1,34–1,42 m): vrchol 2,0 m, bidlo 1,88 m,
                  **hroty háků ve výšce 1,50 m** (kopyta 0,1 m nad háky, hlava 0,18–0,26 m nad zemí).
   trough         necky: vyhloubené koryto 1,4 × 0,5 m, výška 0,24 m (dno 0,05 m), na dvou příčných
@@ -214,7 +214,7 @@ def trestle(bm, uv, apex, spread, hook_z, leg_r):
 
 
 def build_trestle_large(bm, uv):
-    trestle(bm, uv, apex=2.72, spread=1.25, hook_z=2.2, leg_r=0.055)
+    trestle(bm, uv, apex=2.97, spread=1.25, hook_z=2.45, leg_r=0.055)
 
 
 def build_trestle_small(bm, uv):
