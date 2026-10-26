@@ -24,11 +24,22 @@ const DAY_S = WATER_FETCHING.dayHours * 3600;
 /** Břehy pro vodu vozem nejméně tak daleko od sebe (m) – hledá se podél vody, ne v jednom místě. */
 const WATER_SPOT_SPACING_M = 15;
 
-/** Jízdy vozu od ohrady se spřežením k cílům: kam a za kolik dojede (null = nedojede). */
+/**
+ * Jízdy vozu od ohrady se spřežením k cílům: kam a za kolik dojede (null = nedojede). S `nearest`
+ * stačí nejlevnější cíl: cíl dražší o víc než NEAREST_DRIVE_M může vrátit null (rychlejší hledání).
+ */
 export type CartDrives = (
   state: VillageState,
   targets: readonly CartTarget[],
+  nearest?: boolean,
 ) => (CartDrive | null)[];
+
+/**
+ * O kolik dražší cíl než nejlevnější ještě musí dostat přesnou jízdu, když stačí nejlevnější
+ * (`CartDrives` s `nearest`) – dost nad zaokrouhlením ceny na centimetry (`cm`), takže výběr
+ * nejlevnějšího (i remíza po centimetrech – první v pořadí) je týž jako ze všech cílů.
+ */
+const NEAREST_DRIVE_M = 1;
 
 /** Na centimetry. */
 function cm(value: number): number {
@@ -63,9 +74,18 @@ export function villageCartDrives(
       );
     };
   }
-  return (s, targets) => {
+  return (s, targets, nearest = false) => {
     if (targets.length === 0) return [];
-    const routes = villageCartRoutes(s, day, landscape, obstacles, kind, targets);
+    const routes = villageCartRoutes(
+      s,
+      day,
+      landscape,
+      obstacles,
+      kind,
+      targets,
+      null,
+      nearest ? NEAREST_DRIVE_M : null,
+    );
     return targets.map((t, k) => {
       const route = routes?.[k];
       if (!route?.reached) return null;
@@ -219,9 +239,11 @@ export function waterCartDrive(
     if (picked.some((q) => length2(q.x - p.x, q.z - p.z) < WATER_SPOT_SPACING_M)) continue;
     picked.push(p);
   }
+  // stačí nejlevnější břeh – dražší o víc než NEAREST_DRIVE_M se nedohledávají
   const found = drives(
     state,
     picked.map((p) => ({ x: p.x, z: p.z, reachM: CART_JOBS.water.reachM })),
+    true,
   );
   let best: CartDrive | null = null;
   for (const drive of found) {

@@ -684,7 +684,13 @@ export function updateRoads(
   return events;
 }
 
-export { addRoadCartTrips, annualCartNetwork, teamPens, villageCartRoutes } from './roads-carts';
+export {
+  addRoadCartTrips,
+  annualCartNetwork,
+  teamPens,
+  villageCartCost,
+  villageCartRoutes,
+} from './roads-carts';
 export {
   annualTerrain,
   mergeRoadChains,

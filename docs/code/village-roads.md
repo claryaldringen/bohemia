@@ -880,13 +880,14 @@ studeným startem každý den; `cart-memo.test.ts`).
 - **Naměřeno B3 – souhrn** (Vlkov, den 115545, 32 lidí, rok dopočtu vcelku na jednom jádru;
   stroje bývají vytížené, proto rozsahy; skripty a logy mimo repo v `scratchpad/diag-b3/`):
 
-  | stav                                  | rok, stěna  | rok, CPU    | poznámka                                                                    |
-  | ------------------------------------- | ----------- | ----------- | --------------------------------------------------------------------------- |
-  | před A (výchozí měření)               | 47–53 s     | –           | 130–145 ms/den; přes `updateVillage` při zátěži 26: 73 s                    |
-  | po A (A1–A3, před B1)                 | 48,5–49,4 s | 54–55 s     | zátěž 3–10                                                                  |
-  | po B1 (mřížky a trasy v paměti)       | 38,4–40,6 s | 46–49 s     |                                                                             |
-  | po B2a (rychlejší hledání vozu)       | 30,4–30,7 s | 34,7–34,8 s | otisk `a92138125afb`                                                        |
-  | teď (po B2b, s kováním koní), 26. 10. | 31,5–33,0 s | 36,0–37,9 s | zátěž 6,5; otisk `08dd07c6c8fe`; 31 dní 5,7 s, 1 095 dní 91 s (≈ 83 ms/den) |
+  | stav                                  | rok, stěna  | rok, CPU    | poznámka                                                                         |
+  | ------------------------------------- | ----------- | ----------- | -------------------------------------------------------------------------------- |
+  | před A (výchozí měření)               | 47–53 s     | –           | 130–145 ms/den; přes `updateVillage` při zátěži 26: 73 s                         |
+  | po A (A1–A3, před B1)                 | 48,5–49,4 s | 54–55 s     | zátěž 3–10                                                                       |
+  | po B1 (mřížky a trasy v paměti)       | 38,4–40,6 s | 46–49 s     |                                                                                  |
+  | po B2a (rychlejší hledání vozu)       | 30,4–30,7 s | 34,7–34,8 s | otisk `a92138125afb`                                                             |
+  | po B2b, s kováním koní, 26. 10.       | 31,5–33,0 s | 36,0–37,9 s | zátěž 6,5; otisk `08dd07c6c8fe`; 31 dní 5,7 s, 1 095 dní 91 s (≈ 83 ms/den)      |
+  | po C1 (cena A*, voda, chůze), 26. 10. | 26,1–27,6 s | 30,5–32,0 s | zátěž 11–58, střídavě s B3 (tam 36,4–39,5 s, CPU 40,5–40,6 s); otisky beze změny |
 
   Otisk stavu po 31 / 365 dnech vcelku i po dnech se studeným startem (`forgetCartRoutes` před
   každým dnem) je shodný (`66553dbed171` / `08dd07c6c8fe`); po 1 095 dnech vcelku `d765fb2240fd`.
@@ -901,3 +902,37 @@ studeným startem každý den; `cart-memo.test.ts`).
   konflikt verze, skok během dopočtu) a `village-action-day.test.ts` (den akce až ve frontě).
   Zbývá brzdit: `cartRoutesOn` (přejezdy spřežení mezi díly při orbě – `moveCost` 16 %,
   voda vozem 12 %) a `groundWalkLength`; cíl 20–25 s na rok tím není splněn (návrh Clauda).
+
+- _*Jen cena trasy – A* s odhadem od cíle_* (C1, `cartCostOn` v `paths/cart.ts`): orba chce od
+  trasy jen cenu – cesta spřežení z ohrady k dílu (`tripCost`) a přesun mezi bloky (`moveCost`
+  v `plough-trip.ts`) volají `villageCartCost` (táž mřížka a paměť mřížek jako
+  `villageCartRoutes`). Rozbor roku Vlkova (`scratchpad/diag-c1/`): 49 takových hledání, každé
+  s jiným výjezdem i cílem (paměť tras proto netrefuje – opakování žádné), cena 2–4× vzdušné
+  čáry (objíždění polí), 0–260 ms. Napřed hledání od cíle po buňkách bez směru jízdy (tytéž kroky
+  a ceny kroků, jen bez zatočení), dokud nedojde k první buňce výjezdu (z jiných buněk výjezdu
+  může být cesta zavřená); to je odhad zbytku pro A* se směrem jízdy (buňky dál = cena, kam
+  hledání od cíle došlo). Odhad nikdy nepřecení (zatočení jen přidá, `quantizedStep` roste
+  s cenou) a kroky jsou po kvantech – nejlevnější cena bit po bitu táž jako z `cartRoutesOn`
+  (i „nedojede“ nad `maxCost`); trasa se nevrací, při remízách by mohla vést jinudy. 49 hledání
+  roku 3,45 s → 0,93 s (`cart-routes-fast.test.ts` – 80 náhodných map, `cart-memo.test.ts`).
+- **Voda vozem jen k nejlevnějšímu břehu** (`waterCartDrive` volá `CartDrives` s `nearest`,
+  `cartRoutesOn(…, nearestM)`): ze 40 břehů se bere nejlevnější (po centimetrech, při remíze
+  první v pořadí) – hledání skončí `NEAREST_DRIVE_M` (1 m) za prvním dosaženým břehem místo za
+  posledním. Trasy do té ceny jsou bit po bitu tytéž (všechny stavy do ní jsou vytažené,
+  předchůdci i remízy rozhodnuté), dražší břehy vrátí „nedojede“ a do paměti tras se nezapíšou.
+  Rozbor: 22 hledání za rok (dvoukolák i čtyřkolák po změně rozložení vsi), dřív 3,4 s.
+- **Chůze rovně po kusech stejné půdy** (`groundWalkLength`, `walkCellsOf` v `paths/walking.ts`):
+  půda po buňkách jednou za objekt půdy (rychlost, voda, osev) a součty švů (buňka jiná než
+  soused vpravo / dole) po obdélnících. Kus 8 kroků úsečky, jehož obdélník mezi krajními kroky
+  (s buňkou rezervy) leží celý v mřížce a bez švu, sečte tentýž člen 8× bez čtení buněk – ve
+  stejném pořadí, bit po bitu týž (`ground-walk-fast.test.ts` proti původní funkci). U Vlkova
+  84 % kusů. Rozbor: 2,2 mil. volání za rok, 418 mil. kroků; táž úsečka se mezi 13 půdami roku
+  opakuje ≈ 8×, jenže pole se mezi nimi mění – paměť výsledků by musela hlídat změněné buňky
+  (další možný krok, návrh Clauda).
+- **Naměřeno C1** (Vlkov rok vcelku, `diag-b3/cpu.mts`, střídavě před / po 2× při zátěži 16–58):
+  stěna 36,4–39,5 s → 26,1–27,1 s, CPU 40,5–40,6 s → 30,5–31,3 s (≈ −25 % CPU); při zátěži ≈ 6
+  jako u B3 odhadem ≈ 23–24 s. Otisk po 31 / 365 / 1 095 dnech vcelku `66553dbed171` /
+  `08dd07c6c8fe` / `d765fb2240fd`, po dnech se studeným startem po 365 dnech `08dd07c6c8fe` –
+  beze změny. Zbývá (profil roku): přepočet chůze 46 % (`walkingDistances` 21 %, z toho
+  `groundWalkLength` 16 %; síť pěšin 8 %), mřížka vozu 9 % (při orbě nový klíč s každým zoraným
+  blokem – díl přestane být zarostlý), hledání tras vozu 11 % (dosah svozu – stovky cílů).
