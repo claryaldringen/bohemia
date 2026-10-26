@@ -276,11 +276,18 @@ export function huntDay(state: VillageState, day: number, lordFieldShare = 0): C
     hunt.year.wolves += kills.wolves;
     hunt.year.bear += kills.bear;
     hunt.year.meatKg += meatKg;
-    const best = strengths.sort((a, b) => b.value - a.value || a.id - b.id)[0];
-    const name = best ? people.get(best.id)?.name : undefined;
+  }
+  // losy smrti proběhnou před výběrem jména – nejlepší je nejlepší z těch, kdo lov přežili
+  const risk = quarry ? huntRisk(state, day, quarry) : [];
+  if (total > 0) {
+    const alive = new Map(state.people.map((p) => [p.id, p]));
+    const best = strengths
+      .filter((s) => alive.has(s.id))
+      .sort((a, b) => b.value - a.value || a.id - b.id)[0];
+    const name = best ? alive.get(best.id)?.name : undefined;
     events.push({ day, kind: 'hunt', kills, meatKg, names: name ? [name] : [] });
   }
-  if (quarry) events.push(...huntRisk(state, day, quarry));
+  events.push(...risk);
   return events;
 }
 
@@ -309,6 +316,8 @@ export function huntRisk(
     const deathRoll = random.next();
     const p = people.get(id);
     if (!p) continue;
+    // děti (doprovod 10–13 let) na lovu nezahynou ani se nezraní (návrh Clauda)
+    if (ageGroup(p, day) === 'child') continue;
     const combat = Math.min(100, Math.max(0, p.arms?.combat ?? 0));
     const injury = quarry === 'bear' ? rules.injury * (1 - combat / 200) : rules.injury;
     const death =

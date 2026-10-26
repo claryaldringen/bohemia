@@ -435,6 +435,8 @@ Martin: „Souhlasím se všemi návrhy“ – tři otázky z plánu jsou uzavř
 - **Zranění a smrt jen na lovu prasat a medvěda.** Jelen, zajíc a vlk nemají šanci ani na zranění,
   ani na smrt. Lov „na prasata a jeleny zároveň“ nese riziko prasete, pokud ve vsi nějaká prasata
   jsou.
+- **Děti na lovu nezahynou ani se nezraní** (chlapci-doprovod 10–13 let; návrh Clauda, čeká na
+  potvrzení Martina). Los smrti i zranění se losuje, ale týká se jen dospělých a starců.
 - **Zraněný vojvoda zůstává vojvodou**, jen 60 dní necvičí, neloví ani nepracuje (první den po
   zranění je den 1).
 - **Smrt před zraněním:** kdo při témže losu zahyne, zraněn není. Oba losy se losují vždy, ať

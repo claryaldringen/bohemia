@@ -130,6 +130,18 @@ describe('riziko lovu – četnost (wildlife.md – Nebezpečí pro lidi)', () =
     expect(JSON.stringify(c)).not.toBe(JSON.stringify(a));
   });
 
+  it('děti (doprovod 10–13 let) na lovu nezahynou ani se nezraní, dospělí ano', () => {
+    const s = crowd(1000, WINTER, 'bear');
+    for (const p of s.people) if (p.id >= 5000 && p.id < 5500) p.bornDay = WINTER - 12 * 366;
+    const events = huntRisk(s, WINTER, 'bear');
+    const hit = events.filter((e) => e.kind === 'death' || e.kind === 'hunt-injury');
+    expect(hit.length).toBeGreaterThan(0);
+    expect(s.people.filter((p) => p.id >= 5000 && p.id < 5500)).toHaveLength(500);
+    expect(s.people.filter((p) => p.id >= 5000 && p.id < 5500 && p.injuredUntilDay)).toHaveLength(
+      0,
+    );
+  });
+
   it('lov bez divokých prasat a medvěda (jelen, vlk) je bez rizika', () => {
     const s = crowd(500, WINTER, 'game');
     s.wildlife!.boar = { adults: 0, piglets: 0 };

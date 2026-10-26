@@ -287,12 +287,12 @@ function simulateDay(
   const events = populationDay(state, day, satiation, energy);
   state.chronicle.push(...events);
   // kdo zahynul na lovu, ves oplakává jako každé úmrtí (štěstí), i když zápis dělá lov
-  events.push(...huntEvents.filter((e) => e.kind === 'death'));
+  const happinessEvents = [...events, ...huntEvents.filter((e) => e.kind === 'death')];
   // nová hlavní manželka a nástupnictví (lord.md – Rod vojvody); ves bez rodu nic
   state.chronicle.push(...dynastyDay(state, day));
   // štěstí na konci dne – hlad, úmrtí, přeplněnost, dřina, zásoby, ovoce, maso a posvátná místa
   // (happiness.md, diet.md)
-  updateHappiness(state, day, { satiation, events, toil, fruit, obstacles, meatShare: meat });
+  updateHappiness(state, day, { satiation, events: happinessEvents, toil, fruit, obstacles, meatShare: meat });
   if (state.people.length === 0) {
     // zemřel poslední člověk – ves vymřela, dál se nesimuluje (ani sklizeň dne)
     state.extinctDay = day;
