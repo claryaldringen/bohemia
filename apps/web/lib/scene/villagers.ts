@@ -558,13 +558,14 @@ export class VillageVillagers {
         if (!from) return p;
         probe.hidden = false;
         const to = p.pose(t, herds, probe);
-        // karavana (caravan.ts) jde podle výpravy a pohřeb podle obřadu – nepřecházejí pěšky;
-        // pochůzku na cestě postava dojde a nová začne ve dveřích (carryErrands níž)
+        // karavana (caravan.ts) jde podle výpravy, pohřeb a porážka podle svého dne – nepřecházejí
+        // pěšky; pochůzku na cestě postava dojde a nová začne ve dveřích (carryErrands níž)
         if (
           p.errand ||
           p.key.startsWith('caravan:') ||
           p.key.startsWith('funeral:') ||
-          p.key.startsWith('wedding:')
+          p.key.startsWith('wedding:') ||
+          p.key.startsWith('slaughter-crew:')
         ) {
           return p;
         }

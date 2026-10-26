@@ -295,7 +295,45 @@ number>>`, i zlomky kusů; bez údaje se neporáželo) – z `LaborDay.slaughter
 v `livestock.ts`: `slaughter()` – jen hned poražené, `winterSlaughterDay`, `hayShortSlaughter`,
 `emergencySlaughter`). Jen hlášení – simulace ho nečte. Dev náhled: `demoLabor` v listopadu
 (`app/dev/landscape/dev-labor.ts`) přidá `slaughter` s ukázkovými kusy. Převod zlomků na
-stanoviště je v plánu porážky (úlohy 5–6).
+stanoviště je v plánu porážky (níž).
+
+### Plán porážky
+
+`apps/web/lib/scene/slaughter-plan.ts` – čistá funkce bez Babylonu (vzor `funeral-plan.ts`):
+
+- **Stanoviště** (`slaughterSites`): počet `stationCount` = zaokrouhlený součet dnešních kusů,
+  1 až `min(3, postavy / 2)` (zimní den se zlomky dá 1; 1. 11., nouzová a porážka pro seno víc).
+  Druh losem váženým kusy (zlomky jsou podíly, každé další stanoviště bez už vylosovaného kusu),
+  domácnost losem ze seedu a dne (`slaughterRoll`, každá nejvýš jednou). Kozlina 2–3 m před
+  vchodem (`STATION_FROM_DOOR_M`, stranou až 3 m), otevřenou stranou k vchodu; všechny body
+  `footprint` (nohy kozliny, ležící zvíře, špalek, místo řezníka) schůdné; kráva na velké kozlině
+  u branky hotové ohrady skotu (bez ní ohrady spřežení, bez ohrady u domu), ostatní na malé.
+- **Parta** (`SLAUGHTER_CREW`: ovce a koza 2, prase 3, kráva 4; role `butcher`, `bowl`, `holder`,
+  `helper`): postavy napřed po jednom řezníkovi na stanoviště, pak doplnit party; s jednou
+  postavou dělá řezník vše (bez misky). Jen dospělí 16+ (`SLAUGHTER_MIN_AGE`).
+- **Osa dne** (`SLAUGHTER_PHASES`, podíly okna herního dne, den se opakuje jako u jízd):
+  přivedení 0–6 %, omráčení 6–14 % (prase a kráva: 2–3 údery klipem `build` s palicí, pád ve 12 %
+  za 0,6 s; ovce a koza `hold` – jen přidržení, řezník podřízne vestoje `gut` a zvíře padne až
+  ve 14 %), vykrvení 14–35 % (řezník `butcher` u krku, žena `bleed` s miskou, pomocníci `weed`),
+  zavěšení 35–40 % (střih v 37,5 %, lidé jdou kolem přední strany kozliny), vyvržení 40–62 %
+  (`gut` u visícího, pod ním necky), rozčtvrcení 62–85 % (4 kroky: půl kroku `fell` se sekerou,
+  v půlce čtvrtina zmizí, čtvrt kroku ji nosič nese `carry-meat` na prkno), odnos 85–100 %
+  (kýta j – nosič j % parta, stálou rychlostí `carryMS` ke vchodu domácnosti, uvnitř `insideS`,
+  zpět pro další; nakonec zůstanou doma – `hidden`).
+- **Výstup pro kreslení**: `SlaughterStation` – kozlina (`x`, `z`, natočení, `trestle`
+  large/small), `animal` (kde stojí a leží, hlavou k vchodu), `hang` (pod háky, natočení
+  `−heading`, výška počátku `lift` = háky − `CARCASS.hangTop`), `trough` (pod háky), `block`
+  (místa kýt `BLOCK.legSlots`, výška `boardY`), `bowl` (miska na zemi od střihu, jen se ženou
+  s miskou). Okamžik: `slaughterState` – fáze, `carcass` (`pose` 1 stojí / 0 leží / −1 visí,
+  poloha, `lift`, `quarters` a `cutMask` po `QUARTER_BITS`), `legsOnBoard`, `bowlOnGround`.
+  Lidé: `slaughterPose` – poloha, natočení, klip a tempo podle scénáře kroků (rekvizitu v ruce
+  dává klip, `slaughterProp`).
+- **Postavy** (`villager-plan-slaughter.ts`, `slaughterFigures`): v `planVillagersWithCrew` hned
+  po řemeslnících; bez `labor.slaughter`, hodin světa nebo podílu `slaughter` nic. Postav je
+  tolik, kolik má podíl porážky (aspoň 2, nejvýš dospělých); řezník muž a žena s miskou
+  přednostně z domácnosti stanoviště (`roster.take`), klíč `slaughter-crew:`. Lidé party
+  nedělají nic jiného – o ně se zmenší podíl porážky, jeho zbytek stojí jako dřív u výmlatu.
+  Plán vrací `planVillagersWithCrew` jako `slaughter` (pro `slaughter-renderer`).
 
 ## Jezdci (lord-horses Úloha 11)
 
