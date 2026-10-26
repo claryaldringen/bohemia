@@ -1560,6 +1560,63 @@ test('dvorec: lov navíc – v dubnu je hájení, v létě se zítra loví', asy
     .toBeGreaterThanOrEqual(1);
 });
 
+test('divoká zvěř ve scéně: modely se načtou a klik na zvíře otevře panel druhu', async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  const { seat: s } = await newPlayer(page, 'divoka');
+  const spots = villageSpots(s.landscape);
+  await found(page, spots.dwelling);
+  // ves dostane zvěř při načtení (převod stavu) – scéna ji vykreslí po dalším dotazu
+  await expect
+    .poll(async () => (await villageState(s.settlementId)).wildlife !== undefined)
+    .toBe(true);
+  await pollVillage(page);
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const wild = window.__bohemiaE2E?.wildAnimals?.();
+          return wild && wild.meshes.length > 0 && wild.meshes.every((m) => m.ready)
+            ? wild.animals.length
+            : 0;
+        }),
+      { timeout: 60_000 },
+    )
+    .toBeGreaterThan(0);
+  // kamera k prvnímu kusu (zvěř bývá u lesa mimo výchozí záběr)
+  await page.evaluate(() => {
+    const first = window.__bohemiaE2E!.wildAnimals!().animals[0]!;
+    window.__bohemiaE2E!.moveCameraTo!(first.x, first.z);
+  });
+  const panel = page.getByTestId('selection-panel');
+  await expect
+    .poll(
+      async () => {
+        // zvíře chodí – poloha těsně před kliknutím
+        const point = await page.evaluate(() => {
+          const hooks = window.__bohemiaE2E!;
+          for (const a of hooks.wildAnimals!().animals) {
+            const p = hooks.projectToScreen!(a.x, a.z);
+            if (p && p.x > 20 && p.y > 20 && p.x < innerWidth - 20 && p.y < innerHeight - 160) {
+              return p;
+            }
+          }
+          return null;
+        });
+        if (!point) return null;
+        await page.mouse.move(point.x - 3, point.y - 6);
+        await page.mouse.click(point.x, point.y - 6);
+        return panel.getAttribute('data-kind');
+      },
+      { timeout: 30_000 },
+    )
+    .toBe('wildlife');
+  await expect(panel.getByTestId('wildlife-level')).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
 test('díl pole ukáže škodu zvěře letos', async ({ page }) => {
   const { seat: s } = await newPlayer(page, 'zver');
   const spots = villageSpots(s.landscape);

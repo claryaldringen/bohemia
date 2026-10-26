@@ -1079,6 +1079,19 @@ export class LandscapeScene {
       .map((mesh) => ({ name: mesh.name, ready: mesh.isReady(true) }));
   }
 
+  /** Meshe divoké zvěře (`wild-*`, připravené ke kreslení) a kusy, které jsou teď vidět. */
+  wildAnimals(): {
+    meshes: { name: string; ready: boolean }[];
+    animals: { species: string; model: string; x: number; z: number }[];
+  } {
+    return {
+      meshes: this.scene.meshes
+        .filter((mesh) => mesh.name.startsWith('wild-'))
+        .map((mesh) => ({ name: mesh.name, ready: mesh.isReady(true) })),
+      animals: this.wildlife?.visibleAnimals() ?? [],
+    };
+  }
+
   projectToScreen(x: number, z: number): { x: number; y: number } | null {
     const camera = this.rtsCamera?.camera;
     if (!camera || !this.groundHeight) return null;

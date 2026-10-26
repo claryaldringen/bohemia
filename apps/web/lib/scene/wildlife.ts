@@ -249,6 +249,17 @@ export class VillageWildlife {
     return best;
   }
 
+  /** Kusy, které jsou teď vidět (druh, model a poloha) – pro e2e testy (výběr kliknutím). */
+  visibleAnimals(): { species: WildlifeSpecies; model: WildModel; x: number; z: number }[] {
+    const out: { species: WildlifeSpecies; model: WildModel; x: number; z: number }[] = [];
+    this.spotOwners.forEach((owner, i) => {
+      const x = this.spots[i * 3]!;
+      if (Number.isNaN(x)) return;
+      out.push({ species: owner.species, model: owner.model, x, z: this.spots[i * 3 + 2]! });
+    });
+    return out;
+  }
+
   dispose(): void {
     this.disposed = true;
     for (const kind of this.kinds.values()) {

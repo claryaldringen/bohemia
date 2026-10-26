@@ -1002,6 +1002,16 @@ function villageKey(village: SceneVillage, draft: DraftCrews): string {
     village.funerals ?? null,
     village.weddings ?? null,
     (village.trails ?? []).map((t) => [t.id, t.points.length]),
+    // lov, psi, hlídka, děti s řehtačkou a rybáři dne (wildlife.md – Ve scéně)
+    village.wildlife
+      ? [
+          village.wildlife.hunt ?? null,
+          village.wildlife.dogs ?? 0,
+          village.wildlife.patrol ?? false,
+          village.wildlife.watchParts ?? null,
+          village.wildlife.pools ?? null,
+        ]
+      : null,
     dwellings,
     fields,
     orchards,
