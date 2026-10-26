@@ -188,9 +188,16 @@ export const SMALL_GAME = {
   /** Hodin práce na člověkoden. */
   hoursPerManDay: 10,
   /** Ryby (duben–listopad): kg za hodinu při plném stropu (× biomasa ÷ strop) a jedlý podíl. */
-  fish: { kgPerHour: 0.4, edible: 0.6, fromMonth: 4, toMonth: 11, maxPerPool: 3 },
+  fish: { kgPerHour: 0.4, edible: 0.6, fromMonth: 4, toMonth: 11 },
   /** Oka (prosinec–březen): zajíců za hodinu při plném stropu a kg masa na zajíce. */
   snares: { perHour: 0.05, meatKg: 2 },
-  /** Loví se, dokud je zvěře nad tímto podílem stropu (chytá se aspoň 0,1 kg za hodinu). */
-  minStockShare: 0.25,
+  /** Nejvýš tolik rybářů (i okařů) na tůň. */
+  maxPerPool: 3,
+  /**
+   * Roční kvóta (návrh Clauda, review W7): ryby a zajíci se loví jen tolik, kolik za rok přiroste.
+   * Pod tímto podílem stropu se nechytá; ryby nejvýš na vrcholu křivky přírůstku (čtvrtina stropu
+   * ročně – logistický přírůstek `ryba·(1 − ryba/strop)` je nejvyšší na polovině stropu).
+   */
+  minStockShare: 0.5,
+  fishMaxYieldShare: 0.25,
 } as const;

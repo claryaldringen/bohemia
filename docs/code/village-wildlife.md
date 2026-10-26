@@ -182,10 +182,12 @@ Návrh: wildlife.md – Drobná zvěř a ryby, Rozhodnutí při implementaci W7.
 - `smallGameDay(state, day, labor, urgent)` – volá ho `work()` (simulate-work.ts): při hladu
   (`state.hungry`) hned po kládách a vodě, před stavbami (z `common`); jinak až z
   `afterBuild.left − surplus.labor − extraMow`, tedy ze zbytku po dílech nad potřebu a seči navíc.
-  Chytá se, jen když `smallGameCapacity` > 0 (sezóna, zásoba nad ¼ stropu) a ves `wantsProtein`
+  Chytá se, jen když `smallGameCapacity` > 0 (sezóna, zásoba nad ½ stropu, zbývá roční kvóta) a ves `wantsProtein`
   (nebo hladoví).
 - Duben–listopad ryby (biomasa `fishKg`), prosinec–březen oka (`hares`, zlomek kusu). Maso jde do
-  `state.meatKg` bez práce porážky. Stav pro scénu v `wildlife.smallGame.today`; rozdělení práce
+  `state.freshMeatKg` (čerstvé, jí se napřed) bez práce porážky. Roční kvóta `yearlyQuota`
+  (`smallGame.quota`, ryby ≤ ¼ stropu, zajíci podle přírůstku) se počítá 1. 5. ve `wildlife.ts`.
+  `wantsProtein` bere větší z loňského a letošního masa ze zvěře. Stav pro scénu v `wildlife.smallGame.today`; rozdělení práce
   má činnosti `fish` (cíl `{ kind: 'pool', index }`) a `snare`.
 - `wildlifeYearDay` 1. 5. uloží maso ze zvěře minulého roku (`lastWildMeatKg`) a vynuluje `year`.
 - Testy ves bez ryb a zajíců: `withoutSmallGame` ve `village-fixtures.ts`.

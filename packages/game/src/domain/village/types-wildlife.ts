@@ -64,6 +64,11 @@ export interface SmallGameState {
   /** Dnešní chytání: rybáři po tůních (index tůně → počet lidí) nebo oka; null = dnes ne. */
   today: { day: number; kind: 'fish' | 'snare'; pools: number[]; kg: number } | null;
   year: SmallGameYear;
+  /**
+   * Roční kvóta od 1. 5. (ryby: kg biomasy, zajíci: kusy) podle přírůstku; chybí = spočte se
+   * při prvním chytání roku ze zásoby a úlovku.
+   */
+  quota?: { fishKg: number; hares: number };
   /** Maso ze zvěře (velký lov i drobná zvěř) minulého roku (kg). */
   lastWildMeatKg?: number;
 }

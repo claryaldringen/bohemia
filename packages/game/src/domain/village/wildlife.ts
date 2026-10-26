@@ -7,6 +7,7 @@ import { foxCount } from './fox-eggs';
 import { villageHerds } from './livestock';
 import { CROWS, PREDATION, WILDLIFE_CAPS, WILDLIFE_LAND, WILDLIFE_YEAR } from './rules-wildlife';
 import type { VillageState, WildlifeCaps, WildlifeLand, WildlifeState } from './types';
+import { yearlyQuota } from './small-game';
 import { wildlifeLandAt } from './wildlife-land';
 
 const EPSILON = 1e-9;
@@ -174,9 +175,11 @@ export function wildlifeYearDay(
   // maso ze zvěře minulého roku (velký lov i drobná zvěř) – podle něj ves ví, jestli chce víc
   const wildKg = (w.hunt?.year.meatKg ?? 0) + (w.smallGame?.year.meatKg ?? 0);
   if (w.smallGame || wildKg > 0) {
+    // roční kvóta ryb a zajíců podle letošního přírůstku (small-game.ts)
     w.smallGame = {
       today: null,
       year: { fishKg: 0, hares: 0, meatKg: 0, days: 0 },
+      quota: yearlyQuota(w, w.fishKg, w.hares),
       lastWildMeatKg: wildKg,
     };
   }

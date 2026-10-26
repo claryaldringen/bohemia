@@ -177,7 +177,8 @@ describe('len napřed – výběr s kapacitou (do Úlohy 5 pro páry k rádlům)
     // a se psy dvorce a velkým lovem rodu (wildlife.md – Psi, Lov rodu, 26. 10. 2026): obilí psů se
     // sije z pole a pěší lovci chybí v práci vsi – jiný plán osevu k 1. 9. (dřív 168:48676c9e)
     // 26. 10. 2026 (W7 ryby a oka): vesničané chytají ryby z volné práce, takže se mění plány vsi; dřív f2f1018c
-    expect(fingerprint(plans)).toBe('161:c856e421');
+    // oprava po recenzi W7 (26. 10. 2026): roční kvóta ryb a zajíců a čerstvé maso mění práci vsi; dřív c856e421
+    expect(fingerprint(plans)).toBe('161:c9dee13e');
   });
 });
 

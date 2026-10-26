@@ -299,10 +299,10 @@ kde to nestačí.
   sněhu).
 - **Úlovek:** ryby **0,4 kg za hodinu × biomasa ÷ strop** (1 kg ryby = 0,6 kg masa – jedlý podíl);
   oka **0,05 zajíce za hodinu × zajíci ÷ strop** (zajíc 2 kg masa). Rybaří se, dokud se chytá
-  aspoň 0,1 kg za hodinu (biomasa nad čtvrtinou stropu) – vodu tak ves nevyloví, jen se jí
-  přestane vyplácet. Totéž oka pod čtvrtinou stropu zajíců.
+  jen do **roční kvóty podle přírůstku** (viz W7) a nad polovinou stropu – vodu tak ves nevyloví.
+  Totéž oka: zajíci nad polovinou stropu a nad tím, co za rok přibude.
 - **Kolik to dá:** voda typické vsi ≈ **150–200 kg ryb ročně** a oka ≈ **20 kg masa** – doplněk
-  pro 1–2 lidi, ne náhrada stád ([strava](diet.md) – lov a rybolov „později jako doplněk“).
+  pro 1–2 lidi (≈ 150–250 kg masa ročně podle vody), ne náhrada stád ([strava](diet.md) – lov a rybolov „později jako doplněk“).
 - **Loviště:** **tůně potoka** ([krajina](landscape.md) – 2–4 tůně) do 1 km, nejbližší ke vsi
   napřed, nejvýš 3 rybáři na tůň; když tůň nestačí, i mělčina pod ní. Rybník v1 krajina
   negeneruje – až bude, je loviště i on.
@@ -400,6 +400,8 @@ kde to nestačí.
 | Jezdecká hlídka do 60 %, noční hlídka vesničanů −60 % za 0,3 čd na 5 ha, kde hrozí ≥ 10 %                                                | návrh Clauda                                           |
 | Smečka dvorce 1 pes na lovce + 1 (nejvýš 8), 0,3 kg obilí denně                                                                          | návrh Clauda                                           |
 | Velký lov listopad–únor každý 7. den jako výcvik; akumulátor úlovku; jeleni ne laně                                                      | návrh Clauda                                           |
+| Při hladu jde chytání ryb a ok před stavby (výjimka z „zbytku práce“) – čeká na potvrzení Martina                                          | návrh Clauda                                           |
+| Roční kvóta ryb a zajíců podle přírůstku (ryby nejvýš ¼ stropu, nad ½ stropu); maso z nich čerstvé                                       | návrh Clauda                                           |
 | Ryby a oka jen při potřebě bílkovin nebo hladu, z práce, která by propadla; rybáři s prutem u tůní                                       | návrh Clauda                                           |
 | Zvěř nezabíjí mimo lov; zranění jen na lovu, 60 dní                                                                                      | návrh Clauda                                           |
 | Noční hlídka: kombinace – napřed staří a výrostci zdarma, kde hrozí ≥ 10 % a nemá kdo, dospělí z práce vsi                               | Martin (24. 10. 2026)                                  |
@@ -466,10 +468,16 @@ Martin: „Souhlasím se všemi návrhy“ – tři otázky z plánu jsou uzavř
   hladu** (`hungry`) jde práce na ryby a oka hned za polními úlohami, před stavbami.
 - **Kolik lidí:** nejvýš 3 na tůň (`land.pools`; bez tůní, ale s vodou 1 loviště). V zimě oka
   stejný strop lidí.
-- **Úlovek:** jak v návrhu; ryby i zajíci ubývají zlomkem (bez náhody), chytá se do čtvrtiny
-  stropu. Maso jde rovnou do zásoby, bez práce porážky.
+- **Úlovek a roční kvóta:** úlovek jak v návrhu, ale **za rok se vyloví nejvýš tolik, kolik
+  přiroste**. Kvótu spočte `yearlyQuota` 1. 5. po přírůstku (při chybějící při prvním chytání roku)
+  a uloží do `smallGame.quota`. Ryby: přírůstek `ryba · (1 − ryba / strop)` je nejvyšší na
+  polovině stropu, takže kvóta = min(zásoba − ½ stropu; ¼ stropu); ustálený stav pendluje
+  mezi ½ a ¾ stropu bez kolísání boom–bust (typická ves ≈ 250 kg masa z ryb ročně).
+  Zajíci: zásoba nad polovinou stropu a nad tím, co za rok zdvojnásobí. Pod polovinou stropu
+  nebo po vyčerpání kvóty se nechytá. Maso jde jako **čerstvé** (`freshMeatKg`, jí se ten den
+  napřed, zbytek se udí), bez práce porážky – ryby a zajíci se nekazí v uzené zásobě.
 - **Chce bílkoviny:** roční potřeba masa po obilí, mléku, vejcích a luštěninách je větší než maso
   stád (`yearlyMeatPerHead` × stáda) + maso ze zvěře loni (velký lov i drobná zvěř, uložené při
-  přepočtu 1. 5.). Úlovek roku se tak sám brzdí.
+  přepočtu 1. 5.) **nebo letošní, je-li větší** – úlovek roku se tak sám brzdí.
 - **Pro scénu (W11):** `wildlife.smallGame.today` (rybáři po tůních) a podíly práce `fish` (cíl
   `pool` – pořadí tůně) a `snare`; „rybář s prutem u loviště“ (Martin 24. 10. 2026).
