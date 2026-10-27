@@ -13,7 +13,12 @@ import {
 } from './weather-effects';
 import { seasonCrop, type PartLosses } from './year-plan';
 
-export { inDisasterProtection, yearSchedule } from './disaster-schedule';
+export {
+  inDisasterProtection,
+  inTornadoTrack,
+  yearSchedule,
+  yearTornadoes,
+} from './disaster-schedule';
 
 /**
  * Ztráty dílů z místních pohrom (kroupy, povodeň) za rok sklizně dne (`disasters.losses`), jen
@@ -26,16 +31,18 @@ function disasterLossesOf(
 ): ((key: string) => number) | undefined {
   const losses = state.disasters?.losses;
   if (!losses || losses.year !== harvestYearOf(day)) return undefined;
-  const { hail, flood } = losses;
-  const hit = (key: string): boolean => hail?.[key] !== undefined || flood?.[key] !== undefined;
+  const { hail, flood, tornado } = losses;
+  const hit = (key: string): boolean =>
+    hail?.[key] !== undefined || flood?.[key] !== undefined || tornado?.[key] !== undefined;
   if (!partIds.some((id) => hit(String(id)))) return undefined;
-  return (key) => 1 - (1 - (hail?.[key] ?? 0)) * (1 - (flood?.[key] ?? 0));
+  return (key) =>
+    1 - (1 - (hail?.[key] ?? 0)) * (1 - (flood?.[key] ?? 0)) * (1 - (tornado?.[key] ?? 0));
 }
 
 /**
  * Ztráty dílů plodiny dne (disasters.md – Dopady na existující mechaniky, Úroda): hrubá úroda
  * dílu × počasí dílu (s ochranou – `partWeatherFactor`) × (1 − škoda zvěře `base`) × (1 − kroupy)
- * × (1 − povodeň). Při sklizni celé počasí roku sklizně, pro odhad (`estimate`) jen co už je vidět
+ * × (1 − povodeň) × (1 − smršť). Při sklizni celé počasí roku sklizně, pro odhad (`estimate`) jen co už je vidět
  * (kroupy a voda, které už přišly, vidět jsou). Ves bez počasí a bez pohrom dílů a rok, kdy počasí
  * plodinu nemění, vrací `base` beze změny (bez nového objektu).
  */

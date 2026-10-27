@@ -362,6 +362,11 @@ Martin chce skutečnou pravděpodobnost, i když je velmi vzácná – žádné 
 - **Stromy** v pásu se vyvrátí – z vrstvy překážek zmizí jako pokácené (kmen leží na zemi, ves ho
   zpracuje jako kládu bez kácení – [les](forest.md)); vyvrácené ovocné stromy sadu a jabloně
   u cest ves obnoví jako staré.
+- **Upřesnění pro implementaci** (návrh Clauda): měsíc smrště květen 10 %, červen 25 %, červenec
+  40 %, srpen 25 %; směr u 80 % stop od JZ k SV (± 45°), ostatní libovolný; vývraty se zapisují
+  do krajiny a kmeny jdou na hromadu klád jen do 600 m od středu vsi (dál v lese shnijí); stohy
+  stojí u obydlí – seno ubude podle podílu zasažených obydlí (F0 polovina); jabloně u cest
+  vesničané hned zasadí znovu, vyvrácené čtverce sadu jdou do obnovy bez kvóty.
 - **Zemnice** odolá lépe (je zahloubená). Zřícená stavba = zbytek jámy a přestavba jako po
   požáru; **úmrtí jen u F3 a F4** (Brázdil 2020: 108 významných tornád za 900 let, ≥ 8 mrtvých).
 - **Ve hře:** hráči se říká **„Smršť“** (dobové slovo; síla jen v popisku – „Silná smršť“).

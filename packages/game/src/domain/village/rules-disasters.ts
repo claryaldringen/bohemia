@@ -1,7 +1,7 @@
 // Čísla pravidel přírodních pohrom – každé s odkazem na sekci návrhu `docs/design/disasters.md`.
 
 import type { CalendarDate } from '../calendar';
-import type { FloodLevel, SummerWeather, WinterWeather } from './types-disasters';
+import type { FloodLevel, SummerWeather, TornadoStrength, WinterWeather } from './types-disasters';
 
 /** Den v roce (měsíc a den) – kdy je počasí vidět, okna povodně. */
 export type MonthDay = Omit<CalendarDate, 'year'>;
@@ -315,4 +315,120 @@ export const DISASTER_WILDLIFE = {
   badWinterDeerLoss: 0.1,
   badWinterBoarLoss: 0.15,
   droughtPigletShare: 0.5,
+} as const;
+
+/**
+ * Síla smrště a škody v jejím pásu (disasters.md – Smršť (tornádo), tabulky Síla a Škody v pásu
+ * podle síly). Stav staveb ubude o `building` (zemnice o `zemnice`); 1 = zřítí se. `crop` – ztráta
+ * nesklizené úrody, `trees` – podíl vyvrácených stromů, `hay` – podíl rozmetaného sena stohů
+ * zasažených obydlí, `death` – šance úmrtí na obyvatele zasaženého obydlí.
+ */
+export interface TornadoStrengthRule {
+  strength: TornadoStrength;
+  share: number;
+  lengthM: number;
+  widthM: number;
+  building: number;
+  zemnice: number;
+  crop: number;
+  trees: number;
+  hay: number;
+  death: number;
+}
+
+/**
+ * Smršť (disasters.md – Smršť (tornádo); Martin 27. 10. 2026: „Přidej i tornádo. Máme ho doložené
+ * z Kosmovy kroniky. Jen dej pravděpodobnost obvyklou pro střední Evropu“, „Takhle vzácné tornádo
+ * je dobré“). Četnost, síly a stopy z rešerše §6 (ESWD, Brázdil 2020) – návrh Clauda.
+ */
+export const TORNADO = {
+  /** Tornád na 10 000 km² za rok – přes mapu kraje ≈ 0,10 % ročně. */
+  perTenThousandKm2: 0.5,
+  /**
+   * Stopy se losují ve čtverci mapy rozšířeném o tolik m z každé strany – nejdelší stopa (F4
+   * × 1,5 ≈ 34,7 km) do mapy dosáhne nejvýš z 17,4 km.
+   */
+  marginM: 30_000,
+  /** Měsíce smrští (květen–srpen, nejvíc červenec – rešerše §6; podíly návrh Clauda). */
+  months: [
+    { month: 5, share: 0.1 },
+    { month: 6, share: 0.25 },
+    { month: 7, share: 0.4 },
+    { month: 8, share: 0.25 },
+  ],
+  /**
+   * Směr postupu (návrh Clauda – české stopy leží v pásech JZ–SV, Brázdil 2020): podíl stop od
+   * jihozápadu k severovýchodu (kurz 45° od východu k severu, trojúhelníkově ± 45°), ostatní
+   * libovolným směrem.
+   */
+  direction: { mainShare: 0.8, mainHeadingDeg: 45, spreadDeg: 45 },
+  /** Délka i šířka stopy = průměr ESWD × (1 ± 50 %), rovnoměrně. */
+  sizeSpread: 0.5,
+  strengths: [
+    {
+      strength: 'F0',
+      share: 0.4,
+      lengthM: 2600,
+      widthM: 35,
+      building: 0.15,
+      zemnice: 0.05,
+      crop: 0.2,
+      trees: 0.1,
+      hay: 0.5,
+      death: 0,
+    },
+    {
+      strength: 'F1',
+      share: 0.35,
+      lengthM: 6900,
+      widthM: 82,
+      building: 0.4,
+      zemnice: 0.15,
+      crop: 0.5,
+      trees: 0.3,
+      hay: 1,
+      death: 0,
+    },
+    {
+      strength: 'F2',
+      share: 0.2,
+      lengthM: 10_200,
+      widthM: 124,
+      building: 1,
+      zemnice: 0.4,
+      crop: 0.8,
+      trees: 0.7,
+      hay: 1,
+      death: 0,
+    },
+    {
+      strength: 'F3',
+      share: 0.045,
+      lengthM: 17_500,
+      widthM: 343,
+      building: 1,
+      zemnice: 1,
+      crop: 1,
+      trees: 1,
+      hay: 1,
+      death: 0.01,
+    },
+    {
+      strength: 'F4',
+      share: 0.005,
+      lengthM: 23_100,
+      widthM: 383,
+      building: 1,
+      zemnice: 1,
+      crop: 1,
+      trees: 1,
+      hay: 1,
+      death: 0.03,
+    },
+  ] satisfies readonly TornadoStrengthRule[],
+  /**
+   * Vývraty se zapisují do krajiny vsi a kmeny jdou na hromadu klád jen do tolika m od středu vsi
+   * – okolí, kam ves chodí pro dřevo (návrh Clauda; dál v lese kmeny shnijí).
+   */
+  reachM: 600,
 } as const;

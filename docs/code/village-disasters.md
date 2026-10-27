@@ -163,24 +163,25 @@ Návrh: `docs/design/disasters.md` – Kraj a ochrana nové vsi, Místní pohrom
 
 - **Krok dne** – `localDisastersDay(state, day, landscape, obstacles)` (`local-disasters.ts`)
   v `simulateDay` po `damageWindowStart`, před `startPurchases` a `work()` (krok 6 Pořadí dne
-  v plánu): v pevném pořadí smršť (P9 – zatím nic), kroupy (`hailDay`), povodeň (`floodDay`),
+  v plánu): v pevném pořadí smršť (`tornadoDay`), kroupy (`hailDay`), povodeň (`floodDay`),
   požár (`fireDay`). Vrací zápisy kroniky; úmrtí (P6, P9) jdou i do štěstí jako u lovu
   (`happinessEvents`). Samostatný soubor kvůli cyklu importů: `disasters.ts` čte i strava
   (`winterEstimateLosses`), kdyby natahoval požár, kroupy a seno, rozbije se pořadí načtení modulů
   (`PROTEIN` v `livestock.ts`).
 - **Ochrana nové vsi** – `inDisasterProtection(foundedDay, day)` (`disaster-schedule.ts`, vyváží
   i `disasters.ts`): prvních 5 let (`LOCAL_DISASTERS.protectionYears`) žádná místní pohroma;
-  vynucená (`disasters.override.fire`, `.hail` – testy a dev) ochranu přebije.
+  vynucená (`disasters.override.fire`, `.hail`, `.tornado` – testy a dev) ochranu přebije.
 - **Rozpis roku** – `yearSchedule(seed, year)` (memo, nejvýš 4096 rozpisů): čistá funkce seedu
   vsi a roku – dvě vsi téže mapy mají jiný seed, tedy jiné kroupy. Zatím `hail: HailPlan | null`
-  (den, úhel pruhu, posun); P6 a P9 přidají své položky.
-- **Ztráty dílů** – `disasters.losses = { year, hail, flood }` (rok sklizně `harvestYearOf`,
+  (den, úhel pruhu, posun). Povodeň má vodu z počasí kraje (P6), smršť stopy přes mapu ze seedu
+  počasí (`yearTornadoes`, P9).
+- **Ztráty dílů** – `disasters.losses = { year, hail, flood, tornado }` (rok sklizně `harvestYearOf`,
   podíly hrubé úrody po dílech); `dayPartLosses` je sloučí s počasím a škodou zvěře: zůstane
-  počasí × (1 − zvěř) × (1 − kroupy) × (1 − povodeň). Bez počasí a bez potlučených dílů vrací `base` beze změny (zlaté
+  počasí × (1 − zvěř) × (1 − kroupy) × (1 − povodeň) × (1 − smršť). Bez počasí a bez potlučených dílů vrací `base` beze změny (zlaté
   otisky). Odhad (`estimate`) kroupy, které už padly, vidí.
 - **Testy** – `__tests__/disasters-protection.test.ts`: ves ve 3. roce bez krupobití, v 6. roce
   s ním; žádná místní pohroma prvních 5 let a po nich všechny druhy rámce (`KINDS` – kroupy,
-  povodeň na rovině u potoka, požár; P9 přidá smršť).
+  povodeň na rovině u potoka, požár); smršť a její ochranu testuje `tornado.test.ts`.
 
 ## Kroupy (P5)
 
@@ -328,6 +329,63 @@ z + ':' + na)`, nezávisí na pořadí průchodu): každá nově hořící stavb
 - **Testy** – `firefighting.test.ts`: bod vody hašení = bod vody obydlí (`waterWalkM`), tabulka účinnosti, plán na
   skutečné krajině, dospělí nepracují jen v den požáru, s hašením nezbude méně domů než bez,
   dopočet po kouscích, lovci a cesta pro kování nehasí, starý plán se maže, přebitá účinnost v plánu, milíř při hašení stojí (`charcoal.test.ts`).
+
+## Smršť (P9)
+
+Návrh: `docs/design/disasters.md` – Smršť (tornádo) (Martin 27. 10. 2026: „Přidej i tornádo. Máme
+ho doložené z Kosmovy kroniky. Jen dej pravděpodobnost obvyklou pro střední Evropu“, „Takhle
+vzácné tornádo je dobré“; rešerše §6). Jádro: `tornado.ts`, stopy v `disaster-schedule.ts`, čísla
+`TORNADO` v `rules-disasters.ts`.
+
+- **Stopy mapy** – `yearTornadoes(weatherSeed, year)` (memo jako `yearSchedule`): proud
+  `'tornado:' + year` ze **seedu počasí mapy** – všechny vsi mapy vidí tytéž stopy. Poissonův počet
+  ve čtverci mapy (`MAP_HALF_M` = 960 m, `tileCenterWorld`) rozšířeném o 30 km (0,5 na 10 000 km²
+  ročně → průměr 0,19), každá stopa: střed, měsíc (V 10 %, VI 25 %, VII 40 %, VIII 25 % – návrh
+  Clauda), den, síla F0–F4 (40 / 35 / 20 / 4,5 / 0,5 %), délka a šířka = průměr ESWD × (0,5–1,5),
+  směr 80 % od JZ k SV (kurz 45° ± 45° trojúhelníkově), jinak libovolný (návrh Clauda). Vrací
+  jen stopy, které protnou mapu (`tornadoTrackHitsSquare` – oddělující osy), podle dne. Úhel:
+  0 = k východu (+x), π/2 = k severu (+z); pás bodu `inTornadoTrack` (`detSin` / `detCos`).
+- **Četnost** (1 000 000 let): přes mapu 0,105 % let, přes pole vsi (1 × 1 km) 0,052 %, přes
+  jádro vsi (300 × 300 m) 0,018 %; ze zásahů jádra je polovina F2 a silnějších – jako rešerše.
+- **Den smrště** – `tornadoDay(state, day, landscape, obstacles)` (krok 1 `localDisastersDay`):
+  ves bez `weatherSeed` (zlaté otisky) a nová ves (5 let) nic; vynucená smršť
+  (`disasters.override.tornado[day] = { strength, angle, offsetM }` – stopa přes střed vsi
+  s průměrnou délkou a šířkou síly) ochranu přebije. Škody podle `tornadoStrengthRule`:
+  - **díly** se středem čtverce v pásu – nesklizená úroda −20 / 50 / 80 / 100 / 100 % do
+    `disasters.losses.tornado` (druhá smršť roku se sloučí), sklizeň přes `dayPartLosses`;
+    nesečené louky dnešní seče stejně (`damageUnmownMeadows`),
+  - **stromy** – dospělé stromy vrstvy překážek a lesa vsi v pásu do `TORNADO.reachM` (600 m) od
+    středu vsi; padne 10 / 30 / 70 / 100 / 100 % – los po stromu `deriveSeed(seed počasí,
+'tornado-trees:' + day)` + `'tree:' + id` (dvě vsi vidí tytéž vývraty). Vývrat se zapíše jako
+    kácení (`felledTrees` – pařez, pak nálet) a kmen jde na hromadu klád (`logsFromClearedTrees`);
+    mladé stromky a keře se ohnou, dál od vsi kmeny shnijí,
+  - **sad** – vyvrácený čtverec (středem v pásu, týž podíl) ves obnoví jako starý
+    (`uprootOrchardSquares` v `orchard.ts`: `plantedDay` null, výsadba bez překážek; převezme ho
+    rozestavěná obnova nebo výsadba, jinak nová obnova bez kvóty); **jabloně u cest** vesničané
+    hned zasadí znovu (`plantedDay` = den smrště – návrh Clauda),
+  - **úmrtí** jen F3 1 % a F4 3 % na obyvatele zasaženého obydlí – `disasterDeaths`
+    (`disaster-deaths.ts`, sdílí ho povodeň; proud `'tornado-death:' + day`), `cause: 'tornado'`;
+    losují se před poškozením staveb,
+  - **seno** – stohy stojí u obydlí (jako u požáru): ubude seno × zasažená ÷ všechna obydlí × ½ (F0)
+    nebo × 1,
+  - **stavby** se středem v pásu – stav −0,15 / 0,4 / zřítí se, zemnice −0,05 / 0,15 / 0,4 / zřítí
+    se; na nule `collapseDwellings` (zbytek jámy, obyvatelé k příbuzným, poslední obydlí zůstane).
+- **Kronika** – `tornado` (`strength`, `partIds`, `dwellingIds`, `collapsedDwellingIds`,
+  `uprootedTrees`, `orchardSquares`, `roadApples`, `meadowShare`, `lostHayKg`) jen když vsi něco
+  poničila; text „Silná smršť – zbořené stavby: 3, vyvrácené stromy: 140…“ (od F2 „Silná“) a „…
+  zahynul ve smršti“ v `village-view-chronicle.ts`. Poslední taková smršť v `disasters.tornado`
+  (den, síla, stopa – pro scénu); `tornadoDay` ji smaže v dalším roce.
+- **Testy** – `__tests__/tornado.test.ts`: četnost přes mapu (200 000 let, ±15 %) a přes jádro vsi
+  (1 000 000 let), pás stopy, dvě vsi téže mapy – tatáž stopa, ochrana 5 let a vynucená smršť,
+  ves bez počasí beze změny, F0 jen střechy a −20 % úrody, F2 zřícení a zemnice −40 % a seno, F3
+  úmrtí ≈ 1 % (F2 nikdo), vývraty → pařezy a klády (F1 ≈ 30 %), sad do obnovy a jabloně znovu,
+  dopočet po kouscích přes den smrště a smazání záznamu v dalším roce.
+- **Vlkov** (stav z DB 30. 11. 822, seed počasí ručně, vynucená smršť 15. 7. 823 od JZ k SV
+  středem vsi; 10 obydlí, 885 osetých dílů): F0 – 6 staveb −15 % (zemnice −5 %), 11 vývratů,
+  9 dílů −20 %, seno −30 %; F1 – 9 staveb −40 %, 53 vývratů, 6 jabloní; F2 – zřítí se 8 z 9
+  zasažených, 264 vývratů, 56 dílů −80 %; F3 – zřítí se vše kromě dvorce (poslední obydlí), 1589
+  vývratů na hromadě klád, 236 dílů bez úrody (sklizeň −19 %), 1 mrtvý ze 46; F4 obdobně (1803
+  vývratů).
 
 ## Scéna – počasí roku v barvách a světle (P11, první polovina)
 

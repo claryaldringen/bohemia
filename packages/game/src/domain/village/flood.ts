@@ -6,15 +6,12 @@
 
 import { dateOfDayIndex, dayIndexOf } from '../calendar';
 import type { Landscape } from '../landscape';
-import { createRandom, deriveSeed } from '../landscape/random';
-import { bury } from './cemetery';
+import { disasterDeaths } from './disaster-deaths';
 import { inDisasterProtection } from './disaster-schedule';
 import { collapseDwellings } from './fire';
 import { soakGrainPits } from './grain-pits';
 import { damageUnmownMeadows } from './hay';
-import { removePeople } from './kinship';
 import { heightAboveStreamAt, streamHeights, tileIndex } from './part-protection';
-import { ageGroup, ageYears, occupants } from './people';
 import { FLOOD, type FloodBandRule } from './rules-disasters';
 import { squareCenter } from './square-grid';
 import { villageLandSquares } from './squares';
@@ -99,7 +96,17 @@ export function floodDay(
   }
   const events: ChronicleEvent[] = [];
   if (flood.heightM >= FLOOD.deathMinWaterM - EPSILON) {
-    events.push(...floodDeaths(state, day, [...dwellingDepth.keys()]));
+    // Martin 27. 10. 2026: „A ať zabíjí tak jak navrhuješ“ – 2 % na obyvatele zatopeného obydlí
+    events.push(
+      ...disasterDeaths(
+        state,
+        day,
+        [...dwellingDepth.keys()],
+        FLOOD.deathChance,
+        'flood-death:',
+        'flood',
+      ),
+    );
   }
   const { dwellingIds, collapsedIds } = floodDwellings(state, day, dwellingDepth);
   if (partDepth.size === 0 && dwellingIds.length === 0 && meadowShare <= 0 && lostGrain <= 0) {
@@ -150,40 +157,6 @@ function floodCrops(
     }
   }
   if (hit.size > 0) (state.disasters ??= {}).losses = { ...current, year, flood: losses };
-}
-
-/**
- * Úmrtí ve vodě od pětisetleté (Martin 27. 10. 2026: „A ať zabíjí tak jak navrhuješ“): každý
- * obyvatel zatopeného obydlí zemře s šancí 2 % – vlastní proud `'flood-death:' + day`, jeden los
- * na obyvatele v pořadí obydlí a lidí podle id. Mrtvé pohřbí hřbitov, nástupnictví řeší
- * `dynastyDay` týž den.
- */
-function floodDeaths(
-  state: VillageState,
-  day: number,
-  dwellingIds: readonly number[],
-): ChronicleEvent[] {
-  const random = createRandom(deriveSeed(state.seed, 'flood-death:' + day));
-  const events: ChronicleEvent[] = [];
-  const dead = new Set<number>();
-  for (const id of [...dwellingIds].sort((a, b) => a - b)) {
-    for (const p of occupants(state, id)) {
-      if (random.next() >= FLOOD.deathChance) continue;
-      dead.add(p.id);
-      events.push({
-        day,
-        kind: 'death',
-        group: ageGroup(p, day),
-        age: ageYears(p.bornDay, day),
-        cause: 'flood',
-        ...(p.name === undefined ? {} : { name: p.name }),
-      });
-      const full = bury(state, day, p);
-      if (full) events.push(full);
-    }
-  }
-  if (dead.size > 0) removePeople(state, dead);
-  return events;
 }
 
 /**

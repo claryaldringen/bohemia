@@ -517,6 +517,58 @@ export function squareDueForRenewal(square: OrchardSquare, day: number): boolean
 }
 
 /**
+ * Vyvrácené čtverce sadu (disasters.md – Smršť): ves je obnoví jako staré (orchard.md – Obnova
+ * sadu) – stromy leží, čtverec se sází znovu bez překážek (`plantedDay` null). Rozestavěná obnova
+ * sadu je převezme, rozestavěná výsadba také; jinak vznikne nová obnova (bez kvóty – vyvrácené
+ * stromy nečekají). Nevysazené čtverce nic. Mutuje stav, vrátí počet vyvrácených čtverců.
+ */
+export function uprootOrchardSquares(
+  state: VillageState,
+  day: number,
+  orchard: Orchard,
+  squares: readonly OrchardSquare[],
+): number {
+  const c = state.constructions.find((x) => x.kind === 'orchard' && x.orchardId === orchard.id);
+  const fresh: OrchardSquare[] = [];
+  let count = 0;
+  for (const square of squares) {
+    if (square.plantedDay === null) continue;
+    const before = square.plantingCost;
+    square.plantedDay = null;
+    square.plantingCost = renewalPlantingCost(square);
+    square.plantingDone = 0;
+    count++;
+    // čtverec už zařazený do obnovy má výsadbu v její ceně
+    if (square.renewal !== undefined) continue;
+    if (c && !c.renewal) c.cost += square.plantingCost - before;
+    else fresh.push(square);
+  }
+  if (fresh.length === 0) return count;
+  const cost = fresh.reduce((sum, s) => sum + s.plantingCost, 0);
+  if (c?.renewal) {
+    for (const square of fresh) square.renewal = c.id;
+    c.cost += cost;
+    return count;
+  }
+  const id = state.nextId++;
+  for (const square of fresh) square.renewal = id;
+  state.constructions.push({
+    id,
+    kind: 'orchard',
+    startedDay: day,
+    cost,
+    done: 0,
+    dwellingType: null,
+    position: null,
+    dwellingId: null,
+    fieldId: null,
+    orchardId: orchard.id,
+    renewal: true,
+  });
+  return count;
+}
+
+/**
  * Vesničané sami obnovují staré sady (mutuje stav, na začátku dne – orchard.md – Obnova sadu):
  * v oknech výsadby zařadí do obnovy čtverce od 50. roku sadu, nejstarší první (při shodě
  * v pořadí čtverců), nejvýš `renewalQuota` – jednou za rok sadu a jen když sad nemá

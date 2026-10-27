@@ -98,6 +98,23 @@ function floodText(event: Extract<ChronicleEvent, { kind: 'flood' }>): string {
   return `${FLOOD_LEVEL_NAMES[event.level]} – ${height}${what.length > 0 ? ` – ${what.join(', ')}` : ''}.`;
 }
 
+/**
+ * Smršť v kronice (disasters.md – Smršť; hráči se říká „Smršť“, síla jen slovem – od F2 „Silná
+ * smršť“): co zbořila, poničila, vyvrátila a položila.
+ */
+function tornadoText(event: Extract<ChronicleEvent, { kind: 'tornado' }>): string {
+  const name = ['F0', 'F1'].includes(event.strength) ? 'Smršť' : 'Silná smršť';
+  const fell = event.collapsedDwellingIds.length;
+  const hurt = event.dwellingIds.length - fell;
+  const what = [
+    ...(fell > 0 ? [`zbořené stavby: ${fell}`] : []),
+    ...(hurt > 0 ? [`poničené stavby: ${hurt}`] : []),
+    ...(event.uprootedTrees > 0 ? [`vyvrácené stromy: ${event.uprootedTrees}`] : []),
+    ...(event.partIds.length > 0 ? [`polehlé díly: ${event.partIds.length}`] : []),
+  ];
+  return `${name}${what.length > 0 ? ` – ${what.join(', ')}` : ''}.`;
+}
+
 /** Dostavěná řemeslná dílna – kronika (crafts.md). */
 const WORKSHOP_FINISHED: Record<Craft, string> = {
   potter: 'Dostavěli hrnčířskou dílnu s pecí.',
@@ -323,6 +340,9 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       if (event.cause === 'flood') {
         return `${event.name === undefined ? DROWNED[event.group] : `${event.name} utonul`} při povodni.`;
       }
+      if (event.cause === 'tornado') {
+        return `${event.name ?? 'Jeden z vesničanů'} zahynul ve smršti.`;
+      }
       return deathText(event.group, event.cause === 'hunger');
     case 'hunt-injury': {
       const prey = event.prey === 'bear' ? 'medvěda' : 'divočáka';
@@ -535,6 +555,8 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
     }
     case 'flood':
       return floodText(event);
+    case 'tornado':
+      return tornadoText(event);
     case 'hail':
       return event.partIds.length > 0
         ? `Kroupy potloukly pole – zasažené díly: ${event.partIds.length}.`

@@ -7,7 +7,7 @@ import type { AbandonedStructure, Crop, TileCell } from './types-land';
 import type { HerdSpecies } from './types-livestock';
 import type { DwellingType } from './types-people';
 import type { HuntKills } from './types-wildlife';
-import type { FloodLevel, SummerWeather, WinterWeather } from './types-disasters';
+import type { FloodLevel, SummerWeather, TornadoStrength, WinterWeather } from './types-disasters';
 import type { CartJob, CartKind } from './types-roads';
 import type { Direction8 } from './types-state';
 import type {
@@ -66,7 +66,7 @@ export type ChronicleEvent = { day: number } & (
       kind: 'death';
       group: 'child' | 'adult' | 'elder';
       age?: number;
-      cause?: 'hunger' | 'hunt' | 'flood';
+      cause?: 'hunger' | 'hunt' | 'flood' | 'tornado';
       /** Zvěř, na jejímž lovu muž zahynul (`cause: 'hunt'`). */
       prey?: 'boar' | 'bear';
       name?: string;
@@ -374,6 +374,25 @@ export type ChronicleEvent = { day: number } & (
       collapsedDwellingIds: number[];
       meadowShare?: number;
       lostGrainKg?: number;
+    }
+  /**
+   * Smršť (disasters.md – Smršť (tornádo)) síly `strength`: pás poničil stavby `dwellingIds`,
+   * z nich `collapsedDwellingIds` se zřítily, polehlé nesklizené díly `partIds`; `uprootedTrees`
+   * = vyvrácené stromy v okolí vsi (kmeny na hromadě klád), `orchardSquares` = vyvrácené čtverce
+   * sadů, `roadApples` = vyvrácené jabloně u cest, `meadowShare` = podíl sena nesečené louky,
+   * který ubyl, `lostHayKg` = rozmetané seno stohů. Úmrtí jsou zvlášť (`death`, `cause: 'tornado'`).
+   */
+  | {
+      kind: 'tornado';
+      strength: TornadoStrength;
+      partIds: number[];
+      dwellingIds: number[];
+      collapsedDwellingIds: number[];
+      uprootedTrees: number;
+      orchardSquares?: number;
+      roadApples?: number;
+      meadowShare?: number;
+      lostHayKg?: number;
     }
   | {
       kind: 'cemetery-full';

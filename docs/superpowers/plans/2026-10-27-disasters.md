@@ -475,15 +475,15 @@ má škody podle síly.
 `road-apples.ts` (obnova), `ruins.ts`, `hay.ts` (stohy), `hunt.ts` vzor smrti, `types-chronicle.ts`
 (`tornado`).
 
-- [ ] `yearTornadoes(weatherSeed, year)` – Poissonův počet ve čtverci mapy rozšířeném o 30 km,
+- [x] `yearTornadoes(weatherSeed, year)` – Poissonův počet ve čtverci mapy rozšířeném o 30 km,
       střed, směr, síla, délka, šířka, den (V–VIII, nejvíc VII); jen stopy, které protnou mapu;
       memo. Souřadnice mapy (`tileCenterWorld`).
-- [ ] V den smrště: stavby, díly, stromy (vrstva překážek + sad + jabloně) a stohy v pásu podle
+- [x] V den smrště: stavby, díly, stromy (vrstva překážek + sad + jabloně) a stohy v pásu podle
       tabulky síly; úmrtí `'tornado-death:' + day`.
-- [ ] Testy: četnost přes mapu ≈ 0,10 % ročně (Monte Carlo 200 000 let ±15 %), přes jádro vsi
+- [x] Testy: četnost přes mapu ≈ 0,10 % ročně (Monte Carlo 200 000 let ±15 %), přes jádro vsi
       ≈ 0,017 %; **dvě vsi téže mapy vidí stejnou stopu**; F0 jen střechy, F2 zřícení, F3 úmrtí;
       vývraty zmizí z překážek a dají klády; ochrana 5 let; vynucená smršť (`override`) po kouscích.
-- [ ] Commit `feat(game): smršť se stopou přes mapu`.
+- [x] Commit `feat(game): smršť se stopou přes mapu`.
 
 ## Úloha P10 – Rozhraní (≈ 130 kroků)
 

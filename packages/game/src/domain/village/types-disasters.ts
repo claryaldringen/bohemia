@@ -119,15 +119,49 @@ export interface HailRecord {
   apples?: number;
 }
 
+/** Síla smrště (disasters.md – Smršť (tornádo)); hráči se říká jen „Smršť“, síla v popisku. */
+export type TornadoStrength = 'F0' | 'F1' | 'F2' | 'F3' | 'F4';
+
+/**
+ * Stopa smrště v souřadnicích mapy (m): střed, směr postupu (úhel v radiánech, 0 = k východu +x,
+ * π/2 = k severu +z), délka a šířka pásu.
+ */
+export interface TornadoTrack {
+  x: number;
+  z: number;
+  angle: number;
+  lengthM: number;
+  widthM: number;
+}
+
+/**
+ * Smršť roku mapy (`yearTornadoes` – ze seedu počasí mapy, všechny vsi mapy vidí tutéž): den, síla
+ * a stopa. Zápis poslední smrště vsi pro scénu (`disasters.tornado`) má týž tvar.
+ */
+export interface TornadoPlan {
+  day: number;
+  strength: TornadoStrength;
+  track: TornadoTrack;
+}
+
+/** Vynucená smršť (jen testy a dev): síla, směr a posun osy stopy od středu vsi (m, kolmo ke směru). */
+export interface TornadoOverride {
+  strength: TornadoStrength;
+  angle: number;
+  offsetM: number;
+}
+
 /**
  * Podíly ztráty hrubé úrody po dílech za rok sklizně (`harvestYearOf`) – sloučí se se škodou zvěře
- * a počasím v `dayPartLosses`. Smršť přidá P9.
+ * a počasím v `dayPartLosses`.
  */
 export interface PartDisasterLosses {
   year: number;
   hail?: Record<string, number>;
   /** Povodeň (disasters.md – Povodeň potoka) – nesklizená úroda a ozim zatopených dílů. */
   flood?: Record<string, number>;
+  /** Smršť (disasters.md – Smršť) – polehlá nesklizená úroda dílů v pásu. */
+  tornado?: Record<string, number>;
 }
 /** Poslední povodeň, která vsi něco zatopila (pro scénu): den, stupeň a výška vody nad potokem. */
 export interface FloodRecord {
@@ -146,6 +180,11 @@ export interface DisasterState {
   hail?: HailRecord;
   /** Poslední povodeň, která vsi něco zatopila (jen ves s krajinou). */
   flood?: FloodRecord;
+  /**
+   * Poslední smršť, která vsi něco poničila (pro scénu) – platí do konce svého roku, pak ji
+   * `tornadoDay` smaže.
+   */
+  tornado?: TornadoPlan;
   /** Ztráty dílů z místních pohrom za rok sklizně. */
   losses?: PartDisasterLosses;
   /**
@@ -160,5 +199,7 @@ export interface DisasterState {
     fire?: Record<number, number>;
     /** Vynucené krupobití: herní den → směr a posun pruhu (přebije los i ochranu nové vsi). */
     hail?: Record<number, Omit<HailPlan, 'day'>>;
+    /** Vynucená smršť: herní den → síla a stopa přes střed vsi (přebije los i ochranu nové vsi). */
+    tornado?: Record<number, TornadoOverride>;
   };
 }
