@@ -1,5 +1,6 @@
 // Pomocné kroky simulace dne – hospodářský rok a nutné díly, kapacita setí a společné pomocné funkce.
 import { dateOfDayIndex, type CalendarDate } from '../calendar';
+import { springSowingExtended } from './weather-effects';
 import type { Landscape } from '../landscape';
 import { nextPloughPairs } from './draft';
 import { craftHouseholds, workshopLabor } from './crafts';
@@ -141,8 +142,12 @@ export function startSeason(
 const SEASON_CROPS: readonly Crop[] = ['winter', 'legume', 'flax', 'spring'];
 
 /** Dnes je první den po posledním dni setí plodiny. */
-function sowingJustEnded(crop: Crop, day: number): boolean {
-  return windowOpen(crop, 'sow', day - 1) && !windowOpen(crop, 'sow', day);
+function sowingJustEnded(state: VillageState, crop: Crop, day: number): boolean {
+  // dlouhá zima: jařiny se dosévají do 14. 5. (`springSowingExtended`) – konec okna je o 2 týdny
+  // později (disasters.md – Zima, návrh Clauda)
+  const open = (d: number): boolean =>
+    windowOpen(crop, 'sow', d) || springSowingExtended(state, d, crop);
+  return open(day - 1) && !open(day);
 }
 
 /** Díly plodiny, na kterých setí nezačalo (úloha setí nedošla na začátek jejich úseku). */
@@ -203,7 +208,7 @@ function sowingWindowsEnd(
 ): void {
   for (const surplus of [false, true]) {
     const winter = surplus ? surplusCrop(season, 'winter') : seasonCrop(season, 'winter');
-    if (!winter || !sowingJustEnded('winter', day)) continue;
+    if (!winter || !sowingJustEnded(state, 'winter', day)) continue;
     const ids = unsownPartIds(state, winter, day);
     if (ids.length === 0) continue;
     moveParts(
@@ -226,7 +231,7 @@ function sowingWindowsEnd(
     [surplusCrop(season, 'spring'), true],
   ];
   for (const [work, surplus] of ended) {
-    if (!work || !sowingJustEnded(work.crop, day)) continue;
+    if (!work || !sowingJustEnded(state, work.crop, day)) continue;
     for (const id of unsownPartIds(state, work, day)) releasePart(state, season, id, day);
     if ((surplus || work.crop !== 'spring') && work.partIds.length === 0) {
       dropSeasonCrop(season, work.crop, surplus);

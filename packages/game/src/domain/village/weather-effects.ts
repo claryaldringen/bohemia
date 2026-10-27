@@ -199,8 +199,30 @@ export function threshWorkFactor(state: WeatherState, day: number): number {
 export function isLongWinter(state: WeatherState, day: number): boolean {
   if (!hasWeather(state)) return false;
   const date = dateOfDayIndex(day);
-  const year = date.month === 12 ? date.year + 1 : date.year;
+  const year = date.month >= 11 ? date.year + 1 : date.year;
   return weatherOf(state, year).winter === 'long';
+}
+
+/**
+ * Je dlouhá zima už vidět (disasters.md – „Kdy je vidět“; od 1. 3.)? Pro rozhodnutí vsi (porážka,
+ * výcvik) – listopad a prosinec patří k příští zimě, ta vidět není.
+ */
+export function isLongWinterRevealed(state: WeatherState, day: number): boolean {
+  if (!hasWeather(state)) return false;
+  const date = dateOfDayIndex(day);
+  if (date.month >= 11) return false;
+  return revealedWeather(state, day).winter === 'long';
+}
+
+/**
+ * Dohra setí jařin 1.–14. 5. v odhalené dlouhé zimě (disasters.md – Zima; návrh Clauda): díly,
+ * které už jsou v práci plodiny, se dosejí i po 30. 4. Ozim ne; ves bez počasí nikdy.
+ */
+export function springSowingExtended(state: WeatherState, day: number, crop: Crop): boolean {
+  if (crop === 'winter') return false;
+  const date = dateOfDayIndex(day);
+  if (date.month !== 5 || date.day > WEATHER_EFFECTS.longWinterSpringSowExtraDays) return false;
+  return isLongWinterRevealed(state, day);
 }
 
 const before = (date: MonthDay, md: MonthDay): boolean =>

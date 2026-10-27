@@ -29,6 +29,7 @@ import type {
 import type { Walk } from './paths/walking';
 import { claimedObstacles, planWoodFrom, takeWood, woodLogs, type WoodPlan } from './wood';
 import { seasonCrops, ploughToHoe } from './year-plan';
+import { isLongWinterRevealed } from './weather-effects';
 
 // Ohrada volů a orba rádlem (oxen.md, schváleno 18. 10. 2026; voli po kusech – Martin 20. 10. 2026:
 // „Ať to funguje jako se stády - ohrada pro voly udrží určitý počet spřežení a když bude vesnice
@@ -559,7 +560,7 @@ export function oxenTraining(
   const calves = Math.max(spare, urgent);
   if (calves <= 0) return 'Na výcvik chybí telata – krávy nemají přírůstek nad chovné stádo.';
   let n = Math.min(missing, room, calves);
-  const winterDays = hayWinterDaysLeft(day);
+  const winterDays = hayWinterDaysLeft(day, isLongWinterRevealed(state, day));
   if (winterDays > 0) {
     const fed = Math.floor(villageHayKg(state) / (HAY.dailyKg.ox * winterDays) + EPSILON);
     n = Math.min(n, fed - villageOxen(state));

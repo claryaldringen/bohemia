@@ -105,6 +105,11 @@ export const WEATHER_EFFECTS = {
    */
   longWinterSpringSowFrom: { month: 3, day: 22 } satisfies MonthDay,
   /**
+   * Dlouhá zima: setí jařin se dohrává i 1.–14. 5. (disasters.md – Zima, návrh Clauda: konec okna
+   * o 2 týdny později) – jen pro díly, které už jsou v práci; nové díly se po 30. 4. nepřidávají.
+   */
+  longWinterSpringSowExtraDays: 14,
+  /**
    * Paměť hladu: po krutém roce drží ves tolik let pojistku `famineBufferEnergyYears` roční
    * potřeby celé energie místo 0,5 (disasters.md – Dopady, Zásoby a pojistka).
    */
