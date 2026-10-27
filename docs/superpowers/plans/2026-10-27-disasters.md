@@ -311,6 +311,11 @@ u vody 60 m nebo do 1,5 m nad potokem +0,2, vyvýšené > 6 m nad potokem a nad 
       Vlkov – čas výpočtu (< 30 ms) a rozdělení ochrany do `docs/code/village-disasters.md`.
 - [ ] Commit `feat(game): ochrana dílu před počasím ze zeleně a vlhkosti`.
 
+**Provedení P2 (27. 10. 2026, návrh Clauda):** maska lesa se nevytahovala do samostatné funkce –
+`forestEdgeDistances` se rozdělila na `greenEdgeScan(landscape, state, seedTiles)` (les + sady jako
+semínka) a starou funkci. Remízy a solitéry se hledají přímo z bodů překážek (ne z rastru 5 m),
+přesnost lepší a levnější. Detaily: [village-disasters.md](../../code/village-disasters.md).
+
 ## Úloha P3 – Sucho, deštivé léto, krutá zima (≈ 140 kroků)
 
 **Cíl:** Počasí roku mění úrodu, seno, pastvu, krmení a osev; ves seje s průměrem let, seče

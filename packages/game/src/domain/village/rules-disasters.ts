@@ -90,7 +90,8 @@ export interface FloodLevelRule {
 /**
  * Povodeň potoka – voda kraje (disasters.md – Povodeň potoka; Martin 27. 10. 2026: „Ano a ano“ –
  * výška společná pro celý kraj). Stupně vzestupně; po dlouhé zimě a v deštivém létě o stupeň
- * výš (obojí naráz jen o jeden), tisíciletá zůstává.
+ * výš (obojí naráz jen o jeden), tisíciletá zůstává. Kvůli posunu o stupeň vychází stoletá
+ * a vyšší voda efektivně ≈ 3 % let, ne 1,8 % z tabulky.
  */
 export const FLOOD_WATER = {
   levels: [
@@ -108,6 +109,43 @@ export const FLOOD_WATER = {
   summerWindow: { from: { month: 6, day: 15 }, to: { month: 8, day: 15 } },
   /** Bez dlouhé zimy i deštivého léta (nebo s obojím) je voda jarní s touto šancí (půl na půl). */
   springShare: 0.5,
+} as const;
+
+/**
+ * Ochrana dílu ze zeleně a vlhkosti (disasters.md – Ochrana dílu; Martin 27. 10. 2026: „Takhle to
+ * sedí, zahrň i vlhkost půdy“). Počítá se 1. 4., jednou za rok.
+ */
+export const PROTECTION = {
+  /** Kdy se ochrana dílů přepočítá. */
+  day: { month: 4, day: 1 } satisfies MonthDay,
+  /** Zeleň v dosahu do tolika metrů dává plnou ochranu, v `noGreenM` nulu, mezi nimi lineárně. */
+  fullGreenM: 30,
+  noGreenM: 150,
+  /** Solitér (strom bez dalšího stromu do `soloLinkM`, jabloň u cesty) do `soloM` +`soloBonus`. */
+  soloM: 50,
+  soloBonus: 0.25,
+  soloLinkM: 15,
+  /** Remíz – strom nebo keř aspoň se dvěma dalšími do `remizLinkM` (tedy skupina od 3) je zeleň. */
+  remizMinNeighbours: 2,
+  remizLinkM: 15,
+  /** U vody: voda do `nearWaterM` nebo díl v nivě (do `lowlandM` nad potokem), sucho +`waterBonus`. */
+  nearWaterM: 60,
+  lowlandM: 1.5,
+  waterBonus: 0.2,
+  /** Vyvýšený: víc než `raisedM` nad potokem a nad průměrem políček do `raisedRadiusM`, −`raisedPenalty`. */
+  raisedM: 6,
+  raisedRadiusM: 45,
+  raisedPenalty: 0.2,
+  /** Svah: převýšení k sousednímu políčku aspoň `slopeM` (10 %, návrh Clauda). */
+  slopeM: 1.5,
+  /** Deštivé léto: niva −`wetShift`, svah +`wetShift` (zeleň se nepočítá). */
+  wetShift: 0.2,
+  /** Kroupy: zeleň se počítá jen z `hailGreenShare` (rozptýlená pole proti kroupám). */
+  hailGreenShare: 0.4,
+  /** Ochrana snižuje ztrátu nejvýš o polovinu: ztráta × (1 − `lossShare` × ochrana). */
+  lossShare: 0.5,
+  /** Bez krajiny (kalibrace, testy) i pro díl bez údaje: typická ves. */
+  noLandscapeGreen: 0.25,
 } as const;
 
 /** Místní pohromy (disasters.md – Kraj a ochrana nové vsi; Martin 27. 10. 2026: „Pětiletou ochranu“). */

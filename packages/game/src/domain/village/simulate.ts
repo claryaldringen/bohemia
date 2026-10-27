@@ -60,6 +60,7 @@ import { huntDay, planHuntDay } from './hunt';
 import { dogsYear } from './manor-dogs';
 import { wildlifeYearDay, withWildlife } from './wildlife';
 import { weatherDay } from './weather';
+import { partProtectionDay } from './part-protection';
 import { damageWindowStart, wildlifeDamageDay, wildlifeSeasonEnd } from './wildlife-damage';
 import { lordFieldMode, trainLordDay, updateLordTraining } from './lord';
 import { dynastyDay } from './succession';
@@ -179,6 +180,8 @@ function simulateDay(
   // počasí kraje: v den, kdy se ukáže zlá zima nebo neobvyklé léto, zápis do kroniky
   // (disasters.md – Léto, Zima, „Kdy je vidět“)
   state.chronicle.push(...weatherDay(state, day));
+  // 1. 4.: ochrana dílů před počasím ze zeleně a vlhkosti (disasters.md – Ochrana dílu)
+  partProtectionDay(state, day, landscape, obstacles);
   // psi dvorce 1. 5.: úbytek a štěňata (wildlife.md – Psi)
   dogsYear(state, day);
   // velký lov rodu: kdo dnes loví – pěší lovci jsou mimo práci vsi (wildlife.md – Lov rodu)

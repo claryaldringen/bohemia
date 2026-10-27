@@ -51,3 +51,32 @@ winter, flood }`. Los z vlastních proudů `deriveSeed(weatherSeed, 'summer:' | 
 - **Testy** – `weather.test.ts` (10⁵ let: četnosti ±1 %, shlukování ×1,25 ±0,05, vsi téže mapy,
   odhalení, povodeň, dopočet po kouscích, ochrana), `update-village-weather.test.ts` (seed při
   načtení a založení), `village-repository.db.test.ts` (`weatherSeedOf`).
+
+## Ochrana dílu (P2)
+
+- **Kdy** – `partProtectionDay(state, day, landscape, obstacles)` (`part-protection.ts`) v `simulateDay`
+  hned za `weatherDay`: jen **1. 4.** a jen ves se `weatherSeed`, zapíše `disasters.protection`
+  (`{ year, parts: { [partId]: PartProtection } }`). Bez krajiny má každý díl `green` 0,25. Jednou
+  za rok, ne denně; výsledek je čistá funkce stavu v ten den, takže vcelku = po kouscích.
+- **Složky dílu** (`PartProtection`, typy v `types-disasters.ts`): `green` 0–1 (zeleň + solitéry),
+  příznaky `nearWater` (voda do 60 m nebo niva), `lowland` (≤ 1,5 m nad potokem), `raised`
+  (> 6 m nad potokem a nad průměrem políček do 45 m), `slope` (soused o ≥ 1,5 m jinak vysoko).
+- **Zeleň** – `computePartProtections`: vzdálenost středu dílu k nejbližší zeleni _d_, zeleň =
+  (150 − _d_) ÷ 120 oříznuto na 0–1. Les a sady: chamfer distanční transformace
+  `greenEdgeScan` (`wildlife-land.ts`; sdílí ji `forestEdgeDistances` zvěře, sady jsou navíc
+  semínka masky). Remízy a solitéry: stojící stromy a keře z vrstvy překážek
+  (`obstaclesNear` + `obstacleStatus(obstacleChangesAt(state, day))`, bez pařezů, souší
+  a padlých, s jabloněmi a stromy u cest, bez stromů v masce lesa). Remíz = strom či keř s ≥ 2
+  dalšími do 15 m; solitér = dospělý strom bez stromu do 15 m a každá jabloň u cesty, každý
+  do 50 m +0,25; zeleň dílu nejvýš 1. Hledání v mřížce po 30 m (`PointGrid`).
+- **Vlhkost** – `streamHeights(landscape)` = `heightAboveStream` z masky vodních políček, paměť
+  `WeakMap<Landscape, …>`; mapa bez vody nemá nivu ani vyvýšené díly (nekonečno).
+- **Složení pro P3 a P5** – `protectionAgainst(part, kind)` (čistá funkce) a
+  `partProtectionOf(state, partId, kind)`: `dry` = zeleň + u vody 0,2 − vyvýšené 0,2 (0–1),
+  `frost` = zeleň − vyvýšené 0,2 (0–1), `wet` = svah +0,2 − niva 0,2 (−0,2 až +0,2, zeleň ne),
+  `hail` = zeleň × 0,4. Ztráta se pak násobí `1 − PROTECTION.lossShare × ochrana`. Díl bez údaje
+  (založený po 1. 4., ves bez krajiny) má zeleň 0,25.
+- **Čísla** – `PROTECTION` v `rules-disasters.ts`.
+- **Výkon** – 150 dílů ≈ 10 ms v klidu (test hlídá 100 ms kvůli zátěži); Vlkov (≈ 3 800 dílů) ≈ 60 ms jednou ročně.
+- **Testy** – `part-protection.test.ts` (vzdálenost k lesu a sadu, solitéry, remíz, pokácený remíz,
+  voda, vyvýšené, niva a svah, kroupy, jen 1. 4., vcelku = po kouscích, výkon).

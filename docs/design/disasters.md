@@ -232,7 +232,8 @@ dvousetleté … pětisetleté … tisícileté vody. Naplavenina by měla hnoji
 
 - **Po dlouhé sněžné zimě** (jarní voda) **a v deštivém létě nebo při mokrých žních** (letní voda)
   je voda **o stupeň výš** (žádná → malá, …, tisíciletá zůstává). Obojí naráz jen o jeden stupeň
-  (návrh Clauda).
+  (návrh Clauda). Kvůli tomu posunu vychází **stoletá a vyšší voda efektivně ≈ 3 % let**, ne
+  1,8 % z tabulky (tabulka platí pro roky bez posunu).
 - **Kdy** (návrh Clauda): **jarní** (tání, 1.–20. 3.) nebo **letní** (bouřky, 15. 6. – 15. 8.);
   po dlouhé zimě jarní, v deštivém létě letní, jinak ze seedu počasí mapy půl na půl. Voda stojí
   3 dny.
