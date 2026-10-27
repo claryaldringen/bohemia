@@ -46,6 +46,11 @@ export interface WildGroup {
   presence: number;
   /** Rychlost útěku (m/s). */
   fleeSpeed: number;
+  /**
+   * Vzácní: jednotkový směr od trasy do lesa – odtud skupina na začátku úseku vyjde a tam na
+   * konci odejde (`presenceWalk`). Stálá zvěř bez údaje.
+   */
+  retreat?: { x: number; z: number };
 }
 
 /** Co z vsi rozhoduje o zvěři – stavby, pole a zvěř z jádra. */
@@ -308,6 +313,50 @@ function ringFree(
 }
 
 /** Skupiny zvěře vsi a volná zem, kam smí zvěř utéct (wildlife-motion.ts – útěk). */
+/** Kolik směrů po kruhu se zkouší, kudy vzácní odcházejí do lesa, a jak daleko (m). */
+const RETREAT_DIRECTIONS = 16;
+const RETREAT_PROBE_M = 40;
+/** Cesta do lesa musí být schůdná v těchto podílech sondy (rastr terénu končí 20 m za stanovišti). */
+const RETREAT_PATH = [0.25, 0.5] as const;
+
+/**
+ * Směr od stanoviště do lesa – vzácní (vlci, medvěd, liška) z něj na začátku úseku vyjdou a na
+ * konci do něj odejdou: ze směrů po kruhu ten, kde je les RETREAT_PROBE_M daleko nejhlubší
+ * a cesta k němu schůdná; bez lesa (nebo terénu bez hloubky lesa) pryč od středu vsi.
+ */
+function retreatFrom(
+  start: { x: number; z: number },
+  ground: LivestockGround,
+  cx: number,
+  cz: number,
+): { x: number; z: number } {
+  let best: { x: number; z: number } | null = null;
+  let bestDepth = 0;
+  if (ground.forestDepth) {
+    for (let k = 0; k < RETREAT_DIRECTIONS; k++) {
+      const angle = (2 * Math.PI * k) / RETREAT_DIRECTIONS;
+      const x = Math.cos(angle);
+      const z = Math.sin(angle);
+      const depth = ground.forestDepth(
+        start.x + x * RETREAT_PROBE_M,
+        start.z + z * RETREAT_PROBE_M,
+      );
+      const path = RETREAT_PATH.every((f) =>
+        ground.walkable(start.x + x * RETREAT_PROBE_M * f, start.z + z * RETREAT_PROBE_M * f),
+      );
+      if (path && depth > bestDepth) {
+        best = { x, z };
+        bestDepth = depth;
+      }
+    }
+  }
+  if (best) return best;
+  const dx = start.x - cx;
+  const dz = start.z - cz;
+  const length = Math.hypot(dx, dz);
+  return length > 1e-6 ? { x: dx / length, z: dz / length } : { x: 0, z: 1 };
+}
+
 export interface WildlifePlan {
   groups: WildGroup[];
   /** Schůdná zem mimo stavby a pole. */
@@ -450,6 +499,14 @@ export function planWildlife(
       route.push(next.p);
     }
     taken.push(...route);
+    const presence =
+      w.species === 'wolf'
+        ? PRESENCE.wolf
+        : w.species === 'bear'
+          ? PRESENCE.bear
+          : w.species === 'fox'
+            ? PRESENCE.fox
+            : 1;
     groups.push({
       species: w.species,
       zone,
@@ -464,15 +521,9 @@ export function planWildlife(
         animals,
       },
       models,
-      presence:
-        w.species === 'wolf'
-          ? PRESENCE.wolf
-          : w.species === 'bear'
-            ? PRESENCE.bear
-            : w.species === 'fox'
-              ? PRESENCE.fox
-              : 1,
+      presence,
       fleeSpeed: FLEE_SPEED[w.species],
+      ...(presence < 1 ? { retreat: retreatFrom(start, ground, cx, cz) } : {}),
     });
   });
   return { groups, free };

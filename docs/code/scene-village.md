@@ -389,7 +389,13 @@ podle osetých ha dílů `sown`) a `fishShare` (biomasa ÷ strop).
   `herdAnimalPose`, skutečný čas `livestockClock`) s chůzí nejbližšího dobytka (prase → prase,
   jelen a laň → kůň, kolouch → hříbě, vlk a liška → koza, medvěd → kráva, zajíc → slepice).
   Vzácní jsou vidět jen v podílu 20minutových úseků skutečného času (`wildPresent` – vlci 35 %,
-  medvěd 30 %, liška 60 %); jinak se zapíšou s nulovým měřítkem. **Útěk** (jen scéna): člověk
+  medvěd 30 %, liška 60 %); jinak se zapíšou s nulovým měřítkem. **Příchod a odchod**
+  (`presenceWalk`, `APPROACH`): skupina se neobjeví ani nezmizí naráz – na začátku úseku, kdy je
+  vidět a v předchozím nebyla, vyjde krokem 40 m z lesa na trasu (45 s), před úsekem, kdy nebude,
+  stejně odejde do lesa; posun se přičte k útěku a cestou se nový útěk nespouští. Směr do lesa
+  (`WildGroup.retreat`) určí `planWildlife` z 16 směrů od prvního stanoviště – kde je les 40 m
+  daleko nejhlubší (`LivestockGround.forestDepth`) a cesta schůdná, jinak pryč od středu vsi.
+  Čistá funkce skutečného času (deterministicky ze seedu skupiny). **Útěk** (jen scéna): člověk
   (i jezdec) blíž než 30 m ke středu skupiny (`nearestThreat` nad `VillageVillagers.figureSpots`)
   → skupina uteče 45 m od něj (`startFlight`, odklon nejvýš 1,4 rad, když je přímo voda nebo
   stavba; celá dráha se vzorkuje po 5 m; kam utéct není – zůstane), rychlostí druhu (jelen 7 m/s … medvěd 4 m/s), 75 s stojí

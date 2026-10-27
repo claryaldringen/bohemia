@@ -39,14 +39,67 @@ const WALK_STRIDE = 0.55;
 /** Úsek skutečného času (s), ve kterém je vzácná skupina vidět, nebo není. */
 export const PRESENCE_SLOT_S = 1200;
 
-/** Je skupina teď vidět? Vzácní jen v podílu úseků `presence` (deterministicky ze seedu). */
-export function wildPresent(
-  group: Pick<WildGroup, 'presence'> & { herd: Pick<WildGroup['herd'], 'seed' | 'phase'> },
-  seconds: number,
-): boolean {
-  if (group.presence >= 1) return true;
-  const slot = Math.floor(seconds / PRESENCE_SLOT_S + group.herd.phase);
+type PresenceGroup = Pick<WildGroup, 'presence'> & {
+  herd: Pick<WildGroup['herd'], 'seed' | 'phase'>;
+};
+
+/** Je vzácná skupina v úseku `slot` vidět? (podíl `presence`, deterministicky ze seedu) */
+function presentInSlot(group: PresenceGroup, slot: number): boolean {
   return hash01(group.herd.seed, slot, 611) < group.presence;
+}
+
+/** Je skupina teď vidět? Vzácní jen v podílu úseků `presence` (deterministicky ze seedu). */
+export function wildPresent(group: PresenceGroup, seconds: number): boolean {
+  if (group.presence >= 1) return true;
+  return presentInSlot(group, Math.floor(seconds / PRESENCE_SLOT_S + group.herd.phase));
+}
+
+/**
+ * Příchod a odchod vzácných (wildlife.md – Ve scéně): skupina se neobjeví ani nezmizí naráz – na
+ * začátku úseku, kdy je vidět (a v předchozím nebyla), vyjde z lesa `distanceM` daleko krokem
+ * na svou trasu, na konci (když v dalším úseku nebude) stejně odejde do lesa. Za `seconds`.
+ * Vzdálenost nepřesáhne útěk (FLEE.distanceM) – obal dosahu skupiny ve scéně ji pokryje.
+ */
+export const APPROACH = { distanceM: 40, seconds: 45 } as const;
+
+/**
+ * Posun příchodu z lesa nebo odchodu do lesa v čase `seconds` (krok – `walk`, směr k trase nebo
+ * do lesa `retreat`). Skupina na trase (uprostřed úseku, stálá zvěř, bez směru do lesa) – false.
+ * Čistá funkce času – stejný výsledek v každém prohlížeči.
+ */
+export function presenceWalk(
+  group: PresenceGroup & Pick<WildGroup, 'retreat'>,
+  seconds: number,
+  out: FlightState,
+): boolean {
+  const retreat = group.retreat;
+  if (group.presence >= 1 || !retreat) return false;
+  const position = seconds / PRESENCE_SLOT_S + group.herd.phase;
+  const slot = Math.floor(position);
+  if (!presentInSlot(group, slot)) return false;
+  const t = (position - slot) * PRESENCE_SLOT_S;
+  const left = PRESENCE_SLOT_S - t;
+  let away: number;
+  let sign: number;
+  if (t < APPROACH.seconds && !presentInSlot(group, slot - 1)) {
+    away = 1 - t / APPROACH.seconds;
+    sign = -1;
+  } else if (left < APPROACH.seconds && !presentInSlot(group, slot + 1)) {
+    away = 1 - left / APPROACH.seconds;
+    sign = 1;
+  } else {
+    return false;
+  }
+  const distance = APPROACH.distanceM * away;
+  out.x = retreat.x * distance;
+  out.z = retreat.z * distance;
+  out.run = 0;
+  // rozejde se a zastaví na trase (rampa jako u útěku), v lese jde pořád
+  out.walk = Math.min(1, distance / (APPROACH.distanceM * 0.05));
+  out.headingX = retreat.x * sign;
+  out.headingZ = retreat.z * sign;
+  out.travelled = APPROACH.distanceM - distance;
+  return true;
 }
 
 /** Útěk skupiny: posun středu skupiny (m) z `from` do `to` během, pak klid a návrat k 0. */
