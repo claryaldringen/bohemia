@@ -2,10 +2,12 @@
 import { dateOfDayIndex, threshingFloorFootprint, type TileCell } from '@bohemia/game';
 import type { SceneFieldPart, SceneLaborShare } from '../village-view';
 import { TREE_CLEARANCE_M, buildingClearings, insideClearings } from './building-clearings';
+import { slashHeapSites, type HeapSite } from './clearing-slash-layout';
 import { rowDirection } from './field-cells';
 import {
   fieldPartViews,
   villageCenter,
+  workAt,
   workFrame,
   workSteps,
   workedParts,
@@ -386,7 +388,10 @@ export function carriers(ctx: Context, share: SceneLaborShare, fieldId: number):
 
 /**
  * Zakládání pole: na rozpracovaném čtverci (pak na dalších z fronty – od obydlí) se kácejí
- * stromy (sekera u kmene), zbytek rozrývá drn motykou na čáře práce.
+ * stromy (sekera u kmene), zbytek rozrývá drn motykou na čáře práce. Klučení lesa (forest.md –
+ * Klučení lesa pro pole – postup): napřed čtverce, které se dnes pálí – lidé u hořících hromad
+ * větví hrnou oheň (`burnCrew`); na kácených čtvercích půlka kácí a půlka nosí kmeny k hromadě
+ * klád u lesa (`logCarrier`); na schnoucí pasece se nepracuje.
  */
 export function founding(
   ctx: Context,
@@ -396,22 +401,124 @@ export function founding(
 ): Placer {
   const work = fieldWork(ctx, fieldId);
   if (!work) return none;
-  const squares = workedSquares(ctx, share, work);
+  // klučení: napřed pálení, pak rozpracované kácení (jádro – clearingWorkOrder), pak fronta
+  const byOrder = [...work.views].sort((a, b) => a.order - b.order);
+  const burning = byOrder.filter((v) => isBurningView(v, ctx.day));
+  const felling = byOrder.filter((v) => v.look === 'slash' && v.work !== null);
+  const rest = workedSquares(ctx, share, work).filter(
+    (v) => !isDryingView(v) && !burning.includes(v) && !felling.includes(v),
+  );
+  const squares = [...burning, ...felling, ...rest];
   if (squares.length === 0) return none;
   const trees = squares.map((s) => ctx.ground.treesIn(s.part.x, s.part.z, s.part.size / 2, CREW));
+  const heaps = squares.map((s) => (burning.includes(s) ? burnHeaps(ctx, s.part, work) : []));
   return (i, who) => {
     const crew = Math.floor(i / CREW);
     const member = i % CREW;
     const k = crew % squares.length;
     const view = squares[k]!;
+    const size = Math.min(CREW, count - crew * CREW);
+    const sites = heaps[k] ?? [];
+    if (sites.length > 0) return burnCrew(ctx, sites, member, who);
+    if (burning.includes(view))
+      return frontierRow(ctx, work, view, member, size, 'hoe', who, false);
     const standing = trees[k] ?? [];
     if (standing.length > 0 && member % 2 === 0) {
       const tree = standing[(member / 2) % standing.length]!;
       return atTree(ctx, tree, who, 'fell', FELL_REACH_M);
     }
-    const size = Math.min(CREW, count - crew * CREW);
+    // paseka: padlé kmeny se nosí k hromadě u lesa (na louce bez stromů se kope drn)
+    if (view.look !== 'bare' && standing.length > 0) {
+      return logCarrier(ctx, standing[member % standing.length]!, who);
+    }
     return frontierRow(ctx, work, view, member, size, 'hoe', who, false);
   };
+}
+
+/**
+ * Čtverec se dnes pálí: rozpracované pálení (spálenina, zbytek paseka – fieldPartLooks v jádru),
+ * nebo dnes dohořel (`burnedDay`).
+ */
+export function isBurningView(view: PartView, day: number): boolean {
+  return (
+    (view.look === 'burnt' && view.before === 'slash' && view.work !== null) ||
+    view.part.burnedDay === day
+  );
+}
+
+/** Paseka schne – stromy padly, pálí se až za suchého počasí; nikdo na ní nepracuje. */
+function isDryingView(view: PartView): boolean {
+  return view.part.stage === 'founding' && view.look === 'slash' && view.work === null;
+}
+
+/**
+ * Hromady větví čtverce, které dnes hoří (jako heapFires v clearing-fire.ts): pálení postupuje
+ * napříč čtvercem, hromady za čarou práce ještě nehoří – u nich lidé nestojí. Bez překážek
+ * vrstvy žádné.
+ */
+export function burnHeaps(ctx: Context, part: SceneFieldPart, work: FieldWork): HeapSite[] {
+  const avoid = ctx.ground.squareObstacles?.(part);
+  if (!avoid) return [];
+  const done = part.burnedDay === ctx.day ? 1 : workSteps(part.work ?? 0);
+  if (done <= 0) return [];
+  const frame = workFrame(part, work.rows, work.center);
+  return slashHeapSites(part, avoid).filter((site) => workAt(frame, part, site.x, site.z) < done);
+}
+
+/** Odstup člověka od okraje hořící hromady (m) – hrne oheň motykou, do plamenů nevstoupí. */
+const FIRE_REACH_M = 0.9;
+
+/**
+ * Člověk `member` u hořící hromady: hromady po řadě, u každé lidé dokola (podle fáze postavy),
+ * čelem k ohni s motykou – hrnou větve do žáru a rozhrnují oheň (klip `hoe`).
+ */
+export function burnCrew(
+  ctx: Context,
+  sites: readonly HeapSite[],
+  member: number,
+  who: Identity,
+): PoseFn | null {
+  const site = sites[member % sites.length]!;
+  // půlosa kupy (clearing-slash.ts – HEAP_A × velikost) a kus místa na postavu
+  const reach = 1.5 * site.scale + FIRE_REACH_M;
+  const round = Math.floor(member / sites.length);
+  const slot = { ...who, phase: (who.phase + round * 0.37) % 1 };
+  return atTree(ctx, { x: site.x, z: site.z }, slot, 'hoe', reach);
+}
+
+/** Nejdál k hromadě klád u lesa (m) – dál se kmeny nenosí, kácí se. */
+const LOG_HAUL_M = 120;
+
+/**
+ * Nosič kmenů na kácené pasece: od padlého stromu k nejbližší hromadě klád u lesa
+ * (`SceneVillage.logStacks` – kotva hromady), zpátky s prázdnou. Bez hromady kácí.
+ */
+export function logCarrier(ctx: Context, tree: Point, who: Identity): PoseFn | null {
+  const stacks = ctx.village.logStacks ?? [];
+  let best: Point | null = null;
+  let bestD = LOG_HAUL_M;
+  for (const s of stacks) {
+    const d = Math.hypot(s.x - tree.x, s.z - tree.z);
+    if (d <= bestD) {
+      best = s;
+      bestD = d;
+    }
+  }
+  const from = best ? nearestFree(ctx, tree.x + 1.5, tree.z, 3) : null;
+  const to = best ? nearestFree(ctx, best.x, best.z, 6) : null;
+  const path = from && to ? walkRoute(ctx, to, from) : null;
+  if (!path) return atTree(ctx, tree, who, 'fell', FELL_REACH_M + 0.6);
+  return shuttle(path, {
+    outClip: 'walk',
+    outSpeed: walkSpeed(who.kind, 'walk', who.scale),
+    endClip: 'weed',
+    endS: 3,
+    backClip: 'carry-wood',
+    backSpeed: walkSpeed(who.kind, 'carry-wood', who.scale),
+    restClip: 'idle',
+    restS: 2,
+    phase: who.phase,
+  });
 }
 
 /** Sázení mladých buků: u každého pařezu jeden člověk s motykou (crafts.md – Uhlíř). */

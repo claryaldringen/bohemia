@@ -487,9 +487,13 @@ export function VillageGame({
     if (!scene) return;
     setE2EHook('projectToScreen', (x, z) => scene.projectToScreen(x, z));
     setE2EHook('slaughterMeshes', () => scene.slaughterMeshes());
+    setE2EHook('wildAnimals', () => scene.wildAnimals());
+    setE2EHook('moveCameraTo', (x, z) => scene.moveCameraTo(x, z));
     return () => {
       setE2EHook('projectToScreen', undefined);
       setE2EHook('slaughterMeshes', undefined);
+      setE2EHook('wildAnimals', undefined);
+      setE2EHook('moveCameraTo', undefined);
     };
   }, [scene]);
 

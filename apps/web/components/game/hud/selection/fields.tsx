@@ -1,6 +1,7 @@
 /** Panel výběru pole, dílu pole, sadu, hřbitova, ohrady a obilné jámy. */
 import { type ReactElement, type ReactNode } from 'react';
-import { CART_NAMES, MAX_PEN_SQUARES } from '@bohemia/game';
+import { CART_NAMES, MAX_PEN_SQUARES, dateOfDayIndex, type ClearingStage } from '@bohemia/game';
+import { formatGameDate } from '@/lib/game-date';
 import type { VillageHorse, VillageHorses } from '@/lib/horse-view';
 import { PART_COLORS, SURFACE_COLORS } from '@/lib/minimap';
 import { VillageTarget } from '@/lib/scene/village-picking';
@@ -21,6 +22,7 @@ import {
   plural,
 } from '@/lib/village-format';
 import { DWELLING_NAMES } from '@/lib/village-view';
+import type { PartClearingView } from '@/lib/village-view-types';
 import { Tooltip } from '../Tooltip';
 import { FieldDamage } from './wildlife';
 import { Stat, Bar, Wear, RepairBar, ROW, formatM2, Walk, Flag, formatTons } from './parts';
@@ -240,7 +242,57 @@ export function FieldBody({
         </ul>
       )}
       {details.founding !== null && <Bar value={details.founding} name="Založení" />}
+      {details.clearing && <ClearingCounts clearing={details.clearing} />}
     </div>
+  );
+}
+
+/** Ikona a popisek fáze klučení – kácení, schnutí, pálení (forest.md – Klučení lesa pro pole). */
+const CLEARING_LOOKS: Record<ClearingStage, { icon: string; name: string }> = {
+  fell: { icon: 'wood', name: 'Kácí se les' },
+  dry: { icon: 'hourglass', name: 'Větve schnou' },
+  burn: { icon: 'fire', name: 'Pálí se paseka' },
+};
+
+/** Fáze zakládaného dílu v lese: kácení – kolik stromů zbývá, schnutí – od kdy se pálí, pálení. */
+function ClearingStageFlag({ clearing }: { clearing: PartClearingView }): ReactElement {
+  if (clearing.stage === 'fell') {
+    return (
+      <Stat
+        icon={CLEARING_LOOKS.fell.icon}
+        name={`${CLEARING_LOOKS.fell.name} – stromů zbývá pokácet`}
+        testId="selection-clearing"
+      >
+        {clearing.treesLeft}
+      </Stat>
+    );
+  }
+  const look = CLEARING_LOOKS[clearing.stage];
+  const name =
+    clearing.stage === 'dry' && clearing.burnFrom !== undefined
+      ? `${look.name} – pálí se od ${formatGameDate(dateOfDayIndex(clearing.burnFrom))}`
+      : look.name;
+  return <Flag icon={look.icon} name={name} testId="selection-clearing" />;
+}
+
+/** Pole: kolik čtverců se kácí, schne a pálí – jen fáze, které někde běží. */
+function ClearingCounts({ clearing }: { clearing: Record<ClearingStage, number> }): ReactElement {
+  return (
+    <ul aria-label="Klučení lesa po čtvercích" className="flex flex-wrap gap-x-2.5 gap-y-1">
+      {(['fell', 'dry', 'burn'] as const).map((stage) =>
+        clearing[stage] > 0 ? (
+          <li key={stage}>
+            <Stat
+              icon={CLEARING_LOOKS[stage].icon}
+              name={`${CLEARING_LOOKS[stage].name} – čtverců`}
+              testId={`selection-clearing-${stage}`}
+            >
+              {clearing[stage]}
+            </Stat>
+          </li>
+        ) : null,
+      )}
+    </ul>
   );
 }
 
@@ -427,6 +479,7 @@ export function FieldPartBody({
               {founding.trees}
             </Stat>
           )}
+          {founding.clearing && <ClearingStageFlag clearing={founding.clearing} />}
         </div>
       )}
     </div>

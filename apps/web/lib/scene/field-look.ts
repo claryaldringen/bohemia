@@ -47,6 +47,8 @@ export const FIELD_LOOK_LABELS: Record<FieldLook, string> = {
   haystacks: 'úhor – stohy sena',
   shrubs: 'nepasený příloh – křoviny',
   'young-forest': 'nepasený příloh – mladý les',
+  slash: 'klučení – paseka s větvemi',
+  burnt: 'klučení – spálenina',
 };
 
 /**

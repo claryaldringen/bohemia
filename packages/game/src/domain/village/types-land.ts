@@ -45,6 +45,24 @@ export interface PlotSquare {
   z: number;
   rotation: number;
 }
+/** Fáze zakládaného dílu v lese: kácení, schnutí větví, pálení. */
+export type ClearingStage = 'fell' | 'dry' | 'burn';
+
+/** Průběh klučení lesa na dílu (forest.md – Klučení lesa pro pole – postup). */
+export interface PartClearing {
+  /**
+   * Stojící stromy čtverce v pořadí kácení – dospělé, mladé, souše (bez vyhrazených jinou
+   * stavbou); `log` = dospělý strom, dá kládu na hromadu u lesa.
+   */
+  fell: { id: number; log: boolean }[];
+  /** Kolik stromů z `fell` padlo. */
+  felled: number;
+  /** Práce pálení (člověkodny); kácení s kameny je zbytek `foundingCost`. */
+  burnCost: number;
+  /** Den pádu posledního stromu – od něj schnou větve; chybí, dokud se kácí. */
+  felledDay?: number;
+}
+
 export interface FieldPart {
   id: number;
   fieldId: number;
@@ -78,6 +96,13 @@ export interface FieldPart {
   obstacles?: number[];
   /** Dospělé stromy mezi překážkami – po založení dílu dají klády na hromadu (forest.md). */
   trees?: number;
+  /**
+   * Klučení lesa po fázích (forest.md – Klučení lesa pro pole – postup): jen díl v lese
+   * založený od zavedení fází; díl s `clearing` nemá `trees` – klády dávají stromy při pádu.
+   */
+  clearing?: PartClearing;
+  /** Den dohoření ohně na dílu (doutnání, panel). */
+  burnedDay?: number;
   /**
    * Vzdálenost chůze z nejbližšího obydlí po vyšlapaných pěšinách (m, paths.md – Pěšiny a práce):
    * po pěšině se chodí rychleji, nikdy víc než `distanceM`. Přepočítá se se změnou rozložení vsi

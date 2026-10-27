@@ -175,7 +175,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 - **e2e:** testy běží v běžícím pomalém světě (2000–2200). Kliknutí do scény při umisťování
   nahrazuje háček `window.__bohemiaE2E.confirmPlacement`, kam kliknout myší pro výběr řekne
   `projectToScreen` (`lib/e2e-hooks.ts`) – existují jen v buildu s `NEXT_PUBLIC_E2E_HOOKS=1`
-  (nastavuje `playwright.config.ts`), jinde se z kódu vypustí.
+  (nastavuje `playwright.config.ts`), jinde se z kódu vypustí. Zvěř: `wildAnimals` (meshe
+  `wild-*` a kusy, které jsou vidět) a `moveCameraTo` (zvěř bývá u lesa mimo výchozí záběr).
+  Testy vývojové ukázky (`slaughter.spec.ts`, `wildlife-scene.spec.ts`) běží jen proti
+  vývojovému serveru (`SLAUGHTER_DEV_URL`, `WILDLIFE_DEV_URL`), jinak se přeskočí.
 
 - **Zrušení rozestavěné stavby** (population.md – Zrušení rozestavěné stavby): server action
   `cancelConstruction({ villageId, constructionId })` → `cancelConstructionForPlayer`
@@ -347,6 +350,20 @@ místa to jsou a moci je také označit.“ ([paths.md – Síť – kotvy](../d
   cesta, nikam), `road-end-view.test.ts`, `RoadPanel.test.tsx`, `RoadEnds.behavior.test.tsx` (klik
   vybere cíl), `village-selection.test.ts` (výpis), e2e `village.spec.ts` – „panel cesty ukáže oba
   konce“ (testovací háček `selectRoad`).
+
+## Klučení lesa v panelu a liště
+
+Forest.md – Klučení lesa pro pole. Panel dílu (`selection/fields.tsx`, `ClearingStageFlag`):
+kácení = ikona `wood` s počtem stromů, které zbývá pokácet, schnutí = `hourglass` s datem pálení
+v popisku („pálí se od 1. března 500“), pálení = `fire` (`resources/fire.png`, render
+`icons.py fire`, CC0). Panel pole (`ClearingCounts`): počty čtverců v jednotlivých fázích, jen
+běžící. Horní lišta: popisek klád `woodName` – „u vsi N, u lesa M“, když leží hromada u lesa.
+Kurzor při malování pole (`fieldCost` v `build-items.ts`, `PlacementCost.burn`, `CursorReason`):
+ikona ohně s počtem čtverců lesa, které se vykácí a vypálí. Ukázky `/dev/panels?panel=pole`,
+`pole-dil-kaceni`, `pole-dil-schne`, `pole-dil-pali`.
+E2E (`village.spec.ts` – „pole v lese ve fázi pálení“): pole v lese zapsané přímo do uložené vsi
+ve fázi pálení (mimo březen–říjen posun času hráče `player_time_offset`), kamera k lesu klikem do
+minimapy, klik na čtverec – panel dílu ukáže ikonu ohně.
 
 ## Divoká zvěř v rozhraní (W9, `lib/wildlife-view.ts`)
 

@@ -22,7 +22,7 @@ export {
   huntPool,
   huntToday,
 } from './hunt-party';
-export { wildlifeLandAt } from './wildlife-land';
+export { fishingPools, wildlifeLandAt, type FishingPool } from './wildlife-land';
 export * from './hay';
 export * from './plough';
 export * from './plough-blocks';
@@ -119,6 +119,7 @@ export * from './summary';
 export * from './names';
 export * from './costs';
 export * from './wood';
+export * from './forest-clearing';
 export * from './sacred';
 export * from './sacred-life';
 export * from './threshing-floors';
@@ -357,6 +358,7 @@ export {
   type ShoeingView,
 } from './horse-shoeing';
 export { horsePenValueKg, withHorsePenStock } from './horse-stock';
+export { withForestClearing } from './forest-clearing-migration';
 export { HORSE_PEN_NO_SURPLUS, horsePenPayment } from './horse-pen-payment';
 // výměna lidí se sousedem – příchod lidí (`settleNewcomers`) je krok simulace a zůstává uvnitř
 export {

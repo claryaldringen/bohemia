@@ -8,6 +8,7 @@ import type { Scene } from '@babylonjs/core/scene';
 import {
   dateOfDayIndex,
   DRAFT_OXEN,
+  OFFICIAL_WORLD,
   realTimeOf,
   threshingFloorFootprint,
   type ObstacleLayer,
@@ -97,6 +98,8 @@ import { closedLine } from './staking-layout';
 import { WildGrowthRenderer } from './wild-growth-renderer';
 import type { Rgb } from './season-look';
 import { VillageSmoke, type SmokeSource } from './village-smoke';
+import { burningSquares, slashPlumes } from './clearing-fire';
+import { gameDayAt } from './smoke-schedule';
 import type { SceneDwelling, SceneRuin } from './village-types';
 import {
   CRAFT_MODEL,
@@ -115,6 +118,7 @@ import {
   CRAFT_MODEL_KEYS,
   CRAFT_SITE_FILES,
   CRAFT_SMOKE_SEED,
+  SLASH_SMOKE_SEED,
   DECAY_MODEL_URL,
   DWELLING_SINK_M,
   DWELLING_TYPES,
@@ -1425,7 +1429,10 @@ export class VillageRenderer {
     return this.decayLoading;
   }
 
-  /** Dýmníky hotových obývaných obydlí, pece, výhně a milíře pracujících dílen pro dým. */
+  /**
+   * Dýmníky hotových obývaných obydlí, pece, výhně a milíře pracujících dílen, ohniště svatyní
+   * a pálení paseky (nejvýš MAX_SLASH_PLUMES čtverců) pro dým.
+   */
   private updateSmokeSources(): boolean {
     const sources: SmokeSource[] = this.village.dwellings
       .filter((d) => d.built && d.inhabited !== false)
@@ -1470,6 +1477,18 @@ export class VillageRenderer {
     }
     // ohniště hotových svatyní – občas dým jako z obydlí (happiness.md)
     sources.push(...this.sacred.smokeSources());
+    // pálení paseky a doutnající spálenina (forest.md – Klučení lesa pro pole – postup)
+    const today = Math.floor(gameDayAt(Date.now(), this.worldClock ?? OFFICIAL_WORLD));
+    for (const plume of slashPlumes(burningSquares(this.village, today))) {
+      sources.push({
+        seed: SLASH_SMOKE_SEED + plume.seed,
+        x: plume.x,
+        y: this.context.groundHeight(plume.x, plume.z) + 0.4,
+        z: plume.z,
+        kind: 'slash',
+        burn: plume.burn,
+      });
+    }
     return this.smoke.setSources(sources);
   }
 

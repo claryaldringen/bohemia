@@ -3,6 +3,7 @@
 import {
   VillageFieldPart,
   VillageOrchardSquare,
+  PartClearingView,
   VillageView,
   DAYS_PER_YEAR,
 } from './village-view-types';
@@ -19,6 +20,9 @@ import {
   squareWalkDistance,
   villageHoldings,
   forestBonus,
+  clearingStage,
+  burnFromDay,
+  type ClearingStage,
   partStage,
   partOvergrowthYears,
   isOvergrown,
@@ -98,12 +102,15 @@ export function fieldViews(state: VillageState, day: number): VillageView['field
     const crops: Partial<Record<Crop, number>> = {};
     const turn = { winter: 0, spring: 0, resting: 0, surplus: { winter: 0, spring: 0 } };
     let ashParts = 0;
+    const clearing: Record<ClearingStage, number> = { fell: 0, dry: 0, burn: 0 };
     let ashBonus = 0;
     let overgrowingM2 = 0;
     for (const p of parts) {
       if (p.state === 'fallow' && (partOvergrowthYears(p) > 0 || isOvergrown(p))) {
         overgrowingM2 += p.areaM2;
       }
+      const clearingNow = clearingStage(p, day);
+      if (clearingNow !== null) clearing[clearingNow]++;
       const stage = partStage(p, day);
       stages[stage] = (stages[stage] ?? 0) + 1;
       surfaces[p.surface] = (surfaces[p.surface] ?? 0) + 1;
@@ -128,6 +135,7 @@ export function fieldViews(state: VillageState, day: number): VillageView['field
       crops,
       turn,
       ashParts,
+      ...(clearing.fell + clearing.dry + clearing.burn > 0 ? { clearing } : {}),
       ashBonus,
       overgrowingM2,
       parts: parts.map((p) =>
@@ -199,9 +207,22 @@ function fieldPartView(
             progress: hundredths(part.foundingCost > 0 ? part.foundingDone / part.foundingCost : 0),
             laborLeft: Math.round(Math.max(0, part.foundingCost - part.foundingDone) * 10) / 10,
             trees: part.trees ?? 0,
+            ...(part.clearing ? { clearing: partClearingView(part, day) } : {}),
           },
         }
       : {}),
+  };
+}
+
+/** Klučení dílu pro panel – fáze, zbývající stromy a první den pálení (jen po pádu posledního). */
+function partClearingView(part: FieldPart, day: number): PartClearingView {
+  const clearing = part.clearing;
+  const stage = clearingStage(part, day) ?? 'fell';
+  const burnFrom = burnFromDay(part);
+  return {
+    stage,
+    treesLeft: clearing ? Math.max(0, clearing.fell.length - clearing.felled) : 0,
+    ...(stage !== 'fell' && burnFrom !== null ? { burnFrom } : {}),
   };
 }
 

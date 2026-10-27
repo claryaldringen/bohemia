@@ -135,7 +135,7 @@ import type {
   RoadGrade,
 } from './types';
 import { copyGrid } from './square-grid';
-import { treesToFell, woodFellingCost, woodLogs } from './wood';
+import { pileLogs, treesToFell, woodFellingCost, woodLogs } from './wood';
 
 // Souhrn vsi pro panel hráče a scénu – jen čte stav, nic nemění.
 
@@ -445,8 +445,12 @@ export interface VillageSummary {
   storesKg: number;
   /** Zásoby jablek (kg) – jí se před obilím, 1. 3. shnijí. */
   applesKg: number;
-  /** Klády na hromadě u vsi (forest.md). */
+  /** Klády v zásobě vsi celkem (forest.md) – u vsi i u lesa. */
   woodLogs: number;
+  /** Z toho klády na hromadách u lesa (zbytek leží u vsi). */
+  forestLogs: number;
+  /** Klády na hromadě u vsi (kusy, bez hromad u lesa). */
+  pileLogs: number;
   /** Na kolik měsíců zásoby obilí vystačí při dnešní potřebě (bez lidí 0). */
   storesMonths: number;
   /** Nasycení příštího dne 0–1 podle přídělového systému (energie × pestrost – diet.md). */
@@ -824,6 +828,8 @@ export function summarizeVillage(
     storesKg: state.storesKg,
     applesKg: villageApplesKg(state),
     woodLogs: woodLogs(state),
+    forestLogs: Math.max(0, woodLogs(state) - pileLogs(state)),
+    pileLogs: pileLogs(state),
     storesMonths:
       needPerDay > 0 ? state.storesKg / ((needPerDay * DAYS_PER_YEAR) / MONTHS_PER_YEAR) : 0,
     satiation: diet.satiation,

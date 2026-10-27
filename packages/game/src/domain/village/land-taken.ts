@@ -322,6 +322,17 @@ function resizeParts(
     }
     dropFromMowing(state, part.id);
     handOverObstacles(state, part, day);
+    // díl v lese s fázemi: dospělé stromy, které ještě nepadly, dají klády na hromadu u vsi jako
+    // dřív `trees` (forest.md – Klučení lesa pro pole – postup)
+    if (part.clearing) {
+      const standing = part.clearing.fell.slice(part.clearing.felled).filter((t) => t.log);
+      addLogs(state, logsFromClearedTrees(standing.length));
+      // pařezy padlých stromů odklidila stavba – záznamy kácení zmizí (odstranění má přednost)
+      if (state.felledTrees) {
+        const gone = new Set([...(part.obstacles ?? []), ...part.clearing.fell.map((t) => t.id)]);
+        state.felledTrees = state.felledTrees.filter((f) => !gone.has(f.id));
+      }
+    }
   }
   if (removed.size === 0) return loss;
   state.parts = state.parts.filter((p) => !removed.has(p.id));
@@ -558,6 +569,17 @@ function shrinkFounding(state: VillageState, part: FieldPart, share: number): vo
   const done = part.foundingDone * share;
   part.foundingCost -= cost;
   part.foundingDone -= done;
+  // díl v lese s fázemi: pálení se zmenší stejně, ať podíl kácení a pálení zůstane
+  if (part.clearing) {
+    part.clearing.burnCost -= part.clearing.burnCost * share;
+    // stromy zmizelé části dílu nepadnou (a nedají klády): stojících zůstane úměrně zbytku plochy,
+    // padlé zůstávají padlé
+    // (zmizelý díl, share = 1, si stojící stromy nechá – klády z nich spočítá `resizeParts`)
+    const clearing = part.clearing;
+    const standing = clearing.fell.length - clearing.felled;
+    const keep = Math.round(standing * (1 - share));
+    if (share < 1) clearing.fell = clearing.fell.slice(0, clearing.felled + keep);
+  }
   const c = state.constructions.find((x) => x.kind === 'field' && x.fieldId === part.fieldId);
   if (!c) return;
   c.cost = Math.max(0, c.cost - cost);

@@ -210,6 +210,49 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `FieldLook`) a podíl práce `SceneLaborShare` s `parts`; postavy (`villager-plan.ts`) pracují na
   `parts`. Simulace se tím nemění.
 
+- **Klučení lesa pro pole** (forest.md – Klučení lesa pro pole – postup; Martin 24. 10. 2026, fáze
+  a čísla návrh Clauda): díl v lese (`surface: 'forest'`, ne louka rádlem) dostane při založení
+  `clearing` (`PartClearing` – stojící stromy v pořadí kácení `fell` s `log` u dospělých,
+  `felled`, `burnCost`, `felledDay`) místo `trees`. Cena zůstává sazba lesa: kácení s kameny
+  = `foundingCost − burnCost` (60 %), pálení `burnCost` (40 %, `FOREST_CLEARING`). Fáze
+  (`forest-clearing.ts`, čisté funkce): `clearingStage` – `'fell'`, dokud není odvedena práce
+  kácení, `'dry'` `dryDays` (30) dní od `felledDay` a mimo `BURN_WINDOWS` (březen–říjen), jinak
+  `'burn'`. Simulace (`simulate-build.ts`): `constructionNeed` pole = Σ `clearingNeedToday`
+  (kácení zbytek kácení, schnutí 0 – práce jde do jiných staveb, pálení zbytek celku);
+  `invest` bere díly v pořadí `clearingWorkOrder` (napřed pálení, pak kácení a díly bez fází,
+  obojí od nejbližšího, při shodě id). **`completes`** = pole dostalo celou dnešní potřebu, ne
+  „založ vše“: kácený díl dostane jen zbytek kácení (všechny stromy padnou, `felledDay` = dnes,
+  pak schne), založí se jen díl, který dnes dohoří. `fellDueTrees` (jednou za díl a den) pokácí
+  stromy, na které došla práce (`treesDue`) – pařez přes `fellTrees`, strom, který mezitím padl
+  jinak, bez klády; klády dospělých na hromadu u lesa (`addStackLogs`). Dohoření (`foundPart`):
+  zbylé stromy padnou, překážky zmizí (`recordClearedObstacles`), záznamy kácení stromů dílu se
+  smažou, `burnedDay` = dnes, bonus popela od dneška, `clearing` zmizí; `build` díl s fázemi
+  bez práce hned nezakládá. Ubraný díl (`land-taken.ts`) zmenší i `burnCost` a zkrátí stojící stromy `fell`
+  úměrně zbytku plochy, odebraný dá klády za nepokácené dospělé stromy a smaže záznamy jeho
+  pokácených stromů; `build` dopíše pád dílu s nulovou prací kácení (jinak by schnul navždy). Vzhled (`fieldPartLooks`): kácení `slash` s `work` = padlé / všechny,
+  schnutí `slash`, pálení `burnt` s `work` = podíl pálení a `before: 'slash'`, připravený díl
+  s `burnedDay` do první práce `burnt` (`isFreshBurn` – první oběh, bonus běží); doutnání
+  `isSmoldering` (`smolderDays` od `burnedDay`). Scéna zatím kreslí `slash` jako rozrytý drn
+  a `burnt` tmavě (`LOOK_STYLES`). Testy `forest-clearing.test.ts`, `forest-clearing-sim.test.ts`
+  (fáze po dnech, leden → pálení od 1. 3., červen → po 30 dnech, po kouscích). Malá testovací
+  ves (2 dospělí, pole se 2–4 čtverci lesa): založeno 1. 10. → pokáceno 16.–22. 10. → dohoří
+  2.–11. 3. → první čtverec zaseto 4. 3. (154 dní); založeno 5. 1. → dohoří 9.–12. 3., zaseto 11. 3. (65 dní); založeno 1. 6. → dohoří 10. 7. (39 dní), v září zařazeno do osevu.
+  **Převod starších vsí** (`forest-clearing-migration.ts`, `withForestClearing`; volá se v
+  `updateVillage` po `withGrainPits` a na začátku `advanceVillageSteps`, jen s vrstvou
+  překážek): zakládaný díl v lese bez `clearing`, s `obstacles` a čtvercem dostane `fell` ze
+  stojících stromů svých překážek (pořadí `fellingOrder`), prvních `trees` dospělých dá kládu,
+  `trees` zmizí, `burnCost` = `foundingCost × (1 − fellShare)`. Odvedená práce se nemění: došla-li
+  na kácení, všechny stromy padnou v den převodu a `felledDay` = dnes − `dryDays` (suché hned),
+  jinak padnou stromy podle `treesDue`. Bez vrstvy nebo bez takového dílu vrací týž objekt;
+  selhání jen poznamená `forestClearingFailed` (log v `updateVillage`). Vlkov (stav z 26. 10. 2026) žádný zakládaný díl nemá – převod je beze změny a rok dopočtu trvá jako dřív
+  (≈ 30 s). Test `forest-clearing-migration.test.ts`.
+  **Pohled pro rozhraní** (`village-view-fields.ts`): `fieldPartView` dílu s `clearing` přidá
+  `founding.clearing` (`PartClearingView` – `stage` z `clearingStage`, `treesLeft` = zbylé
+  stromy z `fell`, `burnFrom` z `burnFromDay` jen po pádu posledního stromu), `fieldViews` počty
+  čtverců po fázích `clearing: { fell, dry, burn }` (jen když nějaké běží);
+  `VillageView.woodLogsForest` = `summary.forestLogs` (klády u lesa, chybí při nule). Test
+  `village-view.test.ts`.
+
 - **Hospodaření podle polohy domů** (Martin – fields.md): `holdings.ts` – díl patří k nejbližšímu
   domu (vzdušnou čarou; `villageHoldings`/`fieldHoldings`), hospodářství se dělí na úseky od domu
   (prstence po 15 m, v každém tolik dílů po směru, kolik čtverců má první prstenec – výseče kolem

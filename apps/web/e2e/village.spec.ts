@@ -11,12 +11,17 @@ import {
   villageGoodStock,
   checkDwellingPlacement,
   checkPlotPlacement,
+  clearingFellCost,
+  fellDueTrees,
+  foundField,
   freeVillageSite,
   fieldPartsFromCells,
   generateLandscapeAttempt,
   orchardPartsFromCells,
   penSquaresFromCells,
+  placementVillageOf,
   suggestVillageName,
+  surfaceAt,
   tileCenterWorld,
   tileOfWorldPoint,
   type DwellingPlot,
@@ -241,6 +246,35 @@ function orchardSpot(l: Landscape, dwelling: Position): TileCell[] {
     }
   }
   throw new Error('U zemnice není místo pro sad.');
+}
+
+/**
+ * Pole 3 × 2 čtverce co nejblíž zemnici aspoň s jedním čtvercem v lese, na kterém stojí stromy –
+ * `forest` je ten čtverec.
+ */
+function forestFieldSpot(
+  l: Landscape,
+  state: VillageState,
+  dwelling: Position,
+): { forest: TileCell; parts: ReturnType<typeof fieldPartsFromCells>['parts'] } {
+  const tile = tileOfWorldPoint(l, dwelling.x, dwelling.z);
+  if (!tile) throw new Error('Zemnice leží mimo krajinu.');
+  const village = placementVillageOf(state, state.lastDay);
+  for (let r = 2; r <= 20; r++) {
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const cells = block(tile.x + dx, tile.y + dy, 3, 2);
+        if (!cells.some((c) => surfaceAt(l, c.x, c.y) === 'forest')) continue;
+        const preview = fieldPartsFromCells(l, village, cells, [dwelling]);
+        const forest = preview.parts.find((part) => (part.standing?.length ?? 0) > 0)?.cell;
+        if (forest && preview.blockedCells.length === 0 && preview.parts.length === cells.length) {
+          return { forest, parts: preview.parts };
+        }
+      }
+    }
+  }
+  throw new Error('U zemnice není les pro pole.');
 }
 
 const readyScene = (page: Page): ReturnType<Page['locator']> =>
@@ -826,6 +860,75 @@ test('hráč vysadí sad po čtvercích a vybere ho – panel ukáže výsadbu, 
   await expect(panel.getByTestId('selection-age')).toHaveText(/^(29|30)$/, { timeout: 20_000 });
   await expect(panel.getByTestId('selection-progress')).toHaveCount(0);
   await expect(panel.getByTestId('selection-yield')).not.toHaveText('0');
+});
+
+test('pole v lese ve fázi pálení – panel dílu ukáže oheň', async ({ page }) => {
+  const { email, seat: s } = await newPlayer(page, 'paseka');
+  const spots = villageSpots(s.landscape);
+  await found(page, spots.dwelling);
+
+  // Paseka se pálí jen březen–říjen (forest.md – Klučení lesa pro pole) – mimo okno posun času
+  // hráče na 15. 4. (player_time_offset jako šipky vývojového režimu).
+  let state = await villageState(s.settlementId);
+  const today = dateOfDayIndex(state.lastDay);
+  if (today.month < 3 || today.month > 10) {
+    const april = dayIndexOf({ year: today.year + (today.month > 10 ? 1 : 0), month: 4, day: 15 });
+    await query(
+      `INSERT INTO player_time_offset (player_id, offset_days)
+         SELECT id, $2 FROM "user" WHERE email = $1`,
+      [email, april - state.lastDay],
+    );
+    await page.reload();
+    await expect(readyScene(page)).toBeVisible({ timeout: 60_000 });
+    await expect
+      .poll(async () => (await villageState(s.settlementId)).lastDay, { timeout: 30_000 })
+      .toBeGreaterThanOrEqual(april);
+    state = await villageState(s.settlementId);
+  }
+
+  // Pole v lese přímo v uložené vsi: stromy padly, větve schnou 40 dní – dnes se pálí.
+  const { forest, parts } = forestFieldSpot(s.landscape, state, spots.dwelling);
+  const day = state.lastDay;
+  const next = foundField(state, day, { parts });
+  for (const part of next.parts) {
+    if (!part.clearing) continue;
+    part.foundingDone = clearingFellCost(part);
+    fellDueTrees(next, part, day);
+    part.clearing.felledDay = day - 40;
+  }
+  await writeVillageState(s.settlementId, next);
+  await page.waitForFunction(() => typeof window.__bohemiaE2E?.pollVillage === 'function');
+  await pollVillage(page);
+
+  // Klik na čtverec pole vybere díl – fáze pálení: ikona ohně s popiskem v panelu.
+  await page.keyboard.press('r');
+  const panel = page.getByTestId('selection-panel');
+  const center = tileCenterWorld(s.landscape, forest.x, forest.y);
+  // les bývá mimo záběr – kamera k němu klikem do minimapy (sever nahoře)
+  const minimap = (await page.getByTestId('minimap').boundingBox())!;
+  const extent = s.landscape.size * s.landscape.cellSizeM;
+  await page.mouse.click(
+    minimap.x + ((center.x + extent / 2) / extent) * minimap.width,
+    minimap.y + (1 - (center.z + extent / 2) / extent) * minimap.height,
+  );
+  await expect
+    .poll(
+      async () => {
+        const point = await page.evaluate(
+          (p) => window.__bohemiaE2E!.projectToScreen!(p.x, p.z),
+          center,
+        );
+        if (point) await page.mouse.click(point.x, point.y);
+        // bez výběru panel chybí – nečekat na něj, kliknout znovu (ves se načítá dotazem)
+        return panel.getAttribute('data-kind', { timeout: 500 }).catch(() => null);
+      },
+      // klik po vteřině – dva rychlé kliky by vybraly celé pole
+      { timeout: 20_000, intervals: [1_000] },
+    )
+    .toBe('field-part');
+  const flag = panel.getByTestId('selection-clearing');
+  await expect(flag).toHaveAttribute('src', '/icons/resources/fire.png');
+  await expect(flag).toHaveAttribute('alt', 'Pálí se paseka');
 });
 
 test('porážka ve scéně – mršina a kozlina se nakreslí a jsou připravené ke kreslení', async ({
@@ -1558,6 +1661,82 @@ test('dvorec: lov navíc – v dubnu je hájení, v létě se zítra loví', asy
       timeout: 30_000,
     })
     .toBeGreaterThanOrEqual(1);
+});
+
+test('divoká zvěř ve scéně: modely se načtou a klik na zvíře otevře panel druhu', async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  const { seat: s } = await newPlayer(page, 'divoka');
+  const spots = villageSpots(s.landscape);
+  await found(page, spots.dwelling);
+  // ves dostane zvěř při načtení (převod stavu) – scéna ji vykreslí po dalším dotazu
+  await expect
+    .poll(async () => (await villageState(s.settlementId)).wildlife !== undefined)
+    .toBe(true);
+  // zvěř chodí jen kolem postavené vsi – obydlí hotové (jako ho uloží server)
+  await writeVillageState(
+    s.settlementId,
+    withBuiltFirstDwelling(await villageState(s.settlementId)),
+  );
+  // modely testy jinak přerušují (beforeEach) – modely zvěře pustit, ostatní dál ne
+  await page.unroute('**/models/**');
+  await page.route('**/models/**', (route) =>
+    route.request().url().includes('/models/fauna/wild-') ? route.continue() : route.abort(),
+  );
+  await page.reload();
+  await expect(readyScene(page)).toBeVisible({ timeout: 60_000 });
+  await pollVillage(page);
+  // zvěř se naplánuje hned, modely se načtou až se zvěří v záběru – kamera k první skupině
+  // (bývá u lesa mimo výchozí záběr) – jelení nebo prasata, vzácní (vlci, medvěd) nemusí být vidět
+  await expect
+    .poll(() => page.evaluate(() => window.__bohemiaE2E?.wildAnimals?.().groups.length ?? 0), {
+      timeout: 60_000,
+    })
+    .toBeGreaterThan(0);
+  await page.evaluate(() => {
+    const groups = window.__bohemiaE2E!.wildAnimals!().groups;
+    const first = groups.find((g) => g.species === 'deer' || g.species === 'boar') ?? groups[0]!;
+    window.__bohemiaE2E!.moveCameraTo!(first.x, first.z);
+  });
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          // meshe : všechny připravené : kusy vidět
+          const wild = window.__bohemiaE2E!.wildAnimals!();
+          const ready = wild.meshes.every((m) => m.ready);
+          return `${wild.meshes.length}:${ready}:${wild.animals.length}`;
+        }),
+      { timeout: 60_000 },
+    )
+    .toMatch(/^[1-9]\d*:true:[1-9]/);
+  const panel = page.getByTestId('selection-panel');
+  await expect
+    .poll(
+      async () => {
+        // zvíře chodí – poloha těsně před kliknutím
+        const point = await page.evaluate(() => {
+          const hooks = window.__bohemiaE2E!;
+          for (const a of hooks.wildAnimals!().animals) {
+            const p = hooks.projectToScreen!(a.x, a.z);
+            if (p && p.x > 20 && p.y > 20 && p.x < innerWidth - 20 && p.y < innerHeight - 160) {
+              return p;
+            }
+          }
+          return null;
+        });
+        if (!point) return null;
+        await page.mouse.move(point.x - 3, point.y - 6);
+        await page.mouse.click(point.x, point.y - 6);
+        return panel.getAttribute('data-kind');
+      },
+      { timeout: 30_000 },
+    )
+    .toBe('wildlife');
+  await expect(panel.getByTestId('wildlife-level')).toBeVisible();
+  expect(errors).toEqual([]);
 });
 
 test('díl pole ukáže škodu zvěře letos', async ({ page }) => {

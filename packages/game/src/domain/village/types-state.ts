@@ -56,6 +56,20 @@ import type { VillageRoutes } from './types-routes';
 import type { CraftPurchase, VillageTrade } from './types-trade';
 import type { WildlifeState } from './types-wildlife';
 
+/**
+ * Hromada klád u lesa (forest.md – Klučení lesa pro pole): klády skácených dospělých stromů
+ * polního dílu. Podmnožina `woodLogs` (u vsi leží zbytek).
+ */
+export interface LogStack {
+  id: number; // z nextId
+  fieldId: number;
+  /** Kotva – střed čtverce, na kterém padl první dospělý strom (m, svět). */
+  x: number;
+  z: number;
+  /** Hnije jako hromada u vsi, proto neceločíselné. */
+  logs: number;
+}
+
 export interface VillageState {
   seed: number;
   foundedDay: number;
@@ -124,6 +138,10 @@ export interface VillageState {
    * berou, hnijí (proto i neceločíselné). U vsí uložených před dřevem chybí (= 0).
    */
   woodLogs?: number;
+  /**
+   * Hromady klád u lesa – podmnožina `woodLogs` (u vsi = woodLogs − Σ logs). Chybí = žádné.
+   */
+  logStacks?: LogStack[];
   /**
    * Rozdělení práce posledního odsimulovaného dne (labor-report.ts) – pro zobrazení; simulace ho
    * čte jen přes síť pěšin (kam se chodí – vzdálenost chůze dílů, paths.md). U vsí uložených
@@ -250,6 +268,8 @@ export interface VillageState {
   sowingRotationFailed?: string;
   /** Převod starších ohrad koní na koně zdarma selhal (`withHorsePenStock`) – text chyby, do logu. */
   horsePenStockFailed?: string;
+  /** Převod rozestavěných dílů v lese na fáze klučení selhal (`withForestClearing`) – text chyby, do logu. */
+  forestClearingFailed?: string;
   /**
    * Stavby uložené před variantami rozměrů (population.md – Varianty rozměrů) prošly kontrolou,
    * jestli se do své varianty vejdou (`withDwellingShapes`) – nové vsi ho mají od založení.

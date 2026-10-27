@@ -269,6 +269,7 @@ export function huntDay(state: VillageState, day: number, lordFieldShare = 0): C
   hunt.year.days += 1;
   const events: ChronicleEvent[] = [];
   const total = kills.boar + kills.deer + kills.wolves + kills.bear;
+  today.kills = total;
   if (total > 0) {
     if (meatKg > 0) butcher(state, meatKg);
     hunt.year.boar += kills.boar;

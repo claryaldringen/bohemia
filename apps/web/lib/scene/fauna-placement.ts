@@ -262,6 +262,15 @@ function fittingLoop(
 }
 
 /**
+ * Kolik hejn ryb ukázat podle podílu biomasy ryb ze stropu (wildlife.md – Ve scéně: dosavadní
+ * počet × biomasa ÷ strop): aspoň jedno, když nějaké ryby jsou; bez ryb žádné.
+ */
+export function shownSchools(total: number, fishShare: number): number {
+  if (total <= 0 || !(fishShare > 0)) return 0;
+  return Math.min(total, Math.max(1, Math.round(total * fishShare)));
+}
+
+/**
  * Ptáci: pár hejn vran kroužících nad loukami u lesa (jako fauna/crow_circle v 0 A.D.) a jedno
  * káně kroužící výš nad otevřenou loukou. Letí ve stálé výšce nad nejvyšším terénem pod kruhem.
  */

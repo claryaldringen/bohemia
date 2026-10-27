@@ -404,6 +404,9 @@ export function buildVillageView(
     },
     livestock: summary.livestock,
     woodLogs: wholeLogs(summary.woodLogs),
+    ...(summary.forestLogs >= 0.5
+      ? { woodLogsForest: wholeLogs(summary.forestLogs), woodLogsPile: wholeLogs(summary.pileLogs) }
+      : {}),
     crafts: craftsView(state, summary, landscape),
     storesMonths: summary.storesMonths,
     satiation: summary.satiation,

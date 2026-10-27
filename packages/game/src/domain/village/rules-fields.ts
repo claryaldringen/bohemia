@@ -74,6 +74,13 @@ export const FERTILITY = {
 // podle sezóny osevu po vymýcení (1. +40, 2. +20, pak 0) a první sezónu se neplete. Bonus platí
 // jen do `windowYears` let od vymýcení – díl, který ves do té doby neoseje, o popel přijde.
 export const FOREST_BONUS = { bySeason: [40, 20], windowYears: 3 } as const;
+// forest.md – Klučení lesa pro pole – postup (návrh Clauda 26. 10. 2026; Martin 24. 10. 2026,
+// issue #10): kácení stojí `fellShare` ceny založení lesa, pálení zbytek; větve po pádu
+// posledního stromu schnou `dryDays` dní, pálí se jen v měsících `BURN_WINDOWS`; ohně po
+// dohoření doutnají `smolderDays` dní. Celková práce (sazba lesa za hektar) se nemění.
+export const FOREST_CLEARING = { fellShare: 0.6, dryDays: 30, smolderDays: 2 } as const;
+/** Okno pálení větví a pařezů – březen až říjen (měsíce 1–12). */
+export const BURN_WINDOWS: readonly WindowSegment[] = [[3, 10]];
 // fields.md – Práce: sklizeň srpem a vázání 20 (s řemesly 15; rešerše 2026-10-17, dop. 3 – dřív
 // 30) + odnos úrody v nůších 10 člověkodní na hektar (návrh Clauda, Martin schválil 24. 10. 2026 –
 // dřív 20) – meze (simulace je počítá jako jednu úlohu sklizně, rozdělení práce pro scénu je

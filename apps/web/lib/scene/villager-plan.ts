@@ -71,7 +71,16 @@ import {
 } from './villager-plan-crafts';
 import { trafficFigures } from './villager-plan-traffic';
 import { lordFigures } from './villager-plan-lord';
-import { domestic, elders, herderPeople, herders, idlers, porters } from './villager-plan-folk';
+import {
+  anglers,
+  domestic,
+  elders,
+  herderPeople,
+  herders,
+  idlers,
+  porters,
+  watchChildren,
+} from './villager-plan-folk';
 import {
   activeFunerals,
   activeWeddings,
@@ -159,10 +168,13 @@ export function planVillagersWithCrew(
   staff.caravanCarts();
   // vojvodova rodina na dvorku (lord.md – Ve scéně): jediní, kdo stojí na oploceném pozemku
   // dvorce – cvičí, nebo vede domácnost; do práce vsi nejde
-  const family = lordFigures(ctx, labor, dayWindow);
+  const family = lordFigures(ctx, labor, dayWindow, options.huntSpot ?? null);
   if (family.rides.length > 0) crew.rides = family.rides;
+  if (family.dogs.length > 0) crew.dogs = family.dogs;
   const fetchers = smithFetchFigures(ctx, labor);
   const herding = herderPeople(ctx, labor);
+  // děti s řehtačkou na hlídaných dílech (wildlife.md – Noční hlídka) – po pasácích
+  const watching = watchChildren(ctx);
   // spřežení a vozy jsou ve scéně vidět celý den – oráč, honák a vozka mají pevné místo dne
   staff.all();
   // výpravy k sousedům jdou jako karavany podle stavu výpravy (trade.md – Ve scéně), ne podle
@@ -253,6 +265,7 @@ export function planVillagersWithCrew(
   const elderHerders = tending.filter((kind) => kind === 'elder').length;
   people.push(...elders(ctx, elderCount(Math.max(0, labor.people.elders - elderHerders), winter)));
   people.push(...herders(ctx, tending, herding));
+  people.push(...watching);
   people.push(...caravanPeople);
   people.push(...family.people);
   people.push(...traffic);
@@ -551,8 +564,10 @@ export function placer(ctx: Context, share: SceneLaborShare, count: number): Pla
       // noční hlídka polí (wildlife.md – Obrana polí): ve dne nikdo, ve scéně ji ukazuje oheň (W10)
       return none;
     case 'fish':
+      // rybáři na břehu tůně s prutem (wildlife.md – Ve scéně)
+      return t.kind === 'pool' ? anglers(ctx, t.index) : none;
     case 'snare':
-      // rybáře u tůně s prutem dokreslí scéna zvěře (W11)
+      // oka na zajíce u okraje lesa – scéna je nekreslí (wildlife.md – Ve scéně: oka se nekreslí)
       return none;
     case 'herding':
       // dospělí pasáci stojí u stád spolu s dětmi (`herders`, diet.md – Pasáci)

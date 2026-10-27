@@ -131,7 +131,11 @@ má nějaké meze. Bez řemeslníků ber tu nejhorší hranici, s řemeslníky t
 
   Ceny povrchu jsou oprava podle rešerše (dřív 40 / 150 / 250): panenský drn jde motykou
   ≈ 2,5× pomaleji než lehká půda (Semjonov 1974), 15letý porost stojí ≈ 49 dní na hektar
-  kamennými sekerami (Rösch a kol. 2017); žďár bez klučení pařezů přijde s další mechanikou.
+  kamennými sekerami (Rösch a kol. 2017); žďár bez klučení pařezů přijde s další mechanikou –
+  **návrh 26. 10. 2026** (issue #10, [les a dřevo](forest.md) – Klučení lesa pro pole – postup):
+  díl v lese se klučí po fázích – kácení s kládami u lesa, 30 dní schnutí, pálení větví
+  a pařezů v březnu až říjnu; sazba lesa se nemění (60 % kácení, 40 % pálení), bonus popela
+  běží od dohoření.
   Překážky jsou návrh Clauda. Stejné ceny překážek platí pro umístění obydlí
   ([populace](population.md)) – jedna tabulka pro celou hru.
 

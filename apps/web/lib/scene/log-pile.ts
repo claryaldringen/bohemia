@@ -4,15 +4,18 @@ import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Scene } from '@babylonjs/core/scene';
-import type { Landscape, ObstacleChanges, ObstacleLayer } from '@bohemia/game';
+import type { Landscape, ObstacleChanges, ObstacleLayer, Point } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
 import { applyGammaFog } from './gamma-fog';
 import {
+  MAX_STACKS,
   PILE_DEPTH_M,
-  PILE_WIDTH_M,
   logPileLayout,
   logPileSite,
+  logStackSite,
+  pileCorners,
   pileToWorld,
+  pileWidth,
   type LogPileSite,
 } from './log-pile-layout';
 import { applySeasonSnow } from './season-materials';
@@ -21,19 +24,24 @@ import { applySeasonSnow } from './season-materials';
 const SIDES = 12;
 const LENGTH_SEGMENTS = 4;
 const BARK = [0.4, 0.29, 0.19] as const;
+/** Po kolika pokácených stromech se hromadě bez místa hledá místo znovu. */
+const RETRY_REMOVED = 12;
 const SAPWOOD = [0.86, 0.7, 0.46] as const;
 const HEARTWOOD = [0.7, 0.5, 0.3] as const;
 
 /**
- * Hromada klád u vsi (forest.md – „klády leží viditelně složené stranou“): kmeny jako instance
- * jedné vlastní sítě (válec s kůrou a světlými čely), kolik klád, tolik kmenů – nejvýš
- * MAX_SHOWN_LOGS. Místo se hledá jen při změně vsi (obydlí, pole, překážky), počet klád jen
- * přeskládá instance.
+ * Hromada klád u vsi (forest.md – „klády leží viditelně složené stranou“) a hromady klád u lesa
+ * (forest.md – Klučení lesa pro pole – postup): kmeny jako instance jedné vlastní sítě (válec
+ * s kůrou a světlými čely), kolik klád, tolik kmenů – nejvýš MAX_SHOWN_LOGS na hromadu. Místa
+ * se hledají jen při změně vsi (obydlí, pole, cesty, překážky), počet klád jen přeskládá
+ * instance.
  */
 export class LogPile {
   private mesh: Mesh | null = null;
   private siteKey = '';
   private site: LogPileSite | null = null;
+  /** Místa hromad u lesa podle id hromady – klíč (kotva a ves) a místo. */
+  private readonly stackSites = new Map<number, { key: string; site: LogPileSite | null }>();
   private signature = '';
 
   constructor(
@@ -53,52 +61,100 @@ export class LogPile {
       village.dwellings.map((d) => `${d.id}:${d.position.x}:${d.position.z}`).join(','),
       village.fields.map((f) => f.parts.length).join(','),
       (village.cemeteries ?? []).map((c) => c.squares.length).join(','),
-      changes.removed.length,
-      changes.stumps.length,
     ].join('|');
-    if (siteKey !== this.siteKey) {
-      this.siteKey = siteKey;
+    // padající stromy místo uvolňují, nikdy neubírají – hromady bez místa se zkusí znovu jen
+    // jednou za RETRY_REMOVED pokácených stromů, ostatní místa se kvůli nim nehledají
+    const retry = Math.floor(changes.removed.length / RETRY_REMOVED);
+    const mainKey = this.site ? siteKey : `${siteKey}|${retry}`;
+    if (mainKey !== this.siteKey) {
+      this.siteKey = mainKey;
       this.site = logPileSite(this.options.landscape, village, this.options.layer, changes);
     }
-    const site = this.site;
-    const signature = site && count > 0 ? `${site.x}|${site.z}|${site.rotation}|${count}` : '';
+    const piles: { site: LogPileSite; count: number }[] = [];
+    if (this.site && count > 0) piles.push({ site: this.site, count });
+    // půdorysy už umístěných hromad – další hromada na ně nesmí
+    const occupied: Point[][] = this.site ? [pileCorners(this.site)] : [];
+    // hromady u lesa – místo se hledá znovu jen při změně vsi, předchozí volné místo zůstane
+    const stackKey = `${siteKey}|${(village.roads ?? []).length}`;
+    const live = new Set<number>();
+    for (const stack of village.logStacks ?? []) {
+      if (stack.logs <= 0) continue;
+      live.add(stack.id);
+      const prior = this.stackSites.get(stack.id);
+      const key = `${stack.x}|${stack.z}|${stackKey}${prior && !prior.site ? `|${retry}` : ''}`;
+      let known = this.stackSites.get(stack.id);
+      if (known?.key !== key) {
+        const site = logStackSite(
+          this.options.landscape,
+          village,
+          this.options.layer,
+          changes,
+          stack,
+          known?.site ?? null,
+          occupied,
+        );
+        known = { key, site };
+        this.stackSites.set(stack.id, known);
+      }
+      if (known.site) {
+        piles.push({ site: known.site, count: stack.logs });
+        occupied.push(pileCorners(known.site));
+      }
+    }
+    for (const id of [...this.stackSites.keys()]) if (!live.has(id)) this.stackSites.delete(id);
+    const signature = piles
+      .map(({ site, count: n }) => `${site.x}|${site.z}|${site.rotation}|${site.stacks ?? ''}|${n}`)
+      .join(';');
     if (signature === this.signature) return false;
     this.signature = signature;
-    if (!site || count <= 0) {
+    if (piles.length === 0) {
       if (!this.mesh?.isEnabled()) return false;
       this.mesh.setEnabled(false);
       return true;
     }
     const mesh = this.ensureMesh();
-    const logs = logPileLayout(count);
-    // pata hromady: nejnižší místo pod ní – na svahu klády nevisí ve vzduchu
-    const base = Math.min(
+    const placed = piles.map(({ site, count: n }) => ({
+      site,
+      logs: logPileLayout(n, site.stacks),
+      base: this.pileBase(site),
+    }));
+    const total = placed.reduce((sum, p) => sum + p.logs.length, 0);
+    const matrices = new Float32Array(total * 16);
+    const matrix = new Matrix();
+    let i = 0;
+    for (const { site, logs, base } of placed) {
+      for (const log of logs) {
+        const [x, z] = pileToWorld(site, log.x, log.z);
+        Matrix.ComposeToRef(
+          new Vector3(log.radius, log.radius, log.length),
+          Quaternion.RotationAxis(Vector3.Up(), site.rotation + log.yaw),
+          new Vector3(x, base + log.y - 0.03, z),
+          matrix,
+        );
+        matrix.copyToArray(matrices, i * 16);
+        i++;
+      }
+    }
+    mesh.thinInstanceSetBuffer('matrix', matrices, 16, true);
+    mesh.setEnabled(true);
+    return true;
+  }
+
+  /** Pata hromady: nejnižší místo pod ní – na svahu klády nevisí ve vzduchu. */
+  private pileBase(site: LogPileSite): number {
+    const width = pileWidth(site.stacks ?? MAX_STACKS);
+    return Math.min(
       ...[
         [0, 0],
-        [-PILE_WIDTH_M / 2, -PILE_DEPTH_M / 2],
-        [PILE_WIDTH_M / 2, -PILE_DEPTH_M / 2],
-        [PILE_WIDTH_M / 2, PILE_DEPTH_M / 2],
-        [-PILE_WIDTH_M / 2, PILE_DEPTH_M / 2],
+        [-width / 2, -PILE_DEPTH_M / 2],
+        [width / 2, -PILE_DEPTH_M / 2],
+        [width / 2, PILE_DEPTH_M / 2],
+        [-width / 2, PILE_DEPTH_M / 2],
       ].map(([lx, lz]) => {
         const [x, z] = pileToWorld(site, lx!, lz!);
         return this.options.groundHeight(x, z);
       }),
     );
-    const matrices = new Float32Array(logs.length * 16);
-    const matrix = new Matrix();
-    logs.forEach((log, i) => {
-      const [x, z] = pileToWorld(site, log.x, log.z);
-      Matrix.ComposeToRef(
-        new Vector3(log.radius, log.radius, log.length),
-        Quaternion.RotationAxis(Vector3.Up(), site.rotation + log.yaw),
-        new Vector3(x, base + log.y - 0.03, z),
-        matrix,
-      );
-      matrix.copyToArray(matrices, i * 16);
-    });
-    mesh.thinInstanceSetBuffer('matrix', matrices, 16, true);
-    mesh.setEnabled(true);
-    return true;
   }
 
   dispose(): void {

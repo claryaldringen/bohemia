@@ -219,8 +219,17 @@ export interface SceneVillage {
    * nich počítá klády z mýcení stejně jako server. Bez údaje žádné.
    */
   reservedTrees?: number[];
-  /** Klády na hromadě v kusech – scéna je složí u obydlí nejblíž lesu. Bez údaje žádné. */
+  /**
+   * Klády na hromadě u vsi v kusech (zásoba bez hromad u lesa – `pileLogs`) – scéna je složí
+   * u obydlí nejblíž lesu. Bez údaje žádné.
+   */
   woodLogs?: number;
+  /**
+   * Hromady klád u lesa (forest.md – Klučení lesa pro pole – postup): id, kotva (střed čtverce,
+   * na kterém padl první dospělý strom) a klády v celých kusech – scéna je složí na volném místě
+   * u kotvy. Bez údaje žádné.
+   */
+  logStacks?: { id: number; x: number; z: number; logs: number }[];
   /**
    * Kde ves dnes pracuje – postavy ve scéně (docs/design/villagers.md). Bez údaje (ves uložená
    * před rozdělením práce, ještě nedopočítaný den) nikdo.
@@ -305,6 +314,11 @@ export interface SceneVillage {
    * ohradu (v zimě stojí krávy v ohradě, když ves nějakou má). Bez údaje se odvodí z domácností.
    */
   livestock?: Record<HerdSpecies, number>;
+  /**
+   * Divoká zvěř pro scénu (wildlife.md – Ve scéně): kolik kusů ukázat podle stupně stavu (ne
+   * jedinci simulace), díl s největší škodou, hejna vran a podíl ryb. Bez údaje bez zvěře.
+   */
+  wildlife?: SceneWildlife;
   /** Ohrady (oxen.md) – čtverec, stavba a zvířata v ní. Bez údaje žádné. */
   pens?: ScenePen[];
   /**
@@ -715,7 +729,9 @@ export interface SceneSacred {
  * úhor ve stadiu louky se kosí na seno (Martin) – vysoká tráva na jaře (`meadow`), posečená
  * s řádky sena a kupkami (`mown`), otava se stohy, které přes podzim a zimu mizí (`haystacks`).
  * Nepasený a nesečený příloh zarůstá (fields.md – Zarůstání): křoviny (`shrubs`) a mladý les
- * (`young-forest`) – bez obtisku pole, roste na něm keř a stromky (`overgrowth` dílu).
+ * (`young-forest`) – bez obtisku pole, roste na něm keř a stromky (`overgrowth` dílu). Klučení
+ * lesa (forest.md – Klučení lesa pro pole – postup): paseka s pařezy a větvemi (`slash`)
+ * a spálenina s popelem (`burnt`).
  */
 export type FieldLook =
   | 'bare'
@@ -732,7 +748,9 @@ export type FieldLook =
   | 'mown'
   | 'haystacks'
   | 'shrubs'
-  | 'young-forest';
+  | 'young-forest'
+  | 'slash'
+  | 'burnt';
 
 /**
  * Díl pole ve scéně – políčko krajiny `cell`, jeho střed (x, z) ve světě, strana políčka `size`
@@ -763,6 +781,11 @@ export interface SceneFieldPart {
   work?: number;
   /** Vzhled nehotové části rozpracovaného dílu; bez údaje povrch před prací (louka u zakládání). */
   before?: FieldLook;
+  /**
+   * Den dohoření paseky (forest.md – Klučení lesa pro pole – postup) – spálenina pak ještě
+   * doutná (`isSmoldering`). Bez údaje díl nehořel.
+   */
+  burnedDay?: number;
   /**
    * Roky přílohu bez pastvy a seče (fields.md – Zarůstání) – podle nich ve scéně rostou keře
    * a stromky (hustota a velikost). Jen u přílohu, který zarůstá (aspoň rok).
@@ -1046,4 +1069,65 @@ export interface ScenePloughLegs {
   home?: { x: number; z: number }[];
   /** Den bez orby, spřežení na poli – kde stojí (díl na čele orby). */
   stand?: { x: number; z: number };
+}
+
+/** Divoká zvěř vsi pro scénu (wildlife.md – Ve scéně; `sceneWildlife` ve wildlife-view.ts). */
+export interface SceneWildlife {
+  /** Kolik kusů ukázat (podle stupně stavu druhu, s mezí scény – `SCENE_WILD_SHOWN`). */
+  shown: SceneWildShown;
+  /** Měsíc herního dne (1–12) – říje, zima vlků, medvěd duben–listopad, léto na polích. */
+  month: number;
+  /** Díl s největší škodou letos (jádro `damage.topPartId`, jen v okně škod); jinak chybí. */
+  topPartId?: number;
+  /** Hejna vran z jádra (`crowFlocks` – podle osetých ha). */
+  crowFlocks: number;
+  /** Ryby: biomasa ÷ strop (0–1) – kolik hejn ryb v tůních je vidět. */
+  fishShare: number;
+  /**
+   * Lov dne (jádro `hunt.today` – wildlife.md, Lov rodu): cíl, jezdci (člověk a kůň), pěší lovci
+   * a celé kusy úlovku (po lovu). Chybí = dnes se neloví.
+   */
+  hunt?: SceneHunt;
+  /** Psi dvorce (celé kusy, jádro `dogs.count`, nejvýš 8). Chybí = dvorec psy nechová. */
+  dogs?: number;
+  /** Dnes jede jezdecká hlídka (jádro `patrol` dne se silou > 0) – psi běží s objížďkou. */
+  patrol?: boolean;
+  /** Díly noční hlídky letošní sezóny (jádro `watch.parts`) – ve dne na nich děti s řehtačkou. */
+  watchParts?: number[];
+  /**
+   * Loviště dnešních rybářů (jádro `smallGame.today` – ryby): tůně od nejbližší (`fishingPools`),
+   * index jako cíl práce `{ kind: 'pool', index }`. Chybí = dnes se nerybaří.
+   */
+  pools?: ScenePool[];
+}
+
+/** Lov dne ve scéně (`SceneWildlife.hunt`). */
+export interface SceneHunt {
+  target: 'game' | 'wolves' | 'bear';
+  riders: { id: number; horseId: number }[];
+  foot: number[];
+  kills: number;
+}
+
+/** Tůň – bod osy u nejhlubšího místa, směr toku a polovina šířky vody vlevo a vpravo (m). */
+export interface ScenePool {
+  x: number;
+  z: number;
+  flowX: number;
+  flowZ: number;
+  halfLeft: number;
+  halfRight: number;
+}
+
+/** Viditelné kusy zvěře ve scéně. */
+export interface SceneWildShown {
+  stags: number;
+  hinds: number;
+  calves: number;
+  boars: number;
+  piglets: number;
+  hares: number;
+  foxes: number;
+  wolves: number;
+  bears: number;
 }

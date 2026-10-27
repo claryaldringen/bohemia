@@ -469,6 +469,22 @@ describe('livestockGround na skutečné krajině', () => {
       }
     }
   });
+
+  it('pás zvěře (verge) leží na louce před lesem, ne pod korunami', () => {
+    let count = 0;
+    for (let dz = -300; dz <= 300; dz += 3) {
+      for (let dx = -300; dx <= 300; dx += 3) {
+        const x = site.worldX + dx;
+        const z = site.worldZ + dz;
+        if (!ground.verge?.(x, z)) continue;
+        count++;
+        // střed buňky rastru (4 m) je aspoň 8 m před lesem, bod v buňce nejvýš o 2,9 m blíž
+        expect(field.distanceAt(x, z)).toBeLessThan(-4);
+        expect(field.distanceAt(x, z)).toBeGreaterThan(-24);
+      }
+    }
+    expect(count).toBeGreaterThan(0);
+  });
 });
 
 describe('planLivestock – koně na pastvě (horses.md – Krmení, Ve scéně)', () => {

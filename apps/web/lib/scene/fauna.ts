@@ -25,7 +25,7 @@ import {
   type Bounds,
   type FaunaPose,
 } from './fauna-motion';
-import type { BirdFlock, BirdSpecies, FishSchool } from './fauna-placement';
+import { shownSchools, type BirdFlock, type BirdSpecies, type FishSchool } from './fauna-placement';
 import { iceCoverOfFlow } from './water-ice';
 
 /** Ozdobná zvířata krajiny; `animate` je posune na daný čas, jen pokud jsou v záběru. */
@@ -37,6 +37,12 @@ export interface Fauna {
    * kvůli nim nepřekresluje). Vrátí true, když se něco změnilo (scéna pak musí překreslit).
    */
   setIce(ice: number): boolean;
+  /**
+   * Kolik je ryb a vran podle jádra (wildlife.md – Ve scéně): podíl biomasy ryb (0–1) ukáže
+   * tolik hejn ryb (`shownSchools`), hejna vran z jádra nejvýš kolik jich krajina má. Bez údaje
+   * všechna. Vrátí true, když se něco změnilo (scéna pak musí překreslit).
+   */
+  setAbundance(abundance: { fishShare: number; crowFlocks: number } | null): boolean;
 }
 
 type FaunaModel = BirdSpecies | 'fish';
@@ -66,6 +72,8 @@ interface FaunaGroup {
   iceFlow?: number;
   /** Násobek krytí skupiny 0–1 – pod ledem 0 (skupina se pak ani nehýbe). */
   visibility: number;
+  /** Skupina je podle jádra vidět (`setAbundance`); skrytá má nulové měřítko a nehýbe se. */
+  shown: boolean;
 }
 
 interface Herd {
@@ -102,17 +110,18 @@ export async function addFauna(
   placements: { fish: readonly FishSchool[]; birds: readonly BirdFlock[] },
   options: { baseUrl: string },
 ): Promise<Fauna> {
-  const all: { model: FaunaModel; groups: Omit<FaunaGroup, 'first' | 'visibility'>[] }[] = [
-    {
-      model: 'crow',
-      groups: placements.birds.filter((f) => f.species === 'crow').map(birdGroup),
-    },
-    {
-      model: 'hawk',
-      groups: placements.birds.filter((f) => f.species === 'hawk').map(birdGroup),
-    },
-    { model: 'fish', groups: placements.fish.map(fishGroup) },
-  ];
+  const all: { model: FaunaModel; groups: Omit<FaunaGroup, 'first' | 'visibility' | 'shown'>[] }[] =
+    [
+      {
+        model: 'crow',
+        groups: placements.birds.filter((f) => f.species === 'crow').map(birdGroup),
+      },
+      {
+        model: 'hawk',
+        groups: placements.birds.filter((f) => f.species === 'hawk').map(birdGroup),
+      },
+      { model: 'fish', groups: placements.fish.map(fishGroup) },
+    ];
   const wanted = all.filter((w) => w.groups.length > 0);
 
   const results = await Promise.allSettled(
@@ -140,7 +149,9 @@ export async function addFauna(
       for (const herd of herds) {
         let herdMoved = false;
         for (const group of herd.groups) {
-          if (group.visibility <= 0 || !camera.isInFrustum(group.bounds)) continue;
+          if (!group.shown || group.visibility <= 0 || !camera.isInFrustum(group.bounds)) {
+            continue;
+          }
           const center = group.bounds.boundingSphere.centerWorld;
           if (Vector3.Distance(camera.globalPosition, center) > ANIMATE_RANGE_M[herd.model]) {
             continue;
@@ -176,6 +187,7 @@ export async function addFauna(
             continue;
           }
           group.visibility = visibility;
+          if (!group.shown) continue;
           for (let i = 0; i < group.count; i++) {
             writeInstance(
               herd,
@@ -190,7 +202,44 @@ export async function addFauna(
         if (herdChanged) {
           herd.mesh.thinInstanceBufferUpdated('matrix');
           herd.mesh.thinInstanceBufferUpdated('faunaState');
-          herd.mesh.isVisible = herd.groups.some((group) => group.visibility > 0);
+          herd.mesh.isVisible = herd.groups.some((group) => group.shown && group.visibility > 0);
+          changed = true;
+        }
+      }
+      return changed;
+    },
+    setAbundance(abundance): boolean {
+      let changed = false;
+      for (const herd of herds) {
+        const total = herd.groups.length;
+        const shownCount =
+          abundance === null
+            ? total
+            : herd.model === 'fish'
+              ? shownSchools(total, abundance.fishShare)
+              : herd.model === 'crow'
+                ? Math.min(total, abundance.crowFlocks)
+                : total;
+        let herdChanged = false;
+        herd.groups.forEach((group, g) => {
+          const shown = g < shownCount;
+          if (shown === group.shown) return;
+          group.shown = shown;
+          for (let i = 0; i < group.count; i++) {
+            writeInstance(
+              herd,
+              group.first + i,
+              group.pose(i, lastTime, pose),
+              shown ? group.scales[i]! : 0,
+              group.visibility,
+            );
+          }
+          herdChanged = true;
+        });
+        if (herdChanged) {
+          herd.mesh.thinInstanceBufferUpdated('matrix');
+          herd.mesh.thinInstanceBufferUpdated('faunaState');
+          herd.mesh.isVisible = herd.groups.some((group) => group.shown && group.visibility > 0);
           changed = true;
         }
       }
@@ -199,7 +248,7 @@ export async function addFauna(
   };
 }
 
-function birdGroup(flock: BirdFlock): Omit<FaunaGroup, 'first' | 'visibility'> {
+function birdGroup(flock: BirdFlock): Omit<FaunaGroup, 'first' | 'visibility' | 'shown'> {
   return {
     bounds: boundingInfo(birdFlockBounds(flock)),
     count: flock.birds.length,
@@ -208,7 +257,7 @@ function birdGroup(flock: BirdFlock): Omit<FaunaGroup, 'first' | 'visibility'> {
   };
 }
 
-function fishGroup(school: FishSchool): Omit<FaunaGroup, 'first' | 'visibility'> {
+function fishGroup(school: FishSchool): Omit<FaunaGroup, 'first' | 'visibility' | 'shown'> {
   return {
     bounds: boundingInfo(fishSchoolBounds(school)),
     count: school.fish.length,
@@ -334,7 +383,7 @@ function createHerd(
   scene: Scene,
   model: FaunaModel,
   geometry: FaunaGeometry,
-  groups: Omit<FaunaGroup, 'first' | 'visibility'>[],
+  groups: Omit<FaunaGroup, 'first' | 'visibility' | 'shown'>[],
 ): Herd {
   // Jméno mimo předpony vrhačů stínů (trees-, impostors-, decor-) – stínová mapa je statická.
   const mesh = new Mesh(`fauna-${model}`, scene);
@@ -370,7 +419,7 @@ function createHerd(
 
   let first = 0;
   const placed: FaunaGroup[] = groups.map((group) => {
-    const withFirst = { ...group, first, visibility: 1 };
+    const withFirst = { ...group, first, visibility: 1, shown: true };
     first += group.count;
     return withFirst;
   });

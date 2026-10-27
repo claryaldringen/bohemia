@@ -72,6 +72,7 @@ import {
   structureCondition,
   tileCenterWorld,
   wholeLogs,
+  pileLogs,
   type ConstructionSummary,
   type LaborDay,
   type LaborShare,
@@ -88,6 +89,7 @@ import { foreignFromScene, plotOfScene } from './scene/neighbour-villages';
 import { sceneFunerals } from './funeral-view';
 import { scenePersons } from './person-view';
 import { sceneWeddings } from './wedding-view';
+import { sceneWildlife } from './wildlife-view';
 
 export function sceneVillage(
   state: VillageState,
@@ -174,6 +176,7 @@ export function sceneVillage(
           ...(years > 0 ? { overgrowth: years } : {}),
           ...(grazed && isGrazeableFallow(p) ? { grazed: grazed.has(p.id) } : {}),
           ...(p.roadCut ? { roadCut: [...p.roadCut] } : {}),
+          ...(p.burnedDay === undefined ? {} : { burnedDay: p.burnedDay }),
         },
       ];
     }),
@@ -244,9 +247,22 @@ export function sceneVillage(
       ...(view.before === undefined ? {} : { before: view.before }),
     };
   });
+  // hromady klád u lesa (forest.md – Klučení lesa pro pole – postup) v celých kládách
+  const logStacks = (state.logStacks ?? []).flatMap((stack) => {
+    const logs = wholeLogs(stack.logs);
+    return logs > 0 ? [{ id: stack.id, x: stack.x, z: stack.z, logs }] : [];
+  });
   const penned = pens.reduce((sum, pen) => sum + pen.cows, 0);
   const herds = summary.livestock.herds;
   const threshingFloors = sceneThreshingFloors(state, constructions, day);
+  // divoká zvěř (wildlife.md – Ve scéně) – hejna vran podle osetých ha
+  const sownHa =
+    fields.reduce(
+      (sum, f) =>
+        sum + f.parts.reduce((m2, p) => m2 + (p.stage === 'sown' ? p.size * p.size : 0), 0),
+      0,
+    ) / 10_000;
+  const wildlife = sceneWildlife(state, day, sownHa, landscape);
   return {
     dwellings: [...built, ...sites],
     ...(ruins.length > 0 ? { ruins } : {}),
@@ -259,11 +275,13 @@ export function sceneVillage(
     ...(orchards.length > 0 ? { orchards } : {}),
     obstacles,
     ...(reserved.length > 0 ? { reservedTrees: reserved } : {}),
-    woodLogs: wholeLogs(state.woodLogs ?? 0),
+    woodLogs: wholeLogs(pileLogs(state)),
+    ...(logStacks.length > 0 ? { logStacks } : {}),
     ...(labor ? { labor } : {}),
     ...(sacred ? { sacred } : {}),
     ...(threshingFloors.length > 0 ? { threshingFloors } : {}),
     livestock: { ...herds, cow: Math.max(0, herds.cow - penned) },
+    ...(wildlife ? { wildlife } : {}),
     ...(hayMeadows.length > 0 ? { hayMeadows } : {}),
     ...(pens.length > 0 ? { pens } : {}),
     ...(summary.crafts.coverage.tools > 0 ? { toolCoverage: summary.crafts.coverage.tools } : {}),

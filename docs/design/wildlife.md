@@ -331,12 +331,26 @@ kde to nestačí.
   stejných morph targetů – žádný nový atribut) – jen scéna.
 - **Lovci:** v den velkého lovu vyjedou jezdci a vyjdou pěší se psy branou k okraji lesa u roty
   a vrátí se (jako jezdci v bloku jízdy – [koně](horses.md), Ve scéně); prasata před nimi utíkají.
-  Hlídka v létě = dosavadní objížďka.
+  Hlídka v létě = dosavadní objížďka. Den má 86 s: cesta k lesu smí trvat nejvýš 70 % půlky
+  bloku lovu – pěší rychlou chůzí dojdou ≈ 70 m, poklusem ≈ 100 m, jezdci cvalem ≈ 135 m. Les
+  u zvěře dál než to jdou lovci k nejbližšímu okraji lesa, a když ani ten nestihnou, jen ke
+  kraji svého dosahu – nikdy se neotočí v půlce cesty.
 - **Rybáři:** stojí na břehu tůně (dosavadní póza stání) s **prutem** – nová rekvizita (vlastní CC0
   model ≈ 3 m, vlasec jako čára), samostatná instance natočená podle postavy, **žádný nový vertex
   atribut** (postava má právě 8 bufferů). Počet z jádra (hodiny rybaření ÷ délka dne), nejvýš 3 na
-  tůň. Oka se nekreslí.
-- **Psi:** u dvorce (stojí, leží), s pěšími lovci a s jezdci na objížďce.
+  tůň. Oka se nekreslí. Ves bez tůně do dosahu jádro rybaří na své vodě (`waterHa`) jako na
+  jedné tůni – rybáři pak stojí na břehu potoka v místě nejblíž vsi; voda bez potoka (jen
+  políčka vody) rybáře nekreslí.
+- **Psi:** u dvorce (stojí, leží), s pěšími lovci a s jezdci na objížďce; na začátku a konci
+  lovu 3 s dobíhají od dvorce k lovcům a zpět (neskočí).
+- **Děti s řehtačkou:** scéna kreslí na každém hlídaném dílu ve dne vždy dítě s řehtačkou, bez
+  ohledu na to, kdo hlídá v jádru (v noci staří a výrostci, pak dospělí) – hra noc nemá, noční
+  hlídače u ohně scéna nekreslí. Děti se berou až po pasácích, pasáci tak nezůstanou bez postavy.
+- **Ve hře (W10, návrh Clauda):** kusy podle stupně stavu (jelení 4/8/12, prasata 4/7/10, zajíci
+  1/2/4, vlci 2/3/5); hra zatím nemá noc (den a noc jen v náhledu krajiny), takže zóny se řídí
+  jen měsícem a noční louky přijdou s denní dobou ve hře; vzácní (vlci, medvěd, liška) jsou
+  vidět jen v části 20minutových úseků skutečného času; po útěku skupina chvíli stojí a krokem se
+  vrátí. Podrobnosti: `docs/code/scene-village.md` – Divoká zvěř ve scéně.
 - **Výkon:** jeden mesh `wild-*` na druh v instancích jako fauna (`fauna.ts`), 3 morph targety jako
   kráva (WebGPU limit 8 vertex bufferů ověřit u každého druhu). Pohyb ve skutečném čase
   (`livestockClock`), animace v `animate()` v taktu `WATER_FPS`, jen skupiny v záběru, při
@@ -487,3 +501,61 @@ Martin: „Souhlasím se všemi návrhy“ – tři otázky z plánu jsou uzavř
   nárazově (návrh Clauda, oprava po závěrečné recenzi 26. 10. 2026).
 - **Pro scénu (W11):** `wildlife.smallGame.today` (rybáři po tůních) a podíly práce `fish` (cíl
   `pool` – pořadí tůně) a `snare`; „rybář s prutem u loviště“ (Martin 24. 10. 2026).
+
+## Rozhodnutí při implementaci W11 (26. 10. 2026, návrh Clauda)
+
+- **Lov trvá 3–21 h herního dne** a lovci jdou k lesu rychleji (jezdci až 6 m/s, pěší až 3,2 m/s) –
+  den má 86 s, krokem by k lesu nedošli. Dál než ≈ 100 m pěší les nestihnou a v půlce dne se otočí.
+- **Úlovek nese pěší lovec** cestou zpět (klip `carry-meat`), jen když jádro ten den ulovilo –
+  bez nového modelu; kus na koni by potřeboval mršinu natočenou podle koně.
+- **Oštěp** je v `man.glb` jen v klipu `spear-thrust` – pěší lovci ho drží, když v lese stojí;
+  při chůzi ho nemají (klip chůze s oštěpem by potřeboval nový převod z 0 A.D.).
+- **Noční hlídka se nekreslí** – hra nemá noc a oheň za plného světla by vypadal jako požár; ve
+  dne na hlídaných dílech děti s řehtačkou (vrány), noční hlídku ukazuje ikona v panelu (W9).
+
+## Ověření (W12, 26. 10. 2026)
+
+Skripty mimo repo (`scratchpad/diag-wildlife/w12.mts`), dosavadní kód = `feat/landscape` před
+sloučením zvěře (56d5f030), stejné vstupy.
+
+**Vlkov 3 roky bez zásahu hráče** (start 5. 6. 820, 43 lidí; stav 1. 5. na konci období, kusy /
+strop):
+
+| období          | 1. 5. jelení / prasata / vlci | škoda kg (% úrody) | dní objížďky | lov rodu kg (prasata / jeleni) | ryby kg | zajíci | obilí psů kg | vejce kg (dosavadní) | dny hladu |
+| --------------- | ----------------------------- | ------------------ | ------------ | ------------------------------ | ------- | ------ | ------------ | -------------------- | --------- |
+| 5. 6. 820 – 821 | 6/6 · 3/3 · 0,6               | 0 (0 %)            | 33           | 0                              | 438     | 10,2   | 192          | 113 (118)            | 0         |
+| 1. 5. 821 – 822 | 6/6 · 2/2 · 0,6               | 450 (7,1 %)        | 37           | 135 (1 / 1)                    | 402     | 10,2   | 219          | 125 (130)            | 0         |
+| 1. 5. 822 – 823 | 6/6 · 2/2 · 0,6               | 314 (6,1 %)        | 37           | 90 (0 / 1)                     | 106     | 10,2   | 219          | 131 (137)            | 0         |
+
+- Úroda (bez škody) 7066 / 5903 / 4831 kg proti dosavadním 7066 / 6307 / 5383 kg; úroda se
+  škodou 6353 a 5145 kg – druhý rok o 238 kg méně i bez škody (práce na rybách a hlídkách).
+- Noční hlídka v žních 0 čd (Vlkov má pole daleko od lesa, ohrožené díly nestojí za hlídku),
+  strhnutý dobytek 0, úmrtí hladem i na lovu 0 (1 zranění na lovu), lidí 43 → 46 jako dosud.
+- **Lov rodu 90–135 kg ročně** – pod cílem 350–400 kg: Vlkov má malý strop zvěře (jelení 6,
+  prasata 2–3), lovit není co. Prasata 1. 5. na stropu (2 z 2) – cíl „pod 70 % stropu“ se při
+  tak malých číslech neprojeví.
+- **Determinismus:** po 1 dni (30×), 1 den + 29 dní a 30 dní naráz stejný otisk stavu.
+- **Výkon:** rok Vlkova naráz 27,91 s proti 27,75 s (+0,6 %, nejlepší ze dvou).
+
+**Čerstvé vsi 4 × 14 let** (skutečná krajina, seed 101–104, první pole 1,7 ha, les 194–215 m od
+vsi, bez rodu – bez lovu a objížďky):
+
+- Škoda 2,0 / 4,3 / 5,4 / 5,9 % úrody za 14 let (nejhorší rok 6,8 %), noční hlídka 0–13 čd.
+- Ryby 4,7–6,1 t za 14 let (≈ 340–435 kg ročně – nad odhadem 150–200 kg), zajíci 6–8 ročně,
+  strhnuto 0–26 kusů dobytka za 14 let, úmrtí hladem 0.
+- **Bez hráče** (ves bez staveb a nových polí, do 8 lidí na 1,7 ha) hladoví ves stavbou: 2930–3300
+  dní hladu za 14 let proti dosavadním 2520–2910 – zvěř hlad prodlouží o ≈ 10–25 %. **S hráčem**
+  (kalibrace `measure-village` 4 × 14 let – hráč staví i nestaví) beze změny: nasycení ≥ 0,95
+  ve 100 % let, bez hladu, porody 9,0 a úmrtí dětí 0,5 na ves jako dosud.
+
+**Ve scéně** (vývojová ukázka `/dev/landscape`, `e2e/wildlife-scene.spec.ts` s
+`WILDLIFE_DEV_URL`, WebGL 2 i WebGPU bez chyb konzole; běžný e2e `village.spec.ts` – modely
+`wild-*` se načtou, klik na zvíře otevře panel druhu):
+
+- Prasata na dílu se škodou a selata – velikost vůči lidem dobrá; psi u kůlu i na začátku lovu
+  dobíhají k lovcům bez skoku; jezdec lovu vyjíždí od kůlu.
+- **Jelení na okraji lesa** (pás −7 až +5 m od hranice lesa, stejný jako prasata vsi) jsou při
+  přiblížení **pod korunami** – zakryté; náprava = vlastní pás zvěře venku z lesa (např. 0 až
+  +8 m) – větší zásah do rastru pastvin, zatím ne.
+- Rybáře a děti s řehtačkou ukázka nevykreslila (ukázková ves nemá podíl práce `fish` ani volné
+  výrostky) – ověřeno jen testy plánů (`anglers.test.ts`).

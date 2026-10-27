@@ -230,28 +230,124 @@ export function forestEdgeDistances(landscape: Landscape, state: LandState): Map
   return out;
 }
 
+/** Tůň potoka – bod osy u nejhlubšího místa, směr toku a polovina šířky vody vlevo a vpravo (m). */
+export interface FishingPool {
+  x: number;
+  z: number;
+  flowX: number;
+  flowZ: number;
+  halfLeft: number;
+  halfRight: number;
+}
+
 /** Tůně potoka do dosahu – po sobě jdoucí body osy s tůní, mezera do `poolMergeM` je jedna tůň. */
 function poolsInReach(
   landscape: Landscape,
   origin: { x: number; z: number },
   reach2: number,
 ): number {
-  if (landscape.stream.length < 2) return 0;
-  let pools = 0;
+  return poolGroups(landscape, origin, reach2).length;
+}
+
+/** Tůně do dosahu jako skupiny bodů osy (pořadí po proudu) – jejich počet je `land.pools`. */
+function poolGroups(
+  landscape: Landscape,
+  origin: { x: number; z: number },
+  reach2: number,
+): FishingPool[] {
+  if (landscape.stream.length < 2) return [];
+  const out: FishingPool[] = [];
+  let best = -1;
   let last: { x: number; z: number } | null = null;
   const merge2 = WILDLIFE_LAND.poolMergeM * WILDLIFE_LAND.poolMergeM;
-  for (const point of streamCenterline(landscape).points) {
+  const points = streamCenterline(landscape).points;
+  points.forEach((point, k) => {
     const dx = point.x - origin.x;
     const dz = point.z - origin.z;
-    if (point.pool < WILDLIFE_LAND.poolMin || dx * dx + dz * dz > reach2) continue;
-    if (last === null) {
-      pools++;
-    } else {
-      const lx = point.x - last.x;
-      const lz = point.z - last.z;
-      if (lx * lx + lz * lz > merge2) pools++;
-    }
+    if (point.pool < WILDLIFE_LAND.poolMin || dx * dx + dz * dz > reach2) return;
+    const fresh =
+      last === null ||
+      (point.x - last.x) * (point.x - last.x) + (point.z - last.z) * (point.z - last.z) > merge2;
     last = point;
+    const width = point.halfLeft + point.halfRight;
+    if (!fresh && width <= best) return;
+    const next = points[Math.min(points.length - 1, k + 1)]!;
+    const prev = points[Math.max(0, k - 1)]!;
+    const fx = next.x - prev.x;
+    const fz = next.z - prev.z;
+    const n = Math.sqrt(fx * fx + fz * fz) || 1;
+    const pool: FishingPool = {
+      x: point.x,
+      z: point.z,
+      flowX: fx / n,
+      flowZ: fz / n,
+      halfLeft: point.halfLeft,
+      halfRight: point.halfRight,
+    };
+    if (fresh) out.push(pool);
+    else out[out.length - 1] = pool;
+    best = width;
+  });
+  return out;
+}
+
+/**
+ * Loviště ryb vsi (wildlife.md – Drobná zvěř a ryby; scéna – rybáři s prutem): tůně do dosahu
+ * jako `land.pools`, od nejbližší k počátku vsi (index cíle `{ kind: 'pool', index }`), každá
+ * nejhlubším místem. Bez tůně do dosahu jádro rybaří na vodě vsi (`waterHa`) jako na jedné tůni –
+ * lovištěm je pak bod potoka nejblíž počátku vsi (návrh Clauda); bez potoka do dosahu nic.
+ * Ves bez obydlí nic.
+ */
+export function fishingPools(
+  landscape: Landscape,
+  state: Pick<VillageState, 'dwellings' | 'constructions'>,
+): FishingPool[] {
+  const origin = villageOrigin(state);
+  if (!origin) return [];
+  const d2 = (p: FishingPool): number =>
+    (p.x - origin.x) * (p.x - origin.x) + (p.z - origin.z) * (p.z - origin.z);
+  const reach2 = WILDLIFE_LAND.reachM * WILDLIFE_LAND.reachM;
+  const groups = poolGroups(landscape, origin, reach2);
+  if (groups.length === 0) {
+    const bank = streamSpot(landscape, origin, reach2);
+    return bank ? [bank] : [];
   }
-  return pools;
+  return groups
+    .map((p, i) => ({ p, i, d: d2(p) }))
+    .sort((a, b) => a.d - b.d || a.i - b.i)
+    .map(({ p }) => p);
+}
+
+/** Bod osy potoka nejblíž `origin` do dosahu (lovištěm bez tůně), nebo null. */
+function streamSpot(
+  landscape: Landscape,
+  origin: { x: number; z: number },
+  reach2: number,
+): FishingPool | null {
+  if (landscape.stream.length < 2) return null;
+  const points = streamCenterline(landscape).points;
+  let best = -1;
+  let bestD = reach2;
+  points.forEach((p, k) => {
+    const d = (p.x - origin.x) * (p.x - origin.x) + (p.z - origin.z) * (p.z - origin.z);
+    if (d <= bestD) {
+      bestD = d;
+      best = k;
+    }
+  });
+  if (best < 0) return null;
+  const point = points[best]!;
+  const next = points[Math.min(points.length - 1, best + 1)]!;
+  const prev = points[Math.max(0, best - 1)]!;
+  const fx = next.x - prev.x;
+  const fz = next.z - prev.z;
+  const n = Math.sqrt(fx * fx + fz * fz) || 1;
+  return {
+    x: point.x,
+    z: point.z,
+    flowX: fx / n,
+    flowZ: fz / n,
+    halfLeft: point.halfLeft,
+    halfRight: point.halfRight,
+  };
 }

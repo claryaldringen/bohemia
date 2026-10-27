@@ -12,7 +12,13 @@ import {
 } from '../landscape';
 import { NO_SPARED, type SparedSacred, sacredSitesOf, sparedWarning } from './sacred';
 import { type TakenLand } from './land-taken';
-import { cellObstacles, obstacleStatus, outcropUnder, squareObstacles } from './obstacles';
+import {
+  cellObstacles,
+  obstacleStatus,
+  outcropUnder,
+  squareObstacles,
+  type StandingTree,
+} from './obstacles';
 import { cemeteryFoundingCost, distanceToSquare, touchingCemeteries } from './cemetery';
 import { newFenceSides } from './fence-cost';
 import { fieldGrids } from './squares';
@@ -59,6 +65,29 @@ import {
 } from './placement-types';
 import { cellIndex, ownedAt } from './placement-geometry';
 import { sacredInShape, unreservedTrees } from './placement-dwellings';
+
+/**
+ * Stojící stromy čtverce v pořadí kácení (forest.md – Klučení lesa pro pole – postup): od stromu
+ * nejblíž nejbližšímu obydlí, při shodě podle id; stromy vyhrazené jinou stavbou se vynechají.
+ */
+export function fellingOrder(
+  village: PlacementVillage | null,
+  standing: readonly StandingTree[],
+  dwellingPositions: readonly Position[],
+): { id: number; log: boolean }[] {
+  const reserved = new Set(village?.reservedTrees ?? []);
+  const near = (t: StandingTree): number =>
+    dwellingPositions.length === 0
+      ? 0
+      : Math.min(
+          ...dwellingPositions.map((d) => (t.x - d.x) * (t.x - d.x) + (t.z - d.z) * (t.z - d.z)),
+        );
+  return standing
+    .filter((t) => !reserved.has(t.id))
+    .map((t) => ({ t, d: near(t) }))
+    .sort((a, b) => a.d - b.d || a.t.id - b.t.id)
+    .map(({ t }) => ({ id: t.id, log: t.log }));
+}
 
 /** Stromy dílu nebo čtverce pro klády z mýcení – bez stromů se údaj vynechá. */
 function withTrees(trees: number): { trees?: number } {
@@ -130,6 +159,9 @@ export function fieldPartsFromCells(
       obstacleCost: square.obstacleCost,
       ...(square.tally.ids.length > 0 ? { obstacleIds: square.tally.ids } : {}),
       ...withTrees(unreservedTrees(village, square.tally.treeIds)),
+      ...(square.surface === 'forest'
+        ? { standing: fellingOrder(village, square.tally.standing, dwellingPositions) }
+        : {}),
       cell: square.square.cell,
     };
   });

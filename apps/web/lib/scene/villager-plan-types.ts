@@ -1,5 +1,7 @@
 // Typy, konstanty a kontext plánu postav (rozhraní Context, Placer, House, Box…).
+import type { DogPlan } from './dogs';
 import type { RidePlan } from './riders';
+import type { HuntSpotFn } from './villager-plan-lord';
 import { type Craft, type Position, type ShapeFrame } from '@bohemia/game';
 import type { LaborActivity, SceneCraftYard, SceneVillage } from '../village-view';
 import { type DayWindow } from './caravan';
@@ -188,6 +190,11 @@ export interface VillagerGround {
   /** Stojící dospělé stromy ve čtverci (střed, polovina strany) – nejvýš `max`. */
   treesIn(x: number, z: number, half: number, max: number): { x: number; z: number }[];
   /**
+   * Překážky čtverce z vrstvy (clearing-slash-layout.ts – `squareObstacles`) – podle nich leží
+   * hromady větví na pasece a lidé u nich při pálení. Bez ní lidé pálí v řadě na čáře práce.
+   */
+  squareObstacles?(part: { x: number; z: number; size: number }): [number, number][];
+  /**
    * Značka stavu stromů: dokud je stejný objekt, jsou stromy (`treesIn`) tytéž – index skupinek
    * stromů se mezi přeplánováními nepočítá znovu. Bez ní se počítá při každém plánu.
    */
@@ -247,6 +254,11 @@ export interface VillagerPlanOptions {
    * postavy). Bez údaje nikdo.
    */
   draft?: DraftCrews;
+  /**
+   * Okraj lesa u zvěře pro lov dne (VillageWildlife.huntSpot – wildlife.md, Ve scéně); bez údaje
+   * nebo bez zvěře ve scéně jdou lovci k nejbližšímu okraji lesa (`forestEdge`).
+   */
+  huntSpot?: HuntSpotFn;
 }
 
 /** Spřežení a vozy dne, které kreslí ves – kolik spřežení s rádlem a id zapřažených vozů. */
@@ -265,6 +277,8 @@ export interface DraftCrew {
   carts: { cart: number; drover: number | null }[];
   /** Jízdy dne vojvodovy rodiny (riders.ts) – koně kreslí livestock.ts. Bez údaje se nejezdí. */
   rides?: RidePlan[];
+  /** Psi dvorce dne (dogs.ts) – kreslí livestock.ts. Bez údaje dvorec psy nemá. */
+  dogs?: DogPlan[];
 }
 
 /** Honák spřežení je výrostek – přednostně člověk nejblíž tomuto věku (oxen.md – honáček). */

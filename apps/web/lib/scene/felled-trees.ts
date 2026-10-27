@@ -3,8 +3,10 @@ import type { Scene } from '@babylonjs/core/scene';
 import {
   lookSpecies,
   obstacleIndex,
+  obstacleKind,
   obstacleLook,
   type ObstacleChanges,
+  type ObstacleKind,
   type ObstacleLayer,
   type TreeLook,
 } from '@bohemia/game';
@@ -69,6 +71,16 @@ function saplingOf(look: string, id: number): { model: TreeLook; scale: number }
 }
 
 /**
+ * Velikost pařezu podle pokáceného stromu: dospělý strom a souš podle velikosti stromu, mladý
+ * stromek (klučení lesa – forest.md, Klučení lesa pro pole – postup) jen nízký pahýl – model
+ * mladé jedle je v plné velikosti, listnáče okraje jsou zmenšené, pařez je u obou malý.
+ */
+export function stumpScale(kind: ObstacleKind, treeScale: number): number {
+  if (kind === 'youngTree') return 0.4 + 0.1 * Math.min(1, Math.max(0, treeScale - 0.3));
+  return 0.8 + 0.3 * Math.max(0, treeScale - 0.8);
+}
+
+/**
  * Velikost zasazeného mladého buku podle stáří 0–1 (crafts.md – Uhlíř): sazenice ≈ 0,15 velikosti
  * stromu, dospělý buk velikostí původního stromu (`treeScale` z vrstvy překážek).
  */
@@ -125,7 +137,7 @@ export class FelledTrees {
     };
     const place = (
       id: number,
-    ): { x: number; z: number; rotation: number; scale: number } | null => {
+    ): { x: number; z: number; rotation: number; scale: number; kind: ObstacleKind } | null => {
       const index = obstacleIndex(layer, id);
       if (index < 0) return null;
       return {
@@ -133,6 +145,7 @@ export class FelledTrees {
         z: layer.z[index]!,
         rotation: layer.rotation[index]!,
         scale: layer.scale[index]!,
+        kind: obstacleKind(layer, index),
       };
     };
     for (const id of changes.stumps) {
@@ -143,7 +156,7 @@ export class FelledTrees {
         y: this.options.groundHeight(p.x, p.z),
         z: p.z,
         rotationY: p.rotation,
-        scale: 0.8 + 0.3 * Math.max(0, p.scale - 0.8),
+        scale: stumpScale(p.kind, p.scale),
       });
     }
     for (const id of changes.saplings) {

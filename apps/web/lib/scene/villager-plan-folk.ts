@@ -1,6 +1,6 @@
 // Domácí práce, nosiči, nečinní, starší u domů a děti u stád.
 import type { SceneLabor } from '../village-view';
-import { fetcher, herder, route, shuttle, stand, walkSpeed } from './villager-motion';
+import { fetcher, herder, route, shuttle, stand, walkSpeed, type PoseFn } from './villager-motion';
 import type { ScenePerson } from '../person-view';
 import { ADULTS, ELDERS, YOUNGSTERS } from './villager-roster';
 import {
@@ -186,6 +186,144 @@ export function herders(
     out.push(figure(c, pose, hair, { kind: 'herd', herd: k }));
   });
   return out;
+}
+
+/** Nejvýš tolik rybářů u jedné tůně (jádro `SMALL_GAME.maxPerPool`) a rozestup na břehu (m). */
+export const ANGLERS_PER_POOL = 3;
+const ANGLER_GAP_M = 3.2;
+/** Rybář stojí na prvním schůdném místě od okraje vody (m navíc, krok, nejdál). */
+const BANK_FROM_M = 0.6;
+const BANK_STEP_M = 0.6;
+const BANK_MAX_M = 8;
+
+/**
+ * Kde stojí rybář `i` u tůně (wildlife.md – Ve scéně): na břehu tůně (`SceneWildlife.pools` –
+ * loviště od nejbližší), střídavě na obou březích, podél toku po `ANGLER_GAP_M`, na prvním
+ * schůdném místě od vody, čelem k vodě. Nad `ANGLERS_PER_POOL` nebo bez tůně null.
+ */
+export function anglerSpot(
+  ctx: Context,
+  index: number,
+  i: number,
+): { x: number; z: number; headingX: number; headingZ: number } | null {
+  const pool = ctx.village.wildlife?.pools?.[index];
+  if (!pool || i >= ANGLERS_PER_POOL) return null;
+  // levý břeh je vlevo od směru toku
+  const sides = [
+    { nx: -pool.flowZ, nz: pool.flowX, half: pool.halfLeft },
+    { nx: pool.flowZ, nz: -pool.flowX, half: pool.halfRight },
+  ];
+  for (let k = 0; k < sides.length; k++) {
+    const side = sides[(i + k) % 2]!;
+    const along = (Math.ceil(i / 2) * (i % 2 === 0 ? 1 : -1) + (k > 0 ? 0.5 : 0)) * ANGLER_GAP_M;
+    const ax = pool.x + pool.flowX * along;
+    const az = pool.z + pool.flowZ * along;
+    for (let d = side.half + BANK_FROM_M; d <= side.half + BANK_MAX_M; d += BANK_STEP_M) {
+      const x = ax + side.nx * d;
+      const z = az + side.nz * d;
+      if (ctx.ground.walkable(x, z)) return { x, z, headingX: -side.nx, headingZ: -side.nz };
+    }
+  }
+  return null;
+}
+
+/**
+ * Rybáři u tůně (wildlife.md – Drobná zvěř a ryby; Ve scéně): podíl práce `fish` s cílem tůně –
+ * postava stojí na břehu s prutem (klip `fish` – klidová póza a prut z `man.glb` / `woman.glb`).
+ * Kolik jich je, dává podíl práce (hodiny ÷ délka dne, nejvýš 3 na tůň – `anglerSpot`).
+ */
+export function anglers(ctx: Context, index: number): Placer {
+  return (i) => {
+    const spot = anglerSpot(ctx, index, i);
+    return spot ? stand(spot.x, spot.z, spot.headingX, spot.headingZ, 'fish', 0.6) : null;
+  };
+}
+
+/** Nejvýš tolik dětí s řehtačkou na hlídaných dílech a jejich tempo (m/s). */
+export const WATCH_CHILDREN = 4;
+const WATCH_PACE = 0.55;
+
+/**
+ * Děti s řehtačkou na hlídaných dílech (wildlife.md – Noční hlídka: vrány plaší i ve dne; jen
+ * zobrazení): na každém hlídaném dílu (`SceneWildlife.watchParts`) nejvýš jedno dítě z výrostků,
+ * které chodí sem a tam po okraji dílu. Noc hra nemá – noční hlídače u ohně scéna nekreslí
+ * (návrh Clauda; v panelu je ikona hlídky).
+ */
+export function watchChildren(ctx: Context): PlannedVillager[] {
+  const ids = ctx.village.wildlife?.watchParts ?? [];
+  const roster = ctx.roster;
+  if (ids.length === 0 || !roster) return [];
+  const parts = ctx.village.fields.flatMap((f) => f.parts);
+  const out: PlannedVillager[] = [];
+  for (const id of ids) {
+    if (out.length >= WATCH_CHILDREN) break;
+    const part = parts.find((p) => p.id === id);
+    if (!part) continue;
+    const c = cast(
+      ctx,
+      `watch:${id}`,
+      { women: womenChance(0.4, ctx.sexes.girls), child: true },
+      (sex) => roster.take({ ...YOUNGSTERS, sex }),
+    );
+    if (!c) continue;
+    // okraj dílu nejblíž středu vsi – kousek za čtvercem (na mezi)
+    const half = part.size / 2 + 0.8;
+    const rot = part.rotation ?? 0;
+    const cos = Math.cos(rot);
+    const sin = Math.sin(rot);
+    const sides = [
+      [0, -1],
+      [0, 1],
+      [-1, 0],
+      [1, 0],
+    ].map(([u, v]) => ({
+      nx: u! * cos + v! * sin,
+      nz: -u! * sin + v! * cos,
+    }));
+    const near = sides
+      .map((n) => ({
+        n,
+        d: Math.hypot(part.x + n.nx * half - ctx.center.x, part.z + n.nz * half - ctx.center.z),
+      }))
+      .sort((a, b) => a.d - b.d)[0]!.n;
+    const mx = part.x + near.nx * half;
+    const mz = part.z + near.nz * half;
+    const tx = -near.nz;
+    const tz = near.nx;
+    out.push(
+      figure(c, edgeWalk(mx, mz, tx, tz, part.size / 2, c.who.phase), 'natural', { kind: 'watch' }),
+    );
+  }
+  return out;
+}
+
+/** Chůze sem a tam po úsečce (střed, směr, půldélka) tempem `WATCH_PACE`, na koncích chvíli stojí. */
+function edgeWalk(
+  x: number,
+  z: number,
+  tx: number,
+  tz: number,
+  half: number,
+  phase: number,
+): PoseFn {
+  const leg = Math.max(1, 2 * half) / WATCH_PACE;
+  const rest = 4;
+  const period = 2 * (leg + rest);
+  return (t, _herds, out) => {
+    const tau = (((t + phase * period) % period) + period) % period;
+    const forward = tau < leg + rest;
+    const u = forward ? tau : tau - leg - rest;
+    const f = Math.min(1, u / leg);
+    const s = (forward ? f : 1 - f) * 2 * half - half;
+    const dir = forward ? 1 : -1;
+    out.x = x + tx * s;
+    out.z = z + tz * s;
+    out.headingX = tx * dir;
+    out.headingZ = tz * dir;
+    out.clip = u < leg ? 'walk' : 'idle';
+    out.pace = u < leg ? WATCH_PACE / 0.8 : 1;
+    return out;
+  };
 }
 
 // --- trasy ---------------------------------------------------------------------------------

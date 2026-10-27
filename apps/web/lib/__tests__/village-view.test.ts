@@ -2582,6 +2582,55 @@ describe('kronika – nákup u sousedů (crafts.md)', () => {
   });
 });
 
+describe('buildVillageView – klučení lesa po fázích', () => {
+  /** Ves, jejíž první díl se zakládá v lese: stav `felled` stromů a `felledDay` zadává test. */
+  const clearingState = (clearing: { felled: number; felledDay?: number }): VillageState => {
+    const s = state();
+    const part = s.parts[0]!;
+    part.state = 'founding';
+    part.surface = 'forest';
+    part.foundingCost = 10;
+    part.foundingDone = clearing.felledDay === undefined ? 2 : 7;
+    part.clearing = {
+      fell: [
+        { id: 1, log: true },
+        { id: 2, log: false },
+        { id: 3, log: true },
+      ],
+      felled: clearing.felled,
+      burnCost: 4,
+      ...(clearing.felledDay !== undefined ? { felledDay: clearing.felledDay } : {}),
+    };
+    return s;
+  };
+
+  it('kácení: fáze a kolik stromů zbývá, pole počítá čtverce po fázích', () => {
+    const view = buildVillageView(record(clearingState({ felled: 1 })), landscape, DAY);
+    const field = view.fields[0]!;
+    expect(field.parts[0]!.founding?.clearing).toEqual({ stage: 'fell', treesLeft: 2 });
+    expect(field.clearing).toEqual({ fell: 1, dry: 0, burn: 0 });
+  });
+
+  it('schnutí: den, od kterého se pálí; po dohoření práce se zbytek pálí v okně', () => {
+    const view = buildVillageView(
+      record(clearingState({ felled: 3, felledDay: DAY })),
+      landscape,
+      DAY + 1,
+    );
+    const clearing = view.fields[0]!.parts[0]!.founding?.clearing;
+    expect(clearing?.stage).toBe('dry');
+    expect(clearing?.treesLeft).toBe(0);
+    expect(clearing?.burnFrom).toBeGreaterThan(DAY + 1);
+    expect(view.fields[0]!.clearing?.dry).toBe(1);
+  });
+
+  it('díl bez fází klučení nenese údaj o klučení', () => {
+    const view = buildVillageView(record(), landscape, DAY);
+    expect(view.fields[0]!.clearing).toBeUndefined();
+    expect(view.fields[0]!.parts.every((p) => p.founding?.clearing === undefined)).toBe(true);
+  });
+});
+
 describe('návštěvy vedlejších manželek vojvody (lord.md – Rod vojvody, Manželky)', () => {
   const w = (id: number, dwellingId: number): { id: number; dwellingId: number } => ({
     id,

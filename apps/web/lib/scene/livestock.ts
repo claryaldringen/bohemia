@@ -7,6 +7,7 @@ import {
   ridePlansKey,
   type RidePlan,
 } from './riders';
+import { createDogState, DOG_SCALE, dogArea, dogPlansKey, dogPose, type DogPlan } from './dogs';
 import '@babylonjs/core/Meshes/thinInstanceMesh';
 import type { Camera } from '@babylonjs/core/Cameras/camera';
 import { BoundingInfo } from '@babylonjs/core/Culling/boundingInfo';
@@ -77,7 +78,10 @@ const SPECIES: readonly LivestockSpecies[] = [
   'chicken',
   'horse',
   'foal',
+  'dog',
 ];
+/** Dobytek načtený se vsí; psa (`dog.glb`) až ve vsi se psy (`loadDog`). */
+const HERD_SPECIES = SPECIES.filter((s) => s !== 'dog');
 /** Dál od kamery (m) se zvířata nehýbou – jsou pár pixelů a pohyb by jen zbytečně kreslil. */
 const ANIMATE_RANGE_M = 900;
 /** Po takovém posunu středu vsi (m) se rastr terénu pro zvířata spočítá znovu. */
@@ -162,6 +166,9 @@ export class VillageLivestock {
   /** Jízdy dne (riders.ts – z plánu postav) a jejich klíč. */
   private rides: readonly RidePlan[] = [];
   private ridesKey = '';
+  /** Psi dvorce dne (dogs.ts – z plánu postav) a jejich klíč. */
+  private dogs: readonly DogPlan[] = [];
+  private dogsKey = '';
   /** Poslední rozmístění kuřat a stád – dobytek karavan ho nepřeplánuje. */
   private plan: { chickens: ReturnType<typeof planLivestock>['chickens']; herds: Herd[] } | null =
     null;
@@ -171,6 +178,8 @@ export class VillageLivestock {
   private readonly kinds = new Map<LivestockSpecies, Kind>();
   private geometries: Map<LivestockSpecies, FaunaGeometry> | null = null;
   private loading: Promise<void> | null = null;
+  private dogLoading: Promise<void> | null = null;
+  private dogGeometry: FaunaGeometry | null = null;
   private readonly pose = createLivestockPose();
   private disposed = false;
 
@@ -209,6 +218,23 @@ export class VillageLivestock {
     if (key === this.ridesKey) return false;
     this.ridesKey = key;
     this.rides = rides;
+    return this.rebuild(nowMs, false);
+  }
+
+  /**
+   * Psi dvorce dne (dogs.ts – plány psů z plánu postav, villagers.ts `dogs`). Vrátí true, když se
+   * ve scéně něco změnilo.
+   */
+  setDogs(dogs: readonly DogPlan[], nowMs: number): boolean {
+    if (this.disposed) return false;
+    const key = dogPlansKey(dogs);
+    if (key === this.dogsKey) return false;
+    this.dogsKey = key;
+    this.dogs = dogs;
+    if (dogs.length > 0) {
+      void this.load();
+      void this.loadDog();
+    }
     return this.rebuild(nowMs, false);
   }
 
@@ -423,6 +449,20 @@ export class VillageLivestock {
       });
     }
 
+    // psi dvorce (wildlife.md – Psi; dogs.ts) – u dvorce, s lovci, s hlídkou
+    for (const plan of this.dogs) {
+      const area = dogArea(plan);
+      addArea('dog', area);
+      const state = createDogState();
+      groups.push({
+        members: [{ species: 'dog', slot: slot('dog'), scale: DOG_SCALE }],
+        prepare: () => area,
+        pose: (_index, clock, out) => dogPose(plan, clock.seconds, state, out),
+        written: null,
+        current: new BoundingInfo(Vector3.Zero(), Vector3.Zero()),
+      });
+    }
+
     let changed = this.groups.length > 0 || groups.length > 0;
     for (const species of SPECIES) {
       const count = counts.get(species) ?? 0;
@@ -472,53 +512,45 @@ export class VillageLivestock {
   private load(): Promise<void> {
     this.loading ??= (async (): Promise<void> => {
       const results = await Promise.allSettled(
-        SPECIES.map((species) => loadGeometry(this.scene, `${this.env.baseUrl}${species}.glb`)),
+        HERD_SPECIES.map((species) =>
+          loadGeometry(this.scene, `${this.env.baseUrl}${species}.glb`),
+        ),
       );
       const geometries = new Map<LivestockSpecies, FaunaGeometry>();
       results.forEach((result, i) => {
         if (result.status === 'fulfilled' && result.value) {
-          geometries.set(SPECIES[i]!, standOnGround(result.value));
+          geometries.set(HERD_SPECIES[i]!, standOnGround(result.value));
         } else if (result.status === 'rejected') {
-          console.warn(`Model zvířete ${SPECIES[i]} se nepodařilo načíst.`, result.reason);
+          console.warn(`Model zvířete ${HERD_SPECIES[i]} se nepodařilo načíst.`, result.reason);
         }
       });
       if (this.disposed) return;
+      if (this.dogGeometry) geometries.set('dog', this.dogGeometry);
       this.geometries = geometries;
       if (this.rebuild(Date.now())) this.env.onLoaded();
     })();
     return this.loading;
   }
 
-  private createKind(species: LivestockSpecies, geometry: FaunaGeometry): Kind {
-    // Jméno mimo předpony vrhačů stínů (trees-, impostors-, decor-) – stínová mapa je statická.
-    const mesh = new Mesh(`livestock-${species}`, this.scene);
-    geometry.vertexData.applyToMesh(mesh);
-    mesh.setVerticesData('livestockKeyA', geometry.keyA, false, 3);
-    mesh.setVerticesData('livestockKeyB', geometry.keyB, false, 3);
-    mesh.setVerticesData(
-      'livestockKeyC',
-      geometry.keyC ?? new Float32Array(geometry.keyA.length),
-      false,
-      3,
-    );
-    mesh.isPickable = false;
-    mesh.doNotSyncBoundingInfo = true;
-    mesh.freezeWorldMatrix();
+  /** Model psa – líně, až když má ves psy (wildlife.md – Psi). */
+  private loadDog(): Promise<void> {
+    this.dogLoading ??= (async (): Promise<void> => {
+      try {
+        const geometry = await loadGeometry(this.scene, `${this.env.baseUrl}dog.glb`);
+        if (geometry) this.dogGeometry = standOnGround(geometry);
+      } catch (error) {
+        console.warn('Model zvířete dog se nepodařilo načíst.', error);
+      }
+      if (this.disposed || !this.dogGeometry || !this.geometries) return;
+      this.geometries.set('dog', this.dogGeometry);
+      if (this.rebuild(Date.now())) this.env.onLoaded();
+    })();
+    return this.dogLoading;
+  }
 
-    const material = new StandardMaterial(`livestock-${species}-material`, this.scene);
-    // Bez mipmap jako u ryb a ptáků: ostrůvky textury leží na černém pozadí, nejmenší mipmapa
-    // by zvíře z dálky ztmavila.
-    geometry.texture?.updateSamplingMode(Constants.TEXTURE_BILINEAR_SAMPLINGMODE);
-    material.diffuseTexture = geometry.texture;
-    material.specularColor = Color3.Black();
-    // Uši, ocasy a hřebínky jsou jednoduché plochy – kreslí se z obou stran.
-    material.backFaceCulling = false;
-    material.twoSidedLighting = true;
-    // Textura se čte v barvách obrazovky (`loadGeometry`) – StandardMaterial ji bere tak, jak je.
-    new LivestockPlugin(material);
-    mesh.material = material;
+  private createKind(species: LivestockSpecies, geometry: FaunaGeometry): Kind {
     return {
-      mesh,
+      mesh: createAnimalMesh(this.scene, `livestock-${species}`, geometry),
       matrices: new Float32Array(0),
       states: new Float32Array(0),
       count: 0,
@@ -534,34 +566,7 @@ export class VillageLivestock {
       if (!kind) return;
       const pose = group.pose(index, clock, this.pose);
       const scale = group.hidden?.(index, clock) ? 0 : member.scale;
-      const { x, z } = pose;
-      const e = SLOPE_STEP_M;
-      const gx = (height(x + e, z) - height(x - e, z)) / (2 * e);
-      const gz = (height(x, z + e) - height(x, z - e)) / (2 * e);
-      // Dopředu podél svahu (hlava do kopce výš), do strany jen částečně.
-      const fy = gx * pose.forwardX + gz * pose.forwardZ;
-      const length = Math.hypot(pose.forwardX, fy, pose.forwardZ);
-      const nx = -gx;
-      const nz = -gz;
-      const nLength = Math.hypot(nx, 1, nz);
-      writeInstanceMatrix(
-        kind.matrices,
-        member.slot,
-        {
-          x,
-          y: height(x, z),
-          z,
-          forwardX: pose.forwardX / length,
-          forwardY: fy / length,
-          forwardZ: pose.forwardZ / length,
-          tiltX: (nx / nLength) * SIDE_TILT,
-          tiltZ: (nz / nLength) * SIDE_TILT,
-        },
-        scale,
-      );
-      kind.states[member.slot * 2] = pose.stride;
-      kind.states[member.slot * 2 + 1] = pose.head;
-      kind.dirty = true;
+      writeAnimalPose(kind, member.slot, pose, scale, height);
     });
     const written = group.written ?? new BoundingInfo(Vector3.Zero(), Vector3.Zero());
     written.reConstruct(group.current.minimum, group.current.maximum);
@@ -587,6 +592,82 @@ export class VillageLivestock {
       new Vector3(area.maxX, high + HEAD_ROOM_M, area.maxZ),
     );
   }
+}
+
+/**
+ * Mesh zvířete s klíčovými pózami jako vertex atributy (krok, krok, hlava dolů) a materiálem
+ * s `LivestockPlugin` – dobytek i divoká zvěř (wildlife.ts). Instance a stav přidá volající.
+ */
+export function createAnimalMesh(scene: Scene, name: string, geometry: FaunaGeometry): Mesh {
+  // Jméno mimo předpony vrhačů stínů (trees-, impostors-, decor-) – stínová mapa je statická.
+  const mesh = new Mesh(name, scene);
+  geometry.vertexData.applyToMesh(mesh);
+  mesh.setVerticesData('livestockKeyA', geometry.keyA, false, 3);
+  mesh.setVerticesData('livestockKeyB', geometry.keyB, false, 3);
+  mesh.setVerticesData(
+    'livestockKeyC',
+    geometry.keyC ?? new Float32Array(geometry.keyA.length),
+    false,
+    3,
+  );
+  mesh.isPickable = false;
+  mesh.doNotSyncBoundingInfo = true;
+  mesh.freezeWorldMatrix();
+
+  const material = new StandardMaterial(`${name}-material`, scene);
+  // Bez mipmap jako u ryb a ptáků: ostrůvky textury leží na černém pozadí, nejmenší mipmapa
+  // by zvíře z dálky ztmavila.
+  geometry.texture?.updateSamplingMode(Constants.TEXTURE_BILINEAR_SAMPLINGMODE);
+  material.diffuseTexture = geometry.texture;
+  material.specularColor = Color3.Black();
+  // Uši, ocasy a hřebínky jsou jednoduché plochy – kreslí se z obou stran.
+  material.backFaceCulling = false;
+  material.twoSidedLighting = true;
+  // Textura se čte v barvách obrazovky (`loadGeometry`) – StandardMaterial ji bere tak, jak je.
+  new LivestockPlugin(material);
+  mesh.material = material;
+  return mesh;
+}
+
+/**
+ * Zapíše pózu zvířete do instancí (matice a stav kroku a hlavy) – výška a náklon podle terénu
+ * pod ním (`height`). Nulové měřítko = zvíře není vidět.
+ */
+export function writeAnimalPose(
+  kind: { matrices: Float32Array; states: Float32Array; dirty: boolean },
+  slot: number,
+  pose: LivestockPose,
+  scale: number,
+  height: (x: number, z: number) => number,
+): void {
+  const { x, z } = pose;
+  const e = SLOPE_STEP_M;
+  const gx = (height(x + e, z) - height(x - e, z)) / (2 * e);
+  const gz = (height(x, z + e) - height(x, z - e)) / (2 * e);
+  // Dopředu podél svahu (hlava do kopce výš), do strany jen částečně.
+  const fy = gx * pose.forwardX + gz * pose.forwardZ;
+  const length = Math.hypot(pose.forwardX, fy, pose.forwardZ);
+  const nx = -gx;
+  const nz = -gz;
+  const nLength = Math.hypot(nx, 1, nz);
+  writeInstanceMatrix(
+    kind.matrices,
+    slot,
+    {
+      x,
+      y: height(x, z),
+      z,
+      forwardX: pose.forwardX / length,
+      forwardY: fy / length,
+      forwardZ: pose.forwardZ / length,
+      tiltX: (nx / nLength) * SIDE_TILT,
+      tiltZ: (nz / nLength) * SIDE_TILT,
+    },
+    scale,
+  );
+  kind.states[slot * 2] = pose.stride;
+  kind.states[slot * 2 + 1] = pose.head;
+  kind.dirty = true;
 }
 
 /**

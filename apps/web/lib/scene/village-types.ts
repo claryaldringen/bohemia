@@ -42,6 +42,8 @@ export interface PlacementCost {
   trees: number;
   /** Modla a svatyně: kolik dospělých dubů se pro stavbu skácí (happiness.md). */
   oaks?: number;
+  /** Pole: kolik čtverců lesa se vyklučí po fázích a vypálí (forest.md – Klučení lesa pro pole). */
+  burn?: number;
 }
 
 /**
