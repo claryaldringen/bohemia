@@ -138,3 +138,21 @@ počasí počítá jako dřív** (zlaté otisky beze změny). Funkce v `weather-
 - **Testy** – `weather-effects.test.ts` (násobky dílu podle ochrany, ztráty a odhad, seno seče,
   dlouhá zima, výmlat, paměť hladu, sklizeň v krutém suchu vcelku = po kouscích přes 31. 7.
   a 31. 8.).
+
+## Scéna – počasí roku v barvách a světle (P11, první polovina)
+
+- **Data** – `sceneWeather(state, day)` (`apps/web/lib/weather-view.ts`) → `SceneVillage.weather`
+  (`SceneWeather` ve `village-view-scene-types.ts`): rok, odhalené zlé (nebo dobré) léto a zima
+  z `revealedWeather`, síla léta pro vzhled (sucho a deštivé léto 0,6, kruté sucho a mokré žně 1)
+  a ochrana dílů proti odhalenému létu po stupních 0–4 (`protectionLevel` – mokro −0,2…+0,2
+  převedeno na 0–1; stupeň 0 chybí). Normální rok `weather` nemá. **Seed počasí ani budoucí rok
+  se do prohlížeče nedostanou** – testy v `village-view.test.ts` (JSON pohledu bez `drought`,
+  `override` a seedu před 1. 5.).
+- **Vzhled** – `seasonLook(day, weather)` a světlo (`day-light.ts`), podrobně
+  [scene.md – Roční období – počasí](scene.md). Barva dílu podle ochrany – `droughtPartTint`
+  (`field-look.ts`), `PartView.tint` → obtisk, porost shora a trsy obilí.
+- **Další úloha (P11b)** – nižší a řidší obilí, polehlé obilí, déšť a kaluže, méně vody v potoce,
+  zvuk deštěm a e2e; data jsou připravená (`SceneWeather.parts`, `SeasonLook.drought` a `wet`).
+- **Vývojová ukázka** – `/dev/landscape`, přepínač **Počasí** (`dev-weather.ts`, `data-testid`
+  `dev-weather`): vynucené počasí vsi náhledu s vývojovým dnem (rok se nekontroluje), ochrana dílů
+  podle id dílu (id % 5).

@@ -318,6 +318,20 @@ const NIGHT_DEG = -9;
 
 export type LightSource = 'sun' | 'moon';
 
+// Počasí (disasters.md – Ve scéně): v suchu slunce praží – ostřejší stíny a vyšší kontrast
+// obrazu (světlo a barvy upraví už `seasonLook`); v mokru je zataženo – slabší stíny.
+/** Síla stínů navíc při plném suchu (1,35×). */
+const HEAT_SHADOW = 0.35;
+/** Kontrast obrazu navíc při plném suchu (1,1 → 1,23). */
+const HEAT_CONTRAST = 0.12;
+/** O kolik slábnou stíny při plném mokru. */
+const OVERCAST_SHADOW = 0.5;
+
+/** Násobek síly stínů podle počasí (1 v normálním roce). */
+function weatherShadowOf(season: SeasonLook): number {
+  return (1 + HEAT_SHADOW * season.drought) * (1 - OVERCAST_SHADOW * season.wet);
+}
+
 export interface DayLight {
   /** Kudy svítí hlavní světlo (paprsky; délka jako SUN_DIRECTION). */
   direction: Rays;
@@ -340,8 +354,13 @@ export interface DayLight {
   waterSky: Rgb;
   /** Filtr obrazu (ColorCurves) – přes den žádný. */
   grade: Grade;
-  /** Síla stínů 0–1 (1 = jako dnes, 0 = žádné) – nízké světlo a měsíc vrhají slabší stín. */
+  /**
+   * Síla stínů (1 = jako dnes, 0 = žádné) – nízké světlo a měsíc vrhají slabší stín; v suchu nad
+   * 1 (ostřejší, tmavší stín – slunce praží), v mokru slabší (zataženo).
+   */
   shadowStrength: number;
+  /** Násobek kontrastu obrazu (1 = jako dnes) – v suchu vyšší. */
+  contrast: number;
   /** Jak moc je noc 0–1 (fáze 2: lidé jdou domů, z domů prosvítá oheň). */
   night: number;
 }
@@ -352,6 +371,8 @@ export interface DayLight {
  * neschválí Martin). V poledne referenčního dne vyjde přesně totéž.
  */
 export function dayLight(season: SeasonLook, day: DayOfYear, hour: number | null): DayLight {
+  const weatherShadow = weatherShadowOf(season);
+  const contrast = 1 + HEAT_CONTRAST * season.drought;
   if (hour === null) {
     return {
       direction: SUN_DIRECTION,
@@ -363,7 +384,8 @@ export function dayLight(season: SeasonLook, day: DayOfYear, hour: number | null
       tone: WHITE,
       waterSky: season.water.sky,
       grade: NO_GRADE,
-      shadowStrength: 1,
+      shadowStrength: weatherShadow,
+      contrast,
       night: 0,
     };
   }
@@ -428,7 +450,8 @@ export function dayLight(season: SeasonLook, day: DayOfYear, hour: number | null
     tone,
     waterSky: times(season.water.sky, palette.clear),
     grade: gradeOf(palette),
-    shadowStrength,
+    shadowStrength: source === 'sun' ? shadowStrength * weatherShadow : shadowStrength,
+    contrast,
     night: smoothstep(-SUN_GONE_DEG, -NIGHT_DEG, -elevation),
   };
 }
@@ -449,6 +472,7 @@ export function dayLightDistance(a: DayLight, b: DayLight): number {
   scalar(a.light.skyIntensity, b.light.skyIntensity);
   scalar(a.light.fogDensity / b.light.fogDensity, 1);
   scalar(a.shadowStrength, b.shadowStrength);
+  scalar(a.contrast, b.contrast);
   color(a.light.sunColor, b.light.sunColor);
   color(a.light.skyColor, b.light.skyColor);
   color(a.light.groundColor, b.light.groundColor);

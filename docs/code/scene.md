@@ -230,6 +230,31 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   atlas (stín kmenů a větví), mapa se překreslí jednou. Vývojový náhled má posuvník dne v roce
   a „přehrát rok“ (`setSeasonDay`).
 
+- **Roční období – počasí** (disasters.md – Ve scéně; village-disasters.md – Scéna): počasí roku
+  vsi (`SceneVillage.weather` – jen odhalené, scéna ho bere jen ve stejném herním roce,
+  `weatherNow`; s vývojovým dnem vždy) jde do `seasonLook(day, weather)` jako další násobek
+  světla a barev období – **bez počasí přesně dnešní vzhled** (test). Průběh v roce
+  (`weatherAmounts`, × síla léta): sucho od 1. 5. sílí do poloviny června, drží do konce srpna,
+  do poloviny října odezní; deštivé léto od 1. 6. za 2 týdny, odezní v září; holomráz od 1. 2.
+  za 5 dní; vzhled nikdy neskočí (test: krok za den < 0,36).
+  - **Sucho – slunce praží** (Martin 27. 10. 2026): při plném suchu slunce × 1,16 (1,05 → 1,22)
+    a žlutější (modrá −10 %, červená +3 %), světlo oblohy × 0,86 (vyšší kontrast), obloha
+    vybledlá (55 % k 0,80 / 0,82 / 0,80), prašný opar (50 % k 0,84 / 0,82 / 0,74, hustota × 1,3),
+    teplejší odraz od země; `day-light.ts` – síla stínů × 1,35 (`shadowDarkness` v
+    `sun-shadows.ts`: tmavost 0,35 → 0,23, mapa se nepřekresluje) a kontrast obrazu × 1,12
+    (1,1 → 1,23, `DayLight.contrast`); část listnáčů žloutne dřív (`leafAutumn` ≥ 0,2). Tráva
+    (`seasonGrass`, uniforma `seasonC` = sucho, mokro, jinovatka) usychá jako na podzim
+    (× 0,65) a ve skvrnách ≈ 33 m spálená hněď; obtisky vsi dostávají poloviční sucho – díly polí
+    barví `droughtPartTint` podle ochrany (nechráněný žlutohnědý, díl za stromy zelenější; po
+    čtvrtinách sucha, ať se pole přestaví nejvýš 4×).
+  - **Mokro** – slunce × 0,7 a šedé, obloha × 1,12, šedá obloha a opar (hustota × 1,6), odraz
+    oblohy na vodě šedý, stíny × 0,5; tráva tmavší a sytější (× 0,8 / 0,93 / 0,72).
+  - **Holomráz** – sníh × (1 − jinovatka), šedobílá jinovatka na trávě i zemi, odraz od země bez
+    sněhu, slunce × 1,12. **Dlouhá zima** – den vzhledu se opozdí o 21 dní (od 1. 3. za 6 dní se
+    sníh vrátí, taje 13. 3.–3. 4., listí a tráva o 3 týdny později, do poloviny července se rok
+    srovná – den vzhledu jen roste).
+  - Vývojový náhled: přepínač **Počasí** (`dev-weather.ts`).
+
 - **Den a noc** (landscape.md – Den a noc; Martin 19. 10. 2026, **zatím jen `/dev/landscape`**,
   hra `/game` beze změny – do hry po Martinově schválení): `day-light.ts` (čisté funkce, testy) –
   z dne v roce a hodiny (`dayLight(season, day, hour)`) směr slunce (50° s. š., v poledne

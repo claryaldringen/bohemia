@@ -32,6 +32,8 @@ import {
   type TileCell,
   type HorseKind,
   type PenSpecies,
+  type SummerWeather,
+  type WinterWeather,
 } from '@bohemia/game';
 import { type SceneGrainPit } from './grain-pit-view';
 
@@ -363,6 +365,32 @@ export interface SceneVillage {
   wear?: SceneWear;
   /** Střed vsi (dvorec) – vozová cesta se staví od konce blíž k němu (náhled). */
   home?: { x: number; z: number };
+  /**
+   * Počasí roku, které už je vidět (disasters.md – Ve scéně) – barvy, světlo a sníh scény. Bez
+   * údaje normální rok (nebo zlé počasí ještě není vidět).
+   */
+  weather?: SceneWeather;
+}
+
+/**
+ * Počasí roku pro scénu (`revealedWeather` z jádra): jen odhalené zlé léto a zima – nikdy seed
+ * počasí ani budoucí rok. Normální léto a zima chybí.
+ */
+export interface SceneWeather {
+  /** Rok počasí – scéna ho použije jen ve stejném herním roce. */
+  year: number;
+  /** Zlé nebo dobré léto, už vidět (sucho od 1. 5., ostatní od 1. 6.). */
+  summer?: Exclude<SummerWeather, 'normal'>;
+  /** Zlá zima, už vidět (holomráz od 1. 2., dlouhá zima od 1. 3.). */
+  winter?: Exclude<WinterWeather, 'normal'>;
+  /** Síla zlého léta 0–1 (sucho 0,6, kruté sucho 1, deštivé léto 0,6, mokré žně 1). */
+  strength?: number;
+  /**
+   * Ochrana dílů proti odhalenému zlému létu po stupních 0–4 (klíč = id dílu; disasters.md –
+   * Ochrana dílu) – díl za stromy je v suchu zelenější. Jen v suchém a mokrém létě, díly se
+   * stupněm 0 chybí.
+   */
+  parts?: Record<string, number>;
 }
 
 /** Uložené trasy vsi pro scénu (`VillageRoutes`); `list` null = beze změny oproti klientovi. */

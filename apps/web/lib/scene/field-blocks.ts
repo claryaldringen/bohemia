@@ -6,6 +6,7 @@ import {
   fieldPlants,
   lookStyle,
   patchNoise,
+  tintedBy,
   type FieldPlants,
   type FieldTexture,
   type PlantInstance,
@@ -129,7 +130,7 @@ export function fieldBlockContent(
     if (grid.indices.length === 0) continue;
     const ground = layer(style.texture, false);
     ground.grids.push(grid);
-    ground.colors.push(style.tint);
+    ground.colors.push(tintedBy(style.tint, piece.tint));
     ground.alphas.push(style.alpha);
     ground.rows.push(piece.rows);
     if (style.patches) {
@@ -143,7 +144,7 @@ export function fieldBlockContent(
       if (fine.indices.length > 0) {
         const patches = layer(style.patches.texture, true);
         patches.grids.push(fine);
-        patches.colors.push(style.patches.tint);
+        patches.colors.push(tintedBy(style.patches.tint, piece.tint));
         patches.alphas.push(style.patches.alpha);
         patches.rows.push(piece.rows);
       }

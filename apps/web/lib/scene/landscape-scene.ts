@@ -66,10 +66,22 @@ import { VillagePaths, type PathStats } from './path-renderer';
 import { PitCuts, applyPitCut } from './pit-cut';
 import { ColorCurves } from '@babylonjs/core/Materials/colorCurves';
 import { dayLight, dayLightDistance, type DayLight } from './day-light';
-import { seasonDayAt, seasonLook, seasonLookDistance, type SeasonLook } from './season-look';
+import {
+  seasonDayAt,
+  seasonLook,
+  seasonLookDistance,
+  seasonYearAt,
+  type SeasonLook,
+} from './season-look';
 import { isDeciduousMesh } from './season-foliage';
 import { setSeasonShaderState } from './season-materials';
-import { SHADOW_DARKNESS, addSunShadows, castersChanged, type SunShadows } from './sun-shadows';
+import {
+  SHADOW_DARKNESS,
+  addSunShadows,
+  castersChanged,
+  shadowDarkness,
+  type SunShadows,
+} from './sun-shadows';
 import { swathBands } from './swath-bands';
 import { tileAt, tileCenter } from './tile-at';
 import { addTrees } from './trees';
@@ -83,7 +95,7 @@ import { pickVillageTarget, rayAtHeight, type Ray, type VillageTarget } from './
 import { PlacementController, type ActivePlacement } from './village-placement';
 import { draftHitTarget, draftSelectionFor } from './draft-pick';
 import { VillageRenderer, type DraftRenderState } from './village-renderer';
-import type { SceneVillage } from '../village-view';
+import type { SceneVillage, SceneWeather } from '../village-view';
 import type { PlacementHandlers, PlacementMode } from './village-types';
 import { createWaterMesh, type WaterSurface } from './water';
 
@@ -116,6 +128,8 @@ const SEASON_CHECK_MS = 1000;
 const SEASON_EPSILON = 0.002;
 /** Stíny v zimě – holé listnáče propouštějí světlo (jen uniforma, mapa se nepřekresluje). */
 const WINTER_SHADOW_DARKNESS = 0.6;
+/** Kontrast obrazu jako v 0 A.D. (temperate 1,05) – v suchu vyšší (`DayLight.contrast`). */
+const BASE_CONTRAST = 1.1;
 /**
  * Pod tímto množstvím listí (season-look.ts) 3D listnáče nevrhají stín – holá koruna by vrhala
  * stín plného listí (stínová mapa listí nezná) – a impostory vrhají stín holých korun ze
@@ -242,6 +256,8 @@ export class LandscapeScene {
   private paths: VillagePaths | null = null;
   /** Poslední stav vsi od rozhraní – vykreslí se, jakmile je krajina hotová. */
   private villageState: SceneVillage | null = null;
+  /** Počasí vsi naposledy předané scéně (JSON) – při změně se hned přepočte vzhled. */
+  private weatherKey = 'null';
   private placement: ActivePlacement | null = null;
   /** Jámy obydlí – terén a obtisky se v nich prořezávají (pit-cut.ts). */
   private readonly pitCuts = new PitCuts();
@@ -307,7 +323,7 @@ export class LandscapeScene {
     // a schová opakování textur v dálce. Hustotu a barvu nastavuje roční období.
     scene.fogMode = Scene.FOGMODE_EXP2;
     // Úprava obrazu jako v 0 A.D. (temperate: kontrast 1,05) – sytější stíny a světla.
-    scene.imageProcessingConfiguration.contrast = 1.1;
+    scene.imageProcessingConfiguration.contrast = BASE_CONTRAST;
     scene.skipPointerMovePicking = true;
     // Obloha a slunce jako v 0 A.D. (biom temperate). Slunce je níž než v poledne (≈ 35°) –
     // zvlnění terénu je tak lépe vidět. Barvy a síla světel podle ročního období (konstruktor).
@@ -664,6 +680,25 @@ export class LandscapeScene {
     if (this.disposed) return;
     this.villageState = village;
     this.applyVillage();
+    // počasí roku se ukáže hned, ne až při další kontrole období
+    const weatherKey = JSON.stringify(village.weather ?? null);
+    if (weatherKey !== this.weatherKey) {
+      this.weatherKey = weatherKey;
+      if (this.season) this.updateSeason(true);
+    }
+  }
+
+  /**
+   * Počasí roku vsi pro vzhled (disasters.md – Ve scéně) – jen v roce, pro který platí (po Novém
+   * roce do další odpovědi serveru normální rok). S vývojovým dnem (`setSeasonDay`) bez ohledu
+   * na rok – ukázka počasí na /dev/landscape.
+   */
+  private weatherNow(): SceneWeather | undefined {
+    const weather = this.villageState?.weather;
+    if (!weather) return undefined;
+    if (this.seasonDay !== null) return weather;
+    const year = seasonYearAt(Date.now(), this.worldClock ?? OFFICIAL_WORLD);
+    return weather.year === year ? weather : undefined;
   }
 
   /** Vytyčení tras vozových cest (vývojová ukázka – osy bez plánu); prázdné zruší. */
@@ -1624,7 +1659,7 @@ export class LandscapeScene {
   private updateSeason(force: boolean): void {
     this.seasonCheckAt = performance.now() + SEASON_CHECK_MS;
     const day = this.seasonDayOfYear();
-    const look = seasonLook(day);
+    const look = seasonLook(day, this.weatherNow());
     // pole podle dne (odhad vzhledu, seč luk) a sněhu – přestaví se, jen když se něco změnilo
     if (this.village?.setSeason(day, look.snow)) {
       this.shadows?.refresh();
@@ -1701,9 +1736,8 @@ export class LandscapeScene {
     // v zimě holé listnáče propouštějí světlo; nízké slunce a měsíc vrhají slabší stín
     const darkness =
       SHADOW_DARKNESS + (WINTER_SHADOW_DARKNESS - SHADOW_DARKNESS) * (1 - look.leaves);
-    this.shadows?.setDarkness(
-      day.shadowStrength >= 1 ? darkness : 1 - (1 - darkness) * day.shadowStrength,
-    );
+    this.shadows?.setDarkness(shadowDarkness(darkness, day.shadowStrength));
+    scene.imageProcessingConfiguration.contrast = BASE_CONTRAST * day.contrast;
     this.impostorForest?.setTone(day.tone);
     this.village?.setLightTone(day.tone);
     this.water?.setSeason(look.water.tint, day.waterSky, look.ice);

@@ -10,6 +10,16 @@ import { raysAngleDeg, type Rays } from './day-light';
 const SHADOW_MAP_SIZE = 4096;
 /** Jak tmavé jsou stíny (0 = černé) – okolní světlo z oblohy je prosvětlí. */
 export const SHADOW_DARKNESS = 0.35;
+
+/**
+ * Tmavost stínu (`ShadowGenerator.darkness`: 0 černý, 1 žádný) při síle stínů `strength`
+ * (`DayLight.shadowStrength`): pod 1 stín slábne k žádnému (nízké slunce, měsíc, zataženo), nad 1
+ * tmavne – v plném suchu (1,35) letní stín 0,35 → 0,23. Mapa se kvůli tomu nepřekresluje.
+ */
+export function shadowDarkness(darkness: number, strength: number): number {
+  if (strength <= 1) return 1 - (1 - darkness) * strength;
+  return Math.max(0, darkness * (2 - strength));
+}
 /**
  * Den a noc: stínová mapa se s pohybem slunce obnoví, až se směr světla od posledního vykreslení
  * mapy pootočí o tolik stupňů (stíny poskočí o ≈ 1 m u 25m stromu); osvětlení se mění plynule.

@@ -1660,13 +1660,17 @@ function plantBuffers(
     matrices[o + 13] = height(p.x, p.z) - sink;
     matrices[o + 14] = p.z;
     matrices[o + 15] = 1;
-    colors[i * 4] = p.shade * tint[0];
-    colors[i * 4 + 1] = p.shade * tint[1];
-    colors[i * 4 + 2] = p.shade * tint[2];
+    const own = p.tint ?? WHITE_TINT;
+    colors[i * 4] = p.shade * tint[0] * own[0];
+    colors[i * 4 + 1] = p.shade * tint[1] * own[1];
+    colors[i * 4 + 2] = p.shade * tint[2] * own[2];
     colors[i * 4 + 3] = 1;
   });
   return { matrices, colors };
 }
+
+/** Trs bez vlastního násobku barvy. */
+const WHITE_TINT = [1, 1, 1] as const;
 
 function preparePropMaterial(material: Material, tint: Color3): void {
   if (!(material instanceof PBRMaterial)) return;

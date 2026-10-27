@@ -7,7 +7,11 @@ import {
   seasonLook,
   seasonLookDistance,
   track,
+  weatherAmounts,
+  type LookWeather,
 } from '../season-look';
+import { dayLight } from '../day-light';
+import { droughtPartTint } from '../field-look';
 
 // Dny v roce (nepřestupném): 15. 1. = 15, 15. 4. = 105, 15. 7. = 196, 15. 10. = 288.
 const MID_WINTER = 15;
@@ -161,5 +165,114 @@ describe('den v roce podle herního data', () => {
     expect(dateOfDayOfYear(60)).toMatchObject({ month: 3, day: 1, season: 'spring' });
     expect(dateOfDayOfYear(1)).toMatchObject({ month: 1, day: 1, season: 'winter' });
     expect(dateOfDayOfYear(365.7)).toMatchObject({ month: 12, day: 31 });
+  });
+});
+
+// Počasí roku (disasters.md – Ve scéně): 1. 5. = 121, 13. 3. = 72, 10. 4. = 100.
+const DROUGHT: LookWeather = { summer: 'drought', strength: 1 };
+const DRY: LookWeather = { summer: 'dry', strength: 0.6 };
+const WET: LookWeather = { summer: 'wet', strength: 0.6 };
+
+describe('vzhled roku podle počasí', () => {
+  it('bez počasí (normální rok, dobré léto) přesně vzhled ročního období', () => {
+    for (let day = 1; day <= 366; day += 0.5) {
+      const base = seasonLook(day);
+      expect(seasonLook(day, undefined)).toEqual(base);
+      expect(seasonLook(day, {})).toEqual(base);
+      expect(seasonLook(day, { summer: 'good' })).toEqual(base);
+      expect(base).toMatchObject({ drought: 0, wet: 0, frost: 0 });
+    }
+    // léto, ke kterému je krajina laděná, se nezměnilo
+    expect(seasonLook(REFERENCE_DAY).light.sunIntensity).toBeCloseTo(1.05);
+    expect(dayLight(seasonLook(REFERENCE_DAY), REFERENCE_DAY, null)).toMatchObject({
+      shadowStrength: 1,
+      contrast: 1,
+    });
+  });
+
+  it('sucho – slunce praží: jasnější a žlutější slunce, ostřejší stíny, vybledlá obloha', () => {
+    const normal = seasonLook(REFERENCE_DAY);
+    const hot = seasonLook(REFERENCE_DAY, DROUGHT);
+    expect(hot.drought).toBe(1);
+    expect(hot.light.sunIntensity).toBeCloseTo(1.05 * 1.16);
+    // žlutější – modrá složka slunce klesne víc než červená
+    expect(hot.light.sunColor[2] / hot.light.sunColor[0]).toBeLessThan(
+      normal.light.sunColor[2] / normal.light.sunColor[0] - 0.1,
+    );
+    // vyšší kontrast – slabší rozptýlené světlo oblohy
+    expect(hot.light.skyIntensity).toBeLessThan(normal.light.skyIntensity * 0.9);
+    // vybledlá obloha – méně modrá, světlejší; hustší opar
+    const blue = (c: readonly number[]): number => c[2]! - c[0]!;
+    expect(blue(hot.light.clearColor)).toBeLessThan(blue(normal.light.clearColor) / 2);
+    expect(hot.light.fogDensity).toBeCloseTo(normal.light.fogDensity * 1.3);
+    const light = dayLight(hot, REFERENCE_DAY, null);
+    expect(light.shadowStrength).toBeCloseTo(1.35);
+    expect(light.contrast).toBeCloseTo(1.12);
+    // mírné sucho slaběji než kruté
+    const dry = seasonLook(REFERENCE_DAY, DRY);
+    expect(dry.drought).toBeCloseTo(0.6);
+    expect(dry.light.sunIntensity).toBeGreaterThan(normal.light.sunIntensity);
+    expect(dry.light.sunIntensity).toBeLessThan(hot.light.sunIntensity);
+  });
+
+  it('sucho nastupuje od 1. 5. plynule a s podzimem odezní – vzhled nikdy neskočí', () => {
+    expect(seasonLook(120, DROUGHT)).toEqual(seasonLook(120));
+    expect(seasonLook(300, DROUGHT)).toEqual(seasonLook(300));
+    for (const weather of [DROUGHT, WET, { winter: 'blackFrost' }, { winter: 'long' }] as const) {
+      for (let day = 1; day < 366; day++) {
+        const step = seasonLookDistance(seasonLook(day, weather), seasonLook(day + 1, weather));
+        // holomráz a dlouhá zima přinesou změnu sněhu za 5–6 dní
+        expect(step).toBeLessThan(0.36);
+      }
+    }
+  });
+
+  it('mokro – šedé světlo, víc oparu, slabší stíny', () => {
+    const normal = seasonLook(REFERENCE_DAY);
+    const wet = seasonLook(REFERENCE_DAY, WET);
+    expect(wet.wet).toBeCloseTo(0.6);
+    expect(wet.light.sunIntensity).toBeLessThan(normal.light.sunIntensity * 0.85);
+    expect(wet.light.fogDensity).toBeGreaterThan(normal.light.fogDensity * 1.3);
+    const grey = (c: readonly number[]): number => Math.max(...c) - Math.min(...c);
+    expect(grey(wet.light.clearColor)).toBeLessThan(grey(normal.light.clearColor));
+    expect(dayLight(wet, REFERENCE_DAY, null).shadowStrength).toBeLessThan(0.75);
+  });
+
+  it('holomráz – od 1. 2. jinovatka bez sněhu', () => {
+    const frost: LookWeather = { winter: 'blackFrost' };
+    expect(seasonLook(MID_WINTER, frost)).toEqual(seasonLook(MID_WINTER));
+    const feb = seasonLook(45, frost);
+    expect(feb.snow).toBe(0);
+    expect(feb.frost).toBe(1);
+    expect(seasonLook(45).snow).toBe(1);
+  });
+
+  it('dlouhá zima – sníh do dubna, jaro o 3 týdny později, v létě normální rok', () => {
+    const long: LookWeather = { winter: 'long' };
+    // 13. 3. ještě plný sníh (normálně roztál), do dubna taje
+    expect(seasonLook(72, long).snow).toBeGreaterThan(0.95);
+    expect(seasonLook(72).snow).toBe(0);
+    expect(seasonLook(88, long).snow).toBeGreaterThan(0.05);
+    expect(seasonLook(100, long).leaves).toBeLessThan(seasonLook(100).leaves - 0.2);
+    expect(weatherAmounts(100, long).delay).toBe(21);
+    expect(seasonLook(REFERENCE_DAY, long)).toEqual(seasonLook(REFERENCE_DAY));
+    // po návratu sněhu jaro jen postupuje – den vzhledu neklesá
+    for (let day = 66; day < 210; day += 0.5) {
+      const now = day - weatherAmounts(day, long).delay;
+      const next = day + 0.5 - weatherAmounts(day + 0.5, long).delay;
+      expect(next).toBeGreaterThan(now);
+    }
+  });
+
+  it('díl za stromy je v suchu zelenější, nechráněný žloutne', () => {
+    expect(droughtPartTint(0, 0)).toBeNull();
+    expect(droughtPartTint(0.1, 4)).toBeNull();
+    const open = droughtPartTint(1, 0)!;
+    const sheltered = droughtPartTint(1, 4)!;
+    expect(open[2]).toBeLessThan(0.7);
+    expect(sheltered[1]).toBeGreaterThan(1);
+    expect(sheltered[1] / sheltered[0]).toBeGreaterThan(open[1] / open[0] + 0.2);
+    // po čtvrtinách – den náběhu sucha díly nepřestaví
+    expect(droughtPartTint(0.52, 2)).toEqual(droughtPartTint(0.48, 2));
   });
 });
