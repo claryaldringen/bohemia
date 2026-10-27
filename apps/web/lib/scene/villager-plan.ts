@@ -71,6 +71,7 @@ import {
 } from './villager-plan-crafts';
 import { trafficFigures } from './villager-plan-traffic';
 import { lordFigures } from './villager-plan-lord';
+import { shoeingFigures } from './villager-plan-shoeing';
 import {
   anglers,
   domestic,
@@ -171,6 +172,15 @@ export function planVillagersWithCrew(
   const family = lordFigures(ctx, labor, dayWindow, options.huntSpot ?? null);
   if (family.rides.length > 0) crew.rides = family.rides;
   if (family.dogs.length > 0) crew.dogs = family.dogs;
+  // kovář dne (horses.md – Kování, Ve scéně): dojde k brance ohrady koní a kuje koně u kůlu –
+  // pevné místo dne; jeho podíl práce už postavu u plotu nemá
+  const shoeing = shoeingFigures(ctx, labor, dayWindow);
+  if (shoeing.rides.length > 0) crew.rides = [...(crew.rides ?? []), ...shoeing.rides];
+  if (shoeing.people.length > 0) {
+    labor.shares.forEach((share, s) => {
+      if (share.activity === 'horse-shoeing') counts[s] = 0;
+    });
+  }
   const fetchers = smithFetchFigures(ctx, labor);
   const herding = herderPeople(ctx, labor);
   // děti s řehtačkou na hlídaných dílech (wildlife.md – Noční hlídka) – po pasácích
@@ -272,6 +282,7 @@ export function planVillagersWithCrew(
   people.push(...mourners);
   people.push(...celebrants);
   people.push(...fetchers);
+  people.push(...shoeing.people);
   people.push(...slaughter.people);
   return { people, crew, slaughter: slaughter.plan };
 }

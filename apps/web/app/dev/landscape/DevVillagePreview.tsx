@@ -123,6 +123,12 @@ import {
   withoutThreshingDemo,
   type ThreshingDemo,
 } from './dev-threshing';
+import {
+  nextShoeingDemo,
+  SHOEING_DEMO_STAGES,
+  withShoeingDemo,
+  type ShoeingDemoStage,
+} from './dev-shoeing';
 import { devSelectionView } from './dev-selection';
 import { DayTimeControls } from './DayTimeControls';
 import type { CartKind } from '@bohemia/game';
@@ -246,6 +252,8 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   const [oreDemo, setOreDemo] = useState<OreDemo | null>(null);
   // ukázka humna (production-chains.md – Humno, dev-threshing.ts) – žně, výmlat, zrno do jam
   const [threshingDemo, setThreshingDemo] = useState<ThreshingDemo | null>(null);
+  // ukázka kování koní (horses.md – Kování, Ve scéně; dev-shoeing.ts) – vlastní, nebo cizí kovář
+  const [shoeingDemo, setShoeingDemo] = useState<ShoeingDemoStage | null>(null);
   // stupeň vylepšení ukázkových cest (dev-road.ts – DEMO_ROAD_STAGES) a stadium jabloní u cesty
   const [roadStage, setRoadStage] = useState(0);
   const [appleStage, setAppleStage] = useState(0);
@@ -484,7 +492,16 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   ]);
   // ukázky s prací dne bez lidí (orba přes cestu, vozy, karavana) – lidé po domech, ať jdou
   // oráč, honák a vozka vybrat jako ostatní (villagers.md – Výběr postavy)
-  const village = useMemo(() => withDemoPersons(demoVillage), [demoVillage]);
+  const village = useMemo(
+    () =>
+      withShoeingDemo(
+        withDemoPersons(demoVillage),
+        shoeingDemo,
+        decoded,
+        Math.floor(seasonDay ?? REFERENCE_DAY),
+      ),
+    [demoVillage, shoeingDemo, decoded, seasonDay],
+  );
 
   useEffect(() => {
     scene?.setVillage(village);
@@ -2020,6 +2037,15 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
           data-testid="dev-threshing"
         >
           {threshingDemo ? `Humno: ${THRESHING_DEMO_STAGES[threshingDemo.stage]}` : 'Humno'}
+        </button>
+        <button
+          className={buttonClass}
+          disabled={!scene}
+          onClick={() => setShoeingDemo((stage) => nextShoeingDemo(stage))}
+          title="Kování – kovář dojde k ohradě koní a u kůlu kuje jezdecké koně; vlastní od kovárny, cizí z kraje mapy (den ukázky 86 s, kuje se kolem poledne)"
+          data-testid="dev-shoeing"
+        >
+          {shoeingDemo ? `Kování: ${SHOEING_DEMO_STAGES[shoeingDemo]}` : 'Kování'}
         </button>
         <button
           className={buttonClass}

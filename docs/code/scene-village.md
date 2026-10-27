@@ -632,3 +632,34 @@ Kdo, kdy a na kterém koni jede, určuje jádro (`lordRides` → `SceneLord.ride
   (`Group.still`) se zapíše jednou a překreslení nenastavuje, jedoucí ano. Bez sedla (horses.md).
 - **Výběr:** klik na jezdce nebo koně vybere člověka (`pickPersonHit` od země – průmět kryje koně
   i jezdce), kroužek ho sleduje.
+
+## Kování ve scéně (horses.md – Kování, Ve scéně)
+
+Kdo a kdy kuje, určuje jádro (`shoeingDay` → `SceneLabor.shoeing`); scéna jen kreslí.
+
+- **Plán** `lib/scene/shoeing-plan.ts` (čisté funkce času): `shoeingSpots` – u branky ohrady
+  (`penSquaresEntrance` jako porážka) kůl 2 m stranou podél plotu, kůň vně ohrady podél plotu hlavou
+  ke kůlu (`hitch`), kovář u předního kopyta čelem k ohradě. `shoeingSchedule` – kování kolem
+  poledne (`SHOE_NOON_H`), `SHOE_HORSE_H` 1,5 h na koně (nejvýš `SHOE_MAX_H` 8 h); cesta tam
+  končí na začátku kování, zpět začíná po něm, obě se vejdou do výpravy dne (`SHOEING_TRIP_H` –
+  vlastní 5–19, cizí 4–20 h): krátká běžnou chůzí, delší časosběrem (rychlost a tempo klipu jako
+  karavana; klip nejvýš 6×). Posledních 80 m u ohrady jde kovář mírněji (aspoň 3× chůze, nejvýš
+  60 % času cesty), když to cesta dovolí – daleký úsek mimo ves pak rychleji (`shoeingWalked`;
+  cizí kovář z kraje mapy). `tiedHours` – kůň po koni rovným dílem. `smithShoeingPose` – mimo výpravu skrytý
+  (v kovárně, u souseda), cestou `walk` po `way` (stage `out` / `back`), u koně klip `build`
+  (předklon s kladívkem), na začátku každého koně chvíli `idle`. Bez hodin světa (ukázky) se den
+  opakuje po `FALLBACK_DAY_S` 86,4 s (`dayHour`, `hourSeconds` v `riders.ts`).
+- **Postava** `lib/scene/villager-plan-shoeing.ts` – `shoeingFigures` (volá `planVillagersWithCrew`
+  hned po vojvodově rodině, mezi lidmi s pevným místem dne): vlastní kovář je muž z domácnosti
+  kovárny (`ctx.roster`, záložně starší chlapec), cesta od dveří kovárny po pěšinách (`walkRoute`);
+  cizí kovář je `STRANGER`, cesta po zemské stezce (`trailId`), jinak po čáře `line` od kraje mapy –
+  konec bližší ohradě je u vsi – a od ní po pěšinách. Klíč postavy `SHOEING_KEY`. Podíly
+  `horse-shoeing` pak postavu nemají.
+- **Kůň u kůlu:** plány koní jsou `RidePlan` bez trasy s hodinami `tied` (`shodHorsePlans`) –
+  jdou do `DraftCrew.rides` za jezdce. `isTied` / `isAway` (`riders.ts`): kůň mimo ohradu jede, nebo
+  stojí uvázaný; `ridingHorseIds` (ohrada ho skryje) i `livestock.ts` (skupina koně je vidět jen mimo
+  ohradu) berou `isAway`. Stojící kůň se zapíše jednou a znovu jen při příchodu ke kůlu a odchodu
+  (`written` v `livestock.ts`). **Buffery:** kovář je instance `villagers-man` s klipem `build`, kůň
+  skupina `horse` – žádný nový vertex atribut (hlídá `fauna.test.ts`).
+- **Ukázka** `/dev/landscape` – tlačítko „Kování“ (`dev-shoeing.ts`): vypnuto → vlastní kovář →
+  cizí kovář (krajinou z kraje mapy na východě); bez ohrady koní si ji ukázka přinese i s kovárnou.

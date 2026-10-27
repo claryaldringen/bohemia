@@ -7,7 +7,7 @@ import {
   type PurchaseRoute,
 } from './craft-buying';
 import { isUnshod, nextShoeingDay, shoeingDue } from './horse-shoeing-term';
-import { ridingHorses } from './horses';
+import { horsePens, penHorses, ridingHorses } from './horses';
 import { villageFoodCosts } from './husbandry';
 import { REFINE, SMELT } from './iron-rates';
 import { HORSE_SHOEING } from './rules';
@@ -211,4 +211,46 @@ export function shoeingView(
     foreignKg: foreignValueKg(state, day, coverage, horses, route.days),
     foreignDays: route.days,
   };
+}
+
+/** Kování dne pro scénu (horses.md – Kování, Ve scéně): kdo dnes koně okul a odkud kovář přišel. */
+export interface ShoeingDay {
+  /** Vlastní kovář (z kovárny vsi), jinak kovář ze sousední vsi. */
+  own: boolean;
+  /** Okovaní jezdečtí koně – ohrada a kůň, v pořadí ohrad a koní. */
+  horses: { penId: number; horseId: number }[];
+  /** Cesta cizího kováře (směr, zemská stezka, bod na kraji mapy); vlastní null. */
+  route: PurchaseRoute | null;
+}
+
+/**
+ * Kování dne `day` jen ke čtení (scéna – kovář dojde k ohradě; horses.md – Kování): z kroniky
+ * `horses-shod` toho dne, koně z ohrad koní, cizímu kováři směr k nejbližšímu sousedovi
+ * s kovářem (`nearestCraftsman` – stejně jako `planShoeing`). Bez kování dne null.
+ */
+export function shoeingDay(
+  state: VillageState,
+  day: number,
+  landscape: Landscape | null,
+): ShoeingDay | null {
+  let event: Extract<ChronicleEvent, { kind: 'horses-shod' }> | null = null;
+  // kronika je od nejstarší – hledá se odzadu, jen dnešek
+  for (let i = state.chronicle.length - 1; i >= 0; i--) {
+    const entry = state.chronicle[i]!;
+    if (entry.day < day) break;
+    if (entry.day === day && entry.kind === 'horses-shod') {
+      event = entry;
+      break;
+    }
+  }
+  if (!event) return null;
+  const riding = new Set(ridingHorses(state, day).map((h) => h.id));
+  const horses = horsePens(state).flatMap((pen) =>
+    penHorses(pen)
+      .filter((h) => riding.has(h.id))
+      .map((h) => ({ penId: pen.id, horseId: h.id })),
+  );
+  if (horses.length === 0) return null;
+  const route = event.own ? null : nearestCraftsman(state, 'smith', landscape);
+  return { own: event.own, horses, route };
 }
