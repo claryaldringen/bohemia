@@ -29,7 +29,7 @@ import type { ChronicleEvent } from './types-chronicle';
 import type { TornadoPlan } from './types-disasters';
 import type { Dwelling, OrchardSquare, VillageState } from './types';
 import { harvestYearOf } from './weather-effects';
-import { addLogs, logsFromClearedTrees } from './wood';
+import { addFallenTrunks } from './wood';
 import { villageWoods, woodTreeSpots } from './woods';
 
 const EPSILON = 1e-9;
@@ -202,7 +202,7 @@ function flattenCrops(
 /**
  * Vyvrácené stromy (forest.md – vývrat jako kácení): dospělé stromy vrstvy překážek a lesa vsi
  * v pásu do `TORNADO.reachM` od středu vsi – zmizí jako pokácené (`felledTrees` – pařez, pak
- * nálet) a kmeny jdou na hromadu klád bez kácení. Mladé stromky a keře se ohnou. Vrátí počet.
+ * nálet) a kmeny zůstanou ležet na místě jako hromady klád u lesa (`addFallenTrunks`) – ves je zpracuje a odveze prací, žádné dřevo zdarma u vsi. Mladé stromky a keře se ohnou. Vrátí počet.
  */
 function uprootTrees(
   state: VillageState,
@@ -224,6 +224,7 @@ function uprootTrees(
   const changes = obstacleChangesAt(state, day);
   const gone = new Set([...changes.removed, ...changes.stumps, ...changes.saplings]);
   const ids: number[] = [];
+  const positions = new Map<number, { x: number; z: number }>();
   if (obstacles) {
     for (const i of obstaclesNear(
       obstacles,
@@ -236,19 +237,32 @@ function uprootTrees(
       const id = obstacles.id[i]!;
       if (gone.has(id) || !near(obstacles.x[i]!, obstacles.z[i]!)) continue;
       ids.push(id);
+      positions.set(id, { x: obstacles.x[i]!, z: obstacles.z[i]! });
     }
   }
   // les vsi – dospělé stromy (přidané nad vrstvu, `added` s druhem strom)
   const woodIds = new Set(villageWoods(state).flatMap((w) => woodTreeSpots(w).map((s) => s.id)));
   for (const o of changes.added ?? []) {
-    if (o.kind === 'tree' && woodIds.has(o.id) && near(o.x, o.z)) ids.push(o.id);
+    if (o.kind === 'tree' && woodIds.has(o.id) && near(o.x, o.z)) {
+      ids.push(o.id);
+      positions.set(o.id, { x: o.x, z: o.z });
+    }
   }
   const fallen = [...new Set(ids)]
     .sort((a, b) => a - b)
     .filter((id) => falls(base, 'tree:' + id, rule.trees));
   if (fallen.length === 0) return 0;
   state.felledTrees = [...(state.felledTrees ?? []), ...fallen.map((id) => ({ id, day }))];
-  addLogs(state, logsFromClearedTrees(fallen.length));
+  // padlé kmeny leží na místě (hromada u lesa, ne u vsi) – jen za stromy, které soused ještě
+  // nezapsal (dvě vsi téže mapy se dopočítají nezávisle, kmen by se jinak započetl dvakrát)
+  const neighbourFelled = new Set((state.neighbours?.felled ?? []).map((f) => f.id));
+  const spots = new Map<number, { x: number; z: number }>();
+  for (const [id, p] of positions) spots.set(id, p);
+  const trunks = fallen.flatMap((id) => {
+    const at = spots.get(id);
+    return at && !neighbourFelled.has(id) ? [at] : [];
+  });
+  addFallenTrunks(state, trunks);
   return fallen.length;
 }
 

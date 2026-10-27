@@ -357,7 +357,7 @@ vzácné tornádo je dobré“; rešerše §6). Jádro: `tornado.ts`, stopy v `d
   - **stromy** – dospělé stromy vrstvy překážek a lesa vsi v pásu do `TORNADO.reachM` (600 m) od
     středu vsi; padne 10 / 30 / 70 / 100 / 100 % – los po stromu `deriveSeed(seed počasí,
 'tornado-trees:' + day)` + `'tree:' + id` (dvě vsi vidí tytéž vývraty). Vývrat se zapíše jako
-    kácení (`felledTrees` – pařez, pak nálet) a kmen jde na hromadu klád (`logsFromClearedTrees`);
+    kácení (`felledTrees` – pařez, pak nálet) a kmen zůstane ležet: `addFallenTrunks` (wood.ts) založí hromady klád u lesa (`logStacks`, `fieldId` 0, čtverce `TORNADO.trunkPileM` = 60 m, 1 kláda na strom, odběr `takeLogs`), u vsi nic zdarma; klády jen za stromy, které `neighbours.felled` ještě nemá (druhá ves téže mapy je nezapočte; slabina jako u běžného kácení);
     mladé stromky a keře se ohnou, dál od vsi kmeny shnijí,
   - **sad** – vyvrácený čtverec (středem v pásu, týž podíl) ves obnoví jako starý
     (`uprootOrchardSquares` v `orchard.ts`: `plantedDay` null, výsadba bez překážek; převezme ho
@@ -384,7 +384,7 @@ vzácné tornádo je dobré“; rešerše §6). Jádro: `tornado.ts`, stopy v `d
   středem vsi; 10 obydlí, 885 osetých dílů): F0 – 6 staveb −15 % (zemnice −5 %), 11 vývratů,
   9 dílů −20 %, seno −30 %; F1 – 9 staveb −40 %, 53 vývratů, 6 jabloní; F2 – zřítí se 8 z 9
   zasažených, 264 vývratů, 56 dílů −80 %; F3 – zřítí se vše kromě dvorce (poslední obydlí), 1589
-  vývratů na hromadě klád, 236 dílů bez úrody (sklizeň −19 %), 1 mrtvý ze 46; F4 obdobně (1803
+  vývratů na hromadách klád u lesa, 236 dílů bez úrody (sklizeň −19 %), 1 mrtvý ze 46; F4 obdobně (1803
   vývratů).
 
 ## Scéna – počasí roku v barvách a světle (P11, první polovina)

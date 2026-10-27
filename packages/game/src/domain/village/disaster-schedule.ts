@@ -94,7 +94,11 @@ export function tornadoTrackHitsSquare(
   return true;
 }
 
-/** Poissonův počet se střední hodnotou `mean` (inverzí – jeden los). */
+/**
+ * Poissonův počet se střední hodnotou `mean` (inverzí – jeden los). Používá `Math.exp`, který
+ * není deterministický napříč stroji, proto `yearTornadoes` běží jen na serveru a do prohlížeče
+ * nepatří – pohled čte jen `disasters.tornado` (zapsané serverem).
+ */
 function poisson(random: Random, mean: number): number {
   const u = random.next();
   let p = Math.exp(-mean);

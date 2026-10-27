@@ -15,7 +15,7 @@ import { advanceVillage } from '../simulate';
 import { tornadoDay } from '../tornado';
 import type { TornadoPlan, TornadoStrength } from '../types-disasters';
 import type { FarmSeason, FieldPart, Orchard, SeasonCrop, VillageState } from '../types';
-import { logsFromClearedTrees } from '../wood';
+import { logsFromClearedTrees, pileLogs } from '../wood';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
 // Smršť (disasters.md – Smršť (tornádo)): četnost přes mapu a přes jádro vsi, tatáž stopa pro vsi
@@ -279,7 +279,11 @@ describe('škody podle síly', () => {
     const [event] = tornadoEvents(s, tornadoDay(s, DAY, null, layer));
     expect(event!.uprootedTrees).toBe(inTrack.length);
     expect(s.felledTrees!.map((f) => f.id)).toEqual(inTrack);
+    // kmeny leží na místě v hromadách u lesa, u vsi nic zdarma
     expect(s.woodLogs).toBeCloseTo(logsFromClearedTrees(inTrack.length));
+    expect(pileLogs(s)).toBeCloseTo(0);
+    expect(s.logStacks!.length).toBeGreaterThan(1);
+    expect(s.logStacks!.every((st) => Math.abs(st.z - 3) < 1)).toBe(true);
     const status = obstacleStatus(obstacleChangesAt(s, DAY));
     const index = (oid: number): number => [...layer.id].indexOf(oid);
     expect(status.kindOf(layer, index(inTrack[0]!))).toBe('stump');
@@ -290,6 +294,28 @@ describe('škody podle síly', () => {
     const fallen = tornadoEvents(weak, tornadoDay(weak, DAY, null, layer))[0]!.uprootedTrees;
     expect(fallen / inTrack.length).toBeGreaterThan(0.18);
     expect(fallen / inTrack.length).toBeLessThan(0.42);
+  });
+
+  it('kmeny stromů, které už soused zapsal, se nezapočtou podruhé', () => {
+    const placements: ObstaclePlacement[] = [];
+    for (let i = 0; i < 20; i++) {
+      placements.push({
+        id: i + 1,
+        kind: 'tree',
+        look: 'oak-1',
+        x: i * 10 - 100,
+        z: 3,
+        rotation: 0,
+        scale: 1,
+      });
+    }
+    const layer: ObstacleLayer = packObstacles(placements, 128, 15);
+    const s = village();
+    s.woodLogs = 0;
+    s.neighbours = { felled: placements.map((p) => ({ id: p.id, day: DAY - 1 })) } as never;
+    force(s, DAY, 'F3');
+    tornadoEvents(s, tornadoDay(s, DAY, null, layer));
+    expect(s.woodLogs).toBeCloseTo(0);
   });
 
   it('sad a jabloně u cest: vyvrácený čtverec jde do obnovy, jabloň se zasadí znovu', () => {

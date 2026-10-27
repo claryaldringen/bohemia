@@ -24,6 +24,7 @@ import {
   OAK_MODEL_HEIGHT_M,
   SACRED_BUILDINGS,
 } from './rules';
+import { TORNADO } from './rules-disasters';
 import type { Walk } from './paths/walking';
 import { sacredSitesOf } from './sacred';
 import { isWoodTreeId } from './woods';
@@ -93,6 +94,38 @@ export function addStackLogs(
   const existing = stacks.find((s) => s.fieldId === fieldId);
   if (existing) existing.logs += logs;
   else stacks.push({ id: state.nextId++, fieldId, x: anchor.x, z: anchor.z, logs });
+}
+
+/**
+ * Padlé kmeny po smršti (disasters.md – Smršť): kmeny leží na místě, kde stromy stály – jedna
+ * hromada u lesa na čtverec `TORNADO.trunkPileM` (kotva = první strom čtverce v pořadí vstupu,
+ * `fieldId` 0 = bez pole), 1 kláda na strom. Odběr přes `takeLogs` jako u klučení – žádné
+ * dřevo zdarma u vsi.
+ */
+export function addFallenTrunks(
+  state: VillageState,
+  trees: readonly { x: number; z: number }[],
+): void {
+  if (trees.length === 0) return;
+  const size = TORNADO.trunkPileM;
+  const cells = new Map<string, { x: number; z: number; n: number }>();
+  for (const t of trees) {
+    const key = `${Math.floor(t.x / size)}:${Math.floor(t.z / size)}`;
+    const cell = cells.get(key);
+    if (cell) cell.n++;
+    else cells.set(key, { x: t.x, z: t.z, n: 1 });
+  }
+  for (const [key, cell] of cells) {
+    const [cx, cz] = key.split(':').map(Number) as [number, number];
+    const logs = logsFromClearedTrees(cell.n);
+    const stacks = (state.logStacks ??= []);
+    const existing = stacks.find(
+      (s) => s.fieldId === 0 && Math.floor(s.x / size) === cx && Math.floor(s.z / size) === cz,
+    );
+    state.woodLogs = woodLogs(state) + logs;
+    if (existing) existing.logs += logs;
+    else stacks.push({ id: state.nextId++, fieldId: 0, x: cell.x, z: cell.z, logs });
+  }
 }
 
 /**

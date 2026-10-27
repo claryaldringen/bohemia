@@ -342,6 +342,11 @@ export interface TornadoStrengthRule {
  * je dobré“). Četnost, síly a stopy z rešerše §6 (ESWD, Brázdil 2020) – návrh Clauda.
  */
 export const TORNADO = {
+  /**
+   * Vývraty leží na místě jako hromady klád – kmeny v jednom čtverci o této straně (m) tvoří
+   * jednu hromadu (návrh Clauda, disasters.md – Smršť; omezuje počet hromad ve scéně).
+   */
+  trunkPileM: 60,
   /** Tornád na 10 000 km² za rok – přes mapu kraje ≈ 0,10 % ročně. */
   perTenThousandKm2: 0.5,
   /**
