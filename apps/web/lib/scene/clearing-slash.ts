@@ -28,15 +28,20 @@ const CHAR_STICKS = 7;
 /** Úseků kupy po obvodu a od paty k vrcholu. */
 const SEGMENTS = 12;
 const RINGS = 4;
-/** Barvy (gama): suché jehličí a listí v kupě, kůra větví, ohořelé dřevo a popel. */
+/**
+ * Barvy (gama): suché jehličí a listí v kupě, kůra větví, ohořelé dřevo a popel. Popel je tmavý
+ * (šedá k okraji jen o málo světlejší) – světlý okraj působil pod ohněm jako talíř.
+ */
 const LITTER = [0.42, 0.33, 0.2] as const;
 const LITTER_OLIVE = [0.36, 0.35, 0.21] as const;
 const BARK = [0.38, 0.3, 0.22] as const;
 const BARK_LIGHT = [0.55, 0.47, 0.36] as const;
 const CHARCOAL = [0.07, 0.06, 0.055] as const;
 const ASH_DARK = [0.16, 0.15, 0.14] as const;
-const ASH = [0.36, 0.35, 0.33] as const;
-const ASH_LIGHT = [0.62, 0.61, 0.58] as const;
+const ASH = [0.24, 0.23, 0.215] as const;
+const ASH_LIGHT = [0.33, 0.32, 0.3] as const;
+/** Placka popela vůči půdorysu kupy (HEAP_A × HEAP_B) – menší než kupa, ať pod ohněm nevyčnívá. */
+const ASH_SPREAD = 0.75;
 
 type Rgb = readonly [number, number, number];
 
@@ -297,7 +302,7 @@ export function slashHeapVertexData(): VertexData {
 }
 
 /**
- * Ohořelý zbytek hromady při velikosti 1: placka popela (uprostřed tmavá, k okraji světle šedá)
+ * Ohořelý zbytek hromady při velikosti 1: placka popela (uprostřed tmavá, k okraji šedá)
  * a na ní pár ohořelých pahýlů větví.
  */
 export function charRemnantVertexData(): VertexData {
@@ -305,8 +310,8 @@ export function charRemnantVertexData(): VertexData {
   const center = b.push([0, 0.07, 0], [0, 1, 0], ASH_DARK);
   const rings: number[][] = [];
   for (const [t, y, color] of [
-    [0.55, 0.05, ASH],
-    [1, 0, ASH_LIGHT],
+    [0.55 * ASH_SPREAD, 0.05, ASH],
+    [ASH_SPREAD, 0, ASH_LIGHT],
   ] as const) {
     const row: number[] = [];
     for (let i = 0; i <= SEGMENTS; i++) {
