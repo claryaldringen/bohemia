@@ -278,6 +278,33 @@ function dissolveHouseholds(state: VillageState, day: number): ChronicleEvent[] 
 }
 
 /**
+ * Kam se přestěhují obyvatelé shořelého obydlí `fromId` (disasters.md – Požár): jako rozpadlá
+ * domácnost (`dissolveTarget`), a nevejdou-li se nikam, do obydlí s nejvíc volnými místy i přes
+ * přeplnění; bez obývaných obydlí do prvního z `homes` (návrh Clauda). `homes` jsou přeživší obydlí.
+ */
+export function evacuationTarget(
+  state: VillageState,
+  day: number,
+  members: readonly Person[],
+  fromId: number,
+  homes: readonly Dwelling[],
+): { id: number } | null {
+  const real = state.dwellings;
+  state.dwellings = homes as Dwelling[];
+  try {
+    const dissolved = dissolveTarget(state, day, members, fromId);
+    return (
+      (dissolved && homes.some((d) => d.id === dissolved.id) ? dissolved : null) ??
+      roomiest(state, homes, fromId, -Infinity) ??
+      homes.find((d) => d.id !== fromId) ??
+      null
+    );
+  } finally {
+    state.dwellings = real;
+  }
+}
+
+/**
  * Od kterého dne může která žena znovu porodit (population.md – rozestup porodů):
  * `Person.nextBirthFrom`, a když chybí (vsi uložené dřív, lidé od souseda), podle nejmladšího
  * žijícího dítěte – za BIRTH_SPACING.afterBirthDays od jeho narození.

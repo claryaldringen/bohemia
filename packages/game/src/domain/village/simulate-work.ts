@@ -65,6 +65,7 @@ import {
   workSlaughter,
 } from './livestock';
 import { ploughCapacityPerDay, ploughPairsHome, villageOxen } from './oxen';
+import { fireFighting } from './firefighting';
 import { morningWater, ploughWindowsToday, villagersToday } from './morning-water';
 import { surplusFieldDay, surplusWantsTeam } from './surplus-fields';
 import { threshingFloorHaulPoints } from './threshing-floors';
@@ -404,6 +405,13 @@ export function work(
   const burners = burnerPlans(state, day, coverage, productivity);
   const resting = restingCrafters(state, day, coverage, productivity, obstacles, burners);
   for (const [id, activity] of restingCarpenters(state, day, obstacles)) resting.set(id, activity);
+  // v den požáru hasí i řemeslníci – dílny dnes stojí (disasters.md – Hašení)
+  // uhlíř hasí taky: milíř ten den stojí bez dozoru (pálení se o den odloží, nic se nezkazí),
+  // proto se zruší i plán dne (vytahání uhlí, začátek milíře) – návrh Clauda
+  if (fireFighting(state, day)) {
+    burners.clear();
+    for (const d of state.dwellings) if (d.workshop) resting.set(d.id, 'resting');
+  }
   const crafts = craftHouseholds(state, resting);
   // kdo jde pro kování k vozu, ve vsi ani v dílně nepracuje (wagons.md – Kování vozů)
   const travelling = ironTravellers(state);

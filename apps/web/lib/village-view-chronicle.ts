@@ -4,6 +4,7 @@ import { boughtProducts, productList } from './village-view-types';
 import { Crop } from '@bohemia/game';
 import {
   paymentValueKg,
+  type FloodLevel,
   type SummerWeather,
   type WinterWeather,
   CART_NAMES,
@@ -64,6 +65,37 @@ function deathText(group: 'child' | 'adult' | 'elder', hunger: boolean): string 
     return hunger ? 'Jeden z dospělých zemřel hlady.' : 'Zemřel jeden z dospělých.';
   }
   return hunger ? 'Jeden ze starších zemřel hlady.' : 'Zemřel jeden ze starších.';
+}
+
+/** Stupeň vody povodně – kronika a popisky (disasters.md – Povodeň potoka). */
+export const FLOOD_LEVEL_NAMES: Record<FloodLevel, string> = {
+  small: 'Malá voda',
+  five: 'Pětiletá voda',
+  twenty: 'Dvacetiletá voda',
+  hundred: 'Stoletá voda',
+  twoHundred: 'Dvousetletá voda',
+  fiveHundred: 'Pětisetletá voda',
+  thousand: 'Tisíciletá voda',
+};
+
+/** Kdo utonul při povodni (bez jména). */
+const DROWNED: Record<'child' | 'adult' | 'elder', string> = {
+  child: 'Dítě utonulo',
+  adult: 'Jeden z dospělých utonul',
+  elder: 'Jeden ze starších utonul',
+};
+
+/** Povodeň v kronice: stupeň vody, výška nad hladinou a co zatopila. */
+function floodText(event: Extract<ChronicleEvent, { kind: 'flood' }>): string {
+  const height = `${String(event.heightM).replace('.', ',')} m nad hladinou`;
+  const parts = event.partIds.length;
+  const fell = event.collapsedDwellingIds.length;
+  const what = [
+    ...(parts > 0 ? [`zatopené díly: ${parts}`] : []),
+    ...(event.dwellingIds.length > 0 ? [`zatopené stavby: ${event.dwellingIds.length}`] : []),
+    ...(fell > 0 ? [`zřícené: ${fell}`] : []),
+  ];
+  return `${FLOOD_LEVEL_NAMES[event.level]} – ${height}${what.length > 0 ? ` – ${what.join(', ')}` : ''}.`;
 }
 
 /** Dostavěná řemeslná dílna – kronika (crafts.md). */
@@ -288,6 +320,9 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
         const prey = event.prey === 'bear' ? 'medvěda' : 'divočáka';
         return `${event.name ?? 'Muž rodu'} zahynul na lovu ${prey}.`;
       }
+      if (event.cause === 'flood') {
+        return `${event.name === undefined ? DROWNED[event.group] : `${event.name} utonul`} při povodni.`;
+      }
       return deathText(event.group, event.cause === 'hunger');
     case 'hunt-injury': {
       const prey = event.prey === 'bear' ? 'medvěda' : 'divočáka';
@@ -494,6 +529,16 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return STRUCTURE_REPAIRED_TEXTS[event.structure];
     case 'weather':
       return weatherText(event.summer, event.winter);
+    case 'fire': {
+      const n = event.burnedDwellingIds.length;
+      return n === 1 ? 'Požár – shořela jedna stavba.' : `Požár – shořelo ${n} staveb.`;
+    }
+    case 'flood':
+      return floodText(event);
+    case 'hail':
+      return event.partIds.length > 0
+        ? `Kroupy potloukly pole – zasažené díly: ${event.partIds.length}.`
+        : 'Kroupy.';
     case 'cemetery-full':
       if (event.othersFree) return 'Jeden z hřbitovů se zaplnil – pohřbívá se do dalšího.';
       // staví se jiný hřbitov nebo rozšíření – bude kam pohřbívat

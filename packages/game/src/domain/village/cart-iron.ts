@@ -279,8 +279,12 @@ export function ironTripShares(
  * Kolik obilí stojí kování (kg) – u kováře souseda jako nákup nástrojů (0,96 hodnoty – kování je
  * hotové, ne hřivny).
  */
-export function ironPriceKg(kg: number): number {
-  return kg * productPrice('toolsKg');
+export function ironPriceKg(
+  kg: number,
+  state?: Pick<VillageState, 'weatherSeed' | 'disasters'>,
+  day?: number,
+): number {
+  return kg * productPrice('toolsKg', state, day);
 }
 
 /** Dokončí vůz s kováním (mutuje stav): vůz přibude do vozů vsi, kronika `cart-made`. */
@@ -378,7 +382,7 @@ function startIronTrip(
 ): IronTrip | null {
   const carrier = ironCarrier(state, dwelling.id, day);
   if (!carrier) return null;
-  const grainKg = ironPriceKg(kg);
+  const grainKg = ironPriceKg(kg, state, day);
   if (state.hungry || state.storesKg + EPSILON < grainKg) return null;
   const options = ironOptions(state, day, dwelling.position, landscape, grainKg);
   const cart = freeIronCart(state, day, grainKg);

@@ -203,14 +203,17 @@ seedu počasí mapy (stopa přes mapu).
 Martin, 27. 10. 2026: „Stromy by měly pole před kroupami částečně chránit“ – k návrhu „ano“.
 
 - **Kdy:** jeden den **června až srpna**, šance **6 % ročně** (≈ 1 z 16 let).
-- **Kde:** pruh **300 m** široký přes celé okolí vsi (směr a posun ze seedu). Díly, jejichž střed
+- **Kde:** pruh **300 m** široký přes celé okolí vsi (směr a posun ze seedu; střed pruhu
+  nejvýš **450 m** od středu vsi – průměru poloh obydlí, návrh Clauda). Díly, jejichž střed
   leží v pruhu, přijdou o **60 % nesklizené úrody** (ozim před žněmi, jařiny, nesklizené louky);
   **okraje pruhu** (vnějších 50 m z každé strany, návrh Clauda) o **30 %**. Sklizené díly a louky
   po seči nic.
 - **Stromy chrání:** ztráta dílu × (**1 − 0,4 × zeleň**) – jen zeleň z ochrany dílu, bez vlhkosti.
   **Bez směru** – nepočítá se, odkud bouře přišla; strom chrání z kterékoli strany.
 - **Sad** v pruhu **−40 % letošních jablek**; **střechy staveb** v pruhu **zchátrají o rok**
-  (stav − roční chátrání stavby).
+  (stav − roční chátrání prázdné stavby). Na okraji pruhu polovina: −20 % jablek, půl roku
+  chátrání (návrh Clauda). Nesečená louka přijde o podíl sena rozložený na zbytek seče (návrh
+  Clauda).
 - **Kolik:** pruh zasáhne typicky 10–25 % polí – ves přijde o ≈ 10 % úrody roku. **Rozptýlená
   pole** jsou pojistka (hráč volí, kde zakládá pole – jako u zvěře les).
 - Škoda jde do úrody dílu stejně jako škoda zvěře (podíl hrubé úrody po dílech).
@@ -256,6 +259,8 @@ dvousetleté … pětisetleté … tisícileté vody. Naplavenina by měla hnoji
 | 0,5–1,5 m | ×0,3                     | ×0,5              | −30 %  | −60 %    | +20 %       |
 | nad 1,5 m | ×0                       | ×0,2              | −60 %  | zřítí se | +30 %       |
 
+- **Jarní voda** (1.–20. 3.) bere jen ozim – jařiny se teprve sejí; louky bere jen voda v okně
+  seče (návrh Clauda).
 - **Stavby:** stav klesne o tolik; co dojde na nulu, spadne (zbytek jámy jako po rozpadu,
   [populace](population.md) – Po zániku); obydlený dům obyvatelé opraví prací vsi jako jindy.
   **Obilná jáma v zatopeném políčku:** zrno −25 % (zateče) – a nová jáma se nekope níž než
@@ -280,8 +285,12 @@ Martin, 27. 10. 2026: „Pojďme na požár“.
   a řetěz s vědry nezastaví (Martin, 27. 10. 2026: „Ano a ano“). Rozestupy domů jsou na hráči.
 - **Co shoří:** stavba (stav 0 → zbytek jámy jako po rozpadu) a **zásoby domu**: zrno mimo jámy,
   maso a sýr **÷ počet obydlí**. **Zrno v zapečetěné jámě přečká.** **Stoh do 12 m** od hořící
-  stavby shoří (seno ÷ počet stohů). Obyvatelé bydlí u příbuzných (Rozpad domácnosti) a **sami
-  dům přestaví** (Přestavba – rozhodují obyvatelé).
+  stavby shoří (seno ÷ počet stohů). **Shořelá dílna** odnese svou zásobu (kovárna uhlí, hřivny
+  a houbu, hrnčířství keramiku). Obyvatelé bydlí u příbuzných (Rozpad domácnosti; návrh Clauda).
+- **Dům po požáru staví hráč** (Martin, 27. 10. 2026: „dům musí postavit hráč“): vyhořelé obydlí
+  zůstane zbytkem jámy jako po rozpadu a **nepřestaví se samo** – rodina žije u příbuzných
+  (v těsnu), dokud hráč nepostaví nový dům běžnou stavbou; do něj se pak nastěhuje jako do
+  každého nového domu.
 - **Lidé neumírají** – smrt přijde jen z hladu po ztrátě zásob.
 
 ### Hašení – řetěz s vědry
@@ -291,8 +300,11 @@ vody.“ A: „Lidé musí být rozložení ve stejných vzdálenostech … ten 
 „Ano“.
 
 - **Kdo:** **všichni dospělí vsi**; ten den nedělají nic jiného (pole, stavby, péče). Děti
-  a staří ne (návrh Clauda).
-- **Řetěz:** od **nejbližší vody** (potok) k hořící stavbě, lidé **rovnoměrně po celé cestě**:
+  a staří ne (návrh Clauda). Hasí jen ti, kdo jsou ten den **ve vsi** – ne pěší lovci a kdo jde pro
+  kování; vojvodova rodina, která cvičí na dvorci, ve vsi je, takže hasí taky (návrh Clauda).
+- **Uhlíř** hasí také; pálící **milíř** ten den stojí bez dozoru – nezkazí se ani neshoří, jen
+  dohoří o den později (návrh Clauda).
+- **Řetěz:** od **nejbližší vody** (břeh, kam chodí ženy pro vodu; vzdálenost přímkou) k hořící stavbě, lidé **rovnoměrně po celé cestě**:
   **rozestup = vzdálenost ÷ počet dospělých**.
 - **Do 2,5 m** si vědra **podávají** z ruky do ruky; **víc** – **každý nosí** vědro tam a zpět po
   svém úseku.
@@ -378,10 +390,14 @@ Martin chce skutečnou pravděpodobnost, i když je velmi vzácná – žádné 
   požár a smršť stavby zničí – přes dnešní stav, chátrání, zbytek jámy a přestavbu.
 - **Les** ([les](forest.md)): smršť vyvrátí stromy jako kácení; kmeny jdou na klády.
 - **Obchod** ([obchod](trade.md) – Sousedé): sousedé jsou ve stejném kraji. Při doplnění **1. 11.**
-  po zlém roce mají **poloviční zásobu obilí** a obilí je **o polovinu dražší** (ostatní zboží
-  v kg obilí ×0,67); po krutém roce **čtvrtinovou zásobu** a obilí **dvakrát dražší** (×0,5) –
-  ceny v hladovém roce na dvoj- až trojnásobek (Ó Gráda 2005). Dobytek je pak levný – ves bez
-  sena ho prodá, ves s pojistkou nakoupí. Hřivny jsou uložená hodnota na zlý rok.
+  po zlém roce mají **poloviční zásobu obilí** a ostatní zboží stojí **méně obilí** (×0,67, tedy
+  obilí je o polovinu dražší); po krutém roce **čtvrtinovou zásobu** a zboží za **polovinu obilí**
+  (×0,5, obilí dvakrát dražší) – ceny v hladovém roce na dvoj- až trojnásobek (Ó Gráda 2005).
+  Dobytek je pak levný – ves bez sena ho prodá, ves s pojistkou nakoupí. Hřivny jsou uložená
+  hodnota na zlý rok. _Návrh Clauda (27. 10. 2026):_ násobek platí pro **veškerý obchod včetně
+  plateb** (platba za ohradu koní, nákup výrobků u řemeslníků souseda, kování) – jinak by ves dala
+  zboží za plnou hodnotu a týž kus koupila za polovinu. „Nákup v krutém roce a prodej v dobrém“
+  je záměr: hřivny jsou uložená hodnota, která v dobrém roce vydělá.
 - **Zvěř:** po holomrazné nebo dlouhé zimě 1. 5. ubude navíc 10 % jelení zvěře a 15 % prasat;
   v krutém suchu (málo žaludů) jen poloviční počet selat.
 - **Krajina:** beze změny – niva je už dnes v `floodplain.ts`, povodeň ji jen využije.

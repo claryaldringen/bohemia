@@ -623,7 +623,9 @@ export function mow(state: VillageState, amount: number, day: number | null = nu
   if (!hay || !mowing || amount <= 0 || mowing.required <= 0) return;
   const before = mowing.done;
   mowing.done = Math.min(mowing.required, before + amount);
-  const weather = day === null ? 1 : mowingWeatherFactor(state, day, mowing);
+  // kroupy potloukly zbylé louky (disasters.md – Kroupy)
+  const weather =
+    (mowing.hailFactor ?? 1) * (day === null ? 1 : mowingWeatherFactor(state, day, mowing));
   hay.kg += (mowing.yieldKg * weather * (mowing.done - before)) / mowing.required;
 }
 
@@ -686,6 +688,34 @@ export function mowingSpans(
     start,
     end,
   }));
+}
+
+/**
+ * Pohroma na nesečených loukách dnešní seče (kroupy, povodeň – disasters.md): `lossOf` = ztráta
+ * sena úseku 0–1; seno další seče ubude o ztracený podíl zbylé louky (`HayMowing.hailFactor` –
+ * rozložený na zbytek seče, návrh Clauda). Posečené louky a seč mimo své okno nic. Mutuje stav,
+ * vrátí podíl sena zbylé louky, který ubyl.
+ */
+export function damageUnmownMeadows(
+  state: VillageState,
+  day: number,
+  lossOf: (span: MowSpan) => number,
+): number {
+  const mowing = state.hay?.mowing;
+  if (!mowing || mowing.required <= 0 || !isMowingSeason(day, mowingCut(mowing))) return 0;
+  const position = Math.min(1, mowing.done / mowing.required);
+  const left = 1 - position;
+  if (left <= EPSILON) return 0;
+  const partsById = new Map(state.parts.map((p) => [p.id, p]));
+  let lost = 0;
+  for (const span of mowingSpans(mowing, partsById)) {
+    const unmown = span.end - Math.max(span.start, position);
+    if (unmown > 0) lost += unmown * lossOf(span);
+  }
+  if (lost <= EPSILON) return 0;
+  const share = Math.min(1, lost / left);
+  mowing.hailFactor = (mowing.hailFactor ?? 1) * (1 - share);
+  return share;
 }
 
 /**

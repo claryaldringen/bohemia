@@ -149,6 +149,45 @@ export const FLOOD_WATER = {
   springShare: 0.5,
 } as const;
 
+/** Škody povodně v jednom pásmu hloubky (disasters.md – Povodeň potoka, tabulka škod). */
+export interface FloodBandRule {
+  /** Pásmo platí pro hloubku do tolika metrů (poslední bez omezení). */
+  maxDepthM: number;
+  /** Kolik nesklizené úrody (letní voda) a sena nesečené louky zůstane. */
+  cropKept: number;
+  /** Kolik ozimu zůstane (jarní voda). */
+  winterKept: number;
+  /** O kolik klesne stav stavby (0–1); zemnice zvlášť (1 = zřítí se). */
+  building: number;
+  zemnice: number;
+  /** Naplavenina: úrodnost dílu + tolik přirozené. */
+  silt: number;
+}
+
+/**
+ * Povodeň – škody ve vsi (disasters.md – Povodeň potoka; Martin 27. 10. 2026: „Naplavenina by
+ * měla hnojit víc“, „A ať zabíjí tak jak navrhuješ“; čísla škod návrh Clauda). Výška vody je
+ * z počasí kraje (`FLOOD_WATER`), hloubka políčka = výška vody − výška nad potokem.
+ */
+export const FLOOD = {
+  bands: [
+    { maxDepthM: 0.5, cropKept: 0.7, winterKept: 0.85, building: 0.1, zemnice: 0.3, silt: 0.1 },
+    { maxDepthM: 1.5, cropKept: 0.3, winterKept: 0.5, building: 0.3, zemnice: 0.6, silt: 0.2 },
+    { maxDepthM: Infinity, cropKept: 0, winterKept: 0.2, building: 0.6, zemnice: 1, silt: 0.3 },
+  ] as const satisfies readonly FloodBandRule[],
+  /** Naplavenina hnojí nejvýš do 130 % přirozené úrodnosti. */
+  siltMaxShare: 1.3,
+  /** Od pětisetleté vody (3 m) zemře každý obyvatel zatopeného obydlí s šancí 2 %. */
+  deathMinWaterM: 3,
+  deathChance: 0.02,
+  /** Obilná jáma v zatopeném políčku: zrno ubude o čtvrtinu (zateče). */
+  pitGrainLoss: 0.25,
+  /** Nová jáma se nekope níž než dvacetiletá voda (m nad potokem). */
+  pitMinHeightM: 1.2,
+  /** Voda stojí tolik dní (jen scéna). */
+  standDays: 3,
+} as const;
+
 /**
  * Ochrana dílu ze zeleně a vlhkosti (disasters.md – Ochrana dílu; Martin 27. 10. 2026: „Takhle to
  * sedí, zahrň i vlhkost půdy“). Počítá se 1. 4., jednou za rok.
@@ -192,4 +231,88 @@ export const PROTECTION = {
 export const LOCAL_DISASTERS = {
   /** Prvních tolik let vsi žádné kroupy, povodeň, požár ani smršť; počasí kraje naplno. */
   protectionYears: 5,
+} as const;
+
+/**
+ * Kroupy (disasters.md – Kroupy; Martin 27. 10. 2026: „Stromy by měly pole před kroupami částečně
+ * chránit“). Ochrana dílu ze zeleně: `PROTECTION.hailGreenShare`.
+ */
+export const HAIL = {
+  /** Šance krupobití vsi na rok (≈ 1 z 16 let). */
+  chancePerYear: 0.06,
+  /** Jeden den června až srpna. */
+  window: {
+    from: { month: 6, day: 1 } satisfies MonthDay,
+    to: { month: 8, day: 31 } satisfies MonthDay,
+  },
+  /** Šířka pruhu (m) a jeho vnější okraje z každé strany (m – návrh Clauda). */
+  widthM: 300,
+  edgeM: 50,
+  /** Střed pruhu nejvýš tolik (m) od středu vsi – pruh jde přes okolí vsi (návrh Clauda). */
+  offsetM: 450,
+  /** Ztráta nesklizené úrody dílu nebo louky se středem v pruhu a na jeho okraji. */
+  loss: 0.6,
+  edgeLoss: 0.3,
+  /** Sad v pruhu: ztráta letošních jablek (na okraji polovina – návrh Clauda). */
+  appleLoss: 0.4,
+  /** Střechy staveb v pruhu zchátrají o tolik let chátrání prázdné stavby (okraj polovina). */
+  roofYears: 1,
+  /** Kroupy samy stavbu nezboří: stav neklesne pod tento zbytek (návrh Clauda). */
+  roofMinCondition: 0.05,
+} as const;
+
+/**
+ * Požár (disasters.md – Požár; Martin 27. 10. 2026: „Pojďme na požár“, „Ano a ano“ – řetězově
+ * z každé stavby, která chytí).
+ */
+export const FIRE = {
+  /** Šance stavby na rok (ves s 15 domy ≈ 6 % ročně). */
+  perBuildingPerYear: 0.004,
+  /** Násobky šance: suché léto, kruté sucho, deštivé léto (duben–srpen). */
+  dryFactor: 2,
+  droughtFactor: 3,
+  wetFactor: 0.5,
+  summerMonths: { from: 4, to: 8 },
+  /** Zima – topí se (listopad–únor). */
+  winterFactor: 1.5,
+  winterMonths: [11, 12, 1, 2] as readonly number[],
+  /** Kovárna, milíř a pec; zemnice (nevelká, hlína). */
+  craftFactor: 3,
+  zemniceFactor: 0.5,
+  /** Přeskok podle vzdálenosti obrysů – od nejbližšího pásma: do 6 m 70 %, do 12 m 40 %. */
+  jumps: [
+    { reachM: 6, chance: 0.7 },
+    { reachM: 12, chance: 0.4 },
+  ] as const,
+  /** Zeleň (listnatý strom, keř, sad) na spojnici půlí šanci přeskoku. */
+  greeneryFactor: 0.5,
+  /** Strom nebo keř je „na spojnici“, je-li od ní nejvýš tolik (m) – návrh Clauda. */
+  greeneryReachM: 2,
+  /**
+   * Hašení řetězem (P8): přeskok × (1 − spreadCut × účinnost), stav stavby klesne o
+   * 1 − damageShare × účinnost; `handoverM` = největší rozestup, na který si lidé podávají vědra
+   * z ruky do ruky (víc – každý nosí po svém úseku), účinnost = min(1; handoverM ÷ rozestup).
+   */
+  firefighting: { spreadCut: 0.7, damageShare: 0.5, handoverM: 2.5 },
+} as const;
+
+/**
+ * Sousedé po zlém roce (disasters.md – Co z toho plyne, Obchod; návrh Clauda, rešerše, schváleno
+ * Martinem 27. 10. 2026): při doplnění 1. 11. zásoba obilí a hodnota ostatního zboží v kg obilí
+ * (obilí je dražší). Zlý rok = zlé léto, krutý = `isCruelYear`.
+ */
+export const DISASTER_TRADE = {
+  bad: { grainStock: 0.5, goodsValue: 0.67 },
+  cruel: { grainStock: 0.25, goodsValue: 0.5 },
+} as const;
+
+/**
+ * Zvěř po zlém počasí (disasters.md – Co z toho plyne, Zvěř): 1. 5. po holomrazné nebo dlouhé
+ * zimě ubude navíc část jelení zvěře a prasat; po krutém suchu (málo žaludů loni na podzim) jen
+ * poloviční selata.
+ */
+export const DISASTER_WILDLIFE = {
+  badWinterDeerLoss: 0.1,
+  badWinterBoarLoss: 0.15,
+  droughtPigletShare: 0.5,
 } as const;

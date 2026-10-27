@@ -877,4 +877,26 @@ describe('uhlíř – simulace a převod starších vsí', () => {
     expect(estimate).toBeGreaterThan(0);
     expect(charcoalUsePerDay(s.charcoalUse, day, estimate)).toBe(estimate);
   });
+
+  it('v den požáru uhlíř hasí: pálící milíř stojí o den a nic se nezkazí', () => {
+    const s = village();
+    for (let i = 1; i <= 400 && firstKiln(s)?.stage !== 'burn'; i++) {
+      workCrafts(s, DAY + i, forest, NO_CRAFTS, 1);
+      s.lastDay = DAY + i;
+    }
+    const kiln = firstKiln(s)!;
+    expect(kiln.stage).toBe('burn');
+    const done = kiln.done;
+    const fireAt = s.lastDay + 1;
+    s.weatherSeed = 1;
+    s.disasters = { override: { fire: { [fireAt]: 1 } } };
+    const burned = advanceVillage(s, fireAt, forest, makeLandscape({ size: 128 }));
+    expect(burned.disasters?.fireFight?.day).toBe(fireAt);
+    const stood = burned.dwellings.find((d) => d.id === BURNER)!.workshop!.kilns![0]!;
+    expect(stood.stage).toBe('burn');
+    expect(stood.done).toBe(done);
+    // další den milíř dohoří dál
+    const next = advanceVillage(burned, fireAt + 1, forest, makeLandscape({ size: 128 }));
+    expect(next.dwellings.find((d) => d.id === BURNER)!.workshop!.kilns![0]!.done).toBe(done + 1);
+  });
 });

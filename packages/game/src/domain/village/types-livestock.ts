@@ -96,6 +96,11 @@ export interface HayMowing {
   /** Louky v pořadí seče (od obydlí) – díl úhoru (`partId`), nebo políčko přirozené louky. */
   squares?: HaySquare[];
   required: number;
+  /**
+   * Kolik sena zbylé louky po krupobití nebo povodni zbylo (0–1, disasters.md – Kroupy, Povodeň
+   * potoka) – násobí seno další seče; chybí = pohroma nebyla.
+   */
+  hailFactor?: number;
   done: number;
   yieldKg: number;
   /**

@@ -51,6 +51,7 @@ import {
 } from './rules';
 import type { VillageState } from './types';
 import { rotLogs } from './wood';
+import { localDisastersDay } from './local-disasters';
 import { decideRebuilds, finishConstructions } from './simulate-build';
 import { eat, endThreshing, harvest, harvestWinter } from './simulate-food';
 import { isOn, lordHelpDay, seasonDay, startSeason } from './simulate-plan';
@@ -227,6 +228,10 @@ function simulateDay(
   lordHelpDay(state, day, coverage, landscape, waiting);
   // zvěř: 1. 6. ohrožené díly polí podle vzdálenosti od lesa (wildlife.md – Škody)
   damageWindowStart(state, day, landscape);
+  // místní pohromy (disasters.md – Místní pohromy – jedna ves): smršť, kroupy, povodeň, požár –
+  // po plánu dne, před nákupy a prací; při požáru dnes dospělí hasí (`villagersToday`, `work()`)
+  const disasterEvents = localDisastersDay(state, day, landscape, obstacles);
+  state.chronicle.push(...disasterEvents);
   // nákup výrobků řemeslníků u sousedů – jednou za rok po sklizni, ves se rozhodne sama
   // (crafts.md – Nákup u sousedů); skupina vyrazí hned
   startPurchases(state, day, coverage, landscape);
@@ -307,7 +312,11 @@ function simulateDay(
   const events = populationDay(state, day, satiation, energy);
   state.chronicle.push(...events);
   // kdo zahynul na lovu, ves oplakává jako každé úmrtí (štěstí), i když zápis dělá lov
-  const happinessEvents = [...events, ...huntEvents.filter((e) => e.kind === 'death')];
+  const happinessEvents = [
+    ...events,
+    ...huntEvents.filter((e) => e.kind === 'death'),
+    ...disasterEvents.filter((e) => e.kind === 'death'),
+  ];
   // nová hlavní manželka a nástupnictví (lord.md – Rod vojvody); ves bez rodu nic
   state.chronicle.push(...dynastyDay(state, day));
   // štěstí na konci dne – hlad, úmrtí, přeplněnost, dřina, zásoby, ovoce, maso a posvátná místa

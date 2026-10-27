@@ -52,8 +52,10 @@ import {
   isLivestockGood,
   neighbourOf,
   neighbourStock,
+  tradeSeason,
 } from './neighbours';
 import { CARTS, CART_DEMAND, IRON, PEOPLE_TRADE, TRADE, TRADE_GOOD_VALUES } from './rules';
+import { tradeWeather } from './trade-weather';
 import { builtTrail, trailTripDays } from './trail';
 import type {
   CartKind,
@@ -82,6 +84,20 @@ export function sellValue(valueKg: number): number {
 /** Kolik kg obilí soused chce za nabízené v hodnotě `valueKg` – × přirážka × sleva. */
 export function buyValue(valueKg: number): number {
   return valueKg * (1 + TRADE.markup) * (1 - TRADE.offerDiscount);
+}
+
+/**
+ * Násobek hodnoty zboží `good` v den `day` po zlém / krutém roce kraje (disasters.md – Obchod):
+ * obilí 1, ostatní zboží (i luštěniny) 1, 0,67 nebo 0,5 – ves dostane za zboží méně obilí a
+ * naopak za obilí si koupí méně zboží. Platí pro veškerý obchod včetně plateb (tradeQuote, ohrada
+ * koní, nákupy řemesel). Ves bez `weatherSeed` má vždy 1.
+ */
+export function goodWorth(
+  state: Pick<VillageState, 'weatherSeed' | 'disasters'>,
+  good: TradeGood,
+  day: number,
+): number {
+  return good === 'grain' ? 1 : tradeWeather(state, tradeSeason(day)).goodsValue;
 }
 
 /** Kolik kg obilí soused dá za kus sháněného zboží – hodnota ÷ přirážka × příplatek za sháněné. */
@@ -410,17 +426,21 @@ export function tradeQuote(
   const leaving = emigrantGroups(state, day, givePeople);
   // jezdečtí koně za kus podle výcviku (horses.md – Nákup a prodej): prodaní napřed nejméně
   // vycvičení, koupení podle nabídky souseda (`offeredHorses`)
+  // po zlém roce kraje je ostatní zboží v kg obilí levnější, obilí dražší (disasters.md – Obchod)
+  const worth = (g: TradeGood): number => goodWorth(state, g, day);
   const giveCredit = (g: TradeGood, n: number): number =>
-    g === 'ridingHorses'
+    worth(g) *
+    (g === 'ridingHorses'
       ? horsesSaleValues(state, g, n, day).reduce((sum, v) => sum + sellValue(v), 0)
-      : n * sellPrice(g);
+      : n * sellPrice(g));
   const getPrice = (g: TradeGood, n: number): number =>
-    g === 'ridingHorses'
+    worth(g) *
+    (g === 'ridingHorses'
       ? offeredHorses(state, offer.direction, g, n, day).reduce(
           (sum, h) => sum + buyValue(horseValueKg(h)),
           0,
         )
-      : n * buyPrice(g);
+      : n * buyPrice(g));
   const credit =
     give.reduce((sum, [g, n]) => sum + giveCredit(g, n), 0) +
     emigrantList(leaving).reduce((sum, g) => sum + sellValue(g.valueKg), 0);

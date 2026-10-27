@@ -420,6 +420,16 @@ export function orchardSeasonDay(
 }
 
 /**
+ * Podíl letošních jablek sadů, který zbyl po krupobití téhož roku (`disasters.hail.apples` –
+ * disasters.md, Kroupy); bez krupobití 1.
+ */
+export function applesAfterHail(state: Pick<VillageState, 'disasters'>, day: number): number {
+  const hail = state.disasters?.hail;
+  if (hail?.apples === undefined || hail.day > day) return 1;
+  return dateOfDayIndex(hail.day).year === dateOfDayIndex(day).year ? hail.apples : 1;
+}
+
+/**
  * Rozběhne sezónní práci ve všech sadech i u jabloní podél pevných cest (roads.md – jabloně jako
  * sad na strom); bez potřebné práce žádnou.
  */
@@ -436,9 +446,10 @@ function startWork(state: VillageState, day: number, task: OrchardWork['task']):
         sum + (task === 'harvest' ? roadAppleHarvestWork(a, day) : roadAppleCareWork(a, day)),
       0,
     );
+  // kroupy téhož roku potloukly jablka v sadech (disasters.md – Kroupy)
   const yieldKg =
     task === 'harvest'
-      ? squares.reduce((s, q) => s + squareYieldKg(q, day), 0) +
+      ? squares.reduce((s, q) => s + squareYieldKg(q, day), 0) * applesAfterHail(state, day) +
         apples.reduce((s, a) => s + roadAppleYieldKg(a, day), 0)
       : 0;
   if (required > 0) state.orchardWork = { task, required, done: 0, yieldKg };
