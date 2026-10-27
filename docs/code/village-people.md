@@ -177,6 +177,15 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   rozdíl mladší, `origin`); žena od 18 ženich z okolí 10 % ročně (vdova, dědička – `holdsHome`
   – a žena z domu bez mužů 50 %, `favouredBride`), jinak pryč 20 % ročně (záznam v `emigrants`;
   vdova, dědička ani žena z domu bez mužů ne); v hladu a do přeplněného domu z okolí nikdo.
+  **Čekání na zásoby** (kinship.md – Sňatky čekají na zásoby; Martin 27. 10. 2026):
+  `arrangeMarriages(state, day, storesFill)` a `extraWivesDay(…, storesFill)` – `simulate.ts`
+  předá líně počítané naplnění pojistky `bufferFill(fieldSowingTargets(…))` (`field-food.ts`,
+  výhled `leftKg` / `bufferKg`, jednou za den, jen když je svatba na řadě; v hájení – `inLuckyYears`
+  – vždy 1). Pod 1 se svatba ve vsi
+  koná s denní šancí `weddingChancePerDay(null, fill)` (střední odklad
+  `MARRIAGE_STORES.waitYears` × (1 − fill), vlastní los `'wedding-wait:' + den`; čekající snoubenci
+  jsou ten den zabraní), z okolí a další manželka s `weddingChancePerDay(perYear, fill)` – nad
+  pojistkou přesně `perDay(perYear)`, losy beze změny; vdát se pryč beze změny.
   Kronika `marriage` (`groomMoved`, `widow`), `bride-from-outside`, `groom-from-outside`
   (`widow`), `married-away`; upozornění „Svatba“ (`VillageView.lastMarriageDay`), „Nevěsta
   z okolí“, „Ženich z okolí“, „Dcera se vdala pryč“.

@@ -32,8 +32,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `CROP_WINDOWS` (`WINDOWS` = jař, `WINTER_WINDOWS`) v `rules*.ts`. Krok 1 `startSeason`
   (`simulate-plan.ts`, 1. 9.): `closeFieldFoodYear`, `rotateAfterSeason` všech dílů (`rotation.ts`
   – ozim i jař jako první osev → `ready` s `FieldPart.next`, jinak úhor), prázdný rok
-  (`createSeason`, `ard` podle spřežení) s `flaxNeedKg`; páry k rádlům z `ploughPairsForRotation`
-  (`nextPloughPairs` v `draft.ts`). Krok 2 `seasonDay` (každý den): konce oken setí – první den po setí
+  (`createSeason`, `ard` podle spřežení) s `flaxNeedKg`; pak páry k rádlům z `ploughPairsForRotation`
+  (`nextPloughPairs` v `draft.ts`; pod pojistkou i s nutnými díly mimo postup a nahoru hned –
+  `village-livestock.md`). Krok 2 `seasonDay` (každý den): konce oken setí – první den po setí
   ozimu jdou díly ozimu bez zasetého podílu (`unsownPartIds` – úsek setí nezačal) do jaře
   (`moveParts` v `land-taken.ts`: příprava půdy podle úseků `taskSpans`, na začátek pořadí jaře,
   `crop: 'spring'`); první den po setí jaře, luštěnin a lnu vypadnou nezasetí z práce

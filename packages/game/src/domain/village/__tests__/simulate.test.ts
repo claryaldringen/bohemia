@@ -96,6 +96,26 @@ const adultOfAge = (id: number, years: number, day: number): Person => ({
 });
 
 describe('advanceVillage – dopočítání', () => {
+  it('sňatky čekající na zásoby – po kouscích stejně jako jedním voláním (6 let)', () => {
+    // po hájení a bez zásob: svatby čekají (kinship.md – Sňatky čekají na zásoby), los a naplnění
+    // pojistky jsou ze dne – výsledek nezávisí na kouscích dopočtu
+    const start = found(at(600, 3, 15));
+    start.foundedDay = start.lastDay - Math.ceil(40 * YEAR);
+    start.storesKg = 0;
+    const end = at(606, 3, 15);
+    const whole = advanceVillage(start, end, null);
+    let chunked = start;
+    const steps = [1, 45, 400, 3, 365, 777];
+    for (let i = 0; chunked.lastDay < end; i++) {
+      chunked = advanceVillage(
+        chunked,
+        Math.min(end, chunked.lastDay + steps[i % steps.length]!),
+        null,
+      );
+    }
+    expect(chunked).toEqual(whole);
+  });
+
   it('(a) po kouscích dá stejný stav jako jedním voláním (10 let)', () => {
     const start = found(at(600, 3, 15));
     const end = at(610, 3, 15);

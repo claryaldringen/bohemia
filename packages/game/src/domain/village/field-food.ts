@@ -226,6 +226,17 @@ export function sowingTargets(
 }
 
 /**
+ * Naplnění pojistky (0–1): zásoby z pole, které zbudou k příští sklizni (`leftKg`), proti pojistce
+ * (`bufferKg` – 0,5 roční potřeby, v paměti hladu 0,75). Pod 1 ves pojistku nemá – sňatky čekají
+ * (kinship.md – Sňatky čekají na zásoby) a ves chce páry k rádlům i na nouzový osev (oxen.md –
+ * Kolik volů ves chce, Pod pojistkou). Ves bez lidí (pojistka 0) ji má.
+ */
+export function bufferFill(targets: Pick<SowingTargets, 'leftKg' | 'bufferKg'>): number {
+  if (targets.bufferKg <= 0) return 1;
+  return Math.min(1, Math.max(0, targets.leftKg / targets.bufferKg));
+}
+
+/**
  * Cílová zásoba z pole před sklizní (kg obilí): pojistka `bufferKgValue` a FIELD_STORES.cushionYears
  * roční potřeby z pole `needKg` nad ní (fields.md – Osev podle zásob).
  */

@@ -3,7 +3,7 @@
 // symetrie platí jen pro hlavní (docs/code/village-people.md – Příbuzenství). Kroky dne mutují stav.
 import { createRandom, deriveSeed } from '../landscape/random';
 import { isDynastyTracked, isLineMan, wivesOf } from './dynasty';
-import { neighbor } from './marriage';
+import { neighbor, weddingChancePerDay } from './marriage';
 import { ageYears } from './people';
 import { BIRTH_SPACING } from './rules';
 import { LORD } from './rules-lord';
@@ -47,10 +47,15 @@ function extraWifeHome(state: VillageState, man: Person): number | undefined {
  * LORD.maxWives − 1 žijícími manželkami si s LORD.extraWifePerYear ročně přivede ženu z okolí
  * (16–22 let, rodiče neznámí). Muži v pořadí id, jeden los na muže z vlastního proudu
  * (`'wife:' + den`), takže sňatky ani porody vsi se nemění. V hladu nepřijde, jinak bydlí v domě
- * muže (`extraWifeHome`). Hlavní manželka muže (`spouseId`) zůstává. Ves bez rodu – nic.
- * Mutuje stav, vrací kroniku.
+ * muže (`extraWifeHome`). Hlavní manželka muže (`spouseId`) zůstává. Pod pojistkou zásob
+ * (`storesFill` < 1) přijde se šancí `weddingChancePerDay` jako svatba z okolí (kinship.md –
+ * Sňatky čekají na zásoby). Ves bez rodu – nic. Mutuje stav, vrací kroniku.
  */
-export function extraWivesDay(state: VillageState, day: number): ChronicleEvent[] {
+export function extraWivesDay(
+  state: VillageState,
+  day: number,
+  storesFill: () => number = () => 1,
+): ChronicleEvent[] {
   if (!isDynastyTracked(state)) return [];
   const men = state.people
     .filter((p) => isLineMan(p) && ageYears(p.bornDay, day) >= LORD.extraWifeFromAge)
@@ -65,7 +70,9 @@ export function extraWivesDay(state: VillageState, day: number): ChronicleEvent[
     // bez manželky se muž rodu žení jako dosud (první manželka – `arrangeMarriages`)
     if (count < 1 || count >= LORD.maxWives) continue;
     // los vždy – hlad ani místo nemění losy ostatních mužů
-    if (random.next() >= chance || state.hungry) continue;
+    const roll = random.next();
+    if (roll >= chance || state.hungry) continue;
+    if (roll >= weddingChancePerDay(LORD.extraWifePerYear, storesFill())) continue;
     const home = extraWifeHome(state, man);
     if (home === undefined) continue;
     const { from, to } = LORD.extraWifeAge;

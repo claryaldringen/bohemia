@@ -17,6 +17,7 @@ import { withHorsePenStock } from './horse-stock';
 import { withPenSpecies } from './pens';
 import { husbandryDay } from './husbandry';
 import { arrangeMarriages } from './marriage';
+import { bufferFill } from './field-food';
 import { withOxen } from './oxen';
 import { overgrowthDay } from './overgrowth';
 import { roadsDay, roadsMonth } from './paths/roads';
@@ -54,7 +55,7 @@ import { rotLogs } from './wood';
 import { localDisastersDay } from './local-disasters';
 import { decideRebuilds, finishConstructions } from './simulate-build';
 import { eat, endThreshing, harvest, harvestWinter } from './simulate-food';
-import { isOn, lordHelpDay, seasonDay, startSeason } from './simulate-plan';
+import { fieldSowingTargets, isOn, lordHelpDay, seasonDay, startSeason } from './simulate-plan';
 import { work } from './simulate-work';
 import { patrolHuntDay, settlePatrol } from './field-patrol';
 import { huntDay, planHuntDay } from './hunt';
@@ -281,9 +282,16 @@ function simulateDay(
   // sňatky mezi domy – svobodní ve dvou domech se vezmou (population.md – Sňatky mezi domy); muž
   // bez hlavní manželky, který nějakou manželku má (osadníci výpravy), se před nimi nežení
   // (lord.md – Nová hlavní manželka); pak další manželky mužů rodu z okolí (lord.md – Manželky)
+  // svatby čekají, dokud výhled zásob k příští sklizni nemá pojistku (kinship.md – Sňatky čekají
+  // na zásoby; Martin 27. 10. 2026) – naplnění se spočítá jednou za den, jen když je svatba na řadě;
+  // v hájení ne (hladem v něm nikdo nezemře, ves má růst – population.md, Hájení)
+  let fill: number | undefined;
+  const lucky = inLuckyYears(state.foundedDay, day);
+  const storesFill = (): number =>
+    (fill ??= lucky ? 1 : bufferFill(fieldSowingTargets(state, day, coverage)));
   state.chronicle.push(...ensureMainWives(state, day));
-  state.chronicle.push(...arrangeMarriages(state, day));
-  state.chronicle.push(...extraWivesDay(state, day));
+  state.chronicle.push(...arrangeMarriages(state, day, storesFill));
+  state.chronicle.push(...extraWivesDay(state, day, storesFill));
   const { satiation, energy, fruit, meat } = eat(state, day, coverage);
   // nouzová porážka běží až v `eat()`, po `work()` – doplnit hlášení kusů do dnešního rozvrhu práce
   // (jen hlášení pro scénu, simulaci to nemění)

@@ -5,7 +5,7 @@ import type { Landscape } from '../landscape';
 import { nextPloughPairs } from './draft';
 import { craftHouseholds, workshopLabor } from './crafts';
 import { harvestHelperLabor } from './harvest-hands';
-import { closeFieldFoodYear, sowingTargets, type SowingTargets } from './field-food';
+import { bufferFill, closeFieldFoodYear, sowingTargets, type SowingTargets } from './field-food';
 import { sowingGroup } from './fields';
 import { taskPosition, taskSpans } from './field-progress';
 import { dropFromWork, moveParts, shrinkInPlan } from './land-taken';
@@ -122,20 +122,33 @@ export function startSeason(
   for (const part of state.parts) rotateAfterSeason(part, day);
   // ves s párem volů a rádlem orá všechno, motyka nekope (oxen.md – Jen rádlo)
   const plough = ableTeams(state, day) > 0;
-  // páry k rádlům, které ves chce (oxen.md – Kolik volů ves chce) – podle nich cvičí voly; mění
-  // se, jen když potřeba trvá dva roky (`nextPloughPairs`); z dílů na řadě po postupu
-  if (oxPens(state).length > 0) {
-    const need = ploughPairsForRotation(state, day, coverage.tools, landscape);
-    state.draft = {
-      ...(state.draft ?? { fourWheelOffRoad: true }),
-      ...nextPloughPairs(state, need),
-    };
-  }
   // práce (i orba – železná špička rádla od kováře) platí podle pokrytí nástroji dne, kdy díl
   // přibude
   state.season = createSeason({ winter: [], spring: [] }, day, coverage.tools, plough);
   // podle potřeby lnu k 1. 9. se při trhání zapíše, na kolik oděvu len je (fields.md – Len)
   state.season.flaxNeedKg = flaxNeedKg(state, day);
+  // páry k rádlům, které ves chce (oxen.md – Kolik volů ves chce) – podle nich cvičí voly; mění
+  // se, jen když potřeba trvá dva roky (`nextPloughPairs`); z dílů na řadě po postupu. Pod
+  // pojistkou zásob i z nutných dílů mimo postup (nouzové přílohy) a nahoru hned (oxen.md – Kolik
+  // volů ves chce, Pod pojistkou; Martin 27. 10. 2026)
+  if (oxPens(state).length > 0) {
+    const targets = fieldSowingTargets(state, day, coverage);
+    const below = bufferFill(targets) < 1;
+    const needed = below
+      ? neededSelection(state, day, {
+          harvestKg: targets.harvestKg,
+          energyFloorKg: targets.energyFloorKg,
+          legumeKg: targets.legumeKg,
+          needKg: targets.needKg,
+          flaxNeedKg: state.season.flaxNeedKg ?? 0,
+        }).join
+      : [];
+    const need = ploughPairsForRotation(state, day, coverage.tools, landscape, needed);
+    state.draft = {
+      ...(state.draft ?? { fourWheelOffRoad: true }),
+      ...nextPloughPairs(state, need, below),
+    };
+  }
 }
 
 /** Plodiny v pořadí hospodářského roku – v tomhle pořadí přibývají díly dne. */
@@ -693,19 +706,34 @@ export function sowingCapacity(
  * všechno (návrh Clauda). Ozim (první osev, ozim po jaři) se orá v podzimním okně ozimu, jař po
  * ozimu na podzim po ozimu nebo na jaře; výkon páru `ploughCapacityPerDay` podle délky brázd dílů
  * (`plannedFurrowEfficiency`); nejvýš tolik párů, kolik ves obslouží lidmi (`OXEN.crewPerPair`).
- * Přílohy 70–95 % a nouzové (jen při hladu) nepočítá.
+ * Přílohy 70–95 % a nouzové (jen při hladu) nepočítá – kromě nutných dílů `needed` (pod
+ * pojistkou zásob výběr nutných dílů k 1. 9., i nouzové přílohy – oxen.md, Kolik volů ves chce,
+ * Pod pojistkou): ty, které na řadě nejsou, přičte – ozim k ozimu, ostatní k jaři.
  */
 export function ploughPairsForRotation(
   state: VillageState,
   day: number,
   toolCoverage: number,
   landscape: Landscape | null,
+  needed: readonly NeededJoin[] = [],
 ): number {
   const autumn: FieldPart[] = [];
   const spring: FieldPart[] = [];
+  const counted = new Set<number>();
   for (const part of state.parts) {
     const kind = nextSowing(part);
-    if (onTurn(kind)) (kind === 'spring' ? spring : autumn).push(part);
+    if (!onTurn(kind)) continue;
+    (kind === 'spring' ? spring : autumn).push(part);
+    counted.add(part.id);
+  }
+  if (needed.length > 0) {
+    const partsById = new Map(state.parts.map((p) => [p.id, p]));
+    for (const { id, crop } of needed) {
+      const part = partsById.get(id);
+      if (!part || counted.has(id)) continue;
+      counted.add(id);
+      (crop === 'winter' ? autumn : spring).push(part);
+    }
   }
   if (autumn.length + spring.length === 0) return 1;
   const load = (parts: readonly FieldPart[], crop: Crop): number =>

@@ -206,7 +206,8 @@ describe('páry k rádlům podle plánu osevu (1. 9.)', () => {
 
     const big = withOxPen(village());
     big.people = Array.from({ length: 80 }, (_, i) => person(10 + i, 20 + (i % 20), 1, DAY));
-    big.storesKg = 0;
+    // zásoby nad pojistkou – páry mění hystereze (pod pojistkou níž)
+    big.storesKg = 1e6;
     big.fields = [{ id: 1 }];
     // přílohy ve fázi louky s drnem – orba 2,5× déle
     big.parts = Array.from({ length: 60 }, (_, i) =>
@@ -222,6 +223,10 @@ describe('páry k rádlům podle plánu osevu (1. 9.)', () => {
     expect(plannedBig.draft!.ploughNeed).toBeGreaterThan(1);
     expect(plannedBig.draft!.ploughPairs).toBe(1);
     expect(wantedOxen(plannedBig)).toBe(2);
+    // pod pojistkou zásob ves páry zvýší hned (oxen.md – Kolik volů ves chce, Pod pojistkou)
+    const hungry = advanceVillage({ ...big, storesKg: 0 }, at(600, 9, 2), null);
+    expect(hungry.draft!.ploughPairs).toBe(hungry.draft!.ploughNeed);
+    expect(hungry.draft!.ploughPairs).toBeGreaterThan(1);
   });
 
   it('páry se mění, jen když potřeba trvá dva plány po sobě (hystereze)', () => {
@@ -240,6 +245,16 @@ describe('páry k rádlům podle plánu osevu (1. 9.)', () => {
     // střídání nahoru a dolů páry drží
     s.draft = { ploughPairs: 2, ploughNeed: 3 };
     expect(nextPloughPairs(s, 1)).toEqual({ ploughPairs: 2, ploughNeed: 1 });
+  });
+
+  it('pod pojistkou zásob zvýší páry hned, snižuje dál po dvou plánech (Martin 27. 10. 2026)', () => {
+    // oxen.md – Kolik volů ves chce, Pod pojistkou
+    const s = withOxPen(village());
+    expect(nextPloughPairs(s, 3, true)).toEqual({ ploughPairs: 3, ploughNeed: 3 });
+    s.draft = { ploughPairs: 3, ploughNeed: 3 };
+    expect(nextPloughPairs(s, 1, true)).toEqual({ ploughPairs: 3, ploughNeed: 1 });
+    s.draft = { ploughPairs: 3, ploughNeed: 1 };
+    expect(nextPloughPairs(s, 1, true)).toEqual({ ploughPairs: 1, ploughNeed: 1 });
   });
 });
 

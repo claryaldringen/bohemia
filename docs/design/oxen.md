@@ -224,6 +224,17 @@ volů (`draft.ts`).
   1 v roce 801). Výcvik trvá 2 roky a pár slouží 10 – vyplatí se jen trvalá potřeba; slabší rok
   zase nezastaví náhradu páru, který ves potřebuje. Pár, který už ves má, slouží do konce služby
   vždy (voli se nikdy neporážejí dřív).
+- **Pod pojistkou** (27. 10. 2026 – Martin schválil „Pod pojistkou mají v oknech setí přednost
+  pole“, **Martin 27. 10. 2026: „Ano“**; provedení návrh Clauda): když výhled zásob z pole
+  k příští sklizni k 1. 9. nedosáhne pojistky ([pole](fields.md) – Osev podle zásob), potřeba párů
+  počítá **i nutné díly mimo postup** – výběr nutných dílů k 1. 9. včetně nouzových příloh
+  (`neededSelection`) – a ves páry **zvýší hned** (bez dvou plánů po sobě); snižuje je dál až po
+  dvou plánech. Proč orba a ne lidé: Vlkov (rok 822, 1 rádlo, 7 vycvičených volů) měl v oknech
+  setí 3–5 člověkodnů denně volných a stavby nutné polní práci už ustupují (pořadí práce dne –
+  [pole](fields.md), Práce; Martin 25. 10. 2026) – úzkým hrdlem bylo jediné rádlo, které zorá
+  ≈ 18 ha za podzim, kdežto ves potřebovala ≈ 45 ha ozimu. Volné páry volů ves osadí rádly sama
+  (Rádlo k páru bez výcviku výš), další páry vycvičí z telat – vesničané sami používají, co jim
+  ulehčí práci. Motyka dál nekope (Jen rádlo).
 - **Voli vozů:** vozy, které se ves rozhodla mít ([vozy](wagons.md) – Kolik vozů ves chce),
   naráz – dvoukolák 1, čtyřkolák 2 voli.
 - **Voli se sdílí:** orba (podzim, jaro) a svoz (léto) se nepřekrývají – ves chce **víc z toho**
@@ -892,3 +903,4 @@ Kapacita rádel (`ploughCap`) se nemění.
 | „Ať spřežení orá, dokud nebude všechno, co je potřeba, zorané.“ – spřežení zůstane na poli, cesta jen při výjezdu, přesunu (a návratu)                                                                                                                                                                                                         | Martin (24. 10. 2026)                                      |
 | Výjezd v den, kdy orba proběhne; návrat večer po zorání okna, na konci okna nebo bez párů; návrat orbu nekrátí; pár na poli vodu nesveze                                                                                                                                                                                                       | návrh Clauda                                               |
 | „Co může být přednějšího než orba?“ – orba rádlem první ze sezónních úloh, hned po minimu, koních, výpravách a vozech pro kováře                                                                                                                                                                                                               | Martin (24. 10. 2026), pořadí návrh Clauda                 |
+| Pod pojistkou zásob páry k rádlům i na nutné díly mimo postup (nouzové přílohy) a nahoru hned – úzkým hrdlem osevu Vlkova bylo jediné rádlo, ne lidé                                                                                                                                                                                           | Martin (27. 10. 2026), návrh Clauda                        |

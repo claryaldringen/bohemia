@@ -49,17 +49,21 @@ export function wantedPloughPairs(state: Pick<VillageState, 'pens' | 'draft'>): 
  * je na menší z obou potřeb, sníží na větší z nich; jinak drží, kolik má. Jednoletý výkyv tak
  * nevycvičí pár ani nepostaví rádlo (výcvik trvá 2 roky, pár slouží 10) a jeden slabší rok
  * nezastaví náhradu páru, který ves potřebuje. Bez předchozího plánu se loňská potřeba bere jako
- * dnešní páry (pár na ohradu volů).
+ * dnešní páry (pár na ohradu volů). Pod pojistkou zásob (`belowBuffer` – oxen.md, Kolik volů ves
+ * chce, Pod pojistkou; Martin 27. 10. 2026) je zvýší hned na dnešní potřebu – ves nečeká rok
+ * s polem, které nezorá; snižuje dál až po dvou plánech.
  */
 export function nextPloughPairs(
   state: Pick<VillageState, 'pens' | 'draft'>,
   need: number,
+  belowBuffer = false,
 ): { ploughPairs: number; ploughNeed: number } {
   const current = wantedPloughPairs(state);
   const previous = state.draft?.ploughNeed ?? current;
   const low = Math.min(need, previous);
   const high = Math.max(need, previous);
-  return { ploughPairs: Math.min(high, Math.max(low, current)), ploughNeed: need };
+  const held = Math.min(high, Math.max(low, current));
+  return { ploughPairs: belowBuffer ? Math.max(held, need) : held, ploughNeed: need };
 }
 
 /** Cena vozu za rok (čd): práce tesaře a klády na CARTS.lifespanYears života vozu. */

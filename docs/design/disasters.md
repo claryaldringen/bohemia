@@ -381,7 +381,10 @@ Martin chce skutečnou pravděpodobnost, i když je velmi vzácná – žádné 
 - **Zásoby a pojistka** ([pole](fields.md) – Osev podle zásob): pojistka zůstává **0,5 roční
   potřeby celé energie** – s průměrem let v plánu osevu ji ves v normálních letech udrží.
   **Paměť hladu:** po krutém roce drží ves **10 let pojistku 0,75** (seje víc sama – vesničané
-  si zlý rok pamatují), pak zase 0,5.
+  si zlý rok pamatují), pak zase 0,5. **Aby ji ves opravdu měla** (recenze P3 – Vlkov měl před
+  žněmi jen 45–55 % pojistky; Martin 27. 10. 2026: „Ano“): pod pojistkou sňatky čekají
+  ([příbuzenství](kinship.md) – Sňatky čekají na zásoby) a ves chce páry k rádlům i na nouzový
+  osev hned ([voli](oxen.md) – Kolik volů ves chce, Pod pojistkou).
 - **Hlad** ([populace](population.md) – Hlad a vymření): beze změny – nouzová porážka, šetření,
   hlad a úmrtí přijdou samy z menších zásob.
 - **Hájení** ([populace](population.md) – Hájení): zůstává, jak je (dospělí v prvních letech

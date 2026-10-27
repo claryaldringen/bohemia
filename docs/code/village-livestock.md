@@ -240,7 +240,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   párů, které v oknech orby zorají všechny díly na řadě po postupu – nutné i nad potřebu,
   `ploughPairsForRotation` v `simulate-plan.ts`: ozim v podzimním okně, jař na podzim a na jaře,
   výkon páru `pairCapacityPerDay` × `plannedFurrowEfficiency`; páry `ploughPairs` s hysterezí
-  `nextPloughPairs` – mění se, jen když potřeba trvá dva roky po sobě), rok vozů
+  `nextPloughPairs` – mění se, jen když potřeba trvá dva roky po sobě; **pod pojistkou zásob**
+  (`bufferFill` < 1 k 1. 9. – oxen.md, Kolik volů ves chce, Pod pojistkou) `startSeason` předá
+  `ploughPairsForRotation` i výběr nutných dílů `neededSelection(…).join` (nouzové přílohy mimo
+  postup) a `nextPloughPairs(…, belowBuffer)` páry zvýší hned), rok vozů
   (`DraftState.demand.days` – každý den `CartDemandDay`: dnešní nošení podél pevných cest
   a jinam, úspory jízd dvoukoláku pro uhlí, rudu, hlínu a vodu, den orby; čtyřkoláky výprav
   `'four-wheel'`; `addCartDemand`, `addExpeditionDemand`; 1. 11. `closeCartYear` → `lastYear`

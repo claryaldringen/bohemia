@@ -994,6 +994,13 @@ stavbě – zemědělství jenom natolik, aby vesnice neměla hlad.“ Ves prác
 (Martin 19. 10. 2026, podrobnosti návrh Clauda; nahrazuje pevných 85 % a dělení práce po
 domácnostech v populaci):
 
+**Pod pojistkou mají v oknech setí přednost pole** (návrh Clauda po recenzi pohrom P3, **Martin 27. 10. 2026: „Ano“**): nutná práce na polích (příprava půdy, orba a setí nutných dílů) jde
+v pořadí práce dne už před stavbami (bod 4 a 5 níž, Martin 25. 10. 2026), stavby hráče se tak
+zdrží samy. Měření Vlkova ukázalo, že v oknech setí lidé nechybí (3–5 člověkodnů denně volných),
+chybělo **rádlo** – pod pojistkou proto ves chce páry k rádlům i na nouzový osev a hned
+([voli](oxen.md) – Kolik volů ves chce, Pod pojistkou); motyka dál nekope (Jen rádlo). Dílny
+zůstávají v dílnách – jejich lidé by úzké hrdlo (orbu) nerozšířili.
+
 1. **Denní minimum domácností** – vaření, voda, oheň, péče o malé děti: 0,5 člověkodne denně
    na každou domácnost (s hrnčířem 0,45; FAO: venkovské ženy 0,5–0,6 dne). Napřed ho kryjí
    **starší** domácnosti (Martin: „Starší lidé se zase starají o malé děti, a uvolňují práci
