@@ -76,6 +76,61 @@ _návrh_ podle obecných agronomických znalostí (_neověřeno_):
   i zásoby uložené v ní – zrno v zapečetěné jámě pod zemí přečká (_neověřeno_, logika obilných
   jam z [production-chains.md](../production-chains.md)).
 
+## 6. Tornáda (doplněno 27. 10. 2026 na Martinův pokyn)
+
+Martin, 27. 10. 2026: „Přidej i tornádo. Máme ho doložené z Kosmovy kroniky. Jen dej
+pravděpodobnost obvyklou pro střední Evropu.“
+
+- **Kosmas, 30. 7. 1119** (_sedí_): nejstarší spolehlivý záznam tornáda z českých zemí. Kosmas
+  (Kronika Čechů, kn. III) zapsal, že vichr v Praze pobořil části knížecího paláce na Vyšehradě;
+  popsal ho jako „samého satana v podobě víru“ (anglicky citováno „the Satan himself in the
+  appearance of a swirl“ – Setvák a Munzar 2000 [18]). Brázdil a kol. 2020 [19] ho vedou jako první
+  významné tornádo chronologie a klasifikují ho **F3**. Český text překladu jsem neověřoval –
+  citace výše je volný překlad anglické citace.
+- **Kolik jich je v Česku** (_sedí_ pro záznamy, _návrh_ pro skutečný počet): ČHMÚ uvádí
+  „maximálně jednotky“ tornád ročně, převážně slabých, některý rok žádné; v médiích se uvádí 2–5
+  slabších tornád ročně (2001 – 9, 2006 – 8, 2019 a 2020 – žádné) [20]. Česko má 78 870 km²
+  [19] → **0,25–0,6 tornáda na 10 000 km² za rok**. Slabá tornáda ve volné krajině často nikdo
+  nezaznamená (ESWD: v Evropě 300–400 hlášení ročně a autoři to mají za podhodnocení [21]).
+  Návrh: **0,5 tornáda na 10 000 km² za rok**.
+- **Síla** (_sedí_): významná tornáda (F2 a silnější) tvoří v Česku ≈ **25 %** všech
+  zaznamenaných (1811–2019: F2 17,1 %, F2–F3 5,1 %, F3 2,6 % [19]; Evropa 24,5 %). Významných
+  je v průměru jen **0,46 ročně** (1811–2019). F4 v chronologii do 2019 není; tornádo na jižní
+  Moravě 24. 6. 2021 bylo ohodnoceno IF4 (_neověřeno_ – z paměti, mimo citované prameny).
+  Neohodnocená tornáda jsou podle ESWD převážně F0 [21]. Návrh: **F0 40 %, F1 35 %, F2 20 %,
+  F3 4,5 %, F4 0,5 %**.
+- **Stopa** (_sedí_ – Evropa, ESWD, Groenemeijer a Kühne 2014, tab. 3 [21]):
+
+| Síla | Průměrná délka stopy | Průměrná šířka stopy | Průměrná největší šířka |
+| ---- | -------------------- | -------------------- | ----------------------- |
+| F0   | 2,6 km               | 35 m                 | 48 m                    |
+| F1   | 6,9 km               | 82 m                 | 111 m                   |
+| F2   | 10,2 km              | 124 m                | 182 m                   |
+| F3   | 17,5 km              | 343 m                | 394 m                   |
+| F4   | 23,1 km              | 383 m                | 600 m                   |
+
+- **Kdy** (_sedí_): v Česku nejčastěji v červenci, červnu a srpnu, odpoledne a k večeru; všech
+  11 významných tornád před rokem 1800 bylo mezi květnem a srpnem [19].
+- **Oběti** (_sedí_): 108 významných tornád 1119–2019 v Česku – nejméně 8 mrtvých a přes 95
+  zraněných; škody hlavně na budovách, jednotlivých stromech a lesích [19].
+
+**Výpočet pro hru (návrh Clauda).** Mapa kraje je 128 × 128 políček po 15 m (`LANDSCAPE_SIZE`,
+`CELL_SIZE_M`) = **1,92 × 1,92 km = 3,69 km²**. Tornádo zasáhne čtverec o straně _s_, když
+jeho stopa (délka _L_, šířka _W_, náhodný směr) čtverec protne – střední počet za rok je
+λ × (_s_² + 4_s_/π × (_L_ + _W_) + _L_ × _W_) pro každou sílu zvlášť (Minkowského součet
+čtverce a stopy, středováno přes směr), λ = 0,5 / 10 000 km²:
+
+| Kam                      | Za rok    | Jednou za   | Za 1000 herních let (skutečný rok) |
+| ------------------------ | --------- | ----------- | ---------------------------------- |
+| přes mapu kraje          | ≈ 0,10 %  | ≈ 980 let   | aspoň jedno s 64 %                 |
+| přes pole vsi (1 × 1 km) | ≈ 0,050 % | ≈ 2 000 let | 40 %                               |
+| přes jádro vsi (300 m)   | ≈ 0,017 % | ≈ 5 900 let | 15 %                               |
+
+Tornádo je tedy **velmi vzácné**: mapa kraje ho za skutečný rok hry uvidí spíš ano než ne
+(≈ jednou za 360 skutečných dní), konkrétní ves ho zažije asi v jednom případě ze sedmi, i když
+přežije celých 1000 let. Ze zásahů vsi je ≈ 50 % F2 a silnějších (dlouhé široké stopy zasáhnou
+spíš).
+
 ## Zdroje
 
 1. Dvořáčková-Malá, D.: Hladomor. Panel výstavy Den otevřených dveří HIÚ AV ČR, 2021.
@@ -121,3 +176,18 @@ _návrh_ podle obecných agronomických znalostí (_neověřeno_):
 17. Harbeck, M. a kol.: _Yersinia pestis_ DNA from Skeletal Remains from the 6th Century AD
     Reveals Insights into Justinianic Plague. PLoS Pathogens 9, 2013.
     [journals.plos.org](https://journals.plos.org/plospathogens/article/info%3Adoi%2F10.1371%2Fjournal.ppat.1003349)
+18. Setvák, M., Munzar, J.: Tornadoes on the territory of the Czech Republic (from medieval
+    chronicles to the Internet era). Conference on European Tornadoes and Severe Storms, 2000.
+    [PDF](https://www.essl.org/ECSS/2000/Abstracts/SetvakM.PDF); rozšířeno v Setvák, M., Šálek, M.,
+    Munzar, J.: Tornadoes within the Czech Republic: from early medieval chronicles to the
+    "internet society". Atmospheric Research 67–68, 2003, s. 589–605.
+19. Brázdil, R. a kol.: The Climatology of Significant Tornadoes in the Czech Republic.
+    Atmosphere 11 (7), 2020, 689. [mdpi.com](https://www.mdpi.com/2073-4433/11/7/689),
+    [PDF](https://repository.library.noaa.gov/view/noaa/32187)
+20. ČHMÚ a média o počtu tornád v Česku:
+    [novinky.cz](https://www.novinky.cz/clanek/veda-skoly-tornada-nejsou-v-cesku-castejsi-nez-drive-tvrdi-vedec-40440598),
+    [seznamzpravy.cz](https://www.seznamzpravy.cz/clanek/meteorologove-umi-v-cesku-predpovedet-bourky-i-supercely-tornado-ne-168527),
+    [tn.nova.cz](https://tn.nova.cz/zpravodajstvi/clanek/517317-historie-tornad-v-ceske-republice-letosni-rok-je-na-ne-bohaty)
+21. Groenemeijer, P., Kühne, T.: A Climatology of Tornadoes in Europe: Results from the European
+    Severe Weather Database. Monthly Weather Review 142, 2014, s. 4775–4790.
+    [PDF](https://essl.org/cms/wp-content/uploads/Groenemeijer_P._and_K%C3%BChne_T._2014_A_Climatology_of_Tornadoes_in_Europe_Results_from_the_European_Severe_Weather_Database_MWR.pdf)

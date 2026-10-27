@@ -1,11 +1,14 @@
-# Přírodní pohromy – zlé roky, kroupy, povodně, požár
+# Přírodní pohromy – zlé roky, kroupy, povodně, požár, smršť
 
-Stav: **návrh Clauda, čeká na Martina** (27. 10. 2026). Nic z toho není v kódu. Navazuje na
+Stav: **schváleno Martinem 27. 10. 2026** (noční návrh Clauda prošel otázku po otázce, s úpravami;
+tornádo doplnil týž den). Nic z toho zatím není v kódu – plán implementace:
+[2026-10-27-disasters.md](../superpowers/plans/2026-10-27-disasters.md). Navazuje na
 [pole](fields.md) (úroda, pojistka zásob, obilné jámy), [stravu a dobytek](diet.md), [orání
 rádlem](oxen.md) (seno), [obyvatelstvo](population.md) (hlad, hájení), [divokou zvěř](wildlife.md)
-(škody na dílech), [obchod](trade.md) (sousedé) a [krajinu](landscape.md) (niva potoka). Čísla
-zdůvodňuje [rešerše](research/2026-10-27-disasters.md). Co níž není výslovně Martinovo, je návrh
-Clauda.
+(škody na dílech), [obchod](trade.md) (sousedé), [les](forest.md) a [krajinu](landscape.md) (niva
+potoka). Čísla zdůvodňuje [rešerše](research/2026-10-27-disasters.md). Co níž není výslovně
+Martinovo (citace s datem), je návrh Clauda – Martin ho schválil v celku 27. 10. 2026
+(„všechny části“).
 
 ## Proč
 
@@ -25,45 +28,72 @@ obchod se sousedy skutečnou zkoušku.
 
 ## Cíle, ne-cíle, anti-cíle
 
-- **Cíl:** **zlé roky počasí** sdílené celým krajem (sucho, deštivé léto, krutá zima) a **místní
-  pohromy** jedné vsi (kroupy, povodeň potoka, požár obydlí) – jen přes existující mechaniky:
-  úroda dílů, seno a pastva, zásoby, hlad, stav staveb, sousedé.
+- **Cíl:** **zlé roky počasí** sdílené celým krajem – mapou (sucho, deštivé léto, krutá zima)
+  a **místní pohromy** jedné vsi (kroupy, povodeň potoka, požár, smršť) – jen přes existující
+  mechaniky: úroda dílů, seno a pastva, zásoby, hlad, stav staveb, stromy, sousedé.
+- **Cíl:** **krajina rozhoduje** – stejný zlý rok dopadne jinak na velký nerozdělený lán a jinak
+  na pole mezi stromy, v nivě nebo na vršku (ochrana dílu níž). Martin, 27. 10. 2026: „Sucho by
+  mělo mít různé dopady podle typu krajiny.“
 - **Cíl:** ves **za normálních okolností nehladoví** (Martin, 26. 10. 2026); s plnou pojistkou
   **přežije jeden krutý rok** bez úmrtí hladem; **dva kruté roky za sebou** přinesou hlad
   a úmrtí, ale ves nevymře (rešerše – 1281–1282, Campbell a Ó Gráda).
-- **Cíl:** **deterministicky** – počasí ze seedu světa a roku, místní pohromy ze seedu vsi a roku;
-  stejný stav a den dá vždy stejný výsledek, nezávisle na dopočtu po kouscích.
-- **Cíl:** hráč i ves se mohou **připravit** – pojistka, obilné jámy, ozim i jař, rozptýlená pole
-  mimo nivu, seno s rezervou, rozestupy domů, obchod. Žádná nová velká mechanika.
+- **Cíl:** **deterministicky** – počasí a smršť ze seedu počasí mapy a roku, ostatní místní
+  pohromy ze seedu vsi a roku; stejný stav a den dá vždy stejný výsledek, nezávisle na dopočtu
+  po kouscích.
+- **Cíl:** hráč i ves se mohou **připravit** – pojistka, obilné jámy, ozim i jař, stromy mezi
+  poli, rozptýlená pole mimo nivu, seno s rezervou, rozestupy domů, obchod. Žádná nová velká
+  mechanika.
 - **Cíl:** pohroma je **vidět a vysvětlit** – ve scéně, v kronice, v odhadu úrody dílu.
-- **Ne-cíl (teď):** dobytčí mor (fáze 2 – otázka 3), epidemie lidí, sarančata (v Čechách až od
-  1338), pozdní mráz v květu sadu, vichřice a polomy, požár lesa, myší roky, požár dílen
-  a svatyní, předpověď počasí, změna krajiny povodní.
+- **Ne-cíl (teď):** dobytčí mor (fáze 2 – Martin, 27. 10. 2026), epidemie lidí, sarančata,
+  **pevné historické události** (Martin, 27. 10. 2026: „Ne, pevné historické události zatím
+  nebudou“), pozdní mráz v květu sadu, vichřice mimo smršť, požár lesa, myší roky, předpověď
+  počasí, změna krajiny povodní.
 - **Anti-cíl:** pohroma, která vyhladí ves za jeden rok; náhoda, kterou nejde vysvětlit; hašení
-  jako klikací minihra; pohroma, proti které nejde nic udělat; vesničané, kteří na zlý rok
-  nereagují (seč, osev, porážka reagují samy – „Vesničané sami používají, co jim ulehčí práci“,
-  Martin).
+  jako klikací minihra (vesničané hasí sami); pohroma, proti které nejde nic udělat; vesničané,
+  kteří na zlý rok nereagují (seč, osev, porážka, hašení reagují samy – „Vesničané sami
+  používají, co jim ulehčí práci“, Martin).
 
-## Které pohromy (výběr z rešerše)
+## Které pohromy
 
-| Pohroma                       | Doklad (rešerše)                                                     | Fáze                     |
-| ----------------------------- | -------------------------------------------------------------------- | ------------------------ |
-| Sucho                         | nejčastější extrém počasí v Čechách (Brázdil 2013), Kosmas – neúrody | **1**                    |
-| Deštivé léto a mokré žně      | neúrody 1315–1317 (Zbraslavská kronika)                              | **1**                    |
-| Krutá zima – holomráz, dlouhá | agronomie (vymrzání ozimu), _neověřeno_                              | **1**                    |
-| Kroupy                        | agronomie (úzký pás), _neověřeno_                                    | **1**                    |
-| Povodeň potoka                | Kosmas si všímá povodní; seznam povodní od 1118                      | **1**                    |
-| Požár obydlí                  | hlad i po požáru zásob (Dvořáčková-Malá 2021)                        | **1** (nebo mor – ot. 3) |
-| Dobytčí mor                   | 10–14 nákaz 750–950, 809–810 (Newfield); 1319–1320 ≈ 62 % skotu      | 2                        |
-| Sarančata                     | v Čechách až od 1338 (Brázdil)                                       | později – událost světa  |
-| Epidemie lidí                 | Justiniánův mor v Bavorsku (6. st.), v Čechách nedoložen             | později                  |
-| Chladná léta 536 – ≈ 660      | pozdně antická doba ledová (Büntgen 2016)                            | otázka 4                 |
+| Pohroma                       | Doklad (rešerše)                                                     | Fáze                      |
+| ----------------------------- | -------------------------------------------------------------------- | ------------------------- |
+| Sucho                         | nejčastější extrém počasí v Čechách (Brázdil 2013), Kosmas – neúrody | **1**                     |
+| Deštivé léto a mokré žně      | neúrody 1315–1317 (Zbraslavská kronika)                              | **1**                     |
+| Krutá zima – holomráz, dlouhá | agronomie (vymrzání ozimu), _neověřeno_                              | **1**                     |
+| Kroupy                        | agronomie (úzký pás), _neověřeno_                                    | **1**                     |
+| Povodeň potoka                | Kosmas si všímá povodní; seznam povodní od 1118                      | **1**                     |
+| Požár                         | hlad i po požáru zásob (Dvořáčková-Malá 2021)                        | **1** (Martin 27. 10.)    |
+| Smršť (tornádo)               | Kosmas, Vyšehrad 30. 7. 1119 (Brázdil 2020 – F3)                     | **1** (Martin 27. 10.)    |
+| Dobytčí mor                   | 10–14 nákaz 750–950, 809–810 (Newfield); 1319–1320 ≈ 62 % skotu      | **2** (Martin 27. 10.)    |
+| Sarančata                     | v Čechách až od 1338 (Brázdil)                                       | později – ne pevně        |
+| Epidemie lidí                 | Justiniánův mor v Bavorsku (6. st.), v Čechách nedoložen             | později                   |
+| Chladná léta 536 – ≈ 660      | pozdně antická doba ledová (Büntgen 2016)                            | ne – bez pevných událostí |
 
-## Počasí roku – kraj (návrh Clauda)
+Martin, 27. 10. 2026: „Pojďme na požár“ (požár v první fázi, dobytčí mor ve druhé). „Přidej
+i tornádo. Máme ho doložené z Kosmovy kroniky. Jen dej pravděpodobnost obvyklou pro střední
+Evropu.“
 
-**Kraj:** dokud není mapa světa, je celý svět **jeden kraj** – všechny vsi mají stejné počasí
-(otázka 1). Počasí roku je čistá funkce **seedu světa a herního roku** (`yearWeather`). Má dvě
-části – **zimu** (prosinec–březen, patří k roku, ve kterém končí) a **léto** (duben–srpen).
+## Kraj a ochrana nové vsi
+
+- **Kraj = mapa.** Martin, 27. 10. 2026: „První možnost“ – **počasí roku je společné celé mapě**
+  (všechny vsi hráče na jedné mapě mají stejné léto i zimu, sousedé v témž kraji také);
+  **kroupy, povodeň a požár jsou po vsích** (ze seedu vsi). Smršť má stopu přes mapu (ze seedu
+  počasí mapy) a zasáhne ty vsi, přes které přejde (návrh Clauda – dvě vsi na jedné mapě uvidí
+  tutéž smršť).
+- **Seed počasí mapy** (návrh Clauda): každá mapa (sídlo) má vlastní náhodný **seed počasí**
+  uložený na serveru. Není to seed krajiny – ten zná i prohlížeč (krajinu a překážky počítá
+  sám) a kód je veřejný, takže by šlo spočítat budoucí počasí. Seed počasí se klientovi nikdy
+  neposílá; klient dostane jen počasí, které už je vidět (sloupec „Kdy je vidět“).
+- **Ochrana nové vsi.** Martin, 27. 10. 2026: „Pětiletou ochranu“ – **prvních 5 let vsi žádné
+  místní pohromy** (kroupy, povodeň, požár, smršť). **Počasí kraje platí i pro novou ves naplno** –
+  poloviční síla počasí v prvních 30 letech z nočního návrhu **není**. Osadníci přicházejí se
+  zásobami na 18 měsíců; hájení dospělých před smrtí hladem ([populace](population.md) – Hájení)
+  zůstává, jak je.
+
+## Počasí roku – kraj
+
+Počasí roku je čistá funkce **seedu počasí mapy a herního roku**. Má dvě části – **zimu**
+(prosinec–březen, patří k roku, ve kterém končí) a **léto** (duben–srpen).
 
 ### Léto
 
@@ -74,14 +104,16 @@ obchod se sousedy skutečnou zkoušku.
 | suché                 | 10 %    | ×0,90 | ×0,75   | ×0,70 | ×0,8   | 1. 5.        |
 | **kruté sucho**       | 4 %     | ×0,75 | ×0,50   | ×0,45 | ×0,6   | 1. 5.        |
 | deštivé               | 11 %    | ×0,85 | ×0,85   | ×0,75 | ×1     | 1. 6.        |
-| **mokré žně** (kruté) | 4 %     | ×0,60 | ×0,65   | ×0,60 | ×1     | 15. 7.       |
+| **mokré žně** (kruté) | 4 %     | ×0,60 | ×0,60   | ×0,60 | ×1     | 1. 6.²       |
 
 ¹ Jařiny = jař, luštěniny a len (setí na jaře).
+² 1. 6. je vidět deštivé léto; že jsou žně mokré (kruté), se ukáže 15. 7. (návrh Clauda).
 
-- **Proč takhle:** sucho bije hlavně jař (mělké kořeny, jarní a letní sucho – 73,7 % suchých
-  měsíců je duben–září, Brázdil 2013), ozim dozraje dřív. Deštivé léto kazí seno (hnije při
-  sušení) a mokré žně obilí (klíčí v klasu), pastvě neškodí. Suchých let je v Čechách ≈ 1 z 2,4
-  (16.–18. st.), ale ne každé je neúroda – škodu má jen 14 % let (suché a kruté sucho).
+- **Sucho** – Martin schválil četnost 14 % let (z toho 4 % kruté) a dopady z tabulky; sucho bije
+  hlavně jař (mělké kořeny, 73,7 % suchých měsíců je duben–září, Brázdil 2013), ozim dozraje dřív.
+- **Deštivé léto** – Martin, 27. 10. 2026: „Jo“ – 15 % let (11 % mírné, 4 % kruté – mokré žně);
+  obilí ×0,85 / ×0,6, seno ×0,75 / ×0,6 (hnije při sušení), **výmlat +20 % práce** (vlhké snopy);
+  pastvě neškodí.
 - **Zlé roky se shlukují** (Bekar 2019 – neúroda zvýší šanci příští o 20–30 %): po zlém létě
   (suché, kruté sucho, deštivé, mokré žně) jsou šance zlých let příští rok **×1,25** na úkor
   normálního.
@@ -92,98 +124,256 @@ obchod se sousedy skutečnou zkoušku.
 
 ### Zima
 
-| Zima          | Četnost | Dopad                                                                                     | Kdy je vidět |
-| ------------- | ------- | ----------------------------------------------------------------------------------------- | ------------ |
-| normální      | 82 %    | –                                                                                         | –            |
-| holomrazná    | 9 %     | mráz bez sněhu, **ozim ×0,65** (vymrzne třetina)                                          | 1. 1.        |
-| dlouhá sněžná | 9 %     | seno se krmí **o 30 dní déle** (do 30. 4.), pastva od 1. 5.; jarní povodeň častější (níž) | 1. 3.        |
+| Zima          | Četnost | Dopad                                                                                                                      | Kdy je vidět |
+| ------------- | ------- | -------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| normální      | 82 %    | –                                                                                                                          | –            |
+| holomrazná    | 9 %     | mráz bez sněhu, **ozim ×0,65** (vymrzne třetina), zeleň pomáhá, vyvýšené díly hůř                                          | 1. 2.        |
+| dlouhá sněžná | 9 %     | seno se krmí **o 30 dní déle** (do 30. 4., pastva od 1. 5.), **osev jaře o 2–3 týdny později**, jarní povodeň o stupeň výš | 1. 3.        |
 
-Ozim i jař tak **rozkládají riziko**: holomráz bije ozim, sucho jař – ves, která seje obojí
-(osevní postup to dělá sám), nepřijde o všechno naráz.
+Martin, 27. 10. 2026: „Ano“. Ozim i jař tak **rozkládají riziko**: holomráz bije ozim, sucho jař –
+ves, která seje obojí (osevní postup to dělá sám), nepřijde o všechno naráz. Dlouhá zima posune
+začátek okna setí jařin o 3 týdny a jeho konec o 2 týdny (návrh Clauda).
+
+### Ochrana dílu – zeleň a vlhkost
+
+Martin, 27. 10. 2026: „Sucho by mělo mít různé dopady podle typu krajiny … velká nerozdělená
+plocha polí … stromy mezi poli … solitérní stromy … algoritmus“ – a k návrhu: „Takhle to sedí,
+zahrň i vlhkost půdy.“
+
+Každý díl pole i louky dostane **1. 4.** (jednou za rok – zeleň se mezitím mění kácením, sadem,
+jabloněmi u cest) **ochranu 0–1**:
+
+- **Zeleň** – vzdálenost středu dílu k **nejbližší zeleni** _d_: do **30 m plná** (1), dál lineárně
+  ubývá, v **150 m nula** (zeleň = (150 − _d_) ÷ 120, oříznuto na 0–1). K tomu **každý solitér do
+  50 m +0,25**. Zeleň dílu nejvýš 1.
+- **Vlhkost** – díl **u vody +0,2**, **vyvýšený díl −0,2**.
+- **Ochrana** = zeleň + vlhkost, oříznuto na 0–1.
+- **Ztráta suchem × (1 − 0,5 × ochrana)** – násobek dílu = 1 − (1 − násobek roku) × (1 − 0,5 ×
+  ochrana). Kruté sucho na jaři (×0,50) dá dílu bez ochrany ×0,50, dílu u lesa ×0,75.
+
+Co je co (návrh Clauda):
+
+- **Zeleň** = les (políčka lesa krajiny a les vsi, tatáž maska jako vzdálenost od lesa u zvěře),
+  sad vsi a **remíz** – skupina aspoň 3 stojících stromů nebo keřů z vrstvy překážek do 15 m od
+  sebe.
+- **Solitér** = stojící strom z vrstvy překážek bez dalšího stromu do 15 m a **jabloň u cesty**.
+- **U vody** = střed dílu do 60 m od vodního políčka nebo v nivě (do 1,5 m nad potokem).
+  **Vyvýšený** = střed dílu víc než 6 m nad potokem a na hřbetu (výš než průměr políček do 45 m).
+- **Bez krajiny** (kalibrace, testy) má každý díl ochranu 0,25 (typická ves).
+
+Proto **velký nerozdělený lán trpí suchem nejvíc** a pole mezi stromy, u lesa a v nivě méně.
+Stromy na mezích a jabloně u cest jsou hráčova pojistka – stejně jako rozptýlená pole proti
+kroupám.
+
+**Deštivé léto – krajina obráceně** (Martin, 27. 10. 2026: „Jo“): ochrana proti mokru je
+**niva −0,2, svah +0,2** (voda steče), **zeleň se nepočítá**; ztráta × (1 − 0,5 × ochrana) –
+v nivě je ztráta o desetinu větší, na svahu o desetinu menší. Svah = převýšení k sousednímu
+políčku aspoň 1,5 m (10 %, návrh Clauda).
+
+**Holomráz** (Martin, 27. 10. 2026: „Ano“): **zeleň pomáhá** (drží sníh a láme vítr),
+**vyvýšené −0,2**, voda se nepočítá; ztráta ozimu × (1 − 0,5 × ochrana).
 
 ### Co z toho plyne
 
 - **Průměr let:** hrubá úroda ≈ **0,95** dnešní (dobré roky vyrovnají část zlých). **Plán osevu
-  počítá s průměrem** (`WEATHER.expectedYield` 0,95 v `sowingTargets`) – ves zaseje o ≈ 5 % víc
-  než dnes a v normálním roce si pojistku doplní. Bez toho by ves v průměru ujídala z pojistky.
+  počítá s průměrem** (0,95) – ves zaseje o ≈ 5 % víc než dnes a v normálním roce si pojistku
+  doplní. Bez toho by ves v průměru ujídala z pojistky.
 - **Zlý rok** (hrubá úroda vsi pod 90 % normální): ≈ 1 rok ze 3 (≈ 1,1 dne skutečného času).
 - **Krutý rok** (pod 70 %: kruté sucho, mokré žně, holomráz se zlým létem): ≈ **1 rok z 10–12**
   (≈ 4 dny skutečného času).
 - **Dva kruté roky za sebou:** ≈ 1 % ročně – **zhruba jednou za století** (≈ 37 dní skutečného
   času, za rok hry ≈ 10×). Krutý rok a po něm zlý: ≈ 4 % ročně.
+- Ochrana dílu průměr trochu zvedne (ves se stromy mezi poli projde suchem lépe) – čísla výš
+  platí pro ves bez ochrany.
 
-## Místní pohromy – jedna ves (návrh Clauda)
+## Místní pohromy – jedna ves
 
-Ze **seedu vsi a roku** (den, místo, směr). V **prvních 5 letech** vsi žádné (osadníci mají
-zásoby na 18 měsíců a ještě nemají pojistku).
+Kroupy, povodeň a požár ze **seedu vsi a roku**, smršť ze seedu počasí mapy (stopa přes mapu).
+**Prvních 5 let vsi žádné** (Martin, 27. 10. 2026: „Pětiletou ochranu“).
 
 ### Kroupy
 
-- **Kdy:** jeden den **1. 6. – 15. 7.**, šance **6 % ročně** (≈ 1 z 16 let).
-- **Kde:** pás **300 m** široký přes celé okolí vsi (směr a posun ze seedu). Díly, jejichž střed
-  leží v pásu, přijdou o **60 % nesklizené úrody** (ozim před žněmi, jařiny); sklizené díly
-  a louky po seči nic.
-- **Kolik:** pás zasáhne typicky 10–25 % polí – ves přijde o ≈ 10 % úrody roku. **Rozptýlená
+Martin, 27. 10. 2026: „Stromy by měly pole před kroupami částečně chránit“ – k návrhu „ano“.
+
+- **Kdy:** jeden den **června až srpna**, šance **6 % ročně** (≈ 1 z 16 let).
+- **Kde:** pruh **300 m** široký přes celé okolí vsi (směr a posun ze seedu). Díly, jejichž střed
+  leží v pruhu, přijdou o **60 % nesklizené úrody** (ozim před žněmi, jařiny, nesklizené louky);
+  **okraje pruhu** (vnějších 50 m z každé strany, návrh Clauda) o **30 %**. Sklizené díly a louky
+  po seči nic.
+- **Stromy chrání:** ztráta dílu × (**1 − 0,4 × zeleň**) – jen zeleň z ochrany dílu, bez vlhkosti.
+  **Bez směru** – nepočítá se, odkud bouře přišla; strom chrání z kterékoli strany.
+- **Sad** v pruhu **−40 % letošních jablek**; **střechy staveb** v pruhu **zchátrají o rok**
+  (stav − roční chátrání stavby).
+- **Kolik:** pruh zasáhne typicky 10–25 % polí – ves přijde o ≈ 10 % úrody roku. **Rozptýlená
   pole** jsou pojistka (hráč volí, kde zakládá pole – jako u zvěře les).
-- Škoda jde do úrody dílu stejně jako škoda zvěře (`parts` – podíl hrubé úrody po dílech).
+- Škoda jde do úrody dílu stejně jako škoda zvěře (podíl hrubé úrody po dílech).
 
 ### Povodeň potoka
 
-- **Zóna:** políčka **do 1,5 m nad hladinou potoka** (`heightAboveStream` z `floodplain.ts` –
-  tatáž funkce, která dává nivě vyšší úrodnost). **Krajina se nemění** – po ostrém spuštění se
-  vrstva nesmí změnit; voda je jen ve scéně a škoda ve stavu vsi.
-- **Jarní (tání, 1.–20. 3.):** šance **4 %**, po dlouhé sněžné zimě **20 %**. Ozim na dílech
-  v zóně **×0,5**.
-- **Letní (bouřky, 15. 6. – 15. 8.):** šance **3 %**, v deštivém létě **10 %**, při mokrých
-  žních **20 %**. Nesklizená úroda dílů v zóně **×0,2**, otava z luk v zóně (seč 1. 8.) ×0,5.
-- **Stavby v zóně:** stav **−20 %** (zemnice −30 % – zatopená jáma); obydlený dům obyvatelé
-  opraví prací vsi jako jindy ([populace](population.md) – Chátrání). **Obilná jáma v zóně:**
-  zrno −25 % (zateče) – a nová jáma se do zóny nekope (`grain-pit-site.ts`).
+Martin, 27. 10. 2026: „Velikost povodně by se měla lišit. Jednou za 100 let … stoleté …
+dvousetleté … pětisetleté … tisícileté vody. Naplavenina by měla hnojit víc.“ – k návrhu „Ano“.
+
+**Roční nejvyšší voda** podle doby návratu (výška nad hladinou potoka):
+
+| Voda        | Šance za rok | Výška |
+| ----------- | ------------ | ----- |
+| žádná       | 43,2 %       | –     |
+| malá        | 30 %         | 0,3 m |
+| pětiletá    | 20 %         | 0,7 m |
+| dvacetiletá | 5 %          | 1,2 m |
+| stoletá     | 1 %          | 2,0 m |
+| dvousetletá | 0,5 %        | 2,4 m |
+| pětisetletá | 0,2 %        | 3,0 m |
+| tisíciletá  | 0,1 %        | 3,5 m |
+
+- **Po dlouhé sněžné zimě** (jarní voda) **a v deštivém létě nebo při mokrých žních** (letní voda)
+  je voda **o stupeň výš** (žádná → malá, …, tisíciletá zůstává). Obojí naráz jen o jeden stupeň
+  (návrh Clauda).
+- **Kdy** (návrh Clauda): **jarní** (tání, 1.–20. 3.) nebo **letní** (bouřky, 15. 6. – 15. 8.);
+  po dlouhé zimě jarní, v deštivém létě letní, jinak ze seedu půl na půl. Voda stojí 3 dny.
+- **Zatopené políčko:** výška nad potokem (`heightAboveStream` – tatáž výška, která dává nivě
+  vyšší úrodnost) je menší než výška vody; **hloubka** = výška vody − výška nad potokem.
+  **Krajina se nemění** – po ostrém spuštění se vrstva nesmí změnit; voda je jen ve scéně a škoda
+  ve stavu vsi.
+- **Škody podle hloubky** (stupně Martin schválil, čísla návrh Clauda):
+
+| Hloubka   | Nesklizená úroda a louky | Ozim (jarní voda) | Stavby | Zemnice  | Naplavenina |
+| --------- | ------------------------ | ----------------- | ------ | -------- | ----------- |
+| do 0,5 m  | ×0,7                     | ×0,85             | −10 %  | −30 %    | +10 %       |
+| 0,5–1,5 m | ×0,3                     | ×0,5              | −30 %  | −60 %    | +20 %       |
+| nad 1,5 m | ×0                       | ×0,2              | −60 %  | zřítí se | +30 %       |
+
+- **Stavby:** stav klesne o tolik; co dojde na nulu, spadne (zbytek jámy jako po rozpadu,
+  [populace](population.md) – Po zániku); obydlený dům obyvatelé opraví prací vsi jako jindy.
+  **Obilná jáma v zatopeném políčku:** zrno −25 % (zateče) – a nová jáma se nekope níž než
+  dvacetiletá voda (1,2 m nad potokem).
+- **Úmrtí** (Martin, 27. 10. 2026: „A ať zabíjí tak jak navrhuješ“): **od pětisetleté vody výš**
+  (pětisetletá a tisíciletá, 3 m a víc) zemře každý obyvatel zatopeného obydlí s šancí **2 %**.
+- **Naplavenina hnojí:** úrodnost zatopeného dílu **+10 / +20 / +30 %** přirozené podle hloubky,
+  **nejvýš 130 % přirozené**. Ubývá osevem jako jiná úrodnost (návrh Clauda).
 - **Pole v nivě** jsou úrodnější a ohroženější – volba hráče.
 
-### Požár obydlí
+### Požár
 
-- **Šance:** **0,4 % na obydlí a rok** (ves s 15 domy ≈ 6 % ročně, ≈ 1 z 17 let); v suchém létě
-  ×2, v krutém suchu ×3. Den ze seedu.
-- **Šíření:** obydlí do **12 m** chytí s šancí **25 %** (jen jednou – žádná řetězová reakce přes
-  celou ves). Rozestupy domů jsou na hráči.
-- **Dopad:** dům vyhoří (stav 0 → zbytek jámy jako po rozpadu, [populace](population.md) – Po
-  zániku); obyvatelé bydlí u příbuzných (Rozpad domácnosti) a **sami ho přestaví na stejném
-  místě** (Přestavba – rozhodují obyvatelé). Shoří **díl zásob uložených v domě**: zrno mimo
-  jámy (`looseGrainKg`), maso a sýr **÷ počet obydlí**. **Zrno v zapečetěné jámě přečká.**
-- **Nikdo nezemře** (anti-cíl – smrt přijde jen z hladu po ztrátě zásob).
+Martin, 27. 10. 2026: „Pojďme na požár“.
 
-## Dopady na existující mechaniky (návrh Clauda)
+- **Šance:** **0,4 % na stavbu a rok** (ves s 15 domy ≈ 6 % ročně, ≈ 1 z 17 let). Násobky:
+  **suché léto ×2, kruté sucho ×3** (duben–srpen), **kovárna, milíř a pec ×3**, **zemnice ×½**,
+  **zima víc** (listopad–únor ×1,5 – topí se), **mokré léto míň** (×½). Den ze seedu.
+- **Co hoří** (návrh Clauda): obydlí, dílny a dvorec vojvody; milíř je jen zdroj ohně, ne cíl.
+- **Přeskok:** stavba do **6 m** chytí s šancí **70 %**, do **12 m** s **40 %** (vzdálenost
+  obrysů); **zeleň mezi domy** (strom, keř nebo sad na spojnici) šanci **půlí**. Každá stavba,
+  která chytí, zkusí sousedy jednou – oheň se šíří, dokud ho rozestupy, zeleň a hašení nezastaví
+  (návrh Clauda). Rozestupy domů jsou na hráči.
+- **Co shoří:** stavba (stav 0 → zbytek jámy jako po rozpadu) a **zásoby domu**: zrno mimo jámy,
+  maso a sýr **÷ počet obydlí**. **Zrno v zapečetěné jámě přečká.** **Stoh do 12 m** od hořící
+  stavby shoří (seno ÷ počet stohů). Obyvatelé bydlí u příbuzných (Rozpad domácnosti) a **sami
+  dům přestaví** (Přestavba – rozhodují obyvatelé).
+- **Lidé neumírají** – smrt přijde jen z hladu po ztrátě zásob.
 
-- **Úroda** ([pole](fields.md) – Úroda): hrubá úroda dílu × počasí (ozim / jařiny) × (1 − kroupy)
-  × (1 − povodeň) × (1 − zvěř). Odhad úrody dílu v panelu ukazuje i počasí, jakmile je vidět.
+### Hašení – řetěz s vědry
+
+Martin, 27. 10. 2026: „Chci, aby všichni dospělí hasili. Ať udělají řetěz s vědry od nejbližší
+vody.“ A: „Lidé musí být rozložení ve stejných vzdálenostech … ten poslední chodí.“ – k návrhu
+„Ano“.
+
+- **Kdo:** **všichni dospělí vsi**; ten den nedělají nic jiného (pole, stavby, péče). Děti
+  a staří ne (návrh Clauda).
+- **Řetěz:** od **nejbližší vody** (potok) k hořící stavbě, lidé **rovnoměrně po celé cestě**:
+  **rozestup = vzdálenost ÷ počet dospělých**.
+- **Do 2,5 m** si vědra **podávají** z ruky do ruky; **víc** – **každý nosí** vědro tam a zpět po
+  svém úseku.
+- **Účinnost = min(1; 2,5 ÷ rozestup)** – 40 dospělých na 100 m od vody hasí naplno, 20 dospělých
+  na 100 m s polovinou.
+- **Plný řetěz zastaví přeskok se 70 %** – šance přeskoku × (1 − 0,7 × účinnost).
+- **Hořící stavba** se při plném řetězu **jen poškodí o 50 %** místo zřícení – stav klesne
+  o 1 − 0,5 × účinnost (bez hašení na nulu); zásoby domu shoří ve stejném poměru (návrh Clauda).
+- Řetěz vede k první hořící stavbě; jeho účinnost platí pro všechny stavby, které ten den hoří
+  (návrh Clauda). Vědra ves má (žádná nová surovina).
+- **Ve scéně:** řada lidí s vědry od potoka k ohni (jako v 0 A.D.).
+
+### Smršť (tornádo)
+
+Martin, 27. 10. 2026: „Přidej i tornádo. Máme ho doložené z Kosmovy kroniky. Jen dej
+pravděpodobnost obvyklou pro střední Evropu.“ Kosmas zapsal k 30. 7. 1119 vichr, který na
+Vyšehradě pobořil části knížecího paláce, „sám satan v podobě víru“ (rešerše §6).
+
+**Četnost** (rešerše §6 – výpočet, návrh Clauda): ve střední Evropě ≈ **0,5 tornáda na
+10 000 km² za rok** (Česko: 2–5 zaznamenaných ročně). Mapa kraje (128 × 15 m = 1,92 km) to
+dává:
+
+- **přes mapu kraje** ≈ **0,10 % ročně** – jednou za ≈ 980 herních let; za skutečný rok hry
+  (1000 let) aspoň jedno s **64 %**,
+- **přes jádro vsi** (≈ 300 × 300 m) ≈ **0,017 % ročně** – jednou za ≈ 5 900 let; ves, která
+  přežije celých 1000 let, ji zažije s **15 %**.
+
+Martin chce skutečnou pravděpodobnost, i když je velmi vzácná – žádné zvýšení pro hru. Martin, 27. 10. 2026: „Takhle vzácné tornádo je dobré.“
+
+**Pravidla** (návrh Clauda):
+
+- **Stopa** ze **seedu počasí mapy a roku** – všechny vsi mapy vidí tutéž: den (květen–srpen,
+  nejvíc červenec), síla, **směr převážně od jihozápadu k severovýchodu** (české stopy leží v pásech
+  JZ–SV, Brázdil 2020), délka a šířka podle síly (průměr z ESWD ±50 %):
+
+| Síla | Podíl | Délka stopy | Šířka stopy |
+| ---- | ----- | ----------- | ----------- |
+| F0   | 40 %  | 2,6 km      | 35 m        |
+| F1   | 35 %  | 6,9 km      | 82 m        |
+| F2   | 20 %  | 10,2 km     | 124 m       |
+| F3   | 4,5 % | 17,5 km     | 343 m       |
+| F4   | 0,5 % | 23,1 km     | 383 m       |
+
+- **Ochrana nové vsi** 5 let jako u ostatních místních pohrom – stopa přejde, škody se nepočítají.
+- **Škody v pásu podle síly:**
+
+| Síla | Stavby (stav)   | Zemnice  | Nesklizená úroda | Stromy vyvrácené | Stohy       | Úmrtí v zasažených obydlích |
+| ---- | --------------- | -------- | ---------------- | ---------------- | ----------- | --------------------------- |
+| F0   | −15 % (střechy) | −5 %     | −20 %            | 10 %             | půl rozmetá | –                           |
+| F1   | −40 %           | −15 %    | −50 %            | 30 %             | rozmetané   | –                           |
+| F2   | zřítí se        | −40 %    | −80 %            | 70 %             | rozmetané   | –                           |
+| F3   | zřítí se        | zřítí se | −100 %           | všechny          | rozmetané   | 1 % na člověka              |
+| F4   | zřítí se        | zřítí se | −100 %           | všechny          | rozmetané   | 3 % na člověka              |
+
+- **Stromy** v pásu se vyvrátí – z vrstvy překážek zmizí jako pokácené (kmen leží na zemi, ves ho
+  zpracuje jako kládu bez kácení – [les](forest.md)); vyvrácené ovocné stromy sadu a jabloně
+  u cest ves obnoví jako staré.
+- **Zemnice** odolá lépe (je zahloubená). Zřícená stavba = zbytek jámy a přestavba jako po
+  požáru; **úmrtí jen u F3 a F4** (Brázdil 2020: 108 významných tornád za 900 let, ≥ 8 mrtvých).
+- **Ve hře:** hráči se říká **„Smršť“** (dobové slovo; síla jen v popisku – „Silná smršť“).
+
+## Dopady na existující mechaniky
+
+- **Úroda** ([pole](fields.md) – Úroda): hrubá úroda dílu × počasí dílu (s ochranou) ×
+  (1 − kroupy) × (1 − povodeň) × (1 − smršť) × (1 − zvěř). Odhad úrody dílu v panelu ukazuje
+  i počasí, jakmile je vidět.
 - **Seno a pastva** ([orání rádlem](oxen.md) – Seno, [strava](diet.md) – Zimní krmení): výnos
-  seče × seno roku. **Seč 1. 6. plánuje s letošním výnosem** – v suchém roce ves poseče víc luk
-  (víc práce), dokud louky stačí. Nosnost pastvy v létě × pastva roku. Dlouhá zima prodlouží
-  krmení do 30. 4. – co seno nevydrží, řeší dnešní porážka v zimě.
-- **Seno s rezervou:** dnes ves seče přesně potřebu a zbytek se k nové seči zkazí. Návrh: plán
-  seče **+15 %** (rezerva na dlouhou zimu a suchý rok). Stojí ≈ 15 % práce seče navíc.
+  seče × seno roku (s ochranou dílu louky). **Seč 1. 6. plánuje s letošním výnosem** – v suchém
+  roce ves poseče víc luk (víc práce), dokud louky stačí. Nosnost pastvy v létě × pastva roku
+  (bez ochrany – pastva je celé vsi). Dlouhá zima prodlouží krmení do 30. 4. – co seno nevydrží,
+  řeší dnešní porážka v zimě.
+- **Seno s rezervou:** plán seče **+15 %** (rezerva na dlouhou zimu a suchý rok). Stojí ≈ 15 %
+  práce seče navíc.
 - **Zásoby a pojistka** ([pole](fields.md) – Osev podle zásob): pojistka zůstává **0,5 roční
   potřeby celé energie** – s průměrem let v plánu osevu ji ves v normálních letech udrží.
   **Paměť hladu:** po krutém roce drží ves **10 let pojistku 0,75** (seje víc sama – vesničané
   si zlý rok pamatují), pak zase 0,5.
 - **Hlad** ([populace](population.md) – Hlad a vymření): beze změny – nouzová porážka, šetření,
   hlad a úmrtí přijdou samy z menších zásob.
-- **Hájení** (Martin – „hájení i na neúrodu“, podoba návrh Clauda): v prvních **30 letech vsi**
-  dopadá počasí **poloviční silou** (např. ×0,5 → ×0,75) a místní pohromy prvních 5 let vůbec;
-  hájení už dnes chrání dospělé před smrtí hladem.
-- **Stavby** ([populace](population.md) – Chátrání a přestavba): povodeň ubere stav, požár obydlí zničí – přes dnešní stav,
-  chátrání, zbytek jámy a přestavbu.
+- **Hájení** ([populace](population.md) – Hájení): zůstává, jak je (dospělí v prvních letech
+  neumírají hladem). Počasí na ně nebere ohled; místní pohromy prvních 5 let ne (výš).
+- **Stavby** ([populace](population.md) – Chátrání a přestavba): povodeň a kroupy ubírají stav,
+  požár a smršť stavby zničí – přes dnešní stav, chátrání, zbytek jámy a přestavbu.
+- **Les** ([les](forest.md)): smršť vyvrátí stromy jako kácení; kmeny jdou na klády.
 - **Obchod** ([obchod](trade.md) – Sousedé): sousedé jsou ve stejném kraji. Při doplnění **1. 11.**
   po zlém roce mají **poloviční zásobu obilí** a obilí je **o polovinu dražší** (ostatní zboží
   v kg obilí ×0,67); po krutém roce **čtvrtinovou zásobu** a obilí **dvakrát dražší** (×0,5) –
   ceny v hladovém roce na dvoj- až trojnásobek (Ó Gráda 2005). Dobytek je pak levný – ves bez
   sena ho prodá, ves s pojistkou nakoupí. Hřivny jsou uložená hodnota na zlý rok.
-- **Zvěř** (malé, volitelné): po holomrazné nebo dlouhé zimě 1. 5. ubude navíc 10 % jelení zvěře
-  a 15 % prasat; v krutém suchu (málo žaludů) jen poloviční počet selat.
+- **Zvěř:** po holomrazné nebo dlouhé zimě 1. 5. ubude navíc 10 % jelení zvěře a 15 % prasat;
+  v krutém suchu (málo žaludů) jen poloviční počet selat.
 - **Krajina:** beze změny – niva je už dnes v `floodplain.ts`, povodeň ji jen využije.
 
-## Kalibrace (návrh Clauda)
+## Kalibrace
 
 **Cíle:**
 
@@ -195,6 +385,8 @@ zásoby na 18 měsíců a ještě nemají pojistku).
 3. **Dva kruté roky za sebou:** „Ves hladoví“, umírají děti a starší – ves ztratí **≈ 10–25 %
    lidí**, ale nevymře; v hájení dospělí neumírají.
 4. **S pohromami v průměru:** ≥ 95 % let bez hladu (energie ≥ 0,9).
+5. **Nová ves** (osadnické zásoby na 18 měsíců) přežije krutý rok v prvních letech bez úmrtí
+   hladem dospělých – poloviční síla počasí už ji nechrání.
 
 **Proč by to mělo vyjít:** ves jí ≈ 70 % energie z pole ([pole](fields.md) – pojistka). Krutý
 rok ubere ≈ 50 % čisté úrody → ≈ 35 % roční energie; pojistka 0,5 to pokryje a zbyde ≈ 15 %
@@ -204,114 +396,163 @@ přídělu) … za rok stojí ≈ 15 % lidí“) přijde o zhruba desetinu až p
 
 **Jak se to ověří (bez dlouhé kalibrace – ta jen na Martinův pokyn):**
 
-- **Unit testy jádra:** `yearWeather` přes 10 000 let dá četnosti z tabulek (±1 %) a shlukování;
-  vynucený sled let (`weatherOverride` – jen testy a dev) na ustálené testovací vsi:
-  [krutý] → 0 úmrtí hladem, [krutý, krutý] → úmrtí 10–25 %, ves žije, [normální × 10] → bez hladu.
-- **`village-calculator.ts`** (ustálený stav, rychlý): nový přepínač `--weather` s průměrnou
-  úrodou 0,95 – kolik osevu a práce stojí průměr let.
-- **Vlkov a nové vsi:** dev mód **„Vynutit zlý rok“** vedle skoku v čase ([účty](accounts.md) –
-  dev mód) – Martin projde krutý rok a dva za sebou ve hře a sleduje nasycení, porážku, kroniku.
+- **Unit testy jádra:** počasí přes 10 000 let dá četnosti z tabulek (±1 %) a shlukování;
+  vynucený sled let (jen testy a dev) na ustálené testovací vsi: [krutý] → 0 úmrtí hladem,
+  [krutý, krutý] → úmrtí 10–25 %, ves žije, [normální × 10] → bez hladu.
+- **`village-calculator.ts`** (ustálený stav, rychlý): přepínač `--weather` s průměrnou úrodou
+  0,95 – kolik osevu a práce stojí průměr let.
+- **Vlkov a nové vsi:** dev mód **„Vynutit zlý rok“** a **„Vynutit pohromu“** vedle skoku v čase
+  ([účty](accounts.md) – dev mód) – Martin projde krutý rok, dva za sebou, povodeň, požár
+  a smršť ve hře a sleduje nasycení, porážku, hašení, kroniku.
 - **`measure-village`** jen na Martinův pokyn (`--variant disasters`).
 
 ## Obrana a příprava (bez nových velkých mechanik)
 
-| Co                        | Proti čemu                | Kdo                         | Stav                     |
-| ------------------------- | ------------------------- | --------------------------- | ------------------------ |
-| Pojistka zásob 0,5 (0,75) | zlý a krutý rok           | ves sama                    | je; nově paměť hladu     |
-| Obilné jámy               | požár, ztráty skladováním | ves sama                    | je; nově ne v nivě       |
-| Ozim i jař                | holomráz × sucho          | ves sama (osevní postup)    | je                       |
-| Rozptýlená pole mimo nivu | kroupy, povodeň           | **hráč** (kde zakládá pole) | je                       |
-| Seno s rezervou +15 %     | sucho, dlouhá zima        | ves sama                    | nové pravidlo            |
-| Dobytek jako živá zásoba  | zlý rok                   | ves sama (nouzová porážka)  | je                       |
-| Rozestupy obydlí          | šíření požáru             | **hráč** (kde staví obydlí) | je                       |
-| Obchod, hřivny            | zlý rok, chybějící seno   | **hráč**                    | je; nově ceny podle roku |
+| Co                             | Proti čemu                  | Kdo                             | Stav                     |
+| ------------------------------ | --------------------------- | ------------------------------- | ------------------------ |
+| Pojistka zásob 0,5 (0,75)      | zlý a krutý rok             | ves sama                        | je; nově paměť hladu     |
+| Obilné jámy                    | požár, ztráty skladováním   | ves sama                        | je; nově ne pod 1,2 m    |
+| Ozim i jař                     | holomráz × sucho            | ves sama (osevní postup)        | je                       |
+| Stromy mezi poli, sad, jabloně | sucho, holomráz, kroupy     | **hráč** (co nechá a co vysadí) | nově ochrana dílu        |
+| Rozptýlená pole mimo nivu      | kroupy, povodeň, mokré léto | **hráč** (kde zakládá pole)     | je                       |
+| Seno s rezervou +15 %          | sucho, dlouhá zima          | ves sama                        | nové pravidlo            |
+| Dobytek jako živá zásoba       | zlý rok                     | ves sama (nouzová porážka)      | je                       |
+| Rozestupy staveb, zeleň mezi   | šíření požáru               | **hráč** (kde staví)            | je                       |
+| Řetěz s vědry                  | požár                       | ves sama (všichni dospělí)      | nové                     |
+| Obchod, hřivny                 | zlý rok, chybějící seno     | **hráč**                        | je; nově ceny podle roku |
 
 ## Co hráč vidí (UI jako 0 A.D.)
 
 - **Horní lišta:** ikona počasí roku (prasklá zem, mrak s deštěm, sněhová vločka s mrazem), jen
   když léto nebo zima nejsou normální a už jsou vidět (sloupec „Kdy je vidět“); slova
   v `Tooltip` („Kruté sucho – jař a seno o polovinu slabší“). Dobré léto: klas se sluncem.
-- **Upozornění** (krátká, mizející, jako „Ves šetří jídlem“): „Sucho“, „Mokré žně“, „Holomráz –
-  ozim vymrzá“, „Kroupy potloukly obilí“, „Povodeň“, „Vyhořel dům“. Z jiné vsi hráče s jejím
-  jménem.
+- **Upozornění** (krátká, mizející, jako „Ves šetří jídlem“): „Sucho – nejvíc trpí pole bez
+  stromů“ (Martin schválil 27. 10. 2026), „Mokré žně“, „Holomráz – ozim vymrzá“, „Kroupy
+  potloukly obilí“, „Povodeň“ (velikost vody v popisku – „Stoletá voda“), „Hoří!“, „Vyhořel dům“,
+  „Smršť“. Z jiné vsi hráče s jejím jménem.
 - **Kronika:** „Rok 812 – kruté sucho, úroda o třetinu menší“, „Kroupy potloukly 4 díly
-  (−1 200 kg)“, „Povodeň zaplavila 3 díly a 2 obydlí“, „Vyhořel dům Radoslavův“, „Sousedé
-  hladoví – obilí zdražilo“.
-- **Díl pole:** v odhadu úrody řádky „Sucho −25 %“, „Kroupy −60 %“ (jako škoda zvěře).
+  (−1 200 kg)“, „Stoletá voda zaplavila 3 díly a 2 obydlí“, „Vyhořel dům Radoslavův – hasila
+  celá ves“, „Silná smršť zbořila 3 domy a vyvrátila 140 stromů“, „Sousedé hladoví – obilí
+  zdražilo“.
+- **Díl pole:** **ikona ochrany** (zeleň a vlhkost – lístky 0–4, popisek „Stromy chrání před
+  suchem“), v odhadu úrody řádky „Sucho −25 %“, „Kroupy −60 %“, „Povodeň −70 %“ (jako škoda
+  zvěře); naplavenina jako vyšší úrodnost.
 - **Obchod:** u obilí ikona zdražení, když je kraj po zlém roce.
-- **Scéna** (jen když nastane – výchozí letní vzhled `REFERENCE_DAY` se nemění):
-  - **sucho** – tráva a pole od června žlutší a řidší (parametr suché trávy v `season-look.ts`),
-  - **deštivé léto** – víc oparu, tmavší tráva, na mokrých žních polehlé obilí,
-  - **holomráz** – zima bez sněhu, na jaře hnědé skvrny na ozimu; **dlouhá zima** – sníh do dubna,
-  - **kroupy** – v den krupobití bílý pás na zemi, pak potlučené (nižší) obilí na dílech do žní,
-  - **povodeň** – rozlitá voda na políčkách zóny 3–5 dní (plocha vody jako potok), pak hnědé
-    bahno 2 týdny,
-  - **požár** – plameny (`pyre-fire.ts`) a hustý dým (`village-smoke.ts`) 1 den, pak spáleniště
-    jako zbytek jámy a stavba nového domu.
-- **Zvuky** (volitelně): hrom a kroupy, praskání ohně.
+- **Povodeň** v popisku i výška nad běžnou hladinou („Stoletá voda – 2 m nad hladinou“).
+- **Scéna** – sekce Ve scéně níž.
+
+## Ve scéně
+
+Martin, 27. 10. 2026: „Jinak je to dobré“ – s dvěma doplňky: „Když je sucho, šlo by nějak
+zintenzivnit světlo ve scéně? Ať to vypadá, že slunce opravdu praží?“ a „Když přijde bouřka
+s kroupami, chci, aby scéna potemněla a blýskalo se.“ Zbytek je návrh Clauda, schválený týmiž
+slovy.
+
+Jen když pohroma nastane – **výchozí letní vzhled (`REFERENCE_DAY`) se v normálním roce nemění**.
+**Animace jen v den pohromy**, jinak se **kreslí jen při změně** (vzhled počasí se mění nejvýš
+jednou za herní den jako roční období). Světlo navazuje na světlo, roční období a den a noc scény
+([mapa kódu – scéna](../code/scene.md): `season-look.ts`, `day-light.ts`, `sun-shadows.ts`) –
+počasí je další násobek světla a barev období, ne nové osvětlení.
+
+- **Sucho**
+  - Pole a louky **žloutnou a hnědnou podle síly sucha**; **chráněné díly za stromy zůstávají
+    zelenější** (ochrana dílu jde do barvy dílu).
+  - Obilí je nižší a řidší, v potoce méně vody, tůně se zmenší.
+  - **Slunce praží** (Martin): silnější a teplejší slunce – jasnější, žlutější světlo a ostřejší
+    stíny, vybledlá obloha a opar, případně tetelení vzduchu nad poli v poledne.
+- **Deštivé léto**
+  - Ve dnech deště prší (částice), je zataženo a šedé světlo.
+  - Kaluže na cestách a v nivě.
+  - Tmavší a sytější barvy, před žněmi polehlé obilí.
+- **Holomráz:** jinovatka bez sněhu; na jaře řídký, místy žlutý ozim, kde vymrzl, prosvítá hlína.
+- **Dlouhá zima:** sníh do dubna, pozdní jaro (listí a tráva o 3 týdny později).
+- **Kroupy**
+  - V den bouřky tmavá mračna a bílé kroupy v pruhu.
+  - **Scéna potemní a blýská se** (Martin) – záblesky světla celé scény, ne jen obloha; hrom.
+  - Potom pruh potlučených a polehlých polí, sad bez jablek, poškozené střechy.
+- **Povodeň**
+  - Voda rozlitá do výšky dané povodně několik dní (3 dny), pak ustupuje.
+  - Potom hnědé bahno a naplavenina na polích a loukách (2 týdny), naplavené větve, zřícené domy
+    v hluboké vodě.
+- **Požár**
+  - Oheň a kouř nad domem – znovu použitý oheň z klučení (`clearing-fire.ts`) a dým vsi.
+  - **Řetěz lidí s vědry** od nejbližší vody, rovnoměrně rozestavěných: kde je rozestup do 2,5 m,
+    podávají si vědra, jinak chodí každý po svém úseku (jako v 0 A.D.).
+  - Hořící stoh; potom ohořelé trosky, dokud se dům neobnoví.
+- **Smršť**
+  - Tmavý trychtýř s vířícím prachem přejde po stopě za pár sekund.
+  - Potom pruh vyvrácených stromů (padlé kmeny), rozmetané stohy, polehlá pole a poškozené nebo
+    zřícené stavby.
+- **Všude:** upozornění, kronika a škoda v panelu dílu; u povodně výška nad běžnou hladinou.
+- **Zvuky** (volitelně): déšť, hrom a kroupy, praskání ohně, hukot smrště.
 
 ## Pro implementaci (poznámky, ne kód)
 
-- **Čísla** v novém `rules-disasters.ts` (`WEATHER`, `HAIL`, `FLOOD`, `FIRE`, `DISASTER_TRADE`)
-  s odkazy na sekce tohoto návrhu; změna čísla = i text zde.
-- **Doména:** `domain/village/weather.ts` – `yearWeather(worldSeed, year)` (čistá funkce, se
-  shlukováním přes předchozí rok – rekurze omezená na pár let zpět, ať je to O(1)),
-  `cropWeatherFactor(weather, crop, hajeni)`; `disasters.ts` – kroupy, povodeň a požár dne ze
-  seedu vsi a roku. Pořadí v `simulate.ts` pevné: počasí a místní pohromy dne před sklizní
-  a sečí, požár před jídlem.
-- **Stav:** volitelné `VillageState.disasters` (škody po dílech jako `FieldDamage.parts`, záznamy
-  pro kroniku, `famineMemoryUntilYear`, `fromYear`). Starší vsi se převedou při načtení jednou
-  a idempotentně – **pohromy platí až od roku nasazení** (`fromYear`), dopočet starší vsi je
-  nevytáhne zpětně.
-- **Seed světa** není v gitu (repo je veřejné – z kódu a seedu by šlo spočítat budoucí počasí):
-  v DB nebo `.env` (`WORLD_SEED`), do testů pevný. **Server je autorita** – klient dostane jen
-  počasí, které už je vidět (sloupec „Kdy je vidět“), nikdy budoucí.
+Podrobně v [plánu](../superpowers/plans/2026-10-27-disasters.md).
+
+- **Čísla** v novém `rules-disasters.ts` (`WEATHER`, `PROTECTION`, `HAIL`, `FLOOD`, `FIRE`,
+  `FIREFIGHTING`, `TORNADO`, `DISASTER_TRADE`) s odkazy na sekce tohoto návrhu; změna čísla =
+  i text zde.
+- **Doména:** `weather.ts` – počasí roku ze seedu počasí mapy (čistá funkce; shlukování přes
+  předchozí roky omezené na pár let zpět, ať je to O(1)); `part-protection.ts` – ochrana dílu;
+  `disasters-*.ts` – kroupy, povodeň, požár, hašení, smršť. Pořadí v `simulate.ts` pevné.
+- **Stav:** volitelné `VillageState.weatherSeed` (kopie seedu počasí mapy – každá ves počítá
+  počasí sama, bez sdíleného stavu) a `VillageState.disasters` (ochrana dílů, škody po dílech,
+  dnešní požár a řetěz, paměť hladu). Starší vsi se převedou při načtení jednou a idempotentně.
+- **Server je autorita** – klient dostane jen počasí, které už je vidět, nikdy budoucí ani seed.
 - **Scéna:** typy z jádra a `lib/village-view.ts`; `season-look.ts` dostane vstup počasí roku
   (sucho, mokro, sníh) – při normálním roce beze změny vzhledu; voda povodně jako samostatná
-  plocha nad políčky zóny (`needsRender` při změně), oheň a dým z existujících tříd.
-- **Pořadí prací:** fáze 1 = počasí roku (úroda, seno, pastva, osev s průměrem, hájení,
-  obchod) → kroupy → povodeň → požár → scéna a UI. Každá část vlastní úloha, testy jádra hned.
+  plocha nad zatopenými políčky (`needsRender` při změně), oheň a dým z existujících tříd.
 
 ## Navazuje
 
 - [Pole](fields.md) – Úroda („Bez náhody“ končí), Osev podle zásob (pojistka, průměr let), Obilné
   jámy; [orání rádlem](oxen.md) – Seno; [strava](diet.md) – Zimní krmení, Nouzová porážka,
   Náměty – Nákazy (dobytčí mor ve fázi 2); [populace](population.md) – Hlad a vymření, Hájení,
-  Přestavba; [zvěř](wildlife.md) – Škody (stejný model škod po dílech); [obchod](trade.md) –
-  Sousedé; [krajina](landscape.md) – niva potoka; [válka](war.md) – vypálení vsi později stejnou
-  cestou jako požár.
+  Přestavba; [zvěř](wildlife.md) – Škody (stejný model škod po dílech, vzdálenost od lesa);
+  [les](forest.md) – kácení a klády; [obchod](trade.md) – Sousedé; [krajina](landscape.md) – niva
+  potoka; [válka](war.md) – vypálení vsi později stejnou cestou jako požár.
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                 | Kdo                    |
-| ------------------------------------------------------------------------------------------ | ---------------------- |
-| Ves zatím v ideální krajině, bez pohrom a neúrody                                          | Martin (24. 10. 2026)  |
-| Napřed dvojpolí a kalibrace, ať ves za normálních okolností nehladoví; pak pohromy         | Martin (26. 10. 2026)  |
-| Úroda bez náhody, dobré a špatné roky až s počasím; hájení se pak rozšíří i na neúrodu     | Martin                 |
-| Pojistka 0,5 se doladí s hubenými roky                                                     | Martin (19. 10. 2026)  |
-| Fáze 1: sucho, deštivé léto a mokré žně, krutá zima, kroupy, povodeň, požár obydlí         | návrh Clauda           |
-| Počasí roku sdílené krajem (celý svět, dokud není mapa), místní pohromy ze seedu vsi       | návrh Clauda           |
-| Četnosti a síla v tabulkách; zlé roky se shlukují ×1,25; násobí se hrubá úroda, osivo celé | návrh Clauda (rešerše) |
-| Osev počítá s průměrem let 0,95; paměť hladu – pojistka 0,75 na 10 let po krutém roce      | návrh Clauda           |
-| Seno s rezervou +15 %; seč plánuje s letošním výnosem                                      | návrh Clauda           |
-| Hájení: počasí poloviční silou 30 let, místní pohromy ne prvních 5 let                     | návrh Clauda           |
-| Sousedé po zlém roce: poloviční zásoba obilí a ×1,5 cena; po krutém čtvrtinová a ×2        | návrh Clauda (rešerše) |
-| Povodeň krajinu nemění; zóna do 1,5 m nad potokem; jámy se do ní nekopou                   | návrh Clauda           |
-| Požár: obydlí, šíření do 12 m jednou, zrno v jámách přečká, nikdo neumírá                  | návrh Clauda           |
-| Seed světa mimo git, klient vidí jen počasí, které už nastalo                              | návrh Clauda           |
+| Rozhodnutí                                                                                                                  | Kdo                                                    |
+| --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| Ves zatím v ideální krajině, bez pohrom a neúrody                                                                           | Martin (24. 10. 2026)                                  |
+| Napřed dvojpolí a kalibrace, ať ves za normálních okolností nehladoví; pak pohromy                                          | Martin (26. 10. 2026)                                  |
+| Úroda bez náhody, dobré a špatné roky až s počasím; hájení se pak rozšíří i na neúrodu                                      | Martin                                                 |
+| Pojistka 0,5 se doladí s hubenými roky                                                                                      | Martin (19. 10. 2026)                                  |
+| Počasí pro celý kraj (mapu), kroupy, povodeň a požár po vsích                                                               | Martin (27. 10. 2026)                                  |
+| Nová ves 5 let bez místních pohrom; počasí naplno, bez poloviční síly 30 let                                                | Martin (27. 10. 2026)                                  |
+| Fáze 1: sucho, deštivé léto, krutá zima, kroupy, povodeň, požár; dobytčí mor ve fázi 2                                      | Martin (27. 10. 2026)                                  |
+| Bez pevných historických událostí                                                                                           | Martin (27. 10. 2026)                                  |
+| Sucho 14 % (4 % kruté); ochrana dílu ze zeleně (30 → 150 m, solitéry +0,25) a vlhkosti (±0,2); ztráta × (1 − 0,5 × ochrana) | Martin (27. 10. 2026)                                  |
+| Deštivé léto 15 % (11 + 4); niva −0,2, svah +0,2, zeleň ne; výmlat +20 %                                                    | Martin (27. 10. 2026)                                  |
+| Holomráz 9 % (ozim ×0,65, zeleň pomáhá, vyvýšené −0,2); dlouhá zima 9 % (seno +30 dní, osev později)                        | Martin (27. 10. 2026)                                  |
+| Kroupy 6 %, VI–VIII, pruh 300 m, −60 % (okraje −30 %), × (1 − 0,4 × zeleň), bez směru; sad −40 %, střechy o rok             | Martin (27. 10. 2026)                                  |
+| Povodeň podle doby návratu (malá až tisíciletá), o stupeň výš po dlouhé zimě / v mokrém létě                                | Martin (27. 10. 2026)                                  |
+| Škody povodně po stupních hloubky; od pětisetleté vody 2 % úmrtí v zatopeném domě; naplavenina +10/20/30 %, strop 130 %     | Martin (27. 10. 2026)                                  |
+| Požár 0,4 %/stavbu/rok s násobky; přeskok 70 % / 40 %, zeleň půlí; stoh do 12 m; lidé neumírají                             | Martin (27. 10. 2026)                                  |
+| Hasí všichni dospělí řetězem s vědry od nejbližší vody, rovnoměrně, účinnost min(1; 2,5 ÷ rozestup)                         | Martin (27. 10. 2026)                                  |
+| Smršť (tornádo) v první fázi s obvyklou středoevropskou četností                                                            | Martin (27. 10. 2026)                                  |
+| Smršť: stopa ze seedu mapy, 0,5 / 10 000 km² ročně, síly F0–F4, úmrtí jen F3–F4 („Takhle vzácné tornádo je dobré“)          | Martin (27. 10. 2026), čísla návrh Clauda (rešerše §6) |
+| Ve scéně: návrh Clauda („Jinak je to dobré“); v suchu slunce praží, při kroupách scéna potemní a blýská se                  | Martin (27. 10. 2026)                                  |
+| Četnosti léta a zimy v tabulkách; zlé roky se shlukují ×1,25; násobí se hrubá úroda, osivo celé                             | návrh Clauda (rešerše), schváleno                      |
+| Osev počítá s průměrem let 0,95; paměť hladu – pojistka 0,75 na 10 let po krutém roce                                       | návrh Clauda, schváleno                                |
+| Seno s rezervou +15 %; seč plánuje s letošním výnosem                                                                       | návrh Clauda, schváleno                                |
+| Sousedé po zlém roce: poloviční zásoba obilí a ×1,5 cena; po krutém čtvrtinová a ×2                                         | návrh Clauda (rešerše), schváleno                      |
+| Seed počasí mapy na serveru (ne seed krajiny), klient vidí jen počasí, které už nastalo                                     | návrh Clauda                                           |
+| Řetězové šíření požáru; čísla škod povodně a smrště; co je zeleň, solitér, u vody, vyvýšené a svah                          | návrh Clauda                                           |
 
-## Otázky pro Martina
+## Otázky pro Martina – rozhodnuto 27. 10. 2026
 
-1. **Kraj:** má mít **celý svět stejné počasí** (všichni hráči mají zlý rok naráz, sousedé
-   zdraží – jako 1281–1282 v celých Čechách), nebo **každá ves vlastní** ze svého seedu? Návrh:
-   celý svět, dokud není mapa světa s kraji.
-2. **Hájení:** „hájení i na neúrodu“ – stačí v prvních 30 letech **poloviční síla** a prvních
-   5 let bez místních pohrom, nebo má být ves v hájení **úplně bez pohrom**?
-3. **Požár, nebo dobytčí mor** do první fáze? Návrh: požár (je vidět, obilné jámy dostanou smysl);
-   mor skotu (≈ 60 % skotu i s voly – rána pro orbu, v raném středověku dobře doložený) ve fázi 2.
-4. **Dějiny v kalendáři světa:** svět startuje roku 500 – chladná léta **536 – ≈ 660** (sopky,
-   Büntgen 2016; od startu ≈ 13 dní skutečného času), hladomor **1281–1282**, sarančata **1338**.
-   Mají přijít jako **pevné události světa**, nebo jen náhoda? Návrh: 536–545 deset let s častějším
-   zlým létem jako první velká zkouška, 1281–1282 a 1338 pevně.
-5. **Síla:** krutý rok ≈ 1 z 10–12 let (≈ 4 dny skutečného času), dva kruté za sebou ≈ jednou
-   za století (≈ 37 dní, za rok hry ≈ 10×). Je to ten „hukot“, nebo častěji / řidčeji?
+1. **Kraj** – „První možnost“: počasí pro celou mapu, kroupy, povodeň a požár po vsích.
+2. **Hájení** – „Pětiletou ochranu“: 5 let bez místních pohrom, bez poloviční síly počasí.
+3. **Požár, nebo dobytčí mor** – „Pojďme na požár“: požár v první fázi, mor ve druhé.
+4. **Dějiny v kalendáři** – „Ne, pevné historické události zatím nebudou“.
+5. **Síla** – Martin prošel a schválil četnosti každé pohromy zvlášť (sucho, deštivé léto, krutá
+   zima, kroupy, povodeň, požár); tornádo s obvyklou středoevropskou četností.
+
+**Drobnosti návrhu Clauda, které se ověří při implementaci** (Martin je může kdykoli změnit):
+řetězové šíření požáru (oheň skáče dál z každé stavby, která chytí), čísla škod povodně podle
+hloubky, škody smrště podle síly a povodeň po vsích – dvě vsi na témž potoce mohou mít v jednom
+roce jinou vodu.
