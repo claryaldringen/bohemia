@@ -65,6 +65,7 @@ import {
   workSlaughter,
 } from './livestock';
 import { ploughCapacityPerDay, ploughPairsHome, villageOxen } from './oxen';
+import { fireFighting } from './firefighting';
 import { morningWater, ploughWindowsToday, villagersToday } from './morning-water';
 import { surplusFieldDay, surplusWantsTeam } from './surplus-fields';
 import { threshingFloorHaulPoints } from './threshing-floors';
@@ -108,8 +109,18 @@ import type {
   CraftCoverage,
   Crop,
   CropWork,
+  FieldPart,
+  SeedKg,
   VillageState,
 } from './types';
+import {
+  foodUntilHarvestKg,
+  seedSowCap,
+  seedUseKg,
+  seedStore,
+  sowableSeedKg,
+  takeSeed,
+} from './seed';
 import {
   TASK_ORDER,
   activeTasks,
@@ -150,6 +161,8 @@ import {
   occupiedDwellings,
   villageProductivity,
 } from './simulate-plan';
+import { WEATHER_EFFECTS } from './rules-disasters';
+import { springSowingExtended, springSowingHeld } from './weather-effects';
 
 /**
  * Polní úlohy dne: práce plánu po plodinách (bez výmlatu – ten mlátí snopy, `threshTasks`), orba
@@ -165,20 +178,49 @@ export function fieldTasks(
 ): FieldTaskEntry[] {
   const month = dateOfDayIndex(day).month;
   const entries: FieldTaskEntry[] = [];
+  // setí jen na tolik dílů, na kolik má ves osivo (fields.md – Úroda, Osivo ze zásob)
+  let seed: { byId: Map<number, FieldPart>; sowable: SeedKg } | null = null;
+  const seedCap = (crop: Crop, work: CropWork, wanted: number): number => {
+    if (work.seedKg === undefined) return wanted;
+    if (!seed) {
+      const food = foodUntilHarvestKg(state, day);
+      seed = {
+        byId: new Map(state.parts.map((p) => [p.id, p])),
+        sowable: {
+          grain: sowableSeedKg(state, 'grain', food),
+          legumes: sowableSeedKg(state, 'legumes', food),
+        },
+      };
+    }
+    const allowed = Math.min(wanted, seedSowCap(work, crop, seed.byId, seed.sowable));
+    // osivo, které tato plodina dnes vezme, další plodiny téhož dne už nedostanou
+    const store = seedStore(crop);
+    if (store !== null && allowed > 0) {
+      seed.sowable[store] -= seedUseKg(work, crop, seed.byId, allowed, seed.sowable[store]);
+    }
+    return allowed;
+  };
   const add = (crop: Crop, work: CropWork, name: CropTask): void => {
-    const end = windowEndOf(cropTaskWindows(crop, name), month);
+    const end =
+      windowEndOf(cropTaskWindows(crop, name), month) ??
+      (name === 'sow' && springSowingExtended(state, day, crop) ? month : null);
     if (end === null) return;
     const order =
       TASK_ORDER.indexOf(name === 'plough' ? 'dig' : name) - (name === 'plough' ? 0.5 : 0);
     const rank = CROP_ORDER.indexOf(crop) * TASK_ORDER.length + order;
-    const remaining = neededTaskRemaining(work, name);
+    let remaining = neededTaskRemaining(work, name);
+    if (name === 'sow' && remaining > 0) remaining = seedCap(crop, work, remaining);
     if (remaining > 0) entries.push({ name, crop, remaining, work, end, rank });
   };
   if (state.season !== null) {
     for (const { crop, work } of seasonCrops(state.season)) {
       // díly nad potřebu dostanou práci až po stavbách (`surplusFieldDay`)
       if (work.surplus) continue;
-      for (const name of activeTasks(work, day, crop)) if (name !== 'thresh') add(crop, work, name);
+      // dlouhá zima drží setí jařin do 22. 3. (disasters.md – Zima)
+      const held = springSowingHeld(state, day, crop);
+      for (const name of activeTasks(work, day, crop, springSowingExtended(state, day, crop))) {
+        if (name !== 'thresh' && !(held && name === 'sow')) add(crop, work, name);
+      }
       if (neededTaskRemaining(work, 'plough') > 0) add(crop, work, 'plough');
     }
   }
@@ -396,6 +438,13 @@ export function work(
   const burners = burnerPlans(state, day, coverage, productivity);
   const resting = restingCrafters(state, day, coverage, productivity, obstacles, burners);
   for (const [id, activity] of restingCarpenters(state, day, obstacles)) resting.set(id, activity);
+  // v den požáru hasí i řemeslníci – dílny dnes stojí (disasters.md – Hašení)
+  // uhlíř hasí taky: milíř ten den stojí bez dozoru (pálení se o den odloží, nic se nezkazí),
+  // proto se zruší i plán dne (vytahání uhlí, začátek milíře) – návrh Clauda
+  if (fireFighting(state, day)) {
+    burners.clear();
+    for (const d of state.dwellings) if (d.workshop) resting.set(d.id, 'resting');
+  }
   const crafts = craftHouseholds(state, resting);
   // kdo jde pro kování k vozu, ve vsi ani v dílně nepracuje (wagons.md – Kování vozů)
   const travelling = ironTravellers(state);
@@ -664,6 +713,10 @@ export function work(
       const before = cropTaskDone(task.field.work, task.field.name);
       addCropTaskWork(task.field.work, task.field.name, amount);
       const after = cropTaskDone(task.field.work, task.field.name);
+      // osivo zaseté části ze zásob v den setí (fields.md – Úroda, Osivo ze zásob)
+      if (task.field.name === 'sow' && after > before) {
+        takeSeed(state, task.field.work, task.field.crop, partsById);
+      }
       fieldWork.push({
         task: task.field.name,
         work: task.field.work,
@@ -677,7 +730,7 @@ export function work(
       threshing.floor += split.floor;
       threshing.ground += split.ground;
     } else if (task.name === 'mow') {
-      mow(state, amount);
+      mow(state, amount, day);
       mowLabor = haul ? labor - crew : labor;
       mowWork += amount;
     } else if (task.name === 'slaughter') {
@@ -798,7 +851,7 @@ export function work(
     0,
     Math.min(afterBuild.left - surplus.labor, mowingRemaining(state, day)),
   );
-  if (extraMow > EPSILON) mow(state, extraMow);
+  if (extraMow > EPSILON) mow(state, extraMow, day);
   if (!state.hungry) {
     game = smallGameDay(state, day, afterBuild.left - surplus.labor - extraMow, false);
   }
@@ -934,7 +987,11 @@ export function work(
   const seasonTasks = [
     ...owned.map((task) => ({
       remaining: neededTaskRemaining(task.work, task.name),
-      endDay: windowEndDay(cropTaskWindows(task.crop, task.name), day) ?? day,
+      endDay:
+        windowEndDay(cropTaskWindows(task.crop, task.name), day) ??
+        (task.name === 'sow' && springSowingExtended(state, day, task.crop)
+          ? day + WEATHER_EFFECTS.longWinterSpringSowExtraDays - dateOfDayIndex(day).day
+          : day),
     })),
     ...threshSeasonTasks(state, day),
   ];

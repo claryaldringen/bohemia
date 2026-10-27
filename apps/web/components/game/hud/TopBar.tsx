@@ -1,7 +1,23 @@
 'use client';
 
-import { useEffect, useState, type ReactElement, type ReactNode } from 'react';
-import { getWorldState, type TimeSkip, type WorldClock } from '@bohemia/game';
+import { useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
+import {
+  BAD_YEAR_KINDS,
+  FORCED_DISASTER_KINDS,
+  getWorldState,
+  type BadYearKind,
+  type ForcedDisasterKind,
+  type TimeSkip,
+  type WorldClock,
+} from '@bohemia/game';
+import {
+  floodLabel,
+  summerLabel,
+  WEATHER_ICONS,
+  winterLabel,
+  type WeatherView,
+} from '@/lib/disasters-view';
+import { useDismiss } from '@/hooks/use-dismiss';
 import { dateRefreshDelay, formatWorldState } from '@/lib/game-date';
 import { MENU_HOTKEY } from '@/lib/game-menu';
 import { formatDecimal, formatInteger, formatPercent } from '@/lib/village-format';
@@ -240,6 +256,52 @@ function CraftStocks({ crafts }: { crafts: VillageView['crafts'] }): ReactElemen
   );
 }
 
+/**
+ * Počasí roku v liště (disasters.md – Co hráč vidí): ikona zimy, léta a povodně, jen když nejsou
+ * obyčejné a už jsou vidět; slova jen v popisku.
+ */
+export function WeatherIcons({ weather }: { weather: WeatherView }): ReactElement {
+  return (
+    <>
+      {weather.winter && (
+        <span
+          data-testid="village-weather-winter"
+          data-weather={weather.winter}
+          className="contents"
+        >
+          <Resource
+            icon={WEATHER_ICONS[weather.winter]}
+            name={winterLabel(weather.winter)}
+            testId="village-weather-winter-value"
+          />
+        </span>
+      )}
+      {weather.summer && (
+        <span
+          data-testid="village-weather-summer"
+          data-weather={weather.summer}
+          className="contents"
+        >
+          <Resource
+            icon={WEATHER_ICONS[weather.summer]}
+            name={summerLabel(weather.summer)}
+            testId="village-weather-summer-value"
+          />
+        </span>
+      )}
+      {weather.flood && (
+        <span data-testid="village-flood" data-level={weather.flood.level} className="contents">
+          <Resource
+            icon={WEATHER_ICONS.flood}
+            name={floodLabel(weather.flood)}
+            testId="village-flood-value"
+          />
+        </span>
+      )}
+    </>
+  );
+}
+
 function IconButton({
   label,
   tooltip,
@@ -354,6 +416,106 @@ export function DevVillageButton({
   );
 }
 
+/** Vynutit zlý rok – ikona a popisek druhu (vývojový režim). */
+const BAD_YEAR_LOOKS: Record<BadYearKind, { icon: string; label: string }> = {
+  dry: { icon: 'drought', label: 'Suché léto' },
+  drought: { icon: 'drought', label: 'Kruté sucho' },
+  wet: { icon: 'rain', label: 'Deštivé léto' },
+  wetHarvest: { icon: 'rain', label: 'Mokré žně' },
+  blackFrost: { icon: 'frost', label: 'Holomráz' },
+  long: { icon: 'frost', label: 'Dlouhá sněžná zima' },
+};
+
+/** Vynutit pohromu na zítřek – ikona a popisek druhu (vývojový režim). */
+const DISASTER_LOOKS: Record<ForcedDisasterKind, { icon: string; label: string }> = {
+  hail: { icon: 'hail', label: 'Kroupy' },
+  flood: { icon: 'flood', label: 'Stoletá voda' },
+  fire: { icon: 'fire', label: 'Požár' },
+  tornado: { icon: 'tornado', label: 'Smršť' },
+};
+
+/** Vynucení pohrom ve vývojovém režimu – co čeká na server, nebo null. */
+export type DevDisasterChoice =
+  { kind: 'year'; value: BadYearKind } | { kind: 'disaster'; value: ForcedDisasterKind };
+
+/**
+ * Vývojový režim (disasters.md – plán P10): „Vynutit zlý rok“ (letošní léto či zima – ukáže se,
+ * až bude vidět) a „Vynutit pohromu“ (zítra) – každé otevře řadu ikon druhů pod lištou.
+ */
+export function DevDisasterButtons({
+  pending,
+  onForce,
+}: {
+  pending: boolean;
+  onForce: (choice: DevDisasterChoice) => void;
+}): ReactElement {
+  const [open, setOpen] = useState<'year' | 'disaster' | null>(null);
+  const ref = useRef<HTMLSpanElement>(null);
+  useDismiss(open !== null, ref, () => setOpen(null));
+  const choices: { key: string; icon: string; label: string; choice: DevDisasterChoice }[] =
+    open === 'year'
+      ? BAD_YEAR_KINDS.map((value) => ({
+          key: value,
+          ...BAD_YEAR_LOOKS[value],
+          choice: { kind: 'year', value },
+        }))
+      : open === 'disaster'
+        ? FORCED_DISASTER_KINDS.map((value) => ({
+            key: value,
+            ...DISASTER_LOOKS[value],
+            choice: { kind: 'disaster', value },
+          }))
+        : [];
+  return (
+    <span ref={ref} data-testid="dev-disasters" className="relative flex items-center">
+      <IconButton
+        label="Vynutit zlý rok"
+        tooltip={<span className="whitespace-nowrap">Vynutit zlý rok</span>}
+        testId="dev-bad-year"
+        expanded={open === 'year'}
+        disabled={pending}
+        busy={pending}
+        onClick={() => setOpen(open === 'year' ? null : 'year')}
+      >
+        <img src="/icons/resources/drought.png" alt="" width={20} height={20} />
+      </IconButton>
+      <IconButton
+        label="Vynutit pohromu"
+        tooltip={<span className="whitespace-nowrap">Vynutit pohromu</span>}
+        testId="dev-disaster"
+        expanded={open === 'disaster'}
+        disabled={pending}
+        busy={pending}
+        onClick={() => setOpen(open === 'disaster' ? null : 'disaster')}
+      >
+        <img src="/icons/resources/tornado.png" alt="" width={20} height={20} />
+      </IconButton>
+      {choices.length > 0 && (
+        <span
+          data-hud-block
+          data-testid="dev-disaster-choices"
+          className="hud-panel absolute top-10 right-0 flex gap-1 p-1"
+        >
+          {choices.map(({ key, icon, label, choice }) => (
+            <IconButton
+              key={key}
+              label={label}
+              tooltip={<span className="whitespace-nowrap">{label}</span>}
+              testId={`dev-force-${key}`}
+              onClick={() => {
+                setOpen(null);
+                onForce(choice);
+              }}
+            >
+              <img src={`/icons/resources/${icon}.png`} alt="" width={22} height={22} />
+            </IconButton>
+          ))}
+        </span>
+      )}
+    </span>
+  );
+}
+
 /**
  * Horní lišta jako v 0 A.D.: jméno vsi (přepínač vsí hráče – migration.md; dvojklik nebo tužka =
  * přejmenovat), ikony s čísly – lidé, obilí, maso, mléko a sýr (když je sýr nebo se dojí), ovoce
@@ -375,6 +537,7 @@ export function TopBar({
   onSelectVillage,
   devTime,
   devVillage = null,
+  devDisasters = null,
 }: {
   view: VillageView | null;
   /** Hodiny světa hráče – ve vývojovém režimu posunuté o jeho posun času. */
@@ -392,6 +555,8 @@ export function TopBar({
   devTime: { pending: TimeSkip | null; onSkip: (skip: TimeSkip) => void } | null;
   /** Vývojový režim – druhá ves na téže mapě; bez něj (nebo bez vsi) null. */
   devVillage?: { pending: boolean; onFound: () => void } | null;
+  /** Vývojový režim – vynutit zlý rok a pohromu; bez něj (nebo bez vsi) null. */
+  devDisasters?: { pending: boolean; onForce: (choice: DevDisasterChoice) => void } | null;
 }): ReactElement {
   const [nowMs, setNowMs] = useState(initialNowMs);
   // Datum se obnoví na začátku dalšího herního dne (ostrý svět ≈ 86 s), ne každou sekundu –
@@ -480,6 +645,7 @@ export function TopBar({
           <Resource icon="happiness" name="Štěstí" testId="village-happiness">
             {Math.round(view.happiness.value)}
           </Resource>
+          {view.weather && <WeatherIcons weather={view.weather} />}
         </div>
       )}
       <div className="ml-auto flex items-center gap-1">
@@ -491,6 +657,9 @@ export function TopBar({
         {devTime && <DevTimeButtons pending={devTime.pending} onSkip={devTime.onSkip} />}
         {devVillage && (
           <DevVillageButton pending={devVillage.pending} onFound={devVillage.onFound} />
+        )}
+        {devDisasters && (
+          <DevDisasterButtons pending={devDisasters.pending} onForce={devDisasters.onForce} />
         )}
         <span className="mx-1 h-6 border-l border-[#5c4526]" aria-hidden />
         <IconButton

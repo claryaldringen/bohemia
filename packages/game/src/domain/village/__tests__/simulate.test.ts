@@ -13,11 +13,20 @@ import {
 } from '../rules';
 import { packObstacles } from '../../landscape';
 import { villageLaborFactor } from '../happiness';
+import { arrangeMarriages } from '../marriage';
 import { advanceVillage } from '../simulate';
 import { availableSettlers, waitingHouseholds } from '../households';
 import { withKinship } from '../kinship';
 import { freshWildlife } from '../wildlife';
-import type { ChronicleEvent, Dwelling, Person, VillageState } from '../types';
+import type {
+  ChronicleEvent,
+  Dwelling,
+  FarmSeason,
+  FieldPart,
+  Person,
+  VillageState,
+} from '../types';
+import { workSeedKg } from '../seed';
 import { sheafWork, villageSheaves } from '../threshing';
 import {
   createPlan,
@@ -96,6 +105,54 @@ const adultOfAge = (id: number, years: number, day: number): Person => ({
 });
 
 describe('advanceVillage – dopočítání', () => {
+  it('sňatky čekající na zásoby – po kouscích stejně jako jedním voláním (6 let)', () => {
+    // po hájení a bez zásob: svatby čekají (kinship.md – Sňatky čekají na zásoby), los a naplnění
+    // pojistky jsou ze dne – výsledek nezávisí na kouscích dopočtu
+    const start = found(at(600, 3, 15));
+    start.foundedDay = start.lastDay - Math.ceil(40 * YEAR);
+    start.storesKg = 0;
+    const end = at(606, 3, 15);
+    const whole = advanceVillage(start, end, null);
+    let chunked = start;
+    const steps = [1, 45, 400, 3, 365, 777];
+    for (let i = 0; chunked.lastDay < end; i++) {
+      chunked = advanceVillage(
+        chunked,
+        Math.min(end, chunked.lastDay + steps[i % steps.length]!),
+        null,
+      );
+    }
+    expect(chunked).toEqual(whole);
+  });
+
+  it('pod pojistkou svatba opravdu čeká – snoubenci, kteří by se s plnou pojistkou vzali, čekají (A)', () => {
+    // kinship.md – Sňatky čekají na zásoby: ves po hájení se zásobami pod pojistkou a dvěma
+    // svobodnými dospělými; s plnou pojistkou by se vzali hned (arrangeMarriages bez pojistky na
+    // stavu z předchozího dne), v dopočtu svatba aspoň den čeká na zásoby
+    let s = found(at(600, 3, 15));
+    s.foundedDay = s.lastDay - Math.ceil(40 * YEAR);
+    s.storesKg = 300;
+    const adult = s.people.find((p) => ageYears(p.bornDay, s.lastDay) >= AGE.adult)!;
+    for (const [id, sex] of [
+      [901, 'male'],
+      [902, 'female'],
+    ] as const) {
+      const single: Person = { ...adult, id, sex, bornDay: s.lastDay - Math.ceil(20 * YEAR) };
+      delete single.spouseId;
+      s.people.push(single);
+    }
+    let waited = 0;
+    for (let d = s.lastDay + 1; d <= at(600, 6, 15) && waited === 0; d++) {
+      const ready = arrangeMarriages(structuredClone(s), d).filter(
+        (e) => e.kind === 'marriage',
+      ).length;
+      s = advanceVillage(s, d, null);
+      const wed = s.chronicle.filter((e) => e.day === d && e.kind === 'marriage').length;
+      if (ready > wed && s.people.some((p) => p.id === 901 || p.id === 902)) waited++;
+    }
+    expect(waited).toBeGreaterThan(0);
+  }, 120_000);
+
   it('(a) po kouscích dá stejný stav jako jedním voláním (10 let)', () => {
     const start = found(at(600, 3, 15));
     const end = at(610, 3, 15);
@@ -285,6 +342,16 @@ describe('advanceVillage – dopočítání', () => {
   });
 });
 
+/** Plán bez osiva ze zásob (převod – `CropWork.seedKg` chybí). */
+/** Plán s osivem zaplaceným předem (celé osivo plánu vzaté) – setí osivo neomezí. */
+function prepaidSeed(plan: FarmSeason, parts: FieldPart[]): FarmSeason {
+  const byId = new Map(parts.map((p) => [p.id, p]));
+  return {
+    ...plan,
+    crops: plan.crops.map((crop) => ({ ...crop, seedKg: workSeedKg(crop, byId, crop.crop) })),
+  };
+}
+
 describe('advanceVillage – roční plán a sklizeň', () => {
   it('díl dokončený na podzim hned založí plán a další díly ho rozšíří (Ruling 2)', () => {
     // první díl (2,25 čd) se dělí o společnou práci se stavbou první zemnice – stačí pár dní
@@ -328,11 +395,13 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     );
     expect(s.storesKg).toBeLessThan(before.storesKg);
 
-    // v září vymlácená celá sklizeň – do zásob (bez toho, co se za září snědlo)
+    // v září vymlácená celá sklizeň – do zásob (bez toho, co se za září snědlo, a osiva ozimu,
+    // které vzalo setí – fields.md, Úroda, Osivo ze zásob)
     const threshed = advanceVillage(s, at(600, 9, 30), null);
     expect(villageSheaves(threshed)).toEqual({ grainKg: 0, legumesKg: 0 });
     const need = s.people.reduce((sum, p) => sum + foodNeedPerDay(p, s.lastDay), 0);
-    expect(threshed.storesKg).toBeGreaterThan(s.storesKg + (harvest?.kg ?? 0) - 30 * need);
+    const seed = seasonCrops(threshed.season!).reduce((sum, c) => sum + (c.work.seedKg ?? 0), 0);
+    expect(threshed.storesKg).toBeGreaterThan(s.storesKg + (harvest?.kg ?? 0) - 30 * need - seed);
     expect(threshed.threshingSeason).not.toBeNull();
     expect(advanceVillage(threshed, at(600, 10, 1), null).threshingSeason).toBeNull();
   });
@@ -468,14 +537,15 @@ describe('advanceVillage – roční plán a sklizeň', () => {
 
   it('31. 8. se jí ještě z loňských zásob: malá sklizeň hlad nepřeruší (Ruling 13)', () => {
     const s = advanceVillage(hungryBeforeHarvest(10), at(600, 9, 2), null);
-    expect(harvests(s)).toEqual([{ day: at(600, 8, 31), kind: 'harvest', kg: 101 }]);
+    // úroda bez odečtu osiva – osivo vzalo setí (fields.md – Úroda, Osivo ze zásob)
+    expect(harvests(s)).toEqual([{ day: at(600, 8, 31), kind: 'harvest', kg: 140 }]);
     expect(hungerEvents(s)).toEqual([]);
     expect(s.hungry).toBe(true);
   });
 
   it('sklizeň, která vystačí na rok, ukončí hlad až 1. 9. (Ruling 13)', () => {
     const s = advanceVillage(hungryBeforeHarvest(START_PARTS), at(600, 9, 2), null);
-    expect(harvests(s)).toEqual([{ day: at(600, 8, 31), kind: 'harvest', kg: 756 }]);
+    expect(harvests(s)).toEqual([{ day: at(600, 8, 31), kind: 'harvest', kg: 1052 }]);
     expect(hungerEvents(s)).toEqual([{ day: at(600, 9, 1), kind: 'hunger-ended' }]);
     expect(s.hungry).toBe(false);
   });
@@ -510,7 +580,8 @@ describe('advanceVillage – roční plán a sklizeň', () => {
       p.foundingDone = p.foundingCost;
       p.state = 'sown';
     }
-    s0.season = createPlan(s0.parts, at(600, 9, 1), NO_CRAFTS.tools);
+    // osivo zaplacené předem: měří se setí za kopáním, ne osivo (fields.md – Úroda, Osivo ze zásob)
+    s0.season = prepaidSeed(createPlan(s0.parts, at(600, 9, 1), NO_CRAFTS.tools), s0.parts);
 
     const spring = advanceVillage(s0, at(601, 4, 30), null);
     const dig = {
@@ -546,7 +617,8 @@ describe('advanceVillage – roční plán a sklizeň', () => {
       p.foundingDone = p.foundingCost;
       p.state = 'sown';
     }
-    s0.season = createPlan(s0.parts, at(600, 9, 1), NO_CRAFTS.tools);
+    // osivo zaplacené předem: měří se setí za kopáním, ne osivo (fields.md – Úroda, Osivo ze zásob)
+    s0.season = prepaidSeed(createPlan(s0.parts, at(600, 9, 1), NO_CRAFTS.tools), s0.parts);
     // bez zvěře (jen vrány berou 2 % úrody, wildlife.md – Škody) – tady se měří setí a plán
     s0.wildlife = freshWildlife({ forestHa: 0, openHa: 0, waterHa: 0, pools: 0 }, 0);
     s0.wildlife.boar = { adults: 0, piglets: 0 };
@@ -570,7 +642,7 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     const inPlan = new Set(springCrop(plan).partIds);
     const ha =
       s0.parts.filter((p) => inPlan.has(p.id)).reduce((sum, p) => sum + p.areaM2, 0) / 10_000;
-    const fullYield = ha * sownShare * (760 * (0.4 + 0.6 * 0.7) - 175);
+    const fullYield = ha * sownShare * 760 * (0.4 + 0.6 * 0.7);
     // vrány: nejvýš 2 % hrubé úrody (≈ 760 × 0,82 kg/ha), nic víc
     const kg = harvests(s).at(-1)!.kg;
     expect(kg).toBeLessThanOrEqual(Math.round(fullYield));

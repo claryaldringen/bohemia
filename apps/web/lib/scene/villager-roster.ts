@@ -39,7 +39,9 @@ export type PersonJob =
    */
   | { kind: 'lord'; household: boolean }
   /** Dítě s řehtačkou na hlídaném dílu (wildlife.md – Noční hlídka; jen zobrazení). */
-  | { kind: 'watch' };
+  | { kind: 'watch' }
+  /** Řetěz s vědry v den požáru (disasters.md – Hašení – řetěz s vědry). */
+  | { kind: 'fire' };
 
 /** Koho postava chce – věk, domácnost, pohlaví. */
 export interface PersonRequest {

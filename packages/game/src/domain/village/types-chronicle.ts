@@ -7,6 +7,7 @@ import type { AbandonedStructure, Crop, TileCell } from './types-land';
 import type { HerdSpecies } from './types-livestock';
 import type { DwellingType } from './types-people';
 import type { HuntKills } from './types-wildlife';
+import type { FloodLevel, SummerWeather, TornadoStrength, WinterWeather } from './types-disasters';
 import type { CartJob, CartKind } from './types-roads';
 import type { Direction8 } from './types-state';
 import type {
@@ -65,7 +66,7 @@ export type ChronicleEvent = { day: number } & (
       kind: 'death';
       group: 'child' | 'adult' | 'elder';
       age?: number;
-      cause?: 'hunger' | 'hunt';
+      cause?: 'hunger' | 'hunt' | 'flood' | 'tornado';
       /** Zvěř, na jejímž lovu muž zahynul (`cause: 'hunt'`). */
       prey?: 'boar' | 'bear';
       name?: string;
@@ -282,6 +283,22 @@ export type ChronicleEvent = { day: number } & (
       get: CraftPurchaseGoods;
       pay: CraftPurchasePay;
     }
+  /**
+   * Ves koupila u sousedů osivo na setí nutných dílů (fields.md – Osivo pro ves bez zásob): kg
+   * obilí na osivo, obilí do zásob za přeplatek posledního kusu dobytka (`changeKg`; chybí = nic)
+   * a čím platila – hřivny (kg) a krávy (kusy).
+   */
+  | {
+      kind: 'seed-bought';
+      seedKg: number;
+      changeKg?: number;
+      pay: { ironBarsKg?: number; cows?: number };
+    }
+  /**
+   * Ves nemá osivo na setí nutných dílů a koupit ho nemohla (fields.md – Osivo pro ves bez zásob):
+   * kolik osiva chybí (kg) – nemá čím zaplatit (`pay`), nebo sousedé obilí nemají (`supply`).
+   */
+  | { kind: 'seed-short'; shortKg: number; reason: 'pay' | 'supply' }
   /** Tesař vyrobil vůz (wagons.md – Tesař). */
   | { kind: 'cart-made'; cart: CartKind }
   /**
@@ -324,6 +341,77 @@ export type ChronicleEvent = { day: number } & (
    * plot hřbitova (i spadlý postavili znovu) nebo ohradu – id stavby.
    */
   | { kind: 'structure-repaired'; structure: AbandonedStructure; id: number }
+  /**
+   * Ukázalo se počasí roku kraje (disasters.md – Léto, Zima, „Kdy je vidět“): zlá zima, nebo
+   * neobvyklé léto (mokré žně jsou 1. 6. deštivé léto, 15. 7. mokré žně).
+   */
+  | { kind: 'weather'; summer?: SummerWeather; winter?: WinterWeather }
+  /**
+   * Požár (disasters.md – Požár): chytlo obydlí `startedDwellingId`, shořela obydlí
+   * `burnedDwellingIds` (včetně něj); ztráty zásob v kg (zrno mimo jámy, maso, sýr, seno).
+   */
+  | {
+      kind: 'fire';
+      startedDwellingId: number;
+      burnedDwellingIds: number[];
+      /** Z nich zřícená (dům na nulu) – ostatní stojí ohořelé; chybí v kronice uložené dřív (všechna). */
+      collapsedDwellingIds?: number[];
+      lostGrainKg: number;
+      lostMeatKg: number;
+      lostCheeseKg: number;
+      lostHayKg: number;
+      /** Zásoby shořelých dílen (kg): uhlí a železo kovárny, keramika hrnčířství; starší zápisy chybí. */
+      lostCharcoalKg?: number;
+      lostIronKg?: number;
+      lostPotteryKg?: number;
+    }
+  /**
+   * Kroupy (disasters.md – Kroupy): pruh potloukl nesklizené díly `partIds` a střechy staveb
+   * `dwellingIds`; `meadowShare` = podíl sena nesečené louky, který ubyl, `appleShare` = podíl
+   * letošních jablek, který ubyl (chybí = nic).
+   */
+  | {
+      kind: 'hail';
+      partIds: number[];
+      dwellingIds: number[];
+      meadowShare?: number;
+      appleShare?: number;
+    }
+  /**
+   * Povodeň (disasters.md – Povodeň potoka): voda kraje stupně `level` (`heightM` nad hladinou
+   * potoka) zatopila díly `partIds` a stavby `dwellingIds`, z nich `collapsedDwellingIds` se
+   * zřítily; `meadowShare` = podíl sena nesečené louky, který ubyl, `lostGrainKg` = zrno, které
+   * zateklo do jam. Úmrtí jsou zvlášť (`death`, `cause: 'flood'`).
+   */
+  | {
+      kind: 'flood';
+      level: FloodLevel;
+      heightM: number;
+      partIds: number[];
+      dwellingIds: number[];
+      collapsedDwellingIds: number[];
+      meadowShare?: number;
+      lostGrainKg?: number;
+    }
+  /**
+   * Smršť (disasters.md – Smršť (tornádo)) síly `strength`: pás poničil stavby `dwellingIds`,
+   * z nich `collapsedDwellingIds` se zřítily, polehlé nesklizené díly `partIds`; `uprootedTrees`
+   * = vyvrácené stromy v okolí vsi (kmeny na hromadě klád), `orchardSquares` = vyvrácené čtverce
+   * sadů, `roadApples` = vyvrácené jabloně u cest, `meadowShare` = podíl sena nesečené louky,
+   * který ubyl, `lostHayKg` = rozmetané seno stohů. Úmrtí jsou zvlášť (`death`, `cause: 'tornado'`).
+   */
+  | {
+      kind: 'tornado';
+      strength: TornadoStrength;
+      partIds: number[];
+      dwellingIds: number[];
+      collapsedDwellingIds: number[];
+      uprootedTrees: number;
+      orchardSquares?: number;
+      roadApples?: number;
+      meadowShare?: number;
+      lostHayKg?: number;
+    }
   | {
       kind: 'cemetery-full';
       cemeteryId: number;

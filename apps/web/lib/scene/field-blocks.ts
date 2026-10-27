@@ -5,7 +5,9 @@ import {
   emptyCrops,
   fieldPlants,
   lookStyle,
+  frostSpot,
   patchNoise,
+  tintedBy,
   type FieldPlants,
   type FieldTexture,
   type PlantInstance,
@@ -14,6 +16,12 @@ import { emptyCanopy, fieldCanopy, mergeCanopies, type CanopyMesh } from './fiel
 import type { PartView } from './field-look';
 import { swathAlpha } from './hay-meadows';
 import { decalGrid, type Bounds, type DecalGrid } from './village-layout';
+
+/** Hlína vymrzlého ozimu – jako oseté pole (`sown`) před vzejitím. */
+const SOIL_STYLE = lookStyle('sown');
+/** Krytí hlíny ve skvrnách vymrzlého ozimu a o kolik zřídnou zelené řádky vzcházejícího ozimu. */
+const FROST_SOIL_ALPHA = 0.85;
+const FROST_SPROUTS = 0.5;
 
 /**
  * Pole po blocích dílů (field-renderer.ts) – čisté funkce bez Babylonu. Obtisky a trsy dílu
@@ -127,9 +135,10 @@ export function fieldBlockContent(
     const step = tracked ? base / TRACK_DETAIL.decal : base;
     const grid = decalGrid(piece.bounds, step, coverage);
     if (grid.indices.length === 0) continue;
+    const bare = piece.weather?.bare ?? 0;
     const ground = layer(style.texture, false);
     ground.grids.push(grid);
-    ground.colors.push(style.tint);
+    ground.colors.push(tintedBy(style.tint, piece.tint));
     ground.alphas.push(style.alpha);
     ground.rows.push(piece.rows);
     if (style.patches) {
@@ -143,8 +152,22 @@ export function fieldBlockContent(
       if (fine.indices.length > 0) {
         const patches = layer(style.patches.texture, true);
         patches.grids.push(fine);
-        patches.colors.push(style.patches.tint);
-        patches.alphas.push(style.patches.alpha);
+        patches.colors.push(tintedBy(style.patches.tint, piece.tint));
+        // vymrzlý ozim: řidší zelené řádky vzcházejícího obilí – víc hlíny
+        patches.alphas.push(style.patches.alpha * (1 - FROST_SPROUTS * bare));
+        patches.rows.push(piece.rows);
+      }
+    }
+    // vymrzlý ozim (holomráz): ve skvrnách, kde trsy chybí (`frostSpot`), prosvítá hlína
+    if (bare > 0 && style.crop && style.texture !== SOIL_STYLE.texture) {
+      const soil = decalGrid(piece.bounds, tracked ? step : step / 2, (x, z) =>
+        Math.min(1, coverage(x, z) * frostSpot(x, z) * 1.4),
+      );
+      if (soil.indices.length > 0) {
+        const patches = layer(SOIL_STYLE.texture, true);
+        patches.grids.push(soil);
+        patches.colors.push(SOIL_STYLE.tint);
+        patches.alphas.push(FROST_SOIL_ALPHA * bare);
         patches.rows.push(piece.rows);
       }
     }

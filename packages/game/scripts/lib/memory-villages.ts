@@ -56,4 +56,10 @@ export class SingleVillageRepository implements VillageRepository {
     const { id, settlementId, name, version, state } = this.record;
     return [{ id, settlementId, name, version, lastDay: state.lastDay }];
   }
+
+  /** Měření běží bez počasí kraje – ves bez `weatherSeed` má všechny roky normální. */
+  async weatherSeedOf(): Promise<number | null> {
+    await Promise.resolve();
+    return null;
+  }
 }

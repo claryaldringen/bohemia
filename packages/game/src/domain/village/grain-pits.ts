@@ -30,7 +30,7 @@ const SEALED_KEEP = (1 - GRAIN_PITS.sealedLossPerYear) ** (1 / DAYS_PER_YEAR);
 const LIFE_DAYS = GRAIN_PITS.lifeYears * DAYS_PER_YEAR;
 
 /** Co z vsi jámy potřebují – zásoby, jámy a ukládání zrna. */
-type PitsState = Pick<VillageState, 'storesKg' | 'grainPits' | 'grainPitWork'>;
+type PitsState = Pick<VillageState, 'storesKg' | 'grainPits' | 'grainPitWork' | 'reservedSeedKg'>;
 
 /** Obilné jámy vsi (vsi bez jam prázdné). */
 export function villageGrainPits(state: Pick<VillageState, 'grainPits'>): GrainPit[] {
@@ -149,6 +149,26 @@ export function settleGrainPits(state: VillageState, day: number, potteryCoverag
   if (kept.length !== pits.length) state.grainPits = kept;
 }
 
+/**
+ * Do zatopených jam zateče (disasters.md – Povodeň potoka): zrno jam, pro které `flooded` platí,
+ * ubude o podíl `loss` (zásoby obilí s ním). Mutuje stav, vrátí ztracené zrno (kg).
+ */
+export function soakGrainPits(
+  state: PitsState,
+  flooded: (pit: GrainPit) => boolean,
+  loss: number,
+): number {
+  let lost = 0;
+  for (const p of state.grainPits ?? []) {
+    if (p.grainKg <= EPSILON_KG || !flooded(p)) continue;
+    const kg = p.grainKg * loss;
+    p.grainKg -= kg;
+    lost += kg;
+  }
+  state.storesKg = Math.max(0, state.storesKg - lost);
+  return lost;
+}
+
 /** Slouží jáma už GRAIN_PITS.lifeYears – prázdná se zasype a kope se nová? */
 function pitWornOut(pit: GrainPit, day: number): boolean {
   return day - pit.dugDay >= LIFE_DAYS;
@@ -190,7 +210,15 @@ function pitLoads(state: PitsState, day: number, moreGrain: boolean): PitLoad[] 
   const pits = state.grainPits;
   const work = state.grainPitWork;
   if (!pits || !work || work.queueKg <= EPSILON_KG || !isPitFillingDay(day)) return [];
-  let queue = Math.min(work.queueKg, Math.max(0, state.storesKg - grainInPitsKg(pits)));
+  let queue = Math.min(
+    work.queueKg,
+    Math.max(
+      0,
+      state.storesKg -
+        grainInPitsKg(pits) -
+        Math.min(Math.max(0, state.reservedSeedKg ?? 0), state.storesKg),
+    ),
+  );
   const { year, month } = dateOfDayIndex(day);
   const lastMonth = month === GRAIN_PITS.fillTo;
   const digging = work.noSiteYear !== year;

@@ -8,6 +8,9 @@ import { MoundSize } from '@bohemia/game';
 import { tileCenterWorld } from '@bohemia/game';
 import { PlotVariant } from '@bohemia/game';
 import {
+  type HailStrip,
+  type TornadoStrength,
+  type TornadoTrack,
   type RoadProfilePoint,
   type HerdSpecies,
   type FamilyCounts,
@@ -32,6 +35,8 @@ import {
   type TileCell,
   type HorseKind,
   type PenSpecies,
+  type SummerWeather,
+  type WinterWeather,
 } from '@bohemia/game';
 import { type SceneGrainPit } from './grain-pit-view';
 
@@ -102,6 +107,11 @@ export interface SceneVillage {
     plot?: ScenePlot;
     craft?: Craft;
     plainShape?: true;
+    /**
+     * Shořelo (disasters.md – Požár, Ve scéně): ohořelé trosky – tmavší odstín, dokud hráč na
+     * místě nepostaví nový dům (pak zbytek zmizí jako každý). Bez údaje zbytek po rozpadu.
+     */
+    charred?: true;
   }[];
   /**
    * Rudiště kovářů (crafts.md – Uhlí a ruda kováře): místo (m), kovárna, vykopaná ruda na hromadě
@@ -363,6 +373,104 @@ export interface SceneVillage {
   wear?: SceneWear;
   /** Střed vsi (dvorec) – vozová cesta se staví od konce blíž k němu (náhled). */
   home?: { x: number; z: number };
+  /**
+   * Počasí roku, které už je vidět (disasters.md – Ve scéně) – barvy, světlo a sníh scény. Bez
+   * údaje normální rok (nebo zlé počasí ještě není vidět).
+   */
+  weather?: SceneWeather;
+  /**
+   * Krupobití (disasters.md – Kroupy, Ve scéně) – jen v jeho den a po něm do konce roku (pruh
+   * potlučených polí do žní). Nikdy budoucí rozpis.
+   */
+  hail?: SceneHail;
+  /** Povodeň (disasters.md – Povodeň potoka, Ve scéně) – jen od jejího dne do konce bahna. */
+  flood?: SceneFlood;
+  /**
+   * Požár (disasters.md – Požár, Hašení – řetěz s vědry, Ve scéně) – jen v jeho den: hořící
+   * stavby a řetěz s vědry. Nikdy budoucí rozpis.
+   */
+  fire?: SceneFire;
+  /**
+   * Smršť (disasters.md – Smršť, Ve scéně) – jen v její den a po něm do konce roku: trychtýř,
+   * ztmavení, polehlá pole a rozmetané stohy ve stopě, padlé kmeny. Nikdy budoucí rozpis.
+   */
+  tornado?: SceneTornado;
+}
+
+/**
+ * Smršť vsi pro scénu: den (pořadí dne světa), síla, stopa (`disasters.tornado` z jádra) a prvních
+ * pár dní vývraty – id stromů vrstvy překážek, které leží jako padlé kmeny.
+ */
+export interface SceneTornado {
+  day: number;
+  strength: TornadoStrength;
+  track: TornadoTrack;
+  trunks?: number[];
+}
+
+/** Hořící stavba v den požáru: id obydlí, střed, typ a natočení; `started` – tady chytlo. */
+export interface SceneBurningHouse {
+  id: number;
+  x: number;
+  z: number;
+  type: DwellingType;
+  rotation: number;
+  started?: true;
+}
+
+/**
+ * Řetěz s vědry (`disasters.fireFight` z jádra – platí jen v jeho den): bod vody na břehu,
+ * hořící stavba, kolik dospělých hasí a rozestup mezi nimi (m) – do 2,5 m si vědra podávají,
+ * jinak každý chodí po svém úseku.
+ */
+export interface SceneFireChain {
+  water: { x: number; z: number };
+  target: { x: number; z: number };
+  people: number;
+  spacingM: number;
+}
+
+/** Požár vsi pro scénu: den (pořadí dne světa), hořící stavby a řetěz (bez vody chybí). */
+export interface SceneFire {
+  day: number;
+  burning: SceneBurningHouse[];
+  chain?: SceneFireChain;
+}
+
+/** Krupobití vsi pro scénu: den a pruh (`hailZone` z jádra). */
+export interface SceneHail {
+  /** Herní den krupobití (pořadí dne světa – `gameDayAt`). */
+  day: number;
+  strip: HailStrip;
+}
+
+/** Povodeň pro scénu: den, výška vody nad hladinou potoka (m) a jarní / letní voda. */
+export interface SceneFlood {
+  /** Herní den povodně (pořadí dne světa). */
+  day: number;
+  heightM: number;
+  season: 'spring' | 'summer';
+}
+
+/**
+ * Počasí roku pro scénu (`revealedWeather` z jádra): jen odhalené zlé léto a zima – nikdy seed
+ * počasí ani budoucí rok. Normální léto a zima chybí.
+ */
+export interface SceneWeather {
+  /** Rok počasí – scéna ho použije jen ve stejném herním roce. */
+  year: number;
+  /** Zlé nebo dobré léto, už vidět (sucho od 1. 5., ostatní od 1. 6.). */
+  summer?: Exclude<SummerWeather, 'normal'>;
+  /** Zlá zima, už vidět (holomráz od 1. 2., dlouhá zima od 1. 3.). */
+  winter?: Exclude<WinterWeather, 'normal'>;
+  /** Síla zlého léta 0–1 (sucho 0,6, kruté sucho 1, deštivé léto 0,6, mokré žně 1). */
+  strength?: number;
+  /**
+   * Ochrana dílů proti odhalenému zlému létu po stupních 0–4 (klíč = id dílu; disasters.md –
+   * Ochrana dílu) – díl za stromy je v suchu zelenější. Jen v suchém a mokrém létě, díly se
+   * stupněm 0 chybí.
+   */
+  parts?: Record<string, number>;
 }
 
 /** Uložené trasy vsi pro scénu (`VillageRoutes`); `list` null = beze změny oproti klientovi. */
@@ -802,6 +910,11 @@ export interface SceneFieldPart {
    * jinak než obilí. Bez údaje obilí.
    */
   crop?: 'legume' | 'flax';
+  /**
+   * Osetý ozim (fields.md – Ozim a jař) – po holomrazu řídne a prosvítá hlína (disasters.md – Ve
+   * scéně). Bez údaje jař nebo jiná plodina.
+   */
+  winter?: true;
   /** Zelený len v červnu kvete – pole zmodrá (fields.md – Len, Co hráč vidí). */
   bloom?: true;
   /**

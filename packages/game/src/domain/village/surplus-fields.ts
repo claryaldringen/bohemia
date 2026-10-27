@@ -27,6 +27,8 @@ import {
   windowEndOf,
   type CropTask,
 } from './year-plan';
+import { springSowingExtended, springSowingHeld } from './weather-effects';
+import { foodUntilHarvestKg, seedSowCap, sowableSeedKg, takeSeed } from './seed';
 
 // Díly nad potřebu (fields.md – Osevní postup po dílech a setí do konce okna, bod 3; Martin
 // 25. 10. 2026: „stavby mají pořád přednost, ale vesničané neví dopředu že budou něco stavět,
@@ -89,10 +91,19 @@ function surplusTasks(state: VillageState, day: number): SurplusTask[] {
   for (const crop of SURPLUS_CROPS) {
     const work = surplusCrop(state.season, crop);
     if (!work) continue;
-    const names: CropTask[] = activeTasks(work, day, crop).filter((name) => name !== 'thresh');
+    // dlouhá zima drží setí jařin do 22. 3. (disasters.md – Zima)
+    const held = springSowingHeld(state, day, crop);
+    const names: CropTask[] = activeTasks(
+      work,
+      day,
+      crop,
+      springSowingExtended(state, day, crop),
+    ).filter((name) => name !== 'thresh' && !(held && name === 'sow'));
     if (cropTaskRemaining(work, 'plough') > EPSILON) names.push('plough');
     for (const name of names) {
-      const end = windowEndOf(cropTaskWindows(crop, name), month);
+      const end =
+        windowEndOf(cropTaskWindows(crop, name), month) ??
+        (name === 'sow' && springSowingExtended(state, day, crop) ? month : null);
       if (end === null) continue;
       const order =
         TASK_ORDER.indexOf(name === 'plough' ? 'dig' : name) - (name === 'plough' ? 0.5 : 0);
@@ -177,9 +188,22 @@ export function surplusFieldDay(
   if (!season || input.labor <= EPSILON) return { fieldWork, labor: 0 };
   let left = input.labor;
   let teams = input.teamDays;
+  // obilí nad potřebu seje jen z osiva nad jídlo (fields.md – Úroda, Osivo ze zásob)
+  let partsById: Map<number, FieldPart> | null = null;
+  let food: number | null = null;
   const put = (work: SeasonCrop, task: CropTask): void => {
     if (left <= EPSILON) return;
     let wanted = Math.min(left, cropTaskRemaining(work, task));
+    if (task === 'sow' && work.seedKg !== undefined) {
+      partsById ??= new Map(state.parts.map((p) => [p.id, p]));
+      food ??= foodUntilHarvestKg(state, day);
+      // obilí nad potřebu – jen zrno nad příděl bez hladu (osivo do roční potřeby má přednost)
+      const sowable = {
+        grain: sowableSeedKg(state, 'grain', food, false),
+        legumes: sowableSeedKg(state, 'legumes', food, false),
+      };
+      wanted = Math.min(wanted, seedSowCap(work, work.crop, partsById, sowable));
+    }
     let factor = 1;
     if (task === 'plough') {
       if (teams <= EPSILON) return;
@@ -191,6 +215,7 @@ export function surplusFieldDay(
     addCropTaskWork(work, task, wanted);
     const after = cropTaskDone(work, task);
     if (after - before <= EPSILON) return;
+    if (task === 'sow' && partsById) takeSeed(state, work, work.crop, partsById);
     fieldWork.push({ task, work, before, after, amount: after - before });
     left -= after - before;
     if (task === 'plough') teams -= (after - before) / factor;

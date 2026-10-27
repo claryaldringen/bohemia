@@ -50,6 +50,11 @@ export interface VillageRepository {
   rename(villageId: string, name: string): Promise<boolean>;
   /** Otisky všech vsí sídel `settlementIds` – bez načtení stavu (levný dotaz). */
   stampsOf(settlementIds: readonly string[]): Promise<VillageStamp[]>;
+  /**
+   * Seed počasí kraje – mapy (sídla), na které ves stojí (disasters.md – Kraj a ochrana nové vsi);
+   * neznámé sídlo nebo úložiště bez počasí (testy, kalibrace) → null. Klientovi se nikdy neposílá.
+   */
+  weatherSeedOf(settlementId: string): Promise<number | null>;
 }
 
 /**

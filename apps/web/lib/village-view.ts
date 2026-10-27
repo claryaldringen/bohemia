@@ -80,6 +80,7 @@ import {
 
 import { manorView } from './manor-view';
 import { wildlifeView, type VillageWildlife } from './wildlife-view';
+import { disasterChronicleFields, weatherView, type WeatherView } from './disasters-view';
 import { personPortrait, scenePersons, type DwellingResident } from './person-view';
 import { ROLE_NAMES } from './person-roles';
 import { dynastyView } from './dynasty-view';
@@ -182,6 +183,8 @@ export function chronicle(state: VillageState, name: string): VillageView['chron
       ...(event.kind === 'iron-brought' ? { son: event.son } : {}),
       // kdo koně okul (horses.md – Kování) – kronika; upozornění se nedává (Martin 27. 10. 2026)
       ...(event.kind === 'horses-shod' ? { horses: event.horses, own: event.own } : {}),
+      // pohromy – stupeň vody, síla smrště, díly a domy pro upozornění (disasters.md)
+      ...disasterChronicleFields(event),
       dateLabel: formatGameDate(dateOfDayIndex(event.day)),
       text: chronicleText(event, name),
     }));
@@ -502,11 +505,18 @@ export function buildVillageView(
     lastMarriageDay: lastMarriageDay(state),
     manor: manorView(state, landscape, day, context.ownMaps ?? {}),
     ...wildlifeField(state, day),
+    ...weatherField(state, day),
     ...dugSitesField(state, day),
     ...kilnsField(state, day),
     ...grainPitsField(state, day),
     ...junctionsField(state, day),
   };
+}
+
+/** Počasí roku pro lištu (`VillageView.weather` – disasters.md); obyčejný rok bez údaje. */
+function weatherField(state: VillageState, day: number): { weather?: WeatherView } {
+  const weather = weatherView(state, day);
+  return weather ? { weather } : {};
 }
 
 /** Divoká zvěř vsi (`VillageView.wildlife`); ves bez zvěře bez údaje. */

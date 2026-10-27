@@ -36,6 +36,13 @@ Auth vzniká líně přes `getAuth()` – `next build` stránky jen importuje a 
   `foundDevVillage`, bez `devMode` odmítne) – jen pro vyzkoušení přepínače vsí, dokud odchod do
   nové vsi (migration.md, fáze 3 a 4) není: nová ves se 4 lidmi na nejbližším volném místě
   aspoň 300 m od ostatních (`freeVillageSite`), lidé ze staré vsi neodcházejí.
+  Dál **Vynutit zlý rok** a **Vynutit pohromu** (`DevDisasterButtons` v `TopBar` – každé otevře
+  řadu ikon druhů): server action `forceDevDisaster` (`{ villageId, kind: 'year' | 'disaster',
+value }`, `parseDevDisasterInput`) → use-cases `forceBadYear` / `forceDisaster`
+  (`application/dev-disasters.ts`, bez `devMode` odmítnou). Zlý rok zapíše letošní léto nebo zimu
+  do `disasters.override.weather[rok]` (ukáže se, až bude vidět – sucho od 1. 5.), pohroma zítřejší
+  kroupy, smršť F2 (pruh a stopa přes střed vsi), stoletou vodu nebo požár prvního obydlí
+  (`override.hail`, `.tornado`, `.weather[rok].flood`, `.fire`) – přebijí los i ochranu nové vsi.
 - **Hlášky Better Auth** se překládají v `lib/auth-errors.ts` – nové chybové kódy doplnit tam.
 - **Změna polí uživatele** (`user.additionalFields` v `lib/auth.ts`) → upravit i
   `packages/db/src/schema/auth.ts` a vygenerovat migraci.

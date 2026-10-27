@@ -177,6 +177,15 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   rozdíl mladší, `origin`); žena od 18 ženich z okolí 10 % ročně (vdova, dědička – `holdsHome`
   – a žena z domu bez mužů 50 %, `favouredBride`), jinak pryč 20 % ročně (záznam v `emigrants`;
   vdova, dědička ani žena z domu bez mužů ne); v hladu a do přeplněného domu z okolí nikdo.
+  **Čekání na zásoby** (kinship.md – Sňatky čekají na zásoby; Martin 27. 10. 2026):
+  `arrangeMarriages(state, day, storesFill)` a `extraWivesDay(…, storesFill)` – `simulate.ts`
+  předá líně počítané naplnění pojistky `bufferFill(fieldSowingTargets(…))` (`field-food.ts`,
+  výhled `leftKg` / `bufferKg`, jednou za den, jen když je svatba na řadě; v hájení – `inLuckyYears`
+  – vždy 1). Pod 1 se svatba ve vsi
+  koná s denní šancí `weddingChancePerDay(null, fill)` (střední odklad
+  `MARRIAGE_STORES.waitYears` × (1 − fill), vlastní los `'wedding-wait:' + den`; čekající snoubenci
+  jsou ten den zabraní), z okolí a další manželka s `weddingChancePerDay(perYear, fill)` – nad
+  pojistkou přesně `perDay(perYear)`, losy beze změny; vdát se pryč beze změny.
   Kronika `marriage` (`groomMoved`, `widow`), `bride-from-outside`, `groom-from-outside`
   (`widow`), `married-away`; upozornění „Svatba“ (`VillageView.lastMarriageDay`), „Nevěsta
   z okolí“, „Ženich z okolí“, „Dcera se vdala pryč“.
@@ -224,7 +233,12 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 - **Odchod do nové vsi** (migration.md, fáze 3 a 4; `departure.ts`): `departVillage` – domácnosti
   vybraných obydlí odejdou celé (rodokmen – rodiče osadníků jako předci, odešlí ve staré vsi
   v `ancestors` / `emigrants` se směrem), s jídlem `leavingFood` (`LEAVING`: 25 kg na člověka od
-  7 let, nejvýš poměrný díl zásob, ze všech zásob stejný podíl; s vozem navíc jeho náklad)
+  7 let, nejvýš poměrný díl zásob, ze všech zásob stejný podíl; s vozem navíc jeho náklad),
+  napřed **osivo** `leavingSeedKg` (fields.md – Osivo pro ves bez zásob: půl roční potřeby
+  odcházejících `START_SEED_YEARS`, nejvýš `LEAVING.seedKgPerCarrier` na nosiče + náklad vozu – co
+  je na voze, ubere místo jídlu; jen z dílu zásob bez `reservedSeedKg` mateřské vsi; obilí na jídlo
+  je díl bez osiva, mateřské vsi ubude `seedStoresKg` navíc k podílu `fraction`) – `Settlers.seedKg`
+  → v nové vsi (`foundVillage`, `travellingVillage`, zpět `settlersOf`) zásoby + `reservedSeedKg`
   a poměrným dílem stád; **vůz s voly** (migration.md – Vůz při odchodu: `leavingCart` – vůz doma
   a voli nad páry k rádlům, celá ves bere i ty, napřed čtyřkolák; `takeLeavingCart`,
   `Settlers.cart` / `oxen`; v nové vsi `VillageState.looseOxen` – s první ohradou volů do ní

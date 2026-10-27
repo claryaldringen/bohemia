@@ -41,3 +41,28 @@ describe('kronika – vojvodova rodina', () => {
     );
   });
 });
+
+describe('kronika – požár', () => {
+  it('rozlišuje vyhořelé a ohořelé domy', () => {
+    const fire = {
+      day: 1,
+      kind: 'fire' as const,
+      startedDwellingId: 1,
+      burnedDwellingIds: [1, 2, 3, 4, 5, 6],
+      lostGrainKg: 0,
+      lostMeatKg: 0,
+      lostCheeseKg: 0,
+      lostHayKg: 0,
+    };
+    expect(chronicleText({ ...fire, collapsedDwellingIds: [1, 2, 3] }, 'Ves')).toBe(
+      'Požár – vyhořely 3 domy, 3 ohořely.',
+    );
+    expect(chronicleText({ ...fire, collapsedDwellingIds: [1, 2, 3, 4, 5] }, 'Ves')).toBe(
+      'Požár – vyhořelo 5 domů, jeden ohořel.',
+    );
+    expect(chronicleText({ ...fire, collapsedDwellingIds: [] }, 'Ves')).toBe(
+      'Požár – ohořelo 6 domů.',
+    );
+    expect(chronicleText(fire, 'Ves')).toBe('Požár – vyhořelo 6 domů.');
+  });
+});

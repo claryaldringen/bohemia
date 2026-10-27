@@ -135,6 +135,11 @@ describe('ves bez kováře a hrnčíře beze změny (crafts.md – Uhlí a ruda 
       'wildlife',
       // kusy poražené dnes (hlášení pro scénu – LivestockState.slaughtered) – simulace je nečte
       'slaughtered',
+      // osivo ze zásob při setí (fields.md – Úroda, Osivo ze zásob, 27. 10. 2026) – zlatá ves má
+      // zásoby nad pojistkou, setí osivo neomezí a bez nových klíčů vyšel stav stejně (7bf72274)
+      'seedKg',
+      'seedWaitingKg',
+      'seedFloorKg',
     ]);
     const stripped = JSON.stringify(legacyShape(next), (key, value: unknown) =>
       learning.has(key) ? undefined : value,

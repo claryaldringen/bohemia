@@ -1,0 +1,1 @@
+ALTER TABLE "settlement" ADD COLUMN "weather_seed" integer DEFAULT floor(random() * 2147483647)::integer NOT NULL;

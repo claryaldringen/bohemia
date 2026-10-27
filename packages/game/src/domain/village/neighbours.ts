@@ -7,6 +7,7 @@
 import { dateOfDayIndex } from '../calendar';
 import { createRandom, deriveSeed, type Random } from '../landscape/random';
 import { suggestVillageName } from './names';
+import { tradeWeather } from './trade-weather';
 import { neighbourPeople, storedNeighbourPeople } from './people-trade';
 import { HORSE_TRADE, NEIGHBOR_DIRECTIONS, NEIGHBOURS, TRADE, TRADE_GOOD_VALUES } from './rules';
 import type {
@@ -225,14 +226,19 @@ export function tradeSeason(day: number): number {
 /**
  * Zásoba souseda na rok obchodu `season` (doplnění 1. 11.): roční zásoba z povahy, jen jezdecké
  * koně mají pastevci jen některý rok (horses.md – Nákup a prodej; HORSE_TRADE.ridingYearChance) –
- * los z proudu koní souseda a roku. Nový objekt.
+ * los z proudu koní souseda a roku. Po zlém roce kraje je zásoba obilí poloviční, po krutém
+ * čtvrtinová (`weather`, disasters.md – Obchod; bez něj normální rok). Nový objekt.
  */
 export function seasonSupply(
   neighbour: Pick<Neighbour, 'direction' | 'supply'>,
   seed: number,
   season: number,
+  weather?: Pick<VillageState, 'weatherSeed' | 'disasters'>,
 ): TradeGoods {
   const supply = { ...neighbour.supply };
+  if (weather && supply.grain !== undefined) {
+    supply.grain = Math.floor(supply.grain * tradeWeather(weather, season).grainStock);
+  }
   if (supply.ridingHorses !== undefined) {
     const rnd = createRandom(deriveSeed(seed, `neighbour-horses:${neighbour.direction}:${season}`));
     if (rnd.next() >= HORSE_TRADE.ridingYearChance) supply.ridingHorses = 0;
@@ -247,7 +253,7 @@ export function seasonSupply(
  * platí celý rok).
  */
 export function neighbourStock(
-  state: Pick<VillageState, 'seed' | 'trade'>,
+  state: Pick<VillageState, 'seed' | 'trade' | 'weatherSeed' | 'disasters'>,
   direction: Direction8,
   day: number,
 ): NeighbourStock {
@@ -264,7 +270,7 @@ export function neighbourStock(
   return {
     direction,
     season,
-    supply: seasonSupply(neighbour, state.seed, season),
+    supply: seasonSupply(neighbour, state.seed, season, state),
     demand: { ...neighbour.demand },
     people: neighbourPeople(state.seed, direction, season),
   };

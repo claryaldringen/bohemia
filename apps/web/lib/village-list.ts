@@ -8,6 +8,7 @@ import {
   type HungerLevel,
   type VillageRecord,
 } from '@bohemia/game';
+import { otherVillageDisasters, type OtherVillageDisasters } from './disasters-view';
 
 // Vsi hráče pro přepínač v horní liště (migration.md – Víc vsí jednoho hráče): jméno, lidé
 // a co se v nich děje – upozornění z jiné vsi se ukážou i při pohledu na jinou ves. Čistý modul
@@ -37,6 +38,11 @@ export interface VillageListItem {
    * na humno (`waiting`) – pro upozornění z jiné vsi; nic z toho – bez údaje.
    */
   threshing?: { emergency?: true };
+  /**
+   * Pohromy (disasters.md – Co hráč vidí): odhalené zlé počasí roku a poslední místní pohroma –
+   * pro upozornění z jiné vsi; nic – bez údaje.
+   */
+  disasters?: OtherVillageDisasters;
 }
 
 /** Položka přepínače z uložené vsi dopočítané do dne `day`. */
@@ -45,6 +51,7 @@ export function villageListItem(record: VillageRecord, day: number): VillageList
   const dormant = isVillageDormant(record.state);
   const summary = dormant ? null : summarizeVillage(record.state, day);
   const threshing = dormant ? null : threshingStatus(record.state, day);
+  const disasters = dormant ? undefined : otherVillageDisasters(record.state, day);
   return {
     id: record.id,
     settlementId: record.settlementId,
@@ -56,5 +63,6 @@ export function villageListItem(record: VillageRecord, day: number): VillageList
     travelling: isVillageTravelling(record.state),
     hunger: summary?.hunger ?? 'fed',
     ...(threshing?.emergency ? { threshing: { emergency: true as const } } : {}),
+    ...(disasters ? { disasters } : {}),
   };
 }

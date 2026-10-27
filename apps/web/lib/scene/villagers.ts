@@ -222,7 +222,8 @@ export class VillageVillagers {
     const key = villageKey(village, draft);
     if (key === this.key) return false;
     this.key = key;
-    if (village.labor && village.labor.shares.length > 0) void this.load();
+    // v den požáru hasí všichni dospělí – práce vsi může být prázdná, postavy řetězu ne
+    if (village.labor && (village.labor.shares.length > 0 || village.fire?.chain)) void this.load();
     return this.rebuild(nowMs);
   }
 
@@ -592,9 +593,11 @@ export class VillageVillagers {
         probe.hidden = false;
         const to = p.pose(t, herds, probe);
         // karavana (caravan.ts) jde podle výpravy, pohřeb a porážka podle svého dne – nepřecházejí
-        // pěšky; pochůzku na cestě postava dojde a nová začne ve dveřích (carryErrands níž)
+        // pěšky; pochůzku na cestě postava dojde a nová začne ve dveřích (carryErrands níž);
+        // řetěz s vědry stojí celý den požáru na svém místě (villager-plan-fire.ts)
         if (
           p.errand ||
+          p.key.startsWith('fire:') ||
           p.key.startsWith('caravan:') ||
           p.key.startsWith('funeral:') ||
           p.key.startsWith('wedding:') ||
@@ -1021,6 +1024,8 @@ function villageKey(village: SceneVillage, draft: DraftCrews): string {
     orchards,
     cemeteries,
     obstacles,
+    // řetěz s vědry v den požáru (disasters.md – Hašení)
+    village.fire?.chain ?? null,
   ]);
 }
 

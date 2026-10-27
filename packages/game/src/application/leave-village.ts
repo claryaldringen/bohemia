@@ -115,12 +115,17 @@ export async function leaveVillage(
     if (problem) return { ok: false, reason: problem };
     const departed = await depart(deps, input, landscape);
     if (!departed.ok) return departed;
-    const state = foundedVillageState(deps.seeds.nextSeed(), {
-      landscape,
-      today: input.today,
-      dwelling: destination.dwelling,
-      settlers: departed.settlers,
-    });
+    const state = foundedVillageState(
+      deps.seeds.nextSeed(),
+      {
+        landscape,
+        today: input.today,
+        dwelling: destination.dwelling,
+        settlers: departed.settlers,
+      },
+      undefined,
+      await deps.villages.weatherSeedOf(found.settlement.id),
+    );
     if (!state.ok) throw new Error(`Ves z osadníků nešla založit: ${state.reason}`);
     const to = await deps.villages.add(
       found.settlement.id,
@@ -334,12 +339,17 @@ export async function settleJourney(
       obstaclesOf(landscape),
     );
     if (!check.ok) return { ok: false, reason: check.reason ?? 'Sem zemnice nepatří.' };
-    const founded = foundedVillageState(state.seed, {
-      landscape,
-      today: input.today,
-      dwelling: input.dwelling,
-      settlers: settlersOf(state),
-    });
+    const founded = foundedVillageState(
+      state.seed,
+      {
+        landscape,
+        today: input.today,
+        dwelling: input.dwelling,
+        settlers: settlersOf(state),
+      },
+      undefined,
+      state.weatherSeed ?? null,
+    );
     if (!founded.ok) return founded;
     // kronika cesty zůstane před založením
     return {

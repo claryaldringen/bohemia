@@ -25,9 +25,16 @@ import {
   winterHayAvailable,
   winterHayKg,
 } from './hay';
+import {
+  hasWeather,
+  isLongWinterRevealed,
+  pastureWeatherFactor,
+  summerOf,
+} from './weather-effects';
 import { legumeSupplyPerYear } from './legumes';
 import { ageGroup } from './people';
 import { woolSheep } from './wool';
+import { PLANNING_DAY } from './rules';
 import { FOOD_NEED_KG_PER_YEAR, HERD_BREEDING, HERD_RETIREMENT, HORSES, LEGUMES } from './rules';
 import type {
   ChronicleEvent,
@@ -284,7 +291,12 @@ function naturalMeadowHa(state: VillageState): number {
 export function pastureHa(state: VillageState, day: number): number {
   const meadow = naturalMeadowHa(state);
   const hay = Math.min(meadow, hayPlanNaturalHa(state));
-  return meadow - hay + hay * PASTURE.aftermathShare + fallowPastureHa(pastureParts(state, day));
+  const ha =
+    meadow - hay + hay * PASTURE.aftermathShare + fallowPastureHa(pastureParts(state, day));
+  // nosnost pastvy × pastva roku, které je vidět (disasters.md – Léto, Pastva)
+  // od 1. 9. je letošní léto minulé – pastva dalšího roku se zatím nezná (násobek 1)
+  if (!hasWeather(state) || dateOfDayIndex(day).month >= PLANNING_DAY.month) return ha;
+  return ha * pastureWeatherFactor(summerOf(state, day, true));
 }
 
 /**
@@ -1228,7 +1240,8 @@ export function hayShortSlaughter(
   horsesKg = 0,
 ): ChronicleEvent | null {
   const livestock = state.livestock;
-  const days = hayWinterDaysLeft(day);
+  // v dlouhé zimě do konce dubna (disasters.md – Zima) – co seno nevydrží, řeší porážka
+  const days = hayWinterDaysLeft(day, isLongWinterRevealed(state, day));
   if (!livestock || days <= 0) return null;
   const waiting = herdRecord((s) => Math.min(livestock.herds[s], livestock.culling?.[s] ?? 0));
   let hay = hayLeftAvailable(villageHayKg(state), days) - (oxen * HAY.dailyKg.ox + horsesKg) * days;

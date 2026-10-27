@@ -10,6 +10,7 @@ import {
   workSteps,
   type FieldLook,
   type PartView,
+  type PartWeather,
   type WorkFrame,
 } from './field-look';
 import { hayOnSquares } from './hay-meadows';
@@ -379,7 +380,14 @@ export function partViewsKey(views: readonly PartView[]): unknown[] {
     v.part.bloom ?? false,
     v.swaths ?? false,
     v.part.furrow ? `${v.part.furrow.axis}${v.part.furrow.sweep}` : null,
+    v.tint ? v.tint.join(',') : null,
+    v.weather ? Object.values(v.weather).join(',') : null,
   ]);
+}
+
+/** Barva × násobek dílu (bez násobku beze změny). */
+export function tintedBy(color: Rgb, tint: Rgb | undefined): Rgb {
+  return tint ? [color[0] * tint[0], color[1] * tint[1], color[2] * tint[2]] : color;
 }
 
 /** Kus obtisku: obdélník ve světě se vzhledem (celý díl, nebo jeho hotová či nehotová část). */
@@ -392,6 +400,10 @@ export interface DecalPiece {
    * který orá spřežení, podél své brázdy (osa bloku orby – oxen.md), jinak podél řádků pole.
    */
   rows: readonly [number, number];
+  /** Násobek barvy dílu (sucho podle ochrany – `PartView.tint`). */
+  tint?: Rgb;
+  /** Obilí podle počasí roku (`PartView.weather`). */
+  weather?: PartWeather;
 }
 
 /** Rozteč řádků obilí (m) a trsů v řádku (m), odstup trsů od meze (krytí obtisku). */
@@ -441,16 +453,22 @@ export function decalPieces(
     };
     const frame = workFrame(part, rows, center);
     const along = frame.along;
+    const tint = {
+      ...(view.tint ? { tint: view.tint } : {}),
+      ...(view.weather ? { weather: view.weather } : {}),
+    };
     if (view.work === null) {
-      if (view.look) pieces.push({ part, bounds: whole, look: view.look, rows: along });
+      if (view.look) pieces.push({ part, bounds: whole, look: view.look, rows: along, ...tint });
       continue;
     }
     const done = workSteps(view.work);
     if (view.look && done > 0) {
-      pieces.push({ part, bounds: workRect(part, frame, 0, done), look: view.look, rows: along });
+      const bounds = workRect(part, frame, 0, done);
+      pieces.push({ part, bounds, look: view.look, rows: along, ...tint });
     }
     if (view.before && done < 1) {
-      pieces.push({ part, bounds: workRect(part, frame, done, 1), look: view.before, rows: along });
+      const bounds = workRect(part, frame, done, 1);
+      pieces.push({ part, bounds, look: view.before, rows: along, ...tint });
     }
   }
   return pieces;
@@ -467,6 +485,13 @@ export interface PlantInstance {
   shade: number;
   /** Náhodné pořadí 0–1 – z dálky se kreslí jen trsy s nižším pořadím (řídnou rovnoměrně). */
   rank: number;
+  /** Násobek barvy trsu (sucho podle ochrany dílu); bez údaje beze změny. */
+  tint?: Rgb;
+  /**
+   * Polehlé stéblo (deštivé léto): vodorovný průmět osy trsu – délka = sinus náklonu, směr, kam
+   * stéblo leží. Bez údaje stojí rovně.
+   */
+  lean?: readonly [number, number];
 }
 
 export interface FieldPlants {
@@ -544,7 +569,7 @@ export function fieldPlants(
     const done = view.work === null ? 1 : workSteps(view.work);
     const lookAt = (w: number): FieldLook | null =>
       view.work === null ? view.look : w < done ? view.look : view.before;
-    addCrops(plants, part, frame, lookAt, coverage);
+    addCrops(plants, part, frame, lookAt, coverage, view.tint, view.weather);
     addStooks(plants, part, frame, lookAt, done, view.work !== null, coverage);
     addWeeds(plants, part, frame, lookAt, coverage);
   }
@@ -557,8 +582,11 @@ function addCrops(
   frame: WorkFrame,
   lookAt: (w: number) => FieldLook | null,
   coverage: (x: number, z: number) => number,
+  tint?: Rgb,
+  weather?: PartWeather,
 ): void {
   const random = seededRandom(cellSeed(part, 0x9e37));
+  const heightBy = weather?.height ?? 1;
   const { along, across, half } = frame;
   const rowCount = Math.floor((2 * half) / ROW_M);
   const stepCount = Math.floor((2 * half) / STEP_M);
@@ -581,7 +609,8 @@ function addCrops(
       if (!crop) continue;
       // u meze trsy řídnou s obtiskem – okraj pole je měkký
       const edge = smoothstep(0.15, 0.85, coverage(x, z));
-      if (pick >= crop.density * edge) continue;
+      if (pick >= crop.density * edge * weatherDensity(weather, x, z)) continue;
+      const lean = crop.kind === 'ripe' ? lodgedLean(weather, x, z, rank) : null;
       // kvetoucí len – modré květy jen na části stonků, mezi nimi zelené (fields.md – Len)
       const kind =
         crop.kind === 'flax-bloom' && (rank * 7) % 1 >= FLAX_BLOOM_SHARE ? 'flax-green' : crop.kind;
@@ -590,12 +619,62 @@ function addCrops(
         z,
         rotation,
         width: crop.width * size,
-        height: crop.height * size,
-        shade,
+        height: crop.height * size * heightBy,
+        // polehlé mokré obilí tmavší (jako porost ve skvrně – field-canopy.ts)
+        shade: lean ? shade * 0.8 : shade,
         rank,
+        ...(tint ? { tint } : {}),
+        ...(lean ? { lean } : {}),
       });
     }
   }
+}
+
+/** Vymrzlá místa ozimu – skvrny ≈ 7 m (`patchNoise`), kde trsy chybí víc. */
+const FROST_PATCH = 0.45;
+/** Náklon polehlého stébla (rad) – leží skoro u země, v okraji skvrny jen nahnuté. */
+const LODGED_TILT = 1.25;
+
+/** Skvrna vymrzlého ozimu v bodě (x, z) 0–1 – tam trsy chybí a prosvítá hlína. */
+export function frostSpot(x: number, z: number): number {
+  return smoothstep(0.35, 0.75, patchNoise(x + 31.7, z - 12.9));
+}
+
+/**
+ * Násobek hustoty trsů v bodě (x, z) podle počasí: sucho rovnoměrně, vymrzlý ozim (`bare`) ve
+ * skvrnách – místy holá hlína, jinde skoro celý.
+ */
+export function weatherDensity(weather: PartWeather | undefined, x: number, z: number): number {
+  if (!weather) return 1;
+  if (weather.bare === 0) return weather.density;
+  const spot = 1 - FROST_PATCH * weather.bare * frostSpot(x, z);
+  return Math.max(0, weather.density * spot + (1 - spot) * 0.15 * (1 - weather.bare));
+}
+
+/** Skvrna polehlého obilí v bodě (x, z) 0–1 podle `lodged` (čím víc, tím větší skvrny). */
+export function lodgedSpot(weather: PartWeather | undefined, x: number, z: number): number {
+  if (!weather || weather.lodged === 0) return 0;
+  // šum skvrn je většinou 0,25–0,75: při `lodged` 0,6 leží asi polovina, při 0,25 pětina
+  const from = 0.75 - 0.5 * weather.lodged;
+  return smoothstep(from, from + 0.1, patchNoise(x - 8.3, z + 21.1));
+}
+
+/**
+ * Polehlé zralé obilí (deštivé léto): ve skvrnách podle `lodged` stébla leží jedním směrem
+ * (směr ze šumu – vítr s deštěm), v okraji skvrny jen nahnutá. Stojící trs null.
+ */
+export function lodgedLean(
+  weather: PartWeather | undefined,
+  x: number,
+  z: number,
+  rank: number,
+): readonly [number, number] | null {
+  const amount = lodgedSpot(weather, x, z);
+  if (amount <= 0.05) return null;
+  const tilt = LODGED_TILT * amount * (0.8 + 0.2 * rank);
+  const heading = (patchNoise(x / 4, z / 4) - 0.5) * 2.4 + 0.6;
+  const sin = Math.sin(tilt);
+  return [Math.cos(heading) * sin, Math.sin(heading) * sin];
 }
 
 /** Panáček lnu – hrstě vytrhaného lnu schnou na poli v menších panácích než snopy obilí. */

@@ -68,6 +68,7 @@ import {
   type HayPhase,
 } from './hay-meadows';
 import { loadMergedModel, loadModelParts } from './instanced-model';
+import { scatterStacks } from './tornado-track';
 import { PLOUGH_CORNER_M, type FurrowBand } from './plough-team';
 import { applyPitCut, type PitCuts } from './pit-cut';
 import { instancesBounds, sameItems, sortByRank } from './plant-order';
@@ -590,10 +591,17 @@ export class FieldRenderer {
   private rebuild(): boolean {
     const fields = this.updateFields();
     const meadows = this.updateMeadows();
-    if (!fields.main && !fields.hay && !meadows) return false;
-    this.updatePlants(fields.main, fields.hay || meadows);
+    // smršť změní stohy bez nového dne (náhled) – seno znovu
+    const tornadoKey = JSON.stringify(this.village.tornado ?? null);
+    const tornado = tornadoKey !== this.tornadoKey;
+    this.tornadoKey = tornadoKey;
+    if (!fields.main && !fields.hay && !meadows && !tornado) return false;
+    this.updatePlants(fields.main, fields.hay || meadows || tornado);
     return true;
   }
+
+  /** Klíč smrště vsi (stohy ve stopě rozmetané). */
+  private tornadoKey = 'null';
 
   /** Maska ploch, kam seno nesmí (bez cest) – přestaví se jen při změně klíče. */
   private hayMask: { key: string; mask: ReturnType<typeof clearingMask> } | null = null;
@@ -1210,7 +1218,12 @@ export class FieldRenderer {
       for (const view of this.fields.values()) appendAll(stacks, view.hay.plants);
       for (const view of this.meadowViews.values()) appendAll(stacks, view.hay);
       if (stacks.length > 0) void this.loadModels();
-      this.setPlants(this.haystacks, stacks);
+      // stohy ve stopě smrště rozmetané (disasters.md – Smršť) – jen ty, které v její den stály
+      const tornado = this.village.tornado;
+      const stood = tornado
+        ? hayPhase(dateOfDayIndex(tornado.day).dayOfYear)?.hay === 'stacks'
+        : false;
+      this.setPlants(this.haystacks, scatterStacks(stacks, tornado, stood));
     }
     this.applyCounts();
   }
@@ -1653,20 +1666,32 @@ function plantBuffers(
     // sloupce matice Babylonu (řádkový zápis: x, y, z osy a posun)
     matrices[o] = c * p.width;
     matrices[o + 2] = -s * p.width;
-    matrices[o + 5] = p.height;
+    if (p.lean) {
+      // polehlé stéblo: osa trsu nakloněná (zkosení – pata zůstane na místě, délka stejná)
+      const [lx, lz] = p.lean;
+      matrices[o + 4] = lx * p.height;
+      matrices[o + 5] = Math.sqrt(Math.max(0, 1 - lx * lx - lz * lz)) * p.height;
+      matrices[o + 6] = lz * p.height;
+    } else {
+      matrices[o + 5] = p.height;
+    }
     matrices[o + 8] = s * p.width;
     matrices[o + 10] = c * p.width;
     matrices[o + 12] = p.x;
     matrices[o + 13] = height(p.x, p.z) - sink;
     matrices[o + 14] = p.z;
     matrices[o + 15] = 1;
-    colors[i * 4] = p.shade * tint[0];
-    colors[i * 4 + 1] = p.shade * tint[1];
-    colors[i * 4 + 2] = p.shade * tint[2];
+    const own = p.tint ?? WHITE_TINT;
+    colors[i * 4] = p.shade * tint[0] * own[0];
+    colors[i * 4 + 1] = p.shade * tint[1] * own[1];
+    colors[i * 4 + 2] = p.shade * tint[2] * own[2];
     colors[i * 4 + 3] = 1;
   });
   return { matrices, colors };
 }
+
+/** Trs bez vlastního násobku barvy. */
+const WHITE_TINT = [1, 1, 1] as const;
 
 function preparePropMaterial(material: Material, tint: Color3): void {
   if (!(material instanceof PBRMaterial)) return;

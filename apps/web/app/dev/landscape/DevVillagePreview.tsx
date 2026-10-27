@@ -80,6 +80,13 @@ import {
   type SimulatedPart,
 } from './dev-holdings';
 import { demoLabor, withDemoPersons } from './dev-labor';
+import {
+  DEV_WEATHER_LABELS,
+  devDisasterDay,
+  devRain,
+  withDevWeather,
+  type DevWeather,
+} from './dev-weather';
 import { promontoryFocus, promontoryOverlay } from './dev-promontory';
 import { demoOvergrowth, type OvergrowthDemo } from './dev-overgrowth';
 import { demoClearing, type ClearingDemo } from './dev-clearing';
@@ -221,6 +228,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   const [obstacles, setObstacles] = useState<ObstacleChanges>(NO_OBSTACLE_CHANGES);
   // roční období: den v roce (null = podle herního data) a přehrávání roku
   const [seasonDay, setSeasonDay] = useState<number | null>(null);
+  const [devWeather, setDevWeather] = useState<DevWeather>('normal');
   const [playingYear, setPlayingYear] = useState(false);
   // lidé ve vsi – ukázkové rozdělení práce podle měsíce (dev-labor.ts)
   const [people, setPeople] = useState(false);
@@ -494,13 +502,17 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   // oráč, honák a vozka vybrat jako ostatní (villagers.md – Výběr postavy)
   const village = useMemo(
     () =>
-      withShoeingDemo(
-        withDemoPersons(demoVillage),
-        shoeingDemo,
+      withDevWeather(
+        withShoeingDemo(
+          withDemoPersons(demoVillage),
+          shoeingDemo,
+          decoded,
+          Math.floor(seasonDay ?? REFERENCE_DAY),
+        ),
+        devWeather,
         decoded,
-        Math.floor(seasonDay ?? REFERENCE_DAY),
       ),
-    [demoVillage, shoeingDemo, decoded, seasonDay],
+    [demoVillage, shoeingDemo, decoded, seasonDay, devWeather],
   );
 
   useEffect(() => {
@@ -577,6 +589,11 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   useEffect(() => {
     scene?.setSeasonDay(seasonDay);
   }, [scene, seasonDay]);
+
+  useEffect(() => {
+    scene?.setRainOverride(devRain(devWeather));
+    scene?.setDisasterDay(devDisasterDay(devWeather));
+  }, [scene, devWeather]);
 
   useEffect(() => {
     if (!playingYear) return;
@@ -2258,6 +2275,27 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         >
           Období podle data
         </button>
+        <label className="flex items-center gap-1" title="Vynucené počasí roku (disasters.md)">
+          Počasí
+          <select
+            value={devWeather}
+            data-testid="dev-weather"
+            onChange={(e) => {
+              const weather = e.target.value as DevWeather;
+              setDevWeather(weather);
+              // počasí platí jen s vývojovým dnem – bez něj ukázat léto (zima pro zlé zimy)
+              if (seasonDay === null && weather !== 'normal') {
+                setSeasonDay(weather === 'blackFrost' || weather === 'long' ? 75 : REFERENCE_DAY);
+              }
+            }}
+          >
+            {(Object.keys(DEV_WEATHER_LABELS) as DevWeather[]).map((w) => (
+              <option key={w} value={w}>
+                {DEV_WEATHER_LABELS[w]}
+              </option>
+            ))}
+          </select>
+        </label>
         <DayTimeControls scene={scene} seasonDay={seasonDay} buttonClass={buttonClass} />
         <button
           className={buttonClass}

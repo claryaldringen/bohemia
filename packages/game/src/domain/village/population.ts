@@ -179,10 +179,14 @@ function roomiest(
   homes: readonly Dwelling[],
   fromId: number,
   minFree: number,
+  withWorkshop = false,
 ): { id: number; free: number } | null {
   let target: { id: number; free: number } | null = null;
   for (const d of homes) {
     if (d.id === fromId) continue;
+    // Obydlí s dílnou patří řemeslnické domácnosti – další lidé se tam jen výjimečně
+    // (evakuace bez jiného domu) a nepočítají se jako řemeslníci (`craftHouseholds`).
+    if (d.workshop && !withWorkshop) continue;
     const count = occupants(state, d.id).length;
     if (count === 0) continue;
     const free = DWELLINGS[d.type].capacity - count;
@@ -275,6 +279,35 @@ function dissolveHouseholds(state: VillageState, day: number): ChronicleEvent[] 
     events.push({ day, kind: 'household-merged', fromDwellingId: fromId, toDwellingId: target.id });
   }
   return events;
+}
+
+/**
+ * Kam se přestěhují obyvatelé shořelého obydlí `fromId` (disasters.md – Požár): jako rozpadlá
+ * domácnost (`dissolveTarget`), a nevejdou-li se nikam, do obydlí s nejvíc volnými místy i přes
+ * přeplnění; bez obývaných obydlí do prvního z `homes` (návrh Clauda). `homes` jsou přeživší obydlí.
+ */
+export function evacuationTarget(
+  state: VillageState,
+  day: number,
+  members: readonly Person[],
+  fromId: number,
+  homes: readonly Dwelling[],
+): { id: number } | null {
+  const real = state.dwellings;
+  state.dwellings = homes as Dwelling[];
+  try {
+    const dissolved = dissolveTarget(state, day, members, fromId);
+    return (
+      (dissolved && homes.some((d) => d.id === dissolved.id) ? dissolved : null) ??
+      roomiest(state, homes, fromId, -Infinity) ??
+      homes.find((d) => d.id !== fromId && !d.workshop) ??
+      roomiest(state, homes, fromId, -Infinity, true) ??
+      homes.find((d) => d.id !== fromId) ??
+      null
+    );
+  } finally {
+    state.dwellings = real;
+  }
 }
 
 /**

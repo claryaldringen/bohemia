@@ -55,6 +55,7 @@ import type { CartDrive, RoadGrade, VillageRoads } from './types-roads';
 import type { VillageRoutes } from './types-routes';
 import type { CraftPurchase, VillageTrade } from './types-trade';
 import type { WildlifeState } from './types-wildlife';
+import type { DisasterState } from './types-disasters';
 
 /**
  * Hromada klád u lesa (forest.md – Klučení lesa pro pole): klády skácených dospělých stromů
@@ -83,6 +84,12 @@ export interface VillageState {
   season: FarmSeason | null;
   threshingSeason: FarmSeason | null;
   storesKg: number;
+  /**
+   * Osivo ve `storesKg`, které ves má jen na setí a nesní ho (fields.md – Osivo ze zásob, Osivo pro
+   * ves bez zásob): přinesené osadníky dceřiné vsi a koupené u sousedů. Do země smí i pod prahy
+   * přídělu, setí ho bere napřed; co do 1. 6. nezaseje, je obyčejné zrno. Chybí = žádné.
+   */
+  reservedSeedKg?: number;
   /**
    * Nedodělek domácí výroby – jen ve vsích uložených před 19. 10. 2026; domácí výroba z práce
    * vsi nebere (population.md – Práce), simulace ho nečte ani nepíše.
@@ -191,6 +198,14 @@ export interface VillageState {
    * zvěř na stropu doplní `withWildlife`.
    */
   wildlife?: WildlifeState;
+  /**
+   * Kopie seedu počasí kraje – mapy (disasters.md – Kraj a ochrana nové vsi): všechny vsi mapy
+   * počítají z něj totéž počasí samy (`yearWeather`). Dá ho server při načtení (`withWeatherSeed`);
+   * ves bez něj (testy, kalibrace) má všechny roky normální. Klientovi se nikdy neposílá.
+   */
+  weatherSeed?: number;
+  /** Přírodní pohromy vsi (disasters.md); chybí = žádné. */
+  disasters?: DisasterState;
   /** Převod na zvěř selhal (zpráva chyby) – ves dostala výchozí krajinu; aplikace chybu zapíše do logu. */
   wildlifeFailed?: string;
   /** Zásoba masa (kg) – uzené a sušené (diet.md). Chybí = žádná. */

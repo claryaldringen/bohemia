@@ -161,6 +161,14 @@ export function partFoundingCost(
 }
 
 /**
+ * Úrodnost po přírůstku (luštěniny, příloh) nejvýš přirozená – naplavenina povodně nad ní
+ * (disasters.md – Povodeň potoka, do 130 %) ale nepropadne, jen se nezvýší.
+ */
+function withinNatural(share: number, gain: number): number {
+  return Math.min(Math.max(1, share), share + gain);
+}
+
+/**
  * Konec hospodářského roku (1. 9.) pro jeden díl – mění ho na místě: osev vyčerpá úrodnost
  * (pod 70 % jde díl do přílohu; luštěniny ji naopak trochu vrátí – poutají dusík, fields.md –
  * Luštěniny; len ji vyčerpá víc než obilí – fields.md, Len), příloh ji obnoví.
@@ -175,7 +183,7 @@ export function endOfSeason(part: FieldPart, day: number): void {
     // (pojistka – nouzově se seje jen od 40 %, takže klesne nejvýš na 28 %)
     part.fertilityShare =
       part.crop === 'legume'
-        ? Math.min(1, part.fertilityShare + LEGUMES.fertilityGain)
+        ? withinNatural(part.fertilityShare, LEGUMES.fertilityGain)
         : Math.max(
             0,
             part.fertilityShare -
@@ -193,7 +201,7 @@ export function endOfSeason(part: FieldPart, day: number): void {
   }
   if (part.state === 'fallow') {
     // v přílohu se vrací úrodnost; zarůstání počítá roční krok 1. 11. (overgrowth.ts)
-    part.fertilityShare = Math.min(1, part.fertilityShare + FERTILITY.fallowRecovery);
+    part.fertilityShare = withinNatural(part.fertilityShare, FERTILITY.fallowRecovery);
   }
 }
 

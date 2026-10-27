@@ -1,4 +1,8 @@
 import {
+  BAD_YEAR_KINDS,
+  FORCED_DISASTER_KINDS,
+  type BadYearKind,
+  type ForcedDisasterKind,
   CRAFTS,
   DIRECTIONS,
   PEN_SPECIES,
@@ -310,6 +314,25 @@ export function parseSkipTimeInput(value: unknown): { skip: TimeSkip } | null {
   if (!isRecord(value)) return null;
   const skip = TIME_SKIPS.find((s) => s === value.skip);
   return skip === undefined ? null : { skip };
+}
+
+/**
+ * Vstup vynucení pohromy (vývojový režim – disasters.md, plán P10): `{ kind: 'year', value: druh
+ * zlého roku }` nebo `{ kind: 'disaster', value: 'hail' | 'flood' | 'fire' | 'tornado' }`, jinak null.
+ */
+export function parseDevDisasterInput(
+  value: unknown,
+): { kind: 'year'; value: BadYearKind } | { kind: 'disaster'; value: ForcedDisasterKind } | null {
+  if (!isRecord(value)) return null;
+  if (value.kind === 'year') {
+    const year = BAD_YEAR_KINDS.find((k) => k === value.value);
+    return year === undefined ? null : { kind: 'year', value: year };
+  }
+  if (value.kind === 'disaster') {
+    const disaster = FORCED_DISASTER_KINDS.find((k) => k === value.value);
+    return disaster === undefined ? null : { kind: 'disaster', value: disaster };
+  }
+  return null;
 }
 
 /** Id vsi – UUID z databáze (jiný řetězec do dotazu vůbec nepustíme), jinak null. */

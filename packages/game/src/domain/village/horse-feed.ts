@@ -1,6 +1,7 @@
 import { horseGrainToday, horsePens, penHorses, villageHorses } from './horses';
 import { HAY } from './hay';
 import { HORSES } from './rules';
+import { reservedSeedKg } from './seed';
 import type { ChronicleEvent, Horse, VillageState } from './types';
 
 // Krmení koní (horses.md – Krmení): obilí jezdeckým koním po jídle lidí – lidé napřed – a konec
@@ -36,7 +37,9 @@ export function feedHorseGrain(
   const days =
     Math.max(1, daysToHarvest) + (state.horsesFed === false ? HORSES.grainResumeDays : 0);
   const fed =
-    state.hungry !== true && state.storesKg >= want - EPSILON && spareKg >= want * days - EPSILON;
+    state.hungry !== true &&
+    state.storesKg - reservedSeedKg(state) >= want - EPSILON &&
+    spareKg >= want * days - EPSILON;
   if (fed) state.storesKg = Math.max(0, state.storesKg - want);
   state.horsesFed = fed;
 }

@@ -37,7 +37,8 @@ function village(): VillageState {
   s.constructions = [];
   s.season = null;
   s.lastDay = at(600, 8, 31);
-  s.storesKg = 0;
+  // hladová ves, ale s osivem – osivo ze zásob při setí (fields.md – Úroda, Osivo ze zásob)
+  s.storesKg = 600;
   for (const p of s.parts) {
     p.foundingDone = p.foundingCost;
     p.state = 'ready';
@@ -65,7 +66,10 @@ type OldWork = Omit<FarmSeason['crops'][number], 'crop'>;
 function legacyPlan(season: FarmSeason | null): unknown {
   if (!season) return null;
   expect(season.crops.some((c) => c.surplus)).toBe(false);
+  // osivo plánu (fields.md – Úroda, Osivo ze zásob) je novější než roční plán – ten ho nezná
   const { startDay, crops, ...rest } = season;
+  delete rest.seedWaitingKg;
+  delete rest.seedFloorKg;
   const work = (crop: string): OldWork | undefined => {
     const found = crops.find((c) => c.crop === crop);
     if (!found) return undefined;
@@ -101,6 +105,24 @@ function legacyState(s: VillageState): VillageState {
 /** Převod jako při načtení vsi (`updateVillage`): napřed tvar hospodářského roku, pak postup. */
 const convert = (s: VillageState): VillageState => withSowingRotation(withSeason(s));
 
+/**
+ * Osivo plánu z vsi `from` zpět do převedené vsi – roční plán ho neznal (je novější), tady se
+ * měří jen převod na osevní postup.
+ */
+function withSeedPlan(s: VillageState, from: VillageState): VillageState {
+  const copy = (season: FarmSeason | null, source: FarmSeason | null): FarmSeason | null =>
+    season && {
+      ...season,
+      ...(source?.seedWaitingKg ? { seedWaitingKg: source.seedWaitingKg } : {}),
+      ...(source?.seedFloorKg !== undefined ? { seedFloorKg: source.seedFloorKg } : {}),
+    };
+  return {
+    ...s,
+    season: copy(s.season, from.season),
+    threshingSeason: copy(s.threshingSeason, from.threshingSeason),
+  };
+}
+
 /** Zasetá plocha (ha) po plodinách a hotová práce v člověkodnech (všechny plodiny a orba). */
 function progress(s: VillageState): { sownHa: Record<string, number>; doneMd: number } {
   const byId = new Map(s.parts.map((p) => [p.id, p]));
@@ -132,7 +154,7 @@ describe('převod starších vsí na osevní postup', () => {
       const now = stateAt(day);
       expect(now.sowingRotation).toBe(true);
       const old = legacyState(now);
-      const converted = convert(old);
+      const converted = withSeedPlan(convert(old), now);
       expect(converted.sowingRotation).toBe(true);
       // hospodářský rok, díly i snopy stejné jako ve vsi, která převod nepotřebovala
       expect(converted.season).toEqual(now.season);
@@ -156,7 +178,7 @@ describe('převod starších vsí na osevní postup', () => {
     const old = legacyState(now) as VillageState & { plan: OldWork & { winter?: OldWork } };
     (old.plan.winter as OldWork & { extraLeft?: unknown }).extraLeft = { dig: 1.5, plough: 0.5 };
     (old.plan as OldWork & { extraLeft?: unknown }).extraLeft = { reclaim: 2 };
-    const converted = convert(old);
+    const converted = withSeedPlan(convert(old), now);
     for (const crop of converted.season!.crops) expect('extraLeft' in crop).toBe(false);
     expect(converted.season).toEqual(now.season);
   });

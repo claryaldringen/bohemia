@@ -9,6 +9,7 @@ import {
   buildWagonRoadForPlayer,
   cancelConstructionForPlayer,
   sendExpeditionForPlayer,
+  forceDevDisasterForPlayer,
   foundDevVillageForPlayer,
   foundVillageForPlayer,
   placeCemeteryForPlayer,
@@ -38,6 +39,7 @@ import {
 import {
   parseBuildTrailInput,
   parseCancelConstructionInput,
+  parseDevDisasterInput,
   parseSendExpeditionInput,
   parseFoundVillageInput,
   parsePlaceCemeteryInput,
@@ -192,6 +194,25 @@ export async function foundDevVillage(input: unknown): Promise<VillageActionResu
   const villageId = villageIdOf(input);
   if (villageId === null) return { error: INVALID_INPUT };
   return foundDevVillageForPlayer(session.user.id, session.user.devMode === true, villageId);
+}
+
+/**
+ * Vývojový režim (disasters.md – plán P10): vynutí letošní zlý rok `{ villageId, kind: 'year',
+ * value }`, nebo zítřejší pohromu `{ villageId, kind: 'disaster', value }` a vrátí pohled na ves.
+ * Jen pro účet s `devMode` (příznak účtu – klient ho nastavit nemůže; bez něj use-case odmítne).
+ */
+export async function forceDevDisaster(input: unknown): Promise<VillageActionResult> {
+  const session = await getSession();
+  if (!session) return { error: NOT_SIGNED_IN };
+  const villageId = villageIdOf(input);
+  const choice = parseDevDisasterInput(input);
+  if (villageId === null || choice === null) return { error: INVALID_INPUT };
+  return forceDevDisasterForPlayer(
+    session.user.id,
+    session.user.devMode === true,
+    villageId,
+    choice,
+  );
 }
 
 /**

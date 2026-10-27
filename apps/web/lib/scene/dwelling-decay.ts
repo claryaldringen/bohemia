@@ -136,7 +136,15 @@ export interface RuinHollowOptions {
   rim: HeightFn;
   /** Jak zbytek zarostl 0–1 – dno tmavne a zelená méně. */
   overgrowth: number;
+  /**
+   * Ohořelé trosky po požáru (disasters.md – Požár, Ve scéně): uvnitř jámy popel a uhlíky –
+   * odstín tmavne do černošedé, jak zbytek zarůstá, vrací se k trávě. Bez údaje zbytek po rozpadu.
+   */
+  charred?: boolean;
 }
+
+/** Barva popela a ohořelého dřeva – násobek trávy (vrcholy krát textura terénu). */
+const CHARRED_TINT = [0.32, 0.29, 0.27] as const;
 
 export interface RuinHollowData {
   positions: Float32Array;
@@ -247,10 +255,13 @@ export function ruinHollowData(
       // na okraji barva trávy beze změny (navazuje na terén), k dnu tmavší a sytější zeleň
       const shade = 1 - (0.3 - 0.15 * o.overgrowth) * bowl;
       const tint = bowl * (1 - 0.5 * o.overgrowth);
+      // ohořelé: uvnitř jámy (i na valu) popel, na lemu za okrajem slabě – zarůstáním mizí
+      const char = o.charred ? (inside ? 0.35 + 0.65 * bowl : 0.25) * (1 - o.overgrowth) : 0;
+      const mix = (grass: number, c: number): number => grass * (1 - char) + c * char;
       colors.push(
-        (1 - 0.16 * tint) * shade,
-        (1 - 0.05 * tint) * shade,
-        (1 - 0.26 * tint) * shade,
+        mix((1 - 0.16 * tint) * shade, CHARRED_TINT[0]),
+        mix((1 - 0.05 * tint) * shade, CHARRED_TINT[1]),
+        mix((1 - 0.26 * tint) * shade, CHARRED_TINT[2]),
         1,
       );
     }

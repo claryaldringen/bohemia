@@ -12,6 +12,7 @@ import { ageGroup } from './people';
 import { storageLossPerYear } from './productivity';
 import { FIELD_FOOD, FIELD_STORES, FOOD_NEED_KG_PER_YEAR, LEGUMES } from './rules';
 import { sheavesOutlook } from './threshing';
+import { bufferEnergyYearsOf, sowingYieldFactor } from './weather-effects';
 import type { DietDay, VillageState } from './types';
 
 /** Dní v roce – úroda a potřeba se počítají na rok (365 dní jako roční potřeba jídla). */
@@ -148,13 +149,21 @@ export interface SowingTargets {
  * zmenšují ztráty (crafts.md). Potřeba podle růstu vsi (fields.md – Osev podle růstu vsi): do
  * příští sklizně a rok po ní podle výhledu lidí (`expectedYearlyFoodNeed` – děti dorostou, narodí
  * se další), ne podle dnešního počtu. Obilí jezdeckých koní (horses.md – Krmení: 1,5 kg denně) se
- * přičte do příští sklizně i rok po ní celé – koně jedí jen obilí z pole.
+ * přičte do příští sklizně i rok po ní celé – koně jedí jen obilí z pole. Osivo, které na setí
+ * ještě čeká (`seedAheadKg` – energie, fields.md – Úroda, Osivo ze zásob), zásoby k sklizni
+ * neuživí – díly plánu se pak počítají čistou úrodou (hrubá − osivo), jako by osivo dalšího osevu
+ * odložila sklizeň.
  */
 export function sowingTargets(
-  state: Pick<VillageState, 'people' | 'fieldFood' | 'pens' | 'wildlife'> & FieldStoresState,
+  state: Pick<
+    VillageState,
+    'people' | 'fieldFood' | 'pens' | 'wildlife' | 'weatherSeed' | 'disasters'
+  > &
+    FieldStoresState,
   day: number,
   legumeNeedKg: number,
   potteryCoverage: number,
+  seedAheadKg = 0,
 ): SowingTargets {
   // potřeba podle růstu vsi (Osev podle růstu vsi): do příští sklizně se jí ze zásob, úroda plánu
   // se jí rok po ní – děti mezitím dorostou a narodí se další
@@ -187,10 +196,20 @@ export function sowingTargets(
   // zásoby z pole k příští sklizni: obilí a luštěniny, které se do ní snědí, ubývají potřebou
   // z pole a ztrátami; luštěniny nad strop zůstanou celé
   const years = daysUntilHarvest(day) / DAYS_PER_YEAR;
-  const eatenStock =
-    state.storesKg + sheaves.grainKg + legumeEnergy(Math.max(0, legumesKg - legumesLeftKg));
+  // osivo, které na setí ještě čeká, zásoby k sklizni neuživí (fields.md – Úroda, Osivo ze zásob)
+  const eatenStock = Math.max(
+    0,
+    state.storesKg +
+      sheaves.grainKg +
+      legumeEnergy(Math.max(0, legumesKg - legumesLeftKg)) -
+      seedAheadKg,
+  );
   const left = storesLeft(eatenStock, need, years, loss) + legumeEnergy(legumesLeftKg);
-  const buffer = bufferKg(yearlyAfter);
+  // paměť hladu: po krutém roce 10 let pojistka 0,75 (disasters.md – Dopady, Zásoby a pojistka)
+  const buffer = bufferKg(
+    yearlyAfter,
+    bufferEnergyYearsOf(state, day, FIELD_STORES.bufferEnergyYears),
+  );
   const keep = storesTargetKg(needAfter, buffer);
   // úroda rok co rok: po sklizni tolik, aby po roce spotřeby a ztrát zbyla cílová zásoba
   const afterHarvest = storesNeeded(keep, needAfter, 1, loss);
@@ -200,7 +219,8 @@ export function sowingTargets(
     left >= buffer
       ? (keep - left) / FIELD_STORES.balanceYears
       : buffer - left + (keep - buffer) / FIELD_STORES.balanceYears;
-  const harvest = steady + correction;
+  // ves s počasím kraje seje s průměrem let – hrubá úroda ≈ 0,95 (disasters.md – Co z toho plyne)
+  const harvest = (steady + correction) / sowingYieldFactor(state);
   const legumeKg = Math.max(0, legumeNeedKg - legumesLeftKg);
   const targetKg = Math.max(0, harvest, legumeEnergy(legumeKg));
   return {
@@ -213,6 +233,17 @@ export function sowingTargets(
     bufferKg: buffer,
     afterHarvestKg: afterHarvest,
   };
+}
+
+/**
+ * Naplnění pojistky (0–1): zásoby z pole, které zbudou k příští sklizni (`leftKg`), proti pojistce
+ * (`bufferKg` – 0,5 roční potřeby, v paměti hladu 0,75). Pod 1 ves pojistku nemá – sňatky čekají
+ * (kinship.md – Sňatky čekají na zásoby) a ves chce páry k rádlům i na nouzový osev (oxen.md –
+ * Kolik volů ves chce, Pod pojistkou). Ves bez lidí (pojistka 0) ji má.
+ */
+export function bufferFill(targets: Pick<SowingTargets, 'leftKg' | 'bufferKg'>): number {
+  if (targets.bufferKg <= 0) return 1;
+  return Math.min(1, Math.max(0, targets.leftKg / targets.bufferKg));
 }
 
 /**
@@ -229,8 +260,11 @@ export function storesTargetKg(needKg: number, bufferKgValue: number): number {
  * stravy, ne z toho, co ves bere z pole – ves, která víc jí ze stád, má pojistku větší vůči
  * potřebě z pole.
  */
-export function bufferKg(yearlyFoodNeedKg: number): number {
-  return FIELD_STORES.bufferEnergyYears * yearlyFoodNeedKg;
+export function bufferKg(
+  yearlyFoodNeedKg: number,
+  energyYears: number = FIELD_STORES.bufferEnergyYears,
+): number {
+  return energyYears * yearlyFoodNeedKg;
 }
 
 /**

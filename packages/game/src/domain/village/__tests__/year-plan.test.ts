@@ -171,22 +171,32 @@ describe('taskRemaining a activeTasks', () => {
 describe('harvestKg', () => {
   const day = at(500, 9, 1);
   const plan = createPlan([part()], day);
-  it('vše hotové', () => {
-    expect(harvestKg(springCrop(finished(plan)), [part()], day)).toBeCloseTo(448.2, 1);
+  it('vše hotové – osivo vzalo setí, sklizeň ho neodečítá (fields.md – Úroda, Osivo ze zásob)', () => {
+    expect(harvestKg(springCrop(finished(plan)), [part()], day)).toBeCloseTo(623.2, 1);
+  });
+  it('práce z doby před osivem ze zásob (bez seedKg) osivo neodečte – převod ho odpustil', () => {
+    const legacy = { ...springCrop(finished(plan)) };
+    delete legacy.seedKg;
+    expect(harvestKg(legacy, [part()], day)).toBeCloseTo(623.2, 1);
+    const legacyHalf = {
+      ...springCrop(withDone(plan, { dig: 50, sow: 5, weed: 4, harvest: 25 })),
+    };
+    delete legacyHalf.seedKg;
+    expect(harvestKg(legacyHalf, [part()], day)).toBeCloseTo(623.2 * 0.5, 1);
   });
   it('bez pletí dá 60 %', () => {
     const p = {
       ...springCrop(finished(plan)),
       done: { ...springCrop(finished(plan)).done, weed: 0 },
     };
-    expect(harvestKg(p, [part()], day)).toBeCloseTo(623.2 * 0.6 - 175, 1);
+    expect(harvestKg(p, [part()], day)).toBeCloseTo(623.2 * 0.6, 1);
   });
   it('ozim se neplete – plná úroda i u staršího roku s nedodělaným pletím (fields.md – Pletí jednou a rychle)', () => {
     expect(partWork(part(), day, NO_CRAFTS.tools, false, 'winter').weed).toBe(0);
     const done = springCrop(finished(plan));
     const p = { ...done, done: { ...done.done, weed: 0 } };
     expect(springCrop(plan).required.weed).toBeGreaterThan(0);
-    expect(harvestKg(p, [part()], day, 'winter')).toBeCloseTo(448.2, 1);
+    expect(harvestKg(p, [part()], day, 'winter')).toBeCloseTo(623.2, 1);
     expect(activeTasks(p, at(501, 4, 10), 'winter')).not.toContain('weed');
     expect(activeTasks(p, at(501, 5, 10), 'winter')).not.toContain('weed');
   });
@@ -237,10 +247,10 @@ describe('harvestKg', () => {
     expect(harvestKg(springCrop(plan), [part()], day)).toBe(0);
   });
   it('polovina zasetá a celá opletá i sklizená: úroda poloviny bez další srážky (Ruling 17)', () => {
-    // 0,5 ha × 623,2 kg − osivo 0,5 ha × 175 kg; dřív pletí a sklizeň měřené vůči celému
+    // 0,5 ha × 623,2 kg (osivo vzalo setí); dřív pletí a sklizeň měřené vůči celému
     // hektaru srazily úrodu podruhé (≈ 68 kg)
     const halfSown = withDone(plan, { dig: 50, sow: 5, weed: 4, harvest: 25 });
-    expect(harvestKg(springCrop(halfSown), [part()], day)).toBeCloseTo(623.2 * 0.5 - 175 * 0.5, 1);
+    expect(harvestKg(springCrop(halfSown), [part()], day)).toBeCloseTo(623.2 * 0.5, 1);
     expect(harvestKg(springCrop(finished(plan)), [part()], day)).toBeCloseTo(
       2 * harvestKg(springCrop(halfSown), [part()], day),
       6,
@@ -248,10 +258,7 @@ describe('harvestKg', () => {
   });
   it('na polovině zaseté půdy neopletá polovina dá úrodu jako napůl opletý hektar', () => {
     const halfSown = withDone(plan, { dig: 50, sow: 5, weed: 2, harvest: 25 });
-    expect(harvestKg(springCrop(halfSown), [part()], day)).toBeCloseTo(
-      623.2 * 0.5 * 0.8 - 175 * 0.5,
-      1,
-    );
+    expect(harvestKg(springCrop(halfSown), [part()], day)).toBeCloseTo(623.2 * 0.5 * 0.8, 1);
   });
   it('díl v první sezóně po vymýcení lesa: bonus +40 a plná úroda bez pletí', () => {
     const meadow = part();
@@ -262,7 +269,7 @@ describe('harvestKg', () => {
       done: { ...springCrop(finished(p)).done, weed: 0 },
     };
     // louka bez pletí 60 %; vymýcený díl úrodnost 50 + 40, pletí nepotřebuje
-    const expected = 623.2 * 0.6 - 175 + (760 * (0.4 + 0.6 * 0.9) - 175);
+    const expected = 623.2 * 0.6 + 760 * (0.4 + 0.6 * 0.9);
     expect(harvestKg(unweeded, [meadow, cleared], day)).toBeCloseTo(expected, 6);
   });
 });

@@ -12,8 +12,10 @@ po otázce a schválil; tornádo doplnil týž den („Přidej i tornádo …“
 **Architektura:** Počasí roku je čistá funkce `yearWeather(weatherSeed, year)` – **žádný sdílený
 stav mezi vsemi**: každá ves nese kopii seedu počasí své mapy (`VillageState.weatherSeed`), takže
 všechny vsi mapy počítají totéž počasí samy. Seed počasí je nový sloupec mapy (`settlement`) na
-serveru – **není to seed krajiny** (ten zná prohlížeč a kód je veřejný). Místní pohromy ze seedu
-vsi a roku, smršť ze seedu počasí mapy (stopa v souřadnicích mapy – dvě vsi vidí tutéž). Nová
+serveru – **není to seed krajiny** (ten zná prohlížeč a kód je veřejný). Kroupy a požár ze seedu
+vsi a roku; **výška povodně je součást počasí roku kraje** (Martin 27. 10. 2026: „Ano a ano“ –
+tentýž potok, tatáž voda; škody po vsích), smršť ze seedu počasí mapy (stopa v souřadnicích mapy
+– dvě vsi vidí tutéž). Nová
 volitelná část stavu `VillageState.disasters` (`types-disasters.ts`), čísla v novém
 `rules-disasters.ts`. Doménové moduly po tématech: `weather.ts`, `part-protection.ts`,
 `weather-effects.ts`, `hail.ts`, `flood.ts`, `fire.ts`, `firefighting.ts`, `tornado.ts`,
@@ -40,13 +42,15 @@ seed)` a `withDisasters(state)` v `application/update-village.ts` (vedle `withLi
   dokud test seed nedá. Osev s průměrem 0,95 a seno +15 % platí také jen s `weatherSeed`.
 - **Determinismus:** počasí `yearWeather(weatherSeed, year)` a stopa smrště `yearTornadoes(weatherSeed,
 year)` jsou čisté funkce (memo v modulu); místní pohromy z **vlastních proudů**
-  `createRandom(deriveSeed(state.seed, 'hail:' + year))`, `'flood:' + year`, `'fire:' + day`,
+  `createRandom(deriveSeed(state.seed, 'hail:' + year))`, `'fire:' + day`,
   `'fire-spread:' + day`, `'flood-death:' + day`, `'tornado-death:' + day` – ať se nezmění losy
-  úmrtí a porodů (`populationDay` bere `'day:' + day`) ani lovu (`'hunt:' + day`). Každá úloha,
+  úmrtí a porodů (`populationDay` bere `'day:' + day`) ani lovu (`'hunt:' + day`). Výška
+  a den povodně jsou v `yearWeather` (`deriveSeed(weatherSeed, 'flood:' + year)`). Každá úloha,
   která mění chování, má test „po kouscích“ (1 den, 7 dní, 30 dní, celý rok přes den pohromy –
   stejný stav).
 - **Stejné počasí pro vsi mapy:** test v P1 (dvě vsi, týž `weatherSeed`, jiný `seed` → stejné
-  `yearWeather` 1000 let) a v P9 (stejná stopa smrště); kroupy, povodeň a požár se liší.
+  `yearWeather` 1000 let, včetně výšky a dne povodně) a v P9 (stejná stopa smrště); kroupy,
+  požár a škody povodně se liší.
 - **Ochrana nové vsi:** `inDisasterProtection(foundedDay, day)` – prvních 5 let žádná místní
   pohroma (kroupy, povodeň, požár, smršť); počasí naplno. Test v každé úloze místní pohromy.
 - **Výkon:** rok Vlkova dnes ≈ 19–23 s. Počasí O(1) (memo), ochrana dílů **jednou 1. 4.**,
@@ -124,10 +128,20 @@ year)` jsou čisté funkce (memo v modulu); místní pohromy z **vlastních prou
 // types-disasters.ts
 export type SummerWeather = 'good' | 'normal' | 'dry' | 'drought' | 'wet' | 'wetHarvest';
 export type WinterWeather = 'normal' | 'blackFrost' | 'long';
+export type FloodLevel =
+  'small' | 'five' | 'twenty' | 'hundred' | 'twoHundred' | 'fiveHundred' | 'thousand';
+/** Roční nejvyšší voda potoka – společná pro kraj (Martin 27. 10. 2026: „Ano a ano“). */
+export interface RegionFlood {
+  level: FloodLevel;
+  season: 'spring' | 'summer';
+  month: number;
+  day: number;
+}
 export interface YearWeather {
   year: number;
   summer: SummerWeather;
   winter: WinterWeather;
+  flood: RegionFlood | null; // žádná voda = null
 }
 
 /** Ochrana dílů spočtená 1. 4. (disasters.md – Ochrana dílu); klíč = id dílu. */
@@ -241,21 +255,33 @@ nový `docs/code/village-disasters.md`, řádek v `CLAUDE.md`.
 
 - [ ] `rules-disasters.ts` – `WEATHER` (léto: šance 25 / 46 / 10 / 4 / 11 / 4 %, násobky ozim,
       jařiny, seno, pastva z tabulky; zima 82 / 9 / 9 %; dny odhalení; shlukování 1,25; průměr
-      `expectedYield` 0,95; `historyYears` 8) – `disasters.md – Léto, Zima`.
+      `expectedYield` 0,95; `historyYears` 8) – `disasters.md – Léto, Zima`; `FLOOD_LEVELS`
+      (šance a výšky stupňů, o stupeň výš, okna jarní a letní vody) – `disasters.md – Povodeň`.
 - [ ] `weather.ts`: `yearWeather(weatherSeed, year)` – los z `deriveSeed(weatherSeed, 'summer:' +
-    year)` a `'winter:' + year`, šance zlých let × 1,25 po zlém létě (rekurze 8 let, memo);
+year)` a `'winter:' + year`, šance zlých let × 1,25 po zlém létě (rekurze 8 let, memo);
+      **výška povodně kraje** z `'flood:' + year` (stupeň, o stupeň výš po dlouhé zimě / v mokrém
+      létě, jarní nebo letní, den – Martin 27. 10. 2026: „Ano a ano“);
       `isBadSummer`, `isCruelYear`; `weatherOf(state, year)` – přepis `override`, bez `weatherSeed`
       normální rok; `revealedWeather(state, day)` – jen to, co už je vidět.
 - [ ] `weatherDay(state, day)` – kronika `weather` (`{ day, kind: 'weather', summer | winter }`)
       v den odhalení; zapojit za `wildlifeYearDay`.
 - [ ] DB: sloupec `weather_seed` s náhodným výchozím (Drizzle `default(sql\`…\`)`), migrace
-    vyplní i stávající řádky; adaptér a port vrací `weatherSeed`; `withWeatherSeed(state, seed)`    (idempotentní – existující seed nemění) v`updateVillage`, `foundVillage` ho nastaví.
+vyplní i stávající řádky; adaptér a port vrací `weatherSeed`; `withWeatherSeed(state, seed)`    (idempotentní – existující seed nemění) v`updateVillage`, `foundVillage` ho nastaví.
 - [ ] Testy: četnosti léta a zimy přes 10 000 let ±1 %; po zlém létě zlých víc (×1,25 ±0,05);
-      **dvě vsi téže mapy** (týž `weatherSeed`, jiný `seed`) mají 1000 let stejné počasí; jiný seed
+      **dvě vsi téže mapy** (týž `weatherSeed`, jiný `seed`) mají 1000 let stejné počasí i povodně;
+      četnosti stupňů vody v letech bez posunu ±1 %, po dlouhé zimě jarní a o stupeň výš; jiný seed
       mapy jiné; ves bez `weatherSeed` normální roky; odhalení – 30. 4. sucho nevidět, 1. 5. ano;
       po kouscích přes 1. 5. a 1. 6. stejný stav; adaptér (`test:db`) vrací seed, nový sídlo má
       jiný seed než druhé.
 - [ ] Commit `feat(game): počasí roku pro celou mapu ze seedu počasí`.
+
+**Provedení P1 (27. 10. 2026, návrh Clauda):** seed jde do use-casů přes
+`VillageRepository.weatherSeedOf(settlementId)` (adaptér vsí čte `settlement.weather_seed`), ne
+přes `Settlement` – `updateVillage` i založení vsi ho tak mají bez nového parametru u ~30 volání
+a objekt sídla, který web posílá dál, seed nenese. `withWeatherSeed` seed řídí mapou (ves na jiné
+mapě dostane její). `inDisasterProtection` (`disasters.ts`, `LOCAL_DISASTERS`) je hotová už
+v P1 – P5 ji jen použije. Dlouhodobé četnosti léta a zimy přesně z tabulky: v letech po
+nezlém létě jsou zlé šance × 1 ÷ (1 + 0,25 × 0,29).
 
 **Hotovo:** `typecheck`, `lint`, `test`, `test:db`, `format:check`; otisky beze změny.
 
@@ -284,6 +310,11 @@ u vody 60 m nebo do 1,5 m nad potokem +0,2, vyvýšené > 6 m nad potokem a nad 
       na hřbetu −0,2, oříznutí 0–1; mokro niva −0,2 a svah +0,2; pokácený remíz se nepočítá;
       Vlkov – čas výpočtu (< 30 ms) a rozdělení ochrany do `docs/code/village-disasters.md`.
 - [ ] Commit `feat(game): ochrana dílu před počasím ze zeleně a vlhkosti`.
+
+**Provedení P2 (27. 10. 2026, návrh Clauda):** maska lesa se nevytahovala do samostatné funkce –
+`forestEdgeDistances` se rozdělila na `greenEdgeScan(landscape, state, seedTiles)` (les + sady jako
+semínka) a starou funkci. Remízy a solitéry se hledají přímo z bodů překážek (ne z rastru 5 m),
+přesnost lepší a levnější. Detaily: [village-disasters.md](../../code/village-disasters.md).
 
 ## Úloha P3 – Sucho, deštivé léto, krutá zima (≈ 140 kroků)
 
@@ -318,6 +349,19 @@ v dlouhé zimě), `threshing.ts` (výmlat +20 %), `simulate.ts` (`famineMemoryDa
 
 **Hotovo:** jako P1; rok Vlkova změřit (nejvýš +1 %).
 
+**Provedení P3 (27. 10. 2026, návrh Clauda):** dopady v `weather-effects.ts`, ztráty dílů
+`dayPartLosses` / `winterEstimateLosses` v `disasters.ts`; `protectionAgainst` a
+`partProtectionOf` se přestěhovaly z `part-protection.ts` do `weather-effects.ts` (re-export
+zůstal) – jinak kruhový import přes `livestock.ts`. Seno: plán seče počítá v běžném výnosu
+(potřeba × 1,15 ÷ seno roku, které je vidět), skutečné seno přičte `mow` × seno roku s ochranou
+luk. **Okno setí jařin v dlouhé zimě:** začátek o 3 týdny později (22. 3.), konec levnou cestou
+(oprava recenze P3, návrh Clauda): dohra 1.–14. 5. jen pro díly, které už jsou v práci
+(`springSowingExtended`; okna `CROP_WINDOWS` po měsících zůstala). Oprava recenze také: rozhodnutí
+vsi (porážka, výcvik) jen podle odhalené zimy, pastva od 1. 9. bez letošního léta. Plán setí 1. 9. dlouhou zimu nezná, takže s plným oknem počítá – **Vlkov v dlouhé zimě
+nestihne zasít všechno: jař −19 %** (návrh dopad na úrodu nečeká – otevřené). `weather-famine.test.ts` nevznikl – testovací ves bez krajiny
+nemá pole ani ustálený stav; cíle kalibrace (jeden a dva kruté roky) ověřuje Vlkov ze stavu DB.
+Detaily: [village-disasters.md](../../code/village-disasters.md).
+
 ## Úloha P4 – Kraj kolem vsi: sousedé a zvěř (≈ 80 kroků)
 
 **Cíl:** Sousedé ve stejném kraji mají po zlém roce méně obilí a dražší; zvěř po kruté zimě
@@ -348,7 +392,7 @@ stav staveb (`Dwelling.condition`, dílny), `types-chronicle.ts` (`hail`).
       v okolí vsi), okraje 50 m.
 - [ ] V den krupobití: nesklizené díly a louky v pruhu `hail[partId]` = 0,6 (okraj 0,3) ×
       (1 − 0,4 × zeleň); sad −40 % letošních jablek; stavby v pruhu − roční chátrání.
-- [ ] `inDisasterProtection(foundedDay, day)` – 5 let; testy pro všechny místní pohromy
+- [ ] `inDisasterProtection(foundedDay, day)` – 5 let (hotová v P1); testy pro všechny místní pohromy
       (rozhraní připravené pro P6–P9).
 - [ ] Testy: četnost 6 % přes 2000 let; ves ve 3. roce nic, v 6. ano; strom chrání (zeleň 1 →
       −36 %); sklizený díl nic; po kouscích přes den krupobití; dvě vsi téže mapy – jiné kroupy.
@@ -365,15 +409,16 @@ výšek a šancí, škody po hloubce, úmrtí 2 %, naplavenina, strop 1,3, jámy
 `fertilityShare` nad 1 – `Math.min(Math.max(1, share), …)`), `grain-pit-site.ts` (jámy ne pod
 1,2 m), `grain-pits.ts` (zrno −25 %), `ruins.ts` (zřícené stavby), `hunt.ts` vzor smrti.
 
-- [ ] `floodLevel(state, year, weather)` ze `'flood:' + year` – stupeň a o stupeň výš po dlouhé
-      zimě (jarní) / v mokrém létě (letní); den (jarní 1.–20. 3., letní 15. 6. – 15. 8.).
+- [ ] Výška, jaro / léto a den vody z počasí kraje – `weatherOf(state, year).flood` (P1; Martin 27. 10. 2026: „Ano a ano“ – výška společná pro celý kraj, tentýž potok); P6 počítá jen
+      škody po vsi.
 - [ ] V den povodně: hloubka po políčku = výška vody − výška nad potokem; díly (úroda a ozim),
       louky, stavby (−10 / −30 / −60 %, zemnice −30 / −60 % / zřícení), jámy, naplavenina
       (+0,1 / 0,2 / 0,3 do 1,3); od 3 m úmrtí 2 % na obyvatele zatopeného obydlí
       (`'flood-death:' + day`).
 - [ ] Bez krajiny povodeň není (žádné výšky) – kalibrace beze změny.
 - [ ] Testy: četnosti stupňů přes 10 000 let; stupeň výš po dlouhé zimě; zatopení podle výšky
-      (umělá krajina se známými výškami); naplavenina se strop 130 % a nepropadne příloh ani
+      (umělá krajina se známými výškami); dvě vsi téže mapy – stejná voda týž den, jiné škody;
+      naplavenina se strop 130 % a nepropadne příloh ani
       luštěniny; jáma pod 1,2 m se nekope; úmrtí jen od 500leté; ochrana 5 let; po kouscích.
 - [ ] Commit `feat(game): povodeň potoka podle doby návratu`.
 
@@ -390,7 +435,8 @@ stohu), `placement-geometry.ts` / `polygon.ts` (vzdálenost obrysů – ověřit
 
 - [ ] Hazard dne = Σ šance staveb ÷ 365 s násobky (sucho, kovárna, milíř, pec, zemnice, zima,
       mokré léto); jedno losování `'fire:' + day`, výběr stavby podle součtu.
-- [ ] Šíření v kolech (`'fire-spread:' + day`): každá nově hořící stavba zkusí sousedy jednou;
+- [ ] Šíření **řetězově** v kolech (`'fire-spread:' + day`; Martin 27. 10. 2026: „Ano a ano“):
+      každá nově hořící stavba zkusí sousedy jednou (do 6 m 70 %, do 12 m 40 %);
       zeleň na spojnici (strom, keř, sad) šanci půlí; × (1 − 0,7 × účinnost) (P8).
 - [ ] Dopad: stav podle účinnosti (zatím zřícení), zásoby domu (zrno mimo jámy, maso, sýr ÷ obydlí),
       stoh do 12 m (seno ÷ stohy); obyvatelé k příbuzným; nikdo neumírá.
@@ -429,15 +475,15 @@ má škody podle síly.
 `road-apples.ts` (obnova), `ruins.ts`, `hay.ts` (stohy), `hunt.ts` vzor smrti, `types-chronicle.ts`
 (`tornado`).
 
-- [ ] `yearTornadoes(weatherSeed, year)` – Poissonův počet ve čtverci mapy rozšířeném o 30 km,
+- [x] `yearTornadoes(weatherSeed, year)` – Poissonův počet ve čtverci mapy rozšířeném o 30 km,
       střed, směr, síla, délka, šířka, den (V–VIII, nejvíc VII); jen stopy, které protnou mapu;
       memo. Souřadnice mapy (`tileCenterWorld`).
-- [ ] V den smrště: stavby, díly, stromy (vrstva překážek + sad + jabloně) a stohy v pásu podle
+- [x] V den smrště: stavby, díly, stromy (vrstva překážek + sad + jabloně) a stohy v pásu podle
       tabulky síly; úmrtí `'tornado-death:' + day`.
-- [ ] Testy: četnost přes mapu ≈ 0,10 % ročně (Monte Carlo 200 000 let ±15 %), přes jádro vsi
+- [x] Testy: četnost přes mapu ≈ 0,10 % ročně (Monte Carlo 200 000 let ±15 %), přes jádro vsi
       ≈ 0,017 %; **dvě vsi téže mapy vidí stejnou stopu**; F0 jen střechy, F2 zřícení, F3 úmrtí;
       vývraty zmizí z překážek a dají klády; ochrana 5 let; vynucená smršť (`override`) po kouscích.
-- [ ] Commit `feat(game): smršť se stopou přes mapu`.
+- [x] Commit `feat(game): smršť se stopou přes mapu`.
 
 ## Úloha P10 – Rozhraní (≈ 130 kroků)
 
@@ -453,12 +499,12 @@ zdražení), ikony (`tools/blender/icons.py` nebo SVG – ověřit vzor), dev
 `apps/web/app/dev/landscape/` (tlačítka „Vynutit zlý rok“ a „Vynutit pohromu“ přes server action
 a use-case – vzor `dev-shoeing.ts`), e2e.
 
-- [ ] Upozornění „Sucho – nejvíc trpí pole bez stromů“ (Martin 27. 10. 2026), „Mokré žně“,
+- [x] Upozornění „Sucho – nejvíc trpí pole bez stromů“ (Martin 27. 10. 2026), „Mokré žně“,
       „Holomráz – ozim vymrzá“, „Kroupy potloukly obilí“, „Povodeň“ (velikost v popisku), „Hoří!“,
       „Vyhořel dům“, „Smršť“.
-- [ ] Test: JSON `VillageView` neobsahuje `weatherSeed` ani budoucí počasí (30. 4. sucho chybí).
-- [ ] e2e: dev vynucené sucho – ikona na liště a upozornění; panel dílu ukazuje ochranu.
-- [ ] Commit `feat(web): počasí a pohromy v rozhraní`.
+- [x] Test: JSON `VillageView` neobsahuje `weatherSeed` ani budoucí počasí (30. 4. sucho chybí).
+- [x] e2e: dev vynucené sucho – ikona na liště a upozornění; panel dílu ukazuje ochranu.
+- [x] Commit `feat(web): počasí a pohromy v rozhraní`.
 
 ## Úloha P11 – Scéna: počasí roku a světlo (≈ 140 kroků)
 
@@ -503,11 +549,11 @@ políčky – políčka z krajiny a výšky vody, 3 dny, pak ustupuje), `ground-
 a naplavenina 2 týdny), `felled-trees.ts` nebo dekorace (naplavené větve), `ambient-sound.ts`
 (hrom, kroupy).
 
-- [ ] Animace bouřky a ústupu vody **jen v den pohromy** (`animate()` v taktu `WATER_FPS`),
+- [x] Animace bouřky a ústupu vody **jen v den pohromy** (`animate()` v taktu `WATER_FPS`),
       záblesky deterministicky z času dne; při omezeném pohybu bez záblesků (jen ztmavení).
 - [ ] Výška vody v popisku (`SceneFlood.heightM`) – UI z P10.
-- [ ] e2e: dev vynucené kroupy – scéna tmavší, pruh vidět; vynucená povodeň – voda nad políčky.
-- [ ] Commit `feat(web): bouřka s kroupami a povodeň ve scéně`.
+- [x] e2e: dev vynucené kroupy – scéna tmavší, pruh vidět; vynucená povodeň – voda nad políčky.
+- [x] Commit `feat(web): bouřka s kroupami a povodeň ve scéně`.
 
 ## Úloha P13 – Scéna: požár s řetězem s vědry a smršť (≈ 140 kroků)
 
@@ -560,15 +606,12 @@ stohy), `field-crops.ts` (polehlá pole), `structure-decay.ts` (poškozené a z�
 - **Úrodnost nad 1** – `fertilityShare` > 1 po naplavenině: ořezy v `fields.ts`, `rotation.ts`
   (`fallowReady`), `part-rotation.ts` a `holdings.ts` (sloučení dílů) zkontrolovat; efektivní
   úrodnost má strop 100.
-- **Povodeň po vsích** – dvě vsi na témže potoce mohou mít v jednom roce jinou vodu (Martin zvolil
-  pohromy po vsích); kdyby to vadilo, povodeň ze seedu počasí mapy (malá změna v P6).
 - **Scéna** – limit 8 vertex bufferů postavy (vědro), Babylon jen z modulů, kreslení jen při změně.
 - **Zlaté otisky** se nezmění, dokud testovací ves nemá `weatherSeed`; úlohy, které je změní
   záměrně, zapíší nový otisk s komentářem (datum, proč, dřívější hash).
 
 ## Otevřené podrobnosti (návrh Clauda – nebrzdí)
 
-- Řetězové šíření požáru (každá stavba, která chytí, zkouší sousedy) – ledger to výslovně neříká.
 - Čísla škod povodně podle hloubky a smrště podle síly.
 - Mokré žně: ledger má „obilí ×0,6“ (ozim i jařiny), noční tabulka měla jařiny ×0,65 – plán bere
   ledger; kdy je vidět, že jsou žně mokré (15. 7.).

@@ -70,7 +70,7 @@ export function smokeStrength(seed: number, gameDay: number): number {
  * neurčuje rozvrh ohně, ale obřad – funeral-plan.ts, `pyreState`) a pálení paseky (forest.md –
  * Klučení lesa pro pole – postup: SLASH_PLUME, sílu určuje pálení dílu – `clearingFireState`).
  */
-export type SmokeKind = 'hearth' | 'craft' | 'milir' | 'pyre' | 'slash';
+export type SmokeKind = 'hearth' | 'craft' | 'milir' | 'pyre' | 'slash' | 'house-fire';
 
 /** Pracovní den dílny jako denní doba 0–1 – pec a výheň hoří od rána do večera. */
 const CRAFT_FIRE = { from: 0.26, to: 0.78 } as const;
@@ -83,7 +83,8 @@ const CRAFT_FIRE = { from: 0.26, to: 0.78 } as const;
 export function ventSmokeStrength(kind: SmokeKind, seed: number, gameDay: number): number {
   if (kind === 'hearth') return smokeStrength(seed, gameDay);
   // hranice hoří podle obřadu (funeral-plan.ts), paseka podle pálení (clearingFireState)
-  if (kind === 'pyre' || kind === 'slash') return 0;
+  // hořící dům podle požáru (houseFireState)
+  if (kind === 'pyre' || kind === 'slash' || kind === 'house-fire') return 0;
   const day = Math.floor(gameDay);
   if (kind === 'milir') return 0.5 + 0.15 * hash01(seed, day, 21);
   const time = gameDay - day;
@@ -159,8 +160,21 @@ export const SLASH_PLUME: PlumeShape = {
   size: { start: 1.2, end: 9 },
 };
 
+/**
+ * Hořící dům (disasters.md – Požár, Ve scéně) – hustý tmavý sloupec, vyšší a širší než z pálení
+ * paseky: hoří doškovou střechou a trámy, požár vsi je vidět zdaleka.
+ */
+export const HOUSE_FIRE_PLUME: PlumeShape = {
+  puffs: 34,
+  lifeS: 20,
+  riseM: 40,
+  driftM: 16,
+  size: { start: 2, end: 12 },
+};
+
 /** Tvar sloupce dýmu podle druhu zdroje. */
 export function plumeShape(kind: SmokeKind): PlumeShape {
+  if (kind === 'house-fire') return HOUSE_FIRE_PLUME;
   return kind === 'pyre' ? PYRE_PLUME : kind === 'slash' ? SLASH_PLUME : HEARTH_PLUME;
 }
 
@@ -173,6 +187,8 @@ export function plumeShape(kind: SmokeKind): PlumeShape {
  */
 export interface ClearingBurn {
   burnedDay?: number;
+  /** Hořící dům (požár – `houseFireState`): pořadí stavby v šíření 0–1 (0 = tady chytlo). */
+  order?: number;
 }
 
 /** Oheň, záře uhlíků a dým pálení v jednom okamžiku (0–1). */
@@ -287,3 +303,33 @@ export function plumeReach(shape: PlumeShape): { up: number; side: number } {
 
 /** Nejvzdálenější dosah obláčků od dýmníku (m) – pro kontrolu, jestli je dým v záběru. */
 export const PLUME_REACH_M = plumeReach(HEARTH_PLUME);
+
+// --- Požár domu ---
+
+/**
+ * Požár domu přes herní den požáru (podíl dne, návrh Clauda): požár je událost celého dne – stavba
+ * chytne hned po půlnoci (`lit`, přeskok na sousední stavby o kus později podle pořadí), hoří
+ * naplno, od `fadeFrom` slábne, v `outAt` zbudou jen žhavé uhlíky a dým doutnání do konce dne.
+ */
+export const HOUSE_FIRE = { lit: 0.02, spread: 0.08, rise: 0.04, fadeFrom: 0.55, outAt: 0.8 };
+
+/**
+ * Oheň, záře a dým hořící stavby v herní okamžik `gameDay` (gameDayAt): jen v den požáru `fireDay`
+ * (jinak vše 0). `order` 0–1 – kde je stavba v šíření (0 = tady chytlo).
+ */
+export function houseFireState(fireDay: number, gameDay: number, order = 0): ClearingFireState {
+  const t = gameDay - fireDay;
+  if (t < 0 || t >= 1) return { fire: 0, glow: 0, smoke: 0 };
+  const lit = HOUSE_FIRE.lit + Math.min(1, Math.max(0, order)) * HOUSE_FIRE.spread;
+  if (t < lit) return { fire: 0, glow: 0, smoke: 0 };
+  const rise = Math.min(1, (t - lit) / HOUSE_FIRE.rise);
+  const fall = Math.min(
+    1,
+    Math.max(0, (HOUSE_FIRE.outAt - t) / (HOUSE_FIRE.outAt - HOUSE_FIRE.fadeFrom)),
+  );
+  const fire = Math.min(rise, fall);
+  // uhlíky žhnou, jak plameny slábnou, do konce dne vychladnou na dvě pětiny
+  const embers =
+    t < HOUSE_FIRE.outAt ? 1 - fall : 1 - (0.6 * (t - HOUSE_FIRE.outAt)) / (1 - HOUSE_FIRE.outAt);
+  return { fire, glow: rise * embers, smoke: rise * (SMOLDER_SMOKE + (1 - SMOLDER_SMOKE) * fall) };
+}

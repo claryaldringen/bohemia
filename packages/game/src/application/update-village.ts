@@ -12,6 +12,7 @@ import {
   withForestDistances,
   withKinship,
   withLivestockLand,
+  withWeatherSeed,
   withWildlife,
   withManor,
   withMergedFields,
@@ -140,7 +141,8 @@ async function withPauses(
  * změně zmizí (`withoutBuiltOverRuins`), obilné jámy taky – zrno se přendá
  * (`withoutBuiltOverGrainPits`). Ves bez tras (nebo s trasami jiného rozložení) si je po dopočtu
  * spočítá (`withRoutes` – paths.md, Kdy se trasy počítají a co se ukládá). S `pause` dělá dopočet
- * mezi dny přestávky.
+ * mezi dny přestávky. Ves dostane kopii seedu počasí své mapy (`withWeatherSeed` – disasters.md,
+ * Kraj) – úložiště bez počasí (null) ji nechá bez něj.
  */
 export async function updateVillage(
   villages: VillageRepository,
@@ -151,11 +153,14 @@ export async function updateVillage(
   pause?: Pause,
 ): Promise<VillageResult> {
   const obstacles = obstaclesOf(landscape);
+  let weatherSeed: number | null | undefined;
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const record = await villages.find(villageId);
     if (record === null) return { ok: false, reason: NO_VILLAGE };
+    // seed počasí mapy se nemění – stačí se zeptat jednou
+    weatherSeed ??= await villages.weatherSeedOf(record.settlementId);
     // převod na osevní postup selhal při tomto načtení – ves jde dál, chyba se zapíše do logu
-    const rotated = withSowingRotation(withSeason(record.state));
+    const rotated = withSowingRotation(withSeason(withWeatherSeed(record.state, weatherSeed)));
     const failure = rotated.sowingRotationFailed;
     if (failure !== undefined && record.state.sowingRotationFailed === undefined) {
       console.error(`Ves ${villageId}: převod na osevní postup selhal: ${failure}`);

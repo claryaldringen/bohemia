@@ -60,6 +60,8 @@ export const PORCH_EXTRA_M = 2.6;
 export const CRAFT_SMOKE_SEED = 1_000_000;
 /** Rozvrh dýmu z pálení paseky (seed = id dílu) – mimo dýmníky a dílny. */
 export const SLASH_SMOKE_SEED = 3_000_000;
+/** Semínka dýmu hořících domů (požár) – id obydlí nad tímto základem. */
+export const HOUSE_FIRE_SMOKE_SEED = 4_000_000;
 export const TUFT_MODELS: readonly TuftModel[] = ['grass-tuft-1', 'grass-tuft-2'];
 export const AMBIENT = new Color3(0.38, 0.38, 0.36);
 /** Rostliny jako dekorace krajiny (decorations.ts) – trsy u okapu jsou sytější a zelenější. */
@@ -222,7 +224,8 @@ export function ruinId(r: SceneRuin): string {
 export function ruinKey(r: SceneRuin): string {
   const p = r.position;
   const shape = `${r.plot?.variant ?? ''}${r.plainShape ? '/plain' : ''}`;
-  return [ruinId(r), r.type, p.x, p.z, p.rotation, Math.round(r.overgrowth * 20), shape].join('|');
+  const look = `${Math.round(r.overgrowth * 20)}${r.charred ? '/charred' : ''}`;
+  return [ruinId(r), r.type, p.x, p.z, p.rotation, look, shape].join('|');
 }
 
 /** Místo domu zbytku jámy (bez pozemku – zbytek pozemek nemá) podle varianty rozměrů. */

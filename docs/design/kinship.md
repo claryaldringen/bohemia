@@ -78,6 +78,21 @@ dědictví, sňatky a nástupnictví potřebují vědět, kdo je čí. Postavy v
   rodina](lord.md), Manželky. Ostatní muži mají jednu manželku.
 - **Vdovy a vdovci** se znovu žení a vdávají co nejdřív – žádná čekací doba; dítě s novým mužem
   nejdřív za 9 měsíců (population.md – rozestup porodů).
+- **Sňatky čekají na zásoby (27. 10. 2026)** – návrh Clauda po recenzi pohrom (P3), **Martin 27. 10. 2026: „Ano“**: ves rostla až k mezi jídla (sňatky brzdil jen hlad), takže pojistku zásob
+  nikdy neměla a po jednom krutém roce hladověla. Teď **nový sňatek jen tehdy, když výhled zásob
+  z pole k příští sklizni** (jako v plánu osevu – [pole](fields.md), Osev podle zásob) **dosáhne
+  pojistky** (0,5 roční potřeby, v paměti hladu po krutém roce 0,75 – [pohromy](disasters.md),
+  Zásoby a pojistka). Pod pojistkou svatba **jen čeká, nikdy se nezruší**: navíc průměrně
+  **3 roky × (1 − naplnění pojistky)** (`MARRIAGE_STORES.waitYears`; los dne – při prázdných
+  zásobách ≈ 3 roky, v půli pojistky ≈ 1,5 roku), takže ves, která pojistku nikdy nemá, roste
+  pomaleji, ale nevymře. Snoubenci, kteří čekají, se mezitím nevezmou s nikým jiným. Platí pro
+  svatbu ve vsi, nevěstu i ženicha z okolí a další manželku muže rodu (šance z okolí se zmenší
+  o tentýž odklad); **muži rodu vojvody stejně** (návrh Clauda – dvorec jí ze zásob vsi). Vdát se
+  pryč jde dál (ubývá úst); novou hlavní manželkou z vlastních manželek (lord.md) se nikdo nebere.
+  **V hájení** (prvních 30 let vsi – [populace](population.md), Hájení) sňatky nečekají: hladem
+  v něm nikdo nezemře a nová ves má růst (návrh Clauda).
+  Historicky: v raném novověku se sňatky v drahotě odkládaly o 1–3 roky a po ní dohnaly
+  (Malthusova preventivní brzda, evropský sňatkový vzorec – Hajnal 1965).
 
 ### Svatba ve scéně
 
@@ -328,6 +343,7 @@ odchodu svobodného syna z plného domu):
 | Ženatý pár, který dům nedrží, smí odejít do nového nebo prázdného domu kdykoli            | Martin (19. 10. 2026), návrh Clauda       |
 | Svobodný syn smí odejít sám dál jen z plného domu                                         | návrh Clauda (19. 10. 2026)               |
 | Starší vsi: pohlaví a manželé se doplní jednou deterministicky, rodiče neznámí            | návrh Clauda                              |
+| Sňatky čekají na pojistku zásob – odklad průměrně 3 roky × (1 − naplnění), nikdy zákaz    | Martin (27. 10. 2026), návrh Clauda       |
 | Nevěsta z okolí si pamatuje směr vsi, vdaná pryč zůstane v rodokmenu se směrem (válka)    | návrh Clauda                              |
 | Domácnost drží člověk 16–44; rozpad k příbuzným; ~~vdova s dětmi do 14 se nevdává~~       | návrh Clauda                              |
 | ~~Svatba nepřeplní dům víc než o jednoho~~; v hladu nevěsta z okolí nepřijde              | návrh Clauda                              |

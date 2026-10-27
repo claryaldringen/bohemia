@@ -58,8 +58,9 @@ describe('foundVillage', () => {
     expect(s.people.every((p) => p.dwellingId === zemnice?.dwellingId)).toBe(true);
   });
 
-  it('dá zásoby na 18 měsíců: 840 kg', () => {
-    expect(start().storesKg).toBeCloseTo(840);
+  it('dá zásoby na 18 měsíců a osivo na první osev (půl roční potřeby): 840 + 280 kg', () => {
+    // osivo ze zásob při setí (fields.md – Zásoby a nasycení, Start; START_SEED_YEARS)
+    expect(start().storesKg).toBeCloseTo(840 + 280);
   });
 
   it('první pole je stavba s díly ve stavu founding a součtem ceny', () => {

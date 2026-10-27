@@ -3,6 +3,7 @@ import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
 import { PROTEIN } from '../diet';
 import { hayLeftAvailable, hayWinterDaysLeft, winterHayAvailable } from '../hay';
+import { mergeHaySlaughter } from '../husbandry';
 import { youngsterHerders } from '../herding';
 import { predationDay } from '../predators';
 import { HERD_BREEDING } from '../rules';
@@ -31,7 +32,7 @@ import {
 } from '../livestock';
 import { advanceVillage } from '../simulate';
 import { freshWildlife } from '../wildlife';
-import type { FieldPart, HerdSpecies, VillageState } from '../types';
+import type { ChronicleEvent, FieldPart, HerdSpecies, VillageState } from '../types';
 import { withBuiltFirstDwelling, withRoomyPens } from './village-fixtures';
 
 // Dobytek (diet.md – Dobytek): výchozí stádo, růst, ztráty, nosnost, chovné stádo podle potřeby,
@@ -407,6 +408,42 @@ describe('porážka při nedostatku sena (24. 10. 2026)', () => {
   });
 });
 
+describe('zlé roky – bez úniku budoucnosti (disasters.md – Kdy je vidět)', () => {
+  it('v lednu dlouhé zimy se poráží stejně jako v normální (dlouhá zima ještě není vidět)', () => {
+    const day = at(601, 1, 10);
+    const run = (winter: 'normal' | 'long'): Record<HerdSpecies, number> => {
+      const s = village(day);
+      s.disasters = { override: { weather: { 601: { winter } } } };
+      s.livestock!.herds = herds({ sheep: 20, goat: 3, pig: 8, cow: 6 });
+      s.hay = { kg: 3_000, mowing: null };
+      hayShortSlaughter(s, day, 0);
+      return s.livestock!.herds;
+    };
+    expect(run('long')).toEqual(run('normal'));
+    // od 1. 3. už se počítá s krmením do konce dubna – poráží se víc
+    const march = at(601, 3, 5);
+    const cut = (winter: 'normal' | 'long'): number => {
+      const s = village(march);
+      s.disasters = { override: { weather: { 601: { winter } } } };
+      s.livestock!.herds = herds({ sheep: 20, goat: 3, pig: 8, cow: 6 });
+      s.hay = { kg: 1_500, mowing: null };
+      hayShortSlaughter(s, march, 0);
+      const h = s.livestock!.herds;
+      return h.sheep + h.goat + h.cow;
+    };
+    expect(cut('long')).toBeLessThan(cut('normal'));
+  });
+
+  it('pastva od 1. 9. nepočítá s právě minulým létem (sucho minulého léta ji 1. 11. nesráží)', () => {
+    const s = village(at(601, 8, 20));
+    s.livestock!.land = { meadowHa: 20, forestHa: 10 };
+    s.disasters = { override: { weather: { 601: { summer: 'drought' } } } };
+    expect(pastureHa(s, at(601, 8, 20))).toBeLessThan(20);
+    expect(pastureHa(s, at(601, 9, 1))).toBeCloseTo(20, 9);
+    expect(pastureHa(s, at(601, 11, 1))).toBeCloseTo(20, 9);
+  });
+});
+
 describe('simulace – stáda za rok', () => {
   it('startovní ves: na jaře mláďata, v listopadu porážka a maso v zásobě, vejce celý rok', () => {
     // ohrady všech druhů – stáda neomezí místa na noc (oxen.md – Ohrady podle druhu)
@@ -431,5 +468,30 @@ describe('simulace – stáda za rok', () => {
     expect(chunked.hay).toEqual(whole.hay);
     expect(chunked.chronicle).toEqual(whole.chronicle);
     expect(chunked.diet).toEqual(whole.diet);
+  });
+});
+
+describe('kronika porážky pro nedostatek sena', () => {
+  it('další porážky téže zimy se sečtou do posledního zápisu', () => {
+    const s = { chronicle: [] as ChronicleEvent[] } as VillageState;
+    const events: ChronicleEvent[] = [];
+    mergeHaySlaughter(s, { day: 100, kind: 'hay-slaughter', kg: 120, animals: { cow: 1 } }, events);
+    s.chronicle.push(...events.splice(0));
+    mergeHaySlaughter(
+      s,
+      { day: 101, kind: 'hay-slaughter', kg: 240, animals: { cow: 2, goat: 1 } },
+      events,
+    );
+    expect(events).toEqual([]);
+    expect(s.chronicle).toEqual([
+      { day: 100, kind: 'hay-slaughter', kg: 360, animals: { cow: 3, goat: 1 } },
+    ]);
+    // jiná zima = nový zápis
+    mergeHaySlaughter(
+      s,
+      { day: 100 + 365, kind: 'hay-slaughter', kg: 10, animals: { cow: 1 } },
+      events,
+    );
+    expect(events).toHaveLength(1);
   });
 });

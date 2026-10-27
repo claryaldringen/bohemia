@@ -60,6 +60,14 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
   maso, sýr, luštěniny, ovoce podle zásob, nejvýš poměrný díl zásob vsi podle počtu lidí), a **poměrný díl stád**
   (ovce, kozy, prasata, krávy; voli a ohrady zůstávají ve staré vsi – kromě vozu s voly, viz
   níž Vůz při odchodu). Klády, nástroje a keramika zůstanou.
+- **Osivo na první osev** (Martin 27. 10. 2026: „ok, jak navrhuješ“; pravidla a čísla návrh
+  Clauda – [pole](fields.md), Osivo pro ves bez zásob): k jídlu si vezmou osivo – **půl roční
+  potřeby** odcházejících (jako nová ves), jen ze svého dílu zásob obilí (mateřská ves nepřijde
+  o víc než o poměrný díl; osivo, které má jen na setí, mezi něj nepatří). Osivo mají napřed:
+  **20 kg na nosiče navíc** k jídlu; osivo na voze nad to jen z místa, které zbude po jídle na
+  **180 dní** (jídlo má přednost – návrh Clauda). Poměrný díl je ze zásob bez rezervy osiva
+  mateřské vsi. Nová ves ho nesní (ani na
+  cestě) a zaseje ho do 1. 6.; co chybí, koupí u sousedů.
 - **Vůz při odchodu** (Martin 20. 10. 2026 k návrhu nových nákladů vozů – [vozy](wagons.md), Co se
   vozí a na čem: „**Ano, udělej to jak říkáš**“; podrobnosti rozhodnutí Clauda): odcházející si
   vezmou **volný vůz s voly** – vůz doma (ne na výpravě) a vycvičené voly pro něj (čtyřkolák pár,
@@ -99,24 +107,25 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                             | Kdo                                               |
-| ------------------------------------------------------------------------------------------------------ | ------------------------------------------------- |
-| Přestěhování domácnosti: obyvatelé postaví nový dům jinde, starý zůstane prázdný                       | Martin                                            |
-| Výběr víc / všech obydlí, vyvedení lidí do nové vsi na stejné nebo nové mapě                           | Martin                                            |
-| Při odchodu části lidí stará ves zůstane – hráč má víc vsí                                             | Martin                                            |
-| Přestěhování bez lidí k osídlení, bydlí ve starém do dostavění; Ctrl/Shift + klik, Ctrl + A            | návrh Clauda                                      |
-| Nová ves ≥ 300 m od staré na téže mapě; nová mapa vedle staré v mřížce, cesta 1–3 dny                  | návrh Clauda                                      |
-| S sebou 25 kg jídla na člověka od 7 let a poměrný díl stád; klády a výrobky zůstanou                   | návrh Clauda                                      |
-| Přepínač vsí jménem v horní liště; upozornění z jiných vsí se jménem                                   | návrh Clauda                                      |
-| Víc vsí na mapě = víc vsí sídla (ves má vlastní id), nová mapa = sídlo s polohou v mřížce              | návrh Clauda                                      |
-| Vybraná ves v cookie; ves na téže mapě se přepne na místě, na jiné mapě novým načtením                 | návrh Clauda                                      |
-| Typ nového domu dvěma tlačítky v panelu (zemnice, polozemnice); Ctrl + A jen hotová obydlí             | návrh Clauda                                      |
-| Odchod: odejdou celé domácnosti, všichni bydlí na staveništi první zemnice, opuštěná ves se nesimuluje | návrh Clauda                                      |
-| Vsi na téže mapě: přehled cizích staveb, půdy, pasek a vyhrazených stromů při dopočtu – neukládá se    | návrh Clauda                                      |
-| Mřížka map každého hráče zvlášť, sídelní sídlo v (0, 0); cesta 1–3 dny podle vzdálenosti ke kraji      | návrh Clauda                                      |
-| Vlastní ves v sousední mapě nahradí souseda bez simulace – tím směrem se neodchází ani neobchoduje     | návrh Clauda                                      |
-| Odcházející si vezmou volný vůz s voly a víc jídla                                                     | návrh Clauda, Martin („Ano, udělej to jak říkáš“) |
-| Volný vůz = voli nad páry k rádlům (celá ves bere i ty); napřed čtyřkolák; voli v nové vsi bez ohrady  | rozhodnutí Clauda                                 |
+| Rozhodnutí                                                                                                | Kdo                                               |
+| --------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| Přestěhování domácnosti: obyvatelé postaví nový dům jinde, starý zůstane prázdný                          | Martin                                            |
+| Výběr víc / všech obydlí, vyvedení lidí do nové vsi na stejné nebo nové mapě                              | Martin                                            |
+| Při odchodu části lidí stará ves zůstane – hráč má víc vsí                                                | Martin                                            |
+| Přestěhování bez lidí k osídlení, bydlí ve starém do dostavění; Ctrl/Shift + klik, Ctrl + A               | návrh Clauda                                      |
+| Nová ves ≥ 300 m od staré na téže mapě; nová mapa vedle staré v mřížce, cesta 1–3 dny                     | návrh Clauda                                      |
+| S sebou 25 kg jídla na člověka od 7 let a poměrný díl stád; klády a výrobky zůstanou                      | návrh Clauda                                      |
+| Přepínač vsí jménem v horní liště; upozornění z jiných vsí se jménem                                      | návrh Clauda                                      |
+| Víc vsí na mapě = víc vsí sídla (ves má vlastní id), nová mapa = sídlo s polohou v mřížce                 | návrh Clauda                                      |
+| Vybraná ves v cookie; ves na téže mapě se přepne na místě, na jiné mapě novým načtením                    | návrh Clauda                                      |
+| Typ nového domu dvěma tlačítky v panelu (zemnice, polozemnice); Ctrl + A jen hotová obydlí                | návrh Clauda                                      |
+| Odchod: odejdou celé domácnosti, všichni bydlí na staveništi první zemnice, opuštěná ves se nesimuluje    | návrh Clauda                                      |
+| Vsi na téže mapě: přehled cizích staveb, půdy, pasek a vyhrazených stromů při dopočtu – neukládá se       | návrh Clauda                                      |
+| Mřížka map každého hráče zvlášť, sídelní sídlo v (0, 0); cesta 1–3 dny podle vzdálenosti ke kraji         | návrh Clauda                                      |
+| Vlastní ves v sousední mapě nahradí souseda bez simulace – tím směrem se neodchází ani neobchoduje        | návrh Clauda                                      |
+| Odcházející si vezmou volný vůz s voly a víc jídla                                                        | návrh Clauda, Martin („Ano, udělej to jak říkáš“) |
+| Volný vůz = voli nad páry k rádlům (celá ves bere i ty); napřed čtyřkolák; voli v nové vsi bez ohrady     | rozhodnutí Clauda                                 |
+| Osivo na první osev: půl roční potřeby, ze svého dílu zásob, 20 kg na nosiče, na voze po jídle na 180 dní | Martin (27. 10. 2026), čísla návrh Clauda         |
 
 ## Na stavitelích
 
@@ -198,6 +207,7 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
   stěhování); přestavovaný dům odejít smí – přestavba prázdného domu se sama opustí.
 - **Co si vezmou:** 25 kg na člověka od 7 let, nejvýš poměrný díl zásob podle počtu lidí; když
   neunesou celý díl, berou ze všech zásob (obilí, maso, sýr, luštěniny, ovoce) stejný podíl.
+  Napřed osivo na první osev (viz výš) – obilí na jídlo je díl bez něj.
   Stáda: poměrný díl ovcí, koz, prasat a krav i letošních mláďat (počty smí být neceločíselné
   jako všude ve stádech); voli, ohrady, klády, nástroje a keramika zůstanou.
 - **Nová ves** začíná jako při založení – všichni osadníci jsou jedna domácnost na staveništi

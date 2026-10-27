@@ -69,7 +69,7 @@ export interface FieldPart {
   areaM2: number;
   distanceM: number;
   naturalFertility: number; // 0–100 z krajiny
-  fertilityShare: number; // aktuální úrodnost / přirozená, 0–1
+  fertilityShare: number; // aktuální úrodnost / přirozená, 0–1 (naplavenina povodně až 1,3)
   bonusUntilDay: number | null; // do kdy platí bonus vymýceného lesa (FOREST_BONUS)
   state: PartState;
   sownYears: number; // kolik let v řadě oseto

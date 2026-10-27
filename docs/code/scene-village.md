@@ -672,3 +672,82 @@ Kdo a kdy kuje, určuje jádro (`shoeingDay` → `SceneLabor.shoeing`); scéna j
   skupina `horse` – žádný nový vertex atribut (hlídá `fauna.test.ts`).
 - **Ukázka** `/dev/landscape` – tlačítko „Kování“ (`dev-shoeing.ts`): vypnuto → vlastní kovář →
   cizí kovář (krajinou z kraje mapy na východě); bez ohrady koní si ji ukázka přinese i s kovárnou.
+
+## Požár a řetěz s vědry (disasters.md – Požár, Hašení – řetěz s vědry; P13)
+
+Data `SceneVillage.fire` jen v den požáru – [village-disasters.md – Scéna – požár](village-disasters.md).
+
+- **Plameny** – oheň pálení paseky (`clearing-fire-renderer.ts`) s jiným druhem ohně (`FireKind`
+  – rozvrh, tvar, kapacita, jméno správce, den světa): `houseFireKind` v `house-fire.ts`, druhá
+  instance `ClearingFireRenderer` v `landscape-scene.ts` (`houseFire`, `updateHouseFires` podle
+  `houseFireKey`). Na stavbu dva ohně podél hřebene (`houseFires`, 14 plamenů a 6 jisker, tvar
+  `houseFireShape` – plameny nad střechou), nejvýš `MAX_BURNING_HOUSES` (12) staveb. Rozvrh
+  `houseFireState` (`smoke-schedule.ts`, `HOUSE_FIRE`): požár je událost celého herního dne –
+  chytne hned po půlnoci (sousední stavby o kus později podle pořadí v šíření), hoří naplno, od
+  0,55 dne slábne, od 0,8 jen žhavé uhlíky a dým doutnání do konce dne.
+- **Hustý dým** – dým vsi (`village-smoke.ts`) druhu `house-fire` (`HOUSE_FIRE_PLUME` – 34
+  obláčků, 40 m vysoko, tmavší na polovinu), zdroj 2,5 m nad středem každé hořící stavby
+  (`houseFirePlumes`, `HOUSE_FIRE_SMOKE_SEED`), síla z `houseFireState` přes `ClearingBurn`
+  (`burnedDay` = den požáru, `order`). Vývojově vynucený den světa (`setDisasterDay`) platí
+  i pro plameny a dým.
+- **Řetěz s vědry** (`villager-plan-fire.ts`; Martin 27. 10. 2026: „Chci, aby všichni dospělí
+  hasili. Ať udělají řetěz s vědry od nejbližší vody“, „Lidé musí být rozložení ve stejných
+  vzdálenostech“) – `fireChainLayout`: úsečka od bodu vody k hořící stavbě, poslední člověk
+  kousek před stěnou (`HOUSE_CLEAR_M`), rovně (i přes sad nebo pole – jako jádro). Rozestup
+  jádra ≤ 2,5 m (`FIRE.firefighting.handoverM`) – **podávají**: stojí rovnoměrně, střídavě
+  0,45 m vlevo a vpravo od osy čelem k ní (`idle`), vědra jdou po ose od vody k ohni po jednom
+  předání za 1,1 s (chvíli je člověk drží, mezi lidmi se zhoupnou), vědro na dva lidi; u ohně se
+  vylije, u vody se nabere. Větší rozestup – **chodí**: každý tam a zpět po svém úseku (od souseda
+  k sousedovi, 1,15 m/s, tempo klipu `walk` podle velikosti postavy), sousedé v protifázi – na
+  konci úseku se potkají a 0,8 s stojí proti sobě (předají si vědro), k ohni nese plné, zpět
+  prázdné. Postavy `fireChainFigures` hned po pohřbech (dospělí z `DayRoster`, jádro jim ten den
+  jinou práci nedává), klíč `fire:<i>`, činnost v panelu „hasí požár“ (`PersonJob` `fire`);
+  nejvýš `MAX_FIRE_FIGURES` (80) – víc dospělých: řada od ohně s rozestupem jádra. Při změně
+  plánu nepřecházejí pěšky (`walkThen`), modely postav se načtou i při prázdné práci vsi.
+- **Vědra** (`fire-buckets.ts`) – samostatný mesh, ne rekvizita postavy (postava má právě 8
+  vertex bufferů, limit WebGPU): procedurální dřevěný válec (vlastní práce, CC0) v tenkých
+  instancích, polohy `fireBuckets` ze stejného rozvrhu a času jako postavy (při chůzi v pravé
+  ruce u boku, při podávání na ose řady ve výšce rukou). Jen v den požáru; při omezeném pohybu
+  stojí. Draw cally: požár +2 (sprity plamenů, vědra), normální den beze změny.
+- **Ohořelé trosky** – zbytek jámy (`ruinHollowData`, `charred`) má uvnitř jámy popel
+  a ohořelé dřevo (`CHARRED_TINT`), na lemu slabě; jak zbytek zarůstá, vrací se k trávě. Zmizí
+  jako každý zbytek – zarostením nebo novou stavbou hráče na místě (`withoutBuiltOverRuins`).
+- Testy `fire-chain.test.ts` (rovnoměrné rozestupy, střídání stran, chodci se potkají na konci
+  úseku, vědra, rozvrh ohně).
+
+## Smršť – stopa ve vsi (disasters.md – Smršť, Ve scéně; P13)
+
+Data `SceneVillage.tornado` (den, síla, stopa, prvních pár dní vývraty) –
+[village-disasters.md – Scéna – smršť](village-disasters.md); trychtýř a ztmavení –
+[scene.md – Smršť](scene.md). Pásmo stopy počítá scéna stejnou funkcí jako jádro
+(`inTornadoTrack`), podíly škod podle síly z `TORNADO.strengths` (`strengthRule`).
+
+- **Vývraty** – jádro je zapíše jako kácení (`felledTrees`), scéna je tak kreslí jako každý
+  pokácený strom: strom zmizí (InstanceHider) a na jeho místě je pařez (`felled-trees.ts`,
+  `obstacles.stumps`); klády leží na hromadách u lesa (`logStacks`, `log-pile.ts`). Navíc
+  `TORNADO_TRUNK_DAYS` (10) dní po smršti leží vyvrácené stromy vrstvy překážek **na boku se
+  zelenou korunou** – plný model stromu podle podoby (`lyingTreeModel`; vrba z dekorací, vzácné
+  varianty jilmu, topolu a velkého dubu jedním modelem rodu), pata na místě stromu zvednutá
+  o 0,8 m, osa skloněná o 80° od svislice (`up` v `ModelInstance` – koruna nepropadá terénem)
+  ve směru pádu po stopě ± 0,45 rad (`fallenTrunk`). U paty **kořenový talíř** – hrouda
+  (`stone-2`, 14 trojúhelníků, obarvená do hlíny) postavená na hranu kolmo na kmen, místo
+  pařezu (ten se ukáže, až ves kmen rozřeže). Nikdy impostor (atlas je pro stojící strom) –
+  meshe `felled-fallen-<model>` a `felled-root-plate`, ořez po čtvercích. Souš bez modelu
+  stromu leží jako holý padlý kmen (`fallen-2`, `fallen-3`, střed 5 m od pařezu, 0,85 ×
+  strom); mladé stromky ne. Pak je ves rozřeže na klády (návrh Clauda). Výkon (F3 ukázka,
+  3391 vývratů): výchozí pohled draw cally i trojúhelníky jako normální den (stromy stopy jsou
+  skryté), trojnásobné oddálení +10 draw callů a +0,33 mil. trojúhelníků (1,58 → 1,91 mil.). Kmeny jdou přes `FelledTrees.update` (`tornadoTrunks`) – změna nastaví
+  `felled`, takže se **stínová mapa překreslí jednou** (`castersChanged`).
+- **Polehlá pole** – `withTornado` ve `field-look.ts` (po krupobití): osetý díl se středem ve
+  stopě nižší a řidší podle ztráty úrody síly (F0 0,2 … F3 1 – `crop`), polehlý (i luštěniny
+  a len) a do hněda – do žní jako kroupy (sklizený díl už osetý není).
+- **Rozmetané stohy** – `scatterStacks` (`tornado-track.ts`) v `FieldRenderer.updatePlants`:
+  stoh louky nebo pole ve stopě (podíl `hay` – F0 polovina, jinak všechny; `stackScattered`)
+  rozfouká vítr na 5 nízkých kupek po směru stopy do 14 m; jen stohy, které v den smrště stály
+  (`hayPhase` dne smrště – `stacks`), nové stohy po ní stojí celé. Změna smrště přestaví seno
+  i bez nového dne (náhled). Stoh u ohrady (`pen-renderer.ts`, `PenView.tornado`) ve stopě
+  leží jako nízká široká hromada (× 1,3 šířka, × 0,25 výška).
+- **Poškozené a zřícené stavby** – jádro ubere stav (`condition`) a na nule obydlí zboří
+  (`collapseDwellings` – zbytek jámy v `ruins`); scéna je kreslí jako rozpad
+  (`dwelling-decay.ts`, `structure-decay.ts`) a zbytek po zániku – bez vlastní cesty. Změna
+  staveb nastaví `village` → stínová mapa se překreslí jednou.

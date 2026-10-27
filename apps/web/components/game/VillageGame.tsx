@@ -26,6 +26,7 @@ import {
   declareHunt,
   cancelConstruction,
   foundDevVillage,
+  forceDevDisaster,
   foundVillage,
   getVillageView,
   leaveVillage,
@@ -106,7 +107,7 @@ import { Minimap } from './hud/Minimap';
 import { LineNamePanel } from './hud/LineNamePanel';
 import { NoticeLines, type NoticeLine } from './hud/NoticeLines';
 import { SelectionPanel } from './hud/SelectionPanel';
-import { TopBar } from './hud/TopBar';
+import { TopBar, type DevDisasterChoice } from './hud/TopBar';
 
 /** Stav vsi ze serveru: pohled na ves, ještě nezaložená (null), nebo chyba (svět neběží…). */
 export type VillageData = VillageView | null | { error: string };
@@ -326,6 +327,7 @@ export function VillageGame({
   const [timeOffsetDays, setTimeOffsetDays] = useState(initialTimeOffsetDays);
   const [skipping, setSkipping] = useState<TimeSkip | null>(null);
   const [foundingDevVillage, setFoundingDevVillage] = useState(false);
+  const [forcingDisaster, setForcingDisaster] = useState(false);
   const [soundOn, setSoundOn] = useSoundPreference();
   // Hodiny hráče: svět posunutý o jeho posun času – datum, roční období i dým jako na serveru.
   const clock = useMemo(() => shiftWorldClock(world, timeOffsetDays), [world, timeOffsetDays]);
@@ -1024,6 +1026,17 @@ export function VillageGame({
     if (first) scene?.moveCameraTo(first.x, first.z);
   };
 
+  /** Vývojový režim: vynutí letošní zlý rok, nebo zítřejší pohromu (disasters.md – plán P10). */
+  const forceDisasterChoice = (choice: DevDisasterChoice): void => {
+    const villageId = viewRef.current?.id;
+    if (!villageId || forcingDisaster) return;
+    setForcingDisaster(true);
+    void runAction(() => forceDevDisaster({ villageId, ...choice })).then((failure) => {
+      setForcingDisaster(false);
+      if (failure !== null) pushNotice({ kind: 'error', tone: 'error', text: failure });
+    });
+  };
+
   /** Vývojový režim: druhá ves na téže mapě – rozhraní se na ni hned přepne. */
   const foundSecondVillage = (): void => {
     const villageId = viewRef.current?.id;
@@ -1151,6 +1164,11 @@ export function VillageGame({
         devVillage={
           devMode && view && !view.extinct
             ? { pending: foundingDevVillage, onFound: foundSecondVillage }
+            : null
+        }
+        devDisasters={
+          devMode && view && !view.extinct
+            ? { pending: forcingDisaster, onForce: forceDisasterChoice }
             : null
         }
       />

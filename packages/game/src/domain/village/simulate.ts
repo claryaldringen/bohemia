@@ -17,6 +17,7 @@ import { withHorsePenStock } from './horse-stock';
 import { withPenSpecies } from './pens';
 import { husbandryDay } from './husbandry';
 import { arrangeMarriages } from './marriage';
+import { bufferFill } from './field-food';
 import { withOxen } from './oxen';
 import { overgrowthDay } from './overgrowth';
 import { roadsDay, roadsMonth } from './paths/roads';
@@ -27,6 +28,8 @@ import { villageSacredOaks } from './sacred';
 import { moveGrainFromCoveredPits } from './grain-pit-site';
 import { withThreshingGrace, spoilSheaves } from './threshing';
 import { withSeason } from './year-plan';
+import { withSeedForgiven } from './seed';
+import { seedBuyingDay } from './seed-buying';
 import { withSowingRotation } from './rotation';
 import { sacredOakEvents } from './sacred-life';
 import { orchardSeasonDay } from './orchard';
@@ -51,14 +54,18 @@ import {
 } from './rules';
 import type { VillageState } from './types';
 import { rotLogs } from './wood';
+import { localDisastersDay } from './local-disasters';
 import { decideRebuilds, finishConstructions } from './simulate-build';
 import { eat, endThreshing, harvest, harvestWinter } from './simulate-food';
-import { isOn, lordHelpDay, seasonDay, startSeason } from './simulate-plan';
+import { fieldSowingTargets, isOn, lordHelpDay, seasonDay, startSeason } from './simulate-plan';
 import { work } from './simulate-work';
 import { patrolHuntDay, settlePatrol } from './field-patrol';
 import { huntDay, planHuntDay } from './hunt';
 import { dogsYear } from './manor-dogs';
 import { wildlifeYearDay, withWildlife } from './wildlife';
+import { weatherDay } from './weather';
+import { partProtectionDay } from './part-protection';
+import { famineMemoryDay } from './weather-effects';
 import { damageWindowStart, wildlifeDamageDay, wildlifeSeasonEnd } from './wildlife-damage';
 import { lordFieldMode, trainLordDay, updateLordTraining } from './lord';
 import { dynastyDay } from './succession';
@@ -113,7 +120,8 @@ export function* advanceVillageSteps(
   // (production-chains.md – Kovář), ves ze zboží zvenku o něj přijde (trade.md – Jen společné
   // suroviny), řemeslníci z doby před učením řemesla praxi (crafts.md – Učení řemesla) a ves z doby
   // před snopy rok odkladu mlácení (production-chains.md – Starší vsi) a ves s ročním plánem osevní
-  // postup po dílech (fields.md – Osevní postup po dílech, bod 7) – jednou, idempotentně
+  // postup po dílech (fields.md – Osevní postup po dílech, bod 7), plán z doby před osivem ze
+  // zásob odpuštěné osivo zaseté části (fields.md – Osivo ze zásob, Převod) – jednou, idempotentně
   const next = cloneState(
     withWildlife(
       withThreshingGrace(
@@ -125,7 +133,9 @@ export function* advanceVillageSteps(
                   withIronBarsTrade(
                     withToolEquipment(
                       withCattleKinds(
-                        withDynasty(withKinship(withSowingRotation(withSeason(state)))),
+                        withDynasty(
+                          withKinship(withSeedForgiven(withSowingRotation(withSeason(state)))),
+                        ),
                       ),
                     ),
                   ),
@@ -175,6 +185,11 @@ function simulateDay(
   updateLordTraining(state, day);
   // zvěř: 1. 5. roční přepočet podle krajiny a stropů (wildlife.md – Roční přepočet)
   wildlifeYearDay(state, day, landscape);
+  // počasí kraje: v den, kdy se ukáže zlá zima nebo neobvyklé léto, zápis do kroniky
+  // (disasters.md – Léto, Zima, „Kdy je vidět“)
+  state.chronicle.push(...weatherDay(state, day));
+  // 1. 4.: ochrana dílů před počasím ze zeleně a vlhkosti (disasters.md – Ochrana dílu)
+  partProtectionDay(state, day, landscape, obstacles);
   // psi dvorce 1. 5.: úbytek a štěňata (wildlife.md – Psi)
   dogsYear(state, day);
   // velký lov rodu: kdo dnes loví – pěší lovci jsou mimo práci vsi (wildlife.md – Lov rodu)
@@ -211,14 +226,24 @@ function simulateDay(
   state.chronicle.push(...sacredOakEvents(villageSacredOaks(state), obstacles, day));
   // 1. 9. nový hospodářský rok a postup dílů, každý den nutné díly a konce oken setí (fields.md –
   // Osevní postup po dílech); podíl dne rodiny na nutné práci (lord.md – Kdy jde rodina na pole)
+  // paměť hladu: po krutém roce drží ves 10 let vyšší pojistku – před plánem osevu
+  // (disasters.md – Dopady, Zásoby a pojistka)
+  famineMemoryDay(state, day);
   if (isOn(date, PLANNING_DAY)) startSeason(state, day, coverage, landscape);
   const waiting = seasonDay(state, day, coverage);
   lordHelpDay(state, day, coverage, landscape, waiting);
   // zvěř: 1. 6. ohrožené díly polí podle vzdálenosti od lesa (wildlife.md – Škody)
   damageWindowStart(state, day, landscape);
+  // místní pohromy (disasters.md – Místní pohromy – jedna ves): smršť, kroupy, povodeň, požár –
+  // po plánu dne, před nákupy a prací; při požáru dnes dospělí hasí (`villagersToday`, `work()`)
+  const disasterEvents = localDisastersDay(state, day, landscape, obstacles);
+  state.chronicle.push(...disasterEvents);
   // nákup výrobků řemeslníků u sousedů – jednou za rok po sklizni, ves se rozhodne sama
   // (crafts.md – Nákup u sousedů); skupina vyrazí hned
   startPurchases(state, day, coverage, landscape);
+  // osivo pro ves bez zásob – 1. 9. a 1. 3. ho ves koupí u sousedů, 1. 6. je nezaseté obyčejné
+  // zrno (fields.md – Osivo pro ves bez zásob); po plánu dne, před prací
+  state.chronicle.push(...seedBuyingDay(state, day));
   const { toil, lordField } = work(
     state,
     day,
@@ -265,9 +290,16 @@ function simulateDay(
   // sňatky mezi domy – svobodní ve dvou domech se vezmou (population.md – Sňatky mezi domy); muž
   // bez hlavní manželky, který nějakou manželku má (osadníci výpravy), se před nimi nežení
   // (lord.md – Nová hlavní manželka); pak další manželky mužů rodu z okolí (lord.md – Manželky)
+  // svatby čekají, dokud výhled zásob k příští sklizni nemá pojistku (kinship.md – Sňatky čekají
+  // na zásoby; Martin 27. 10. 2026) – naplnění se spočítá jednou za den, jen když je svatba na řadě;
+  // v hájení ne (hladem v něm nikdo nezemře, ves má růst – population.md, Hájení)
+  let fill: number | undefined;
+  const lucky = inLuckyYears(state.foundedDay, day);
+  const storesFill = (): number =>
+    (fill ??= lucky ? 1 : bufferFill(fieldSowingTargets(state, day, coverage)));
   state.chronicle.push(...ensureMainWives(state, day));
-  state.chronicle.push(...arrangeMarriages(state, day));
-  state.chronicle.push(...extraWivesDay(state, day));
+  state.chronicle.push(...arrangeMarriages(state, day, storesFill));
+  state.chronicle.push(...extraWivesDay(state, day, storesFill));
   const { satiation, energy, fruit, meat } = eat(state, day, coverage);
   // nouzová porážka běží až v `eat()`, po `work()` – doplnit hlášení kusů do dnešního rozvrhu práce
   // (jen hlášení pro scénu, simulaci to nemění)
@@ -296,7 +328,11 @@ function simulateDay(
   const events = populationDay(state, day, satiation, energy);
   state.chronicle.push(...events);
   // kdo zahynul na lovu, ves oplakává jako každé úmrtí (štěstí), i když zápis dělá lov
-  const happinessEvents = [...events, ...huntEvents.filter((e) => e.kind === 'death')];
+  const happinessEvents = [
+    ...events,
+    ...huntEvents.filter((e) => e.kind === 'death'),
+    ...disasterEvents.filter((e) => e.kind === 'death'),
+  ];
   // nová hlavní manželka a nástupnictví (lord.md – Rod vojvody); ves bez rodu nic
   state.chronicle.push(...dynastyDay(state, day));
   // štěstí na konci dne – hlad, úmrtí, přeplněnost, dřina, zásoby, ovoce, maso a posvátná místa

@@ -92,7 +92,7 @@ describe('nutné díly den po dni', () => {
 
   it('ozim, na kterém do konce října setí nezačalo, jde do jaře – každý zbylý díl ozimu je osetý', () => {
     const start = village(200);
-    start.storesKg = 0;
+    start.storesKg = 600; // hladová ves, ale s osivem – osivo ze zásob při setí (fields.md – Úroda, Osivo ze zásob)
     const october = advanceVillage(start, at(600, 10, 31), null);
     const before = seasonCrop(october.season!, 'winter')!;
     // ves bere díly po dávkách na čele – na konci okna přidáme tři nezačaté, ať je co přesunout
@@ -181,7 +181,9 @@ function hungryVillage(): VillageState {
   });
   s.constructions = [];
   s.lastDay = at(600, 8, 31);
-  s.storesKg = 0;
+  // hladová ves, ale s osivem – osivo ze zásob při setí nad příděl SEED_STORES.floorRation (fields.md
+  // – Úroda, Osivo ze zásob)
+  s.storesKg = 800;
   s.parts.forEach((p, i) => {
     p.foundingDone = p.foundingCost;
     p.state = 'fallow';
@@ -218,7 +220,7 @@ describe('postup práce po dílech od čela (fields.md – Postup práce po díl
 
   it('díly přibývají po dávkách, jak se čelo posouvá – ozim roste celý podzim', () => {
     const start = village(80);
-    start.storesKg = 0;
+    start.storesKg = 600; // hladová ves, ale s osivem – osivo ze zásob při setí (fields.md – Úroda, Osivo ze zásob)
     const first = advanceVillage(start, at(600, 9, 1), null);
     const october = advanceVillage(first, at(600, 10, 31), null);
     const n1 = seasonCrop(first.season!, 'winter')!.partIds.length;

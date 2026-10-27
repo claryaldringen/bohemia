@@ -150,6 +150,11 @@ směr)` – stálá povaha podle druhu souseda (`neighbourKind` – obilnáři, 
   (`horseTradeRoom`), popisek řádku a důvod v náhledu (`trade-quote.ts`, `NO_HORSE_ROOM` – koně
   všech tří druhů dohromady); karavana koně nenese (`carries`).
 
+- **Nákup osiva** (trade.md – Nákup osiva, fields.md – Osivo pro ves bez zásob; Martin 27. 10.
+  2026): `seed-buying.ts` – ves bez osiva na nutné díly ho 1. 9. a 1. 3. sama koupí (`buySeed`):
+  zásoba obilí sousedů `neighbourStock` (po zlém roce menší – `seasonSupply`) ubude přes
+  `storeStock` (z `trade.ts`), platba hřivny → krávy `cattleForSale` v `sellPrice` × `goodWorth`,
+  bez stezky a bez nosičů (zboží hned); podrobnosti village-fields.md – Osivo pro ves bez zásob.
 - **Výměna lidí** (trade.md – Výměna lidí; Martin 19. 10. 2026: „Se sousedem půjde vyměnit
   i lidi…“, „Mohou se stěhovat celé rodiny i jen dospělí. Podle toho, co je v nabídce.“;
   `people-trade.ts`): soused má na rok obchodu lidi navíc, nebo je shání (`neighbourPeople` – ze
@@ -175,3 +180,5 @@ směr)` – stálá povaha podle druhu souseda (`neighbourKind` – obilnáři, 
   `VillageNeighbour.people` (`neighbourViews` – `offers`, `takes`, `have` po výběru jádra), náhled
   `tradePreview(…, people)`, řádky rodina / muž / žena v `TradePanel` (ikony
   `resources/family.png`, `man.png`, `woman.png`), upozornění „Přišla rodina ze severu“.
+
+Počasí kraje mění zásoby a ceny sousedů 1. 11. – [village-disasters.md](village-disasters.md#kraj-kolem-vsi-sousedé-a-zvěř-p4).

@@ -420,6 +420,16 @@ export function orchardSeasonDay(
 }
 
 /**
+ * Podíl letošních jablek sadů, který zbyl po krupobití téhož roku (`disasters.hail.apples` –
+ * disasters.md, Kroupy); bez krupobití 1.
+ */
+export function applesAfterHail(state: Pick<VillageState, 'disasters'>, day: number): number {
+  const hail = state.disasters?.hail;
+  if (hail?.apples === undefined || hail.day > day) return 1;
+  return dateOfDayIndex(hail.day).year === dateOfDayIndex(day).year ? hail.apples : 1;
+}
+
+/**
  * Rozběhne sezónní práci ve všech sadech i u jabloní podél pevných cest (roads.md – jabloně jako
  * sad na strom); bez potřebné práce žádnou.
  */
@@ -436,9 +446,10 @@ function startWork(state: VillageState, day: number, task: OrchardWork['task']):
         sum + (task === 'harvest' ? roadAppleHarvestWork(a, day) : roadAppleCareWork(a, day)),
       0,
     );
+  // kroupy téhož roku potloukly jablka v sadech (disasters.md – Kroupy)
   const yieldKg =
     task === 'harvest'
-      ? squares.reduce((s, q) => s + squareYieldKg(q, day), 0) +
+      ? squares.reduce((s, q) => s + squareYieldKg(q, day), 0) * applesAfterHail(state, day) +
         apples.reduce((s, a) => s + roadAppleYieldKg(a, day), 0)
       : 0;
   if (required > 0) state.orchardWork = { task, required, done: 0, yieldKg };
@@ -503,6 +514,58 @@ export function squareDueForRenewal(square: OrchardSquare, day: number): boolean
   return (
     square.plantedDay !== null && orchardYear(square.plantedDay, day) >= ORCHARD.declineAfterYear
   );
+}
+
+/**
+ * Vyvrácené čtverce sadu (disasters.md – Smršť): ves je obnoví jako staré (orchard.md – Obnova
+ * sadu) – stromy leží, čtverec se sází znovu bez překážek (`plantedDay` null). Rozestavěná obnova
+ * sadu je převezme, rozestavěná výsadba také; jinak vznikne nová obnova (bez kvóty – vyvrácené
+ * stromy nečekají). Nevysazené čtverce nic. Mutuje stav, vrátí počet vyvrácených čtverců.
+ */
+export function uprootOrchardSquares(
+  state: VillageState,
+  day: number,
+  orchard: Orchard,
+  squares: readonly OrchardSquare[],
+): number {
+  const c = state.constructions.find((x) => x.kind === 'orchard' && x.orchardId === orchard.id);
+  const fresh: OrchardSquare[] = [];
+  let count = 0;
+  for (const square of squares) {
+    if (square.plantedDay === null) continue;
+    const before = square.plantingCost;
+    square.plantedDay = null;
+    square.plantingCost = renewalPlantingCost(square);
+    square.plantingDone = 0;
+    count++;
+    // čtverec už zařazený do obnovy má výsadbu v její ceně
+    if (square.renewal !== undefined) continue;
+    if (c && !c.renewal) c.cost += square.plantingCost - before;
+    else fresh.push(square);
+  }
+  if (fresh.length === 0) return count;
+  const cost = fresh.reduce((sum, s) => sum + s.plantingCost, 0);
+  if (c?.renewal) {
+    for (const square of fresh) square.renewal = c.id;
+    c.cost += cost;
+    return count;
+  }
+  const id = state.nextId++;
+  for (const square of fresh) square.renewal = id;
+  state.constructions.push({
+    id,
+    kind: 'orchard',
+    startedDay: day,
+    cost,
+    done: 0,
+    dwellingType: null,
+    position: null,
+    dwellingId: null,
+    fieldId: null,
+    orchardId: orchard.id,
+    renewal: true,
+  });
+  return count;
 }
 
 /**

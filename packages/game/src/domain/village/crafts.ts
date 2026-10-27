@@ -34,6 +34,7 @@ import {
   CRAFT_BASE,
   CRAFT_NEEDS,
   CRAFT_PRODUCTION,
+  DWELLINGS,
   DWELLING_FOOTPRINT_M,
   HORSES,
   HORSE_SHOEING,
@@ -244,9 +245,15 @@ export function craftHouseholds(
 ): Set<number> {
   const households = new Set<number>();
   if (!state.dwellings.some((d) => d.workshop)) return households;
-  const occupied = new Set(state.people.map((p) => p.dwellingId));
+  const counts = new Map<number, number>();
+  for (const p of state.people) counts.set(p.dwellingId, (counts.get(p.dwellingId) ?? 0) + 1);
   for (const d of state.dwellings) {
-    if (d.workshop && occupied.has(d.id) && !resting.has(d.id)) households.add(d.id);
+    const count = counts.get(d.id) ?? 0;
+    // Dílna přeplněná přistěhovanými (evakuace bez jiného domu) nemá řemeslnickou domácnost –
+    // lidé pracují vsí (návrh Clauda).
+    if (d.workshop && count > 0 && count <= DWELLINGS[d.type].capacity && !resting.has(d.id)) {
+      households.add(d.id);
+    }
   }
   return households;
 }

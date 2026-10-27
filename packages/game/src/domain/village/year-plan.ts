@@ -190,6 +190,7 @@ export function createCropWork(
     required,
     done: emptyTaskRecord(),
     harvestedKg: null,
+    seedKg: 0,
     ...(plough
       ? {
           plough: {
@@ -367,6 +368,11 @@ function planShare(work: CropWork, task: TaskName): number {
   return work.required[task] > 0 ? Math.min(1, work.done[task] / work.required[task]) : 1;
 }
 
+/** Zasetý podíl plánu plodiny (0–1). */
+export function sownShare(work: CropWork): number {
+  return planShare(work, 'sow');
+}
+
 /** Hotový podíl orby (0–1); plodina bez orby 1. */
 function ploughShare(work: CropWork): number {
   const plough = work.plough;
@@ -477,12 +483,18 @@ export function windowEndOf(segments: readonly WindowSegment[], month: number): 
 }
 
 /** Úlohy plodiny s nedodělkem, jejichž okno dnes běží; nejbližší konec okna první. */
-export function activeTasks(work: CropWork, day: number, crop: Crop = 'spring'): TaskName[] {
+export function activeTasks(
+  work: CropWork,
+  day: number,
+  crop: Crop = 'spring',
+  sowExtended = false,
+): TaskName[] {
   const { month } = dateOfDayIndex(day);
   const result: { task: TaskName; end: number }[] = [];
   for (const task of TASK_ORDER) {
     if (taskRemaining(work, task) <= 0) continue;
-    const end = taskWindowEnd(task, month, crop);
+    // dohra setí jařin v dlouhé zimě 1.–14. 5. (`springSowingExtended`)
+    const end = taskWindowEnd(task, month, crop) ?? (sowExtended && task === 'sow' ? month : null);
     if (end !== null) result.push({ task, end });
   }
   // Array.sort je stabilní – při shodě zůstává pořadí z TASK_ORDER.
@@ -490,7 +502,8 @@ export function activeTasks(work: CropWork, day: number, crop: Crop = 'spring'):
 }
 
 /**
- * Čistá úroda v kg (po odečtení osiva) z dílů práce plodiny. Pletí a sklizeň se měří jen
+ * Úroda v kg z dílů práce plodiny – osivo vzaly zásoby při setí, sklizeň ho neodečítá (ani
+ * práce z doby před tím – převod `withSeedForgiven`). Pletí a sklizeň se měří jen
  * vůči zaseté části (Ruling 17) – částečné setí se tak nepromítne do úrody dvakrát. Díl
  * v první sezóně po vymýcení lesa pletí nepotřebuje, nedodělané pletí ostatních ho nesráží.
  */
@@ -501,6 +514,7 @@ export function harvestKg(
   crop: Crop = 'spring',
   losses?: PartLosses,
 ): number {
+  // osivo vzala ze zásob už setí
   return cropYieldKg(
     work,
     parts,
@@ -523,7 +537,10 @@ export function cropGrossPerHa(crop: Crop, fertility: number): number {
   return grain;
 }
 
-/** Osivo plodiny na hektar (kg) – len seje semeno z vlastní úrody, zásoby neubírá (FLAX). */
+/**
+ * Osivo plodiny na hektar (kg) – len seje semeno z vlastní úrody, zásoby neubírá (FLAX). Ozim
+ * a obilí nad potřebu jako jař.
+ */
 export function cropSeedPerHa(crop: Crop): number {
   if (crop === 'legume') return LEGUMES.seedKgPerHa;
   if (crop === 'flax') return 0;
@@ -605,6 +622,7 @@ function cropYieldKg(
   harvestFrac: number,
   crop: Crop = 'spring',
   losses?: PartLosses,
+  seedFrac = 0,
 ): number {
   const weedFrac = workedShare(work, 'weed');
   // díly plánu podle id najednou – hledat každý v celém poli by bylo kvadratické
@@ -624,13 +642,13 @@ function cropYieldKg(
       (unweeded + (1 - unweeded) * weeded) *
       harvestFrac;
     const kept = 1 - (losses?.[id]?.share ?? 0);
-    total += Math.max(0, ha * gross * kept - ha * cropSeedPerHa(crop) * sowFrac);
+    total += Math.max(0, ha * gross * kept - ha * cropSeedPerHa(crop) * seedFrac);
   }
   return total;
 }
 
 /**
- * Odhad čisté úrody ozimu pro příděl: sklizeň celá, pletí jen kolik je hotové (před pletím
+ * Odhad, o kolik ozim zvětší zásoby (příděl): bez osiva, které zásoby ještě vezmou; sklizeň celá, pletí jen kolik je hotové (před pletím
  * neopletá úroda – opatrně) a setí do konce okna setí celé, potom jen zasetá část.
  */
 export function expectedWinterKg(
@@ -640,7 +658,19 @@ export function expectedWinterKg(
   losses?: PartLosses,
 ): number {
   const sowing = taskWindowEnd('sow', dateOfDayIndex(day).month, 'winter') !== null;
-  return cropYieldKg(work, parts, day, sowing ? 1 : planShare(work, 'sow'), 1, 'spring', losses);
+  const sown = planShare(work, 'sow');
+  // osivo zaseté části vzaly zásoby už při setí (u práce z doby před tím je odpuštěné –
+  // `withSeedForgiven`), nezaseté teprve vezmou
+  return cropYieldKg(
+    work,
+    parts,
+    day,
+    sowing ? 1 : sown,
+    1,
+    'spring',
+    losses,
+    sowing ? 1 - sown : 0,
+  );
 }
 
 /**

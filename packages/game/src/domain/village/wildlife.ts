@@ -7,7 +7,9 @@ import { foxCount } from './fox-eggs';
 import { villageHerds } from './livestock';
 import { CROWS, PREDATION, WILDLIFE_CAPS, WILDLIFE_LAND, WILDLIFE_YEAR } from './rules-wildlife';
 import type { VillageState, WildlifeCaps, WildlifeLand, WildlifeState } from './types';
+import { DISASTER_WILDLIFE } from './rules-disasters';
 import { yearlyQuota } from './small-game';
+import { weatherOf } from './weather';
 import { wildlifeLandAt } from './wildlife-land';
 
 const EPSILON = 1e-9;
@@ -104,10 +106,12 @@ export function bearBackDay(killDay: number): number {
 }
 
 /** Jelení zvěř: dospění, úbytek, přírůstek, nad stropem napřed kolouši a laně poměrně. */
-function deerYear(w: WildlifeState, cap: number): void {
+function deerYear(w: WildlifeState, cap: number, badWinter: boolean): void {
   let stags = w.deer.stags + w.deer.calves / 2;
   let hinds = w.deer.hinds + w.deer.calves / 2;
-  const keep = 1 - (WILDLIFE_YEAR.deerLoss + WILDLIFE_YEAR.deerLossPerWolf * w.wolves);
+  const keep =
+    (1 - (WILDLIFE_YEAR.deerLoss + WILDLIFE_YEAR.deerLossPerWolf * w.wolves)) *
+    (badWinter ? 1 - DISASTER_WILDLIFE.badWinterDeerLoss : 1);
   stags *= Math.max(0, keep);
   hinds *= Math.max(0, keep);
   let calves = hinds * WILDLIFE_YEAR.calvesPerHind;
@@ -126,9 +130,13 @@ function deerYear(w: WildlifeState, cap: number): void {
 }
 
 /** Divoká prasata: dospění, úbytek, přírůstek, nad stropem poměrně. */
-function boarYear(w: WildlifeState, cap: number): void {
-  const adults = (w.boar.adults + w.boar.piglets) * (1 - WILDLIFE_YEAR.boarLoss);
-  let piglets = adults * WILDLIFE_YEAR.pigletsPerAdult;
+function boarYear(w: WildlifeState, cap: number, badWinter: boolean, drought: boolean): void {
+  const adults =
+    (w.boar.adults + w.boar.piglets) *
+    (1 - WILDLIFE_YEAR.boarLoss) *
+    (badWinter ? 1 - DISASTER_WILDLIFE.badWinterBoarLoss : 1);
+  let piglets =
+    adults * WILDLIFE_YEAR.pigletsPerAdult * (drought ? DISASTER_WILDLIFE.droughtPigletShare : 1);
   let kept = adults;
   const total = adults + piglets;
   if (total > cap + EPSILON) {
@@ -153,8 +161,12 @@ export function wildlifeYearDay(
   // ves s `wildlifeFailed` má krajinu zvěře pevnou (`failedLand`) – nepřepočítává se
   if (landscape && state.wildlifeFailed === undefined) w.land = wildlifeLandAt(landscape, state);
   const caps = wildlifeCaps(w.land, villagePigs(state));
-  deerYear(w, caps.deer);
-  boarYear(w, caps.boar);
+  // počasí kraje (disasters.md – Zvěř): zlá zima letos, kruté sucho (málo žaludů) loni
+  const year = dateOfDayIndex(day).year;
+  const badWinter = weatherOf(state, year).winter !== 'normal';
+  const drought = weatherOf(state, year - 1).summer === 'drought';
+  deerYear(w, caps.deer, badWinter);
+  boarYear(w, caps.boar, badWinter, drought);
   w.hares = Math.min(caps.hares, w.hares * WILDLIFE_YEAR.haresGrowth);
   w.wolves =
     w.wolves >= caps.wolves

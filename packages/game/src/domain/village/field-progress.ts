@@ -1,4 +1,5 @@
 import { dateOfDayIndex } from '../calendar';
+import { springSowingExtended } from './weather-effects';
 import { distanceFactor, fallowStage, isOvergrown, isWeedFree, partWalkDistance } from './fields';
 import { clearingFellCost, clearingStage } from './forest-clearing';
 import { isHayMeadow, mowingPosition, mowingSpans } from './hay';
@@ -280,7 +281,9 @@ export function fieldFrontiers(state: VillageState, day: number): Map<number, Pa
   const month = dateOfDayIndex(day).month;
   for (const { crop, work } of seasonCrops(state.season)) {
     for (const task of PART_TASKS) {
-      const open = cropTaskWindows(crop, task).some(([from, to]) => month >= from && month <= to);
+      const open =
+        cropTaskWindows(crop, task).some(([from, to]) => month >= from && month <= to) ||
+        (task === 'sow' && springSowingExtended(state, day, crop));
       if (!open || cropTaskRemaining(work, task) <= 0) continue;
       const id = frontierPart(work, partsById, task, day);
       if (id === null) continue;

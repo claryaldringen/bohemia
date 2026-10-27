@@ -122,6 +122,24 @@ describe('createVillageRepository', () => {
     expect(await villages.stampsOf([UNKNOWN])).toEqual([]);
   });
 
+  it('weatherSeedOf vrátí seed počasí sídla – každé sídlo jiný, neznámé null', async () => {
+    const seed = await villages.weatherSeedOf(settlementId);
+    expect(Number.isInteger(seed)).toBe(true);
+    expect(seed).toBeGreaterThanOrEqual(0);
+    expect(seed).toBeLessThan(2 ** 31);
+    expect(await villages.weatherSeedOf(settlementId)).toBe(seed);
+    const other = await createSettlementRepository(db).create({
+      ownerId: 'hrac-1',
+      landscapeSeed: 1,
+      layerVersions: CURRENT_LAYER_VERSIONS,
+      worldCell: { x: 1, y: 0 },
+    });
+    if (!other) throw new Error('Druhé sídlo nešlo založit.');
+    expect(await villages.weatherSeedOf(other.id)).not.toBe(seed);
+    expect(await villages.weatherSeedOf(UNKNOWN)).toBeNull();
+    expect(await villages.weatherSeedOf('neni-uuid')).toBeNull();
+  });
+
   it('find neznámé vsi i řetězce, který není UUID, vrátí null', async () => {
     expect(await villages.find(UNKNOWN)).toBeNull();
     expect(await villages.find('village-1')).toBeNull();

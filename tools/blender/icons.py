@@ -54,7 +54,11 @@ stejné zemi; trade.md – Dobytek ve třech druzích),
 ard (rádlo z `apps/web/public/models/plough/ard.glb` – páry s rádlem v panelu ohrady volů)
 a rodiny do panelu obydlí (kinship.md) – man, woman, child (chlapec a dívka), elder (starší s holí
 a šedinami; vesničané z `apps/web/public/models/people/`) a ring (bronzový prsten – manželské
-páry) a family (muž, žena a dítě – výměna lidí se sousedem, trade.md).
+páry) a family (muž, žena a dítě – výměna lidí se sousedem, trade.md) a počasí a pohromy
+(disasters.md – Co hráč vidí) – drought (prasklá zem), rain (dešťový mrak), frost (sněhová vločka),
+good-summer (klasy se sluncem), flood (rozvodněná voda), hail (kroupy na stéblech), tornado (trychtýř
+smrště pod mrakem), protection (větvička s listy – ochrana dílu) a dearth (hromada zrna se šipkou
+vzhůru – zdražení u sousedů).
 Bez druhého argumentu vše, jinak čárkami oddělený výběr (např. `pole,hrbitov,food`).
 
 Postup: portréty staveb a ikony `food`, `wood`, `labor`, `satiation`, `date`, `apples` se vyrenderují v Cycles
@@ -2845,6 +2849,266 @@ def icon_watch_fire():
     return True
 
 
+# ------------------------------------------------- počasí a pohromy (disasters.md) ----
+
+
+def ear_on(bm, top, d, size=1.0):
+    """Klas na konci stébla `top` ve směru `d` (jako ve snopku `food`) s osinami."""
+    d = Vector(d).normalized()
+    ax = d.to_track_quat("Z", "Y").to_euler()
+    c = Vector(top) + d * 0.2 * size
+    blob(bm, (c[:], tuple(ax)), (0.11 * size, 0.11 * size, 0.3 * size), 8, 6)
+    side = d.cross(Vector((0, 1, 0))).normalized()
+    for k in range(1, 6):
+        cc = Vector(top) + d * (0.08 + 0.07 * k) * size
+        cyl(bm, cc[:], (cc + d * 0.26 * size + side * 0.07 * size)[:], 0.011, 0.0, 3)
+
+
+def icon_drought():
+    """Sucho: rozpraskaná vyprahlá zem (kry hlíny se spárami) a uschlé stéblo se svěšeným klasem."""
+    rng = random.Random(21)
+    clods, stalk = bmesh.new(), bmesh.new()
+    step = 0.52
+    for i in range(-3, 4):
+        for j in range(-3, 4):
+            cx = i * step + (j % 2) * step / 2 + rng.uniform(-0.06, 0.06)
+            cy = j * step * 0.87 + rng.uniform(-0.06, 0.06)
+            if cx * cx + cy * cy > 1.25:
+                continue
+            k = rng.randint(5, 7)
+            a0 = rng.uniform(0, 6.28)
+            pts = []
+            for m in range(k):
+                a = a0 + 2 * math.pi * m / k + rng.uniform(-0.25, 0.25)
+                rr = step * 0.5 * rng.uniform(0.84, 0.94)
+                pts.append((cx + math.cos(a) * rr, cy + math.sin(a) * rr))
+            h, tx, ty = rng.uniform(0.07, 0.1), rng.uniform(-0.1, 0.1), rng.uniform(-0.1, 0.1)
+            top = [clods.verts.new((x, y, h + tx * (x - cx) + ty * (y - cy))) for x, y in pts]
+            bot = [clods.verts.new((x, y, 0)) for x, y in pts]
+            clods.faces.new(top)
+            clods.faces.new(bot[::-1])
+            for m in range(k):
+                n = (m + 1) % k
+                clods.faces.new((bot[m], bot[n], top[n], top[m]))
+    bmesh.ops.recalc_face_normals(clods, faces=clods.faces)
+    knee = Vector((0.22, 0.05, 0.85))
+    cyl(stalk, (0.1, 0.05, 0.08), knee[:], 0.04, 0.032, 6)
+    tip = knee + Vector((0.32, 0, -0.12))
+    cyl(stalk, knee[:], tip[:], 0.032, 0.026, 6)
+    ear_on(stalk, tip, (0.45, 0, -1.0), 0.85)
+    ground(1.25, mat("crack", (0.08, 0.05, 0.03), 0.95), z=0.01)
+    to_obj(clods, "clods", mat("clay_dry", (0.8, 0.62, 0.38), 0.95, noise=9, bump=0.3), smooth=False)
+    to_obj(stalk, "stalk", mat("dry_straw", (0.62, 0.55, 0.38), 0.85))
+    sun(az=-45, el=48, strength=4.2)
+    camera([Vector((-1.2, -1.2, 0)), Vector((1.2, 1.2, 0.9))], az=0, el=55, margin=1.0)
+    return True
+
+
+def icon_rain():
+    """Deštivé léto: šedý dešťový mrak a šikmé kapky."""
+    rng = random.Random(5)
+    cloud, drops = bmesh.new(), bmesh.new()
+    for x, z, r in ((-0.55, 0.55, 0.38), (-0.1, 0.78, 0.5), (0.45, 0.64, 0.42), (0.15, 0.45, 0.4),
+                    (-0.35, 0.42, 0.34), (0.75, 0.45, 0.3)):
+        blob(cloud, ((x, 0, z), (0, 0, 0)), (r, r * 0.8, r * 0.85), 16, 10)
+    for k in range(8):
+        x = -0.7 + k * 0.2 + rng.uniform(-0.04, 0.04)
+        z = rng.uniform(-0.8, -0.05)
+        bot = Vector((x, -0.45, z))
+        cyl(drops, bot[:], (bot + Vector((0.1, 0, 0.32)))[:], 0.05, 0.01, 8)
+        blob(drops, (bot[:], (0, 0, 0)), (0.05, 0.05, 0.06), 8, 5)
+    to_obj(cloud, "cloud", mat("cloud", (0.56, 0.59, 0.66), 0.9))
+    to_obj(drops, "drops", mat("drop", (0.33, 0.6, 0.98), 0.2))
+    sun(az=-30, el=45, strength=4.0)
+    camera([Vector((-1.15, -0.5, -0.95)), Vector((1.15, 0.5, 1.3))], az=0, el=8, margin=1.04)
+    return True
+
+
+def icon_frost():
+    """Mráz: šestiramenná sněhová vločka z ledu – holomráz a dlouhá zima."""
+    flake = bmesh.new()
+    for k in range(6):
+        a = math.pi / 2 + 2 * math.pi * k / 6
+        d = Vector((math.cos(a), 0, math.sin(a)))
+        cyl(flake, (0, 0, 0), (d * 1.0)[:], 0.075, 0.05, 6)
+        for t, ln in ((0.45, 0.34), (0.72, 0.22)):
+            p = d * t
+            for s in (1, -1):
+                b = Vector((math.cos(a + s * 0.8), 0, math.sin(a + s * 0.8)))
+                cyl(flake, p[:], (p + b * ln)[:], 0.055, 0.035, 6)
+    blob(flake, ((0, 0, 0), (0, 0, 0)), (0.17, 0.09, 0.17), 12, 8)
+    to_obj(flake, "flake", glow_mat("ice", (0.72, 0.88, 1.0), 0.35))
+    sun(az=-35, el=40, strength=4.0, color=(0.9, 0.95, 1.0))
+    camera([Vector((-1.1, -0.2, -1.1)), Vector((1.1, 0.2, 1.1))], az=0, el=0, margin=1.04)
+    return True
+
+
+def icon_good_summer():
+    """Dobré léto: zralé klasy před zlatým sluncem."""
+    disc, rays, stems, ears = bmesh.new(), bmesh.new(), bmesh.new(), bmesh.new()
+    sc, sr = Vector((0.3, 0.6, 0.45)), 0.42
+    cyl(disc, (sc + Vector((0, 0.05, 0)))[:], (sc - Vector((0, 0.05, 0)))[:], sr, sr, 40)
+    for k in range(12):
+        a = 2 * math.pi * k / 12
+        d = Vector((math.cos(a), 0, math.sin(a)))
+        p0, p1 = sc + d * (sr + 0.08), sc + d * (sr + (0.34 if k % 2 == 0 else 0.22))
+        t = Vector((-d.z, 0, d.x))
+        vs = [rays.verts.new(v) for v in (p0 + t * 0.1, p0 - t * 0.1, p1)]
+        vb = [rays.verts.new(v + Vector((0, 0.06, 0))) for v in (p0 + t * 0.1, p0 - t * 0.1, p1)]
+        rays.faces.new(vs[::-1])
+        rays.faces.new(vb)
+        for i in range(3):
+            j = (i + 1) % 3
+            rays.faces.new((vs[i], vs[j], vb[j], vb[i]))
+    bmesh.ops.recalc_face_normals(rays, faces=rays.faces)
+    for base, top in (((-0.35, -0.3, -1.0), (-0.45, -0.3, 0.35)), ((-0.25, -0.3, -1.0), (0.05, -0.3, 0.2)),
+                      ((-0.3, -0.3, -1.0), (-0.75, -0.3, 0.1))):
+        cyl(stems, base, top, 0.035, 0.03, 6)
+        ear_on(ears, Vector(top), Vector(top) - Vector(base), 1.1)
+    to_obj(disc, "disc", mat("gold", (0.98, 0.72, 0.18), 0.35))
+    to_obj(rays, "rays", mat("gold2", (0.95, 0.6, 0.12), 0.4))
+    to_obj(stems, "stems", mat("stem", (0.8, 0.64, 0.3), 0.7))
+    to_obj(ears, "ears", mat("ear", (0.95, 0.74, 0.27), 0.65, noise=30))
+    sun(az=-30, el=40, strength=4.5)
+    camera([Vector((-1.1, -0.4, -1.0)), Vector((1.1, 0.7, 1.25))], az=0, el=0, margin=1.04)
+    return True
+
+
+def wave_plate(bm, z0, amp, phase, y, bottom=-0.95, n=48):
+    """Vlna vody: deska v rovině XZ, horní okraj sinusovka."""
+    pts = [(-1.15, bottom)]
+    for i in range(n + 1):
+        x = -1.15 + 2.3 * i / n
+        pts.append((x, z0 + amp * math.sin(phase + x * 3.6)))
+    pts.append((1.15, bottom))
+    flat_plate(bm, pts, y, 0.16)
+
+
+def icon_flood():
+    """Povodeň: rozvodněná voda ve třech vlnách s pěnou a kůl plotu zatopený po pás."""
+    post, foam = bmesh.new(), bmesh.new()
+    layers = ((0.35, 0.36, 0.11, 0.3, (0.5, 0.72, 0.88)), (0.0, 0.08, 0.12, 1.4, (0.27, 0.52, 0.78)),
+              (-0.35, -0.22, 0.13, 2.6, (0.15, 0.36, 0.62)))
+    for y, z0, amp, phase, color in layers:
+        bm = bmesh.new()
+        wave_plate(bm, z0, amp, phase, y)
+        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+        to_obj(bm, f"wave{y}", mat(f"water{y}", color, 0.15), smooth=False)
+        for i in range(-3, 4):
+            x = (math.pi / 2 - phase) / 3.6 + i * 2 * math.pi / 3.6
+            if -1.05 < x < 1.05:
+                blob(foam, ((x, y - 0.09, z0 + amp), (0, 0, 0)), (0.13, 0.05, 0.05), 10, 6)
+    cyl(post, (0.62, 0.17, -0.9), (0.66, 0.17, 0.85), 0.07, 0.06, 10)
+    cyl(post, (0.66, 0.17, 0.85), (0.66, 0.17, 0.95), 0.06, 0.0, 10)
+    to_obj(post, "post", mat("wood", (0.4, 0.26, 0.13), 0.9, noise=22, bump=0.4))
+    to_obj(foam, "foam", mat("foam", (0.92, 0.95, 0.98), 0.6))
+    sun(az=-35, el=45, strength=4.0)
+    camera([Vector((-1.15, -0.5, -0.95)), Vector((1.15, 0.5, 1.0))], az=0, el=10, margin=1.04)
+    return True
+
+
+def icon_hail():
+    """Kroupy: ledové kroupy padají na zlomená stébla obilí."""
+    rng = random.Random(9)
+    stones, stems, ears = bmesh.new(), bmesh.new(), bmesh.new()
+    for x, d in ((-0.4, (0.9, 0, -0.35)), (0.1, (-0.85, 0, -0.45)), (0.45, (0.7, 0, 0.25))):
+        base, knee = Vector((x, 0.15, -0.95)), Vector((x + 0.04, 0.15, -0.15))
+        cyl(stems, base[:], knee[:], 0.04, 0.035, 6)
+        top = knee + Vector(d).normalized() * 0.42
+        cyl(stems, knee[:], top[:], 0.035, 0.03, 6)
+        ear_on(ears, top, d, 1.0)
+    placed = []
+    while len(placed) < 9:
+        x, z, r = rng.uniform(-0.95, 0.95), rng.uniform(-0.1, 1.05), rng.uniform(0.1, 0.16)
+        if any((x - px) ** 2 + (z - pz) ** 2 < (r + pr + 0.05) ** 2 for px, pz, pr in placed):
+            continue
+        placed.append((x, z, r))
+        blob(stones, ((x, -0.3, z), (0, 0, 0)), (r, r, r), 14, 9)
+    for x in (-0.7, -0.15, 0.3, 0.8):
+        blob(stones, ((x, -0.1, -0.88), (0, 0, 0)), (0.1, 0.1, 0.08), 12, 8)
+    to_obj(stems, "stems", mat("stem", (0.62, 0.6, 0.32), 0.7))
+    to_obj(ears, "ears", mat("ear", (0.8, 0.7, 0.3), 0.65, noise=30))
+    to_obj(stones, "hail", glow_mat("hail", (0.82, 0.9, 1.0), 0.25))
+    sun(az=-35, el=45, strength=4.0)
+    camera([Vector((-1.1, -0.4, -1.0)), Vector((1.1, 0.4, 1.2))], az=0, el=8, margin=1.04)
+    return True
+
+
+def icon_tornado():
+    """Smršť: šedý trychtýř prohnutý ve větru a kotouč prachu a úlomků u země."""
+    rng = random.Random(13)
+    funnel, dust, debris = bmesh.new(), bmesh.new(), bmesh.new()
+    profile = [(-0.95 + 2.1 * t, 0.06 + 0.72 * t ** 1.6 + 0.03 * math.sin(t * 25)) for t in
+               [i / 24 for i in range(25)]]
+    revolve(funnel, profile, 40, cap_bottom=True, cap_top=True)
+    for v in funnel.verts:
+        t = (v.co.z + 0.95) / 2.1
+        a = math.atan2(v.co.y, v.co.x)
+        k = 1 + 0.16 * math.sin(3 * a + t * 16)
+        v.co.x, v.co.y = v.co.x * k, v.co.y * k
+        v.co.x += 0.7 * (t - 0.45) ** 2 - 0.15
+    bmesh.ops.recalc_face_normals(funnel, faces=funnel.faces)
+    for k in range(7):
+        a = 2 * math.pi * k / 7
+        blob(dust, ((math.cos(a) * 0.32, math.sin(a) * 0.2, -0.88), (0, 0, a)), (0.28, 0.2, 0.14), 12, 8)
+    for k in range(7):
+        a = rng.uniform(0, 6.28)
+        r = rng.uniform(0.35, 0.8)
+        blob(debris, ((math.cos(a) * r, math.sin(a) * r * 0.4 - 0.2, rng.uniform(-0.6, 0.3)),
+                      (rng.uniform(0, 3), rng.uniform(0, 3), 0)), (0.07, 0.025, 0.04), 6, 4)
+    storm = bmesh.new()
+    for x, r in ((-0.55, 0.42), (0.0, 0.55), (0.55, 0.45)):
+        blob(storm, ((x + 0.1, 0.1, 1.15), (0, 0, 0)), (r, r * 0.7, 0.22), 16, 8)
+    to_obj(storm, "storm", mat("storm", (0.25, 0.26, 0.3), 0.95, noise=5))
+    to_obj(funnel, "funnel", mat("funnel", (0.48, 0.48, 0.5), 0.95, noise=6, bump=0.8))
+    to_obj(dust, "dust", mat("dust", (0.5, 0.42, 0.32), 0.95, noise=10))
+    to_obj(debris, "debris", mat("debris", (0.32, 0.22, 0.12), 0.9))
+    sun(az=-40, el=40, strength=4.0)
+    camera([Vector((-1.1, -0.4, -1.05)), Vector((1.1, 0.4, 1.35))], az=0, el=6, margin=1.02)
+    return True
+
+
+def icon_protection():
+    """Ochrana dílu: větvička se čtyřmi listy – zeleň u pole chrání před suchem, mrazem a kroupami."""
+    stem, leaves = bmesh.new(), bmesh.new()
+    cyl(stem, (-0.2, 0, -1.0), (0.1, 0, 0.9), 0.05, 0.03, 8)
+    for t, side, ang in ((0.25, 1, 0.9), (0.45, -1, 0.85), (0.65, 1, 0.7), (0.85, -1, 0.6), (1.0, 0, 0.0)):
+        p = Vector((-0.2, 0, -1.0)).lerp(Vector((0.1, 0, 0.9)), t)
+        d = Vector((math.sin(ang) * side, 0, math.cos(ang))).normalized()
+        ax = d.to_track_quat("Z", "X").to_euler()
+        blob(leaves, ((p + d * 0.32)[:], tuple(ax)), (0.17, 0.035, 0.34), 14, 9)
+    to_obj(stem, "twig", mat("twig", (0.35, 0.24, 0.12), 0.9))
+    to_obj(leaves, "leaves", mat("leaf", (0.27, 0.55, 0.16), 0.6, noise=18))
+    sun(az=-40, el=45, strength=4.2)
+    camera([Vector((-0.95, -0.3, -1.05)), Vector((0.95, 0.3, 1.25))], az=0, el=6, margin=1.04)
+    return True
+
+
+def icon_dearth():
+    """Zdražení: hromada zrna a červená šipka vzhůru – kraj po zlém roce, obilí zdražilo."""
+    rng = random.Random(17)
+    heap, grain, arrow = bmesh.new(), bmesh.new(), bmesh.new()
+    revolve(heap, [(-0.85, 0.82), (-0.75, 0.78), (-0.45, 0.6), (-0.1, 0.36), (0.12, 0.14), (0.2, 0.0)], 40,
+            cap_bottom=True, cap_top=True)
+    for v in heap.verts:
+        v.co.x -= 0.3
+    for _ in range(70):
+        a, t = rng.uniform(0, 6.28), rng.uniform(0.05, 0.95)
+        z = -0.85 + t * 1.02
+        r = 0.8 * (1 - t) ** 0.9 + 0.02
+        blob(grain, ((-0.3 + math.cos(a) * r, math.sin(a) * r, z + 0.03), (rng.uniform(0, 3), rng.uniform(0, 3), a)),
+             (0.07, 0.045, 0.04), 6, 4)
+    flat_plate(arrow, [(0.48, -0.75), (0.48, 0.25), (0.3, 0.25), (0.62, 0.8), (0.94, 0.25), (0.76, 0.25),
+                       (0.76, -0.75)], -0.45, 0.12)
+    bmesh.ops.recalc_face_normals(arrow, faces=arrow.faces)
+    to_obj(heap, "heap", mat("heap", (0.86, 0.66, 0.3), 0.8, noise=60, bump=0.6))
+    to_obj(grain, "grain", mat("grain", (0.95, 0.74, 0.33), 0.55))
+    to_obj(arrow, "arrow", glow_mat("up", (0.85, 0.12, 0.06), 0.5), smooth=False)
+    sun(az=-40, el=45, strength=4.2)
+    camera([Vector((-1.0, -0.5, -0.9)), Vector((1.0, 0.5, 0.95))], az=0, el=10, margin=1.04)
+    return True
+
+
 RESOURCES = {
     "food": icon_food,
     "skill": icon_skill,
@@ -2910,6 +3174,16 @@ RESOURCES = {
     "family": icon_family,
     "elder": icon_elder,
     "ring": icon_ring,
+    # počasí a pohromy (disasters.md – Co hráč vidí)
+    "drought": icon_drought,
+    "rain": icon_rain,
+    "frost": icon_frost,
+    "good-summer": icon_good_summer,
+    "flood": icon_flood,
+    "hail": icon_hail,
+    "tornado": icon_tornado,
+    "protection": icon_protection,
+    "dearth": icon_dearth,
 }
 
 

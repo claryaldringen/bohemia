@@ -36,10 +36,12 @@ import {
 } from './livestock';
 import { villageApplesKg } from './orchard';
 import { EMERGENCY_SLAUGHTER } from './rules';
+import { foodUntilHarvestKg, seedReserve } from './seed';
 import { sheavesOutlook } from './threshing';
 import type { ChronicleEvent, HerdSpecies, VillageState } from './types';
 import { woolSheep } from './wool';
 import { daysUntilFoodHarvest } from './year-plan';
+import { winterEstimateLosses } from './disasters';
 
 // Nouzová porážka (diet.md – Nouzová porážka; Martin 19. 10. 2026: „Ano, udělej to všechno“,
 // podrobnosti návrh Clauda). Ves, které výhled jídla do sklizně nevychází, nejdřív porazí
@@ -79,17 +81,24 @@ export function dayMealInput(
   const need = villageFoodNeed(state, day);
   const milk = dailyMilk(dams, day);
   // ozim uživí srpen, když pokryje potřebu z pole, na kterou ves osévala (fields.md – Ozim a jař)
+  // stejný podíl jako `foodUntilHarvestKg` (seed.ts) – prahy setí a jídla se nerozejdou
+  const shares = state.diet?.shares;
+  const fieldShare = Math.max(fieldFoodShare(state), (shares?.grain ?? 0) + (shares?.legumes ?? 0));
   const daysToHarvest = daysUntilFoodHarvest(
     state.season,
     state.parts,
     day,
-    need * fieldFoodShare(state),
-    state.wildlife?.damage?.parts,
+    need * fieldShare,
+    // škoda zvěře a počasí, které už je vidět (disasters.md – Dopady, Úroda)
+    winterEstimateLosses(state, day),
   );
   // snopy, které ves vymlátí, jsou ve výhledu jako zrno (production-chains.md – Humno)
   const sheaves = sheavesOutlook(state, day);
+  // osivo, které na setí čeká, ves nejí – jen když by příděl do žní klesl pod práh hladu
+  // (fields.md – Úroda, Osivo ze zásob)
+  const seed = seedReserve(state, foodUntilHarvestKg(state, day));
   return {
-    grainKg: state.storesKg,
+    grainKg: state.storesKg - seed.grain,
     // zapečetěné obilné jámy ztrácí méně (production-chains.md – Obilné jámy)
     ...grainKeepInput(state, potteryCoverage),
     sheavesGrainKg: sheaves.grainKg,
@@ -104,7 +113,7 @@ export function dayMealInput(
     milkProteinKg: milk.proteinKg * milked,
     milkEnergy: milk.energy * milked,
     eggsKg: dailyEggsKg(state),
-    legumesKg: villageLegumesKg(state),
+    legumesKg: villageLegumesKg(state) - seed.legumes,
     daysToLegumeHarvest: daysUntilLegumeHarvest(day),
     needPerDay: need,
     proteinNeedPerDay: villageProteinNeed(state, day),

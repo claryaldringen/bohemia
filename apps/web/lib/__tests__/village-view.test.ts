@@ -51,6 +51,7 @@ import {
   type VillageView,
 } from '../village-view';
 import { visitedWife } from '../village-view-scene';
+import { protectionLevel, sceneWeather } from '../weather-view';
 import type { ScenePloughLegs } from '../village-view-scene-types';
 
 const DAY = dayIndexOf({ year: 503, month: 4, day: 12 });
@@ -100,6 +101,72 @@ const record = (s: VillageState = state()): VillageRecord => ({
   name: 'Libice',
   state: s,
   version: 1,
+});
+
+describe('buildVillageView – seed počasí kraje (disasters.md – Kraj)', () => {
+  it('klient seed počasí nikdy nedostane – ani v pohledu, ani ve scéně', () => {
+    const view = buildVillageView(record({ ...state(), weatherSeed: 987_654_321 }), landscape, DAY);
+    const json = JSON.stringify(view);
+    expect(json).not.toContain('weatherSeed');
+    expect(json).not.toContain('987654321');
+  });
+});
+
+describe('scéna – počasí roku (disasters.md – Ve scéně)', () => {
+  const forced = (): VillageState => ({
+    ...state(),
+    disasters: {
+      override: {
+        weather: { 503: { summer: 'drought', winter: 'blackFrost' }, 504: { summer: 'wet' } },
+      },
+    },
+  });
+
+  it('normální rok počasí do scény nepošle', () => {
+    expect(buildVillageView(record(), landscape, DAY).scene.weather).toBeUndefined();
+  });
+
+  it('jen počasí, které už je vidět – sucho až od 1. 5., budoucí rok nikdy', () => {
+    const view = buildVillageView(record(forced()), landscape, DAY);
+    // 12. 4.: holomráz je vidět od 1. 2., sucho ještě ne
+    expect(view.scene.weather).toEqual({ year: 503, winter: 'blackFrost' });
+    const json = JSON.stringify(view);
+    expect(json).not.toContain('drought');
+    expect(json).not.toContain('"wet"');
+    expect(json).not.toContain('override');
+  });
+
+  it('lišta: 30. 4. sucho chybí (holomráz ano), od 1. 5. je vidět – bez seedu a override', () => {
+    const april = dayIndexOf({ year: 503, month: 4, day: 30 });
+    const before = buildVillageView(
+      record({ ...forced(), weatherSeed: 987_654_321 }),
+      landscape,
+      april,
+    );
+    expect(before.weather).toEqual({ year: 503, winter: 'blackFrost' });
+    const json = JSON.stringify(before);
+    expect(json).not.toContain('drought');
+    expect(json).not.toContain('weatherSeed');
+    expect(json).not.toContain('override');
+    const may = buildVillageView(record(forced()), landscape, april + 2);
+    expect(may.weather?.summer).toBe('drought');
+    // panel dílu – ochrana dílu (typická zeleň → 1 lístek)
+    const part = may.fields.flatMap((f) => f.parts)[0];
+    if (part) expect(part.protection?.level).toBe(1);
+  });
+
+  it('v suchu síla léta a ochrana dílů po stupních 0–4', () => {
+    const may = dayIndexOf({ year: 503, month: 5, day: 2 });
+    const weather = sceneWeather(forced(), may)!;
+    expect(weather).toMatchObject({ year: 503, summer: 'drought', strength: 1 });
+    const levels = Object.values(weather.parts ?? {});
+    expect(levels.length).toBeGreaterThan(0);
+    for (const level of levels) expect([1, 2, 3, 4]).toContain(level);
+    // díl bez uložené ochrany má typickou zeleň 0,25 → stupeň 1
+    expect(protectionLevel('dry', 0.25)).toBe(1);
+    expect(protectionLevel('wet', 0)).toBe(2);
+    expect(protectionLevel('wet', 0.2)).toBe(4);
+  });
 });
 
 describe('buildVillageView – práce vsi pro postavy', () => {
@@ -451,7 +518,8 @@ describe('buildVillageView', () => {
     });
     // zakladatelé bydlí na staveništi – domácnost s obydlím přibude s dostavěním zemnice
     expect(view.households).toEqual([]);
-    expect(view.storesMonths).toBeCloseTo(18, 0);
+    // 18 měsíců jídla a osivo na první osev – půl roční potřeby (START_SEED_YEARS)
+    expect(view.storesMonths).toBeCloseTo(24, 0);
     const fieldId = view.fields[0]?.id;
     expect(view.constructions).toEqual([
       {
