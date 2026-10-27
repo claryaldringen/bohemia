@@ -55,6 +55,7 @@ import type { CartDrive, RoadGrade, VillageRoads } from './types-roads';
 import type { VillageRoutes } from './types-routes';
 import type { CraftPurchase, VillageTrade } from './types-trade';
 import type { WildlifeState } from './types-wildlife';
+import type { DisasterState } from './types-disasters';
 
 /**
  * Hromada klád u lesa (forest.md – Klučení lesa pro pole): klády skácených dospělých stromů
@@ -191,6 +192,14 @@ export interface VillageState {
    * zvěř na stropu doplní `withWildlife`.
    */
   wildlife?: WildlifeState;
+  /**
+   * Kopie seedu počasí kraje – mapy (disasters.md – Kraj a ochrana nové vsi): všechny vsi mapy
+   * počítají z něj totéž počasí samy (`yearWeather`). Dá ho server při načtení (`withWeatherSeed`);
+   * ves bez něj (testy, kalibrace) má všechny roky normální. Klientovi se nikdy neposílá.
+   */
+  weatherSeed?: number;
+  /** Přírodní pohromy vsi (disasters.md); chybí = žádné. */
+  disasters?: DisasterState;
   /** Převod na zvěř selhal (zpráva chyby) – ves dostala výchozí krajinu; aplikace chybu zapíše do logu. */
   wildlifeFailed?: string;
   /** Zásoba masa (kg) – uzené a sušené (diet.md). Chybí = žádná. */

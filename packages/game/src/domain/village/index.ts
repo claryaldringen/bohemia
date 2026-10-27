@@ -12,6 +12,9 @@ export { expectedFlaxKg, flaxNeedKg, linenCoverage, linenUnhappiness } from './f
 export * from './livestock';
 export * from './rules-wildlife';
 export * from './wildlife';
+export * from './rules-disasters';
+export * from './weather';
+export * from './disasters';
 export * from './hunt';
 export { dogsYear, feedDogs } from './manor-dogs';
 export {

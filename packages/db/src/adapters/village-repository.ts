@@ -30,6 +30,16 @@ export function createVillageRepository(db: Database): VillageRepository {
       return row ? toRecord(row) : null;
     },
 
+    async weatherSeedOf(settlementId): Promise<number | null> {
+      if (!UUID.test(settlementId)) return null;
+      const [row] = await db
+        .select({ weatherSeed: settlement.weatherSeed })
+        .from(settlement)
+        .where(eq(settlement.id, settlementId))
+        .limit(1);
+      return row?.weatherSeed ?? null;
+    },
+
     async listBySettlement(settlementId): Promise<VillageRecord[]> {
       const rows = await db
         .select()

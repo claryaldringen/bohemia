@@ -102,6 +102,15 @@ const record = (s: VillageState = state()): VillageRecord => ({
   version: 1,
 });
 
+describe('buildVillageView – seed počasí kraje (disasters.md – Kraj)', () => {
+  it('klient seed počasí nikdy nedostane – ani v pohledu, ani ve scéně', () => {
+    const view = buildVillageView(record({ ...state(), weatherSeed: 987_654_321 }), landscape, DAY);
+    const json = JSON.stringify(view);
+    expect(json).not.toContain('weatherSeed');
+    expect(json).not.toContain('987654321');
+  });
+});
+
 describe('buildVillageView – práce vsi pro postavy', () => {
   it('čerstvá ves ještě rozdělení práce nemá – ve scéně nikdo', () => {
     const view = buildVillageView(record(), landscape, DAY);

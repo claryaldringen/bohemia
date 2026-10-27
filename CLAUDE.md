@@ -106,6 +106,7 @@ název). Pravidla a rozhodnutí jsou v `docs/design/`.
 | `docs/code/village-roads.md`     | pěšiny, pevné cesty, vylepšení, vozová síť, cesta přes pole, jabloně u cest, vozová cesta                                            |
 | `docs/code/village-trade.md`     | dvorec vojvody, zemská stezka, sousedé a obchod, dobytek, výměna lidí                                                                |
 | `docs/code/village-wildlife.md`  | divoká zvěř – stav, stropy z krajiny, roční přepočet, škody na polích, šelmy, psi a lov rodu, hlídky polí, ryby a oka, převod, Vlkov |
+| `docs/code/village-disasters.md` | počasí kraje – seed počasí mapy, roční los, shlukování, povodeň kraje, odhalení, ochrana nové vsi                                    |
 | `docs/code/web-ui.md`            | server actions, dotazování na ves, rozhraní jako 0 A.D., katalog staveb, ovládání, e2e                                               |
 
 **Nová mechanika nebo změna:** zapiš ji do příslušného souboru v `docs/code/` (a pravidla do

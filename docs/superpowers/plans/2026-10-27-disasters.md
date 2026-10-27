@@ -258,7 +258,7 @@ nový `docs/code/village-disasters.md`, řádek v `CLAUDE.md`.
       `expectedYield` 0,95; `historyYears` 8) – `disasters.md – Léto, Zima`; `FLOOD_LEVELS`
       (šance a výšky stupňů, o stupeň výš, okna jarní a letní vody) – `disasters.md – Povodeň`.
 - [ ] `weather.ts`: `yearWeather(weatherSeed, year)` – los z `deriveSeed(weatherSeed, 'summer:' +
-  year)` a `'winter:' + year`, šance zlých let × 1,25 po zlém létě (rekurze 8 let, memo);
+year)` a `'winter:' + year`, šance zlých let × 1,25 po zlém létě (rekurze 8 let, memo);
       **výška povodně kraje** z `'flood:' + year` (stupeň, o stupeň výš po dlouhé zimě / v mokrém
       létě, jarní nebo letní, den – Martin 27. 10. 2026: „Ano a ano“);
       `isBadSummer`, `isCruelYear`; `weatherOf(state, year)` – přepis `override`, bez `weatherSeed`
@@ -266,7 +266,7 @@ nový `docs/code/village-disasters.md`, řádek v `CLAUDE.md`.
 - [ ] `weatherDay(state, day)` – kronika `weather` (`{ day, kind: 'weather', summer | winter }`)
       v den odhalení; zapojit za `wildlifeYearDay`.
 - [ ] DB: sloupec `weather_seed` s náhodným výchozím (Drizzle `default(sql\`…\`)`), migrace
-  vyplní i stávající řádky; adaptér a port vrací `weatherSeed`; `withWeatherSeed(state, seed)`    (idempotentní – existující seed nemění) v`updateVillage`, `foundVillage` ho nastaví.
+vyplní i stávající řádky; adaptér a port vrací `weatherSeed`; `withWeatherSeed(state, seed)`    (idempotentní – existující seed nemění) v`updateVillage`, `foundVillage` ho nastaví.
 - [ ] Testy: četnosti léta a zimy přes 10 000 let ±1 %; po zlém létě zlých víc (×1,25 ±0,05);
       **dvě vsi téže mapy** (týž `weatherSeed`, jiný `seed`) mají 1000 let stejné počasí i povodně;
       četnosti stupňů vody v letech bez posunu ±1 %, po dlouhé zimě jarní a o stupeň výš; jiný seed
@@ -274,6 +274,14 @@ nový `docs/code/village-disasters.md`, řádek v `CLAUDE.md`.
       po kouscích přes 1. 5. a 1. 6. stejný stav; adaptér (`test:db`) vrací seed, nový sídlo má
       jiný seed než druhé.
 - [ ] Commit `feat(game): počasí roku pro celou mapu ze seedu počasí`.
+
+**Provedení P1 (27. 10. 2026, návrh Clauda):** seed jde do use-casů přes
+`VillageRepository.weatherSeedOf(settlementId)` (adaptér vsí čte `settlement.weather_seed`), ne
+přes `Settlement` – `updateVillage` i založení vsi ho tak mají bez nového parametru u ~30 volání
+a objekt sídla, který web posílá dál, seed nenese. `withWeatherSeed` seed řídí mapou (ves na jiné
+mapě dostane její). `inDisasterProtection` (`disasters.ts`, `LOCAL_DISASTERS`) je hotová už
+v P1 – P5 ji jen použije. Dlouhodobé četnosti léta a zimy přesně z tabulky: v letech po
+nezlém létě jsou zlé šance × 1 ÷ (1 + 0,25 × 0,29).
 
 **Hotovo:** `typecheck`, `lint`, `test`, `test:db`, `format:check`; otisky beze změny.
 
@@ -366,7 +374,7 @@ stav staveb (`Dwelling.condition`, dílny), `types-chronicle.ts` (`hail`).
       v okolí vsi), okraje 50 m.
 - [ ] V den krupobití: nesklizené díly a louky v pruhu `hail[partId]` = 0,6 (okraj 0,3) ×
       (1 − 0,4 × zeleň); sad −40 % letošních jablek; stavby v pruhu − roční chátrání.
-- [ ] `inDisasterProtection(foundedDay, day)` – 5 let; testy pro všechny místní pohromy
+- [ ] `inDisasterProtection(foundedDay, day)` – 5 let (hotová v P1); testy pro všechny místní pohromy
       (rozhraní připravené pro P6–P9).
 - [ ] Testy: četnost 6 % přes 2000 let; ves ve 3. roce nic, v 6. ano; strom chrání (zeleň 1 →
       −36 %); sklizený díl nic; po kouscích přes den krupobití; dvě vsi téže mapy – jiné kroupy.

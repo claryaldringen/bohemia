@@ -14,7 +14,14 @@ export class InMemoryVillages implements VillageRepository {
   finds = 0;
   /** Zavolá se před porovnáním verze – test jím simuluje souběžný zápis jiného požadavku. */
   beforeSave: ((villageId: string) => void) | null = null;
+  /** Seed počasí kraje po sídlech – sídlo bez záznamu je bez počasí (null). */
+  readonly weatherSeeds = new Map<string, number>();
   private nextId = 1;
+
+  async weatherSeedOf(settlementId: string): Promise<number | null> {
+    await Promise.resolve();
+    return this.weatherSeeds.get(settlementId) ?? null;
+  }
 
   async find(villageId: string): Promise<VillageRecord | null> {
     this.finds++;

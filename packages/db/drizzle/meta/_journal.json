@@ -50,6 +50,13 @@
       "when": 1792355719946,
       "tag": "0006_grid_per_player",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793084699341,
+      "tag": "0007_weather_seed",
+      "breakpoints": true
     }
   ]
 }

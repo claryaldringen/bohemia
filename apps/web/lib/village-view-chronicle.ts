@@ -4,6 +4,8 @@ import { boughtProducts, productList } from './village-view-types';
 import { Crop } from '@bohemia/game';
 import {
   paymentValueKg,
+  type SummerWeather,
+  type WinterWeather,
   CART_NAMES,
   CRAFT_NAMES,
   dateOfDayIndex,
@@ -118,6 +120,26 @@ const LAND_TAKERS: Record<LandTaker, string> = {
   road: 'cestě',
   'threshing-floor': 'humnu',
 };
+
+/** Počasí roku kraje, které se právě ukázalo (disasters.md – Léto, Zima). */
+const SUMMER_TEXTS: Record<SummerWeather, string> = {
+  good: 'Dobré léto – úroda slibuje.',
+  normal: 'Obyčejné léto.',
+  dry: 'Suché léto – pole a louky žíznějí.',
+  drought: 'Kruté sucho – pole i louky žloutnou.',
+  wet: 'Deštivé léto – obilí a seno moknou.',
+  wetHarvest: 'Mokré žně – obilí hnije na poli.',
+};
+const WINTER_TEXTS: Record<WinterWeather, string> = {
+  normal: 'Obyčejná zima.',
+  blackFrost: 'Holomráz – mráz bez sněhu, ozim vymrzá.',
+  long: 'Dlouhá sněžná zima – seno se bude krmit déle.',
+};
+
+function weatherText(summer?: SummerWeather, winter?: WinterWeather): string {
+  if (winter !== undefined) return WINTER_TEXTS[winter];
+  return SUMMER_TEXTS[summer ?? 'normal'];
+}
 
 function landTakenText(
   land: 'field' | 'orchard',
@@ -470,6 +492,8 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return STRUCTURE_FELL_TEXTS[event.structure];
     case 'structure-repaired':
       return STRUCTURE_REPAIRED_TEXTS[event.structure];
+    case 'weather':
+      return weatherText(event.summer, event.winter);
     case 'cemetery-full':
       if (event.othersFree) return 'Jeden z hřbitovů se zaplnil – pohřbívá se do dalšího.';
       // staví se jiný hřbitov nebo rozšíření – bude kam pohřbívat

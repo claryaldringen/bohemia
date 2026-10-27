@@ -7,6 +7,7 @@ import type { AbandonedStructure, Crop, TileCell } from './types-land';
 import type { HerdSpecies } from './types-livestock';
 import type { DwellingType } from './types-people';
 import type { HuntKills } from './types-wildlife';
+import type { SummerWeather, WinterWeather } from './types-disasters';
 import type { CartJob, CartKind } from './types-roads';
 import type { Direction8 } from './types-state';
 import type {
@@ -324,6 +325,11 @@ export type ChronicleEvent = { day: number } & (
    * plot hřbitova (i spadlý postavili znovu) nebo ohradu – id stavby.
    */
   | { kind: 'structure-repaired'; structure: AbandonedStructure; id: number }
+  /**
+   * Ukázalo se počasí roku kraje (disasters.md – Léto, Zima, „Kdy je vidět“): zlá zima, nebo
+   * neobvyklé léto (mokré žně jsou 1. 6. deštivé léto, 15. 7. mokré žně).
+   */
+  | { kind: 'weather'; summer?: SummerWeather; winter?: WinterWeather }
   | {
       kind: 'cemetery-full';
       cemeteryId: number;

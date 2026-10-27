@@ -15,6 +15,7 @@ import {
   normalizePersonName,
   normalizeVillageName,
   withPlots,
+  withWeatherSeed,
   withDwellingShapes,
   type FieldInput,
   type PlacementVillage,
@@ -77,7 +78,8 @@ export async function foundVillageForSettlement(
   if ((await deps.villages.listBySettlement(input.settlementId)).length > 0) {
     return { ok: false, reason: ALREADY_FOUNDED };
   }
-  const founded = foundedVillage(deps.seeds, input, lord);
+  const weatherSeed = await deps.villages.weatherSeedOf(input.settlementId);
+  const founded = foundedVillage(deps.seeds, input, weatherSeed, lord);
   if (!founded.ok) return founded;
   const created = await deps.villages.create(input.settlementId, founded.name, founded.state);
   return created === null ? { ok: false, reason: ALREADY_FOUNDED } : { ok: true, village: created };
@@ -100,7 +102,8 @@ export async function foundAnotherVillage(
   if (distanceToVillages(input.dwelling, points) < NEW_VILLAGE_MIN_DISTANCE_M) {
     return { ok: false, reason: TOO_CLOSE_TO_VILLAGE };
   }
-  const founded = foundedVillage(deps.seeds, input);
+  const weatherSeed = await deps.villages.weatherSeedOf(input.settlementId);
+  const founded = foundedVillage(deps.seeds, input, weatherSeed);
   if (!founded.ok) return founded;
   const village = await deps.villages.add(input.settlementId, founded.name, founded.state);
   return { ok: true, village };
@@ -110,23 +113,26 @@ export async function foundAnotherVillage(
 function foundedVillage(
   seeds: SeedSource,
   input: FoundVillageInput,
+  weatherSeed: number | null,
   lord?: Founders,
 ): { ok: true; state: VillageState; name: string } | { ok: false; reason: string } {
   const name = checkVillageName(input.name);
   if (!name.ok) return { ok: false, reason: name.reason ?? 'Neplatné jméno vsi.' };
-  const founded = foundedVillageState(seeds.nextSeed(), input, lord);
+  const founded = foundedVillageState(seeds.nextSeed(), input, lord, weatherSeed);
   return founded.ok ? { ...founded, name: normalizeVillageName(input.name) } : founded;
 }
 
 /**
  * Stav nové vsi se seedem `seed` dopočítaný do dneška – první zemnice (a volitelně pole) ověřené
  * podle krajiny, s osadníky, s vojvodou a jeho rodinou (`lord` – lord.md, Zakladatelé), nebo se
- * čtyřmi zakladateli vsi bez rodu; jinak důvod česky. Bez jména vsi (to drží záznam vsi).
+ * čtyřmi zakladateli vsi bez rodu; jinak důvod česky. Bez jména vsi (to drží záznam vsi). Se
+ * seedem počasí mapy `weatherSeed` (disasters.md – Kraj) má počasí už den založení.
  */
 export function foundedVillageState(
   seed: number,
   input: Omit<FoundVillageInput, 'settlementId' | 'name' | 'lordName'>,
   lord?: Founders,
+  weatherSeed: number | null = null,
 ): { ok: true; state: VillageState } | { ok: false; reason: string } {
   const obstacles = obstaclesOf(input.landscape);
   const dwelling = checkDwellingPlacement(
@@ -178,7 +184,7 @@ export function foundedVillageState(
   const state = advanceVillage(
     withLivestockLand(
       withDwellingShapes(
-        withPlots(founded, input.landscape, obstacles),
+        withPlots(withWeatherSeed(founded, weatherSeed), input.landscape, obstacles),
         input.landscape,
         obstacles,
       ),
