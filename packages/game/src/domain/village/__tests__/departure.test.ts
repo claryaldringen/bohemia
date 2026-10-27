@@ -13,8 +13,8 @@ import {
   travellingVillage,
 } from '../departure';
 import { isGameOver } from '../extinction';
-import { occupants } from '../people';
-import { CARTS, DWELLINGS, LEAVING } from '../rules';
+import { ageGroup, ageYears, occupants } from '../people';
+import { CARTS, DWELLINGS, FOOD_NEED_KG_PER_YEAR, LEAVING } from '../rules';
 import { advanceVillage } from '../simulate';
 import type { CartKind, Person, VillageState } from '../types';
 import { directionBetween, neighbourCell, OPPOSITE, SEAT_CELL } from '../world-grid';
@@ -288,6 +288,32 @@ describe('vůz s voly při odchodu (migration.md – Vůz při odchodu)', () => 
       6,
     );
     expect(leavingFood(s, [], DAY, 'four-wheel').grainKg).toBe(0);
+  });
+
+  it('vůz veze napřed jídlo na LEAVING.cartSeedFoodDays dní, osivo jen z toho, co zbude', () => {
+    const s = withDraft(twoHouseholds(), 3, ['four-wheel']);
+    const leavers = s.people.filter((p) => p.dwellingId === sonHome(s));
+    const need = leavers.reduce((sum, p) => sum + FOOD_NEED_KG_PER_YEAR[ageGroup(p, DAY)], 0);
+    const food = leavingFood(s, leavers, DAY, 'four-wheel');
+    const foodKg = food.grainKg + food.meatKg + food.legumesKg + food.cheeseKg + food.applesKg;
+    expect(foodKg).toBeGreaterThanOrEqual((need * LEAVING.cartSeedFoodDays) / YEAR - 1e-6);
+    // nosnost se neprekročí: jídlo + osivo nad osivo pěšky ≤ nosnost
+    const seed = leavingSeedKg(s, leavers, DAY, 'four-wheel');
+    const carriers = leavers.filter((p) => ageYears(p.bornDay, DAY) >= LEAVING.carryFromAge).length;
+    const foot = carriers * LEAVING.seedKgPerCarrier;
+    expect(foodKg + Math.max(0, seed - foot)).toBeLessThanOrEqual(
+      carriers * LEAVING.carryKgPerPerson + CARTS.loadKg['four-wheel'] + 1e-6,
+    );
+  });
+
+  it('poměrný díl se počítá ze zásob bez rezervy osiva mateřské vsi – ta zůstane jí', () => {
+    const s = twoHouseholds();
+    s.reservedSeedKg = 700;
+    const { state, settlers } = departVillage(s, DAY, [sonHome(s)]);
+    const taken = settlers.food.grainKg + (settlers.seedKg ?? 0);
+    expect(taken).toBeLessThanOrEqual(((2000 - 700) * 3) / 7 + 1e-6);
+    expect(state.storesKg).toBeCloseTo(2000 - taken, 6);
+    expect(state.storesKg).toBeGreaterThanOrEqual(700);
   });
 
   it('bez volných volů vůz zůstane; odchází-li celá ves, vezme si čtyřkolák i s páry', () => {

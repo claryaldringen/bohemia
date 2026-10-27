@@ -72,7 +72,10 @@ export const SEED_STORES = { keepRation: 1, floorRation: 0.75 } as const;
 // čísla návrh Clauda): ves, které na setí nutných dílů v plánu chybí osivo, ho koupí u sousedů
 // v den `days` – 1. 9. před setím ozimu, 1. 3. před setím jaře –, nejméně `minKg`. Koupené osivo
 // (i osivo osadníků – LEAVING.seedKgPerCarrier) ves nesní; co do `releaseDay` (1. 6. – po setí
-// jaře i s odkladem za počasí) nezaseje, je obyčejné zrno.
+// jaře i s odkladem za počasí) nezaseje, je obyčejné zrno; rezerva nad osivo jaře se uvolní už
+// `winterReleaseDay` (1. 12. – po setí ozimu). Při hladovění (`eatFromStarvationDays` = 5 dnů bez jídla, dřív než začnou umírat – STARVATION.threshold)
+// ves rezervu sní – osivo se šetří, ne za cenu smrti. Za jeden nákup nejvýš `maxCows` kráva (návrh Clauda:
+// ves přijde nejvýš o jednu dojnici navíc k dvěma, které si nechává – `TRADE.keepCows`).
 export const SEED_BUYING = {
   days: [
     { month: 9, day: 1 },
@@ -80,6 +83,9 @@ export const SEED_BUYING = {
   ],
   minKg: 5,
   releaseDay: { month: 6, day: 1 },
+  winterReleaseDay: { month: 12, day: 1 },
+  maxCows: 1,
+  eatFromStarvationDays: 5,
 } as const;
 // fields.md – Úroda (neopletený díl), Zarůstání
 export const UNWEEDED_YIELD = 0.6; // neopletý díl dá 60 % (návrh Clauda, kalibrace)

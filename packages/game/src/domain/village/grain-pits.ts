@@ -30,7 +30,7 @@ const SEALED_KEEP = (1 - GRAIN_PITS.sealedLossPerYear) ** (1 / DAYS_PER_YEAR);
 const LIFE_DAYS = GRAIN_PITS.lifeYears * DAYS_PER_YEAR;
 
 /** Co z vsi jámy potřebují – zásoby, jámy a ukládání zrna. */
-type PitsState = Pick<VillageState, 'storesKg' | 'grainPits' | 'grainPitWork'>;
+type PitsState = Pick<VillageState, 'storesKg' | 'grainPits' | 'grainPitWork' | 'reservedSeedKg'>;
 
 /** Obilné jámy vsi (vsi bez jam prázdné). */
 export function villageGrainPits(state: Pick<VillageState, 'grainPits'>): GrainPit[] {
@@ -210,7 +210,15 @@ function pitLoads(state: PitsState, day: number, moreGrain: boolean): PitLoad[] 
   const pits = state.grainPits;
   const work = state.grainPitWork;
   if (!pits || !work || work.queueKg <= EPSILON_KG || !isPitFillingDay(day)) return [];
-  let queue = Math.min(work.queueKg, Math.max(0, state.storesKg - grainInPitsKg(pits)));
+  let queue = Math.min(
+    work.queueKg,
+    Math.max(
+      0,
+      state.storesKg -
+        grainInPitsKg(pits) -
+        Math.min(Math.max(0, state.reservedSeedKg ?? 0), state.storesKg),
+    ),
+  );
   const { year, month } = dateOfDayIndex(day);
   const lastMonth = month === GRAIN_PITS.fillTo;
   const digging = work.noSiteYear !== year;

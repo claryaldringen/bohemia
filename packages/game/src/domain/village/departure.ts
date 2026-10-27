@@ -183,18 +183,30 @@ function leavingShare(
   // osivo napřed ze dílu zásob obilí, který jim patří (osivo, které má mateřská ves jen na setí,
   // mezi ně nepatří) – na nosiče navíc k jídlu, zbytek na voze místo jídla
   const need = leavers.reduce((sum, p) => sum + FOOD_NEED_KG_PER_YEAR[ageGroup(p, day)], 0);
-  const grainShare = Math.max(0, Math.max(0, state.storesKg) - reservedSeedKg(state)) * share;
+  // zásoby bez rezervy osiva mateřské vsi – ta zůstává jí (poměrný díl se počítá z ostatních)
+  const ownStoresKg = Math.max(0, state.storesKg) - reservedSeedKg(state);
+  const grainShare = Math.max(0, ownStoresKg) * share;
   const footSeedKg = carriers * LEAVING.seedKgPerCarrier;
-  const seedKg = Math.max(0, Math.min(need * START_SEED_YEARS, grainShare, footSeedKg + cartKg));
   const shares: LeavingFood = {
-    grainKg: (Math.max(0, state.storesKg) + sheaves.grainKg) * share - seedKg,
+    grainKg: (Math.max(0, ownStoresKg) + sheaves.grainKg) * share,
     meatKg: Math.max(0, state.meatKg ?? 0) * share,
     cheeseKg: Math.max(0, state.cheeseKg ?? 0) * share,
     legumesKg: (Math.max(0, state.legumesKg ?? 0) + sheaves.legumesKg) * share,
     applesKg: Math.max(0, state.applesKg ?? 0) * share,
   };
-  const total = Object.values(shares).reduce((sum, kg) => sum + kg, 0);
-  const budget = carriers * LEAVING.carryKgPerPerson + cartKg - Math.max(0, seedKg - footSeedKg);
+  const rawTotal = Object.values(shares).reduce((sum, kg) => sum + kg, 0);
+  // jídlo má přednost: osivo na vůz (nad osivo pěšky) jen z místa, které zbude po jídle na
+  // LEAVING.cartSeedFoodDays dní (migration.md)
+  const capacityKg = carriers * LEAVING.carryKgPerPerson + cartKg;
+  const foodKeptKg = Math.min(rawTotal, (need * LEAVING.cartSeedFoodDays) / DAYS_PER_YEAR);
+  const cartSeedKg = Math.max(0, capacityKg - foodKeptKg);
+  const seedKg = Math.max(
+    0,
+    Math.min(need * START_SEED_YEARS, grainShare, footSeedKg + cartSeedKg),
+  );
+  shares.grainKg -= seedKg;
+  const total = rawTotal - seedKg;
+  const budget = capacityKg - Math.max(0, seedKg - footSeedKg);
   const scale = total > budget && total > 0 ? budget / total : 1;
   return {
     food: {
@@ -303,7 +315,9 @@ export function departVillage(
   const next = cloneState(state);
   if (cart) takeLeavingCart(next, cart);
   // z každé zásoby stejný podíl – i ze snopů, které ves smí vymlátit (production-chains.md – Humno)
-  next.storesKg -= Math.max(0, state.storesKg) * fraction + seedStoresKg;
+  // poměrný díl ze zásob bez rezervy osiva mateřské vsi (ta zůstává jí)
+  const ownStoresKg = Math.max(0, Math.max(0, state.storesKg) - reservedSeedKg(state));
+  next.storesKg -= ownStoresKg * fraction + seedStoresKg;
   if (next.meatKg !== undefined) next.meatKg -= food.meatKg;
   if (next.cheeseKg !== undefined) next.cheeseKg -= food.cheeseKg;
   if (next.legumesKg !== undefined) next.legumesKg -= Math.max(0, state.legumesKg ?? 0) * fraction;

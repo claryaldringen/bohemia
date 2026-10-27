@@ -186,6 +186,9 @@ export const STRUCTURE_REPAIR = {
 export const LEAVING = {
   carryKgPerPerson: 25,
   seedKgPerCarrier: 20,
+  // migration.md – Jídlo před osivem na voze (návrh Clauda): osivo na vůz (nad to, co unesou pěšky)
+  // jen z místa, které zbude po jídle na tolik dní
+  cartSeedFoodDays: 180,
   carryFromAge: 7,
   travelDays: { min: 1, max: 3, perDayM: 400 },
 } as const;

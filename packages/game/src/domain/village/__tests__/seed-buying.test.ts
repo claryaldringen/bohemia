@@ -14,7 +14,7 @@ import { withBuiltFirstDwelling } from './village-fixtures';
 
 // Osivo pro ves bez zásob (fields.md – Osivo ze zásob, Osivo pro ves bez zásob; Martin 27. 10.
 // 2026: „ok, jak navrhuješ“): osadníci dceřiné vsi si osivo přinesou, ves bez zásob ho 1. 9.
-// a 1. 3. koupí u sousedů – hřivnami a kravami nad chovný pár; koupené a přinesené osivo nesní.
+// a 1. 3. koupí u sousedů – hřivnami a kravami nad dvě, které si ves nechává; koupené a přinesené osivo nesní.
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
 const POSITION = { x: 0, z: 0, rotation: 0 };
@@ -120,13 +120,41 @@ describe('osivo pro ves bez zásob (fields.md – Osivo pro ves bez zásob)', ()
     expect(bought).toHaveLength(1);
     expect(bought[0]!.day).toBe(at(600, 9, 1));
     expect(bought[0]!.pay.cows ?? 0).toBeGreaterThan(0);
-    // chovný pár zůstal
+    // dvě krávy zůstaly
     expect(end.livestock!.herds.cow).toBeGreaterThanOrEqual(TRADE.keepCows);
     expect(winterOf(end)?.done.sow ?? 0).toBeGreaterThan(0);
     expect(winterOf(end)?.seedKg ?? 0).toBeGreaterThan(0);
     // sousedům obilí ubylo
     expect(grainSupply(end, at(600, 10, 31))).toBeLessThan(grainSupply(s, at(600, 9, 1)));
   }, 60_000);
+
+  it('za jeden nákup osiva prodá nejvýš SEED_BUYING.maxCows krav', () => {
+    const s = village(20, 0, 8);
+    const end = advanceVillage(s, at(600, 10, 31), null);
+    const bought = eventsOf(end, 'seed-bought');
+    expect(bought).toHaveLength(1);
+    expect(bought[0]!.pay.cows ?? 0).toBeLessThanOrEqual(SEED_BUYING.maxCows);
+  }, 60_000);
+
+  it('rezervu osiva ves sní při skutečném hladu, jinak ji drží', () => {
+    const s = village(4, 300, 4);
+    s.reservedSeedKg = 100;
+    s.starvationDays = SEED_BUYING.eatFromStarvationDays - 1;
+    seedBuyingDay(s, at(600, 7, 1));
+    expect(s.reservedSeedKg).toBe(100);
+    s.starvationDays = SEED_BUYING.eatFromStarvationDays;
+    seedBuyingDay(s, at(600, 7, 2));
+    expect(s.reservedSeedKg).toBeUndefined();
+  });
+
+  it('1. 12. se uvolní rezerva nad osivo jaře (bez čekajícího osiva celá)', () => {
+    const s = village(4, 300, 4);
+    s.reservedSeedKg = 100;
+    seedBuyingDay(s, at(600, 11, 30));
+    expect(s.reservedSeedKg).toBe(100);
+    seedBuyingDay(s, at(600, 12, 1));
+    expect(s.reservedSeedKg).toBeUndefined();
+  });
 
   it('ves bez čeho platit nezaseje a zapíše, kolik osiva chybí', () => {
     const s = village(20, 0, TRADE.keepCows);
