@@ -4,15 +4,18 @@ import { foundVillage } from '../actions';
 import { inDisasterProtection, yearSchedule } from '../disasters';
 import { localDisastersDay } from '../local-disasters';
 import type { ChronicleEvent, Dwelling, VillageState } from '../types';
+import { makeLandscape } from './placement-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
 // Ochrana nové vsi (disasters.md – Kraj a ochrana nové vsi; Martin 27. 10. 2026: „Pětiletou
-// ochranu“) pro všechny místní pohromy rámce `localDisastersDay` – P6 (povodeň) a P9 (smršť)
-// přidají své druhy do `KINDS`.
+// ochranu“) pro všechny místní pohromy rámce `localDisastersDay` – P9 (smršť) přidá svůj druh
+// do `KINDS`.
 
 const YEAR = 365.25;
 const SEED = 7;
-const KINDS: readonly ChronicleEvent['kind'][] = ['hail', 'fire'];
+const KINDS: readonly ChronicleEvent['kind'][] = ['hail', 'flood', 'fire'];
+/** Rovina těsně u potoka (sloupec 0) – každá voda kraje zatopí domy uvnitř mapy. */
+const LOWLAND = makeLandscape({ size: 128, surface: (x) => (x === 0 ? 'water' : 'meadow') });
 
 /** Ves založená dne `founded` s mnoha vzdálenými domy (požár ≈ jednou za rok). */
 function village(founded: number): VillageState {
@@ -35,7 +38,7 @@ function kindsIn(founded: number, from: number, to: number): Set<string> {
   const state = village(founded);
   const kinds = new Set<string>();
   for (let day = Math.ceil(founded + from * YEAR); day < founded + to * YEAR; day++) {
-    for (const e of localDisastersDay(state, day, null, null)) kinds.add(e.kind);
+    for (const e of localDisastersDay(state, day, LOWLAND, null)) kinds.add(e.kind);
   }
   return kinds;
 }

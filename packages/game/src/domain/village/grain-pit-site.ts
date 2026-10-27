@@ -9,10 +9,12 @@ import {
 } from '../landscape';
 import { workshopKilns } from './charcoal';
 import { GRAIN_PITS, MILIR, WAGON_ROAD } from './rules';
+import { FLOOD } from './rules-disasters';
 import { villageManor } from './manor';
 import { obstacleChangesAt, obstacleStatus } from './obstacles';
 import { editedHeight, naturalHeightAt, profileLength, terrainEditsFrom } from './paths/earthworks';
 import { threshingFloorEntrance } from './paths/entrances';
+import { heightAboveStreamAt } from './part-protection';
 import { onForeignGround } from './placement';
 import { PATH_FOREST, PATH_FORD, PATH_WATER, PATH_WATER_SPOT, PATH_WETLAND } from './paths/terrain';
 import { walkGroundOf } from './paths/walking';
@@ -173,6 +175,11 @@ function siteCheck(
   const status = obstacleStatus(obstacleChangesAt(state, day));
   const earthwork = earthworkCheck(state, landscape);
   const half = (landscape.size * landscape.cellSizeM) / 2 - EDGE_M;
+  // kde hrozí povodeň (ves s počasím kraje), jáma se nekope níž než dvacetiletá voda
+  // (disasters.md – Povodeň potoka)
+  const floodSafe = (p: { x: number; z: number }): boolean =>
+    state.weatherSeed === undefined ||
+    heightAboveStreamAt(landscape, p.x, p.z) >= FLOOD.pitMinHeightM;
   const wet = PATH_WATER | PATH_WATER_SPOT | PATH_FORD | PATH_WETLAND | PATH_FOREST;
   return (p) => {
     if (Math.abs(p.x) > half || Math.abs(p.z) > half) return false;
@@ -181,6 +188,7 @@ function siteCheck(
     const j = Math.round((p.z - terrain.originZ) / terrain.cellM);
     if (i < 0 || j < 0 || i >= terrain.width || j >= terrain.height) return false;
     if (terrain.flags[j * terrain.width + i]! & wet) return false;
+    if (!floodSafe(p)) return false;
     if (taken.some((t) => length2(t.x - p.x, t.z - p.z) < GRAIN_PITS.spacingM)) return false;
     if (entrances.some((e) => length2(e.x - p.x, e.z - p.z) < ENTRANCE_CLEAR_M)) return false;
     if (roads.some((r) => polylineDistance(p, r.points) < ROAD_CLEAR_M)) return false;

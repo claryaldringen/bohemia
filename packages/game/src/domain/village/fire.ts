@@ -276,13 +276,6 @@ function burnDown(
     d.condition = Math.max(0, d.condition - damage);
     if (d.condition <= 1e-9) destroyed.push(d);
   }
-  if (destroyed.length === total && destroyed.length > 0) {
-    const spared = destroyed.reduce((best, d) =>
-      occupants(state, d.id).length > occupants(state, best.id).length ? d : best,
-    );
-    spared.condition = 0.1;
-    destroyed.splice(destroyed.indexOf(spared), 1);
-  }
   const share = (burnt.length / total) * Math.min(1, damage);
   const lostGrain = looseGrainKg(state) * share;
   state.storesKg -= lostGrain;
@@ -293,25 +286,7 @@ function burnDown(
   const lostHay = (state.hay?.kg ?? 0) * share;
   if (state.hay) state.hay.kg -= lostHay;
   const lostCrafts = burnWorkshopStocks(state, burnt, damage);
-  if (destroyed.length > 0) {
-    const gone = new Set(destroyed.map((d) => d.id));
-    const homes = state.dwellings.filter((d) => !gone.has(d.id));
-    for (const d of destroyed) {
-      const members = occupants(state, d.id);
-      if (members.length === 0) continue;
-      const target = evacuationTarget(state, day, members, d.id, homes);
-      if (target) for (const p of members) p.dwellingId = target.id;
-    }
-    // stavba vázaná na shořelý dům (přestavba, oprava…) padá – klády se vrátí na hromadu;
-    // nový dům po požáru staví hráč běžnou stavbou (Martin 27. 10. 2026)
-    state.constructions = state.constructions.filter((c) => {
-      const lost = c.dwellingId !== null && gone.has(c.dwellingId);
-      if (lost && c.wood) addLogs(state, c.wood.fromPile);
-      return !lost;
-    });
-    recordRuins(state, destroyed, day);
-    state.dwellings = homes;
-  }
+  collapseDwellings(state, day, destroyed);
   return {
     day,
     kind: 'fire',
@@ -323,6 +298,40 @@ function burnDown(
     lostHayKg: Math.round(lostHay),
     ...lostCrafts,
   };
+}
+
+/**
+ * Zřícení staveb po pohromě (požár, povodeň – disasters.md): poslední stojící obydlí vsi se
+ * nezboří úplně (lidé by neměli kam) – zůstane poničené (stav 0,1); obyvatelé zřícených se
+ * nastěhují k příbuzným (`evacuationTarget`), stavba vázaná na zřícený dům (přestavba, oprava…)
+ * padá – klády se vrátí na hromadu; nový dům staví hráč běžnou stavbou (Martin 27. 10. 2026).
+ * Na místě zůstane zbytek jámy jako po rozpadu. Mutuje stav i `destroyed` (bez ušetřeného).
+ */
+export function collapseDwellings(state: VillageState, day: number, destroyed: Dwelling[]): void {
+  if (destroyed.length === 0) return;
+  if (destroyed.length === state.dwellings.length) {
+    const spared = destroyed.reduce((best, d) =>
+      occupants(state, d.id).length > occupants(state, best.id).length ? d : best,
+    );
+    spared.condition = 0.1;
+    destroyed.splice(destroyed.indexOf(spared), 1);
+    if (destroyed.length === 0) return;
+  }
+  const gone = new Set(destroyed.map((d) => d.id));
+  const homes = state.dwellings.filter((d) => !gone.has(d.id));
+  for (const d of destroyed) {
+    const members = occupants(state, d.id);
+    if (members.length === 0) continue;
+    const target = evacuationTarget(state, day, members, d.id, homes);
+    if (target) for (const p of members) p.dwellingId = target.id;
+  }
+  state.constructions = state.constructions.filter((c) => {
+    const lost = c.dwellingId !== null && gone.has(c.dwellingId);
+    if (lost && c.wood) addLogs(state, c.wood.fromPile);
+    return !lost;
+  });
+  recordRuins(state, destroyed, day);
+  state.dwellings = homes;
 }
 
 /**

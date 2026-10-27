@@ -15,21 +15,29 @@ import { seasonCrop, type PartLosses } from './year-plan';
 
 export { inDisasterProtection, yearSchedule } from './disaster-schedule';
 
-/** Ztráty dílů z krupobití za rok sklizně dne (`disasters.losses.hail`); jiný rok nic. */
-function hailLossesOf(
+/**
+ * Ztráty dílů z místních pohrom (kroupy, povodeň) za rok sklizně dne (`disasters.losses`), jen
+ * pro díly `partIds`; jiný rok nebo žádný zasažený díl nic.
+ */
+function disasterLossesOf(
   state: Pick<VillageState, 'disasters'>,
   day: number,
-): Readonly<Record<string, number>> | undefined {
+  partIds: readonly number[],
+): ((key: string) => number) | undefined {
   const losses = state.disasters?.losses;
-  return losses?.hail && losses.year === harvestYearOf(day) ? losses.hail : undefined;
+  if (!losses || losses.year !== harvestYearOf(day)) return undefined;
+  const { hail, flood } = losses;
+  const hit = (key: string): boolean => hail?.[key] !== undefined || flood?.[key] !== undefined;
+  if (!partIds.some((id) => hit(String(id)))) return undefined;
+  return (key) => 1 - (1 - (hail?.[key] ?? 0)) * (1 - (flood?.[key] ?? 0));
 }
 
 /**
  * Ztráty dílů plodiny dne (disasters.md – Dopady na existující mechaniky, Úroda): hrubá úroda
- * dílu × počasí dílu (s ochranou – `partWeatherFactor`) × (1 − škoda zvěře `base`) × (1 − kroupy).
- * Při sklizni celé počasí roku sklizně, pro odhad (`estimate`) jen co už je vidět (kroupy, které
- * už padly, vidět jsou). Ves bez počasí a bez krupobití dílů a rok, kdy počasí plodinu nemění,
- * vrací `base` beze změny (bez nového objektu).
+ * dílu × počasí dílu (s ochranou – `partWeatherFactor`) × (1 − škoda zvěře `base`) × (1 − kroupy)
+ * × (1 − povodeň). Při sklizni celé počasí roku sklizně, pro odhad (`estimate`) jen co už je vidět
+ * (kroupy a voda, které už přišly, vidět jsou). Ves bez počasí a bez pohrom dílů a rok, kdy počasí
+ * plodinu nemění, vrací `base` beze změny (bez nového objektu).
  */
 export function dayPartLosses(
   state: Pick<VillageState, 'weatherSeed' | 'disasters'>,
@@ -39,17 +47,16 @@ export function dayPartLosses(
   base: PartLosses | undefined,
   estimate = false,
 ): PartLosses | undefined {
-  const all = hailLossesOf(state, day);
-  const hail = all && partIds.some((id) => all[String(id)] !== undefined) ? all : undefined;
+  const disaster = disasterLossesOf(state, day, partIds);
   const weather = hasWeather(state) ? cropWeatherOf(state, day, estimate) : undefined;
   const weatherOn = weather !== undefined && weatherChangesCrop(weather, crop);
-  if (!weatherOn && !hail) return base;
+  if (!weatherOn && !disaster) return base;
   const parts = state.disasters?.protection?.parts;
   const losses: Record<string, { share: number }> = {};
   for (const id of partIds) {
     const key = String(id);
     const weatherKept = weatherOn ? partWeatherFactor(weather, crop, parts?.[key]) : 1;
-    const kept = weatherKept * (1 - (base?.[key]?.share ?? 0)) * (1 - (hail?.[key] ?? 0));
+    const kept = weatherKept * (1 - (base?.[key]?.share ?? 0)) * (1 - (disaster?.(key) ?? 0));
     losses[key] = { share: 1 - kept };
   }
   return losses;

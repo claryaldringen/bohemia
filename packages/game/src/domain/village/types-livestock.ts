@@ -97,8 +97,8 @@ export interface HayMowing {
   squares?: HaySquare[];
   required: number;
   /**
-   * Kolik sena zbylé louky po krupobití zbylo (0–1, disasters.md – Kroupy) – násobí seno další
-   * seče; chybí = kroupy nebyly.
+   * Kolik sena zbylé louky po krupobití nebo povodni zbylo (0–1, disasters.md – Kroupy, Povodeň
+   * potoka) – násobí seno další seče; chybí = pohroma nebyla.
    */
   hailFactor?: number;
   done: number;

@@ -149,6 +149,26 @@ export function settleGrainPits(state: VillageState, day: number, potteryCoverag
   if (kept.length !== pits.length) state.grainPits = kept;
 }
 
+/**
+ * Do zatopených jam zateče (disasters.md – Povodeň potoka): zrno jam, pro které `flooded` platí,
+ * ubude o podíl `loss` (zásoby obilí s ním). Mutuje stav, vrátí ztracené zrno (kg).
+ */
+export function soakGrainPits(
+  state: PitsState,
+  flooded: (pit: GrainPit) => boolean,
+  loss: number,
+): number {
+  let lost = 0;
+  for (const p of state.grainPits ?? []) {
+    if (p.grainKg <= EPSILON_KG || !flooded(p)) continue;
+    const kg = p.grainKg * loss;
+    p.grainKg -= kg;
+    lost += kg;
+  }
+  state.storesKg = Math.max(0, state.storesKg - lost);
+  return lost;
+}
+
 /** Slouží jáma už GRAIN_PITS.lifeYears – prázdná se zasype a kope se nová? */
 function pitWornOut(pit: GrainPit, day: number): boolean {
   return day - pit.dugDay >= LIFE_DAYS;

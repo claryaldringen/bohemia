@@ -50,12 +50,19 @@ interface StandingPlant {
   apple: boolean;
 }
 
-function tileIndex(landscape: Landscape, x: number, z: number): number {
+/** Index políčka krajiny pod bodem světa (m); mimo mapu −1. */
+export function tileIndex(landscape: Landscape, x: number, z: number): number {
   const half = (landscape.size * landscape.cellSizeM) / 2;
   const tx = Math.floor((x + half) / landscape.cellSizeM);
   const ty = Math.floor((z + half) / landscape.cellSizeM);
   if (tx < 0 || ty < 0 || tx >= landscape.size || ty >= landscape.size) return -1;
   return ty * landscape.size + tx;
+}
+
+/** Výška bodu světa nad potokem (m, z políčka pod ním); mimo mapu a bez vody v mapě nekonečno. */
+export function heightAboveStreamAt(landscape: Landscape, x: number, z: number): number {
+  const tile = tileIndex(landscape, x, z);
+  return tile < 0 ? Infinity : streamHeights(landscape)[tile]!;
 }
 
 /**

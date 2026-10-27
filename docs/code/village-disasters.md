@@ -156,7 +156,7 @@ Návrh: `docs/design/disasters.md` – Kraj a ochrana nové vsi, Místní pohrom
 
 - **Krok dne** – `localDisastersDay(state, day, landscape, obstacles)` (`local-disasters.ts`)
   v `simulateDay` po `damageWindowStart`, před `startPurchases` a `work()` (krok 6 Pořadí dne
-  v plánu): v pevném pořadí smršť (P9 – zatím nic), kroupy (`hailDay`), povodeň (P6 – zatím nic),
+  v plánu): v pevném pořadí smršť (P9 – zatím nic), kroupy (`hailDay`), povodeň (`floodDay`),
   požár (`fireDay`). Vrací zápisy kroniky; úmrtí (P6, P9) jdou i do štěstí jako u lovu
   (`happinessEvents`). Samostatný soubor kvůli cyklu importů: `disasters.ts` čte i strava
   (`winterEstimateLosses`), kdyby natahoval požár, kroupy a seno, rozbije se pořadí načtení modulů
@@ -167,13 +167,13 @@ Návrh: `docs/design/disasters.md` – Kraj a ochrana nové vsi, Místní pohrom
 - **Rozpis roku** – `yearSchedule(seed, year)` (memo, nejvýš 4096 rozpisů): čistá funkce seedu
   vsi a roku – dvě vsi téže mapy mají jiný seed, tedy jiné kroupy. Zatím `hail: HailPlan | null`
   (den, úhel pruhu, posun); P6 a P9 přidají své položky.
-- **Ztráty dílů** – `disasters.losses = { year, hail }` (rok sklizně `harvestYearOf`, podíly
-  hrubé úrody po dílech); `dayPartLosses` je sloučí s počasím a škodou zvěře: zůstane počasí ×
-  (1 − zvěř) × (1 − kroupy). Bez počasí a bez potlučených dílů vrací `base` beze změny (zlaté
+- **Ztráty dílů** – `disasters.losses = { year, hail, flood }` (rok sklizně `harvestYearOf`,
+  podíly hrubé úrody po dílech); `dayPartLosses` je sloučí s počasím a škodou zvěře: zůstane
+  počasí × (1 − zvěř) × (1 − kroupy) × (1 − povodeň). Bez počasí a bez potlučených dílů vrací `base` beze změny (zlaté
   otisky). Odhad (`estimate`) kroupy, které už padly, vidí.
 - **Testy** – `__tests__/disasters-protection.test.ts`: ves ve 3. roce bez krupobití, v 6. roce
-  s ním; žádná místní pohroma prvních 5 let a po nich všechny druhy rámce (`KINDS` – P6 a P9
-  přidají své).
+  s ním; žádná místní pohroma prvních 5 let a po nich všechny druhy rámce (`KINDS` – kroupy,
+  povodeň na rovině u potoka, požár; P9 přidá smršť).
 
 ## Kroupy (P5)
 
@@ -209,6 +209,54 @@ kroupami částečně chránit“). Jádro: `hail.ts`, čísla `HAIL` v `rules-d
 - **Testy** – `__tests__/hail.test.ts`: četnost 6 % (2000 let), okno června až srpna, dvě vsi
   téže mapy, pruh a okraje, strom chrání (36 %), sklizený díl a díl mimo nic, sloučení se zvěří,
   střechy, louka a sad, ves bez počasí, požár v rámci, dopočet po kouscích přes den krupobití.
+
+## Povodeň (P6)
+
+Návrh: `docs/design/disasters.md` – Povodeň potoka (Martin 27. 10. 2026: „Velikost povodně by se
+měla lišit … Naplavenina by měla hnojit víc“, „A ať zabíjí tak jak navrhuješ“, „Ano a ano“ –
+výška společná pro celý kraj). Jádro: `flood.ts`, čísla `FLOOD` (škody) a `FLOOD_WATER` (stupně
+vody, P1) v `rules-disasters.ts`.
+
+- **Voda kraje** – `floodToday(state, day)`: stupeň, výška, jaro / léto a den z
+  `weatherOf(state, year).flood` (P1 – `yearWeather`, vynucená `disasters.override.weather`). Dvě
+  vsi téže mapy mají stejnou vodu týž den; škody počítá každá ves sama. Vynucená voda je počasí
+  kraje, ne místní pohroma – ochranu nové vsi **nepřebije** (na rozdíl od `override.hail`, `.fire`).
+- **Kdy nic** – `floodDay(state, day, landscape)`: bez krajiny (kalibrace, testy – žádné výšky),
+  ves bez `weatherSeed` bez vynucené vody (zlaté otisky) a nová ves (`inDisasterProtection`, 5 let).
+- **Hloubka** – výška vody − výška políčka nad potokem (`streamHeights` z `part-protection.ts`,
+  `heightAboveStreamAt` pro bod světa; mapa bez vody = nekonečno). Díly podle políčka čtverce
+  (`villageLandSquares`), stavby a jámy podle svého středu. Pásmo `floodBand`: do 0,5 m, 0,5–1,5 m,
+  nad 1,5 m. Krajina se nemění.
+- **Úroda** – nesklizené plodiny (`season.crops`, `harvestedKg === null`): letní voda ×0,7 / 0,3 /
+  0, jarní jen ozim ×0,85 / 0,5 / 0,2 (jařiny se v březnu teprve sejí – návrh Clauda). Do
+  `disasters.losses.flood` (druhá voda roku se sloučí), sklizeň přes `dayPartLosses`.
+- **Louky** – nesečené úseky dnešní seče v jejím okně (`damageUnmownMeadows` v `hay.ts` – sdílí
+  ho kroupy): ztráta úseku 1 − `cropKept` podle hloubky jeho políčka → `HayMowing.hailFactor`.
+  Voda mimo okno seče (jaro, 10. 7. mezi sečemi) louky nebere.
+- **Naplavenina** – všechny zatopené díly (i příloh a louka): `fertilityShare` +0,1 / 0,2 / 0,3,
+  nejvýš 1,3 (`siltMaxShare`). Ubývá osevem jako jiná úrodnost; příloh a luštěniny ji nesrazí
+  (`withinNatural` ve `fields.ts` – přírůstek nejvýš do přirozené, víc se nezvedne).
+- **Jámy** – zatopená jáma ztratí čtvrtinu zrna (`soakGrainPits`, zásoby obilí s ní). Nová jáma
+  se ve vsi s počasím kraje nekope níž než 1,2 m nad potokem (`grainPitSites` – `floodSafe`).
+- **Stavby** – obydlí a dílny: stav −0,1 / 0,3 / 0,6, zemnice −0,3 / 0,6 / zřítí se. Na nule
+  spadnou jako po požáru (`collapseDwellings` ve `fire.ts` – obyvatelé k příbuzným, stavby vázané
+  na dům padají, zbytek jámy; poslední obydlí vsi zůstane se stavem 0,1). Obydlený dům opraví
+  ves jako po chátrání.
+- **Úmrtí** – od 3 m (pětisetletá a tisíciletá) každý obyvatel zatopeného obydlí s šancí 2 %
+  (proud `'flood-death:' + day`, obydlí a lidé podle id) – `death` s `cause: 'flood'`, pohřeb,
+  nástupnictví `dynastyDay`. Úmrtí se losují před poškozením staveb.
+- **Kronika** – `flood` (`level`, `heightM`, `partIds` zatopených dílů, `dwellingIds`,
+  `collapsedDwellingIds`, `meadowShare`, `lostGrainKg`) jen když vsi něco zatopila; poslední
+  taková voda v `disasters.flood` (den, stupeň, výška – pro scénu, voda stojí `FLOOD.standDays`).
+  Texty v `village-view-chronicle.ts` (`FLOOD_LEVEL_NAMES` – „Stoletá voda – 2 m nad hladinou“).
+- **Testy** – `__tests__/flood.test.ts`: pásma, četnosti stupňů za 10 000 let, hloubka podle
+  terénu (umělý svah u potoka), letní a jarní voda, stavby a zemnice, jámy, naplavenina se stropem
+  a koncem roku, jáma ne pod 1,2 m, úmrtí jen od pětisetleté (≈ 2 %), dvě vsi téže mapy, ochrana
+  nové vsi, bez krajiny, ves bez počasí, dopočet po kouscích přes den vody.
+- **Vlkov** (stav z DB, seed počasí ručně, voda vynucená): všechna obydlí a jámy 11–14 m nad
+  potokem – stavby ani lidé povodeň nepoznají; zatopí jen díly v nivě (tisíciletá 232 dílů,
+  5,2 ha, z toho 28 osetých). Sklizeň nejvýš o pár procent nižší, naplavenina zvedne úrodnost
+  nivy.
 
 ## Požár (P7)
 

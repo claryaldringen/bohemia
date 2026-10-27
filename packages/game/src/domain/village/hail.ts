@@ -6,7 +6,7 @@ import { dateOfDayIndex } from '../calendar';
 import { CELL_SIZE_M, LANDSCAPE_SIZE, type Landscape } from '../landscape';
 import { detCos, detSin } from '../landscape/det-math';
 import { inDisasterProtection, yearSchedule } from './disaster-schedule';
-import { isMowingSeason, mowingCut, mowingSpans } from './hay';
+import { damageUnmownMeadows } from './hay';
 import { squareExpectedYieldKg } from './orchard';
 import { HAIL } from './rules-disasters';
 import { DWELLINGS } from './rules-people';
@@ -146,8 +146,7 @@ function hitCrops(
 
 /**
  * Nesečené louky dnešní seče v pruhu: seno další seče ubude o ztracený podíl zbylé louky
- * (`HayMowing.hailFactor` – rozložený na zbytek seče, návrh Clauda). Posečené louky a seč mimo
- * své okno nic. Vrátí podíl sena zbylé louky, který ubyl.
+ * (`damageUnmownMeadows`). Vrátí podíl sena zbylé louky, který ubyl.
  */
 function hitMeadows(
   state: VillageState,
@@ -156,32 +155,16 @@ function hitMeadows(
   geo: GridGeometry,
   zones: ReadonlyMap<number, HailZone>,
 ): number {
-  const mowing = state.hay?.mowing;
-  if (!mowing || mowing.required <= 0 || !isMowingSeason(day, mowingCut(mowing))) return 0;
-  const position = Math.min(1, mowing.done / mowing.required);
-  const left = 1 - position;
-  if (left <= EPSILON) return 0;
-  const partsById = new Map(state.parts.map((p) => [p.id, p]));
-  let lost = 0;
-  for (const span of mowingSpans(mowing, partsById)) {
-    const unmown = span.end - Math.max(span.start, position);
-    if (unmown <= 0) continue;
-    let zone: HailZone | null = null;
-    let protection = 0;
+  return damageUnmownMeadows(state, day, (span) => {
     if (span.partId !== undefined) {
-      zone = zones.get(span.partId) ?? null;
-      protection = partProtectionOf(state, span.partId, 'hail');
-    } else if (span.cell) {
-      const c = squareCenter(geo, undefined, span.cell);
-      zone = hailZone(strip, c.x, c.z);
-      protection = protectionAgainst(undefined, 'hail');
+      const zone = zones.get(span.partId);
+      return zone ? hailLoss(zone, partProtectionOf(state, span.partId, 'hail')) : 0;
     }
-    if (zone) lost += unmown * hailLoss(zone, protection);
-  }
-  if (lost <= EPSILON) return 0;
-  const share = Math.min(1, lost / left);
-  mowing.hailFactor = (mowing.hailFactor ?? 1) * (1 - share);
-  return share;
+    if (!span.cell) return 0;
+    const c = squareCenter(geo, undefined, span.cell);
+    const zone = hailZone(strip, c.x, c.z);
+    return zone ? hailLoss(zone, protectionAgainst(undefined, 'hail')) : 0;
+  });
 }
 
 /** Sady v pruhu: podíl letošních jablek, který ubyl (−40 %, okraj polovina). */

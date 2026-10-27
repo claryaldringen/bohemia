@@ -259,6 +259,8 @@ dvousetleté … pětisetleté … tisícileté vody. Naplavenina by měla hnoji
 | 0,5–1,5 m | ×0,3                     | ×0,5              | −30 %  | −60 %    | +20 %       |
 | nad 1,5 m | ×0                       | ×0,2              | −60 %  | zřítí se | +30 %       |
 
+- **Jarní voda** (1.–20. 3.) bere jen ozim – jařiny se teprve sejí; louky bere jen voda v okně
+  seče (návrh Clauda).
 - **Stavby:** stav klesne o tolik; co dojde na nulu, spadne (zbytek jámy jako po rozpadu,
   [populace](population.md) – Po zániku); obydlený dům obyvatelé opraví prací vsi jako jindy.
   **Obilná jáma v zatopeném políčku:** zrno −25 % (zateče) – a nová jáma se nekope níž než

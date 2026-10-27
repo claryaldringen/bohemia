@@ -687,6 +687,34 @@ export function mowingSpans(
 }
 
 /**
+ * Pohroma na nesečených loukách dnešní seče (kroupy, povodeň – disasters.md): `lossOf` = ztráta
+ * sena úseku 0–1; seno další seče ubude o ztracený podíl zbylé louky (`HayMowing.hailFactor` –
+ * rozložený na zbytek seče, návrh Clauda). Posečené louky a seč mimo své okno nic. Mutuje stav,
+ * vrátí podíl sena zbylé louky, který ubyl.
+ */
+export function damageUnmownMeadows(
+  state: VillageState,
+  day: number,
+  lossOf: (span: MowSpan) => number,
+): number {
+  const mowing = state.hay?.mowing;
+  if (!mowing || mowing.required <= 0 || !isMowingSeason(day, mowingCut(mowing))) return 0;
+  const position = Math.min(1, mowing.done / mowing.required);
+  const left = 1 - position;
+  if (left <= EPSILON) return 0;
+  const partsById = new Map(state.parts.map((p) => [p.id, p]));
+  let lost = 0;
+  for (const span of mowingSpans(mowing, partsById)) {
+    const unmown = span.end - Math.max(span.start, position);
+    if (unmown > 0) lost += unmown * lossOf(span);
+  }
+  if (lost <= EPSILON) return 0;
+  const share = Math.min(1, lost / left);
+  mowing.hailFactor = (mowing.hailFactor ?? 1) * (1 - share);
+  return share;
+}
+
+/**
  * Louky, přes které dnes seč postoupila (z `before` do `after` člověkodní), s podílem dnešní
  * práce – pro postavy (labor-report.ts).
  */

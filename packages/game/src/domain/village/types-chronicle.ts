@@ -7,7 +7,7 @@ import type { AbandonedStructure, Crop, TileCell } from './types-land';
 import type { HerdSpecies } from './types-livestock';
 import type { DwellingType } from './types-people';
 import type { HuntKills } from './types-wildlife';
-import type { SummerWeather, WinterWeather } from './types-disasters';
+import type { FloodLevel, SummerWeather, WinterWeather } from './types-disasters';
 import type { CartJob, CartKind } from './types-roads';
 import type { Direction8 } from './types-state';
 import type {
@@ -66,7 +66,7 @@ export type ChronicleEvent = { day: number } & (
       kind: 'death';
       group: 'child' | 'adult' | 'elder';
       age?: number;
-      cause?: 'hunger' | 'hunt';
+      cause?: 'hunger' | 'hunt' | 'flood';
       /** Zvěř, na jejímž lovu muž zahynul (`cause: 'hunt'`). */
       prey?: 'boar' | 'bear';
       name?: string;
@@ -358,6 +358,22 @@ export type ChronicleEvent = { day: number } & (
       dwellingIds: number[];
       meadowShare?: number;
       appleShare?: number;
+    }
+  /**
+   * Povodeň (disasters.md – Povodeň potoka): voda kraje stupně `level` (`heightM` nad hladinou
+   * potoka) zatopila díly `partIds` a stavby `dwellingIds`, z nich `collapsedDwellingIds` se
+   * zřítily; `meadowShare` = podíl sena nesečené louky, který ubyl, `lostGrainKg` = zrno, které
+   * zateklo do jam. Úmrtí jsou zvlášť (`death`, `cause: 'flood'`).
+   */
+  | {
+      kind: 'flood';
+      level: FloodLevel;
+      heightM: number;
+      partIds: number[];
+      dwellingIds: number[];
+      collapsedDwellingIds: number[];
+      meadowShare?: number;
+      lostGrainKg?: number;
     }
   | {
       kind: 'cemetery-full';

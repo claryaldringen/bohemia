@@ -121,11 +121,19 @@ export interface HailRecord {
 
 /**
  * Podíly ztráty hrubé úrody po dílech za rok sklizně (`harvestYearOf`) – sloučí se se škodou zvěře
- * a počasím v `dayPartLosses`. Povodeň a smršť přidají P6, P9.
+ * a počasím v `dayPartLosses`. Smršť přidá P9.
  */
 export interface PartDisasterLosses {
   year: number;
   hail?: Record<string, number>;
+  /** Povodeň (disasters.md – Povodeň potoka) – nesklizená úroda a ozim zatopených dílů. */
+  flood?: Record<string, number>;
+}
+/** Poslední povodeň, která vsi něco zatopila (pro scénu): den, stupeň a výška vody nad potokem. */
+export interface FloodRecord {
+  day: number;
+  level: FloodLevel;
+  heightM: number;
 }
 
 /** Pohromy vsi (disasters.md); další části přidají místní pohromy. */
@@ -136,6 +144,8 @@ export interface DisasterState {
   protection?: PartProtections;
   /** Poslední krupobití (jen ves se `weatherSeed` nebo vynucené). */
   hail?: HailRecord;
+  /** Poslední povodeň, která vsi něco zatopila (jen ves s krajinou). */
+  flood?: FloodRecord;
   /** Ztráty dílů z místních pohrom za rok sklizně. */
   losses?: PartDisasterLosses;
   /**

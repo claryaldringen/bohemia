@@ -144,6 +144,45 @@ export const FLOOD_WATER = {
   springShare: 0.5,
 } as const;
 
+/** Škody povodně v jednom pásmu hloubky (disasters.md – Povodeň potoka, tabulka škod). */
+export interface FloodBandRule {
+  /** Pásmo platí pro hloubku do tolika metrů (poslední bez omezení). */
+  maxDepthM: number;
+  /** Kolik nesklizené úrody (letní voda) a sena nesečené louky zůstane. */
+  cropKept: number;
+  /** Kolik ozimu zůstane (jarní voda). */
+  winterKept: number;
+  /** O kolik klesne stav stavby (0–1); zemnice zvlášť (1 = zřítí se). */
+  building: number;
+  zemnice: number;
+  /** Naplavenina: úrodnost dílu + tolik přirozené. */
+  silt: number;
+}
+
+/**
+ * Povodeň – škody ve vsi (disasters.md – Povodeň potoka; Martin 27. 10. 2026: „Naplavenina by
+ * měla hnojit víc“, „A ať zabíjí tak jak navrhuješ“; čísla škod návrh Clauda). Výška vody je
+ * z počasí kraje (`FLOOD_WATER`), hloubka políčka = výška vody − výška nad potokem.
+ */
+export const FLOOD = {
+  bands: [
+    { maxDepthM: 0.5, cropKept: 0.7, winterKept: 0.85, building: 0.1, zemnice: 0.3, silt: 0.1 },
+    { maxDepthM: 1.5, cropKept: 0.3, winterKept: 0.5, building: 0.3, zemnice: 0.6, silt: 0.2 },
+    { maxDepthM: Infinity, cropKept: 0, winterKept: 0.2, building: 0.6, zemnice: 1, silt: 0.3 },
+  ] as const satisfies readonly FloodBandRule[],
+  /** Naplavenina hnojí nejvýš do 130 % přirozené úrodnosti. */
+  siltMaxShare: 1.3,
+  /** Od pětisetleté vody (3 m) zemře každý obyvatel zatopeného obydlí s šancí 2 %. */
+  deathMinWaterM: 3,
+  deathChance: 0.02,
+  /** Obilná jáma v zatopeném políčku: zrno ubude o čtvrtinu (zateče). */
+  pitGrainLoss: 0.25,
+  /** Nová jáma se nekope níž než dvacetiletá voda (m nad potokem). */
+  pitMinHeightM: 1.2,
+  /** Voda stojí tolik dní (jen scéna). */
+  standDays: 3,
+} as const;
+
 /**
  * Ochrana dílu ze zeleně a vlhkosti (disasters.md – Ochrana dílu; Martin 27. 10. 2026: „Takhle to
  * sedí, zahrň i vlhkost půdy“). Počítá se 1. 4., jednou za rok.
