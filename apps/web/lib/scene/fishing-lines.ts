@@ -11,13 +11,14 @@ import type { VillagerKind } from './villager-motion';
 /**
  * Špička prutu vůči nohám postavy velikosti 1 (m – vpřed, vzhůru, vpravo) v klipu `fish`:
  * spočtená z kostry `man.glb` / `woman.glb` (prut `procedural_rod` u bodu `prop-weapon_R`, první
- * snímek klipu). Muž drží prut od pravého boku šikmo vpřed doleva, žena skoro svisle.
+ * snímek klipu – `report_tip` v people.json). Oba drží prut od pravého boku šikmo vpřed doleva
+ * nad vodu; ženě prut natáčí `rotate_deg` (bod `prop-weapon_R` má v jejím klipu jiné osy).
  */
 export const ROD_TIP: Readonly<
   Record<VillagerKind, { forward: number; up: number; right: number }>
 > = {
   man: { forward: 2.15, up: 1.62, right: -0.81 },
-  woman: { forward: 0.93, up: 3.19, right: 0.23 },
+  woman: { forward: 2.15, up: 1.54, right: -0.81 },
 };
 /**
  * Vlasec dopadne tak daleko před špičkou prutu (m, postava velikosti 1) – za strmým břehem tůně

@@ -124,7 +124,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   místa – neskáčou, jak stromy padají), tři velikosti; `clearingHeaps` podle povrchu pod
   hromadou po pruzích práce jako obtisk (`workFrame` / `workSteps`): paseka → hromada větví,
   spálenina → ohořelý zbytek na stejném místě, jinde nic. `clearing-slash.ts` (`ClearingSlash`)
-  – dvě vlastní procedurální sítě (kupa klestí s klacky; placka popela s ohořelými pahýly),
+  – dvě vlastní procedurální sítě (kupa klestí s klacky; placka popela s ohořelými pahýly –
+  tmavá a menší než kupa, `ASH_SPREAD`, ať pod hořící hromadou nepůsobí jako světlý talíř),
   thin instances (pozice, normála, barva + matice = 7 vertex bufferů), PBR s `applyGammaFog`
   a sněhem; přestaví se jen při změně `clearingHeapsKey` (díly s pasekou či spáleninou,
   vzhled, hotové pruhy). Kupa větví vrhá stín, popel ne. **Hromady klád u lesa** –

@@ -4,10 +4,10 @@ blender -b --factory-startup --python tools/blender/people_from_0ad.py -- \
     tools/blender/people.json <0ad>/binaries/data/mods/public/art apps/web/public/models/people
 
 people.json: [{"name", "height_m" | "length_m", "body": {"dae", "texture", "tint", "pattern"?,
-"flatten"?, "multiply"?, "coat"?}, "props": [{"name", "dae" | "procedural" (sickle | rod | yoke | bowl | stick | shovel), "point", "texture",
+"flatten"?, "multiply"?, "coat"?}, "props": [{"name", "dae" | "procedural" (sickle | rod | yoke | bowl | stick | shovel | rattle), "point", "texture",
 "tint"?, "uv"?, "scale"? (měřítko kolem bodu, výchozí 1), "rotate_deg"? ([x, y, z] natočení v osách bodu),
 "offset_m"? ([x, y, z] posun v osách bodu, v metrech)}], "clips": [{"name", "animation", "props": [jména propů viditelných v klipu],
-"pose"?, "report"?}]}]
+"pose"?, "report"?, "report_tip"?}]}]
 
 Totéž umí i zvířata s kostrou (voli spřežení – tools/blender/plough-team.json): bez propů,
 měřítko podle délky těla („length_m“ – rozsah podél osy pohledu), „multiply“ přebarví texturu
@@ -19,8 +19,12 @@ předklon podstromu kosti kolem její osy napříč tělem (kladný úhel = dop�
 (rameno – loket – zápěstí, loket ven a dozadu) v každém snímku natáhnou k pevnému bodu
 (rukojeti rádla), nohy dál kráčí. „report“ = jména uzlů, jejichž polohu v klipu (m, souřadnice
 scény: x vlevo postavy, y nahoru, z dopředu) skript vypíše – podle nich sedí rádlo a jho
-k rukám a šíjím (apps/web/lib/scene/plough-team.ts). U každého klipu „walk“ vypíše i rychlost
-chůze při přehrání rychlostí 1 (podle chodidla na zemi).
+k rukám a šíjím (apps/web/lib/scene/plough-team.ts). U každého klipu „walk“ / „walk-…“ vypíše
+i rychlost chůze při přehrání rychlostí 1 (podle chodidla na zemi). „report_tip“ = {"prop",
+"tip" ([x, y, z] bod v osách propu před „rotate_deg“), "aim"? ([vpřed, vzhůru, vpravo])} vypíše
+v prvním snímku klipu držadlo a špičku propu (m, vpřed / vzhůru / vpravo od paty postavy – prut
+a vlasec, apps/web/lib/scene/fishing-lines.ts) a s „aim“ i „rotate_deg“, který by prop natočil
+podél „aim“.
 
 Na rozdíl od fauna_from_0ad.py se kostra i animace převádějí: GLB má skin (48 kostí bipeda
 0 A.D. + body propů jako další klouby) a každá animace 0 A.D. je jedna animace glTF (klíče
@@ -494,6 +498,41 @@ def procedural_shovel(uv_wood):
     return {"matrix": Matrix.Identity(4), "positions": positions, "normals": normals, "uvs": uvs, "tris": tris}
 
 
+def _box(out, x0, x1, y0, y1, z0, z1, uv_rect):
+    """Kvádr (do `out` – positions, normals, uvs, tris), každá stěna celý obdélník `uv_rect`."""
+    positions, normals, uvs, tris = out
+    u0, v0, u1, v1 = uv_rect
+    faces = [
+        ((x0, y0, z0), (x1, y0, z0), (x1, y0, z1), (x0, y0, z1), (0, -1, 0)),
+        ((x1, y1, z0), (x0, y1, z0), (x0, y1, z1), (x1, y1, z1), (0, 1, 0)),
+        ((x0, y1, z0), (x0, y0, z0), (x0, y0, z1), (x0, y1, z1), (-1, 0, 0)),
+        ((x1, y0, z0), (x1, y1, z0), (x1, y1, z1), (x1, y0, z1), (1, 0, 0)),
+        ((x0, y0, z1), (x1, y0, z1), (x1, y1, z1), (x0, y1, z1), (0, 0, 1)),
+        ((x0, y1, z0), (x1, y1, z0), (x1, y0, z0), (x0, y0, z0), (0, 0, -1)),
+    ]
+    for a, b, c, d, n in faces:
+        base = len(positions)
+        positions.extend([Vector(a), Vector(b), Vector(c), Vector(d)])
+        normals.extend([Vector(n)] * 4)
+        uvs.extend([[u0, v0], [u1, v0], [u1, v1], [u0, v1]])
+        i = len(normals) - 4
+        tris.append(((base, i, base), (base + 1, i + 1, base + 1), (base + 2, i + 2, base + 2)))
+        tris.append(((base, i, base), (base + 2, i + 2, base + 2), (base + 3, i + 3, base + 3)))
+
+
+def procedural_rattle(uv_wood):
+    """Dřevěná řehtačka hlídacích dětí (wildlife.md – Ve scéně; CC0, procedurálně): držadlo podél
+    osy z bodu propu (z = −0,2 … 0,85), na něm ozubené kolečko (silnější váleček) a rámeček
+    s jazýčkem, který se točí kolem držadla (kvádr stranou, ≈ 30 × 13 × 6 cm; postava ≈ 3,9
+    jednotky = 1,75 m)."""
+    out = ([], [], [], [])
+    _tapered_rod(out, 6, -0.2, 0.85, 0.045, 0.04, uv_wood)
+    _tapered_rod(out, 8, 0.45, 0.6, 0.11, 0.11, uv_wood)
+    _box(out, 0.04, 0.7, -0.065, 0.065, 0.5, 0.8, uv_wood)
+    positions, normals, uvs, tris = out
+    return {"matrix": Matrix.Identity(4), "positions": positions, "normals": normals, "uvs": uvs, "tris": tris}
+
+
 PROCEDURAL = {
     "sickle": lambda r: procedural_sickle(r["blade"], r["handle"]),
     "rod": lambda r: procedural_rod(r["wood"]),
@@ -501,6 +540,7 @@ PROCEDURAL = {
     "bowl": lambda r: procedural_bowl(r["wood"], r["liquid"]),
     "stick": lambda r: procedural_stick(r["wood"]),
     "shovel": lambda r: procedural_shovel(r["wood"]),
+    "rattle": lambda r: procedural_rattle(r["wood"]),
 }
 
 
@@ -861,6 +901,31 @@ def trs(m):
     return [loc.x, loc.y, loc.z], [rot.x, rot.y, rot.z, rot.w], [scale.x, scale.y, scale.z]
 
 
+def prop_local(part, unit_m):
+    """Natočení, měřítko a posun propu v osách jeho bodu („rotate_deg“, „scale“, „offset_m“)."""
+    rx, ry, rz = (math.radians(a) for a in part.get("rotate_deg", [0, 0, 0]))
+    local = Matrix.Rotation(rz, 4, "Z") @ Matrix.Rotation(ry, 4, "Y") @ Matrix.Rotation(rx, 4, "X") @ Matrix.Scale(part.get("scale", 1), 4)
+    return Matrix.Translation(Vector(part.get("offset_m", [0, 0, 0])) / unit_m) @ local
+
+
+def report_tip(clip, world, part, tip, aim, unit_m):
+    """Držadlo a špička propu v prvním snímku klipu (m – vpřed, vzhůru, vpravo od paty postavy;
+    0 A.D.: x vlevo, y vzad, z nahoru). S `aim` i natočení „rotate_deg“ podél `aim`."""
+
+    def scene(p):
+        return f"vpřed {-p.y * unit_m:+.2f} vzhůru {p.z * unit_m:.2f} vpravo {-p.x * unit_m:+.2f}"
+
+    grip = world @ prop_local(part, unit_m) @ Vector((0.0, 0.0, 0.0))
+    end = world @ prop_local(part, unit_m) @ Vector(tip)
+    print(f"    {clip}: {part['name']} držadlo {scene(grip)}, špička {scene(end)}")
+    if aim:
+        # směr v osách bodu, z = Ry(b) · Rx(a) · (0, 0, 1) = (cos a · sin b, −sin a, cos a · cos b)
+        forward, up, right = aim
+        d = (world.to_3x3().inverted() @ Vector((-right, -forward, up))).normalized()
+        a, b = -math.asin(max(-1.0, min(1.0, d.y))), math.atan2(d.x, d.z)
+        print(f"    {clip}: {part['name']} podél {aim}: rotate_deg [{math.degrees(a):.0f}, {math.degrees(b):.0f}, 0]")
+
+
 def convert(spec, art, out_dir):
     body = load_body(os.path.join(art, spec["body"]["dae"]))
     names = body["names"]
@@ -918,11 +983,9 @@ def convert(spec, art, out_dir):
         else:
             geo = load_static(os.path.join(art, part["dae"]))
             matrix = rest_world[part["joint"]] @ geo["matrix"]
-        if part["kind"] == "prop" and (part.get("scale", 1) != 1 or part.get("rotate_deg")):
+        if part["kind"] == "prop" and (part.get("scale", 1) != 1 or part.get("rotate_deg") or part.get("offset_m")):
             # měřítko a natočení propu v souřadnicích jeho bodu (ruka, rameno) – vrcholy v klidové póze
-            rx, ry, rz = (math.radians(a) for a in part.get("rotate_deg", [0, 0, 0]))
-            local = Matrix.Rotation(rz, 4, "Z") @ Matrix.Rotation(ry, 4, "Y") @ Matrix.Rotation(rx, 4, "X") @ Matrix.Scale(part.get("scale", 1), 4)
-            local = Matrix.Translation(Vector(part.get("offset_m", [0, 0, 0])) / scale) @ local
+            local = prop_local(part, scale)
             matrix = rest_world[part["joint"]] @ local @ (rest_world[part["joint"]].inverted() @ matrix)
         normal_matrix = matrix.to_3x3().inverted().transposed()
         sx, sy, sw, sh = part["slot"]
@@ -1016,8 +1079,8 @@ def convert(spec, art, out_dir):
             apply_pose(frames, children, clip["pose"], scale)
         if clip.get("report"):
             report_points(clip["name"], frames, clip["report"], scale)
-        if clip["name"] == "walk":
-            print(f"    walk: rychlost chůze při přehrání 1× ≈ {walk_speed(frames, times, scale):.2f} m/s")
+        if clip["name"] == "walk" or clip["name"].startswith("walk-"):
+            print(f"    {clip['name']}: rychlost chůze při přehrání 1× ≈ {walk_speed(frames, times, scale):.2f} m/s")
         visible = set(clip.get("props", []))
         samples = {n: [] for n in joints}
         for worlds_t in frames:
@@ -1046,6 +1109,10 @@ def convert(spec, art, out_dir):
                 if name in prop_points and prop_points[name]["name"] not in visible:
                     s = [0.0, 0.0, 0.0]
                 samples[name].append((t, r, s))
+            tip = clip.get("report_tip")
+            if tip and worlds_t is frames[0]:
+                part = next(p for p in props if p["name"] == tip["prop"])
+                report_tip(clip["name"], world_at(part["joint"]), part, tip["tip"], tip.get("aim"), scale)
         t0 = times[0]
         input_acc = g.accessor(np.array([t - t0 for t in times], np.float32), "SCALAR", 5126, minmax=True, shared=True)
         # stálá hodnota celého klipu (měřítko propu, posun kloubu) – dva klíče se skokem

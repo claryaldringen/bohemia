@@ -246,7 +246,8 @@ const WATCH_PACE = 0.55;
 /**
  * Děti s řehtačkou na hlídaných dílech (wildlife.md – Noční hlídka: vrány plaší i ve dne; jen
  * zobrazení): na každém hlídaném dílu (`SceneWildlife.watchParts`) nejvýš jedno dítě z výrostků,
- * které chodí sem a tam po okraji dílu. Noc hra nemá – noční hlídače u ohně scéna nekreslí
+ * které chodí sem a tam po okraji dílu se zvednutou řehtačkou (`walk-rattle`, na koncích
+ * `idle-rattle`). Noc hra nemá – noční hlídače u ohně scéna nekreslí
  * (návrh Clauda; v panelu je ikona hlídky).
  */
 export function watchChildren(ctx: Context): PlannedVillager[] {
@@ -320,7 +321,7 @@ function edgeWalk(
     out.z = z + tz * s;
     out.headingX = tx * dir;
     out.headingZ = tz * dir;
-    out.clip = u < leg ? 'walk' : 'idle';
+    out.clip = u < leg ? 'walk-rattle' : 'idle-rattle';
     out.pace = u < leg ? WATCH_PACE / 0.8 : 1;
     return out;
   };

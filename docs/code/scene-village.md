@@ -341,7 +341,14 @@ skok. Pozn.: `wild-hind` je ta samice bez paroží (`animal_deer_01`).
   spočítat normály (medvěd).
 - **Prut**: `tools/blender/people_from_0ad.py` – `procedural_rod` (kužel ≈ 3 m, CC0), prop
   `fishing-rod` v `man.glb` a `woman.glb` u bodu `prop-weapon_R`, klip `fish` (klidová póza +
-  prut). Vlasec a splávek až ve scéně.
+  prut). Bod ruky má v klidové póze ženy jiné osy – ženě prut natáčí `rotate_deg` [−6, 15, 0]
+  (muži [−60, 0, 0]), spočtený klíčem `report_tip` s `aim` (směr prutu muže). Vlasec a splávek
+  až ve scéně.
+- **Řehtačka a oštěp na cestě**: `procedural_rattle` (držadlo, ozubené kolečko, rámeček; CC0),
+  prop `rattle` v obou souborech, klipy `walk-rattle` a `idle-rattle` (chůze / klidová póza
+  s pravou rukou zvednutou `pose.reach` a řehtačkou nahoru, natočení z `report_tip`); `walk-spear`
+  jen v `man.glb` (chůze kopiníka 0 A.D. `infantry/spearman/walk_relax.dae` s propem `spear`,
+  rychlost 0,97 – `CLIP_SPEED_M_S`). Bez nového vertex atributu – jen klouby a klipy.
 - **Ikony** (`tools/blender/icons.py`): `resources/{boar,deer,wolf,bear,hare,fox,fish,dog}.png`
   z modelů, `spear` (oštěp) a `watch-fire` (pochodeň hlídky) procedurálně.
 - Test `apps/web/lib/scene/__tests__/fauna.test.ts` hlídá buffery, morph targety a velikost GLB.
@@ -423,7 +430,7 @@ nepřeplánují (`wildlifeKey` bere jen pole W10).
   pak kolem konce cesty – nikdy se neotočí v poli. Pěší lovci
   (`footHunterPose` ve `villager-plan-lord.ts`) jdou stejnou trasou vlastním tempem v řadě; na
   okraji lesa a na krajích sweepu je úsek 0,3 m tempem 0,05 m/s – lovec stojí s oštěpem
-  (`spear-thrust`, oštěp je v `man.glb` jen v tomto klipu; cestou jde bez něj). Zastávka hned
+  (`spear-thrust`); cestou tam i zpět nese oštěp (`walk-spear`). Zastávka hned
   u okraje je nutná – na kraj sweepu (≈ 23 m krokem) by po cestě (70 % půlky bloku) nedošli. **Úlovek:** první pěší lovec nese cestou zpět maso
   (`carry-meat`), když jádro dnes ulovilo (`kills` > 0) – bez nového modelu (kus na koni by
   potřeboval mršinu natočenou podle koně). Cvičící mimo blok cvičí, odešlí synové jsou doma.
@@ -437,14 +444,15 @@ nepřeplánují (`wildlifeKey` bere jen pole W10).
   nejvýš 3 s jezdci objížďky. Plány psů jdou s postavami (`DraftCrew.dogs`, `onCrew`).
 - **Hlídka:** jezdecká = dosavadní objížďka (`fieldRing`) se psy. Noční hlídku scéna nekreslí – hra
   nemá noc a oheň by ve dne vypadal jako požár na poli; ve dne na každém hlídaném dílu nejvýš jedno
-  dítě s řehtačkou (`watchChildren`, nejvýš 4) chodí po okraji dílu blíž ke vsi (návrh Clauda) –
+  dítě s řehtačkou (`watchChildren`, nejvýš 4; klipy `walk-rattle` / `idle-rattle` – řehtačka
+  zvednutá v pravé ruce) chodí po okraji dílu blíž ke vsi (návrh Clauda) –
   vždy dítě, ať v jádru hlídá kdokoli; bere se z výrostků až po pasácích (`herderPeople`).
 - **Rybáři** (`anglers` / `anglerSpot` ve `villager-plan-folk.ts`): podíl práce `fish` s cílem
   `pool` – postava stojí na břehu tůně (`stand`, klip `fish` s prutem), střídavě na obou březích,
   po 3,2 m podél toku, na prvním schůdném místě od vody, čelem k vodě, nejvýš 3 na tůň. Vlasec:
   `fishing-lines.ts` – jedna čára od špičky prutu (`ROD_TIP` spočtený z kostry klipu `fish`: muž
-  2,15 m vpřed, 0,8 m vlevo, 1,6 m vzhůru; žena drží prut skoro svisle – 0,9 m vpřed, 3,2 m
-  vzhůru) 2 m dál k vodě; konec leží 0,3 m pod terénem, takže za strmým břehem končí viditelná čára
+  2,15 m vpřed, 0,8 m vlevo, 1,6 m vzhůru; žena stejně šikmo nad vodu – 2,15 m vpřed, 0,8 m
+  vlevo, 1,5 m vzhůru) 2 m dál k vodě; konec leží 0,3 m pod terénem, takže za strmým břehem končí viditelná čára
   na hladině. Všechny vlasce jeden LinesMesh, přestaví se jen se změnou postav. Oka se nekreslí.
 
 ## Kůň a hříbě (modely – Úloha 8; ve scéně Úloha 10)

@@ -390,7 +390,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 ## Jezdec a výcvik (klipy a rekvizity `man.glb` – lord-horses Úloha 8; luk a boj kreslí Úloha 9)
 
 `man.glb` nese navíc klipy `ride` (krok), `ride-trot`, `ride-idle` (sed z `rider/cavalry/crossbowman`),
-`bow-draw` a `bow-release` (luk), `spear-thrust`, `sword-strike`, `shield-block` a rekvizity `bow`,
+`bow-draw` a `bow-release` (luk), `spear-thrust`, `walk-spear`, `sword-strike`, `shield-block` a rekvizity `bow`,
 `training-sword`, `wicker-shield`, `spear` (všechny dřevěné, bez kovu; body `prop-weapon_bow`,
 `prop-weapon_R`, `prop-shield`). Jezdec nepřidává žádný vertex atribut (JOINTS_0, WEIGHTS_0,
 POSITION, NORMAL, TEXCOORD_0 jako dosud – 8 bufferů s VAT a barvou instance; hlídá `fauna.test.ts`).
@@ -412,4 +412,5 @@ miska je natočená o −90° kolem X (svislice bodu `weapon_L` je jeho osa Y) a
 - **Rybáři:** podíl práce `fish` s cílem tůně – postava na břehu s prutem (`anglers`), panel
   podle podílu práce. Oka (`snare`) postavu nemají.
 - **Děti s řehtačkou:** výrostci (`YOUNGSTERS`) po pasácích, jedno na hlídaný díl (nejvýš 4) –
-  úloha `watch`, panel „hlídá pole“.
+  úloha `watch`, panel „hlídá pole“. Chodí s řehtačkou zvednutou v pravé ruce (`walk-rattle`,
+  na koncích `idle-rattle`); pěší lovec nese cestou oštěp (`walk-spear`).

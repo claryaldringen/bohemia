@@ -103,7 +103,7 @@
         "uv": {
           "wood": [0.06, 0.36, 0.14, 0.58]
         },
-        "rotate_deg": [-60, 0, 0]
+        "rotate_deg": [-6, 15, 0]
       },
       {
         "name": "thresh-stick",
@@ -122,6 +122,16 @@
         "uv": {
           "wood": [0.06, 0.36, 0.14, 0.58]
         }
+      },
+      {
+        "name": "rattle",
+        "procedural": "rattle",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58]
+        },
+        "rotate_deg": [18, -115, 0]
       }
     ],
     "clips": [
@@ -231,7 +241,30 @@
       {
         "name": "fish",
         "animation": "animation/biped/citizen/idle_relax_f.dae",
-        "props": ["head", "fishing-rod"]
+        "props": ["head", "fishing-rod"],
+        "report_tip": { "prop": "fishing-rod", "tip": [0, 0, 6.0], "aim": [2.33, 0.72, -1.11] }
+      },
+      {
+        "name": "walk-rattle",
+        "animation": "animation/biped/citizen/walk_relax_f.dae",
+        "props": ["head", "rattle"],
+        "pose": {
+          "reach": {
+            "R": [-0.3, 0.25, 1.5]
+          }
+        },
+        "report_tip": { "prop": "rattle", "tip": [0, 0, 0.85], "aim": [0.2, 1, 0] }
+      },
+      {
+        "name": "idle-rattle",
+        "animation": "animation/biped/citizen/idle_relax_f.dae",
+        "props": ["head", "rattle"],
+        "pose": {
+          "reach": {
+            "R": [-0.3, 0.25, 1.5]
+          }
+        },
+        "report_tip": { "prop": "rattle", "tip": [0, 0, 0.85], "aim": [0.2, 1, 0] }
       },
       {
         "name": "thresh",
@@ -393,6 +426,16 @@
         "uv": {
           "wood": [0.06, 0.36, 0.14, 0.58]
         }
+      },
+      {
+        "name": "rattle",
+        "procedural": "rattle",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58]
+        },
+        "rotate_deg": [4, -72, 0]
       }
     ],
     "clips": [
@@ -505,6 +548,11 @@
         "props": ["head", "spear"]
       },
       {
+        "name": "walk-spear",
+        "animation": "animation/biped/infantry/spearman/walk_relax.dae",
+        "props": ["head", "spear"]
+      },
+      {
         "name": "sword-strike",
         "animation": "animation/biped/infantry/swordsman/attack_melee_shield_01.dae",
         "props": ["head", "training-sword", "wicker-shield"]
@@ -542,7 +590,30 @@
       {
         "name": "fish",
         "animation": "animation/biped/citizen/idle_relax_m_a.dae",
-        "props": ["head", "fishing-rod"]
+        "props": ["head", "fishing-rod"],
+        "report_tip": { "prop": "fishing-rod", "tip": [0, 0, 6.0], "aim": [2.33, 0.72, -1.11] }
+      },
+      {
+        "name": "walk-rattle",
+        "animation": "animation/biped/citizen/walk_relax_m.dae",
+        "props": ["head", "rattle"],
+        "pose": {
+          "reach": {
+            "R": [-0.3, 0.25, 1.5]
+          }
+        },
+        "report_tip": { "prop": "rattle", "tip": [0, 0, 0.85], "aim": [0.2, 1, 0] }
+      },
+      {
+        "name": "idle-rattle",
+        "animation": "animation/biped/citizen/idle_relax_m_a.dae",
+        "props": ["head", "rattle"],
+        "pose": {
+          "reach": {
+            "R": [-0.3, 0.25, 1.5]
+          }
+        },
+        "report_tip": { "prop": "rattle", "tip": [0, 0, 0.85], "aim": [0.2, 1, 0] }
       },
       {
         "name": "thresh",

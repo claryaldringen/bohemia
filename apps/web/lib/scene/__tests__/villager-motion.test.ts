@@ -77,6 +77,7 @@ describe('villager-motion – pohyb jako funkce času', () => {
       'bow-draw',
       'bow-release',
       'spear-thrust',
+      'walk-spear',
       'sword-strike',
       'shield-block',
     ];

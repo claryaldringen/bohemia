@@ -122,12 +122,12 @@ describe('vlasec (fishing-lines.ts)', () => {
     expect(wz).toBeCloseTo(tz - LINE_BEYOND_M);
   });
 
-  it('žena drží prut skoro svisle – špička vysoko a blízko, větší postava dál', () => {
+  it('žena drží prut šikmo nad vodu jako muž – špička vpředu, větší postava dál', () => {
     const at = { x: 0, z: 0, headingX: 1, headingZ: 0 };
     const flat = (): number => 0;
     const [tx, ty] = fishingLine(at, 'woman', 1, flat);
-    expect(ty).toBeGreaterThan(3);
-    expect(tx).toBeLessThan(1.2);
+    expect(ty).toBeLessThan(2);
+    expect(tx).toBeGreaterThan(1.8);
     const [bx, by] = fishingLine(at, 'woman', 1.2, flat);
     expect(bx).toBeCloseTo(tx * 1.2);
     expect(by).toBeCloseTo(ty * 1.2);
