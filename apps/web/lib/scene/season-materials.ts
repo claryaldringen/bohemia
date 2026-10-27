@@ -18,7 +18,8 @@ import { REFERENCE_DAY, seasonLook, type Rgb, type SeasonLook } from './season-l
 
 /**
  * Parametry období pro shadery: A = (sníh, suchá tráva, svěží tráva, mladé listí),
- * B = (listí, podzimní barvy, květy, led na vodě), C = počasí roku (sucho, mokro, jinovatka, 0).
+ * B = (listí, podzimní barvy, květy, led na vodě), C = počasí roku (sucho, mokro, jinovatka, mokrá
+ * zem a kaluže – `setPuddles`).
  */
 interface SeasonShaderState {
   a: [number, number, number, number];
@@ -37,9 +38,21 @@ function shaderState(look: SeasonLook): SeasonShaderState {
   };
 }
 
+/** Mokrá zem a kaluže 0–1 (`seasonC.w`) – déšť a deštivé léto (rain.ts – `puddleAmount`). */
+const puddles = new WeakMap<Scene, number>();
+
 /** Nastaví období pro všechny materiály scény – projeví se při dalším snímku. */
 export function setSeasonShaderState(scene: Scene, look: SeasonLook): void {
-  states.set(scene, shaderState(look));
+  const state = shaderState(look);
+  state.c[3] = puddles.get(scene) ?? 0;
+  states.set(scene, state);
+}
+
+/** Nastaví mokrou zem a kaluže 0–1 pro materiály scény – projeví se při dalším snímku. */
+export function setPuddles(scene: Scene, amount: number): void {
+  puddles.set(scene, amount);
+  const state = states.get(scene);
+  if (state) state.c[3] = amount;
 }
 
 /** Uniformy období pro materiál (bez nastavení vrcholné léto – vzhled, ke kterému je krajina laděná). */
@@ -72,6 +85,16 @@ const SNOW_GAMMA: Rgb = [0.9, 0.92, 0.96];
  * Obtisky vsi dostávají poloviční sucho – díly polí žloutnou podle ochrany dílu barvou vrcholů
  * (field-look.ts – `droughtPartTint`).
  */
+/**
+ * Kaluže (deštivé léto – `seasonC.w` = mokrá zem 0–1, `setPuddles`): na holé zemi (cesty,
+ * vyšlapaná tráva, břeh a bahno v nivě) tmavší mokrá hlína a kaluže ve skvrnách ≈ 5 m – šedé,
+ * s odrazem oblohy; čím víc mokra, tím víc kaluží (šum nad PUDDLE_EDGE − PUDDLE_SPREAD × mokro).
+ */
+const PUDDLE_EDGE = '0.78';
+const PUDDLE_SPREAD = '0.12';
+const PUDDLE_DAMP = '0.22';
+const PUDDLE_SKY = '0.5, 0.55, 0.6';
+
 export const SEASON_HELPERS_GLSL = `float seasonHash(vec2 p) {
   vec3 p3 = fract(vec3(p.xyx) * 0.1031);
   p3 += dot(p3, p3.yzx + 33.33);
@@ -107,6 +130,13 @@ vec3 seasonGrass(vec3 c, float veg, vec2 xz, vec4 sA, vec4 sC) {
 }
 vec3 seasonSnowColor(vec3 c) {
   return vec3(${SNOW_GAMMA.join(', ')}) * (0.95 + 0.55 * (dot(c, vec3(0.299, 0.587, 0.114)) - 0.42));
+}
+vec3 seasonPuddle(vec3 c, vec2 xz, float ground, float wetness) {
+  float n = 0.65 * seasonNoise(xz * 0.21) + 0.35 * seasonNoise(xz * 0.83 + 7.0);
+  float edge = ${PUDDLE_EDGE} - ${PUDDLE_SPREAD} * wetness;
+  float puddle = smoothstep(edge, edge + 0.04, n) * smoothstep(0.25, 0.6, ground);
+  vec3 wet = c * (1.0 - ${PUDDLE_DAMP} * wetness * ground);
+  return mix(wet, mix(c * 0.4, vec3(${PUDDLE_SKY}), 0.55), puddle * 0.85);
 }`;
 
 export const SEASON_HELPERS_WGSL = `fn seasonHash(p: vec2f) -> f32 {
@@ -144,6 +174,13 @@ fn seasonGrass(c: vec3f, veg: f32, xz: vec2f, sA: vec4f, sC: vec4f) -> vec3f {
 }
 fn seasonSnowColor(c: vec3f) -> vec3f {
   return vec3f(${SNOW_GAMMA.join(', ')}) * (0.95 + 0.55 * (dot(c, vec3f(0.299, 0.587, 0.114)) - 0.42));
+}
+fn seasonPuddle(c: vec3f, xz: vec2f, ground: f32, wetness: f32) -> vec3f {
+  let n = 0.65 * seasonNoise(xz * 0.21) + 0.35 * seasonNoise(xz * 0.83 + 7.0);
+  let edge = ${PUDDLE_EDGE} - ${PUDDLE_SPREAD} * wetness;
+  let puddle = smoothstep(edge, edge + 0.04, n) * smoothstep(0.25, 0.6, ground);
+  let wet = c * (1.0 - ${PUDDLE_DAMP} * wetness * ground);
+  return mix(wet, mix(c * 0.4, vec3f(${PUDDLE_SKY}), 0.55), puddle * 0.85);
 }`;
 
 /**
@@ -207,12 +244,13 @@ export function applySeasonSnow(material: Material, coverage = 1): void {
 /**
  * Obtisk na zemi (pole, řádky, cesty – StandardMaterial): zelená tráva v něm usychá jako na
  * terénu a v zimě ho zasype sníh stejným vzorem (okraj obtisku nevystoupí); `snowCoverage` < 1
- * nechá obtisk zimou trochu prosvítat.
+ * nechá obtisk zimou trochu prosvítat. `puddles` – za deště kaluže na holé zemi obtisku (cesty;
+ * pole ne – zralé obilí by ve skvrnách zešedlo).
  */
-export function applySeasonGround(material: Material, snowCoverage = 1): void {
+export function applySeasonGround(material: Material, snowCoverage = 1, puddles = false): void {
   if (!(material instanceof StandardMaterial)) return;
   if (material.pluginManager?.getPlugin('SeasonStandard')) return;
-  new SeasonStandardPlugin(material, 'ground', snowCoverage);
+  new SeasonStandardPlugin(material, 'ground', snowCoverage, puddles);
 }
 
 /**
@@ -367,6 +405,13 @@ const linear = (color: Rgb): string =>
   toLinear(color)
     .map((c) => c.toFixed(4))
     .join(', ');
+/**
+ * Násobek počasí (`seasonC` = sucho, mokro, jinovatka) pro obtisky vsi na zemi: poloviční sucho
+ * – díly polí barví `droughtPartTint` podle ochrany, tráva obtisku by jinak zežloutla dvakrát.
+ */
+const DECAL_WEATHER = [0.5, 1, 1, 1] as const;
+const DECAL_WEATHER_GLSL = `vec4(${DECAL_WEATHER.map((v) => v.toFixed(1)).join(', ')})`;
+const DECAL_WEATHER_WGSL = `vec4f(${DECAL_WEATHER.map((v) => v.toFixed(1)).join(', ')})`;
 /** Barvy PBR (lineární): sníh, větvičky holé koruny, květy (trnky, hlohu, jabloní). */
 const SNOW_LINEAR = linear(SNOW_GAMMA);
 const TWIG_LINEAR = linear([0.37, 0.34, 0.31]);
@@ -467,10 +512,12 @@ class SeasonStandardPlugin extends MaterialPluginBase {
     material: StandardMaterial,
     private readonly mode: StandardMode,
     private readonly coverage: number,
+    private readonly puddles = false,
   ) {
     super(material, 'SeasonStandard', 250, {
       SEASON_STD: false,
       SEASON_STD_GROUND: false,
+      SEASON_STD_PUDDLES: false,
       SEASON_STD_CANOPY: false,
       SEASON_STD_RELIEF: false,
     });
@@ -480,6 +527,7 @@ class SeasonStandardPlugin extends MaterialPluginBase {
   override prepareDefines(defines: Record<string, unknown>): void {
     defines['SEASON_STD'] = true;
     defines['SEASON_STD_GROUND'] = this.mode === 'ground';
+    defines['SEASON_STD_PUDDLES'] = this.puddles;
     defines['SEASON_STD_CANOPY'] = this.mode === 'canopy';
     defines['SEASON_STD_RELIEF'] = this.mode === 'relief';
   }
@@ -571,8 +619,14 @@ const RELIEF_WGSL = `if (uniforms.seasonA.x > 0.0) {
 const STANDARD_GLSL: Record<StandardMode, string> = {
   ground: `if (seasonA.y > 0.0 || seasonA.z > 0.0 || seasonC.x > 0.0 || seasonC.y > 0.0 || seasonC.z > 0.0) {
   float seasonVeg = smoothstep(0.0, 0.12, (baseColor.g - max(baseColor.r, baseColor.b)) / max(baseColor.g, 0.04));
-  baseColor.rgb = seasonGrass(baseColor.rgb, seasonVeg, vPositionW.xz, seasonA, seasonC * vec4(0.5, 1.0, 1.0, 1.0));
+  baseColor.rgb = seasonGrass(baseColor.rgb, seasonVeg, vPositionW.xz, seasonA, seasonC * ${DECAL_WEATHER_GLSL});
 }
+#ifdef SEASON_STD_PUDDLES
+if (seasonC.w > 0.0) {
+  float seasonBare = 1.0 - smoothstep(0.0, 0.12, (baseColor.g - max(baseColor.r, baseColor.b)) / max(baseColor.g, 0.04));
+  baseColor.rgb = seasonPuddle(baseColor.rgb, vPositionW.xz, seasonBare, seasonC.w);
+}
+#endif
 if (seasonA.x > 0.0) {
   float seasonCover = seasonSnowCover(vPositionW.xz, seasonA.x) * seasonCoverage;
   baseColor.rgb = mix(baseColor.rgb, seasonSnowColor(baseColor.rgb), seasonCover);
@@ -594,8 +648,14 @@ if (seasonA.x > 0.0) {
 const STANDARD_WGSL: Record<StandardMode, string> = {
   ground: `if (uniforms.seasonA.y > 0.0 || uniforms.seasonA.z > 0.0 || uniforms.seasonC.x > 0.0 || uniforms.seasonC.y > 0.0 || uniforms.seasonC.z > 0.0) {
   let seasonVeg = smoothstep(0.0, 0.12, (baseColor.g - max(baseColor.r, baseColor.b)) / max(baseColor.g, 0.04));
-  baseColor = vec4f(seasonGrass(baseColor.rgb, seasonVeg, fragmentInputs.vPositionW.xz, uniforms.seasonA, uniforms.seasonC * vec4f(0.5, 1.0, 1.0, 1.0)), baseColor.a);
+  baseColor = vec4f(seasonGrass(baseColor.rgb, seasonVeg, fragmentInputs.vPositionW.xz, uniforms.seasonA, uniforms.seasonC * ${DECAL_WEATHER_WGSL}), baseColor.a);
 }
+#ifdef SEASON_STD_PUDDLES
+if (uniforms.seasonC.w > 0.0) {
+  let seasonBare = 1.0 - smoothstep(0.0, 0.12, (baseColor.g - max(baseColor.r, baseColor.b)) / max(baseColor.g, 0.04));
+  baseColor = vec4f(seasonPuddle(baseColor.rgb, fragmentInputs.vPositionW.xz, seasonBare, uniforms.seasonC.w), baseColor.a);
+}
+#endif
 if (uniforms.seasonA.x > 0.0) {
   let seasonCover = seasonSnowCover(fragmentInputs.vPositionW.xz, uniforms.seasonA.x) * uniforms.seasonCoverage;
   baseColor = vec4f(mix(baseColor.rgb, seasonSnowColor(baseColor.rgb), seasonCover), baseColor.a);

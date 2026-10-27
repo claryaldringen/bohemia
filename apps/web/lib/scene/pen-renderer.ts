@@ -4,7 +4,8 @@
 // stoh sena z models/fields/haystack.glb, vytyčení kolíky a provázkem a obtisk vyšlapaného bláta.
 // Kde co stojí a co z ohrady při průběhu stavby stojí, počítá pen-layout.ts. Všechno v instancích
 // pro všechny ohrady najednou – každý díl stojí na svém místě terénu.
-import type { PenSpecies } from '@bohemia/game';
+import type { PenSpecies, TornadoStrength, TornadoTrack } from '@bohemia/game';
+import { stackScattered } from './tornado-track';
 import type { Material } from '@babylonjs/core/Materials/material';
 import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
@@ -51,6 +52,8 @@ export const PEN_CONSTRUCTION_URL = '/models/pen/pen-construction.glb';
 /** Díly rozpadu opuštěné ohrady (abandonment.md – tools/blender/pen.py, structure-decay.ts). */
 export const PEN_DECAY_URL = '/models/pen/pen-decay.glb';
 const HAYSTACK_URL = '/models/fields/haystack.glb';
+/** Stoh rozmetaný smrští (disasters.md – Smršť): zbytek sena – šířka a výška násobkem stohu. */
+const SCATTERED_HAYSTACK = { scale: 1.3, height: 0.25 } as const;
 /** Předpona dílů staveniště v pen-construction.glb. */
 const SITE_PREFIX = 'ohrada-';
 /** Seno stohu je o něco sušší než na louce (HAY_TINT ve field-renderer.ts). */
@@ -84,6 +87,8 @@ export interface PenView {
   pending?: readonly CellSquare[];
   /** Druh ohrady – koně mají vyšší plot (pen-layout.ts); bez údaje jako ostatní. */
   species?: PenSpecies;
+  /** Smršť vsi (disasters.md – Smršť): stoh ohrady v její stopě leží rozmetaný. */
+  tornado?: { strength: TornadoStrength; track: TornadoTrack };
 }
 
 interface PenEntry {
@@ -97,6 +102,8 @@ interface PenEntry {
   stage: PenStage;
   /** Stupeň rozpadu hotové ohrady (0 = celá). */
   decay: StructureStage;
+  /** Stoh rozmetaný smrští. */
+  scattered: boolean;
   mud: Mesh | null;
   string: Mesh | null;
 }
@@ -155,7 +162,8 @@ export class PenRenderer {
       const fenceDecay = stage.built
         ? Math.round(fenceDecayAmount(view.condition) * FENCE_DECAY_STEPS) / FENCE_DECAY_STEPS
         : 0;
-      const key = `${layoutKey}|${Math.round(view.progress * 400)}|${decay}|${fenceDecay}|${pendingKey}`;
+      const tornadoKey = view.tornado ? JSON.stringify(view.tornado) : '';
+      const key = `${layoutKey}|${Math.round(view.progress * 400)}|${decay}|${fenceDecay}|${pendingKey}|${tornadoKey}`;
       const current = this.entries.get(view.id);
       if (current?.key === key) continue;
       changed = true;
@@ -192,6 +200,9 @@ export class PenRenderer {
         layout,
         stage,
         decay,
+        scattered: view.tornado
+          ? stackScattered(view.tornado, layout.haystack.x, layout.haystack.z)
+          : false,
         mud,
         string,
         staking,
@@ -312,7 +323,7 @@ export class PenRenderer {
       return { x: at.x, y: height(at.x, at.z) - SINK_M, z: at.z, rotationY: at.rotation, scale };
     };
     const pegs: ModelInstance[] = [];
-    for (const { layout, stage, decay, staking } of this.entries.values()) {
+    for (const { layout, stage, decay, staking, scattered } of this.entries.values()) {
       if (stage.built) {
         // opuštěná ohrada podle stupně rozpadu (abandonment.md); bez dílů rozpadu celá
         const parts = this.decayParts ? penDecayParts(decay) : penDecayParts(0);
@@ -334,7 +345,11 @@ export class PenRenderer {
           y: height(at.x, at.z) - SINK_M,
           z: at.z,
           rotationY: at.rotation,
-          scale: PEN_HAYSTACK_SCALE * stage.haystack,
+          scale: PEN_HAYSTACK_SCALE * stage.haystack * (scattered ? SCATTERED_HAYSTACK.scale : 1),
+          // rozmetaný stoh – nízká široká hromada zbytku sena
+          ...(scattered
+            ? { scaleY: PEN_HAYSTACK_SCALE * stage.haystack * SCATTERED_HAYSTACK.height }
+            : {}),
         });
       }
       if (staking.length > 0) pegs.push(...pegInstances(staking, height));

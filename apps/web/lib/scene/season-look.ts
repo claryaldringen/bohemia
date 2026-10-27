@@ -79,7 +79,7 @@ const YEAR_DAYS = 365;
  * Klíčové body ročního průběhu: [den v roce, hodnota]. Mezi body se hodnota mění hladce
  * (smoothstep), za posledním bodem pokračuje k prvnímu dalšího roku.
  */
-type Track = readonly (readonly [day: number, value: number])[];
+export type Track = readonly (readonly [day: number, value: number])[];
 
 // Dny v roce (nepřestupném): 1. 3. = 60, 1. 4. = 91, 1. 6. = 152, 1. 9. = 244, 1. 12. = 335.
 // Období se v kalendáři střídají 1. 3., 1. 6., 1. 9. a 1. 12. (docs/design/calendar.md) –

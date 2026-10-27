@@ -14,7 +14,12 @@ import { ploughingToday } from './plough-front';
  * Ohrady ke kreslení: čtverec, branka k nejbližšímu obydlí (bez obydlí dolů, −z), průběh stavby
  * (hotová 1) a stav opuštěné ohrady (abandonment.md – rozpad).
  */
-export function scenePenViews(village: Pick<SceneVillage, 'pens' | 'dwellings'>): PenView[] {
+export function scenePenViews(
+  village: Pick<SceneVillage, 'pens' | 'dwellings'> & Partial<Pick<SceneVillage, 'tornado'>>,
+): PenView[] {
+  const tornado = village.tornado
+    ? { strength: village.tornado.strength, track: village.tornado.track }
+    : null;
   return (village.pens ?? []).map((pen) => {
     // natočená ohrada (fields.md – Natočené stavby) – natočení kolem středu čtverce
     const turned = pen.rotation !== undefined ? { rotation: pen.rotation } : {};
@@ -33,6 +38,7 @@ export function scenePenViews(village: Pick<SceneVillage, 'pens' | 'dwellings'>)
       facing: { x: toward.x - pen.x, z: toward.z - pen.z },
       progress: pen.built ? 1 : Math.min(0.999, Math.max(0, pen.progress)),
       ...(pen.condition === undefined ? {} : { condition: pen.condition }),
+      ...(tornado ? { tornado } : {}),
       ...(fenced.length > 0 ? { extra: fenced.map((q) => ({ x: q.x, z: q.z })) } : {}),
       ...(pending.length > 0
         ? {

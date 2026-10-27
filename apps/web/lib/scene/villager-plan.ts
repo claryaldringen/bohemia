@@ -90,6 +90,7 @@ import {
   weddingFigures,
 } from './villager-plan-events';
 import { slaughterFigures } from './villager-plan-slaughter';
+import { fireChainFigures, fireChainLayout } from './villager-plan-fire';
 import type { SlaughterPlan } from './slaughter-plan';
 
 // Postavy ve vsi (docs/design/villagers.md): kdo kde je a co dělá, jako čistá funkce vsi pro
@@ -161,6 +162,9 @@ export function planVillagersWithCrew(
   // lidé s pevným místem dne napřed – pohřeb, karavany, nosiči kováře a pasáci
   const mourners = funerals.flatMap((plan) => funeralFigures(ctx, plan));
   const celebrants = weddings.flatMap((plan) => weddingFigures(ctx, plan, dayWindow));
+  // řetěz s vědry v den požáru (disasters.md – Hašení): všichni dospělí vsi – jádro jim ten den
+  // jinou práci nedává, proto berou lidi napřed (před rodinou vojvody a karavanami)
+  const firefighters = fireChainFigures(ctx, fireChainLayout(village.fire));
   const caravanPeople: PlannedVillager[] = [];
   for (const e of village.expeditions ?? []) {
     caravanPeople.push(...caravanFigures(ctx, e, options.dayWindow?.(e.day) ?? null));
@@ -284,6 +288,7 @@ export function planVillagersWithCrew(
   people.push(...fetchers);
   people.push(...shoeing.people);
   people.push(...slaughter.people);
+  people.push(...firefighters);
   return { people, crew, slaughter: slaughter.plan };
 }
 

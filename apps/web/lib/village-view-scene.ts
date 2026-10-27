@@ -65,6 +65,7 @@ import {
   type LordRide,
   partStage,
   partOvergrowthYears,
+  hailZone,
   pastureGrazedParts,
   isGrazeableFallow,
   reservedTrees,
@@ -93,7 +94,8 @@ import { sceneFunerals } from './funeral-view';
 import { scenePersons } from './person-view';
 import { sceneWeddings } from './wedding-view';
 import { sceneWildlife } from './wildlife-view';
-import { sceneWeather } from './weather-view';
+import { sceneFlood, sceneHail, sceneTornado, sceneWeather } from './weather-view';
+import { charredRuinKeys, sceneFire } from './fire-view';
 
 export function sceneVillage(
   state: VillageState,
@@ -158,6 +160,10 @@ export function sceneVillage(
   const ard = ploughsThisYear(state);
   // počasí roku, které už je vidět (disasters.md – Ve scéně) – nikdy seed ani budoucí rok
   const weather = sceneWeather(state, day);
+  // krupobití a povodeň jen v jejich den a po něm (nikdy budoucí rozpis)
+  const hail = sceneHail(state, day);
+  const flood = sceneFlood(state, day);
+  const tornado = sceneTornado(state, day);
   const fields = state.fields.map((f) => ({
     id: f.id,
     ...(f.grid ? { grid: f.grid } : {}),
@@ -173,6 +179,7 @@ export function sceneVillage(
           ...(p.state === 'sown' && (p.crop === 'legume' || p.crop === 'flax')
             ? { crop: p.crop }
             : {}),
+          ...(p.state === 'sown' && p.crop === 'winter' ? { winter: true as const } : {}),
           ...(p.state === 'sown' &&
           p.crop === 'flax' &&
           flaxBloom &&
@@ -208,9 +215,13 @@ export function sceneVillage(
   const orchards = villageOrchards(state).map((o) => ({
     id: o.id,
     ...(o.grid ? { grid: o.grid } : {}),
-    squares: o.squares.map((s) =>
-      sceneOrchardSquare(landscape, s, day, state.orchardWork ?? null, o.grid),
-    ),
+    squares: o.squares.map((s) => {
+      const square = sceneOrchardSquare(landscape, s, day, state.orchardWork ?? null, o.grid);
+      // sad v pruhu krupobití bez jablek až do sklizně (disasters.md – Kroupy, Ve scéně)
+      return hail && square.fruit && hailZone(hail.strip, square.x, square.z)
+        ? { ...square, fruit: false }
+        : square;
+    }),
   }));
   const funerals = sceneFunerals(state, day);
   const weddings = sceneWeddings(state, day, landscape);
@@ -226,6 +237,9 @@ export function sceneVillage(
   const plantedSaplings = plantedSaplingViews(state, day);
   const roadApples = sceneRoadApples(state, day, obstacles);
   const { oreSites, orePits } = sceneOre(state, day);
+  // požár jen v jeho den (disasters.md – Požár, Ve scéně), shořelé zbytky jam ohořelé
+  const fire = sceneFire(state, day);
+  const charred = (state.ruins ?? []).length > 0 ? charredRuinKeys(state) : null;
   const ruins = (state.ruins ?? []).map((r) => ({
     id: r.id,
     type: r.type,
@@ -235,6 +249,7 @@ export function sceneVillage(
     ...(r.plot ? { plot: scenePlot(landscape, r.plot) } : {}),
     ...(r.craft ? { craft: r.craft } : {}),
     ...(r.plainShape ? { plainShape: true as const } : {}),
+    ...(charred?.has(`${r.id}@${r.day}`) ? { charred: true as const } : {}),
   }));
   const pens = scenePens(state, landscape, day, summary);
   const earthworks = sceneEarthworks(state, day);
@@ -321,6 +336,10 @@ export function sceneVillage(
       ? { home: { x: Math.round(home.x * 100) / 100, z: Math.round(home.z * 100) / 100 } }
       : {}),
     ...(weather ? { weather } : {}),
+    ...(hail ? { hail } : {}),
+    ...(flood ? { flood } : {}),
+    ...(fire ? { fire } : {}),
+    ...(tornado ? { tornado } : {}),
   };
 }
 

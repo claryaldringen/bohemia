@@ -475,15 +475,15 @@ má škody podle síly.
 `road-apples.ts` (obnova), `ruins.ts`, `hay.ts` (stohy), `hunt.ts` vzor smrti, `types-chronicle.ts`
 (`tornado`).
 
-- [ ] `yearTornadoes(weatherSeed, year)` – Poissonův počet ve čtverci mapy rozšířeném o 30 km,
+- [x] `yearTornadoes(weatherSeed, year)` – Poissonův počet ve čtverci mapy rozšířeném o 30 km,
       střed, směr, síla, délka, šířka, den (V–VIII, nejvíc VII); jen stopy, které protnou mapu;
       memo. Souřadnice mapy (`tileCenterWorld`).
-- [ ] V den smrště: stavby, díly, stromy (vrstva překážek + sad + jabloně) a stohy v pásu podle
+- [x] V den smrště: stavby, díly, stromy (vrstva překážek + sad + jabloně) a stohy v pásu podle
       tabulky síly; úmrtí `'tornado-death:' + day`.
-- [ ] Testy: četnost přes mapu ≈ 0,10 % ročně (Monte Carlo 200 000 let ±15 %), přes jádro vsi
+- [x] Testy: četnost přes mapu ≈ 0,10 % ročně (Monte Carlo 200 000 let ±15 %), přes jádro vsi
       ≈ 0,017 %; **dvě vsi téže mapy vidí stejnou stopu**; F0 jen střechy, F2 zřícení, F3 úmrtí;
       vývraty zmizí z překážek a dají klády; ochrana 5 let; vynucená smršť (`override`) po kouscích.
-- [ ] Commit `feat(game): smršť se stopou přes mapu`.
+- [x] Commit `feat(game): smršť se stopou přes mapu`.
 
 ## Úloha P10 – Rozhraní (≈ 130 kroků)
 
@@ -549,11 +549,11 @@ políčky – políčka z krajiny a výšky vody, 3 dny, pak ustupuje), `ground-
 a naplavenina 2 týdny), `felled-trees.ts` nebo dekorace (naplavené větve), `ambient-sound.ts`
 (hrom, kroupy).
 
-- [ ] Animace bouřky a ústupu vody **jen v den pohromy** (`animate()` v taktu `WATER_FPS`),
+- [x] Animace bouřky a ústupu vody **jen v den pohromy** (`animate()` v taktu `WATER_FPS`),
       záblesky deterministicky z času dne; při omezeném pohybu bez záblesků (jen ztmavení).
 - [ ] Výška vody v popisku (`SceneFlood.heightM`) – UI z P10.
-- [ ] e2e: dev vynucené kroupy – scéna tmavší, pruh vidět; vynucená povodeň – voda nad políčky.
-- [ ] Commit `feat(web): bouřka s kroupami a povodeň ve scéně`.
+- [x] e2e: dev vynucené kroupy – scéna tmavší, pruh vidět; vynucená povodeň – voda nad políčky.
+- [x] Commit `feat(web): bouřka s kroupami a povodeň ve scéně`.
 
 ## Úloha P13 – Scéna: požár s řetězem s vědry a smršť (≈ 140 kroků)
 

@@ -253,7 +253,102 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     sněhu, slunce × 1,12. **Dlouhá zima** – den vzhledu se opozdí o 21 dní (od 1. 3. za 6 dní se
     sníh vrátí, taje 13. 3.–3. 4., listí a tráva o 3 týdny později, do poloviny července se rok
     srovná – den vzhledu jen roste).
-  - Vývojový náhled: přepínač **Počasí** (`dev-weather.ts`).
+  - **Obilí podle počasí** (`partWeather` ve `field-look.ts` → `PartView.weather`, po čtvrtinách
+    jako barva dílu): v suchu nižší (−35 %) a řidší (−40 %) trsy i porost shora, plná ochrana
+    dílu z toho ubere 70 %; v deštivém létě **polehlé zralé obilí** ve skvrnách ≈ 7 m
+    (`lodgedSpot` – podíl 0,6 × mokro, ochrana proti mokru ubere až 60 %, luštěniny a len ne) –
+    trsy leží jedním směrem (`PlantInstance.lean`, zkosená matice instance), porost ve skvrně
+    o 70 % níž a tmavší; po holomrazu **řídký ozim** (`SceneFieldPart.winter`, od 1. 2. do žní,
+    −35 % trsů ve skvrnách `frostSpot`) – porost ve skvrnách klesne pod zem a obtisk ukáže hlínu
+    (`sown`), díl lehce žloutne.
+  - **Mělký potok v suchu** (`water.ts`): hladina klesne o 0,35 m × sucho jen ve shaderu (průhlednost
+    podle hloubky ve vrcholech, `seasonC.x`) – mělčiny u břehů a brody zmizí, potok je užší
+    a tůně menší, bez nové geometrie.
+  - **Déšť** (`rain.ts` čisté funkce, testy; `rain-renderer.ts`): dny deště ze seedu dne světa
+    (`gameDayAt`, hash pořadí dne – jen vzhled, jádro o nich neví), deštivý den s pravděpodobností
+    0,55 × mokro, síla 0,6–1, na přelomu dnů plynulý přechod (po desetinách). Za deště
+    **zataženo** (`overcast` – slunce × 0,5 a šedé, hustší opar, stíny × 0,2) a kapky: jeden
+    mesh čárky s instancemi (1800 při plném dešti, **jeden draw call**, bez deště vypnutý)
+    v kvádru kolem cíle kamery (strana 0,9 × vzdálenost kamery, 30–420 m), kapky ukotvené ve
+    světě, padají v `animate()` v taktu animací, při omezeném pohybu stojí. Vývojové vynucení
+    `setRainOverride`.
+  - **Kaluže** (`seasonPuddle` v season-materials.ts, `seasonC.w` = `puddleAmount` – 0,45 × mokro
+    - 0,7 × déšť, `setPuddles`): na terénu na vyšlapané trávě, břehu a bahně v nivě, na obtiscích
+      cest (`applySeasonGround(…, puddles)` jen v `path-renderer.ts` – zralé obilí na poli by
+      zešedlo) – tmavší mokrá zem a šedé kaluže s odrazem oblohy ve skvrnách ≈ 5 m.
+  - Zvuk deště zatím není (žádný CC0 zvuk deště), tetelení vzduchu v suchu vynechané – v poledne
+    by se scéna musela překreslovat bez přestání.
+  - **Bouřka s kroupami** (Martin 27. 10. 2026: „Když přijde bouřka s kroupami, chci, aby scéna
+    potemněla a blýskalo se.“; `storm.ts` čisté funkce, testy; `storm-renderer.ts`): jen v den
+    krupobití (`SceneVillage.hail`, průběh podle podílu dne `gameDayAt` − den krupobití, po
+    desetinách). Bouřka se stáhne za 0,1 dne, drží do 0,6, odejde do 0,8; **ztmavení** jako
+    násobek světla dne (`stormLight` po `overcast`): slunce × 0,3, oblaka × 0,55, odraz od země
+    × 0,6, okolní světlo a tón impostorů a dýmu × 0,6, stíny × 0,05, tmavá mračna místo oblohy
+    (0,17 / 0,19 / 0,23), tmavší a hustší opar (× 1,6), odraz oblohy na vodě tmavý, sytost −30
+    (filtr obrazu, jen s denní dobou); s bouřkou prší (déšť 0,7 × bouřka). **Záblesky** v síle
+    bouřky ≥ 0,6: deterministicky z času (`lightningFlash(epochMs)` – okna 1,8 s, blesk v 45 %
+    oken, náběh, úder a dosvit ≈ 0,45 s, síla 0,5–1) – oblaka +2,2, okolní světlo +0,7, tón +0,9,
+    obloha a opar zesvětlí; slunce ne (stínová mapa se nepřekresluje). **Bezpečné pro oči**
+    (WCAG 2.3.1 – nejvýš 3 záblesky za sekundu): blesk má jedinou špičku (jas jen roste, pak jen
+    klesá, žádný druhý úder) a začíná v okně tak, aby do dalšího okna zbyla tma ≥ 400 ms
+    (`FLASH_GAP_MS`) – za libovolnou 1 s nejvýš 2 vzestupy jasu (test na 100 000 oken). Záblesky
+    jdou v `animate()` (překreslí se jen při změně síly), **při omezeném pohybu bez záblesků**,
+    jen ztmavení (po krocích v kontrole období); zapne-li hráč omezený pohyb během záblesku,
+    `frame()` záblesk hned zhasne. **Kroupy** – `RainRenderer` s druhem `DropKind`
+    (bílé kuličky, 1600 při plné síle, pád 16 m/s, jeden draw call) jen v pruhu (`setArea` –
+    `hailZone` z jádra, mimo pruh nulová matice), padají 0,1–0,5 dne. **Bílý pás na zemi**
+    (`overlayGrid` ve `flood-water.ts` – obtisk v mřížce 7,5 m na terénu, krytí ve vrcholech):
+    vnitřek pruhu 1, okraj 0,5, skvrny ≈ 35 m, na vodě nic, ± 800 m od středu vsi; přibývá
+    s kroupami, roztaje do půlky dalšího dne; slabě svítí (`emissive` 0,5), ať je v tmě bílý.
+    **Potlučené obilí** do žní (`withHail` ve `field-look.ts`, osetý díl v pruhu podle středu):
+    trsy o 45 % nižší a o 50 % řidší, zralé obilí celé polehlé, díl hnědne (okraj polovina).
+    **Sad bez jablek** v pruhu do sklizně (`village-view-scene.ts` – `fruit: false`). Střechy
+    podle stavu z jádra (kroupy ubírají stav – `dwelling-decay.ts` beze změny). Zvuk hromu
+    a krup chybí (žádný CC0 zvuk).
+  - **Povodeň** (`flood-water.ts` čisté funkce, testy; `storm-renderer.ts`): `SceneVillage.flood`
+    od dne povodně do konce bahna. Zatopená políčka ze **stejné funkce jako jádro**
+    (`streamHeights` – výška nad potokem < výška vody), plocha vody ve středech políček
+    (zatopená + sousední – břeh je průsečík s vyšším terénem): hladina = dno nejbližšího potoka +
+    výška vody (× převýšení), kalná šedohnědá s modrým nádechem (léto 0,36 / 0,33 / 0,27, jaro
+    0,38 / 0,40 / 0,38), **odraz oblohy Fresnelem** (`diffuseFresnelParameters` ubere světlo
+    vody, `emissiveFresnelParameters` přičte oblohu – shora 10 %, šikmo až 55 %; barva oblohy
+    `DayLight.waterSky` v `applyLight` přes `setSky`, i za bouřky a v noci) – z ptačí perspektivy
+    lesklá voda, ne hnědá cesta; lesk slunce (`specularColor` 0,8, `specularPower` 140), krytí
+    podle hloubky 0,25–0,92 (u břehu prosvítá tráva), jemné vlnky normálovou mapou potoka
+    (`createRippleNormalMap`, `level` 0,15, dlaždice 56 m – bez šachovnice). Voda stojí
+    `FLOOD.standDays` (3 dny), pak za den ustoupí – plocha klesá (`position.y`, po desetinách)
+    a terén ji zakryje; mesh vody se staví, až voda stoupne, a po ústupu se zahodí; **hnědé
+    bahno a naplavenina** (obtisk jako bílý pás, síla podle hloubky) 14 dní po ústupu zarůstá.
+    Naplavené větve vynechané.
+  - **Smršť** (`storm.ts` – `tornadoStorm`, `funnelProgress`; `tornado-track.ts` čisté funkce,
+    testy `tornado.test.ts`; `tornado-funnel.ts`): `SceneVillage.tornado` jen v den smrště a po
+    něm do konce roku. **Ztmavení jako bouřka** – síla `max(bouřka krupobití, tma smrště)` jde
+    do `stormNow` (`updateDisasters`), takže světlo, déšť (× `STORM_RAIN`) i záblesky jsou
+    společné; tma odpoledne (podíl dne 0,56–0,62 náběh, do 0,78 drží, do 0,86 odejde – smrště
+    bývají odpoledne, návrh Clauda). **Trychtýř** (`TornadoFunnel`, meshe `tornado-funnel`
+    a `tornado-dust`) přejde mezi 0,64 a 0,76 dne (≈ 10 s) po ose stopy ± `FUNNEL_PATH_HALF_M`
+    (450 m) kolem bodu nejblíž středu vsi (`funnelPoint`; stopa je dlouhá kilometry), na
+    začátku a konci roste ze země a rozplyne se (`funnelGrowth`). Rotační plochy (lathe – jen
+    pozice, normály, uv): trychtýř 260 m vysoký, nahoře poloměr 0,8 × šířka stopy (70–260 m),
+    u země 12 %; prachová sukně 0,3 × šířka (18–110 m), 34 m. Materiál bez světla (barva
+    emisní × textura pruhů víru – `RawTexture` 64², šikmé pruhy, nahoře slábne), tón
+    `DayLight.tone` odmocninou (za bouřky tmavý, pruhy zůstanou vidět), vír otáčením meshe
+    v `animate()` (1,6 / 2,6 rad/s). Stín nevrhá. **Při omezeném pohybu** se trychtýř nekreslí
+    (`updateDisasters` ho skryje, `animate()` neběží) – zůstane ztmavení a stopa. Bez smrště
+    meshe vypnuté a `animate` se nevolá – draw cally normálního dne beze změny. Stopa ve vsi
+    (padlé kmeny, polehlá pole, rozmetané stohy, poškozené a zřícené stavby):
+    [scene-village.md – Smršť](scene-village.md). Zvuk hukotu chybí (žádný CC0 záznam lokálně).
+  - Bez pohromy jsou kroupy, pás, voda i bahno vypnuté – draw cally v normálním roce beze změny;
+    v bouřce +3 (déšť, kroupy, pás), v povodni +1–2 (voda, bahno).
+  - Vývojový náhled: přepínač **Počasí** (`dev-weather.ts`) – i „mokré žně – prší“ (vynucený
+    déšť), u holomrazu oseté díly jako ozim, **krupobití** (pruh přes pole náhledu, vynucený den
+    světa `setDisasterDay` – plná bouřka 0,4 dne) a **povodeň stoletá / tisíciletá** (2 / 3,5 m,
+    první den); e2e `weather-scene.spec.ts` (jen s `WEATHER_DEV_URL`, vývojový server): sucho
+    a déšť mění snímek, normální rok přesně stejný, draw cally bez deště stejné, s deštěm +1;
+    krupobití tmavší (jas < 0,75 × normální) s kroupami a pásem v záběru, povodeň – voda nad
+    políčky mění snímek.
+  - Při omezeném pohybu kapky a kroupy stojí – po posunu kamery se přeskládají kolem nového cíle
+    (`placeDrops` ve větvi pohybu kamery).
 
 - **Den a noc** (landscape.md – Den a noc; Martin 19. 10. 2026, **zatím jen `/dev/landscape`**,
   hra `/game` beze změny – do hry po Martinově schválení): `day-light.ts` (čisté funkce, testy) –

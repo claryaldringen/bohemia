@@ -6,15 +6,16 @@ import type { Landscape, ObstacleLayer } from '../landscape';
 import { fireDay } from './fire';
 import { floodDay } from './flood';
 import { hailDay } from './hail';
+import { tornadoDay } from './tornado';
 import type { ChronicleEvent } from './types-chronicle';
 import type { VillageState } from './types-state';
 
 /**
  * Místní pohromy dne (disasters.md – Místní pohromy – jedna ves; plán – Pořadí dne, krok 6):
- * v pevném pořadí smršť (P9 – zatím není), kroupy, povodeň, požár – požár nastaví `disasters.fireFight`,
+ * v pevném pořadí smršť, kroupy, povodeň, požár – požár nastaví `disasters.fireFight`,
  * takže `villagersToday` a `work()` dnes vidí dospělé u hašení. Běží po `damageWindowStart`, před
  * `startPurchases` a `work()`. Ves bez počasí kraje (zlaté otisky) a nová ves (5 let) nic – kromě
- * vynucené pohromy (kroupy, povodeň, požár). Mutuje stav, vrátí zápisy do kroniky (u povodně i úmrtí).
+ * vynucené pohromy (smršť, kroupy, povodeň, požár). Mutuje stav, vrátí zápisy do kroniky (u povodně a smrště i úmrtí).
  */
 export function localDisastersDay(
   state: VillageState,
@@ -23,7 +24,8 @@ export function localDisastersDay(
   obstacles: ObstacleLayer | null,
 ): ChronicleEvent[] {
   const events: ChronicleEvent[] = [];
-  // 1. smršť (P9) – zatím neexistuje, místo je prázdné
+  // 1. smršť – stopa přes mapu ze seedu počasí, škody v pásu
+  events.push(...tornadoDay(state, day, landscape, obstacles));
   // 2. kroupy
   const hail = hailDay(state, day, landscape);
   if (hail) events.push(hail);

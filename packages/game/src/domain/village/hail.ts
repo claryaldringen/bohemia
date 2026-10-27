@@ -70,7 +70,9 @@ function pruneHailRecord(state: VillageState, day: number): void {
 }
 
 /** Střed vsi – průměr poloh obydlí a dílen; bez staveb null. */
-function villageCenter(state: VillageState): { x: number; z: number } | null {
+export function villageCenter(
+  state: Pick<VillageState, 'dwellings'>,
+): { x: number; z: number } | null {
   if (state.dwellings.length === 0) return null;
   let x = 0;
   let z = 0;
