@@ -25,8 +25,13 @@ import {
 // pro všechna humna. Přestaví se jen při změně, kterou je vidět (`threshingFloorsKey`).
 
 const HAYSTACK_URL = '/models/fields/haystack.glb';
-/** Sláma je světlejší a zlatější než seno (HAY_TINT ve field-renderer.ts). */
-const STRAW_TINT = new Color3(1.0, 0.78, 0.34);
+/**
+ * Sláma je zlatá, ne olivová: textura kupky (seno z 0 A.D.) je šedožlutá, takže se násobí silně
+ * (hodně modré pryč, zelená mírně) – světlejší a zlatější než seno (HAY_TINT ve field-renderer.ts).
+ */
+const STRAW_TINT = new Color3(1.0, 0.66, 0.1);
+/** Vlastní světlo slámy – okolní zeleň a opar by ji jinak táhly do olivy. */
+const STRAW_GLOW = new Color3(0.17, 0.1, 0.015);
 /** Pata stohu je o kousek zapuštěná – na svahu nevisí (m). */
 const SINK_M = 0.06;
 
@@ -130,7 +135,10 @@ export class ThreshingFloorRenderer {
       try {
         const mesh = await loadMergedModel(this.scene, HAYSTACK_URL, 'threshing-straw', (m) => {
           this.context.prepareMaterial(m);
-          if (m instanceof PBRMaterial) m.albedoColor = STRAW_TINT;
+          if (m instanceof PBRMaterial) {
+            m.albedoColor = STRAW_TINT;
+            m.emissiveColor = STRAW_GLOW;
+          }
         });
         if (!mesh) return;
         if (this.disposed) {

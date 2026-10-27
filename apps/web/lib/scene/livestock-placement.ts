@@ -1,5 +1,6 @@
 import {
   DWELLING_FOOTPRINT_M,
+  HUMNO,
   HAY_WINTER_MONTHS,
   PLAIN_FRAME,
   SURFACE_CODES,
@@ -84,6 +85,8 @@ export interface LivestockVillage {
   orchards?: readonly {
     squares: readonly { x: number; z: number; size: number; rotation?: number }[];
   }[];
+  /** Humna (production-chains.md – Humno) – mlat stáda a slepice obcházejí jako ohradu. */
+  threshingFloors?: readonly { position: Position }[];
   /** Ohrady (oxen.md) – oplocené čtverce, stáda ani slepice do nich nechodí. */
   pens?: readonly {
     x: number;
@@ -380,7 +383,14 @@ function obstacles(village: LivestockVillage): Obstacles {
   const uncut = meadows.filter((m) => !grazedMeadow(m, day));
   // ohrada je oplocená jako pole – stáda kolem ní, ne skrz (oxen.md)
   const penSquares = (village.pens ?? []).flatMap(penSquaresOf);
-  const squares = [...sown, ...uncut, ...graves, ...orchards, ...penSquares];
+  const squares = [
+    ...sown,
+    ...uncut,
+    ...graves,
+    ...orchards,
+    ...penSquares,
+    ...threshingSquaresOf(village),
+  ];
   // záhony pozemků (zelí, řepa) jsou jídlo pro lidi – pozemek je oplocený
   const plots = village.dwellings.flatMap((d) => (d.plot ? [d.plot] : []));
   const houses = village.dwellings.map((d) => ({
@@ -413,6 +423,19 @@ function obstacles(village: LivestockVillage): Obstacles {
         (d) => d.id !== exceptId && d.plot !== undefined && insidePlot(d.plot, x, z, -margin),
       ) || penSquares.some((pen) => inSquare(pen, x, z, margin)),
   };
+}
+
+/** Humna jako čtverce (strana = delší strana půdorysu) – dobytek mlat obchází. */
+export function threshingSquaresOf(village: {
+  threshingFloors?: readonly { position: Position }[];
+}): { x: number; z: number; size: number; rotation?: number }[] {
+  const size = Math.max(HUMNO.sizeM.x, HUMNO.sizeM.z);
+  return (village.threshingFloors ?? []).map((f) => ({
+    x: f.position.x,
+    z: f.position.z,
+    size,
+    ...(f.position.rotation ? { rotation: f.position.rotation } : {}),
+  }));
 }
 
 /** Čtverce ohrady – první a další (oxen.md – Ohrady podle druhu), se stranou a natočením. */

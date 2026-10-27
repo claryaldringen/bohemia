@@ -251,8 +251,9 @@ nepoužívaly (Martin 21. 10. 2026: „ať do něj mlátí holemi“). Místa js
   hromádka zrna (`GRAIN_HEAP`, `grainHeapScale` podle kg) – hromady a klasy jsou jedna síť
   s barvami vrcholů (`threshingFloorGeometry`, bez textury); stoh slámy (`STRAW_STACK` v zadním
   rohu) je kupka `models/fields/haystack.glb` (0 A.D., licence v `models/fields/LICENSES.md`)
-  do zlata (`STRAW_TINT` – teplejší, aby kupka nebyla do zelena), v instancích, nižší a užší, když ubývá. Přestaví se jen při změně, kterou je vidět
-  (`threshingFloorsKey`).
+  do zlata (`STRAW_TINT` násobí texturu silně, `STRAW_GLOW` je vlastní světlo, jinak ji okolní zeleň a opar táhnou do olivy), v instancích, nižší a užší, když ubývá. Přestaví se jen při změně, kterou je vidět
+  (`threshingFloorsKey`). Dobytek a slepice mlat obcházejí jako ohradu (`threshingSquaresOf` v
+  `livestock-placement.ts`, součást `obstacles` a `villageKey`).
 - **Postavy** (`villager-plan-fields.ts`): klipy `thresh` (mlatcí hůl `procedural_stick` ≈ 1,2 m,
   animace `gather_mine` z 0 A.D. – úder oběma rukama shora) a `winnow` (dřevěná lopata
   `procedural_shovel`, animace `farming`) v `man.glb` i `woman.glb` (`tools/blender/people.json`,
