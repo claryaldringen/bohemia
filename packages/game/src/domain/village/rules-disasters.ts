@@ -143,8 +143,6 @@ export const FIRE = {
   greeneryFactor: 0.5,
   /** Strom nebo keř je „na spojnici“, je-li od ní nejvýš tolik (m) – návrh Clauda. */
   greeneryReachM: 2,
-  /** Stoh sena do 12 m od hořící stavby shoří; v jádru stohy nemají polohu (viz fire.ts). */
-  hayReachM: 12,
   /** Hašení (P8): přeskok × (1 − spreadCut × účinnost), stav stavby klesne o 1 − damageShare × účinnost. */
   firefighting: { spreadCut: 0.7, damageShare: 0.5 },
 } as const;

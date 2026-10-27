@@ -276,8 +276,12 @@ Martin, 27. 10. 2026: „Pojďme na požár“.
   a řetěz s vědry nezastaví (Martin, 27. 10. 2026: „Ano a ano“). Rozestupy domů jsou na hráči.
 - **Co shoří:** stavba (stav 0 → zbytek jámy jako po rozpadu) a **zásoby domu**: zrno mimo jámy,
   maso a sýr **÷ počet obydlí**. **Zrno v zapečetěné jámě přečká.** **Stoh do 12 m** od hořící
-  stavby shoří (seno ÷ počet stohů). Obyvatelé bydlí u příbuzných (Rozpad domácnosti) a **sami
-  dům přestaví** (Přestavba – rozhodují obyvatelé).
+  stavby shoří (seno ÷ počet stohů). **Shořelá dílna** odnese svou zásobu (kovárna uhlí, hřivny
+  a houbu, hrnčířství keramiku). Obyvatelé bydlí u příbuzných (Rozpad domácnosti; návrh Clauda).
+- **Dům po požáru staví hráč** (Martin, 27. 10. 2026: „dům musí postavit hráč“): vyhořelé obydlí
+  zůstane zbytkem jámy jako po rozpadu a **nepřestaví se samo** – rodina žije u příbuzných
+  (v těsnu), dokud hráč nepostaví nový dům běžnou stavbou; do něj se pak nastěhuje jako do
+  každého nového domu.
 - **Lidé neumírají** – smrt přijde jen z hladu po ztrátě zásob.
 
 ### Hašení – řetěz s vědry

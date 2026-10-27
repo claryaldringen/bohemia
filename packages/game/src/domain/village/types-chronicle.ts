@@ -342,6 +342,10 @@ export type ChronicleEvent = { day: number } & (
       lostMeatKg: number;
       lostCheeseKg: number;
       lostHayKg: number;
+      /** Zásoby shořelých dílen (kg): uhlí a železo kovárny, keramika hrnčířství; starší zápisy chybí. */
+      lostCharcoalKg?: number;
+      lostIronKg?: number;
+      lostPotteryKg?: number;
     }
   | {
       kind: 'cemetery-full';

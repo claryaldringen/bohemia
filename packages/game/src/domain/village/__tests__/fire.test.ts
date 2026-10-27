@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { packObstacles, type ObstaclePlacement } from '../../landscape';
-import { createRandom } from '../../landscape/random';
 import { foundVillage } from '../actions';
 import { DWELLING_FOOTPRINT_M } from '../rules';
 import { dwellingFireChance, fireDay, jumpChance, spreadFire } from '../fire';
+import { occupyEmptyDwellings } from '../households';
 import { advanceVillage } from '../simulate';
 import type { Dwelling, VillageState } from '../types';
 import { withBuiltFirstDwelling } from './village-fixtures';
@@ -49,7 +49,7 @@ function jumpRate(dwellings: Dwelling[]): number {
   let hits = 0;
   const runs = 3000;
   for (let i = 0; i < runs; i++) {
-    const fire = spreadFire(dwellings, 1, createRandom(i + 1), {
+    const fire = spreadFire(dwellings, 1, i + 1, 0, {
       layer: null,
       status: null,
       orchards: [],
@@ -126,7 +126,7 @@ describe('šíření ohně', () => {
     const c = beside(b, 3, 5);
     let reached = 0;
     for (let i = 0; i < 2000; i++) {
-      const fire = spreadFire([a, b, c], 1, createRandom(i + 1), {
+      const fire = spreadFire([a, b, c], 1, i + 1, 0, {
         layer: null,
         status: null,
         orchards: [],
@@ -156,7 +156,7 @@ describe('šíření ohně', () => {
       const layer = packObstacles([place(look)], 16, 15);
       let hits = 0;
       for (let i = 0; i < 3000; i++) {
-        const fire = spreadFire([a, b], 1, createRandom(i + 1), { layer, status, orchards: [] });
+        const fire = spreadFire([a, b], 1, i + 1, 0, { layer, status, orchards: [] });
         if (fire.includes(2)) hits++;
       }
       return hits / 3000;
@@ -180,7 +180,7 @@ describe('šíření ohně', () => {
     ];
     let hits = 0;
     for (let i = 0; i < 3000; i++) {
-      const fire = spreadFire([a, b], 1, createRandom(i + 1), {
+      const fire = spreadFire([a, b], 1, i + 1, 0, {
         layer: null,
         status: null,
         orchards,
@@ -196,13 +196,7 @@ describe('šíření ohně', () => {
     const b = beside(a, 2, 5);
     let hits = 0;
     for (let i = 0; i < 3000; i++) {
-      const fire = spreadFire(
-        [a, b],
-        1,
-        createRandom(i + 1),
-        { layer: null, status: null, orchards: [] },
-        1,
-      );
+      const fire = spreadFire([a, b], 1, i + 1, 0, { layer: null, status: null, orchards: [] }, 1);
       if (fire.includes(2)) hits++;
     }
     expect(hits / 3000).toBeGreaterThan(0.17);
@@ -276,6 +270,89 @@ describe('dopad požáru', () => {
     expect(state.dwellings.map((d) => d.id)).toEqual([1, 2]);
     expect(state.dwellings[0]?.condition).toBeCloseTo(0.5, 5);
     expect(state.storesKg).toBeCloseTo(10_000 - 6000 * 0.25, 5);
+  });
+});
+
+describe('po požáru', () => {
+  const DAY = OLD;
+  const born = (years: number): number => DAY - years * 365;
+
+  it('shořelá kovárna a hrnčířství odnesou svou zásobu, milíř a ostatní ne', () => {
+    const smith = house(1, 0, 0, { workshop: { craft: 'smith' } as Dwelling['workshop'] });
+    const potter = house(2, 100, 0, { workshop: { craft: 'potter' } as Dwelling['workshop'] });
+    const burner = house(3, 200, 0, { workshop: { craft: 'burner' } as Dwelling['workshop'] });
+    const state = village([smith, potter, burner]);
+    state.crafts = { charcoalKg: 300, potteryKg: 80, ironBarsKg: 40, bloomKg: 20 };
+    state.people = [{ id: 1, bornDay: born(30), dwellingId: 2, sex: 'male' }];
+    state.disasters = { override: { fire: { [DAY]: 1 } } };
+    const events = fireDay(state, DAY, null, null);
+    expect(state.crafts).toMatchObject({ charcoalKg: 0, potteryKg: 80, ironBarsKg: 0, bloomKg: 0 });
+    expect(events[0]).toMatchObject({ lostCharcoalKg: 300, lostIronKg: 60, lostPotteryKg: 0 });
+    state.disasters = { override: { fire: { [DAY + 1]: 2 } } };
+    fireDay(state, DAY + 1, null, null);
+    expect(state.crafts?.potteryKg).toBe(0);
+  });
+
+  it('vyhořelý dům zůstane ruinou, rodinu pod střechu přijme až dům, který postaví hráč', () => {
+    const a = house(1, 0);
+    const b = house(2, 100);
+    const state = village([a, b]);
+    state.people = [
+      { id: 5, bornDay: born(50), dwellingId: 2, sex: 'male', spouseId: 6 },
+      { id: 6, bornDay: born(44), dwellingId: 2, sex: 'female', spouseId: 5 },
+      { id: 1, bornDay: born(30), dwellingId: 1, sex: 'male', spouseId: 2 },
+      { id: 2, bornDay: born(28), dwellingId: 1, sex: 'female', spouseId: 1 },
+      { id: 3, bornDay: born(3), dwellingId: 1, fatherId: 1, motherId: 2 },
+    ];
+    state.disasters = { override: { fire: { [DAY]: 1 } } };
+    fireDay(state, DAY, null, null);
+    expect(state.ruins?.map((r) => r.id)).toEqual([1]);
+    expect(state.constructions.some((c) => c.kind === 'rebuild')).toBe(false);
+    expect(state.people.every((p) => p.dwellingId === 2)).toBe(true);
+    // hráč postaví nový dům – prázdné obydlí osídlí rodina syna (jako po rozpadu)
+    state.dwellings.push(house(3, 200));
+    occupyEmptyDwellings(state, DAY);
+    expect(
+      state.people
+        .filter((p) => p.dwellingId === 3)
+        .map((p) => p.id)
+        .sort(),
+    ).toEqual([1, 2, 3]);
+  });
+
+  it('stavba vázaná na shořelý dům zanikne, ves pak 365 dní běží bez výjimky', () => {
+    const state = village([house(1, 0), house(2, 100)]);
+    state.people = [{ id: 1, bornDay: born(30), dwellingId: 1, sex: 'male' }];
+    state.constructions.push({
+      id: 77,
+      kind: 'repair',
+      startedDay: DAY,
+      cost: 10,
+      done: 0,
+      dwellingType: 'polozemnice',
+      position: null,
+      dwellingId: 1,
+      fieldId: null,
+    } as unknown as VillageState['constructions'][number]);
+    state.disasters = { override: { fire: { [DAY]: 1 } } };
+    state.lastDay = DAY - 1;
+    fireDay(state, DAY, null, null);
+    expect(state.constructions.some((c) => c.id === 77)).toBe(false);
+    const later = advanceVillage(state, DAY + 365, null);
+    expect(later.people.length).toBeGreaterThan(0);
+    expect(later.dwellings.some((d) => d.id === 1)).toBe(false);
+  });
+
+  it('los přeskoku je vlastní pro každou dvojici – nezávisí na ostatních domech', () => {
+    const a = house(1, 0);
+    const b = beside(a, 2, 5);
+    const far = house(3, 5000);
+    const green = { layer: null, status: null, orchards: [] };
+    for (let seed = 1; seed < 200; seed++) {
+      const alone = spreadFire([a, b], 1, seed, 9, green).includes(2);
+      const crowd = spreadFire([a, far, b], 1, seed, 9, green).includes(2);
+      expect(crowd).toBe(alone);
+    }
   });
 });
 

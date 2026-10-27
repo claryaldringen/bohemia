@@ -3,7 +3,7 @@
 
 import { dateOfDayIndex } from '../calendar';
 import type { Landscape } from '../landscape';
-import { createRandom, deriveSeed, type Random } from '../landscape/random';
+import { createRandom, deriveSeed } from '../landscape/random';
 import { OBSTACLE_LOOKS, lookSpecies, type ObstacleLayer } from '../landscape/obstacles/types';
 import { obstaclesNear } from '../landscape/obstacles/query';
 import { workshopFootprints } from './crafts';
@@ -137,22 +137,25 @@ function greeneryBetween(g: Greenery, a: Dwelling, b: Dwelling): boolean {
 /**
  * Řetězové šíření ohně (disasters.md – Požár): každá nově hořící stavba zkusí své sousedy jednou
  * (do 6 m 70 %, do 12 m 40 %, zeleň na spojnici šanci půlí, hašení ji sníží o 0,7 × účinnost).
- * Vrátí id všech hořících staveb (začátek první). Losování ze `random` v pevném pořadí podle id.
+ * Vrátí id všech hořících staveb (začátek první). Los každé dvojice je vlastní
+ * (`deriveSeed(seed, 'fire-spread:' + den + ':' + z + ':' + na)`), takže nezávisí na pořadí průchodu.
  */
 export function spreadFire(
   dwellings: readonly Dwelling[],
   startId: number,
-  random: Random,
+  seed: number,
+  day: number,
   greenery: Greenery,
   efficiency = 0,
 ): number[] {
   const sorted = [...dwellings].sort((a, b) => a.id - b.id);
+  const byId = new Map(sorted.map((d) => [d.id, d] as const));
   const prints = new Map(sorted.map((d) => [d.id, footprints(d)] as const));
   const burning = [startId];
   const burnt = new Set(burning);
   const spreadFactor = 1 - FIRE.firefighting.spreadCut * efficiency;
   for (let head = 0; head < burning.length; head++) {
-    const from = sorted.find((d) => d.id === burning[head]);
+    const from = byId.get(burning[head]!);
     if (!from) continue;
     for (const to of sorted) {
       if (burnt.has(to.id)) continue;
@@ -163,7 +166,8 @@ export function spreadFire(
       if (chance === 0) continue;
       if (greeneryBetween(greenery, from, to)) chance *= FIRE.greeneryFactor;
       chance *= spreadFactor;
-      if (random.next() < chance) {
+      const roll = createRandom(deriveSeed(seed, `fire-spread:${day}:${from.id}:${to.id}`)).next();
+      if (roll < chance) {
         burnt.add(to.id);
         burning.push(to.id);
       }
@@ -219,11 +223,11 @@ export function fireDay(
       }
     }
   }
-  const random = createRandom(deriveSeed(state.seed, 'fire-spread:' + day));
   const burning = spreadFire(
     state.dwellings,
     startId,
-    random,
+    state.seed,
+    day,
     greeneryOf(state, day, obstacles, landscape),
     efficiency,
   );
@@ -233,7 +237,8 @@ export function fireDay(
 /**
  * Dopad požáru: hořící stavby se zřítí (zbytek jámy, jako po rozpadu) a obyvatelé se nastěhují
  * k příbuzným; zásoby domu (zrno mimo jámy, maso, sýr) a seno ubudou o podíl shořelých staveb
- * (zásoby jsou rozdělené po obydlích, stohy stojí u nich – návrh Clauda). Zrno v jamách přečká.
+ * (zásoby jsou rozdělené po obydlích, stohy stojí u nich – návrh Clauda) a shořelá dílna odnese
+ * svou zásobu uhlí, hřiven a keramiky. Zrno v jamách přečká.
  * Při hašení (`efficiency` > 0) stavba klesne o `1 − 0,5 × účinnost` a zřítí se jen na nule.
  * Poslední stojící obydlí vsi se nezboří úplně (lidé by neměli kam) – zůstane poničené.
  */
@@ -268,6 +273,7 @@ function burnDown(
   if (state.cheeseKg !== undefined) state.cheeseKg -= lostCheese;
   const lostHay = (state.hay?.kg ?? 0) * share;
   if (state.hay) state.hay.kg -= lostHay;
+  const lostCrafts = burnWorkshopStocks(state, burnt, damage);
   if (destroyed.length > 0) {
     const gone = new Set(destroyed.map((d) => d.id));
     const homes = state.dwellings.filter((d) => !gone.has(d.id));
@@ -277,9 +283,10 @@ function burnDown(
       const target = evacuationTarget(state, day, members, d.id, homes);
       if (target) for (const p of members) p.dwellingId = target.id;
     }
-    // rozestavěná přestavba shořelého domu padá – klády se vrátí na hromadu
+    // stavba vázaná na shořelý dům (přestavba, oprava…) padá – klády se vrátí na hromadu;
+    // nový dům po požáru staví hráč běžnou stavbou (Martin 27. 10. 2026)
     state.constructions = state.constructions.filter((c) => {
-      const lost = c.kind === 'rebuild' && c.dwellingId !== null && gone.has(c.dwellingId);
+      const lost = c.dwellingId !== null && gone.has(c.dwellingId);
       if (lost && c.wood) addLogs(state, c.wood.fromPile);
       return !lost;
     });
@@ -295,5 +302,45 @@ function burnDown(
     lostMeatKg: Math.round(lostMeat),
     lostCheeseKg: Math.round(lostCheese),
     lostHayKg: Math.round(lostHay),
+    ...lostCrafts,
+  };
+}
+
+/**
+ * Zásoby dílen jsou celoveské (`state.crafts`) – shořelá dílna odnese svůj podíl: kovárna uhlí,
+ * hřivny a houbu, hrnčířství keramiku (podíl = 1 ÷ počet dílen téhož řemesla, krát poškození;
+ * návrh Clauda). Milíř stojí venku, uhlíř tedy o zásobu nepřijde. Vrátí ztráty v kg do kroniky.
+ */
+function burnWorkshopStocks(
+  state: VillageState,
+  burnt: readonly Dwelling[],
+  damage: number,
+): Pick<
+  Extract<ChronicleEvent, { kind: 'fire' }>,
+  'lostCharcoalKg' | 'lostIronKg' | 'lostPotteryKg'
+> {
+  const stocks = state.crafts;
+  const none = { lostCharcoalKg: 0, lostIronKg: 0, lostPotteryKg: 0 };
+  if (!stocks) return none;
+  const hit = Math.min(1, damage);
+  const shopShare = (craft: 'smith' | 'potter'): number => {
+    const all = state.dwellings.filter((d) => d.workshop?.craft === craft).length;
+    const burning = burnt.filter((d) => d.workshop?.craft === craft).length;
+    return all === 0 ? 0 : (burning / all) * hit;
+  };
+  const smith = shopShare('smith');
+  const potter = shopShare('potter');
+  const charcoal = stocks.charcoalKg * smith;
+  const bars = (stocks.ironBarsKg ?? 0) * smith;
+  const bloom = (stocks.bloomKg ?? 0) * smith;
+  const pottery = stocks.potteryKg * potter;
+  stocks.charcoalKg -= charcoal;
+  if (stocks.ironBarsKg !== undefined) stocks.ironBarsKg -= bars;
+  if (stocks.bloomKg !== undefined) stocks.bloomKg -= bloom;
+  stocks.potteryKg -= pottery;
+  return {
+    lostCharcoalKg: Math.round(charcoal),
+    lostIronKg: Math.round(bars + bloom),
+    lostPotteryKg: Math.round(pottery),
   };
 }
