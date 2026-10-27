@@ -27,7 +27,7 @@ import {
   windowEndOf,
   type CropTask,
 } from './year-plan';
-import { springSowingHeld } from './weather-effects';
+import { springSowingExtended, springSowingHeld } from './weather-effects';
 
 // Díly nad potřebu (fields.md – Osevní postup po dílech a setí do konce okna, bod 3; Martin
 // 25. 10. 2026: „stavby mají pořád přednost, ale vesničané neví dopředu že budou něco stavět,
@@ -92,12 +92,17 @@ function surplusTasks(state: VillageState, day: number): SurplusTask[] {
     if (!work) continue;
     // dlouhá zima drží setí jařin do 22. 3. (disasters.md – Zima)
     const held = springSowingHeld(state, day, crop);
-    const names: CropTask[] = activeTasks(work, day, crop).filter(
-      (name) => name !== 'thresh' && !(held && name === 'sow'),
-    );
+    const names: CropTask[] = activeTasks(
+      work,
+      day,
+      crop,
+      springSowingExtended(state, day, crop),
+    ).filter((name) => name !== 'thresh' && !(held && name === 'sow'));
     if (cropTaskRemaining(work, 'plough') > EPSILON) names.push('plough');
     for (const name of names) {
-      const end = windowEndOf(cropTaskWindows(crop, name), month);
+      const end =
+        windowEndOf(cropTaskWindows(crop, name), month) ??
+        (name === 'sow' && springSowingExtended(state, day, crop) ? month : null);
       if (end === null) continue;
       const order =
         TASK_ORDER.indexOf(name === 'plough' ? 'dig' : name) - (name === 'plough' ? 0.5 : 0);

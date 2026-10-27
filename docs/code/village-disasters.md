@@ -107,20 +107,27 @@ počasí počítá jako dřív** (zlaté otisky beze změny). Funkce v `weather-
   `WeakMap` na objektu seče). Plán seče (`mowingTargets` v `planMowing`, `planAftermath`,
   `raiseAftermath`) chce o 15 % víc (`hayReserve`) a ÷ seno roku, které je vidět (25. 5. jen
   sucho, 1. 8. všechno) – v suchém roce poseče víc luk, dokud stačí.
-- **Pastva** – `pastureHa` × `pastureWeatherFactor` (léto, které je vidět; bez ochrany) – podle
-  ní ves na podzim drží stáda (`winterTargets`).
-- **Dlouhá zima** (`isLongWinter` – prosinec patří k zimě příštího roku): `isHayWinter(day, true)`
-  a `hayWinterDaysLeft(day, true)` i v dubnu – krmení senem do 30. 4. (`husbandryDay`) a porážka
-  kusů, na které seno nevydrží (`hayShortSlaughter`). Setí jařin (jař, luštěniny, len) se drží do 22. 3. (`springSowingHeld` ve `fieldTasks` a `surplusTasks`). **Konec okna zůstává 30. 4.** –
-  okna setí jsou po měsících (`CROP_WINDOWS`); posun konce o 2 týdny by chtěl okna po dnech
-  napříč plánem, prací i zavíráním okna (návrh Clauda – odchylka od návrhu, okno je tak
-  v dlouhé zimě 40 dní místo 61).
+- **Pastva** – `pastureHa` × `pastureWeatherFactor` (léto, které je vidět; bez ochrany; **od
+  1. 9. násobek 1** – letošní léto je minulé, příští se nezná) – podle ní ves na podzim drží
+     stáda (`winterTargets`).
+- **Dlouhá zima** (`isLongWinter` – listopad a prosinec patří k zimě příštího roku): krmení
+  senem v dubnu (`husbandryDay`) jde podle skutečnosti, ale **rozhodnutí vsi** (porážka
+  `hayShortSlaughter`, výcvik volů v `oxen.ts`) jen podle `isLongWinterRevealed` (od 1. 3.; v listopadu
+  a prosinci ne) – bez úniku budoucnosti. `hayWinterDaysLeft(day, true)` počítá do konce posledního
+  měsíce z `longWinterHayMonths`. Setí jařin (jař, luštěniny, len) se drží do 22. 3.
+  (`springSowingHeld` ve `fieldTasks` a `surplusTasks`).
+- **Dohra setí jařin 1.–14. 5.** (návrh Clauda – levná cesta místo oken po dnech):
+  `springSowingExtended(state, day, crop)` platí jen v odhalené dlouhé zimě a se `weatherSeed`
+  (nebo vynuceným počasím). Díly, které už jsou v práci plodiny, se dosévají i po 30. 4. – nové
+  díly se po 30. 4. nepřidávají (okno `CROP_WINDOWS` se nemění). Zasahuje `activeTasks` (parametr
+  `sowExtended`), `fieldTasks`, `surplusTasks`, `fieldFrontiers`, dřinu a `sowingJustEnded`
+  (`simulate-plan.ts`; nerozseté díly se uvolní až 15. 5.). Číslo `longWinterSpringSowExtraDays` 14.
 - **Osev s průměrem let** – `sowingTargets` dělí úrodu obilí `sowingYieldFactor` (0,95) – ves
   zaseje ≈ 5 % víc. **Paměť hladu** – `famineMemoryDay` (1. 9. v `simulateDay` před
   `startSeason`): po krutém roce (`isCruelYear`) `disasters.famineMemoryUntilYear` = rok + 10;
   `bufferEnergyYearsOf` pak dává pojistku 0,75 místo 0,5.
 - **Čísla** – `WEATHER_EFFECTS`: `blackFrostWinterCrop` 0,65, `wetThreshWork` 0,2, `hayReserve`
-  0,15, `longWinterHayMonths` [4], `longWinterSpringSowFrom` 22. 3., `famineMemoryYears` 10,
+  0,15, `longWinterHayMonths` [4], `longWinterSpringSowFrom` 22. 3., `longWinterSpringSowExtraDays` 14, `famineMemoryYears` 10,
   `famineBufferEnergyYears` 0,75.
 - **Vlkov** (stav DB 27. 10. 2026, 44 lidí, vynucené roky): normální × 5 bez hladu; kruté sucho
   – čistá sklizeň −51 %, seno −8 % (ves poseče víc luk), rok po něm 61 dní příděl 0,75 a nouzová
@@ -321,3 +328,21 @@ z + ':' + na)`, nezávisí na pořadí průchodu): každá nově hořící stavb
 - **Testy** – `firefighting.test.ts`: bod vody hašení = bod vody obydlí (`waterWalkM`), tabulka účinnosti, plán na
   skutečné krajině, dospělí nepracují jen v den požáru, s hašením nezbude méně domů než bez,
   dopočet po kouscích, lovci a cesta pro kování nehasí, starý plán se maže, přebitá účinnost v plánu, milíř při hašení stojí (`charcoal.test.ts`).
+
+## Scéna – počasí roku v barvách a světle (P11, první polovina)
+
+- **Data** – `sceneWeather(state, day)` (`apps/web/lib/weather-view.ts`) → `SceneVillage.weather`
+  (`SceneWeather` ve `village-view-scene-types.ts`): rok, odhalené zlé (nebo dobré) léto a zima
+  z `revealedWeather`, síla léta pro vzhled (sucho a deštivé léto 0,6, kruté sucho a mokré žně 1)
+  a ochrana dílů proti odhalenému létu po stupních 0–4 (`protectionLevel` – mokro −0,2…+0,2
+  převedeno na 0–1; stupeň 0 chybí). Normální rok `weather` nemá. **Seed počasí ani budoucí rok
+  se do prohlížeče nedostanou** – testy v `village-view.test.ts` (JSON pohledu bez `drought`,
+  `override` a seedu před 1. 5.).
+- **Vzhled** – `seasonLook(day, weather)` a světlo (`day-light.ts`), podrobně
+  [scene.md – Roční období – počasí](scene.md). Barva dílu podle ochrany – `droughtPartTint`
+  (`field-look.ts`), `PartView.tint` → obtisk, porost shora a trsy obilí.
+- **Další úloha (P11b)** – nižší a řidší obilí, polehlé obilí, déšť a kaluže, méně vody v potoce,
+  zvuk deštěm a e2e; data jsou připravená (`SceneWeather.parts`, `SeasonLook.drought` a `wet`).
+- **Vývojová ukázka** – `/dev/landscape`, přepínač **Počasí** (`dev-weather.ts`, `data-testid`
+  `dev-weather`): vynucené počasí vsi náhledu s vývojovým dnem (rok se nekontroluje), ochrana dílů
+  podle id dílu (id % 5).

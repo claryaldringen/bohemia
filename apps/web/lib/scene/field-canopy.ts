@@ -14,7 +14,7 @@ import {
   type FieldLook,
   type PartView,
 } from './field-look';
-import { decalPieces, lookStyle, type FieldCrop, type Rgb } from './field-crops';
+import { decalPieces, lookStyle, tintedBy, type FieldCrop, type Rgb } from './field-crops';
 import { smoothstep, type Bounds } from './village-layout';
 
 /**
@@ -170,7 +170,10 @@ export function fieldCanopy(
   };
   for (const piece of pieces) {
     const h = canopyHeight(piece.look, piece.part.crop);
-    const tint = lookStyle(piece.look, piece.part.crop, piece.part.bloom).tint;
+    const tint = tintedBy(
+      lookStyle(piece.look, piece.part.crop, piece.part.bloom).tint,
+      piece.tint,
+    );
     direction = piece.rows;
     const b: Bounds = piece.bounds;
     // kus, přes který vede cesta, jemněji (`detail` – pás bez obilí užší než krok sítě)

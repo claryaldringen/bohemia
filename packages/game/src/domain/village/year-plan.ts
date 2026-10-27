@@ -477,12 +477,18 @@ export function windowEndOf(segments: readonly WindowSegment[], month: number): 
 }
 
 /** Úlohy plodiny s nedodělkem, jejichž okno dnes běží; nejbližší konec okna první. */
-export function activeTasks(work: CropWork, day: number, crop: Crop = 'spring'): TaskName[] {
+export function activeTasks(
+  work: CropWork,
+  day: number,
+  crop: Crop = 'spring',
+  sowExtended = false,
+): TaskName[] {
   const { month } = dateOfDayIndex(day);
   const result: { task: TaskName; end: number }[] = [];
   for (const task of TASK_ORDER) {
     if (taskRemaining(work, task) <= 0) continue;
-    const end = taskWindowEnd(task, month, crop);
+    // dohra setí jařin v dlouhé zimě 1.–14. 5. (`springSowingExtended`)
+    const end = taskWindowEnd(task, month, crop) ?? (sowExtended && task === 'sow' ? month : null);
     if (end !== null) result.push({ task, end });
   }
   // Array.sort je stabilní – při shodě zůstává pořadí z TASK_ORDER.

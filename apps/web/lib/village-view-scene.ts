@@ -93,6 +93,7 @@ import { sceneFunerals } from './funeral-view';
 import { scenePersons } from './person-view';
 import { sceneWeddings } from './wedding-view';
 import { sceneWildlife } from './wildlife-view';
+import { sceneWeather } from './weather-view';
 
 export function sceneVillage(
   state: VillageState,
@@ -155,6 +156,8 @@ export function sceneVillage(
   const grazed = state.livestock ? pastureGrazedParts(state, day) : null;
   // ves letos orá rádlem – celé pole má kulaté rohy (oxen.md – Jen rádlo)
   const ard = ploughsThisYear(state);
+  // počasí roku, které už je vidět (disasters.md – Ve scéně) – nikdy seed ani budoucí rok
+  const weather = sceneWeather(state, day);
   const fields = state.fields.map((f) => ({
     id: f.id,
     ...(f.grid ? { grid: f.grid } : {}),
@@ -317,6 +320,7 @@ export function sceneVillage(
     ...(home
       ? { home: { x: Math.round(home.x * 100) / 100, z: Math.round(home.z * 100) / 100 } }
       : {}),
+    ...(weather ? { weather } : {}),
   };
 }
 

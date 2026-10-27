@@ -10,11 +10,14 @@ import {
   famineMemoryDay,
   hayWeatherFactor,
   isLongWinter,
+  isLongWinterRevealed,
   mowingWeatherFactor,
   partWeatherFactor,
+  springSowingExtended,
   springSowingHeld,
   threshWorkFactor,
 } from '../weather-effects';
+import { seasonCrops } from '../year-plan';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
 // Sucho, deštivé léto a krutá zima (disasters.md – Léto, Zima, Ochrana dílu, Dopady).
@@ -243,4 +246,82 @@ describe('sklizeň v simulaci – kruté sucho, vcelku = po kouscích', () => {
       expect(JSON.stringify(s)).toBe(json);
     }
   }, 120_000);
+});
+
+describe('dlouhá zima – co je vidět a dohra setí jařin', () => {
+  const state = forced(601, { winter: 'long' });
+
+  it('listopad patří k příští zimě; rozhodnutí vsi vidí dlouhou zimu až od 1. 3.', () => {
+    expect(isLongWinter(state, at(600, 11, 5))).toBe(true);
+    expect(isLongWinterRevealed(state, at(600, 11, 5))).toBe(false);
+    expect(isLongWinterRevealed(state, at(601, 1, 15))).toBe(false);
+    expect(isLongWinterRevealed(state, at(601, 3, 1))).toBe(true);
+    expect(isLongWinterRevealed({}, at(601, 3, 1))).toBe(false);
+  });
+
+  it('dohra setí jařin jen 1.–14. 5. v dlouhé zimě; ozim a normální zima ne', () => {
+    expect(springSowingExtended(state, at(601, 5, 1), 'spring')).toBe(true);
+    expect(springSowingExtended(state, at(601, 5, 14), 'flax')).toBe(true);
+    expect(springSowingExtended(state, at(601, 5, 15), 'spring')).toBe(false);
+    expect(springSowingExtended(state, at(601, 4, 30), 'spring')).toBe(false);
+    expect(springSowingExtended(state, at(601, 5, 5), 'winter')).toBe(false);
+    expect(springSowingExtended(forced(601, { winter: 'normal' }), at(601, 5, 5), 'spring')).toBe(
+      false,
+    );
+    expect(springSowingExtended({}, at(601, 5, 5), 'spring')).toBe(false);
+  });
+});
+
+describe('dohra setí jařin v simulaci', () => {
+  /** Ves 25. 4. s rozsetým luštěninovým dílem (setí zbývá dlouho) a vynuceným počasím zimy. */
+  const start = (winter: 'normal' | 'long'): VillageState => {
+    const s = withBuiltFirstDwelling(
+      foundVillage({ seed: 7, day: at(600, 8, 25), dwellingPosition: { x: 0, z: 0, rotation: 0 } }),
+    );
+    s.storesKg = 5_000;
+    s.fields = [{ id: 1 }];
+    s.parts = Array.from({ length: 400 }, (_, i) => ({
+      id: 100 + i,
+      fieldId: 1,
+      areaM2: 225,
+      distanceM: 100,
+      naturalFertility: 70,
+      fertilityShare: 1,
+      bonusUntilDay: null,
+      state: 'ready' as const,
+      sownYears: 0,
+      fallowSinceDay: null,
+      foundingCost: 1,
+      foundingDone: 1,
+      surface: 'meadow' as const,
+    }));
+    s.disasters = { override: { weather: { 601: { summer: 'normal', winter } } } };
+    const spring = advanceVillage(s, at(601, 4, 25), null);
+    const legume = seasonCrops(spring.season!).find((c) => c.crop === 'legume')!.work;
+    legume.required.sow *= 200;
+    return spring;
+  };
+  const sowDone = (s: VillageState): number =>
+    seasonCrops(s.season!).find((c) => c.crop === 'legume')?.work.done.sow ?? -1;
+
+  it('v dlouhé zimě se rozpracovaný díl dosévá i 1.–14. 5., v normální zimě ne; po kouscích stejně', () => {
+    const long = start('long');
+    const normal = start('normal');
+    const longMay1 = advanceVillage(structuredClone(long), at(601, 5, 1), null);
+    const longMay10 = advanceVillage(structuredClone(long), at(601, 5, 10), null);
+    const longMay20 = advanceVillage(structuredClone(long), at(601, 5, 20), null);
+    expect(sowDone(longMay10)).toBeGreaterThan(sowDone(longMay1) + 0.01);
+    // po 14. 5. setí stojí
+    expect(sowDone(longMay20)).toBeCloseTo(sowDone(advanceVillage(long, at(601, 5, 15), null)), 9);
+    const normalMay1 = advanceVillage(structuredClone(normal), at(601, 5, 1), null);
+    const normalMay10 = advanceVillage(structuredClone(normal), at(601, 5, 10), null);
+    expect(sowDone(normalMay10)).toBeCloseTo(sowDone(normalMay1), 9);
+    for (const step of [1, 7, 30]) {
+      let s = structuredClone(long);
+      while (s.lastDay < at(601, 5, 20)) {
+        s = advanceVillage(s, Math.min(at(601, 5, 20), s.lastDay + step), null);
+      }
+      expect(JSON.stringify(s)).toBe(JSON.stringify(longMay20));
+    }
+  }, 240_000);
 });

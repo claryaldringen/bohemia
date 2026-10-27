@@ -151,7 +151,8 @@ import {
   occupiedDwellings,
   villageProductivity,
 } from './simulate-plan';
-import { springSowingHeld } from './weather-effects';
+import { WEATHER_EFFECTS } from './rules-disasters';
+import { springSowingExtended, springSowingHeld } from './weather-effects';
 
 /**
  * Polní úlohy dne: práce plánu po plodinách (bez výmlatu – ten mlátí snopy, `threshTasks`), orba
@@ -168,7 +169,9 @@ export function fieldTasks(
   const month = dateOfDayIndex(day).month;
   const entries: FieldTaskEntry[] = [];
   const add = (crop: Crop, work: CropWork, name: CropTask): void => {
-    const end = windowEndOf(cropTaskWindows(crop, name), month);
+    const end =
+      windowEndOf(cropTaskWindows(crop, name), month) ??
+      (name === 'sow' && springSowingExtended(state, day, crop) ? month : null);
     if (end === null) return;
     const order =
       TASK_ORDER.indexOf(name === 'plough' ? 'dig' : name) - (name === 'plough' ? 0.5 : 0);
@@ -182,7 +185,7 @@ export function fieldTasks(
       if (work.surplus) continue;
       // dlouhá zima drží setí jařin do 22. 3. (disasters.md – Zima)
       const held = springSowingHeld(state, day, crop);
-      for (const name of activeTasks(work, day, crop)) {
+      for (const name of activeTasks(work, day, crop, springSowingExtended(state, day, crop))) {
         if (name !== 'thresh' && !(held && name === 'sow')) add(crop, work, name);
       }
       if (neededTaskRemaining(work, 'plough') > 0) add(crop, work, 'plough');
@@ -947,7 +950,11 @@ export function work(
   const seasonTasks = [
     ...owned.map((task) => ({
       remaining: neededTaskRemaining(task.work, task.name),
-      endDay: windowEndDay(cropTaskWindows(task.crop, task.name), day) ?? day,
+      endDay:
+        windowEndDay(cropTaskWindows(task.crop, task.name), day) ??
+        (task.name === 'sow' && springSowingExtended(state, day, task.crop)
+          ? day + WEATHER_EFFECTS.longWinterSpringSowExtraDays - dateOfDayIndex(day).day
+          : day),
     })),
     ...threshSeasonTasks(state, day),
   ];

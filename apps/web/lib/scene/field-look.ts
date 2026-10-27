@@ -5,7 +5,9 @@
 // stejný rozpracovaný čtverec.
 import { rotationCosSin } from '@bohemia/game';
 import type { FieldLook, LaborActivity, SceneFieldPart, SceneVillage } from '../village-view';
+import type { Rgb } from './field-crops';
 import { aftermathGrazing, hayPhase } from './hay-meadows';
+import { weatherAmounts } from './season-look';
 
 export type { FieldLook };
 
@@ -71,6 +73,11 @@ export interface PartView {
    * mají seno shrabané v kupkách. Bez údaje ne.
    */
   swaths?: boolean;
+  /**
+   * Násobek barvy dílu v suchu podle ochrany dílu (`droughtPartTint`); bez
+   * údaje beze změny.
+   */
+  tint?: Rgb;
 }
 
 /** Kolik řádků (pruhů napříč dílem) se zobrazí jako hotových – po krocích sítě obtisku. */
@@ -207,7 +214,7 @@ export function workOrder(
  */
 export interface LookContext {
   dayOfYear: number;
-  village: Pick<SceneVillage, 'dwellings'> & Partial<Pick<SceneVillage, 'labor'>>;
+  village: Pick<SceneVillage, 'dwellings'> & Partial<Pick<SceneVillage, 'labor' | 'weather'>>;
 }
 
 /**
@@ -224,14 +231,16 @@ export function fieldPartViews(
     cached &&
     cached.dwellings === context.village.dwellings &&
     cached.labor === context.village.labor &&
+    cached.weather === context.village.weather &&
     cached.day === context.dayOfYear
   ) {
     return cached.views;
   }
-  const views = computePartViews(field, context);
+  const views = withDroughtTint(computePartViews(field, context), context);
   viewsCache.set(field.parts, {
     dwellings: context.village.dwellings,
     labor: context.village.labor,
+    weather: context.village.weather,
     day: context.dayOfYear,
     views,
   });
@@ -244,10 +253,51 @@ const viewsCache = new WeakMap<
   {
     dwellings: LookContext['village']['dwellings'];
     labor: LookContext['village']['labor'];
+    weather: LookContext['village']['weather'];
     day: number;
     views: PartView[];
   }
 >();
+
+/** Barva dílu v plném suchu bez ochrany – žloutne a hnědne (disasters.md – Ve scéně, Sucho). */
+const DRY_PART: Rgb = [1.12, 0.94, 0.66];
+/** Barva dílu s plnou ochranou (za stromy) v plném suchu – zelenější. */
+const SHELTERED_PART: Rgb = [0.97, 1.04, 0.95];
+/** Sucho po čtvrtinách – díly se kvůli náběhu sucha přestaví nejvýš čtyřikrát. */
+const DROUGHT_STEPS = 4;
+
+/**
+ * Násobek barvy dílu v suchu (disasters.md – Ve scéně, Sucho: „chráněné díly za stromy zůstávají
+ * zelenější“): `drought` 0–1 (`SeasonLook.drought`, po čtvrtinách), `level` ochrana dílu 0–4
+ * (`SceneWeather.parts`). Bez sucha null – barva beze změny.
+ */
+export function droughtPartTint(drought: number, level: number): Rgb | null {
+  const stage = Math.round(Math.min(1, Math.max(0, drought)) * DROUGHT_STEPS) / DROUGHT_STEPS;
+  if (stage === 0) return null;
+  const sheltered = Math.min(4, Math.max(0, level)) / 4;
+  const dry = stage * (1 - sheltered);
+  const green = stage * sheltered;
+  const channel = (i: 0 | 1 | 2): number =>
+    (1 + (DRY_PART[i] - 1) * dry) * (1 + (SHELTERED_PART[i] - 1) * green);
+  return [channel(0), channel(1), channel(2)];
+}
+
+/**
+ * Díly v suchu (disasters.md – Ve scéně, Sucho): barva podle síly sucha v den roku a ochrany dílu
+ * – díl za stromy zůstane zelenější. Bez sucha díly beze změny.
+ */
+function withDroughtTint(views: PartView[], context: LookContext): PartView[] {
+  const weather = context.village.weather;
+  if (!weather) return views;
+  const { drought } = weatherAmounts(context.dayOfYear, weather);
+  if (drought === 0) return views;
+  return views.map((view) => {
+    const id = view.part.id;
+    const level = id === undefined ? 0 : (weather.parts?.[String(id)] ?? 0);
+    const tint = droughtPartTint(drought, level);
+    return tint ? { ...view, tint } : view;
+  });
+}
 
 /**
  * Díly dnešní seče z rozdělení práce (`mow` – díly polí podle id, přirozené louky podle políčka):

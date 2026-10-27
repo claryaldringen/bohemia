@@ -367,6 +367,7 @@ uniform waterClear: vec3f;
 uniform waterSky: vec3f;
 uniform seasonA: vec4f;
 uniform seasonB: vec4f;
+uniform seasonC: vec4f;
 #endif`
           : `#ifdef WATER
 uniform float waterTime;
@@ -378,6 +379,7 @@ uniform vec3 waterClear;
 uniform vec3 waterSky;
 uniform vec4 seasonA;
 uniform vec4 seasonB;
+uniform vec4 seasonC;
 #endif`,
     };
   }

@@ -109,6 +109,9 @@ export function hayLeftAvailable(hayKg: number, days: number): number {
   return hayKg * hayKeep(days / 2);
 }
 
+/** Poslední měsíc zimního krmení v dlouhé zimě (disasters.md – Zima). */
+const LONG_WINTER_HAY_END = Math.max(...WEATHER_EFFECTS.longWinterHayMonths);
+
 /**
  * Dní zimního krmení od dneška (včetně) do konce března – v dlouhé zimě (`longWinter`) do konce
  * dubna; mimo zimu 0.
@@ -116,7 +119,8 @@ export function hayLeftAvailable(hayKg: number, days: number): number {
 export function hayWinterDaysLeft(day: number, longWinter = false): number {
   if (!isHayWinter(day, longWinter)) return 0;
   const { year, month } = dateOfDayIndex(day);
-  if (month <= 4) return dayIndexOf({ year, month: longWinter ? 5 : 4, day: 1 }) - day;
+  if (month <= 4)
+    return dayIndexOf({ year, month: longWinter ? LONG_WINTER_HAY_END + 1 : 4, day: 1 }) - day;
   // listopad a prosinec – do Silvestra a pak leden až březen příštího roku (bez dayIndexOf za
   // koncem světa)
   const newYear = dayIndexOf({ year, month: 12, day: 31 }) + 1;

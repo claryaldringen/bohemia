@@ -2,6 +2,7 @@
 // pravidla). Z herního data (den v roce) spočítá parametry, které scéna předá shaderům, světlu,
 // oparu, vodě a zvukům. Všechno se mění plynule – přechody trvají 2–4 týdny, nic se nepřepíná.
 import { dateOfDayIndex, getWorldState, TOTAL_GAME_DAYS, type WorldClock } from '@bohemia/game';
+import type { SceneWeather } from '../village-view';
 
 export type Rgb = readonly [number, number, number];
 
@@ -49,7 +50,19 @@ export interface SeasonLook {
   /** Násobek barev vody (zimní voda je tmavší a studenější) a barva odrazu oblohy. */
   water: { tint: Rgb; sky: Rgb };
   sound: SeasonSound;
+  /**
+   * Sucho 0–1 (síla sucha × průběh léta – disasters.md, Ve scéně): slunce praží, tráva žloutne
+   * a hnědne ve skvrnách. V normálním roce 0.
+   */
+  drought: number;
+  /** Mokro 0–1 (deštivé léto): šedé světlo, víc oparu, tmavší a sytější tráva. */
+  wet: number;
+  /** Jinovatka 0–1 (holomráz – mráz bez sněhu): země a tráva šedobílé, sníh nenapadne. */
+  frost: number;
 }
+
+/** Počasí roku pro vzhled – odhalené léto, zima a síla léta (`SceneWeather`). */
+export type LookWeather = Pick<SceneWeather, 'summer' | 'winter' | 'strength'>;
 
 /** Den v roce 1–366 (1. 1. = 1, desetinná část = denní doba). */
 export type DayOfYear = number;
@@ -221,8 +234,164 @@ const ANCHORS: Record<SeasonName, SeasonAnchor> = {
 
 const SEASON_ORDER: readonly SeasonName[] = ['spring', 'summer', 'autumn', 'winter'];
 
-/** Vzhled krajiny pro den v roce (1–366, desetinná část plynule mezi dny). */
-export function seasonLook(day: DayOfYear): SeasonLook {
+// Počasí roku (disasters.md – Ve scéně): průběh v roce × síla léta. Náběh začíná dnem, kdy je
+// počasí vidět (sucho 1. 5., deštivé léto 1. 6., holomráz 1. 2., dlouhá zima 1. 3.) – vzhled
+// se nikdy nezmění skokem.
+
+/** Sucho: od 1. 5. sílí do poloviny června, drží do konce srpna, s podzimem odezní. */
+const DROUGHT: Track = [
+  [121, 0],
+  [168, 1],
+  [244, 1],
+  [288, 0],
+];
+/** Deštivé léto: od 1. 6. za dva týdny naplno, do konce září odezní. */
+const WET: Track = [
+  [152, 0],
+  [166, 1],
+  [244, 1],
+  [274, 0],
+];
+/** Holomráz: od 1. 2. za 5 dní sníh zmizí a zem pokryje jinovatka, v březnu povolí. */
+const FROST: Track = [
+  [32, 0],
+  [37, 1],
+  [62, 1],
+  [82, 0],
+];
+/**
+ * Dlouhá zima: o kolik dní se jaro opozdí – od 1. 3. za 6 dní se vrátí sníh (zpoždění 3 týdny),
+ * sníh leží do dubna, listí a tráva jdou o 3 týdny později; do poloviny července se rok srovná
+ * (zpoždění ubývá pomaleji než den – vzhled nejde zpátky).
+ */
+const LONG_WINTER_DELAY: Track = [
+  [60, 0],
+  [66, 21],
+  [140, 21],
+  [200, 0],
+];
+
+/** Síla léta bez údaje: sucho a deštivé léto 0,6, kruté sucho a mokré žně 1. */
+const DEFAULT_STRENGTH = 0.6;
+
+/** Složky počasí v den roku – 0, když počasí není (normální rok). */
+export interface WeatherAmounts {
+  drought: number;
+  wet: number;
+  frost: number;
+  /** O kolik dní je jaro pozdě (dlouhá zima). */
+  delay: number;
+}
+
+/** Složky počasí roku `weather` v den `day` (1–366). */
+export function weatherAmounts(day: DayOfYear, weather?: LookWeather): WeatherAmounts {
+  const d = wrapDay(day);
+  const summer = weather?.summer;
+  const strength = weather?.strength ?? DEFAULT_STRENGTH;
+  const dry = summer === 'dry' || summer === 'drought';
+  const wet = summer === 'wet' || summer === 'wetHarvest';
+  return {
+    drought: dry ? track(DROUGHT, d) * strength : 0,
+    wet: wet ? track(WET, d) * strength : 0,
+    frost: weather?.winter === 'blackFrost' ? track(FROST, d) : 0,
+    delay: weather?.winter === 'long' ? track(LONG_WINTER_DELAY, d) : 0,
+  };
+}
+
+// Sucho – slunce praží (Martin 27. 10. 2026: „Ať to vypadá, že slunce opravdu praží?“):
+// silnější a žlutější slunce, slabší rozptýlené světlo (vyšší kontrast), vybledlá obloha
+// a prašný opar. Hodnoty při plném suchu (síla 1).
+const HEAT = {
+  sun: 0.16,
+  sunTint: [0.03, 0, -0.1] as Rgb,
+  sky: -0.14,
+  skyTint: [0.02, 0, -0.06] as Rgb,
+  groundTint: [0.15, 0.1, -0.05] as Rgb,
+  clear: { color: [0.8, 0.82, 0.8] as Rgb, share: 0.55 },
+  fog: { color: [0.84, 0.82, 0.74] as Rgb, share: 0.5 },
+  fogDensity: 0.3,
+  /** Některé listnáče žloutnou dřív. */
+  leafAutumn: 0.2,
+} as const;
+// Mokro – zataženo: slabší šedé slunce, víc rozptýleného světla, šedá obloha a hustší opar.
+const OVERCAST = {
+  sun: -0.3,
+  sunGrey: { color: [0.92, 0.94, 0.97] as Rgb, share: 0.6 },
+  sky: 0.12,
+  skyGrey: { color: [0.9, 0.92, 0.95] as Rgb, share: 0.5 },
+  clear: { color: [0.62, 0.66, 0.7] as Rgb, share: 0.7 },
+  fog: { color: [0.66, 0.69, 0.72] as Rgb, share: 0.6 },
+  fogDensity: 0.6,
+  waterSky: { color: [0.55, 0.58, 0.62] as Rgb, share: 0.6 },
+} as const;
+// Holomráz – bez sněhu: země odráží méně než sníh, slunce může být silnější.
+const RIME = {
+  ground: { color: [0.44, 0.46, 0.5] as Rgb, share: 1 },
+  sun: 0.12,
+} as const;
+
+/**
+ * Vzhled krajiny pro den v roce (1–366, desetinná část plynule mezi dny) a počasí roku `weather`
+ * (jen to, co už je vidět). Bez počasí (normální rok) přesně vzhled ročního období.
+ */
+export function seasonLook(day: DayOfYear, weather?: LookWeather): SeasonLook {
+  const w = weatherAmounts(day, weather);
+  const look = baseLook(w.delay > 0 ? wrapDay(wrapDay(day) - w.delay) : day);
+  if (w.drought === 0 && w.wet === 0 && w.frost === 0) return look;
+  return withWeather(look, w);
+}
+
+/** Vzhled ročního období upravený počasím (sucho, mokro, jinovatka). */
+function withWeather(look: SeasonLook, w: WeatherAmounts): SeasonLook {
+  const { drought: h, wet: m, frost: f } = w;
+  const l = look.light;
+  const light: SeasonLight = {
+    sunIntensity: l.sunIntensity * (1 + HEAT.sun * h) * (1 + OVERCAST.sun * m) * (1 + RIME.sun * f),
+    sunColor: towards(tinted(l.sunColor, HEAT.sunTint, h), OVERCAST.sunGrey, m),
+    skyIntensity: l.skyIntensity * (1 + HEAT.sky * h) * (1 + OVERCAST.sky * m),
+    skyColor: towards(tinted(l.skyColor, HEAT.skyTint, h), OVERCAST.skyGrey, m),
+    groundColor: towards(tinted(l.groundColor, HEAT.groundTint, h), RIME.ground, f),
+    clearColor: towards(towards(l.clearColor, HEAT.clear, h), OVERCAST.clear, m),
+    fogColor: towards(towards(l.fogColor, HEAT.fog, h), OVERCAST.fog, m),
+    fogDensity: l.fogDensity * (1 + HEAT.fogDensity * h) * (1 + OVERCAST.fogDensity * m),
+  };
+  // tráva v suchu usychá ve shaderu podle `drought` (season-materials.ts – `seasonGrass`)
+  return {
+    ...look,
+    // holomráz – sníh nenapadne (nebo za pár dní zmizí), zem pokryje jinovatka
+    snow: look.snow * (1 - f),
+    grassDry: look.grassDry * (1 - m),
+    grassFresh: look.grassFresh * (1 - h),
+    leafAutumn: Math.max(look.leafAutumn, HEAT.leafAutumn * h),
+    light,
+    water: { tint: look.water.tint, sky: towards(look.water.sky, OVERCAST.waterSky, m) },
+    drought: h,
+    wet: m,
+    frost: f,
+  };
+}
+
+/** Barva × (1 + posun × síla). */
+function tinted(color: Rgb, shift: Rgb, amount: number): Rgb {
+  return [
+    color[0] * (1 + shift[0] * amount),
+    color[1] * (1 + shift[1] * amount),
+    color[2] * (1 + shift[2] * amount),
+  ];
+}
+
+/** Barva namíchaná k cíli – podíl `share` při síle 1. */
+function towards(color: Rgb, target: { color: Rgb; share: number }, amount: number): Rgb {
+  const t = target.share * amount;
+  return [
+    color[0] + (target.color[0] - color[0]) * t,
+    color[1] + (target.color[1] - color[1]) * t,
+    color[2] + (target.color[2] - color[2]) * t,
+  ];
+}
+
+/** Vzhled ročního období (normální rok). */
+function baseLook(day: DayOfYear): SeasonLook {
   const d = wrapDay(day);
   const weights = seasonWeights(d);
   const blend = <T>(pick: (anchor: SeasonAnchor) => T, mix: (parts: [T, number][]) => T): T =>
@@ -256,6 +425,9 @@ export function seasonLook(day: DayOfYear): SeasonLook {
       birdsong: blend((a) => a.sound.birdsong, mixNumbers),
       leaves: blend((a) => a.sound.leaves, mixNumbers),
     },
+    drought: 0,
+    wet: 0,
+    frost: 0,
   };
 }
 
@@ -266,6 +438,12 @@ export function seasonLook(day: DayOfYear): SeasonLook {
 export function seasonDayAt(nowMs: number, world: WorldClock): DayOfYear {
   const state = getWorldState(nowMs, world);
   return state.status === 'running' ? state.date.dayOfYear : REFERENCE_DAY;
+}
+
+/** Herní rok okamžiku – počasí vsi platí jen pro svůj rok; svět, který neběží, nemá žádný. */
+export function seasonYearAt(nowMs: number, world: WorldClock): number | null {
+  const state = getWorldState(nowMs, world);
+  return state.status === 'running' ? state.date.year : null;
 }
 
 /**
@@ -288,6 +466,9 @@ export function seasonLookDistance(a: SeasonLook, b: SeasonLook): number {
   scalar(a.leafAutumn, b.leafAutumn);
   scalar(a.leafFresh, b.leafFresh);
   scalar(a.blossom, b.blossom);
+  scalar(a.drought, b.drought);
+  scalar(a.wet, b.wet);
+  scalar(a.frost, b.frost);
   scalar(a.light.sunIntensity, b.light.sunIntensity);
   scalar(a.light.skyIntensity, b.light.skyIntensity);
   // hustota oparu je řádově 1e-4 – porovnává se poměrně

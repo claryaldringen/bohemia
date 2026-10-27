@@ -379,7 +379,13 @@ export function partViewsKey(views: readonly PartView[]): unknown[] {
     v.part.bloom ?? false,
     v.swaths ?? false,
     v.part.furrow ? `${v.part.furrow.axis}${v.part.furrow.sweep}` : null,
+    v.tint ? v.tint.join(',') : null,
   ]);
+}
+
+/** Barva × násobek dílu (bez násobku beze změny). */
+export function tintedBy(color: Rgb, tint: Rgb | undefined): Rgb {
+  return tint ? [color[0] * tint[0], color[1] * tint[1], color[2] * tint[2]] : color;
 }
 
 /** Kus obtisku: obdélník ve světě se vzhledem (celý díl, nebo jeho hotová či nehotová část). */
@@ -392,6 +398,8 @@ export interface DecalPiece {
    * který orá spřežení, podél své brázdy (osa bloku orby – oxen.md), jinak podél řádků pole.
    */
   rows: readonly [number, number];
+  /** Násobek barvy dílu (sucho podle ochrany – `PartView.tint`). */
+  tint?: Rgb;
 }
 
 /** Rozteč řádků obilí (m) a trsů v řádku (m), odstup trsů od meze (krytí obtisku). */
@@ -441,16 +449,19 @@ export function decalPieces(
     };
     const frame = workFrame(part, rows, center);
     const along = frame.along;
+    const tint = view.tint ? { tint: view.tint } : {};
     if (view.work === null) {
-      if (view.look) pieces.push({ part, bounds: whole, look: view.look, rows: along });
+      if (view.look) pieces.push({ part, bounds: whole, look: view.look, rows: along, ...tint });
       continue;
     }
     const done = workSteps(view.work);
     if (view.look && done > 0) {
-      pieces.push({ part, bounds: workRect(part, frame, 0, done), look: view.look, rows: along });
+      const bounds = workRect(part, frame, 0, done);
+      pieces.push({ part, bounds, look: view.look, rows: along, ...tint });
     }
     if (view.before && done < 1) {
-      pieces.push({ part, bounds: workRect(part, frame, done, 1), look: view.before, rows: along });
+      const bounds = workRect(part, frame, done, 1);
+      pieces.push({ part, bounds, look: view.before, rows: along, ...tint });
     }
   }
   return pieces;
@@ -467,6 +478,8 @@ export interface PlantInstance {
   shade: number;
   /** Náhodné pořadí 0–1 – z dálky se kreslí jen trsy s nižším pořadím (řídnou rovnoměrně). */
   rank: number;
+  /** Násobek barvy trsu (sucho podle ochrany dílu); bez údaje beze změny. */
+  tint?: Rgb;
 }
 
 export interface FieldPlants {
@@ -544,7 +557,7 @@ export function fieldPlants(
     const done = view.work === null ? 1 : workSteps(view.work);
     const lookAt = (w: number): FieldLook | null =>
       view.work === null ? view.look : w < done ? view.look : view.before;
-    addCrops(plants, part, frame, lookAt, coverage);
+    addCrops(plants, part, frame, lookAt, coverage, view.tint);
     addStooks(plants, part, frame, lookAt, done, view.work !== null, coverage);
     addWeeds(plants, part, frame, lookAt, coverage);
   }
@@ -557,6 +570,7 @@ function addCrops(
   frame: WorkFrame,
   lookAt: (w: number) => FieldLook | null,
   coverage: (x: number, z: number) => number,
+  tint?: Rgb,
 ): void {
   const random = seededRandom(cellSeed(part, 0x9e37));
   const { along, across, half } = frame;
@@ -593,6 +607,7 @@ function addCrops(
         height: crop.height * size,
         shade,
         rank,
+        ...(tint ? { tint } : {}),
       });
     }
   }
