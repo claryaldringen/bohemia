@@ -234,8 +234,10 @@ kde to nestačí.
 ### Kdo
 
 - **Ze dvorce na koních** (Martin): vojvoda, jeho synové a vnuci od 14 let ve výcviku – na koni,
-  mají-li ho ([koně](horses.md) – kdo na kterém koni). Chlapci 10–13 let s koněm jedou jako
-  doprovod (polovina síly).
+  mají-li ho ([koně](horses.md) – kdo na kterém koni).
+- **Děti na lov nechodí** (Martin, 27. 10. 2026: „Děti na lov nechodí“): chlapci 10–13 let v den
+  lovu (kalendářního i navíc) cvičí doma jako jindy – jízda, luk a boj podle věku, objížďka polí.
+  Dřív jeli s koněm jako doprovod s polovinou síly (návrh Clauda, zrušeno).
 - **Ostatní pěšky s oštěpy a psy** (Martin): muži dvorce bez koně a **synové rodu, kteří po
   sňatku z dvorce odešli** a pracují jako rolníci ([vojvodova rodina](lord.md) – Synové po
   sňatku). Den lovu jim chybí v práci vsi (v zimě, kdy práce většinou propadá).
@@ -466,8 +468,9 @@ Martin: „Souhlasím se všemi návrhy“ – tři otázky z plánu jsou uzavř
 - **Zranění a smrt jen na lovu prasat a medvěda.** Jelen, zajíc a vlk nemají šanci ani na zranění,
   ani na smrt. Lov „na prasata a jeleny zároveň“ nese riziko prasete, pokud ve vsi nějaká prasata
   jsou.
-- **Děti na lovu nezahynou ani se nezraní** (chlapci-doprovod 10–13 let; návrh Clauda, čeká na
-  potvrzení Martina). Los smrti i zranění se losuje, ale týká se jen dospělých a starců.
+- **Děti na lovu nezahynou ani se nezraní** (chlapci-doprovod 10–13 let; návrh Clauda). Los smrti
+  i zranění se losuje, ale týká se jen dospělých a starců. Od 27. 10. 2026 děti na lov nechodí
+  vůbec (Martin – Lov rodu: Kdo), pravidlo zůstává jen jako pojistka.
 - **Zraněný vojvoda zůstává vojvodou**, jen 60 dní necvičí, neloví ani nepracuje (první den po
   zranění je den 1).
 - **Smrt před zraněním:** kdo při témže losu zahyne, zraněn není. Oba losy se losují vždy, ať

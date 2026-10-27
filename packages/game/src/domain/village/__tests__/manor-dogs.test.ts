@@ -26,9 +26,9 @@ describe('kolik psů dvorec chce', () => {
   });
 
   it('nejvýš 8 psů', () => {
-    expect(
-      dogsWanted({ manor: Array.from({ length: 12 }, () => ({}) as never), boys: [], away: [] }),
-    ).toBe(MANOR_DOGS.max);
+    expect(dogsWanted({ manor: Array.from({ length: 12 }, () => ({}) as never), away: [] })).toBe(
+      MANOR_DOGS.max,
+    );
   });
 });
 

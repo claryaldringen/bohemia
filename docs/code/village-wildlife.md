@@ -110,9 +110,12 @@ windowDays` (ozim 61, jař 92) denně na každý nesklizený ohrožený díl. Mi
 
 ## Psi dvorce a velký lov rodu (W4, `manor-dogs.ts`, `hunt.ts`, `hunt-party.ts`)
 
-- **Kdo může lovit** (`huntPool` v `hunt-party.ts`): muži cvičící rodiny od 14 let (`manor`), chlapci
-  10–13 let (`boys`, jen s koněm jako doprovod, síla ½) a odešlí synové rodu (`away`: `lineMen` mimo
-  dvorec, dospělí 14–44 let s `arms`) – jen pěšky. `dogsWanted` = počet lovců (`manor` + `away`) + 1,
+- **Kdo může lovit** (`huntPool` v `hunt-party.ts`): muži cvičící rodiny od 14 let (`manor`,
+  `HUNT.riderFromAge`) a odešlí synové rodu (`away`: `lineMen` mimo dvorec, dospělí 14–44 let
+  s `arms`) – jen pěšky. **Děti na lov nechodí** (Martin 27. 10. 2026) – ani na kalendářní lov, ani
+  na lov navíc; chlapci 10–13 let v den lovu cvičí doma jako jindy (`trainLordDay`) a jedou objížďku
+  (`lordRides`), scéna je mezi lovci nekreslí (čte jen `hunt.today`). Pojistka v `huntRisk`
+  (dítě nezahyne ani se nezraní) zůstává. `dogsWanted` = počet lovců (`manor` + `away`) + 1,
   nejvýš 8 (`MANOR_DOGS`).
 - **Psi:** `WildlifeState.dogs { count, fed }` vzniká hned (`dogsYear` zakládá smečku `wanted` psů, kdykoli ji ves nemá a má lovce;
   jednou, `dogs` pak existuje) a dál 1. 5. (`wildlifeYearDay`: −10 %, nakrmená smečka dostane nejvýš 2 štěňata do chtěného počtu). `feedDogs` (`simulate-food.ts`,
@@ -126,7 +129,7 @@ windowDays` (ozim 61, jař 92) denně na každý nesklizený ohrožený díl. Mi
   musí cvičit (`trainingFamily`). Jezdec = muž s koněm po `assignRiders` (nepodkutý kůň –
   `isUnshod` – nejezdí, všichni pěšky); jezdec jede jen když `ridesBetter` (příspěvek na prasata
   i jeleny podle `HUNT.base` ≥ pěšího se psem), jinak jde pěšky. Rodina na poli (`state.lord.field`)
-  neloví vůbec (`pool.manor`, `pool.boys` se přeskočí), odešlí synové ano; `huntDay` při
+  neloví vůbec (`pool.manor` se přeskočí), odešlí synové ano; `huntDay` při
   `lordFieldShare > 0` vyřadí i pěší muže dvorce. Cíl: **medvěd** (listopad, každý druhý lov, jen když je;
   všichni pěšky), **vlci** (aspoň 2 dny škod v `predation.killDays` za 30 dní, ≥ 1 vlk), jinak
   **prasata a jeleni zároveň**. Pěší jsou mimo `villagersToday` (`huntFootIds`) – nepracují.
@@ -161,7 +164,7 @@ backDay: bearBackDay(day) }`.
   přednost: `bury` + `removePeople`, událost `death { cause: 'hunt', prey }` (do štěstí jde přes
   `events` v `simulateDay`), mrtvý zmizí z `hunt.today`; nástupnictví a konec rodu řeší `dynastyDay`
   týž den. Zranění: `Person.injuredUntilDay = day + 1 + 60`, kronika `hunt-injury`.
-- **Zraněný** (`isInjured` v `people.ts`): `laborPerDay` 0, `huntPool` ho vynechá (`manor`, `boys`,
+- **Zraněný** (`isInjured` v `people.ts`): `laborPerDay` 0, `huntPool` ho vynechá (`manor`,
   `away`), `trainLordDay` ho přeskočí (necvičí ani nezapomíná), `lordRides` ho nevyvede na objížďku.
 - **Lov navíc:** `canDeclareHunt(state, day)` (`day` = dnešní odsimulovaný den, lov je zítra) vrací
   `null` nebo `'closed-season'` (zítra březen–květen, `HUNT.extra`), `'already'` (zítra je lov

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { cloneState } from '../clone';
 import { dogsYear, feedDogs } from '../manor-dogs';
-import { huntDay, huntSeasonIndex, planHuntDay } from '../hunt';
+import { emptyHunt, huntDay, huntSeasonIndex, planHuntDay } from '../hunt';
 import { huntFootIds } from '../hunt-party';
-import { updateLordTraining } from '../lord';
+import { lordRides, trainLordDay, updateLordTraining } from '../lord';
 import { villagersToday } from '../morning-water';
 import { advanceVillage } from '../simulate';
 import { HUNT, WILDLIFE_LAND } from '../rules-wildlife';
@@ -210,18 +210,41 @@ describe('lovci a výcvik (wildlife.md – Lov rodu: Kdo)', () => {
     expect(villagersToday(s, other, new Set()).villagers.some((p) => p.id === AWAY_ID)).toBe(true);
   });
 
-  it('chlapec 10–13 let s koněm jede jako doprovod, bez koně nejde', () => {
+  it('děti na lov nechodí: chlapec 11 let s koněm cvičí doma jako jindy (Martin 27. 10. 2026)', () => {
     const s = huntVillage(3, 3);
     const day = START_WINTER;
     updateLordTraining(s, day);
     planHuntDay(s, day);
     const t = s.wildlife!.hunt!.today!;
-    expect(t.riders.map((r) => r.personId).sort()).toEqual([LORD_ID, SON_ID, YOUTH_ID].sort());
+    expect(t.riders.map((r) => r.personId).sort()).toEqual([LORD_ID, SON_ID].sort());
+    expect(t.foot).not.toContain(YOUTH_ID);
+    // v den lovu jede chlapec objížďku a cvičí stejně jako ve všední den
+    expect(lordRides(s, day)?.riders.map((r) => r.riderId)).toEqual([YOUTH_ID]);
+    const plain = cloneState(s);
+    plain.wildlife!.hunt!.today = null;
+    huntDay(s, day, 0);
+    trainLordDay(s, day);
+    trainLordDay(plain, day);
+    const youth = (v: VillageState): Person => v.people.find((p) => p.id === YOUTH_ID)!;
+    expect(youth(s).arms).toEqual(youth(plain).arms);
+    // bez koně nejde ani pěšky
     const none = huntVillage(0, 0, false);
     updateLordTraining(none, day);
     planHuntDay(none, day);
     expect(none.wildlife!.hunt!.today?.riders).toHaveLength(0);
     expect(none.wildlife!.hunt!.today?.foot).not.toContain(YOUTH_ID);
+  });
+
+  it('děti nechodí ani na lov navíc', () => {
+    const s = huntVillage(3, 3);
+    const day = at(602, 7, 10);
+    s.wildlife!.hunt = { ...(s.wildlife!.hunt ?? emptyHunt()), extraDay: day };
+    updateLordTraining(s, day);
+    planHuntDay(s, day);
+    const t = s.wildlife!.hunt!.today!;
+    expect(t.extra).toBe(true);
+    expect(t.riders.map((r) => r.personId)).not.toContain(YOUTH_ID);
+    expect(t.foot).not.toContain(YOUTH_ID);
   });
 
   it('nepodkutý kůň nejezdí – všichni pěšky', () => {

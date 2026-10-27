@@ -138,10 +138,8 @@ export const HUNT = {
   /** Sezóna 1. 11. – konec února, každý 7. den od 1. 11. */
   season: { fromMonth: 11, toMonth: 2 },
   everyDays: 7,
-  /** Jezdec od 14 let; chlapec od 10 let s koněm jede jako doprovod (polovina síly). */
+  /** Lovec dvorce od 14 let; děti na lov nechodí (Martin 27. 10. 2026). */
   riderFromAge: 14,
-  escortFromAge: 10,
-  escortShare: 0.5,
   /** Síla jezdce: `riderPower ÷ 100 × (bowBase + bowPerSkill × luk ÷ 100)`. */
   bowBase: 0.5,
   bowPerSkill: 0.5,

@@ -10,13 +10,14 @@ import type { HuntDay, Person, VillageState } from './types';
 export interface HuntPool {
   /** Muži dvorce od 14 let (na koni, nebo pěšky). */
   manor: Person[];
-  /** Chlapci dvorce od 10 do 13 let – jedou jen s koněm, jako doprovod. */
-  boys: Person[];
   /** Synové rodu, kteří po sňatku odešli z dvorce a pracují jako rolníci – jen pěšky. */
   away: Person[];
 }
 
-/** Z koho se skládá lov dne (bez zraněných a bez koní – ty řeší `planHuntDay`). */
+/**
+ * Z koho se skládá lov dne (bez zraněných a bez koní – ty řeší `planHuntDay`). Děti na lov nechodí
+ * (Martin 27. 10. 2026) – chlapci dvorce do 13 let v den lovu cvičí doma jako jindy.
+ */
 export function huntPool(
   state: Pick<VillageState, 'people' | 'manorId' | 'dwellings' | 'constructions' | 'dynasty'>,
   day: number,
@@ -25,10 +26,6 @@ export function huntPool(
   const manorMen = new Set(family.trainees.map((p) => p.id));
   const fit = family.trainees.filter((p) => !isInjured(p, day));
   const manor = fit.filter((p) => ageYears(p.bornDay, day) >= HUNT.riderFromAge);
-  const boys = fit.filter((p) => {
-    const age = ageYears(p.bornDay, day);
-    return age >= HUNT.escortFromAge && age < HUNT.riderFromAge;
-  });
   const manorId = villageManorId(state);
   const away = lineMen(state).filter(
     (p) =>
@@ -38,7 +35,7 @@ export function huntPool(
       p.arms !== undefined &&
       !isInjured(p, day),
   );
-  return { manor, boys, away };
+  return { manor, away };
 }
 
 /** Kolik psů dvorec chce: 1 na lovce rodu + 1, nejvýš 8; bez lovců žádné. */

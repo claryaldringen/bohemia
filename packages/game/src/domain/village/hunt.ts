@@ -66,9 +66,9 @@ function wolvesTroubling(w: WildlifeState, day: number): boolean {
 
 /**
  * Lov dne (mutuje `hunt.today`; volá se ráno, po `updateLordTraining` a před `work()` – pěší lovci
- * jsou pak mimo práci vsi): kalendářní den (W5 doplní lov navíc), rodina cvičí. Jezdci jsou cvičící
- * muži s koněm (`assignRiders`; nepodkutý kůň nejezdí), chlapci 10–13 let s koněm jedou jako
- * doprovod; pěší jsou muži dvorce bez koně a odešlí synové rodu od 14 let. Na medvěda jdou všichni
+ * jsou pak mimo práci vsi): kalendářní den nebo lov navíc, rodina cvičí. Jezdci jsou cvičící muži
+ * od 14 let s koněm (`assignRiders`; nepodkutý kůň nejezdí); pěší jsou muži dvorce bez koně
+ * a odešlí synové rodu od 14 let. Děti na lov nechodí (Martin 27. 10. 2026). Na medvěda jdou všichni
  * pěšky. Cíl: medvěd (listopad, každý druhý lov), vlci (aspoň 2 dny škod za 30 dní), jinak
  * prasata a jeleni.
  */
@@ -97,30 +97,27 @@ export function planHuntDay(state: VillageState, day: number): void {
   const riders: HuntDay['riders'] = [];
   const foot: number[] = [];
   const onField = state.lord?.field !== undefined;
-  const mount = (p: Person, boy = false): boolean => {
+  const mount = (p: Person): boolean => {
     const horse = horseOf.get(p.id);
     if (target === 'bear' || !horse || !mounted.has(p.id)) return false;
     // slabý jezdec je na koni horší než pěšky se psem – pak jde pěšky a kůň zůstane (návrh Clauda)
-    if (!boy && !ridesBetter(p, horse, day)) return false;
+    if (!ridesBetter(p, horse)) return false;
     riders.push({ personId: p.id, horseId: horse.id });
     return true;
   };
   // rodina na poli kvůli hladu neloví (jen odešlí synové); vesnice ji potřebuje v práci
   if (!onField) {
     for (const p of pool.manor) if (!mount(p)) foot.push(p.id);
-    for (const p of pool.boys) mount(p, true);
   }
   for (const p of pool.away) foot.push(p.id);
   if (riders.length === 0 && foot.length === 0) return;
   hunt.today = { day, target, riders, foot, extra };
 }
 
-/** Síla jezdce (wildlife.md – Kolik): `riderPower ÷ 100 × (0,5 + 0,5 × luk ÷ 100)`, doprovod polovina. */
-function riderStrength(p: Person, horse: Horse, day: number): number {
+/** Síla jezdce (wildlife.md – Kolik): `riderPower ÷ 100 × (0,5 + 0,5 × luk ÷ 100)`. */
+function riderStrength(p: Person, horse: Horse): number {
   const bow = (p.arms?.bow ?? 0) / 100;
-  const full =
-    (riderPower({ arms: p.arms }, horse) / 100) * (HUNT.bowBase + HUNT.bowPerSkill * bow);
-  return ageYears(p.bornDay, day) >= HUNT.riderFromAge ? full : full * HUNT.escortShare;
+  return (riderPower({ arms: p.arms }, horse) / 100) * (HUNT.bowBase + HUNT.bowPerSkill * bow);
 }
 
 /** Síla pěšího: `(luk + boj) ÷ 200`, bez psa polovina. */
@@ -133,8 +130,8 @@ function footStrength(p: Person, withDog: boolean): number {
  * Vyplatí se jezdci kůň? Úlovek jezdce i pěšího se váží koeficienty `HUNT.base` (jezdec uloví z téže
  * síly víc), proto se porovnává příspěvek na prasata i jeleny, ne holá síla (návrh Clauda).
  */
-function ridesBetter(p: Person, horse: Horse, day: number): boolean {
-  const rider = riderStrength(p, horse, day);
+function ridesBetter(p: Person, horse: Horse): boolean {
+  const rider = riderStrength(p, horse);
   const foot = footStrength(p, true);
   const { boar, deer } = HUNT.base;
   return (
@@ -182,7 +179,7 @@ export function huntDay(state: VillageState, day: number, lordFieldShare = 0): C
     const p = people.get(r.personId);
     const horse = horses.get(r.horseId);
     if (!p || !horse) continue;
-    const value = riderStrength(p, horse, day);
+    const value = riderStrength(p, horse);
     riders += value;
     strengths.push({ id: p.id, value });
   }
@@ -317,7 +314,7 @@ export function huntRisk(
     const deathRoll = random.next();
     const p = people.get(id);
     if (!p) continue;
-    // děti (doprovod 10–13 let) na lovu nezahynou ani se nezraní (návrh Clauda)
+    // děti na lov nechodí (Martin 27. 10. 2026); kdyby se tam dítě dostalo, nezahyne ani se nezraní
     if (ageGroup(p, day) === 'child') continue;
     const combat = Math.min(100, Math.max(0, p.arms?.combat ?? 0));
     const injury = quarry === 'bear' ? rules.injury * (1 - combat / 200) : rules.injury;
