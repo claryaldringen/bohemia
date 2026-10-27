@@ -100,11 +100,13 @@ describe('clearingFireState – kdy hoří a doutná', () => {
     expect(clearingFireState({}, DAY + 0.1)).toEqual({ fire: 0, glow: 0, smoke: SMOLDER_SMOKE });
   });
 
-  it('dým paseky je hustší než z dýmníku a menší než z hranice; rozvrh ohně dýmníku nemá', () => {
+  it('dým paseky je hustší než z dýmníku a vystoupá nad koruny lesa; rozvrh ohně dýmníku nemá', () => {
     expect(plumeShape('slash')).toBe(SLASH_PLUME);
     expect(SLASH_PLUME.puffs).toBeGreaterThan(HEARTH_PLUME.puffs);
     expect(SLASH_PLUME.puffs).toBeLessThan(PYRE_PLUME.puffs);
-    expect(SLASH_PLUME.riseM).toBeLessThan(PYRE_PLUME.riseM);
+    // paseku v hustém lese zakryjí koruny (≈ 20–25 m) – dým musí být vidět nad nimi
+    expect(SLASH_PLUME.riseM).toBeGreaterThan(PYRE_PLUME.riseM);
+    expect(SLASH_PLUME.riseM).toBeGreaterThanOrEqual(30);
     expect(ventSmokeStrength('slash', 3, DAY + 0.5)).toBe(0);
   });
 });

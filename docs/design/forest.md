@@ -236,6 +236,17 @@ dobře vidět až na větším poli nebo u okraje lesa; plameny hromad zvětšen
 (z výšky hry se ztrácely), spálenina o odstín světlejší s výraznějším popelem; postavy stojí vedle
 ohně, ne v něm; kouř hustý a odnášený větrem.
 
+**Paseka za korunami** (návrh Clauda, 27. 10. 2026 – Martin: „Zatím pracuj na kováři
+a vizuálních drobnostech.“): kácí se už teď od kraje nejblíž vsi – čtverce od nejbližšího
+k obydlí (`clearingWorkOrder`) a stromy čtverce také (`fellingOrder`), paseka tedy roste od
+okraje lesa směrem od vsi. Zakrývají ji stromy **mimo pole** mezi kamerou a pasekou: v ukázce
+(řada čtverců na kraji lesa) se herní kamera dívá od lesa ke vsi a 20–25 m vysoké koruny skryjí
+pruh za sebou celý. Pořadí kácení podle kamery být nemůže (kamera je jen v prohlížeči, otáčí se
+a jádro o ní neví), změna pořadí by tedy nepomohla – jádro zůstává beze změny. Řešení ve scéně:
+**dým z pálení vystoupá vysoko nad koruny** (≈ 34 m místo 16 m, větší obláčky, déle žije), takže
+pálení je z herní výšky vidět i zpoza lesa; samotnou paseku hráč uvidí otočením kamery (Q / E)
+nebo až padnou stromy na straně ke kameře. Ohně zůstávají ve výšce člověka.
+
 **Mimo tento návrh:** stavby v lese (obydlí, dílny – Stavba v lese) se klučí dál naráz; vracení
 zarostlého přílohu (mladý les) beze změny; počasí – až přijde, pálí se jen za suchých dnů a déšť
 schnutí prodlouží; oheň, který přeskočí do lesa; zvuk praskání ohně; postavy a vozy, které vozí

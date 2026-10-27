@@ -146,13 +146,17 @@ export const PYRE_PLUME: PlumeShape = {
   size: { start: 1.1, end: 7 },
 };
 
-/** Pálení paseky – hustší sloupec než z dýmníku, menší než z hranice (hoří zelené chvojí). */
+/**
+ * Pálení paseky – hustší sloupec než z dýmníku (hoří zelené chvojí) a vyšší než z hranice: paseku
+ * v hustém lese z herní kamery zakryjí koruny stromů před ní (forest.md – Ověření klučení), dým
+ * proto vystoupá vysoko nad koruny (≈ 20–25 m) a rozvalí se – pálení je vidět i zpoza lesa.
+ */
 export const SLASH_PLUME: PlumeShape = {
-  puffs: 24,
-  lifeS: 13,
-  riseM: 16,
-  driftM: 8,
-  size: { start: 0.9, end: 5.2 },
+  puffs: 28,
+  lifeS: 18,
+  riseM: 34,
+  driftM: 13,
+  size: { start: 1.2, end: 9 },
 };
 
 /** Tvar sloupce dýmu podle druhu zdroje. */
