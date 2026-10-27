@@ -26,7 +26,7 @@ import {
 
 const HAYSTACK_URL = '/models/fields/haystack.glb';
 /** Sláma je světlejší a zlatější než seno (HAY_TINT ve field-renderer.ts). */
-const STRAW_TINT = new Color3(0.95, 0.82, 0.5);
+const STRAW_TINT = new Color3(1.0, 0.78, 0.34);
 /** Pata stohu je o kousek zapuštěná – na svahu nevisí (m). */
 const SINK_M = 0.06;
 

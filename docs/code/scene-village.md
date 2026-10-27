@@ -249,7 +249,7 @@ nepoužívaly (Martin 21. 10. 2026: „ať do něj mlátí holemi“). Místa js
   hromádka zrna (`GRAIN_HEAP`, `grainHeapScale` podle kg) – hromady a klasy jsou jedna síť
   s barvami vrcholů (`threshingFloorGeometry`, bez textury); stoh slámy (`STRAW_STACK` v zadním
   rohu) je kupka `models/fields/haystack.glb` (0 A.D., licence v `models/fields/LICENSES.md`)
-  do zlata, v instancích, nižší a užší, když ubývá. Přestaví se jen při změně, kterou je vidět
+  do zlata (`STRAW_TINT` – teplejší, aby kupka nebyla do zelena), v instancích, nižší a užší, když ubývá. Přestaví se jen při změně, kterou je vidět
   (`threshingFloorsKey`).
 - **Postavy** (`villager-plan-fields.ts`): klipy `thresh` (mlatcí hůl `procedural_stick` ≈ 1,2 m,
   animace `gather_mine` z 0 A.D. – úder oběma rukama shora) a `winnow` (dřevěná lopata
@@ -278,7 +278,14 @@ Dvůr dílny je jedna síť s barvami vrcholů bez textury (`craft-yard-layout.t
 změně, kterou je vidět (`craftYardsKey`), a nevrhá stín (jako hromady humna). Místa jsou v osách
 modelu dílny (x napříč, z k vchodu – jako `PORCH_SPOTS`), s variantou rozměrů domu se posunou
 (`shapedToWorld`), a leží ve vyklízené ploše dílny (`DWELLING_CLEARING_M` – před vchodem do 7,5 m;
-hlídá test).
+hlídá test). Klíč zná z práce dne jen tavbu (pec se mění jen při ní), žár pece sedí nad
+`decalHeight` jako síť.
+
+- **Pěšiny**: obdélník hotové kovárny a hrnčíře pro pěšiny zahrne dvůr (`WORKSHOP_YARD_PATH_BOX_M`
+  v `network-grid.ts` – `dwellingBox`, test v `craft-yard-layout.test.ts`), brána leží před dvorem
+  a od vchodu se k ní chodí osou mezi pecí a jámou; pěšina tak nevede přes pec ani jámu ani po
+  zjednodušení čáry (dřív ji `SIMPLIFY_M` uřízl přes roh jámy). Kontrola umístění se ptá stejné
+  brány (`GateOwner.craft`), `WALK_VERSION` `routes-v6`.
 
 - **Data** (`SceneVillage.dwellings[].yard` – `SceneCraftYard`, village-crafts.md – Kovář):
   `task` (`smelt` tavba / `refine` překování / `forge` kování nástrojů), `bellows` (měchař u tavby),
@@ -294,7 +301,8 @@ hlídá test).
   (1 / 3 / 5 vrstev po třech) pod přístřeškem u levé stěny (`BAR_PILE`). Při překování a kování
   kouří výheň (`workshopSmokes`).
 - **Postavy** (`craftsmen` ve `villager-plan-crafts.ts`): při tavbě kovář sype rudu a uhlí z koše
-  do hrdla (`smeltSpots` – klip `seed`, čelem k peci), měchař klečí u měchu (`weed`) – dospělý
+  do hrdla (`smeltSpots` – klip `seed`, šikmo zpředu od houby čelem k peci, uvnitř vyklízené
+  plochy), měchař klečí u měchu (`weed`) – dospělý
   z podílu dílny, syn 10–13 z vlastního podílu `craft` s věkem (bere ho z rosteru podle věku);
   kovář sám jen u pece. Při překování a kování kovář u kovadliny s kladivem (klip `build` –
   palička z 0 A.D. `build.dae`), další u měchů výhně a u koryta. Postavy bez nového klipu ani
