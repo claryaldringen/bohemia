@@ -200,6 +200,16 @@ describe('den krupobití', () => {
     expect(hailDay(state, HAIL_DAY, null)).not.toBeNull();
   });
 
+  it('záznam krupobití se smaže až v dalším roce (pruh i jablka do konce roku)', () => {
+    const state = village();
+    forceHail(state, HAIL_DAY);
+    hailDay(state, HAIL_DAY, null);
+    hailDay(state, at(510, 12, 31), null);
+    expect(state.disasters?.hail).toBeDefined();
+    hailDay(state, at(511, 1, 1), null);
+    expect(state.disasters?.hail).toBeUndefined();
+  });
+
   it('požár v rámci místních pohrom dál funguje', () => {
     const state = village();
     state.disasters = { override: { fire: { [HAIL_DAY]: state.dwellings[0]!.id } } };

@@ -43,6 +43,34 @@ export function floodToday(
   return flood;
 }
 
+/**
+ * Hloubka dílu = průměr hloubky přes všechny jeho čtverce, nezatopený čtverec (hloubka ≤ 0)
+ * počítá 0; díl s průměrem 0 v mapě není.
+ */
+export function meanPartDepths(
+  samples: readonly { partId: number; depth: number }[],
+): Map<number, number> {
+  const sums = new Map<number, { sum: number; count: number }>();
+  for (const { partId, depth } of samples) {
+    const acc = sums.get(partId) ?? { sum: 0, count: 0 };
+    acc.sum += Math.max(0, depth);
+    acc.count += 1;
+    sums.set(partId, acc);
+  }
+  const out = new Map<number, number>();
+  for (const [id, { sum, count }] of sums) if (sum / count > EPSILON) out.set(id, sum / count);
+  return out;
+}
+
+/**
+ * Úklid záznamu `disasters.flood`: scéna ho čte jen po dobu stání vody (`FLOOD.standDays` dní
+ * po dni povodně), pak se smaže. Ztráty úrody jsou jinde (`disasters.losses`).
+ */
+function pruneFloodRecord(state: VillageState, day: number): void {
+  const record = state.disasters?.flood;
+  if (record && day > record.day + FLOOD.standDays) delete state.disasters!.flood;
+}
+
 /** Hloubka vody (m) nad bodem světa; mimo mapu a bez vody v mapě 0. */
 function depthAt(landscape: Landscape, heightM: number, x: number, z: number): number {
   return Math.max(0, heightM - heightAboveStreamAt(landscape, x, z));
@@ -50,7 +78,7 @@ function depthAt(landscape: Landscape, heightM: number, x: number, z: number): n
 
 /**
  * Den povodně (disasters.md – Povodeň potoka): ves bez krajiny (kalibrace, testy – žádné výšky)
- * a nová ves (5 let) nic. V den vody kraje zatopí políčka pod její výškou: nesklizená úroda
+ * a nová ves (5 let) nic – kromě vynucené vody. V den vody kraje zatopí políčka pod její výškou: nesklizená úroda
  * a ozim dílů (`disasters.losses.flood`), nesečené louky, naplavenina zvedne úrodnost dílu, do jam
  * zateče, stavby ztratí stav (zemnice se v hluboké vodě zřítí) a od pětisetleté vody může umřít
  * obyvatel zatopeného obydlí. Mutuje stav, vrátí zápisy do kroniky (nic nezatopeno – nic).
@@ -60,18 +88,22 @@ export function floodDay(
   day: number,
   landscape: Landscape | null,
 ): ChronicleEvent[] {
+  pruneFloodRecord(state, day);
   if (!landscape) return [];
   const flood = floodToday(state, day);
-  if (!flood || inDisasterProtection(state.foundedDay, day)) return [];
+  if (!flood) return [];
+  // vynucená voda (dev, testy) ochranu nové vsi přebije jako vynucené kroupy a požár
+  const forced = state.disasters?.override?.weather?.[dateOfDayIndex(day).year]?.flood;
+  if (!forced && inDisasterProtection(state.foundedDay, day)) return [];
   const above = streamHeights(landscape);
-  // díly polí – hloubka podle políčka, které díl zabírá
-  const partDepth = new Map<number, number>();
+  // díly polí – hloubka = průměr přes všechny čtverce dílu (nezatopený čtverec 0)
+  const samples: { partId: number; depth: number }[] = [];
   for (const sq of villageLandSquares(landscape, state, ['field'])) {
     if (sq.partId === undefined) continue;
     const tile = sq.tile ?? tileIndex(landscape, sq.center.x, sq.center.z);
-    const depth = tile < 0 ? 0 : flood.heightM - above[tile]!;
-    if (depth > EPSILON) partDepth.set(sq.partId, depth);
+    samples.push({ partId: sq.partId, depth: tile < 0 ? 0 : flood.heightM - above[tile]! });
   }
+  const partDepth = meanPartDepths(samples);
   floodCrops(state, day, flood, partDepth);
   const meadowShare = damageUnmownMeadows(state, day, (span) => {
     if (span.partId !== undefined)

@@ -58,6 +58,17 @@ function hailPlanOf(state: VillageState, day: number): Omit<HailPlan, 'day'> | n
   return plan && plan.day === day ? plan : null;
 }
 
+/**
+ * Úklid záznamu `disasters.hail`: pruh čte scéna a podíl jablek (`applesAfterHail`) jen v roce
+ * krupobití, od 1. 1. dalšího roku se smaže.
+ */
+function pruneHailRecord(state: VillageState, day: number): void {
+  const record = state.disasters?.hail;
+  if (record && dateOfDayIndex(record.day).year < dateOfDayIndex(day).year) {
+    delete state.disasters!.hail;
+  }
+}
+
 /** Střed vsi – průměr poloh obydlí a dílen; bez staveb null. */
 function villageCenter(state: VillageState): { x: number; z: number } | null {
   if (state.dwellings.length === 0) return null;
@@ -81,6 +92,7 @@ export function hailDay(
   day: number,
   landscape: Landscape | null,
 ): ChronicleEvent | null {
+  pruneHailRecord(state, day);
   const plan = hailPlanOf(state, day);
   if (!plan) return null;
   const center = villageCenter(state);

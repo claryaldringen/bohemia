@@ -226,13 +226,15 @@ vody, P1) v `rules-disasters.ts`.
 
 - **Voda kraje** – `floodToday(state, day)`: stupeň, výška, jaro / léto a den z
   `weatherOf(state, year).flood` (P1 – `yearWeather`, vynucená `disasters.override.weather`). Dvě
-  vsi téže mapy mají stejnou vodu týž den; škody počítá každá ves sama. Vynucená voda je počasí
-  kraje, ne místní pohroma – ochranu nové vsi **nepřebije** (na rozdíl od `override.hail`, `.fire`).
+  vsi téže mapy mají stejnou vodu týž den; škody počítá každá ves sama. Vynucená voda
+  (`override.weather[rok].flood`) ochranu nové vsi **přebije** stejně jako `override.hail`, `.fire`
+  (dev, testy); povodeň z rozpisu ji nepřebije.
 - **Kdy nic** – `floodDay(state, day, landscape)`: bez krajiny (kalibrace, testy – žádné výšky),
   ves bez `weatherSeed` bez vynucené vody (zlaté otisky) a nová ves (`inDisasterProtection`, 5 let).
 - **Hloubka** – výška vody − výška políčka nad potokem (`streamHeights` z `part-protection.ts`,
   `heightAboveStreamAt` pro bod světa; mapa bez vody = nekonečno). Díly podle políčka čtverce
-  (`villageLandSquares`), stavby a jámy podle svého středu. Pásmo `floodBand`: do 0,5 m, 0,5–1,5 m,
+  (`villageLandSquares`) – hloubka dílu je **průměr přes jeho čtverce**, nezatopený čtverec = 0
+  (`meanPartDepths`; návrh Clauda); stavby a jámy podle svého středu. Pásmo `floodBand`: do 0,5 m, 0,5–1,5 m,
   nad 1,5 m. Krajina se nemění.
 - **Úroda** – nesklizené plodiny (`season.crops`, `harvestedKg === null`): letní voda ×0,7 / 0,3 /
   0, jarní jen ozim ×0,85 / 0,5 / 0,2 (jařiny se v březnu teprve sejí – návrh Clauda). Do
@@ -252,6 +254,10 @@ vody, P1) v `rules-disasters.ts`.
 - **Úmrtí** – od 3 m (pětisetletá a tisíciletá) každý obyvatel zatopeného obydlí s šancí 2 %
   (proud `'flood-death:' + day`, obydlí a lidé podle id) – `death` s `cause: 'flood'`, pohřeb,
   nástupnictví `dynastyDay`. Úmrtí se losují před poškozením staveb.
+- **Úklid záznamů** – `disasters.flood` se maže na začátku `floodDay`, když `den > den povodně +
+  FLOOD.standDays` (3 dny stání vody, scéna ho čte jen do té doby; ztráty úrody jsou v
+  `disasters.losses`). `disasters.hail` (pruh pro scénu, `apples` pro `applesAfterHail`) se maže na
+  začátku `hailDay` od 1. 1. roku následujícího po krupobití – jablka a pruh platí celý rok.
 - **Kronika** – `flood` (`level`, `heightM`, `partIds` zatopených dílů, `dwellingIds`,
   `collapsedDwellingIds`, `meadowShare`, `lostGrainKg`) jen když vsi něco zatopila; poslední
   taková voda v `disasters.flood` (den, stupeň, výška – pro scénu, voda stojí `FLOOD.standDays`).

@@ -14,7 +14,7 @@ import type { VillageState } from './types-state';
  * v pevném pořadí smršť (P9 – zatím není), kroupy, povodeň, požár – požár nastaví `disasters.fireFight`,
  * takže `villagersToday` a `work()` dnes vidí dospělé u hašení. Běží po `damageWindowStart`, před
  * `startPurchases` a `work()`. Ves bez počasí kraje (zlaté otisky) a nová ves (5 let) nic – kromě
- * vynucené pohromy. Mutuje stav, vrátí zápisy do kroniky (u povodně i úmrtí).
+ * vynucené pohromy (kroupy, povodeň, požár). Mutuje stav, vrátí zápisy do kroniky (u povodně i úmrtí).
  */
 export function localDisastersDay(
   state: VillageState,

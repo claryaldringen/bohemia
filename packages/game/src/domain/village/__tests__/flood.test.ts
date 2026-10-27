@@ -4,7 +4,7 @@ import { packObstacles, type Landscape, type Surface } from '../../landscape';
 import { foundVillage } from '../actions';
 import { dayPartLosses } from '../disasters';
 import { endOfSeason } from '../fields';
-import { floodBand, floodDay, floodToday } from '../flood';
+import { floodBand, floodDay, floodToday, meanPartDepths } from '../flood';
 import { grainPitSites } from '../grain-pit-site';
 import { localDisastersDay } from '../local-disasters';
 import { heightAboveStreamAt } from '../part-protection';
@@ -323,17 +323,45 @@ describe('kraj, ochrana a determinismus', () => {
     expect(high.parts[0]!.fertilityShare).toBe(1);
   });
 
-  it('nová ves (5 let) nic, ani při vynucené vodě; bez krajiny nic', () => {
+  it('nová ves (5 let) nic z rozpisu, vynucená voda ochranu přebije; bez krajiny nic', () => {
     const young = village(7, at(507, 9, 2));
     young.parts = [part(1, 57)];
     forceFlood(young, 'thousand');
-    const before = structuredClone(young);
-    expect(floodDay(young, FLOOD_DAY, landscape)).toEqual([]);
-    expect(young).toEqual(before);
+    const events = floodDay(young, FLOOD_DAY, landscape);
+    expect(events[0]).toMatchObject({ kind: 'flood', level: 'thousand' });
+    expect(young.disasters?.losses?.flood).toBeUndefined(); // bez sezóny není co ztratit
+    expect(young.disasters?.flood?.day).toBe(FLOOD_DAY);
+    const natural = village(7, at(507, 9, 2));
+    natural.parts = [part(1, 57)];
+    expect(floodDay(natural, FLOOD_DAY, landscape)).toEqual([]);
     const flat = village();
     flat.parts = [part(1, 57)];
     forceFlood(flat, 'thousand');
     expect(floodDay(flat, FLOOD_DAY, null)).toEqual([]);
+  });
+
+  it('záznam povodně se smaže po dnech stání, dřív zůstává', () => {
+    const s = village();
+    s.parts = [part(1, 57)];
+    forceFlood(s, 'hundred');
+    floodDay(s, FLOOD_DAY, landscape);
+    expect(s.disasters?.flood).toBeDefined();
+    floodDay(s, FLOOD_DAY + FLOOD.standDays, landscape);
+    expect(s.disasters?.flood).toBeDefined();
+    floodDay(s, FLOOD_DAY + FLOOD.standDays + 1, landscape);
+    expect(s.disasters?.flood).toBeUndefined();
+  });
+
+  it('hloubka dílu je průměr přes čtverce, nezatopené počítají 0', () => {
+    const depths = meanPartDepths([
+      { partId: 1, depth: 2 },
+      { partId: 1, depth: -1 },
+      { partId: 1, depth: 0 },
+      { partId: 1, depth: 1 },
+      { partId: 2, depth: -3 },
+    ]);
+    expect(depths.get(1)).toBeCloseTo(0.75, 9);
+    expect(depths.has(2)).toBe(false);
   });
 
   it('ves bez seedu počasí nemá vodu – beze změny', () => {
@@ -348,7 +376,7 @@ describe('kraj, ochrana a determinismus', () => {
 
   it('vcelku = po kouscích přes den povodně', () => {
     const start = at(510, 7, 1);
-    const end = at(510, 7, 20);
+    const end = at(510, 7, 12);
     const make = (): VillageState => {
       const s = village(7, FOUNDED, 64, [{ id: 902, tx: 58, type: 'polozemnice' }]);
       s.parts = [part(1, 57), part(2, 58), part(3, 64)];
