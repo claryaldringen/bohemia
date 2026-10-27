@@ -90,9 +90,11 @@ describe('postup po čtvercích', () => {
     expect(levels).toEqual([...levels].sort((a, b) => b - a));
     expect(states).toContain('plowed');
     expect(states).toContain('stubble');
-    // díly přibývají den po dni – čerstvě založené díly (holá zem) ještě čekají jako strniště
+    // díly přibývají den po dni – čerstvě založené díly (holá zem) ještě čekají jako strniště;
+    // podíl dílů od podílu práce nejvýš o rozpracovaný díl (osivo ze zásob s přídělem 0,75 –
+    // menší ozim, jeden díl váží víc)
     const dug = states.filter((x) => x === 'sown' || x === 'plowed').length / states.length;
-    expect(dug).toBeCloseTo(taskPosition(winter, 'dig'), 1);
+    expect(Math.abs(dug - taskPosition(winter, 'dig'))).toBeLessThan(1 / states.length + 0.01);
     // čelo kopání: fieldFrontiers a rozpracovaný díl s podílem práce a vzhledem zbytku
     const frontier = frontierPart(winter, byId(s), 'dig', s.lastDay)!;
     expect(fieldFrontiers(s, s.lastDay).get(frontier)).toContain('dig');

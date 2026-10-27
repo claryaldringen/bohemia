@@ -217,8 +217,7 @@ export interface CropWork {
   /**
    * Osivo, které ves pro plodinu vzala ze zásob při setí (kg – fields.md, Úroda, Osivo ze zásob;
    * Martin 27. 10. 2026): roste se zasetým podílem, sklizeň pak osivo neodečítá. Chybí = práce
-   * z doby před osivem ze zásob (převod) – setí zásoby nebere a sklizeň osivo zasetého podílu
-   * odečte postaru (jednou – sklizeň plodiny je jen jedna).
+   * z doby před osivem ze zásob – převod (`withSeedForgiven`) jí osivo zaseté části odpustí.
    */
   seedKg?: number;
   /**

@@ -174,15 +174,15 @@ describe('harvestKg', () => {
   it('vše hotové – osivo vzalo setí, sklizeň ho neodečítá (fields.md – Úroda, Osivo ze zásob)', () => {
     expect(harvestKg(springCrop(finished(plan)), [part()], day)).toBeCloseTo(623.2, 1);
   });
-  it('práce z doby před osivem ze zásob (bez seedKg) odečte osivo postaru – jen zasetý podíl', () => {
+  it('práce z doby před osivem ze zásob (bez seedKg) osivo neodečte – převod ho odpustil', () => {
     const legacy = { ...springCrop(finished(plan)) };
     delete legacy.seedKg;
-    expect(harvestKg(legacy, [part()], day)).toBeCloseTo(448.2, 1);
+    expect(harvestKg(legacy, [part()], day)).toBeCloseTo(623.2, 1);
     const legacyHalf = {
       ...springCrop(withDone(plan, { dig: 50, sow: 5, weed: 4, harvest: 25 })),
     };
     delete legacyHalf.seedKg;
-    expect(harvestKg(legacyHalf, [part()], day)).toBeCloseTo(623.2 * 0.5 - 175 * 0.5, 1);
+    expect(harvestKg(legacyHalf, [part()], day)).toBeCloseTo(623.2 * 0.5, 1);
   });
   it('bez pletí dá 60 %', () => {
     const p = {

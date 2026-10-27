@@ -3,8 +3,8 @@
 // (ozim, jař, obilí nad potřebu) ze zásob obilí, luštěniny ze zásob luštěnin, len seje semeno
 // z vlastní úrody. Sklizeň pak osivo neodečítá. Ves dá do země jen zrno nad jídlo na příděl
 // do žní (SEED_STORES – osivo do roční potřeby má přednost) a osivo, které na setí ještě čeká,
-// nejí, dokud by příděl do žní neklesl pod tytéž prahy (`seedReserve`). Práce z doby před osivem ze zásob (`CropWork.seedKg`
-// chybí) zásoby nebere a osivo odečte postaru sklizeň.
+// nejí, dokud by příděl do žní neklesl pod tytéž prahy (`seedReserve`). Práce z doby před osivem
+// ze zásob (`CropWork.seedKg` chybí) má zasetou část odpuštěnou – převod `withSeedForgiven`.
 import { villageFoodNeed } from './diet';
 import { winterEstimateLosses } from './disasters';
 import { fieldFoodShare } from './field-food';
@@ -45,6 +45,29 @@ export function workSeedKg(
     if (part) parts.push(part);
   }
   return partsSeedKg(parts, crop);
+}
+
+/**
+ * Převod (fields.md – Osivo ze zásob, Převod; návrh Clauda): práce z doby před osivem ze zásob
+ * (`CropWork.seedKg` chybí) má osivo zaseté části odpuštěné – sklizeň ho neodečte a ves ho
+ * nezaplatí dvakrát (postaru při sklizni a novým osevem ze zásob). Nezasetá část vezme osivo ze
+ * zásob při setí jako nový plán. Jednou, idempotentně: plán, kde ho mají všechny práce, se nemění.
+ */
+export function withSeedForgiven(state: VillageState): VillageState {
+  const season = state.season;
+  if (!season || season.crops.every((work) => work.seedKg !== undefined)) return state;
+  const partsById = new Map(state.parts.map((p) => [p.id, p]));
+  return {
+    ...state,
+    season: {
+      ...season,
+      crops: season.crops.map((work) =>
+        work.seedKg !== undefined
+          ? work
+          : { ...work, seedKg: sownShare(work) * workSeedKg(work, partsById, work.crop) },
+      ),
+    },
+  };
 }
 
 function storeKg(state: Pick<VillageState, 'storesKg' | 'legumesKg'>, store: SeedStore): number {

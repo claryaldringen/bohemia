@@ -208,7 +208,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 
 - **Osivo ze zásob** (fields.md – Úroda, Osivo ze zásob; Martin 27. 10. 2026): `seed.ts`.
   `CropWork.seedKg` = osivo vzaté ze zásob (`createCropWork` dá 0; chybí = práce z doby před
-  změnou – převod: setí nebere, `harvestKg` odečte osivo zaseté části postaru). Polní úlohy
+  změnou – převod `withSeedForgiven` v `advanceVillage` jí dá `seedKg` = zasetý podíl × osivo
+  plánu, tj. osivo zaseté části odpustí; `harvestKg` osivo neodečítá nikdy). Polní úlohy
   (`fieldTasks` v `simulate-work.ts`) omezí setí na `seedSowCap` (zasetý podíl ≤ (vzaté +
   `sowableSeedKg`) / osivo plánu); po práci `takeSeed` vezme osivo zasetého podílu (obilí ze
   `storesKg` + `drawGrainPits`, luštěniny z `legumesKg`, chybějící luštěniny za obilí). Obilí nad

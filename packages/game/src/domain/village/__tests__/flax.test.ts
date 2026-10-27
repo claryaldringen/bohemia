@@ -182,7 +182,9 @@ describe('len napřed – výběr s kapacitou (do Úlohy 5 pro páry k rádlům)
     // 165:82576eb1 (27. 10. 2026, osivo ze zásob při setí – fields.md, Úroda, Osivo ze zásob):
     // setí bere osivo ze zásob, výhled zásob k sklizni odečte osivo, které na setí čeká, a ves ho
     // nejí – jiné zásoby k 1. 9. a jiný plán osevu; dřív 161:edeabe8e
-    expect(fingerprint(plans)).toBe('165:82576eb1');
+    // 163:73d7b124 (27. 10. 2026, SEED_STORES.floorRation 0,6 → 0,75 – fields.md, Osivo ze zásob):
+    // ves pod pojistkou seje osivo do roční potřeby jen nad příděl 0,75 – menší osev; dřív 165:82576eb1
+    expect(fingerprint(plans)).toBe('163:73d7b124');
   });
 });
 

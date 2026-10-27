@@ -1435,21 +1435,24 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
     obilí, luštěniny ze zásob luštěnin; luštěnin, které chybí, ves vymění u sousedů za obilí.
     Sklizeň osivo neodečítá. Ves zaseje jen tolik dílů, na kolik má osivo.
   - **Kolik si ves nechá na jídlo:** osivo na díly **do roční potřeby z pole** má přednost před
-    jídlem – ves ho dá do země, i když pak šetří, dokud jí do žní zbude zrno na **příděl 0,6**
-    potřeby z pole (raději půl roku šetří, než by příští rok neměla co sklidit). Osivo **nad roční
+    jídlem – ves ho dá do země, i když pak šetří, dokud jí do žní zbude zrno na **příděl 0,75**
+    potřeby z pole (raději šetří, než by příští rok neměla co sklidit – ale pod tři čtvrtiny
+    přídělu raději jí; z 0,6 – kalibrace Vlkova 27. 10. 2026, návrh Clauda, viz
+    [pohromy](disasters.md) – Kalibrace). Osivo **nad roční
     potřebu** (doplnění pojistky, obilí nad potřebu) jen ze zrna, které ves do žní nesní (příděl
     **1**). Potřeba z pole podle většího z dlouhodobého podílu pole ve stravě a včerejší stravy (po
     úbytku stád jí ves obilí víc).
   - **Osivo se šetří, v hladu se sní:** osivo dílů v plánu, které na setí čeká (i vybraných dílů,
     které na čelo práce teprve přijdou), ves nejí – jen dokud by příděl do žní neklesl pod tytéž
-    prahy (0,6 do roční potřeby, 1 nad ni); pod nimi ho sní.
+    prahy (0,75 do roční potřeby, 1 nad ni); pod nimi ho sní.
   - **Plán osevu** počítá zásoby k příští sklizni bez osiva, které ještě čeká na setí – díly se
     dál hodnotí čistou úrodou (hrubá − osivo), jako by osivo dalšího osevu odložila sklizeň;
     zásoby před žněmi tak drží cíl i s osivem v zemi.
-  - **Převod:** práce plodiny z doby před touto změnou (díly zaseté postaru) zásoby při setí
-    nebere a osivo zaseté části odečte sklizeň – jednou (sklizeň plodiny je jen jedna).
-    Důsledek (Vlkov): rok po převodu ves platí osivo dvakrát – za starý plán při sklizni a za nový
-    při setí – a ≈ 2 roky šetří (nejnižší příděl 0,67), viz [pohromy](disasters.md) – Kalibrace.
+  - **Převod** (návrh Clauda, 27. 10. 2026): práce plodiny z doby před touto změnou má osivo
+    **zaseté části odpuštěné** – sklizeň ho neodečte; nezasetá část vezme osivo ze zásob při setí
+    jako nový plán. Jednou, idempotentně (při načtení vsi). Dřív zaseté díly odečetly osivo
+    postaru při sklizni a nový osev ho vzal ze zásob – ves tak rok po převodu platila osivo
+    dvakrát a ≈ 2 roky šetřila (Vlkov: 333 a 281 dní, nejnižší příděl 0,67).
 - Úroda se sníží podle nedodělané práce (pletí, sklizeň, odnos – viz Včasnost).
 - **Úrodnost:** osetý rok sníží aktuální úrodnost dílu o 12 % přirozené, rok v přílohu ji
   o 5 % přirozené vrátí (od 26. 10. 2026, dřív 2,5 %), nejvýš na přirozenou (viz Přílohová soustava).

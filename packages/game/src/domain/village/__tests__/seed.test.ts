@@ -10,6 +10,7 @@ import {
   seedSowCap,
   sowableSeedKg,
   takeSeed,
+  withSeedForgiven,
   workSeedKg,
 } from '../seed';
 import { advanceVillage } from '../simulate';
@@ -20,7 +21,7 @@ import { createCropWork, harvestKg, seasonCrop, seasonCrops, sownShare } from '.
 
 // Osivo ze zásob při setí (fields.md – Úroda, Osivo ze zásob; Martin 27. 10. 2026: „Osivo ze
 // zásob při setí“): setí bere osivo ze zásob v den setí dílu, sklizeň ho neodečítá; práce
-// z doby před tím (bez `seedKg`) osivo odečte postaru při sklizni – jednou.
+// z doby před tím (bez `seedKg`) má osivo zaseté části odpuštěné (převod – návrh Clauda).
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
 const POSITION = { x: 0, z: 0, rotation: 0 };
@@ -124,25 +125,57 @@ describe('osivo ze zásob při setí (fields.md – Úroda, Osivo ze zásob)', (
     expect(harvestKg(work, s.parts, at(601, 7, 31), 'spring')).toBeCloseTo(gross, 6);
   });
 
-  it('převod: práce bez seedKg zásoby nebere a sklizeň osivo odečte jednou', () => {
+  it('převod: práce bez seedKg má osivo zaseté části odpuštěné – jednou, idempotentně', () => {
     const { s, work } = withWinter(4, 1000);
     delete work.seedKg;
-    for (const task of Object.keys(work.required) as (keyof CropWork['done'])[]) {
-      work.done[task] = work.required[task];
+    const total = 4 * PART_HA * SEED_KG_PER_HA;
+    // postaru zaseta polovina
+    work.done.sow = work.required.sow / 2;
+    const before = JSON.stringify(s);
+    const forgiven = withSeedForgiven(s);
+    // vstupní stav se nemění, zásoby osivo zaseté části nezaplatí
+    expect(JSON.stringify(s)).toBe(before);
+    expect(forgiven.storesKg).toBe(1000);
+    const converted = seasonCrop(forgiven.season!, 'winter')!;
+    expect(converted.seedKg).toBeCloseTo(total / 2, 9);
+    // idempotentní – převedený plán se nemění
+    expect(withSeedForgiven(forgiven)).toBe(forgiven);
+    // nezasetá polovina vezme osivo ze zásob při setí jako nový plán
+    converted.done.sow = converted.required.sow;
+    expect(takeSeed(forgiven, converted, 'winter', byId(forgiven))).toBeCloseTo(total / 2, 9);
+    expect(forgiven.storesKg).toBeCloseTo(1000 - total / 2, 9);
+    // sklizeň osivo neodečte (ani u práce, která převodem neprošla)
+    for (const task of Object.keys(converted.required) as (keyof CropWork['done'])[]) {
+      converted.done[task] = converted.required[task];
     }
-    expect(takeSeed(s, work, 'winter', byId(s))).toBe(0);
-    expect(s.storesKg).toBe(1000);
-    expect(seedSowCap(work, 'winter', byId(s), { grain: 0, legumes: 0 })).toBe(Infinity);
-    const net = (grossYieldPerHa(70) - SEED_KG_PER_HA) * 4 * PART_HA;
+    const gross = grossYieldPerHa(70) * 4 * PART_HA;
     const day = at(601, 7, 31);
-    expect(harvestKg(work, s.parts, day, 'spring')).toBeCloseTo(net, 6);
+    expect(harvestKg(converted, forgiven.parts, day, 'spring')).toBeCloseTo(gross, 6);
+    const legacy: CropWork = { ...converted };
+    delete legacy.seedKg;
+    expect(harvestKg(legacy, forgiven.parts, day, 'spring')).toBeCloseTo(gross, 6);
     // sklizeň do snopů jen jednou – druhé volání nic nepřidá (harvestedKg)
-    s.lastDay = day - 1;
-    harvestWinter(s, day);
-    const sheaves = villageSheaves(s).grainKg + s.storesKg;
-    expect(work.harvestedKg).not.toBeNull();
-    harvestWinter(s, day);
-    expect(villageSheaves(s).grainKg + s.storesKg).toBeCloseTo(sheaves, 9);
+    forgiven.lastDay = day - 1;
+    harvestWinter(forgiven, day);
+    const sheaves = villageSheaves(forgiven).grainKg + forgiven.storesKg;
+    expect(converted.harvestedKg).not.toBeNull();
+    harvestWinter(forgiven, day);
+    expect(villageSheaves(forgiven).grainKg + forgiven.storesKg).toBeCloseTo(sheaves, 9);
+  });
+
+  it('převod při dopočtu: zasetý ozim bez seedKg jako ozim s osivem zaplaceným', () => {
+    const { s, work } = withWinter(4, 1000);
+    s.lastDay = at(600, 10, 20);
+    work.done.sow = work.required.sow;
+    s.season!.crops.push({
+      crop: 'spring',
+      ...createCropWork([], s.lastDay, NO_CRAFTS.tools, false, undefined, 'spring'),
+    });
+    const paid = structuredClone(s);
+    seasonCrop(paid.season!, 'winter')!.seedKg = 4 * PART_HA * SEED_KG_PER_HA;
+    delete work.seedKg;
+    const end = at(600, 11, 5);
+    expect(advanceVillage(s, end, null)).toEqual(advanceVillage(paid, end, null));
   });
 
   it('po kouscích přes setí ozimu i jaře stejně jako jedním voláním', () => {

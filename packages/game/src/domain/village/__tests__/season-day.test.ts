@@ -181,7 +181,9 @@ function hungryVillage(): VillageState {
   });
   s.constructions = [];
   s.lastDay = at(600, 8, 31);
-  s.storesKg = 600; // hladová ves, ale s osivem – osivo ze zásob při setí (fields.md – Úroda, Osivo ze zásob)
+  // hladová ves, ale s osivem – osivo ze zásob při setí nad příděl SEED_STORES.floorRation (fields.md
+  // – Úroda, Osivo ze zásob)
+  s.storesKg = 800;
   s.parts.forEach((p, i) => {
     p.foundingDone = p.foundingCost;
     p.state = 'fallow';

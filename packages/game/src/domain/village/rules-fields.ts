@@ -65,7 +65,9 @@ export const SEED_KG_PER_HA = 175;
 // nad roční potřebu (doplnění pojistky, obilí nad potřebu) jen ze zrna nad příděl `keepRation`
 // (pod ním by hladověla – STARVATION.fedFrom). Osivo, které na setí čeká, ves nejí, dokud by
 // příděl do žní neklesl pod tytéž prahy – pak ho sní (osivo se šetřilo, v hladu se snědlo).
-export const SEED_STORES = { keepRation: 1, floorRation: 0.6 } as const;
+// floorRation 0,75 (z 0,6 – kalibrace Vlkova 27. 10. 2026, disasters.md – Kalibrace): po krutém
+// roce ves raději jí, než by pod tři čtvrtiny přídělu sela.
+export const SEED_STORES = { keepRation: 1, floorRation: 0.75 } as const;
 // fields.md – Úroda (neopletený díl), Zarůstání
 export const UNWEEDED_YIELD = 0.6; // neopletý díl dá 60 % (návrh Clauda, kalibrace)
 // fields.md – Přílohová soustava (osev, příloh), Úroda (úrodnost). Obnova v přílohu 5 %

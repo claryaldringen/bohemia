@@ -439,12 +439,26 @@ přídělu) … za rok stojí ≈ 15 % lidí“) přijde o zhruba desetinu až p
 - **`measure-village`** jen na Martinův pokyn (`--variant disasters`).
 
 **Vlkov po osivu ze zásob** (27. 10. 2026 – [pole](fields.md), Osivo ze zásob; páry k rádlům nahoru
-hned, když orba nestačí – [voli](oxen.md)): normál bez šetření (zásoby 30. 6. 172–233 % pojistky);
-jeden krutý rok – rok po něm 46 dní šetří, nejnižší příděl 0,89, 0 úmrtí hladem; dva kruté – 37 dní
-hladu, příděl 0,85, ale 0 úmrtí hladem a −4 % lidí – **cíl 3 zatím nesplněn**: před suchem drží ves
-zásoby ≈ 1,7× pojistky a po suchu oseje ≈ 2× víc (už ze zásob). Návrh Clauda k ověření:
-`FIELD_STORES.cushionYears` 1/3 → 0 nebo `SEED_STORES.floorRation` 0,6 → 0,75. Převod starých vsí
-(osivo starého plánu postaru při sklizni) stojí Vlkov ≈ 2 roky šetření (příděl až 0,67), bez úmrtí.
+hned, když orba nestačí – [voli](oxen.md)). Převod bez dvojího osiva (návrh Clauda – díly zaseté
+postaru mají osivo odpuštěné) a `SEED_STORES.floorRation` 0,6 → **0,75** (návrh Clauda; sucho
+v roce 4 při zásobách 30. 6. ≈ 2× pojistky, dvě sucha v letech 4 a 5):
+
+| Scénář                 | Šetří dní | Nejnižší příděl | Úmrtí hladem | Lidé    |
+| ---------------------- | --------- | --------------- | ------------ | ------- |
+| Normál, roky 1–2       | 43 + 51   | 0,95 / 0,92     | 0            | 44 → 45 |
+| Normál, roky 3–6       | 0         | 1               | 0            | 45 → 46 |
+| Jeden krutý (roky 4–6) | 5         | 0,97            | 0            | 44 → 46 |
+| Dva kruté (roky 4–7)   | 36        | 0,83            | 0            | 44 → 45 |
+
+- **Cíl 1 a 2 splněny.** Roky 1–2 po převodu krátce šetří (dřív 333 a 281 dní, příděl 0,67) –
+  Vlkov začíná pod pojistkou s jedním rádlem a první plán ze zásob oseje jen ≈ 930 dílů.
+- **Cíl 3 nesplněn – rozhodnout:** po prvním suchu ves oseje o 70–100 % dílů víc (pod pojistkou
+  doplní chybějící **hned** a paměť hladu zvedne pojistku na 0,75), takže druhé sucho dá hrubou
+  úrodu jako normální rok. Ověřeno i s `cushionYears` 0 (zásoby ≈ 1,4× pojistky): jeden krutý rok
+  pak šetří až na příděl 0,77 (cíl 2 padá) a dva kruté stejně bez úmrtí (≈ 370 dní šetří, příděl
+  0,76, lidé +2 %); s `floorRation` 0,9 totéž. Úmrtí hladem přijdou až při nasycení pod 0,9
+  dlouhé měsíce (STARVATION – při 0,8 ≈ 108 dní k prahu dětí). Cíl 3 potřebuje jiné pravidlo
+  (doplnění pojistky po krutém roce pozvolna, strop přírůstku osevu), nebo jiný cíl.
 
 ## Obrana a příprava (bez nových velkých mechanik)
 

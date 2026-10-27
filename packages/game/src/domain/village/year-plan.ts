@@ -502,8 +502,8 @@ export function activeTasks(
 }
 
 /**
- * Úroda v kg z dílů práce plodiny – osivo vzaly zásoby při setí (práce z doby před tím ho
- * odečte postaru – `CropWork.seedKg`). Pletí a sklizeň se měří jen
+ * Úroda v kg z dílů práce plodiny – osivo vzaly zásoby při setí, sklizeň ho neodečítá (ani
+ * práce z doby před tím – převod `withSeedForgiven`). Pletí a sklizeň se měří jen
  * vůči zaseté části (Ruling 17) – částečné setí se tak nepromítne do úrody dvakrát. Díl
  * v první sezóně po vymýcení lesa pletí nepotřebuje, nedodělané pletí ostatních ho nesráží.
  */
@@ -514,17 +514,15 @@ export function harvestKg(
   crop: Crop = 'spring',
   losses?: PartLosses,
 ): number {
-  // osivo vzala ze zásob už setí; práce z doby před tím (převod) ho odečte postaru
-  const sown = planShare(work, 'sow');
+  // osivo vzala ze zásob už setí
   return cropYieldKg(
     work,
     parts,
     day,
-    sown,
+    planShare(work, 'sow'),
     workedShare(work, 'harvest'),
     crop,
     losses,
-    work.seedKg === undefined ? sown : 0,
   );
 }
 
@@ -661,11 +659,18 @@ export function expectedWinterKg(
 ): number {
   const sowing = taskWindowEnd('sow', dateOfDayIndex(day).month, 'winter') !== null;
   const sown = planShare(work, 'sow');
-  // osivo zaseté části vzaly zásoby už při setí, nezaseté teprve vezmou (práce z doby před
-  // osivem ze zásob odečte osivo zaseté části až při sklizni)
-  const legacy = work.seedKg === undefined;
-  const seedFrac = sowing ? (legacy ? 1 : 1 - sown) : legacy ? sown : 0;
-  return cropYieldKg(work, parts, day, sowing ? 1 : sown, 1, 'spring', losses, seedFrac);
+  // osivo zaseté části vzaly zásoby už při setí (u práce z doby před tím je odpuštěné –
+  // `withSeedForgiven`), nezaseté teprve vezmou
+  return cropYieldKg(
+    work,
+    parts,
+    day,
+    sowing ? 1 : sown,
+    1,
+    'spring',
+    losses,
+    sowing ? 1 - sown : 0,
+  );
 }
 
 /**

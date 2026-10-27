@@ -18,7 +18,15 @@ import { advanceVillage } from '../simulate';
 import { availableSettlers, waitingHouseholds } from '../households';
 import { withKinship } from '../kinship';
 import { freshWildlife } from '../wildlife';
-import type { ChronicleEvent, Dwelling, FarmSeason, Person, VillageState } from '../types';
+import type {
+  ChronicleEvent,
+  Dwelling,
+  FarmSeason,
+  FieldPart,
+  Person,
+  VillageState,
+} from '../types';
+import { workSeedKg } from '../seed';
 import { sheafWork, villageSheaves } from '../threshing';
 import {
   createPlan,
@@ -335,14 +343,12 @@ describe('advanceVillage – dopočítání', () => {
 });
 
 /** Plán bez osiva ze zásob (převod – `CropWork.seedKg` chybí). */
-function legacySeed(plan: FarmSeason): FarmSeason {
+/** Plán s osivem zaplaceným předem (celé osivo plánu vzaté) – setí osivo neomezí. */
+function prepaidSeed(plan: FarmSeason, parts: FieldPart[]): FarmSeason {
+  const byId = new Map(parts.map((p) => [p.id, p]));
   return {
     ...plan,
-    crops: plan.crops.map((crop) => {
-      const copy = { ...crop };
-      delete copy.seedKg;
-      return copy;
-    }),
+    crops: plan.crops.map((crop) => ({ ...crop, seedKg: workSeedKg(crop, byId, crop.crop) })),
   };
 }
 
@@ -574,9 +580,8 @@ describe('advanceVillage – roční plán a sklizeň', () => {
       p.foundingDone = p.foundingCost;
       p.state = 'sown';
     }
-    // plán z doby před osivem ze zásob (bez seedKg – osivo odečte sklizeň postaru): měří se
-    // setí za kopáním, ne osivo (fields.md – Úroda, Osivo ze zásob)
-    s0.season = legacySeed(createPlan(s0.parts, at(600, 9, 1), NO_CRAFTS.tools));
+    // osivo zaplacené předem: měří se setí za kopáním, ne osivo (fields.md – Úroda, Osivo ze zásob)
+    s0.season = prepaidSeed(createPlan(s0.parts, at(600, 9, 1), NO_CRAFTS.tools), s0.parts);
 
     const spring = advanceVillage(s0, at(601, 4, 30), null);
     const dig = {
@@ -612,9 +617,8 @@ describe('advanceVillage – roční plán a sklizeň', () => {
       p.foundingDone = p.foundingCost;
       p.state = 'sown';
     }
-    // plán z doby před osivem ze zásob (bez seedKg – osivo odečte sklizeň postaru): měří se
-    // setí za kopáním, ne osivo (fields.md – Úroda, Osivo ze zásob)
-    s0.season = legacySeed(createPlan(s0.parts, at(600, 9, 1), NO_CRAFTS.tools));
+    // osivo zaplacené předem: měří se setí za kopáním, ne osivo (fields.md – Úroda, Osivo ze zásob)
+    s0.season = prepaidSeed(createPlan(s0.parts, at(600, 9, 1), NO_CRAFTS.tools), s0.parts);
     // bez zvěře (jen vrány berou 2 % úrody, wildlife.md – Škody) – tady se měří setí a plán
     s0.wildlife = freshWildlife({ forestHa: 0, openHa: 0, waterHa: 0, pools: 0 }, 0);
     s0.wildlife.boar = { adults: 0, piglets: 0 };
@@ -638,7 +642,7 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     const inPlan = new Set(springCrop(plan).partIds);
     const ha =
       s0.parts.filter((p) => inPlan.has(p.id)).reduce((sum, p) => sum + p.areaM2, 0) / 10_000;
-    const fullYield = ha * sownShare * (760 * (0.4 + 0.6 * 0.7) - 175);
+    const fullYield = ha * sownShare * 760 * (0.4 + 0.6 * 0.7);
     // vrány: nejvýš 2 % hrubé úrody (≈ 760 × 0,82 kg/ha), nic víc
     const kg = harvests(s).at(-1)!.kg;
     expect(kg).toBeLessThanOrEqual(Math.round(fullYield));
