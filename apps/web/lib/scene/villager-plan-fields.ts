@@ -543,7 +543,11 @@ export function threshingOnFloor(ctx: Context, floorId: number, count: number): 
   if (!floor?.built) return none;
   const at = floor.position;
   const winnowers = Math.min(WINNOWERS, Math.floor(count / 3));
-  const threshers = Math.min(2 * THRESHER_PAIRS, count - winnowers);
+  // mlatci v párech naproti sobě – lichý by mlátil proti nikomu, nosí slámu (jediný mlátí sám)
+  const threshers = Math.max(
+    Math.min(1, count),
+    2 * Math.floor(Math.min(2 * THRESHER_PAIRS, count - winnowers) / 2),
+  );
   const bed = floorPoint(at, SHEAF_BED.lx, SHEAF_BED.lz + SHEAF_BED.halfZ - 0.6);
   const stack = floorPoint(at, STRAW_STACK.lx - 1.1, STRAW_STACK.lz + 1.1);
   const strawPath = route([

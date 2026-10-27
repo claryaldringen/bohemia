@@ -62,6 +62,11 @@ describe('humno ve scéně', () => {
     expect(busy.indices.length).toBeGreaterThan(0);
     expect(busy.colors.length).toBe(busy.positions.length);
     expect(threshingFloorGeometry([floor(0.2)], flat).indices.length).toBeGreaterThan(0);
+    // klasy nad obtiskem mlatu (LIFT.turf a THRESHING_FLOOR_Z_OFFSET) – celá vrstva, ne hrbolky
+    const bed = threshingFloorGeometry([floor(1, { threshing: true })], flat);
+    const ys = bed.positions.filter((_, i) => i % 3 === 1);
+    expect(ys.filter((y) => y >= 0 && y < 0.15)).toEqual([]);
+    expect(ys.filter((y) => y >= 0.15).length).toBeGreaterThan(ys.length / 2);
     expect(threshingFloorsKey([floor(0.2)])).toBe(threshingFloorsKey([floor(0.21)]));
     expect(threshingFloorsKey([floor(1, { straw: 0.5 })])).not.toBe(
       threshingFloorsKey([floor(1, { straw: 0.55 })]),

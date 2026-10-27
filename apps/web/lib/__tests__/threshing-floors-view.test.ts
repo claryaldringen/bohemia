@@ -1,8 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { dayIndexOf, foundVillage } from '@bohemia/game';
+import {
+  advanceVillage,
+  dayIndexOf,
+  foundVillage,
+  generateLandscape,
+  obstaclesOf,
+  tileCenterWorld,
+} from '@bohemia/game';
 import { STRAW_LEFT, threshingFloorStraw, threshingFloorsOf } from '../village-view-buildings';
 import { selectionDetails } from '../selection-details';
-import type { SceneVillage, VillageView } from '../village-view';
+import { buildVillageView, type SceneVillage, type VillageView } from '../village-view';
+import { planVillagers } from '../scene/villager-plan';
+import { createVillagerPose } from '../scene/villager-motion';
 
 // Humna v pohledu na ves a ve výběru (production-chains.md – Humno).
 
@@ -72,5 +81,41 @@ describe('stoh slámy na humně (threshingFloorStraw)', () => {
     const next = threshingFloorStraw(built, day(601, 8, 5));
     expect(next).toBeGreaterThan(0);
     expect(next).toBeLessThan(STRAW_LEFT);
+  });
+});
+
+describe('výmlat na humně ve hře (simulace → pohled → postavy)', () => {
+  it('hotové humno a snopy v srpnu: klasy na humně a mlatci s holí na něm', () => {
+    const real = generateLandscape(5);
+    const layer = obstaclesOf(real);
+    const site = tileCenterWorld(real, real.villageSite.x, real.villageSite.y);
+    const start = dayIndexOf({ year: 503, month: 4, day: 12 });
+    let s = foundVillage({
+      seed: 3,
+      day: start,
+      dwellingPosition: { x: site.x, z: site.z, rotation: 0 },
+      obstacles: layer,
+    });
+    const at = { x: site.x + 30, z: site.z + 5, rotation: 0 };
+    s.threshingFloors = [{ id: 900, position: at, builtDay: start - 5 }];
+    const aug = dayIndexOf({ year: 503, month: 8, day: 10 });
+    while (s.lastDay < aug) s = advanceVillage(s, Math.min(aug, s.lastDay + 30), layer);
+    s.sheaves = { grainKg: 3000, legumesKg: 0, work: { winter: 30 } };
+    s = advanceVillage(s, aug + 1, layer);
+    const scene = buildVillageView(
+      { id: 'v', settlementId: 's', name: 'Libice', state: s, version: 1 },
+      real,
+      aug + 1,
+    ).scene;
+    expect(scene.threshingFloors?.[0]).toMatchObject({ built: true, threshing: true });
+    const ground = { walkable: () => true, tree: () => null, treesIn: () => [] };
+    const threshers = planVillagers(scene, ground, { seed: 3, herds: 0 })
+      .filter((p) => p.key.startsWith('thresh:threshing-floor-900'))
+      .map((p) => p.pose(20, [], createVillagerPose()));
+    expect(threshers.length).toBeGreaterThanOrEqual(2);
+    for (const pose of threshers) {
+      expect(pose.clip).toBe('thresh');
+      expect(Math.hypot(pose.x - at.x, pose.z - at.z)).toBeLessThan(6);
+    }
   });
 });

@@ -119,7 +119,8 @@ import {
   THRESHING_DEMO_STAGES,
   demoThreshing,
   nextThreshingDemo,
-  withThreshingField,
+  withThreshingDemo,
+  withoutThreshingDemo,
   type ThreshingDemo,
 } from './dev-threshing';
 import { devSelectionView } from './dev-selection';
@@ -367,14 +368,8 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
       };
     }
     if (threshingDemo) {
-      // humno: snopy z pole, mlatci a prohazovači, nosiči zrna do jámy
-      return {
-        ...base,
-        fields: withThreshingField(base.fields, threshingDemo),
-        threshingFloors: threshingDemo.threshingFloors,
-        grainPits: threshingDemo.grainPits,
-        labor: threshingDemo.labor,
-      };
+      // humno: snopy z pole, mlatci a prohazovači, nosiči zrna do jámy (v prázdné vsi i domy a pole)
+      return withThreshingDemo(base, threshingDemo);
     }
     if (oreDemo) {
       // rudiště: kovárna, uhlíř s milířem, jámy v různém stáří, kopáči a nosiči (a vůz)
@@ -1676,9 +1671,12 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
       setThreshingDemo(null);
       return;
     }
-    const sample = demoThreshing(decoded, demoVillage, next, {
+    const own = withoutThreshingDemo(demoVillage, threshingDemo);
+    const sample = demoThreshing(decoded, own, next, {
       floor: 9_300_001,
       pit: 9_300_002,
+      field: 9_300_003,
+      dwelling: 9_300_010,
     });
     setThreshingDemo(sample);
     if (sample) scene?.moveCameraTo(sample.focus.x, sample.focus.z);

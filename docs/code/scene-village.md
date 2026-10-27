@@ -245,7 +245,9 @@ nepoužívaly (Martin 21. 10. 2026: „ať do něj mlátí holemi“). Místa js
   hlína do 60 %, kropení a dusání do 90 %, vymazání) – `floorSiteLook`: kolíky a provázek
   (`StakingPegs`, `createStringMesh` jako ohrada) do 35 %, krytí obtisku mlatu, hromada drnů
   (`TURF_HEAP`) a hlíny na mazanici (`CLAY_HEAP`), které přibývají a při dusání a mazání ubývají.
-  Hotové humno: rozprostřené klasy (`SHEAF_BED`, nízká nerovná vrstva) jen ve dny výmlatu,
+  Hotové humno: rozprostřené klasy (`SHEAF_BED`, nerovná vrstva 16–26 cm – `SHEAF_BED_HEIGHT_M`;
+  obtisk mlatu leží o `LIFT.turf` výš se `THRESHING_FLOOR_Z_OFFSET`, nižší vrstva z něj koukala
+  jen hrbolky) jen ve dny výmlatu,
   hromádka zrna (`GRAIN_HEAP`, `grainHeapScale` podle kg) – hromady a klasy jsou jedna síť
   s barvami vrcholů (`threshingFloorGeometry`, bez textury); stoh slámy (`STRAW_STACK` v zadním
   rohu) je kupka `models/fields/haystack.glb` (0 A.D., licence v `models/fields/LICENSES.md`)
@@ -256,8 +258,10 @@ nepoužívaly (Martin 21. 10. 2026: „ať do něj mlátí holemi“). Místa js
   `procedural_shovel`, animace `farming`) v `man.glb` i `woman.glb` (`tools/blender/people.json`,
   modely CC0, licence v `models/people/LICENSES.md`; bez nového vertex atributu – test ve
   `fauna.test.ts`). `threshingOnFloor`: páry mlatců naproti sobě přes klasy (`thresherSpot`, nejvýš
-  `THRESHER_PAIRS` 4), každý třetí prohazuje u hromádky zrna čelem proti větru (`WINNOW_FACING`,
-  nejvýš 3), další nosí slámu z klasů na stoh (shuttle po humně), zbytek obrací klasy za mlatci.
+  `THRESHER_PAIRS` 4, jen v párech – lichý nosí slámu, jediný člověk mlátí sám), každý třetí
+  prohazuje u hromádky zrna čelem proti větru (`WINNOW_FACING`, nejvýš 3), další nosí slámu
+  z klasů na stoh (shuttle po humně), zbytek obrací klasy za mlatci. Ve hře to hlídá test nad
+  simulací (`threshing-floors-view.test.ts` – humno, snopy, srpen → klasy a mlatci na humně).
   Nouzový výmlat (`threshing`): na volném místě u vsi dva páry mlatců a dva prohazovači; porážka
   má dřívější kruh s paličkou (`groundWork`). Stavba humna (`threshingFloorSite`, podíl `build`
   s cílem staveniště humna): paličkou u kolíků, motykou v řadách (drn), u hromady hlíny motykou
@@ -269,7 +273,11 @@ nepoužívaly (Martin 21. 10. 2026: „ať do něj mlátí holemi“). Místa js
 - **Ukázky**: `/dev/buildings` – Humno mezi plochami (`showcaseThreshingFloor`: posuvník do
   poloviny stavba po fázích, pak výmlat s klasy a rostoucím stohem, na konci plný stoh; bez
   postav), `/dev/landscape` – tlačítko Humno (`dev-threshing.ts`: žně a nosiči snopů na humno →
-  výmlat a prohazování → zrno do jam).
+  výmlat a prohazování → zrno do jam). Vývojová ves začíná bez domů a polí – bez obydlí nejsou
+  postavy (`planVillagersWithCrew`), proto ukázka v prázdné vsi přinese šest domů na místě vsi
+  a zralé pole vedle humna (`withThreshingDemo`; další krok počítá z vsi bez nich –
+  `withoutThreshingDemo`) a lidi práce dne podle domů (víc práce než lidí by nechalo mlatce bez
+  prohazovačů).
 
 ## Kovárna a hrnčíř ve scéně (production-chains.md – Kovář; crafts.md – Hlína hrnčíře; úloha 6 výrobních řetězů)
 

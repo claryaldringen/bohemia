@@ -36,6 +36,11 @@ export function floorDirection(
 export const STRAW_STACK = { lx: 2.4, lz: -3.3, scale: 0.7 } as const;
 /** Rozprostřené klasy (pás uprostřed mlatu, v osách humna). */
 export const SHEAF_BED = { lx: -1.2, lz: -1.2, halfX: 1.5, halfZ: 2.8 } as const;
+/**
+ * Výška vrstvy klasů nad terénem (m) a hrbolky navrch: obtisk mlatu leží o `LIFT.turf` výš a se
+ * `THRESHING_FLOOR_Z_OFFSET` vyhrává hloubku – nižší vrstva z něj koukala jen hrbolky.
+ */
+const SHEAF_BED_HEIGHT_M = { base: 0.16, lumps: 0.1 } as const;
 /** Vstup na humno – před předkem mlatu (+z), jako `threshingFloorEntrance` v jádru. */
 export const FLOOR_ENTRANCE = { lx: 0, lz: FLOOR_HALF.z + 1 } as const;
 /** Hromádka vymláceného zrna (v osách humna). */
@@ -231,7 +236,8 @@ function sheafBed(out: ColoredGeometry, position: Position, height: HeightFn): v
       const edge = i === 0 || j === 0 || i === nx || j === nz;
       const lump = hash(lx + position.x, lz + position.z, 9);
       const p = floorPoint(position, lx, lz);
-      out.positions.push(p.x, height(p.x, p.z) + (edge ? -0.02 : 0.05 + 0.1 * lump), p.z);
+      const lift = edge ? -0.02 : SHEAF_BED_HEIGHT_M.base + SHEAF_BED_HEIGHT_M.lumps * lump;
+      out.positions.push(p.x, height(p.x, p.z) + lift, p.z);
       out.colors.push(...mix(STRAW_DARK, STRAW, lump));
     }
   }

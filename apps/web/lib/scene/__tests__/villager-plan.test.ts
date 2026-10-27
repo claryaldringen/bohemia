@@ -2066,6 +2066,21 @@ describe('výmlat na humně (production-chains.md – Humno; issue #3)', () => {
     expect(again.map((p) => at(p, 33))).toEqual(people.map((p) => at(p, 33)));
   });
 
+  it('mlatci jen v párech – čtyři lidé: pár mlatců, prohazovač a nosič slámy', () => {
+    const v: SceneVillage = {
+      ...withFloor({ kind: 'threshing-floor', id: 40 }),
+      labor: {
+        ...withFloor({ kind: 'threshing-floor', id: 40 }).labor!,
+        shares: [{ activity: 'thresh', target: { kind: 'threshing-floor', id: 40 }, manDays: 4 }],
+      },
+    };
+    const people = threshers(v);
+    expect(people.length).toBe(4);
+    const clips = clipsOf(people);
+    expect(clips.filter((c) => c === 'thresh').length).toBe(2);
+    expect(clips.filter((c) => c === 'winnow').length).toBe(1);
+  });
+
   it('nouzový výmlat: mlatci s holemi a prohazovači s lopatou', () => {
     const v = village([{ activity: 'thresh', target: { kind: 'village' }, manDays: 6 }]);
     const clips = clipsOf(threshers(v));
