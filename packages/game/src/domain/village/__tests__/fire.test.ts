@@ -3,7 +3,9 @@ import { dayIndexOf } from '../../calendar';
 import { packObstacles, type ObstaclePlacement } from '../../landscape';
 import { foundVillage } from '../actions';
 import { DWELLING_FOOTPRINT_M } from '../rules';
-import { dwellingFireChance, fireDay, jumpChance, spreadFire } from '../fire';
+import { craftHouseholds } from '../crafts';
+import { evacuationTarget } from '../population';
+import { collapseDwellings, dwellingFireChance, fireDay, jumpChance, spreadFire } from '../fire';
 import { occupyEmptyDwellings } from '../households';
 import { advanceVillage } from '../simulate';
 import type { Dwelling, VillageState } from '../types';
@@ -244,6 +246,7 @@ describe('dopad požáru', () => {
       kind: 'fire',
       startedDwellingId: 1,
       burnedDwellingIds: [1],
+      collapsedDwellingIds: [1],
       lostGrainKg: 3000,
     });
   });
@@ -270,6 +273,58 @@ describe('dopad požáru', () => {
     expect(state.dwellings.map((d) => d.id)).toEqual([1, 2]);
     expect(state.dwellings[0]?.condition).toBeCloseTo(0.5, 5);
     expect(state.storesKg).toBeCloseTo(10_000 - 6000 * 0.25, 5);
+  });
+
+  it('s hašením dům ohoří, nezřítí se – kronika ho nepočítá mezi zřícené', () => {
+    const state = twoHouses();
+    const [event] = fireDay(state, DAY, null, null, 1);
+    expect(event).toMatchObject({ burnedDwellingIds: [1], collapsedDwellingIds: [] });
+  });
+});
+
+describe('evakuace a dílna', () => {
+  const workshop = { craft: 'burner', felling: null, fuelKg: 0, activity: 'empty' } as const;
+
+  function crowd(extra: Dwelling[]): VillageState {
+    const state = village([house(1, 0), house(2, 40, 0, { workshop: { ...workshop } }), ...extra]);
+    state.people = Array.from({ length: 16 }, (_, i) => ({
+      id: i + 1,
+      bornDay: OLD - 30 * 365,
+      dwellingId: i === 0 ? 2 : 1,
+      sex: 'male' as const,
+    }));
+    return state;
+  }
+
+  it('evakuovaní jdou do obydlí bez dílny, i když je tam méně místa', () => {
+    const state = crowd([house(3, 80)]);
+    state.people.push({ id: 20, bornDay: OLD - 30 * 365, dwellingId: 3, sex: 'female' });
+    const members = state.people.filter((p) => p.dwellingId === 1);
+    const homes = state.dwellings.filter((d) => d.id !== 1);
+    expect(evacuationTarget(state, OLD, members, 1, homes)?.id).toBe(3);
+  });
+
+  it('bez jiného domu se nastěhují do dílny, ale přeplněná dílna není řemeslnická domácnost', () => {
+    const state = crowd([]);
+    const members = state.people.filter((p) => p.dwellingId === 1);
+    const homes = state.dwellings.filter((d) => d.id !== 1);
+    const target = evacuationTarget(state, OLD, members, 1, homes);
+    expect(target?.id).toBe(2);
+    expect([...craftHouseholds(state)]).toEqual([2]);
+    for (const p of members) p.dwellingId = 2;
+    expect(craftHouseholds(state).size).toBe(0);
+  });
+
+  it('smršť zboří vše kromě dílny – ves dál seje', () => {
+    const state = crowd([]);
+    state.disasters = { override: { fire: { [OLD]: 1 } } };
+    state.dwellings[1]!.condition = 1;
+    const [house1] = state.dwellings;
+    house1!.condition = 0;
+    collapseDwellings(state, OLD, [house1!]);
+    expect(state.dwellings.map((d) => d.id)).toEqual([2]);
+    expect(state.people.every((p) => p.dwellingId === 2)).toBe(true);
+    expect(craftHouseholds(state).size).toBe(0);
   });
 });
 

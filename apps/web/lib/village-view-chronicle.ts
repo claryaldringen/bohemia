@@ -116,10 +116,31 @@ function tornadoText(event: Extract<ChronicleEvent, { kind: 'tornado' }>): strin
 }
 
 /** Požár v kronice (disasters.md – Požár): kolik domů vyhořelo, česky se správným tvarem. */
-function fireText(burned: number): string {
-  if (burned <= 1) return 'Požár – vyhořel jeden dům.';
-  if (burned <= 4) return `Požár – vyhořely ${burned} domy.`;
-  return `Požár – vyhořelo ${burned} domů.`;
+function fireText(burned: number, collapsed: number = burned): string {
+  const damaged = burned - collapsed;
+  const gone =
+    collapsed <= 0
+      ? ''
+      : collapsed === 1
+        ? 'vyhořel jeden dům'
+        : collapsed <= 4
+          ? `vyhořely ${collapsed} domy`
+          : `vyhořelo ${collapsed} domů`;
+  const charred =
+    damaged <= 0
+      ? ''
+      : damaged === 1
+        ? collapsed > 0
+          ? 'jeden ohořel'
+          : 'jeden dům ohořel'
+        : damaged <= 4
+          ? collapsed > 0
+            ? `${damaged} ohořely`
+            : `ohořely ${damaged} domy`
+          : collapsed > 0
+            ? `${damaged} ohořelo`
+            : `ohořelo ${damaged} domů`;
+  return `Požár – ${[gone, charred].filter((t) => t !== '').join(', ')}.`;
 }
 
 /** Kroupy v kronice (disasters.md – Kroupy): potlučené díly a střechy. */
@@ -584,7 +605,10 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
     case 'weather':
       return weatherText(event.summer, event.winter);
     case 'fire':
-      return fireText(event.burnedDwellingIds.length);
+      return fireText(
+        event.burnedDwellingIds.length,
+        event.collapsedDwellingIds?.length ?? event.burnedDwellingIds.length,
+      );
     case 'flood':
       return floodText(event);
     case 'tornado':

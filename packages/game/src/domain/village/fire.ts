@@ -292,6 +292,7 @@ function burnDown(
     kind: 'fire',
     startedDwellingId: startId,
     burnedDwellingIds: [...burningIds],
+    collapsedDwellingIds: destroyed.map((d) => d.id),
     lostGrainKg: Math.round(lostGrain),
     lostMeatKg: Math.round(lostMeat),
     lostCheeseKg: Math.round(lostCheese),

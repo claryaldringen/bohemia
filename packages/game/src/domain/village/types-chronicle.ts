@@ -354,6 +354,8 @@ export type ChronicleEvent = { day: number } & (
       kind: 'fire';
       startedDwellingId: number;
       burnedDwellingIds: number[];
+      /** Z nich zřícená (dům na nulu) – ostatní stojí ohořelé; chybí v kronice uložené dřív (všechna). */
+      collapsedDwellingIds?: number[];
       lostGrainKg: number;
       lostMeatKg: number;
       lostCheeseKg: number;

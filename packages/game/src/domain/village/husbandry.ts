@@ -441,8 +441,34 @@ export function husbandryDay(
     // seno do konce března nevystačí – ves hned porazí kusy, na které nezbude, ať zvířata
     // nehladoví (oxen.md – Co nejvíc sena a co největší stáda; dřív zimní úhyn 1. 3.)
     const short = hayShortSlaughter(state, day, villageOxen(state), horsesHayToday(state, day));
-    if (short) events.push(short);
+    if (short) mergeHaySlaughter(state, short, events);
     feedHay(state, villageOxen(state), livestock.herds, horsesHayToday(state, day));
   }
   return events;
+}
+
+/**
+ * Porážka pro nedostatek sena se do kroniky zapisuje jednou za zimu: další porážky téže zimy
+ * (do 150 dní od předchozí) se sečtou do posledního zápisu – kusy po druzích i kila (návrh Clauda).
+ */
+export function mergeHaySlaughter(
+  state: VillageState,
+  short: ChronicleEvent,
+  events: ChronicleEvent[],
+): void {
+  if (short.kind !== 'hay-slaughter') {
+    events.push(short);
+    return;
+  }
+  const earlier = [...events, ...state.chronicle]
+    .reverse()
+    .find((e) => e.kind === 'hay-slaughter' && short.day - e.day <= 150);
+  if (earlier?.kind !== 'hay-slaughter') {
+    events.push(short);
+    return;
+  }
+  earlier.kg += short.kg;
+  for (const [species, n] of Object.entries(short.animals) as [HerdSpecies, number][]) {
+    earlier.animals[species] = Math.round(((earlier.animals[species] ?? 0) + n) * 100) / 100;
+  }
 }

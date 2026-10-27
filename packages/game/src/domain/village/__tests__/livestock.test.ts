@@ -3,6 +3,7 @@ import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
 import { PROTEIN } from '../diet';
 import { hayLeftAvailable, hayWinterDaysLeft, winterHayAvailable } from '../hay';
+import { mergeHaySlaughter } from '../husbandry';
 import { youngsterHerders } from '../herding';
 import { predationDay } from '../predators';
 import { HERD_BREEDING } from '../rules';
@@ -31,7 +32,7 @@ import {
 } from '../livestock';
 import { advanceVillage } from '../simulate';
 import { freshWildlife } from '../wildlife';
-import type { FieldPart, HerdSpecies, VillageState } from '../types';
+import type { ChronicleEvent, FieldPart, HerdSpecies, VillageState } from '../types';
 import { withBuiltFirstDwelling, withRoomyPens } from './village-fixtures';
 
 // Dobytek (diet.md – Dobytek): výchozí stádo, růst, ztráty, nosnost, chovné stádo podle potřeby,
@@ -467,5 +468,30 @@ describe('simulace – stáda za rok', () => {
     expect(chunked.hay).toEqual(whole.hay);
     expect(chunked.chronicle).toEqual(whole.chronicle);
     expect(chunked.diet).toEqual(whole.diet);
+  });
+});
+
+describe('kronika porážky pro nedostatek sena', () => {
+  it('další porážky téže zimy se sečtou do posledního zápisu', () => {
+    const s = { chronicle: [] as ChronicleEvent[] } as VillageState;
+    const events: ChronicleEvent[] = [];
+    mergeHaySlaughter(s, { day: 100, kind: 'hay-slaughter', kg: 120, animals: { cow: 1 } }, events);
+    s.chronicle.push(...events.splice(0));
+    mergeHaySlaughter(
+      s,
+      { day: 101, kind: 'hay-slaughter', kg: 240, animals: { cow: 2, goat: 1 } },
+      events,
+    );
+    expect(events).toEqual([]);
+    expect(s.chronicle).toEqual([
+      { day: 100, kind: 'hay-slaughter', kg: 360, animals: { cow: 3, goat: 1 } },
+    ]);
+    // jiná zima = nový zápis
+    mergeHaySlaughter(
+      s,
+      { day: 100 + 365, kind: 'hay-slaughter', kg: 10, animals: { cow: 1 } },
+      events,
+    );
+    expect(events).toHaveLength(1);
   });
 });
