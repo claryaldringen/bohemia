@@ -190,6 +190,32 @@ export const LOCAL_DISASTERS = {
 } as const;
 
 /**
+ * Kroupy (disasters.md – Kroupy; Martin 27. 10. 2026: „Stromy by měly pole před kroupami částečně
+ * chránit“). Ochrana dílu ze zeleně: `PROTECTION.hailGreenShare`.
+ */
+export const HAIL = {
+  /** Šance krupobití vsi na rok (≈ 1 z 16 let). */
+  chancePerYear: 0.06,
+  /** Jeden den června až srpna. */
+  window: {
+    from: { month: 6, day: 1 } satisfies MonthDay,
+    to: { month: 8, day: 31 } satisfies MonthDay,
+  },
+  /** Šířka pruhu (m) a jeho vnější okraje z každé strany (m – návrh Clauda). */
+  widthM: 300,
+  edgeM: 50,
+  /** Střed pruhu nejvýš tolik (m) od středu vsi – pruh jde přes okolí vsi (návrh Clauda). */
+  offsetM: 450,
+  /** Ztráta nesklizené úrody dílu nebo louky se středem v pruhu a na jeho okraji. */
+  loss: 0.6,
+  edgeLoss: 0.3,
+  /** Sad v pruhu: ztráta letošních jablek (na okraji polovina – návrh Clauda). */
+  appleLoss: 0.4,
+  /** Střechy staveb v pruhu zchátrají o tolik let chátrání prázdné stavby (okraj polovina). */
+  roofYears: 1,
+} as const;
+
+/**
  * Požár (disasters.md – Požár; Martin 27. 10. 2026: „Pojďme na požár“, „Ano a ano“ – řetězově
  * z každé stavby, která chytí).
  */

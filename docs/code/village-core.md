@@ -142,6 +142,12 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
 
 - **Determinismus:** simulace jde den po dni v pevném pořadí kroků (`simulate.ts`), náhoda dne
   je ze seedu vsi a indexu dne – výsledek nezávisí na tom, po jakých kouscích se ves dopočítá.
+- **Pořadí dne – pohromy** (plán pohrom – Pořadí dne): `weatherDay` a `partProtectionDay` hned
+  za `wildlifeYearDay`; `famineMemoryDay` před `startSeason`; **`localDisastersDay`** (smršť,
+  kroupy, povodeň, požár – `local-disasters.ts`) po `damageWindowStart`, před `startPurchases`
+  a `work()` – požár nastaví `disasters.fireFight` a `villagersToday` / `work()` dnes vidí dospělé
+  u hašení; pěší lovci dne (`planHuntDay`) už jsou mimo ves a nehasí. Pohromy nedávají nová id
+  (kontrola `moveGrainFromCoveredPits` beze změny). Podrobnosti: village-disasters.md.
 
 - **Dopočet po kouscích na serveru:** `advanceVillageSteps` je `advanceVillage` po dnech
   (generátor – tatáž smyčka, stav se klonuje jednou). `loadVillage` / `dynastyStatus` dostanou

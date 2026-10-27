@@ -150,12 +150,70 @@ počasí počítá jako dřív** (zlaté otisky beze změny). Funkce v `weather-
 - **Ves bez `weatherSeed`** má všechny roky normální – nic se nemění (zlaté otisky, kalibrace).
 - Testy: `__tests__/trade-weather.test.ts`.
 
+## Rámec místních pohrom (P5)
+
+Návrh: `docs/design/disasters.md` – Kraj a ochrana nové vsi, Místní pohromy – jedna ves.
+
+- **Krok dne** – `localDisastersDay(state, day, landscape, obstacles)` (`local-disasters.ts`)
+  v `simulateDay` po `damageWindowStart`, před `startPurchases` a `work()` (krok 6 Pořadí dne
+  v plánu): v pevném pořadí smršť (P9 – zatím nic), kroupy (`hailDay`), povodeň (P6 – zatím nic),
+  požár (`fireDay`). Vrací zápisy kroniky; úmrtí (P6, P9) jdou i do štěstí jako u lovu
+  (`happinessEvents`). Samostatný soubor kvůli cyklu importů: `disasters.ts` čte i strava
+  (`winterEstimateLosses`), kdyby natahoval požár, kroupy a seno, rozbije se pořadí načtení modulů
+  (`PROTEIN` v `livestock.ts`).
+- **Ochrana nové vsi** – `inDisasterProtection(foundedDay, day)` (`disaster-schedule.ts`, vyváží
+  i `disasters.ts`): prvních 5 let (`LOCAL_DISASTERS.protectionYears`) žádná místní pohroma;
+  vynucená (`disasters.override.fire`, `.hail` – testy a dev) ochranu přebije.
+- **Rozpis roku** – `yearSchedule(seed, year)` (memo, nejvýš 4096 rozpisů): čistá funkce seedu
+  vsi a roku – dvě vsi téže mapy mají jiný seed, tedy jiné kroupy. Zatím `hail: HailPlan | null`
+  (den, úhel pruhu, posun); P6 a P9 přidají své položky.
+- **Ztráty dílů** – `disasters.losses = { year, hail }` (rok sklizně `harvestYearOf`, podíly
+  hrubé úrody po dílech); `dayPartLosses` je sloučí s počasím a škodou zvěře: zůstane počasí ×
+  (1 − zvěř) × (1 − kroupy). Bez počasí a bez potlučených dílů vrací `base` beze změny (zlaté
+  otisky). Odhad (`estimate`) kroupy, které už padly, vidí.
+- **Testy** – `__tests__/disasters-protection.test.ts`: ves ve 3. roce bez krupobití, v 6. roce
+  s ním; žádná místní pohroma prvních 5 let a po nich všechny druhy rámce (`KINDS` – P6 a P9
+  přidají své).
+
+## Kroupy (P5)
+
+Návrh: `docs/design/disasters.md` – Kroupy (Martin 27. 10. 2026: „Stromy by měly pole před
+kroupami částečně chránit“). Jádro: `hail.ts`, čísla `HAIL` v `rules-disasters.ts`.
+
+- **Kdy** – `yearSchedule` ze `'hail:' + year`: šance 6 % ročně, den rovnoměrně 1. 6. – 31. 8.,
+  směr pruhu (úhel 0–π) a posun středu pruhu ±450 m kolmo ke směru (návrh Clauda). Ves bez
+  `weatherSeed` kroupy nemá (jen vynucené `disasters.override.hail[den] = { angle, offsetM }`).
+- **Pruh** – `hailZone(strip, x, z)`: pruh 300 m přes celé okolí vsi, střed = průměr poloh
+  obydlí a dílen v den krupobití (`HailStrip` v `disasters.hail` – i pro scénu). Vnitřek 200 m
+  (`core`), vnějších 50 m z každé strany okraj (`edge` – poloviční škoda). Díly polí podle středu
+  čtverce (`villageLandSquares`); bez krajiny mřížka běžné krajiny (128 × 15 m – políčka dílů
+  jsou stejná). Vzdálenost od osy přes `detSin` / `detCos`.
+- **Pole** – nesklizené plodiny letošního plánu (`season.crops`, `harvestedKg === null`):
+  `hailLoss` = 0,6 (okraj 0,3) × (1 − `partProtectionOf(state, partId, 'hail')`) – ochrana je
+  0,4 × zeleň (zeleň 1 → 36 %). Do `disasters.losses.hail` (druhé krupobití roku se sloučí).
+  Sklizený díl a díl mimo plodiny nic.
+- **Louky** – dnešní seč v jejím okně (`isMowingSeason`): úseky seče (`mowingSpans`) za hotovou
+  prací, díly s ochranou dílu, přirozené louky s typickou zelení. Ztracený podíl zbylé louky →
+  `HayMowing.hailFactor`, kterým `mow()` násobí seno další práce (rozložené na zbytek seče – návrh
+  Clauda). Posečené louky nic, nová seč (otava) začíná bez krup.
+- **Sad** – letošní jablka čtverců v pruhu −40 % (okraj −20 %, návrh Clauda) podle očekávané
+  úrody čtverce; podíl, který zbyl, v `disasters.hail.apples` – `applesAfterHail` ho uplatní při
+  začátku sklizně 1. 9. téhož roku (`orchard.ts`, `startWork`). Jabloně u cest beze změny.
+- **Střechy** – obydlí a dílny v pruhu: stav − `roofYears` ÷ `emptyLifespanYears` (rok
+  chátrání prázdné stavby; okraj půl roku). Obydlený dům stav neopravuje – zůstane nižší.
+- **Kronika** – `hail` (`partIds`, `dwellingIds`, `meadowShare`, `appleShare`); text
+  v `village-view-chronicle.ts`.
+- **Testy** – `__tests__/hail.test.ts`: četnost 6 % (2000 let), okno června až srpna, dvě vsi
+  téže mapy, pruh a okraje, strom chrání (36 %), sklizený díl a díl mimo nic, sloučení se zvěří,
+  střechy, louka a sad, ves bez počasí, požár v rámci, dopočet po kouscích přes den krupobití.
+
 ## Požár (P7)
 
 Návrh: `docs/design/disasters.md` – Požár. Jádro: `fire.ts`, čísla `FIRE` v `rules-disasters.ts`.
 
-- **Krok dne** – `fireDay(state, day, obstacles, landscape, efficiency = 0)` v `simulateDay` hned za
-  `weatherDay`; vrací zápis kroniky `fire` (`startedDwellingId`, `burnedDwellingIds`, ztráty
+- **Krok dne** – `fireDay(state, day, obstacles, landscape, efficiency = 0)` poslední v rámci
+  `localDisastersDay` (viz Rámec místních pohrom – po `damageWindowStart`, před nákupy a `work()`,
+  takže hasí i bez pěších lovců dne); vrací zápis kroniky `fire` (`startedDwellingId`, `burnedDwellingIds`, ztráty
   zrna, masa, sýra a sena v kg; text v `village-view-chronicle.ts`). Ves bez `weatherSeed` (testy,
   kalibrace) nehoří; ochrana nové vsi (`inDisasterProtection`) požár vypíná prvních 5 let.
 - **Vznik** – `dwellingFireChance`: 0,4 % na obydlí a rok × suché léto 2, kruté sucho 3, deštivé

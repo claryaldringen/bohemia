@@ -1,34 +1,35 @@
-// Místní pohromy vsi – rámec (disasters.md – Místní pohromy – jedna ves). Kroupy, povodeň, požár
-// a smršť přidají další úlohy; tady je zatím ochrana nové vsi a ztráty dílů při sklizni.
+// Místní pohromy vsi (disasters.md – Místní pohromy – jedna ves): ochrana nové vsi, rozpis roku
+// a ztráty dílů při sklizni. Pořadí pohrom dne je v `local-disasters.ts` (`localDisastersDay`) –
+// zvlášť, ať tento soubor (čte ho strava) nenatahuje požár, kroupy a seno (cyklus importů).
 
-import { LOCAL_DISASTERS } from './rules-disasters';
 import type { Crop } from './types-land';
 import type { VillageState } from './types-state';
 import {
   cropWeatherOf,
+  harvestYearOf,
   hasWeather,
   partWeatherFactor,
   weatherChangesCrop,
 } from './weather-effects';
 import { seasonCrop, type PartLosses } from './year-plan';
 
-/** Průměrná délka roku kalendáře (přestupný každý čtvrtý rok – calendar.ts). */
-const DAYS_PER_YEAR = 365.25;
+export { inDisasterProtection, yearSchedule } from './disaster-schedule';
 
-/**
- * Ochrana nové vsi (disasters.md – Kraj a ochrana nové vsi; Martin 27. 10. 2026: „Pětiletou
- * ochranu“): prvních 5 let od založení žádné kroupy, povodeň, požár ani smršť. Počasí kraje
- * platí naplno.
- */
-export function inDisasterProtection(foundedDay: number, day: number): boolean {
-  return day - foundedDay < LOCAL_DISASTERS.protectionYears * DAYS_PER_YEAR;
+/** Ztráty dílů z krupobití za rok sklizně dne (`disasters.losses.hail`); jiný rok nic. */
+function hailLossesOf(
+  state: Pick<VillageState, 'disasters'>,
+  day: number,
+): Readonly<Record<string, number>> | undefined {
+  const losses = state.disasters?.losses;
+  return losses?.hail && losses.year === harvestYearOf(day) ? losses.hail : undefined;
 }
 
 /**
  * Ztráty dílů plodiny dne (disasters.md – Dopady na existující mechaniky, Úroda): hrubá úroda
- * dílu × počasí dílu (s ochranou – `partWeatherFactor`) × (1 − škoda zvěře `base`). Při sklizni
- * celé počasí roku sklizně, pro odhad (`estimate`) jen co už je vidět. Ves bez počasí a rok, kdy
- * počasí plodinu nemění, vrací `base` beze změny (bez nového objektu).
+ * dílu × počasí dílu (s ochranou – `partWeatherFactor`) × (1 − škoda zvěře `base`) × (1 − kroupy).
+ * Při sklizni celé počasí roku sklizně, pro odhad (`estimate`) jen co už je vidět (kroupy, které
+ * už padly, vidět jsou). Ves bez počasí a bez krupobití dílů a rok, kdy počasí plodinu nemění,
+ * vrací `base` beze změny (bez nového objektu).
  */
 export function dayPartLosses(
   state: Pick<VillageState, 'weatherSeed' | 'disasters'>,
@@ -38,14 +39,17 @@ export function dayPartLosses(
   base: PartLosses | undefined,
   estimate = false,
 ): PartLosses | undefined {
-  if (!hasWeather(state)) return base;
-  const weather = cropWeatherOf(state, day, estimate);
-  if (!weatherChangesCrop(weather, crop)) return base;
+  const all = hailLossesOf(state, day);
+  const hail = all && partIds.some((id) => all[String(id)] !== undefined) ? all : undefined;
+  const weather = hasWeather(state) ? cropWeatherOf(state, day, estimate) : undefined;
+  const weatherOn = weather !== undefined && weatherChangesCrop(weather, crop);
+  if (!weatherOn && !hail) return base;
   const parts = state.disasters?.protection?.parts;
   const losses: Record<string, { share: number }> = {};
   for (const id of partIds) {
     const key = String(id);
-    const kept = partWeatherFactor(weather, crop, parts?.[key]) * (1 - (base?.[key]?.share ?? 0));
+    const weatherKept = weatherOn ? partWeatherFactor(weather, crop, parts?.[key]) : 1;
+    const kept = weatherKept * (1 - (base?.[key]?.share ?? 0)) * (1 - (hail?.[key] ?? 0));
     losses[key] = { share: 1 - kept };
   }
   return losses;

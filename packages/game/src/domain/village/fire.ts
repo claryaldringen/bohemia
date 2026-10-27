@@ -8,7 +8,7 @@ import { OBSTACLE_LOOKS, lookSpecies, type ObstacleLayer } from '../landscape/ob
 import { obstaclesNear } from '../landscape/obstacles/query';
 import { workshopFootprints } from './crafts';
 import { dwellingShape } from './dwelling-shape';
-import { inDisasterProtection } from './disasters';
+import { inDisasterProtection } from './disaster-schedule';
 import { fireFighters, planFireFight } from './firefighting';
 import { evacuationTarget } from './population';
 import { dwellingFootprint } from './placement-geometry';

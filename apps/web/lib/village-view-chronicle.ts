@@ -498,6 +498,10 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       const n = event.burnedDwellingIds.length;
       return n === 1 ? 'Požár – shořela jedna stavba.' : `Požár – shořelo ${n} staveb.`;
     }
+    case 'hail':
+      return event.partIds.length > 0
+        ? `Kroupy potloukly pole – zasažené díly: ${event.partIds.length}.`
+        : 'Kroupy.';
     case 'cemetery-full':
       if (event.othersFree) return 'Jeden z hřbitovů se zaplnil – pohřbívá se do dalšího.';
       // staví se jiný hřbitov nebo rozšíření – bude kam pohřbívat

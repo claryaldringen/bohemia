@@ -347,6 +347,18 @@ export type ChronicleEvent = { day: number } & (
       lostIronKg?: number;
       lostPotteryKg?: number;
     }
+  /**
+   * Kroupy (disasters.md – Kroupy): pruh potloukl nesklizené díly `partIds` a střechy staveb
+   * `dwellingIds`; `meadowShare` = podíl sena nesečené louky, který ubyl, `appleShare` = podíl
+   * letošních jablek, který ubyl (chybí = nic).
+   */
+  | {
+      kind: 'hail';
+      partIds: number[];
+      dwellingIds: number[];
+      meadowShare?: number;
+      appleShare?: number;
+    }
   | {
       kind: 'cemetery-full';
       cemeteryId: number;

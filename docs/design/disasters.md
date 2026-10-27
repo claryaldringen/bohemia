@@ -203,14 +203,17 @@ seedu počasí mapy (stopa přes mapu).
 Martin, 27. 10. 2026: „Stromy by měly pole před kroupami částečně chránit“ – k návrhu „ano“.
 
 - **Kdy:** jeden den **června až srpna**, šance **6 % ročně** (≈ 1 z 16 let).
-- **Kde:** pruh **300 m** široký přes celé okolí vsi (směr a posun ze seedu). Díly, jejichž střed
+- **Kde:** pruh **300 m** široký přes celé okolí vsi (směr a posun ze seedu; střed pruhu
+  nejvýš **450 m** od středu vsi – průměru poloh obydlí, návrh Clauda). Díly, jejichž střed
   leží v pruhu, přijdou o **60 % nesklizené úrody** (ozim před žněmi, jařiny, nesklizené louky);
   **okraje pruhu** (vnějších 50 m z každé strany, návrh Clauda) o **30 %**. Sklizené díly a louky
   po seči nic.
 - **Stromy chrání:** ztráta dílu × (**1 − 0,4 × zeleň**) – jen zeleň z ochrany dílu, bez vlhkosti.
   **Bez směru** – nepočítá se, odkud bouře přišla; strom chrání z kterékoli strany.
 - **Sad** v pruhu **−40 % letošních jablek**; **střechy staveb** v pruhu **zchátrají o rok**
-  (stav − roční chátrání stavby).
+  (stav − roční chátrání prázdné stavby). Na okraji pruhu polovina: −20 % jablek, půl roku
+  chátrání (návrh Clauda). Nesečená louka přijde o podíl sena rozložený na zbytek seče (návrh
+  Clauda).
 - **Kolik:** pruh zasáhne typicky 10–25 % polí – ves přijde o ≈ 10 % úrody roku. **Rozptýlená
   pole** jsou pojistka (hráč volí, kde zakládá pole – jako u zvěře les).
 - Škoda jde do úrody dílu stejně jako škoda zvěře (podíl hrubé úrody po dílech).
@@ -389,7 +392,7 @@ Martin chce skutečnou pravděpodobnost, i když je velmi vzácná – žádné 
   obilí je o polovinu dražší); po krutém roce **čtvrtinovou zásobu** a zboží za **polovinu obilí**
   (×0,5, obilí dvakrát dražší) – ceny v hladovém roce na dvoj- až trojnásobek (Ó Gráda 2005).
   Dobytek je pak levný – ves bez sena ho prodá, ves s pojistkou nakoupí. Hřivny jsou uložená
-  hodnota na zlý rok. *Návrh Clauda (27. 10. 2026):* násobek platí pro **veškerý obchod včetně
+  hodnota na zlý rok. _Návrh Clauda (27. 10. 2026):_ násobek platí pro **veškerý obchod včetně
   plateb** (platba za ohradu koní, nákup výrobků u řemeslníků souseda, kování) – jinak by ves dala
   zboží za plnou hodnotu a týž kus koupila za polovinu. „Nákup v krutém roce a prodej v dobrém“
   je záměr: hřivny jsou uložená hodnota, která v dobrém roce vydělá.

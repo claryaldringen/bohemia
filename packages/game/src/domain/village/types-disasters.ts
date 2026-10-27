@@ -88,12 +88,56 @@ export interface PartProtections {
   parts: Record<string, PartProtection>;
 }
 
+/**
+ * Krupobití v rozpisu roku vsi (`yearSchedule` – disasters.md, Kroupy): den, směr pruhu (úhel
+ * v radiánech, 0 = podél osy x) a posun jeho středu od středu vsi (m, kolmo ke směru).
+ */
+export interface HailPlan {
+  day: number;
+  angle: number;
+  offsetM: number;
+}
+
+/** Rozpis místních pohrom roku vsi ze seedu vsi – zatím kroupy (povodeň a smršť přidají P6, P9). */
+export interface LocalYearSchedule {
+  hail: HailPlan | null;
+}
+
+/** Pruh krupobití: střed vsi v den krupobití (m), směr a posun (`HailPlan`). */
+export interface HailStrip {
+  x: number;
+  z: number;
+  angle: number;
+  offsetM: number;
+}
+
+/** Poslední krupobití vsi (pro scénu a sad): den a pruh. */
+export interface HailRecord {
+  day: number;
+  strip: HailStrip;
+  /** Podíl letošních jablek sadů, který kroupám zbyl (0–1) – sklizeň 1. 9. téhož roku. */
+  apples?: number;
+}
+
+/**
+ * Podíly ztráty hrubé úrody po dílech za rok sklizně (`harvestYearOf`) – sloučí se se škodou zvěře
+ * a počasím v `dayPartLosses`. Povodeň a smršť přidají P6, P9.
+ */
+export interface PartDisasterLosses {
+  year: number;
+  hail?: Record<string, number>;
+}
+
 /** Pohromy vsi (disasters.md); další části přidají místní pohromy. */
 export interface DisasterState {
   /** Řetěz s vědry posledního požáru (platí jen v jeho den). */
   fireFight?: FireFight;
   /** Ochrana dílů před počasím, jednou za rok 1. 4. (jen ves se `weatherSeed`). */
   protection?: PartProtections;
+  /** Poslední krupobití (jen ves se `weatherSeed` nebo vynucené). */
+  hail?: HailRecord;
+  /** Ztráty dílů z místních pohrom za rok sklizně. */
+  losses?: PartDisasterLosses;
   /**
    * Paměť hladu (disasters.md – Dopady, Zásoby a pojistka): do tohoto roku včetně drží ves
    * vyšší pojistku – zapíše `famineMemoryDay` 1. 9. po krutém roce.
@@ -104,5 +148,7 @@ export interface DisasterState {
     weather?: Record<number, WeatherOverride>;
     /** Vynucený požár: herní den → id obydlí, které chytí (přebije los i ochranu nové vsi). */
     fire?: Record<number, number>;
+    /** Vynucené krupobití: herní den → směr a posun pruhu (přebije los i ochranu nové vsi). */
+    hail?: Record<number, Omit<HailPlan, 'day'>>;
   };
 }

@@ -619,7 +619,9 @@ export function mow(state: VillageState, amount: number, day: number | null = nu
   if (!hay || !mowing || amount <= 0 || mowing.required <= 0) return;
   const before = mowing.done;
   mowing.done = Math.min(mowing.required, before + amount);
-  const weather = day === null ? 1 : mowingWeatherFactor(state, day, mowing);
+  // kroupy potloukly zbylé louky (disasters.md – Kroupy)
+  const weather =
+    (mowing.hailFactor ?? 1) * (day === null ? 1 : mowingWeatherFactor(state, day, mowing));
   hay.kg += (mowing.yieldKg * weather * (mowing.done - before)) / mowing.required;
 }
 
