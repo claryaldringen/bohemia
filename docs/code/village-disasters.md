@@ -481,3 +481,57 @@ vzácné tornádo je dobré“; rešerše §6). Jádro: `tornado.ts`, stopy v `d
 - **Kronika** – požár „Požár – vyhořel jeden dům / vyhořely 2 domy / vyhořelo 5 domů.“, kroupy
   „Kroupy – potlučené díly: 4, potlučené střechy: 2.“ (`fireText`, `hailText`
   v `village-view-chronicle.ts`); povodeň, smršť a počasí beze změny.
+
+## Ověření na Vlkově (P14)
+
+27. 10. 2026, větev `feat/disasters` (47eb7aef). Kopie Vlkova z DB (14. 8. 823, 47 lidí, zásoby
+        1,4 t) dopočtená po hospodářských rocích (1. 9. – 31. 8.); rok 824 je převod stavu (prázdné zásoby
+        před osivem ze zásob) a do cílů se nepočítá. Dopočet je deterministický (dva běhy stejného seedu
+        dají stejná čísla). Seed počasí ručně (v DB ještě není).
+
+**Dopočet s počasím** (bez vynucení; „bez počasí“ = stejný Vlkov bez `weatherSeed`):
+
+| Běh                 | Zlé / kruté | Šetří dní (let) | Hladoví dní (let) | Bez hladu | Příděl min | Úmrtí hladem      | Lidé         |
+| ------------------- | ----------- | --------------- | ----------------- | --------- | ---------- | ----------------- | ------------ |
+| 424242, 825–843     | 4 / 3       | 158 (3)         | 54 (1)            | 95 %      | 0,77       | 0                 | 45 → 45      |
+| 424242, 825–873     | 18 / 8      | 1307 (23)       | 2575 (23)         | 53 %      | 0,29       | 51 (13 dosp.)     | 45 → 7       |
+| 777, 825–843        | 10 / 1      | 82 (3)          | 64 (2)            | 89 %      | 0,76       | 0                 | 45 → 46      |
+| 31337, 825–843      | 6 / 0       | 1 (1)           | 50 (1)            | 95 %      | 0,81       | 0                 | 45 → 46      |
+| bez počasí, 825–868 | –           | 2190 (25)       | 2927 (19)         | 57 %      | 0,67       | 63 (děti, starší) | 45 → 67 → 32 |
+
+- **Pohromy za 50 let (424242):** povodeň 34× (malá, pětiletá, dvacetiletá – 1 / 5 / 37 dílů,
+  dům nikdy), požár 3× (4, 2 a 1 dům; 12,6 t sena), kroupy 3× (123, 382 a 6 dílů), smršť 0×
+  (ani v dalších 40 letech s jinými seedy). Dvousetletá voda (31337) zatopila 124 dílů, domy ne.
+  Požár a kroupy 834 mají všechny seedy – rozpis místních pohrom je ze seedu vsi.
+- **Dlouhodobá spirála hladu** (kalibrace, ne pohromy): bez hráče, který přidává pole, ves
+  přeroste pole, nouzové přílohy vyčerpají půdu (úrodnost dílů 0,62 → 0,36), zásoby ≈ 2 t, každý
+  rok chybí osivo, voli 10 → 2 a ves oseje 180–850 dílů – hladoví i v dobrých letech. Bez počasí
+  totéž pomaleji (od 848, 63 dětí a starších); s počasím rychleji a po hájení umírají i dospělí.
+
+**Vynucené sledy** (snímek po 3 normálních letech, zásoby 15,3 t, ostatní roky normální):
+[krutý] i [krutý, krutý] bez šetření a bez úmrtí (druhé sucho dá větší osev 13 t; porážka 9 prasat
+a 5 krav pro seno); stoletá voda 25. 3. – 94 dílů, žádný dům; smršť F2 přes střed – zbořeno 9 z 10
+obydlí, 310 stromů, 212 dílů; požár s hašením v hustém středu – hořelo 6 domů, 3 ruiny, zrno
+2,6 t, seno 14,8 t, řetěz 16 lidí s vodou 481 m (účinnost 0,08). Zápisy kroniky existují a sedí.
+
+**Nové vsi** (3 krajiny, `realLand` jako measure-village, první pole 250 dílů, 5 lidí, 1,8 t
+zásob): prvních 5 let žádná místní pohroma (ochrana vzala kroupy rozpisu ve 3,3. a 4,8. roce);
+krutý rok ve 2. roce – bez šetření a bez úmrtí. S polem 75 dílů a bez hráče hladoví od 3. roku
+i bez sucha (hájení drží lidi naživu).
+
+**Cíle kalibrace:** 1 krátkodobě ano (normální roky 825–840 bez hladu), dlouhodobě ne (spirála
+výš); 2 ano; 3 ano – ves nevymře, nikdo hladem neumře, ale se zásobami 15 t ani nešetří; 4 v prvních
+19 letech 89–95 %, za 50 let 53 %; 5 ano. **Výkon:** rok Vlkova se seedem 23,4 s, bez něj 23,5 s
+(−0,3 %). **Zlaté otisky** krajiny a překážek beze změny (202 testů).
+
+**Nalezené chyby (neopravené):**
+
+- **Lidé ze zřícených domů se stěhují do dílny a ves přestane hospodařit.** `collapseDwellings`
+  (`fire.ts`, i povodeň a smršť) → `evacuationTarget` (`population.ts`): záložní `roomiest`
+  a `homes.find` nevylučují obydlí s dílnou. Po smršti F2 přes Vlkov stojí jen uhlířova chalupa,
+  všech 46 lidí je pak řemeslná domácnost (`craftHouseholds`), `freeLabor` (`simulate-plan.ts`)
+  dá volnou práci 0 a `frontRoom` nepustí žádný díl – další rok ves neoseje nic, žně 0 kg.
+- Kronika požáru s hašením „vyhořelo 6 domů“, když 3 z nich stojí ohořelé (`burnedDwellingIds`
+  nese i ohořelé); porážka pro seno jde do kroniky po jedné krávě (5 zápisů v březnu).
+
+Podrobné tabulky a scénáře: diagnostika `p14.txt` (mimo repo).
