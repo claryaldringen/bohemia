@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ScenePerson } from '../../person-view';
-import { fishingLine } from '../fishing-lines';
+import { fishingLine, LINE_BEYOND_M, ROD_TIP } from '../fishing-lines';
 import { createVillagerPose } from '../villager-motion';
 import {
   ANGLERS_PER_POOL,
@@ -103,14 +103,33 @@ describe('děti s řehtačkou na hlídaných dílech', () => {
 });
 
 describe('vlasec (fishing-lines.ts)', () => {
-  it('od špičky prutu nad rybářem šikmo dolů na hladinu před ním', () => {
-    const [tx, ty, tz, wx, wy, wz] = fishingLine({ x: 1, z: 5, headingX: 0, headingZ: -1 }, 1, 10);
-    expect(ty).toBeGreaterThan(10 + 2);
-    expect(wy).toBeLessThan(10);
-    expect(tx).toBe(1);
-    expect(wx).toBe(1);
-    // obojí před rybářem (směr −z), dopad dál než špička
-    expect(tz).toBeLessThan(5);
-    expect(wz).toBeLessThan(tz);
+  it('od špičky prutu muže (šikmo vpřed vlevo) dolů na hladinu před ním', () => {
+    // muž hledí na −z, jeho levá ruka je na +x
+    const [tx, ty, tz, wx, wy, wz] = fishingLine(
+      { x: 1, z: 5, headingX: 0, headingZ: -1 },
+      'man',
+      1,
+      // břeh 10 m, za 3 m od rybáře sráz do tůně (dno 6 m)
+      (_x, z) => (z > 2 ? 10 : 6),
+    );
+    expect(ty).toBeCloseTo(10 + ROD_TIP.man.up);
+    expect(tx).toBeCloseTo(1 - ROD_TIP.man.right);
+    expect(tx).toBeGreaterThan(1.5);
+    expect(tz).toBeCloseTo(5 - ROD_TIP.man.forward);
+    // dopad na dně pod hladinou, o kus dál ve směru pohledu než špička, bez posunu do strany
+    expect(wy).toBeLessThan(6);
+    expect(wx).toBeCloseTo(tx);
+    expect(wz).toBeCloseTo(tz - LINE_BEYOND_M);
+  });
+
+  it('žena drží prut skoro svisle – špička vysoko a blízko, větší postava dál', () => {
+    const at = { x: 0, z: 0, headingX: 1, headingZ: 0 };
+    const flat = (): number => 0;
+    const [tx, ty] = fishingLine(at, 'woman', 1, flat);
+    expect(ty).toBeGreaterThan(3);
+    expect(tx).toBeLessThan(1.2);
+    const [bx, by] = fishingLine(at, 'woman', 1.2, flat);
+    expect(bx).toBeCloseTo(tx * 1.2);
+    expect(by).toBeCloseTo(ty * 1.2);
   });
 });

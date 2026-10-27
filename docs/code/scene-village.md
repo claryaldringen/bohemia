@@ -264,7 +264,7 @@ podle osetých ha dílů `sown`) a `fishShare` (biomasa ÷ strop).
   seedu krajiny vsi a dat vsi, na rastru terénu dobytka (`LivestockGround` – sdílí ho
   `VillageLivestock.groundFor`). Stanoviště po 8 m do 320 m od středu vsi: **okraj lesa**
   (`forestEdge`, −7 až +5 m jako prasata vsi, vlci a medvěd, ≥ 45 m od obydlí), **louka před
-  lesem** (`verge`, +4 až +18 m od hranice lesa, ≥ 45 m od obydlí – jelení zvěř; z kamery ji
+  lesem** (`verge`, 8–20 m před hranicí lesa na louce – `ForestField` je v lese kladné, ≥ 45 m od obydlí – jelení zvěř; z kamery ji
   nezakryjí koruny, bez `verge` se bere `pasture`; návrh Clauda), **louka** (`pasture`, ≥ 55 m od
   obydlí, i strniště – díl `look: 'stubble'`), **kraj vsi** (22–60 m od obydlí – liška) a **díl se
   škodou** (`topPartId`, červen–srpen; na sousední díly smí). Nikdy ve stavbě, na poli (mimo díl
@@ -326,8 +326,9 @@ nepřeplánují (`wildlifeKey` bere jen pole W10).
   (`forestEdge`, `nearEdge`), a cesta zkrácená na dosah (`cutWay` – pěší poklusem ≈ 100 m), sweep
   pak kolem konce cesty – nikdy se neotočí v poli. Pěší lovci
   (`footHunterPose` ve `villager-plan-lord.ts`) jdou stejnou trasou vlastním tempem v řadě; na
-  krajích sweepu je úsek 0,3 m tempem 0,05 m/s – lovec stojí s oštěpem (`spear-thrust`, oštěp je
-  v `man.glb` jen v tomto klipu). **Úlovek:** první pěší lovec nese cestou zpět maso
+  okraji lesa a na krajích sweepu je úsek 0,3 m tempem 0,05 m/s – lovec stojí s oštěpem
+  (`spear-thrust`, oštěp je v `man.glb` jen v tomto klipu; cestou jde bez něj). Zastávka hned
+  u okraje je nutná – na kraj sweepu (≈ 23 m krokem) by po cestě (70 % půlky bloku) nedošli. **Úlovek:** první pěší lovec nese cestou zpět maso
   (`carry-meat`), když jádro dnes ulovilo (`kills` > 0) – bez nového modelu (kus na koni by
   potřeboval mršinu natočenou podle koně). Cvičící mimo blok cvičí, odešlí synové jsou doma.
   Prasata před lovci utíkají sama (útěk W10 – lovci jsou postavy).
@@ -345,9 +346,10 @@ nepřeplánují (`wildlifeKey` bere jen pole W10).
 - **Rybáři** (`anglers` / `anglerSpot` ve `villager-plan-folk.ts`): podíl práce `fish` s cílem
   `pool` – postava stojí na břehu tůně (`stand`, klip `fish` s prutem), střídavě na obou březích,
   po 3,2 m podél toku, na prvním schůdném místě od vody, čelem k vodě, nejvýš 3 na tůň. Vlasec:
-  `fishing-lines.ts` – jedna čára od špičky prutu (odhad 2,2 m vpřed, 2,9 m vzhůru) na hladinu
-  3,6 m před rybářem, všechny vlasce jeden LinesMesh, přestaví se jen se změnou postav. Oka se
-  nekreslí.
+  `fishing-lines.ts` – jedna čára od špičky prutu (`ROD_TIP` spočtený z kostry klipu `fish`: muž
+  2,15 m vpřed, 0,8 m vlevo, 1,6 m vzhůru; žena drží prut skoro svisle – 0,9 m vpřed, 3,2 m
+  vzhůru) 2 m dál k vodě; konec leží 0,3 m pod terénem, takže za strmým břehem končí viditelná čára
+  na hladině. Všechny vlasce jeden LinesMesh, přestaví se jen se změnou postav. Oka se nekreslí.
 
 ## Kůň a hříbě (modely – Úloha 8; ve scéně Úloha 10)
 

@@ -1043,8 +1043,11 @@ const PASTURE_LIMITS = { forestM: -6, bankM: 3, slope: 0.12, rock: 0.25 };
  * okrajem lesa z druhé strany je po otočení kamery taky nemusí být vidět – to nevadí.
  */
 const FOREST_EDGE_M = { from: -7, to: 5 };
-/** Zvěř: pás na louce před lesem (m od hranice lesa) – mimo koruny, stále u krytu. */
-const VERGE_M = { from: 4, to: 18 };
+/**
+ * Zvěř: pás na louce před lesem (m od hranice lesa, záporné v louce) – mimo koruny krajních
+ * stromů a pás prasat (`FOREST_EDGE_M`), stále u krytu.
+ */
+const VERGE_M = { from: -20, to: -8 };
 const FOREST_LIMITS = { bankM: 3, slope: 0.16, rock: 0.35 };
 /** Slepice: od vody (m), sklon a skalnatost. */
 const WALK_LIMITS = { bankM: 1, slope: 0.2, rock: 0.5 };

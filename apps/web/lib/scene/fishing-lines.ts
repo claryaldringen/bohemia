@@ -6,30 +6,44 @@ import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { CreateLineSystem } from '@babylonjs/core/Meshes/Builders/linesBuilder';
 import type { LinesMesh } from '@babylonjs/core/Meshes/linesMesh';
 import type { Scene } from '@babylonjs/core/scene';
+import type { VillagerKind } from './villager-motion';
 
 /**
- * Špička prutu vůči nohám postavy velikosti 1 (m): prut ≈ 3 m od ruky šikmo vpřed a vzhůru
- * (`procedural_rod` – odhad z pózy `idle_relax`, ověřit okem) a kam vlasec dopadne (m před
- * postavou, hladina o kus níž než břeh).
+ * Špička prutu vůči nohám postavy velikosti 1 (m – vpřed, vzhůru, vpravo) v klipu `fish`:
+ * spočtená z kostry `man.glb` / `woman.glb` (prut `procedural_rod` u bodu `prop-weapon_R`, první
+ * snímek klipu). Muž drží prut od pravého boku šikmo vpřed doleva, žena skoro svisle.
  */
-export const ROD_TIP = { forward: 2.2, up: 2.9 } as const;
-export const LINE_REACH_M = 3.6;
-const WATER_BELOW_M = 0.35;
+export const ROD_TIP: Readonly<
+  Record<VillagerKind, { forward: number; up: number; right: number }>
+> = {
+  man: { forward: 2.15, up: 1.62, right: -0.81 },
+  woman: { forward: 0.93, up: 3.19, right: 0.23 },
+};
+/**
+ * Vlasec dopadne tak daleko před špičkou prutu (m, postava velikosti 1) – za strmým břehem tůně
+ * je voda až pár metrů před rybářem.
+ */
+export const LINE_BEYOND_M = 2;
+/** Konec vlasce pod terénem v místě dopadu (m) – pod hladinou ho schová voda. */
+const LINE_SINK_M = 0.3;
 
-/** Body vlasce rybáře: špička prutu a místo na hladině (x, y, z). */
+/**
+ * Body vlasce rybáře: špička prutu a místo dopadu (x, y, z). Konec leží na dně pod hladinou
+ * (`height` – výška terénu), takže viditelná čára končí na hladině; na suchu na zemi.
+ */
 export function fishingLine(
   pose: { x: number; z: number; headingX: number; headingZ: number },
+  kind: VillagerKind,
   scale: number,
-  groundY: number,
+  height: (x: number, z: number) => number,
 ): [number, number, number, number, number, number] {
-  return [
-    pose.x + pose.headingX * ROD_TIP.forward * scale,
-    groundY + ROD_TIP.up * scale,
-    pose.z + pose.headingZ * ROD_TIP.forward * scale,
-    pose.x + pose.headingX * LINE_REACH_M * scale,
-    groundY - WATER_BELOW_M,
-    pose.z + pose.headingZ * LINE_REACH_M * scale,
-  ];
+  const tip = ROD_TIP[kind];
+  // vpravo od směru (hx, hz) je v levotočivé scéně (hz, −hx)
+  const tx = pose.x + (pose.headingX * tip.forward + pose.headingZ * tip.right) * scale;
+  const tz = pose.z + (pose.headingZ * tip.forward - pose.headingX * tip.right) * scale;
+  const wx = tx + pose.headingX * LINE_BEYOND_M * scale;
+  const wz = tz + pose.headingZ * LINE_BEYOND_M * scale;
+  return [tx, height(pose.x, pose.z) + tip.up * scale, tz, wx, height(wx, wz) - LINE_SINK_M, wz];
 }
 
 /** Vlasce všech rybářů vsi – jeden LinesMesh, přestaví se jen při změně čar. */

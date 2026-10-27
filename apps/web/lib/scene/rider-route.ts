@@ -271,7 +271,7 @@ export const HUNT_STOP_M = 0.3;
 /**
  * Trasa lovu (wildlife.md – Ve scéně): `way` od kůlu u brány k okraji lesa (tempo, aby cesta trvala
  * `HUNT_WAY_SHARE` z `halfS` s, v mezích `HUNT_PACE`), pak sem a tam podél okraje lesa (`sweep` –
- * body A a B, krokem; pěší na krajích stojí s oštěpem), dokud trasa nepřesáhne `halfS` – jízda
+ * body A a B, krokem; pěší u okraje a na krajích stojí s oštěpem), dokud trasa nepřesáhne `halfS` – jízda
  * v bloku (`rideState`) jede půlku bloku tam a pak po téže trase zpět, takže se nikdy nepřetočí
  * na začátek. Bez cesty null.
  */
@@ -300,6 +300,13 @@ export function huntRoute(
         z: p.z + ((to.z - p.z) / d) * HUNT_STOP_M,
       };
     };
+    // pěší se u okraje lesa nejdřív zastaví s oštěpem – na kraj sweepu (≈ 23 m krokem) by
+    // v 86s dni po cestě k lesu (70 % půlky bloku) už nedošli
+    if (foot) {
+      points.push(stop(edge, sweep[0]));
+      paces.push(HUNT_PACE.stop);
+      time += HUNT_STOP_M / HUNT_PACE.stop;
+    }
     // A, (zastávka), okraj, B, (zastávka), okraj … dokud trasa nepokryje půlku bloku
     for (let k = 0; time < halfS && k < 64; k++) {
       const end = sweep[k % 2]!;

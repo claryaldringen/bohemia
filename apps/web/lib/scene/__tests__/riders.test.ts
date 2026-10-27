@@ -187,6 +187,22 @@ describe('lov ve scéně (huntPlans – wildlife.md, Ve scéně)', () => {
     expect(ride.pace.some((p) => p === HUNT_PACE.stop)).toBe(false);
   });
 
+  it('pěší lovec stojí s oštěpem u okraje lesa dřív, než se v půlce bloku obrátí', () => {
+    const halfS = ((HUNT_BLOCK[1] - HUNT_BLOCK[0]) / 2) * hourT(1);
+    // cesta k lesu na hranici dosahu – zabere celých 70 % půlky bloku
+    const way = [huntInput.hitch, { x: 104, z: 0 }];
+    const sweep: [Point, Point] = [
+      { x: 110, z: 22 },
+      { x: 110, z: -22 },
+    ];
+    const walk = huntRoute(way, sweep, true, halfS)!;
+    const k = walk.pace.findIndex((p) => p === HUNT_PACE.stop);
+    expect(k).toBeGreaterThan(0);
+    // úsek zastávky začne i skončí před obratem
+    expect(walk.times[k + 1]!).toBeLessThan(halfS);
+    expect(Math.hypot(walk.points[k + 1]!.x - 104, walk.points[k + 1]!.z)).toBeLessThan(0.5);
+  });
+
   it('lovci vždy stihnou dojít k lesu a vrátit se – daleký les u zvěře nahradí bližší', () => {
     const halfS = ((HUNT_BLOCK[1] - HUNT_BLOCK[0]) / 2) * hourT(1);
     const mid = (HUNT_BLOCK[0] + HUNT_BLOCK[1]) / 2;

@@ -664,7 +664,9 @@ export class VillageVillagers {
       this.pose.lift = undefined;
       const pose = person.pose(t, [], this.pose);
       if (pose.clip !== 'fish' || pose.hidden) continue;
-      lines.push(fishingLine(pose, person.scale, this.env.groundHeight(pose.x, pose.z)));
+      lines.push(
+        fishingLine(pose, person.kind, person.scale, (x, z) => this.env.groundHeight(x, z)),
+      );
     }
     if (lines.length === 0 && !this.lines) return;
     this.lines ??= new FishingLines(this.scene);
