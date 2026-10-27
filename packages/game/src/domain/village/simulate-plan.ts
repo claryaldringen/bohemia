@@ -129,8 +129,8 @@ export function startSeason(
   state.season = createSeason({ winter: [], spring: [] }, day, coverage.tools, plough);
   // podle potřeby lnu k 1. 9. se při trhání zapíše, na kolik oděvu len je (fields.md – Len)
   state.season.flaxNeedKg = flaxNeedKg(state, day);
-  // páry k rádlům, které ves chce (oxen.md – Kolik volů ves chce) – podle nich cvičí voly; mění
-  // se, jen když potřeba trvá dva roky (`nextPloughPairs`); z dílů na řadě po postupu. Pod
+  // páry k rádlům, které ves chce (oxen.md – Kolik volů ves chce) – podle nich cvičí voly; nahoru
+  // hned, dolů po dvou plánech (`nextPloughPairs`); z dílů na řadě po postupu. Pod
   // pojistkou zásob i z nutných dílů mimo postup (nouzové přílohy) a nahoru hned (oxen.md – Kolik
   // volů ves chce, Pod pojistkou; Martin 27. 10. 2026)
   if (oxPens(state).length > 0) {

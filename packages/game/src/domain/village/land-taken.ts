@@ -2,6 +2,7 @@ import { tileOfWorldPoint, type Landscape } from '../landscape';
 import { PART_TASKS, taskPosition, taskSpans, type PartTask } from './field-progress';
 import { mowingPosition, mowingSpans, mowingYieldPerHa } from './hay';
 import { recordClearedObstacles } from './obstacles';
+import { partsSeedKg } from './seed';
 import { normalizeGrid, squareKey } from './square-grid';
 import { PolygonIndex, villageLandSquares, type LandSquare, type SquaresVillage } from './squares';
 import { squareCareWork, squareHarvestWork, squareYieldKg } from './orchard';
@@ -490,6 +491,13 @@ export function moveParts(
   for (const part of parts) {
     shrinkInPlan(state, season, part, 1, day);
     dropFromWork(from, new Set([part.id]));
+  }
+  // osivo zasetého podílu přesunutých dílů jde s nimi – nutná práce by ho jinak vzala podruhé
+  const sown = carried.get('sow');
+  if (sown && sown.required > 0 && from.seedKg !== undefined && to.seedKg !== undefined) {
+    const seedKg = Math.min(from.seedKg, (sown.done / sown.required) * partsSeedKg(parts, to.crop));
+    from.seedKg -= seedKg;
+    to.seedKg += seedKg;
   }
   const fresh = createCropWork(parts, day, toolCoverage, plough, (ps) => [...ps], to.crop);
   for (const task of TASK_ORDER) {

@@ -113,7 +113,14 @@ import type {
   SeedKg,
   VillageState,
 } from './types';
-import { foodUntilHarvestKg, seedSowCap, sowableSeedKg, takeSeed } from './seed';
+import {
+  foodUntilHarvestKg,
+  seedSowCap,
+  seedUseKg,
+  seedStore,
+  sowableSeedKg,
+  takeSeed,
+} from './seed';
 import {
   TASK_ORDER,
   activeTasks,
@@ -173,8 +180,8 @@ export function fieldTasks(
   const entries: FieldTaskEntry[] = [];
   // setí jen na tolik dílů, na kolik má ves osivo (fields.md – Úroda, Osivo ze zásob)
   let seed: { byId: Map<number, FieldPart>; sowable: SeedKg } | null = null;
-  const seedCap = (crop: Crop, work: CropWork): number => {
-    if (work.seedKg === undefined) return Infinity;
+  const seedCap = (crop: Crop, work: CropWork, wanted: number): number => {
+    if (work.seedKg === undefined) return wanted;
     if (!seed) {
       const food = foodUntilHarvestKg(state, day);
       seed = {
@@ -185,7 +192,13 @@ export function fieldTasks(
         },
       };
     }
-    return seedSowCap(work, crop, seed.byId, seed.sowable);
+    const allowed = Math.min(wanted, seedSowCap(work, crop, seed.byId, seed.sowable));
+    // osivo, které tato plodina dnes vezme, další plodiny téhož dne už nedostanou
+    const store = seedStore(crop);
+    if (store !== null && allowed > 0) {
+      seed.sowable[store] -= seedUseKg(work, crop, seed.byId, allowed, seed.sowable[store]);
+    }
+    return allowed;
   };
   const add = (crop: Crop, work: CropWork, name: CropTask): void => {
     const end =
@@ -196,7 +209,7 @@ export function fieldTasks(
       TASK_ORDER.indexOf(name === 'plough' ? 'dig' : name) - (name === 'plough' ? 0.5 : 0);
     const rank = CROP_ORDER.indexOf(crop) * TASK_ORDER.length + order;
     let remaining = neededTaskRemaining(work, name);
-    if (name === 'sow' && remaining > 0) remaining = Math.min(remaining, seedCap(crop, work));
+    if (name === 'sow' && remaining > 0) remaining = seedCap(crop, work, remaining);
     if (remaining > 0) entries.push({ name, crop, remaining, work, end, rank });
   };
   if (state.season !== null) {

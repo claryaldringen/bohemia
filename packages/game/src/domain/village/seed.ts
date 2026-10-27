@@ -98,6 +98,8 @@ function grainSeedTakenKg(state: Pick<VillageState, 'season'>): number {
   if (!state.season) return 0;
   let kg = 0;
   for (const { crop, work } of seasonCrops(state.season)) {
+    // osivo nad potřebu se do nároku nutných dílů nepočítá (`recordSeedPlan` je z něj vynechává)
+    if (work.surplus) continue;
     if (seedStore(crop) === 'grain') kg += work.seedKg ?? 0;
   }
   return kg;
@@ -147,6 +149,23 @@ export function seedSowCap(
 }
 
 /**
+ * Kolik osiva (kg) plodina dnes vezme, když zaseje `remaining` práce setí – ze zásob, které smí
+ * do země; pro odečet od `sowable` dalších plodin téhož dne.
+ */
+export function seedUseKg(
+  work: CropWork,
+  crop: Crop,
+  partsById: ReadonlyMap<number, FieldPart>,
+  remaining: number,
+  sowable: number,
+): number {
+  if (work.seedKg === undefined || work.required.sow <= EPSILON) return 0;
+  const share = Math.min(1, (work.done.sow + remaining) / work.required.sow);
+  const want = Math.max(0, share * workSeedKg(work, partsById, crop) - work.seedKg);
+  return Math.min(want, sowable);
+}
+
+/**
  * Vezme ze zásob osivo zasetého podílu (mutuje stav a `work`): zasetý podíl × osivo celého plánu
  * bez osiva, které už plodina vzala; luštěniny napřed ze zásoby luštěnin, chybějící za obilí
  * (výměna u sousedů); obilí z otevřené obilné jámy, když zrno mimo jámy nestačí
@@ -162,7 +181,6 @@ export function takeSeed(
   if (work.seedKg === undefined || store === null) return 0;
   const due = sownShare(work) * workSeedKg(work, partsById, crop) - work.seedKg;
   if (due <= EPSILON) return 0;
-  work.seedKg += due;
   // luštěniny napřed ze své zásoby, chybějící vymění u sousedů za obilí
   const legumes = store === 'legumes' ? Math.min(due, storeKg(state, 'legumes')) : 0;
   if (legumes > 0) state.legumesKg = (state.legumesKg ?? 0) - legumes;
@@ -171,6 +189,8 @@ export function takeSeed(
     state.storesKg -= grain;
     drawGrainPits(state);
   }
+  // k plánu se přičte jen skutečně vzaté osivo – zbytek se vezme, až zásoba přibude
+  work.seedKg += legumes + grain;
   return legumes + grain;
 }
 

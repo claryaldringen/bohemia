@@ -10,7 +10,8 @@ import { expectedNetKg } from './fields';
 import { villageLaborFactor } from './happiness';
 import { lordApartIds } from './lord';
 import { villageFoodCosts } from './husbandry';
-import { villageLegumesKg } from './legumes';
+import { legumeEnergy, villageLegumesKg } from './legumes';
+import { seedAheadKg } from './seed';
 import { legumeNeedPerYear } from './livestock';
 import { villageManor } from './manor';
 import { neighbourKind } from './neighbours';
@@ -298,7 +299,15 @@ export function paymentPool(
   coverage: CraftCoverage,
   intoBuffer = false,
 ): PaymentPool {
-  const targets = sowingTargets(state, day, legumeNeedPerYear(state, day), coverage.pottery);
+  // osivo, které čeká na setí, ves nezaplatí (jako `fieldSowingTargets`)
+  const seed = seedAheadKg(state);
+  const targets = sowingTargets(
+    state,
+    day,
+    legumeNeedPerYear(state, day),
+    coverage.pottery,
+    seed.grain + legumeEnergy(seed.legumes),
+  );
   return {
     energyKg: Math.max(0, targets.leftKg - (intoBuffer ? 0 : targets.bufferKg)),
     grainKg: Math.max(0, state.storesKg),

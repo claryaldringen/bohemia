@@ -36,7 +36,7 @@ import {
 } from './livestock';
 import { villageApplesKg } from './orchard';
 import { EMERGENCY_SLAUGHTER } from './rules';
-import { seedReserve } from './seed';
+import { foodUntilHarvestKg, seedReserve } from './seed';
 import { sheavesOutlook } from './threshing';
 import type { ChronicleEvent, HerdSpecies, VillageState } from './types';
 import { woolSheep } from './wool';
@@ -81,11 +81,14 @@ export function dayMealInput(
   const need = villageFoodNeed(state, day);
   const milk = dailyMilk(dams, day);
   // ozim uživí srpen, když pokryje potřebu z pole, na kterou ves osévala (fields.md – Ozim a jař)
+  // stejný podíl jako `foodUntilHarvestKg` (seed.ts) – prahy setí a jídla se nerozejdou
+  const shares = state.diet?.shares;
+  const fieldShare = Math.max(fieldFoodShare(state), (shares?.grain ?? 0) + (shares?.legumes ?? 0));
   const daysToHarvest = daysUntilFoodHarvest(
     state.season,
     state.parts,
     day,
-    need * fieldFoodShare(state),
+    need * fieldShare,
     // škoda zvěře a počasí, které už je vidět (disasters.md – Dopady, Úroda)
     winterEstimateLosses(state, day),
   );
@@ -93,9 +96,7 @@ export function dayMealInput(
   const sheaves = sheavesOutlook(state, day);
   // osivo, které na setí čeká, ves nejí – jen když by příděl do žní klesl pod práh hladu
   // (fields.md – Úroda, Osivo ze zásob)
-  const shares = state.diet?.shares;
-  const fieldShare = Math.max(fieldFoodShare(state), (shares?.grain ?? 0) + (shares?.legumes ?? 0));
-  const seed = seedReserve(state, need * fieldShare * daysToHarvest);
+  const seed = seedReserve(state, foodUntilHarvestKg(state, day));
   return {
     grainKg: state.storesKg - seed.grain,
     // zapečetěné obilné jámy ztrácí méně (production-chains.md – Obilné jámy)

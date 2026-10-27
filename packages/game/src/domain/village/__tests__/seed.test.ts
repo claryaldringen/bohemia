@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
+import { paymentPool } from '../craft-buying';
+import { moveParts } from '../land-taken';
 import { foundVillage, type PartInput } from '../actions';
 import { grossYieldPerHa } from '../fields';
 import { NO_CRAFTS } from '../productivity';
@@ -202,4 +204,59 @@ describe('osivo ze zásob při setí (fields.md – Úroda, Osivo ze zásob)', (
     }
     expect(pieces).toEqual(JSON.parse(JSON.stringify(whole)));
   }, 120_000);
+});
+
+describe('osivo – nálezy recenze', () => {
+  it('zásoby nestačí: k plánu se přičte jen skutečně vzaté osivo', () => {
+    const { s, work } = withWinter(4, 3);
+    work.done.sow = work.required.sow;
+    expect(takeSeed(s, work, 'winter', byId(s))).toBeCloseTo(3, 9);
+    expect(work.seedKg).toBeCloseTo(3, 9);
+    // zásoba přibyla – zbytek se doplní
+    s.storesKg = 1000;
+    const total = 4 * PART_HA * SEED_KG_PER_HA;
+    expect(takeSeed(s, work, 'winter', byId(s))).toBeCloseTo(total - 3, 9);
+    expect(work.seedKg).toBeCloseTo(total, 9);
+  });
+
+  it('osivo nad potřebu neubere nárok nutných dílů pod prahem', () => {
+    const { s, work } = withWinter(4, 100_000);
+    const food = foodUntilHarvestKg(s, at(600, 9, 15));
+    s.season!.seedFloorKg = 50;
+    const before = sowableSeedKg(s, 'grain', food);
+    s.season!.crops.push({
+      crop: 'winter',
+      ...createCropWork(s.parts, at(600, 9, 15), 0, false, undefined, 'winter'),
+      surplus: true,
+      seedKg: 40,
+    });
+    expect(work.seedKg).toBe(0);
+    expect(sowableSeedKg(s, 'grain', food)).toBe(before);
+  });
+
+  it('povýšený díl nad potřebu si nese osivo zasetého podílu', () => {
+    const { s, work: to } = withWinter(2, 1000);
+    const from: SeasonCrop = {
+      crop: 'winter',
+      ...createCropWork(s.parts, at(600, 9, 15), 0, false, undefined, 'winter'),
+      surplus: true,
+    };
+    const ids = [...from.partIds];
+    from.done.sow = from.required.sow;
+    from.seedKg = 2 * PART_HA * SEED_KG_PER_HA;
+    to.partIds = [];
+    to.seedKg = 0;
+    s.season!.crops.push(from);
+    moveParts(s, s.season!, from, to, ids, at(600, 9, 15), 0);
+    expect(from.seedKg).toBeCloseTo(0, 9);
+    expect(to.seedKg).toBeCloseTo(2 * PART_HA * SEED_KG_PER_HA, 9);
+  });
+
+  it('platba řemesel nezaplatí osivem, které čeká na setí', () => {
+    const { s } = withWinter(4, 100_000);
+    const day = at(600, 11, 15);
+    const free = paymentPool(s, day, NO_CRAFTS).energyKg;
+    s.season!.seedWaitingKg = { grain: 2000, legumes: 0 };
+    expect(paymentPool(s, day, NO_CRAFTS).energyKg).toBeLessThan(free);
+  });
 });
