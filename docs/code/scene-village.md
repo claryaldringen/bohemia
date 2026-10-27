@@ -725,11 +725,18 @@ Data `SceneVillage.tornado` (den, síla, stopa, prvních pár dní vývraty) –
 - **Vývraty** – jádro je zapíše jako kácení (`felledTrees`), scéna je tak kreslí jako každý
   pokácený strom: strom zmizí (InstanceHider) a na jeho místě je pařez (`felled-trees.ts`,
   `obstacles.stumps`); klády leží na hromadách u lesa (`logStacks`, `log-pile.ts`). Navíc
-  `TORNADO_TRUNK_DAYS` (10) dní po smršti leží u pařezů vyvrácených stromů vrstvy překážek
-  **padlé kmeny** – modely padlých stromů z dekorací (`fallen-2`, `fallen-3`, meshe
-  `felled-fallen-*` – ořez po čtvercích), střed 5 m od pařezu po směru stopy ± 0,45 rad
-  (`fallenTrunk`), velikost 0,85 × strom; mladé stromky ne. Pak je ves rozřeže na klády
-  (návrh Clauda). Kmeny jdou přes `FelledTrees.update` (`tornadoTrunks`) – změna nastaví
+  `TORNADO_TRUNK_DAYS` (10) dní po smršti leží vyvrácené stromy vrstvy překážek **na boku se
+  zelenou korunou** – plný model stromu podle podoby (`lyingTreeModel`; vrba z dekorací, vzácné
+  varianty jilmu, topolu a velkého dubu jedním modelem rodu), pata na místě stromu zvednutá
+  o 0,8 m, osa skloněná o 80° od svislice (`up` v `ModelInstance` – koruna nepropadá terénem)
+  ve směru pádu po stopě ± 0,45 rad (`fallenTrunk`). U paty **kořenový talíř** – hrouda
+  (`stone-2`, 14 trojúhelníků, obarvená do hlíny) postavená na hranu kolmo na kmen, místo
+  pařezu (ten se ukáže, až ves kmen rozřeže). Nikdy impostor (atlas je pro stojící strom) –
+  meshe `felled-fallen-<model>` a `felled-root-plate`, ořez po čtvercích. Souš bez modelu
+  stromu leží jako holý padlý kmen (`fallen-2`, `fallen-3`, střed 5 m od pařezu, 0,85 ×
+  strom); mladé stromky ne. Pak je ves rozřeže na klády (návrh Clauda). Výkon (F3 ukázka,
+  3391 vývratů): výchozí pohled draw cally i trojúhelníky jako normální den (stromy stopy jsou
+  skryté), trojnásobné oddálení +10 draw callů a +0,33 mil. trojúhelníků (1,58 → 1,91 mil.). Kmeny jdou přes `FelledTrees.update` (`tornadoTrunks`) – změna nastaví
   `felled`, takže se **stínová mapa překreslí jednou** (`castersChanged`).
 - **Polehlá pole** – `withTornado` ve `field-look.ts` (po krupobití): osetý díl se středem ve
   stopě nižší a řidší podle ztráty úrody síly (F0 0,2 … F3 1 – `crop`), polehlý (i luštěniny
