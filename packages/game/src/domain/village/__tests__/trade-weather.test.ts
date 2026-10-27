@@ -3,7 +3,10 @@ import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
 import { neighbourOf, neighbourStock } from '../neighbours';
 import { DISASTER_TRADE, DISASTER_WILDLIFE } from '../rules-disasters';
-import { tradeQuote } from '../trade';
+import { goodWorth, sellPrice, tradeQuote } from '../trade';
+import { horsePenPayment } from '../horse-pen-payment';
+import { craftCoverage } from '../crafts';
+import { productPrice } from '../craft-buying';
 import { tradeWeather } from '../trade-weather';
 import type { Direction8, VillageState, YearWeather } from '../types';
 import { wildlifeYearDay, withWildlife } from '../wildlife';
@@ -103,6 +106,44 @@ describe('sousedé po zlém roce', () => {
     expect(s.weatherSeed).toBeUndefined();
     const dir = grainSeller(11);
     expect(neighbourStock(s, dir, DAY).supply.grain).toBe(neighbourOf(11, dir).supply.grain);
+  });
+});
+
+describe('násobek ceny platí pro veškerý obchod', () => {
+  it('goodWorth: obilí 1, zboží ×0,67 / ×0,5, ves bez počasí 1', () => {
+    expect(goodWorth(village(null), 'cows', DAY)).toBe(1);
+    expect(goodWorth(village({ summer: 'dry' }), 'cows', DAY)).toBe(0.67);
+    expect(goodWorth(village({ summer: 'drought' }), 'ironBars', DAY)).toBe(0.5);
+    expect(goodWorth(village({ summer: 'drought' }), 'grain', DAY)).toBe(1);
+  });
+
+  it('platba za ohradu koní hřivnami po krutém roce potřebuje dvakrát víc hřiven', () => {
+    const make = (forced: Forced | null): VillageState => {
+      const s = village(forced);
+      s.crafts = { charcoalKg: 0, potteryKg: 0, ironBarsKg: 5000 };
+      return s;
+    };
+    const plain = make(null);
+    const cruel = make({ summer: 'drought' });
+    const a = horsePenPayment(plain, DAY, craftCoverage(plain, DAY))!;
+    const b = horsePenPayment(cruel, DAY, craftCoverage(cruel, DAY))!;
+    expect(a.ironBarsKg).toBeGreaterThan(0);
+    expect(b.ironBarsKg).toBeGreaterThanOrEqual(2 * a.ironBarsKg - 1);
+    expect(b.ironBarsKg * sellPrice('ironBars') * 0.5).toBeGreaterThanOrEqual(5600 - 1e-6);
+  });
+
+  it('nákup výrobku u řemeslníka souseda je po krutém roce za polovinu obilí', () => {
+    expect(productPrice('potteryKg', village(null), DAY)).toBeCloseTo(3 * 0.96, 9);
+    expect(productPrice('potteryKg', village({ summer: 'drought' }), DAY)).toBeCloseTo(
+      3 * 0.96 * 0.5,
+      9,
+    );
+    expect(productPrice('toolsKg', village({ summer: 'dry' }), DAY)).toBeCloseTo(
+      60 * 0.96 * 0.67,
+      9,
+    );
+    // bez stavu a dne (panel, staré volání) beze změny
+    expect(productPrice('potteryKg')).toBeCloseTo(3 * 0.96, 9);
   });
 });
 

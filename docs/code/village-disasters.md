@@ -58,10 +58,12 @@ winter, flood }`. Los z vlastních proudů `deriveSeed(weatherSeed, 'summer:' | 
   vrací násobky roku obchodu (`tradeSeason` = rok doplnění 1. 11.): normální 1 a 1, zlý rok
   (`isBadSummer` léta toho roku) zásoba obilí ½ a hodnota ostatního zboží ×0,67, krutý rok
   (`isCruelYear`) ¼ a ×0,5. Zásobu krátí `seasonSupply` (jen `grain`, `Math.floor`; `neighbourStock`
-  jí předá počasí vsi), ceny `tradeQuote` (`credit` i `price` ostatního zboží včetně koní; obilí
-  a lidé beze změny). Uložený zbytek roku (`NeighbourStock`) se nepřepočítává.
-- **Nepokryto:** ceny mimo `tradeQuote` (`sellPrice` / `buyPrice` v platbě za ohrady, kování
-  a nákupech řemesel) zůstávají na normálu.
+  jí předá počasí vsi), ceny počítá jediná funkce `goodWorth(state, good, day)` v `trade.ts` (obilí 1, ostatní zboží včetně
+  luštěnin násobek roku obchodu dne `day`) a používá ji `tradeQuote` (`credit` i `price` včetně koní;
+  lidé beze změny), platba za ohradu koní a její vrácení (`horse-pen-payment.ts`, hřivny, zvířata,
+  luštěniny, koně) a nákupy řemesel (`productPrice(product, state, day)`, luštěniny v `pay`,
+  `ironPriceKg` kování). Uložený zbytek roku (`NeighbourStock`) se nepřepočítává.
+- **Mimo násobek:** jen panelový údaj `paymentValueKg` (součet zaplacených kg) a lidé.
 - **Zvěř** (`wildlife.ts`, `DISASTER_WILDLIFE`): `wildlifeYearDay` 1. 5. po holomrazné nebo dlouhé
   zimě tohoto roku odečte navíc 10 % jelení zvěře (`deerYear`) a 15 % dospělých prasat
   (`boarYear`); po krutém suchu **loňského** léta (žaludy padají na podzim) jsou selata poloviční.

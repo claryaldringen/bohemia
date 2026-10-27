@@ -381,10 +381,14 @@ Martin chce skutečnou pravděpodobnost, i když je velmi vzácná – žádné 
   požár a smršť stavby zničí – přes dnešní stav, chátrání, zbytek jámy a přestavbu.
 - **Les** ([les](forest.md)): smršť vyvrátí stromy jako kácení; kmeny jdou na klády.
 - **Obchod** ([obchod](trade.md) – Sousedé): sousedé jsou ve stejném kraji. Při doplnění **1. 11.**
-  po zlém roce mají **poloviční zásobu obilí** a obilí je **o polovinu dražší** (ostatní zboží
-  v kg obilí ×0,67); po krutém roce **čtvrtinovou zásobu** a obilí **dvakrát dražší** (×0,5) –
-  ceny v hladovém roce na dvoj- až trojnásobek (Ó Gráda 2005). Dobytek je pak levný – ves bez
-  sena ho prodá, ves s pojistkou nakoupí. Hřivny jsou uložená hodnota na zlý rok.
+  po zlém roce mají **poloviční zásobu obilí** a ostatní zboží stojí **méně obilí** (×0,67, tedy
+  obilí je o polovinu dražší); po krutém roce **čtvrtinovou zásobu** a zboží za **polovinu obilí**
+  (×0,5, obilí dvakrát dražší) – ceny v hladovém roce na dvoj- až trojnásobek (Ó Gráda 2005).
+  Dobytek je pak levný – ves bez sena ho prodá, ves s pojistkou nakoupí. Hřivny jsou uložená
+  hodnota na zlý rok. *Návrh Clauda (27. 10. 2026):* násobek platí pro **veškerý obchod včetně
+  plateb** (platba za ohradu koní, nákup výrobků u řemeslníků souseda, kování) – jinak by ves dala
+  zboží za plnou hodnotu a týž kus koupila za polovinu. „Nákup v krutém roce a prodej v dobrém“
+  je záměr: hřivny jsou uložená hodnota, která v dobrém roce vydělá.
 - **Zvěř:** po holomrazné nebo dlouhé zimě 1. 5. ubude navíc 10 % jelení zvěře a 15 % prasat;
   v krutém suchu (málo žaludů) jen poloviční počet selat.
 - **Krajina:** beze změny – niva je už dnes v `floodplain.ts`, povodeň ji jen využije.

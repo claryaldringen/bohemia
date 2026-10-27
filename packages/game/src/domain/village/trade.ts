@@ -86,6 +86,20 @@ export function buyValue(valueKg: number): number {
   return valueKg * (1 + TRADE.markup) * (1 - TRADE.offerDiscount);
 }
 
+/**
+ * Násobek hodnoty zboží `good` v den `day` po zlém / krutém roce kraje (disasters.md – Obchod):
+ * obilí 1, ostatní zboží (i luštěniny) 1, 0,67 nebo 0,5 – ves dostane za zboží méně obilí a
+ * naopak za obilí si koupí méně zboží. Platí pro veškerý obchod včetně plateb (tradeQuote, ohrada
+ * koní, nákupy řemesel). Ves bez `weatherSeed` má vždy 1.
+ */
+export function goodWorth(
+  state: Pick<VillageState, 'weatherSeed' | 'disasters'>,
+  good: TradeGood,
+  day: number,
+): number {
+  return good === 'grain' ? 1 : tradeWeather(state, tradeSeason(day)).goodsValue;
+}
+
 /** Kolik kg obilí soused dá za kus sháněného zboží – hodnota ÷ přirážka × příplatek za sháněné. */
 export function sellPrice(good: TradeGood): number {
   return sellValue(TRADE_GOOD_VALUES[good].valueKg);
@@ -413,8 +427,7 @@ export function tradeQuote(
   // jezdečtí koně za kus podle výcviku (horses.md – Nákup a prodej): prodaní napřed nejméně
   // vycvičení, koupení podle nabídky souseda (`offeredHorses`)
   // po zlém roce kraje je ostatní zboží v kg obilí levnější, obilí dražší (disasters.md – Obchod)
-  const goodsValue = tradeWeather(state, tradeSeason(day)).goodsValue;
-  const worth = (g: TradeGood): number => (g === 'grain' ? 1 : goodsValue);
+  const worth = (g: TradeGood): number => goodWorth(state, g, day);
   const giveCredit = (g: TradeGood, n: number): number =>
     worth(g) *
     (g === 'ridingHorses'

@@ -25,7 +25,7 @@ import {
   TRADE_GOOD_VALUES,
   WOOD_TOOLS,
 } from './rules';
-import { buyValue, sellPrice } from './trade';
+import { buyValue, goodWorth, sellPrice } from './trade';
 import { DIRECTION_VECTORS, builtTrail, trailTripDays } from './trail';
 import type {
   ChronicleEvent,
@@ -96,10 +96,16 @@ export function neighbourCrafts(seed: number, direction: Direction8): Craft[] {
  * nejsou zboží obchodu (na obchod jdou hřivny – production-chains.md, Kovář), kovář souseda je
  * prodá za CRAFT_BUYING.toolsValueKg.
  */
-export function productPrice(product: CraftProduct): number {
-  if (product === 'woodToolsKg') return buyValue(CRAFT_BUYING.woodToolsValueKg);
-  if (product === 'toolsKg') return buyValue(CRAFT_BUYING.toolsValueKg);
-  return buyValue(TRADE_GOOD_VALUES.pottery.valueKg);
+export function productPrice(
+  product: CraftProduct,
+  state?: Pick<VillageState, 'weatherSeed' | 'disasters'>,
+  day?: number,
+): number {
+  // po zlém roce kraje soused dá výrobek za méně obilí (`goodWorth`, disasters.md – Obchod)
+  const worth = state && day !== undefined ? goodWorth(state, 'pottery', day) : 1;
+  if (product === 'woodToolsKg') return worth * buyValue(CRAFT_BUYING.woodToolsValueKg);
+  if (product === 'toolsKg') return worth * buyValue(CRAFT_BUYING.toolsValueKg);
+  return worth * buyValue(TRADE_GOOD_VALUES.pottery.valueKg);
 }
 
 /**
@@ -306,6 +312,7 @@ export function paymentPool(
  * Vrátí platbu a práci za ni (čd) – nebo méně, když přebytek nestačí.
  */
 function pay(
+  state: VillageState,
   ctx: BuyingContext,
   pool: PaymentPool,
   valueKg: number,
@@ -321,7 +328,7 @@ function pay(
     },
     {
       key: 'legumesKg' as const,
-      value: sellPrice('legumes'),
+      value: sellPrice('legumes') * goodWorth(state, 'legumes', ctx.day),
       labor: ctx.legumePerKg + carry,
       energy: LEGUMES.energy,
     },
@@ -434,7 +441,7 @@ export function planPurchases(
     if (wanted < CRAFT_BUYING.minKg) return null;
     const route = nearestCraftsman(state, craft, landscape);
     if (!route) return null;
-    const price = productPrice(product);
+    const price = productPrice(product, state, day);
     const need = needs[product];
     // obilí na platbu ves vypěstuje znovu – u nástrojů už s nimi (cena jídla v práci při pokrytí
     // po nákupu), u ostatních výrobků při dnešním pokrytí nástroji
@@ -444,7 +451,7 @@ export function planPurchases(
     const carryKg =
       cap * Math.max(1, Math.floor(CRAFT_BUYING.maxDays / route.days)) * TRADE.porterKg;
     const trial = { ...from };
-    const paid = pay(payCtx, trial, Math.min(wanted * price, carryKg), route.days);
+    const paid = pay(state, payCtx, trial, Math.min(wanted * price, carryKg), route.days);
     const kg = paid.paidKg / price;
     if (kg < CRAFT_BUYING.minKg) return null;
     const trip = tripOf(Math.max(paid.weightKg, kg), route.days, cap);

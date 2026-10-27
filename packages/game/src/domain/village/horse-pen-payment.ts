@@ -4,7 +4,7 @@ import { addHorses, horseValueKg, horsesForSale, horsesToSell, removeHorses } fr
 import { cattleForSale } from './cattle-trade';
 import { horsePens, isFoalByAge } from './horses';
 import { HORSE_GOODS } from './neighbours';
-import { addGood, sellPrice, sellValue } from './trade';
+import { addGood, goodWorth, sellPrice as plainPrice, sellValue } from './trade';
 import type { CraftCoverage, HorseGood, HorsePenPayment, TradedHorse, VillageState } from './types';
 
 // Platba za koně nové ohrady koní (horses.md – Koně se stavbou ohrady; Martin 26. 10. 2026: „Cena
@@ -21,11 +21,17 @@ export const HORSE_PEN_NO_SURPLUS = 'Na koně nestačí přebytek hřiven, zví�
 
 const EPSILON = 1e-9;
 
+/** Cena kusu zboží v kg obilí v den `day` – po zlém roce kraje nižší (`goodWorth`, disasters.md). */
+function priceOf(state: VillageState, good: Parameters<typeof plainPrice>[0], day: number): number {
+  return plainPrice(good) * goodWorth(state, good, day);
+}
+
 /** Zvířata v pořadí, jak je ves dává: krávy, pak koně od nejlevnějších druhů. */
 const ANIMALS: readonly ('cows' | HorseGood)[] = ['cows', ...HORSE_GOODS];
 
 /** Cena prodaného kusu `index` druhu `good` (kg obilí) – koně podle výcviku v pořadí prodeje. */
 function unitValues(state: VillageState, good: 'cows' | HorseGood, day: number): number[] {
+  const sellPrice = (g: Parameters<typeof plainPrice>[0]): number => priceOf(state, g, day);
   // koně žijí v ohradách – bez hotové ohrady koní nemá ves co prodat
   if (good !== 'cows' && !horsePens(state).some((pen) => pen.builtDay !== null)) return [];
   if (good === 'cows') {
@@ -33,7 +39,9 @@ function unitValues(state: VillageState, good: 'cows' | HorseGood, day: number):
   }
   const horses = horsesToSell(state, good, horsesForSale(state, good, day), day);
   return horses.map((h) =>
-    good === 'ridingHorses' ? sellValue(horseValueKg(h)) : sellPrice(good),
+    good === 'ridingHorses'
+      ? sellValue(horseValueKg(h)) * goodWorth(state, good, day)
+      : sellPrice(good),
   );
 }
 
@@ -47,6 +55,7 @@ export function horsePenPayment(
   day: number,
   coverage: CraftCoverage,
 ): HorsePenPayment | null {
+  const sellPrice = (g: Parameters<typeof plainPrice>[0]): number => priceOf(state, g, day);
   let left = horsePenValueKg();
   const payment: HorsePenPayment = {
     ironBarsKg: 0,
@@ -147,9 +156,11 @@ export function payHorsePen(state: VillageState, payment: HorsePenPayment, day: 
 }
 
 /** Cena koně v kg obilí, za kterou by ho soused vzal (hříbě, klisna, jezdecký kůň podle výcviku). */
-function tradedValue(horse: TradedHorse, day: number): number {
-  if (isFoalByAge(horse, day)) return sellPrice('foals');
-  return horse.sex === 'female' ? sellPrice('mares') : sellValue(horseValueKg(horse));
+function tradedValue(state: VillageState, horse: TradedHorse, day: number): number {
+  if (isFoalByAge(horse, day)) return priceOf(state, 'foals', day);
+  return horse.sex === 'female'
+    ? priceOf(state, 'mares', day)
+    : sellValue(horseValueKg(horse)) * goodWorth(state, 'ridingHorses', day);
 }
 
 /**
@@ -166,6 +177,6 @@ export function refundHorsePen(state: VillageState, payment: HorsePenPayment, da
     addHorses(state, payment.horses, day);
     return;
   }
-  const value = payment.horses.reduce((sum, horse) => sum + tradedValue(horse, day), 0);
+  const value = payment.horses.reduce((sum, horse) => sum + tradedValue(state, horse, day), 0);
   addGood(state, 'grain', value, day);
 }
