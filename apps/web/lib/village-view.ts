@@ -180,6 +180,8 @@ export function chronicle(state: VillageState, name: string): VillageView['chron
           }
         : {}),
       ...(event.kind === 'iron-brought' ? { son: event.son } : {}),
+      // upozornění podle toho, kdo okul (horses.md – Kování)
+      ...(event.kind === 'horses-shod' ? { horses: event.horses, own: event.own } : {}),
       dateLabel: formatGameDate(dateOfDayIndex(event.day)),
       text: chronicleText(event, name),
     }));

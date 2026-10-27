@@ -957,6 +957,20 @@ describe('buildVillageView', () => {
     );
     expect(buildVillageView(record(s), landscape, DAY + 4).lastMarriageDay).toBe(DAY + 3);
   });
+
+  it('kování v kronice nese, kdo koně okul – upozornění podle toho píše vlastního kováře', () => {
+    const s = state();
+    s.chronicle.push(
+      { day: DAY + 1, kind: 'horses-shod', horses: 1, own: false },
+      { day: DAY + 2, kind: 'horses-shod', horses: 2, own: true },
+    );
+    const view = buildVillageView(record(s), landscape, DAY + 2);
+    const shod = view.chronicle.filter((e) => e.kind === 'horses-shod');
+    expect(shod.map((e) => [e.own, e.horses])).toEqual([
+      [true, 2],
+      [false, 1],
+    ]);
+  });
 });
 
 describe('hřbitov v pohledu na ves', () => {
