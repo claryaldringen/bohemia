@@ -150,3 +150,24 @@ export const FIRE = {
    */
   firefighting: { spreadCut: 0.7, damageShare: 0.5, handoverM: 2.5 },
 } as const;
+
+/**
+ * Sousedé po zlém roce (disasters.md – Co z toho plyne, Obchod; návrh Clauda, rešerše, schváleno
+ * Martinem 27. 10. 2026): při doplnění 1. 11. zásoba obilí a hodnota ostatního zboží v kg obilí
+ * (obilí je dražší). Zlý rok = zlé léto, krutý = `isCruelYear`.
+ */
+export const DISASTER_TRADE = {
+  bad: { grainStock: 0.5, goodsValue: 0.67 },
+  cruel: { grainStock: 0.25, goodsValue: 0.5 },
+} as const;
+
+/**
+ * Zvěř po zlém počasí (disasters.md – Co z toho plyne, Zvěř): 1. 5. po holomrazné nebo dlouhé
+ * zimě ubude navíc část jelení zvěře a prasat; po krutém suchu (málo žaludů loni na podzim) jen
+ * poloviční selata.
+ */
+export const DISASTER_WILDLIFE = {
+  badWinterDeerLoss: 0.1,
+  badWinterBoarLoss: 0.15,
+  droughtPigletShare: 0.5,
+} as const;

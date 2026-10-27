@@ -52,6 +52,22 @@ winter, flood }`. Los z vlastních proudů `deriveSeed(weatherSeed, 'summer:' | 
   odhalení, povodeň, dopočet po kouscích, ochrana), `update-village-weather.test.ts` (seed při
   načtení a založení), `village-repository.db.test.ts` (`weatherSeedOf`).
 
+## Kraj kolem vsi: sousedé a zvěř (P4)
+
+- **Sousedé** (`trade-weather.ts`, `DISASTER_TRADE` v `rules-disasters.ts`): `tradeWeather(state, season)`
+  vrací násobky roku obchodu (`tradeSeason` = rok doplnění 1. 11.): normální 1 a 1, zlý rok
+  (`isBadSummer` léta toho roku) zásoba obilí ½ a hodnota ostatního zboží ×0,67, krutý rok
+  (`isCruelYear`) ¼ a ×0,5. Zásobu krátí `seasonSupply` (jen `grain`, `Math.floor`; `neighbourStock`
+  jí předá počasí vsi), ceny `tradeQuote` (`credit` i `price` ostatního zboží včetně koní; obilí
+  a lidé beze změny). Uložený zbytek roku (`NeighbourStock`) se nepřepočítává.
+- **Nepokryto:** ceny mimo `tradeQuote` (`sellPrice` / `buyPrice` v platbě za ohrady, kování
+  a nákupech řemesel) zůstávají na normálu.
+- **Zvěř** (`wildlife.ts`, `DISASTER_WILDLIFE`): `wildlifeYearDay` 1. 5. po holomrazné nebo dlouhé
+  zimě tohoto roku odečte navíc 10 % jelení zvěře (`deerYear`) a 15 % dospělých prasat
+  (`boarYear`); po krutém suchu **loňského** léta (žaludy padají na podzim) jsou selata poloviční.
+- **Ves bez `weatherSeed`** má všechny roky normální – nic se nemění (zlaté otisky, kalibrace).
+- Testy: `__tests__/trade-weather.test.ts`.
+
 ## Požár (P7)
 
 Návrh: `docs/design/disasters.md` – Požár. Jádro: `fire.ts`, čísla `FIRE` v `rules-disasters.ts`.

@@ -175,3 +175,5 @@ směr)` – stálá povaha podle druhu souseda (`neighbourKind` – obilnáři, 
   `VillageNeighbour.people` (`neighbourViews` – `offers`, `takes`, `have` po výběru jádra), náhled
   `tradePreview(…, people)`, řádky rodina / muž / žena v `TradePanel` (ikony
   `resources/family.png`, `man.png`, `woman.png`), upozornění „Přišla rodina ze severu“.
+
+Počasí kraje mění zásoby a ceny sousedů 1. 11. – [village-disasters.md](village-disasters.md#kraj-kolem-vsi-sousedé-a-zvěř-p4).

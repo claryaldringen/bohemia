@@ -52,8 +52,10 @@ import {
   isLivestockGood,
   neighbourOf,
   neighbourStock,
+  tradeSeason,
 } from './neighbours';
 import { CARTS, CART_DEMAND, IRON, PEOPLE_TRADE, TRADE, TRADE_GOOD_VALUES } from './rules';
+import { tradeWeather } from './trade-weather';
 import { builtTrail, trailTripDays } from './trail';
 import type {
   CartKind,
@@ -410,17 +412,22 @@ export function tradeQuote(
   const leaving = emigrantGroups(state, day, givePeople);
   // jezdečtí koně za kus podle výcviku (horses.md – Nákup a prodej): prodaní napřed nejméně
   // vycvičení, koupení podle nabídky souseda (`offeredHorses`)
+  // po zlém roce kraje je ostatní zboží v kg obilí levnější, obilí dražší (disasters.md – Obchod)
+  const goodsValue = tradeWeather(state, tradeSeason(day)).goodsValue;
+  const worth = (g: TradeGood): number => (g === 'grain' ? 1 : goodsValue);
   const giveCredit = (g: TradeGood, n: number): number =>
-    g === 'ridingHorses'
+    worth(g) *
+    (g === 'ridingHorses'
       ? horsesSaleValues(state, g, n, day).reduce((sum, v) => sum + sellValue(v), 0)
-      : n * sellPrice(g);
+      : n * sellPrice(g));
   const getPrice = (g: TradeGood, n: number): number =>
-    g === 'ridingHorses'
+    worth(g) *
+    (g === 'ridingHorses'
       ? offeredHorses(state, offer.direction, g, n, day).reduce(
           (sum, h) => sum + buyValue(horseValueKg(h)),
           0,
         )
-      : n * buyPrice(g);
+      : n * buyPrice(g));
   const credit =
     give.reduce((sum, [g, n]) => sum + giveCredit(g, n), 0) +
     emigrantList(leaving).reduce((sum, g) => sum + sellValue(g.valueKg), 0);
