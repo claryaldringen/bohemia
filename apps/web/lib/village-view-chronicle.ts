@@ -494,6 +494,10 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return STRUCTURE_REPAIRED_TEXTS[event.structure];
     case 'weather':
       return weatherText(event.summer, event.winter);
+    case 'fire': {
+      const n = event.burnedDwellingIds.length;
+      return n === 1 ? 'Požár – shořela jedna stavba.' : `Požár – shořelo ${n} staveb.`;
+    }
     case 'cemetery-full':
       if (event.othersFree) return 'Jeden z hřbitovů se zaplnil – pohřbívá se do dalšího.';
       // staví se jiný hřbitov nebo rozšíření – bude kam pohřbívat

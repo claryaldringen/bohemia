@@ -115,3 +115,36 @@ export const LOCAL_DISASTERS = {
   /** Prvních tolik let vsi žádné kroupy, povodeň, požár ani smršť; počasí kraje naplno. */
   protectionYears: 5,
 } as const;
+
+/**
+ * Požár (disasters.md – Požár; Martin 27. 10. 2026: „Pojďme na požár“, „Ano a ano“ – řetězově
+ * z každé stavby, která chytí).
+ */
+export const FIRE = {
+  /** Šance stavby na rok (ves s 15 domy ≈ 6 % ročně). */
+  perBuildingPerYear: 0.004,
+  /** Násobky šance: suché léto, kruté sucho, deštivé léto (duben–srpen). */
+  dryFactor: 2,
+  droughtFactor: 3,
+  wetFactor: 0.5,
+  summerMonths: { from: 4, to: 8 },
+  /** Zima – topí se (listopad–únor). */
+  winterFactor: 1.5,
+  winterMonths: [11, 12, 1, 2] as readonly number[],
+  /** Kovárna, milíř a pec; zemnice (nevelká, hlína). */
+  craftFactor: 3,
+  zemniceFactor: 0.5,
+  /** Přeskok podle vzdálenosti obrysů – od nejbližšího pásma: do 6 m 70 %, do 12 m 40 %. */
+  jumps: [
+    { reachM: 6, chance: 0.7 },
+    { reachM: 12, chance: 0.4 },
+  ] as const,
+  /** Zeleň (listnatý strom, keř, sad) na spojnici půlí šanci přeskoku. */
+  greeneryFactor: 0.5,
+  /** Strom nebo keř je „na spojnici“, je-li od ní nejvýš tolik (m) – návrh Clauda. */
+  greeneryReachM: 2,
+  /** Stoh sena do 12 m od hořící stavby shoří; v jádru stohy nemají polohu (viz fire.ts). */
+  hayReachM: 12,
+  /** Hašení (P8): přeskok × (1 − spreadCut × účinnost), stav stavby klesne o 1 − damageShare × účinnost. */
+  firefighting: { spreadCut: 0.7, damageShare: 0.5 },
+} as const;

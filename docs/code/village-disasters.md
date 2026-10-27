@@ -51,3 +51,35 @@ winter, flood }`. Los z vlastních proudů `deriveSeed(weatherSeed, 'summer:' | 
 - **Testy** – `weather.test.ts` (10⁵ let: četnosti ±1 %, shlukování ×1,25 ±0,05, vsi téže mapy,
   odhalení, povodeň, dopočet po kouscích, ochrana), `update-village-weather.test.ts` (seed při
   načtení a založení), `village-repository.db.test.ts` (`weatherSeedOf`).
+
+## Požár (P7)
+
+Návrh: `docs/design/disasters.md` – Požár. Jádro: `fire.ts`, čísla `FIRE` v `rules-disasters.ts`.
+
+- **Krok dne** – `fireDay(state, day, obstacles, landscape, efficiency = 0)` v `simulateDay` hned za
+  `weatherDay`; vrací zápis kroniky `fire` (`startedDwellingId`, `burnedDwellingIds`, ztráty
+  zrna, masa, sýra a sena v kg; text v `village-view-chronicle.ts`). Ves bez `weatherSeed` (testy,
+  kalibrace) nehoří; ochrana nové vsi (`inDisasterProtection`) požár vypíná prvních 5 let.
+- **Vznik** – `dwellingFireChance`: 0,4 % na obydlí a rok × suché léto 2, kruté sucho 3, deštivé
+  léto ½ (duben–srpen), zima 1,5 (listopad–únor), kovárna / milíř / pec 3, zemnice ½. Hazard dne
+  = Σ šancí ÷ 365,25; jedno losování `'fire:' + day` ze seedu vsi, stavbu vybere podle součtu
+  (obydlí podle id). Dílna a dvorec jsou obydlí (`Dwelling.workshop`), hoří stejně.
+- **Šíření** – `spreadFire`, losování `'fire-spread:' + day`: každá nově hořící stavba zkusí
+  každého souseda jednou (pořadí podle id), podle vzdálenosti obrysů (`convexDistance`, dílna
+  má víc půdorysů) do 6 m 70 %, do 12 m 40 %. Zeleň na spojnici středů (listnatý strom a keř
+  z vrstvy překážek do 2 m od spojnice, stromy u cest, sad podle čtverců) šanci půlí; jehličnany
+  ne. Hašení (P8): šance × (1 − 0,7 × `efficiency`).
+- **Dopad** – `burnDown`: hořící obydlí se zřítí (`recordRuins`, zmizí ze `state.dwellings`;
+  s hašením klesne stav o 1 − 0,5 × účinnost a zřítí se jen na nule). Obyvatelé jdou k příbuzným
+  (`evacuationTarget` v `population.ts` – jako rozpad domácnosti, nevejdou-li se, i do plného
+  domu); rozestavěná přestavba shořelého domu padá a klády se vrátí. Zásoby: volné zrno
+  (`looseGrainKg`, zrno v jamách přečká), maso, sýr a seno ubydou o podíl shořelých staveb ze
+  všech obydlí. Poslední stojící obydlí vsi se nezboří (zůstane se stavem 0,1). Nikdo neumírá.
+  Nové dům si ves postaví sama běžným růstem (žádná zvláštní přestavba po požáru).
+- **Vynucený požár** – `disasters.override.fire[den] = id obydlí` (testy a dev): přebije los
+  i ochranu.
+- **Stohy** – jádro stohy s polohou nemá (seno je jedna zásoba, stohy kreslí jen scéna), proto
+  seno ubývá o podíl shořelých staveb; `FIRE.hayReachM` (12 m) zatím nic nečte.
+- **Testy** – `fire.test.ts`: násobky šance, četnost ≈ 6–9 % ročně u 15 domů, pásma přeskoku
+  (5 m ≈ 70 %, 10 m ≈ 40 %, 15 m nic), řetěz, strom a sad půlí, hašení, zásoby a jámy, lidé,
+  ochrana 5 let, ves bez počasí, dopočet po kouscích.

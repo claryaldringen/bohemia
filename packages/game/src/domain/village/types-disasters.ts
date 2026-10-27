@@ -50,5 +50,9 @@ export type WeatherOverride = Partial<Pick<YearWeather, 'summer' | 'winter' | 'f
 /** Pohromy vsi (disasters.md); další části přidají místní pohromy. */
 export interface DisasterState {
   /** Jen testy a dev: přebije los – klíč = herní rok. */
-  override?: { weather?: Record<number, WeatherOverride> };
+  override?: {
+    weather?: Record<number, WeatherOverride>;
+    /** Vynucený požár: herní den → id obydlí, které chytí (přebije los i ochranu nové vsi). */
+    fire?: Record<number, number>;
+  };
 }

@@ -51,6 +51,7 @@ import {
 } from './rules';
 import type { VillageState } from './types';
 import { rotLogs } from './wood';
+import { fireDay } from './fire';
 import { decideRebuilds, finishConstructions } from './simulate-build';
 import { eat, endThreshing, harvest, harvestWinter } from './simulate-food';
 import { isOn, lordHelpDay, seasonDay, startSeason } from './simulate-plan';
@@ -179,6 +180,8 @@ function simulateDay(
   // počasí kraje: v den, kdy se ukáže zlá zima nebo neobvyklé léto, zápis do kroniky
   // (disasters.md – Léto, Zima, „Kdy je vidět“)
   state.chronicle.push(...weatherDay(state, day));
+  // požár (disasters.md – Požár): vznik ze seedu vsi a dne, řetězové šíření, shoří stavby a zásoby
+  state.chronicle.push(...fireDay(state, day, obstacles, landscape));
   // psi dvorce 1. 5.: úbytek a štěňata (wildlife.md – Psi)
   dogsYear(state, day);
   // velký lov rodu: kdo dnes loví – pěší lovci jsou mimo práci vsi (wildlife.md – Lov rodu)

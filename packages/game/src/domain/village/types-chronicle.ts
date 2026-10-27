@@ -330,6 +330,19 @@ export type ChronicleEvent = { day: number } & (
    * neobvyklé léto (mokré žně jsou 1. 6. deštivé léto, 15. 7. mokré žně).
    */
   | { kind: 'weather'; summer?: SummerWeather; winter?: WinterWeather }
+  /**
+   * Požár (disasters.md – Požár): chytlo obydlí `startedDwellingId`, shořela obydlí
+   * `burnedDwellingIds` (včetně něj); ztráty zásob v kg (zrno mimo jámy, maso, sýr, seno).
+   */
+  | {
+      kind: 'fire';
+      startedDwellingId: number;
+      burnedDwellingIds: number[];
+      lostGrainKg: number;
+      lostMeatKg: number;
+      lostCheeseKg: number;
+      lostHayKg: number;
+    }
   | {
       kind: 'cemetery-full';
       cemeteryId: number;
