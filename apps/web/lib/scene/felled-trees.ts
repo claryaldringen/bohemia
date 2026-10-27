@@ -1,3 +1,5 @@
+import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
+import { Color3 } from '@babylonjs/core/Maths/math.color';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
 import {
@@ -9,6 +11,7 @@ import {
   type ObstacleKind,
   type ObstacleLayer,
   type TreeLook,
+  TREE_LOOKS,
 } from '@bohemia/game';
 import { prepareDecorMaterial } from './decorations';
 import {
@@ -46,8 +49,60 @@ const FALLEN: readonly [FelledModel, FelledModel] = [
     prepare: (material) => prepareDecorMaterial('fallen-3', material),
   },
 ];
-/** Padlý kmen vůči velikosti stromu (model ≈ 14 m dlouhý). */
+/** Padlý kmen vůči velikosti stromu (model ≈ 14 m dlouhý) – vývrat souše. */
 const FALLEN_SCALE = 0.85;
+
+/**
+ * Kořenový talíř vývratu: hrouda (kámen obarvený do hlíny) postavená na hranu u paty ležícího
+ * stromu – šířka a tloušťka vůči velikosti stromu. Kámen má jen 14 trojúhelníků (tisíce vývratů).
+ */
+const ROOT_PLATE: FelledModel = {
+  key: 'root-plate',
+  url: '/models/decor/stone-2.glb',
+  prepare: (material) => {
+    prepareDecorMaterial('stone-2', material);
+    if (material instanceof PBRMaterial) material.albedoColor = ROOT_PLATE_TINT;
+  },
+};
+const ROOT_PLATE_TINT = new Color3(0.5, 0.36, 0.24);
+const ROOT_PLATE_SIZE = { width: 2.7, depth: 0.5 } as const;
+/** Sklon ležícího stromu od svislice (rad) – ≈ 80°, ať koruna nepropadá terénem. */
+const FALLEN_TILT = (80 * Math.PI) / 180;
+/** O kolik je pata vývratu zvednutá na kořenovém talíři (m při velikosti stromu 1). */
+const FALLEN_LIFT_M = 0.8;
+
+const TREE_LOOK_SET = new Set<string>(TREE_LOOKS);
+
+/** Vrba u potoka je strom, ale kreslí ji dekorace (models/decor). */
+const LYING_WILLOW: FelledModel = {
+  key: 'fallen-willow',
+  url: '/models/decor/willow.glb',
+  prepare: (material) => prepareDecorMaterial('willow', material),
+};
+
+/**
+ * Ležící vyvrácený strom – plný model stromu na boku (nikdy impostor stojícího stromu); null, když
+ * podoba nemá model stromu. Vzácné varianty jilmu, topolu a velkého dubu se kreslí jedním modelem
+ * rodu – méně draw callů.
+ */
+function lyingTreeModel(tree: string): FelledModel | null {
+  if (tree === 'willow') return LYING_WILLOW;
+  if (!TREE_LOOK_SET.has(tree)) return null;
+  const look = (
+    tree.startsWith('elm-')
+      ? 'elm-1'
+      : tree.startsWith('poplar-')
+        ? 'poplar-1'
+        : tree.startsWith('oak-large-')
+          ? 'oak-large-1'
+          : tree
+  ) as TreeLook;
+  return {
+    key: `fallen-${look}`,
+    url: `/models/trees/${look}.glb`,
+    prepare: (material) => prepareTreeMaterial(look, material),
+  };
+}
 
 function treeModel(look: TreeLook): FelledModel {
   return {
@@ -167,9 +222,17 @@ export class FelledTrees {
         kind: obstacleKind(layer, index),
       };
     };
+    // vývrat leží na boku s kořenovým talířem místo pařezu – pařez se ukáže, až ves kmen rozřeže
+    const uprooted = new Set(
+      (trunks?.ids ?? []).filter(
+        (id) =>
+          place(id)?.kind === 'tree' &&
+          lyingTreeModel(obstacleLook(layer, obstacleIndex(layer, id))) !== null,
+      ),
+    );
     for (const id of changes.stumps) {
       const p = place(id);
-      if (!p) continue;
+      if (!p || uprooted.has(id)) continue;
       add(STUMP, {
         x: p.x,
         y: this.options.groundHeight(p.x, p.z),
@@ -178,17 +241,46 @@ export class FelledTrees {
         scale: stumpScale(p.kind, p.scale),
       });
     }
-    // vývraty smrště (disasters.md – Smršť, Ve scéně) – kmen leží od pařezu po větru
+    // vývraty smrště (disasters.md – Smršť, Ve scéně): strom leží na boku od paty po větru se
+    // zelenou korunou a kořenovým talířem; souš jako holý padlý kmen
     for (const id of trunks?.ids ?? []) {
       const p = place(id);
       if (!p || p.kind === 'youngTree') continue;
       const trunk = fallenTrunk(id, p, trunks!.angle);
-      add(FALLEN[trunk.variant], {
-        x: trunk.x,
-        y: this.options.groundHeight(trunk.x, trunk.z),
-        z: trunk.z,
-        rotationY: trunk.rotationY,
-        scale: FALLEN_SCALE * p.scale,
+      const lying =
+        p.kind === 'tree' ? lyingTreeModel(obstacleLook(layer, obstacleIndex(layer, id))) : null;
+      if (!lying) {
+        add(FALLEN[trunk.variant], {
+          x: trunk.x,
+          y: this.options.groundHeight(trunk.x, trunk.z),
+          z: trunk.z,
+          rotationY: trunk.rotationY,
+          scale: FALLEN_SCALE * p.scale,
+        });
+        continue;
+      }
+      const fall = { x: Math.cos(-trunk.rotationY), z: Math.sin(-trunk.rotationY) };
+      const lift = FALLEN_LIFT_M * p.scale;
+      const y = this.options.groundHeight(p.x, p.z);
+      const along = Math.sin(FALLEN_TILT);
+      const up = { x: fall.x * along, y: Math.cos(FALLEN_TILT), z: fall.z * along };
+      add(lying, {
+        x: p.x,
+        y: y + lift,
+        z: p.z,
+        rotationY: p.rotation,
+        scale: p.scale,
+        up,
+      });
+      // talíř kolmo na kmen – svislá osa pařezu míří proti větru, kořeny k patě stromu
+      add(ROOT_PLATE, {
+        x: p.x,
+        y: y + lift,
+        z: p.z,
+        rotationY: p.rotation,
+        scale: ROOT_PLATE_SIZE.width * p.scale,
+        scaleY: ROOT_PLATE_SIZE.depth * p.scale,
+        up: { x: -up.x, y: up.y, z: -up.z },
       });
     }
     for (const id of changes.saplings) {

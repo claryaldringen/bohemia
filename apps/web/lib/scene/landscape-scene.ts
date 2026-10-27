@@ -1764,8 +1764,13 @@ export class LandscapeScene {
     if (rts && this.storm?.animate(now / 1000, rts.target, rts.position, rts.radius)) {
       animated = true;
     }
-    // smršť – trychtýř přejde stopou kolem vsi (jen v průchodu, den světa jako pohromy)
-    if (this.villageState?.tornado && this.tornadoFunnel?.animate(this.disasterDay(), now / 1000)) {
+    // smršť – trychtýř přejde stopou kolem vsi (jen v průchodu a s animacemi, den světa jako
+    // pohromy; při omezeném pohybu ho skryje `updateDisasters`)
+    if (
+      !this.reducedMotion?.matches &&
+      this.villageState?.tornado &&
+      this.tornadoFunnel?.animate(this.disasterDay(), now / 1000)
+    ) {
       animated = true;
     }
     if (this.stormNow > 0) {

@@ -25,6 +25,7 @@ interface DevScene {
       name: string,
     ): { isEnabled(): boolean; getTotalVertices(): number; thinInstanceCount: number } | null;
     spriteManagers?: { name: string; sprites: { isVisible: boolean }[] }[];
+    meshes: { name: string; isEnabled(): boolean; thinInstanceCount: number }[];
   };
 }
 type DevWindow = Window & { __bohemiaDev?: { scene: DevScene }; __fixedNow?: number };
@@ -222,9 +223,10 @@ async function tornadoOn(page: Page): Promise<{ funnel: boolean; trunks: number 
   return page.evaluate(() => {
     const scene = (window as unknown as DevWindow).__bohemiaDev!.scene.scene;
     const funnel = scene.getMeshByName('tornado-funnel');
-    const trunks = ['felled-fallen-2', 'felled-fallen-3']
-      .map((name) => scene.getMeshByName(name))
-      .reduce((sum, mesh) => sum + (mesh?.isEnabled() ? mesh.thinInstanceCount : 0), 0);
+    // ležící stromy (`felled-fallen-<model stromu>`) i padlé kmeny souší (`felled-fallen-2/3`)
+    const trunks = scene.meshes
+      .filter((mesh) => mesh.name.startsWith('felled-fallen-'))
+      .reduce((sum, mesh) => sum + (mesh.isEnabled() ? mesh.thinInstanceCount : 0), 0);
     return { funnel: !!funnel?.isEnabled(), trunks };
   });
 }

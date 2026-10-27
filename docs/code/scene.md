@@ -329,12 +329,22 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     a `tornado-dust`) přejde mezi 0,64 a 0,76 dne (≈ 10 s) po ose stopy ± `FUNNEL_PATH_HALF_M`
     (450 m) kolem bodu nejblíž středu vsi (`funnelPoint`; stopa je dlouhá kilometry), na
     začátku a konci roste ze země a rozplyne se (`funnelGrowth`). Rotační plochy (lathe – jen
-    pozice, normály, uv): trychtýř 260 m vysoký, nahoře poloměr 0,8 × šířka stopy (70–260 m),
-    u země 12 %; prachová sukně 0,3 × šířka (18–110 m), 34 m. Materiál bez světla (barva
-    emisní × textura pruhů víru – `RawTexture` 64², šikmé pruhy, nahoře slábne), tón
-    `DayLight.tone` odmocninou (za bouřky tmavý, pruhy zůstanou vidět), vír otáčením meshe
-    v `animate()` (1,6 / 2,6 rad/s). Stín nevrhá. **Při omezeném pohybu** se trychtýř nekreslí
-    (`updateDisasters` ho skryje, `animate()` neběží) – zůstane ztmavení a stopa. Bez smrště
+    pozice, normály, uv): **trychtýř** 260 m vysoký, nahoře rozevřený do mraku (poloměr 1 ×
+    šířka stopy, 90–260 m), u země úzký provazec 3–5 m (obrys `b + (1 − b)·v^1,6`), osa
+    ohnutá (vrchol posunutý o 0,35 × poloměr nahoře, s výškou na druhou) proti směru postupu
+    a pomalu se kývá (natočení ± 0,45 rad, náklon ± 0,05 rad); uvnitř **tmavé jádro**
+    (`tornado-core`, 0,45 × poloměr, sdílí texturu). Obrys se staví znovu jen při jiné šířce
+    stopy (`shapeFunnel`). **Prachová sukně** (`tornado-dust`, `tornado-dust-outer`): poloměr
+    `0,25 + 1,6·(1 − v)²` × 0,18 šířky (12–55 m), 60–80 m vysoká, hnědá; druhá vrstva nižší
+    a širší, pomaleji opačně. **Úlomky** (`tornado-debris`) – 40 tmavých kvádrů jako tenké
+    instance, krouží kolem sukně a převalují se (matice v `animate()`,
+    `alwaysSelectAsActiveMesh`). Materiály bez světla (barva emisní × textura pruhů víru –
+    `RawTexture` 128²: u trychtýře ostré pruhy `smoothstep` s kontrastem 0,2–1, dole hustší,
+    šikmost 2,5, dolních 40 % tmavší; u prachu chomáče s mezerami, řídne nahoru i k okraji),
+    tón `DayLight.tone` odmocninou (za bouřky tmavý, pruhy zůstanou vidět). Vír: trychtýř
+    posunem textury (`uOffset`, 1,6 rad/s – ohnutá osa se neotáčí), prach otáčením meshí
+    (2,6 / −1,1 rad/s). Stín nevrhá. **Při omezeném pohybu** se trychtýř nekreslí
+    (`updateDisasters` ho skryje, `animate()` se vůbec nevolá) – zůstane ztmavení a stopa. Bez smrště
     meshe vypnuté a `animate` se nevolá – draw cally normálního dne beze změny. Stopa ve vsi
     (padlé kmeny, polehlá pole, rozmetané stohy, poškozené a zřícené stavby):
     [scene-village.md – Smršť](scene-village.md). Zvuk hukotu chybí (žádný CC0 záznam lokálně).
