@@ -253,7 +253,35 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     sněhu, slunce × 1,12. **Dlouhá zima** – den vzhledu se opozdí o 21 dní (od 1. 3. za 6 dní se
     sníh vrátí, taje 13. 3.–3. 4., listí a tráva o 3 týdny později, do poloviny července se rok
     srovná – den vzhledu jen roste).
-  - Vývojový náhled: přepínač **Počasí** (`dev-weather.ts`).
+  - **Obilí podle počasí** (`partWeather` ve `field-look.ts` → `PartView.weather`, po čtvrtinách
+    jako barva dílu): v suchu nižší (−35 %) a řidší (−40 %) trsy i porost shora, plná ochrana
+    dílu z toho ubere 70 %; v deštivém létě **polehlé zralé obilí** ve skvrnách ≈ 7 m
+    (`lodgedSpot` – podíl 0,6 × mokro, ochrana proti mokru ubere až 60 %, luštěniny a len ne) –
+    trsy leží jedním směrem (`PlantInstance.lean`, zkosená matice instance), porost ve skvrně
+    o 70 % níž a tmavší; po holomrazu **řídký ozim** (`SceneFieldPart.winter`, od 1. 2. do žní,
+    −35 % trsů ve skvrnách `frostSpot`) – porost ve skvrnách klesne pod zem a obtisk ukáže hlínu
+    (`sown`), díl lehce žloutne.
+  - **Mělký potok v suchu** (`water.ts`): hladina klesne o 0,35 m × sucho jen ve shaderu (průhlednost
+    podle hloubky ve vrcholech, `seasonC.x`) – mělčiny u břehů a brody zmizí, potok je užší
+    a tůně menší, bez nové geometrie.
+  - **Déšť** (`rain.ts` čisté funkce, testy; `rain-renderer.ts`): dny deště ze seedu dne světa
+    (`gameDayAt`, hash pořadí dne – jen vzhled, jádro o nich neví), deštivý den s pravděpodobností
+    0,55 × mokro, síla 0,6–1, na přelomu dnů plynulý přechod (po desetinách). Za deště
+    **zataženo** (`overcast` – slunce × 0,5 a šedé, hustší opar, stíny × 0,2) a kapky: jeden
+    mesh čárky s instancemi (1800 při plném dešti, **jeden draw call**, bez deště vypnutý)
+    v kvádru kolem cíle kamery (strana 0,9 × vzdálenost kamery, 30–420 m), kapky ukotvené ve
+    světě, padají v `animate()` v taktu animací, při omezeném pohybu stojí. Vývojové vynucení
+    `setRainOverride`.
+  - **Kaluže** (`seasonPuddle` v season-materials.ts, `seasonC.w` = `puddleAmount` – 0,45 × mokro
+    - 0,7 × déšť, `setPuddles`): na terénu na vyšlapané trávě, břehu a bahně v nivě, na obtiscích
+      cest (`applySeasonGround(…, puddles)` jen v `path-renderer.ts` – zralé obilí na poli by
+      zešedlo) – tmavší mokrá zem a šedé kaluže s odrazem oblohy ve skvrnách ≈ 5 m.
+  - Zvuk deště zatím není (žádný CC0 zvuk deště), tetelení vzduchu v suchu vynechané – v poledne
+    by se scéna musela překreslovat bez přestání.
+  - Vývojový náhled: přepínač **Počasí** (`dev-weather.ts`) – i „mokré žně – prší“ (vynucený
+    déšť) a u holomrazu oseté díly jako ozim; e2e `weather-scene.spec.ts` (jen s
+    `WEATHER_DEV_URL`, vývojový server): sucho a déšť mění snímek, normální rok přesně stejný,
+    draw cally bez deště stejné, s deštěm +1.
 
 - **Den a noc** (landscape.md – Den a noc; Martin 19. 10. 2026, **zatím jen `/dev/landscape`**,
   hra `/game` beze změny – do hry po Martinově schválení): `day-light.ts` (čisté funkce, testy) –

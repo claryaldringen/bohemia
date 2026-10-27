@@ -173,6 +173,7 @@ export function sceneVillage(
           ...(p.state === 'sown' && (p.crop === 'legume' || p.crop === 'flax')
             ? { crop: p.crop }
             : {}),
+          ...(p.state === 'sown' && p.crop === 'winter' ? { winter: true as const } : {}),
           ...(p.state === 'sown' &&
           p.crop === 'flax' &&
           flaxBloom &&

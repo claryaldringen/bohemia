@@ -581,7 +581,8 @@ export class VillagePaths {
       });
       applyPitCut(decal, this.env.pitCuts);
       // tráva usychá jako terén, v zimě pěšinu zasype sníh – ušlapaná stopa prosvítá
-      applySeasonGround(decal, kind === 'slope' ? SNOW_SLOPE : SNOW[group]);
+      // za deště kaluže na cestách (disasters.md – Ve scéně, Deštivé léto)
+      applySeasonGround(decal, kind === 'slope' ? SNOW_SLOPE : SNOW[group], true);
       const texture = decal.diffuseTexture;
       if (texture instanceof Texture && !texture.isReady()) {
         texture.onLoadObservable.addOnce(() => this.env.requestRender());

@@ -14,7 +14,15 @@ import {
   type FieldLook,
   type PartView,
 } from './field-look';
-import { decalPieces, lookStyle, tintedBy, type FieldCrop, type Rgb } from './field-crops';
+import {
+  decalPieces,
+  frostSpot,
+  lodgedSpot,
+  lookStyle,
+  tintedBy,
+  type FieldCrop,
+  type Rgb,
+} from './field-crops';
 import { smoothstep, type Bounds } from './village-layout';
 
 /**
@@ -91,6 +99,11 @@ function faceNormal(
     a[0]! * b[1]! - a[1]! * b[0]!,
   ];
 }
+
+/** O kolik je porost ve skvrně polehlého zralého obilí nižší (`lodgedSpot`). */
+const LODGED_CANOPY = 0.7;
+/** Polehlé mokré obilí je tmavší a hnědší (zaschlá stébla naležato, ne klasy shora). */
+const LODGED_TINT: Rgb = [0.78, 0.72, 0.6];
 
 /**
  * Koruna porostu dílů `views` (celé pole nebo jeho blok): nad každým kusem obtisku se zeleným
@@ -169,7 +182,12 @@ export function fieldCanopy(
     else indices.push(a, c, b);
   };
   for (const piece of pieces) {
-    const h = canopyHeight(piece.look, piece.part.crop);
+    // počasí roku: v suchu nižší porost; ve skvrnách polehlého zralého obilí níž, ve skvrnách
+    // vymrzlého ozimu klesne pod zem jako za okrajem pole – prosvítá hlína obtisku
+    const weather = piece.weather;
+    const lodging = piece.look === 'ripe' ? weather : undefined;
+    const frozen = weather?.bare ?? 0;
+    const h = canopyHeight(piece.look, piece.part.crop) * (weather?.height ?? 1);
     const tint = tintedBy(
       lookStyle(piece.look, piece.part.crop, piece.part.bloom).tint,
       piece.tint,
@@ -188,7 +206,17 @@ export function fieldCanopy(
       for (let i = 0; i <= nx; i++) {
         const x = b.minX + i * sx;
         const z = b.minZ + j * sz;
-        top[j * columns + i] = vertex(x, z, profile(h, coverage(x, z)), tint);
+        const spot = lodging ? lodgedSpot(lodging, x, z) : 0;
+        const cover = frozen > 0 ? coverage(x, z) * (1 - frostSpot(x, z) * frozen) : coverage(x, z);
+        const color: Rgb =
+          spot > 0
+            ? [
+                tint[0] * (1 + (LODGED_TINT[0] - 1) * spot),
+                tint[1] * (1 + (LODGED_TINT[1] - 1) * spot),
+                tint[2] * (1 + (LODGED_TINT[2] - 1) * spot),
+              ]
+            : tint;
+        top[j * columns + i] = vertex(x, z, profile(h * (1 - LODGED_CANOPY * spot), cover), color);
       }
     }
     for (let j = 0; j < nz; j++) {

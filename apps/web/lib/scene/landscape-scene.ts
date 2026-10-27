@@ -74,7 +74,9 @@ import {
   type SeasonLook,
 } from './season-look';
 import { isDeciduousMesh } from './season-foliage';
-import { setSeasonShaderState } from './season-materials';
+import { setPuddles, setSeasonShaderState } from './season-materials';
+import { overcast, puddleAmount, rainAmount } from './rain';
+import { RainRenderer } from './rain-renderer';
 import {
   SHADOW_DARKNESS,
   addSunShadows,
@@ -245,6 +247,10 @@ export class LandscapeScene {
   private clearingSlash: ClearingSlash | null = null;
   /** Ohně pálení paseky na hromadách větví (clearing-fire-renderer.ts). */
   private clearingFire: ClearingFireRenderer | null = null;
+  /** Déšť (rain.ts) – síla 0–1 teď a vývojové vynucení (null = podle dnů deště). */
+  private rain: RainRenderer | null = null;
+  private rainNow = 0;
+  private rainOverride: number | null = null;
   private village: VillageRenderer | null = null;
   /** Domácí zvířata vsi (ozdoba) – slepice u obydlí, stáda na loukách a v lese. */
   private livestock: VillageLivestock | null = null;
@@ -443,6 +449,9 @@ export class LandscapeScene {
     });
     // ohně pálení na hromadách větví (forest.md – Klučení lesa pro pole – postup, bod 3)
     this.clearingFire?.dispose();
+    this.rain?.dispose();
+    this.rain = new RainRenderer(this.scene);
+    this.rainNow = 0;
     this.clearingFire = new ClearingFireRenderer(this.scene, { groundHeight });
     if (this.worldClock) this.clearingFire.setWorldClock(this.worldClock);
     const relief = buildRelief(landscape);
@@ -691,7 +700,8 @@ export class LandscapeScene {
   /**
    * Počasí roku vsi pro vzhled (disasters.md – Ve scéně) – jen v roce, pro který platí (po Novém
    * roce do další odpovědi serveru normální rok). S vývojovým dnem (`setSeasonDay`) bez ohledu
-   * na rok – ukázka počasí na /dev/landscape.
+   * na rok – ukázka počasí na /dev/landscape. Zahození po Novém roce vzhled nezmění: všechny
+   * dráhy počasí (`weatherAmounts`) jsou 1. 1. nulové (test v season-look.test.ts).
    */
   private weatherNow(): SceneWeather | undefined {
     const weather = this.villageState?.weather;
@@ -894,6 +904,12 @@ export class LandscapeScene {
    */
   setSeasonDay(day: number | null): void {
     this.seasonDay = day;
+    this.updateSeason(true);
+  }
+
+  /** Vývojové vynucení deště 0–1 (null = dny deště podle seedu dne v deštivém létě). */
+  setRainOverride(amount: number | null): void {
+    this.rainOverride = amount;
     this.updateSeason(true);
   }
 
@@ -1591,6 +1607,11 @@ export class LandscapeScene {
       animated = true;
     }
     if (this.fauna?.animate(now / 1000, camera)) animated = true;
+    // déšť – kapky kolem cíle kamery, jen když prší
+    const rts = this.rtsCamera?.camera;
+    if (rts && this.rain?.animate(now / 1000, rts.target, rts.position, rts.radius)) {
+      animated = true;
+    }
     // dým z obydlí – rozvrh ohně podle herního dne, proto skutečný čas
     const epochMs = Date.now();
     if (this.village?.animateSmoke(epochMs, camera)) animated = true;
@@ -1660,6 +1681,7 @@ export class LandscapeScene {
     this.seasonCheckAt = performance.now() + SEASON_CHECK_MS;
     const day = this.seasonDayOfYear();
     const look = seasonLook(day, this.weatherNow());
+    this.updateRain(look.wet);
     // pole podle dne (odhad vzhledu, seč luk) a sněhu – přestaví se, jen když se něco změnilo
     if (this.village?.setSeason(day, look.snow)) {
       this.shadows?.refresh();
@@ -1688,6 +1710,26 @@ export class LandscapeScene {
   }
 
   /**
+   * Déšť ve dnech deště deštivého léta (rain.ts – ze dne světa, jen vzhled): kapky, kaluže a
+   * zataženo. Při změně síly (po desetinách) kapky jednou rozmístí – i při omezeném pohybu, kdy
+   * stojí – a světlo přepočítá.
+   */
+  private updateRain(wet: number): void {
+    const rain =
+      this.rainOverride ??
+      rainAmount(gameDayAt(Date.now(), this.worldClock ?? OFFICIAL_WORLD), wet);
+    setPuddles(this.scene, puddleAmount(wet, rain));
+    if (rain === this.rainNow) return;
+    this.rainNow = rain;
+    this.rain?.setAmount(rain);
+    const camera = this.rtsCamera?.camera;
+    if (camera)
+      this.rain?.animate(performance.now() / 1000, camera.target, camera.position, camera.radius);
+    if (this.season) this.applyLight(true);
+    this.needsRender = true;
+  }
+
+  /**
    * Světlo scény z ročního období a denní doby (day-light.ts): slunce (v noci měsíc) a jeho
    * směr, obloha, opar, okolní světlo, stíny, tón impostorů a dýmu a odraz oblohy na vodě. Bez
    * hodin dne světlo ročního období a pevné slunce SUN_DIRECTION jako dřív. Vrátí true, když se
@@ -1698,7 +1740,8 @@ export class LandscapeScene {
     if (!look) return false;
     this.daylightAt = performance.now();
     const hour = this.dayClock ? this.dayClock(Date.now()) : null;
-    const day = dayLight(look, this.seasonDayOfYear(), hour);
+    // za deště zataženo (rain.ts – `overcast`)
+    const day = overcast(dayLight(look, this.seasonDayOfYear(), hour), this.rainNow);
     if (!force && this.daylight && dayLightDistance(day, this.daylight) < DAY_LIGHT_EPSILON) {
       return false;
     }

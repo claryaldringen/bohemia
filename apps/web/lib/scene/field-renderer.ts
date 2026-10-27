@@ -1653,7 +1653,15 @@ function plantBuffers(
     // sloupce matice Babylonu (řádkový zápis: x, y, z osy a posun)
     matrices[o] = c * p.width;
     matrices[o + 2] = -s * p.width;
-    matrices[o + 5] = p.height;
+    if (p.lean) {
+      // polehlé stéblo: osa trsu nakloněná (zkosení – pata zůstane na místě, délka stejná)
+      const [lx, lz] = p.lean;
+      matrices[o + 4] = lx * p.height;
+      matrices[o + 5] = Math.sqrt(Math.max(0, 1 - lx * lx - lz * lz)) * p.height;
+      matrices[o + 6] = lz * p.height;
+    } else {
+      matrices[o + 5] = p.height;
+    }
     matrices[o + 8] = s * p.width;
     matrices[o + 10] = c * p.width;
     matrices[o + 12] = p.x;

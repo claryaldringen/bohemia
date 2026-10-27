@@ -190,6 +190,25 @@ describe('vzhled roku podle počasí', () => {
     });
   });
 
+  it('1. 1. jsou všechny složky počasí nulové – zahození počasí po Novém roce nic neskokne', () => {
+    // `weatherNow` v landscape-scene.ts po přelomu roku počasí zahodí (do odpovědi serveru
+    // normální rok) – vzhled se tím nesmí změnit, žádná dráha nesmí přes Nový rok přesahovat
+    const all: LookWeather[] = [
+      { summer: 'dry', strength: 1 },
+      { summer: 'drought', strength: 1 },
+      { summer: 'wet', strength: 1 },
+      { summer: 'wetHarvest', strength: 1 },
+      { winter: 'blackFrost' },
+      { winter: 'long' },
+    ];
+    for (const weather of all) {
+      for (const day of [366, 1]) {
+        expect(weatherAmounts(day, weather)).toEqual({ drought: 0, wet: 0, frost: 0, delay: 0 });
+        expect(seasonLook(day, weather)).toEqual(seasonLook(day));
+      }
+    }
+  });
+
   it('sucho – slunce praží: jasnější a žlutější slunce, ostřejší stíny, vybledlá obloha', () => {
     const normal = seasonLook(REFERENCE_DAY);
     const hot = seasonLook(REFERENCE_DAY, DROUGHT);

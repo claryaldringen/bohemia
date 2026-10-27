@@ -830,6 +830,11 @@ export interface SceneFieldPart {
    * jinak než obilí. Bez údaje obilí.
    */
   crop?: 'legume' | 'flax';
+  /**
+   * Osetý ozim (fields.md – Ozim a jař) – po holomrazu řídne a prosvítá hlína (disasters.md – Ve
+   * scéně). Bez údaje jař nebo jiná plodina.
+   */
+  winter?: true;
   /** Zelený len v červnu kvete – pole zmodrá (fields.md – Len, Co hráč vidí). */
   bloom?: true;
   /**

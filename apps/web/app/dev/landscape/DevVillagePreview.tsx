@@ -80,7 +80,7 @@ import {
   type SimulatedPart,
 } from './dev-holdings';
 import { demoLabor, withDemoPersons } from './dev-labor';
-import { DEV_WEATHER_LABELS, withDevWeather, type DevWeather } from './dev-weather';
+import { DEV_WEATHER_LABELS, devRain, withDevWeather, type DevWeather } from './dev-weather';
 import { promontoryFocus, promontoryOverlay } from './dev-promontory';
 import { demoOvergrowth, type OvergrowthDemo } from './dev-overgrowth';
 import { demoClearing, type ClearingDemo } from './dev-clearing';
@@ -582,6 +582,10 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   useEffect(() => {
     scene?.setSeasonDay(seasonDay);
   }, [scene, seasonDay]);
+
+  useEffect(() => {
+    scene?.setRainOverride(devRain(devWeather));
+  }, [scene, devWeather]);
 
   useEffect(() => {
     if (!playingYear) return;

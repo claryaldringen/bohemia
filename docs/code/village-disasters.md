@@ -151,8 +151,11 @@ počasí počítá jako dřív** (zlaté otisky beze změny). Funkce v `weather-
 - **Vzhled** – `seasonLook(day, weather)` a světlo (`day-light.ts`), podrobně
   [scene.md – Roční období – počasí](scene.md). Barva dílu podle ochrany – `droughtPartTint`
   (`field-look.ts`), `PartView.tint` → obtisk, porost shora a trsy obilí.
-- **Další úloha (P11b)** – nižší a řidší obilí, polehlé obilí, déšť a kaluže, méně vody v potoce,
-  zvuk deštěm a e2e; data jsou připravená (`SceneWeather.parts`, `SeasonLook.drought` a `wet`).
+- **Obilí, voda a déšť (P11b)** – nižší a řidší obilí v suchu, polehlé obilí v deštivém létě,
+  řídký ozim po holomrazu (`partWeather`, ozim podle `SceneFieldPart.winter` z `crop: 'winter'`),
+  mělký potok v suchu, déšť ve dnech deště (ze seedu dne v prohlížeči, ne z jádra), zataženo
+  a kaluže – podrobně [scene.md – Roční období – počasí](scene.md). Zvuk deště chybí (žádný CC0
+  zvuk).
 - **Vývojová ukázka** – `/dev/landscape`, přepínač **Počasí** (`dev-weather.ts`, `data-testid`
   `dev-weather`): vynucené počasí vsi náhledu s vývojovým dnem (rok se nekontroluje), ochrana dílů
   podle id dílu (id % 5).
