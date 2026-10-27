@@ -185,7 +185,7 @@ function forcedFire(state: VillageState, day: number): number | undefined {
 /**
  * Den požáru (disasters.md – Požár): ze seedu vsi a dne se zkusí vznik (hazard dne = Σ šance
  * obydlí s násobky ÷ délka roku), pak řetězové šíření a dopad. Mutuje stav, vrátí zápis do kroniky.
- * Ves bez počasí kraje (testy, kalibrace) nehoří. Hasí všichni dospělí řetězem od nejbližší vody
+ * Ves bez počasí kraje (testy, kalibrace) nehoří. Hasí všichni dospělí, kdo jsou dnes ve vsi, řetězem od nejbližší vody
  * (`planFireFight`; plán uloží do `state.disasters.fireFight` pro práci dne a scénu); `efficiency`
  * přebije vypočtenou účinnost (jen testy).
  */
@@ -196,6 +196,9 @@ export function fireDay(
   landscape: Landscape | null,
   efficiency?: number,
 ): ChronicleEvent[] {
+  // plán hašení starší než dnešek je pryč – stav nenese starý požár (idempotentně)
+  const old = state.disasters?.fireFight;
+  if (old && old.day < day) delete state.disasters!.fireFight;
   const forced = forcedFire(state, day);
   if (forced === undefined) {
     if (state.weatherSeed === undefined) return [];
@@ -232,11 +235,13 @@ export function fireDay(
     startId,
     site.position.x,
     site.position.z,
-    fireFighters(state.people, day).length,
+    fireFighters(state, day).length,
     day,
   );
   (state.disasters ??= {}).fireFight = fight;
   const used = efficiency ?? fight.efficiency;
+  // plán nese použitou účinnost (testy ji mohou přebít)
+  fight.efficiency = used;
   const burning = spreadFire(
     state.dwellings,
     startId,

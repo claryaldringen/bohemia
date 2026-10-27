@@ -101,16 +101,16 @@ z + ':' + na)`, nezávisí na pořadí průchodu): každá nově hořící stavb
   u `Dwelling.waterWalkM`), nejbližší k hořící stavbě; vzdálenost řetězu je **přímka** od něj ke
   stavbě (řetěz se staví rovně). `waterWalkM` je jiné číslo ke stejnému místu: váží chůzi po
   pěšinách a cestách (rychlejší než louka), proto bývá menší než geometrická vzdálenost (Vlkov
-  ≈ 296 vs. ≈ 455 m); lidé = všichni dospělí
-  (`fireFighters`, `isAdult`); rozestup = vzdálenost ÷ lidé; **účinnost = min(1; 2,5 ÷ rozestup)**
+  ≈ 296 vs. ≈ 455 m); lidé = dospělí, kdo jsou dnes ve vsi
+  (`fireFighters(state, day)`: `isAdult` mimo pěší lovce `huntFootIds` a cestu pro kování `ironTravellers`; cvičící rodina vojvody na dvorci hasí); rozestup = vzdálenost ÷ lidé; **účinnost = min(1; 2,5 ÷ rozestup)**
   (`chainEfficiency`; bez lidí 0, u vody 1). Bez krajiny nebo bez vody je účinnost 0.
 - **Pro scénu (P13)** – plán jde do `state.disasters.fireFight` (`FireFight`: den, hořící obydlí,
   `water` {x, z} nebo null, `distanceM`, `people`, `spacingM`, `efficiency`) – jen ke čtení,
-  platí v `day`. Lidé stojí rovnoměrně na přímce od `water` k obydlí.
+  platí v `day`; `fireDay` na začátku smaže plán starší než dnešek (stav nenese starý požár) a `efficiency` plánu je použitá hodnota (i přebitá v testech). Lidé stojí rovnoměrně na přímce od `water` k obydlí.
 - **Práce dne** – `fireFighting(state, day)` je pravda v den požáru: `villagersToday`
   (`morning-water.ts`) vyřadí všechny dospělé (děti a staří pracují dál) a v `simulate-work.ts`
-  se všechny dílny označí `resting` (řemeslníci hasí, dílna stojí). Platí i ve žních. Účinnost
+  se všechny dílny označí `resting` (řemeslníci hasí, dílna stojí). Uhlíř hasí taky: `burners.clear()` zruší jeho plán dne a pálící milíř ten den stojí (`done` se neposune, nic se nezkazí ani neshoří), dohoří o den později. Platí i ve žních. Účinnost
   jde do `spreadFire` a `burnDown`; parametr `efficiency` u `fireDay` ji jen přebíjí (testy).
 - **Testy** – `firefighting.test.ts`: bod vody hašení = bod vody obydlí (`waterWalkM`), tabulka účinnosti, plán na
   skutečné krajině, dospělí nepracují jen v den požáru, s hašením nezbude méně domů než bez,
-  dopočet po kouscích.
+  dopočet po kouscích, lovci a cesta pro kování nehasí, starý plán se maže, přebitá účinnost v plánu, milíř při hašení stojí (`charcoal.test.ts`).

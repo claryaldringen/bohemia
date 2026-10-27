@@ -6,6 +6,8 @@
 import type { Landscape } from '../landscape/types';
 import { PATH_WATER_SPOT } from './paths/terrain';
 import { groundSpots, nearestSpot, walkGroundOf } from './paths/walking';
+import { ironTravellers } from './crafts';
+import { huntFootIds } from './hunt-party';
 import { isAdult } from './people';
 import { FIRE } from './rules-disasters';
 import type { FireFight, Person, VillageState } from './types';
@@ -18,9 +20,18 @@ export function chainEfficiency(distanceM: number, people: number): number {
   return FIRE.firefighting.handoverM / spacing;
 }
 
-/** Dospělí vsi, kteří dnes hasí. */
-export function fireFighters(people: readonly Person[], day: number): Person[] {
-  return people.filter((p) => isAdult(p, day));
+/**
+ * Dospělí, kteří dnes hasí: jen ti, kdo jsou dnes ve vsi – mimo pěší lovci (`huntFootIds`)
+ * a kdo je na cestě pro kování (`ironTravellers`). Vojvodova rodina, která cvičí na dvorci, je ve
+ * vsi, takže hasí taky (návrh Clauda).
+ */
+export function fireFighters(
+  state: Pick<VillageState, 'people' | 'dwellings' | 'wildlife'>,
+  day: number,
+): Person[] {
+  const away = ironTravellers(state);
+  const hunting = huntFootIds(state, day);
+  return state.people.filter((p) => isAdult(p, day) && !away.has(p.id) && !hunting.has(p.id));
 }
 
 /**

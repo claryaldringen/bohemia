@@ -11,6 +11,7 @@ import { advanceVillage } from '../simulate';
 import type { Dwelling, Person, VillageState } from '../types';
 import { villagersToday } from '../morning-water';
 import { withBuiltFirstDwelling } from './village-fixtures';
+import { newWorkshop } from '../crafts';
 
 // Hašení řetězem s vědry (disasters.md – Hašení; Martin 27. 10. 2026).
 
@@ -92,12 +93,48 @@ describe('den požáru', () => {
   it('hasí jen dospělí, a to jen v den požáru', () => {
     const kid: Person = { id: 99, bornDay: DAY - 5 * 365, dwellingId: 1 };
     const state = village([...adults(3), kid]);
-    expect(fireFighters(state.people, DAY).map((p) => p.id)).toEqual([1, 2, 3]);
+    expect(fireFighters(state, DAY).map((p) => p.id)).toEqual([1, 2, 3]);
     expect(villagersToday(state, DAY, new Set()).villagers).toHaveLength(4);
     fireDay(state, DAY, null, null);
     expect(state.disasters?.fireFight).toMatchObject({ day: DAY, dwellingId: 1, people: 3 });
     expect(villagersToday(state, DAY, new Set()).villagers.map((p) => p.id)).toEqual([99]);
     expect(villagersToday(state, DAY + 1, new Set()).villagers).toHaveLength(4);
+  });
+
+  it('mimo ves nehasí pěší lovci ani kdo jde pro kování; cvičící rodina na dvorci ano', () => {
+    const state = village(adults(5));
+    state.wildlife = {
+      hunt: {
+        hope: { boar: 0, deer: 0, wolf: 0, bear: 0 },
+        today: { day: DAY, target: 'deer', riders: [], foot: [1, 2], extra: false },
+        year: { boar: 0, deer: 0, wolves: 0, bear: 0, meatKg: 0, days: 0 },
+      },
+    } as unknown as VillageState['wildlife'];
+    state.dwellings[1]!.workshop = {
+      ...newWorkshop('smith'),
+      ironTrip: { personId: 3 } as never,
+    } as Dwelling['workshop'];
+    expect(fireFighters(state, DAY).map((p) => p.id)).toEqual([4, 5]);
+    fireDay(state, DAY, null, null);
+    expect(state.disasters?.fireFight?.people).toBe(2);
+  });
+
+  it('starý plán hašení se druhý den smaže, dnešní zůstane', () => {
+    const state = village(adults(3));
+    fireDay(state, DAY, null, null);
+    expect(state.disasters?.fireFight?.day).toBe(DAY);
+    fireDay(state, DAY, null, null);
+    expect(state.disasters?.fireFight?.day).toBe(DAY);
+    fireDay(state, DAY + 1, null, null);
+    expect(state.disasters?.fireFight).toBeUndefined();
+    fireDay(state, DAY + 1, null, null);
+    expect(state.disasters?.fireFight).toBeUndefined();
+  });
+
+  it('přebitá účinnost se zapíše do plánu', () => {
+    const state = village(adults(3));
+    fireDay(state, DAY, null, generateLandscape(42), 0.25);
+    expect(state.disasters?.fireFight?.efficiency).toBe(0.25);
   });
 
   it('s krajinou řetěz sníží škody: plná účinnost zachrání dům, bez hašení shoří', () => {

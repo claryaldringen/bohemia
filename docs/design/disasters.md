@@ -291,7 +291,10 @@ vody.“ A: „Lidé musí být rozložení ve stejných vzdálenostech … ten 
 „Ano“.
 
 - **Kdo:** **všichni dospělí vsi**; ten den nedělají nic jiného (pole, stavby, péče). Děti
-  a staří ne (návrh Clauda).
+  a staří ne (návrh Clauda). Hasí jen ti, kdo jsou ten den **ve vsi** – ne pěší lovci a kdo jde pro
+  kování; vojvodova rodina, která cvičí na dvorci, ve vsi je, takže hasí taky (návrh Clauda).
+- **Uhlíř** hasí také; pálící **milíř** ten den stojí bez dozoru – nezkazí se ani neshoří, jen
+  dohoří o den později (návrh Clauda).
 - **Řetěz:** od **nejbližší vody** (břeh, kam chodí ženy pro vodu; vzdálenost přímkou) k hořící stavbě, lidé **rovnoměrně po celé cestě**:
   **rozestup = vzdálenost ÷ počet dospělých**.
 - **Do 2,5 m** si vědra **podávají** z ruky do ruky; **víc** – **každý nosí** vědro tam a zpět po
