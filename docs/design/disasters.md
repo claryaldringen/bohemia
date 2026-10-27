@@ -35,8 +35,9 @@ obchod se sousedy skutečnou zkoušku.
   na pole mezi stromy, v nivě nebo na vršku (ochrana dílu níž). Martin, 27. 10. 2026: „Sucho by
   mělo mít různé dopady podle typu krajiny.“
 - **Cíl:** ves **za normálních okolností nehladoví** (Martin, 26. 10. 2026); s plnou pojistkou
-  **přežije jeden krutý rok** bez úmrtí hladem; **dva kruté roky za sebou** přinesou hlad
-  a úmrtí, ale ves nevymře (rešerše – 1281–1282, Campbell a Ó Gráda).
+  **přežije jeden krutý rok** bez úmrtí hladem; **dva kruté roky za sebou** přinesou dlouhé
+  šetření a hlad, ale ves nevymře (rešerše – 1281–1282, Campbell a Ó Gráda) – úmrtí jen když ves
+  nemá kde nouzově osít (od 27. 10. 2026, Kalibrace – cíl 3).
 - **Cíl:** **deterministicky** – počasí, výška povodně a smršť ze seedu počasí mapy a roku,
   kroupy a požár ze seedu vsi a roku; stejný stav a den dá vždy stejný výsledek, nezávisle na dopočtu
   po kouscích.
@@ -414,8 +415,14 @@ Martin chce skutečnou pravděpodobnost, i když je velmi vzácná – žádné 
    (Martin, 26. 10. 2026). To je úkol dvojpolí a čísel úrody – musí platit **před** pohromami.
 2. **Jeden krutý rok s plnou pojistkou:** žádné úmrtí hladem; nejvýš „Ves šetří jídlem“ před
    žněmi, nouzová porážka smí.
-3. **Dva kruté roky za sebou:** „Ves hladoví“, umírají děti a starší – ves ztratí **≈ 10–25 %
-   lidí**, ale nevymře; v hájení dospělí neumírají.
+3. **Dva kruté roky za sebou:** dlouhé „Ves šetří jídlem“ až „Ves hladoví“, ves nevymře;
+   v hájení dospělí neumírají. Ves se v hladu brání **nouzovými přílohami** (pod pojistkou oseje i díly,
+   které ještě neodpočaly – [pole](fields.md)) a sama si na ně vycvičí voly a vyrobí rádla
+   ([voli](oxen.md)) – druhý krutý rok tak dopadne na větší plochu a úmrtí hladem přijdou, jen
+   když ves nemá kde nouzově osít nebo čím zorat. Cenou je vyčerpaná půda (přílohy pak dlouho
+   rodí slabě). **Martin, 27. 10. 2026** (na volbu „nechat nouzové přílohy, jak jsou“, nebo je
+   omezit, aby dva kruté roky vzaly 10–25 % lidí): „1“ – tedy nechat. ~~Ves ztratí ≈ 10–25 %
+   lidí~~ (původní cíl, návrh Clauda).
 4. **S pohromami v průměru:** ≥ 95 % let bez hladu (energie ≥ 0,9).
 5. **Nová ves** (osadnické zásoby na 18 měsíců) přežije krutý rok v prvních letech bez úmrtí
    hladem dospělých – poloviční síla počasí už ji nechrání.
@@ -430,7 +437,7 @@ přídělu) … za rok stojí ≈ 15 % lidí“) přijde o zhruba desetinu až p
 
 - **Unit testy jádra:** počasí přes 10 000 let dá četnosti z tabulek (±1 %) a shlukování;
   vynucený sled let (jen testy a dev) na ustálené testovací vsi: [krutý] → 0 úmrtí hladem,
-  [krutý, krutý] → úmrtí 10–25 %, ves žije, [normální × 10] → bez hladu.
+  [krutý, krutý] → ves žije, [normální × 10] → bez hladu.
 - **`village-calculator.ts`** (ustálený stav, rychlý): přepínač `--weather` s průměrnou úrodou
   0,95 – kolik osevu a práce stojí průměr let.
 - **Vlkov a nové vsi:** dev mód **„Vynutit zlý rok“** a **„Vynutit pohromu“** vedle skoku v čase
@@ -452,13 +459,14 @@ v roce 4 při zásobách 30. 6. ≈ 2× pojistky, dvě sucha v letech 4 a 5):
 
 - **Cíl 1 a 2 splněny.** Roky 1–2 po převodu krátce šetří (dřív 333 a 281 dní, příděl 0,67) –
   Vlkov začíná pod pojistkou s jedním rádlem a první plán ze zásob oseje jen ≈ 930 dílů.
-- **Cíl 3 nesplněn – rozhodnout:** po prvním suchu ves oseje o 70–100 % dílů víc (pod pojistkou
+- **Cíl 3 – rozhodnuto (Martin 27. 10. 2026: nouzové přílohy nechat):** po prvním suchu ves oseje o 70–100 % dílů víc (pod pojistkou
   doplní chybějící **hned** a paměť hladu zvedne pojistku na 0,75), takže druhé sucho dá hrubou
   úrodu jako normální rok. Ověřeno i s `cushionYears` 0 (zásoby ≈ 1,4× pojistky): jeden krutý rok
   pak šetří až na příděl 0,77 (cíl 2 padá) a dva kruté stejně bez úmrtí (≈ 370 dní šetří, příděl
   0,76, lidé +2 %); s `floorRation` 0,9 totéž. Úmrtí hladem přijdou až při nasycení pod 0,9
-  dlouhé měsíce (STARVATION – při 0,8 ≈ 108 dní k prahu dětí). Cíl 3 potřebuje jiné pravidlo
-  (doplnění pojistky po krutém roce pozvolna, strop přírůstku osevu), nebo jiný cíl.
+  dlouhé měsíce (STARVATION – při 0,8 ≈ 108 dní k prahu dětí). Skok osevu dělají nouzové
+  přílohy pod pojistkou a rádla podle orby – ves se v hladu brání vším, co má; cíl 3 se proto
+  změnil (výš), pravidla zůstávají.
 
 ## Obrana a příprava (bez nových velkých mechanik)
 
