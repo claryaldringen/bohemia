@@ -95,6 +95,7 @@ import { scenePersons } from './person-view';
 import { sceneWeddings } from './wedding-view';
 import { sceneWildlife } from './wildlife-view';
 import { sceneFlood, sceneHail, sceneWeather } from './weather-view';
+import { charredRuinKeys, sceneFire } from './fire-view';
 
 export function sceneVillage(
   state: VillageState,
@@ -235,6 +236,9 @@ export function sceneVillage(
   const plantedSaplings = plantedSaplingViews(state, day);
   const roadApples = sceneRoadApples(state, day, obstacles);
   const { oreSites, orePits } = sceneOre(state, day);
+  // požár jen v jeho den (disasters.md – Požár, Ve scéně), shořelé zbytky jam ohořelé
+  const fire = sceneFire(state, day);
+  const charred = (state.ruins ?? []).length > 0 ? charredRuinKeys(state) : null;
   const ruins = (state.ruins ?? []).map((r) => ({
     id: r.id,
     type: r.type,
@@ -244,6 +248,7 @@ export function sceneVillage(
     ...(r.plot ? { plot: scenePlot(landscape, r.plot) } : {}),
     ...(r.craft ? { craft: r.craft } : {}),
     ...(r.plainShape ? { plainShape: true as const } : {}),
+    ...(charred?.has(`${r.id}@${r.day}`) ? { charred: true as const } : {}),
   }));
   const pens = scenePens(state, landscape, day, summary);
   const earthworks = sceneEarthworks(state, day);
@@ -332,6 +337,7 @@ export function sceneVillage(
     ...(weather ? { weather } : {}),
     ...(hail ? { hail } : {}),
     ...(flood ? { flood } : {}),
+    ...(fire ? { fire } : {}),
   };
 }
 

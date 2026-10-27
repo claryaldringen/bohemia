@@ -40,6 +40,8 @@ import { birdFlocks, fishSchools } from './fauna-placement';
 import { ClearingSlash } from './clearing-slash';
 import { burningKey, burningSquares, heapFires } from './clearing-fire';
 import { ClearingFireRenderer } from './clearing-fire-renderer';
+import { FireBuckets } from './fire-buckets';
+import { houseFireKey, houseFireKind, houseFires } from './house-fire';
 import { gameDayAt } from './smoke-schedule';
 import { FelledTrees } from './felled-trees';
 import { LogPile } from './log-pile';
@@ -249,6 +251,9 @@ export class LandscapeScene {
   private clearingSlash: ClearingSlash | null = null;
   /** Ohně pálení paseky na hromadách větví (clearing-fire-renderer.ts). */
   private clearingFire: ClearingFireRenderer | null = null;
+  /** Požár (disasters.md – Požár, Ve scéně): plameny hořících domů a vědra řetězu hašení. */
+  private houseFire: ClearingFireRenderer | null = null;
+  private fireBuckets: FireBuckets | null = null;
   /** Déšť (rain.ts) – síla 0–1 teď a vývojové vynucení (null = podle dnů deště). */
   private rain: RainRenderer | null = null;
   private rainNow = 0;
@@ -402,6 +407,7 @@ export class LandscapeScene {
       this.village.setSeason(this.seasonDayOfYear(), this.season.snow);
     }
     this.village.setSmokeAlways(this.smokeAlways);
+    this.village.setDisasterDay(this.disasterDayOverride);
     this.outlines = new PlacementOutlines(
       this.scene,
       (x, z) => terrainMeshHeight(surface, x, z),
@@ -475,6 +481,14 @@ export class LandscapeScene {
     this.applyDisasters();
     this.clearingFire = new ClearingFireRenderer(this.scene, { groundHeight });
     if (this.worldClock) this.clearingFire.setWorldClock(this.worldClock);
+    // požár – plameny domů ohněm paseky s vlastním rozvrhem, den světa jako pohromy (vývojově vynucený)
+    this.houseFire?.dispose();
+    this.houseFire = new ClearingFireRenderer(this.scene, {
+      groundHeight,
+      kind: houseFireKind(() => this.disasterDay()),
+    });
+    this.fireBuckets?.dispose();
+    this.fireBuckets = new FireBuckets(this.scene, { groundHeight });
     const relief = buildRelief(landscape);
     // Domácí zvířata vsi – rozmístí se podle vsi (applyVillage), modely až s prvním zvířetem.
     this.livestock?.dispose();
@@ -762,6 +776,10 @@ export class LandscapeScene {
   setDisasterDay(day: number | null): void {
     this.disasterDayOverride = day;
     this.updateDisasters();
+    // požár – dým a plameny podle vynuceného dne
+    this.village?.setDisasterDay(day);
+    this.village?.animateSmoke(Date.now(), null);
+    if (this.houseFire?.animate(Date.now(), null)) this.needsRender = true;
   }
 
   /** Kapky a kroupy kolem cíle kamery v tomto okamžiku (při omezeném pohybu stojí). */
@@ -951,6 +969,7 @@ export class LandscapeScene {
   setWorldClock(world: WorldClock): void {
     this.village?.setWorldClock(world);
     this.clearingFire?.setWorldClock(world);
+    this.houseFire?.setWorldClock(world);
     this.worldClock = world;
     this.updateSeason(true);
     // skok v čase mění herní den – ohně a kouř se přestaví a jednou nakreslí i bez změny vsi
@@ -1499,7 +1518,8 @@ export class LandscapeScene {
     const piles = this.logPile?.update(this.villageState, changes) ?? false;
     const slash = this.clearingSlash?.update(this.villageState) ?? false;
     const fires = this.updateClearingFires();
-    const logs = piles || slash || fires;
+    const burning = this.updateHouseFires();
+    const logs = piles || slash || fires || burning;
     const animals = this.livestock?.update(this.villageState, Date.now()) ?? false;
     const wild = this.wildlife?.update(this.villageState, Date.now()) ?? false;
     const abundance = this.applyFaunaAbundance();
@@ -1531,6 +1551,8 @@ export class LandscapeScene {
     // Dým a ohně hned na místě – i při omezeném pohybu, kdy se pak už nehýbe.
     village.animateSmoke(Date.now(), null);
     this.clearingFire?.animate(Date.now(), null);
+    this.houseFire?.animate(Date.now(), null);
+    this.fireBuckets?.animate(Date.now(), null);
     const scene = { village: changed, hidden, felled, logs, shade: shaded, canopy: cleared };
     if (castersChanged({ ...scene, animals, people })) this.shadows?.refresh();
     this.renderWhenReady();
@@ -1683,6 +1705,22 @@ export class LandscapeScene {
     );
   }
 
+  /**
+   * Hořící domy a řetěz s vědry v den požáru (`SceneVillage.fire`) – přestaví se jen při změně
+   * požáru (`houseFireKey`). Vrátí true, když se ohně nebo řetěz změnily.
+   */
+  private updateHouseFires(): boolean {
+    const fire = this.villageState?.fire;
+    const flames = this.houseFire;
+    let changed = this.fireBuckets?.set(fire) ?? false;
+    const key = houseFireKey(fire);
+    if (flames && key !== flames.currentKey()) {
+      flames.set(houseFires(fire), key);
+      changed = true;
+    }
+    return changed;
+  }
+
   /** Voda, ryby a ptáci, dým, zvířata, lidé, voli a obilí – true, když se něco v záběru hnulo. */
   private animate(now: number, camera: Camera): boolean {
     let animated = false;
@@ -1713,6 +1751,9 @@ export class LandscapeScene {
     if (this.village?.animateSmoke(epochMs, camera)) animated = true;
     // ohně pálení paseky – podle herního dne jako dým
     if (this.clearingFire?.animate(epochMs, camera)) animated = true;
+    // požár – plameny domů a vědra řetězu (jen v den požáru)
+    if (this.houseFire?.animate(epochMs, camera)) animated = true;
+    if (this.fireBuckets?.animate(epochMs, camera)) animated = true;
     // domácí zvířata – skutečný čas (epoch ms), ne herní: stejný okamžik = stejná póza
     if (this.livestock?.animate(epochMs, camera)) animated = true;
     // koně na jízdě nestojí v ohradě (riders.ts, village-pens.ts)

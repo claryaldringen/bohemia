@@ -1,8 +1,17 @@
 // Vývojová ukázka počasí roku (disasters.md – Ve scéně): ves náhledu dostane vynucené odhalené
 // počasí – sucho, deštivé léto, holomráz nebo dlouhou zimu. Ochrana dílů po stupních 0–4 se
 // střídá podle id dílu, ať je vidět, že díl s ochranou je v suchu zelenější. Krupobití a povodeň
-// (P12) – pohroma vsi náhledu a vynucený den světa (`LandscapeScene.setDisasterDay`).
-import type { SceneVillage, SceneWeather } from '@/lib/village-view';
+// (P12) – pohroma vsi náhledu a vynucený den světa (`LandscapeScene.setDisasterDay`). Požár (P13) –
+// hoří obydlí nejblíž vodě a soused do 45 m, řetěz s vědry od nejbližší vody (jako jádro – bod, kam
+// chodí ženy pro vodu): hustý (podávají) nebo řídký (chodí).
+import {
+  PATH_WATER_SPOT,
+  groundSpots,
+  nearestSpot,
+  walkGroundOf,
+  type Landscape,
+} from '@bohemia/game';
+import type { SceneBurningHouse, SceneVillage, SceneWeather } from '@/lib/village-view';
 
 export type DevWeather =
   | 'normal'
@@ -14,7 +23,9 @@ export type DevWeather =
   | 'long'
   | 'hail'
   | 'flood100'
-  | 'flood1000';
+  | 'flood1000'
+  | 'firePass'
+  | 'fireWalk';
 
 export const DEV_WEATHER_LABELS: Record<DevWeather, string> = {
   normal: 'normální rok',
@@ -27,7 +38,12 @@ export const DEV_WEATHER_LABELS: Record<DevWeather, string> = {
   hail: 'krupobití',
   flood100: 'povodeň stoletá',
   flood1000: 'povodeň tisíciletá',
+  firePass: 'požár – podávají vědra',
+  fireWalk: 'požár – chodí s vědry',
 };
+
+/** Rozestup řetězu náhledu (m): hustý – podávají (do 2,5 m), řídký – každý chodí po úseku. */
+const DEV_FIRE_SPACING_M = { firePass: 2.2, fireWalk: 7 } as const;
 
 /** Den pohromy náhledu (den světa) – scéna dostane vynucený den světa kousek po něm. */
 const DEV_DISASTER_DAY = 0;
@@ -41,6 +57,8 @@ const DEV_FLOOD_M = { flood100: 2, flood1000: 3.5 } as const;
 export function devDisasterDay(weather: DevWeather): number | null {
   if (weather === 'hail') return DEV_DISASTER_DAY + 0.4;
   if (weather === 'flood100' || weather === 'flood1000') return DEV_DISASTER_DAY + 1;
+  // požár v plné síle (houseFireState – hoří od rána do odpoledne)
+  if (weather === 'firePass' || weather === 'fireWalk') return DEV_DISASTER_DAY + 0.4;
   return null;
 }
 
@@ -49,9 +67,76 @@ export function devRain(weather: DevWeather): number | null {
   return weather === 'rain' ? 1 : null;
 }
 
+/**
+ * Vynucený požár náhledu: hoří obydlí nejblíž vodě (řetěz je vidět celý) a nejbližší soused do
+ * 45 m; dospělých tolik, ať je rozestup DEV_FIRE_SPACING_M. Lidé ve scéně se vynechají (postavy
+ * řetězu nejsou skuteční lidé – ukázka jich má málo) a práce vsi dnes není (všichni hasí).
+ */
+function withDevFire(
+  village: SceneVillage,
+  weather: 'firePass' | 'fireWalk',
+  landscape: Landscape | null,
+): SceneVillage {
+  const houses = village.dwellings.filter((d) => d.built);
+  if (houses.length === 0 || !landscape) return village;
+  const spots = groundSpots(walkGroundOf(landscape), PATH_WATER_SPOT);
+  const withWater = houses.flatMap((d) => {
+    const water = nearestSpot(spots, { x: d.position.x, z: d.position.z });
+    if (!water) return [];
+    const distance = Math.hypot(water.x - d.position.x, water.z - d.position.z);
+    return [{ d, water, distance }];
+  });
+  // nejbližší vodě, ale aspoň 25 m – ať je vidět řada lidí
+  const target =
+    withWater.filter((w) => w.distance >= 25).sort((a, b) => a.distance - b.distance)[0] ??
+    withWater.sort((a, b) => b.distance - a.distance)[0];
+  if (!target) return village;
+  const site = target.d.position;
+  const neighbour = houses
+    .filter((d) => d.id !== target.d.id)
+    .map((d) => ({ d, m: Math.hypot(d.position.x - site.x, d.position.z - site.z) }))
+    .filter((n) => n.m <= 45)
+    .sort((a, b) => a.m - b.m)[0]?.d;
+  const burning: SceneBurningHouse[] = [target.d, ...(neighbour ? [neighbour] : [])].map((d) => ({
+    id: d.id,
+    x: d.position.x,
+    z: d.position.z,
+    type: d.type,
+    rotation: d.position.rotation,
+    ...(d.id === target.d.id ? { started: true as const } : {}),
+  }));
+  const people = Math.max(2, Math.round(target.distance / DEV_FIRE_SPACING_M[weather]));
+  // bez lidí ve vsi (ukázka bez volby Lidé) jen dospělí řetězu – postavy kreslí rozdělení práce
+  const labor = village.labor
+    ? { ...village.labor, shares: [] }
+    : { day: 0, month: 7, people: { children: 0, adults: people, elders: 0 }, shares: [] };
+  delete labor.persons;
+  return {
+    ...village,
+    labor,
+    fire: {
+      day: DEV_DISASTER_DAY,
+      burning,
+      chain: {
+        water: { x: target.water.x, z: target.water.z },
+        target: { x: site.x, z: site.z },
+        people,
+        spacingM: target.distance / people,
+      },
+    },
+  };
+}
+
 /** Ves náhledu s vynuceným počasím; normální rok beze změny. */
-export function withDevWeather(village: SceneVillage, weather: DevWeather): SceneVillage {
+export function withDevWeather(
+  village: SceneVillage,
+  weather: DevWeather,
+  landscape: Landscape | null = null,
+): SceneVillage {
   if (weather === 'normal') return village;
+  if (weather === 'firePass' || weather === 'fireWalk') {
+    return withDevFire(village, weather, landscape);
+  }
   if (weather === 'hail') {
     // pruh přes pole vsi náhledu (v jádru přes střed obydlí) – ať je vidět potlučené obilí
     const parts = village.fields.flatMap((f) => f.parts);

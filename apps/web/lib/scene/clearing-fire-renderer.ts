@@ -9,7 +9,7 @@ import { OFFICIAL_WORLD, type WorldClock } from '@bohemia/game';
 import { HEAP_FIRE_SPRITES, MAX_FIRE_SQUARES, heapFireShape, type HeapFire } from './clearing-fire';
 import { SLASH_HEAPS_MAX } from './clearing-slash-layout';
 import { fireSprites, type FireShape, type FireSprite } from './pyre-fire';
-import { clearingFireState, gameDayAt } from './smoke-schedule';
+import { clearingFireState, gameDayAt, type ClearingFireState } from './smoke-schedule';
 
 const FIRE_URL = '/textures/particles/fire.png';
 const FIRE_CELL_PX = 128;
@@ -32,7 +32,7 @@ interface HeapView {
   heading: { x: number; z: number };
   flames: FireSprite[];
   /** Stav ohně v posledním taktu (počítá se jednou na takt). */
-  state: ReturnType<typeof clearingFireState> | null;
+  state: ClearingFireState | null;
 }
 
 interface SquareView {
@@ -43,6 +43,26 @@ interface SquareView {
 }
 
 const byDistance = (a: SquareView, b: SquareView): number => a.distance - b.distance;
+
+/**
+ * Jiný oheň stejným rendererem (hořící dům – house-fire.ts): rozvrh ohně, tvar podle velikosti,
+ * počet spritů, jméno správce a den světa (vývojově vynucený). Bez údaje pálení paseky.
+ */
+export interface FireKind {
+  name: string;
+  capacity: number;
+  shape: (scale: number) => FireShape;
+  state: (fire: HeapFire, gameDay: number) => ClearingFireState;
+  /** Herní den v okamžiku `nowMs` (bez údaje hodiny světa). */
+  dayAt?: (nowMs: number) => number;
+}
+
+const CLEARING_FIRE: FireKind = {
+  name: 'clearing-fire',
+  capacity: CAPACITY,
+  shape: heapFireShape,
+  state: (fire, gameDay) => clearingFireState(fire.burn, gameDay, fire.order),
+};
 
 /**
  * Ohně pálení paseky (forest.md – Klučení lesa pro pole – postup; scene.md – Paseka klučení –
@@ -61,11 +81,14 @@ export class ClearingFireRenderer {
   /** Čtverce s ohněm v tomto taktu – pole se znovu používá, aby takt nealokoval. */
   private readonly lit: SquareView[] = [];
   private world: WorldClock = OFFICIAL_WORLD;
+  private readonly kind: FireKind;
 
   constructor(
     private readonly scene: Scene,
-    private readonly options: { groundHeight: (x: number, z: number) => number },
-  ) {}
+    private readonly options: { groundHeight: (x: number, z: number) => number; kind?: FireKind },
+  ) {
+    this.kind = options.kind ?? CLEARING_FIRE;
+  }
 
   setWorldClock(world: WorldClock): void {
     this.world = world;
@@ -86,7 +109,7 @@ export class ClearingFireRenderer {
       list.push({
         fire,
         ground: this.options.groundHeight(fire.x, fire.z),
-        shape: heapFireShape(fire.scale),
+        shape: this.kind.shape(fire.scale),
         heading: { x: Math.cos(fire.yaw), z: Math.sin(fire.yaw) },
         flames: [],
         state: null,
@@ -125,7 +148,7 @@ export class ClearingFireRenderer {
    */
   animate(nowMs: number, camera: Camera | null): boolean {
     if (this.squares.length === 0 && this.used === 0) return false;
-    const gameDay = gameDayAt(nowMs, this.world);
+    const gameDay = this.kind.dayAt?.(nowMs) ?? gameDayAt(nowMs, this.world);
     const timeS = nowMs / 1000;
     const lit = this.lit;
     lit.length = 0;
@@ -139,7 +162,7 @@ export class ClearingFireRenderer {
       }
       let burning = false;
       for (const heap of square.heaps) {
-        const state = clearingFireState(heap.fire.burn, gameDay, heap.fire.order);
+        const state = this.kind.state(heap.fire, gameDay);
         heap.state = state;
         if (state.fire > 0 || state.glow > 0) burning = true;
       }
@@ -193,9 +216,9 @@ export class ClearingFireRenderer {
   private ensureSprites(): void {
     if (this.manager) return;
     const manager = new SpriteManager(
-      'clearing-fire',
+      this.kind.name,
       FIRE_URL,
-      CAPACITY,
+      this.kind.capacity,
       FIRE_CELL_PX,
       this.scene,
     );
@@ -207,8 +230,8 @@ export class ClearingFireRenderer {
     manager.fogEnabled = false;
     this.scene.setRenderingAutoClearDepthStencil(SPRITE_RENDERING_GROUP, false, false, false);
     this.manager = manager;
-    this.sprites = Array.from({ length: CAPACITY }, () => {
-      const sprite = new Sprite('clearing-fire', manager);
+    this.sprites = Array.from({ length: this.kind.capacity }, () => {
+      const sprite = new Sprite(this.kind.name, manager);
       sprite.isVisible = false;
       return sprite;
     });

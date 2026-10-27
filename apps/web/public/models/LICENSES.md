@@ -60,3 +60,9 @@ stejnou licencí CC BY-SA 3.0 (Wildfire Games).
 `impostors-winter.webp` je zimní varianta téhož atlasu (stejný skript s volbou `winter`):
 listí listnáčů je z textur odstraněné podle barvy (zbyly kmeny, větve a větvičky), smrky mají
 domalovaný sníh – odvozené dílo pod stejnou licencí CC BY-SA 3.0 (Wildfire Games).
+
+## Vědro řetězu hašení (bez souboru)
+
+Vědro, které nesou lidé v řetězu při požáru, není soubor – je to procedurální dřevěný válec
+vytvořený v kódu (`apps/web/lib/scene/fire-buckets.ts`), vlastní práce pod licencí
+[CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).

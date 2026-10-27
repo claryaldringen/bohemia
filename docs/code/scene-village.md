@@ -672,3 +672,45 @@ Kdo a kdy kuje, určuje jádro (`shoeingDay` → `SceneLabor.shoeing`); scéna j
   skupina `horse` – žádný nový vertex atribut (hlídá `fauna.test.ts`).
 - **Ukázka** `/dev/landscape` – tlačítko „Kování“ (`dev-shoeing.ts`): vypnuto → vlastní kovář →
   cizí kovář (krajinou z kraje mapy na východě); bez ohrady koní si ji ukázka přinese i s kovárnou.
+
+## Požár a řetěz s vědry (disasters.md – Požár, Hašení – řetěz s vědry; P13)
+
+Data `SceneVillage.fire` jen v den požáru – [village-disasters.md – Scéna – požár](village-disasters.md).
+
+- **Plameny** – oheň pálení paseky (`clearing-fire-renderer.ts`) s jiným druhem ohně (`FireKind`
+  – rozvrh, tvar, kapacita, jméno správce, den světa): `houseFireKind` v `house-fire.ts`, druhá
+  instance `ClearingFireRenderer` v `landscape-scene.ts` (`houseFire`, `updateHouseFires` podle
+  `houseFireKey`). Na stavbu dva ohně podél hřebene (`houseFires`, 14 plamenů a 6 jisker, tvar
+  `houseFireShape` – plameny nad střechou), nejvýš `MAX_BURNING_HOUSES` (12) staveb. Rozvrh
+  `houseFireState` (`smoke-schedule.ts`, `HOUSE_FIRE`): požár je událost celého herního dne –
+  chytne hned po půlnoci (sousední stavby o kus později podle pořadí v šíření), hoří naplno, od
+  0,55 dne slábne, od 0,8 jen žhavé uhlíky a dým doutnání do konce dne.
+- **Hustý dým** – dým vsi (`village-smoke.ts`) druhu `house-fire` (`HOUSE_FIRE_PLUME` – 34
+  obláčků, 40 m vysoko, tmavší na polovinu), zdroj 2,5 m nad středem každé hořící stavby
+  (`houseFirePlumes`, `HOUSE_FIRE_SMOKE_SEED`), síla z `houseFireState` přes `ClearingBurn`
+  (`burnedDay` = den požáru, `order`). Vývojově vynucený den světa (`setDisasterDay`) platí
+  i pro plameny a dým.
+- **Řetěz s vědry** (`villager-plan-fire.ts`; Martin 27. 10. 2026: „Chci, aby všichni dospělí
+  hasili. Ať udělají řetěz s vědry od nejbližší vody“, „Lidé musí být rozložení ve stejných
+  vzdálenostech“) – `fireChainLayout`: úsečka od bodu vody k hořící stavbě, poslední člověk
+  kousek před stěnou (`HOUSE_CLEAR_M`), rovně (i přes sad nebo pole – jako jádro). Rozestup
+  jádra ≤ 2,5 m (`FIRE.firefighting.handoverM`) – **podávají**: stojí rovnoměrně, střídavě
+  0,45 m vlevo a vpravo od osy čelem k ní (`idle`), vědra jdou po ose od vody k ohni po jednom
+  předání za 1,1 s (chvíli je člověk drží, mezi lidmi se zhoupnou), vědro na dva lidi; u ohně se
+  vylije, u vody se nabere. Větší rozestup – **chodí**: každý tam a zpět po svém úseku (od souseda
+  k sousedovi, 1,15 m/s, tempo klipu `walk` podle velikosti postavy), sousedé v protifázi – na
+  konci úseku se potkají a 0,8 s stojí proti sobě (předají si vědro), k ohni nese plné, zpět
+  prázdné. Postavy `fireChainFigures` hned po pohřbech (dospělí z `DayRoster`, jádro jim ten den
+  jinou práci nedává), klíč `fire:<i>`, činnost v panelu „hasí požár“ (`PersonJob` `fire`);
+  nejvýš `MAX_FIRE_FIGURES` (80) – víc dospělých: řada od ohně s rozestupem jádra. Při změně
+  plánu nepřecházejí pěšky (`walkThen`), modely postav se načtou i při prázdné práci vsi.
+- **Vědra** (`fire-buckets.ts`) – samostatný mesh, ne rekvizita postavy (postava má právě 8
+  vertex bufferů, limit WebGPU): procedurální dřevěný válec (vlastní práce, CC0) v tenkých
+  instancích, polohy `fireBuckets` ze stejného rozvrhu a času jako postavy (při chůzi v pravé
+  ruce u boku, při podávání na ose řady ve výšce rukou). Jen v den požáru; při omezeném pohybu
+  stojí. Draw cally: požár +2 (sprity plamenů, vědra), normální den beze změny.
+- **Ohořelé trosky** – zbytek jámy (`ruinHollowData`, `charred`) má uvnitř jámy popel
+  a ohořelé dřevo (`CHARRED_TINT`), na lemu slabě; jak zbytek zarůstá, vrací se k trávě. Zmizí
+  jako každý zbytek – zarostením nebo novou stavbou hráče na místě (`withoutBuiltOverRuins`).
+- Testy `fire-chain.test.ts` (rovnoměrné rozestupy, střídání stran, chodci se potkají na konci
+  úseku, vědra, rozvrh ohně).

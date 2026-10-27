@@ -99,6 +99,7 @@ import { WildGrowthRenderer } from './wild-growth-renderer';
 import type { Rgb } from './season-look';
 import { VillageSmoke, type SmokeSource } from './village-smoke';
 import { burningSquares, slashPlumes } from './clearing-fire';
+import { houseFirePlumes } from './house-fire';
 import { gameDayAt } from './smoke-schedule';
 import type { SceneDwelling, SceneRuin } from './village-types';
 import {
@@ -119,6 +120,7 @@ import {
   CRAFT_SITE_FILES,
   CRAFT_SMOKE_SEED,
   SLASH_SMOKE_SEED,
+  HOUSE_FIRE_SMOKE_SEED,
   DECAY_MODEL_URL,
   DWELLING_SINK_M,
   DWELLING_TYPES,
@@ -753,6 +755,11 @@ export class VillageRenderer {
     this.smoke.setAlways(enabled);
   }
 
+  /** Vývojově vynucený den světa pro dým hořícího domu (null = podle hodin světa). */
+  setDisasterDay(day: number | null): void {
+    this.smoke.setDisasterDay(day);
+  }
+
   /** Den a noc: tón materiálů bez světla (dým) – day-light.ts. */
   setLightTone(tone: Rgb): void {
     this.smoke.setTone(tone);
@@ -1291,6 +1298,7 @@ export class VillageRenderer {
         depth: look.depth,
         rim: this.context.decalHeight,
         overgrowth: ruin.overgrowth,
+        ...(ruin.charred ? { charred: true } : {}),
       },
       sceneFrame(ruin),
     );
@@ -1487,6 +1495,17 @@ export class VillageRenderer {
         z: plume.z,
         kind: 'slash',
         burn: plume.burn,
+      });
+    }
+    // hořící domy v den požáru – hustý dým nad stavbou (disasters.md – Požár, Ve scéně)
+    for (const plume of houseFirePlumes(this.village.fire)) {
+      sources.push({
+        seed: HOUSE_FIRE_SMOKE_SEED + plume.id,
+        x: plume.x,
+        y: this.context.groundHeight(plume.x, plume.z) + 2.5,
+        z: plume.z,
+        kind: 'house-fire',
+        burn: { burnedDay: plume.day, order: plume.order },
       });
     }
     return this.smoke.setSources(sources);

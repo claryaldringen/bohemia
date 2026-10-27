@@ -105,6 +105,11 @@ export interface SceneVillage {
     plot?: ScenePlot;
     craft?: Craft;
     plainShape?: true;
+    /**
+     * Shořelo (disasters.md – Požár, Ve scéně): ohořelé trosky – tmavší odstín, dokud hráč na
+     * místě nepostaví nový dům (pak zbytek zmizí jako každý). Bez údaje zbytek po rozpadu.
+     */
+    charred?: true;
   }[];
   /**
    * Rudiště kovářů (crafts.md – Uhlí a ruda kováře): místo (m), kovárna, vykopaná ruda na hromadě
@@ -378,6 +383,40 @@ export interface SceneVillage {
   hail?: SceneHail;
   /** Povodeň (disasters.md – Povodeň potoka, Ve scéně) – jen od jejího dne do konce bahna. */
   flood?: SceneFlood;
+  /**
+   * Požár (disasters.md – Požár, Hašení – řetěz s vědry, Ve scéně) – jen v jeho den: hořící
+   * stavby a řetěz s vědry. Nikdy budoucí rozpis.
+   */
+  fire?: SceneFire;
+}
+
+/** Hořící stavba v den požáru: id obydlí, střed, typ a natočení; `started` – tady chytlo. */
+export interface SceneBurningHouse {
+  id: number;
+  x: number;
+  z: number;
+  type: DwellingType;
+  rotation: number;
+  started?: true;
+}
+
+/**
+ * Řetěz s vědry (`disasters.fireFight` z jádra – platí jen v jeho den): bod vody na břehu,
+ * hořící stavba, kolik dospělých hasí a rozestup mezi nimi (m) – do 2,5 m si vědra podávají,
+ * jinak každý chodí po svém úseku.
+ */
+export interface SceneFireChain {
+  water: { x: number; z: number };
+  target: { x: number; z: number };
+  people: number;
+  spacingM: number;
+}
+
+/** Požár vsi pro scénu: den (pořadí dne světa), hořící stavby a řetěz (bez vody chybí). */
+export interface SceneFire {
+  day: number;
+  burning: SceneBurningHouse[];
+  chain?: SceneFireChain;
 }
 
 /** Krupobití vsi pro scénu: den a pruh (`hailZone` z jádra). */

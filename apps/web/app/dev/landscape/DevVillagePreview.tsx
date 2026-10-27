@@ -510,6 +510,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
           Math.floor(seasonDay ?? REFERENCE_DAY),
         ),
         devWeather,
+        decoded,
       ),
     [demoVillage, shoeingDemo, decoded, seasonDay, devWeather],
   );

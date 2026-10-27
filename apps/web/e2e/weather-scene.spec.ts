@@ -4,7 +4,8 @@ import { test, expect, type Page } from '@playwright/test';
 // Počasí roku ve scéně (disasters.md – Ve scéně) na vývojové ukázce (/dev/landscape, přepínač
 // Počasí): kruté sucho a déšť mění snímek, návrat na normální rok dá přesně původní snímek, draw
 // cally bez deště nepřibudou (déšť = jeden mesh navíc). Krupobití (P12) scénu ztmaví a pruh je
-// vidět (kroupy a bílý pás), povodeň rozlije vodu nad políčka u potoka. Ukázka v produkčním buildu e2e testů
+// vidět (kroupy a bílý pás), povodeň rozlije vodu nad políčka u potoka. Požár (P13) – plameny nad
+// hořícím domem a řada lidí s vědry od vody (podávají / chodí). Ukázka v produkčním buildu e2e testů
 // není (404) – test běží jen s `WEATHER_DEV_URL` (adresa vývojového serveru, např.
 // http://localhost:3015), jinak se přeskočí. `WEATHER_SHOTS=<složka>` uloží malé snímky.
 const DEV_URL = process.env.WEATHER_DEV_URL;
@@ -20,7 +21,10 @@ interface DevScene {
   engine: { beginFrame(): void; endFrame(): void };
   scene: {
     render(updateCameras: boolean): void;
-    getMeshByName(name: string): { isEnabled(): boolean; getTotalVertices(): number } | null;
+    getMeshByName(
+      name: string,
+    ): { isEnabled(): boolean; getTotalVertices(): number; thinInstanceCount: number } | null;
+    spriteManagers?: { name: string; sprites: { isVisible: boolean }[] }[];
   };
 }
 type DevWindow = Window & { __bohemiaDev?: { scene: DevScene }; __fixedNow?: number };
@@ -150,3 +154,65 @@ for (const renderer of ['webgl', 'webgpu'] as const) {
     expect(errors).toEqual([]);
   });
 }
+
+/** Plameny hořících domů (viditelné sprity správce `house-fire`) a vědra řetězu (instance). */
+async function fireOn(page: Page): Promise<{ flames: number; buckets: number }> {
+  return page.evaluate(() => {
+    const scene = (window as unknown as DevWindow).__bohemiaDev!.scene.scene;
+    const manager = scene.spriteManagers?.find((m) => m.name === 'house-fire');
+    const buckets = scene.getMeshByName('fire-buckets');
+    return {
+      flames: manager ? manager.sprites.filter((s) => s.isVisible).length : 0,
+      buckets: buckets?.isEnabled() ? buckets.thinInstanceCount : 0,
+    };
+  });
+}
+
+test('požár: plameny nad domem a řada lidí s vědry, pak normální den beze změny', async ({
+  page,
+}) => {
+  if (SHOTS_DIR) mkdirSync(SHOTS_DIR, { recursive: true });
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  page.on('console', (m) => {
+    if (m.type() === 'error') errors.push(m.text());
+  });
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'gpu', { configurable: true, value: undefined });
+    const w = window as unknown as DevWindow;
+    const real = Date.now.bind(Date);
+    w.__fixedNow = real();
+    Date.now = (): number => w.__fixedNow ?? real();
+  });
+  await page.goto(`${DEV_URL}/dev/landscape`, { waitUntil: 'networkidle', timeout: 180_000 });
+  const canvas = page.locator('canvas[data-scene]');
+  await expect(canvas).toHaveAttribute('data-renderer', /webgl|webgpu/, { timeout: 120_000 });
+  // ukázková ves s lidmi (dva domy, pole, sad, hřbitov), červenec
+  await page.getByRole('button', { name: 'Natočené stavby' }).click({ timeout: 120_000 });
+  await page.waitForTimeout(3000);
+  await page.getByTestId('dev-season-day').fill('200');
+  await page.waitForTimeout(4000);
+
+  const normal = await weather(page, 'normal', 'fire-normal');
+  const pass = await weather(page, 'firePass', 'fire-pass');
+  const passOn = await fireOn(page);
+  const walk = await weather(page, 'fireWalk', 'fire-walk');
+  const walkOn = await fireOn(page);
+  const back = await weather(page, 'normal', 'fire-normal-again');
+  const backOn = await fireOn(page);
+
+  // plameny nad hořícími domy, vědra v řadě – hustý řetěz podává, řídký chodí (vědro na člověka)
+  expect(passOn.flames).toBeGreaterThan(10);
+  expect(passOn.buckets).toBeGreaterThan(3);
+  expect(walkOn.flames).toBeGreaterThan(10);
+  expect(walkOn.buckets).toBeGreaterThan(1);
+  expect(pass.png.equals(normal.png)).toBe(false);
+  // po požáru normální den: žádné plameny, vědra ani draw cally navíc
+  expect(backOn).toEqual({ flames: 0, buckets: 0 });
+  expect(back.drawCalls).toBe(normal.drawCalls);
+  test.info().annotations.push({
+    type: 'fire',
+    description: `draw cally: normální ${normal.drawCalls}, podávají ${pass.drawCalls}, chodí ${walk.drawCalls}, znovu ${back.drawCalls}; plameny ${passOn.flames}, vědra ${passOn.buckets} / ${walkOn.buckets}`,
+  });
+  expect(errors).toEqual([]);
+});

@@ -110,6 +110,8 @@ export function personActivity(
       return shareText(job, stage, village);
     case 'watch':
       return 'hlídá pole';
+    case 'fire':
+      return 'hasí požár';
     case 'lord':
       if (job.household) return 'vede domácnost';
       return stage === 'combat' ? 'cvičí boj' : 'cvičí lukostřelbu';

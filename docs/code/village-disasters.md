@@ -365,3 +365,24 @@ z + ':' + na)`, nezávisí na pořadí průchodu): každá nově hořící stavb
   bere zatopená políčka ze `streamHeights` jako jádro – shoduje se se škodami.
 - **Vývojová ukázka** – přepínač **Počasí** na `/dev/landscape`: krupobití, povodeň stoletá
   a tisíciletá (`dev-weather.ts`, `devDisasterDay`).
+
+## Scéna – požár s řetězem s vědry (P13, požár)
+
+- **Data** – `sceneFire(state, day)` (`apps/web/lib/fire-view.ts`) → `SceneVillage.fire`
+  (`SceneFire`) **jen v den požáru**: hořící stavby ze zápisu kroniky `fire` (`burnedDwellingIds`,
+  `startedDwellingId` → `started`; poloha stojící poškozené z obydlí, zřícené ze zbytku jámy
+  téhož dne) a řetěz (`SceneFireChain` – bod vody, hořící stavba, počet dospělých a rozestup)
+  z `disasters.fireFight`, jen když platí pro ten den a má vodu. Vynucený požár
+  (`override.fire`) ani budoucí rozpis se do prohlížeče nedostanou. Zbytky jam po požáru mají
+  `charred` (`charredRuinKeys` – zápisy kroniky; kronika drží posledních 500 zápisů, starší
+  požár už ohořelý odstín nemá). Testy `fire-view.test.ts`.
+- **Vzhled** – plameny, hustý dým, řetěz s vědry a ohořelé trosky:
+  [scene-village.md – Požár a řetěz s vědry](scene-village.md).
+- **Vývojová ukázka** – přepínač **Počasí** na `/dev/landscape`: „požár – podávají vědra“
+  (rozestup 2,2 m) a „požár – chodí s vědry“ (7 m) – hoří obydlí nejblíž vodě (aspoň 25 m)
+  a soused do 45 m, řetěz od nejbližšího bodu vody jako v jádru; den světa vynucený na 0,4 dne
+  požáru (`devDisasterDay`). Ukázka nemá skutečné lidi řetězu (`labor.persons` vynechané)
+  a práce vsi ten den není. e2e `weather-scene.spec.ts` (jen s `WEATHER_DEV_URL`): plameny
+  a vědra v obou režimech, po návratu na normální rok žádné plameny ani vědra a draw cally
+  stejné (91 → požár 93 → 91).
+- **Zvuk praskání ohně** – zatím není (lokálně žádný CC0 záznam); doplní se s hukotem smrště.
