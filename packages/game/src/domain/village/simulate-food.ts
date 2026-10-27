@@ -8,6 +8,7 @@ import { feedHorseGrain } from './horse-feed';
 import { feedDogs } from './manor-dogs';
 import { dayPartLosses } from './disasters';
 import { addSheaves } from './threshing';
+import { villageLegumesKg } from './legumes';
 import { threshWorkFactor } from './weather-effects';
 import type { CraftCoverage, SurplusCrop, VillageState } from './types';
 import { harvestKg, seasonCrop, springCrop, surplusCrop, taskRemaining } from './year-plan';
@@ -23,7 +24,7 @@ function threshWork(state: VillageState, day: number, work: number): number {
 /**
  * Sklizeň obilí nad potřebu do snopů jako nutného (fields.md – Osevní postup po dílech, bod 3):
  * úroda podle práce, kterou díly po stavbách dostaly (nevypletý díl jen část, nesklizené
- * propadne); výmlat na humně je společný. Vrací čistou úrodu (kg); null = dnes nic nesklidila.
+ * propadne); výmlat na humně je společný. Vrací úrodu (kg); null = dnes nic nesklidila.
  */
 function harvestSurplus(state: VillageState, crop: SurplusCrop, day: number): number | null {
   const work = surplusCrop(state.season, crop);
@@ -36,7 +37,7 @@ function harvestSurplus(state: VillageState, crop: SurplusCrop, day: number): nu
 }
 
 /**
- * 31. 7. (po jídle dne): čistá úroda ozimu a luštěnin do snopů – vymlátí se v srpnu na humně
+ * 31. 7. (po jídle dne): úroda ozimu a luštěnin do snopů – vymlátí se v srpnu na humně
  * (fields.md – Ozim a jař, Luštěniny; production-chains.md – Humno), a trhání lnu – podíl oděvu,
  * na který len je (fields.md – Len).
  */
@@ -73,7 +74,7 @@ export function harvestWinter(state: VillageState, day: number): void {
 }
 
 /**
- * 31. 8. (po jídle dne): čistá úroda jaře do snopů – vymlátí se v září na humně (production-chains.md
+ * 31. 8. (po jídle dne): úroda jaře do snopů – vymlátí se v září na humně (production-chains.md
  * – Humno); plán (i s ozimem) jde k výmlatu.
  */
 export function harvest(state: VillageState, day: number): void {
@@ -132,15 +133,20 @@ export function eat(
   const emergency = emergencySlaughter(state, day, coverage.pottery, milked);
   if (emergency) state.chronicle.push(emergency);
   const mealInput = dayMealInput(state, day, coverage.pottery, milked);
+  // osivo, které ves nejí (fields.md – Úroda, Osivo ze zásob), zůstane v zásobách
+  const seedGrain = state.storesKg - mealInput.grainKg;
+  const seedLegumes = villageLegumesKg(state) - (mealInput.legumesKg ?? 0);
   const meal = eatDiet(mealInput);
-  state.storesKg = meal.grainKg;
+  state.storesKg = meal.grainKg + seedGrain;
   // jámy po ztrátách a jídle dne – snědené zrno z otevřené jámy, dosloužilé prázdné se zasypou
   settleGrainPits(state, day, coverage.pottery);
   // čerstvé maso dne se snědlo, zbytek je v uzeném (diet.md – Porážka v zimě)
   delete state.freshMeatKg;
   if (state.meatKg !== undefined || meal.meatKg > 0) state.meatKg = meal.meatKg;
   if (state.cheeseKg !== undefined || meal.cheeseKg > 0) state.cheeseKg = meal.cheeseKg;
-  if (state.legumesKg !== undefined || meal.legumesKg > 0) state.legumesKg = meal.legumesKg;
+  if (state.legumesKg !== undefined || meal.legumesKg > 0) {
+    state.legumesKg = meal.legumesKg + seedLegumes;
+  }
   if (state.applesKg !== undefined) state.applesKg = meal.fruitKg;
   state.diet = meal.diet;
   // kolik z dnešní potřeby musí dát pole – podle toho ves k 1. 9. oseje (fields.md – Kolik ves

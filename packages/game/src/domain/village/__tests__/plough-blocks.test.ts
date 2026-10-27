@@ -378,6 +378,8 @@ describe('výkon spřežení za den', () => {
     const april = at(601, 4, 10);
     const parts = rect(1, 0, 0, 8, 2);
     const s = village(parts, april);
+    // osivo ze zásob při setí (fields.md – Úroda, Osivo ze zásob)
+    s.storesKg += 1500;
     const work = createCropWork(parts, april, 0, true, undefined, 'spring');
     s.season = { startDay: april - 20, ard: true, crops: [{ crop: 'spring', ...work }] };
     springCrop(s.season).plough!.done = springCrop(s.season).plough!.required * 0.3;

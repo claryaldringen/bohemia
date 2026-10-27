@@ -116,6 +116,11 @@ describe('ves bez dílen beze změny (crafts.md – Učení řemesla)', () => {
       // stropem práce, nouzová porážka ovce před kravami
       // hash 39b51dd8 (25. 10. 2026): jen přejmenování plánu na hospodářský rok (`season`, `crops`) –
       // bez klíčů `plan` a `season` zůstal 46b42f4f
+      // osivo ze zásob při setí (fields.md – Úroda, Osivo ze zásob, 27. 10. 2026) – zlatá ves má
+      // zásoby nad pojistkou, setí osivo neomezí a bez nových klíčů vyšel stav stejně (8498535)
+      'seedKg',
+      'seedWaitingKg',
+      'seedFloorKg',
     ]);
     const stripped = JSON.stringify(legacyShape(next), (key, value: unknown) =>
       marks.has(key) ? undefined : value,

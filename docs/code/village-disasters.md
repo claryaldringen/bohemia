@@ -255,12 +255,12 @@ vody, P1) v `rules-disasters.ts`.
   (proud `'flood-death:' + day`, obydlí a lidé podle id) – `death` s `cause: 'flood'`, pohřeb,
   nástupnictví `dynastyDay`. Úmrtí se losují před poškozením staveb.
 - **Úklid záznamů** – `disasters.flood` se maže na začátku `floodDay`, když `den > den povodně +
-  FLOOD.standDays` (3 dny stání vody, scéna ho čte jen do té doby; ztráty úrody jsou v
-  `disasters.losses`). `disasters.hail` (pruh pro scénu, `apples` pro `applesAfterHail`) se maže na
+FLOOD.mudDays` (14 dní – scéna kreslí 3 dny vodu `FLOOD.standDays` a pak bahno a naplaveninu;
+  ztráty úrody jsou v `disasters.losses`). `disasters.hail` (pruh pro scénu, `apples` pro `applesAfterHail`) se maže na
   začátku `hailDay` od 1. 1. roku následujícího po krupobití – jablka a pruh platí celý rok.
 - **Kronika** – `flood` (`level`, `heightM`, `partIds` zatopených dílů, `dwellingIds`,
   `collapsedDwellingIds`, `meadowShare`, `lostGrainKg`) jen když vsi něco zatopila; poslední
-  taková voda v `disasters.flood` (den, stupeň, výška – pro scénu, voda stojí `FLOOD.standDays`).
+  taková voda v `disasters.flood` (den, stupeň, výška – pro scénu, voda stojí `FLOOD.standDays`, bahno do `FLOOD.mudDays`).
   Texty v `village-view-chronicle.ts` (`FLOOD_LEVEL_NAMES` – „Stoletá voda – 2 m nad hladinou“).
 - **Testy** – `__tests__/flood.test.ts`: pásma, četnosti stupňů za 10 000 let, hloubka podle
   terénu (umělý svah u potoka), letní a jarní voda, stavby a zemnice, jámy, naplavenina se stropem

@@ -438,6 +438,14 @@ přídělu) … za rok stojí ≈ 15 % lidí“) přijde o zhruba desetinu až p
   a smršť ve hře a sleduje nasycení, porážku, hašení, kroniku.
 - **`measure-village`** jen na Martinův pokyn (`--variant disasters`).
 
+**Vlkov po osivu ze zásob** (27. 10. 2026 – [pole](fields.md), Osivo ze zásob; páry k rádlům nahoru
+hned, když orba nestačí – [voli](oxen.md)): normál bez šetření (zásoby 30. 6. 172–233 % pojistky);
+jeden krutý rok – rok po něm 46 dní šetří, nejnižší příděl 0,89, 0 úmrtí hladem; dva kruté – 37 dní
+hladu, příděl 0,85, ale 0 úmrtí hladem a −4 % lidí – **cíl 3 zatím nesplněn**: před suchem drží ves
+zásoby ≈ 1,7× pojistky a po suchu oseje ≈ 2× víc (už ze zásob). Návrh Clauda k ověření:
+`FIELD_STORES.cushionYears` 1/3 → 0 nebo `SEED_STORES.floorRation` 0,6 → 0,75. Převod starých vsí
+(osivo starého plánu postaru při sklizni) stojí Vlkov ≈ 2 roky šetření (příděl až 0,67), bez úmrtí.
+
 ## Obrana a příprava (bez nových velkých mechanik)
 
 | Co                             | Proti čemu                  | Kdo                             | Stav                     |
@@ -504,8 +512,8 @@ počasí je další násobek světla a barev období, ne nové osvětlení.
   - Potom pruh potlučených a polehlých polí, sad bez jablek, poškozené střechy.
 - **Povodeň**
   - Voda rozlitá do výšky dané povodně několik dní (3 dny), pak ustupuje.
-  - Potom hnědé bahno a naplavenina na polích a loukách (2 týdny), naplavené větve, zřícené domy
-    v hluboké vodě.
+  - Potom hnědé bahno a naplavenina na polích a loukách (2 týdny od povodně – `FLOOD.mudDays`,
+    do té doby ves drží záznam povodně pro scénu), naplavené větve, zřícené domy v hluboké vodě.
 - **Požár**
   - Oheň a kouř nad domem – znovu použitý oheň z klučení (`clearing-fire.ts`) a dým vsi.
   - **Řetěz lidí s vědry** od nejbližší vody, rovnoměrně rozestavěných: kde je rozestup do 2,5 m,

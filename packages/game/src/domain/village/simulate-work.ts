@@ -109,8 +109,11 @@ import type {
   CraftCoverage,
   Crop,
   CropWork,
+  FieldPart,
+  SeedKg,
   VillageState,
 } from './types';
+import { foodUntilHarvestKg, seedSowCap, sowableSeedKg, takeSeed } from './seed';
 import {
   TASK_ORDER,
   activeTasks,
@@ -168,6 +171,22 @@ export function fieldTasks(
 ): FieldTaskEntry[] {
   const month = dateOfDayIndex(day).month;
   const entries: FieldTaskEntry[] = [];
+  // setí jen na tolik dílů, na kolik má ves osivo (fields.md – Úroda, Osivo ze zásob)
+  let seed: { byId: Map<number, FieldPart>; sowable: SeedKg } | null = null;
+  const seedCap = (crop: Crop, work: CropWork): number => {
+    if (work.seedKg === undefined) return Infinity;
+    if (!seed) {
+      const food = foodUntilHarvestKg(state, day);
+      seed = {
+        byId: new Map(state.parts.map((p) => [p.id, p])),
+        sowable: {
+          grain: sowableSeedKg(state, 'grain', food),
+          legumes: sowableSeedKg(state, 'legumes', food),
+        },
+      };
+    }
+    return seedSowCap(work, crop, seed.byId, seed.sowable);
+  };
   const add = (crop: Crop, work: CropWork, name: CropTask): void => {
     const end =
       windowEndOf(cropTaskWindows(crop, name), month) ??
@@ -176,7 +195,8 @@ export function fieldTasks(
     const order =
       TASK_ORDER.indexOf(name === 'plough' ? 'dig' : name) - (name === 'plough' ? 0.5 : 0);
     const rank = CROP_ORDER.indexOf(crop) * TASK_ORDER.length + order;
-    const remaining = neededTaskRemaining(work, name);
+    let remaining = neededTaskRemaining(work, name);
+    if (name === 'sow' && remaining > 0) remaining = Math.min(remaining, seedCap(crop, work));
     if (remaining > 0) entries.push({ name, crop, remaining, work, end, rank });
   };
   if (state.season !== null) {
@@ -680,6 +700,10 @@ export function work(
       const before = cropTaskDone(task.field.work, task.field.name);
       addCropTaskWork(task.field.work, task.field.name, amount);
       const after = cropTaskDone(task.field.work, task.field.name);
+      // osivo zaseté části ze zásob v den setí (fields.md – Úroda, Osivo ze zásob)
+      if (task.field.name === 'sow' && after > before) {
+        takeSeed(state, task.field.work, task.field.crop, partsById);
+      }
       fieldWork.push({
         task: task.field.name,
         work: task.field.work,

@@ -94,7 +94,8 @@ describe('nouzový osev přílohu pod 70 %', () => {
   it('ves, které díly od 70 % nestačí, oseje příloh pod 70 % – nejvíc zotavený první', () => {
     // 1. 5. je v hospodářském roce jen osetý ozim a jař (nezasetá jař z práce vypadla) – ves
     // pracuje po dílech od čela, co nestihla, nechala ladem
-    const sown = advanceVillage(poorVillage(10, 0), at(601, 5, 1), null);
+    // zásoby jen na osivo – osivo ze zásob při setí (fields.md – Úroda, Osivo ze zásob)
+    const sown = advanceVillage(poorVillage(10, 600), at(601, 5, 1), null);
     const plan = sown.season!;
     const inPlan = new Set(seasonPartIds(plan));
     const byId = new Map(sown.parts.map((p) => [p.id, p]));

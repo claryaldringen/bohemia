@@ -215,21 +215,20 @@ volů (`draft.ts`).
   obslouží – pár chce oráče a setí za zoranou částí (0,3 ha za den × 10 člověkodnů na hektar ≈ 3),
   tedy `OXEN.crewPerPair` = 4 dospělí na pár (nejméně 1 pár). Jinak by malá ves s velkým polem
   chtěla až 8 párů a seno na ně, které by stejně nezorala ani nezasela.
-- **Páry se nemění rok od roku** (návrh Clauda 20. 10. 2026: pár, který ves vycvičila,
-  drží do konce služby, nový pár a rádlo jen když potřeba trvá; hystereze – rozhodnutí Clauda,
-  `nextPloughPairs`): ves páry k rádlům (`DraftState.ploughPairs`) změní, jen když potřeba leží
-  **dva plány po sobě** na téže straně – zvýší je na menší z obou potřeb, sníží na větší z nich;
-  jinak drží, kolik má. Proč dva roky a ne „nejvyšší potřeba za 2 roky“: maximum by pár drželo
-  déle, ale jednoletý výkyv nahoru by výcvik a rádlo stejně spustil (Vlkov: potřeba 2 v roce 800,
-  1 v roce 801). Výcvik trvá 2 roky a pár slouží 10 – vyplatí se jen trvalá potřeba; slabší rok
-  zase nezastaví náhradu páru, který ves potřebuje. Pár, který už ves má, slouží do konce služby
-  vždy (voli se nikdy neporážejí dřív).
+- **Nahoru hned, dolů po dvou plánech** (od 27. 10. 2026 – na otázku, zda si ves smí sama
+  vycvičit víc párů volů a vyrobit víc rádel, **Martin 27. 10. 2026: „Nejen že smí, ale dokonce by
+  měla“**; dřív hystereze i nahoru – návrh Clauda 20. 10. 2026, `nextPloughPairs`): když orba na
+  plán setí nestačí (potřeba párů nad páry, které ves má), ves páry k rádlům
+  (`DraftState.ploughPairs`) **zvýší hned** na dnešní potřebu – volné páry osadí rádly, další
+  vycvičí z telat (vesničané sami používají, co jim ulehčí práci). Sníží je, jen když potřeba
+  leží **dva plány po sobě** níž – na větší z obou potřeb; slabší rok tak nezastaví náhradu páru,
+  který ves potřebuje (výcvik trvá 2 roky, pár slouží 10). Pár, který už ves má, slouží do konce
+  služby vždy (voli se nikdy neporážejí dřív). Ves, které orba stačí, se nemění.
 - **Pod pojistkou** (27. 10. 2026 – Martin schválil „Pod pojistkou mají v oknech setí přednost
   pole“, **Martin 27. 10. 2026: „Ano“**; provedení návrh Clauda): když výhled zásob z pole
   k příští sklizni k 1. 9. nedosáhne pojistky ([pole](fields.md) – Osev podle zásob), potřeba párů
   počítá **i nutné díly mimo postup** – výběr nutných dílů k 1. 9. včetně nouzových příloh
-  (`neededSelection`) – a ves páry **zvýší hned** (bez dvou plánů po sobě); snižuje je dál až po
-  dvou plánech. Proč orba a ne lidé: Vlkov (rok 822, 1 rádlo, 7 vycvičených volů) měl v oknech
+  (`neededSelection`); páry zvýší hned jako vždy, když orba nestačí. Proč orba a ne lidé: Vlkov (rok 822, 1 rádlo, 7 vycvičených volů) měl v oknech
   setí 3–5 člověkodnů denně volných a stavby nutné polní práci už ustupují (pořadí práce dne –
   [pole](fields.md), Práce; Martin 25. 10. 2026) – úzkým hrdlem bylo jediné rádlo, které zorá
   ≈ 18 ha za podzim, kdežto ves potřebovala ≈ 45 ha ozimu. Volné páry volů ves osadí rádly sama
@@ -897,10 +896,11 @@ Kapacita rádel (`ploughCap`) se nemění.
 | Zima bez sena: uhyne tolik volů, aby zbylí měli polovinu, nejdřív telata; uhynulí na maso nejdou                                                                                                                                                                                                                                               | rozhodnutí Clauda                                          |
 | 6 m² na vola (≈ 400 kg) s jeslemi a přístřeškem; vůl navíc na vůz ve dny orby, když se vyplatí                                                                                                                                                                                                                                                 | rozhodnutí Clauda                                          |
 | Telata na voly jen z přírůstku nad chovnými kravami (stádo pod cíl neklesne, výcvik počká na jaro)                                                                                                                                                                                                                                             | návrh Clauda (20. 10. 2026)                                |
-| Páry k rádlům s hysterezí – mění se, jen když potřeba trvá dva plány po sobě                                                                                                                                                                                                                                                                   | návrh Clauda, hystereze rozhodnutí Clauda                  |
+| ~~Páry k rádlům s hysterezí – mění se, jen když potřeba trvá dva plány po sobě~~ (nahoru hned od 27. 10. 2026)                                                                                                                                                                                                                                 | návrh Clauda, hystereze rozhodnutí Clauda                  |
 | Krávy navíc přes zimu na telata, která ves do výcviku potřebuje                                                                                                                                                                                                                                                                                | rozhodnutí Clauda                                          |
 | Náhrada posledního páru k orbě bere telata i pod cílem krav, dokud zůstane chovný pár; krávy na telata rok předem                                                                                                                                                                                                                              | návrh Clauda (20. 10. 2026), rok předem rozhodnutí Clauda  |
 | „Ať spřežení orá, dokud nebude všechno, co je potřeba, zorané.“ – spřežení zůstane na poli, cesta jen při výjezdu, přesunu (a návratu)                                                                                                                                                                                                         | Martin (24. 10. 2026)                                      |
 | Výjezd v den, kdy orba proběhne; návrat večer po zorání okna, na konci okna nebo bez párů; návrat orbu nekrátí; pár na poli vodu nesveze                                                                                                                                                                                                       | návrh Clauda                                               |
 | „Co může být přednějšího než orba?“ – orba rádlem první ze sezónních úloh, hned po minimu, koních, výpravách a vozech pro kováře                                                                                                                                                                                                               | Martin (24. 10. 2026), pořadí návrh Clauda                 |
 | Pod pojistkou zásob páry k rádlům i na nutné díly mimo postup (nouzové přílohy) a nahoru hned – úzkým hrdlem osevu Vlkova bylo jediné rádlo, ne lidé                                                                                                                                                                                           | Martin (27. 10. 2026), návrh Clauda                        |
+| Páry k rádlům a rádla nahoru hned, když orba nestačí na plán setí („Nejen že smí, ale dokonce by měla“), dolů po dvou plánech                                                                                                                                                                                                                  | Martin (27. 10. 2026), provedení návrh Clauda              |

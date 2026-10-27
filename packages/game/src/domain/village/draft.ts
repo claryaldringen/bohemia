@@ -43,27 +43,25 @@ export function wantedPloughPairs(state: Pick<VillageState, 'pens' | 'draft'>): 
 }
 
 /**
- * Páry k rádlům s hysterezí (oxen.md – Kolik volů ves chce; návrh Clauda 20. 10. 2026:
- * páry se nemají měnit rok od roku – rozhodnutí Clauda): `need` = kolik párů by letos stačilo
- * zorat celý osev. Ves páry změní, jen když potřeba leží dva plány po sobě na téže straně – zvýší
- * je na menší z obou potřeb, sníží na větší z nich; jinak drží, kolik má. Jednoletý výkyv tak
- * nevycvičí pár ani nepostaví rádlo (výcvik trvá 2 roky, pár slouží 10) a jeden slabší rok
- * nezastaví náhradu páru, který ves potřebuje. Bez předchozího plánu se loňská potřeba bere jako
- * dnešní páry (pár na ohradu volů). Pod pojistkou zásob (`belowBuffer` – oxen.md, Kolik volů ves
- * chce, Pod pojistkou; Martin 27. 10. 2026) je zvýší hned na dnešní potřebu – ves nečeká rok
- * s polem, které nezorá; snižuje dál až po dvou plánech.
+ * Páry k rádlům (oxen.md – Kolik volů ves chce): `need` = kolik párů by letos stačilo zorat celý
+ * osev. Když orba na plán setí nestačí (`need` nad páry, které ves má), ves páry **zvýší hned**
+ * (Martin 27. 10. 2026 k doplňování párů a rádel: „Nejen že smí, ale dokonce by měla“) – volné
+ * páry osadí rádly a další vycvičí. Sníží je s hysterezí (návrh Clauda 20. 10. 2026): jen když
+ * potřeba leží dva plány po sobě níž – na větší z obou potřeb; jeden slabší rok tak nezastaví
+ * náhradu páru, který ves potřebuje (výcvik trvá 2 roky, pár slouží 10). Bez předchozího plánu se
+ * loňská potřeba bere jako dnešní páry (pár na ohradu volů). Pod pojistkou zásob počítá `need`
+ * i nutné díly mimo postup (`startSeason`).
  */
 export function nextPloughPairs(
   state: Pick<VillageState, 'pens' | 'draft'>,
   need: number,
-  belowBuffer = false,
 ): { ploughPairs: number; ploughNeed: number } {
   const current = wantedPloughPairs(state);
   const previous = state.draft?.ploughNeed ?? current;
-  const low = Math.min(need, previous);
   const high = Math.max(need, previous);
-  const held = Math.min(high, Math.max(low, current));
-  return { ploughPairs: belowBuffer ? Math.max(held, need) : held, ploughNeed: need };
+  // dolů jen na větší z obou potřeb (dva plány po sobě níž), nahoru hned na dnešní potřebu
+  const held = Math.min(high, current);
+  return { ploughPairs: Math.max(held, need), ploughNeed: need };
 }
 
 /** Cena vozu za rok (čd): práce tesaře a klády na CARTS.lifespanYears života vozu. */

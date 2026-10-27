@@ -13,11 +13,12 @@ import {
 } from '../rules';
 import { packObstacles } from '../../landscape';
 import { villageLaborFactor } from '../happiness';
+import { arrangeMarriages } from '../marriage';
 import { advanceVillage } from '../simulate';
 import { availableSettlers, waitingHouseholds } from '../households';
 import { withKinship } from '../kinship';
 import { freshWildlife } from '../wildlife';
-import type { ChronicleEvent, Dwelling, Person, VillageState } from '../types';
+import type { ChronicleEvent, Dwelling, FarmSeason, Person, VillageState } from '../types';
 import { sheafWork, villageSheaves } from '../threshing';
 import {
   createPlan,
@@ -115,6 +116,34 @@ describe('advanceVillage – dopočítání', () => {
     }
     expect(chunked).toEqual(whole);
   });
+
+  it('pod pojistkou svatba opravdu čeká – snoubenci, kteří by se s plnou pojistkou vzali, čekají (A)', () => {
+    // kinship.md – Sňatky čekají na zásoby: ves po hájení se zásobami pod pojistkou a dvěma
+    // svobodnými dospělými; s plnou pojistkou by se vzali hned (arrangeMarriages bez pojistky na
+    // stavu z předchozího dne), v dopočtu svatba aspoň den čeká na zásoby
+    let s = found(at(600, 3, 15));
+    s.foundedDay = s.lastDay - Math.ceil(40 * YEAR);
+    s.storesKg = 300;
+    const adult = s.people.find((p) => ageYears(p.bornDay, s.lastDay) >= AGE.adult)!;
+    for (const [id, sex] of [
+      [901, 'male'],
+      [902, 'female'],
+    ] as const) {
+      const single: Person = { ...adult, id, sex, bornDay: s.lastDay - Math.ceil(20 * YEAR) };
+      delete single.spouseId;
+      s.people.push(single);
+    }
+    let waited = 0;
+    for (let d = s.lastDay + 1; d <= at(600, 6, 15) && waited === 0; d++) {
+      const ready = arrangeMarriages(structuredClone(s), d).filter(
+        (e) => e.kind === 'marriage',
+      ).length;
+      s = advanceVillage(s, d, null);
+      const wed = s.chronicle.filter((e) => e.day === d && e.kind === 'marriage').length;
+      if (ready > wed && s.people.some((p) => p.id === 901 || p.id === 902)) waited++;
+    }
+    expect(waited).toBeGreaterThan(0);
+  }, 120_000);
 
   it('(a) po kouscích dá stejný stav jako jedním voláním (10 let)', () => {
     const start = found(at(600, 3, 15));
@@ -305,6 +334,18 @@ describe('advanceVillage – dopočítání', () => {
   });
 });
 
+/** Plán bez osiva ze zásob (převod – `CropWork.seedKg` chybí). */
+function legacySeed(plan: FarmSeason): FarmSeason {
+  return {
+    ...plan,
+    crops: plan.crops.map((crop) => {
+      const copy = { ...crop };
+      delete copy.seedKg;
+      return copy;
+    }),
+  };
+}
+
 describe('advanceVillage – roční plán a sklizeň', () => {
   it('díl dokončený na podzim hned založí plán a další díly ho rozšíří (Ruling 2)', () => {
     // první díl (2,25 čd) se dělí o společnou práci se stavbou první zemnice – stačí pár dní
@@ -348,11 +389,13 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     );
     expect(s.storesKg).toBeLessThan(before.storesKg);
 
-    // v září vymlácená celá sklizeň – do zásob (bez toho, co se za září snědlo)
+    // v září vymlácená celá sklizeň – do zásob (bez toho, co se za září snědlo, a osiva ozimu,
+    // které vzalo setí – fields.md, Úroda, Osivo ze zásob)
     const threshed = advanceVillage(s, at(600, 9, 30), null);
     expect(villageSheaves(threshed)).toEqual({ grainKg: 0, legumesKg: 0 });
     const need = s.people.reduce((sum, p) => sum + foodNeedPerDay(p, s.lastDay), 0);
-    expect(threshed.storesKg).toBeGreaterThan(s.storesKg + (harvest?.kg ?? 0) - 30 * need);
+    const seed = seasonCrops(threshed.season!).reduce((sum, c) => sum + (c.work.seedKg ?? 0), 0);
+    expect(threshed.storesKg).toBeGreaterThan(s.storesKg + (harvest?.kg ?? 0) - 30 * need - seed);
     expect(threshed.threshingSeason).not.toBeNull();
     expect(advanceVillage(threshed, at(600, 10, 1), null).threshingSeason).toBeNull();
   });
@@ -488,14 +531,15 @@ describe('advanceVillage – roční plán a sklizeň', () => {
 
   it('31. 8. se jí ještě z loňských zásob: malá sklizeň hlad nepřeruší (Ruling 13)', () => {
     const s = advanceVillage(hungryBeforeHarvest(10), at(600, 9, 2), null);
-    expect(harvests(s)).toEqual([{ day: at(600, 8, 31), kind: 'harvest', kg: 101 }]);
+    // úroda bez odečtu osiva – osivo vzalo setí (fields.md – Úroda, Osivo ze zásob)
+    expect(harvests(s)).toEqual([{ day: at(600, 8, 31), kind: 'harvest', kg: 140 }]);
     expect(hungerEvents(s)).toEqual([]);
     expect(s.hungry).toBe(true);
   });
 
   it('sklizeň, která vystačí na rok, ukončí hlad až 1. 9. (Ruling 13)', () => {
     const s = advanceVillage(hungryBeforeHarvest(START_PARTS), at(600, 9, 2), null);
-    expect(harvests(s)).toEqual([{ day: at(600, 8, 31), kind: 'harvest', kg: 756 }]);
+    expect(harvests(s)).toEqual([{ day: at(600, 8, 31), kind: 'harvest', kg: 1052 }]);
     expect(hungerEvents(s)).toEqual([{ day: at(600, 9, 1), kind: 'hunger-ended' }]);
     expect(s.hungry).toBe(false);
   });
@@ -530,7 +574,9 @@ describe('advanceVillage – roční plán a sklizeň', () => {
       p.foundingDone = p.foundingCost;
       p.state = 'sown';
     }
-    s0.season = createPlan(s0.parts, at(600, 9, 1), NO_CRAFTS.tools);
+    // plán z doby před osivem ze zásob (bez seedKg – osivo odečte sklizeň postaru): měří se
+    // setí za kopáním, ne osivo (fields.md – Úroda, Osivo ze zásob)
+    s0.season = legacySeed(createPlan(s0.parts, at(600, 9, 1), NO_CRAFTS.tools));
 
     const spring = advanceVillage(s0, at(601, 4, 30), null);
     const dig = {
@@ -566,7 +612,9 @@ describe('advanceVillage – roční plán a sklizeň', () => {
       p.foundingDone = p.foundingCost;
       p.state = 'sown';
     }
-    s0.season = createPlan(s0.parts, at(600, 9, 1), NO_CRAFTS.tools);
+    // plán z doby před osivem ze zásob (bez seedKg – osivo odečte sklizeň postaru): měří se
+    // setí za kopáním, ne osivo (fields.md – Úroda, Osivo ze zásob)
+    s0.season = legacySeed(createPlan(s0.parts, at(600, 9, 1), NO_CRAFTS.tools));
     // bez zvěře (jen vrány berou 2 % úrody, wildlife.md – Škody) – tady se měří setí a plán
     s0.wildlife = freshWildlife({ forestHa: 0, openHa: 0, waterHa: 0, pools: 0 }, 0);
     s0.wildlife.boar = { adults: 0, piglets: 0 };

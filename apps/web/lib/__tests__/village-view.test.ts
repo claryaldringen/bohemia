@@ -499,7 +499,8 @@ describe('buildVillageView', () => {
     });
     // zakladatelé bydlí na staveništi – domácnost s obydlím přibude s dostavěním zemnice
     expect(view.households).toEqual([]);
-    expect(view.storesMonths).toBeCloseTo(18, 0);
+    // 18 měsíců jídla a osivo na první osev – půl roční potřeby (START_SEED_YEARS)
+    expect(view.storesMonths).toBeCloseTo(24, 0);
     const fieldId = view.fields[0]?.id;
     expect(view.constructions).toEqual([
       {

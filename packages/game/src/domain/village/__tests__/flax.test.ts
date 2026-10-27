@@ -179,7 +179,10 @@ describe('len napřed – výběr s kapacitou (do Úlohy 5 pro páry k rádlům)
     // 26. 10. 2026 (W7 ryby a oka): vesničané chytají ryby z volné práce, takže se mění plány vsi; dřív f2f1018c
     // oprava po recenzi W7 (26. 10. 2026): roční kvóta ryb a zajíců a čerstvé maso mění práci vsi; dřív c856e421
     // 161:edeabe8e (26. 10. 2026, závěrečná oprava zvěře): chuť na bílkoviny bez loňské drobné zvěře – jiné ryby a jídlo; dřív 161:c9dee13e
-    expect(fingerprint(plans)).toBe('161:edeabe8e');
+    // 165:82576eb1 (27. 10. 2026, osivo ze zásob při setí – fields.md, Úroda, Osivo ze zásob):
+    // setí bere osivo ze zásob, výhled zásob k sklizni odečte osivo, které na setí čeká, a ves ho
+    // nejí – jiné zásoby k 1. 9. a jiný plán osevu; dřív 161:edeabe8e
+    expect(fingerprint(plans)).toBe('165:82576eb1');
   });
 });
 

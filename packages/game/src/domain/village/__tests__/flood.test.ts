@@ -340,15 +340,17 @@ describe('kraj, ochrana a determinismus', () => {
     expect(floodDay(flat, FLOOD_DAY, null)).toEqual([]);
   });
 
-  it('záznam povodně se smaže po dnech stání, dřív zůstává', () => {
+  it('záznam povodně se smaže po dnech bahna, dřív zůstává (i po opadnutí vody)', () => {
     const s = village();
     s.parts = [part(1, 57)];
     forceFlood(s, 'hundred');
     floodDay(s, FLOOD_DAY, landscape);
     expect(s.disasters?.flood).toBeDefined();
-    floodDay(s, FLOOD_DAY + FLOOD.standDays, landscape);
-    expect(s.disasters?.flood).toBeDefined();
     floodDay(s, FLOOD_DAY + FLOOD.standDays + 1, landscape);
+    expect(s.disasters?.flood).toBeDefined();
+    floodDay(s, FLOOD_DAY + FLOOD.mudDays, landscape);
+    expect(s.disasters?.flood).toBeDefined();
+    floodDay(s, FLOOD_DAY + FLOOD.mudDays + 1, landscape);
     expect(s.disasters?.flood).toBeUndefined();
   });
 

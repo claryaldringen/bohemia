@@ -213,7 +213,14 @@ export interface CropWork {
   reclaimIds?: number[];
   required: Record<TaskName, number>;
   done: Record<TaskName, number>;
-  harvestedKg: number | null; // čistá úroda ze sklizně (pro ztrátu nevymláceného 1. 3.)
+  harvestedKg: number | null; // úroda ze sklizně do snopů (pro ztrátu nevymláceného 1. 3.)
+  /**
+   * Osivo, které ves pro plodinu vzala ze zásob při setí (kg – fields.md, Úroda, Osivo ze zásob;
+   * Martin 27. 10. 2026): roste se zasetým podílem, sklizeň pak osivo neodečítá. Chybí = práce
+   * z doby před osivem ze zásob (převod) – setí zásoby nebere a sklizeň osivo zasetého podílu
+   * odečte postaru (jednou – sklizeň plodiny je jen jedna).
+   */
+  seedKg?: number;
   /**
    * Orba rádlem (oxen.md – Jen rádlo): ves se spřežením orá všechny díly plodiny, nic nekope
    * motykou (`required.dig` 0). Chybí = plodinu kope motyka (ves bez spřežení, plán, který po
@@ -341,6 +348,24 @@ export interface FarmSeason {
    * každý den v oknech (`lordHelpDay`). Chybí = 0 (i plány starších vsí).
    */
   lordHelp?: LordHelp;
+  /**
+   * Osivo dílů, které ves ve dni osevu vybrala, ale na čelo práce ještě nepřišly (kg po
+   * zásobách – fields.md, Úroda, Osivo ze zásob). Přepočte se každý den, kdy smí začít díl
+   * (`seasonDay`), mimo ty dny chybí. Ves ho nejí (`seedReserve`) a počítá s ním ve výhledu
+   * zásob k příští sklizni (`sowingTargets`).
+   */
+  seedWaitingKg?: SeedKg;
+  /**
+   * Osivo obilí na díly do roční potřeby z pole (kg – fields.md, Úroda, Osivo ze zásob): má
+   * přednost před jídlem do příděl SEED_STORES.floorRation. Přepočte se každý den, kdy smí začít
+   * díl (`seasonDay` – roční potřeba × osivo na kg čisté úrody dílů plánu). Chybí = 0.
+   */
+  seedFloorKg?: number;
+}
+/** Osivo po zásobách (kg): obilí (ozim, jař, obilí nad potřebu) a luštěniny. */
+export interface SeedKg {
+  grain: number;
+  legumes: number;
 }
 /** Okna volné práce plánu osevu (`SowingCapacity` bez orby). */
 export type LordHelpWindow = 'autumnWinter' | 'autumn' | 'spring' | 'july' | 'august';

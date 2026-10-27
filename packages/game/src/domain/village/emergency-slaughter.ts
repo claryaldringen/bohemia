@@ -36,6 +36,7 @@ import {
 } from './livestock';
 import { villageApplesKg } from './orchard';
 import { EMERGENCY_SLAUGHTER } from './rules';
+import { seedReserve } from './seed';
 import { sheavesOutlook } from './threshing';
 import type { ChronicleEvent, HerdSpecies, VillageState } from './types';
 import { woolSheep } from './wool';
@@ -90,8 +91,13 @@ export function dayMealInput(
   );
   // snopy, které ves vymlátí, jsou ve výhledu jako zrno (production-chains.md – Humno)
   const sheaves = sheavesOutlook(state, day);
+  // osivo, které na setí čeká, ves nejí – jen když by příděl do žní klesl pod práh hladu
+  // (fields.md – Úroda, Osivo ze zásob)
+  const shares = state.diet?.shares;
+  const fieldShare = Math.max(fieldFoodShare(state), (shares?.grain ?? 0) + (shares?.legumes ?? 0));
+  const seed = seedReserve(state, need * fieldShare * daysToHarvest);
   return {
-    grainKg: state.storesKg,
+    grainKg: state.storesKg - seed.grain,
     // zapečetěné obilné jámy ztrácí méně (production-chains.md – Obilné jámy)
     ...grainKeepInput(state, potteryCoverage),
     sheavesGrainKg: sheaves.grainKg,
@@ -106,7 +112,7 @@ export function dayMealInput(
     milkProteinKg: milk.proteinKg * milked,
     milkEnergy: milk.energy * milked,
     eggsKg: dailyEggsKg(state),
-    legumesKg: villageLegumesKg(state),
+    legumesKg: villageLegumesKg(state) - seed.legumes,
     daysToLegumeHarvest: daysUntilLegumeHarvest(day),
     needPerDay: need,
     proteinNeedPerDay: villageProteinNeed(state, day),

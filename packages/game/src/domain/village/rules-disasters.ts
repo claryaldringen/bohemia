@@ -186,6 +186,11 @@ export const FLOOD = {
   pitMinHeightM: 1.2,
   /** Voda stojí tolik dní (jen scéna). */
   standDays: 3,
+  /**
+   * Bahno a naplavenina leží na polích a loukách tolik dní po povodni (disasters.md – Co hráč
+   * vidí, Povodeň: 2 týdny; jen scéna) – do té doby zůstává záznam `disasters.flood`.
+   */
+  mudDays: 14,
 } as const;
 
 /**

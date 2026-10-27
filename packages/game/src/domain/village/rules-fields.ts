@@ -20,6 +20,10 @@ export const FOOD_NEED_KG_PER_YEAR = { child: 100, adult: 180, elder: 140 } as c
 // fields.md – Zásoby a nasycení (ztráty při skladování – meze: s hrnčířem 5 %, start se zásobami)
 export const STORAGE_LOSS_PER_YEAR: Bounds = { worst: 0.1, best: 0.05 };
 export const START_STORES_MONTHS = 18;
+// fields.md – Zásoby a nasycení, Start (osivo ze zásob – Martin 27. 10. 2026; číslo návrh Clauda):
+// osadníci k jídlu na START_STORES_MONTHS přinesli i osivo na první osev – půl roční potřeby
+// (175 kg osiva na ≈ 380 kg čisté úrody hektaru)
+export const START_SEED_YEARS = 0.5;
 // fields.md – Kolik ves oseje, Osev podle stravy (návrh Clauda, Martin schválil směr 19. 10. 2026):
 // potřeba z pole = podíl energie, který ves za uplynulý hospodářský rok potřebovala z obilí
 // a luštěnin, × dnešní roční potřeba; podíl nejméně minShare = 1 − strop masa (0,4) − strop
@@ -54,6 +58,14 @@ export const PEAK_CAPACITY_SHARE = 1; // ve špičce smí jít na pole všechna 
 export const YIELD_BASE_KG_PER_HA = 760; // × (0,4 + 0,6 × úrodnost / 100)
 // fields.md – Úroda (osivo na hektar)
 export const SEED_KG_PER_HA = 175;
+// fields.md – Úroda, Osivo ze zásob (Martin 27. 10. 2026: „Osivo ze zásob při setí“; čísla návrh
+// Clauda): osivo bere setí ze zásob v den setí dílu (obilí ze zásob obilí, luštěniny z luštěnin).
+// Osivo na díly do roční potřeby z pole (`energyFloorKg`) má přednost před jídlem – ves ho dá do
+// země, i když pak šetří, dokud jí do žní zbude zrno na příděl `floorRation` potřeby z pole; osivo
+// nad roční potřebu (doplnění pojistky, obilí nad potřebu) jen ze zrna nad příděl `keepRation`
+// (pod ním by hladověla – STARVATION.fedFrom). Osivo, které na setí čeká, ves nejí, dokud by
+// příděl do žní neklesl pod tytéž prahy – pak ho sní (osivo se šetřilo, v hladu se snědlo).
+export const SEED_STORES = { keepRation: 1, floorRation: 0.6 } as const;
 // fields.md – Úroda (neopletený díl), Zarůstání
 export const UNWEEDED_YIELD = 0.6; // neopletý díl dá 60 % (návrh Clauda, kalibrace)
 // fields.md – Přílohová soustava (osev, příloh), Úroda (úrodnost). Obnova v přílohu 5 %

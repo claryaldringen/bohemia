@@ -149,7 +149,10 @@ export interface SowingTargets {
  * zmenšují ztráty (crafts.md). Potřeba podle růstu vsi (fields.md – Osev podle růstu vsi): do
  * příští sklizně a rok po ní podle výhledu lidí (`expectedYearlyFoodNeed` – děti dorostou, narodí
  * se další), ne podle dnešního počtu. Obilí jezdeckých koní (horses.md – Krmení: 1,5 kg denně) se
- * přičte do příští sklizně i rok po ní celé – koně jedí jen obilí z pole.
+ * přičte do příští sklizně i rok po ní celé – koně jedí jen obilí z pole. Osivo, které na setí
+ * ještě čeká (`seedAheadKg` – energie, fields.md – Úroda, Osivo ze zásob), zásoby k sklizni
+ * neuživí – díly plánu se pak počítají čistou úrodou (hrubá − osivo), jako by osivo dalšího osevu
+ * odložila sklizeň.
  */
 export function sowingTargets(
   state: Pick<
@@ -160,6 +163,7 @@ export function sowingTargets(
   day: number,
   legumeNeedKg: number,
   potteryCoverage: number,
+  seedAheadKg = 0,
 ): SowingTargets {
   // potřeba podle růstu vsi (Osev podle růstu vsi): do příští sklizně se jí ze zásob, úroda plánu
   // se jí rok po ní – děti mezitím dorostou a narodí se další
@@ -192,8 +196,14 @@ export function sowingTargets(
   // zásoby z pole k příští sklizni: obilí a luštěniny, které se do ní snědí, ubývají potřebou
   // z pole a ztrátami; luštěniny nad strop zůstanou celé
   const years = daysUntilHarvest(day) / DAYS_PER_YEAR;
-  const eatenStock =
-    state.storesKg + sheaves.grainKg + legumeEnergy(Math.max(0, legumesKg - legumesLeftKg));
+  // osivo, které na setí ještě čeká, zásoby k sklizni neuživí (fields.md – Úroda, Osivo ze zásob)
+  const eatenStock = Math.max(
+    0,
+    state.storesKg +
+      sheaves.grainKg +
+      legumeEnergy(Math.max(0, legumesKg - legumesLeftKg)) -
+      seedAheadKg,
+  );
   const left = storesLeft(eatenStock, need, years, loss) + legumeEnergy(legumesLeftKg);
   // paměť hladu: po krutém roce 10 let pojistka 0,75 (disasters.md – Dopady, Zásoby a pojistka)
   const buffer = bufferKg(

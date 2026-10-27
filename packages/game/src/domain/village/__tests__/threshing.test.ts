@@ -438,7 +438,9 @@ describe('výhled jídla a plán osevu', () => {
     for (let d = at(601, 7, 21); d <= at(601, 9, 30); d++) {
       s = advanceVillage(s, d, null);
       const energy = s.diet?.energy ?? 1;
-      if (energy < 0.9) low++;
+      // od září bere setí ozimu osivo do roční potřeby ze zásob i za cenu šetření (fields.md –
+      // Úroda, Osivo ze zásob) – dosyta se měří do konce srpna
+      if (energy < 0.9 && d < at(601, 9, 1)) low++;
       if (energy < 0.9 && !s.hungry) lowWithoutHunger++;
     }
     expect(lowWithoutHunger).toBe(0);

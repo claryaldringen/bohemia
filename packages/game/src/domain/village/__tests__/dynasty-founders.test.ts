@@ -19,6 +19,7 @@ import {
   FOOD_NEED_KG_PER_YEAR,
   LORD,
   START_AGES,
+  START_SEED_YEARS,
   START_STORES_MONTHS,
 } from '../rules';
 import { advanceVillage } from '../simulate';
@@ -79,7 +80,7 @@ describe('zakladatelé rodu', () => {
     expect(s.manorId).toBe(1);
     expect(s.nextId).toBe(8);
     const need = s.people.reduce((sum, p) => sum + FOOD_NEED_KG_PER_YEAR[ageGroup(p, DAY)], 0);
-    expect(s.storesKg).toBeCloseTo((need * START_STORES_MONTHS) / 12, 6);
+    expect(s.storesKg).toBeCloseTo((need * START_STORES_MONTHS) / 12 + need * START_SEED_YEARS, 6);
     const { herds, young } = foundingLivestock({ people: s.people }, DAY);
     expect(s.livestock?.herds).toEqual(herds);
     expect(s.livestock?.young).toEqual(young);

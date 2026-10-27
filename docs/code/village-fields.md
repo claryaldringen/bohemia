@@ -206,6 +206,20 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   čte stav. `fieldPartLooks`: připravený díl s `next` (po prvním osevu) je strniště, dokud na něj
   nepřijde podzimní práce.
 
+- **Osivo ze zásob** (fields.md – Úroda, Osivo ze zásob; Martin 27. 10. 2026): `seed.ts`.
+  `CropWork.seedKg` = osivo vzaté ze zásob (`createCropWork` dá 0; chybí = práce z doby před
+  změnou – převod: setí nebere, `harvestKg` odečte osivo zaseté části postaru). Polní úlohy
+  (`fieldTasks` v `simulate-work.ts`) omezí setí na `seedSowCap` (zasetý podíl ≤ (vzaté +
+  `sowableSeedKg`) / osivo plánu); po práci `takeSeed` vezme osivo zasetého podílu (obilí ze
+  `storesKg` + `drawGrainPits`, luštěniny z `legumesKg`, chybějící luštěniny za obilí). Obilí nad
+  potřebu (`surplus-fields.ts`) jen nad příděl `keepRation`. `sowableSeedKg`: osivo do roční
+  potřeby (`FarmSeason.seedFloorKg` – `seasonDay`/`recordSeedPlan`: `energyFloorKg` × osivo na kg
+  čisté úrody dílů plánu) ze zrna nad příděl `SEED_STORES.floorRation` potřeby do sklizně
+  (`foodUntilHarvestKg`), ostatní nad `keepRation`. Čekající osivo (`seedAheadKg` – nezasetý podíl
+  plánů + `FarmSeason.seedWaitingKg` vybraných dílů mimo čelo) ves nejí (`seedReserve` v
+  `dayMealInput`, `eat` ho vrátí do zásob) a `fieldSowingTargets` ho odečte od zásob k sklizni
+  (`sowingTargets(…, seedAheadKg)`). `expectedWinterKg` odečte jen osivo, které zásoby ještě
+  vezmou. Nová ves: `START_SEED_YEARS` osiva navíc.
 - **Postup práce po čtvercích** (Martin – fields.md): kopání, setí a sklizeň mění díl, až k němu
   dojde práce. `field-progress.ts` (jen čte): díly plodiny v pořadí `CropWork.partIds` (dávka
   po úsecích hospodářství od domu ven – řadí `createCropWork` s `workOrder`, ves bez hospodářství

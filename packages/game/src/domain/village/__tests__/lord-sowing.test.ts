@@ -36,9 +36,10 @@ const PLAN_DAY = at(600, 9, 1);
 const OUTSIDE = 500;
 /**
  * Zásoby, se kterými ves potřebný osev bez rodiny nestihne – i se žňovými rukama ve výmlatu
- * (fields.md – Žně všemi rukama).
+ * (fields.md – Žně všemi rukama). Od osiva ze zásob při setí (fields.md – Úroda, Osivo ze zásob)
+ * víc – dřív 1 500 kg, s osivem by ves v září šetřila a ženy rodu šly na pole.
  */
-const SHORT_STORES = 1500;
+const SHORT_STORES = 2500;
 
 const person = (
   id: number,

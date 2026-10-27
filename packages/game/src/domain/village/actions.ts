@@ -48,6 +48,7 @@ import {
   START_SEXES,
   BIRTH_SPACING,
   LORD,
+  START_SEED_YEARS,
   START_STORES_MONTHS,
   dwellingBuildLabor,
   workshopTrees,
@@ -553,7 +554,9 @@ export function foundVillage(input: {
     threshingSeason: null,
     // nová ves rovnou s osevním postupem po dílech (fields.md – Osevní postup po dílech, bod 7)
     sowingRotation: true,
-    storesKg: food ? food.grainKg : (annualNeed * START_STORES_MONTHS) / MONTHS_PER_YEAR,
+    storesKg: food
+      ? food.grainKg
+      : (annualNeed * START_STORES_MONTHS) / MONTHS_PER_YEAR + annualNeed * START_SEED_YEARS,
     // nová ves mlátí až na humně, které postaví hráč – bez odkladu (production-chains.md – Humno)
     sheaves: { grainKg: 0, legumesKg: 0 },
     // zásoby osadníků jsou doma; jámy vesničané vykopou po prvním výmlatu (production-chains.md –

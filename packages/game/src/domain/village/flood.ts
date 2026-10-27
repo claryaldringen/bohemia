@@ -63,12 +63,13 @@ export function meanPartDepths(
 }
 
 /**
- * Úklid záznamu `disasters.flood`: scéna ho čte jen po dobu stání vody (`FLOOD.standDays` dní
- * po dni povodně), pak se smaže. Ztráty úrody jsou jinde (`disasters.losses`).
+ * Úklid záznamu `disasters.flood`: scéna ho čte po dobu stání vody (`FLOOD.standDays`) a bahna
+ * s naplaveninou (`FLOOD.mudDays` dní po dni povodně), pak se smaže. Ztráty úrody jsou jinde
+ * (`disasters.losses`).
  */
 function pruneFloodRecord(state: VillageState, day: number): void {
   const record = state.disasters?.flood;
-  if (record && day > record.day + FLOOD.standDays) delete state.disasters!.flood;
+  if (record && day > record.day + FLOOD.mudDays) delete state.disasters!.flood;
 }
 
 /** Hloubka vody (m) nad bodem světa; mimo mapu a bez vody v mapě 0. */
