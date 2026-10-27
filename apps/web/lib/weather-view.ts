@@ -10,7 +10,7 @@ import {
   type SummerWeather,
   type VillageState,
 } from '@bohemia/game';
-import type { SceneFlood, SceneHail, SceneWeather } from './village-view-scene-types';
+import type { SceneFlood, SceneHail, SceneTornado, SceneWeather } from './village-view-scene-types';
 
 /** Síla zlého léta pro vzhled scény 0–1 (jen vzhled – pravidla jsou v jádru). */
 const SUMMER_STRENGTH: Partial<Record<SummerWeather, number>> = {
@@ -90,6 +90,37 @@ export function sceneHail(state: Pick<VillageState, 'disasters'>, day: number): 
   if (dateOfDayIndex(hail.day).year !== dateOfDayIndex(day).year) return null;
   const { x, z, angle, offsetM } = hail.strip;
   return { day: hail.day, strip: { x, z, angle, offsetM } };
+}
+
+/**
+ * Jak dlouho (herní dny) leží vyvrácené stromy smrště jako padlé kmeny, než je ves rozřeže na klády
+ * (ty leží na hromadách u lesa už od smrště – `logStacks`) – jen vzhled (návrh Clauda).
+ */
+export const TORNADO_TRUNK_DAYS = 10;
+
+/**
+ * Smršť pro scénu (disasters.md – Smršť, Ve scéně): jen v její den a po něm do konce roku – den,
+ * síla a stopa (`disasters.tornado` z jádra, nikdy rozpis `yearTornadoes`); prvních
+ * `TORNADO_TRUNK_DAYS` dní i vývraty vrstvy překážek (pokácené v den smrště) pro padlé kmeny.
+ */
+export function sceneTornado(
+  state: Pick<VillageState, 'disasters' | 'felledTrees'>,
+  day: number,
+): SceneTornado | null {
+  const tornado = state.disasters?.tornado;
+  if (!tornado || tornado.day > day) return null;
+  if (dateOfDayIndex(tornado.day).year !== dateOfDayIndex(day).year) return null;
+  const { x, z, angle, lengthM, widthM } = tornado.track;
+  const trunks =
+    day < tornado.day + TORNADO_TRUNK_DAYS
+      ? (state.felledTrees ?? []).filter((f) => f.day === tornado.day).map((f) => f.id)
+      : [];
+  return {
+    day: tornado.day,
+    strength: tornado.strength,
+    track: { x, z, angle, lengthM, widthM },
+    ...(trunks.length > 0 ? { trunks } : {}),
+  };
 }
 
 /** Povodeň pro scénu: od jejího dne do konce bahna (`FLOOD_SCENE_DAYS`), jinak null. */

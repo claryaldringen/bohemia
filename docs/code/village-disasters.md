@@ -443,4 +443,23 @@ vzácné tornádo je dobré“; rešerše §6). Jádro: `tornado.ts`, stopy v `d
   a práce vsi ten den není. e2e `weather-scene.spec.ts` (jen s `WEATHER_DEV_URL`): plameny
   a vědra v obou režimech, po návratu na normální rok žádné plameny ani vědra a draw cally
   stejné (91 → požár 93 → 91).
-- **Zvuk praskání ohně** – zatím není (lokálně žádný CC0 záznam); doplní se s hukotem smrště.
+- **Zvuk praskání ohně** – zatím není (lokálně žádný CC0 záznam), stejně jako hukot smrště.
+
+## Scéna – smršť (P13, smršť)
+
+- **Data** – `sceneTornado(state, day)` (`apps/web/lib/weather-view.ts`) → `SceneVillage.tornado`
+  (`SceneTornado`) jen od dne smrště do konce jejího roku ze zápisu `disasters.tornado` (den,
+  síla, stopa) – **nikdy `yearTornadoes`** ani vynucená smršť (`override.tornado`) či budoucí
+  rozpis. Prvních `TORNADO_TRUNK_DAYS` (10) dní i `trunks` – id stromů pokácených v den smrště
+  (`felledTrees` s `day` smrště) pro padlé kmeny. Testy `apps/web/lib/scene/__tests__/tornado.test.ts`.
+- **Vzhled** – trychtýř a ztmavení: [scene.md – Smršť](scene.md); vývraty, polehlá pole,
+  rozmetané stohy a zřícené stavby: [scene-village.md – Smršť](scene-village.md).
+- **Vývojová ukázka** – přepínač **Počasí** na `/dev/landscape`: „smršť F2“ a „smršť F3“
+  (`withDevTornado` v `dev-weather.ts`, jako `tornadoDay` jádra) – stopa průměrné délky
+  a šířky síly od JZ k SV přes střed obydlí, dospělé stromy vrstvy překážek ve stopě do 600 m
+  padnou s podílem síly (pařez a padlý kmen), obydlí ve stopě ztratí stav, na nule se zřítí
+  (poslední zůstane); den světa vynucený na 0,7 dne smrště (trychtýř u středu vsi, plná tma).
+  e2e `weather-scene.spec.ts` (jen s `WEATHER_DEV_URL`): s animacemi trychtýř a padlé kmeny,
+  při omezeném pohybu bez trychtýře, scéna tmavší a kmenů víc (F3), po návratu na normální rok
+  žádný trychtýř ani kmeny a draw cally stejné (91 → F2 92, F3 83 → 91; padlých kmenů F2 907, F3 3391 – hustý les ukázky).
+- **Zvuk hukotu** – není (lokálně žádný CC0 záznam).

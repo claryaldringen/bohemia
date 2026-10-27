@@ -79,8 +79,10 @@ import { isDeciduousMesh } from './season-foliage';
 import { setPuddles, setSeasonShaderState } from './season-materials';
 import { overcast, puddleAmount, rainAmount } from './rain';
 import { RainRenderer } from './rain-renderer';
-import { STORM_RAIN, stormFlash, stormLight } from './storm';
+import { STORM_RAIN, stormFlash, stormLight, tornadoStorm } from './storm';
 import { StormRenderer } from './storm-renderer';
+import { TornadoFunnel } from './tornado-funnel';
+import { tornadoTrunks } from './tornado-track';
 import {
   SHADOW_DARKNESS,
   addSunShadows,
@@ -263,6 +265,8 @@ export class LandscapeScene {
    * pohrom vsi a vývojové vynucení dne světa (null = podle hodin světa).
    */
   private storm: StormRenderer | null = null;
+  /** Trychtýř smrště (tornado-funnel.ts) – ztmavení smrště jde se silou bouřky (`stormNow`). */
+  private tornadoFunnel: TornadoFunnel | null = null;
   private stormNow = 0;
   private flashNow = 0;
   private disasterKey = '';
@@ -475,6 +479,11 @@ export class LandscapeScene {
       groundHeight: (x, z) => terrainMeshHeight(surface, x, z),
     });
     if (this.daylight) this.storm.setSky(this.daylight.waterSky);
+    this.tornadoFunnel?.dispose();
+    this.tornadoFunnel = new TornadoFunnel(this.scene, {
+      groundHeight: (x, z) => terrainMeshHeight(surface, x, z),
+    });
+    if (this.daylight) this.tornadoFunnel.setTone(this.daylight.tone);
     this.stormNow = 0;
     this.flashNow = 0;
     this.disasterKey = '';
@@ -733,14 +742,20 @@ export class LandscapeScene {
     this.applyDisasters();
   }
 
-  /** Krupobití a povodeň vsi do scény – přestaví pruh a vodu jen při změně. */
+  /** Krupobití, povodeň a smršť vsi do scény – přestaví pruh a vodu jen při změně. */
   private applyDisasters(): void {
     const village = this.villageState;
-    const key = JSON.stringify([village?.hail ?? null, village?.flood ?? null]);
+    const key = JSON.stringify([
+      village?.hail ?? null,
+      village?.flood ?? null,
+      village?.tornado?.day ?? null,
+      village?.tornado?.track ?? null,
+    ]);
     if (!this.storm || key === this.disasterKey) return;
     this.disasterKey = key;
     this.storm.setHail(village?.hail ?? null);
     this.storm.setFlood(village?.flood ?? null);
+    this.tornadoFunnel?.set(village?.tornado ?? null, village?.home ?? null);
     this.updateDisasters();
     this.needsRender = true;
   }
@@ -756,12 +771,16 @@ export class LandscapeScene {
    */
   private updateDisasters(): void {
     if (!this.storm) return;
-    if (this.storm.update(this.disasterDay())) {
+    const day = this.disasterDay();
+    if (this.storm.update(day)) {
       // při omezeném pohybu kroupy stojí – rozmístí se jednou
       this.placeDrops();
       this.needsRender = true;
     }
-    const storm = this.storm.storm;
+    // smršť ztmaví scénu jako bouřka (storm.ts – `tornadoStorm`); trychtýř jen s animacemi
+    const tornado = this.villageState?.tornado;
+    const storm = Math.max(this.storm.storm, tornado ? tornadoStorm(day - tornado.day) : 0);
+    if (this.reducedMotion?.matches && this.tornadoFunnel?.hide()) this.needsRender = true;
     if (storm === this.stormNow) return;
     this.stormNow = storm;
     if (storm === 0) this.flashNow = 0;
@@ -1324,6 +1343,7 @@ export class LandscapeScene {
     this.ambient?.dispose();
     this.rain?.dispose();
     this.storm?.dispose();
+    this.tornadoFunnel?.dispose();
     this.rtsCamera?.dispose();
     this.perf?.dispose();
     if (this.loopHandle !== 0) cancelAnimationFrame(this.loopHandle);
@@ -1513,7 +1533,12 @@ export class LandscapeScene {
       for (const listener of this.clearedListeners) listener(clearing);
     }
     const felled = this.obstacles
-      ? (this.felled?.update(this.obstacles, changes, this.villageState.plantedSaplings) ?? false)
+      ? (this.felled?.update(
+          this.obstacles,
+          changes,
+          this.villageState.plantedSaplings,
+          tornadoTrunks(this.villageState.tornado),
+        ) ?? false)
       : false;
     const piles = this.logPile?.update(this.villageState, changes) ?? false;
     const slash = this.clearingSlash?.update(this.villageState) ?? false;
@@ -1739,6 +1764,10 @@ export class LandscapeScene {
     if (rts && this.storm?.animate(now / 1000, rts.target, rts.position, rts.radius)) {
       animated = true;
     }
+    // smršť – trychtýř přejde stopou kolem vsi (jen v průchodu, den světa jako pohromy)
+    if (this.villageState?.tornado && this.tornadoFunnel?.animate(this.disasterDay(), now / 1000)) {
+      animated = true;
+    }
     if (this.stormNow > 0) {
       const flash = stormFlash(this.stormNow, Date.now());
       if (flash !== this.flashNow) {
@@ -1924,6 +1953,7 @@ export class LandscapeScene {
     this.shadows?.setDarkness(shadowDarkness(darkness, day.shadowStrength));
     scene.imageProcessingConfiguration.contrast = BASE_CONTRAST * day.contrast;
     this.impostorForest?.setTone(day.tone);
+    this.tornadoFunnel?.setTone(day.tone);
     this.village?.setLightTone(day.tone);
     this.water?.setSeason(look.water.tint, day.waterSky, look.ice);
     this.storm?.setSky(day.waterSky);

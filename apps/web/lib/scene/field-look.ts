@@ -9,6 +9,7 @@ import type { Rgb } from './field-crops';
 import { aftermathGrazing, hayPhase } from './hay-meadows';
 import { track, weatherAmounts, type Track } from './season-look';
 import { hailWeight } from './storm';
+import { tornadoCropWeight } from './tornado-track';
 
 export type { FieldLook };
 
@@ -233,7 +234,7 @@ export function workOrder(
 export interface LookContext {
   dayOfYear: number;
   village: Pick<SceneVillage, 'dwellings'> &
-    Partial<Pick<SceneVillage, 'labor' | 'weather' | 'hail'>>;
+    Partial<Pick<SceneVillage, 'labor' | 'weather' | 'hail' | 'tornado'>>;
 }
 
 /**
@@ -252,16 +253,21 @@ export function fieldPartViews(
     cached.labor === context.village.labor &&
     cached.weather === context.village.weather &&
     cached.hail === context.village.hail &&
+    cached.tornado === context.village.tornado &&
     cached.day === context.dayOfYear
   ) {
     return cached.views;
   }
-  const views = withHail(withWeather(computePartViews(field, context), context), context);
+  const views = withTornado(
+    withHail(withWeather(computePartViews(field, context), context), context),
+    context,
+  );
   viewsCache.set(field.parts, {
     dwellings: context.village.dwellings,
     labor: context.village.labor,
     weather: context.village.weather,
     hail: context.village.hail,
+    tornado: context.village.tornado,
     day: context.dayOfYear,
     views,
   });
@@ -276,6 +282,7 @@ const viewsCache = new WeakMap<
     labor: LookContext['village']['labor'];
     weather: LookContext['village']['weather'];
     hail: LookContext['village']['hail'];
+    tornado: LookContext['village']['tornado'];
     day: number;
     views: PartView[];
   }
@@ -417,6 +424,36 @@ function withHail(views: PartView[], context: LookContext): PartView[] {
       1 + (HAIL_CROPS.tint[2] - 1) * w,
     ];
     return { ...view, weather, tint: mergeTint(view.tint ?? null, battered)! };
+  });
+}
+
+/**
+ * Polehlá úroda ve stopě smrště (disasters.md – Smršť, Ve scéně): podle ztráty úrody síly (F0 0,2
+ * … F3 1) nižší a řidší, obilí polehlé, pomačkané listy hnědnou. Platí do žní jako kroupy.
+ */
+const TORNADO_CROPS = { height: 0.6, density: 0.45, tint: [0.84, 0.78, 0.64] as Rgb };
+
+function withTornado(views: PartView[], context: LookContext): PartView[] {
+  const tornado = context.village.tornado;
+  if (!tornado) return views;
+  return views.map((view) => {
+    if (view.part.stage !== 'sown') return view;
+    const w = tornadoCropWeight(tornado, view.part.x, view.part.z);
+    if (w === 0) return view;
+    const base = view.weather ?? { height: 1, density: 1, lodged: 0, bare: 0 };
+    const weather: PartWeather = {
+      height: base.height * (1 - TORNADO_CROPS.height * w),
+      density: base.density * (1 - TORNADO_CROPS.density * w),
+      // smršť položí i luštěniny a len, ne jen obilí
+      lodged: Math.max(base.lodged, Math.min(1, 0.4 + w)),
+      bare: base.bare,
+    };
+    const flattened: Rgb = [
+      1 + (TORNADO_CROPS.tint[0] - 1) * w,
+      1 + (TORNADO_CROPS.tint[1] - 1) * w,
+      1 + (TORNADO_CROPS.tint[2] - 1) * w,
+    ];
+    return { ...view, weather, tint: mergeTint(view.tint ?? null, flattened)! };
   });
 }
 

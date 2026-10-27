@@ -17,6 +17,7 @@ import {
   setStaticInstances,
   type ModelInstance,
 } from './instanced-model';
+import { fallenTrunk } from './tornado-track';
 import { prepareTreeMaterial } from './trees';
 
 /** Model, kterým se kreslí pařez nebo nálet: soubor a příprava materiálu. */
@@ -31,6 +32,22 @@ const STUMP: FelledModel = {
   url: '/models/decor/stump.glb',
   prepare: (material) => prepareDecorMaterial('stump', material),
 };
+
+/** Padlé kmeny vývratů smrště – modely padlých stromů z dekorací (osa kmene ≈ +x). */
+const FALLEN: readonly [FelledModel, FelledModel] = [
+  {
+    key: 'fallen-2',
+    url: '/models/decor/fallen-2.glb',
+    prepare: (material) => prepareDecorMaterial('fallen-2', material),
+  },
+  {
+    key: 'fallen-3',
+    url: '/models/decor/fallen-3.glb',
+    prepare: (material) => prepareDecorMaterial('fallen-3', material),
+  },
+];
+/** Padlý kmen vůči velikosti stromu (model ≈ 14 m dlouhý). */
+const FALLEN_SCALE = 0.85;
 
 function treeModel(look: TreeLook): FelledModel {
   return {
@@ -122,9 +139,11 @@ export class FelledTrees {
     layer: ObstacleLayer,
     changes: ObstacleChanges,
     planted: readonly { id: number; growth: number }[] = [],
+    trunks: { ids: readonly number[]; angle: number } | null = null,
   ): boolean {
     const plantedKey = planted.map((p) => `${p.id}:${p.growth}`).join(',');
-    const signature = `${changes.stumps.join(',')}|${changes.saplings.join(',')}|${plantedKey}`;
+    const trunksKey = trunks ? `${trunks.angle}:${trunks.ids.join(',')}` : '';
+    const signature = `${changes.stumps.join(',')}|${changes.saplings.join(',')}|${plantedKey}|${trunksKey}`;
     if (signature === this.signature) return false;
     this.signature = signature;
     const growth = new Map(planted.map((p) => [p.id, p.growth]));
@@ -157,6 +176,19 @@ export class FelledTrees {
         z: p.z,
         rotationY: p.rotation,
         scale: stumpScale(p.kind, p.scale),
+      });
+    }
+    // vývraty smrště (disasters.md – Smršť, Ve scéně) – kmen leží od pařezu po větru
+    for (const id of trunks?.ids ?? []) {
+      const p = place(id);
+      if (!p || p.kind === 'youngTree') continue;
+      const trunk = fallenTrunk(id, p, trunks!.angle);
+      add(FALLEN[trunk.variant], {
+        x: trunk.x,
+        y: this.options.groundHeight(trunk.x, trunk.z),
+        z: trunk.z,
+        rotationY: trunk.rotationY,
+        scale: FALLEN_SCALE * p.scale,
       });
     }
     for (const id of changes.saplings) {

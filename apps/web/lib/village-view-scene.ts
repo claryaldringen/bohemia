@@ -94,7 +94,7 @@ import { sceneFunerals } from './funeral-view';
 import { scenePersons } from './person-view';
 import { sceneWeddings } from './wedding-view';
 import { sceneWildlife } from './wildlife-view';
-import { sceneFlood, sceneHail, sceneWeather } from './weather-view';
+import { sceneFlood, sceneHail, sceneTornado, sceneWeather } from './weather-view';
 import { charredRuinKeys, sceneFire } from './fire-view';
 
 export function sceneVillage(
@@ -163,6 +163,7 @@ export function sceneVillage(
   // krupobití a povodeň jen v jejich den a po něm (nikdy budoucí rozpis)
   const hail = sceneHail(state, day);
   const flood = sceneFlood(state, day);
+  const tornado = sceneTornado(state, day);
   const fields = state.fields.map((f) => ({
     id: f.id,
     ...(f.grid ? { grid: f.grid } : {}),
@@ -338,6 +339,7 @@ export function sceneVillage(
     ...(hail ? { hail } : {}),
     ...(flood ? { flood } : {}),
     ...(fire ? { fire } : {}),
+    ...(tornado ? { tornado } : {}),
   };
 }
 

@@ -49,7 +49,7 @@ export class FireBuckets {
     this.key = key;
     this.layout = layout;
     if (!layout) {
-      this.mesh?.dispose();
+      this.mesh?.dispose(false, true);
       this.mesh = null;
       this.bounds = null;
       return true;
@@ -111,7 +111,7 @@ export class FireBuckets {
   }
 
   dispose(): void {
-    this.mesh?.dispose();
+    this.mesh?.dispose(false, true);
     this.mesh = null;
     this.layout = null;
     this.key = '';

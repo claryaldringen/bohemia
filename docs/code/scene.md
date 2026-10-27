@@ -320,6 +320,24 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     a terén ji zakryje; mesh vody se staví, až voda stoupne, a po ústupu se zahodí; **hnědé
     bahno a naplavenina** (obtisk jako bílý pás, síla podle hloubky) 14 dní po ústupu zarůstá.
     Naplavené větve vynechané.
+  - **Smršť** (`storm.ts` – `tornadoStorm`, `funnelProgress`; `tornado-track.ts` čisté funkce,
+    testy `tornado.test.ts`; `tornado-funnel.ts`): `SceneVillage.tornado` jen v den smrště a po
+    něm do konce roku. **Ztmavení jako bouřka** – síla `max(bouřka krupobití, tma smrště)` jde
+    do `stormNow` (`updateDisasters`), takže světlo, déšť (× `STORM_RAIN`) i záblesky jsou
+    společné; tma odpoledne (podíl dne 0,56–0,62 náběh, do 0,78 drží, do 0,86 odejde – smrště
+    bývají odpoledne, návrh Clauda). **Trychtýř** (`TornadoFunnel`, meshe `tornado-funnel`
+    a `tornado-dust`) přejde mezi 0,64 a 0,76 dne (≈ 10 s) po ose stopy ± `FUNNEL_PATH_HALF_M`
+    (450 m) kolem bodu nejblíž středu vsi (`funnelPoint`; stopa je dlouhá kilometry), na
+    začátku a konci roste ze země a rozplyne se (`funnelGrowth`). Rotační plochy (lathe – jen
+    pozice, normály, uv): trychtýř 260 m vysoký, nahoře poloměr 0,8 × šířka stopy (70–260 m),
+    u země 12 %; prachová sukně 0,3 × šířka (18–110 m), 34 m. Materiál bez světla (barva
+    emisní × textura pruhů víru – `RawTexture` 64², šikmé pruhy, nahoře slábne), tón
+    `DayLight.tone` odmocninou (za bouřky tmavý, pruhy zůstanou vidět), vír otáčením meshe
+    v `animate()` (1,6 / 2,6 rad/s). Stín nevrhá. **Při omezeném pohybu** se trychtýř nekreslí
+    (`updateDisasters` ho skryje, `animate()` neběží) – zůstane ztmavení a stopa. Bez smrště
+    meshe vypnuté a `animate` se nevolá – draw cally normálního dne beze změny. Stopa ve vsi
+    (padlé kmeny, polehlá pole, rozmetané stohy, poškozené a zřícené stavby):
+    [scene-village.md – Smršť](scene-village.md). Zvuk hukotu chybí (žádný CC0 záznam lokálně).
   - Bez pohromy jsou kroupy, pás, voda i bahno vypnuté – draw cally v normálním roce beze změny;
     v bouřce +3 (déšť, kroupy, pás), v povodni +1–2 (voda, bahno).
   - Vývojový náhled: přepínač **Počasí** (`dev-weather.ts`) – i „mokré žně – prší“ (vynucený

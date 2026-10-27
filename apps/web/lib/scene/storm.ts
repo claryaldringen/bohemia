@@ -198,3 +198,22 @@ export function stormLight(day: DayLight, storm: number, flash: number): DayLigh
 
 /** Kroupy padají s deštěm – síla deště za bouřky (× síla bouřky). */
 export const STORM_RAIN = 0.7;
+
+/**
+ * Průběh dne smrště (disasters.md – Smršť, Ve scéně; podíl dne od půlnoci): smrště bývají
+ * odpoledne – tma jako za bouřky se stáhne od 13:26 do 14:53, drží do 18:43 a do 20:38 odejde;
+ * trychtýř přejde kolem vsi mezi 0,64 a 0,76 dne (≈ 10 s skutečného času) – návrh Clauda.
+ */
+const TORNADO_DAY = { rise: [0.56, 0.62], fall: [0.78, 0.86] } as const;
+export const FUNNEL_PASS = [0.64, 0.76] as const;
+
+/** Tma smrště 0–1 v okamžiku `t` = den světa − den smrště (po desetinách jako bouřka). */
+export function tornadoStorm(t: number): number {
+  return envelope(t, TORNADO_DAY);
+}
+
+/** Kde je trychtýř na cestě kolem vsi 0–1 v okamžiku `t` (plynule); mimo průchod null. */
+export function funnelProgress(t: number): number | null {
+  if (!(t >= FUNNEL_PASS[0] && t <= FUNNEL_PASS[1])) return null;
+  return (t - FUNNEL_PASS[0]) / (FUNNEL_PASS[1] - FUNNEL_PASS[0]);
+}

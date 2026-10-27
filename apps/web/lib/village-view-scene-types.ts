@@ -9,6 +9,8 @@ import { tileCenterWorld } from '@bohemia/game';
 import { PlotVariant } from '@bohemia/game';
 import {
   type HailStrip,
+  type TornadoStrength,
+  type TornadoTrack,
   type RoadProfilePoint,
   type HerdSpecies,
   type FamilyCounts,
@@ -388,6 +390,22 @@ export interface SceneVillage {
    * stavby a řetěz s vědry. Nikdy budoucí rozpis.
    */
   fire?: SceneFire;
+  /**
+   * Smršť (disasters.md – Smršť, Ve scéně) – jen v její den a po něm do konce roku: trychtýř,
+   * ztmavení, polehlá pole a rozmetané stohy ve stopě, padlé kmeny. Nikdy budoucí rozpis.
+   */
+  tornado?: SceneTornado;
+}
+
+/**
+ * Smršť vsi pro scénu: den (pořadí dne světa), síla, stopa (`disasters.tornado` z jádra) a prvních
+ * pár dní vývraty – id stromů vrstvy překážek, které leží jako padlé kmeny.
+ */
+export interface SceneTornado {
+  day: number;
+  strength: TornadoStrength;
+  track: TornadoTrack;
+  trunks?: number[];
 }
 
 /** Hořící stavba v den požáru: id obydlí, střed, typ a natočení; `started` – tady chytlo. */

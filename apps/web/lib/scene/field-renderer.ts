@@ -68,6 +68,7 @@ import {
   type HayPhase,
 } from './hay-meadows';
 import { loadMergedModel, loadModelParts } from './instanced-model';
+import { scatterStacks } from './tornado-track';
 import { PLOUGH_CORNER_M, type FurrowBand } from './plough-team';
 import { applyPitCut, type PitCuts } from './pit-cut';
 import { instancesBounds, sameItems, sortByRank } from './plant-order';
@@ -590,10 +591,17 @@ export class FieldRenderer {
   private rebuild(): boolean {
     const fields = this.updateFields();
     const meadows = this.updateMeadows();
-    if (!fields.main && !fields.hay && !meadows) return false;
-    this.updatePlants(fields.main, fields.hay || meadows);
+    // smršť změní stohy bez nového dne (náhled) – seno znovu
+    const tornadoKey = JSON.stringify(this.village.tornado ?? null);
+    const tornado = tornadoKey !== this.tornadoKey;
+    this.tornadoKey = tornadoKey;
+    if (!fields.main && !fields.hay && !meadows && !tornado) return false;
+    this.updatePlants(fields.main, fields.hay || meadows || tornado);
     return true;
   }
+
+  /** Klíč smrště vsi (stohy ve stopě rozmetané). */
+  private tornadoKey = 'null';
 
   /** Maska ploch, kam seno nesmí (bez cest) – přestaví se jen při změně klíče. */
   private hayMask: { key: string; mask: ReturnType<typeof clearingMask> } | null = null;
@@ -1210,7 +1218,12 @@ export class FieldRenderer {
       for (const view of this.fields.values()) appendAll(stacks, view.hay.plants);
       for (const view of this.meadowViews.values()) appendAll(stacks, view.hay);
       if (stacks.length > 0) void this.loadModels();
-      this.setPlants(this.haystacks, stacks);
+      // stohy ve stopě smrště rozmetané (disasters.md – Smršť) – jen ty, které v její den stály
+      const tornado = this.village.tornado;
+      const stood = tornado
+        ? hayPhase(dateOfDayIndex(tornado.day).dayOfYear)?.hay === 'stacks'
+        : false;
+      this.setPlants(this.haystacks, scatterStacks(stacks, tornado, stood));
     }
     this.applyCounts();
   }

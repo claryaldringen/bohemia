@@ -3,13 +3,20 @@
 // střídá podle id dílu, ať je vidět, že díl s ochranou je v suchu zelenější. Krupobití a povodeň
 // (P12) – pohroma vsi náhledu a vynucený den světa (`LandscapeScene.setDisasterDay`). Požár (P13) –
 // hoří obydlí nejblíž vodě a soused do 45 m, řetěz s vědry od nejbližší vody (jako jádro – bod, kam
-// chodí ženy pro vodu): hustý (podávají) nebo řídký (chodí).
+// chodí ženy pro vodu): hustý (podávají) nebo řídký (chodí). Smršť (P13) – stopa F2 / F3 od JZ
+// k SV přes střed obydlí: vývraty, zřícené a poškozené domy jako v jádře (`tornadoDay`).
 import {
   PATH_WATER_SPOT,
+  TORNADO,
   groundSpots,
+  inTornadoTrack,
   nearestSpot,
+  obstacleKind,
+  obstaclesNear,
+  obstaclesOf,
   walkGroundOf,
   type Landscape,
+  type TornadoStrength,
 } from '@bohemia/game';
 import type { SceneBurningHouse, SceneVillage, SceneWeather } from '@/lib/village-view';
 
@@ -25,7 +32,9 @@ export type DevWeather =
   | 'flood100'
   | 'flood1000'
   | 'firePass'
-  | 'fireWalk';
+  | 'fireWalk'
+  | 'tornadoF2'
+  | 'tornadoF3';
 
 export const DEV_WEATHER_LABELS: Record<DevWeather, string> = {
   normal: 'normální rok',
@@ -40,6 +49,8 @@ export const DEV_WEATHER_LABELS: Record<DevWeather, string> = {
   flood1000: 'povodeň tisíciletá',
   firePass: 'požár – podávají vědra',
   fireWalk: 'požár – chodí s vědry',
+  tornadoF2: 'smršť F2',
+  tornadoF3: 'smršť F3',
 };
 
 /** Rozestup řetězu náhledu (m): hustý – podávají (do 2,5 m), řídký – každý chodí po úseku. */
@@ -59,6 +70,8 @@ export function devDisasterDay(weather: DevWeather): number | null {
   if (weather === 'flood100' || weather === 'flood1000') return DEV_DISASTER_DAY + 1;
   // požár v plné síle (houseFireState – hoří od rána do odpoledne)
   if (weather === 'firePass' || weather === 'fireWalk') return DEV_DISASTER_DAY + 0.4;
+  // smršť – trychtýř v půli průchodu u středu vsi, scéna v plné tmě (storm.ts – FUNNEL_PASS)
+  if (weather === 'tornadoF2' || weather === 'tornadoF3') return DEV_DISASTER_DAY + 0.7;
   return null;
 }
 
@@ -127,6 +140,85 @@ function withDevFire(
   };
 }
 
+/** Celé číslo → 0–1 (los vývratu náhledu podle id stromu). */
+function devHash(n: number): number {
+  let h = Math.imul(n ^ 0x5bd1e995, 0x27d4eb2d);
+  h = Math.imul(h ^ (h >>> 15), 0x85ebca6b);
+  return ((h ^ (h >>> 13)) >>> 0) / 4294967296;
+}
+
+/**
+ * Vynucená smršť náhledu (jako `tornadoDay` v jádře): stopa průměrné délky a šířky síly od JZ
+ * k SV přes střed obydlí; dospělé stromy vrstvy překážek ve stopě do `TORNADO.reachM` padnou
+ * s podílem síly (pařez a padlý kmen), obydlí ve stopě ztratí stav, na nule se zřítí (zbytek jámy).
+ */
+function withDevTornado(
+  village: SceneVillage,
+  weather: 'tornadoF2' | 'tornadoF3',
+  landscape: Landscape | null,
+): SceneVillage {
+  const strength: TornadoStrength = weather === 'tornadoF2' ? 'F2' : 'F3';
+  const rule = TORNADO.strengths.find((s) => s.strength === strength)!;
+  const homes = village.dwellings.filter((d) => d.built);
+  if (homes.length === 0) return village;
+  const x = homes.reduce((sum, d) => sum + d.position.x, 0) / homes.length;
+  const z = homes.reduce((sum, d) => sum + d.position.z, 0) / homes.length;
+  const track = { x, z, angle: Math.PI / 4, lengthM: rule.lengthM, widthM: rule.widthM };
+  const trunks: number[] = [];
+  if (landscape) {
+    const layer = obstaclesOf(landscape);
+    const reach = TORNADO.reachM;
+    for (const i of obstaclesNear(layer, x - reach, z - reach, x + reach, z + reach)) {
+      if (obstacleKind(layer, i) !== 'tree') continue;
+      const tx = layer.x[i]!;
+      const tz = layer.z[i]!;
+      if ((tx - x) ** 2 + (tz - z) ** 2 > reach * reach || !inTornadoTrack(track, tx, tz)) continue;
+      if (devHash(layer.id[i]!) < rule.trees) trunks.push(layer.id[i]!);
+    }
+  }
+  const hit = (d: SceneVillage['dwellings'][number]): number | null =>
+    d.built && inTornadoTrack(track, d.position.x, d.position.z)
+      ? (d.condition ?? 1) - (d.type === 'zemnice' ? rule.zemnice : rule.building)
+      : null;
+  // poslední obydlí zůstane (jako `collapseDwellings`)
+  const keep = homes.every((d) => (hit(d) ?? 1) <= 0) ? homes[0]!.id : null;
+  const dwellings: SceneVillage['dwellings'] = [];
+  const ruins: NonNullable<SceneVillage['ruins']> = [...(village.ruins ?? [])];
+  for (const d of village.dwellings) {
+    const condition = hit(d);
+    if (condition === null) {
+      dwellings.push(d);
+      continue;
+    }
+    if (condition > 0 || d.id === keep) {
+      dwellings.push({ ...d, condition: Math.max(0.05, condition) });
+      continue;
+    }
+    ruins.push({
+      id: d.id,
+      type: d.type,
+      position: d.position,
+      since: DEV_DISASTER_DAY,
+      overgrowth: 0,
+      ...(d.plot ? { plot: d.plot } : {}),
+      ...(d.craft ? { craft: d.craft } : {}),
+    });
+  }
+  const obstacles = village.obstacles ?? { removed: [], stumps: [], saplings: [] };
+  return {
+    ...village,
+    dwellings,
+    ruins,
+    obstacles: { ...obstacles, stumps: [...new Set([...obstacles.stumps, ...trunks])] },
+    tornado: {
+      day: DEV_DISASTER_DAY,
+      strength,
+      track,
+      ...(trunks.length > 0 ? { trunks } : {}),
+    },
+  };
+}
+
 /** Ves náhledu s vynuceným počasím; normální rok beze změny. */
 export function withDevWeather(
   village: SceneVillage,
@@ -136,6 +228,9 @@ export function withDevWeather(
   if (weather === 'normal') return village;
   if (weather === 'firePass' || weather === 'fireWalk') {
     return withDevFire(village, weather, landscape);
+  }
+  if (weather === 'tornadoF2' || weather === 'tornadoF3') {
+    return withDevTornado(village, weather, landscape);
   }
   if (weather === 'hail') {
     // pruh přes pole vsi náhledu (v jádru přes střed obydlí) – ať je vidět potlučené obilí

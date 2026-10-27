@@ -714,3 +714,33 @@ Data `SceneVillage.fire` jen v den požáru – [village-disasters.md – Scéna
   jako každý zbytek – zarostením nebo novou stavbou hráče na místě (`withoutBuiltOverRuins`).
 - Testy `fire-chain.test.ts` (rovnoměrné rozestupy, střídání stran, chodci se potkají na konci
   úseku, vědra, rozvrh ohně).
+
+## Smršť – stopa ve vsi (disasters.md – Smršť, Ve scéně; P13)
+
+Data `SceneVillage.tornado` (den, síla, stopa, prvních pár dní vývraty) –
+[village-disasters.md – Scéna – smršť](village-disasters.md); trychtýř a ztmavení –
+[scene.md – Smršť](scene.md). Pásmo stopy počítá scéna stejnou funkcí jako jádro
+(`inTornadoTrack`), podíly škod podle síly z `TORNADO.strengths` (`strengthRule`).
+
+- **Vývraty** – jádro je zapíše jako kácení (`felledTrees`), scéna je tak kreslí jako každý
+  pokácený strom: strom zmizí (InstanceHider) a na jeho místě je pařez (`felled-trees.ts`,
+  `obstacles.stumps`); klády leží na hromadách u lesa (`logStacks`, `log-pile.ts`). Navíc
+  `TORNADO_TRUNK_DAYS` (10) dní po smršti leží u pařezů vyvrácených stromů vrstvy překážek
+  **padlé kmeny** – modely padlých stromů z dekorací (`fallen-2`, `fallen-3`, meshe
+  `felled-fallen-*` – ořez po čtvercích), střed 5 m od pařezu po směru stopy ± 0,45 rad
+  (`fallenTrunk`), velikost 0,85 × strom; mladé stromky ne. Pak je ves rozřeže na klády
+  (návrh Clauda). Kmeny jdou přes `FelledTrees.update` (`tornadoTrunks`) – změna nastaví
+  `felled`, takže se **stínová mapa překreslí jednou** (`castersChanged`).
+- **Polehlá pole** – `withTornado` ve `field-look.ts` (po krupobití): osetý díl se středem ve
+  stopě nižší a řidší podle ztráty úrody síly (F0 0,2 … F3 1 – `crop`), polehlý (i luštěniny
+  a len) a do hněda – do žní jako kroupy (sklizený díl už osetý není).
+- **Rozmetané stohy** – `scatterStacks` (`tornado-track.ts`) v `FieldRenderer.updatePlants`:
+  stoh louky nebo pole ve stopě (podíl `hay` – F0 polovina, jinak všechny; `stackScattered`)
+  rozfouká vítr na 5 nízkých kupek po směru stopy do 14 m; jen stohy, které v den smrště stály
+  (`hayPhase` dne smrště – `stacks`), nové stohy po ní stojí celé. Změna smrště přestaví seno
+  i bez nového dne (náhled). Stoh u ohrady (`pen-renderer.ts`, `PenView.tornado`) ve stopě
+  leží jako nízká široká hromada (× 1,3 šířka, × 0,25 výška).
+- **Poškozené a zřícené stavby** – jádro ubere stav (`condition`) a na nule obydlí zboří
+  (`collapseDwellings` – zbytek jámy v `ruins`); scéna je kreslí jako rozpad
+  (`dwelling-decay.ts`, `structure-decay.ts`) a zbytek po zániku – bez vlastní cesty. Změna
+  staveb nastaví `village` → stínová mapa se překreslí jednou.

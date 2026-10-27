@@ -216,3 +216,68 @@ test('požár: plameny nad domem a řada lidí s vědry, pak normální den beze
   });
   expect(errors).toEqual([]);
 });
+
+/** Trychtýř smrště (vidět jen v průchodu a s animacemi) a padlé kmeny vývratů (instance). */
+async function tornadoOn(page: Page): Promise<{ funnel: boolean; trunks: number }> {
+  return page.evaluate(() => {
+    const scene = (window as unknown as DevWindow).__bohemiaDev!.scene.scene;
+    const funnel = scene.getMeshByName('tornado-funnel');
+    const trunks = ['felled-fallen-2', 'felled-fallen-3']
+      .map((name) => scene.getMeshByName(name))
+      .reduce((sum, mesh) => sum + (mesh?.isEnabled() ? mesh.thinInstanceCount : 0), 0);
+    return { funnel: !!funnel?.isEnabled(), trunks };
+  });
+}
+
+test.describe('smršť', () => {
+  test('smršť: trychtýř a vývraty, při omezeném pohybu jen stopa, pak normální den', async ({
+    page,
+  }) => {
+    if (SHOTS_DIR) mkdirSync(SHOTS_DIR, { recursive: true });
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    page.on('console', (m) => {
+      if (m.type() === 'error') errors.push(m.text());
+    });
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'gpu', { configurable: true, value: undefined });
+      const w = window as unknown as DevWindow;
+      const real = Date.now.bind(Date);
+      w.__fixedNow = real();
+      Date.now = (): number => w.__fixedNow ?? real();
+    });
+    await page.goto(`${DEV_URL}/dev/landscape`, { waitUntil: 'networkidle', timeout: 180_000 });
+    const canvas = page.locator('canvas[data-scene]');
+    await expect(canvas).toHaveAttribute('data-renderer', /webgl|webgpu/, { timeout: 120_000 });
+    await page.getByRole('button', { name: 'Natočené stavby' }).click({ timeout: 120_000 });
+    await page.waitForTimeout(3000);
+    await page.getByTestId('dev-season-day').fill('200');
+    await page.waitForTimeout(4000);
+
+    const normal = await weather(page, 'normal', 'tornado-normal');
+    // trychtýř víří jen s animacemi (jen na chvíli – softwarové kreslení zdržuje vstupy)
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    const f2 = await weather(page, 'tornadoF2', 'tornado-f2');
+    const f2On = await tornadoOn(page);
+    // omezený pohyb: trychtýř zmizí, ztmavení a vývraty zůstanou
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const f3 = await weather(page, 'tornadoF3', 'tornado-f3-still');
+    const f3On = await tornadoOn(page);
+    const back = await weather(page, 'normal', 'tornado-normal-again');
+    const backOn = await tornadoOn(page);
+
+    expect(f2On.funnel).toBe(true);
+    expect(f2On.trunks).toBeGreaterThan(5);
+    expect(f3On.funnel).toBe(false);
+    expect(f3On.trunks).toBeGreaterThan(f2On.trunks);
+    expect(await brightness(page, f3.png)).toBeLessThan((await brightness(page, normal.png)) - 10);
+    // po smršti normální den: žádný trychtýř, kmeny ani draw cally navíc
+    expect(backOn).toEqual({ funnel: false, trunks: 0 });
+    expect(back.drawCalls).toBe(normal.drawCalls);
+    test.info().annotations.push({
+      type: 'tornado',
+      description: `draw cally: normální ${normal.drawCalls}, F2 ${f2.drawCalls}, F3 ${f3.drawCalls}, znovu ${back.drawCalls}; kmeny F2 ${f2On.trunks}, F3 ${f3On.trunks}`,
+    });
+    expect(errors).toEqual([]);
+  });
+});
