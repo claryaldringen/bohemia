@@ -95,9 +95,12 @@ export function floodSurface(
   };
 }
 
-/** Krytí kalné vody podle hloubky (m): mělká u břehu 0,5, od 1 m skoro neprůhledná. */
+/**
+ * Krytí kalné vody podle hloubky (m): mělká u břehu průzračná (0,25 – prosvítá tráva a bahno,
+ * břeh není ostrá hrana), od 1 m skoro neprůhledná.
+ */
 export function floodAlpha(depthM: number): number {
-  return Math.min(0.92, Math.max(0.5, 0.5 + 0.42 * depthM));
+  return Math.min(0.92, Math.max(0.25, 0.25 + 0.67 * depthM));
 }
 
 /** Hloubka vody povodně (m) nad políčkem pod bodem světa; mimo mapu a nad vodou 0. */

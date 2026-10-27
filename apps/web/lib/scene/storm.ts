@@ -72,28 +72,35 @@ function hash(n: number, salt: number): number {
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
 
-/** Blesky: okno (ms), v němž nejvýš jeden blesk, šance blesku v okně a průběh záblesku. */
+/**
+ * Blesky: okno (ms), v němž nejvýš jeden blesk, šance blesku v okně a průběh záblesku.
+ * Bezpečné pro oči (WCAG 2.3.1 – nejvýš 3 záblesky za sekundu): každý blesk má jedinou
+ * špičku (jas jen roste, pak jen klesá) a mezi blesky sousedních oken je tma aspoň
+ * `FLASH_GAP_MS` – za libovolnou sekundu tak nejvýš 2 vzestupy jasu.
+ */
 const FLASH_SLOT_MS = 1800;
 const FLASH_CHANCE = 0.45;
-/** Záblesk: [do ms od začátku, síla] – první úder, pohasnutí, druhý úder, dosvit. */
+const FLASH_GAP_MS = 400;
+/** Záblesk: [do ms od začátku, síla] – náběh, úder, pak už jen pohasíná (bez druhé špičky). */
 const FLASH_PULSES: readonly (readonly [number, number])[] = [
-  [70, 1],
-  [140, 0.3],
-  [200, 0.8],
-  [320, 0.4],
+  [50, 0.6],
+  [140, 1],
+  [230, 0.7],
+  [330, 0.4],
   [450, 0.15],
 ];
 
 /**
  * Záblesk blesku 0–1 v čase `epochMs` – deterministicky z času (všichni hráči týž okamžik),
- * nejvýš jeden blesk za `FLASH_SLOT_MS`, síla po krocích (překresluje se jen při změně).
+ * nejvýš jeden blesk za `FLASH_SLOT_MS`, začátek tak, aby po něm do dalšího okna zbyla tma
+ * `FLASH_GAP_MS`; síla po krocích (překresluje se jen při změně).
  */
 export function lightningFlash(epochMs: number): number {
   if (!Number.isFinite(epochMs)) return 0;
   const slot = Math.floor(epochMs / FLASH_SLOT_MS);
   if (hash(slot, 0x1b37) >= FLASH_CHANCE) return 0;
   const lastPulse = FLASH_PULSES[FLASH_PULSES.length - 1]![0];
-  const start = hash(slot, 0x5e11) * (FLASH_SLOT_MS - lastPulse);
+  const start = hash(slot, 0x5e11) * (FLASH_SLOT_MS - lastPulse - FLASH_GAP_MS);
   const since = epochMs - slot * FLASH_SLOT_MS - start;
   if (since < 0) return 0;
   // slabší blesky dál v krajině – síla celého záblesku 0,5–1

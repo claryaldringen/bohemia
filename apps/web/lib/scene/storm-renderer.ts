@@ -1,3 +1,4 @@
+import { FresnelParameters } from '@babylonjs/core/Materials/fresnelParameters';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import type { Vector3 } from '@babylonjs/core/Maths/math.vector';
@@ -53,10 +54,25 @@ const HAIL_ALPHA = 0.9;
 const HAIL_PATCH_M = 35;
 const MUD_COLOR = new Color3(0.33, 0.26, 0.18);
 const MUD_ALPHA = 0.85;
-/** Kalná voda povodně – v létě hnědší (bouřky), na jaře šedší (tání). */
-const FLOOD_COLOR = { summer: new Color3(0.4, 0.33, 0.23), spring: new Color3(0.42, 0.39, 0.32) };
-/** Vlnky na hladině povodně – normálová mapa potoka (water.ts), dlaždice po tolika metrech. */
-const FLOOD_RIPPLE_M = 24;
+/**
+ * Kalná voda povodně – šedohnědá s modrým nádechem (ne hnědá jako cesta): v létě hnědší
+ * (bouřky), na jaře šedší (tání).
+ */
+const FLOOD_COLOR = {
+  summer: new Color3(0.36, 0.33, 0.27),
+  spring: new Color3(0.38, 0.4, 0.38),
+};
+/**
+ * Odraz oblohy na hladině (Fresnel): shora podíl `faceOn`, šikmo až `grazing` – i z ptačí
+ * perspektivy je poznat lesklá voda. Odraz = barva oblohy pro vodu (`DayLight.waterSky`).
+ */
+const FLOOD_SKY = { faceOn: 0.1, grazing: 0.55, power: 2 };
+/** Lesk slunce na hladině. */
+const FLOOD_SPECULAR = 0.8;
+const FLOOD_SPECULAR_POWER = 140;
+/** Vlnky na hladině – normálová mapa potoka (water.ts), dlaždice po tolika metrech, slabé. */
+const FLOOD_RIPPLE_M = 56;
+const FLOOD_RIPPLE_LEVEL = 0.15;
 
 /** Obtisk na zemi (bílý pás krup, bahno povodně): jeden mesh, krytí = váha vrcholu × síla. */
 class GroundOverlay {
@@ -176,6 +192,8 @@ export class StormRenderer {
   private water: Mesh | null = null;
   private hail: SceneHail | null = null;
   private flood: SceneFlood | null = null;
+  /** Výška políček nad potokem pro plochu vody povodně (stejná jako jádro). */
+  private floodAbove: Float32Array | null = null;
   private stormNow = 0;
   private level = 0;
 
@@ -191,13 +209,37 @@ export class StormRenderer {
     this.mud = new GroundOverlay(scene, 'flood-mud', MUD_COLOR, MUD_ALPHA);
     const material = new StandardMaterial('flood-water', scene);
     material.diffuseColor = FLOOD_COLOR.summer;
-    material.specularColor = new Color3(0.55, 0.55, 0.5);
-    material.specularPower = 90;
+    material.specularColor = new Color3(FLOOD_SPECULAR, FLOOD_SPECULAR, FLOOD_SPECULAR);
+    material.specularPower = FLOOD_SPECULAR_POWER;
     material.backFaceCulling = false;
     const ripples = createRippleNormalMap(scene);
-    ripples.level = 0.35;
+    ripples.level = FLOOD_RIPPLE_LEVEL;
     material.bumpTexture = ripples;
+    // odraz oblohy: barva = kalná voda × (1 − F) + obloha × F – světlo vody se ubere stejným
+    // Fresnelem, jakým se přičte obloha (emisní barva × barva Fresnelu)
+    const { faceOn, grazing, power } = FLOOD_SKY;
+    material.diffuseFresnelParameters = new FresnelParameters({
+      leftColor: Color3.White().scale(1 - grazing),
+      rightColor: Color3.White().scale(1 - faceOn),
+      bias: 0,
+      power,
+    });
+    material.emissiveColor = Color3.White();
+    material.emissiveFresnelParameters = new FresnelParameters({
+      leftColor: Color3.Black(),
+      rightColor: Color3.Black(),
+      bias: 0,
+      power,
+    });
     this.waterMaterial = material;
+  }
+
+  /** Barva oblohy pro odraz na hladině povodně (`DayLight.waterSky` – i za bouřky a v noci). */
+  setSky(sky: readonly [number, number, number]): void {
+    const fresnel = this.waterMaterial.emissiveFresnelParameters;
+    if (!fresnel) return;
+    fresnel.leftColor.set(sky[0], sky[1], sky[2]).scaleInPlace(FLOOD_SKY.grazing);
+    fresnel.rightColor.set(sky[0], sky[1], sky[2]).scaleInPlace(FLOOD_SKY.faceOn);
   }
 
   /** Síla bouřky 0–1 (po desetinách) – ztmavení scény a déšť. */
@@ -232,9 +274,9 @@ export class StormRenderer {
   /** Povodeň (`SceneVillage.flood`): plocha vody a bahno; null – bez povodně. */
   setFlood(flood: SceneFlood | null): void {
     this.flood = flood;
-    this.water?.dispose();
-    this.water = null;
+    this.disposeWater();
     this.level = 0;
+    this.floodAbove = null;
     if (!flood) {
       this.mud.build(null);
       return;
@@ -242,33 +284,7 @@ export class StormRenderer {
     const { landscape, groundHeight } = this.context;
     // výška políček nad potokem – stejná funkce jako jádro (flood.ts), ať voda sedí se škodami
     const above = streamHeights(landscape);
-    const surface = floodSurface(landscape, above, flood.heightM);
-    if (surface) {
-      const mesh = new Mesh('flood-water', this.scene);
-      const data = new VertexData();
-      data.positions = surface.positions;
-      data.indices = surface.indices;
-      const normals: number[] = [];
-      VertexData.ComputeNormals(surface.positions, surface.indices, normals);
-      data.normals = normals;
-      // vlnky po dlaždicích ve světě, krytí podle hloubky (u břehu průzračnější)
-      const uvs = new Float32Array((surface.positions.length / 3) * 2);
-      const colors = new Float32Array((surface.positions.length / 3) * 4);
-      for (let v = 0; v < surface.alphas.length; v++) {
-        uvs[v * 2] = surface.positions[v * 3]! / FLOOD_RIPPLE_M;
-        uvs[v * 2 + 1] = surface.positions[v * 3 + 2]! / FLOOD_RIPPLE_M;
-        colors.set([1, 1, 1, surface.alphas[v]!], v * 4);
-      }
-      data.uvs = uvs;
-      data.colors = colors;
-      data.applyToMesh(mesh);
-      mesh.hasVertexAlpha = true;
-      this.waterMaterial.diffuseColor = FLOOD_COLOR[flood.season];
-      mesh.material = this.waterMaterial;
-      mesh.isPickable = false;
-      mesh.setEnabled(false);
-      this.water = mesh;
-    }
+    this.floodAbove = above;
     const box = floodBox(landscape, above, flood.heightM);
     this.mud.build(
       box &&
@@ -280,6 +296,40 @@ export class StormRenderer {
           OVERLAY_LIFT_M,
         ),
     );
+  }
+
+  /** Plocha vody povodně – staví se, až voda stoupne, a po ústupu se zahodí. */
+  private buildWater(flood: SceneFlood, above: Float32Array): Mesh | null {
+    const surface = floodSurface(this.context.landscape, above, flood.heightM);
+    if (!surface) return null;
+    const mesh = new Mesh('flood-water', this.scene);
+    const data = new VertexData();
+    data.positions = surface.positions;
+    data.indices = surface.indices;
+    const normals: number[] = [];
+    VertexData.ComputeNormals(surface.positions, surface.indices, normals);
+    data.normals = normals;
+    // vlnky po dlaždicích ve světě, krytí podle hloubky (u břehu průzračnější)
+    const uvs = new Float32Array((surface.positions.length / 3) * 2);
+    const colors = new Float32Array((surface.positions.length / 3) * 4);
+    for (let v = 0; v < surface.alphas.length; v++) {
+      uvs[v * 2] = surface.positions[v * 3]! / FLOOD_RIPPLE_M;
+      uvs[v * 2 + 1] = surface.positions[v * 3 + 2]! / FLOOD_RIPPLE_M;
+      colors.set([1, 1, 1, surface.alphas[v]!], v * 4);
+    }
+    data.uvs = uvs;
+    data.colors = colors;
+    data.applyToMesh(mesh);
+    mesh.hasVertexAlpha = true;
+    this.waterMaterial.diffuseColor = FLOOD_COLOR[flood.season];
+    mesh.material = this.waterMaterial;
+    mesh.isPickable = false;
+    return mesh;
+  }
+
+  private disposeWater(): void {
+    this.water?.dispose();
+    this.water = null;
   }
 
   /**
@@ -297,12 +347,17 @@ export class StormRenderer {
     if (this.particles.setAmount(hailFall(t))) changed = true;
     if (this.cover.setAmount(hailCover(t))) changed = true;
     const f = this.flood ? gameDay - this.flood.day : Number.NaN;
-    const level = this.water && this.flood ? floodLevel(f) : 0;
-    if (level !== this.level && this.water && this.flood) {
+    const level = this.flood ? floodLevel(f) : 0;
+    if (level !== this.level && this.flood && this.floodAbove) {
       this.level = level;
-      // voda ustupuje celá naráz – plocha klesá a terén ji postupně zakryje
-      this.water.position.y = -(1 - level) * this.flood.heightM * HEIGHT_SCALE;
-      this.water.setEnabled(level > 0);
+      if (level > 0) {
+        this.water ??= this.buildWater(this.flood, this.floodAbove);
+        // voda ustupuje celá naráz – plocha klesá a terén ji postupně zakryje
+        if (this.water) this.water.position.y = -(1 - level) * this.flood.heightM * HEIGHT_SCALE;
+      } else {
+        // před povodní a po ústupu žádná plocha vody (bahno zůstává)
+        this.disposeWater();
+      }
       changed = true;
     }
     if (this.mud.setAmount(floodMud(f))) changed = true;

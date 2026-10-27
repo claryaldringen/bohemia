@@ -287,10 +287,14 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     (0,17 / 0,19 / 0,23), tmavší a hustší opar (× 1,6), odraz oblohy na vodě tmavý, sytost −30
     (filtr obrazu, jen s denní dobou); s bouřkou prší (déšť 0,7 × bouřka). **Záblesky** v síle
     bouřky ≥ 0,6: deterministicky z času (`lightningFlash(epochMs)` – okna 1,8 s, blesk v 45 %
-    oken, dva údery a dosvit ≈ 0,45 s, síla 0,5–1) – oblaka +2,2, okolní světlo +0,7, tón +0,9,
-    obloha a opar zesvětlí; slunce ne (stínová mapa se nepřekresluje). Záblesky jdou
-    v `animate()` (překreslí se jen při změně síly), **při omezeném pohybu bez záblesků**, jen
-    ztmavení (po krocích v kontrole období). **Kroupy** – `RainRenderer` s druhem `DropKind`
+    oken, náběh, úder a dosvit ≈ 0,45 s, síla 0,5–1) – oblaka +2,2, okolní světlo +0,7, tón +0,9,
+    obloha a opar zesvětlí; slunce ne (stínová mapa se nepřekresluje). **Bezpečné pro oči**
+    (WCAG 2.3.1 – nejvýš 3 záblesky za sekundu): blesk má jedinou špičku (jas jen roste, pak jen
+    klesá, žádný druhý úder) a začíná v okně tak, aby do dalšího okna zbyla tma ≥ 400 ms
+    (`FLASH_GAP_MS`) – za libovolnou 1 s nejvýš 2 vzestupy jasu (test na 100 000 oken). Záblesky
+    jdou v `animate()` (překreslí se jen při změně síly), **při omezeném pohybu bez záblesků**,
+    jen ztmavení (po krocích v kontrole období); zapne-li hráč omezený pohyb během záblesku,
+    `frame()` záblesk hned zhasne. **Kroupy** – `RainRenderer` s druhem `DropKind`
     (bílé kuličky, 1600 při plné síle, pád 16 m/s, jeden draw call) jen v pruhu (`setArea` –
     `hailZone` z jádra, mimo pruh nulová matice), padají 0,1–0,5 dne. **Bílý pás na zemi**
     (`overlayGrid` ve `flood-water.ts` – obtisk v mřížce 7,5 m na terénu, krytí ve vrcholech):
@@ -305,9 +309,15 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     od dne povodně do konce bahna. Zatopená políčka ze **stejné funkce jako jádro**
     (`streamHeights` – výška nad potokem < výška vody), plocha vody ve středech políček
     (zatopená + sousední – břeh je průsečík s vyšším terénem): hladina = dno nejbližšího potoka +
-    výška vody (× převýšení), kalná hnědá (jaro šedší), krytí podle hloubky 0,5–0,92, vlnky
-    normálovou mapou potoka (`createRippleNormalMap`). Voda stojí `FLOOD.standDays` (3 dny),
-    pak za den ustoupí – plocha klesá (`position.y`, po desetinách) a terén ji zakryje; **hnědé
+    výška vody (× převýšení), kalná šedohnědá s modrým nádechem (léto 0,36 / 0,33 / 0,27, jaro
+    0,38 / 0,40 / 0,38), **odraz oblohy Fresnelem** (`diffuseFresnelParameters` ubere světlo
+    vody, `emissiveFresnelParameters` přičte oblohu – shora 10 %, šikmo až 55 %; barva oblohy
+    `DayLight.waterSky` v `applyLight` přes `setSky`, i za bouřky a v noci) – z ptačí perspektivy
+    lesklá voda, ne hnědá cesta; lesk slunce (`specularColor` 0,8, `specularPower` 140), krytí
+    podle hloubky 0,25–0,92 (u břehu prosvítá tráva), jemné vlnky normálovou mapou potoka
+    (`createRippleNormalMap`, `level` 0,15, dlaždice 56 m – bez šachovnice). Voda stojí
+    `FLOOD.standDays` (3 dny), pak za den ustoupí – plocha klesá (`position.y`, po desetinách)
+    a terén ji zakryje; mesh vody se staví, až voda stoupne, a po ústupu se zahodí; **hnědé
     bahno a naplavenina** (obtisk jako bílý pás, síla podle hloubky) 14 dní po ústupu zarůstá.
     Naplavené větve vynechané.
   - Bez pohromy jsou kroupy, pás, voda i bahno vypnuté – draw cally v normálním roce beze změny;

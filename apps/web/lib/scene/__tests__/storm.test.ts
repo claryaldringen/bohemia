@@ -66,6 +66,31 @@ describe('bouřka s kroupami (storm.ts)', () => {
     expect(lit / 18_000).toBeLessThan(0.15);
   });
 
+  it('bezpečné pro oči (WCAG 2.3.1): za libovolnou 1 s nejvýš 2 vzestupy jasu, 100 000 oken', () => {
+    const SLOT_MS = 1800;
+    const rises: number[] = [];
+    let head = 0;
+    let previous = 0;
+    let rising = false;
+    let worst = 0;
+    let lastDark = -Infinity;
+    let shortestGap = Infinity;
+    for (let ms = 0; ms < 100_000 * SLOT_MS; ms += 10) {
+      const flash = lightningFlash(ms);
+      if (flash > previous && !rising) {
+        rising = true;
+        rises.push(ms);
+        while (rises[head]! <= ms - 1000) head++;
+        worst = Math.max(worst, rises.length - head);
+        if (previous === 0) shortestGap = Math.min(shortestGap, ms - lastDark);
+      } else if (flash < previous) rising = false;
+      if (flash > 0) lastDark = ms + 10;
+      previous = flash;
+    }
+    expect(worst).toBeLessThanOrEqual(2);
+    expect(shortestGap).toBeGreaterThanOrEqual(400);
+  });
+
   it('bouřka scénu ztmaví, záblesk rozsvítí oblaka a okolní světlo, slunce ne', () => {
     const day = dayLight(seasonLook(REFERENCE_DAY), REFERENCE_DAY, 12);
     expect(stormLight(day, 0, 1)).toBe(day);

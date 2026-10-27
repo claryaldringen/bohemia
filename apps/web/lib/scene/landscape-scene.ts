@@ -468,6 +468,7 @@ export class LandscapeScene {
       landscape,
       groundHeight: (x, z) => terrainMeshHeight(surface, x, z),
     });
+    if (this.daylight) this.storm.setSky(this.daylight.waterSky);
     this.stormNow = 0;
     this.flashNow = 0;
     this.disasterKey = '';
@@ -1624,6 +1625,11 @@ export class LandscapeScene {
     // omezeném pohybu animace stojí a takt slouží jen dokreslování po načtení
     const moving = !this.reducedMotion?.matches;
     const fps = moving ? this.animationFps() : WATER_FPS;
+    // omezený pohyb zapnutý během záblesku – scéna nesmí zůstat rozsvícená
+    if (!moving && this.flashNow > 0) {
+      this.flashNow = 0;
+      if (this.applyLight(true)) this.needsRender = true;
+    }
     if (tickDue(now, this.lastAnimationTick, fps)) {
       // takt se posouvá při každé kontrole – kontroly animací nejvýš `fps` za sekundu
       this.lastAnimationTick = nextTick(now, this.lastAnimationTick, fps);
@@ -1879,6 +1885,7 @@ export class LandscapeScene {
     this.impostorForest?.setTone(day.tone);
     this.village?.setLightTone(day.tone);
     this.water?.setSeason(look.water.tint, day.waterSky, look.ice);
+    this.storm?.setSky(day.waterSky);
     return true;
   }
 
