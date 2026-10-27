@@ -555,8 +555,10 @@ export function foundVillage(input: {
     // nová ves rovnou s osevním postupem po dílech (fields.md – Osevní postup po dílech, bod 7)
     sowingRotation: true,
     storesKg: food
-      ? food.grainKg
+      ? food.grainKg + (settlers?.seedKg ?? 0)
       : (annualNeed * START_STORES_MONTHS) / MONTHS_PER_YEAR + annualNeed * START_SEED_YEARS,
+    // osivo, které osadníci přinesli, ves nesní (fields.md – Osivo pro ves bez zásob)
+    ...(settlers?.seedKg ? { reservedSeedKg: settlers.seedKg } : {}),
     // nová ves mlátí až na humně, které postaví hráč – bez odkladu (production-chains.md – Humno)
     sheaves: { grainKg: 0, legumesKg: 0 },
     // zásoby osadníků jsou doma; jámy vesničané vykopou po prvním výmlatu (production-chains.md –

@@ -540,7 +540,7 @@ function tradeOf(state: VillageState): VillageTrade {
 }
 
 /** Uloží zbytek roku souseda (mutuje stav). */
-function storeStock(state: VillageState, stock: NeighbourStock): void {
+export function storeStock(state: VillageState, stock: NeighbourStock): void {
   const trade = tradeOf(state);
   trade.neighbours = [...trade.neighbours.filter((n) => n.direction !== stock.direction), stock];
 }

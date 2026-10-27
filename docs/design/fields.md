@@ -1453,6 +1453,30 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
     jako nový plán. Jednou, idempotentně (při načtení vsi). Dřív zaseté díly odečetly osivo
     postaru při sklizni a nový osev ho vzal ze zásob – ves tak rok po převodu platila osivo
     dvakrát a ≈ 2 roky šetřila (Vlkov: 333 a 281 dní, nejnižší příděl 0,67).
+  - **Osivo pro ves bez zásob** (Martin 27. 10. 2026 k návrhu Clauda, že si osadníci osivo
+    přinesou a ves ho koupí u sousedů: „**ok, jak navrhuješ**“; pravidla a čísla návrh Clauda) –
+    ves bez zásob by jinak už nikdy nezasela (pod prahy přídělu nesmí osivo do země, bez setí
+    nepřijde sklizeň); osivo na půl roku měla jen nová ves hráče, ne dceřiná ves z odchodu ani
+    ves, které požár nebo jiná pohroma vzala zásoby po žních:
+    - **Osadníci si osivo přinesou** ([migrace](migration.md) – Odchod do nové vsi): na první osev
+      **půl roční potřeby** odcházejících (jako nová ves – START_SEED_YEARS), jen ze svého dílu
+      zásob obilí mateřské vsi (podle počtu lidí – mateřská ves nepřijde o víc), a mají ho napřed
+      před jídlem: **20 kg na nosiče navíc** k 25 kg jídla, zbytek **na voze místo jídla**. Pěšky
+      tak nesou málo (rodina se dvěma nosiči 40 kg ≈ 0,23 ha), s vozem až celý díl.
+    - **Ves si osivo koupí u sousedů** ([obchod](trade.md) – Nákup osiva): **1. 9.** (před setím
+      ozimu) a **1. 3.** (před setím jaře) spočítá osivo nutných dílů plánu, které čeká na setí
+      (bez dílů nad potřebu; chybějící luštěniny za obilí), a odečte osivo, které smí do země.
+      Chybí-li aspoň 5 kg, koupí **jen chybějící osivo** – nejvýš kolik obilí sousedé letos ještě
+      mají (po zlém roce kraje méně) – a zaplatí, **čím může bez ohrožení: hřivnami, pak kravami
+      nad chovný pár** (cena jako v obchodu, po zlém roce kraje nižší). Jídlem ani voly neplatí.
+      Přeplatek za poslední kus dá soused v obilí do zásob (k jídlu), kolik ho ještě má. Zboží se
+      vymění hned (bez cesty nosičů). Nekoupí-li dost (nemá čím zaplatit, sousedé nemají), díly
+      bez osiva **nezaseje** a kronika to zapíše (upozornění „Chybí osivo na setí“).
+    - **Osivo osadníků a koupené ves nesní** – je jen na setí, do země smí i pod prahy přídělu
+      a nutné díly ho berou napřed; co do **1. 6.** (po setí jaře i s odkladem za počasí)
+      nezaseje, je obyčejné zrno.
+    - **Otevřená otázka:** půjčka osiva od pána (vazal si osivo vypůjčí a vrátí ze sklizně) – až
+      s vazalstvím (návrh Clauda, Martin 27. 10. 2026 odložil).
 - Úroda se sníží podle nedodělané práce (pletí, sklizeň, odnos – viz Včasnost).
 - **Úrodnost:** osetý rok sníží aktuální úrodnost dílu o 12 % přirozené, rok v přílohu ji
   o 5 % přirozené vrátí (od 26. 10. 2026, dřív 2,5 %), nejvýš na přirozenou (viz Přílohová soustava).
@@ -2240,3 +2264,4 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Obilné jámy srpen–listopad po polních pracích, v zapečetěné jámě 3 % za rok; plán osevu ztráty jako doma                                                                                                                                          | návrh Clauda                                         |
 | Osevní postup po dílech (po ozimu jař, po jaři úhor) a setí do konce okna místo plánu k 1. 9.; nad potřebu celá práce po stavbách                                                                                                                 | návrh Clauda, Martin schválil (25. 10. 2026)         |
 | Osivo ze zásob v den setí, sklizeň ho neodečítá; osivo do roční potřeby od přídělu 0,75, nad ni od 1; osivo v plánu se nejí (v hladu ano); luštěniny chybějící na osivo za obilí; start + osivo na půl roční potřeby; převod starých prací – osivo zaseté části odpuštěné | Martin (27. 10. 2026), pravidla a čísla návrh Clauda |
+| Osivo pro ves bez zásob: osadníci nesou osivo na první osev (půl roční potřeby, 20 kg na nosiče, zbytek na voze); ves 1. 9. a 1. 3. koupí chybějící osivo za hřivny a krávy nad chovný pár; to ves nesní (do 1. 6.)                               | Martin (27. 10. 2026), pravidla a čísla návrh Clauda |

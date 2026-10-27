@@ -4,10 +4,19 @@ import { cloneState } from './clone';
 import { isVillageExtinct } from './extinction';
 import { removePeople } from './kinship';
 import { villageManor } from './manor';
-import { ageYears, occupants } from './people';
+import { ageGroup, ageYears, occupants } from './people';
 import { relocationBlock } from './relocation';
 import { leavingCart, takeLeavingCart } from './carts';
-import { CARTS, CHRONICLE_MAX_EVENTS, DWELLINGS, LEAVING, RUIN_YEARS } from './rules';
+import {
+  CARTS,
+  CHRONICLE_MAX_EVENTS,
+  DWELLINGS,
+  FOOD_NEED_KG_PER_YEAR,
+  LEAVING,
+  RUIN_YEARS,
+  START_SEED_YEARS,
+} from './rules';
+import { reservedSeedKg } from './seed';
 import { sheavesOutlook, takeSheaves } from './threshing';
 import { DIRECTION_VECTORS } from './trail';
 import type {
@@ -53,6 +62,11 @@ export interface Settlers {
   ancestors: Ancestor[];
   emigrants: Emigrant[];
   food: LeavingFood;
+  /**
+   * Osivo na první osev (kg obilí navíc k `food.grainKg` – fields.md, Osivo pro ves bez zásob):
+   * nová ves ho má jen na setí (`VillageState.reservedSeedKg`). Chybí = žádné.
+   */
+  seedKg?: number;
   herds: Record<HerdSpecies, number>;
   young: Record<HerdSpecies, number>;
   /**
@@ -127,7 +141,8 @@ export function departureBlock(state: VillageState, dwellingIds: readonly number
  * jeho náklad (CARTS.loadKg), nejvýš poměrný díl zásob vsi podle počtu lidí. Když neunesou celý
  * díl, berou z každé zásoby (obilí, maso, sýr, luštěniny, ovoce) stejný podíl. Snopy, které ves smí
  * vymlátit, jsou zásobou jako zrno (production-chains.md – Humno – výhled se ztrátami): svůj díl si
- * vymlátí a vezmou stejným podílem.
+ * vymlátí a vezmou stejným podílem. Osivo (`leavingSeedKg`) mají napřed – obilí na jídlo je díl
+ * bez osiva a osivo na voze ubere místo jídlu.
  */
 export function leavingFood(
   state: VillageState,
@@ -138,25 +153,48 @@ export function leavingFood(
   return leavingShare(state, leavers, day, cart).food;
 }
 
-/** Jídlo, které lidé `leavers` vezmou, a jaký podíl každé zásoby to je (`leavingFood`). */
+/**
+ * Osivo, které si lidé `leavers` ponesou (kg obilí – fields.md, Osivo pro ves bez zásob; návrh
+ * Clauda): na první osev půl roční potřeby odcházejících (START_SEED_YEARS, jako nová ves), jen
+ * z dílu zásob obilí vsi podle počtu lidí, který jim patří – mateřská ves tak nepřijde o víc než
+ * o poměrný díl zásob; nemá-li zrno, nesou méně, nebo nic. Osivo mají napřed: LEAVING.seedKgPerCarrier
+ * na nosiče navíc k jídlu, zbytek na voze místo jídla (vůz uveze víc).
+ */
+export function leavingSeedKg(
+  state: VillageState,
+  leavers: readonly Person[],
+  day: number,
+  cart: CartKind | null = null,
+): number {
+  return leavingShare(state, leavers, day, cart).seedKg;
+}
+
+/** Jídlo a osivo, které lidé `leavers` vezmou, a jaký podíl každé zásoby to je (`leavingFood`). */
 function leavingShare(
   state: VillageState,
   leavers: readonly Person[],
   day: number,
   cart: CartKind | null,
-): { food: LeavingFood; fraction: number } {
+): { food: LeavingFood; fraction: number; seedKg: number; seedStoresKg: number } {
   const share = state.people.length > 0 ? leavers.length / state.people.length : 0;
   const carriers = leavers.filter((p) => ageYears(p.bornDay, day) >= LEAVING.carryFromAge).length;
   const sheaves = sheavesOutlook(state, day);
+  const cartKg = cart ? CARTS.loadKg[cart] : 0;
+  // osivo napřed ze dílu zásob obilí, který jim patří (osivo, které má mateřská ves jen na setí,
+  // mezi ně nepatří) – na nosiče navíc k jídlu, zbytek na voze místo jídla
+  const need = leavers.reduce((sum, p) => sum + FOOD_NEED_KG_PER_YEAR[ageGroup(p, day)], 0);
+  const grainShare = Math.max(0, Math.max(0, state.storesKg) - reservedSeedKg(state)) * share;
+  const footSeedKg = carriers * LEAVING.seedKgPerCarrier;
+  const seedKg = Math.max(0, Math.min(need * START_SEED_YEARS, grainShare, footSeedKg + cartKg));
   const shares: LeavingFood = {
-    grainKg: (Math.max(0, state.storesKg) + sheaves.grainKg) * share,
+    grainKg: (Math.max(0, state.storesKg) + sheaves.grainKg) * share - seedKg,
     meatKg: Math.max(0, state.meatKg ?? 0) * share,
     cheeseKg: Math.max(0, state.cheeseKg ?? 0) * share,
     legumesKg: (Math.max(0, state.legumesKg ?? 0) + sheaves.legumesKg) * share,
     applesKg: Math.max(0, state.applesKg ?? 0) * share,
   };
   const total = Object.values(shares).reduce((sum, kg) => sum + kg, 0);
-  const budget = carriers * LEAVING.carryKgPerPerson + (cart ? CARTS.loadKg[cart] : 0);
+  const budget = carriers * LEAVING.carryKgPerPerson + cartKg - Math.max(0, seedKg - footSeedKg);
   const scale = total > budget && total > 0 ? budget / total : 1;
   return {
     food: {
@@ -167,6 +205,9 @@ function leavingShare(
       applesKg: shares.applesKg * scale,
     },
     fraction: share * scale,
+    seedKg,
+    // zásoby a snopy ubudou podílem `fraction`; osivo z něj – z jídla – vzala jen část `scale`
+    seedStoresKg: seedKg * (1 - scale),
   };
 }
 
@@ -252,12 +293,17 @@ export function departVillage(
   const share = leavers.length / state.people.length;
   // volný vůz s voly (migration.md – Vůz při odchodu) – uveze víc jídla
   const cart = leavingCart(state, day, leavers.length === state.people.length);
-  const { food, fraction } = leavingShare(state, leavers, day, cart?.cart.kind ?? null);
+  const { food, fraction, seedKg, seedStoresKg } = leavingShare(
+    state,
+    leavers,
+    day,
+    cart?.cart.kind ?? null,
+  );
   const kin = settlerKin(state, leavers);
   const next = cloneState(state);
   if (cart) takeLeavingCart(next, cart);
   // z každé zásoby stejný podíl – i ze snopů, které ves smí vymlátit (production-chains.md – Humno)
-  next.storesKg -= Math.max(0, state.storesKg) * fraction;
+  next.storesKg -= Math.max(0, state.storesKg) * fraction + seedStoresKg;
   if (next.meatKg !== undefined) next.meatKg -= food.meatKg;
   if (next.cheeseKg !== undefined) next.cheeseKg -= food.cheeseKg;
   if (next.legumesKg !== undefined) next.legumesKg -= Math.max(0, state.legumesKg ?? 0) * fraction;
@@ -301,6 +347,7 @@ export function departVillage(
       people,
       ...kin,
       food,
+      ...(seedKg > 0 ? { seedKg } : {}),
       herds,
       young,
       ...(cart ? { cart: { ...cart.cart }, oxen: cart.oxen } : {}),
@@ -348,7 +395,9 @@ export function travellingVillage(
     constructions: [],
     season: null,
     threshingSeason: null,
-    storesKg: food.grainKg,
+    // osivo osadníků ves na cestě nesní (fields.md – Osivo pro ves bez zásob)
+    storesKg: food.grainKg + (settlers.seedKg ?? 0),
+    ...(settlers.seedKg ? { reservedSeedKg: settlers.seedKg } : {}),
     hungry: false,
     commonLaborHistory: [],
     chronicle: [
@@ -381,12 +430,13 @@ export function settlersOf(state: VillageState): Settlers {
     ancestors: (state.ancestors ?? []).map((a) => ({ ...a })),
     emigrants: (state.emigrants ?? []).map((e) => ({ ...e })),
     food: {
-      grainKg: Math.max(0, state.storesKg),
+      grainKg: Math.max(0, state.storesKg) - reservedSeedKg(state),
       meatKg: Math.max(0, state.meatKg ?? 0),
       cheeseKg: Math.max(0, state.cheeseKg ?? 0),
       legumesKg: Math.max(0, state.legumesKg ?? 0),
       applesKg: Math.max(0, state.applesKg ?? 0),
     },
+    ...(reservedSeedKg(state) > 0 ? { seedKg: reservedSeedKg(state) } : {}),
     herds: { ...(state.livestock?.herds ?? { sheep: 0, goat: 0, pig: 0, cow: 0 }) },
     young: { ...(state.livestock?.young ?? { sheep: 0, goat: 0, pig: 0, cow: 0 }) },
     ...(state.carts?.[0] ? { cart: { ...state.carts[0] } } : {}),

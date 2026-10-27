@@ -68,6 +68,19 @@ export const SEED_KG_PER_HA = 175;
 // floorRation 0,75 (z 0,6 – kalibrace Vlkova 27. 10. 2026, disasters.md – Kalibrace): po krutém
 // roce ves raději jí, než by pod tři čtvrtiny přídělu sela.
 export const SEED_STORES = { keepRation: 1, floorRation: 0.75 } as const;
+// fields.md – Osivo ze zásob, Osivo pro ves bez zásob (Martin 27. 10. 2026: „ok, jak navrhuješ“;
+// čísla návrh Clauda): ves, které na setí nutných dílů v plánu chybí osivo, ho koupí u sousedů
+// v den `days` – 1. 9. před setím ozimu, 1. 3. před setím jaře –, nejméně `minKg`. Koupené osivo
+// (i osivo osadníků – LEAVING.seedKgPerCarrier) ves nesní; co do `releaseDay` (1. 6. – po setí
+// jaře i s odkladem za počasí) nezaseje, je obyčejné zrno.
+export const SEED_BUYING = {
+  days: [
+    { month: 9, day: 1 },
+    { month: 3, day: 1 },
+  ],
+  minKg: 5,
+  releaseDay: { month: 6, day: 1 },
+} as const;
 // fields.md – Úroda (neopletený díl), Zarůstání
 export const UNWEEDED_YIELD = 0.6; // neopletý díl dá 60 % (návrh Clauda, kalibrace)
 // fields.md – Přílohová soustava (osev, příloh), Úroda (úrodnost). Obnova v přílohu 5 %

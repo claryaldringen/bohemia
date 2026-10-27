@@ -233,7 +233,12 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 - **Odchod do nové vsi** (migration.md, fáze 3 a 4; `departure.ts`): `departVillage` – domácnosti
   vybraných obydlí odejdou celé (rodokmen – rodiče osadníků jako předci, odešlí ve staré vsi
   v `ancestors` / `emigrants` se směrem), s jídlem `leavingFood` (`LEAVING`: 25 kg na člověka od
-  7 let, nejvýš poměrný díl zásob, ze všech zásob stejný podíl; s vozem navíc jeho náklad)
+  7 let, nejvýš poměrný díl zásob, ze všech zásob stejný podíl; s vozem navíc jeho náklad),
+  napřed **osivo** `leavingSeedKg` (fields.md – Osivo pro ves bez zásob: půl roční potřeby
+  odcházejících `START_SEED_YEARS`, nejvýš `LEAVING.seedKgPerCarrier` na nosiče + náklad vozu – co
+  je na voze, ubere místo jídlu; jen z dílu zásob bez `reservedSeedKg` mateřské vsi; obilí na jídlo
+  je díl bez osiva, mateřské vsi ubude `seedStoresKg` navíc k podílu `fraction`) – `Settlers.seedKg`
+  → v nové vsi (`foundVillage`, `travellingVillage`, zpět `settlersOf`) zásoby + `reservedSeedKg`
   a poměrným dílem stád; **vůz s voly** (migration.md – Vůz při odchodu: `leavingCart` – vůz doma
   a voli nad páry k rádlům, celá ves bere i ty, napřed čtyřkolák; `takeLeavingCart`,
   `Settlers.cart` / `oxen`; v nové vsi `VillageState.looseOxen` – s první ohradou volů do ní

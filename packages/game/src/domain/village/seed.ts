@@ -75,6 +75,14 @@ function storeKg(state: Pick<VillageState, 'storesKg' | 'legumesKg'>, store: See
 }
 
 /**
+ * Osivo ve zásobách obilí, které ves má jen na setí (kg – `VillageState.reservedSeedKg`, nejvýš
+ * zásoby obilí): přinesené osadníky a koupené u sousedů (fields.md – Osivo pro ves bez zásob).
+ */
+export function reservedSeedKg(state: Pick<VillageState, 'storesKg' | 'reservedSeedKg'>): number {
+  return Math.min(Math.max(0, state.reservedSeedKg ?? 0), Math.max(0, state.storesKg));
+}
+
+/**
  * Potřeba z pole do sklizně, se kterou počítá přídělový systém (kg obilí – `daysUntilFoodHarvest`);
  * z ní si ves nechá na jídlo příděl SEED_STORES.floorRation nebo keepRation. Podíl pole větší
  * z dlouhodobého (`fieldFoodShare`) a včerejší stravy – po úbytku stád jí ves obilí víc.
@@ -111,22 +119,27 @@ function grainSeedTakenKg(state: Pick<VillageState, 'season'>): number {
  * nad příděl keepRation; `floor` false (obilí nad potřebu) jen nad keepRation. Luštěniny celé
  * (ves je nejí místo obilí – strop ve stravě) a k nim obilí nad keepRation – chybějící osivo
  * luštěnin ves vymění u sousedů za obilí (návrh Clauda; ves bez luštěnin je tak může začít sít).
+ * Osivo, které ves má jen na setí (`reservedSeedKg` – osadníků a koupené), smí do země vždy a do
+ * nutných dílů napřed; prahy přídělu platí pro zbytek zásob obilí.
  */
 export function sowableSeedKg(
-  state: Pick<VillageState, 'storesKg' | 'legumesKg' | 'season'>,
+  state: Pick<VillageState, 'storesKg' | 'legumesKg' | 'season' | 'reservedSeedKg'>,
   store: SeedStore,
   foodKg: number,
   floor = true,
 ): number {
-  const stock = storeKg(state, store);
-  const grainAboveKeep = Math.max(0, storeKg(state, 'grain') - SEED_STORES.keepRation * foodKg);
+  const reserved = reservedSeedKg(state);
+  const grain = storeKg(state, 'grain') - reserved;
+  const grainAboveKeep = Math.max(0, grain - SEED_STORES.keepRation * foodKg);
   // luštěnin chybějících na osivo ves vymění u sousedů za obilí, které nesní
-  if (store === 'legumes') return stock + grainAboveKeep;
-  const aboveKeep = grainAboveKeep;
-  if (!floor) return aboveKeep;
-  const floorLeft = Math.max(0, (state.season?.seedFloorKg ?? 0) - grainSeedTakenKg(state));
-  const aboveFloor = Math.max(0, stock - SEED_STORES.floorRation * foodKg);
-  return Math.max(aboveKeep, Math.min(floorLeft, aboveFloor));
+  if (store === 'legumes') return storeKg(state, 'legumes') + grainAboveKeep + reserved;
+  if (!floor) return grainAboveKeep;
+  const floorLeft = Math.max(
+    0,
+    (state.season?.seedFloorKg ?? 0) - grainSeedTakenKg(state) - reserved,
+  );
+  const aboveFloor = Math.max(0, grain - SEED_STORES.floorRation * foodKg);
+  return reserved + Math.max(grainAboveKeep, Math.min(floorLeft, aboveFloor));
 }
 
 /**
@@ -169,7 +182,8 @@ export function seedUseKg(
  * Vezme ze zásob osivo zasetého podílu (mutuje stav a `work`): zasetý podíl × osivo celého plánu
  * bez osiva, které už plodina vzala; luštěniny napřed ze zásoby luštěnin, chybějící za obilí
  * (výměna u sousedů); obilí z otevřené obilné jámy, když zrno mimo jámy nestačí
- * (`drawGrainPits`). Vrací vzaté osivo (kg).
+ * (`drawGrainPits`); nutné díly berou obilí napřed z osiva, které ves má jen na setí
+ * (`reservedSeedKg`). Vrací vzaté osivo (kg).
  */
 export function takeSeed(
   state: VillageState,
@@ -186,6 +200,14 @@ export function takeSeed(
   if (legumes > 0) state.legumesKg = (state.legumesKg ?? 0) - legumes;
   const grain = Math.min(due - legumes, storeKg(state, 'grain'));
   if (grain > 0) {
+    // osivo osadníků a koupené jde do nutných dílů – díl nad potřebu seje jen ze zbytku zásob
+    const surplus = 'surplus' in work && work.surplus === true;
+    const reserved = surplus ? 0 : reservedSeedKg(state);
+    if (reserved > 0) {
+      const left = reserved - Math.min(reserved, grain);
+      if (left > EPSILON) state.reservedSeedKg = left;
+      else delete state.reservedSeedKg;
+    }
     state.storesKg -= grain;
     drawGrainPits(state);
   }
@@ -196,14 +218,20 @@ export function takeSeed(
 
 /**
  * Osivo, které na setí ještě čeká (kg po zásobách): nezasetý podíl plánů s osivem ze zásob
- * a díly vybrané, které na čelo práce teprve přijdou (`FarmSeason.seedWaitingKg`).
+ * a díly vybrané, které na čelo práce teprve přijdou (`FarmSeason.seedWaitingKg`); s `neededOnly`
+ * bez prací nad potřebu.
  */
-export function seedAheadKg(state: Pick<VillageState, 'season' | 'parts'>): SeedKg {
+export function seedAheadKg(
+  state: Pick<VillageState, 'season' | 'parts'>,
+  neededOnly = false,
+): SeedKg {
   const ahead: SeedKg = { grain: 0, legumes: 0 };
   const season = state.season;
   if (!season) return ahead;
   let byId: Map<number, FieldPart> | null = null;
   for (const { crop, work } of seasonCrops(season)) {
+    // `neededOnly` – jen nutné díly (bez obilí nad potřebu – nákup osiva u sousedů)
+    if (neededOnly && work.surplus) continue;
     const store = seedStore(crop);
     if (work.seedKg === undefined || store === null || work.harvestedKg !== null) continue;
     const sown = sownShare(work);
@@ -225,16 +253,15 @@ export function seedAheadKg(state: Pick<VillageState, 'season' | 'parts'>): Seed
  * Osivo, které ves nejí (kg po zásobách – diet.md, fields.md – Osivo ze zásob): čekající osivo
  * obilí (`seedAheadKg`) a osivo luštěnin, na které jejich zásoba nestačí (vymění se za obilí) –
  * jen to, které smí do země (`sowableSeedKg` – pod prahy přídělu ho ves sní). Luštěniny ves jí
- * dál (do stropu ve stravě) – chybějící osivo luštěnin dá obilí.
+ * dál (do stropu ve stravě) – chybějící osivo luštěnin dá obilí. Osivo, které ves má jen na setí
+ * (`reservedSeedKg` – osadníků a koupené), nesní nikdy.
  */
 export function seedReserve(
-  state: Pick<VillageState, 'season' | 'parts' | 'storesKg' | 'legumesKg'>,
+  state: Pick<VillageState, 'season' | 'parts' | 'storesKg' | 'legumesKg' | 'reservedSeedKg'>,
   foodKg: number,
 ): SeedKg {
   const ahead = seedAheadKg(state);
   const legumesShort = Math.max(0, ahead.legumes - storeKg(state, 'legumes'));
-  return {
-    grain: Math.min(ahead.grain + legumesShort, sowableSeedKg(state, 'grain', foodKg)),
-    legumes: 0,
-  };
+  const sowable = Math.min(ahead.grain + legumesShort, sowableSeedKg(state, 'grain', foodKg));
+  return { grain: Math.max(sowable, reservedSeedKg(state)), legumes: 0 };
 }

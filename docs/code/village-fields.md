@@ -221,6 +221,17 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `dayMealInput`, `eat` ho vrátí do zásob) a `fieldSowingTargets` ho odečte od zásob k sklizni
   (`sowingTargets(…, seedAheadKg)`). `expectedWinterKg` odečte jen osivo, které zásoby ještě
   vezmou. Nová ves: `START_SEED_YEARS` osiva navíc.
+- **Osivo pro ves bez zásob** (fields.md – Osivo ze zásob, Osivo pro ves bez zásob; Martin 27. 10. 2026): `VillageState.reservedSeedKg` = osivo ve `storesKg` jen na setí (osadníků –
+  `Settlers.seedKg`, village-people.md; koupené). `reservedSeedKg()` ho omezí zásobami;
+  `sowableSeedKg` ho přičte vždy a prahy přídělu počítá ze zbytku zásob (obilí nad potřebu ho
+  nedostane); `seedReserve` ho nesní nikdy; `takeSeed` ho u nutných dílů bere napřed.
+  `seed-buying.ts` (`seedBuyingDay` v `simulateDay` po `startPurchases`): 1. 6.
+  (`SEED_BUYING.releaseDay`) ho smaže; 1. 9. a 1. 3. (`SEED_BUYING.days`) `seedShortKg` = osivo
+  nutných dílů (`seedAheadKg(state, true)` – bez `surplus`, chybějící luštěniny za obilí) −
+  `sowableSeedKg`; od `minKg` `buySeed`: zásoba obilí sousedů (`neighbourStock` ve směrech
+  `NEIGHBOR_DIRECTIONS`, ubude `storeStock`), cena `buyPrice('grain')`, platba hřivny → krávy
+  `cattleForSale` (`sellPrice` × `goodWorth`), přeplatek obilím do zásob (`changeKg`); kronika
+  `seed-bought` / `seed-short` (`reason` `pay` / `supply`; upozornění `seed-short`).
 - **Postup práce po čtvercích** (Martin – fields.md): kopání, setí a sklizeň mění díl, až k němu
   dojde práce. `field-progress.ts` (jen čte): díly plodiny v pořadí `CropWork.partIds` (dávka
   po úsecích hospodářství od domu ven – řadí `createCropWork` s `workOrder`, ves bez hospodářství

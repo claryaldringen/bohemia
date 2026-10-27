@@ -29,6 +29,7 @@ import { moveGrainFromCoveredPits } from './grain-pit-site';
 import { withThreshingGrace, spoilSheaves } from './threshing';
 import { withSeason } from './year-plan';
 import { withSeedForgiven } from './seed';
+import { seedBuyingDay } from './seed-buying';
 import { withSowingRotation } from './rotation';
 import { sacredOakEvents } from './sacred-life';
 import { orchardSeasonDay } from './orchard';
@@ -240,6 +241,9 @@ function simulateDay(
   // nákup výrobků řemeslníků u sousedů – jednou za rok po sklizni, ves se rozhodne sama
   // (crafts.md – Nákup u sousedů); skupina vyrazí hned
   startPurchases(state, day, coverage, landscape);
+  // osivo pro ves bez zásob – 1. 9. a 1. 3. ho ves koupí u sousedů, 1. 6. je nezaseté obyčejné
+  // zrno (fields.md – Osivo pro ves bez zásob); po plánu dne, před prací
+  state.chronicle.push(...seedBuyingDay(state, day));
   const { toil, lordField } = work(
     state,
     day,

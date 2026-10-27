@@ -511,6 +511,24 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
         'odchází s nimi',
         event.people,
       );
+    case 'seed-bought': {
+      const pay = [
+        ...(event.pay.ironBarsKg ? [`${formatInteger(event.pay.ironBarsKg)} kg hřiven`] : []),
+        ...(event.pay.cows
+          ? [
+              `${formatInteger(event.pay.cows)} ${plural(event.pay.cows, 'krávou', 'kravami', 'kravami')}`,
+            ]
+          : []),
+      ].join(' a ');
+      const change = event.changeKg
+        ? ` Za přeplatek dostali ${formatInteger(event.changeKg)} kg obilí k jídlu.`
+        : '';
+      return `Vesničané koupili u sousedů ${formatInteger(event.seedKg)} kg obilí na osivo – zaplatili ${pay}.${change}`;
+    }
+    case 'seed-short':
+      return event.reason === 'supply'
+        ? `Na setí chybí ${formatInteger(event.shortKg)} kg osiva a sousedé letos víc obilí nemají – díly bez osiva vesničané nezasejí.`
+        : `Na setí chybí ${formatInteger(event.shortKg)} kg osiva a vesničané nemají čím ho u sousedů zaplatit – díly bez osiva nezasejí.`;
     case 'crafts-bought':
       return `Vesničané koupili ${productList(boughtProducts(event.get))} u souseda (${DIRECTION_NAMES[event.direction].name}) – zaplatili ${formatInteger(paymentValueKg(event.pay))} kg obilí.`;
     case 'trade-returned':

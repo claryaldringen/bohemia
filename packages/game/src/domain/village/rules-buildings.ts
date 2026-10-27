@@ -179,8 +179,13 @@ export const STRUCTURE_REPAIR = {
 // migration.md – Odchod do nové vsi (návrh Clauda): s sebou jídlo, které unesou – 25 kg na
 // člověka od 7 let, nejvýš poměrný díl zásob vsi podle počtu lidí; cesta na novou mapu 1–3 dny
 // podle vzdálenosti ke kraji mapy (každých `perDayM` metrů den), po hotové zemské stezce 1 den.
+// Osivo (fields.md – Osivo pro ves bez zásob; Martin 27. 10. 2026: „ok, jak navrhuješ“; čísla návrh
+// Clauda): k jídlu nesou osivo na první osev – půl roční potřeby odcházejících (START_SEED_YEARS,
+// jako nová ves) – nejvýš `seedKgPerCarrier` na nosiče navíc (s jídlem 45 kg) a volné místo vozu,
+// jen z dílu zásob obilí vsi, který jim patří a který jako jídlo neunesli.
 export const LEAVING = {
   carryKgPerPerson: 25,
+  seedKgPerCarrier: 20,
   carryFromAge: 7,
   travelDays: { min: 1, max: 3, perDayM: 400 },
 } as const;

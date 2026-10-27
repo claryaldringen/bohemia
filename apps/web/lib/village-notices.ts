@@ -53,6 +53,8 @@ export type NoticeKind =
   | 'iron-brought'
   /** Vesničané koupili výrobky řemeslníků u souseda (crafts.md – Nákup u sousedů). */
   | 'crafts-bought'
+  /** Ves nemá osivo na setí nutných dílů a koupit ho nemohla (fields.md – Osivo pro ves bez zásob). */
+  | 'seed-short'
   | 'sacred-oak'
   | 'sacred-grove'
   | 'sacred-oak-died'
@@ -495,6 +497,8 @@ const CHRONICLE_NOTICES: Partial<
       entry.direction ? ` (${DIRECTION_NAMES[entry.direction].name})` : ''
     }`,
   }),
+  // osivo chybí a koupit nešlo (fields.md – Osivo pro ves bez zásob) – díly bez osiva ves nezaseje
+  'seed-short': () => ({ kind: 'seed-short', tone: 'warn', text: 'Chybí osivo na setí' }),
   // lidé od souseda (trade.md – Výměna lidí) – fakt, odkud přišli
   newcomer: (entry) => newcomerNotice(entry.group ?? 'family', entry),
   // nepasený příloh zarostl lesem a vypadl z pole (fields.md – Zarůstání)

@@ -85,6 +85,12 @@ export interface VillageState {
   threshingSeason: FarmSeason | null;
   storesKg: number;
   /**
+   * Osivo ve `storesKg`, které ves má jen na setí a nesní ho (fields.md – Osivo ze zásob, Osivo pro
+   * ves bez zásob): přinesené osadníky dceřiné vsi a koupené u sousedů. Do země smí i pod prahy
+   * přídělu, setí ho bere napřed; co do 1. 6. nezaseje, je obyčejné zrno. Chybí = žádné.
+   */
+  reservedSeedKg?: number;
+  /**
    * Nedodělek domácí výroby – jen ve vsích uložených před 19. 10. 2026; domácí výroba z práce
    * vsi nebere (population.md – Práce), simulace ho nečte ani nepíše.
    */

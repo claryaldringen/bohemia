@@ -60,6 +60,12 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
   maso, sýr, luštěniny, ovoce podle zásob, nejvýš poměrný díl zásob vsi podle počtu lidí), a **poměrný díl stád**
   (ovce, kozy, prasata, krávy; voli a ohrady zůstávají ve staré vsi – kromě vozu s voly, viz
   níž Vůz při odchodu). Klády, nástroje a keramika zůstanou.
+- **Osivo na první osev** (Martin 27. 10. 2026: „ok, jak navrhuješ“; pravidla a čísla návrh
+  Clauda – [pole](fields.md), Osivo pro ves bez zásob): k jídlu si vezmou osivo – **půl roční
+  potřeby** odcházejících (jako nová ves), jen ze svého dílu zásob obilí (mateřská ves nepřijde
+  o víc než o poměrný díl; osivo, které má jen na setí, mezi něj nepatří). Osivo mají napřed:
+  **20 kg na nosiče navíc** k jídlu, zbytek **na voze místo jídla**. Nová ves ho nesní (ani na
+  cestě) a zaseje ho do 1. 6.; co chybí, koupí u sousedů.
 - **Vůz při odchodu** (Martin 20. 10. 2026 k návrhu nových nákladů vozů – [vozy](wagons.md), Co se
   vozí a na čem: „**Ano, udělej to jak říkáš**“; podrobnosti rozhodnutí Clauda): odcházející si
   vezmou **volný vůz s voly** – vůz doma (ne na výpravě) a vycvičené voly pro něj (čtyřkolák pár,
@@ -117,6 +123,7 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
 | Vlastní ves v sousední mapě nahradí souseda bez simulace – tím směrem se neodchází ani neobchoduje     | návrh Clauda                                      |
 | Odcházející si vezmou volný vůz s voly a víc jídla                                                     | návrh Clauda, Martin („Ano, udělej to jak říkáš“) |
 | Volný vůz = voli nad páry k rádlům (celá ves bere i ty); napřed čtyřkolák; voli v nové vsi bez ohrady  | rozhodnutí Clauda                                 |
+| Osivo na první osev: půl roční potřeby, ze svého dílu zásob, 20 kg na nosiče, zbytek na voze           | Martin (27. 10. 2026), čísla návrh Clauda         |
 
 ## Na stavitelích
 
@@ -198,6 +205,7 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
   stěhování); přestavovaný dům odejít smí – přestavba prázdného domu se sama opustí.
 - **Co si vezmou:** 25 kg na člověka od 7 let, nejvýš poměrný díl zásob podle počtu lidí; když
   neunesou celý díl, berou ze všech zásob (obilí, maso, sýr, luštěniny, ovoce) stejný podíl.
+  Napřed osivo na první osev (viz výš) – obilí na jídlo je díl bez něj.
   Stáda: poměrný díl ovcí, koz, prasat a krav i letošních mláďat (počty smí být neceločíselné
   jako všude ve stádech); voli, ohrady, klády, nástroje a keramika zůstanou.
 - **Nová ves** začíná jako při založení – všichni osadníci jsou jedna domácnost na staveništi

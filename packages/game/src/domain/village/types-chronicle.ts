@@ -283,6 +283,22 @@ export type ChronicleEvent = { day: number } & (
       get: CraftPurchaseGoods;
       pay: CraftPurchasePay;
     }
+  /**
+   * Ves koupila u sousedů osivo na setí nutných dílů (fields.md – Osivo pro ves bez zásob): kg
+   * obilí na osivo, obilí do zásob za přeplatek posledního kusu dobytka (`changeKg`; chybí = nic)
+   * a čím platila – hřivny (kg) a krávy (kusy).
+   */
+  | {
+      kind: 'seed-bought';
+      seedKg: number;
+      changeKg?: number;
+      pay: { ironBarsKg?: number; cows?: number };
+    }
+  /**
+   * Ves nemá osivo na setí nutných dílů a koupit ho nemohla (fields.md – Osivo pro ves bez zásob):
+   * kolik osiva chybí (kg) – nemá čím zaplatit (`pay`), nebo sousedé obilí nemají (`supply`).
+   */
+  | { kind: 'seed-short'; shortKg: number; reason: 'pay' | 'supply' }
   /** Tesař vyrobil vůz (wagons.md – Tesař). */
   | { kind: 'cart-made'; cart: CartKind }
   /**
