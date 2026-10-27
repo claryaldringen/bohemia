@@ -15,6 +15,7 @@ export * from './wildlife';
 export * from './rules-disasters';
 export * from './weather';
 export * from './disasters';
+export * from './part-protection';
 export * from './hunt';
 export { dogsYear, feedDogs } from './manor-dogs';
 export {

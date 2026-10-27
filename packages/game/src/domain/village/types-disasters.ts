@@ -62,10 +62,43 @@ export interface FireFight {
   efficiency: number;
 }
 
+/**
+ * Ochrana jednoho dílu před počasím – složky spočtené 1. 4. (disasters.md – Ochrana dílu). Z nich
+ * `partProtection` složí ochranu pro sucho, mokro, holomráz a kroupy.
+ */
+export interface PartProtection {
+  /** Zeleň 0–1: nejbližší zeleň (les, sad, remíz, strom na mezi) plus solitéry do 50 m. */
+  green: number;
+  /** U vody (do 60 m od vody) nebo v nivě – sucho +0,2. */
+  nearWater?: true;
+  /** V nivě (do 1,5 m nad potokem) – deštivé léto −0,2. */
+  lowland?: true;
+  /** Vyvýšený díl na hřbetu – sucho a holomráz −0,2. */
+  raised?: true;
+  /** Svah (převýšení k sousednímu políčku ≥ 1,5 m) – deštivé léto +0,2. */
+  slope?: true;
+}
+
+/** Druh počasí, proti kterému ochrana chrání. */
+export type ProtectionKind = 'dry' | 'wet' | 'frost' | 'hail';
+
+/** Ochrana dílů spočtená 1. 4. roku `year` (klíč = id dílu). */
+export interface PartProtections {
+  year: number;
+  parts: Record<string, PartProtection>;
+}
+
 /** Pohromy vsi (disasters.md); další části přidají místní pohromy. */
 export interface DisasterState {
   /** Řetěz s vědry posledního požáru (platí jen v jeho den). */
   fireFight?: FireFight;
+  /** Ochrana dílů před počasím, jednou za rok 1. 4. (jen ves se `weatherSeed`). */
+  protection?: PartProtections;
+  /**
+   * Paměť hladu (disasters.md – Dopady, Zásoby a pojistka): do tohoto roku včetně drží ves
+   * vyšší pojistku – zapíše `famineMemoryDay` 1. 9. po krutém roce.
+   */
+  famineMemoryUntilYear?: number;
   /** Jen testy a dev: přebije los – klíč = herní rok. */
   override?: {
     weather?: Record<number, WeatherOverride>;

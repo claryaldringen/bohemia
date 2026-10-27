@@ -6,10 +6,19 @@ import { dayMealInput, emergencySlaughter } from './emergency-slaughter';
 import { drawGrainPits, settleGrainPits } from './grain-pits';
 import { feedHorseGrain } from './horse-feed';
 import { feedDogs } from './manor-dogs';
+import { dayPartLosses } from './disasters';
 import { addSheaves } from './threshing';
+import { threshWorkFactor } from './weather-effects';
 import type { CraftCoverage, SurplusCrop, VillageState } from './types';
 import { harvestKg, seasonCrop, springCrop, surplusCrop, taskRemaining } from './year-plan';
 import { SATIATION_EPSILON } from './simulate-plan';
+
+/**
+ * Práce výmlatu sklizené části – v deštivém létě o 20 % víc (vlhké snopy – disasters.md, Léto).
+ */
+function threshWork(state: VillageState, day: number, work: number): number {
+  return work * threshWorkFactor(state, day);
+}
 
 /**
  * Sklizeň obilí nad potřebu do snopů jako nutného (fields.md – Osevní postup po dílech, bod 3):
@@ -19,9 +28,10 @@ import { SATIATION_EPSILON } from './simulate-plan';
 function harvestSurplus(state: VillageState, crop: SurplusCrop, day: number): number | null {
   const work = surplusCrop(state.season, crop);
   if (!work || work.harvestedKg !== null) return null;
-  const kg = harvestKg(work, state.parts, day, 'spring', state.wildlife?.damage?.parts);
+  const losses = dayPartLosses(state, day, crop, work.partIds, state.wildlife?.damage?.parts);
+  const kg = harvestKg(work, state.parts, day, 'spring', losses);
   work.harvestedKg = kg;
-  addSheaves(state, crop, kg, taskRemaining(work, 'thresh'));
+  addSheaves(state, crop, kg, threshWork(state, day, taskRemaining(work, 'thresh')));
   return kg;
 }
 
@@ -35,17 +45,25 @@ export function harvestWinter(state: VillageState, day: number): void {
   if (linen) state.chronicle.push(linen);
   const legume = state.season ? seasonCrop(state.season, 'legume') : undefined;
   if (legume && legume.harvestedKg === null) {
-    const kg = harvestKg(legume, state.parts, day, 'legume');
+    const losses = dayPartLosses(state, day, 'legume', legume.partIds, undefined);
+    const kg = harvestKg(legume, state.parts, day, 'legume', losses);
     legume.harvestedKg = kg;
-    addSheaves(state, 'legume', kg, taskRemaining(legume, 'thresh'));
+    addSheaves(state, 'legume', kg, threshWork(state, day, taskRemaining(legume, 'thresh')));
     state.chronicle.push({ day, kind: 'harvest', kg: Math.round(kg), crop: 'legume' });
   }
   const winter = state.season ? seasonCrop(state.season, 'winter') : undefined;
   let kg: number | null = null;
   if (winter && winter.harvestedKg === null) {
-    kg = harvestKg(winter, state.parts, day, 'spring', state.wildlife?.damage?.parts);
+    const losses = dayPartLosses(
+      state,
+      day,
+      'winter',
+      winter.partIds,
+      state.wildlife?.damage?.parts,
+    );
+    kg = harvestKg(winter, state.parts, day, 'spring', losses);
     winter.harvestedKg = kg;
-    addSheaves(state, 'winter', kg, taskRemaining(winter, 'thresh'));
+    addSheaves(state, 'winter', kg, threshWork(state, day, taskRemaining(winter, 'thresh')));
   }
   const surplus = harvestSurplus(state, 'winter', day);
   if (kg !== null || surplus !== null) {
@@ -62,8 +80,14 @@ export function harvest(state: VillageState, day: number): void {
   const plan = state.season;
   if (plan === null) return;
   const spring = springCrop(plan);
-  spring.harvestedKg = harvestKg(spring, state.parts, day, 'spring', state.wildlife?.damage?.parts);
-  addSheaves(state, 'spring', spring.harvestedKg, taskRemaining(spring, 'thresh'));
+  const losses = dayPartLosses(state, day, 'spring', spring.partIds, state.wildlife?.damage?.parts);
+  spring.harvestedKg = harvestKg(spring, state.parts, day, 'spring', losses);
+  addSheaves(
+    state,
+    'spring',
+    spring.harvestedKg,
+    threshWork(state, day, taskRemaining(spring, 'thresh')),
+  );
   const kg = spring.harvestedKg + (harvestSurplus(state, 'spring', day) ?? 0);
   // plán jen s ozimem jař nesklízí – žádná sklizeň do kroniky
   if (!seasonCrop(plan, 'winter') && !surplusCrop(plan, 'winter'))

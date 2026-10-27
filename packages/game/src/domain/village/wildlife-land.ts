@@ -165,31 +165,56 @@ function scanLand(
  * údaje (bez čtverce, ves bez obydlí) v mapě chybí – volající použije výchozí.
  */
 export function forestEdgeDistances(landscape: Landscape, state: LandState): Map<number, number> {
+  return greenEdgeScan(landscape, state, []).distances;
+}
+
+/**
+ * Vzdálenost dílů polí k okraji lesa a k dalším políčkům zeleně `seedTiles` (např. sady –
+ * disasters.md – Ochrana dílu) a maska lesa (souvislý les od `minPatchHa`, indexy políček
+ * krajiny; mimo obdélník kolem vsi 0). Sdílí ji zvěř (jen les) i ochrana dílu.
+ */
+export function greenEdgeScan(
+  landscape: Landscape,
+  state: LandState,
+  seedTiles: readonly number[],
+): { distances: Map<number, number>; forest: Uint8Array } {
   const out = new Map<number, number>();
   const scan = scanLand(landscape, state);
-  if (!scan) return out;
+  if (!scan) return { distances: out, forest: new Uint8Array(landscape.size * landscape.size) };
   const size = landscape.size;
   const INF = 1 << 28;
   // díly polí (políčka) a obdélník, který pokryje i les v dosahu; mimo něj se nepočítá
   const fields: { partId: number; tile: number }[] = [];
   let { x0, x1, y0, y1 } = scan.rect;
-  for (const sq of villageLandSquares(landscape, state, ['field'])) {
-    if (sq.partId === undefined) continue;
-    const tile = sq.tile ?? tileOfPoint(landscape, sq.center);
-    if (tile < 0) continue;
-    fields.push({ partId: sq.partId, tile });
+  const grow = (tile: number): void => {
     const fx = tile % size;
     const fy = (tile - fx) / size;
     x0 = Math.min(x0, fx);
     x1 = Math.max(x1, fx);
     y0 = Math.min(y0, fy);
     y1 = Math.max(y1, fy);
+  };
+  for (const sq of villageLandSquares(landscape, state, ['field'])) {
+    if (sq.partId === undefined) continue;
+    const tile = sq.tile ?? tileOfPoint(landscape, sq.center);
+    if (tile < 0) continue;
+    fields.push({ partId: sq.partId, tile });
+    grow(tile);
+  }
+  const seeds = new Uint8Array(size * size);
+  for (const tile of seedTiles) {
+    if (tile < 0 || tile >= seeds.length) continue;
+    seeds[tile] = 1;
+    grow(tile);
   }
   const w = x1 - x0 + 1;
   const h = y1 - y0 + 1;
   const dist = new Int32Array(w * h);
   for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) dist[y * w + x] = scan.forest[(y + y0) * size + x + x0] ? 0 : INF;
+    for (let x = 0; x < w; x++) {
+      const t = (y + y0) * size + x + x0;
+      dist[y * w + x] = scan.forest[t] || seeds[t] ? 0 : INF;
+    }
   }
   // přední průchod
   for (let y = 0; y < h; y++) {
@@ -227,7 +252,7 @@ export function forestEdgeDistances(landscape: Landscape, state: LandState): Map
       d >= INF ? Infinity : Math.max(0, (d / 3) * landscape.cellSizeM - landscape.cellSizeM / 2),
     );
   }
-  return out;
+  return { distances: out, forest: scan.forest };
 }
 
 /** Tůň potoka – bod osy u nejhlubšího místa, směr toku a polovina šířky vody vlevo a vpravo (m). */

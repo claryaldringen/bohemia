@@ -79,6 +79,39 @@ export const WEATHER = {
   expectedYield: 0.95,
 } as const;
 
+/**
+ * Dopady počasí roku na hospodaření vsi (disasters.md – Léto, Zima, Dopady na existující
+ * mechaniky, Co z toho plyne).
+ */
+export const WEATHER_EFFECTS = {
+  /** Holomráz: ozim ×0,65 – vymrzne třetina (disasters.md – Zima, tabulka). */
+  blackFrostWinterCrop: 0.65,
+  /** Deštivá léta – ochrana proti mokru, výmlat vlhkých snopů (disasters.md – Léto). */
+  wetSummers: ['wet', 'wetHarvest'] as const satisfies readonly SummerWeather[],
+  /** Suchá léta – ochrana proti suchu (disasters.md – Ochrana dílu). */
+  drySummers: ['dry', 'drought'] as const satisfies readonly SummerWeather[],
+  /** Deštivé léto: výmlat o 20 % víc práce – vlhké snopy (disasters.md – Léto, Deštivé léto). */
+  wetThreshWork: 0.2,
+  /**
+   * Seno s rezervou: plán seče +15 % – na dlouhou zimu a suchý rok (disasters.md – Dopady, Seno
+   * s rezervou).
+   */
+  hayReserve: 0.15,
+  /** Dlouhá zima: seno se krmí o 30 dní déle – do 30. 4., pastva od 1. 5. (disasters.md – Zima). */
+  longWinterHayMonths: [4] as const,
+  /**
+   * Dlouhá zima: setí jařin (jař, luštěniny, len) začne o 3 týdny později – ne před 22. 3.
+   * (disasters.md – Zima, návrh Clauda). Okna setí jsou po měsících – konec okna zůstává 30. 4.
+   */
+  longWinterSpringSowFrom: { month: 3, day: 22 } satisfies MonthDay,
+  /**
+   * Paměť hladu: po krutém roce drží ves tolik let pojistku `famineBufferEnergyYears` roční
+   * potřeby celé energie místo 0,5 (disasters.md – Dopady, Zásoby a pojistka).
+   */
+  famineMemoryYears: 10,
+  famineBufferEnergyYears: 0.75,
+} as const;
+
 /** Stupně roční nejvyšší vody (disasters.md – Povodeň potoka, tabulka). */
 export interface FloodLevelRule {
   level: FloodLevel | null;
@@ -90,7 +123,8 @@ export interface FloodLevelRule {
 /**
  * Povodeň potoka – voda kraje (disasters.md – Povodeň potoka; Martin 27. 10. 2026: „Ano a ano“ –
  * výška společná pro celý kraj). Stupně vzestupně; po dlouhé zimě a v deštivém létě o stupeň
- * výš (obojí naráz jen o jeden), tisíciletá zůstává.
+ * výš (obojí naráz jen o jeden), tisíciletá zůstává. Kvůli posunu o stupeň vychází stoletá
+ * a vyšší voda efektivně ≈ 3 % let, ne 1,8 % z tabulky.
  */
 export const FLOOD_WATER = {
   levels: [
@@ -108,6 +142,45 @@ export const FLOOD_WATER = {
   summerWindow: { from: { month: 6, day: 15 }, to: { month: 8, day: 15 } },
   /** Bez dlouhé zimy i deštivého léta (nebo s obojím) je voda jarní s touto šancí (půl na půl). */
   springShare: 0.5,
+} as const;
+
+/**
+ * Ochrana dílu ze zeleně a vlhkosti (disasters.md – Ochrana dílu; Martin 27. 10. 2026: „Takhle to
+ * sedí, zahrň i vlhkost půdy“). Počítá se 1. 4., jednou za rok.
+ */
+export const PROTECTION = {
+  /** Kdy se ochrana dílů přepočítá. */
+  day: { month: 4, day: 1 } satisfies MonthDay,
+  /** Zeleň v dosahu do tolika metrů dává plnou ochranu, v `noGreenM` nulu, mezi nimi lineárně. */
+  fullGreenM: 15,
+  noGreenM: 100,
+  /** Okraj velkého lesa chrání jen díl do tolika metrů od něj (přímo sousedící), dál se les nepočítá. */
+  forestEdgeM: 15,
+  /** Solitér (strom bez dalšího stromu do `soloLinkM`, jabloň u cesty) do `soloM` +`soloBonus`. */
+  soloM: 50,
+  soloBonus: 0.25,
+  soloLinkM: 15,
+  /** Remíz – strom nebo keř aspoň se dvěma dalšími do `remizLinkM` (tedy skupina od 3) je zeleň. */
+  remizMinNeighbours: 2,
+  remizLinkM: 15,
+  /** U vody: voda do `nearWaterM` nebo díl v nivě (do `lowlandM` nad potokem), sucho +`waterBonus`. */
+  nearWaterM: 60,
+  lowlandM: 1.5,
+  waterBonus: 0.2,
+  /** Vyvýšený: víc než `raisedM` nad potokem a nad průměrem políček do `raisedRadiusM`, −`raisedPenalty`. */
+  raisedM: 6,
+  raisedRadiusM: 45,
+  raisedPenalty: 0.2,
+  /** Svah: převýšení k sousednímu políčku aspoň `slopeM` (10 %, návrh Clauda). */
+  slopeM: 1.5,
+  /** Deštivé léto: niva −`wetShift`, svah +`wetShift` (zeleň se nepočítá). */
+  wetShift: 0.2,
+  /** Kroupy: zeleň se počítá jen z `hailGreenShare` (rozptýlená pole proti kroupám). */
+  hailGreenShare: 0.4,
+  /** Ochrana snižuje ztrátu nejvýš o polovinu: ztráta × (1 − `lossShare` × ochrana). */
+  lossShare: 0.5,
+  /** Bez krajiny (kalibrace, testy) i pro díl bez údaje: typická ves. */
+  noLandscapeGreen: 0.25,
 } as const;
 
 /** Místní pohromy (disasters.md – Kraj a ochrana nové vsi; Martin 27. 10. 2026: „Pětiletou ochranu“). */

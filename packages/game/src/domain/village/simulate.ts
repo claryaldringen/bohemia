@@ -61,6 +61,8 @@ import { huntDay, planHuntDay } from './hunt';
 import { dogsYear } from './manor-dogs';
 import { wildlifeYearDay, withWildlife } from './wildlife';
 import { weatherDay } from './weather';
+import { partProtectionDay } from './part-protection';
+import { famineMemoryDay } from './weather-effects';
 import { damageWindowStart, wildlifeDamageDay, wildlifeSeasonEnd } from './wildlife-damage';
 import { lordFieldMode, trainLordDay, updateLordTraining } from './lord';
 import { dynastyDay } from './succession';
@@ -180,6 +182,8 @@ function simulateDay(
   // počasí kraje: v den, kdy se ukáže zlá zima nebo neobvyklé léto, zápis do kroniky
   // (disasters.md – Léto, Zima, „Kdy je vidět“)
   state.chronicle.push(...weatherDay(state, day));
+  // 1. 4.: ochrana dílů před počasím ze zeleně a vlhkosti (disasters.md – Ochrana dílu)
+  partProtectionDay(state, day, landscape, obstacles);
   // požár (disasters.md – Požár): vznik ze seedu vsi a dne, řetězové šíření, shoří stavby a zásoby
   state.chronicle.push(...fireDay(state, day, obstacles, landscape));
   // psi dvorce 1. 5.: úbytek a štěňata (wildlife.md – Psi)
@@ -218,6 +222,9 @@ function simulateDay(
   state.chronicle.push(...sacredOakEvents(villageSacredOaks(state), obstacles, day));
   // 1. 9. nový hospodářský rok a postup dílů, každý den nutné díly a konce oken setí (fields.md –
   // Osevní postup po dílech); podíl dne rodiny na nutné práci (lord.md – Kdy jde rodina na pole)
+  // paměť hladu: po krutém roce drží ves 10 let vyšší pojistku – před plánem osevu
+  // (disasters.md – Dopady, Zásoby a pojistka)
+  famineMemoryDay(state, day);
   if (isOn(date, PLANNING_DAY)) startSeason(state, day, coverage, landscape);
   const waiting = seasonDay(state, day, coverage);
   lordHelpDay(state, day, coverage, landscape, waiting);

@@ -311,6 +311,11 @@ u vody 60 m nebo do 1,5 m nad potokem +0,2, vyvýšené > 6 m nad potokem a nad 
       Vlkov – čas výpočtu (< 30 ms) a rozdělení ochrany do `docs/code/village-disasters.md`.
 - [ ] Commit `feat(game): ochrana dílu před počasím ze zeleně a vlhkosti`.
 
+**Provedení P2 (27. 10. 2026, návrh Clauda):** maska lesa se nevytahovala do samostatné funkce –
+`forestEdgeDistances` se rozdělila na `greenEdgeScan(landscape, state, seedTiles)` (les + sady jako
+semínka) a starou funkci. Remízy a solitéry se hledají přímo z bodů překážek (ne z rastru 5 m),
+přesnost lepší a levnější. Detaily: [village-disasters.md](../../code/village-disasters.md).
+
 ## Úloha P3 – Sucho, deštivé léto, krutá zima (≈ 140 kroků)
 
 **Cíl:** Počasí roku mění úrodu, seno, pastvu, krmení a osev; ves seje s průměrem let, seče
@@ -343,6 +348,17 @@ v dlouhé zimě), `threshing.ts` (výmlat +20 %), `simulate.ts` (`famineMemoryDa
 - [ ] Commit `feat(game): zlé roky – sucho, deštivé léto a krutá zima`.
 
 **Hotovo:** jako P1; rok Vlkova změřit (nejvýš +1 %).
+
+**Provedení P3 (27. 10. 2026, návrh Clauda):** dopady v `weather-effects.ts`, ztráty dílů
+`dayPartLosses` / `winterEstimateLosses` v `disasters.ts`; `protectionAgainst` a
+`partProtectionOf` se přestěhovaly z `part-protection.ts` do `weather-effects.ts` (re-export
+zůstal) – jinak kruhový import přes `livestock.ts`. Seno: plán seče počítá v běžném výnosu
+(potřeba × 1,15 ÷ seno roku, které je vidět), skutečné seno přičte `mow` × seno roku s ochranou
+luk. **Okno setí jařin v dlouhé zimě:** jen začátek o 3 týdny později (22. 3.), konec zůstává 30. 4. – okna jsou po měsících a posun konce by chtěl okna po dnech v plánu, práci i zavírání
+okna. Plán setí 1. 9. dlouhou zimu nezná, takže s plným oknem počítá – **Vlkov v dlouhé zimě
+nestihne zasít všechno: jař −19 %** (návrh dopad na úrodu nečeká – otevřené). `weather-famine.test.ts` nevznikl – testovací ves bez krajiny
+nemá pole ani ustálený stav; cíle kalibrace (jeden a dva kruté roky) ověřuje Vlkov ze stavu DB.
+Detaily: [village-disasters.md](../../code/village-disasters.md).
 
 ## Úloha P4 – Kraj kolem vsi: sousedé a zvěř (≈ 80 kroků)
 

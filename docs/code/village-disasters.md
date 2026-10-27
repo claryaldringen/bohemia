@@ -52,6 +52,86 @@ winter, flood }`. Los z vlastních proudů `deriveSeed(weatherSeed, 'summer:' | 
   odhalení, povodeň, dopočet po kouscích, ochrana), `update-village-weather.test.ts` (seed při
   načtení a založení), `village-repository.db.test.ts` (`weatherSeedOf`).
 
+## Ochrana dílu (P2)
+
+- **Kdy** – `partProtectionDay(state, day, landscape, obstacles)` (`part-protection.ts`) v `simulateDay`
+  hned za `weatherDay`: jen **1. 4.** a jen ves se `weatherSeed`, zapíše `disasters.protection`
+  (`{ year, parts: { [partId]: PartProtection } }`). Bez krajiny má každý díl `green` 0,25. Jednou
+  za rok, ne denně; výsledek je čistá funkce stavu v ten den, takže vcelku = po kouscích.
+- **Složky dílu** (`PartProtection`, typy v `types-disasters.ts`): `green` 0–1 (zeleň + solitéry),
+  příznaky `nearWater` (voda do 60 m nebo niva), `lowland` (≤ 1,5 m nad potokem), `raised`
+  (> 6 m nad potokem a nad průměrem políček do 45 m), `slope` (soused o ≥ 1,5 m jinak vysoko).
+- **Zeleň** – `computePartProtections`: vzdálenost středu dílu k nejbližší zeleni _d_, zeleň =
+  (100 − _d_) ÷ 85 oříznuto na 0–1 (`fullGreenM` 15, `noGreenM` 100). Les: chamfer distanční
+  transformace `greenEdgeScan` (`wildlife-land.ts`; sdílí ji `forestEdgeDistances` zvěře) se
+  počítá jen do `forestEdgeM` 15 m od okraje, dál se les ignoruje. Sad: středy jeho políček
+  v `PointGrid` jako remíz. Remízy a solitéry: stojící stromy a keře z vrstvy překážek
+  (`obstaclesNear` + `obstacleStatus(obstacleChangesAt(state, day))`, bez pařezů, souší
+  a padlých, s jabloněmi a stromy u cest, bez stromů v masce lesa). Remíz = strom či keř s ≥ 2
+  dalšími do 15 m; solitér = dospělý strom bez stromu do 15 m a každá jabloň u cesty, každý
+  do 50 m +0,25; zeleň dílu nejvýš 1. Hledání v mřížce po 30 m (`PointGrid`).
+- **Vlhkost** – `streamHeights(landscape)` = `heightAboveStream` z masky vodních políček, paměť
+  `WeakMap<Landscape, …>`; mapa bez vody nemá nivu ani vyvýšené díly (nekonečno).
+- **Složení pro P3 a P5** – `protectionAgainst(part, kind)` (čistá funkce) a
+  `partProtectionOf(state, partId, kind)`: `dry` = zeleň + u vody 0,2 − vyvýšené 0,2 (0–1),
+  `frost` = zeleň − vyvýšené 0,2 (0–1), `wet` = svah +0,2 − niva 0,2 (−0,2 až +0,2, zeleň ne),
+  `hail` = zeleň × 0,4. Ztráta se pak násobí `1 − PROTECTION.lossShare × ochrana`. Díl bez údaje
+  (založený po 1. 4., ves bez krajiny) má zeleň 0,25.
+- **Čísla** – `PROTECTION` v `rules-disasters.ts`.
+- **Výkon** – 150 dílů ≈ 10 ms v klidu (test hlídá 100 ms kvůli zátěži); Vlkov (≈ 3 800 dílů) ≈ 60 ms jednou ročně.
+- **Testy** – `part-protection.test.ts` (vzdálenost k lesu a sadu, solitéry, remíz, pokácený remíz,
+  voda, vyvýšené, niva a svah, kroupy, jen 1. 4., vcelku = po kouscích, výkon).
+
+## Sucho, deštivé léto, krutá zima (P3)
+
+Všechno jen ve vsi s počasím kraje (`hasWeather` – `weatherSeed` nebo vynucené počasí); **ves bez
+počasí počítá jako dřív** (zlaté otisky beze změny). Funkce v `weather-effects.ts`, čísla
+`WEATHER.summerEffects` a `WEATHER_EFFECTS` v `rules-disasters.ts`.
+
+- **Úroda dílu** – `partWeatherFactor(weather, crop, part)`: léto z tabulky (ozim, nebo jařiny –
+  jař, luštěniny, len); sucho s ochranou `dry`, deštivé léto a mokré žně s ochranou `wet` (niva
+  −0,2, svah +0,2 – ztráta v nivě o desetinu větší), dobré léto ×1,15 bez ochrany; holomráz ozim
+  ×0,65 s ochranou `frost`. Ztráta s ochranou: `protectedFactor` = 1 − (1 − násobek) × (1 − 0,5 ×
+  ochrana). Kruté sucho: jař u lesa ×0,75, uprostřed lánu ×0,5, typická ves (zeleň 0,25) ×0,5625.
+- **Kde se násobí** – `dayPartLosses(state, day, crop, partIds, base, estimate)` (`disasters.ts`)
+  složí počasí dílu se škodou zvěře (`base`): `share` = 1 − počasí × (1 − škoda); `cropYieldKg`
+  pak násobí **hrubou** úrodu a osivo odečte celé (čistá klesne víc). Rok, kdy počasí plodinu
+  nemění, a ves bez počasí vrací `base` beze změny (bez nového objektu). Sklizeň počítá s celým
+  počasím roku sklizně (`harvestYearOf` – od 1. 9. příští rok), odhad ozimu pro příděl
+  (`winterEstimateLosses` v `diet.ts` a `emergency-slaughter.ts`) jen s tím, co je vidět
+  (`cropWeatherOf(…, true)` – na podzim nic, sucho od 1. 5., mokré žně do 15. 7. jako deštivé).
+- **Výmlat** – v deštivém létě a za mokrých žní práce výmlatu sklizené části × 1,2
+  (`threshWorkFactor` při `addSheaves` v `simulate-food.ts`).
+- **Seno** – `mow(state, amount, day)` přičte seno × `mowingWeatherFactor` (seno roku s ochranou
+  každé louky – díly podle ochrany, přirozené louky jako typická ves, vážené plochou; memo
+  `WeakMap` na objektu seče). Plán seče (`mowingTargets` v `planMowing`, `planAftermath`,
+  `raiseAftermath`) chce o 15 % víc (`hayReserve`) a ÷ seno roku, které je vidět (25. 5. jen
+  sucho, 1. 8. všechno) – v suchém roce poseče víc luk, dokud stačí.
+- **Pastva** – `pastureHa` × `pastureWeatherFactor` (léto, které je vidět; bez ochrany) – podle
+  ní ves na podzim drží stáda (`winterTargets`).
+- **Dlouhá zima** (`isLongWinter` – prosinec patří k zimě příštího roku): `isHayWinter(day, true)`
+  a `hayWinterDaysLeft(day, true)` i v dubnu – krmení senem do 30. 4. (`husbandryDay`) a porážka
+  kusů, na které seno nevydrží (`hayShortSlaughter`). Setí jařin (jař, luštěniny, len) se drží do 22. 3. (`springSowingHeld` ve `fieldTasks` a `surplusTasks`). **Konec okna zůstává 30. 4.** –
+  okna setí jsou po měsících (`CROP_WINDOWS`); posun konce o 2 týdny by chtěl okna po dnech
+  napříč plánem, prací i zavíráním okna (návrh Clauda – odchylka od návrhu, okno je tak
+  v dlouhé zimě 40 dní místo 61).
+- **Osev s průměrem let** – `sowingTargets` dělí úrodu obilí `sowingYieldFactor` (0,95) – ves
+  zaseje ≈ 5 % víc. **Paměť hladu** – `famineMemoryDay` (1. 9. v `simulateDay` před
+  `startSeason`): po krutém roce (`isCruelYear`) `disasters.famineMemoryUntilYear` = rok + 10;
+  `bufferEnergyYearsOf` pak dává pojistku 0,75 místo 0,5.
+- **Čísla** – `WEATHER_EFFECTS`: `blackFrostWinterCrop` 0,65, `wetThreshWork` 0,2, `hayReserve`
+  0,15, `longWinterHayMonths` [4], `longWinterSpringSowFrom` 22. 3., `famineMemoryYears` 10,
+  `famineBufferEnergyYears` 0,75.
+- **Vlkov** (stav DB 27. 10. 2026, 44 lidí, vynucené roky): normální × 5 bez hladu; kruté sucho
+  – čistá sklizeň −51 %, seno −8 % (ves poseče víc luk), rok po něm 61 dní příděl 0,75 a nouzová
+  porážka, 0 úmrtí hladem, zásoby se ani ve 2 dalších normálních letech nevrátí na pojistku;
+  dvě krutá sucha za sebou – 258 dní hladu, 11 úmrtí (9 hladem), 48 → 38 lidí (−21 %), ves žije;
+  dlouhá zima – bez hladu, ale jař −19 % (zkrácené okno setí). Výkon roku beze změny (30,6 s bez
+  počasí, 30,0 s s počasím).
+- **Testy** – `weather-effects.test.ts` (násobky dílu podle ochrany, ztráty a odhad, seno seče,
+  dlouhá zima, výmlat, paměť hladu, sklizeň v krutém suchu vcelku = po kouscích přes 31. 7.
+  a 31. 8.).
+
 ## Kraj kolem vsi: sousedé a zvěř (P4)
 
 - **Sousedé** (`trade-weather.ts`, `DISASTER_TRADE` v `rules-disasters.ts`): `tradeWeather(state, season)`

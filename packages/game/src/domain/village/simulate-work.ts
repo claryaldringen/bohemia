@@ -151,6 +151,7 @@ import {
   occupiedDwellings,
   villageProductivity,
 } from './simulate-plan';
+import { springSowingHeld } from './weather-effects';
 
 /**
  * Polní úlohy dne: práce plánu po plodinách (bez výmlatu – ten mlátí snopy, `threshTasks`), orba
@@ -179,7 +180,11 @@ export function fieldTasks(
     for (const { crop, work } of seasonCrops(state.season)) {
       // díly nad potřebu dostanou práci až po stavbách (`surplusFieldDay`)
       if (work.surplus) continue;
-      for (const name of activeTasks(work, day, crop)) if (name !== 'thresh') add(crop, work, name);
+      // dlouhá zima drží setí jařin do 22. 3. (disasters.md – Zima)
+      const held = springSowingHeld(state, day, crop);
+      for (const name of activeTasks(work, day, crop)) {
+        if (name !== 'thresh' && !(held && name === 'sow')) add(crop, work, name);
+      }
       if (neededTaskRemaining(work, 'plough') > 0) add(crop, work, 'plough');
     }
   }
@@ -685,7 +690,7 @@ export function work(
       threshing.floor += split.floor;
       threshing.ground += split.ground;
     } else if (task.name === 'mow') {
-      mow(state, amount);
+      mow(state, amount, day);
       mowLabor = haul ? labor - crew : labor;
       mowWork += amount;
     } else if (task.name === 'slaughter') {
@@ -806,7 +811,7 @@ export function work(
     0,
     Math.min(afterBuild.left - surplus.labor, mowingRemaining(state, day)),
   );
-  if (extraMow > EPSILON) mow(state, extraMow);
+  if (extraMow > EPSILON) mow(state, extraMow, day);
   if (!state.hungry) {
     game = smallGameDay(state, day, afterBuild.left - surplus.labor - extraMow, false);
   }
