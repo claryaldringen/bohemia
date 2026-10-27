@@ -292,7 +292,7 @@ vody.“ A: „Lidé musí být rozložení ve stejných vzdálenostech … ten 
 
 - **Kdo:** **všichni dospělí vsi**; ten den nedělají nic jiného (pole, stavby, péče). Děti
   a staří ne (návrh Clauda).
-- **Řetěz:** od **nejbližší vody** (potok) k hořící stavbě, lidé **rovnoměrně po celé cestě**:
+- **Řetěz:** od **nejbližší vody** (břeh, kam chodí ženy pro vodu; vzdálenost přímkou) k hořící stavbě, lidé **rovnoměrně po celé cestě**:
   **rozestup = vzdálenost ÷ počet dospělých**.
 - **Do 2,5 m** si vědra **podávají** z ruky do ruky; **víc** – **každý nosí** vědro tam a zpět po
   svém úseku.

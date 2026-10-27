@@ -1,17 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { generateLandscape } from '../../landscape';
-import { streamCenterline } from '../../landscape/stream-geometry';
 import { foundVillage } from '../actions';
 import { fireDay } from '../fire';
-import {
-  chainEfficiency,
-  fireFighters,
-  nearestWaterCell,
-  nearestWaterPoint,
-  planFireFight,
-  type WaterAxisPoint,
-} from '../firefighting';
+import { chainEfficiency, fireFighters, nearestWater, planFireFight } from '../firefighting';
+import { PATH_WATER_SPOT } from '../paths/terrain';
+import { groundSpots, nearestSpot, walkGroundOf } from '../paths/walking';
+import { refreshWalkDistances } from '../paths/village';
 import { advanceVillage } from '../simulate';
 import type { Dwelling, Person, VillageState } from '../types';
 import { villagersToday } from '../morning-water';
@@ -21,11 +16,6 @@ import { withBuiltFirstDwelling } from './village-fixtures';
 
 const FOUNDED = dayIndexOf({ year: 500, month: 1, day: 1 });
 const DAY = FOUNDED + 10 * 365;
-const AXIS: WaterAxisPoint[] = [
-  { x: 0, z: -100, halfLeft: 2, halfRight: 2 },
-  { x: 0, z: 100, halfLeft: 2, halfRight: 2 },
-];
-
 function house(id: number, x: number, z = 0): Dwelling {
   return {
     id,
@@ -46,24 +36,6 @@ function adults(n: number): Person[] {
   }));
 }
 
-describe('nejbližší voda', () => {
-  it('břeh = osa posunutá o polovinu šířky vody k domu', () => {
-    const w = nearestWaterPoint(AXIS, 52, 10)!;
-    expect(w.distanceM).toBeCloseTo(50, 5);
-    expect(w.x).toBeCloseTo(2, 5);
-    expect(w.z).toBeCloseTo(10, 5);
-  });
-
-  it('vzdálenost jde přes celou mapu, bez potoka nic', () => {
-    expect(nearestWaterPoint(AXIS, 900, 0)!.distanceM).toBeCloseTo(898, 5);
-    expect(nearestWaterPoint([], 0, 0)).toBeNull();
-  });
-
-  it('dům u vody (do břehu) má vzdálenost 0', () => {
-    expect(nearestWaterPoint(AXIS, 1, 0)!.distanceM).toBe(0);
-  });
-});
-
 describe('účinnost řetězu', () => {
   it('rozestup do 2,5 m = plná, dál min(1; 2,5 ÷ rozestup)', () => {
     expect(chainEfficiency(50, 20)).toBe(1);
@@ -79,16 +51,29 @@ describe('účinnost řetězu', () => {
     expect(none).toMatchObject({ water: null, efficiency: 0, people: 8 });
   });
 
-  it('plán na skutečné krajině: voda nejblíž, rozestup a účinnost sedí', () => {
+  it('plán na skutečné krajině: voda = břeh, kam chodí ženy pro vodu, přímka ke stavbě', () => {
     const landscape = generateLandscape(42);
     const fight = planFireFight(landscape, 1, 0, 0, 10, DAY);
-    const stream = nearestWaterPoint(streamCenterline(landscape).points, 0, 0)!;
-    const cell = nearestWaterCell(landscape, 0, 0)!;
-    const w = cell.distanceM < stream.distanceM ? cell : stream;
-    expect(fight.water).toEqual({ x: w.x, z: w.z });
-    expect(fight.distanceM).toBeCloseTo(w.distanceM, 5);
-    expect(fight.spacingM).toBeCloseTo(w.distanceM / 10, 5);
+    const spot = nearestSpot(groundSpots(walkGroundOf(landscape), PATH_WATER_SPOT), {
+      x: 0,
+      z: 0,
+    })!;
+    expect(fight.water).toEqual({ x: spot.x, z: spot.z });
+    expect(fight.distanceM).toBeCloseTo(Math.hypot(spot.x, spot.z), 5);
+    expect(fight.spacingM).toBeCloseTo(fight.distanceM / 10, 5);
     expect(fight.efficiency).toBeCloseTo(Math.min(1, 2.5 / fight.spacingM), 5);
+  });
+
+  it('vodní bod hašení je bod vody obydlí a chůze pro vodu ho jen prodlužuje', () => {
+    const landscape = generateLandscape(42);
+    const state = withBuiltFirstDwelling(
+      foundVillage({ seed: 7, day: FOUNDED, dwellingPosition: { x: 0, z: 0, rotation: 0 } }),
+    );
+    refreshWalkDistances(state, FOUNDED + 1, landscape, null);
+    for (const d of state.dwellings) {
+      const w = nearestWater(landscape, d.position.x, d.position.z)!;
+      expect(d.waterWalkM).toBeGreaterThanOrEqual(Math.floor(w.distanceM * 10) / 10 - 0.2);
+    }
   });
 });
 

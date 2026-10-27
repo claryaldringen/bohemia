@@ -1,90 +1,14 @@
 // Hašení řetězem s vědry (disasters.md – Požár, Hašení; Martin 27. 10. 2026: „Chci, aby všichni
-// dospělí hasili. Ať udělají řetěz s vědry od nejbližší vody“ a „Lidé musí být rozložení ve stejných
+// dospělí hasili. Ať udělají řetěz s vědry od nejbližší vody“ (tam, kam chodí ženy pro vodu) a „Lidé musí být rozložení ve stejných
 // vzdálenostech“): v den požáru stojí všichni dospělí rovnoměrně na přímce od nejbližší vody
 // k hořící stavbě; čím řidší řetěz, tím menší účinnost.
 
-import { SURFACE_CODES, type Landscape } from '../landscape/types';
-import { streamCenterline } from '../landscape/stream-geometry';
+import type { Landscape } from '../landscape/types';
+import { PATH_WATER_SPOT } from './paths/terrain';
+import { groundSpots, nearestSpot, walkGroundOf } from './paths/walking';
 import { isAdult } from './people';
 import { FIRE } from './rules-disasters';
 import type { FireFight, Person, VillageState } from './types';
-
-/** Bod osy potoka s šířkou vody (jen to, co hledání vody potřebuje). */
-export interface WaterAxisPoint {
-  x: number;
-  z: number;
-  halfLeft: number;
-  halfRight: number;
-}
-
-/**
- * Nejbližší místo na břehu vody k bodu `(x, z)`: nejbližší bod osy potoka (po úsečkách), posunutý
- * o polovinu šířky vody k bodu. Vzdálenost je vzdušnou čarou přes celou mapu (návrh Clauda – hasiči
- * si vodu najdou, i když je daleko). Bez potoka null.
- */
-export function nearestWaterPoint(
-  axis: readonly WaterAxisPoint[],
-  x: number,
-  z: number,
-): { x: number; z: number; distanceM: number } | null {
-  if (axis.length === 0) return null;
-  let best = { px: axis[0]!.x, pz: axis[0]!.z, dist: Infinity, half: 0 };
-  for (let i = 0; i < Math.max(1, axis.length - 1); i++) {
-    const a = axis[i]!;
-    const b = axis[Math.min(i + 1, axis.length - 1)]!;
-    const dx = b.x - a.x;
-    const dz = b.z - a.z;
-    const len2 = dx * dx + dz * dz;
-    const t = len2 === 0 ? 0 : Math.min(1, Math.max(0, ((x - a.x) * dx + (z - a.z) * dz) / len2));
-    const px = a.x + t * dx;
-    const pz = a.z + t * dz;
-    const dist = Math.sqrt((x - px) ** 2 + (z - pz) ** 2);
-    if (dist < best.dist) {
-      const half = (a.halfLeft + a.halfRight + b.halfLeft + b.halfRight) / 4;
-      best = { px, pz, dist, half };
-    }
-  }
-  const edge = Math.max(0, best.dist - best.half);
-  // břeh leží o `edge` m od bodu směrem k ose (je-li bod ve vodě, je to bod na ose)
-  const k = best.dist === 0 ? 0 : (best.dist - edge) / best.dist;
-  return { x: best.px + (x - best.px) * k, z: best.pz + (z - best.pz) * k, distanceM: edge };
-}
-
-/**
- * Nejbližší vodní políčko krajiny (tůň, jezírko i potok): střed políčka, vzdálenost se počítá
- * k jeho okraji. Bez vody null.
- */
-export function nearestWaterCell(
-  landscape: Pick<Landscape, 'size' | 'cellSizeM' | 'surface'>,
-  x: number,
-  z: number,
-): { x: number; z: number; distanceM: number } | null {
-  const { size, cellSizeM, surface } = landscape;
-  const half = (size * cellSizeM) / 2;
-  let best = Infinity;
-  let bx = 0;
-  let bz = 0;
-  for (let j = 0; j < size; j++) {
-    const cz = -half + (j + 0.5) * cellSizeM;
-    const dz2 = (cz - z) ** 2;
-    if (dz2 >= best) continue;
-    for (let i = 0; i < size; i++) {
-      if (surface[j * size + i] !== SURFACE_CODES.water) continue;
-      const cx = -half + (i + 0.5) * cellSizeM;
-      const d2 = (cx - x) ** 2 + dz2;
-      if (d2 < best) {
-        best = d2;
-        bx = cx;
-        bz = cz;
-      }
-    }
-  }
-  if (best === Infinity) return null;
-  const dist = Math.sqrt(best);
-  const edge = Math.max(0, dist - cellSizeM / 2);
-  const k = dist === 0 ? 0 : (dist - edge) / dist;
-  return { x: bx + (x - bx) * k, z: bz + (z - bz) * k, distanceM: edge };
-}
 
 /** Účinnost řetězu: lidé na vzdálenost `distanceM` (m) → min(1; 2,5 ÷ rozestup); bez lidí 0. */
 export function chainEfficiency(distanceM: number, people: number): number {
@@ -99,17 +23,19 @@ export function fireFighters(people: readonly Person[], day: number): Person[] {
   return people.filter((p) => isAdult(p, day));
 }
 
-/** Nejbližší voda krajiny: bližší z potoka (osa) a vodních políček (tůně, jezírka). */
-function nearestWater(
+/**
+ * Vodní bod hašení = bod, kam chodí ženy pro vodu (`Dwelling.waterWalkM`, paths.md – Pochůzky pro
+ * vodu): suchý břeh (`PATH_WATER_SPOT`) nejblíž hořící stavbě vzdušnou čarou; vzdálenost řetězu
+ * je přímka od něj ke stavbě (řetěz se staví rovně – návrh Clauda). Bez vody null.
+ */
+export function nearestWater(
   landscape: Landscape,
   x: number,
   z: number,
 ): { x: number; z: number; distanceM: number } | null {
-  const stream = nearestWaterPoint(streamCenterline(landscape).points, x, z);
-  const cell = nearestWaterCell(landscape, x, z);
-  if (!stream) return cell;
-  if (!cell) return stream;
-  return cell.distanceM < stream.distanceM ? cell : stream;
+  const spot = nearestSpot(groundSpots(walkGroundOf(landscape), PATH_WATER_SPOT), { x, z });
+  if (!spot) return null;
+  return { x: spot.x, z: spot.z, distanceM: Math.sqrt((spot.x - x) ** 2 + (spot.z - z) ** 2) };
 }
 
 /**
