@@ -305,9 +305,12 @@ hlídá test). Klíč zná z práce dne jen tavbu (pec se mění jen při ní), 
   raně středověké kusové pece) stojí vždy před levým rohem přístřešku (`BLOOMERY`), u paty ruční
   klínový měch s hubicí (`BLOOMERY_BELLOWS`); při tavbě žhne uhlí v hrdle, z hrdla šlehá žár
   a jiskry (sprity `fireSprites` z `pyre-fire.ts`, `FIRE_SCALE` 0,2 – `animate` jen v záběru, při
-  omezeném pohybu stojí) a stoupá dým z pece místo z výhně (`smeltVents`). **Houba** – 1–3 tmavé
-  hroudy se struskou vedle pece (`BLOOM_PILE`), **hřivny** – hromádka plochých prutů křížem
-  (1 / 3 / 5 vrstev po třech) pod přístřeškem u levé stěny (`BAR_PILE`). Při překování a kování
+  omezeném pohybu stojí) a stoupá dým z pece místo z výhně (`smeltVents`). **Houba** – 2 / 4 / 6 rezavých
+  hrud se struskou vedle pece (`BLOOM_PILE`, `LUMP_SPOTS` – poslední navrchu), **hřivny** –
+  hromádka světlých plochých prutů křížem (2 / 4 / 7 vrstev po třech, `BAR`) pod přístřeškem
+  u levé stěny (`BAR_PILE`). Obojí je větší a světlejší než skutečnost, aby šlo z herní výšky
+  rozeznat (noční ověření 27. 10. 2026), a nižší než polovina pece; dosah hromádek (`reach`)
+  hlídá vyklízená plocha dílny a obdélník dvora pro pěšiny. Při překování a kování
   kouří výheň (`workshopSmokes`).
 - **Postavy** (`craftsmen` ve `villager-plan-crafts.ts`): při tavbě kovář sype rudu a uhlí z koše
   do hrdla (`smeltSpots` – klip `seed`, šikmo zpředu od houby čelem k peci, uvnitř vyklízené
