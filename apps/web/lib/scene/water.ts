@@ -223,7 +223,7 @@ export function createWaterMesh(scene: Scene, surface: RenderSurface): WaterSurf
  * Dlaždicová normálová mapa vlnek ze součtu vln s celočíselnými frekvencemi (navazuje na
  * okrajích) – deterministicky, bez souboru.
  */
-function createRippleNormalMap(scene: Scene): RawTexture {
+export function createRippleNormalMap(scene: Scene): RawTexture {
   const n = RIPPLE_SIZE;
   const waves: { kx: number; ky: number; amplitude: number; phase: number }[] = [];
   let state = 0x7a7e5;

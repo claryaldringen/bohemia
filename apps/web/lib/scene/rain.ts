@@ -117,10 +117,28 @@ export interface RainBox {
   width: number;
 }
 
-export function rainBox(radius: number): RainBox {
+export function rainBox(radius: number, look: DropLook = RAIN_LOOK): RainBox {
   const side = Math.min(BOX_MAX_M, Math.max(BOX_MIN_M, radius * BOX_PER_RADIUS));
-  return { side, height: side * 0.6, streak: side * STREAK_PER_BOX, width: side * 0.0011 };
+  return { side, height: side * 0.6, streak: side * look.streak, width: side * look.width };
 }
+
+/**
+ * Jak padají a vypadají částice (déšť, kroupy – storm.ts): rychlost pádu (m/s), vítr (posun na
+ * metr pádu), délka a šířka čárky (× strana kvádru).
+ */
+export interface DropLook {
+  fallMps: number;
+  wind: readonly [number, number];
+  streak: number;
+  width: number;
+}
+
+export const RAIN_LOOK: DropLook = {
+  fallMps: FALL_MPS,
+  wind: RAIN_WIND,
+  streak: STREAK_PER_BOX,
+  width: 0.0011,
+};
 
 /**
  * Poloha kapky `i` v čase `t` (s): x, z ukotvené ve světě (kvádr se při posunu kamery jen
@@ -134,18 +152,19 @@ export function dropPosition(
   center: { x: number; z: number },
   box: RainBox,
   out: [number, number, number],
+  look: DropLook = RAIN_LOOK,
 ): void {
   const half = box.side / 2;
   const wrap = (u: number, c: number): number => {
     const w = u * box.side - (c - half);
     return c - half + (((w % box.side) + box.side) % box.side);
   };
-  const fall = (seeds[i * 3 + 2]! * box.height + t * FALL_MPS) % box.height;
+  const fall = (seeds[i * 3 + 2]! * box.height + t * look.fallMps) % box.height;
   const y = box.height - fall;
   // vítr: čím níž, tím dál po větru (šikmé čárky jsou rovnoběžné s dráhou kapky)
-  out[0] = wrap(seeds[i * 3]!, center.x) + RAIN_WIND[0] * fall;
+  out[0] = wrap(seeds[i * 3]!, center.x) + look.wind[0] * fall;
   out[1] = y - box.height * 0.15;
-  out[2] = wrap(seeds[i * 3 + 1]!, center.z) + RAIN_WIND[1] * fall;
+  out[2] = wrap(seeds[i * 3 + 1]!, center.z) + look.wind[1] * fall;
 }
 
 /** Náhodná semínka kapek (deterministicky) – 3 čísla 0–1 na kapku. */

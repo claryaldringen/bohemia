@@ -2,13 +2,15 @@
 // síla zlého léta a ochrana dílů po stupních – nikdy seed počasí ani budoucí rok.
 
 import {
+  dateOfDayIndex,
+  FLOOD,
   protectionAgainst,
   revealedWeather,
   type ProtectionKind,
   type SummerWeather,
   type VillageState,
 } from '@bohemia/game';
-import type { SceneWeather } from './village-view-scene-types';
+import type { SceneFlood, SceneHail, SceneWeather } from './village-view-scene-types';
 
 /** Síla zlého léta pro vzhled scény 0–1 (jen vzhled – pravidla jsou v jádru). */
 const SUMMER_STRENGTH: Partial<Record<SummerWeather, number>> = {
@@ -65,4 +67,36 @@ export function sceneWeather(
     ...(strength !== undefined ? { strength } : {}),
     ...(parts ? { parts } : {}),
   };
+}
+
+/**
+ * Povodeň ve scéně (disasters.md – Povodeň potoka, Ve scéně; návrh Clauda): voda stojí
+ * `FLOOD.standDays` dní, pak za `FLOOD_RECEDE_DAYS` ustoupí; bahno a naplavenina zůstanou
+ * `FLOOD_MUD_DAYS` dní od ústupu vody a postupně zarostou.
+ */
+export const FLOOD_RECEDE_DAYS = 1;
+export const FLOOD_MUD_DAYS = 14;
+
+/** Poslední den, kdy scéna povodeň ještě ukazuje (od dne povodně). */
+export const FLOOD_SCENE_DAYS = FLOOD.standDays + FLOOD_RECEDE_DAYS + FLOOD_MUD_DAYS;
+
+/**
+ * Krupobití pro scénu: jen v jeho den a po něm do konce téhož roku (potlučená pole do žní).
+ * `disasters.hail` je vždy minulé – vynucené kroupy (`override.hail`) se do prohlížeče nedostanou.
+ */
+export function sceneHail(state: Pick<VillageState, 'disasters'>, day: number): SceneHail | null {
+  const hail = state.disasters?.hail;
+  if (!hail || hail.day > day) return null;
+  if (dateOfDayIndex(hail.day).year !== dateOfDayIndex(day).year) return null;
+  const { x, z, angle, offsetM } = hail.strip;
+  return { day: hail.day, strip: { x, z, angle, offsetM } };
+}
+
+/** Povodeň pro scénu: od jejího dne do konce bahna (`FLOOD_SCENE_DAYS`), jinak null. */
+export function sceneFlood(state: Pick<VillageState, 'disasters'>, day: number): SceneFlood | null {
+  const flood = state.disasters?.flood;
+  if (!flood || flood.day > day || day >= flood.day + FLOOD_SCENE_DAYS) return null;
+  // jarní voda (tání) je v březnu, letní (bouřky) od poloviny června (FLOOD_WATER – okna)
+  const season = dateOfDayIndex(flood.day).month <= 5 ? 'spring' : 'summer';
+  return { day: flood.day, heightM: flood.heightM, season };
 }

@@ -549,11 +549,11 @@ políčky – políčka z krajiny a výšky vody, 3 dny, pak ustupuje), `ground-
 a naplavenina 2 týdny), `felled-trees.ts` nebo dekorace (naplavené větve), `ambient-sound.ts`
 (hrom, kroupy).
 
-- [ ] Animace bouřky a ústupu vody **jen v den pohromy** (`animate()` v taktu `WATER_FPS`),
+- [x] Animace bouřky a ústupu vody **jen v den pohromy** (`animate()` v taktu `WATER_FPS`),
       záblesky deterministicky z času dne; při omezeném pohybu bez záblesků (jen ztmavení).
 - [ ] Výška vody v popisku (`SceneFlood.heightM`) – UI z P10.
-- [ ] e2e: dev vynucené kroupy – scéna tmavší, pruh vidět; vynucená povodeň – voda nad políčky.
-- [ ] Commit `feat(web): bouřka s kroupami a povodeň ve scéně`.
+- [x] e2e: dev vynucené kroupy – scéna tmavší, pruh vidět; vynucená povodeň – voda nad políčky.
+- [x] Commit `feat(web): bouřka s kroupami a povodeň ve scéně`.
 
 ## Úloha P13 – Scéna: požár s řetězem s vědry a smršť (≈ 140 kroků)
 

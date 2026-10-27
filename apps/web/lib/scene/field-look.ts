@@ -8,6 +8,7 @@ import type { FieldLook, LaborActivity, SceneFieldPart, SceneVillage } from '../
 import type { Rgb } from './field-crops';
 import { aftermathGrazing, hayPhase } from './hay-meadows';
 import { track, weatherAmounts, type Track } from './season-look';
+import { hailWeight } from './storm';
 
 export type { FieldLook };
 
@@ -231,7 +232,8 @@ export function workOrder(
  */
 export interface LookContext {
   dayOfYear: number;
-  village: Pick<SceneVillage, 'dwellings'> & Partial<Pick<SceneVillage, 'labor' | 'weather'>>;
+  village: Pick<SceneVillage, 'dwellings'> &
+    Partial<Pick<SceneVillage, 'labor' | 'weather' | 'hail'>>;
 }
 
 /**
@@ -249,15 +251,17 @@ export function fieldPartViews(
     cached.dwellings === context.village.dwellings &&
     cached.labor === context.village.labor &&
     cached.weather === context.village.weather &&
+    cached.hail === context.village.hail &&
     cached.day === context.dayOfYear
   ) {
     return cached.views;
   }
-  const views = withWeather(computePartViews(field, context), context);
+  const views = withHail(withWeather(computePartViews(field, context), context), context);
   viewsCache.set(field.parts, {
     dwellings: context.village.dwellings,
     labor: context.village.labor,
     weather: context.village.weather,
+    hail: context.village.hail,
     day: context.dayOfYear,
     views,
   });
@@ -271,6 +275,7 @@ const viewsCache = new WeakMap<
     dwellings: LookContext['village']['dwellings'];
     labor: LookContext['village']['labor'];
     weather: LookContext['village']['weather'];
+    hail: LookContext['village']['hail'];
     day: number;
     views: PartView[];
   }
@@ -381,6 +386,37 @@ function withWeather(views: PartView[], context: LookContext): PartView[] {
     const tint = mergeTint(dryTint, crops ? frostTint(crops.bare) : null);
     if (!tint && !crops) return view;
     return { ...view, ...(tint ? { tint } : {}), ...(crops ? { weather: crops } : {}) };
+  });
+}
+
+/**
+ * Potlučené obilí v pruhu krupobití (disasters.md – Kroupy, Ve scéně) při plné síle (vnitřek
+ * pruhu; okraj polovina): nižší a řidší, zralé obilí polehlé, otlučené listy hnědnou. Platí do
+ * žní – sklizený díl už osetý není.
+ */
+const HAIL_CROPS = { height: 0.45, density: 0.5, tint: [0.86, 0.8, 0.66] as Rgb };
+
+function withHail(views: PartView[], context: LookContext): PartView[] {
+  const hail = context.village.hail;
+  if (!hail) return views;
+  return views.map((view) => {
+    if (view.part.stage !== 'sown') return view;
+    const w = hailWeight(hail.strip, view.part.x, view.part.z);
+    if (w === 0) return view;
+    const base = view.weather ?? { height: 1, density: 1, lodged: 0, bare: 0 };
+    const grain = view.part.crop === undefined;
+    const weather: PartWeather = {
+      height: base.height * (1 - HAIL_CROPS.height * w),
+      density: base.density * (1 - HAIL_CROPS.density * w),
+      lodged: grain ? Math.max(base.lodged, w) : base.lodged,
+      bare: base.bare,
+    };
+    const battered: Rgb = [
+      1 + (HAIL_CROPS.tint[0] - 1) * w,
+      1 + (HAIL_CROPS.tint[1] - 1) * w,
+      1 + (HAIL_CROPS.tint[2] - 1) * w,
+    ];
+    return { ...view, weather, tint: mergeTint(view.tint ?? null, battered)! };
   });
 }
 

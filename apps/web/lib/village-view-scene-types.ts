@@ -8,6 +8,7 @@ import { MoundSize } from '@bohemia/game';
 import { tileCenterWorld } from '@bohemia/game';
 import { PlotVariant } from '@bohemia/game';
 import {
+  type HailStrip,
   type RoadProfilePoint,
   type HerdSpecies,
   type FamilyCounts,
@@ -370,6 +371,28 @@ export interface SceneVillage {
    * údaje normální rok (nebo zlé počasí ještě není vidět).
    */
   weather?: SceneWeather;
+  /**
+   * Krupobití (disasters.md – Kroupy, Ve scéně) – jen v jeho den a po něm do konce roku (pruh
+   * potlučených polí do žní). Nikdy budoucí rozpis.
+   */
+  hail?: SceneHail;
+  /** Povodeň (disasters.md – Povodeň potoka, Ve scéně) – jen od jejího dne do konce bahna. */
+  flood?: SceneFlood;
+}
+
+/** Krupobití vsi pro scénu: den a pruh (`hailZone` z jádra). */
+export interface SceneHail {
+  /** Herní den krupobití (pořadí dne světa – `gameDayAt`). */
+  day: number;
+  strip: HailStrip;
+}
+
+/** Povodeň pro scénu: den, výška vody nad hladinou potoka (m) a jarní / letní voda. */
+export interface SceneFlood {
+  /** Herní den povodně (pořadí dne světa). */
+  day: number;
+  heightM: number;
+  season: 'spring' | 'summer';
 }
 
 /**

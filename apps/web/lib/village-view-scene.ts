@@ -65,6 +65,7 @@ import {
   type LordRide,
   partStage,
   partOvergrowthYears,
+  hailZone,
   pastureGrazedParts,
   isGrazeableFallow,
   reservedTrees,
@@ -93,7 +94,7 @@ import { sceneFunerals } from './funeral-view';
 import { scenePersons } from './person-view';
 import { sceneWeddings } from './wedding-view';
 import { sceneWildlife } from './wildlife-view';
-import { sceneWeather } from './weather-view';
+import { sceneFlood, sceneHail, sceneWeather } from './weather-view';
 
 export function sceneVillage(
   state: VillageState,
@@ -158,6 +159,9 @@ export function sceneVillage(
   const ard = ploughsThisYear(state);
   // počasí roku, které už je vidět (disasters.md – Ve scéně) – nikdy seed ani budoucí rok
   const weather = sceneWeather(state, day);
+  // krupobití a povodeň jen v jejich den a po něm (nikdy budoucí rozpis)
+  const hail = sceneHail(state, day);
+  const flood = sceneFlood(state, day);
   const fields = state.fields.map((f) => ({
     id: f.id,
     ...(f.grid ? { grid: f.grid } : {}),
@@ -209,9 +213,13 @@ export function sceneVillage(
   const orchards = villageOrchards(state).map((o) => ({
     id: o.id,
     ...(o.grid ? { grid: o.grid } : {}),
-    squares: o.squares.map((s) =>
-      sceneOrchardSquare(landscape, s, day, state.orchardWork ?? null, o.grid),
-    ),
+    squares: o.squares.map((s) => {
+      const square = sceneOrchardSquare(landscape, s, day, state.orchardWork ?? null, o.grid);
+      // sad v pruhu krupobití bez jablek až do sklizně (disasters.md – Kroupy, Ve scéně)
+      return hail && square.fruit && hailZone(hail.strip, square.x, square.z)
+        ? { ...square, fruit: false }
+        : square;
+    }),
   }));
   const funerals = sceneFunerals(state, day);
   const weddings = sceneWeddings(state, day, landscape);
@@ -322,6 +330,8 @@ export function sceneVillage(
       ? { home: { x: Math.round(home.x * 100) / 100, z: Math.round(home.z * 100) / 100 } }
       : {}),
     ...(weather ? { weather } : {}),
+    ...(hail ? { hail } : {}),
+    ...(flood ? { flood } : {}),
   };
 }
 

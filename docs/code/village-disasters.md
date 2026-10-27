@@ -349,3 +349,19 @@ z + ':' + na)`, nezávisí na pořadí průchodu): každá nově hořící stavb
 - **Vývojová ukázka** – `/dev/landscape`, přepínač **Počasí** (`dev-weather.ts`, `data-testid`
   `dev-weather`): vynucené počasí vsi náhledu s vývojovým dnem (rok se nekontroluje), ochrana dílů
   podle id dílu (id % 5).
+
+## Scéna – bouřka s kroupami a povodeň (P12)
+
+- **Data** – `sceneHail(state, day)` a `sceneFlood(state, day)` (`apps/web/lib/weather-view.ts`) →
+  `SceneVillage.hail` (`SceneHail` – den a pruh) a `.flood` (`SceneFlood` – den, výška vody,
+  jaro / léto podle měsíce). `disasters.hail` / `.flood` se v jádru nemažou – scéna je dostane
+  **jen v den pohromy a po něm**: kroupy do konce téhož roku (potlučená pole do žní), povodeň
+  `FLOOD.standDays` + 1 den ústupu + 14 dní bahna (`FLOOD_SCENE_DAYS`, návrh Clauda). Vynucené
+  kroupy (`override.hail`), podíl jablek ani budoucí rozpis se do prohlížeče nedostanou (testy
+  ve `storm.test.ts`). Sad v pruhu bez jablek do sklizně (`fruit: false` v `village-view-scene.ts`
+  – `hailZone` z jádra, nově exportovaný).
+- **Vzhled** – ztmavení, záblesky, kroupy, bílý pás, potlučené obilí, voda povodně a bahno:
+  [scene.md – Roční období – počasí](scene.md) (Bouřka s kroupami, Povodeň). Voda ve scéně
+  bere zatopená políčka ze `streamHeights` jako jádro – shoduje se se škodami.
+- **Vývojová ukázka** – přepínač **Počasí** na `/dev/landscape`: krupobití, povodeň stoletá
+  a tisíciletá (`dev-weather.ts`, `devDisasterDay`).
