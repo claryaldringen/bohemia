@@ -28,6 +28,7 @@ interface DevScene {
     labor?: {
       lord?: { home: number; riders: { id: number; horseId: number }[] };
       shares: object[];
+      persons?: { id: number; age: number }[];
     };
     dwellings: { id: number; position: Spot }[];
     fields: { parts: { id: number; x: number; z: number }[] }[];
@@ -144,9 +145,21 @@ for (const renderer of ['webgl', 'webgpu'] as const) {
       // rybáři dne – podíl práce `fish` u první tůně (jako ho posílá server)
       const shares = v.labor!.shares;
       const fish = { ...shares[0], activity: 'fish', target: { kind: 'pool', index: 0 } };
+      // ukázková ves má 9 lidí – všichni mají práci a na rybáře a děti s řehtačkou nikdo
+      // nezbude; trojnásobek dospělých a výrostků z týchž domů
+      const persons = v.labor!.persons ?? [];
+      const extra = [500, 600, 700].flatMap((o) =>
+        persons.filter((q) => q.age >= 7 && q.age < 45).map((q) => ({ ...q, id: q.id + o })),
+      );
       scene.setVillage({
         ...v,
-        labor: { ...v.labor, shares: pool ? [...shares, fish] : shares },
+        labor: {
+          ...v.labor,
+          // pěší lovec nemá koně – v objížďce jezdců by místo lovu cvičil
+          lord: { ...lord, riders: lord.riders.slice(1) },
+          persons: [...persons, ...extra],
+          shares: pool ? [...shares, fish] : shares,
+        },
         wildlife: {
           shown: {
             stags: 2,
@@ -218,6 +231,23 @@ for (const renderer of ['webgl', 'webgpu'] as const) {
     await shot(page, `${p}8-lovci-zpet`, mid, 60);
     await setHour(page, 10);
     await shot(page, `${p}9-rybari`, focus.pool as Spot | null, 70);
+    // první rybář stojí na levém břehu tůně (anglerSpot) – výřez břehu s vodou
+    const pool = focus.pool as {
+      x: number;
+      z: number;
+      flowX: number;
+      flowZ: number;
+      halfLeft: number;
+    } | null;
+    if (pool) {
+      const d = pool.halfLeft - 6;
+      await shot(
+        page,
+        `${p}9b-rybar-breh`,
+        { x: pool.x - pool.flowZ * d, z: pool.z + pool.flowX * d },
+        40,
+      );
+    }
     await shot(page, `${p}10-rehtacka`, focus.watch, 30);
     expect(errors.filter((e) => !/Failed to load resource/.test(e))).toEqual([]);
   });
