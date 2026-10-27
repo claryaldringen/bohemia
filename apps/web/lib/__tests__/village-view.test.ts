@@ -136,6 +136,25 @@ describe('scéna – počasí roku (disasters.md – Ve scéně)', () => {
     expect(json).not.toContain('override');
   });
 
+  it('lišta: 30. 4. sucho chybí (holomráz ano), od 1. 5. je vidět – bez seedu a override', () => {
+    const april = dayIndexOf({ year: 503, month: 4, day: 30 });
+    const before = buildVillageView(
+      record({ ...forced(), weatherSeed: 987_654_321 }),
+      landscape,
+      april,
+    );
+    expect(before.weather).toEqual({ year: 503, winter: 'blackFrost' });
+    const json = JSON.stringify(before);
+    expect(json).not.toContain('drought');
+    expect(json).not.toContain('weatherSeed');
+    expect(json).not.toContain('override');
+    const may = buildVillageView(record(forced()), landscape, april + 2);
+    expect(may.weather?.summer).toBe('drought');
+    // panel dílu – ochrana dílu (typická zeleň → 1 lístek)
+    const part = may.fields.flatMap((f) => f.parts)[0];
+    if (part) expect(part.protection?.level).toBe(1);
+  });
+
   it('v suchu síla léta a ochrana dílů po stupních 0–4', () => {
     const may = dayIndexOf({ year: 503, month: 5, day: 2 });
     const weather = sceneWeather(forced(), may)!;

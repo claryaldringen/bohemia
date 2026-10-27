@@ -31,6 +31,7 @@ import {
 import type { LeaveDirection } from './departure-view';
 import type { VillageManor } from './manor-view';
 import type { FieldDamageView, WildlifeSpeciesView } from './wildlife-view';
+import { partLossRows, type PartLossRow, type PartProtectionView } from './disasters-view';
 import type { VillageHorses } from './horse-view';
 import type { VillageDugSite } from './ore-site-view';
 import type { VillageKiln } from './kiln-view';
@@ -307,6 +308,10 @@ type SelectionKinds =
       founding: NonNullable<VillageFieldPart['founding']> | null;
       /** Škoda zvěře letos (wildlife.md – Co hráč vidí); díl mimo ohrožení null. */
       damage?: FieldDamageView | null;
+      /** Ochrana dílu před počasím (disasters.md – Ochrana dílu); ves bez počasí kraje chybí. */
+      protection?: PartProtectionView;
+      /** Řádky odhadu ztrát letos – počasí, kroupy, povodeň, smršť (disasters.md); žádné chybí. */
+      losses?: PartLossRow[];
       /** Id všech polí vsi – tlačítko „Označit všechna pole“. */
       fieldIds?: readonly number[];
     }
@@ -1181,6 +1186,8 @@ function fieldPartDetails(
     walkM: part.walkM,
     holding: house ? { dwellingId: house.id, type: house.type } : null,
     ...(part.damage ? { damage: part.damage } : {}),
+    ...(part.protection ? { protection: part.protection } : {}),
+    ...(part.losses ? { losses: partLossRows(part.losses, view?.weather) } : {}),
     sownYears: part.sownYears ?? null,
     fallowYears: part.fallowYears ?? null,
     overgrowthYears: shown.overgrowth ?? 0,

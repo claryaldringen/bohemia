@@ -836,6 +836,71 @@ describe('upozornění z jiných vsí (migration.md)', () => {
   });
 });
 
+describe('počasí a pohromy (disasters.md – Co hráč vidí)', () => {
+  const item = (overrides: Partial<VillageListItem> = {}): VillageListItem => ({
+    id: 'v-2',
+    settlementId: 's-1',
+    name: 'Budeč',
+    people: 6,
+    extinct: false,
+    abandoned: false,
+    travelling: false,
+    hunger: 'fed',
+    ...overrides,
+  });
+  const drought = {
+    kind: 'drought',
+    tone: 'warn',
+    text: 'Sucho – nejvíc trpí pole bez stromů',
+  } as const;
+
+  it('sucho se ohlásí jednou, když se ukáže', () => {
+    const before = view();
+    const dry = view({ weather: { year: 503, summer: 'drought' } });
+    expect(newNotices(before, dry)).toEqual([drought]);
+    expect(newNotices(dry, dry)).toEqual([]);
+  });
+
+  it('požár z kroniky – v jeho den Hoří!, den po něm Vyhořel dům', () => {
+    const fire = {
+      day: 1001,
+      kind: 'fire' as const,
+      dwellings: 1,
+      dateLabel: '',
+      text: 'Požár – vyhořel jeden dům.',
+    };
+    const burning = view({ dayIndex: 1001, chronicle: [fire] });
+    expect(newNotices(view(), burning)).toEqual([{ kind: 'fire', tone: 'warn', text: 'Hoří!' }]);
+    expect(newNotices(burning, view({ dayIndex: 1002, chronicle: [fire] }))).toEqual([
+      { kind: 'fire-out', tone: 'warn', text: 'Vyhořel dům' },
+    ]);
+  });
+
+  it('z jiné vsi se jménem – sucho a poslední pohroma, jen když nově přibudou', () => {
+    const self = item({ id: 'v-1', name: 'Libice' });
+    const before = view({ villages: [self, item()] });
+    const after = view({
+      villages: [
+        self,
+        item({
+          disasters: {
+            weather: [drought],
+            last: {
+              day: 1000,
+              notice: { kind: 'hail', tone: 'warn', text: 'Kroupy potloukly obilí' },
+            },
+          },
+        }),
+      ],
+    });
+    expect(otherVillageNotices(before, after)).toEqual([
+      { ...drought, text: 'Budeč: Sucho – nejvíc trpí pole bez stromů' },
+      { kind: 'hail', tone: 'warn', text: 'Budeč: Kroupy potloukly obilí' },
+    ]);
+    expect(otherVillageNotices(after, after)).toEqual([]);
+  });
+});
+
 describe('tesař a vozy (wagons.md)', () => {
   it('tesař bez klád – vlastní řádek, ostatní dílny dál „Dílna nemá co kácet“', () => {
     const workshop = (craft: 'carpenter' | 'potter') => ({

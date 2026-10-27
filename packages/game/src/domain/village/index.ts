@@ -17,6 +17,13 @@ export * from './weather';
 export * from './disasters';
 export * from './part-protection';
 export { hailZone, type HailZone } from './hail';
+export {
+  cropWeatherOf,
+  harvestYearOf,
+  hasWeather,
+  partWeatherFactor,
+  weatherChangesCrop,
+} from './weather-effects';
 export * from './hunt';
 export { dogsYear, feedDogs } from './manor-dogs';
 export {

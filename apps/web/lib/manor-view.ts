@@ -40,6 +40,7 @@ import {
   type TrailOption,
   type VillageState,
 } from '@bohemia/game';
+import { tradeDearth } from './disasters-view';
 import {
   armsView,
   personPortrait,
@@ -133,6 +134,11 @@ export interface VillageNeighbour {
    * (`horseTradeRoom`).
    */
   room: { cows: number; oxen: number; horses: number };
+  /**
+   * Kraj po zlém (`bad`) nebo krutém (`cruel`) roce – obilí u sousedů zdražilo (disasters.md – Kraj
+   * kolem vsi, Co hráč vidí: ikona zdražení u obilí); obyčejný rok – chybí.
+   */
+  dearth?: 'bad' | 'cruel';
 }
 
 /**
@@ -195,6 +201,7 @@ export function neighbourViews(
   landscape: Landscape | null = null,
 ): VillageNeighbour[] {
   const carts = tradeCarts(state, day).map((c) => c.kind);
+  const dearth = tradeDearth(state, day);
   return villageTrails(state)
     .filter((t) => t.builtDay !== null)
     .map((trail): VillageNeighbour => {
@@ -260,6 +267,7 @@ export function neighbourViews(
           },
         },
         expedition: expedition ? expeditionView(state, expedition) : null,
+        ...(dearth ? { dearth } : {}),
       };
     });
 }

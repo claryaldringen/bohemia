@@ -2,6 +2,7 @@ import type { AbandonedStructure, HerdSpecies, HungerLevel, NewcomerGroup } from
 import { DIRECTION_NAMES, NEWCOMER_TEXTS } from './trade-names';
 import { formatAnimals, formatInteger } from './village-format';
 import { ironTripWho, productList, type VillageView } from './village-view';
+import { disasterNotices, weatherNotices, type DisasterNoticeKind } from './disasters-view';
 
 // Upozornění vsi (population.md – Co hráč vidí): rodina čeká na dům, ves šetří jídlem, hladoví,
 // lidé umírají hlady – vždy jen nejvyšší stupeň (Hlad a vymření), stavby stojí, hřbitov je plný (cemetery.md), vesničané ušetřili posvátný dub
@@ -117,7 +118,12 @@ export type NoticeKind =
   | 'other-starving'
   | 'other-extinct'
   /** Humno z jiné vsi hráče (production-chains.md – Humno). */
-  | 'other-emergency-threshing';
+  | 'other-emergency-threshing'
+  /**
+   * Počasí a pohromy (disasters.md – Co hráč vidí): sucho, mokré žně, holomráz, kroupy, povodeň,
+   * hoří, vyhořel dům, smršť – i z jiné vsi hráče s jejím jménem.
+   */
+  | DisasterNoticeKind;
 
 export interface VillageNotice {
   kind: NoticeKind;
@@ -262,6 +268,8 @@ export function villageNotices(view: VillageView): VillageNotice[] {
       text: 'Humno nestačí – část se mlátí nouzově',
     });
   }
+  // počasí roku, které se právě ukázalo (disasters.md – Co hráč vidí)
+  if (!view.extinct) notices.push(...weatherNotices(view.weather));
   return notices;
 }
 
@@ -317,6 +325,16 @@ export function otherVillageNotices(previous: VillageView, next: VillageView): V
         text: `${village.name}: ${OTHER_THRESHING_NOTICE.text}`,
       });
     }
+    // počasí a pohromy (disasters.md – Co hráč vidí) – když nově vzniknou
+    const had = new Set(before.disasters?.weather?.map((n) => n.kind));
+    for (const notice of village.disasters?.weather ?? []) {
+      if (!had.has(notice.kind))
+        notices.push({ ...notice, text: `${village.name}: ${notice.text}` });
+    }
+    const last = village.disasters?.last;
+    if (last && last.day > (before.disasters?.last?.day ?? -Infinity)) {
+      notices.push({ ...last.notice, text: `${village.name}: ${last.notice.text}` });
+    }
   }
   return notices;
 }
@@ -349,6 +367,9 @@ function ownNotices(previous: VillageView, next: VillageView): VillageNotice[] {
     notices.push({ kind: 'marriage', tone: 'info', text: 'Svatba' });
   }
   notices.push(...chronicleNotices(previous, next));
+  // pohromy z kroniky – kroupy, povodeň, požár (hoří / vyhořel dům), smršť (disasters.md)
+  if (!next.extinct)
+    notices.push(...disasterNotices(next.chronicle, previous.dayIndex, next.dayIndex));
   return notices;
 }
 

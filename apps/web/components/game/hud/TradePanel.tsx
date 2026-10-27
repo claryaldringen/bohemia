@@ -17,6 +17,7 @@ import {
   type PreviewPeople,
   type TradeSelection,
 } from '@/lib/trade-quote';
+import { dearthLabel } from '@/lib/disasters-view';
 import { formatInteger } from '@/lib/village-format';
 import { Tooltip } from './Tooltip';
 
@@ -292,11 +293,21 @@ function ColumnHeading({ side }: { side: Side }): ReactElement {
 /** Soused nahoře v panelu – jméno vsi a směr. */
 function NeighbourName({ neighbour }: { neighbour: VillageNeighbour }): ReactElement {
   return (
-    <span data-testid="trade-neighbour" className="font-semibold">
-      {neighbour.name}{' '}
-      <span className="font-normal text-[#bfa77a]">
-        ({DIRECTION_NAMES[neighbour.direction].name})
+    <span className="flex items-center gap-1.5">
+      <span data-testid="trade-neighbour" className="font-semibold">
+        {neighbour.name}{' '}
+        <span className="font-normal text-[#bfa77a]">
+          ({DIRECTION_NAMES[neighbour.direction].name})
+        </span>
       </span>
+      {/* kraj po zlém roce – obilí zdražilo (disasters.md – Co hráč vidí) */}
+      {neighbour.dearth && (
+        <Tooltip content={dearthLabel(neighbour.dearth)} placement="above">
+          <span data-testid="trade-dearth" data-dearth={neighbour.dearth} tabIndex={0}>
+            <img src="/icons/resources/dearth.png" alt="" width={20} height={20} />
+          </span>
+        </Tooltip>
+      )}
     </span>
   );
 }

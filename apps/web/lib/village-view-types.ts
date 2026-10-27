@@ -51,6 +51,12 @@ import { type HouseholdRelocation } from './relocation-view';
 
 import { type VillageManor } from './manor-view';
 import type { FieldDamageView, VillageWildlife } from './wildlife-view';
+import type {
+  DisasterChronicleEntry,
+  PartLossesView,
+  PartProtectionView,
+  WeatherView,
+} from './disasters-view';
 import { type VillageHorses } from './horse-view';
 
 import { type VillageDugSite } from './ore-site-view';
@@ -611,6 +617,11 @@ export interface VillageView {
     horses?: number;
     /** Koně okul vlastní kovář, ne kovář z jiné vsi (horses.md – Kování). */
     own?: boolean;
+    /** Pohromy (disasters.md – Co hráč vidí): stupeň vody, síla smrště, potlučené díly, shořelé domy. */
+    level?: DisasterChronicleEntry['level'];
+    strength?: DisasterChronicleEntry['strength'];
+    parts?: number;
+    dwellings?: number;
     dateLabel: string;
     text: string;
   }[];
@@ -628,6 +639,11 @@ export interface VillageView {
   manor: VillageManor | null;
   /** Divoká zvěř vsi – hrubé stavy druhů a podklady upozornění (wildlife.md); chybí = ještě není. */
   wildlife?: VillageWildlife;
+  /**
+   * Počasí roku pro horní lištu (disasters.md – Co hráč vidí): jen neobvyklé a už vidět, povodeň
+   * s výškou vody; ves bez počasí kraje nebo obyčejný rok – chybí. Nikdy seed ani budoucí rok.
+   */
+  weather?: WeatherView;
   /**
    * Rudiště kováren (crafts.md – Uhlí a ruda kováře) pro panel výběru – ložisko, hromada u jámy,
    * zásoba v kovárně, cesta, jámy a kdo tu dnes pracuje; chybí = žádné.
@@ -780,6 +796,10 @@ export interface VillageFieldPart {
   };
   /** Škoda zvěře letos (wildlife.md – Co hráč vidí): jen díl, který zvěř ohrožuje. */
   damage?: FieldDamageView;
+  /** Ochrana dílu před počasím (disasters.md – Ochrana dílu); ves bez počasí kraje – chybí. */
+  protection?: PartProtectionView;
+  /** Odhad ztrát úrody letos z počasí a pohrom (disasters.md – Co hráč vidí); žádné – chybí. */
+  losses?: PartLossesView;
 }
 
 /**

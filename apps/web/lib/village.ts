@@ -13,6 +13,10 @@ import {
   foundDevVillage,
   foundVillageForSettlement,
   declareHuntInVillage,
+  forceBadYear,
+  forceDisaster,
+  type BadYearKind,
+  type ForcedDisasterKind,
   nameLineManInVillage,
   placeCemetery,
   placeDwelling,
@@ -486,6 +490,24 @@ export function declareHuntForPlayer(
       { villageId: ctx.villageId, today: ctx.day, landscape: ctx.landscape },
     ),
   );
+}
+
+/**
+ * Vývojový režim (disasters.md – plán P10): vynutí letošní zlý rok, nebo zítřejší pohromu vsi
+ * (`disasters.override`). Bez `devMode` use-case odmítne.
+ */
+export function forceDevDisasterForPlayer(
+  playerId: string,
+  devMode: boolean,
+  villageId: string,
+  choice: { kind: 'year'; value: BadYearKind } | { kind: 'disaster'; value: ForcedDisasterKind },
+): Promise<VillageActionResult> {
+  return actOn(playerId, villageId, (ctx) => {
+    const input = { villageId: ctx.villageId, devMode, today: ctx.day, landscape: ctx.landscape };
+    return choice.kind === 'year'
+      ? forceBadYear({ villages: villages() }, { ...input, kind: choice.value })
+      : forceDisaster({ villages: villages() }, { ...input, kind: choice.value });
+  });
 }
 
 export function renameVillageForPlayer(

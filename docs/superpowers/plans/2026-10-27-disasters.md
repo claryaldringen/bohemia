@@ -499,12 +499,12 @@ zdražení), ikony (`tools/blender/icons.py` nebo SVG – ověřit vzor), dev
 `apps/web/app/dev/landscape/` (tlačítka „Vynutit zlý rok“ a „Vynutit pohromu“ přes server action
 a use-case – vzor `dev-shoeing.ts`), e2e.
 
-- [ ] Upozornění „Sucho – nejvíc trpí pole bez stromů“ (Martin 27. 10. 2026), „Mokré žně“,
+- [x] Upozornění „Sucho – nejvíc trpí pole bez stromů“ (Martin 27. 10. 2026), „Mokré žně“,
       „Holomráz – ozim vymrzá“, „Kroupy potloukly obilí“, „Povodeň“ (velikost v popisku), „Hoří!“,
       „Vyhořel dům“, „Smršť“.
-- [ ] Test: JSON `VillageView` neobsahuje `weatherSeed` ani budoucí počasí (30. 4. sucho chybí).
-- [ ] e2e: dev vynucené sucho – ikona na liště a upozornění; panel dílu ukazuje ochranu.
-- [ ] Commit `feat(web): počasí a pohromy v rozhraní`.
+- [x] Test: JSON `VillageView` neobsahuje `weatherSeed` ani budoucí počasí (30. 4. sucho chybí).
+- [x] e2e: dev vynucené sucho – ikona na liště a upozornění; panel dílu ukazuje ochranu.
+- [x] Commit `feat(web): počasí a pohromy v rozhraní`.
 
 ## Úloha P11 – Scéna: počasí roku a světlo (≈ 140 kroků)
 

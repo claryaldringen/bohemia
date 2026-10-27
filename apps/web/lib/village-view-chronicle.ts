@@ -115,6 +115,22 @@ function tornadoText(event: Extract<ChronicleEvent, { kind: 'tornado' }>): strin
   return `${name}${what.length > 0 ? ` – ${what.join(', ')}` : ''}.`;
 }
 
+/** Požár v kronice (disasters.md – Požár): kolik domů vyhořelo, česky se správným tvarem. */
+function fireText(burned: number): string {
+  if (burned <= 1) return 'Požár – vyhořel jeden dům.';
+  if (burned <= 4) return `Požár – vyhořely ${burned} domy.`;
+  return `Požár – vyhořelo ${burned} domů.`;
+}
+
+/** Kroupy v kronice (disasters.md – Kroupy): potlučené díly a střechy. */
+function hailText(parts: number, roofs: number): string {
+  const what = [
+    ...(parts > 0 ? [`potlučené díly: ${parts}`] : []),
+    ...(roofs > 0 ? [`potlučené střechy: ${roofs}`] : []),
+  ];
+  return what.length > 0 ? `Kroupy – ${what.join(', ')}.` : 'Kroupy.';
+}
+
 /** Dostavěná řemeslná dílna – kronika (crafts.md). */
 const WORKSHOP_FINISHED: Record<Craft, string> = {
   potter: 'Dostavěli hrnčířskou dílnu s pecí.',
@@ -567,18 +583,14 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return STRUCTURE_REPAIRED_TEXTS[event.structure];
     case 'weather':
       return weatherText(event.summer, event.winter);
-    case 'fire': {
-      const n = event.burnedDwellingIds.length;
-      return n === 1 ? 'Požár – shořela jedna stavba.' : `Požár – shořelo ${n} staveb.`;
-    }
+    case 'fire':
+      return fireText(event.burnedDwellingIds.length);
     case 'flood':
       return floodText(event);
     case 'tornado':
       return tornadoText(event);
     case 'hail':
-      return event.partIds.length > 0
-        ? `Kroupy potloukly pole – zasažené díly: ${event.partIds.length}.`
-        : 'Kroupy.';
+      return hailText(event.partIds.length, event.dwellingIds.length);
     case 'cemetery-full':
       if (event.othersFree) return 'Jeden z hřbitovů se zaplnil – pohřbívá se do dalšího.';
       // staví se jiný hřbitov nebo rozšíření – bude kam pohřbívat

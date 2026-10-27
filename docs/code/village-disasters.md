@@ -469,3 +469,15 @@ vzácné tornádo je dobré“; rešerše §6). Jádro: `tornado.ts`, stopy v `d
   při omezeném pohybu bez trychtýře, scéna tmavší a kmenů víc (F3), po návratu na normální rok
   žádný trychtýř ani kmeny a draw cally stejné (91 → F2 92, F3 83 → 91; padlých kmenů F2 907, F3 3391 – hustý les ukázky).
 - **Zvuk hukotu** – není (lokálně žádný CC0 záznam).
+
+## Rozhraní (P10)
+
+- Lišta (ikona počasí roku a povodně s výškou vody), panel dílu (ochrana 0–4 a odhad ztrát),
+  obchod (zdražení po zlém roce) a upozornění: [web-ui.md – Počasí a pohromy v rozhraní](web-ui.md).
+  Do prohlížeče jde jen odhalené počasí (`weatherView` nad `revealedWeather`) – nikdy
+  `weatherSeed`, `override` ani budoucí rok (test JSON 30. 4. v `village-view.test.ts`).
+- **Vynucené pohromy (dev)** – `forceBadYear` / `forceDisaster` (`application/dev-disasters.ts`)
+  zapisují `disasters.override` skutečné vsi, jen s `devMode`: [accounts.md](accounts.md).
+- **Kronika** – požár „Požár – vyhořel jeden dům / vyhořely 2 domy / vyhořelo 5 domů.“, kroupy
+  „Kroupy – potlučené díly: 4, potlučené střechy: 2.“ (`fireText`, `hailText`
+  v `village-view-chronicle.ts`); povodeň, smršť a počasí beze změny.

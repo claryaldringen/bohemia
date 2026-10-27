@@ -390,3 +390,37 @@ Návrh: [wildlife.md](../design/wildlife.md) – Co hráč vidí. Pohled jen čt
 - **Dev panely:** `/dev/panels?panel=dvorec` (lov a psi), `pole-dil` (škoda a oheň), `zver-prase`, `zver-vlci`, `zver-medved`.
 - **Testy:** `lib/__tests__/wildlife-view.test.ts`, `components/game/hud/__tests__/WildlifePanel.test.tsx`,
   upozornění ve `village-notices.test.ts`; e2e „díl pole ukáže škodu zvěře letos“ a psi v testu lovu navíc.
+
+## Počasí a pohromy v rozhraní (P10, `lib/disasters-view.ts`)
+
+Návrh: [disasters.md – Co hráč vidí](../design/disasters.md). Jádro a čísla: [village-disasters.md](village-disasters.md).
+
+- **Lišta** – `VillageView.weather` (`weatherView`): jen neobvyklé a už vidět (`revealedWeather` – 30. 4. sucho chybí), povodeň (`disasters.flood`), dokud ve vsi leží voda a bahno
+  (`FLOOD_SCENE_DAYS`). `TopBar` → `WeatherIcons` za štěstím: ikona zimy, léta a vody
+  (`WEATHER_ICONS` – `drought`, `rain`, `frost`, `good-summer`, `flood`), slova jen v popisku
+  (`summerLabel` – změny úrody a sena z `WEATHER.summerEffects`, `winterLabel`, `floodLabel` –
+  „Stoletá voda – 2 m nad hladinou“). Testy `village-weather-summer` / `-winter` (`data-weather`),
+  `village-flood` (`data-level`).
+- **Panel dílu** – `VillageFieldPart.protection` (`partProtectionView`: zeleň po stupních 0–4,
+  `water`, `lowland`, `raised`, `slope`; díl bez údaje typická zeleň; ves bez počasí kraje nic)
+  → ikona `protection` s číslem, popisek `protectionLabel`. `VillageFieldPart.losses`
+  (`partLossesView` – počasí, které je vidět, s ochranou dílu a plodinou roku sklizně; kroupy,
+  povodeň, smršť z `disasters.losses`) → řádky `partLossRows` jako škoda zvěře („−60 %“, červeně
+  od 10 %, dobré léto „+15 %“), testy `selection-protection`, `selection-loss-*`.
+- **Obchod** – `VillageNeighbour.dearth` (`tradeDearth` – rok obchodu od 1. 11., tedy vždy minulé
+  léto): ikona `dearth` u jména souseda (`NeighbourName`), popisek `dearthLabel` z `DISASTER_TRADE`.
+- **Upozornění** (`village-notices.ts`, `DisasterNoticeKind`): z počasí, které se ukázalo
+  (`weatherNotices` ve `villageNotices` – ohlásí se, když nově vznikne): „Sucho – nejvíc trpí pole
+  bez stromů“ (sucho i kruté sucho), „Mokré žně“, „Holomráz – ozim vymrzá“; z kroniky
+  (`disasterNotices`): „Kroupy potloukly obilí“, „Povodeň – stoletá voda“, „Smršť“ / „Silná smršť“,
+  požár v jeho den „Hoří!“ (`fire`), den po něm nebo celý mezi pohledy „Vyhořel dům“ / „Vyhořely
+  2 domy“ (`fire-out`). Zápisy kroniky v pohledu nesou `level`, `strength`, `parts`, `dwellings`
+  (`disasterChronicleFields`). Z jiné vsi hráče `VillageListItem.disasters`
+  (`otherVillageDisasters` – počasí a poslední místní pohroma) se jménem vsi.
+- **Ikony** – `tools/blender/icons.py` (`drought`, `rain`, `frost`, `good-summer`, `flood`, `hail`,
+  `tornado`, `protection`, `dearth`; vlastní, CC0), požár má stávající `fire`.
+- **Vývojový režim** – tlačítka „Vynutit zlý rok“ a „Vynutit pohromu“ (`DevDisasterButtons`)
+  vedle skoku v čase: [accounts.md – dev mód](accounts.md).
+- **Testy** – `disasters-view.test.ts`, `village-notices.test.ts` (počasí a pohromy),
+  `village-view.test.ts` (JSON 30. 4. bez sucha, seedu a `override`); e2e `village.spec.ts`
+  „vývojový režim: vynucené sucho“ – ikona na liště, upozornění a ochrana v panelu dílu.

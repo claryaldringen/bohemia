@@ -1788,3 +1788,63 @@ test('díl pole ukáže škodu zvěře letos', async ({ page }) => {
   await expect(panel.getByTestId('selection-damage')).toHaveAttribute('data-alert', 'true');
   await expect(page.locator('[data-testid="village-notice"][data-kind="error"]')).toHaveCount(0);
 });
+
+test('vývojový režim: vynucené sucho – ikona na liště, upozornění a ochrana dílu', async ({
+  page,
+}) => {
+  const { email, seat: s } = await newPlayer(page, 'pohromy');
+  const spots = villageSpots(s.landscape);
+  await found(page, spots.dwelling);
+  await page.keyboard.press('c');
+  await confirmPlacement(page, { kind: 'squares', cells: spots.cells });
+  await expect.poll(async () => (await villageState(s.settlementId)).fields.length).toBe(1);
+  // bez vývojového režimu tlačítka pohrom nejsou
+  await expect(page.getByTestId('dev-disasters')).toHaveCount(0);
+  await query('UPDATE "user" SET dev_mode = true WHERE email = $1', [email]);
+  await page.reload();
+  await expect(readyScene(page)).toBeVisible({ timeout: 60_000 });
+
+  // Kruté sucho letos – vidět je až od 1. 5., proto se v e2e světě skáče po měsících; vynutí se
+  // znovu po každém skoku (skok přes Nový rok by ho jinak nechal v loňsku).
+  const summer = page.getByTestId('village-weather-summer');
+  const notice = page.locator('[data-testid="village-notice"][data-kind="drought"]');
+  const skip = page.getByTestId('dev-skip-month');
+  for (let i = 0; i < 14; i++) {
+    await page.getByTestId('dev-bad-year').click();
+    await page.getByTestId('dev-force-drought').click();
+    await expect(page.getByTestId('dev-bad-year')).toBeEnabled({ timeout: 60_000 });
+    if ((await summer.count()) > 0) break;
+    await skip.click();
+    await expect(skip).toBeEnabled({ timeout: 60_000 });
+    if ((await summer.count()) > 0) break;
+  }
+  await expect(summer).toHaveAttribute('data-weather', 'drought');
+  await expect(notice).toHaveText('Sucho – nejvíc trpí pole bez stromů');
+  await expect(page.locator('[data-testid="village-notice"][data-kind="error"]')).toHaveCount(0);
+  const state = await villageState(s.settlementId);
+  expect(Object.values(state.disasters?.override?.weather ?? {})).toContainEqual({
+    summer: 'drought',
+  });
+
+  // Panel dílu ukáže ochranu dílu (lístky 0–4).
+  await page.mouse.move(640, 360);
+  await page.keyboard.press('r');
+  const fieldCenter = tileCenterWorld(s.landscape, spots.cells[0]!.x, spots.cells[0]!.y);
+  const panel = page.getByTestId('selection-panel');
+  await expect
+    .poll(
+      async () => {
+        const point = await page.evaluate(
+          (p) => window.__bohemiaE2E!.projectToScreen!(p.x, p.z),
+          fieldCenter,
+        );
+        if (!point) return null;
+        await page.mouse.move(point.x - 3, point.y);
+        await page.mouse.click(point.x, point.y);
+        return panel.getAttribute('data-kind');
+      },
+      { timeout: 30_000 },
+    )
+    .toBe('field-part');
+  await expect(panel.getByTestId('selection-protection')).toHaveText(/^[0-4]$/);
+});

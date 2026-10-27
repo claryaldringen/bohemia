@@ -8,6 +8,12 @@ import {
   DAYS_PER_YEAR,
 } from './village-view-types';
 import { fieldDamageViews, type FieldDamageView } from './wildlife-view';
+import {
+  partLossesView,
+  partProtectionView,
+  type PartLossesView,
+  type PartProtectionView,
+} from './disasters-view';
 import { SceneFieldPart } from './village-view-scene-types';
 import {
   CELL_SIZE_M,
@@ -146,6 +152,10 @@ export function fieldViews(state: VillageState, day: number): VillageView['field
           work.get(p.id),
           rotation.get(p.id),
           damage.get(p.id),
+          {
+            protection: partProtectionView(state, p.id),
+            losses: partLossesView(state, day, p.id, work.get(p.id)?.crop?.crop),
+          },
         ),
       ),
     };
@@ -163,6 +173,7 @@ function fieldPartView(
   work: PartYearWork | undefined,
   rotation: PartRotation | undefined,
   damage?: FieldDamageView,
+  disasters: { protection?: PartProtectionView; losses?: PartLossesView } = {},
 ): VillageFieldPart {
   const ash = forestBonus(part, day);
   const crop = work?.crop;
@@ -178,6 +189,8 @@ function fieldPartView(
     ...(part.surface !== 'meadow' ? { surface: part.surface } : {}),
     walkM: Math.round(partWalkDistance(part)),
     ...(damage ? { damage } : {}),
+    ...(disasters.protection ? { protection: disasters.protection } : {}),
+    ...(disasters.losses ? { losses: disasters.losses } : {}),
     ...(holding !== null ? { holding } : {}),
     ...(part.state === 'sown' ? { sownYears: part.sownYears } : {}),
     ...(part.state === 'fallow' ? { fallowYears: fallowYears(part, day) } : {}),
