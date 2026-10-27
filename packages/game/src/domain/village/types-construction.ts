@@ -80,6 +80,12 @@ export interface Construction {
   /** rebuild: přestavované obydlí; dwelling: domácnost zakladatelů (první zemnice), jinak null. */
   dwellingId: number | null;
   fieldId: number | null; // field – zakládá díly od nejbližšího
+  /**
+   * Pole v lese (forest.md – Klučení lesa pro pole – trasy): překážky dílů, které už dohořely – pro
+   * trasy chodců a vozů stojí dál jako les, dokud stavba pole neskončí (`clearingRouteObstacles`).
+   * U ostatních staveb a polí bez dohořelého dílu chybí.
+   */
+  burntObstacles?: number[];
   cemeteryId?: number | null; // cemetery (u starších staveb chybí)
   orchardId?: number | null; // orchard – vysazuje čtverce od nejbližšího (u ostatních chybí)
   /**

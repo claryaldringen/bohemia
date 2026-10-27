@@ -26,6 +26,7 @@ import {
   type CartTarget,
 } from './cart';
 import { cartGridKey, memoCartCost, memoCartRoutes, type MakeCartGrid } from './cart-memo';
+import { clearingRouteObstacles, withoutHiddenChanges } from './clearing-routes';
 import { cartObstacleMask, pathTerrainOf, pathWindowFor, type PathTerrain } from './terrain';
 import { pathVillageOf } from './village';
 import {
@@ -224,7 +225,10 @@ function cartGridOf(
     maxZ: Math.max(bounds.maxZ, ...ends.map((t) => t.z + t.reachM + margin)),
   };
   const window = pathWindowFor(landscape, box);
-  const changes = obstacles ? obstacleChangesAt(state, day) : null;
+  // paseka rozestavěného pole v lese je pro vůz les, dokud pole nedohoří (forest.md – Klučení)
+  const changes = obstacles
+    ? obstacleChangesAt(withoutHiddenChanges(state, clearingRouteObstacles(state)), day)
+    : null;
   // mřížka a trasy v paměti podle klíče mřížky (docs/code/village-roads.md – Trasy v paměti);
   // dvoukolák i čtyřkolák platí na poli stálou cenu (paths.md – Stálé trasy) – liší se zatáčením;
   // mřížka, která se liší jen „zarostlý“ dílů (orba), se jen odvodí (`withPartStages`)

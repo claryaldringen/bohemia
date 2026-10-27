@@ -226,7 +226,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   stromy, na které došla práce (`treesDue`) – pařez přes `fellTrees`, strom, který mezitím padl
   jinak, bez klády; klády dospělých na hromadu u lesa (`addStackLogs`). Dohoření (`foundPart`):
   zbylé stromy padnou, překážky zmizí (`recordClearedObstacles`), záznamy kácení stromů dílu se
-  smažou, `burnedDay` = dnes, bonus popela od dneška, `clearing` zmizí; `build` díl s fázemi
+  smažou, `burnedDay` = dnes, bonus popela od dneška, `clearing` zmizí; překážky a stromy dílu
+  si stavba pole zapíše do `Construction.burntObstacles` – trasy chodců a vozů je vidí až
+  s dohořením celého pole (village-roads.md – Klučení a mapa tras); `build` díl s fázemi
   bez práce hned nezakládá. Ubraný díl (`land-taken.ts`) zmenší i `burnCost` a zkrátí stojící stromy `fell`
   úměrně zbytku plochy, odebraný dá klády za nepokácené dospělé stromy a smaže záznamy jeho
   pokácených stromů; `build` dopíše pád dílu s nulovou prací kácení (jinak by schnul navždy). Vzhled (`fieldPartLooks`): kácení `slash` s `work` = padlé / všechny,

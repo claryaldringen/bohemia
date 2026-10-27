@@ -282,6 +282,9 @@ export function foundPart(state: VillageState, day: number, part: FieldPart): vo
     fellDueTrees(state, part, day);
     const burnt = new Set([...(part.obstacles ?? []), ...part.clearing.fell.map((t) => t.id)]);
     if (state.felledTrees) state.felledTrees = state.felledTrees.filter((f) => !burnt.has(f.id));
+    // trasy vidí paseku jako les až do dohoření celého pole (forest.md – Klučení – trasy)
+    const site = state.constructions.find((c) => c.kind === 'field' && c.fieldId === part.fieldId);
+    if (site) site.burntObstacles = [...(site.burntObstacles ?? []), ...burnt];
     part.burnedDay = day;
     delete part.clearing;
   }

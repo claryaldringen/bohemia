@@ -229,12 +229,20 @@ díly dohořívají 8.–14. 3., jař na spálenině osetá 11.–15. 3. (den 13
 93 člověkodní (založení 87,6, orba a setí 5,4), hlad žádný (nejnižší zásoby 5 163 kg). Výkon: rok
 bez pole v lese beze změny (≈ 30 s); rok s novým polem v lese ≈ 38 s – jednorázově, každý den, kdy
 dohoří nějaký díl, se přestaví mapa tras (≈ 1,2 s; `clearedObstacles` nemá den, takže klíč mapy
-tras se s každým dohořením mění). Návrh Clauda na později: odstraněné překážky se dnem a řezem jako
-pokácené stromy (mapa tras se s pálením nemění den po dni). Ve scéně (dev náhled, WebGPU i WebGL 2
+tras se s každým dohořením mění) – vyřešeno níž (Klučení – trasy). Ve scéně (dev náhled, WebGPU i WebGL 2
 bez chyb konzole): v hustém lese řadu čtverců zakryjí koruny stromů před ní – paseka a ohně jsou
 dobře vidět až na větším poli nebo u okraje lesa; plameny hromad zvětšené na výšku člověka
 (z výšky hry se ztrácely), spálenina o odstín světlejší s výraznějším popelem; postavy stojí vedle
 ohně, ne v něm; kouř hustý a odnášený větrem.
+
+**Klučení – trasy** (návrh Clauda, Martin, 27. 10. 2026: „Ano, udělej to tak jak říkáš“): paseka
+(kácení, schnutí, pálení) se pro trasy chodců i vozů chová jako les, **dokud nedohoří celé pole**
+– pařezy, padlé a vypálené stromy dílů rozestavěného pole v lese trasy nevidí, stromy na nich
+pro ně stojí dál. Když dohoří poslední díl (stavba pole skončí), mapa tras se přepočítá jednou.
+Scéna paseku, pařezy a spáleniště ukazuje hned – mění se jen trasy. Pěšina přes čerstvou
+spáleninu tak vznikne až s hotovým polem; orba a setí dohořelých dílů se nemění (Vlkov: jař osetá
+11.–15. 3. jako dřív). Výkon (Vlkov, pole 25 čtverců): přepočtů mapy tras za pálení 7 → 1 (až
+po dohoření pole), březen 5,3 s → 2,3 s, rok s polem v lese 26,1 s → 23,7 s.
 
 **Mimo tento návrh:** stavby v lese (obydlí, dílny – Stavba v lese) se klučí dál naráz; vracení
 zarostlého přílohu (mladý les) beze změny; počasí – až přijde, pálí se jen za suchých dnů a déšť

@@ -30,6 +30,7 @@ import type {
   VillageState,
 } from '../types';
 import { villageWoods } from '../woods';
+import { clearingRouteObstacles, withoutHiddenChanges } from './clearing-routes';
 import { earthworkSpansOf } from './earthworks';
 import {
   computeStableNetwork,
@@ -556,8 +557,8 @@ function computeVillageNetwork(
  * (políčka – bez stadia), sady, hřbitovy, posvátná místa, ohrady, les vsi, milíře, humna, pevné
  * cesty (osa, druh, stupeň, mokřina, olemování po desetinách – ne stav kusů, provoz ani opuštění),
  * zemní práce (profil, brody, hotové úseky – ne průběh), otevřené obilné jámy (stálý cíl) a pařezy
- * k poslednímu 1. 11. Neobsahuje stadia dílů, lidi, stáří spojení, stáda,
- * práci dne ani den.
+ * k poslednímu 1. 11.; paseka rozestavěného pole v lese až s dohořením pole (`routeTreesKey`).
+ * Neobsahuje stadia dílů, lidi, stáří spojení, stáda, práci dne ani den.
  */
 export function routeMapKey(state: VillageState, day: number): string {
   const k = walkLayoutParts(state);
@@ -690,12 +691,16 @@ export function routeTreesDay(day: number): number {
   return dateOfDayIndex(0).year === year ? -1 : dayIndexOf({ year: year - 1, month: 11, day: 1 });
 }
 
-/** Stav vsi pro mapu tras – kácení jen do posledního 1. 11. (`routeTreesDay`). */
+/**
+ * Stav vsi pro mapu tras – kácení jen do posledního 1. 11. (`routeTreesDay`), paseka
+ * rozestavěného pole v lese jako les (`clearingRouteObstacles`).
+ */
 function treesAtCut(state: VillageState, cut: number): VillageState {
-  const felled = state.felledTrees?.filter((f) => f.day <= cut);
+  const own = withoutHiddenChanges(state, clearingRouteObstacles(state));
+  const felled = own.felledTrees?.filter((f) => f.day <= cut);
   const neighbours = state.neighbours;
   return {
-    ...state,
+    ...own,
     ...(felled ? { felledTrees: felled } : {}),
     ...(neighbours?.felled
       ? { neighbours: { ...neighbours, felled: neighbours.felled.filter((f) => f.day <= cut) } }
@@ -705,20 +710,25 @@ function treesAtCut(state: VillageState, cut: number): VillageState {
 
 /**
  * Změny překážek pro mapu tras (paths.md – Stálé trasy, pravidlo 5): pokácené stromy a mladé
- * stromy k poslednímu 1. 11. – mapa se s kácením nemění den po dni.
+ * stromy k poslednímu 1. 11. – mapa se s kácením nemění den po dni; paseka pole v lese zůstane
+ * lesem, dokud pole celé nedohoří (forest.md – Klučení lesa pro pole – trasy).
  */
 export function routeObstacleChanges(state: VillageState, day: number): ObstacleChanges {
   const cut = routeTreesDay(day);
   return obstacleChangesAt(treesAtCut(state, cut), cut);
 }
 
-/** Část klíče mapy za překážky: kácení do posledního 1. 11. a změny bez dne (počty). */
+/**
+ * Část klíče mapy za překážky: kácení do posledního 1. 11. a změny bez dne (počty) – bez paseky
+ * rozestavěného pole v lese (`clearingRouteObstacles`), takže se klíč změní až s dohořením pole.
+ */
 function routeTreesKey(state: VillageState, day: number): string {
   const cut = routeTreesDay(day);
-  const felled = [...(state.felledTrees ?? []), ...(state.neighbours?.felled ?? [])].filter(
+  const own = withoutHiddenChanges(state, clearingRouteObstacles(state));
+  const felled = [...(own.felledTrees ?? []), ...(state.neighbours?.felled ?? [])].filter(
     (f) => f.day <= cut,
   ).length;
-  const cleared = (state.clearedObstacles ?? []).length + (state.neighbours?.cleared ?? []).length;
+  const cleared = (own.clearedObstacles ?? []).length + (state.neighbours?.cleared ?? []).length;
   const roads = state.roads;
   return `${felled > 0 ? cut : ''}:${felled}:${cleared}:${roads?.trees?.length ?? 0}:${roads?.swath?.length ?? 0}`;
 }

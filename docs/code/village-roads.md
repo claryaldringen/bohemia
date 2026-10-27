@@ -843,7 +843,8 @@ Návrh `docs/design/paths.md` – Stálé trasy (25. 10. 2026), Úloha A1.
     díly polí (políčka, bez stadia), sady, hřbitovy, posvátná místa, ohrady (políčka, hotová),
     les vsi, milíře, humna, pevné cesty (`roadsKey`), olemování po desetinách (`lineKey`), zemní
     práce a překážky k poslednímu 1. 11. (`routeTreesDay`, `routeTreesKey`; síť i `pathVillageOf`
-    berou pařezy a mladé stromy přes `routeObstacleChanges` k témuž dni). Opuštění cesty síť nezná
+    berou pařezy a mladé stromy přes `routeObstacleChanges` k témuž dni). Paseka rozestavěného
+    pole v lese je les, dokud pole nedohoří (Klučení a mapa tras níž). Opuštění cesty síť nezná
     (`pathVillageOf` ho nepředává), stav kusů a provoz také ne.
   - `routePlacesKey` – obydlené domácnosti a ohrady se zvířaty. Pastvina (`routePastureKey` – stáda
     a díly, kam se vyhání) se mění se stadii, proto patří do měsíční vrstvy (`routeMonthKey`).
@@ -1021,12 +1022,27 @@ studeným startem každý den; `cart-memo.test.ts`).
   k práci (`routesOf`) 6 %, klíč mapy tras každý den (`routeMapKey`) 2,8 %; `work` 30 % – mřížka
   vozu ≈ 10 % (při orbě nový klíč s každým zoraným blokem – inkrementální mřížka by musela
   hlídat překryvy polí a přepsání pozdějšími vrstvami), ceny přesunů spřežení 11 %.
-- **Klučení a mapa tras** (rozbor C2): klíč mapy tras bere počet `clearedObstacles` bez dne
-  (`routeTreesKey`), proto se mapa tras přepočítá každý den, kdy dohoří díl klučení – na rozdíl
-  od pokácených stromů, které jdou do mapy až k 1. 11. S pamětí chůze takový přepočet stojí
-  odhadem ≈ 0,5 s místo ≈ 0,9 s (půda chůze se klučením nemění – úsečky z paměti); zbývá síť
-  pěšin a trasy. Brát vyklučené překážky do mapy až k 1. 11. by změnilo chování (pěšiny přes
-  vyklučené místo až po 1. 11.) – jen návrh Clauda k rozhodnutí, ne zrychlení.
+- **Klučení a mapa tras** (rozbor C2; [forest.md – Klučení – trasy](../design/forest.md), Martin 27. 10. 2026): klíč mapy tras bral počet `clearedObstacles` bez dne (`routeTreesKey`), proto se
+  mapa tras přepočítala každý den, kdy dohořel díl klučení. Teď je paseka rozestavěného pole v lese
+  pro trasy les, dokud pole celé nedohoří (`paths/clearing-routes.ts`):
+  - `clearingRouteObstacles(state)` – překážky dílů stavby pole (`Construction.kind === 'field'`):
+    dohořelé díly (`Construction.burntObstacles` – `foundPart` do něj při dohoření dílu s `clearing`
+    připíše `obstacles` a stromy `clearing.fell`) a zakládané díly s `clearing` (`obstacles`
+    a `clearing.fell`). Bez rozestavěného pole v lese null.
+  - `withoutHiddenChanges` z `clearedObstacles` a `felledTrees` tyto překážky vynechá – volá ho
+    `treesAtCut` (`routeObstacleChanges` – síť pěšin, `pathVillageOf`), `routeTreesKey` (počty
+    v klíči) a `cartGridOf` (`roads-carts.ts` – změny dne pro mřížku vozu a `cartGridKey`).
+    Klíč mapy se tak za kácení, schnutí ani pálení nezmění; se skončením stavby pole zmizí
+    `burntObstacles` i zakládané díly a klíč se změní jednou.
+  - Scéna a ostatní jádro (`obstacleChangesAt` – stavby, palivo, cesty) vidí paseku hned.
+    `burntObstacles` je volitelné; rozestavěné pole uložené dřív nemá dohořelé díly v seznamu –
+    ty jsou v trasách už vyklučené, zbytek pole čeká na dohoření (převod netřeba).
+  - Pole na lese vsi (`clearWoodAt` mění `woods` v klíči) se dál projeví s každým dílem.
+  - Test `forest-clearing-routes.test.ts` (pole v lese s 5 čtverci – klíč se změní jen v den
+    dohoření pole, scéna vs. trasy, vcelku = po dnech = po 7 dnech). Vlkov (`feb.json`, březen 822
+    po dnech): přepočtů mapy tras 8 → 2 (první den dopočtu a den po dohoření pole), březen po dnech
+    8,6 s → 5,4 s, dopočet vcelku = po dnech; rok s polem v lese (po 30 dnech) 26,1 s → 23,7 s
+    (březen 5,3 s → 2,3 s); osetí dílů beze změny.
 - **Mřížka vozu při orbě jen vrstvou dílů** (C3, `withPartStages` v `paths/cart.ts`): `cartGrid`
   si k mřížce pamatuje vrstvu dílů polí (`CartFieldCells` – buňky po polích v pořadí, v jakém je
   vrstva položila, nejbližší díl a cenu buňky před vrstvou), jen buňky, které pozdější vrstvy (les
