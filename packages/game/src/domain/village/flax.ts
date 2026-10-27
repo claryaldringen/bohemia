@@ -1,3 +1,4 @@
+import { dayPartLosses } from './disasters';
 import { effectiveFertility } from './fields';
 import { ageGroup } from './people';
 import { FLAX } from './rules';
@@ -51,7 +52,14 @@ export function harvestFlax(state: VillageState, day: number): ChronicleEvent | 
   let kg = 0;
   if (flax) {
     if (flax.harvestedKg !== null) return null;
-    kg = harvestKg(flax, state.parts, day, 'flax');
+    // len je jařina – počasí roku jako jař (disasters.md – Léto)
+    kg = harvestKg(
+      flax,
+      state.parts,
+      day,
+      'flax',
+      dayPartLosses(state, day, 'flax', flax.partIds, undefined),
+    );
     flax.harvestedKg = kg;
   }
   const need = plan.flaxNeedKg;

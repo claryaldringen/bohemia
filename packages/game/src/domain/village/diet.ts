@@ -24,6 +24,7 @@ import { APPLE_FOOD_VALUE, LEGUMES } from './rules';
 import type { ChronicleEvent, DietDay, Person, VillageState } from './types';
 import { sheavesOutlook } from './threshing';
 import { daysUntilFoodHarvest } from './year-plan';
+import { winterEstimateLosses } from './disasters';
 
 // Strava – obilí, luštěniny, maso, mléko a sýr, vejce, ovoce (diet.md). Energie (v obilních
 // ekvivalentech) a bílkoviny proti potřebě: nasycení = pokrytí energie × kvalita stravy
@@ -519,7 +520,8 @@ export function villageMeal(
     state.parts,
     day,
     need * fieldFoodShare(state),
-    state.wildlife?.damage?.parts,
+    // škoda zvěře a počasí, které už je vidět (disasters.md – Dopady, Úroda)
+    winterEstimateLosses(state, day),
   );
   const sheaves = sheavesOutlook(state, day);
   return eatDiet({

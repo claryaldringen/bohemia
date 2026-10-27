@@ -349,6 +349,17 @@ v dlouhé zimě), `threshing.ts` (výmlat +20 %), `simulate.ts` (`famineMemoryDa
 
 **Hotovo:** jako P1; rok Vlkova změřit (nejvýš +1 %).
 
+**Provedení P3 (27. 10. 2026, návrh Clauda):** dopady v `weather-effects.ts`, ztráty dílů
+`dayPartLosses` / `winterEstimateLosses` v `disasters.ts`; `protectionAgainst` a
+`partProtectionOf` se přestěhovaly z `part-protection.ts` do `weather-effects.ts` (re-export
+zůstal) – jinak kruhový import přes `livestock.ts`. Seno: plán seče počítá v běžném výnosu
+(potřeba × 1,15 ÷ seno roku, které je vidět), skutečné seno přičte `mow` × seno roku s ochranou
+luk. **Okno setí jařin v dlouhé zimě:** jen začátek o 3 týdny později (22. 3.), konec zůstává 30. 4. – okna jsou po měsících a posun konce by chtěl okna po dnech v plánu, práci i zavírání
+okna. Plán setí 1. 9. dlouhou zimu nezná, takže s plným oknem počítá – **Vlkov v dlouhé zimě
+nestihne zasít všechno: jař −19 %** (návrh dopad na úrodu nečeká – otevřené). `weather-famine.test.ts` nevznikl – testovací ves bez krajiny
+nemá pole ani ustálený stav; cíle kalibrace (jeden a dva kruté roky) ověřuje Vlkov ze stavu DB.
+Detaily: [village-disasters.md](../../code/village-disasters.md).
+
 ## Úloha P4 – Kraj kolem vsi: sousedé a zvěř (≈ 80 kroků)
 
 **Cíl:** Sousedé ve stejném kraji mají po zlém roce méně obilí a dražší; zvěř po kruté zimě

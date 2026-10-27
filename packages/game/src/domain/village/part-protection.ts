@@ -8,47 +8,13 @@ import { obstacleChangesAt, obstacleStatus } from './obstacles';
 import { villageRoadApples } from './road-apples';
 import { PROTECTION } from './rules-disasters';
 import { villageLandSquares } from './squares';
-import type { PartProtection, ProtectionKind } from './types-disasters';
+import type { PartProtection } from './types-disasters';
 import type { VillageState } from './types';
 import { greenEdgeScan } from './wildlife-land';
 
 const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
 
-/**
- * Ochrana dílu pro daný druh počasí (disasters.md – Ochrana dílu). Čistá funkce složek – P3
- * a P5 ji jen násobí do ztráty: `1 − lossShare × ochrana`.
- * - sucho: zeleň + u vody +0,2 − vyvýšené 0,2, oříznuto na 0–1;
- * - holomráz: zeleň − vyvýšené 0,2, oříznuto na 0–1 (voda se nepočítá);
- * - deštivé léto: niva −0,2, svah +0,2, zeleň se nepočítá (rozsah −0,2 až +0,2);
- * - kroupy: zeleň × 0,4 (rozptýlená pole), oříznuto na 0–1.
- * Díl bez údaje (nový od 1. 4., ves bez krajiny) má typickou zeleň 0,25.
- */
-export function protectionAgainst(part: PartProtection | undefined, kind: ProtectionKind): number {
-  const p = part ?? { green: PROTECTION.noLandscapeGreen };
-  switch (kind) {
-    case 'dry':
-      return clamp01(
-        p.green +
-          (p.nearWater ? PROTECTION.waterBonus : 0) -
-          (p.raised ? PROTECTION.raisedPenalty : 0),
-      );
-    case 'frost':
-      return clamp01(p.green - (p.raised ? PROTECTION.raisedPenalty : 0));
-    case 'wet':
-      return (p.slope ? PROTECTION.wetShift : 0) - (p.lowland ? PROTECTION.wetShift : 0);
-    case 'hail':
-      return clamp01(p.green) * PROTECTION.hailGreenShare;
-  }
-}
-
-/** Ochrana dílu `partId` ve vsi (uložená 1. 4.); bez údaje typická ves. */
-export function partProtectionOf(
-  state: Pick<VillageState, 'disasters'>,
-  partId: number,
-  kind: ProtectionKind,
-): number {
-  return protectionAgainst(state.disasters?.protection?.parts[String(partId)], kind);
-}
+export { partProtectionOf, protectionAgainst } from './weather-effects';
 
 /** Výška políček nad dnem nejbližší vody (m) – jednou pro každou krajinu. */
 const streamHeightsCache = new WeakMap<Landscape, Float32Array>();

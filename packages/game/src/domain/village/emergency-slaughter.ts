@@ -40,6 +40,7 @@ import { sheavesOutlook } from './threshing';
 import type { ChronicleEvent, HerdSpecies, VillageState } from './types';
 import { woolSheep } from './wool';
 import { daysUntilFoodHarvest } from './year-plan';
+import { winterEstimateLosses } from './disasters';
 
 // Nouzová porážka (diet.md – Nouzová porážka; Martin 19. 10. 2026: „Ano, udělej to všechno“,
 // podrobnosti návrh Clauda). Ves, které výhled jídla do sklizně nevychází, nejdřív porazí
@@ -84,7 +85,8 @@ export function dayMealInput(
     state.parts,
     day,
     need * fieldFoodShare(state),
-    state.wildlife?.damage?.parts,
+    // škoda zvěře a počasí, které už je vidět (disasters.md – Dopady, Úroda)
+    winterEstimateLosses(state, day),
   );
   // snopy, které ves vymlátí, jsou ve výhledu jako zrno (production-chains.md – Humno)
   const sheaves = sheavesOutlook(state, day);

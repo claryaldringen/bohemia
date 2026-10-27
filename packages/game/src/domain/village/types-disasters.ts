@@ -77,6 +77,11 @@ export interface PartProtections {
 export interface DisasterState {
   /** Ochrana dílů před počasím, jednou za rok 1. 4. (jen ves se `weatherSeed`). */
   protection?: PartProtections;
+  /**
+   * Paměť hladu (disasters.md – Dopady, Zásoby a pojistka): do tohoto roku včetně drží ves
+   * vyšší pojistku – zapíše `famineMemoryDay` 1. 9. po krutém roce.
+   */
+  famineMemoryUntilYear?: number;
   /** Jen testy a dev: přebije los – klíč = herní rok. */
   override?: { weather?: Record<number, WeatherOverride> };
 }

@@ -34,6 +34,7 @@ import { horsesDay } from './horse-breeding';
 import { horsesWinterEnd } from './horse-feed';
 import { horseHayDailyKg, horsesInPlaces, villageHorses } from './horses';
 import { HAY_CUTS, HORSES } from './rules';
+import { isLongWinter } from './weather-effects';
 import type { Landscape, ObstacleLayer } from '../landscape';
 import {
   BIRTH_DAY,
@@ -393,14 +394,15 @@ export function husbandryDay(
   // otava jen na loukách posečených v 1. seči, kolik stádům ze stropu chybí; bez ní 1. seč zůstane
   // (oxen.md – Seno, dvě seče)
   if (isOn(date, AFTERMATH_DAY) && state.hay) {
-    const aftermath = planAftermath(state, mowingNeed(state, day, toolCoverage), toolCoverage);
+    const need = mowingNeed(state, day, toolCoverage);
+    const aftermath = planAftermath(state, need, toolCoverage, day);
     if (aftermath) state.hay.mowing = { ...aftermath, cattle: hayCattle(state) };
   } else if (state.hay?.mowing && mowingCut(state.hay.mowing) === 2 && isMowingSeason(day, 2)) {
     // přibyl dobytek (koupený, i na cestě) – otava na něj seče, dokud běží její okno
     const mowing = state.hay.mowing;
     const cattle = hayCattle(state);
     if (cattle > (mowing.cattle ?? Infinity) + 1e-9) {
-      raiseAftermath(state, mowingNeed(state, day, toolCoverage));
+      raiseAftermath(state, mowingNeed(state, day, toolCoverage), day);
       mowing.cattle = cattle;
     }
   }
@@ -434,7 +436,8 @@ export function husbandryDay(
   }
   // zimní porážka po dnech – čerstvé maso dne; zbytek 31. 3. do uzení (diet.md – Porážka v zimě)
   winterSlaughterDay(state, day);
-  if (isHayWinter(day)) {
+  // dlouhá zima: seno se krmí i v dubnu, pastva až od 1. 5. (disasters.md – Zima)
+  if (isHayWinter(day, isLongWinter(state, day))) {
     // seno do konce března nevystačí – ves hned porazí kusy, na které nezbude, ať zvířata
     // nehladoví (oxen.md – Co nejvíc sena a co největší stáda; dřív zimní úhyn 1. 3.)
     const short = hayShortSlaughter(state, day, villageOxen(state), horsesHayToday(state, day));

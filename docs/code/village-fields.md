@@ -67,7 +67,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   – `bufferEnergyYears` celé potřeby) + `cushionYears` roční potřeby z pole (zásoby z pole – obilí
   a luštěniny, `fieldStoresKg`; `storesNeeded` / `storesLeft` se ztrátami), odchylku od ní (přebytek
   i schodek) vyrovná po třetinách, pod pojistkou doplní do pojistky hned; luštěniny potřeba bez
-  zbytku zásoby.
+  zbytku zásoby. **Ves s počasím kraje** (disasters.md – Co z toho plyne, Dopady) seje s průměrem
+  let – úroda obilí cíle ÷ `WEATHER.expectedYield` 0,95 (`sowingYieldFactor`) – a po krutém roce
+  drží 10 let pojistku 0,75 (`bufferEnergyYearsOf`, paměť hladu – [village-disasters.md](village-disasters.md)).
   Nutné díly navíc ves uvolní (`neededSelection.release` v `seasonDay` – nouzové první, pak nejdál
   od domu, ladem jako příloh – `FieldPart.fallowBeforeSeason` – nebo zpět na řadu).
   **Díly nad potřebu** (fields.md – Osevní postup po dílech, bod 3, Martin 25. 10. 2026;
@@ -144,7 +146,13 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     (konec okna, ozim před jaří); `allocateDay` vrací i `taskAmounts` po úlohách vstupu (stejný
     název víckrát). Sklizeň ozimu 31. 7. (`harvestWinter`), jaře 31. 8. – do snopů, výmlat hned
     po žni (Snopy a výmlat níž); příděl počítá do sklizně
-    podle `daysUntilFoodHarvest` (31. 7., když ozim podle odhadu uživí srpen). Plán po plodinách
+    podle `daysUntilFoodHarvest` (31. 7., když ozim podle odhadu uživí srpen). **Kde se násobí
+    úroda:** `cropYieldKg` (`year-plan.ts`) – hrubá úroda dílu × `kept` = 1 − `PartLosses[id].share`,
+    osivo se odečte celé. Ztráty skládá `dayPartLosses` (`disasters.ts`) – počasí dílu
+    (`partWeatherFactor`) × (1 − škoda zvěře); volají ho `harvestWinter` (ozim, luštěniny),
+    `harvest`, `harvestSurplus` a `harvestFlax`, odhad ozimu pro příděl `winterEstimateLosses`
+    (jen počasí, které je vidět) v `diet.ts` a `emergency-slaughter.ts`
+    ([village-disasters.md](village-disasters.md) – Sucho, deštivé léto, krutá zima). Plán po plodinách
     prochází `seasonCrops`, všechny díly `seasonPartIds`. **Luštěniny** (fields.md – Luštěniny, Martin 18. 10. 2026): třetí plodina `legume` (`SeasonCrop` s `crop: 'legume'`, `LEGUME_WINDOWS` – jař se sklizní
     v červenci, `LEGUMES` a `LEGUME_WORK_PER_HA` v `rules*.ts`, úroda `cropGrossPerHa` /
     `cropSeedPerHa`, `partWork(…, crop)`); cíl luštěnin `legumeTargetKg`

@@ -12,6 +12,8 @@ import { plotShapes } from './plot-cells';
 import { NO_CRAFTS, hayWorkPerHa } from './productivity';
 import { tilesUnder, villageLandSquares } from './squares';
 import { HAY_CUTS } from './rules';
+import { WEATHER_EFFECTS } from './rules-disasters';
+import { hasWeather, hayWeatherFactor, mowingWeatherFactor, summerOf } from './weather-effects';
 import type {
   FieldPart,
   HayMowing,
@@ -107,11 +109,14 @@ export function hayLeftAvailable(hayKg: number, days: number): number {
   return hayKg * hayKeep(days / 2);
 }
 
-/** Dní zimního krmení od dneška (včetně) do konce března; mimo zimu 0. */
-export function hayWinterDaysLeft(day: number): number {
-  if (!isHayWinter(day)) return 0;
+/**
+ * Dní zimního krmení od dneška (včetně) do konce března – v dlouhé zimě (`longWinter`) do konce
+ * dubna; mimo zimu 0.
+ */
+export function hayWinterDaysLeft(day: number, longWinter = false): number {
+  if (!isHayWinter(day, longWinter)) return 0;
   const { year, month } = dateOfDayIndex(day);
-  if (month <= 3) return dayIndexOf({ year, month: 4, day: 1 }) - day;
+  if (month <= 4) return dayIndexOf({ year, month: longWinter ? 5 : 4, day: 1 }) - day;
   // listopad a prosinec – do Silvestra a pak leden až březen příštího roku (bez dayIndexOf za
   // koncem světa)
   const newYear = dayIndexOf({ year, month: 12, day: 31 }) + 1;
@@ -327,12 +332,24 @@ export interface MowingNeed {
   capKg: number;
 }
 
-/** Kolik sena se má ještě posekat (kg ze seče) – potřeba po ztrátě ve stohu bez zásoby. */
-function mowingTargets(state: VillageState, need: MowingNeed): { necessary: number; cap: number } {
+/**
+ * Kolik sena se má ještě posekat (kg ze seče při běžném výnosu) – potřeba po ztrátě ve stohu bez
+ * zásoby. Ves s počasím kraje seče s rezervou +15 % a podle sena roku, které už je vidět
+ * (disasters.md – Dopady, Seno a pastva: v suchém roce poseče víc luk, dokud louky stačí).
+ */
+function mowingTargets(
+  state: VillageState,
+  need: MowingNeed,
+  day: number | null = null,
+): { necessary: number; cap: number } {
   const stock = villageHayKg(state);
+  const scale = hasWeather(state)
+    ? (1 + WEATHER_EFFECTS.hayReserve) /
+      (day === null ? 1 : hayWeatherFactor(summerOf(state, day, true), undefined))
+    : 1;
   return {
-    necessary: need.necessaryKg / PLAN_HAY_KEEP - stock,
-    cap: Math.max(need.necessaryKg, need.capKg) / PLAN_HAY_KEEP - stock,
+    necessary: (need.necessaryKg * scale) / PLAN_HAY_KEEP - stock,
+    cap: (Math.max(need.necessaryKg, need.capKg) * scale) / PLAN_HAY_KEEP - stock,
   };
 }
 
@@ -380,7 +397,7 @@ export function planMowing(
   landscape: Landscape | null = null,
   walk: MeadowWalk | null = null,
 ): HayMowing | null {
-  const targets = mowingTargets(state, need);
+  const targets = mowingTargets(state, need, day);
   if (targets.cap <= EPSILON) return null;
   const parts = state.parts
     .filter((p) => isHayMeadow(p, day))
@@ -412,6 +429,7 @@ export function planAftermath(
   state: VillageState,
   need: MowingNeed,
   toolCoverage: number = NO_CRAFTS.tools,
+  day: number | null = null,
 ): HayMowing | null {
   const first = state.hay?.mowing;
   if (!first || mowingCut(first) !== 1) return null;
@@ -427,7 +445,7 @@ export function planAftermath(
     ),
   };
   const aftermath = { cut: 2 as const };
-  const targets = mowingTargets(state, need);
+  const targets = mowingTargets(state, need, day);
   if (targets.cap <= EPSILON) return null;
   // v seči jsou všechny posečené louky – strop práce `wanted` se zvedne, přibude-li dobytek
   // (`raiseAftermath`)
@@ -466,11 +484,15 @@ function workForYield(
  * (`wanted`) a nutná práce (`needed`) se zvednou podle dnešní potřeby (`need`) – posečená otava
  * a co stádům ještě chybí; nikdy neklesnou (mutuje stav). Mimo otavu nic.
  */
-export function raiseAftermath(state: VillageState, need: MowingNeed): void {
+export function raiseAftermath(
+  state: VillageState,
+  need: MowingNeed,
+  day: number | null = null,
+): void {
   const mowing = state.hay?.mowing;
   if (!mowing || mowingCut(mowing) !== 2 || mowing.required <= EPSILON) return;
   const partsById = new Map(state.parts.map((p) => [p.id, p]));
-  const targets = mowingTargets(state, need);
+  const targets = mowingTargets(state, need, day);
   const mown = (mowing.yieldKg * mowing.done) / mowing.required;
   const work = (kg: number): number => workForYield(mowing, partsById, mown + Math.max(0, kg));
   mowing.wanted = Math.max(mowing.wanted ?? mowing.required, work(targets.cap));
@@ -587,14 +609,18 @@ export function mowingNeededRemaining(state: VillageState, day: number): number 
   return Math.max(0, Math.min(wanted, mowing.needed ?? mowing.required) - mowing.done);
 }
 
-/** Vloží práci do seče – posečené seno přibude do zásoby poměrně k práci (mutuje stav). */
-export function mow(state: VillageState, amount: number): void {
+/**
+ * Vloží práci do seče – posečené seno přibude do zásoby poměrně k práci (mutuje stav); seno roku
+ * s ochranou luk (`mowingWeatherFactor` – disasters.md, Léto; bez `day` a bez počasí plný výnos).
+ */
+export function mow(state: VillageState, amount: number, day: number | null = null): void {
   const hay = state.hay;
   const mowing = hay?.mowing;
   if (!hay || !mowing || amount <= 0 || mowing.required <= 0) return;
   const before = mowing.done;
   mowing.done = Math.min(mowing.required, before + amount);
-  hay.kg += (mowing.yieldKg * (mowing.done - before)) / mowing.required;
+  const weather = day === null ? 1 : mowingWeatherFactor(state, day, mowing);
+  hay.kg += (mowing.yieldKg * weather * (mowing.done - before)) / mowing.required;
 }
 
 /** Kolik práce seče je hotové 0–1 (bez práce 1). */
@@ -677,9 +703,16 @@ export function mowingSquaresWorked(
   });
 }
 
-/** Je den v zimě s krmením senem (listopad–březen)? */
-export function isHayWinter(day: number): boolean {
-  return HAY_WINTER_MONTHS.includes(dateOfDayIndex(day).month);
+/**
+ * Je den v zimě s krmením senem (listopad–březen; v dlouhé zimě – `longWinter` – i duben,
+ * disasters.md – Zima)?
+ */
+export function isHayWinter(day: number, longWinter = false): boolean {
+  const month = dateOfDayIndex(day).month;
+  return (
+    HAY_WINTER_MONTHS.includes(month) ||
+    (longWinter && (WEATHER_EFFECTS.longWinterHayMonths as readonly number[]).includes(month))
+  );
 }
 
 /**

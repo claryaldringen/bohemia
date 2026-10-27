@@ -79,6 +79,39 @@ export const WEATHER = {
   expectedYield: 0.95,
 } as const;
 
+/**
+ * Dopady počasí roku na hospodaření vsi (disasters.md – Léto, Zima, Dopady na existující
+ * mechaniky, Co z toho plyne).
+ */
+export const WEATHER_EFFECTS = {
+  /** Holomráz: ozim ×0,65 – vymrzne třetina (disasters.md – Zima, tabulka). */
+  blackFrostWinterCrop: 0.65,
+  /** Deštivá léta – ochrana proti mokru, výmlat vlhkých snopů (disasters.md – Léto). */
+  wetSummers: ['wet', 'wetHarvest'] as const satisfies readonly SummerWeather[],
+  /** Suchá léta – ochrana proti suchu (disasters.md – Ochrana dílu). */
+  drySummers: ['dry', 'drought'] as const satisfies readonly SummerWeather[],
+  /** Deštivé léto: výmlat o 20 % víc práce – vlhké snopy (disasters.md – Léto, Deštivé léto). */
+  wetThreshWork: 0.2,
+  /**
+   * Seno s rezervou: plán seče +15 % – na dlouhou zimu a suchý rok (disasters.md – Dopady, Seno
+   * s rezervou).
+   */
+  hayReserve: 0.15,
+  /** Dlouhá zima: seno se krmí o 30 dní déle – do 30. 4., pastva od 1. 5. (disasters.md – Zima). */
+  longWinterHayMonths: [4] as const,
+  /**
+   * Dlouhá zima: setí jařin (jař, luštěniny, len) začne o 3 týdny později – ne před 22. 3.
+   * (disasters.md – Zima, návrh Clauda). Okna setí jsou po měsících – konec okna zůstává 30. 4.
+   */
+  longWinterSpringSowFrom: { month: 3, day: 22 } satisfies MonthDay,
+  /**
+   * Paměť hladu: po krutém roce drží ves tolik let pojistku `famineBufferEnergyYears` roční
+   * potřeby celé energie místo 0,5 (disasters.md – Dopady, Zásoby a pojistka).
+   */
+  famineMemoryYears: 10,
+  famineBufferEnergyYears: 0.75,
+} as const;
+
 /** Stupně roční nejvyšší vody (disasters.md – Povodeň potoka, tabulka). */
 export interface FloodLevelRule {
   level: FloodLevel | null;

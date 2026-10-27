@@ -61,6 +61,7 @@ import { dogsYear } from './manor-dogs';
 import { wildlifeYearDay, withWildlife } from './wildlife';
 import { weatherDay } from './weather';
 import { partProtectionDay } from './part-protection';
+import { famineMemoryDay } from './weather-effects';
 import { damageWindowStart, wildlifeDamageDay, wildlifeSeasonEnd } from './wildlife-damage';
 import { lordFieldMode, trainLordDay, updateLordTraining } from './lord';
 import { dynastyDay } from './succession';
@@ -218,6 +219,9 @@ function simulateDay(
   state.chronicle.push(...sacredOakEvents(villageSacredOaks(state), obstacles, day));
   // 1. 9. nový hospodářský rok a postup dílů, každý den nutné díly a konce oken setí (fields.md –
   // Osevní postup po dílech); podíl dne rodiny na nutné práci (lord.md – Kdy jde rodina na pole)
+  // paměť hladu: po krutém roce drží ves 10 let vyšší pojistku – před plánem osevu
+  // (disasters.md – Dopady, Zásoby a pojistka)
+  famineMemoryDay(state, day);
   if (isOn(date, PLANNING_DAY)) startSeason(state, day, coverage, landscape);
   const waiting = seasonDay(state, day, coverage);
   lordHelpDay(state, day, coverage, landscape, waiting);
