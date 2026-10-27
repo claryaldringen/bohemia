@@ -11,6 +11,7 @@ import {
   SceneLaborShare,
   SceneLord,
   SceneRide,
+  SceneShoeing,
   SceneVillage,
   type SceneCraftYard,
 } from './village-view-scene-types';
@@ -74,6 +75,8 @@ import {
   wholeLogs,
   pileLogs,
   type ConstructionSummary,
+  purchaseLine,
+  shoeingDay,
   type LaborDay,
   type LaborShare,
   type Landscape,
@@ -209,7 +212,7 @@ export function sceneVillage(
   const funerals = sceneFunerals(state, day);
   const weddings = sceneWeddings(state, day, landscape);
   const reserved = [...reservedTrees(state)].sort((a, b) => a - b);
-  const labor = sceneLabor(state, { ...summary.people, ...summary.family });
+  const labor = sceneLabor(state, { ...summary.people, ...summary.family }, landscape);
   const sacred = sceneSacred(state, landscape, day, summary);
   const obstacles = obstacleChangesAt(state, day);
   const roads = sceneRoads(state, summary.constructions);
@@ -354,7 +357,11 @@ function sceneThreshingFloors(
 }
 
 /** Rozdělení práce posledního dne pro postavy – člověkodny na setiny (drobné podíly 0,01). */
-export function sceneLabor(state: VillageState, people: SceneLabor['people']): SceneLabor | null {
+export function sceneLabor(
+  state: VillageState,
+  people: SceneLabor['people'],
+  landscape: Landscape | null = null,
+): SceneLabor | null {
   const labor = laborReport(state);
   if (!labor) return null;
   // na setiny, ale nic, co dnes práci dostalo, nezmizí – i drobná práce na stavbě je stavba,
@@ -372,6 +379,7 @@ export function sceneLabor(state: VillageState, people: SceneLabor['people']): S
   const homes = sceneLaborHomes(state, labor.shares);
   const persons = scenePersons(state, labor.day);
   const lord = sceneLord(state, labor.lord, labor.day);
+  const shoeing = sceneShoeing(state, labor.day, landscape);
   return {
     day: labor.day,
     month: dateOfDayIndex(labor.day).month,
@@ -382,6 +390,27 @@ export function sceneLabor(state: VillageState, people: SceneLabor['people']): S
     ...(homes.length > 0 ? { homes } : {}),
     ...(persons.length > 0 ? { persons } : {}),
     ...(lord ? { lord } : {}),
+    ...(shoeing ? { shoeing } : {}),
+  };
+}
+
+/**
+ * Kování dne pro scénu (horses.md – Kování, Ve scéně): z jádra `shoeingDay` – koně a u cizího
+ * kováře cesta ze směru souseda (zemská stezka, jinak čára krajinou jako nákup u sousedů).
+ */
+function sceneShoeing(
+  state: VillageState,
+  day: number,
+  landscape: Landscape | null,
+): SceneShoeing | null {
+  const today = shoeingDay(state, day, landscape);
+  if (!today) return null;
+  const route = today.route;
+  return {
+    own: today.own,
+    horses: today.horses.map((h) => ({ pen: h.penId, id: h.horseId })),
+    ...(route && route.trailId !== null ? { trailId: route.trailId } : {}),
+    ...(route && route.trailId === null ? { line: purchaseLine(state, route) } : {}),
   };
 }
 

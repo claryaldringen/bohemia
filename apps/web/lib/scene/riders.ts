@@ -73,6 +73,28 @@ export interface RidePlan {
   /** Kde kůň stojí, když se nejede – u kůlu u brány dvorce, čelem ke kůlu. */
   hitch: TrainingSpot;
   window: DayWindow | null;
+  /**
+   * Hodiny dne, kdy kůň stojí uvázaný u kůlu `hitch` mimo ohradu (kování u branky ohrady –
+   * shoeing-plan.ts); jezdec nejede (`route` null). Bez údaje jen jízdy.
+   */
+  tied?: readonly (readonly [number, number])[];
+}
+
+/** Délka herního dne bez hodin světa (s – ukázky): 365 skutečných dní = 1000 herních let. */
+export const FALLBACK_DAY_S = 86.4;
+
+/** Hodina herního dne v čase `t` – z hodin světa, bez nich dokola po `FALLBACK_DAY_S`. */
+export function dayHour(window: DayWindow | null, t: number): number {
+  const hour = hourOfDay(window, t);
+  if (hour !== null) return hour;
+  return ((((t % FALLBACK_DAY_S) + FALLBACK_DAY_S) % FALLBACK_DAY_S) / FALLBACK_DAY_S) * 24;
+}
+
+/** Skutečných sekund na herní hodinu (bez hodin světa podle `FALLBACK_DAY_S`). */
+export function hourSeconds(window: DayWindow | null): number {
+  return window && window.endMs > window.startMs
+    ? (window.endMs - window.startMs) / 1000 / 24
+    : FALLBACK_DAY_S / 24;
 }
 
 /** Kde jezdec s koněm je: poloha, směr, tempo (0 stojí), ujetá vzdálenost a jestli jede. */
@@ -368,10 +390,22 @@ export function rideBlockAt(plan: RidePlan, t: number): { elapsed: number; lengt
   return null;
 }
 
-/** Id koní, kteří jsou v čase `nowMs` (epoch ms) na jízdě. */
+/** Id koní, kteří jsou v čase `nowMs` (epoch ms) mimo ohradu – na jízdě, nebo uvázaní u kůlu. */
 export function ridingHorseIds(plans: readonly RidePlan[], nowMs: number): Set<number> {
   const t = (nowMs - LIVESTOCK_EPOCH_MS) / 1000;
-  return new Set(plans.filter((p) => isRiding(p, t)).map((p) => p.horseId));
+  return new Set(plans.filter((p) => isAway(p, t)).map((p) => p.horseId));
+}
+
+/** Stojí kůň v čase `t` uvázaný u kůlu mimo ohradu (`RidePlan.tied`)? */
+export function isTied(plan: RidePlan, t: number): boolean {
+  if (!plan.tied || plan.tied.length === 0) return false;
+  const hour = dayHour(plan.window, t);
+  return plan.tied.some(([from, to]) => hour >= from && hour < to);
+}
+
+/** Je kůň v čase `t` mimo ohradu – jede, nebo stojí uvázaný (ohrada ho nekreslí)? */
+export function isAway(plan: RidePlan, t: number): boolean {
+  return isRiding(plan, t) || isTied(plan, t);
 }
 
 /** Jede jezdec v čase `t` (je v bloku jízdy, nebo bez rozvrhu s trasou)? */
@@ -442,7 +476,7 @@ export function ridePlansKey(plans: readonly RidePlan[]): string {
   return plans
     .map(
       (p) =>
-        `${p.riderId}:${p.horseId}:${p.route ? `${p.route.length.toFixed(1)}/${p.route.points.length}` : '-'}:${p.offset.toFixed(1)}:${p.hitch.x.toFixed(1)},${p.hitch.z.toFixed(1)}:${p.window?.startMs ?? ''}:${p.blocks?.map((b) => b.join('-')).join(',') ?? ''}`,
+        `${p.riderId}:${p.horseId}:${p.route ? `${p.route.length.toFixed(1)}/${p.route.points.length}` : '-'}:${p.offset.toFixed(1)}:${p.hitch.x.toFixed(1)},${p.hitch.z.toFixed(1)}:${p.window?.startMs ?? ''}:${p.blocks?.map((b) => b.join('-')).join(',') ?? ''}:${p.tied?.map((b) => b.join('-')).join(',') ?? ''}`,
     )
     .join('|');
 }

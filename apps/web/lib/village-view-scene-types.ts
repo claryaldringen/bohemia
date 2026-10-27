@@ -886,6 +886,24 @@ export interface SceneLabor {
    * pracuje jako ostatní (i dřívější rozdělení práce).
    */
   lord?: SceneLord;
+  /**
+   * Kování jezdeckých koní dnes (horses.md – Kování, Ve scéně; z jádra `shoeingDay`): vlastní kovář
+   * dojde od kovárny k ohradě, cizí kovář přijde ze směru souseda a stejnou cestou odejde. Bez
+   * údaje se dnes nekuje.
+   */
+  shoeing?: SceneShoeing;
+}
+
+/** Kování dne ve scéně (`SceneLabor.shoeing`). */
+export interface SceneShoeing {
+  /** Vlastní kovář (z kovárny vsi), jinak kovář ze sousední vsi. */
+  own: boolean;
+  /** Okovaní koně – ohrada (id) a kůň (id), v pořadí kování. */
+  horses: { pen: number; id: number }[];
+  /** Cizí kovář jde po hotové zemské stezce (id)… */
+  trailId?: number;
+  /** …jinak krajinou po čáře od vsi ke kraji mapy (body, první u vsi). */
+  line?: { x: number; z: number }[];
 }
 
 /** Vojvodova rodina dne ve scéně (`SceneLabor.lord`). */

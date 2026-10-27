@@ -5,6 +5,7 @@ import {
   nextShoeingDay,
   planShoeing,
   shoeingCosts,
+  shoeingDay,
   shoeingView,
 } from '../horse-shoeing';
 import { NEIGHBOR_DIRECTIONS } from '../rules';
@@ -95,6 +96,30 @@ describe('vlastní kovář', () => {
     s.storesKg = 0;
     const plan = planShoeing(s, DUE, NO_CRAFTS, null);
     expect(plan?.own ?? false).toBe(false);
+  });
+});
+
+describe('kování dne pro scénu', () => {
+  it('vlastní kovář: koně ohrady, bez cesty; jiný den nic', () => {
+    const s = withSmith(stable(), 5);
+    const plan = planShoeing(s, DUE, NO_CRAFTS, null)!;
+    s.chronicle.push(...finishShoeing(s, DUE, plan, plan.manDays));
+    const day = shoeingDay(s, DUE, null)!;
+    expect(day.own).toBe(true);
+    expect(day.route).toBeNull();
+    expect(day.horses.map((h) => h.horseId)).toEqual([1, 2]);
+    expect(shoeingDay(s, DUE + 1, null)).toBeNull();
+    expect(shoeingDay(s, DUE - 1, null)).toBeNull();
+  });
+
+  it('cizí kovář: směr a bod na kraji mapy jako plán kování', () => {
+    const s = stable();
+    s.storesKg = 200_000;
+    const plan = planShoeing(s, DUE, NO_CRAFTS, null)!;
+    s.chronicle.push(...finishShoeing(s, DUE, plan, 0));
+    const day = shoeingDay(s, DUE, null)!;
+    expect(day.own).toBe(false);
+    expect(day.route).toEqual(plan.route);
   });
 });
 

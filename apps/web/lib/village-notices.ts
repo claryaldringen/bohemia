@@ -77,7 +77,6 @@ export type NoticeKind =
   | 'foal-born'
   | 'horses-arrived'
   | 'horse-trained'
-  | 'horses-shod'
   | 'horses-unshod'
   | 'horse-retired'
   /** Divoká zvěř (wildlife.md – Co hráč vidí): prasata ničí úrodu, vlci strhávají dobytek, psi bez obilí. */
@@ -449,11 +448,8 @@ const CHRONICLE_NOTICES: Partial<
     tone: 'info',
     text: 'Do ohrady koní přivedli hřebce a dvě klisny',
   }),
-  'horses-shod': (entry) => ({
-    kind: 'horses-shod',
-    tone: 'info',
-    text: entry.own ? 'Kovář okul koně' : 'Koně okul kovář ze sousední vsi',
-  }),
+  // kování (horses.md – Kování) se neohlašuje – děje se samo, kovář dojde k ohradě ve scéně
+  // (Martin 27. 10. 2026); zůstává jen v kronice
   'horse-trained': () => ({ kind: 'horse-trained', tone: 'info', text: 'Kůň je vycvičený' }),
   'horse-retired': (entry) => ({
     kind: 'horse-retired',

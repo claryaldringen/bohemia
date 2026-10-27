@@ -3,6 +3,7 @@ import {
   RIDE_HORSE_SCALE,
   rideArea,
   rideHorsePose,
+  isAway,
   isRiding,
   ridePlansKey,
   type RidePlan,
@@ -438,13 +439,19 @@ export class VillageLivestock {
       const area = rideArea(plan);
       addArea('horse', area);
       const state = createRideState();
+      // uvázaný kůň (kování u branky – shoeing-plan.ts) stojí, ale když přijde ke kůlu nebo
+      // odejde do ohrady, zapíše se znovu (`written` – zapsaný stav)
+      let written: boolean | null = null;
       groups.push({
         members: [{ species: 'horse', slot: slot('horse'), scale: RIDE_HORSE_SCALE }],
         prepare: () => area,
-        pose: (_index, clock, out) => rideHorsePose(plan, clock.seconds, state, out),
-        // mimo blok jízdy je kůň v ohradě (village-pens.ts) – tady se nekreslí
-        still: (clock) => !isRiding(plan, clock.seconds),
-        hidden: (_index, clock) => !isRiding(plan, clock.seconds),
+        pose: (_index, clock, out) => {
+          written = isAway(plan, clock.seconds);
+          return rideHorsePose(plan, clock.seconds, state, out);
+        },
+        // mimo blok jízdy a mimo kůl je kůň v ohradě (village-pens.ts) – tady se nekreslí
+        still: (clock) => !isRiding(plan, clock.seconds) && isAway(plan, clock.seconds) === written,
+        hidden: (_index, clock) => !isAway(plan, clock.seconds),
         written: null,
         current: new BoundingInfo(Vector3.Zero(), Vector3.Zero()),
       });

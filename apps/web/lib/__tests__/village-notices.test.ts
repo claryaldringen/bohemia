@@ -436,7 +436,7 @@ describe('newNotices – porážka a spřežení (diet.md, oxen.md)', () => {
     expect(newNotices(null, after)).toEqual([]);
   });
 
-  it('koně (horses.md – Co hráč vidí): bez obilí, nevejdou se, hříbata, vycvičení, dosloužili, uhynuli', () => {
+  it('koně (horses.md – Co hráč vidí): bez obilí, nevejdou se, hříbata, vycvičení, dosloužili, uhynuli; kování se neohlašuje', () => {
     const horses = {
       count: 4,
       kinds: { riding: 2, mares: 2, foals: 0 },
@@ -483,6 +483,7 @@ describe('newNotices – porážka a spřežení (diet.md, oxen.md)', () => {
             entry(3009, 'horse-starved', 2),
             entry(3008, 'horse-retired', 1),
             entry(3007, 'horse-trained'),
+            entry(3006, 'horses-shod', 2),
             entry(3005, 'foal-born', 1),
           ],
         }),

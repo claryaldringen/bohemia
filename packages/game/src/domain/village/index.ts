@@ -353,7 +353,9 @@ export {
   nextShoeingDay,
   planShoeing,
   shoeingCosts,
+  shoeingDay,
   shoeingView,
+  type ShoeingDay,
   type ShoeingPlan,
   type ShoeingView,
 } from './horse-shoeing';
