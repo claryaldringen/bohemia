@@ -218,10 +218,11 @@ export function computePartProtections(
   if (squares.length === 0) return parts;
   const size = landscape.size;
   const cellM = landscape.cellSizeM;
-  const orchardTiles = villageLandSquares(landscape, state, ['orchard']).map(
-    (sq) => sq.tile ?? tileIndex(landscape, sq.center.x, sq.center.z),
+  // sad je zeleň jako remíz (středy jeho políček); les jen vzdáleností od okraje
+  const orchardGrid = new PointGrid(
+    villageLandSquares(landscape, state, ['orchard']).map((sq) => sq.center),
   );
-  const { distances, forest } = greenEdgeScan(landscape, state, orchardTiles);
+  const { distances, forest } = greenEdgeScan(landscape, state, []);
   // rostliny v okolí dílů
   const reach = PROTECTION.noGreenM + 2 * PROTECTION.remizLinkM;
   const box = {
@@ -241,9 +242,12 @@ export function computePartProtections(
     const partId = sq.partId!;
     const { x, z } = sq.center;
     const tile = sq.tile ?? tileIndex(landscape, x, z);
+    // les chrání jen díl přímo u okraje, ostatní zeleň do `noGreenM`
+    const forestEdge = distances.get(partId) ?? Infinity;
     const edge = Math.min(
-      distances.get(partId) ?? Infinity,
+      forestEdge <= PROTECTION.forestEdgeM ? forestEdge : Infinity,
       remizGrid.within(x, z, PROTECTION.noGreenM).nearest,
+      orchardGrid.within(x, z, PROTECTION.noGreenM).nearest,
     );
     let green = clamp01(
       (PROTECTION.noGreenM - edge) / (PROTECTION.noGreenM - PROTECTION.fullGreenM),

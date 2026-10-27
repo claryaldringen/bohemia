@@ -77,21 +77,21 @@ interface Spec {
 }
 const land = (spec: Spec = {}): Landscape => makeLandscape({ size: SIZE, ...spec });
 
-/** Les od sloupce 90 – díl ve sloupci 88 je od okraje lesa 22,5 m. */
+/** Les od sloupce 90 – díl ve sloupci 89 sousedí s okrajem, ve sloupci 88 už ne. */
 const FOREST_FROM_90 = (x: number): Surface => (x >= 90 ? 'forest' : 'meadow');
 const DAY = at(601, 4, 1);
 
 describe('ochrana dílu – zeleň', () => {
-  it('díl u lesa 1, díl ve 112,5 m 0,31, uprostřed lánu 0', () => {
-    const s = village([part(1, 88, 64), part(2, 82, 64), part(3, 70, 64)]);
+  it('díl přímo u okraje lesa 1, díl ve 112,5 m i uprostřed lánu 0 (les chrání jen sousedy)', () => {
+    const s = village([part(1, 89, 64), part(2, 82, 64), part(3, 70, 64)]);
     const p = computePartProtections(s, DAY, land({ surface: FOREST_FROM_90 }), null);
     expect(p['1']!.green).toBe(1);
-    expect(p['2']!.green).toBeCloseTo((150 - 112.5) / 120, 2);
+    expect(p['2']!.green).toBe(0);
     expect(p['3']!.green).toBe(0);
   });
 
-  it('díl 90 m od zeleně má 0,5', () => {
-    // sad ve sloupci 80 (střed 247,5 m), díl o 6 políček dál: 90 m středy, 82,5 m od okraje sadu
+  it('díl 90 m od sadu má (100 − 90) ÷ 85', () => {
+    // sad ve sloupci 80, díl o 6 políček dál: 90 m mezi středy
     const s = village([part(1, 86, 64)]);
     s.orchards = [
       {
@@ -100,7 +100,7 @@ describe('ochrana dílu – zeleň', () => {
       } as unknown as NonNullable<VillageState['orchards']>[number],
     ];
     const p = computePartProtections(s, DAY, land(), null);
-    expect(p['1']!.green).toBeCloseTo((150 - 82.5) / 120, 2);
+    expect(p['1']!.green).toBeCloseTo(10 / 85, 2);
   });
 
   it('solitéry do 50 m: dva dávají +0,5, třetí daleko nic, nejvýš 1', () => {
@@ -131,9 +131,12 @@ describe('ochrana dílu – zeleň', () => {
     const pair = layerOf(tree(1, x + 40, z), tree(2, x + 45, z));
     const s = village([part(1, 80, 64)]);
     expect(computePartProtections(s, DAY, land(), pair)['1']!.green).toBe(0);
-    // trojice 100 m od dílu = remíz: zeleň (150 − 100) ÷ 120
-    const trio = layerOf(tree(1, x + 100, z), tree(2, x + 105, z), tree(3, x + 100, z + 5));
-    expect(computePartProtections(s, DAY, land(), trio)['1']!.green).toBeCloseTo(50 / 120, 2);
+    // trojice 60 m od dílu = remíz: zeleň (100 − 60) ÷ 85
+    const trio = layerOf(tree(1, x + 60, z), tree(2, x + 65, z), tree(3, x + 60, z + 5));
+    expect(computePartProtections(s, DAY, land(), trio)['1']!.green).toBeCloseTo(40 / 85, 2);
+    // trojice od 100 m dál už dílu nepomáhá
+    const far = layerOf(tree(1, x + 100, z), tree(2, x + 105, z), tree(3, x + 100, z + 5));
+    expect(computePartProtections(s, DAY, land(), far)['1']!.green).toBe(0);
   });
 
   it('pokácený remíz se nepočítá (pařez), jabloň u cesty je solitér', () => {
@@ -162,8 +165,8 @@ describe('ochrana dílu – vlhkost', () => {
     expect(pNear.nearWater).toBe(true);
     expect(protectionAgainst(pNear, 'dry')).toBeCloseTo(0.2, 5);
     // vyvýšený díl u lesa: hřbet 8 m, voda daleko
-    const hill = (x: number, y: number): number => (x === 88 && y === 64 ? 8 : 0);
-    const forestHill = village([part(1, 88, 64)]);
+    const hill = (x: number, y: number): number => (x === 89 && y === 64 ? 8 : 0);
+    const forestHill = village([part(1, 89, 64)]);
     const pHill = computePartProtections(
       forestHill,
       DAY,
@@ -209,7 +212,7 @@ describe('ochrana dílu – vlhkost', () => {
     expect(protectionAgainst(q['2'], 'wet')).toBeCloseTo(0.2, 5);
     // les u dílu mokro nemění
     const forest = computePartProtections(
-      village([part(1, 88, 64)]),
+      village([part(1, 89, 64)]),
       DAY,
       land({ surface: FOREST_FROM_90 }),
       null,
@@ -226,12 +229,12 @@ describe('ochrana dílu – vlhkost', () => {
 
 describe('den ochrany dílů v simulaci', () => {
   it('jen 1. 4. a jen s weatherSeed; bez krajiny 0,25 všude', () => {
-    const s = village([part(1, 88, 64)]);
+    const s = village([part(1, 89, 64)]);
     partProtectionDay(s, at(601, 3, 31), land(), null);
     expect(s.disasters?.protection).toBeUndefined();
     partProtectionDay(s, DAY, null, null);
     expect(s.disasters?.protection).toEqual({ year: 601, parts: { '1': { green: 0.25 } } });
-    const noSeed = village([part(1, 88, 64)]);
+    const noSeed = village([part(1, 89, 64)]);
     delete noSeed.weatherSeed;
     partProtectionDay(noSeed, DAY, land(), null);
     expect(noSeed.disasters).toBeUndefined();
@@ -244,7 +247,7 @@ describe('den ochrany dílů v simulaci', () => {
     const start = at(601, 3, 25);
     const end = at(601, 4, 12);
     const make = (): VillageState => ({
-      ...village([part(1, 88, 64), part(2, 80, 64)]),
+      ...village([part(1, 89, 64), part(2, 80, 64)]),
       lastDay: start,
     });
     const whole = advanceVillage(make(), end, layer, landscape);
@@ -255,8 +258,8 @@ describe('den ochrany dílů v simulaci', () => {
     const expected = whole.disasters?.protection;
     expect(expected?.year).toBe(601);
     expect(expected?.parts['1']!.green).toBe(1);
-    // solitér 30 m (+0,25) a les ve 142,5 m ((150 − 142,5) ÷ 120)
-    expect(expected?.parts['2']!.green).toBeCloseTo(0.25 + 7.5 / 120, 2);
+    // solitér 30 m (+0,25); les ve 142,5 m už nechrání
+    expect(expected?.parts['2']!.green).toBeCloseTo(0.25, 2);
     expect(chunked.disasters?.protection).toEqual(expected);
     expect(advanceVillage(make(), end, layer, landscape).disasters?.protection).toEqual(expected);
   });

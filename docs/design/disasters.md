@@ -141,14 +141,15 @@ začátek okna setí jařin o 3 týdny a jeho konec o 2 týdny (návrh Clauda).
 
 Martin, 27. 10. 2026: „Sucho by mělo mít různé dopady podle typu krajiny … velká nerozdělená
 plocha polí … stromy mezi poli … solitérní stromy … algoritmus“ – a k návrhu: „Takhle to sedí,
-zahrň i vlhkost půdy.“
+zahrň i vlhkost půdy.“ A po prvním přepočtu Vlkova (zeleň vycházela příliš štědře, holých jen 9 %
+dílů): „ochrana polí jak říkáš“ (27. 10. 2026) – zpřísnění níž je návrh Clauda.
 
 Každý díl pole i louky dostane **1. 4.** (jednou za rok – zeleň se mezitím mění kácením, sadem,
 jabloněmi u cest) **ochranu 0–1**:
 
-- **Zeleň** – vzdálenost středu dílu k **nejbližší zeleni** _d_: do **30 m plná** (1), dál lineárně
-  ubývá, v **150 m nula** (zeleň = (150 − _d_) ÷ 120, oříznuto na 0–1). K tomu **každý solitér do
-  50 m +0,25**. Zeleň dílu nejvýš 1.
+- **Zeleň** – vzdálenost středu dílu k **nejbližší zeleni** _d_: do **15 m plná** (1; zhruba
+  výška stromu), dál lineárně ubývá, ve **100 m nula** (zeleň = (100 − _d_) ÷ 85, oříznuto na
+  0–1). K tomu **každý solitér do 50 m +0,25**. Zeleň dílu nejvýš 1.
 - **Vlhkost** – díl **u vody +0,2**, **vyvýšený díl −0,2**.
 - **Ochrana** = zeleň + vlhkost, oříznuto na 0–1.
 - **Ztráta suchem × (1 − 0,5 × ochrana)** – násobek dílu = 1 − (1 − násobek roku) × (1 − 0,5 ×
@@ -156,15 +157,17 @@ jabloněmi u cest) **ochranu 0–1**:
 
 Co je co (návrh Clauda):
 
-- **Zeleň** = les (políčka lesa krajiny a les vsi, tatáž maska jako vzdálenost od lesa u zvěře),
-  sad vsi a **remíz** – skupina aspoň 3 stojících stromů nebo keřů z vrstvy překážek do 15 m od
-  sebe.
+- **Zeleň** = stromy a **remízky** mezi poli a na mezích (skupina aspoň 3 stojících stromů nebo
+  keřů z vrstvy překážek do 15 m od sebe), sad vsi a jabloně u cest. **Okraj velkého lesa**
+  (políčka lesa krajiny a les vsi, tatáž maska jako u zvěře) chrání **jen díly, které s ním přímo
+  sousedí** (do 15 m od okraje) – dál se les nepočítá, jeho stín a vlhkost do polí nedosáhnou.
 - **Solitér** = stojící strom z vrstvy překážek bez dalšího stromu do 15 m a **jabloň u cesty**.
 - **U vody** = střed dílu do 60 m od vodního políčka nebo v nivě (do 1,5 m nad potokem).
   **Vyvýšený** = střed dílu víc než 6 m nad potokem a na hřbetu (výš než průměr políček do 45 m).
 - **Bez krajiny** (kalibrace, testy) má každý díl ochranu 0,25 (typická ves).
 
 Proto **velký nerozdělený lán trpí suchem nejvíc** a pole mezi stromy, u lesa a v nivě méně.
+Ve Vlkově (3783 dílů) po zpřísnění: zeleň dílů v průměru 0,50, holých (bez zeleně) 25 %.
 Stromy na mezích a jabloně u cest jsou hráčova pojistka – stejně jako rozptýlená pole proti
 kroupám.
 

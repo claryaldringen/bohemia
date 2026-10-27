@@ -119,8 +119,10 @@ export const PROTECTION = {
   /** Kdy se ochrana dílů přepočítá. */
   day: { month: 4, day: 1 } satisfies MonthDay,
   /** Zeleň v dosahu do tolika metrů dává plnou ochranu, v `noGreenM` nulu, mezi nimi lineárně. */
-  fullGreenM: 30,
-  noGreenM: 150,
+  fullGreenM: 15,
+  noGreenM: 100,
+  /** Okraj velkého lesa chrání jen díl do tolika metrů od něj (přímo sousedící), dál se les nepočítá. */
+  forestEdgeM: 15,
   /** Solitér (strom bez dalšího stromu do `soloLinkM`, jabloň u cesty) do `soloM` +`soloBonus`. */
   soloM: 50,
   soloBonus: 0.25,

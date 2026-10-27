@@ -62,9 +62,10 @@ winter, flood }`. Los z vlastních proudů `deriveSeed(weatherSeed, 'summer:' | 
   příznaky `nearWater` (voda do 60 m nebo niva), `lowland` (≤ 1,5 m nad potokem), `raised`
   (> 6 m nad potokem a nad průměrem políček do 45 m), `slope` (soused o ≥ 1,5 m jinak vysoko).
 - **Zeleň** – `computePartProtections`: vzdálenost středu dílu k nejbližší zeleni _d_, zeleň =
-  (150 − _d_) ÷ 120 oříznuto na 0–1. Les a sady: chamfer distanční transformace
-  `greenEdgeScan` (`wildlife-land.ts`; sdílí ji `forestEdgeDistances` zvěře, sady jsou navíc
-  semínka masky). Remízy a solitéry: stojící stromy a keře z vrstvy překážek
+  (100 − _d_) ÷ 85 oříznuto na 0–1 (`fullGreenM` 15, `noGreenM` 100). Les: chamfer distanční
+  transformace `greenEdgeScan` (`wildlife-land.ts`; sdílí ji `forestEdgeDistances` zvěře) se
+  počítá jen do `forestEdgeM` 15 m od okraje, dál se les ignoruje. Sad: středy jeho políček
+  v `PointGrid` jako remíz. Remízy a solitéry: stojící stromy a keře z vrstvy překážek
   (`obstaclesNear` + `obstacleStatus(obstacleChangesAt(state, day))`, bez pařezů, souší
   a padlých, s jabloněmi a stromy u cest, bez stromů v masce lesa). Remíz = strom či keř s ≥ 2
   dalšími do 15 m; solitér = dospělý strom bez stromu do 15 m a každá jabloň u cesty, každý
