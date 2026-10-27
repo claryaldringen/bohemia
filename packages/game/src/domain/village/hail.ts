@@ -193,7 +193,8 @@ function hitOrchards(
 ): number {
   const squares = (state.orchards ?? []).flatMap((o) => o.squares);
   if (squares.length === 0) return 0;
-  // čtverce v témže pořadí jako sady a jejich čtverce
+  // Pořadí `villageLandSquares(['orchard'])` je pořadí sadů a jejich čtverců (squares.ts) – shoduje
+  // se s `squares` výše po indexech; hlídá to test v hail.test.ts.
   const centers = villageLandSquares(geo, state, ['orchard']);
   let total = 0;
   let lost = 0;
@@ -207,14 +208,19 @@ function hitOrchards(
   return total > EPSILON ? lost / total : 0;
 }
 
-/** Střechy obydlí a dílen v pruhu zchátrají o rok chátrání prázdné stavby (okraj o půl roku). */
+/**
+ * Střechy obydlí a dílen v pruhu zchátrají o rok chátrání prázdné stavby (okraj o půl roku).
+ * Kroupy samy stavbu nezboří: stav neklesne pod `HAIL.roofMinCondition` (návrh Clauda) – prázdná
+ * stavba pak dožije běžným chátráním, ne jako ruina bez zmínky.
+ */
 function hitRoofs(state: VillageState, strip: HailStrip): number[] {
   const hit: number[] = [];
   for (const d of state.dwellings) {
     const zone = hailZone(strip, d.position.x, d.position.z);
     if (!zone) continue;
     const years = HAIL.roofYears * zoneWeight(zone);
-    d.condition = Math.max(0, d.condition - years / DWELLINGS[d.type].emptyLifespanYears);
+    const hurt = d.condition - years / DWELLINGS[d.type].emptyLifespanYears;
+    d.condition = Math.min(d.condition, Math.max(HAIL.roofMinCondition, hurt));
     hit.push(d.id);
   }
   return hit;

@@ -200,7 +200,10 @@ kroupami částečně chránit“). Jádro: `hail.ts`, čísla `HAIL` v `rules-d
   úrody čtverce; podíl, který zbyl, v `disasters.hail.apples` – `applesAfterHail` ho uplatní při
   začátku sklizně 1. 9. téhož roku (`orchard.ts`, `startWork`). Jabloně u cest beze změny.
 - **Střechy** – obydlí a dílny v pruhu: stav − `roofYears` ÷ `emptyLifespanYears` (rok
-  chátrání prázdné stavby; okraj půl roku). Obydlený dům stav neopravuje – zůstane nižší.
+  chátrání prázdné stavby; okraj půl roku). Stav neklesne pod
+  `HAIL.roofMinCondition` (0,05) – kroupy samy stavbu nezboří, prázdná dožije běžným chátráním
+  (návrh Clauda). Obydlí s lidmi a dílny: ubraný rok života je trvalý, obnova jako po běžném
+  chátrání (návrh Clauda).
 - **Kronika** – `hail` (`partIds`, `dwellingIds`, `meadowShare`, `appleShare`); text
   v `village-view-chronicle.ts`.
 - **Testy** – `__tests__/hail.test.ts`: četnost 6 % (2000 let), okno června až srpna, dvě vsi

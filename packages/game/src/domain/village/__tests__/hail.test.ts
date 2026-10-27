@@ -4,7 +4,7 @@ import { foundVillage } from '../actions';
 import { dayPartLosses, yearSchedule } from '../disasters';
 import { localDisastersDay } from '../local-disasters';
 import { hailDay, hailLoss, hailZone } from '../hail';
-import { applesAfterHail } from '../orchard';
+import { applesAfterHail, squareExpectedYieldKg } from '../orchard';
 import { DWELLINGS } from '../rules-people';
 import { HAIL } from '../rules-disasters';
 import { advanceVillage } from '../simulate';
@@ -164,6 +164,30 @@ describe('den krupobití', () => {
     expect(mowing.hailFactor).toBeCloseTo(1 - 0.54, 10);
     expect(applesAfterHail(state, at(510, 9, 1))).toBeCloseTo(0.6, 10);
     expect(applesAfterHail(state, at(511, 9, 1))).toBe(1);
+  });
+
+  it('kroupy prázdnou stavbu nezboří a sad se páruje se čtverci podle pořadí', () => {
+    const state = village();
+    const dwelling = state.dwellings[0]!;
+    dwelling.condition = 0.1;
+    const day = at(510, 6, 10);
+    state.orchards = [
+      {
+        id: 1,
+        squares: [{ cell: cellAtZ(75), areaM2: 225, distanceM: 50, plantedDay: at(500, 3, 1) }],
+      },
+      {
+        id: 2,
+        squares: [{ cell: cellAtZ(64), areaM2: 225, distanceM: 50, plantedDay: at(509, 3, 1) }],
+      },
+    ] as unknown as VillageState['orchards'];
+    forceHail(state, day);
+    hailDay(state, day, null);
+    expect(dwelling.condition).toBeCloseTo(HAIL.roofMinCondition, 10);
+    // v pruhu je jen druhý sad (jiná úroda než první) – ztráta je jeho podíl z celku
+    const [a, b] = (state.orchards ?? []).map((o) => squareExpectedYieldKg(o.squares[0]!, day));
+    expect(a).not.toBeCloseTo(b!, 6);
+    expect(applesAfterHail(state, at(510, 9, 1))).toBeCloseTo(1 - (b! * 0.4) / (a! + b!), 6);
   });
 
   it('ves bez počasí kraje kroupy nemá, vynucené ano', () => {

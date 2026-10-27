@@ -213,6 +213,8 @@ export const HAIL = {
   appleLoss: 0.4,
   /** Střechy staveb v pruhu zchátrají o tolik let chátrání prázdné stavby (okraj polovina). */
   roofYears: 1,
+  /** Kroupy samy stavbu nezboří: stav neklesne pod tento zbytek (návrh Clauda). */
+  roofMinCondition: 0.05,
 } as const;
 
 /**
