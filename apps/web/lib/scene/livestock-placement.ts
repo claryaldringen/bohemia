@@ -185,6 +185,8 @@ export interface LivestockGround {
   verge?(x: number, z: number): boolean;
   /** Kudy smí slepice – ne voda, skála a prudký svah. */
   walkable(x: number, z: number): boolean;
+  /** Jak hluboko v lese (m od hranice lesa, záporné v louce) – kudy vzácná zvěř odchází do lesa. */
+  forestDepth?(x: number, z: number): number;
 }
 
 /**
@@ -1155,6 +1157,7 @@ export function livestockGround(
     forestEdge: (x, z) => at(x, z, FOREST_EDGE),
     verge: (x, z) => at(x, z, VERGE),
     walkable: (x, z) => at(x, z, WALKABLE),
+    forestDepth: (x, z) => env.field.distanceAt(x, z),
   };
 }
 

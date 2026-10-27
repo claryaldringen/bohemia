@@ -64,13 +64,37 @@ describe('dvůr kovárny a hrnčíře (production-chains.md – Kovář; crafts.
     expect(size({ bars: 3 })).toBeGreaterThan(size({ bars: 2 }));
   });
 
+  it('plná houba a hřivny jsou z herní výšky vidět, ale nepřerostou pec ani dosah hromádky', () => {
+    const origin = { ...smith(), position: { x: 0, z: 0, rotation: 0 } };
+    const pile = (yard: CraftYardView['yard'], lx: number, lz: number): number[] => {
+      const empty = craftYardGeometry([{ ...origin, yard: {} }], flat).positions.length;
+      const p = craftYardGeometry([{ ...origin, yard }], flat).positions.slice(empty);
+      const reach: number[] = [];
+      let top = 0;
+      for (let i = 0; i < p.length; i += 3) {
+        const [x, z] = localToWorld(origin.position, lx, lz);
+        reach.push(Math.hypot(p[i]! - x, p[i + 2]! - z));
+        top = Math.max(top, p[i + 1]!);
+      }
+      return [Math.max(...reach), top];
+    };
+    const [bloomReach, bloomTop] = pile({ bloom: 3 }, BLOOM_PILE.lx, BLOOM_PILE.lz);
+    expect(bloomReach).toBeLessThanOrEqual(BLOOM_PILE.reach);
+    expect(bloomTop).toBeGreaterThan(0.3);
+    expect(bloomTop).toBeLessThan(BLOOMERY.height / 2);
+    const [barReach, barTop] = pile({ bars: 3 }, BAR_PILE.lx, BAR_PILE.lz);
+    expect(barReach).toBeLessThanOrEqual(BAR_PILE.reach);
+    expect(barTop).toBeGreaterThan(0.3);
+    expect(barTop).toBeLessThan(BLOOMERY.height / 2);
+  });
+
   it('pec, měch, houba, hřivny i jáma leží ve vyklízené ploše dílny', () => {
     const area = DWELLING_CLEARING_M.polozemnice;
     const reach: [number, number, number][] = [
       [BLOOMERY.lx, BLOOMERY.lz, BLOOMERY.radiusBottom + 0.06],
       [BLOOMERY_BELLOWS.lx1, BLOOMERY_BELLOWS.lz, BLOOMERY_BELLOWS.width / 2],
-      [BLOOM_PILE.lx, BLOOM_PILE.lz, 0.6],
-      [BAR_PILE.lx, BAR_PILE.lz, 0.3],
+      [BLOOM_PILE.lx, BLOOM_PILE.lz, BLOOM_PILE.reach],
+      [BAR_PILE.lx, BAR_PILE.lz, BAR_PILE.reach],
       [CLAY_PIT.lx, CLAY_PIT.lz, CLAY_PIT.rim],
     ];
     // místa kováře a měchaře u tavby (osy modelu: dílna v počátku bez natočení), postava ≈ 0,25 m
@@ -96,8 +120,8 @@ describe('dvůr kovárny a hrnčíře (production-chains.md – Kovář; crafts.
     inside('smith', bellowsMid, BLOOMERY_BELLOWS.lz, BLOOMERY_BELLOWS.width / 2);
     inside('smith', BLOOMERY_BELLOWS.lx0, BLOOMERY_BELLOWS.lz, 0);
     inside('smith', BLOOMERY_BELLOWS.lx1, BLOOMERY_BELLOWS.lz, 0);
-    inside('smith', BLOOM_PILE.lx, BLOOM_PILE.lz, 0.6);
-    inside('smith', BAR_PILE.lx, BAR_PILE.lz, 0.3);
+    inside('smith', BLOOM_PILE.lx, BLOOM_PILE.lz, BLOOM_PILE.reach);
+    inside('smith', BAR_PILE.lx, BAR_PILE.lz, BAR_PILE.reach);
     inside('potter', CLAY_PIT.lx, CLAY_PIT.lz, CLAY_PIT.rim);
     // osa vchodu (brána pěšin) mezi pecí a jámou zůstane volná
     expect(WORKSHOP_YARD_PATH_BOX_M.smith!.maxX).toBeLessThan(-0.5);

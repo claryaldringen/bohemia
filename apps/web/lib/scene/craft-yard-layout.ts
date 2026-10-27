@@ -18,10 +18,13 @@ import type { CraftSpot, WorkshopVent } from './workshop-layout';
 export const BLOOMERY = { lx: -2.1, lz: 6.7, radiusBottom: 0.42, radiusTop: 0.27, height: 1.1 };
 /** Ruční klínový měch u paty pece – hubice u pece, zadní konec směrem ke vchodu dílny (+x). */
 export const BLOOMERY_BELLOWS = { lx0: -1.62, lx1: -0.95, lz: 6.7, width: 0.34, height: 0.3 };
-/** Houba z tavby – hroudy na zemi vedle pece. */
-export const BLOOM_PILE = { lx: -2.85, lz: 6.05 } as const;
-/** Hromádka hřiven pod přístřeškem u levé stěny. */
-export const BAR_PILE = { lx: -2.15, lz: 4.85 } as const;
+/**
+ * Houba z tavby – hroudy na zemi vedle pece (střed a dosah hromádky – m). Hroudy jsou větší, než
+ * by byly skutečné (≈ 15 cm), a rezavé, aby šly z herní výšky rozeznat – nižší než měch.
+ */
+export const BLOOM_PILE = { lx: -2.85, lz: 6.05, reach: 0.6 } as const;
+/** Hromádka hřiven pod přístřeškem u levé stěny (střed a dosah – m). */
+export const BAR_PILE = { lx: -2.15, lz: 4.85, reach: 0.34 } as const;
 /**
  * Jáma s hlínou před hrnčířem (střed, poloměr dna a valu – m). Pec, měch, houba i jáma leží ve
  * vyklízené ploše dílny (DWELLING_CLEARING_M – před vchodem do 7,5 m), jiná stavba na ně nepřijde,
@@ -32,8 +35,19 @@ export const CLAY_PIT = { lx: 1.95, lz: 6.5, radius: 0.7, rim: 0.95 } as const;
 /** Hladina hlíny v jámě podle stupně 0–3 (m nad terénem; prázdná jáma má tmavé dno). */
 const CLAY_LEVEL = [-0.04, 0.0, 0.05, 0.1] as const;
 /** Kolik hrud houby a hřiven (vrstvy po třech) ukazuje stupeň 0–3. */
-const BLOOM_LUMPS = [0, 1, 2, 3] as const;
-const BAR_LAYERS = [0, 1, 3, 5] as const;
+const BLOOM_LUMPS = [0, 2, 4, 6] as const;
+const BAR_LAYERS = [0, 2, 4, 7] as const;
+/** Místa hrud v hromádce houby (posun od BLOOM_PILE – m, výška paty): poslední leží navrchu. */
+const LUMP_SPOTS: readonly (readonly [number, number, number])[] = [
+  [0, 0, 0],
+  [-0.28, 0.1, 0],
+  [0.1, -0.28, 0],
+  [-0.21, -0.21, 0],
+  [0.29, 0.04, 0],
+  [-0.1, -0.08, 0.17],
+];
+/** Hřivna: polovina délky, šířky a tloušťka (m) a rozestup prutů ve vrstvě. */
+const BAR = { halfLength: 0.28, halfWidth: 0.055, thickness: 0.05, gap: 0.13 } as const;
 
 /** Dílna, jejíž dvůr se kreslí (hotová kovárna nebo hrnčíř). */
 export interface CraftYardView {
@@ -98,9 +112,9 @@ const SOOT: Rgb = [0.16, 0.13, 0.11];
 const EMBERS: Rgb = [0.72, 0.22, 0.06];
 const WOOD: Rgb = [0.42, 0.3, 0.19];
 const LEATHER: Rgb = [0.3, 0.2, 0.13];
-const BLOOM: Rgb = [0.24, 0.22, 0.22];
-const RUST: Rgb = [0.38, 0.22, 0.14];
-const IRON: Rgb = [0.26, 0.26, 0.28];
+const BLOOM: Rgb = [0.36, 0.33, 0.31];
+const RUST: Rgb = [0.6, 0.31, 0.15];
+const IRON: Rgb = [0.5, 0.5, 0.53];
 const EARTH: Rgb = [0.36, 0.28, 0.18];
 const EARTH_DARK: Rgb = [0.22, 0.17, 0.11];
 const CLAY_WET: Rgb = [0.5, 0.47, 0.4];
@@ -259,22 +273,23 @@ function bellows(out: ColoredGeometry, view: CraftYardView, height: HeightFn): v
   block(out, view, base, nozzle, 0.05, [0.11, 0.11], CLAY_BURNT, CLAY_BURNT);
 }
 
-/** Houba z tavby: 1–3 tmavé hroudy se struskou a rzí vedle pece. */
+/** Houba z tavby: 2–6 hrud se struskou a rzí vedle pece, poslední navrchu hromádky. */
 function bloomLumps(out: ColoredGeometry, view: CraftYardView, height: HeightFn): void {
   const n = BLOOM_LUMPS[view.yard?.bloom ?? 0] ?? 0;
   for (let k = 0; k < n; k++) {
-    const c = at(view, BLOOM_PILE.lx + 0.28 * k - 0.1 * (k % 2), BLOOM_PILE.lz + 0.22 * (k % 2));
-    const base = height(c[0], c[1]);
-    const r = 0.13 + 0.03 * hash(c[0], c[1], 9);
+    const [dx, dz, lift] = LUMP_SPOTS[k]!;
+    const c = at(view, BLOOM_PILE.lx + dx, BLOOM_PILE.lz + dz);
+    const base = height(c[0], c[1]) + lift;
+    const r = 0.2 + 0.04 * hash(c[0], c[1], 9);
     lathe(
       out,
       c,
       base,
       [
         [r * 0.9, -0.03, RUST],
-        [r, 0.05, mix(BLOOM, RUST, 0.4)],
-        [r * 0.75, 0.13, BLOOM],
-        [r * 0.25, 0.17, BLOOM],
+        [r, 0.08, mix(BLOOM, RUST, 0.7)],
+        [r * 0.78, 0.2, mix(BLOOM, RUST, 0.45)],
+        [r * 0.25, 0.27, mix(BLOOM, RUST, 0.2)],
       ],
       9,
       0.35,
@@ -290,15 +305,15 @@ function barStack(out: ColoredGeometry, view: CraftYardView, height: HeightFn): 
   for (let layer = 0; layer < layers; layer++) {
     const turn = layer % 2 === 0 ? 0 : Math.PI / 2;
     for (let k = -1; k <= 1; k++) {
-      const off = k * 0.11;
+      const off = k * BAR.gap;
       const box = {
         lx: BAR_PILE.lx + (layer % 2 === 0 ? 0 : off),
         lz: BAR_PILE.lz + (layer % 2 === 0 ? off : 0),
-        halfX: 0.19,
-        halfZ: 0.04,
+        halfX: BAR.halfLength,
+        halfZ: BAR.halfWidth,
         turn,
       };
-      const y0 = 0.035 * layer;
+      const y0 = BAR.thickness * layer;
       const tint = hash(layer, k, 4) * 0.5;
       block(
         out,
@@ -306,7 +321,7 @@ function barStack(out: ColoredGeometry, view: CraftYardView, height: HeightFn): 
         base,
         box,
         y0,
-        [y0 + 0.035, y0 + 0.035],
+        [y0 + BAR.thickness, y0 + BAR.thickness],
         mix(IRON, RUST, tint),
         mix(IRON, RUST, tint * 0.6),
       );
