@@ -153,11 +153,15 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   ≈ 39 s, po rychlejším hledání vozu (B2a) ≈ 31 s, po C1 (orba chce jen cenu trasy – A* s odhadem
   od cíle, voda vozem jen k nejlevnějšímu břehu, chůze rovně po kusech stejné půdy) ≈ 26 s při
   vysoké zátěži (≈ −25 % CPU); se zvěří a klučením ≈ 29 s a po paměti chůze rovně po úsečkách
-  (C2 – délka platí, dokud se buňky půdy kolem úsečky nezmění) ≈ 22 s (≈ −20 % CPU). Nejvíc
-  teď bere přepočet chůze se změnou mapy tras (`refreshWalkDistances`, ≈ 38 % – síť pěšin, dolní
-  meze chůze, trasy k práci), mřížka a hledání tras vozu ≈ 20 %. Mezipaměti a zkratky hledání
-  jsou jen zrychlení – výsledek bit po bitu týž i po studeném startu (`cart-memo.test.ts`,
-  `cart-routes-fast.test.ts`, `ground-walk-fast.test.ts`, `walk-memo.test.ts`).
+  (C2 – délka platí, dokud se buňky půdy kolem úsečky nezmění) ≈ 22 s (≈ −20 % CPU). Po C3
+  (mřížka vozu při orbě jen vrstvou dílů – `withPartStages`, buňky polí a nejbližší díly
+  v paměti – `fieldCellsOf`, orba v plánu osevu jednou; village-roads.md – Trasy v paměti) rok
+  27,0–27,2 s → 18,9–19,0 s (≈ −26 % CPU, hlava před C3 už s dalšími mechanikami). Nejvíc teď
+  bere přepočet chůze se změnou mapy tras (`refreshWalkDistances`, ≈ 42 % – dolní meze chůze,
+  síť pěšin, trasy k práci), hledání tras vozu ≈ 17 %. Mezipaměti a zkratky hledání jsou jen
+  zrychlení – výsledek bit po bitu týž i po studeném startu (`cart-memo.test.ts`,
+  `cart-routes-fast.test.ts`, `ground-walk-fast.test.ts`, `walk-memo.test.ts`,
+  `cart-grid-stages.test.ts`).
   Souběžné požadavky téhož hráče dopočet nezdvojují: web je řadí do fronty (`apps/web/lib/exclusive.ts`,
   web-ui.md – Jeden dopočet vsí naráz), druhý jen dopočte zbytek do svého dne.
 

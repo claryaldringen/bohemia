@@ -2,8 +2,8 @@ import { length2, type Landscape } from '../../landscape';
 import { PATH_WALK, ROAD_WALK } from '../rules';
 import type { RoadGrade, RoadGround, RoadLining } from '../types';
 import { roadBridged } from '../types-roads';
-import { nearestPartFinder } from './nearest';
-import { PathHeap, squareCells, type PathLine, type PathPoint, type PathVillage } from './network';
+import { PathHeap, type PathLine, type PathPoint, type PathVillage } from './network';
+import { fieldCellsOf } from './network-grid';
 import {
   PATH_WATER,
   PATH_WATER_SPOT,
@@ -98,12 +98,10 @@ export function withFieldWalk(ground: WalkGround, fields: PathVillage['fields'])
   const crop = new Uint8Array(t.width * t.height);
   for (const field of fields) {
     // hrana mezi díly téhož pole je uvnitř pole – podle nejbližšího dílu (jako síť pěšin)
-    const nearestPart = nearestPartFinder(field.parts, field.parts[0]?.size ?? 0);
-    for (const c of squareCells(t, field.parts).inside) {
-      const part = nearestPart(
-        t.originX + (c % t.width) * t.cellM,
-        t.originZ + Math.floor(c / t.width) * t.cellM,
-      );
+    const { inside, nearest } = fieldCellsOf(t, field.parts);
+    for (let n = 0; n < inside.length; n++) {
+      const c = inside[n]!;
+      const part = field.parts[nearest[n]!]!;
       speed[c] = Math.min(speed[c]!, partWalkSpeed(part));
       if (isCropPart(part)) crop[c] = 1;
     }

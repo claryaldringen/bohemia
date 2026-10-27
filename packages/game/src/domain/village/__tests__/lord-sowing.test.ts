@@ -298,6 +298,12 @@ describe('nutná práce s rodinou (lordHelpDay)', () => {
     const load = cropLoadOf(rest);
     const village = sowingCapacity(planned, PLAN_DAY, coverage);
     expect(load.winterAutumn).toBeGreaterThan(village.autumnWinter);
+    // orba převzatá z volání bez rodiny = spočítaná znovu (lordHelpDay ji počítá jednou – výkon)
+    const ploughing = sowingCapacity(planned, PLAN_DAY, coverage, true);
+    const lord = (more: object): ReturnType<typeof sowingCapacity> =>
+      sowingCapacity(planned, PLAN_DAY, coverage, true, null, undefined, { lord: true, ...more });
+    expect(ploughing.plough).toBeDefined();
+    expect(lord({ ploughCapacity: ploughing.plough })).toEqual(lord({}));
     // v září rodina pomáhá, v zimě cvičí celý den
     const september = advanceVillage(planned, at(600, 9, 10), null);
     expect(lordHelpShare(planned.season!, at(600, 9, 10))).toBeGreaterThan(0);

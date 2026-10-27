@@ -170,6 +170,59 @@ export function squareCells(
   return { inside, edge };
 }
 
+/** Polí v paměti buněk polí (`fieldCellsOf`) – nejdéle nepoužité vypadne. */
+const FIELD_CELLS_MEMO = 256;
+const fieldCellsMemo = new Map<string, FieldCells>();
+
+/** Buňky pole v mřížce (`fieldCellsOf`). */
+export interface FieldCells {
+  /** Buňky uvnitř a na okraji pole (`squareCells` – v jejím pořadí). */
+  inside: readonly number[];
+  edge: readonly number[];
+  /** Nejbližší díl (`nearestPartFinder`) buňky `inside[k]` – index v dílech pole. */
+  nearest: Int32Array;
+}
+
+/**
+ * Buňky pole v mřížce (`squareCells`) a nejbližší díl každé buňky uvnitř (`nearestPartFinder`
+ * – hrana mezi díly téhož pole patří nejbližšímu dílu). Mřížka vozu, mřížka pěšin i půda chůze je
+ * počítají pro tatáž pole znovu a znovu, proto v paměti podle okna mřížky a čtverců dílů
+ * (políčko, poloha, velikost, natočení – nic jiného obojí nečte). Jen zrychlení – tytéž buňky ve
+ * stejném pořadí a tentýž díl jako bez paměti (docs/code/village-core.md – Výkon dopočtu).
+ */
+export function fieldCellsOf(grid: GridWindow, parts: readonly Square[]): FieldCells {
+  let key = `${grid.originX},${grid.originZ},${grid.cellM},${grid.width},${grid.height}`;
+  for (const p of parts) {
+    key += `|${p.cell.x}/${p.cell.y}:${p.x},${p.z},${p.size},${p.rotation ?? ''}`;
+  }
+  const known = fieldCellsMemo.get(key);
+  if (known) {
+    fieldCellsMemo.delete(key);
+    fieldCellsMemo.set(key, known);
+    return known;
+  }
+  const { inside, edge } = squareCells(grid, parts);
+  const nearestPart = nearestPartFinder(
+    parts.map((p, k) => ({ x: p.x, z: p.z, k })),
+    parts[0]?.size ?? 0,
+  );
+  const nearest = new Int32Array(inside.length);
+  for (let n = 0; n < inside.length; n++) {
+    nearest[n] = nearestPart(cellX(grid, inside[n]!), cellZ(grid, inside[n]!)).k;
+  }
+  const out: FieldCells = { inside, edge, nearest };
+  if (fieldCellsMemo.size >= FIELD_CELLS_MEMO) {
+    fieldCellsMemo.delete(fieldCellsMemo.keys().next().value!);
+  }
+  fieldCellsMemo.set(key, out);
+  return out;
+}
+
+/** Zapomene buňky polí v paměti (`fieldCellsOf`) – studený start v testech. */
+export function forgetFieldCells(): void {
+  fieldCellsMemo.clear();
+}
+
 /**
  * Sjednocení čtverců jedné stavby jako test bodu světa (`inUnion`), natočení mřížky (`cos`, `sin`)
  * a `spread` – násobek poloviny strany, o který obdélník kolem natočeného čtverce přesahuje.
@@ -538,11 +591,12 @@ export function villageGrid(input: PathNetworkInput, buildings: readonly Buildin
   }
   for (const field of v.fields) {
     // hrana mezi díly téhož pole je uvnitř pole (meze nejsou) – cena podle nejbližšího dílu
-    const nearestPart = nearestPartFinder(field.parts, field.parts[0]?.size ?? 0);
-    for (const c of squareCells(grid, field.parts).inside) {
+    const { inside, nearest } = fieldCellsOf(grid, field.parts);
+    for (let n = 0; n < inside.length; n++) {
+      const c = inside[n]!;
       grid.village[c] = 1;
       if (onRoad(c)) continue;
-      const part = nearestPart(cellX(grid, c), cellZ(grid, c));
+      const part = field.parts[nearest[n]!]!;
       speed[c] = Math.min(speed[c]!, partWalkSpeed(part));
       grid.base[c] = grid.base[c]! * (OVERGROWN_COST[part.stage] ?? 1);
       // pěšina dne přes díl v osevu nezrychlí – platí cena pole

@@ -8,7 +8,6 @@ import {
 } from '../rules';
 import type { PartStage } from '../summary';
 import type { CartKind, RoadGrade, RoadGround } from '../types';
-import { nearestPartFinder } from './nearest';
 import {
   PathHeap,
   quantizedStep,
@@ -26,6 +25,7 @@ import {
   type PathVillage,
   villageTerrain,
 } from './network';
+import { fieldCellsOf } from './network-grid';
 import { PATH_FORD, PATH_FOREST, PATH_WATER, PATH_WETLAND, type PathTerrain } from './terrain';
 import { roadTreeSpeed } from './walk-speed';
 
@@ -113,6 +113,23 @@ export interface CartGrid extends GridWindow {
   heights: Float32Array | null;
   /** Buňky pásu pevné cesty, kudy vůz jede (průjezdné), 1 – bez pevných cest null. */
   road?: Uint8Array | null;
+  /** Buňky dílů polí pro mřížku s jinými stadii dílů (`withPartStages`) – jen z `cartGrid`. */
+  fieldCells?: CartFieldCells | null;
+}
+
+/**
+ * Vrstva dílů polí v mřížce vozu (`cartGrid`): po polích a buňkách v pořadí, v jakém je vrstva
+ * položila – jen buňky, které pozdější vrstvy (les vsi, pevná cesta, sad, hřbitov, ohrada,
+ * svatyně, stavby) nepřepíšou. Mřížka s jinými stadii dílů téže vsi (`withPartStages`) tak položí
+ * jen tuto vrstvu znovu – ve stejném pořadí, bit po bitu jako celá mřížka.
+ */
+export interface CartFieldCells {
+  /** Buňka mřížky. */
+  cells: Int32Array;
+  /** Nejbližší díl buňky – index přes díly všech polí v pořadí. */
+  parts: Int32Array;
+  /** Cena buňky před vrstvou dílů. */
+  pre: Float32Array;
 }
 
 /** Cíl vozu – bod a jak blízko musí vůz dojet (m). */
@@ -305,10 +322,10 @@ export function cartGrid(
   };
   const cost = grid.cost;
   const v = input.village;
+  const fieldSquares = v.fields.map((field) => fieldCellsOf(grid, field.parts));
   // pole založené v lese je vymýcené – les krajiny tam neplatí
   const cleared = new Uint8Array(all);
-  for (const field of v.fields) {
-    const { inside, edge } = squareCells(grid, field.parts);
+  for (const { inside, edge } of fieldSquares) {
     for (const c of inside) cleared[c] = 1;
     for (const c of edge) cleared[c] = 1;
   }
@@ -320,23 +337,33 @@ export function cartGrid(
     else if (flags & PATH_WETLAND) cost[c] = 1 / CART_SPEED.wet;
     else cost[c] = 1;
   }
-  // díly polí stálou cenou (zarostlý neprůjezdný) – nejpomalejší z povrchu a dílu platí
-  for (const field of v.fields) {
-    const nearestPart = nearestPartFinder(field.parts, field.parts[0]?.size ?? 0);
-    for (const c of squareCells(grid, field.parts).inside) {
-      const near = nearestPart(
-        grid.originX + (c % grid.width) * grid.cellM,
-        grid.originZ + Math.floor(c / grid.width) * grid.cellM,
-      );
-      const speed = cartPartSpeed(near.stage);
+  // díly polí stálou cenou (zarostlý neprůjezdný) – nejpomalejší z povrchu a dílu platí; buňky
+  // a díly vrstvy se pamatují pro mřížku s jinými stadii (`withPartStages`)
+  const pre = new Float32Array(cost);
+  const layerCells: number[] = [];
+  const layerParts: number[] = [];
+  let first = 0;
+  v.fields.forEach((field, f) => {
+    const { inside, nearest } = fieldSquares[f]!;
+    for (let n = 0; n < inside.length; n++) {
+      const c = inside[n]!;
+      const speed = cartPartSpeed(field.parts[nearest[n]!]!.stage);
       cost[c] = speed > 0 ? Math.max(cost[c]!, 1 / speed) : Infinity;
+      layerCells.push(c);
+      layerParts.push(first + nearest[n]!);
     }
-  }
+    first += field.parts.length;
+  });
+  // buňky, které pozdější vrstvy přepíšou (vrstva dílů tam neplatí)
+  const later = new Uint8Array(all);
   // les vsi je les – vůz jen po pevné cestě
   const woods = (v.woods ?? []).filter((wd) => wd.surface !== 'forest');
   if (woods.length > 0) {
     const { inside, edge } = squareCells(grid, woods);
-    for (const c of [...inside, ...edge]) cost[c] = Infinity;
+    for (const c of [...inside, ...edge]) {
+      cost[c] = Infinity;
+      later[c] = 1;
+    }
   }
   // pevné cesty – sjízdné vždy (i lesem, přes pole a mezi překážkami) rychlostí podle druhu cesty
   // a mokřiny na ose; voda (brod – i pod hatí) a neprůchodná místa terénu zůstávají
@@ -347,22 +374,27 @@ export function cartGrid(
       if (!roads[c] || !Number.isFinite(t.cost[c]!) || t.flags[c]! & PATH_WATER) continue;
       cost[c] = roads[c]!;
       grid.road[c] = 1;
+      later[c] = 1;
     }
   }
+  const block = (c: number): void => {
+    cost[c] = Infinity;
+    later[c] = 1;
+  };
   // sad (stromy v řadách) – i jeho okraj, okrsek svatyně
   for (const o of v.orchards ?? []) {
     if (o.squares.length === 0) continue;
     const { inside, edge } = squareCells(grid, o.squares);
-    for (const c of inside) cost[c] = Infinity;
-    for (const c of edge) cost[c] = Infinity;
+    for (const c of inside) block(c);
+    for (const c of edge) block(c);
   }
   // hřbitov a ohrada: jen buňky uvnitř plotu, který stojí 1,5 m od okraje čtverců – mezi dvěma
   // sousedními stavbami zůstává ulička 3 m, kterou vůz projede (oxen.md – plot je menší než čtverec)
   for (const cemetery of v.cemeteries ?? []) {
-    for (const c of fencedCells(grid, cemetery.squares, CEMETERY_FENCE_INSET_M)) cost[c] = Infinity;
+    for (const c of fencedCells(grid, cemetery.squares, CEMETERY_FENCE_INSET_M)) block(c);
   }
   for (const pen of v.pens ?? []) {
-    for (const c of fencedCells(grid, penPathSquares(pen), PEN_FENCE_INSET_M)) cost[c] = Infinity;
+    for (const c of fencedCells(grid, penPathSquares(pen), PEN_FENCE_INSET_M)) block(c);
   }
   for (const b of v.sacred?.buildings ?? []) {
     if (b.kind !== 'shrine') continue;
@@ -373,9 +405,7 @@ export function cartGrid(
       b.position.z - half,
       b.position.x + half,
       b.position.z + half,
-      (c) => {
-        cost[c] = Infinity;
-      },
+      block,
     );
   }
   // domy, pozemky, staveniště, milíř a modla – i s půl šířkou vozu
@@ -383,11 +413,53 @@ export function cartGrid(
   for (const b of villageBuildings(v).all) {
     const [x0, z0, x1, z1] = buildingBounds(b, margin);
     cellsIn(grid, x0, z0, x1, z1, (c, x, z) => {
-      if (inBuilding(b, x, z, margin)) cost[c] = Infinity;
+      if (inBuilding(b, x, z, margin)) block(c);
     });
   }
   if (grid.road) for (let c = 0; c < all; c++) if (cost[c] === Infinity) grid.road[c] = 0;
+  let kept = 0;
+  for (const c of layerCells) if (!later[c]) kept++;
+  const fieldCells: CartFieldCells = {
+    cells: new Int32Array(kept),
+    parts: new Int32Array(kept),
+    pre: new Float32Array(kept),
+  };
+  for (let k = 0, n = 0; k < layerCells.length; k++) {
+    const c = layerCells[k]!;
+    if (later[c]) continue;
+    fieldCells.cells[n] = c;
+    fieldCells.parts[n] = layerParts[k]!;
+    fieldCells.pre[n] = pre[c]!;
+    n++;
+  }
+  grid.fieldCells = fieldCells;
   return grid;
+}
+
+/**
+ * Mřížka vozu téže vsi s jinými stadii dílů (`village` se od vsi mřížky `grid` liší jen stadii –
+ * týž `cartGridKey` bez zarostlých dílů): vrstva dílů polí položená znovu na buňky, které
+ * pozdější vrstvy nepřepsaly (`CartFieldCells`) – ve stejném pořadí, bit po bitu jako
+ * `cartGrid` nové vsi. Mřížka bez vrstvy dílů (ne z `cartGrid`) null.
+ */
+export function withPartStages(
+  grid: CartGrid,
+  village: Pick<CartVillage, 'fields'>,
+): CartGrid | null {
+  const layer = grid.fieldCells;
+  if (!layer) return null;
+  const speeds: number[] = [];
+  for (const field of village.fields)
+    for (const p of field.parts) speeds.push(cartPartSpeed(p.stage));
+  const cost = new Float32Array(grid.cost);
+  const { cells, parts, pre } = layer;
+  for (let k = 0; k < cells.length; k++) cost[cells[k]!] = pre[k]!;
+  for (let k = 0; k < cells.length; k++) {
+    const c = cells[k]!;
+    const speed = speeds[parts[k]!]!;
+    cost[c] = speed > 0 ? Math.max(cost[c]!, 1 / speed) : Infinity;
+  }
+  return { ...grid, cost };
 }
 
 /** Průchodné buňky do `radius` m od bodu (aspoň nejbližší průchodná do 3 buněk). */

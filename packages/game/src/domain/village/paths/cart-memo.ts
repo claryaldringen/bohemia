@@ -42,12 +42,16 @@ interface CartMemo {
 
 const MEMO = new WeakMap<Landscape, CartMemo[]>();
 
+/** Oddělí v klíči mřížky vozu „zarostlý“ dílů od zbytku (`cartGridKey`). */
+const PART_FLAGS = '#';
+
 /**
  * Klíč mřížky vozu (`cartGrid`): okno terénu, pokácené a přidané stromy dne a z vsi přesně to, co
  * mřížka čte – díly polí (políčko, poloha, velikost, natočení a ze stadia jen „zarostlý“ – jinak
  * stálá cena), les vsi, pevné cesty (osa, druh, stupeň, mokřina, olemování), sady, hřbitovy,
  * ohrady, svatyně a modly, obydlí, milíře, humna a zemní práce. Stadia, lidé, práce dne ani den
- * v něm nejsou – táž mapa jiný den mřížku najde.
+ * v něm nejsou – táž mapa jiný den mřížku najde. „Zarostlý“ po dílech je na konci za
+ * `PART_FLAGS` – mřížka, která se od klíče liší jen jím, se odvodí (`memoGrid`, `withPartStages`).
  */
 export function cartGridKey(
   village: CartVillage,
@@ -56,11 +60,12 @@ export function cartGridKey(
 ): string {
   const square = (s: PathSquare): string =>
     `${s.cell.x}/${s.cell.y}:${s.x},${s.z},${s.size},${s.rotation ?? ''}`;
-  return JSON.stringify([
+  const flags = village.fields
+    .map((f) => f.parts.map((p) => (cartPartSpeed(p.stage) > 0 ? '0' : '1')).join(''))
+    .join(',');
+  const layout = JSON.stringify([
     window,
-    village.fields.map((f) =>
-      f.parts.map((p) => `${square(p)}${cartPartSpeed(p.stage) > 0 ? '' : '!'}`).join(';'),
-    ),
+    village.fields.map((f) => f.parts.map(square).join(';')),
     village.woods ?? null,
     village.roads ?? null,
     village.orchards ?? null,
@@ -73,27 +78,47 @@ export function cartGridKey(
     village.earthworks ?? null,
     changes,
   ]);
+  return `${layout}${PART_FLAGS}${flags}`;
+}
+
+/** Klíč mřížky bez „zarostlý“ dílů (`cartGridKey`); klíč bez nich (testy) null. */
+function layoutOf(key: string): string | null {
+  const at = key.lastIndexOf(PART_FLAGS);
+  return at >= 0 ? key.slice(0, at) : null;
 }
 
 const pointKey = (p: PathPoint): string => `${p.x},${p.z}`;
 const targetKey = (t: CartTarget): string => `${t.x},${t.z},${t.reachM}`;
 
 /**
+ * Stavba mřížky vozu pro paměť: `similar` – mřížka z paměti, jejíž klíč se liší jen „zarostlý“
+ * dílů (`withPartStages` z ní odvodí novou), jinak null.
+ */
+export type MakeCartGrid = (similar: CartGrid | null) => CartGrid;
+
+/**
  * Mřížka vozu s klíčem `key` (`cartGridKey`) z paměti krajiny – `makeGrid` ji postaví jen
- * poprvé; použitá mřížka jde na začátek fronty (nejdéle nepoužitá vypadne).
+ * poprvé (z mřížky, která se liší jen „zarostlý“ dílů, je-li v paměti); použitá mřížka jde na
+ * začátek fronty (nejdéle nepoužitá vypadne).
  */
 function memoGrid(
   landscape: Landscape,
   obstacles: ObstacleLayer | null,
   key: string,
-  makeGrid: () => CartGrid,
+  makeGrid: MakeCartGrid,
 ): CartMemo {
   const list = MEMO.get(landscape) ?? [];
   const at = list.findIndex((m) => m.obstacles === obstacles && m.key === key);
+  const similar = (): CartGrid | null => {
+    const layout = layoutOf(key);
+    if (layout === null) return null;
+    const m = list.find((x) => x.obstacles === obstacles && layoutOf(x.key) === layout);
+    return m?.grid ?? null;
+  };
   const memo: CartMemo =
     at >= 0
       ? list.splice(at, 1)[0]!
-      : { obstacles, key, grid: makeGrid(), searches: new Map(), cells: 0 };
+      : { obstacles, key, grid: makeGrid(similar()), searches: new Map(), cells: 0 };
   list.unshift(memo);
   if (list.length > GRIDS_PER_LANDSCAPE) list.length = GRIDS_PER_LANDSCAPE;
   MEMO.set(landscape, list);
@@ -109,7 +134,7 @@ export function memoCartCost(
   landscape: Landscape,
   obstacles: ObstacleLayer | null,
   key: string,
-  makeGrid: () => CartGrid,
+  makeGrid: MakeCartGrid,
   kind: CartKind,
   depots: readonly PathPoint[],
   target: CartTarget,
@@ -128,7 +153,7 @@ export function memoCartRoutes(
   landscape: Landscape,
   obstacles: ObstacleLayer | null,
   key: string,
-  makeGrid: () => CartGrid,
+  makeGrid: MakeCartGrid,
   kind: CartKind,
   depots: readonly PathPoint[],
   targets: readonly CartTarget[],

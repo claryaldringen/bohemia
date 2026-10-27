@@ -19,12 +19,13 @@ import {
   cartRoutes,
   cartTraffic,
   cartVillageOf,
+  withPartStages,
   type CartCost,
   type CartGrid,
   type CartRoute,
   type CartTarget,
 } from './cart';
-import { cartGridKey, memoCartCost, memoCartRoutes } from './cart-memo';
+import { cartGridKey, memoCartCost, memoCartRoutes, type MakeCartGrid } from './cart-memo';
 import { cartObstacleMask, pathTerrainOf, pathWindowFor, type PathTerrain } from './terrain';
 import { pathVillageOf } from './village';
 import {
@@ -207,7 +208,7 @@ function cartGridOf(
   obstacles: ObstacleLayer | null,
   targets: readonly CartTarget[],
   from: { x: number; z: number } | null,
-): { depots: PathPoint[]; key: string; makeGrid: () => CartGrid } | null {
+): { depots: PathPoint[]; key: string; makeGrid: MakeCartGrid } | null {
   // mokřina na ose pevných cest (Road.ground) – vůz ji vidí jako chůze
   const village = cartVillageOf(pathVillageOf(state, day, landscape), state.roads?.roads ?? []);
   const pens = cartDepots(village, teamPens(state));
@@ -225,8 +226,11 @@ function cartGridOf(
   const window = pathWindowFor(landscape, box);
   const changes = obstacles ? obstacleChangesAt(state, day) : null;
   // mřížka a trasy v paměti podle klíče mřížky (docs/code/village-roads.md – Trasy v paměti);
-  // dvoukolák i čtyřkolák platí na poli stálou cenu (paths.md – Stálé trasy) – liší se zatáčením
-  const makeGrid = (): CartGrid => {
+  // dvoukolák i čtyřkolák platí na poli stálou cenu (paths.md – Stálé trasy) – liší se zatáčením;
+  // mřížka, která se liší jen „zarostlý“ dílů (orba), se jen odvodí (`withPartStages`)
+  const makeGrid = (similar: CartGrid | null): CartGrid => {
+    const derived = similar ? withPartStages(similar, village) : null;
+    if (derived) return derived;
     const terrain = pathTerrainOf(landscape, window);
     const blocked = obstacles && changes ? cartObstacleMask(terrain, obstacles, changes) : null;
     return cartGrid({ village, terrain, blocked });

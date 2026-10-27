@@ -531,11 +531,13 @@ export function lordHelpDay(
     }
   }
   const load = cropLoadOf(rest);
-  const help = lordSowingHelp(
-    load,
-    sowingCapacity(state, day, coverage, plough, landscape),
-    sowingCapacity(state, day, coverage, plough, landscape, undefined, { lord: true }),
-  );
+  const village = sowingCapacity(state, day, coverage, plough, landscape);
+  // orba spřežení na rodině nezávisí – podruhé se nepočítá (výkon; výsledek týž)
+  const withLord = sowingCapacity(state, day, coverage, plough, landscape, undefined, {
+    lord: true,
+    ...(village.plough ? { ploughCapacity: village.plough } : {}),
+  });
+  const help = lordSowingHelp(load, village, withLord);
   if (Object.keys(help).length > 0) season.lordHelp = help;
   else delete season.lordHelp;
 }
@@ -607,6 +609,8 @@ function freeLabor(state: VillageState, day: number, coverage: CraftCoverage): F
  * zaseje i poslední zoraný pruh), září–listopad a březen–duben pro jař a luštěniny. Cvičící
  * vojvodova rodina je mimo práci vsi; s `lord` se přičte i práce jejích mužů po minimu dvorce
  * (`manorLabor` – `freeMen`, lord.md – Kdy jde rodina na pole, bod 1) – jen do plánu potřebného osevu.
+ * `ploughCapacity` – orba spřežení z jiného volání téhož dne a vsi (na `lord` nezávisí), jen se
+ * převezme.
  */
 export function sowingCapacity(
   state: VillageState,
@@ -615,7 +619,7 @@ export function sowingCapacity(
   plough = false,
   landscape: Landscape | null = null,
   pairs?: number,
-  options: { lord?: boolean } = {},
+  options: { lord?: boolean; ploughCapacity?: NonNullable<SowingCapacity['plough']> } = {},
 ): SowingCapacity {
   const { crafts, apart, productivity, manor, villageFree } = freeLabor(state, day, coverage);
   // s rodinou (`lord` – lord.md, Kdy jde rodina na pole, bod 1) i práce cvičících mužů rodiny
@@ -654,6 +658,7 @@ export function sowingCapacity(
     august: days(w.august, false, harvestFree),
   };
   if (!plough) return people;
+  if (options.ploughCapacity) return { ...people, plough: { ...options.ploughCapacity } };
   // výkon podle délky brázd polí, na která ves může zasít – na pevných cestách se brázda láme
   // (oxen.md – Co nejdelší brázda, Brázdy končí na cestě)
   const perDay =

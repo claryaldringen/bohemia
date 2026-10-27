@@ -882,9 +882,11 @@ studeným startem každý den; `cart-memo.test.ts`).
   přesně to, co mřížka čte: díly (políčko, poloha, velikost, natočení a ze stadia jen „zarostlý“
   – jinak stálá cena), les vsi, pevné cesty (osa, druh, stupeň, mokřina, olemování), sady,
   hřbitovy, ohrady, svatyně a modly, obydlí, milíře, humna, zemní práce. Stadia, lidé, práce dne
-  ani den v klíči nejsou – táž mapa jiný den mřížku najde. `routeMapKey` klíčem být nemůže
-  (návrh Clauda): mřížka vozu bere pokácené stromy dne (ne k 1. 11.), zarostlé díly a olemování
-  přesně (ne po desetinách) – s ním by výsledek nebyl týž.
+  ani den v klíči nejsou – táž mapa jiný den mřížku najde. „Zarostlý“ po dílech je v klíči zvlášť
+  na konci (za `#`): mřížku, která se od mřížky v paměti liší jen jím (orba – díl po zoraném bloku
+  přestane být zarostlý), `withPartStages` z ní odvodí – položí znovu jen vrstvu dílů (C3 níž).
+  `routeMapKey` klíčem být nemůže (návrh Clauda): mřížka vozu bere pokácené stromy dne (ne
+  k 1. 11.), zarostlé díly a olemování přesně (ne po desetinách) – s ním by výsledek nebyl týž.
 - **Trasy po cílech:** `cartRoutesOn(grid, …)` – trasa k cíli nezávisí na ostatních cílech
   (hledání je do posledního cíle totéž, remízy podle indexu – A1), proto se známé cíle nehledají
   a neznámé dohledá jedno hledání. Hledání = vůz a místa výjezdu (ohrady se spřežením, nebo díl,
@@ -931,15 +933,16 @@ studeným startem každý den; `cart-memo.test.ts`).
 - **Naměřeno B3 – souhrn** (Vlkov, den 115545, 32 lidí, rok dopočtu vcelku na jednom jádru;
   stroje bývají vytížené, proto rozsahy; skripty a logy mimo repo v `scratchpad/diag-b3/`):
 
-  | stav                                  | rok, stěna  | rok, CPU    | poznámka                                                                         |
-  | ------------------------------------- | ----------- | ----------- | -------------------------------------------------------------------------------- |
-  | před A (výchozí měření)               | 47–53 s     | –           | 130–145 ms/den; přes `updateVillage` při zátěži 26: 73 s                         |
-  | po A (A1–A3, před B1)                 | 48,5–49,4 s | 54–55 s     | zátěž 3–10                                                                       |
-  | po B1 (mřížky a trasy v paměti)       | 38,4–40,6 s | 46–49 s     |                                                                                  |
-  | po B2a (rychlejší hledání vozu)       | 30,4–30,7 s | 34,7–34,8 s | otisk `a92138125afb`                                                             |
-  | po B2b, s kováním koní, 26. 10.       | 31,5–33,0 s | 36,0–37,9 s | zátěž 6,5; otisk `08dd07c6c8fe`; 31 dní 5,7 s, 1 095 dní 91 s (≈ 83 ms/den)      |
-  | po C1 (cena A*, voda, chůze), 26. 10. | 26,1–27,6 s | 30,5–32,0 s | zátěž 11–58, střídavě s B3 (tam 36,4–39,5 s, CPU 40,5–40,6 s); otisky beze změny |
-  | po C2 (paměť chůze rovně), 27. 10.    | 22,0 s      | 27,1–27,2 s | se zvěří a klučením, zátěž 8–23, střídavě s C1 (29,0–29,4 s, CPU 33,9–34,4 s)    |
+  | stav                                  | rok, stěna  | rok, CPU    | poznámka                                                                               |
+  | ------------------------------------- | ----------- | ----------- | -------------------------------------------------------------------------------------- |
+  | před A (výchozí měření)               | 47–53 s     | –           | 130–145 ms/den; přes `updateVillage` při zátěži 26: 73 s                               |
+  | po A (A1–A3, před B1)                 | 48,5–49,4 s | 54–55 s     | zátěž 3–10                                                                             |
+  | po B1 (mřížky a trasy v paměti)       | 38,4–40,6 s | 46–49 s     |                                                                                        |
+  | po B2a (rychlejší hledání vozu)       | 30,4–30,7 s | 34,7–34,8 s | otisk `a92138125afb`                                                                   |
+  | po B2b, s kováním koní, 26. 10.       | 31,5–33,0 s | 36,0–37,9 s | zátěž 6,5; otisk `08dd07c6c8fe`; 31 dní 5,7 s, 1 095 dní 91 s (≈ 83 ms/den)            |
+  | po C1 (cena A*, voda, chůze), 26. 10. | 26,1–27,6 s | 30,5–32,0 s | zátěž 11–58, střídavě s B3 (tam 36,4–39,5 s, CPU 40,5–40,6 s); otisky beze změny       |
+  | po C2 (paměť chůze rovně), 27. 10.    | 22,0 s      | 27,1–27,2 s | se zvěří a klučením, zátěž 8–23, střídavě s C1 (29,0–29,4 s, CPU 33,9–34,4 s)          |
+  | po C3 (orba vrstvou dílů), 27. 10.    | 18,9–19,0 s | 24,0–24,1 s | zátěž 2–3, střídavě s hlavou před C3 (27,0–27,2 s, CPU 32,4–32,8 s); otisky beze změny |
 
   Otisk stavu po 31 / 365 dnech vcelku i po dnech se studeným startem (`forgetCartRoutes` před
   každým dnem) je shodný (`66553dbed171` / `08dd07c6c8fe`); po 1 095 dnech vcelku `d765fb2240fd`.
@@ -1024,3 +1027,37 @@ studeným startem každý den; `cart-memo.test.ts`).
   odhadem ≈ 0,5 s místo ≈ 0,9 s (půda chůze se klučením nemění – úsečky z paměti); zbývá síť
   pěšin a trasy. Brát vyklučené překážky do mapy až k 1. 11. by změnilo chování (pěšiny přes
   vyklučené místo až po 1. 11.) – jen návrh Clauda k rozhodnutí, ne zrychlení.
+- **Mřížka vozu při orbě jen vrstvou dílů** (C3, `withPartStages` v `paths/cart.ts`): `cartGrid`
+  si k mřížce pamatuje vrstvu dílů polí (`CartFieldCells` – buňky po polích v pořadí, v jakém je
+  vrstva položila, nejbližší díl a cenu buňky před vrstvou), jen buňky, které pozdější vrstvy (les
+  vsi, pevná cesta, sad, hřbitov, ohrada, svatyně, stavby) nepřepíšou. Liší-li se nový klíč mřížky
+  od mřížky v paměti jen „zarostlý“ dílů (`cartGridKey` je má zvlášť na konci), `memoGrid` ji
+  předá `makeGrid` a ta položí vrstvu dílů znovu s novými stadii – ve stejném pořadí na tytéž ceny
+  před vrstvou, bit po bitu jako celá mřížka (i pole přes sebe – nejpomalejší platí, zarostlý
+  neprůjezdný). Rok Vlkova: 41 staveb mřížky → 28 celých a 13 odvozených (zlomek ms místo
+  ≈ 85 ms). Rozbor (`scratchpad/diag-c3/`): z 28 celých 14 kvůli jinému oknu terénu (cíle mimo
+  ves – svoz, voda; víc mřížek v paměti by ušetřilo jen 4 stavby za cenu paměti), zbytek nové
+  cesty, obydlí a pokácené stromy. Test `cart-grid-stages.test.ts`: 60 náhodných vsí s poli přes
+  sebe, cestou, sadem, ohradou, svatyní a stavbami přes pole – odvozená (i z odvozené) = celá
+  mřížka bitově; selže, když se přepsané buňky nevynechají.
+- **Buňky polí v paměti** (C3, `fieldCellsOf` v `paths/network-grid.ts`): buňky pole
+  (`squareCells`) a nejbližší díl každé buňky (`nearestPartFinder`) počítala mřížka vozu, mřížka
+  pěšin (`villageGrid` – síť i trasy k práci) a půda chůze (`withFieldWalk`) pro tatáž pole znovu
+  a znovu (dřív ≈ 10 % roku). Teď z paměti podle okna mřížky a čtverců dílů (políčko, poloha, velikost,
+  natočení – nic jiného obojí nečte), nejvýš 256 polí (nejdéle nepoužité vypadne),
+  `forgetFieldCells()` – studený start. Tytéž buňky ve stejném pořadí a tentýž díl
+  (`cart-grid-stages.test.ts` – 80 náhodných polí, i natočená a v menším okně, teplá i studená
+  paměť, díl posunutý na místě).
+- **Orba v plánu osevu jednou** (C3, `lordHelpDay` v `simulate-plan.ts`): `sowingCapacity` se
+  volá dvakrát (bez rodiny a s ní) a orba spřežení (`plannedFurrowEfficiency` – brázdy po pásech
+  přes pevné cesty) na rodině nezávisí – podruhé se převezme (`ploughCapacity`; test
+  `lord-sowing.test.ts`). Dřív ≈ 5 % roku, polovina zbytečně.
+- **Naměřeno C3** (Vlkov `diag-stable/vlkov.json`, rok vcelku, `diag-b3/cpu.mts`, střídavě před /
+  po 2× při zátěži 2–3; hlava před C3 je pomalejší než C2 – přibyla scéna humna, rekvizity
+  a další mechaniky): stěna 27,0–27,2 s → 18,9–19,0 s, CPU 32,4–32,8 s → 24,0–24,1 s (≈ −26 %
+  CPU). Otisk po 31 / 365 dnech vcelku `c5f5010daa4f` / `d3f7d44c5d6a`, po dnech se studeným
+  startem (`forgetCartRoutes`, `forgetWalkMemo` i `forgetFieldCells` před každým dnem) po 365
+  dnech `d3f7d44c5d6a` – před i po stejný. Zbývá (profil roku, 19,7 s): přepočet chůze 42 % –
+  `walkingDistances` 15 %, síť pěšin 11 %, trasy k práci 6 %, `routeMapKey` 3 %; `work` 26 % –
+  hledání tras vozu (`cartRoutesOn`, svoz a voda) 13 %, ceny přesunů spřežení 4 %, mřížka vozu
+  4,5 %; plán sezóny 7 % (`neededSelection` 3 %).
