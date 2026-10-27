@@ -305,9 +305,12 @@ hlídá test). Klíč zná z práce dne jen tavbu (pec se mění jen při ní), 
   raně středověké kusové pece) stojí vždy před levým rohem přístřešku (`BLOOMERY`), u paty ruční
   klínový měch s hubicí (`BLOOMERY_BELLOWS`); při tavbě žhne uhlí v hrdle, z hrdla šlehá žár
   a jiskry (sprity `fireSprites` z `pyre-fire.ts`, `FIRE_SCALE` 0,2 – `animate` jen v záběru, při
-  omezeném pohybu stojí) a stoupá dým z pece místo z výhně (`smeltVents`). **Houba** – 1–3 tmavé
-  hroudy se struskou vedle pece (`BLOOM_PILE`), **hřivny** – hromádka plochých prutů křížem
-  (1 / 3 / 5 vrstev po třech) pod přístřeškem u levé stěny (`BAR_PILE`). Při překování a kování
+  omezeném pohybu stojí) a stoupá dým z pece místo z výhně (`smeltVents`). **Houba** – 2 / 4 / 6 rezavých
+  hrud se struskou vedle pece (`BLOOM_PILE`, `LUMP_SPOTS` – poslední navrchu), **hřivny** –
+  hromádka světlých plochých prutů křížem (2 / 4 / 7 vrstev po třech, `BAR`) pod přístřeškem
+  u levé stěny (`BAR_PILE`). Obojí je větší a světlejší než skutečnost, aby šlo z herní výšky
+  rozeznat (noční ověření 27. 10. 2026), a nižší než polovina pece; dosah hromádek (`reach`)
+  hlídá vyklízená plocha dílny a obdélník dvora pro pěšiny. Při překování a kování
   kouří výheň (`workshopSmokes`).
 - **Postavy** (`craftsmen` ve `villager-plan-crafts.ts`): při tavbě kovář sype rudu a uhlí z koše
   do hrdla (`smeltSpots` – klip `seed`, šikmo zpředu od houby čelem k peci, uvnitř vyklízené
@@ -386,7 +389,13 @@ podle osetých ha dílů `sown`) a `fishShare` (biomasa ÷ strop).
   `herdAnimalPose`, skutečný čas `livestockClock`) s chůzí nejbližšího dobytka (prase → prase,
   jelen a laň → kůň, kolouch → hříbě, vlk a liška → koza, medvěd → kráva, zajíc → slepice).
   Vzácní jsou vidět jen v podílu 20minutových úseků skutečného času (`wildPresent` – vlci 35 %,
-  medvěd 30 %, liška 60 %); jinak se zapíšou s nulovým měřítkem. **Útěk** (jen scéna): člověk
+  medvěd 30 %, liška 60 %); jinak se zapíšou s nulovým měřítkem. **Příchod a odchod**
+  (`presenceWalk`, `APPROACH`): skupina se neobjeví ani nezmizí naráz – na začátku úseku, kdy je
+  vidět a v předchozím nebyla, vyjde krokem 40 m z lesa na trasu (45 s), před úsekem, kdy nebude,
+  stejně odejde do lesa; posun se přičte k útěku a cestou se nový útěk nespouští. Směr do lesa
+  (`WildGroup.retreat`) určí `planWildlife` z 16 směrů od prvního stanoviště – kde je les 40 m
+  daleko nejhlubší (`LivestockGround.forestDepth`) a cesta schůdná, jinak pryč od středu vsi.
+  Čistá funkce skutečného času (deterministicky ze seedu skupiny). **Útěk** (jen scéna): člověk
   (i jezdec) blíž než 30 m ke středu skupiny (`nearestThreat` nad `VillageVillagers.figureSpots`)
   → skupina uteče 45 m od něj (`startFlight`, odklon nejvýš 1,4 rad, když je přímo voda nebo
   stavba; celá dráha se vzorkuje po 5 m; kam utéct není – zůstane), rychlostí druhu (jelen 7 m/s … medvěd 4 m/s), 75 s stojí
@@ -632,3 +641,34 @@ Kdo, kdy a na kterém koni jede, určuje jádro (`lordRides` → `SceneLord.ride
   (`Group.still`) se zapíše jednou a překreslení nenastavuje, jedoucí ano. Bez sedla (horses.md).
 - **Výběr:** klik na jezdce nebo koně vybere člověka (`pickPersonHit` od země – průmět kryje koně
   i jezdce), kroužek ho sleduje.
+
+## Kování ve scéně (horses.md – Kování, Ve scéně)
+
+Kdo a kdy kuje, určuje jádro (`shoeingDay` → `SceneLabor.shoeing`); scéna jen kreslí.
+
+- **Plán** `lib/scene/shoeing-plan.ts` (čisté funkce času): `shoeingSpots` – u branky ohrady
+  (`penSquaresEntrance` jako porážka) kůl 2 m stranou podél plotu, kůň vně ohrady podél plotu hlavou
+  ke kůlu (`hitch`), kovář u předního kopyta čelem k ohradě. `shoeingSchedule` – kování kolem
+  poledne (`SHOE_NOON_H`), `SHOE_HORSE_H` 1,5 h na koně (nejvýš `SHOE_MAX_H` 8 h); cesta tam
+  končí na začátku kování, zpět začíná po něm, obě se vejdou do výpravy dne (`SHOEING_TRIP_H` –
+  vlastní 5–19, cizí 4–20 h): krátká běžnou chůzí, delší časosběrem (rychlost a tempo klipu jako
+  karavana; klip nejvýš 6×). Posledních 80 m u ohrady jde kovář mírněji (aspoň 3× chůze, nejvýš
+  60 % času cesty), když to cesta dovolí – daleký úsek mimo ves pak rychleji (`shoeingWalked`;
+  cizí kovář z kraje mapy). `tiedHours` – kůň po koni rovným dílem. `smithShoeingPose` – mimo výpravu skrytý
+  (v kovárně, u souseda), cestou `walk` po `way` (stage `out` / `back`), u koně klip `build`
+  (předklon s kladívkem), na začátku každého koně chvíli `idle`. Bez hodin světa (ukázky) se den
+  opakuje po `FALLBACK_DAY_S` 86,4 s (`dayHour`, `hourSeconds` v `riders.ts`).
+- **Postava** `lib/scene/villager-plan-shoeing.ts` – `shoeingFigures` (volá `planVillagersWithCrew`
+  hned po vojvodově rodině, mezi lidmi s pevným místem dne): vlastní kovář je muž z domácnosti
+  kovárny (`ctx.roster`, záložně starší chlapec), cesta od dveří kovárny po pěšinách (`walkRoute`);
+  cizí kovář je `STRANGER`, cesta po zemské stezce (`trailId`), jinak po čáře `line` od kraje mapy –
+  konec bližší ohradě je u vsi – a od ní po pěšinách. Klíč postavy `SHOEING_KEY`. Podíly
+  `horse-shoeing` pak postavu nemají.
+- **Kůň u kůlu:** plány koní jsou `RidePlan` bez trasy s hodinami `tied` (`shodHorsePlans`) –
+  jdou do `DraftCrew.rides` za jezdce. `isTied` / `isAway` (`riders.ts`): kůň mimo ohradu jede, nebo
+  stojí uvázaný; `ridingHorseIds` (ohrada ho skryje) i `livestock.ts` (skupina koně je vidět jen mimo
+  ohradu) berou `isAway`. Stojící kůň se zapíše jednou a znovu jen při příchodu ke kůlu a odchodu
+  (`written` v `livestock.ts`). **Buffery:** kovář je instance `villagers-man` s klipem `build`, kůň
+  skupina `horse` – žádný nový vertex atribut (hlídá `fauna.test.ts`).
+- **Ukázka** `/dev/landscape` – tlačítko „Kování“ (`dev-shoeing.ts`): vypnuto → vlastní kovář →
+  cizí kovář (krajinou z kraje mapy na východě); bez ohrady koní si ji ukázka přinese i s kovárnou.

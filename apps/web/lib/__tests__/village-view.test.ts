@@ -958,7 +958,7 @@ describe('buildVillageView', () => {
     expect(buildVillageView(record(s), landscape, DAY + 4).lastMarriageDay).toBe(DAY + 3);
   });
 
-  it('kování v kronice nese, kdo koně okul – upozornění podle toho píše vlastního kováře', () => {
+  it('kování v kronice nese, kdo koně okul (vlastní, nebo cizí kovář)', () => {
     const s = state();
     s.chronicle.push(
       { day: DAY + 1, kind: 'horses-shod', horses: 1, own: false },

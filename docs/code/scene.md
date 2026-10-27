@@ -154,7 +154,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `HEAP_BURN_DAY` (≈ 19 s), pak do půlnoci žhnou uhlíky; dým čtverce hustý přes práci, večer
   slábne k doutnání `SMOLDER_SMOKE`, v dnech doutnání jen kouř a na konci zmizí; rozpracované
   pálení (bez `burnedDay`) hoří každý pracovní den, přes noc doutná. Dým = `VillageSmoke`
-  s druhem `slash` (`SLASH_PLUME` – hustší než dýmník, menší než hranice; sloupec má tvar podle
+  s druhem `slash` (`SLASH_PLUME` – hustší než dýmník a vyšší než hranice: vystoupá ≈ 34 m, nad koruny lesa,
+  které paseku v hustém lese z herní kamery zakryjí – forest.md, Ověření klučení; sloupec má tvar podle
   druhu – `plumeShape`, síla z `SmokeSource.burn`), zdroje v `updateSmokeSources`
   (village-renderer.ts, seed `SLASH_SMOKE_SEED` + id dílu). Plameny, jiskry a záře =
   `fireSprites` z pohřební hranice s tvarem ohně (`FireShape` – `PYRE_FIRE`, `heapFireShape`:

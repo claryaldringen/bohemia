@@ -93,6 +93,22 @@ describe('planWildlife', () => {
     expect(spring.filter((g) => g.species === 'deer')).toHaveLength(2);
   });
 
+  it('vzácní znají směr do lesa (vycházejí z něj a odcházejí do něj), stálá zvěř ne', () => {
+    // les od z = 110 dál – nejhlouběji po +z
+    const forest: LivestockGround = { ...ground, forestDepth: (_x, z) => z - 110 };
+    const winter = planWildlife(village({ month: 1 }), forest, 42).groups;
+    const wolves = winter.find((g) => g.species === 'wolf');
+    expect(wolves?.retreat).toBeDefined();
+    expect(wolves!.retreat!.z).toBeCloseTo(1, 5);
+    expect(Math.hypot(wolves!.retreat!.x, wolves!.retreat!.z)).toBeCloseTo(1, 5);
+    for (const g of winter) if (g.presence >= 1) expect(g.retreat).toBeUndefined();
+    // bez hloubky lesa pryč od vsi – jednotkový směr, deterministicky
+    const plain = planWildlife(village({ month: 1 }), ground, 42).groups;
+    const r = plain.find((g) => g.species === 'wolf')!.retreat!;
+    expect(Math.hypot(r.x, r.z)).toBeCloseTo(1, 5);
+    expect(planWildlife(village({ month: 1 }), ground, 42).groups).toEqual(plain);
+  });
+
   it('mez scény: nejvýš 12 jelení, 10 prasat, 4 zajíci, 5 vlků', () => {
     expect(Math.max(...SCENE_WILD_SHOWN.deer)).toBe(12);
     expect(Math.max(...SCENE_WILD_SHOWN.boar)).toBe(10);

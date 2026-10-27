@@ -244,6 +244,17 @@ spáleninu tak vznikne až s hotovým polem; orba a setí dohořelých dílů se
 11.–15. 3. jako dřív). Výkon (Vlkov, pole 25 čtverců): přepočtů mapy tras za pálení 7 → 1 (až
 po dohoření pole), březen 5,3 s → 2,3 s, rok s polem v lese 26,1 s → 23,7 s.
 
+**Paseka za korunami** (návrh Clauda, 27. 10. 2026 – Martin: „Zatím pracuj na kováři
+a vizuálních drobnostech.“): kácí se už teď od kraje nejblíž vsi – čtverce od nejbližšího
+k obydlí (`clearingWorkOrder`) a stromy čtverce také (`fellingOrder`), paseka tedy roste od
+okraje lesa směrem od vsi. Zakrývají ji stromy **mimo pole** mezi kamerou a pasekou: v ukázce
+(řada čtverců na kraji lesa) se herní kamera dívá od lesa ke vsi a 20–25 m vysoké koruny skryjí
+pruh za sebou celý. Pořadí kácení podle kamery být nemůže (kamera je jen v prohlížeči, otáčí se
+a jádro o ní neví), změna pořadí by tedy nepomohla – jádro zůstává beze změny. Řešení ve scéně:
+**dým z pálení vystoupá vysoko nad koruny** (≈ 34 m místo 16 m, větší obláčky, déle žije), takže
+pálení je z herní výšky vidět i zpoza lesa; samotnou paseku hráč uvidí otočením kamery (Q / E)
+nebo až padnou stromy na straně ke kameře. Ohně zůstávají ve výšce člověka.
+
 **Mimo tento návrh:** stavby v lese (obydlí, dílny – Stavba v lese) se klučí dál naráz; vracení
 zarostlého přílohu (mladý les) beze změny; počasí – až přijde, pálí se jen za suchých dnů a déšť
 schnutí prodlouží; oheň, který přeskočí do lesa; zvuk praskání ohně; postavy a vozy, které vozí

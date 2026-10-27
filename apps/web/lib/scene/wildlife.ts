@@ -20,9 +20,11 @@ import {
 import type { LivestockGround, LivestockVillage } from './livestock-placement';
 import { distanceToSegment, type Project } from './villager-pick';
 import {
+  APPROACH,
   FLEE,
   createFlightState,
   flightAt,
+  presenceWalk,
   flightCalming,
   nearestThreat,
   startFlight,
@@ -86,6 +88,8 @@ interface Live {
   state: HerdState;
   flight: Flight | null;
   flightState: FlightState;
+  /** Příchod z lesa / odchod do lesa vzácných (`presenceWalk`). */
+  walkState: FlightState;
   /** Skupina je zapsaná jako vidět (vzácní mizí s úseky skutečného času). */
   shown: boolean;
   written: BoundingInfo | null;
@@ -180,8 +184,17 @@ export class VillageWildlife {
         if (flightAt(live.flight, s, live.flightState)) flight = live.flightState;
         else live.flight = null;
       }
+      // vzácní na začátku úseku vyjdou z lesa a na konci do něj odejdou – posun se přičte
+      // k útěku; cestou z lesa a do lesa se nový útěk nespouští
+      const walking = presenceWalk(live.group, s, live.walkState);
+      if (walking && flight) {
+        flight.x += live.walkState.x;
+        flight.z += live.walkState.z;
+      } else if (walking) {
+        flight = live.walkState;
+      }
       // útěk před člověkem (jezdcem) blíž než 30 m – jen scéna
-      if (!live.flight || flightCalming(live.flight, s)) {
+      if (!walking && (!live.flight || flightCalming(live.flight, s))) {
         const cx = live.state.x + (flight?.x ?? 0);
         const cz = live.state.z + (flight?.z ?? 0);
         const threat = nearestThreat(cx, cz, threats, FLEE.triggerM);
@@ -301,12 +314,13 @@ export class VillageWildlife {
     this.spotOwners = [];
     for (const group of ready) {
       const route = routeArea(group.herd);
-      // i kam až skupina uteče
+      // i kam až skupina uteče nebo odkud vyjde z lesa
+      const far = Math.max(FLEE.distanceM, APPROACH.distanceM);
       const reach: Area = {
-        minX: route.minX - FLEE.distanceM,
-        maxX: route.maxX + FLEE.distanceM,
-        minZ: route.minZ - FLEE.distanceM,
-        maxZ: route.maxZ + FLEE.distanceM,
+        minX: route.minX - far,
+        maxX: route.maxX + far,
+        minZ: route.minZ - far,
+        maxZ: route.maxZ + far,
       };
       const slots = group.models.map((model, i) => {
         const slot = counts.get(model) ?? 0;
@@ -329,6 +343,7 @@ export class VillageWildlife {
         state: createHerdState(),
         flight: running.get(group.herd.seed) ?? null,
         flightState: createFlightState(),
+        walkState: createFlightState(),
         shown: false,
         written: null,
         current: new BoundingInfo(Vector3.Zero(), Vector3.Zero()),

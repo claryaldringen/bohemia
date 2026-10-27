@@ -351,7 +351,9 @@ kde to nestačí.
 - **Ve hře (W10, návrh Clauda):** kusy podle stupně stavu (jelení 4/8/12, prasata 4/7/10, zajíci
   1/2/4, vlci 2/3/5); hra zatím nemá noc (den a noc jen v náhledu krajiny), takže zóny se řídí
   jen měsícem a noční louky přijdou s denní dobou ve hře; vzácní (vlci, medvěd, liška) jsou
-  vidět jen v části 20minutových úseků skutečného času; po útěku skupina chvíli stojí a krokem se
+  vidět jen v části 20minutových úseků skutečného času – na začátku úseku vyjdou krokem z lesa
+  a na konci do něj odejdou, neobjeví se ani nezmizí naráz (návrh Clauda 27. 10. 2026 po nočním
+  ověření); po útěku skupina chvíli stojí a krokem se
   vrátí. Podrobnosti: `docs/code/scene-village.md` – Divoká zvěř ve scéně.
 - **Výkon:** jeden mesh `wild-*` na druh v instancích jako fauna (`fauna.ts`), 3 morph targety jako
   kráva (WebGPU limit 8 vertex bufferů ověřit u každého druhu). Pohyb ve skutečném čase

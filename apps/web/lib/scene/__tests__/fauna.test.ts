@@ -125,6 +125,21 @@ describe('jezdec a výcvik – postava man.glb', () => {
   });
 });
 
+describe('kování koní – kovář man.glb a kůň u kůlu (horses.md – Kování, Ve scéně)', () => {
+  it('kovář nepřidává vertex atributy a kuje klipem build, kůň u kůlu má buffery jako kráva', () => {
+    const glb = readGlb('people/man.glb');
+    const attributes = Object.keys(glb.meshes[0]?.primitives[0]?.attributes ?? {}).sort();
+    // pozice, normála, uv, klouby a váhy + VAT a barva instance = 8 bufferů (CLAUDE.md)
+    expect(attributes).toEqual(['JOINTS_0', 'NORMAL', 'POSITION', 'TEXCOORD_0', 'WEIGHTS_0']);
+    const clips = (glb.animations ?? []).map((a) => a.name);
+    expect(clips).toContain('build');
+    expect(clips).toContain('walk');
+    // uvázaný kůň je jezdecký kůň bez jezdce (riders.ts `tied`) – žádný nový atribut
+    expect(livestockBuffers('horse')).toBe(livestockBuffers('cow'));
+    expect(livestockBuffers('horse')).toBeLessThanOrEqual(8);
+  });
+});
+
 describe('humno – postavy man.glb a woman.glb', () => {
   it('nepřidávají vertex atributy a nesou klipy mlácení holí a prohazování lopatou', () => {
     for (const file of ['people/man.glb', 'people/woman.glb']) {

@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { createHerdState, createLivestockPose, herdState } from '../livestock-motion';
 import {
+  APPROACH,
   FLEE,
   PRESENCE_SLOT_S,
   createFlightState,
   flightAt,
   flightCalming,
   nearestThreat,
+  presenceWalk,
   startFlight,
   wildAnimalPose,
   wildPresent,
@@ -134,6 +136,65 @@ describe('wildPresent', () => {
     }
     expect(shown / 400).toBeGreaterThan(0.2);
     expect(shown / 400).toBeLessThan(0.4);
+  });
+});
+
+describe('presenceWalk – příchod z lesa a odchod do lesa', () => {
+  const rare: WildGroup = { ...group, presence: 0.4, retreat: { x: 0, z: 1 } };
+  const state = createFlightState();
+  /** Začátek úseku `slot` ve skutečném čase (s). */
+  const slotStart = (slot: number): number => (slot - rare.herd.phase) * PRESENCE_SLOT_S;
+  const present = (slot: number): boolean => wildPresent(rare, slotStart(slot) + 1);
+
+  it('stálá zvěř a skupina bez směru do lesa nechodí', () => {
+    expect(presenceWalk(group, 5, state)).toBe(false);
+    expect(presenceWalk({ ...rare, retreat: undefined }, slotStart(3) + 1, state)).toBe(false);
+  });
+
+  it('po nepřítomném úseku vyjde z lesa na trasu, před nepřítomným odejde do lesa', () => {
+    let arrivals = 0;
+    let departures = 0;
+    for (let slot = 1; slot < 200; slot++) {
+      if (!present(slot)) {
+        expect(presenceWalk(rare, slotStart(slot) + 1, state)).toBe(false);
+        continue;
+      }
+      const start = slotStart(slot);
+      const end = slotStart(slot + 1);
+      if (!present(slot - 1)) {
+        arrivals++;
+        // na začátku úseku je v lese, jde k trase (−z) a na konci příchodu je na trase
+        expect(presenceWalk(rare, start + 0.01, state)).toBe(true);
+        expect(state.z).toBeGreaterThan(APPROACH.distanceM * 0.99);
+        expect(state.headingZ).toBe(-1);
+        expect(state.walk).toBe(1);
+        expect(presenceWalk(rare, start + APPROACH.seconds / 2, state)).toBe(true);
+        expect(state.z).toBeCloseTo(APPROACH.distanceM / 2, 5);
+        expect(presenceWalk(rare, start + APPROACH.seconds + 1, state)).toBe(false);
+      } else {
+        expect(presenceWalk(rare, start + 1, state)).toBe(false);
+      }
+      if (!present(slot + 1)) {
+        departures++;
+        expect(presenceWalk(rare, end - APPROACH.seconds - 1, state)).toBe(false);
+        expect(presenceWalk(rare, end - 0.01, state)).toBe(true);
+        expect(state.z).toBeGreaterThan(APPROACH.distanceM * 0.99);
+        expect(state.headingZ).toBe(1);
+      }
+      // uprostřed úseku stojí na trase
+      expect(presenceWalk(rare, (start + end) / 2, state)).toBe(false);
+    }
+    expect(arrivals).toBeGreaterThan(10);
+    expect(departures).toBeGreaterThan(10);
+  });
+
+  it('posun je čistá funkce času – stejný při opakovaném výpočtu', () => {
+    const a = createFlightState();
+    const b = createFlightState();
+    for (let t = 0; t < 40 * PRESENCE_SLOT_S; t += 37.3) {
+      expect(presenceWalk(rare, t, a)).toBe(presenceWalk(rare, t, b));
+      expect(a).toEqual(b);
+    }
   });
 });
 
