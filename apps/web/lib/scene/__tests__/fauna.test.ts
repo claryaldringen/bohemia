@@ -111,6 +111,7 @@ describe('jezdec a výcvik – postava man.glb', () => {
       'bow-draw',
       'bow-release',
       'spear-thrust',
+      'walk-spear',
       'sword-strike',
       'shield-block',
       'butcher',
@@ -140,6 +141,9 @@ describe('humno – postavy man.glb a woman.glb', () => {
       const clips = (glb.animations ?? []).map((a) => a.name);
       expect(clips, file).toContain('thresh');
       expect(clips, file).toContain('winnow');
+      // dítě s řehtačkou na hlídaném dílu (wildlife.md – Ve scéně)
+      expect(clips, file).toContain('walk-rattle');
+      expect(clips, file).toContain('idle-rattle');
     }
   });
 });

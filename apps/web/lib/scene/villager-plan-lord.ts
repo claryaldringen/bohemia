@@ -448,8 +448,8 @@ function huntParty(
 
 /**
  * Pěší lovec (wildlife.md – Ve scéně): v bloku lovu jde po trase lovu (`rideState` jako jezdec –
- * tam, v lese sem a tam, zpět); kde trasa stojí, drží oštěp (`spear-thrust` – oštěp je v `man.glb`
- * jen v tomto klipu); nosič úlovku nese cestou zpět maso (`carry-meat`). Mimo blok `otherwise`
+ * tam, v lese sem a tam, zpět) s oštěpem (`walk-spear`); kde trasa stojí, drží oštěp
+ * (`spear-thrust`); nosič úlovku nese cestou zpět maso (`carry-meat`). Mimo blok `otherwise`
  * (cvičí na dvorku), bez ní doma.
  */
 export function footHunterPose(plan: RidePlan, carrier: boolean, otherwise: PoseFn | null): PoseFn {
@@ -475,8 +475,8 @@ export function footHunterPose(plan: RidePlan, carrier: boolean, otherwise: Pose
       out.clip = 'carry-meat';
       out.pace = state.pace / (CLIP_SPEED_M_S.man['carry-meat'] ?? 1);
     } else {
-      out.clip = 'walk';
-      out.pace = state.pace / (CLIP_SPEED_M_S.man.walk ?? 1);
+      out.clip = 'walk-spear';
+      out.pace = state.pace / (CLIP_SPEED_M_S.man['walk-spear'] ?? 1);
     }
     return out;
   };

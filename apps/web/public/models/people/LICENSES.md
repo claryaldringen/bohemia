@@ -33,6 +33,8 @@ Jezdec a výcvik (jen `man.glb`, klipy `ride`, `ride-trot`, `ride-idle`, `bow-dr
 `animation/biped/infantry/archer/idle_ready.dae`, `attack_ranged.dae`,
 `animation/biped/infantry/spearman/attack_melee_01.dae`,
 `animation/biped/infantry/swordsman/attack_melee_shield_01.dae`, `idle_ready_shield_01.dae`.
+Pěší lovec s oštěpem (klip `walk-spear`): chůze kopiníka
+`animation/biped/infantry/spearman/walk_relax.dae`, rekvizita kopí jako u `spear-thrust`.
 Rekvizity (výcvikové, dřevěné – všechny s texturou `props/wood_e.png`, štít s `props/basket_iber_1.dds`):
 `props/bow_long_indian_a.dae` (luk), `props/broadsword_celt.dae` (výcvikový meč),
 `props/weap_shaft_wood_a.dae` (kopí bez hrotu), `props/shield/round_noboss_f.dae` (pletený štít).
@@ -47,7 +49,14 @@ Miska na krev je nový jednoduchý model (skript, `procedural_bowl`) s texturou 
 
 Prut (klip `fish`, oba soubory): nový jednoduchý model (skript, `procedural_rod`, **CC0**) – kuželovitý
 šestiboký válec ≈ 3 m s texturou dřeva z `prop_weap.dds` (0 A.D.); klip `fish` je klidová póza
-(`idle_relax_f.dae` / `idle_relax_m_a.dae`), vlasec se kreslí až ve scéně.
+(`idle_relax_f.dae` / `idle_relax_m_a.dae`), vlasec se kreslí až ve scéně. Ženě je prut natočený
+(`rotate_deg`), aby mířil šikmo nad vodu jako u muže.
+
+Dítě s řehtačkou (klipy `walk-rattle` a `idle-rattle`, oba soubory): chůze a klidová póza
+(`walk_relax_f.dae` / `walk_relax_m.dae`, `idle_relax_f.dae` / `idle_relax_m_a.dae`) se zvednutou
+pravou rukou (úprava klipu skriptem – `pose.reach`). Řehtačka (`procedural_rattle` – držadlo,
+ozubené kolečko a rámeček s jazýčkem) je nový jednoduchý model (skript, **CC0**) s texturou dřeva
+z `prop_weap.dds` (0 A.D.).
 
 Humno (klipy `thresh` a `winnow`, oba soubory): mlácení holí je animace
 `animation/biped/gatherer/gather_mine.dae` (úder krumpáčem oběma rukama shora), prohazování zrna

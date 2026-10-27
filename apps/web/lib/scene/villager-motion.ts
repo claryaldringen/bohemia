@@ -30,6 +30,9 @@ export type VillagerClip =
   | 'carry-meat'
   | 'carry-meat-idle'
   | 'fish'
+  // dítě s řehtačkou na hlídaném dílu (wildlife.md – Ve scéně): řehtačka zvednutá v pravé ruce
+  | 'walk-rattle'
+  | 'idle-rattle'
   // humno (production-chains.md – Humno): úder mlatcí holí oběma rukama shora, prohazování
   // zrna dřevěnou lopatou proti větru
   | 'thresh'
@@ -41,6 +44,8 @@ export type VillagerClip =
   | 'bow-draw'
   | 'bow-release'
   | 'spear-thrust'
+  // pěší lovec cestou k lesu a zpět s oštěpem (chůze kopiníka z 0 A.D.) – jen `man.glb`
+  | 'walk-spear'
   | 'sword-strike'
   | 'shield-block';
 
@@ -67,6 +72,8 @@ export const VILLAGER_CLIPS: readonly VillagerClip[] = [
   'carry-meat',
   'carry-meat-idle',
   'fish',
+  'walk-rattle',
+  'idle-rattle',
   'thresh',
   'winnow',
   // jezdec (sed na koni) a výcvik s dřevěnými zbraněmi – klipy má jen `man.glb`
@@ -76,6 +83,7 @@ export const VILLAGER_CLIPS: readonly VillagerClip[] = [
   'bow-draw',
   'bow-release',
   'spear-thrust',
+  'walk-spear',
   'sword-strike',
   'shield-block',
 ];
@@ -153,9 +161,25 @@ export type PoseFn = (t: number, herds: readonly HerdView[], out: VillagerPose) 
  */
 export const CLIP_SPEED_M_S: Record<VillagerKind, Partial<Record<VillagerClip, number>>> = {
   // s vahadlem chůze jako `walk` (stejná animace, ruce drží provazy – people.json); s masem jako
-  // s dřevem (stejná kadence 1,25 s na dvojkrok a rozkmit stehna – carry_meat z 0 A.D.)
-  woman: { walk: 1.25, carry: 1.05, 'carry-wood': 1.05, 'carry-water': 1.25, 'carry-meat': 1.05 },
-  man: { walk: 1.0, carry: 1.1, 'carry-wood': 1.0, 'carry-water': 1.0, 'carry-meat': 1.0 },
+  // s dřevem (stejná kadence 1,25 s na dvojkrok a rozkmit stehna – carry_meat z 0 A.D.); s řehtačkou
+  // jako `walk` (stejná animace), chůze kopiníka o 4 % pomaleji (people_from_0ad.py: 0,83 a 0,86 m/s)
+  woman: {
+    walk: 1.25,
+    carry: 1.05,
+    'carry-wood': 1.05,
+    'carry-water': 1.25,
+    'carry-meat': 1.05,
+    'walk-rattle': 1.25,
+  },
+  man: {
+    walk: 1.0,
+    carry: 1.1,
+    'carry-wood': 1.0,
+    'carry-water': 1.0,
+    'carry-meat': 1.0,
+    'walk-rattle': 1.0,
+    'walk-spear': 0.97,
+  },
 };
 
 /** Rychlost chůze postavy v klipu `clip` (m/s) – podle druhu a měřítka. */
