@@ -67,6 +67,7 @@ import {
   type LivestockSpecies,
   type LivestockVillage,
   penSquaresOf,
+  threshingSquaresOf,
 } from './livestock-placement';
 import type { StreamCenterline } from './stream-geometry';
 
@@ -699,6 +700,7 @@ function villageKey(village: LivestockVillage): string {
     ...(village.cemeteries ?? []).flatMap((c) => c.squares),
     ...(village.orchards ?? []).flatMap((o) => o.squares),
     ...(village.pens ?? []).flatMap(penSquaresOf),
+    ...threshingSquaresOf(village),
   ].map(
     (s) => `${s.x.toFixed(1)},${s.z.toFixed(1)}${s.rotation ? `@${s.rotation.toFixed(3)}` : ''}`,
   );
