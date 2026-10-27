@@ -37,8 +37,8 @@ obchod se sousedy skutečnou zkoušku.
 - **Cíl:** ves **za normálních okolností nehladoví** (Martin, 26. 10. 2026); s plnou pojistkou
   **přežije jeden krutý rok** bez úmrtí hladem; **dva kruté roky za sebou** přinesou hlad
   a úmrtí, ale ves nevymře (rešerše – 1281–1282, Campbell a Ó Gráda).
-- **Cíl:** **deterministicky** – počasí a smršť ze seedu počasí mapy a roku, ostatní místní
-  pohromy ze seedu vsi a roku; stejný stav a den dá vždy stejný výsledek, nezávisle na dopočtu
+- **Cíl:** **deterministicky** – počasí, výška povodně a smršť ze seedu počasí mapy a roku,
+  kroupy a požár ze seedu vsi a roku; stejný stav a den dá vždy stejný výsledek, nezávisle na dopočtu
   po kouscích.
 - **Cíl:** hráč i ves se mohou **připravit** – pojistka, obilné jámy, ozim i jař, stromy mezi
   poli, rozptýlená pole mimo nivu, seno s rezervou, rozestupy domů, obchod. Žádná nová velká
@@ -80,6 +80,9 @@ Evropu.“
   **kroupy, povodeň a požár jsou po vsích** (ze seedu vsi). Smršť má stopu přes mapu (ze seedu
   počasí mapy) a zasáhne ty vsi, přes které přejde (návrh Clauda – dvě vsi na jedné mapě uvidí
   tutéž smršť).
+- **Výška povodně je společná pro celý kraj.** Martin, 27. 10. 2026: „Ano a ano“ – tentýž potok
+  má v celém kraji tutéž roční nejvyšší vodu (ze společného počasí kraje). **Škody** podle
+  políček a **pětiletá ochrana** nové vsi zůstávají po vsích.
 - **Seed počasí mapy** (návrh Clauda): každá mapa (sídlo) má vlastní náhodný **seed počasí**
   uložený na serveru. Není to seed krajiny – ten zná i prohlížeč (krajinu a překážky počítá
   sám) a kód je veřejný, takže by šlo spočítat budoucí počasí. Seed počasí se klientovi nikdy
@@ -188,7 +191,8 @@ políčku aspoň 1,5 m (10 %, návrh Clauda).
 
 ## Místní pohromy – jedna ves
 
-Kroupy, povodeň a požár ze **seedu vsi a roku**, smršť ze seedu počasí mapy (stopa přes mapu).
+Kroupy a požár ze **seedu vsi a roku**; výška povodně z počasí kraje (škody po vsích), smršť ze
+seedu počasí mapy (stopa přes mapu).
 **Prvních 5 let vsi žádné** (Martin, 27. 10. 2026: „Pětiletou ochranu“).
 
 ### Kroupy
@@ -230,7 +234,12 @@ dvousetleté … pětisetleté … tisícileté vody. Naplavenina by měla hnoji
   je voda **o stupeň výš** (žádná → malá, …, tisíciletá zůstává). Obojí naráz jen o jeden stupeň
   (návrh Clauda).
 - **Kdy** (návrh Clauda): **jarní** (tání, 1.–20. 3.) nebo **letní** (bouřky, 15. 6. – 15. 8.);
-  po dlouhé zimě jarní, v deštivém létě letní, jinak ze seedu půl na půl. Voda stojí 3 dny.
+  po dlouhé zimě jarní, v deštivém létě letní, jinak ze seedu počasí mapy půl na půl. Voda stojí
+  3 dny.
+- **Pro celý kraj** (Martin, 27. 10. 2026: „Ano a ano“): stupeň vody i její den jsou součást
+  **počasí roku kraje** – dvě vsi na témže potoce mají v jednom roce stejně vysokou vodu týž den
+  (den návrh Clauda). Kolik vsi zatopí, záleží na jejích políčkách a výšce nad potokem; nová ves
+  má 5 let žádné škody.
 - **Zatopené políčko:** výška nad potokem (`heightAboveStream` – tatáž výška, která dává nivě
   vyšší úrodnost) je menší než výška vody; **hloubka** = výška vody − výška nad potokem.
   **Krajina se nemění** – po ostrém spuštění se vrstva nesmí změnit; voda je jen ve scéně a škoda
@@ -262,9 +271,9 @@ Martin, 27. 10. 2026: „Pojďme na požár“.
   **zima víc** (listopad–únor ×1,5 – topí se), **mokré léto míň** (×½). Den ze seedu.
 - **Co hoří** (návrh Clauda): obydlí, dílny a dvorec vojvody; milíř je jen zdroj ohně, ne cíl.
 - **Přeskok:** stavba do **6 m** chytí s šancí **70 %**, do **12 m** s **40 %** (vzdálenost
-  obrysů); **zeleň mezi domy** (strom, keř nebo sad na spojnici) šanci **půlí**. Každá stavba,
-  která chytí, zkusí sousedy jednou – oheň se šíří, dokud ho rozestupy, zeleň a hašení nezastaví
-  (návrh Clauda). Rozestupy domů jsou na hráči.
+  obrysů); **zeleň mezi domy** (strom, keř nebo sad na spojnici) šanci **půlí**. Oheň přeskakuje
+  **řetězově** – každá stavba, která chytí, zkusí své sousedy jednou, dokud ho rozestupy, zeleň
+  a řetěz s vědry nezastaví (Martin, 27. 10. 2026: „Ano a ano“). Rozestupy domů jsou na hráči.
 - **Co shoří:** stavba (stav 0 → zbytek jámy jako po rozpadu) a **zásoby domu**: zrno mimo jámy,
   maso a sýr **÷ počet obydlí**. **Zrno v zapečetěné jámě přečká.** **Stoh do 12 m** od hořící
   stavby shoří (seno ÷ počet stohů). Obyvatelé bydlí u příbuzných (Rozpad domácnosti) a **sami
@@ -541,7 +550,9 @@ Podrobně v [plánu](../superpowers/plans/2026-10-27-disasters.md).
 | Seno s rezervou +15 %; seč plánuje s letošním výnosem                                                                       | návrh Clauda, schváleno                                |
 | Sousedé po zlém roce: poloviční zásoba obilí a ×1,5 cena; po krutém čtvrtinová a ×2                                         | návrh Clauda (rešerše), schváleno                      |
 | Seed počasí mapy na serveru (ne seed krajiny), klient vidí jen počasí, které už nastalo                                     | návrh Clauda                                           |
-| Řetězové šíření požáru; čísla škod povodně a smrště; co je zeleň, solitér, u vody, vyvýšené a svah                          | návrh Clauda                                           |
+| Požár přeskakuje řetězově z každé stavby, která chytí (12 m 40 %, 6 m 70 %, zeleň ½, řetěz s vědry ho zastaví)              | Martin (27. 10. 2026)                                  |
+| Výška povodně společná pro celý kraj (tentýž potok) z počasí kraje; škody a 5letá ochrana po vsích                          | Martin (27. 10. 2026)                                  |
+| Čísla škod povodně a smrště; den povodně v kraji; co je zeleň, solitér, u vody, vyvýšené a svah                             | návrh Clauda                                           |
 
 ## Otázky pro Martina – rozhodnuto 27. 10. 2026
 
@@ -552,7 +563,8 @@ Podrobně v [plánu](../superpowers/plans/2026-10-27-disasters.md).
 5. **Síla** – Martin prošel a schválil četnosti každé pohromy zvlášť (sucho, deštivé léto, krutá
    zima, kroupy, povodeň, požár); tornádo s obvyklou středoevropskou četností.
 
+6. **Požár a povodeň** – „Ano a ano“: požár přeskakuje řetězově z každé stavby, která chytí;
+   výška povodně je společná pro celý kraj (tentýž potok), škody a ochrana nové vsi po vsích.
+
 **Drobnosti návrhu Clauda, které se ověří při implementaci** (Martin je může kdykoli změnit):
-řetězové šíření požáru (oheň skáče dál z každé stavby, která chytí), čísla škod povodně podle
-hloubky, škody smrště podle síly a povodeň po vsích – dvě vsi na témž potoce mohou mít v jednom
-roce jinou vodu.
+čísla škod povodně podle hloubky a škody smrště podle síly.
