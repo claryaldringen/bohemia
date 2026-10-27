@@ -65,11 +65,11 @@ Návrh: `docs/design/disasters.md` – Požár. Jádro: `fire.ts`, čísla `FIRE
   = Σ šancí ÷ 365,25; jedno losování `'fire:' + day` ze seedu vsi, stavbu vybere podle součtu
   (obydlí podle id). Dílna a dvorec jsou obydlí (`Dwelling.workshop`), hoří stejně.
 - **Šíření** – `spreadFire`, los každé dvojice zvlášť (`deriveSeed(seed, 'fire-spread:' + den + ':' +
-  z + ':' + na)`, nezávisí na pořadí průchodu): každá nově hořící stavba zkusí
+z + ':' + na)`, nezávisí na pořadí průchodu): každá nově hořící stavba zkusí
   každého souseda jednou (pořadí podle id), podle vzdálenosti obrysů (`convexDistance`, dílna
   má víc půdorysů) do 6 m 70 %, do 12 m 40 %. Zeleň na spojnici středů (listnatý strom a keř
   z vrstvy překážek do 2 m od spojnice, stromy u cest, sad podle čtverců) šanci půlí; jehličnany
-  ne. Hašení (P8): šance × (1 − 0,7 × `efficiency`).
+  ne. Hašení (P8): šance × (1 − 0,7 × účinnost řetězu, viz Hašení).
 - **Dopad** – `burnDown`: hořící obydlí se zřítí (`recordRuins`, zmizí ze `state.dwellings`;
   s hašením klesne stav o 1 − 0,5 × účinnost a zřítí se jen na nule). Obyvatelé jdou k příbuzným
   (`evacuationTarget` v `population.ts` – jako rozpad domácnosti, nevejdou-li se, i do plného
@@ -91,3 +91,23 @@ Návrh: `docs/design/disasters.md` – Požár. Jádro: `fire.ts`, čísla `FIRE
   (5 m ≈ 70 %, 10 m ≈ 40 %, 15 m nic), řetěz, strom a sad půlí, hašení, zásoby a jámy, lidé,
   ochrana 5 let, ves bez počasí, dopočet po kouscích, zásoby dílen, ruina a nový dům hráče,
   365 dní po požáru bez výjimky, nezávislý los dvojice.
+
+## Hašení řetězem (P8)
+
+`firefighting.ts`, čísla `FIRE.firefighting` (`spreadCut` 0,7, `damageShare` 0,5, `handoverM` 2,5).
+
+- **Plán** – `fireDay` po výběru hořící stavby zavolá `planFireFight`: voda = bližší z nejbližšího
+  bodu osy potoka (`nearestWaterPoint`, posunutý o půl šířky vody) a nejbližšího vodního políčka
+  krajiny (`nearestWaterCell`), vzdušnou čarou **přes celou mapu**; lidé = všichni dospělí
+  (`fireFighters`, `isAdult`); rozestup = vzdálenost ÷ lidé; **účinnost = min(1; 2,5 ÷ rozestup)**
+  (`chainEfficiency`; bez lidí 0, u vody 1). Bez krajiny nebo bez vody je účinnost 0.
+- **Pro scénu (P13)** – plán jde do `state.disasters.fireFight` (`FireFight`: den, hořící obydlí,
+  `water` {x, z} nebo null, `distanceM`, `people`, `spacingM`, `efficiency`) – jen ke čtení,
+  platí v `day`. Lidé stojí rovnoměrně na přímce od `water` k obydlí.
+- **Práce dne** – `fireFighting(state, day)` je pravda v den požáru: `villagersToday`
+  (`morning-water.ts`) vyřadí všechny dospělé (děti a staří pracují dál) a v `simulate-work.ts`
+  se všechny dílny označí `resting` (řemeslníci hasí, dílna stojí). Platí i ve žních. Účinnost
+  jde do `spreadFire` a `burnDown`; parametr `efficiency` u `fireDay` ji jen přebíjí (testy).
+- **Testy** – `firefighting.test.ts`: břeh a vzdálenost přes mapu, tabulka účinnosti, plán na
+  skutečné krajině, dospělí nepracují jen v den požáru, s hašením nezbude méně domů než bez,
+  dopočet po kouscích.

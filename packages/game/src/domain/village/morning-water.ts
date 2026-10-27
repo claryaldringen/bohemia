@@ -1,7 +1,9 @@
 import { dateOfDayIndex, dayIndexOf } from '../calendar';
 import type { WaterCartPlan } from './cart-jobs';
 import { ironTravellers } from './crafts';
+import { fireFighting } from './firefighting';
 import { huntFootIds } from './hunt-party';
+import { isAdult } from './people';
 import { householdWater, type HouseholdWater } from './labor';
 import { familyHomes, lordApartIds, trainingFamily } from './lord';
 import { MORNING_WATER } from './rules';
@@ -27,14 +29,17 @@ export function villagersToday(
   const family = trainingFamily(state, day);
   // pěší lovci dne (wildlife.md – Lov rodu) dnes ve vsi nepracují
   const hunting = huntFootIds(state, day);
+  // v den požáru hasí všichni dospělí a nedělají nic jiného (disasters.md – Hašení)
+  const fighting = fireFighting(state, day);
   const villagers =
-    crafts.size > 0 || travelling.size > 0 || apart.size > 0 || hunting.size > 0
+    crafts.size > 0 || travelling.size > 0 || apart.size > 0 || hunting.size > 0 || fighting
       ? state.people.filter(
           (p) =>
             !crafts.has(p.dwellingId) &&
             !travelling.has(p.id) &&
             !apart.has(p.id) &&
-            !hunting.has(p.id),
+            !hunting.has(p.id) &&
+            !(fighting && isAdult(p, day)),
         )
       : state.people;
   return { villagers, manorSkip: familyHomes(family) };

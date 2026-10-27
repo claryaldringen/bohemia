@@ -9,6 +9,7 @@ import { obstaclesNear } from '../landscape/obstacles/query';
 import { workshopFootprints } from './crafts';
 import { dwellingShape } from './dwelling-shape';
 import { inDisasterProtection } from './disasters';
+import { fireFighters, planFireFight } from './firefighting';
 import { evacuationTarget } from './population';
 import { dwellingFootprint } from './placement-geometry';
 import { occupants } from './people';
@@ -184,14 +185,16 @@ function forcedFire(state: VillageState, day: number): number | undefined {
 /**
  * Den požáru (disasters.md – Požár): ze seedu vsi a dne se zkusí vznik (hazard dne = Σ šance
  * obydlí s násobky ÷ délka roku), pak řetězové šíření a dopad. Mutuje stav, vrátí zápis do kroniky.
- * Ves bez počasí kraje (testy, kalibrace) nehoří. `efficiency` = účinnost hašení 0–1 (P8; zatím 0).
+ * Ves bez počasí kraje (testy, kalibrace) nehoří. Hasí všichni dospělí řetězem od nejbližší vody
+ * (`planFireFight`; plán uloží do `state.disasters.fireFight` pro práci dne a scénu); `efficiency`
+ * přebije vypočtenou účinnost (jen testy).
  */
 export function fireDay(
   state: VillageState,
   day: number,
   obstacles: ObstacleLayer | null,
   landscape: Landscape | null,
-  efficiency = 0,
+  efficiency?: number,
 ): ChronicleEvent[] {
   const forced = forcedFire(state, day);
   if (forced === undefined) {
@@ -223,15 +226,26 @@ export function fireDay(
       }
     }
   }
+  const site = state.dwellings.find((d) => d.id === startId)!;
+  const fight = planFireFight(
+    landscape,
+    startId,
+    site.position.x,
+    site.position.z,
+    fireFighters(state.people, day).length,
+    day,
+  );
+  (state.disasters ??= {}).fireFight = fight;
+  const used = efficiency ?? fight.efficiency;
   const burning = spreadFire(
     state.dwellings,
     startId,
     state.seed,
     day,
     greeneryOf(state, day, obstacles, landscape),
-    efficiency,
+    used,
   );
-  return [burnDown(state, day, startId, burning, efficiency)];
+  return [burnDown(state, day, startId, burning, used)];
 }
 
 /**

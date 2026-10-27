@@ -59,6 +59,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   vynechaná přes `skip`), co nepokryje, jde z práce vsi jako `manorMin`. `DayAllocation.lordField`
   = spotřebovaná práce rodiny; `work()` vrací podíl `lordField` pro `trainLordDay`.
 
+- **Den požáru** (disasters.md – Hašení; Martin 27. 10. 2026): `fireFighting(state, day)`
+  (`firefighting.ts`, plán v `state.disasters.fireFight`) – `villagersToday` nezahrnuje dospělé
+  (hasí; děti a staří pracují dál) a dílny jsou `resting`. Podrobnosti: village-disasters.md.
 - **Hlad a vymření** (population.md, Martin 18. 10. 2026): nahromaděný hlad
   `VillageState.starvationDays` (`nextStarvationDays` po jídle dne – pod 90 % přídělu
   přibývá, od 90 % ubývá, čísla `STARVATION` v `rules*.ts`) přidá k běžnému riziku úmrtí riziko hladem

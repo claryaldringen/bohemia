@@ -47,8 +47,25 @@ export interface RevealedWeather {
 /** Vynucené počasí roku (jen testy a dev „Vynutit zlý rok“) – přebije los. */
 export type WeatherOverride = Partial<Pick<YearWeather, 'summer' | 'winter' | 'flood'>>;
 
+/**
+ * Řetěz s vědry v den požáru (disasters.md – Hašení; jen ke čtení pro scénu): hořící stavba,
+ * místo na břehu nejblíž ní (`water`, bez vody null), počet hasících dospělých, rozestup mezi nimi
+ * (m) a účinnost 0–1.
+ */
+export interface FireFight {
+  day: number;
+  dwellingId: number;
+  water: { x: number; z: number } | null;
+  distanceM: number;
+  people: number;
+  spacingM: number;
+  efficiency: number;
+}
+
 /** Pohromy vsi (disasters.md); další části přidají místní pohromy. */
 export interface DisasterState {
+  /** Řetěz s vědry posledního požáru (platí jen v jeho den). */
+  fireFight?: FireFight;
   /** Jen testy a dev: přebije los – klíč = herní rok. */
   override?: {
     weather?: Record<number, WeatherOverride>;

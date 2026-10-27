@@ -143,6 +143,10 @@ export const FIRE = {
   greeneryFactor: 0.5,
   /** Strom nebo keř je „na spojnici“, je-li od ní nejvýš tolik (m) – návrh Clauda. */
   greeneryReachM: 2,
-  /** Hašení (P8): přeskok × (1 − spreadCut × účinnost), stav stavby klesne o 1 − damageShare × účinnost. */
-  firefighting: { spreadCut: 0.7, damageShare: 0.5 },
+  /**
+   * Hašení řetězem (P8): přeskok × (1 − spreadCut × účinnost), stav stavby klesne o
+   * 1 − damageShare × účinnost; `handoverM` = největší rozestup, na který si lidé podávají vědra
+   * z ruky do ruky (víc – každý nosí po svém úseku), účinnost = min(1; handoverM ÷ rozestup).
+   */
+  firefighting: { spreadCut: 0.7, damageShare: 0.5, handoverM: 2.5 },
 } as const;
