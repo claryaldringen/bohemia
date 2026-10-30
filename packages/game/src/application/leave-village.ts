@@ -152,11 +152,17 @@ export async function leaveVillage(
   const to = await deps.villages.add(
     target.settlement.id,
     sonVillageName ?? suggestVillageName(seed),
-    travellingVillage(departed.settlers, seed, departed.day, {
-      direction: destination.direction,
-      departedDay: departed.day,
-      arrivalDay: departed.day + departed.travelDays,
-    }),
+    travellingVillage(
+      departed.settlers,
+      seed,
+      departed.day,
+      {
+        direction: destination.direction,
+        departedDay: departed.day,
+        arrivalDay: departed.day + departed.travelDays,
+      },
+      false,
+    ),
   );
   return { ok: true, from: departed.from, to, settlement: target.settlement };
 }
@@ -331,7 +337,11 @@ export async function settleJourney(
     // kronika cesty zůstane před založením
     return {
       ok: true,
-      state: { ...founded.state, chronicle: [...state.chronicle, ...founded.state.chronicle] },
+      state: {
+        ...founded.state,
+        chronicle: [...state.chronicle, ...founded.state.chronicle],
+        ...(state.origin === undefined ? {} : { origin: state.origin }),
+      },
     };
   });
 }

@@ -210,6 +210,26 @@ describe('createVillageRepository', () => {
     expect(await villages.addOnce(UNKNOWN, 'Ves', { ...keyed, origin: 'x' })).toBeNull();
   });
 
+  it('addOnce se stejným klíčem na dvou různých sídlech založí ves jen jednou (unikátní index)', async () => {
+    const other = await createSettlementRepository(db).createSeat({
+      ownerId: 'hrac-1',
+      landscapeSeed: 2,
+      layerVersions: CURRENT_LAYER_VERSIONS,
+    });
+    const otherId = other.id;
+    const keyed = { ...state(), origin: 'steward-son:b:1' };
+    const results = await Promise.all([
+      villages.addOnce(settlementId, 'Ves A', keyed),
+      villages.addOnce(otherId, 'Ves B', keyed),
+      villages.addOnce(settlementId, 'Ves C', keyed),
+      villages.addOnce(otherId, 'Ves D', keyed),
+    ]);
+    expect(new Set(results.map((r) => r?.id)).size).toBe(1);
+    expect(results.every((r) => r !== null)).toBe(true);
+    expect(await db.select().from(schema.village)).toHaveLength(1);
+    expect((await villages.findByOrigin('steward-son:b:1'))?.id).toBe(results[0]?.id);
+  });
+
   it('settleStewardDepartures s adaptérem: souběžné vybavení schránky založí ves syna jednou', async () => {
     const base = state();
     const mother: VillageState = {

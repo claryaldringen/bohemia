@@ -2,6 +2,7 @@ import { obstaclesOf } from '../domain/landscape';
 import {
   NEW_VILLAGE_MIN_DISTANCE_M,
   distanceToVillages,
+  failStewardDeparture,
   freeVillageSite,
   pendingStewardDepartures,
   settleStewardDeparture,
@@ -62,11 +63,34 @@ export async function settleStewardDepartures(
     const village =
       (await deps.villages.findByOrigin(origin)) ??
       (await createVillage(deps, input.playerId, found.settlement, record, origin));
-    if (!village) continue;
+    if (!village) {
+      // nikam nejde – započítat pokus, po několika se záznam nezkouší (osadníci zůstanou v něm)
+      await updateRecord(deps.villages, found.village.id, (s) =>
+        failStewardDeparture(s, record.id),
+      );
+      continue;
+    }
     await markSettled(deps.villages, found.village.id, record.id, village.id);
     settled.push(village);
   }
   return settled;
+}
+
+/**
+ * Totéž, ale chyba (výpadek DB, nová mapa) se zaloguje a nic nevybaví – načtení hry kvůli ní
+ * nespadne; schránka je idempotentní, vybaví se při příštím načtení.
+ */
+export async function settleStewardDeparturesSafely(
+  deps: SettleStewardDeparturesDeps,
+  input: SettleStewardDeparturesInput,
+  log: (message: string, error: unknown) => void = console.error,
+): Promise<VillageRecord[]> {
+  try {
+    return await settleStewardDepartures(deps, input);
+  } catch (error) {
+    log(`Ves ${input.villageId}: vybavení odchozí schránky správce selhalo.`, error);
+    return [];
+  }
 }
 
 /**
@@ -158,16 +182,27 @@ async function mapPoints(
  * Záznam `id` schránky mateřské vsi dostane id nové vsi (`settleStewardDeparture`) – při souběžném
  * zápisu znovu načíst a zkusit znovu; už vybavený záznam nic nemění.
  */
-async function markSettled(
+function markSettled(
   villages: VillageRepository,
   villageId: string,
   id: number,
   newVillageId: string,
 ): Promise<void> {
+  return updateRecord(villages, villageId, (state) =>
+    settleStewardDeparture(state, id, newVillageId),
+  );
+}
+
+/** Změna stavu mateřské vsi s opakováním při souběžném zápisu; beze změny (týž objekt) nic neukládá. */
+async function updateRecord(
+  villages: VillageRepository,
+  villageId: string,
+  change: (state: VillageState) => VillageState,
+): Promise<void> {
   for (let attempt = 0; attempt < MARK_ATTEMPTS; attempt++) {
     const current = await villages.find(villageId);
     if (!current) return;
-    const next = settleStewardDeparture(current.state, id, newVillageId);
+    const next = change(current.state);
     if (next === current.state) return;
     if (await villages.save(villageId, next, current.version)) return;
   }

@@ -22,6 +22,16 @@ function toRecord(row: VillageRow): VillageRecord {
  * může mít víc vsí; první ves sídla zakládá `create` atomicky (zámek řádku sídla).
  */
 export function createVillageRepository(db: Database): VillageRepository {
+  // Hledání podle klíče založení jde přes unikátní index `village_origin_uq`.
+  const byOrigin = async (origin: string): Promise<VillageRecord | null> => {
+    const [row] = await db
+      .select()
+      .from(village)
+      .where(sql`${village.state}->>'origin' = ${origin}`)
+      .orderBy(asc(village.createdAt))
+      .limit(1);
+    return row ? toRecord(row) : null;
+  };
   return {
     async find(villageId): Promise<VillageRecord | null> {
       // id vsi přichází i zvenku (cookie, vstup akce) – jiný řetězec než UUID by dotaz shodil
@@ -82,15 +92,7 @@ export function createVillageRepository(db: Database): VillageRepository {
       return toRecord(row);
     },
 
-    async findByOrigin(origin): Promise<VillageRecord | null> {
-      const [row] = await db
-        .select()
-        .from(village)
-        .where(sql`${village.state}->>'origin' = ${origin}`)
-        .orderBy(asc(village.createdAt))
-        .limit(1);
-      return row ? toRecord(row) : null;
-    },
+    findByOrigin: byOrigin,
 
     async addOnce(settlementId, name, state): Promise<VillageRecord | null> {
       const origin = state.origin;
@@ -98,25 +100,31 @@ export function createVillageRepository(db: Database): VillageRepository {
       if (!UUID.test(settlementId)) return null;
       // Atomicky: souběžná vybavení téže schránky se seřadí na zámku řádku sídla – druhé už ves
       // s klíčem uvidí a vrátí ji.
-      return db.transaction(async (tx) => {
-        const [owner] = await tx
-          .select({ id: settlement.id })
-          .from(settlement)
-          .where(eq(settlement.id, settlementId))
-          .for('update');
-        if (!owner) return null;
-        const [existing] = await tx
-          .select()
-          .from(village)
-          .where(sql`${village.state}->>'origin' = ${origin}`)
-          .limit(1);
-        if (existing) return toRecord(existing);
-        const [row] = await tx
-          .insert(village)
-          .values({ settlementId, name, state, version: 1 })
-          .returning();
-        return row ? toRecord(row) : null;
-      });
+      try {
+        return await db.transaction(async (tx) => {
+          const [owner] = await tx
+            .select({ id: settlement.id })
+            .from(settlement)
+            .where(eq(settlement.id, settlementId))
+            .for('update');
+          if (!owner) return null;
+          const [existing] = await tx
+            .select()
+            .from(village)
+            .where(sql`${village.state}->>'origin' = ${origin}`)
+            .limit(1);
+          if (existing) return toRecord(existing);
+          const [row] = await tx
+            .insert(village)
+            .values({ settlementId, name, state, version: 1 })
+            .returning();
+          return row ? toRecord(row) : null;
+        });
+      } catch (error) {
+        // souběh na různých sídlech: unikátní index `village_origin_uq` pustil jen jednu ves
+        if (!isUniqueViolation(error)) throw error;
+        return byOrigin(origin);
+      }
     },
 
     async save(villageId, state, expectedVersion): Promise<VillageRecord | null> {
@@ -160,4 +168,14 @@ export function createVillageRepository(db: Database): VillageRepository {
         .where(inArray(village.settlementId, [...settlementIds]));
     },
   };
+}
+
+/** Porušení unikátního indexu (PostgreSQL 23505) – Drizzle chybu někdy obalí (`cause`). */
+function isUniqueViolation(error: unknown): boolean {
+  for (let e: unknown = error, depth = 0; e && depth < 3; depth++) {
+    const code = (e as { code?: unknown }).code;
+    if (code === '23505') return true;
+    e = (e as { cause?: unknown }).cause;
+  }
+  return false;
 }

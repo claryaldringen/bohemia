@@ -5,6 +5,7 @@ import {
   departWithSon,
   isVillageTravelling,
   newSteward,
+  failStewardDeparture,
   pendingStewardDepartures,
   stewardDepartureOrigin,
   type Dwelling,
@@ -15,7 +16,10 @@ import {
 import { trackedVillage } from '../../domain/village/__tests__/kin-fixtures';
 import { makeLandscape } from '../../domain/village/__tests__/placement-fixtures';
 import { loadVillage } from '../load-village';
-import { settleStewardDepartures } from '../settle-steward-departures';
+import {
+  settleStewardDepartures,
+  settleStewardDeparturesSafely,
+} from '../settle-steward-departures';
 import type { LandscapeSource, SeedSource } from '../settlements';
 import { InMemorySettlements } from './in-memory-settlements';
 import { InMemoryVillages } from './in-memory-villages';
@@ -163,5 +167,34 @@ describe('settleStewardDepartures – vybavení schránky', () => {
     expect(loaded!.state.dynasty?.lordId).toBe(30);
     expect(loaded!.state.steward?.on).toBe(true);
     expect(loaded!.state.foundedDay).toBe(DAY + 2);
+  });
+
+  it('chyba při vybavení se zaloguje a nezastaví načtení hry (Safely)', async () => {
+    const { deps, villageId } = await world(at(200, 200));
+    const broken = {
+      ...deps,
+      villages: Object.assign(Object.create(deps.villages) as InMemoryVillages, {
+        findByOrigin: (): Promise<never> => Promise.reject(new Error('DB spadla')),
+      }),
+    };
+    const logged: string[] = [];
+    const result = await settleStewardDeparturesSafely(
+      broken,
+      { playerId: PLAYER, villageId },
+      (message) => logged.push(message),
+    );
+    expect(result).toEqual([]);
+    expect(logged).toHaveLength(1);
+    // schránka zůstala nevybavená a příště se vybaví
+    expect(await settleStewardDepartures(deps, { playerId: PLAYER, villageId })).toHaveLength(1);
+  });
+
+  it('záznam, který nejde vybavit, se po několika pokusech přestane zkoušet', async () => {
+    const { deps, villageId } = await world(at(200, 200));
+    let state = (await deps.villages.find(villageId))!.state;
+    for (let i = 0; i < 5; i++) state = failStewardDeparture(state, DAY);
+    expect(state.steward?.departures?.[0]?.attempts).toBe(5);
+    expect(pendingStewardDepartures(state)).toHaveLength(0);
+    expect(failStewardDeparture(state, 12345)).toBe(state);
   });
 });

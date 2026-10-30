@@ -141,6 +141,8 @@ export const STEWARD = {
   hereStrideTiles: 4,
   /** Tady – upřesnění: nejvýš tolik nejlepších kandidátů podle hodnoty domu se ověří. */
   hereTries: 12,
+  /** Odchozí schránka: kolikrát se nevybavitelný záznam zkusí vybavit, pak se nechá být. */
+  departureAttempts: 5,
 } as const;
 
 /** Den v roce (měsíc a den) – hranice oken správce. */

@@ -446,7 +446,13 @@ stavby), nejvýš jedno pole na den správce.
   nese první směr. Když na novou mapu nejde (mapa bez místa ve světě), ves vznikne na nejbližším
   volném místě téže mapy.
 - **Příjezd:** ves na cestě se správcem se v den příjezdu založí na nejbližším volném místě
-  k místu vsi nové krajiny (`freeVillageSite`) – plán nové vsi ještě neexistuje.
+  k místu vsi nové krajiny (`freeVillageSite`) – plán nové vsi ještě neexistuje. **Odchod syna,
+  který spustí hráč** (`leaveVillage` se `sonId`), se po příjezdu sám nezaloží – čeká, až hráč
+  umístí první zemnici; správce nové vsi se zapne až v den založení. **Sám se zakládá jen odchod ze
+  schránky správce.** Přepínač Správce jde přepnout i u vsi na cestě: zapnutím hráč příjezd svěří
+  správci, vypnutím ho převezme. Unikátní index `village_origin_uq` (klíč založení) hlídá jedinou
+  ves i při souběhu na různých sídlech; záznam, který nejde vybavit, se zkouší nejvýš
+  `STEWARD.departureAttempts` krát.
 - **Schránka:** záznam (id = den odchodu) nese seed, jméno, cíl a osadníky; po vybavení jen id
   nové vsi. Nová ves nese klíč založení (`origin`) – úložiště ji podruhé nezaloží (zámek řádku
   sídla), takže opakované i souběžné vybavení i pád serveru mezi kroky založí ves právě jednou.

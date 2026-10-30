@@ -382,7 +382,25 @@ export function stewardDeparture(
 
 /** Záznamy schránky, pro které ještě nevznikla ves. */
 export function pendingStewardDepartures(state: VillageState): StewardDeparture[] {
-  return (state.steward?.departures ?? []).filter((d) => d.villageId === undefined && d.settlers);
+  return (state.steward?.departures ?? []).filter(
+    (d) => d.villageId === undefined && d.settlers && (d.attempts ?? 0) < STEWARD.departureAttempts,
+  );
+}
+
+/** Nezdařené vybavení záznamu `id` se započítá (`attempts`); neznámý či vybavený záznam – týž stav. */
+export function failStewardDeparture(state: VillageState, id: number): VillageState {
+  const departures = state.steward?.departures;
+  const record = departures?.find((d) => d.id === id);
+  if (!state.steward || !departures || !record || record.villageId !== undefined) return state;
+  return {
+    ...state,
+    steward: {
+      ...state.steward,
+      departures: departures.map((d) =>
+        d.id === id ? { ...d, attempts: (d.attempts ?? 0) + 1 } : d,
+      ),
+    },
+  };
 }
 
 /**

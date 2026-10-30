@@ -109,6 +109,8 @@ export interface StewardDeparture {
   settlers?: Settlers;
   /** Id založené vsi (záznam je vybavený). */
   villageId?: string;
+  /** Kolikrát se vybavení nezdařilo (nikam nešlo) – po `STEWARD.departureAttempts` se nezkouší. */
+  attempts?: number;
 }
 
 export interface StewardState {
