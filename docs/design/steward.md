@@ -429,6 +429,14 @@ stavby), nejvýš jedno pole na den správce.
   díly se počítají, jako by už byly v oběhu (jako cíl polí).
 - **Kdy není kam:** na území vsi žádné volné políčko s úrodou nejdál 800 m od obydlí (i staveniště)
   s hodnotou ≥ `minKgPerManDay` = 1,5 × 180 kg ÷ 365 ≈ 0,74 kg na člověkoden – louka i les.
+- **Past osiva** (Hranice – past osiva z kroku polí): ves seje jen osivo nad jídlo do žní, takže
+  hladoví, i když „Pole uživí“ stačí – přelidnění podle polí ji nevidí. Správce si proto pamatuje
+  nejvyšší nahromaděný hlad od posledního 31. 8. (`steward.hungerPeak`) a ves, která hladověla
+  aspoň `departureHungerDays` (8 dní – nad hladem prvních let nové vsi ≤ 4,5, pod hladem pasti
+  11–19 z kouřového testu kroku polí), pošle syna i bez přelidnění podle polí a i s místem na pole
+  (další pole by zůstala neosetá – pomůže jen méně lidí). Přelidněná ves s místem napřed zakládá
+  pole, i když hladoví. Kronika `seed-short` se nepoužívá – zkracuje se na konci dopočtu, takže by
+  výsledek závisel na kouscích.
 - **Tady:** kandidáti na každém `hereStrideTiles` (4.) políčku ≥ 300 m od staveb všech vsí mapy
   (vlastní a ze snímku sousedů), seřazení podle hodnoty domu; ověří se nejvýš `hereTries` (12)
   nejlepších – budoucí území (≤ 800 m, blíž místu než středu jiné vsi, volná políčka s hodnotou

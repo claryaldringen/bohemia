@@ -125,6 +125,12 @@ export const STEWARD = {
   /** Krok 2 – přelidnění: lidí víc než „Pole uživí podle dnešní půdy“ × tolik. */
   crowdedShare: 1.05,
   /**
+   * Krok 2 – past osiva (Hranice – past osiva): odchod i bez přelidnění podle polí, když ves od
+   * minulého 31. 8. nahromadila aspoň tolik dní hladu – nad hladem prvních let nové vsi (≤ 4,5)
+   * a pod hladem pasti (11–19, kouřový test S4).
+   */
+  departureHungerDays: 8,
+  /**
    * Krok 2 – Kdy není kam: čtverec pole má smysl, jen když uživí víc, než sní ten, kdo ho dělá –
    * kg čisté úrody na člověkoden aspoň 1,5 × denní potřeba obilí dospělého (`FOOD_NEED_KG_PER_YEAR`).
    */

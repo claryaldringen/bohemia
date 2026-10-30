@@ -130,4 +130,9 @@ export interface StewardState {
   nextPlan?: StewardPlan;
   vetoes?: StewardVeto[];
   departures?: StewardDeparture[];
+  /**
+   * Nejvyšší nahromaděný hlad (`starvationDays`) od posledního dne odchodu syna – spouštěč odchodu
+   * v pasti osiva (`STEWARD.departureHungerDays`). Chybí – ves od té doby nehladověla.
+   */
+  hungerPeak?: number;
 }

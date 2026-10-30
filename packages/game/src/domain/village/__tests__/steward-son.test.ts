@@ -15,13 +15,15 @@ import {
   pendingStewardDepartures,
   settleStewardDeparture,
   stewardArrival,
+  stewardCrowded,
   stewardDeparture,
   stewardFieldRoom,
   stewardHereSite,
   stewardSonDay,
 } from '../steward-son';
 import { craftCoverage } from '../crafts';
-import type { Dwelling, Person, VillageState } from '../types';
+import { averageRotationShare } from '../field-capacity';
+import type { Dwelling, FieldPart, Person, VillageState } from '../types';
 import { NEW_VILLAGE_MIN_DISTANCE_M } from '../rules';
 import { DAY, kin, trackedVillage, type KinSpec } from './kin-fixtures';
 import { makeLandscape } from './placement-fixtures';
@@ -167,6 +169,59 @@ describe('odchod syna (krok 2)', () => {
     sonless.people = sonless.people.filter((p) => p.id !== 30 && p.id !== 40);
     expect(stewardDeparture(sonless, AUG31, barren, barrenObstacles)).toBe(false);
     expect(s.steward?.departures ?? []).toHaveLength(0);
+  });
+
+  /** Ves s polem 40 ha – „Pole uživí“ stačí (není přelidněná). */
+  const withFields = (s: VillageState): VillageState => {
+    const part: FieldPart = {
+      id: 900,
+      fieldId: 901,
+      areaM2: 400_000,
+      distanceM: 50,
+      naturalFertility: 60,
+      fertilityShare: averageRotationShare(),
+      bonusUntilDay: null,
+      state: 'fallow',
+      sownYears: 0,
+      fallowSinceDay: null,
+      foundingCost: 0,
+      foundingDone: 0,
+      surface: 'meadow',
+    };
+    s.parts.push(part);
+    return s;
+  };
+
+  it('past osiva: ves s dost poli, která hladověla, pošle syna i s místem na pole', () => {
+    const trapped = withFields(lordVillage());
+    expect(stewardCrowded(trapped, AUG31, craftCoverage(trapped, AUG31))).toBe(false);
+    expect(stewardFieldRoom(trapped, AUG31, fertile, fertileObstacles)).toBe(true);
+    trapped.steward!.hungerPeak = STEWARD.departureHungerDays;
+    expect(stewardDeparture(trapped, AUG31, fertile, fertileObstacles)).toBe(true);
+    // hlad pod prahem, nebo bez hladu – nic
+    const mild = withFields(lordVillage());
+    mild.steward!.hungerPeak = STEWARD.departureHungerDays - 1;
+    expect(stewardDeparture(mild, AUG31, fertile, fertileObstacles)).toBe(false);
+    expect(stewardDeparture(withFields(lordVillage()), AUG31, fertile, fertileObstacles)).toBe(
+      false,
+    );
+    // přelidněná a hladová ves s místem na pole – napřed pole
+    const crowded = lordVillage();
+    crowded.steward!.hungerPeak = 30;
+    expect(stewardDeparture(crowded, AUG31, fertile, fertileObstacles)).toBe(false);
+  });
+
+  it('hlad se pamatuje od jednoho 31. 8. k dalšímu – jen nejvyšší', () => {
+    const s = withFields(lordVillage(AUG31 - 3));
+    s.starvationDays = 9;
+    stewardSonDay(s, AUG31 - 2, fertile, fertileObstacles);
+    s.starvationDays = 4;
+    stewardSonDay(s, AUG31 - 1, fertile, fertileObstacles);
+    expect(s.steward?.hungerPeak).toBe(9);
+    s.starvationDays = 0;
+    stewardSonDay(s, AUG31, fertile, fertileObstacles);
+    expect(s.steward?.departures).toHaveLength(1);
+    expect(s.steward?.hungerPeak).toBeUndefined();
   });
 
   it('svobodný syn odejde, když ženatý není', () => {
