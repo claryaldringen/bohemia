@@ -1,7 +1,10 @@
 import { obstaclesOf, type Landscape } from '../domain/landscape';
-import { roadApplesOption, startRoadApples } from '../domain/village';
+import { applyBuildIntent } from '../domain/village';
 import { updateLivingVillage } from './update-village';
 import type { VillageRepository, VillageResult } from './villages';
+
+// důvod odmítnutí žije v doméně (build-intent.ts) – use-case ho dál exportuje pro web a testy
+export { NO_ROAD } from '../domain/village';
 
 export interface PlantRoadApplesInput {
   /** Ves (id), ve které hráč jedná – její sídlo dává krajinu `landscape`. */
@@ -11,9 +14,6 @@ export interface PlantRoadApplesInput {
   today: number;
   roadId: number;
 }
-
-/** Úsek neexistuje (mezitím zarostl). */
-export const NO_ROAD = 'Cesta neexistuje.';
 
 /**
  * Hráč u vybraného úseku zadá „Vysadit jabloně“ (roads.md – Vysazení jabloní; ves se nejdřív
@@ -29,16 +29,11 @@ export function plantApplesAlongRoad(
     input.villageId,
     input.today,
     input.landscape,
-    (state) => {
-      const day = state.lastDay;
-      const obstacles = obstaclesOf(input.landscape);
-      const option = roadApplesOption(state, input.roadId, day, input.landscape, obstacles);
-      if (!option) return { ok: false, reason: NO_ROAD };
-      if (option.blocked) return { ok: false, reason: option.blocked };
-      return {
-        ok: true,
-        state: startRoadApples(state, day, input.roadId, input.landscape, obstacles),
-      };
-    },
+    // akce patří do dne, do kterého je ves dopočítaná – dnešek, nebo „budoucí“ den vsi
+    (state) =>
+      applyBuildIntent(state, state.lastDay, input.landscape, obstaclesOf(input.landscape), {
+        kind: 'road-apples',
+        roadId: input.roadId,
+      }),
   );
 }

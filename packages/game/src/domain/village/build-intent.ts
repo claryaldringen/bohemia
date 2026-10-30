@@ -11,20 +11,30 @@ import {
   startWorkshop,
 } from './actions';
 import { buildAffordability } from './costs';
+import { HORSE_PEN_NO_SURPLUS } from './horse-pen-payment';
 import { villageRoadWalk } from './paths/walking';
 import {
   checkDwellingPlacement,
   checkPlotPlacement,
   checkWorkshopPlacement,
 } from './placement-dwellings';
+import {
+  cemeteryPartsFromCells,
+  fieldPartsFromCells,
+  orchardPartsFromCells,
+} from './placement-fields';
 import { canonicalPlot } from './placement-geometry';
-import { forestEdgeDistanceM, waterDistanceM } from './placement-squares';
+import { penSquaresFromCells } from './placement-pens';
 import { checkSacredBuildingPlacement, checkThreshingFloorPlacement } from './placement-sacred';
+import { forestEdgeDistanceM, waterDistanceM } from './placement-squares';
 import type { DwellingPlacementCheck } from './placement-types';
 import { placementVillageOf, villageDwellingPositions } from './placement-village';
 import { relocationAffordability, relocationBlock, type RelocationBlock } from './relocation';
+import { roadApplesOption, startRoadApples } from './road-apples';
+import { roadUpgradeOptions, startRoadUpgrade, type RoadUpgrade } from './road-upgrades';
 import { CRAFTS, PLOT_TYPES } from './rules';
 import { hasShrine } from './sacred';
+import { DIRECTIONS, planTrail, startTrail } from './trail';
 import type {
   BuildableDwellingType,
   Craft,
@@ -37,16 +47,7 @@ import type {
   TileCell,
   VillageState,
 } from './types';
-import {
-  cemeteryPartsFromCells,
-  fieldPartsFromCells,
-  orchardPartsFromCells,
-} from './placement-fields';
-import { HORSE_PEN_NO_SURPLUS } from './horse-pen-payment';
-import { penSquaresFromCells } from './placement-pens';
-import { DIRECTIONS, planTrail, startTrail } from './trail';
 import { startWagonRoad } from './wagon-road';
-import { roadUpgradeOptions, startRoadUpgrade, type RoadUpgrade } from './road-upgrades';
 
 // Doménový příkaz stavby (steward.md – Kde správce běží): jedno pravidlo stavby pro hráče
 // i správce vsi – cena předem (`buildAffordability`), kontrola místa a akce domény. Use-casy
@@ -73,6 +74,8 @@ export const SHRINE_EXISTS = 'Ves už svatyni má – svatyně je jedna na ves.'
 export const UNKNOWN_DIRECTION = 'Neznámý směr stezky.';
 /** Úsek takové vylepšení nenabízí (už je, nebo nevede mokřinou ani přes brod). */
 export const NO_UPGRADE = 'Tohle vylepšení úsek nemá.';
+/** Úsek neexistuje (mezitím zarostl). */
+export const NO_ROAD = 'Cesta neexistuje.';
 /** Proč se domácnost teď přestěhovat nemůže – česky pro hráče. */
 export const RELOCATION_BLOCKED: Record<RelocationBlock, string> = {
   'no-household': 'V tomhle obydlí nikdo nebydlí.',
@@ -184,6 +187,12 @@ export interface RoadUpgradeIntent {
   upgrade: RoadUpgrade;
 }
 
+/** Jabloně podél úseku cesty (roads.md – Vysazení jabloní). */
+export interface RoadApplesIntent {
+  kind: 'road-apples';
+  roadId: number;
+}
+
 /** Co se má stavět a kde – druh stavby a místo (poloha, pozemek, čtverce, mřížka, cesta). */
 export type BuildIntent =
   | DwellingIntent
@@ -197,7 +206,8 @@ export type BuildIntent =
   | PenIntent
   | TrailIntent
   | WagonRoadIntent
-  | RoadUpgradeIntent;
+  | RoadUpgradeIntent
+  | RoadApplesIntent;
 
 /** Výsledek příkazu stavby – nový stav vsi, nebo důvod odmítnutí česky pro hráče. */
 export type BuildResult = { ok: true; state: VillageState } | { ok: false; reason: string };
@@ -238,6 +248,8 @@ export function applyBuildIntent(
       return buildWagonRoad(state, day, landscape, obstacles, intent);
     case 'road-upgrade':
       return buildRoadUpgrade(state, day, landscape, obstacles, intent);
+    case 'road-apples':
+      return buildRoadApples(state, day, landscape, obstacles, intent);
   }
 }
 
@@ -722,4 +734,21 @@ function buildRoadUpgrade(
     ok: true,
     state: startRoadUpgrade(state, day, intent.roadId, intent.upgrade, obstacles, walk, landscape),
   };
+}
+
+/**
+ * Jabloně na volných místech podél úseku – vysadí je vesničané v oknech jara a podzimu.
+ * Výsadbu ověří nabídka úseku (`roadApplesOption`) a vrátí důvod česky, když nejde.
+ */
+function buildRoadApples(
+  state: VillageState,
+  day: number,
+  landscape: Landscape,
+  obstacles: ObstacleLayer,
+  intent: RoadApplesIntent,
+): BuildResult {
+  const option = roadApplesOption(state, intent.roadId, day, landscape, obstacles);
+  if (!option) return { ok: false, reason: NO_ROAD };
+  if (option.blocked) return { ok: false, reason: option.blocked };
+  return { ok: true, state: startRoadApples(state, day, intent.roadId, landscape, obstacles) };
 }

@@ -7,6 +7,7 @@ import {
   NO_PLOT,
   NO_SETTLERS,
   RELOCATION_BLOCKED,
+  NO_ROAD,
   NO_UPGRADE,
   SHRINE_EXISTS,
   UNKNOWN_DIRECTION,
@@ -351,6 +352,22 @@ describe('applyBuildIntent – vylepšení cesty', () => {
     expect(apply(withRoads('improved'), intent, PATHS)).toEqual({
       ok: false,
       reason: NO_UPGRADE,
+    });
+  });
+});
+
+describe('applyBuildIntent – jabloně u cesty', () => {
+  it('zahájí výsadbu jabloní podél upravené cesty', () => {
+    const result = apply(withRoads('improved'), { kind: 'road-apples', roadId: 1 }, PATHS);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.constructions.at(-1)).toMatchObject({ kind: 'road-apples', roadIds: [1] });
+  });
+
+  it('neexistující úsek odmítne', () => {
+    expect(apply(withRoads('improved'), { kind: 'road-apples', roadId: 99 }, PATHS)).toEqual({
+      ok: false,
+      reason: NO_ROAD,
     });
   });
 });
