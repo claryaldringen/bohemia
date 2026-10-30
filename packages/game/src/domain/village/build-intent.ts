@@ -1,5 +1,5 @@
 import type { Landscape, ObstacleLayer } from '../landscape';
-import { startNewDwelling } from './actions';
+import { startNewDwelling, startRelocation } from './actions';
 import { buildAffordability } from './costs';
 import { villageRoadWalk } from './paths/walking';
 import { checkDwellingPlacement, checkPlotPlacement } from './placement-dwellings';
@@ -7,6 +7,7 @@ import { canonicalPlot } from './placement-geometry';
 import { forestEdgeDistanceM } from './placement-squares';
 import type { DwellingPlacementCheck } from './placement-types';
 import { placementVillageOf } from './placement-village';
+import { relocationAffordability, relocationBlock, type RelocationBlock } from './relocation';
 import { PLOT_TYPES } from './rules';
 import type { BuildableDwellingType, DwellingPlot, Position, VillageState } from './types';
 
@@ -25,6 +26,12 @@ export const NO_WOOD = 'Na stavbu chybí dřevo – klády ani stromy ke kácen�
 export const NO_PLOT = 'Polozemnice potřebuje pozemek – celé políčko.';
 /** Pozemek s neplatným natočením (jen po 15°) nebo natočený dvorec. */
 export const BAD_PLOT = 'Neplatné natočení pozemku.';
+/** Proč se domácnost teď přestěhovat nemůže – česky pro hráče. */
+export const RELOCATION_BLOCKED: Record<RelocationBlock, string> = {
+  'no-household': 'V tomhle obydlí nikdo nebydlí.',
+  relocating: 'Domácnost si už staví nový dům.',
+  rebuilding: 'Domácnost svůj dům právě přestavuje.',
+};
 
 /** Nové obydlí – volná poloha (zemnice), nebo pozemek (polozemnice, `PLOT_TYPES`). */
 export interface DwellingIntent {
@@ -36,8 +43,24 @@ export interface DwellingIntent {
   plot?: DwellingPlot;
 }
 
+/**
+ * Přestěhování domácnosti (migration.md – Přestěhování domácnosti): nový dům obydlí `dwellingId`
+ * (id obydlí = id domácnosti) jako stavba obydlí, jen bez lidí k osídlení.
+ */
+export interface RelocationIntent {
+  kind: 'relocation';
+  /** Obydlí, jehož domácnost se stěhuje. */
+  dwellingId: number;
+  /** Typ nového domu – zemnice, nebo polozemnice. */
+  type: BuildableDwellingType;
+  /** Volná poloha (zemnice); u obydlí na pozemku ji určí pozemek. */
+  position: Position;
+  /** Pozemek – povinný u polozemnice (`PLOT_TYPES`), u zemnice se nebere. */
+  plot?: DwellingPlot;
+}
+
 /** Co se má stavět a kde – druh stavby a místo (poloha, pozemek, čtverce, mřížka, cesta). */
-export type BuildIntent = DwellingIntent;
+export type BuildIntent = DwellingIntent | RelocationIntent;
 
 /** Výsledek příkazu stavby – nový stav vsi, nebo důvod odmítnutí česky pro hráče. */
 export type BuildResult = { ok: true; state: VillageState } | { ok: false; reason: string };
@@ -56,6 +79,8 @@ export function applyBuildIntent(
   switch (intent.kind) {
     case 'dwelling':
       return buildDwelling(state, day, landscape, obstacles, intent);
+    case 'relocation':
+      return buildRelocation(state, day, landscape, obstacles, intent);
   }
 }
 
@@ -142,4 +167,59 @@ function buildDwelling(
       },
     ),
   };
+}
+
+/**
+ * Přestěhování domácnosti – stejné kontroly umístění, pozemek polozemnice, dřevo a cena jako nové
+ * obydlí, jen bez lidí k osídlení; obyvatelé si dům postaví ze společné práce vsi.
+ */
+function buildRelocation(
+  state: VillageState,
+  day: number,
+  landscape: Landscape,
+  obstacles: ObstacleLayer,
+  intent: RelocationIntent,
+): BuildResult {
+  const block = relocationBlock(state, intent.dwellingId);
+  if (block !== null) return { ok: false, reason: RELOCATION_BLOCKED[block] };
+  if (!relocationAffordability(state, intent.type, obstacles).affordable) {
+    return { ok: false, reason: NO_WOOD };
+  }
+  const site = dwellingSite(
+    state,
+    day,
+    landscape,
+    obstacles,
+    intent.type,
+    intent.position,
+    intent.plot,
+  );
+  if (!site.ok) return site;
+  const { check, position, plot } = site;
+  try {
+    return {
+      ok: true,
+      state: startRelocation(
+        state,
+        day,
+        intent.dwellingId,
+        intent.type,
+        position,
+        check.obstacleCost,
+        check.obstacleIds,
+        {
+          obstacles,
+          clearedTrees: check.obstacleCounts.tree ?? 0,
+          forestDistanceM: forestEdgeDistanceM(landscape, position.x, position.z),
+          ...(plot ? { plot } : {}),
+          sacred: check.spared,
+          takenLand: check.takenLand,
+        },
+      ),
+    };
+  } catch (error) {
+    // dřevo mezitím vyhradila jiná stavba
+    if (error instanceof RangeError) return { ok: false, reason: NO_WOOD };
+    throw error;
+  }
 }

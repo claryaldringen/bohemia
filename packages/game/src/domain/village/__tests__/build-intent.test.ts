@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { obstaclesOf } from '../../landscape';
 import { foundVillage } from '../actions';
-import { applyBuildIntent, NO_PLOT, NO_SETTLERS, type BuildIntent } from '../build-intent';
+import {
+  applyBuildIntent,
+  NO_PLOT,
+  NO_SETTLERS,
+  RELOCATION_BLOCKED,
+  type BuildIntent,
+} from '../build-intent';
 import type { Position, VillageState } from '../types';
 import { makeLandscape } from './placement-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
@@ -73,5 +79,34 @@ describe('applyBuildIntent – obydlí', () => {
       ok: false,
       reason: NO_PLOT,
     });
+  });
+});
+
+describe('applyBuildIntent – přestěhování domácnosti', () => {
+  it('nový dům domácnosti jde postavit i bez lidí k osídlení', () => {
+    const state = settled();
+    const dwellingId = state.dwellings[0]!.id;
+    const result = apply(state, {
+      kind: 'relocation',
+      dwellingId,
+      type: 'zemnice',
+      position: at(60, 60),
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.constructions).toContainEqual(
+      expect.objectContaining({ kind: 'dwelling', relocates: dwellingId }),
+    );
+  });
+
+  it('prázdné obydlí odmítne', () => {
+    expect(
+      apply(settled(), {
+        kind: 'relocation',
+        dwellingId: 999,
+        type: 'zemnice',
+        position: at(60, 60),
+      }),
+    ).toEqual({ ok: false, reason: RELOCATION_BLOCKED['no-household'] });
   });
 });
