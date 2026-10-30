@@ -10,7 +10,9 @@ import {
   SEAT_CELL,
   builtTrail,
   checkDwellingPlacement,
+  checkSonLeader,
   departVillage,
+  departWithSon,
   departureBlock,
   distanceToVillages,
   edgeDistanceM,
@@ -58,16 +60,21 @@ export interface LeaveVillageDeps {
 export type LeaveDestination =
   { kind: 'here'; dwelling: Position } | { kind: 'map'; direction: Direction8 };
 
-export interface LeaveVillageInput {
+interface LeaveVillageBase {
   playerId: string;
   /** Ves, ze které lidé odcházejí. */
   villageId: string;
   /** Dnešní herní den hráče (index dne). */
   today: number;
-  /** Obydlí, jejichž domácnosti odejdou (všichni jejich lidé). */
-  dwellingIds: number[];
   destination: LeaveDestination;
 }
+
+/**
+ * Kdo odchází: domácnosti vybraných obydlí (`dwellingIds` – všichni jejich lidé), nebo syn
+ * vojvody s poměrnou částí vsi (`sonId` – lord.md, Dělení vsi; server ověří `checkSonLeader`).
+ */
+export type LeaveVillageInput = LeaveVillageBase &
+  ({ dwellingIds: number[]; sonId?: never } | { sonId: number; dwellingIds?: never });
 
 export type LeaveVillageResult =
   | {
@@ -89,7 +96,8 @@ export const OWN_MAP_THERE = 'Tím směrem už leží tvoje ves – stěhování
 export const NO_WORLD_CELL = 'Tahle mapa nemá místo ve světě – na novou mapu odtud nejde odejít.';
 
 /**
- * Domácnosti obydlí `dwellingIds` odejdou založit novou ves. Na téže mapě (`here`) server ověří
+ * Domácnosti obydlí `dwellingIds` – nebo syn vojvody `sonId` s poměrnou částí vsi (lord.md – Dělení
+ * vsi; vojvodou nové vsi je on) – odejdou založit novou ves. Na téže mapě (`here`) server ověří
  * místo první zemnice (krajina, stavby a půda všech vsí mapy, nejméně 300 m od nich) dřív, než
  * lidé odejdou; ves se pak hned založí s osadníky. Na novou mapu (`map`) sídelní sídlo dostane
  * polohu (0, 0), vedle ve směru vznikne nové sídlo s novou krajinou (prázdné vlastní sídlo na tom
@@ -113,7 +121,10 @@ export async function leaveVillage(
       input.today,
     );
     if (problem) return { ok: false, reason: problem };
-    const departed = await depart(deps, input, landscape);
+    // jméno nové vsi zná kronika odchodu syna (lord.md – Dělení vsi: „Bořivoj odešel založit ves
+    // Lhota“) – u syna se vybere napřed
+    const sonVillageName = sonVillage(deps, input);
+    const departed = await depart(deps, input, landscape, undefined, sonVillageName);
     if (!departed.ok) return departed;
     const state = foundedVillageState(
       deps.seeds.nextSeed(),
@@ -129,7 +140,7 @@ export async function leaveVillage(
     if (!state.ok) throw new Error(`Ves z osadníků nešla založit: ${state.reason}`);
     const to = await deps.villages.add(
       found.settlement.id,
-      suggestVillageName(deps.seeds.nextSeed()),
+      sonVillageName ?? suggestVillageName(deps.seeds.nextSeed()),
       state.state,
     );
     return { ok: true, from: departed.from, to, settlement: found.settlement };
@@ -144,12 +155,13 @@ export async function leaveVillage(
     destination.direction,
   );
   if (!target.ok) return target;
-  const departed = await depart(deps, input, landscape, destination.direction);
+  const sonVillageName = sonVillage(deps, input);
+  const departed = await depart(deps, input, landscape, destination.direction, sonVillageName);
   if (!departed.ok) return departed;
   const seed = deps.seeds.nextSeed();
   const to = await deps.villages.add(
     target.settlement.id,
-    suggestVillageName(seed),
+    sonVillageName ?? suggestVillageName(seed),
     travellingVillage(departed.settlers, seed, departed.day, {
       direction: destination.direction,
       departedDay: departed.day,
@@ -257,16 +269,23 @@ async function targetSettlement(
   return again ? { ok: true, settlement: again } : { ok: false, reason: OWN_MAP_THERE };
 }
 
+/** Jméno nové vsi syna vojvody (ze seedu) – odchod domácností ho vybírá až po odchodu. */
+function sonVillage(deps: LeaveVillageDeps, input: LeaveVillageInput): string | undefined {
+  return input.sonId === undefined ? undefined : suggestVillageName(deps.seeds.nextSeed());
+}
+
 /**
- * Odchod ze staré vsi (dopočítané do dneška): domácnosti odejdou (`departVillage`), stará ves se
- * uloží. Vrátí ji, osadníky, den odchodu a dny cesty na novou mapu ve směru `direction`
- * (od dvorce ke kraji mapy, po hotové stezce 1 den).
+ * Odchod ze staré vsi (dopočítané do dneška): domácnosti odejdou (`departVillage`), nebo syn
+ * vojvody s poměrnou částí vsi (`departWithSon` – do kroniky jméno nové vsi `villageName`),
+ * stará ves se uloží. Vrátí ji, osadníky, den odchodu a dny cesty na novou mapu ve směru
+ * `direction` (od dvorce ke kraji mapy, po hotové stezce 1 den).
  */
 async function depart(
   deps: LeaveVillageDeps,
   input: LeaveVillageInput,
   landscape: Landscape,
   direction?: Direction8,
+  villageName?: string,
 ): Promise<
   | { ok: true; from: VillageRecord; settlers: Settlers; day: number; travelDays: number }
   | { ok: false; reason: string }
@@ -280,16 +299,26 @@ async function depart(
     input.today,
     landscape,
     (state) => {
-      const block = departureBlock(state, input.dwellingIds);
-      if (block) return { ok: false, reason: block };
       const day = state.lastDay;
+      const { sonId } = input;
+      const block =
+        sonId === undefined
+          ? departureBlock(state, input.dwellingIds)
+          : checkSonLeader(state, sonId, day).reason;
+      if (block) return { ok: false, reason: block };
       const days = direction
         ? travelDays(
             edgeDistanceM(landscape, villageCentre(state), direction),
             builtTrail(state, direction) !== null,
           )
         : 0;
-      const departed = departVillage(state, day, input.dwellingIds, direction);
+      const departed =
+        sonId === undefined
+          ? departVillage(state, day, input.dwellingIds, direction)
+          : departWithSon(state, day, sonId, {
+              ...(direction ? { direction } : {}),
+              ...(villageName === undefined ? {} : { villageName }),
+            });
       captured.outcome = { settlers: departed.settlers, day, travelDays: days };
       return { ok: true, state: departed.state };
     },

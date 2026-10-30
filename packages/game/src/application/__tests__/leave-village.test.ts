@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../domain/calendar';
 import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
-import { FOREIGN_LAND, type Person, type Position, type VillageState } from '../../domain/village';
+import {
+  FOREIGN_LAND,
+  SUCCESSOR_STAYS,
+  type Person,
+  type Position,
+  type VillageState,
+} from '../../domain/village';
 import { block, makeLandscape } from '../../domain/village/__tests__/placement-fixtures';
 import { withBuiltFirstDwelling } from '../../domain/village/__tests__/village-fixtures';
 import { foundVillageForSettlement, TOO_CLOSE_TO_VILLAGE } from '../found-village';
@@ -283,5 +289,99 @@ describe('leaveVillage – na novou mapu', () => {
     if (!west.ok) return;
     expect(west.settlement.worldCell).toEqual({ x: -1, y: 0 });
     expect(west.from.state.abandonedDay).toBe(TODAY + 1);
+  });
+});
+
+/**
+ * Hráčova ves s rodem: syn zakladatelů z druhé zemnice dostane jméno Bořivoj (muž rodu) a v dvorci
+ * žije nástupce Bořek (17 let, syn hlavní manželky). Vrací id obou.
+ */
+async function lordPlayer(): Promise<
+  Awaited<ReturnType<typeof player>> & { sonId: number; heirId: number }
+> {
+  const base = await player();
+  let sonId = 0;
+  let heirId = 0;
+  base.deps.villages.edit(base.villageId, (state: VillageState) => {
+    const son = state.people.find((p) => p.dwellingId === base.sonHome && p.sex === 'male')!;
+    son.line = true;
+    son.name = 'Bořivoj';
+    sonId = son.id;
+    const heir: Person = {
+      id: state.nextId++,
+      bornDay: TODAY - Math.ceil(17 * YEAR),
+      dwellingId: state.manorId ?? 1,
+      sex: 'male',
+      fatherId: son.fatherId!,
+      motherId: son.motherId!,
+      line: true,
+      mainWifeSon: true,
+      name: 'Bořek',
+    };
+    heirId = heir.id;
+    state.people.push(heir);
+  });
+  return { ...base, sonId, heirId };
+}
+
+describe('leaveVillage – syn vojvody s poměrnou částí vsi', () => {
+  it('syn odejde se svou rodinou a v nové vsi je vojvodou; kronika zná jméno nové vsi', async () => {
+    const { deps, villageId, sonId } = await lordPlayer();
+    const result = await leaveVillage(deps, {
+      playerId: PLAYER,
+      villageId,
+      today: TODAY + 1,
+      sonId,
+      destination: { kind: 'here', dwelling: at(200, 200) },
+    });
+    if (!result.ok) throw new Error(result.reason);
+    expect(result.to.state.people.map((p) => p.id)).toContain(sonId);
+    expect(result.to.state.dynasty?.lordId).toBe(sonId);
+    expect(result.from.state.people.map((p) => p.id)).not.toContain(sonId);
+    expect(result.from.state.chronicle).toContainEqual(
+      expect.objectContaining({
+        kind: 'son-left-village',
+        name: 'Bořivoj',
+        village: result.to.name,
+      }),
+    );
+  });
+
+  it('nástupce odchod nevede – server odmítne a nic nezmění', async () => {
+    const { deps, villageId, heirId } = await lordPlayer();
+    const result = await leaveVillage(deps, {
+      playerId: PLAYER,
+      villageId,
+      today: TODAY + 1,
+      sonId: heirId,
+      destination: { kind: 'here', dwelling: at(200, 200) },
+    });
+    expect(result).toEqual({ ok: false, reason: SUCCESSOR_STAYS });
+    expect(deps.villages.records.size).toBe(1);
+  });
+
+  it('na novou mapu: vůdce ves na cestě drží a po příjezdu je vojvodou', async () => {
+    const { deps, villageId, sonId } = await lordPlayer();
+    const result = await leaveVillage(deps, {
+      playerId: PLAYER,
+      villageId,
+      today: TODAY + 1,
+      sonId,
+      destination: { kind: 'map', direction: 'N' },
+    });
+    if (!result.ok) throw new Error(result.reason);
+    const journey = result.to.state.journey!;
+    expect(journey.lordId).toBe(sonId);
+    const settled = await settleJourney(deps, {
+      playerId: PLAYER,
+      villageId: result.to.id,
+      today: journey.arrivalDay,
+      dwelling: at(0, 0),
+    });
+    if (!settled.ok) throw new Error(settled.reason);
+    expect(settled.village.state.dynasty?.lordId).toBe(sonId);
+    expect(settled.village.state.chronicle).toContainEqual(
+      expect.objectContaining({ kind: 'lord', name: 'Bořivoj' }),
+    );
   });
 });

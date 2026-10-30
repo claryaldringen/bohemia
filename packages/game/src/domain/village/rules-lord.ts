@@ -70,4 +70,9 @@ export const LORD = {
   founders: { lordAge: 25, wifeAges: [22, 20, 18, 16] },
   /** lord.md – Jména: jméno muže rodu má nejvýš tolik písmen (návrh Clauda). */
   nameMaxLength: 20,
+  /**
+   * lord.md – Dělení vsi, Kdo může vést odchod (Martin 30. 10. 2026): odchod vede syn vojvody od
+   * tolika let; synové od tohoto věku jsou i dílníci poměrné části vsi (Poměrná část vsi).
+   */
+  leaveMinAge: 16,
 } as const;

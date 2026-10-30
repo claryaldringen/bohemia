@@ -1007,6 +1007,7 @@ describe('lineNameNotice – muži rodu bez jména (lord.md – Kde se jméno za
     unnamed,
     taken: [],
     waitingHome: [],
+    sons: [],
   });
 
   it('bez čekajících (i bez rodu) nic', () => {

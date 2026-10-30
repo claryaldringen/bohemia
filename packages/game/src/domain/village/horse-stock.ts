@@ -1,6 +1,7 @@
-import { penSpecies } from './pens';
-import { HORSE_PEN_STOCK, TRADE_GOOD_VALUES } from './rules';
-import type { Horse, Pen, VillageState } from './types';
+import { horsePens, horsesInPlaces, penHorses } from './horses';
+import { builtPenSquares, penSpecies } from './pens';
+import { HORSE_PEN_STOCK, PEN_PLACES_PER_SQUARE, TRADE_GOOD_VALUES } from './rules';
+import type { ChronicleEvent, Horse, Pen, VillageState } from './types';
 
 // Koně se stavbou ohrady (horses.md – Koně se stavbou ohrady; Martin 26. 10. 2026: „Když se
 // postaví ohrada pro koně, tak se v ní sami objeví hřebec a dvě klisny. Odkud se koupí je jedno,
@@ -72,4 +73,33 @@ export function withHorsePenStock(state: VillageState): VillageState {
       horsePenStockFailed: error instanceof Error ? error.message : String(error),
     };
   }
+}
+
+/**
+ * Koně bez ohrady (lord.md – Dělení vsi, Kůň syna; mutuje stav): s první hotovou ohradou koní,
+ * která má volné místo (ohrady od nižšího id), do ní přejdou – i s jezdcem (`riderId`), takže
+ * syn na něm zase jezdí. Kronika `horses-arrived`. Bez koní bez ohrady nic.
+ */
+export function looseHorsesDay(state: VillageState, day: number): ChronicleEvent[] {
+  const loose = state.looseHorses;
+  if (!loose || loose.length === 0) return [];
+  const events: ChronicleEvent[] = [];
+  let left = loose;
+  const pens = horsePens(state)
+    .filter((p) => p.builtDay !== null)
+    .sort((a, b) => a.id - b.id);
+  for (const pen of pens) {
+    if (left.length === 0) break;
+    const room =
+      builtPenSquares(pen).length * PEN_PLACES_PER_SQUARE.horse -
+      horsesInPlaces(penHorses(pen), day);
+    const moving = left.slice(0, Math.max(0, room));
+    if (moving.length === 0) continue;
+    pen.horses = [...penHorses(pen), ...moving];
+    left = left.slice(moving.length);
+    events.push({ day, kind: 'horses-arrived', penId: pen.id, horses: moving.length });
+  }
+  if (left.length > 0) state.looseHorses = left;
+  else delete state.looseHorses;
+  return events;
 }

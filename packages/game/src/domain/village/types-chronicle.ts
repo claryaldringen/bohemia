@@ -127,6 +127,19 @@ export type ChronicleEvent = { day: number } & (
    */
   | { kind: 'households-left'; households: number; people: number; direction?: Direction8 }
   /**
+   * Syn vojvody odešel s poměrnou částí vsi založit ves (lord.md – Dělení vsi, Nová ves: „Bořivoj
+   * odešel založit ves Lhota“): `name` jméno syna, `village` jméno nové vsi (bez něj chybí), kolik
+   * celých domácností a lidí s ním odešlo (lidé i s jeho rodinou), na novou mapu i se směrem.
+   */
+  | {
+      kind: 'son-left-village';
+      name?: string;
+      village?: string;
+      households: number;
+      people: number;
+      direction?: Direction8;
+    }
+  /**
    * Odešli všichni – ves je opuštěná (migration.md); `reason: 'line-ended'` – rod vymřel a ves
    * zanikla s lidmi jako záznamem (lord.md – Konec rodu).
    */
