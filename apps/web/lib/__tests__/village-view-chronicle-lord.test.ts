@@ -81,3 +81,13 @@ describe('kronika – požár', () => {
     expect(chronicleText(fire, 'Ves')).toBe('Požár – vyhořelo 6 domů.');
   });
 });
+
+describe('kronika – odchod domácností: skloňování lidí', () => {
+  it('1 člověk, 2 lidé, 5 lidí', () => {
+    const left = (people: number): string =>
+      chronicleText({ day: 1, kind: 'households-left', households: 1, people }, 'Ves');
+    expect(left(1)).toBe('Jedna domácnost odešla založit novou ves – 1 člověk.');
+    expect(left(2)).toBe('Jedna domácnost odešla založit novou ves – 2 lidé.');
+    expect(left(5)).toBe('Jedna domácnost odešla založit novou ves – 5 lidí.');
+  });
+});

@@ -346,6 +346,10 @@ describe('vstupy odchodu do nové vsi (migration.md – fáze 3 a 4)', () => {
       }),
     ).toBeNull();
     expect(parseLeaveVillageInput({ sonId: 7 })).toBeNull();
+    // null / nečíslo / prázdná obydlí vedle sonId nesmí projít
+    const map = { kind: 'map', direction: 'N' };
+    expect(parseLeaveVillageInput({ sonId: null, destination: map })).toBeNull();
+    expect(parseLeaveVillageInput({ sonId: 7, dwellingIds: [], destination: map })).toBeNull();
   });
 
   it('bez obydlí, se špatným id, směrem nebo cílem null', () => {
