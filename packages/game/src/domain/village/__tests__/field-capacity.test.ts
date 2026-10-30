@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import {
+  averageRotationShare,
+  STEADY_PATH_YEARS,
   averageSownShare,
   fieldCapacity,
   netYieldPerHa,
@@ -22,6 +24,7 @@ const part = (over: Partial<FieldPart> = {}): FieldPart =>
     fieldId: 1,
     areaM2: 10_000,
     naturalFertility: 56,
+    fertilityShare: 1,
     state: 'sown',
     ...over,
   }) as FieldPart;
@@ -39,6 +42,71 @@ describe('oběh odpočatého dílu', () => {
     expect(ROTATION).toEqual({ sown: 2, fallow: 5 });
     expect(ROTATION_FACTOR).toBeCloseTo(3.5, 9);
     expect(averageSownShare()).toBeCloseTo(0.89, 9);
+  });
+});
+
+describe('ustálený podíl oběhu', () => {
+  it('průměr přes periodu skutečné dráhy ≈ 0,85 (34 let), pod průměrem osevu', () => {
+    expect(STEADY_PATH_YEARS).toBe(34);
+    expect(averageRotationShare()).toBeCloseTo(0.85, 6);
+    expect(averageRotationShare()).toBeLessThan(averageSownShare());
+  });
+
+  it('dráha je periodická: roční simulace stavového automatu dá stejný průměr', () => {
+    // stav na začátku roku: osev 2 roky od podílu ≥ 0,95, pak příloh po +0,05 ročně zpět na ≥ 0,95
+    let share = 0.95;
+    let sownLeft = 2;
+    const history: number[] = [];
+    for (let year = 0; year < 1000; year++) {
+      history.push(share);
+      if (sownLeft > 0) {
+        share -= 0.12;
+        sownLeft--;
+        if (sownLeft === 0 && share >= 0.95 - 1e-9) sownLeft = 2;
+      } else {
+        share = Math.min(1, share + 0.05);
+        if (share >= 0.95 - 1e-9) sownLeft = 2;
+      }
+    }
+    const tail = history.slice(-STEADY_PATH_YEARS * 10);
+    const mean = tail.reduce((a, b) => a + b, 0) / tail.length;
+    expect(mean).toBeCloseTo(averageRotationShare(), 6);
+    // posun o celou periodu nic nemění
+    expect(history.slice(-STEADY_PATH_YEARS).map((v) => Math.round(v * 1e6))).toEqual(
+      history.slice(-2 * STEADY_PATH_YEARS, -STEADY_PATH_YEARS).map((v) => Math.round(v * 1e6)),
+    );
+  });
+});
+
+describe('fieldCapacity s dnešní půdou', () => {
+  const base = fieldCapacity(state([part({ fertilityShare: averageRotationShare() })], 5), DAY)!;
+
+  it('ustálená půda N nemění (soil = 1)', () => {
+    expect(base.soil).toBeCloseTo(1, 9);
+  });
+
+  it('čerstvá půda (1) N nezvedne', () => {
+    const fresh = fieldCapacity(state([part({ fertilityShare: 1 })], 5), DAY)!;
+    expect(fresh.soil).toBe(1);
+    expect(fresh.people).toBeCloseTo(base.people, 9);
+  });
+
+  it('vyčerpaná půda sníží N úměrně a váží plochou', () => {
+    const half = averageRotationShare() / 2;
+    const worn = fieldCapacity(state([part({ fertilityShare: half })], 5), DAY)!;
+    expect(worn.soil).toBeCloseTo(0.5, 9);
+    expect(worn.people).toBeCloseTo(base.people * 0.5, 9);
+    const mixed = fieldCapacity(
+      state(
+        [part({ fertilityShare: 1 }), part({ id: 2, fertilityShare: half, areaM2: 30_000 })],
+        5,
+      ),
+      DAY,
+    )!;
+    expect(mixed.soil).toBeCloseTo(
+      (1 * 1 + 0.5 * averageRotationShare() * 3) / 4 / averageRotationShare(),
+      9,
+    );
   });
 });
 

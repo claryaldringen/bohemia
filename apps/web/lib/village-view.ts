@@ -335,6 +335,7 @@ function fieldCapacityView(
       people: capacity.people,
       rotationHa: capacity.rotationHa,
       fertility: capacity.fertility,
+      soil: capacity.soil,
     }
   );
 }

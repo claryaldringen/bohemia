@@ -1982,9 +1982,11 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
   až 0,38) tak vidí víc, než pole dají, a ikona zčervená, až když lidé hladoví. Hráč přitom podle
   ní pozná, kdy poslat syna s částí vsi pryč (Martin 30. 10. 2026: „To je ale rozhodnutí
   hráče“). Oprava: **N × min(1; dnešní podíl ÷ ustálený podíl)** – dnešní podíl je průměrný
-  `fertilityShare` dílů v oběhu vážený plochou, ustálený podíl je průměr všech let oběhu
-  odpočatého dílu spočtený z `FERTILITY` jako `averageSownShare` (osev 95 a 83 %, příloh 71 → 91 %,
-  dnes ≈ 0,83). Čerstvá pole (100 %) N nezvednou. Vlkov s podílem 0,64: ≈ 0,77 × N (64 → ≈ 49).
+  `fertilityShare` dílů v oběhu vážený plochou, ustálený podíl je průměr podílu přes periodu
+  skutečné ustálené dráhy odpočatého dílu (`averageRotationShare`, z `FERTILITY`: osev 2 roky, příloh
+  do ≥ 95 %; obnova se zaokrouhluje nahoru, takže start oběhu se posouvá 95 → 99 % a dráha se
+  uzavře po 34 letech; dnes ≈ 0,85). Čerstvá pole (100 %) N nezvednou. Vlkov s podílem 0,64: ≈ 0,75 × N
+  (64 → ≈ 48).
   Tooltip navíc ikona půdy s procentem (dnešní ÷ ustálený, nejvýš 100 %). Mění jen zobrazení –
   simulace číslo nepoužívá (`fieldCapacity` volá jen `lib/village-view.ts`).
 - **Zakládání:** pole se zakládá jako stavba po dílech od obydlí – rozpracovaný díl se rozrývá

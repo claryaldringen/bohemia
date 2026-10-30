@@ -269,6 +269,9 @@ tooltip `FieldCapacityTooltip`, červeně při `fieldCapacityShort` (lidí víc 
 v liště není – ukazuje ji panel pole. Hodnota je `view.fieldCapacity` (`lib/village-view.ts`, `fieldCapacityView`)
 z jádra `fieldCapacity` (`packages/game/src/domain/village/field-capacity.ts`; tam i `ROTATION`,
 `ROTATION_FACTOR`, `netYieldPerHa`, které kalkulačka přebírá přes `scripts/lib/steady-state.ts`).
+`people` se násobí `soil` = min(1; dnešní podíl úrodnosti dílů v oběhu vážený plochou ÷ `averageRotationShare()`,
+ustálený podíl = průměr přes periodu skutečné dráhy odpočatého dílu, 34 let, ≈ 0,85); `soil` jde i do view a tooltip ho ukazuje jako ikonu
+`fields` s procentem (`field-capacity-soil`). Simulace číslo nepoužívá.
 Pravidla: `docs/design/fields.md` – Co hráč vidí.
 
 ## Panel pole – označit všechna pole

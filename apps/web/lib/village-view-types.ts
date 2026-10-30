@@ -46,6 +46,7 @@ import {
   type WorkshopActivity,
   type PenSpecies,
   type HerdPlaces,
+  type FieldCapacity,
 } from '@bohemia/game';
 import { type HouseholdRelocation } from './relocation-view';
 
@@ -470,7 +471,7 @@ export interface VillageView {
    * Kolik lidí uživí pole vsi v ustáleném oběhu (fields.md – Co hráč vidí, Pole uživí): počet lidí,
    * pole v oběhu (ha) a průměrná přirozená úrodnost; bez pole nebo lidí null.
    */
-  fieldCapacity?: { people: number; rotationHa: number; fertility: number } | null;
+  fieldCapacity?: Pick<FieldCapacity, 'people' | 'rotationHa' | 'fertility' | 'soil'> | null;
   commonLaborPerDay: number;
   /**
    * Vojvodova rodina dnes (lord.md – Co hráč vidí): kolik jich cvičí, je na poli a vede domácnost;
