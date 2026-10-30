@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import {
   averageRotationShare,
+  STEADY_PATH_YEARS,
   averageSownShare,
   fieldCapacity,
   netYieldPerHa,
@@ -45,9 +46,35 @@ describe('oběh odpočatého dílu', () => {
 });
 
 describe('ustálený podíl oběhu', () => {
-  it('průměr let 95, 83, 71, 76, 81, 86, 91 % = 583 / 7', () => {
-    expect(averageRotationShare()).toBeCloseTo(583 / 700, 9);
+  it('průměr přes periodu skutečné dráhy ≈ 0,85 (34 let), pod průměrem osevu', () => {
+    expect(STEADY_PATH_YEARS).toBe(34);
+    expect(averageRotationShare()).toBeCloseTo(0.85, 6);
     expect(averageRotationShare()).toBeLessThan(averageSownShare());
+  });
+
+  it('dráha je periodická: roční simulace stavového automatu dá stejný průměr', () => {
+    // stav na začátku roku: osev 2 roky od podílu ≥ 0,95, pak příloh po +0,05 ročně zpět na ≥ 0,95
+    let share = 0.95;
+    let sownLeft = 2;
+    const history: number[] = [];
+    for (let year = 0; year < 1000; year++) {
+      history.push(share);
+      if (sownLeft > 0) {
+        share -= 0.12;
+        sownLeft--;
+        if (sownLeft === 0 && share >= 0.95 - 1e-9) sownLeft = 2;
+      } else {
+        share = Math.min(1, share + 0.05);
+        if (share >= 0.95 - 1e-9) sownLeft = 2;
+      }
+    }
+    const tail = history.slice(-STEADY_PATH_YEARS * 10);
+    const mean = tail.reduce((a, b) => a + b, 0) / tail.length;
+    expect(mean).toBeCloseTo(averageRotationShare(), 6);
+    // posun o celou periodu nic nemění
+    expect(history.slice(-STEADY_PATH_YEARS).map((v) => Math.round(v * 1e6))).toEqual(
+      history.slice(-2 * STEADY_PATH_YEARS, -STEADY_PATH_YEARS).map((v) => Math.round(v * 1e6)),
+    );
   });
 });
 

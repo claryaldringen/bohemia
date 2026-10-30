@@ -179,7 +179,7 @@ describe('Pole uživí (fields.md – Co hráč vidí)', () => {
     expect(html).toMatch(/data-testid="field-capacity-people"[^>]*text-red-400/);
     expect(html).toContain('people.png');
     expect(html).toContain('47,9 ha');
-    expect(html).toMatch(/data-testid="field-capacity-soil"[^>]*>.*food\.png.*77 %/);
+    expect(html).toMatch(/data-testid="field-capacity-soil"[^>]*>.*fields\.png.*77 %/);
   });
 
   it('pole stačí: bez červené', () => {

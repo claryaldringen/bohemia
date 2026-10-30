@@ -136,8 +136,8 @@ export function FieldCapacityTooltip({ view }: { view: VillageView }): ReactElem
         data-testid="field-capacity-soil"
         className="mt-0.5 flex items-center gap-1 text-[#bfa77a] tabular-nums"
       >
-        <img src="/icons/resources/food.png" alt="Půda" width={16} height={16} />
-        {Math.round(capacity.soil * 100)} %
+        <img src="/icons/resources/fields.png" alt="Půda" width={16} height={16} />
+        {Math.floor(capacity.soil * 100)} %
       </span>
     </span>
   );
