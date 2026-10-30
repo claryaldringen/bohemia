@@ -134,12 +134,14 @@ function isCurrentPlan(plan: StewardPlan | undefined): plan is StewardPlan {
  * starým tvarem) ano; rozpracovaný nebo rozpracovaný přepočet ne (dopočítá se po etapách); hotový,
  * když došly sloty druhu (`exhausted`, nejdřív `STEWARD.exhaustedReplanDays` po dokončení), když
  * od jeho dokončení uběhlo `STEWARD.replanYears` let, nebo když se stavby vsi mimo správcovy
- * (`built`) od otisku změnily o víc než `STEWARD.replanChanges`.
+ * (`built`) od otisku změnily o víc než `STEWARD.replanChanges`; hned, když je v `steward.replan`
+ * příznak (stavba hráče na plánovaném místě – `playerClaimsPlan`, odchod syna).
  */
 export function needsReplan(state: VillageState, day: number): boolean {
   const plan = state.steward?.plan;
   if (!isCurrentPlan(plan)) return true;
   if (plan.stage !== 'done' || state.steward?.nextPlan) return false;
+  if (state.steward?.replan) return true;
   const done = plan.doneDay ?? plan.startDay;
   if (plan.exhausted && day - done >= STEWARD.exhaustedReplanDays) return true;
   if (dateOfDayIndex(day).year - dateOfDayIndex(done).year >= STEWARD.replanYears) return true;
@@ -151,6 +153,53 @@ export function needsReplan(state: VillageState, day: number): boolean {
   for (const id of now) if (!before.has(id) && !built.has(id)) changes++;
   for (const id of plan.stamp) if (!nowSet.has(id) && !built.has(id)) changes++;
   return changes > STEWARD.replanChanges;
+}
+
+/**
+ * Stavil hráč (stavba mimo `steward.built` a mimo otisk plánu) na plánovaném místě? Obydlí, stavba
+ * obydlí, humno nebo posvátná stavba na políčku slotu plánu nebo domu hospodářství (i na jeho
+ * osmi sousedech – dvůr) = plán je třeba přepočítat hned, ne až po `replanChanges` změnách
+ * (steward.md – Soužití s hráčem). Ostatní stavby hráče (pole, sady…) řeší počet změn.
+ */
+export function playerClaimsPlan(state: VillageState, landscape: Landscape): boolean {
+  const plan = state.steward?.plan;
+  if (!plan || plan.stage !== 'done') return false;
+  const built = new Set(state.steward?.built ?? []);
+  const before = new Set(plan.stamp);
+  const size = landscape.size;
+  const half = (size * landscape.cellSizeM) / 2;
+  const planned = new Set<number>();
+  for (const list of Object.values(plan.slots)) for (const t of list ?? []) planned.add(t);
+  for (const farm of plan.farms) if (farm.dwellingId === undefined) planned.add(farm.house);
+  const hits = (x: number, z: number): boolean => {
+    const tx = Math.floor((x + half) / landscape.cellSizeM);
+    const ty = Math.floor((z + half) / landscape.cellSizeM);
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const nx = tx + dx;
+        const ny = ty + dy;
+        if (nx >= 0 && ny >= 0 && nx < size && ny < size && planned.has(ny * size + nx)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+  const isNew = (id: number | undefined): boolean =>
+    id !== undefined && !before.has(id) && !built.has(id);
+  for (const d of state.dwellings) if (isNew(d.id) && hits(d.position.x, d.position.z)) return true;
+  for (const c of state.constructions) {
+    if (c.kind === 'dwelling' && c.position && isNew(c.id) && hits(c.position.x, c.position.z)) {
+      return true;
+    }
+  }
+  for (const f of state.threshingFloors ?? []) {
+    if (isNew(f.id) && hits(f.position.x, f.position.z)) return true;
+  }
+  for (const b of state.sacredBuildings ?? []) {
+    if (isNew(b.id) && hits(b.position.x, b.position.z)) return true;
+  }
+  return false;
 }
 
 /**
@@ -186,13 +235,13 @@ export function planSettlement(
   if (!current) plan = templatesStage(state, day, landscape, obstacles);
   else if (current.stage !== 'done') plan = advance(current);
   else if (needsReplan(state, day)) {
-    return {
-      ...state,
-      steward: { ...steward, nextPlan: templatesStage(state, day, landscape, obstacles) },
-    };
+    const started = { ...steward, nextPlan: templatesStage(state, day, landscape, obstacles) };
+    delete started.replan;
+    return { ...state, steward: started };
   } else return state;
   const out = { ...steward, plan };
   delete out.nextPlan;
+  if (plan.stage === 'done') delete out.replan;
   return { ...state, steward: out };
 }
 

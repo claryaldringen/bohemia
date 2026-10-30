@@ -423,6 +423,15 @@ stavby), nejvýš jedno pole na den správce.
   (`decideRebuilds`), zbytková hodnota je nulová – správce místo přestavby na místě použije
   **Přestěhovat** (`startRelocation`, stejná akce jako hráč) na lepší slot plánu, když zisk
   převáží rozdíl ceny. Dřív jen při velkém zisku (zatopené místo, dům uprostřed nejlepšího pole).
+- **Upřesnění (návrh Clauda):** háček je v `decideRebuilds` (`steward-rebuild.ts`), protože
+  rozhodnutí o přestavbě padá tam každý den a den správce (po 10 dnech) by ho předběhl. Zisk
+  = rozdíl ceny místa domu za rok (voda a dřevo – `dwellingSiteValue`) × horizont
+  `STEWARD.rebuildHorizonYears` (10 let, nejvýš životnost nového domu); stavba jinde stojí tolik
+  co přestavba na místě, takže „rozdíl ceny“ je jen přirážka `STEWARD.rebuildMargin` (20 %) z práce
+  nového domu. Nevhodné stávající místo (pod hladinou záplav, svah) = vždy se vyplatí. Cíl:
+  nejvýhodnější volný a nevetovaný ověřený slot plánu. Dvorec a dílny se nestěhují (přestaví se na
+  místě); cesta k poli a uvolněná půda se do zisku zatím nepočítají. Bez zisku nebo bez slotu
+  přestaví obyvatelé dům na místě jako dřív.
 - **Ostatní stavby** (ohrada, humno, hřbitov, sad, modla) se nepřesouvají: správce postaví novou
   na lepším místě a starou, kam se přestane chodit, nechá chátrat a rozpadnout
   ([opuštěné stavby](abandonment.md)) – bourat ji nemusí. Hřbitov s hroby zůstává vždy.
@@ -440,6 +449,12 @@ stavby), nejvýš jedno pole na den správce.
   `cancelConstruction`). Správce si zrušení zapíše jako **veto**: na tom políčku tentýž druh
   stavby `STEWARD.vetoYears` (≈ 5 let) nepostaví. Hotové stavby správce hráč nebourá, stejně jako
   své (dnešní pravidlo).
+- **Veto a přepočet plánu (upřesnění, návrh Clauda):** zrušení stavby správce zapíše veto na
+  všech políčkách, která stavba zabírala (`cancelConstruction` s krajinou), na `STEWARD.vetoYears`
+  = 5 let; stavba hráče veto nezapisuje. Hráčovo obydlí, humno nebo posvátná stavba na plánovaném
+  slotu nebo domě hospodářství (i na jeho dvoře) spustí přepočet plánu hned v nejbližší den
+  správce (`steward.replan`, ne až po `replanChanges` změnách); správce do dokončení přepočtu
+  staví podle starého plánu a jeho zabrané sloty přeskakuje. Odchod syna přepočet spustí také.
 - **Přepnutí za běhu** je akce hráče (`setSteward(villageId, on)` – dopočet do dneška, pak změna;
   den změny `sinceDay`). Vypnutí: rozestavěné stavby správce se dostaví jako každé jiné (jsou
   vsi), plán a značky zůstanou. Zapnutí: plán se přepočítá, otisk ukáže stavby hráče mezitím.

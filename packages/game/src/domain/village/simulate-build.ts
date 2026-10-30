@@ -40,6 +40,7 @@ import {
   woodSupply,
 } from './wood';
 import { fieldGridOf } from './squares';
+import { stewardRelocate } from './steward-rebuild';
 import { isStewardBuilt, markStewardBuilt } from './steward-state';
 import { clearWoodAt } from './woods';
 import { forestBonusUntil, occupiedDwellings } from './simulate-plan';
@@ -549,6 +550,11 @@ export function decideRebuilds(
       : d.id === manorId
         ? 'dvorec'
         : rebuildType(d.type, yearlyCommon, woodSupply(state, obstacles, day));
+    // obydlí správce na konci životnosti: když se vyplatí, správce ho přestěhuje na lepší slot
+    // plánu místo přestavby na místě (steward.md – Přestavba vlastních staveb)
+    if (landscape && obstacles && !craft && type !== 'dvorec' && d.id !== manorId) {
+      if (stewardRelocate(state, d, type, day, landscape, obstacles)) continue;
+    }
     // nový pozemek: polozemnice bez pozemku, dvorec bez pozemku se dvorem (dvě políčka)
     const needsSite = !d.plot || (type === 'dvorec' && !d.plot.yard);
     const site =

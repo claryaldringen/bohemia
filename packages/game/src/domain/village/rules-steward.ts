@@ -71,6 +71,19 @@ export const STEWARD = {
    */
   slotCandidates: 24,
 
+  // Přestavba vlastních staveb a soužití s hráčem (steward.md – Přestavba vlastních staveb,
+  // Soužití s hráčem; čísla návrh Clauda)
+
+  /** Přestavba – Kdy se vyplatí: horizont zisku přestěhování obydlí na lepší místo (let; nejvýš životnost nového). */
+  rebuildHorizonYears: 10,
+  /**
+   * Přestavba – Kdy se vyplatí: zisk za horizont musí převážit rozdíl ceny o tento podíl práce
+   * nového domu (ať se nestěhuje kvůli šumu).
+   */
+  rebuildMargin: 0.2,
+  /** Soužití s hráčem – Veto: tolik let po zrušení hráčem správce tentýž druh na políčku nestaví. */
+  vetoYears: 5,
+
   // Den správce – rozhodování, režim a rozpočet (steward.md – Kde správce běží, Cíl „Růst se
   // zásobou“, Rozhodovací pořadí v den správce, Den správce – upřesnění; čísla návrh Clauda)
 

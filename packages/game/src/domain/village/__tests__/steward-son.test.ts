@@ -155,6 +155,8 @@ describe('odchod syna (krok 2)', () => {
       expect.objectContaining({ kind: 'son-left-village', name: 'Bořivoj', village: record?.name }),
     );
     expect(pendingStewardDepartures(s)).toHaveLength(1);
+    // plán mateřské vsi se přepočítá (menší ves, uvolněné domy)
+    expect(s.steward?.replan).toBe(true);
   });
 
   it('jindy než 31. 8., s vypnutým správcem, s místem na pole nebo bez syna nikdo neodejde', () => {

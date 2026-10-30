@@ -131,6 +131,11 @@ export interface StewardState {
   /** Rozpracovaný přepočet: počítá se po etapách vedle `plan`, hotový ho jedním krokem nahradí. */
   nextPlan?: StewardPlan;
   vetoes?: StewardVeto[];
+  /**
+   * Plán je třeba přepočítat hned (nejbližší den správce), bez čekání na `replanYears` a počet
+   * změn: stavba hráče na plánovaném místě, odchod syna. Zmizí, když se začne počítat nový plán.
+   */
+  replan?: true;
   departures?: StewardDeparture[];
   /** Co správce zkusil a nešlo (cesta, směr stezky) – nezkouší znovu do `untilDay`. */
   skips?: { kind: string; id: number; untilDay: number }[];

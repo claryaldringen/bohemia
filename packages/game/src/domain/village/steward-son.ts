@@ -374,7 +374,11 @@ export function stewardDeparture(
     directions,
     settlers: departed.settlers,
   };
-  if (state.steward) state.steward.departures = [...(state.steward.departures ?? []), record];
+  if (state.steward) {
+    state.steward.departures = [...(state.steward.departures ?? []), record];
+    // menší ves, uvolněné domy – plán mateřské vsi se přepočítá (steward.md – Odchod syna)
+    state.steward.replan = true;
+  }
   return true;
 }
 

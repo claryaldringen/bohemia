@@ -28,7 +28,7 @@ import { STEWARD, type StewardMonthDay, type StewardWindow } from './rules-stewa
 import { fieldSowingTargets } from './simulate-plan';
 import { fieldCells, planCentre, takenTiles, villageTerritory } from './steward-land';
 import { extraSteps } from './steward-extras';
-import { cellRuns, farmCells, planSettlement } from './steward-plan';
+import { cellRuns, farmCells, planSettlement, playerClaimsPlan } from './steward-plan';
 import { isStewardOn, markStewardStarted } from './steward-state';
 import { sowingYieldFactor } from './weather-effects';
 import type {
@@ -112,6 +112,9 @@ function decideDay(
   landscape: Landscape,
   obstacles: ObstacleLayer,
 ): void {
+  if (state.steward && !state.steward.replan && playerClaimsPlan(state, landscape)) {
+    state.steward.replan = true;
+  }
   const planned = planSettlement(state, day, landscape, obstacles);
   if (planned !== state) state.steward = planned.steward;
   const coverage = craftCoverage(state, day);
