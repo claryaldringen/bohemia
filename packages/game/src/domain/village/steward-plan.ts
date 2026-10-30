@@ -164,6 +164,8 @@ export function needsReplan(state: VillageState, day: number): boolean {
 export function playerClaimsPlan(state: VillageState, landscape: Landscape): boolean {
   const plan = state.steward?.plan;
   if (!plan || plan.stage !== 'done') return false;
+  // přepočet už běží a vezme stav vsi z doby svého startu; po swapu se stavba hráče chytí znovu
+  if (state.steward?.nextPlan) return false;
   const built = new Set(state.steward?.built ?? []);
   const before = new Set(plan.stamp);
   const size = landscape.size;
@@ -229,6 +231,7 @@ export function planSettlement(
     if (next.stage !== 'done') return { ...state, steward: { ...steward, nextPlan: next } };
     const swapped = { ...steward, plan: next };
     delete swapped.nextPlan;
+    delete swapped.replan;
     return { ...state, steward: swapped };
   }
   let plan: StewardPlan;

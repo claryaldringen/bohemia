@@ -278,6 +278,17 @@ export function cancelConstruction(
   // stavba správce: veto – tentýž druh na těch políčkách se `STEWARD.vetoYears` nestaví
   // (steward.md – Soužití s hráčem); krajina dá políčka, bez ní veto nevznikne
   const veto = geo && isStewardBuilt(state, c.id) ? vetoSites(state, c, geo) : null;
+  // zrušené stěhování: veto i na zdrojový dům, aby ho správce přestavěl na místě, ne stěhoval jinam
+  if (veto && geo && c.relocates !== undefined) {
+    const source = state.dwellings.find((x) => x.id === c.relocates);
+    if (source) {
+      const half = (geo.size * geo.cellSizeM) / 2;
+      veto.cells.push({
+        x: Math.floor((source.position.x + half) / geo.cellSizeM),
+        y: Math.floor((source.position.z + half) / geo.cellSizeM),
+      });
+    }
+  }
   returnConstructionWood(next, target);
   // vrátí se přesně to, čím ves zaplatila koně ohrady (horses.md – Koně se stavbou ohrady)
   if (target.horsePenPaid) refundHorsePen(next, target.horsePenPaid, day);

@@ -15,7 +15,8 @@ import { decideRebuilds } from '../simulate-build';
 import { stewardDay } from '../steward';
 import { dwellingSiteValue, landValues } from '../steward-land';
 import { needsReplan, planSettlement, planStamp } from '../steward-plan';
-import { relocationGain } from '../steward-rebuild';
+import { relocationGain, relocationWorthwhile } from '../steward-rebuild';
+import { dwellingBuildLabor } from '../rules';
 import { markStewardBuilt, newSteward } from '../steward-state';
 import type { VillageState } from '../types';
 import { couple, kin } from './kin-fixtures';
@@ -160,17 +161,48 @@ describe('přestavba vlastních staveb správce', () => {
     expect(relocationGain(landscape, null, sorted[0]!, 4, 'zemnice')).toBe(Infinity);
   });
 
-  it('výsledek nezávisí na kouscích dopočtu', () => {
+  it('marže: zisk těsně pod prahem nestěhuje, těsně nad ano', () => {
+    const margin = STEWARD.rebuildMargin * dwellingBuildLabor('zemnice');
+    expect(margin).toBeGreaterThan(0);
+    expect(relocationWorthwhile(margin - 1e-6, 'zemnice')).toBe(false);
+    expect(relocationWorthwhile(margin, 'zemnice')).toBe(false);
+    expect(relocationWorthwhile(margin + 1e-6, 'zemnice')).toBe(true);
+    expect(relocationWorthwhile(Infinity, 'zemnice')).toBe(true);
+  });
+
+  it('zrušené stěhování: veto na zdroj i cíl, správce dům přestaví na místě', () => {
+    const s = agedHome(waitingVillage(SEPT), badTile(), true);
+    const d = s.dwellings[1]!;
+    const day = s.lastDay + 1;
+    decideRebuilds(s, day, obstacles, landscape);
+    const move = s.constructions.find((c) => c.relocates === d.id)!;
+    expect(move).toBeDefined();
+    const cancelled = cancelConstruction(s, day, move.id, landscape);
+    const cells = (cancelled.steward!.vetoes ?? []).map((v) => `${v.cell.x},${v.cell.y}`);
+    expect(cells).toContain(
+      `${cellOf(tileOf(move.position!)).x},${cellOf(tileOf(move.position!)).y}`,
+    );
+    expect(cells).toContain(`${cellOf(badTile()).x},${cellOf(badTile()).y}`);
+    decideRebuilds(cancelled, day + 1, obstacles, landscape);
+    expect(cancelled.constructions.some((c) => c.relocates !== undefined)).toBe(false);
+    expect(cancelled.constructions.some((c) => c.kind === 'rebuild' && c.dwellingId === d.id)).toBe(
+      true,
+    );
+  });
+
+  it('výsledek nezávisí na kouscích dopočtu (rozhodnutí na hranici kousku)', () => {
     const s = agedHome(waitingVillage(SEPT), badTile(), true);
     const to = s.lastDay + 45;
     const whole = advanceVillage(s, to, obstacles, landscape);
-    const part = advanceVillage(
-      advanceVillage(s, s.lastDay + 17, obstacles, landscape),
-      to,
-      obstacles,
-      landscape,
-    );
-    expect(JSON.stringify(part)).toBe(JSON.stringify(whole));
+    for (const cut of [1, 2, 17]) {
+      const part = advanceVillage(
+        advanceVillage(s, s.lastDay + cut, obstacles, landscape),
+        to,
+        obstacles,
+        landscape,
+      );
+      expect(JSON.stringify(part)).toBe(JSON.stringify(whole));
+    }
     expect(
       whole.constructions.some((c) => c.relocates !== undefined) || whole.dwellings.length > 1,
     ).toBe(true);
@@ -242,6 +274,13 @@ describe('přepočet plánu', () => {
       stewardDay(p, day, landscape, obstacles);
     }
     expect(p.steward!.nextPlan).toBeUndefined();
+    expect(p.steward!.replan).toBeUndefined();
+    // po swapu už neběží druhý, zbytečný přepočet (stavba hráče je v otisku nového plánu)
+    for (let k = 0; k < 6; k++) {
+      day += STEWARD.everyDays;
+      stewardDay(p, day, landscape, obstacles);
+      expect(p.steward!.nextPlan).toBeUndefined();
+    }
     expect(p.steward!.plan!.slots.dwelling).not.toContain(tile);
     // stavba hráče zůstala
     expect(p.constructions.some((c) => c.kind === 'dwelling' && tileOf(c.position!) === tile)).toBe(

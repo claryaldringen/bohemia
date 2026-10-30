@@ -60,6 +60,11 @@ export function relocationGain(
   return (here - there) * years;
 }
 
+/** Přeplatí zisk stěhování přirážku `STEWARD.rebuildMargin` z práce nového domu? */
+export function relocationWorthwhile(gain: number, type: BuildableDwellingType): boolean {
+  return gain > STEWARD.rebuildMargin * dwellingBuildLabor(type);
+}
+
 /**
  * Dožilé obydlí správce: přestěhuje se na nejlepší volný slot plánu, když zisk za horizont převáží
  * rozdíl ceny (stavba jinde stojí tolik co přestavba na místě, takže rozdíl je jen přirážka
@@ -80,14 +85,16 @@ export function stewardRelocate(
   if (!plan || plan.stage !== 'done') return false;
   const slots = plan.slots.dwelling ?? [];
   if (slots.length === 0) return false;
+  // hráč zrušil stěhování tohoto domu: přestaví se na místě
+  const own = tileOfPoint(landscape, d.position.x, d.position.z);
+  if (own !== null && houseVetoed(state, landscape, day, own)) return false;
   const people = occupants(state, d.id).length;
   const current = tileOfPoint(landscape, d.position.x, d.position.z);
   const taken = takenTiles(state, day, landscape);
-  const margin = STEWARD.rebuildMargin * dwellingBuildLabor(type);
   const ranked = slots
     .filter((t) => !taken[t] && !houseVetoed(state, landscape, day, t))
     .map((t) => ({ t, gain: relocationGain(landscape, current, t, people, type) }))
-    .filter((e) => e.gain > margin)
+    .filter((e) => relocationWorthwhile(e.gain, type))
     .sort((a, b) => b.gain - a.gain || a.t - b.t);
   if (ranked.length === 0) return false;
   const coverage = craftCoverage(state, day);
