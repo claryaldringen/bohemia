@@ -40,6 +40,7 @@ import {
   woodSupply,
 } from './wood';
 import { fieldGridOf } from './squares';
+import { isStewardBuilt, markStewardBuilt } from './steward-state';
 import { clearWoodAt } from './woods';
 import { forestBonusUntil, occupiedDwellings } from './simulate-plan';
 
@@ -304,6 +305,16 @@ export function foundPart(state: VillageState, day: number, part: FieldPart): vo
 
 // --- stavby a domácnosti ------------------------------------------------------------------
 
+/**
+ * Dostavěná stavba správce předá značku „postavil správce“ tomu, co z ní vzniklo (pole, ohrada,
+ * hřbitov, sad, cesty; obydlí viz `finishConstructions`) – steward.md – Stav správce.
+ */
+function inheritStewardMark(state: VillageState, c: Construction): void {
+  if (!isStewardBuilt(state, c.id)) return;
+  const ids = [c.dwellingId, c.fieldId, c.cemeteryId, c.orchardId, c.penId, ...(c.roadIds ?? [])];
+  for (const id of ids) if (id !== null && id !== undefined) markStewardBuilt(state, id);
+}
+
 export function isFinished(state: VillageState, c: Construction, founding: FoundingIndex): boolean {
   if (c.kind === 'field') return foundingParts(founding, c).length === 0;
   if (c.kind === 'orchard') return isOrchardPlanted(state, c);
@@ -327,6 +338,7 @@ export function finishConstructions(state: VillageState, day: number): void {
       unfinished.push(c);
       continue;
     }
+    inheritStewardMark(state, c);
     if (c.kind === 'field' || c.kind === 'orchard') {
       // obnova sadu má zápis v kronice při zahájení (orchard.md – Obnova sadu)
       if (!c.renewal) state.chronicle.push(finishedEvent(day, c, null));
@@ -442,6 +454,7 @@ export function finishConstructions(state: VillageState, day: number): void {
         : {}),
     };
     state.dwellings.push(dwelling);
+    if (isStewardBuilt(state, c.id)) markStewardBuilt(state, dwelling.id);
     state.chronicle.push(finishedEvent(day, c, dwelling.id));
     // přestěhování: domácnost se přestěhuje do nového domu, starý zůstane prázdný (migration.md);
     // jinak nové obydlí osídlí rodina ženatého syna (kinship.md – Domácnosti)

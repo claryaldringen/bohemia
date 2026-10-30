@@ -102,6 +102,8 @@ describe('ves bez dílen beze změny (crafts.md – Učení řemesla)', () => {
       'grainPits',
       // ves bez rodu (lord.md – Rod vojvody) – přibude jen značka `dynasty`
       'dynasty',
+      // správce vsi (steward.md – Stav správce) – vypnutý, jen značka `steward`
+      'steward',
       // značka převodu na osevní postup (fields.md – Osevní postup po dílech, bod 7)
       'sowingRotation',
       // zvěř vsi (wildlife.md) – přibyl klíč `wildlife`; v rámci dne ovlivňuje i simulaci, ale zlatý běh ji neprojeví

@@ -1,4 +1,5 @@
 import { TOTAL_GAME_DAYS } from '../calendar';
+import { newSteward } from './steward-state';
 import type { ObstacleLayer } from '../landscape';
 import { cemeteryFoundingCost, touchingCemeteries, villageCemeteries } from './cemetery';
 import { newFenceSides } from './fence-cost';
@@ -540,6 +541,8 @@ export function foundVillage(input: {
     dynasty: settlers
       ? settlersDynasty(settlersLord(people, settlers.lordId), day)
       : (founders?.dynasty ?? { lordId: null, lords: [] }),
+    // ves syna (osadníci s vůdcem) řídí správce od založení, první ves hráče ne (steward.md)
+    steward: newSteward(day, settlers?.lordId !== undefined),
     dwellings: [],
     fields: [],
     parts: [],

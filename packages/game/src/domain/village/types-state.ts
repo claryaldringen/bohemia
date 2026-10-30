@@ -2,6 +2,7 @@
 // Rozcestník je `types.ts`; tento soubor jen drží část typů.
 
 import type { ChronicleEvent, LaborDay } from './types-chronicle';
+import type { StewardState } from './types-steward';
 import type { Construction, SacredBuildingKind, FarmSeason } from './types-construction';
 import type {
   Cart,
@@ -417,6 +418,11 @@ export interface VillageState {
    * před rodem, končí jen vymřením).
    */
   dynasty?: DynastyState;
+  /**
+   * Správce vsi (steward.md – Stav správce): zapnutý, značka „postavil správce“, plán. Chybí –
+   * správce vypnutý (`withSteward` ji převede).
+   */
+  steward?: StewardState;
 }
 
 /** Rod vojvody ve vsi (lord.md – Rod vojvody). */

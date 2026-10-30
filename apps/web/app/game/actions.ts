@@ -26,6 +26,7 @@ import {
   plantRoadApplesForPlayer,
   declareHuntForPlayer,
   nameLineManForPlayer,
+  setStewardForPlayer,
   renameVillageForPlayer,
   skipTimeForPlayerView,
   upgradeRoadForPlayer,
@@ -56,6 +57,7 @@ import {
   parsePlantRoadApplesInput,
   parseDeclareHuntInput,
   parseNameLineManInput,
+  parseSetStewardInput,
   parseRenameVillageInput,
   parseRestartGameInput,
   parseSkipTimeInput,
@@ -354,6 +356,11 @@ export async function placeWorkshop(input: unknown): Promise<VillageActionResult
  */
 export async function nameLineMan(input: unknown): Promise<VillageActionResult> {
   return villageAction(input, parseNameLineManInput, nameLineManForPlayer);
+}
+
+/** Zapnutí / vypnutí správce vsi (steward.md): `{ villageId, on }`. */
+export async function setSteward(input: unknown): Promise<VillageActionResult> {
+  return villageAction(input, parseSetStewardInput, setStewardForPlayer);
 }
 
 /**

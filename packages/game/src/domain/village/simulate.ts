@@ -43,6 +43,7 @@ import { roadSwathDay } from './road-swath';
 import { wagonRoadsDay } from './wagon-road';
 import { isVillageDormant } from './departure';
 import { withDynasty } from './dynasty';
+import { withSteward } from './steward-state';
 import { ensureMainWives, extraWivesDay } from './dynasty-wives';
 import { updateRuins } from './ruins';
 import {
@@ -123,18 +124,20 @@ export function* advanceVillageSteps(
   // postup po dílech (fields.md – Osevní postup po dílech, bod 7), plán z doby před osivem ze
   // zásob odpuštěné osivo zaseté části (fields.md – Osivo ze zásob, Převod) – jednou, idempotentně
   const next = cloneState(
-    withWildlife(
-      withThreshingGrace(
-        withCraftSkill(
-          withHorsePenStock(
-            withOxen(
-              withPenSpecies(
-                withoutForeignGoods(
-                  withIronBarsTrade(
-                    withToolEquipment(
-                      withCattleKinds(
-                        withDynasty(
-                          withKinship(withSeedForgiven(withSowingRotation(withSeason(state)))),
+    withSteward(
+      withWildlife(
+        withThreshingGrace(
+          withCraftSkill(
+            withHorsePenStock(
+              withOxen(
+                withPenSpecies(
+                  withoutForeignGoods(
+                    withIronBarsTrade(
+                      withToolEquipment(
+                        withCattleKinds(
+                          withDynasty(
+                            withKinship(withSeedForgiven(withSowingRotation(withSeason(state)))),
+                          ),
                         ),
                       ),
                     ),
@@ -144,8 +147,8 @@ export function* advanceVillageSteps(
             ),
           ),
         ),
+        landscape,
       ),
-      landscape,
     ),
   );
   // rozestavěné díly v lese bez fází dostanou kácení, schnutí a pálení (forest.md – Klučení lesa

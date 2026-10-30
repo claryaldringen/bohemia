@@ -69,6 +69,7 @@ export * from './population';
 export * from './kinship';
 export * from './dynasty';
 export * from './dynasty-names';
+export * from './steward-state';
 export * from './households';
 export * from './marriage';
 export * from './extinction';

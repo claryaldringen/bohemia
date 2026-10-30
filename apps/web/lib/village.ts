@@ -17,6 +17,7 @@ import {
   type BadYearKind,
   type ForcedDisasterKind,
   nameLineManInVillage,
+  setSteward,
   placeCemetery,
   placeDwelling,
   placeField,
@@ -475,6 +476,20 @@ export function nameLineManForPlayer(
     nameLineManInVillage(
       { villages: villages() },
       { villageId: ctx.villageId, today: ctx.day, landscape: ctx.landscape, ...input },
+    ),
+  );
+}
+
+/** Hráč zapne nebo vypne správce vsi (steward.md – Soužití s hráčem) – ves ověří `actOn`. */
+export function setStewardForPlayer(
+  playerId: string,
+  villageId: string,
+  input: { on: boolean },
+): Promise<VillageActionResult> {
+  return actOn(playerId, villageId, (ctx) =>
+    setSteward(
+      { villages: villages() },
+      { playerId, villageId: ctx.villageId, today: ctx.day, landscape: ctx.landscape, ...input },
     ),
   );
 }

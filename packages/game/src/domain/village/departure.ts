@@ -1,4 +1,5 @@
 import { TOTAL_GAME_DAYS } from '../calendar';
+import { newSteward } from './steward-state';
 import type { Landscape } from '../landscape';
 import { cloneState } from './clone';
 import { currentLord } from './dynasty';
@@ -463,6 +464,8 @@ export function travellingVillage(
     people: settlers.people.map((p) => ({ ...p, dwellingId: householdId })),
     // ves bez rodu jako nová ves z osadníků (`foundVillage`) – převod rodu ji nemá sledovat
     dynasty: { lordId: null, lords: [] },
+    // ves s vůdcem odchodu (syn vojvody) řídí správce od založení (steward.md – Stav správce)
+    steward: newSteward(day, settlers.lordId !== undefined),
     dwellings: [],
     fields: [],
     parts: [],
