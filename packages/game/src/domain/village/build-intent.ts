@@ -1,5 +1,11 @@
 import { tileOfWorldPoint, type Landscape, type ObstacleLayer } from '../landscape';
-import { startNewDwelling, startRelocation, startSacredBuilding, startWorkshop } from './actions';
+import {
+  startNewDwelling,
+  startRelocation,
+  startSacredBuilding,
+  startThreshingFloor,
+  startWorkshop,
+} from './actions';
 import { buildAffordability } from './costs';
 import { villageRoadWalk } from './paths/walking';
 import {
@@ -9,7 +15,7 @@ import {
 } from './placement-dwellings';
 import { canonicalPlot } from './placement-geometry';
 import { forestEdgeDistanceM, waterDistanceM } from './placement-squares';
-import { checkSacredBuildingPlacement } from './placement-sacred';
+import { checkSacredBuildingPlacement, checkThreshingFloorPlacement } from './placement-sacred';
 import type { DwellingPlacementCheck } from './placement-types';
 import { placementVillageOf } from './placement-village';
 import { relocationAffordability, relocationBlock, type RelocationBlock } from './relocation';
@@ -92,8 +98,16 @@ export interface SacredIntent {
   position: Position;
 }
 
+/** Humno (production-chains.md – Humno) – volně u kurzoru jako dílna. */
+export interface ThreshingFloorIntent {
+  kind: 'threshing-floor';
+  /** Střed a natočení humna. */
+  position: Position;
+}
+
 /** Co se má stavět a kde – druh stavby a místo (poloha, pozemek, čtverce, mřížka, cesta). */
-export type BuildIntent = DwellingIntent | RelocationIntent | WorkshopIntent | SacredIntent;
+export type BuildIntent =
+  DwellingIntent | RelocationIntent | WorkshopIntent | SacredIntent | ThreshingFloorIntent;
 
 /** Výsledek příkazu stavby – nový stav vsi, nebo důvod odmítnutí česky pro hráče. */
 export type BuildResult = { ok: true; state: VillageState } | { ok: false; reason: string };
@@ -118,6 +132,8 @@ export function applyBuildIntent(
       return buildWorkshop(state, day, landscape, obstacles, intent);
     case 'sacred':
       return buildSacred(state, day, landscape, obstacles, intent);
+    case 'threshing-floor':
+      return buildThreshingFloor(state, day, landscape, obstacles, intent);
   }
 }
 
@@ -351,6 +367,45 @@ function buildSacred(
   } catch (error) {
     // duby nestačí ke kácení (vyhradila je mezitím jiná stavba)
     if (error instanceof RangeError) return { ok: false, reason: NO_OAKS };
+    throw error;
+  }
+}
+
+/**
+ * Humno – ves musí mít dřevo předem; stavba vyhradí nejbližší dospělé stromy a překážky na
+ * půdorysu osadníci odstraní hned. Díly polí pod humnem se zmenší (fields.md – Pole jako krajina).
+ */
+function buildThreshingFloor(
+  state: VillageState,
+  day: number,
+  landscape: Landscape,
+  obstacles: ObstacleLayer,
+  intent: ThreshingFloorIntent,
+): BuildResult {
+  const { affordable, missing } = buildAffordability(state, 'threshing-floor', obstacles);
+  if (!affordable) return { ok: false, reason: missing.wood ? NO_WOOD : CANNOT_AFFORD };
+  const position = { ...intent.position };
+  const check = checkThreshingFloorPlacement(
+    landscape,
+    placementVillageOf(state, day),
+    position,
+    obstacles,
+  );
+  if (!check.ok) return { ok: false, reason: check.reason ?? 'Sem humno nepatří.' };
+  try {
+    return {
+      ok: true,
+      state: startThreshingFloor(state, day, position, obstacles, {
+        obstacleCost: check.obstacleCost,
+        obstacleIds: check.obstacleIds,
+        clearedTrees: check.clearedTrees,
+        takenLand: check.takenLand,
+        walk: villageRoadWalk(state, landscape),
+      }),
+    };
+  } catch (error) {
+    // stromy nestačí ke kácení (vyhradila je mezitím jiná stavba)
+    if (error instanceof RangeError) return { ok: false, reason: NO_WOOD };
     throw error;
   }
 }

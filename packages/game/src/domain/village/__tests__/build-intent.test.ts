@@ -168,3 +168,20 @@ describe('applyBuildIntent – posvátná místa', () => {
     expect(apply(result.state, shrine, real)).toEqual({ ok: false, reason: SHRINE_EXISTS });
   });
 });
+
+describe('applyBuildIntent – humno', () => {
+  it('zahájí stavbu humna bez dřeva z hromady', () => {
+    const result = apply(settled(), { kind: 'threshing-floor', position: at(0, 7.5) });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.constructions.at(-1)).toMatchObject({ kind: 'threshing-floor' });
+    expect(result.state.woodLogs).toBe(40);
+  });
+
+  it('do vody odmítne', () => {
+    expect(apply(settled(), { kind: 'threshing-floor', position: at(112, 0) })).toEqual({
+      ok: false,
+      reason: 'Humno nemůže stát ve vodě.',
+    });
+  });
+});
