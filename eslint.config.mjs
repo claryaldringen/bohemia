@@ -87,6 +87,8 @@ const DETERMINISTIC_LAYER_FILES = [
   // ho musí zopakovat
   'packages/game/src/domain/village/steward-land.ts',
   'packages/game/src/domain/village/steward-plan.ts',
+  // den správce (steward.md – Rozhodovací pořadí) – stavby správce jsou ve stavu vsi
+  'packages/game/src/domain/village/steward.ts',
 ];
 
 export default defineConfig(

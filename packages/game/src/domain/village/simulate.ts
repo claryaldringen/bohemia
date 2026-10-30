@@ -44,6 +44,7 @@ import { wagonRoadsDay } from './wagon-road';
 import { isVillageDormant } from './departure';
 import { withDynasty } from './dynasty';
 import { withSteward } from './steward-state';
+import { stewardDay } from './steward';
 import { ensureMainWives, extraWivesDay } from './dynasty-wives';
 import { updateRuins } from './ruins';
 import {
@@ -276,6 +277,10 @@ function simulateDay(
   keepManor(state);
   decideRebuilds(state, day, obstacles, landscape);
   occupyEmptyDwellings(state, day);
+  // den správce (steward.md – Rozhodovací pořadí v den správce): jen zapnutý správce s krajinou
+  // a vrstvou překážek, každý `STEWARD.everyDays`. den – nové stavby dostanou id z `nextId` před
+  // kontrolou obilných jam níž a zbytky jam pod nimi zmizí v `updateRuins`
+  stewardDay(state, day, landscape, obstacles);
   // zbytky jam po zaniklých obydlích zarůstají, pod novou stavbou zmizí (ruins.ts)
   updateRuins(state, day, landscape);
   updateOrePits(state, day);

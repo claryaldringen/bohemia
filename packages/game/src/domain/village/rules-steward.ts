@@ -57,4 +57,62 @@ export const STEWARD = {
   checksPerStage: 40,
   /** Plán sídla – Ostatní: slotů jednoho druhu (hřbitov, sad, ohrada, humno, dílna) nejvýš. */
   extraSlots: 8,
+
+  // Den správce – rozhodování, režim a rozpočet (steward.md – Kde správce běží, Cíl „Růst se
+  // zásobou“, Rozhodovací pořadí v den správce, Den správce – upřesnění; čísla návrh Clauda)
+
+  /** Kde správce běží – Den správce: správce rozhoduje v den s indexem dělitelným tímto číslem. */
+  everyDays: 10,
+  /** Cíl – Režim správce: pojistka zásob (`bufferFill`) pod tímto podílem = Nouze. */
+  emergencyFill: 0.5,
+  /**
+   * Cíl – Rozpočet práce: zbývající práce rozestavěných staveb nejvýš průměrná volná práce
+   * posledních 30 dní × tolik dní.
+   */
+  laborHorizonDays: 120,
+  /** Cíl – Cíl polí: pole mají uživit lidi, kteří ve vsi budou za tolik let. */
+  fieldLeadYears: 2,
+  /** Cíl – Cíl polí: rezerva nad cílem (díly nad potřebu na kruté roky). */
+  fieldReserve: 1.1,
+  /** Rozhodovací pořadí – 3. Pole: okna zakládání pole na louce a v křovinách. */
+  meadowFieldWindows: [
+    [
+      { month: 9, day: 1 },
+      { month: 2, day: 28 },
+    ],
+    [
+      { month: 6, day: 15 },
+      { month: 7, day: 31 },
+    ],
+  ] as readonly StewardWindow[],
+  /** Rozhodovací pořadí – 3. Pole, Klučení lesa: okno zakládání pole v lese (kácení přes zimu). */
+  forestFieldWindows: [
+    [
+      { month: 10, day: 1 },
+      { month: 1, day: 31 },
+    ],
+  ] as readonly StewardWindow[],
+  /**
+   * Cíl – Režim správce, Nouze: konce oken setí (jař do 30. 4., ozim do 31. 10. – fields.md, Ozim
+   * a jař) – pole v Nouzi jen, když se do nejbližšího konce stihne založit.
+   */
+  sowingEnds: [
+    { month: 4, day: 30 },
+    { month: 10, day: 31 },
+  ] as readonly StewardMonthDay[],
+  /** Rozhodovací pořadí – Obydlí, typ: polozemnice jen, když se dostaví do tohoto dne (zima). */
+  winterStart: { month: 11, day: 1 } as StewardMonthDay,
+  /** Den správce – upřesnění, Klučení: les pro pole nejvýš tolik políček od bloku hospodářství. */
+  forestSearchTiles: 10,
+  /** Den správce – upřesnění, Obydlí u dvorce: bez plánu domy nejvýš tolik políček od středu vsi. */
+  centreHouseTiles: 6,
 } as const;
+
+/** Den v roce (měsíc a den) – hranice oken správce. */
+export interface StewardMonthDay {
+  readonly month: number;
+  readonly day: number;
+}
+
+/** Okno roku od `from` do `to` včetně; `from` po `to` = okno přes Nový rok. */
+export type StewardWindow = readonly [StewardMonthDay, StewardMonthDay];

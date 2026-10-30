@@ -204,6 +204,45 @@ svého druhu (pole a čtverce po blocích) a všechny čerpají ze stejného roz
   dospělého) –, nebo leží dál než 800 m od nejbližšího obydlí (fields.md – Založení pole), nebo
   na území jiné vsi. Napřed tedy nová pole, až když není kam, odchod (Martin 30. 10. 2026).
 
+### Den správce – upřesnění (návrh Clauda – `STEWARD` v `rules-steward.ts`)
+
+Kroky 3 a 4 (`domain/village/steward.ts` – `stewardDay`):
+
+- **Den správce** = index dne dělitelný `everyDays` (10). V něm jedna etapa plánu sídla, pak pole,
+  pak obydlí nebo dílna. Stavby jdou přes `applyBuildIntent` na vsi dopočítané do dne správce
+  (uprostřed dopočtu drží ves `lastDay` začátku dopočtu – cena předem by jinak závisela na
+  kouscích dopočtu).
+- **Režim:** Nouze = `starvationDays > 0` nebo pojistka pod `emergencyFill` (0,5); Obnova pod
+  plnou pojistkou; Růst s plnou.
+- **Rozpočet práce:** průměr volné práce posledních 30 dní × `laborHorizonDays` (120) minus
+  zbývající práce všech rozestavěných staveb (hráčových, vesničanů i správcových).
+- **Cíl polí:** lidé × (výhled potřeby za `fieldLeadYears` = 2 roky ÷ dnešní potřeba) ×
+  `fieldReserve` (1,1) proti „Pole uživí podle dnešní půdy“; zakládané díly se počítají jako
+  v oběhu (jinak by správce zakládal, dokud se první pole nedostaví).
+- **Blok pole:** volná políčka bloku prvního hospodářství plánu, které jich má aspoň na nejmenší
+  pole (0,1 ha); souvislý výběr od nejbližšího políčka bloku, počet podle chybějících lidí
+  a úrodnosti (lidé na hektar jako „Pole uživí“), nejvýš co unese rozpočet. Neprojde-li, první
+  políčko bloku se z plánu zahodí (nejvýš `slotTries` pokusů za den).
+- **Nouze a pole:** pole jen, když (zbývající práce staveb + založení) ÷ volná práce za den vyjde
+  nejpozději na konec nejbližšího osevu (`sowingEnds` – 30. 4., 31. 10.).
+- **Klučení lesa:** jen když louka v plánu nestačí, v okně lesa (1. 10. – 31. 1.); les na území vsi
+  do `forestSearchTiles` (10) políček od bloku hospodářství. Druhá podmínka návrhu („les dává
+  víc“) zatím ne.
+- **Vyčerpaný plán** (`exhausted` – přepočet příští den správce): hotový plán nemá volný slot
+  obydlí pro čekající rodinu, nebo žádné hospodářství nemá volnou louku na nejmenší pole.
+- **Obydlí:** zemnice pro čekající rodinu se začne i nad rozpočet (přeplnění zabíjí, zemnice je
+  nejlevnější a počet čekajících rodin stavby sám omezí); polozemnice jen, když na ni ves má dřevo
+  předem, rozpočet ji unese a dostaví se do `winterStart` (1. 11.). Polozemnice stojí na pozemku
+  políčka slotu, dům uprostřed, bez natočení.
+- **Obydlí u dvorce** (plán ještě nemá ověřený dům): louka do `centreHouseTiles` (6) políček od
+  středu vsi, aspoň dvě políčka od ostatních obydlí, nejbližší napřed.
+- **Dílna místo obydlí** (jen Růst, řemeslo, které ves nemá): hodnota v člověkodnech za rok minus
+  polní práce průměrné domácnosti – hrnčíř: ztráty zásob od dnešního pokrytí k plnému
+  (`STORAGE_LOSS_PER_YEAR`) převedené na práci výnosem polní práce; kovář: polní práce
+  s plným pokrytím nástroji, jen s uhlířem; uhlíř: kovářovo ušetření minus práce dvou domácností;
+  tesař zatím 0 (až s voly a vozy). Bez nástrojů ušetří plné pokrytí ≈ 39 % polní práce, takže
+  uhlíř vyjde kladně od 6 obydlí, kovář s uhlířem od 3; hrnčíř (ztráty 10 % → 5 %) až od 21 obydlí.
+
 ## Rozmístění – „absolutní skiller“ (návrh Clauda)
 
 Martin 18. 10. 2026 k polím: „**Aby vesničané obhospodařovali pole tím nejlepším způsobem, aniž by
