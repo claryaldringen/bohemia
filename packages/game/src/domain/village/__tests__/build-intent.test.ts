@@ -8,12 +8,15 @@ import {
   NO_SETTLERS,
   RELOCATION_BLOCKED,
   SHRINE_EXISTS,
+  UNKNOWN_DIRECTION,
   type BuildIntent,
 } from '../build-intent';
-import type { Position, VillageState } from '../types';
+import { TRAIL_BLOCKED } from '../trail';
+import type { Direction8, Position, VillageState } from '../types';
 import { checkDwellingPlacement } from '../placement-dwellings';
 import { checkSacredBuildingPlacement } from '../placement-sacred';
 import { placementVillageOf } from '../placement-village';
+import { LANDSCAPE as PATHS } from './paths-fixtures';
 import { block, makeLandscape } from './placement-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
@@ -249,5 +252,32 @@ describe('applyBuildIntent – ohrada', () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.reason).toMatch(/vod/);
+  });
+});
+
+describe('applyBuildIntent – zemská stezka', () => {
+  // krajina testu pěšin: louka se středem v počátku, na sever přes vodu stezka nevede
+  const village = (): VillageState =>
+    withBuiltFirstDwelling(
+      foundVillage({ seed: 11, day: DAY, dwellingPosition: at(0, 0, Math.PI) }),
+    );
+
+  it('stezka na jih se začne stavět', () => {
+    const result = apply(village(), { kind: 'trail', direction: 'S' }, PATHS);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.trails).toHaveLength(1);
+  });
+
+  it('na sever a neznámým směrem odmítne', () => {
+    expect(apply(village(), { kind: 'trail', direction: 'N' }, PATHS)).toEqual({
+      ok: false,
+      reason: TRAIL_BLOCKED,
+    });
+    const up = 'up' as unknown as Direction8;
+    expect(apply(village(), { kind: 'trail', direction: up }, PATHS)).toEqual({
+      ok: false,
+      reason: UNKNOWN_DIRECTION,
+    });
   });
 });

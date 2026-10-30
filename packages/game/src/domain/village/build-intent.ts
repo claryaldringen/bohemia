@@ -28,6 +28,7 @@ import { hasShrine } from './sacred';
 import type {
   BuildableDwellingType,
   Craft,
+  Direction8,
   DwellingPlot,
   PenSpecies,
   Position,
@@ -43,6 +44,7 @@ import {
 } from './placement-fields';
 import { HORSE_PEN_NO_SURPLUS } from './horse-pen-payment';
 import { penSquaresFromCells } from './placement-pens';
+import { DIRECTIONS, planTrail, startTrail } from './trail';
 
 // Doménový příkaz stavby (steward.md – Kde správce běží): jedno pravidlo stavby pro hráče
 // i správce vsi – cena předem (`buildAffordability`), kontrola místa a akce domény. Use-casy
@@ -65,6 +67,8 @@ export const UNKNOWN_CRAFT = 'Takové řemeslo ves nezná.';
 export const NO_OAKS = 'Na stavbu chybí dospělé duby ke kácení.';
 /** Svatyně je jedna na ves (happiness.md). */
 export const SHRINE_EXISTS = 'Ves už svatyni má – svatyně je jedna na ves.';
+/** Neznámý směr stezky. */
+export const UNKNOWN_DIRECTION = 'Neznámý směr stezky.';
 /** Proč se domácnost teď přestěhovat nemůže – česky pro hráče. */
 export const RELOCATION_BLOCKED: Record<RelocationBlock, string> = {
   'no-household': 'V tomhle obydlí nikdo nebydlí.',
@@ -157,6 +161,12 @@ export interface PenIntent {
   grid?: SquareGrid;
 }
 
+/** Zemská stezka ke kraji mapy (trade.md – Zemská stezka). */
+export interface TrailIntent {
+  kind: 'trail';
+  direction: Direction8;
+}
+
 /** Co se má stavět a kde – druh stavby a místo (poloha, pozemek, čtverce, mřížka, cesta). */
 export type BuildIntent =
   | DwellingIntent
@@ -167,7 +177,8 @@ export type BuildIntent =
   | FieldIntent
   | OrchardIntent
   | CemeteryIntent
-  | PenIntent;
+  | PenIntent
+  | TrailIntent;
 
 /** Výsledek příkazu stavby – nový stav vsi, nebo důvod odmítnutí česky pro hráče. */
 export type BuildResult = { ok: true; state: VillageState } | { ok: false; reason: string };
@@ -202,6 +213,8 @@ export function applyBuildIntent(
       return buildCemetery(state, day, landscape, obstacles, intent);
     case 'pen':
       return buildPen(state, day, landscape, obstacles, intent);
+    case 'trail':
+      return buildTrail(state, day, landscape, obstacles, intent);
   }
 }
 
@@ -623,4 +636,25 @@ function buildPen(
     }
     throw error;
   }
+}
+
+/**
+ * Zemská stezka ke kraji mapy – stezka se naplánuje (`planTrail` – trasa, úseky, dřevo hatě
+ * a lávek) a vrátí důvod česky, když nejde; dřevo kácí chůzí po pevných cestách.
+ */
+function buildTrail(
+  state: VillageState,
+  day: number,
+  landscape: Landscape,
+  obstacles: ObstacleLayer,
+  intent: TrailIntent,
+): BuildResult {
+  if (!DIRECTIONS.includes(intent.direction)) return { ok: false, reason: UNKNOWN_DIRECTION };
+  const walk = villageRoadWalk(state, landscape);
+  const plan = planTrail(state, intent.direction, day, landscape, obstacles, walk);
+  if (!plan.ok) return { ok: false, reason: plan.reason };
+  return {
+    ok: true,
+    state: startTrail(state, day, intent.direction, landscape, obstacles, walk),
+  };
 }
