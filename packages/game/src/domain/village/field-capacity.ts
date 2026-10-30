@@ -41,6 +41,25 @@ export function averageSownShare(): number {
   return sum / ROTATION.sown;
 }
 
+/**
+ * Průměrný podíl přirozené úrodnosti přes všechny roky oběhu odpočatého dílu: roky osevu (95 a 83 %)
+ * i roky příloh (71, 76, 81, 86, 91 % – podíl na začátku roku, obnova `fallowRecovery` se přičte až
+ * koncem roku) → ≈ 0,833. Do tohoto podílu se ustálí díl v oběhu; porovnává se s ním dnešní půda.
+ */
+export function averageRotationShare(): number {
+  let share: number = FERTILITY.fallowReady;
+  let sum = 0;
+  for (let year = 0; year < ROTATION.sown; year++) {
+    sum += share;
+    share -= FERTILITY.sowDepletion;
+  }
+  for (let year = 0; year < ROTATION.fallow; year++) {
+    sum += share;
+    share = Math.min(1, share + FERTILITY.fallowRecovery);
+  }
+  return sum / (ROTATION.sown + ROTATION.fallow);
+}
+
 /** Čistá úroda hektaru (kg) v průměru let osevu při plné a včasné práci. */
 export function netYieldPerHa(fertility: number): number {
   return grossYieldPerHa(fertility * averageSownShare()) - SEED_KG_PER_HA;
@@ -56,6 +75,11 @@ export interface FieldCapacity {
   sownHa: number;
   /** Průměrná přirozená úrodnost dílů v oběhu (vážená plochou). */
   fertility: number;
+  /**
+   * Dnešní půda ÷ ustálená (`averageRotationShare`), nejvýš 1: vyčerpaná ves uživí úměrně méně,
+   * odpočatá i čerstvá půda `people` nemění (fields.md – Pole uživí podle dnešní půdy).
+   */
+  soil: number;
 }
 
 /**
@@ -64,7 +88,8 @@ export interface FieldCapacity {
  * jsou osev, ten dá čistou úrodu `netYieldPerHa` při průměrné přirozené úrodnosti a úroda musí
  * pokrýt potřebu z pole `fieldFoodShare` všech lidí i pojistku zásob (`steadyHarvestKg`, jako
  * `village-calculator.ts`). Potřeba i pojistka rostou s počtem lidí lineárně, stačí tedy
- * úroda ÷ úroda potřebná na jednoho průměrného člověka vsi. Ves bez lidí nebo bez pole: `null`.
+ * úroda ÷ úroda potřebná na jednoho průměrného člověka vsi. Výsledek se násobí `soil` = min(1; dnešní
+ * podíl úrodnosti dílů ÷ ustálený podíl oběhu), aby vyčerpaná ves neviděla víc, než pole dají. Ves bez lidí nebo bez pole: `null`.
  */
 export function fieldCapacity(
   state: Pick<VillageState, 'parts' | 'people' | 'fieldFood'>,
@@ -77,6 +102,8 @@ export function fieldCapacity(
   const areaM2 = inRotation.reduce((sum, p) => sum + p.areaM2, 0);
   if (state.people.length === 0 || areaM2 <= 0) return null;
   const fertility = inRotation.reduce((sum, p) => sum + p.naturalFertility * p.areaM2, 0) / areaM2;
+  const todayShare = inRotation.reduce((sum, p) => sum + p.fertilityShare * p.areaM2, 0) / areaM2;
+  const soil = Math.min(1, todayShare / averageRotationShare());
   const rotationHa = areaM2 / 10_000;
   const sownHa = rotationHa / ROTATION_FACTOR;
   const harvestKg = sownHa * netYieldPerHa(fertility);
@@ -86,5 +113,11 @@ export function fieldCapacity(
     bufferKg(foodNeed / state.people.length),
     potteryCoverage,
   );
-  return { people: perPerson > 0 ? harvestKg / perPerson : 0, rotationHa, sownHa, fertility };
+  return {
+    people: perPerson > 0 ? (harvestKg / perPerson) * soil : 0,
+    rotationHa,
+    sownHa,
+    fertility,
+    soil,
+  };
 }

@@ -169,7 +169,7 @@ describe('Pole uživí (fields.md – Co hráč vidí)', () => {
   const field = (people: number, capacity: number): VillageView =>
     ({
       people: { children: 0, adults: people, elders: 0 },
-      fieldCapacity: { people: capacity, rotationHa: 47.9, fertility: 52 },
+      fieldCapacity: { people: capacity, rotationHa: 47.9, fertility: 52, soil: 0.77 },
     }) as VillageView;
 
   it('lidí je víc, než pole uživí: červeně', () => {
@@ -179,6 +179,7 @@ describe('Pole uživí (fields.md – Co hráč vidí)', () => {
     expect(html).toMatch(/data-testid="field-capacity-people"[^>]*text-red-400/);
     expect(html).toContain('people.png');
     expect(html).toContain('47,9 ha');
+    expect(html).toMatch(/data-testid="field-capacity-soil"[^>]*>.*food\.png.*77 %/);
   });
 
   it('pole stačí: bez červené', () => {
@@ -200,7 +201,10 @@ describe('Lidé a kolik jich pole uživí v jedné ikoně (Martin 24. 10. 2026)'
 
   it('popisek „lidí / ≈ N“, bez polí jen počet lidí', () => {
     expect(
-      peopleLabel({ people, fieldCapacity: { people: 21.9, rotationHa: 1, fertility: 50 } }),
+      peopleLabel({
+        people,
+        fieldCapacity: { people: 21.9, rotationHa: 1, fertility: 50, soil: 1 },
+      }),
     ).toBe('31 / ≈ 22');
     expect(peopleLabel({ people, fieldCapacity: null })).toBe('31');
   });
@@ -211,7 +215,7 @@ describe('Lidé a kolik jich pole uživí v jedné ikoně (Martin 24. 10. 2026)'
       name: 'Ves',
       villages: [],
       people,
-      fieldCapacity: { people: 21.9, rotationHa: 47.9, fertility: 52 },
+      fieldCapacity: { people: 21.9, rotationHa: 47.9, fertility: 52, soil: 1 },
       fields: [{ id: 1, areaM2: 50000, crops: {} }],
       orchards: [],
       pens: [],

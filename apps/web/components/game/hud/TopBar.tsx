@@ -132,6 +132,13 @@ export function FieldCapacityTooltip({ view }: { view: VillageView }): ReactElem
         pole v oběhu {formatDecimal(capacity.rotationHa, 1)} ha · úrodnost{' '}
         {formatInteger(capacity.fertility)}
       </span>
+      <span
+        data-testid="field-capacity-soil"
+        className="mt-0.5 flex items-center gap-1 text-[#bfa77a] tabular-nums"
+      >
+        <img src="/icons/resources/food.png" alt="Půda" width={16} height={16} />
+        {Math.round(capacity.soil * 100)} %
+      </span>
     </span>
   );
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import {
+  averageRotationShare,
   averageSownShare,
   fieldCapacity,
   netYieldPerHa,
@@ -22,6 +23,7 @@ const part = (over: Partial<FieldPart> = {}): FieldPart =>
     fieldId: 1,
     areaM2: 10_000,
     naturalFertility: 56,
+    fertilityShare: 1,
     state: 'sown',
     ...over,
   }) as FieldPart;
@@ -39,6 +41,45 @@ describe('oběh odpočatého dílu', () => {
     expect(ROTATION).toEqual({ sown: 2, fallow: 5 });
     expect(ROTATION_FACTOR).toBeCloseTo(3.5, 9);
     expect(averageSownShare()).toBeCloseTo(0.89, 9);
+  });
+});
+
+describe('ustálený podíl oběhu', () => {
+  it('průměr let 95, 83, 71, 76, 81, 86, 91 % = 583 / 7', () => {
+    expect(averageRotationShare()).toBeCloseTo(583 / 700, 9);
+    expect(averageRotationShare()).toBeLessThan(averageSownShare());
+  });
+});
+
+describe('fieldCapacity s dnešní půdou', () => {
+  const base = fieldCapacity(state([part({ fertilityShare: averageRotationShare() })], 5), DAY)!;
+
+  it('ustálená půda N nemění (soil = 1)', () => {
+    expect(base.soil).toBeCloseTo(1, 9);
+  });
+
+  it('čerstvá půda (1) N nezvedne', () => {
+    const fresh = fieldCapacity(state([part({ fertilityShare: 1 })], 5), DAY)!;
+    expect(fresh.soil).toBe(1);
+    expect(fresh.people).toBeCloseTo(base.people, 9);
+  });
+
+  it('vyčerpaná půda sníží N úměrně a váží plochou', () => {
+    const half = averageRotationShare() / 2;
+    const worn = fieldCapacity(state([part({ fertilityShare: half })], 5), DAY)!;
+    expect(worn.soil).toBeCloseTo(0.5, 9);
+    expect(worn.people).toBeCloseTo(base.people * 0.5, 9);
+    const mixed = fieldCapacity(
+      state(
+        [part({ fertilityShare: 1 }), part({ id: 2, fertilityShare: half, areaM2: 30_000 })],
+        5,
+      ),
+      DAY,
+    )!;
+    expect(mixed.soil).toBeCloseTo(
+      (1 * 1 + 0.5 * averageRotationShare() * 3) / 4 / averageRotationShare(),
+      9,
+    );
   });
 });
 

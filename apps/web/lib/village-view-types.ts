@@ -470,7 +470,13 @@ export interface VillageView {
    * Kolik lidí uživí pole vsi v ustáleném oběhu (fields.md – Co hráč vidí, Pole uživí): počet lidí,
    * pole v oběhu (ha) a průměrná přirozená úrodnost; bez pole nebo lidí null.
    */
-  fieldCapacity?: { people: number; rotationHa: number; fertility: number } | null;
+  fieldCapacity?: {
+    people: number;
+    rotationHa: number;
+    fertility: number;
+    /** Dnešní půda ÷ ustálená, 0–1. */
+    soil: number;
+  } | null;
   commonLaborPerDay: number;
   /**
    * Vojvodova rodina dnes (lord.md – Co hráč vidí): kolik jich cvičí, je na poli a vede domácnost;
