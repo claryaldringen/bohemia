@@ -1,15 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
-import { obstaclesOf } from '../../landscape';
+import { generateLandscape, obstaclesOf, tileCenterWorld, type Landscape } from '../../landscape';
 import { foundVillage } from '../actions';
 import {
   applyBuildIntent,
   NO_PLOT,
   NO_SETTLERS,
   RELOCATION_BLOCKED,
+  SHRINE_EXISTS,
   type BuildIntent,
 } from '../build-intent';
 import type { Position, VillageState } from '../types';
+import { checkDwellingPlacement } from '../placement-dwellings';
+import { checkSacredBuildingPlacement } from '../placement-sacred';
+import { placementVillageOf } from '../placement-village';
 import { makeLandscape } from './placement-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
@@ -18,7 +22,6 @@ import { withBuiltFirstDwelling } from './village-fixtures';
 
 const DAY = dayIndexOf({ year: 503, month: 4, day: 12 });
 const landscape = makeLandscape({ surface: (x) => (x === 15 ? 'water' : 'meadow') });
-const obstacles = obstaclesOf(landscape);
 const at = (x: number, z: number, rotation = 0): Position => ({ x, z, rotation });
 const HOME = at(-50, -50);
 const YEAR = 365.25;
@@ -51,9 +54,13 @@ function withCouple(base: VillageState): VillageState {
 }
 
 /** Příkaz nad kopií stavu – a kontrola, že vstupní stav zůstal, jak byl. */
-function apply(state: VillageState, intent: BuildIntent): ReturnType<typeof applyBuildIntent> {
+function apply(
+  state: VillageState,
+  intent: BuildIntent,
+  l: Landscape = landscape,
+): ReturnType<typeof applyBuildIntent> {
   const before = structuredClone(state);
-  const result = applyBuildIntent(state, state.lastDay, landscape, obstacles, intent);
+  const result = applyBuildIntent(state, state.lastDay, l, obstaclesOf(l), intent);
   expect(state).toEqual(before);
   return result;
 }
@@ -129,5 +136,35 @@ describe('applyBuildIntent – dílna', () => {
     expect(apply(settled(), { kind: 'workshop', craft: 'potter', position: at(-80, -50) })).toEqual(
       { ok: false, reason: NO_SETTLERS },
     );
+  });
+});
+
+describe('applyBuildIntent – posvátná místa', () => {
+  it('svatyně vyhradí duby ke kácení a druhou svatyni odmítne', () => {
+    // skutečná krajina – duby jsou jen v ní (happiness.md)
+    const real = generateLandscape(3);
+    const site = tileCenterWorld(real, real.villageSite.x, real.villageSite.y);
+    const spotFor = (check: (p: Position) => boolean, from: number): Position => {
+      for (let r = from; r < 600; r += 5) {
+        for (let a = 0; a < 64; a++) {
+          const p = at(site.x + r * Math.cos(a / 10), site.z + r * Math.sin(a / 10));
+          if (check(p)) return p;
+        }
+      }
+      throw new Error('Žádné vhodné místo.');
+    };
+    const home = spotFor((p) => checkDwellingPlacement(real, null, 'zemnice', p).ok, 20);
+    const state = foundVillage({ seed: 4242, day: DAY, dwellingPosition: home });
+    const village = placementVillageOf(state, DAY);
+    const position = spotFor(
+      (p) => checkSacredBuildingPlacement(real, village, 'shrine', p, obstaclesOf(real)).ok,
+      60,
+    );
+    const shrine: BuildIntent = { kind: 'sacred', building: 'shrine', position };
+    const result = apply(state, shrine, real);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.constructions.at(-1)!.kind).toBe('shrine');
+    expect(apply(result.state, shrine, real)).toEqual({ ok: false, reason: SHRINE_EXISTS });
   });
 });

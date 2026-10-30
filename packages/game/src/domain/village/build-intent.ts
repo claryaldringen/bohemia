@@ -1,5 +1,5 @@
 import { tileOfWorldPoint, type Landscape, type ObstacleLayer } from '../landscape';
-import { startNewDwelling, startRelocation, startWorkshop } from './actions';
+import { startNewDwelling, startRelocation, startSacredBuilding, startWorkshop } from './actions';
 import { buildAffordability } from './costs';
 import { villageRoadWalk } from './paths/walking';
 import {
@@ -9,11 +9,20 @@ import {
 } from './placement-dwellings';
 import { canonicalPlot } from './placement-geometry';
 import { forestEdgeDistanceM, waterDistanceM } from './placement-squares';
+import { checkSacredBuildingPlacement } from './placement-sacred';
 import type { DwellingPlacementCheck } from './placement-types';
 import { placementVillageOf } from './placement-village';
 import { relocationAffordability, relocationBlock, type RelocationBlock } from './relocation';
 import { CRAFTS, PLOT_TYPES } from './rules';
-import type { BuildableDwellingType, Craft, DwellingPlot, Position, VillageState } from './types';
+import { hasShrine } from './sacred';
+import type {
+  BuildableDwellingType,
+  Craft,
+  DwellingPlot,
+  Position,
+  SacredBuildingKind,
+  VillageState,
+} from './types';
 
 // Doménový příkaz stavby (steward.md – Kde správce běží): jedno pravidlo stavby pro hráče
 // i správce vsi – cena předem (`buildAffordability`), kontrola místa a akce domény. Use-casy
@@ -32,6 +41,10 @@ export const NO_PLOT = 'Polozemnice potřebuje pozemek – celé políčko.';
 export const BAD_PLOT = 'Neplatné natočení pozemku.';
 /** Neznámé řemeslo (vstup z klienta). */
 export const UNKNOWN_CRAFT = 'Takové řemeslo ves nezná.';
+/** Na modlu nebo svatyni chybí dospělý dub ke kácení (happiness.md). */
+export const NO_OAKS = 'Na stavbu chybí dospělé duby ke kácení.';
+/** Svatyně je jedna na ves (happiness.md). */
+export const SHRINE_EXISTS = 'Ves už svatyni má – svatyně je jedna na ves.';
 /** Proč se domácnost teď přestěhovat nemůže – česky pro hráče. */
 export const RELOCATION_BLOCKED: Record<RelocationBlock, string> = {
   'no-household': 'V tomhle obydlí nikdo nebydlí.',
@@ -72,8 +85,15 @@ export interface WorkshopIntent {
   position: Position;
 }
 
+/** Dřevěná modla nebo svatyně (happiness.md). */
+export interface SacredIntent {
+  kind: 'sacred';
+  building: SacredBuildingKind;
+  position: Position;
+}
+
 /** Co se má stavět a kde – druh stavby a místo (poloha, pozemek, čtverce, mřížka, cesta). */
-export type BuildIntent = DwellingIntent | RelocationIntent | WorkshopIntent;
+export type BuildIntent = DwellingIntent | RelocationIntent | WorkshopIntent | SacredIntent;
 
 /** Výsledek příkazu stavby – nový stav vsi, nebo důvod odmítnutí česky pro hráče. */
 export type BuildResult = { ok: true; state: VillageState } | { ok: false; reason: string };
@@ -96,6 +116,8 @@ export function applyBuildIntent(
       return buildRelocation(state, day, landscape, obstacles, intent);
     case 'workshop':
       return buildWorkshop(state, day, landscape, obstacles, intent);
+    case 'sacred':
+      return buildSacred(state, day, landscape, obstacles, intent);
   }
 }
 
@@ -283,4 +305,52 @@ function buildWorkshop(
       },
     ),
   };
+}
+
+/**
+ * Dřevěná modla nebo svatyně (svatyně je jedna na ves). Stavba vyhradí nejbližší dospělé duby
+ * a skácí je jako první část práce, překážky na půdorysu osadníci odstraní hned.
+ */
+function buildSacred(
+  state: VillageState,
+  day: number,
+  landscape: Landscape,
+  obstacles: ObstacleLayer,
+  intent: SacredIntent,
+): BuildResult {
+  if (intent.building === 'shrine' && hasShrine(state)) return { ok: false, reason: SHRINE_EXISTS };
+  const { affordable, missing } = buildAffordability(state, intent.building, obstacles);
+  if (!affordable) return { ok: false, reason: missing.oaks ? NO_OAKS : CANNOT_AFFORD };
+  const check = checkSacredBuildingPlacement(
+    landscape,
+    placementVillageOf(state, day),
+    intent.building,
+    intent.position,
+    obstacles,
+  );
+  if (!check.ok) return { ok: false, reason: check.reason ?? 'Sem stavba nepatří.' };
+  try {
+    return {
+      ok: true,
+      state: startSacredBuilding(
+        state,
+        day,
+        intent.building,
+        { ...intent.position },
+        check.obstacleCost,
+        check.obstacleIds,
+        {
+          obstacles,
+          clearedTrees: check.clearedTrees,
+          walk: villageRoadWalk(state, landscape),
+          // díly polí pod půdorysem se zmenší (fields.md – Pole jako krajina)
+          takenLand: check.takenLand,
+        },
+      ),
+    };
+  } catch (error) {
+    // duby nestačí ke kácení (vyhradila je mezitím jiná stavba)
+    if (error instanceof RangeError) return { ok: false, reason: NO_OAKS };
+    throw error;
+  }
 }
