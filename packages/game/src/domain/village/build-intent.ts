@@ -45,6 +45,7 @@ import {
 import { HORSE_PEN_NO_SURPLUS } from './horse-pen-payment';
 import { penSquaresFromCells } from './placement-pens';
 import { DIRECTIONS, planTrail, startTrail } from './trail';
+import { startWagonRoad } from './wagon-road';
 
 // Doménový příkaz stavby (steward.md – Kde správce běží): jedno pravidlo stavby pro hráče
 // i správce vsi – cena předem (`buildAffordability`), kontrola místa a akce domény. Use-casy
@@ -167,6 +168,12 @@ export interface TrailIntent {
   direction: Direction8;
 }
 
+/** Vozová cesta (roads.md – Vozová cesta) – kterýkoli úsek cesty, jádro si dopočítá řetěz. */
+export interface WagonRoadIntent {
+  kind: 'wagon-road';
+  roadId: number;
+}
+
 /** Co se má stavět a kde – druh stavby a místo (poloha, pozemek, čtverce, mřížka, cesta). */
 export type BuildIntent =
   | DwellingIntent
@@ -178,7 +185,8 @@ export type BuildIntent =
   | OrchardIntent
   | CemeteryIntent
   | PenIntent
-  | TrailIntent;
+  | TrailIntent
+  | WagonRoadIntent;
 
 /** Výsledek příkazu stavby – nový stav vsi, nebo důvod odmítnutí česky pro hráče. */
 export type BuildResult = { ok: true; state: VillageState } | { ok: false; reason: string };
@@ -215,6 +223,8 @@ export function applyBuildIntent(
       return buildPen(state, day, landscape, obstacles, intent);
     case 'trail':
       return buildTrail(state, day, landscape, obstacles, intent);
+    case 'wagon-road':
+      return buildWagonRoad(state, day, landscape, obstacles, intent);
   }
 }
 
@@ -657,4 +667,23 @@ function buildTrail(
     ok: true,
     state: startTrail(state, day, intent.direction, landscape, obstacles, walk),
   };
+}
+
+/**
+ * Vozová cesta – trasa se najde znovu ze stavu (`planWagonRoad` – stejně jako náhled
+ * v prohlížeči), ověří a stavba se zahájí po úsecích od vsi ven; když nejde, vrátí důvod česky.
+ */
+function buildWagonRoad(
+  state: VillageState,
+  day: number,
+  landscape: Landscape,
+  obstacles: ObstacleLayer,
+  intent: WagonRoadIntent,
+): BuildResult {
+  try {
+    return { ok: true, state: startWagonRoad(state, day, intent.roadId, landscape, obstacles) };
+  } catch (error) {
+    if (error instanceof RangeError) return { ok: false, reason: error.message };
+    throw error;
+  }
 }

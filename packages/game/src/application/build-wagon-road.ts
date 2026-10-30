@@ -1,5 +1,5 @@
 import { obstaclesOf, type Landscape } from '../domain/landscape';
-import { startWagonRoad } from '../domain/village';
+import { applyBuildIntent } from '../domain/village';
 import { updateLivingVillage } from './update-village';
 import type { VillageRepository, VillageResult } from './villages';
 
@@ -27,18 +27,11 @@ export function buildWagonRoad(
     input.villageId,
     input.today,
     input.landscape,
-    (state) => {
-      const day = state.lastDay;
-      const obstacles = obstaclesOf(input.landscape);
-      try {
-        return {
-          ok: true,
-          state: startWagonRoad(state, day, input.roadId, input.landscape, obstacles),
-        };
-      } catch (error) {
-        if (error instanceof RangeError) return { ok: false, reason: error.message };
-        throw error;
-      }
-    },
+    // akce patří do dne, do kterého je ves dopočítaná – dnešek, nebo „budoucí“ den vsi
+    (state) =>
+      applyBuildIntent(state, state.lastDay, input.landscape, obstaclesOf(input.landscape), {
+        kind: 'wagon-road',
+        roadId: input.roadId,
+      }),
   );
 }

@@ -12,7 +12,8 @@ import {
   type BuildIntent,
 } from '../build-intent';
 import { TRAIL_BLOCKED } from '../trail';
-import type { Direction8, Position, VillageState } from '../types';
+import type { Direction8, Position, Road, RoadGrade, VillageState } from '../types';
+import { WAGON_LOOP } from '../wagon-road';
 import { checkDwellingPlacement } from '../placement-dwellings';
 import { checkSacredBuildingPlacement } from '../placement-sacred';
 import { placementVillageOf } from '../placement-village';
@@ -278,6 +279,59 @@ describe('applyBuildIntent – zemská stezka', () => {
     expect(apply(village(), { kind: 'trail', direction: up }, PATHS)).toEqual({
       ok: false,
       reason: UNKNOWN_DIRECTION,
+    });
+  });
+});
+
+/** Ves v krajině pěšin s ručně položenými cestami: úsek 1 na jih, úsek 2 okruh (paths.md). */
+function withRoads(grade: RoadGrade): VillageState {
+  const state = withBuiltFirstDwelling(
+    foundVillage({ seed: 77, day: DAY, dwellingPosition: at(0, 0, Math.PI) }),
+  );
+  state.woodLogs = 40;
+  const road = (id: number, points: { x: number; z: number }[]): Road => ({
+    id,
+    points,
+    bornDay: DAY - 800,
+    grade,
+    traffic: [],
+    spots: [],
+  });
+  state.roads = {
+    nextId: 3,
+    roads: [
+      road(1, [
+        { x: 0, z: -10 },
+        { x: 40, z: -60 },
+        { x: 0, z: -120 },
+      ]),
+      road(2, [
+        { x: 60, z: 0 },
+        { x: 90, z: 0 },
+        { x: 90, z: 30 },
+        { x: 60, z: 0 },
+      ]),
+    ],
+    trees: [],
+    labor: { from: DAY - 100, days: 0, shares: [] },
+    // ručně položené cesty – jednorázová přestavba sítě by je zahodila (paths.md)
+    rebuilt: 2,
+  };
+  return state;
+}
+
+describe('applyBuildIntent – vozová cesta', () => {
+  it('zahájí stavbu vozové cesty po upravené cestě', () => {
+    const result = apply(withRoads('improved'), { kind: 'wagon-road', roadId: 1 }, PATHS);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.roads!.earthworks).toHaveLength(1);
+  });
+
+  it('okruh odmítne', () => {
+    expect(apply(withRoads('improved'), { kind: 'wagon-road', roadId: 2 }, PATHS)).toEqual({
+      ok: false,
+      reason: WAGON_LOOP,
     });
   });
 });
