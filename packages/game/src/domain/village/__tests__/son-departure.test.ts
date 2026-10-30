@@ -1,20 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import { foundVillage } from '../actions';
-import { settlersOf, travellingVillage } from '../departure';
+import { departVillage, settlersOf, travellingVillage } from '../departure';
 import { SON_NAME_MISSING } from '../dynasty-names';
 import { looseHorsesDay } from '../horse-stock';
 import { villageHorses } from '../horses';
+import { familyTrains } from '../lord';
 import { advanceVillage } from '../simulate';
 import {
   LEAD_NOT_SON,
   LEAD_TOO_YOUNG,
+  SON_RELOCATING,
   SUCCESSOR_STAYS,
   checkSonLeader,
   departWithSon,
   leadingSons,
   sonShare,
 } from '../son-departure';
-import type { Dwelling, Person, VillageState } from '../types';
+import type { Construction, Dwelling, Person, VillageState } from '../types';
 import { horse, horsePen } from './horse-fixtures';
 import { DAY, kin, trackedVillage, type KinSpec } from './kin-fixtures';
 
@@ -161,6 +163,44 @@ describe('poměrná část vsi (sonShare)', () => {
   });
 });
 
+describe('poměrná část vsi – hrany', () => {
+  it('velká nejbližší domácnost díl nezablokuje – přeskočí se a přibere menší dál', () => {
+    const s = lordVillage();
+    // dítě syna 30 (rodina 3), do domu 5 (nejblíž domu 3) se nastěhují dvě pětičlenné domácnosti
+    // → 14 lidí; 110 odpadne, ať je ves zase 40 lidí (cíl 10)
+    s.people.push(kin({ id: 32, age: 3, sex: 'female', father: 30, mother: 31, home: 3 }));
+    s.people = s.people.filter((p) => p.id !== 110);
+    for (const p of s.people) if (p.dwellingId === 9 || p.dwellingId === 10) p.dwellingId = 5;
+    const share = sonShare(s, 30, DAY)!;
+    expect(share.target).toBe(10);
+    // 3 + 14 = 17 je od cíle stejně daleko jako 3 – přeskočí se; pak 6 a 7 (3 + 4 + 4 = 11)
+    expect(share.dwellingIds).toEqual([6, 7]);
+    expect(share.personIds).toHaveLength(11);
+    expect(share.personIds).not.toContain(90);
+  });
+
+  it('domácnost, která si staví nový dům, do dílu nepatří a syn z ní vést nesmí', () => {
+    const s = lordVillage();
+    s.constructions = [{ relocates: 6 } as unknown as Construction];
+    expect(sonShare(s, 30, DAY)!.dwellingIds).not.toContain(6);
+    expect(sonShare(s, 30, DAY)!.dwellingIds).toEqual([5, 7]);
+    s.constructions = [{ relocates: 3 } as unknown as Construction];
+    expect(checkSonLeader(s, 30, DAY).reason).toBe(SON_RELOCATING);
+    expect(() => departWithSon(s, DAY, 30)).toThrow(SON_RELOCATING);
+  });
+
+  it('v domě syna bydlí i cizí – ti zůstanou, odejde jen rodina', () => {
+    const s = lordVillage();
+    // do domu 3 se k Bořivojovi nastěhuje cizí domácnost 120–122
+    s.people.push(...household(120, 3, 3).map((k) => kin(k)));
+    const { state, settlers } = departWithSon(s, DAY, 30, { villageName: 'Lhota' });
+    expect(ids(settlers.people)).toContain(30);
+    expect(ids(settlers.people)).toContain(31);
+    expect(ids(settlers.people)).not.toContain(120);
+    expect(ids(state.people.filter((p) => p.dwellingId === 3))).toEqual([120, 121, 122]);
+  });
+});
+
 describe('nová ves syna', () => {
   it('vojvodou je syn (ne nejstarší muž rodu), i po cestě na novou mapu', () => {
     const { settlers } = departWithSon(lordVillage(), DAY, 30, { direction: 'N' });
@@ -222,6 +262,42 @@ describe('nová ves syna', () => {
     expect(events).toEqual([{ day: DAY + 1, kind: 'horses-arrived', penId: 7, horses: 1 }]);
     expect(withPen.looseHorses).toBeUndefined();
     expect(villageHorses(withPen)).toHaveLength(1);
+  });
+
+  it('synové nového vojvody cvičí až od 4 dospělých mimo rodinu', () => {
+    const { settlers } = departWithSon(lordVillage(), DAY, 30, { villageName: 'Lhota' });
+    const founded = foundVillage({
+      seed: 3,
+      day: DAY,
+      dwellingPosition: { x: 0, z: 0, rotation: 0 },
+      settlers,
+    });
+    // rodina vojvody 30 = on a žena 31; ostatní dospělí osadníci jsou mimo rodinu (muž rodu 50 cvičí s ní)
+    expect(familyTrains(founded, DAY)).toBe(true);
+    const withOutsiders = (n: number): VillageState => {
+      const outsiders = founded.people.filter((p) => p.id > 50).slice(0, n);
+      return {
+        ...founded,
+        people: founded.people.filter((p) => p.id === 30 || p.id === 31 || outsiders.includes(p)),
+      };
+    };
+    expect(familyTrains(withOutsiders(3), DAY)).toBe(false);
+    expect(familyTrains(withOutsiders(4), DAY)).toBe(true);
+  });
+
+  it('kůň vojvody jde s ním při odchodu celé vsi s dvorcem', () => {
+    const s = lordVillage();
+    s.pens = [
+      horsePen(90, [
+        { ...horse(500, 6, 'male', 70, DAY), riderId: 10 },
+        horse(501, 8, 'female', 0, DAY),
+      ]),
+    ];
+    const all = s.dwellings.map((d) => d.id);
+    const { settlers, state } = departVillage(s, DAY, all);
+    expect(settlers.lordId).toBe(10);
+    expect(settlers.horse).toMatchObject({ id: 500, riderId: 10, training: 70 });
+    expect(villageHorses(state).map((h) => h.id)).not.toContain(500);
   });
 
   it('výsledek nezávisí na kouscích dopočtu', () => {

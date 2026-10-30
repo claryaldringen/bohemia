@@ -274,7 +274,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `sonShare(state, sonId, day)` → `SonShare` (dílníci = žijící vojvoda + synové od 16 let, cíl
   lidé ÷ dílníci, `familyIds` – `sonFamily`: syn, `wivesOf`, svobodné děti –, `dwellingIds` celých
   domácností od nejbližšího domu syna / dvorce podle čtverce vzdálenosti, při shodě nižší id, dokud
-  se počet blíží cíli; mimo díl dvorec, domy vojvody, ostatních synů a rodiny syna, stavějící
+  se počet blíží cíli (domácnost, která by díl oddálila od cíle, se přeskočí a pokračuje další); mimo díl dvorec, domy vojvody, ostatních synů a rodiny syna, stavějící
   domácnosti). `departWithSon(state, day, sonId, { direction, villageName })` – lidé dílu po
   lidech do společného jádra `departLeavers` (jídlo, osivo, stáda, vůz jako `departVillage`),
   `Settlers.lordId` = syn a `Settlers.horse` = jeho jezdecký kůň (`sonHorse`, `riderId`) z ohrady,

@@ -127,8 +127,8 @@ function distanceSq(a: { x: number; z: number }, b: { x: number; z: number }): n
  * díl = 1 ÷ dílníků (žijící vojvoda ve vsi a jeho synové od LORD.leaveMinAge let ve vsi). Rodina
  * syna (`sonFamily`) odchází vždy; k ní celé domácnosti z obydlí nejblíž domu syna (bydlí-li
  * v dvorci nebo bez domu, nejblíž dvorci), dokud se počet lidí dílu blíží cíli (lidé ÷ dílníci) –
- * domácnost, se kterou by byl od cíle stejně nebo dál, už nepřibere a výběr končí, ať díl drží
- * pohromadě (návrh Clauda). Do dílu nepatří dvorec, domácnosti vojvody a ostatních jeho synů (mají
+ * domácnost, se kterou by byl od cíle stejně nebo dál, přeskočí a pokračuje další nejbližší
+ * (velká domácnost u domu syna díl nezablokuje; návrh Clauda). Do dílu nepatří dvorec, domácnosti vojvody a ostatních jeho synů (mají
  * svůj díl), domácnosti, které si staví nový dům, ani domy, ze kterých odchází jen rodina syna
  * (zbytek domácnosti v domě zůstane – kinship.md). Pořadí obydlí podle čtverce vzdálenosti, při
  * shodě nižší id. Syn, který ve vsi není, – null. Nekontroluje, smí-li syn vést (`checkSonLeader`).
@@ -165,7 +165,10 @@ export function sonShare(state: VillageState, sonId: number, day: number): SonSh
   let count = family.length;
   const dwellingIds: number[] = [];
   for (const c of candidates) {
-    if (Math.abs(count + c.size - target) >= Math.abs(count - target)) break;
+    if (count >= target) break;
+    // domácnost, která by díl oddálila od cíle (nebo ho nezlepšila), se přeskočí – další menší
+    // se ještě může vejít
+    if (Math.abs(count + c.size - target) >= Math.abs(count - target)) continue;
     dwellingIds.push(c.id);
     count += c.size;
   }

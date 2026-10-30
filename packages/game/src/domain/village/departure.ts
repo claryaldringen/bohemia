@@ -2,6 +2,7 @@ import { TOTAL_GAME_DAYS } from '../calendar';
 import type { Landscape } from '../landscape';
 import { cloneState } from './clone';
 import { currentLord } from './dynasty';
+import { villageHorses } from './horses';
 import { isVillageExtinct } from './extinction';
 import { removePeople } from './kinship';
 import { villageManor } from './manor';
@@ -318,6 +319,10 @@ export function departVillage(
   // odchází-li vojvoda, vede odchod a v nové vsi zůstává vojvodou (lord.md – Dělení vsi, Kdo může
   // vést odchod: celá ves s vojvodou)
   const lord = currentLord(state);
+  const lordLeaves = lord !== null && lord !== undefined && households.has(lord.dwellingId);
+  const lordHorse = lordLeaves
+    ? villageHorses(state).find((h) => h.riderId === lord.id)
+    : undefined;
   return departLeavers(state, day, leavers, {
     event: {
       day,
@@ -327,7 +332,8 @@ export function departVillage(
       ...(direction ? { direction } : {}),
     },
     ...(direction ? { direction } : {}),
-    ...(lord && households.has(lord.dwellingId) ? { lordId: lord.id } : {}),
+    ...(lordLeaves ? { lordId: lord.id } : {}),
+    ...(lordHorse ? { horseId: lordHorse.id } : {}),
   });
 }
 
