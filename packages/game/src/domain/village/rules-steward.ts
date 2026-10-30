@@ -1,5 +1,6 @@
 // Čísla správce vsi (steward.md). Každé číslo s odkazem na sekci návrhu; změna čísla = i text
 // v návrhu.
+import { FOOD_NEED_KG_PER_YEAR } from './rules-fields';
 
 import type { StewardMode } from './steward';
 
@@ -179,6 +180,32 @@ export const STEWARD = {
       { month: 6, day: 30 },
     ],
   ] as readonly StewardWindow[],
+  /**
+   * Jména synů a odchod syna (steward.md – Rozhodovací pořadí, krok 2): odchod jen v tento den
+   * roku – po žních, před plánem osevu 1. 9.
+   */
+  departureDate: { month: 8, day: 31 } as StewardMonthDay,
+  /** Krok 2 – přelidnění: lidí víc než „Pole uživí podle dnešní půdy“ × tolik. */
+  crowdedShare: 1.05,
+  /**
+   * Krok 2 – past osiva (Hranice – past osiva): odchod i bez přelidnění podle polí, když ves od
+   * minulého 31. 8. nahromadila aspoň tolik dní hladu – nad hladem prvních let nové vsi (≤ 4,5)
+   * a pod hladem pasti (11–19, kouřový test S4).
+   */
+  departureHungerDays: 8,
+  /**
+   * Krok 2 – Kdy není kam: čtverec pole má smysl, jen když uživí víc, než sní ten, kdo ho dělá –
+   * kg čisté úrody na člověkoden aspoň 1,5 × denní potřeba obilí dospělého (`FOOD_NEED_KG_PER_YEAR`).
+   */
+  minKgPerManDay: (1.5 * FOOD_NEED_KG_PER_YEAR.adult) / 365,
+  /** Jména synů a odchod syna – Tady: budoucí území místa uživí aspoň tolikrát lidí dílu. */
+  hereCapacity: 2,
+  /** Tady – upřesnění: kandidáti místa nové vsi jen na každém tolikátém políčku (v obou osách). */
+  hereStrideTiles: 4,
+  /** Tady – upřesnění: nejvýš tolik nejlepších kandidátů podle hodnoty domu se ověří. */
+  hereTries: 12,
+  /** Odchozí schránka: kolikrát se nevybavitelný záznam zkusí vybavit, pak se nechá být. */
+  departureAttempts: 5,
 } as const;
 
 /** Den v roce (měsíc a den) – hranice oken správce. */

@@ -13,6 +13,7 @@ import { parentIndex, type ParentIndex } from './kinship';
 import { villageManorId } from './manor';
 import { ageYears } from './people';
 import { AGE } from './rules';
+import { isStewardOn } from './steward-state';
 import type { ChronicleEvent, DynastyState, Person, VillageState } from './types';
 
 /** Ves bez rodu – nikdo není muž rodu, vojvoda je nejstarší muž dvorce jako dřív. */
@@ -161,7 +162,8 @@ export function withDynasty(state: VillageState): VillageState {
 /**
  * Dítě narozené dnes (už ve `state.people`) – syn muže rodu dostane příznak rodu (lord.md – Kdo
  * patří k rodu), syn hlavní manželky i příznak `mainWifeSon`. Syn vojvody čeká na jméno od hráče
- * (kronika `line-birth`), ostatní muži rodu dostanou jméno hned (lord.md – Generovaná jména vnuků).
+ * (kronika `line-birth`) – ve vsi se zapnutým správcem ho dostane hned (steward.md – Jména synů) –,
+ * ostatní muži rodu dostanou jméno hned (lord.md – Generovaná jména vnuků).
  * Ves bez rodu – nic. Mutuje dítě, vrací události kroniky.
  */
 export function markNewborn(state: VillageState, child: Person, day: number): ChronicleEvent[] {
@@ -170,7 +172,11 @@ export function markNewborn(state: VillageState, child: Person, day: number): Ch
   if (!father || !isLineMan(father)) return [];
   child.line = true;
   if (father.spouseId === child.motherId) child.mainWifeSon = true;
-  if (currentLord(state)?.id === father.id) return [{ day, kind: 'line-birth' }];
+  if (currentLord(state)?.id === father.id) {
+    // ves se zapnutým správcem – syn vojvody dostane jméno hned jako vnuk (steward.md – Jména synů)
+    if (isStewardOn(state)) child.name = generatedLineName(state, day, child.id);
+    return [{ day, kind: 'line-birth' }];
+  }
   child.name = generatedLineName(state, day, child.id);
   return [];
 }

@@ -4,6 +4,7 @@ import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
 import {
   FOREIGN_LAND,
   SUCCESSOR_STAYS,
+  isVillageTravelling,
   type Person,
   type Position,
   type VillageState,
@@ -13,6 +14,7 @@ import { withBuiltFirstDwelling } from '../../domain/village/__tests__/village-f
 import { foundVillageForSettlement, TOO_CLOSE_TO_VILLAGE } from '../found-village';
 import { NOT_ARRIVED, OWN_MAP_THERE, leaveVillage, settleJourney } from '../leave-village';
 import { loadVillage } from '../load-village';
+import { setSteward } from '../set-steward';
 import { placeDwelling } from '../place-dwelling';
 import { placeField } from '../place-field';
 import { dynastyStatus } from '../restart-game';
@@ -360,6 +362,33 @@ describe('leaveVillage – syn vojvody s poměrnou částí vsi', () => {
     expect(deps.villages.records.size).toBe(1);
   });
 
+  it('správce se dá přepnout i u vsi na cestě – zapnutý příjezd založí, vypnutý ho vrátí hráči', async () => {
+    const { deps, villageId, sonId } = await lordPlayer();
+    const result = await leaveVillage(deps, {
+      playerId: PLAYER,
+      villageId,
+      today: TODAY + 1,
+      sonId,
+      destination: { kind: 'map', direction: 'N' },
+    });
+    if (!result.ok) throw new Error(result.reason);
+    const arrival = result.to.state.journey!.arrivalDay;
+    const base = { playerId: PLAYER, villageId: result.to.id, landscape };
+    const on = await setSteward(deps, { ...base, today: TODAY + 2, on: true });
+    expect(on.ok && on.village.state.steward?.on).toBe(true);
+    const off = await setSteward(deps, { ...base, today: TODAY + 2, on: false });
+    expect(off.ok && off.village.state.steward?.on).toBe(false);
+    const again = await setSteward(deps, { ...base, today: TODAY + 2, on: true });
+    expect(again.ok).toBe(true);
+    const loaded = await loadVillage(deps, {
+      villageId: result.to.id,
+      today: arrival + 3,
+      landscape,
+    });
+    expect(isVillageTravelling(loaded!.state)).toBe(false);
+    expect(loaded!.state.steward?.on).toBe(true);
+  });
+
   it('na novou mapu: vůdce ves na cestě drží a po příjezdu je vojvodou', async () => {
     const { deps, villageId, sonId } = await lordPlayer();
     const result = await leaveVillage(deps, {
@@ -372,6 +401,14 @@ describe('leaveVillage – syn vojvody s poměrnou částí vsi', () => {
     if (!result.ok) throw new Error(result.reason);
     const journey = result.to.state.journey!;
     expect(journey.lordId).toBe(sonId);
+    // odchod spuštěný hráčem sám založit nejde – správce na cestě je vypnutý a ves čeká na hráče
+    expect(result.to.state.steward?.on).toBe(false);
+    const late = await loadVillage(deps, {
+      villageId: result.to.id,
+      today: journey.arrivalDay + 3,
+      landscape,
+    });
+    expect(isVillageTravelling(late!.state)).toBe(true);
     const settled = await settleJourney(deps, {
       playerId: PLAYER,
       villageId: result.to.id,

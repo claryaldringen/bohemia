@@ -70,7 +70,7 @@ export function VillageList({
                 <span data-testid="village-list-people">{village.people}</span>
               </span>
             </button>
-            {onSetSteward && !village.extinct && !village.abandoned && !village.travelling && (
+            {onSetSteward && !village.extinct && !village.abandoned && (
               <StewardToggle
                 on={village.steward === true}
                 onToggle={(on) => onSetSteward(village.id, on)}

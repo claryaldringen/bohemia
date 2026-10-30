@@ -463,6 +463,12 @@ export function travellingVillage(
   seed: number,
   day: number,
   journey: VillageJourney,
+  /**
+   * Správce vsi na cestě: ze schránky správce zapnutý (ves se po příjezdu založí sama), u odchodu
+   * spuštěného hráčem vypnutý (čeká na hráče; steward.md – Odchod syna – upřesnění). Po založení
+   * řídí ves správce podle `settlers.stewarded`.
+   */
+  stewardOnTheWay: boolean = settlers.stewarded === true,
 ): VillageState {
   const householdId = settlersMaxId(settlers) + 1;
   const { food } = settlers;
@@ -477,7 +483,7 @@ export function travellingVillage(
     // ves bez rodu jako nová ves z osadníků (`foundVillage`) – převod rodu ji nemá sledovat
     dynasty: { lordId: null, lords: [] },
     // ves s vůdcem odchodu (syn vojvody) řídí správce od založení (steward.md – Stav správce)
-    steward: newSteward(day, settlers.stewarded === true),
+    steward: newSteward(day, stewardOnTheWay),
     dwellings: [],
     fields: [],
     parts: [],

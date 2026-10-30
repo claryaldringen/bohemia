@@ -57,6 +57,13 @@
       "when": 1793084699341,
       "tag": "0007_weather_seed",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793402449666,
+      "tag": "0008_square_the_hand",
+      "breakpoints": true
     }
   ]
 }

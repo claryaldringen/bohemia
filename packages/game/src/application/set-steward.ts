@@ -1,7 +1,8 @@
 import type { Landscape } from '../domain/landscape';
 import { setStewardOn } from '../domain/village';
 import { cloneState } from '../domain/village/clone';
-import { updateLivingVillage } from './update-village';
+import { isVillageAbandoned, isVillageExtinct } from '../domain/village';
+import { VILLAGE_ABANDONED, VILLAGE_EXTINCT, updateVillage } from './update-village';
 import type { VillageRepository, VillageResult } from './villages';
 
 // Přepínač správce vsi (steward.md – Soužití s hráčem: přepnutí za běhu je akce hráče).
@@ -27,15 +28,12 @@ export function setSteward(
   deps: { villages: VillageRepository },
   input: SetStewardInput,
 ): Promise<VillageResult> {
-  return updateLivingVillage(
-    deps.villages,
-    input.villageId,
-    input.today,
-    input.landscape,
-    (state) => {
-      const next = cloneState(state);
-      setStewardOn(next, next.lastDay, input.on);
-      return { ok: true, state: next };
-    },
-  );
+  return updateVillage(deps.villages, input.villageId, input.today, input.landscape, (state) => {
+    // i ves na cestě: zapnutí svěří příjezd správci, vypnutí ho vrací hráči
+    if (isVillageExtinct(state)) return { ok: false, reason: VILLAGE_EXTINCT };
+    if (isVillageAbandoned(state)) return { ok: false, reason: VILLAGE_ABANDONED };
+    const next = cloneState(state);
+    setStewardOn(next, next.lastDay, input.on);
+    return { ok: true, state: next };
+  });
 }
