@@ -757,7 +757,9 @@ function renamedTools(goods: TradeGoods, keepEmpty = false): TradeGoods {
   if (legacy.tools === undefined) return goods;
   const out: ToolGoods = { ...legacy };
   delete out.tools;
-  const bars = (out.ironBars ?? 0) + Math.round(legacy.tools / IRON.barsPerToolKg);
+  const bars =
+    (out.ironBars ?? 0) +
+    Math.max(legacy.tools > 0 ? 1 : 0, Math.round(legacy.tools / IRON.barsPerToolKg));
   if (bars > 0 || keepEmpty) out.ironBars = bars;
   return out;
 }

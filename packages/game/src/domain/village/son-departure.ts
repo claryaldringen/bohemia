@@ -87,9 +87,14 @@ export function sonHorse(state: Pick<VillageState, 'pens'>, sonId: number): Hors
  * Smí syn `sonId` vést odchod s poměrnou částí vsi (lord.md – Dělení vsi, Kdo může vést odchod)?
  * Syn vojvody (muž rodu), žijící ve vsi, od LORD.leaveMinAge let, ne nástupce (`successorOf` – kdo
  * by nastoupil dnes), se jménem; jeho rodina si nesmí stavět nový dům. Důvod česky pro hráče
- * (u kurzoru) i pro server.
+ * (u kurzoru) i pro server. `relocatingNow` – už spočítané stěhující se domácnosti (jinak se spočtou).
  */
-export function checkSonLeader(state: VillageState, sonId: number, day: number): PlacementCheck {
+export function checkSonLeader(
+  state: VillageState,
+  sonId: number,
+  day: number,
+  relocatingNow?: ReadonlySet<number>,
+): PlacementCheck {
   if (isVillageDormant(state)) return { ok: false, reason: 'Ve vsi nikdo nežije.' };
   const lordId = state.dynasty?.lordId;
   if (lordId === undefined || lordId === null) return { ok: false, reason: LEAD_NO_LORD };
@@ -98,7 +103,7 @@ export function checkSonLeader(state: VillageState, sonId: number, day: number):
   if (ageYears(son.bornDay, day) < LORD.leaveMinAge) return { ok: false, reason: LEAD_TOO_YOUNG };
   if (successorOf(state, lordId)?.id === son.id) return { ok: false, reason: SUCCESSOR_STAYS };
   if (son.name === undefined) return { ok: false, reason: SON_NAME_MISSING };
-  const relocating = relocatingHouseholds(state);
+  const relocating = relocatingNow ?? relocatingHouseholds(state);
   if (sonFamily(state, son).some((p) => relocating.has(p.dwellingId))) {
     return { ok: false, reason: SON_RELOCATING };
   }
@@ -114,9 +119,11 @@ export function leadingSons(
   state: VillageState,
   day: number,
 ): { son: Person; check: PlacementCheck }[] {
+  // stěhující se domácnosti stačí spočítat jednou pro všechny syny
+  const relocating = relocatingHouseholds(state);
   return lordSons(state)
     .filter((p) => ageYears(p.bornDay, day) >= LORD.leaveMinAge)
-    .map((son) => ({ son, check: checkSonLeader(state, son.id, day) }));
+    .map((son) => ({ son, check: checkSonLeader(state, son.id, day, relocating) }));
 }
 
 /** Čtverec vzdálenosti dvou bodů v rovině (m²) – jen na pořadí, deterministicky bez odmocniny. */

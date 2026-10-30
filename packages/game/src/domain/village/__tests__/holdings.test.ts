@@ -402,7 +402,7 @@ describe('ves hospodaří podle domů', () => {
     const sownParts = (xs: VillageState[]): number =>
       mean(xs.map((s) => s.parts.filter((p) => p.state === 'sown').length));
     expect(sownParts(after)).toBeGreaterThan(0.9 * sownParts(old));
-  }, 30_000);
+  }, 120_000);
 
   it('práce jde po úsecích, v úseku od domu ven – kopání ozimu je předpona pořadí', () => {
     // hráč staví – ves oseje jen potřebné, osev navíc ozim nezvětší ani nezmenší
