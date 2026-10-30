@@ -263,6 +263,15 @@ describe('pahýly a okruhy', () => {
       expect(trimStubs(onRoad, [], stub)).toBe(false);
     });
 
+    it('hranice END_SNAP_M (4 m): konec do 3,9 m od jiné cesty zbytek nechá, od 4,1 m ho uklidí', () => {
+      const near = base(3.9);
+      expect(trimStubs(near, [], stub)).toBe(false);
+      expect(near.roads.some((r) => r.id === 3)).toBe(true);
+      const far = base(4.1);
+      expect(trimStubs(far, [], stub)).toBe(true);
+      expect(far.roads.some((r) => r.id === 3)).toBe(false);
+    });
+
     it('hotový úsek rozestavěné vozové cesty (stavba bez roadIds) úklid nesmaže', () => {
       const net = base(25);
       net.earthworks = [

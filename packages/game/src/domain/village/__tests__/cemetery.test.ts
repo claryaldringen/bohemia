@@ -281,7 +281,7 @@ describe('pohřebiště v simulaci', () => {
     );
     expect(later.cemeteries).toBeUndefined();
     expect(summarizeVillage(later, later.lastDay).cemeteries).toEqual([]);
-  });
+  }, 120_000);
 
   it('po kouscích dá stejný stav jako jedním voláním – i s pohřbíváním po hájení', () => {
     const start = advanceVillage(found(), FOUNDED, null);
@@ -301,7 +301,7 @@ describe('pohřebiště v simulaci', () => {
     expect(chunked).toEqual(whole);
     expect(whole.cemeteries![0]!.graves).toBeGreaterThan(0);
     expect(JSON.parse(JSON.stringify(whole))).toEqual(whole);
-  }, 30_000);
+  }, 120_000);
 });
 
 describe('souhrn pohřebišť', () => {

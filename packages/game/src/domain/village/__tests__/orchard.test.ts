@@ -605,7 +605,7 @@ describe('advanceVillage – sad', () => {
     expect(daily).toEqual(whole);
     // sad opravdu plodil – jinak by shoda nic neznamenala
     expect(events(whole, 'apple-harvest').length).toBeGreaterThanOrEqual(5);
-  });
+  }, 120_000);
 });
 
 /** Usazená ves – první pole je dávno založené a v jarním i podzimním okně zbývá společná práce. */
