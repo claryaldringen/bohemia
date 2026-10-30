@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { FIELD_LIMITS, foundVillage, type VillageState } from '../../src/domain/village';
+import {
+  FIELD_LIMITS,
+  foundVillage,
+  squareValue,
+  type VillageState,
+} from '../../src/domain/village';
 import {
   MEADOW_BURN,
   applyVariantToNewParts,
   naturalFertilityOf,
   realLand,
   restoreBurnedAfterHarvest,
-  squareValue,
   syntheticLand,
   type CalibrationLand,
 } from '../lib/calibration-land';

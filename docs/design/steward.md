@@ -283,6 +283,33 @@ stavby), nejvýš jedno pole na den správce.
   rozpracovaná etapa ve stavu), každá etapa pod 200 ms; mezitím správce staví podle starého plánu
   nebo – v nové vsi – jen hřbitov a obydlí u dvorce.
 
+### Čísla a upřesnění plánu (návrh Clauda – `STEWARD` v `rules-steward.ts`)
+
+- **Mapa hodnot – pole:** zvěř bere u okraje lesa 15 % úrody (× váha podle vzdálenosti od lesa,
+  wildlife.md – Škody), počasí bez ochrany zeleně 6 % za rok (zeleň do 15 m chrání celá, od
+  100 m nic – odhad z blízkosti lesa; sady a solitéry plán zatím nezná). Do bloku pole jde jen
+  louka s hodnotou aspoň poloviny mediánu louky území; les je lesní rezerva, na pole se plánem
+  nebere.
+- **Mapa hodnot – dům:** jen louka nad hladinou dvousetleté vody (2,4 m), svah nejvýš 1 m proti
+  sousedním políčkům; cena místa = chůze pro vodu (`waterFetchingLabor`) + 60 pochůzek za rok do
+  lesa pro dřevo. Rozestup 12 m mezi vyklízenými plochami = středy domů ≥ 24,2 m.
+- **Plán na lidi:** dvojnásobek dnešních lidí, aspoň 4 domácnosti po 7 lidech, nejvýš co uživí
+  louka území – „víc z“ v textu výš čtu jako dvojnásobek omezený tím, co území uživí. Blok pole
+  domácnosti je její potřeba z pole × oběh × 1,25 (rezerva) při průměrné úrodnosti louky území.
+- **Území vsi:** Voroného buňka středů vsí mapy (dvorec, jinak první obydlí) do 800 m; při shodě
+  vzdálenosti vyhraje starší ves.
+- **Šablony:** shluk = domy nejblíž středu; řadová ves = domy do 100 m od vody od středu do stran
+  s rozestupem na šířku bloku; samoty = domy uprostřed nejbohatších bloků s rozestupem na šířku
+  bloku. Bloky si domy berou po kole po nejbližším volném políčku. Cena = člověkodny za rok (polní
+  práce × vzdálenost, voda, dřevo, jedna pochůzka denně ke dvorci) na tunu úrody po ztrátách.
+  **Hustší šablona vyhraje, pokud řidší ušetří méně než 10 % ceny** (hašení, obrana a sousedská
+  pomoc, které cena nezachytí) – na rovině s jedním zdrojem vody tak nová ves vyjde jako shluk,
+  v úzkém údolí jako řadová ves; velká ves na rovině jako samoty.
+- **Etapy:** den 1 mapa hodnot a šablony, pak kontroly míst domů po nejvýš 40 (celkem 200), pak
+  ostatní sloty (hřbitov ≥ 150 m od domů a ≥ 100 m od vody na horší půdě, humno a dílny na suchu,
+  sad a ohrada u domů – po 8 slotech; z bloků polí berou až po volné zemi). Přepočet celý po víc
+  než 3 změnách staveb hráče nebo po 5 letech.
+
 ## Přestavba vlastních staveb (Martin 30. 10. 2026 – „Přestaví, ne hráčovo“; podrobnosti návrh Clauda)
 
 - **Jen stavby v `steward.built`.** Stavby hráče a stavby postavené před zapnutím správce nikdy.

@@ -485,6 +485,12 @@ export interface NeighbourSnapshot {
    * kováře pro kování dojde k nejbližší. Chybí = žádné.
    */
   smithies?: { x: number; z: number; name: string }[];
+  /**
+   * Středy obývaných vsí (dvorec, jinak první obydlí nebo staveniště – `villageCentre`, m) a den
+   * založení –
+   * území vsi pro plán správce (steward.md – Mapa hodnot krajiny). Chybí = žádné.
+   */
+  villages?: { x: number; z: number; foundedDay: number }[];
   cleared: ObstacleChange[];
   felled: ObstacleChange[];
   reserved: number[];
