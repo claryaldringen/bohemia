@@ -234,3 +234,20 @@ describe('applyBuildIntent – hřbitov', () => {
     });
   });
 });
+
+describe('applyBuildIntent – ohrada', () => {
+  it('zahájí stavbu ohrady, dřevo vezme z hromady', () => {
+    const result = apply(settled(), { kind: 'pen', species: 'pig', cells: block(10, 10, 1, 1) });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.pens?.at(-1)).toMatchObject({ species: 'pig' });
+    expect(result.state.woodLogs).toBeLessThan(40);
+  });
+
+  it('ohradu ve vodě odmítne', () => {
+    const result = apply(settled(), { kind: 'pen', species: 'pig', cells: block(15, 2, 1, 1) });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toMatch(/vod/);
+  });
+});

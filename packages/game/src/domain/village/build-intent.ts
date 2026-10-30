@@ -3,6 +3,7 @@ import {
   foundCemetery,
   foundField,
   foundOrchard,
+  foundPen,
   startNewDwelling,
   startRelocation,
   startSacredBuilding,
@@ -28,6 +29,7 @@ import type {
   BuildableDwellingType,
   Craft,
   DwellingPlot,
+  PenSpecies,
   Position,
   SacredBuildingKind,
   SquareGrid,
@@ -39,6 +41,8 @@ import {
   fieldPartsFromCells,
   orchardPartsFromCells,
 } from './placement-fields';
+import { HORSE_PEN_NO_SURPLUS } from './horse-pen-payment';
+import { penSquaresFromCells } from './placement-pens';
 
 // Doménový příkaz stavby (steward.md – Kde správce běží): jedno pravidlo stavby pro hráče
 // i správce vsi – cena předem (`buildAffordability`), kontrola místa a akce domény. Use-casy
@@ -142,6 +146,17 @@ export interface CemeteryIntent {
   grid?: SquareGrid;
 }
 
+/** Ohrada s přístřeškem, nebo její rozšíření (oxen.md – Ohrady podle druhu). */
+export interface PenIntent {
+  kind: 'pen';
+  /** Druh zvířat ohrady. */
+  species: PenSpecies;
+  /** Čtverce ohrady – políčka krajiny, nebo čtverce natočené mřížky `grid` (nejvýš 4). */
+  cells: TileCell[];
+  /** Natočená mřížka ohrady (fields.md – Natočené stavby); bez ní mřížka krajiny. */
+  grid?: SquareGrid;
+}
+
 /** Co se má stavět a kde – druh stavby a místo (poloha, pozemek, čtverce, mřížka, cesta). */
 export type BuildIntent =
   | DwellingIntent
@@ -151,7 +166,8 @@ export type BuildIntent =
   | ThreshingFloorIntent
   | FieldIntent
   | OrchardIntent
-  | CemeteryIntent;
+  | CemeteryIntent
+  | PenIntent;
 
 /** Výsledek příkazu stavby – nový stav vsi, nebo důvod odmítnutí česky pro hráče. */
 export type BuildResult = { ok: true; state: VillageState } | { ok: false; reason: string };
@@ -184,6 +200,8 @@ export function applyBuildIntent(
       return buildOrchard(state, day, landscape, obstacles, intent);
     case 'cemetery':
       return buildCemetery(state, day, landscape, obstacles, intent);
+    case 'pen':
+      return buildPen(state, day, landscape, obstacles, intent);
   }
 }
 
@@ -552,4 +570,57 @@ function buildCemetery(
     takenLand: preview.takenLand,
   };
   return { ok: true, state: foundCemetery(state, day, cemetery) };
+}
+
+/**
+ * Ohrada s přístřeškem, nebo její rozšíření – dřevo (6 stromů na čtverec) vezme stavba
+ * z hromady, zbytek vyhradí ke kácení, překážky na čtvercích osadníci odstraní hned.
+ */
+function buildPen(
+  state: VillageState,
+  day: number,
+  landscape: Landscape,
+  obstacles: ObstacleLayer,
+  intent: PenIntent,
+): BuildResult {
+  if (!buildAffordability(state, 'pen', obstacles).affordable) {
+    return { ok: false, reason: NO_WOOD };
+  }
+  const check = penSquaresFromCells(
+    landscape,
+    placementVillageOf(state, day),
+    intent.cells,
+    intent.species,
+    obstacles,
+    intent.grid,
+  );
+  if (!check.check.ok) {
+    return { ok: false, reason: check.check.reason ?? 'Sem ohrada nepatří.' };
+  }
+  try {
+    return {
+      ok: true,
+      state: foundPen(
+        state,
+        day,
+        {
+          species: intent.species,
+          squares: check.squares,
+          ...(check.grid ? { grid: check.grid } : {}),
+          takenLand: check.takenLand,
+        },
+        obstacles,
+        villageRoadWalk(state, landscape),
+      ),
+    };
+  } catch (error) {
+    // chybí obilí na koně, nebo dřevo mezitím vyhradila jiná stavba
+    if (error instanceof RangeError) {
+      return {
+        ok: false,
+        reason: error.message === HORSE_PEN_NO_SURPLUS ? HORSE_PEN_NO_SURPLUS : NO_WOOD,
+      };
+    }
+    throw error;
+  }
 }
