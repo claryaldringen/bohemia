@@ -27,7 +27,13 @@ export interface StewardState {
   on: boolean;
   /** Od kdy je zapnutý / vypnutý (den poslední změny). */
   sinceDay: number;
-  /** Značka „postavil správce“: id staveb, které založil, a těch, které z nich vznikly. */
+  /**
+   * Značka „postavil správce“ – jen to, co správce skutečně založil: id staveb (`markStewardStarted`),
+   * dílů polí (`FieldPart.id`, nové díly i při rozšíření hráčova pole) a entit, které stavba sama
+   * založila (nové obydlí, pole, ohrada, hřbitov, sad, vylepšené úseky cest). Rozšíření stojící
+   * ohrady či hřbitova (`Construction.extends`) označí jen id stavby – čtverce rozšíření se
+   * nerozlišují, celek zůstává hráčův; přestavba a oprava hráčova domu nic neoznačí.
+   */
   built: number[];
   plan?: StewardPlan;
   vetoes?: StewardVeto[];

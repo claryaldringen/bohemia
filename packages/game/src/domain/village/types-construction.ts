@@ -137,6 +137,11 @@ export interface Construction {
    * stavby roste s prací. Jen u stavby `repair`, u ostatních chybí.
    */
   repair?: StructureRepair;
+  /**
+   * Stavba rozšiřuje už stojící pole, ohradu nebo hřbitov (ne vlastní nová entita) – značka
+   * „postavil správce“ pak nepřejde na celek (steward.md – Stav správce). Jinak chybí.
+   */
+  extends?: true;
 }
 /**
  * Oprava stavby (abandonment.md – Oprava): druh a id stavby (modla a svatyně – id stavby,

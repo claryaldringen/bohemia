@@ -30,6 +30,21 @@ export function markStewardBuilt(state: VillageState, id: number): void {
   if (!steward.built.includes(id)) steward.built.push(id);
 }
 
+/**
+ * Správce založil stavbu `constructionId` (mutuje `state`): značka stavby a u pole i jeho právě
+ * zakládané díly (rozšíření hráčova pole označí jen nové díly, ne celé pole – `finishConstructions`
+ * předá značku celku jen u entity, kterou stavba sama založila). Stavba, která neexistuje, nic.
+ */
+export function markStewardStarted(state: VillageState, constructionId: number): void {
+  const c = state.constructions.find((x) => x.id === constructionId);
+  if (!c) return;
+  markStewardBuilt(state, c.id);
+  if (c.kind !== 'field') return;
+  for (const p of state.parts) {
+    if (p.fieldId === c.fieldId && p.state === 'founding') markStewardBuilt(state, p.id);
+  }
+}
+
 export function isStewardBuilt(state: VillageState, id: number): boolean {
   return state.steward?.built.includes(id) === true;
 }
