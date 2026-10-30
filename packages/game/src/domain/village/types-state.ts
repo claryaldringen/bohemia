@@ -454,6 +454,8 @@ export interface VillageJourney {
    * je jejím vojvodou (`Settlers.lordId`). Chybí = nejstarší muž rodu mezi osadníky.
    */
   lordId?: number;
+  /** Ves založí syn (`Settlers.stewarded`) – správce od založení; chybí = vypnutý. */
+  stewarded?: true;
 }
 
 /**

@@ -283,6 +283,7 @@ const view = {
       repair: null,
     },
   ],
+  steward: { on: false, built: [] },
 } as unknown as VillageView;
 
 describe('selectionDetails', () => {
@@ -553,6 +554,7 @@ describe('selectionDetails – díl pole a čtverec sadu (klik – fields.md, Co
         ],
       },
     ],
+    steward: { on: false, built: [] },
   } as unknown as VillageView;
 
   it('osetý díl: co je vidět ze scény, čísla dílu z pohledu, dům hospodářství', () => {
@@ -892,5 +894,29 @@ describe('selectionDetails – rudiště (crafts.md – Uhlí a ruda kováře)',
     expect(selectionDetails(view, withClay, { kind: 'ore-site', id: 3 })).toBeNull();
     expect(selectionDetails(view, withClay, { kind: 'clay-site', id: 2 })).toBeNull();
     expect(selectionDetails(view, withOre, { kind: 'clay-site', id: 3 })).toBeNull();
+  });
+});
+
+describe('selectionDetails – správce (steward.md – Co hráč vidí)', () => {
+  it('stavba s id ve view.steward.built nese značku, ostatní ne', () => {
+    const stewarded = { ...view, steward: { on: true, built: [2] } } as VillageView;
+    expect(selectionDetails(stewarded, scene, { kind: 'dwelling', id: 2 })?.stewardBuilt).toBe(
+      true,
+    );
+    expect(selectionDetails(stewarded, scene, { kind: 'dwelling', id: 1 })?.stewardBuilt).toBe(
+      undefined,
+    );
+    expect(selectionDetails(view, scene, { kind: 'dwelling', id: 2 })?.stewardBuilt).toBe(
+      undefined,
+    );
+  });
+
+  it('značku nese i posvátná stavba a humno', () => {
+    const stewarded = { ...view, steward: { on: true, built: [40] } } as VillageView;
+    expect(selectionDetails(stewarded, scene, { kind: 'sacred', id: 40 })?.stewardBuilt).toBe(true);
+  });
+
+  it('přepínač správce jen u dvorce vojvody, ne u běžného obydlí', () => {
+    expect(selectionDetails(view, scene, { kind: 'dwelling', id: 1 })?.steward).toBeUndefined();
   });
 });

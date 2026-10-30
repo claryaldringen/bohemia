@@ -6,6 +6,7 @@ import { type SelectionDetails } from '@/lib/selection-details';
 import { PreviewPeople } from '@/lib/trade-quote';
 import type { DwellingResident } from '@/lib/person-view';
 import { Tooltip } from '../Tooltip';
+import { StewardToggle } from '../StewardToggle';
 import { ManorUpgrades } from '../ManorPanel';
 import { TradePanel } from '../TradePanel';
 import { LeaveControls, RelocateButtons, RelocationProgress } from '../RelocationControls';
@@ -60,14 +61,23 @@ export function DwellingBody({
   onBuildTrail,
   onDeclareHunt,
   onSendExpedition,
+  steward,
+  onSetSteward,
 }: {
   details: Extract<SelectionDetails, { kind: 'dwelling' }>;
+  /** Přepínač správce (jen dvorec vojvody); jinak undefined. */
+  steward?: { on: boolean } | undefined;
+  onSetSteward?: ((on: boolean) => Promise<unknown>) | undefined;
   /** Vybere milíř uhlíře z panelu dílny (crafts.md – Milíř u skácených buků). */
   onSelectTarget?: ((target: VillageTarget) => void) | undefined;
 } & RelocationActions &
   ManorActions): ReactElement {
   const tone = details.overcrowded ? 'text-red-400' : details.full ? 'text-[#f3cf86]' : '';
-  const commands = details.manor !== null || details.relocate !== null || details.leave !== null;
+  const commands =
+    details.manor !== null ||
+    details.relocate !== null ||
+    details.leave !== null ||
+    steward !== undefined;
   return (
     <div className="hud-split">
       <div className="flex min-w-0 flex-col justify-center gap-1.5">
@@ -107,6 +117,7 @@ export function DwellingBody({
       </div>
       {commands && (
         <Commands>
+          {steward && <StewardToggle on={steward.on} onToggle={onSetSteward} />}
           {details.manor && (
             <ManorUpgrades
               manor={details.manor}

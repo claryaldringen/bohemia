@@ -41,7 +41,10 @@ describe('humna v pohledu na ves', () => {
 
   it('výběr humna – panel ho dostane jen když je i ve scéně', () => {
     const floor = { id: 7, built: true, progress: 1, sheavesKg: 10, threshingToday: false };
-    const view = { threshingFloors: [floor] } as unknown as VillageView;
+    const view = {
+      threshingFloors: [floor],
+      steward: { on: false, built: [] },
+    } as unknown as VillageView;
     const scene = {
       dwellings: [],
       fields: [],

@@ -85,6 +85,11 @@ export interface Settlers {
    */
   lordId?: number;
   /**
+   * Ves založí syn vojvody (`departWithSon`) – řídí ji správce od založení (steward.md – Stav
+   * správce). Odchod vojvody s obydlími či celé vsi je stěhování sídla hráče: příznak chybí.
+   */
+  stewarded?: true;
+  /**
    * Jezdecký kůň vůdce (lord.md – Dělení vsi, Kůň syna) – v nové vsi čeká bez ohrady
    * (`VillageState.looseHorses`). Bez koně chybí.
    */
@@ -348,7 +353,13 @@ export function departLeavers(
   state: VillageState,
   day: number,
   leavers: readonly Person[],
-  options: { event: ChronicleEvent; direction?: Direction8; lordId?: number; horseId?: number },
+  options: {
+    event: ChronicleEvent;
+    direction?: Direction8;
+    lordId?: number;
+    horseId?: number;
+    stewarded?: true;
+  },
 ): { state: VillageState; settlers: Settlers } {
   const { direction } = options;
   const share = leavers.length / state.people.length;
@@ -412,6 +423,7 @@ export function departLeavers(
       ...(options.lordId !== undefined && leaving.has(options.lordId)
         ? { lordId: options.lordId }
         : {}),
+      ...(options.stewarded ? { stewarded: true as const } : {}),
       ...(horse ? { horse } : {}),
     },
   };
@@ -465,7 +477,7 @@ export function travellingVillage(
     // ves bez rodu jako nová ves z osadníků (`foundVillage`) – převod rodu ji nemá sledovat
     dynasty: { lordId: null, lords: [] },
     // ves s vůdcem odchodu (syn vojvody) řídí správce od založení (steward.md – Stav správce)
-    steward: newSteward(day, settlers.lordId !== undefined),
+    steward: newSteward(day, settlers.stewarded === true),
     dwellings: [],
     fields: [],
     parts: [],
@@ -503,6 +515,7 @@ export function travellingVillage(
     journey: {
       ...journey,
       ...(settlers.lordId === undefined ? {} : { lordId: settlers.lordId }),
+      ...(settlers.stewarded ? { stewarded: true as const } : {}),
     },
   };
 }
@@ -531,6 +544,7 @@ export function settlersOf(state: VillageState): Settlers {
       ? { oxen: state.looseOxen.map((ox) => ({ ...ox })) }
       : {}),
     ...(state.journey?.lordId === undefined ? {} : { lordId: state.journey.lordId }),
+    ...(state.journey?.stewarded ? { stewarded: true as const } : {}),
     ...(state.looseHorses?.[0] ? { horse: { ...state.looseHorses[0] } } : {}),
   };
 }

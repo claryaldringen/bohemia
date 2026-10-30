@@ -131,6 +131,40 @@ describe('poměrná část vsi (sonShare)', () => {
     expect(share.personIds).not.toContain(40);
   });
 
+  it('správce zapíná jen odchod syna – i přes cestu na novou mapu, ne stěhování vojvody', () => {
+    const journey = { direction: 'N' as const, departedDay: DAY, arrivalDay: DAY + 2 };
+    const son = departWithSon(lordVillage(), DAY, 30, { villageName: 'Lhota' });
+    expect(son.settlers.stewarded).toBe(true);
+    const founded = foundVillage({
+      seed: 3,
+      day: DAY,
+      dwellingPosition: { x: -50, z: -50, rotation: 0 },
+      settlers: son.settlers,
+    });
+    expect(founded.steward).toMatchObject({ on: true, sinceDay: DAY });
+    const travelling = travellingVillage(son.settlers, 9, DAY, journey);
+    expect(travelling.steward?.on).toBe(true);
+    expect(settlersOf(travelling).stewarded).toBe(true);
+    // vojvoda odchází s obydlími (i s celou vsí): stěhování sídla, vůdce je, správce ne
+    const s = lordVillage();
+    const lordHome = s.people.find((p) => p.id === 10)!.dwellingId;
+    for (const ids of [[lordHome], s.dwellings.map((d) => d.id)]) {
+      const lord = departVillage(s, DAY, ids);
+      expect(lord.settlers.lordId).toBe(10);
+      expect(lord.settlers.stewarded).toBeUndefined();
+      const moved = foundVillage({
+        seed: 3,
+        day: DAY,
+        dwellingPosition: { x: -50, z: -50, rotation: 0 },
+        settlers: lord.settlers,
+      });
+      expect(moved.steward?.on).toBe(false);
+      const onWay = travellingVillage(lord.settlers, 9, DAY, journey);
+      expect(onWay.steward?.on).toBe(false);
+      expect(onWay.journey?.lordId).toBe(10);
+    }
+  });
+
   it('dva synové po sobě berou stejný díl původní vsi', () => {
     const first = departWithSon(lordVillage(), DAY, 30, { villageName: 'Lhota' });
     expect(first.settlers.people).toHaveLength(10);

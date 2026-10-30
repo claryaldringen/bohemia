@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { advanceVillage, dayIndexOf, foundVillage, type VillageState } from '@bohemia/game';
-import { villageListItem } from '../village-list';
+import { keepShownVillage, villageListItem } from '../village-list';
 
 // Položka přepínače vsí (migration.md – Víc vsí jednoho hráče): humno pro upozornění z jiné vsi
 // (production-chains.md – Humno).
@@ -52,5 +52,47 @@ describe('villageListItem – humno', () => {
       { id: 900, position: { x: 50, z: 0, rotation: 0 }, builtDay: founded },
     ];
     expect(villageListItem(record(floor), at(600, 9, 10)).threshing).toBeUndefined();
+  });
+});
+
+describe('villageListItem – správce', () => {
+  it('zapnutý správce nese značku, vypnutý a ves bez stavu ne', () => {
+    const parts = Array.from({ length: 40 }, (_, i) => ({
+      areaM2: 225,
+      distanceM: 50 + i,
+      naturalFertility: 70,
+      surface: 'meadow' as const,
+      obstacleCost: 0,
+    }));
+    const outline: [number, number][] = [
+      [0, 0],
+      [10, 0],
+      [10, 10],
+    ];
+    const s = foundVillage({
+      seed: 7,
+      day: at(600, 3, 15),
+      dwellingPosition: { x: 0, z: 0, rotation: 0 },
+      firstField: { outline, parts },
+    });
+    const on = structuredClone(s);
+    on.steward = { on: true, sinceDay: on.lastDay, built: [] };
+    const off = structuredClone(s);
+    off.steward = { on: false, sinceDay: off.lastDay, built: [] };
+    expect(villageListItem(record(on), on.lastDay).steward).toBe(true);
+    expect(villageListItem(record(off), off.lastDay).steward).toBeUndefined();
+  });
+});
+
+describe('keepShownVillage', () => {
+  const list = [{ id: 'a', steward: true as const }] as never[];
+  const one = { id: 'v1', villages: [], marker: 1 };
+  const two = { id: 'v2', villages: list, marker: 2 };
+  it('odpověď o jiné vsi nechá pohled na zobrazené, vezme jen seznam vsí', () => {
+    expect(keepShownVillage(one, two)).toEqual({ id: 'v1', villages: list, marker: 1 });
+  });
+  it('stejná ves nebo nic zobrazeného: odpověď beze změny', () => {
+    expect(keepShownVillage(one, { ...one, marker: 3 }).marker).toBe(3);
+    expect(keepShownVillage(null, two)).toBe(two);
   });
 });

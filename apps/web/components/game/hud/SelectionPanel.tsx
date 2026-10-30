@@ -8,6 +8,7 @@ import { formatPercent } from '@/lib/village-format';
 import { ROAD_KIND_NAMES, SACRED_BUILDING_NAMES } from '@/lib/village-view';
 import { CancelConstructionButton } from './RelocationControls';
 import { Tooltip } from './Tooltip';
+import { StewardBuiltMark } from './StewardToggle';
 import {
   Portrait,
   Stat,
@@ -76,8 +77,11 @@ export function SelectionPanel({
   onBuildTrail,
   onDeclareHunt,
   onSendExpedition,
+  onSetSteward,
 }: {
   details: SelectionDetails | null;
+  /** Zapne / vypne správce vsi (server action) – přepínač v panelu dvorce. */
+  onSetSteward?: (on: boolean) => Promise<unknown>;
   /** Vybere jiný cíl ve vsi – dům hospodářství z panelu dílu pole. */
   onSelectTarget?: (target: VillageTarget) => void;
   /** Zadá vylepšení pevné cesty (server action) – hotovo, až se vrátí. */
@@ -250,6 +254,8 @@ export function SelectionPanel({
         onBuildTrail={onBuildTrail}
         onDeclareHunt={onDeclareHunt}
         onSendExpedition={onSendExpedition}
+        steward={details.steward}
+        onSetSteward={onSetSteward}
       />
     );
   }
@@ -268,12 +274,15 @@ export function SelectionPanel({
       <div className="flex min-h-24 gap-3">
         {portrait}
         {body}
-        {details.cancelConstructionId !== undefined && (
-          <div className="ml-auto self-start">
-            <CancelConstructionButton
-              constructionId={details.cancelConstructionId}
-              onCancel={onCancelConstruction}
-            />
+        {(details.cancelConstructionId !== undefined || details.stewardBuilt) && (
+          <div className="ml-auto flex items-center gap-1 self-start">
+            {details.stewardBuilt && <StewardBuiltMark />}
+            {details.cancelConstructionId !== undefined && (
+              <CancelConstructionButton
+                constructionId={details.cancelConstructionId}
+                onCancel={onCancelConstruction}
+              />
+            )}
           </div>
         )}
       </div>

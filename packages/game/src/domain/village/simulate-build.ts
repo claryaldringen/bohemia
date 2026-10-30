@@ -307,11 +307,15 @@ export function foundPart(state: VillageState, day: number, part: FieldPart): vo
 
 /**
  * Dostavěná stavba správce předá značku „postavil správce“ tomu, co z ní vzniklo (pole, ohrada,
- * hřbitov, sad, cesty; obydlí viz `finishConstructions`) – steward.md – Stav správce.
+ * hřbitov, sad, cesty; obydlí viz `finishConstructions`), jen když stavba entitu sama založila
+ * (`Construction.extends` ji nepřenáší; přestavba a oprava nic) – steward.md – Stav správce.
  */
 function inheritStewardMark(state: VillageState, c: Construction): void {
   if (!isStewardBuilt(state, c.id)) return;
-  const ids = [c.dwellingId, c.fieldId, c.cemeteryId, c.orchardId, c.penId, ...(c.roadIds ?? [])];
+  // přestavba a oprava se týkají hráčova domu, rozšíření pole, ohrady a hřbitova hráčova celku
+  if (c.kind === 'rebuild' || c.kind === 'repair') return;
+  const entities = c.extends ? [] : [c.fieldId, c.cemeteryId, c.orchardId, c.penId];
+  const ids = [...entities, ...(c.roadIds ?? [])];
   for (const id of ids) if (id !== null && id !== undefined) markStewardBuilt(state, id);
 }
 

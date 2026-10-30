@@ -232,6 +232,7 @@ describe('Lidé a kolik jich pole uživí v jedné ikoně (Martin 24. 10. 2026)'
       satiation: 1,
       diet: diet(1),
       happiness: { value: 50 },
+      steward: { on: false, built: [] },
       crafts: {
         present: true,
         stocks: { charcoalKg: 7, potteryKg: 8, woodToolsKg: 9, ironBarsKg: 3 },
