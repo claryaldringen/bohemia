@@ -218,3 +218,19 @@ describe('applyBuildIntent – sad', () => {
     expect(result.reason).toMatch(/vod/);
   });
 });
+
+describe('applyBuildIntent – hřbitov', () => {
+  it('založí hřbitov ze čtverců', () => {
+    const result = apply(settled(), { kind: 'cemetery', cells: block(9, 9, 2, 1) });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.constructions.at(-1)).toMatchObject({ kind: 'cemetery' });
+  });
+
+  it('hřbitov ve vodě odmítne', () => {
+    expect(apply(settled(), { kind: 'cemetery', cells: block(14, 2, 2, 1) })).toEqual({
+      ok: false,
+      reason: 'Hřbitov nesmí zasahovat do vody.',
+    });
+  });
+});

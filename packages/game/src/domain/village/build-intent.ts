@@ -1,5 +1,6 @@
 import { tileOfWorldPoint, type Landscape, type ObstacleLayer } from '../landscape';
 import {
+  foundCemetery,
   foundField,
   foundOrchard,
   startNewDwelling,
@@ -33,7 +34,11 @@ import type {
   TileCell,
   VillageState,
 } from './types';
-import { fieldPartsFromCells, orchardPartsFromCells } from './placement-fields';
+import {
+  cemeteryPartsFromCells,
+  fieldPartsFromCells,
+  orchardPartsFromCells,
+} from './placement-fields';
 
 // Doménový příkaz stavby (steward.md – Kde správce běží): jedno pravidlo stavby pro hráče
 // i správce vsi – cena předem (`buildAffordability`), kontrola místa a akce domény. Use-casy
@@ -128,6 +133,15 @@ export interface OrchardIntent {
   grid?: SquareGrid;
 }
 
+/** Pohřebiště ze čtverců – hráči se vždy říká Hřbitov. */
+export interface CemeteryIntent {
+  kind: 'cemetery';
+  /** Čtverce pohřebiště – políčka krajiny, nebo čtverce natočené mřížky `grid`. */
+  cells: TileCell[];
+  /** Natočená mřížka hřbitova (fields.md – Natočené stavby); bez ní mřížka krajiny. */
+  grid?: SquareGrid;
+}
+
 /** Co se má stavět a kde – druh stavby a místo (poloha, pozemek, čtverce, mřížka, cesta). */
 export type BuildIntent =
   | DwellingIntent
@@ -136,7 +150,8 @@ export type BuildIntent =
   | SacredIntent
   | ThreshingFloorIntent
   | FieldIntent
-  | OrchardIntent;
+  | OrchardIntent
+  | CemeteryIntent;
 
 /** Výsledek příkazu stavby – nový stav vsi, nebo důvod odmítnutí česky pro hráče. */
 export type BuildResult = { ok: true; state: VillageState } | { ok: false; reason: string };
@@ -167,6 +182,8 @@ export function applyBuildIntent(
       return buildField(state, day, landscape, obstacles, intent);
     case 'orchard':
       return buildOrchard(state, day, landscape, obstacles, intent);
+    case 'cemetery':
+      return buildCemetery(state, day, landscape, obstacles, intent);
   }
 }
 
@@ -501,4 +518,38 @@ function buildOrchard(
     ...(orchard.grid ? { grid: orchard.grid } : {}),
   };
   return { ok: true, state: foundOrchard(state, day, squares) };
+}
+
+/**
+ * Pohřebiště ze čtverců. Blízkost obydlí a vody stavbu neblokuje – varuje jen náhled při
+ * umisťování. Překážky na čtvercích zaplatí prací navíc a osadníci je odstraní, až hřbitov
+ * dostaví.
+ */
+function buildCemetery(
+  state: VillageState,
+  day: number,
+  landscape: Landscape,
+  obstacles: ObstacleLayer,
+  intent: CemeteryIntent,
+): BuildResult {
+  const preview = cemeteryPartsFromCells(
+    landscape,
+    placementVillageOf(state, day),
+    intent.cells,
+    villageDwellingPositions(state),
+    obstacles,
+    intent.grid,
+  );
+  if (!preview.check.ok) {
+    return { ok: false, reason: preview.check.reason ?? 'Sem hřbitov nepatří.' };
+  }
+  // čtverce polí pod hřbitovem z pole zmizí (fields.md – Pole jako krajina)
+  const cemetery = {
+    squares: preview.squares,
+    ...(preview.grid ? { grid: preview.grid } : {}),
+    squareSizeM: landscape.cellSizeM,
+    sacred: preview.spared,
+    takenLand: preview.takenLand,
+  };
+  return { ok: true, state: foundCemetery(state, day, cemetery) };
 }
