@@ -14,7 +14,7 @@ import type { Position, VillageState } from '../types';
 import { checkDwellingPlacement } from '../placement-dwellings';
 import { checkSacredBuildingPlacement } from '../placement-sacred';
 import { placementVillageOf } from '../placement-village';
-import { makeLandscape } from './placement-fixtures';
+import { block, makeLandscape } from './placement-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
 // Doménový příkaz stavby (steward.md – Kde správce běží): stejné pravidlo pro hráče i správce –
@@ -183,5 +183,22 @@ describe('applyBuildIntent – humno', () => {
       ok: false,
       reason: 'Humno nemůže stát ve vodě.',
     });
+  });
+});
+
+describe('applyBuildIntent – pole', () => {
+  it('založí pole ze čtverců', () => {
+    const result = apply(settled(), { kind: 'field', cells: block(11, 6, 3, 4) });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const fieldId = result.state.fields.at(-1)!.id;
+    expect(result.state.parts.filter((p) => p.fieldId === fieldId)).toHaveLength(12);
+  });
+
+  it('pole ve vodě odmítne', () => {
+    const result = apply(settled(), { kind: 'field', cells: block(14, 2, 2, 1) });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toMatch(/vod/);
   });
 });

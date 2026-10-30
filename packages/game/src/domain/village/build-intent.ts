@@ -1,5 +1,6 @@
 import { tileOfWorldPoint, type Landscape, type ObstacleLayer } from '../landscape';
 import {
+  foundField,
   startNewDwelling,
   startRelocation,
   startSacredBuilding,
@@ -17,7 +18,7 @@ import { canonicalPlot } from './placement-geometry';
 import { forestEdgeDistanceM, waterDistanceM } from './placement-squares';
 import { checkSacredBuildingPlacement, checkThreshingFloorPlacement } from './placement-sacred';
 import type { DwellingPlacementCheck } from './placement-types';
-import { placementVillageOf } from './placement-village';
+import { placementVillageOf, villageDwellingPositions } from './placement-village';
 import { relocationAffordability, relocationBlock, type RelocationBlock } from './relocation';
 import { CRAFTS, PLOT_TYPES } from './rules';
 import { hasShrine } from './sacred';
@@ -27,8 +28,11 @@ import type {
   DwellingPlot,
   Position,
   SacredBuildingKind,
+  SquareGrid,
+  TileCell,
   VillageState,
 } from './types';
+import { fieldPartsFromCells } from './placement-fields';
 
 // Doménový příkaz stavby (steward.md – Kde správce běží): jedno pravidlo stavby pro hráče
 // i správce vsi – cena předem (`buildAffordability`), kontrola místa a akce domény. Use-casy
@@ -105,9 +109,23 @@ export interface ThreshingFloorIntent {
   position: Position;
 }
 
+/** Nové pole ze čtverců (fields.md). */
+export interface FieldIntent {
+  kind: 'field';
+  /** Čtverce pole – políčka krajiny, u natočeného pole čtverce v jeho mřížce `grid`. */
+  cells: TileCell[];
+  /** Natočená mřížka pole (fields.md – Natočené stavby); bez ní mřížka krajiny. */
+  grid?: SquareGrid;
+}
+
 /** Co se má stavět a kde – druh stavby a místo (poloha, pozemek, čtverce, mřížka, cesta). */
 export type BuildIntent =
-  DwellingIntent | RelocationIntent | WorkshopIntent | SacredIntent | ThreshingFloorIntent;
+  | DwellingIntent
+  | RelocationIntent
+  | WorkshopIntent
+  | SacredIntent
+  | ThreshingFloorIntent
+  | FieldIntent;
 
 /** Výsledek příkazu stavby – nový stav vsi, nebo důvod odmítnutí česky pro hráče. */
 export type BuildResult = { ok: true; state: VillageState } | { ok: false; reason: string };
@@ -134,6 +152,8 @@ export function applyBuildIntent(
       return buildSacred(state, day, landscape, obstacles, intent);
     case 'threshing-floor':
       return buildThreshingFloor(state, day, landscape, obstacles, intent);
+    case 'field':
+      return buildField(state, day, landscape, obstacles, intent);
   }
 }
 
@@ -408,4 +428,31 @@ function buildThreshingFloor(
     if (error instanceof RangeError) return { ok: false, reason: NO_WOOD };
     throw error;
   }
+}
+
+/** Nové pole ze čtverců – díly se měří od obydlí; posvátné duby a háje vesničané nechají stát. */
+function buildField(
+  state: VillageState,
+  day: number,
+  landscape: Landscape,
+  obstacles: ObstacleLayer,
+  intent: FieldIntent,
+): BuildResult {
+  if (!buildAffordability(state, 'field').affordable) return { ok: false, reason: CANNOT_AFFORD };
+  const field = fieldPartsFromCells(
+    landscape,
+    placementVillageOf(state, day),
+    intent.cells,
+    villageDwellingPositions(state),
+    obstacles,
+    intent.grid,
+  );
+  if (!field.check.ok) return { ok: false, reason: field.check.reason ?? 'Sem pole nepatří.' };
+  // posvátné duby a háje vesničané při mýcení nechají stát (happiness.md)
+  const fieldInput = {
+    parts: field.parts,
+    sacred: field.spared,
+    ...(field.grid ? { grid: field.grid } : {}),
+  };
+  return { ok: true, state: foundField(state, day, fieldInput) };
 }
