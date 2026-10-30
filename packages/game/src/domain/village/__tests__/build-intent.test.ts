@@ -202,3 +202,19 @@ describe('applyBuildIntent – pole', () => {
     expect(result.reason).toMatch(/vod/);
   });
 });
+
+describe('applyBuildIntent – sad', () => {
+  it('založí sad ze čtverců', () => {
+    const result = apply(settled(), { kind: 'orchard', cells: block(10, 6, 2, 2) });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.orchards?.at(-1)?.squares).toHaveLength(4);
+  });
+
+  it('sad ve vodě odmítne', () => {
+    const result = apply(settled(), { kind: 'orchard', cells: block(14, 2, 2, 1) });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toMatch(/vod/);
+  });
+});

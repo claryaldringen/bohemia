@@ -1,6 +1,7 @@
 import { tileOfWorldPoint, type Landscape, type ObstacleLayer } from '../landscape';
 import {
   foundField,
+  foundOrchard,
   startNewDwelling,
   startRelocation,
   startSacredBuilding,
@@ -32,7 +33,7 @@ import type {
   TileCell,
   VillageState,
 } from './types';
-import { fieldPartsFromCells } from './placement-fields';
+import { fieldPartsFromCells, orchardPartsFromCells } from './placement-fields';
 
 // Doménový příkaz stavby (steward.md – Kde správce běží): jedno pravidlo stavby pro hráče
 // i správce vsi – cena předem (`buildAffordability`), kontrola místa a akce domény. Use-casy
@@ -118,6 +119,15 @@ export interface FieldIntent {
   grid?: SquareGrid;
 }
 
+/** Jabloňový sad ze čtverců (orchard.md – staví se jako pole). */
+export interface OrchardIntent {
+  kind: 'orchard';
+  /** Čtverce sadu – políčka krajiny, u natočeného sadu čtverce v jeho mřížce `grid`. */
+  cells: TileCell[];
+  /** Natočená mřížka sadu (fields.md – Natočené stavby); bez ní mřížka krajiny. */
+  grid?: SquareGrid;
+}
+
 /** Co se má stavět a kde – druh stavby a místo (poloha, pozemek, čtverce, mřížka, cesta). */
 export type BuildIntent =
   | DwellingIntent
@@ -125,7 +135,8 @@ export type BuildIntent =
   | WorkshopIntent
   | SacredIntent
   | ThreshingFloorIntent
-  | FieldIntent;
+  | FieldIntent
+  | OrchardIntent;
 
 /** Výsledek příkazu stavby – nový stav vsi, nebo důvod odmítnutí česky pro hráče. */
 export type BuildResult = { ok: true; state: VillageState } | { ok: false; reason: string };
@@ -154,6 +165,8 @@ export function applyBuildIntent(
       return buildThreshingFloor(state, day, landscape, obstacles, intent);
     case 'field':
       return buildField(state, day, landscape, obstacles, intent);
+    case 'orchard':
+      return buildOrchard(state, day, landscape, obstacles, intent);
   }
 }
 
@@ -455,4 +468,37 @@ function buildField(
     ...(field.grid ? { grid: field.grid } : {}),
   };
   return { ok: true, state: foundField(state, day, fieldInput) };
+}
+
+/**
+ * Jabloňový sad ze čtverců – osadníci ho vysadí v nejbližším okně výsadby (jaro, podzim)
+ * a překážky na čtvercích odstraní.
+ */
+function buildOrchard(
+  state: VillageState,
+  day: number,
+  landscape: Landscape,
+  obstacles: ObstacleLayer,
+  intent: OrchardIntent,
+): BuildResult {
+  if (!buildAffordability(state, 'orchard').affordable) {
+    return { ok: false, reason: CANNOT_AFFORD };
+  }
+  const orchard = orchardPartsFromCells(
+    landscape,
+    placementVillageOf(state, day),
+    intent.cells,
+    villageDwellingPositions(state),
+    obstacles,
+    intent.grid,
+  );
+  if (!orchard.check.ok) return { ok: false, reason: orchard.check.reason ?? 'Sem sad nepatří.' };
+  // čtverce polí pod sadem z pole zmizí (fields.md – Pole jako krajina)
+  const squares = {
+    squares: orchard.squares,
+    sacred: orchard.spared,
+    takenLand: orchard.takenLand,
+    ...(orchard.grid ? { grid: orchard.grid } : {}),
+  };
+  return { ok: true, state: foundOrchard(state, day, squares) };
 }
