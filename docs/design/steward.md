@@ -421,6 +421,28 @@ stavby), nejvýš jedno pole na den správce.
 - **Nová ves má správce zapnutého** (Martin 30. 10. 2026) a vojvodou je syn (fáze 2).
 - **Nástupnictví náhodou** (hráč v kůži mladšího syna) není – až s pozvánkami (Martin 30. 10. 2026).
 
+### Odchod syna – upřesnění (návrh Clauda – `STEWARD` v `rules-steward.ts`)
+
+- **Den:** `departureDate` 31. 8. – jeden den v roce, takže nejvýš jeden odchod za rok bez
+  dalšího počítadla. Jména synů v každý den správce (`everyDays`) a hned při narození.
+- **Přelidnění:** lidí víc než „Pole uživí podle dnešní půdy“ × `crowdedShare` (1,05); zakládané
+  díly se počítají, jako by už byly v oběhu (jako cíl polí).
+- **Kdy není kam:** na území vsi žádné volné políčko s úrodou nejdál 800 m od obydlí (i staveniště)
+  s hodnotou ≥ `minKgPerManDay` = 1,5 × 180 kg ÷ 365 ≈ 0,74 kg na člověkoden – louka i les.
+- **Tady:** kandidáti na každém `hereStrideTiles` (4.) políčku ≥ 300 m od staveb všech vsí mapy
+  (vlastní a ze snímku sousedů), seřazení podle hodnoty domu; ověří se nejvýš `hereTries` (12)
+  nejlepších – budoucí území (≤ 800 m, blíž místu než středu jiné vsi, volná políčka s hodnotou
+  nad prahem) jako jedno pole v ustáleném oběhu musí uživit `hereCapacity` (2) × lidí dílu.
+- **Nová mapa:** doména vlastní vsi na sousedních mapách nezná – do schránky uloží všech osm směrů
+  v pořadí (stezka, kraj, pevné pořadí) a use-case vezme první bez vlastní vsi. Kronika odchodu
+  nese první směr. Když na novou mapu nejde (mapa bez místa ve světě), ves vznikne na nejbližším
+  volném místě téže mapy.
+- **Příjezd:** ves na cestě se správcem se v den příjezdu založí na nejbližším volném místě
+  k místu vsi nové krajiny (`freeVillageSite`) – plán nové vsi ještě neexistuje.
+- **Schránka:** záznam (id = den odchodu) nese seed, jméno, cíl a osadníky; po vybavení jen id
+  nové vsi. Nová ves nese klíč založení (`origin`) – úložiště ji podruhé nezaloží (zámek řádku
+  sídla), takže opakované i souběžné vybavení i pád serveru mezi kroky založí ves právě jednou.
+
 ## Co hráč vidí (UI jako 0 A.D.)
 
 - **Přepínač Správce** – ikona správce (klíče u pasu) v seznamu vsí pod jménem vsi v horní liště

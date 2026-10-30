@@ -12,6 +12,7 @@ export * from './village-stamp';
 export * from './found-village';
 export * from './name-line-man';
 export * from './set-steward';
+export * from './settle-steward-departures';
 export * from './declare-hunt';
 export * from './dev-disasters';
 export * from './place-dwelling';

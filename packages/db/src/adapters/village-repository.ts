@@ -82,6 +82,43 @@ export function createVillageRepository(db: Database): VillageRepository {
       return toRecord(row);
     },
 
+    async findByOrigin(origin): Promise<VillageRecord | null> {
+      const [row] = await db
+        .select()
+        .from(village)
+        .where(sql`${village.state}->>'origin' = ${origin}`)
+        .orderBy(asc(village.createdAt))
+        .limit(1);
+      return row ? toRecord(row) : null;
+    },
+
+    async addOnce(settlementId, name, state): Promise<VillageRecord | null> {
+      const origin = state.origin;
+      if (origin === undefined) throw new Error('Ves bez klíče založení (origin).');
+      if (!UUID.test(settlementId)) return null;
+      // Atomicky: souběžná vybavení téže schránky se seřadí na zámku řádku sídla – druhé už ves
+      // s klíčem uvidí a vrátí ji.
+      return db.transaction(async (tx) => {
+        const [owner] = await tx
+          .select({ id: settlement.id })
+          .from(settlement)
+          .where(eq(settlement.id, settlementId))
+          .for('update');
+        if (!owner) return null;
+        const [existing] = await tx
+          .select()
+          .from(village)
+          .where(sql`${village.state}->>'origin' = ${origin}`)
+          .limit(1);
+        if (existing) return toRecord(existing);
+        const [row] = await tx
+          .insert(village)
+          .values({ settlementId, name, state, version: 1 })
+          .returning();
+        return row ? toRecord(row) : null;
+      });
+    },
+
     async save(villageId, state, expectedVersion): Promise<VillageRecord | null> {
       // Zpět jen identitu, jméno a verzi – stav (u velké vsi přes 1 MB JSON) má volající v ruce,
       // databáze by ho jinak celý serializovala a posílala zpátky.

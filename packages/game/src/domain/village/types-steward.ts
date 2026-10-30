@@ -1,5 +1,8 @@
-// Stav správce vsi (steward.md – Stav správce). Vetá a odchozí schránka jsou zatím kostra pro další
-// úlohy (soužití s hráčem, odchod synů).
+// Stav správce vsi (steward.md – Stav správce). Vetá jsou zatím kostra pro další úlohy (soužití
+// s hráčem); odchozí schránka odchodu synů – `StewardDeparture`.
+import type { Settlers } from './departure';
+import type { Position } from './types-people';
+import type { Direction8 } from './types-state';
 
 /** Šablona rozvrhu vsi (steward.md – Plán sídla): shluk, řadová ves, samoty v polnostech. */
 export type StewardTemplate = 'cluster' | 'row' | 'scattered';
@@ -76,9 +79,36 @@ export interface StewardVeto {
   untilDay: number;
 }
 
-/** Odchozí schránka odchodu synů (kostra). */
+/** Směr odchodu na novou mapu a dny cesty (od dvorce ke kraji mapy, po hotové stezce 1 den). */
+export interface StewardDirection {
+  direction: Direction8;
+  travelDays: number;
+}
+
+/**
+ * Záznam odchozí schránky (steward.md – Kde správce běží, Jména synů a odchod syna): syn vojvody
+ * odešel s dílem vsi a use-case `settleStewardDepartures` pro něj založí novou ves. Seed, jméno
+ * a cíl spočítala simulace deterministicky.
+ */
 export interface StewardDeparture {
-  personId: number;
+  /** Id záznamu – den odchodu (nejvýš jeden odchod za rok); podle něj je vybavení idempotentní. */
+  id: number;
+  sonId: number;
+  /** Seed nové vsi (`deriveSeed(seed vsi, 'steward-son:' + den)`). */
+  seed: number;
+  /** Jméno nové vsi (`suggestVillageName(seed)`). */
+  name: string;
+  /** Tady: poloha první zemnice na téže mapě. Chybí – nová mapa. */
+  dwelling?: Position;
+  /**
+   * Směry na novou mapu v pořadí, jak je správce zkouší (napřed hotová stezka, pak nejkratší cesta
+   * ke kraji, při shodě pevné pořadí) – use-case vezme první, kde není vlastní ves.
+   */
+  directions: StewardDirection[];
+  /** Osadníci, dokud ves nevznikla – po vybavení zmizí. */
+  settlers?: Settlers;
+  /** Id založené vsi (záznam je vybavený). */
+  villageId?: string;
 }
 
 export interface StewardState {

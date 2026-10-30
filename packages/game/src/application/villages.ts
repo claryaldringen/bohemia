@@ -37,6 +37,17 @@ export interface VillageRepository {
   /** Založí další ves sídla (víc vsí na téže mapě – migration.md). */
   add(settlementId: string, name: string, state: VillageState): Promise<VillageRecord>;
   /**
+   * Ves s klíčem založení `origin` (`VillageState.origin` – schránka odchodu syna) v kterémkoli
+   * sídle; žádná – null.
+   */
+  findByOrigin(origin: string): Promise<VillageRecord | null>;
+  /**
+   * Atomicky založí ves sídla se stavem nesoucím klíč `state.origin` (povinný): když ves s tímto
+   * klíčem už existuje, vrátí ji a nic nezaloží (opakované i souběžné vybavení schránky se seřadí
+   * na zámku řádku sídla). Neznámé sídlo – null.
+   */
+  addOnce(settlementId: string, name: string, state: VillageState): Promise<VillageRecord | null>;
+  /**
    * Uloží nový stav, jen když je uložená verze `expectedVersion` (jinak ji mezitím změnil
    * jiný požadavek) – pak vrátí null a nic nezmění. Vrácený záznam nese předaný stav (ne kopii
    * z úložiště) s novou verzí.

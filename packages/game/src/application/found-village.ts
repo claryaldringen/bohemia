@@ -2,23 +2,14 @@ import { obstaclesOf, type Landscape } from '../domain/landscape';
 import {
   NEW_VILLAGE_MIN_DISTANCE_M,
   advanceVillage,
-  checkDwellingPlacement,
   checkPersonName,
   checkVillageName,
   distanceToVillages,
+  foundedState,
   squareCenter,
   villagePoints,
-  fieldPartsFromCells,
-  forestEdgeDistanceM,
-  foundVillage,
-  withLivestockLand,
   normalizePersonName,
   normalizeVillageName,
-  withPlots,
-  withWeatherSeed,
-  withDwellingShapes,
-  type FieldInput,
-  type PlacementVillage,
   type Position,
   type Settlers,
   type SquareGrid,
@@ -135,64 +126,10 @@ export function foundedVillageState(
   weatherSeed: number | null = null,
 ): { ok: true; state: VillageState } | { ok: false; reason: string } {
   const obstacles = obstaclesOf(input.landscape);
-  const dwelling = checkDwellingPlacement(
-    input.landscape,
-    null,
-    'zemnice',
-    input.dwelling,
-    obstacles,
-  );
-  if (!dwelling.ok) return { ok: false, reason: dwelling.reason ?? 'Sem zemnice nepatří.' };
-  const cells = input.fieldCells ?? [];
-  let firstField: FieldInput | null = null;
-  if (cells.length > 0) {
-    // překážky na staveništi první zemnice osadníci odstraní při založení – pole je neplatí podruhé
-    const founding: PlacementVillage = {
-      dwellings: [],
-      constructions: [],
-      parts: [],
-      obstacleChanges: { removed: dwelling.obstacleIds, stumps: [], saplings: [] },
-    };
-    const field = fieldPartsFromCells(
-      input.landscape,
-      founding,
-      cells,
-      [input.dwelling],
-      obstacles,
-    );
-    if (!field.check.ok) return { ok: false, reason: field.check.reason ?? 'Sem pole nepatří.' };
-    firstField = { parts: field.parts, sacred: field.spared };
-  }
-
-  const founded = foundVillage({
-    seed,
-    day: input.today,
-    dwellingPosition: { ...input.dwelling },
-    firstField,
-    dwellingObstacleIds: dwelling.obstacleIds,
-    dwellingObstacleCost: dwelling.obstacleCost,
-    dwellingClearedTrees: dwelling.obstacleCounts.tree ?? 0,
-    obstacles,
-    forestDistanceM: forestEdgeDistanceM(input.landscape, input.dwelling.x, input.dwelling.z),
-    dwellingSpared: dwelling.spared,
-    ...(input.settlers ? { settlers: input.settlers } : {}),
-    ...(lord ? { lord } : {}),
-  });
-  // nová ves nemá polozemnice bez pozemku – rovnou převedená (`withPlots` ji už nebude měnit),
-  // první zemnice má svou variantu rozměrů od umístění (`withDwellingShapes` jen zapíše příznak);
-  // louka a les do 600 m od první zemnice – pastva a žaludy výchozího stáda (diet.md)
-  const state = advanceVillage(
-    withLivestockLand(
-      withDwellingShapes(
-        withPlots(withWeatherSeed(founded, weatherSeed), input.landscape, obstacles),
-        input.landscape,
-        obstacles,
-      ),
-      input.landscape,
-    ),
-    input.today,
-    obstacles,
-    input.landscape,
-  );
-  return { ok: true, state };
+  const founded = foundedState(seed, { ...input, obstacles }, lord, weatherSeed);
+  if (!founded.ok) return founded;
+  return {
+    ok: true,
+    state: advanceVillage(founded.state, input.today, obstacles, input.landscape),
+  };
 }

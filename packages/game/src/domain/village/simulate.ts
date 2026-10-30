@@ -45,6 +45,7 @@ import { isVillageDormant } from './departure';
 import { withDynasty } from './dynasty';
 import { withSteward } from './steward-state';
 import { stewardDay } from './steward';
+import { stewardArrival, stewardSonDay } from './steward-son';
 import { ensureMainWives, extraWivesDay } from './dynasty-wives';
 import { updateRuins } from './ruins';
 import {
@@ -116,6 +117,9 @@ export function* advanceVillageSteps(
   if (toDay < state.lastDay) {
     throw new RangeError(`Ves je dopočítaná do dne ${state.lastDay}, nelze zpět na ${toDay}.`);
   }
+  // ves na cestě se správcem se v den příjezdu založí sama (steward.md – Kde správce běží) a dál
+  // se simuluje jako nová ves
+  const start = stewardArrival(state, toDay, landscape, obstacles) ?? state;
   // ves z doby před příbuzenstvím dostane pohlaví a manžele (kinship.md), ves z doby před rodem
   // rod vojvody (lord.md – Převod starších vsí), dobytek v obchodu tři
   // druhy (trade.md – Dobytek ve třech druzích), hřivny místo nástrojů v obchodu i ve vsi
@@ -137,7 +141,7 @@ export function* advanceVillageSteps(
                       withToolEquipment(
                         withCattleKinds(
                           withDynasty(
-                            withKinship(withSeedForgiven(withSowingRotation(withSeason(state)))),
+                            withKinship(withSeedForgiven(withSowingRotation(withSeason(start)))),
                           ),
                         ),
                       ),
@@ -280,6 +284,8 @@ function simulateDay(
   // den správce (steward.md – Rozhodovací pořadí v den správce): jen zapnutý správce s krajinou
   // a vrstvou překážek, každý `STEWARD.everyDays`. den – nové stavby dostanou id z `nextId` před
   // kontrolou obilných jam níž a zbytky jam pod nimi zmizí v `updateRuins`
+  // kroky 1 a 2 – jména synů, 31. 8. odchod syna do schránky (steward-son.ts)
+  stewardSonDay(state, day, landscape, obstacles);
   stewardDay(state, day, landscape, obstacles);
   // zbytky jam po zaniklých obydlích zarůstají, pod novou stavbou zmizí (ruins.ts)
   updateRuins(state, day, landscape);

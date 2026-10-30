@@ -1,13 +1,7 @@
-import {
-  CURRENT_LAYER_VERSIONS,
-  generateAcceptedLandscape,
-  obstaclesOf,
-  type Landscape,
-} from '../domain/landscape';
+import { obstaclesOf, type Landscape } from '../domain/landscape';
 import {
   DIRECTIONS,
   NEW_VILLAGE_MIN_DISTANCE_M,
-  SEAT_CELL,
   builtTrail,
   checkDwellingPlacement,
   checkSonLeader,
@@ -17,10 +11,8 @@ import {
   distanceToVillages,
   edgeDistanceM,
   journeyArrived,
-  neighbourCell,
   neighbourSnapshot,
   placementVillageOf,
-  sameCell,
   settlersOf,
   squareCenter,
   suggestVillageName,
@@ -39,6 +31,7 @@ import { TOO_CLOSE_TO_VILLAGE, foundedVillageState } from './found-village';
 import { NOT_PLAYER_VILLAGE, findPlayerVillage } from './player-villages';
 import type { LandscapeSource, SeedSource, Settlement, SettlementRepository } from './settlements';
 import { updateLivingVillage, updateVillage } from './update-village';
+import { targetSettlement } from './new-village';
 import type { VillageRecord, VillageRepository } from './villages';
 
 // Odchod do nové vsi (migration.md – fáze 3 a 4): domácnosti vybraných obydlí odejdou a založí
@@ -90,10 +83,7 @@ export type LeaveVillageResult =
 
 /** Neznámý směr odchodu. */
 export const UNKNOWN_LEAVE_DIRECTION = 'Neznámý směr.';
-/** Tím směrem už leží vlastní ves hráče. */
-export const OWN_MAP_THERE = 'Tím směrem už leží tvoje ves – stěhování mezi vsemi zatím není.';
-/** Sídlo, ze kterého se odchází, nemá polohu v mřížce (jen sídelní ji dostane). */
-export const NO_WORLD_CELL = 'Tahle mapa nemá místo ve světě – na novou mapu odtud nejde odejít.';
+export { NO_WORLD_CELL, OWN_MAP_THERE } from './new-village';
 
 /**
  * Domácnosti obydlí `dwellingIds` – nebo syn vojvody `sonId` s poměrnou částí vsi (lord.md – Dělení
@@ -225,48 +215,6 @@ function emptyVillage(day: number): VillageState {
     commonLaborHistory: [],
     chronicle: [],
   };
-}
-
-/**
- * Sídlo nové mapy ve směru `direction` od sídla `from`: sídelní sídlo bez polohy dostane
- * (0, 0); na sousedním políčku mřížky vznikne nové sídlo s novou krajinou, nebo se použije
- * vlastní sídlo bez vsí, které tam už je. Vlastní ves tím směrem → OWN_MAP_THERE.
- */
-async function targetSettlement(
-  deps: LeaveVillageDeps,
-  from: Settlement,
-  playerId: string,
-  direction: Direction8,
-): Promise<{ ok: true; settlement: Settlement } | { ok: false; reason: string }> {
-  let cell = from.worldCell;
-  if (cell === null) {
-    if (!from.isSeat) return { ok: false, reason: NO_WORLD_CELL };
-    const placed = await deps.settlements.assignWorldCell(from.id, SEAT_CELL);
-    cell = placed?.worldCell ?? null;
-    if (cell === null) return { ok: false, reason: NO_WORLD_CELL };
-  }
-  const targetCell = neighbourCell(cell, direction);
-  const active = await deps.settlements.listActive(playerId);
-  const existing = active.find((s) => s.worldCell !== null && sameCell(s.worldCell, targetCell));
-  if (existing) {
-    const villages = await deps.villages.listBySettlement(existing.id);
-    return villages.length > 0
-      ? { ok: false, reason: OWN_MAP_THERE }
-      : { ok: true, settlement: existing };
-  }
-  const accepted = generateAcceptedLandscape(deps.seeds.nextSeed());
-  const created = await deps.settlements.create({
-    ownerId: playerId,
-    landscapeSeed: accepted.seed,
-    layerVersions: CURRENT_LAYER_VERSIONS,
-    worldCell: targetCell,
-  });
-  if (created) return { ok: true, settlement: created };
-  // souběžný odchod týmž směrem mezitím sídlo založil
-  const again = (await deps.settlements.listActive(playerId)).find(
-    (s) => s.worldCell !== null && sameCell(s.worldCell, targetCell),
-  );
-  return again ? { ok: true, settlement: again } : { ok: false, reason: OWN_MAP_THERE };
 }
 
 /** Jméno nové vsi syna vojvody (ze seedu) – odchod domácností ho vybírá až po odchodu. */

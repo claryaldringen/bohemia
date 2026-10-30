@@ -423,6 +423,11 @@ export interface VillageState {
    * správce vypnutý (`withSteward` ji převede).
    */
   steward?: StewardState;
+  /**
+   * Klíč založení vsi ze schránky odchodu syna (`settleStewardDepartures` – mateřská ves a id
+   * záznamu): podle něj úložiště ves nezaloží dvakrát. Simulace ho nečte. Chybí – ves vznikla jinak.
+   */
+  origin?: string;
 }
 
 /** Rod vojvody ve vsi (lord.md – Rod vojvody). */

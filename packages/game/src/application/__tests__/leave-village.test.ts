@@ -372,6 +372,11 @@ describe('leaveVillage – syn vojvody s poměrnou částí vsi', () => {
     if (!result.ok) throw new Error(result.reason);
     const journey = result.to.state.journey!;
     expect(journey.lordId).toBe(sonId);
+    // se zapnutým správcem by se ves po příjezdu založila sama (steward-son.test.ts) – hráč ho na
+    // cestě vypne a zemnici umístí sám
+    deps.villages.edit(result.to.id, (state: VillageState) => {
+      state.steward = { ...state.steward!, on: false };
+    });
     const settled = await settleJourney(deps, {
       playerId: PLAYER,
       villageId: result.to.id,
