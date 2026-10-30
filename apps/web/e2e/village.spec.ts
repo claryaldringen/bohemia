@@ -1848,3 +1848,26 @@ test('vývojový režim: vynucené sucho – ikona na liště, upozornění a oc
     .toBe('field-part');
   await expect(panel.getByTestId('selection-protection')).toHaveText(/^[0-4]$/);
 });
+
+test('správce vsi – zapnutí a vypnutí přepínačem v seznamu vsí, ikona u jména', async ({
+  page,
+}) => {
+  const { seat: s } = await newPlayer(page, 'spravce');
+  await found(page, villageSpots(s.landscape).dwelling);
+  const badge = page.getByTestId('steward-badge');
+  // správce je ve vsi založené hráčem vypnutý – u jména ikona není
+  await expect(badge).toHaveCount(0);
+
+  await page.getByTestId('village-name').click();
+  const toggle = page.getByTestId('village-steward-toggle').first();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  await expect(badge).toBeVisible();
+  expect((await villageState(s.settlementId)).steward?.on).toBe(true);
+
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await expect(badge).toHaveCount(0);
+  expect((await villageState(s.settlementId)).steward?.on).toBe(false);
+});

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { VILLAGE_NAME_MAX_LENGTH, checkVillageName } from '@bohemia/game';
 import type { VillageListItem } from '@/lib/village-list';
+import { StewardBadge, StewardToggle } from './StewardToggle';
 import { Tooltip } from './Tooltip';
 
 // Jméno vsi v horní liště je přepínač vsí (migration.md – Víc vsí jednoho hráče): klik otevře
@@ -26,10 +27,13 @@ export function VillageList({
   villages,
   currentId,
   onSelect,
+  onSetSteward,
 }: {
   villages: readonly VillageListItem[];
   currentId: string;
   onSelect: (village: VillageListItem) => void;
+  /** Zapne / vypne správce vsi (server action); bez něj se přepínače neukážou. */
+  onSetSteward?: (villageId: string, on: boolean) => Promise<unknown>;
 }): ReactElement {
   return (
     <ul
@@ -65,6 +69,13 @@ export function VillageList({
                 <span data-testid="village-list-people">{village.people}</span>
               </span>
             </button>
+            {onSetSteward && !village.extinct && !village.abandoned && !village.travelling && (
+              <StewardToggle
+                on={village.steward === true}
+                onToggle={(on) => onSetSteward(village.id, on)}
+                testId="village-steward-toggle"
+              />
+            )}
           </li>
         );
       })}
@@ -136,6 +147,8 @@ export function VillageSwitcher({
   villages,
   onSelect,
   onRename,
+  steward = false,
+  onSetSteward,
 }: {
   name: string;
   currentId: string;
@@ -143,6 +156,9 @@ export function VillageSwitcher({
   /** Přepne na jinou ves hráče. */
   onSelect: (village: VillageListItem) => void;
   onRename: (name: string) => Promise<string | null>;
+  /** Správce vybrané vsi je zapnutý – ikona vedle jména. */
+  steward?: boolean;
+  onSetSteward?: (villageId: string, on: boolean) => Promise<unknown>;
 }): ReactElement {
   const [open, setOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
@@ -194,6 +210,7 @@ export function VillageSwitcher({
           <path d="M6 9l6 6 6-6z" />
         </svg>
       </button>
+      {steward && <StewardBadge />}
       <Tooltip content="Přejmenovat" placement="below">
         <button
           type="button"
@@ -221,6 +238,7 @@ export function VillageSwitcher({
         <VillageList
           villages={villages}
           currentId={currentId}
+          onSetSteward={onSetSteward}
           onSelect={(village) => {
             setOpen(false);
             onSelect(village);

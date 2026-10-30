@@ -19,7 +19,7 @@ const workshop = (laborManDays: number): VillageView['build']['potter'] => ({
 
 const view = (overrides: Partial<VillageView> = {}): VillageView => ({
   id: 'v-1',
-  steward: { on: false },
+  steward: { on: false, built: [] },
   settlementId: 's-1',
   name: 'Libice',
   villages: [],

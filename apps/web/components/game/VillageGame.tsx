@@ -43,6 +43,7 @@ import {
   plantRoadApples,
   relocateHousehold,
   renameVillage,
+  setSteward,
   restartGame,
   selectVillage,
   sendExpedition,
@@ -1008,6 +1009,10 @@ export function VillageGame({
       : Promise.resolve(CONNECTION_FAILED);
   };
 
+  /** Zapne / vypne správce vsi (steward.md) – pohled se po odpovědi obnoví. */
+  const toggleSteward = (villageId: string, on: boolean): Promise<string | null> =>
+    runAction(() => setSteward({ villageId, on }));
+
   /**
    * Přepne na jinou ves hráče (přepínač v liště) a zapamatuje ji (cookie). Ves na téže mapě se
    * načte na místě a pohled skočí na ni; ves na jiné mapě má jinou krajinu – stránka se načte
@@ -1173,6 +1178,7 @@ export function VillageGame({
         onToggleMenu={() => (menuShown ? closeMenu() : openMenu())}
         onRename={rename}
         onSelectVillage={switchVillage}
+        onSetSteward={toggleSteward}
         devTime={devMode ? { pending: skipping, onSkip: skipTimeBy } : null}
         devVillage={
           devMode && view && !view.extinct
@@ -1189,6 +1195,10 @@ export function VillageGame({
       <SelectionPanel
         details={selectionDetails(view, sceneVillage, current, personState, draftState)}
         onSelectTarget={setSelected}
+        onSetSteward={(on) => {
+          const villageId = viewRef.current?.id;
+          return villageId ? toggleSteward(villageId, on) : Promise.resolve(CONNECTION_FAILED);
+        }}
         onRelocate={relocate}
         onLeave={leave}
         onLeaveSon={leaveWithSon}
