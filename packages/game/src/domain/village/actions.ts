@@ -400,11 +400,18 @@ function dynastyFounders(
 }
 
 /**
- * Rod vsi osadníků (návrh Clauda – rod ve víc vsích řeší fáze 2–4): vojvodou je nejstarší muž rodu
- * mezi nimi, bez něj je nová ves bez rodu.
+ * Rod vsi osadníků (návrh Clauda – rod ve víc vsích řeší fáze 2–4): vojvodou je vůdce odchodu
+ * `leaderId` – syn vojvody s dílem vsi, nebo vojvoda, který odešel (lord.md – Dělení vsi, Nová
+ * ves) –, je-li mezi nimi jako muž rodu; jinak nejstarší muž rodu mezi nimi, bez něj je nová ves
+ * bez rodu.
  */
-function settlersDynasty(people: readonly Person[], day: number): DynastyState {
-  const lord = people.filter(isLineMan).sort((a, b) => a.bornDay - b.bornDay || a.id - b.id)[0];
+function settlersLord(people: readonly Person[], leaderId?: number): Person | undefined {
+  const leader = people.find((p) => p.id === leaderId && isLineMan(p));
+  return leader ?? people.filter(isLineMan).sort((a, b) => a.bornDay - b.bornDay || a.id - b.id)[0];
+}
+
+/** Rod vsi osadníků s vojvodou `lord` (`settlersLord`), bez něj ves bez rodu. */
+function settlersDynasty(lord: Person | undefined, day: number): DynastyState {
   // nový objekt – stav vsi se nesmí dělit o `NO_DYNASTY`
   if (!lord) return { lordId: null, lords: [] };
   const name = lord.name === undefined ? {} : { name: lord.name };
@@ -459,7 +466,7 @@ export function foundVillage(input: {
    * Ves zakládá vojvoda s manželkami (lord.md – Zakladatelé) – `name` jméno vojvody (jen písmena,
    * `checkPersonName`); bez jména na ně vojvoda čeká. Bez `lord` ves bez rodu se dvěma páry (testy,
    * starší varianty kalibrace). S osadníky se nepoužije – zakladatele nemění (vojvodou je nejstarší
-   * muž rodu mezi nimi).
+   * muž rodu mezi nimi, s vůdcem odchodu `settlers.lordId` on).
    */
   lord?: { name?: string };
 }): VillageState {
@@ -531,7 +538,7 @@ export function foundVillage(input: {
     people,
     // ves bez rodu (bez vojvody) se chová jako před rodem (lord.md – Zakladatelé)
     dynasty: settlers
-      ? settlersDynasty(people, day)
+      ? settlersDynasty(settlersLord(people, settlers.lordId), day)
       : (founders?.dynasty ?? { lordId: null, lords: [] }),
     dwellings: [],
     fields: [],
@@ -593,6 +600,17 @@ export function foundVillage(input: {
   if (settlers?.cart) state.carts = [{ ...settlers.cart, id: state.nextId++ }];
   if (settlers?.oxen && settlers.oxen.length > 0) {
     state.looseOxen = settlers.oxen.map((ox) => ({ ...ox }));
+  }
+  // kůň vůdce čeká bez ohrady (lord.md – Dělení vsi, Kůň syna) – nové id ve vsi
+  if (settlers?.horse) state.looseHorses = [{ ...settlers.horse, id: state.nextId++ }];
+  // kronika nové vsi vedené synem vojvody: „Vojvodou je Bořivoj“ (lord.md – Dělení vsi, Nová ves)
+  if (settlers?.lordId !== undefined && state.dynasty?.lordId === settlers.lordId) {
+    const lord = people.find((p) => p.id === settlers.lordId);
+    state.chronicle.push({
+      day,
+      kind: 'lord',
+      ...(lord?.name === undefined ? {} : { name: lord.name }),
+    });
   }
   // pole napřed – stromy na jeho dílech patří poli (klády po založení), zemnice je nekácí
   if (firstField) addField(state, day, firstField);
