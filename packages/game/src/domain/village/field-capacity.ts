@@ -41,6 +41,63 @@ export function averageSownShare(): number {
   return sum / ROTATION.sown;
 }
 
+/**
+ * Skutečná ustálená dráha odpočatého dílu podle pravidel (fields.md – Pole uživí podle dnešní půdy):
+ * podíl se mění jednou ročně 1. 9. – osev `SOWN_ROUNDS` let ubírá `sowDepletion`, příloh po
+ * `sowableMin` přidává `fallowRecovery`, a díl se osévá znovu, jakmile dosáhne `fallowReady`.
+ * Obnova se zaokrouhluje nahoru (5 let příloh z 71 % dá 96 %, ne 95 %), takže oběh nezačíná pořád
+ * na 95 %, ale posouvá se (95, 96 … 99 %), dokud se start neopakuje. Průměr se bere přes celou
+ * periodu, podíl je na začátku roku (změna se projeví až 1. 9.). Čistě deterministická smyčka.
+ */
+function steadyPath(): { sum: number; years: number } {
+  const starts: number[] = [];
+  const rotations: { sum: number; years: number }[] = [];
+  let start: number = FERTILITY.fallowReady;
+  for (let guard = 0; guard < 1000; guard++) {
+    // klíč zaokrouhlený kvůli plovoucí čárce
+    const key = Math.round(start * 1e6);
+    const seen = starts.indexOf(key);
+    if (seen >= 0) {
+      const cycle = rotations.slice(seen);
+      return {
+        sum: cycle.reduce((total, r) => total + r.sum, 0),
+        years: cycle.reduce((total, r) => total + r.years, 0),
+      };
+    }
+    starts.push(key);
+    let share = start;
+    let sum = 0;
+    let years = 0;
+    for (let year = 0; year < ROTATION.sown; year++) {
+      sum += share;
+      years++;
+      share = Math.max(0, share - FERTILITY.sowDepletion);
+    }
+    while (share < FERTILITY.fallowReady - EPSILON) {
+      sum += share;
+      years++;
+      share = Math.min(1, share + FERTILITY.fallowRecovery);
+    }
+    rotations.push({ sum, years });
+    start = share;
+  }
+  throw new Error('Dráha oběhu se neuzavřela.');
+}
+
+const STEADY_PATH = steadyPath();
+
+/** Počet let periody ustálené dráhy odpočatého dílu (dnes 34 let = 5 oběhů po 6–7 letech). */
+export const STEADY_PATH_YEARS = STEADY_PATH.years;
+
+/**
+ * Průměrný podíl přirozené úrodnosti přes periodu skutečné ustálené dráhy odpočatého dílu (osev i
+ * příloh, podíl na začátku roku) → ≈ 0,85. Do tohoto podílu se ustálí díl v oběhu; porovnává se
+ * s ním dnešní půda.
+ */
+export function averageRotationShare(): number {
+  return STEADY_PATH.sum / STEADY_PATH.years;
+}
+
 /** Čistá úroda hektaru (kg) v průměru let osevu při plné a včasné práci. */
 export function netYieldPerHa(fertility: number): number {
   return grossYieldPerHa(fertility * averageSownShare()) - SEED_KG_PER_HA;
@@ -56,6 +113,11 @@ export interface FieldCapacity {
   sownHa: number;
   /** Průměrná přirozená úrodnost dílů v oběhu (vážená plochou). */
   fertility: number;
+  /**
+   * Dnešní půda ÷ ustálená (`averageRotationShare`), nejvýš 1: vyčerpaná ves uživí úměrně méně,
+   * odpočatá i čerstvá půda `people` nemění (fields.md – Pole uživí podle dnešní půdy).
+   */
+  soil: number;
 }
 
 /**
@@ -64,7 +126,8 @@ export interface FieldCapacity {
  * jsou osev, ten dá čistou úrodu `netYieldPerHa` při průměrné přirozené úrodnosti a úroda musí
  * pokrýt potřebu z pole `fieldFoodShare` všech lidí i pojistku zásob (`steadyHarvestKg`, jako
  * `village-calculator.ts`). Potřeba i pojistka rostou s počtem lidí lineárně, stačí tedy
- * úroda ÷ úroda potřebná na jednoho průměrného člověka vsi. Ves bez lidí nebo bez pole: `null`.
+ * úroda ÷ úroda potřebná na jednoho průměrného člověka vsi. Výsledek se násobí `soil` = min(1; dnešní
+ * podíl úrodnosti dílů ÷ ustálený podíl oběhu), aby vyčerpaná ves neviděla víc, než pole dají. Ves bez lidí nebo bez pole: `null`.
  */
 export function fieldCapacity(
   state: Pick<VillageState, 'parts' | 'people' | 'fieldFood'>,
@@ -77,6 +140,8 @@ export function fieldCapacity(
   const areaM2 = inRotation.reduce((sum, p) => sum + p.areaM2, 0);
   if (state.people.length === 0 || areaM2 <= 0) return null;
   const fertility = inRotation.reduce((sum, p) => sum + p.naturalFertility * p.areaM2, 0) / areaM2;
+  const todayShare = inRotation.reduce((sum, p) => sum + p.fertilityShare * p.areaM2, 0) / areaM2;
+  const soil = Math.min(1, todayShare / averageRotationShare());
   const rotationHa = areaM2 / 10_000;
   const sownHa = rotationHa / ROTATION_FACTOR;
   const harvestKg = sownHa * netYieldPerHa(fertility);
@@ -86,5 +151,11 @@ export function fieldCapacity(
     bufferKg(foodNeed / state.people.length),
     potteryCoverage,
   );
-  return { people: perPerson > 0 ? harvestKg / perPerson : 0, rotationHa, sownHa, fertility };
+  return {
+    people: perPerson > 0 ? (harvestKg / perPerson) * soil : 0,
+    rotationHa,
+    sownHa,
+    fertility,
+    soil,
+  };
 }

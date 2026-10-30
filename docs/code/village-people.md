@@ -266,6 +266,26 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`checkFootprintFree`, čtverce `foreign`, pozemky – rejstřík cizí půdy `foreignIndex` podle
   skutečných ploch) odmítnou `FOREIGN_LAND`; v prohlížeči totéž `foreignFromScene`.
 
+- **Odchod syna vojvody s poměrnou částí vsi** (lord.md – Dělení vsi, #9 fáze 2;
+  `son-departure.ts`): `checkSonLeader(state, sonId, day)` → `PlacementCheck` – syn
+  `dynasty.lordId` (muž rodu) ve vsi, od `LORD.leaveMinAge` let, ne nástupce (`successorOf`),
+  se jménem, rodina si nestaví dům (`SUCCESSOR_STAYS`, `SON_NAME_MISSING`, `LEAD_TOO_YOUNG`,
+  `LEAD_NOT_SON`…); `leadingSons` – synové od 16 let s kontrolou pro řadu ikon v panelu.
+  `sonShare(state, sonId, day)` → `SonShare` (dílníci = žijící vojvoda + synové od 16 let, cíl
+  lidé ÷ dílníci, `familyIds` – `sonFamily`: syn, `wivesOf`, svobodné děti –, `dwellingIds` celých
+  domácností od nejbližšího domu syna / dvorce podle čtverce vzdálenosti, při shodě nižší id, dokud
+  se počet blíží cíli (domácnost, která by díl oddálila od cíle, se přeskočí a pokračuje další); mimo díl dvorec, domy vojvody, ostatních synů a rodiny syna, stavějící
+  domácnosti). `departWithSon(state, day, sonId, { direction, villageName })` – lidé dílu po
+  lidech do společného jádra `departLeavers` (jídlo, osivo, stáda, vůz jako `departVillage`),
+  `Settlers.lordId` = syn a `Settlers.horse` = jeho jezdecký kůň (`sonHorse`, `riderId`) z ohrady,
+  kronika `son-left-village` (jméno syna a nové vsi). `departVillage` dá `lordId` vojvodovi, odchází-li
+  s domácnostmi. Nová ves: `foundVillage` – vojvodou `settlersLord` (vůdce, jinak nejstarší muž
+  rodu) a kronika `lord`; kůň v `VillageState.looseHorses` (seno bez obilí `hayHorsesKg`
+  v `husbandry.ts`, nejezdí se, s první ohradou koní s místem `looseHorsesDay` v `horse-stock.ts`);
+  ves na cestě drží vůdce v `journey.lordId` a koně v `looseHorses` (`settlersOf` je vrátí). Use-case
+  `leaveVillage` s `sonId` místo `dwellingIds` – ověří `checkSonLeader`, jméno nové vsi vybere
+  napřed (`suggestVillageName`) a předá ho do kroniky.
+
 - **Postavy – lidé ve vsi** ([docs/design/villagers.md](../design/villagers.md), jen zobrazení,
   žádná pravidla): ukazují, kde ves dnes pracuje. Jádro: krok práce simulace uloží rozdělení
   práce dne po činnostech a místech (`labor-report.ts`, `VillageState.labor` – JSON, simulace ho

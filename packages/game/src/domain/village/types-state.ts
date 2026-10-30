@@ -36,6 +36,7 @@ import type {
   FieldFoodYear,
   HappinessState,
   HayState,
+  Horse,
   LivestockState,
   Ox,
   Pen,
@@ -138,6 +139,13 @@ export interface VillageState {
    * žerou seno. Chybí = žádní.
    */
   looseOxen?: Ox[];
+  /**
+   * Koně bez ohrady (lord.md – Dělení vsi, Kůň syna): jezdecký kůň syna vojvody, který odvedl
+   * díl vsi – čeká bez ohrady jako voli z vozu, žere seno (bez obilí), nejezdí se na něm a výcvik
+   * stojí; s první hotovou ohradou koní s volným místem do ní přejde (`looseHorsesDay`). Chybí =
+   * žádní.
+   */
+  looseHorses?: Horse[];
   /** Rozběhnutá sezónní práce v sadech (sklizeň, péče); chybí nebo null = žádná. */
   orchardWork?: OrchardWork | null;
   /**
@@ -435,6 +443,11 @@ export interface VillageJourney {
   departedDay: number;
   /** Den příjezdu – od něj hráč umisťuje první zemnici. */
   arrivalDay: number;
+  /**
+   * Vůdce odchodu (lord.md – Dělení vsi: syn vojvody, nebo vojvoda s celou vsí) – po založení vsi
+   * je jejím vojvodou (`Settlers.lordId`). Chybí = nejstarší muž rodu mezi osadníky.
+   */
+  lordId?: number;
 }
 
 /**

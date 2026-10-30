@@ -158,6 +158,11 @@ function LeaveTooltip({
             {CART_NAMES[leave.cart]}
           </span>
         )}
+        {leave.horse && (
+          <span className="flex items-center gap-1" data-testid="leave-horse">
+            <img src="/icons/resources/horse.png" alt="Kůň s sebou" width={16} height={16} />
+          </span>
+        )}
         {target !== 'here' && (
           <span className="flex items-center gap-1">
             <img src="/icons/resources/date.png" alt="Dny cesty" width={16} height={16} />

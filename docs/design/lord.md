@@ -711,7 +711,8 @@ autopilot (fáze 3). Co níž není výslovně Martinovo, je návrh Clauda.
 - **Lidé:** rodina syna – on, jeho manželky a jejich svobodné děti – odchází vždy, ať bydlí
   kdekoli, i z dvorce (ženatý syn čekající na dům, svobodný syn, který cvičí). K ní celé
   domácnosti z **obydlí nejblíž domu syna** (bydlí-li v dvorci, nejblíž dvorci), dokud počet
-  lidí není co nejblíž dílu – po celých domácnostech, jako dnes při odchodu. Do dílu nepatří
+  lidí není co nejblíž dílu – po celých domácnostech, jako dnes při odchodu; domácnost, která by díl
+  oddálila od cíle, se přeskočí a pokračuje další nejbližší (návrh Clauda). Do dílu nepatří
   dvorec, domácnosti ostatních synů vojvody (mají svůj díl) ani domácnost, která si staví dům.
   Nejbližší obydlí drží díl pohromadě – ve fázi 3 ho půjde spravovat i na místě (zadání issue).
 - Dům, který syn drží a bydlí v něm i jiní, zůstane zbytku domácnosti podle

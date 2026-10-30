@@ -32,6 +32,7 @@ import { foodCosts, type FoodCosts } from './economy';
 import { herdingCoverage } from './herding';
 import { horsesDay } from './horse-breeding';
 import { horsesWinterEnd } from './horse-feed';
+import { looseHorsesDay } from './horse-stock';
 import { horseHayDailyKg, horsesInPlaces, villageHorses } from './horses';
 import { HAY_CUTS, HORSES } from './rules';
 import { isLongWinter } from './weather-effects';
@@ -158,7 +159,7 @@ function mowableHerdHayKg(state: VillageState, day: number): number | undefined 
   const capacity = mowingCapacityKg(state);
   if (capacity === undefined) return undefined;
   const oxenKg = hayOxen(state) * HAY.dailyKg.ox * HAY_WINTER_DAYS;
-  const horsesKg = horseHayDailyKg(villageHorses(state), day) * HAY_WINTER_DAYS;
+  const horsesKg = hayHorsesKg(state, day) * HAY_WINTER_DAYS;
   return Math.max(0, capacity * PLAN_HAY_KEEP - oxenKg - horsesKg);
 }
 
@@ -174,7 +175,7 @@ export function winterHayNeedKg(state: VillageState, day: number, toolCoverage =
   const input = farmInput(state, day, toolCoverage);
   const herds = withCowsComing(state, wantedWinterHerds(state, day, input));
   return (
-    winterHayKg(herds, hayOxen(state), horseHayDailyKg(villageHorses(state), day)) +
+    winterHayKg(herds, hayOxen(state), hayHorsesKg(state, day)) +
     winterWaitHayKg(state, day, herds, input.oxen, input.room)
   );
 }
@@ -192,7 +193,7 @@ export function mowingNeed(state: VillageState, day: number, toolCoverage = 0): 
   const wanted = withCowsComing(state, wantedWinterHerds(state, day, input));
   const today = withCowsComing(state, villageHerds(state));
   const oxen = hayOxen(state);
-  const horsesKg = horseHayDailyKg(villageHorses(state), day);
+  const horsesKg = hayHorsesKg(state, day);
   const waiting = winterWaitHayKg(state, day, wanted, input.oxen, input.room);
   return {
     necessaryKg:
@@ -205,9 +206,20 @@ export function mowingNeed(state: VillageState, day: number, toolCoverage = 0): 
   };
 }
 
+/**
+ * Seno koní za den zimy (kg) – koně ohrad (`grainFed` – dnes dostali obilí) a koně bez ohrady
+ * (lord.md – Dělení vsi, Kůň syna: obilí nedostávají, seno jako jezdecký kůň bez obilí).
+ */
+function hayHorsesKg(state: VillageState, day: number, grainFed = true): number {
+  return (
+    horseHayDailyKg(villageHorses(state), day, grainFed) +
+    horseHayDailyKg(state.looseHorses ?? [], day, false)
+  );
+}
+
 /** Seno koní za den zimy (kg) – jezdečtí koně bez obilí 7 kg (`state.horsesFed`). */
 function horsesHayToday(state: VillageState, day: number): number {
-  return horseHayDailyKg(villageHorses(state), day, state.horsesFed !== false);
+  return hayHorsesKg(state, day, state.horsesFed !== false);
 }
 
 /**
@@ -239,7 +251,8 @@ function farmInput(
   horsePastureHa?: number;
   horseHayKg?: number;
 } {
-  const horses = villageHorses(state);
+  // i koně bez ohrady (lord.md – Dělení vsi, Kůň syna)
+  const horses = [...villageHorses(state), ...(state.looseHorses ?? [])];
   const mowKg = mowableHerdHayKg(state, day);
   const coming = cowsComing(state);
   return {
@@ -252,7 +265,7 @@ function farmInput(
     ...(horses.length > 0
       ? {
           horsePastureHa: horsesInPlaces(horses, day) * HORSES.pastureHa,
-          horseHayKg: horseHayDailyKg(horses, day) * HAY_WINTER_DAYS,
+          horseHayKg: hayHorsesKg(state, day) * HAY_WINTER_DAYS,
         }
       : {}),
     // chovné krávy a krávy navíc na telata, která ves do výcviku volů potřebuje
@@ -354,6 +367,8 @@ export function husbandryDay(
   events.push(...horsesDay(state, day));
   // voli osadníků bez ohrady přejdou do první ohrady volů (migration.md – Vůz při odchodu)
   events.push(...looseOxenDay(state, day));
+  // kůň syna vojvody bez ohrady přejde do ohrady koní (lord.md – Dělení vsi, Kůň syna)
+  events.push(...looseHorsesDay(state, day));
   if (isOn(date, BIRTH_DAY)) {
     herdBirths(state);
     if (state.hay) delete state.hay.winter;
