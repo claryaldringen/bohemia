@@ -67,6 +67,8 @@ export function SelectionPanel({
   onRelocate,
   onCancelConstruction,
   onLeave,
+  onLeaveSon,
+  onPreviewSon,
   onUpgradeRoad,
   onPlantRoadApples,
   onBuildWagonRoad,
@@ -243,6 +245,8 @@ export function SelectionPanel({
         onRelocate={onRelocate}
         onCancelConstruction={onCancelConstruction}
         onLeave={onLeave}
+        onLeaveSon={onLeaveSon}
+        onPreviewSon={onPreviewSon}
         onBuildTrail={onBuildTrail}
         onDeclareHunt={onDeclareHunt}
         onSendExpedition={onSendExpedition}

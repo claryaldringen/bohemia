@@ -8,7 +8,6 @@ import {
   leaveVillage,
   neighbourSnapshot,
   settleJourney,
-  type LeaveDestination,
   cancelUnfinishedConstruction,
   foundDevVillage,
   foundVillageForSettlement,
@@ -69,6 +68,7 @@ import {
   type PlayerToday,
 } from './game';
 import { neighbourScene, ownMapsAround } from './departure-view';
+import type { LeaveVillageInput } from './village-input';
 import { lineEndView } from './line-end-view';
 import { villageListItem } from './village-list';
 import { buildVillageView, sceneOfVillage, type VillageView } from './village-view';
@@ -649,21 +649,22 @@ export function sendExpeditionForPlayer(
 }
 
 /**
- * Odchod do nové vsi (migration.md – fáze 3 a 4): domácnosti obydlí `dwellingIds` odejdou na
+ * Odchod do nové vsi (migration.md – fáze 3 a 4): domácnosti obydlí `dwellingIds` (nebo syn vojvody
+ * `sonId` s poměrnou částí vsi – lord.md) odejdou na
  * téže mapě (vrátí pohled na novou ves) nebo na novou mapu (vrátí pohled na starou ves – lidé
  * jsou na cestě).
  */
 export async function leaveVillageForPlayer(
   playerId: string,
   villageId: string,
-  input: { dwellingIds: number[]; destination: LeaveDestination },
+  input: LeaveVillageInput,
 ): Promise<VillageActionResult> {
   const done = await guardedAction(playerId, villageId, (ctx) =>
     leaveVillage(gameDeps(), {
       playerId,
       villageId,
       today: ctx.day,
-      dwellingIds: input.dwellingIds,
+      ...('sonId' in input ? { sonId: input.sonId } : { dwellingIds: input.dwellingIds }),
       destination: input.destination,
     }),
   );

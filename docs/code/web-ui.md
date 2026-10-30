@@ -99,7 +99,15 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   nová ves na téže mapě (umístění první zemnice nejméně 300 m od staveb všech vsí mapy, pak se
   rozhraní přepne), kolem 8 směrů nové mapy (dny cesty, lidé a jídlo v popisku, směr s vlastní
   vsí zašedlý) –, průběh stěhování se Zrušit – `hud/RelocationControls.tsx`; u víc domácností se
-  nové domy umisťují postupně, po umístění jednoho hned další jako Shift + klik; ves na cestě
+  nové domy umisťují postupně, po umístění jednoho hned další jako Shift + klik; **odchod syna
+  vojvody** (lord.md – Dělení vsi): pohled `dynasty.sons` (`lib/dynasty-view.ts`, z `leadingSons` /
+  `sonDeparturePreview` – náhled ze všech odcházejících stejnými funkcemi jako `departWithSon`,
+  i když je díl jen rodina syna; počítá se jen pro syna, který smí vést) → `SelectionSon` v detailech dvorce (`sonDetails`
+  v `lib/selection-details.ts`) → řada ikon `SonsRow` (`hud/selection/sons.tsx`; nástupce a syn bez
+  jména zašedlí s důvodem, klik = rámeček + růžice `LeaveCompass`, kůň v popisku); obrys obydlí
+  dílu a domů rodiny syna mimo dvorec = `sonPreview` ve `VillageGame` (`setSelection` cíle `dwellings`); `leave` i `leaveWithSon` = jeden tok
+  `departFromVillage` (`dwellingIds` nebo `sonId`) → server action `leaveVillage` (`{ villageId, sonId, destination }`,
+  `parseLeaveVillageInput`) → `leaveVillageForPlayer`; ves na cestě
   ukáže řádek `JourneyBanner` a po příjezdu nabídne jen zemnici – `settleJourney`; stavby jiných
   vsí na téže mapě se kreslí s vlastními a nevybírají – `lib/scene/neighbour-villages.ts`,
   `SceneVillage.neighbours`, pohled `lib/departure-view.ts`), `BuildGrid` (vpravo dole), `NoticeLines` (mizející řádky nahoře),

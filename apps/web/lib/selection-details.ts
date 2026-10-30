@@ -37,7 +37,7 @@ import type { VillageDugSite } from './ore-site-view';
 import type { VillageKiln } from './kiln-view';
 import type { VillageGrainPit } from './grain-pit-view';
 import type { VillageJunction } from './junction-view';
-import type { VillageFieldPart, VillageThreshingFloor } from './village-view-types';
+import type { DepartingSon, VillageFieldPart, VillageThreshingFloor } from './village-view-types';
 import type { HouseholdRelocation } from './relocation-view';
 import { TREE_GROWTH_YEARS } from './orchard-look';
 import {
@@ -184,6 +184,8 @@ type SelectionKinds =
       buying?: SelectionBuying;
       /** Odejít do nové vsi (migration.md); když domácnost odejít nemůže, null. */
       leave: SelectionLeave | null;
+      /** Dvorec: synové vojvody od 16 let pro odchod s poměrnou částí vsi (lord.md); jinak chybí. */
+      sons?: SelectionSon[];
     }
   | {
       /** Víc vybraných obydlí (Ctrl/Shift + klik, Ctrl + A – migration.md). */
@@ -873,6 +875,9 @@ function selectionKinds(
         ? { buying: { sources: view.crafts.sources, purchases: view.purchases ?? [] } }
         : {}),
       leave: view ? leaveDetails(view, [household.dwellingId]) : null,
+      ...(view?.manor?.dwellingId === household.dwellingId && view.dynasty
+        ? { sons: sonDetails(view) }
+        : {}),
     };
   }
   if (target.kind === 'cemetery') {
@@ -1245,6 +1250,33 @@ export interface SelectionLeave {
   cart: CartKind | null;
   /** Na novou mapu po směrech – dny cesty, nebo proč tím směrem nejde. */
   directions: readonly LeaveDirection[];
+  /** Odchází syn vojvody a bere si jezdeckého koně (lord.md – Dělení vsi). */
+  horse?: boolean;
+}
+
+/** Syn vojvody v řadě ikon dvorce a jeho odchod: díl vsi, vůz, kůň (lord.md – Dělení vsi). */
+export interface SelectionSon extends DepartingSon {
+  /** Odchod syna s dílem; když nesmí vést nebo ves nemůže odejít, null. */
+  leave: SelectionLeave | null;
+}
+
+/** Synové vojvody pro odchod – popisek z náhledu jádra (všichni odcházející, i díl jen z rodiny). */
+function sonDetails(view: VillageView): SelectionSon[] {
+  const blocked = view.extinct || view.abandoned || view.journey;
+  return (view.dynasty?.sons ?? []).map((son): SelectionSon => {
+    const leave: SelectionLeave | null =
+      son.reason === null && !blocked && son.people > 0
+        ? {
+            households: son.dwellingIds,
+            people: son.people,
+            foodKg: son.foodKg,
+            cart: son.cart,
+            directions: view.leave.directions,
+            ...(son.horse ? { horse: true } : {}),
+          }
+        : null;
+    return { ...son, leave };
+  });
 }
 
 /** Odchod domácností vybraných obydlí `ids`; když žádná odejít nemůže, null. */

@@ -898,4 +898,26 @@ export interface DynastyView {
   taken: string[];
   /** Jména ženatých synů rodu, kteří bydlí v dvorci – čekají na dům („Rodina čeká na dům“). */
   waitingHome: string[];
+  /** Synové vojvody od 16 let pro odchod s poměrnou částí vsi – řada ikon v panelu dvorce. */
+  sons: DepartingSon[];
+}
+
+/** Syn vojvody pro odchod (lord.md – Dělení vsi, Co hráč vidí); mladší 16 let v řadě chybí. */
+export interface DepartingSon {
+  id: number;
+  /** Bez jména syn vést nesmí. */
+  name?: string;
+  age: number;
+  /** Proč nesmí vést (zašedlá ikona), jinak null. */
+  reason: string | null;
+  /** Obydlí k obrysu ve scéně (domácnosti dílu a domy rodiny syna mimo dvorec); u syna, který nesmí vést, prázdné. */
+  dwellingIds: number[];
+  /** Všichni odcházející (rodina syna i domácnosti dílu). */
+  people: number;
+  /** Jídlo, které odnesou (kg). */
+  foodKg: number;
+  /** Vůz, který odveze. */
+  cart: CartKind | null;
+  /** Syn si vezme jezdeckého koně. */
+  horse: boolean;
 }

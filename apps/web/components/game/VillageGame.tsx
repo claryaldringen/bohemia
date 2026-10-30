@@ -460,9 +460,11 @@ export function VillageGame({
   useEffect(() => {
     sceneVillageRef.current = sceneVillage;
   }, [sceneVillage]);
+  // obrys obydlí dílu syna vojvody vybraného v panelu dvorce (lord.md – Dělení vsi)
+  const [sonPreview, setSonPreview] = useState<readonly number[] | null>(null);
   useEffect(() => {
-    scene?.setSelection(current);
-  }, [scene, current]);
+    scene?.setSelection(sonPreview ? { kind: 'dwellings', ids: sonPreview } : current);
+  }, [scene, current, sonPreview]);
   // Náhled vozové cesty (roads.md – Vozová cesta): vybraná cesta hráče, která vozovou cestu
   // nemá – trasu, cenu a co přinese spočítá scéna stejnou funkcí jako server a vytyčí ji; až po
   // vykreslení výběru (hledání trvá desetiny sekundy)
@@ -750,21 +752,25 @@ export function VillageGame({
    * mapě hráč nejdřív umístí první zemnici nové vsi (nejméně 300 m od staveb všech vsí mapy),
    * pak se rozhraní přepne na novou ves; na novou mapu lidé hned vyrazí (ve vsi zůstane řádek).
    */
-  const leave = (target: 'here' | Direction8, householdIds: readonly number[]): void => {
+  const departFromVillage = (
+    target: 'here' | Direction8,
+    who: { dwellingIds: number[] } | { sonId: number },
+  ): void => {
     const villageId = viewRef.current?.id;
-    if (!scene || !villageId || householdIds.length === 0) return;
-    const dwellingIds = [...householdIds];
+    if (!scene || !villageId) return;
+    if ('dwellingIds' in who && who.dwellingIds.length === 0) return;
+    const leaving = 'sonId' in who ? 'Syn vojvody vyrazil' : 'Lidé vyrazili';
     setSelected(null);
     if (target !== 'here') {
       void runAction(() =>
-        leaveVillage({ villageId, dwellingIds, destination: { kind: 'map', direction: target } }),
+        leaveVillage({ villageId, ...who, destination: { kind: 'map', direction: target } }),
       ).then((failure) => {
         pushNotice(
           failure === null
             ? {
                 kind: 'households-left',
                 tone: 'info',
-                text: `Lidé vyrazili na ${DIRECTION_NAMES[target].name}`,
+                text: `${leaving} na ${DIRECTION_NAMES[target].name}`,
               }
             : { kind: 'error', tone: 'error', text: failure },
         );
@@ -789,7 +795,7 @@ export function VillageGame({
       void runAction(() =>
         leaveVillage({
           villageId,
-          dwellingIds,
+          ...who,
           destination: { kind: 'here', dwelling: result.position },
         }),
       ).then((failure) => {
@@ -803,6 +809,13 @@ export function VillageGame({
       });
     });
   };
+
+  /** Odchod domácností obydlí `householdIds`. */
+  const leave = (target: 'here' | Direction8, householdIds: readonly number[]): void =>
+    departFromVillage(target, { dwellingIds: [...householdIds] });
+  /** Odchod s poměrnou částí vsi pod vedením syna vojvody (lord.md – Dělení vsi). */
+  const leaveWithSon = (target: 'here' | Direction8, sonId: number): void =>
+    departFromVillage(target, { sonId });
 
   /** Je vybraná ohrada druhu `variant`? Pak stavba téhož druhu ohradu rozšiřuje. */
   function extendsSelectedPen(
@@ -1178,6 +1191,8 @@ export function VillageGame({
         onSelectTarget={setSelected}
         onRelocate={relocate}
         onLeave={leave}
+        onLeaveSon={leaveWithSon}
+        onPreviewSon={setSonPreview}
         onCancelConstruction={(constructionId) => {
           const villageId = viewRef.current?.id;
           return villageId
