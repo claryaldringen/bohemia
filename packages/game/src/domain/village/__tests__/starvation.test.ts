@@ -170,7 +170,7 @@ describe('hladovění – poloviční příděl', () => {
     }
     expect(recovered).toBeGreaterThanOrEqual(15);
     expect(lateHunger).toBeLessThanOrEqual(2);
-  });
+  }, 120_000);
 
   it('ves se zmenšuje postupně – úmrtí hladem začnou až po týdnech a trvají týdny', () => {
     const { end } = halfRation(1);

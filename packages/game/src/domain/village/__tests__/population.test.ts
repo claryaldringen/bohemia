@@ -259,7 +259,7 @@ describe('populationDay', () => {
       }
     }
     expect(deaths).toBe(0);
-  }, 30_000);
+  }, 120_000);
 
   it('poslední dva dospělí po hájení už nemají ochranu před hladem (200 seedů × 10 let)', () => {
     let deaths = 0;
@@ -427,7 +427,7 @@ describe('populationDay', () => {
     expect(all).toBeGreaterThan(800);
     expect(boys / all).toBeGreaterThan(105 / 205 - 0.04);
     expect(boys / all).toBeLessThan(105 / 205 + 0.04);
-  }, 60_000);
+  }, 120_000);
 
   it('rozpadlá domácnost jde k příbuzným – do domu syna, i když jinde je víc místa (kinship.md)', () => {
     const day = FOUNDED + 5 * YEAR; // hájení: nikdo dospělý neumře

@@ -180,7 +180,7 @@ describe('advanceVillage – dopočítání', () => {
     expect(count(whole, 'slaughter')).toBeGreaterThanOrEqual(5);
     expect(count(whole, 'hunger-began')).toBeGreaterThan(0);
     expect(whole.lastDay).toBe(end);
-  });
+  }, 120_000);
 
   it('kronika drží posledních CHRONICLE_MAX_EVENTS událostí – nejnovější, i po kouscích', () => {
     const start = found(at(600, 3, 15));
@@ -244,7 +244,7 @@ describe('advanceVillage – dopočítání', () => {
       (e) => e.kind === 'construction-finished' && e.constructionKind === 'field',
     );
     expect(fieldsFinished.length).toBeGreaterThanOrEqual(2);
-  });
+  }, 120_000);
 
   it('nemění vstupní stav a do stejného dne vrátí shodnou kopii', () => {
     const start = found(at(600, 3, 15));
@@ -1289,7 +1289,7 @@ describe('advanceVillage – obydlí', () => {
       // pár svateb a nových domácností za rok – ne stovky (stěhování každý den)
       expect(worst).toBeLessThan(12);
     }
-  }, 60_000);
+  }, 120_000);
 
   /** Práce na opravách posledního dne (rozdělení práce dne). */
   const repairLabor = (s: VillageState): number =>

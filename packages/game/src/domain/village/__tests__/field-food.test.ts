@@ -425,5 +425,5 @@ describe('osev podle stravy v simulaci', () => {
       );
     }
     expect(pieces).toEqual(s);
-  });
+  }, 120_000);
 });

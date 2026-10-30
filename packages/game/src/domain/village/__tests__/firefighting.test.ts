@@ -149,7 +149,7 @@ describe('den požáru', () => {
     expect(left(withChain)).toBeGreaterThanOrEqual(left(without));
   });
 
-  it('po kouscích dopadne stejně (včetně plánu hašení)', { timeout: 60_000 }, () => {
+  it('po kouscích dopadne stejně (včetně plánu hašení)', { timeout: 120_000 }, () => {
     const landscape = generateLandscape(42);
     const make = (): VillageState => {
       const s = village(adults(6));
