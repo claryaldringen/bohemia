@@ -263,6 +263,36 @@ Kroky 3 a 4 (`domain/village/steward.ts` – `stewardDay`):
   tesař zatím 0 (až s voly a vozy). Bez nástrojů ušetří plné pokrytí ≈ 39 % polní práce, takže
   uhlíř vyjde kladně od 6 obydlí, kovář s uhlířem od 3; hrnčíř (ztráty 10 % → 5 %) až od 21 obydlí.
 
+### Ostatní stavby – upřesnění (návrh Clauda – `STEWARD` v `rules-steward.ts`, `steward-extras.ts`)
+
+Kroky 5 až 10 jsou v `domain/village/steward-extras.ts`. Každý začne nejvýš jednu stavbu za den
+správce, jen v režimech `STEWARD.stepModes`, jen když se práce stavby vejde do **společného**
+rozpočtu práce (pole, obydlí i tyto kroky) a vždy přes `startStewardBuild` (cena předem a kontrola
+místa jako u hráče). Sloty hřbitova, humna, sadu a ohrad jsou z plánu sídla ve tvaru, v jakém je
+plán ověřil: střed políčka, jeden čtverec bez mřížky.
+
+- **Režimy:** Nouze – jen první hřbitov (10 člověkodní); Obnova – hřbitov, humno, ohrady
+  (maso a mléko jsou strava mimo pole), posvátná místa; Růst – i koně, sad, jabloně u cest, cesty.
+- **Hřbitov:** hned po první zemnici; dál rozšíření o čtverec, když volná místa (i rozestavěných
+  čtverců) nestačí na `graveYears` (5) × očekávané úmrtí za rok (z úmrtností skupin).
+- **Humno:** ves bez humna mlátí nouzově; vyplatí se, když roční ztráta (práce výmlatu ×
+  `THRESHING.emergencyWork` + polní práce osevu × `emergencyLoss`) za `paybackYears` (3) převýší
+  jeho práci; další, když výmlat nestíhá (`floorShort`). Do 31. 7.
+- **Ohrady:** druh stáda s plným stádem (≥ 2 kusy a ≥ místa) a ohradami pod
+  `penPlacesPerPerson` × lidé; spřežení, když ves má ohradu skotu a `OXEN.minCows` krávy a orba
+  (kopání motykou − orba rádlem na osetý hektar) za `paybackYears` přebije seno volů a ohradu;
+  koně jen v Růstu, když vojvodova rodina cvičí. Mimo žně (1. 7. – 31. 8.).
+- **Sad a jabloně u cest:** potřeba jablek = plná potřeba energie × `DIET.fruitShare` ÷
+  `APPLE_FOOD_VALUE`; chybí-li ji plocha sadů a jabloní (plná úroda), napřed čtverec sadu, pak
+  jabloně podél pevné cesty do `roadFieldM` (40 m) od dílu pole. Jen v oknech výsadby.
+- **Posvátná místa:** štěstí pod `happinessFloor` (60) – modla (nejvýš dvě), pak svatyně; místo
+  nejbližší středu vsi do `sacredSearchTiles`, které projde kontrolou umístění. Mimo žně.
+- **Cesty (Růst, mimo setí a žně):** vylepšení vyšlapané cesty, když úspora chůze (provoz ×
+  délka × rozdíl `ROAD_WALK.speed`) za `roadPaybackYears` (5) převýší cenu; vozová cesta po
+  upravené cestě s provozem ≥ `wagonTrips` a vozem ve vsi; zemská stezka jedna, k nejbližšímu
+  kraji, od `trailPeople` (30) lidí. Co nešlo (blokovaná cesta, směr), správce zkusí znovu za
+  `retryDays` (120) dní (`steward.skips`).
+
 ## Rozmístění – „absolutní skiller“ (návrh Clauda)
 
 Martin 18. 10. 2026 k polím: „**Aby vesničané obhospodařovali pole tím nejlepším způsobem, aniž by

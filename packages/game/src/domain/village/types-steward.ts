@@ -100,4 +100,6 @@ export interface StewardState {
   nextPlan?: StewardPlan;
   vetoes?: StewardVeto[];
   departures?: StewardDeparture[];
+  /** Co správce zkusil a nešlo (cesta, směr stezky) – nezkouší znovu do `untilDay`. */
+  skips?: { kind: string; id: number; untilDay: number }[];
 }

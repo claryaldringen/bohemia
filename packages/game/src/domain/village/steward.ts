@@ -7,6 +7,7 @@ import {
   NO_WOOD,
   type BuildIntent,
 } from './build-intent';
+import { HORSE_PEN_NO_SURPLUS } from './horse-pen-payment';
 import { buildAffordability } from './costs';
 import { craftCoverage } from './crafts';
 import { averageRotationShare, fieldCapacity, netYieldPerHa } from './field-capacity';
@@ -26,6 +27,7 @@ import { DWELLINGS } from './rules-people';
 import { STEWARD, type StewardMonthDay, type StewardWindow } from './rules-steward';
 import { fieldSowingTargets } from './simulate-plan';
 import { fieldCells, planCentre, takenTiles, villageTerritory } from './steward-land';
+import { extraSteps } from './steward-extras';
 import { cellRuns, farmCells, planSettlement } from './steward-plan';
 import { isStewardOn, markStewardStarted } from './steward-state';
 import { sowingYieldFactor } from './weather-effects';
@@ -49,7 +51,7 @@ import type {
 const DAYS_PER_YEAR = 365;
 const FIELD_TASKS: readonly FieldTask[] = ['dig', 'sow', 'weed', 'harvest', 'thresh'];
 /** Důvody odmítnutí, za které nemůže místo – další slot by dopadl stejně. */
-const NOT_THE_SLOT = new Set([NO_SETTLERS, CANNOT_AFFORD, NO_WOOD]);
+const NOT_THE_SLOT = new Set([NO_SETTLERS, CANNOT_AFFORD, NO_WOOD, HORSE_PEN_NO_SURPLUS]);
 
 /** Režim správce (steward.md – Cíl „Růst se zásobou“, Režim správce). */
 export type StewardMode = 'emergency' | 'recovery' | 'growth';
@@ -123,6 +125,7 @@ function decideDay(
   };
   fieldStep(state, ctx);
   dwellingStep(state, ctx);
+  extraSteps(state, ctx);
 }
 
 // --- signály ---------------------------------------------------------------------------
@@ -328,7 +331,7 @@ export function startStewardBuild(
   return { ok: true };
 }
 
-function tileCell(landscape: Landscape, tile: number): { x: number; y: number } {
+export function tileCell(landscape: Landscape, tile: number): { x: number; y: number } {
   return { x: tile % landscape.size, y: Math.floor(tile / landscape.size) };
 }
 

@@ -188,13 +188,14 @@ describe('den správce – režim a pole', () => {
     stewardDay(normal, SEPT, landscape, obstacles);
     const kinds = (v: VillageState): string[] =>
       newConstructions(s, v).map((id) => v.constructions.find((c) => c.id === id)!.kind);
-    expect(kinds(normal).sort()).toEqual(['dwelling', 'field']);
+    // první hřbitov hned po první zemnici (steward.md – krok 5)
+    expect(kinds(normal).sort()).toEqual(['cemetery', 'dwelling', 'field']);
     // Nouze a málo práce – na pole rozpočet nezbývá, zemnice pro čekající rodinu ano
     const hungry = structuredClone(s);
     hungry.starvationDays = 3;
     hungry.commonLaborHistory = Array.from({ length: 30 }, () => 0.05);
     stewardDay(hungry, SEPT, landscape, obstacles);
-    expect(kinds(hungry)).toEqual(['dwelling']);
+    expect(kinds(hungry).sort()).toEqual(['cemetery', 'dwelling']);
   });
 
   it('rozpočet práce počítá zbývající práci všech staveb', () => {

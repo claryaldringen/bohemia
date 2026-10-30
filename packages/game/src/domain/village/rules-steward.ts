@@ -1,6 +1,8 @@
 // Čísla správce vsi (steward.md). Každé číslo s odkazem na sekci návrhu; změna čísla = i text
 // v návrhu.
 
+import type { StewardMode } from './steward';
+
 /**
  * Rozmístění – mapa hodnot krajiny, plán sídla a výpočetní rozpočet (steward.md – Rozmístění
  * „absolutní skiller“; čísla návrh Clauda).
@@ -114,6 +116,69 @@ export const STEWARD = {
   forestSearchTiles: 10,
   /** Den správce – upřesnění, Obydlí u dvorce: bez plánu domy nejvýš tolik políček od středu vsi. */
   centreHouseTiles: 6,
+
+  // Rozhodovací pořadí – kroky 5 až 10 (steward.md – Ostatní stavby; čísla návrh Clauda)
+
+  /** Režimy, ve kterých krok smí začít stavbu (Nouze: jen pole, obydlí a první hřbitov). */
+  stepModes: {
+    cemetery: ['emergency', 'recovery', 'growth'],
+    threshing: ['recovery', 'growth'],
+    pen: ['recovery', 'growth'],
+    horses: ['growth'],
+    orchard: ['growth'],
+    roadApples: ['growth'],
+    sacred: ['recovery', 'growth'],
+    road: ['growth'],
+  } as Readonly<Record<string, readonly StewardMode[]>>,
+  /** 5. Hřbitov: volné hroby na tolik let podle očekávané úmrtnosti (jinak rozšíření o čtverec). */
+  graveYears: 5,
+  /** 6. Humno: vyplatí se, když úspora práce za tolik let pokryje jeho cenu. */
+  paybackYears: 3,
+  /** 7. Ohrady: místa ohrad druhu na člověka (kusů), pod nimiž plné stádo druhu dostane ohradu. */
+  penPlacesPerPerson: { cow: 0.25, pig: 0.25, sheep: 0.5, goat: 0.25 } as Readonly<
+    Record<string, number>
+  >,
+  /** 8. Jabloně u cest: cesta vede „kolem polí“, když je jejich díl do tolika metrů od osy. */
+  roadFieldM: 40,
+  /** 9. Posvátná místa: štěstí vsi, pod kterým správce staví modlu a svatyni (HAPPINESS.start = 50). */
+  happinessFloor: 60,
+  /** 9. Posvátná místa: modla nebo svatyně nejvýš tolik políček od středu vsi. */
+  sacredSearchTiles: 8,
+  /** 9. Posvátná místa: nejvýš tolik kontrol místa za den správce. */
+  sacredChecks: 40,
+  /** 10. Cesty: vylepšení cesty se vyplatí, když úspora chůze za tolik let pokryje cenu. */
+  roadPaybackYears: 5,
+  /** 10. Cesty: vozová cesta tam, kde cesta má aspoň tolik pochůzek za den (průměr roku). */
+  wagonTrips: 1,
+  /** 10. Cesty: zemská stezka od tolika lidí ve vsi (režim Růst). */
+  trailPeople: 30,
+  /** 10. Cesty: neúspěšnou cestu nebo směr správce zkusí znovu nejdřív za tolik dní. */
+  retryDays: 120,
+  /** Okno 6. Humno: do 31. 7., před žněmi. */
+  threshingWindows: [
+    [
+      { month: 1, day: 1 },
+      { month: 7, day: 31 },
+    ],
+  ] as readonly StewardWindow[],
+  /** Okno 7. a 9. (ohrady, posvátná místa): mimo žně (1. 7. – 31. 8.). */
+  offHarvestWindows: [
+    [
+      { month: 9, day: 1 },
+      { month: 6, day: 30 },
+    ],
+  ] as readonly StewardWindow[],
+  /** Okno 10. Cesty: mimo setí (březen, duben, září) a žně (červenec, srpen). */
+  roadWindows: [
+    [
+      { month: 10, day: 1 },
+      { month: 2, day: 28 },
+    ],
+    [
+      { month: 5, day: 1 },
+      { month: 6, day: 30 },
+    ],
+  ] as readonly StewardWindow[],
 } as const;
 
 /** Den v roce (měsíc a den) – hranice oken správce. */
