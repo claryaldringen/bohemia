@@ -83,7 +83,7 @@ import type { DraftFigureState } from '@/lib/draft-activity';
 import type { PersonFigureState } from '@/lib/person-activity';
 import { useSoundPreference } from './SoundToggle';
 import { rememberVillage } from '@/lib/village-choice';
-import type { VillageListItem } from '@/lib/village-list';
+import { keepShownVillage, type VillageListItem } from '@/lib/village-list';
 import { lineNameNotice, newNotices } from '@/lib/village-notices';
 import { lastLordName, rememberLordName } from '@/lib/lord-name-memory';
 import { personPortrait } from '@/lib/person-view';
@@ -1011,7 +1011,15 @@ export function VillageGame({
 
   /** Zapne / vypne správce vsi (steward.md) – pohled se po odpovědi obnoví. */
   const toggleSteward = (villageId: string, on: boolean): Promise<string | null> =>
-    runAction(() => setSteward({ villageId, on }));
+    runAction(async () => {
+      const result = await setSteward({ villageId, on });
+      // správce jiné vsi ze seznamu: pohled zůstane na zobrazené vsi, změní se jen seznam vsí
+      if (isVillageView(result)) return keepShownVillage(viewRef.current, result);
+      return result;
+    }).then((failure) => {
+      if (failure !== null) pushNotice({ kind: 'error', tone: 'error', text: failure });
+      return failure;
+    });
 
   /**
    * Přepne na jinou ves hráče (přepínač v liště) a zapamatuje ji (cookie). Ves na téže mapě se

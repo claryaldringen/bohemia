@@ -766,6 +766,8 @@ const STEWARD_MARKED_KINDS: ReadonlySet<string> = new Set([
   'orchard',
   'pen',
   'road',
+  'sacred',
+  'threshing-floor',
 ]);
 
 /** Doplní k údajům značku správce a jeho přepínač (jen dvorec). */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { advanceVillage, dayIndexOf, foundVillage, type VillageState } from '@bohemia/game';
-import { villageListItem } from '../village-list';
+import { keepShownVillage, villageListItem } from '../village-list';
 
 // Položka přepínače vsí (migration.md – Víc vsí jednoho hráče): humno pro upozornění z jiné vsi
 // (production-chains.md – Humno).
@@ -81,5 +81,18 @@ describe('villageListItem – správce', () => {
     off.steward = { on: false, sinceDay: off.lastDay, built: [] };
     expect(villageListItem(record(on), on.lastDay).steward).toBe(true);
     expect(villageListItem(record(off), off.lastDay).steward).toBeUndefined();
+  });
+});
+
+describe('keepShownVillage', () => {
+  const list = [{ id: 'a', steward: true as const }] as never[];
+  const one = { id: 'v1', villages: [], marker: 1 };
+  const two = { id: 'v2', villages: list, marker: 2 };
+  it('odpověď o jiné vsi nechá pohled na zobrazené, vezme jen seznam vsí', () => {
+    expect(keepShownVillage(one, two)).toEqual({ id: 'v1', villages: list, marker: 1 });
+  });
+  it('stejná ves nebo nic zobrazeného: odpověď beze změny', () => {
+    expect(keepShownVillage(one, { ...one, marker: 3 }).marker).toBe(3);
+    expect(keepShownVillage(null, two)).toBe(two);
   });
 });

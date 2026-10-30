@@ -911,6 +911,11 @@ describe('selectionDetails – správce (steward.md – Co hráč vidí)', () =>
     );
   });
 
+  it('značku nese i posvátná stavba a humno', () => {
+    const stewarded = { ...view, steward: { on: true, built: [40] } } as VillageView;
+    expect(selectionDetails(stewarded, scene, { kind: 'sacred', id: 40 })?.stewardBuilt).toBe(true);
+  });
+
   it('přepínač správce jen u dvorce vojvody, ne u běžného obydlí', () => {
     expect(selectionDetails(view, scene, { kind: 'dwelling', id: 1 })?.steward).toBeUndefined();
   });

@@ -1871,3 +1871,32 @@ test('správce vsi – zapnutí a vypnutí přepínačem v seznamu vsí, ikona u
   await expect(badge).toHaveCount(0);
   expect((await villageState(s.settlementId)).steward?.on).toBe(false);
 });
+
+test('správce jiné vsi ze seznamu – pohled zůstane na zobrazené vsi', async ({ page }) => {
+  const { email, seat: s } = await newPlayer(page, 'spravce2');
+  await found(page, villageSpots(s.landscape).dwelling);
+  await query('UPDATE "user" SET dev_mode = true WHERE email = $1', [email]);
+  await page.reload();
+  await expect(readyScene(page)).toBeVisible({ timeout: 60_000 });
+  await page.getByTestId('dev-second-village').click();
+  const villages = (): Promise<{ id: string; name: string }[]> =>
+    query<{ id: string; name: string }>(
+      'SELECT id, name FROM village WHERE settlement_id = $1 ORDER BY created_at, id',
+      [s.settlementId],
+    );
+  await expect.poll(async () => (await villages()).length, { timeout: 30_000 }).toBe(2);
+  const [one, two] = await villages();
+  const name = page.getByTestId('village-name');
+  await expect(name).toHaveText(two!.name, { timeout: 30_000 });
+
+  // zapnutí správce u první vsi (zobrazená je druhá) nepřepne pohled
+  await name.click();
+  const toggle = page
+    .getByTestId('village-list')
+    .locator(`[data-village="${one!.id}"]`)
+    .getByTestId('village-steward-toggle');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  await expect(name).toHaveText(two!.name);
+  await expect(page.getByTestId('steward-badge')).toHaveCount(0);
+});

@@ -70,3 +70,15 @@ export function villageListItem(record: VillageRecord, day: number): VillageList
     ...(isStewardOn(record.state) ? { steward: true as const } : {}),
   };
 }
+
+/**
+ * Akce nad jinou vsí ze seznamu (správce) vrátí pohled té vsi – zobrazená ves zůstane a z odpovědi
+ * se vezme jen aktualizovaný seznam vsí. Stejná ves nebo nic zobrazeného: odpověď beze změny.
+ */
+export function keepShownVillage<T extends { id: string; villages: VillageListItem[] }>(
+  shown: T | null,
+  result: T,
+): T {
+  if (!shown || shown.id === result.id) return result;
+  return { ...shown, villages: result.villages };
+}
