@@ -6,8 +6,7 @@ import {
   isDynastyTracked,
   leadingSons,
   lineMen,
-  sonHorse,
-  sonShare,
+  sonDeparturePreview,
   type VillageState,
 } from '@bohemia/game';
 import type { DepartingSon, DynastyView, UnnamedLineMan } from './village-view-types';
@@ -15,15 +14,18 @@ import type { DepartingSon, DynastyView, UnnamedLineMan } from './village-view-t
 /** Synové vojvody od 16 let pro odchod (lord.md – Dělení vsi): kdo smí vést a jaký má díl. */
 function departingSons(state: VillageState, day: number): DepartingSon[] {
   return leadingSons(state, day).map(({ son, check }): DepartingSon => {
-    const share = check.ok ? sonShare(state, son.id, day) : null;
+    // náhled jen pro syna, který smí vést – jednou, stejnými funkcemi jako skutečný odchod
+    const preview = check.ok ? sonDeparturePreview(state, son.id, day) : null;
     return {
       id: son.id,
       ...(son.name !== undefined ? { name: son.name } : {}),
       age: ageYears(son.bornDay, day),
       reason: check.ok ? null : check.reason,
-      dwellingIds: share?.dwellingIds ?? [],
-      people: share?.personIds.length ?? 0,
-      horse: check.ok && sonHorse(state, son.id) !== undefined,
+      dwellingIds: preview?.outlineDwellingIds ?? [],
+      people: preview?.people ?? 0,
+      foodKg: preview?.foodKg ?? 0,
+      cart: preview?.cart ?? null,
+      horse: preview?.horse ?? false,
     };
   });
 }

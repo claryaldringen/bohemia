@@ -1260,14 +1260,22 @@ export interface SelectionSon extends DepartingSon {
   leave: SelectionLeave | null;
 }
 
-/** Synové vojvody pro odchod – odchod dílu se skládá jako odchod vybraných obydlí. */
+/** Synové vojvody pro odchod – popisek z náhledu jádra (všichni odcházející, i díl jen z rodiny). */
 function sonDetails(view: VillageView): SelectionSon[] {
+  const blocked = view.extinct || view.abandoned || view.journey;
   return (view.dynasty?.sons ?? []).map((son): SelectionSon => {
-    const base = son.reason === null ? leaveDetails(view, son.dwellingIds) : null;
-    return {
-      ...son,
-      leave: base ? { ...base, people: son.people, ...(son.horse ? { horse: true } : {}) } : null,
-    };
+    const leave: SelectionLeave | null =
+      son.reason === null && !blocked && son.people > 0
+        ? {
+            households: son.dwellingIds,
+            people: son.people,
+            foodKg: son.foodKg,
+            cart: son.cart,
+            directions: view.leave.directions,
+            ...(son.horse ? { horse: true } : {}),
+          }
+        : null;
+    return { ...son, leave };
   });
 }
 

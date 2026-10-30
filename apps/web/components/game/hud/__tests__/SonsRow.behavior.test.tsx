@@ -30,6 +30,8 @@ const son = (over: Partial<SelectionSon>): SelectionSon => ({
   reason: null,
   dwellingIds: [3, 4],
   people: 9,
+  foodKg: 120,
+  cart: 'two-wheel',
   horse: true,
   leave,
   ...over,
@@ -136,6 +138,30 @@ describe('SonsRow – klik', () => {
     click('son-7');
     expect(onPreviewSon).toHaveBeenLastCalledWith(null);
     expect(host.querySelector('[data-testid="leave-compass"]')).toBeNull();
+  });
+
+  it('díl jen z rodiny syna (bez dalších obydlí) má růžici a obrys se neposílá', () => {
+    const onPreviewSon = vi.fn();
+    act(() =>
+      root.render(
+        <SonsRow
+          sons={[son({ dwellingIds: [], leave: { ...leave, households: [] } })]}
+          onLeaveSon={vi.fn()}
+          onPreviewSon={onPreviewSon}
+        />,
+      ),
+    );
+    click('son-7');
+    expect(host.querySelector('[data-testid="leave-compass"]')).not.toBeNull();
+    expect(onPreviewSon).toHaveBeenLastCalledWith(null);
+    expect(onPreviewSon).not.toHaveBeenCalledWith([0]);
+  });
+
+  it('zašedlá ikona nese důvod i v aria-label', () => {
+    act(() => root.render(<SonsRow sons={SONS} />));
+    expect(host.querySelector('[data-testid="son-5"]')!.getAttribute('aria-label')).toBe(
+      'Ctibor, 28 let – Nástupce zůstává.',
+    );
   });
 
   it('klik na nástupce ani na syna bez jména nic nevybere', () => {

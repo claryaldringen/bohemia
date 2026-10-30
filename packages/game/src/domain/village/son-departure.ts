@@ -1,5 +1,8 @@
+import { leavingCart } from './carts';
 import {
   departLeavers,
+  leavingFood,
+  leavingSeedKg,
   isVillageDormant,
   validateDepartureDay,
   villageCentre,
@@ -15,6 +18,7 @@ import { relocatingHouseholds } from './relocation';
 import { LORD } from './rules';
 import { successorOf } from './succession';
 import type { Direction8, Horse, Person, VillageState } from './types';
+import type { CartKind } from './types-roads';
 
 // Dělení vsi – syn vojvody zakládá novou ves (lord.md – Dělení vsi, #9 fáze 2; Martin 30. 10. 2026:
 // „odchází poměrná část vsi“): kdo smí vést odchod, poměrná část vsi a odchod syna s ní. Díl
@@ -184,6 +188,55 @@ export function sonShare(state: VillageState, sonId: number, day: number): SonSh
     familyIds: [...familyIds].sort((a, b) => a - b),
     dwellingIds,
     personIds,
+  };
+}
+
+/** Náhled odchodu syna (panel dvorce – lord.md, Co hráč vidí): co odnese, jak ho udělá `departWithSon`. */
+export interface SonDeparturePreview {
+  share: SonShare;
+  /** Obydlí k obrysu ve scéně – domácnosti dílu a domy rodiny syna mimo dvorec (dvorec zůstává). */
+  outlineDwellingIds: number[];
+  /** Všichni odcházející (rodina syna i domácnosti dílu). */
+  people: number;
+  /** Jídlo, které odnesou (kg, bez osiva). */
+  foodKg: number;
+  /** Osivo, které odnesou (kg obilí). */
+  seedKg: number;
+  /** Vůz, který odveze (celá ves = i s voly orby). */
+  cart: CartKind | null;
+  /** Syn si bere jezdeckého koně. */
+  horse: boolean;
+}
+
+/**
+ * Náhled odchodu syna `sonId` – stejnými funkcemi jako `departWithSon` (`sonShare`, `leavingCart`,
+ * `leavingFood`, `leavingSeedKg`, `sonHorse`), takže se s výsledkem shoduje i pro díl jen z rodiny
+ * syna. `share` lze předat, má-li ho volající spočtený. Syn ve vsi nikde – null. Nekontroluje
+ * `checkSonLeader`. Obrys: domácnosti dílu a domy rodiny kromě dvorce (ten je zdrojem, ne dílem;
+ * rodina z něj odchází jen částí).
+ */
+export function sonDeparturePreview(
+  state: VillageState,
+  sonId: number,
+  day: number,
+  share: SonShare | null = sonShare(state, sonId, day),
+): SonDeparturePreview | null {
+  if (!share) return null;
+  const leaving = new Set(share.personIds);
+  const leavers = state.people.filter((p) => leaving.has(p.id));
+  const cart = leavingCart(state, day, leavers.length === state.people.length)?.cart.kind ?? null;
+  const food = leavingFood(state, leavers, day, cart);
+  const manorId = villageManorId(state);
+  const outline = new Set(share.dwellingIds);
+  for (const p of leavers) if (p.dwellingId !== manorId) outline.add(p.dwellingId);
+  return {
+    share,
+    outlineDwellingIds: [...outline].sort((a, b) => a - b),
+    people: leavers.length,
+    foodKg: Object.values(food).reduce((sum, kg) => sum + kg, 0),
+    seedKg: leavingSeedKg(state, leavers, day, cart),
+    cart,
+    horse: sonHorse(state, sonId) !== undefined,
   };
 }
 

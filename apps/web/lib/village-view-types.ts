@@ -909,10 +909,14 @@ export interface DepartingSon {
   age: number;
   /** Proč nesmí vést (zašedlá ikona), jinak null. */
   reason: string | null;
-  /** Obydlí dílu (obrys ve scéně); u syna, který nesmí vést, prázdné. */
+  /** Obydlí k obrysu ve scéně (domácnosti dílu a domy rodiny syna mimo dvorec); u syna, který nesmí vést, prázdné. */
   dwellingIds: number[];
-  /** Lidé dílu. */
+  /** Všichni odcházející (rodina syna i domácnosti dílu). */
   people: number;
+  /** Jídlo, které odnesou (kg). */
+  foodKg: number;
+  /** Vůz, který odveze. */
+  cart: CartKind | null;
   /** Syn si vezme jezdeckého koně. */
   horse: boolean;
 }

@@ -39,10 +39,11 @@ export function SonsRow({
   const [chosenId, setChosenId] = useState<number | null>(null);
   const chosen = sons.find((s) => s.id === chosenId && s.reason === null) ?? null;
   // obrys dílu patří jen vybranému synovi; po odvolání výběru (i zavření panelu) zmizí
-  const previewKey = chosen ? chosen.dwellingIds.join(',') : null;
+  const previewKey = chosen ? JSON.stringify(chosen.dwellingIds) : null;
   useEffect(() => {
     if (!onPreviewSon) return;
-    onPreviewSon(previewKey === null ? null : previewKey.split(',').map(Number));
+    const ids = previewKey === null ? [] : (JSON.parse(previewKey) as number[]);
+    onPreviewSon(ids.length === 0 ? null : ids);
     return () => onPreviewSon(null);
   }, [previewKey, onPreviewSon]);
   return (
@@ -56,7 +57,7 @@ export function SonsRow({
               <button
                 type="button"
                 data-testid={`son-${son.id}`}
-                aria-label={son.name ?? 'Syn vojvody'}
+                aria-label={`${son.name ?? 'Syn vojvody'}, ${son.age} let${blocked ? ` – ${son.reason}` : ''}`}
                 aria-disabled={blocked || undefined}
                 aria-pressed={blocked ? undefined : active}
                 onClick={() => {

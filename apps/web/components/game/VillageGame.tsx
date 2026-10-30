@@ -752,21 +752,25 @@ export function VillageGame({
    * mapě hráč nejdřív umístí první zemnici nové vsi (nejméně 300 m od staveb všech vsí mapy),
    * pak se rozhraní přepne na novou ves; na novou mapu lidé hned vyrazí (ve vsi zůstane řádek).
    */
-  const leave = (target: 'here' | Direction8, householdIds: readonly number[]): void => {
+  const departFromVillage = (
+    target: 'here' | Direction8,
+    who: { dwellingIds: number[] } | { sonId: number },
+  ): void => {
     const villageId = viewRef.current?.id;
-    if (!scene || !villageId || householdIds.length === 0) return;
-    const dwellingIds = [...householdIds];
+    if (!scene || !villageId) return;
+    if ('dwellingIds' in who && who.dwellingIds.length === 0) return;
+    const leaving = 'sonId' in who ? 'Syn vojvody vyrazil' : 'Lidé vyrazili';
     setSelected(null);
     if (target !== 'here') {
       void runAction(() =>
-        leaveVillage({ villageId, dwellingIds, destination: { kind: 'map', direction: target } }),
+        leaveVillage({ villageId, ...who, destination: { kind: 'map', direction: target } }),
       ).then((failure) => {
         pushNotice(
           failure === null
             ? {
                 kind: 'households-left',
                 tone: 'info',
-                text: `Lidé vyrazili na ${DIRECTION_NAMES[target].name}`,
+                text: `${leaving} na ${DIRECTION_NAMES[target].name}`,
               }
             : { kind: 'error', tone: 'error', text: failure },
         );
@@ -791,7 +795,7 @@ export function VillageGame({
       void runAction(() =>
         leaveVillage({
           villageId,
-          dwellingIds,
+          ...who,
           destination: { kind: 'here', dwelling: result.position },
         }),
       ).then((failure) => {
@@ -806,61 +810,12 @@ export function VillageGame({
     });
   };
 
-  /**
-   * Odejít s poměrnou částí vsi pod vedením syna vojvody (lord.md – Dělení vsi): stejný tok jako
-   * `leave` – na téže mapě hráč nejdřív umístí první zemnici, na novou mapu lidé hned vyrazí.
-   */
-  const leaveWithSon = (target: 'here' | Direction8, sonId: number): void => {
-    const villageId = viewRef.current?.id;
-    if (!scene || !villageId) return;
-    setSelected(null);
-    if (target !== 'here') {
-      void runAction(() =>
-        leaveVillage({ villageId, sonId, destination: { kind: 'map', direction: target } }),
-      ).then((failure) => {
-        pushNotice(
-          failure === null
-            ? {
-                kind: 'households-left',
-                tone: 'info',
-                text: `Syn vojvody vyrazil na ${DIRECTION_NAMES[target].name}`,
-              }
-            : { kind: 'error', tone: 'error', text: failure },
-        );
-      });
-      return;
-    }
-    setPlacingItem(null);
-    const mode = dwellingMode('zemnice');
-    if (mode.kind !== 'dwelling') return;
-    const firstHome: PlacementMode = {
-      kind: 'dwelling',
-      type: 'zemnice',
-      check: (position: Position) => {
-        const far = distanceToPoints(position, scenePoints(sceneVillageRef.current));
-        if (far < NEW_VILLAGE_MIN_DISTANCE_M) return { ok: false, reason: TOO_CLOSE_TO_VILLAGE };
-        return mode.check(position);
-      },
-    };
-    placement.start(firstHome, (result) => {
-      if (result.kind !== 'dwelling') return;
-      void runAction(() =>
-        leaveVillage({
-          villageId,
-          sonId,
-          destination: { kind: 'here', dwelling: result.position },
-        }),
-      ).then((failure) => {
-        if (failure !== null) {
-          pushNotice({ kind: 'error', tone: 'error', text: failure });
-          return;
-        }
-        const founded = viewRef.current?.id;
-        if (founded) rememberVillage(founded);
-        lookAtVillage();
-      });
-    });
-  };
+  /** Odchod domácností obydlí `householdIds`. */
+  const leave = (target: 'here' | Direction8, householdIds: readonly number[]): void =>
+    departFromVillage(target, { dwellingIds: [...householdIds] });
+  /** Odchod s poměrnou částí vsi pod vedením syna vojvody (lord.md – Dělení vsi). */
+  const leaveWithSon = (target: 'here' | Direction8, sonId: number): void =>
+    departFromVillage(target, { sonId });
 
   /** Je vybraná ohrada druhu `variant`? Pak stavba téhož druhu ohradu rozšiřuje. */
   function extendsSelectedPen(

@@ -14,6 +14,7 @@ import {
   checkSonLeader,
   departWithSon,
   leadingSons,
+  sonDeparturePreview,
   sonShare,
 } from '../son-departure';
 import type { Construction, Dwelling, Person, VillageState } from '../types';
@@ -160,6 +161,41 @@ describe('poměrná část vsi (sonShare)', () => {
     });
     // jídlo podle lidí dílu (¼ vsi – unesou ho celé)
     expect(settlers.food.meatKg).toBeCloseTo(10, 6);
+  });
+});
+
+describe('náhled odchodu (sonDeparturePreview)', () => {
+  const expectSame = (s: VillageState, sonId: number): void => {
+    const preview = sonDeparturePreview(s, sonId, DAY)!;
+    const { settlers } = departWithSon(s, DAY, sonId);
+    expect(preview.people).toBe(settlers.people.length);
+    const food = Object.values(settlers.food).reduce((a, b) => a + b, 0);
+    expect(preview.foodKg).toBeCloseTo(food, 6);
+    expect(preview.seedKg).toBeCloseTo(settlers.seedKg ?? 0, 6);
+    expect(preview.cart).toBe(settlers.cart?.kind ?? null);
+    expect(preview.horse).toBe(settlers.horse !== undefined);
+  };
+
+  it('shoduje se s odchodem, i když je díl jen rodina syna a s koněm', () => {
+    const s = lordVillage();
+    s.pens = [horsePen(90, [{ ...horse(500, 6, 'male', 50, DAY), riderId: 30 }])];
+    expectSame(s, 30);
+    // malá ves: rodina syna pokryje cíl – žádné další obydlí
+    const small = lordVillage();
+    small.people = small.people.filter((p) => p.id < 50);
+    small.dwellings = small.dwellings.filter((d) => d.id <= 4);
+    const share = sonShare(small, 30, DAY)!;
+    expect(share.dwellingIds).toEqual([]);
+    const preview = sonDeparturePreview(small, 30, DAY)!;
+    expect(preview.people).toBe(share.personIds.length);
+    expect(preview.outlineDwellingIds).toEqual([3]);
+    expectSame(small, 30);
+  });
+
+  it('obrys nese i dům rodiny syna mimo dvorec, dvorec ne', () => {
+    const s = lordVillage();
+    for (const p of s.people) if (p.id === 30 || p.id === 31) p.dwellingId = 1;
+    expect(sonDeparturePreview(s, 30, DAY)!.outlineDwellingIds).toEqual([5, 7]);
   });
 });
 
