@@ -1,20 +1,15 @@
 import { obstaclesOf, type Landscape } from '../domain/landscape';
 import {
-  villageRoadWalk,
-  PLOT_TYPES,
-  buildAffordability,
-  checkDwellingPlacement,
-  canonicalPlot,
-  checkPlotPlacement,
-  forestEdgeDistanceM,
-  placementVillageOf,
-  startNewDwelling,
+  applyBuildIntent,
   type DwellingPlot,
   type BuildableDwellingType,
   type Position,
 } from '../domain/village';
 import { updateLivingVillage } from './update-village';
 import type { VillageRepository, VillageResult } from './villages';
+
+// důvody odmítnutí žijí v doméně (build-intent.ts) – use-case je dál exportuje pro web a testy
+export { BAD_PLOT, CANNOT_AFFORD, NO_PLOT, NO_SETTLERS, NO_WOOD } from '../domain/village';
 
 export interface PlaceDwellingInput {
   /** Ves (id), ve které hráč jedná – její sídlo dává krajinu `landscape`. */
@@ -29,21 +24,9 @@ export interface PlaceDwellingInput {
   plot?: DwellingPlot;
 }
 
-/** Ves nemá suroviny, které stavba stojí předem (population.md – Odemčení). */
-export const CANNOT_AFFORD = 'Na tuhle stavbu ves nemá suroviny.';
-/** Nové obydlí nemá kdo osídlit – žádná domácnost nemá mladý pár navíc (population.md – Odemčení). */
-export const NO_SETTLERS = 'Nové obydlí nemá kdo osídlit.';
-/** Klády na hromadě ani dospělé stromy sídla na stavbu nestačí (forest.md – Stavby a kácení). */
-export const NO_WOOD = 'Na stavbu chybí dřevo – klády ani stromy ke kácení nestačí.';
-/** Polozemnice se staví na pozemku – políčku krajiny (population.md – Umístění obydlí). */
-export const NO_PLOT = 'Polozemnice potřebuje pozemek – celé políčko.';
-/** Pozemek s neplatným natočením (jen po 15°) nebo natočený dvorec. */
-export const BAD_PLOT = 'Neplatné natočení pozemku.';
-
 /**
  * Hráč zahájí stavbu nového obydlí – kdykoli, když je kým ho osadit a ves má suroviny a dřevo
- * předem (ves se nejdřív dopočítá do dneška). Stromy z vyklízené plochy jdou na hromadu klád,
- * stavba vezme klády z hromady a zbytek dřeva vyhradí mezi nejbližšími dospělými stromy.
+ * předem (ves se nejdřív dopočítá do dneška). Pravidlo stavby je doménové `applyBuildIntent`.
  */
 export function placeDwelling(
   deps: { villages: VillageRepository },
@@ -54,55 +37,13 @@ export function placeDwelling(
     input.villageId,
     input.today,
     input.landscape,
-    (state) => {
-      // akce patří do dne, do kterého je ves dopočítaná – dnešek, nebo „budoucí“ den vsi
-      const day = state.lastDay;
-      const obstacles = obstaclesOf(input.landscape);
-      const { affordable, missing } = buildAffordability(state, input.type, obstacles);
-      if (!affordable) {
-        const reason = missing.settlers ? NO_SETTLERS : missing.wood ? NO_WOOD : CANNOT_AFFORD;
-        return { ok: false, reason };
-      }
-      const village = placementVillageOf(state, day);
-      // obydlí na pozemku: poloha domu podle pozemku (klientská poloha se nebere)
-      // natočený pozemek v ukládané podobě (střed na cm, natočení po 15°)
-      const plot =
-        PLOT_TYPES[input.type] && input.plot
-          ? canonicalPlot(input.landscape, input.plot)
-          : undefined;
-      if (PLOT_TYPES[input.type] && !input.plot) return { ok: false, reason: NO_PLOT };
-      if (plot === null) return { ok: false, reason: BAD_PLOT };
-      const plotCheck = plot
-        ? checkPlotPlacement(input.landscape, village, input.type, plot, obstacles)
-        : null;
-      const check =
-        plotCheck ??
-        checkDwellingPlacement(input.landscape, village, input.type, input.position, obstacles);
-      if (!check.ok) return { ok: false, reason: check.reason ?? 'Sem obydlí nepatří.' };
-      const position = plotCheck?.position ?? { ...input.position };
-      // překážky na vyklízené ploše: práce navíc, osadníci je odstraní při zahájení stavby
-      return {
-        ok: true,
-        state: startNewDwelling(
-          state,
-          day,
-          input.type,
-          position,
-          check.obstacleCost,
-          check.obstacleIds,
-          {
-            obstacles,
-            clearedTrees: check.obstacleCounts.tree ?? 0,
-            forestDistanceM: forestEdgeDistanceM(input.landscape, position.x, position.z),
-            ...(plot ? { plot } : {}),
-            sacred: check.spared,
-            // pole a sady pod obydlím se o zabranou plochu zmenší
-            takenLand: check.takenLand,
-            // kácení dřeva chůzí po pevných cestách (roads.md)
-            walk: villageRoadWalk(state, input.landscape),
-          },
-        ),
-      };
-    },
+    // akce patří do dne, do kterého je ves dopočítaná – dnešek, nebo „budoucí“ den vsi
+    (state) =>
+      applyBuildIntent(state, state.lastDay, input.landscape, obstaclesOf(input.landscape), {
+        kind: 'dwelling',
+        type: input.type,
+        position: input.position,
+        plot: input.plot,
+      }),
   );
 }
