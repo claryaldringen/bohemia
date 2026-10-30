@@ -417,6 +417,20 @@ export function takenTiles(state: VillageState, day: number, landscape: Landscap
   return mask;
 }
 
+/** Políčka pod čtverci polí vsi (i natočených) v den `day` – seřazená, bez opakování. */
+export function fieldTiles(state: VillageState, day: number, landscape: Landscape): number[] {
+  const mask = new Uint8Array(landscape.size * landscape.size);
+  for (const square of villageLandSquares(landscape, placementVillageOf(state, day), ['field'])) {
+    if (square.tile !== null) mask[square.tile] = 1;
+    else cellsUnderPolygon(landscape, square.corners).forEach((t) => (mask[t] = 1));
+  }
+  const out: number[] = [];
+  mask.forEach((v, i) => {
+    if (v) out.push(i);
+  });
+  return out;
+}
+
 /** Plocha políčka v hektarech. */
 export function cellHa(landscape: Landscape): number {
   return (landscape.cellSizeM * landscape.cellSizeM) / M2_PER_HA;

@@ -18,12 +18,16 @@ export type StewardPlanKind = StewardSlotKind | 'field';
  */
 export type StewardPlanStage = 'checks' | 'slots' | 'done';
 
-/** Hospodářství plánu: dům (políčko) a blok pole (políčka od nejbližšího). */
+/** Hospodářství plánu: dům (políčko) a blok pole. */
 export interface StewardFarm {
   house: number;
   /** Stojící obydlí vsi nebo jeho stavba (id) – chybí u domu ze slotu plánu. */
   dwellingId?: number;
-  cells: number[];
+  /**
+   * Blok pole jako běhy seřazených indexů políček `[začátek, délka, začátek, délka, …]` – v plánu
+   * se tak drží stovky bytů místo kilobajtů; `farmCells` je rozbalí od nejbližšího políčka k domu.
+   */
+  runs: number[];
 }
 
 /**
@@ -49,11 +53,19 @@ export interface StewardPlan {
   /** Vybraná šablona a ceny všech tří (člověkodny na tunu čisté úrody – nižší je lepší). */
   template?: StewardTemplate;
   costs?: Partial<Record<StewardTemplate, number>>;
-  /** Sloty po druzích v pořadí, jak je správce bere (`dwelling` – nové domy hospodářství). */
+  /**
+   * Sloty po druzích v pořadí, jak je správce bere (`dwelling` – nové domy hospodářství). Jen
+   * ověřené kontrolou umístění (`checkPlanSlot`); u domů v etapě `checks` jen prvních `checked`.
+   */
   slots: Partial<Record<StewardSlotKind, number[]>>;
+  /** Etapa `slots`: kandidáti ostatních druhů v pořadí, ještě neověření (po ověření zmizí). */
+  candidates?: Partial<Record<StewardSlotKind, number[]>>;
   /** Hospodářství – stojící obydlí, pak nové domy ve stejném pořadí jako `slots.dwelling`. */
   farms: StewardFarm[];
-  /** Sloty druhu došly – při příštím dni správce celý plán znovu (nastaví den správce). */
+  /**
+   * Sloty druhu došly – celý plán znovu, nejdřív `STEWARD.exhaustedReplanDays` po dokončení
+   * (nastaví den správce).
+   */
   exhausted?: true;
 }
 
@@ -82,7 +94,10 @@ export interface StewardState {
    * nerozlišují, celek zůstává hráčův; přestavba a oprava hráčova domu nic neoznačí.
    */
   built: number[];
+  /** Platný plán – podle něj správce staví (i během přepočtu). První plán vsi i rozpracovaný. */
   plan?: StewardPlan;
+  /** Rozpracovaný přepočet: počítá se po etapách vedle `plan`, hotový ho jedním krokem nahradí. */
+  nextPlan?: StewardPlan;
   vetoes?: StewardVeto[];
   departures?: StewardDeparture[];
 }

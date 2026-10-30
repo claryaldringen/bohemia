@@ -292,14 +292,16 @@ deterministické funkce (`steward-land.ts`, pod ESLint pravidlem `det-math` jako
   **Lesní rezerva** (dřevo na stavby, přestavby a palivo podle obnovy stromů `TREE_REGROWTH_YEARS`,
   buky uhlíře) a **louky na seno** pro ohrady se na pole neberou, dokud není nouze.
 - **Uloženo ve stavu** (`steward.plan`): šablona, seřazená místa (sloty) po druzích a bloky
-  čtverců jako indexy políček – ≈ 5–10 kB JSON. Bez uložení by plán po dopočtu po kouscích nešel
+  čtverců jako běhy indexů políček – ≈ 2 kB JSON na 4 domácnosti (rozpracovaný přepočet
+  `steward.nextPlan` vedle platného plánu na pár dní zhruba dvakrát tolik). Bez uložení by plán po dopočtu po kouscích nešel
   zopakovat (stav dne přepočtu už není). **Otisk** plánu = id staveb vsi a sousedů na území
   v den přepočtu.
 - **Kdy se plán přepočítá:** při zapnutí správce a při založení vsi celý; slot, kam kontrola
   umístění nepustí (hráč tam postavil, zatopený břeh, veto), se zahodí a vezme se další; **celý
-  plán znovu**, když dojdou sloty druhu, když se otisk změní stavbou hráče o víc než
-  `STEWARD.replanChanges` staveb, nebo nejdřív za 5 let. Hráčovy stavby jsou v plánu pevné
-  (správce kolem nich plánuje).
+  plán znovu**, když dojdou sloty druhu (nejdřív `STEWARD.exhaustedReplanDays` ≈ 120 dní po
+  dokončení plánu – na plném území by se jinak přepočítával dokola), když se otisk změní stavbou
+  hráče o víc než `STEWARD.replanChanges` staveb, nebo nejdřív za 5 let. Hráčovy stavby jsou
+  v plánu pevné (správce kolem nich plánuje).
 
 ### Výběr místa pro jednu stavbu
 
@@ -320,7 +322,8 @@ stavby), nejvýš jedno pole na den správce.
   `STEWARD.candidateChecks` (≈ 200 kontrol), 3 šablony hladově – odhad 0,5–1,5 s. Proto se
   počítá **po etapách v po sobě jdoucích dnech správce** (mapa hodnot → šablony → sloty;
   rozpracovaná etapa ve stavu), každá etapa pod 200 ms; mezitím správce staví podle starého plánu
-  nebo – v nové vsi – jen hřbitov a obydlí u dvorce.
+  (přepočet běží vedle něj a hotový ho jedním krokem nahradí) nebo – v nové vsi – podle ověřené
+  části rozpracovaného plánu (hřbitov, ověřené domy) a obydlí u dvorce.
 
 ### Čísla a upřesnění plánu (návrh Clauda – `STEWARD` v `rules-steward.ts`)
 
@@ -346,8 +349,18 @@ stavby), nejvýš jedno pole na den správce.
   v úzkém údolí jako řadová ves; velká ves na rovině jako samoty.
 - **Etapy:** den 1 mapa hodnot a šablony, pak kontroly míst domů po nejvýš 40 (celkem 200), pak
   ostatní sloty (hřbitov ≥ 150 m od domů a ≥ 100 m od vody na horší půdě, humno a dílny na suchu,
-  sad a ohrada u domů – po 8 slotech; z bloků polí berou až po volné zemi). Přepočet celý po víc
-  než 3 změnách staveb hráče nebo po 5 letech.
+  sad a ohrada u domů – po 8 slotech; z bloků polí berou až po volné zemi). **Každý slot projde
+  kontrolou umístění jako stavba hráče** (dílna pro každé řemeslo, hřbitov, sad a ohrada jeden
+  čtverec) po nejvýš 40 kontrolách za den; za neprošlé jdou náhradníci – na druh nejvýš 24
+  kandidátů (`STEWARD.slotCandidates`). Přepočet celý po víc než 3 změnách staveb hráče nebo po
+  5 letech; počítá se vedle platného plánu.
+- **Stojící domy s poli** (návrh Clauda): pole vsi patří nejbližšímu stojícímu domu; blok
+  stojícího domu je o ně menší (dohromady blok jedné domácnosti) a cena šablony je započítá.
+- **Cena šablony za celou ves** (návrh Clauda): chybějící políčka bloků se počítají i za
+  domácnosti, pro které šablona dům neumístila – řidší šablona, která neuživí plán, tak nevyhraje
+  jen proto, že má méně domů.
+- **Uložení:** blok pole se ukládá jako běhy políček (≈ 0,5 kB plánu na domácnost); plán staršího
+  tvaru se zahodí a spočítá znovu.
 
 ## Přestavba vlastních staveb (Martin 30. 10. 2026 – „Přestaví, ne hráčovo“; podrobnosti návrh Clauda)
 

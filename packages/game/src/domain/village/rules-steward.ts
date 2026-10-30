@@ -49,6 +49,11 @@ export const STEWARD = {
   replanChanges: 3,
   /** Kdy se plán přepočítá: nejdřív po tolika letech. */
   replanYears: 5,
+  /**
+   * Kdy se plán přepočítá: po vyčerpání slotů druhu nejdřív tolik dní od dokončení plánu – na
+   * plném území by se jinak přepočítával dokola.
+   */
+  exhaustedReplanDays: 120,
   /** Výběr místa pro jednu stavbu: nejvýš tolik dalších slotů za den správce. */
   slotTries: 5,
   /** Výpočetní rozpočet: kandidáti domů – nejvýš tolik kontrol umístění v celém plánu. */
@@ -57,6 +62,11 @@ export const STEWARD = {
   checksPerStage: 40,
   /** Plán sídla – Ostatní: slotů jednoho druhu (hřbitov, sad, ohrada, humno, dílna) nejvýš. */
   extraSlots: 8,
+  /**
+   * Plán sídla – Ostatní: kandidátů jednoho druhu k ověření kontrolou umístění (sloty a náhradníci
+   * za ty, které kontrolou neprojdou).
+   */
+  slotCandidates: 24,
 
   // Den správce – rozhodování, režim a rozpočet (steward.md – Kde správce běží, Cíl „Růst se
   // zásobou“, Rozhodovací pořadí v den správce, Den správce – upřesnění; čísla návrh Clauda)

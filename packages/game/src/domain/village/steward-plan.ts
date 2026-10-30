@@ -10,9 +10,14 @@ import { SURFACE_CODES, tileCenterWorld, type Landscape, type ObstacleLayer } fr
 import { netYieldPerHa, ROTATION, ROTATION_FACTOR } from './field-capacity';
 import { fieldFoodShare, yearlyFoodNeed } from './field-food';
 import { distanceFactor } from './fields';
-import { checkDwellingPlacement } from './placement-dwellings';
-import { placementVillageOf } from './placement-village';
+import { checkDwellingPlacement, checkWorkshopPlacement } from './placement-dwellings';
+import { cemeteryPartsFromCells, orchardPartsFromCells } from './placement-fields';
+import { penSquaresFromCells } from './placement-pens';
+import { checkThreshingFloorPlacement } from './placement-sacred';
+import type { PlacementVillage } from './placement-types';
+import { placementVillageOf, villageDwellingPositions } from './placement-village';
 import { DWELLING_CLEARING_M } from './rules-buildings';
+import { CRAFTS } from './rules-crafts';
 import { FIELD_LIMITS, FOOD_NEED_KG_PER_YEAR } from './rules-fields';
 import { CEMETERY_DISTANCE_M } from './rules-people';
 import { STEWARD } from './rules-steward';
@@ -20,6 +25,7 @@ import {
   dwellingSiteValue,
   fieldCells,
   fieldCellValue,
+  fieldTiles,
   landValues,
   takenTiles,
   planCentre,
@@ -29,6 +35,8 @@ import {
   type LandValues,
 } from './steward-land';
 import type {
+  PenSpecies,
+  Position,
   StewardFarm,
   StewardPlan,
   StewardSlotKind,
@@ -39,6 +47,16 @@ import type {
 const DAYS_PER_YEAR = 365;
 const TEMPLATES: readonly StewardTemplate[] = ['cluster', 'row', 'scattered'];
 const DWELLING = 'zemnice';
+/** Ostatní sloty v pořadí rozvrhu a ověřování (dřívější druh dostane sporné políčko). */
+const EXTRA_KINDS: readonly StewardSlotKind[] = [
+  'cemetery',
+  'threshing-floor',
+  'workshop',
+  'orchard',
+  'pen',
+];
+/** Ohrada slotu se ověří pro tento druh zvířat (druh rozhoduje jen o napojení na stojící ohradu). */
+const SLOT_PEN_SPECIES: PenSpecies = 'cattle';
 /** Ostatní sloty: políčko bloku polí přijde na řadu až po tolika políčkách volné země. */
 const BLOCK_PENALTY = 20;
 /** Ostatní sloty: 10 bodů úrodnosti váží jako políčko vzdálenosti. */
@@ -72,17 +90,58 @@ export function planStamp(state: VillageState): number[] {
 }
 
 /**
- * Má se plán sídla přepočítat celý (steward.md – Kdy se plán přepočítá)? Bez plánu ano;
- * rozpracovaný ne (dopočítá se po etapách); hotový, když došly sloty druhu (`exhausted`), když od
- * jeho dokončení uběhlo `STEWARD.replanYears` let, nebo když se stavby vsi mimo správcovy (`built`)
- * od otisku změnily o víc než `STEWARD.replanChanges`.
+ * Políčka bloku pole hospodářství od nejbližšího k domu (pořadí jako při rezervaci bloku – podle
+ * vzdálenosti, při shodě podle y, pak x). Starý tvar plánu bez běhů dá prázdný blok.
+ */
+export function farmCells(farm: StewardFarm, size: number): number[] {
+  const runs = (farm as Partial<StewardFarm>).runs;
+  if (!Array.isArray(runs)) return [];
+  const hx = farm.house % size;
+  const hy = Math.floor(farm.house / size);
+  const keyed: [number, number, number, number][] = [];
+  for (let k = 0; k + 1 < runs.length; k += 2) {
+    for (let j = 0; j < runs[k + 1]!; j++) {
+      const t = runs[k]! + j;
+      const ox = (t % size) - hx;
+      const oy = Math.floor(t / size) - hy;
+      keyed.push([ox * ox + oy * oy, oy, ox, t]);
+    }
+  }
+  keyed.sort((a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2]);
+  return keyed.map((e) => e[3]);
+}
+
+/** Běhy seřazených indexů políček `[začátek, délka, …]` – uložený tvar bloku (`StewardFarm.runs`). */
+export function cellRuns(cells: readonly number[]): number[] {
+  const sorted = [...cells].sort((a, b) => a - b);
+  const runs: number[] = [];
+  for (const t of sorted) {
+    const n = runs.length;
+    if (n > 0 && runs[n - 2]! + runs[n - 1]! === t) runs[n - 1]!++;
+    else if (n === 0 || runs[n - 2]! + runs[n - 1]! < t) runs.push(t, 1);
+  }
+  return runs;
+}
+
+/** Plán je v dnešním tvaru (bloky jako běhy) – starší tvar se zahodí a přepočítá. */
+function isCurrentPlan(plan: StewardPlan | undefined): plan is StewardPlan {
+  if (!plan) return false;
+  return (plan.farms as readonly Partial<StewardFarm>[]).every((f) => Array.isArray(f.runs));
+}
+
+/**
+ * Má se plán sídla přepočítat celý (steward.md – Kdy se plán přepočítá)? Bez plánu (nebo se
+ * starým tvarem) ano; rozpracovaný nebo rozpracovaný přepočet ne (dopočítá se po etapách); hotový,
+ * když došly sloty druhu (`exhausted`, nejdřív `STEWARD.exhaustedReplanDays` po dokončení), když
+ * od jeho dokončení uběhlo `STEWARD.replanYears` let, nebo když se stavby vsi mimo správcovy
+ * (`built`) od otisku změnily o víc než `STEWARD.replanChanges`.
  */
 export function needsReplan(state: VillageState, day: number): boolean {
   const plan = state.steward?.plan;
-  if (!plan) return true;
-  if (plan.stage !== 'done') return false;
-  if (plan.exhausted) return true;
+  if (!isCurrentPlan(plan)) return true;
+  if (plan.stage !== 'done' || state.steward?.nextPlan) return false;
   const done = plan.doneDay ?? plan.startDay;
+  if (plan.exhausted && day - done >= STEWARD.exhaustedReplanDays) return true;
   if (dateOfDayIndex(day).year - dateOfDayIndex(done).year >= STEWARD.replanYears) return true;
   const built = new Set(state.steward?.built ?? []);
   const before = new Set(plan.stamp);
@@ -95,10 +154,12 @@ export function needsReplan(state: VillageState, day: number): boolean {
 }
 
 /**
- * Jedna etapa plánu sídla v den `day` (steward.md – Výpočetní rozpočet): bez plánu nebo když je
- * třeba přepočet (`needsReplan`) šablony, pak kontroly míst domů po dávkách (`checksPerStage`),
- * pak sloty ostatních staveb. Hotový plán, který přepočet nepotřebuje, a ves bez správce nebo bez
- * středu vrací týž stav. Vstupní stav nemění.
+ * Jedna etapa plánu sídla v den `day` (steward.md – Výpočetní rozpočet): bez plánu šablony, pak
+ * kontroly míst domů po dávkách (`checksPerStage`), pak sloty ostatních staveb s ověřením po
+ * dávkách. Přepočet hotového plánu (`needsReplan`) se počítá po etapách v `steward.nextPlan`
+ * a správce zatím staví podle platného `plan`; hotový přepočet ho jedním krokem nahradí. Hotový
+ * plán, který přepočet nepotřebuje, a ves bez správce nebo bez středu vrací týž stav. Plán starého
+ * tvaru se zahodí a počítá znovu. Vstupní stav nemění.
  */
 export function planSettlement(
   state: VillageState,
@@ -108,18 +169,31 @@ export function planSettlement(
 ): VillageState {
   const steward = state.steward;
   if (!steward || !planCentre(state)) return state;
-  const current = steward.plan;
-  let plan: StewardPlan;
-  if (!current || (current.stage === 'done' && needsReplan(state, day))) {
-    plan = templatesStage(state, day, landscape, obstacles);
-  } else if (current.stage === 'checks') {
-    plan = checksStage(state, day, landscape, obstacles, current);
-  } else if (current.stage === 'slots') {
-    plan = slotsStage(state, day, landscape, current);
-  } else {
-    return state;
+  const current = isCurrentPlan(steward.plan) ? steward.plan : undefined;
+  const advance = (plan: StewardPlan): StewardPlan =>
+    plan.stage === 'checks'
+      ? checksStage(state, day, landscape, obstacles, plan)
+      : slotsStage(state, day, landscape, obstacles, plan);
+  const pending = isCurrentPlan(steward.nextPlan) ? steward.nextPlan : undefined;
+  if (current?.stage === 'done' && pending) {
+    const next = pending.stage === 'done' ? pending : advance(pending);
+    if (next.stage !== 'done') return { ...state, steward: { ...steward, nextPlan: next } };
+    const swapped = { ...steward, plan: next };
+    delete swapped.nextPlan;
+    return { ...state, steward: swapped };
   }
-  return { ...state, steward: { ...steward, plan } };
+  let plan: StewardPlan;
+  if (!current) plan = templatesStage(state, day, landscape, obstacles);
+  else if (current.stage !== 'done') plan = advance(current);
+  else if (needsReplan(state, day)) {
+    return {
+      ...state,
+      steward: { ...steward, nextPlan: templatesStage(state, day, landscape, obstacles) },
+    };
+  } else return state;
+  const out = { ...steward, plan };
+  delete out.nextPlan;
+  return { ...state, steward: out };
 }
 
 // --- společné ---------------------------------------------------------------------------
@@ -283,10 +357,26 @@ function planSize(
 
 // --- etapa 1: šablony -------------------------------------------------------------------
 
+/** Hospodářství při rozvrhu: blok jako seznam políček (od nejbližšího), uloží se jako běhy. */
+interface WorkFarm {
+  house: number;
+  dwellingId?: number;
+  cells: number[];
+}
+
 interface Layout {
   houses: number[];
-  farms: StewardFarm[];
+  farms: WorkFarm[];
   cost: number;
+}
+
+/** Uložený tvar hospodářství. */
+function storedFarm(farm: WorkFarm): StewardFarm {
+  return {
+    house: farm.house,
+    ...(farm.dwellingId !== undefined ? { dwellingId: farm.dwellingId } : {}),
+    runs: cellRuns(farm.cells),
+  };
 }
 
 function templatesStage(
@@ -298,7 +388,8 @@ function templatesStage(
   const land = planLand(state, day, landscape, obstacles);
   const size = planSize(state, day, land);
   const existing = existingHouses(state, landscape);
-  const layouts = TEMPLATES.map((t) => layoutOf(t, land, size, existing));
+  const owned = ownedFields(land, existing, fieldTiles(state, day, landscape));
+  const layouts = TEMPLATES.map((t) => layoutOf(t, land, size, existing, owned));
   const best = Math.min(...layouts.map((l) => l.cost));
   // hustší šablona vyhraje, pokud řidší ušetří méně než `templateMargin` ceny
   const chosen = layouts.findIndex((l) => l.cost <= best * (1 + STEWARD.templateMargin));
@@ -320,13 +411,13 @@ function templatesStage(
     costs,
     checked: 0,
     slots: { dwelling: layout.houses },
-    farms: layout.farms,
+    farms: layout.farms.map(storedFarm),
   };
 }
 
 /** Obydlí a rozestavěná obydlí vsi – pevné domy plánu (políčko a id). */
-function existingHouses(state: VillageState, landscape: Landscape): StewardFarm[] {
-  const out: StewardFarm[] = [];
+function existingHouses(state: VillageState, landscape: Landscape): WorkFarm[] {
+  const out: WorkFarm[] = [];
   for (const d of state.dwellings) {
     out.push({ house: tileAt(landscape, d.position), dwellingId: d.id, cells: [] });
   }
@@ -337,12 +428,32 @@ function existingHouses(state: VillageState, landscape: Landscape): StewardFarm[
   return out;
 }
 
+/**
+ * Pole, která stojící domy už mají: políčko pole patří nejbližšímu stojícímu domu (při shodě
+ * dřívějšímu). Blok stojícího domu je o ně menší a cena rozvrhu je započítá.
+ */
+function ownedFields(land: PlanLand, existing: readonly WorkFarm[], fields: number[]): number[][] {
+  const out = existing.map(() => [] as number[]);
+  if (existing.length === 0) return out;
+  for (const t of fields) {
+    let best = 0;
+    for (let f = 1; f < existing.length; f++) {
+      if (tileDistM(land, existing[f]!.house, t) < tileDistM(land, existing[best]!.house, t)) {
+        best = f;
+      }
+    }
+    out[best]!.push(t);
+  }
+  return out;
+}
+
 /** Rozvrh šablony `template`: nové domy (pořadí stavby), bloky polí všech domů a cena. */
 function layoutOf(
   template: StewardTemplate,
   land: PlanLand,
   size: { households: number; blockCells: number },
-  existing: readonly StewardFarm[],
+  existing: readonly WorkFarm[],
+  owned: readonly number[][],
 ): Layout {
   const wanted = Math.max(0, size.households - existing.length);
   const blockM = Math.sqrt(size.blockCells) * land.cellM;
@@ -376,12 +487,14 @@ function layoutOf(
     place(rich, blockM);
     place(near, HOUSE_CENTRE_M);
   }
-  const farms: StewardFarm[] = [
+  const farms: WorkFarm[] = [
     ...existing.map((f) => ({ ...f, cells: [] as number[] })),
     ...houses.map((house) => ({ house, cells: [] as number[] })),
   ];
-  claimBlocks(land, farms, size.blockCells);
-  return { houses, farms, cost: layoutCost(land, farms, size.blockCells) };
+  // stojící dům s poli potřebuje jen zbytek bloku
+  const need = farms.map((_, f) => Math.max(0, size.blockCells - (owned[f]?.length ?? 0)));
+  claimBlocks(land, farms, need);
+  return { houses, farms, cost: layoutCost(land, farms, owned, size) };
 }
 
 /** Průměrná hodnota políček pole v okně ±`r` políček kolem každého políčka (součtová tabulka). */
@@ -416,10 +529,10 @@ function blockRichness(land: PlanLand, r: number): Float64Array {
 
 /**
  * Bloky polí: domy si po kole berou nejbližší volné políčko pole (dvůr – políčko domu a sousední –
- * zůstává volný), dokud blok nemá `blockCells` políček nebo dům nedosáhne dál než
+ * zůstává volný), dokud blok hospodářství `f` nemá `need[f]` políček nebo dům nedosáhne dál než
  * `FIELD_LIMITS.maxDistanceM`.
  */
-function claimBlocks(land: PlanLand, farms: StewardFarm[], blockCells: number): void {
+function claimBlocks(land: PlanLand, farms: WorkFarm[], need: readonly number[]): void {
   const s = land.size;
   const free = land.arable.slice();
   for (const farm of farms) {
@@ -440,7 +553,7 @@ function claimBlocks(land: PlanLand, farms: StewardFarm[], blockCells: number): 
   while (active) {
     active = false;
     farms.forEach((farm, f) => {
-      if (farm.cells.length >= blockCells) return;
+      if (farm.cells.length >= need[f]!) return;
       const hx = farm.house % s;
       const hy = Math.floor(farm.house / s);
       let k = cursor[f]!;
@@ -462,16 +575,22 @@ function claimBlocks(land: PlanLand, farms: StewardFarm[], blockCells: number): 
 }
 
 /**
- * Cena rozvrhu – člověkodny za rok na tunu čisté úrody: polní práce bloků × `distanceFactor`,
- * chůze pro vodu a dřevo (`dwellingSiteValue`) a ke dvorci (`STEWARD.centreTripsPerDay`) ÷ úroda
- * po ztrátách. Bloky, které se nenaplnily, cenu zvýší úměrně chybějícím políčkům.
+ * Cena rozvrhu – člověkodny za rok na tunu čisté úrody: polní práce bloků a polí, která stojící
+ * domy už mají, × `distanceFactor`, chůze pro vodu a dřevo (`dwellingSiteValue`) a ke dvorci
+ * (`STEWARD.centreTripsPerDay`) ÷ úroda po ztrátách. Chybějící políčka bloků – i za domácnosti,
+ * pro které šablona dům neumístila (plán čeká `households` hospodářství) – cenu zvýší úměrně.
  */
-function layoutCost(land: PlanLand, farms: readonly StewardFarm[], blockCells: number): number {
+function layoutCost(
+  land: PlanLand,
+  farms: readonly WorkFarm[],
+  owned: readonly number[][],
+  size: { households: number; blockCells: number },
+): number {
   const years = ROTATION.sown + ROTATION.fallow;
   let labor = 0;
   let kg = 0;
   let filled = 0;
-  for (const farm of farms) {
+  farms.forEach((farm, f) => {
     labor +=
       (land.siteCost.get(farm.house) ??
         dwellingSiteValue(land.landscape, land.values, farm.house, STEWARD.householdPeople) ??
@@ -480,14 +599,15 @@ function layoutCost(land: PlanLand, farms: readonly StewardFarm[], blockCells: n
         STEWARD.centreTripsPerDay * DAYS_PER_YEAR,
         tileDistM(land, farm.house, land.centreTile),
       );
-    for (const i of farm.cells) {
+    const mine = owned[f] ?? [];
+    for (const i of [...mine, ...farm.cells]) {
       const d = tileDistM(land, farm.house, i);
       labor += (land.cells.work[i]! * distanceFactor(d)) / years;
       kg += (land.cells.kg[i]! * land.cells.kept[i]!) / years;
     }
-    filled += Math.min(blockCells, farm.cells.length);
-  }
-  const wantedCells = farms.length * blockCells;
+    filled += Math.min(size.blockCells, mine.length + farm.cells.length);
+  });
+  const wantedCells = Math.max(farms.length, size.households) * size.blockCells;
   if (kg <= 0 || filled === 0) return Infinity;
   return (labor / (kg / 1000)) * (wantedCells / filled);
 }
@@ -502,23 +622,16 @@ function checksStage(
   plan: StewardPlan,
 ): StewardPlan {
   const houses = plan.slots.dwelling ?? [];
-  const village = placementVillageOf(state, day);
+  const input = slotCheckInput(state, day, landscape, obstacles);
   const land = planLand(state, day, landscape, obstacles);
+  const size = landscape.size;
   let checked = plan.checked ?? 0;
   let budget = Math.min(STEWARD.checksPerStage, STEWARD.candidateChecks - (plan.checks ?? 0));
   const out = [...houses];
-  const farms = plan.farms.map((f) => ({ ...f, cells: [...f.cells] }));
+  const farms: WorkFarm[] = plan.farms.map((f) => ({ ...f, cells: farmCells(f, size) }));
   const fits = (tile: number): boolean => {
     budget--;
-    const c = tileCenterWorld(landscape, tile % landscape.size, Math.floor(tile / landscape.size));
-    const check = checkDwellingPlacement(
-      landscape,
-      village,
-      DWELLING,
-      { x: c.x, z: c.z, rotation: 0 },
-      obstacles,
-    );
-    return check.ok;
+    return slotFits(input, 'dwelling', tile);
   };
   let used = 0;
   while (checked < out.length && budget > 0) {
@@ -541,10 +654,13 @@ function checksStage(
       if (fits(s)) {
         out[checked] = s;
         const farm = farms.find((f) => f.house === tile && f.dwellingId === undefined);
-        if (farm) {
-          farm.house = s;
-          farm.cells = farm.cells.filter((i) => i !== s);
-        }
+        if (farm) farm.house = s;
+        // nový dvůr (políčko domu a sousední) z bloků všech hospodářství
+        const sx = s % size;
+        const sy = Math.floor(s / size);
+        const yard = (i: number): boolean =>
+          Math.abs((i % size) - sx) <= 1 && Math.abs(Math.floor(i / size) - sy) <= 1;
+        for (const f of farms) f.cells = f.cells.filter((i) => !yard(i));
         replaced = true;
         break;
       }
@@ -560,26 +676,161 @@ function checksStage(
   }
   const checks = (plan.checks ?? 0) + used;
   const finished = checked >= out.length || checks >= STEWARD.candidateChecks;
+  const kept = finished
+    ? farms.filter((f) => f.dwellingId !== undefined || out.slice(0, checked).includes(f.house))
+    : farms;
   return {
     ...plan,
     stage: finished ? 'slots' : 'checks',
     checked,
     checks,
     slots: { ...plan.slots, dwelling: finished ? out.slice(0, checked) : out },
-    farms: finished
-      ? farms.filter((f) => f.dwellingId !== undefined || out.slice(0, checked).includes(f.house))
-      : farms,
+    farms: kept.map(storedFarm),
   };
+}
+
+// --- ověření slotu ----------------------------------------------------------------------
+
+/** Podklady kontrol umístění slotů v den etapy. */
+interface SlotCheckInput {
+  landscape: Landscape;
+  obstacles: ObstacleLayer;
+  village: PlacementVillage | null;
+  dwellings: Position[];
+}
+
+function slotCheckInput(
+  state: VillageState,
+  day: number,
+  landscape: Landscape,
+  obstacles: ObstacleLayer,
+): SlotCheckInput {
+  const village = placementVillageOf(state, day);
+  return { landscape, obstacles, village, dwellings: villageDwellingPositions(village) };
+}
+
+/** Kontrol umístění na jeden slot druhu – dílna se ověří pro každé řemeslo. */
+function slotChecks(kind: StewardSlotKind): number {
+  return kind === 'workshop' ? CRAFTS.length : 1;
+}
+
+/**
+ * Projde slot druhu `kind` na políčku `tile` kontrolou umístění jako v `applyBuildIntent`? Tvar
+ * stavby slotu: dům (zemnice), dílna (každé řemeslo) a humno uprostřed políčka bez natočení;
+ * hřbitov, sad a ohrada (skot) jeden čtverec = políčko krajiny bez natočené mřížky.
+ */
+function slotFits(input: SlotCheckInput, kind: StewardSlotKind, tile: number): boolean {
+  const { landscape, obstacles, village } = input;
+  const cell = { x: tile % landscape.size, y: Math.floor(tile / landscape.size) };
+  const c = tileCenterWorld(landscape, cell.x, cell.y);
+  const at = (): Position => ({ x: c.x, z: c.z, rotation: 0 });
+  switch (kind) {
+    case 'dwelling':
+      return checkDwellingPlacement(landscape, village, DWELLING, at(), obstacles).ok;
+    case 'workshop':
+      return CRAFTS.every(
+        (craft) => checkWorkshopPlacement(landscape, village, craft, at(), obstacles).ok,
+      );
+    case 'threshing-floor':
+      return checkThreshingFloorPlacement(landscape, village, at(), obstacles).ok;
+    case 'cemetery':
+      return cemeteryPartsFromCells(landscape, village, [cell], input.dwellings, obstacles).check
+        .ok;
+    case 'orchard':
+      return orchardPartsFromCells(landscape, village, [cell], input.dwellings, obstacles).check.ok;
+    case 'pen':
+      return penSquaresFromCells(landscape, village, [cell], SLOT_PEN_SPECIES, obstacles).check.ok;
+  }
+}
+
+/**
+ * Projde slot plánu kontrolou umístění (tytéž kontroly jako `applyBuildIntent`, bez ceny předem)?
+ * Tvar stavby slotu – viz `slotFits`; správce ze slotu sestaví `BuildIntent` stejného tvaru.
+ */
+export function checkPlanSlot(
+  state: VillageState,
+  day: number,
+  landscape: Landscape,
+  obstacles: ObstacleLayer,
+  kind: StewardSlotKind,
+  tile: number,
+): boolean {
+  return slotFits(slotCheckInput(state, day, landscape, obstacles), kind, tile);
 }
 
 // --- etapa 3: ostatní sloty -------------------------------------------------------------
 
+/**
+ * Sloty ostatních staveb: v prvním dni etapy rozvrh kandidátů (a ověřené semeno hřbitova), pak
+ * ověřování po druzích v pevném pořadí, nejvýš `STEWARD.checksPerStage` kontrol za den. Do slotů
+ * jde jen kandidát, který kontrolou prošel; druh má nejvýš `STEWARD.extraSlots` slotů. Hotovo,
+ * když žádný druh nemá neověřené kandidáty – pak políčka slotů vypadnou z bloků polí.
+ */
 function slotsStage(
   state: VillageState,
   day: number,
   landscape: Landscape,
+  obstacles: ObstacleLayer,
   plan: StewardPlan,
 ): StewardPlan {
+  const input = slotCheckInput(state, day, landscape, obstacles);
+  let budget = STEWARD.checksPerStage;
+  const slots: Partial<Record<StewardSlotKind, number[]>> = { ...plan.slots };
+  let candidates: Partial<Record<StewardSlotKind, number[]>>;
+  if (plan.candidates) {
+    candidates = { ...plan.candidates };
+  } else {
+    const ranked = rankSlots(state, day, landscape, plan, input, budget);
+    budget -= ranked.used;
+    candidates = ranked.candidates;
+    for (const kind of EXTRA_KINDS) slots[kind] = [];
+    if (ranked.cemetery !== undefined) slots.cemetery = [ranked.cemetery];
+  }
+  for (const kind of EXTRA_KINDS) {
+    if (budget <= 0) break;
+    const list = candidates[kind] ?? [];
+    const kept = [...(slots[kind] ?? [])];
+    let k = 0;
+    while (kept.length < STEWARD.extraSlots && k < list.length && budget > 0) {
+      const tile = list[k++]!;
+      budget -= slotChecks(kind);
+      if (slotFits(input, kind, tile)) kept.push(tile);
+    }
+    slots[kind] = kept;
+    candidates[kind] = kept.length >= STEWARD.extraSlots ? [] : list.slice(k);
+  }
+  if (EXTRA_KINDS.some((kind) => (candidates[kind] ?? []).length > 0)) {
+    return { ...plan, slots, candidates };
+  }
+  // políčka ostatních staveb z bloků polí vypadnou
+  const extras = new Set(EXTRA_KINDS.flatMap((kind) => slots[kind] ?? []));
+  const size = landscape.size;
+  const farms = plan.farms.map((f) =>
+    storedFarm({ ...f, cells: farmCells(f, size).filter((i) => !extras.has(i)) }),
+  );
+  const done: StewardPlan = { ...plan, stage: 'done', doneDay: day, slots, farms };
+  delete done.candidates;
+  return done;
+}
+
+/**
+ * Rozvrh kandidátů ostatních slotů (v políčkách; políčko bloku polí +`BLOCK_PENALTY`): nejdřív
+ * `STEWARD.extraSlots` nejlepších každého druhu, pak náhradníci do `STEWARD.slotCandidates` –
+ * vybraná políčka už nedostane další druh. Semeno hřbitova se ověří hned (rozšíření se řadí
+ * podle něj); kontroly se odečtou z rozpočtu etapy.
+ */
+function rankSlots(
+  state: VillageState,
+  day: number,
+  landscape: Landscape,
+  plan: StewardPlan,
+  input: SlotCheckInput,
+  budget: number,
+): {
+  candidates: Partial<Record<StewardSlotKind, number[]>>;
+  cemetery: number | undefined;
+  used: number;
+} {
   const size = landscape.size;
   const cellM = landscape.cellSizeM;
   const values = landValues(landscape);
@@ -588,8 +839,9 @@ function slotsStage(
   const houses = plan.farms.map((f) => f.house);
   // políčka bloků polí smí dostat i ostatní stavby (blok o ně přijde), ale až po volných
   const inBlock = new Uint8Array(size * size);
-  for (const farm of plan.farms) {
-    for (const i of farm.cells) inBlock[i] = 1;
+  const blocks = plan.farms.map((f) => farmCells(f, size));
+  for (const [k, farm] of plan.farms.entries()) {
+    for (const i of blocks[k]!) inBlock[i] = 1;
     const hx = farm.house % size;
     const hy = Math.floor(farm.house / size);
     for (let oy = -1; oy <= 1; oy++) {
@@ -612,19 +864,18 @@ function slotsStage(
   for (let i = 0; i < size * size; i++) {
     if (territory[i] && !blocked[i] && landscape.surface[i] === SURFACE_CODES.meadow) free.push(i);
   }
-  // pořadí slotů druhu podle `score` (v políčkách; políčko bloku polí +`BLOCK_PENALTY`), vybraná
-  // políčka už nedostane další druh
-  const rank = (
-    ok: (i: number) => boolean,
-    score: (i: number) => number,
-    count: number = STEWARD.extraSlots,
-  ): number[] => {
-    const chosen = free
+  const order = (ok: (i: number) => boolean, score: (i: number) => number): number[] =>
+    free
       .filter((i) => !blocked[i] && ok(i))
       .map((i) => ({ i, s: score(i) + (inBlock[i] ? BLOCK_PENALTY : 0) }))
       .sort((a, b) => a.s - b.s || a.i - b.i)
-      .slice(0, count)
       .map((e) => e.i);
+  const rank = (
+    ok: (i: number) => boolean,
+    score: (i: number) => number,
+    count: number,
+  ): number[] => {
+    const chosen = order(ok, score).slice(0, Math.max(0, count));
     for (const i of chosen) blocked[i] = 1;
     return chosen;
   };
@@ -656,47 +907,66 @@ function slotsStage(
     }
     return true;
   };
-  const first = rank(cemeteryOk, (i) => fertility(i) + dist(i, centreTile), 1);
-  const seed = first[0];
-  const cemetery =
-    seed === undefined
-      ? []
-      : [
-          seed,
-          ...rank(cemeteryOk, (i) => dist(i, seed) * 100 + fertility(i), STEWARD.extraSlots - 1),
-        ];
-  const farmCentre = farmsCentroid(plan.farms, size);
-  const slots: Partial<Record<StewardSlotKind, number[]>> = {
-    ...plan.slots,
-    cemetery,
+  let used = 0;
+  let seed: number | undefined;
+  const seeds = order(cemeteryOk, (i) => fertility(i) + dist(i, centreTile));
+  for (const i of seeds.slice(0, STEWARD.slotCandidates)) {
+    if (used >= budget) break;
+    used++;
+    if (slotFits(input, 'cemetery', i)) {
+      seed = i;
+      blocked[i] = 1;
+      break;
+    }
+  }
+  const farmCentre = farmsCentroid(plan.farms, blocks, size);
+  const kinds: [StewardSlotKind, (i: number) => boolean, (i: number) => number, number][] = [
+    [
+      'cemetery',
+      cemeteryOk,
+      (i) => (seed === undefined ? 0 : dist(i, seed) * 100) + fertility(i),
+      seed === undefined ? 0 : STEWARD.extraSlots - 1,
+    ],
     // humno mezi poli a dvorcem na suchu a rovině
-    'threshing-floor': rank(site, (i) => dist(i, farmCentre) + dist(i, centreTile)),
+    ['threshing-floor', site, (i) => dist(i, farmCentre) + dist(i, centreTile), STEWARD.extraSlots],
     // dílny u středu vsi na suchu a rovině
-    workshop: rank(site, (i) => dist(i, centreTile)),
+    ['workshop', site, (i) => dist(i, centreTile), STEWARD.extraSlots],
     // sad u domů na střední půdě
-    orchard: rank(
+    [
+      'orchard',
       (i) => nearestHouse(i) <= ORCHARD_HOUSE_TILES * cellM,
       (i) => Math.abs(landscape.fertility[i]! - 50) / FERTILITY_PER_TILE + nearestHouse(i) / cellM,
-    ),
+      STEWARD.extraSlots,
+    ],
     // ohrada u domů na horší půdě
-    pen: rank(
+    [
+      'pen',
       (i) => nearestHouse(i) <= PEN_HOUSE_TILES * cellM,
       (i) => fertility(i) + nearestHouse(i) / cellM,
-    ),
-  };
-  // políčka ostatních staveb z bloků polí vypadnou
-  const extras = new Set(Object.entries(slots).flatMap(([k, v]) => (k === 'dwelling' ? [] : v)));
-  const farms = plan.farms.map((f) => ({ ...f, cells: f.cells.filter((i) => !extras.has(i)) }));
-  return { ...plan, stage: 'done', doneDay: day, slots, farms };
+      STEWARD.extraSlots,
+    ],
+  ];
+  const candidates: Partial<Record<StewardSlotKind, number[]>> = {};
+  for (const [kind, ok, score, count] of kinds) candidates[kind] = rank(ok, score, count);
+  const spares = STEWARD.slotCandidates - STEWARD.extraSlots;
+  for (const [kind, ok, score, count] of kinds) {
+    if (kind === 'cemetery' && count === 0) continue;
+    candidates[kind] = [...(candidates[kind] ?? []), ...rank(ok, score, spares)];
+  }
+  return { candidates, cemetery: seed, used };
 }
 
 /** Střed polí plánu (políčko). */
-function farmsCentroid(farms: readonly StewardFarm[], size: number): number {
+function farmsCentroid(
+  farms: readonly StewardFarm[],
+  blocks: readonly number[][],
+  size: number,
+): number {
   let sx = 0;
   let sy = 0;
   let n = 0;
-  for (const farm of farms) {
-    for (const i of farm.cells) {
+  for (const block of blocks) {
+    for (const i of block) {
       sx += i % size;
       sy += Math.floor(i / size);
       n++;

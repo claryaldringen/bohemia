@@ -20,7 +20,7 @@ import { DWELLINGS } from './rules-people';
 import { STEWARD, type StewardMonthDay, type StewardWindow } from './rules-steward';
 import { fieldSowingTargets } from './simulate-plan';
 import { fieldCells, planCentre, takenTiles, villageTerritory } from './steward-land';
-import { planSettlement } from './steward-plan';
+import { cellRuns, farmCells, planSettlement } from './steward-plan';
 import { isStewardOn, markStewardStarted } from './steward-state';
 import type {
   BuildableDwellingType,
@@ -443,7 +443,7 @@ export function nextFieldBlock(
     !taken[t] && !skip.has(t) && cells.kg[t]! > 0 && !vetoed(state, ctx, 'field', t);
   if (inStewardWindows(ctx.date, STEWARD.meadowFieldWindows)) {
     for (let i = 0; i < plan.farms.length; i++) {
-      const free = plan.farms[i]!.cells.filter(
+      const free = farmCells(plan.farms[i]!, size).filter(
         (t) => usable(t) && landscape.surface[t] !== SURFACE_CODES.forest,
       );
       const block = pick(i, free, false);
@@ -453,7 +453,7 @@ export function nextFieldBlock(
   if (!inStewardWindows(ctx.date, STEWARD.forestFieldWindows)) return null;
   const territory = villageTerritory(state, landscape);
   for (let i = 0; i < plan.farms.length; i++) {
-    const forest = forestNear(plan.farms[i]!.cells, size, landscape, (t) => {
+    const forest = forestNear(farmCells(plan.farms[i]!, size), size, landscape, (t) => {
       return territory[t] === 1 && landscape.surface[t] === SURFACE_CODES.forest && usable(t);
     });
     const block = pick(i, forest, true);
@@ -518,16 +518,16 @@ function fieldStep(state: VillageState, ctx: StewardContext): void {
     // blok neprošel – první políčko bloku se z plánu zahodí (les v plánu není – jen pro dnešek)
     const first = block.cells[0]!;
     skip.add(first);
-    dropFarmCell(state, block.farm, first);
+    dropFarmCell(state, block.farm, first, ctx.landscape.size);
   }
 }
 
 /** Zahodí políčko z bloku hospodářství (hotový plán). */
-function dropFarmCell(state: VillageState, farm: number, tile: number): void {
+function dropFarmCell(state: VillageState, farm: number, tile: number, size: number): void {
   const plan = state.steward?.plan;
   const f = plan?.farms[farm];
   if (!plan || plan.stage !== 'done' || !f) return;
-  f.cells = f.cells.filter((t) => t !== tile);
+  f.runs = cellRuns(farmCells(f, size).filter((t) => t !== tile));
 }
 
 /**
@@ -544,7 +544,7 @@ function markFieldsExhausted(state: VillageState, ctx: StewardContext): void {
   const min = minFieldCells(landscape);
   const left = plan.farms.some(
     (f) =>
-      f.cells.filter(
+      farmCells(f, landscape.size).filter(
         (t) => !taken[t] && cells.kg[t]! > 0 && landscape.surface[t] !== SURFACE_CODES.forest,
       ).length >= min,
   );
