@@ -8,21 +8,30 @@ import {
   tileCenterWorld,
 } from '../../landscape';
 import { foundVillage } from '../actions';
+import { applyBuildIntent, NO_SETTLERS, type BuildIntent } from '../build-intent';
+import { bufferFill } from '../field-food';
 import { NO_CRAFTS } from '../productivity';
 import { waitingHouseholds } from '../households';
+import { LUCKY_STARVATION_CAP } from '../population';
 import { STEWARD } from '../rules-steward';
 import { advanceVillage } from '../simulate';
+import { fieldSowingTargets } from '../simulate-plan';
 import {
+  chooseDwellingType,
   fieldTarget,
   inStewardWindows,
   laborBudget,
+  nextFieldBlock,
+  startStewardBuild,
+  STEWARD_TIMING,
   stewardDay,
   stewardMode,
   workshopValue,
+  type StewardContext,
 } from '../steward';
 import { newSteward } from '../steward-state';
-import { planSettlement } from '../steward-plan';
-import type { VillageState } from '../types';
+import { farmCells, planSettlement } from '../steward-plan';
+import type { Dwelling, VillageState } from '../types';
 import { couple, kin } from './kin-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
@@ -63,6 +72,32 @@ function withoutSteward(state: VillageState): string {
 
 function newConstructions(before: VillageState, after: VillageState): number[] {
   return after.constructions.filter((c) => c.id >= before.nextId).map((c) => c.id);
+}
+
+/** Podklady dne správce `day` (bez plánu sídla a režimu z vsi). */
+function contextOf(day: number): StewardContext {
+  return {
+    day,
+    date: dateOfDayIndex(day),
+    landscape,
+    obstacles,
+    coverage: NO_CRAFTS,
+    mode: 'growth',
+  };
+}
+
+const cellOf = (tile: number): { x: number; y: number } => ({
+  x: tile % landscape.size,
+  y: Math.floor(tile / landscape.size),
+});
+
+/** Políčko krajiny pod polohou stavby. */
+function tileOf(p: { x: number; z: number }): number {
+  const half = (landscape.size * landscape.cellSizeM) / 2;
+  return (
+    Math.floor((p.z + half) / landscape.cellSizeM) * landscape.size +
+    Math.floor((p.x + half) / landscape.cellSizeM)
+  );
 }
 
 describe('den správce – kdy staví', () => {
@@ -142,7 +177,7 @@ describe('den správce – režim a pole', () => {
     expect(stewardMode({ ...s, starvationDays: 3 }, SEPT, NO_CRAFTS)).toBe('emergency');
   });
 
-  it('v Nouzi jen pole, které se stihne osít, a obydlí pro čekající rodinu', () => {
+  it('v Nouzi pole jen v rozpočtu práce a obydlí pro čekající rodinu', () => {
     const s = waitingVillage(SEPT);
     s.commonLaborHistory = Array.from({ length: 30 }, () => 4);
     expect(fieldTarget(s, SEPT, NO_CRAFTS).have).toBeLessThan(fieldTarget(s, SEPT, NO_CRAFTS).need);
@@ -154,7 +189,7 @@ describe('den správce – režim a pole', () => {
     const kinds = (v: VillageState): string[] =>
       newConstructions(s, v).map((id) => v.constructions.find((c) => c.id === id)!.kind);
     expect(kinds(normal).sort()).toEqual(['dwelling', 'field']);
-    // Nouze a málo práce – pole by se do konce osevu (31. 10.) nestihlo, dům ano
+    // Nouze a málo práce – na pole rozpočet nezbývá, zemnice pro čekající rodinu ano
     const hungry = structuredClone(s);
     hungry.starvationDays = 3;
     hungry.commonLaborHistory = Array.from({ length: 30 }, () => 0.05);
@@ -188,6 +223,107 @@ describe('den správce – režim a pole', () => {
     expect(workshopValue(s, SEPT, 'smith', NO_CRAFTS)).toBe(0);
     expect(workshopValue(s, SEPT, 'carpenter', NO_CRAFTS)).toBe(0);
   });
+
+  it('cíl polí doplní chybějící pojistku – ves bez zásob chce víc polí než ves s plnou', () => {
+    const s = waitingVillage(SEPT);
+    const empty = fieldTarget({ ...s, storesKg: 0 }, SEPT, NO_CRAFTS);
+    const full = fieldTarget({ ...s, storesKg: 20_000 }, SEPT, NO_CRAFTS);
+    expect(empty.have).toBe(full.have);
+    expect(empty.need).toBeGreaterThan(full.need * 1.1);
+    // s plnou pojistkou jen lidé za 2 roky × rezerva (÷ úroda let s počasím, ≤ 1)
+    expect(full.need).toBeGreaterThanOrEqual(s.people.length * STEWARD.fieldReserve);
+  });
+
+  it('typ obydlí – zemnice, když rozpočet práce polozemnici do zimy neunese', () => {
+    const s = waitingVillage(SEPT);
+    s.commonLaborHistory = Array.from({ length: 30 }, () => 0.5);
+    expect(chooseDwellingType(s, contextOf(SEPT))).toBe('zemnice');
+    s.commonLaborHistory = Array.from({ length: 30 }, () => 20);
+    expect(chooseDwellingType(s, contextOf(SEPT))).toBe('polozemnice');
+    // v říjnu by se do 1. 11. nedostavěla
+    s.commonLaborHistory = Array.from({ length: 30 }, () => 3);
+    const late = Math.floor(dayIndexOf({ year: 503, month: 10, day: 20 }) / 10) * 10;
+    expect(chooseDwellingType(s, contextOf(late))).toBe('zemnice');
+  });
+
+  it('klučení lesa – les u bloku jen v okně lesa, když louka v plánu nestačí', () => {
+    const s = waitingVillage(SEPT);
+    const plan = s.steward!.plan!;
+    const meadow = new Set(plan.farms.flatMap((f) => farmCells(f, landscape.size)));
+    const dec = Math.ceil(dayIndexOf({ year: 503, month: 12, day: 1 }) / 10) * 10;
+    const block = nextFieldBlock(s, contextOf(dec), 3, 10_000, meadow);
+    expect(block?.forest).toBe(true);
+    expect(block!.cells.every((t) => landscape.surface[t] === SURFACE_CODES.forest)).toBe(true);
+    // 1. 9. – louka ano, les ne (okno lesa 1. 10. – 31. 1.)
+    expect(nextFieldBlock(s, contextOf(SEPT), 3, 10_000, meadow)).toBeNull();
+    expect(nextFieldBlock(s, contextOf(SEPT), 3, 10_000)?.forest).toBe(false);
+  });
+});
+
+describe('den správce – veto a cena předem', () => {
+  it('vetovaný slot obydlí vynechá; všechny vetované – plán vyčerpaný, dům u dvorce', () => {
+    const s = waitingVillage(SEPT);
+    const slots = s.steward!.plan!.slots.dwelling!;
+    const veto = (
+      t: number,
+    ): { kind: 'dwelling'; cell: { x: number; y: number }; untilDay: number } => ({
+      kind: 'dwelling',
+      cell: cellOf(t),
+      untilDay: SEPT + 100,
+    });
+    s.steward!.vetoes = [veto(slots[0]!)];
+    const one = structuredClone(s);
+    stewardDay(one, SEPT, landscape, obstacles);
+    const house = one.constructions.find((c) => c.kind === 'dwelling' && c.dwellingId === null);
+    expect(tileOf(house!.position!)).not.toBe(slots[0]);
+    const all = structuredClone(s);
+    all.steward!.vetoes = slots.map(veto);
+    stewardDay(all, SEPT, landscape, obstacles);
+    expect(all.steward!.plan!.exhausted).toBe(true);
+    const fallback = all.constructions.find((c) => c.kind === 'dwelling' && c.dwellingId === null);
+    expect(slots).not.toContain(tileOf(fallback!.position!));
+  });
+
+  it('odmítnutí ceny předem stav nezmění; stavba má přesně klíče výsledku akce', () => {
+    const at = { ...contextOf(SEPT) };
+    const tile = waitingVillage(SEPT).steward!.plan!.slots.dwelling![0]!;
+    const c = tileCenterWorld(landscape, cellOf(tile).x, cellOf(tile).y);
+    const intent: BuildIntent = {
+      kind: 'dwelling',
+      type: 'zemnice',
+      position: { x: c.x, z: c.z, rotation: 0 },
+    };
+    // bez čekající rodiny nemá dům kdo osídlit – jako u hráče
+    const lone = withBuiltFirstDwelling(village(SEPT));
+    const before = structuredClone(lone);
+    expect(startStewardBuild(lone, at, intent)).toEqual({ ok: false, reason: NO_SETTLERS });
+    expect(lone).toEqual(before);
+    // s čekající rodinou projde; stav = výsledek akce (žádný klíč navíc ani chybějící)
+    const s = waitingVillage(SEPT);
+    const expected = applyBuildIntent(
+      { ...structuredClone(s), lastDay: SEPT },
+      SEPT,
+      landscape,
+      obstacles,
+      intent,
+    );
+    expect(startStewardBuild(s, at, intent)).toEqual({ ok: true });
+    expect(expected.ok).toBe(true);
+    if (expected.ok) expect(Object.keys(s).sort()).toEqual(Object.keys(expected.state).sort());
+  });
+
+  it('chyba vstupu akce (díl pole dál než 800 m) se v měření počítá', () => {
+    const s = waitingVillage(SEPT);
+    STEWARD_TIMING.clock = (): number => 0;
+    const errors = STEWARD_TIMING.rangeErrors.length + STEWARD_TIMING.rejected;
+    const far = startStewardBuild(s, contextOf(SEPT), {
+      kind: 'field',
+      cells: [{ x: 0, y: 0 }],
+    });
+    STEWARD_TIMING.clock = null;
+    expect(far.ok).toBe(false);
+    expect(STEWARD_TIMING.rangeErrors.length + STEWARD_TIMING.rejected).toBeGreaterThan(errors);
+  });
 });
 
 describe('den správce – dlouhý běh na skutečné krajině', () => {
@@ -197,6 +333,8 @@ describe('den správce – dlouhý běh na skutečné krajině', () => {
   const TEN = SEPT + 10 * YEAR;
   let chunked = start;
   let hunger = 0;
+  /** Nejvyšší nahromaděný hlad (konce kousků) po letech od založení. */
+  const starvation: number[] = [];
   let atThree: VillageState | null = null;
   const advanceChunked = (to: number): void => {
     while (chunked.lastDay < to) {
@@ -206,6 +344,8 @@ describe('den správce – dlouhý běh na skutečné krajině', () => {
         (e) => e.day > prev && e.kind === 'death' && e.cause === 'hunger',
       ).length;
       if (!atThree && chunked.lastDay >= SEPT + 3 * YEAR) atThree = chunked;
+      const year = Math.floor((chunked.lastDay - SEPT) / YEAR);
+      starvation[year] = Math.max(starvation[year] ?? 0, chunked.starvationDays ?? 0);
     }
   };
 
@@ -223,10 +363,52 @@ describe('den správce – dlouhý běh na skutečné krajině', () => {
     expect(fields.length).toBeGreaterThan(0);
   });
 
+  it('dílna má kladnou hodnotu – uhlíř od 6 obydlí, kovář až s uhlířem', () => {
+    const s = structuredClone(atThree!);
+    const home = s.dwellings[0]!;
+    s.dwellings = Array.from({ length: 8 }, (_, k): Dwelling => ({ ...home, id: 90_000 + k }));
+    const day = s.lastDay;
+    expect(workshopValue(s, day, 'burner', NO_CRAFTS)).toBeGreaterThan(0);
+    expect(workshopValue(s, day, 'smith', NO_CRAFTS)).toBe(0);
+    s.dwellings[1] = { ...s.dwellings[1]!, workshop: { craft: 'burner' } as Dwelling['workshop'] };
+    expect(workshopValue(s, day, 'smith', NO_CRAFTS)).toBeGreaterThan(0);
+    expect(workshopValue(s, day, 'burner', NO_CRAFTS)).toBe(0);
+  });
+
+  it('Nouze jen při ohrožení – ves bez pojistky, které zásoby i s osivem do žní vystačí, je v Obnově', () => {
+    // ves po 3 letech, po plánu osevu – osivo ozimu a jaře na setí čeká
+    const s = atThree!;
+    const day = s.lastDay;
+    const modes = new Map<string, number[]>();
+    for (let kg = 0; kg <= 3000; kg += 5) {
+      const v = { ...s, storesKg: kg };
+      const mode = stewardMode(v, day, NO_CRAFTS);
+      modes.set(mode, [...(modes.get(mode) ?? []), kg]);
+      if (mode !== 'recovery') continue;
+      // stará Nouze (pojistka bez osiva pod polovinou) – teď Obnova, osivo by ji pokrylo
+      expect(bufferFill(fieldSowingTargets(v, day, NO_CRAFTS, false))).toBeGreaterThanOrEqual(
+        STEWARD.emergencyFill,
+      );
+    }
+    const recovery = modes.get('recovery') ?? [];
+    expect(Math.max(...(modes.get('emergency') ?? [-1]))).toBeLessThan(Math.min(...recovery));
+    expect(Math.max(...recovery)).toBeLessThan(Math.min(...(modes.get('growth') ?? [Infinity])));
+    expect(
+      recovery.some(
+        (kg) =>
+          bufferFill(fieldSowingTargets({ ...s, storesKg: kg }, day, NO_CRAFTS)) <
+          STEWARD.emergencyFill,
+      ),
+    ).toBe(true);
+  });
+
   it('15 let – lidé rostou, nikdo neumře hlady', { timeout: 120_000 }, () => {
     advanceChunked(SEPT + 15 * YEAR);
     expect(chunked.people.length).toBeGreaterThan(start.people.length);
     expect(hunger).toBe(0);
+    // hlad na stropu hájení ne do krutého roku 9 (úroda ≈ ½) – pak ves bez pojistky spadne do
+    // pasti osiva (seje jen osivo nad jídlo do žní) a pole navíc nepomohou (S4-report, N1)
+    expect(Math.max(...starvation.slice(0, 9))).toBeLessThan(LUCKY_STARVATION_CAP);
     const built = new Set(chunked.steward!.built);
     expect(chunked.dwellings.some((d) => built.has(d.id))).toBe(true);
   });

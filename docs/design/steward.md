@@ -142,11 +142,15 @@ a překážek a dřevo. Staví napřed to, co má nejvyšší hodnotu na cenu, a
 | Provoz na cestách            | vyšlapanost a provoz (`PathNetwork.visits`, `roads`)                       | vylepšení cest                |
 
 - **Režim správce** (návrh Clauda, prahy v `STEWARD`):
-  - **Nouze** – ves hladoví (`starvationDays > 0`) nebo pojistka je pod polovinou: správce
-    nezačne nic kromě polí, která se stihnou osít do konce okna, a obydlí pro čekající rodinu
-    (přeplnění zabíjí taky); nové stavby by braly práci dílům nad potřebu (Martin 25. 10. 2026:
+  - **Nouze** – ves hladoví (`starvationDays > 0`) nebo by zásoby k příští sklizni nedaly ani
+    polovinu pojistky, ani kdyby ves snědla osivo, které na setí čeká – hrozí hlad nebo prázdné
+    setí: správce nezačne nic kromě polí (v rozpočtu práce – ten bere jen volnou práci, polím
+    v oběhu ji nevezme) a obydlí pro čekající rodinu (přeplnění zabíjí taky); nové stavby by braly
+    práci dílům nad potřebu (Martin 25. 10. 2026:
     „ve chvíli, kdy stavba přijde, prostě vesnice o část úrody přijde“).
-  - **Obnova** – pojistka pod plnou: pole, obydlí, hřbitov, humno; nic, co ubere práci polím na
+  - **Obnova** – pojistka pod plnou (osivo stranou) – i mladá ves, které zásoby do žní vystačí,
+    ale pojistku ještě nemá (oprava 30. 10. 2026: s osivem ve zásobách byla nová ves v Nouzi
+    skoro pořád, i když nehladověla): pole, obydlí, hřbitov, humno; nic, co ubere práci polím na
     dlouho (dílny, ohrady koní, cesty, posvátná místa).
   - **Růst** – pojistka plná: vše podle hodnoty na cenu.
 - **Rozpočet práce:** zbývající práce rozestavěných staveb správce ≤ průměrná volná práce
@@ -154,9 +158,12 @@ a překážek a dřevo. Staví napřed to, co má nejvyšší hodnotu na cenu, a
   rovným dílem – víc naráz by všechny jen zpomalilo. Stavby hráče do rozpočtu počítá taky (bere jim
   práci), ale nikdy je nezruší.
 - **Cíl polí:** pole v oběhu mají uživit lidi, kteří ve vsi budou za `STEWARD.fieldLeadYears`
-  (≈ 2 roky – výhled `expectedYearlyFoodNeed`), × `STEWARD.fieldReserve` (≈ 1,1). Pojistka zásob
-  už je v čísle „Pole uživí“ (`steadyHarvestKg`); rezerva navíc dá vesničanům díly nad potřebu
-  na kruté roky – osejí je sami (fields.md – Osevní postup po dílech).
+  (≈ 2 roky – výhled `expectedYearlyFoodNeed`), × `STEWARD.fieldReserve` (≈ 1,1) ÷ očekávaná
+  úroda let s počasím (`sowingYieldFactor` ≈ 0,95 – ves s ní seje taky), a navíc lidé, jejichž
+  úroda by za `FIELD_STORES.balanceYears` (3 roky) doplnila chybějící pojistku zásob. „Pole
+  uživí“ (`steadyHarvestKg`) pojistku jen **udržuje** – ves, která ji nemá, by si ji z polí
+  v ustáleném oběhu nikdy nenaplnila. Rezerva dá vesničanům díly nad potřebu na kruté roky –
+  osejí je sami (fields.md – Osevní postup po dílech).
 
 ## Rozhodovací pořadí v den správce (návrh Clauda)
 
@@ -212,19 +219,32 @@ Kroky 3 a 4 (`domain/village/steward.ts` – `stewardDay`):
   pak obydlí nebo dílna. Stavby jdou přes `applyBuildIntent` na vsi dopočítané do dne správce
   (uprostřed dopočtu drží ves `lastDay` začátku dopočtu – cena předem by jinak závisela na
   kouscích dopočtu).
-- **Režim:** Nouze = `starvationDays > 0` nebo pojistka pod `emergencyFill` (0,5); Obnova pod
-  plnou pojistkou; Růst s plnou.
+- **Režim:** Růst s plnou pojistkou (`bufferFill`, osivo stranou); Nouze = `starvationDays > 0`
+  nebo pojistka pod `emergencyFill` (0,5), i když se osivo, které na setí čeká, počítá jako jídlo
+  (`fieldSowingTargets(…, reserveSeed = false)`); jinak Obnova.
 - **Rozpočet práce:** průměr volné práce posledních 30 dní × `laborHorizonDays` (120) minus
-  zbývající práce všech rozestavěných staveb (hráčových, vesničanů i správcových).
+  zbývající práce všech rozestavěných staveb (hráčových, vesničanů i správcových). Nová ves bez
+  historie volné práce má rozpočet 0 – první pole až s prvním dnem historie (příští den správce);
+  obydlí pro čekající rodinu rozpočet nečeká.
 - **Cíl polí:** lidé × (výhled potřeby za `fieldLeadYears` = 2 roky ÷ dnešní potřeba) ×
-  `fieldReserve` (1,1) proti „Pole uživí podle dnešní půdy“; zakládané díly se počítají jako
-  v oběhu (jinak by správce zakládal, dokud se první pole nedostaví).
+  `fieldReserve` (1,1) ÷ `sowingYieldFactor` + (pojistka − zásoby, které k příští sklizni zbudou)
+  ÷ `FIELD_STORES.balanceYears` ÷ úroda na člověka z „Pole uživí“ – proti „Pole uživí podle dnešní
+  půdy“; zakládané díly se počítají jako v oběhu (jinak by správce zakládal, dokud se první pole
+  nedostaví).
 - **Blok pole:** volná políčka bloku prvního hospodářství plánu, které jich má aspoň na nejmenší
   pole (0,1 ha); souvislý výběr od nejbližšího políčka bloku, počet podle chybějících lidí
   a úrodnosti (lidé na hektar jako „Pole uživí“), nejvýš co unese rozpočet. Neprojde-li, první
   políčko bloku se z plánu zahodí (nejvýš `slotTries` pokusů za den).
-- **Nouze a pole:** pole jen, když (zbývající práce staveb + založení) ÷ volná práce za den vyjde
-  nejpozději na konec nejbližšího osevu (`sowingEnds` – 30. 4., 31. 10.).
+- **Nouze a pole:** pole v Nouzi stejně jako jindy – v rozpočtu práce (ten bere jen volnou práci).
+  Dřívější podmínka „jen pole, které se stihne osít do konce osevu“ nechávala hladovějící ves bez
+  nových polí (oprava 30. 10. 2026).
+- **Hranice – past osiva (měření 30. 10. 2026, zakladatelé, seed krajiny 1 a 2, 15 let):** ves
+  seje jen osivo nad jídlo do žní (seed-buying.ts – `sowableSeedKg`), takže bez pojistky stojí na
+  vratké rovnováze úroda ≈ spotřeba a osev nepřeroste ≈ 2,5–2,8 ha, ať má polí kolik chce (cíl
+  × 1,6 → 16 ha polí, úroda stejně ≈ 1 500 kg). Krutý rok (rok 9, úroda ≈ ½) ji do pasti shodí
+  a s rostoucím počtem lidí hlad v letech 12–15 roste na strop hájení. Pole to nespraví – na tahu
+  jsou strava mimo pole (ohrady, stáda – S5) a odchod syna, když lidí je víc, než ves skutečně
+  uživí (S6).
 - **Klučení lesa:** jen když louka v plánu nestačí, v okně lesa (1. 10. – 31. 1.); les na území vsi
   do `forestSearchTiles` (10) políček od bloku hospodářství. Druhá podmínka návrhu („les dává
   víc“) zatím ne.

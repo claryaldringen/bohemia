@@ -558,20 +558,23 @@ function joinBands(
 /**
  * Cíle osevu (fields.md – Kolik ves oseje, Osev podle zásob): úroda na rok spotřeby z pole
  * a pojistku bez toho, co ze zásob k příští sklizni zbude; luštěniny podle rovnovážného hospodaření
- * (`plannedLegumeKg` – soupeří cenou v práci se stády, diet.md) a podle své zásoby.
+ * (`plannedLegumeKg` – soupeří cenou v práci se stády, diet.md) a podle své zásoby. Osivo, které
+ * na setí čeká, zásoby k sklizni nekrmí; s `reserveSeed = false` krmí (správce – vystačí zásoby
+ * do žní, i kdyby ves snědla osivo? steward.md – Cíl, Režim správce).
  */
 export function fieldSowingTargets(
   state: VillageState,
   day: number,
   coverage: CraftCoverage,
+  reserveSeed = true,
 ): SowingTargets {
-  const seed = seedAheadKg(state);
+  const seed = reserveSeed ? seedAheadKg(state) : null;
   return sowingTargets(
     state,
     day,
     plannedLegumeKg(state, day, coverage.tools),
     coverage.pottery,
-    seed.grain + legumeEnergy(seed.legumes),
+    seed ? seed.grain + legumeEnergy(seed.legumes) : 0,
   );
 }
 

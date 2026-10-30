@@ -73,7 +73,10 @@ export const STEWARD = {
 
   /** Kde správce běží – Den správce: správce rozhoduje v den s indexem dělitelným tímto číslem. */
   everyDays: 10,
-  /** Cíl – Režim správce: pojistka zásob (`bufferFill`) pod tímto podílem = Nouze. */
+  /**
+   * Cíl – Režim správce: Nouze, když zásoby k příští sklizni dají méně než tento podíl pojistky
+   * (`bufferFill`), ani kdyby ves snědla osivo, které na setí čeká.
+   */
   emergencyFill: 0.5,
   /**
    * Cíl – Rozpočet práce: zbývající práce rozestavěných staveb nejvýš průměrná volná práce
@@ -82,7 +85,10 @@ export const STEWARD = {
   laborHorizonDays: 120,
   /** Cíl – Cíl polí: pole mají uživit lidi, kteří ve vsi budou za tolik let. */
   fieldLeadYears: 2,
-  /** Cíl – Cíl polí: rezerva nad cílem (díly nad potřebu na kruté roky). */
+  /**
+   * Cíl – Cíl polí: rezerva nad cílem (díly nad potřebu na kruté roky); k ní ÷ očekávaná úroda let
+   * s počasím a doplnění chybějící pojistky za `FIELD_STORES.balanceYears`.
+   */
   fieldReserve: 1.1,
   /** Rozhodovací pořadí – 3. Pole: okna zakládání pole na louce a v křovinách. */
   meadowFieldWindows: [
@@ -102,14 +108,6 @@ export const STEWARD = {
       { month: 1, day: 31 },
     ],
   ] as readonly StewardWindow[],
-  /**
-   * Cíl – Režim správce, Nouze: konce oken setí (jař do 30. 4., ozim do 31. 10. – fields.md, Ozim
-   * a jař) – pole v Nouzi jen, když se do nejbližšího konce stihne založit.
-   */
-  sowingEnds: [
-    { month: 4, day: 30 },
-    { month: 10, day: 31 },
-  ] as readonly StewardMonthDay[],
   /** Rozhodovací pořadí – Obydlí, typ: polozemnice jen, když se dostaví do tohoto dne (zima). */
   winterStart: { month: 11, day: 1 } as StewardMonthDay,
   /** Den správce – upřesnění, Klučení: les pro pole nejvýš tolik políček od bloku hospodářství. */

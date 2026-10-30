@@ -10,18 +10,25 @@ import {
 import { buildAffordability } from './costs';
 import { craftCoverage } from './crafts';
 import { averageRotationShare, fieldCapacity, netYieldPerHa } from './field-capacity';
-import { bufferFill } from './field-food';
+import {
+  bufferFill,
+  bufferKg,
+  fieldFoodShare,
+  steadyHarvestKg,
+  yearlyFoodNeed,
+} from './field-food';
 import { expectedYearlyFoodNeed } from './food-outlook';
 import { waitingHouseholds } from './households';
 import { flushWear } from './paths/wear';
 import { fieldWorkPerHa } from './productivity';
-import { FIELD_LIMITS, STORAGE_LOSS_PER_YEAR } from './rules-fields';
+import { FIELD_LIMITS, FIELD_STORES, STORAGE_LOSS_PER_YEAR } from './rules-fields';
 import { DWELLINGS } from './rules-people';
 import { STEWARD, type StewardMonthDay, type StewardWindow } from './rules-steward';
 import { fieldSowingTargets } from './simulate-plan';
 import { fieldCells, planCentre, takenTiles, villageTerritory } from './steward-land';
 import { cellRuns, farmCells, planSettlement } from './steward-plan';
 import { isStewardOn, markStewardStarted } from './steward-state';
+import { sowingYieldFactor } from './weather-effects';
 import type {
   BuildableDwellingType,
   Craft,
@@ -61,15 +68,18 @@ export interface StewardContext {
 export type StewardBuild = { ok: true } | { ok: false; reason: string };
 
 /**
- * Měření (kouřový test, skripty): hodiny volajícího, součet a nejdelší den správce. Ve hře hodiny
- * chybí a nic se neměří – výsledek na nich nezávisí.
+ * Měření (kouřový test, skripty): hodiny volajícího, součet a nejdelší den správce, odmítnuté
+ * stavby (cena předem, místo) a zprávy chyb vstupu akce (`RangeError`). Ve hře hodiny chybí a nic
+ * se neměří – výsledek na nich nezávisí.
  */
 export const STEWARD_TIMING: {
   clock: (() => number) | null;
   ms: number;
   days: number;
   maxMs: number;
-} = { clock: null, ms: 0, days: 0, maxMs: 0 };
+  rejected: number;
+  rangeErrors: string[];
+} = { clock: null, ms: 0, days: 0, maxMs: 0, rejected: 0, rangeErrors: [] };
 
 /**
  * Den správce (mutuje stav): jen zapnutý správce, s krajinou i vrstvou překážek a v den správce.
@@ -118,8 +128,10 @@ function decideDay(
 // --- signály ---------------------------------------------------------------------------
 
 /**
- * Režim správce: Nouze, když ves hladoví nebo pojistka zásob je pod `STEWARD.emergencyFill`;
- * Obnova pod plnou pojistkou; jinak Růst.
+ * Režim správce (steward.md – Cíl, Režim správce): Růst s plnou pojistkou zásob (osivo, které na
+ * setí čeká, je stranou); Nouze, když ves hladoví nebo by zásoby k příští sklizni nedaly ani
+ * `STEWARD.emergencyFill` pojistky, ani kdyby ves snědla osivo – hrozí hlad nebo prázdné setí;
+ * jinak Obnova. Mladá ves bez pojistky, která do žní vystačí, je v Obnově, ne v Nouzi.
  */
 export function stewardMode(
   state: VillageState,
@@ -127,9 +139,9 @@ export function stewardMode(
   coverage: CraftCoverage,
 ): StewardMode {
   if ((state.starvationDays ?? 0) > 0) return 'emergency';
-  const fill = bufferFill(fieldSowingTargets(state, day, coverage));
-  if (fill < STEWARD.emergencyFill) return 'emergency';
-  return fill < 1 ? 'recovery' : 'growth';
+  if (bufferFill(fieldSowingTargets(state, day, coverage)) >= 1) return 'growth';
+  const withSeed = bufferFill(fieldSowingTargets(state, day, coverage, false));
+  return withSeed < STEWARD.emergencyFill ? 'emergency' : 'recovery';
 }
 
 /** Rozpočet práce (steward.md – Cíl, Rozpočet práce). */
@@ -162,9 +174,12 @@ export interface FieldTarget {
 
 /**
  * Cíl polí (steward.md – Cíl polí): lidé za `STEWARD.fieldLeadYears` podle výhledu potřeby
- * (`expectedYearlyFoodNeed`) × `STEWARD.fieldReserve` proti „Pole uživí podle dnešní půdy“
- * (`fieldCapacity` – už × podíl dnešní půdy `soil`). Zakládané díly se počítají, jako by už byly
- * v oběhu – jinak by správce zakládal pole, dokud se první nedostaví.
+ * (`expectedYearlyFoodNeed`) × `STEWARD.fieldReserve` ÷ očekávaná úroda let s počasím
+ * (`sowingYieldFactor` – ves s ní seje taky) a navíc lidé, jejichž úroda by za
+ * `FIELD_STORES.balanceYears` doplnila chybějící pojistku zásob – ustálený oběh pojistku jen
+ * udržuje, ves bez ní by si ji z polí nikdy nenaplnila a jedla by osivo. Proti „Pole uživí podle
+ * dnešní půdy“ (`fieldCapacity` – už × podíl dnešní půdy `soil`). Zakládané díly se počítají, jako
+ * by už byly v oběhu – jinak by správce zakládal pole, dokud se první nedostaví.
  */
 export function fieldTarget(
   state: VillageState,
@@ -173,10 +188,6 @@ export function fieldTarget(
 ): FieldTarget {
   const people = state.people.length;
   if (people === 0) return { need: 0, have: 0 };
-  const today = expectedYearlyFoodNeed(state, day, day, day);
-  const ahead = day + Math.round(STEWARD.fieldLeadYears * DAYS_PER_YEAR);
-  const later = expectedYearlyFoodNeed(state, day, ahead, ahead);
-  const need = today > 0 ? ((people * later) / today) * STEWARD.fieldReserve : 0;
   const parts = state.parts.map((p) =>
     p.state === 'founding' ? { ...p, state: 'fallow' as const } : p,
   );
@@ -185,7 +196,23 @@ export function fieldTarget(
     day,
     coverage.pottery,
   );
-  return { need, have: capacity?.people ?? 0 };
+  const have = capacity?.people ?? 0;
+  const today = expectedYearlyFoodNeed(state, day, day, day);
+  if (today <= 0) return { need: 0, have };
+  const ahead = day + Math.round(STEWARD.fieldLeadYears * DAYS_PER_YEAR);
+  const later = expectedYearlyFoodNeed(state, day, ahead, ahead);
+  const grown = ((people * later) / today) * STEWARD.fieldReserve;
+  // úroda na člověka jako v „Pole uživí“ (potřeba z pole a udržení pojistky)
+  const foodNeed = yearlyFoodNeed(state, day) / people;
+  const perPerson = steadyHarvestKg(
+    fieldFoodShare(state) * foodNeed,
+    bufferKg(foodNeed),
+    coverage.pottery,
+  );
+  const targets = fieldSowingTargets(state, day, coverage);
+  const missingKg = Math.max(0, targets.bufferKg - targets.leftKg);
+  const refill = perPerson > 0 ? missingKg / FIELD_STORES.balanceYears / perPerson : 0;
+  return { need: grown / sowingYieldFactor(state) + refill, have };
 }
 
 /** Kolik lidí uživí hektar pole přirozené úrodnosti `fertility` v ustáleném oběhu. */
@@ -257,10 +284,12 @@ function asOf(state: VillageState, day: number): VillageState {
   return state.lastDay === day ? state : { ...state, lastDay: day };
 }
 
-/** Nahradí obsah stavu `target` stavem `source` (simulace mutuje tentýž objekt). */
+/**
+ * Nahradí obsah stavu `target` stavem `source` (simulace mutuje tentýž objekt): klíče, které akce
+ * odebrala, smaže, ostatní přepíše – stav má pak přesně klíče výsledku akce.
+ */
 function replaceState(target: VillageState, source: VillageState): void {
-  const t = target as unknown as Record<string, unknown>;
-  for (const key of Object.keys(t)) if (!(key in source)) delete t[key];
+  for (const key of Object.keys(target)) if (!(key in source)) Reflect.deleteProperty(target, key);
   Object.assign(target, source);
 }
 
@@ -283,10 +312,16 @@ export function startStewardBuild(
   try {
     result = applyBuildIntent(asOf(state, ctx.day), ctx.day, ctx.landscape, ctx.obstacles, intent);
   } catch (error) {
-    if (error instanceof RangeError) return { ok: false, reason: error.message };
-    throw error;
+    // kontrola vstupu akce (díl pole dál než 800 m, …) – místo neprošlo jako u hráče; v měření se
+    // počítá, aby chyba ve správci (špatné souřadnice) nezůstala skrytá
+    if (!(error instanceof RangeError)) throw error;
+    if (STEWARD_TIMING.clock) STEWARD_TIMING.rangeErrors.push(error.message);
+    return { ok: false, reason: error.message };
   }
-  if (!result.ok) return result;
+  if (!result.ok) {
+    if (STEWARD_TIMING.clock) STEWARD_TIMING.rejected++;
+    return result;
+  }
   replaceState(state, result.state);
   state.lastDay = lastDay;
   for (const c of state.constructions) if (c.id >= before) markStewardStarted(state, c.id);
@@ -494,7 +529,10 @@ function forestNear(
   return out;
 }
 
-/** Krok 3 – pole: pod cílem polí další blok z plánu, v Nouzi jen pole, které se stihne osít. */
+/**
+ * Krok 3 – pole: pod cílem polí další blok z plánu – v každém režimu (i v Nouzi); rozpočet práce
+ * bere jen volnou práci, polím v oběhu ji nevezme.
+ */
 function fieldStep(state: VillageState, ctx: StewardContext): void {
   const target = fieldTarget(state, ctx.day, ctx.coverage);
   if (target.have >= target.need) return;
@@ -505,10 +543,6 @@ function fieldStep(state: VillageState, ctx: StewardContext): void {
     if (!block) {
       markFieldsExhausted(state, ctx);
       return;
-    }
-    if (ctx.mode === 'emergency') {
-      const days = (budget.remaining + block.foundMd) / budget.freePerDay;
-      if (!(days <= daysUntil(ctx.day, ctx.date, STEWARD.sowingEnds))) return;
     }
     const built = startStewardBuild(state, ctx, {
       kind: 'field',
