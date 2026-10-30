@@ -452,3 +452,10 @@ stavby), nejvýš jedno pole na den správce.
    (≈ 2× dražší dopočet, plně deterministické)?
 6. **Správce v první vsi** – zapnout ho sám po dlouhé nepřítomnosti hráče? Návrh Clauda: ne,
    rozhoduje jen hráč (Martin 30. 10. 2026 – první ves vypnutý).
+
+**Na noc 30. → 31. 10. 2026 rozhodl Claude (Martin spí, ráno k potvrzení):** 1) v první verzi
+ne – správce staví lépe dál, akce pro hráče i správce až po potvrzení; 2) správce napřed kluče
+nová pole, když není kam a syn chybí, počká, než syn dospěje (odchod obydlí je podle Martina
+„spíš stěhování sídla v rámci mapy“); 3) ne – rozsah první verze podle Martina; 4) podle návrhu
+Clauda; 5) stačí, společný dopočet vsí jedné mapy až s válkou; 6) uzavřeno – Martin 30. 10. 2026:
+první ves vypnutý.
