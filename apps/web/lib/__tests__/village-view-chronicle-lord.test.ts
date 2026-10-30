@@ -26,6 +26,21 @@ describe('kronika – vojvodova rodina', () => {
     expect(chronicleText({ ...son, who: 'lord' }, 'Ves')).toBe('Vojvoda dostal jméno – Bořivoj.');
   });
 
+  it('odchod syna vojvody: jméno syna a nové vsi (lord.md – Dělení vsi)', () => {
+    const left = {
+      day: 5,
+      kind: 'son-left-village',
+      name: 'Bořivoj',
+      village: 'Lhota',
+      households: 2,
+      people: 10,
+    } as const;
+    expect(chronicleText(left, 'Ves')).toBe('Bořivoj odešel založit ves Lhota – 10 lidí.');
+    expect(chronicleText({ ...left, direction: 'N' }, 'Ves')).toBe(
+      'Bořivoj odešel založit ves Lhota na sever – 10 lidí.',
+    );
+  });
+
   it('konec rodu ve vsi a opuštěná ves (lord.md – Konec rodu)', () => {
     expect(chronicleText({ day: 4, kind: 'line-ended', name: 'Ctibor' }, 'Ves')).toBe(
       'Ve vsi už nežije žádný muž rodu – posledním vojvodou byl Ctibor.',

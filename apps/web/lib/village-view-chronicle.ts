@@ -424,7 +424,7 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
     case 'households-left':
       return householdsLeftText(event.households, event.people, event.direction);
     case 'son-left-village':
-      // lord.md – Dělení vsi, Nová ves: „Bořivoj odešel založit ves Lhota“ (text doladí úloha UI)
+      // lord.md – Dělení vsi, Nová ves: „Bořivoj odešel založit ves Lhota“ (+ směr a počet lidí)
       return `${event.name ?? 'Syn vojvody'} odešel založit ves${event.village === undefined ? '' : ` ${event.village}`}${event.direction ? ` na ${DIRECTION_NAMES[event.direction].name}` : ''} – ${formatInteger(event.people)} ${plural(event.people, 'člověk', 'lidé', 'lidí')}.`;
     case 'village-abandoned':
       return event.reason === 'line-ended'

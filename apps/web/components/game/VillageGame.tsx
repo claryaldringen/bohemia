@@ -460,9 +460,11 @@ export function VillageGame({
   useEffect(() => {
     sceneVillageRef.current = sceneVillage;
   }, [sceneVillage]);
+  // obrys obydlí dílu syna vojvody vybraného v panelu dvorce (lord.md – Dělení vsi)
+  const [sonPreview, setSonPreview] = useState<readonly number[] | null>(null);
   useEffect(() => {
-    scene?.setSelection(current);
-  }, [scene, current]);
+    scene?.setSelection(sonPreview ? { kind: 'dwellings', ids: sonPreview } : current);
+  }, [scene, current, sonPreview]);
   // Náhled vozové cesty (roads.md – Vozová cesta): vybraná cesta hráče, která vozovou cestu
   // nemá – trasu, cenu a co přinese spočítá scéna stejnou funkcí jako server a vytyčí ji; až po
   // vykreslení výběru (hledání trvá desetiny sekundy)
@@ -790,6 +792,62 @@ export function VillageGame({
         leaveVillage({
           villageId,
           dwellingIds,
+          destination: { kind: 'here', dwelling: result.position },
+        }),
+      ).then((failure) => {
+        if (failure !== null) {
+          pushNotice({ kind: 'error', tone: 'error', text: failure });
+          return;
+        }
+        const founded = viewRef.current?.id;
+        if (founded) rememberVillage(founded);
+        lookAtVillage();
+      });
+    });
+  };
+
+  /**
+   * Odejít s poměrnou částí vsi pod vedením syna vojvody (lord.md – Dělení vsi): stejný tok jako
+   * `leave` – na téže mapě hráč nejdřív umístí první zemnici, na novou mapu lidé hned vyrazí.
+   */
+  const leaveWithSon = (target: 'here' | Direction8, sonId: number): void => {
+    const villageId = viewRef.current?.id;
+    if (!scene || !villageId) return;
+    setSelected(null);
+    if (target !== 'here') {
+      void runAction(() =>
+        leaveVillage({ villageId, sonId, destination: { kind: 'map', direction: target } }),
+      ).then((failure) => {
+        pushNotice(
+          failure === null
+            ? {
+                kind: 'households-left',
+                tone: 'info',
+                text: `Syn vojvody vyrazil na ${DIRECTION_NAMES[target].name}`,
+              }
+            : { kind: 'error', tone: 'error', text: failure },
+        );
+      });
+      return;
+    }
+    setPlacingItem(null);
+    const mode = dwellingMode('zemnice');
+    if (mode.kind !== 'dwelling') return;
+    const firstHome: PlacementMode = {
+      kind: 'dwelling',
+      type: 'zemnice',
+      check: (position: Position) => {
+        const far = distanceToPoints(position, scenePoints(sceneVillageRef.current));
+        if (far < NEW_VILLAGE_MIN_DISTANCE_M) return { ok: false, reason: TOO_CLOSE_TO_VILLAGE };
+        return mode.check(position);
+      },
+    };
+    placement.start(firstHome, (result) => {
+      if (result.kind !== 'dwelling') return;
+      void runAction(() =>
+        leaveVillage({
+          villageId,
+          sonId,
           destination: { kind: 'here', dwelling: result.position },
         }),
       ).then((failure) => {
@@ -1178,6 +1236,8 @@ export function VillageGame({
         onSelectTarget={setSelected}
         onRelocate={relocate}
         onLeave={leave}
+        onLeaveSon={leaveWithSon}
+        onPreviewSon={setSonPreview}
         onCancelConstruction={(constructionId) => {
           const villageId = viewRef.current?.id;
           return villageId

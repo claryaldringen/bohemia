@@ -12,6 +12,7 @@ import { LeaveControls, RelocateButtons, RelocationProgress } from '../Relocatio
 import { Stat, Bar, ROW, Commands, WoodToFell } from './parts';
 import { ManorHunt } from './wildlife';
 import { WorkshopRow, BuyingRow } from './crafts';
+import { SonsRow } from './sons';
 
 /** Akce panelu nad obydlími – přestěhování domácnosti a jeho zrušení (migration.md). */
 export interface RelocationActions {
@@ -24,6 +25,10 @@ export interface RelocationActions {
    * zemnici), nebo na novou mapu ve směru.
    */
   onLeave?: (target: 'here' | Direction8, householdIds: readonly number[]) => void;
+  /** Odchod syna vojvody s poměrnou částí vsi (lord.md – Dělení vsi): cíl jako u `onLeave`. */
+  onLeaveSon?: (target: 'here' | Direction8, sonId: number) => void;
+  /** Obrys obydlí dílu vybraného syna ve scéně; null – obrys zmizí. */
+  onPreviewSon?: (dwellingIds: readonly number[] | null) => void;
 }
 
 /** Vylepšení vsi z dvorce vojvody (trade.md) – zemská stezka a obchod. */
@@ -50,6 +55,8 @@ export function DwellingBody({
   onRelocate,
   onCancelConstruction,
   onLeave,
+  onLeaveSon,
+  onPreviewSon,
   onBuildTrail,
   onDeclareHunt,
   onSendExpedition,
@@ -80,6 +87,9 @@ export function DwellingBody({
         </div>
         <DwellingResidents residents={details.residents} onSelect={onSelectTarget} />
         {details.manor?.hunt && <ManorHunt hunt={details.manor.hunt} />}
+        {details.sons && details.sons.length > 0 && (
+          <SonsRow sons={details.sons} onLeaveSon={onLeaveSon} onPreviewSon={onPreviewSon} />
+        )}
         <Bar value={details.condition} name="Stav" testId="selection-condition" />
         {details.rebuild && (
           <div className={ROW}>

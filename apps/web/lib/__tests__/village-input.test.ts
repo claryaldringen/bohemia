@@ -327,6 +327,27 @@ describe('vstupy odchodu do nové vsi (migration.md – fáze 3 a 4)', () => {
     ).toEqual({ dwellingIds: [3], destination: { kind: 'map', direction: 'SW' } });
   });
 
+  it('odchod syna vojvody: sonId místo obydlí, ne obojí', () => {
+    expect(
+      parseLeaveVillageInput({ sonId: 7, destination: { kind: 'map', direction: 'N' } }),
+    ).toEqual({ sonId: 7, destination: { kind: 'map', direction: 'N' } });
+    expect(parseLeaveVillageInput({ sonId: 7, destination: { kind: 'here', dwelling } })).toEqual({
+      sonId: 7,
+      destination: { kind: 'here', dwelling },
+    });
+    expect(
+      parseLeaveVillageInput({ sonId: 0, destination: { kind: 'map', direction: 'N' } }),
+    ).toBeNull();
+    expect(
+      parseLeaveVillageInput({
+        sonId: 7,
+        dwellingIds: [1],
+        destination: { kind: 'map', direction: 'N' },
+      }),
+    ).toBeNull();
+    expect(parseLeaveVillageInput({ sonId: 7 })).toBeNull();
+  });
+
   it('bez obydlí, se špatným id, směrem nebo cílem null', () => {
     expect(
       parseLeaveVillageInput({ dwellingIds: [], destination: { kind: 'here', dwelling } }),

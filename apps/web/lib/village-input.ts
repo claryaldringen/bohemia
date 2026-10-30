@@ -397,15 +397,41 @@ export function parseCancelConstructionInput(value: unknown): { constructionId: 
 /** Nejvíc obydlí v jednom odchodu, které server vůbec přijme. */
 const MAX_LEAVING_DWELLINGS = 200;
 
+/** Cíl odchodu: dvoje použití – vybraná obydlí a syn vojvody. */
+export type LeaveVillageInput =
+  | { dwellingIds: number[]; destination: LeaveDestination }
+  | { sonId: number; destination: LeaveDestination };
+
+/** Cíl odchodu `{ kind: 'here', dwelling }` nebo `{ kind: 'map', direction }`; jinak null. */
+function parseLeaveDestination(destination: unknown): LeaveDestination | null {
+  if (!isRecord(destination)) return null;
+  if (destination.kind === 'here') {
+    const dwelling = parsePosition(destination.dwelling);
+    return dwelling ? { kind: 'here', dwelling } : null;
+  }
+  if (destination.kind === 'map') {
+    const direction = parseDirection(destination.direction);
+    return direction ? { kind: 'map', direction } : null;
+  }
+  return null;
+}
+
 /**
- * Vstup odchodu do nové vsi (migration.md) `{ dwellingIds, destination }` – `destination` je
+ * Vstup odchodu do nové vsi (migration.md) `{ dwellingIds, destination }`, nebo odchodu syna
+ * vojvody s poměrnou částí vsi (lord.md – Dělení vsi) `{ sonId, destination }` – `destination` je
  * `{ kind: 'here', dwelling: { x, z, rotation } }` (první zemnice na téže mapě), nebo
  * `{ kind: 'map', direction }` (nová mapa ve směru); jinak null.
  */
-export function parseLeaveVillageInput(
-  value: unknown,
-): { dwellingIds: number[]; destination: LeaveDestination } | null {
-  if (!isRecord(value) || !Array.isArray(value.dwellingIds)) return null;
+export function parseLeaveVillageInput(value: unknown): LeaveVillageInput | null {
+  if (!isRecord(value)) return null;
+  const destination = parseLeaveDestination(value.destination);
+  if (destination === null) return null;
+  if (value.sonId !== undefined) {
+    if (value.dwellingIds !== undefined) return null;
+    const sonId = parsePositiveInt(value.sonId);
+    return sonId === null ? null : { sonId, destination };
+  }
+  if (!Array.isArray(value.dwellingIds)) return null;
   if (value.dwellingIds.length === 0 || value.dwellingIds.length > MAX_LEAVING_DWELLINGS) {
     return null;
   }
@@ -415,17 +441,7 @@ export function parseLeaveVillageInput(
     if (parsed === null) return null;
     dwellingIds.push(parsed);
   }
-  const destination = value.destination;
-  if (!isRecord(destination)) return null;
-  if (destination.kind === 'here') {
-    const dwelling = parsePosition(destination.dwelling);
-    return dwelling ? { dwellingIds, destination: { kind: 'here', dwelling } } : null;
-  }
-  if (destination.kind === 'map') {
-    const direction = parseDirection(destination.direction);
-    return direction ? { dwellingIds, destination: { kind: 'map', direction } } : null;
-  }
-  return null;
+  return { dwellingIds, destination };
 }
 
 /** Vstup založení vsi po příjezdu na novou mapu `{ dwelling: { x, z, rotation } }`, jinak null. */
