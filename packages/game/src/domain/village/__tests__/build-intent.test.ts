@@ -110,3 +110,24 @@ describe('applyBuildIntent – přestěhování domácnosti', () => {
     ).toEqual({ ok: false, reason: RELOCATION_BLOCKED['no-household'] });
   });
 });
+
+describe('applyBuildIntent – dílna', () => {
+  it('zahájí stavbu dílny, když se do ní má kdo nastěhovat', () => {
+    const result = apply(withCouple(settled()), {
+      kind: 'workshop',
+      craft: 'potter',
+      position: at(-80, -50),
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.constructions).toContainEqual(
+      expect.objectContaining({ kind: 'dwelling', craft: 'potter' }),
+    );
+  });
+
+  it('bez mladého páru odmítne', () => {
+    expect(apply(settled(), { kind: 'workshop', craft: 'potter', position: at(-80, -50) })).toEqual(
+      { ok: false, reason: NO_SETTLERS },
+    );
+  });
+});

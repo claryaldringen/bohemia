@@ -1,15 +1,19 @@
-import type { Landscape, ObstacleLayer } from '../landscape';
-import { startNewDwelling, startRelocation } from './actions';
+import { tileOfWorldPoint, type Landscape, type ObstacleLayer } from '../landscape';
+import { startNewDwelling, startRelocation, startWorkshop } from './actions';
 import { buildAffordability } from './costs';
 import { villageRoadWalk } from './paths/walking';
-import { checkDwellingPlacement, checkPlotPlacement } from './placement-dwellings';
+import {
+  checkDwellingPlacement,
+  checkPlotPlacement,
+  checkWorkshopPlacement,
+} from './placement-dwellings';
 import { canonicalPlot } from './placement-geometry';
-import { forestEdgeDistanceM } from './placement-squares';
+import { forestEdgeDistanceM, waterDistanceM } from './placement-squares';
 import type { DwellingPlacementCheck } from './placement-types';
 import { placementVillageOf } from './placement-village';
 import { relocationAffordability, relocationBlock, type RelocationBlock } from './relocation';
-import { PLOT_TYPES } from './rules';
-import type { BuildableDwellingType, DwellingPlot, Position, VillageState } from './types';
+import { CRAFTS, PLOT_TYPES } from './rules';
+import type { BuildableDwellingType, Craft, DwellingPlot, Position, VillageState } from './types';
 
 // Doménový příkaz stavby (steward.md – Kde správce běží): jedno pravidlo stavby pro hráče
 // i správce vsi – cena předem (`buildAffordability`), kontrola místa a akce domény. Use-casy
@@ -26,6 +30,8 @@ export const NO_WOOD = 'Na stavbu chybí dřevo – klády ani stromy ke kácen�
 export const NO_PLOT = 'Polozemnice potřebuje pozemek – celé políčko.';
 /** Pozemek s neplatným natočením (jen po 15°) nebo natočený dvorec. */
 export const BAD_PLOT = 'Neplatné natočení pozemku.';
+/** Neznámé řemeslo (vstup z klienta). */
+export const UNKNOWN_CRAFT = 'Takové řemeslo ves nezná.';
 /** Proč se domácnost teď přestěhovat nemůže – česky pro hráče. */
 export const RELOCATION_BLOCKED: Record<RelocationBlock, string> = {
   'no-household': 'V tomhle obydlí nikdo nebydlí.',
@@ -59,8 +65,15 @@ export interface RelocationIntent {
   plot?: DwellingPlot;
 }
 
+/** Řemeslná dílna (crafts.md – Budovy) – volná poloha jako u zemnice, i milíř uhlíře. */
+export interface WorkshopIntent {
+  kind: 'workshop';
+  craft: Craft;
+  position: Position;
+}
+
 /** Co se má stavět a kde – druh stavby a místo (poloha, pozemek, čtverce, mřížka, cesta). */
-export type BuildIntent = DwellingIntent | RelocationIntent;
+export type BuildIntent = DwellingIntent | RelocationIntent | WorkshopIntent;
 
 /** Výsledek příkazu stavby – nový stav vsi, nebo důvod odmítnutí česky pro hráče. */
 export type BuildResult = { ok: true; state: VillageState } | { ok: false; reason: string };
@@ -81,6 +94,8 @@ export function applyBuildIntent(
       return buildDwelling(state, day, landscape, obstacles, intent);
     case 'relocation':
       return buildRelocation(state, day, landscape, obstacles, intent);
+    case 'workshop':
+      return buildWorkshop(state, day, landscape, obstacles, intent);
   }
 }
 
@@ -222,4 +237,50 @@ function buildRelocation(
     if (error instanceof RangeError) return { ok: false, reason: NO_WOOD };
     throw error;
   }
+}
+
+/**
+ * Řemeslná dílna – jako nové obydlí: ves musí mít dřevo a mladý pár, který se do dílny
+ * nastěhuje; místo ověří `checkWorkshopPlacement` (i milíř uhlíře). Vzdálenost k lesu (palivo)
+ * a k potoku (ruda, hlína) se změří z krajiny.
+ */
+function buildWorkshop(
+  state: VillageState,
+  day: number,
+  landscape: Landscape,
+  obstacles: ObstacleLayer,
+  intent: WorkshopIntent,
+): BuildResult {
+  if (!CRAFTS.includes(intent.craft)) return { ok: false, reason: UNKNOWN_CRAFT };
+  const { affordable, missing } = buildAffordability(state, intent.craft, obstacles);
+  if (!affordable) {
+    const reason = missing.settlers ? NO_SETTLERS : missing.wood ? NO_WOOD : CANNOT_AFFORD;
+    return { ok: false, reason };
+  }
+  const village = placementVillageOf(state, day);
+  const position = { ...intent.position };
+  const check = checkWorkshopPlacement(landscape, village, intent.craft, position, obstacles);
+  if (!check.ok) return { ok: false, reason: check.reason ?? 'Sem dílna nepatří.' };
+  const tile = tileOfWorldPoint(landscape, position.x, position.z);
+  return {
+    ok: true,
+    state: startWorkshop(
+      state,
+      day,
+      intent.craft,
+      position,
+      check.obstacleCost,
+      check.obstacleIds,
+      {
+        obstacles,
+        clearedTrees: check.obstacleCounts.tree ?? 0,
+        forestDistanceM: forestEdgeDistanceM(landscape, position.x, position.z),
+        ...(tile ? { waterDistanceM: waterDistanceM(landscape, tile) } : {}),
+        sacred: check.spared,
+        // pole a sady pod obydlím se o zabranou plochu zmenší
+        takenLand: check.takenLand,
+        walk: villageRoadWalk(state, landscape),
+      },
+    ),
+  };
 }
