@@ -1279,7 +1279,7 @@ test('druhá ves na téže mapě (vývojový režim) – jméno vsi v liště p�
     'true',
   );
   await expect(list.locator(`[data-village="${one!.id}"]`)).toContainText(first);
-  await list.locator(`[data-village="${one!.id}"] button`).click();
+  await list.locator(`[data-village="${one!.id}"] [data-testid="village-select"]`).click();
   await expect(list).toHaveCount(0);
   await expect(name).toHaveText(first);
   expect((await villages()).map((v) => v.name)).toEqual([first, 'Druhovice']);
@@ -1288,7 +1288,7 @@ test('druhá ves na téže mapě (vývojový režim) – jméno vsi v liště p�
   await page.reload();
   await expect(name).toHaveText(first, { timeout: 30_000 });
   await name.click();
-  await list.locator(`[data-village="${two!.id}"] button`).click();
+  await list.locator(`[data-village="${two!.id}"] [data-testid="village-select"]`).click();
   await expect(name).toHaveText('Druhovice');
   await page.reload();
   await expect(name).toHaveText('Druhovice', { timeout: 30_000 });
@@ -1506,7 +1506,7 @@ test('lidé odejdou na novou mapu – po cestě umístí první zemnici', async 
   await page.getByTestId('village-name').click();
   await page
     .getByTestId('village-list')
-    .locator(`[data-village="${travelling!.id}"] button`)
+    .locator(`[data-village="${travelling!.id}"] [data-testid="village-select"]`)
     .click();
   await expect(readyScene(page)).toBeVisible({ timeout: 60_000 });
   await expect(page.getByTestId('village-name')).toHaveText(travelling!.name, { timeout: 30_000 });

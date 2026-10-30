@@ -56,6 +56,7 @@ export function VillageList({
           >
             <button
               type="button"
+              data-testid="village-select"
               onClick={() => onSelect(village)}
               className={`flex flex-1 items-center justify-between gap-3 rounded px-2 py-1 text-left hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-[#f3cf86] ${current ? 'bg-white/10 text-[#ffe9b8]' : 'text-[#f3dfb0]'} ${village.extinct || village.abandoned ? 'opacity-50' : ''}`}
             >
