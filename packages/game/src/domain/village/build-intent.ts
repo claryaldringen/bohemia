@@ -46,6 +46,7 @@ import { HORSE_PEN_NO_SURPLUS } from './horse-pen-payment';
 import { penSquaresFromCells } from './placement-pens';
 import { DIRECTIONS, planTrail, startTrail } from './trail';
 import { startWagonRoad } from './wagon-road';
+import { roadUpgradeOptions, startRoadUpgrade, type RoadUpgrade } from './road-upgrades';
 
 // Doménový příkaz stavby (steward.md – Kde správce běží): jedno pravidlo stavby pro hráče
 // i správce vsi – cena předem (`buildAffordability`), kontrola místa a akce domény. Use-casy
@@ -70,6 +71,8 @@ export const NO_OAKS = 'Na stavbu chybí dospělé duby ke kácení.';
 export const SHRINE_EXISTS = 'Ves už svatyni má – svatyně je jedna na ves.';
 /** Neznámý směr stezky. */
 export const UNKNOWN_DIRECTION = 'Neznámý směr stezky.';
+/** Úsek takové vylepšení nenabízí (už je, nebo nevede mokřinou ani přes brod). */
+export const NO_UPGRADE = 'Tohle vylepšení úsek nemá.';
 /** Proč se domácnost teď přestěhovat nemůže – česky pro hráče. */
 export const RELOCATION_BLOCKED: Record<RelocationBlock, string> = {
   'no-household': 'V tomhle obydlí nikdo nebydlí.',
@@ -174,6 +177,13 @@ export interface WagonRoadIntent {
   roadId: number;
 }
 
+/** Vylepšení pevné cesty (roads.md – Vylepšení cesty): upravená cesta, nebo hať a lávka. */
+export interface RoadUpgradeIntent {
+  kind: 'road-upgrade';
+  roadId: number;
+  upgrade: RoadUpgrade;
+}
+
 /** Co se má stavět a kde – druh stavby a místo (poloha, pozemek, čtverce, mřížka, cesta). */
 export type BuildIntent =
   | DwellingIntent
@@ -186,7 +196,8 @@ export type BuildIntent =
   | CemeteryIntent
   | PenIntent
   | TrailIntent
-  | WagonRoadIntent;
+  | WagonRoadIntent
+  | RoadUpgradeIntent;
 
 /** Výsledek příkazu stavby – nový stav vsi, nebo důvod odmítnutí česky pro hráče. */
 export type BuildResult = { ok: true; state: VillageState } | { ok: false; reason: string };
@@ -225,6 +236,8 @@ export function applyBuildIntent(
       return buildTrail(state, day, landscape, obstacles, intent);
     case 'wagon-road':
       return buildWagonRoad(state, day, landscape, obstacles, intent);
+    case 'road-upgrade':
+      return buildRoadUpgrade(state, day, landscape, obstacles, intent);
   }
 }
 
@@ -686,4 +699,27 @@ function buildWagonRoad(
     if (error instanceof RangeError) return { ok: false, reason: error.message };
     throw error;
   }
+}
+
+/**
+ * Vylepšení pevné cesty – ověří ho nabídka úseku (`roadUpgradeOptions`) a vrátí důvod česky,
+ * když nejde; dřevo vezme z hromady, zbytek vyhradí ke kácení chůzí po pevných cestách.
+ */
+function buildRoadUpgrade(
+  state: VillageState,
+  day: number,
+  landscape: Landscape,
+  obstacles: ObstacleLayer,
+  intent: RoadUpgradeIntent,
+): BuildResult {
+  const walk = villageRoadWalk(state, landscape);
+  const option = roadUpgradeOptions(state, intent.roadId, day, obstacles, walk, landscape).find(
+    (o) => o.upgrade === intent.upgrade,
+  );
+  if (!option) return { ok: false, reason: NO_UPGRADE };
+  if (option.blocked) return { ok: false, reason: option.blocked };
+  return {
+    ok: true,
+    state: startRoadUpgrade(state, day, intent.roadId, intent.upgrade, obstacles, walk, landscape),
+  };
 }

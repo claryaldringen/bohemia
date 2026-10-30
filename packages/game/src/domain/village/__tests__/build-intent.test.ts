@@ -7,6 +7,7 @@ import {
   NO_PLOT,
   NO_SETTLERS,
   RELOCATION_BLOCKED,
+  NO_UPGRADE,
   SHRINE_EXISTS,
   UNKNOWN_DIRECTION,
   type BuildIntent,
@@ -332,6 +333,24 @@ describe('applyBuildIntent – vozová cesta', () => {
     expect(apply(withRoads('improved'), { kind: 'wagon-road', roadId: 2 }, PATHS)).toEqual({
       ok: false,
       reason: WAGON_LOOP,
+    });
+  });
+});
+
+describe('applyBuildIntent – vylepšení cesty', () => {
+  it('zahájí úpravu vyšlapané cesty', () => {
+    const intent: BuildIntent = { kind: 'road-upgrade', roadId: 1, upgrade: 'improved' };
+    const result = apply(withRoads('trodden'), intent, PATHS);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.constructions.at(-1)).toMatchObject({ kind: 'road' });
+  });
+
+  it('upravenou cestu bez mokřiny odmítne', () => {
+    const intent: BuildIntent = { kind: 'road-upgrade', roadId: 1, upgrade: 'improved' };
+    expect(apply(withRoads('improved'), intent, PATHS)).toEqual({
+      ok: false,
+      reason: NO_UPGRADE,
     });
   });
 });
