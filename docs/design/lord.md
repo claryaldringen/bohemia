@@ -660,6 +660,142 @@ Clauda.
   všichni synové v dvorci, nástupcem syn hlavní manželky i po její smrti, nezletilý vojvoda, nová
   hlavní manželka, konec hry po smrti posledního muže rodu, převod je idempotentní a hru neukončí.
 
+## Dělení vsi – syn vojvody zakládá novou ves (#9, fáze 2)
+
+Stav: **schváleno** (Martin 30. 10. 2026: „Ano, schvaluji obojí“ – i s opravou „Pole uživí“). Zadání issue #9 (Martin 24. 10. 2026): „**Pokud
+hráč přivede jiného hráče, tak po smrti vojvody přebírá vesnici nejstarší syn, nastěhuje se
+zpátky do vojvodského dvorce a hráč pokračuje ve hře za něj**“ a „**Pokud hráč jiného hráče
+nepřivede, rozhoduje po smrti současného vojvody náhoda – hráč se může ocitnout v kůži některého
+z mladších synů. V takovém případě bude mít k dispozici poměrnou část vesnice, kterou buď může
+spravovat, nebo vzít své lidi a odejít vybudovat novou vesnici jinam. Zbytek původní vesnice bude
+spravovat NPC. Panství rodu se tak postupně může rozrůst na více vesnic.**“ Martin 30. 10. 2026
+k úpadku Vlkova: „**No ve chvíli, kdy ves vyroste tolik, že už neuživí další lidi, část lidí by
+měla odejít s novým vojvodou (některým ze synů stávajícího vojvody) a založit novou ves. To je
+ale rozhodnutí hráče**“, k návrhu brzdit sňatky podle polí: „**Na brzdu ser. Tohle musí prostě
+vyřešit hráč nebo NPC**“ a k prvnímu znění této sekce: „**Tohle už jsme přece jednou řešili –
+odchází poměrná část vsi. Řešili jsme také, jak je to s nástupnictvím**“. Ves se tedy v simulaci
+nebrzdí – přelidnění řeší hráč odchodem mladšího syna s jeho poměrnou částí vsi (tady), NPC vsi
+autopilot (fáze 3). Co níž není výslovně Martinovo, je návrh Clauda.
+
+### Proč
+
+- Pole vsi uživí jen určitý počet lidí (Vlkov ≈ 61–70) a narození ani sňatky na pole nehledí.
+  Přeroste-li ves pole, seje nouzové přílohy, vysaje půdu a hladoví – diagnóza 27. 10. 2026:
+  Vlkov 44 let bez hráče, 53 úmrtí hladem, podíl úrodnosti dílů až 0,38.
+- Odchod do nové vsi už ve hře je ([stěhování](migration.md) – Odchod do nové vsi) a nová ves
+  z osadníků má za vojvodu nejstaršího muže rodu mezi nimi (fáze 1). Hráč ale sám vybírá obydlí
+  a vůdce si neurčí – chybí odchod syna s jeho poměrnou částí vsi.
+- Hráč musí poznat, kdy je ves plná – „Pole uživí“ dnes počítá s odpočatou půdou a vyčerpané vsi
+  ukazuje víc, než pole dají (oprava: [pole](fields.md) – Pole uživí podle dnešní půdy).
+
+### Kdo může vést odchod
+
+- **Syn vojvody** (Martin: „některým ze synů stávajícího vojvody“) – žijící, ve vsi, od 16 let,
+  syn kterékoli manželky, ženatý i svobodný. **Syn bez jména** odchod nevede, dokud ho hráč
+  nepojmenuje (důvod „Syn potřebuje jméno.“ jako dnes).
+- **Nástupce ne** (Martin – zadání issue: „po smrti vojvody přebírá vesnici nejstarší syn“;
+  fáze 1 – Nástupnictví: nejstarší syn hlavní manželky): mateřská ves je jeho díl, odcházejí
+  mladší synové. Zemře-li nástupce, je jím další v pořadí ve vsi; kdo už odešel, se nevrací.
+- **Celá ves s vojvodou** (Martin – zadání issue: hráč „může vesnici úplně vystěhovat a založit
+  jinde“): odchod všech obydlí jako dnes, vede ho vojvoda a v nové vsi zůstává vojvodou.
+- **Vnuci, bratři a další muži rodu** odchod nevedou (Martin: syn). Patří-li jejich domácnost do
+  dílu syna, jsou v nové vsi muži rodu bez titulu – rod drží, cvičí jen v dvorci.
+
+### Poměrná část vsi (Martin – zadání issue; výpočet Martin 30. 10. 2026)
+
+- **Díl syna = 1 ÷ počet dílníků**, dílníci jsou žijící vojvoda a jeho synové od 16 let ve vsi
+  (i nástupce a syn, který odchází). Vojvoda se dvěma dospělými syny: mladší odvede ⅓ vsi;
+  se čtyřmi ⅕. Odejdou-li synové po sobě, vezme každý (při stejném počtu lidí) stejný díl
+  původní vsi – 2. ze čtyř ¼ ze zbylých ⅘ = ⅕. Po smrti vojvody (náhoda ve fázi 3) se počítají
+  jen synové – stejné dělení, jen bez vojvodova dílu.
+- **Lidé:** rodina syna – on, jeho manželky a jejich svobodné děti – odchází vždy, ať bydlí
+  kdekoli, i z dvorce (ženatý syn čekající na dům, svobodný syn, který cvičí). K ní celé
+  domácnosti z **obydlí nejblíž domu syna** (bydlí-li v dvorci, nejblíž dvorci), dokud počet
+  lidí není co nejblíž dílu – po celých domácnostech, jako dnes při odchodu. Do dílu nepatří
+  dvorec, domácnosti ostatních synů vojvody (mají svůj díl) ani domácnost, která si staví dům.
+  Nejbližší obydlí drží díl pohromadě – ve fázi 3 ho půjde spravovat i na místě (zadání issue).
+- Dům, který syn drží a bydlí v něm i jiní, zůstane zbytku domácnosti podle
+  [příbuzenství](kinship.md) jako po smrti hospodáře.
+- **Jídlo, osivo, stáda a vůz** podle lidí dílu jako dnes ([stěhování](migration.md) – poměrný
+  díl zásob a stád, osivo, vůz s voly).
+- **Kůň syna:** syn si odvede svého jezdeckého koně ([koně](horses.md) – Kdo na kterém koni).
+  V nové vsi čeká bez ohrady jako voli z vozu – žere seno, nejezdí se na něm a výcvik stojí –
+  a s první ohradou koní do ní přejde. Klisny a hříbata zůstávají v mateřské vsi.
+- **Svobodný syn** se ožení až v nové vsi – hlavní manželka z okolí podle pravidel Manželky, jako
+  zakladatelé první generace.
+
+### Nová ves
+
+- **Vojvodou nové vsi je vedoucí syn.** Kronika mateřské vsi: „Bořivoj odešel založit ves
+  Lhota“; nové vsi: „Vojvodou je Bořivoj“.
+- V nové vsi platí celý rod z fáze 1: dvorec je první zemnice (už dnes), rodina cvičí až od ≥ 4
+  dospělých mimo rodinu (Zakládání vsi), synové nového vojvody cvičí v dvorci, jména jim dává
+  hráč, nástupnictví a manželky podle stejných pravidel. Hájení nové vsi jako dnes.
+- **Rod je jeden napříč vsemi hráče** – konec hry až po smrti posledního muže rodu v kterékoli
+  vsi (už dnes).
+- **Ves bez muže rodu** (vojvoda nové vsi zemře a jiný muž rodu v ní není) žije dál bez vojvody
+  – lidé pracují, nikdo necvičí. Nástupce z jiné vsi hráče řeší fáze 4 (seniorát); u mateřské
+  vsi stejně.
+- Obě vsi patří hráči a hráč řídí obě ([stěhování](migration.md) – Víc vsí jednoho hráče).
+  Podřízenost syna otci a rodové panství řeší fáze 4.
+
+### Nástupnictví (Martin – zadání issue a 24. 10. 2026)
+
+- **S pozvaným hráčem** přebírá ves po smrti vojvody nejstarší syn, vrátí se do dvorce a hráč
+  hraje za něj – fáze 1 (Nástupnictví, nejstarší syn hlavní manželky) beze změny.
+- **Bez pozvaného hráče** rozhoduje náhoda: hráč se může ocitnout v kůži mladšího syna s jeho
+  poměrnou částí vsi, kterou spravuje na místě, nebo s ní odejde; zbytek vsi spravuje NPC.
+  Martin 24. 10. 2026: „S tímhle počkáme, dokud nebude fungovat NPC mechanika“ – fáze 3. Díl
+  počítá stejně jako tady (Poměrná část vsi), fáze 3 ho jen použije.
+
+### Odchod bez syna
+
+- **Odchod vybraných obydlí zůstává vedle odchodu syna** (Martin 30. 10. 2026: „Nech to vedle
+  odchodu syna. Odchod z obydlí je spíš stěhování sídla v rámci mapy“) – beze změny
+  ([stěhování](migration.md) – Odchod do nové vsi): vojvodou nové vsi je nejstarší muž rodu mezi
+  osadníky, bez něj je nová ves bez vojvody; odejde-li vojvoda, v mateřské vsi nastoupí nástupce
+  (`succeedLord` – už dnes).
+- Přestěhování domácnosti na téže mapě (Přestěhovat) se nemění.
+
+### Co hráč vidí (UI jako 0 A.D.)
+
+- **Výběr dvorce** → v panelu **řada ikon synů** – ikona muže rodu, jméno a věk v popisku;
+  nástupce a syn bez jména zašedlí s důvodem u kurzoru („Nástupce zůstává.“, „Syn potřebuje
+  jméno.“), syn mladší 16 let chybí. Klik na syna označí ve scéně obydlí jeho dílu (obrys jako
+  výběr) a ukáže tlačítka Odejít sem / na novou mapu.
+- Popisek odchodu: počet lidí dílu, vůz, kůň.
+- Kdy odejít, rozhodne hráč sám: ikona lidí v horní liště „lidí / ≈ N“ zčervená, když je lidí víc,
+  než pole uživí (už dnes; s opravou podle dnešní půdy včas). Žádné další upozornění ani rada.
+- Průvod ve scéně (syn na koni v čele) až s „Co hráč vidí“ ze [stěhování](migration.md) – dnes jen
+  kronika.
+
+### NPC (fáze 3)
+
+- Autopilot NPC vsí zavolá stejný use-case (`leaveVillage` se synem) – kdy, navrhne fáze 3
+  (např. lidí víc, než pole uživí podle dnešní půdy). Web i worker volají stejný use-case.
+
+### Převod starších vsí
+
+- Není potřeba: vsi z osadníků už vojvodu mají (nejstarší muž rodu mezi osadníky) a mateřská
+  ves, ze které vojvoda odešel, dostane nástupce (`succeedLord`). Nové části stavu (kůň syna bez
+  ohrady) jsou volitelné.
+
+### Pro implementaci fáze 2 (poznámky, ne kód)
+
+- `leaveVillage` a `departVillage` dostanou `leaderId` místo vybraných obydlí (celá ves dál
+  všemi obydlími); čistá kontrola vůdce vrací důvod (`PlacementCheck` jako u jmen). `Settlers`
+  nesou vůdce, `foundVillage` a `travellingVillage` založí
+  `dynasty: { lordId, lords: [{ id, fromDay: day }] }` místo `{ lordId: null, lords: [] }`.
+- Díl syna čistou funkcí stavu (`sonShare(state, sonId)` → lidé a obydlí dílu) – stejnou volá
+  náhled v panelu, server i fáze 3. Vzdálenost obydlí deterministicky (`det-math.ts`), při shodě
+  nižší id obydlí.
+- Rodina syna se k odcházejícím přidá po lidech, ne po obydlí – i z dvorce a cizího domu.
+- Kůň syna v `Settlers` a v nové vsi volně jako `looseOxen` (volitelná část stavu).
+- Testy: syn vede, nástupce a syn bez jména ne, díl 1 ÷ dílníků po celých domácnostech
+  (bez dvorce a domácností ostatních synů), dva synové po sobě berou stejný díl, rodina syna
+  odchází z dvorce, nová ves má vojvodu a jeho synové cvičí až od ≥ 4 dospělých mimo rodinu,
+  výsledek nezávisí na kouscích dopočtu.
+
 ## Pro implementaci (poznámky, ne kód)
 
 - Volitelné části stavu: dovednosti u člověka, den, od kdy výhled vychází (hystereze). Převod
@@ -689,6 +825,13 @@ synů mimo dvorec** (pracují) a **zakladatele bez nepříbuzného páru** (part
 bez syna hlavní manželky, nová hlavní manželka, odchod vedlejší manželky z přeplněného dvorce
 a začátek bez lidí mimo rodinu (viz Odpovědi Martina – 24. 10. 2026, odpovědi k fázi 1). Zatím
 žádná otevřená otázka.
+
+**Fáze 2 issue #9 (Dělení vsi), otevřené 30. 10. 2026:**
+
+Všechny otázky fáze 2 Martin uzavřel 30. 10. 2026: nástupce a poměrnou část vsi rozhodl už
+v zadání issue („Tohle už jsme přece jednou řešili“), odchod obydlí bez syna zůstává a výpočet
+dílu – 1 ÷ (vojvoda + synové od 16 let ve vsi), lidé z obydlí nejblíž domu syna – schválil
+(„Ano“).
 
 ## Rozhodnutí
 
@@ -761,6 +904,11 @@ a začátek bez lidí mimo rodinu (viz Odpovědi Martina – 24. 10. 2026, odpov
 | Převod: příznak „syn hlavní manželky“ mají všichni muži rodu kromě vojvody (ves měla jednu ženu na muže), jako při narození                                                 | návrh Clauda           |
 | Rod se sousedovi nedává – výměna lidí nevybere muže rodu ani manželku muže rodu                                                                                             | návrh Clauda           |
 | Z přeplněného domu odchází vedlejší manželka s nejstarším synem (bez syna až po nich, při shodě nejdéle vdaná), jen kolik je třeba                                          | Martin / návrh Clauda  |
+| Přelidnění řeší odchod části vsi se synem vojvody do nové vsi – rozhodnutí hráče, u NPC vsí autopilot; ves se v simulaci nebrzdí (žádná brzda sňatků)                       | Martin (30. 10. 2026)  |
+| Fáze 2: mladší syn odchází s poměrnou částí vsi, nástupcem je nejstarší syn (zadání issue #9)                                                                               | Martin (24. 10. 2026)  |
+| Fáze 2: díl = 1 ÷ (vojvoda + synové od 16 let ve vsi), lidé z obydlí nejblíž domu syna                                                                                      | Martin (30. 10. 2026)  |
+| Fáze 2: syn vede od 16 let a se jménem; s ním jeho jezdecký kůň                                                                                                             | návrh Clauda           |
+| Odchod vybraných obydlí zůstává vedle odchodu syna – „spíš stěhování sídla v rámci mapy“                                                                                    | Martin (30. 10. 2026)  |
 
 ## Odpovědi Martina (23. 10. 2026)
 

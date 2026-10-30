@@ -46,6 +46,8 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
 
 ## Odchod do nové vsi
 
+- **Odchod mladšího syna** (#9 fáze 2, schváleno 30. 10. 2026 – [vojvodova rodina](lord.md), Dělení
+  vsi): syn vojvody odchází s poměrnou částí vsi a v nové vsi je vojvodou.
 - **Odejít** s vybranými obydlími: jejich domácnosti (všichni lidé) opustí ves. Domy zůstanou
   prázdné (obsadit je může zbytek vsi, jinak se rozpadají).
 - **Kam:**

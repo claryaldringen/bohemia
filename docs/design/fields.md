@@ -1976,6 +1976,17 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
   (`netYieldPerHa`, vážené plochou) = roční úroda; ta ÷ úroda potřebná na jednoho průměrného
   člověka vsi (jeho potřeba z pole `fieldFoodShare` a pojistka zásob – `steadyHarvestKg`, tedy
   stejná pravidla jako `village-calculator.ts`) = N. Strop práce ve žních v čísle není.
+- **Pole uživí podle dnešní půdy** (návrh Clauda, Martin 30. 10. 2026: „Ano, schvaluji obojí“ –
+  [vojvodova rodina](lord.md), Dělení vsi): N dnes počítá s odpočatou půdou, jako by každý díl před osevem
+  odpočinul na 95 %. Vyčerpaná ves (Vlkov 27. 10. 2026 – průměrný podíl úrodnosti dílů 0,64, pak
+  až 0,38) tak vidí víc, než pole dají, a ikona zčervená, až když lidé hladoví. Hráč přitom podle
+  ní pozná, kdy poslat syna s částí vsi pryč (Martin 30. 10. 2026: „To je ale rozhodnutí
+  hráče“). Oprava: **N × min(1; dnešní podíl ÷ ustálený podíl)** – dnešní podíl je průměrný
+  `fertilityShare` dílů v oběhu vážený plochou, ustálený podíl je průměr všech let oběhu
+  odpočatého dílu spočtený z `FERTILITY` jako `averageSownShare` (osev 95 a 83 %, příloh 71 → 91 %,
+  dnes ≈ 0,83). Čerstvá pole (100 %) N nezvednou. Vlkov s podílem 0,64: ≈ 0,77 × N (64 → ≈ 49).
+  Tooltip navíc ikona půdy s procentem (dnešní ÷ ustálený, nejvýš 100 %). Mění jen zobrazení –
+  simulace číslo nepoužívá (`fieldCapacity` volá jen `lib/village-view.ts`).
 - **Zakládání:** pole se zakládá jako stavba po dílech od obydlí – rozpracovaný díl se rozrývá
   po řádcích, stromy a kameny z hotového dílu zmizí.
 - **Klik vybere díl, dvojklik celé pole** (Martin, 19. 10. 2026: „Když kliknu na pole, zobrazí
