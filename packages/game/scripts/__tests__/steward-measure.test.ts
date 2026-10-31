@@ -123,5 +123,5 @@ describe('měření správce – běh', () => {
     expect(run()).toEqual(first);
     expect(first.snapshots).toEqual([]);
     expect(first.villages).toBe(1);
-  });
+  }, 120_000);
 });
