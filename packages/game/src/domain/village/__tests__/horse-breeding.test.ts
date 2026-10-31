@@ -131,6 +131,24 @@ describe('koně na maso 1. 11. (horses.md – Chov)', () => {
   });
 });
 
+describe('čekající kůň stárne (horses.md – Chov)', () => {
+  const NOV = at(601, 11, 1);
+
+  it('bez ohrady 1. 11. doslouží jako v ohradě, mladší čeká dál', () => {
+    const s = horseVillage();
+    s.looseHorses = [horse(1, 21, 'male', 0, NOV), horse(2, 6, 'male', 0, NOV)];
+    const meat = s.meatKg ?? 0;
+    horsesDay(s, at(601, 10, 31));
+    expect(s.looseHorses).toHaveLength(2);
+    horsesDay(s, NOV);
+    expect(s.looseHorses.map((h) => h.id)).toEqual([2]);
+    expect((s.meatKg ?? 0) - meat).toBe(HORSES.meatKg);
+    s.looseHorses = [horse(3, 25, 'female', 0, NOV)];
+    horsesDay(s, NOV);
+    expect(s.looseHorses).toBeUndefined();
+  });
+});
+
 describe('chov den po dni', () => {
   const horses = (): VillageState =>
     horseVillage(

@@ -117,6 +117,10 @@ stojí obilí a práci vsi hned, užitek přinese až s lovem a válkou.
 - **Koně navíc:** hříbata do 3 let ves drží, dokud jsou místa; koně od 3 let nad potřebu jdou
   1. 11. na maso (napřed bez jezdce a nejméně vycvičení, pak nejstarší) – hráč je může do té doby prodat (panel obchodu je ukáže jako
      navíc). Upozornění **„Koně se nevejdou do ohrady“** jako u stád.
+- **Čekající kůň** (syn vojvody odešel s koněm do nové vsi, která ještě nemá ohradu koní): stárne
+  a doslouží stejně jako kůň v ohradě – od 20 let jde 1. 11. na maso (Martin 31. 10. 2026: kůň
+  čekající bez ohrady „stárne, doslouží a umírá jako kůň v ohradě“). Nad potřebu se u něj
+  nepočítá – ves ještě nemá ohradu ani místa.
 - **První koně:** přivede je stavba první ohrady koní (viz Koně se stavbou ohrady); další se koupí od souseda (zemská stezka) nebo se odchovají.
 
 ## Nákup a prodej (Martin – jako ostatní zvířata; čísla návrh Clauda)
