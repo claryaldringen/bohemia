@@ -90,6 +90,7 @@ import {
   weddingFigures,
 } from './villager-plan-events';
 import { slaughterFigures } from './villager-plan-slaughter';
+import { villagerSeconds } from './villager-motion';
 import { personTasks, type PersonTask } from './villager-schedule';
 import { fireChainFigures, fireChainLayout } from './villager-plan-fire';
 import type { SlaughterPlan } from './slaughter-plan';
@@ -316,9 +317,16 @@ export function planVillagersWithCrew(
     people,
     crew,
     slaughter: slaughter.plan,
-    tasks: personTasks(people, crew, builders),
+    // místo úlohy (chůze ode dveří, dosah k požáru) z pózy na začátku dne
+    tasks: personTasks(people, crew, builders, dayStartS(options, labor.day)),
     doors,
   };
+}
+
+/** Začátek herního dne `day` (s, `villagerSeconds`); bez hodin světa 0. */
+function dayStartS(options: VillagerPlanOptions, day: number): number {
+  const window = options.dayWindow?.(day);
+  return window ? villagerSeconds(window.startMs) : 0;
 }
 
 /**

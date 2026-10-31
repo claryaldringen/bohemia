@@ -758,6 +758,22 @@ a `lib/village-view.ts`, rozvrh je znovu nedefinuje – `PersonJob`, `LaborActiv
    `caravan.ts`; `flood-water.ts` jen pro rozlitou vodu): událost přepíše rozvrh od svého začátku
    (příchod pěšky, opozdilci rovnou na místo), k požáru jen lidé ve vsi, z povodně domů. Test na
    každou událost.
+   **Implementováno 31. 10. 2026** (`villager-schedule.ts` – `settle`, `nextActivity`,
+   `interruptOf`; testy `villager-events.test.ts`): události jsou úlohy obsazení dne
+   s `PersonTask.interrupt` – pohřeb, svatba, karavana (i odchod do nové vsi – role `leaving`)
+   a jízda vojvodovy rodiny `all`, požár `near` (`FIRE_REACH_M` 150 m od místa, kde člověk
+   v okamžik vzplanutí je – návrh Clauda). Od přelomu dne, kdy obsazení událost dá, se rozběhnutá
+   činnost utne (`Activity.cut`), člověk jde pěšky **z místa, kde ho zastihla** (`Activity.from`),
+   k póze události v okamžik příchodu (opozdilec tak dojde rovnou, kde průvod právě je), drží ji,
+   dokud ji obsazení dává, a jde domů; skončí-li póza události doma (průvod domů), cesta zpět se
+   nekreslí. Povodeň: `ScheduleInput.wet` (`StormRenderer.floodedAt` – stejná hladina jako plocha
+   vody): kdo má místo práce pod vodou, od přelomu dne jde domů (`Activity.retreat`), na místo
+   pod vodou nikdo nevyjde. Postavy dne pro lidi vsi zanikly (pryč `EVENT_KEY` a `away`) – lidé
+   na událostech i jezdci jdou z rozvrhu. **Jezdci s trasou** drží úlohu dne jako úlohu u objektu
+   a v bloku jízdy sedí na koni vždy (`VillageVillagers.mounted` – kůň nejede bez jezdce, i kdyby
+   jezdec ještě nedošel; návrh Clauda). Porážka (`slaughter-crew`) nepřerušuje – úloha u objektu
+   od vyjití. Smrt: člověk vypadne z `labor.persons`, postava zmizí s novým stavem vsi
+   (`Timetable.retain`). Místo úlohy (`PersonTask.at`) je póza na začátku dne (dřív v t = 0).
 6. **Délka ze sítě pěšin, přesná trasa jen v záběru** (`villager-plan-traffic.ts` – `errandPath`,
    `activeSeconds`; `villager-motion.ts` – `shuttle`, `alongRoute` s tempem podle poměru délek;
    `villagers.ts` – přesná trasa při vstupu do záběru a výběru), měření na Vlkově (přelom dne,

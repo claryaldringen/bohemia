@@ -7,7 +7,7 @@
 // villager-plan.ts z rozdělení práce dne, pohyb je čistá funkce času (villager-motion.ts).
 import { dogPlansKey, type DogPlan } from './dogs';
 import { FishingLines, fishingLine } from './fishing-lines';
-import { ridePlansKey, type RidePlan } from './riders';
+import { isRiding, ridePlansKey, type RidePlan } from './riders';
 import type { HuntSpotFn } from './villager-plan-lord';
 import '@babylonjs/core/Meshes/thinInstanceMesh';
 import '@babylonjs/loaders/glTF';
@@ -46,10 +46,12 @@ import {
   villagerSeconds,
   walkSpeed,
   type HerdView,
+  type PoseFn,
   type VillagerKind,
   type VillagerPose,
   type VillagerStage,
 } from './villager-motion';
+import { LIVESTOCK_EPOCH_MS } from './livestock-motion';
 import { carryErrands } from './villager-errands';
 import { personFigure } from './villager-plan-cast';
 import { activityStage } from './villager-schedule';
@@ -80,11 +82,6 @@ const KINDS: readonly VillagerKind[] = ['woman', 'man'];
  */
 const SCHEDULE_WALK_M_S = walkSpeed('woman', 'walk', FIGURE_SCALE);
 
-/**
- * Postavy dne bez rozvrhu (do úlohy 5 – Události přerušují): řetěz s vědry při požáru, karavana,
- * pohřeb, svatba a parta porážky jdou podle své události, ne podle rozvrhu člověka.
- */
-const EVENT_KEY = /^(fire|caravan|funeral|wedding|slaughter-crew):/;
 /** Snímků za sekundu zapečené animace (klíče animací 0 A.D.). */
 const BAKE_FPS = 24;
 /** Dál od kamery (m) se lidé nehýbou – jsou pár pixelů a pohyb by jen zbytečně kreslil. */
@@ -121,6 +118,11 @@ export interface VillagersEnvironment {
   herds(nowMs: number): readonly HerdView[];
   /** Dočetly se modely a lidé se objevili – překreslit. */
   onLoaded(): void;
+  /**
+   * Je bod v okamžik `nowMs` pod vodou povodně (storm-renderer.ts – `floodedAt`)? Lidé na rozlitou
+   * vodu nechodí a kdo tam je, jde domů (villagers.md – Události). Bez údaje sucho.
+   */
+  flooded?(x: number, z: number, nowMs: number): boolean;
   /** Okno herního dne (skutečný čas) – karavany výprav (caravan.ts); bez hodin null. */
   dayWindow?(day: number): { startMs: number; endMs: number } | null;
   /**
@@ -228,10 +230,13 @@ export class VillageVillagers {
   private timetable: Timetable | null = null;
   /** Lidé s postavou podle rozvrhu (id). */
   private scheduled = new Set<number>();
-  /** Postavy dne bez rozvrhu: cizí, lidé na události (`EVENT_KEY`) a jezdci (riders.ts). */
+  /** Postavy dne bez rozvrhu: cizí (`STRANGER`) a ukázky bez lidí ve scéně. */
   private dayFigures: PlannedVillager[] = [];
-  /** Lidé, jejichž postavu dnes kreslí postava dne – jejich postava z rozvrhu je skrytá. */
-  private away = new Set<number>();
+  /**
+   * Jezdci s trasou (riders.ts): v bloku jízdy sedí na koni vždy – kůň nejede bez jezdce, i kdyby
+   * jezdec z rozvrhu ke koni ještě nedošel (villagers.md – Události).
+   */
+  private mounted = new Map<number, { ride: RidePlan; pose: PoseFn }>();
   /** Vojvoda (role `voivode`) – výběr se mu při vstupu do domu nezruší. */
   private lords = new Set<number>();
   /** Vybraný člověk byl od výběru venku – až zajde do domu, výběr se zruší (kromě vojvody). */
@@ -541,7 +546,7 @@ export class VillageVillagers {
     let leg: 'out' | 'back' | null = null;
     let indoors = false;
     const timetable = this.timetable;
-    if (timetable && this.scheduled.has(id) && !this.away.has(id)) {
+    if (timetable && this.scheduled.has(id) && !this.mountedAt(id, t)) {
       const state = scheduledState(
         timetable.activity(id, t),
         t,
@@ -641,17 +646,19 @@ export class VillageVillagers {
     const persons = village.labor?.persons;
     const living = persons ? new Set(persons.map((person) => person.id)) : undefined;
     const timetable = persons && village.labor ? this.scheduleDay(village, persons, plan, t) : null;
-    // jezdci (riders.ts) jedou s koněm podle bloků dne a lidé na události podle své události – do
-    // úlohy 5 postavy dne jako dosud; cizí (`STRANGER`) a ukázky bez lidí také
-    const riders = new Set(
-      (plan.crew.rides ?? []).filter((r) => r.route !== null).map((r) => r.riderId),
-    );
+    // lidé vsi jdou z rozvrhu i na události (villagers.md – Události přerušují); postavy dne jen
+    // cizí (`STRANGER`) a ukázky bez lidí
     const day = plan.people.filter(
-      (p) =>
-        this.models?.has(p.kind) &&
-        (!timetable || p.person === undefined || riders.has(p.person) || EVENT_KEY.test(p.key)),
+      (p) => this.models?.has(p.kind) && (!timetable || p.person === undefined),
     );
-    this.away = new Set(day.flatMap((p) => (p.person === undefined ? [] : [p.person])));
+    this.mounted = new Map();
+    if (timetable) {
+      const poses = new Map(plan.people.map((p) => [p.person, p.pose]));
+      for (const ride of plan.crew.rides ?? []) {
+        const pose = poses.get(ride.riderId);
+        if (ride.route && pose) this.mounted.set(ride.riderId, { ride, pose });
+      }
+    }
     // pochůzka postavy dne je celý cyklus (villagers.md – Pochůzka se dokončí): cizí na cestě dojde
     this.dayFigures = carryErrands(this.dayFigures, day, t, living);
     const scheduled = timetable && persons ? this.personFigures(persons, timetable) : [];
@@ -715,6 +722,9 @@ export class VillageVillagers {
     if (this.timetable?.seed !== seed) this.timetable = new Timetable(seed, SCHEDULE_WALK_M_S);
     const timetable = this.timetable;
     timetable.setDoors(new Map(persons.map((p) => [p.id, plan.doors.get(p.home) ?? null])));
+    // povodeň – na rozlitou vodu se nechodí (villagers.md – Události)
+    const flooded = this.env.flooded;
+    timetable.setWet(flooded ? (x, z, at) => flooded(x, z, at * 1000 + LIVESTOCK_EPOCH_MS) : null);
     const day = village.labor!.day;
     const window = this.env.dayWindow?.(day) ?? null;
     timetable.setDay(day, window ? villagerSeconds(window.startMs) : t, plan.tasks);
@@ -741,13 +751,22 @@ export class VillageVillagers {
           const stage = activityStage(a, t);
           if (stage === 'out' || stage === 'back') pose.pace = walkPace;
         }
-        if (this.away.has(id) || this.crewJobs.has(id)) pose.hidden = true;
+        // v bloku jízdy na koni (kůň nejede bez jezdce)
+        const mount = this.mountedAt(id, t);
+        if (mount) mount.pose(t, herds, pose);
+        else if (this.crewJobs.has(id)) pose.hidden = true;
         return pose;
       });
       walkPace = SCHEDULE_WALK_M_S / walkSpeed(figure.kind, 'walk', figure.scale);
       if (this.models?.has(figure.kind)) out.push(figure);
     }
     return out;
+  }
+
+  /** Jízda jezdce `id`, když je v okamžik `t` v bloku jízdy (riders.ts – `isRiding`). */
+  private mountedAt(id: number, t: number): { ride: RidePlan; pose: PoseFn } | null {
+    const mount = this.mounted.get(id);
+    return mount && isRiding(mount.ride, t) ? mount : null;
   }
 
   /** Vlasce rybářů (klip `fish`) – rybář stojí, poloha z pózy v čase `t`. */

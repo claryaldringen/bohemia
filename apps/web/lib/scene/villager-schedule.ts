@@ -53,6 +53,19 @@ export const MIN_WORK_S = 60;
 export type WorkRange = keyof typeof WORK_RANGE_S;
 
 /**
+ * K požáru jdou jen lidé, kteří jsou v okamžiku vzplanutí blíž (m – návrh Clauda; villagers.md –
+ * Události: „dospělí, kteří jsou ve vsi“); vzdálenější svou činnost dokončí.
+ */
+export const FIRE_REACH_M = 150;
+
+/**
+ * Jak úloha přeruší rozběhnutou činnost (villagers.md – Události): `all` – hned, ať člověk dělá
+ * cokoli (pohřeb, svatba, karavana a odchod do nové vsi, jízda vojvodovy rodiny); `near` – jen
+ * blízko (požár – `FIRE_REACH_M`).
+ */
+export type Interrupt = 'all' | 'near';
+
+/**
  * Tři druhy činností (villagers.md): pochůzka (`errand` – délka celá z trasy), práce na místě
  * (`bout` – chůze tam, práce losem, chůze zpět) a úloha u objektu (`hold` – pasák u stáda, oráč
  * a honák u spřežení, vozka u vozu, první stavitel; drží ji, dokud ji obsazení dne dává).
@@ -76,6 +89,8 @@ export interface PersonTask {
   errand: Errand | null;
   /** Kde se pracuje (m) – odtud se počítá chůze ode dveří; null – u spřežení či vozu. */
   at: { x: number; z: number } | null;
+  /** Událost – přeruší rozběhnutou činnost, jakmile ji obsazení dne dá (`Interrupt`). */
+  interrupt?: Interrupt;
 }
 
 /** Obsazení dne: id člověka → úloha. Kdo v něm není, zůstane doma. */
@@ -101,6 +116,21 @@ export interface ScheduleInput {
   seed: number;
   castOf(t: number): CastSpan;
   lengthOf(personId: number, task: PersonTask): TaskWalk;
+  /** Dveře domu člověka (události – odkud jde, kdo je doma); bez údaje místo práce. */
+  doorOf?(personId: number): Point | null;
+  /** Chůze (s) z bodu do bodu – člověk jde z místa, kde ho událost zastihla; bez údaje 0. */
+  walkS?(from: Point, to: Point, personId: number): number;
+  /**
+   * Je místo v okamžik `t` pod vodou povodně (villagers.md – Události: kdo má cíl na rozlité
+   * vodě, jde domů; nové činnosti vedou jen po suché zemi)? Bez údaje sucho.
+   */
+  wet?(x: number, z: number, t: number): boolean;
+}
+
+/** Bod na zemi (m). */
+export interface Point {
+  x: number;
+  z: number;
 }
 
 /**
@@ -117,6 +147,12 @@ export interface Activity {
   arrive: number;
   leave: number;
   end: number;
+  /** Odkud člověk vyšel, když ho k úloze odvolala událost (jinak ode dveří). */
+  from?: Point;
+  /** Návrat domů z místa `from` (povodeň) – celá činnost je cesta domů. */
+  retreat?: boolean;
+  /** Přerušená činnost: kdy by skončila (chůze zpět si drží tempo) a co ji přerušilo. */
+  cut?: { end: number; by: PersonTask | null };
 }
 
 /** Úsek činnosti: cesta tam, práce, cesta zpět, doma. */
@@ -203,15 +239,150 @@ export function activityLength(
     );
     return work >= MIN_WORK_S ? made(gridUp(arrive + work + walk.backS)) : null;
   }
-  // úloha u objektu – drží ji, dokud ji obsazení dne dává (i přes přelom dne)
+  const until = holdUntil(input, personId, start, task);
+  if (until === Infinity) return made(Infinity);
+  return made(gridUp(Math.max(until, arrive) + walk.backS));
+}
+
+/** Úloha u objektu – drží ji, dokud ji obsazení dne dává (i přes přelom dne): přelom bez ní. */
+function holdUntil(
+  input: ScheduleInput,
+  personId: number,
+  start: number,
+  task: PersonTask,
+): number {
   let until = input.castOf(start).until;
   for (let n = 0; n < MAX_STEPS && until !== Infinity; n++) {
     const next = input.castOf(until);
     if (next.cast.get(personId)?.key !== task.key) break;
     until = next.until;
   }
-  if (until === Infinity) return made(Infinity);
-  return made(gridUp(Math.max(until, arrive) + walk.backS));
+  return until;
+}
+
+/** Je místo úlohy v okamžik `t` pod vodou povodně? */
+function wetTask(input: ScheduleInput, task: PersonTask, t: number): boolean {
+  return task.at !== null && input.wet !== undefined && input.wet(task.at.x, task.at.z, t);
+}
+
+/** Doma od `since` do vyjití `out` (bez něj do `Infinity`). */
+function homeActivity(personId: number, since: number, out: Activity | null): Activity {
+  return {
+    person: personId,
+    kind: 'home',
+    task: null,
+    start: since,
+    arrive: since,
+    leave: since,
+    end: out ? out.start : Infinity,
+  };
+}
+
+/** Činnost bez přerušení (jak by šla celá). */
+export function uncut(a: Activity): Activity {
+  if (!a.cut) return a;
+  const { cut, ...rest } = a;
+  return { ...rest, end: cut.end };
+}
+
+/** Kde člověk v činnosti `a` v okamžik `t` je (doma u dveří). */
+function whereAt(input: ScheduleInput, a: Activity, t: number): Point {
+  const door = input.doorOf?.(a.person) ?? a.task?.at ?? { x: 0, z: 0 };
+  if (a.kind === 'home') return door;
+  const pose = activityPose(uncut(a), door)(t, [], createVillagerPose());
+  return { x: pose.x, z: pose.z };
+}
+
+/**
+ * Úloha u objektu, ke které člověk šel odjinud (`a.from`) – konec znovu podle obsazení (nový den
+ * ji může ukončit), příchod zůstává.
+ */
+export function rehold(input: ScheduleInput, personId: number, a: Activity): Activity {
+  if (!a.task || a.retreat) return a;
+  const until = holdUntil(input, personId, a.start, a.task);
+  if (until === Infinity) return { ...a, leave: Infinity, end: Infinity };
+  const backS = input.lengthOf(personId, a.task).backS;
+  const end = gridUp(Math.max(until, a.arrive) + backS);
+  return { ...a, leave: end - backS, end };
+}
+
+/**
+ * Co přeruší činnost `a` (villagers.md – Události): první přelom dne v jejím průběhu, od kterého
+ * obsazení dává událost (`PersonTask.interrupt` – k požáru jen kdo je blízko), nebo kdy je místo
+ * práce pod vodou (povodeň – `task` null, jde domů). Bez přerušení null.
+ */
+function interruption(
+  input: ScheduleInput,
+  personId: number,
+  a: Activity,
+): { at: number; task: PersonTask | null } | null {
+  let t = input.castOf(a.start).until;
+  for (let n = 0; n < MAX_STEPS && t < a.end; n++) {
+    const span = input.castOf(t);
+    const task = span.cast.get(personId);
+    if (task?.interrupt && task.key !== a.task?.key) {
+      const at = task.at;
+      const where = at && task.interrupt === 'near' ? whereAt(input, a, t) : null;
+      if (!where || !at || Math.hypot(where.x - at.x, where.z - at.z) <= FIRE_REACH_M) {
+        return { at: t, task };
+      }
+    }
+    if (a.kind !== 'home' && !a.retreat && a.task && t < a.leave && wetTask(input, a.task, t)) {
+      return { at: t, task: null };
+    }
+    t = span.until;
+  }
+  return null;
+}
+
+/** Činnost `a`, nebo její část do přerušení (událost, povodeň). */
+export function settle(input: ScheduleInput, personId: number, a: Activity): Activity {
+  const whole = uncut(a);
+  const cut = interruption(input, personId, whole);
+  return cut ? { ...whole, end: cut.at, cut: { end: whole.end, by: cut.task } } : whole;
+}
+
+/**
+ * Další činnost po `prev` (bez přerušení – to přidá `settle`): po přerušené k události (pěšky
+ * z místa, kde ho zastihla) nebo domů (povodeň), po činnosti doma, z domu další vyjití.
+ */
+export function nextActivity(input: ScheduleInput, personId: number, prev: Activity): Activity {
+  if (prev.cut) {
+    const at = prev.end;
+    const from = whereAt(input, uncut(prev), at);
+    const task = prev.cut.by;
+    if (!task) {
+      // povodeň – otočí se a jde domů
+      const door = input.doorOf?.(personId) ?? from;
+      const back = input.walkS?.(from, door, personId) ?? 0;
+      return {
+        person: personId,
+        kind: prev.kind === 'home' ? 'bout' : prev.kind,
+        task: prev.task,
+        start: at,
+        arrive: at,
+        leave: at,
+        end: gridUp(at + back),
+        from,
+        retreat: true,
+      };
+    }
+    const approach = task.at ? (input.walkS?.(from, task.at, personId) ?? 0) : 0;
+    return rehold(input, personId, {
+      person: personId,
+      kind: 'hold',
+      task,
+      start: at,
+      arrive: at + approach,
+      leave: Infinity,
+      end: Infinity,
+      from,
+    });
+  }
+  if (prev.kind !== 'home') {
+    return homeActivity(personId, prev.end, departAfter(input, personId, prev.end));
+  }
+  return departAfter(input, personId, prev.start) ?? homeActivity(personId, prev.end, null);
 }
 
 /**
@@ -239,7 +410,9 @@ export function departAfter(
       limit = bell;
     }
     const span = input.castOf(start);
-    const task = span.cast.get(personId);
+    const found = span.cast.get(personId);
+    // povodeň – na rozlitou vodu nikdo nejde (zkusí to po další pauze)
+    const task = found && !wetTask(input, found, start) ? found : undefined;
     if (task) {
       const out =
         activityLength(input, personId, start, task, task.kind === 'hold' ? Infinity : limit) ??
@@ -265,23 +438,16 @@ export function* activities(
   personId: number,
   origin: number,
 ): Generator<Activity, void, undefined> {
-  let since = gridDown(origin);
+  const since = gridDown(origin);
+  let a = settle(
+    input,
+    personId,
+    homeActivity(personId, since, departAfter(input, personId, since)),
+  );
   for (let n = 0; n < MAX_STEPS; n++) {
-    const out = departAfter(input, personId, since);
-    const home: Activity = {
-      person: personId,
-      kind: 'home',
-      task: null,
-      start: since,
-      arrive: since,
-      leave: since,
-      end: out ? out.start : Infinity,
-    };
-    yield home;
-    if (!out) return;
-    yield out;
-    if (out.end === Infinity) return;
-    since = out.end;
+    yield a;
+    if (a.end === Infinity) return;
+    a = settle(input, personId, nextActivity(input, personId, a));
   }
 }
 
@@ -349,7 +515,7 @@ const HOLD_JOBS: ReadonlySet<PersonJob['kind']> = new Set([
   'plough',
   'cart',
   'watch',
-  // události (pohřeb, svatba, požár, karavana) do úlohy 5 drží, dokud je obsazení dává
+  // události (pohřeb, svatba, požár, karavana) drží, dokud je obsazení dává, a přerušují
   'caravan',
   'funeral',
   'wedding',
@@ -379,28 +545,42 @@ export function taskKind(
   return { kind: 'bout', range: 'long' };
 }
 
+/** Jak úloha přeruší rozběhnutou činnost (villagers.md – Události); jiné úlohy nepřerušují. */
+export function interruptOf(job: PersonJob, rider: boolean): Interrupt | undefined {
+  if (rider || job.kind === 'funeral' || job.kind === 'wedding' || job.kind === 'caravan') {
+    return 'all';
+  }
+  return job.kind === 'fire' ? 'near' : undefined;
+}
+
 /**
  * Obsazení dne jako člověk → úloha (villagers.md – Divadlo): z postav dne (`people` s člověkem)
  * a lidí u spřežení a vozů (`crew`). `holds` = klíče postav prvních stavitelů (úloha u stavby).
- * Každý člověk nejvýš jednou (DayRoster); bez lidí ve scéně prázdné.
+ * Jezdci s trasou (`crew.rides` – kůň nesmí jet bez jezdce) drží úlohu jako událost. Místo úlohy
+ * (`at`) je póza v `probeT` (začátek dne). Každý člověk nejvýš jednou (DayRoster); bez lidí ve scéně prázdné.
  */
 export function personTasks(
   people: readonly PlannedVillager[],
   crew: DraftCrew,
   holds: ReadonlySet<string> = new Set(),
+  probeT = 0,
 ): Map<number, PersonTask> {
+  const riders = new Set((crew.rides ?? []).filter((r) => r.route !== null).map((r) => r.riderId));
   const out = new Map<number, PersonTask>();
   const pose = createVillagerPose();
   for (const f of people) {
     if (f.person === undefined || !f.job || out.has(f.person)) continue;
-    f.pose(0, [], pose);
+    f.pose(probeT, [], pose);
+    const rider = riders.has(f.person);
+    const interrupt = interruptOf(f.job, rider);
     out.set(f.person, {
       key: f.key,
       job: f.job,
-      ...taskKind(f.job, f.errand !== undefined, holds.has(f.key)),
+      ...taskKind(f.job, f.errand !== undefined, rider || holds.has(f.key)),
       pose: f.pose,
       errand: f.errand ?? null,
       at: { x: pose.x, z: pose.z },
+      ...(interrupt ? { interrupt } : {}),
     });
   }
   const atObject = (id: number | null, key: string, job: PersonJob): void => {
@@ -483,6 +663,15 @@ export function activityPose(a: Activity, door: { x: number; z: number }): PoseF
     out.hidden = false;
     delete out.stage;
     if (!task || t < a.start || t >= a.end) return inside(out, door);
+    // přerušená činnost jde do přerušení stejně, jako by šla celá
+    const end = a.cut?.end ?? a.end;
+    const from = a.from ?? door;
+    if (a.retreat) {
+      // povodeň – z místa, kde ho zastihla, rovnou domů
+      walkLine(out, from.x, from.z, door.x, door.z, (t - a.start) / Math.max(1e-6, end - a.start));
+      out.stage = 'back';
+      return out;
+    }
     if (task.kind === 'errand' && task.errand && task.pose) {
       const since = t - a.start;
       if (since >= task.errand.homeS) return inside(out, door);
@@ -493,14 +682,17 @@ export function activityPose(a: Activity, door: { x: number; z: number }): PoseF
       return task.pose(t, herds, out);
     }
     const going = t < a.arrive;
+    probe.hidden = false;
     const at = task.pose ? task.pose(going ? a.arrive : a.leave, herds, probe) : null;
+    // událost skončila doma (pohřeb, svatba – průvod domů) – zpět už nejde
+    if (!going && at?.hidden) return inside(out, door);
     const x = at?.x ?? task.at?.x ?? door.x;
     const z = at?.z ?? task.at?.z ?? door.z;
     if (going) {
-      walkLine(out, door.x, door.z, x, z, (t - a.start) / Math.max(1e-6, a.arrive - a.start));
+      walkLine(out, from.x, from.z, x, z, (t - a.start) / Math.max(1e-6, a.arrive - a.start));
       out.stage = 'out';
     } else {
-      walkLine(out, x, z, door.x, door.z, (t - a.leave) / Math.max(1e-6, a.end - a.leave));
+      walkLine(out, x, z, door.x, door.z, (t - a.leave) / Math.max(1e-6, end - a.leave));
       out.stage = 'back';
     }
     return out;

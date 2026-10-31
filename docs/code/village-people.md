@@ -359,10 +359,16 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `VillageVillagers.rebuild` (`scheduleDay`, `personFigures`): postava každého člověka
   `labor.persons` (`personFigure` – vzhled, velikost a šátek či šediny podle člověka, klíč
   `person:id`), póza `Timetable.pose`, chůze ode dveří tempem `SCHEDULE_WALK_M_S`. Postavy dne
-  bez rozvrhu zůstávají: cizí (`STRANGER`) a ukázky bez `persons` (s `carryErrands` – pochůzka
-  na cestě se dojde), lidé na události (`EVENT_KEY` – požár, karavana, pohřeb, svatba, porážka;
-  do úlohy 5) a jezdci s trasou (riders.ts – kůň jede podle bloků dne); postava z rozvrhu je
-  pak skrytá (`away`), stejně u oráče, honáka a vozky (kreslí je spřežení a vůz – `crewJobs`).
+  bez rozvrhu zůstávají jen pro cizí (`STRANGER`) a ukázky bez `persons` (s `carryErrands` –
+  pochůzka na cestě se dojde). Oráč, honák a vozka mají postavu z rozvrhu skrytou (kreslí je
+  spřežení a vůz – `crewJobs`). **Události přerušují** (úloha 5): úloha obsazení
+  s `PersonTask.interrupt` (`interruptOf` – pohřeb, svatba, karavana a jezdec `all`, požár
+  `near` do `FIRE_REACH_M`) utne rozběhnutou činnost od přelomu dne, kdy ji obsazení dá
+  (`settle` → `Activity.cut`), a člověk jde z místa přerušení (`Activity.from`) k póze události
+  (`nextActivity`, `rehold` – konec podle obsazení); povodeň `Timetable.setWet` (env `flooded` →
+  `StormRenderer.floodedAt`) – místo práce pod vodou: domů (`Activity.retreat`), na vodu se
+  nevychází (`departAfter`). Jezdec s trasou (riders.ts) v bloku jízdy sedí na koni vždy
+  (`mounted`, `mountedAt` – kůň nejede bez jezdce). Testy `villager-events.test.ts`.
   Rozvrh se počítá líně: jen když `write` kreslí pózy (ves v záběru, při omezeném pohybu stojí)
   nebo pro vybraného (`updateSelection`); mimo záběr nic. Vlasce rybářů se překreslí, jen když se
   změní, kdo rybaří. Výběr: `scheduledState` – úloha a cesta (`leg` – „jde na pole“, „jde domů“

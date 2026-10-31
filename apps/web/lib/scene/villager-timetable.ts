@@ -4,14 +4,17 @@
 // až při dalším vyjití z domu (villager-schedule.ts). Čistý modul bez Babylonu; počítá líně –
 // činnost člověka jen tehdy, když scéna chce jeho pózu (ves v záběru) nebo stav vybraného.
 import {
-  activityLength,
   activityPose,
   activityStage,
   castTimeline,
   departAfter,
   HISTORY_S,
+  nextActivity,
+  rehold,
   scheduleAt,
+  settle,
   straightWalk,
+  uncut,
   type Activity,
   type CastSpan,
   type DayCast,
@@ -47,17 +50,30 @@ export class Timetable {
   private castOf: (t: number) => CastSpan = castTimeline([]);
   private doors: ReadonlyMap<number, Point | null> = new Map();
   private readonly entries = new Map<number, Entry>();
+  private wet: ((x: number, z: number, t: number) => boolean) | null = null;
   readonly input: ScheduleInput;
 
   constructor(
     readonly seed: number,
     speed: number,
   ) {
+    const v = Math.max(0.1, speed);
     this.input = {
       seed,
       castOf: (t) => this.castOf(t),
       lengthOf: straightWalk((id) => this.doors.get(id) ?? null, speed),
+      doorOf: (id) => this.doors.get(id) ?? null,
+      walkS: (a, b) => Math.hypot(b.x - a.x, b.z - a.z) / v,
+      wet: (x, z, t) => this.wet?.(x, z, t) ?? false,
     };
+  }
+
+  /**
+   * Povodeň (villagers.md – Události): je místo v okamžik `t` (s) pod vodou? Platí od dalšího
+   * výpočtu činností (kdo je venku s cílem pod vodou, jde od přelomu dne domů). Null – sucho.
+   */
+  setWet(wet: ((x: number, z: number, t: number) => boolean) | null): void {
+    this.wet = wet;
   }
 
   /** Počet známých dnů obsazení (pro testy). */
@@ -91,15 +107,20 @@ export class Timetable {
     }
     this.castOf = castTimeline(this.days);
     for (const [id, e] of this.entries) {
-      const a = e.act;
+      const a = uncut(e.act);
+      let next = a;
       if (a.kind === 'home') {
         // doma – vyjde podle obsazení, jaké je teď (villagers.md: rozhoduje se při vyjití)
         const out = departAfter(this.input, id, a.start);
-        e.act = { ...a, end: out ? out.start : Infinity };
-        e.pose = null;
-      } else if (a.kind === 'hold' && a.task) {
+        next = { ...a, end: out ? out.start : Infinity };
+      } else if (a.kind === 'hold') {
         // úloha u objektu – s novým dnem ji obsazení může přestat dávat
-        e.act = activityLength(this.input, id, a.start, a.task) ?? a;
+        next = rehold(this.input, id, a);
+      }
+      // nový den může přinést událost, která rozběhnutou činnost přeruší (villagers.md – Události)
+      const settled = settle(this.input, id, next);
+      if (settled.end !== e.act.end || settled.cut?.by !== e.act.cut?.by || next !== a) {
+        e.act = settled;
         e.pose = null;
       }
     }
@@ -155,19 +176,9 @@ export class Timetable {
     return e;
   }
 
-  /** Činnost po `prev`: po činnosti doma (pauza do dalšího vyjití), z domu další činnost. */
+  /** Činnost po `prev` (villager-schedule.ts – `nextActivity`), přerušená událostí do ní. */
   private after(id: number, prev: Activity): Activity {
-    const home = (since: number, out: Activity | null): Activity => ({
-      person: id,
-      kind: 'home',
-      task: null,
-      start: since,
-      arrive: since,
-      leave: since,
-      end: out ? out.start : Infinity,
-    });
-    if (prev.kind !== 'home') return home(prev.end, departAfter(this.input, id, prev.end));
-    return departAfter(this.input, id, prev.start) ?? home(prev.end, null);
+    return settle(this.input, id, nextActivity(this.input, id, prev));
   }
 }
 
