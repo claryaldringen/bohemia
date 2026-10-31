@@ -75,6 +75,22 @@ describe('currentVillageViewStamp', () => {
     expect(deps.villages.stampQueries).toBeGreaterThan(0);
   });
 
+  it('spící ves se zaostalým dnem otisk nezdrží', async () => {
+    const { deps, villageId } = await player();
+    deps.villages.edit(villageId, (s) => (s.people = []));
+    await dynastyStatus(deps, { playerId: PLAYER, today: TODAY });
+    const later = TODAY + 50;
+    const input = { playerId: PLAYER, villageId, today: later };
+    const stamps = await deps.villages.stampsOf(
+      [...deps.villages.records.values()].map((r) => r.settlementId),
+    );
+    expect(stamps[0]).toMatchObject({ asleep: true });
+    expect(stamps[0]?.lastDay).toBeLessThan(later);
+    expect(await currentVillageViewStamp(deps, input)).toBe(
+      villageViewStamp(villageId, later, stamps),
+    );
+  });
+
   it('nová verze, nové jméno, jiný den nebo cizí ves otisk změní / nedají', async () => {
     const { deps, villageId } = await player();
     const status = await dynastyStatus(deps, { playerId: PLAYER, today: TODAY });

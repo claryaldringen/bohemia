@@ -3,6 +3,7 @@ import {
   advanceVillage,
   advanceVillageSteps,
   isVillageAbandoned,
+  isVillageAsleep,
   isVillageExtinct,
   isVillageTravelling,
   neighbourSnapshot,
@@ -75,7 +76,23 @@ export function advancedToToday(
   obstacles: ObstacleLayer,
   landscape: Landscape | null = null,
 ): VillageState {
-  return state.lastDay >= today ? state : advanceVillage(state, today, obstacles, landscape);
+  if (state.lastDay >= today) return state;
+  if (isVillageAsleep(state)) return asleepStay(state, obstacles, landscape);
+  return advanceVillage(state, today, obstacles, landscape);
+}
+
+/**
+ * Spící (vymřelá, opuštěná) ves se nesimuluje a jen den by se posunul – nestojí za uložení. Vrací
+ * týž objekt, pokud jí převody při dopočtu (`advanceVillage`) nic nezmění; jinak ji převede
+ * (bez posunu dne), ať se starší spící ves jednou převede a uloží.
+ */
+function asleepStay(
+  state: VillageState,
+  obstacles: ObstacleLayer,
+  landscape: Landscape | null,
+): VillageState {
+  const converted = advanceVillage(state, state.lastDay, obstacles, landscape);
+  return JSON.stringify(converted) === JSON.stringify(state) ? state : converted;
 }
 
 /**
@@ -89,7 +106,7 @@ async function advancedToTodayWithPauses(
   landscape: Landscape,
   pause: Pause | undefined,
 ): Promise<VillageState> {
-  if (!pause || state.lastDay >= today) {
+  if (!pause || state.lastDay >= today || isVillageAsleep(state)) {
     return advancedToToday(state, today, obstacles, landscape);
   }
   const steps = advanceVillageSteps(state, today, obstacles, landscape);

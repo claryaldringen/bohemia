@@ -348,3 +348,11 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   (`TREE_REGROWTH_YEARS`). Pomocníci pro les a dřevo: `matureTreesByDistance`, `fellTrees`,
   `treeRegrowth`, `countMatureTrees`, `obstacleChangesAt`. Vsi z doby před vrstvou si
   odstraněné překážky doplní při načtení s krajinou (`withObstacleClearing` v `updateVillage`).
+
+## Spící vsi se kvůli dni neukládají
+
+`isVillageAsleep` (`departure.ts`) = vymřelá nebo opuštěná (odpovídá sloupci `asleep`; ves na cestě
+nespí, čeká na správce). `advancedToToday` u ní nic nesimuluje: jen převody z `advanceVillage` bez
+posunu dne, a když nic nezmění (JSON shodný), vrátí týž objekt – `updateVillage` ji pak neuloží
+(`untouched`). `lastDay` spící vsi zaostává; `abandonedVillageAt` ho v pohledu zvedne na den
+pohledu, `currentVillageViewStamp` spící vsi s `lastDay < dnes` ignoruje.

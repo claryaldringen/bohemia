@@ -49,6 +49,6 @@ export async function currentVillageViewStamp(
   const settlements = await deps.settlements.listActive(input.playerId);
   const stamps = await deps.villages.stampsOf(settlements.map((s) => s.id));
   if (!stamps.some((v) => v.id === input.villageId)) return null;
-  if (stamps.some((v) => v.lastDay < input.today)) return null;
+  if (stamps.some((v) => !v.asleep && v.lastDay < input.today)) return null;
   return villageViewStamp(input.villageId, input.today, stamps);
 }
