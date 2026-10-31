@@ -536,6 +536,168 @@ do hry. Mění se jen to, jak scéna z rozdělení práce dělá postavy. Podrob
   něj – nejvýš po dobu jedné pochůzky.
 - Smrt na cestě – postava zmizí (jediná výjimka z „činnost se dokončí“). Klipy dál střihem.
 
+### Fáze činností (Martin 31. 10. 2026)
+
+Martin (31. 10. 2026) k tabulce fází činností (co dělá kovář, uhlíř, rolník, žena…): „Tak ty
+kroky v animacích, které chybí, sis tam už vpasal sám, tak je můžeš rovnou doplnit.“ Každá
+činnost (Divadlo – tři druhy) tedy ve scéně prochází svými fázemi **od vyjití z domu po návrat**;
+simulace se nemění, fáze jsou jen vizuální. Podklad: mezery ve scéně z `activities.md` (sestaveno 31. 10. 2026 z kódu, neověřeno ve hře). Návrhy animací, rekvizit a jejich zdrojů jsou **návrh
+Clauda**.
+
+**Co máme (ověřeno v repu):**
+
+- **Klipy** (`VillagerClip`, `villager-motion.ts`; zdroj `tools/blender/people.json`, převod
+  `tools/blender/people_from_0ad.py`): z 0 A.D. (`art/animation/biped/`) se berou `citizen/`
+  `walk_relax_{f,m}`, `idle_relax_{f,m_a}`, `build` a `gatherer/` `gather_meat` (= `reap`,
+  `butcher`), `farming` (= `hoe`, `winnow`), `seeding`, `gather_berries` (= `weed`, `bleed`),
+  `carry_grain_{f,m}`, `carry_wood_{f,m}`, `gather_wood` (= `fell`), `gather_fruit_{f,m}`,
+  `gather_mine` (= `thresh`), `slaughter` (= `gut`), `carry_meat_{f,m}`, `idle_carry_meat_{f,m}`;
+  jen muž navíc jezdecké (`pace_relax`, `trot_relax`, `idle_relax_01`) a bojové (`idle_ready`,
+  `attack_ranged`, `attack_melee_01`, `attack_melee_shield_01`, `idle_ready_shield_01`,
+  `walk_relax`). Řada klipů je jen **jiný název téže animace s jinou rekvizitou** (`fish`, `carry-water`,
+  `walk-rattle` = chůze či stání + prop) – tak vznikají „nové“ fáze bez nové animace.
+- **Rekvizity** (props v `man.glb` / `woman.glb`, vázané na kost): `head`, `sickle`, `hoe`,
+  `basket`, `axe`, `mallet`, `wood`, `yoke` (vahadlo s vědry), `knife`, `meat`, `bowl`,
+  `fishing-rod`, `thresh-stick` (cep), `shovel`, `rattle`; jen muž `bow`, `training-sword`,
+  `wicker-shield`, `spear`. Srp, vahadlo, miska, nůž a podobné jsou vlastní jednoduché modely
+  (skript) s texturou z 0 A.D.; `LICENSES.md` v `apps/web/public/models/people/` to uvádí.
+- **Neexistují jako rekvizita:** hrnčířský kruh, přeslice, stav, hrábě, vidle, povříslo (snop),
+  džber na mléko, hrnec a vařečka, štípací špalek, síto na rudu, kladivo a kleště kováře (kování
+  dnes jede přes `hoe`, viz `villager-plan-crafts.ts`), hudební nástroje. Hrnčířský kruh a pec,
+  kovadlina a měchy, milíř a vůz jsou **objekty scény** (`crafts/*.glb`, `wagons/`), ne rekvizity
+  v ruce – zda má `hrncir.glb` kruh jako samostatný uzel, **ověřit v modelu**.
+- **Další animace 0 A.D. (citizen, female):** data 0 A.D. **nejsou v repu ani lokálně**
+  (v tomto počítači není nalezen žádný adresář s hrou), proto nelze vypsat, co obsahují
+  `art/animation/biped/` navíc. Ze skriptu je známo jen to, co už se bere (výš). Zda existují
+  klipy pro sezení, tanec či hudbu, vaření, předení nebo dojení, **ověřit v datech 0 A.D.**; do té
+  doby se u takových fází počítá s „nová animace“. Zdroj nové animace: **vlastní v Blenderu nad
+  kostrou bipeda 0 A.D.** (48 kostí, `people_from_0ad.py`) – licence CC BY-SA 3.0, Wildfire Games
+  (kostra), případně CC0 podklad; ne cizí kostra.
+
+Stav: **je** = klip i rekvizita ve scéně; **nové** = nová fáze z existujícího klipu (případně
+s novou rekvizitou); **nová animace – chybí v 0 A.D.** = žádný vhodný klip, nutná animace.
+Cesta ode dveří na místo a zpět (`walk`, nosiči `carry`) je u každé role první a poslední fáze
+(Martin 31. 10. 2026: „Ano“ – součást práce); dále ji neopakuji.
+
+**Rolník (žně, svoz, seno)**
+
+| Fáze                      | Kde                 | Animace a rekvizita                            | Stav                                           |
+| ------------------------- | ------------------- | ---------------------------------------------- | ---------------------------------------------- |
+| Cesta na pole             | ode dveří po pěšině | `walk`, srp / motyka na zádech                 | je (nově jako součást práce)                   |
+| Orba, setí, pletí         | pole                | `hoe`, `seed` + `basket`, `weed`               | je                                             |
+| Žně                       | pole                | `reap` + `sickle`                              | je                                             |
+| Vázání snopů              | pole                | `weed` (sehnutí) + povříslo ve ruce            | nové (rekvizita povříslo/snop nová)            |
+| Nakládání snopů na vůz    | pole u vozu         | `fruit` (zdvih nahoru) + snop                  | nové (rekvizita snop)                          |
+| Vůz se snopy jede k humnu | pěšina → humno      | `walk` vedle voznice, vůz se spřežením         | nové (cíl cesty; vůz a spřežení jsou)          |
+| Mlácení a prohazování     | humno               | `thresh` + `thresh-stick`, `winnow` + `shovel` | je                                             |
+| Hrabání sena              | louka               | `hoe` (tažení) + hrábě                         | nové (rekvizita hrábě)                         |
+| Kupy a stoh               | louka               | `fruit` (nahazování) + vidle                   | nové (rekvizita vidle, stoh jako objekt scény) |
+| Odvoz sena                | louka → dvůr        | `walk` u vozu se senem                         | nové (vůz s nákladem sena)                     |
+| Cesta domů                | pěšina              | `walk` / `carry`                               | je (nově jako součást práce)                   |
+
+**Žena**
+
+| Fáze                         | Kde            | Animace a rekvizita                                                   | Stav                                                 |
+| ---------------------------- | -------------- | --------------------------------------------------------------------- | ---------------------------------------------------- |
+| Voda: cesta, nabrání, návrat | studna / potok | `carry-water` + `yoke`, `water-idle`                                  | je                                                   |
+| Vaření a oheň                | před domem     | `weed` (skloněná nad ohništěm) + vařečka, hrnec u ohně                | nové (dnes jen stojí; rekvizita nová)                |
+| Dojení                       | ohrada, chlév  | sed u krávy, džber                                                    | nová animace – chybí v 0 A.D. (dnes zástupné `weed`) |
+| Předení                      | před domem     | stoj / sed, přeslice                                                  | nová animace – chybí v 0 A.D.                        |
+| Tkaní (len, vlna)            | v domě / před  | stoj u stavu                                                          | nová animace – chybí v 0 A.D.                        |
+| Péče o děti                  | před domem     | `idle` s dítětem (menší postava), případně `carry-meat-idle` bez masa | nové (postava dítěte je, pozice nová)                |
+| Pomoc o žních (vázání, svoz) | pole           | jako rolník                                                           | nové (žena v řadě žňů)                               |
+| Nošení jídla, sad, pletí     | pole, sad      | `carry`, `fruit`, `weed`                                              | je                                                   |
+
+**Děti a starší**
+
+| Fáze                                        | Kde        | Animace a rekvizita                                     | Stav                                        |
+| ------------------------------------------- | ---------- | ------------------------------------------------------- | ------------------------------------------- |
+| Hlídání dílu s řehtačkou                    | pole       | `walk-rattle`, `idle-rattle`                            | je                                          |
+| Pomoc o žních (výrostci od 10 let i starší) | pole       | paběrky `weed`, vázání `weed` + povříslo, odnos `carry` | nové (stejné klipy jako rolník)             |
+| Starší sedí u domu                          | před domem | sed na lavici                                           | nová animace – chybí v 0 A.D. (dnes `idle`) |
+| Lehké práce u domu                          | dvůr       | `weed`, `carry`                                         | je                                          |
+
+**Kovář**
+
+| Fáze                         | Kde                      | Animace a rekvizita              | Stav                                                  |
+| ---------------------------- | ------------------------ | -------------------------------- | ----------------------------------------------------- |
+| Přínos uhlí a rudy           | milíř, rudiště → kovárna | `carry` / vůz                    | je (`smithFetchFigures`)                              |
+| Praní rudy                   | u potoka / korytě        | `weed` (sehnutí) + síto / koš    | nové (rekvizita síto)                                 |
+| Pražení rudy                 | u pece                   | `weed` nad ohněm + `shovel`      | nové                                                  |
+| Tavba: sypání, měchy         | redukční pec             | `seed` / `hoe`, druhý šlape měch | je (v `villager-plan-crafts.ts`)                      |
+| Překování houby na hřivny    | kovadlina                | `build` + `mallet`, těžší tempo  | nové (dnes jedna animace; odlišit tempem a množstvím) |
+| Kování nástrojů              | kovadlina                | `build` + `mallet` / kladivo     | nové (rekvizita kladivo, kleště)                      |
+| Odnos nástrojů do domácností | kovárna → domy           | `carry` s košem nástrojů         | nové (cíl cesty; rekvizita koš s nástroji)            |
+
+**Uhlíř a milíř**
+
+| Fáze                    | Kde             | Animace a rekvizita                      | Stav                                                      |
+| ----------------------- | --------------- | ---------------------------------------- | --------------------------------------------------------- |
+| Kácení a nošení dřeva   | les → milíř     | `fell` + `axe`, `carry-wood`             | je                                                        |
+| Štípání dřeva           | u milíře        | `fell` + `axe` na špalku                 | nové (rekvizita špalek)                                   |
+| Stavění milíře (sypání) | milíř           | `hoe`, `build`                           | je                                                        |
+| Pálení a hlídání milíře | milíř           | `idle` stoj, občas `hoe` (zahrnutí)      | nové (klip u milíře dosud nezjištěn, viz `activities.md`) |
+| Vytahování uhlí         | milíř           | `hoe` (hrabání) + hrábě, `carry` do koše | nové (rekvizita hrábě)                                    |
+| Odnos uhlí kováři       | milíř → kovárna | `carry` / vůz                            | je                                                        |
+
+**Hrnčíř**
+
+| Fáze                      | Kde          | Animace a rekvizita                       | Stav                                                                              |
+| ------------------------- | ------------ | ----------------------------------------- | --------------------------------------------------------------------------------- |
+| Kopání a nošení hlíny     | hliniště     | `hoe`, `carry`                            | je                                                                                |
+| Točení na kruhu           | dílna        | sed u kruhu, ruce na hlíně                | nová animace – chybí v 0 A.D. (dnes zástupná; kruh jako uzel `hrncir.glb` ověřit) |
+| Sušení nádob              | před dílnou  | `weed` (pokládání) + nádoba               | nové (rekvizita nádoba)                                                           |
+| Vsazení a pálení v peci   | pec          | `fruit` / `weed` ke vsazení, `idle` hlídá | nové                                                                              |
+| Odnos nádob do domácností | dílna → domy | `carry` s košem nádob                     | nové (rekvizita nádoby)                                                           |
+
+**Tesař**
+
+| Fáze                | Kde         | Animace a rekvizita                                           | Stav                                                        |
+| ------------------- | ----------- | ------------------------------------------------------------- | ----------------------------------------------------------- |
+| Kácení a ořez kmenů | les, dvůr   | `fell` + `axe`                                                | je                                                          |
+| Stavba              | staveniště  | `build` + `mallet`                                            | je                                                          |
+| Výroba vozu         | dvůr tesaře | `build` + `mallet`; vůz vzniká po dílech (kola, ložní plocha) | nové (vůz ve scéně dosud nevzniká – model dílů v `wagons/`) |
+
+**Vozka**
+
+| Fáze                         | Kde      | Animace a rekvizita                           | Stav                               |
+| ---------------------------- | -------- | --------------------------------------------- | ---------------------------------- |
+| Chůze u spřežení, jízda vozu | cesty    | `walk` vedle voznice                          | je                                 |
+| Nakládání                    | u zdroje | `fruit` / `carry` + náklad (snop, pytel, koš) | nové (náklad jde na vůz po kusech) |
+| Vykládání                    | cíl      | `carry` z vozu                                | je (nosiči)                        |
+
+**Rybář**
+
+| Fáze          | Kde           | Animace a rekvizita            | Stav                                        |
+| ------------- | ------------- | ------------------------------ | ------------------------------------------- |
+| Cesta k tůni  | pěšina → tůň  | `walk`, prut na rameni         | nové (dnes se objeví u vody)                |
+| Lov           | tůň, potok    | `fish` (stání) + `fishing-rod` | je                                          |
+| Oka na zajíce | zvěřní stezka | `weed` (kladení) + oko         | nové (dnes se nekreslí; rekvizita oko)      |
+| Odnos úlovku  | tůň → dvůr    | `carry-meat` / koš s rybami    | nové (klip `carry-meat` je; rekvizita ryby) |
+
+**Vojvoda a synové**
+
+| Fáze                       | Kde             | Animace a rekvizita                                                     | Stav                            |
+| -------------------------- | --------------- | ----------------------------------------------------------------------- | ------------------------------- |
+| Výcvik jízdy               | dvorek          | `ride`, `ride-trot`, `ride-idle`                                        | je (dvorek jako místo)          |
+| Střelba, oštěp, meč a štít | cvičiště        | `bow-draw`/`bow-release`, `spear-thrust`, `sword-strike`/`shield-block` | je                              |
+| Cvičící muži o žních       | cvičiště → pole | po cvičení `reap`, vázání `weed` + povříslo                             | nové (muži z cvičiště pomáhají) |
+
+**Svatba**
+
+| Fáze                   | Kde         | Animace a rekvizita             | Stav                                                          |
+| ---------------------- | ----------- | ------------------------------- | ------------------------------------------------------------- |
+| Průvod, obřad, hostina | ves, dvorec | `walk`, `idle`                  | je (`wedding-plan.ts`)                                        |
+| Hudebníci              | u hostiny   | hra na píšťalu / buben ve stoje | nová animace – chybí v 0 A.D. (nebo tanec 0 A.D., **ověřit**) |
+
+**Souhrn:** nových fází celkem 33 (z toho 6 s **novou animací** – chybí v 0 A.D.,
+ostatní jsou existující klip s novou rekvizitou či místem) a nové rekvizity: povříslo
+(snop), hrábě, vidle, kladivo a kleště, špalek, síto, nádoby, koš s nástroji, oka, ryby, vařečka
+s hrncem, džber, přeslice, stav, píšťala a buben, hrnčířský kruh (pokud není uzel `hrncir.glb`).
+Zdroje: tvary rekvizit vlastní v Blenderu (jednoduché, jako srp a vahadlo – CC BY-SA 3.0 s texturou
+z 0 A.D.), nebo CC0; nové animace vlastní nad kostrou 0 A.D., pokud se v datech 0 A.D. (ověřit)
+nenajde vhodný klip. Každý nový zdroj do `LICENSES.md` vedle souboru.
+
 ### Pro implementaci
 
 Úlohy po sobě, každá ≤ 150 kroků, s testy (pravidla CLAUDE.md – Scéna; Ves: typy z jádra
@@ -575,6 +737,35 @@ a `lib/village-view.ts`, rozvrh je znovu nedefinuje – `PersonJob`, `LaborActiv
    `villagers.ts` – přesná trasa při vstupu do záběru a výběru), měření na Vlkově (přelom dne,
    snímek), zápis do `docs/code/village-people.md` (Postavy – lidé ve vsi) a sem („Implementováno
    …“).
+7. **Rozvrh postav napřed, fáze potom** (navazuje na úlohy 1–3 – bez nich fáze nemají kam
+   zapadnout): do typu činnosti z úlohy 1 (`villager-schedule.ts`) přidat **seznam fází** (druh,
+   délka podílem, místo) jako čistou funkci druhu činnosti a losu; `scheduleAt` vrací i aktuální
+   fázi a klip. Testy ve `__tests__/villager-schedule.test.ts`: součet fází = délka činnosti,
+   stejný čas = stejná fáze, první fáze chůze ode dveří a poslední návrat.
+8. **Fáze z existujících klipů** (rolník, kovář, uhlíř, hrnčíř, vozka, rybář, vojvoda a synové –
+   stav „nové“ bez nové animace): `villager-plan-fields.ts`, `villager-plan-crafts.ts`,
+   `villager-plan-traffic.ts`, `villager-plan-fire.ts` (jen kontrola) a `villagers.ts` – fáze
+   mapují na stávající `VillagerClip`; vůz se snopy a senem jede k humnu a na dvůr, rybář k tůni
+   a s úlovkem zpět, kování rozlišené tempem. Testy `villager-plan.test.ts`; panel vybrané
+   postavy (`lib/person-activity.ts`) fázi řekne.
+9. **Nové rekvizity** (povříslo, hrábě, vidle, kladivo a kleště, špalek, síto, nádoby, koš
+   s nástroji, oka, ryby, vařečka s hrncem, džber): `tools/blender/people_from_0ad.py`
+   (funkce po vzoru srpu a vahadla), `tools/blender/people.json` (props a klipy s `props`),
+   regenerace `man.glb` a `woman.glb` v `apps/web/public/models/people/`, zápis do
+   `LICENSES.md`; test `VILLAGER_CLIPS` proti GLB. WebGPU limit 8 vertex bufferů – rekvizity jsou
+   klouby kostry, ne nový atribut.
+10. **Nové animace** (dojení, předení, tkaní, sezení starších, točení na kruhu, hudebníci;
+    napřed **ověřit v datech 0 A.D.**, zda vhodný klip není): vlastní v Blenderu nad kostrou
+    bipeda 0 A.D. (`people_from_0ad.py`, nový typ klipu bez zdroje `.dae`), nové názvy
+    v `VillagerClip` a `VILLAGER_CLIPS` (`villager-motion.ts`), `lib/person-activity.ts`
+    a zástupné klipy (dojení = `weed`, sezení = `idle`) po dokončení nahradit. Každý klip zvlášť
+    ověřit očima ve scéně; nejdřív dojení a točení na kruhu (dnes zástupné).
+11. **Tesař – vznikající vůz a stoh/seno** (`villager-plan-crafts.ts`, `wagons/` GLB,
+    `scene-village.md`): díly vozu po fázích ve scéně, stoh a kupy sena jako objekty scény;
+    zápis do `docs/code/village-crafts.md` a `village-fields.md`. Tuto úlohu lze dělat až po 8.
+12. **Žena, děti a svatba** (vaření, péče o děti, pomoc o žních, hudebníci; `villager-plan.ts`,
+    `villager-plan-cast.ts`, `wedding-plan.ts`): po úlohách 9 a 10; e2e `apps/web/e2e/village.spec.ts`
+    a zápis do `docs/code/village-people.md` („Implementováno …“).
 
 | Rozhodnutí                                                                                | Proč                                                                     |
 | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
