@@ -438,8 +438,8 @@ vzácné tornádo je dobré“; rešerše §6). Jádro: `tornado.ts`, stopy v `d
   téhož dne) a řetěz (`SceneFireChain` – bod vody, hořící stavba, počet dospělých a rozestup)
   z `disasters.fireFight`, jen když platí pro ten den a má vodu. Vynucený požár
   (`override.fire`) ani budoucí rozpis se do prohlížeče nedostanou. Zbytky jam po požáru mají
-  `charred` (`charredRuinKeys` – zápisy kroniky; kronika drží posledních 500 zápisů, starší
-  požár už ohořelý odstín nemá). Testy `fire-view.test.ts`.
+  `charred` natrvalo (`DwellingRuin.charred` nastaví `collapseDwellings` při požáru; ves
+  uloženou dřív převede `withCharredRuins` jednou ze zápisů kroniky – Martin 31. 10. 2026). Testy `fire-view.test.ts`.
 - **Vzhled** – plameny, hustý dým, řetěz s vědry a ohořelé trosky:
   [scene-village.md – Požár a řetěz s vědry](scene-village.md).
 - **Vývojová ukázka** – přepínač **Počasí** na `/dev/landscape`: „požár – podávají vědra“

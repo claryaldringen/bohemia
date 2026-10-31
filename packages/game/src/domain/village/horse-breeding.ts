@@ -35,13 +35,10 @@ function horsesDesired(
   family: Pick<LordFamily, 'trainees'>,
 ): { riders: number; riding: number; mares: number } {
   const riders = familyRiders(family, day).length;
-  // klisna bez hřebce nerodí – i bez jezdců ves drží aspoň jednoho chovného samce
-  const hasMare = horsePens(state)
-    .flatMap((pen) => [...penHorses(pen)])
-    .some((h) => h.sex === 'female' && !isFoalByAge(h, day));
+  // Hřebce držet vždy (Martin 31. 10. 2026) – i bez jezdců a bez klisny aspoň jeden samec
   return {
     riders,
-    riding: Math.max(riders, hasMare ? 1 : 0),
+    riding: Math.max(riders, 1),
     mares: HORSES.maresBase + Math.floor(riders / HORSES.ridersPerMare),
   };
 }
@@ -75,7 +72,7 @@ export function horsesWanted(
 /**
  * Ves chce víc jezdeckých koní a klisen, než se vejde do ohrad koní (horses.md – Chov: „Koně se
  * nevejdou do ohrady“ jako u stád) – jen ves s ohradou koní. Počítá se z téže neořezané poptávky
- * jako `horsesWanted` (klisna bez jezdců = aspoň jeden jezdecký kůň). Hříbata se nepočítají.
+ * jako `horsesWanted` (bez jezdců aspoň jeden hřebec). Hříbata se nepočítají.
  */
 export function horsesOverRoom(
   state: Pick<VillageState, 'pens' | 'people' | 'manorId' | 'dwellings' | 'constructions'>,
@@ -182,14 +179,33 @@ export function retireHorses(
 }
 
 /**
+ * Čekající koně bez ohrady (`looseHorses` – lord.md, Kůň syna; mutuje stav) 1. 11.: ti, kdo
+ * dosloužili (od `HORSES.serviceToYears`), jdou na maso jako v ohradě (horses.md – Chov: kůň
+ * čekající v nové vsi stárne jako ostatní). Ostatní čekají dál (nad potřebu se tu nepočítá – ves
+ * ještě nemá ohradu, poptávku ani místa).
+ */
+export function retireLooseHorses(state: VillageState, day: number): void {
+  const loose = state.looseHorses;
+  if (!loose || loose.length === 0) return;
+  const kept = loose.filter((h) => horseAgeYears(h, day) < HORSES.serviceToYears);
+  const gone = loose.length - kept.length;
+  if (gone === 0) return;
+  butcher(state, gone * HORSES.meatKg);
+  if (kept.length > 0) state.looseHorses = kept;
+  else delete state.looseHorses;
+}
+
+/**
  * Den chovu koní (horses.md – Chov; mutuje stav): 1. 5. hříbata, 1. 11. koně na maso. Úhyn bez
  * sena 1. 3. řeší `horsesWinterEnd` (pokrytí sena zná den hospodářství). Ves bez ohrady koní nic.
  */
 export function horsesDay(state: VillageState, day: number): ChronicleEvent[] {
-  if (horsePens(state).length === 0) return [];
   const date = dateOfDayIndex(day);
   const on = (d: { month: number; day: number }): boolean =>
     date.month === d.month && date.day === d.day;
+  // čekající koně (bez ohrady) stárnou a doslouží jako ti v ohradě – i ve vsi bez ohrady koní
+  if (on(SLAUGHTER_DAY)) retireLooseHorses(state, day);
+  if (horsePens(state).length === 0) return [];
   if (on(HORSES.birthDay)) return horseBirths(state, day);
   if (on(SLAUGHTER_DAY)) return retireHorses(state, day);
   return [];

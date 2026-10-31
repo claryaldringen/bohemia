@@ -229,6 +229,22 @@ describe('nouzová porážka', () => {
     if (augEvent?.kind === 'emergency-slaughter') expect(augEvent.animals.pig).toBeUndefined();
   });
 
+  it('selata první: od 1. 9. porážka ubere napřed selata, dospělá prasata zůstanou (Martin 31. 10. 2026)', () => {
+    const sep = at(601, 9, 10);
+    const s = withForest(village(sep), 4);
+    s.livestock!.herds = herds({ pig: 20, sheep: 30, goat: 6 });
+    s.livestock!.young = herds({ pig: 8, sheep: 8, goat: 2 });
+    const input = dayMealInput(s, sep, 0, 1);
+    s.storesKg = 0.75 * input.needPerDay * input.daysToHarvest;
+    const event = emergencySlaughter(s, sep, 0, 1);
+    if (event?.kind !== 'emergency-slaughter') throw new Error('bez porážky');
+    const pigs = event.animals.pig ?? 0;
+    expect(pigs).toBeGreaterThan(0);
+    // selata ubyla kus za kus (ne poměrem 8 × 12 / 20), dokud jich bylo
+    expect(s.livestock!.young.pig).toBeCloseTo(Math.max(0, 8 - pigs), 1);
+    expect(s.livestock!.herds.pig).toBeCloseTo(20 - pigs, 1);
+  });
+
   it('chovné prasnice: prasata jen nad polovinou toho, kolik jich uživí les', () => {
     const s = withForest(village(day), 40);
     // tatáž nosnost lesa jako u podzimní porážky (winterTargets)

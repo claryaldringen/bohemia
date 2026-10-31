@@ -63,17 +63,3 @@ export function sceneFire(
       : null;
   return { day, burning, ...(chain ? { chain } : {}) };
 }
-
-/**
- * Zbytky jam, které zbyly po požáru (klíč `id@den` – jako `ruinId` ve scéně): obydlí ze zápisů
- * kroniky `fire` zřícená týž den. Kronika drží posledních CHRONICLE_MAX_EVENTS zápisů – starší
- * požár už ohořelý odstín nemá (zbytek je pak zarostlý).
- */
-export function charredRuinKeys(state: Pick<VillageState, 'chronicle'>): Set<string> {
-  const keys = new Set<string>();
-  for (const event of state.chronicle) {
-    if (event.kind !== 'fire') continue;
-    for (const id of event.burnedDwellingIds) keys.add(`${id}@${event.day}`);
-  }
-  return keys;
-}

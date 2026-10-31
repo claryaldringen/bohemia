@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ChronicleEvent, VillageState } from '@bohemia/game';
-import { charredRuinKeys, sceneFire } from '../fire-view';
+import { sceneFire } from '../fire-view';
 
 type FireState = Pick<VillageState, 'chronicle' | 'dwellings' | 'ruins' | 'disasters'>;
 
@@ -58,13 +58,5 @@ describe('požár pro scénu (fire-view.ts)', () => {
     const old = state();
     old.disasters!.fireFight!.day = 19;
     expect(sceneFire(old, 20)!.chain).toBeUndefined();
-  });
-
-  it('ohořelé zbytky jam podle zápisů požárů', () => {
-    const keys = charredRuinKeys(state());
-    expect(keys.has('1@20')).toBe(true);
-    expect(keys.has('2@20')).toBe(true);
-    expect(keys.has('1@5')).toBe(true);
-    expect(keys.has('3@20')).toBe(false);
   });
 });

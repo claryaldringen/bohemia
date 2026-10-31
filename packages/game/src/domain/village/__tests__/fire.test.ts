@@ -7,6 +7,7 @@ import { craftHouseholds } from '../crafts';
 import { evacuationTarget } from '../population';
 import { collapseDwellings, dwellingFireChance, fireDay, jumpChance, spreadFire } from '../fire';
 import { occupyEmptyDwellings } from '../households';
+import { withCharredRuins } from '../ruins';
 import { advanceVillage } from '../simulate';
 import type { Dwelling, VillageState } from '../types';
 import { withBuiltFirstDwelling } from './village-fixtures';
@@ -459,5 +460,42 @@ describe('ochrana nové vsi a determinismus', () => {
     expect(fires(chunked)).toEqual(fires(whole));
     expect(chunked.dwellings.map((d) => d.id)).toEqual(whole.dwellings.map((d) => d.id));
     expect(whole.dwellings.some((d) => d.id === 1)).toBe(false);
+  });
+});
+
+describe('ohořelá ruina', () => {
+  it('shořelé obydlí zanechá ohořelou ruinu natrvalo, jiný zánik ne', () => {
+    const state = village([house(1, 0), house(2, 100)]);
+    const [a, b] = state.dwellings;
+    collapseDwellings(state, OLD, [a!]);
+    state.ruins!.push({ id: b!.id, type: b!.type, position: b!.position, day: OLD });
+    expect(state.ruins!.map((r) => [r.id, r.charred ?? false])).toEqual([
+      [1, true],
+      [2, false],
+    ]);
+  });
+
+  it('starší ves dostane příznak z kroniky jednou a idempotentně', () => {
+    const state = village([house(2, 100)]);
+    state.ruins = [
+      { id: 1, type: 'polozemnice', position: { x: 0, z: 0, rotation: 0 }, day: OLD },
+      { id: 3, type: 'polozemnice', position: { x: 9, z: 0, rotation: 0 }, day: OLD },
+    ];
+    state.chronicle = [
+      {
+        day: OLD,
+        kind: 'fire',
+        startedDwellingId: 1,
+        burnedDwellingIds: [1],
+        lostGrainKg: 0,
+        lostMeatKg: 0,
+        lostCheeseKg: 0,
+        lostHayKg: 0,
+      } as VillageState['chronicle'][number],
+    ];
+    const once = withCharredRuins(state);
+    expect(once.ruins!.map((r) => r.charred ?? false)).toEqual([true, false]);
+    expect(withCharredRuins(once)).toBe(once);
+    expect(state.ruins[0]!.charred).toBeUndefined();
   });
 });

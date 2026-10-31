@@ -198,7 +198,8 @@ Beze změny (milíř u buků – crafts.md); nošení uhlí ke kováři je dnes 
   odcházející si vezmou svůj díl (vymlácený), ve vsi zůstane poměrný díl snopů i práce výmlatu.
 - **Nošení** (návrh Clauda): práce výmlatu má v rozdělení práce dne cíl humno – k němu vede
   pěšina (vstup na předku mlatu) a vozy, které sváží snopy, jezdí i k humnu (vyjede
-  se cesta); humno je pro pěšiny, vozy, vozové cesty i zemskou stezku stavba, kterou obejdou.
+  se cesta); humno je pro pěšiny, vozy, vozové cesty i zemskou stezku stavba, kterou obejdou
+  (Martin 31. 10. 2026: „Humno je stavba jako každá jiná“).
   Nouzový výmlat je u vsi.
 - **Luštěniny** se mlátí taky na humně (návrh Clauda); do jam jde jen obilí, luštěniny se
   skladují doma.
@@ -218,7 +219,9 @@ Beze změny (milíř u buků – crafts.md); nošení uhlí ke kováři je dnes 
   (návrh Clauda). Ves s 10 t úrody vykope první rok ≈ 7 jam (≈ 25 čd), pak jen plní staré.
 - **Kde** (návrh Clauda): nejbližší vhodné místo od humna (bez humna od dvorce vojvody) po
   kružnicích do 60 m – suché (ne voda, břeh, brod ani mokřina), ne v lese, mimo pole, sady,
-  hřbitovy, ohrady a les vsi, mimo obydlí, pozemky, stavby, humna a jejich vstup, milíře, pevné
+  hřbitovy, ohrady a les vsi, mimo rudiště a hliniště (jámy po kopání rudy a hlíny – Martin 31. 10. 2026:
+  „na rudišti ani hliništi by vzniknout neměla, v háji je to jedno“; háje, zbytky jam a milířiště
+  beze změny), mimo obydlí, pozemky, stavby, humna a jejich vstup, milíře, pevné
   cesty a zemní práce vozových cest (pláň i svahy úvozu a náspu celé plánované osy), mimo stavby
   a půdu jiných vsí na téže mapě, bez stromu, keře či kamene na místě, aspoň 3 m od ostatních
   jam – jámy se drží pohromadě. Když do 60 m nic není, hledá se dál až do 180 m; ani tam nic –

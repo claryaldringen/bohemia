@@ -265,7 +265,7 @@ export function emergencySlaughterPlan(
  * sklizně nevychází, porazí zvířata navíc (`emergencySlaughterPlan`). Maso do zásoby a práce
  * porážky a uzení (1 člověkoden na LIVESTOCK.slaughterKgPerManDay kg) jako při podzimní porážce –
  * mimo listopad jako nouzová práce (`slaughterWork.emergency`), nedodělek listopadové porážky
- * propadá. Mláďata ubudou poměrně. Vrátí událost kroniky, nebo null.
+ * propadá. Mláďata ubudou poměrně, jen selata (od 1. 9.) jdou napřed. Vrátí událost kroniky, nebo null.
  */
 export function emergencySlaughter(
   state: VillageState,
@@ -282,7 +282,13 @@ export function emergencySlaughter(
     if (killed <= 0) continue;
     const herd = livestock.herds[species];
     const left = Math.max(0, herd - killed);
-    livestock.young[species] *= herd > 0 ? left / herd : 0;
+    if (species === 'pig' && !pigletsSpared(day)) {
+      // selata první (Martin 31. 10. 2026) – od 1. 9. jdou napřed letošní selata, teprve zbytek
+      // porážky ubere dospělým prasatům
+      livestock.young.pig = Math.max(0, livestock.young.pig - killed);
+    } else {
+      livestock.young[species] *= herd > 0 ? left / herd : 0;
+    }
     // kusy čekající na zimní porážku jdou první (diet.md – Porážka v zimě)
     if (livestock.culling) {
       livestock.culling[species] = Math.max(0, livestock.culling[species] - killed);

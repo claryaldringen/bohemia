@@ -411,6 +411,8 @@ export const THRESHING = {
  * zamrzne zem): plné dávky průběžně, zbytek aspoň `minFillKg` až po výmlatu (v posledním měsíci
  * vždy); prázdná jáma `lifeYears` let od vykopání se zasype a kope se nová. Místo do `siteM` od
  * humna (bez humna od dvorce), jámy aspoň `spacingM` od sebe, hledá se po kružnicích po `stepM`.
+ * Rudiště a hliniště kovářů a hrnčířů (Martin 31. 10. 2026: „na rudišti ani hliništi by vzniknout
+ * neměla, v háji je to jedno“) jáma míjí o `orePitClearM` od středu jejich jam.
  */
 export const GRAIN_PITS = {
   capacityKg: 1500,
@@ -423,6 +425,7 @@ export const GRAIN_PITS = {
   lifeYears: 10,
   siteM: 60,
   spacingM: 3,
+  orePitClearM: 3,
   stepM: 2.5,
 } as const;
 
