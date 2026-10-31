@@ -260,7 +260,9 @@ Kroky 3 a 4 (`domain/village/steward.ts` – `stewardDay`):
   × 1,6 → 16 ha polí, úroda stejně ≈ 1 500 kg). Krutý rok (rok 9, úroda ≈ ½) ji do pasti shodí
   a s rostoucím počtem lidí hlad v letech 12–15 roste na strop hájení. Pole to nespraví – na tahu
   jsou strava mimo pole (ohrady, stáda – S5) a odchod syna, když lidí je víc, než ves skutečně
-  uživí (S6).
+  uživí (S6). **Změna prahu (Martin 31. 10. 2026: „2 – osivo se nejí“):** osivo do roční potřeby
+  ves sní až pod přídělem 0,5 (dřív 0,75, `SEED_STORES.floorRation` – [pole](fields.md), Osivo
+  ze zásob) – víc hladu krátce, plný osev; past osiva tím ustupuje.
 - **Klučení lesa:** jen když louka v plánu nestačí, v okně lesa (1. 10. – 31. 1.); les na území vsi
   do `forestSearchTiles` (10) políček od bloku hospodářství. Druhá podmínka návrhu („les dává
   víc“) zatím ne.
