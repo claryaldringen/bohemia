@@ -471,3 +471,26 @@ describe('ves hospodaří podle domů', () => {
     expect(chunked).toEqual(whole);
   }, 30_000);
 });
+
+describe('paměť hospodářství podle obsahu', () => {
+  it('kopie stavu (dopočet po kouscích) dá z paměti totéž, změněný díl nový výpočet', () => {
+    const { state } = village();
+    const first = villageHoldings(state);
+    const copy = structuredClone(state);
+    // kopie stavu na začátku dopočtu (`cloneState`) – jiné pole dílů, stejný obsah
+    const again = villageHoldings(copy);
+    expect(again).toBe(first);
+    expect(again).toEqual(fieldHoldings(holdingsHousesOf(copy), copy.parts));
+    // díl jinde = jiný obsah – počítá se znovu a výsledek odpovídá novým dílům
+    const moved = structuredClone(state);
+    const far = moved.parts.find((p) => p.cell)!;
+    far.cell = { x: far.cell!.x + 30, y: far.cell!.y };
+    const recomputed = villageHoldings(moved);
+    expect(recomputed).not.toBe(first);
+    expect(recomputed).toEqual(fieldHoldings(holdingsHousesOf(moved), moved.parts));
+  });
+});
+
+function holdingsHousesOf(state: VillageState): HoldingHouse[] {
+  return state.dwellings.map((d) => ({ id: d.id, position: d.position }));
+}
