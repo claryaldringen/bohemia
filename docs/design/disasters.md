@@ -472,6 +472,9 @@ v roce 4 při zásobách 30. 6. ≈ 2× pojistky, dvě sucha v letech 4 a 5):
   dlouhé měsíce (STARVATION – při 0,8 ≈ 108 dní k prahu dětí). Skok osevu dělají nouzové
   přílohy pod pojistkou a rádla podle orby – ves se v hladu brání vším, co má; cíl 3 se proto
   změnil (výš), pravidla zůstávají.
+- **Pozdější změna (Martin 31. 10. 2026: „2 – osivo se nejí“):** `floorRation` 0,75 → **0,5**
+  (past osiva, viz [pole](fields.md) – Osivo ze zásob). Tabulka výše platí pro 0,75; ves nyní
+  osivo do roční potřeby sní až pod polovinou přídělu – po krutém roce víc hladu krátce, plný osev.
 
 ## Obrana a příprava (bez nových velkých mechanik)
 
