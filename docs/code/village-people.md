@@ -348,6 +348,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `scheduleAt` dohrává od `t − HISTORY_S`. **Zvon** `BELL_S` 35 min (návrh Clauda): činnost,
   která by přesáhla zvon člověka, nezačne, po zvonu vyjde každý řetěz v týž okamžik – řetězy
   z různých počátků tak splynou nejpozději u prvního zvonu (bez zvonu nesplývají – test).
+  Pro scénu připravené `activityPose` (póza činnosti: ode dveří rovně k práci, póza úlohy, zpět;
+  pochůzka cyklem posunutým na začátek činnosti; doma skrytá) a `straightWalk` (délky chůze
+  rovně ode dveří – do úlohy 6).
   **Výběr spřežení a vozu** (villagers.md – Výběr spřežení a vozu; Martin 20. 10. 2026: „nešlo mi
   kliknout na volské spřežení ani na člověka, co jej vedl“, podrobnosti návrh Clauda): oráč, honák
   a vozka jsou lidé vsi – `planVillagersWithCrew` (`DraftCrew`; vstup `draft` =

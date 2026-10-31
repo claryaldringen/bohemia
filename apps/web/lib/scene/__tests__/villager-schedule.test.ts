@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { stand } from '../villager-motion';
+import { createVillagerPose, route, shuttle, stand } from '../villager-motion';
+import { shuttleErrand } from '../villager-errands';
 import { hash01 } from '../smoke-schedule';
 import {
   BELL_S,
@@ -9,11 +10,13 @@ import {
   PAUSE_S,
   WORK_RANGE_S,
   activities,
+  activityPose,
   activityStage,
   bellAt,
   castTimeline,
   nextStart,
   scheduleAt,
+  straightWalk,
   type Activity,
   type DayCast,
   type PersonTask,
@@ -245,5 +248,77 @@ describe('rozvrh člověka – čistá funkce času (villager-schedule.ts)', () 
     expect(castOf(150).cast).toBe(a);
     expect(castOf(200)).toEqual({ cast: b, from: 200, until: Infinity });
     expect(castTimeline([])(5).cast.size).toBe(0);
+  });
+
+  it('póza činnosti: ode dveří k práci, póza úlohy, zpět ke dveřím, doma skrytá', () => {
+    const door = { x: 0, z: 0 };
+    const row: PersonTask = {
+      ...task('row', 'bout'),
+      pose: stand(30, 40, 1, 0, 'reap'),
+      at: { x: 30, z: 40 },
+    };
+    const cast: DayCast = new Map([[1, row]]);
+    const inp: ScheduleInput = {
+      seed: 3,
+      castOf: castTimeline([{ from: 0, cast }]),
+      lengthOf: straightWalk(() => door, 1.25),
+    };
+    const a = [...activities(inp, 1, 0)].find((x) => x.kind === 'bout')!;
+    // 50 m po 1,25 m/s = 40 s tam i zpět
+    expect(a.arrive - a.start).toBeCloseTo(40, 6);
+    const pose = activityPose(a, door);
+    const out = createVillagerPose();
+    expect(pose(a.start, [], out)).toMatchObject({ x: 0, z: 0, clip: 'walk', stage: 'out' });
+    expect(pose(a.start + 20, [], out)).toMatchObject({ x: 15, z: 20, stage: 'out' });
+    expect(pose(a.arrive + 1, [], out)).toMatchObject({
+      x: 30,
+      z: 40,
+      clip: 'reap',
+      hidden: false,
+    });
+    const back = pose((a.leave + a.end) / 2, [], out);
+    expect([back.x, back.z, back.stage]).toEqual([15, 20, 'back']);
+    expect(pose(a.end, [], out).hidden).toBe(true);
+    expect(activityPose({ ...a, kind: 'home', task: null }, door)(a.start, [], out).hidden).toBe(
+      true,
+    );
+  });
+
+  it('póza pochůzky: cyklus vyjde ze dveří v začátku činnosti, po návratu doma', () => {
+    const r = route([
+      [0, 0],
+      [100, 0],
+    ]);
+    const options = {
+      outClip: 'carry-water' as const,
+      outSpeed: 1,
+      endClip: 'water-idle' as const,
+      endS: 5,
+      backClip: 'carry-water' as const,
+      backSpeed: 1,
+      restClip: 'idle' as const,
+      restS: 40,
+      phase: 0.37,
+      restHidden: true,
+    };
+    const water: PersonTask = {
+      ...task('water', 'errand'),
+      pose: shuttle(r, options),
+      errand: shuttleErrand(r, options),
+    };
+    const inp: ScheduleInput = {
+      seed: 3,
+      castOf: castTimeline([{ from: 0, cast: new Map([[1, water]]) }]),
+      lengthOf: straightWalk(() => null, 1),
+    };
+    const a = [...activities(inp, 1, 0)].find((x) => x.kind === 'errand')!;
+    expect(a.end).toBe(Math.ceil((a.start + 205) / GRID_S - 1e-9) * GRID_S);
+    const pose = activityPose(a, { x: 0, z: 0 });
+    const out = createVillagerPose();
+    expect(pose(a.start + 1, [], out)).toMatchObject({ stage: 'out' });
+    expect(pose(a.start + 1, [], out).x).toBeCloseTo(1, 6);
+    expect(pose(a.start + 102, [], out).stage).toBe('end');
+    expect(pose(a.start + 150, [], out).stage).toBe('back');
+    expect(pose(a.start + 206, [], out).hidden).toBe(true);
   });
 });

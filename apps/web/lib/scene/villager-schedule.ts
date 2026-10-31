@@ -6,7 +6,7 @@
 // nepřeruší. Čisté funkce skutečného času (s, `villagerSeconds`) bez Babylonu: stejný okamžik
 // a stejný vstup = stejná činnost, nic se nepočítá krokově za snímek. Volá se při vyjití
 // a změně obsazení, ne za snímek.
-import { createVillagerPose, type PoseFn } from './villager-motion';
+import { createVillagerPose, type PoseFn, type VillagerPose } from './villager-motion';
 import type { DraftCrew, Errand, PlannedVillager } from './villager-plan-types';
 import type { PersonJob } from './villager-roster';
 import { hash01 } from './smoke-schedule';
@@ -416,4 +416,92 @@ export function personTasks(
   });
   for (const c of crew.carts) atObject(c.drover, `cart:${c.cart}`, { kind: 'cart', cart: c.cart });
   return out;
+}
+
+/**
+ * Délky chůze rovně ode dveří (pro scénu do úlohy 6 – délka ze sítě pěšin): práce na místě
+ * a úloha u objektu tam i zpět vzdálenost ÷ `speed` (m/s), pochůzka celý cyklus `errand.homeS`
+ * (půl tam, půl zpět). Bez dveří (zbořený dům) nebo místa chůze 0.
+ */
+export function straightWalk(
+  doorOf: (personId: number) => { x: number; z: number } | null,
+  speed: number,
+): (personId: number, task: PersonTask) => TaskWalk {
+  const v = Math.max(0.1, speed);
+  return (personId, task) => {
+    if (task.errand) return { outS: task.errand.homeS / 2, endS: 0, backS: task.errand.homeS / 2 };
+    const door = doorOf(personId);
+    const walk = door && task.at ? Math.hypot(task.at.x - door.x, task.at.z - door.z) / v : 0;
+    return { outS: walk, endS: 0, backS: walk };
+  };
+}
+
+/** Postava doma – skrytá u dveří. */
+function inside(out: VillagerPose, door: { x: number; z: number }): VillagerPose {
+  out.x = door.x;
+  out.z = door.z;
+  out.clip = 'idle';
+  out.pace = 1;
+  out.stage = 'rest';
+  out.hidden = true;
+  return out;
+}
+
+/** Chůze rovně z (ax, az) do (bx, bz), podíl cesty `f` (0–1). */
+function walkLine(
+  out: VillagerPose,
+  ax: number,
+  az: number,
+  bx: number,
+  bz: number,
+  f: number,
+): VillagerPose {
+  const length = Math.hypot(bx - ax, bz - az);
+  const k = Math.min(1, Math.max(0, f));
+  out.x = ax + (bx - ax) * k;
+  out.z = az + (bz - az) * k;
+  if (length > 1e-6) {
+    out.headingX = (bx - ax) / length;
+    out.headingZ = (bz - az) / length;
+  }
+  out.clip = 'walk';
+  out.pace = 1;
+  return out;
+}
+
+/**
+ * Póza činnosti `a` (pro úlohu 3 – napojení ve villagers.ts): doma skrytá u dveří; pochůzka podle
+ * cyklu úlohy posunutého tak, že vyjde v `a.start` (po návratu skrytá); práce na místě a úloha
+ * u objektu – rovně ode dveří k místu práce, póza úlohy dne, rovně zpět. Úloha bez pózy (oráč,
+ * honák, vozka – kreslí je spřežení a vůz) je ve fázi práce skrytá.
+ */
+export function activityPose(a: Activity, door: { x: number; z: number }): PoseFn {
+  const task = a.task;
+  const probe = createVillagerPose();
+  return (t, herds, out) => {
+    out.hidden = false;
+    delete out.stage;
+    if (!task || t < a.start || t >= a.end) return inside(out, door);
+    if (task.kind === 'errand' && task.errand && task.pose) {
+      const since = t - a.start;
+      if (since >= task.errand.homeS) return inside(out, door);
+      return task.pose(since - task.errand.shiftS, herds, out);
+    }
+    if (t >= a.arrive && t < a.leave) {
+      if (!task.pose) return inside(out, door);
+      return task.pose(t, herds, out);
+    }
+    const going = t < a.arrive;
+    const at = task.pose ? task.pose(going ? a.arrive : a.leave, herds, probe) : null;
+    const x = at?.x ?? task.at?.x ?? door.x;
+    const z = at?.z ?? task.at?.z ?? door.z;
+    if (going) {
+      walkLine(out, door.x, door.z, x, z, (t - a.start) / Math.max(1e-6, a.arrive - a.start));
+      out.stage = 'out';
+    } else {
+      walkLine(out, x, z, door.x, door.z, (t - a.leave) / Math.max(1e-6, a.end - a.leave));
+      out.stage = 'back';
+    }
+    return out;
+  };
 }
