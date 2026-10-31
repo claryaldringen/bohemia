@@ -305,11 +305,20 @@ změně stadia hledaly znovu (měření 25. 10. 2026: hledání tras vozů 67 % 
      nová, zaniklá nebo sloučená cesta, jiná osa, druh či stupeň (dokončené vylepšení), olemování
      stromy po desetinách. Měsíční kontrola cest mapu mění, jen když síť opravdu změnila; stav
      kusů, provoz a bledení cesty mapu nemění;
-   - **místa, mezi kterými se chodí** – nová nebo opuštěná domácnost (obydlí obydlené / prázdné),
-     nové zavedené místo (dokončený hřbitov, sad, posvátné místo…).
+   - ~~**místa, mezi kterými se chodí** – nová nebo opuštěná domácnost (obydlí obydlené / prázdné),
+     nové zavedené místo (dokončený hřbitov, sad, posvátné místo…).~~ Od 31. 10. 2026 jen
+     **postavení nebo zánik stavby** – Martin 31. 10. 2026: „Ta věc (dům, ohrada, hřbitov) se
+     prostě postaví a dál se s ní nic neděje, pokud nespadne.“ Stálé trasy vedou ze **všech
+     hotových obydlí** (i prázdných) ke **všem stavbám** (i k ohradě bez zvířat a zapečetěné
+     obilné jámě – mapa bere jámu od vykopání po zánik, ne to, jestli je otevřená).
    - **Stadia dílů mapu nemění** – `walkStageKey` a přepočet 1. dne v měsíci kvůli nim zmizí.
-   - **Lidé a stáda** (počet v domácnosti, stáří spojení, počet stád) mění jen **cesty za den**
-     uložených tras – trasy se převáží bez nového hledání.
+   - **Lidé, stáda a obsazenost** (počet v domácnosti, stáří spojení, počet stád, nastěhování
+     a vystěhování, zvířata v ohradě, otevřená jáma) mění jen **cesty za den** uložených tras –
+     trasy se převáží bez nového hledání; obsazenost hned, ostatní 1. dne v měsíci. Trasa
+     z prázdného obydlí, k prázdné ohradě nebo k zavřené jámě má 0 cest a čeká, až se tam někdo
+     nastěhuje (návrh Clauda: hledá se, jako by bylo obydlené – lidé vsi se pro hledání rozdělí
+     na všechna hotová obydlí). Vzdálenost chůze dílu se měří z nejbližšího obydlí (i prázdného
+     a rozestavěného – jako dosud), obsazenost ji tedy nemění.
    - **Stálé trasy** – k zavedeným místům a pochůzky (voda, dřevo, pole, sad, ohrada, hřbitov,
      posvátná místa, vchody staveb, staveniště, sousedé, pastvina) – mají pořadí slévání i cesty za
      den jen ze stálé části (`base`) a lidí. Práce dne do nich nevstupuje; do vyšlapanosti i stavu
@@ -317,7 +326,8 @@ změně stadia hledaly znovu (měření 25. 10. 2026: hledání tras vozů 67 % 
    - **Trasy k práci dne** (cíle bez stálé části – kácení, seč, úprava cesty, opravy, jámy na
      obilí, nošení od kováře…) se hledají až po stálých, nad nimi (se slevou z jejich provozu),
      a stálé trasy nemění. Přepočítají se se stálými a 1. dne v měsíci, jen pokud se změnila
-     množina míst s prací – místa práce se mění, mapa ne. Do vzdálenosti chůze pro práci nevstupují.
+     množina míst s prací nebo obsazenost (vedou jen z obydlených domácností) – místa práce se
+     mění, mapa ne. Do vzdálenosti chůze pro práci nevstupují.
 
    _Stav 26. 10. 2026 (Úloha A2b):_ zavedeno – otisk mapy tras a míst; místa práce jen 1. dne
    v měsíci. Návrh Clauda k tomu, co pravidlo neříká: lidé a stáda **převáží** cesty za den

@@ -248,11 +248,12 @@ export interface PathVillage {
    */
   threshingFloors?: readonly { id: number; position: Position; built: boolean }[];
   /**
-   * Otevřené obilné jámy (production-chains.md – Obilné jámy) – id a střed (m): domácnosti si
-   * z nich berou zrno (pěšina k jámě); zavřené jámy nejsou vidět a nechodí se k nim. Bez údaje
-   * žádné.
+   * Obilné jámy (production-chains.md – Obilné jámy) – id a střed (m): z otevřené si domácnosti
+   * berou zrno (pěšina k jámě); `open: false` – zapečetěná nebo prázdná jáma, k té se chodí jen za
+   * prací dne (ukládání zrna). Stálé trasy se hledají ke všem jamám (`establishedVillage`). Bez
+   * údaje žádné.
    */
-  grainPits?: readonly { id: number; x: number; z: number }[];
+  grainPits?: readonly { id: number; x: number; z: number; open?: boolean }[];
 }
 
 export interface PathNetworkInput {
