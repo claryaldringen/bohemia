@@ -6,12 +6,14 @@
  * `structuredClone`, takže výsledek je stejný. Sdílené odkazy uvnitř stavu se rozdělí na
  * samostatné kopie – stejně jako při uložení do JSON a načtení, na kterém simulace nezávisí.
  *
- * **Pravidlo: záznamy v seznamech `SHARED_RECORD_LISTS` a body pevných cest
- * (`roads.roads[].points`) se nemění na místě** – seznamy se jen doplňují, filtrují nebo se v nich
- * záznam nahradí novým objektem. Proto se u objektu na nejvyšší úrovni (stav vsi) kopírují jen
- * tyto seznamy a jejich záznamy kopie sdílí s původním stavem (u Vlkova 14 z 34 tisíc objektů).
- * Kdo by záznam změnil na místě, změnil by i vstupní stav; v testech to hlídá
- * `freezeSharedRecords` – sdílené záznamy se zmrazí a zápis do nich spadne.
+ * **Pravidlo: záznamy v seznamech `SHARED_RECORD_LISTS`, body pevných cest
+ * (`roads.roads[].points`), profily zemních prací (`roads.earthworks[].profile`) a buňky dílů polí
+ * (`parts[].cell`) se nemění na místě** – seznamy se jen doplňují, filtrují nebo se v nich záznam
+ * nahradí novým objektem, díl dostane novou buňku jen novým objektem. Proto se u objektu na nejvyšší
+ * úrovni (stav vsi) kopírují jen tyto seznamy a jejich záznamy kopie sdílí s původním stavem (u
+ * Vlkova 14 z 34 tisíc objektů; profily a buňky dílů dalších ≈ 10 tisíc). Kdo by záznam změnil na
+ * místě, změnil by i vstupní stav; v testech to hlídá `freezeSharedRecords` – sdílené záznamy se
+ * zmrazí a zápis do nich spadne.
  */
 export function cloneState<T>(value: T): T {
   if (typeof value !== 'object' || value === null) return value;
@@ -24,6 +26,7 @@ export function cloneState<T>(value: T): T {
     if (typeof v !== 'object' || v === null) copy[key] = v;
     else if (Array.isArray(v) && SHARED_RECORD_LISTS.has(key)) copy[key] = sharedList(v);
     else if (key === 'roads') copy[key] = cloneRoads(v);
+    else if (key === 'parts' && Array.isArray(v)) copy[key] = v.map(clonePart);
     else copy[key] = cloneObject(v);
   }
   return copy as T;
@@ -66,24 +69,50 @@ function cloneRoads(roads: object): unknown {
     const v = (roads as Record<string, unknown>)[key];
     if (typeof v !== 'object' || v === null) copy[key] = v;
     else if (key === 'roads' && Array.isArray(v)) copy[key] = v.map(cloneRoad);
+    else if (key === 'earthworks' && Array.isArray(v)) copy[key] = v.map(cloneEarthwork);
     else copy[key] = cloneObject(v);
   }
   return copy;
 }
 
 function cloneRoad(road: unknown): unknown {
-  if (typeof road !== 'object' || road === null) return road;
-  if (Array.isArray(road) || Object.getPrototypeOf(road) !== Object.prototype) {
-    return cloneObject(road);
+  return cloneSharing(road, 'points', true);
+}
+
+/** Zemní práce: vše se kopíruje, jen body profilu se sdílí (seznam bodů je nový). */
+function cloneEarthwork(earthwork: unknown): unknown {
+  return cloneSharing(earthwork, 'profile', true);
+}
+
+/** Díl pole: vše se kopíruje, jen buňka dílu se sdílí. */
+function clonePart(part: unknown): unknown {
+  return cloneSharing(part, 'cell', false);
+}
+
+/**
+ * Kopie záznamu, ve které se hodnota klíče `shared` sdílí s originálem – seznam (`list`) jako nový
+ * seznam se sdílenými záznamy, jinak sdílený objekt (viz `cloneState`).
+ */
+function cloneSharing(record: unknown, shared: string, list: boolean): unknown {
+  if (typeof record !== 'object' || record === null) return record;
+  if (Array.isArray(record) || Object.getPrototypeOf(record) !== Object.prototype) {
+    return cloneObject(record);
   }
   const copy: Record<string, unknown> = {};
-  for (const key in road) {
-    const v = (road as Record<string, unknown>)[key];
+  for (const key in record) {
+    const v = (record as Record<string, unknown>)[key];
     if (typeof v !== 'object' || v === null) copy[key] = v;
-    else if (key === 'points' && Array.isArray(v)) copy[key] = sharedList(v);
-    else copy[key] = cloneObject(v);
+    else if (key !== shared) copy[key] = cloneObject(v);
+    else if (list && Array.isArray(v)) copy[key] = sharedList(v);
+    else if (list) copy[key] = cloneObject(v);
+    else copy[key] = sharedRecord(v);
   }
   return copy;
+}
+
+function sharedRecord(record: object): object {
+  if (freezeShared) deepFreeze(record);
+  return record;
 }
 
 function deepFreeze(value: unknown): void {

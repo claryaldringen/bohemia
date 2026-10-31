@@ -22,9 +22,10 @@ describe('cloneState', () => {
     expect(copy).toEqual(structuredClone(state));
     expect(Object.keys(copy)).toEqual(Object.keys(state));
     expect(Object.is(copy.ratio, -0)).toBe(true);
-    copy.parts[0]!.cell.x = 99;
+    // buňka dílu se sdílí (záznam se nemění na místě – test „buňky dílů… sdílí“ níž)
+    copy.parts[0]!.crop = 'spring';
     copy.parts[0]!.obstacles.push(6);
-    expect(state.parts[0]!.cell.x).toBe(2);
+    expect(state.parts[0]!.crop).toBe('winter');
     expect(state.parts[0]!.obstacles).toEqual([4, 5]);
   });
 
@@ -115,6 +116,39 @@ describe('cloneState – stav vsi se zbytkem jámy', () => {
     }).toThrow(TypeError);
     copy.felledTrees!.push({ id: 3, day: 9 });
     expect(state.felledTrees).toHaveLength(1);
+  });
+
+  it('buňky dílů a body profilů zemních prací sdílí – díly, zemní práce a seznam bodů jsou nové', () => {
+    const state = {
+      parts: [{ id: 1, cell: { x: 3, y: 4 }, state: 'sown' }],
+      roads: {
+        roads: [],
+        earthworks: [
+          {
+            id: 7,
+            pieces: [{ toM: 5, manDays: 1 }],
+            profile: [{ x: 1, y: 2, z: 3 }],
+            startedDay: 4,
+          },
+        ],
+      },
+    } as unknown as Pick<VillageState, 'parts' | 'roads'>;
+    const copy = cloneState(state);
+    expect(copy).toEqual(state);
+    expect(copy.parts[0]).not.toBe(state.parts[0]);
+    expect(copy.parts[0]!.cell).toBe(state.parts[0]!.cell);
+    const [earthwork] = copy.roads!.earthworks!;
+    expect(earthwork).not.toBe(state.roads!.earthworks![0]);
+    expect(earthwork!.pieces).not.toBe(state.roads!.earthworks![0]!.pieces);
+    expect(earthwork!.profile).not.toBe(state.roads!.earthworks![0]!.profile);
+    expect(earthwork!.profile[0]).toBe(state.roads!.earthworks![0]!.profile[0]);
+    // pojistka v testech (test-setup.ts): zápis do sdílené buňky ani bodu nejde
+    expect(() => {
+      (copy.parts[0]!.cell as { x: number }).x = 9;
+    }).toThrow(TypeError);
+    expect(() => {
+      (earthwork!.profile[0] as { y: number }).y = 9;
+    }).toThrow(TypeError);
   });
 
   it('zbytky jam po zaniklých obydlích (pozemek, řemeslo) zkopíruje jako structuredClone', () => {
