@@ -13,15 +13,30 @@ export function cloneState<T>(value: T): T {
 
 function clonePlain(value: unknown): unknown {
   if (typeof value !== 'object' || value === null) return value;
+  return cloneObject(value);
+}
+
+/**
+ * Kopie objektu nebo pole; primitivní hodnoty uvnitř se přiřadí rovnou (bez volání – stav má
+ * přes sto tisíc čísel a řetězců). `for…in` u prostého objektu (prototyp `Object.prototype`
+ * bez vyčíslitelných vlastností) projde tytéž klíče ve stejném pořadí jako `Object.keys`, jen
+ * bez pole klíčů.
+ */
+function cloneObject(value: object): unknown {
   if (Array.isArray(value)) {
-    const copy: unknown[] = new Array<unknown>(value.length);
-    for (let i = 0; i < value.length; i++) copy[i] = clonePlain(value[i]);
+    const n = value.length;
+    const copy: unknown[] = new Array<unknown>(n);
+    for (let i = 0; i < n; i++) {
+      const v: unknown = value[i];
+      copy[i] = typeof v === 'object' && v !== null ? cloneObject(v) : v;
+    }
     return copy;
   }
   if (Object.getPrototypeOf(value) !== Object.prototype) return structuredClone(value);
   const copy: Record<string, unknown> = {};
-  for (const key of Object.keys(value)) {
-    copy[key] = clonePlain((value as Record<string, unknown>)[key]);
+  for (const key in value) {
+    const v = (value as Record<string, unknown>)[key];
+    copy[key] = typeof v === 'object' && v !== null ? cloneObject(v) : v;
   }
   return copy;
 }
