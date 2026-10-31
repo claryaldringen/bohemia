@@ -43,8 +43,8 @@ function tradeKind(horse: Pick<Horse, 'bornDay' | 'sex'>, day: number): HorseGoo
 /**
  * Koně druhu `good`, které ves smí prodat, v pořadí prodeje – vždy jen bez jezdce: hříbata napřed
  * nejstarší; klisny nad chovné (nejmladší `horsesWanted.mares` zůstanou), napřed nejstarší;
- * jezdečtí koně napřed nejméně vycvičení – a když na žádném samci nikdo nejezdí a ves má klisnu,
- * nejlépe vycvičený zůstane jako chovný hřebec (návrh Clauda, jako chovný pár krav).
+ * jezdečtí koně napřed nejméně vycvičení – a když na žádném samci nikdo nejezdí, nejlépe
+ * vycvičený zůstane jako hřebec (Martin 31. 10. 2026: „Hřebce držet vždy“; i bez klisny).
  */
 function sellableHorses(state: VillageState, good: HorseGood, day: number): Horse[] {
   const all = villageHorses(state);
@@ -56,8 +56,7 @@ function sellableHorses(state: VillageState, good: HorseGood, day: number): Hors
   }
   const sorted = free.sort((a, b) => a.training - b.training || a.id - b.id);
   const ridden = all.some((h) => h.riderId !== undefined && tradeKind(h, day) === 'ridingHorses');
-  const hasMare = all.some((h) => tradeKind(h, day) === 'mares');
-  return !ridden && hasMare ? sorted.slice(0, -1) : sorted;
+  return !ridden ? sorted.slice(0, -1) : sorted;
 }
 
 /** Kolik koní druhu `good` ves v den `day` prodá (`sellableHorses`). */

@@ -131,8 +131,8 @@ směr)` – stálá povaha podle druhu souseda (`neighbourKind` – obilnáři, 
   (`horseValueKg` = 2 400 + 1 200 × výcvik/100): `tradeQuote` sčítá prodávané koně
   (`horsesSaleValues` – napřed nejméně vycvičení) a koně souseda (`offeredHorses`). Ves prodá
   (`horsesForSale`) jen koně bez jezdce: hříbata do 3 let (napřed nejstarší), klisny nad chovné
-  (`horsesWanted.mares` nejmladších zůstane) a jezdecké koně – bez koně s jezdcem a s klisnou
-  zůstane nejlépe vycvičený hřebec. Koupě potřebuje místo v ohradách koní (`horseTradeRoom` – bez
+  (`horsesWanted.mares` nejmladších zůstane) a jezdecké koně – bez koně s jezdcem
+  zůstane nejlépe vycvičený hřebec (i bez klisny). Koupě potřebuje místo v ohradách koní (`horseTradeRoom` – bez
   koní na cestě, `horseRoomBlocked` – „Tolik koní se do ohrady koní nevejde.“). Koupení koně se
   věkem a výcvikem určí při odchodu výpravy (`boughtHorses` → `TradeExpedition.horses?`, chybí =
   žádní): los ze seedu souseda, roku obchodu, druhu a pořadí koně v roce (`neighbour-horse:…`) –

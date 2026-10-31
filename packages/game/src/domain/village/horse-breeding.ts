@@ -35,13 +35,10 @@ function horsesDesired(
   family: Pick<LordFamily, 'trainees'>,
 ): { riders: number; riding: number; mares: number } {
   const riders = familyRiders(family, day).length;
-  // klisna bez hřebce nerodí – i bez jezdců ves drží aspoň jednoho chovného samce
-  const hasMare = horsePens(state)
-    .flatMap((pen) => [...penHorses(pen)])
-    .some((h) => h.sex === 'female' && !isFoalByAge(h, day));
+  // Hřebce držet vždy (Martin 31. 10. 2026) – i bez jezdců a bez klisny aspoň jeden samec
   return {
     riders,
-    riding: Math.max(riders, hasMare ? 1 : 0),
+    riding: Math.max(riders, 1),
     mares: HORSES.maresBase + Math.floor(riders / HORSES.ridersPerMare),
   };
 }
@@ -75,7 +72,7 @@ export function horsesWanted(
 /**
  * Ves chce víc jezdeckých koní a klisen, než se vejde do ohrad koní (horses.md – Chov: „Koně se
  * nevejdou do ohrady“ jako u stád) – jen ves s ohradou koní. Počítá se z téže neořezané poptávky
- * jako `horsesWanted` (klisna bez jezdců = aspoň jeden jezdecký kůň). Hříbata se nepočítají.
+ * jako `horsesWanted` (bez jezdců aspoň jeden hřebec). Hříbata se nepočítají.
  */
 export function horsesOverRoom(
   state: Pick<VillageState, 'pens' | 'people' | 'manorId' | 'dwellings' | 'constructions'>,

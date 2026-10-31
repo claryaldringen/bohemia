@@ -105,8 +105,9 @@ stojí obilí a práci vsi hned, užitek přinese až s lovem a válkou.
 - **Hřebec:** klisny rodí, jen když má ves jezdeckého koně od 3 let – nejstarší je hřebec. Bez něj
   klisny nerodí; hřebce lze koupit.
   Valaši se v simulaci nerozlišují – každý samec od 3 let je zároveň jezdecký kůň i hřebec (návrh
-  Clauda). I bez jezdců drží ves s klisnou aspoň jednoho samce a hříbat se rodí jen tolik, kolik
-  ves chce.
+  Clauda). **Hřebce držet vždy** (Martin 31. 10. 2026): i bez jezdců a bez klisny drží ves aspoň
+  jednoho samce (1. 11. nejde na maso, v obchodě se neprodá poslední volný) a hříbat se rodí jen
+  tolik, kolik ves chce.
 - **Kolik koní ves chce** (jako voli – ves si spočítá sama, strop jsou místa v ohradách koní):
   - **jezdečtí koně = jezdci rodiny** – muži rodiny od 10 let ([vojvodova rodina](lord.md)),
   - **hříbata na jezdce** – kolik hřebečků bude za 3 roky chybět (chlapci, kterým bude 10, a koně,
@@ -145,8 +146,8 @@ Tři řádky v panelu obchodu jako u dobytka ([obchod](trade.md) – Dobytek ve 
 - **Koupené hříbě** má 1–3 roky (odstavené, má vlastní místo) a pohlaví ze seedu, **koupená
   klisna** 4–12 let (návrh Clauda).
 - **Ves prodá** hříbata, klisny nad chovné a jezdecké koně bez jezdce – nikdy koně, na kterém
-  někdo jezdí. Jezdecké koně napřed nejméně vycvičené; když na žádném nikdo nejezdí a ves má
-  klisnu, nejlépe vycvičený zůstane jako chovný hřebec (návrh Clauda – jako chovný pár krav).
+  někdo jezdí. Jezdecké koně napřed nejméně vycvičené; když na žádném nikdo nejezdí, nejlépe
+  vycvičený zůstane jako hřebec – i bez klisny (Martin 31. 10. 2026: „Hřebce držet vždy“).
 - **Místo:** koupený kůň potřebuje volné místo v ohradě koní („Tolik koní se do ohrady koní
   nevejde.“).
 - **Doprava:** po svých s honákem jako dobytek, **honák na 4 koně** (koně se vedou na ohlávce, ne

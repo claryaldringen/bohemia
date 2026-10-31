@@ -6,6 +6,7 @@ import {
   horsesWanted,
   retireHorses,
 } from '../horse-breeding';
+import { horsesForSale } from '../horse-trade';
 import { villageHorses } from '../horses';
 import { HORSES } from '../rules';
 import { advanceVillage } from '../simulate';
@@ -128,6 +129,27 @@ describe('koně na maso 1. 11. (horses.md – Chov)', () => {
     // 3 jezdci – pryč koně 8 a 7 let; 2 klisny – pryč klisna 9 let
     expect(villageHorses(s).map((h) => h.id)).toEqual([1, 2, 3, 11, 12, 21, 22]);
     expect((s.meatKg ?? 0) - meat).toBe(3 * HORSES.meatKg);
+  });
+});
+
+describe('hřebce držet vždy (Martin 31. 10. 2026)', () => {
+  const NOV = at(601, 11, 1);
+  const none = { trainees: [] };
+
+  it('bez jezdců i bez klisny ves chce hřebce a 1. 11. ho nepošle na maso', () => {
+    const s = horseVillage([horse(1, 5, 'male', 20, NOV), horse(2, 8, 'male', 60, NOV)], 2);
+    expect(horsesWanted(s, NOV, none)).toMatchObject({ riding: 1 });
+    retireHorses(s, NOV, none);
+    // zůstane nejlépe vycvičený
+    expect(villageHorses(s).map((h) => h.id)).toEqual([2]);
+    // jediný hřebec zůstane
+    expect(retireHorses(s, NOV, none)).toEqual([]);
+    expect(villageHorses(s).map((h) => h.id)).toEqual([2]);
+  });
+
+  it('jediného volného hřebce ves neprodá ani bez klisny', () => {
+    const s = horseVillage([horse(1, 5, 'male', 0, NOV)], 2);
+    expect(horsesForSale(s, 'ridingHorses', NOV)).toBe(0);
   });
 });
 
