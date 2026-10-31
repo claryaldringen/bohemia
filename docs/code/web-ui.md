@@ -78,15 +78,37 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   klíče `player:<id>` (`dynastyStatus` dopočítává všechny vsi hráče, ne jednu): další volání počká
   na dokončení předchozího (i chybou – nepřilepí se) a načte už dopočítanou ves, takže dopočte jen
   zbytek do svého dne. Mapa je v `globalThis`, po dokončení se klíč uklidí. Klientský
-  `usePolling` už běží po jednom dotazu (další až po dokončení), takže nic nemění. Jen jeden
-  proces serveru; více procesů by dál řešil jen zámek verze.
+  `usePolling` už běží po jednom dotazu (další až po dokončení), takže nic nemění.
+  - **Zámek hráče v DB (i proti workeru):** fronta v procesu je první vrstva; uvnitř ní se bere
+    `PlayerLock.run` (`exclusivePlayer` / `exclusivePlayerShared`, zámek z `getPlayerLock()`
+    v `lib/db.ts`, v `globalThis` jako pool DB – HMR `next dev` nové spojení neotevře). Adaptér
+    `packages/db/src/adapters/player-lock.ts`: `pg_advisory_lock(PLAYER_LOCK_NAMESPACE, otisk)` na
+    úrovni spojení, otisk = 32bitové FNV-1a z UTF-8 id hráče (`playerLockHash`, pevné hodnoty
+    v testu – po spuštění se nesmí změnit). Srážka otisků dvou hráčů je jen zbytečné čekání
+    (≈ n² / 2³³ – 10 000 hráčů ≈ 1,2 %). **Vlastní malý pool jen pro zámky** (`createLockPool`,
+    `createPlayerLocks` v `@bohemia/server` – web `WEB_LOCK_POOL_SIZE` 20, worker
+    `WORKER_LOCK_POOL_SIZE` 2): spojení drží zámek po celou operaci, dotazy operace jdou hlavním
+    poolem. Odemčení ve `finally` i po chybě; když odemčení selže nebo spojení spadne (posluchač
+    `error` na vypůjčeném spojení – jinak by pád spojení shodil proces), spojení se z poolu zahodí
+    a Postgres zámek uvolní sám – stejně při pádu nebo zabití procesu. Operace, které spojení
+    zámku spadlo pod rukama, doběhne bez zámku (`onLost` → `console.warn`); pojistkou zůstává
+    zámek verze v `updateVillage`. `tryRun` (worker) nečeká nikdy – `pg_try_advisory_lock`.
+    Volitelný `waitTimeoutMs` (Postgres `lock_timeout` na spojení zámku → `PlayerLockTimeoutError`,
+    zámek se nevezme) web nepoužívá – čeká jako fronta, varování po `EXCLUSIVE_WARN_MS` zahrne
+    i čekání na zámek v DB. **Bez deadlocku:** pořadí vždy fronta v procesu → zámek v DB, jeden
+    zámek hráče na operaci, nevnořuje se (`…Locked` varianty – `guardedAction` volá
+    `dynastyOfPlayerLocked`), bere se před transakcí, nikdy v ní, a worker jen zkouší. Testy:
+    `player-lock.db.test.ts` (dva pooly = dva procesy: `tryRun` → obsazeno, `run` počká, chyba
+    pustí, `pg_terminate_backend` držitele pustí, různí hráči se neblokují, 20 souběžných nikdy
+    dva naráz, časový limit), `exclusive.test.ts` (zámek v DB až uvnitř fronty, sdílené dotazy
+    ho berou jednou).
   - **Sdílení dotazů:** `dynastyOfPlayer` jde přes `exclusiveShared(klíč, den)` – dotaz se stejným
     dnem, který přijde, dokud je posledním členem fronty právě takový dotaz (čeká nebo běží),
     dostane jeho Promise místo nového místa ve frontě. Fronta tak neroste, když klient dotazuje
     rychleji, než server stíhá, a akce hráče nečeká za zbytečnými dotazy. Jakmile se za dotaz
     zařadí akce, další dotaz už se řadí za ni.
   - **Den akce až ve frontě:** `guardedAction` v `lib/village.ts` načte den, ves a stav konce hry
-    až uvnitř zámku (dopočet jde přes `dynastyOfPlayerLocked` (= use-case `advanceDynasty`), `exclusive` se nevnořuje). Akce
+    až uvnitř zámku (dopočet jde přes `dynastyOfPlayerLocked` (= use-case `advanceDynasty`), `exclusivePlayer` se nevnořuje). Akce
     zařazená za skok v čase nebo jinou akci tak dostane aktuální den, ne ten z doby zařazení.
   - **Proč bez timeoutu:** timeout, který by frontu uvolnil, by vrátil souběžné dopočty (skok
     o desetiletí trvá minuty). Po `EXCLUSIVE_WARN_MS` (120 s) čekání nebo běhu se jen zapíše

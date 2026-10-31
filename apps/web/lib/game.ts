@@ -35,8 +35,8 @@ import {
   type TimeSkip,
 } from '@bohemia/game';
 import { ownMapsAround } from './departure-view';
-import { getDatabase } from './db';
-import { exclusive, exclusiveShared, playerLockKey } from './exclusive';
+import { getDatabase, getPlayerLock } from './db';
+import { exclusivePlayer, exclusivePlayerShared } from './exclusive';
 import { formatWorldState } from './game-date';
 
 const landscapes = cachedLandscapes(LANDSCAPE_CACHE_SIZE);
@@ -141,7 +141,11 @@ export async function playerToday(playerId: string): Promise<PlayerToday> {
 
 function dynastyDeps(): GameDeps {
   // dlouhý dopočet vsí (přeskok času, restart po dlouhé době) neblokuje ostatní požadavky
-  return createGameDeps(getDatabase(), { landscapes, pause: computePause() });
+  return createGameDeps(getDatabase(), {
+    landscapes,
+    pause: computePause(),
+    locks: getPlayerLock(),
+  });
 }
 
 /**
@@ -149,14 +153,15 @@ function dynastyDeps(): GameDeps {
  * konec hry.
  */
 export function dynastyOfPlayer(playerId: string, today: number): Promise<DynastyStatus> {
-  // dotazy se stejným dnem sdílejí jeden dopočet (exclusive.ts)
-  return exclusiveShared(playerLockKey(playerId), String(today), () =>
+  // dotazy se stejným dnem sdílejí jeden dopočet; uvnitř fronty zámek hráče v DB (exclusive.ts)
+  return exclusivePlayerShared(getPlayerLock(), playerId, String(today), () =>
     dynastyOfPlayerLocked(playerId, today),
   );
 }
 
 /**
- * Totéž bez zámku – jen pro volající, kteří už zámek hráče drží (`exclusive` se nevnořuje). Vsi
+ * Totéž bez zámku – jen pro volající, kteří už zámek hráče drží (frontu v procesu i zámek v DB –
+ * `exclusivePlayer` se nevnořuje). Vsi
  * hráče dopočítané do dneška; za dopočtem se vybaví odchozí schránky správce (steward.md – Kde
  * správce běží) – nové vsi synů vzniknou a dopočítají se v dalším kole.
  */
@@ -196,7 +201,7 @@ export async function restartGameForPlayer(
   options: { abandon: boolean } = { abandon: false },
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   // den se načte až uvnitř zámku – akce za skokem v čase dostane den po skoku
-  const result = await exclusive(playerLockKey(playerId), async () => {
+  const result = await exclusivePlayer(getPlayerLock(), playerId, async () => {
     const today = await playerToday(playerId);
     if (!today.ok) return today;
     const restarted = await restartGame(dynastyDeps(), {
@@ -221,7 +226,7 @@ export async function skipTimeForPlayer(
   const clock = currentWorld();
   const world = worldDayOf(Date.now(), clock);
   if (!world.ok) return { ok: false, error: `${formatWorldState(world.state, clock)}.` };
-  const result = await exclusive(playerLockKey(playerId), () =>
+  const result = await exclusivePlayer(getPlayerLock(), playerId, () =>
     skipTime(
       { ...dynastyDeps(), offsets: timeOffsets() },
       { playerId, devMode, worldDay: world.day, skip },

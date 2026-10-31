@@ -51,8 +51,8 @@ import {
   type VillageResult,
   type PenSpecies,
 } from '@bohemia/game';
-import { getDatabase } from './db';
-import { exclusive, playerLockKey } from './exclusive';
+import { getDatabase, getPlayerLock } from './db';
+import { exclusivePlayer } from './exclusive';
 import { cachedVillages, withVillageCache } from '@bohemia/server';
 import {
   currentViewStampOfPlayer,
@@ -119,7 +119,8 @@ async function context(playerId: string, villageId: string): Promise<Context> {
 }
 
 /**
- * Akce, která mění stav, pod zámkem hráče (exclusive.ts). Den a kontext se načtou AŽ uvnitř
+ * Akce, která mění stav, pod zámkem hráče (exclusive.ts – fronta v procesu, uvnitř zámek v DB,
+ * platí i proti workeru). Den a kontext se načtou AŽ uvnitř
  * zámku – akce zařazená za skok v čase nebo za jinou akci tak dostane aktuální den, ne ten
  * z doby zařazení. Po konci hry (vymřely všechny vsi, nebo rod po meči) server akci nepřijme
  * a vrátí pohled s `gameOver` – klient ukáže obrazovku konce. Konec rodu se zjistí dopočtem
@@ -133,8 +134,9 @@ async function guardedAction<T>(
   | { ok: true; ctx: Extract<Context, { ok: true }>; value: T }
   | { ok: false; result: VillageActionResult }
 > {
-  const inside = await exclusive(
-    playerLockKey(playerId),
+  const inside = await exclusivePlayer(
+    getPlayerLock(),
+    playerId,
     async (): Promise<
       | { kind: 'done'; ctx: Extract<Context, { ok: true }>; value: T }
       | { kind: 'error'; error: string }
@@ -142,7 +144,7 @@ async function guardedAction<T>(
     > => {
       const ctx = await context(playerId, villageId);
       if (!ctx.ok) return { kind: 'error', error: ctx.error };
-      // zámek už držíme – dopočet bez vnořeného exclusive
+      // zámek už držíme (fronta i DB) – dopočet bez vnořeného zámku
       const status = await dynastyOfPlayerLocked(playerId, ctx.day);
       if (status.gameOver) return { kind: 'over', ctx };
       return { kind: 'done', ctx, value: await run(ctx) };
@@ -331,7 +333,7 @@ export async function foundVillageForPlayer(
   input: { name: string; dwelling: Position; fieldCells?: TileCell[]; lordName?: string },
 ): Promise<VillageActionResult> {
   // den se načte až uvnitř zámku – akce za skokem v čase dostane den po skoku
-  const inside = await exclusive(playerLockKey(playerId), async () => {
+  const inside = await exclusivePlayer(getPlayerLock(), playerId, async () => {
     const today = await playerToday(playerId);
     if (!today.ok) return { kind: 'failed' as const, error: today.error };
     const { settlement, landscape } = await enterGameForPlayer(playerId);
