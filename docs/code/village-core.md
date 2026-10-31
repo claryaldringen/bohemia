@@ -183,6 +183,11 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   chůze (`walkingDistances` 2,1 s, trasy k práci dne 1,6 s, převážení 1,3 s, denní klíč mapy
   `routeMapKey` 0,9 s, stálé trasy 0,8 s), sezóna (`seasonDay` 3,5 s), měsíc cest (`roadsMonth`
   3,0 s) a kopie stavu při každém dni dopočtu (`cloneState` 1,5 s).
+  Sezóna a měsíc cest (Martin 31. 10. 2026 – „úspory jsme se snad shodli, že uděláme“; rok
+  Vlkova po dnech, střídavě před / po, profil): **S1** paměť hospodářství podle obsahu dílů
+  (`villageHoldings` – přežije `cloneState`; bit po bitu týž) `villageHoldings` 0,93 → 0,09 s;
+  **S2** výběr dílů jen s místem na čele (village-fields.md, `FarmSeason.selection`) `seasonDay`
+  3,8 → 1,7 s (bez místa na čele 82 ze 151 dní výběru; úroda, hlad, orba i zásoby beze změny).
   Souběžné požadavky téhož hráče dopočet nezdvojují: web je řadí do fronty (`apps/web/lib/exclusive.ts`,
   web-ui.md – Jeden dopočet vsí naráz), druhý jen dopočte zbytek do svého dne.
 

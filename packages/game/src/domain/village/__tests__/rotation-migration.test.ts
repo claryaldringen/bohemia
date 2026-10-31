@@ -70,6 +70,7 @@ function legacyPlan(season: FarmSeason | null): unknown {
   const { startDay, crops, ...rest } = season;
   delete rest.seedWaitingKg;
   delete rest.seedFloorKg;
+  delete rest.selection;
   const work = (crop: string): OldWork | undefined => {
     const found = crops.find((c) => c.crop === crop);
     if (!found) return undefined;
@@ -106,8 +107,8 @@ function legacyState(s: VillageState): VillageState {
 const convert = (s: VillageState): VillageState => withSowingRotation(withSeason(s));
 
 /**
- * Osivo plánu z vsi `from` zpět do převedené vsi – roční plán ho neznal (je novější), tady se
- * měří jen převod na osevní postup.
+ * Osivo plánu a výběr dílů (`selection`) z vsi `from` zpět do převedené vsi – roční plán je
+ * neznal (jsou novější), tady se měří jen převod na osevní postup.
  */
 function withSeedPlan(s: VillageState, from: VillageState): VillageState {
   const copy = (season: FarmSeason | null, source: FarmSeason | null): FarmSeason | null =>
@@ -115,6 +116,7 @@ function withSeedPlan(s: VillageState, from: VillageState): VillageState {
       ...season,
       ...(source?.seedWaitingKg ? { seedWaitingKg: source.seedWaitingKg } : {}),
       ...(source?.seedFloorKg !== undefined ? { seedFloorKg: source.seedFloorKg } : {}),
+      ...(source?.selection ? { selection: source.selection } : {}),
     };
   return {
     ...s,

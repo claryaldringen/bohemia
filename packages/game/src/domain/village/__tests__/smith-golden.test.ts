@@ -142,6 +142,8 @@ describe('ves bez kováře a hrnčíře beze změny (crafts.md – Uhlí a ruda 
       'seedKg',
       'seedWaitingKg',
       'seedFloorKg',
+      // výběr dílů z posledního dne s místem na čele (fields.md – Postup práce po dílech, výkon)
+      'selection',
     ]);
     const stripped = JSON.stringify(legacyShape(next), (key, value: unknown) =>
       learning.has(key) ? undefined : value,

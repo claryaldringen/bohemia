@@ -365,6 +365,17 @@ export interface FarmSeason {
    * díl (`seasonDay` – roční potřeba × osivo na kg čisté úrody dílů plánu). Chybí = 0.
    */
   seedFloorKg?: number;
+  /**
+   * Výběr dílů z posledního dne, kdy bylo na čele práce místo (fields.md – Postup práce po dílech,
+   * výkon): čekající díly a roční potřeba z pole. Ve dny bez místa na čele ves nový výběr nedělá
+   * a počítá s tímto; platí jen ve stejném měsíci a se stejnými plodinami, které smí začít
+   * (`window`). Mimo dny, kdy smí začít díl, chybí; chybí-li, ves vybírá znovu (starší ves taky).
+   */
+  selection?: {
+    window: string;
+    waiting: { id: number; crop: Crop }[];
+    floorKg: number | null;
+  };
 }
 /** Osivo po zásobách (kg): obilí (ozim, jař, obilí nad potřebu) a luštěniny. */
 export interface SeedKg {
