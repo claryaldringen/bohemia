@@ -37,7 +37,7 @@ describe('cloneState', () => {
     expect(copy.when.getTime()).toBe(0);
   });
 
-  it('pevné cesty, stromy u nich a roční součty práce (roads.md) kopíruje celé', () => {
+  it('pevné cesty, stromy u nich a roční součty práce (roads.md) kopíruje celé, body cest sdílí', () => {
     const roads: VillageRoads = {
       nextId: 9,
       roads: [
@@ -77,8 +77,13 @@ describe('cloneState', () => {
     const before = structuredClone(state);
     const copy = cloneState(state);
     expect(copy).toEqual(before);
-    // nic se nesdílí – další kousek dopočtu nesmí měnit uložený stav
-    copy.roads!.roads[0]!.points[0]!.x = 99;
+    // body cest kopie sdílí (záznamy se nemění na místě), seznam bodů je nový
+    expect(copy.roads!.roads[0]!.points[0]).toBe(state.roads!.roads[0]!.points[0]);
+    expect(() => {
+      copy.roads!.roads[0]!.points[0]!.x = 99;
+    }).toThrow(TypeError);
+    // jinak se nic nesdílí – další kousek dopočtu nesmí měnit uložený stav
+    copy.roads!.roads[0]!.points[0] = { x: 99, z: 0 };
     copy.roads!.roads[0]!.traffic.push(1);
     copy.roads!.roads[0]!.spots.pop();
     copy.roads!.trees[0]!.diesDay = 1;
@@ -91,6 +96,27 @@ describe('cloneState', () => {
 });
 
 describe('cloneState – stav vsi se zbytkem jámy', () => {
+  it('záznamy překážek, pokácených stromů a kroniky sdílí – seznamy jsou nové, záznamy zmražené', () => {
+    const state = {
+      lastDay: 10,
+      clearedObstacles: [{ id: 1, day: 3 }],
+      felledTrees: [{ id: 2, day: 4 }],
+      chronicle: [{ day: 5, kind: 'village-founded' }],
+    } as Pick<VillageState, 'lastDay' | 'clearedObstacles' | 'felledTrees' | 'chronicle'>;
+    const copy = cloneState(state);
+    expect(copy).toEqual(state);
+    expect(copy.felledTrees).not.toBe(state.felledTrees);
+    expect(copy.felledTrees![0]).toBe(state.felledTrees![0]);
+    expect(copy.clearedObstacles![0]).toBe(state.clearedObstacles![0]);
+    expect(copy.chronicle[0]).toBe(state.chronicle[0]);
+    // pojistka v testech (test-setup.ts): zápis do sdíleného záznamu spadne
+    expect(() => {
+      copy.felledTrees![0]!.planted = 9;
+    }).toThrow(TypeError);
+    copy.felledTrees!.push({ id: 3, day: 9 });
+    expect(state.felledTrees).toHaveLength(1);
+  });
+
   it('zbytky jam po zaniklých obydlích (pozemek, řemeslo) zkopíruje jako structuredClone', () => {
     const day = dayIndexOf({ year: 600, month: 10, day: 1 });
     const s = withBuiltFirstDwelling(

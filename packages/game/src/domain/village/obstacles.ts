@@ -110,19 +110,23 @@ export function saplingGrowth(felled: ObstacleChange, day: number): number | nul
 
 /**
  * Zasadí mladý strom na pařez stromu `id` v den `day` (mutuje stav – volat na klonu): poslední
- * záznam pokácení stromu dostane den výsadby. Vrátí false, když tam pařez není (strom nestojí
+ * záznam pokácení stromu nahradí nový se dnem výsadby. Vrátí false, když tam pařez není (strom nestojí
  * pokácený, už je zasazený, dorostl, nebo ho stavba odstranila).
  */
 export function plantOnStump(state: VillageState, id: number, day: number): boolean {
   if ((state.clearedObstacles ?? []).some((c) => c.id === id)) return false;
   // na pařez v průseku lesem se nesází (roads.md – Průsek lesem)
   if (state.roads?.swath?.includes(id)) return false;
-  let last: ObstacleChange | undefined;
-  for (const f of state.felledTrees ?? []) {
-    if (f.id === id && (!last || f.day >= last.day)) last = f;
+  const felled = state.felledTrees ?? [];
+  let at = -1;
+  for (let k = 0; k < felled.length; k++) {
+    const f = felled[k]!;
+    if (f.id === id && (at < 0 || f.day >= felled[at]!.day)) at = k;
   }
+  const last = at >= 0 ? felled[at] : undefined;
   if (!last || last.planted !== undefined || felledTreeStage(last, day) !== 'stump') return false;
-  last.planted = day;
+  // nový záznam místo zápisu do starého – záznamy pokácení sdílí kopie stavu (clone.ts)
+  felled[at] = { ...last, planted: day };
   return true;
 }
 

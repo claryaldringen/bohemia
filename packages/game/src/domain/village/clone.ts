@@ -1,19 +1,95 @@
 /**
- * Hluboká kopie stavu vsi. Stav je čistá data jako v JSON (ukládá se do databáze jako JSON):
- * objekty, pole a primitivní hodnoty – ty se kopírují ručně, což je pro stav s tisíci dílů polí
- * několikrát rychlejší než `structuredClone` (kopie stavu na začátku `advanceVillage` byla třetina
- * času kalibrace). Cokoli jiného (Map, Set, Date, typované pole, instance třídy) zkopíruje
- * `structuredClone`, takže výsledek je stejný. Jediný rozdíl: sdílené odkazy uvnitř stavu se
- * rozdělí na samostatné kopie – stejně jako při uložení do JSON a načtení, na kterém simulace
- * nezávisí.
+ * Kopie stavu vsi. Stav je čistá data jako v JSON (ukládá se do databáze jako JSON): objekty, pole
+ * a primitivní hodnoty – ty se kopírují ručně, což je pro stav s tisíci dílů polí několikrát
+ * rychlejší než `structuredClone` (kopie stavu na začátku `advanceVillage` byla třetina času
+ * kalibrace). Cokoli jiného (Map, Set, Date, typované pole, instance třídy) zkopíruje
+ * `structuredClone`, takže výsledek je stejný. Sdílené odkazy uvnitř stavu se rozdělí na
+ * samostatné kopie – stejně jako při uložení do JSON a načtení, na kterém simulace nezávisí.
+ *
+ * **Pravidlo: záznamy v seznamech `SHARED_RECORD_LISTS` a body pevných cest
+ * (`roads.roads[].points`) se nemění na místě** – seznamy se jen doplňují, filtrují nebo se v nich
+ * záznam nahradí novým objektem. Proto se u objektu na nejvyšší úrovni (stav vsi) kopírují jen
+ * tyto seznamy a jejich záznamy kopie sdílí s původním stavem (u Vlkova 14 z 34 tisíc objektů).
+ * Kdo by záznam změnil na místě, změnil by i vstupní stav; v testech to hlídá
+ * `freezeSharedRecords` – sdílené záznamy se zmrazí a zápis do nich spadne.
  */
 export function cloneState<T>(value: T): T {
-  return clonePlain(value) as T;
+  if (typeof value !== 'object' || value === null) return value;
+  if (Array.isArray(value) || Object.getPrototypeOf(value) !== Object.prototype) {
+    return cloneObject(value) as T;
+  }
+  const copy: Record<string, unknown> = {};
+  for (const key in value) {
+    const v = (value as Record<string, unknown>)[key];
+    if (typeof v !== 'object' || v === null) copy[key] = v;
+    else if (Array.isArray(v) && SHARED_RECORD_LISTS.has(key)) copy[key] = sharedList(v);
+    else if (key === 'roads') copy[key] = cloneRoads(v);
+    else copy[key] = cloneObject(v);
+  }
+  return copy as T;
 }
 
-function clonePlain(value: unknown): unknown {
-  if (typeof value !== 'object' || value === null) return value;
-  return cloneObject(value);
+/**
+ * Seznamy stavu vsi, jejichž záznamy se nikdy nemění na místě (viz `cloneState`): překážky
+ * odstraněné natrvalo, pokácené stromy (sazenici na pařez zapíše nový záznam – `plantOnStump`)
+ * a kronika.
+ */
+const SHARED_RECORD_LISTS: ReadonlySet<string> = new Set([
+  'clearedObstacles',
+  'felledTrees',
+  'chronicle',
+]);
+
+let freezeShared = false;
+
+/**
+ * Pojistka pravidla sdílených záznamů (testy a měření): od zapnutí kopie stavu sdílené záznamy
+ * zmrazí (`Object.freeze`), takže kdo je mění na místě, spadne s TypeError. Simulace sama ji
+ * nezapíná – zmrazení stojí čas.
+ */
+export function freezeSharedRecords(on: boolean): void {
+  freezeShared = on;
+}
+
+function sharedList(list: readonly unknown[]): unknown[] {
+  if (freezeShared) for (const record of list) deepFreeze(record);
+  return list.slice();
+}
+
+/** Pevné cesty: vše se kopíruje, jen body cest se sdílí (seznam bodů je nový). */
+function cloneRoads(roads: object): unknown {
+  if (Array.isArray(roads) || Object.getPrototypeOf(roads) !== Object.prototype) {
+    return cloneObject(roads);
+  }
+  const copy: Record<string, unknown> = {};
+  for (const key in roads) {
+    const v = (roads as Record<string, unknown>)[key];
+    if (typeof v !== 'object' || v === null) copy[key] = v;
+    else if (key === 'roads' && Array.isArray(v)) copy[key] = v.map(cloneRoad);
+    else copy[key] = cloneObject(v);
+  }
+  return copy;
+}
+
+function cloneRoad(road: unknown): unknown {
+  if (typeof road !== 'object' || road === null) return road;
+  if (Array.isArray(road) || Object.getPrototypeOf(road) !== Object.prototype) {
+    return cloneObject(road);
+  }
+  const copy: Record<string, unknown> = {};
+  for (const key in road) {
+    const v = (road as Record<string, unknown>)[key];
+    if (typeof v !== 'object' || v === null) copy[key] = v;
+    else if (key === 'points' && Array.isArray(v)) copy[key] = sharedList(v);
+    else copy[key] = cloneObject(v);
+  }
+  return copy;
+}
+
+function deepFreeze(value: unknown): void {
+  if (typeof value !== 'object' || value === null || Object.isFrozen(value)) return;
+  Object.freeze(value);
+  for (const v of Object.values(value)) deepFreeze(v);
 }
 
 /**

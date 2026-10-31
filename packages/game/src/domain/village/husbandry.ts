@@ -475,15 +475,27 @@ export function mergeHaySlaughter(
     events.push(short);
     return;
   }
-  const earlier = [...events, ...state.chronicle]
-    .reverse()
-    .find((e) => e.kind === 'hay-slaughter' && short.day - e.day <= 150);
+  // poslední zápis kroniky, jinak poslední zápis dne (dřív `[...events, ...chronicle].reverse()`)
+  const lastEarlier = (list: readonly ChronicleEvent[]): number => {
+    let k = list.length - 1;
+    while (k >= 0 && !(list[k]!.kind === 'hay-slaughter' && short.day - list[k]!.day <= 150)) k--;
+    return k;
+  };
+  let list = state.chronicle;
+  let at = lastEarlier(list);
+  if (at < 0) {
+    list = events;
+    at = lastEarlier(list);
+  }
+  const earlier = at >= 0 ? list[at] : undefined;
   if (earlier?.kind !== 'hay-slaughter') {
     events.push(short);
     return;
   }
-  earlier.kg += short.kg;
+  // nový zápis místo zápisu do starého – záznamy kroniky sdílí kopie stavu (clone.ts)
+  const animals = { ...earlier.animals };
   for (const [species, n] of Object.entries(short.animals) as [HerdSpecies, number][]) {
-    earlier.animals[species] = Math.round(((earlier.animals[species] ?? 0) + n) * 100) / 100;
+    animals[species] = Math.round(((animals[species] ?? 0) + n) * 100) / 100;
   }
+  list[at] = { ...earlier, kg: earlier.kg + short.kg, animals };
 }
