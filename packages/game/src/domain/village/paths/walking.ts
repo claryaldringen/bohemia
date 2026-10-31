@@ -832,10 +832,44 @@ export function walkingDistances(
       }
     }
   }
+  // dolní mez řetězu: nejmenší vzdálenost po síti do jeho bodu + vzdušnou čarou k obdélníku jeho
+  // bodů – řetěz, u kterého ani ta nevyjde pod dosavadní nejlepší, by níž neprošel (nejbližší bod
+  // je v obdélníku a jeho vzdálenost po síti aspoň nejmenší; zaokrouhlení je monotónní), takže
+  // se jeho nejbližší bod nehledá (jen zrychlení – tytéž výsledky)
+  const chains = graph.chains;
+  const bounds = new Float64Array(chains.length * 5);
+  chains.forEach((chain, ci) => {
+    let min = Infinity;
+    let x0 = Infinity;
+    let x1 = -Infinity;
+    let z0 = Infinity;
+    let z1 = -Infinity;
+    for (const id of chain) {
+      if (dist[id]! < min) min = dist[id]!;
+      const x = graph.x[id]!;
+      const z = graph.z[id]!;
+      if (x < x0) x0 = x;
+      if (x > x1) x1 = x;
+      if (z < z0) z0 = z;
+      if (z > z1) z1 = z;
+    }
+    bounds.set([min, x0, x1, z0, z1], ci * 5);
+  });
   // z nejbližšího bodu každé pěšiny a cesty k cíli, nebo rovně z obydlí – kratší z obou
   return targets.map((t, q) => {
     let best = direct[q]!;
-    for (const chain of graph.chains) {
+    for (let ci = 0; ci < chains.length; ci++) {
+      const b = ci * 5;
+      const min = bounds[b]!;
+      if (min === Infinity) continue;
+      const x0 = bounds[b + 1]!;
+      const x1 = bounds[b + 2]!;
+      const z0 = bounds[b + 3]!;
+      const z1 = bounds[b + 4]!;
+      const ex = t.x < x0 ? x0 - t.x : t.x > x1 ? t.x - x1 : 0;
+      const ez = t.z < z0 ? z0 - t.z : t.z > z1 ? t.z - z1 : 0;
+      if (min + length2(ex, ez) >= best) continue;
+      const chain = chains[ci]!;
       const id = nearestNode(graph, chain, t);
       if (id < 0 || !Number.isFinite(dist[id]!)) continue;
       if (dist[id]! + length2(t.x - graph.x[id]!, t.z - graph.z[id]!) >= best) continue;
