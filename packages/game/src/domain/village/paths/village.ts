@@ -859,15 +859,19 @@ export function walkDistancesTo(
   targets: readonly PathPoint[],
 ): number[] | null {
   const village = pathVillageOf(state, day, landscape);
-  const network = villagePathNetwork(state, day, landscape, obstacles, village);
-  if (!network) return null;
+  // pěšiny jsou uložené trasy (`villageRouteLines`) – síť pěšin se kvůli nim nepočítá: byla by
+  // null právě bez místa vsi a její krok mřížky je krok terénu pěšin krajiny (týž jako u půdy chůze)
+  if (!villagePathBounds(village, landscape)) return null;
   const ground = withFieldWalk(walkGroundOf(landscape), village.fields);
-  const lines = villageRouteLines(state, network.traffic.cellM);
+  const lines = villageRouteLines(state, ground.terrain.cellM);
   const graph = walkGraph(lines, { roads: state.roads?.roads ?? [], ground });
-  return walkingDistances(graph, dwellingOrigins(state), targets, ground).map(
+  // délky rovně z paměti krajiny – tytéž (Trasy v paměti)
+  const memo = walkMemoOf(landscape);
+  return walkingDistances(graph, dwellingOrigins(state), targets, ground, memo).map(
     (walk) => Math.floor(walk * WALK_ROUNDING) / WALK_ROUNDING,
   );
 }
+
 /**
  * Verze tras a měření chůze v otisku – po změně toho, jak se trasy hledají (stálé trasy a práce
  * dne nad nimi – paths.md, Stálé trasy), po přidání nové vzdálenosti (voda – `waterWalkM`) nebo
