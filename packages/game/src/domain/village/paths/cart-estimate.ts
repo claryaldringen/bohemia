@@ -7,6 +7,7 @@ import { cartPartSpeed, cartRoadSpeed, type CartTarget } from './cart';
 import { PathHeap, type PathPoint } from './network';
 import { fieldCellsOf } from './network-grid';
 import { teamPens } from './roads-carts';
+import { SegmentMemo } from './segment-memo';
 import { PATH_FORD, PATH_FOREST, PATH_WATER, PATH_WETLAND, type PathTerrain } from './terrain';
 import { fordDetour, walkGroundOf, type WalkGround } from './walking';
 import { roadTreeSpeed } from './walk-speed';
@@ -186,12 +187,30 @@ function straightCartCost(g: CartGround, a: PathPoint, b: PathPoint): number {
 
 /** Cena vozu rovně z `a` do `b`; přes potok mimo brod objížďkou přes nejbližší brod. */
 function cartSegment(g: CartGround, ground: WalkGround, a: PathPoint, b: PathPoint): number {
+  let memo = segmentMemo.get(g);
+  if (!memo) {
+    memo = new SegmentMemo();
+    segmentMemo.set(g, memo);
+  }
+  const known = memo.get(a.x, a.z, b.x, b.z);
+  if (known !== undefined) return known;
   const value = straightCartCost(g, a, b);
-  if (!crossedDeep) return value;
-  const ford = fordDetour(ground, a, b);
-  if (!ford) return Infinity;
-  return straightCartCost(g, a, ford) + straightCartCost(g, ford, b);
+  let cost = value;
+  if (crossedDeep) {
+    const ford = fordDetour(ground, a, b);
+    cost = ford ? straightCartCost(g, a, ford) + straightCartCost(g, ford, b) : Infinity;
+  }
+  memo.set(a.x, a.z, b.x, b.z, cost);
+  return cost;
 }
+
+/**
+ * Ceny úseček vozu (`cartSegment`) podle půdy vozu – půda se po vzniku nemění (`cartGroundOf` ji
+ * drží, dokud se nezmění pole), cena úsečky je funkce půdy a krajních bodů: odhady vozu práce dne
+ * počítají tytéž úsečky den co den. Jen zrychlení – tatáž cena (docs/code/village-core.md – Výkon
+ * dopočtu).
+ */
+const segmentMemo = new WeakMap<CartGround, SegmentMemo>();
 
 /** Síť pevných cest pro vůz – body os, spoje s cenou a délkou (rozcestí sdílí bod). */
 interface CartRoadGraph {
