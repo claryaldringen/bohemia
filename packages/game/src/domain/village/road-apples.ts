@@ -27,6 +27,9 @@ const LAYER_CLEAR_M = 2.5;
 /** Jabloň nestojí blíž ose žádné pevné cesty (m). */
 const ROAD_CLEAR_M = 2.2;
 
+/** Úsek neexistuje (mezitím zarostl). */
+export const NO_ROAD = 'Cesta neexistuje.';
+
 /** Jabloně vsi (bez jabloní prázdné). */
 export function villageRoadApples(state: Pick<VillageState, 'roads'>): RoadApple[] {
   return state.roads?.apples ?? [];
@@ -214,7 +217,7 @@ export function startRoadApples(
   obstacles: ObstacleLayer | null,
 ): VillageState {
   const option = roadApplesOption(state, roadId, day, landscape, obstacles);
-  if (!option) throw new RangeError('Cesta neexistuje.');
+  if (!option) throw new RangeError(NO_ROAD);
   if (option.blocked) throw new RangeError(option.blocked);
   const spots = chainAppleSpots(state, roadId, day, landscape, obstacles);
   const chain = roadChain(state.roads?.roads ?? [], roadId).map((link) => link.road.id);

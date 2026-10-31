@@ -30,8 +30,13 @@ import { forestEdgeDistanceM, waterDistanceM } from './placement-squares';
 import type { DwellingPlacementCheck } from './placement-types';
 import { placementVillageOf, villageDwellingPositions } from './placement-village';
 import { relocationAffordability, relocationBlock, type RelocationBlock } from './relocation';
-import { roadApplesOption, startRoadApples } from './road-apples';
-import { roadUpgradeOptions, startRoadUpgrade, type RoadUpgrade } from './road-upgrades';
+import { NO_ROAD, roadApplesOption, startRoadApples } from './road-apples';
+import {
+  NO_UPGRADE,
+  roadUpgradeOptions,
+  startRoadUpgrade,
+  type RoadUpgrade,
+} from './road-upgrades';
 import { CRAFTS, PLOT_TYPES } from './rules';
 import { hasShrine } from './sacred';
 import { DIRECTIONS, planTrail, startTrail } from './trail';
@@ -72,10 +77,8 @@ export const NO_OAKS = 'Na stavbu chybí dospělé duby ke kácení.';
 export const SHRINE_EXISTS = 'Ves už svatyni má – svatyně je jedna na ves.';
 /** Neznámý směr stezky. */
 export const UNKNOWN_DIRECTION = 'Neznámý směr stezky.';
-/** Úsek takové vylepšení nenabízí (už je, nebo nevede mokřinou ani přes brod). */
-export const NO_UPGRADE = 'Tohle vylepšení úsek nemá.';
-/** Úsek neexistuje (mezitím zarostl). */
-export const NO_ROAD = 'Cesta neexistuje.';
+// Důvody cest žijí vedle akcí, které je vyhazují (jeden text pro hráče i správce).
+export { NO_ROAD, NO_UPGRADE };
 /** Proč se domácnost teď přestěhovat nemůže – česky pro hráče. */
 export const RELOCATION_BLOCKED: Record<RelocationBlock, string> = {
   'no-household': 'V tomhle obydlí nikdo nebydlí.',
@@ -213,8 +216,10 @@ export type BuildIntent =
 export type BuildResult = { ok: true; state: VillageState } | { ok: false; reason: string };
 
 /**
- * Zahájí stavbu podle záměru `intent` ve dni `day` (den, do kterého je ves dopočítaná) – jen
- * když ves má suroviny předem a místo projde kontrolou umístění. Vstupní stav nemění.
+ * Zahájí stavbu podle záměru `intent` ve dni `day` (den, do kterého je ves dopočítaná,
+ * tedy `state.lastDay` – doména to nevynucuje, volající včetně správce to musí dodržet, jinak se
+ * kontroly umístění a akce rozejdou) – jen když ves má suroviny předem a místo projde kontrolou
+ * umístění. Vstupní stav nemění.
  */
 export function applyBuildIntent(
   state: VillageState,
@@ -684,6 +689,8 @@ function buildTrail(
   obstacles: ObstacleLayer,
   intent: TrailIntent,
 ): BuildResult {
+  // záměrná dvojí kontrola: use-case hráče odmítá neznámý směr dřív, než načte ves; doména musí
+  // být bezpečná i pro správce, který use-case nevolá
   if (!DIRECTIONS.includes(intent.direction)) return { ok: false, reason: UNKNOWN_DIRECTION };
   const walk = villageRoadWalk(state, landscape);
   const plan = planTrail(state, intent.direction, day, landscape, obstacles, walk);

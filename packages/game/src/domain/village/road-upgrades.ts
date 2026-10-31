@@ -51,6 +51,9 @@ export interface RoadUpgradeParts {
   footbridge: { manDays: number; trees: number };
 }
 
+/** Úsek takové vylepšení nenabízí (už je, nebo nevede mokřinou ani přes brod). */
+export const NO_UPGRADE = 'Tohle vylepšení úsek nemá.';
+
 /** Úpravu cesty lesem nedovolí posvátný dub nebo strom háje v pásu cesty (happiness.md). */
 export const ROAD_SACRED = 'Úpravě cesty brání posvátný dub – kácet se nesmí.';
 
@@ -321,7 +324,7 @@ export function startRoadUpgrade(
   const option = roadUpgradeOptions(state, roadId, day, obstacles, walk, landscape).find(
     (o) => o.upgrade === upgrade,
   );
-  if (!option) throw new RangeError('Tohle vylepšení úsek nemá.');
+  if (!option) throw new RangeError(NO_UPGRADE);
   if (option.blocked) throw new RangeError(option.blocked);
   const next = structuredClone(state);
   const targets = chainTargets(next, roadId);
