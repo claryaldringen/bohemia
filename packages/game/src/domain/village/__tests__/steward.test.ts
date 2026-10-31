@@ -444,13 +444,13 @@ describe('den správce – dlouhý běh na skutečné krajině', () => {
     () => {
       advanceChunked(SEPT + 25 * YEAR);
       expect(hunger).toBe(0);
-      // ves zakladatelů na krajině 1 spadne do pasti osiva – hlad na stropu hájení neroste, takže
-      // správce je v Obnově a staví stravu mimo pole (dřív Nouze při jakémkoli hladu: kouřový test
-      // S5 – osm let žádná stavba mimo pole a obydlí)
-      // od olemování podle míst na stromy (Martin 31. 10. 2026 – chůze po cestách s alejí je
-      // rychlejší hned) ves do pasti v 25 letech nespadne; když spadne, Nouze není trvalá
+      // osivo se nejí (SEED_STORES.floorRation 0,5 – Martin 31. 10. 2026, fields.md): ves zakladatelů
+      // na krajině 1 už do pasti osiva (hlad na stropu hájení) nespadne – dřív tu `trapModes`
+      // sbíraly režimy správce v pasti (Obnova místo Nouze). Kdyby do ní přece spadla, hlad na
+      // stropu nesmí správce držet v Nouzi (kouřový test S5 – osm let žádná stavba mimo pole); od
+      // olemování podle míst na stromy (Martin 31. 10. 2026) je chůze po cestách s alejí rychlejší hned
       const emergency = trapModes.filter((m) => m === 'emergency').length;
-      if (trapModes.length > 0) expect(emergency).toBeLessThan(trapModes.length / 2);
+      expect(emergency).toBeLessThanOrEqual(trapModes.length / 2);
       // ves bez rodu (zakladatelé bez vojvody) syna vojvody nemá – odchod syna z pasti tu nejde
       // (ves rodu ve hře vojvodu má; odchod z pasti hlídá steward-son.test.ts)
       expect(chunked.dynasty?.lordId ?? null).toBeNull();

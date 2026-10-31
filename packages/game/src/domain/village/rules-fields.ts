@@ -65,9 +65,10 @@ export const SEED_KG_PER_HA = 175;
 // nad roční potřebu (doplnění pojistky, obilí nad potřebu) jen ze zrna nad příděl `keepRation`
 // (pod ním by hladověla – STARVATION.fedFrom). Osivo, které na setí čeká, ves nejí, dokud by
 // příděl do žní neklesl pod tytéž prahy – pak ho sní (osivo se šetřilo, v hladu se snědlo).
-// floorRation 0,75 (z 0,6 – kalibrace Vlkova 27. 10. 2026, disasters.md – Kalibrace): po krutém
-// roce ves raději jí, než by pod tři čtvrtiny přídělu sela.
-export const SEED_STORES = { keepRation: 1, floorRation: 0.75 } as const;
+// floorRation 0,5 (Martin 31. 10. 2026: „2 – osivo se nejí“; dřív 0,75, před tím 0,6 – kalibrace
+// Vlkova 27. 10. 2026): osivo do roční potřeby ves sní až pod polovinou přídělu – víc hladu
+// krátce, plný osev (past osiva – steward.md, Hranice; fields.md – Osivo ze zásob).
+export const SEED_STORES = { keepRation: 1, floorRation: 0.5 } as const;
 // fields.md – Osivo ze zásob, Osivo pro ves bez zásob (Martin 27. 10. 2026: „ok, jak navrhuješ“;
 // čísla návrh Clauda): ves, které na setí nutných dílů v plánu chybí osivo, ho koupí u sousedů
 // v den `days` – 1. 9. před setím ozimu, 1. 3. před setím jaře –, nejméně `minKg`. Koupené osivo
