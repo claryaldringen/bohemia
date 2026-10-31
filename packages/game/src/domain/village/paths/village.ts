@@ -564,52 +564,51 @@ function computeVillageNetwork(
  * zemní práce (profil, brody, hotové úseky – ne průběh), otevřené obilné jámy (stálý cíl) a pařezy
  * k poslednímu 1. 11.; paseka rozestavěného pole v lese až s dohořením pole (`routeTreesKey`).
  * Neobsahuje stadia dílů, lidi, stáří spojení, stáda, práci dne ani den. Vrací rovnou otisk
- * (`KeyHash`, 16 šestnáctkových číslic) – denní kontrola mapy klíč neskládá do řetězce.
+ * (`walkLayoutHash` proudu klíče, 16 šestnáctkových číslic).
  */
 export function routeMapKey(state: VillageState, day: number): string {
   const k = walkLayoutParts(state);
-  // otisk po kouscích – celý klíč (u Vlkova 64 kB) se neskládá ani nekóduje (výkon)
-  const h = new KeyHash();
-  for (const list of [k.dwellings, k.sites, k.parts, k.orchards, k.cemeteries]) h.list(list);
-  h.text(k.sacred);
-  h.text(k.roads ?? '-');
-  h.list(k.pens);
-  h.list(k.woods);
-  h.text(k.kilns ?? '-');
-  h.text(k.floors ?? '-');
-  h.text(earthworksKey(state));
-  h.list((state.grainPits ?? []).map((p) => `${p.id}:${p.x},${p.z}`));
-  h.text(routeTreesKey(state, day));
-  return h.digest();
+  // proud otisku: text + 0x1f, seznam = jeho texty + 0x1e (oddělovače mimo text klíče – různé
+  // klíče dají různé proudy); stejný proud jako včera dá stejný otisk bez počítání po znacích
+  // (porovnání řetězců je rychlé)
+  const list = (items: readonly string[]): string =>
+    items.length > 0 ? `${items.join('\x1f')}\x1f\x1e` : '\x1e';
+  const text = (value: string): string => `${value}\x1f`;
+  const stream =
+    list(k.dwellings) +
+    list(k.sites) +
+    list(k.parts) +
+    list(k.orchards) +
+    list(k.cemeteries) +
+    text(k.sacred) +
+    text(k.roads ?? '-') +
+    list(k.pens) +
+    list(k.woods) +
+    text(k.kilns ?? '-') +
+    text(k.floors ?? '-') +
+    text(earthworksKey(state)) +
+    list((state.grainPits ?? []).map((p) => `${p.id}:${p.x},${p.z}`)) +
+    text(routeTreesKey(state, day));
+  const known = mapKeyDigests.get(stream);
+  if (known !== undefined) {
+    mapKeyDigests.delete(stream);
+    mapKeyDigests.set(stream, known);
+    return known;
+  }
+  const digest = walkLayoutHash(stream);
+  if (mapKeyDigests.size >= MAP_KEY_DIGESTS) {
+    mapKeyDigests.delete(mapKeyDigests.keys().next().value!);
+  }
+  mapKeyDigests.set(stream, digest);
+  return digest;
 }
 
 /**
- * Otisk klíče po kouscích – tytéž dvě 32bitové FNV-1a jako `walkLayoutHash`, jen se klíč neskládá
- * do jednoho řetězce. Oddělovače (0x1e, 0x1f) mimo text klíče – různé klíče dají různé proudy.
+ * Otisky posledních proudů klíče mapy tras (`routeMapKey`; mapa se mění jen občas – vsi se
+ * dopočítávají po dnech). Jen zrychlení – otisk je funkce proudu.
  */
-class KeyHash {
-  private a = 0x811c9dc5;
-  private b = 0x9e3779b9;
-
-  private char(c: number): void {
-    this.a = Math.imul(this.a ^ c, 0x01000193);
-    this.b = Math.imul(this.b ^ c, 0x01000193) ^ (this.b >>> 15);
-  }
-
-  text(text: string): void {
-    for (let i = 0; i < text.length; i++) this.char(text.charCodeAt(i));
-    this.char(0x1f);
-  }
-
-  list(items: readonly string[]): void {
-    for (const item of items) this.text(item);
-    this.char(0x1e);
-  }
-
-  digest(): string {
-    return `${(this.a >>> 0).toString(16).padStart(8, '0')}${(this.b >>> 0).toString(16).padStart(8, '0')}`;
-  }
-}
+const mapKeyDigests = new Map<string, string>();
+const MAP_KEY_DIGESTS = 4;
 
 /**
  * Zemní práce pro klíč mapy: profil, brody, konce úseků a které jsou hotové, zrušení – ne průběh
