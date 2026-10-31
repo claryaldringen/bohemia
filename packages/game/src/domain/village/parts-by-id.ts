@@ -10,21 +10,30 @@ import type { FieldPart } from './types';
  */
 export function partsByIdOf(parts: readonly FieldPart[]): ReadonlyMap<number, FieldPart> {
   const known = cache.get(parts);
-  if (known && sameParts(known, parts)) return known;
+  if (known && sameParts(known, parts)) return known.map;
   const map = new Map(parts.map((p) => [p.id, p]));
-  cache.set(parts, map);
+  cache.set(parts, { map, parts: parts.slice(), ids: Float64Array.from(parts, (p) => p.id) });
   return map;
 }
 
-const cache = new WeakMap<readonly FieldPart[], Map<number, FieldPart>>();
+/** Mapa z paměti a díly s id, ze kterých vznikla (v pořadí seznamu). */
+interface KnownParts {
+  map: Map<number, FieldPart>;
+  parts: readonly FieldPart[];
+  ids: Float64Array;
+}
 
-/** Mapa má právě díly `parts` v jejich pořadí, každý pod svým id. */
-function sameParts(map: ReadonlyMap<number, FieldPart>, parts: readonly FieldPart[]): boolean {
-  if (map.size !== parts.length) return false;
-  let k = 0;
-  for (const [id, part] of map) {
-    const p = parts[k++];
-    if (p !== part || p.id !== id) return false;
+const cache = new WeakMap<readonly FieldPart[], KnownParts>();
+
+/**
+ * Seznam má tytéž díly ve stejném pořadí a pod týmiž id jako při stavbě mapy – mapa je tedy
+ * táž, jakou by postavila nová.
+ */
+function sameParts(known: KnownParts, parts: readonly FieldPart[]): boolean {
+  if (known.parts.length !== parts.length) return false;
+  for (let k = 0; k < parts.length; k++) {
+    const p = parts[k]!;
+    if (p !== known.parts[k] || p.id !== known.ids[k]) return false;
   }
   return true;
 }
