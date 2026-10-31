@@ -534,6 +534,9 @@ zásoby ≈ 3,6 t na ≈ 4,2 t potřeby do žní, jí 94 % přídělu – a při
   chráněná celý rok. Maso z porážky v září a říjnu se jí do podzimní porážky (Trvanlivost masa) –
   pod stropem 40 % energie tak září a říjen přemostí, ale na zimu ho ves nenaporáží. Číslo
   `EMERGENCY_SLAUGHTER.pigletsFromMonth` (9).
+  **Selata první** (Martin 31. 10. 2026: „Selata první“): prasata nad chovnými prasnicemi jdou od
+  1. 9. napřed z letošních selat (ubývají jim kus za kus), teprve zbytek porážky ubere dospělým;
+     ostatní mláďata ubývají s jejich stádem poměrně.
 - **Kolik:** nejméně masa, se kterým výhled vyjde **i s rezervou 5 % potřeby energie do
   sklizně**. Výhled nezná ztráty zásob skladováním ani úbytek masa uzením – bez rezervy by ves
   porážela den co den po kouscích, s ní obvykle jednou za zimu (Vlkov: jednou, 23 prasat). Zabitím
