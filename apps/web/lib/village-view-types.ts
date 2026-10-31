@@ -1,5 +1,6 @@
 // Typy pohledu na ves (DTO panelu) – nabídka staveb, panel, řemesla, pole, sady.
 
+import type { ViewPieces } from './view-pieces';
 import type { DwellingResident } from './person-view';
 import { SceneVillage } from './village-view-scene-types';
 import {
@@ -385,6 +386,11 @@ export interface VillageView {
    * dotaz vždy celý.
    */
   stamp?: string;
+  /**
+   * Otisky velkých částí pohledu po kusech a kusy, které server vynechal, protože je klient má
+   * (view-pieces.ts). Jen v odpovědi na dotaz na ves; chybí = pohled celý.
+   */
+  pieces?: ViewPieces;
   /** Sídlo (mapa), na jehož krajině ves stojí. */
   settlementId: string;
   name: string;

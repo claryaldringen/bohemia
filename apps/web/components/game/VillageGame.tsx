@@ -58,6 +58,7 @@ import { buildItem, buildItemForKey, penVariantSpecies } from '@/lib/build-items
 import { setE2EHook } from '@/lib/e2e-hooks';
 import { keepSceneData, knownSceneData, lostSceneData } from '@/lib/scene-routes';
 import { withCartRoutes } from '@/lib/cart-routes';
+import { knownViewPieces, unpackViewPieces } from '@/lib/view-pieces';
 import { opensMenu } from '@/lib/game-menu';
 import { nextPollDelayMs } from '@/lib/village-polling';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
@@ -202,6 +203,8 @@ function squareStructures(
 function withoutStamp(view: VillageView): VillageView {
   const rest = { ...view };
   delete rest.stamp;
+  // bez otisků kusů – další dotaz doručí celý pohled (view-pieces.ts)
+  delete rest.pieces;
   return rest;
 }
 
@@ -389,18 +392,25 @@ export function VillageGame({
   const applyVillage = useCallback(
     (received: VillageData): void => {
       // trasy a vyšlapanost, které server neposlal (klient je má), se doplní z posledního pohledu
-      // trasy vozů a spřežení spočítá prohlížeč z cílů dne (cart-routes.ts)
-      const next = isVillageView(received)
+      // kusy pohledu, které server vynechal (klient je má), se doplní z posledního pohledu
+      // (view-pieces.ts); trasy vozů a spřežení spočítá prohlížeč z cílů dne (cart-routes.ts)
+      const unpacked = isVillageView(received)
+        ? unpackViewPieces(received, viewRef.current)
+        : { view: null, lost: false };
+      const next = unpacked.view
         ? {
-            ...received,
-            scene: withCartRoutes(keepSceneData(received.scene, viewRef.current?.scene), decoded),
+            ...unpacked.view,
+            scene: withCartRoutes(
+              keepSceneData(unpacked.view.scene, viewRef.current?.scene),
+              decoded,
+            ),
           }
         : received;
       setVillage(next);
       if (!isVillageView(next)) return;
       // zahozená trasy nebo vyšlapanost: bez otisku, ať další dotaz doručí plný pohled hned
       viewRef.current =
-        isVillageView(received) && lostSceneData(received.scene, next.scene)
+        unpacked.lost || (isVillageView(received) && lostSceneData(received.scene, next.scene))
           ? withoutStamp(next)
           : next;
       // nový pohled napřed – chyba při porovnání (pohled z doby před změnou kódu) se nesmí
@@ -530,6 +540,7 @@ export function VillageGame({
       villageId: viewRef.current?.id ?? null,
       ...(known ? { known } : {}),
       ...knownSceneData(viewRef.current?.scene),
+      pieces: knownViewPieces(viewRef.current),
     });
     if (busyRef.current || seq < appliedSeq.current) return;
     appliedSeq.current = seq;

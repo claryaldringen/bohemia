@@ -55,6 +55,7 @@ import {
   boughtProducts,
 } from './village-view-types';
 import { SceneVillage } from './village-view-scene-types';
+import { cartFieldsOf } from './cart-routes';
 import {
   CHRONICLE_LENGTH,
   chronicleText,
@@ -531,9 +532,29 @@ function sceneWithCartWorld(
     (scene.carts ?? []).some((c) => c.goal !== undefined) ||
     scene.ploughLegs?.outGoals !== undefined ||
     scene.ploughLegs?.homeGoals !== undefined;
-  return drives
-    ? { ...scene, cartWorld: cartWorldOf(state, day, landscape, obstaclesOf(landscape)) }
-    : scene;
+  if (!drives) return scene;
+  const world = cartWorldOf(state, day, landscape, obstaclesOf(landscape));
+  // změny překážek pro vůz bývají tytéž jako ve scéně – pak se neposílají dvakrát
+  const same =
+    world.changes !== null &&
+    scene.obstacles !== undefined &&
+    JSON.stringify(world.changes) === JSON.stringify(scene.obstacles);
+  // díly polí pro vůz jsou výběrem z dílů scény – pak se neposílají (prohlížeč je sestaví)
+  const fieldsAsScene =
+    JSON.stringify(cartFieldsOf(scene)) === JSON.stringify(world.village.fields);
+  return {
+    ...scene,
+    cartWorld: {
+      ...world,
+      ...(fieldsAsScene
+        ? {
+            village: { ...world.village, fields: [] },
+            fieldsAsScene: true as const,
+          }
+        : {}),
+      ...(same ? { changes: 'obstacles' as const } : {}),
+    },
+  };
 }
 
 /** Počasí roku pro lištu (`VillageView.weather` – disasters.md); obyčejný rok bez údaje. */

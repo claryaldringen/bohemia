@@ -87,7 +87,12 @@ export function cartGoalRoute(
  * stojí na poli (`stand`) jen v den bez cesty tam ani zpět. Bez cílů scéna beze změny.
  */
 export function withCartRoutes(scene: SceneVillage, landscape: Landscape): SceneVillage {
-  const world = scene.cartWorld;
+  const sent = scene.cartWorld;
+  const world: CartWorld | undefined = sent && {
+    pens: sent.pens,
+    village: sent.fieldsAsScene ? { ...sent.village, fields: cartFieldsOf(scene) } : sent.village,
+    changes: sent.changes === 'obstacles' ? (scene.obstacles ?? null) : sent.changes,
+  };
   const legs = scene.ploughLegs;
   const hasGoals =
     (scene.carts ?? []).some((c) => c.goal !== undefined) ||
@@ -126,6 +131,24 @@ export function withCartRoutes(scene: SceneVillage, landscape: Landscape): Scene
         }
       : {}),
   };
+}
+
+/** Vlastnosti dílu pole, které čte mřížka vozu (`pathVillageOf` – čtverec, stadium, pastva). */
+const CART_PART_KEYS = ['cell', 'x', 'z', 'size', 'rotation', 'stage', 'grazed'] as const;
+
+/**
+ * Pole pro mřížku vozu z polí scény (díly scény nesou totéž co díly `pathVillageOf` a víc) –
+ * server je posílá jen, když se odtud nedají sestavit (`CartWorld` – `fieldsAsScene`).
+ */
+export function cartFieldsOf(scene: Pick<SceneVillage, 'fields'>): CartWorld['village']['fields'] {
+  return scene.fields.map((f) => ({
+    id: f.id,
+    parts: f.parts.map((p) => {
+      const part: Record<string, unknown> = {};
+      for (const key of CART_PART_KEYS) if (p[key] !== undefined) part[key] = p[key];
+      return part as unknown as CartWorld['village']['fields'][number]['parts'][number];
+    }),
+  }));
 }
 
 /** Bod nejblíž těžišti bodů (díl na čele práce, políčko louky, strom); bez bodů null. */

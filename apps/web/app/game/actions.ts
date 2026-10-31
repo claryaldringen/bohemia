@@ -4,6 +4,7 @@ import { NOT_PLAYER_VILLAGE } from '@bohemia/game';
 import { restartGameForPlayer } from '@/lib/game';
 import { getSession } from '@/lib/session';
 import { trimKnownSceneData, type KnownSceneData } from '@/lib/scene-routes';
+import { packViewPieces } from '@/lib/view-pieces';
 import {
   buildTrailForPlayer,
   buildWagonRoadForPlayer,
@@ -148,7 +149,33 @@ function trimKnown<T extends VillageView | VillageUnchanged | null | { error: st
       ? { wearCellM: input.wearCellM }
       : {}),
   };
-  return { ...result, scene: trimKnownSceneData(result.scene, known) };
+  return packViewPieces(
+    { ...result, scene: trimKnownSceneData(result.scene, known) },
+    knownPiecesOf(input),
+  ) as T;
+}
+
+/** Nejvýš tolik částí a otisků v dotazu (`pieces`) – víc pohled nemá. */
+const MAX_PIECE_PARTS = 256;
+const MAX_PIECE_KEYS = 20_000;
+
+/** Otisky kusů pohledu, které klient má (`pieces` v dotazu – view-pieces.ts), jinak null. */
+function knownPiecesOf(input: object): Record<string, string[]> | null {
+  if (!('pieces' in input) || typeof input.pieces !== 'object' || input.pieces === null) {
+    return null;
+  }
+  const entries = Object.entries(input.pieces as Record<string, unknown>);
+  if (entries.length > MAX_PIECE_PARTS) return null;
+  const out: Record<string, string[]> = {};
+  let count = 0;
+  for (const [name, keys] of entries) {
+    if (!/^[a-z]{1,2}\d{0,4}$/.test(name) || !Array.isArray(keys)) return null;
+    count += keys.length;
+    if (count > MAX_PIECE_KEYS) return null;
+    if (!keys.every((k) => typeof k === 'string' && k.length <= 32)) return null;
+    out[name] = keys as string[];
+  }
+  return out;
 }
 
 /** Otisk pohledu z dotazu (`known` – 16 šestnáctkových číslic), jinak null. */

@@ -364,8 +364,13 @@ export interface SceneVillage {
   /**
    * Vstup vozových tras (`cartWorldOf` z jádra) – z něj a z cílů (`SceneCart.goal`,
    * `ScenePloughLegs`) spočítá trasy prohlížeč (cart-routes.ts). Jen u vsi s jízdou dne.
+   * Změny překážek `'obstacles'` = tytéž jako `obstacles` scény, `fieldsAsScene` – pole se
+   * sestaví z polí scény (`cartFieldsOf`); obojí se neposílá dvakrát.
    */
-  cartWorld?: CartWorld;
+  cartWorld?: Omit<CartWorld, 'changes'> & {
+    changes: CartWorld['changes'] | 'obstacles';
+    fieldsAsScene?: true;
+  };
   /**
    * Zemní práce vozových cest (roads.md – Vozová cesta) – úvozy a náspy: terén scény, síť pěšin
    * a vozů jedou po upraveném terénu (`PathVillage.earthworks`). Bez údaje žádné.
