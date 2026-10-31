@@ -378,7 +378,9 @@ jednodušší jít přes pole, než ho obcházet i když je cesta přes pole pom
   roční síť pěšin se od Úlohy 6 nepočítá),
   a úsek po cestě se započítá zkráceně podle rychlosti (po upravené cestě 340 m jako 200 m).
   Mokřina se počítá dvojnásobně (bahno), brod + 30 m (zout se, přebrodit). Vzdálenosti se
-  přepočítají jednou za rok a po dokončení vylepšení.
+  přepočítají jednou za rok a po dokončení vylepšení. Od 31. 10. 2026 odhadem (Martin: „simulace
+  bude počítat jen s odhadem vzdáleností…“ – [paths.md – Odhad vzdáleností](paths.md#odhad-vzdáleností-31-10-2026)):
+  rovně přes potok jen objížďkou přes nejbližší brod, lesem 1 / 1,35×.
 - Pole za potokem nebo za mokřinou tak bez cesty zdraží, s hatí a lávkou zlevní. Pole 400 m
   daleko bez cesty ≈ +30 %, s upravenou cestou ≈ +20 % (příklad).
 
@@ -398,15 +400,23 @@ by přidat třeba 0.03? A pokud to budou jabloně, přidalo by se 0.05.“ Podro
   stranách – Stromy u pevných cest) lemuje osu kolem svého průmětu na osu k polovině vzdálenosti
   k sousednímu místu, nejvýš 11 m na každou stranu (polovina největšího rozestupu + 1 m posunu
   místa); krajní místo až ke konci osy, je-li konec do 27 m (u konců úseku se stromy nesázejí).
-  Jabloně stejně podle jabloní úseku (po 10 m – 6 m na stranu, ke konci do 17 m). Počítá se jen
+  Jabloně stejně podle jabloní úseku (po 10 m – 6 m na stranu, ke konci do 17 m). ~~Počítá se jen
   místo, kde stojí strom – keř, souš ani pařez ne (`roadTreeLook`), u jabloní jen vysazená živá
-  jabloň, ne čekající na výsadbu ani souš (`roadAppleStage`); strom odstraněný stavbou taky ne.
+  jabloň, ne čekající na výsadbu ani souš (`roadAppleStage`); strom odstraněný stavbou taky ne.~~
+  Od 31. 10. 2026 (Martin: „Stromy jsou součást cesty. Kvůli stromům u cesty se přece nemusí
+  měnit přepočet“) lemuje **alej, jak je naplánovaná** – každé místo na strom úseku a každá
+  jabloň úseku (vysazená, čekající na výsadbu i souš), ne to, co na místě zrovna roste.
   Kde lemují jabloně, platí jabloně, jinde ostatní stromy. Podíl po desetinách (napřed celkem,
   z toho jabloně, zbytek stromy) – úsek napůl olemovaný stromy +0,015.
-- **Kdy:** olemování se ukládá u úseku a určí se **1. dne v měsíci** se stadii dílů pro chůzi
+- **Kdy:** ~~olemování se ukládá u úseku a určí se **1. dne v měsíci** se stadii dílů pro chůzi
   (`lineRoads` v `refreshWalkDistances`, do klíče `walkStageKey`) – kvůli každému stromu se chůze
-  nepřepočítává. Nový nebo rozdělený úsek a úseky starší vsi ho dostanou hned další den.
-  Deterministicky ze dne, prohlížeč dostane uložené olemování s cestou (`SceneRoad.lined`).
+  nepřepočítává.~~ Od 31. 10. 2026 se olemování určí **s postavením nebo vylepšením cesty**
+  (`lineRoads`, `relineRoad` – nový, rozdělený či přestavěný úsek a dokončené vylepšení) a do
+  dalšího vylepšení se nemění. Sázení, růst ani uschnutí stromů a jabloní mapu tras nemění
+  (z klíče mapy zmizelo olemování i počet stromů u cest) – jabloně vysazené později se projeví
+  s dalším vylepšením (návrh Clauda). Starší ves dostane olemování podle míst jednou při načtení
+  (`withPlannedLining`, značka `VillageRoads.liningPlanned`). Prohlížeč dostane uložené olemování
+  s cestou (`SceneRoad.lined`).
 - **Platí všude, kde se počítá rychlost cesty:** vzdálenost chůze (`walking.ts` – díly pole, sad,
   voda, palivo, kácení dřeva staveb a cena u kurzoru), vozová síť (`paths/cart.ts` – svoz, orba,
   uhlí, voda) a síť pěšin (`roadCellCost` – trasy se ke stromořadí víc stahují). Odhad dosahu seče

@@ -197,11 +197,34 @@ export function stableVillage(v: PathVillage): PathVillage {
   return v.labor ? { ...v, labor: { ...v.labor, shares: [] } } : v;
 }
 
-/** Stálé trasy vsi (paths.md – Stálé trasy, pravidlo 5): síť bez práce dne, s trasami. */
+/**
+ * Ves pro hledání stálých tras (paths.md – Stálé trasy, pravidlo 5; Martin 31. 10. 2026: „Ta věc
+ * (dům, ohrada, hřbitov) se prostě postaví a dál se s ní nic neděje, pokud nespadne“): každé
+ * hotové obydlí jako obydlené, každá hotová ohrada se zvířaty a každá obilná jáma otevřená. Trasy
+ * se tak hledají jen se stavbou nebo zánikem; obsazenost je jen převáží (`stableRouteWeights`
+ * nad skutečnou vsí – trasa z prázdného obydlí nebo k prázdné ohradě má 0 cest).
+ */
+export function establishedVillage(v: PathVillage): PathVillage {
+  return {
+    ...v,
+    dwellings: v.dwellings.map((d) => (d.inhabited === false ? { ...d, inhabited: true } : d)),
+    ...(v.pens
+      ? { pens: v.pens.map((p) => (p.stocked === false ? { ...p, stocked: true } : p)) }
+      : {}),
+    ...(v.grainPits
+      ? { grainPits: v.grainPits.map((p) => (p.open === false ? { ...p, open: true } : p)) }
+      : {}),
+  };
+}
+
+/**
+ * Stálé trasy vsi (paths.md – Stálé trasy, pravidlo 5): síť bez práce dne, s trasami – ze všech
+ * hotových obydlí ke všem stavbám (`establishedVillage`).
+ */
 export function computeStableNetwork(input: PathNetworkInput): PathNetwork {
   return computePathNetwork({
     ...input,
-    village: stableVillage(input.village),
+    village: establishedVillage(stableVillage(input.village)),
     keepRoutes: true,
     stable: true,
   });

@@ -2,7 +2,8 @@ import { obstacleIndex, type Landscape, type ObstacleLayer } from '../landscape'
 import { ableTeams, isTrained, oxenHome, oxenToEdit, oxPens, ploughPairsHome } from './oxen';
 import { oxenOf } from './pens';
 import { axisCartCheck, type CartTarget } from './paths/cart';
-import { addRoadCartTrips, villageCartRoutes } from './paths/roads';
+import { villageCartEstimates } from './paths/cart-estimate';
+import { addRoadCartTrips } from './paths/roads';
 import { CARTS, DRAFT_OXEN } from './rules';
 import { villageOrchards } from './orchard';
 import { squareCenter } from './square-grid';
@@ -350,7 +351,8 @@ export function networkCartAccess(
 ): CartAccess {
   return (state, targets) => {
     if (targets.length === 0) return [];
-    const routes = villageCartRoutes(state, day, landscape, obstacles, kind, targets);
+    void obstacles;
+    const routes = villageCartEstimates(state, day, landscape, kind, targets);
     return targets.map((_, k) => {
       const route = routes?.[k];
       return route?.reached ? route.lengthM : null;

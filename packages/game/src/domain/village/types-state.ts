@@ -300,10 +300,11 @@ export interface VillageState {
    */
   shapesChecked?: true;
   /**
-   * Otisk mapy tras a míst (`routeMapKey`, `routePlacesKey`, pastvina – paths.md, Stálé trasy,
+   * Otisk mapy tras (`routeMapKey` – stavby od postavení po zánik, paths.md, Stálé trasy,
    * pravidlo 5), pro který se naposledy spočítaly stálé trasy a vzdálenosti chůze po pěšinách
-   * (`FieldPart.walkDistanceM`…). Chybí, dokud se nespočítaly (starší vsi, simulace bez krajiny);
-   * otisk z doby před stálými trasami se jednou přepočítá. (Dřívější otisk stadií `walkStages`
+   * (`FieldPart.walkDistanceM`…). Obsazenost v něm není – jen převáží (`VillageRoutes.placesKey`).
+   * Chybí, dokud se nespočítaly (starší vsi, simulace bez krajiny); otisk starší verze
+   * (`WALK_VERSION`) se jednou přepočítá. (Dřívější otisk stadií `walkStages`
    * se při načtení smaže – `withoutWalkStages`.)
    */
   walkLayoutKey?: string;

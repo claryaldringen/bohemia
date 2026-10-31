@@ -100,9 +100,10 @@ export interface Road {
   link?: true;
   /**
    * Kolik délky úseku lemují stromy u cesty a jabloně (roads.md – Stromy u cesty zrychlí chůzi)
-   * – podle toho je chůze i jízda vozem po úseku rychlejší (`roadTreeSpeed`). Určí se 1. dne
-   * v měsíci (`lineRoads`); chybí = ještě neurčeno (nový úsek, starší ves – určí se hned další
-   * den).
+   * – podle toho je chůze i jízda vozem po úseku rychlejší (`roadTreeSpeed`). Z míst na stromy
+   * a jabloní úseku, jak je alej naplánovaná; určí se s postavením nebo vylepšením cesty
+   * (`lineRoads`, Martin 31. 10. 2026); chybí = ještě neurčeno (nový nebo vylepšený úsek – určí
+   * se při dalším přepočtu chůze).
    */
   lined?: RoadLining;
 }
@@ -189,6 +190,11 @@ export interface LegacyRoadFields {
 export interface VillageRoads {
   /** Další id úseku, místa a stromu (strom: ROAD_TREE_ID_BASE + id). */
   nextId: number;
+  /**
+   * Olemování úseků už je podle míst na stromy a jabloně (`withPlannedLining` – převod jednou;
+   * Martin 31. 10. 2026). Chybí u vsí uložených dřív.
+   */
+  liningPlanned?: true;
   roads: Road[];
   trees: RoadTree[];
   /**

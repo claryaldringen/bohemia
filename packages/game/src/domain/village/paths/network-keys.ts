@@ -161,7 +161,7 @@ export function pathNetworkKey(village: PathVillage): string {
     ...((village.threshingFloors?.length ?? 0) > 0
       ? [threshingFloorsKey(village.threshingFloors!)]
       : []),
-    // otevřené obilné jámy (production-chains.md – Obilné jámy) – bez nich klíč beze změny
+    // obilné jámy (production-chains.md – Obilné jámy) – bez nich klíč beze změny
     ...((village.grainPits?.length ?? 0) > 0 ? [grainPitsKey(village.grainPits!)] : []),
     // zemní práce vozových cest (roads.md – Vozová cesta) – terén pěšin; bez nich beze změny
     ...(village.earthworks && village.earthworks.length > 0
@@ -186,9 +186,13 @@ export function threshingFloorsKey(
     .join(';');
 }
 
-/** Klíč otevřených obilných jam pro síť pěšin – id a střed na decimetry. */
-export function grainPitsKey(pits: readonly { id: number; x: number; z: number }[]): string {
-  return pits.map((p) => `${p.id}:${p.x.toFixed(1)},${p.z.toFixed(1)}`).join(';');
+/** Klíč obilných jam pro síť pěšin – id, střed na decimetry a zavřená jáma (`-`). */
+export function grainPitsKey(
+  pits: readonly { id: number; x: number; z: number; open?: boolean }[],
+): string {
+  return pits
+    .map((p) => `${p.id}:${p.x.toFixed(1)},${p.z.toFixed(1)}${p.open === false ? ':-' : ''}`)
+    .join(';');
 }
 
 /** Klíč milířů pro síť pěšin – středy na decimetry. */

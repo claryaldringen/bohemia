@@ -162,11 +162,10 @@ describe('vzdálenost chůze dílů pole (refreshWalkDistances)', () => {
         distanceFactor(p.distanceM / FIELD_WALK.field),
       );
     }
-    // ve stavu jen otisky – mapa tras a místa z prvního přepočtu (paths.md – Stálé
+    // ve stavu jen otisky – mapa tras z prvního přepočtu, obsazenost zvlášť (paths.md – Stálé
     // trasy, pravidlo 5)
-    expect(s.walkLayoutKey).toBe(
-      walkLayoutHash(`${routeMapKey(s, DAY + 1)}|${routePlacesKey(s)}|${WALK_VERSION}`),
-    );
+    expect(s.walkLayoutKey).toBe(walkLayoutHash(`${routeMapKey(s, DAY + 1)}|${WALK_VERSION}`));
+    expect(s.routes?.placesKey).toBe(walkLayoutHash(routePlacesKey(s)));
     expect(s.walkLayoutKey).toMatch(/^[0-9a-f]{16}$/);
   });
 

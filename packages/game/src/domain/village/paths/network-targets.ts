@@ -326,18 +326,19 @@ export function tripGroups(
     );
   }
   // obilné jámy (production-chains.md – Obilné jámy): k otevřené jámě pro zrno, k jámě, do které se
-  // dnes ukládá zrno z humna, za prací dne
+  // dnes ukládá zrno z humna, za prací dne (k zavřené jámě jen za prací)
   const pitsDone = new Set<number>();
   for (const pit of v.grainPits ?? []) {
     pitsDone.add(pit.id);
+    const base = pit.open === false ? 0 : BASE_TRIPS.grainPit;
     target(
       `grain-pit:${pit.id}`,
       'work',
       cellsAround(grid, pit, GRAIN_PIT_REACH_M),
-      BASE_TRIPS.grainPit + work(`grain-pit:${pit.id}`),
+      base + work(`grain-pit:${pit.id}`),
       1,
       undefined,
-      BASE_TRIPS.grainPit,
+      base,
     );
   }
   for (const share of v.labor?.shares ?? []) {

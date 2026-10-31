@@ -57,4 +57,10 @@ export interface VillageRoutes {
    * v měsíci (paths.md – Stálé trasy, pravidlo 5). Chybí u tras uložených dřív.
    */
   workKey?: string;
+  /**
+   * Otisk obsazenosti (`routePlacesKey` – obydlené domácnosti, ohrady se zvířaty, otevřené jámy),
+   * podle které jsou stálé trasy převážené. Změna jen převáží, nic se nehledá (Martin 31. 10. 2026
+   * – paths.md, Stálé trasy, pravidlo 5). Chybí u tras uložených dřív.
+   */
+  placesKey?: string;
 }

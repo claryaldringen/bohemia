@@ -1,4 +1,5 @@
 // Vozové cesty v jednorázové přestavbě sítě (paths.md – Jednorázová přestavba sítě; Martin
+import { relineRoad } from './paths/road-lining';
 // 24. 10. 2026, varianta A: „vozové cesty se po nových osách přepočítají i se zemními pracemi
 // a budou rovnou hotové (už jsou zaplacené); staré úvozy a náspy, které nové osy nepoužijí,
 // zarostou.“).
@@ -131,6 +132,7 @@ export function rebuildWagonRoads(
     if (!wagonCandidate(chain, old, busy)) continue;
     // úprava je zaplacená – „Napřed uprav cestu.“ přestavbu nezastaví
     for (const { road } of chain) {
+      if (road.grade !== 'improved') relineRoad(road);
       road.grade = 'improved';
       delete road.unbridged;
     }

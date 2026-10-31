@@ -447,7 +447,8 @@ describe('den správce – dlouhý běh na skutečné krajině', () => {
       // osivo se nejí (SEED_STORES.floorRation 0,5 – Martin 31. 10. 2026, fields.md): ves zakladatelů
       // na krajině 1 už do pasti osiva (hlad na stropu hájení) nespadne – dřív tu `trapModes`
       // sbíraly režimy správce v pasti (Obnova místo Nouze). Kdyby do ní přece spadla, hlad na
-      // stropu nesmí správce držet v Nouzi (kouřový test S5 – osm let žádná stavba mimo pole)
+      // stropu nesmí správce držet v Nouzi (kouřový test S5 – osm let žádná stavba mimo pole); od
+      // olemování podle míst na stromy (Martin 31. 10. 2026) je chůze po cestách s alejí rychlejší hned
       const emergency = trapModes.filter((m) => m === 'emergency').length;
       expect(emergency).toBeLessThanOrEqual(trapModes.length / 2);
       // ves bez rodu (zakladatelé bez vojvody) syna vojvody nemá – odchod syna z pasti tu nejde
