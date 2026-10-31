@@ -300,11 +300,23 @@ function roadsMonthRun(
   const worn = state.roads.wear;
   if (worn) {
     const wear = wearMap(worn);
-    if (wearRoadDue(state.roads, lines, wear, anchors)) {
+    // kusy, jejichž cestu úklid smazal, ves nezkouší, dokud jsou vyšlapané (paths.md – Vyšlapanost
+    // a vznik cesty, Smazané kusy); kus, který už vyšlapaný není, zapomene
+    const lost = new Set(state.roads.lostRuns ?? []);
+    const remembered = new Set<string>();
+    const due = wearRoadDue(
+      state.roads,
+      lines,
+      wear,
+      anchors,
+      lost,
+      lost.size > 0 ? remembered : undefined,
+    );
+    if (due) {
       const formed = formRoadsKept(
         state,
         state.roads,
-        { lines, anchors, wear, day, base: baseOf() },
+        { lines, anchors, wear, day, base: baseOf(), lost, remembered },
         fieldOf,
       );
       // úklid může novou cestu spojit se starší – do kroniky jen cesty, jejichž id zůstalo
@@ -313,6 +325,9 @@ function roadsMonthRun(
         if (kept.has(road.id)) state.chronicle.push({ day, kind: 'road-formed', roadId: road.id });
       }
     }
+    rememberLostRuns(state.roads, remembered);
+  } else {
+    delete state.roads.lostRuns;
   }
   const walk = (): ((x: number, z: number) => boolean) | null =>
     villageBlockedAt(state, day, landscape);
@@ -693,7 +708,10 @@ function survivedTidy(road: Road, before: VillageRoads, after: VillageRoads): bo
  * Vyšlapanost a vznik cesty): stav se změní, jen když každá nová cesta úklid přežije
  * (`survivedTidy`). Kus, jehož cestu úklid smazal (objížďka souběžná se starší cestou), se
  * v dalším kole vynechá – smazaná cesta tak nerozdělí cizí cesty, nezmění jejich id ani místa na
- * stromy a nespotřebuje `nextId`. Konce tras pro úklid jsou kotvy (`anchorTermini`). Vrátí nové cesty, které zůstaly; nic-li nezůstalo, stav nezmění (mutuje).
+ * stromy a nespotřebuje `nextId` – a ves si ho zapamatuje (`remembered`), aby ho další měsíce
+ * nezkoušela znovu; kusy z paměti vsi (`lost`) vynechá od prvního kola. Konce tras pro úklid jsou
+ * kotvy (`anchorTermini`). Vrátí nové cesty, které zůstaly; nic-li nezůstalo, stav nezmění
+ * (mutuje stav a `remembered`).
  */
 function formRoadsKept(
   state: VillageState,
@@ -704,12 +722,14 @@ function formRoadsKept(
     wear: ReadonlyMap<number, number>;
     day: number;
     base: Omit<SpotContext, 'split'>;
+    lost: ReadonlySet<string>;
+    remembered: Set<string>;
   },
   field: () => TrafficField,
 ): Road[] {
-  const { lines, anchors, wear, day, base } = month;
+  const { lines, anchors, wear, day, base, remembered } = month;
   const isEnd = anchorTermini(anchors);
-  const skip = new Set<string>();
+  const skip = new Set(month.lost);
   for (let round = 0; round < FORM_ROUNDS; round++) {
     const draft = draftOf(state, roads);
     const context: SpotContext = {
@@ -727,9 +747,18 @@ function formRoadsKept(
       commitDraft(state, draft);
       return formed.map((f) => f.road);
     }
-    for (const { key } of lost) skip.add(key);
+    for (const { key } of lost) {
+      skip.add(key);
+      remembered.add(key);
+    }
   }
   return [];
+}
+
+/** Paměť smazaných kusů do stavu – seřazeně (nezávisí na pořadí průchodu); prázdná chybí. */
+function rememberLostRuns(roads: VillageRoads, keys: ReadonlySet<string>): void {
+  if (keys.size > 0) roads.lostRuns = [...keys].sort();
+  else delete roads.lostRuns;
 }
 
 /** Klíč místa práce (pole bez dílů; seč přirozených luk za rok jedno místo). */

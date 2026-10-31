@@ -187,9 +187,16 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   Vlkova po dnech, střídavě před / po, profil): **S1** paměť hospodářství podle obsahu dílů
   (`villageHoldings` – přežije `cloneState`; bit po bitu týž) `villageHoldings` 0,93 → 0,09 s;
   **S2** výběr dílů jen s místem na čele (village-fields.md, `FarmSeason.selection`) `seasonDay`
-  3,8 → 1,7 s (bez místa na čele 82 ze 151 dní výběru; úroda, hlad, orba i zásoby beze změny).
-  Souběžné požadavky téhož hráče dopočet nezdvojují: web je řadí do fronty (`apps/web/lib/exclusive.ts`,
-  web-ui.md – Jeden dopočet vsí naráz), druhý jen dopočte zbytek do svého dne.
+  3,8 → 1,7 s (bez místa na čele 82 ze 151 dní výběru; úroda, hlad, orba i zásoby beze změny);
+  **R1** smazané kusy si ves pamatuje (village-roads.md, `VillageRoads.lostRuns`) – oprava vzniku
+  cest, který na Vlkově celý rok uvízl: `roadsMonth` 3,1–3,3 → 1,7–2,3 s první rok (vznik nad
+  kopií 2,6 → 0,7 s), vzniknou 3 cesty (36 → 41 úseků, sklizeň −0,1 %). Rok po dnech CPU (zátěž
+  15–80) ≈ 30–33 s → 28–29 s po S2; druhý rok Vlkova (zátěž 4–5) 28,1 → 24,8 s (−12 %, S1 + S2
+  - R1). Otisk po dnech = najednou = po 10 a 37 dnech u všech tří. Za 20 let se výsledek rozejde
+    (lidé, úroda, hladové dny) stejně jako po změně zásob o 1 mg na začátku – chaos dlouhého běhu,
+    ne posun pravidla.
+    Souběžné požadavky téhož hráče dopočet nezdvojují: web je řadí do fronty (`apps/web/lib/exclusive.ts`,
+    web-ui.md – Jeden dopočet vsí naráz), druhý jen dopočte zbytek do svého dne.
 
 - **Čísla** pravidel jsou jen v `rules*.ts` (u každého odkaz na sekci návrhu); změna čísla = i
   text v návrhu. Kalibrace: `measure-village.ts` nasimuluje stovky vsí a vypíše cíle z Kalibrace

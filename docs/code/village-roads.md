@@ -176,7 +176,11 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
   změní, jen když každá nová cesta úklid přežije (`survivedTidy` – po jejích bodech mimo dřívější
   cesty vede po úklidu cesta aspoň `ON_ROAD_M`); kus, jehož cestu úklid smazal (objížďka souběžná se
   starší cestou), se v dalším kole (nejvýš `FORM_ROUNDS`) vynechá – smazaná cesta nerozdělí cizí
-  cesty, nezmění jejich id, místa na stromy, stavby ani `nextId` (recenze Ú5, I1). Levná kontrola
+  cesty, nezmění jejich id, místa na stromy, stavby ani `nextId` (recenze Ú5, I1). **Smazané kusy**
+  (oprava 31. 10. 2026 – paths.md): klíč kusu je poloha konců na 1 m (`wearRunKey`), smazané kusy
+  jdou do `VillageRoads.lostRuns` (seřazeně, `rememberLostRuns`) a `formRoadsKept` je vynechá od
+  prvního kola; `wearRoadDue` taky – s pamětí projde všechny kusy a zapíše, které jsou dál
+  vyšlapané, ostatní ves zapomene (test `road-form-wear.test.ts`). Levná kontrola
   `wearRoadDue` napřed: bez kusu, ze kterého by cesta vznikla, se kontext míst na stromy ani kopie
   nestaví a úklid neběží. Konce tras pro úklid jsou kotvy (`anchorTermini` – dosah kotvy a kraj
   mapy jako `nearAnchor`, nebo do 6 m). `formRoad` napřed spočítá osu bez rozdělení

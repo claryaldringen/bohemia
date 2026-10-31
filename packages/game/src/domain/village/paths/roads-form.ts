@@ -153,7 +153,10 @@ export function fieldTraffic(points: readonly RoadPoint[], field: TrafficField):
 
 /** Kus čáry trasy, ze kterého má vzniknout cesta (`formRoadsFromWear`). */
 export interface WearRun {
-  /** Stálý klíč kusu v tomto měsíci: pořadí čáry a začátek a konec kusu po SAMPLE_M. */
+  /**
+   * Klíč kusu podle polohy konců zaokrouhlené na 1 m (`wearRunKey`) – stálý i mezi měsíci, kus,
+   * jehož cestu úklid smazal, si ves pod ním pamatuje (`VillageRoads.lostRuns`).
+   */
   key: string;
   points: RoadPoint[];
   /** Připojit začátek / konec k pevné cestě do tolika metrů (false = konec u kotvy). */
@@ -177,7 +180,7 @@ function eachWearRun(
   visit: (run: WearRun) => 'formed' | 'next' | 'stop',
 ): void {
   let roadAt: ((x: number, z: number) => number) | null = null;
-  for (const [n, line] of lines.entries()) {
+  for (const line of lines) {
     const run = resample(line, null, SAMPLE_M).points;
     if (run.length < 2) continue;
     const level = run.map((p) => wearNear(wear, p.x, p.z));
@@ -213,8 +216,8 @@ function eachWearRun(
       const start = hot ? endAt(i, i - 1) : null;
       const end = hot && start !== null ? endAt(j, next) : null;
       if (start !== null && end !== null) {
-        const key = `${n}:${i}:${next}`;
-        const done = visit({ key, points: run.slice(i, next), start, end });
+        const points = run.slice(i, next);
+        const done = visit({ key: wearRunKey(points), points, start, end });
         if (done === 'stop') return;
         if (done === 'formed') roadAt = null;
       }
@@ -223,20 +226,35 @@ function eachWearRun(
   }
 }
 
+/** Klíč kusu (`WearRun.key`): začátek a konec zaokrouhlené na 1 m. */
+export function wearRunKey(points: readonly RoadPoint[]): string {
+  const a = points[0]!;
+  const b = points[points.length - 1]!;
+  return `${Math.round(a.x)},${Math.round(a.z)}|${Math.round(b.x)},${Math.round(b.z)}`;
+}
+
 /**
  * Vznikla by z vyšlapanosti aspoň jedna cesta (`formRoadsFromWear`)? Levná kontrola před
- * měsíčním vznikem – bez kontextu míst na stromy a bez kopie stavu. Nic nemění.
+ * měsíčním vznikem – bez kontextu míst na stromy a bez kopie stavu. Kusy s klíčem v `lost`
+ * (cestu z nich úklid smazal) vynechá a do `seen` zapíše, které z nich jsou dál vyšlapané – pak
+ * projde všechny kusy. Nic nemění.
  */
 export function wearRoadDue(
   roads: VillageRoads,
   lines: readonly (readonly RoadPoint[])[],
   wear: ReadonlyMap<number, number>,
   anchors: RoadAnchors,
+  lost: ReadonlySet<string> = new Set(),
+  seen?: Set<string>,
 ): boolean {
   let due = false;
   eachWearRun(roads, lines, wear, anchors, (run) => {
-    due = plannedAxis(roads, run.points, run.start, run.end) !== null;
-    return due ? 'stop' : 'next';
+    if (lost.has(run.key)) {
+      seen?.add(run.key);
+      return 'next';
+    }
+    if (!due) due = plannedAxis(roads, run.points, run.start, run.end) !== null;
+    return due && !seen ? 'stop' : 'next';
   });
   return due;
 }
