@@ -40,6 +40,25 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   a `ploughLegs.out` / `home` (stání `stand` jen bez cesty tam i zpět) – scéna je čte beze změny.
   Vlkov: pohled za herní den ≈ 270 ms místo ≈ 520 ms; prohlížeč trasy spočítá za 5–250 ms (mřížka
   vozu v paměti krajiny, po kácení se staví znovu).
+  - **Valy vozových cest** se ve vstupu neposílají, když se dají přesně sestavit ze zemních prací
+    scény (`earthworksAsScene` – `cartEarthworksOf`: profil a hotová délka, body se stejným pořadím
+    klíčů); Vlkov −202 kB prvního pohledu.
+  - **Mimo hlavní vlákno:** `withCartRoutes` = `cartRoutesRequest` (cíle a vstup mřížky ze scény)
+    → `cartRoutesOf` → `withCartRouteResult`. `applyVillage` posílá požadavek Web Workeru
+    (`lib/cart-router.ts` → `lib/cart-routes.worker.ts`, `new Worker(new URL(…, import.meta.url))`
+    – Turbopack ho sbalí jako vlastní chunk); worker dostane krajinu jednou (`LandscapeTransfer`)
+    a paměť mřížek žije v něm. Pohled se použije až s trasami dne (`applyTicket` – novější pohled
+    má přednost, akce vrátí výsledek až po použití); bez `Worker` nebo po jeho chybě se totéž
+    spočítá v hlavním vlákně. První pohled spočítá hlavní vlákno (jednou při načtení stránky).
+- **Nabídky panelů až na vyžádání** (`lib/panel-options.ts`, server action `getPanelOptions`,
+  `panelOptionsForPlayer`): kompas zemských stezek (`trailOptions` – 8 plánů tras se dřevem
+  a průseky) a „Vysadit jabloně“ u cesty (`roadApplesOption`) se v pohledu nepočítají – stály ≈ 90 ms
+  z ≈ 140 ms pohledu Vlkova za herní den. Paměť podle otisku vstupů by nepomohla (obě závisí na dni –
+  stromy rostou, pařezy zarůstají, stavby postupují). Server je spočítá ze stejného stavu jako pohled
+  (`panelOptionsOf` – sousedé z mapy, opuštěná ves), až když hráč otevře kompas (`ManorPanel`) nebo
+  vybere cestu (`RoadBody`); `hooks/use-panel-options.ts` (`PanelOptionsContext` z `VillageGame`,
+  klíč = `VillageView.stamp`) se s novým pohledem zeptá znovu a do odpovědi drží předchozí nabídku.
+  Pohled nese jen `manor.trailBuilt`; ukázky panelů (`/dev/panels`) mají nabídky v `DEV_PANEL_OPTIONS`.
 - **Velké části pohledu jen při změně** (`lib/view-pieces.ts`): `packViewPieces` (server action
   `getVillageView` – `trimKnown`) spočítá otisky kusů (`pieceKey` – cyrb53 JSONu a délka) dílů polí
   v pohledu (`f<i>`) i ve scéně (`s<i>`) po `PIECE_ITEMS` = 32, vstupu vozových tras (`we`, `wo`),
@@ -49,7 +68,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `keepSceneData`). Kus, který klient nemá, = `lost` → pohled bez otisku i bez kusů
   (`withoutStamp`), další dotaz dostane celý. Server nic nepamatuje; akce vracejí celý pohled.
   Vlkov: odpověď za herní den 240–800 kB místo ≈ 1,55 MB (za den se změní desítky dílů z 3 783),
-  první pohled ≈ 1,77 MB (+ vstup vozových tras).
+  první pohled ≈ 1,60 MB (s vstupem vozových tras, valy cest ze scény).
 - **Jeden dopočet vsí naráz** (`lib/exclusive.ts`): `updateVillage` ukládá s optimistickým zámkem
   (`VillageRepository.save(id, state, expectedVersion)`, při neshodě verze zkusí znovu nad čerstvým
   stavem, nejvýš 5×). Dlouhý dopočet ale po přestávkách (`computePause`) pouští ke slovu jiné
@@ -82,7 +101,14 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   a `state->>'lastDay'` bez stavu) a při shodě, když jsou všechny vsi dopočítané do dneška,
   vrátí `{ unchanged: true }` bez načtení stavů (Vlkov: celý řádek ≈ 830 kB / 50 ms, dotaz na
   něj jde v celé cestě 3×). `dynastyStatus` bere id vsí z levných otisků (`stampsOf`, v pořadí
-  založení) – stav každé vsi načte jen `loadVillage`, jednou. Akce a přeskok času vracejí vždy celý pohled. Změna jména verzi
+  založení) – stav každé vsi načte jen `loadVillage`, jednou. Akce a přeskok času vracejí vždy celý pohled.
+  **Paměť vsí na jeden požadavek** (`lib/village-cache.ts` – identity map): server actions
+  (`villageAction`, `getVillageView`, výběr a založení vsi, skok v čase) a první pohled běží ve
+  `withVillageCache` (AsyncLocalStorage v `globalThis`); úložiště z `cachedVillages` tam vrací záznam
+  načtený dřív v témže požadavku, dokud levný otisk (`stampsOf` – verze a jméno) sedí, `save`
+  paměť obnoví a neúspěšné uložení ji pro ves zahodí (optimistický zámek a opakování platí dál).
+  Akce tak načte každou ves jednou místo ověření vsi + dopočtu + use-case + pohledu (≥ 4×)
+  a `neighboursOf` bere ostatní vsi mapy z paměti (dopočet všech vsí hráče je načítá stejně). Změna jména verzi
   nemění, proto je jméno v otisku zvlášť. e2e testy po přímé změně uložené vsi volají háček
   `pollVillage` (`lib/e2e-hooks.ts`) – sám by dotaz přišel až s dalším herním dnem.
 

@@ -83,7 +83,6 @@ describe('růžice zemských stezek', () => {
 
 describe('vylepšení vsi ve dvorci', () => {
   it('stezka a obchod; obchod bez hotové stezky zašedlý s důvodem', () => {
-    const none = trails.map((t) => ({ ...t, status: 'none' as const }));
     const html = renderToStaticMarkup(
       <ManorUpgrades
         manor={{
