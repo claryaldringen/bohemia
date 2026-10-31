@@ -18,10 +18,10 @@ import { hash01 } from './smoke-schedule';
 export const GRID_S = 30;
 
 /**
- * O kolik zpět se po načtení stránky dohrává řetěz činností (s – 40 minut ≈ 28 herních dní, déle
- * než nejdelší činnost; villagers.md – Determinismus a načtení stránky).
+ * O kolik zpět se po načtení stránky dohrává řetěz činností (s – 60 minut ≈ 42 herních dní, déle
+ * než nejdelší činnost a zvon `BELL_S`; villagers.md – Determinismus a načtení stránky).
  */
-export const HISTORY_S = 40 * 60;
+export const HISTORY_S = 60 * 60;
 
 /** Pauza doma mezi činnostmi (s, los – villagers.md, Tři druhy činností: Doma). */
 export const PAUSE_S = { from: 30, to: 90 } as const;
@@ -37,13 +37,14 @@ export const WORK_RANGE_S = {
 } as const;
 
 /**
- * Zvon (návrh Clauda – villagers.md, Determinismus a načtení stránky): každý člověk má po
- * `BELL_S` vlastní okamžik, kdy je doma – činnost, která by ho přesáhla, nezačne (práce na místě
+ * Zvon jednou za hodinu (návrh Clauda; Martin 31. 10. 2026: „Podle tvého doporučení“ –
+ * villagers.md, Determinismus a načtení stránky): každý člověk má po `BELL_S` (55 minut, dlouhá
+ * pochůzka venku ≈ 86 % času) vlastní okamžik, kdy je doma – činnost, která by ho přesáhla, nezačne (práce na místě
  * se zkrátí, pochůzka počká doma) a po zvonu vyjde v týž okamžik každý řetěz. Řetězy z různých
  * počátků tak splynou nejpozději u prvního zvonu (`BELL_S` < `HISTORY_S`); úlohy u objektu
  * (`hold`) zvon nepřeruší – splynou svým koncem.
  */
-export const BELL_S = 35 * 60;
+export const BELL_S = 55 * 60;
 
 /** Nejkratší práce na místě, kterou zvon ještě nechá začít (s); kratší – člověk počká doma. */
 export const MIN_WORK_S = 60;

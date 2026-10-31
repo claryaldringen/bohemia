@@ -228,13 +228,33 @@ describe('rozvrh člověka – čistá funkce času (villager-schedule.ts)', () 
         // nepřetržitý běh od začátku dnů, načtení v t − HISTORY_S a o něco dřív
         const run = scheduleAt(INPUT, p, t, T0);
         const loaded = scheduleAt(INPUT, p, t);
-        const earlier = scheduleAt(INPUT, p, t, t - HISTORY_S - hash01(p, k, 12) * 3000);
+        // o něco dřív – až o dvě délky historie (dny před nejstarším jako nejstarší)
+        const earlier = scheduleAt(INPUT, p, t, t - HISTORY_S - hash01(p, k, 12) * 2 * HISTORY_S);
         expect(state(loaded, t)).toBe(state(run, t));
         expect(state(earlier, t)).toBe(state(run, t));
         compared++;
       }
     }
     expect(compared).toBe(900);
+  });
+
+  it('zvon jednou za hodinu: dlouhá pochůzka je venku přes 80 % času (Martin 31. 10. 2026)', () => {
+    // 12minutová pochůzka každý den – podíl času venku za 3 hodiny (návrh: ≈ 86 %)
+    const water = task('errand:water', 'errand');
+    const inp: ScheduleInput = {
+      seed: 7,
+      castOf: castTimeline([{ from: T0, cast: new Map([[1, water]]) }]),
+      lengthOf: () => ({ outS: 330, endS: 60, backS: 330 }),
+    };
+    expect(BELL_S).toBe(55 * 60);
+    expect(HISTORY_S).toBe(60 * 60);
+    let outside = 0;
+    const span = 3 * 3600;
+    for (const a of activities(inp, 1, T0)) {
+      if (a.start >= T0 + span) break;
+      if (a.kind === 'errand') outside += Math.min(a.end, T0 + span) - a.start;
+    }
+    expect(outside / span).toBeGreaterThan(0.8);
   });
 
   it('obsazení podle času: dny před nejstarším známým jako nejstarší, nejnovější do odvolání', () => {
