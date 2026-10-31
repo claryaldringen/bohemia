@@ -130,9 +130,14 @@ export function eat(
   drawGrainPits(state);
   // nevychází-li výhled do sklizně, ves napřed porazí zvířata navíc – teprve pak šetří přídělem
   // (diet.md – Nouzová porážka)
-  const emergency = emergencySlaughter(state, day, coverage.pottery, milked);
-  if (emergency) state.chronicle.push(emergency);
-  const mealInput = dayMealInput(state, day, coverage.pottery, milked);
+  // vstup jídla dne se spočte jednou pro porážku i jídlo; po porážce celý znovu – porážka mění
+  // stáda (mléko), maso i potřebu z pole (výhled do sklizně) a je jen pár dní za rok
+  let mealInput = dayMealInput(state, day, coverage.pottery, milked);
+  const emergency = emergencySlaughter(state, day, coverage.pottery, milked, mealInput);
+  if (emergency) {
+    state.chronicle.push(emergency);
+    mealInput = dayMealInput(state, day, coverage.pottery, milked);
+  }
   // osivo, které ves nejí (fields.md – Úroda, Osivo ze zásob), zůstane v zásobách
   const seedGrain = state.storesKg - mealInput.grainKg;
   const seedLegumes = villageLegumesKg(state) - (mealInput.legumesKg ?? 0);
