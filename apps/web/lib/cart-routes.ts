@@ -87,35 +87,80 @@ export function cartGoalRoute(
  * stojí na poli (`stand`) jen v den bez cesty tam ani zpět. Bez cílů scéna beze změny.
  */
 export function withCartRoutes(scene: SceneVillage, landscape: Landscape): SceneVillage {
-  const sent = scene.cartWorld;
-  const world: CartWorld | undefined = sent && {
-    pens: sent.pens,
-    village: sent.fieldsAsScene ? { ...sent.village, fields: cartFieldsOf(scene) } : sent.village,
-    changes: sent.changes === 'obstacles' ? (scene.obstacles ?? null) : sent.changes,
-  };
+  const request = cartRoutesRequest(scene);
+  return request ? withCartRouteResult(scene, cartRoutesOf(request, landscape)) : scene;
+}
+
+/**
+ * Co výpočet tras potřebuje ze scény (cíle vozů a spřežení, vstup mřížky vozu) – jde i do Web
+ * Workeru (cart-routes.worker.ts); bez cílů null (scéna se nemění).
+ */
+export interface CartRoutesRequest {
+  world: CartWorld | null;
+  carts: { kind: CartKind; goal: CartGoal | null }[];
+  outGoals: CartGoal[];
+  homeGoals: CartGoal[];
+}
+
+/** Spočítané trasy – po vozech scény (null = bez trasy) a spřežení tam a zpět. */
+export interface CartRoutesResult {
+  carts: (Point[] | null)[];
+  out: Point[] | null;
+  home: Point[] | null;
+}
+
+export function cartRoutesRequest(scene: SceneVillage): CartRoutesRequest | null {
   const legs = scene.ploughLegs;
   const hasGoals =
     (scene.carts ?? []).some((c) => c.goal !== undefined) ||
     legs?.outGoals !== undefined ||
     legs?.homeGoals !== undefined;
-  if (!hasGoals) return scene;
+  if (!hasGoals) return null;
+  const sent = scene.cartWorld;
+  return {
+    world: sent
+      ? {
+          pens: sent.pens,
+          village: sent.fieldsAsScene
+            ? { ...sent.village, fields: cartFieldsOf(scene) }
+            : sent.village,
+          changes: sent.changes === 'obstacles' ? (scene.obstacles ?? null) : sent.changes,
+        }
+      : null,
+    carts: (scene.carts ?? []).map((c) => ({ kind: c.kind, goal: c.goal ?? null })),
+    outGoals: legs?.outGoals ?? [],
+    homeGoals: legs?.homeGoals ?? [],
+  };
+}
+
+/** Trasy z požadavku – deterministicky, stejně v hlavním vlákně i ve Web Workeru. */
+export function cartRoutesOf(request: CartRoutesRequest, landscape: Landscape): CartRoutesResult {
+  const { world } = request;
   const obstacles = obstaclesOf(landscape);
   const routeOf = (kind: CartKind, goal: CartGoal): Point[] | null =>
     world ? cartGoalRoute(world, landscape, obstacles, kind, goal) : null;
-  const carts = scene.carts?.map((c) => {
-    const route = c.goal ? routeOf(c.kind, c.goal) : null;
-    return route ? { ...c, route } : c;
-  });
-  const firstRoute = (goals: readonly CartGoal[] | undefined): Point[] | null => {
-    for (const goal of goals ?? []) {
+  const firstRoute = (goals: readonly CartGoal[]): Point[] | null => {
+    for (const goal of goals) {
       const route = routeOf('two-wheel', goal);
       if (route) return route;
     }
     return null;
   };
-  const out = firstRoute(legs?.outGoals);
-  const home = firstRoute(legs?.homeGoals);
-  const stand = !out && !home ? legs?.stand : undefined;
+  return {
+    carts: request.carts.map((c) => (c.goal ? routeOf(c.kind, c.goal) : null)),
+    out: firstRoute(request.outGoals),
+    home: firstRoute(request.homeGoals),
+  };
+}
+
+/** Scéna s trasami: vůz bez trasy stojí u ohrady, spřežení stojí na poli jen bez cesty tam i zpět. */
+export function withCartRouteResult(scene: SceneVillage, result: CartRoutesResult): SceneVillage {
+  const carts = scene.carts?.map((c, i) => {
+    const route = result.carts[i] ?? null;
+    return route ? { ...c, route } : c;
+  });
+  const { out, home } = result;
+  const stand = !out && !home ? scene.ploughLegs?.stand : undefined;
   const rest: SceneVillage = { ...scene };
   delete rest.ploughLegs;
   return {

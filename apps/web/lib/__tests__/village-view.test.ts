@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { panelOptionsOf, parsePanelAsk } from '../panel-options';
 import {
   CART_JOBS,
@@ -59,7 +59,56 @@ import {
 import { visitedWife } from '../village-view-scene';
 import { protectionLevel, sceneWeather } from '../weather-view';
 import type { SceneVillage, ScenePloughLegs } from '../village-view-scene-types';
-import { simplifiedRoute, withCartRoutes } from '../cart-routes';
+import {
+  cartRoutesRequest,
+  simplifiedRoute,
+  withCartRouteResult,
+  withCartRoutes,
+  type CartRoutesRequest,
+  type CartRoutesResult,
+} from '../cart-routes';
+import { cartRouter } from '../cart-router';
+import type { CartRoutesMessage, CartRoutesReply } from '../cart-routes.worker';
+import type { LandscapeTransfer } from '../landscape-transfer';
+
+/**
+ * Trasy přes skutečný kód Web Workeru (cart-routes.worker.ts) s náhradním `Worker`: zprávy jdou
+ * přes structuredClone jako v prohlížeči, krajina napřed (dekódovaná se tu jen podstrčí).
+ */
+async function fakeWorkerRoutes(
+  decoded: Landscape,
+  requests: CartRoutesRequest[],
+): Promise<CartRoutesResult[]> {
+  const scope = globalThis as unknown as {
+    self?: { onmessage: ((e: { data: CartRoutesMessage }) => void) | null; postMessage: unknown };
+    Worker?: unknown;
+  };
+  const replies: ((r: CartRoutesReply) => void)[] = [];
+  scope.self = { onmessage: null, postMessage: (r: CartRoutesReply) => replies[0]?.(r) };
+  vi.doMock('../landscape-transfer', () => ({ decodeLandscape: () => decoded }));
+  await import('../cart-routes.worker');
+  const handler = scope.self.onmessage!;
+  class FakeWorker {
+    onmessage: ((e: { data: CartRoutesReply }) => void) | null = null;
+    onerror: unknown = null;
+    constructor() {
+      replies[0] = (r) => queueMicrotask(() => this.onmessage?.({ data: structuredClone(r) }));
+    }
+    postMessage(m: CartRoutesMessage): void {
+      queueMicrotask(() => handler({ data: structuredClone(m) }));
+    }
+    terminate(): void {}
+  }
+  scope.Worker = FakeWorker;
+  try {
+    const router = cartRouter({} as LandscapeTransfer, decoded);
+    return await Promise.all(requests.map((r) => router.routes(r)));
+  } finally {
+    delete scope.Worker;
+    delete scope.self;
+    vi.doUnmock('../landscape-transfer');
+  }
+}
 
 /**
  * Scéna, jak ji vidí prohlížeč: pohled projde JSONem (server action) a trasy vozů a spřežení
@@ -2488,7 +2537,7 @@ describe('buildVillageView – tesař a vozy (wagons.md)', () => {
     expect(buildVillageView(record(settled()), landscape, DAY).scene.carts).toBeUndefined();
   });
 
-  it('vůz na svozu nese trasu dne vozovou sítí od ohrady k dílu na čele žně (fáze 3)', () => {
+  it('vůz na svozu nese trasu dne vozovou sítí od ohrady k dílu na čele žně (fáze 3)', async () => {
     const s = carpenterVillage();
     const part = s.parts.find((p) => p.cell?.x === 11)!;
     s.labor = {
@@ -2539,6 +2588,15 @@ describe('buildVillageView – tesař a vozy (wagons.md)', () => {
     const mowing = routedScene(s).carts![0]!;
     expect(mowing.job?.load).toBe('hay');
     expect(mowing.route?.length).toBeGreaterThanOrEqual(2);
+    // tytéž trasy z Web Workeru (cart-routes.worker.ts) i bez něj (hlavní vlákno)
+    const viewed = JSON.parse(
+      JSON.stringify(buildVillageView(record(s), landscape, DAY).scene),
+    ) as SceneVillage;
+    const request = cartRoutesRequest(viewed)!;
+    const plain = await cartRouter({} as LandscapeTransfer, landscape).routes(request);
+    expect(withCartRouteResult(viewed, plain)).toEqual(routedScene(s));
+    const fake = await fakeWorkerRoutes(landscape, [request, request]);
+    expect(fake).toEqual([plain, plain]);
     s.labor.shares = [];
     expect(routedScene(s).carts![0]!.route).toBeUndefined();
   });

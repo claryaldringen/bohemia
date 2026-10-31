@@ -60,7 +60,8 @@ import { authClient } from '@/lib/auth-client';
 import { buildItem, buildItemForKey, penVariantSpecies } from '@/lib/build-items';
 import { setE2EHook } from '@/lib/e2e-hooks';
 import { keepSceneData, knownSceneData, lostSceneData } from '@/lib/scene-routes';
-import { withCartRoutes } from '@/lib/cart-routes';
+import { cartRoutesRequest, withCartRouteResult, withCartRoutes } from '@/lib/cart-routes';
+import { cartRouter } from '@/lib/cart-router';
 import { knownViewPieces, unpackViewPieces } from '@/lib/view-pieces';
 import { opensMenu } from '@/lib/game-menu';
 import { nextPollDelayMs } from '@/lib/village-polling';
@@ -391,24 +392,34 @@ export function VillageGame({
     setNotices((list) => list.filter((n) => n.id !== id));
   }, []);
 
-  /** Použije nový stav vsi a ohlásí upozornění, která mezitím nově vznikla. */
+  // trasy vozů nových dní počítá Web Worker (cart-router.ts) – scéna mezitím nestojí
+  const router = useMemo(() => cartRouter(landscape, decoded), [landscape, decoded]);
+  useEffect(() => () => router.dispose(), [router]);
+  const applyTicket = useRef(0);
+
+  /**
+   * Použije nový stav vsi a ohlásí upozornění, která mezitím nově vznikla. Pohled se použije až
+   * s trasami vozů dne (z Workeru); novější pohled, který mezitím přišel, má přednost.
+   */
   const applyVillage = useCallback(
-    (received: VillageData): void => {
+    async (received: VillageData): Promise<void> => {
+      const ticket = ++applyTicket.current;
       // trasy a vyšlapanost, které server neposlal (klient je má), se doplní z posledního pohledu
       // kusy pohledu, které server vynechal (klient je má), se doplní z posledního pohledu
       // (view-pieces.ts); trasy vozů a spřežení spočítá prohlížeč z cílů dne (cart-routes.ts)
       const unpacked = isVillageView(received)
         ? unpackViewPieces(received, viewRef.current)
         : { view: null, lost: false };
-      const next = unpacked.view
-        ? {
-            ...unpacked.view,
-            scene: withCartRoutes(
-              keepSceneData(unpacked.view.scene, viewRef.current?.scene),
-              decoded,
-            ),
-          }
-        : received;
+      let next: VillageData = received;
+      if (unpacked.view) {
+        const scene = keepSceneData(unpacked.view.scene, viewRef.current?.scene);
+        const request = cartRoutesRequest(scene);
+        next = {
+          ...unpacked.view,
+          scene: request ? withCartRouteResult(scene, await router.routes(request)) : scene,
+        };
+      }
+      if (ticket !== applyTicket.current) return;
       setVillage(next);
       if (!isVillageView(next)) return;
       // zahozená trasy nebo vyšlapanost: bez otisku, ať další dotaz doručí plný pohled hned
@@ -422,7 +433,7 @@ export function VillageGame({
       noticedRef.current = next;
       for (const notice of newNotices(previous, next)) pushNotice(notice);
     },
-    [pushNotice, decoded],
+    [pushNotice, router],
   );
 
   useEffect(() => {
@@ -558,7 +569,7 @@ export function VillageGame({
     // Chyba (např. odhlášení v jiném panelu) poslední pohled na ves nesmaže – jen se ohlásí.
     if (result !== null && 'error' in result && viewRef.current) {
       pushNotice({ kind: 'error', tone: 'error', text: result.error });
-    } else applyVillage(result);
+    } else await applyVillage(result);
   }, [applyVillage, pushNotice, settlementId]);
   // Další dotaz na začátku dalšího herního dne hráče (nejdřív za 5 s, nejpozději za 86 s) – ves
   // se dopočítává po dnech, akce vracejí čerstvou ves samy.
@@ -593,7 +604,7 @@ export function VillageGame({
           const result = await action();
           if (result !== null && 'error' in result) return result.error;
           appliedSeq.current = Math.max(appliedSeq.current, seq);
-          applyVillage(result);
+          await applyVillage(result);
           return null;
         } catch (error) {
           console.error('Akce vsi selhala.', error);
