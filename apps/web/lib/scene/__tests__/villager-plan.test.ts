@@ -1640,29 +1640,15 @@ describe('provoz na cestách – pro vodu, k lesu a na pole (villagers.md)', () 
     expect(atWater).toBeGreaterThan(0);
   });
 
-  it('na pole a zpět chodí od domu ke dílu dnešní práce, nikdy přes dům', () => {
+  it('na pole se proudem nechodí – cesta ode dveří je součást práce (villagers.md, úloha 4)', () => {
     const shares: LaborShare[] = [
       { activity: 'harvest', target: { kind: 'field', id: 7 }, manDays: 12 },
     ];
     const v = peopled(5, undefined, shares);
-    const walkers = traffic(plan(v), 'traffic:field:');
-    expect(walkers.length).toBeGreaterThan(0);
-    const field = v.fields[0]!.parts;
-    let nearField = 0;
-    let nearHome = 0;
-    for (const p of walkers) {
-      for (let t = 0; t < 600; t += 2) {
-        const pose = at(p, t);
-        if (pose.hidden) continue;
-        expect(inHouse(v, pose.x, pose.z)).toBe(false);
-        if (field.some((q) => Math.abs(pose.x - q.x) < 9 && Math.abs(pose.z - q.z) < 9)) {
-          nearField++;
-        }
-        if (Math.hypot(pose.x, pose.z) < 20) nearHome++;
-      }
-    }
-    expect(nearField).toBeGreaterThan(0);
-    expect(nearHome).toBeGreaterThan(0);
+    const people = plan(v);
+    expect(traffic(people, 'traffic:field:')).toEqual([]);
+    // pro vodu chodí dál stejně jako bez polní práce
+    expect(traffic(people).length).toBe(traffic(plan(peopled(5))).length);
   });
 });
 

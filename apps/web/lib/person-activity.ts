@@ -157,7 +157,6 @@ function trafficText(kind: string, stage: VillagerStage | null): string {
   const texts: Record<string, [string, string, string]> = {
     water: ['jde pro vodu', 'nabírá vodu', 'nese vodu'],
     wood: ['jde pro dřevo', 'sbírá dřevo', 'nese dřevo'],
-    field: ['jde na pole', 'je na poli', 'vrací se z pole'],
     kiln: ['jde k milíři', 'je u milíře', 'vrací se od milíře'],
   };
   const [out, end, back] = texts[kind] ?? ['jde', 'stojí', 'vrací se'];

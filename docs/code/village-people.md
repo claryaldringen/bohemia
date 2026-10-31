@@ -402,11 +402,13 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   **Provoz na cestách** (villagers.md – Provoz na cestách; Martin 19. 10. 2026: „Chci vidět
   vesničany, jak chodí pro vodu nebo na pole.“): `road-traffic.ts` (čisté funkce) – proud lidí
   pro vodu (`waterTrips` – `WATER_FETCHING.tripsPerPerson` × lidé z `SceneLabor.homes`, bez vody
-  přivezené vozem `cartWater`), k lesu (`woodErrandTrips` z jádra) a na pole (člověkoden polní
-  práce = cesta); na cestě cesty × doba cesty ÷ `TRAFFIC_DAY_S` (900 s) lidí, nejvýš
-  `MAX_TRAFFIC` (24), každý druh aspoň jeden (`trafficCounts`), fáze se zlatým řezem
-  (`streamPhase`). `trafficFigures` ve `villager-plan-traffic.ts` – po pěšinách (`errandPath`, na vzdálený
-  díl `fieldPath`: po pěšině k poli, `route(a, b, reach)`, a přes pole; kontrola `trafficRouteOk`
+  přivezené vozem `cartWater`), k lesu (`woodErrandTrips` z jádra) a uhlíř k milíři
+  (`KILN_TRIPS_PER_MAN_DAY`); **proud na pole není** (od 31. 10. 2026 – úloha 4 Činností od
+  začátku do konce: řady na poli a nosiči úrody jdou z rozvrhu ode dveří svého domu a na konci
+  činnosti domů); na cestě cesty × doba cesty ÷ `TRAFFIC_DAY_S` (900 s) lidí, nejvýš
+  `MAX_TRAFFIC` (24), voda a dřevo aspoň jeden (`trafficCounts`), fáze se zlatým řezem
+  (`streamPhase`). `trafficFigures` ve `villager-plan-traffic.ts` – po pěšinách (`errandPath`, k milíři
+  `fieldPath`: po pěšině, `route(a, b, reach)`, a dál rovně; kontrola `trafficRouteOk`
   – ohrady se neberou, do domu jen o `ROUTE_HOUSE_SLACK_M`), vyjde se od vchodu (`trafficDoor` –
   volné místo do 16 m), doma na chvíli zmizí (`ShuttleOptions.restHidden`).
   **Pochůzka se dokončí** (villagers.md – Pochůzka se dokončí; Martin 24. 10. 2026): postavy

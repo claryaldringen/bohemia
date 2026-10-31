@@ -3,8 +3,10 @@ import type { SceneLabor, SceneLaborHome } from '../village-view';
 
 // Provoz na cestách (docs/design/villagers.md – Provoz na cestách; Martin 19. 10. 2026: „Chci
 // vidět vesničany, jak chodí pro vodu nebo na pole.“): kolik lidí je teď na cestě pro vodu,
-// k lesu pro dřevo, mezi domem a polem a uhlíř mezi zemnicí a milířem. Jen vzhled, žádná pravidla – počty z cest za den
-// v simulaci (WATER_FETCHING, cesty pro dřevo sítě pěšin, práce na poli), čistá funkce.
+// k lesu pro dřevo a uhlíř mezi zemnicí a milířem. Na pole a zpět chodí pracovníci sami – cesta
+// ode dveří je součást práce na poli (villagers.md – Činnosti od začátku do konce, úloha 4;
+// Martin 31. 10. 2026: „Ano“). Jen vzhled, žádná pravidla – počty z cest za den v simulaci
+// (WATER_FETCHING, cesty pro dřevo sítě pěšin, práce u milíře), čistá funkce.
 //
 // Herní den trvá ≈ 86 s, cesta k vodě skutečnou chůzí ≈ 10–15 minut – kdyby každá cesta dne šla
 // celá, byla by na cestě stovka lidí. Provoz se proto počítá jako proud (Littlův zákon): cesty
@@ -20,14 +22,14 @@ import type { SceneLabor, SceneLaborHome } from '../village-view';
 export const TRAFFIC_DAY_S = 900;
 /** Nejvýš tolik postav na cestách – víc se jich zmenší poměrně (výkon – villagers.md). */
 export const MAX_TRAFFIC = 24;
-/** Cest na pole a zpět za den na člověkoden polní práce (ráno tam, večer zpět = jedna). */
-export const FIELD_TRIPS_PER_MAN_DAY = 1;
+/** Cest k milíři a zpět za den na člověkoden práce u milíře (ráno tam, večer zpět = jedna). */
+export const KILN_TRIPS_PER_MAN_DAY = 1;
 
 /**
- * Druh cesty: pro vodu, k lesu pro dřevo, na pole, uhlíř ze zemnice k milíři (crafts.md – Milíř
- * u skácených buků).
+ * Druh cesty: pro vodu, k lesu pro dřevo, uhlíř ze zemnice k milíři (crafts.md – Milíř
+ * u skácených buků). Na pole se nechodí proudem – cesta je součást práce (villagers.md).
  */
-export type TrafficKind = 'water' | 'wood' | 'field' | 'kiln';
+export type TrafficKind = 'water' | 'wood' | 'kiln';
 
 /** Jeden proud lidí po jedné trase: kolik cest za den a jak dlouho trvá jedna (s, v pohybu). */
 export interface TrafficStream {
@@ -100,7 +102,7 @@ export function trafficCounts(
       left--;
     }
   }
-  for (const kind of ['water', 'wood', 'field'] as const) {
+  for (const kind of ['water', 'wood'] as const) {
     let best = -1;
     let load = 0;
     streams.forEach((s, i) => {

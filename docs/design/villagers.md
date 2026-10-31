@@ -92,12 +92,13 @@ vodu a dřevo, vozy) už jsou v jádru.
   klip `weed`, 12 s – dřív 6 s) a s otepí jde až domů. **Mez 400 m po pěšině** (dřív 220 m; `ERRAND_MAX_M`)
   – jádro chodí pro dřevo nejvýš za cenu `ERRAND_MAX_COST` 450 (cena ≥ délka, do kopce a lesem
   víc), dál méně často a proud se nekreslí.
-- **Na pole a zpět** – jedna cesta za den na člověkoden polní práce (kopání, setí, pletí, žeň,
-  seč na dílu, zakládání); od domu, ke kterému díly dnešní fronty patří (holdings.ts), k jeho
-  prvnímu dílu.
+- ~~**Na pole a zpět** – jedna cesta za den na člověkoden polní práce~~ – od 31. 10. 2026 proud
+  na pole není (Martin 31. 10. 2026: „Ano“ – cesta na pole a domů je součást práce): pracovník
+  jde ode dveří svého domu k řadě na poli a na konci činnosti domů (Činnosti od začátku do konce,
+  úloha 4), nosiči úrody z domu k panákům a s nůší zpět.
 - **Kolik nejvýš:** 24 lidí na cestách (`MAX_TRAFFIC`, nad to poměrně méně). Každý druh cesty,
   po které někdo chodí, má aspoň jednoho člověka. Vlkov (28 lidí, voda ≈ 500 m od domů) ve žních:
-  7 pro vodu, 4 na pole a 6 nosičů úrody, kteří teď chodí celých 470 m; v prosinci 8 pro vodu
+  7 pro vodu a 6 nosičů úrody, kteří teď chodí celých 470 m (dřív i 4 na pole); v prosinci 8 pro vodu
   a 1 pro dřevo; v létě s dvoukolákem, který vodu většině domácností přiveze, 2 pro vodu.
 - **Lidé v proudu** jsou rozestoupení (fáze se zlatým řezem – přibude-li člověk, ostatní zůstanou,
   kde byli), doma mezi cestami na chvíli zmizí (zajdou dovnitř). Vyjdou z nejbližšího volného
@@ -106,7 +107,7 @@ vodu a dřevo, vozy) už jsou v jádru.
   ženy nesoucí vodu nesmí z cesty náhle zmizet, ale musí dojít domů a do toho domu vejít.“
   Podrobnosti návrh Clauda:
   - **Pochůzka je celý cyklus:** vyjde z domu (volné místo u vchodu) → jde k cíli → u cíle pracuje
-    (voda – nabírá, dřevo – sbírá, milíř a pole – chvíli postojí) → vrací se s nákladem → vejde do
+    (voda – nabírá, dřevo – sbírá, milíř – chvíli postojí) → vrací se s nákladem → vejde do
     domu. Postava nikdy nezmizí ani neskočí uprostřed cyklu.
   - **Při změně plánu** (nový den, jiný počet lidí v proudu, jiná trasa, jiný člověk v postavě –
     los lidí je na každý den jiný): kdo je na cestě, svůj **rozběhnutý cyklus dokončí** po dosavadní
@@ -747,6 +748,12 @@ a `lib/village-view.ts`, rozvrh je znovu nedefinuje – `PersonJob`, `LaborActiv
    `carriers` s příchodem ode dveří po `fieldPath`; `road-traffic.ts` –
    `FIELD_TRIPS_PER_MAN_DAY`), texty v Provozu na cestách. Vozy po svozu snopů jedou k humnu
    (Zjednodušení a co chybí).
+   **Implementováno 31. 10. 2026:** proud „na pole a zpět“ zanikl (`TRAFFIC_LOOK.field`,
+   `FIELD_COMMUTE` pryč; `FIELD_TRIPS_PER_MAN_DAY` → `KILN_TRIPS_PER_MAN_DAY` – zůstává jen uhlíř
+   k milíři). Řady na poli a nosiči úrody jdou z rozvrhu ode dveří svého domu (práce na místě –
+   `bout`): nosič dojde k nosičům u panáků, nosí a na konci činnosti jde domů (návrh Clauda –
+   nosič úrody zůstává prací na místě s několika cestami, ne pochůzkou: díl patří nejbližšímu
+   domu, nosič ale bydlí kdekoli). Vozy k humnu – zatím ne (úloha 8).
 5. **Události přerušují** (`funeral-plan.ts`, `wedding-plan.ts`, `villager-plan-fire.ts`,
    `caravan.ts`; `flood-water.ts` jen pro rozlitou vodu): událost přepíše rozvrh od svého začátku
    (příchod pěšky, opozdilci rovnou na místo), k požáru jen lidé ve vsi, z povodně domů. Test na

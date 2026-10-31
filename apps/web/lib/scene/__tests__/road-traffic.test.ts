@@ -45,7 +45,7 @@ describe('road-traffic – kolik lidí je na cestách (villagers.md – Provoz n
     // dvakrát víc cest – dvakrát víc lidí
     expect(trafficCounts([stream('water', 8), stream('water', 4)])).toEqual([8, 4]);
     // strop: poměrně méně
-    const capped = trafficCounts([stream('water', 40), stream('field', 20)], 12);
+    const capped = trafficCounts([stream('water', 40), stream('kiln', 20)], 12);
     expect(capped.reduce((a, b) => a + b, 0)).toBe(12);
     expect(capped).toEqual([8, 4]);
     expect(trafficCounts([stream('water', 100)]).reduce((a, b) => a + b, 0)).toBeLessThanOrEqual(
@@ -63,8 +63,9 @@ describe('road-traffic – kolik lidí je na cestách (villagers.md – Provoz n
       activeS: (TRAFFIC_DAY_S * 0.4) / trips,
     });
     // každý proud jen 0,4 člověka – zaokrouhlením by někdo zmizel
-    const counts = trafficCounts([short('water', 2), short('wood', 1), short('field', 3)]);
-    expect(counts).toEqual([1, 1, 1]);
+    const counts = trafficCounts([short('water', 2), short('wood', 1), short('kiln', 3)]);
+    // pro vodu a dřevo aspoň jeden; uhlíř k milíři jen podle zaokrouhlení (jako dřív)
+    expect(counts).toEqual([1, 1, 0]);
     // druh celkem pod MIN_STREAM_LOAD nikdo, nad ním aspoň jeden – i z drobných proudů
     const tiny = {
       kind: 'wood' as const,
