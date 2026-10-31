@@ -231,6 +231,22 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   nic měřitelného nepřinesla (chůze rovně je po kolu 1 skoro celá v paměti); chůze dál krokuje
   po půlbuňkách. Rok Vlkova po dnech střídavě před / po (zátěž 11–16): 11,8–12,3 s → 10,0–10,8 s
   (−14 %, CPU 15,5–15,9 → 14,0–14,2 s).
+  Kolo 3 (Martin 31. 10. 2026: „udělej všechny performance vylepšení, kterých jsi schopen“) – jen
+  zrychlení, výsledek bit po bitu týž (otisk roku `7af6be0f6c11` vcelku, po 10 i po 37 dnech, 20 let
+  `dc4bf7fa6a73`, nová ves se správcem 15 let `65f3f4bcd431`, vše se zmrazenými sdílenými záznamy):
+  kopie stavu sdílí i body profilů zemních prací a buňky dílů (`parts[].cell`) a díl kopíruje
+  rozložením (`clonePart`) – 2,5 → 1,5 ms na kopii; díly podle id z paměti po seznamu dílů
+  (`partsByIdOf`, parts-by-id.ts – mapa platí, dokud má seznam tytéž díly ve stejném pořadí
+  a pod týmiž id; ≈ 2 900 map za rok); klíč plotů (`fenceLayoutKey`) a neprůchodné plochy
+  (`villageBlockedAt`) skládají jen části se stavbami a ploty, ne texty 3,8 tisíce dílů; bloky
+  osevu (`sowingBlocks`) se skupinou dílu jednou a bez mapy vzdáleností úseku (1,6 → 0,65 ms);
+  chůze k loukám při seči (`walkDistancesTo`) bez výpočtu sítě pěšin (bere jen uložené trasy)
+  a s pamětí úseček (0,27 → 0,10 s za rok); půda vozu (`cartGroundOf`) porovná vstupy dílů jako
+  čísla místo skládání textu klíče (≈ 150 kB za volání). Rok Vlkova po dnech střídavě před / po
+  (6639658f → 0e0ed2a2, zátěž 4–7): 9,4–9,7 s → 8,0–8,3 s (−15 %, CPU 13,3–13,6 → 11,7–11,9 s).
+  Nejvíc dál bere přepočet chůze se změnou mapy (≈ 2,0 s – síť pěšin inkrementálně bit po bitu
+  nejde: kola hledání sčítají provoz všech tras, jedna stavba může změnit kteroukoli trasu),
+  sezóna (`seasonSelection` 0,8 s), měsíc cest (0,95 s, rozprostřeno) a roční trasy vozů (0,6 s).
   Souběžné požadavky téhož hráče dopočet nezdvojují: web je řadí do fronty (`apps/web/lib/exclusive.ts`,
   web-ui.md – Jeden dopočet vsí naráz), druhý jen dopočte zbytek do svého dne.
 
