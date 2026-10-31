@@ -183,6 +183,13 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   chůze (`walkingDistances` 2,1 s, trasy k práci dne 1,6 s, převážení 1,3 s, denní klíč mapy
   `routeMapKey` 0,9 s, stálé trasy 0,8 s), sezóna (`seasonDay` 3,5 s), měsíc cest (`roadsMonth`
   3,0 s) a kopie stavu při každém dni dopočtu (`cloneState` 1,5 s).
+  Jisté úspory (Martin 31. 10. 2026 – village-roads.md): bez tras k práci dne, denní kontrola mapy
+  otiskem bez skládání klíče, převážení s mřížkou z paměti, chůze s jedním napojením na síť. Rok
+  Vlkova střídavě před / po (zátěž 5–19): 23,4–24,3 s → 19,0–19,6 s (−19 %, CPU 28,4–30,0 →
+  23,7–24,4 s); přepočet chůze (`refreshWalkDistances`) 8,1 → 4,4 s (`walkingDistances` 2,2 →
+  1,1 s, převážení 1,4 → 0,7 s, `routeMapKey` 0,9 → 0,4 s, `workRoutesOf` 1,7 s → 0). Nejvíc teď
+  bere sezóna (`seasonDay` 3,6 s), měsíc cest (`roadsMonth` 3,0 s), práce dne (`work` 2,1 s)
+  a kopie stavu (`cloneState` 1,5 s).
   Souběžné požadavky téhož hráče dopočet nezdvojují: web je řadí do fronty (`apps/web/lib/exclusive.ts`,
   web-ui.md – Jeden dopočet vsí naráz), druhý jen dopočte zbytek do svého dne.
 
