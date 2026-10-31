@@ -171,6 +171,7 @@ function siteCheck(
   const land = new PolygonIndex(landscape, villageLandSquares(landscape, state));
   const shapes = [...structureShapes(state, landscape), ...kilnShapes(state)];
   const roads = state.roads?.roads ?? [];
+  const orePits = state.orePits ?? [];
   const entrances = villageThreshingFloors(state).map((f) => threshingFloorEntrance(f.position));
   const status = obstacleStatus(obstacleChangesAt(state, day));
   const earthwork = earthworkCheck(state, landscape);
@@ -191,6 +192,7 @@ function siteCheck(
     if (!floodSafe(p)) return false;
     if (taken.some((t) => length2(t.x - p.x, t.z - p.z) < GRAIN_PITS.spacingM)) return false;
     if (entrances.some((e) => length2(e.x - p.x, e.z - p.z) < ENTRANCE_CLEAR_M)) return false;
+    if (orePits.some((o) => length2(o.x - p.x, o.z - p.z) < GRAIN_PITS.orePitClearM)) return false;
     if (roads.some((r) => polylineDistance(p, r.points) < ROAD_CLEAR_M)) return false;
     const square = pitSquare(p, STRUCTURE_MARGIN_M);
     if (land.overlapping(square).length > 0) return false;

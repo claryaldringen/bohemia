@@ -437,6 +437,21 @@ describe('místo jámy', () => {
     expect(before.some((p) => Math.abs(p.z - z) < 6.9)).toBe(true);
   });
 
+  it('míjí rudiště a hliniště (Martin 31. 10. 2026)', () => {
+    const before = found(grainPitSites(withFloor(), at(600, 9, 1), landscape, null, 3));
+    const s = withFloor();
+    s.orePits = [
+      { x: before[0]!.x, z: before[0]!.z, smithId: 1, kg: 100, day: at(600, 8, 1) },
+      { x: before[1]!.x, z: before[1]!.z, smithId: 2, kg: 100, day: at(600, 8, 1), clay: true },
+    ];
+    const sites = found(grainPitSites(s, at(600, 9, 1), landscape, null, 3));
+    for (const p of sites) {
+      for (const o of s.orePits) {
+        expect(Math.hypot(p.x - o.x, p.z - o.z)).toBeGreaterThanOrEqual(GRAIN_PITS.orePitClearM);
+      }
+    }
+  });
+
   it('mimo stavby a půdu jiné vsi na téže mapě', () => {
     const before = found(grainPitSites(withFloor(), at(600, 9, 1), landscape, null, 6));
     // jiná ves postavila obydlí přímo na prvním místě jámy – celé políčko pod ním je její
