@@ -24,6 +24,7 @@ import {
   ERRAND_MAX_COST,
   ERRAND_NEAR_COST,
   GRAIN_PIT_REACH_M,
+  MILIR_RADIUS_M,
   MIN_TRIP,
   NEIGHBOURS,
   NEIGHBOUR_TRIPS,
@@ -310,9 +311,16 @@ export function tripGroups(
   for (const floor of v.threshingFloors ?? []) {
     if (floor.built) {
       const to = `threshing-floor:${floor.id}`;
-      const trips = work(to);
-      if (trips > 0)
-        target(to, 'work', entranceTarget(threshingFloorEntrance(floor.position)), trips);
+      // stavba jako každá jiná: stálá část pro všechny domácnosti, výmlat je práce dne navrch
+      target(
+        to,
+        'work',
+        entranceTarget(threshingFloorEntrance(floor.position)),
+        BASE_TRIPS.threshingFloor + work(to),
+        1,
+        undefined,
+        BASE_TRIPS.threshingFloor,
+      );
       continue;
     }
     target(
@@ -324,6 +332,33 @@ export function tripGroups(
       undefined,
       BASE_TRIPS.site,
     );
+  }
+  // milíř uhlíře (crafts.md – Milíř u skácených buků): stálá trasa z domu uhlíře ke každému jeho
+  // milíři (chodí tam on; práce dne `kiln:<uhlíř>` jde navrch)
+  const kilnsOf = new Map<number, PathPoint[]>();
+  for (const k of v.kilns ?? []) {
+    if (k.burnerId === undefined) continue;
+    const list = kilnsOf.get(k.burnerId) ?? [];
+    list.push(k);
+    kilnsOf.set(k.burnerId, list);
+  }
+  for (const [burnerId, kilns] of kilnsOf) {
+    const cells = [
+      ...new Set(kilns.flatMap((k) => cellsAround(grid, k, MILIR_RADIUS_M + grid.cellM))),
+    ].filter((c) => Number.isFinite(grid.base[c]!));
+    if (cells.length === 0) continue;
+    const own = shareWeights(homes, BASE_TRIPS.kiln).map((w, i) =>
+      homes[i]!.dwellingId === burnerId ? w : 0,
+    );
+    if (own.every((w) => w < MIN_TRIP)) continue;
+    groups.push({
+      to: `kiln:${burnerId}`,
+      purpose: 'work',
+      sources: cells,
+      weights: own,
+      baseWeights: own.slice(),
+      maxCost: groupReach(grid, cells, homes),
+    });
   }
   // obilné jámy (production-chains.md – Obilné jámy): k otevřené jámě pro zrno, k jámě, do které se
   // dnes ukládá zrno z humna, za prací dne (k zavřené jámě jen za prací)

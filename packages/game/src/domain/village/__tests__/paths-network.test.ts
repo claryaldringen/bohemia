@@ -4,6 +4,7 @@ import {
   PATH_TRAFFIC,
   WORKSHOP_YARD_PATH_BOX_M,
   computePathNetwork,
+  computeStableNetwork,
   pathAgeFactor,
   pathBounds,
   pathNetworkKey,
@@ -379,8 +380,16 @@ describe('computePathNetwork – pěšiny vsi', () => {
     const idle = computePathNetwork({ village: threshing(0), terrain });
     const working = computePathNetwork({ village: threshing(6), terrain });
     // vstup na předku: 5 m od středu + krok
-    expect(near(idle, -70, -34, 4)).toBe(0);
+    // stavba jako každá jiná: vede k ní stálá trasa i bez výmlatu (Martin 31. 10. 2026)
+    expect(near(idle, -70, -34, 4)).toBeGreaterThan(0);
     expect(near(working, -70, -34, 4)).toBeGreaterThan(0);
+    const stable = computeStableNetwork({ village: threshing(0), terrain });
+    expect(stable.routes?.some((r) => r.to === 'threshing-floor:9')).toBe(true);
+    const asKilns = village({
+      kilns: [{ x: -80, z: -40, burnerId: 1 }],
+    });
+    const kilnRoutes = computeStableNetwork({ village: asKilns, terrain }).routes ?? [];
+    expect(kilnRoutes.some((r) => r.to === 'kiln:1')).toBe(true);
     // přes mlat s přístřeškem (8 × 10 m) pěšina nevede
     expect(
       samples(working).filter((q) => Math.abs(q.x + 70) < 3.5 && Math.abs(q.z + 40) < 4.5),

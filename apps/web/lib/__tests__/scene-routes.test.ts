@@ -90,10 +90,9 @@ describe('trasy a vyšlapanost jen při změně klíče', () => {
     });
   });
 
-  it('klíč tras scény se změní i s trasami k práci dne a převážením (otisk mapy stejný)', () => {
-    const base = { day: 1, key: 'mapa', workKey: 'w1', list: [route as never] };
+  it('klíč tras scény se změní i s převážením (otisk mapy stejný)', () => {
+    const base = { day: 1, key: 'mapa', list: [route as never] };
     const key = sceneRoutesKey(base);
-    expect(sceneRoutesKey({ ...base, workKey: 'w2' })).not.toBe(key);
     expect(sceneRoutesKey({ ...base, list: [{ ...route, trips: 120 } as never] })).not.toBe(key);
     // převážení s týmž součtem cest
     const two = {

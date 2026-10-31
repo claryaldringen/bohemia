@@ -838,7 +838,16 @@ Návrh `docs/design/paths.md` – Stálé trasy (25. 10. 2026), Úloha A1.
   a idempotentně.
 - **Mapa tras a klíč** (A2b, [paths.md – Stálé trasy, pravidlo 5](../design/paths.md#stálé-trasy-25-10-2026)):
   `refreshWalkDistances` (`paths/village.ts`) drží v `VillageState.walkLayoutKey` = `routes.key`
-  otisk `routeMapKey | WALK_VERSION` (`routes-v7` – trasy ze všech staveb, olemování z míst).
+  otisk `routeMapKey | WALK_VERSION` (`routes-v9` – bez tras k práci dne).
+  - **Denní kontrola mapy bez skládání klíče** (31. 10. 2026): `routeMapKey` vrací rovnou otisk
+    (`KeyHash` – tytéž dvě FNV-1a jako `walkLayoutHash`, části klíče se míchají po řetězcích
+    s oddělovači, celý JSON se neskládá). Zemní práce v klíči bez celého profilu – id, počet bodů
+    a konce osy (`earthworksKey`; profil se určí se založením, nové zemní práce = nové id – u
+    Vlkova byl profil 83 % klíče). Vlkov: klíč 303 kB → 64 kB, 2,8 → ≈ 0,7 ms za den.
+    Počítadlo ve stavu zvyšované při postavení / zániku stavby (návrh na 31. 10.) zavedené není –
+    změn mapy je přes 140 míst ve 45 souborech a zapomenuté místo by se neprojevilo (trasy by se
+    tiše nepřepočítaly); otisk se den po dni shoduje se starým klíčem (`keycheck.mts` mimo repo –
+    Vlkov 20 let a nová ves se správcem 15 let: každá změna starého klíče = změna otisku a naopak).
   - `routeMapKey` – obydlí a staveniště (poloha, natočení, druh, pozemek – bez obyvatel a stáří),
     díly polí (políčka, bez stadia), sady, hřbitovy, posvátná místa, ohrady (políčka, hotová),
     les vsi, milíře, humna, obilné jámy od vykopání po zánik (ne otevřená / zavřená), pevné cesty
@@ -855,11 +864,9 @@ Návrh `docs/design/paths.md` – Stálé trasy (25. 10. 2026), Úloha A1.
     Cache sítě (`villagePathNetwork`) je klíčovaná toutéž vsí, obsazenost ji nezmění.
   - `routePlacesKey` – obydlené domácnosti, ohrady se zvířaty, otevřené jámy. V otisku mapy není:
     změna (`VillageRoutes.placesKey`) v `refreshWalkDistances` hned převáží stálé trasy
-    (`reweighRoutes`, značka `WEIGHED` i s obsazeností), nic nehledá; do měsíční vrstvy
-    (`routeMonthKey`) patří, protože trasy k práci dne vedou z obydlených domácností. Vzdálenosti
+    (`reweighRoutes`, značka `WEIGHED` i s obsazeností), nic nehledá. Vzdálenosti
     chůze se měří z nejbližšího obydlí i prázdného a rozestavěného (`dwellingOrigins`) –
-    obsazenost je nemění. Pastvina (`routePastureKey` – stáda a díly, kam se vyhání) se mění se
-    stadii, proto patří do měsíční vrstvy (`routeMonthKey`).
+    obsazenost je nemění.
   - **Olemování** (`paths/road-lining.ts`, Martin 31. 10. 2026 „Stromy jsou součást cesty“):
     `roadLining(road, apples)` z míst na stromy (`Road.spots`) a jabloní úseku (i čekajících
     a souší), bez dne. `lineRoads(state)` určí jen chybějící (nový či přestavěný úsek);
@@ -867,23 +874,28 @@ Návrh `docs/design/paths.md` – Stálé trasy (25. 10. 2026), Úloha A1.
     úprava před vozovou cestou ve `wagon-rebuild.ts`), další přepočet chůze ho určí znovu.
     Převod `withPlannedLining` (v `updateVillage`) jednou – značka `VillageRoads.liningPlanned`.
   - Změna otisku = stálé trasy znovu (`computeStableNetwork` – síť bez práce dne, `stableVillage`)
-    a za nimi trasy k práci dne (`computeWorkRoutes`, `StoredRoute.daily`) + vzdálenosti chůze
-    (jen ze stálých tras – `villageRouteLines`).
-  - 1. dne v měsíci beze změny otisku: jiná místa práce nebo pastvina (`routeMonthKey` =
-       `routeWorkKey` + `routePastureKey` → `routes.workKey`; druhy práce se stálou částí `field`,
-       `orchard`, `pen`, `site`, `cemetery` se nepočítají) = jen trasy k práci dne a na pastvu znovu – jedno kolo `routeAll` nad provozem uložených stálých tras (sleva
-       `pathStrength` z jejich cest za den, vyšlapanost, pevné cesty), stálé trasy bit po bitu stejné;
-       pak `reweighRoutes` převáží stálé trasy (`stableRouteWeights` – skupiny bez hledání, váha
-       domácnosti × `StoredRoute.scale` u dřeva; trasa bez skupiny 0 cest). Opakované volání týž den
-       (oprava a přestavba cest) převážení nepočítá znovu (`WEIGHED`, jen zrychlení).
+    - vzdálenosti chůze (`villageRouteLines`). **Trasy k práci dne a na pastvu se nehledají**
+      (Martin 31. 10. 2026 – `routes-v9`; dřívější `computeWorkRoutes`, `StoredRoute.daily`,
+      `routes.workKey`, `routeMonthKey` zmizely, vsi uložené s nimi je zahodí přepočtem).
+      Práce k cílům bez stálé trasy (kácení, seč, úprava cesty, opravy, humno, kovář…) do
+      vyšlapanosti nic nepřidá (`laborCells` cíl nenajde).
+  - 1. dne v měsíci beze změny otisku: `reweighRoutes` převáží stálé trasy (`stableRouteWeights` –
+       skupiny bez hledání, váha domácnosti × `StoredRoute.scale` u dřeva; trasa bez skupiny 0
+       cest). Opakované volání týž den (oprava a přestavba cest) převážení nepočítá znovu
+       (`WEIGHED`, jen zrychlení). **Po trasách, ne po buňkách** (31. 10. 2026): váhy berou
+       z mřížky jen průchodnost (brány domácností, buňky cílů), která se mění jen s mapou tras –
+       `reweighedList` drží mřížku a terén okna posledního převážení po krajinách (`WEIGHT_GRIDS`,
+       otisk `walkLayoutKey` + vrstva překážek) a `stableRouteWeights(input, grid)` ji jen
+       použije; vyšlapanost po buňkách sčítá dál až `settleVillageWear` (`trafficField`). Výsledek
+       bit po bitu stejný (Vlkov 100 dní týž otisk; test „mřížka z dřívějšího dne“).
   - Váhy: pole má stálou část `BASE_TRIPS.field` bez ohledu na stadia (dřívější `fallow` a poloviční
     stáří zakládaného pole zmizely). Práci dne k cílům se stálou částí nese stálá trasa: do
     vyšlapanosti `wear.labor`, do stavu cest `trafficOnRoads(…, labor)` (`laborTripsPerDay` –
     práce intervalu po cílech, podíl podle cest trasy – `tripsWithLabor` v `road-condition.ts`).
   - Převod: `withoutWalkStages` (v `updateVillage`) smaže `walkStages`; uložené trasy mají otisk
     starší verze → první den dopočtu je spočítá znovu i se vzdálenostmi chůze, podruhé otisk sedí.
-  - Scéna: klíč tras `sceneRoutesKey` (otisk + `workKey` + počet a součet cest), aby klient dostal
-    i trasy k práci dne a převážení; známá vyšlapanost nese i `wearCellM` (převod 7,5 → 3,75 m týž
+  - Scéna: klíč tras `sceneRoutesKey` (otisk + počet a součet cest), aby klient dostal
+    i převážení; známá vyšlapanost nese i `wearCellM` (převod 7,5 → 3,75 m týž
     den se pošle znovu).
   - Testy `routes.test.ts` – „trasy jen při změně mapy“ (i nastěhování / vystěhování a zapečetěná
     / otevřená jáma jen převáží), `road-tree-speed.test.ts` – olemování ve stavu vsi (zasazení
@@ -913,8 +925,12 @@ prohlížeči – udělej to rovnou“).
   (`groundSpots(ground, PATH_FORD)`), druhý úsek začíná ve vodě (brodí se jednou). Bez brodu v okně
   brodění kdekoli jako dřív. Paměť chůze (`memoWalkLength`) drží jen úsečky bez objížďky; úsečka
   přes potok má zápornou hodnotu a objížďka se skládá z úseček (`memoDetour`) – výsledek týž jako
-  bez paměti. Graf pěšin a pevných cest (`walkGraph`, `walkingDistances`) beze změny.
-  `WALK_VERSION` `routes-v8`.
+  bez paměti. Graf pěšin a pevných cest (`walkGraph`) beze změny; **napojení jen v nejbližším
+  bodě** (31. 10. 2026, `routes-v10`): `WalkGraph.chains` – uzly každé pěšiny a cesty v pořadí;
+  `walkingDistances` seje Dijkstru jen z nejbližšího uzlu (vzdušnou čarou, `nearestNode`) každého
+  řetězu ke každému obydlí a cíl bere z nejbližšího uzlu každého řetězu (ořez dolní mezí jako
+  dřív) – jako `cartEstimates`. Vlkov: den s přepočtem chůze 2,3 → 1,8 s; vzdálenosti dílů
+  medián +1,5 %, p90 +8 %, max +22 % (test „průchod všemi napojeními“ v `paths-walking.test.ts`).
 - **Vůz** (`paths/cart-estimate.ts`): `villageCartEstimates(state, day, landscape, kind, targets,
 from)` – výjezd z hotových ohrad se spřežením (`teamPens`) nebo z `from`; `CartEstimate`
   (`reached`, `cost` m po louce, `lengthM`, `end` – `reachM` před cílem na poslední úsečce).

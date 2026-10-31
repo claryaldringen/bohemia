@@ -240,7 +240,7 @@ export interface PathVillage {
    * Milíře uhlířů (crafts.md – Milíř u skácených buků) – samostatné stavby, střed (m): pěšina kupu
    * obejde, k milíři se chodí za prací dne (uhlíř ze zemnice, pro uhlí z kovárny). Bez údaje žádné.
    */
-  kilns?: readonly { x: number; z: number }[];
+  kilns?: readonly { x: number; z: number; burnerId?: number }[];
   /**
    * Humna (production-chains.md – Humno) – hotová i rozestavěná: pěšina mlat obejde, k hotovému
    * se chodí vstupem na předku za výmlatem (nosí se snopy, odnáší zrno), ke staveništi ze všech
@@ -271,7 +271,7 @@ export interface PathNetworkInput {
   keepRoutes?: boolean;
   /**
    * Jen stálé trasy (paths.md – Stálé trasy, pravidlo 5): bez pastviny – ta se mění se stadii
-   * dílů a hledá se s trasami k práci dne (`computeWorkRoutes`).
+   * dílů; stáda chodí po stálých trasách k polím.
    */
   stable?: boolean;
   /**
@@ -351,6 +351,9 @@ export const BASE_TRIPS = {
   pen: 0.8,
   // pro zrno z otevřené obilné jámy (production-chains.md – Obilné jámy; návrh Clauda)
   grainPit: 0.6,
+  // humno (snopy a zrno) a milíř uhlíře – stavby jako každé jiné (paths.md – Stálé trasy, pravidlo 5)
+  threshingFloor: 0.6,
+  kiln: 0.6,
 } as const;
 
 /**

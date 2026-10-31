@@ -215,11 +215,7 @@ export function routeLine(
  * Trasy sítě k uložení do stavu vsi (`VillageRoutes.list`): cesty za den v setinách, trasy pod
  * MIN_TRIP se neukládají. Síť musí být spočítaná s `keepRoutes` (jinak žádné trasy).
  */
-export function storedRoutes(
-  network: Pick<PathNetwork, 'routes' | 'traffic'>,
-  /** Trasy k práci dne (`StoredRoute.daily`). */
-  daily = false,
-): StoredRoute[] {
+export function storedRoutes(network: Pick<PathNetwork, 'routes' | 'traffic'>): StoredRoute[] {
   return (network.routes ?? [])
     .filter((r) => r.trips >= MIN_TRIP)
     .map((r) => {
@@ -232,7 +228,6 @@ export function storedRoutes(
         trips,
         ...(base > 0 ? { base } : {}),
         ...(r.scale !== undefined && r.scale < 1 ? { scale: r.scale } : {}),
-        ...(daily ? { daily: true as const } : {}),
         ...encodeRoute(r.cells, network.traffic),
         ...(r.visit ? { visit: r.visit } : {}),
       };

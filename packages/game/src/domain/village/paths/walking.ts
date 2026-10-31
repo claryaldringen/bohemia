@@ -42,6 +42,11 @@ export interface WalkGraph {
   x: number[];
   z: number[];
   links: { to: number; length: number; cost: number }[][];
+  /**
+   * Body každé pěšiny a pevné cesty v pořadí (id uzlů) – obydlí i cíl se na síť napojí jen
+   * v nejbližším bodě každé z nich (`walkingDistances`, paths.md – Odhad vzdáleností).
+   */
+  chains: number[][];
 }
 
 /** Pevná cesta pro chůzi – osa, stupeň, mokřina s brody na ose a stromy u cesty. */
@@ -662,7 +667,7 @@ export function walkGraph(
   lines: readonly PathLine[],
   options: { roads?: readonly WalkRoad[]; ground?: WalkGround | null } = {},
 ): WalkGraph {
-  const graph: WalkGraph = { x: [], z: [], links: [] };
+  const graph: WalkGraph = { x: [], z: [], links: [], chains: [] };
   const shared = new Map<string, number>();
   const node = (p: PathPoint, end: boolean): number => {
     const key = end ? `${p.x}|${p.z}` : null;
@@ -683,8 +688,11 @@ export function walkGraph(
   };
   for (const line of lines) {
     let prev = -1;
+    const chain: number[] = [];
+    graph.chains.push(chain);
     line.points.forEach((p, k) => {
       const id = node(p, k === 0 || k === line.points.length - 1);
+      chain.push(id);
       if (prev >= 0 && prev !== id) {
         const a = { x: graph.x[prev]!, z: graph.z[prev]! };
         const length = length2(p.x - a.x, p.z - a.z);
@@ -697,8 +705,11 @@ export function walkGraph(
   for (const road of options.roads ?? []) {
     let prev = -1;
     let along = 0;
+    const chain: number[] = [];
+    graph.chains.push(chain);
     road.points.forEach((p, k) => {
       const id = node(p, k === 0 || k === road.points.length - 1);
+      chain.push(id);
       if (prev >= 0) {
         const length = length2(p.x - graph.x[prev]!, p.z - graph.z[prev]!);
         if (prev !== id) link(prev, id, length, roadPieceCost(road, along, along + length));
@@ -712,9 +723,11 @@ export function walkGraph(
 
 /**
  * Vzdálenost chůze (m) z nejbližšího výchozího bodu (obydlí) ke každému cíli: rovně, nebo
- * k pěšině či cestě, po ní a od ní k cíli – kratší z obou. Rovně podle půdy (`ground` – mokřina,
- * voda), bez ní délka úsečky; s pamětí `memo` (`walkMemoOf`) se délky rovně berou z paměti – tytéž.
- * Bez výchozích bodů Infinity.
+ * k pěšině či cestě, po ní a od ní k cíli – kratší z obou. Na síť se obydlí i cíl napojí jen
+ * v nejbližším bodě (vzdušnou čarou) každé pěšiny a cesty (`WalkGraph.chains` – paths.md, Odhad
+ * vzdáleností; jako vůz v `cart-estimate.ts`), ne v každém bodě sítě. Rovně podle půdy (`ground` –
+ * mokřina, voda), bez ní délka úsečky; s pamětí `memo` (`walkMemoOf`) se délky rovně berou
+ * z paměti – tytéž. Bez výchozích bodů Infinity.
  */
 export function walkingDistances(
   graph: WalkGraph,
@@ -777,18 +790,19 @@ export function walkingDistances(
   );
   let limit = 0;
   for (const d of direct) if (d > limit) limit = d;
-  for (let id = 0; id < n; id++) {
-    const x = graph.x[id]!;
-    const z = graph.z[id]!;
-    const best = cheapest(
-      origins.length,
-      (k) => length2(x - origins[k]!.x, z - origins[k]!.z),
-      (k) => straight(origins[k]!, x, z),
-      limit,
-    );
-    if (best >= limit) continue;
-    dist[id] = best;
-    heap.push(id, best);
+  // na síť z každého obydlí jen v nejbližším bodě každé pěšiny a cesty (paths.md – Odhad
+  // vzdáleností, jako vůz – cart-estimate.ts); dál po síti
+  for (const chain of graph.chains) {
+    for (const o of origins) {
+      const id = nearestNode(graph, chain, o);
+      if (id < 0) continue;
+      const lb = length2(graph.x[id]! - o.x, graph.z[id]! - o.z);
+      if (lb >= limit || lb >= dist[id]!) continue;
+      const cost = straight(o, graph.x[id]!, graph.z[id]!);
+      if (cost >= limit || cost >= dist[id]!) continue;
+      dist[id] = cost;
+      heap.push(id, cost);
+    }
   }
   while (heap.size > 0) {
     const c = heap.pop();
@@ -802,15 +816,34 @@ export function walkingDistances(
       }
     }
   }
-  // přes pěšiny a cesty (krátké úsečky od bodů u cíle), nebo rovně z obydlí – kratší z obou
-  return targets.map((t, q) =>
-    cheapest(
-      n,
-      (id) => dist[id]! + length2(t.x - graph.x[id]!, t.z - graph.z[id]!),
-      (id) => dist[id]! + straight({ x: graph.x[id]!, z: graph.z[id]! }, t.x, t.z),
-      direct[q]!,
-    ),
-  );
+  // z nejbližšího bodu každé pěšiny a cesty k cíli, nebo rovně z obydlí – kratší z obou
+  return targets.map((t, q) => {
+    let best = direct[q]!;
+    for (const chain of graph.chains) {
+      const id = nearestNode(graph, chain, t);
+      if (id < 0 || !Number.isFinite(dist[id]!)) continue;
+      if (dist[id]! + length2(t.x - graph.x[id]!, t.z - graph.z[id]!) >= best) continue;
+      const cost = dist[id]! + straight({ x: graph.x[id]!, z: graph.z[id]! }, t.x, t.z);
+      if (cost < best) best = cost;
+    }
+    return best;
+  });
+}
+
+/** Bod řetězu `chain` nejblíž `p` vzdušnou čarou (při shodě první), prázdný řetěz −1. */
+function nearestNode(graph: WalkGraph, chain: readonly number[], p: PathPoint): number {
+  let best = -1;
+  let bestD = Infinity;
+  for (const id of chain) {
+    const dx = graph.x[id]! - p.x;
+    const dz = graph.z[id]! - p.z;
+    const d = dx * dx + dz * dz;
+    if (d < bestD) {
+      best = id;
+      bestD = d;
+    }
+  }
+  return best;
 }
 
 /**

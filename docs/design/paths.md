@@ -323,11 +323,30 @@ změně stadia hledaly znovu (měření 25. 10. 2026: hledání tras vozů 67 % 
      posvátná místa, vchody staveb, staveniště, sousedé, pastvina) – mají pořadí slévání i cesty za
      den jen ze stálé části (`base`) a lidí. Práce dne do nich nevstupuje; do vyšlapanosti i stavu
      cest ji nese skutečně odvedená práce intervalu (`wear.labor`), ne snímek dne přepočtu.
-   - **Trasy k práci dne** (cíle bez stálé části – kácení, seč, úprava cesty, opravy, jámy na
+   - ~~**Trasy k práci dne** (cíle bez stálé části – kácení, seč, úprava cesty, opravy, jámy na
      obilí, nošení od kováře…) se hledají až po stálých, nad nimi (se slevou z jejich provozu),
      a stálé trasy nemění. Přepočítají se se stálými a 1. dne v měsíci, jen pokud se změnila
      množina míst s prací nebo obsazenost (vedou jen z obydlených domácností) – místa práce se
-     mění, mapa ne. Do vzdálenosti chůze pro práci nevstupují.
+     mění, mapa ne. Do vzdálenosti chůze pro práci nevstupují.~~ Od 31. 10. 2026 se **trasy
+     k práci dne ani na pastvu nehledají** – na návrh „trasy ke kácení, na paseku a na louku jen
+     ze stálé sítě pěšin“ Martin 31. 10. 2026: „ano“. Pěšiny k lesu, pasece, loukám a pastvě
+     vznikají jen ze stálých tras. Práce dne do vyšlapanosti a stavu cest dál jde přes
+     `wear.labor`, ale jen k cílům, ke kterým vede stálá trasa (pole, sad, ohrada, hřbitov,
+     staveniště, jáma); práce bez stálé trasy (kácení, seč luk, úprava cesty, opravy, humno,
+     nošení od kováře a hrnčíře) pěšinu nevyšlape. Nové stálé cíle: **humno** a **milíř**
+     (Martin 31. 10. 2026: „Humno je stavba jako každá jiná“ a „Ta věc … se prostě postaví a dál
+     se s ní nic neděje, pokud nespadne“) – `routes-v11`. Humno má stálou část jako obilná jáma
+     (0,6 cesty za den z každé domácnosti, vstup na předku; výmlat je práce dne navrch přes
+     `wear.labor`), milíř stálou trasu z domu uhlíře (0,6 cesty za den; chodí tam jen on, proto
+     jen jeho domácnost; práce `kiln:<uhlíř>` navrch). Návrh Clauda: stálá část je stejná po
+     celý rok, ne jen v době výmlatu – stavba se neřeší podle stavu dne, jako ostatní cíle;
+     přibývá jedna trasa na humno. Kovárna, hrnčířská pec a další dílny: stálý cíl nemají
+     (vlastní dvůr, pěšina z domu řemeslníka je trasa k jeho vchodu / sousedům); ostatní stavby
+     už mají stálý cíl (pole, sad, ohrada, hřbitov, jáma, posvátná místa, staveniště). **Okraj
+     lesa** už stálý cíl má (pochůzka pro dřevo – z ní vede pěšina k lesu, ke kterému se chodí
+     i kácet), **paseka** je díl pole (stálá trasa k poli), **pastvina** (mladý úhor, louka po
+     seči) leží v polích vsi – stáda jdou po stálých trasách k polím; přirozené louky se sečou
+     jen pár týdnů v roce na různých políčkách – stálé místo to není.
 
    _Stav 26. 10. 2026 (Úloha A2b):_ zavedeno – otisk mapy tras a míst; místa práce jen 1. dne
    v měsíci. Návrh Clauda k tomu, co pravidlo neříká: lidé a stáda **převáží** cesty za den
@@ -1026,13 +1045,21 @@ nespadne“. Model návrh Clauda:
 - **Síť zrychluje dál:** chodec po pěšinách stálých tras (síla z vyšlapanosti) a pevných cestách
   (stupeň, olemování, mokřina a brody na ose) – graf os, ne mřížka; vůz po pevných cestách
   (rychlost vozu podle druhu, vyježděná, olemování), na síť najede v nejbližším bodě každé cesty.
+  **Chodec stejně** (od 31. 10. 2026 – návrh Clauda „vzdálenosti chůze s jedním napojením“,
+  Martin 31. 10. 2026 na čtyři jisté úspory: „Ano“): z obydlí na síť a ze sítě k dílu, čtverci
+  sadu, vodě či okraji lesa jen v nejbližším bodě (vzdušnou čarou) každé pěšiny a cesty, ne
+  v kterémkoli bodě sítě. Chůze tak síť nikdy nezkrátí víc než dřív – kde by se vyplatilo
+  sejít z pěšiny šikmo dřív nebo později, vyjde o kus déle. Vlkov (3 783 dílů, přepočet
+  `routes-v10`): medián +1,5 % (+4 m), 90 % dílů do +8 % (+26 m), nejvíc +22 % (+88 m),
+  průměr 336 → 345 m; voda z obydlí medián +0,3 %, okraj lesa 8 z 10 obydlí beze změny.
 - **Svah jen pro vůz, levně:** kus úsečky (dvě buňky) se sklonem do poloviny meze (`maxGrade`
   10 %) stojí × (1 + 4 · (sklon / mez)²) jako ve vozové síti; prudší kus stojí nejvýš jako
   serpentiny se sklonem poloviny meze – vůz rovně do srázu nevyjede, ale objede ho. Po pevné cestě
   stejně, vozová cesta má úvozy (bez svahu).
 - **Dvoukolák i čtyřkolák** mají v odhadu stejnou cenu (liší se jen zatáčením v přesné trase).
-- **Co zůstává:** stálé trasy (pěšiny) se hledají jen se stavbou nebo zánikem stavby a trasy
-  k práci dne 1. dne v měsíci – z nich je provoz a vyšlapanost jako dosud. Roční síť vozů 1. 11.
+- **Co zůstává:** stálé trasy (pěšiny) se hledají jen se stavbou nebo zánikem stavby ~~a trasy
+  k práci dne 1. dne v měsíci~~ (od 31. 10. 2026 trasy k práci dne nejsou – Stálé trasy,
+  pravidlo 5) – z nich je provoz a vyšlapanost jako dosud. Roční síť vozů 1. 11.
   (jízdy roku do vyšlapanosti a příznak vozová) hledá trasy vozu jednou za rok.
 - **Přesné trasy jen pro pohled:** trasu vozu, spřežení a postav počítá pohled na ves (scéna)
   stejnými deterministickými funkcemi jen pro to, co ukazuje – simulace mřížku vozu nestaví.

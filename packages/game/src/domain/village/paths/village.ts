@@ -34,12 +34,10 @@ import { clearingRouteObstacles, withoutHiddenChanges } from './clearing-routes'
 import { earthworkSpansOf } from './earthworks';
 import {
   computeStableNetwork,
-  computeWorkRoutes,
   establishedVillage,
   stableRouteWeights,
   kilnsKey,
   threshingFloorsKey,
-  pastureHerds,
   pathPlotOf,
   villagePathBounds,
   roadsKey,
@@ -51,7 +49,6 @@ import {
   type PathNetworkInput,
   type PathVillage,
 } from './network';
-import { AFTERMATH_MONTHS } from './network-types';
 import {
   PATH_FOREST_EDGE,
   obstaclePosition,
@@ -84,7 +81,6 @@ import {
   laborTripsPerDay,
   settleWear,
   trafficField,
-  wearLaborKey,
   wearMap,
   wearRevisionKey,
 } from './wear';
@@ -395,12 +391,11 @@ function villageWear(state: VillageState): ReadonlyMap<number, number> | null {
 }
 
 /**
- * Čáry pěšin vsi ze stálých tras se silou z vyšlapanosti (`routePaths`) – pro chůzi; trasy
- * k práci dne do chůze pro práci nevstupují (paths.md – Stálé trasy, pravidlo 5).
+ * Čáry pěšin vsi ze stálých tras se silou z vyšlapanosti (`routePaths`) – pro chůzi (paths.md –
+ * Stálé trasy, pravidlo 5).
  */
 function villageRouteLines(state: VillageState, cellM: number): PathLine[] {
-  const stable = (state.routes?.list ?? []).filter((r) => !r.daily);
-  return routePaths(stable, villageWear(state) ?? new Map(), cellM);
+  return routePaths(state.routes?.list ?? [], villageWear(state) ?? new Map(), cellM);
 }
 
 /**
@@ -568,42 +563,70 @@ function computeVillageNetwork(
  * cesty (osa, druh, stupeň, mokřina – olemování je jejich součást; ne stav kusů, provoz ani opuštění),
  * zemní práce (profil, brody, hotové úseky – ne průběh), otevřené obilné jámy (stálý cíl) a pařezy
  * k poslednímu 1. 11.; paseka rozestavěného pole v lese až s dohořením pole (`routeTreesKey`).
- * Neobsahuje stadia dílů, lidi, stáří spojení, stáda, práci dne ani den.
+ * Neobsahuje stadia dílů, lidi, stáří spojení, stáda, práci dne ani den. Vrací rovnou otisk
+ * (`KeyHash`, 16 šestnáctkových číslic) – denní kontrola mapy klíč neskládá do řetězce.
  */
 export function routeMapKey(state: VillageState, day: number): string {
   const k = walkLayoutParts(state);
-  return JSON.stringify([
-    k.dwellings,
-    k.sites,
-    k.parts,
-    k.orchards,
-    k.cemeteries,
-    k.sacred,
-    k.roads,
-    k.pens,
-    k.woods,
-    k.kilns,
-    k.floors,
-    earthworksKey(state),
-    (state.grainPits ?? []).map((p) => `${p.id}:${p.x},${p.z}`),
-    routeTreesKey(state, day),
-  ]);
+  // otisk po kouscích – celý klíč (u Vlkova 64 kB) se neskládá ani nekóduje (výkon)
+  const h = new KeyHash();
+  for (const list of [k.dwellings, k.sites, k.parts, k.orchards, k.cemeteries]) h.list(list);
+  h.text(k.sacred);
+  h.text(k.roads ?? '-');
+  h.list(k.pens);
+  h.list(k.woods);
+  h.text(k.kilns ?? '-');
+  h.text(k.floors ?? '-');
+  h.text(earthworksKey(state));
+  h.list((state.grainPits ?? []).map((p) => `${p.id}:${p.x},${p.z}`));
+  h.text(routeTreesKey(state, day));
+  return h.digest();
+}
+
+/**
+ * Otisk klíče po kouscích – tytéž dvě 32bitové FNV-1a jako `walkLayoutHash`, jen se klíč neskládá
+ * do jednoho řetězce. Oddělovače (0x1e, 0x1f) mimo text klíče – různé klíče dají různé proudy.
+ */
+class KeyHash {
+  private a = 0x811c9dc5;
+  private b = 0x9e3779b9;
+
+  private char(c: number): void {
+    this.a = Math.imul(this.a ^ c, 0x01000193);
+    this.b = Math.imul(this.b ^ c, 0x01000193) ^ (this.b >>> 15);
+  }
+
+  text(text: string): void {
+    for (let i = 0; i < text.length; i++) this.char(text.charCodeAt(i));
+    this.char(0x1f);
+  }
+
+  list(items: readonly string[]): void {
+    for (const item of items) this.text(item);
+    this.char(0x1e);
+  }
+
+  digest(): string {
+    return `${(this.a >>> 0).toString(16).padStart(8, '0')}${(this.b >>> 0).toString(16).padStart(8, '0')}`;
+  }
 }
 
 /**
  * Zemní práce pro klíč mapy: profil, brody, konce úseků a které jsou hotové, zrušení – ne průběh
- * (`manDays`), který se mění každý den stavby a mapu tras nepřepočítává (výkon).
+ * (`manDays`), který se mění každý den stavby a mapu tras nepřepočítává (výkon). Profil se určí se
+ * založením zemních prací (`RoadEarthwork.profile` – jen ke čtení, nové zemní práce = nové id),
+ * proto v klíči stačí id, počet bodů a konce osy – ne celý profil (u Vlkova 83 % klíče).
  */
 function earthworksKey(state: VillageState): string {
   return (state.roads?.earthworks ?? [])
-    .map(
-      (e) =>
-        `${e.id}:${JSON.stringify(e.profile)}:${(e.fords ?? []).join(',')}:${e.pieces
-          .map((p) => `${p.toM}${p.builtDay === null ? '' : '*'}`)
-          .join(
-            ',',
-          )}:${JSON.stringify(e.bypassed ?? [])}:${e.abandonedDay === undefined ? '' : 'x'}`,
-    )
+    .map((e) => {
+      const a = e.profile[0];
+      const b = e.profile[e.profile.length - 1];
+      const ends = a && b ? `${a.x},${a.z}>${b.x},${b.z}` : '';
+      return `${e.id}:${e.profile.length}@${ends}:${(e.fords ?? []).join(',')}:${e.pieces
+        .map((p) => `${p.toM}${p.builtDay === null ? '' : '*'}`)
+        .join(',')}:${JSON.stringify(e.bypassed ?? [])}:${e.abandonedDay === undefined ? '' : 'x'}`;
+    })
     .join('|');
 }
 
@@ -620,66 +643,6 @@ export function routePlacesKey(state: VillageState): string {
     .map((p) => p.id)
     .sort((a, b) => a - b);
   return `${occupied.join(',')}|${stocked.join(',')}|${open.join(',')}`;
-}
-
-/**
- * Pastvina – stáda a díly, na které se dnes vyhání (stejně jako cíl `pasture` v síti): mladý
- * úhor, který stáda opravdu spásají, po seči i louka. Mění se se stadii dílů, proto se trasy na
- * pastvu hledají s trasami k práci dne – jen 1. dne v měsíci (`routeMonthKey`).
- */
-export function routePastureKey(state: VillageState, day: number): string {
-  const herds = state.livestock ? pastureHerds(pastureLivestock(state, day)) : 0;
-  if (herds === 0) return '';
-  const grazed = pastureGrazedParts(state, day);
-  const aftermath = AFTERMATH_MONTHS.includes(
-    state.labor ? dateOfDayIndex(state.labor.day).month : 6,
-  );
-  const parts = state.parts
-    .filter((p) => {
-      if (p.cell === undefined || (isGrazeableFallow(p) && !grazed.has(p.id))) return false;
-      const stage = partStage(p, day);
-      return stage === 'young-fallow' || (aftermath && stage === 'meadow');
-    })
-    .map((p) => p.id)
-    .join(',');
-  return `${herds}:${parts}`;
-}
-
-/**
- * Otisk měsíční vrstvy tras (`VillageRoutes.workKey`): místa s prací dne a pastvina – trasy k nim
- * se hledají znovu jen 1. dne v měsíci, když se změní (paths.md – Stálé trasy, pravidlo 5).
- */
-export function routeMonthKey(state: VillageState, day: number): string {
-  // trasy k práci dne vedou z obydlených domácností – s obsazeností se hledají 1. dne v měsíci
-  return walkLayoutHash(
-    `${routeWorkKey(state)}|${routePastureKey(state, day)}|${routePlacesKey(state)}`,
-  );
-}
-
-/** Druhy práce se stálou částí trasy – práci dne k nim nese stálá trasa (`wear.labor`). */
-const STABLE_WORK = new Set(['field', 'orchard', 'pen', 'site', 'cemetery']);
-
-/**
- * Místa s prací dne bez stálé části (kácení, seč, úprava cesty, opravy…) – trasy k nim se hledají
- * znovu jen 1. dne v měsíci, když se tato množina změní (paths.md – Stálé trasy, pravidlo 5).
- */
-export function routeWorkKey(state: VillageState): string {
-  const keys = new Set<string>();
-  for (const share of state.labor?.shares ?? []) {
-    if (share.manDays <= 0 || STABLE_WORK.has(share.target.kind)) continue;
-    const key = wearLaborKey(share.target);
-    if (key === null) continue;
-    // sečená políčka luk určují cíl trasy (`meadow`) – nové místo seče = nové trasy
-    keys.add(
-      share.target.kind === 'meadow'
-        ? `${key}:${share.target.cells
-            .map((c) => `${c.x},${c.y}`)
-            .sort()
-            .join('.')}`
-        : key,
-    );
-  }
-  return [...keys].sort().join(';');
 }
 
 /** Poslední 1. 11. nejvýš v den `day` – k němu vstupují do mapy tras pařezy a mladé stromy. */
@@ -818,9 +781,11 @@ function walkLayoutParts(state: VillageState): WalkLayoutParts {
  */
 export function villageKilnPoints(
   state: Pick<VillageState, 'dwellings'>,
-): { x: number; z: number }[] {
+): { x: number; z: number; burnerId: number }[] {
   return state.dwellings.flatMap((d) =>
-    workshopKilns(d.workshop).flatMap((k) => (k.site ? [{ x: k.site.x, z: k.site.z }] : [])),
+    workshopKilns(d.workshop).flatMap((k) =>
+      k.site ? [{ x: k.site.x, z: k.site.z, burnerId: d.id }] : [],
+    ),
   );
 }
 
@@ -880,48 +845,32 @@ export function walkDistancesTo(
  * rychlosti (stromy u cest – `Road.lined`), po změně tvaru domů a po odstupu od plotů (paths.md –
  * Odstup od plotu, `routes-v5`), po dvoru dílny (pěšina obejde pec a jámu – `routes-v6`) a po
  * trasách ze všech staveb bez ohledu na obsazenost a olemování podle míst na stromy (`routes-v7` –
- * Martin 31. 10. 2026) a po odhadu chůze s lesem a objížďkou přes brod (`routes-v8` – paths.md,
- * Odhad vzdáleností) se vsi uložené dřív přepočítají hned při dalším dni, ne až při změně mapy
+ * Martin 31. 10. 2026), po odhadu chůze s lesem a objížďkou přes brod (`routes-v8` – paths.md,
+ * Odhad vzdáleností), po zrušení tras k práci dne (`routes-v9` – Stálé trasy, pravidlo 5) a po
+ * napojení chůze na síť jen v nejbližším bodě každé pěšiny (`routes-v10` – Odhad vzdáleností) a po humnu a milíři jako stálých cílech tras (`routes-v11` – Stálé trasy, pravidlo 5) se vsi uložené dřív přepočítají hned při dalším dni, ne až při změně mapy
  * (jednou – pak otisk sedí).
  */
-export const WALK_VERSION = 'routes-v8';
-
-/** Trasy k práci dne nad stálými trasami `stable` (`computeWorkRoutes`) k uložení. */
-function workRoutesOf(
-  state: VillageState,
-  day: number,
-  landscape: Landscape,
-  obstacles: ObstacleLayer | null,
-  village: PathVillage,
-  stable: readonly StoredRoute[],
-): StoredRoute[] {
-  const input = villageNetworkInput(state, day, landscape, obstacles, village, villageWear(state));
-  const work = input ? computeWorkRoutes(input, stable) : null;
-  return work ? storedRoutes(work, true) : [];
-}
+export const WALK_VERSION = 'routes-v11';
 
 /**
- * Trasy vsi pro otisk `key` (paths.md – Stálé trasy, pravidlo 5): stálé trasy ze sítě bez práce
- * dne, za nimi trasy k práci dne nad nimi.
+ * Trasy vsi pro otisk `key` (paths.md – Stálé trasy, pravidlo 5): jen stálé trasy ze sítě bez
+ * práce dne – trasy k práci dne se nehledají (Martin 31. 10. 2026).
  */
 function routesOf(
   state: VillageState,
   day: number,
   landscape: Landscape,
   obstacles: ObstacleLayer | null,
-  village: PathVillage,
   network: PathNetwork | null,
   key: string,
 ): VillageRoutes {
   // trasy ze všech hotových obydlí ke všem stavbám, cesty za den podle dnešní obsazenosti
   const found = network ? storedRoutes(network) : [];
-  const stable = found.length > 0 ? reweighedList(state, day, landscape, obstacles, found) : found;
-  const work = network ? workRoutesOf(state, day, landscape, obstacles, village, stable) : [];
+  const list = found.length > 0 ? reweighedList(state, day, landscape, obstacles, found) : found;
   return {
     day,
     key,
-    list: [...stable, ...work],
-    workKey: routeMonthKey(state, day),
+    list,
     placesKey: walkLayoutHash(routePlacesKey(state)),
   };
 }
@@ -962,12 +911,19 @@ function reweighedList(
   list: StoredRoute[],
 ): StoredRoute[] {
   const village = pathVillageOf(state, day, landscape);
-  const input = villageNetworkInput(state, day, landscape, obstacles, village, null);
+  // mřížka (jen průchodnost – brány a cíle) z dřívějšího převážení téže mapy tras – buňky se
+  // znovu nestaví (paths.md – Stálé trasy, pravidlo 5: převážení po trasách)
+  const key = `${state.walkLayoutKey}`;
+  const known = WEIGHT_GRIDS.get(landscape);
+  const cached = known && known.key === key && known.obstacles === obstacles ? known : null;
+  const input = cached
+    ? { village, terrain: cached.terrain }
+    : villageNetworkInput(state, day, landscape, obstacles, village, null);
   if (!input) return list;
-  const weights = stableRouteWeights(input);
+  const { weights, grid } = stableRouteWeights(input, cached?.grid ?? null);
+  if (!cached) WEIGHT_GRIDS.set(landscape, { key, obstacles, terrain: input.terrain, grid });
   let changed = false;
   const next = list.map((route) => {
-    if (route.daily) return route;
     const w = weights.get(`${route.from}>${route.to}`);
     const trips = w ? Math.round(w.trips * (route.scale ?? 1) * 100) : 0;
     const base = w ? Math.min(trips, Math.round(w.base * 100)) : 0;
@@ -982,6 +938,21 @@ function reweighedList(
 }
 
 /**
+ * Mřížka posledního převážení pro krajinu (jedna ves na krajinu – jako `lastBlocked`): otisk mapy
+ * tras (`walkLayoutKey` – i s verzí tras), vrstva překážek, terén okna a mřížka. Jen zrychlení –
+ * průchodnost je funkce mapy tras, takže převážení dá s ní i bez ní totéž.
+ */
+const WEIGHT_GRIDS = new WeakMap<
+  Landscape,
+  {
+    key: string;
+    obstacles: ObstacleLayer | null;
+    terrain: PathNetworkInput['terrain'];
+    grid: ReturnType<typeof stableRouteWeights>['grid'];
+  }
+>();
+
+/**
  * Vzdálenosti chůze po pěšinách a pevných cestách (mutuje stav – paths.md, roads.md – Rychlejší
  * chůze): díly pole (`FieldPart.walkDistanceM`) a čtverce sadů (`OrchardSquare.walkDistanceM`)
  * z nejbližšího obydlí, palivo z obydlí k nejbližšímu okraji lesa (`Dwelling.forestWalkM`) a voda
@@ -992,9 +963,9 @@ function reweighedList(
  *   stavby a pole od postavení po zánik, pevné cesty, pařezy k 1. 11.); obsazenost domácností,
  *   ohrad a jam ani stadia dílů nic nehledají (Martin 31. 10. 2026);
  * - jiná obsazenost (`routePlacesKey`) stálé trasy hned převáží (`reweighRoutes`) – nic se nehledá;
- * - trasy k práci dne a na pastvu se hledají znovu 1. dne v měsíci, jen když se změnila místa
- *   s prací, pastvina nebo obsazenost (`routeMonthKey`) – nad uloženými stálými trasami;
- * - 1. dne v měsíci se stálé trasy převáží (lidé, stáda, stáří spojení – `reweighRoutes`).
+ * - 1. dne v měsíci se stálé trasy převáží (lidé, stáda, stáří spojení – `reweighRoutes`);
+ * - trasy k práci dne a na pastvu se nehledají – pěšiny ke kácení, na paseku, louky a pastvu
+ *   vznikají jen ze stálých tras (Martin 31. 10. 2026: „ano“).
  *
  * Olemování pevných cest se určí s postavením nebo vylepšením cesty (`lineRoads`). Ve stavu jen
  * otisky (`walkLayoutHash`). Chůze rovně počítá mokřinu a brody (`walkGroundOf`). Dny přepočtu
@@ -1007,8 +978,8 @@ export function refreshWalkDistances(
   obstacles: ObstacleLayer | null,
 ): void {
   const routes = state.routes;
-  // měsíční kontrola 1. dne v měsíci (a poprvé – i trasy uložené před stálými trasami)
-  const monthly = routes?.workKey === undefined || dateOfDayIndex(day).day === 1;
+  // měsíční převážení 1. dne v měsíci
+  const monthly = dateOfDayIndex(day).day === 1;
   lineRoads(state);
   const key = walkLayoutHash(`${routeMapKey(state, day)}|${WALK_VERSION}`);
   if (state.walkLayoutKey === key && routes?.key === key) {
@@ -1018,17 +989,8 @@ export function refreshWalkDistances(
     if (!monthly && !moved) return;
     // vyšlapanost do dneška ještě s dosavadními trasami a vahami (paths.md)
     settleVillageWear(state, day, landscape);
-    let list = routes.list;
-    const workKey = monthly ? routeMonthKey(state, day) : routes.workKey;
-    if (monthly && routes.workKey !== workKey) {
-      const stable = list.filter((r) => !r.daily);
-      const village = pathVillageOf(state, day, landscape);
-      list = [...stable, ...workRoutesOf(state, day, landscape, obstacles, village, stable)];
-    }
-    list = reweighRoutes(state, day, landscape, obstacles, list);
-    if (list !== routes.list || routes.workKey !== workKey || moved) {
-      state.routes = { ...routes, list, ...(workKey !== undefined ? { workKey } : {}), placesKey };
-    }
+    const list = reweighRoutes(state, day, landscape, obstacles, routes.list);
+    if (list !== routes.list || moved) state.routes = { ...routes, list, placesKey };
     return;
   }
   state.walkLayoutKey = key;
@@ -1036,7 +998,7 @@ export function refreshWalkDistances(
   settleVillageWear(state, day, landscape);
   const village = pathVillageOf(state, day, landscape);
   const network = villagePathNetwork(state, day, landscape, obstacles, village);
-  state.routes = routesOf(state, day, landscape, obstacles, village, network, key);
+  state.routes = routesOf(state, day, landscape, obstacles, network, key);
   if (!network) {
     for (const p of state.parts) delete p.walkDistanceM;
     for (const o of villageOrchards(state)) for (const s of o.squares) delete s.walkDistanceM;
@@ -1048,7 +1010,7 @@ export function refreshWalkDistances(
   }
   const ground = withFieldWalk(walkGroundOf(landscape), village.fields);
   // pěšiny ze stálých tras se silou z vyšlapanosti – tentýž zdroj jako scéna (paths.md – Pěšiny
-  // a práce); trasy k práci dne do chůze pro práci nevstupují (Stálé trasy, pravidlo 5)
+  // a práce, Stálé trasy, pravidlo 5)
   const lines = villageRouteLines(state, network.traffic.cellM);
   const graph = walkGraph(lines, { roads: state.roads?.roads ?? [], ground });
   const origins = dwellingOrigins(state);
@@ -1114,5 +1076,5 @@ export function withRoutes(
   const day = Math.max(0, state.lastDay);
   const village = pathVillageOf(state, day, landscape);
   const network = villagePathNetwork(state, day, landscape, obstacles, village);
-  return { ...state, routes: routesOf(state, day, landscape, obstacles, village, network, key) };
+  return { ...state, routes: routesOf(state, day, landscape, obstacles, network, key) };
 }
