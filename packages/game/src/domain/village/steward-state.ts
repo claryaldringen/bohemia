@@ -56,3 +56,33 @@ export function setStewardOn(state: VillageState, day: number, on: boolean): voi
   steward.on = on;
   steward.sinceDay = day;
 }
+
+/**
+ * Úklid značky „postavil správce“ (mutuje `state`): vypustí id staveb, dílů a entit, které už ve
+ * stavu neexistují a nejsou v otisku plánu (dokončená stavba, zaniklé obydlí, zrušené pole), aby `built` nerostlo bez
+ * konce. Deterministické a idempotentní – pořadí zbylých id se zachová.
+ */
+export function pruneStewardBuilt(state: VillageState): void {
+  const steward = state.steward;
+  if (!steward || steward.built.length === 0) return;
+  const alive = new Set<number>();
+  for (const list of [
+    state.constructions,
+    state.dwellings,
+    state.fields,
+    state.parts,
+    state.cemeteries ?? [],
+    state.orchards ?? [],
+    state.pens ?? [],
+    state.threshingFloors ?? [],
+    state.sacredBuildings ?? [],
+    state.roads?.roads ?? [],
+  ] as readonly { id: number }[][]) {
+    for (const e of list) alive.add(e.id);
+  }
+  // id v otisku plánu zůstanou: `needsReplan` podle nich počítá změny (zmizelé, ale vlastní nejsou změna)
+  for (const plan of [steward.plan, steward.nextPlan])
+    for (const id of plan?.stamp ?? []) alive.add(id);
+  if (steward.built.every((id) => alive.has(id))) return;
+  steward.built = steward.built.filter((id) => alive.has(id));
+}

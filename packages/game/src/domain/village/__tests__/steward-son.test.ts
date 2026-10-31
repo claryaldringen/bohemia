@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { dateOfDayIndex, dayIndexOf } from '../../calendar';
 import { obstaclesOf, tileCenterWorld } from '../../landscape';
 import { deriveSeed } from '../../landscape/random';
-import { isVillageTravelling, travellingVillage } from '../departure';
+import { isVillageTravelling, settlersOf, travellingVillage } from '../departure';
+import { foundedState } from '../founding';
+import { villageTerritory } from '../steward-land';
 import { markNewborn } from '../dynasty';
 import { suggestVillageName } from '../names';
 import { STEWARD } from '../rules-steward';
@@ -338,9 +340,72 @@ describe('ves na cestě se správcem (příjezd)', () => {
     expect(json(onEdge)).toBe(json(arrived));
   });
 
-  it('ves na cestě bez správce čeká na hráče', () => {
+  it('ves na cestě, kde hráč správce vypnul, čeká na hráče a po založení zůstane vypnutá', () => {
+    const t = travelling();
+    t.steward!.on = false;
+    t.steward!.sinceDay = AUG31 + 1;
+    expect(isVillageTravelling(advanceVillage(t, AUG31 + 5, fertileObstacles, fertile))).toBe(true);
+    expect(settlersOf(t).stewarded).toBeUndefined();
+    const founded = foundedState(
+      t.seed,
+      {
+        landscape: fertile,
+        obstacles: fertileObstacles,
+        today: AUG31 + 2,
+        dwelling: { x: 0, z: 0, rotation: 0 },
+        settlers: settlersOf(t),
+      },
+      undefined,
+      null,
+    );
+    expect(founded.ok && founded.state.steward?.on).toBe(false);
+  });
+
+  it('stěhování celé vsi: správce zapnutý cestou ves po příjezdu založí a zůstane zapnutý', () => {
     const t = travelling();
     delete t.journey!.stewarded;
+    t.steward!.on = false;
+    // bez správce čeká
     expect(isVillageTravelling(advanceVillage(t, AUG31 + 5, fertileObstacles, fertile))).toBe(true);
+    // hráč ho cestou zapne
+    t.steward!.on = true;
+    t.steward!.sinceDay = AUG31 + 1;
+    expect(settlersOf(t).stewarded).toBe(true);
+    const arrived = advanceVillage(t, AUG31 + 5, fertileObstacles, fertile);
+    expect(isVillageTravelling(arrived)).toBe(false);
+    expect(arrived.steward?.on).toBe(true);
+  });
+});
+
+describe('úklid značek správce (S2)', () => {
+  it('31. 8. ze steward.built zmizí id, která ve stavu nejsou; idempotentně', () => {
+    const s = lordVillage();
+    s.steward!.built = [1, 2, 999, 12345];
+    stewardSonDay(s, AUG31, null, null);
+    expect(s.steward!.built).toEqual([1, 2]);
+    const again = JSON.stringify(s.steward!.built);
+    stewardSonDay(s, AUG31, null, null);
+    expect(JSON.stringify(s.steward!.built)).toBe(again);
+  });
+});
+
+describe('území budoucí vsi syna (S4)', () => {
+  it('záznam schránky s místem zabírá území jako ves sousedů', () => {
+    const s = lordVillage();
+    const before = villageTerritory(s, fertile).reduce((a, b) => a + b, 0);
+    s.steward!.departures = [
+      {
+        id: AUG31,
+        sonId: 30,
+        seed: 1,
+        name: 'Lhota',
+        dwelling: { x: 60, z: 0, rotation: 0 },
+        directions: [],
+      },
+    ];
+    const after = villageTerritory(s, fertile).reduce((a, b) => a + b, 0);
+    expect(after).toBeLessThan(before);
+    s.steward!.departures![0]!.villageId = 'ves-2';
+    expect(villageTerritory(s, fertile).reduce((a, b) => a + b, 0)).toBe(before);
   });
 });

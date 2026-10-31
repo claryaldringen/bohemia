@@ -78,15 +78,18 @@ postavit, vylepšit nebo může vesnici úplně vystěhovat a založit jinde.**�
 - **Bez krajiny správce spí** – testy a kalibrace bez krajiny (`landscape === null`) staví dál jen
   podle skriptu měření; správce potřebuje kontroly umístění.
 - **Ves na cestě a vymřelá / opuštěná ves** se nesimuluje (`isVillageDormant`). Výjimka: ves na
-  cestě se zapnutým správcem v den příjezdu (`journeyArrived`) – správce sám umístí první zemnici
-  (stejné `settlersOf` → `foundVillage` jako `settleJourney`, kde jinak místo vybírá hráč) a ves
-  se dál simuluje.
+  cestě se zapnutým správcem v den příjezdu (`stewardArrival`) – správce sám umístí první zemnici
+  (stejné `settlersOf` → `foundedState` jako `settleJourney`, kde jinak místo vybírá hráč) a ves
+  se dál simuluje. Zdrojem pravdy je přepínač `steward.on` vsi na cestě (hráč ho cestou může
+  zapnout i vypnout), `journey.stewarded` je jen počáteční hodnota; po založení správce zůstane
+  tak, jak ho hráč nechal.
 - **Jiné vsi na téže mapě.** Kontroly umístění vidí stavby ostatních vsí z přehledu sousedů
   (`withNeighbours`, neukládá se). Ten je snímek z doby dopočtu – kdyby správce plánoval podle
   staveb sousední vsi, závisel by výsledek na pořadí dopočtu vsí. Proto správce plánuje jen na
   **území své vsi**: políčka blíž středu (dvorci) své vsi než středu kterékoli jiné vsi mapy,
-  která v ten den už stála (Voroného buňky; `NeighbourSnapshot` dostane střed a den založení
-  každé vsi – obojí se po založení nemění). Stavbu jiné vsi na svém území (staví ji hráč) správce
+  která už stojí (Voroného buňky; `NeighbourSnapshot` dostane střed a den založení každé vsi –
+  obojí se po založení nemění). Ves syna ve schránce, která ještě nevznikla, se počítá od dne
+  odchodu podle `steward.departures[].dwelling`, takže mateřská ves neplánuje přes její místo. Stavbu jiné vsi na svém území (staví ji hráč) správce
   respektuje přes kontrolu umístění – tahle jediná výjimka může na kouscích dopočtu záviset (viz
   Otevřené otázky).
 - **Odchod syna vytváří novou ves** – nový záznam vsi (a na nové mapě i sídlo s krajinou), což
@@ -113,8 +116,9 @@ postavit, vylepšit nebo může vesnici úplně vystěhovat a založit jinde.**�
 - **Převod jednou a idempotentně** (`withSteward` na začátku `advanceVillage`): ves bez `steward`
   má správce vypnutého – i ves založená synem před fází 3 (hráč ji dosud řídil sám, správce by ho
   překvapil). Zapnutý dostane jen ves založená synem od fáze 3 (`departWithSon` / osadníci
-  s vůdcem `Settlers.lordId`) – v ní `steward: { on: true, sinceDay: den založení, built: [] }`.
-  Stavby postavené před zapnutím jsou hráčovy (nejsou v `built`).
+  s příznakem `Settlers.stewarded`) – v ní `steward: { on: true, sinceDay: den založení, built: [] }`.
+  Stavby postavené před zapnutím jsou hráčovy (nejsou v `built`). `built` se jednou za rok
+  (31. 8., `pruneStewardBuilt`) zbaví id, která ve stavu už neexistují.
 - Čísla správce (`STEWARD` – dny, prahy, rozpočty) patří do `rules-steward.ts` s odkazem na
   sekci tohoto návrhu.
 
@@ -661,6 +665,12 @@ stavby), nejvýš jedno pole na den správce.
    (≈ 2× dražší dopočet, plně deterministické)?
 6. **Správce v první vsi** – zapnout ho sám po dlouhé nepřítomnosti hráče? Návrh Clauda: ne,
    rozhoduje jen hráč (Martin 30. 10. 2026 – první ves vypnutý).
+7. **Strop počtu vsí rodu** (závěrečná recenze, S3) – žádný strop vsí na rod ani na mapu: každá
+   ves se správcem pošle nejvýš jednou za rok syna, počet vsí tak roste zhruba exponenciálně.
+   `dynastyStatus` navíc dopočítá všechny vsi hráče v každém požadavku, cena roste s jejich
+   počtem. Návrh Clauda: dočasný strop `STEWARD.maxLineVillages` (správce syna nepošle, má-li
+   rod tolik vsí) do ostrého spuštění, později líný dopočet vsí bez hráče / dopočet ve workeru.
+   Rozhodne Martin.
 
 **Na noc 30. → 31. 10. 2026 rozhodl Claude (Martin spí, ráno k potvrzení):** 1) v první verzi
 ne – správce staví lépe dál, akce pro hráče i správce až po potvrzení; 2) správce napřed kluče

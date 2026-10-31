@@ -344,7 +344,8 @@ export function planCentre(state: VillageState): { x: number; z: number } | null
 
 /**
  * Území vsi – políčka (1 v masce) do `FIELD_LIMITS.maxDistanceM` od středu vsi (`planCentre`), která jsou středu
- * blíž než středům ostatních vsí mapy (`neighbours.villages` – Voroného buňka). Při shodě
+ * blíž než středům ostatních vsí mapy (`neighbours.villages` – Voroného buňka). Ves syna ve schránce
+ * (`steward.departures[].dwelling`) se počítá jako ostatní. Při shodě
  * vzdálenosti vyhraje starší ves (dřívější den založení), pak menší x a z středu. Ves bez středu
  * nemá území (samé 0).
  */
@@ -353,7 +354,12 @@ export function villageTerritory(state: VillageState, landscape: Landscape): Uin
   const mask = new Uint8Array(size * size);
   const centre = planCentre(state);
   if (!centre) return mask;
-  const others = state.neighbours?.villages ?? [];
+  // ves syna, dokud ji schránka nevybavila (`steward.departures[].dwelling`), zabírá své území už
+  // od dne odchodu – výsledek tak nezávisí na tom, jak často se hra načítá (steward.md, S4)
+  const pending = (state.steward?.departures ?? [])
+    .filter((d) => d.dwelling !== undefined && d.villageId === undefined)
+    .map((d) => ({ x: d.dwelling!.x, z: d.dwelling!.z, foundedDay: d.id }));
+  const others = [...(state.neighbours?.villages ?? []), ...pending];
   const reach2 = FIELD_LIMITS.maxDistanceM * FIELD_LIMITS.maxDistanceM;
   const wins = (
     d: number,
