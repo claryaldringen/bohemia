@@ -241,6 +241,26 @@ describe('trasa a profil vozové cesty', () => {
     ).toEqual({ ok: false, reason: WAGON_BLOCKED });
   });
 
+  it('humno je stavba jako každá jiná: osa přes humno nejde, vedle něj ano (Martin 31. 10. 2026)', () => {
+    const floor = (x: number): NonNullable<PathVillage['threshingFloors']>[number] => ({
+      id: 7,
+      position: { x, z: 0, rotation: 0 },
+      built: true,
+    });
+    // humno 8 × 10 m přímo na ose staré cesty (x = 0)
+    const on = planWagonRoad({
+      ...input(FLAT),
+      village: { dwellings: [], fields: [], threshingFloors: [floor(0)] },
+    });
+    expect(on).toEqual({ ok: false, reason: WAGON_BLOCKED });
+    // o 20 m vedle osy nepřekáží
+    const beside = planWagonRoad({
+      ...input(FLAT),
+      village: { dwellings: [], fields: [], threshingFloors: [floor(20)] },
+    });
+    expect(beside.ok).toBe(true);
+  });
+
   describe('odstup od plotu (paths.md – Odstup od plotu, i vozová cesta)', () => {
     // ohrada na políčku x, z ∈ (0, 15) – plot 1,5 m od okraje: x, z ∈ (1,5; 13,5)
     const pens: NonNullable<PathVillage['pens']> = [

@@ -198,7 +198,8 @@ Beze změny (milíř u buků – crafts.md); nošení uhlí ke kováři je dnes 
   odcházející si vezmou svůj díl (vymlácený), ve vsi zůstane poměrný díl snopů i práce výmlatu.
 - **Nošení** (návrh Clauda): práce výmlatu má v rozdělení práce dne cíl humno – k němu vede
   pěšina (vstup na předku mlatu) a vozy, které sváží snopy, jezdí i k humnu (vyjede
-  se cesta); humno je pro pěšiny, vozy, vozové cesty i zemskou stezku stavba, kterou obejdou.
+  se cesta); humno je pro pěšiny, vozy, vozové cesty i zemskou stezku stavba, kterou obejdou
+  (Martin 31. 10. 2026: „Humno je stavba jako každá jiná“).
   Nouzový výmlat je u vsi.
 - **Luštěniny** se mlátí taky na humně (návrh Clauda); do jam jde jen obilí, luštěniny se
   skladují doma.
