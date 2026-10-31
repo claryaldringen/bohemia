@@ -378,7 +378,9 @@ jednodušší jít přes pole, než ho obcházet i když je cesta přes pole pom
   roční síť pěšin se od Úlohy 6 nepočítá),
   a úsek po cestě se započítá zkráceně podle rychlosti (po upravené cestě 340 m jako 200 m).
   Mokřina se počítá dvojnásobně (bahno), brod + 30 m (zout se, přebrodit). Vzdálenosti se
-  přepočítají jednou za rok a po dokončení vylepšení.
+  přepočítají jednou za rok a po dokončení vylepšení. Od 31. 10. 2026 odhadem (Martin: „simulace
+  bude počítat jen s odhadem vzdáleností…“ – [paths.md – Odhad vzdáleností](paths.md#odhad-vzdáleností-31-10-2026)):
+  rovně přes potok jen objížďkou přes nejbližší brod, lesem 1 / 1,35×.
 - Pole za potokem nebo za mokřinou tak bez cesty zdraží, s hatí a lávkou zlevní. Pole 400 m
   daleko bez cesty ≈ +30 %, s upravenou cestou ≈ +20 % (příklad).
 

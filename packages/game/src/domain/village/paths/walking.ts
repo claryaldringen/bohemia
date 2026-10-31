@@ -5,6 +5,9 @@ import { roadBridged } from '../types-roads';
 import { PathHeap, type PathLine, type PathPoint, type PathVillage } from './network';
 import { fieldCellsOf } from './network-grid';
 import {
+  PATH_FORD,
+  PATH_FOREST,
+  PATH_FOREST_COST,
   PATH_WATER,
   PATH_WATER_SPOT,
   PATH_WETLAND,
@@ -26,10 +29,12 @@ import {
 // Martin, 19. 10. 2026): po plné pěšině dne 1,3× (slabší úměrně síle – PATH_WALK), po pevné cestě
 // podle stupně (ROAD_WALK – vyšlapaná i vyježděná 1,5×, upravená 1,7×, hať a lávka 1,7× i přes
 // mokřinu; stromy u cesty přidají až 0,03, jabloně 0,05 – roads.md, Stromy u cesty zrychlí chůzi).
-// Mokřina 0,5× (bahno), brod + 30 m (po lávce bez zdržení), díl pole stálou rychlostí 0,875×
-// v každém stadiu (FIELD_WALK – pěšina dne přes pole nezrychlí, pevná cesta jde rychlostí cesty).
-// S krajinou (`WalkGround`) se mokřina, voda a pole počítají i rovně; bez ní (kalibrace) jen
-// délka. Čistá deterministická funkce – stejně na serveru i v prohlížeči; použije ji každý, kdo
+// Mokřina 0,5× (bahno), les 1 / 1,35× (PATH_FOREST_COST), brod + 30 m (po lávce bez zdržení),
+// díl pole stálou rychlostí 0,875× v každém stadiu (FIELD_WALK – pěšina dne přes pole nezrychlí,
+// pevná cesta jde rychlostí cesty). Úsečka přes potok mimo brod jde objížďkou přes nejbližší brod
+// (paths.md – Odhad vzdáleností; Martin 31. 10. 2026: „simulace bude počítat jen s odhadem
+// vzdáleností a přesné trasy zůstanou prohlížeči“), most dává síť pevných cest. S krajinou
+// (`WalkGround`) se mokřina, les, voda a pole počítají i rovně; bez ní (kalibrace) jen délka. Čistá deterministická funkce – stejně na serveru i v prohlížeči; použije ji každý, kdo
 // měří cestu na pole, do sadu, do lesa.
 
 /** Graf chůze – body a úseky s délkou a cenou chůze (rozcestí sdílejí bod). */
@@ -111,9 +116,10 @@ export function withFieldWalk(ground: WalkGround, fields: PathVillage['fields'])
 
 /**
  * Délka chůze rovně z `a` do `b` (m) – po pěšině dne síly `strength` (bez údaje bez pěšiny): po
- * půlbuňkách terénu – mokřina a díl pole podle rychlosti (nejpomalejší platí; přes díl v osevu
- * pěšina nezrychlí), každé vstoupení do vody (brod, potok) + ROAD_WALK.fordExtraM. Bez půdy délka
- * úsečky (po pěšině zkrácená).
+ * půlbuňkách terénu – mokřina, les a díl pole podle rychlosti (přes díl v osevu pěšina
+ * nezrychlí), každé vstoupení do vody + ROAD_WALK.fordExtraM. Úsečka přes potok mimo brod jde
+ * objížďkou přes brod (`fordDetour` – nejkratší a → brod → b vzdušnou čarou); bez brodu v okně se
+ * brodí kdekoli. Bez půdy délka úsečky (po pěšině zkrácená).
  */
 export function groundWalkLength(
   ground: WalkGround | null | undefined,
@@ -121,6 +127,50 @@ export function groundWalkLength(
   b: PathPoint,
   strength = 0,
 ): number {
+  const value = straightWalkCost(ground, a, b, strength);
+  if (!crossedDeep || !ground) return value;
+  const ford = fordDetour(ground, a, b);
+  if (!ford) return value;
+  // brodí se jednou – druhý úsek začíná ve vodě brodu
+  return (
+    straightWalkCost(ground, a, ford, strength) + straightWalkCost(ground, ford, b, strength, true)
+  );
+}
+
+/** Úsečka posledního `straightWalkCost` vstoupila do vody mimo brod. */
+let crossedDeep = false;
+
+/**
+ * Brod pro objížďku úsečky `a`–`b` přes potok (paths.md – Odhad vzdáleností): buňka brodu
+ * (PATH_FORD) s nejmenším součtem vzdáleností od `a` a k `b` (při shodě první po řádcích). Bez
+ * brodu v okně půdy null.
+ */
+export function fordDetour(ground: WalkGround, a: PathPoint, b: PathPoint): PathPoint | null {
+  let best: PathPoint | null = null;
+  let bestD = Infinity;
+  for (const f of groundSpots(ground, PATH_FORD)) {
+    const d = length2(f.x - a.x, f.z - a.z) + length2(b.x - f.x, b.z - f.z);
+    if (d < bestD) {
+      best = f;
+      bestD = d;
+    }
+  }
+  return best;
+}
+
+/**
+ * Chůze rovně bez objížďky (`groundWalkLength`): voda kdekoli + ROAD_WALK.fordExtraM (s `fromWater`
+ * úsečka začíná ve vodě – první brodění se nepočítá); nastaví `crossedDeep`, když úsečka vstoupila
+ * do vody mimo brod.
+ */
+function straightWalkCost(
+  ground: WalkGround | null | undefined,
+  a: PathPoint,
+  b: PathPoint,
+  strength: number,
+  fromWater = false,
+): number {
+  crossedDeep = false;
   const length = length2(b.x - a.x, b.z - a.z);
   if (!ground || length === 0) return pathWalkLength(length, strength);
   const t = ground.terrain;
@@ -133,7 +183,7 @@ export function groundWalkLength(
   const fi = (k: number): number => (a.x + (b.x - a.x) * ((k + 0.5) / n) - t.originX) / t.cellM;
   const fj = (k: number): number => (a.z + (b.z - a.z) * ((k + 0.5) / n) - t.originZ) / t.cellM;
   let cost = 0;
-  let inWater = false;
+  let inWater = fromWater;
   for (let k = 0; k < n;) {
     const end = Math.min(n, k + WALK_RUN);
     if (end - k === WALK_RUN) {
@@ -160,6 +210,7 @@ export function groundWalkLength(
         const m = mask[c]!;
         const water = (m & WALK_WATER) !== 0;
         const term = (piece / cellSpeed[c]!) * (m & WALK_CROP ? 1 : tread);
+        if (m & WALK_DEEP) crossedDeep = true;
         if (water && !inWater) cost += ROAD_WALK.fordExtraM;
         inWater = water;
         for (; k < end; k++) cost += term;
@@ -179,6 +230,7 @@ export function groundWalkLength(
         water = (m & WALK_WATER) !== 0;
         speed = cellSpeed[c]!;
         if (m & WALK_CROP) factor = 1;
+        if (m & WALK_DEEP) crossedDeep = true;
       }
       if (water && !inWater) cost += ROAD_WALK.fordExtraM;
       inWater = water;
@@ -188,9 +240,12 @@ export function groundWalkLength(
   return cost;
 }
 
-/** Příznaky buňky půdy chůze (`walkCellsOf`): voda, díl v osevu. */
+/** Příznaky buňky půdy chůze (`walkCellsOf`): voda, díl v osevu, voda mimo brod. */
 const WALK_WATER = 1;
 const WALK_CROP = 2;
+const WALK_DEEP = 4;
+/** Rychlost chůze lesem proti louce (cena buňky lesa v síti pěšin – PATH_FOREST_COST). */
+const FOREST_WALK_SPEED = 1 / PATH_FOREST_COST;
 /** Kroků úsečky v kusu, který se po louce sečte bez čtení buněk (`groundWalkLength`). */
 const WALK_RUN = 8;
 
@@ -242,9 +297,12 @@ function walkCellsOf(ground: WalkGround): WalkCells {
     const flags = t.flags[c]!;
     let v = 1;
     if (flags & PATH_WETLAND) v = ROAD_WALK.wetSpeed;
-    let m = flags & PATH_WATER ? WALK_WATER : 0;
+    else if (flags & PATH_FOREST) v = FOREST_WALK_SPEED;
+    let m = flags & PATH_WATER ? WALK_WATER | (flags & PATH_FORD ? 0 : WALK_DEEP) : 0;
     if (fields) {
-      v = Math.min(v, fields.speed[c]!);
+      // pole založené v lese je vymýcené – les tam neplatí
+      const field = fields.speed[c]!;
+      if (field < 1) v = flags & PATH_WETLAND ? Math.min(v, field) : field;
       if (fields.crop[c]) m |= WALK_CROP;
     }
     speed[c] = v;
@@ -468,18 +526,71 @@ function memoWalkLength(memo: WalkMemo, ground: WalkGround, a: PathPoint, b: Pat
           unchangedAround(memo.changed, ground.terrain, a, b))
       ) {
         gens[slot] = memo.gen;
-        return memo.values[slot]!;
+        return memoDetour(memo, ground, a, b, memo.values[slot]!);
       }
-      const value = groundWalkLength(ground, a, b);
+      const value = signedStraight(ground, a, b);
       memo.values[slot] = value;
       gens[slot] = memo.gen;
-      return value;
+      return memoDetour(memo, ground, a, b, value);
     }
     slot = (slot + 1) & mask;
   }
-  const value = groundWalkLength(ground, a, b);
+  const value = signedStraight(ground, a, b);
   memoInsert(memo, a.x, a.z, b.x, b.z, value, memo.gen);
-  return value;
+  return memoDetour(memo, ground, a, b, value);
+}
+
+/**
+ * Chůze rovně bez objížďky do paměti: úsečka přes potok mimo brod se záporným znaménkem (délka je
+ * vždy kladná) – objížďka se skládá z úseček v paměti (`memoDetour`), protože vede mimo obdélník
+ * úsečky.
+ */
+function signedStraight(ground: WalkGround, a: PathPoint, b: PathPoint): number {
+  const value = straightWalkCost(ground, a, b, 0);
+  return crossedDeep ? -value : value;
+}
+
+/** Hodnota z paměti → `groundWalkLength` (záporná = objížďka přes brod z úseček v paměti). */
+function memoDetour(
+  memo: WalkMemo,
+  ground: WalkGround,
+  a: PathPoint,
+  b: PathPoint,
+  value: number,
+): number {
+  if (value >= 0) return value;
+  const ford = fordDetour(ground, a, b);
+  if (!ford) return -value;
+  return memoStraight(memo, ground, a, ford) + straightWalkCost(ground, ford, b, 0, true);
+}
+
+/** Úsek objížďky – chůze rovně bez další objížďky (přes potok brodem kdekoli) přes paměť. */
+function memoStraight(memo: WalkMemo, ground: WalkGround, a: PathPoint, b: PathPoint): number {
+  const { keys, gens } = memo;
+  const mask = gens.length - 1;
+  let slot = memoHash(a.x, a.z, b.x, b.z) & mask;
+  for (let g = gens[slot]!; g !== 0; g = gens[slot]!) {
+    const k = slot * 4;
+    if (keys[k] === a.x && keys[k + 1] === a.z && keys[k + 2] === b.x && keys[k + 3] === b.z) {
+      if (
+        g === memo.gen ||
+        (g === memo.gen - 1 &&
+          memo.changed !== null &&
+          unchangedAround(memo.changed, ground.terrain, a, b))
+      ) {
+        gens[slot] = memo.gen;
+        return Math.abs(memo.values[slot]!);
+      }
+      const value = signedStraight(ground, a, b);
+      memo.values[slot] = value;
+      gens[slot] = memo.gen;
+      return Math.abs(value);
+    }
+    slot = (slot + 1) & mask;
+  }
+  const value = signedStraight(ground, a, b);
+  memoInsert(memo, a.x, a.z, b.x, b.z, value, memo.gen);
+  return Math.abs(value);
 }
 
 /** Délka chůze úsekem pěšiny se silou `strength` 0–1 (m) – po pěšině se jde rychleji. */

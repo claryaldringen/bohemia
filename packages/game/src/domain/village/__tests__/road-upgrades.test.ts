@@ -8,6 +8,7 @@ import { roadGroundOf, roadsInWork } from '../paths/roads';
 import { PATH_FORD, PATH_WATER, PATH_WETLAND, type PathTerrain } from '../paths/terrain';
 import { refreshWalkDistances } from '../paths/village';
 import {
+  fordDetour,
   groundWalkLength,
   roadPieceCost,
   walkGraph,
@@ -167,16 +168,26 @@ describe('mokřina a brod v terénu a na ose cesty', () => {
 describe('chůze podle stupně cesty, mokřiny a brodů', () => {
   const ground: WalkGround = { terrain: terrainBand() };
 
-  it('rovně: mokřina dvojnásobně, každé vstoupení do vody + 30 m', () => {
+  it('rovně: mokřina dvojnásobně, brod + 30 m, mimo brod objížďka přes brod', () => {
     const a = { x: 20, z: 0 };
     expect(groundWalkLength(null, a, { x: 20, z: 18 })).toBeCloseTo(18, 9);
     expect(groundWalkLength(ground, a, { x: 20, z: 18 })).toBeCloseTo(18, 9);
     // 10 m mokřiny (z 20–30) navíc
     expect(groundWalkLength(ground, a, { x: 20, z: 29 })).toBeCloseTo(29 + 10, 0);
-    // přes vodu: mokřina, brod + 30 m
-    const across = groundWalkLength(ground, a, { x: 20, z: 40 });
+    // přes brod (x < 10): mokřina, brod + 30 m
+    const across = groundWalkLength(ground, { x: 4, z: 0 }, { x: 4, z: 40 });
     expect(across).toBeGreaterThan(40 + 10 + ROAD_WALK.fordExtraM - 2);
     expect(across).toBeLessThan(40 + 10 + ROAD_WALK.fordExtraM + 2);
+    // mimo brod objížďkou přes nejbližší brod (paths.md – Odhad vzdáleností, 31. 10. 2026)
+    const b = { x: 20, z: 40 };
+    const ford = fordDetour(ground, a, b)!;
+    expect(ford).toEqual({ x: 8, z: 30 });
+    const detour = groundWalkLength(ground, a, b);
+    expect(detour).toBeCloseTo(
+      groundWalkLength(ground, a, ford) + groundWalkLength(ground, ford, b),
+      9,
+    );
+    expect(detour).toBeGreaterThan(across);
   });
 
   it('po cestě: vyšlapaná 1,5×, upravená 1,7×, mokřina 0,5× (upravená s hatí 1,7×), brod + 30 m bez lávky', () => {

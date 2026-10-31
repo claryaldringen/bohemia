@@ -491,11 +491,13 @@ describe('dosah vozu – vozová síť (wagons.md – fáze 2)', () => {
   it('žeň: vůz jede po strništi sklízené plodiny, jiným osetím jen draze (Martin 23. 10. 2026)', () => {
     const s = onMap();
     s.fields = [{ id: 1 }, { id: 2 }];
-    // sklízené díly za pásem osetého pole jiné plodiny (pole 2 napříč krajinou)
+    // sklízené díly za pásem osetého pole jiné plodiny (pole 2 napříč krajinou mimo les – díl na
+    // pasece za nevymýceným lesem vůz odhadem nedosáhne, rovně ani po cestě – paths.md, Odhad
+    // vzdáleností)
     s.parts = [
       meadowPart(1, { x: 12, y: 3 }, 'sown'),
-      ...Array.from({ length: 20 }, (_, i) => ({
-        ...meadowPart(10 + i, { x: i, y: 5 }, 'sown'),
+      ...Array.from({ length: 16 }, (_, i) => ({
+        ...meadowPart(10 + i, { x: i + 4, y: 5 }, 'sown'),
         fieldId: 2,
       })),
     ];

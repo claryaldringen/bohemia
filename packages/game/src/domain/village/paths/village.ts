@@ -880,10 +880,11 @@ export function walkDistancesTo(
  * rychlosti (stromy u cest – `Road.lined`), po změně tvaru domů a po odstupu od plotů (paths.md –
  * Odstup od plotu, `routes-v5`), po dvoru dílny (pěšina obejde pec a jámu – `routes-v6`) a po
  * trasách ze všech staveb bez ohledu na obsazenost a olemování podle míst na stromy (`routes-v7` –
- * Martin 31. 10. 2026) se vsi uložené dřív přepočítají hned při dalším dni, ne až při změně mapy
+ * Martin 31. 10. 2026) a po odhadu chůze s lesem a objížďkou přes brod (`routes-v8` – paths.md,
+ * Odhad vzdáleností) se vsi uložené dřív přepočítají hned při dalším dni, ne až při změně mapy
  * (jednou – pak otisk sedí).
  */
-export const WALK_VERSION = 'routes-v7';
+export const WALK_VERSION = 'routes-v8';
 
 /** Trasy k práci dne nad stálými trasami `stable` (`computeWorkRoutes`) k uložení. */
 function workRoutesOf(

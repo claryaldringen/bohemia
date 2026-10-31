@@ -1000,9 +1000,42 @@ není.“), rychlosti Martin 19. 10. 2026, zbytek návrh Clauda. Platí dál:
   přes díl v osevu pěšina nezrychlí. Po pevné cestě podle druhu ([roads.md](roads.md)).
 - **Vzdálenost dílu pole pro práci** se měří chůzí z nejbližšího obydlí: rovně, nebo rovně k čáře
   trasy, po ní a rovně na díl – kratší z obou (`walking.ts`). Stejně čtverce sadu, palivo a voda.
+  Od 31. 10. 2026 je to výslovně **odhad** (Odhad vzdáleností níž) – rovně i les a objížďka přes
+  brod.
 - **Kdy se přepočítá:** s trasami (Kdy se trasy počítají).
 - **Uložení:** `walkDistanceM` dílů a čtverců sadu, `forestWalkM` a `waterWalkM` obydlí – jako
   dřív. Kalibrace bez krajiny počítá dál vzdušnou čarou a cesty nemá.
+
+## Odhad vzdáleností (31. 10. 2026)
+
+Martin 31. 10. 2026: „**simulace bude počítat jen s odhadem vzdáleností a přesné trasy zůstanou
+prohlížeči – udělej to rovnou**“; týž den: „obecně by měla být vizuální stránka oddělena od herní
+mechaniky…“ a „Ta věc (dům, ohrada, hřbitov) se prostě postaví a dál se s ní nic neděje, pokud
+nespadne“. Model návrh Clauda:
+
+- **Cena práce v simulaci** (chůze k dílům pole a čtvercům sadu, pro vodu, palivo a dřevo stavby,
+  cena u kurzoru; jízdy vozu – svoz, voda vozem, uhlí a ruda, osivo; cesta spřežení k orbě
+  a přesun mezi bloky) se počítá **odhadem bez hledání tras**: kratší z „rovně“ a „rovně k síti,
+  po ní a rovně k cíli“.
+- **Rovně = úsečka po povrchu** po půlbuňkách terénu pěšin: louka 1, pole stálou cenou, mokřina,
+  les; chodec lesem 1 / 1,35× (cena lesa v síti pěšin), vůz lesem ani zarostlým dílem neprojede.
+  **Voda:** úsečka přes potok mimo brod jde **objížďkou přes nejbližší brod** (brod s nejmenším
+  součtem vzdáleností od začátku a ke konci úsečky; chodec + 30 m za brodění, vůz brodem
+  `fordCost`). Bez brodu v okně se chodec brodí kdekoli jako dřív a vůz nedojede. Most a hať
+  dává síť (lávka jen pro pěší).
+- **Síť zrychluje dál:** chodec po pěšinách stálých tras (síla z vyšlapanosti) a pevných cestách
+  (stupeň, olemování, mokřina a brody na ose) – graf os, ne mřížka; vůz po pevných cestách
+  (rychlost vozu podle druhu, vyježděná, olemování), na síť najede v nejbližším bodě každé cesty.
+- **Svah jen pro vůz, levně:** kus úsečky (dvě buňky) se sklonem do poloviny meze (`maxGrade`
+  10 %) stojí × (1 + 4 · (sklon / mez)²) jako ve vozové síti; prudší kus stojí nejvýš jako
+  serpentiny se sklonem poloviny meze – vůz rovně do srázu nevyjede, ale objede ho. Po pevné cestě
+  stejně, vozová cesta má úvozy (bez svahu).
+- **Dvoukolák i čtyřkolák** mají v odhadu stejnou cenu (liší se jen zatáčením v přesné trase).
+- **Co zůstává:** stálé trasy (pěšiny) se hledají jen se stavbou nebo zánikem stavby a trasy
+  k práci dne 1. dne v měsíci – z nich je provoz a vyšlapanost jako dosud. Roční síť vozů 1. 11.
+  (jízdy roku do vyšlapanosti a příznak vozová) hledá trasy vozu jednou za rok.
+- **Přesné trasy jen pro pohled:** trasu vozu, spřežení a postav počítá pohled na ves (scéna)
+  stejnými deterministickými funkcemi jen pro to, co ukazuje – simulace mřížku vozu nestaví.
 
 ## Převod starých vsí (Martin 23. 10. 2026)
 

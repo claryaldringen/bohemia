@@ -2,7 +2,8 @@ import { length2, type Landscape, type ObstacleLayer } from '../landscape';
 import { cartLoadRatio, cartOrigin } from './carts';
 import type { HouseholdWater } from './labor';
 import type { CartTarget } from './paths/cart';
-import { addRoadCartTrips, villageCartRoutes } from './paths/roads';
+import { villageCartEstimates } from './paths/cart-estimate';
+import { addRoadCartTrips } from './paths/roads';
 import { PATH_WATER_SPOT } from './paths/terrain';
 import { groundSpots, walkGroundOf } from './paths/walking';
 import { CARTS, CART_JOBS, TEAM_TRAVEL, WATER_FETCHING } from './rules';
@@ -26,7 +27,7 @@ const WATER_SPOT_SPACING_M = 15;
 
 /**
  * Jízdy vozu od ohrady se spřežením k cílům: kam a za kolik dojede (null = nedojede). S `nearest`
- * stačí nejlevnější cíl: cíl dražší o víc než NEAREST_DRIVE_M může vrátit null (rychlejší hledání).
+ * stačí nejlevnější cíl (odhad – `villageCartEstimates` – spočítá každý cíl, výsledek týž).
  */
 export type CartDrives = (
   state: VillageState,
@@ -34,21 +35,14 @@ export type CartDrives = (
   nearest?: boolean,
 ) => (CartDrive | null)[];
 
-/**
- * O kolik dražší cíl než nejlevnější ještě musí dostat přesnou jízdu, když stačí nejlevnější
- * (`CartDrives` s `nearest`) – dost nad zaokrouhlením ceny na centimetry (`cm`), takže výběr
- * nejlevnějšího (i remíza po centimetrech – první v pořadí) je týž jako ze všech cílů.
- */
-const NEAREST_DRIVE_M = 1;
-
 /** Na centimetry. */
 function cm(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
 /**
- * Jízdy vozů vsi (wagons.md – Co vozy vozí): s krajinou trasy vozu druhu `kind` vozovou sítí
- * (`villageCartRoutes` – cena v m po louce, konec trasy; pole stálou cenou – paths.md, Stálé trasy), bez
+ * Jízdy vozů vsi (wagons.md – Co vozy vozí): s krajinou odhad jízdy vozu druhu `kind`
+ * (`villageCartEstimates` – cena v m po louce, kde jízda končí; paths.md – Odhad vzdáleností), bez
  * krajiny (testy, kalibrace) dvoukolák vzdušnou čarou od ohrady ke kraji cíle a čtyřkolák nikam. Bez ohrady se spřežením null.
  */
 export function villageCartDrives(
@@ -74,27 +68,15 @@ export function villageCartDrives(
       );
     };
   }
-  return (s, targets, nearest = false) => {
+  // odhad bez hledání tras – cena každého cíle zvlášť, `nearest` nic nemění
+  void obstacles;
+  return (s, targets) => {
     if (targets.length === 0) return [];
-    const routes = villageCartRoutes(
-      s,
-      day,
-      landscape,
-      obstacles,
-      kind,
-      targets,
-      null,
-      nearest ? NEAREST_DRIVE_M : null,
-    );
-    return targets.map((t, k) => {
+    const routes = villageCartEstimates(s, day, landscape, kind, targets);
+    return targets.map((_t, k) => {
       const route = routes?.[k];
       if (!route?.reached) return null;
-      const end = route.points[route.points.length - 1] ?? t;
-      return {
-        costM: cm(route.cost),
-        x: cm(end.x),
-        z: cm(end.z),
-      };
+      return { costM: cm(route.cost), x: cm(route.end.x), z: cm(route.end.z) };
     });
   };
 }
@@ -239,7 +221,7 @@ export function waterCartDrive(
     if (picked.some((q) => length2(q.x - p.x, q.z - p.z) < WATER_SPOT_SPACING_M)) continue;
     picked.push(p);
   }
-  // stačí nejlevnější břeh – dražší o víc než NEAREST_DRIVE_M se nedohledávají
+  // stačí nejlevnější břeh
   const found = drives(
     state,
     picked.map((p) => ({ x: p.x, z: p.z, reachM: CART_JOBS.water.reachM })),

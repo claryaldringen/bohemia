@@ -902,6 +902,43 @@ Návrh `docs/design/paths.md` – Stálé trasy (25. 10. 2026), Úloha A1.
     `cartRoutesOn` 2,4 → 2,2 s, `cartGrid` 0,9 → 0,8 s – mřížka se staví 15–19× za rok, většinou
     kvůli kácení dne; klíč mřížky bere i `inhabited` obydlí).
 
+## Odhad vzdáleností – simulace bez trasy vozu (31. 10. 2026)
+
+Návrh [paths.md – Odhad vzdáleností](../design/paths.md#odhad-vzdáleností-31-10-2026) (Martin 31. 10. 2026: „simulace bude počítat jen s odhadem vzdáleností a přesné trasy zůstanou
+prohlížeči – udělej to rovnou“).
+
+- **Chůze** (`paths/walking.ts`): `groundWalkLength` = `straightWalkCost` (po půlbuňkách – mokřina,
+  les `1 / PATH_FOREST_COST`, pole; pole v lese je vymýcené) a přes potok mimo brod (`WALK_DEEP` –
+  `PATH_WATER` bez `PATH_FORD`) objížďka `fordDetour` – buňka brodu s nejmenším |a F| + |F b|
+  (`groundSpots(ground, PATH_FORD)`), druhý úsek začíná ve vodě (brodí se jednou). Bez brodu v okně
+  brodění kdekoli jako dřív. Paměť chůze (`memoWalkLength`) drží jen úsečky bez objížďky; úsečka
+  přes potok má zápornou hodnotu a objížďka se skládá z úseček (`memoDetour`) – výsledek týž jako
+  bez paměti. Graf pěšin a pevných cest (`walkGraph`, `walkingDistances`) beze změny.
+  `WALK_VERSION` `routes-v8`.
+- **Vůz** (`paths/cart-estimate.ts`): `villageCartEstimates(state, day, landscape, kind, targets,
+from)` – výjezd z hotových ohrad se spřežením (`teamPens`) nebo z `from`; `CartEstimate`
+  (`reached`, `cost` m po louce, `lengthM`, `end` – `reachM` před cílem na poslední úsečce).
+  Půda vozu `cartGroundOf` po buňkách půdy chůze (`baseCost` – louka 1, mokřina `1 / CART_SPEED.wet`,
+  les a neprůchodné Infinity, brod `CART_ROUTES.fordCost`, voda mimo brod `DEEP`; díly polí
+  `1 / cartPartSpeed` – zarostlý Infinity, pole v lese vymýcené) – v paměti podle polí (jen
+  zrychlení). Rovně `straightCartCost` po půlbuňkách, svah po kusech 4 kroků (`slopeCost` – do
+  poloviny meze × (1 + gradeCost g² / max²), nad ní nejvýš serpentiny), potok `fordDetour`.
+  Síť `cartRoadGraph` z `state.roads.roads` (`roadPieceCartCost` – `cartRoadSpeed`, mokřina na
+  ose, brod `fordCost × widthM`; svah mimo vozovou cestu); výjezd a cíl se k ní připojí v nejbližším
+  bodě každé cesty, Dijkstra (`PathHeap`). Nad `CART_ROUTES.maxCost` nedojede.
+- **Kdo ho volá:** `villageCartDrives` (`cart-jobs.ts` – svoz, voda, uhlí, ruda, osivo; `nearest`
+  už nic nemění), `networkCartAccess` (`carts.ts` – dosah svozu, `lengthM`), `tripCost`
+  a `moveCost` (`plough-trip.ts` – spřežení k bloku a mezi bloky). `villageCartRoutes`
+  a `villageCartCost` (mřížka vozu, `cart-memo.ts`) volá jen pohled na ves – `scenePloughLegs`,
+  `cartRouteToday` (`apps/web/lib/village-view-crafts.ts`) – a roční síť vozů 1. 11.
+  (`annualCartNetwork` – `cartRoutes`, jízdy roku do vyšlapanosti a příznak vozová).
+- **Testy:** `walk-estimate.test.ts` – objížďka přes nejbližší brod (chůze i vůz), les, cesta
+  zrychlí a lesem jen po ní, bez brodu vůz nedojede, simulace dne nestaví mřížku ani nehledá trasy
+  vozu (obal `cartGrid` / `cartRoutesOn` / `cartCostOn` přes `vi.mock`), dopočet najednou = po
+  dnech, odhad nezávisí na paměti půdy. `road-upgrades.test.ts` – objížďka mimo brod;
+  `carpentry.test.ts` – díl na pasece za nevymýceným lesem vůz odhadem nedosáhne (pás pole 2
+  mimo les).
+
 ## Trasy v paměti – vozy a chůze (výkon)
 
 Plán `docs/superpowers/plans/2026-10-25-stable-routes.md`, Úloha B1. Jen zrychlení – výsledek je

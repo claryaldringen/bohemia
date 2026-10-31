@@ -405,6 +405,15 @@ Sondy bez kováře (kovárna zrušená) na čerstvém stavu z 31. 1. 801, kdy ve
 
 ## Vozová síť a vyjeté cesty
 
+**Od 31. 10. 2026 simulace jen odhaduje** (Martin 31. 10. 2026: „simulace bude počítat jen
+s odhadem vzdáleností a přesné trasy zůstanou prohlížeči – udělej to rovnou“ –
+[paths.md – Odhad vzdáleností](paths.md#odhad-vzdáleností-31-10-2026)): cena jízd vozu (svoz, voda
+vozem, uhlí, ruda, osivo, dosah svozu) a cesty spřežení k orbě je odhad bez mřížky vozu – rovně po
+povrchu (louka, mokřina, pole stálou cenou 4, les a zarostlý díl neprojede, potok objížďkou přes
+nejbližší brod, svah levně – serpentiny) nebo po pevných cestách rychlostí vozu. Pravidla níž
+(sklon ve směru jízdy, šířka vozu, zatáčení) platí pro přesnou trasu, kterou ukazuje scéna, a pro
+roční síť vozů 1. 11.
+
 - **Vlastní cena terénu pro vůz** (Martin): vůz nevyjede prudký svah. Rozhoduje **sklon ve
   směru jízdy**, ne sklon terénu – nad mezí (návrh ≈ 10–12 % – rešerše) vůz nejede, pod ní je
   stoupání dražší. Proto nejlevnější cesta do svahu vede šikmo a **serpentiny vzniknou samy**.
