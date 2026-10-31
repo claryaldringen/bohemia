@@ -1038,13 +1038,21 @@ nespadne“. Model návrh Clauda:
 - **Síť zrychluje dál:** chodec po pěšinách stálých tras (síla z vyšlapanosti) a pevných cestách
   (stupeň, olemování, mokřina a brody na ose) – graf os, ne mřížka; vůz po pevných cestách
   (rychlost vozu podle druhu, vyježděná, olemování), na síť najede v nejbližším bodě každé cesty.
+  **Chodec stejně** (od 31. 10. 2026 – návrh Clauda „vzdálenosti chůze s jedním napojením“,
+  Martin 31. 10. 2026 na čtyři jisté úspory: „Ano“): z obydlí na síť a ze sítě k dílu, čtverci
+  sadu, vodě či okraji lesa jen v nejbližším bodě (vzdušnou čarou) každé pěšiny a cesty, ne
+  v kterémkoli bodě sítě. Chůze tak síť nikdy nezkrátí víc než dřív – kde by se vyplatilo
+  sejít z pěšiny šikmo dřív nebo později, vyjde o kus déle. Vlkov (3 783 dílů, přepočet
+  `routes-v10`): medián +1,5 % (+4 m), 90 % dílů do +8 % (+26 m), nejvíc +22 % (+88 m),
+  průměr 336 → 345 m; voda z obydlí medián +0,3 %, okraj lesa 8 z 10 obydlí beze změny.
 - **Svah jen pro vůz, levně:** kus úsečky (dvě buňky) se sklonem do poloviny meze (`maxGrade`
   10 %) stojí × (1 + 4 · (sklon / mez)²) jako ve vozové síti; prudší kus stojí nejvýš jako
   serpentiny se sklonem poloviny meze – vůz rovně do srázu nevyjede, ale objede ho. Po pevné cestě
   stejně, vozová cesta má úvozy (bez svahu).
 - **Dvoukolák i čtyřkolák** mají v odhadu stejnou cenu (liší se jen zatáčením v přesné trase).
-- **Co zůstává:** stálé trasy (pěšiny) se hledají jen se stavbou nebo zánikem stavby a trasy
-  k práci dne 1. dne v měsíci – z nich je provoz a vyšlapanost jako dosud. Roční síť vozů 1. 11.
+- **Co zůstává:** stálé trasy (pěšiny) se hledají jen se stavbou nebo zánikem stavby ~~a trasy
+  k práci dne 1. dne v měsíci~~ (od 31. 10. 2026 trasy k práci dne nejsou – Stálé trasy,
+  pravidlo 5) – z nich je provoz a vyšlapanost jako dosud. Roční síť vozů 1. 11.
   (jízdy roku do vyšlapanosti a příznak vozová) hledá trasy vozu jednou za rok.
 - **Přesné trasy jen pro pohled:** trasu vozu, spřežení a postav počítá pohled na ves (scéna)
   stejnými deterministickými funkcemi jen pro to, co ukazuje – simulace mřížku vozu nestaví.

@@ -106,9 +106,9 @@ describe('vzdálenost chůze po pěšinách', () => {
     const graph = walkGraph([line(0, 100, 1), { ...line(100, 200, 1), openStart: false }]);
     expect(graph.x.filter((x, i) => x === 100 && graph.z[i] === 0)).toHaveLength(1);
     const d = walkingDistances(graph, [{ x: 0, z: 10 }], [{ x: 200, z: 10 }])[0]!;
-    // na pěšinu i z ní šikmo – nejvýš rovně k ní, po ní a rovně od ní
-    expect(d).toBeLessThanOrEqual(10 + 200 * 0.75 + 10);
-    expect(d).toBeGreaterThan(200 * 0.75);
+    // na pěšinu i z ní jen v nejbližším bodě (paths.md – Odhad vzdáleností): rovně k ní, po ní
+    // a rovně od ní
+    expect(d).toBeCloseTo(10 + 200 / PATH_WALK.speed + 10, 6);
   });
 });
 
@@ -408,7 +408,7 @@ describe('rychlosti chůze (walk-speed.ts)', () => {
 });
 
 describe('walkingDistances – ořezávání podle dolní meze', () => {
-  it('vyjde stejně jako průchod všemi body (s poli, mokřinou i vodou)', () => {
+  it('vyjde stejně jako průchod všemi napojeními (s poli, mokřinou i vodou)', () => {
     const base = { terrain: pathTestTerrain() };
     const ground = withFieldWalk(base, [
       {
@@ -429,12 +429,26 @@ describe('walkingDistances – ořezávání podle dolní meze', () => {
       x: -110 + ((k * 37) % 220),
       z: -100 + ((k * 53) % 190),
     }));
-    // průchod všemi: Dijkstra po grafu z bodů rovně z obydlí, cíl rovně z obydlí i z každého bodu
+    // průchod všemi napojeními: na síť jen v nejbližším bodě každé pěšiny (z obydlí i k cíli),
+    // Dijkstra po grafu, cíl rovně z obydlí nebo z nejbližšího bodu každé pěšiny
     const n = graph.x.length;
-    const start = graph.x.map((x, id) =>
-      Math.min(...origins.map((o) => groundWalkLength(ground, o, { x, z: graph.z[id]! }))),
-    );
-    const dist = [...start];
+    const nearest = (chain: readonly number[], p: { x: number; z: number }): number =>
+      chain.reduce((best, id) =>
+        (graph.x[id]! - p.x) ** 2 + (graph.z[id]! - p.z) ** 2 <
+        (graph.x[best]! - p.x) ** 2 + (graph.z[best]! - p.z) ** 2
+          ? id
+          : best,
+      );
+    const dist: number[] = Array.from({ length: n }, () => Infinity);
+    for (const chain of graph.chains) {
+      for (const o of origins) {
+        const id = nearest(chain, o);
+        dist[id] = Math.min(
+          dist[id]!,
+          groundWalkLength(ground, o, { x: graph.x[id]!, z: graph.z[id]! }),
+        );
+      }
+    }
     const done = new Set<number>();
     for (let round = 0; round < n; round++) {
       let c = -1;
@@ -445,7 +459,10 @@ describe('walkingDistances – ořezávání podle dolní meze', () => {
     const brute = targets.map((t) =>
       Math.min(
         ...origins.map((o) => groundWalkLength(ground, o, t)),
-        ...graph.x.map((x, id) => dist[id]! + groundWalkLength(ground, { x, z: graph.z[id]! }, t)),
+        ...graph.chains.map((chain) => {
+          const id = nearest(chain, t);
+          return dist[id]! + groundWalkLength(ground, { x: graph.x[id]!, z: graph.z[id]! }, t);
+        }),
       ),
     );
     const fast = walkingDistances(graph, origins, targets, ground);

@@ -925,8 +925,12 @@ prohlížeči – udělej to rovnou“).
   (`groundSpots(ground, PATH_FORD)`), druhý úsek začíná ve vodě (brodí se jednou). Bez brodu v okně
   brodění kdekoli jako dřív. Paměť chůze (`memoWalkLength`) drží jen úsečky bez objížďky; úsečka
   přes potok má zápornou hodnotu a objížďka se skládá z úseček (`memoDetour`) – výsledek týž jako
-  bez paměti. Graf pěšin a pevných cest (`walkGraph`, `walkingDistances`) beze změny.
-  `WALK_VERSION` `routes-v8`.
+  bez paměti. Graf pěšin a pevných cest (`walkGraph`) beze změny; **napojení jen v nejbližším
+  bodě** (31. 10. 2026, `routes-v10`): `WalkGraph.chains` – uzly každé pěšiny a cesty v pořadí;
+  `walkingDistances` seje Dijkstru jen z nejbližšího uzlu (vzdušnou čarou, `nearestNode`) každého
+  řetězu ke každému obydlí a cíl bere z nejbližšího uzlu každého řetězu (ořez dolní mezí jako
+  dřív) – jako `cartEstimates`. Vlkov: den s přepočtem chůze 2,3 → 1,8 s; vzdálenosti dílů
+  medián +1,5 %, p90 +8 %, max +22 % (test „průchod všemi napojeními“ v `paths-walking.test.ts`).
 - **Vůz** (`paths/cart-estimate.ts`): `villageCartEstimates(state, day, landscape, kind, targets,
 from)` – výjezd z hotových ohrad se spřežením (`teamPens`) nebo z `from`; `CartEstimate`
   (`reached`, `cost` m po louce, `lengthM`, `end` – `reachM` před cílem na poslední úsečce).
