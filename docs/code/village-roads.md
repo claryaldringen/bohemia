@@ -938,6 +938,14 @@ from)` – výjezd z hotových ohrad se spřežením (`teamPens`) nebo z `from`;
   dnech, odhad nezávisí na paměti půdy. `road-upgrades.test.ts` – objížďka mimo brod;
   `carpentry.test.ts` – díl na pasece za nevymýceným lesem vůz odhadem nedosáhne (pás pole 2
   mimo les).
+- **Naměřeno 31. 10. 2026** (Vlkov, den 117895, 46 lidí, rok po dnech, střídavě, zátěž 6–14;
+  skripty a logy mimo repo v `scratchpad/estimate/`): rok 25,8–26,2 s → 22,4–22,8 s (−13 %),
+  `work` 5,9 → 1,9 s (`villageCartRoutes` 1,9 s a `villageCartCost` 3,4 s → `villageCartEstimates`
+  1,2 s), `annualCartNetwork` 0,4–0,5 s (1. 11.), `walkingDistances` 1,6 → 2,1 s. Vlkov za 20 let:
+  lidé 63 / 63, úroda +10,8 % (196,7 → 218,0 t), hladové dny 385 → 394, úmrtí hladem 0 / 0, dny
+  orby 2 171 → 2 113, práce orby 7 170 → 7 804 čd. Nová ves zakladatelů (krajina 1, 15 let po
+  10 dnech): bez správce beze změny, se správcem lidé 7/9/12 → 7/9/12, úroda 22,0 → 21,9 t,
+  hladové kroky 99 → 104, cest 19 → 21.
 
 ## Trasy v paměti – vozy a chůze (výkon)
 
