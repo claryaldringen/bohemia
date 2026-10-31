@@ -7,7 +7,8 @@ import { pathWalkLength, type WalkGround } from '../../paths/walking';
 
 /**
  * Původní `groundWalkLength` (před C1 – půda po buňkách a kusy po stejné půdě) – reference pro
- * test `ground-walk-fast`: každý krok úsečky čte příznaky terénu a pole zvlášť.
+ * test `ground-walk-fast`: každý krok úsečky čte příznaky terénu a pole zvlášť (krok po celých
+ * buňkách jako dnes – dřív po půlbuňkách).
  */
 export function referenceGroundWalkLength(
   ground: WalkGround | null | undefined,
@@ -20,7 +21,8 @@ export function referenceGroundWalkLength(
   const t = ground.terrain;
   const fields = ground.fields;
   const tread = pathCostFactor(strength);
-  const n = Math.max(1, Math.ceil(length / (t.cellM / 2)));
+  // kroky po celých buňkách (paths.md – Odhad vzdáleností, chůze rovně po celých buňkách)
+  const n = Math.max(1, Math.ceil(length / t.cellM));
   const piece = length / n;
   let cost = 0;
   let inWater = false;

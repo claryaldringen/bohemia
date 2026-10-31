@@ -164,6 +164,15 @@ export function fordDetour(ground: WalkGround, a: PathPoint, b: PathPoint): Path
 }
 
 /**
+ * Kroky chůze rovně po úsečce délky `length` (paths.md – Odhad vzdáleností): po celých buňkách
+ * mřížky (`cellM`), každý krok čte buňku pod svým středem. Dřív po půl buňkách – dvakrát víc kroků
+ * při téže mřížce; délky chůze se liší jen tam, kde úsečka šikmo ťukne roh jiné buňky.
+ */
+function walkSteps(length: number, cellM: number): number {
+  return Math.max(1, Math.ceil(length / cellM));
+}
+
+/**
  * Chůze rovně bez objížďky (`groundWalkLength`): voda kdekoli + ROAD_WALK.fordExtraM (s `fromWater`
  * úsečka začíná ve vodě – první brodění se nepočítá); nastaví `crossedDeep`, když úsečka vstoupila
  * do vody mimo brod.
@@ -181,7 +190,7 @@ function straightWalkCost(
   const t = ground.terrain;
   const { speed: cellSpeed, mask, seamsI, seamsJ } = walkCellsOf(ground);
   const tread = pathCostFactor(strength);
-  const n = Math.max(1, Math.ceil(length / (t.cellM / 2)));
+  const n = walkSteps(length, t.cellM);
   const piece = length / n;
   const w = t.width;
   const h = t.height;
@@ -510,7 +519,7 @@ function unchangedAround(changed: Int32Array, t: PathTerrain, a: PathPoint, b: P
   const length = length2(b.x - a.x, b.z - a.z);
   if (length === 0) return true;
   // kroky jako ve `straightWalkCost` (týž počet i tytéž polohy)
-  const n = Math.max(1, Math.ceil(length / (t.cellM / 2)));
+  const n = walkSteps(length, t.cellM);
   const { originX, originZ, cellM } = t;
   const ex = b.x - a.x;
   const ez = b.z - a.z;
