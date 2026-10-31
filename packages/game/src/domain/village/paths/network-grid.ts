@@ -191,10 +191,7 @@ export interface FieldCells {
  * stejném pořadí a tentýž díl jako bez paměti (docs/code/village-core.md – Výkon dopočtu).
  */
 export function fieldCellsOf(grid: GridWindow, parts: readonly Square[]): FieldCells {
-  let key = `${grid.originX},${grid.originZ},${grid.cellM},${grid.width},${grid.height}`;
-  for (const p of parts) {
-    key += `|${p.cell.x}/${p.cell.y}:${p.x},${p.z},${p.size},${p.rotation ?? ''}`;
-  }
+  const key = squaresKey(grid, parts);
   const known = fieldCellsMemo.get(key);
   if (known) {
     fieldCellsMemo.delete(key);
@@ -218,9 +215,47 @@ export function fieldCellsOf(grid: GridWindow, parts: readonly Square[]): FieldC
   return out;
 }
 
-/** Zapomene buňky polí v paměti (`fieldCellsOf`) – studený start v testech. */
+/** Klíč paměti buněk čtverců: okno mřížky a čtverce (políčko, poloha, velikost, natočení). */
+function squaresKey(grid: GridWindow, squares: readonly Square[]): string {
+  let key = `${grid.originX},${grid.originZ},${grid.cellM},${grid.width},${grid.height}`;
+  for (const p of squares) {
+    key += `|${p.cell.x}/${p.cell.y}:${p.x},${p.z},${p.size},${p.rotation ?? ''}`;
+  }
+  return key;
+}
+
+/** Staveb v paměti buněk čtverců (`squareCellsOf`) – nejdéle nepoužitá vypadne. */
+const SQUARE_CELLS_MEMO = 256;
+const squareCellsMemo = new Map<string, { inside: readonly number[]; edge: readonly number[] }>();
+
+/**
+ * `squareCells` přes paměť podle okna mřížky a čtverců (nic jiného nečte) – cíle tras
+ * (`tripGroups`) skládá každé převážení stálých tras pro tatáž pole, sady a ohrady znovu. Jen
+ * zrychlení – tytéž buňky ve stejném pořadí; pole jsou sdílená, jen ke čtení.
+ */
+export function squareCellsOf(
+  grid: GridWindow,
+  squares: readonly Square[],
+): { inside: readonly number[]; edge: readonly number[] } {
+  const key = squaresKey(grid, squares);
+  const known = squareCellsMemo.get(key);
+  if (known) {
+    squareCellsMemo.delete(key);
+    squareCellsMemo.set(key, known);
+    return known;
+  }
+  const out = squareCells(grid, squares);
+  if (squareCellsMemo.size >= SQUARE_CELLS_MEMO) {
+    squareCellsMemo.delete(squareCellsMemo.keys().next().value!);
+  }
+  squareCellsMemo.set(key, out);
+  return out;
+}
+
+/** Zapomene buňky polí a čtverců v paměti (`fieldCellsOf`, `squareCellsOf`) – studený start v testech. */
 export function forgetFieldCells(): void {
   fieldCellsMemo.clear();
+  squareCellsMemo.clear();
 }
 
 /**
