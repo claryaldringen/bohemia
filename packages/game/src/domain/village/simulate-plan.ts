@@ -468,7 +468,44 @@ function seasonJoins(
     fellReclaimed(state, state.season, day);
     sowingWindowsEnd(state, state.season, day, coverage.tools);
   }
-  if (sowingCropToday('first', day) === null) return none;
+  if (sowingCropToday('first', day) === null) {
+    if (state.season) delete state.season.selection;
+    return none;
+  }
+  // čelo bez místa pro jakoukoli plodinu – žádný díl dnes nepřibude, ves nový výběr nedělá
+  // a čekající díly bere z posledního dne s místem na čele (fields.md – Postup práce po dílech)
+  const window = selectionWindow(day);
+  const held = state.season?.selection;
+  if (held?.window === window) {
+    const full = workFront(state, day, coverage);
+    if (!SEASON_CROPS.some((crop) => frontRoom(full, crop))) {
+      return { waiting: held.waiting, floorKg: held.floorKg };
+    }
+  }
+  const joins = seasonSelection(state, day, coverage);
+  if (state.season) {
+    state.season.selection = {
+      window,
+      waiting: joins.waiting.map((j) => ({ id: j.id, crop: j.crop })),
+      floorKg: joins.floorKg,
+    };
+  }
+  return joins;
+}
+
+/** Měsíc a plodiny, které dnes smí začít – výběr dílů z paměti platí jen ve stejném. */
+function selectionWindow(day: number): string {
+  const first = sowingCropToday('first', day);
+  const spring = sowingCropToday('spring', day);
+  return `${dateOfDayIndex(day).month}:${first}:${spring}`;
+}
+
+/** Výběr dílů dne a přibrání dávky na čelo (viz `seasonDay`). */
+function seasonSelection(
+  state: VillageState,
+  day: number,
+  coverage: CraftCoverage,
+): { waiting: NeededJoin[]; floorKg: number | null } {
   const targets = fieldSowingTargets(state, day, coverage);
   const { join: selected, release } = neededSelection(state, day, {
     harvestKg: targets.harvestKg,

@@ -506,6 +506,14 @@ přitom ležet každý rok přesně na stejném místě.“):
   není (jako dřív). Souběžnou cestu (do 12 m stejným směrem) vznik nehlídá – sloučí ji úklid
   (Síť, krok 1; návrh Clauda, 24. 10. 2026): trasy se k cestám samy stahují (zvyk, sleva), takže
   souběžná vyšlapaná pěšina skoro nevzniká, a objížďka stavby přes cestu (níž) souběžná být smí.
+- **Smazané kusy** (oprava chyby, návrh Clauda; Martin 31. 10. 2026: „úspory jsme se snad
+  shodli, že uděláme“): nové cesty měsíce vznikají nad kopií a ves je přijme, jen když všechny
+  přežijí úklid; kus, jehož cestu úklid sloučil se starší souběžnou (objížďka podél staré
+  cesty), se v dalším kole vynechá – nejvýš 3 kola. Dřív to ves po 3 kolech vzdala a měsíc co
+  měsíc zkoušela totéž, takže cesty, které úklid přežijí, nevznikly nikdy (Vlkov: celý rok nic).
+  Teď si ves **smazané kusy pamatuje** (podle polohy konců na 1 m) a další měsíce je nezkouší,
+  dokud jsou vyšlapané – ostatní cesty vzniknou hned. Kus, který už vyšlapaný není (nebo se mu
+  posunul konec), zapomene; zkusí se znovu, až se zase vyšlape. Vlkov: za rok 36 → 41 úseků.
 - **Kolik to trvá** (vyšlapanost roste o provoz − 1 za den):
 
   | Cest za den | Cesta vznikne za      | Příklad                                 |
@@ -619,6 +627,10 @@ Návrh Clauda:
   4. **pahýly** (výš);
   5. **cesty k vchodům** (Vchody níž);
   6. **křižovatky** (níž).
+
+  Cesta, kterou úklid hned po vzniku sloučí se starší (krok 1), nevznikne a ves si její kus
+  pamatuje (Vyšlapanost a vznik cesty – Smazané kusy).
+
 - **Jedna cesta hráče se v uzlu nepotká sama se sebou** (pravidlo 11): ramena křižovatky patří
   různým cestám hráče. Dva úseky mezi stejnými uzly jsou copánek (krok 1) a okruh přes jednu
   křižovatku se rozdělí v nejvzdálenějším bodě na dvě cesty hráče.

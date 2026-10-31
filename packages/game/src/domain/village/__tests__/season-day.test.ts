@@ -244,6 +244,9 @@ describe('postup práce po dílech od čela (fields.md – Postup práce po díl
     addToCropWork(spring, added, dug.lastDay, NO_CRAFTS.tools);
     sowParts(added, 'spring');
     dug.storesKg = 20_000;
+    // pět dílů navíc čelo zaplní – s pamětí výběru by ves nový výběr nedělala a uvolnila by až
+    // první den s místem na čele; tady výběr bez paměti
+    delete dug.season!.selection;
     const before = structuredClone(springCrop(dug.season!));
     const looksBefore = fieldPartLooks(dug, day);
     seasonDay(dug, day, NO_CRAFTS);
@@ -329,4 +332,41 @@ describe('přesun dílů mezi plodinami (moveParts)', () => {
     expect(spring.done.dig).toBeCloseTo(digBefore - winter.done.dig, 9);
     expect(spring.done.sow).toBe(0);
   });
+});
+
+describe('výběr dílů jen s místem na čele (fields.md – Postup práce po dílech)', () => {
+  it('plné čelo – ves nový výběr nedělá a čekající díly bere z posledního dne s místem', () => {
+    const start = village(80);
+    start.storesKg = 600;
+    let s = advanceVillage(start, at(600, 9, 1), null);
+    let full = 0;
+    let room = 0;
+    for (let day = at(600, 9, 2); day <= at(600, 10, 15); day++) {
+      // nový výběr bez paměti – kolik dílů dnes opravdu přibude
+      const fresh = structuredClone(s);
+      delete fresh.season!.selection;
+      const before = seasonPartIds(fresh.season!).length;
+      const waiting = seasonDay(fresh, day, NO_CRAFTS);
+      const took = seasonPartIds(fresh.season!).length - before;
+      // tentýž den s pamětí výběru, kterou ves sama vytvořit nemůže
+      const held = structuredClone(s);
+      const marker = [{ id: -1, crop: 'winter' as const }];
+      held.season!.selection = { ...fresh.season!.selection!, waiting: marker, floorKg: 7 };
+      const got = seasonDay(held, day, NO_CRAFTS);
+      if (got === held.season!.selection.waiting) {
+        // čelo bez místa: přeskočení nic nezměnilo – nový výběr by taky žádný díl nepřibral
+        full++;
+        expect(took).toBe(0);
+      } else {
+        room++;
+        expect(got).toEqual(waiting);
+        expect(held.season!.selection!.waiting).toEqual(
+          waiting.map(({ id, crop }) => ({ id, crop })),
+        );
+      }
+      s = advanceVillage(s, day, null);
+    }
+    expect(full).toBeGreaterThan(0);
+    expect(room).toBeGreaterThan(0);
+  }, 60_000);
 });

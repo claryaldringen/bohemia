@@ -237,6 +237,12 @@ export interface VillageRoads {
    * (opuštěný zbytek) se neobnovuje – dopočet nesmí záviset na tom, kdy se ves načte.
    */
   trailsRestored?: true;
+  /**
+   * Kusy vyšlapanosti, jejichž novou cestu úklid sloučil se starší (objížďka souběžná se starou
+   * cestou – paths.md, Vyšlapanost a vznik cesty, Smazané kusy): klíče podle polohy konců
+   * (`wearRunKey`), seřazené. Ves je při vzniku cest vynechá, dokud jsou vyšlapané; chybí = žádné.
+   */
+  lostRuns?: string[];
   /** Jabloně vysazené hráčem podél úseků (roads.md – Vysazení jabloní); chybí = žádné. */
   apples?: RoadApple[];
   /**

@@ -99,10 +99,34 @@ export function holdingHouses(
 
 /**
  * Hospodářství podle pole dílů vsi – simulace se ptá každý den (hotové díly během roku), geometrie
- * se přitom mění jen s novými díly (pole dílů v simulaci jen roste) a s domy. Klíč: počet dílů
- * a domy; nové pole dílů (akce hráče, nový stav) = nový výpočet.
+ * se přitom mění jen s novými díly (pole dílů v simulaci jen roste) a s domy. Napřed paměť podle
+ * totožného pole dílů (klíč: počet dílů a domy), pak podle obsahu (`holdingsContentKey`) – ta
+ * přežije kopii stavu na začátku každého dopočtu (`cloneState`), jinak by se při dopočtu po dnech
+ * geometrie počítala každý den znovu. Výsledek na paměti nezávisí.
  */
 const holdingsCache = new WeakMap<readonly FieldPart[], { key: string; holdings: FieldHoldings }>();
+/** Paměť podle obsahu – posledních pár vsí (worker dopočítává víc vsí za sebou). */
+const holdingsByContent = new Map<string, FieldHoldings>();
+const HOLDINGS_BY_CONTENT_MAX = 8;
+
+/**
+ * Klíč obsahu všeho, co `fieldHoldings` čte: domy (id, poloha), díly v pořadí (id, políčko, jinak
+ * vzdálenost) a přesná mřížka pole dílu (natočená pole).
+ */
+function holdingsContentKey(
+  houses: readonly HoldingHouse[],
+  parts: readonly FieldPart[],
+  grids: ReadonlyMap<number, SquareGrid>,
+): string {
+  const gridText = new Map<number, string>();
+  for (const [id, g] of grids) gridText.set(id, `${g.x}:${g.z}:${g.rotation}`);
+  const out = [houses.map((h) => `${h.id}:${h.position.x}:${h.position.z}`).join(',')];
+  for (const p of parts) {
+    const where = p.cell ? `${p.cell.x},${p.cell.y}` : `d${p.distanceM}`;
+    out.push(`${p.id}:${where}:${gridText.get(p.fieldId) ?? ''}`);
+  }
+  return out.join(';');
+}
 
 /** Hospodářství a úseky vsi (viz hlavička souboru). */
 export function villageHoldings(state: VillageState): FieldHoldings {
@@ -112,14 +136,24 @@ export function villageHoldings(state: VillageState): FieldHoldings {
   if (cached?.key === key) return cached.holdings;
   // díly natočených polí nesou mřížku pole (fields.md – Natočené stavby)
   const grids = fieldGrids(state);
-  const parts =
-    grids.size === 0
-      ? state.parts
-      : state.parts.map((p) => {
-          const grid = grids.get(p.fieldId);
-          return grid ? { ...p, grid } : p;
-        });
-  const holdings = fieldHoldings(houses, parts);
+  const content = holdingsContentKey(houses, state.parts, grids);
+  let holdings = holdingsByContent.get(content);
+  if (!holdings) {
+    const parts =
+      grids.size === 0
+        ? state.parts
+        : state.parts.map((p) => {
+            const grid = grids.get(p.fieldId);
+            return grid ? { ...p, grid } : p;
+          });
+    holdings = fieldHoldings(houses, parts);
+    if (holdingsByContent.size >= HOLDINGS_BY_CONTENT_MAX) {
+      holdingsByContent.delete(holdingsByContent.keys().next().value!);
+    }
+  } else {
+    holdingsByContent.delete(content);
+  }
+  holdingsByContent.set(content, holdings);
   holdingsCache.set(state.parts, { key, holdings });
   return holdings;
 }

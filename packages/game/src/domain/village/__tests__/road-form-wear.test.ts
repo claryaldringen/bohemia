@@ -9,7 +9,7 @@ import { encodeRoute } from '../paths/routes';
 import { trailTerrain } from '../paths/terrain';
 import { encodeWear, wearCellAt } from '../paths/wear';
 import { WEAR } from '../rules-roads';
-import type { Road, RoadPoint, StoredRoute, VillageRoads } from '../types';
+import type { Road, RoadPoint, StoredRoute, VillageRoads, VillageState } from '../types';
 import { village } from './abandonment-fixtures';
 import { LANDSCAPE } from './paths-fixtures';
 
@@ -424,6 +424,39 @@ describe('roadsMonth – měsíční vznik cest z vyšlapanosti', () => {
     // další měsíce volné konce už nemění
     expect(s.roads.roads.map((r) => r.openEnds)).toEqual(firstEnds);
     expect(s.chronicle.some((e) => e.kind === 'road-formed')).toBe(false);
+    // smazanou objížďku si ves pamatuje (paths.md – Smazané kusy) a další měsíce ji nezkouší
+    expect(s.roads.lostRuns).toHaveLength(1);
+    const remembered = structuredClone(s.roads.lostRuns);
+    roadsMonth(s, dayIndexOf({ year: 602, month: 5, day: 1 }), LANDSCAPE, null);
+    expect(s.roads.lostRuns).toEqual(remembered);
+    // objížďka, která už není vyšlapaná, se zapomene
+    s.roads.wear = { day: s.roads.wear.day, cells: '', labor: [] };
+    roadsMonth(s, dayIndexOf({ year: 602, month: 6, day: 1 }), LANDSCAPE, null);
+    expect(s.roads.lostRuns).toBeUndefined();
+  });
+
+  it('smazaná objížďka nebrzdí vznik jiné cesty – ta vznikne hned (paths.md – Smazané kusy)', () => {
+    // kus z paměti se vynechá od prvního kola – vyšlapaná trasa k vodě vznikne jako bez paměti
+    const start = dayIndexOf({ year: 601, month: 4, day: 1 });
+    const make = (lost?: string[]): VillageState => {
+      const s = village(start - 1);
+      s.roads = emptyRoads(start);
+      s.roads.wear = { day: start, cells: '', labor: [] };
+      if (lost) s.roads.lostRuns = lost;
+      s.routes = { day: start, key: 'test-water-10', list: [waterRoute(1000)] };
+      return s;
+    };
+    const plain = make();
+    const held = make(['-999,-999|-998,-998']);
+    for (let m = 1; m <= 7; m++) {
+      const day = dayIndexOf({ year: 601, month: 4 + m, day: 1 });
+      roadsMonth(plain, day, LANDSCAPE, null);
+      roadsMonth(held, day, LANDSCAPE, null);
+    }
+    expect(plain.roads!.roads.length).toBeGreaterThan(0);
+    expect(held.roads!.roads).toEqual(plain.roads!.roads);
+    // neznámý kus (už nevyšlapaný) ves zapomene
+    expect(held.roads!.lostRuns).toBeUndefined();
   });
 
   it('kotvy z tras: brána domu je vchod, voda cíl', () => {

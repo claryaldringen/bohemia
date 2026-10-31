@@ -401,6 +401,13 @@ Seno, dvě seče).
      s kopáním do listopadu ozim nepředběhnou). Žádný strop podle plánu: dokud je okno otevřené
      a potřeba trvá, ves bere další díly. Díly výběru, které na čelo ještě nepřibyly, počítá
      podíl vojvodovy rodiny jako práci, která zbývá (lord.md – Kdy jde rodina na pole).
+   - **Výběr jen s místem na čele** (úspora výkonu – Martin 31. 10. 2026: „úspory jsme se snad
+     shodli, že uděláme“; návrh Clauda): ve dny, kdy na čele není místo pro žádnou plodinu, by
+     stejně žádný díl nepřibyl – ves nový výběr nedělá a čekající díly (osivo pro ně, podíl
+     rodiny) i roční potřebu z pole bere z posledního dne, kdy na čele místo bylo, v témže měsíci
+     a se stejnými plodinami, které smí začít. Díl nad potřebu se tak stane nutným (nebo
+     nepotřebný se uvolní) až první den s místem na čele. Díly přibývají ve stejné dny jako dřív;
+     Vlkov: rok beze změny úrody, hladu, orby i zásob (čelo bez místa 82 ze 151 dní výběru).
    - **Pořadí dávek:** len (je ho málo, bez něj chybí oděv), **obilí do roční potřeby bez
      rezervy** (proti hladu – obilí má přednost), luštěniny, pak obilí do celé potřeby úrody;
      obilí v pořadí přílohové soustavy (připravené díly a díly s nejmenší prací přípravy, blíž

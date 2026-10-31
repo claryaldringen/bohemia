@@ -123,6 +123,8 @@ describe('ves bez dílen beze změny (crafts.md – Učení řemesla)', () => {
       'seedKg',
       'seedWaitingKg',
       'seedFloorKg',
+      // výběr dílů z posledního dne s místem na čele (fields.md – Postup práce po dílech, výkon)
+      'selection',
     ]);
     const stripped = JSON.stringify(legacyShape(next), (key, value: unknown) =>
       marks.has(key) ? undefined : value,

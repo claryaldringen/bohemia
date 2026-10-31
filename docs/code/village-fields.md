@@ -51,7 +51,11 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   k zátěži (`partWork`). Přibrané díly `addToCropWork` / `putSeasonCrop` (dávka dne
   `workOrder`), `sowParts` (`next` zůstává do konce sezóny); `release` (nezačaté díly nad
   potřebu + `FIELD_STORES.trimMarginYears`, jen když nepřibírá obilí) → `releasePart`. Ves bez roku (založená během roku) ho dostane
-  s prvním dílem. `startedPartIds` nebere úlohu bez práce (ozim se neplete) za začatou.
+  s prvním dílem. **Výběr jen s místem na čele** (`seasonJoins` → `seasonSelection`, výkon 31. 10. 2026): napřed čelo (`workFront`); nemá-li místo pro žádnou plodinu a ve stavu je
+  `FarmSeason.selection` téhož `window` (`selectionWindow` – měsíc a plodiny, které smí začít),
+  vrátí čekající díly a `floorKg` z ní bez `fieldSowingTargets`, `neededSelection`, uvolnění
+  i povýšení. Jinak úplný výběr a `selection` se přepíše; mimo dny, kdy smí začít díl, se smaže.
+  Test `season-day.test.ts` (plné čelo – nový výběr by nepřibral nic). `startedPartIds` nebere úlohu bez práce (ozim se neplete) za začatou.
   `sowing.ts` nese už jen okna a zátěž pro pomoc rodiny (`planLoad`, `cropLoadOf`,
   `lordSowingHelp`) a `sideCropOrder`. **Cíl osevu podle stravy a zásob** (fields.md – Osev
   podle stravy, Osev podle zásob, 19. 10. 2026): `sowingTargets` ve `field-food.ts` (v plánu
