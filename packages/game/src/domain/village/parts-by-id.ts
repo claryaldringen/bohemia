@@ -11,8 +11,15 @@ import type { FieldPart } from './types';
 export function partsByIdOf(parts: readonly FieldPart[]): ReadonlyMap<number, FieldPart> {
   const known = cache.get(parts);
   if (known && sameParts(known, parts)) return known.map;
-  const map = new Map(parts.map((p) => [p.id, p]));
-  cache.set(parts, { map, parts: parts.slice(), ids: Float64Array.from(parts, (p) => p.id) });
+  // jako `new Map(parts.map(…))` – vkládá se po řadě, při dvojím id platí poslední
+  const map = new Map<number, FieldPart>();
+  const ids = new Float64Array(parts.length);
+  for (let k = 0; k < parts.length; k++) {
+    const p = parts[k]!;
+    map.set(p.id, p);
+    ids[k] = p.id;
+  }
+  cache.set(parts, { map, parts: parts.slice(), ids });
   return map;
 }
 
