@@ -23,7 +23,6 @@ import {
   seasonCrops,
   ploughBlockEndPart,
   ploughFrontBand,
-  villageCartRoutes,
   villageCarts,
   CARTS,
   CART_JOBS,
@@ -51,7 +50,10 @@ import {
   smithBellows,
   type WorkshopActivity,
 } from '@bohemia/game';
+import { nearestToCentroid, type CartGoal } from './cart-routes';
 import { sceneTrails } from './trail-view';
+
+export { nearestToCentroid, simplifiedRoute } from './cart-routes';
 
 type Workshop = NonNullable<VillageState['dwellings'][number]['workshop']>;
 
@@ -360,7 +362,7 @@ export function sceneCarts(
   }
   return carts.map((c) => {
     const job = jobs.get(c.id) ?? null;
-    const route = job ? cartRouteToday(state, day, landscape, c.kind, job, fields) : null;
+    const goal = job ? cartGoalToday(state, landscape, c.kind, job, fields) : null;
     return {
       id: c.id,
       kind: c.kind,
@@ -368,7 +370,7 @@ export function sceneCarts(
       z: home?.z ?? 0,
       condition: Math.round(cartCondition(c, day) * 10) / 10,
       job,
-      ...(route ? { route } : {}),
+      ...(goal ? { goal } : {}),
     };
   });
 }
@@ -377,53 +379,56 @@ export function sceneCarts(
  * Cesty spřežení dne (oxen.md – Spřežení zůstane na poli): spřežení je na poli, dokud nezorá, co
  * okno potřebuje – `out` jen v den příjezdu k bloku (výjezd z ohrady nebo přesun od konce
  * předchozího bloku), `home` jen v den návratu (od konce bloku do ohrady). Z dat jádra
- * (`PloughWork.trip`), trasy vozovou sítí jako dvoukolák bez nákladu (pevná cesta rychleji,
- * napříč přes neosetá pole, osetým dílem ne). Bez cest null.
+ * (`PloughWork.trip`) jen cíle (`outGoals`, `homeGoals` – po plodinách, platí první, kam
+ * spřežení dojede); trasy vozovou sítí jako dvoukolák bez nákladu spočítá prohlížeč
+ * (`withCartRoutes` – cart-routes.ts). `stand` (den bez orby) platí jen bez cesty tam i zpět.
+ * Bez cílů i bez stání null.
  */
 export function scenePloughLegs(
   state: VillageState,
-  day: number,
-  landscape: Landscape,
   fields: SceneVillage['fields'],
 ): ScenePloughLegs | null {
   if (!state.season) return null;
   const scene = new Map(fields.flatMap((f) => f.parts).map((p) => [p.id, p]));
   const byId = new Map(state.parts.map((p) => [p.id, p]));
-  const obstacles = obstaclesOf(landscape);
-  const route = (
+  const goal = (
     from: { x: number; z: number } | null,
     partId: number | undefined,
-  ): { x: number; z: number }[] | null => {
+    reverse = false,
+  ): CartGoal | null => {
     const part = partId === undefined ? undefined : scene.get(partId);
     if (!part) return null;
-    const target = { x: part.x, z: part.z, reachM: part.size / 2 + 1.5 };
-    const found = villageCartRoutes(state, day, landscape, obstacles, 'two-wheel', [target], from);
-    const r = found?.[0];
-    return r?.reached && r.points.length >= 2 ? simplifiedRoute(r.points) : null;
+    return {
+      to: { x: part.x, z: part.z },
+      reachM: part.size / 2 + 1.5,
+      ...(from ? { from } : {}),
+      ...(reverse ? { reverse: true as const } : {}),
+    };
   };
-  let out: { x: number; z: number }[] | null = null;
-  let home: { x: number; z: number }[] | null = null;
+  const outGoals: CartGoal[] = [];
+  const homeGoals: CartGoal[] = [];
   for (const { work } of seasonCrops(state.season)) {
     const plough = work.plough;
     const trip = plough?.trip;
     if (!plough || !trip) continue;
-    if (!out && trip.arrived?.day === state.lastDay) {
+    if (trip.arrived?.day === state.lastDay) {
       const first = plough.bands?.find((b) => b.block === trip.block)?.partIds[0];
       const from = trip.arrived.from;
       const end = from === null ? null : ploughBlockEndPart(plough, from, byId);
       const start = end ? scene.get(end.id) : undefined;
-      if (from === null) out = route(null, first);
-      else if (start) out = route({ x: start.x, z: start.z }, first);
+      const out =
+        from === null ? goal(null, first) : start ? goal({ x: start.x, z: start.z }, first) : null;
+      if (out) outGoals.push(out);
     }
-    if (!home && trip.home === state.lastDay) {
-      const back = route(null, ploughBlockEndPart(plough, trip.block, byId)?.id);
-      if (back) home = [...back].reverse();
+    if (trip.home === state.lastDay) {
+      const back = goal(null, ploughBlockEndPart(plough, trip.block, byId)?.id, true);
+      if (back) homeGoals.push(back);
     }
   }
   // den bez orby: spřežení na poli stojí u čela orby (díl, kde orba pokračuje)
   let stand: { x: number; z: number } | null = null;
   const ploughed = laborReport(state)?.shares.some((s) => s.activity === 'plough' && s.manDays > 0);
-  if (!out && !home && !ploughed) {
+  if (!ploughed) {
     for (const { work } of seasonCrops(state.season)) {
       const trip = work.plough?.trip;
       if (!trip || trip.home !== undefined) continue;
@@ -435,8 +440,12 @@ export function scenePloughLegs(
       if (stand) break;
     }
   }
-  if (!out && !home && !stand) return null;
-  return { ...(out ? { out } : {}), ...(home ? { home } : {}), ...(stand ? { stand } : {}) };
+  if (outGoals.length === 0 && homeGoals.length === 0 && !stand) return null;
+  return {
+    ...(outGoals.length > 0 ? { outGoals } : {}),
+    ...(homeGoals.length > 0 ? { homeGoals } : {}),
+    ...(stand ? { stand } : {}),
+  };
 }
 
 /**
@@ -456,184 +465,80 @@ function haulLoad(state: VillageState, share: LaborShare): CartLoad {
   return (t.parts ?? []).some((id) => mown.has(id)) ? 'hay' : 'sheaves';
 }
 
-/** Nejvýš tolik bodů trasy vozu do scény (osa se zjednoduší). */
-const CART_ROUTE_POINTS = 80;
-/** Odchylka zjednodušené osy od trasy vozové sítě (m). */
-const CART_ROUTE_TOLERANCE_M = 0.6;
-
 /**
- * Trasa vozu dne (wagons.md – fáze 3): svoz – osa vozové sítě od ohrady k místu dnešní práce
- * (díl na čele žně / seče nejblíž těžišti dnešních dílů, políčko louky, strom stavby) stejnou
- * funkcí jako dosah svozu (`villageCartRoutes` – pole stálou cenou, paths.md – Stálé trasy), mimo
- * svoz k milíři a na břeh pro vodu (wagons.md – Co vozy vozí); výprava
- * – od ohrady na začátek zemské stezky a po ní ke kraji mapy. Kam vůz nedojede (nebo bez cíle),
- * null.
+ * Cíl jízdy vozu dne (wagons.md – fáze 3), ze kterého prohlížeč spočítá trasu (`cartGoalRoute`
+ * – stejnou funkcí jako dosah svozu, `villageCartRoutes` – pole stálou cenou, paths.md – Stálé
+ * trasy): svoz – od ohrady k místu dnešní práce (díl na čele žně / seče nejblíž těžišti dnešních
+ * dílů, políčko louky, strom stavby), mimo svoz k milíři a na břeh pro vodu (wagons.md – Co vozy
+ * vozí); výprava – od ohrady na začátek zemské stezky a po ní ke kraji mapy. Bez cíle null.
  */
-function cartRouteToday(
+function cartGoalToday(
   state: VillageState,
-  day: number,
   landscape: Landscape,
   kind: CartKind,
   job: NonNullable<SceneCart['job']>,
   fields: SceneVillage['fields'],
-): { x: number; z: number }[] | null {
-  const obstacles = obstaclesOf(landscape);
-  const routeTo = (
-    reachState: VillageState,
-    target: { x: number; z: number },
-    reachM: number,
-  ): { x: number; z: number }[] | null => {
-    const route = villageCartRoutes(reachState, day, landscape, obstacles, kind, [
-      { x: target.x, z: target.z, reachM },
-    ])?.[0];
-    return route?.reached && route.points.length >= 2 ? route.points : null;
-  };
+): CartGoal | null {
+  const xz = (p: { x: number; z: number }): { x: number; z: number } => ({ x: p.x, z: p.z });
   // čtyřkolák nedojede všude (zoraný díl, širší oblouk – wagons.md, Co se vozí a na čem): na
   // místo, kam nedojede, jede k bodu svozu nejblíž těžišti, ke kterému dojede (jádro mu dává jen
   // nošení, kam dojede)
-  const routeToAny = (
-    reachState: VillageState,
-    goals: readonly { x: number; z: number }[],
+  const toNearest = (
+    points: readonly { x: number; z: number }[],
     reachM: number,
-  ): { x: number; z: number }[] | null => {
-    if (goals.length === 0) return null;
-    const routes = villageCartRoutes(
-      reachState,
-      day,
-      landscape,
-      obstacles,
-      kind,
-      goals.map((g) => ({ x: g.x, z: g.z, reachM })),
-    );
-    const reached = goals.flatMap((g, k) => {
-      const route = routes?.[k];
-      return route?.reached && route.points.length >= 2 ? [{ x: g.x, z: g.z, k }] : [];
-    });
-    const best = nearestToCentroid(reached);
-    return best ? routes![best.k]!.points : null;
+  ): CartGoal | null => {
+    const goal = nearestToCentroid(points);
+    if (!goal && kind !== 'four-wheel') return null;
+    return {
+      ...(goal ? { to: xz(goal) } : {}),
+      ...(kind === 'four-wheel' ? { anyOf: points.map(xz) } : {}),
+      reachM,
+    };
   };
   const t = job.target;
-  let axis: { x: number; z: number }[] | null = null;
   if (job.activity === 'trade') {
     if (t.kind !== 'trail') return null;
     const trail = sceneTrails(state).find((tr) => tr.id === t.id);
     if (!trail || trail.points.length < 2) return null;
     // od ohrady na začátek stezky (vozovou sítí), pak po stezce ke kraji mapy
-    const start = trail.points[0]!;
-    const approach = routeTo(state, start, CARTS.reachM);
-    axis = [...(approach ?? []), ...trail.points];
-  } else if (t.kind === 'field') {
+    return { to: xz(trail.points[0]!), reachM: CARTS.reachM, then: trail.points.map(xz) };
+  }
+  if (t.kind === 'field') {
     const field = fields.find((f) => f.id === t.id);
     const ids = new Set(t.parts ?? []);
     const parts = (field?.parts ?? []).filter((p) => p.id !== undefined && ids.has(p.id));
-    const goal = nearestToCentroid(parts);
-    if (!goal) return null;
-    axis = routeTo(state, goal, CARTS.reachM);
-    if (!axis && kind === 'four-wheel') axis = routeToAny(state, parts, CARTS.reachM);
-  } else if (t.kind === 'meadow') {
-    const cells = t.cells.map((c) => tileCenterWorld(landscape, c.x, c.y));
-    const goal = nearestToCentroid(cells);
-    axis = goal ? routeTo(state, goal, CARTS.reachM) : null;
-    if (!axis && kind === 'four-wheel') axis = routeToAny(state, cells, CARTS.reachM);
-  } else if (t.kind === 'trees') {
+    // bez dílů vůz nikam nejede (ani čtyřkolák)
+    return parts.length > 0 ? toNearest(parts, CARTS.reachM) : null;
+  }
+  if (t.kind === 'meadow') {
+    return toNearest(
+      t.cells.map((c) => tileCenterWorld(landscape, c.x, c.y)),
+      CARTS.reachM,
+    );
+  }
+  if (t.kind === 'trees') {
+    const obstacles = obstaclesOf(landscape);
     const trees = t.ids.flatMap((id) => {
       const k = obstacleIndex(obstacles, id);
       return k < 0 ? [] : [{ x: obstacles.x[k]!, z: obstacles.z[k]! }];
     });
-    const goal = nearestToCentroid(trees);
-    axis = goal ? routeTo(state, goal, CARTS.dragM) : null;
-    if (!axis && kind === 'four-wheel') axis = routeToAny(state, trees, CARTS.dragM);
-  } else if (t.kind === 'kiln') {
-    // uhlí od milíře ke kováři (wagons.md – Co vozy vozí) – k milíři jako jádro (kilnCartDrive)
-    axis = routeTo(state, t, CART_JOBS.charcoal.reachM);
-  } else if (t.kind === 'water') {
-    // voda v sudech – na břeh, kde trasa jádra končí (waterCartDrive)
-    axis = routeTo(state, t, CART_JOBS.water.reachM);
-  } else if (t.kind === 'orchard') {
+    return toNearest(trees, CARTS.dragM);
+  }
+  // uhlí od milíře ke kováři (wagons.md – Co vozy vozí) – k milíři jako jádro (kilnCartDrive)
+  if (t.kind === 'kiln') return { to: xz(t), reachM: CART_JOBS.charcoal.reachM };
+  // voda v sudech – na břeh, kde trasa jádra končí (waterCartDrive)
+  if (t.kind === 'water') return { to: xz(t), reachM: CART_JOBS.water.reachM };
+  if (t.kind === 'orchard') {
     // jablka ze sadu (orchard.md – Jablka vozem) – na kraj sadu k čtverci nejblíž těžišti, kam
     // vůz dojede (do sadu nevjede)
     const orchard = villageOrchards(state).find((o) => o.id === t.id);
     const squares = (orchard?.squares ?? [])
       .filter((sq) => sq.plantedDay !== null)
       .map((sq) => squareCenter(landscape, orchard!.grid, sq.cell));
-    axis = routeToAny(state, squares, CARTS.reachM);
-  } else if (t.kind === 'ore' || t.kind === 'clay') {
-    // ruda z rudiště a hlína z hliniště (crafts.md – Uhlí a ruda kováře, Hlína hrnčíře) – k hromadě
-    // u jámy jako jádro (oreCartDrive)
-    axis = routeTo(state, t, CART_JOBS[t.kind].reachM);
+    return squares.length > 0 ? { anyOf: squares.map(xz), reachM: CARTS.reachM } : null;
   }
-  return axis ? simplifiedRoute(axis) : null;
-}
-
-/** Bod nejblíž těžišti bodů (díl na čele práce, políčko louky, strom); bez bodů null. */
-function nearestToCentroid<P extends { x: number; z: number }>(points: readonly P[]): P | null {
-  if (points.length === 0) return null;
-  const cx = points.reduce((sum, p) => sum + p.x, 0) / points.length;
-  const cz = points.reduce((sum, p) => sum + p.z, 0) / points.length;
-  let best = points[0]!;
-  let bestD = Infinity;
-  for (const p of points) {
-    const d = (p.x - cx) ** 2 + (p.z - cz) ** 2;
-    if (d < bestD) {
-      best = p;
-      bestD = d;
-    }
-  }
-  return best;
-}
-
-/**
- * Osa trasy pro scénu: bez opakovaných bodů, zjednodušená (Douglas–Peucker s odchylkou
- * CART_ROUTE_TOLERANCE_M, když je bodů moc, s větší) a zaokrouhlená na cm.
- */
-export function simplifiedRoute(
-  points: readonly { x: number; z: number }[],
-): { x: number; z: number }[] {
-  const unique = points.filter(
-    (p, i) => i === 0 || Math.hypot(p.x - points[i - 1]!.x, p.z - points[i - 1]!.z) > 0.01,
-  );
-  let tolerance = CART_ROUTE_TOLERANCE_M;
-  let out = douglasPeucker(unique, tolerance);
-  while (out.length > CART_ROUTE_POINTS) {
-    tolerance *= 1.5;
-    out = douglasPeucker(unique, tolerance);
-  }
-  return out.map((p) => ({ x: Math.round(p.x * 100) / 100, z: Math.round(p.z * 100) / 100 }));
-}
-
-function douglasPeucker<P extends { x: number; z: number }>(
-  points: readonly P[],
-  tolerance: number,
-): P[] {
-  if (points.length <= 2) return [...points];
-  const keep = new Uint8Array(points.length);
-  keep[0] = 1;
-  keep[points.length - 1] = 1;
-  const stack: [number, number][] = [[0, points.length - 1]];
-  while (stack.length > 0) {
-    const [a, b] = stack.pop()!;
-    const pa = points[a]!;
-    const pb = points[b]!;
-    const dx = pb.x - pa.x;
-    const dz = pb.z - pa.z;
-    const length = Math.hypot(dx, dz);
-    let worst = -1;
-    let worstD = tolerance;
-    for (let i = a + 1; i < b; i++) {
-      const p = points[i]!;
-      const d =
-        length > 1e-9
-          ? Math.abs((p.x - pa.x) * dz - (p.z - pa.z) * dx) / length
-          : Math.hypot(p.x - pa.x, p.z - pa.z);
-      if (d > worstD) {
-        worst = i;
-        worstD = d;
-      }
-    }
-    if (worst >= 0) {
-      keep[worst] = 1;
-      stack.push([a, worst], [worst, b]);
-    }
-  }
-  return points.filter((_, i) => keep[i] === 1);
+  // ruda z rudiště a hlína z hliniště (crafts.md – Uhlí a ruda kováře, Hlína hrnčíře) – k hromadě
+  // u jámy jako jádro (oreCartDrive)
+  if (t.kind === 'ore' || t.kind === 'clay') return { to: xz(t), reachM: CART_JOBS[t.kind].reachM };
+  return null;
 }

@@ -59,7 +59,7 @@ export interface VillageRepository {
   ): Promise<VillageRecord | null>;
   /** Přejmenuje ves (stav ani verzi nemění); false = ves neexistuje. */
   rename(villageId: string, name: string): Promise<boolean>;
-  /** Otisky všech vsí sídel `settlementIds` – bez načtení stavu (levný dotaz). */
+  /** Otisky všech vsí sídel `settlementIds` v pořadí založení – bez načtení stavu (levný dotaz). */
   stampsOf(settlementIds: readonly string[]): Promise<VillageStamp[]>;
   /**
    * Seed počasí kraje – mapy (sídla), na které ves stojí (disasters.md – Kraj a ochrana nové vsi);

@@ -129,6 +129,55 @@ export function plantOnStump(state: VillageState, id: number, day: number): bool
 type ChangeLists = Pick<VillageState, 'clearedObstacles' | 'felledTrees' | 'roads'> &
   Partial<Pick<VillageState, 'woods' | 'neighbours'>>;
 
+/** Odstraněné překážky (vlastní i sousedů) – množina a seřazená id k seznamům, ze kterých vznikly. */
+interface RemovedIds {
+  ownLength: number;
+  theirs: readonly ObstacleChange[] | undefined;
+  theirsLength: number;
+  set: ReadonlySet<number>;
+  sorted: readonly number[];
+}
+
+const NO_CHANGES: readonly ObstacleChange[] = [];
+
+/**
+ * Paměť odstraněných překážek podle seznamu vsi: Vlkov jich má přes 12 000 a změny překážek se
+ * při jednom pohledu či dni počítají desítkykrát. Seznamy se jen prodlužují
+ * (`recordClearedObstacles`) nebo nahrazují novými (filtr, klon) – stejný seznam se stejnou
+ * délkou má stejná id.
+ */
+const removedMemo = new WeakMap<readonly ObstacleChange[], RemovedIds>();
+
+/** Množina k (zmrazenému) seznamu `removed` z paměti – `obstacleStatus` ji nestaví znovu. */
+const removedSets = new WeakMap<readonly number[], ReadonlySet<number>>();
+
+function removedIds(
+  own: readonly ObstacleChange[] | undefined,
+  theirs: readonly ObstacleChange[] | undefined,
+): RemovedIds {
+  const key = own ?? NO_CHANGES;
+  const known = removedMemo.get(key);
+  if (
+    known &&
+    known.ownLength === key.length &&
+    known.theirs === theirs &&
+    known.theirsLength === (theirs?.length ?? 0)
+  ) {
+    return known;
+  }
+  const set = new Set([...key, ...(theirs ?? [])].map((c) => c.id));
+  const entry: RemovedIds = {
+    ownLength: key.length,
+    theirs,
+    theirsLength: theirs?.length ?? 0,
+    set,
+    sorted: Object.freeze([...set].sort((a, b) => a - b)),
+  };
+  removedMemo.set(key, entry);
+  removedSets.set(entry.sorted, set);
+  return entry;
+}
+
 /**
  * Změny překážek vsi v den `day` (stromy, které už dorostly, mezi změnami nejsou) a stromy
  * u pevných cest a lesa vsi, které v ten den stojí a stavba je neodstranila (`added`) – strom
@@ -137,9 +186,7 @@ type ChangeLists = Pick<VillageState, 'clearedObstacles' | 'felledTrees' | 'road
 export function obstacleChangesAt(state: ChangeLists, day: number): ObstacleChanges {
   // paseky a pařezy jiných vsí na téže mapě platí i tady (migration.md – Vsi na téže mapě)
   const neighbours = state.neighbours;
-  const removed = new Set(
-    [...(state.clearedObstacles ?? []), ...(neighbours?.cleared ?? [])].map((c) => c.id),
-  );
+  const { set: removed, sorted } = removedIds(state.clearedObstacles, neighbours?.cleared);
   // u stromu pokáceného víckrát platí poslední kácení (i se sazenicí)
   const lastFelled = new Map<number, ObstacleChange>();
   for (const f of [...(state.felledTrees ?? []), ...(neighbours?.felled ?? [])]) {
@@ -198,7 +245,7 @@ export function obstacleChangesAt(state: ChangeLists, day: number): ObstacleChan
   }
   added.sort((a, b) => a.id - b.id);
   return {
-    removed: [...removed].sort(byId),
+    removed: sorted,
     stumps: stumps.sort(byId),
     saplings: saplings.sort(byId),
     ...(added.length > 0 ? { added } : {}),
@@ -220,7 +267,7 @@ const statusCache = new WeakMap<ObstacleChanges, ObstacleStatus>();
 export function obstacleStatus(changes: ObstacleChanges = NO_OBSTACLE_CHANGES): ObstacleStatus {
   const cached = statusCache.get(changes);
   if (cached) return cached;
-  const removed = new Set(changes.removed);
+  const removed = removedSets.get(changes.removed) ?? new Set(changes.removed);
   const stumps = new Set(changes.stumps);
   const saplings = new Set(changes.saplings);
   const added = changes.added ?? [];

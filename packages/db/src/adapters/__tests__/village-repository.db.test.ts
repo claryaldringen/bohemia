@@ -257,7 +257,9 @@ describe('createVillageRepository', () => {
     const marked = (await villages.find(added.id))?.state.steward?.departures?.[0];
     expect(marked?.villageId).toBe(sons[0]?.id);
     expect(marked?.settlers).toBeUndefined();
-  });
+    // Čas, ne souběh: obě vybavení generují krajinu sídla (CPU) – pod zátěží to přesáhlo 5 s,
+    // než došlo na kteroukoli kontrolu.
+  }, 60_000);
 
   it('smazání hráče smaže sídlo i všechny jeho vsi', async () => {
     await villages.create(settlementId, 'Libice', state());

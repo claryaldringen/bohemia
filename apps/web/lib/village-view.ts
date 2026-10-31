@@ -17,6 +17,7 @@ import {
   monthInWindow,
   ORCHARD_PLANTING_WINDOWS,
   obstaclesOf,
+  cartWorldOf,
   isAbandoned,
   structureCondition,
   summarizeVillage,
@@ -54,6 +55,7 @@ import {
   boughtProducts,
 } from './village-view-types';
 import { SceneVillage } from './village-view-scene-types';
+import { cartEarthworksOf, cartFieldsOf } from './cart-routes';
 import {
   CHRONICLE_LENGTH,
   chronicleText,
@@ -498,7 +500,7 @@ export function buildVillageView(
     ...threshingFloorsOf(state, summary.constructions),
     roads: roadViews(state, landscape, day, summary),
     scene: {
-      ...sceneVillage(state, landscape, day, summary),
+      ...sceneWithCartWorld(sceneVillage(state, landscape, day, summary), state, landscape, day),
       trails: sceneTrails(state),
       expeditions: sceneExpeditions(state),
       ...(context.neighbourScenes?.length ? { neighbours: context.neighbourScenes } : {}),
@@ -513,6 +515,54 @@ export function buildVillageView(
     ...kilnsField(state, day),
     ...grainPitsField(state, day),
     ...junctionsField(state, day),
+  };
+}
+
+/**
+ * Scéna se vstupem vozových tras (`cartWorldOf`) – jen když dnes jede vůz nebo spřežení; trasy
+ * z něj spočítá prohlížeč (cart-routes.ts).
+ */
+function sceneWithCartWorld(
+  scene: SceneVillage,
+  state: VillageState,
+  landscape: Landscape,
+  day: number,
+): SceneVillage {
+  const drives =
+    (scene.carts ?? []).some((c) => c.goal !== undefined) ||
+    scene.ploughLegs?.outGoals !== undefined ||
+    scene.ploughLegs?.homeGoals !== undefined;
+  if (!drives) return scene;
+  const world = cartWorldOf(state, day, landscape, obstaclesOf(landscape));
+  // změny překážek pro vůz bývají tytéž jako ve scéně – pak se neposílají dvakrát
+  const same =
+    world.changes !== null &&
+    scene.obstacles !== undefined &&
+    JSON.stringify(world.changes) === JSON.stringify(scene.obstacles);
+  // díly polí pro vůz jsou výběrem z dílů scény – pak se neposílají (prohlížeč je sestaví)
+  const fieldsAsScene =
+    JSON.stringify(cartFieldsOf(scene)) === JSON.stringify(world.village.fields);
+  // valy vozových cest jsou tytéž jako zemní práce scény (bez jejich údajů pro vzhled)
+  const earthworksAsScene =
+    world.village.earthworks !== undefined &&
+    JSON.stringify(cartEarthworksOf(scene)) === JSON.stringify(world.village.earthworks);
+  return {
+    ...scene,
+    cartWorld: {
+      ...world,
+      ...(fieldsAsScene || earthworksAsScene
+        ? {
+            village: {
+              ...world.village,
+              ...(fieldsAsScene ? { fields: [] } : {}),
+              ...(earthworksAsScene ? { earthworks: [] } : {}),
+            },
+            ...(fieldsAsScene ? { fieldsAsScene: true as const } : {}),
+            ...(earthworksAsScene ? { earthworksAsScene: true as const } : {}),
+          }
+        : {}),
+      ...(same ? { changes: 'obstacles' as const } : {}),
+    },
   };
 }
 

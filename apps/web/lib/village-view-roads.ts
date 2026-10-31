@@ -26,7 +26,6 @@ import {
   obstaclesOf,
   roadAppleBearing,
   roadAppleStage,
-  roadApplesOption,
   roadLengthM,
   roadFullCondition,
   roadTreeLook,
@@ -383,12 +382,6 @@ export function roadViews(
               waits: !monthInWindow(ORCHARD_PLANTING_WINDOWS, dateOfDayIndex(day).month),
             }
           : null,
-        option: roadApplesOption(state, r.id, day, landscape, obstacles) ?? {
-          trees: 0,
-          laborManDays: 0,
-          blocked: null,
-          warning: null,
-        },
       },
     };
   });

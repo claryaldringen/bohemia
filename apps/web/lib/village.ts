@@ -53,6 +53,7 @@ import {
 } from '@bohemia/game';
 import { getDatabase } from './db';
 import { exclusive, playerLockKey } from './exclusive';
+import { cachedVillages, withVillageCache } from './village-cache';
 import {
   currentViewStampOfPlayer,
   dynastyOfPlayer,
@@ -71,6 +72,7 @@ import {
 import { neighbourScene, ownMapsAround } from './departure-view';
 import type { LeaveVillageInput } from './village-input';
 import { lineEndView } from './line-end-view';
+import { panelOptionsOf, type PanelAsk, type PanelOptions } from './panel-options';
 import { villageListItem } from './village-list';
 import { buildVillageView, sceneOfVillage, type VillageView } from './village-view';
 
@@ -97,7 +99,7 @@ type Context =
   | Failure;
 
 function villages(): VillageRepository {
-  return createVillageRepository(getDatabase());
+  return cachedVillages(createVillageRepository(getDatabase()));
 }
 
 /** Ves `villageId` hráče s krajinou jejího sídla a jeho dnešní den – společný začátek akcí. */
@@ -191,6 +193,34 @@ async function viewOf(
     : view;
 }
 
+/**
+ * Nabídka panelu (kompas zemských stezek, výsadba jabloní u cesty) vsi `villageId` hráče
+ * dopočítané do dneška – stejný stav a sousedé jako pohled (`viewOf`), jen až na vyžádání panelu
+ * (panel-options.ts).
+ */
+export function panelOptionsForPlayer(
+  playerId: string,
+  villageId: string,
+  ask: PanelAsk,
+): Promise<PanelOptions | { error: string }> {
+  return withVillageCache(async () => {
+    const ctx = await context(playerId, villageId);
+    if (!ctx.ok) return { error: ctx.error };
+    const status = await dynastyOfPlayer(ctx.playerId, ctx.day);
+    const current = status.villages.find((v) => v.id === ctx.villageId);
+    if (!current) return { error: NO_VILLAGE };
+    const sameMap = status.villages.filter(
+      (v) => v.settlementId === current.settlementId && v.id !== current.id,
+    );
+    const neighbours = neighbourSnapshot(
+      sameMap.map((v) => v.state),
+      ctx.day,
+      sameMap.map((v) => v.name),
+    );
+    return panelOptionsOf(current.state, ctx.landscape, ctx.day, neighbours, ask);
+  });
+}
+
 /** Výsledek use-case jako pohled na ves (s přepínačem vsí), nebo chyba česky. */
 async function toActionResult(
   ctx: Extract<Context, { ok: true }>,
@@ -260,15 +290,18 @@ export async function villageViewForEntry(
   today: PlayerToday,
 ): Promise<VillageView | null | { error: string }> {
   if (!today.ok) return { error: today.error };
-  if (entry.villageId === null) return null;
-  return viewOf({
-    ok: true,
-    playerId: entry.settlement.ownerId,
-    villageId: entry.villageId,
-    settlementId: entry.settlement.id,
-    landscape: entry.landscape,
-    day: today.day,
-  });
+  const villageId = entry.villageId;
+  if (villageId === null) return null;
+  return withVillageCache(() =>
+    viewOf({
+      ok: true,
+      playerId: entry.settlement.ownerId,
+      villageId,
+      settlementId: entry.settlement.id,
+      landscape: entry.landscape,
+      day: today.day,
+    }),
+  );
 }
 
 /** Výsledek přeskočení času pro klienta – ves v novém dni (null = nezaložená) a nový posun. */

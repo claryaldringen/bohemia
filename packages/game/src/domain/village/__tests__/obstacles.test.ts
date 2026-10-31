@@ -454,6 +454,25 @@ describe('kácení a obnova lesa (forest.md)', () => {
     });
   });
 
+  it('paměť odstraněných překážek – po prodloužení seznamu i u sousedů platí nová id', () => {
+    const cleared = [{ id: 300, day: DAY }];
+    const s = { ...state(), clearedObstacles: cleared };
+    const first = obstacleChangesAt(s, DAY + 1);
+    expect(first.removed).toEqual([300]);
+    // seznam z paměti je zmrazený – úprava by ji nepozorovaně změnila
+    expect(Object.isFrozen(first.removed)).toBe(true);
+    expect(obstacleChangesAt(s, DAY + 1).removed).toBe(first.removed);
+    // seznam se prodlužuje na místě (recordClearedObstacles)
+    cleared.push({ id: 200, day: DAY + 1 });
+    expect(obstacleChangesAt(s, DAY + 2).removed).toEqual([200, 300]);
+    const nb = { cleared: [{ id: 100, day: DAY }], felled: [] };
+    const withNb = { ...s, neighbours: nb } as unknown as VillageState;
+    expect(obstacleChangesAt(withNb, DAY + 2).removed).toEqual([100, 200, 300]);
+    nb.cleared.push({ id: 50, day: DAY + 2 });
+    expect(obstacleChangesAt(withNb, DAY + 3).removed).toEqual([50, 100, 200, 300]);
+    expect(obstacleChangesAt(s, DAY + 3).removed).toEqual([200, 300]);
+  });
+
   it('nejbližší stojící dospělé stromy – bez pařezů, odstraněných a mladých stromků', () => {
     const changes = { removed: [], stumps: [100], saplings: [] };
     const trees = matureTreesByDistance(layer, changes, { x: 0, z: 0 });

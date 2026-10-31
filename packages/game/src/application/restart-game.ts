@@ -54,10 +54,12 @@ export async function dynastyStatus(
   const settlements = await deps.settlements.listActive(input.playerId);
   const villages: VillageRecord[] = [];
   const landscapes = new Map<string, Landscape>();
+  // jen id vsí (levný dotaz bez stavu) – stav načte a dopočítá až `loadVillage`, jednou
+  const stamps = await deps.villages.stampsOf(settlements.map((s) => s.id));
   for (const settlement of settlements) {
     const landscape = settlementLandscape(settlement, deps.landscapes);
     landscapes.set(settlement.id, landscape);
-    for (const stored of await deps.villages.listBySettlement(settlement.id)) {
+    for (const stored of stamps.filter((v) => v.settlementId === settlement.id)) {
       const village = await loadVillage(deps, {
         villageId: stored.id,
         today: input.today,

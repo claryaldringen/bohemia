@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import type { WagonRoadPlan } from '@bohemia/game';
+import type { RoadApplesOption, WagonRoadPlan } from '@bohemia/game';
+import { PanelOptionsContext, type PanelOptionsSource } from '@/hooks/use-panel-options';
 import type { SelectionDetails } from '@/lib/selection-details';
 import { SelectionPanel } from '../SelectionPanel';
 
@@ -31,9 +32,14 @@ const ENDS: Extract<SelectionDetails, { kind: 'road' }>['ends'] = [
   },
 ];
 
-const road = (
-  over: Partial<Extract<SelectionDetails, { kind: 'road' }>> = {},
-): SelectionDetails => ({
+type RoadDetails = Extract<SelectionDetails, { kind: 'road' }>;
+
+/** Údaje cesty a nabídka „Vysadit jabloně“, kterou server pošle až na vyžádání panelu. */
+type RoadFixture = Omit<RoadDetails, 'apples'> & {
+  apples: RoadDetails['apples'] & { option?: RoadApplesOption };
+};
+
+const road = (over: Partial<Omit<RoadFixture, 'kind'>> = {}): RoadFixture => ({
   kind: 'road',
   id: 4,
   segments: [4],
@@ -69,14 +75,27 @@ const road = (
   ...over,
 });
 
-const render = (details: SelectionDetails): string =>
-  renderToStaticMarkup(
-    <SelectionPanel
-      details={details}
-      onUpgradeRoad={() => Promise.resolve()}
-      onPlantRoadApples={() => Promise.resolve()}
-    />,
+/** Panel cesty; nabídka jabloní z fixture jako odpověď serveru (`usePanelOptions`). */
+const render = (details: SelectionDetails | RoadFixture): string => {
+  const option = details.kind === 'road' ? (details as RoadFixture).apples.option : undefined;
+  const source: PanelOptionsSource = {
+    key: 'test',
+    load: () => Promise.resolve(null),
+    peek: (ask) =>
+      option && ask.panel === 'road-apples'
+        ? { panel: 'road-apples', roadId: ask.roadId, option }
+        : null,
+  };
+  return renderToStaticMarkup(
+    <PanelOptionsContext.Provider value={source}>
+      <SelectionPanel
+        details={details}
+        onUpgradeRoad={() => Promise.resolve()}
+        onPlantRoadApples={() => Promise.resolve()}
+      />
+    </PanelOptionsContext.Provider>,
   );
+};
 
 const button = (html: string, upgrade: string): string | undefined =>
   new RegExp(`<button[^>]*data-testid="road-upgrade-${upgrade}"[^>]*>`).exec(html)?.[0];

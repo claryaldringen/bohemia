@@ -165,7 +165,8 @@ export function createVillageRepository(db: Database): VillageRepository {
           lastDay: sql<number>`(${village.state}->>'lastDay')::int`,
         })
         .from(village)
-        .where(inArray(village.settlementId, [...settlementIds]));
+        .where(inArray(village.settlementId, [...settlementIds]))
+        .orderBy(asc(village.createdAt), asc(village.id));
     },
   };
 }

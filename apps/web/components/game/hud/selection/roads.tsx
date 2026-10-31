@@ -1,5 +1,6 @@
 /** Panel výběru cesty (vylepšení, vozová cesta, jabloně). */
 import { useState, type ReactElement } from 'react';
+import { usePanelOptions } from '@/hooks/use-panel-options';
 import { type SelectionDetails } from '@/lib/selection-details';
 import { formatDecimal, formatInteger } from '@/lib/village-format';
 import { ROAD_KIND_NAMES, ROAD_UPGRADE_NAMES } from '@/lib/village-view';
@@ -242,6 +243,10 @@ export function RoadBody({
     void onPlantApples(details.id).finally(() => setBusy(false));
   };
   const { apples } = details;
+  // „Vysadit jabloně“ server spočítá až pro vybranou cestu (panel-options.ts)
+  const asked = usePanelOptions({ panel: 'road-apples', roadId: details.id });
+  const option =
+    asked?.panel === 'road-apples' && asked.roadId === details.id ? asked.option : null;
   return (
     <div className="hud-split">
       <div className="flex min-w-0 flex-col justify-center gap-1.5">
@@ -420,29 +425,31 @@ export function RoadBody({
           content={
             <span className="flex flex-col gap-0.5">
               <span>Vysadit jabloně</span>
-              <span className="flex items-center gap-2 tabular-nums">
-                <span className="flex items-center gap-1">
-                  <img src="/icons/resources/labor.png" alt="" width={16} height={16} />
-                  {formatDecimal(apples.option.laborManDays, 0)}
-                </span>
-                {apples.option.trees > 0 && (
+              {option && (
+                <span className="flex items-center gap-2 tabular-nums">
                   <span className="flex items-center gap-1">
-                    <img src="/icons/resources/apples.png" alt="" width={16} height={16} />
-                    {apples.option.trees}
+                    <img src="/icons/resources/labor.png" alt="" width={16} height={16} />
+                    {formatDecimal(option.laborManDays, 0)}
                   </span>
-                )}
-              </span>
-              {apples.option.blocked && (
-                <span data-testid="road-apples-blocked" className="font-semibold text-red-400">
-                  {apples.option.blocked}
+                  {option.trees > 0 && (
+                    <span className="flex items-center gap-1">
+                      <img src="/icons/resources/apples.png" alt="" width={16} height={16} />
+                      {option.trees}
+                    </span>
+                  )}
                 </span>
               )}
-              {!apples.option.blocked && apples.option.warning && (
+              {option?.blocked && (
+                <span data-testid="road-apples-blocked" className="font-semibold text-red-400">
+                  {option.blocked}
+                </span>
+              )}
+              {option && !option.blocked && option.warning && (
                 <span
                   data-testid="road-apples-warning"
                   className="font-semibold whitespace-pre-line text-[#ffc27a]"
                 >
-                  {apples.option.warning}
+                  {option.warning}
                 </span>
               )}
             </span>
@@ -452,7 +459,7 @@ export function RoadBody({
             type="button"
             data-testid="road-plant-apples"
             aria-label="Vysadit jabloně"
-            disabled={apples.option.blocked !== null || busy || !onPlantApples}
+            disabled={!option || option.blocked !== null || busy || !onPlantApples}
             aria-busy={busy}
             onClick={plant}
             className={`hud-inset h-10 w-10 overflow-hidden rounded ${busy ? 'disabled:cursor-wait disabled:opacity-60' : 'disabled:cursor-not-allowed disabled:opacity-45 disabled:grayscale'}`}

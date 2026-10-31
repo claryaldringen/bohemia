@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { panelOptionsOf, parsePanelAsk } from '../panel-options';
 import {
   CART_JOBS,
   ROAD_TREE_ID_BASE,
@@ -22,6 +23,8 @@ import {
   groveAgeYears,
   oakAgeHappiness,
   obstaclesOf,
+  villageCartRoutes,
+  CARTS,
   placementVillageOf,
   reservedTrees,
   sacredOakLife,
@@ -41,6 +44,9 @@ import {
   type TradePeople,
   type VillageState,
   type CharcoalKiln,
+  roadApplesOption,
+  trailOptions,
+  villageRoadWalk,
 } from '@bohemia/game';
 import {
   CHRONICLE_LENGTH,
@@ -52,7 +58,68 @@ import {
 } from '../village-view';
 import { visitedWife } from '../village-view-scene';
 import { protectionLevel, sceneWeather } from '../weather-view';
-import type { ScenePloughLegs } from '../village-view-scene-types';
+import type { SceneVillage, ScenePloughLegs } from '../village-view-scene-types';
+import {
+  cartRoutesRequest,
+  simplifiedRoute,
+  withCartRouteResult,
+  withCartRoutes,
+  type CartRoutesRequest,
+  type CartRoutesResult,
+} from '../cart-routes';
+import { cartRouter } from '../cart-router';
+import type { CartRoutesMessage, CartRoutesReply } from '../cart-routes.worker';
+import type { LandscapeTransfer } from '../landscape-transfer';
+
+/**
+ * Trasy přes skutečný kód Web Workeru (cart-routes.worker.ts) s náhradním `Worker`: zprávy jdou
+ * přes structuredClone jako v prohlížeči, krajina napřed (dekódovaná se tu jen podstrčí).
+ */
+async function fakeWorkerRoutes(
+  decoded: Landscape,
+  requests: CartRoutesRequest[],
+): Promise<CartRoutesResult[]> {
+  const scope = globalThis as unknown as {
+    self?: { onmessage: ((e: { data: CartRoutesMessage }) => void) | null; postMessage: unknown };
+    Worker?: unknown;
+  };
+  const replies: ((r: CartRoutesReply) => void)[] = [];
+  scope.self = { onmessage: null, postMessage: (r: CartRoutesReply) => replies[0]?.(r) };
+  vi.doMock('../landscape-transfer', () => ({ decodeLandscape: () => decoded }));
+  await import('../cart-routes.worker');
+  const handler = scope.self.onmessage!;
+  class FakeWorker {
+    onmessage: ((e: { data: CartRoutesReply }) => void) | null = null;
+    onerror: unknown = null;
+    constructor() {
+      replies[0] = (r) => queueMicrotask(() => this.onmessage?.({ data: structuredClone(r) }));
+    }
+    postMessage(m: CartRoutesMessage): void {
+      queueMicrotask(() => handler({ data: structuredClone(m) }));
+    }
+    terminate(): void {}
+  }
+  scope.Worker = FakeWorker;
+  try {
+    const router = cartRouter({} as LandscapeTransfer, decoded);
+    return await Promise.all(requests.map((r) => router.routes(r)));
+  } finally {
+    delete scope.Worker;
+    delete scope.self;
+    vi.doUnmock('../landscape-transfer');
+  }
+}
+
+/**
+ * Scéna, jak ji vidí prohlížeč: pohled projde JSONem (server action) a trasy vozů a spřežení
+ * se spočítají z cílů (cart-routes.ts).
+ */
+function routedScene(s: VillageState): SceneVillage {
+  const sent = JSON.parse(
+    JSON.stringify(buildVillageView(record(s), landscape, DAY).scene),
+  ) as SceneVillage;
+  return withCartRoutes(sent, landscape);
+}
 
 const DAY = dayIndexOf({ year: 503, month: 4, day: 12 });
 const SIZE = 16;
@@ -1938,7 +2005,13 @@ describe('pevné cesty v pohledu na ves (roads.md)', () => {
 
   it('výsadba jabloní: panel s průběhem a zašedlým tlačítkem, scéna vytyčená místa', () => {
     const s = withRoads();
-    const option = buildVillageView(record(s), landscape, DAY).roads[0]!.apples.option;
+    const roadId = buildVillageView(record(s), landscape, DAY).roads[0]!.id;
+    // nabídku pošle server až na vyžádání panelu – tentýž výpočet nad týmž stavem jako dřív v pohledu
+    const ask = { panel: 'road-apples', roadId } as const;
+    const asked = panelOptionsOf(s, landscape, DAY, null, ask);
+    if (asked.panel !== 'road-apples') throw new Error('jiný panel');
+    const option = asked.option;
+    expect(option).toEqual(roadApplesOption(s, roadId, DAY, landscape, obstaclesOf(landscape)));
     expect(option.blocked).toBeNull();
     expect(option.trees).toBeGreaterThan(3);
     const started = startRoadApples(s, DAY, 1, landscape, obstaclesOf(landscape));
@@ -1949,7 +2022,21 @@ describe('pevné cesty v pohledu na ves (roads.md)', () => {
       progress: 0,
       waits: false,
     });
-    expect(view.roads[0]!.apples.option.blocked).toMatch(/sázejí/);
+    const again = panelOptionsOf(started, landscape, DAY, null, ask);
+    expect(again.panel === 'road-apples' && again.option.blocked).toMatch(/sázejí/);
+    // kompas stezek – tentýž výpočet jako dřív v pohledu na dvorec
+    const obstacles = obstaclesOf(landscape);
+    expect(panelOptionsOf(s, landscape, DAY, null, { panel: 'trails' })).toEqual({
+      panel: 'trails',
+      trails: trailOptions(s, DAY, landscape, obstacles, villageRoadWalk(s, landscape)),
+    });
+    expect(parsePanelAsk({ villageId: 'v', panel: 'road-apples', roadId: 3 })).toEqual({
+      panel: 'road-apples',
+      roadId: 3,
+    });
+    expect(parsePanelAsk({ panel: 'trails', roadId: 'x' })).toEqual({ panel: 'trails' });
+    expect(parsePanelAsk({ panel: 'road-apples', roadId: 1.5 })).toBeNull();
+    expect(parsePanelAsk({ panel: 'fields' })).toBeNull();
     expect(view.scene.roadApples!.every((a) => a.stage === 'planting')).toBe(true);
     expect(view.constructions.at(-1)!.label).toBe('Jabloně u cesty');
   });
@@ -2392,8 +2479,7 @@ describe('buildVillageView – tesař a vozy (wagons.md)', () => {
       crops: [{ crop: 'spring', ...createCropWork(s.parts, DAY - 30, 0, true) }],
     };
     const plough = springCrop(s.season).plough!;
-    const legs = (): ScenePloughLegs | undefined =>
-      buildVillageView(record(s), landscape, DAY).scene.ploughLegs;
+    const legs = (): ScenePloughLegs | undefined => routedScene(s).ploughLegs;
     // den, jehož práci scéna ukazuje (poslední dopočítaný)
     const today = s.lastDay;
     // doma – žádné cesty
@@ -2451,7 +2537,7 @@ describe('buildVillageView – tesař a vozy (wagons.md)', () => {
     expect(buildVillageView(record(settled()), landscape, DAY).scene.carts).toBeUndefined();
   });
 
-  it('vůz na svozu nese trasu dne vozovou sítí od ohrady k dílu na čele žně (fáze 3)', () => {
+  it('vůz na svozu nese trasu dne vozovou sítí od ohrady k dílu na čele žně (fáze 3)', async () => {
     const s = carpenterVillage();
     const part = s.parts.find((p) => p.cell?.x === 11)!;
     s.labor = {
@@ -2465,7 +2551,7 @@ describe('buildVillageView – tesař a vozy (wagons.md)', () => {
         },
       ],
     };
-    const view = buildVillageView(record(s), landscape, DAY);
+    const view = { scene: routedScene(s) };
     const cart = view.scene.carts![0]!;
     expect(cart.job).toMatchObject({ activity: 'haul', load: 'sheaves' });
     const route = cart.route!;
@@ -2477,6 +2563,16 @@ describe('buildVillageView – tesař a vozy (wagons.md)', () => {
     expect(Math.hypot(first.x - 50, first.z - 60)).toBeLessThanOrEqual(16);
     const target = view.scene.fields.flatMap((f) => f.parts).find((p) => p.id === part.id)!;
     expect(Math.hypot(last.x - target.x, last.z - target.z)).toBeLessThanOrEqual(10);
+    // táž trasa, jakou dřív počítal server ze stavu vsi (villageCartRoutes) – jen ji počítá prohlížeč
+    const server = villageCartRoutes(s, DAY, landscape, obstaclesOf(landscape), 'two-wheel', [
+      { x: target.x, z: target.z, reachM: CARTS.reachM },
+    ])![0]!;
+    expect(route).toEqual(simplifiedRoute(server.points));
+    // server trasu neposílá – jen cíl a vstup tras
+    const sent = buildVillageView(record(s), landscape, DAY).scene;
+    expect(sent.carts![0]!.route).toBeUndefined();
+    expect(sent.carts![0]!.goal).toBeDefined();
+    expect(sent.cartWorld).toBeDefined();
     // po cm
     for (const p of route) {
       expect(Math.round(p.x * 100)).toBeCloseTo(p.x * 100, 6);
@@ -2489,11 +2585,20 @@ describe('buildVillageView – tesař a vozy (wagons.md)', () => {
       manDays: 2,
       carts: 1,
     };
-    const mowing = buildVillageView(record(s), landscape, DAY).scene.carts![0]!;
+    const mowing = routedScene(s).carts![0]!;
     expect(mowing.job?.load).toBe('hay');
     expect(mowing.route?.length).toBeGreaterThanOrEqual(2);
+    // tytéž trasy z Web Workeru (cart-routes.worker.ts) i bez něj (hlavní vlákno)
+    const viewed = JSON.parse(
+      JSON.stringify(buildVillageView(record(s), landscape, DAY).scene),
+    ) as SceneVillage;
+    const request = cartRoutesRequest(viewed)!;
+    const plain = await cartRouter({} as LandscapeTransfer, landscape).routes(request);
+    expect(withCartRouteResult(viewed, plain)).toEqual(routedScene(s));
+    const fake = await fakeWorkerRoutes(landscape, [request, request]);
+    expect(fake).toEqual([plain, plain]);
     s.labor.shares = [];
-    expect(buildVillageView(record(s), landscape, DAY).scene.carts![0]!.route).toBeUndefined();
+    expect(routedScene(s).carts![0]!.route).toBeUndefined();
   });
 
   it('vůz mimo svoz (Co vozy vozí): uhlí a osivo jako zboží, osivo tam, voda; trasa k milíři', () => {
@@ -2501,7 +2606,7 @@ describe('buildVillageView – tesař a vozy (wagons.md)', () => {
     const part = s.parts.find((p) => p.cell?.x === 11)!;
     const job = (share: LaborShare): NonNullable<NonNullable<VillageView['scene']['carts']>[0]> => {
       s.labor = { day: DAY, shares: [share] };
-      return buildVillageView(record(s), landscape, DAY).scene.carts![0]!;
+      return routedScene(s).carts![0]!;
     };
     const charcoal = job({
       activity: 'haul',
@@ -2560,7 +2665,7 @@ describe('buildVillageView – tesař a vozy (wagons.md)', () => {
       { x: 31, z: -41, smithId: 50, kg: 400.4, day: DAY - 10 },
       { x: 28, z: -38, smithId: 50, kg: 36, day: DAY - 5 * 365 },
     ];
-    const scene = buildVillageView(record(s), landscape, DAY).scene;
+    const scene = routedScene(s);
     expect(scene.oreSites).toEqual([
       { dwellingId: 50, x: 30, z: -40, heapKg: 392, digging: false },
     ]);
@@ -2588,7 +2693,7 @@ describe('buildVillageView – tesař a vozy (wagons.md)', () => {
         },
       ],
     };
-    const homes = buildVillageView(record(s), landscape, DAY).scene.labor!.homes!;
+    const homes = routedScene(s).labor!.homes!;
     const count = (id: number): number => s.people.filter((p) => p.dwellingId === id).length;
     for (const h of homes) expect(h.people).toBe(count(h.id));
     expect(homes.map((h) => h.id).sort()).toEqual(

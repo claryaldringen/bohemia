@@ -50,13 +50,19 @@ import {
   skipTime,
   upgradeRoad,
   buildWagonRoad,
+  getPanelOptions,
 } from '@/app/game/actions';
+import { PanelOptionsContext, type PanelOptionsSource } from '@/hooks/use-panel-options';
+import type { PanelAsk, PanelOptions } from '@/lib/panel-options';
 import { usePlacement } from '@/hooks/use-placement';
 import { usePolling } from '@/hooks/use-polling';
 import { authClient } from '@/lib/auth-client';
 import { buildItem, buildItemForKey, penVariantSpecies } from '@/lib/build-items';
 import { setE2EHook } from '@/lib/e2e-hooks';
 import { keepSceneData, knownSceneData, lostSceneData } from '@/lib/scene-routes';
+import { cartRoutesRequest, withCartRouteResult, withCartRoutes } from '@/lib/cart-routes';
+import { cartRouter } from '@/lib/cart-router';
+import { knownViewPieces, unpackViewPieces } from '@/lib/view-pieces';
 import { opensMenu } from '@/lib/game-menu';
 import { nextPollDelayMs } from '@/lib/village-polling';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
@@ -201,6 +207,8 @@ function squareStructures(
 function withoutStamp(view: VillageView): VillageView {
   const rest = { ...view };
   delete rest.stamp;
+  // bez otisků kusů – další dotaz doručí celý pohled (view-pieces.ts)
+  delete rest.pieces;
   return rest;
 }
 
@@ -317,7 +325,12 @@ export function VillageGame({
 }): ReactElement {
   const decoded = useMemo(() => decodeLandscape(landscape), [landscape]);
   const [scene, setScene] = useState<LandscapeScene | null>(null);
-  const [village, setVillage] = useState<VillageData>(initialVillage);
+  // trasy vozů a spřežení spočítá prohlížeč z cílů, které poslal server (cart-routes.ts)
+  const [village, setVillage] = useState<VillageData>(() =>
+    isVillageView(initialVillage)
+      ? { ...initialVillage, scene: withCartRoutes(initialVillage.scene, decoded) }
+      : initialVillage,
+  );
   const [pending, setPending] = useState<PendingSite[]>([]);
   const [selected, setSelected] = useState<VillageTarget | null>(null);
   const [placingItem, setPlacingItem] = useState<BuildKind | null>(null);
@@ -379,18 +392,44 @@ export function VillageGame({
     setNotices((list) => list.filter((n) => n.id !== id));
   }, []);
 
-  /** Použije nový stav vsi a ohlásí upozornění, která mezitím nově vznikla. */
+  // trasy vozů nových dní počítá Web Worker (cart-router.ts) – scéna mezitím nestojí
+  const router = useMemo(() => cartRouter(landscape, decoded), [landscape, decoded]);
+  useEffect(() => () => router.dispose(), [router]);
+  // Testovací háček: trasy vozů přes týž router (Worker i záloha) – e2e/cart-worker.spec.ts
+  useEffect(() => {
+    setE2EHook('cartRoutes', (request) => router.routes(request));
+    return () => setE2EHook('cartRoutes', undefined);
+  }, [router]);
+  const applyTicket = useRef(0);
+
+  /**
+   * Použije nový stav vsi a ohlásí upozornění, která mezitím nově vznikla. Pohled se použije až
+   * s trasami vozů dne (z Workeru); novější pohled, který mezitím přišel, má přednost.
+   */
   const applyVillage = useCallback(
-    (received: VillageData): void => {
+    async (received: VillageData): Promise<void> => {
+      const ticket = ++applyTicket.current;
       // trasy a vyšlapanost, které server neposlal (klient je má), se doplní z posledního pohledu
-      const next = isVillageView(received)
-        ? { ...received, scene: keepSceneData(received.scene, viewRef.current?.scene) }
-        : received;
+      // kusy pohledu, které server vynechal (klient je má), se doplní z posledního pohledu
+      // (view-pieces.ts); trasy vozů a spřežení spočítá prohlížeč z cílů dne (cart-routes.ts)
+      const unpacked = isVillageView(received)
+        ? unpackViewPieces(received, viewRef.current)
+        : { view: null, lost: false };
+      let next: VillageData = received;
+      if (unpacked.view) {
+        const scene = keepSceneData(unpacked.view.scene, viewRef.current?.scene);
+        const request = cartRoutesRequest(scene);
+        next = {
+          ...unpacked.view,
+          scene: request ? withCartRouteResult(scene, await router.routes(request)) : scene,
+        };
+      }
+      if (ticket !== applyTicket.current) return;
       setVillage(next);
       if (!isVillageView(next)) return;
       // zahozená trasy nebo vyšlapanost: bez otisku, ať další dotaz doručí plný pohled hned
       viewRef.current =
-        isVillageView(received) && lostSceneData(received.scene, next.scene)
+        unpacked.lost || (isVillageView(received) && lostSceneData(received.scene, next.scene))
           ? withoutStamp(next)
           : next;
       // nový pohled napřed – chyba při porovnání (pohled z doby před změnou kódu) se nesmí
@@ -399,7 +438,7 @@ export function VillageGame({
       noticedRef.current = next;
       for (const notice of newNotices(previous, next)) pushNotice(notice);
     },
-    [pushNotice],
+    [pushNotice, router],
   );
 
   useEffect(() => {
@@ -520,6 +559,7 @@ export function VillageGame({
       villageId: viewRef.current?.id ?? null,
       ...(known ? { known } : {}),
       ...knownSceneData(viewRef.current?.scene),
+      pieces: knownViewPieces(viewRef.current),
     });
     if (busyRef.current || seq < appliedSeq.current) return;
     appliedSeq.current = seq;
@@ -534,7 +574,7 @@ export function VillageGame({
     // Chyba (např. odhlášení v jiném panelu) poslední pohled na ves nesmaže – jen se ohlásí.
     if (result !== null && 'error' in result && viewRef.current) {
       pushNotice({ kind: 'error', tone: 'error', text: result.error });
-    } else applyVillage(result);
+    } else await applyVillage(result);
   }, [applyVillage, pushNotice, settlementId]);
   // Další dotaz na začátku dalšího herního dne hráče (nejdřív za 5 s, nejpozději za 86 s) – ves
   // se dopočítává po dnech, akce vracejí čerstvou ves samy.
@@ -569,7 +609,7 @@ export function VillageGame({
           const result = await action();
           if (result !== null && 'error' in result) return result.error;
           appliedSeq.current = Math.max(appliedSeq.current, seq);
-          applyVillage(result);
+          await applyVillage(result);
           return null;
         } catch (error) {
           console.error('Akce vsi selhala.', error);
@@ -1172,6 +1212,22 @@ export function VillageGame({
   };
 
   /** Odhlášení z nabídky – i se session už neplatnou (odhlášení v jiném panelu) na úvod. */
+  // nabídky panelů až na vyžádání (panel-options.ts) – otevřený panel se s novým pohledem zeptá znovu
+  const viewId = view?.id ?? null;
+  const loadPanel = useCallback(
+    async (ask: PanelAsk): Promise<PanelOptions | null> => {
+      if (viewId === null) return null;
+      const result = await getPanelOptions({ villageId: viewId, ...ask });
+      return 'error' in result ? null : result;
+    },
+    [viewId],
+  );
+  const panelKey = view ? (view.stamp ?? `${view.id}:${view.dayIndex}`) : '';
+  const panelSource = useMemo<PanelOptionsSource>(
+    () => ({ key: panelKey, load: loadPanel }),
+    [panelKey, loadPanel],
+  );
+
   const signOut = async (): Promise<string | null> => {
     try {
       await authClient.signOut();
@@ -1184,7 +1240,7 @@ export function VillageGame({
   };
 
   return (
-    <>
+    <PanelOptionsContext.Provider value={panelSource}>
       <GameView landscape={landscape} onSceneReady={setScene} overlays={false} />
       <TopBar
         view={view}
@@ -1361,6 +1417,6 @@ export function VillageGame({
           onRestart={() => restart(false)}
         />
       )}
-    </>
+    </PanelOptionsContext.Provider>
   );
 }

@@ -7,6 +7,7 @@ export * from './village';
 export * from './roads';
 export * from './entrances';
 export * from './cart';
+export * from './cart-world';
 export * from './road-chains';
 export * from './road-ends';
 export * from './road-land';

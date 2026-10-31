@@ -1,6 +1,8 @@
 // Typy dat scény (`SceneVillage` a jeho části).
 
 import { Landscape } from '@bohemia/game';
+import type { CartWorld } from '@bohemia/game';
+import type { CartGoal } from './cart-routes';
 import { GraveMound } from '@bohemia/game';
 import { DwellingPlot } from '@bohemia/game';
 import { KilnStage } from '@bohemia/game';
@@ -360,6 +362,18 @@ export interface SceneVillage {
    */
   ploughLegs?: ScenePloughLegs;
   /**
+   * Vstup vozových tras (`cartWorldOf` z jádra) – z něj a z cílů (`SceneCart.goal`,
+   * `ScenePloughLegs`) spočítá trasy prohlížeč (cart-routes.ts). Jen u vsi s jízdou dne.
+   * Změny překážek `'obstacles'` = tytéž jako `obstacles` scény, `fieldsAsScene` – pole se
+   * sestaví z polí scény (`cartFieldsOf`), `earthworksAsScene` – valy ze zemních prací scény
+   * (`cartEarthworksOf`, u Vlkova 200 kB); nic se neposílá dvakrát.
+   */
+  cartWorld?: Omit<CartWorld, 'changes'> & {
+    changes: CartWorld['changes'] | 'obstacles';
+    fieldsAsScene?: true;
+    earthworksAsScene?: true;
+  };
+  /**
    * Zemní práce vozových cest (roads.md – Vozová cesta) – úvozy a náspy: terén scény, síť pěšin
    * a vozů jedou po upraveném terénu (`PathVillage.earthworks`). Bez údaje žádné.
    */
@@ -551,9 +565,15 @@ export interface SceneCart {
     loadKg?: number;
   } | null;
   /**
+   * Kam vůz dnes jede – cíl jízdy ze serveru, trasu z něj spočítá prohlížeč (`withCartRoutes`
+   * – cart-routes.ts). Bez jízdy chybí.
+   */
+  goal?: CartGoal;
+  /**
    * Kudy vůz dnes jede (wagons.md – fáze 3): osa vozové sítě od ohrady k cíli svozu
-   * (`villageCartRoutes`, zjednodušená, po cm), u výpravy od ohrady na zemskou stezku a po ní ke
-   * kraji mapy. Bez jízdy, nebo když vůz k cíli nedojede, chybí – vůz stojí u ohrady.
+   * (`cartGoalRoute` – stejné hledání jako `villageCartRoutes`, zjednodušená, po cm), u výpravy
+   * od ohrady na zemskou stezku a po ní ke kraji mapy. Počítá ji prohlížeč z `goal` – server ji
+   * neposílá. Bez jízdy, nebo když vůz k cíli nedojede, chybí – vůz stojí u ohrady.
    */
   route?: { x: number; z: number }[];
 }
@@ -1196,6 +1216,12 @@ export interface SceneThreshingFloor {
  * nedojede, chybí.
  */
 export interface ScenePloughLegs {
+  /**
+   * Server: cíle cesty tam a zpět po plodinách – prohlížeč z nich spočítá `out` a `home` (první
+   * cíl, kam spřežení dojede – `withCartRoutes`, cart-routes.ts).
+   */
+  outGoals?: CartGoal[];
+  homeGoals?: CartGoal[];
   out?: { x: number; z: number }[];
   home?: { x: number; z: number }[];
   /** Den bez orby, spřežení na poli – kde stojí (díl na čele orby). */

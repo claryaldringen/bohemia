@@ -205,7 +205,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   a vozy (`showsWoodTools`, `cartsLabel`), panel dílny (`CarpenterStats`), upozornění
   `cart-made`, `cart-worn-out`, `carpenter-no-wood`, náhled obchodu s vozy
   (`VillageNeighbour.carts`), `SceneVillage.carts` (`sceneCarts` – u ohrady, cíl dne, náklad
-  `job.load` a trasa dne `route` – osa `villageCartRoutes` zjednodušená `simplifiedRoute`; scéna
+  `job.load` a cíl dne `goal` – trasu `route` z něj spočítá prohlížeč, `withCartRoutes` v
+  `lib/cart-routes.ts`: osa jako `villageCartRoutes` zjednodušená `simplifiedRoute`; scéna
   je kreslí – Vozy se spřežením). Dílna tesaře má model `tesar` (Řemeslné dílny).
 
 - **Co vozy vozí** ([wagons.md](../design/wagons.md) – Co vozy vozí; Martin 19. 10. 2026:
@@ -241,7 +242,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `SceneCart.job.load` – uhlí a osivo `goods`, ruda `ore` (hromada `wagon{2,4}-ore`), voda `water`
   (sudy `wagon{2,4}-water` tam i zpět),
   osivo `outbound` (`CartShuttle.loadedOut` – naložené tam), trasa k milíři a břehu
-  (`cartRouteToday`); voda, uhlí, ruda a osivo jezdí tempem volů ve skutečném čase (`steadyJob`
+  (`cartGoalToday` → `cartGoalRoute` v prohlížeči); voda, uhlí, ruda a osivo jezdí tempem volů ve skutečném čase (`steadyJob`
   v `village-carts.ts`), ne v okně herního dne jako svoz úrody. Komu vůz vodu přivezl, ukazuje
   `SceneLabor.homes[].cartWater` (týž `waterCartPlan` z `waterHouseholdsToday` ve `village-view-scene.ts` – druh vozu
   vítězného plánu z `LaborShare.fourWheel` a jeho uložená jízda `storedWaterCartDrive`) – pěšky pro
