@@ -395,6 +395,11 @@ export function VillageGame({
   // trasy vozů nových dní počítá Web Worker (cart-router.ts) – scéna mezitím nestojí
   const router = useMemo(() => cartRouter(landscape, decoded), [landscape, decoded]);
   useEffect(() => () => router.dispose(), [router]);
+  // Testovací háček: trasy vozů přes týž router (Worker i záloha) – e2e/cart-worker.spec.ts
+  useEffect(() => {
+    setE2EHook('cartRoutes', (request) => router.routes(request));
+    return () => setE2EHook('cartRoutes', undefined);
+  }, [router]);
   const applyTicket = useRef(0);
 
   /**

@@ -1,3 +1,4 @@
+import type { CartRoutesRequest, CartRoutesResult } from './cart-routes';
 import type { PlacementResult } from './scene/village-types';
 
 // Háčky pro Playwright testy (apps/web/e2e). Existují jen v buildu s NEXT_PUBLIC_E2E_HOOKS=1 –
@@ -26,6 +27,8 @@ export interface E2EHooks {
   };
   /** Posune kameru nad bod krajiny (x, z) – zvěř bývá u lesa mimo výchozí záběr. */
   moveCameraTo?: (x: number, z: number) => void;
+  /** Pošle požadavek na trasy vozů tím samým routerem jako hra (Web Worker, jinak hlavní vlákno). */
+  cartRoutes?: (request: CartRoutesRequest) => Promise<CartRoutesResult>;
   /** Zeptá se na ves hned (dotazování jinak čeká na další herní den – v testech ≈ 86 s). */
   pollVillage?: () => void;
   /** Vybere člověka vsi (id), jako by hráč klikl na jeho postavu – postavy ve scéně chodí. */
