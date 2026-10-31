@@ -54,6 +54,7 @@ import {
 import { LIVESTOCK_EPOCH_MS } from './livestock-motion';
 import { carryErrands } from './villager-errands';
 import { personFigure } from './villager-plan-cast';
+import { phaseWalking, type PhaseName } from './villager-phases';
 import { activityStage } from './villager-schedule';
 import { scheduledState, Timetable } from './villager-timetable';
 import type { ScenePerson } from '../person-view';
@@ -546,6 +547,7 @@ export class VillageVillagers {
     let job = figure?.job ?? null;
     let leg: 'out' | 'back' | null = null;
     let indoors = false;
+    let phase: PhaseName | null = null;
     const timetable = this.timetable;
     if (timetable && this.scheduled.has(id) && !this.mountedAt(id, t)) {
       const state = scheduledState(
@@ -553,9 +555,10 @@ export class VillageVillagers {
         t,
         this.selectedOut,
         this.lords.has(id),
+        timetable.phase(id, t),
       );
       if (!state.home) this.selectedOut = true;
-      ({ job, leg, indoors } = state);
+      ({ job, leg, indoors, phase } = state);
     }
     const herd = job?.kind === 'herd' ? (herds[job.herd]?.species ?? null) : null;
     this.emitPerson({
@@ -565,6 +568,7 @@ export class VillageVillagers {
       hidden: shown?.hidden ?? true,
       herd,
       leg,
+      ...(phase ? { phase } : {}),
       ...(indoors ? { indoors: true as const } : {}),
     });
   }
@@ -750,15 +754,21 @@ export class VillageVillagers {
     const out: PlannedVillager[] = [];
     for (const person of persons) {
       const id = person.id;
-      let walkPace = 1;
+      let kind: VillagerKind = 'man';
+      let scale = 1;
       const figure = personFigure(timetable.seed, person, (t, herds, pose): VillagerPose => {
         timetable.pose(id, t, herds, pose);
         // chůze rovně ode dveří jde tempem `SCHEDULE_WALK_M_S` – nohy podle velikosti postavy
         const a = timetable.activity(id, t);
-        if ((a.kind !== 'errand' || a.retreat) && pose.clip === 'walk') {
-          // tempo po trase (poměr délky a času – activityPose) × nohy podle velikosti
+        if (a.kind !== 'errand' || a.retreat) {
+          // tempo po trase (poměr délky a času – activityPose) × nohy podle velikosti a klipu
+          // (cesta ode dveří, domů a ke kroku jinde – villager-phases.ts; s košem, s úlovkem)
           const stage = activityStage(a, t);
-          if (stage === 'out' || stage === 'back') pose.pace *= walkPace;
+          const walking =
+            stage === 'out' || stage === 'back'
+              ? pose.clip === 'walk' || stage === 'back'
+              : stage === 'work' && phaseWalking(timetable.phase(id, t));
+          if (walking) pose.pace *= SCHEDULE_WALK_M_S / walkSpeed(kind, pose.clip, scale);
         }
         // v bloku jízdy na koni (kůň nejede bez jezdce)
         const mount = this.mountedAt(id, t);
@@ -766,7 +776,8 @@ export class VillageVillagers {
         else if (this.crewJobs.has(id)) pose.hidden = true;
         return pose;
       });
-      walkPace = SCHEDULE_WALK_M_S / walkSpeed(figure.kind, 'walk', figure.scale);
+      kind = figure.kind;
+      scale = figure.scale;
       if (this.models?.has(figure.kind)) out.push(figure);
     }
     return out;

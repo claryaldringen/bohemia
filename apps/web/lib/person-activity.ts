@@ -6,6 +6,7 @@ import type { Craft, HerdSpecies, KilnStage } from '@bohemia/game';
 import { crewActivityText, type DraftFigureState } from './draft-activity';
 import type { PersonJob } from './scene/villager-roster';
 import type { VillagerStage } from './scene/villager-motion';
+import type { PhaseName } from './scene/villager-phases';
 import type { LaborTarget, SceneVillage } from './village-view';
 
 /**
@@ -25,6 +26,11 @@ export interface PersonFigureState {
   leg?: 'out' | 'back' | null;
   /** Vešel do domu – výběr se zruší (villagers.md – Výběr postavy; vojvoda ne). */
   indoors?: true;
+  /**
+   * Fáze činnosti, která má vlastní větu (villager-phases.ts – Fáze činností: váže snopy, pere
+   * rudu, nese nástroje do domácností…); bez údaje podle úlohy a cesty.
+   */
+  phase?: PhaseName | null;
 }
 
 /** Stejný stav (změnu scéna hlásí, jen když se liší)? */
@@ -37,6 +43,7 @@ export function samePersonState(a: PersonFigureState | null, b: PersonFigureStat
     a.hidden === b.hidden &&
     a.herd === b.herd &&
     (a.leg ?? null) === (b.leg ?? null) &&
+    (a.phase ?? null) === (b.phase ?? null) &&
     a.indoors === b.indoors
   );
 }
@@ -69,6 +76,42 @@ const KILN_WORK: Record<KilnStage, string> = {
   draw: 'rozebírá milíř',
 };
 
+/**
+ * Věty fází činností (villagers.md – Fáze činností); fáze bez věty (cesta, práce úlohy) řekne
+ * úloha a úsek cesty.
+ */
+export const PHASE_TEXTS: Partial<Record<PhaseName, string>> = {
+  bind: 'váže snopy',
+  'load-sheaves': 'nakládá snopy na vůz',
+  'rake-hay': 'hrabe seno',
+  'heap-hay': 'skládá seno do kupek',
+  'load-hay': 'nakládá seno na vůz',
+  'wash-ore': 'pere rudu',
+  'roast-ore': 'praží rudu',
+  smelt: 'taví rudu v peci',
+  refine: 'překovává železnou houbu na hřivny',
+  forge: 'kuje nástroje',
+  'deliver-tools': 'nese nástroje do domácností',
+  'split-wood': 'štípe dřevo na milíř',
+  'stack-kiln': 'staví milíř',
+  'cover-kiln': 'zahrnuje milíř zeminou',
+  'tend-kiln': 'hlídá milíř',
+  'draw-coal': 'vytahuje uhlí z milíře',
+  'basket-coal': 'sype uhlí do koše',
+  'throw-pots': 'točí hrnce',
+  'dry-pots': 'suší nádoby',
+  'fire-pots': 'vsazuje nádoby do pece',
+  'watch-fire': 'hlídá oheň v peci',
+  'deliver-pots': 'nese nádoby do domácností',
+  'bring-catch': 'nese úlovek domů',
+  'to-harvest': 'jde pomoct se žněmi',
+  'help-reap': 'pomáhá se žněmi',
+  'help-bind': 'pomáhá vázat snopy',
+  glean: 'sbírá paběrky',
+  'from-harvest': 'vrací se ze žní',
+  return: 'vrací se do dílny',
+};
+
 const DWELLING_SITES: Record<string, string> = {
   zemnice: 'staví zemnici',
   polozemnice: 'staví polozemnici',
@@ -93,6 +136,8 @@ export function personActivity(
     return crewActivityText(job, draft, village) ?? 'doma';
   }
   if (state.hidden) return 'doma';
+  const phase = state.phase ? PHASE_TEXTS[state.phase] : undefined;
+  if (phase) return phase;
   if (state.leg) return legText(job, state.leg);
   const stage = state.stage;
   switch (job.kind) {
@@ -145,6 +190,7 @@ function legText(job: PersonJob, leg: 'out' | 'back'): string {
       return job.household ? 'jde do práce' : 'jde na cvičiště';
     case 'share':
       if (job.activity === 'fell') return 'jde do lesa';
+      if (job.activity === 'fish') return 'jde k tůni';
       if (job.target.kind === 'field') return 'jde na pole';
       if (job.target.kind === 'orchard') return 'jde do sadu';
       return 'jde do práce';

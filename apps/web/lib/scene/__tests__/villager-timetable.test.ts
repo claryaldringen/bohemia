@@ -145,6 +145,7 @@ describe('výběr postavy z rozvrhu (scheduledState)', () => {
       leg: null,
       home: false,
       indoors: false,
+      phase: null,
     });
     // po návratu (cyklus `homeS`) je doma – byl venku, výběr se zruší
     const inside = a.start + a.task!.errand!.homeS + 1;

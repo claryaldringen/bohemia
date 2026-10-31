@@ -19,6 +19,7 @@ import {
   type DayCast,
   type ScheduleInput,
 } from './villager-schedule';
+import { activityPhases, phaseAt, type ActivityPhase, type PhaseName } from './villager-phases';
 import type { HerdView, PoseFn, Route, VillagerPose } from './villager-motion';
 import type { PersonJob } from './villager-roster';
 
@@ -35,6 +36,8 @@ interface Point {
 interface Entry {
   act: Activity;
   pose: PoseFn | null;
+  /** Fáze činnosti (villager-phases.ts) – líně, s pózou. */
+  phases?: ActivityPhase[] | null;
 }
 
 /** Úsek cesty činnosti pro panel postavy: k práci a z ní (pochůzku řekne její póza). */
@@ -151,6 +154,7 @@ export class Timetable {
       if (settled.end !== e.act.end || settled.cut?.by !== e.act.cut?.by || next !== a) {
         e.act = settled;
         e.pose = null;
+        e.phases = null;
       }
     }
   }
@@ -176,7 +180,7 @@ export class Timetable {
     return this.entry(id, t).act;
   }
 
-  /** Póza postavy člověka v `t` – doma skrytá u dveří (`activityPose`). */
+  /** Póza postavy člověka v `t` – doma skrytá u dveří (`activityPose` po fázích činnosti). */
   pose(id: number, t: number, herds: readonly HerdView[], out: VillagerPose): VillagerPose {
     const e = this.entry(id, t);
     const router = this.router;
@@ -184,8 +188,19 @@ export class Timetable {
       e.act,
       this.doorOf(id) ?? e.act.task?.at ?? { x: 0, z: 0 },
       router ? { routeOf: (from, to) => router(id, from, to), speed: this.speed } : undefined,
+      this.phasesOf(e),
     );
     return e.pose(t, herds, out);
+  }
+
+  /** Fáze činnosti člověka v `t` (villager-phases.ts – panel postavy, tempo nohou). */
+  phase(id: number, t: number): ActivityPhase {
+    return phaseAt(this.phasesOf(this.entry(id, t)), t);
+  }
+
+  private phasesOf(e: Entry): ActivityPhase[] {
+    e.phases ??= activityPhases(e.act, this.seed, (a, b) => this.input.walkS!(a, b, e.act.person));
+    return e.phases;
   }
 
   /**
@@ -206,6 +221,7 @@ export class Timetable {
     while (t >= e.act.end) {
       e.act = this.after(id, e.act);
       e.pose = null;
+      e.phases = null;
     }
     return e;
   }
@@ -233,6 +249,11 @@ export interface ScheduledState {
   home: boolean;
   /** Vešel do domu, když byl předtím venku – výběr se zruší (kromě vojvody). */
   indoors: boolean;
+  /**
+   * Fáze činnosti, když ji panel řekne jinak než úloha (villager-phases.ts – váže snopy, pere
+   * rudu, nese nástroje…); cesta, práce úlohy a doma null.
+   */
+  phase: PhaseName | null;
 }
 
 /**
@@ -245,14 +266,20 @@ export function scheduledState(
   t: number,
   wasOut: boolean,
   lord: boolean,
+  phase: ActivityPhase | null = null,
 ): ScheduledState {
   const home = activityIndoors(a, t);
   const stage = activityStage(a, t);
   const leg = !home && a.kind !== 'errand' && (stage === 'out' || stage === 'back') ? stage : null;
+  const named = phase && !home && !GENERIC_PHASES.has(phase.name) ? phase.name : null;
   return {
     job: home ? null : (a.task?.job ?? null),
     leg,
     home,
     indoors: home && wasOut && !lord,
+    phase: named,
   };
 }
+
+/** Fáze, které panel řekne podle úlohy a úseku cesty (ne podle fáze). */
+const GENERIC_PHASES: ReadonlySet<PhaseName> = new Set(['out', 'work', 'back', 'home']);

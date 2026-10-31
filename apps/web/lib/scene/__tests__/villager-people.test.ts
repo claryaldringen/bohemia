@@ -951,6 +951,30 @@ describe('obsazení dne jako člověk → úloha (villagers.md – Divadlo)', ()
     expect(build.map((t) => t.kind).sort()).toEqual(['bout', 'hold']);
   });
 
+  it('role fází z plánu dne (villager-phases.ts): žnec váže snopy, starší a nečinní o žních na pole', () => {
+    const { tasks } = plan(CASES[0]!.v());
+    const reapers = [...tasks.values()].filter(
+      (t) => t.job.kind === 'share' && t.job.activity === 'harvest',
+    );
+    const reapAt = reapers.map((t) => t.at);
+    expect(reapers.map((t) => t.role)).toEqual(reapers.map(() => 'reap'));
+    for (const t of tasks.values()) {
+      if (t.job.kind === 'elder' || (t.job.kind === 'share' && t.job.activity === 'idle')) {
+        // dnes se žne – pomoc o žních u některého žnece (místo z pózy žnece v začátku dne)
+        expect(t.role).toBe(t.job.kind === 'elder' ? 'elder' : 'idle');
+        expect(reapAt).toContainEqual(t.places!.aid);
+      }
+      if (t.job.kind === 'herd' || t.job.kind === 'traffic' || t.job.kind === 'cart') {
+        expect(t.role).toBeUndefined();
+      }
+    }
+    // stejný plán = stejné role a místa
+    const again = plan(CASES[0]!.v()).tasks;
+    for (const [id, t] of tasks) {
+      expect([again.get(id)!.role, again.get(id)!.places]).toEqual([t.role, t.places]);
+    }
+  });
+
   it('rozvrh z obsazení dne: kdo v něm není, je doma; úloha činnosti = obsazení dne jejího začátku', () => {
     const T = 50_000;
     const day1 = plan(CASES[0]!.v()).tasks;

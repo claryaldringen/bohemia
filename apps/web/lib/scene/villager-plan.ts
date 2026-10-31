@@ -91,6 +91,7 @@ import {
 } from './villager-plan-events';
 import { slaughterFigures } from './villager-plan-slaughter';
 import { villagerSeconds, type Route } from './villager-motion';
+import { planPhases } from './villager-plan-phases';
 import { personTasks, type PersonTask } from './villager-schedule';
 import { fireChainFigures, fireChainLayout } from './villager-plan-fire';
 import type { SlaughterPlan } from './slaughter-plan';
@@ -323,7 +324,14 @@ export function planVillagersWithCrew(
     crew,
     slaughter: slaughter.plan,
     // místo úlohy (chůze ode dveří, dosah k požáru) z pózy na začátku dne
-    tasks: personTasks(people, crew, builders, dayStartS(options, labor.day)),
+    tasks: personTasks(
+      people,
+      crew,
+      builders,
+      dayStartS(options, labor.day),
+      // fáze činností (villager-phases.ts): role podle podílu a stavu vsi, odnos a pomoc o žních
+      planPhases(ctx, people, dayStartS(options, labor.day)),
+    ),
     doors,
     walk: (a, b, homeId) => walkRoute(ctx, a, b, homeId) ?? fieldPath(ctx, a, b, homeId),
   };

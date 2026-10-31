@@ -9,10 +9,12 @@
 import {
   alongRoute,
   createVillagerPose,
+  type HerdView,
   type PoseFn,
   type Route,
   type VillagerPose,
 } from './villager-motion';
+import type { ActivityPhase, PhasePlaces, PhaseRole } from './villager-phases';
 import type { DraftCrew, Errand, PlannedVillager } from './villager-plan-types';
 import type { PersonJob } from './villager-roster';
 import { hash01 } from './smoke-schedule';
@@ -97,6 +99,12 @@ export interface PersonTask {
   at: { x: number; z: number } | null;
   /** Událost – přeruší rozběhnutou činnost, jakmile ji obsazení dne dá (`Interrupt`). */
   interrupt?: Interrupt;
+  /**
+   * Posloupnost fází práce v místě (villager-phases.ts – Fáze činností) a kde se dělají kroky
+   * jinde (odnos do domácností, pole žní). Bez role jen cesta, póza úlohy a návrat.
+   */
+  role?: PhaseRole;
+  places?: PhasePlaces;
 }
 
 /** Obsazení dne: id člověka → úloha. Kdo v něm není, zůstane doma. */
@@ -570,6 +578,7 @@ export function personTasks(
   crew: DraftCrew,
   holds: ReadonlySet<string> = new Set(),
   probeT = 0,
+  phasesOf?: (f: PlannedVillager, at: Point) => { role: PhaseRole; places?: PhasePlaces } | null,
 ): Map<number, PersonTask> {
   const riders = new Set((crew.rides ?? []).filter((r) => r.route !== null).map((r) => r.riderId));
   const out = new Map<number, PersonTask>();
@@ -579,14 +588,17 @@ export function personTasks(
     f.pose(probeT, [], pose);
     const rider = riders.has(f.person);
     const interrupt = interruptOf(f.job, rider);
+    const at = { x: pose.x, z: pose.z };
+    const phases = phasesOf?.(f, at) ?? null;
     out.set(f.person, {
       key: f.key,
       job: f.job,
       ...taskKind(f.job, f.errand !== undefined, rider || holds.has(f.key)),
       pose: f.pose,
       errand: f.errand ?? null,
-      at: { x: pose.x, z: pose.z },
+      at,
       ...(interrupt ? { interrupt } : {}),
+      ...(phases ? { role: phases.role, ...(phases.places ? { places: phases.places } : {}) } : {}),
     });
   }
   const atObject = (id: number | null, key: string, job: PersonJob): void => {
@@ -706,11 +718,29 @@ function walkLeg(
  * posunutého tak, že vyjde v `a.start` (po návratu skrytá); práce na místě a úloha u objektu – ode
  * dveří (nebo z místa, kde člověka zastihla událost) k místu práce, póza úlohy dne, zpět. S `walk`
  * po přesné trase (hledá se jednou za úsek, jen když se póza kreslí), jinak rovně. Úloha bez pózy
- * (oráč, honák, vozka – kreslí je spřežení a vůz) je ve fázi práce skrytá.
+ * (oráč, honák, vozka – kreslí je spřežení a vůz) je ve fázi práce skrytá. S `phases`
+ * (villager-phases.ts) jde práce v místě po fázích: fáze s klipem stojí, kde ji zastihla, s jiným
+ * klipem; krok jinde dojde na své místo a zpět; návrat domů s klipem fáze (rybář s úlovkem).
  */
-export function activityPose(a: Activity, door: Point, walk?: PoseWalk): PoseFn {
+export function activityPose(
+  a: Activity,
+  door: Point,
+  walk?: PoseWalk,
+  phases?: readonly ActivityPhase[],
+): PoseFn {
   const task = a.task;
   const probe = createVillagerPose();
+  // kde postavu fáze s klipem zastihla (póza úlohy v začátku fáze) – podle začátku fáze
+  const stops = new Map<number, { x: number; z: number; hx: number; hz: number }>();
+  const phaseOf = (t: number): ActivityPhase | null => {
+    if (!phases || phases.length === 0) return null;
+    let found = phases[0]!;
+    for (const p of phases) {
+      if (p.from > t) break;
+      found = p;
+    }
+    return found;
+  };
   const speed = walk?.speed ?? null;
   // přesné trasy úseků – až při prvním kreslení úseku (undefined = ještě nehledaná)
   let going: Route | null | undefined;
@@ -739,7 +769,9 @@ export function activityPose(a: Activity, door: Point, walk?: PoseWalk): PoseFn 
     }
     if (t >= a.arrive && t < a.leave) {
       if (!task.pose) return inside(out, door);
-      return task.pose(t, herds, out);
+      const phase = phaseOf(t);
+      if (!phase?.clip) return task.pose(t, herds, out);
+      return phasePose(phase, t, task.pose, herds, out);
     }
     const out1 = t < a.arrive;
     probe.hidden = false;
@@ -758,7 +790,46 @@ export function activityPose(a: Activity, door: Point, walk?: PoseWalk): PoseFn 
       const span = end - a.leave;
       walkLeg(out, x, z, door.x, door.z, (t - a.leave) / span, coming, span, speed);
       out.stage = 'back';
+      // návrat s nákladem (rybář nese úlovek)
+      const back = phaseOf(t);
+      if (back?.clip && back.from >= a.leave) out.clip = back.clip;
     }
     return out;
   };
+
+  /** Fáze s klipem: stojí, kde ji zastihla (nebo na místě kroku jinde), cesta ke kroku a zpět. */
+  function phasePose(
+    phase: ActivityPhase,
+    t: number,
+    pose: PoseFn,
+    herds: readonly HerdView[],
+    out: VillagerPose,
+  ): VillagerPose {
+    if (phase.walk) {
+      const { from, to } = phase.walk;
+      const span = phase.to - phase.from;
+      walkLeg(out, from.x, from.z, to.x, to.z, (t - phase.from) / span, null, span, speed);
+      out.clip = phase.clip ?? 'walk';
+      out.stage = phase.walk.from === task?.at ? 'out' : 'back';
+      return out;
+    }
+    let stop = stops.get(phase.from);
+    if (!stop) {
+      probe.hidden = false;
+      const p = pose(phase.from, herds, probe);
+      const at = phase.at;
+      const hx = at && task?.at ? at.x - task.at.x : p.headingX;
+      const hz = at && task?.at ? at.z - task.at.z : p.headingZ;
+      const n = Math.hypot(hx, hz) || 1;
+      stop = { x: at?.x ?? p.x, z: at?.z ?? p.z, hx: hx / n, hz: hz / n };
+      stops.set(phase.from, stop);
+    }
+    out.x = stop.x;
+    out.z = stop.z;
+    out.headingX = stop.hx;
+    out.headingZ = stop.hz;
+    out.clip = phase.clip!;
+    out.pace = phase.pace ?? 1;
+    return out;
+  }
 }
