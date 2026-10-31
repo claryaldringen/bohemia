@@ -27,6 +27,29 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   archivovaná ves → první ves hráče. Typy pro scénu jsou odvozené odtud a z `@bohemia/game` – nedefinovat je znovu ve scéně.
 
 - **Trasy a vyšlapanost se doručují jen při změně** (`lib/scene-routes.ts`): dotaz nese `routesKey` a `wearDay`, server při shodě pošle `null`, klient doplní `keepSceneData`; podrobnosti v `village-roads.md`.
+- **Trasy vozů a spřežení počítá prohlížeč** (`lib/cart-routes.ts`; Martin 31. 10. 2026: „simulace
+  bude počítat jen s odhadem vzdáleností a přesné trasy zůstanou prohlížeči“): server v pohledu
+  pošle jen cíle jízd dne (`SceneCart.goal` z `cartGoalToday`, `ScenePloughLegs.outGoals` /
+  `homeGoals` ze `scenePloughLegs`) a vstup vozových tras `scene.cartWorld` (`cartWorldOf` z jádra –
+  ves pro mřížku vozu, ohrady se spřežením, změny překážek; jen u vsi s jízdou dne). Díly polí ve
+  vstupu se neposílají, když jsou výběrem dílů scény (`fieldsAsScene` – `cartFieldsOf`), změny
+  překážek, když jsou tytéž jako `scene.obstacles` (`'obstacles'`). Klient po každém pohledu
+  (`VillageGame` – `applyVillage` i první pohled) zavolá `withCartRoutes`: `cartGoalRoute` →
+  `cartWorldRoutes` (stejná mřížka a paměť mřížek jako `villageCartRoutes`, test
+  `cart-memo.test.ts` – tytéž trasy) → `simplifiedRoute`, a doplní `SceneCart.route`
+  a `ploughLegs.out` / `home` (stání `stand` jen bez cesty tam i zpět) – scéna je čte beze změny.
+  Vlkov: pohled za herní den ≈ 270 ms místo ≈ 520 ms; prohlížeč trasy spočítá za 5–250 ms (mřížka
+  vozu v paměti krajiny, po kácení se staví znovu).
+- **Velké části pohledu jen při změně** (`lib/view-pieces.ts`): `packViewPieces` (server action
+  `getVillageView` – `trimKnown`) spočítá otisky kusů (`pieceKey` – cyrb53 JSONu a délka) dílů polí
+  v pohledu (`f<i>`) i ve scéně (`s<i>`) po `PIECE_ITEMS` = 32, vstupu vozových tras (`we`, `wo`),
+  valů cest (`e`), změn překážek (`o`) a luk (`h`) do `VillageView.pieces.keys`; dotaz nese
+  `pieces` (otisky, které klient má – `knownViewPieces`, ověřené `knownPiecesOf`), server shodné kusy
+  vynechá (`pieces.omitted`) a klient je doplní ze svého pohledu (`unpackViewPieces` před
+  `keepSceneData`). Kus, který klient nemá, = `lost` → pohled bez otisku i bez kusů
+  (`withoutStamp`), další dotaz dostane celý. Server nic nepamatuje; akce vracejí celý pohled.
+  Vlkov: odpověď za herní den 240–800 kB místo ≈ 1,55 MB (za den se změní desítky dílů z 3 783),
+  první pohled ≈ 1,77 MB (+ vstup vozových tras).
 - **Jeden dopočet vsí naráz** (`lib/exclusive.ts`): `updateVillage` ukládá s optimistickým zámkem
   (`VillageRepository.save(id, state, expectedVersion)`, při neshodě verze zkusí znovu nad čerstvým
   stavem, nejvýš 5×). Dlouhý dopočet ale po přestávkách (`computePause`) pouští ke slovu jiné
@@ -58,7 +81,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`currentVillageViewStamp` – sídla hráče a `VillageRepository.stampsOf`: id, jméno, verze
   a `state->>'lastDay'` bez stavu) a při shodě, když jsou všechny vsi dopočítané do dneška,
   vrátí `{ unchanged: true }` bez načtení stavů (Vlkov: celý řádek ≈ 830 kB / 50 ms, dotaz na
-  něj jde v celé cestě 3×). Akce a přeskok času vracejí vždy celý pohled. Změna jména verzi
+  něj jde v celé cestě 3×). `dynastyStatus` bere id vsí z levných otisků (`stampsOf`, v pořadí
+  založení) – stav každé vsi načte jen `loadVillage`, jednou. Akce a přeskok času vracejí vždy celý pohled. Změna jména verzi
   nemění, proto je jméno v otisku zvlášť. e2e testy po přímé změně uložené vsi volají háček
   `pollVillage` (`lib/e2e-hooks.ts`) – sám by dotaz přišel až s dalším herním dnem.
 
