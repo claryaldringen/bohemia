@@ -31,6 +31,7 @@ import { ownMapsAround } from './departure-view';
 import { getDatabase } from './db';
 import { exclusive, exclusiveShared, playerLockKey } from './exclusive';
 import { cachedLandscapes } from './landscape-cache';
+import { cachedVillages } from './village-cache';
 import { currentWorld, gameDayIndex } from './world';
 
 /**
@@ -97,7 +98,10 @@ export async function gameEntryForPlayer(
 
 function playerVillagesDeps(): Parameters<typeof findPlayerVillage>[0] {
   const db = getDatabase();
-  return { settlements: createSettlementRepository(db), villages: createVillageRepository(db) };
+  return {
+    settlements: createSettlementRepository(db),
+    villages: cachedVillages(createVillageRepository(db)),
+  };
 }
 
 /** Ves `villageId`, když patří hráči (její sídlo je mezi jeho aktivními sídly); jinak null. */
@@ -145,7 +149,7 @@ function dynastyDeps(): Parameters<typeof dynastyStatus>[0] {
   const db = getDatabase();
   return {
     settlements: createSettlementRepository(db),
-    villages: createVillageRepository(db),
+    villages: cachedVillages(createVillageRepository(db)),
     landscapes,
     // dlouhý dopočet vsí (přeskok času, restart po dlouhé době) neblokuje ostatní požadavky
     pause: computePause(),

@@ -53,6 +53,7 @@ import {
 } from '@bohemia/game';
 import { getDatabase } from './db';
 import { exclusive, playerLockKey } from './exclusive';
+import { cachedVillages, withVillageCache } from './village-cache';
 import {
   currentViewStampOfPlayer,
   dynastyOfPlayer,
@@ -97,7 +98,7 @@ type Context =
   | Failure;
 
 function villages(): VillageRepository {
-  return createVillageRepository(getDatabase());
+  return cachedVillages(createVillageRepository(getDatabase()));
 }
 
 /** Ves `villageId` hráče s krajinou jejího sídla a jeho dnešní den – společný začátek akcí. */
@@ -260,15 +261,18 @@ export async function villageViewForEntry(
   today: PlayerToday,
 ): Promise<VillageView | null | { error: string }> {
   if (!today.ok) return { error: today.error };
-  if (entry.villageId === null) return null;
-  return viewOf({
-    ok: true,
-    playerId: entry.settlement.ownerId,
-    villageId: entry.villageId,
-    settlementId: entry.settlement.id,
-    landscape: entry.landscape,
-    day: today.day,
-  });
+  const villageId = entry.villageId;
+  if (villageId === null) return null;
+  return withVillageCache(() =>
+    viewOf({
+      ok: true,
+      playerId: entry.settlement.ownerId,
+      villageId,
+      settlementId: entry.settlement.id,
+      landscape: entry.landscape,
+      day: today.day,
+    }),
+  );
 }
 
 /** Výsledek přeskočení času pro klienta – ves v novém dni (null = nezaložená) a nový posun. */

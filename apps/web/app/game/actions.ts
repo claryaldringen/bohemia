@@ -5,6 +5,7 @@ import { restartGameForPlayer } from '@/lib/game';
 import { getSession } from '@/lib/session';
 import { trimKnownSceneData, type KnownSceneData } from '@/lib/scene-routes';
 import { packViewPieces } from '@/lib/view-pieces';
+import { withVillageCache } from '@/lib/village-cache';
 import {
   buildTrailForPlayer,
   buildWagonRoadForPlayer,
@@ -92,7 +93,7 @@ async function villageAction<T>(
   const villageId = villageIdOf(input);
   const parsed = parse(input);
   if (villageId === null || parsed === null) return { error: INVALID_INPUT };
-  return run(id, villageId, parsed);
+  return withVillageCache(() => run(id, villageId, parsed));
 }
 
 /**
@@ -103,6 +104,12 @@ async function villageAction<T>(
  * `{ unchanged: true }`, když se od něj nic nezměnilo.
  */
 export async function getVillageView(
+  input: unknown,
+): Promise<VillageView | VillageUnchanged | null | { error: string }> {
+  return withVillageCache(() => villageViewOf(input));
+}
+
+async function villageViewOf(
   input: unknown,
 ): Promise<VillageView | VillageUnchanged | null | { error: string }> {
   const id = await playerId();
@@ -200,7 +207,7 @@ export async function selectVillage(input: unknown): Promise<VillageActionResult
   if (id === null) return { error: NOT_SIGNED_IN };
   const villageId = villageIdOf(input);
   if (villageId === null) return { error: INVALID_INPUT };
-  const view = await villageViewForPlayer(id, villageId);
+  const view = await withVillageCache(() => villageViewForPlayer(id, villageId));
   return view ?? { error: INVALID_INPUT };
 }
 
@@ -210,7 +217,7 @@ export async function foundVillage(input: unknown): Promise<VillageActionResult>
   if (id === null) return { error: NOT_SIGNED_IN };
   const parsed = parseFoundVillageInput(input);
   if (parsed === null) return { error: INVALID_INPUT };
-  return foundVillageForPlayer(id, parsed);
+  return withVillageCache(() => foundVillageForPlayer(id, parsed));
 }
 
 /**
@@ -222,7 +229,9 @@ export async function foundDevVillage(input: unknown): Promise<VillageActionResu
   if (!session) return { error: NOT_SIGNED_IN };
   const villageId = villageIdOf(input);
   if (villageId === null) return { error: INVALID_INPUT };
-  return foundDevVillageForPlayer(session.user.id, session.user.devMode === true, villageId);
+  return withVillageCache(() =>
+    foundDevVillageForPlayer(session.user.id, session.user.devMode === true, villageId),
+  );
 }
 
 /**
@@ -236,11 +245,8 @@ export async function forceDevDisaster(input: unknown): Promise<VillageActionRes
   const villageId = villageIdOf(input);
   const choice = parseDevDisasterInput(input);
   if (villageId === null || choice === null) return { error: INVALID_INPUT };
-  return forceDevDisasterForPlayer(
-    session.user.id,
-    session.user.devMode === true,
-    villageId,
-    choice,
+  return withVillageCache(() =>
+    forceDevDisasterForPlayer(session.user.id, session.user.devMode === true, villageId, choice),
   );
 }
 
@@ -430,10 +436,12 @@ export async function skipTime(input: unknown): Promise<TimeSkipResult> {
   if (!session) return { error: NOT_SIGNED_IN };
   const parsed = parseSkipTimeInput(input);
   if (parsed === null) return { error: INVALID_INPUT };
-  return skipTimeForPlayerView(
-    session.user.id,
-    session.user.devMode === true,
-    parsed.skip,
-    villageIdOf(input),
+  return withVillageCache(() =>
+    skipTimeForPlayerView(
+      session.user.id,
+      session.user.devMode === true,
+      parsed.skip,
+      villageIdOf(input),
+    ),
   );
 }
