@@ -155,18 +155,22 @@ export function createVillageRepository(db: Database): VillageRepository {
 
     async stampsOf(settlementIds): Promise<VillageStamp[]> {
       if (settlementIds.length === 0) return [];
-      // Den dopočtu čte Postgres ze stavu sám – stav se nepřenáší ani neparsuje v Node.
-      return db
+      // Den dopočtu a spánek jsou uložené sloupce (generované ze stavu při zápisu) – stav se
+      // nepřenáší ani neparsuje v Node.
+      const rows = await db
         .select({
           id: village.id,
           settlementId: village.settlementId,
           name: village.name,
           version: village.version,
-          lastDay: sql<number>`(${village.state}->>'lastDay')::int`,
+          lastDay: village.lastDay,
+          asleep: village.asleep,
         })
         .from(village)
         .where(inArray(village.settlementId, [...settlementIds]))
         .orderBy(asc(village.createdAt), asc(village.id));
+      // lastDay je ve stavu vždy; null by znamenalo poškozený JSON – ves je pak „nejvíc pozadu“
+      return rows.map((row) => ({ ...row, lastDay: row.lastDay ?? 0 }));
     },
   };
 }

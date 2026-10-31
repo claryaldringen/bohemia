@@ -64,6 +64,13 @@
       "when": 1793402449666,
       "tag": "0008_square_the_hand",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793475270522,
+      "tag": "0009_village_day_asleep",
+      "breakpoints": true
     }
   ]
 }

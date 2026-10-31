@@ -63,7 +63,16 @@ export class SingleVillageRepository implements VillageRepository {
     await Promise.resolve();
     if (!settlementIds.includes(this.record.settlementId)) return [];
     const { id, settlementId, name, version, state } = this.record;
-    return [{ id, settlementId, name, version, lastDay: state.lastDay }];
+    return [
+      {
+        id,
+        settlementId,
+        name,
+        version,
+        lastDay: state.lastDay,
+        asleep: state.extinctDay !== undefined || state.abandonedDay !== undefined,
+      },
+    ];
   }
 
   /** Měření běží bez počasí kraje – ves bez `weatherSeed` má všechny roky normální. */

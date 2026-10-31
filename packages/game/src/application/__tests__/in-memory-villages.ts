@@ -112,6 +112,7 @@ export class InMemoryVillages implements VillageRepository {
         name: r.name,
         version: r.version,
         lastDay: r.state.lastDay,
+        asleep: r.state.extinctDay !== undefined || r.state.abandonedDay !== undefined,
       }));
   }
 

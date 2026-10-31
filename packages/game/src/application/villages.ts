@@ -14,7 +14,7 @@ export interface VillageRecord {
 
 /**
  * Co se o vsi dá zjistit bez načtení stavu: id, sídlo, jméno, verze a do kterého dne je
- * dopočítaná (`state.lastDay`) – dotazování na ves podle toho pozná, že se nic nezměnilo.
+ * dopočítaná (`state.lastDay`) a jestli spí – dotazování na ves podle toho pozná, že se nic nezměnilo.
  */
 export interface VillageStamp {
   id: string;
@@ -22,6 +22,11 @@ export interface VillageStamp {
   name: string;
   version: number;
   lastDay: number;
+  /**
+   * Ves spí – vymřela, nebo ji lidé opustili (`extinctDay` / `abandonedDay`): dál se nedopočítává
+   * a worker ji přeskakuje. Pravidlo jako `isVillageExtinct` / `isVillageAbandoned`.
+   */
+  asleep: boolean;
 }
 
 /** Port: úložiště vsí. Sídlo (mapa) může mít víc vsí, každá má vlastní id. */

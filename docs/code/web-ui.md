@@ -86,7 +86,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     rychleji, než server stíhá, a akce hráče nečeká za zbytečnými dotazy. Jakmile se za dotaz
     zařadí akce, další dotaz už se řadí za ni.
   - **Den akce až ve frontě:** `guardedAction` v `lib/village.ts` načte den, ves a stav konce hry
-    až uvnitř zámku (dopočet jde přes `dynastyOfPlayerLocked`, `exclusive` se nevnořuje). Akce
+    až uvnitř zámku (dopočet jde přes `dynastyOfPlayerLocked` (= use-case `advanceDynasty`), `exclusive` se nevnořuje). Akce
     zařazená za skok v čase nebo jinou akci tak dostane aktuální den, ne ten z doby zařazení.
   - **Proč bez timeoutu:** timeout, který by frontu uvolnil, by vrátil souběžné dopočty (skok
     o desetiletí trvá minuty). Po `EXCLUSIVE_WARN_MS` (120 s) čekání nebo běhu se jen zapíše
@@ -97,8 +97,11 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `{ villageId, known }` – `known` = `VillageView.stamp`, otisk pohledu (`villageViewStamp`
   v `application/village-stamp.ts`: vybraná ves, den, id + jméno + verze všech vsí hráče –
   pohled je čistá funkce těchto údajů). Server (`villageViewIfChanged`) nejdřív levně
-  (`currentVillageViewStamp` – sídla hráče a `VillageRepository.stampsOf`: id, jméno, verze
-  a `state->>'lastDay'` bez stavu) a při shodě, když jsou všechny vsi dopočítané do dneška,
+  (`currentVillageViewStamp` – sídla hráče a `VillageRepository.stampsOf`: id, jméno, verze,
+  `last_day` a `asleep` – generované sloupce tabulky `village` (migrace 0009), plní se při každém
+  zápisu ze stavu JSON, který zůstává zdrojem pravdy; spánek = `extinctDay` nebo `abandonedDay`
+  jako `isVillageExtinct` / `isVillageAbandoned`; index `village_awake_day_idx` nespících vsí podle
+  dne je pro frontu workeru; `stampsOf` Vlkova z ≈ 6,2 ms na ≈ 0,15 ms, protože se JSON nerozbaluje) a při shodě, když jsou všechny vsi dopočítané do dneška,
   vrátí `{ unchanged: true }` bez načtení stavů (Vlkov: celý řádek ≈ 830 kB / 50 ms, dotaz na
   něj jde v celé cestě 3×). `dynastyStatus` bere id vsí z levných otisků (`stampsOf`, v pořadí
   založení) – stav každé vsi načte jen `loadVillage`, jednou. Akce a přeskok času vracejí vždy celý pohled.
