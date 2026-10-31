@@ -21,6 +21,7 @@ import type {
 } from './types';
 import { addLogs, logsFromClearedTrees } from './wood';
 import { TASK_ORDER, createCropWork, partWeight, seasonCrops } from './year-plan';
+import { partsByIdOf } from './parts-by-id';
 
 // Pole a sad ustupují stavbám (population.md – Obydlí na poli a v sadu; Martin, 18. 10. 2026:
 // „domy by měly jít stavět na polích a v sadech. Pole a sad se prostě zmenší o plochu domu“ –
@@ -383,7 +384,7 @@ export function shrinkInPlan(
   share: number,
   day: number,
 ): void {
-  const partsById = new Map(state.parts.map((p) => [p.id, p]));
+  const partsById = partsByIdOf(state.parts);
   for (const { work } of seasonCrops(plan)) {
     if (work.harvestedKg !== null || !work.partIds.includes(part.id)) continue;
     for (const task of PART_TASKS) {
@@ -462,7 +463,7 @@ export function moveParts(
   toolCoverage: number,
 ): void {
   const moved = new Set(ids);
-  const partsById = new Map(state.parts.map((p) => [p.id, p]));
+  const partsById = partsByIdOf(state.parts);
   const parts = from.partIds
     .filter((id) => moved.has(id))
     .map((id) => partsById.get(id))

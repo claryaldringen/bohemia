@@ -163,6 +163,7 @@ import {
 } from './simulate-plan';
 import { WEATHER_EFFECTS } from './rules-disasters';
 import { springSowingExtended, springSowingHeld } from './weather-effects';
+import { partsByIdOf } from './parts-by-id';
 
 /**
  * Polní úlohy dne: práce plánu po plodinách (bez výmlatu – ten mlátí snopy, `threshTasks`), orba
@@ -179,13 +180,13 @@ export function fieldTasks(
   const month = dateOfDayIndex(day).month;
   const entries: FieldTaskEntry[] = [];
   // setí jen na tolik dílů, na kolik má ves osivo (fields.md – Úroda, Osivo ze zásob)
-  let seed: { byId: Map<number, FieldPart>; sowable: SeedKg } | null = null;
+  let seed: { byId: ReadonlyMap<number, FieldPart>; sowable: SeedKg } | null = null;
   const seedCap = (crop: Crop, work: CropWork, wanted: number): number => {
     if (work.seedKg === undefined) return wanted;
     if (!seed) {
       const food = foodUntilHarvestKg(state, day);
       seed = {
-        byId: new Map(state.parts.map((p) => [p.id, p])),
+        byId: partsByIdOf(state.parts),
         sowable: {
           grain: sowableSeedKg(state, 'grain', food),
           legumes: sowableSeedKg(state, 'legumes', food),
@@ -321,7 +322,7 @@ export function work(
   const cartLog: CartTripLog = [];
   // orba: páry volů s rádlem, se železnou špičkou od kováře rychleji (oxen.md); slabí voli po
   // zimě pomaleji; voli s vozem na výpravě neorají (wagons.md)
-  const partsById = new Map(state.parts.map((p) => [p.id, p]));
+  const partsById = partsByIdOf(state.parts);
   const teamsCap = ploughCapacityPerDay(state, coverage.tools, day);
   const ploughCap = teamsCap * teamsHomeShare(state, day);
   // spřežení na poli od rána (oxen.md – Spřežení zůstane na poli) – cesta dne jednou za den

@@ -19,6 +19,7 @@ import type { Crop, FarmSeason, FieldPart, SeasonCrop, VillageState } from './ty
 import { logsFromClearedTrees } from './wood';
 import { woodMatureShare, woodTreesOnArea } from './woods';
 import { seasonCrops, windowEndOf } from './year-plan';
+import { partsByIdOf } from './parts-by-id';
 
 // Osevní postup po dílech a setí do konce okna (fields.md, 25. 10. 2026 – návrh Clauda, Martin:
 // „Ano“; k dílu, který nestihl ozim: „Jestli bude možné mu dát ozim, ať dostane ozim.“). Ves nemá
@@ -316,7 +317,7 @@ export function neededSelection(
   targets: NeededTargets,
 ): NeededSelection {
   const parts = byId(state.parts);
-  const partsById = new Map(parts.map((p) => [p.id, p]));
+  const partsById = partsByIdOf(parts);
   const season = seasonOf(state, partsById, day);
   const holdings = villageHoldings(parts === state.parts ? state : { ...state, parts: [...parts] });
   const kindOf = new Map<number, SowingKind | null>();

@@ -4,6 +4,7 @@ import { gridKey, squareCenter } from './square-grid';
 import { fieldGrids } from './squares';
 import type { FieldPart, SquareGrid, TileCell, VillageState } from './types';
 import { nearestFirst, type WorkOrder } from './year-plan';
+import { partsByIdOf } from './parts-by-id';
 
 // Hospodaření podle polohy domů (fields.md – Hospodaření podle polohy domů; Martin, 18. 10. 2026:
 // „Spíš ať to vesničané odvodí od polohy domů.“). Jen organizace práce – jídlo zůstává společné.
@@ -421,7 +422,7 @@ export function sowingBlocks(
   // nouzový osev jen na vyžádání – běžné pořadí bere skupiny 1–4
   const groups: readonly BlockGroup[] =
     onlyGroup === EMERGENCY_GROUP ? [EMERGENCY_GROUP] : [1, 2, 3, 4];
-  const byId = new Map(parts.map((p) => [p.id, p]));
+  const byId = partsByIdOf(parts);
   const area = new Map<number | null, number>();
   const blocks: SowingBlock[] = [];
   for (const sector of holdings.sectors) {

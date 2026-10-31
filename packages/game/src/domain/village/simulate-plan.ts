@@ -85,6 +85,7 @@ import {
   type PartWork,
   windowEndOf,
 } from './year-plan';
+import { partsByIdOf } from './parts-by-id';
 
 export type DayOfYear = Readonly<Pick<CalendarDate, 'month' | 'day'>>;
 
@@ -171,7 +172,7 @@ function sowingJustEnded(state: VillageState, crop: Crop, day: number): boolean 
 
 /** Díly plodiny, na kterých setí nezačalo (úloha setí nedošla na začátek jejich úseku). */
 function unsownPartIds(state: VillageState, work: CropWork, day: number): number[] {
-  const partsById = new Map(state.parts.map((p) => [p.id, p]));
+  const partsById = partsByIdOf(state.parts);
   const position = taskPosition(work, 'sow');
   return taskSpans(work, partsById, 'sow', day)
     .filter((span) => position <= span.start + EPSILON)
@@ -374,11 +375,11 @@ function frontRoom(front: Front, crop: Crop): boolean {
  * uvolněný se vrátí jako příloh bez lesa a křovin a klády podruhé nedá.
  */
 function fellReclaimed(state: VillageState, season: FarmSeason, day: number): void {
-  let partsById: Map<number, FieldPart> | null = null;
+  let partsById: ReadonlyMap<number, FieldPart> | null = null;
   const parts: FieldPart[] = [];
   for (const { work } of seasonCrops(season)) {
     if (!work.reclaimIds || work.reclaimIds.length === 0 || work.done.reclaim <= 0) continue;
-    partsById ??= new Map(state.parts.map((p) => [p.id, p]));
+    partsById ??= partsByIdOf(state.parts);
     const byId = partsById;
     const overgrown = work.reclaimIds.some(
       (id) => byId.get(id)?.fallowBeforeSeason?.overgrowthYears !== undefined,
@@ -429,7 +430,7 @@ function recordSeedPlan(
   const seed = { grain: 0, legumes: 0 };
   let grainSeed = 0;
   let grainNet = 0;
-  const partsById = new Map(state.parts.map((p) => [p.id, p]));
+  const partsById = partsByIdOf(state.parts);
   const addGrain = (part: FieldPart): void => {
     const net = expectedNetKg(part, day);
     if (net <= 0) return;
@@ -528,7 +529,7 @@ function seasonSelection(
     ? springCrop(state.season).plough !== undefined
     : ableTeams(state, day) > 0;
   const front = workFront(state, day, coverage);
-  const partsById = new Map(state.parts.map((p) => [p.id, p]));
+  const partsById = partsByIdOf(state.parts);
   // spřežení orá po pásech (oxen.md – Co nejdelší brázda): díl přibude s celým svým pásem
   // z rozvržení výběru plodiny, ať dávka dne nezkrátí brázdu (návrh Clauda, 25. 10. 2026)
   const bandOf = plough ? joinBands(join, partsById) : null;
@@ -654,7 +655,7 @@ export function lordHelpDay(
   // i nutné díly, které na čelo práce ještě nepřibyly – ves je potřebuje a zaostává
   const rest = planLoad(season, orchardHarvestLoad(state));
   if (waiting.length > 0) {
-    const partsById = new Map(state.parts.map((p) => [p.id, p]));
+    const partsById = partsByIdOf(state.parts);
     for (const { id, crop } of waiting) {
       const part = partsById.get(id);
       if (!part) continue;
