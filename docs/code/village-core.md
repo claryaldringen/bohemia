@@ -199,6 +199,25 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   cest, který na Vlkově celý rok uvízl: `roadsMonth` 3,1–3,3 → 1,7–2,3 s první rok (vznik nad
   kopií 2,6 → 0,7 s), vzniknou 3 cesty (36 → 41 úseků, sklizeň −0,1 %). Rok po dnech CPU (zátěž
   15–80) ≈ 30–33 s → 28–29 s po S2; druhý rok Vlkova (zátěž 4–5) 28,1 → 24,8 s (−12 %, všechny tři úspory). Otisk po dnech = najednou = po 10 a 37 dnech u všech tří. Za 20 let se výsledek rozejde (lidé, úroda, hladové dny) stejně jako po změně zásob o 1 mg na začátku – chaos dlouhého běhu, ne posun pravidla.
+  Kolo 1 výkonu dopočtu (Martin 31. 10. 2026: „udělej všechny performance vylepšení, kterých jsi
+  schopen“) – jen paměť, užší kontroly a méně alokací, výsledek bit po bitu týž (otisk roku Vlkova
+  `7af6be0f6c11`, 20 let i nová ves se správcem 15 let beze změny). Rok Vlkova po dnech, střídavě
+  před / po (zátěž 10–13): 13,9–14,8 s → 11,1–11,4 s (−20 %, CPU 18,4–18,5 → 14,9–15,2 s):
+  kopie stavu (`cloneState` – primitivní hodnoty bez volání, `for…in`) 3,7 → 3,4 ms; brázdy přes
+  cesty (`roadFreeRuns` – pásy cest daleko od pásu orby se nepočítají) `lordHelpDay` 1,36 →
+  0,57 s; buňky čtverců staveb v paměti (`squareCellsOf` pro cíle tras – `tripGroups` 0,69 →
+  0,27 s); ceny úseček vozu v paměti podle půdy vozu (`cartSegment`, `SegmentMemo` – půda se mění
+  jen se změnou polí) `cartEstimates` 0,45 → 0,24 s; paměť chůze rovně ověřuje platnost po pruhu
+  32 kroků podél úsečky místo obdélníku celé úsečky (`unchangedAround` – přepočty 127 → 49 tisíc
+  za rok); otisk klíče mapy tras stejného proudu z paměti (`routeMapKey` 0,40 → 0,21 s); terén
+  pěšin s rezervou 600 m – u skutečné krajiny jedna stavba místo dvou při studeném startu
+  (`buildPathTerrain` 0,77 → 0,42 s); u chůze k cílům se řetězy pěšin, jejichž dolní mez nevyjde
+  pod dosavadní nejlepší, nehledají. Nejvíc teď bere přepočet chůze se změnou mapy (5× za rok –
+  síť pěšin 1,4 s, chůze 1,1 s, z toho studený start paměti ≈ 0,5 s), kopie stavu (1,4 s – jednou
+  za dopočet, u hráče, který se dívá denně, za den), sezóna (`seasonDay` 1,1 s – výběr dílů),
+  měsíc cest (`roadsMonth` 1,0 s), práce dne (`work` 1,0 s) a roční přepočet cest (`roadsDay`
+  0,5 s, trasy vozů jednou za rok). Měřicí skript klonuje stav každý den (jako dopočet po jednom
+  dni); `tsx` k tomu přidává `__name` u vnořených funkcí a překlad modulů (≈ 0,8 s před měřením).
   Souběžné požadavky téhož hráče dopočet nezdvojují: web je řadí do fronty (`apps/web/lib/exclusive.ts`,
   web-ui.md – Jeden dopočet vsí naráz), druhý jen dopočte zbytek do svého dne.
 
