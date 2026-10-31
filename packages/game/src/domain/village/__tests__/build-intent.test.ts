@@ -4,7 +4,11 @@ import { generateLandscape, obstaclesOf, tileCenterWorld, type Landscape } from 
 import { foundVillage } from '../actions';
 import {
   applyBuildIntent,
+  BAD_PLOT,
+  NO_OAKS,
   NO_PLOT,
+  NO_WOOD,
+  UNKNOWN_CRAFT,
   NO_SETTLERS,
   RELOCATION_BLOCKED,
   NO_ROAD,
@@ -369,5 +373,57 @@ describe('applyBuildIntent – jabloně u cesty', () => {
       ok: false,
       reason: NO_ROAD,
     });
+  });
+});
+
+// Větve, které drží pořadí a rozlišení důvodů (recenze S1 – chybějící testy).
+describe('applyBuildIntent – důvody odmítnutí', () => {
+  it('neznámé řemeslo z klienta odmítne dřív než cokoli jiného', () => {
+    const intent = { kind: 'workshop', craft: 'wizard', position: at(-80, -50) };
+    expect(apply(withCouple(settled()), intent as unknown as BuildIntent)).toEqual({
+      ok: false,
+      reason: UNKNOWN_CRAFT,
+    });
+  });
+
+  it('pozemek s neplatným natočením (dvorec natočený) odmítne jako BAD_PLOT', () => {
+    const plot = {
+      cell: { x: 10, y: 10 },
+      variant: 'center',
+      square: { x: 0, z: 0, rotation: 0 },
+      yard: { x: 11, y: 10 },
+    };
+    const intent = { kind: 'dwelling', type: 'polozemnice', position: at(-80, -50), plot };
+    expect(apply(withCouple(settled()), intent as unknown as BuildIntent)).toEqual({
+      ok: false,
+      reason: BAD_PLOT,
+    });
+  });
+
+  it('přestěhování bez dřeva odmítne důvodem NO_WOOD', () => {
+    const state = settled();
+    state.woodLogs = 0;
+    const result = apply(state, {
+      kind: 'relocation',
+      dwellingId: state.dwellings[0]!.id,
+      type: 'zemnice',
+      position: at(60, 60),
+    });
+    expect(result).toEqual({ ok: false, reason: NO_WOOD });
+  });
+
+  it('ohradu bez dřeva odmítne důvodem NO_WOOD', () => {
+    const state = settled();
+    state.woodLogs = 0;
+    expect(apply(state, { kind: 'pen', species: 'pig', cells: block(10, 10, 1, 1) })).toEqual({
+      ok: false,
+      reason: NO_WOOD,
+    });
+  });
+
+  it('svatyni bez dospělých dubů odmítne důvodem NO_OAKS', () => {
+    expect(
+      apply(settled(), { kind: 'sacred', building: 'shrine', position: at(-80, -50) }),
+    ).toEqual({ ok: false, reason: NO_OAKS });
   });
 });
