@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { dayIndexOf } from '../../domain/calendar';
 import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
 import { isLineMan, type Position, type VillageState } from '../../domain/village';
@@ -81,6 +81,20 @@ describe('dynastyStatus', () => {
     expect(status.villages).toHaveLength(1);
     expect(status.villages[0]?.state.extinctDay).toBe(TODAY - 39);
     expect(villages.records.get(villageId)?.state.extinctDay).toBe(TODAY - 39);
+  });
+
+  it('stav každé vsi načte jednou – seznam vsí jen z otisků (bez stavu)', async () => {
+    const living = await playerWithVillage(false);
+    const list = vi.spyOn(living.villages, 'listBySettlement');
+    const find = vi.spyOn(living.villages, 'find');
+    const status = await dynastyStatus(
+      { ...living, landscapes },
+      { playerId: PLAYER, today: TODAY },
+    );
+    expect(status.villages.map((v) => v.id)).toEqual([living.villageId]);
+    // dřív i celé vsi sídla se stavem (listBySettlement) – jen kvůli id
+    expect(list).not.toHaveBeenCalled();
+    expect(find.mock.calls.every(([id]) => id === living.villageId)).toBe(true);
   });
 
   it('se živou vsí ani bez vsi hra nekončí', async () => {
