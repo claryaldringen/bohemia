@@ -226,11 +226,11 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   orby plánu osevu z paměti po krajině, dokud se díly, mřížky polí a cesty nezmění
   (`sowingFurrowEfficiency` – přesné porovnání vstupů, 5 přepočtů z 214 volání za rok); zbytky jam
   pod stavbou jen se změnou vstupů kontroly (`updateRuins` – `coverInputs`, kontrola, která nic
-  nenašla, si je pamatuje). Pátá mění výsledek: chůze rovně po celých buňkách (`walkSteps`,
-  paths.md – Odhad vzdáleností, `routes-v12`) – úsečky Vlkova medián 0,09 %, 90 % do 0,41 %,
-  nejvíc 3,2 %; za rok bez měřitelného zrychlení (chůze rovně je po kolu 1 skoro celá v paměti),
-  rok Vlkova po dnech 9,0–9,3 s proti 8,9–9,1 s bez dne s přepočtem. Rok Vlkova po dnech střídavě
-  před / po (zátěž 11–16): 11,8–12,3 s → 10,0–10,8 s (−14 %, CPU 15,5–15,9 → 14,0–14,2 s).
+  nenašla, si je pamatuje). Pátou – chůzi rovně po celých buňkách místo půlbuněk – jsem vrátil
+  (revert): měnila výsledek (úsečky Vlkova medián 0,09 %, nejvíc 3,2 %, u brodu ±30 m) a za rok
+  nic měřitelného nepřinesla (chůze rovně je po kolu 1 skoro celá v paměti); chůze dál krokuje
+  po půlbuňkách. Rok Vlkova po dnech střídavě před / po (zátěž 11–16): 11,8–12,3 s → 10,0–10,8 s
+  (−14 %, CPU 15,5–15,9 → 14,0–14,2 s).
   Souběžné požadavky téhož hráče dopočet nezdvojují: web je řadí do fronty (`apps/web/lib/exclusive.ts`,
   web-ui.md – Jeden dopočet vsí naráz), druhý jen dopočte zbytek do svého dne.
 
