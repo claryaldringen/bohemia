@@ -563,42 +563,70 @@ function computeVillageNetwork(
  * cesty (osa, druh, stupeň, mokřina – olemování je jejich součást; ne stav kusů, provoz ani opuštění),
  * zemní práce (profil, brody, hotové úseky – ne průběh), otevřené obilné jámy (stálý cíl) a pařezy
  * k poslednímu 1. 11.; paseka rozestavěného pole v lese až s dohořením pole (`routeTreesKey`).
- * Neobsahuje stadia dílů, lidi, stáří spojení, stáda, práci dne ani den.
+ * Neobsahuje stadia dílů, lidi, stáří spojení, stáda, práci dne ani den. Vrací rovnou otisk
+ * (`KeyHash`, 16 šestnáctkových číslic) – denní kontrola mapy klíč neskládá do řetězce.
  */
 export function routeMapKey(state: VillageState, day: number): string {
   const k = walkLayoutParts(state);
-  return JSON.stringify([
-    k.dwellings,
-    k.sites,
-    k.parts,
-    k.orchards,
-    k.cemeteries,
-    k.sacred,
-    k.roads,
-    k.pens,
-    k.woods,
-    k.kilns,
-    k.floors,
-    earthworksKey(state),
-    (state.grainPits ?? []).map((p) => `${p.id}:${p.x},${p.z}`),
-    routeTreesKey(state, day),
-  ]);
+  // otisk po kouscích – celý klíč (u Vlkova 64 kB) se neskládá ani nekóduje (výkon)
+  const h = new KeyHash();
+  for (const list of [k.dwellings, k.sites, k.parts, k.orchards, k.cemeteries]) h.list(list);
+  h.text(k.sacred);
+  h.text(k.roads ?? '-');
+  h.list(k.pens);
+  h.list(k.woods);
+  h.text(k.kilns ?? '-');
+  h.text(k.floors ?? '-');
+  h.text(earthworksKey(state));
+  h.list((state.grainPits ?? []).map((p) => `${p.id}:${p.x},${p.z}`));
+  h.text(routeTreesKey(state, day));
+  return h.digest();
+}
+
+/**
+ * Otisk klíče po kouscích – tytéž dvě 32bitové FNV-1a jako `walkLayoutHash`, jen se klíč neskládá
+ * do jednoho řetězce. Oddělovače (0x1e, 0x1f) mimo text klíče – různé klíče dají různé proudy.
+ */
+class KeyHash {
+  private a = 0x811c9dc5;
+  private b = 0x9e3779b9;
+
+  private char(c: number): void {
+    this.a = Math.imul(this.a ^ c, 0x01000193);
+    this.b = Math.imul(this.b ^ c, 0x01000193) ^ (this.b >>> 15);
+  }
+
+  text(text: string): void {
+    for (let i = 0; i < text.length; i++) this.char(text.charCodeAt(i));
+    this.char(0x1f);
+  }
+
+  list(items: readonly string[]): void {
+    for (const item of items) this.text(item);
+    this.char(0x1e);
+  }
+
+  digest(): string {
+    return `${(this.a >>> 0).toString(16).padStart(8, '0')}${(this.b >>> 0).toString(16).padStart(8, '0')}`;
+  }
 }
 
 /**
  * Zemní práce pro klíč mapy: profil, brody, konce úseků a které jsou hotové, zrušení – ne průběh
- * (`manDays`), který se mění každý den stavby a mapu tras nepřepočítává (výkon).
+ * (`manDays`), který se mění každý den stavby a mapu tras nepřepočítává (výkon). Profil se určí se
+ * založením zemních prací (`RoadEarthwork.profile` – jen ke čtení, nové zemní práce = nové id),
+ * proto v klíči stačí id, počet bodů a konce osy – ne celý profil (u Vlkova 83 % klíče).
  */
 function earthworksKey(state: VillageState): string {
   return (state.roads?.earthworks ?? [])
-    .map(
-      (e) =>
-        `${e.id}:${JSON.stringify(e.profile)}:${(e.fords ?? []).join(',')}:${e.pieces
-          .map((p) => `${p.toM}${p.builtDay === null ? '' : '*'}`)
-          .join(
-            ',',
-          )}:${JSON.stringify(e.bypassed ?? [])}:${e.abandonedDay === undefined ? '' : 'x'}`,
-    )
+    .map((e) => {
+      const a = e.profile[0];
+      const b = e.profile[e.profile.length - 1];
+      const ends = a && b ? `${a.x},${a.z}>${b.x},${b.z}` : '';
+      return `${e.id}:${e.profile.length}@${ends}:${(e.fords ?? []).join(',')}:${e.pieces
+        .map((p) => `${p.toM}${p.builtDay === null ? '' : '*'}`)
+        .join(',')}:${JSON.stringify(e.bypassed ?? [])}:${e.abandonedDay === undefined ? '' : 'x'}`;
+    })
     .join('|');
 }
 

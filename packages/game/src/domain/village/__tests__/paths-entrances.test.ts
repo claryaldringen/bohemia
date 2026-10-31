@@ -311,8 +311,9 @@ describe('vchody ve stavu vsi', () => {
     const v = pathVillageOf(s, DAY, LANDSCAPE);
     expect(v.cemeteries?.[0]?.built).toBe(true);
     expect(v.cemeteries?.[0]?.squares.some((q) => q.pending)).toBe(false);
+    // klíč je otisk (`routeMapKey`) – hotový hřbitov ho nemění, rozšíření ve stavbě a dostavěné ano
     const key = routeMapKey(s, DAY);
-    expect(key).toContain('"50:4,9"');
+    expect(routeMapKey(structuredClone(s), DAY)).toBe(key);
     const extended = structuredClone(s);
     extended.cemeteries![0]!.squares.push({
       cell: { x: 4, y: 10 },
@@ -320,7 +321,12 @@ describe('vchody ve stavu vsi', () => {
       waterDistanceM: 80,
       constructionId: 99,
     });
-    expect(routeMapKey(extended, DAY)).toContain('"50:4,9;4,10p"');
+    const pending = routeMapKey(extended, DAY);
+    expect(pending).not.toBe(key);
+    const done = structuredClone(extended);
+    delete done.cemeteries![0]!.squares[1]!.constructionId;
+    expect(routeMapKey(done, DAY)).not.toBe(pending);
+    expect(routeMapKey(done, DAY)).not.toBe(key);
     expect(pathVillageOf(extended, DAY, LANDSCAPE).cemeteries?.[0]?.squares[1]?.pending).toBe(true);
   });
 

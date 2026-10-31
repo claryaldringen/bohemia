@@ -838,7 +838,16 @@ Návrh `docs/design/paths.md` – Stálé trasy (25. 10. 2026), Úloha A1.
   a idempotentně.
 - **Mapa tras a klíč** (A2b, [paths.md – Stálé trasy, pravidlo 5](../design/paths.md#stálé-trasy-25-10-2026)):
   `refreshWalkDistances` (`paths/village.ts`) drží v `VillageState.walkLayoutKey` = `routes.key`
-  otisk `routeMapKey | WALK_VERSION` (`routes-v7` – trasy ze všech staveb, olemování z míst).
+  otisk `routeMapKey | WALK_VERSION` (`routes-v9` – bez tras k práci dne).
+  - **Denní kontrola mapy bez skládání klíče** (31. 10. 2026): `routeMapKey` vrací rovnou otisk
+    (`KeyHash` – tytéž dvě FNV-1a jako `walkLayoutHash`, části klíče se míchají po řetězcích
+    s oddělovači, celý JSON se neskládá). Zemní práce v klíči bez celého profilu – id, počet bodů
+    a konce osy (`earthworksKey`; profil se určí se založením, nové zemní práce = nové id – u
+    Vlkova byl profil 83 % klíče). Vlkov: klíč 303 kB → 64 kB, 2,8 → ≈ 0,7 ms za den.
+    Počítadlo ve stavu zvyšované při postavení / zániku stavby (návrh na 31. 10.) zavedené není –
+    změn mapy je přes 140 míst ve 45 souborech a zapomenuté místo by se neprojevilo (trasy by se
+    tiše nepřepočítaly); otisk se den po dni shoduje se starým klíčem (`keycheck.mts` mimo repo –
+    Vlkov 20 let a nová ves se správcem 15 let: každá změna starého klíče = změna otisku a naopak).
   - `routeMapKey` – obydlí a staveniště (poloha, natočení, druh, pozemek – bez obyvatel a stáří),
     díly polí (políčka, bez stadia), sady, hřbitovy, posvátná místa, ohrady (políčka, hotová),
     les vsi, milíře, humna, obilné jámy od vykopání po zánik (ne otevřená / zavřená), pevné cesty
