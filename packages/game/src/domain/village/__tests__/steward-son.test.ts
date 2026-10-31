@@ -211,6 +211,16 @@ describe('odchod syna (krok 2)', () => {
     const crowded = lordVillage();
     crowded.steward!.hungerPeak = 30;
     expect(stewardDeparture(crowded, AUG31, fertile, fertileObstacles)).toBe(false);
+    // … ale hladověla-li už loni, pole navíc rok nepomohla – syn odejde i s místem
+    const again = lordVillage();
+    again.steward!.hungerPeak = 30;
+    again.steward!.lastYearHunger = STEWARD.departureHungerDays;
+    expect(stewardFieldRoom(again, AUG31, fertile, fertileObstacles)).toBe(true);
+    expect(stewardDeparture(again, AUG31, fertile, fertileObstacles)).toBe(true);
+    // loni hladověla, letos ne – nic
+    const recovered = lordVillage();
+    recovered.steward!.lastYearHunger = 30;
+    expect(stewardDeparture(recovered, AUG31, fertile, fertileObstacles)).toBe(false);
   });
 
   it('hlad se pamatuje od jednoho 31. 8. k dalšímu – jen nejvyšší', () => {
@@ -224,6 +234,10 @@ describe('odchod syna (krok 2)', () => {
     stewardSonDay(s, AUG31, fertile, fertileObstacles);
     expect(s.steward?.departures).toHaveLength(1);
     expect(s.steward?.hungerPeak).toBeUndefined();
+    // loňský hlad zůstane na příští rok; rok bez hladu ho smaže
+    expect(s.steward?.lastYearHunger).toBe(9);
+    stewardSonDay(s, dayIndexOf({ year: year + 1, month: 8, day: 31 }), fertile, fertileObstacles);
+    expect(s.steward?.lastYearHunger).toBeUndefined();
   });
 
   it('svobodný syn odejde, když ženatý není', () => {

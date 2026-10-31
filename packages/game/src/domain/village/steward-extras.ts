@@ -13,6 +13,7 @@ import { ploughWorkPerHa } from './plough';
 import { oxPens, PEN_BY_SPECIES } from './oxen';
 import { herdRoom, herdsOverRoom, penCapacity } from './pens';
 import { placementVillageOf } from './placement-village';
+import { penSquaresFromCells } from './placement-pens';
 import { checkSacredBuildingPlacement } from './placement-sacred';
 import { villageCarts } from './carts';
 import { roadApplesOption, villageRoadApples } from './road-apples';
@@ -44,18 +45,25 @@ import {
 } from './steward';
 import { threshingStatus, builtThreshingFloorCount } from './threshing';
 import { villageThreshingFloors } from './threshing-floors';
-import { villageTrails, DIRECTIONS } from './trail';
+import { planTrail, villageTrails, DIRECTIONS } from './trail';
 import { DIRECTION_VECTORS } from './trail-axis';
+import { planWagonRoad, wagonPlanInputOf } from './wagon-road';
 import type { HerdSpecies, PenSpecies, Road, VillageState } from './types';
 
 // Kroky 5 až 10 dne správce (steward.md – Rozhodovací pořadí v den správce, Ostatní stavby):
 // hřbitov, humno, ohrady, sad a jabloně u cest, posvátná místa, cesty. Každý krok začne nejvýš
 // jednu stavbu, jen v režimech `STEWARD.stepModes`, jen v rozpočtu práce sdíleném s poli
-// a obydlími (`laborBudget`) a výhradně přes `startStewardBuild` / `trySlots` (cena předem
-// a kontrola místa jako u hráče). Sloty (hřbitov, sad, ohrada, humno) bere z plánu sídla – ve
+// a obydlími (`laborBudget`; kroky Růstu v Obnově jen jeho část – `fits`) a výhradně přes
+// `startStewardBuild` / `trySlots` (cena předem a kontrola místa jako u hráče). Sloty (hřbitov, sad, ohrada, humno) bere z plánu sídla – ve
 // stejném tvaru, v jakém je plán ověřil (`checkPlanSlot`): střed políčka, jeden čtverec bez mřížky.
 
 const DAYS_PER_YEAR = 365;
+const EDGE_STEPS: readonly (readonly [number, number])[] = [
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+  [0, -1],
+];
 const HERD_PENS: readonly (readonly [HerdSpecies, PenSpecies])[] = [
   ['cow', 'cattle'],
   ['pig', 'pig'],
@@ -74,13 +82,24 @@ export function extraSteps(state: VillageState, ctx: StewardContext): void {
   if (allowed(ctx, 'road')) roadStep(state, ctx);
 }
 
-function allowed(ctx: StewardContext, step: string): boolean {
-  return STEWARD.stepModes[step]?.includes(ctx.mode) === true;
+/** Podíl rozpočtu práce, který krok v dnešním režimu smí vzít (0 – v režimu krok nestaví). */
+function budgetShare(ctx: StewardContext, step: string): number {
+  return STEWARD.stepModes[step]?.[ctx.mode] ?? 0;
 }
 
-/** Práce stavby se vejde do rozpočtu práce (steward.md – Rozpočet práce). */
-function fits(state: VillageState, manDays: number): boolean {
-  return laborBudget(state).left >= manDays;
+function allowed(ctx: StewardContext, step: string): boolean {
+  return budgetShare(ctx, step) > 0;
+}
+
+/**
+ * Práce stavby kroku `step` se vejde do rozpočtu práce (steward.md – Rozpočet práce); krok
+ * s podílem pod 1 (kroky Růstu v Obnově) po sobě nechá `1 − podíl` celého rozpočtu polím
+ * a obydlím – nižší přednost.
+ */
+function fits(state: VillageState, ctx: StewardContext, step: string, manDays: number): boolean {
+  const budget = laborBudget(state);
+  const reserve = (1 - budgetShare(ctx, step)) * budget.freePerDay * STEWARD.laborHorizonDays;
+  return budget.left - reserve >= manDays;
 }
 
 function slotIntent(ctx: StewardContext, tile: number): { x: number; y: number } {
@@ -121,12 +140,38 @@ export function cemeteryStep(state: VillageState, ctx: StewardContext): void {
       0,
     );
     if (places >= deathsPerYear(state, ctx.day) * STEWARD.graveYears) return;
-    if (!fits(state, BUILD_COSTS.cemetery.laborManDays)) return;
+    if (!fits(state, ctx, 'cemetery', BUILD_COSTS.cemetery.laborManDays)) return;
   }
-  trySlots(state, ctx, 'cemetery', (tile): BuildIntent => ({
-    kind: 'cemetery',
-    cells: [slotIntent(ctx, tile)],
-  }));
+  // rozšíření jen slotem, který sousedí stranou se stávajícím čtvercem – jinak by vznikl druhý
+  // hřbitov; bez takového slotu správce počká na přepočet plánu
+  const edge = cemeteries.length > 0 ? cemeteryEdgeTiles(state, ctx) : null;
+  trySlots(
+    state,
+    ctx,
+    'cemetery',
+    (tile): BuildIntent => ({ kind: 'cemetery', cells: [slotIntent(ctx, tile)] }),
+    edge ? (tile): boolean => edge.has(tile) : undefined,
+  );
+}
+
+/**
+ * Políčka krajiny, která sousedí stranou se čtvercem hřbitova v mřížce krajiny (natočený hřbitov
+ * se rozšiřuje jen ve své mřížce – sloty plánu jsou políčka krajiny, takže žádné).
+ */
+function cemeteryEdgeTiles(state: VillageState, ctx: StewardContext): Set<number> {
+  const size = ctx.landscape.size;
+  const out = new Set<number>();
+  for (const cemetery of villageCemeteries(state)) {
+    if (cemetery.grid) continue;
+    for (const { cell } of cemetery.squares) {
+      for (const [dx, dy] of EDGE_STEPS) {
+        const x = cell.x + dx;
+        const y = cell.y + dy;
+        if (x >= 0 && y >= 0 && x < size && y < size) out.add(y * size + x);
+      }
+    }
+  }
+  return out;
 }
 
 // --- 6. humno --------------------------------------------------------------------------
@@ -141,7 +186,7 @@ export function threshingStep(state: VillageState, ctx: StewardContext): void {
   if (!inStewardWindows(ctx.date, STEWARD.threshingWindows)) return;
   if (state.constructions.some((c) => c.kind === 'threshing-floor')) return;
   const cost = BUILD_COSTS['threshing-floor'].laborManDays;
-  if (!fits(state, cost)) return;
+  if (!fits(state, ctx, 'threshing', cost)) return;
   const floors = villageThreshingFloors(state).length;
   if (floors === 0) {
     const capacity = fieldCapacity(state, ctx.day, ctx.coverage.pottery);
@@ -175,7 +220,7 @@ function sownWork(ctx: StewardContext): number {
  * skot; kusy na noc pod hranicí `STEWARD.penPlacesPerPerson` × lidé) → ohrada druhu; (b) spřežení
  * – ohrada volů, když ves má skot v ohradě a aspoň `OXEN.minCows` krávy a orba ušetří (kopání
  * motykou − orba rádlem na osetý hektar) za `paybackYears` víc než seno volů a ohrada; (c) koně
- * jen v Růstu, když vojvodova rodina cvičí a ves nemá ohradu koní.
+ * v Růstu (v Obnově s nižší předností), když vojvodova rodina cvičí a ves nemá ohradu koní.
  */
 export function penStep(state: VillageState, ctx: StewardContext): void {
   if (!inStewardWindows(ctx.date, STEWARD.offHarvestWindows)) return;
@@ -191,10 +236,10 @@ export function penStep(state: VillageState, ctx: StewardContext): void {
       const full = over.has(herd) || Math.round(herds[herd]) >= Math.max(room[herd], 2);
       const wanted = people * (STEWARD.penPlacesPerPerson[herd] ?? 0);
       if (herds[herd] < 2 || !full || places[herd] >= wanted) continue;
-      if (!fits(state, BUILD_COSTS.pen.laborManDays)) return;
+      if (!fits(state, ctx, 'pen', BUILD_COSTS.pen.laborManDays)) return;
       if (buildPen(state, ctx, pen)) return;
     }
-    if (teamPenValue(state, ctx) && fits(state, BUILD_COSTS.pen.laborManDays)) {
+    if (teamPenValue(state, ctx) && fits(state, ctx, 'pen', BUILD_COSTS.pen.laborManDays)) {
       if (buildPen(state, ctx, 'team')) return;
     }
   }
@@ -202,18 +247,28 @@ export function penStep(state: VillageState, ctx: StewardContext): void {
     state.lord?.trains === true &&
     allowed(ctx, 'horses') &&
     !(state.pens ?? []).some((p) => p.species === 'horse') &&
-    fits(state, PEN_BY_SPECIES.horse.laborManDays)
+    fits(state, ctx, 'horses', PEN_BY_SPECIES.horse.laborManDays)
   ) {
     buildPen(state, ctx, 'horse');
   }
 }
 
+/**
+ * Ohrada druhu `species` na slotu plánu. Plán sloty ověřil pro skot (druh rozhoduje o napojení na
+ * stojící ohradu téhož druhu a o ceně) – slot se napřed ověří pro stavěný druh; který se mu nehodí,
+ * zůstane v plánu pro jiný druh.
+ */
 function buildPen(state: VillageState, ctx: StewardContext, species: PenSpecies): boolean {
-  return trySlots(state, ctx, 'pen', (tile): BuildIntent => ({
-    kind: 'pen',
-    species,
-    cells: [slotIntent(ctx, tile)],
-  })).started;
+  const village = placementVillageOf(state, ctx.day);
+  return trySlots(
+    state,
+    ctx,
+    'pen',
+    (tile): BuildIntent => ({ kind: 'pen', species, cells: [slotIntent(ctx, tile)] }),
+    (tile) =>
+      penSquaresFromCells(ctx.landscape, village, [slotIntent(ctx, tile)], species, ctx.obstacles)
+        .check.ok,
+  ).started;
 }
 
 /** Vyplatí se první ohrada volů (spřežení)? */
@@ -245,12 +300,23 @@ function fruitShortfallKg(state: VillageState, ctx: StewardContext): number {
   return needKg - orchardKg - roadKg;
 }
 
+/**
+ * Krok 8 v Obnově jen pro první zdroj ovoce (sad nebo jabloně u cest), další až v Růstu – ves bez
+ * pojistky s víc sady hladověla o deset let později (měření 31. 10. 2026, seed krajiny 2).
+ */
+function fruitAllowed(state: VillageState, ctx: StewardContext): boolean {
+  if (ctx.mode === 'growth') return true;
+  return villageOrchards(state).length === 0 && villageRoadApples(state).length === 0;
+}
+
 /** Krok 8 – sad: ovoce ve stravě pod plnou potřebou → čtverec sadu v okně výsadby. */
 export function orchardStep(state: VillageState, ctx: StewardContext): void {
   if (!monthInWindow(ORCHARD_PLANTING_WINDOWS, ctx.date.month)) return;
+  if (!fruitAllowed(state, ctx)) return;
   if (state.constructions.some((c) => c.kind === 'orchard' || c.kind === 'road-apples')) return;
   if (fruitShortfallKg(state, ctx) <= 0) return;
-  if (!fits(state, BUILD_COSTS.orchard.laborManDays * cellHa(ctx.landscape))) return;
+  if (!fits(state, ctx, 'orchard', BUILD_COSTS.orchard.laborManDays * cellHa(ctx.landscape)))
+    return;
   trySlots(state, ctx, 'orchard', (tile): BuildIntent => ({
     kind: 'orchard',
     cells: [slotIntent(ctx, tile)],
@@ -272,6 +338,7 @@ function roadByFields(state: VillageState, ctx: StewardContext, road: Road): boo
 /** Jabloně podél pevné cesty kolem polí, když ovoce pořád chybí a sad nevznikl (okno výsadby). */
 export function roadApplesStep(state: VillageState, ctx: StewardContext): void {
   if (!monthInWindow(ORCHARD_PLANTING_WINDOWS, ctx.date.month)) return;
+  if (!fruitAllowed(state, ctx)) return;
   if (state.constructions.some((c) => c.kind === 'orchard' || c.kind === 'road-apples')) return;
   if (fruitShortfallKg(state, ctx) <= 0) return;
   const roads = (state.roads?.roads ?? []).filter(
@@ -286,7 +353,7 @@ export function roadApplesStep(state: VillageState, ctx: StewardContext): void {
       skip(state, ctx, 'road-apples', road.id);
       continue;
     }
-    if (!fits(state, option.laborManDays)) return;
+    if (!fits(state, ctx, 'roadApples', option.laborManDays)) return;
     if (startStewardBuild(state, ctx, { kind: 'road-apples', roadId: road.id }).ok) return;
     skip(state, ctx, 'road-apples', road.id);
   }
@@ -306,7 +373,7 @@ export function sacredStep(state: VillageState, ctx: StewardContext): void {
   const idols = (state.sacredBuildings ?? []).filter((b) => b.kind === 'idol').length;
   const kind =
     idols < SACRED_BUILDINGS.idol.counted ? 'idol' : hasShrine(state) ? null : ('shrine' as const);
-  if (!kind || !fits(state, SACRED_BUILDINGS[kind].laborManDays)) return;
+  if (!kind || !fits(state, ctx, 'sacred', SACRED_BUILDINGS[kind].laborManDays)) return;
   const centre = planCentre(state);
   if (!centre) return;
   const { landscape } = ctx;
@@ -363,11 +430,11 @@ function trafficOf(road: Road): number {
 }
 
 /**
- * Krok 10 – cesty, jen v Růstu a mimo setí a žně: (a) vylepšení vyšlapané cesty, když úspora
- * chůze (provoz × délka × rozdíl rychlostí vyšlapané a upravené cesty) za
- * `STEWARD.roadPaybackYears` převýší cenu; (b) vozová cesta po upravené cestě s provozem aspoň
- * `STEWARD.wagonTrips` a vozem ve vsi; (c) jedna zemská stezka k nejbližšímu kraji mapy od
- * `STEWARD.trailPeople` lidí.
+ * Krok 10 – cesty, v Růstu (v Obnově s nižší předností) a mimo setí a žně: (a) vylepšení
+ * vyšlapané cesty, když úspora chůze (provoz × délka × rozdíl rychlostí vyšlapané a upravené
+ * cesty) za `STEWARD.roadPaybackYears` převýší cenu; (b) vozová cesta po upravené cestě s provozem
+ * aspoň `STEWARD.wagonTrips` a vozem ve vsi; (c) jedna zemská stezka k nejbližšímu kraji mapy od
+ * `STEWARD.trailPeople` lidí. Vždy jen s celou cenou (práce úseků) v rozpočtu práce.
  */
 export function roadStep(state: VillageState, ctx: StewardContext): void {
   if (!inStewardWindows(ctx.date, STEWARD.roadWindows)) return;
@@ -390,7 +457,7 @@ function upgradeRoad(state: VillageState, ctx: StewardContext, roads: readonly R
     .filter((c) => c.saved > c.cost)
     .sort((a, b) => b.saved - b.cost - (a.saved - a.cost) || a.road.id - b.road.id);
   for (const c of cands.slice(0, 2)) {
-    if (!fits(state, c.cost)) return false;
+    if (!fits(state, ctx, 'road', c.cost)) return false;
     const built = startStewardBuild(state, ctx, {
       kind: 'road-upgrade',
       roadId: c.road.id,
@@ -404,7 +471,6 @@ function upgradeRoad(state: VillageState, ctx: StewardContext, roads: readonly R
 
 function wagonRoad(state: VillageState, ctx: StewardContext, roads: readonly Road[]): boolean {
   if (villageCarts(state).length === 0) return false;
-  if (laborBudget(state).left <= 0) return false;
   const cands = roads
     .filter(
       (r) =>
@@ -415,7 +481,14 @@ function wagonRoad(state: VillageState, ctx: StewardContext, roads: readonly Roa
     .sort((a, b) => trafficOf(b) - trafficOf(a) || a.id - b.id);
   const road = cands[0];
   if (!road) return false;
-  if (startStewardBuild(state, ctx, { kind: 'wagon-road', roadId: road.id }).ok) return true;
+  // cena předem – celá práce úseků v rozpočtu (rozestavěná cesta by brala práci polím)
+  const plan = planWagonRoad(
+    wagonPlanInputOf(state, ctx.day, road.id, ctx.landscape, ctx.obstacles),
+  );
+  if (plan.ok && !fits(state, ctx, 'road', plan.laborManDays)) return false;
+  if (plan.ok && startStewardBuild(state, ctx, { kind: 'wagon-road', roadId: road.id }).ok) {
+    return true;
+  }
   skip(state, ctx, 'wagon-road', road.id);
   return false;
 }
@@ -424,7 +497,7 @@ function trailStep(state: VillageState, ctx: StewardContext): void {
   if (state.people.length < STEWARD.trailPeople) return;
   if (villageTrails(state).length > 0) return;
   const centre = planCentre(state);
-  if (!centre || laborBudget(state).left <= 0) return;
+  if (!centre) return;
   const half = (ctx.landscape.size * ctx.landscape.cellSizeM) / 2;
   const edge = [
     { x: 1, z: 0, d: half - centre.x },
@@ -441,7 +514,10 @@ function trailStep(state: VillageState, ctx: StewardContext): void {
   for (const { direction, i } of ranked) {
     if (skipped(state, ctx, 'trail', i)) continue;
     if (tries++ >= 3) return;
-    if (startStewardBuild(state, ctx, { kind: 'trail', direction }).ok) return;
+    const plan = planTrail(state, direction, ctx.day, ctx.landscape, ctx.obstacles);
+    // cena předem – práce stezky v rozpočtu; nevejde se – zkusí se příští den správce
+    if (plan.ok && !fits(state, ctx, 'road', plan.laborManDays)) return;
+    if (plan.ok && startStewardBuild(state, ctx, { kind: 'trail', direction }).ok) return;
     skip(state, ctx, 'trail', i);
   }
 }

@@ -142,17 +142,24 @@ a překážek a dřevo. Staví napřed to, co má nejvyšší hodnotu na cenu, a
 | Provoz na cestách            | vyšlapanost a provoz (`PathNetwork.visits`, `roads`)                       | vylepšení cest                |
 
 - **Režim správce** (návrh Clauda, prahy v `STEWARD`):
-  - **Nouze** – ves hladoví (`starvationDays > 0`) nebo by zásoby k příští sklizni nedaly ani
-    polovinu pojistky, ani kdyby ves snědla osivo, které na setí čeká – hrozí hlad nebo prázdné
-    setí: správce nezačne nic kromě polí (v rozpočtu práce – ten bere jen volnou práci, polím
+  - **Nouze** – hlad roste (`starvationDays` vyšší než v minulý den správce), nebo ves
+    nehladoví, ale zásoby k příští sklizni by nedaly ani polovinu pojistky, ani kdyby ves snědla
+    osivo, které na setí čeká – hrozí hlad nebo prázdné setí. Ves, která hladoví, ale hlad neroste
+    (ustálený na stropu hájení, klesá), je v Obnově – v pasti osiva by trvalá Nouze stavby stravy
+    mimo pole zastavila na roky a čekáním se nic nespraví (oprava 31. 10. 2026: seed krajiny 1 –
+    hlad na stropu 19 dní osm let, správce osm let nic nestavěl). Správce v Nouzi nezačne nic kromě
+    polí (v rozpočtu práce – ten bere jen volnou práci, polím
     v oběhu ji nevezme) a obydlí pro čekající rodinu (přeplnění zabíjí taky); nové stavby by braly
     práci dílům nad potřebu (Martin 25. 10. 2026:
     „ve chvíli, kdy stavba přijde, prostě vesnice o část úrody přijde“).
   - **Obnova** – pojistka pod plnou (osivo stranou) – i mladá ves, které zásoby do žní vystačí,
     ale pojistku ještě nemá (oprava 30. 10. 2026: s osivem ve zásobách byla nová ves v Nouzi
-    skoro pořád, i když nehladověla): pole, obydlí, hřbitov, humno; nic, co ubere práci polím na
-    dlouho (dílny, ohrady koní, cesty, posvátná místa).
-  - **Růst** – pojistka plná: vše podle hodnoty na cenu.
+    skoro pořád, i když nehladověla): pole, obydlí, hřbitov, humno, ohrady, posvátná místa; kroky
+    Růstu (koně, cesty, první sad nebo jabloně u cest) s nižší předností – jen dokud po nich zbude
+    polovina rozpočtu práce polím a obydlím; dílny ne.
+  - **Růst** – pojistka plná: vše podle hodnoty na cenu. Ve zdravé vsi, která seje jen tolik, kolik
+    sní, nastává plná pojistka hlavně v srpnu (zásoby po žních proti krátkému zbytku roku – měření 31. 10. 2026, seed krajiny 2: Růst 18 % dní správce, skoro celý v srpnu), tedy mimo okna
+    výsadby i cest; proto kroky Růstu smějí i v Obnově.
 - **Rozpočet práce:** zbývající práce rozestavěných staveb správce ≤ průměrná volná práce
   posledních 30 dní × `STEWARD.laborHorizonDays` (≈ 120 dní). Rozestavěné stavby se o práci dělí
   rovným dílem – víc naráz by všechny jen zpomalilo. Stavby hráče do rozpočtu počítá taky (bere jim
@@ -172,8 +179,9 @@ svého druhu (pole a čtverce po blocích) a všechny čerpají ze stejného roz
 
 1. **Jména synů** – syn vojvody bez jména (viz Jména synů). Každý den správce.
 2. **Odchod syna** – lidí víc, než pole uživí podle dnešní půdy × `STEWARD.crowdedShare` (≈ 1,05),
-   **plán nemá kam pole rozšířit** (viz Kdy není kam níž) a je syn, který smí vést. Jen **31. 8.**
-   – po žních, před plánem osevu 1. 9., takže mateřská ves plánuje osev už pro menší počet lidí.
+   **plán nemá kam pole rozšířit** (viz Kdy není kam níž) a je syn, který smí vést; nebo ves
+   v pasti osiva hladoví (viz Odchod syna – upřesnění, Past osiva). Jen **31. 8.** – po žních,
+   před plánem osevu 1. 9., takže mateřská ves plánuje osev už pro menší počet lidí.
 3. **Pole** – pole v oběhu pod cílem polí; další blok čtverců z plánu. Louka a křoviny 1. 9. až 28. 2. a 15. 6. až 31. 7. (mimo setí a žně – práce je volná), les 1. 10. až 31. 1.
 4. **Obydlí nebo dílna** – `waitingHouseholds > 0`: jedna stavba na čekající rodinu; dílna místo
    obydlí, když má vyšší hodnotu (níž). Celý rok.
@@ -183,15 +191,17 @@ svého druhu (pole a čtverce po blocích) a všechny čerpají ze stejného roz
    `STEWARD.paybackYears` (≈ 3 roky); druhé humno pro vzdálená hospodářství. Do 31. 7. (před
    žněmi).
 7. **Ohrady** – spřežení, když orba ušetří víc jarní práce, než stojí ohrada, seno a výcvik
-   (oxen.md); ovce, kozy, prasata a skot podle stravy a stád (diet.md – maso, sýr); koně až
-   v režimu Růst a s vojvodovou rodinou, která cvičí (horses.md). Mimo žně.
+   (oxen.md); ovce, kozy, prasata a skot podle stravy a stád (diet.md – maso, sýr); koně
+   s vojvodovou rodinou, která cvičí (horses.md; krok Růstu – v Obnově s nižší předností). Mimo
+   žně.
 8. **Sad, jabloně u cest** – ovoce ve stravě pod plnou potřebou; jabloně podél pevné cesty, která
    vede kolem polí (zeleň chrání díly – disasters.md, Ochrana dílu). V oknech výsadby (orchard.md).
 9. **Posvátná místa** – štěstí pod `STEWARD.happinessFloor` a duby k mání; napřed modla, svatyně
    jedna (happiness.md). Mimo žně.
 10. **Cesty** – vylepšení pevné cesty, když ušetřená chůze × provoz převáží cenu; vozová cesta,
     když ves má vůz a hlavní tahy dřeva, sena a snopů; zemská stezka jedna, k nejbližšímu kraji
-    mapy, od `STEWARD.trailPeople` lidí v režimu Růst. Mimo setí a žně.
+    mapy, od `STEWARD.trailPeople` lidí (krok Růstu – v Obnově s nižší předností). Mimo setí
+    a žně.
 
 - **Obydlí – typ:** polozemnice (kapacita 8, menší dětská úmrtnost ×0,8, 220 člověkodní), když
   rozpočet práce unese její cenu do zimy; jinak zemnice (60 člověkodní) – rodina nečeká na dům
@@ -219,9 +229,11 @@ Kroky 3 a 4 (`domain/village/steward.ts` – `stewardDay`):
   pak obydlí nebo dílna. Stavby jdou přes `applyBuildIntent` na vsi dopočítané do dne správce
   (uprostřed dopočtu drží ves `lastDay` začátku dopočtu – cena předem by jinak závisela na
   kouscích dopočtu).
-- **Režim:** Růst s plnou pojistkou (`bufferFill`, osivo stranou); Nouze = `starvationDays > 0`
-  nebo pojistka pod `emergencyFill` (0,5), i když se osivo, které na setí čeká, počítá jako jídlo
-  (`fieldSowingTargets(…, reserveSeed = false)`); jinak Obnova.
+- **Režim:** Nouze = hlad roste (`starvationDays` nad `steward.lastHunger` – hladem v minulý den
+  správce); Růst s plnou pojistkou (`bufferFill`, osivo stranou); hladovějící ves, které hlad
+  neroste, Obnova; jinak Nouze, když je pojistka pod `emergencyFill` (0,5), i když se osivo, které
+  na setí čeká, počítá jako jídlo (`fieldSowingTargets(…, reserveSeed = false)`), jinak Obnova.
+  `lastHunger` se zapíše každý den správce – režim nezávisí na kouscích dopočtu.
 - **Rozpočet práce:** průměr volné práce posledních 30 dní × `laborHorizonDays` (120) minus
   zbývající práce všech rozestavěných staveb (hráčových, vesničanů i správcových). Nová ves bez
   historie volné práce má rozpočet 0 – první pole až s prvním dnem historie (příští den správce);
@@ -272,25 +284,39 @@ místa jako u hráče). Sloty hřbitova, humna, sadu a ohrad jsou z plánu sídl
 plán ověřil: střed políčka, jeden čtverec bez mřížky.
 
 - **Režimy:** Nouze – jen první hřbitov (10 člověkodní); Obnova – hřbitov, humno, ohrady
-  (maso a mléko jsou strava mimo pole), posvátná místa; Růst – i koně, sad, jabloně u cest, cesty.
+  (maso a mléko jsou strava mimo pole), posvátná místa a s nižší předností i koně, cesty a první
+  sad nebo jabloně u cest; Růst – vše. Nižší přednost (`stepModes` – podíl rozpočtu 0,5): krok Růstu v Obnově
+  začne, jen když po něm zbude polovina celého rozpočtu práce (volná práce × `laborHorizonDays`)
+  polím a obydlím (oprava 31. 10. 2026 – Růst a okna roku se míjely: sad, jabloně, cesty a koně se
+  ve zdravé vsi za 25 let skoro nespustily).
 - **Hřbitov:** hned po první zemnici; dál rozšíření o čtverec, když volná místa (i rozestavěných
-  čtverců) nestačí na `graveYears` (5) × očekávané úmrtí za rok (z úmrtností skupin).
+  čtverců) nestačí na `graveYears` (5) × očekávané úmrtí za rok (z úmrtností skupin). Rozšíření
+  jen slotem, který sousedí stranou se čtvercem hřbitova v mřížce krajiny – jinak by vznikl druhý
+  hřbitov; bez takového slotu (i u natočeného hřbitova hráče) správce čeká na přepočet plánu.
 - **Humno:** ves bez humna mlátí nouzově; vyplatí se, když roční ztráta (práce výmlatu ×
   `THRESHING.emergencyWork` + polní práce osevu × `emergencyLoss`) za `paybackYears` (3) převýší
   jeho práci; další, když výmlat nestíhá (`floorShort`). Do 31. 7.
 - **Ohrady:** druh stáda s plným stádem (≥ 2 kusy a ≥ místa) a ohradami pod
   `penPlacesPerPerson` × lidé; spřežení, když ves má ohradu skotu a `OXEN.minCows` krávy a orba
   (kopání motykou − orba rádlem na osetý hektar) za `paybackYears` přebije seno volů a ohradu;
-  koně jen v Růstu, když vojvodova rodina cvičí. Mimo žně (1. 7. – 31. 8.).
+  koně, když vojvodova rodina cvičí (krok Růstu). Mimo žně (1. 7. – 31. 8.). Plán ověřuje sloty
+  ohrad pro skot; před stavbou se slot ověří pro stavěný druh (napojení na ohradu téhož druhu,
+  cena koní) – slot, který se mu nehodí, zůstane v plánu pro jiný druh.
 - **Sad a jabloně u cest:** potřeba jablek = plná potřeba energie × `DIET.fruitShare` ÷
   `APPLE_FOOD_VALUE`; chybí-li ji plocha sadů a jabloní (plná úroda), napřed čtverec sadu, pak
-  jabloně podél pevné cesty do `roadFieldM` (40 m) od dílu pole. Jen v oknech výsadby.
+  jabloně podél pevné cesty do `roadFieldM` (40 m) od dílu pole. Jen v oknech výsadby. V Obnově
+  jen první zdroj ovoce (ves bez sadu i jabloní), další čtverce až v Růstu – s pěti sady z Obnovy
+  v letech 3–5 hladověla zdravá ves na seedu krajiny 2 v letech 14–18 (až 12 dní), s jedním ne
+  (měření 31. 10. 2026).
 - **Posvátná místa:** štěstí pod `happinessFloor` (60) – modla (nejvýš dvě), pak svatyně; místo
   nejbližší středu vsi do `sacredSearchTiles`, které projde kontrolou umístění. Mimo žně.
-- **Cesty (Růst, mimo setí a žně):** vylepšení vyšlapané cesty, když úspora chůze (provoz ×
-  délka × rozdíl `ROAD_WALK.speed`) za `roadPaybackYears` (5) převýší cenu; vozová cesta po
-  upravené cestě s provozem ≥ `wagonTrips` a vozem ve vsi; zemská stezka jedna, k nejbližšímu
-  kraji, od `trailPeople` (30) lidí. Co nešlo (blokovaná cesta, směr), správce zkusí znovu za
+- **Cesty (krok Růstu, mimo setí a žně):** vylepšení vyšlapané cesty, když úspora chůze (provoz
+  × délka × rozdíl `ROAD_WALK.speed`) za `roadPaybackYears` (10) převýší cenu – 100 m za 15
+  člověkodní se při 10 pochůzkách denně vrátí za ≈ 9,4 roku (oprava 31. 10. 2026: s 5 lety se
+  vyplatilo až od ≈ 19 pochůzek denně a správce cesty nestavěl; hra trvá 1000 let, herní rok je
+  ≈ 8,8 h); vozová cesta po upravené cestě s provozem ≥ `wagonTrips` a vozem ve vsi; zemská stezka
+  jedna, k nejbližšímu kraji, od `trailPeople` (30) lidí. Vozová cesta i stezka jen s celou cenou
+  (práce všech úseků) v rozpočtu práce, jako ostatní stavby. Co nešlo (blokovaná cesta, směr), správce zkusí znovu za
   `retryDays` (120) dní (`steward.skips`).
 
 ## Rozmístění – „absolutní skiller“ (návrh Clauda)
@@ -468,8 +494,9 @@ stavby), nejvýš jedno pole na den správce.
   rodu ve vsi; lord.md – Generovaná jména vnuků). Syn bez jména z doby před zapnutím ho dostane
   v nejbližší den správce. Jméno je trvalé (lord.md).
 - **Kdo odejde:** z `leadingSons` (smí vést – `checkSonLeader`: od 16 let, ne nástupce, se jménem,
-  rodina si nestaví dům) **nejstarší ženatý**, jinak nejstarší svobodný – ženatý založí rod
-  hned. Odchod vede `departWithSon` s dílem `sonShare` (1 ÷ dílníků, domácnosti nejblíž domu syna).
+  rodina si nestaví dům) **nejstarší ženatý**, jinak nejstarší způsobilý (i svobodný) – ženatý
+  založí rod hned. Ves bez rodu (bez vojvody – jen testy a starší kalibrace) syna nemá; ves rodu
+  ve hře má vojvodu vždy. Odchod vede `departWithSon` s dílem `sonShare` (1 ÷ dílníků, domácnosti nejblíž domu syna).
   Nejvýš jeden odchod za rok z jedné vsi; po odchodu se plán mateřské vsi přepočítá (menší ves,
   uvolněné domy).
 - **Kam – na téže mapě, nebo na nové mapě:**
@@ -500,7 +527,8 @@ stavby), nejvýš jedno pole na den správce.
   aspoň `departureHungerDays` (8 dní – nad hladem prvních let nové vsi ≤ 4,5, pod hladem pasti
   11–19 z kouřového testu kroku polí), pošle syna i bez přelidnění podle polí a i s místem na pole
   (další pole by zůstala neosetá – pomůže jen méně lidí). Přelidněná ves s místem napřed zakládá
-  pole, i když hladoví. Kronika `seed-short` se nepoužívá – zkracuje se na konci dopočtu, takže by
+  pole, i když hladoví – ale jen rok: hladověla-li aspoň `departureHungerDays` už do minulého 31. 8. (`steward.lastYearHunger`), pole navíc nepomohla a syn odejde i s místem na pole (oprava 31. 10. 2026: ves rodu na seedu krajiny 2 hladověla na stropu 8 let se synem, který smí vést,
+  a nikdo neodešel). Kronika `seed-short` se nepoužívá – zkracuje se na konci dopočtu, takže by
   výsledek závisel na kouscích.
 - **Tady:** kandidáti na každém `hereStrideTiles` (4.) políčku ≥ 300 m od staveb všech vsí mapy
   (vlastní a ze snímku sousedů), seřazení podle hodnoty domu; ověří se nejvýš `hereTries` (12)
@@ -590,30 +618,31 @@ stavby), nejvýš jedno pole na den správce.
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                                  | Kdo                                    |
-| ----------------------------------------------------------------------------------------------------------- | -------------------------------------- |
-| Zbytek vsi spravuje NPC; hráč může svou ves svěřit správci a vždy smí v každé vsi rodu stavět               | Martin (zadání issue #9, 24. 10. 2026) |
-| Přepínač Správce u každé vsi; ves syna zapnutý, první ves vypnutý; hráč přepíná kdykoli a staví i sám       | Martin (30. 10. 2026)                  |
-| Rozsah první verze: obydlí, pole, ohrady, hřbitov, sad, humno, dílny, cesty, odchod syna, jména synů        | Martin (30. 10. 2026)                  |
-| Úroveň „Absolutní skiller“ – optimalizuje rozestavení, pole a vzdálenosti podle krajiny                     | Martin (30. 10. 2026)                  |
-| Cíl „Růst se zásobou“ – napřed pole a klučení, až když není kam, odchod syna                                | Martin (30. 10. 2026)                  |
-| Přestavba „Přestaví, ne hráčovo“ – jen vlastní stavby, když se to vyplatí                                   | Martin (30. 10. 2026)                  |
-| Nástupnictví náhodou až s pozvánkami, ne ve fázi 3                                                          | Martin (30. 10. 2026)                  |
-| Krok simulovaného dne `stewardDay` v pevné dny (každý 10. den, odchod 31. 8.), bez krajiny spí              | návrh Clauda                           |
-| Doménový příkaz `applyBuildIntent` – jedno pravidlo pro hráče i správce; use-casy se na něj přepojí         | návrh Clauda                           |
-| Správce nezná budoucnost (seed počasí, rozpis pohrom), jen co vidí hráč a četnosti z pravidel               | návrh Clauda                           |
-| Režimy Nouze / Obnova / Růst podle pojistky zásob; rozpočet práce ≈ 120 dní volné práce                     | návrh Clauda                           |
-| Hodnota a cena v člověkodnech za rok; cíl polí na lidi za 2 roky × 1,1                                      | návrh Clauda                           |
-| Plán sídla ze šablon (shluk, řadová ves, samoty), hospodářství dům + blok polí, rezervy, uložený ve stavu   | návrh Clauda                           |
-| Území vsi = Voroného buňka středů vsí mapy; správce plánuje jen na svém území                               | návrh Clauda                           |
-| Značka „postavil správce“ jako množina id `steward.built`; převod: bez stavu vypnutý                        | návrh Clauda                           |
-| Přestavba obydlí přestěhováním na konci životnosti; ostatní stavby nová + stará chátrá                      | návrh Clauda                           |
-| Hráč smí zrušit rozestavěnou stavbu správce → veto na 5 let                                                 | návrh Clauda                           |
-| Jména synů při narození jako u vnuků; odchod nejstaršího ženatého způsobilého syna, nejvýš jednou za rok    | návrh Clauda                           |
-| Odchod na téže mapě, když tam je místo pro 2× díl; jinak nová mapa (stezka, nejkratší cesta)                | návrh Clauda                           |
-| Odchod přes odchozí schránku `steward.departures` a use-case `settleStewardDepartures`                      | návrh Clauda                           |
-| UI: přepínač s ikonou v seznamu vsí a v panelu dvorce, ikona u staveb správce, žádné kroniky navíc ani plán | návrh Clauda                           |
-| Ověření skriptem `measure-steward.ts` – 20 krajin v 5 typech, 50 let, srovnání se skriptem, Vlkovem a mezí  | návrh Clauda                           |
+| Rozhodnutí                                                                                                     | Kdo                                    |
+| -------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| Zbytek vsi spravuje NPC; hráč může svou ves svěřit správci a vždy smí v každé vsi rodu stavět                  | Martin (zadání issue #9, 24. 10. 2026) |
+| Přepínač Správce u každé vsi; ves syna zapnutý, první ves vypnutý; hráč přepíná kdykoli a staví i sám          | Martin (30. 10. 2026)                  |
+| Rozsah první verze: obydlí, pole, ohrady, hřbitov, sad, humno, dílny, cesty, odchod syna, jména synů           | Martin (30. 10. 2026)                  |
+| Úroveň „Absolutní skiller“ – optimalizuje rozestavení, pole a vzdálenosti podle krajiny                        | Martin (30. 10. 2026)                  |
+| Cíl „Růst se zásobou“ – napřed pole a klučení, až když není kam, odchod syna                                   | Martin (30. 10. 2026)                  |
+| Přestavba „Přestaví, ne hráčovo“ – jen vlastní stavby, když se to vyplatí                                      | Martin (30. 10. 2026)                  |
+| Nástupnictví náhodou až s pozvánkami, ne ve fázi 3                                                             | Martin (30. 10. 2026)                  |
+| Krok simulovaného dne `stewardDay` v pevné dny (každý 10. den, odchod 31. 8.), bez krajiny spí                 | návrh Clauda                           |
+| Doménový příkaz `applyBuildIntent` – jedno pravidlo pro hráče i správce; use-casy se na něj přepojí            | návrh Clauda                           |
+| Správce nezná budoucnost (seed počasí, rozpis pohrom), jen co vidí hráč a četnosti z pravidel                  | návrh Clauda                           |
+| Režimy Nouze / Obnova / Růst podle pojistky zásob; rozpočet práce ≈ 120 dní volné práce                        | návrh Clauda                           |
+| Hodnota a cena v člověkodnech za rok; cíl polí na lidi za 2 roky × 1,1                                         | návrh Clauda                           |
+| Plán sídla ze šablon (shluk, řadová ves, samoty), hospodářství dům + blok polí, rezervy, uložený ve stavu      | návrh Clauda                           |
+| Území vsi = Voroného buňka středů vsí mapy; správce plánuje jen na svém území                                  | návrh Clauda                           |
+| Značka „postavil správce“ jako množina id `steward.built`; převod: bez stavu vypnutý                           | návrh Clauda                           |
+| Přestavba obydlí přestěhováním na konci životnosti; ostatní stavby nová + stará chátrá                         | návrh Clauda                           |
+| Hráč smí zrušit rozestavěnou stavbu správce → veto na 5 let                                                    | návrh Clauda                           |
+| Jména synů při narození jako u vnuků; odchod nejstaršího ženatého způsobilého syna, nejvýš jednou za rok       | návrh Clauda                           |
+| Odchod na téže mapě, když tam je místo pro 2× díl; jinak nová mapa (stezka, nejkratší cesta)                   | návrh Clauda                           |
+| Odchod přes odchozí schránku `steward.departures` a use-case `settleStewardDepartures`                         | návrh Clauda                           |
+| UI: přepínač s ikonou v seznamu vsí a v panelu dvorce, ikona u staveb správce, žádné kroniky navíc ani plán    | návrh Clauda                           |
+| Ověření skriptem `measure-steward.ts` – 20 krajin v 5 typech, 50 let, srovnání se skriptem, Vlkovem a mezí     | návrh Clauda                           |
+| Nouze jen při rostoucím hladu; kroky Růstu i v Obnově z poloviny rozpočtu (sad jen první); syn z pasti po roce | návrh Clauda (oprava 31. 10. 2026)     |
 
 ## Otevřené otázky
 

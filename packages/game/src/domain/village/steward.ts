@@ -126,6 +126,8 @@ function decideDay(
     coverage,
     mode: stewardMode(state, day, coverage),
   };
+  // hlad dne pro příští den správce (Nouze, jen když hlad roste)
+  if (state.steward) state.steward.lastHunger = state.starvationDays ?? 0;
   fieldStep(state, ctx);
   dwellingStep(state, ctx);
   extraSteps(state, ctx);
@@ -134,18 +136,23 @@ function decideDay(
 // --- signály ---------------------------------------------------------------------------
 
 /**
- * Režim správce (steward.md – Cíl, Režim správce): Růst s plnou pojistkou zásob (osivo, které na
- * setí čeká, je stranou); Nouze, když ves hladoví nebo by zásoby k příští sklizni nedaly ani
- * `STEWARD.emergencyFill` pojistky, ani kdyby ves snědla osivo – hrozí hlad nebo prázdné setí;
- * jinak Obnova. Mladá ves bez pojistky, která do žní vystačí, je v Obnově, ne v Nouzi.
+ * Režim správce (steward.md – Cíl, Režim správce): Nouze, když hlad od minulého dne správce roste
+ * (`steward.lastHunger`) – ves dnes víc hladoví, než se zotavuje; Růst s plnou pojistkou zásob
+ * (osivo, které na setí čeká, je stranou); ves, která hladoví, ale hlad neroste (ustálený na stropu
+ * hájení, klesá), je v Obnově – v pasti osiva pomůže strava mimo pole a odchod syna, ne čekání.
+ * Jinak Nouze, když by zásoby k příští sklizni nedaly ani `STEWARD.emergencyFill` pojistky, ani
+ * kdyby ves snědla osivo – hrozí hlad nebo prázdné setí; jinak Obnova. Mladá ves bez pojistky,
+ * která do žní vystačí, je v Obnově, ne v Nouzi.
  */
 export function stewardMode(
   state: VillageState,
   day: number,
   coverage: CraftCoverage,
 ): StewardMode {
-  if ((state.starvationDays ?? 0) > 0) return 'emergency';
+  const hunger = state.starvationDays ?? 0;
+  if (hunger > (state.steward?.lastHunger ?? 0)) return 'emergency';
   if (bufferFill(fieldSowingTargets(state, day, coverage)) >= 1) return 'growth';
+  if (hunger > 0) return 'recovery';
   const withSeed = bufferFill(fieldSowingTargets(state, day, coverage, false));
   return withSeed < STEWARD.emergencyFill ? 'emergency' : 'recovery';
 }
@@ -358,13 +365,16 @@ function usableSlots(plan: StewardPlan, kind: StewardSlotKind): number[] {
  * `STEWARD.slotTries` pokusů, neúspěšný slot hotového plánu se zahodí; zabrané a vetované sloty
  * se přeskočí. Když v hotovém plánu volný slot nezbude, plán se označí `exhausted` (příští den
  * správce se přepočítá). Odmítnutí, za která místo nemůže (cena předem, osadníci, dřevo), pokusy
- * ukončí. Vrací, zda stavba začala; `tried` = zda byl aspoň jeden slot k mání.
+ * ukončí. Slot, který `accepts` nevezme (hodí se jen jiné stavbě téhož slotu), se přeskočí, ale
+ * nezahodí – počítá se do pokusů. Vrací, zda stavba začala; `tried` = zda byl aspoň jeden slot
+ * k mání.
  */
 export function trySlots(
   state: VillageState,
   ctx: StewardContext,
   kind: StewardSlotKind,
   intentOf: (tile: number) => BuildIntent,
+  accepts?: (tile: number) => boolean,
 ): { started: boolean; tried: boolean } {
   const plan = state.steward?.plan;
   if (!plan) return { started: false, tried: false };
@@ -375,7 +385,11 @@ export function trySlots(
     return { started: false, tried: false };
   }
   const failed: number[] = [];
-  for (const tile of free.slice(0, STEWARD.slotTries)) {
+  let tries = 0;
+  for (const tile of free) {
+    if (tries++ >= STEWARD.slotTries) break;
+    // slot, který se hodí jinému druhu stavby téhož slotu (ohrada jiného zvířete), zůstane v plánu
+    if (accepts && !accepts(tile)) continue;
     const built = startStewardBuild(state, ctx, intentOf(tile));
     if (built.ok) {
       dropSlots(state, kind, failed);

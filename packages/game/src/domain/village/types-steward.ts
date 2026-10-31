@@ -144,4 +144,14 @@ export interface StewardState {
    * v pasti osiva (`STEWARD.departureHungerDays`). Chybí – ves od té doby nehladověla.
    */
   hungerPeak?: number;
+  /**
+   * `hungerPeak` předchozího roku odchodu (do minulého 31. 8.) – hladověla-li přelidněná ves už
+   * loni, pole navíc rok nepomohla a syn odejde i s místem na pole. Chybí – loni nehladověla.
+   */
+  lastYearHunger?: number;
+  /**
+   * Nahromaděný hlad v minulý den správce – Nouze, jen když hlad od té doby roste (steward.md –
+   * Režim správce). Chybí – 0.
+   */
+  lastHunger?: number;
 }
