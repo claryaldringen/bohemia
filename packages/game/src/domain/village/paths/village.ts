@@ -431,7 +431,7 @@ export function settleVillageWear(state: VillageState, day: number, landscape: L
  * s odstupem od plotů (`routeLine`) se v mezipaměti ověřují i jím, ne jen sadou tras.
  */
 export function fenceLayoutKey(state: VillageState): string {
-  const k = walkLayoutParts(state);
+  const k = fenceLayoutParts(state);
   return JSON.stringify([k.dwellings, k.cemeteries, k.pens]);
 }
 
@@ -449,7 +449,7 @@ export function villageBlockedAt(
   // `walkLayoutKey` a zemní práce vozových cest), ne pole, sady, les, cesty ani stáda: ty chůzi jen
   // zdraží a mění se skoro každý měsíc. Okno mřížky leží na mřížce krajiny (`pathWindowFor`), takže
   // větší okno buňky staveb neposune
-  const k = walkLayoutParts(state);
+  const k = buildingLayoutParts(state);
   const key = JSON.stringify([
     k.dwellings,
     k.sites,
@@ -711,29 +711,49 @@ interface WalkLayoutParts {
 }
 
 function walkLayoutParts(state: VillageState): WalkLayoutParts {
-  const at = (p: Position): string => `${p.x},${p.z},${p.rotation}`;
-  const dwellings = state.dwellings.map(
-    (d) =>
-      `${d.id}:${d.type}${d.workshop ? `/${d.workshop.craft}` : ''}:${at(d.position)}:${d.plot ? `${d.plot.cell.x},${d.plot.cell.y}${d.plot.yard ? `+${d.plot.yard.x},${d.plot.yard.y}` : ''}${d.plot.square ? `@${d.plot.square.x},${d.plot.square.z},${d.plot.square.rotation}` : ''}` : ''}${d.plainShape ? ':plain' : ''}`,
-  );
-  const sites = state.constructions.flatMap((c) =>
-    c.position !== null && (c.kind === 'dwelling' || c.kind === 'idol' || c.kind === 'shrine')
-      ? [
-          `${c.id}:${c.kind}${c.craft ? `/${c.craft}` : ''}:${at(c.position)}${c.plainShape ? ':plain' : ''}`,
-        ]
-      : [],
-  );
   // natočená pole, sady a les z nich nesou mřížku (fields.md – Natočené stavby) – klíč starých
-  // vsí se nemění
+  // vsí se nemění; mřížka pole se do klíče převede jednou za pole (týž text)
   const grids = fieldGrids(state);
-  const turned = (grid: SquareGrid | undefined): string => (grid ? `@${gridKey(grid)}` : '');
+  const fieldTurn = new Map<number, string>();
+  const turnOf = (fieldId: number): string => {
+    let key = fieldTurn.get(fieldId);
+    if (key === undefined) {
+      key = turned(grids.get(fieldId));
+      fieldTurn.set(fieldId, key);
+    }
+    return key;
+  };
   const parts = state.parts.map(
-    (p) => `${p.id}:${p.cell ? `${p.cell.x},${p.cell.y}${turned(grids.get(p.fieldId))}` : ''}`,
+    (p) => `${p.id}:${p.cell ? `${p.cell.x},${p.cell.y}${turnOf(p.fieldId)}` : ''}`,
   );
   // `surface` se po založení lesa nemění (povrch dílu při založení) – do klíče nepatří
   const woods = villageWoods(state).map((w) => `${w.cell.x},${w.cell.y}${turned(w.grid)}`);
   const orchards = villageOrchards(state).map(
     (o) => `${o.id}${turned(o.grid)}:${o.squares.map((s) => `${s.cell.x},${s.cell.y}`).join(';')}`,
+  );
+  const roads = state.roads?.roads ?? [];
+  return {
+    ...buildingLayoutParts(state),
+    parts,
+    orchards,
+    roads: roads.length > 0 ? roadsKey(roads) : null,
+    woods,
+  };
+}
+
+/** Mřížka natočené stavby v klíči (bez mřížky prázdný text). */
+function turned(grid: SquareGrid | undefined): string {
+  return grid ? `@${gridKey(grid)}` : '';
+}
+
+/** Části klíče s ploty – obydlí s pozemky, hřbitovy, ohrady (`fenceLayoutKey`). */
+function fenceLayoutParts(
+  state: VillageState,
+): Pick<WalkLayoutParts, 'dwellings' | 'cemeteries' | 'pens'> {
+  const at = (p: Position): string => `${p.x},${p.z},${p.rotation}`;
+  const dwellings = state.dwellings.map(
+    (d) =>
+      `${d.id}:${d.type}${d.workshop ? `/${d.workshop.craft}` : ''}:${at(d.position)}:${d.plot ? `${d.plot.cell.x},${d.plot.cell.y}${d.plot.yard ? `+${d.plot.yard.x},${d.plot.yard.y}` : ''}${d.plot.square ? `@${d.plot.square.x},${d.plot.square.z},${d.plot.square.rotation}` : ''}` : ''}${d.plainShape ? ':plain' : ''}`,
   );
   // zakládaný hřbitov a rozšíření ve stavbě – branka se počítá z hotových čtverců (paths.md –
   // Vchody); u hotového hřbitova klíč beze změny
@@ -741,18 +761,35 @@ function walkLayoutParts(state: VillageState): WalkLayoutParts {
     (c) =>
       `${c.id}${turned(c.grid)}:${c.squares.map((s) => `${s.cell.x},${s.cell.y}${s.constructionId === undefined ? '' : 'p'}`).join(';')}${c.builtDay === null ? ':-' : ''}`,
   );
-  const sacred = [
-    (state.sacredOaks ?? []).map((o) => o.id).join(','),
-    (state.groves ?? []).map((g) => g.id).join(','),
-    (state.sacredBuildings ?? []).map((b) => b.id).join(','),
-  ].join('|');
-  const roads = state.roads?.roads ?? [];
   const pens = villagePens(state).map(
     (p) =>
       `${p.id}:${penCells(p)
         .map((c) => `${c.x},${c.y}`)
         .join(';')}${turned(p.grid)}:${p.builtDay === null ? 0 : 1}`,
   );
+  return { dwellings, cemeteries, pens };
+}
+
+/**
+ * Části klíče se stavbami a ploty – bez polí, sadů, lesa a cest (neprůchodná plocha vsi –
+ * `villageBlockedAt`).
+ */
+function buildingLayoutParts(
+  state: VillageState,
+): Omit<WalkLayoutParts, 'parts' | 'orchards' | 'roads' | 'woods'> {
+  const at = (p: Position): string => `${p.x},${p.z},${p.rotation}`;
+  const sites = state.constructions.flatMap((c) =>
+    c.position !== null && (c.kind === 'dwelling' || c.kind === 'idol' || c.kind === 'shrine')
+      ? [
+          `${c.id}:${c.kind}${c.craft ? `/${c.craft}` : ''}:${at(c.position)}${c.plainShape ? ':plain' : ''}`,
+        ]
+      : [],
+  );
+  const sacred = [
+    (state.sacredOaks ?? []).map((o) => o.id).join(','),
+    (state.groves ?? []).map((g) => g.id).join(','),
+    (state.sacredBuildings ?? []).map((b) => b.id).join(','),
+  ].join('|');
   const kilns = villageKilnPoints(state);
   const floors = (state.threshingFloors ?? []).map((f) => ({
     id: f.id,
@@ -760,15 +797,9 @@ function walkLayoutParts(state: VillageState): WalkLayoutParts {
     built: f.builtDay !== null,
   }));
   return {
-    dwellings,
+    ...fenceLayoutParts(state),
     sites,
-    parts,
-    orchards,
-    cemeteries,
     sacred,
-    roads: roads.length > 0 ? roadsKey(roads) : null,
-    pens,
-    woods,
     kilns: kilns.length > 0 ? kilnsKey(kilns) : null,
     floors: floors.length > 0 ? threshingFloorsKey(floors) : null,
   };
@@ -837,7 +868,6 @@ export function walkDistancesTo(
     (walk) => Math.floor(walk * WALK_ROUNDING) / WALK_ROUNDING,
   );
 }
-
 /**
  * Verze tras a měření chůze v otisku – po změně toho, jak se trasy hledají (stálé trasy a práce
  * dne nad nimi – paths.md, Stálé trasy), po přidání nové vzdálenosti (voda – `waterWalkM`) nebo
