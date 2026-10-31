@@ -908,9 +908,17 @@ function reweighedList(
   list: StoredRoute[],
 ): StoredRoute[] {
   const village = pathVillageOf(state, day, landscape);
-  const input = villageNetworkInput(state, day, landscape, obstacles, village, null);
+  // mřížka (jen průchodnost – brány a cíle) z dřívějšího převážení téže mapy tras – buňky se
+  // znovu nestaví (paths.md – Stálé trasy, pravidlo 5: převážení po trasách)
+  const key = `${state.walkLayoutKey}`;
+  const known = WEIGHT_GRIDS.get(landscape);
+  const cached = known && known.key === key && known.obstacles === obstacles ? known : null;
+  const input = cached
+    ? { village, terrain: cached.terrain }
+    : villageNetworkInput(state, day, landscape, obstacles, village, null);
   if (!input) return list;
-  const weights = stableRouteWeights(input);
+  const { weights, grid } = stableRouteWeights(input, cached?.grid ?? null);
+  if (!cached) WEIGHT_GRIDS.set(landscape, { key, obstacles, terrain: input.terrain, grid });
   let changed = false;
   const next = list.map((route) => {
     const w = weights.get(`${route.from}>${route.to}`);
@@ -925,6 +933,21 @@ function reweighedList(
   });
   return changed ? next : list;
 }
+
+/**
+ * Mřížka posledního převážení pro krajinu (jedna ves na krajinu – jako `lastBlocked`): otisk mapy
+ * tras (`walkLayoutKey` – i s verzí tras), vrstva překážek, terén okna a mřížka. Jen zrychlení –
+ * průchodnost je funkce mapy tras, takže převážení dá s ní i bez ní totéž.
+ */
+const WEIGHT_GRIDS = new WeakMap<
+  Landscape,
+  {
+    key: string;
+    obstacles: ObstacleLayer | null;
+    terrain: PathNetworkInput['terrain'];
+    grid: ReturnType<typeof stableRouteWeights>['grid'];
+  }
+>();
 
 /**
  * Vzdálenosti chůze po pěšinách a pevných cestách (mutuje stav – paths.md, roads.md – Rychlejší

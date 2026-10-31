@@ -882,7 +882,12 @@ Návrh `docs/design/paths.md` – Stálé trasy (25. 10. 2026), Úloha A1.
   - 1. dne v měsíci beze změny otisku: `reweighRoutes` převáží stálé trasy (`stableRouteWeights` –
        skupiny bez hledání, váha domácnosti × `StoredRoute.scale` u dřeva; trasa bez skupiny 0
        cest). Opakované volání týž den (oprava a přestavba cest) převážení nepočítá znovu
-       (`WEIGHED`, jen zrychlení).
+       (`WEIGHED`, jen zrychlení). **Po trasách, ne po buňkách** (31. 10. 2026): váhy berou
+       z mřížky jen průchodnost (brány domácností, buňky cílů), která se mění jen s mapou tras –
+       `reweighedList` drží mřížku a terén okna posledního převážení po krajinách (`WEIGHT_GRIDS`,
+       otisk `walkLayoutKey` + vrstva překážek) a `stableRouteWeights(input, grid)` ji jen
+       použije; vyšlapanost po buňkách sčítá dál až `settleVillageWear` (`trafficField`). Výsledek
+       bit po bitu stejný (Vlkov 100 dní týž otisk; test „mřížka z dřívějšího dne“).
   - Váhy: pole má stálou část `BASE_TRIPS.field` bez ohledu na stadia (dřívější `fallow` a poloviční
     stáří zakládaného pole zmizely). Práci dne k cílům se stálou částí nese stálá trasa: do
     vyšlapanosti `wear.labor`, do stavu cest `trafficOnRoads(…, labor)` (`laborTripsPerDay` –

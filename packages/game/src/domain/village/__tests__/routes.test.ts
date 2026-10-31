@@ -407,6 +407,23 @@ describe('trasy jen při změně mapy (paths.md – Stálé trasy, pravidlo 5)',
     expect(stable.map((r) => r.trips)).not.toEqual(routes.list.map((r) => r.trips));
   }, 30_000);
 
+  it('převážení po trasách: mřížka z dřívějšího dne téže mapy dá tytéž cesty za den jako nová', () => {
+    const s = advanceVillage(withField(), DAY + 3, null, LANDSCAPE);
+    const change = (v: VillageState): VillageState => {
+      v.people.push({ id: 77, bornDay: DAY + 3, dwellingId: 1 } as Person);
+      v.dwellings[0]!.builtDay = DAY;
+      for (const p of v.parts.filter((q) => q.cell)) p.state = 'sown';
+      return v;
+    };
+    // táž krajina – mřížka z posledního převážení (paměť), kopie krajiny – mřížka znovu
+    const warm = change(structuredClone(s));
+    const cold = change(structuredClone(s));
+    refreshWalkDistances(warm, JULY, LANDSCAPE, null);
+    refreshWalkDistances(cold, JULY, structuredClone(LANDSCAPE), null);
+    expect(warm.routes!.list).toEqual(cold.routes!.list);
+    expect(warm.routes!.list.map((r) => r.trips)).not.toEqual(s.routes!.list.map((r) => r.trips));
+  }, 30_000);
+
   // Martin 31. 10. 2026 (trasy ke kácení, na paseku a na louku jen ze stálé sítě pěšin): „ano“
   it('práce dne trasy nehledá ani 1. dne v měsíci – stálé trasy bit po bitu, nic k práci dne', () => {
     const s = advanceVillage(withField(), DAY + 3, null, LANDSCAPE);

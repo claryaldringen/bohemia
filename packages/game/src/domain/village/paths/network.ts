@@ -22,7 +22,7 @@ import {
   type NetworkRoute,
 } from './network-types';
 import { pathStrength } from './network-keys';
-import { roadCells, villageGrid } from './network-grid';
+import { roadCells, villageGrid, type Grid } from './network-grid';
 import {
   type Household,
   type TripGroup,
@@ -228,31 +228,26 @@ export function computeStableNetwork(input: PathNetworkInput): PathNetwork {
   });
 }
 
-interface Layer {
-  grid: ReturnType<typeof villageGrid>;
-  homes: Household[];
-  buildings: ReturnType<typeof villageBuildings>['dwellings'];
-}
-
-function layerOf(input: PathNetworkInput): Layer {
-  const { dwellings: buildings, all: obstaclesOnly } = villageBuildings(input.village);
-  const grid = villageGrid(input, obstaclesOnly);
-  return { grid, homes: households(input.village, grid, buildings), buildings };
-}
-
 /**
  * Váhy stálých tras pro převážení bez hledání (paths.md – Stálé trasy, pravidlo 5): cesty za den
  * a stálá část po trasách `d:<obydlí>>cíl` podle dnešních lidí, stád a stáří spojení. Pochůzka
  * s `nearCost` vrací váhu domácnosti bez podílu (podíl nese trasa – `StoredRoute.scale`).
+ *
+ * Váhy jsou po trasách – z mřížky berou jen průchodnost (brána domácnosti, buňky cíle), a ta se
+ * mění jen s mapou tras. Volající proto může dát mřížku `grid` z dřívějšího dne téže mapy (cena
+ * buněk podle stadií dílů se liší, na váhy nemá vliv); bez ní se postaví. Vrátí i použitou mřížku.
  */
 export function stableRouteWeights(
   input: PathNetworkInput,
-): Map<string, { trips: number; base: number }> {
-  const { grid, homes, buildings } = layerOf(input);
+  grid: Grid | null = null,
+): { weights: Map<string, { trips: number; base: number }>; grid: Grid } {
+  const { dwellings: buildings, all } = villageBuildings(input.village);
+  const used = grid ?? villageGrid(input, all);
+  const homes = households(input.village, used, buildings);
   const v = stableVillage(input.village);
   const groups = [
-    ...errandGroups(false, v, grid, homes),
-    ...tripGroups({ ...input, village: v }, grid, homes, buildings),
+    ...errandGroups(false, v, used, homes),
+    ...tripGroups({ ...input, village: v }, used, homes, buildings),
   ];
   const out = new Map<string, { trips: number; base: number }>();
   for (const group of groups) {
@@ -263,7 +258,7 @@ export function stableRouteWeights(
       out.set(key, { trips, base: group.baseWeights?.[k] ?? 0 });
     });
   }
-  return out;
+  return { weights: out, grid: used };
 }
 
 /** Trasa posledního kola pro `PathNetwork.routes` – odkud (obydlí domácnosti), kam a proč. */
