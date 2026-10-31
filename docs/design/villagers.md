@@ -334,7 +334,7 @@ cart-renderer.ts) – proto nešli vybrat. Podrobnosti jsou návrh Clauda – je
 
 ## Činnosti od začátku do konce (návrh Clauda; Martin 31. 10. 2026)
 
-Stav: **návrh ke schválení** – v kódu zatím nic.
+Stav: **návrh ke schválení** (odpovědi Martina 31. 10. 2026 zapracované) – v kódu zatím nic.
 
 Martin (31. 10. 2026): „Nevím jak je to teď, ale obecně by měla být vizuální stránka oddělena od
 herní mechaniky. Ve vykreslování by lidé měli dělat své činnosti od začátku do konce, bez ohledu
@@ -376,36 +376,39 @@ do hry. Mění se jen to, jak scéna z rozdělení práce dělá postavy. Podrob
   `TRAFFIC_DAY_S`) – výsledek je ale **člověk → úloha** (`PersonJob` a místo), ne seznam postav.
 - **Herec je člověk vsi napříč dny** – postava se váže na id člověka, ne na pořadí postav dne.
   Každý člověk má vlastní **rozvrh ve skutečném čase**: řadu celých činností.
+- **Činnost** (Martin 31. 10. 2026): „Činnost typicky začíná tím, že postava vyjde z domu a končí
+  tím, že postava do domu zajde (tím se zruší i případné označení, pokud se nejedná o vojvodu).
+  To je typické období činnosti a u různých činností tak může být různě dlouhé.“ Jednotka
+  přidělení je tedy **jedna činnost od vyjití z domu po návrat do domu**, po celou dobu tentýž
+  člověk; při dalším vyjití se znovu rozhodne, kdo a co (podle obsazení dne, jaké je právě
+  teď). Pevná „směna“ neexistuje.
 - **Tři druhy činností:**
-  1. **Pochůzka** – pevná délka, **vždy celá**: vyjde ze dveří → jde k cíli → u cíle pracuje →
-     vrací se s nákladem → vejde. Voda, dřevo, nosiči úrody, nosiči kováře a hrnčíře, dřevo ke
-     staveništi.
-  2. **Práce na místě** – pružná délka: řada na poli, stavba, kácení, sad, hřbitov, výmlat,
-     dílna, domácí práce u domu, nečinní, starší, pasáček, cvičiště. Začne příchodem pěšky (ode
-     dveří nebo z minulého místa) a trvá, **dokud ji obsazení dne člověku dává**; místo se posouvá
+  1. **Pochůzka** – délka ze sítě pěšin, **vždy celá**: vyjde ze dveří → jde k cíli → u cíle
+     pracuje → vrací se s nákladem → vejde. Voda, dřevo, nosiči úrody, nosiči kováře a hrnčíře,
+     dřevo ke staveništi.
+  2. **Práce na místě** – vyjde ze dveří → **dojde pěšky** (ode dveří, cesta na pole je součástí
+     práce) → pracuje → **vrátí se domů**. Délka práce je los v rozsahu druhu (`WORK_RANGE_S`,
+     návrh Clauda): řada na poli, stavba, kácení, sad, hřbitov, výmlat a dílna 3–8 minut, domácí
+     práce u domu, nečinní, starší a cvičiště 2–5 minut. Místo se v průběhu práce posouvá
      s frontou práce (čtverec hotový → další, strom padl → další) – vždy pěšky.
-  3. **Doma** – postava není vidět (zašla dovnitř).
-- **Ve frontě je jen další činnost:** přelom herního dne rozběhnutou činnost nepřeruší. Když
-  činnost skončí, člověk si vezme **další podle obsazení dne, který je právě teď** – ne podle dne,
-  kdy na ni vznikla práce. Doslovná fronta (každý den přidá svou práci) by rostla ≈ 10× rychleji,
-  než ji scéna stihne zahrát, a za skutečný den by scéna zaostávala o týdny.
-- **Práce na místě drží aspoň 2 minuty** (`MIN_BOUT_S`, ≈ 1,4 herního dne), ať se lidé při
-  kolísání práce ze dne na den nepřesouvají sem a tam. Pak skončí na nejbližším přelomu dne, kdy
-  ji obsazení člověku nedává – dojde krok v řadě a jde k další činnosti.
-- **Směna** (`SHIFT_S` 30 minut ≈ 21 herních dní): rozvrh každého člověka je rozdělený na směny
-  posunuté losem podle člověka (seed vsi a id), ať se nestřídají všichni naráz. **Na začátku
-  a konci směny je člověk doma** – poslední činností směny je cesta domů a pochůzka, která by se
-  do konce směny nevešla, nezačne (člověk zbytek dělá u domu, nebo je doma). Směna je delší než
-  nejdelší pochůzka (nosič úrody z dílu 800 m od obydlí ≈ 21 minut). Díky ní je rozvrh **čistá
-  funkce**: co člověk dělá teď, záleží jen na jeho současné směně, ne na celé historii.
+  3. **Doma** – postava není vidět (zašla dovnitř), 30–90 s (los), pak vyjde znovu. Člověk, kterého
+     obsazení dne nemá, zůstane doma.
+- **Ve frontě je jen další činnost:** přelom herního dne rozběhnutou činnost nepřeruší. Když se
+  člověk vrátí domů, další činnost se vybere **podle obsazení dne, který je právě teď** – ne
+  podle dne, kdy na ni vznikla práce. Doslovná fronta (každý den přidá svou práci) by rostla ≈ 10×
+  rychleji, než ji scéna stihne zahrát, a za skutečný den by scéna zaostávala o týdny.
+- **Délka činnosti je čistá funkce** jejího druhu, losu podle člověka a začátku (Determinismus
+  níž): pochůzka 2–14 minut (Vlkov), práce na místě ≈ 5–20 minut včetně chůze, nejdelší nosič
+  úrody z dílu 800 m od obydlí ≈ 21 minut.
 - **Úlohy u jiného objektu** – pasáček u stáda, oráč a honák u spřežení, vozka u vozu, první
-  stavitel u stavby s dnešní prací – konec směny nemají: drží je, dokud je obsazení dne dává
-  (objekt je ve scéně celý den), a teprve pak jdou domů. Stavba tak dál „neroste sama od sebe“
-  (Martin 18. 10. 2026).
-- **Příklad** (Vlkov ve žních): žena rolníka začne směnu v 10:00 a jde pro vodu (500 m). Vrátí se
-  v 10:11 – mezitím uběhlo 8 herních dní a simulace přešla ze žně na výmlat. Vezme si práci podle
-  dnešního obsazení, výmlat u vsi, a dojde k mlatu. V 10:28 odejde domů, v 10:30 vejde a s novou
-  směnou zase vyjde.
+  stavitel u stavby s dnešní prací – nemají losovanou délku práce: drží ji, dokud je obsazení
+  dne dává (objekt je ve scéně celý den), pak jdou pěšky domů. Stavba tak dál „neroste sama od
+  sebe“ (Martin 18. 10. 2026).
+- **Příklad** (Vlkov ve žních): žena rolníka v 10:00 vyjde pro vodu (500 m). Vrátí se v 10:11 –
+  mezitím uběhlo 8 herních dní a simulace přešla ze žně na výmlat – a vejde do domu (výběr
+  postavy, je-li vybraná, se zruší). V 10:12 vyjde znovu, tentokrát podle dnešního obsazení
+  jde k mlatu u vsi (150 m, 2 minuty), 5 minut pracuje a 2 minuty se vrací domů; v 10:21 je
+  doma.
 
 ### Kolik postav a jak scéna nezaostává
 
@@ -414,16 +417,16 @@ do hry. Mění se jen to, jak scéna z rozdělení práce dělá postavy. Podrob
   simulace za den udělá. Vlkov: ≈ 11 cest pro vodu za herní den, ve scéně 7 žen, které chodí jedna
   za druhou – za jednu jejich cestu simulace odbaví ≈ 90.
 - **Scéna zaostává nejvýš o jednu pochůzku** (Vlkov voda 8–10 herních dní, blízké cíle 2–5 dní);
-  práce na místě nejvýš o `MIN_BOUT_S`. Nic se nekupí – kdo dojde, vezme si, co je teď.
+  práce na místě nejvýš o délku jedné činnosti. Nic se nekupí – kdo se vrátí, vezme si, co je teď.
 - **Kdy se rozběhnutá činnost zkrátí nebo přeskočí:**
   - jiné místo práce (fronta pole se posunula, strom padl, stavba je hotová) – práce na místě
     pokračuje na novém místě, kam člověk dojde pěšky; **pěšky i dál než 90 m** (dnes se objeví),
-  - jiné roční období nebo konec práce (doseto, dožato) – práce na místě skončí na prvním přelomu
-    dne bez ní (po `MIN_BOUT_S`); pochůzka se dojde, další už se nevybere,
+  - jiné roční období nebo konec práce (doseto, dožato) – rozběhnutá činnost se dokončí
+    (i práce na místě, nejvýš pár minut), další už se nevybere,
   - vůz přiveze vodu (`cartWater`) – rozběhnutá cesta pro vodu se dojde, další ne,
   - zbořený dům cíle – člověk dojde k místu dveří a zmizí (jako dnes),
   - smrt, odchod a další události – níž.
-- **Člověk, kterého obsazení dne nemá** (proud klesl, ves se zmenšila), dokončí rozběhnutou
+- **Člověk, kterého obsazení dne při vyjití nemá** (proud klesl, ves se zmenšila), dokončí rozběhnutou
   činnost a zůstane doma. Postav je tak nejvýš o pár víc, než dává obsazení, a jen po dobu jedné
   pochůzky.
 
@@ -450,28 +453,36 @@ do hry. Mění se jen to, jak scéna z rozdělení práce dělá postavy. Podrob
 
 - **Noc** – trvá zlomek herního dne (kratší než jedna cesta k vodě) a zatím je jen
   v `/dev/landscape`; lidé dál pracují (Zjednodušení níž).
-- **Zima** – rozběhnuté pochůzky se dojdou, práce na poli skončí přelomem dne bez ní; venku je
+- **Zima** – rozběhnuté činnosti se dokončí, další se vybírají podle zimního obsazení; venku je
   pak méně lidí podle obsazení jako dnes.
 - **Přeskok času** (vývojový skok, jiné hodiny světa) rozvrhy spočítá znovu pro nový čas – tady
   je skok dovolený.
 
 ### Determinismus a načtení stránky
 
-- Rozvrh člověka je **čistá funkce** začátku směny (seed vsi, id člověka, skutečný čas), obsazení
-  dnů od začátku směny a délek činností (ze sítě pěšin – Cesty postav). Stejný okamžik = stejná
-  póza; za snímek se nic nepočítá krokově.
-- **Po načtení stránky** se každý člověk „dohraje“: spočítá se jen jeho současná směna od začátku
-  (≤ 30 minut, pár činností) a postava stojí, kde má – uprostřed cesty k vodě, v řadě na poli –
-  bez přehrávání historie (svět běžel i předtím, jako dnes u proudu).
-- **Obsazení dnů, které prohlížeč neviděl** (před načtením stránky), nahradí nejstarší známé, tedy
-  dnešní. Prohlížeč otevřený celou dobu a nově načtený se tak mohou lišit nejvýš do konce směny
-  každého člověka (≤ 30 minut), pak ukazují totéž. Úplná shoda hned po načtení by potřebovala
-  rozdělení práce posledních ≈ 21 dnů ze serveru (otázka 2).
+- Rozvrh člověka je **čistá funkce** řetězu činností: druh činnosti dá obsazení dne v okamžiku
+  vyjití, **délku dá druh a los** `hash(seed vsi, id člověka, začátek)` (pochůzka celá ze sítě
+  pěšin; práce na místě = cesta tam + práce losem v rozsahu druhu + cesta zpět; úlohy u objektu
+  jdou domů, až je obsazení dne nedává). Pauza doma je 30–90 s (los). Další vyjití = konec
+  činnosti + pauza, **začátky i konce zaokrouhlené na mřížku `GRID_S` 30 s**. Stejný okamžik =
+  stejná póza; za snímek se nic nepočítá krokově.
+- **Po načtení stránky** se řetěz každého člověka dopočítá od `t − HISTORY_S` (40 minut ≈ 28
+  herních dní, déle než nejdelší činnost) a postava stojí, kde má – uprostřed cesty k vodě,
+  v řadě na poli. Řetězy započaté v různých okamžicích **splynou**, jakmile padnou na týž bod
+  mřížky (po pár činnostech), takže po načtení vychází totéž co v prohlížeči otevřeném celou
+  dobu; test to hlídá na stovkách lidí a časů. Kdyby někde nesplynuly, liší se póza nejvýš po
+  dobu jedné činnosti, pak je shoda.
+- **Obsazení dnů, které prohlížeč neviděl** (před načtením stránky), nahradí nejstarší známé,
+  tedy dnešní (Martin 31. 10. 2026: dva prohlížeče „zatím stačí srovnat“). Úplná shoda by
+  potřebovala rozdělení práce posledních ≈ 28 dnů ze serveru – až se na jednu ves budou dívat
+  dva hráči.
 - **Co už běží, se nepřepočítá:** rozběhnutá činnost si drží trasu a časy, se kterými začala
   (i když dorazí síť pěšin nebo na trase vyroste dům); nové údaje platí od další činnosti.
-- **Los, kdo co dělá** (`DayRoster`), se mění jednou za roční období, ne každý den (otázka 3) –
-  stejná žena nosí vodu a stejní muži žnou, dokud se práce nezmění; obsazení dne se pak mění jen
-  tam, kde se změnila práce.
+- **Kdo co dělá** (`DayRoster`) se rozhoduje při každém vyjití z domu (Martin 31. 10. 2026:
+  „Činnost typicky začíná tím, že postava vyjde z domu a končí tím, že postava do domu zajde“):
+  žena, která donesla vodu, si doma odpočine a při dalším vyjití dostane úlohu podle obsazení
+  dne, jaké je právě teď. Rozdělení lidí k úlohám tak zůstává věrné obsazení dne a nemění se
+  uprostřed činnosti.
 
 ### Výběr postavy
 
@@ -480,6 +491,9 @@ do hry. Mění se jen to, jak scéna z rozdělení práce dělá postavy. Podrob
   a „nese vodu“ až ke dveřím, i když simulace mezitím přešla na výmlat; pak „doma“ a s další
   činností to, co dělá dál.
 - Panel se mění jen se změnou činnosti nebo úseku (`onPersonState` jako dnes), ne s přelomem dne.
+- **Když postava zajde do domu, výběr se zruší** (Martin 31. 10. 2026) – panel se zavře, postava
+  v domě není vidět. **Výjimka je vojvoda:** jeho výběr zůstane a panel říká „doma“, dokud
+  nevyjde.
 - Člověk bez rozvrhu (obsazení ho nemá a nic nedokončuje) je „doma“ jako dnes.
 
 ### Cesty postav
@@ -514,10 +528,10 @@ do hry. Mění se jen to, jak scéna z rozdělení práce dělá postavy. Podrob
 - Noc se dál nemodeluje (lidé pracují i potmě).
 - Karavany výprav a svoz úrody vozy jedou dál podle herního času (postup výpravy, okno dne) – na
   rozvrh se napojí jen lidé, kteří k nim jdou a od nich se vracejí.
-- Obsazení dnů před načtením stránky se odhadne dnešním (shoda do konce směny).
+- Obsazení dnů před načtením stránky se odhadne dnešním (shoda po splynutí řetězu činností).
 - Lidé, kteří se stěhují k sousedovi nebo od něj, a lidé z okolí na svatbě rozvrh nemají (nejsou
   lidé vsi) – chodí jako dnes.
-- Rozestupy v proudu dává los začátků směn (zlatý řez fází odpadne) – lidé občas jdou ve dvojici.
+- Rozestupy v proudu dává los začátků činností (zlatý řez fází odpadne) – lidé občas jdou ve dvojici.
 - Stavba, ke které první stavitel teprve jde (dokončuje pochůzku), může první den krátce růst bez
   něj – nejvýš po dobu jedné pochůzky.
 - Smrt na cestě – postava zmizí (jediná výjimka z „činnost se dokončí“). Klipy dál střihem.
@@ -528,25 +542,30 @@ do hry. Mění se jen to, jak scéna z rozdělení práce dělá postavy. Podrob
 a `lib/village-view.ts`, rozvrh je znovu nedefinuje – `PersonJob`, `LaborActivity` zůstávají):
 
 1. **Rozvrh člověka – čisté funkce** (nový `apps/web/lib/scene/villager-schedule.ts`
-   a `__tests__/villager-schedule.test.ts`, bez Babylonu): `SHIFT_S`, `MIN_BOUT_S`,
-   `shiftStart(seed, personId, t)`, typ činnosti (`errand` / `bout` / `home` – začátek, konec,
-   `PersonJob`, místo či trasa), `scheduleAt(personId, t, castOf, lengthOf)` podle pravidel výš.
-   Testy: přelom dne pochůzku nepřeruší, další činnost podle dne, kdy začne, stejný čas = stejný
-   výsledek, pochůzka, která se do směny nevejde, nezačne, úloha u objektu bez konce směny.
+   a `__tests__/villager-schedule.test.ts`, bez Babylonu): `GRID_S`, `HISTORY_S`, `WORK_RANGE_S`,
+   `nextStart(seed, personId, endT)`, typ činnosti (`errand` / `bout` / `home` – začátek, konec,
+   `PersonJob`, místo či trasa), `activityLength(kind, seed, personId, startT, lengthOf)`,
+   `scheduleAt(personId, t, castOf, lengthOf)` podle pravidel výš. Testy: přelom dne činnost
+   nepřeruší, další činnost podle dne, kdy začne, stejný čas = stejný výsledek, řetězy z různých
+   počátků (`t − HISTORY_S` a dřívější) splynou před `t` (stovky lidí a časů), úloha u objektu
+   bez losované délky.
 2. **Obsazení dne jako člověk → úloha** (`villager-plan.ts` – `planVillagersWithCrew`,
    `dayRoster`; `villager-plan-cast.ts` – `cast`, `figure`; `villager-roster.ts` – `DayRoster`):
-   navíc vrátit mapu id člověka → úloha, póza nebo trasa, místo; los jednou za roční období (sůl
-   ze seedu a čísla období místo dne). Testy ve `__tests__/villager-people.test.ts`
-   a `villager-plan.test.ts` – los stejný přes dny období, obsazení se mění jen se změnou práce.
+   navíc vrátit mapu id člověka → úloha, póza nebo trasa, místo; kdo co dělá se rozhoduje **při
+   každém vyjití z domu** (los ze seedu vsi, id člověka a začátku činnosti), ne po dnech ani
+   obdobích. Testy ve `__tests__/villager-people.test.ts` a `villager-plan.test.ts` – stejný
+   začátek = stejná úloha, rozdělení lidí odpovídá obsazení dne.
 3. **Napojení ve scéně** (`villagers.ts` – `update`, `rebuild`, `animate`, `setPaths`): obsazení
-   dnů v paměti (nejvýš 24 dnů), rozvrhy lidí místo postav dne, pevná zásoba instancí; pryč
+   dnů v paměti (nejvýš 30 dnů), rozvrhy lidí místo postav dne, pevná zásoba instancí; pryč
    `carryErrands` a `WALK_OVER_M` (`villager-errands.ts` zůstane pro cykly pochůzek); výběr
-   a `onPersonState` z rozvrhu (`lib/person-activity.ts`). e2e `apps/web/e2e/village.spec.ts` –
-   vybraná postava drží činnost přes přelom dne.
-4. **Cesta na pole jako součást práce** (podle otázky 4; `villager-plan-traffic.ts` –
+   a `onPersonState` z rozvrhu (`lib/person-activity.ts`), zrušení výběru, když vybraný zajde
+   do domu (kromě vojvody). e2e `apps/web/e2e/village.spec.ts` – vybraná postava drží činnost
+   přes přelom dne a po návratu domů výběr zmizí.
+4. **Cesta na pole a domů jako součást práce** (Martin 31. 10. 2026: „Ano“; `villager-plan-traffic.ts` –
    `trafficFigures` bez druhu „na pole a zpět“, `villager-plan-fields.ts` – `fieldRows`,
    `carriers` s příchodem ode dveří po `fieldPath`; `road-traffic.ts` –
-   `FIELD_TRIPS_PER_MAN_DAY`), texty v Provozu na cestách.
+   `FIELD_TRIPS_PER_MAN_DAY`), texty v Provozu na cestách. Vozy po svozu snopů jedou k humnu
+   (Zjednodušení a co chybí).
 5. **Události přerušují** (`funeral-plan.ts`, `wedding-plan.ts`, `villager-plan-fire.ts`,
    `caravan.ts`; `flood-water.ts` jen pro rozlitou vodu): událost přepíše rozvrh od svého začátku
    (příchod pěšky, opozdilci rovnou na místo), k požáru jen lidé ve vsi, z povodně domů. Test na
@@ -557,39 +576,38 @@ a `lib/village-view.ts`, rozvrh je znovu nedefinuje – `PersonJob`, `LaborActiv
    snímek), zápis do `docs/code/village-people.md` (Postavy – lidé ve vsi) a sem („Implementováno
    …“).
 
-| Rozhodnutí (návrh Clauda)                                     | Proč                                                       |
-| ------------------------------------------------------------- | ---------------------------------------------------------- |
-| Postava = člověk napříč dny s vlastním rozvrhem               | výběr postavy sedí s tím, co postava dělá                  |
-| Ve frontě jen další činnost, vybraná, až je na řadě           | doslovná fronta by rostla ≈ 10× rychleji, než se dá zahrát |
-| Pochůzka vždy celá, práce na místě pružná (aspoň 2 min)       | pochůzka má začátek a konec (Martin 24. 10. 2026), řada ne |
-| Směna 30 min, začátek a konec doma, posun losem podle člověka | čistá funkce bez historie, delší než nejdelší pochůzka     |
-| Stádo, spřežení, vůz a první stavitel bez konce směny         | objekt je ve scéně celý den, stavba neroste sama od sebe   |
-| Na nové místo vždy pěšky, i dál než 90 m                      | žádné skoky – dnes se vzdálenější postava objeví           |
-| Délka činnosti ze sítě pěšin, přesná trasa jen v záběru       | stejné časy všude, přesná trasa jen tam, kde je vidět      |
-| Noc a zima nepřerušují                                        | noc je zlomek herního dne, zimu ukáže obsazení dne         |
-| Smrt postavu skryje hned                                      | mrtvý nechodí ani nejde vybrat (jako dnes)                 |
-| K požáru jen lidé ve vsi                                      | vzdálení by k ohni nedošli, než dohoří                     |
+| Rozhodnutí                                                                                | Proč                                                                     |
+| ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Scéna smí zaostat o jednu pochůzku (Martin 31. 10. 2026: „Nevadí“)                        | „od začátku do konce“; kratší zpoždění by šlo jen rychlejší chůzí        |
+| Dva prohlížeče zatím jen srovnat, bez historie (Martin 31. 10. 2026)                      | úplná shoda až s více hráči na jedné vsi                                 |
+| Jednotka přidělení = činnost od vyjití z domu po návrat (Martin 31. 10. 2026)             | kdo a co se rozhoduje při každém vyjití; různě dlouhá podle činnosti     |
+| Cesta na pole a domů je součást práce (Martin 31. 10. 2026: „Ano“)                        | lidé chodí na pole (Martin 19. 10. 2026)                                 |
+| Postava = člověk napříč dny s vlastním rozvrhem (návrh Clauda)                            | výběr postavy sedí s tím, co postava dělá                                |
+| Při návratu domů se zruší výběr postavy, kromě vojvody (Martin 31. 10. 2026)              | postava v domě není vidět; vojvodu hráč sleduje                          |
+| Ve frontě jen další činnost, vybraná při vyjití (návrh Clauda)                            | doslovná fronta by rostla ≈ 10× rychleji, než se dá zahrát               |
+| Délka činnosti: pochůzka celá, práce na místě losem v rozsahu druhu (návrh Clauda)        | čistá funkce druhu a losu podle člověka a začátku; bez pevné směny       |
+| Řetěz činností se dohraje od `t − HISTORY_S` a splývá na mřížce (návrh Clauda)            | po načtení stránky stejná póza jako v otevřeném prohlížeči, bez historie |
+| Stádo, spřežení, vůz a první stavitel bez losované délky (návrh Clauda)                   | objekt je ve scéně celý den, stavba neroste sama od sebe                 |
+| Na nové místo vždy pěšky, i dál než 90 m (návrh Clauda)                                   | žádné skoky – dnes se vzdálenější postava objeví                         |
+| Délka činnosti ze sítě pěšin, přesná trasa jen v záběru (návrh Clauda)                    | stejné časy všude, přesná trasa jen tam, kde je vidět                    |
+| Noc a zima nepřerušují, smrt postavu skryje hned, k požáru jen lidé ve vsi (návrh Clauda) | zlomek herního dne; mrtvý nechodí; vzdálení by nedošli                   |
 
-**Otevřené otázky pro Martina:**
+**Otevřené otázky pro Martina** (nově z odpovědí 31. 10. 2026):
 
-1. **Smí scéna zaostat o jednu pochůzku?** Žena, která vyšla pro vodu ve žních, ji donese, i když
-   simulace mezitím (8–10 herních dní) přešla na výmlat; práce na poli se ukazuje nejvýš ≈ 2
-   minuty po svém konci. Návrh Clauda: ano – to je „od začátku do konce“; kratší zpoždění by šlo
-   jen rychlejší chůzí, a ta by nebyla skutečná.
-2. **Mají dva prohlížeče ukázat totéž hned po načtení?** Bez historie se nově načtený od
-   otevřeného liší nejvýš do konce směny (≤ 30 minut). Úplná shoda = server posílá rozdělení práce
-   posledních ≈ 21 dnů (stav vsi o pár desítek kB větší). Návrh Clauda: zatím bez historie,
-   doplnit, až se na jednu ves budou dívat dva hráči (pán a vazal).
-3. **Kdo co dělá – los jednou za roční období místo každý den?** Stejná žena nosí vodu a stejní
-   muži žnou celé období, dokud se nezmění práce. Návrh Clauda: ano – jinak by si lidé práci
-   měnili po každé činnosti.
-4. **Cesta na pole a domů jako součást práce?** Kdo pracuje na poli, jde tam ode dveří a na konci
-   směny domů; samostatný proud „na pole a zpět“ zanikne. Na vzdáleném poli je pak v řadě méně
-   lidí a víc na pěšinách (Vlkov, pole 350 m: čtvrtina až třetina polních dělníků na cestě).
-   Návrh Clauda: ano – Martin 19. 10. 2026 chtěl vidět lidi, jak chodí na pole.
+1. **Rozsahy délky práce na místě** (3–8 minut u pole, stavby, kácení, dílny a sadu; 2–5 minut
+   u domácí práce, starších a cvičiště) a pauza doma 30–90 s jsou odhad. Návrh Clauda: začít
+   těmito čísly a doladit hraním na Vlkově; Martin řekne jen, zda mají lidé spíš „pendlovat“
+   (kratší činnosti, víc chůze) nebo „dlouho dělat“ (delší práce, méně chůze).
+2. **Pasáček, oráč, honák, vozka a první stavitel** jdou domů, až jim obsazení dne úlohu
+   nedává (ne po losované délce) – dřív se u stáda nebo spřežení nikdo nestřídá. Návrh Clauda:
+   ano, objekt je ve scéně celý den; střídání by šlo přidat později.
 
 ## Zjednodušení a co chybí
 
+- **Vozy po svozu snopů mají jet k humnu** (návrh Clauda; Martin 31. 10. 2026 – patří k
+  „divadlu“): dnes jezdí jen ohrada → pole a pěší nosiči na humno chodí. Vůz po naložení snopů
+  pojede pole → humno a vrátí se, nosiči jdou s ním nebo mezi ním; počty a čas svozu dál řídí
+  simulace (`village-livestock.md` – vozy se spřežením ve scéně).
 - Noc se nemodeluje – lidé pracují pořád (herní den trvá ≈ 86 s).
 - **Žně všemi rukama** ([pole](fields.md); Martin 24. 10. 2026): výrostci od 10 let a starší dají
   ve žňový den **celkem** 0,5 člověkodne na žeň a výmlat (vázání, odnos, paběrky; starší po minimu
