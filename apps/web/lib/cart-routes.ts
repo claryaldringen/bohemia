@@ -121,9 +121,11 @@ export function cartRoutesRequest(scene: SceneVillage): CartRoutesRequest | null
     world: sent
       ? {
           pens: sent.pens,
-          village: sent.fieldsAsScene
-            ? { ...sent.village, fields: cartFieldsOf(scene) }
-            : sent.village,
+          village: {
+            ...sent.village,
+            ...(sent.fieldsAsScene ? { fields: cartFieldsOf(scene) } : {}),
+            ...(sent.earthworksAsScene ? { earthworks: cartEarthworksOf(scene) } : {}),
+          },
           changes: sent.changes === 'obstacles' ? (scene.obstacles ?? null) : sent.changes,
         }
       : null,
@@ -176,6 +178,20 @@ export function withCartRouteResult(scene: SceneVillage, result: CartRoutesResul
         }
       : {}),
   };
+}
+
+/**
+ * Valy vozových cest pro mřížku vozu ze zemních prací scény (tytéž profily a hotová délka, body
+ * se stejným pořadím klíčů) – server je posílá jen, když se odtud nedají sestavit
+ * (`CartWorld` – `earthworksAsScene`).
+ */
+export function cartEarthworksOf(
+  scene: Pick<SceneVillage, 'earthworks'>,
+): NonNullable<CartWorld['village']['earthworks']> {
+  return (scene.earthworks ?? []).map((e) => ({
+    profile: e.profile.map((p) => ({ x: p.x, y: p.y, z: p.z })),
+    reachedM: e.reachedM,
+  }));
 }
 
 /** Vlastnosti dílu pole, které čte mřížka vozu (`pathVillageOf` – čtverec, stadium, pastva). */

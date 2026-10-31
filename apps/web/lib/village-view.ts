@@ -55,7 +55,7 @@ import {
   boughtProducts,
 } from './village-view-types';
 import { SceneVillage } from './village-view-scene-types';
-import { cartFieldsOf } from './cart-routes';
+import { cartEarthworksOf, cartFieldsOf } from './cart-routes';
 import {
   CHRONICLE_LENGTH,
   chronicleText,
@@ -542,14 +542,23 @@ function sceneWithCartWorld(
   // díly polí pro vůz jsou výběrem z dílů scény – pak se neposílají (prohlížeč je sestaví)
   const fieldsAsScene =
     JSON.stringify(cartFieldsOf(scene)) === JSON.stringify(world.village.fields);
+  // valy vozových cest jsou tytéž jako zemní práce scény (bez jejich údajů pro vzhled)
+  const earthworksAsScene =
+    world.village.earthworks !== undefined &&
+    JSON.stringify(cartEarthworksOf(scene)) === JSON.stringify(world.village.earthworks);
   return {
     ...scene,
     cartWorld: {
       ...world,
-      ...(fieldsAsScene
+      ...(fieldsAsScene || earthworksAsScene
         ? {
-            village: { ...world.village, fields: [] },
-            fieldsAsScene: true as const,
+            village: {
+              ...world.village,
+              ...(fieldsAsScene ? { fields: [] } : {}),
+              ...(earthworksAsScene ? { earthworks: [] } : {}),
+            },
+            ...(fieldsAsScene ? { fieldsAsScene: true as const } : {}),
+            ...(earthworksAsScene ? { earthworksAsScene: true as const } : {}),
           }
         : {}),
       ...(same ? { changes: 'obstacles' as const } : {}),
