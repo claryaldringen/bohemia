@@ -6,7 +6,13 @@
 // nepřeruší. Čisté funkce skutečného času (s, `villagerSeconds`) bez Babylonu: stejný okamžik
 // a stejný vstup = stejná činnost, nic se nepočítá krokově za snímek. Volá se při vyjití
 // a změně obsazení, ne za snímek.
-import { createVillagerPose, type PoseFn, type VillagerPose } from './villager-motion';
+import {
+  alongRoute,
+  createVillagerPose,
+  type PoseFn,
+  type Route,
+  type VillagerPose,
+} from './villager-motion';
 import type { DraftCrew, Errand, PlannedVillager } from './villager-plan-types';
 import type { PersonJob } from './villager-roster';
 import { hash01 } from './smoke-schedule';
@@ -651,14 +657,66 @@ function walkLine(
 }
 
 /**
- * Póza činnosti `a` (pro úlohu 3 – napojení ve villagers.ts): doma skrytá u dveří; pochůzka podle
- * cyklu úlohy posunutého tak, že vyjde v `a.start` (po návratu skrytá); práce na místě a úloha
- * u objektu – rovně ode dveří k místu práce, póza úlohy dne, rovně zpět. Úloha bez pózy (oráč,
- * honák, vozka – kreslí je spřežení a vůz) je ve fázi práce skrytá.
+ * Přesná trasa chůze pro pózu (villagers.md – Cesty postav): `routeOf` hledá trasu z bodu do bodu
+ * (null – rovně), `speed` = tempo chůze rozvrhu (m/s) – postava jde po trase tak, aby dorazila
+ * v čase činnosti (tempo nohou `pace` podle poměru délky trasy a času).
  */
-export function activityPose(a: Activity, door: { x: number; z: number }): PoseFn {
+export interface PoseWalk {
+  routeOf(from: Point, to: Point): Route | null;
+  speed: number;
+}
+
+/** Tempo nohou při chůzi po trase jinak dlouhé, než počítá odhad – nejvýš tolikrát jinak. */
+const PACE_RANGE = { from: 0.6, to: 1.8 } as const;
+
+/**
+ * Úsek chůze z (ax, az) do (bx, bz) za `duration` s, podíl `f`: po trase `r` (přesná trasa
+ * v záběru), jinak rovně; tempo nohou podle délky a času (`speed`).
+ */
+function walkLeg(
+  out: VillagerPose,
+  ax: number,
+  az: number,
+  bx: number,
+  bz: number,
+  f: number,
+  r: Route | null,
+  duration: number,
+  speed: number | null,
+): VillagerPose {
+  const k = Number.isFinite(f) ? Math.min(1, Math.max(0, f)) : 1;
+  let length: number;
+  if (r && r.length > 1e-6) {
+    alongRoute(r, k * r.length, false, out);
+    out.clip = 'walk';
+    length = r.length;
+  } else {
+    walkLine(out, ax, az, bx, bz, k);
+    length = Math.hypot(bx - ax, bz - az);
+  }
+  out.pace =
+    speed === null || duration <= 1e-6
+      ? 1
+      : Math.min(PACE_RANGE.to, Math.max(PACE_RANGE.from, length / duration / speed));
+  return out;
+}
+
+/**
+ * Póza činnosti `a` (napojení ve villagers.ts): doma skrytá u dveří; pochůzka podle cyklu úlohy
+ * posunutého tak, že vyjde v `a.start` (po návratu skrytá); práce na místě a úloha u objektu – ode
+ * dveří (nebo z místa, kde člověka zastihla událost) k místu práce, póza úlohy dne, zpět. S `walk`
+ * po přesné trase (hledá se jednou za úsek, jen když se póza kreslí), jinak rovně. Úloha bez pózy
+ * (oráč, honák, vozka – kreslí je spřežení a vůz) je ve fázi práce skrytá.
+ */
+export function activityPose(a: Activity, door: Point, walk?: PoseWalk): PoseFn {
   const task = a.task;
   const probe = createVillagerPose();
+  const speed = walk?.speed ?? null;
+  // přesné trasy úseků – až při prvním kreslení úseku (undefined = ještě nehledaná)
+  let going: Route | null | undefined;
+  let coming: Route | null | undefined;
+  const routed = (cached: Route | null | undefined, from: Point, to: Point): Route | null =>
+    cached !== undefined ? cached : (walk?.routeOf(from, to) ?? null);
   return (t, herds, out) => {
     out.hidden = false;
     delete out.stage;
@@ -668,7 +726,9 @@ export function activityPose(a: Activity, door: { x: number; z: number }): PoseF
     const from = a.from ?? door;
     if (a.retreat) {
       // povodeň – z místa, kde ho zastihla, rovnou domů
-      walkLine(out, from.x, from.z, door.x, door.z, (t - a.start) / Math.max(1e-6, end - a.start));
+      coming = routed(coming, from, door);
+      const span = end - a.start;
+      walkLeg(out, from.x, from.z, door.x, door.z, (t - a.start) / span, coming, span, speed);
       out.stage = 'back';
       return out;
     }
@@ -681,18 +741,22 @@ export function activityPose(a: Activity, door: { x: number; z: number }): PoseF
       if (!task.pose) return inside(out, door);
       return task.pose(t, herds, out);
     }
-    const going = t < a.arrive;
+    const out1 = t < a.arrive;
     probe.hidden = false;
-    const at = task.pose ? task.pose(going ? a.arrive : a.leave, herds, probe) : null;
+    const at = task.pose ? task.pose(out1 ? a.arrive : a.leave, herds, probe) : null;
     // událost skončila doma (pohřeb, svatba – průvod domů) – zpět už nejde
-    if (!going && at?.hidden) return inside(out, door);
+    if (!out1 && at?.hidden) return inside(out, door);
     const x = at?.x ?? task.at?.x ?? door.x;
     const z = at?.z ?? task.at?.z ?? door.z;
-    if (going) {
-      walkLine(out, from.x, from.z, x, z, (t - a.start) / Math.max(1e-6, a.arrive - a.start));
+    if (out1) {
+      going = routed(going, from, { x, z });
+      const span = a.arrive - a.start;
+      walkLeg(out, from.x, from.z, x, z, (t - a.start) / span, going, span, speed);
       out.stage = 'out';
     } else {
-      walkLine(out, x, z, door.x, door.z, (t - a.leave) / Math.max(1e-6, end - a.leave));
+      coming = routed(coming, { x, z }, door);
+      const span = end - a.leave;
+      walkLeg(out, x, z, door.x, door.z, (t - a.leave) / span, coming, span, speed);
       out.stage = 'back';
     }
     return out;

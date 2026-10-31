@@ -230,3 +230,42 @@ describe('události přerušují (villager-schedule.ts – settle, nextActivity)
     expect(same).toBe(total);
   });
 });
+
+describe('délka ze sítě pěšin, přesná trasa jen při kreslení (úloha 6)', () => {
+  it('délka chůze z odhadu sítě; trasa se hledá až pro kreslenou pózu a dorazí v čase', () => {
+    const work = reapTask({ x: 60, z: 80 });
+    const tt = timetable([]);
+    // odhad sítě: 1,5× rovně (objížďka)
+    tt.setEstimate((a, b) => 1.5 * Math.hypot(b.x - a.x, b.z - a.z));
+    let calls = 0;
+    // přesná trasa do L: nejdřív po x, pak po z
+    tt.setRouter((_id, from, to) => {
+      calls++;
+      return route([
+        [from.x, from.z],
+        [to.x, from.z],
+        [to.x, to.z],
+      ]);
+    });
+    tt.setDay(1, T0, new Map([[ID, work]]));
+    const bout = find(tt, T0 + HISTORY_S, (a) => a.kind === 'bout');
+    expect(bout.arrive - bout.start).toBeCloseTo((1.5 * 100) / SPEED, 3);
+    // rozvrh bez kreslení trasu nehledá
+    expect(calls).toBe(0);
+    const mid = (bout.start + bout.arrive) / 2;
+    const p = poseAt(tt, mid);
+    expect(calls).toBe(1);
+    // v půli času v půli trasy (70 m z 140 m: 60 po x, 10 po z)
+    expect(p.x).toBeCloseTo(60, 3);
+    expect(p.z).toBeCloseTo(10, 3);
+    // trasa 140 m za čas odhadu 150 m – nohy o kus pomaleji
+    expect(p.pace).toBeCloseTo(140 / 150, 3);
+    poseAt(tt, mid + 1);
+    expect(calls).toBe(1);
+    const there = poseAt(tt, bout.arrive + 0.5);
+    expect([there.x, there.z]).toEqual([60, 80]);
+    // cesta domů – druhý úsek, jedno hledání
+    poseAt(tt, (bout.leave + bout.end) / 2);
+    expect(calls).toBe(2);
+  });
+});

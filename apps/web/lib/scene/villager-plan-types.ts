@@ -220,6 +220,12 @@ export interface VillagerPaths {
   ): { points: readonly (readonly [number, number])[]; pace: readonly number[] } | null;
   /** Kam chodí domácnost (id obydlí) pro vodu nebo dřevo – konec její pěšiny, nebo null. */
   errand(dwellingId: number, kind: 'water' | 'wood'): { x: number; z: number } | null;
+  /**
+   * Odhad délky chůze (m chůze po louce) z `a` do `b` po síti pěšin – stejný model jako simulace
+   * (paths.md – Odhad vzdáleností: kratší z rovně a rovně k síti, po ní a rovně k cíli), bez
+   * hledání trasy. Délky činností rozvrhu (villager-schedule.ts). Bez údaje rovně.
+   */
+  walkLength?(a: { x: number; z: number }, b: { x: number; z: number }): number;
 }
 
 export interface VillagerPlanOptions {

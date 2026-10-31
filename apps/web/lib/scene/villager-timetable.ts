@@ -13,14 +13,13 @@ import {
   rehold,
   scheduleAt,
   settle,
-  straightWalk,
   uncut,
   type Activity,
   type CastSpan,
   type DayCast,
   type ScheduleInput,
 } from './villager-schedule';
-import type { HerdView, PoseFn, VillagerPose } from './villager-motion';
+import type { HerdView, PoseFn, Route, VillagerPose } from './villager-motion';
 import type { PersonJob } from './villager-roster';
 
 /** Kolik herních dnů obsazení si scéna pamatuje (villagers.md – Pro implementaci, úloha 3). */
@@ -51,21 +50,51 @@ export class Timetable {
   private doors: ReadonlyMap<number, Point | null> = new Map();
   private readonly entries = new Map<number, Entry>();
   private wet: ((x: number, z: number, t: number) => boolean) | null = null;
+  private estimate: ((a: Point, b: Point) => number) | null = null;
+  private router: ((personId: number, from: Point, to: Point) => Route | null) | null = null;
   readonly input: ScheduleInput;
+  private readonly speed: number;
 
   constructor(
     readonly seed: number,
     speed: number,
   ) {
     const v = Math.max(0.1, speed);
+    this.speed = v;
+    // délka chůze z odhadu po síti pěšin (villagers.md – Cesty postav; bez sítě rovně)
+    const walkM = (a: Point, b: Point): number =>
+      this.estimate?.(a, b) ?? Math.hypot(b.x - a.x, b.z - a.z);
     this.input = {
       seed,
       castOf: (t) => this.castOf(t),
-      lengthOf: straightWalk((id) => this.doors.get(id) ?? null, speed),
+      lengthOf: (id, task) => {
+        if (task.errand) {
+          return { outS: task.errand.homeS / 2, endS: 0, backS: task.errand.homeS / 2 };
+        }
+        const door = this.doors.get(id) ?? null;
+        const walk = door && task.at ? walkM(door, task.at) / v : 0;
+        return { outS: walk, endS: 0, backS: walk };
+      },
       doorOf: (id) => this.doors.get(id) ?? null,
-      walkS: (a, b) => Math.hypot(b.x - a.x, b.z - a.z) / v,
+      walkS: (a, b) => walkM(a, b) / v,
       wet: (x, z, t) => this.wet?.(x, z, t) ?? false,
     };
+  }
+
+  /**
+   * Odhad délky chůze po síti pěšin (`VillagerPaths.walkLength` – stejný model jako simulace,
+   * stejné časy ve všech prohlížečích i mimo záběr); null – rovně. Platí od další činnosti.
+   */
+  setEstimate(estimate: ((a: Point, b: Point) => number) | null): void {
+    this.estimate = estimate;
+  }
+
+  /**
+   * Přesná trasa chůze (po pěšinách, kolem domů – villager-plan.ts `walk`) – hledá se jen pro
+   * pózu, která se kreslí (postava v záběru nebo vybraná), jednou za úsek činnosti.
+   */
+  setRouter(router: ((personId: number, from: Point, to: Point) => Route | null) | null): void {
+    this.router = router;
   }
 
   /**
@@ -150,7 +179,12 @@ export class Timetable {
   /** Póza postavy člověka v `t` – doma skrytá u dveří (`activityPose`). */
   pose(id: number, t: number, herds: readonly HerdView[], out: VillagerPose): VillagerPose {
     const e = this.entry(id, t);
-    e.pose ??= activityPose(e.act, this.doorOf(id) ?? e.act.task?.at ?? { x: 0, z: 0 });
+    const router = this.router;
+    e.pose ??= activityPose(
+      e.act,
+      this.doorOf(id) ?? e.act.task?.at ?? { x: 0, z: 0 },
+      router ? { routeOf: (from, to) => router(id, from, to), speed: this.speed } : undefined,
+    );
     return e.pose(t, herds, out);
   }
 

@@ -335,8 +335,9 @@ cart-renderer.ts) – proto nešli vybrat. Podrobnosti jsou návrh Clauda – je
 
 ## Činnosti od začátku do konce (návrh Clauda; Martin 31. 10. 2026)
 
-Stav: **schváleno** (Martin 31. 10. 2026: „Ano, začni“; nové animace: „Ověř 0 A.D., pak Blender“) – v kódu úlohy 1–2
-(rozvrh a obsazení jako člověk → úloha, scéna ho zatím nepoužívá).
+Stav: **schváleno** (Martin 31. 10. 2026: „Ano, začni“; nové animace: „Ověř 0 A.D., pak Blender“) – v kódu úlohy 1–6
+(rozvrh, obsazení jako člověk → úloha, postavy podle rozvrhu, cesta na pole jako součást práce,
+události přerušují, délky ze sítě pěšin); úlohy 7–12 (fáze, rekvizity, animace) zbývají.
 
 Martin (31. 10. 2026): „Nevím jak je to teď, ale obecně by měla být vizuální stránka oddělena od
 herní mechaniky. Ve vykreslování by lidé měli dělat své činnosti od začátku do konce, bez ohledu
@@ -779,6 +780,18 @@ a `lib/village-view.ts`, rozvrh je znovu nedefinuje – `PersonJob`, `LaborActiv
    `villagers.ts` – přesná trasa při vstupu do záběru a výběru), měření na Vlkově (přelom dne,
    snímek), zápis do `docs/code/village-people.md` (Postavy – lidé ve vsi) a sem („Implementováno
    …“).
+   **Implementováno 31. 10. 2026:** délka chůze práce na místě, úlohy u objektu, cesty k události
+   a z povodně domů = odhad po síti pěšin (`VillagerPaths.walkLength` v `path-router.ts` –
+   `walkGraph` a `walkingDistances` z jádra nad osami uložených tras plnou silou pěšiny;
+   `Timetable.setEstimate`) ÷ tempo chůze – stejné časy ve všech prohlížečích i mimo záběr; bez
+   sítě rovně. Přesná trasa (`walkRoute` – po pěšinách, kolem domů, po suchu, na vzdálený díl
+   `fieldPath`; `planVillagersWithCrew` → `walk`, `Timetable.setRouter`) se hledá **až když se
+   póza kreslí** (ves v záběru, vybraná postava), jednou za úsek činnosti (`activityPose` –
+   `PoseWalk`); postava po ní dojde v čase z odhadu, tempo nohou podle poměru délky trasy a času
+   (0,6–1,8×). Návrh Clauda – zjednodušení: odhad zatím bez půdy krajiny (mokřina, les, brod
+   rovně jako louka) a bez pevných cest (jen pěšiny uložených tras); pochůzky (voda, dřevo, nosiči
+   kováře) dál chodí celý cyklus po trase z plánu dne (`shuttle`), která se počítá pro všechny
+   domácnosti jako dosud. Měření na Vlkově (přelom dne, snímek) zbývá.
 7. **Rozvrh postav napřed, fáze potom** (navazuje na úlohy 1–3 – bez nich fáze nemají kam
    zapadnout): do typu činnosti z úlohy 1 (`villager-schedule.ts`) přidat **seznam fází** (druh,
    délka podílem, místo) jako čistou funkci druhu činnosti a losu; `scheduleAt` vrací i aktuální

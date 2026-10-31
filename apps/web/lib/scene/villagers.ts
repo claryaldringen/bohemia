@@ -71,6 +71,7 @@ import {
   type PlannedVillager,
   type VillagerGround,
   type VillagerPaths,
+  type WalkRouteFn,
 } from './villager-plan';
 import type { PersonJob } from './villager-roster';
 
@@ -715,6 +716,7 @@ export class VillageVillagers {
     plan: {
       tasks: Parameters<Timetable['setDay']>[2];
       doors: ReadonlyMap<number, { x: number; z: number }>;
+      walk: WalkRouteFn;
     },
     t: number,
   ): Timetable {
@@ -722,6 +724,12 @@ export class VillageVillagers {
     if (this.timetable?.seed !== seed) this.timetable = new Timetable(seed, SCHEDULE_WALK_M_S);
     const timetable = this.timetable;
     timetable.setDoors(new Map(persons.map((p) => [p.id, plan.doors.get(p.home) ?? null])));
+    // délky chůze z odhadu po síti pěšin, přesná trasa jen pro kreslenou pózu (villagers.md –
+    // Cesty postav; úloha 6)
+    const paths = this.paths;
+    timetable.setEstimate(paths?.walkLength ? (a, b) => paths.walkLength!(a, b) : null);
+    const homes = new Map(persons.map((p) => [p.id, p.home]));
+    timetable.setRouter((id, from, to) => plan.walk(from, to, homes.get(id)));
     // povodeň – na rozlitou vodu se nechodí (villagers.md – Události)
     const flooded = this.env.flooded;
     timetable.setWet(flooded ? (x, z, at) => flooded(x, z, at * 1000 + LIVESTOCK_EPOCH_MS) : null);
@@ -747,9 +755,10 @@ export class VillageVillagers {
         timetable.pose(id, t, herds, pose);
         // chůze rovně ode dveří jde tempem `SCHEDULE_WALK_M_S` – nohy podle velikosti postavy
         const a = timetable.activity(id, t);
-        if (a.kind !== 'errand' && pose.clip === 'walk') {
+        if ((a.kind !== 'errand' || a.retreat) && pose.clip === 'walk') {
+          // tempo po trase (poměr délky a času – activityPose) × nohy podle velikosti
           const stage = activityStage(a, t);
-          if (stage === 'out' || stage === 'back') pose.pace = walkPace;
+          if (stage === 'out' || stage === 'back') pose.pace *= walkPace;
         }
         // v bloku jízdy na koni (kůň nejede bez jezdce)
         const mount = this.mountedAt(id, t);
