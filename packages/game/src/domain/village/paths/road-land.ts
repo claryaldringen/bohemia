@@ -535,6 +535,9 @@ export function capsuleRange(
   return from <= to ? { from, to } : null;
 }
 
+/** Rezerva obdélníků v `roadFreeRuns` (m) – mnohem víc než chyba zaokrouhlení průniku. */
+const SKIP_MARGIN_M = 1;
+
 /**
  * Úseky přímky mimo pásy cest (bod, jednotkový směr, od–do v m podél): brázda se na cestě láme –
  * každý úsek se orá zvlášť, s vlastními obraty (oxen.md – Co nejdelší brázda). Úseky v pořadí,
@@ -550,12 +553,30 @@ export function roadFreeRuns(
   to: number,
   minM = 0,
 ): { from: number; to: number }[] {
-  const blocked = capsules
-    .flatMap((c) => {
-      const range = capsuleRange(c, x, z, dx, dz);
-      return range && range.to > from && range.from < to ? [range] : [];
-    })
-    .sort((a, b) => a.from - b.from);
+  // obdélník úseku přímky – pás cesty, jehož obdélník leží o víc než metr vedle, úsek nekříží
+  // (průnik by vyšel mimo od–do i se zaokrouhlením), takže se nepočítá (jen zrychlení)
+  const x0 = x + dx * from;
+  const x1 = x + dx * to;
+  const z0 = z + dz * from;
+  const z1 = z + dz * to;
+  const minX = Math.min(x0, x1) - SKIP_MARGIN_M;
+  const maxX = Math.max(x0, x1) + SKIP_MARGIN_M;
+  const minZ = Math.min(z0, z1) - SKIP_MARGIN_M;
+  const maxZ = Math.max(z0, z1) + SKIP_MARGIN_M;
+  const blocked: { from: number; to: number }[] = [];
+  for (const c of capsules) {
+    if (
+      Math.min(c.ax, c.bx) - c.r > maxX ||
+      Math.max(c.ax, c.bx) + c.r < minX ||
+      Math.min(c.az, c.bz) - c.r > maxZ ||
+      Math.max(c.az, c.bz) + c.r < minZ
+    ) {
+      continue;
+    }
+    const range = capsuleRange(c, x, z, dx, dz);
+    if (range && range.to > from && range.from < to) blocked.push(range);
+  }
+  blocked.sort((a, b) => a.from - b.from);
   const runs: { from: number; to: number }[] = [];
   let at = from;
   for (const range of blocked) {
