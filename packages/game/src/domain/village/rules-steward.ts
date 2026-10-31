@@ -133,17 +133,23 @@ export const STEWARD = {
 
   // Rozhodovací pořadí – kroky 5 až 10 (steward.md – Ostatní stavby; čísla návrh Clauda)
 
-  /** Režimy, ve kterých krok smí začít stavbu (Nouze: jen pole, obydlí a první hřbitov). */
+  /**
+   * Režimy, ve kterých krok smí začít stavbu, a podíl rozpočtu práce, který smí vzít (Nouze: jen
+   * pole, obydlí a první hřbitov). Kroky Růstu (koně, sad, jabloně u cest, cesty) smějí i v Obnově,
+   * ale s nižší předností – jen dokud po nich zbude `1 − podíl` celého rozpočtu polím a obydlím
+   * (Ostatní stavby – upřesnění, Režimy; oprava 31. 10. 2026: Růst – plná pojistka – nastává ve
+   * zdravé vsi hlavně v srpnu, mimo okna výsadby i cest).
+   */
   stepModes: {
-    cemetery: ['emergency', 'recovery', 'growth'],
-    threshing: ['recovery', 'growth'],
-    pen: ['recovery', 'growth'],
-    horses: ['growth'],
-    orchard: ['growth'],
-    roadApples: ['growth'],
-    sacred: ['recovery', 'growth'],
-    road: ['growth'],
-  } as Readonly<Record<string, readonly StewardMode[]>>,
+    cemetery: { emergency: 1, recovery: 1, growth: 1 },
+    threshing: { recovery: 1, growth: 1 },
+    pen: { recovery: 1, growth: 1 },
+    horses: { recovery: 0.5, growth: 1 },
+    orchard: { recovery: 0.5, growth: 1 },
+    roadApples: { recovery: 0.5, growth: 1 },
+    sacred: { recovery: 1, growth: 1 },
+    road: { recovery: 0.5, growth: 1 },
+  } as Readonly<Record<string, Readonly<Partial<Record<StewardMode, number>>>>>,
   /** 5. Hřbitov: volné hroby na tolik let podle očekávané úmrtnosti (jinak rozšíření o čtverec). */
   graveYears: 5,
   /** 6. Humno: vyplatí se, když úspora práce za tolik let pokryje jeho cenu. */
@@ -160,8 +166,12 @@ export const STEWARD = {
   sacredSearchTiles: 8,
   /** 9. Posvátná místa: nejvýš tolik kontrol místa za den správce. */
   sacredChecks: 40,
-  /** 10. Cesty: vylepšení cesty se vyplatí, když úspora chůze za tolik let pokryje cenu. */
-  roadPaybackYears: 5,
+  /**
+   * 10. Cesty: vylepšení cesty se vyplatí, když úspora chůze za tolik let pokryje cenu – 100 m za
+   * 15 člověkodní se při 10 pochůzkách denně vrátí za ≈ 9,4 roku (oprava 31. 10. 2026; dřív 5 –
+   * vyplatilo se až od ≈ 19 pochůzek denně, správce cesty nestavěl).
+   */
+  roadPaybackYears: 10,
   /** 10. Cesty: vozová cesta tam, kde cesta má aspoň tolik pochůzek za den (průměr roku). */
   wagonTrips: 1,
   /** 10. Cesty: zemská stezka od tolika lidí ve vsi (režim Růst). */

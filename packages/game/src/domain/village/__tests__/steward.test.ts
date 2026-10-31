@@ -13,6 +13,7 @@ import { bufferFill } from '../field-food';
 import { NO_CRAFTS } from '../productivity';
 import { waitingHouseholds } from '../households';
 import { LUCKY_STARVATION_CAP } from '../population';
+import { craftCoverage } from '../crafts';
 import { STEWARD } from '../rules-steward';
 import { advanceVillage } from '../simulate';
 import { fieldSowingTargets } from '../simulate-plan';
@@ -172,9 +173,26 @@ describe('den správce – obydlí', () => {
 });
 
 describe('den správce – režim a pole', () => {
-  it('Nouze, když ves hladoví; jinak podle pojistky', () => {
+  it('Nouze, když hlad roste; hlad, který neroste (strop hájení, zotavení), je Obnova', () => {
     const s = waitingVillage(SEPT);
+    const mode = (starvationDays: number, lastHunger: number): string =>
+      stewardMode(
+        { ...s, starvationDays, steward: { ...s.steward!, lastHunger } },
+        SEPT,
+        NO_CRAFTS,
+      );
     expect(stewardMode({ ...s, starvationDays: 3 }, SEPT, NO_CRAFTS)).toBe('emergency');
+    expect(mode(3, 2)).toBe('emergency');
+    // past osiva: hlad na stropu hájení měsíce – ne trvalá Nouze (správce staví stravu mimo pole)
+    expect(mode(LUCKY_STARVATION_CAP, LUCKY_STARVATION_CAP)).not.toBe('emergency');
+    expect(mode(5, 6)).not.toBe('emergency');
+  });
+
+  it('den správce si pamatuje dnešní hlad pro příští den správce', () => {
+    const s = waitingVillage(SEPT);
+    s.starvationDays = 7;
+    stewardDay(s, SEPT, landscape, obstacles);
+    expect(s.steward?.lastHunger).toBe(7);
   });
 
   it('v Nouzi pole jen v rozpočtu práce a obydlí pro čekající rodinu', () => {
@@ -337,6 +355,8 @@ describe('den správce – dlouhý běh na skutečné krajině', () => {
   /** Nejvyšší nahromaděný hlad (konce kousků) po letech od založení. */
   const starvation: number[] = [];
   let atThree: VillageState | null = null;
+  /** Režimy na koncích kousků od chvíle, kdy hlad poprvé dosáhl stropu hájení (past osiva). */
+  const trapModes: string[] = [];
   const advanceChunked = (to: number): void => {
     while (chunked.lastDay < to) {
       const prev = chunked.lastDay;
@@ -347,6 +367,10 @@ describe('den správce – dlouhý běh na skutečné krajině', () => {
       if (!atThree && chunked.lastDay >= SEPT + 3 * YEAR) atThree = chunked;
       const year = Math.floor((chunked.lastDay - SEPT) / YEAR);
       starvation[year] = Math.max(starvation[year] ?? 0, chunked.starvationDays ?? 0);
+      if (trapModes.length > 0 || (chunked.starvationDays ?? 0) >= LUCKY_STARVATION_CAP) {
+        const day = chunked.lastDay;
+        trapModes.push(stewardMode(chunked, day, craftCoverage(chunked, day)));
+      }
     }
   };
 
@@ -413,4 +437,22 @@ describe('den správce – dlouhý běh na skutečné krajině', () => {
     const built = new Set(chunked.steward!.built);
     expect(chunked.dwellings.some((d) => built.has(d.id))).toBe(true);
   });
+
+  it(
+    '25 let – v pasti osiva (hlad na stropu hájení) není trvalá Nouze',
+    { timeout: 180_000 },
+    () => {
+      advanceChunked(SEPT + 25 * YEAR);
+      expect(hunger).toBe(0);
+      // ves zakladatelů na krajině 1 spadne do pasti osiva – hlad na stropu hájení neroste, takže
+      // správce je v Obnově a staví stravu mimo pole (dřív Nouze při jakémkoli hladu: kouřový test
+      // S5 – osm let žádná stavba mimo pole a obydlí)
+      expect(trapModes.length).toBeGreaterThan(5);
+      const emergency = trapModes.filter((m) => m === 'emergency').length;
+      expect(emergency).toBeLessThan(trapModes.length / 2);
+      // ves bez rodu (zakladatelé bez vojvody) syna vojvody nemá – odchod syna z pasti tu nejde
+      // (ves rodu ve hře vojvodu má; odchod z pasti hlídá steward-son.test.ts)
+      expect(chunked.dynasty?.lordId ?? null).toBeNull();
+    },
+  );
 });

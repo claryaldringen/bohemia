@@ -58,8 +58,12 @@ export function stewardSonDay(
   noteHunger(state);
   if (!landscape || !obstacles || !isDepartureDate(day)) return;
   stewardDeparture(state, day, landscape, obstacles);
-  // rok hladu se počítá od jednoho dne odchodu k dalšímu
-  if (state.steward) delete state.steward.hungerPeak;
+  // rok hladu se počítá od jednoho dne odchodu k dalšímu; loňský zůstane na příští rok
+  const steward = state.steward;
+  if (!steward) return;
+  if (steward.hungerPeak === undefined) delete steward.lastYearHunger;
+  else steward.lastYearHunger = steward.hungerPeak;
+  delete steward.hungerPeak;
 }
 
 /**
@@ -153,7 +157,8 @@ export function stewardFieldRoom(
 
 /**
  * Kdo odejde (steward.md – Kdo odejde): ze synů, kteří smějí vést (`leadingSons` s `check.ok`),
- * nejstarší ženatý, jinak nejstarší svobodný – ženatý založí rod hned. Nikdo – null (správce
+ * nejstarší ženatý, jinak nejstarší způsobilý (i svobodný) – ženatý založí rod hned. Ves bez rodu
+ * (`dynasty.lordId` null – jen testy a starší kalibrace) syna nemá. Nikdo – null (správce
  * počká, až syn dospěje – rozhodnutí na noc 30. → 31. 10. 2026, otázka 2).
  */
 export function departingSon(state: VillageState, day: number): Person | null {
@@ -323,7 +328,8 @@ function isDepartureDate(day: number): boolean {
  * Krok 2 (mutuje stav): v den `STEWARD.departureDate` ves přelidněná (`stewardCrowded`) bez místa
  * na nová pole (`stewardFieldRoom`), nebo ves, která od minulého dne odchodu hladověla aspoň
  * `STEWARD.departureHungerDays` (`steward.hungerPeak`) – bez místa na pole, nebo i s ním, když pole
- * podle „Pole uživí“ stačí (past osiva – steward.md, Hranice) –, a se synem, který smí vést
+ * podle „Pole uživí“ stačí (past osiva – steward.md, Hranice) nebo ves hladověla už loni
+ * (`steward.lastYearHunger` – pole navíc rok nepomohla) –, a se synem, který smí vést
  * (`departingSon`): syn odejde s dílem
  * vsi (`departWithSon`) a osadníci jdou do odchozí schránky `steward.departures` se seedem
  * (`deriveSeed(seed vsi, 'steward-son:' + den)`), jménem (`suggestVillageName`) a cílem: místo na
@@ -342,8 +348,10 @@ export function stewardDeparture(
   const hungry = (state.steward?.hungerPeak ?? 0) >= STEWARD.departureHungerDays;
   if (!crowded && !hungry) return false;
   // past osiva: ves hladoví, i když „Pole uživí“ stačí – další pole by zůstala neosetá, pomůže jen
-  // méně lidí; jinak napřed nová pole, až když není kam, odchod
-  const trapped = hungry && !crowded;
+  // méně lidí; hladověla-li už loni, pole navíc měla rok a nepomohla; jinak napřed nová pole, až
+  // když není kam, odchod
+  const lastYear = (state.steward?.lastYearHunger ?? 0) >= STEWARD.departureHungerDays;
+  const trapped = hungry && (!crowded || lastYear);
   if (!trapped && stewardFieldRoom(state, day, landscape, obstacles)) return false;
   const son = departingSon(state, day);
   if (!son) return false;
