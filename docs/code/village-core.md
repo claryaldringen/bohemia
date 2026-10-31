@@ -171,6 +171,11 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   zrychlení – výsledek bit po bitu týž i po studeném startu (`cart-memo.test.ts`,
   `cart-routes-fast.test.ts`, `ground-walk-fast.test.ts`, `walk-memo.test.ts`,
   `cart-grid-stages.test.ts`).
+  Po stálých trasách jen se stavbou (obsazenost domácností, ohrad a obilných jam trasy jen
+  převáží) a olemování jako součásti cesty (Martin 31. 10. 2026 – village-roads.md, Mapa tras
+  a klíč) Vlkov (46 lidí, rok po dnech, zátěž 13–24): stálé trasy 8× → 3× za rok, rok 29,8–30,8 s
+  → 26,3–26,8 s (−12 %); přepočet chůze ≈ 28 % (`refreshWalkDistances` 7,8 s), vozy ≈ 20 %
+  (`villageCartCost` 3,5 s, `villageCartRoutes` 2,0 s).
   Souběžné požadavky téhož hráče dopočet nezdvojují: web je řadí do fronty (`apps/web/lib/exclusive.ts`,
   web-ui.md – Jeden dopočet vsí naráz), druhý jen dopočte zbytek do svého dne.
 

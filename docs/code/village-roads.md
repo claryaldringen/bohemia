@@ -838,16 +838,34 @@ Návrh `docs/design/paths.md` – Stálé trasy (25. 10. 2026), Úloha A1.
   a idempotentně.
 - **Mapa tras a klíč** (A2b, [paths.md – Stálé trasy, pravidlo 5](../design/paths.md#stálé-trasy-25-10-2026)):
   `refreshWalkDistances` (`paths/village.ts`) drží v `VillageState.walkLayoutKey` = `routes.key`
-  otisk `routeMapKey | routePlacesKey | WALK_VERSION` (`routes-v5` – odstup od plotů).
+  otisk `routeMapKey | WALK_VERSION` (`routes-v7` – trasy ze všech staveb, olemování z míst).
   - `routeMapKey` – obydlí a staveniště (poloha, natočení, druh, pozemek – bez obyvatel a stáří),
     díly polí (políčka, bez stadia), sady, hřbitovy, posvátná místa, ohrady (políčka, hotová),
-    les vsi, milíře, humna, pevné cesty (`roadsKey`), olemování po desetinách (`lineKey`), zemní
-    práce a překážky k poslednímu 1. 11. (`routeTreesDay`, `routeTreesKey`; síť i `pathVillageOf`
+    les vsi, milíře, humna, obilné jámy od vykopání po zánik (ne otevřená / zavřená), pevné cesty
+    (`roadsKey` – olemování je součást cesty, v klíči zvlášť není), zemní práce a překážky
+    k poslednímu 1. 11. bez stromů u cest (`routeTreesDay`, `routeTreesKey`; síť i `pathVillageOf`
     berou pařezy a mladé stromy přes `routeObstacleChanges` k témuž dni). Paseka rozestavěného
     pole v lese je les, dokud pole nedohoří (Klučení a mapa tras níž). Opuštění cesty síť nezná
     (`pathVillageOf` ho nepředává), stav kusů a provoz také ne.
-  - `routePlacesKey` – obydlené domácnosti a ohrady se zvířaty. Pastvina (`routePastureKey` – stáda
-    a díly, kam se vyhání) se mění se stadii, proto patří do měsíční vrstvy (`routeMonthKey`).
+  - **Jen stavba nebo zánik** (Martin 31. 10. 2026 – [paths.md, pravidlo 5](../design/paths.md#stálé-trasy-25-10-2026)):
+    stálé trasy se hledají nad `establishedVillage` (`network.ts`) – každé hotové obydlí jako
+    obydlené (lidé vsi rozdělení na všechna), každá hotová ohrada se zvířaty, každá obilná jáma
+    otevřená (`PathVillage.grainPits[].open`). Hned po hledání je `routesOf` převáží podle skutečné
+    vsi (`reweighedList`) – trasa z prázdného obydlí, k prázdné ohradě či zavřené jámě má 0 cest.
+    Cache sítě (`villagePathNetwork`) je klíčovaná toutéž vsí, obsazenost ji nezmění.
+  - `routePlacesKey` – obydlené domácnosti, ohrady se zvířaty, otevřené jámy. V otisku mapy není:
+    změna (`VillageRoutes.placesKey`) v `refreshWalkDistances` hned převáží stálé trasy
+    (`reweighRoutes`, značka `WEIGHED` i s obsazeností), nic nehledá; do měsíční vrstvy
+    (`routeMonthKey`) patří, protože trasy k práci dne vedou z obydlených domácností. Vzdálenosti
+    chůze se měří z nejbližšího obydlí i prázdného a rozestavěného (`dwellingOrigins`) –
+    obsazenost je nemění. Pastvina (`routePastureKey` – stáda a díly, kam se vyhání) se mění se
+    stadii, proto patří do měsíční vrstvy (`routeMonthKey`).
+  - **Olemování** (`paths/road-lining.ts`, Martin 31. 10. 2026 „Stromy jsou součást cesty“):
+    `roadLining(road, apples)` z míst na stromy (`Road.spots`) a jabloní úseku (i čekajících
+    a souší), bez dne. `lineRoads(state)` určí jen chybějící (nový či přestavěný úsek);
+    vylepšení smaže olemování (`relineRoad` – `finishRoadUpgrade`, `upgradePieces` v `trail.ts`,
+    úprava před vozovou cestou ve `wagon-rebuild.ts`), další přepočet chůze ho určí znovu.
+    Převod `withPlannedLining` (v `updateVillage`) jednou – značka `VillageRoads.liningPlanned`.
   - Změna otisku = stálé trasy znovu (`computeStableNetwork` – síť bez práce dne, `stableVillage`)
     a za nimi trasy k práci dne (`computeWorkRoutes`, `StoredRoute.daily`) + vzdálenosti chůze
     (jen ze stálých tras – `villageRouteLines`).
@@ -867,10 +885,22 @@ Návrh `docs/design/paths.md` – Stálé trasy (25. 10. 2026), Úloha A1.
   - Scéna: klíč tras `sceneRoutesKey` (otisk + `workKey` + počet a součet cest), aby klient dostal
     i trasy k práci dne a převážení; známá vyšlapanost nese i `wearCellM` (převod 7,5 → 3,75 m týž
     den se pošle znovu).
-  - Testy `routes.test.ts` – „trasy jen při změně mapy“. Vlkov (kopie `vlkov.json`, rok po dnech
+  - Testy `routes.test.ts` – „trasy jen při změně mapy“ (i nastěhování / vystěhování a zapečetěná
+    / otevřená jáma jen převáží), `road-tree-speed.test.ts` – olemování ve stavu vsi (zasazení
+    jabloně ani uschnutí stromu přepočet nespustí, vylepšení a převod). Vlkov (kopie `vlkov.json`, rok po dnech
     od 7. 5. 816): stálé trasy se hledaly 11× → 7× (z toho 1× převod; 4× 1. dne v měsíci jiná síť
     cest, olemování nebo pařezy k 1. 11., 2× v půli měsíce jiné stavby či domácnosti), navíc 3× jen
     trasy k práci dne a na pastvu; 1× jen převážení. Stadia dílů žádný přepočet nevyvolala.
+  - **Naměřeno 31. 10. 2026** (Vlkov, den 117895, 46 lidí, rok po dnech; skripty a logy mimo repo
+    v `scratchpad/routes/`): stálé trasy 8× → 3× (před: 5× otevřená či zavřená obilná jáma, 1×
+    nastěhování, 2× pařezy a stromy u cest; po: 1× převod `routes-v7`, 2× pařezy k 1. 11.), trasy
+    k práci dne 10× → 10× (1. dne v měsíci), převážení 1× → 7× (6× obsazenost – jáma,
+    nastěhování). Rok střídavě před / po při zátěži 13–24: 29,8–30,8 s → 26,3–26,8 s (−12 %);
+    profil `refreshWalkDistances` 9,8 s → 7,8 s (`computeStableNetwork` 1,5 → 0,8 s,
+    `walkingDistances` 3,3 → 1,7 s, z toho `groundWalkLength` 1,8 → 1,1 s; převážení 0,9 → 1,7 s).
+    Vozy beze změny (`villageCartRoutes` 2,4 → 2,0 s, `villageCartCost` 4,0 → 3,5 s,
+    `cartRoutesOn` 2,4 → 2,2 s, `cartGrid` 0,9 → 0,8 s – mřížka se staví 15–19× za rok, většinou
+    kvůli kácení dne; klíč mřížky bere i `inhabited` obydlí).
 
 ## Trasy v paměti – vozy a chůze (výkon)
 
