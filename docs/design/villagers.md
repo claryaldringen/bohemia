@@ -334,7 +334,8 @@ cart-renderer.ts) – proto nešli vybrat. Podrobnosti jsou návrh Clauda – je
 
 ## Činnosti od začátku do konce (návrh Clauda; Martin 31. 10. 2026)
 
-Stav: **schváleno** (Martin 31. 10. 2026: „Ano, začni“; nové animace: „Ověř 0 A.D., pak Blender“) – v kódu zatím nic.
+Stav: **schváleno** (Martin 31. 10. 2026: „Ano, začni“; nové animace: „Ověř 0 A.D., pak Blender“) – v kódu úlohy 1–2
+(rozvrh a obsazení jako člověk → úloha, scéna ho zatím nepoužívá).
 
 Martin (31. 10. 2026): „Nevím jak je to teď, ale obecně by měla být vizuální stránka oddělena od
 herní mechaniky. Ve vykreslování by lidé měli dělat své činnosti od začátku do konce, bez ohledu
@@ -472,6 +473,15 @@ do hry. Mění se jen to, jak scéna z rozdělení práce dělá postavy. Podrob
   mřížky (po pár činnostech), takže po načtení vychází totéž co v prohlížeči otevřeném celou
   dobu; test to hlídá na stovkách lidí a časů. Kdyby někde nesplynuly, liší se póza nejvýš po
   dobu jedné činnosti, pak je shoda.
+- **Zvon** (návrh Clauda – bez něj řetězy v testu nesplývají: pochůzky mají pevnou délku a pauza
+  30–90 s je na splynutí málo): každý člověk má po 35 minutách (`BELL_S`, < `HISTORY_S`) vlastní
+  okamžik, kdy je doma. Činnost, která by ho přesáhla, nezačne (práce na místě se zkrátí, pochůzka
+  počká doma), po zvonu vyjde každý řetěz v týž okamžik – řetězy splynou nejpozději u prvního
+  zvonu. Úlohy u objektu zvon nepřeruší (splynou svým koncem). Cena: dlouhé pochůzky (12 minut)
+  jsou venku ≈ 69 % času místo ≈ 90 % (bez zvonu), 6minutové ≈ 70 % místo ≈ 83 % – otázka 3 níž.
+- **Kdo co dělá napříč dny:** pořadí lidí (`DayRoster`) je los ze seedu vsi a id člověka, ne dne
+  (návrh Clauda) – při podobném rozdělení práce dělá tentýž člověk totéž a dvě činnosti různých
+  dnů se na jednom místě (řada na poli, strom) nesejdou; mění se se změnou práce dne.
 - **Obsazení dnů, které prohlížeč neviděl** (před načtením stránky), nahradí nejstarší známé,
   tedy dnešní (Martin 31. 10. 2026: dva prohlížeče „zatím stačí srovnat“). Úplná shoda by
   potřebovala rozdělení práce posledních ≈ 28 dnů ze serveru – až se na jednu ves budou dívat
@@ -792,6 +802,10 @@ a `lib/village-view.ts`, rozvrh je znovu nedefinuje – `PersonJob`, `LaborActiv
 2. **Pasáček, oráč, honák, vozka a první stavitel** jdou domů, až jim obsazení dne úlohu
    nedává (ne po losované délce) – dřív se u stáda nebo spřežení nikdo nestřídá. Návrh Clauda:
    ano, objekt je ve scéně celý den; střídání by šlo přidat později.
+3. **Zvon** (úloha 1): s `HISTORY_S` 40 min je zvon po 35 minutách a dlouhé pochůzky jsou venku
+   o ≈ 20 % méně času (čekají doma na zvon). Návrh Clauda: `HISTORY_S` 60 min a zvon po 55 minutách
+   (12minutová pochůzka venku ≈ 86 %, výpočet po načtení pořád zanedbatelný), nebo počet lidí na
+   dlouhých pochůzkách v úloze 3 navýšit podle podílu času venku.
 
 ## Zjednodušení a co chybí
 

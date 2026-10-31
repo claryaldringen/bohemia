@@ -326,7 +326,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   typu - žena rolníka, jde pro vodu.“): **postava = konkrétní člověk** – server posílá
   `SceneLabor.persons` (`lib/person-view.ts`: id, věk, pohlaví, domácnost, role z
   `lib/person-roles.ts`), `planVillagers` přiřadí každé postavě člověka (`DayRoster` ve
-  `villager-roster.ts` – los ze seedu a dne, nikdo dvakrát; `cast` ve `villager-plan-cast.ts`) v pořadí
+  `villager-roster.ts` – los ze seedu vsi a id člověka, stejný napříč dny, nikdo dvakrát; `cast` ve `villager-plan-cast.ts`) v pořadí
   pohřeb → karavany (tesař na cestě pro kování podle `SceneExpedition.trip.travellerId`) → nosiči
   kováře podle věku → pasáci → dílny u své práce → první člověk u stavby → práce vsi → provoz na
   cestách (z domácnosti proudu) → domácí práce a nečinní → starší; na koho nezbude člověk, ta
@@ -336,6 +336,18 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   kroužek `villagers-ring` (jedna instance), stav vybraného člověka `onPersonState` jen při změně →
   `selectionDetails(…, personState)` → panel `PersonBody` (činnost `lib/person-activity.ts`).
   Bez `persons` jsou postavy jako dřív (nejdou vybrat). Ukázka `/dev/panels?panel=postava`.
+  **Rozvrh člověka** (villagers.md – Činnosti od začátku do konce; úlohy 1–2, scéna ho zatím
+  nepoužívá – napojení ve `villagers.ts` je úloha 3): `planVillagersWithCrew` vrací i `tasks` –
+  obsazení dne jako člověk → úloha (`PersonTask`: klíč postavy, `job`, druh `errand` / `bout` /
+  `hold`, rozsah práce, póza, cyklus pochůzky, místo; `personTasks` a `taskKind` ve
+  `villager-schedule.ts`, první stavitel `hold`). `villager-schedule.ts` (čisté funkce, testy
+  `villager-schedule.test.ts`): řetěz činností člověka – doma (pauza `PAUSE_S` 30–90 s), vyjití
+  s úlohou obsazení v tu chvíli (`castOf`, `castTimeline` – dny před nejstarším jako nejstarší),
+  pochůzka celá z délky (`lengthOf`), práce na místě losem `WORK_RANGE_S`, úloha u objektu do
+  přelomu dne, od kterého ji obsazení nedává; začátky a konce na mřížce `GRID_S` 30 s,
+  `scheduleAt` dohrává od `t − HISTORY_S`. **Zvon** `BELL_S` 35 min (návrh Clauda): činnost,
+  která by přesáhla zvon člověka, nezačne, po zvonu vyjde každý řetěz v týž okamžik – řetězy
+  z různých počátků tak splynou nejpozději u prvního zvonu (bez zvonu nesplývají – test).
   **Výběr spřežení a vozu** (villagers.md – Výběr spřežení a vozu; Martin 20. 10. 2026: „nešlo mi
   kliknout na volské spřežení ani na člověka, co jej vedl“, podrobnosti návrh Clauda): oráč, honák
   a vozka jsou lidé vsi – `planVillagersWithCrew` (`DraftCrew`; vstup `draft` =
