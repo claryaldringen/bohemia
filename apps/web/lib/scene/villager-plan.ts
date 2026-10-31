@@ -25,7 +25,7 @@ import {
   type VillagerGround,
   type VillagerPlanOptions,
 } from './villager-plan-types';
-import { targetKey } from './villager-plan-geometry';
+import { doorPoint, targetKey } from './villager-plan-geometry';
 import {
   adultHair,
   cast,
@@ -131,7 +131,8 @@ export function planVillagers(
  *
  * `tasks` = obsazení dne jako člověk → úloha (villagers.md – Činnosti od začátku do konce): co
  * který člověk dnes dělá, když vyjde z domu (villager-schedule.ts – rozvrh si z něj vybírá při
- * vyjití). Stejná pravidla i počty jako postavy dne; bez lidí ve scéně prázdné.
+ * vyjití). Stejná pravidla i počty jako postavy dne; bez lidí ve scéně prázdné. `doors` = dveře
+ * obydlí (id obydlí → bod před vchodem) – odtud lidé vycházejí a kam se vracejí.
  */
 export function planVillagersWithCrew(
   village: SceneVillage,
@@ -142,11 +143,12 @@ export function planVillagersWithCrew(
   crew: DraftCrew;
   slaughter: SlaughterPlan | null;
   tasks: Map<number, PersonTask>;
+  doors: Map<number, { x: number; z: number }>;
 } {
   const crew: DraftCrew = { teams: [], carts: [] };
   const labor = village.labor;
   if (!labor || village.dwellings.length === 0) {
-    return { people: [], crew, slaughter: null, tasks: new Map() };
+    return { people: [], crew, slaughter: null, tasks: new Map(), doors: new Map() };
   }
   const ctx = context(
     village,
@@ -308,7 +310,15 @@ export function planVillagersWithCrew(
   people.push(...shoeing.people);
   people.push(...slaughter.people);
   people.push(...firefighters);
-  return { people, crew, slaughter: slaughter.plan, tasks: personTasks(people, crew, builders) };
+  const doors = new Map<number, { x: number; z: number }>();
+  for (const h of ctx.homes) if (!h.pen) doors.set(h.id, doorPoint(h));
+  return {
+    people,
+    crew,
+    slaughter: slaughter.plan,
+    tasks: personTasks(people, crew, builders),
+    doors,
+  };
 }
 
 /**

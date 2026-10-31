@@ -735,6 +735,13 @@ a `lib/village-view.ts`, rozvrh je znovu nedefinuje – `PersonJob`, `LaborActiv
    a `onPersonState` z rozvrhu (`lib/person-activity.ts`), zrušení výběru, když vybraný zajde
    do domu (kromě vojvody). e2e `apps/web/e2e/village.spec.ts` – vybraná postava drží činnost
    přes přelom dne a po návratu domů výběr zmizí.
+   **Implementováno 31. 10. 2026** (`villager-timetable.ts`; mapa kódu `village-people.md`):
+   postava každého člověka podle rozvrhu, výběr a zrušení výběru, testy přelomu dne, výběru
+   a popisku jako unit testy (`villager-timetable.test.ts` – e2e by muselo čekat minuty skutečného
+   času). Návrh Clauda – do úlohy 5 zůstávají postavy dne: lidé na události (požár, karavana,
+   pohřeb, svatba, porážka) a jezdci s trasou (kůň jede podle bloků dne); jejich postava
+   z rozvrhu je mezitím skrytá. `carryErrands` zůstává jen pro cizí a ukázky bez lidí, pryč
+   `walkThen` při přeplánování. Instance se dál přidělují při přeplánování (postavy dne se mění).
 4. **Cesta na pole a domů jako součást práce** (Martin 31. 10. 2026: „Ano“; `villager-plan-traffic.ts` –
    `trafficFigures` bez druhu „na pole a zpět“, `villager-plan-fields.ts` – `fieldRows`,
    `carriers` s příchodem ode dveří po `fieldPath`; `road-traffic.ts` –
