@@ -550,7 +550,10 @@ export function settlersOf(state: VillageState): Settlers {
       ? { oxen: state.looseOxen.map((ox) => ({ ...ox })) }
       : {}),
     ...(state.journey?.lordId === undefined ? {} : { lordId: state.journey.lordId }),
-    ...(state.journey?.stewarded ? { stewarded: true as const } : {}),
+    // zdrojem pravdy je přepínač vsi na cestě (`steward.on`); `journey.stewarded` je jen počáteční
+    ...((state.steward ? state.steward.on : state.journey?.stewarded === true)
+      ? { stewarded: true as const }
+      : {}),
     ...(state.looseHorses?.[0] ? { horse: { ...state.looseHorses[0] } } : {}),
   };
 }

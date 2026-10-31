@@ -1,5 +1,4 @@
-// Stav správce vsi (steward.md – Stav správce). Vetá jsou zatím kostra pro další úlohy (soužití
-// s hráčem); odchozí schránka odchodu synů – `StewardDeparture`.
+// Stav správce vsi (steward.md – Stav správce). Vetá (soužití s hráčem) a odchozí schránka odchodu synů – `StewardDeparture`.
 import type { Settlers } from './departure';
 import type { Position } from './types-people';
 import type { Direction8 } from './types-state';

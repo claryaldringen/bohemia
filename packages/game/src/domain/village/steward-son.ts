@@ -28,7 +28,7 @@ import {
   takenTiles,
   villageTerritory,
 } from './steward-land';
-import { isStewardOn } from './steward-state';
+import { isStewardOn, pruneStewardBuilt } from './steward-state';
 import { DIRECTIONS, builtTrail } from './trail';
 import type {
   CraftCoverage,
@@ -56,7 +56,10 @@ export function stewardSonDay(
   if (!isStewardOn(state) || state.people.length === 0) return;
   if (day % STEWARD.everyDays === 0) nameStewardSons(state, day);
   noteHunger(state);
-  if (!landscape || !obstacles || !isDepartureDate(day)) return;
+  if (!isDepartureDate(day)) return;
+  // jednou za rok (31. 8.) úklid značek zaniklých staveb
+  pruneStewardBuilt(state);
+  if (!landscape || !obstacles) return;
   stewardDeparture(state, day, landscape, obstacles);
   // rok hladu se počítá od jednoho dne odchodu k dalšímu; loňský zůstane na příští rok
   const steward = state.steward;
@@ -452,7 +455,7 @@ export function stewardDepartureOrigin(villageId: string, id: number): string {
  * Ves na cestě se správcem dorazila do dne `toDay` (steward.md – Kde správce běží): správce sám
  * umístí první zemnici – nejbližší volné místo k místu vsi nové krajiny (`freeVillageSite`) – a ves
  * se založí z osadníků (`settlersOf` → `foundedState`) v den příjezdu; kronika cesty zůstane před
- * založením. Jinak (bez správce – i vypnutý hráčem na cestě –, nedorazila, bez místa) null – ves
+ * založením. Zdrojem pravdy je přepínač vsi na cestě (`steward.on`) – hráč ho může cestou zapnout i vypnout. Jinak (správce vypnutý, nedorazila, bez místa) null – ves
  * čeká na hráče.
  */
 export function stewardArrival(
@@ -462,7 +465,7 @@ export function stewardArrival(
   obstacles: ObstacleLayer | null,
 ): VillageState | null {
   const journey = state.journey;
-  if (!journey?.stewarded || !isStewardOn(state) || !landscape || !obstacles) return null;
+  if (!journey || !isStewardOn(state) || !landscape || !obstacles) return null;
   const day = Math.max(journey.arrivalDay, state.lastDay);
   if (day > toDay) return null;
   const dwelling = freeVillageSite(landscape, [], obstacles);
