@@ -1048,8 +1048,8 @@ nespadne“. Model návrh Clauda:
   cena u kurzoru; jízdy vozu – svoz, voda vozem, uhlí a ruda, osivo; cesta spřežení k orbě
   a přesun mezi bloky) se počítá **odhadem bez hledání tras**: kratší z „rovně“ a „rovně k síti,
   po ní a rovně k cíli“.
-- **Rovně = úsečka po povrchu** po buňkách terénu pěšin (krok 3,75 m – chodec po celých buňkách,
-  vůz po půlbuňkách): louka 1, pole stálou cenou, mokřina, les; chodec lesem 1 / 1,35× (cena lesa v síti pěšin), vůz lesem ani zarostlým dílem neprojede.
+- **Rovně = úsečka po povrchu** po půlbuňkách terénu pěšin: louka 1, pole stálou cenou, mokřina,
+  les; chodec lesem 1 / 1,35× (cena lesa v síti pěšin), vůz lesem ani zarostlým dílem neprojede.
   **Voda:** úsečka přes potok mimo brod jde **objížďkou přes nejbližší brod** (brod s nejmenším
   součtem vzdáleností od začátku a ke konci úsečky; chodec + 30 m za brodění, vůz brodem
   `fordCost`). Bez brodu v okně se chodec brodí kdekoli jako dřív a vůz nedojede. Most a hať
@@ -1064,14 +1064,6 @@ nespadne“. Model návrh Clauda:
   sejít z pěšiny šikmo dřív nebo později, vyjde o kus déle. Vlkov (3 783 dílů, přepočet
   `routes-v10`): medián +1,5 % (+4 m), 90 % dílů do +8 % (+26 m), nejvíc +22 % (+88 m),
   průměr 336 → 345 m; voda z obydlí medián +0,3 %, okraj lesa 8 z 10 obydlí beze změny.
-- **Chůze rovně po celých buňkách** (od 31. 10. 2026 – návrh Clauda „chůze rovně po celých
-  buňkách“, Martin 31. 10. 2026: „Udělej všechny ty navrhované optimalizace“; dřív po půlbuňkách):
-  každý krok čte buňku pod svým středem, poloviční počet kroků. Délka se liší jen tam, kde úsečka
-  šikmo ťukne roh jiné buňky – úsečka, která potok jen ťukne rohem, ho může minout (bez objížďky
-  přes brod). Vlkov, 4 000 úseček 20–500 m od obydlí: odchylka medián 0,09 %, 90 % do 0,41 %,
-  nejvíc 3,2 % (3 m), průměr +0,02 %; vzdálenosti chůze 3 783 dílů: 2 299 beze změny, 90 % do
-  0,1 %, nejvíc −18 % / +8,5 % (30 m – brod navíc nebo méně), průměr 345 → 344 m. Uložené vsi
-  se přepočítají při dalším dni (`routes-v12`).
 - **Svah jen pro vůz, levně:** kus úsečky (dvě buňky) se sklonem do poloviny meze (`maxGrade`
   10 %) stojí × (1 + 4 · (sklon / mez)²) jako ve vozové síti; prudší kus stojí nejvýš jako
   serpentiny se sklonem poloviny meze – vůz rovně do srázu nevyjede, ale objede ho. Po pevné cestě

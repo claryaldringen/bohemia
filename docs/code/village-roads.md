@@ -923,7 +923,7 @@ Návrh `docs/design/paths.md` – Stálé trasy (25. 10. 2026), Úloha A1.
 Návrh [paths.md – Odhad vzdáleností](../design/paths.md#odhad-vzdáleností-31-10-2026) (Martin 31. 10. 2026: „simulace bude počítat jen s odhadem vzdáleností a přesné trasy zůstanou
 prohlížeči – udělej to rovnou“).
 
-- **Chůze** (`paths/walking.ts`): `groundWalkLength` = `straightWalkCost` (po celých buňkách – `walkSteps`, mokřina,
+- **Chůze** (`paths/walking.ts`): `groundWalkLength` = `straightWalkCost` (po půlbuňkách – mokřina,
   les `1 / PATH_FOREST_COST`, pole; pole v lese je vymýcené) a přes potok mimo brod (`WALK_DEEP` –
   `PATH_WATER` bez `PATH_FORD`) objížďka `fordDetour` – buňka brodu s nejmenším |a F| + |F b|
   (`groundSpots(ground, PATH_FORD)`), druhý úsek začíná ve vodě (brodí se jednou). Bez brodu v okně
