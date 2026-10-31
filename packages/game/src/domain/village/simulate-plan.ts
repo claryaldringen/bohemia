@@ -10,7 +10,11 @@ import { expectedNetKg, sowingGroup } from './fields';
 import { taskPosition, taskSpans } from './field-progress';
 import { dropFromWork, moveParts, shrinkInPlan } from './land-taken';
 import { ploughLayout } from './plough-blocks';
-import { plannedFurrowEfficiency, relayUntouchedBands } from './plough-trip';
+import {
+  plannedFurrowEfficiency,
+  relayUntouchedBands,
+  sowingFurrowEfficiency,
+} from './plough-trip';
 import { villageLaborFactor } from './happiness';
 import { familyHomes, lordApartIds, manorLabor, trainingFamily } from './lord';
 import { villageHoldings, workOrder } from './holdings';
@@ -792,7 +796,7 @@ export function sowingCapacity(
   // (oxen.md – Co nejdelší brázda, Brázdy končí na cestě)
   const perDay =
     ploughCapacityPerDay(state, coverage.tools, day, pairs) *
-    plannedFurrowEfficiency(
+    sowingFurrowEfficiency(
       state.parts.filter((p) => sowingGroup(p) !== null),
       state,
       landscape,

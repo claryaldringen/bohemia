@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Landscape } from '../../landscape';
 import { capsuleRange, roadCapsules, roadFreeRuns, roadLandWidthM } from '../paths/road-land';
 import { bandLengthM } from '../plough-blocks';
-import { bandFurrowM } from '../plough-trip';
+import { bandFurrowM, plannedFurrowEfficiency, sowingFurrowEfficiency } from '../plough-trip';
 import type { FieldPart, PloughBand, Road, VillageState } from '../types';
 
 // Brázdy končí na cestě (oxen.md – Co nejdelší brázda; Martin, 19. 10. 2026: „pokud oráč
@@ -165,5 +165,30 @@ describe('délka brázdy pásu přes cestu', () => {
         geo,
       ),
     ).toBe(90);
+  });
+
+  it('výkon orby plánu osevu z paměti – týž jako bez ní, se změnou dílů nebo cest se přepočte', () => {
+    const land = { size: 64, cellSizeM: 15 } as Landscape;
+    const across = state([
+      road([
+        [30, -50],
+        [30, 50],
+      ]),
+    ]);
+    const plain = plannedFurrowEfficiency(parts, across, land);
+    expect(sowingFurrowEfficiency(parts, across, land)).toBe(plain);
+    expect(sowingFurrowEfficiency(parts, across, land)).toBe(plain);
+    // bez cesty delší brázda
+    expect(sowingFurrowEfficiency(parts, state([]), land)).toBe(
+      plannedFurrowEfficiency(parts, state([]), land),
+    );
+    expect(sowingFurrowEfficiency(parts, state([]), land)).toBeGreaterThan(plain);
+    // jiná plocha jednoho dílu – jiná délka brázdy, ne paměť
+    const open = sowingFurrowEfficiency(parts, state([]), land);
+    const larger = parts.map((p) => (p.id === 1 ? { ...p, areaM2: 400 } : p));
+    expect(sowingFurrowEfficiency(larger, state([]), land)).toBe(
+      plannedFurrowEfficiency(larger, state([]), land),
+    );
+    expect(sowingFurrowEfficiency(larger, state([]), land)).not.toBe(open);
   });
 });
