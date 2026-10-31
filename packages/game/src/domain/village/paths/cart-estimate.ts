@@ -48,7 +48,16 @@ export interface CartGround {
 }
 
 const baseCache = new WeakMap<PathTerrain, Float32Array>();
-let lastGround: { terrain: PathTerrain; key: string; ground: CartGround } | null = null;
+/**
+ * Poslední půda vozu: terén a vstupy po dílech (`cartGroundOf`) – po šesti číslech na díl (buňka x,
+ * y, střed čtverce x, z, natočení mřížky, rychlost) a příznak natočení (díl s mřížkou).
+ */
+let lastGround: {
+  terrain: PathTerrain;
+  values: Float64Array;
+  turned: Uint8Array;
+  ground: CartGround;
+} | null = null;
 
 function baseCost(t: PathTerrain): Float32Array {
   const known = baseCache.get(t);
@@ -71,24 +80,39 @@ function cartGroundOf(state: VillageState, day: number, landscape: Landscape): C
   const t = walkGroundOf(landscape).terrain;
   const grids = new Map(state.fields.map((f) => [f.id, f.grid]));
   const parts = state.parts.filter((p) => p.cell !== undefined);
-  let key = '';
-  const squares = parts.map((p) => {
+  // vstupy půdy po dílech – stejné jako minule (čísla shodná, jako dřív text klíče) = táž půda;
+  // čtverce se skládají jen pro novou půdu
+  const values = new Float64Array(parts.length * 6);
+  const turned = new Uint8Array(parts.length);
+  parts.forEach((p, k) => {
     const grid = grids.get(p.fieldId);
     const c = grid
       ? squareCenter(landscape, grid, p.cell!)
       : tileCenterWorld(landscape, p.cell!.x, p.cell!.y);
-    const speed = cartPartSpeed(partStage(p, day));
-    key += `${p.cell!.x}/${p.cell!.y}:${c.x},${c.z},${grid?.rotation ?? ''},${speed}|`;
+    values[k * 6] = p.cell!.x;
+    values[k * 6 + 1] = p.cell!.y;
+    values[k * 6 + 2] = c.x;
+    values[k * 6 + 3] = c.z;
+    if (grid) {
+      values[k * 6 + 4] = grid.rotation;
+      turned[k] = 1;
+    }
+    values[k * 6 + 5] = cartPartSpeed(partStage(p, day));
+  });
+  if (lastGround && lastGround.terrain === t && sameInputs(lastGround, values, turned)) {
+    return lastGround.ground;
+  }
+  const squares = parts.map((p, k) => {
+    const grid = grids.get(p.fieldId);
     return {
       cell: { x: p.cell!.x, y: p.cell!.y },
-      x: c.x,
-      z: c.z,
+      x: values[k * 6 + 2]!,
+      z: values[k * 6 + 3]!,
       size: landscape.cellSizeM,
       ...(grid ? { rotation: grid.rotation } : {}),
-      speed,
+      speed: values[k * 6 + 5]!,
     };
   });
-  if (lastGround && lastGround.terrain === t && lastGround.key === key) return lastGround.ground;
   const base = baseCost(t);
   const cost = new Float32Array(base);
   if (squares.length > 0) {
@@ -109,8 +133,20 @@ function cartGroundOf(state: VillageState, day: number, landscape: Landscape): C
     }
   }
   const ground = { terrain: t, cost };
-  lastGround = { terrain: t, key, ground };
+  lastGround = { terrain: t, values, turned, ground };
   return ground;
+}
+
+/** Vstupy půdy po dílech jsou tytéž jako u poslední půdy. */
+function sameInputs(
+  last: { values: Float64Array; turned: Uint8Array },
+  values: Float64Array,
+  turned: Uint8Array,
+): boolean {
+  if (last.values.length !== values.length) return false;
+  for (let k = 0; k < values.length; k++) if (last.values[k] !== values[k]) return false;
+  for (let k = 0; k < turned.length; k++) if (last.turned[k] !== turned[k]) return false;
+  return true;
 }
 
 /** Cena svahu kusu délky `len` s převýšením `rise` (× proti rovině – viz hlavička). */
