@@ -500,21 +500,37 @@ function syncWalkMemo(memo: WalkMemo, ground: WalkGround): void {
 }
 
 /**
- * Žádná buňka v obdélníku kolem úsečky `a`–`b` (krajní buňky ± 2, oříznuto na mřížku) se mezi
- * generacemi nezměnila. Kroky úsečky i obdélníky kusů v `groundWalkLength` (krajní kroky ± 1)
- * leží uvnitř – délka chůze je tedy táž.
+ * Žádná buňka, kterou `straightWalkCost` na úsečce `a`–`b` čte, se mezi generacemi nezměnila:
+ * úsečka po kusech UNCHANGED_STEPS kroků (násobek WALK_RUN – kus úsečky po stejné půdě leží celý
+ * v jednom), u každého obdélník krajních kroků ± 2 buňky (oříznuto na mřížku). Buňky kroků
+ * i obdélníky kusů (krajní kroky ± 1) leží uvnitř – délka chůze je tedy táž. Úzký pruh podél
+ * úsečky místo obdélníku celé úsečky: dlouhá šikmá úsečka nepropadne kvůli změně stranou.
  */
 function unchangedAround(changed: Int32Array, t: PathTerrain, a: PathPoint, b: PathPoint): boolean {
-  const ai = (a.x - t.originX) / t.cellM;
-  const bi = (b.x - t.originX) / t.cellM;
-  const aj = (a.z - t.originZ) / t.cellM;
-  const bj = (b.z - t.originZ) / t.cellM;
-  const i0 = Math.max(0, Math.floor(Math.min(ai, bi)) - 2);
-  const i1 = Math.min(t.width - 1, Math.ceil(Math.max(ai, bi)) + 2);
-  const j0 = Math.max(0, Math.floor(Math.min(aj, bj)) - 2);
-  const j1 = Math.min(t.height - 1, Math.ceil(Math.max(aj, bj)) + 2);
-  return rectSum(changed, t.width, i0, i1, j0, j1) === 0;
+  const length = length2(b.x - a.x, b.z - a.z);
+  if (length === 0) return true;
+  // kroky jako ve `straightWalkCost` (týž počet i tytéž polohy)
+  const n = Math.max(1, Math.ceil(length / (t.cellM / 2)));
+  const { originX, originZ, cellM } = t;
+  const ex = b.x - a.x;
+  const ez = b.z - a.z;
+  for (let k = 0; k < n; k += UNCHANGED_STEPS) {
+    const last = Math.min(n, k + UNCHANGED_STEPS) - 1;
+    const x0 = (a.x + ex * ((k + 0.5) / n) - originX) / cellM;
+    const x1 = (a.x + ex * ((last + 0.5) / n) - originX) / cellM;
+    const z0 = (a.z + ez * ((k + 0.5) / n) - originZ) / cellM;
+    const z1 = (a.z + ez * ((last + 0.5) / n) - originZ) / cellM;
+    const i0 = Math.max(0, Math.floor(Math.min(x0, x1)) - 2);
+    const i1 = Math.min(t.width - 1, Math.ceil(Math.max(x0, x1)) + 2);
+    const j0 = Math.max(0, Math.floor(Math.min(z0, z1)) - 2);
+    const j1 = Math.min(t.height - 1, Math.ceil(Math.max(z0, z1)) + 2);
+    if (rectSum(changed, t.width, i0, i1, j0, j1) !== 0) return false;
+  }
+  return true;
 }
+
+/** Kroků úsečky v jednom obdélníku kontroly změn (`unchangedAround`) – násobek WALK_RUN. */
+const UNCHANGED_STEPS = 4 * WALK_RUN;
 
 /** `groundWalkLength(ground, a, b)` (bez pěšiny) přes paměť `memo` přepnutou na `ground`. */
 function memoWalkLength(memo: WalkMemo, ground: WalkGround, a: PathPoint, b: PathPoint): number {
