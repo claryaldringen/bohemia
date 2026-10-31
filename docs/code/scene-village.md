@@ -636,7 +636,8 @@ Kdo, kdy a na kterém koni jede, určuje jádro (`lordRides` → `SceneLord.ride
   není sladěný s karavanou; horses.md – Kdy jsou jezdci venku). Plány jdou přes `DraftCrew.rides` → `VillageVillagers.rides()`
   → `onCrew` → `VillageLivestock.setRides`.
 - **Kreslení a buffery:** jezdec = instance `villagers-man` s klipem `ride` / `ride-trot`
-  (`riderPose`), zvednutá o výšku sedu `RIDER_SEAT_M` × `RIDE_HORSE_SCALE` přes `VillagerPose.lift`
+  (`riderPose`; jezdec za čelem skupiny, který v bloku jízdy čeká na začátku trasy, sedí na
+  stojícím koni klipem `ride-idle` – kůň bez kroku, `waiting`), zvednutá o výšku sedu `RIDER_SEAT_M` × `RIDE_HORSE_SCALE` přes `VillagerPose.lift`
   – jen posun matice, **žádný vertex atribut** (8 bufferů jako dosud). Kůň = skupina `horse`
   v `livestock.ts` (`rideHorsePose` – krok a klus morph targety jako kráva, 7 bufferů). Stojící kůň
   (`Group.still`) se zapíše jednou a překreslení nenastavuje, jedoucí ano. Bez sedla (horses.md).

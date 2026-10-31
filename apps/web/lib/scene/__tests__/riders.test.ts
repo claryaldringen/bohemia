@@ -74,6 +74,22 @@ describe('jezdec na koni (horses.md – Ve scéně)', () => {
     }
   });
 
+  it('druhý ve skupině na začátku bloku čeká na stojícím koni – klip sedu na místě', () => {
+    const [lead] = ridePlans(input(LORD));
+    // jezdec kus za čelem skupiny (rideGroups – jedou po dvou)
+    const second = { ...lead!, behind: 0.5 };
+    const start = at(8) + 0.01;
+    const horse = rideHorsePose(second, start, createRideState(), createLivestockPose());
+    const rider = riderPose(second)(start, [], createVillagerPose());
+    expect(horse.stride).toBe(0);
+    expect(rider.clip).toBe('ride-idle');
+    expect(rider.lift).toBeCloseTo(RIDER_SEAT_M * RIDE_HORSE_SCALE, 6);
+    // v půli bloku už jede
+    expect(['ride', 'ride-trot']).toContain(
+      riderPose(second)(at(8.4), [], createVillagerPose()).clip,
+    );
+  });
+
   it('jede jen v bloku jízdy (po luku a boji), jinak kůň stojí u kůlu a jezdec je doma', () => {
     const [lead, second] = ridePlans(input(LORD));
     // trainees prázdné: luk ani boj, bloky jízdy 8–9 a 14–15 h (po hodině z dvou)
