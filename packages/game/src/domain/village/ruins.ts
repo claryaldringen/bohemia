@@ -29,6 +29,7 @@ export function recordRuins(
   state: VillageState,
   dwellings: readonly Dwelling[],
   day: number,
+  charred = false,
 ): void {
   if (dwellings.length === 0) return;
   const ruins = (state.ruins ??= []);
@@ -41,8 +42,31 @@ export function recordRuins(
       ...(d.workshop ? { craft: d.workshop.craft } : {}),
       ...(d.plainShape ? { plainShape: true as const } : {}),
       day,
+      ...(charred ? { charred: true as const } : {}),
     });
   }
+}
+
+/**
+ * Převod starších vsí (disasters.md – Požár, Ve scéně): zbytky jam shořelých obydlí dostanou
+ * příznak `charred` ze zápisů kroniky `fire` (klíč `id@den`). Ruina, která příznak už má nebo
+ * v kronice požár nemá, zůstane; ves bez změny vrátí týž objekt. Idempotentní.
+ */
+export function withCharredRuins(state: VillageState): VillageState {
+  const ruins = state.ruins;
+  if (!ruins || ruins.every((r) => r.charred)) return state;
+  const keys = new Set<string>();
+  for (const event of state.chronicle) {
+    if (event.kind !== 'fire') continue;
+    for (const id of event.burnedDwellingIds) keys.add(`${id}@${event.day}`);
+  }
+  if (!ruins.some((r) => !r.charred && keys.has(`${r.id}@${r.day}`))) return state;
+  return {
+    ...state,
+    ruins: ruins.map((r) =>
+      !r.charred && keys.has(`${r.id}@${r.day}`) ? { ...r, charred: true as const } : r,
+    ),
+  };
 }
 
 /** Jak daleko zbytek jámy zarostl 0–1 (0 = den zániku obydlí, 1 = zmizel). */

@@ -331,7 +331,7 @@ export function collapseDwellings(state: VillageState, day: number, destroyed: D
     if (lost && c.wood) addLogs(state, c.wood.fromPile);
     return !lost;
   });
-  recordRuins(state, destroyed, day);
+  recordRuins(state, destroyed, day, true);
   state.dwellings = homes;
 }
 

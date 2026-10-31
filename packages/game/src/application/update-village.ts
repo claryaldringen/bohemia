@@ -37,6 +37,7 @@ import {
   withRoadsRepairedSteps,
   withDynasty,
   withBridgedRoads,
+  withCharredRuins,
   withDwellingShapes,
   withoutBuiltOverRuins,
   withoutBuiltOverGrainPits,
@@ -230,7 +231,11 @@ export async function updateVillage(
           withWearSeed(
             withManor(
               withHorsePenStock(
-                withOxen(withBridgedRoads(withoutTrampledParts(withoutWalkStages(migrated)))),
+                withOxen(
+                  withBridgedRoads(
+                    withoutTrampledParts(withoutWalkStages(withCharredRuins(migrated))),
+                  ),
+                ),
               ),
             ),
           ),

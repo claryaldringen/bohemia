@@ -203,4 +203,9 @@ export interface DwellingRuin {
   plainShape?: true;
   /** Den zániku obydlí – od něj jáma zarůstá. */
   day: number;
+  /**
+   * Obydlí shořelo při požáru – zbytek jámy zůstane ohořelý natrvalo (disasters.md – Požár, Ve
+   * scéně). Chybí = zanikl jinak (starší vsi příznak dostanou z kroniky – `withCharredRuins`).
+   */
+  charred?: true;
 }
