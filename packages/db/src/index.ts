@@ -7,6 +7,7 @@ export {
   createSettlementRepository,
   createTimeOffsetRepository,
   createVillageRepository,
+  createWorldQueue,
   playerLockHash,
   type PlayerLockOptions,
 } from './adapters';

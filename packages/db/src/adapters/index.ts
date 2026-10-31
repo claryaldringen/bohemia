@@ -8,3 +8,4 @@ export {
 export { createSettlementRepository } from './settlement-repository';
 export { createTimeOffsetRepository } from './time-offset-repository';
 export { createVillageRepository } from './village-repository';
+export { createWorldQueue } from './world-queue';
