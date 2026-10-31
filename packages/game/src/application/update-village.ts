@@ -28,6 +28,7 @@ import {
   withPlots,
   withRoutes,
   withoutWalkStages,
+  withPlannedLining,
   withWearCells,
   withWearSeed,
   withVisitsSeed,
@@ -230,7 +231,11 @@ export async function updateVillage(
           withWearSeed(
             withManor(
               withHorsePenStock(
-                withOxen(withBridgedRoads(withoutTrampledParts(withoutWalkStages(migrated)))),
+                withOxen(
+                  withBridgedRoads(
+                    withoutTrampledParts(withPlannedLining(withoutWalkStages(migrated))),
+                  ),
+                ),
               ),
             ),
           ),

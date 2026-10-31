@@ -1,4 +1,5 @@
 // Zemská stezka (docs/design/trade.md – Zemská stezka, první vylepšení vsi z dvorce vojvody).
+import { relineRoad } from './paths/road-lining';
 // Hráč zvolí jeden z 8 směrů; stezka vede od dvorce ke kraji mapy v tom směru – trasu najde
 // nejlevnější chůze po terénu pěšin (svahy, brody, les, kmeny a balvany) se slevou po pevných
 // cestách, osa se uloží jako pevné cesty (`addTrailRoads` – kde už pevná cesta je, stezka vede po
@@ -756,7 +757,10 @@ function upgradePieces(state: VillageState, trail: Trail, count: number): void {
   for (const piece of trail.pieces.slice(0, count)) {
     const road = roads.find((r) => r.id === piece.roadId);
     if (!road) continue;
-    road.grade = upgradedGrade(road.grade, piece.grade);
+    const grade = upgradedGrade(road.grade, piece.grade);
+    // olemování se určí s vylepšením (roads.md – Stromy u cesty, Kdy)
+    if (grade !== road.grade) relineRoad(road);
+    road.grade = grade;
     if (road.grade === 'improved') delete road.unbridged;
   }
 }

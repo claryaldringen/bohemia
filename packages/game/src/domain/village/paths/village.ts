@@ -565,7 +565,7 @@ function computeVillageNetwork(
  * Klíč mapy tras (paths.md – Stálé trasy, pravidlo 5): krajina je dána, mění ho jen to, co mění
  * ceny buněk pro chůzi a vůz – obydlí a staveniště (poloha, natočení, druh, pozemek), díly polí
  * (políčka – bez stadia), sady, hřbitovy, posvátná místa, ohrady, les vsi, milíře, humna, pevné
- * cesty (osa, druh, stupeň, mokřina, olemování po desetinách – ne stav kusů, provoz ani opuštění),
+ * cesty (osa, druh, stupeň, mokřina – olemování je jejich součást; ne stav kusů, provoz ani opuštění),
  * zemní práce (profil, brody, hotové úseky – ne průběh), otevřené obilné jámy (stálý cíl) a pařezy
  * k poslednímu 1. 11.; paseka rozestavěného pole v lese až s dohořením pole (`routeTreesKey`).
  * Neobsahuje stadia dílů, lidi, stáří spojení, stáda, práci dne ani den.
@@ -580,7 +580,6 @@ export function routeMapKey(state: VillageState, day: number): string {
     k.cemeteries,
     k.sacred,
     k.roads,
-    lineKey(state),
     k.pens,
     k.woods,
     k.kilns,
@@ -606,22 +605,6 @@ function earthworksKey(state: VillageState): string {
           )}:${JSON.stringify(e.bypassed ?? [])}:${e.abandonedDay === undefined ? '' : 'x'}`,
     )
     .join('|');
-}
-
-/**
- * Olemování pevných cest stromy po desetinách (podíl osy se stromy a s jabloněmi – roads.md,
- * Stromy u cesty zrychlí chůzi); cesty bez zrychlení nic.
- */
-function lineKey(state: VillageState): string {
-  return (state.roads?.roads ?? [])
-    .flatMap((r, k) =>
-      roadTreeSpeed(r.lined) > 0
-        ? [
-            `${r.id ?? `#${k}`}:${Math.round(r.lined!.trees * 10)}/${Math.round(r.lined!.apples * 10)}`,
-          ]
-        : [],
-    )
-    .join(';');
 }
 
 /**
@@ -746,8 +729,8 @@ function routeTreesKey(state: VillageState, day: number): string {
     (f) => f.day <= cut,
   ).length;
   const cleared = (own.clearedObstacles ?? []).length + (state.neighbours?.cleared ?? []).length;
-  const roads = state.roads;
-  return `${felled > 0 ? cut : ''}:${felled}:${cleared}:${roads?.trees?.length ?? 0}:${roads?.swath?.length ?? 0}`;
+  // stromy u cest jsou součást cesty (Martin 31. 10. 2026) – jejich sázení mapu nemění
+  return `${felled > 0 ? cut : ''}:${felled}:${cleared}:${state.roads?.swath?.length ?? 0}`;
 }
 
 /** Části klíče mapy tras (`routeMapKey`) – stavby a ploty bere i neprůchodná plocha vsi. */
@@ -1025,7 +1008,7 @@ export function refreshWalkDistances(
   const routes = state.routes;
   // měsíční kontrola 1. dne v měsíci (a poprvé – i trasy uložené před stálými trasami)
   const monthly = routes?.workKey === undefined || dateOfDayIndex(day).day === 1;
-  lineRoads(state, day, monthly);
+  lineRoads(state);
   const key = walkLayoutHash(`${routeMapKey(state, day)}|${WALK_VERSION}`);
   if (state.walkLayoutKey === key && routes?.key === key) {
     // obsazenost (nastěhování, vyhnání stáda, otevřená jáma) jen převáží – nic se nehledá

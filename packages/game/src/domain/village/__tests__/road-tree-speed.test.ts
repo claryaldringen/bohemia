@@ -8,7 +8,7 @@ import {
   type PathNetwork,
   type PathVillage,
 } from '../paths/network';
-import { lineRoads, roadLining } from '../paths/road-lining';
+import { lineRoads, relineRoad, roadLining, withPlannedLining } from '../paths/road-lining';
 import { PATH_WATER, PATH_WETLAND, type PathTerrain } from '../paths/terrain';
 import { refreshWalkDistances, routeMapKey } from '../paths/village';
 import { roadTreeSpeed, roadWalkSpeed } from '../paths/walk-speed';
@@ -90,57 +90,33 @@ function applesAlong(
   return out;
 }
 
-const bySpot = (trees: readonly RoadTree[]): Map<number, RoadTree> =>
-  new Map(trees.map((t) => [t.spot, t]));
-
+// Martin 31. 10. 2026: „Stromy jsou součást cesty.“ – olemování z míst, jak je alej naplánovaná
 describe('olemování úseku stromy (roadLining)', () => {
   const road = straightRoad(1, 0, 200);
-  const grown = rootedYearsAgo(30);
 
-  it('stromy po celé délce = celý úsek, napůl olemovaný polovina, bez stromů nic', () => {
-    const all = road.spots.map((s) => treeAt(s, grown));
-    expect(roadLining(road, bySpot(all), [], DAY)).toEqual({ trees: 1, apples: 0 });
-    const half = road.spots.filter((s) => s.x < 100).map((s) => treeAt(s, grown));
-    expect(roadLining(road, bySpot(half), [], DAY)).toEqual({ trees: 0.5, apples: 0 });
-    expect(roadLining(road, new Map(), [], DAY)).toEqual({ trees: 0, apples: 0 });
+  it('místa na stromy po celé délce = celý úsek, napůl polovina, bez míst nic', () => {
+    expect(roadLining(road, [])).toEqual({ trees: 1, apples: 0 });
+    const half = { ...road, spots: road.spots.filter((s) => s.x < 100) };
+    expect(roadLining(half, [])).toEqual({ trees: 0.5, apples: 0 });
+    expect(roadLining({ ...road, spots: [] }, [])).toEqual({ trees: 0, apples: 0 });
   });
 
-  it('keř, souš ani pařez se nepočítá; strom odstraněný stavbou taky ne', () => {
-    const shrubs = road.spots.map((s) => treeAt(s, rootedYearsAgo(ROAD_TREES.shrubYears - 1)));
-    expect(roadLining(road, bySpot(shrubs), [], DAY).trees).toBe(0);
-    // souš (umřel před rokem) a pařez (před 15 lety)
-    const dead = (yearsAgo: number): RoadTree[] =>
-      road.spots.map((s) => ({
-        ...treeAt(s, rootedYearsAgo(400)),
-        diesDay: rootedYearsAgo(yearsAgo),
-      }));
-    expect(roadLining(road, bySpot(dead(1)), [], DAY).trees).toBe(0);
-    expect(roadLining(road, bySpot(dead(ROAD_TREES.snagYears + 5)), [], DAY).trees).toBe(0);
-    const all = road.spots.map((s) => treeAt(s, grown));
-    const removed = new Set(all.map((t) => t.id));
-    expect(roadLining(road, bySpot(all), [], DAY, removed).trees).toBe(0);
-  });
-
-  it('jabloně: vysazené živé po celé délce = celý úsek, čekající na výsadbu ani souš ne', () => {
-    const planted = applesAlong(road, 0, 200, rootedYearsAgo(10));
-    expect(roadLining(road, new Map(), planted, DAY)).toEqual({ trees: 0, apples: 1 });
-    expect(roadLining(road, new Map(), applesAlong(road, 0, 200, null), DAY).apples).toBe(0);
-    // po ≈ 60 letech souš
-    const old = applesAlong(road, 0, 200, rootedYearsAgo(65));
-    expect(roadLining(road, new Map(), old, DAY).apples).toBe(0);
+  it('jabloně úseku po celé délce = celý úsek – vysazené, čekající i souš (místo aleje)', () => {
+    const bare = { ...road, spots: [] };
+    for (const rooted of [rootedYearsAgo(10), null, rootedYearsAgo(65)]) {
+      expect(roadLining(bare, applesAlong(road, 0, 200, rooted))).toEqual({ trees: 0, apples: 1 });
+    }
   });
 
   it('jabloně platí, kde jsou, jinde ostatní stromy', () => {
-    const trees = road.spots.map((s) => treeAt(s, grown));
     const apples = applesAlong(road, 0, 100, rootedYearsAgo(10));
-    expect(roadLining(road, bySpot(trees), apples, DAY)).toEqual({ trees: 0.5, apples: 0.5 });
+    expect(roadLining(road, apples)).toEqual({ trees: 0.5, apples: 0.5 });
   });
 
-  it('podíl po desetinách – jeden strom navíc ho nezmění vždy', () => {
+  it('podíl po desetinách – jedno místo navíc ho nezmění vždy', () => {
     const long = straightRoad(2, 0, 1000);
-    const grownTrees = long.spots.map((s) => treeAt(s, grown));
     const shares = [30, 31, 32].map(
-      (n) => roadLining(long, bySpot(grownTrees.slice(0, n)), [], DAY).trees,
+      (n) => roadLining({ ...long, spots: long.spots.slice(0, n) }, []).trees,
     );
     for (const share of shares) expect(Math.round(share * 10)).toBeCloseTo(share * 10, 9);
     expect(shares[0]).toBe(shares[1]);
@@ -374,46 +350,57 @@ describe('olemování ve stavu vsi (lineRoads, refreshWalkDistances)', () => {
     };
     return s;
   }
-  const far = (s: VillageState): number =>
-    s.parts.find((p) => p.cell?.x === 16)!.walkDistanceM ?? Infinity;
 
-  it('nový úsek dostane olemování hned, změna stromů se promítne až 1. dne v měsíci', () => {
+  it('nový úsek dostane olemování hned z míst na stromy – růst stromů přepočet nespustí', () => {
     const s = withRoad();
     refreshWalkDistances(s, DAY + 2, LANDSCAPE, null);
-    // keře – zatím nic
-    expect(s.roads!.roads[0]!.lined).toEqual({ trees: 0, apples: 0 });
-    const before = far(s);
-    const stages = s.walkLayoutKey;
-    // 15. 6. jsou to stromy, ale chůze se přepočítá až 1. 7.
+    // keře na místech – alej, jak je naplánovaná, lemuje celý úsek
+    expect(s.roads!.roads[0]!.lined!.trees).toBeGreaterThanOrEqual(0.9);
+    const key = s.walkLayoutKey;
+    const routes = s.routes;
+    // 15. 6. dorostou ve stromy, 1. 7. kontrola měsíce – mapa tras ani olemování beze změny
     refreshWalkDistances(s, DAY + 14, LANDSCAPE, null);
-    expect(s.roads!.roads[0]!.lined).toEqual({ trees: 0, apples: 0 });
-    expect(far(s)).toBe(before);
     const july = dayIndexOf({ year: 600, month: 7, day: 1 });
     refreshWalkDistances(s, july, LANDSCAPE, null);
-    expect(s.roads!.roads[0]!.lined!.trees).toBeGreaterThanOrEqual(0.9);
-    expect(s.walkLayoutKey).not.toBe(stages);
-    expect(far(s)).toBeLessThan(before);
+    expect(s.walkLayoutKey).toBe(key);
+    expect(s.routes!.key).toBe(routes!.key);
+    expect(s.routes!.day).toBe(routes!.day);
   });
 
-  it('bez stromů u cest klíč mapy tras beze změny a olemování nulové', () => {
+  it('zasazení jabloně ani uschnutí stromu u cesty přepočet nespustí', () => {
     const s = withRoad();
-    s.roads!.trees = [];
-    const key = routeMapKey(s, DAY + 2);
-    lineRoads(s, DAY + 2, true);
-    expect(s.roads!.roads[0]!.lined).toEqual({ trees: 0, apples: 0 });
-    expect(routeMapKey(s, DAY + 2)).toBe(key);
+    refreshWalkDistances(s, DAY + 2, LANDSCAPE, null);
+    const lined = { ...s.roads!.roads[0]!.lined! };
+    const routes = s.routes!;
+    const key = routeMapKey(s, DAY + 3);
+    s.roads!.apples = applesAlong(s.roads!.roads[0]!, -55, 100, DAY + 3);
+    s.roads!.trees = s.roads!.trees.map((t) => ({ ...t, diesDay: DAY + 3 }));
+    s.roads!.trees.push({ ...s.roads!.trees[0]!, id: s.roads!.trees[0]!.id + 500 });
+    expect(routeMapKey(s, DAY + 4)).toBe(key);
+    refreshWalkDistances(s, DAY + 4, LANDSCAPE, null);
+    expect(s.roads!.roads[0]!.lined).toEqual(lined);
+    expect(s.routes!.day).toBe(routes.day);
+    expect(s.routes!.key).toBe(routes.key);
   });
 
-  it('určí jen chybějící, 1. dne v měsíci všechny; strom odstraněný stavbou se nepočítá', () => {
+  it('určí jen chybějící – po vylepšení cesty (relineRoad) znovu, i s jabloněmi', () => {
     const s = withRoad();
-    const july = dayIndexOf({ year: 600, month: 7, day: 1 });
     s.roads!.roads[0]!.lined = { trees: 0.2, apples: 0 };
-    lineRoads(s, july, false);
+    lineRoads(s);
     expect(s.roads!.roads[0]!.lined).toEqual({ trees: 0.2, apples: 0 });
-    lineRoads(s, july, true);
-    expect(s.roads!.roads[0]!.lined!.trees).toBeGreaterThanOrEqual(0.9);
-    s.clearedObstacles = s.roads!.trees.map((t) => ({ id: t.id, day: july }));
-    lineRoads(s, july, true);
-    expect(s.roads!.roads[0]!.lined).toEqual({ trees: 0, apples: 0 });
+    s.roads!.apples = applesAlong(s.roads!.roads[0]!, -55, 100, null);
+    relineRoad(s.roads!.roads[0]!);
+    lineRoads(s);
+    expect(s.roads!.roads[0]!.lined!.apples).toBeGreaterThanOrEqual(0.9);
+  });
+
+  it('převod starší vsi: olemování podle míst jednou a idempotentně', () => {
+    const s = withRoad();
+    s.roads!.roads[0]!.lined = { trees: 0.2, apples: 0 };
+    const once = withPlannedLining(s);
+    expect(once.roads!.liningPlanned).toBe(true);
+    expect(once.roads!.roads[0]!.lined!.trees).toBeGreaterThanOrEqual(0.9);
+    expect(s.roads!.roads[0]!.lined).toEqual({ trees: 0.2, apples: 0 });
+    expect(withPlannedLining(once)).toBe(once);
   });
 });

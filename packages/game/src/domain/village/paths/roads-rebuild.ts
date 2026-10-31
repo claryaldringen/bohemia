@@ -187,7 +187,7 @@ export function* rebuildRoadsSteps(
       relinkTrees(current, oldSpots);
       relinkApples(current);
       for (const road of current.roads) delete road.lined;
-      lineRoads(next, day, true);
+      lineRoads(next);
       refreshWalkDistances(next, day, landscape, obstacles);
       if (pass > 0 && networkOf(next.roads!) === before) break;
       yield;

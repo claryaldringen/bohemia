@@ -447,9 +447,10 @@ describe('den správce – dlouhý běh na skutečné krajině', () => {
       // ves zakladatelů na krajině 1 spadne do pasti osiva – hlad na stropu hájení neroste, takže
       // správce je v Obnově a staví stravu mimo pole (dřív Nouze při jakémkoli hladu: kouřový test
       // S5 – osm let žádná stavba mimo pole a obydlí)
-      expect(trapModes.length).toBeGreaterThan(5);
+      // od olemování podle míst na stromy (Martin 31. 10. 2026 – chůze po cestách s alejí je
+      // rychlejší hned) ves do pasti v 25 letech nespadne; když spadne, Nouze není trvalá
       const emergency = trapModes.filter((m) => m === 'emergency').length;
-      expect(emergency).toBeLessThan(trapModes.length / 2);
+      if (trapModes.length > 0) expect(emergency).toBeLessThan(trapModes.length / 2);
       // ves bez rodu (zakladatelé bez vojvody) syna vojvody nemá – odchod syna z pasti tu nejde
       // (ves rodu ve hře vojvodu má; odchod z pasti hlídá steward-son.test.ts)
       expect(chunked.dynasty?.lordId ?? null).toBeNull();

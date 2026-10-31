@@ -7,6 +7,7 @@ import { roadSwathTally } from './road-swath';
 import { ROAD_UPGRADES } from './rules';
 import type { Construction, Road, RoadGrade, VillageState } from './types';
 import { claimedObstacles, planWoodFrom, takeWood, woodLogs, type WoodPlan } from './wood';
+import { relineRoad } from './paths/road-lining';
 
 // Vylepšení pevné cesty (roads.md – Vylepšení cesty, schváleno 18. 10. 2026): hráč vybere úsek
 // a zadá úpravu – stavba ze společné práce vsi. Upravená cesta (vyšlapaná → upravená: srovnat
@@ -442,5 +443,7 @@ export function finishRoadUpgrade(state: VillageState, c: Construction): void {
     road.grade = c.roadGrade;
     // hať a lávka jsou hotové s úpravou
     delete road.unbridged;
+    // olemování se určí s vylepšením (roads.md – Stromy u cesty, Kdy)
+    relineRoad(road);
   }
 }
