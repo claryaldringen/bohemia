@@ -23,6 +23,7 @@ import type {
   TileCell,
   VillageState,
 } from './types';
+import { partsByIdOf } from './parts-by-id';
 
 // Seno (oxen.md – Seno, diet.md – Dobytek): přes zimu (listopad–březen) žerou seno krávy, voli,
 // ovce a kozy (Martin 19. 10. 2026 – ovce a kozy v zimě taky). Seno dává úhor ve fázi louky
@@ -576,7 +577,7 @@ export function mownPartIds(state: Pick<VillageState, 'hay' | 'parts'>): Set<num
   const mowing = state.hay?.mowing;
   if (!mowing) return new Set();
   const position = mowingPosition(mowing);
-  const partsById = new Map(state.parts.map((p) => [p.id, p]));
+  const partsById = partsByIdOf(state.parts);
   return new Set([
     // otava – díly posečené v 1. seči
     ...(mowing.firstCut?.partIds ?? []),

@@ -12,6 +12,7 @@ import { drawGrainPits } from './grain-pits';
 import { SEED_STORES } from './rules';
 import type { Crop, CropWork, FieldPart, SeedKg, VillageState } from './types';
 import { cropSeedPerHa, daysUntilFoodHarvest, seasonCrops, sownShare } from './year-plan';
+import { partsByIdOf } from './parts-by-id';
 
 const M2_PER_HA = 10_000;
 /** Méně osiva (kg) nebo práce (člověkodny) se nepočítá – zaokrouhlení. */
@@ -228,7 +229,7 @@ export function seedAheadKg(
   const ahead: SeedKg = { grain: 0, legumes: 0 };
   const season = state.season;
   if (!season) return ahead;
-  let byId: Map<number, FieldPart> | null = null;
+  let byId: ReadonlyMap<number, FieldPart> | null = null;
   for (const { crop, work } of seasonCrops(season)) {
     // `neededOnly` – jen nutné díly (bez obilí nad potřebu – nákup osiva u sousedů)
     if (neededOnly && work.surplus) continue;
@@ -241,7 +242,7 @@ export function seedAheadKg(
       ahead[store] += Math.max(0, (work.seedKg * (1 - sown)) / sown);
       continue;
     }
-    byId ??= new Map(state.parts.map((p) => [p.id, p]));
+    byId ??= partsByIdOf(state.parts);
     ahead[store] += Math.max(0, workSeedKg(work, byId, crop) - work.seedKg);
   }
   ahead.grain += season.seedWaitingKg?.grain ?? 0;

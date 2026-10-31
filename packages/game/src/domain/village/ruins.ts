@@ -83,11 +83,89 @@ export function ruinOvergrowth(ruin: Pick<DwellingRuin, 'day'>, day: number): nu
 export function updateRuins(state: VillageState, day: number, landscape: Landscape | null): void {
   const ruins = state.ruins;
   if (!ruins) return;
-  const covered = builtOverRuins(state, landscape);
+  // kontrola staveb přes zbytky jam jen se změnou staveb, polí nebo zbytků (výkon; výsledek týž)
+  const inputs = landscape ? coverInputs(state) : null;
+  const unchanged = landscape !== null && sameInputs(uncoveredMemo.get(landscape), inputs!);
+  const covered = unchanged ? new Set<DwellingRuin>() : builtOverRuins(state, landscape);
+  if (landscape && covered.size === 0) uncoveredMemo.set(landscape, inputs!);
   const kept = ruins.filter((r) => ruinOvergrowth(r, day) < 1 && !covered.has(r));
   if (kept.length === ruins.length) return;
   if (kept.length > 0) state.ruins = kept;
   else delete state.ruins;
+}
+
+/**
+ * Poslední kontrola zbytků jam po krajině (`updateRuins`), která pod stavbou nic nenašla – její
+ * vstupy. Se stejnými vstupy by kontrola zase nic nenašla, takže se nepočítá (denně by stavěla
+ * čtverce všech dílů polí kvůli pár zbytkům jam).
+ */
+const uncoveredMemo = new WeakMap<Landscape, readonly (number | string)[]>();
+
+/**
+ * Všechno, co čte `builtOverRuins`, jako řada čísel a textů (porovnává se přesně): zbytky jam,
+ * obydlí a staveniště obydlí i přestaveb (druh, poloha, pozemek, dílna, tvar), posvátná místa,
+ * humna, mřížky polí, sady, hřbitovy, ohrady a čtverce dílů polí.
+ */
+function coverInputs(state: VillageState): (number | string)[] {
+  const out: (number | string)[] = [
+    JSON.stringify(state.ruins),
+    JSON.stringify(
+      state.dwellings.map((d) => [
+        d.type,
+        d.position,
+        d.plot ?? null,
+        d.workshop?.craft ?? null,
+        d.plainShape ?? null,
+      ]),
+    ),
+    JSON.stringify(
+      state.constructions.map((c) => [
+        c.kind,
+        c.position,
+        c.dwellingType,
+        c.plot ?? null,
+        c.craft ?? null,
+        c.plainShape ?? null,
+      ]),
+    ),
+    JSON.stringify(sacredBuildingPlots(state)),
+    JSON.stringify(villageThreshingFloors(state).map((f) => f.position)),
+    JSON.stringify(state.fields.map((f) => [f.id, f.grid ?? null])),
+    JSON.stringify(
+      (state.orchards ?? []).map((o) => [
+        o.id ?? null,
+        o.grid ?? null,
+        o.squares.map((q) => [q.cell, q.areaM2 ?? null]),
+      ]),
+    ),
+    JSON.stringify(
+      (state.cemeteries ?? []).map((c) => [
+        c.id ?? null,
+        c.grid ?? null,
+        c.squares.map((q) => q.cell),
+      ]),
+    ),
+    JSON.stringify(
+      (state.pens ?? []).map((p) => [
+        p.grid ?? null,
+        p.cell,
+        (p.extraSquares ?? []).map((q) => q.cell),
+      ]),
+    ),
+  ];
+  for (const p of state.parts) {
+    if (p.cell) out.push(p.id, p.fieldId, p.cell.x, p.cell.y, p.areaM2);
+  }
+  return out;
+}
+
+function sameInputs(
+  a: readonly (number | string)[] | undefined,
+  b: readonly (number | string)[],
+): boolean {
+  if (!a || a.length !== b.length) return false;
+  for (let k = 0; k < a.length; k++) if (a[k] !== b[k]) return false;
+  return true;
 }
 
 /**

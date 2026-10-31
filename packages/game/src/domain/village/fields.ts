@@ -348,15 +348,12 @@ export function mergeFields(state: VillageState, into: number, others: readonly 
     }
     state.constructions = state.constructions.filter((c) => !dropped.has(c.id));
   }
-  for (const event of state.chronicle) {
-    if (
-      event.kind === 'construction-finished' &&
-      event.fieldId !== null &&
-      merged.has(event.fieldId)
-    ) {
-      event.fieldId = into;
-    }
-  }
+  // nový zápis místo zápisu do starého – záznamy kroniky sdílí kopie stavu (clone.ts)
+  state.chronicle = state.chronicle.map((event) =>
+    event.kind === 'construction-finished' && event.fieldId !== null && merged.has(event.fieldId)
+      ? { ...event, fieldId: into }
+      : event,
+  );
   for (const share of state.labor?.shares ?? []) {
     if (share.target.kind === 'field' && merged.has(share.target.id)) share.target.id = into;
     if (kept && share.construction !== undefined && dropped.has(share.construction)) {

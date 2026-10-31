@@ -58,7 +58,7 @@ import {
   gateAround,
   gateOf,
   passableNear,
-  squareCells,
+  squareCellsOf,
 } from './network-grid';
 
 export interface Household {
@@ -196,7 +196,7 @@ export function tripGroups(
     });
   };
   const squaresTarget = (squares: readonly Square[]): number[] => {
-    const { inside, edge } = squareCells(grid, squares);
+    const { inside, edge } = squareCellsOf(grid, squares);
     return [...inside, ...edge].filter((c) => Number.isFinite(grid.base[c]!));
   };
   // vchod stavby (paths.md – Vchody): buňky kus před ním

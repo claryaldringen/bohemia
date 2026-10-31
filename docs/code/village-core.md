@@ -199,6 +199,54 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   cest, který na Vlkově celý rok uvízl: `roadsMonth` 3,1–3,3 → 1,7–2,3 s první rok (vznik nad
   kopií 2,6 → 0,7 s), vzniknou 3 cesty (36 → 41 úseků, sklizeň −0,1 %). Rok po dnech CPU (zátěž
   15–80) ≈ 30–33 s → 28–29 s po S2; druhý rok Vlkova (zátěž 4–5) 28,1 → 24,8 s (−12 %, všechny tři úspory). Otisk po dnech = najednou = po 10 a 37 dnech u všech tří. Za 20 let se výsledek rozejde (lidé, úroda, hladové dny) stejně jako po změně zásob o 1 mg na začátku – chaos dlouhého běhu, ne posun pravidla.
+  Kolo 1 výkonu dopočtu (Martin 31. 10. 2026: „udělej všechny performance vylepšení, kterých jsi
+  schopen“) – jen paměť, užší kontroly a méně alokací, výsledek bit po bitu týž (otisk roku Vlkova
+  `7af6be0f6c11`, 20 let i nová ves se správcem 15 let beze změny). Rok Vlkova po dnech, střídavě
+  před / po (zátěž 10–13): 13,9–14,8 s → 11,1–11,4 s (−20 %, CPU 18,4–18,5 → 14,9–15,2 s):
+  kopie stavu (`cloneState` – primitivní hodnoty bez volání, `for…in`) 3,7 → 3,4 ms; brázdy přes
+  cesty (`roadFreeRuns` – pásy cest daleko od pásu orby se nepočítají) `lordHelpDay` 1,36 →
+  0,57 s; buňky čtverců staveb v paměti (`squareCellsOf` pro cíle tras – `tripGroups` 0,69 →
+  0,27 s); ceny úseček vozu v paměti podle půdy vozu (`cartSegment`, `SegmentMemo` – půda se mění
+  jen se změnou polí) `cartEstimates` 0,45 → 0,24 s; paměť chůze rovně ověřuje platnost po pruhu
+  32 kroků podél úsečky místo obdélníku celé úsečky (`unchangedAround` – přepočty 127 → 49 tisíc
+  za rok); otisk klíče mapy tras stejného proudu z paměti (`routeMapKey` 0,40 → 0,21 s); terén
+  pěšin s rezervou 600 m – u skutečné krajiny jedna stavba místo dvou při studeném startu
+  (`buildPathTerrain` 0,77 → 0,42 s); u chůze k cílům se řetězy pěšin, jejichž dolní mez nevyjde
+  pod dosavadní nejlepší, nehledají. Nejvíc teď bere přepočet chůze se změnou mapy (5× za rok –
+  síť pěšin 1,4 s, chůze 1,1 s, z toho studený start paměti ≈ 0,5 s), kopie stavu (1,4 s – jednou
+  za dopočet, u hráče, který se dívá denně, za den), sezóna (`seasonDay` 1,1 s – výběr dílů),
+  měsíc cest (`roadsMonth` 1,0 s), práce dne (`work` 1,0 s) a roční přepočet cest (`roadsDay`
+  0,5 s, trasy vozů jednou za rok). Měřicí skript klonuje stav každý den (jako dopočet po jednom
+  dni); `tsx` k tomu přidává `__name` u vnořených funkcí a překlad modulů (≈ 0,8 s před měřením).
+  Kolo 2 (Martin 31. 10. 2026: „Udělej všechny ty navrhované optimalizace“) – pět úspor; čtyři
+  vyšly bit po bitu stejně (otisk roku `7af6be0f6c11`, 20 let i nová ves se správcem beze změny,
+  vše se zmrazenými sdílenými záznamy): kopie stavu sdílí záznamy překážek, pokácených stromů,
+  kroniky a bodů cest (`SHARED_RECORD_LISTS` – 3,78 → 3,39 ms na kopii); vstup jídla dne jednou
+  pro nouzovou porážku i jídlo, hledání masa porážky přepočítá jen mléko (`withMealDams`); výkon
+  orby plánu osevu z paměti po krajině, dokud se díly, mřížky polí a cesty nezmění
+  (`sowingFurrowEfficiency` – přesné porovnání vstupů, 5 přepočtů z 214 volání za rok); zbytky jam
+  pod stavbou jen se změnou vstupů kontroly (`updateRuins` – `coverInputs`, kontrola, která nic
+  nenašla, si je pamatuje). Pátou – chůzi rovně po celých buňkách místo půlbuněk – jsem vrátil
+  (revert): měnila výsledek (úsečky Vlkova medián 0,09 %, nejvíc 3,2 %, u brodu ±30 m) a za rok
+  nic měřitelného nepřinesla (chůze rovně je po kolu 1 skoro celá v paměti); chůze dál krokuje
+  po půlbuňkách. Rok Vlkova po dnech střídavě před / po (zátěž 11–16): 11,8–12,3 s → 10,0–10,8 s
+  (−14 %, CPU 15,5–15,9 → 14,0–14,2 s).
+  Kolo 3 (Martin 31. 10. 2026: „udělej všechny performance vylepšení, kterých jsi schopen“) – jen
+  zrychlení, výsledek bit po bitu týž (otisk roku `7af6be0f6c11` vcelku, po 10 i po 37 dnech, 20 let
+  `dc4bf7fa6a73`, nová ves se správcem 15 let `65f3f4bcd431`, vše se zmrazenými sdílenými záznamy):
+  kopie stavu sdílí i body profilů zemních prací a buňky dílů (`parts[].cell`) a díl kopíruje
+  rozložením (`clonePart`) – 2,5 → 1,5 ms na kopii; díly podle id z paměti po seznamu dílů
+  (`partsByIdOf`, parts-by-id.ts – mapa platí, dokud má seznam tytéž díly ve stejném pořadí
+  a pod týmiž id; ≈ 2 900 map za rok); klíč plotů (`fenceLayoutKey`) a neprůchodné plochy
+  (`villageBlockedAt`) skládají jen části se stavbami a ploty, ne texty 3,8 tisíce dílů; bloky
+  osevu (`sowingBlocks`) se skupinou dílu jednou a bez mapy vzdáleností úseku (1,6 → 0,65 ms);
+  chůze k loukám při seči (`walkDistancesTo`) bez výpočtu sítě pěšin (bere jen uložené trasy)
+  a s pamětí úseček (0,27 → 0,10 s za rok); půda vozu (`cartGroundOf`) porovná vstupy dílů jako
+  čísla místo skládání textu klíče (≈ 150 kB za volání). Rok Vlkova po dnech střídavě před / po
+  (6639658f → 0e0ed2a2, zátěž 4–7): 9,4–9,7 s → 8,0–8,3 s (−15 %, CPU 13,3–13,6 → 11,7–11,9 s).
+  Nejvíc dál bere přepočet chůze se změnou mapy (≈ 2,0 s – síť pěšin inkrementálně bit po bitu
+  nejde: kola hledání sčítají provoz všech tras, jedna stavba může změnit kteroukoli trasu),
+  sezóna (`seasonSelection` 0,8 s), měsíc cest (0,95 s, rozprostřeno) a roční trasy vozů (0,6 s).
   Souběžné požadavky téhož hráče dopočet nezdvojují: web je řadí do fronty (`apps/web/lib/exclusive.ts`,
   web-ui.md – Jeden dopočet vsí naráz), druhý jen dopočte zbytek do svého dne.
 
@@ -222,7 +270,11 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   Ustálený stav bez simulace (osev, pole, práce po měsících, špičky, zásoby, dřevo, sad)
   okamžitě: `village-calculator.ts` (jádro `scripts/lib/steady-state.ts`). Kopii stavu na začátku
   `advanceVillage` dělá `cloneState` (`clone.ts` – ručně, stav jsou data jako v JSON) a stavby polí
-  hledají zakládané díly v indexu po polích – obojí kvůli rychlosti, výsledky stejné.
+  hledají zakládané díly v indexu po polích – obojí kvůli rychlosti, výsledky stejné. **Záznamy
+  v `clearedObstacles`, `felledTrees`, `chronicle` a body pevných cest se nemění na místě** – kopie
+  stavu je sdílí (kopíruje jen seznamy); změna záznamu = nový objekt na jeho místě (`plantOnStump`,
+  `mergeHaySlaughter`, `mergeFields`). V testech je hlídá `freezeSharedRecords` (`src/test-setup.ts`
+  – sdílené záznamy zmrazí, zápis spadne).
 
 - **Meze produktivity** (Martin): čísla s rozpětím v literatuře jsou v `rules*.ts` dvojice
   `{ worst, best }` – **nejhorší mez** (nejvíc člověkodní, nejvyšší ztráty – bez řemesel)

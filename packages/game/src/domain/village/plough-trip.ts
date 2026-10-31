@@ -348,6 +348,65 @@ export function settlePloughTeams(
   }
 }
 
+/** Chybějící údaj ve vstupech `furrowInputs` (žádné skutečné číslo vstupu). */
+const NONE = -1e308;
+
+/**
+ * Všechno, co `plannedFurrowEfficiency` čte, jako řada čísel: díly v pořadí (id, pole, buňka,
+ * plocha, vzdálenost a vzdálenost chůzí), mřížky polí a pevné cesty (stupeň, vozová, body).
+ */
+function furrowInputs(
+  parts: readonly FieldPart[],
+  state: Pick<VillageState, 'fields' | 'roads'>,
+): number[] {
+  const out: number[] = [parts.length];
+  for (const p of parts) {
+    out.push(p.id, p.fieldId, p.cell?.x ?? NONE, p.cell?.y ?? NONE, p.areaM2, p.distanceM);
+    out.push(p.walkDistanceM ?? NONE);
+  }
+  out.push(state.fields.length);
+  for (const f of state.fields) out.push(f.id, f.grid?.x ?? NONE, f.grid?.z ?? NONE);
+  for (const f of state.fields) out.push(f.grid?.rotation ?? NONE);
+  const roads = state.roads?.roads ?? [];
+  out.push(roads.length);
+  for (const road of roads) {
+    out.push(road.grade === 'trodden' ? 1 : road.grade === 'improved' ? 2 : 3, road.cart ? 1 : 0);
+    out.push(road.points.length);
+    for (const point of road.points) out.push(point.x, point.z);
+  }
+  return out;
+}
+
+/** Poslední výpočet `plannedFurrowEfficiency` plánu osevu po krajině – vstupy a výsledek. */
+const furrowMemo = new WeakMap<Landscape, { inputs: number[]; value: number }>();
+
+/**
+ * `plannedFurrowEfficiency` plánu osevu (`sowingCapacity` – každý den oken setí) s pamětí: když se
+ * od posledního výpočtu nad touž krajinou nezměnilo nic, co výpočet čte (`furrowInputs` – díly na
+ * řadě, mřížky polí, pevné cesty; porovnává se přesně číslo po čísle), vezme se minulý výsledek.
+ * Výsledek je tedy týž jako bez paměti a nezávisí na kouscích dopočtu; přepočítá se jen se změnou
+ * dílů, vzdáleností nebo cest (u Vlkova 5 přepočtů z 214 volání za rok).
+ */
+export function sowingFurrowEfficiency(
+  parts: readonly FieldPart[],
+  state: Pick<VillageState, 'fields' | 'roads'>,
+  landscape: Landscape | null,
+): number {
+  if (!landscape) return plannedFurrowEfficiency(parts, state, landscape);
+  const inputs = furrowInputs(parts, state);
+  const last = furrowMemo.get(landscape);
+  if (last && sameNumbers(last.inputs, inputs)) return last.value;
+  const value = plannedFurrowEfficiency(parts, state, landscape);
+  furrowMemo.set(landscape, { inputs, value });
+  return value;
+}
+
+function sameNumbers(a: readonly number[], b: readonly number[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let k = 0; k < a.length; k++) if (a[k] !== b[k]) return false;
+  return true;
+}
+
 /**
  * Očekávaný výkon orby pro plán osevu (podíl výkonu u referenční brázdy): průměr výkonu podle
  * délky brázdy přes pásy, na které by se díly polí `parts` rozpadly (váhou dílů); s krajinou se

@@ -134,6 +134,31 @@ export function dayMealInput(
 }
 
 /**
+ * Vstup jídla dne `input` s jinými dojnými samicemi `dams` – přepočte jen mléko dne a mléko do
+ * sklizně; ostatní na samicích nezávisí. Totéž jako `dayMealInput(…, dams)` nad týmž stavem.
+ */
+function withMealDams(
+  input: DietInput,
+  dams: Record<HerdSpecies, number>,
+  day: number,
+  milked: number,
+): DietInput {
+  const milk = dailyMilk(dams, day);
+  return {
+    ...input,
+    milkL: milk.liters * milked,
+    milkProteinKg: milk.proteinKg * milked,
+    milkEnergy: milk.energy * milked,
+    milkAheadEnergy: milkEnergyBetween(
+      dams,
+      day + 1,
+      day + input.daysToHarvest - 1,
+      DIET.caps.dairy * input.needPerDay,
+    ),
+  };
+}
+
+/**
  * Chovné prasnice – kolik prasat nouzová porážka nechá: EMERGENCY_SLAUGHTER.pigForestShare toho,
  * kolik prasat uživí les (tatáž nosnost jako u podzimní porážky – `winterTargets`), aspoň chovný
  * pár. Stádo se z nich na jaře obnoví (diet.md – Nouzová porážka).
@@ -214,9 +239,12 @@ export function emergencySlaughterPlan(
   day: number,
   potteryCoverage: number,
   milked: number,
+  todayInput?: DietInput,
 ): EmergencyPlan | null {
   if (!state.livestock || state.people.length === 0) return null;
-  const today = eatDiet(dayMealInput(state, day, potteryCoverage, milked));
+  // vstup jídla dne bez porážky – jídlo dne ho předá, ať se nepočítá dvakrát
+  const base = todayInput ?? dayMealInput(state, day, potteryCoverage, milked);
+  const today = eatDiet(base);
   if (today.outlook >= 1 - EPSILON) return null;
   const spare = emergencySpare(state, day);
   const maxKg = HERD_SPECIES.reduce((sum, s) => sum + spare[s] * LIVESTOCK.meatKg[s], 0);
@@ -232,7 +260,7 @@ export function emergencySlaughterPlan(
       youngAfter[s] = herds[s] > 0 ? (young[s] * after[s]) / herds[s] : 0;
     }
     // zabitím dojnic ubude mléka – mláďata ubudou poměrně jako při porážce
-    const input = dayMealInput(state, day, potteryCoverage, milked, dairyDams(after, youngAfter));
+    const input = withMealDams(base, dairyDams(after, youngAfter), day, milked);
     const reserveKg = reserve * input.needPerDay * input.daysToHarvest;
     return eatDiet({
       ...input,
@@ -266,14 +294,16 @@ export function emergencySlaughterPlan(
  * porážky a uzení (1 člověkoden na LIVESTOCK.slaughterKgPerManDay kg) jako při podzimní porážce –
  * mimo listopad jako nouzová práce (`slaughterWork.emergency`), nedodělek listopadové porážky
  * propadá. Mláďata ubudou poměrně, jen selata (od 1. 9.) jdou napřed. Vrátí událost kroniky, nebo null.
+ * `todayInput` – vstup jídla dne ze stavu před porážkou (`dayMealInput`), bez údaje se spočte.
  */
 export function emergencySlaughter(
   state: VillageState,
   day: number,
   potteryCoverage: number,
   milked: number,
+  todayInput?: DietInput,
 ): ChronicleEvent | null {
-  const plan = emergencySlaughterPlan(state, day, potteryCoverage, milked);
+  const plan = emergencySlaughterPlan(state, day, potteryCoverage, milked, todayInput);
   const livestock = state.livestock;
   if (!plan || !livestock) return null;
   const animals: Partial<Record<HerdSpecies, number>> = {};

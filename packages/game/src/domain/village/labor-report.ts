@@ -28,6 +28,7 @@ import { wagonWorkTarget } from './wagon-road';
 import { woodFellingCost } from './wood';
 import { partsWorked, type PartTask } from './field-progress';
 import { seasonPartIds, type CropTask } from './year-plan';
+import { partsByIdOf } from './parts-by-id';
 
 /** Hektar v m² – plocha sadu na jabloň u cesty. */
 const M2_PER_HA = 10_000;
@@ -501,7 +502,7 @@ function fieldShares(state: VillageState, day: number, work: DayWork): FieldShar
     );
   }
   if (!fieldWork.some(({ task, before, after }) => task !== 'thresh' && after > before)) return [];
-  const partsById = new Map(state.parts.map((p) => [p.id, p]));
+  const partsById = partsByIdOf(state.parts);
   const shares = new Map<string, FieldShare>();
   for (const { task, work: crop, before, after, labor } of fieldWork) {
     if (task === 'thresh' || after - before <= 0) continue;

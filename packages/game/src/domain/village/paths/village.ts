@@ -431,7 +431,7 @@ export function settleVillageWear(state: VillageState, day: number, landscape: L
  * s odstupem od plotů (`routeLine`) se v mezipaměti ověřují i jím, ne jen sadou tras.
  */
 export function fenceLayoutKey(state: VillageState): string {
-  const k = walkLayoutParts(state);
+  const k = fenceLayoutParts(state);
   return JSON.stringify([k.dwellings, k.cemeteries, k.pens]);
 }
 
@@ -449,7 +449,7 @@ export function villageBlockedAt(
   // `walkLayoutKey` a zemní práce vozových cest), ne pole, sady, les, cesty ani stáda: ty chůzi jen
   // zdraží a mění se skoro každý měsíc. Okno mřížky leží na mřížce krajiny (`pathWindowFor`), takže
   // větší okno buňky staveb neposune
-  const k = walkLayoutParts(state);
+  const k = buildingLayoutParts(state);
   const key = JSON.stringify([
     k.dwellings,
     k.sites,
@@ -564,52 +564,51 @@ function computeVillageNetwork(
  * zemní práce (profil, brody, hotové úseky – ne průběh), otevřené obilné jámy (stálý cíl) a pařezy
  * k poslednímu 1. 11.; paseka rozestavěného pole v lese až s dohořením pole (`routeTreesKey`).
  * Neobsahuje stadia dílů, lidi, stáří spojení, stáda, práci dne ani den. Vrací rovnou otisk
- * (`KeyHash`, 16 šestnáctkových číslic) – denní kontrola mapy klíč neskládá do řetězce.
+ * (`walkLayoutHash` proudu klíče, 16 šestnáctkových číslic).
  */
 export function routeMapKey(state: VillageState, day: number): string {
   const k = walkLayoutParts(state);
-  // otisk po kouscích – celý klíč (u Vlkova 64 kB) se neskládá ani nekóduje (výkon)
-  const h = new KeyHash();
-  for (const list of [k.dwellings, k.sites, k.parts, k.orchards, k.cemeteries]) h.list(list);
-  h.text(k.sacred);
-  h.text(k.roads ?? '-');
-  h.list(k.pens);
-  h.list(k.woods);
-  h.text(k.kilns ?? '-');
-  h.text(k.floors ?? '-');
-  h.text(earthworksKey(state));
-  h.list((state.grainPits ?? []).map((p) => `${p.id}:${p.x},${p.z}`));
-  h.text(routeTreesKey(state, day));
-  return h.digest();
+  // proud otisku: text + 0x1f, seznam = jeho texty + 0x1e (oddělovače mimo text klíče – různé
+  // klíče dají různé proudy); stejný proud jako včera dá stejný otisk bez počítání po znacích
+  // (porovnání řetězců je rychlé)
+  const list = (items: readonly string[]): string =>
+    items.length > 0 ? `${items.join('\x1f')}\x1f\x1e` : '\x1e';
+  const text = (value: string): string => `${value}\x1f`;
+  const stream =
+    list(k.dwellings) +
+    list(k.sites) +
+    list(k.parts) +
+    list(k.orchards) +
+    list(k.cemeteries) +
+    text(k.sacred) +
+    text(k.roads ?? '-') +
+    list(k.pens) +
+    list(k.woods) +
+    text(k.kilns ?? '-') +
+    text(k.floors ?? '-') +
+    text(earthworksKey(state)) +
+    list((state.grainPits ?? []).map((p) => `${p.id}:${p.x},${p.z}`)) +
+    text(routeTreesKey(state, day));
+  const known = mapKeyDigests.get(stream);
+  if (known !== undefined) {
+    mapKeyDigests.delete(stream);
+    mapKeyDigests.set(stream, known);
+    return known;
+  }
+  const digest = walkLayoutHash(stream);
+  if (mapKeyDigests.size >= MAP_KEY_DIGESTS) {
+    mapKeyDigests.delete(mapKeyDigests.keys().next().value!);
+  }
+  mapKeyDigests.set(stream, digest);
+  return digest;
 }
 
 /**
- * Otisk klíče po kouscích – tytéž dvě 32bitové FNV-1a jako `walkLayoutHash`, jen se klíč neskládá
- * do jednoho řetězce. Oddělovače (0x1e, 0x1f) mimo text klíče – různé klíče dají různé proudy.
+ * Otisky posledních proudů klíče mapy tras (`routeMapKey`; mapa se mění jen občas – vsi se
+ * dopočítávají po dnech). Jen zrychlení – otisk je funkce proudu.
  */
-class KeyHash {
-  private a = 0x811c9dc5;
-  private b = 0x9e3779b9;
-
-  private char(c: number): void {
-    this.a = Math.imul(this.a ^ c, 0x01000193);
-    this.b = Math.imul(this.b ^ c, 0x01000193) ^ (this.b >>> 15);
-  }
-
-  text(text: string): void {
-    for (let i = 0; i < text.length; i++) this.char(text.charCodeAt(i));
-    this.char(0x1f);
-  }
-
-  list(items: readonly string[]): void {
-    for (const item of items) this.text(item);
-    this.char(0x1e);
-  }
-
-  digest(): string {
-    return `${(this.a >>> 0).toString(16).padStart(8, '0')}${(this.b >>> 0).toString(16).padStart(8, '0')}`;
-  }
-}
+const mapKeyDigests = new Map<string, string>();
+const MAP_KEY_DIGESTS = 4;
 
 /**
  * Zemní práce pro klíč mapy: profil, brody, konce úseků a které jsou hotové, zrušení – ne průběh
@@ -712,29 +711,49 @@ interface WalkLayoutParts {
 }
 
 function walkLayoutParts(state: VillageState): WalkLayoutParts {
-  const at = (p: Position): string => `${p.x},${p.z},${p.rotation}`;
-  const dwellings = state.dwellings.map(
-    (d) =>
-      `${d.id}:${d.type}${d.workshop ? `/${d.workshop.craft}` : ''}:${at(d.position)}:${d.plot ? `${d.plot.cell.x},${d.plot.cell.y}${d.plot.yard ? `+${d.plot.yard.x},${d.plot.yard.y}` : ''}${d.plot.square ? `@${d.plot.square.x},${d.plot.square.z},${d.plot.square.rotation}` : ''}` : ''}${d.plainShape ? ':plain' : ''}`,
-  );
-  const sites = state.constructions.flatMap((c) =>
-    c.position !== null && (c.kind === 'dwelling' || c.kind === 'idol' || c.kind === 'shrine')
-      ? [
-          `${c.id}:${c.kind}${c.craft ? `/${c.craft}` : ''}:${at(c.position)}${c.plainShape ? ':plain' : ''}`,
-        ]
-      : [],
-  );
   // natočená pole, sady a les z nich nesou mřížku (fields.md – Natočené stavby) – klíč starých
-  // vsí se nemění
+  // vsí se nemění; mřížka pole se do klíče převede jednou za pole (týž text)
   const grids = fieldGrids(state);
-  const turned = (grid: SquareGrid | undefined): string => (grid ? `@${gridKey(grid)}` : '');
+  const fieldTurn = new Map<number, string>();
+  const turnOf = (fieldId: number): string => {
+    let key = fieldTurn.get(fieldId);
+    if (key === undefined) {
+      key = turned(grids.get(fieldId));
+      fieldTurn.set(fieldId, key);
+    }
+    return key;
+  };
   const parts = state.parts.map(
-    (p) => `${p.id}:${p.cell ? `${p.cell.x},${p.cell.y}${turned(grids.get(p.fieldId))}` : ''}`,
+    (p) => `${p.id}:${p.cell ? `${p.cell.x},${p.cell.y}${turnOf(p.fieldId)}` : ''}`,
   );
   // `surface` se po založení lesa nemění (povrch dílu při založení) – do klíče nepatří
   const woods = villageWoods(state).map((w) => `${w.cell.x},${w.cell.y}${turned(w.grid)}`);
   const orchards = villageOrchards(state).map(
     (o) => `${o.id}${turned(o.grid)}:${o.squares.map((s) => `${s.cell.x},${s.cell.y}`).join(';')}`,
+  );
+  const roads = state.roads?.roads ?? [];
+  return {
+    ...buildingLayoutParts(state),
+    parts,
+    orchards,
+    roads: roads.length > 0 ? roadsKey(roads) : null,
+    woods,
+  };
+}
+
+/** Mřížka natočené stavby v klíči (bez mřížky prázdný text). */
+function turned(grid: SquareGrid | undefined): string {
+  return grid ? `@${gridKey(grid)}` : '';
+}
+
+/** Části klíče s ploty – obydlí s pozemky, hřbitovy, ohrady (`fenceLayoutKey`). */
+function fenceLayoutParts(
+  state: VillageState,
+): Pick<WalkLayoutParts, 'dwellings' | 'cemeteries' | 'pens'> {
+  const at = (p: Position): string => `${p.x},${p.z},${p.rotation}`;
+  const dwellings = state.dwellings.map(
+    (d) =>
+      `${d.id}:${d.type}${d.workshop ? `/${d.workshop.craft}` : ''}:${at(d.position)}:${d.plot ? `${d.plot.cell.x},${d.plot.cell.y}${d.plot.yard ? `+${d.plot.yard.x},${d.plot.yard.y}` : ''}${d.plot.square ? `@${d.plot.square.x},${d.plot.square.z},${d.plot.square.rotation}` : ''}` : ''}${d.plainShape ? ':plain' : ''}`,
   );
   // zakládaný hřbitov a rozšíření ve stavbě – branka se počítá z hotových čtverců (paths.md –
   // Vchody); u hotového hřbitova klíč beze změny
@@ -742,18 +761,35 @@ function walkLayoutParts(state: VillageState): WalkLayoutParts {
     (c) =>
       `${c.id}${turned(c.grid)}:${c.squares.map((s) => `${s.cell.x},${s.cell.y}${s.constructionId === undefined ? '' : 'p'}`).join(';')}${c.builtDay === null ? ':-' : ''}`,
   );
-  const sacred = [
-    (state.sacredOaks ?? []).map((o) => o.id).join(','),
-    (state.groves ?? []).map((g) => g.id).join(','),
-    (state.sacredBuildings ?? []).map((b) => b.id).join(','),
-  ].join('|');
-  const roads = state.roads?.roads ?? [];
   const pens = villagePens(state).map(
     (p) =>
       `${p.id}:${penCells(p)
         .map((c) => `${c.x},${c.y}`)
         .join(';')}${turned(p.grid)}:${p.builtDay === null ? 0 : 1}`,
   );
+  return { dwellings, cemeteries, pens };
+}
+
+/**
+ * Části klíče se stavbami a ploty – bez polí, sadů, lesa a cest (neprůchodná plocha vsi –
+ * `villageBlockedAt`).
+ */
+function buildingLayoutParts(
+  state: VillageState,
+): Omit<WalkLayoutParts, 'parts' | 'orchards' | 'roads' | 'woods'> {
+  const at = (p: Position): string => `${p.x},${p.z},${p.rotation}`;
+  const sites = state.constructions.flatMap((c) =>
+    c.position !== null && (c.kind === 'dwelling' || c.kind === 'idol' || c.kind === 'shrine')
+      ? [
+          `${c.id}:${c.kind}${c.craft ? `/${c.craft}` : ''}:${at(c.position)}${c.plainShape ? ':plain' : ''}`,
+        ]
+      : [],
+  );
+  const sacred = [
+    (state.sacredOaks ?? []).map((o) => o.id).join(','),
+    (state.groves ?? []).map((g) => g.id).join(','),
+    (state.sacredBuildings ?? []).map((b) => b.id).join(','),
+  ].join('|');
   const kilns = villageKilnPoints(state);
   const floors = (state.threshingFloors ?? []).map((f) => ({
     id: f.id,
@@ -761,15 +797,9 @@ function walkLayoutParts(state: VillageState): WalkLayoutParts {
     built: f.builtDay !== null,
   }));
   return {
-    dwellings,
+    ...fenceLayoutParts(state),
     sites,
-    parts,
-    orchards,
-    cemeteries,
     sacred,
-    roads: roads.length > 0 ? roadsKey(roads) : null,
-    pens,
-    woods,
     kilns: kilns.length > 0 ? kilnsKey(kilns) : null,
     floors: floors.length > 0 ? threshingFloorsKey(floors) : null,
   };
@@ -829,12 +859,15 @@ export function walkDistancesTo(
   targets: readonly PathPoint[],
 ): number[] | null {
   const village = pathVillageOf(state, day, landscape);
-  const network = villagePathNetwork(state, day, landscape, obstacles, village);
-  if (!network) return null;
+  // pěšiny jsou uložené trasy (`villageRouteLines`) – síť pěšin se kvůli nim nepočítá: byla by
+  // null právě bez místa vsi a její krok mřížky je krok terénu pěšin krajiny (týž jako u půdy chůze)
+  if (!villagePathBounds(village, landscape)) return null;
   const ground = withFieldWalk(walkGroundOf(landscape), village.fields);
-  const lines = villageRouteLines(state, network.traffic.cellM);
+  const lines = villageRouteLines(state, ground.terrain.cellM);
   const graph = walkGraph(lines, { roads: state.roads?.roads ?? [], ground });
-  return walkingDistances(graph, dwellingOrigins(state), targets, ground).map(
+  // délky rovně z paměti krajiny – tytéž (Trasy v paměti)
+  const memo = walkMemoOf(landscape);
+  return walkingDistances(graph, dwellingOrigins(state), targets, ground, memo).map(
     (walk) => Math.floor(walk * WALK_ROUNDING) / WALK_ROUNDING,
   );
 }
