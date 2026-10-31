@@ -334,7 +334,7 @@ cart-renderer.ts) – proto nešli vybrat. Podrobnosti jsou návrh Clauda – je
 
 ## Činnosti od začátku do konce (návrh Clauda; Martin 31. 10. 2026)
 
-Stav: **návrh ke schválení** (odpovědi Martina 31. 10. 2026 zapracované) – v kódu zatím nic.
+Stav: **schváleno** (Martin 31. 10. 2026: „Ano, začni“; nové animace: „Ověř 0 A.D., pak Blender“) – v kódu zatím nic.
 
 Martin (31. 10. 2026): „Nevím jak je to teď, ale obecně by měla být vizuální stránka oddělena od
 herní mechaniky. Ve vykreslování by lidé měli dělat své činnosti od začátku do konce, bez ohledu
