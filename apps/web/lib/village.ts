@@ -53,7 +53,7 @@ import {
 } from '@bohemia/game';
 import { getDatabase } from './db';
 import { exclusive, playerLockKey } from './exclusive';
-import { cachedVillages, withVillageCache } from './village-cache';
+import { cachedVillages, withVillageCache } from '@bohemia/server';
 import {
   currentViewStampOfPlayer,
   dynastyOfPlayer,

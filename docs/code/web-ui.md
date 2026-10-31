@@ -102,7 +102,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   vrátí `{ unchanged: true }` bez načtení stavů (Vlkov: celý řádek ≈ 830 kB / 50 ms, dotaz na
   něj jde v celé cestě 3×). `dynastyStatus` bere id vsí z levných otisků (`stampsOf`, v pořadí
   založení) – stav každé vsi načte jen `loadVillage`, jednou. Akce a přeskok času vracejí vždy celý pohled.
-  **Paměť vsí na jeden požadavek** (`lib/village-cache.ts` – identity map): server actions
+  **Paměť vsí na jeden požadavek** (`packages/server/src/village-cache.ts` – identity map): server actions
   (`villageAction`, `getVillageView`, výběr a založení vsi, skok v čase) a první pohled běží ve
   `withVillageCache` (AsyncLocalStorage v `globalThis`); úložiště z `cachedVillages` tam vrací záznam
   načtený dřív v témže požadavku, dokud levný otisk (`stampsOf` – verze a jméno) sedí, `save`

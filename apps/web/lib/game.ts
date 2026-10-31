@@ -1,10 +1,21 @@
 import 'server-only';
-import { randomInt } from 'node:crypto';
 import {
   createSettlementRepository,
   createTimeOffsetRepository,
   createVillageRepository,
 } from '@bohemia/db';
+import {
+  LANDSCAPE_CACHE_SIZE,
+  cachedLandscapes,
+  cachedVillages,
+  computePause,
+  createGameDeps,
+  currentWorld,
+  playerTodayOf,
+  seeds,
+  worldDayOf,
+  type GameDeps,
+} from '@bohemia/server';
 import {
   currentVillageViewStamp,
   dynastyStatus,
@@ -12,7 +23,6 @@ import {
   findPlayerVillage,
   firstPlayerVillage,
   pendingStewardDepartures,
-  playerTime,
   restartGame,
   settlementLandscape,
   settleStewardDeparturesSafely,
@@ -26,25 +36,12 @@ import {
   type TimeOffsetRepository,
   type TimeSkip,
 } from '@bohemia/game';
-import { computePause } from './compute-pause';
 import { ownMapsAround } from './departure-view';
 import { getDatabase } from './db';
 import { exclusive, exclusiveShared, playerLockKey } from './exclusive';
-import { cachedLandscapes } from './landscape-cache';
-import { cachedVillages } from './village-cache';
-import { currentWorld, gameDayIndex } from './world';
+import { formatWorldState } from './game-date';
 
-/**
- * Kolik krajin sídel držet v paměti serveru. Krajina sama má ≈ 0,1 MB, s vrstvou překážek
- * (generuje se až pro stavby) ještě 1,8–2,0 MB – změřeno na 20 krajinách; plná mezipaměť
- * tak drží nejvýš ≈ 65 MB.
- */
-const LANDSCAPE_CACHE_SIZE = 32;
 const landscapes = cachedLandscapes(LANDSCAPE_CACHE_SIZE);
-
-function seeds(): { nextSeed: () => number } {
-  return { nextSeed: () => randomInt(0, 2 ** 31) };
-}
 
 /**
  * Composition root: use-case vstupu do hry s Drizzle repozitářem, kryptografickými seedy
@@ -139,21 +136,14 @@ export type PlayerToday =
  * dopočítávají vsi hráče a provádějí jeho akce.
  */
 export async function playerToday(playerId: string): Promise<PlayerToday> {
-  const world = gameDayIndex(Date.now(), currentWorld());
-  if (!world.ok) return world;
-  const time = await playerTime({ offsets: timeOffsets() }, { playerId, worldDay: world.day });
-  return { ok: true, day: time.today, offsetDays: time.offsetDays };
+  const world = currentWorld();
+  const today = await playerTodayOf(timeOffsets(), playerId, Date.now(), world);
+  return today.ok ? today : { ok: false, error: `${formatWorldState(today.state, world)}.` };
 }
 
-function dynastyDeps(): Parameters<typeof dynastyStatus>[0] {
-  const db = getDatabase();
-  return {
-    settlements: createSettlementRepository(db),
-    villages: cachedVillages(createVillageRepository(db)),
-    landscapes,
-    // dlouhý dopočet vsí (přeskok času, restart po dlouhé době) neblokuje ostatní požadavky
-    pause: computePause(),
-  };
+function dynastyDeps(): GameDeps {
+  // dlouhý dopočet vsí (přeskok času, restart po dlouhé době) neblokuje ostatní požadavky
+  return createGameDeps(getDatabase(), { landscapes, pause: computePause() });
 }
 
 /**
@@ -185,10 +175,10 @@ export async function dynastyOfPlayerLocked(
     let settled = 0;
     for (const village of status.villages) {
       if (pendingStewardDepartures(village.state).length === 0) continue;
-      const founded = await settleStewardDeparturesSafely(
-        { ...deps, seeds: seeds() },
-        { playerId, villageId: village.id },
-      );
+      const founded = await settleStewardDeparturesSafely(deps, {
+        playerId,
+        villageId: village.id,
+      });
       settled += founded.length;
     }
     if (settled === 0) break;
@@ -212,8 +202,8 @@ export async function ownMapsOfPlayer(
 }
 
 /** Závislosti use-casů nad vsemi hráče (sídla, vsi, mezipaměť krajin, seedy). */
-export function gameDeps(): ReturnType<typeof dynastyDeps> & { seeds: { nextSeed: () => number } } {
-  return { ...dynastyDeps(), seeds: seeds() };
+export function gameDeps(): GameDeps {
+  return dynastyDeps();
 }
 
 /**
@@ -229,10 +219,11 @@ export async function restartGameForPlayer(
   const result = await exclusive(playerLockKey(playerId), async () => {
     const today = await playerToday(playerId);
     if (!today.ok) return today;
-    const restarted = await restartGame(
-      { ...dynastyDeps(), seeds: seeds() },
-      { playerId, today: today.day, abandon: options.abandon },
-    );
+    const restarted = await restartGame(dynastyDeps(), {
+      playerId,
+      today: today.day,
+      abandon: options.abandon,
+    });
     return restarted.ok ? { ok: true as const } : { ok: false as const, error: restarted.reason };
   });
   return result.ok ? { ok: true } : { ok: false, error: result.error };
@@ -247,8 +238,9 @@ export async function skipTimeForPlayer(
   devMode: boolean,
   skip: TimeSkip,
 ): Promise<{ ok: true; offsetDays: number } | { ok: false; error: string }> {
-  const world = gameDayIndex(Date.now(), currentWorld());
-  if (!world.ok) return world;
+  const clock = currentWorld();
+  const world = worldDayOf(Date.now(), clock);
+  if (!world.ok) return { ok: false, error: `${formatWorldState(world.state, clock)}.` };
   const result = await exclusive(playerLockKey(playerId), () =>
     skipTime(
       { ...dynastyDeps(), offsets: timeOffsets() },

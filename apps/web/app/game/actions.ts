@@ -5,7 +5,7 @@ import { restartGameForPlayer } from '@/lib/game';
 import { getSession } from '@/lib/session';
 import { trimKnownSceneData, type KnownSceneData } from '@/lib/scene-routes';
 import { packViewPieces } from '@/lib/view-pieces';
-import { withVillageCache } from '@/lib/village-cache';
+import { withVillageCache } from '@bohemia/server';
 import { parsePanelAsk, type PanelOptions } from '@/lib/panel-options';
 import {
   buildTrailForPlayer,

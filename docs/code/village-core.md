@@ -152,7 +152,7 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
 - **Dopočet po kouscích na serveru:** `advanceVillageSteps` je `advanceVillage` po dnech
   (generátor – tatáž smyčka, stav se klonuje jednou). `loadVillage` / `dynastyStatus` dostanou
   port `Pause` (`application/villages.ts`) a mezi dny se ptají, jestli počkat; web
-  (`lib/compute-pause.ts`, v `dynastyDeps`) po ≈ 50 ms počítání v kuse pustí přes `setImmediate`
+  (`packages/server/src/compute-pause.ts`, v `dynastyDeps`) po ≈ 50 ms počítání v kuse pustí přes `setImmediate`
   ke slovu ostatní požadavky – dopočet po dlouhé nepřítomnosti nebo přeskok o 10 let neblokuje
   server (jedno vlákno). Jeden drahý den (přepočet sítě pěšin) se nedělí. Výsledek na
   přestávkách nezávisí (test v `villages.test.ts`).
@@ -327,7 +327,7 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   `VillageView.chronicle[].kind`, `CHRONICLE_NOTICES`) – nově vzniklé jako krátký mizející
   řádek nahoře, žádný trvalý seznam; vymřelá ves žádná. Kronika je jen v DTO.
 
-- **Krajina sídla** se na serveru drží v LRU mezipaměti (`lib/landscape-cache.ts`, port
+- **Krajina sídla** se na serveru drží v LRU mezipaměti (`packages/server/src/landscape-cache.ts`, port
   `LandscapeSource` v `enterGame`) – negeneruje se při každé akci a dotazu. Vrstva překážek
   se generuje až pro stavby (`obstaclesOf`, mezipaměť podle objektu krajiny); dotaz na ves
   (`getVillageView`) ji potřebuje jen při prvním načtení vsi založené před vrstvou (doplnění

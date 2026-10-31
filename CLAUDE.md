@@ -80,6 +80,7 @@ packages/game/       herní jádro
     village/         simulace vsi – lidé, obydlí, pole, jídlo a práce den po dni
   src/application/   use-casy a porty (enterGame, SettlementRepository, SeedSource)
   scripts/           vývojové nástroje (measure-landscapes.ts, measure-village.ts, village-calculator.ts)
+packages/server/     sdílené součástky vstupních bodů (web, worker): paměť vsí, přestávky dopočtu, mezipaměť krajin, createGameDeps, svět z env
 packages/db/         Drizzle schéma, klient, migrace a adaptéry portů (src/adapters/)
 docs/design/         herní design – vize + dokument pro každou mechaniku, rešerše v research/
 docs/code/           mapa kódu – podrobnosti mechanik po oblastech (viz Mapa kódu níž)
