@@ -3,7 +3,9 @@
 // (`SceneLabor.persons`) se rozdělí mezi postavy dne – každá postava je jeden skutečný člověk,
 // nikdo není ve dvou postavách naráz. Čistý modul bez Babylonu – villager-plan.ts se ptá při
 // rozmísťování postav (jednou za herní den, nikdy za snímek). Pořadí lidí je los ze seedu vsi
-// a dne – během dne stejné.
+// a id člověka, stejný napříč dny (villagers.md – Činnosti od začátku do konce: herec je člověk
+// napříč dny) – při podobném rozdělení práce dělá tentýž člověk totéž a dvě činnosti různých dnů
+// se na jednom místě nesejdou; mění se jen se změnou práce dne.
 import { AGE, type CartJob, type Sex } from '@bohemia/game';
 import type { ScenePerson } from '../person-view';
 import type { LaborActivity, LaborTarget, SceneExpedition } from '../village-view';
@@ -87,10 +89,9 @@ export class DayRoster {
   constructor(
     persons: readonly ScenePerson[],
     seed: number,
-    day: number,
     private readonly busyHomes: ReadonlySet<number> = new Set(),
   ) {
-    const salt = (seed * 31 + day) | 0;
+    const salt = (seed * 31) | 0;
     this.order = persons
       .map((p) => ({ p, k: hash01(salt, p.id, 97) }))
       .sort((a, b) => a.k - b.k || a.p.id - b.p.id)
@@ -108,7 +109,7 @@ export class DayRoster {
 
   /**
    * Volný člověk podle požadavku: napřed z preferované domácnosti, nejbližší věk, preferované
-   * pohlaví, pak podle losu dne. Nikdo vhodný – null.
+   * pohlaví, pak podle losu. Nikdo vhodný – null.
    */
   take(request: PersonRequest): ScenePerson | null {
     let best: ScenePerson | null = null;

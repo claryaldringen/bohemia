@@ -41,7 +41,7 @@ function ctx(over: {
     day: 100,
     sexes: { women: null, elderWomen: null, girls: null, married: null },
     center: { x: 0, z: 30 },
-    roster: over.persons ? new DayRoster(over.persons, 3, 100) : null,
+    roster: over.persons ? new DayRoster(over.persons, 3) : null,
   } as unknown as Context;
 }
 

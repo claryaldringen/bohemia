@@ -360,6 +360,21 @@ export function figure(c: Cast, pose: PoseFn, hair: HairLook, job: PersonJob): P
   return out;
 }
 
+/**
+ * Postava člověka napříč dny (villagers.md – Činnosti od začátku do konce): vzhled, velikost a fáze
+ * podle člověka (oděv, šátek vdané ženy, šediny starších), ne podle úlohy dne – při změně práce se
+ * nepřevlékne. Pózu dává jeho rozvrh (villager-timetable.ts).
+ */
+export function personFigure(seed: number, person: ScenePerson, pose: PoseFn): PlannedVillager {
+  const who = identity(seed, `person:${person.id}`, {
+    women: person.sex === 'female' ? 1 : 0,
+    child: person.age < CHILD_UNDER,
+  });
+  const out = villager(who, pose, personHair(who, person));
+  out.person = person.id;
+  return out;
+}
+
 export function clothOf(seed: number): VillagerLook['cloth'] {
   let pick = hash01(seed, 4, 91);
   const shade = 0.95 + hash01(seed, 5, 91) * 0.1;

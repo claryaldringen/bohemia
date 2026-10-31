@@ -534,7 +534,17 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     scene?.setSelection(current);
   }, [scene, current]);
   const [personState, setPersonState] = useState<PersonFigureState | null>(null);
-  useEffect(() => scene?.onPersonState(setPersonState), [scene]);
+  useEffect(
+    () =>
+      scene?.onPersonState((state) => {
+        setPersonState(state);
+        // vybraná postava zašla do domu – výběr se zruší (villagers.md – Výběr postavy; vojvoda ne)
+        if (state?.indoors) {
+          setSelected((prev) => (prev?.kind === 'person' && prev.id === state.id ? null : prev));
+        }
+      }),
+    [scene],
+  );
   const [draftState, setDraftState] = useState<DraftFigureState | null>(null);
   useEffect(() => scene?.onDraftState(setDraftState), [scene]);
   const selection = useMemo(

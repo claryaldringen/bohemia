@@ -18,6 +18,13 @@ export interface PersonFigureState {
   stage: VillagerStage | null;
   hidden: boolean;
   herd: HerdSpecies | null;
+  /**
+   * Cesta k práci a z ní podle rozvrhu (villager-timetable.ts – práce na místě, úloha u objektu):
+   * „jde na pole“, „jde domů“; pochůzku řekne její úsek (`stage`). Bez údaje není na cestě.
+   */
+  leg?: 'out' | 'back' | null;
+  /** Vešel do domu – výběr se zruší (villagers.md – Výběr postavy; vojvoda ne). */
+  indoors?: true;
 }
 
 /** Stejný stav (změnu scéna hlásí, jen když se liší)? */
@@ -28,7 +35,9 @@ export function samePersonState(a: PersonFigureState | null, b: PersonFigureStat
     a.job === b.job &&
     a.stage === b.stage &&
     a.hidden === b.hidden &&
-    a.herd === b.herd
+    a.herd === b.herd &&
+    (a.leg ?? null) === (b.leg ?? null) &&
+    a.indoors === b.indoors
   );
 }
 
@@ -84,6 +93,7 @@ export function personActivity(
     return crewActivityText(job, draft, village) ?? 'doma';
   }
   if (state.hidden) return 'doma';
+  if (state.leg) return legText(job, state.leg);
   const stage = state.stage;
   switch (job.kind) {
     case 'traffic':
@@ -115,6 +125,31 @@ export function personActivity(
     case 'lord':
       if (job.household) return 'vede domácnost';
       return stage === 'combat' ? 'cvičí boj' : 'cvičí lukostřelbu';
+  }
+}
+
+/**
+ * Cesta k práci na místě či k úloze u objektu a domů (villagers.md – Činnosti od začátku do konce:
+ * vyjde z domu, dojde k práci, vrátí se domů).
+ */
+function legText(job: PersonJob, leg: 'out' | 'back'): string {
+  if (leg === 'back') return 'jde domů';
+  switch (job.kind) {
+    case 'herd':
+      return 'jde ke stádu';
+    case 'watch':
+      return 'jde hlídat pole';
+    case 'elder':
+      return 'vychází před dům';
+    case 'lord':
+      return job.household ? 'jde do práce' : 'jde na cvičiště';
+    case 'share':
+      if (job.activity === 'fell') return 'jde do lesa';
+      if (job.target.kind === 'field') return 'jde na pole';
+      if (job.target.kind === 'orchard') return 'jde do sadu';
+      return 'jde do práce';
+    default:
+      return 'jde do práce';
   }
 }
 

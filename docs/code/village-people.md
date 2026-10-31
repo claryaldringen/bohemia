@@ -326,7 +326,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   typu - žena rolníka, jde pro vodu.“): **postava = konkrétní člověk** – server posílá
   `SceneLabor.persons` (`lib/person-view.ts`: id, věk, pohlaví, domácnost, role z
   `lib/person-roles.ts`), `planVillagers` přiřadí každé postavě člověka (`DayRoster` ve
-  `villager-roster.ts` – los ze seedu a dne, nikdo dvakrát; `cast` ve `villager-plan-cast.ts`) v pořadí
+  `villager-roster.ts` – los ze seedu vsi a id člověka, stejný napříč dny, nikdo dvakrát; `cast` ve `villager-plan-cast.ts`) v pořadí
   pohřeb → karavany (tesař na cestě pro kování podle `SceneExpedition.trip.travellerId`) → nosiči
   kováře podle věku → pasáci → dílny u své práce → první člověk u stavby → práce vsi → provoz na
   cestách (z domácnosti proudu) → domácí práce a nečinní → starší; na koho nezbude člověk, ta
@@ -336,6 +336,40 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   kroužek `villagers-ring` (jedna instance), stav vybraného člověka `onPersonState` jen při změně →
   `selectionDetails(…, personState)` → panel `PersonBody` (činnost `lib/person-activity.ts`).
   Bez `persons` jsou postavy jako dřív (nejdou vybrat). Ukázka `/dev/panels?panel=postava`.
+  **Rozvrh člověka** (villagers.md – Činnosti od začátku do konce; úlohy 1–3):
+  `planVillagersWithCrew` vrací i `tasks` – obsazení dne jako člověk → úloha (`PersonTask`: klíč
+  postavy, `job`, druh `errand` / `bout` / `hold`, rozsah práce, póza, cyklus pochůzky, místo;
+  `personTasks` a `taskKind` ve `villager-schedule.ts`, první stavitel `hold`) a `doors` (id
+  obydlí → `doorPoint`). `villager-schedule.ts` (čisté funkce, testy
+  `villager-schedule.test.ts`): řetěz činností člověka – doma (pauza `PAUSE_S` 30–90 s), vyjití
+  s úlohou obsazení v tu chvíli (`castOf`, `castTimeline` – dny před nejstarším jako nejstarší),
+  pochůzka celá z délky (`lengthOf`), práce na místě losem `WORK_RANGE_S`, úloha u objektu do
+  přelomu dne, od kterého ji obsazení nedává; začátky a konce na mřížce `GRID_S` 30 s,
+  `scheduleAt` dohrává od `t − HISTORY_S` 60 min. **Zvon** `BELL_S` 55 min (návrh Clauda; Martin 31. 10. 2026: „Podle tvého doporučení“ – dlouhá pochůzka venku ≈ 86 % času): činnost, která
+  by přesáhla zvon člověka, nezačne, po zvonu vyjde každý řetěz v týž okamžik – řetězy z různých
+  počátků tak splynou nejpozději u prvního zvonu (bez zvonu nesplývají – test). `activityPose`
+  (ode dveří rovně k práci, póza úlohy, zpět; pochůzka cyklem posunutým na začátek činnosti; doma
+  skrytá) a `straightWalk` (délky chůze rovně ode dveří – do úlohy 6).
+  **Ve scéně** (úloha 3): `Timetable` (`villager-timetable.ts`, čistý, testy
+  `villager-timetable.test.ts`) drží obsazení nejvýš `MAX_DAYS` 30 dnů (`setDay` – den práce od
+  začátku okna `dayWindow`, týž den nahradí obsazení) a poslední činnost každého člověka; další
+  se vybere, až skončí (`departAfter`), poprvé a po víc než `HISTORY_S` mimo záběr
+  `scheduleAt(t − HISTORY_S)` (splyne s nepřetržitým během). Nový den rozběhnutou pochůzku ani
+  práci na místě nemění – přepočítá jen, kdy vyjde, kdo je doma, a konec úloh u objektu.
+  `VillageVillagers.rebuild` (`scheduleDay`, `personFigures`): postava každého člověka
+  `labor.persons` (`personFigure` – vzhled, velikost a šátek či šediny podle člověka, klíč
+  `person:id`), póza `Timetable.pose`, chůze ode dveří tempem `SCHEDULE_WALK_M_S`. Postavy dne
+  bez rozvrhu zůstávají: cizí (`STRANGER`) a ukázky bez `persons` (s `carryErrands` – pochůzka
+  na cestě se dojde), lidé na události (`EVENT_KEY` – požár, karavana, pohřeb, svatba, porážka;
+  do úlohy 5) a jezdci s trasou (riders.ts – kůň jede podle bloků dne); postava z rozvrhu je
+  pak skrytá (`away`), stejně u oráče, honáka a vozky (kreslí je spřežení a vůz – `crewJobs`).
+  Rozvrh se počítá líně: jen když `write` kreslí pózy (ves v záběru, při omezeném pohybu stojí)
+  nebo pro vybraného (`updateSelection`); mimo záběr nic. Vlasce rybářů se překreslí, jen když se
+  změní, kdo rybaří. Výběr: `scheduledState` – úloha a cesta (`leg` – „jde na pole“, „jde domů“
+  v `person-activity.ts`) z rozběhnuté činnosti, i přes přelom dne; když vybraný zajde do domu
+  (byl od výběru venku), `onPersonState` ohlásí `indoors` a `VillageGame` / `DevVillagePreview`
+  výběr zruší – **kromě vojvody** (role `voivode`, panel „doma“). Pryč `walkThen` při
+  přeplánování (dojití na další čtverec – nahrazuje cesta ode dveří k nové práci).
   **Výběr spřežení a vozu** (villagers.md – Výběr spřežení a vozu; Martin 20. 10. 2026: „nešlo mi
   kliknout na volské spřežení ani na člověka, co jej vedl“, podrobnosti návrh Clauda): oráč, honák
   a vozka jsou lidé vsi – `planVillagersWithCrew` (`DraftCrew`; vstup `draft` =

@@ -25,7 +25,7 @@ import {
   type VillagerGround,
   type VillagerPlanOptions,
 } from './villager-plan-types';
-import { targetKey } from './villager-plan-geometry';
+import { doorPoint, targetKey } from './villager-plan-geometry';
 import {
   adultHair,
   cast,
@@ -90,6 +90,7 @@ import {
   weddingFigures,
 } from './villager-plan-events';
 import { slaughterFigures } from './villager-plan-slaughter';
+import { personTasks, type PersonTask } from './villager-schedule';
 import { fireChainFigures, fireChainLayout } from './villager-plan-fire';
 import type { SlaughterPlan } from './slaughter-plan';
 
@@ -127,15 +128,28 @@ export function planVillagers(
  * postavy): spřežení a vozy jsou ve scéně vidět celý den, proto oráč, honák a vozka patří k lidem
  * s pevným místem dne – vozka vozu výpravy s karavanou, ostatní hned po pasácích (před dílnami,
  * stavbami a prací vsi); jejich podíl práce (orba, svoz) už postavy nemá.
+ *
+ * `tasks` = obsazení dne jako člověk → úloha (villagers.md – Činnosti od začátku do konce): co
+ * který člověk dnes dělá, když vyjde z domu (villager-schedule.ts – rozvrh si z něj vybírá při
+ * vyjití). Stejná pravidla i počty jako postavy dne; bez lidí ve scéně prázdné. `doors` = dveře
+ * obydlí (id obydlí → bod před vchodem) – odtud lidé vycházejí a kam se vracejí.
  */
 export function planVillagersWithCrew(
   village: SceneVillage,
   ground: VillagerGround,
   options: VillagerPlanOptions,
-): { people: PlannedVillager[]; crew: DraftCrew; slaughter: SlaughterPlan | null } {
+): {
+  people: PlannedVillager[];
+  crew: DraftCrew;
+  slaughter: SlaughterPlan | null;
+  tasks: Map<number, PersonTask>;
+  doors: Map<number, { x: number; z: number }>;
+} {
   const crew: DraftCrew = { teams: [], carts: [] };
   const labor = village.labor;
-  if (!labor || village.dwellings.length === 0) return { people: [], crew, slaughter: null };
+  if (!labor || village.dwellings.length === 0) {
+    return { people: [], crew, slaughter: null, tasks: new Map(), doors: new Map() };
+  }
   const ctx = context(
     village,
     ground,
@@ -268,7 +282,14 @@ export function planVillagersWithCrew(
     counts[s] = (counts[s] ?? 0) - take;
     butchers -= take;
   }
-  for (const s of firstBuilders(labor.shares, counts)) if (wanted(s)) place(s, 0);
+  // první stavitel drží úlohu u stavby, dokud ji obsazení dává (villagers.md – Úlohy u objektu)
+  const builders = new Set<string>();
+  for (const s of firstBuilders(labor.shares, counts)) {
+    if (!wanted(s)) continue;
+    const share = labor.shares[s]!;
+    builders.add(`${share.activity}:${targetKey(share.target)}:0`);
+    place(s, 0);
+  }
   all((share) => !LATE_ACTIVITIES.has(share.activity));
   const traffic = trafficFigures(ctx, labor, options.maxTraffic ?? MAX_TRAFFIC);
   // domácí práce a nečinní – na koho zbude člověk
@@ -289,7 +310,15 @@ export function planVillagersWithCrew(
   people.push(...shoeing.people);
   people.push(...slaughter.people);
   people.push(...firefighters);
-  return { people, crew, slaughter: slaughter.plan };
+  const doors = new Map<number, { x: number; z: number }>();
+  for (const h of ctx.homes) if (!h.pen) doors.set(h.id, doorPoint(h));
+  return {
+    people,
+    crew,
+    slaughter: slaughter.plan,
+    tasks: personTasks(people, crew, builders),
+    doors,
+  };
 }
 
 /**
@@ -370,7 +399,7 @@ export function dayRoster(labor: SceneLabor, seed: number): DayRoster {
       if (from !== undefined) busy.add(from);
     }
   }
-  return new DayRoster(labor.persons ?? [], seed, labor.day, busy);
+  return new DayRoster(labor.persons ?? [], seed, busy);
 }
 
 /** Práce dílen a jejich domácností – řemeslníci dostanou lidi napřed (crafts.md). */

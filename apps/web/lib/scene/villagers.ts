@@ -45,12 +45,16 @@ import {
   createVillagerPose,
   villagerSeconds,
   walkSpeed,
-  walkThen,
   type HerdView,
   type VillagerKind,
+  type VillagerPose,
   type VillagerStage,
 } from './villager-motion';
-import { carryErrands, WALK_OVER_M } from './villager-errands';
+import { carryErrands } from './villager-errands';
+import { personFigure } from './villager-plan-cast';
+import { activityStage } from './villager-schedule';
+import { scheduledState, Timetable } from './villager-timetable';
+import type { ScenePerson } from '../person-view';
 import { samePersonState, type PersonFigureState } from '../person-activity';
 import { RING_SIZE_M, SelectionRing } from './selection-ring';
 import { pickPersonHit, selectedFigure, type Project } from './villager-pick';
@@ -60,6 +64,7 @@ import {
   planWeddings,
   type DraftCrew,
   type DraftCrews,
+  FIGURE_SCALE,
   type HairLook,
   type PlannedVillager,
   type VillagerGround,
@@ -68,6 +73,18 @@ import {
 import type { PersonJob } from './villager-roster';
 
 const KINDS: readonly VillagerKind[] = ['woman', 'man'];
+
+/**
+ * Tempo chůze rovně ode dveří k práci (m/s – villager-schedule.ts `straightWalk`, do úlohy 6):
+ * dospělá žena krokem; jiná velikost postavy jde stejně rychle, nohy jdou tempem podle velikosti.
+ */
+const SCHEDULE_WALK_M_S = walkSpeed('woman', 'walk', FIGURE_SCALE);
+
+/**
+ * Postavy dne bez rozvrhu (do úlohy 5 – Události přerušují): řetěz s vědry při požáru, karavana,
+ * pohřeb, svatba a parta porážky jdou podle své události, ne podle rozvrhu člověka.
+ */
+const EVENT_KEY = /^(fire|caravan|funeral|wedding|slaughter-crew):/;
 /** Snímků za sekundu zapečené animace (klíče animací 0 A.D.). */
 const BAKE_FPS = 24;
 /** Dál od kamery (m) se lidé nehýbou – jsou pár pixelů a pohyb by jen zbytečně kreslil. */
@@ -204,6 +221,23 @@ export class VillageVillagers {
   private crewKey = '';
   /** Úsek pochůzky postav vybraného člověka z posledního zápisu (index postavy → úsek). */
   private readonly stages = new Map<number, VillagerStage | null>();
+  /**
+   * Rozvrhy lidí vsi (villager-timetable.ts – Činnosti od začátku do konce): postava člověka je
+   * jeho rozvrh napříč dny. Bez lidí ve scéně (ukázky bez `persons`) null – postavy dne jako dřív.
+   */
+  private timetable: Timetable | null = null;
+  /** Lidé s postavou podle rozvrhu (id). */
+  private scheduled = new Set<number>();
+  /** Postavy dne bez rozvrhu: cizí, lidé na události (`EVENT_KEY`) a jezdci (riders.ts). */
+  private dayFigures: PlannedVillager[] = [];
+  /** Lidé, jejichž postavu dnes kreslí postava dne – jejich postava z rozvrhu je skrytá. */
+  private away = new Set<number>();
+  /** Vojvoda (role `voivode`) – výběr se mu při vstupu do domu nezruší. */
+  private lords = new Set<number>();
+  /** Vybraný člověk byl od výběru venku – až zajde do domu, výběr se zruší (kromě vojvody). */
+  private selectedOut = false;
+  /** Postavy, které právě rybaří (vlasce – `setFishingLines`), jako otisk. */
+  private fishingKey = '';
 
   constructor(
     private readonly scene: Scene,
@@ -234,6 +268,8 @@ export class VillageVillagers {
   clockChanged(nowMs: number): boolean {
     if (this.disposed || !this.village) return false;
     this.key = '';
+    // okna dnů se posunula – obsazení dnů a činnosti z nich neplatí
+    this.timetable?.reset();
     return this.update(this.village, nowMs);
   }
 
@@ -338,6 +374,7 @@ export class VillageVillagers {
   select(id: number | null): boolean {
     if (id === this.selected) return false;
     this.selected = id;
+    this.selectedOut = false;
     this.updateSelection();
     return true;
   }
@@ -375,6 +412,7 @@ export class VillageVillagers {
     const selected = this.selected;
     const stages = this.stages;
     stages.clear();
+    let fishing = '';
     this.people.forEach((person, index) => {
       const kind = this.kinds.get(person.kind);
       if (!kind) return;
@@ -404,6 +442,7 @@ export class VillageVillagers {
       kind.settings[o + 3] = BAKE_FPS * pose.pace;
       if (this.shadow) this.writeShadow(index, pose.x, y, pose.z, scale);
       if (pose.hidden) return;
+      if (pose.clip === 'fish') fishing += `${index},`;
       minX = Math.min(minX, pose.x);
       maxX = Math.max(maxX, pose.x);
       minZ = Math.min(minZ, pose.z);
@@ -438,7 +477,9 @@ export class VillageVillagers {
         new Vector3(maxX + 2, high + HEAD_ROOM_M, maxZ + 2),
       );
     }
-    if (selected !== null) this.showSelected(herds);
+    // rybář s rozvrhem přijde k vodě a odejde – vlasce se překreslí, jen když se změní, kdo rybaří
+    if (fishing !== this.fishingKey) this.setFishingLines(t);
+    if (selected !== null) this.showSelected(t, herds);
   }
 
   /** Kroužek a stav vybraného člověka podle posledních poloh postav (bez nového pohybu). */
@@ -465,11 +506,15 @@ export class VillageVillagers {
       this.spots[o + 2] = pose.z;
       this.stages.set(index, pose.stage ?? null);
     });
-    this.showSelected(herds);
+    this.showSelected(t, herds);
   }
 
-  /** Kroužek pod postavou vybraného člověka a ohlášení jeho stavu (jen při změně). */
-  private showSelected(herds: readonly HerdView[]): void {
+  /**
+   * Kroužek pod postavou vybraného člověka a ohlášení jeho stavu (jen při změně). Člověk s rozvrhem
+   * (villagers.md – Výběr postavy): úloha a cesta z rozběhnuté činnosti, i přes přelom dne; když
+   * zajde do domu, ohlásí `indoors` – výběr se zruší (kromě vojvody).
+   */
+  private showSelected(t: number, herds: readonly HerdView[]): void {
     const id = this.selected;
     if (id === null) return;
     // oráč, honák a vozka – postavu i kroužek kreslí spřežení a vůz (village-renderer.ts)
@@ -492,7 +537,20 @@ export class VillageVillagers {
         RING_SIZE_M * figure.scale,
       );
     } else this.ring?.hide();
-    const job = figure?.job ?? null;
+    let job = figure?.job ?? null;
+    let leg: 'out' | 'back' | null = null;
+    let indoors = false;
+    const timetable = this.timetable;
+    if (timetable && this.scheduled.has(id) && !this.away.has(id)) {
+      const state = scheduledState(
+        timetable.activity(id, t),
+        t,
+        this.selectedOut,
+        this.lords.has(id),
+      );
+      if (!state.home) this.selectedOut = true;
+      ({ job, leg, indoors } = state);
+    }
     const herd = job?.kind === 'herd' ? (herds[job.herd]?.species ?? null) : null;
     this.emitPerson({
       id,
@@ -500,6 +558,8 @@ export class VillageVillagers {
       stage: shown ? (this.stages.get(shown.index) ?? null) : null,
       hidden: shown?.hidden ?? true,
       herd,
+      leg,
+      ...(indoors ? { indoors: true as const } : {}),
     });
   }
 
@@ -556,22 +616,15 @@ export class VillageVillagers {
     );
     if (!village || !this.models || !ground) {
       this.people = [];
+      this.dayFigures = [];
+      this.scheduled.clear();
       this.setCrew({ teams: [], carts: [] });
       this.setSlaughter(null);
       for (const kind of this.kinds.values()) kind.mesh.setEnabled(false);
       this.shadow?.mesh.setEnabled(false);
       return had;
     }
-    // kdo už ve vsi je, na nové místo práce dojde (rozpracovaný čtverec je hotový – další)
     const t = villagerSeconds(nowMs);
-    const probe = createVillagerPose();
-    const before = new Map(
-      this.people.map((p) => {
-        probe.hidden = false;
-        const pose = p.pose(t, herds, probe);
-        return [p.key, { x: pose.x, z: pose.z }] as const;
-      }),
-    );
     const plan = planVillagersWithCrew(village, ground, {
       seed: villageSeed(village),
       // pasák jen u stád na pastvě – ta jsou v plánu napřed (livestock-placement.ts)
@@ -585,38 +638,25 @@ export class VillageVillagers {
     });
     this.setCrew(plan.crew);
     this.setSlaughter(plan.slaughter);
-    const planned = plan.people
-      .filter((p) => this.models?.has(p.kind))
-      .map((p) => {
-        const from = before.get(p.key);
-        if (!from) return p;
-        probe.hidden = false;
-        const to = p.pose(t, herds, probe);
-        // karavana (caravan.ts) jde podle výpravy, pohřeb a porážka podle svého dne – nepřecházejí
-        // pěšky; pochůzku na cestě postava dojde a nová začne ve dveřích (carryErrands níž);
-        // řetěz s vědry stojí celý den požáru na svém místě (villager-plan-fire.ts)
-        if (
-          p.errand ||
-          p.key.startsWith('fire:') ||
-          p.key.startsWith('caravan:') ||
-          p.key.startsWith('funeral:') ||
-          p.key.startsWith('wedding:') ||
-          p.key.startsWith('slaughter-crew:')
-        ) {
-          return p;
-        }
-        const distance = Math.hypot(to.x - from.x, to.z - from.z);
-        if (distance < WALK_OVER_M.from || distance > WALK_OVER_M.to) return p;
-        return {
-          ...p,
-          pose: walkThen(from.x, from.z, p.pose, t, walkSpeed(p.kind, 'walk', p.scale)),
-        };
-      });
-    // pochůzka je celý cyklus (villagers.md – Pochůzka se dokončí): kdo je na cestě, dojde domů
-    const living = village.labor?.persons
-      ? new Set(village.labor.persons.map((person) => person.id))
-      : undefined;
-    this.people = carryErrands(this.people, planned, t, living);
+    const persons = village.labor?.persons;
+    const living = persons ? new Set(persons.map((person) => person.id)) : undefined;
+    const timetable = persons && village.labor ? this.scheduleDay(village, persons, plan, t) : null;
+    // jezdci (riders.ts) jedou s koněm podle bloků dne a lidé na události podle své události – do
+    // úlohy 5 postavy dne jako dosud; cizí (`STRANGER`) a ukázky bez lidí také
+    const riders = new Set(
+      (plan.crew.rides ?? []).filter((r) => r.route !== null).map((r) => r.riderId),
+    );
+    const day = plan.people.filter(
+      (p) =>
+        this.models?.has(p.kind) &&
+        (!timetable || p.person === undefined || riders.has(p.person) || EVENT_KEY.test(p.key)),
+    );
+    this.away = new Set(day.flatMap((p) => (p.person === undefined ? [] : [p.person])));
+    // pochůzka postavy dne je celý cyklus (villagers.md – Pochůzka se dokončí): cizí na cestě dojde
+    this.dayFigures = carryErrands(this.dayFigures, day, t, living);
+    const scheduled = timetable && persons ? this.personFigures(persons, timetable) : [];
+    this.scheduled = new Set(scheduled.map((p) => p.person!));
+    this.people = [...scheduled, ...this.dayFigures];
     this.setFishingLines(t);
     this.extent = unionExtent(
       caravanExtent(village),
@@ -658,19 +698,74 @@ export class VillageVillagers {
     return had || this.people.length > 0;
   }
 
+  /**
+   * Obsazení dne do rozvrhů (villager-timetable.ts): den práce vsi od začátku jeho okna (bez hodin
+   * od teď), dveře domů lidí a vojvoda. Jiná ves (seed) – nové rozvrhy.
+   */
+  private scheduleDay(
+    village: SceneVillage,
+    persons: readonly ScenePerson[],
+    plan: {
+      tasks: Parameters<Timetable['setDay']>[2];
+      doors: ReadonlyMap<number, { x: number; z: number }>;
+    },
+    t: number,
+  ): Timetable {
+    const seed = villageSeed(village);
+    if (this.timetable?.seed !== seed) this.timetable = new Timetable(seed, SCHEDULE_WALK_M_S);
+    const timetable = this.timetable;
+    timetable.setDoors(new Map(persons.map((p) => [p.id, plan.doors.get(p.home) ?? null])));
+    const day = village.labor!.day;
+    const window = this.env.dayWindow?.(day) ?? null;
+    timetable.setDay(day, window ? villagerSeconds(window.startMs) : t, plan.tasks);
+    timetable.retain(new Set(persons.map((p) => p.id)));
+    this.lords = new Set(persons.filter((p) => p.role === 'voivode').map((p) => p.id));
+    return timetable;
+  }
+
+  /**
+   * Postava každého člověka vsi podle jeho rozvrhu: vzhled podle člověka, póza z činnosti. Skrytá,
+   * když ho dnes kreslí postava dne (událost, jízda) nebo spřežení a vůz (oráč, honák, vozka).
+   * Rozvrh se počítá, jen když se póza kreslí (ves v záběru) nebo je člověk vybraný.
+   */
+  private personFigures(persons: readonly ScenePerson[], timetable: Timetable): PlannedVillager[] {
+    const out: PlannedVillager[] = [];
+    for (const person of persons) {
+      const id = person.id;
+      let walkPace = 1;
+      const figure = personFigure(timetable.seed, person, (t, herds, pose): VillagerPose => {
+        timetable.pose(id, t, herds, pose);
+        // chůze rovně ode dveří jde tempem `SCHEDULE_WALK_M_S` – nohy podle velikosti postavy
+        const a = timetable.activity(id, t);
+        if (a.kind !== 'errand' && pose.clip === 'walk') {
+          const stage = activityStage(a, t);
+          if (stage === 'out' || stage === 'back') pose.pace = walkPace;
+        }
+        if (this.away.has(id) || this.crewJobs.has(id)) pose.hidden = true;
+        return pose;
+      });
+      walkPace = SCHEDULE_WALK_M_S / walkSpeed(figure.kind, 'walk', figure.scale);
+      if (this.models?.has(figure.kind)) out.push(figure);
+    }
+    return out;
+  }
+
   /** Vlasce rybářů (klip `fish`) – rybář stojí, poloha z pózy v čase `t`. */
   private setFishingLines(t: number): void {
     const lines: number[][] = [];
-    for (const person of this.people) {
+    let key = '';
+    for (const [index, person] of this.people.entries()) {
       this.pose.hidden = false;
       this.pose.stage = undefined;
       this.pose.lift = undefined;
       const pose = person.pose(t, [], this.pose);
       if (pose.clip !== 'fish' || pose.hidden) continue;
+      key += `${index},`;
       lines.push(
         fishingLine(pose, person.kind, person.scale, (x, z) => this.env.groundHeight(x, z)),
       );
     }
+    this.fishingKey = key;
     if (lines.length === 0 && !this.lines) return;
     this.lines ??= new FishingLines(this.scene);
     this.lines.set(lines);

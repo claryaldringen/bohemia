@@ -16,7 +16,9 @@ import {
   type VillagerGround,
   type VillagerPaths,
 } from '../villager-plan';
-import { ADULTS, DayRoster, YOUNGSTERS } from '../villager-roster';
+import { ADULTS, DayRoster, YOUNGSTERS, type PersonJob } from '../villager-roster';
+import type { DraftCrew } from '../villager-plan-types';
+import { activities, castTimeline, type ScheduleInput } from '../villager-schedule';
 
 // Postava = konkrétní člověk (villagers.md – Výběr postavy): kdo je která postava dne.
 
@@ -207,7 +209,7 @@ describe('role lidí (person-roles.ts)', () => {
 
 describe('DayRoster – lidé dne k postavám', () => {
   it('nikdo dvakrát, preferovaná domácnost a pohlaví, dílna jen ke své práci', () => {
-    const roster = new DayRoster(persons(), 3, 1000, new Set([31]));
+    const roster = new DayRoster(persons(), 3, new Set([31]));
     const first = roster.take({ ...ADULTS, sex: 'female', preferHome: 2 })!;
     expect(first.id).toBe(202);
     expect(roster.takeId(202)).toBeNull();
@@ -222,16 +224,16 @@ describe('DayRoster – lidé dne k postavám', () => {
     expect(roster.take({ ...YOUNGSTERS, homes: new Set([31]), age: 11 })!.id).toBe(403);
   });
 
-  it('pořadí je los ze seedu a dne – stejný den stejné, jiný den jiné', () => {
-    const order = (day: number): number[] => {
-      const roster = new DayRoster(persons(), 3, day);
+  it('pořadí je los ze seedu vsi – stejné napříč dny (herec je člověk napříč dny), jiná ves jiné', () => {
+    const order = (seed: number): number[] => {
+      const roster = new DayRoster(persons(), seed);
       const out: number[] = [];
       for (let p = roster.take(ADULTS); p; p = roster.take(ADULTS)) out.push(p.id);
       return out;
     };
-    expect(order(1000)).toEqual(order(1000));
-    const days = [1001, 1002, 1003, 1004].map((d) => order(d).join());
-    expect(days.some((d) => d !== order(1000).join())).toBe(true);
+    expect(order(3)).toEqual(order(3));
+    const seeds = [4, 5, 6, 7].map((s) => order(s).join());
+    expect(seeds.some((o) => o !== order(3).join())).toBe(true);
   });
 });
 
@@ -266,9 +268,9 @@ describe('planVillagers s lidmi vsi – kdo je která postava', () => {
     for (const c of craft) expect(personOf(c).home).toBe(31);
     // řemeslo dělá jen kovář a synové, kovářova žena ne (crafts.md – Kdo dělá řemeslo)
     for (const c of craft) expect(personOf(c).sex).toBe('male');
-    // kovářova rodina na poli nepracuje
+    // z kovářovy rodiny na poli nanejvýš ženy – lehčí polní práce se vsí (crafts.md)
     const field = people.filter((p) => p.job?.kind === 'share' && p.job.activity === 'harvest');
-    for (const f of field) expect(personOf(f).home).not.toBe(31);
+    for (const f of field) if (personOf(f).home === 31) expect(personOf(f).sex).toBe('female');
     const elders = people.filter((p) => p.job?.kind === 'elder');
     expect(elders.length).toBeGreaterThan(0);
     for (const e of elders) expect(personOf(e).age).toBeGreaterThanOrEqual(45);
@@ -802,5 +804,175 @@ describe('vojvodova rodina na dvorku (lord.md – Ve scéně)', () => {
       const at = pose(p, hour(9));
       if (!at.hidden) expect(onManor(at.x, at.z)).toBe(false);
     }
+  });
+});
+
+describe('obsazení dne jako člověk → úloha (villagers.md – Divadlo)', () => {
+  const CART = {
+    id: 5,
+    kind: 'two-wheel' as const,
+    x: 40,
+    z: -20,
+    condition: 1,
+    job: {
+      activity: 'haul' as const,
+      target: { kind: 'field' as const, id: 7 },
+      load: 'sheaves' as const,
+    },
+    route: [
+      { x: 40, z: -20 },
+      { x: 30, z: 7 },
+    ],
+  };
+  const MIXED: LaborShare[] = [
+    ...SHARES,
+    { activity: 'plough', target: { kind: 'field', id: 7 }, manDays: 2 },
+    { activity: 'haul', target: { kind: 'field', id: 7 }, manDays: 2 },
+  ];
+  const jobSig = (job: PersonJob): string =>
+    job.kind === 'share'
+      ? `share:${job.activity}`
+      : job.kind === 'traffic'
+        ? `traffic:${job.traffic}`
+        : job.kind === 'plough'
+          ? `plough:${job.role}`
+          : job.kind;
+  const tally = (jobs: PersonJob[]): Record<string, number> => {
+    const out: Record<string, number> = {};
+    for (const j of jobs) out[jobSig(j)] = (out[jobSig(j)] ?? 0) + 1;
+    return Object.fromEntries(Object.entries(out).sort(([a], [b]) => a.localeCompare(b)));
+  };
+  const figureJobs = (people: PlannedVillager[], crew: DraftCrew): PersonJob[] => [
+    ...people.flatMap((p) => (p.person !== undefined && p.job ? [p.job] : [])),
+    ...crew.teams.flatMap((t, k) => [
+      ...(t.ploughman !== null ? [{ kind: 'plough', team: k, role: 'ploughman' } as const] : []),
+      ...(t.leader !== null ? [{ kind: 'plough', team: k, role: 'leader' } as const] : []),
+    ]),
+    ...crew.carts.flatMap((c) =>
+      c.drover !== null ? [{ kind: 'cart', cart: c.cart } as const] : [],
+    ),
+  ];
+  // víc lidí – rolnické rodiny 2 a 3 ještě dvakrát (pořadí losu pak počty nemění)
+  const shift = (p: RolePerson, by: number): RolePerson => ({
+    ...p,
+    id: p.id + by,
+    ...(p.spouse !== undefined ? { spouse: p.spouse + by } : {}),
+    ...(p.father !== undefined ? { father: p.father + by } : {}),
+    ...(p.mother !== undefined ? { mother: p.mother + by } : {}),
+  });
+  const MANY = [
+    ...PEOPLE,
+    ...[1000, 2000].flatMap((by) =>
+      PEOPLE.filter((p) => p.home === 2 || p.home === 3).map((p) => shift(p, by)),
+    ),
+  ];
+  const CASES: { name: string; v: () => SceneVillage }[] = [
+    { name: 'víc-lidí', v: () => village(MIXED, persons(MANY)) },
+    {
+      name: 'víc-lidí-den-1003',
+      v: () => ({
+        ...village(MIXED, persons(MANY)),
+        labor: { ...village(MIXED, persons(MANY)).labor!, day: 1003 },
+      }),
+    },
+    { name: 'ves', v: () => village() },
+    {
+      name: 'ves-den-1003',
+      v: () => ({ ...village(), labor: { ...village().labor!, day: 1003 } }),
+    },
+    { name: 'spřežení-a-vůz', v: () => ({ ...village(MIXED), carts: [CART] }) },
+    { name: 'málo-lidí', v: () => village(SHARES, persons(PEOPLE.filter((p) => p.home === 2))) },
+  ];
+  const plan = (v: SceneVillage): ReturnType<typeof planVillagersWithCrew> =>
+    planVillagersWithCrew(v, GROUND, {
+      seed: 5,
+      herds: 2,
+      paths: PATHS,
+      draft: { teams: 1, carts: [5] },
+    });
+
+  /** Počty po pracích z dosavadního `planVillagersWithCrew` (ddeceded, los dne) – víc lidí. */
+  const BEFORE = {
+    cart: 1,
+    elder: 2,
+    fetch: 1,
+    herd: 2,
+    'plough:leader': 1,
+    'plough:ploughman': 1,
+    'share:build': 2,
+    'share:craft': 1,
+    'share:domestic': 2,
+    'share:harvest': 3,
+    'share:idle': 2,
+    'traffic:water': 2,
+  };
+
+  it('počty po pracích jako dosud – úloha každého člověka je jeho postava dne', () => {
+    for (const c of CASES) {
+      const { people, crew, tasks } = plan(c.v());
+      expect(tally([...tasks.values()].map((t) => t.job))).toEqual(tally(figureJobs(people, crew)));
+      // výběr postavy sedí s tím, co postava dělá – táž úloha i místo
+      for (const f of people) {
+        if (f.person === undefined) continue;
+        expect(tasks.get(f.person)!.job).toBe(f.job);
+        expect(tasks.get(f.person)!.key).toBe(f.key);
+      }
+    }
+    expect(tally([...plan(CASES[0]!.v()).tasks.values()].map((t) => t.job))).toEqual(BEFORE);
+    expect(tally([...plan(CASES[1]!.v()).tasks.values()].map((t) => t.job))).toEqual(BEFORE);
+  });
+
+  it('stejná práce jiný den – tíž lidé u týchž úloh (stejný začátek = stejná úloha)', () => {
+    const keys = (v: SceneVillage): string[] =>
+      [...plan(v).tasks].map(([id, t]) => `${id}=${t.key}`).sort();
+    expect(keys(CASES[0]!.v())).toEqual(keys(CASES[1]!.v()));
+    expect(keys(CASES[2]!.v())).toEqual(keys(CASES[3]!.v()));
+  });
+
+  it('druhy úloh: u objektu pasák, oráč, honák, vozka, první stavitel; pochůzka; práce na místě', () => {
+    const { tasks } = plan(CASES[0]!.v());
+    for (const t of tasks.values()) {
+      const kind = t.job.kind;
+      if (kind === 'herd' || kind === 'plough' || kind === 'cart') expect(t.kind).toBe('hold');
+      if (kind === 'traffic' || kind === 'fetch') expect(t.kind).toBe('errand');
+      if (kind === 'traffic') expect(t.errand).not.toBeNull();
+      if (kind === 'elder') expect([t.kind, t.range]).toEqual(['bout', 'short']);
+      if (kind === 'share' && t.job.activity === 'harvest') {
+        expect([t.kind, t.range]).toEqual(['bout', 'long']);
+      }
+      if (kind === 'share' && t.job.activity === 'domestic') expect(t.range).toBe('short');
+      if (kind === 'plough' || kind === 'cart') expect(t.pose).toBeNull();
+      else expect(t.at).not.toBeNull();
+    }
+    // první stavitel u stavby drží úlohu, další stavitel pracuje na místě
+    const build = [...tasks.values()].filter(
+      (t) => t.job.kind === 'share' && t.job.activity === 'build',
+    );
+    expect(build.map((t) => t.kind).sort()).toEqual(['bout', 'hold']);
+  });
+
+  it('rozvrh z obsazení dne: kdo v něm není, je doma; úloha činnosti = obsazení dne jejího začátku', () => {
+    const T = 50_000;
+    const day1 = plan(CASES[0]!.v()).tasks;
+    // druhý den méně lidí (jen domácnost 2) – jiné obsazení
+    const day2 = plan(CASES[5]!.v()).tasks;
+    const input: ScheduleInput = {
+      seed: 5,
+      castOf: castTimeline([
+        { from: T, cast: day1 },
+        { from: T + 600, cast: day2 },
+      ]),
+      lengthOf: (_p, t) => ({ outS: t.at ? 40 : 10, endS: 5, backS: t.at ? 40 : 10 }),
+    };
+    let outside = 0;
+    for (const p of persons(MANY)) {
+      for (const a of activities(input, p.id, T)) {
+        if (a.start > T + 1800) break;
+        if (a.kind === 'home') continue;
+        outside++;
+        expect(input.castOf(a.start).cast.get(p.id)).toBe(a.task);
+      }
+    }
+    expect(outside).toBeGreaterThan(20);
   });
 });

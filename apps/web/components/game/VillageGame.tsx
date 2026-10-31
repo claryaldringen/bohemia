@@ -449,7 +449,17 @@ export function VillageGame({
   const current = useMemo(() => presentTarget(sceneVillage, selected), [sceneVillage, selected]);
   // co dělá vybraný člověk – hlásí scéna při změně (villagers.md – Výběr postavy)
   const [personState, setPersonState] = useState<PersonFigureState | null>(null);
-  useEffect(() => scene?.onPersonState(setPersonState), [scene]);
+  useEffect(
+    () =>
+      scene?.onPersonState((state) => {
+        setPersonState(state);
+        // vybraná postava zašla do domu – výběr se zruší (villagers.md – Výběr postavy; vojvoda ne)
+        if (state?.indoors) {
+          setSelected((prev) => (prev?.kind === 'person' && prev.id === state.id ? null : prev));
+        }
+      }),
+    [scene],
+  );
   // co dělá vybrané spřežení nebo vůz a kdo je u nich (oxen.md, wagons.md – Výběr)
   const [draftState, setDraftState] = useState<DraftFigureState | null>(null);
   useEffect(() => scene?.onDraftState(setDraftState), [scene]);
