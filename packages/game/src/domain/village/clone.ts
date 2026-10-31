@@ -76,24 +76,38 @@ function cloneRoads(roads: object): unknown {
 }
 
 function cloneRoad(road: unknown): unknown {
-  return cloneSharing(road, 'points', true);
+  return cloneSharing(road, 'points');
 }
 
 /** Zemní práce: vše se kopíruje, jen body profilu se sdílí (seznam bodů je nový). */
 function cloneEarthwork(earthwork: unknown): unknown {
-  return cloneSharing(earthwork, 'profile', true);
-}
-
-/** Díl pole: vše se kopíruje, jen buňka dílu se sdílí. */
-function clonePart(part: unknown): unknown {
-  return cloneSharing(part, 'cell', false);
+  return cloneSharing(earthwork, 'profile');
 }
 
 /**
- * Kopie záznamu, ve které se hodnota klíče `shared` sdílí s originálem – seznam (`list`) jako nový
- * seznam se sdílenými záznamy, jinak sdílený objekt (viz `cloneState`).
+ * Díl pole: vše se kopíruje, jen buňka dílu se sdílí. Díl má skoro jen primitivní hodnoty – kopie
+ * rozložením (`{ ...part }`, tytéž klíče ve stejném pořadí) a pak vnořené objekty kromě buňky; je
+ * o čtvrtinu rychlejší než přiřazování po klíčích.
  */
-function cloneSharing(record: unknown, shared: string, list: boolean): unknown {
+function clonePart(part: unknown): unknown {
+  if (typeof part !== 'object' || part === null) return part;
+  if (Array.isArray(part) || Object.getPrototypeOf(part) !== Object.prototype) {
+    return cloneObject(part);
+  }
+  const copy: Record<string, unknown> = { ...part };
+  for (const key in copy) {
+    const v = copy[key];
+    if (typeof v !== 'object' || v === null) continue;
+    copy[key] = key === 'cell' ? sharedRecord(v) : cloneObject(v);
+  }
+  return copy;
+}
+
+/**
+ * Kopie záznamu, ve které se seznam pod klíčem `shared` zkopíruje jako nový seznam se sdílenými
+ * záznamy (viz `cloneState`).
+ */
+function cloneSharing(record: unknown, shared: string): unknown {
   if (typeof record !== 'object' || record === null) return record;
   if (Array.isArray(record) || Object.getPrototypeOf(record) !== Object.prototype) {
     return cloneObject(record);
@@ -103,9 +117,8 @@ function cloneSharing(record: unknown, shared: string, list: boolean): unknown {
     const v = (record as Record<string, unknown>)[key];
     if (typeof v !== 'object' || v === null) copy[key] = v;
     else if (key !== shared) copy[key] = cloneObject(v);
-    else if (list && Array.isArray(v)) copy[key] = sharedList(v);
-    else if (list) copy[key] = cloneObject(v);
-    else copy[key] = sharedRecord(v);
+    else if (Array.isArray(v)) copy[key] = sharedList(v);
+    else copy[key] = cloneObject(v);
   }
   return copy;
 }
