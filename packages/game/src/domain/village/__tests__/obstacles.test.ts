@@ -459,9 +459,9 @@ describe('kácení a obnova lesa (forest.md)', () => {
     const s = { ...state(), clearedObstacles: cleared };
     const first = obstacleChangesAt(s, DAY + 1);
     expect(first.removed).toEqual([300]);
-    // vrácené pole je kopie – úprava ho do paměti nepropíše
-    (first.removed as number[]).push(999);
-    expect(obstacleChangesAt(s, DAY + 1).removed).toEqual([300]);
+    // seznam z paměti je zmrazený – úprava by ji nepozorovaně změnila
+    expect(Object.isFrozen(first.removed)).toBe(true);
+    expect(obstacleChangesAt(s, DAY + 1).removed).toBe(first.removed);
     // seznam se prodlužuje na místě (recordClearedObstacles)
     cleared.push({ id: 200, day: DAY + 1 });
     expect(obstacleChangesAt(s, DAY + 2).removed).toEqual([200, 300]);

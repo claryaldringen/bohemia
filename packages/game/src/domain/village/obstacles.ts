@@ -148,6 +148,9 @@ const NO_CHANGES: readonly ObstacleChange[] = [];
  */
 const removedMemo = new WeakMap<readonly ObstacleChange[], RemovedIds>();
 
+/** Množina k (zmrazenému) seznamu `removed` z paměti – `obstacleStatus` ji nestaví znovu. */
+const removedSets = new WeakMap<readonly number[], ReadonlySet<number>>();
+
 function removedIds(
   own: readonly ObstacleChange[] | undefined,
   theirs: readonly ObstacleChange[] | undefined,
@@ -168,9 +171,10 @@ function removedIds(
     theirs,
     theirsLength: theirs?.length ?? 0,
     set,
-    sorted: [...set].sort((a, b) => a - b),
+    sorted: Object.freeze([...set].sort((a, b) => a - b)),
   };
   removedMemo.set(key, entry);
+  removedSets.set(entry.sorted, set);
   return entry;
 }
 
@@ -241,7 +245,7 @@ export function obstacleChangesAt(state: ChangeLists, day: number): ObstacleChan
   }
   added.sort((a, b) => a.id - b.id);
   return {
-    removed: sorted.slice(),
+    removed: sorted,
     stumps: stumps.sort(byId),
     saplings: saplings.sort(byId),
     ...(added.length > 0 ? { added } : {}),
@@ -263,7 +267,7 @@ const statusCache = new WeakMap<ObstacleChanges, ObstacleStatus>();
 export function obstacleStatus(changes: ObstacleChanges = NO_OBSTACLE_CHANGES): ObstacleStatus {
   const cached = statusCache.get(changes);
   if (cached) return cached;
-  const removed = new Set(changes.removed);
+  const removed = removedSets.get(changes.removed) ?? new Set(changes.removed);
   const stumps = new Set(changes.stumps);
   const saplings = new Set(changes.saplings);
   const added = changes.added ?? [];
