@@ -18,7 +18,7 @@ import {
 } from '@bohemia/server';
 import {
   currentVillageViewStamp,
-  advanceDynasty,
+  dynastyForVillage,
   enterGame,
   findPlayerVillage,
   firstPlayerVillage,
@@ -106,7 +106,8 @@ export function playerVillage(playerId: string, villageId: string): Promise<Play
 
 /**
  * Otisk pohledu na ves `villageId` hráče v den `today` bez načtení stavů vsí (levné dotazy na
- * sídla a verze vsí); null, když by dotaz na ves musel vsi dopočítat nebo ves hráči nepatří.
+ * sídla a verze vsí); null, když by dotaz na ves musel některou ves dopočítat (zobrazenou, nebo
+ * jinou víc než `WORKER_LAG_DAYS` pozadu) nebo ves hráči nepatří.
  */
 export function currentViewStampOfPlayer(
   playerId: string,
@@ -149,27 +150,34 @@ function dynastyDeps(): GameDeps {
 }
 
 /**
- * Všechny vsi hráče dopočítané do dneška `today` (přepínač vsí) a jestli mu vymřely všechny –
- * konec hry.
+ * Vsi hráče pro pohled nebo akci na ves `villageId` (přepínač vsí) a jestli mu vymřely všechny –
+ * konec hry. Ves `villageId` se dopočte do dneška `today`, ostatní vsi drží worker – web je
+ * dopočte, jen když jsou víc než `WORKER_LAG_DAYS` pozadu (use-case `dynastyForVillage`).
  */
-export function dynastyOfPlayer(playerId: string, today: number): Promise<DynastyStatus> {
-  // dotazy se stejným dnem sdílejí jeden dopočet; uvnitř fronty zámek hráče v DB (exclusive.ts)
-  return exclusivePlayerShared(getPlayerLock(), playerId, String(today), () =>
-    dynastyOfPlayerLocked(playerId, today),
+export function dynastyOfPlayer(
+  playerId: string,
+  today: number,
+  villageId: string,
+): Promise<DynastyStatus> {
+  // dotazy se stejným dnem a vsí sdílejí jeden dopočet; uvnitř fronty zámek hráče v DB
+  // (exclusive.ts)
+  return exclusivePlayerShared(getPlayerLock(), playerId, `${today}:${villageId}`, () =>
+    dynastyOfPlayerLocked(playerId, today, villageId),
   );
 }
 
 /**
  * Totéž bez zámku – jen pro volající, kteří už zámek hráče drží (frontu v procesu i zámek v DB –
- * `exclusivePlayer` se nevnořuje). Vsi
- * hráče dopočítané do dneška; za dopočtem se vybaví odchozí schránky správce (steward.md – Kde
- * správce běží) – nové vsi synů vzniknou a dopočítají se v dalším kole.
+ * `exclusivePlayer` se nevnořuje). Za dopočtem se vybaví odchozí schránky správce dopočtených vsí
+ * (steward.md – Kde správce běží) – nové vsi synů se v přepínači objeví hned. Plný dopočet všech
+ * vsí (`dynastyStatus` / `advanceDynasty`) zůstává skoku v čase, restartu a ověření konce rodu.
  */
 export async function dynastyOfPlayerLocked(
   playerId: string,
   today: number,
+  villageId: string,
 ): Promise<DynastyStatus> {
-  return advanceDynasty(dynastyDeps(), { playerId, today });
+  return dynastyForVillage(dynastyDeps(), { playerId, today, villageId });
 }
 
 /**

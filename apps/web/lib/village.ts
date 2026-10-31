@@ -123,8 +123,9 @@ async function context(playerId: string, villageId: string): Promise<Context> {
  * platí i proti workeru). Den a kontext se načtou AŽ uvnitř
  * zámku – akce zařazená za skok v čase nebo za jinou akci tak dostane aktuální den, ne ten
  * z doby zařazení. Po konci hry (vymřely všechny vsi, nebo rod po meči) server akci nepřijme
- * a vrátí pohled s `gameOver` – klient ukáže obrazovku konce. Konec rodu se zjistí dopočtem
- * všech vsí hráče, takže platí hned, ne až v pohledu po akci.
+ * a vrátí pohled s `gameOver` – klient ukáže obrazovku konce. Konec rodu se zjistí před akcí
+ * (`dynastyForVillage` – ze smíšených dnů vsí ho ověří plný dopočet), takže platí hned, ne až
+ * v pohledu po akci.
  */
 async function guardedAction<T>(
   playerId: string,
@@ -144,8 +145,9 @@ async function guardedAction<T>(
     > => {
       const ctx = await context(playerId, villageId);
       if (!ctx.ok) return { kind: 'error', error: ctx.error };
-      // zámek už držíme (fronta i DB) – dopočet bez vnořeného zámku
-      const status = await dynastyOfPlayerLocked(playerId, ctx.day);
+      // zámek už držíme (fronta i DB) – dopočet bez vnořeného zámku; zobrazená ves do dneška,
+      // ostatní jen víc než WORKER_LAG_DAYS pozadu (akce sama dopočte každou ves, které se dotkne)
+      const status = await dynastyOfPlayerLocked(playerId, ctx.day, ctx.villageId);
       if (status.gameOver) return { kind: 'over', ctx };
       return { kind: 'done', ctx, value: await run(ctx) };
     },
@@ -156,15 +158,16 @@ async function guardedAction<T>(
 }
 
 /**
- * Pohled na ves z kontextu: všechny vsi hráče se dopočítají do dneška (přepínač vsí, konec hry
- * až po vymření všech) a vrátí se pohled na ves kontextu. `record` – ves právě uložená akcí
- * (kdyby ji dopočet všech vsí nenašel).
+ * Pohled na ves z kontextu: ves kontextu se dopočte do dneška, ostatní vsi hráče (přepínač vsí,
+ * sousedé na mapě) jsou, jak je drží worker – web je dopočte, jen když jsou víc než
+ * `WORKER_LAG_DAYS` pozadu (`dynastyForVillage`; konec hry až po vymření všech). `record` – ves
+ * právě uložená akcí (kdyby ji stav rodu nenašel).
  */
 async function viewOf(
   ctx: Extract<Context, { ok: true }>,
   record?: VillageRecord,
 ): Promise<VillageActionResult> {
-  const status = await dynastyOfPlayer(ctx.playerId, ctx.day);
+  const status = await dynastyOfPlayer(ctx.playerId, ctx.day, ctx.villageId);
   const listed = status.villages.find((v) => v.id === ctx.villageId);
   const current = listed ?? record;
   if (!current) return { error: NO_VILLAGE };
@@ -189,7 +192,8 @@ async function viewOf(
     ownMaps: ownMapsAround(status.settlements, status.villages, current.settlementId),
     mapsBlocked: from && from.worldCell === null && !from.isSeat ? NO_WORLD_CELL : null,
   });
-  // otisk jen z dopočítaných vsí hráče – stejný spočítá levný dotaz (currentViewStampOfPlayer)
+  // otisk z vsí hráče, jak je pohled vidí – stejný spočítá levný dotaz (currentViewStampOfPlayer),
+  // když by pohled nic nepočítal
   return listed
     ? { ...view, stamp: villageViewStamp(ctx.villageId, ctx.day, status.villages) }
     : view;
@@ -208,7 +212,7 @@ export function panelOptionsForPlayer(
   return withVillageCache(async () => {
     const ctx = await context(playerId, villageId);
     if (!ctx.ok) return { error: ctx.error };
-    const status = await dynastyOfPlayer(ctx.playerId, ctx.day);
+    const status = await dynastyOfPlayer(ctx.playerId, ctx.day, ctx.villageId);
     const current = status.villages.find((v) => v.id === ctx.villageId);
     if (!current) return { error: NO_VILLAGE };
     const sameMap = status.villages.filter(
@@ -266,10 +270,11 @@ export interface VillageUnchanged {
 }
 
 /**
- * Dotazování na ves: klient pošle otisk pohledu, který má (`VillageView.stamp`). Když jsou vsi
- * hráče dopočítané do dneška a otisk sedí (žádná ves nemá novou verzi ani jméno, den je stejný),
- * vrátí `{ unchanged: true }` – bez načtení stavů vsí (u velké vsi přes 1 MB JSON) a bez
- * sestavení pohledu. Jinak celý pohled jako `villageViewForPlayer`.
+ * Dotazování na ves: klient pošle otisk pohledu, který má (`VillageView.stamp`). Když by pohled
+ * nic nepočítal (zobrazená ves na dnešku, ostatní nejvýš `WORKER_LAG_DAYS` pozadu) a otisk sedí
+ * (žádná ves nemá novou verzi ani jméno, den je stejný), vrátí `{ unchanged: true }` – bez
+ * načtení stavů vsí (u velké vsi přes 1 MB JSON) a bez sestavení pohledu. Jinak celý pohled jako
+ * `villageViewForPlayer`.
  */
 export async function villageViewIfChanged(
   playerId: string,
