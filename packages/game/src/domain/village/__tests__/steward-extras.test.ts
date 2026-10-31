@@ -1,0 +1,447 @@
+import { beforeAll, describe, expect, it } from 'vitest';
+import { dateOfDayIndex, dayIndexOf } from '../../calendar';
+import {
+  CURRENT_LAYER_VERSIONS,
+  generateLandscape,
+  obstaclesOf,
+  tileCenterWorld,
+} from '../../landscape';
+import { foundVillage } from '../actions';
+import { bufferFill } from '../field-food';
+import { NO_CRAFTS } from '../productivity';
+import { STEWARD } from '../rules-steward';
+import { advanceVillage } from '../simulate';
+import { fieldSowingTargets } from '../simulate-plan';
+import { planSettlement } from '../steward-plan';
+import { newSteward } from '../steward-state';
+import {
+  extraSteps,
+  orchardStep,
+  penStep,
+  roadApplesStep,
+  roadStep,
+  sacredStep,
+} from '../steward-extras';
+import {
+  inStewardWindows,
+  laborBudget,
+  stewardMode,
+  type StewardContext,
+  type StewardMode,
+} from '../steward';
+import { craftCoverage } from '../crafts';
+import { monthInWindow } from '../orchard';
+import { ORCHARD_PLANTING_WINDOWS } from '../rules-fields';
+import { cellHa } from '../steward-land';
+import { BUILD_COSTS } from '../costs';
+import { planWagonRoad, wagonPlanInputOf } from '../wagon-road';
+import type { Road, VillageState } from '../types';
+import { withBuiltFirstDwelling } from './village-fixtures';
+
+// Kroky 5 až 10 dne správce (steward.md – Ostatní stavby): hřbitov, humno, ohrady, sad, posvátná
+// místa a cesty – spouštěče, okna roku, režimy a sdílený rozpočet práce.
+
+const YEAR = 365;
+/** Délka běhu zdravé vsi (let) – sad do ≈ 10 let. */
+const HEALTHY_YEARS = 11;
+const landscape = generateLandscape(1, CURRENT_LAYER_VERSIONS);
+const obstacles = obstaclesOf(landscape);
+const SEPT =
+  Math.ceil(dayIndexOf({ year: 503, month: 9, day: 1 }) / STEWARD.everyDays) * STEWARD.everyDays;
+
+function village(day: number): VillageState {
+  const site = landscape.villageSite;
+  const c = tileCenterWorld(landscape, site.x, site.y);
+  const s = foundVillage({ seed: 4242, day, dwellingPosition: { x: c.x, z: c.z, rotation: 0 } });
+  return { ...s, steward: newSteward(day, true) };
+}
+
+/** Den správce v kalendářním dni (nejbližší dělitelný `everyDays` po `y. m. d.`). */
+function dayOn(year: number, month: number, d: number): number {
+  return Math.ceil(dayIndexOf({ year, month, day: d }) / STEWARD.everyDays) * STEWARD.everyDays;
+}
+
+function ctxOf(day: number, mode: StewardMode = 'growth'): StewardContext {
+  return { day, date: dateOfDayIndex(day), landscape, obstacles, coverage: NO_CRAFTS, mode };
+}
+
+/** Ves dopočítaná do dne `day` s hotovým plánem; volná práce štědrá (rozpočet práce nebrání). */
+function planned(state: VillageState): VillageState {
+  let s = state;
+  for (let k = 0; k < 12 && s.steward?.plan?.stage !== 'done'; k++) {
+    s = planSettlement(s, s.lastDay, landscape, obstacles);
+  }
+  s.commonLaborHistory = Array.from({ length: 30 }, () => 60);
+  return s;
+}
+
+const kinds = (s: VillageState): string[] => s.constructions.map((c) => c.kind);
+
+/** Rozestavěná ohrada druhu `species`. */
+const penStarted = (s: VillageState, species: string): boolean =>
+  s.constructions.some(
+    (c) => c.kind === 'pen' && s.pens?.find((p) => p.id === c.penId)?.species === species,
+  );
+
+/** Kopie vsi s volnou prací, po které v rozpočtu zbude právě `left` člověkodní. */
+function withLeft(state: VillageState, left: number): VillageState {
+  const s = structuredClone(state);
+  const perDay = (laborBudget(s).remaining + left) / STEWARD.laborHorizonDays;
+  s.commonLaborHistory = Array.from({ length: 30 }, () => perDay);
+  return s;
+}
+
+describe('steward-extras – hřbitov', () => {
+  it('po první zemnici hned (i v Nouzi); bez zemnice ne', () => {
+    const young = planned(withBuiltFirstDwelling(village(SEPT)));
+    for (const mode of ['emergency', 'recovery', 'growth'] as const) {
+      const s = structuredClone(young);
+      extraSteps(s, ctxOf(SEPT, mode));
+      expect(kinds(s)).toContain('cemetery');
+      expect(s.steward?.built).toContain(s.constructions.find((c) => c.kind === 'cemetery')!.id);
+    }
+    const none = planned(village(SEPT));
+    extraSteps(none, ctxOf(SEPT));
+    expect(kinds(none)).not.toContain('cemetery');
+  });
+
+  it('rozšíření o čtverec, až když volná místa nestačí na graveYears; v Nouzi ne', () => {
+    let s = planned(withBuiltFirstDwelling(village(SEPT)));
+    extraSteps(s, ctxOf(SEPT));
+    s = advanceVillage(s, SEPT + 80, obstacles, landscape);
+    const cem = s.cemeteries?.[0];
+    expect(cem?.builtDay).not.toBeNull();
+    const done = planned(s);
+    const cemeteries = (x: VillageState): number =>
+      x.constructions.filter((c) => c.kind === 'cemetery').length;
+    extraSteps(done, ctxOf(done.lastDay + 1));
+    expect(cemeteries(done)).toBe(0);
+    // místa dochází
+    const full = structuredClone(done);
+    full.cemeteries![0]!.graves = full.cemeteries![0]!.squares.length * 56;
+    const emergency = structuredClone(full);
+    extraSteps(emergency, ctxOf(done.lastDay + 1, 'emergency'));
+    expect(cemeteries(emergency)).toBe(0);
+    extraSteps(full, ctxOf(done.lastDay + 1));
+    expect(cemeteries(full)).toBe(1);
+    // rozšíření stávajícího hřbitova sousedním čtvercem, ne druhý hřbitov
+    expect(full.cemeteries).toHaveLength(1);
+    const squares = full.cemeteries![0]!.squares.map((q) => q.cell);
+    expect(squares).toHaveLength(done.cemeteries![0]!.squares.length + 1);
+    const added = squares.at(-1)!;
+    expect(
+      squares.slice(0, -1).some((q) => Math.abs(q.x - added.x) + Math.abs(q.y - added.y) === 1),
+    ).toBe(true);
+    // bez sousedního slotu v plánu správce hřbitov nerozšíří (druhý by nezaložil)
+    const apart = structuredClone(done);
+    apart.cemeteries![0]!.graves = apart.cemeteries![0]!.squares.length * 56;
+    const edge = new Set(
+      apart.cemeteries![0]!.squares.flatMap(({ cell }) =>
+        [
+          [1, 0],
+          [-1, 0],
+          [0, 1],
+          [0, -1],
+        ].map(([dx, dy]) => (cell.y + dy!) * landscape.size + cell.x + dx!),
+      ),
+    );
+    apart.steward!.plan!.slots.cemetery = (apart.steward!.plan!.slots.cemetery ?? []).filter(
+      (t) => !edge.has(t),
+    );
+    extraSteps(apart, ctxOf(done.lastDay + 1));
+    expect(cemeteries(apart)).toBe(0);
+  });
+});
+
+describe('steward-extras – humno, ohrady, posvátná místa a cesty', () => {
+  let grown: VillageState;
+  beforeAll(() => {
+    grown = advanceVillage(
+      planned(withBuiltFirstDwelling(village(SEPT))),
+      SEPT + 3 * YEAR,
+      obstacles,
+      landscape,
+    );
+    grown = planned(grown);
+  }, 120_000);
+
+  /** Příští den správce v daném kalendářním měsíci po stavu `grown`. */
+  const at = (month: number, d = 5): number => {
+    const year = dateOfDayIndex(grown.lastDay).year + 1;
+    return Math.max(grown.lastDay + 1, dayOn(year, month, d));
+  };
+
+  it('humno: v Růstu i Obnově před žněmi; ne v Nouzi, ne po 31. 7., ne s humnem', () => {
+    expect(grown.parts.length).toBeGreaterThan(0);
+    const run = (month: number, mode: StewardMode): string[] => {
+      const s = structuredClone(grown);
+      s.threshingFloors = [];
+      s.constructions = s.constructions.filter((c) => c.kind !== 'threshing-floor');
+      extraSteps(s, ctxOf(at(month), mode));
+      return kinds(s);
+    };
+    expect(run(4, 'growth')).toContain('threshing-floor');
+    expect(run(4, 'recovery')).toContain('threshing-floor');
+    expect(run(4, 'emergency')).not.toContain('threshing-floor');
+    expect(run(8, 'growth')).not.toContain('threshing-floor');
+  });
+
+  it('rozpočet práce je sdílený – bez volné práce nestaví nic (kromě prvního hřbitova)', () => {
+    const s = structuredClone(grown);
+    s.threshingFloors = [];
+    s.commonLaborHistory = [];
+    const before = s.constructions.length;
+    extraSteps(s, ctxOf(at(4)));
+    expect(s.constructions.length).toBe(before);
+  });
+
+  it('ohrada skotu pro plné stádo; mimo okno (žně) ne', () => {
+    const base = structuredClone(grown);
+    base.pens = [];
+    base.livestock = {
+      ...(base.livestock ?? ({} as NonNullable<VillageState['livestock']>)),
+      herds: { sheep: 0, goat: 0, pig: 0, cow: 4 },
+    } as NonNullable<VillageState['livestock']>;
+    const spring = structuredClone(base);
+    extraSteps(spring, ctxOf(at(3)));
+    expect(spring.constructions.some((c) => c.kind === 'pen')).toBe(true);
+    const harvest = structuredClone(base);
+    extraSteps(harvest, ctxOf(at(8)));
+    expect(harvest.constructions.some((c) => c.kind === 'pen')).toBe(false);
+  });
+
+  it('modla jen pod hranicí štěstí a v Obnově ano, v Nouzi ne', () => {
+    const low = structuredClone(grown);
+    low.happiness = {
+      ...(low.happiness ?? { value: 50 }),
+      value: STEWARD.happinessFloor - 20,
+    } as never;
+    const ctx = ctxOf(at(10));
+    const growth = structuredClone(low);
+    sacredStep(growth, ctx);
+    const happy = structuredClone(grown);
+    happy.happiness = {
+      ...(happy.happiness ?? { value: 50 }),
+      value: STEWARD.happinessFloor + 5,
+    } as never;
+    sacredStep(happy, ctx);
+    expect(kinds(happy)).not.toContain('idol');
+    const emergency = structuredClone(low);
+    extraSteps(emergency, ctxOf(ctx.day, 'emergency'));
+    expect(kinds(emergency)).not.toContain('idol');
+    expect(kinds(growth).filter((k) => k === 'idol')).toHaveLength(1);
+    const recovery = structuredClone(low);
+    extraSteps(recovery, ctxOf(ctx.day, 'recovery'));
+    expect(kinds(recovery)).toContain('idol');
+  });
+
+  it('cesty: vylepšení v Růstu i Obnově, ne v Nouzi; v okně roku a při dost velkém provozu', () => {
+    const roads: Road[] = (grown.roads?.roads ?? []).filter((r) => r.grade === 'trodden');
+    expect(roads.length).toBeGreaterThan(0);
+    const s = structuredClone(grown);
+    for (const r of s.roads!.roads) r.traffic = [200];
+    const growth = structuredClone(s);
+    roadStep(growth, ctxOf(at(11)));
+    const emergency = structuredClone(s);
+    extraSteps(emergency, ctxOf(at(11), 'emergency'));
+    expect(kinds(emergency)).not.toContain('road');
+    const recovery = structuredClone(s);
+    roadStep(recovery, ctxOf(at(11), 'recovery'));
+    expect(kinds(recovery)).toContain('road');
+    const spring = structuredClone(s);
+    roadStep(spring, ctxOf(at(4)));
+    expect(kinds(spring)).not.toContain('road');
+    const quiet = structuredClone(s);
+    for (const r of quiet.roads!.roads) r.traffic = [0];
+    roadStep(quiet, ctxOf(at(11)));
+    expect(kinds(quiet)).not.toContain('road');
+    expect(kinds(growth).filter((k) => k === 'road')).toHaveLength(1);
+    const road = growth.constructions.find((c) => c.kind === 'road')!;
+    expect(growth.steward?.built).toContain(road.id);
+  });
+
+  it('sad: v okně výsadby; v Obnově jen s polovinou rozpočtu volnou (nižší přednost), v Nouzi ne', () => {
+    const base = structuredClone(grown);
+    base.orchards = [];
+    const cost = BUILD_COSTS.orchard.laborManDays * cellHa(landscape);
+    const run = (month: number, mode: StewardMode, left: number): string[] => {
+      const s = withLeft(base, left);
+      orchardStep(s, ctxOf(at(month), mode));
+      return kinds(s);
+    };
+    expect(run(10, 'growth', 1.2 * cost)).toContain('orchard');
+    expect(run(10, 'recovery', 1.2 * cost)).not.toContain('orchard');
+    expect(run(10, 'recovery', 10_000)).toContain('orchard');
+    expect(run(10, 'emergency', 10_000)).not.toContain('orchard');
+    expect(run(6, 'growth', 10_000)).not.toContain('orchard');
+    const s = withLeft(base, 10_000);
+    orchardStep(s, ctxOf(at(10)));
+    const orchard = s.constructions.find((c) => c.kind === 'orchard')!;
+    expect(s.steward?.built).toContain(orchard.id);
+    // v Obnově jen první zdroj ovoce – ves se sadem další čtverec až v Růstu
+    const second = withLeft(s, 10_000);
+    second.constructions = second.constructions.filter((c) => c.kind !== 'orchard');
+    expect(second.orchards ?? []).not.toHaveLength(0);
+    const recovery = structuredClone(second);
+    orchardStep(recovery, ctxOf(at(10), 'recovery'));
+    expect(kinds(recovery)).not.toContain('orchard');
+    orchardStep(second, ctxOf(at(10)));
+    expect(kinds(second)).toContain('orchard');
+  });
+
+  it('jabloně u cest: podél upravené cesty kolem polí, když sad nestačí; ne po vyšlapané', () => {
+    const base = withLeft(grown, 10_000);
+    base.orchards = [];
+    const trodden = structuredClone(base);
+    roadApplesStep(trodden, ctxOf(at(10)));
+    expect(kinds(trodden)).not.toContain('road-apples');
+    for (const r of base.roads!.roads) r.grade = 'improved';
+    roadApplesStep(base, ctxOf(at(10)));
+    expect(kinds(base)).toContain('road-apples');
+    const spring = withLeft(grown, 10_000);
+    for (const r of spring.roads!.roads) r.grade = 'improved';
+    roadApplesStep(spring, ctxOf(at(6)));
+    expect(kinds(spring)).not.toContain('road-apples');
+  });
+
+  it('ohrada koní: cvičící rodina, v Růstu i Obnově; bez výcviku ne', () => {
+    const base = withLeft(grown, 10_000);
+    base.livestock = {
+      ...(base.livestock ?? ({} as NonNullable<VillageState['livestock']>)),
+      herds: { sheep: 0, goat: 0, pig: 0, cow: 0 },
+    } as NonNullable<VillageState['livestock']>;
+    base.storesKg = 50_000;
+    const horse = (s: VillageState): boolean => penStarted(s, 'horse');
+    const idle = structuredClone(base);
+    penStep(idle, ctxOf(at(10)));
+    expect(horse(idle)).toBe(false);
+    base.lord = { ...(base.lord ?? {}), trains: true } as NonNullable<VillageState['lord']>;
+    for (const mode of ['growth', 'recovery'] as const) {
+      const s = structuredClone(base);
+      penStep(s, ctxOf(at(10), mode));
+      expect(horse(s)).toBe(true);
+    }
+    const emergency = structuredClone(base);
+    extraSteps(emergency, ctxOf(at(10), 'emergency'));
+    expect(horse(emergency)).toBe(false);
+  });
+
+  it('spřežení: ohrada volů, když ves má skot v ohradě a dost krav', () => {
+    const base = withLeft(grown, 10_000);
+    const herds = (cow: number): NonNullable<VillageState['livestock']> =>
+      ({
+        ...(base.livestock ?? ({} as NonNullable<VillageState['livestock']>)),
+        herds: { sheep: 0, goat: 0, pig: 0, cow },
+      }) as NonNullable<VillageState['livestock']>;
+    // ohrada skotu stojí (postaví ji správce pro plné stádo a dostaví se)
+    base.pens = (base.pens ?? []).filter((p) => p.builtDay !== null);
+    base.constructions = base.constructions.filter((c) => c.kind !== 'pen');
+    base.livestock = herds(4);
+    if (!base.pens.some((p) => p.species === 'cattle')) penStep(base, ctxOf(at(3)));
+    const cattle = base.pens.find((p) => p.species === 'cattle')!;
+    expect(cattle).toBeDefined();
+    cattle.builtDay ??= base.lastDay;
+    base.constructions = base.constructions.filter((c) => c.kind !== 'pen');
+    base.pens = [cattle];
+    base.livestock = herds(6);
+    const team = (s: VillageState): boolean => penStarted(s, 'team');
+    const s = structuredClone(base);
+    penStep(s, ctxOf(at(10)));
+    expect(team(s)).toBe(true);
+    const fewCows = structuredClone(base);
+    fewCows.livestock!.herds.cow = 1;
+    penStep(fewCows, ctxOf(at(10)));
+    expect(team(fewCows)).toBe(false);
+  });
+
+  it('vozová cesta: jen s vozem a s celou cenou v rozpočtu práce', () => {
+    const base = withLeft(grown, 10_000);
+    const day = at(11);
+    for (const r of base.roads!.roads) r.grade = 'improved';
+    // jediný úsek s provozem – ten, po kterém vozová cesta jde (krátké a blokované ne)
+    const road = base.roads!.roads.find(
+      (r) => planWagonRoad(wagonPlanInputOf(base, day, r.id, landscape, obstacles)).ok,
+    )!;
+    expect(road).toBeDefined();
+    for (const r of base.roads!.roads) r.traffic = [r.id === road.id ? 5 : 0];
+    const wagon = (s: VillageState): boolean => (s.roads?.earthworks ?? []).length > 0;
+    const noCart = structuredClone(base);
+    roadStep(noCart, ctxOf(day));
+    expect(kinds(noCart)).not.toContain('road');
+    base.carts = [{ id: 99_000, kind: 'two-wheel', builtDay: base.lastDay }];
+    const s = structuredClone(base);
+    roadStep(s, ctxOf(day));
+    expect(kinds(s)).toContain('road');
+    expect(wagon(s)).toBe(true);
+    const tight = withLeft(base, 1);
+    roadStep(tight, ctxOf(day));
+    expect(kinds(tight)).not.toContain('road');
+  });
+
+  it('zemská stezka až od trailPeople lidí', () => {
+    const s = structuredClone(grown);
+    roadStep(s, ctxOf(at(11)));
+    expect(s.trails ?? []).toHaveLength(0);
+  });
+
+  it('pojistka: bufferFill mimo Nouzi (hlídá spuštění testu)', () => {
+    expect(bufferFill(fieldSowingTargets(grown, grown.lastDay, NO_CRAFTS))).toBeGreaterThanOrEqual(
+      0,
+    );
+  });
+});
+
+describe('steward-extras – zdravá ves (seed krajiny 2): režim a okna roku se potkají', () => {
+  // ves zakladatelů na krajině 2 nehladoví (kouřový test S5) – každý krok musí mít dny, kdy jeho
+  // režim i okno roku platí, a sad má vzniknout do ≈ 10 let (oprava 31. 10. 2026: Růst nastával
+  // hlavně v srpnu, mimo okna výsadby i cest)
+  const healthy = generateLandscape(2, CURRENT_LAYER_VERSIONS);
+  const healthyObstacles = obstaclesOf(healthy);
+  const windows: Record<string, (date: ReturnType<typeof dateOfDayIndex>) => boolean> = {
+    cemetery: () => true,
+    threshing: (d) => inStewardWindows(d, STEWARD.threshingWindows),
+    pen: (d) => inStewardWindows(d, STEWARD.offHarvestWindows),
+    horses: (d) => inStewardWindows(d, STEWARD.offHarvestWindows),
+    orchard: (d) => monthInWindow(ORCHARD_PLANTING_WINDOWS, d.month),
+    roadApples: (d) => monthInWindow(ORCHARD_PLANTING_WINDOWS, d.month),
+    sacred: (d) => inStewardWindows(d, STEWARD.offHarvestWindows),
+    road: (d) => inStewardWindows(d, STEWARD.roadWindows),
+  };
+  const open = new Map<string, number>();
+  let orchardYear = Number.POSITIVE_INFINITY;
+
+  beforeAll(() => {
+    const site = healthy.villageSite;
+    const c = tileCenterWorld(healthy, site.x, site.y);
+    const founded = foundVillage({
+      seed: 4242,
+      day: SEPT,
+      dwellingPosition: { x: c.x, z: c.z, rotation: 0 },
+    });
+    let s: VillageState = { ...founded, steward: newSteward(SEPT, true) };
+    for (let day = SEPT + STEWARD.everyDays; day <= SEPT + HEALTHY_YEARS * YEAR;) {
+      s = advanceVillage(s, day, healthyObstacles, healthy);
+      const mode = stewardMode(s, day, craftCoverage(s, day));
+      const date = dateOfDayIndex(day);
+      for (const [step, inWindow] of Object.entries(windows)) {
+        if ((STEWARD.stepModes[step]?.[mode] ?? 0) > 0 && inWindow(date)) {
+          open.set(step, (open.get(step) ?? 0) + 1);
+        }
+      }
+      const built = new Set(s.steward?.built ?? []);
+      const orchard =
+        (s.orchards ?? []).some((o) => built.has(o.id)) ||
+        s.constructions.some((k) => k.kind === 'orchard' && built.has(k.id));
+      if (orchard) orchardYear = Math.min(orchardYear, (day - SEPT) / YEAR);
+      day += STEWARD.everyDays;
+    }
+  }, 300_000);
+
+  it('každý krok má dny, kdy platí jeho režim i okno roku', () => {
+    for (const step of Object.keys(windows)) expect(open.get(step) ?? 0, step).toBeGreaterThan(0);
+  });
+
+  it('sad správce do ≈ 10 let', () => {
+    expect(orchardYear).toBeLessThanOrEqual(10);
+  });
+});

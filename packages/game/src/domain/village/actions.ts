@@ -1,4 +1,5 @@
 import { TOTAL_GAME_DAYS } from '../calendar';
+import { newSteward } from './steward-state';
 import type { ObstacleLayer } from '../landscape';
 import { cemeteryFoundingCost, touchingCemeteries, villageCemeteries } from './cemetery';
 import { newFenceSides } from './fence-cost';
@@ -354,6 +355,7 @@ function addField(state: VillageState, day: number, field: FieldInput): void {
     position: null,
     dwellingId: null,
     fieldId,
+    ...(extended === undefined ? {} : { extends: true as const }),
   });
   if (field.sacred) recordSpared(state, field.sacred, day);
 }
@@ -540,6 +542,8 @@ export function foundVillage(input: {
     dynasty: settlers
       ? settlersDynasty(settlersLord(people, settlers.lordId), day)
       : (founders?.dynasty ?? { lordId: null, lords: [] }),
+    // ves syna (`departWithSon`) řídí správce od založení, první ves hráče ne (steward.md)
+    steward: newSteward(day, settlers?.stewarded === true),
     dwellings: [],
     fields: [],
     parts: [],
@@ -1018,6 +1022,7 @@ export function foundCemetery(
     dwellingId: null,
     fieldId: null,
     cemeteryId,
+    ...(target ? { extends: true as const } : {}),
   });
   if (input.sacred) recordSpared(next, input.sacred, day);
   return next;

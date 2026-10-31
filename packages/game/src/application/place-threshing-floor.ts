@@ -1,13 +1,5 @@
 import { obstaclesOf, type Landscape } from '../domain/landscape';
-import {
-  villageRoadWalk,
-  buildAffordability,
-  checkThreshingFloorPlacement,
-  placementVillageOf,
-  startThreshingFloor,
-  type Position,
-} from '../domain/village';
-import { CANNOT_AFFORD, NO_WOOD } from './place-dwelling';
+import { applyBuildIntent, type Position } from '../domain/village';
 import { updateLivingVillage } from './update-village';
 import type { VillageRepository, VillageResult } from './villages';
 
@@ -36,36 +28,11 @@ export function placeThreshingFloor(
     input.villageId,
     input.today,
     input.landscape,
-    (state) => {
-      // akce patří do dne, do kterého je ves dopočítaná – dnešek, nebo „budoucí“ den vsi
-      const day = state.lastDay;
-      const obstacles = obstaclesOf(input.landscape);
-      const { affordable, missing } = buildAffordability(state, 'threshing-floor', obstacles);
-      if (!affordable) return { ok: false, reason: missing.wood ? NO_WOOD : CANNOT_AFFORD };
-      const position = { ...input.position };
-      const check = checkThreshingFloorPlacement(
-        input.landscape,
-        placementVillageOf(state, day),
-        position,
-        obstacles,
-      );
-      if (!check.ok) return { ok: false, reason: check.reason ?? 'Sem humno nepatří.' };
-      try {
-        return {
-          ok: true,
-          state: startThreshingFloor(state, day, position, obstacles, {
-            obstacleCost: check.obstacleCost,
-            obstacleIds: check.obstacleIds,
-            clearedTrees: check.clearedTrees,
-            takenLand: check.takenLand,
-            walk: villageRoadWalk(state, input.landscape),
-          }),
-        };
-      } catch (error) {
-        // stromy nestačí ke kácení (vyhradila je mezitím jiná stavba)
-        if (error instanceof RangeError) return { ok: false, reason: NO_WOOD };
-        throw error;
-      }
-    },
+    // akce patří do dne, do kterého je ves dopočítaná – dnešek, nebo „budoucí“ den vsi
+    (state) =>
+      applyBuildIntent(state, state.lastDay, input.landscape, obstaclesOf(input.landscape), {
+        kind: 'threshing-floor',
+        position: input.position,
+      }),
   );
 }

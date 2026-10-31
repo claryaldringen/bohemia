@@ -1,4 +1,14 @@
-import { index, integer, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+import {
+  index,
+  uniqueIndex,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core';
 import type { VillageState } from '@bohemia/game';
 import { settlement } from './settlement';
 
@@ -19,5 +29,11 @@ export const village = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
-  (table) => [index('village_settlement_idx').on(table.settlementId, table.createdAt)],
+  (table) => [
+    index('village_settlement_idx').on(table.settlementId, table.createdAt),
+    // klíč založení vsi (`VillageState.origin`) – ves ze schránky správce vznikne právě jednou
+    uniqueIndex('village_origin_uq')
+      .using('btree', sql`(${table.state}->>'origin')`)
+      .where(sql`${table.state}->>'origin' IS NOT NULL`),
+  ],
 );

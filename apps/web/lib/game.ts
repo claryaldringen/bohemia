@@ -11,9 +11,11 @@ import {
   enterGame,
   findPlayerVillage,
   firstPlayerVillage,
+  pendingStewardDepartures,
   playerTime,
   restartGame,
   settlementLandscape,
+  settleStewardDeparturesSafely,
   skipTime,
   type Direction8,
   type DynastyStatus,
@@ -161,9 +163,34 @@ export function dynastyOfPlayer(playerId: string, today: number): Promise<Dynast
   );
 }
 
-/** Totéž bez zámku – jen pro volající, kteří už zámek hráče drží (`exclusive` se nevnořuje). */
-export function dynastyOfPlayerLocked(playerId: string, today: number): Promise<DynastyStatus> {
-  return dynastyStatus(dynastyDeps(), { playerId, today });
+/** Nejvýš tolik kol vybavení schránek za jeden dopočet (nová ves může mít vlastní odchod). */
+const DEPARTURE_ROUNDS = 4;
+
+/**
+ * Totéž bez zámku – jen pro volající, kteří už zámek hráče drží (`exclusive` se nevnořuje). Vsi
+ * hráče dopočítané do dneška; za dopočtem se vybaví odchozí schránky správce (steward.md – Kde
+ * správce běží) – nové vsi synů vzniknou a dopočítají se v dalším kole.
+ */
+export async function dynastyOfPlayerLocked(
+  playerId: string,
+  today: number,
+): Promise<DynastyStatus> {
+  const deps = dynastyDeps();
+  let status = await dynastyStatus(deps, { playerId, today });
+  for (let round = 0; round < DEPARTURE_ROUNDS; round++) {
+    let settled = 0;
+    for (const village of status.villages) {
+      if (pendingStewardDepartures(village.state).length === 0) continue;
+      const founded = await settleStewardDeparturesSafely(
+        { ...deps, seeds: seeds() },
+        { playerId, villageId: village.id },
+      );
+      settled += founded.length;
+    }
+    if (settled === 0) break;
+    status = await dynastyStatus(deps, { playerId, today });
+  }
+  return status;
 }
 
 /**

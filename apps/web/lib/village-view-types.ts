@@ -480,6 +480,12 @@ export interface VillageView {
   lord?: { training: number; field: number; household: number } | null;
   /** Rod vojvody pro jména (lord.md – Jména); ves bez rodu null, starší pohled bez pole. */
   dynasty?: DynastyView | null;
+  /** Správce vsi (steward.md – Co hráč vidí): zapnutý řídí stavby sám; ves bez stavu vypnutý. */
+  steward: {
+    on: boolean;
+    /** Id staveb a jejich dílů, které postavil správce (`isStewardBuilt`) – značka „Postavil správce“. */
+    built: readonly number[];
+  };
   /** Některá rodina se může oddělit a nečeká na ni žádné obydlí (upozornění „Rodina čeká na dům“). */
   fullHousehold: boolean;
   /** Nabídka staveb – hráč staví kdy chce, předem musí ves mít suroviny a lidi k osídlení. */

@@ -542,6 +542,7 @@ export function TopBar({
   onToggleMenu,
   onRename,
   onSelectVillage,
+  onSetSteward,
   devTime,
   devVillage = null,
   devDisasters = null,
@@ -558,6 +559,8 @@ export function TopBar({
   onRename: (name: string) => Promise<string | null>;
   /** Přepne na jinou ves hráče (přepínač vsí). */
   onSelectVillage?: (village: VillageListItem) => void;
+  /** Zapne / vypne správce vsi (přepínač v seznamu vsí). */
+  onSetSteward?: (villageId: string, on: boolean) => Promise<unknown>;
   /** Vývojový režim – šipky přeskočení času vedle data; bez něj null. */
   devTime: { pending: TimeSkip | null; onSkip: (skip: TimeSkip) => void } | null;
   /** Vývojový režim – druhá ves na téže mapě; bez něj (nebo bez vsi) null. */
@@ -594,6 +597,8 @@ export function TopBar({
           villages={view.villages}
           onSelect={(village) => onSelectVillage?.(village)}
           onRename={onRename}
+          steward={view.steward.on}
+          onSetSteward={onSetSteward}
         />
       )}
       {view && (

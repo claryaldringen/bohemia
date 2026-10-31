@@ -52,6 +52,28 @@ export class InMemoryVillages implements VillageRepository {
     return this.insert(settlementId, name, state);
   }
 
+  async findByOrigin(origin: string): Promise<VillageRecord | null> {
+    await Promise.resolve();
+    const record = [...this.records.values()].find((r) => r.state.origin === origin);
+    return record ? structuredClone(record) : null;
+  }
+
+  /** Sídla, která úložiště zná – addOnce do jiného vrátí null (prázdné = všechna). */
+  readonly knownSettlements = new Set<string>();
+
+  async addOnce(
+    settlementId: string,
+    name: string,
+    state: VillageState,
+  ): Promise<VillageRecord | null> {
+    await Promise.resolve();
+    if (this.knownSettlements.size > 0 && !this.knownSettlements.has(settlementId)) return null;
+    // kontrola a zápis bez dalšího await – atomicky jako zámek řádku sídla v databázi
+    const existing = [...this.records.values()].find((r) => r.state.origin === state.origin);
+    if (existing) return structuredClone(existing);
+    return this.insert(settlementId, name, state);
+  }
+
   async save(
     villageId: string,
     state: VillageState,

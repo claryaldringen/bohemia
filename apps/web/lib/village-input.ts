@@ -382,6 +382,12 @@ export function parseNameLineManInput(value: unknown): { personId: number; name:
   return personId !== null && name !== null ? { personId, name } : null;
 }
 
+/** Vstup přepínače správce `{ on }` (steward.md), jinak null. */
+export function parseSetStewardInput(value: unknown): { on: boolean } | null {
+  if (!isRecord(value)) return null;
+  return typeof value.on === 'boolean' ? { on: value.on } : null;
+}
+
 /** Vstup vyhlášení lovu navíc `{}` (jen `villageId`, který čte `villageAction`), jinak null. */
 export function parseDeclareHuntInput(value: unknown): Record<string, never> | null {
   return isRecord(value) ? {} : null;

@@ -435,3 +435,16 @@ Návrh: [disasters.md – Co hráč vidí](../design/disasters.md). Jádro a č�
 - **Testy** – `disasters-view.test.ts`, `village-notices.test.ts` (počasí a pohromy),
   `village-view.test.ts` (JSON 30. 4. bez sucha, seedu a `override`); e2e `village.spec.ts`
   „vývojový režim: vynucené sucho“ – ikona na liště, upozornění a ochrana v panelu dílu.
+
+## Správce vsi v rozhraní (S8, `hud/StewardToggle.tsx`)
+
+- Server action `setSteward({ villageId, on })` → `VillageGame.toggleSteward` (`runAction`, pohled se obnoví).
+  `VillageView.steward = { on, built }` (`built` = id staveb a dílů se značkou, `isStewardBuilt`).
+- **Přepínač** `StewardToggle` (ikona klíče `public/icons/resources/steward.svg`, zapnutý svítí,
+  vypnutý `opacity-40`, popisek „Správce“): v `VillageList` u každé žijící vsi (`VillageListItem.steward`)
+  a v panelu dvorce vojvody (`SelectionDetails.steward`, jen `dwelling` s `manor`). `StewardBadge` je
+  ikona vedle jména vybrané vsi v `VillageSwitcher`, když správce běží.
+- **Značka „Postavil správce“** (`StewardBuiltMark`): `withSteward` v `selection-details.ts` nastaví
+  `stewardBuilt` cílům dwelling/site/field/field-part/cemetery/orchard/pen/road, jejichž `id` je ve
+  `view.steward.built`; `SelectionPanel` ji ukáže vpravo nahoře vedle Zrušit stavbu.
+- e2e: `village.spec.ts` – „správce vsi – zapnutí a vypnutí přepínačem…“.

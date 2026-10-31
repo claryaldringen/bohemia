@@ -2,6 +2,7 @@ import {
   isVillageAbandoned,
   isVillageDormant,
   isVillageExtinct,
+  isStewardOn,
   isVillageTravelling,
   summarizeVillage,
   threshingStatus,
@@ -43,6 +44,8 @@ export interface VillageListItem {
    * pro upozornění z jiné vsi; nic – bez údaje.
    */
   disasters?: OtherVillageDisasters;
+  /** Správce vsi je zapnutý (steward.md – Co hráč vidí); vypnutý bez údaje. */
+  steward?: true;
 }
 
 /** Položka přepínače z uložené vsi dopočítané do dne `day`. */
@@ -64,5 +67,18 @@ export function villageListItem(record: VillageRecord, day: number): VillageList
     hunger: summary?.hunger ?? 'fed',
     ...(threshing?.emergency ? { threshing: { emergency: true as const } } : {}),
     ...(disasters ? { disasters } : {}),
+    ...(isStewardOn(record.state) ? { steward: true as const } : {}),
   };
+}
+
+/**
+ * Akce nad jinou vsí ze seznamu (správce) vrátí pohled té vsi – zobrazená ves zůstane a z odpovědi
+ * se vezme jen aktualizovaný seznam vsí. Stejná ves nebo nic zobrazeného: odpověď beze změny.
+ */
+export function keepShownVillage<T extends { id: string; villages: VillageListItem[] }>(
+  shown: T | null,
+  result: T,
+): T {
+  if (!shown || shown.id === result.id) return result;
+  return { ...shown, villages: result.villages };
 }

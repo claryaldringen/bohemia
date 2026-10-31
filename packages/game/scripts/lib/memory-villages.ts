@@ -34,6 +34,15 @@ export class SingleVillageRepository implements VillageRepository {
     return Promise.reject(new Error('Měřicí repozitář ves nezakládá.'));
   }
 
+  async findByOrigin(origin: string): Promise<VillageRecord | null> {
+    await Promise.resolve();
+    return this.record.state.origin === origin ? structuredClone(this.record) : null;
+  }
+
+  addOnce(): Promise<VillageRecord | null> {
+    return Promise.reject(new Error('Měřicí repozitář ves nezakládá.'));
+  }
+
   async save(
     villageId: string,
     state: VillageState,

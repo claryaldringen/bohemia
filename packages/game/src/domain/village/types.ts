@@ -2,6 +2,7 @@
 // Rozcestník: typy jsou rozdělené podle témat do `types-*.ts`.
 
 export type * from './types-people';
+export type * from './types-steward';
 export type * from './types-crafts';
 export type * from './types-land';
 export type * from './types-construction';

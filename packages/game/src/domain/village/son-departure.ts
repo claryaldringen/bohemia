@@ -284,6 +284,7 @@ export function departWithSon(
     },
     ...(direction ? { direction } : {}),
     lordId: sonId,
+    stewarded: true,
     ...(horse ? { horseId: horse.id } : {}),
   });
 }

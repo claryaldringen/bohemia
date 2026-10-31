@@ -37,7 +37,10 @@ export function cancelUnfinishedConstruction(
       if (!c) return { ok: false, reason: NO_CONSTRUCTION };
       const block = cancelBlock(c);
       if (block !== null) return { ok: false, reason: block };
-      return { ok: true, state: cancelConstruction(state, state.lastDay, input.constructionId) };
+      return {
+        ok: true,
+        state: cancelConstruction(state, state.lastDay, input.constructionId, input.landscape),
+      };
     },
   );
 }

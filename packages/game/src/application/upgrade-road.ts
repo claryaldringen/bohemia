@@ -1,12 +1,10 @@
 import { obstaclesOf, type Landscape } from '../domain/landscape';
-import {
-  roadUpgradeOptions,
-  startRoadUpgrade,
-  villageRoadWalk,
-  type RoadUpgrade,
-} from '../domain/village';
+import { applyBuildIntent, type RoadUpgrade } from '../domain/village';
 import { updateLivingVillage } from './update-village';
 import type { VillageRepository, VillageResult } from './villages';
+
+// důvod odmítnutí žije v doméně (build-intent.ts) – use-case ho dál exportuje pro web a testy
+export { NO_UPGRADE } from '../domain/village';
 
 export interface UpgradeRoadInput {
   /** Ves (id), ve které hráč jedná – její sídlo dává krajinu `landscape`. */
@@ -17,9 +15,6 @@ export interface UpgradeRoadInput {
   roadId: number;
   upgrade: RoadUpgrade;
 }
-
-/** Úsek takové vylepšení nenabízí (už je, nebo nevede mokřinou ani přes brod). */
-export const NO_UPGRADE = 'Tohle vylepšení úsek nemá.';
 
 /**
  * Hráč zadá vylepšení pevné cesty (roads.md – Vylepšení cesty; ves se nejdřív dopočítá do
@@ -36,32 +31,12 @@ export function upgradeRoad(
     input.villageId,
     input.today,
     input.landscape,
-    (state) => {
-      const day = state.lastDay;
-      const obstacles = obstaclesOf(input.landscape);
-      const walk = villageRoadWalk(state, input.landscape);
-      const option = roadUpgradeOptions(
-        state,
-        input.roadId,
-        day,
-        obstacles,
-        walk,
-        input.landscape,
-      ).find((o) => o.upgrade === input.upgrade);
-      if (!option) return { ok: false, reason: NO_UPGRADE };
-      if (option.blocked) return { ok: false, reason: option.blocked };
-      return {
-        ok: true,
-        state: startRoadUpgrade(
-          state,
-          day,
-          input.roadId,
-          input.upgrade,
-          obstacles,
-          walk,
-          input.landscape,
-        ),
-      };
-    },
+    // akce patří do dne, do kterého je ves dopočítaná – dnešek, nebo „budoucí“ den vsi
+    (state) =>
+      applyBuildIntent(state, state.lastDay, input.landscape, obstaclesOf(input.landscape), {
+        kind: 'road-upgrade',
+        roadId: input.roadId,
+        upgrade: input.upgrade,
+      }),
   );
 }

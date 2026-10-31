@@ -1,13 +1,15 @@
 import { obstaclesOf, type Landscape } from '../domain/landscape';
 import {
+  applyBuildIntent,
   DIRECTIONS,
-  planTrail,
-  startTrail,
-  villageRoadWalk,
+  UNKNOWN_DIRECTION,
   type Direction8,
 } from '../domain/village';
 import { updateLivingVillage } from './update-village';
 import type { VillageRepository, VillageResult } from './villages';
+
+// důvod odmítnutí žije v doméně (build-intent.ts) – use-case ho dál exportuje pro web a testy
+export { UNKNOWN_DIRECTION } from '../domain/village';
 
 export interface BuildTrailInput {
   /** Ves (id), ve které hráč jedná – její sídlo dává krajinu `landscape`. */
@@ -18,9 +20,6 @@ export interface BuildTrailInput {
   direction: Direction8;
 }
 
-/** Neznámý směr stezky. */
-export const UNKNOWN_DIRECTION = 'Neznámý směr stezky.';
-
 /**
  * Hráč zadá ve dvorci stavbu zemské stezky ke kraji mapy (trade.md – Zemská stezka; ves se
  * nejdřív dopočítá do dneška). Server stezku naplánuje znovu (`planTrail` – trasa, úseky, dřevo
@@ -30,6 +29,7 @@ export function buildTrail(
   deps: { villages: VillageRepository },
   input: BuildTrailInput,
 ): Promise<VillageResult> {
+  // neznámý směr odmítne hned, bez načtení vsi
   if (!DIRECTIONS.includes(input.direction)) {
     return Promise.resolve({ ok: false, reason: UNKNOWN_DIRECTION });
   }
@@ -38,16 +38,11 @@ export function buildTrail(
     input.villageId,
     input.today,
     input.landscape,
-    (state) => {
-      const day = state.lastDay;
-      const obstacles = obstaclesOf(input.landscape);
-      const walk = villageRoadWalk(state, input.landscape);
-      const plan = planTrail(state, input.direction, day, input.landscape, obstacles, walk);
-      if (!plan.ok) return { ok: false, reason: plan.reason };
-      return {
-        ok: true,
-        state: startTrail(state, day, input.direction, input.landscape, obstacles, walk),
-      };
-    },
+    // akce patří do dne, do kterého je ves dopočítaná – dnešek, nebo „budoucí“ den vsi
+    (state) =>
+      applyBuildIntent(state, state.lastDay, input.landscape, obstaclesOf(input.landscape), {
+        kind: 'trail',
+        direction: input.direction,
+      }),
   );
 }

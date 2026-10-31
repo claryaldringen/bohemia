@@ -83,6 +83,14 @@ const DETERMINISTIC_LAYER_FILES = [
   'packages/game/src/domain/village/square-grid.ts',
   // varianty rozměrů obydlí (population.md – Varianty rozměrů) – tvar staveb u kurzoru i na serveru
   'packages/game/src/domain/village/dwelling-shape.ts',
+  // plán sídla správce (steward.md – Mapa hodnot krajiny) – ukládá se do stavu, dopočet po kouscích
+  // ho musí zopakovat
+  'packages/game/src/domain/village/steward-land.ts',
+  'packages/game/src/domain/village/steward-plan.ts',
+  // den správce (steward.md – Rozhodovací pořadí) – stavby správce jsou ve stavu vsi
+  'packages/game/src/domain/village/steward.ts',
+  'packages/game/src/domain/village/steward-extras.ts',
+  'packages/game/src/domain/village/steward-rebuild.ts',
 ];
 
 export default defineConfig(

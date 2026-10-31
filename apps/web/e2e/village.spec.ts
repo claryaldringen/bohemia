@@ -1279,7 +1279,7 @@ test('druhá ves na téže mapě (vývojový režim) – jméno vsi v liště p�
     'true',
   );
   await expect(list.locator(`[data-village="${one!.id}"]`)).toContainText(first);
-  await list.locator(`[data-village="${one!.id}"] button`).click();
+  await list.locator(`[data-village="${one!.id}"] [data-testid="village-select"]`).click();
   await expect(list).toHaveCount(0);
   await expect(name).toHaveText(first);
   expect((await villages()).map((v) => v.name)).toEqual([first, 'Druhovice']);
@@ -1288,7 +1288,7 @@ test('druhá ves na téže mapě (vývojový režim) – jméno vsi v liště p�
   await page.reload();
   await expect(name).toHaveText(first, { timeout: 30_000 });
   await name.click();
-  await list.locator(`[data-village="${two!.id}"] button`).click();
+  await list.locator(`[data-village="${two!.id}"] [data-testid="village-select"]`).click();
   await expect(name).toHaveText('Druhovice');
   await page.reload();
   await expect(name).toHaveText('Druhovice', { timeout: 30_000 });
@@ -1506,7 +1506,7 @@ test('lidé odejdou na novou mapu – po cestě umístí první zemnici', async 
   await page.getByTestId('village-name').click();
   await page
     .getByTestId('village-list')
-    .locator(`[data-village="${travelling!.id}"] button`)
+    .locator(`[data-village="${travelling!.id}"] [data-testid="village-select"]`)
     .click();
   await expect(readyScene(page)).toBeVisible({ timeout: 60_000 });
   await expect(page.getByTestId('village-name')).toHaveText(travelling!.name, { timeout: 30_000 });
@@ -1847,4 +1847,56 @@ test('vývojový režim: vynucené sucho – ikona na liště, upozornění a oc
     )
     .toBe('field-part');
   await expect(panel.getByTestId('selection-protection')).toHaveText(/^[0-4]$/);
+});
+
+test('správce vsi – zapnutí a vypnutí přepínačem v seznamu vsí, ikona u jména', async ({
+  page,
+}) => {
+  const { seat: s } = await newPlayer(page, 'spravce');
+  await found(page, villageSpots(s.landscape).dwelling);
+  const badge = page.getByTestId('steward-badge');
+  // správce je ve vsi založené hráčem vypnutý – u jména ikona není
+  await expect(badge).toHaveCount(0);
+
+  await page.getByTestId('village-name').click();
+  const toggle = page.getByTestId('village-steward-toggle').first();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  await expect(badge).toBeVisible();
+  expect((await villageState(s.settlementId)).steward?.on).toBe(true);
+
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await expect(badge).toHaveCount(0);
+  expect((await villageState(s.settlementId)).steward?.on).toBe(false);
+});
+
+test('správce jiné vsi ze seznamu – pohled zůstane na zobrazené vsi', async ({ page }) => {
+  const { email, seat: s } = await newPlayer(page, 'spravce2');
+  await found(page, villageSpots(s.landscape).dwelling);
+  await query('UPDATE "user" SET dev_mode = true WHERE email = $1', [email]);
+  await page.reload();
+  await expect(readyScene(page)).toBeVisible({ timeout: 60_000 });
+  await page.getByTestId('dev-second-village').click();
+  const villages = (): Promise<{ id: string; name: string }[]> =>
+    query<{ id: string; name: string }>(
+      'SELECT id, name FROM village WHERE settlement_id = $1 ORDER BY created_at, id',
+      [s.settlementId],
+    );
+  await expect.poll(async () => (await villages()).length, { timeout: 30_000 }).toBe(2);
+  const [one, two] = await villages();
+  const name = page.getByTestId('village-name');
+  await expect(name).toHaveText(two!.name, { timeout: 30_000 });
+
+  // zapnutí správce u první vsi (zobrazená je druhá) nepřepne pohled
+  await name.click();
+  const toggle = page
+    .getByTestId('village-list')
+    .locator(`[data-village="${one!.id}"]`)
+    .getByTestId('village-steward-toggle');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  await expect(name).toHaveText(two!.name);
+  await expect(page.getByTestId('steward-badge')).toHaveCount(0);
 });

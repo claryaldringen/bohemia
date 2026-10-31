@@ -6,8 +6,14 @@ import { villagePens } from './oxen';
 import { returnConstructionWood } from './relocation';
 import { roadUpgradeProgress } from './road-upgrades';
 import { villageThreshingFloors } from './threshing-floors';
+import { STEWARD } from './rules-steward';
+import type { GridGeometry } from './square-grid';
+import { isStewardBuilt } from './steward-state';
 import { bypassedUpTo } from './wagon-road';
+import type { StewardPlanKind, StewardVeto } from './types-steward';
 import type { Construction, ConstructionKind, RoadEarthwork, VillageState } from './types';
+
+const DAYS_PER_YEAR = 365;
 
 // Zrušení rozestavěné stavby (Martin 23. 10. 2026: „Potřebuju mít možnost stavbu zrušit.“):
 // jen rozestavěná stavba, kterou začal hráč – vytýčení zmizí a práce na ní skončí. Nespotřebované
@@ -183,6 +189,71 @@ function dropLinked(next: VillageState, linked: (x: Construction) => boolean): v
   next.constructions = next.constructions.filter((x) => !linked(x));
 }
 
+/** Druh stavby pro veto správce a políčka, která stavba zabírala (před `dropSite`). */
+function vetoSites(
+  state: VillageState,
+  c: Construction,
+  geo: GridGeometry,
+): { kind: StewardPlanKind; cells: { x: number; y: number }[] } | null {
+  const tileOf = (x: number, z: number): { x: number; y: number } => {
+    const half = (geo.size * geo.cellSizeM) / 2;
+    return {
+      x: Math.floor((x + half) / geo.cellSizeM),
+      y: Math.floor((z + half) / geo.cellSizeM),
+    };
+  };
+  const plain = (
+    list: readonly { cell: { x: number; y: number } }[],
+    grid: unknown,
+  ): { x: number; y: number }[] => (grid ? [] : list.map((q) => ({ x: q.cell.x, y: q.cell.y })));
+  switch (c.kind) {
+    case 'dwelling':
+      return c.position
+        ? { kind: c.craft ? 'workshop' : 'dwelling', cells: [tileOf(c.position.x, c.position.z)] }
+        : null;
+    case 'threshing-floor':
+      return c.position
+        ? { kind: 'threshing-floor', cells: [tileOf(c.position.x, c.position.z)] }
+        : null;
+    case 'field':
+      return {
+        kind: 'field',
+        cells: state.parts
+          .filter((p) => p.fieldId === c.fieldId && p.state === 'founding' && p.cell)
+          .flatMap((p) => {
+            const grid = state.fields.find((f) => f.id === p.fieldId)?.grid;
+            return plain([{ cell: p.cell! }], grid);
+          }),
+      };
+    case 'orchard': {
+      const o = villageOrchards(state).find((x) => x.id === c.orchardId);
+      return o
+        ? {
+            kind: 'orchard',
+            cells: plain(
+              o.squares.filter((s) => s.plantedDay === null),
+              o.grid,
+            ),
+          }
+        : null;
+    }
+    case 'cemetery': {
+      const x = villageCemeteries(state).find((e) => e.id === c.cemeteryId);
+      if (!x) return null;
+      const own = x.squares.filter((s) => s.constructionId === c.id);
+      return { kind: 'cemetery', cells: plain(own.length > 0 ? own : x.squares, x.grid) };
+    }
+    case 'pen': {
+      const p = villagePens(state).find((e) => e.id === c.penId);
+      if (!p) return null;
+      const own = (p.extraSquares ?? []).filter((q) => q.constructionId === c.id);
+      return { kind: 'pen', cells: plain(own.length > 0 ? own : [{ cell: p.cell }], p.grid) };
+    }
+    default:
+      return null;
+  }
+}
+
 /**
  * Hráč zruší rozestavěnou stavbu `constructionId`: vytýčení zmizí (nehotové díly pole, čtverce
  * sadu, hřbitova a ohrady, humno), práce na ní skončí a nespotřebované dřevo se vrátí na hromadu.
@@ -194,6 +265,7 @@ export function cancelConstruction(
   state: VillageState,
   day: number,
   constructionId: number,
+  geo?: GridGeometry,
 ): VillageState {
   validateActionDay(state, day);
   const c = state.constructions.find((x) => x.id === constructionId);
@@ -203,11 +275,31 @@ export function cancelConstruction(
   const next = structuredClone(state);
   const target = next.constructions.find((x) => x.id === constructionId);
   if (!target) throw new RangeError(`Stavba ${constructionId} není rozestavěná.`);
+  // stavba správce: veto – tentýž druh na těch políčkách se `STEWARD.vetoYears` nestaví
+  // (steward.md – Soužití s hráčem); krajina dá políčka, bez ní veto nevznikne
+  const veto = geo && isStewardBuilt(state, c.id) ? vetoSites(state, c, geo) : null;
+  // zrušené stěhování: veto i na zdrojový dům, aby ho správce přestavěl na místě, ne stěhoval jinam
+  if (veto && geo && c.relocates !== undefined) {
+    const source = state.dwellings.find((x) => x.id === c.relocates);
+    if (source) {
+      const half = (geo.size * geo.cellSizeM) / 2;
+      veto.cells.push({
+        x: Math.floor((source.position.x + half) / geo.cellSizeM),
+        y: Math.floor((source.position.z + half) / geo.cellSizeM),
+      });
+    }
+  }
   returnConstructionWood(next, target);
   // vrátí se přesně to, čím ves zaplatila koně ohrady (horses.md – Koně se stavbou ohrady)
   if (target.horsePenPaid) refundHorsePen(next, target.horsePenPaid, day);
   dropSite(next, target);
   next.constructions = next.constructions.filter((x) => x.id !== constructionId);
+  if (veto && veto.cells.length > 0 && next.steward) {
+    const untilDay = day + STEWARD.vetoYears * DAYS_PER_YEAR;
+    const kept = (next.steward.vetoes ?? []).filter((v) => v.untilDay >= day);
+    const added: StewardVeto[] = veto.cells.map((cell) => ({ kind: veto.kind, cell, untilDay }));
+    next.steward.vetoes = [...kept, ...added];
+  }
   next.chronicle.push(
     target.relocates === undefined
       ? {

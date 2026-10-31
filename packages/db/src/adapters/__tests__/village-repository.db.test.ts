@@ -7,6 +7,10 @@ import {
   advanceVillage,
   dayIndexOf,
   foundVillage,
+  newSteward,
+  settleStewardDepartures,
+  settlersOf,
+  stewardDepartureOrigin,
   type VillageState,
 } from '@bohemia/game';
 import { createDatabase } from '../../client';
@@ -191,6 +195,68 @@ describe('createVillageRepository', () => {
       state: state(),
     });
     expect(await villages.rename(UNKNOWN, 'Jiná')).toBe(false);
+  });
+
+  it('addOnce založí ves s klíčem jen jednou, findByOrigin ji najde – i z pěti souběžných', async () => {
+    const keyed = { ...state(), origin: 'steward-son:a:1' };
+    const results = await Promise.all(
+      [1, 2, 3, 4, 5].map((n) => villages.addOnce(settlementId, `Ves ${n}`, keyed)),
+    );
+    const ids = new Set(results.map((r) => r?.id));
+    expect(ids.size).toBe(1);
+    expect(await db.select().from(schema.village)).toHaveLength(1);
+    expect((await villages.findByOrigin('steward-son:a:1'))?.id).toBe(results[0]?.id);
+    expect(await villages.findByOrigin('steward-son:a:2')).toBeNull();
+    expect(await villages.addOnce(UNKNOWN, 'Ves', { ...keyed, origin: 'x' })).toBeNull();
+  });
+
+  it('addOnce se stejným klíčem na dvou různých sídlech založí ves jen jednou (unikátní index)', async () => {
+    const other = await createSettlementRepository(db).createSeat({
+      ownerId: 'hrac-1',
+      landscapeSeed: 2,
+      layerVersions: CURRENT_LAYER_VERSIONS,
+    });
+    const otherId = other.id;
+    const keyed = { ...state(), origin: 'steward-son:b:1' };
+    const results = await Promise.all([
+      villages.addOnce(settlementId, 'Ves A', keyed),
+      villages.addOnce(otherId, 'Ves B', keyed),
+      villages.addOnce(settlementId, 'Ves C', keyed),
+      villages.addOnce(otherId, 'Ves D', keyed),
+    ]);
+    expect(new Set(results.map((r) => r?.id)).size).toBe(1);
+    expect(results.every((r) => r !== null)).toBe(true);
+    expect(await db.select().from(schema.village)).toHaveLength(1);
+    expect((await villages.findByOrigin('steward-son:b:1'))?.id).toBe(results[0]?.id);
+  });
+
+  it('settleStewardDepartures s adaptérem: souběžné vybavení schránky založí ves syna jednou', async () => {
+    const base = state();
+    const mother: VillageState = {
+      ...base,
+      steward: {
+        ...newSteward(DAY, true),
+        departures: [
+          { id: DAY, sonId: 1, seed: 5, name: 'Lhota', directions: [], settlers: settlersOf(base) },
+        ],
+      },
+    };
+    const added = await villages.add(settlementId, 'Libice', mother);
+    const deps = {
+      settlements: createSettlementRepository(db),
+      villages,
+      seeds: { nextSeed: (): number => 7 },
+    };
+    const input = { playerId: 'hrac-1', villageId: added.id };
+    await Promise.all([settleStewardDepartures(deps, input), settleStewardDepartures(deps, input)]);
+    expect(await settleStewardDepartures(deps, input)).toEqual([]);
+    const all = await villages.listBySettlement(settlementId);
+    const sons = all.filter((v) => v.state.origin === stewardDepartureOrigin(added.id, DAY));
+    expect(sons).toHaveLength(1);
+    expect(sons[0]?.name).toBe('Lhota');
+    const marked = (await villages.find(added.id))?.state.steward?.departures?.[0];
+    expect(marked?.villageId).toBe(sons[0]?.id);
+    expect(marked?.settlers).toBeUndefined();
   });
 
   it('smazání hráče smaže sídlo i všechny jeho vsi', async () => {

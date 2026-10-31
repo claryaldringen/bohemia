@@ -1,4 +1,5 @@
 import { TOTAL_GAME_DAYS } from '../calendar';
+import { newSteward } from './steward-state';
 import type { Landscape } from '../landscape';
 import { cloneState } from './clone';
 import { currentLord } from './dynasty';
@@ -83,6 +84,11 @@ export interface Settlers {
    * odchází s domácnostmi – v nové vsi je vojvodou. Chybí = nejstarší muž rodu mezi osadníky.
    */
   lordId?: number;
+  /**
+   * Ves založí syn vojvody (`departWithSon`) – řídí ji správce od založení (steward.md – Stav
+   * správce). Odchod vojvody s obydlími či celé vsi je stěhování sídla hráče: příznak chybí.
+   */
+  stewarded?: true;
   /**
    * Jezdecký kůň vůdce (lord.md – Dělení vsi, Kůň syna) – v nové vsi čeká bez ohrady
    * (`VillageState.looseHorses`). Bez koně chybí.
@@ -347,7 +353,13 @@ export function departLeavers(
   state: VillageState,
   day: number,
   leavers: readonly Person[],
-  options: { event: ChronicleEvent; direction?: Direction8; lordId?: number; horseId?: number },
+  options: {
+    event: ChronicleEvent;
+    direction?: Direction8;
+    lordId?: number;
+    horseId?: number;
+    stewarded?: true;
+  },
 ): { state: VillageState; settlers: Settlers } {
   const { direction } = options;
   const share = leavers.length / state.people.length;
@@ -411,6 +423,7 @@ export function departLeavers(
       ...(options.lordId !== undefined && leaving.has(options.lordId)
         ? { lordId: options.lordId }
         : {}),
+      ...(options.stewarded ? { stewarded: true as const } : {}),
       ...(horse ? { horse } : {}),
     },
   };
@@ -450,6 +463,12 @@ export function travellingVillage(
   seed: number,
   day: number,
   journey: VillageJourney,
+  /**
+   * Správce vsi na cestě: ze schránky správce zapnutý (ves se po příjezdu založí sama), u odchodu
+   * spuštěného hráčem vypnutý (čeká na hráče; steward.md – Odchod syna – upřesnění). Po založení
+   * řídí ves správce podle `settlers.stewarded`.
+   */
+  stewardOnTheWay: boolean = settlers.stewarded === true,
 ): VillageState {
   const householdId = settlersMaxId(settlers) + 1;
   const { food } = settlers;
@@ -463,6 +482,8 @@ export function travellingVillage(
     people: settlers.people.map((p) => ({ ...p, dwellingId: householdId })),
     // ves bez rodu jako nová ves z osadníků (`foundVillage`) – převod rodu ji nemá sledovat
     dynasty: { lordId: null, lords: [] },
+    // ves s vůdcem odchodu (syn vojvody) řídí správce od založení (steward.md – Stav správce)
+    steward: newSteward(day, stewardOnTheWay),
     dwellings: [],
     fields: [],
     parts: [],
@@ -500,6 +521,7 @@ export function travellingVillage(
     journey: {
       ...journey,
       ...(settlers.lordId === undefined ? {} : { lordId: settlers.lordId }),
+      ...(settlers.stewarded ? { stewarded: true as const } : {}),
     },
   };
 }
@@ -528,6 +550,10 @@ export function settlersOf(state: VillageState): Settlers {
       ? { oxen: state.looseOxen.map((ox) => ({ ...ox })) }
       : {}),
     ...(state.journey?.lordId === undefined ? {} : { lordId: state.journey.lordId }),
+    // zdrojem pravdy je přepínač vsi na cestě (`steward.on`); `journey.stewarded` je jen počáteční
+    ...((state.steward ? state.steward.on : state.journey?.stewarded === true)
+      ? { stewarded: true as const }
+      : {}),
     ...(state.looseHorses?.[0] ? { horse: { ...state.looseHorses[0] } } : {}),
   };
 }

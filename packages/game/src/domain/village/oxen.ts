@@ -858,6 +858,7 @@ export function startPen(
     fieldId: null,
     penId,
     wood,
+    ...(target ? { extends: true as const } : {}),
   });
   return next;
 }

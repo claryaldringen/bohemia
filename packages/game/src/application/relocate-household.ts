@@ -1,22 +1,15 @@
 import { obstaclesOf, type Landscape } from '../domain/landscape';
 import {
-  PLOT_TYPES,
-  checkDwellingPlacement,
-  canonicalPlot,
-  checkPlotPlacement,
-  forestEdgeDistanceM,
-  placementVillageOf,
-  relocationAffordability,
-  relocationBlock,
-  startRelocation,
+  applyBuildIntent,
   type DwellingPlot,
   type BuildableDwellingType,
   type Position,
-  type RelocationBlock,
 } from '../domain/village';
-import { BAD_PLOT, NO_PLOT, NO_WOOD } from './place-dwelling';
 import { updateLivingVillage } from './update-village';
 import type { VillageRepository, VillageResult } from './villages';
+
+// důvody odmítnutí žijí v doméně (build-intent.ts) – use-case je dál exportuje pro web a testy
+export { RELOCATION_BLOCKED } from '../domain/village';
 
 // Přestěhování domácnosti (migration.md – Přestěhování domácnosti): hráč u vybraného obydlí
 // umístí nový dům, obyvatelé si ho postaví ze společné práce vsi a po dostavění se přestěhují.
@@ -37,17 +30,10 @@ export interface RelocateHouseholdInput {
   plot?: DwellingPlot;
 }
 
-/** Proč se domácnost teď přestěhovat nemůže – česky pro hráče. */
-export const RELOCATION_BLOCKED: Record<RelocationBlock, string> = {
-  'no-household': 'V tomhle obydlí nikdo nebydlí.',
-  relocating: 'Domácnost si už staví nový dům.',
-  rebuilding: 'Domácnost svůj dům právě přestavuje.',
-};
-
 /**
  * Hráč zahájí přestěhování domácnosti – nový dům jako stavbu obydlí (stejné kontroly umístění,
  * pozemek polozemnice, dřevo a cena jako `placeDwelling`), jen bez lidí k osídlení. Ves se
- * nejdřív dopočítá do dneška; server umístění ověří znovu.
+ * nejdřív dopočítá do dneška; pravidlo stavby je doménové `applyBuildIntent`.
  */
 export function relocateHousehold(
   deps: { villages: VillageRepository },
@@ -58,57 +44,14 @@ export function relocateHousehold(
     input.villageId,
     input.today,
     input.landscape,
-    (state) => {
-      const day = state.lastDay;
-      const block = relocationBlock(state, input.dwellingId);
-      if (block !== null) return { ok: false, reason: RELOCATION_BLOCKED[block] };
-      const obstacles = obstaclesOf(input.landscape);
-      if (!relocationAffordability(state, input.type, obstacles).affordable) {
-        return { ok: false, reason: NO_WOOD };
-      }
-      const village = placementVillageOf(state, day);
-      // natočený pozemek v ukládané podobě (střed na cm, natočení po 15°)
-      const plot =
-        PLOT_TYPES[input.type] && input.plot
-          ? canonicalPlot(input.landscape, input.plot)
-          : undefined;
-      if (PLOT_TYPES[input.type] && !input.plot) return { ok: false, reason: NO_PLOT };
-      if (plot === null) return { ok: false, reason: BAD_PLOT };
-      const plotCheck = plot
-        ? checkPlotPlacement(input.landscape, village, input.type, plot, obstacles)
-        : null;
-      const check =
-        plotCheck ??
-        checkDwellingPlacement(input.landscape, village, input.type, input.position, obstacles);
-      if (!check.ok) return { ok: false, reason: check.reason ?? 'Sem obydlí nepatří.' };
-      const position = plotCheck?.position ?? { ...input.position };
-      try {
-        return {
-          ok: true,
-          state: startRelocation(
-            state,
-            day,
-            input.dwellingId,
-            input.type,
-            position,
-            check.obstacleCost,
-            check.obstacleIds,
-            {
-              obstacles,
-              clearedTrees: check.obstacleCounts.tree ?? 0,
-              forestDistanceM: forestEdgeDistanceM(input.landscape, position.x, position.z),
-              ...(plot ? { plot } : {}),
-              sacred: check.spared,
-              takenLand: check.takenLand,
-            },
-          ),
-        };
-      } catch (error) {
-        // dřevo mezitím vyhradila jiná stavba
-        if (error instanceof RangeError) return { ok: false, reason: NO_WOOD };
-        throw error;
-      }
-    },
+    (state) =>
+      applyBuildIntent(state, state.lastDay, input.landscape, obstaclesOf(input.landscape), {
+        kind: 'relocation',
+        dwellingId: input.dwellingId,
+        type: input.type,
+        position: input.position,
+        plot: input.plot,
+      }),
   );
 }
 

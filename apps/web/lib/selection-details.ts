@@ -748,7 +748,43 @@ export interface SelectionPersonMount {
   grainKgPerDay: number;
 }
 
-export type SelectionDetails = SelectionKinds & { cancelConstructionId?: number };
+export type SelectionDetails = SelectionKinds & {
+  cancelConstructionId?: number;
+  /** Stavbu postavil správce (steward.md – Co hráč vidí) – panel ukáže jeho ikonu. */
+  stewardBuilt?: true;
+  /** Přepínač správce v panelu dvorce vojvody; jiné cíle bez údaje. */
+  steward?: { on: boolean };
+};
+
+/** Cíle, jejichž id může nést značku „postavil správce“ (stavby, jejich celky a díly polí). */
+const STEWARD_MARKED_KINDS: ReadonlySet<string> = new Set([
+  'dwelling',
+  'site',
+  'field',
+  'field-part',
+  'cemetery',
+  'orchard',
+  'pen',
+  'road',
+  'sacred',
+  'threshing-floor',
+]);
+
+/** Doplní k údajům značku správce a jeho přepínač (jen dvorec). */
+function withSteward(view: VillageView | null, details: SelectionDetails): SelectionDetails {
+  if (!view) return details;
+  const marked =
+    STEWARD_MARKED_KINDS.has(details.kind) &&
+    'id' in details &&
+    view.steward.built.includes(details.id);
+  const toggle = details.kind === 'dwelling' && details.manor !== null;
+  if (!marked && !toggle) return details;
+  return {
+    ...details,
+    ...(marked ? { stewardBuilt: true as const } : {}),
+    ...(toggle ? { steward: { on: view.steward.on } } : {}),
+  };
+}
 
 /** Rozestavěná stavba vybraného cíle, kterou jde zrušit; jinak undefined. */
 function cancellableConstruction(
@@ -797,7 +833,9 @@ export function selectionDetails(
   const details = selectionKinds(view, scene, target, person, draft);
   if (!details) return null;
   const cancelConstructionId = cancellableConstruction(view, details);
-  return cancelConstructionId === undefined ? details : { ...details, cancelConstructionId };
+  const withCancel =
+    cancelConstructionId === undefined ? details : { ...details, cancelConstructionId };
+  return withSteward(view, withCancel);
 }
 
 function selectionKinds(

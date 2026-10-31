@@ -1,16 +1,10 @@
 import { obstaclesOf, type Landscape } from '../domain/landscape';
 import {
-  villageRoadWalk,
-  buildAffordability,
-  foundPen,
-  HORSE_PEN_NO_SURPLUS,
-  penSquaresFromCells,
-  placementVillageOf,
+  applyBuildIntent,
   type PenSpecies,
   type SquareGrid,
   type TileCell,
 } from '../domain/village';
-import { NO_WOOD } from './place-dwelling';
 import { updateLivingVillage } from './update-village';
 import type { VillageRepository, VillageResult } from './villages';
 
@@ -43,49 +37,13 @@ export function placePen(
     input.villageId,
     input.today,
     input.landscape,
-    (state) => {
-      const day = state.lastDay;
-      const obstacles = obstaclesOf(input.landscape);
-      if (!buildAffordability(state, 'pen', obstacles).affordable) {
-        return { ok: false, reason: NO_WOOD };
-      }
-      const check = penSquaresFromCells(
-        input.landscape,
-        placementVillageOf(state, day),
-        input.cells,
-        input.species,
-        obstacles,
-        input.grid,
-      );
-      if (!check.check.ok) {
-        return { ok: false, reason: check.check.reason ?? 'Sem ohrada nepatří.' };
-      }
-      try {
-        return {
-          ok: true,
-          state: foundPen(
-            state,
-            day,
-            {
-              species: input.species,
-              squares: check.squares,
-              ...(check.grid ? { grid: check.grid } : {}),
-              takenLand: check.takenLand,
-            },
-            obstacles,
-            villageRoadWalk(state, input.landscape),
-          ),
-        };
-      } catch (error) {
-        // chybí obilí na koně, nebo dřevo mezitím vyhradila jiná stavba
-        if (error instanceof RangeError) {
-          return {
-            ok: false,
-            reason: error.message === HORSE_PEN_NO_SURPLUS ? HORSE_PEN_NO_SURPLUS : NO_WOOD,
-          };
-        }
-        throw error;
-      }
-    },
+    // akce patří do dne, do kterého je ves dopočítaná – dnešek, nebo „budoucí“ den vsi
+    (state) =>
+      applyBuildIntent(state, state.lastDay, input.landscape, obstaclesOf(input.landscape), {
+        kind: 'pen',
+        species: input.species,
+        cells: input.cells,
+        grid: input.grid,
+      }),
   );
 }

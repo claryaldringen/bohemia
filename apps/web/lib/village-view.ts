@@ -41,6 +41,7 @@ import {
   type PenSpecies,
   type HerdPlaces,
   penHerdSpecies,
+  isStewardOn,
 } from '@bohemia/game';
 import { formatGameDate } from './game-date';
 
@@ -420,6 +421,7 @@ export function buildVillageView(
     commonLaborPerDay: summary.commonLaborPerDay,
     lord: state.labor?.lord ?? null,
     dynasty: dynastyView(state, day),
+    steward: { on: isStewardOn(state), built: [...(state.steward?.built ?? [])] },
     fullHousehold: summary.fullHousehold,
     build: buildOptions(state, landscape, summary.crafts.coverage),
     relocation: relocationOptions(state, landscape),

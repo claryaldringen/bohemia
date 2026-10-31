@@ -774,6 +774,10 @@ autopilot (fáze 3). Co níž není výslovně Martinovo, je návrh Clauda.
 
 - Autopilot NPC vsí zavolá stejný use-case (`leaveVillage` se synem) – kdy, navrhne fáze 3
   (např. lidí víc, než pole uživí podle dnešní půdy). Web i worker volají stejný use-case.
+- **Návrh fáze 3:** [správce vsi](steward.md) (schváleno v hrubých rysech 30. 10. 2026) – správce
+  rozhoduje v kroku simulovaného dne, proto volá doménovou část odchodu (`departWithSon`) přímo
+  a novou ves založí use-case `settleStewardDepartures` z odchozí schránky; pravidla odchodu
+  (díl, kdo smí vést) jsou tytéž.
 
 ### Převod starších vsí
 
@@ -812,6 +816,8 @@ autopilot (fáze 3). Co níž není výslovně Martinovo, je návrh Clauda.
 - [Válka](war.md) – síla mužů rodiny, jezdci; vojvodovi synové jako první dobrovolníci.
 - [Divoká zvěř](wildlife.md) – lov rodu (návrh 24. 10. 2026): divoká prasata, luk a jízda.
 - Vazalství a nástupnictví ([vize](vision.md)) – vycvičený dědic jako hodnota rodu.
+- [Správce vsi](steward.md) – autopilot vsí rodu (#9, fáze 3): stavby, pole, odchod syna
+  a jména synů ve vsích se zapnutým správcem.
 
 ## Otevřené otázky
 

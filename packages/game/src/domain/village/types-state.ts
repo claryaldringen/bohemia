@@ -2,6 +2,7 @@
 // Rozcestník je `types.ts`; tento soubor jen drží část typů.
 
 import type { ChronicleEvent, LaborDay } from './types-chronicle';
+import type { StewardState } from './types-steward';
 import type { Construction, SacredBuildingKind, FarmSeason } from './types-construction';
 import type {
   Cart,
@@ -417,6 +418,16 @@ export interface VillageState {
    * před rodem, končí jen vymřením).
    */
   dynasty?: DynastyState;
+  /**
+   * Správce vsi (steward.md – Stav správce): zapnutý, značka „postavil správce“, plán. Chybí –
+   * správce vypnutý (`withSteward` ji převede).
+   */
+  steward?: StewardState;
+  /**
+   * Klíč založení vsi ze schránky odchodu syna (`settleStewardDepartures` – mateřská ves a id
+   * záznamu): podle něj úložiště ves nezaloží dvakrát. Simulace ho nečte. Chybí – ves vznikla jinak.
+   */
+  origin?: string;
 }
 
 /** Rod vojvody ve vsi (lord.md – Rod vojvody). */
@@ -448,6 +459,8 @@ export interface VillageJourney {
    * je jejím vojvodou (`Settlers.lordId`). Chybí = nejstarší muž rodu mezi osadníky.
    */
   lordId?: number;
+  /** Ves založí syn (`Settlers.stewarded`) – správce od založení; chybí = vypnutý. */
+  stewarded?: true;
 }
 
 /**
@@ -479,6 +492,12 @@ export interface NeighbourSnapshot {
    * kováře pro kování dojde k nejbližší. Chybí = žádné.
    */
   smithies?: { x: number; z: number; name: string }[];
+  /**
+   * Středy obývaných vsí (dvorec, jinak první obydlí nebo staveniště – `villageCentre`, m) a den
+   * založení –
+   * území vsi pro plán správce (steward.md – Mapa hodnot krajiny). Chybí = žádné.
+   */
+  villages?: { x: number; z: number; foundedDay: number }[];
   cleared: ObstacleChange[];
   felled: ObstacleChange[];
   reserved: number[];
