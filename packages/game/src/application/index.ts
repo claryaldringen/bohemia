@@ -33,5 +33,7 @@ export * from './send-expedition';
 export * from './plant-road-apples';
 export * from './rename-village';
 export * from './restart-game';
+export * from './advance-dynasty';
+export * from './locks';
 export * from './player-villages';
 export * from './player-time';
