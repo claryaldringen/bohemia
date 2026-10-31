@@ -218,6 +218,19 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   měsíc cest (`roadsMonth` 1,0 s), práce dne (`work` 1,0 s) a roční přepočet cest (`roadsDay`
   0,5 s, trasy vozů jednou za rok). Měřicí skript klonuje stav každý den (jako dopočet po jednom
   dni); `tsx` k tomu přidává `__name` u vnořených funkcí a překlad modulů (≈ 0,8 s před měřením).
+  Kolo 2 (Martin 31. 10. 2026: „Udělej všechny ty navrhované optimalizace“) – pět úspor; čtyři
+  vyšly bit po bitu stejně (otisk roku `7af6be0f6c11`, 20 let i nová ves se správcem beze změny,
+  vše se zmrazenými sdílenými záznamy): kopie stavu sdílí záznamy překážek, pokácených stromů,
+  kroniky a bodů cest (`SHARED_RECORD_LISTS` – 3,78 → 3,39 ms na kopii); vstup jídla dne jednou
+  pro nouzovou porážku i jídlo, hledání masa porážky přepočítá jen mléko (`withMealDams`); výkon
+  orby plánu osevu z paměti po krajině, dokud se díly, mřížky polí a cesty nezmění
+  (`sowingFurrowEfficiency` – přesné porovnání vstupů, 5 přepočtů z 214 volání za rok); zbytky jam
+  pod stavbou jen se změnou vstupů kontroly (`updateRuins` – `coverInputs`, kontrola, která nic
+  nenašla, si je pamatuje). Pátá mění výsledek: chůze rovně po celých buňkách (`walkSteps`,
+  paths.md – Odhad vzdáleností, `routes-v12`) – úsečky Vlkova medián 0,09 %, 90 % do 0,41 %,
+  nejvíc 3,2 %; za rok bez měřitelného zrychlení (chůze rovně je po kolu 1 skoro celá v paměti),
+  rok Vlkova po dnech 9,0–9,3 s proti 8,9–9,1 s bez dne s přepočtem. Rok Vlkova po dnech střídavě
+  před / po (zátěž 11–16): 11,8–12,3 s → 10,0–10,8 s (−14 %, CPU 15,5–15,9 → 14,0–14,2 s).
   Souběžné požadavky téhož hráče dopočet nezdvojují: web je řadí do fronty (`apps/web/lib/exclusive.ts`,
   web-ui.md – Jeden dopočet vsí naráz), druhý jen dopočte zbytek do svého dne.
 
@@ -241,7 +254,11 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   Ustálený stav bez simulace (osev, pole, práce po měsících, špičky, zásoby, dřevo, sad)
   okamžitě: `village-calculator.ts` (jádro `scripts/lib/steady-state.ts`). Kopii stavu na začátku
   `advanceVillage` dělá `cloneState` (`clone.ts` – ručně, stav jsou data jako v JSON) a stavby polí
-  hledají zakládané díly v indexu po polích – obojí kvůli rychlosti, výsledky stejné.
+  hledají zakládané díly v indexu po polích – obojí kvůli rychlosti, výsledky stejné. **Záznamy
+  v `clearedObstacles`, `felledTrees`, `chronicle` a body pevných cest se nemění na místě** – kopie
+  stavu je sdílí (kopíruje jen seznamy); změna záznamu = nový objekt na jeho místě (`plantOnStump`,
+  `mergeHaySlaughter`, `mergeFields`). V testech je hlídá `freezeSharedRecords` (`src/test-setup.ts`
+  – sdílené záznamy zmrazí, zápis spadne).
 
 - **Meze produktivity** (Martin): čísla s rozpětím v literatuře jsou v `rules*.ts` dvojice
   `{ worst, best }` – **nejhorší mez** (nejvíc člověkodní, nejvyšší ztráty – bez řemesel)
