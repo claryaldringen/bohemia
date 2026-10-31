@@ -6,6 +6,7 @@ import { getSession } from '@/lib/session';
 import { trimKnownSceneData, type KnownSceneData } from '@/lib/scene-routes';
 import { packViewPieces } from '@/lib/view-pieces';
 import { withVillageCache } from '@/lib/village-cache';
+import { parsePanelAsk, type PanelOptions } from '@/lib/panel-options';
 import {
   buildTrailForPlayer,
   buildWagonRoadForPlayer,
@@ -32,6 +33,7 @@ import {
   renameVillageForPlayer,
   skipTimeForPlayerView,
   upgradeRoadForPlayer,
+  panelOptionsForPlayer,
   villageViewForPlayer,
   villageViewIfChanged,
   type TimeSkipResult,
@@ -339,6 +341,20 @@ export async function placePen(input: unknown): Promise<VillageActionResult> {
  * Úprava pevné cesty s hatí a lávkou (roads.md): `{ villageId, roadId, upgrade: 'improved' }` –
  * server ho ověří znovu (`roadUpgradeOptions`).
  */
+/**
+ * Nabídka panelu až na vyžádání (panel-options.ts): `{ villageId, panel: 'trails' }` – zemské
+ * stezky dvorce do 8 směrů, `{ villageId, panel: 'road-apples', roadId }` – výsadba jabloní
+ * podél cesty. Server ji spočítá ze vsi dopočítané do dneška; akce ji ověří znovu.
+ */
+export async function getPanelOptions(input: unknown): Promise<PanelOptions | { error: string }> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const villageId = villageIdOf(input);
+  const ask = parsePanelAsk(input);
+  if (villageId === null || ask === null) return { error: INVALID_INPUT };
+  return panelOptionsForPlayer(id, villageId, ask);
+}
+
 export async function upgradeRoad(input: unknown): Promise<VillageActionResult> {
   return villageAction(input, parseUpgradeRoadInput, upgradeRoadForPlayer);
 }

@@ -1,5 +1,6 @@
 import { useRef, useState, type ReactElement, type ReactNode } from 'react';
 import type { Direction8, TrailOption } from '@bohemia/game';
+import { usePanelOptions } from '@/hooks/use-panel-options';
 import { useDismiss } from '@/hooks/use-dismiss';
 import type { VillageManor } from '@/lib/manor-view';
 import { DIRECTION_NAMES } from '@/lib/trade-names';
@@ -159,7 +160,10 @@ export function ManorUpgrades({
     setBusy(true);
     void onBuildTrail(direction).finally(() => setBusy(false));
   };
-  const anyBuilt = manor.trails.some((t) => t.status === 'built');
+  const anyBuilt = manor.trailBuilt;
+  // stezky do 8 směrů server spočítá až pro otevřený kompas (panel-options.ts)
+  const asked = usePanelOptions(open === 'trail' ? { panel: 'trails' } : null);
+  const trails = asked?.panel === 'trails' ? asked.trails : null;
   const toggle = (what: 'trail' | 'trade'): void => setOpen((o) => (o === what ? null : what));
   return (
     <div ref={rootRef} data-testid="manor-upgrades" className="flex items-center gap-1.5">
@@ -248,7 +252,7 @@ export function ManorUpgrades({
       </Tooltip>
       {open === 'trail' && (
         <div className="hud-panel hud-popup p-2" data-hud-block>
-          <TrailCompass trails={manor.trails} busy={busy} onBuild={build} />
+          {trails && <TrailCompass trails={trails} busy={busy} onBuild={build} />}
         </div>
       )}
       {open === 'trade' && trade && (

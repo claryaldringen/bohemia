@@ -35,7 +35,6 @@ import {
   type NextCrop,
   type PartYearWork,
   type RelocationBlock,
-  type RoadApplesOption,
   type RoadGrade,
   type RoadUpgrade,
   type RoadUpgradeOption,
@@ -255,14 +254,14 @@ export interface VillageRoad {
   wagon: { status: 'none' | 'building' | 'built'; progress: number; blocked: string | null };
   /**
    * Jabloně podél cesty (roads.md – Vysazení jabloní): živé stromy, z nich plodící, rozestavěná
-   * výsadba (kolik jabloní a průběh 0–1) a „Vysadit jabloně“ – kolik přibude, práce a proč ne.
+   * výsadba (kolik jabloní a průběh 0–1). Nabídku „Vysadit jabloně“ (kolik přibude, práce a proč
+   * ne) pošle server až na vyžádání panelu (`panelOptionsOf`).
    */
   apples: {
     trees: number;
     bearing: number;
     /** Rozestavěná výsadba; `waits` – mimo okna výsadby (sází se na jaře a na podzim). */
     planting: { trees: number; progress: number; waits: boolean } | null;
-    option: RoadApplesOption;
   };
 }
 

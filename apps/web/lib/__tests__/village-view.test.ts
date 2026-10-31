@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { panelOptionsOf, parsePanelAsk } from '../panel-options';
 import {
   CART_JOBS,
   ROAD_TREE_ID_BASE,
@@ -43,6 +44,9 @@ import {
   type TradePeople,
   type VillageState,
   type CharcoalKiln,
+  roadApplesOption,
+  trailOptions,
+  villageRoadWalk,
 } from '@bohemia/game';
 import {
   CHRONICLE_LENGTH,
@@ -1952,7 +1956,13 @@ describe('pevné cesty v pohledu na ves (roads.md)', () => {
 
   it('výsadba jabloní: panel s průběhem a zašedlým tlačítkem, scéna vytyčená místa', () => {
     const s = withRoads();
-    const option = buildVillageView(record(s), landscape, DAY).roads[0]!.apples.option;
+    const roadId = buildVillageView(record(s), landscape, DAY).roads[0]!.id;
+    // nabídku pošle server až na vyžádání panelu – tentýž výpočet nad týmž stavem jako dřív v pohledu
+    const ask = { panel: 'road-apples', roadId } as const;
+    const asked = panelOptionsOf(s, landscape, DAY, null, ask);
+    if (asked.panel !== 'road-apples') throw new Error('jiný panel');
+    const option = asked.option;
+    expect(option).toEqual(roadApplesOption(s, roadId, DAY, landscape, obstaclesOf(landscape)));
     expect(option.blocked).toBeNull();
     expect(option.trees).toBeGreaterThan(3);
     const started = startRoadApples(s, DAY, 1, landscape, obstaclesOf(landscape));
@@ -1963,7 +1973,21 @@ describe('pevné cesty v pohledu na ves (roads.md)', () => {
       progress: 0,
       waits: false,
     });
-    expect(view.roads[0]!.apples.option.blocked).toMatch(/sázejí/);
+    const again = panelOptionsOf(started, landscape, DAY, null, ask);
+    expect(again.panel === 'road-apples' && again.option.blocked).toMatch(/sázejí/);
+    // kompas stezek – tentýž výpočet jako dřív v pohledu na dvorec
+    const obstacles = obstaclesOf(landscape);
+    expect(panelOptionsOf(s, landscape, DAY, null, { panel: 'trails' })).toEqual({
+      panel: 'trails',
+      trails: trailOptions(s, DAY, landscape, obstacles, villageRoadWalk(s, landscape)),
+    });
+    expect(parsePanelAsk({ villageId: 'v', panel: 'road-apples', roadId: 3 })).toEqual({
+      panel: 'road-apples',
+      roadId: 3,
+    });
+    expect(parsePanelAsk({ panel: 'trails', roadId: 'x' })).toEqual({ panel: 'trails' });
+    expect(parsePanelAsk({ panel: 'road-apples', roadId: 1.5 })).toBeNull();
+    expect(parsePanelAsk({ panel: 'fields' })).toBeNull();
     expect(view.scene.roadApples!.every((a) => a.stage === 'planting')).toBe(true);
     expect(view.constructions.at(-1)!.label).toBe('Jabloně u cesty');
   });

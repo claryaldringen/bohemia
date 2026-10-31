@@ -72,6 +72,7 @@ import {
 import { neighbourScene, ownMapsAround } from './departure-view';
 import type { LeaveVillageInput } from './village-input';
 import { lineEndView } from './line-end-view';
+import { panelOptionsOf, type PanelAsk, type PanelOptions } from './panel-options';
 import { villageListItem } from './village-list';
 import { buildVillageView, sceneOfVillage, type VillageView } from './village-view';
 
@@ -190,6 +191,34 @@ async function viewOf(
   return listed
     ? { ...view, stamp: villageViewStamp(ctx.villageId, ctx.day, status.villages) }
     : view;
+}
+
+/**
+ * Nabídka panelu (kompas zemských stezek, výsadba jabloní u cesty) vsi `villageId` hráče
+ * dopočítané do dneška – stejný stav a sousedé jako pohled (`viewOf`), jen až na vyžádání panelu
+ * (panel-options.ts).
+ */
+export function panelOptionsForPlayer(
+  playerId: string,
+  villageId: string,
+  ask: PanelAsk,
+): Promise<PanelOptions | { error: string }> {
+  return withVillageCache(async () => {
+    const ctx = await context(playerId, villageId);
+    if (!ctx.ok) return { error: ctx.error };
+    const status = await dynastyOfPlayer(ctx.playerId, ctx.day);
+    const current = status.villages.find((v) => v.id === ctx.villageId);
+    if (!current) return { error: NO_VILLAGE };
+    const sameMap = status.villages.filter(
+      (v) => v.settlementId === current.settlementId && v.id !== current.id,
+    );
+    const neighbours = neighbourSnapshot(
+      sameMap.map((v) => v.state),
+      ctx.day,
+      sameMap.map((v) => v.name),
+    );
+    return panelOptionsOf(current.state, ctx.landscape, ctx.day, neighbours, ask);
+  });
 }
 
 /** Výsledek use-case jako pohled na ves (s přepínačem vsí), nebo chyba česky. */

@@ -96,7 +96,7 @@ describe('lov a psi na dvorci', () => {
     const manor: VillageManor = {
       dwellingId: 1,
       huntDenied: null,
-      trails: [],
+      trailBuilt: false,
       neighbours: [],
       hunt,
     };

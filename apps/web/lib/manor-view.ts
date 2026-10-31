@@ -19,16 +19,13 @@ import {
   lordFamily,
   neighbourOf,
   neighbourStock,
-  obstaclesOf,
   sellPrice,
   sellValue,
   tradeCarts,
   trailCartPassable,
-  trailOptions,
   trailTripDays,
   villageGoodStock,
   villageManor,
-  villageRoadWalk,
   villageTrails,
   type CartKind,
   type Direction8,
@@ -37,7 +34,6 @@ import {
   type TradeExpedition,
   type TradeGoods,
   type TradePeople,
-  type TrailOption,
   type VillageState,
 } from '@bohemia/game';
 import { tradeDearth } from './disasters-view';
@@ -164,8 +160,11 @@ export interface VillageManor {
   hunt?: HuntView;
   /** Obydlí (id domácnosti), které je dvorcem. */
   dwellingId: number;
-  /** Zemské stezky do 8 směrů – hotové, rozestavěné a nabídka nových (cena, délka, důvod). */
-  trails: TrailOption[];
+  /**
+   * Stojí aspoň jedna hotová zemská stezka. Stezky do 8 směrů (hotové, rozestavěné a nabídka
+   * nových – cena, délka, důvod) pošle server až na vyžádání panelu (`panelOptionsOf`).
+   */
+  trailBuilt: boolean;
   /** Sousedé po hotových stezkách (v pořadí směrů). */
   neighbours: VillageNeighbour[];
   /** Obyvatelé dvorce od nejstaršího (lord.md – Co hráč vidí). */
@@ -358,12 +357,11 @@ export function manorView(
 ): VillageManor | null {
   const manor = villageManor(state);
   if (!manor || state.extinctDay !== undefined) return null;
-  const obstacles = obstaclesOf(landscape);
   return {
     dwellingId: manor.id,
     huntDenied: huntDeniedText(state, day),
     ...huntField(state, day),
-    trails: trailOptions(state, day, landscape, obstacles, villageRoadWalk(state, landscape)),
+    trailBuilt: villageTrails(state).some((t) => t.builtDay !== null),
     // tím směrem, kde leží vlastní ves, soused bez simulace není (migration.md)
     neighbours: neighbourViews(state, day, landscape).filter(
       (n) => ownMaps[n.direction] === undefined,

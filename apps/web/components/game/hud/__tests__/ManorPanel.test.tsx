@@ -86,7 +86,12 @@ describe('vylepšení vsi ve dvorci', () => {
     const none = trails.map((t) => ({ ...t, status: 'none' as const }));
     const html = renderToStaticMarkup(
       <ManorUpgrades
-        manor={{ dwellingId: 1, huntDenied: null, trails: none, neighbours: [] }}
+        manor={{
+          dwellingId: 1,
+          huntDenied: null,
+          trailBuilt: false,
+          neighbours: [],
+        }}
         trade={() => null}
       />,
     );
@@ -95,7 +100,12 @@ describe('vylepšení vsi ve dvorci', () => {
     expect(html).toContain('Nejdřív je potřeba postavit zemskou stezku.');
     const built = renderToStaticMarkup(
       <ManorUpgrades
-        manor={{ dwellingId: 1, huntDenied: null, trails, neighbours: [] }}
+        manor={{
+          dwellingId: 1,
+          huntDenied: null,
+          trailBuilt: trails.some((t) => t.status === 'built'),
+          neighbours: [],
+        }}
         trade={() => null}
       />,
     );

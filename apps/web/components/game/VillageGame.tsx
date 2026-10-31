@@ -50,7 +50,10 @@ import {
   skipTime,
   upgradeRoad,
   buildWagonRoad,
+  getPanelOptions,
 } from '@/app/game/actions';
+import { PanelOptionsContext, type PanelOptionsSource } from '@/hooks/use-panel-options';
+import type { PanelAsk, PanelOptions } from '@/lib/panel-options';
 import { usePlacement } from '@/hooks/use-placement';
 import { usePolling } from '@/hooks/use-polling';
 import { authClient } from '@/lib/auth-client';
@@ -1193,6 +1196,22 @@ export function VillageGame({
   };
 
   /** Odhlášení z nabídky – i se session už neplatnou (odhlášení v jiném panelu) na úvod. */
+  // nabídky panelů až na vyžádání (panel-options.ts) – otevřený panel se s novým pohledem zeptá znovu
+  const viewId = view?.id ?? null;
+  const loadPanel = useCallback(
+    async (ask: PanelAsk): Promise<PanelOptions | null> => {
+      if (viewId === null) return null;
+      const result = await getPanelOptions({ villageId: viewId, ...ask });
+      return 'error' in result ? null : result;
+    },
+    [viewId],
+  );
+  const panelKey = view ? (view.stamp ?? `${view.id}:${view.dayIndex}`) : '';
+  const panelSource = useMemo<PanelOptionsSource>(
+    () => ({ key: panelKey, load: loadPanel }),
+    [panelKey, loadPanel],
+  );
+
   const signOut = async (): Promise<string | null> => {
     try {
       await authClient.signOut();
@@ -1205,7 +1224,7 @@ export function VillageGame({
   };
 
   return (
-    <>
+    <PanelOptionsContext.Provider value={panelSource}>
       <GameView landscape={landscape} onSceneReady={setScene} overlays={false} />
       <TopBar
         view={view}
@@ -1382,6 +1401,6 @@ export function VillageGame({
           onRestart={() => restart(false)}
         />
       )}
-    </>
+    </PanelOptionsContext.Provider>
   );
 }

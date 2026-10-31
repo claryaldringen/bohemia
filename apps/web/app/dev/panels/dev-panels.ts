@@ -1,4 +1,5 @@
 import type { DwellingResident } from '@/lib/person-view';
+import type { PanelOptionsSource } from '@/hooks/use-panel-options';
 import { DIRECTIONS, type TrailOption } from '@bohemia/game';
 import type { VillageManor, VillageNeighbour } from '@/lib/manor-view';
 import type { SelectionDetails, SelectionLeave } from '@/lib/selection-details';
@@ -200,7 +201,7 @@ const manor: VillageManor = {
     meatKg: 410,
     dogs: { count: 6, wanted: 7, grainKgPerDay: 1.8, fed: true },
   },
-  trails,
+  trailBuilt: trails.some((t) => t.status === 'built'),
   neighbours,
   family: [
     {
@@ -1313,12 +1314,6 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
         trees: 64,
         bearing: 41,
         planting: { trees: 22, progress: 0.3, waits: true },
-        option: {
-          trees: 18,
-          laborManDays: 9.8,
-          blocked: null,
-          warning: 'Pole se zmenší',
-        },
       },
     },
   },
@@ -1488,3 +1483,17 @@ export const DEV_VILLAGES: readonly VillageListItem[] = [
   village({ id: 'v-3', name: 'Budeč', people: 34, travelling: true }),
   village({ id: 'v-4', settlementId: 's-2', name: 'Levý Hradec', people: 0, abandoned: true }),
 ];
+
+/** Nabídky panelů ukázek (panel-options.ts) – hned, bez serveru. */
+export const DEV_PANEL_OPTIONS: PanelOptionsSource = {
+  key: 'dev',
+  load: (ask) => Promise.resolve(DEV_PANEL_OPTIONS.peek!(ask)),
+  peek: (ask) =>
+    ask.panel === 'trails'
+      ? { panel: 'trails', trails }
+      : {
+          panel: 'road-apples',
+          roadId: ask.roadId,
+          option: { trees: 18, laborManDays: 9.8, blocked: null, warning: 'Pole se zmenší' },
+        },
+};
