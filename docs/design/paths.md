@@ -333,13 +333,20 @@ změně stadia hledaly znovu (měření 25. 10. 2026: hledání tras vozů 67 % 
      vznikají jen ze stálých tras. Práce dne do vyšlapanosti a stavu cest dál jde přes
      `wear.labor`, ale jen k cílům, ke kterým vede stálá trasa (pole, sad, ohrada, hřbitov,
      staveniště, jáma); práce bez stálé trasy (kácení, seč luk, úprava cesty, opravy, humno,
-     nošení od kováře, hrnčíře a uhlíře) pěšinu nevyšlape. Nové stálé cíle návrh Clauda
-     nepřidává: **okraj lesa** už stálý cíl má (pochůzka pro dřevo – z ní vede pěšina k lesu, ke
-     kterému se chodí i kácet), **paseka** je díl pole (stálá trasa k poli), **pastvina** (mladý
-     úhor, louka po seči) leží v polích vsi – stáda jdou po stálých trasách k polím; přirozené
-     louky se sečou jen pár týdnů v roce na různých políčkách – stálé místo to není. _Otázka pro
-     Martina:_ přidat jako stálé cíle humno a milíř (stavby s polohou – dnes k nim chodí jen
-     práce dne)?
+     nošení od kováře a hrnčíře) pěšinu nevyšlape. Nové stálé cíle: **humno** a **milíř**
+     (Martin 31. 10. 2026: „Humno je stavba jako každá jiná“ a „Ta věc … se prostě postaví a dál
+     se s ní nic neděje, pokud nespadne“) – `routes-v11`. Humno má stálou část jako obilná jáma
+     (0,6 cesty za den z každé domácnosti, vstup na předku; výmlat je práce dne navrch přes
+     `wear.labor`), milíř stálou trasu z domu uhlíře (0,6 cesty za den; chodí tam jen on, proto
+     jen jeho domácnost; práce `kiln:<uhlíř>` navrch). Návrh Clauda: stálá část je stejná po
+     celý rok, ne jen v době výmlatu – stavba se neřeší podle stavu dne, jako ostatní cíle;
+     přibývá jedna trasa na humno. Kovárna, hrnčířská pec a další dílny: stálý cíl nemají
+     (vlastní dvůr, pěšina z domu řemeslníka je trasa k jeho vchodu / sousedům); ostatní stavby
+     už mají stálý cíl (pole, sad, ohrada, hřbitov, jáma, posvátná místa, staveniště). **Okraj
+     lesa** už stálý cíl má (pochůzka pro dřevo – z ní vede pěšina k lesu, ke kterému se chodí
+     i kácet), **paseka** je díl pole (stálá trasa k poli), **pastvina** (mladý úhor, louka po
+     seči) leží v polích vsi – stáda jdou po stálých trasách k polím; přirozené louky se sečou
+     jen pár týdnů v roce na různých políčkách – stálé místo to není.
 
    _Stav 26. 10. 2026 (Úloha A2b):_ zavedeno – otisk mapy tras a míst; místa práce jen 1. dne
    v měsíci. Návrh Clauda k tomu, co pravidlo neříká: lidé a stáda **převáží** cesty za den
