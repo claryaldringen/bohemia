@@ -433,17 +433,20 @@ export function sowingBlocks(
     const holding = sector.dwellingId;
     area.set(holding, (area.get(holding) ?? 0) + list.reduce((sum, p) => sum + p.areaM2, 0));
     const inUse = list.some((p) => sowingGroup(p) === 1);
-    const distance = new Map(sector.partIds.map((id, i) => [id, sector.distances[i]!]));
+    // skupina každého dílu jednou (ne pro každou skupinu znovu) – tytéž bloky
+    const groupOf = list.map(blockGroup);
     for (const group of groups) {
-      const first = list.findIndex((p) => blockGroup(p) === group);
+      const first = groupOf.indexOf(group);
       if (first < 0) continue;
-      const members = list.filter((p) => blockGroup(p) === group);
+      const members = list.filter((_, i) => groupOf[i] === group);
       // před blokem v úseku neleží příloh – sedlák k němu nemusí přes úhor
       const clear = list.slice(0, first).every((p) => p.state !== 'fallow') ? 0 : 1;
       const share =
         Math.round(Math.min(...members.map((p) => p.fertilityShare)) * SHARE_PRECISION) /
         SHARE_PRECISION;
-      const start = distance.get(members[0]!.id) ?? 0;
+      // vzdálenost od domu z úseku – jako mapa id → vzdálenost (při dvojím id platí poslední)
+      const at = sector.partIds.lastIndexOf(members[0]!.id);
+      const start = (at >= 0 ? sector.distances[at] : undefined) ?? 0;
       const using = inUse ? 0 : 1;
       const key =
         group === 1
