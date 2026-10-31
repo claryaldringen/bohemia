@@ -20,7 +20,6 @@ import { obstaclePosition, pathTerrainOf, pathWindowFor, withObstacles } from '.
 import {
   refreshWalkDistances,
   routeMapKey,
-  routeWorkKey,
   routeTreesDay,
   withoutWalkStages,
   withRoutes,
@@ -345,7 +344,7 @@ describe('trasy ve stavu vsi (refreshWalkDistances, withRoutes)', () => {
 /** Buňky tras (bez cest za den) – podle nich se pozná, jestli se trasy hledaly znovu. */
 const cellsOf = (list: readonly StoredRoute[]): string[] =>
   list.map((r) => `${r.from}>${r.to}:${r.start.join(',')}:${r.steps}`);
-const stableOf = (list: readonly StoredRoute[]): StoredRoute[] => list.filter((r) => !r.daily);
+
 const JULY = dayIndexOf({ year: 600, month: 7, day: 1 });
 
 describe('trasy jen při změně mapy (paths.md – Stálé trasy, pravidlo 5)', () => {
@@ -365,7 +364,7 @@ describe('trasy jen při změně mapy (paths.md – Stálé trasy, pravidlo 5)',
     // měsíční kontrola: trasy se nehledaly (den výpočtu i buňky stejné), nanejvýš se převážily
     expect(s.routes!.day).toBe(routes.day);
     expect(s.routes!.key).toBe(routes.key);
-    expect(cellsOf(stableOf(s.routes!.list))).toEqual(cellsOf(stableOf(routes.list)));
+    expect(cellsOf(s.routes!.list)).toEqual(cellsOf(routes.list));
   }, 30_000);
 
   it('umístění pole a obydlí mění klíč hned (i v půli měsíce) a trasy se hledají znovu', () => {
@@ -403,12 +402,13 @@ describe('trasy jen při změně mapy (paths.md – Stálé trasy, pravidlo 5)',
     expect(s.routes).toBe(routes);
     refreshWalkDistances(s, JULY, LANDSCAPE, null);
     expect(s.routes!.day).toBe(routes.day);
-    const stable = stableOf(s.routes!.list);
-    expect(cellsOf(stable)).toEqual(cellsOf(stableOf(routes.list)));
-    expect(stable.map((r) => r.trips)).not.toEqual(stableOf(routes.list).map((r) => r.trips));
+    const stable = s.routes!.list;
+    expect(cellsOf(stable)).toEqual(cellsOf(routes.list));
+    expect(stable.map((r) => r.trips)).not.toEqual(routes.list.map((r) => r.trips));
   }, 30_000);
 
-  it('trasy k práci dne jen 1. dne v měsíci se změnou míst práce; stálé trasy bit po bitu', () => {
+  // Martin 31. 10. 2026 (trasy ke kácení, na paseku a na louku jen ze stálé sítě pěšin): „ano“
+  it('práce dne trasy nehledá ani 1. dne v měsíci – stálé trasy bit po bitu, nic k práci dne', () => {
     const s = advanceVillage(withField(), DAY + 3, null, LANDSCAPE);
     const routes = s.routes!;
     const repair = {
@@ -416,15 +416,18 @@ describe('trasy jen při změně mapy (paths.md – Stálé trasy, pravidlo 5)',
       target: { kind: 'dwelling', id: 1 },
       manDays: 2,
     } as unknown as LaborShare;
-    s.labor = { ...s.labor!, shares: [...s.labor!.shares, repair] };
-    // v půli měsíce se místa práce nepromítnou
+    const mow = {
+      activity: 'mow',
+      target: { kind: 'meadow', cells: [{ x: 1, y: 3 }] },
+      manDays: 2,
+    } as unknown as LaborShare;
+    s.labor = { ...s.labor!, shares: [...s.labor!.shares, repair, mow] };
     refreshWalkDistances(s, DAY + 4, LANDSCAPE, null);
     expect(s.routes).toBe(routes);
     refreshWalkDistances(s, JULY, LANDSCAPE, null);
-    expect(s.routes!.workKey).not.toBe(routes.workKey);
-    expect(s.routes!.list.some((r) => r.daily && r.to === 'dwelling:1')).toBe(true);
     expect(s.routes!.day).toBe(routes.day);
-    expect(cellsOf(stableOf(s.routes!.list))).toEqual(cellsOf(stableOf(routes.list)));
+    expect(s.routes!.list.some((r) => r.to === 'dwelling:1' || r.to === 'meadow')).toBe(false);
+    expect(cellsOf(s.routes!.list)).toEqual(cellsOf(routes.list));
   }, 30_000);
 
   it('otevřená obilná jáma po začátku dopočtu dostane stálou trasu (klíč mapy)', () => {
@@ -462,7 +465,7 @@ describe('trasy jen při změně mapy (paths.md – Stálé trasy, pravidlo 5)',
     refreshWalkDistances(s, DAY + 4, LANDSCAPE, null);
     const routes = s.routes!;
     const from99 = (list: readonly StoredRoute[]): StoredRoute[] =>
-      list.filter((r) => !r.daily && r.from === 'd:99');
+      list.filter((r) => r.from === 'd:99');
     // stálé trasy vedou i z prázdného obydlí, ale bez cest
     expect(from99(routes.list).length).toBeGreaterThan(0);
     expect(from99(routes.list).every((r) => r.trips === 0)).toBe(true);
@@ -473,7 +476,7 @@ describe('trasy jen při změně mapy (paths.md – Stálé trasy, pravidlo 5)',
     refreshWalkDistances(s, DAY + 5, LANDSCAPE, null);
     expect(s.walkLayoutKey).toBe(routes.key);
     expect(s.routes!.day).toBe(routes.day);
-    expect(cellsOf(stableOf(s.routes!.list))).toEqual(cellsOf(stableOf(routes.list)));
+    expect(cellsOf(s.routes!.list)).toEqual(cellsOf(routes.list));
     expect(from99(s.routes!.list).some((r) => r.trips > 0)).toBe(true);
     expect(s.routes!.placesKey).not.toBe(routes.placesKey);
     // vzdálenosti chůze se měří z nejbližšího obydlí (i prázdného) – nemění se
@@ -484,7 +487,7 @@ describe('trasy jen při změně mapy (paths.md – Stálé trasy, pravidlo 5)',
     refreshWalkDistances(s, DAY + 6, LANDSCAPE, null);
     expect(s.routes!.day).toBe(routes.day);
     expect(from99(s.routes!.list).every((r) => r.trips === 0)).toBe(true);
-    expect(cellsOf(stableOf(s.routes!.list))).toEqual(cellsOf(stableOf(routes.list)));
+    expect(cellsOf(s.routes!.list)).toEqual(cellsOf(routes.list));
   }, 30_000);
 
   it('zapečetěná a otevřená jáma (jako ohrada bez zvířat a se zvířaty) trasy jen převáží', () => {
@@ -504,7 +507,7 @@ describe('trasy jen při změně mapy (paths.md – Stálé trasy, pravidlo 5)',
     refreshWalkDistances(s, DAY + 4, LANDSCAPE, null);
     const routes = s.routes!;
     const toPit = (list: readonly StoredRoute[]): StoredRoute[] =>
-      list.filter((r) => !r.daily && r.to === 'grain-pit:7');
+      list.filter((r) => r.to === 'grain-pit:7');
     // k zapečetěné jámě vede stálá trasa bez cest
     expect(toPit(routes.list).length).toBeGreaterThan(0);
     expect(toPit(routes.list).every((r) => r.trips === 0)).toBe(true);
@@ -513,22 +516,8 @@ describe('trasy jen při změně mapy (paths.md – Stálé trasy, pravidlo 5)',
     expect(routeMapKey(s, DAY + 5)).toBe(key);
     refreshWalkDistances(s, DAY + 5, LANDSCAPE, null);
     expect(s.routes!.day).toBe(routes.day);
-    expect(cellsOf(stableOf(s.routes!.list))).toEqual(cellsOf(stableOf(routes.list)));
+    expect(cellsOf(s.routes!.list)).toEqual(cellsOf(routes.list));
     expect(toPit(s.routes!.list).some((r) => r.trips > 0)).toBe(true);
-  }, 30_000);
-
-  it('sečená políčka luk mění místa práce (workKey), tentýž počet ne', () => {
-    const s = advanceVillage(withField(), DAY + 3, null, LANDSCAPE);
-    const mow = (x: number): LaborShare =>
-      ({
-        activity: 'mow',
-        target: { kind: 'meadow', cells: [{ x, y: 3 }] },
-        manDays: 2,
-      }) as unknown as LaborShare;
-    s.labor = { ...s.labor!, shares: [...s.labor!.shares, mow(1)] };
-    const a = routeWorkKey(s);
-    s.labor = { ...s.labor, shares: [...s.labor.shares.slice(0, -1), mow(2)] };
-    expect(routeWorkKey(s)).not.toBe(a);
   }, 30_000);
 
   it('průběh zemních prací klíč mapy nemění, hotový úsek ano', () => {

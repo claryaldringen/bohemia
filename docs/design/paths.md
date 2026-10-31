@@ -323,11 +323,23 @@ změně stadia hledaly znovu (měření 25. 10. 2026: hledání tras vozů 67 % 
      posvátná místa, vchody staveb, staveniště, sousedé, pastvina) – mají pořadí slévání i cesty za
      den jen ze stálé části (`base`) a lidí. Práce dne do nich nevstupuje; do vyšlapanosti i stavu
      cest ji nese skutečně odvedená práce intervalu (`wear.labor`), ne snímek dne přepočtu.
-   - **Trasy k práci dne** (cíle bez stálé části – kácení, seč, úprava cesty, opravy, jámy na
+   - ~~**Trasy k práci dne** (cíle bez stálé části – kácení, seč, úprava cesty, opravy, jámy na
      obilí, nošení od kováře…) se hledají až po stálých, nad nimi (se slevou z jejich provozu),
      a stálé trasy nemění. Přepočítají se se stálými a 1. dne v měsíci, jen pokud se změnila
      množina míst s prací nebo obsazenost (vedou jen z obydlených domácností) – místa práce se
-     mění, mapa ne. Do vzdálenosti chůze pro práci nevstupují.
+     mění, mapa ne. Do vzdálenosti chůze pro práci nevstupují.~~ Od 31. 10. 2026 se **trasy
+     k práci dne ani na pastvu nehledají** – na návrh „trasy ke kácení, na paseku a na louku jen
+     ze stálé sítě pěšin“ Martin 31. 10. 2026: „ano“. Pěšiny k lesu, pasece, loukám a pastvě
+     vznikají jen ze stálých tras. Práce dne do vyšlapanosti a stavu cest dál jde přes
+     `wear.labor`, ale jen k cílům, ke kterým vede stálá trasa (pole, sad, ohrada, hřbitov,
+     staveniště, jáma); práce bez stálé trasy (kácení, seč luk, úprava cesty, opravy, humno,
+     nošení od kováře, hrnčíře a uhlíře) pěšinu nevyšlape. Nové stálé cíle návrh Clauda
+     nepřidává: **okraj lesa** už stálý cíl má (pochůzka pro dřevo – z ní vede pěšina k lesu, ke
+     kterému se chodí i kácet), **paseka** je díl pole (stálá trasa k poli), **pastvina** (mladý
+     úhor, louka po seči) leží v polích vsi – stáda jdou po stálých trasách k polím; přirozené
+     louky se sečou jen pár týdnů v roce na různých políčkách – stálé místo to není. _Otázka pro
+     Martina:_ přidat jako stálé cíle humno a milíř (stavby s polohou – dnes k nim chodí jen
+     práce dne)?
 
    _Stav 26. 10. 2026 (Úloha A2b):_ zavedeno – otisk mapy tras a míst; místa práce jen 1. dne
    v měsíci. Návrh Clauda k tomu, co pravidlo neříká: lidé a stáda **převáží** cesty za den

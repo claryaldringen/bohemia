@@ -855,11 +855,9 @@ Návrh `docs/design/paths.md` – Stálé trasy (25. 10. 2026), Úloha A1.
     Cache sítě (`villagePathNetwork`) je klíčovaná toutéž vsí, obsazenost ji nezmění.
   - `routePlacesKey` – obydlené domácnosti, ohrady se zvířaty, otevřené jámy. V otisku mapy není:
     změna (`VillageRoutes.placesKey`) v `refreshWalkDistances` hned převáží stálé trasy
-    (`reweighRoutes`, značka `WEIGHED` i s obsazeností), nic nehledá; do měsíční vrstvy
-    (`routeMonthKey`) patří, protože trasy k práci dne vedou z obydlených domácností. Vzdálenosti
+    (`reweighRoutes`, značka `WEIGHED` i s obsazeností), nic nehledá. Vzdálenosti
     chůze se měří z nejbližšího obydlí i prázdného a rozestavěného (`dwellingOrigins`) –
-    obsazenost je nemění. Pastvina (`routePastureKey` – stáda a díly, kam se vyhání) se mění se
-    stadii, proto patří do měsíční vrstvy (`routeMonthKey`).
+    obsazenost je nemění.
   - **Olemování** (`paths/road-lining.ts`, Martin 31. 10. 2026 „Stromy jsou součást cesty“):
     `roadLining(road, apples)` z míst na stromy (`Road.spots`) a jabloní úseku (i čekajících
     a souší), bez dne. `lineRoads(state)` určí jen chybějící (nový či přestavěný úsek);
@@ -867,23 +865,23 @@ Návrh `docs/design/paths.md` – Stálé trasy (25. 10. 2026), Úloha A1.
     úprava před vozovou cestou ve `wagon-rebuild.ts`), další přepočet chůze ho určí znovu.
     Převod `withPlannedLining` (v `updateVillage`) jednou – značka `VillageRoads.liningPlanned`.
   - Změna otisku = stálé trasy znovu (`computeStableNetwork` – síť bez práce dne, `stableVillage`)
-    a za nimi trasy k práci dne (`computeWorkRoutes`, `StoredRoute.daily`) + vzdálenosti chůze
-    (jen ze stálých tras – `villageRouteLines`).
-  - 1. dne v měsíci beze změny otisku: jiná místa práce nebo pastvina (`routeMonthKey` =
-       `routeWorkKey` + `routePastureKey` → `routes.workKey`; druhy práce se stálou částí `field`,
-       `orchard`, `pen`, `site`, `cemetery` se nepočítají) = jen trasy k práci dne a na pastvu znovu – jedno kolo `routeAll` nad provozem uložených stálých tras (sleva
-       `pathStrength` z jejich cest za den, vyšlapanost, pevné cesty), stálé trasy bit po bitu stejné;
-       pak `reweighRoutes` převáží stálé trasy (`stableRouteWeights` – skupiny bez hledání, váha
-       domácnosti × `StoredRoute.scale` u dřeva; trasa bez skupiny 0 cest). Opakované volání týž den
-       (oprava a přestavba cest) převážení nepočítá znovu (`WEIGHED`, jen zrychlení).
+    - vzdálenosti chůze (`villageRouteLines`). **Trasy k práci dne a na pastvu se nehledají**
+      (Martin 31. 10. 2026 – `routes-v9`; dřívější `computeWorkRoutes`, `StoredRoute.daily`,
+      `routes.workKey`, `routeMonthKey` zmizely, vsi uložené s nimi je zahodí přepočtem).
+      Práce k cílům bez stálé trasy (kácení, seč, úprava cesty, opravy, humno, kovář…) do
+      vyšlapanosti nic nepřidá (`laborCells` cíl nenajde).
+  - 1. dne v měsíci beze změny otisku: `reweighRoutes` převáží stálé trasy (`stableRouteWeights` –
+       skupiny bez hledání, váha domácnosti × `StoredRoute.scale` u dřeva; trasa bez skupiny 0
+       cest). Opakované volání týž den (oprava a přestavba cest) převážení nepočítá znovu
+       (`WEIGHED`, jen zrychlení).
   - Váhy: pole má stálou část `BASE_TRIPS.field` bez ohledu na stadia (dřívější `fallow` a poloviční
     stáří zakládaného pole zmizely). Práci dne k cílům se stálou částí nese stálá trasa: do
     vyšlapanosti `wear.labor`, do stavu cest `trafficOnRoads(…, labor)` (`laborTripsPerDay` –
     práce intervalu po cílech, podíl podle cest trasy – `tripsWithLabor` v `road-condition.ts`).
   - Převod: `withoutWalkStages` (v `updateVillage`) smaže `walkStages`; uložené trasy mají otisk
     starší verze → první den dopočtu je spočítá znovu i se vzdálenostmi chůze, podruhé otisk sedí.
-  - Scéna: klíč tras `sceneRoutesKey` (otisk + `workKey` + počet a součet cest), aby klient dostal
-    i trasy k práci dne a převážení; známá vyšlapanost nese i `wearCellM` (převod 7,5 → 3,75 m týž
+  - Scéna: klíč tras `sceneRoutesKey` (otisk + počet a součet cest), aby klient dostal
+    i převážení; známá vyšlapanost nese i `wearCellM` (převod 7,5 → 3,75 m týž
     den se pošle znovu).
   - Testy `routes.test.ts` – „trasy jen při změně mapy“ (i nastěhování / vystěhování a zapečetěná
     / otevřená jáma jen převáží), `road-tree-speed.test.ts` – olemování ve stavu vsi (zasazení

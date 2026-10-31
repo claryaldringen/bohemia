@@ -20,12 +20,11 @@ export interface KnownSceneData {
 }
 
 /**
- * Klíč tras pro scénu: otisk mapy tras (`VillageRoutes.key`) se nemění, když se 1. dne v měsíci
- * jen převáží cesty za den nebo přepočítají trasy k práci dne (paths.md – Stálé trasy, pravidlo 5)
- * – klíč scény proto nese i místa práce a součet cest za den.
+ * Klíč tras pro scénu: otisk mapy tras (`VillageRoutes.key`) se nemění, když se jen převáží cesty
+ * za den (paths.md – Stálé trasy, pravidlo 5) – klíč scény proto nese i součet cest za den.
  */
 export function sceneRoutesKey(routes: VillageRoutes): string {
-  return `${routes.key}/${routes.workKey ?? ''}/${routesCacheKey(routes.list)}`;
+  return `${routes.key}/${routesCacheKey(routes.list)}`;
 }
 
 /** Klíče tras a vyšlapanosti pohledu (pro dotaz na ves). */

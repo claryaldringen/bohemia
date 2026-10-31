@@ -271,7 +271,7 @@ export interface PathNetworkInput {
   keepRoutes?: boolean;
   /**
    * Jen stálé trasy (paths.md – Stálé trasy, pravidlo 5): bez pastviny – ta se mění se stadii
-   * dílů a hledá se s trasami k práci dne (`computeWorkRoutes`).
+   * dílů; stáda chodí po stálých trasách k polím.
    */
   stable?: boolean;
   /**
