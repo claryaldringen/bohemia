@@ -11,6 +11,7 @@ import {
   type CartVillage,
 } from '../paths/cart';
 import { cartGridKey, forgetCartRoutes, memoCartCost, memoCartRoutes } from '../paths/cart-memo';
+import { cartWorldOf, cartWorldRoutes, type CartWorld } from '../paths/cart-world';
 import { villageCartCost, villageCartRoutes } from '../paths/roads';
 import type { PathSquare } from '../paths/network';
 import { pathWindowFor } from '../paths/terrain';
@@ -308,4 +309,47 @@ describe('trasy vozu vsi v paměti (villageCartRoutes)', () => {
     expect(run(true)).toEqual(warm);
     expect(warm.felledTrees?.length ?? 0).toBeGreaterThan(0);
   }, 120_000);
+});
+
+describe('trasy vozu ze vstupu bez stavu (cartWorldOf, cartWorldRoutes)', () => {
+  it('tytéž trasy jako villageCartRoutes – z ohrady i od dílu, s překážkami i bez, po kácení', () => {
+    const l = pathLandscape();
+    const layer = treeLayer();
+    const s = village();
+    const near = matureTreesByDistance(layer, NO_OBSTACLE_CHANGES, { x: 0, z: 0 }, { limit: 3 });
+    expect(near).toHaveLength(3);
+    const felled = fellTrees(
+      s,
+      near.map((t) => t.id),
+      DAY,
+    );
+    const targets: CartTarget[] = [
+      { x: 60, z: 22.5, reachM: 9 },
+      { x: -60, z: -40, reachM: 9 },
+      { x: 10, z: 70, reachM: 0 },
+    ];
+    for (const state of [s, felled]) {
+      for (const obstacles of [null, layer]) {
+        for (const from of [null, { x: 30, z: 30 }]) {
+          for (const kind of ['two-wheel', 'four-wheel'] as const) {
+            const expected = villageCartRoutes(state, DAY, l, obstacles, kind, targets, from);
+            forgetCartRoutes(l);
+            // vstup projde JSONem (posílá se prohlížeči)
+            const world = JSON.parse(
+              JSON.stringify(cartWorldOf(state, DAY, l, obstacles)),
+            ) as CartWorld;
+            expect(cartWorldRoutes(world, l, obstacles, kind, targets, from)).toEqual(expected);
+          }
+        }
+      }
+    }
+  });
+
+  it('bez ohrady se spřežením null', () => {
+    const l = pathLandscape();
+    const s = { ...village(), pens: [] };
+    expect(cartWorldRoutes(cartWorldOf(s, DAY, l, null), l, null, 'two-wheel', TARGETS)).toBe(
+      villageCartRoutes(s, DAY, l, null, 'two-wheel', TARGETS),
+    );
+  });
 });

@@ -57,6 +57,7 @@ import { authClient } from '@/lib/auth-client';
 import { buildItem, buildItemForKey, penVariantSpecies } from '@/lib/build-items';
 import { setE2EHook } from '@/lib/e2e-hooks';
 import { keepSceneData, knownSceneData, lostSceneData } from '@/lib/scene-routes';
+import { withCartRoutes } from '@/lib/cart-routes';
 import { opensMenu } from '@/lib/game-menu';
 import { nextPollDelayMs } from '@/lib/village-polling';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
@@ -317,7 +318,12 @@ export function VillageGame({
 }): ReactElement {
   const decoded = useMemo(() => decodeLandscape(landscape), [landscape]);
   const [scene, setScene] = useState<LandscapeScene | null>(null);
-  const [village, setVillage] = useState<VillageData>(initialVillage);
+  // trasy vozů a spřežení spočítá prohlížeč z cílů, které poslal server (cart-routes.ts)
+  const [village, setVillage] = useState<VillageData>(() =>
+    isVillageView(initialVillage)
+      ? { ...initialVillage, scene: withCartRoutes(initialVillage.scene, decoded) }
+      : initialVillage,
+  );
   const [pending, setPending] = useState<PendingSite[]>([]);
   const [selected, setSelected] = useState<VillageTarget | null>(null);
   const [placingItem, setPlacingItem] = useState<BuildKind | null>(null);
@@ -383,8 +389,12 @@ export function VillageGame({
   const applyVillage = useCallback(
     (received: VillageData): void => {
       // trasy a vyšlapanost, které server neposlal (klient je má), se doplní z posledního pohledu
+      // trasy vozů a spřežení spočítá prohlížeč z cílů dne (cart-routes.ts)
       const next = isVillageView(received)
-        ? { ...received, scene: keepSceneData(received.scene, viewRef.current?.scene) }
+        ? {
+            ...received,
+            scene: withCartRoutes(keepSceneData(received.scene, viewRef.current?.scene), decoded),
+          }
         : received;
       setVillage(next);
       if (!isVillageView(next)) return;
@@ -399,7 +409,7 @@ export function VillageGame({
       noticedRef.current = next;
       for (const notice of newNotices(previous, next)) pushNotice(notice);
     },
-    [pushNotice],
+    [pushNotice, decoded],
   );
 
   useEffect(() => {

@@ -22,6 +22,8 @@ import {
   groveAgeYears,
   oakAgeHappiness,
   obstaclesOf,
+  villageCartRoutes,
+  CARTS,
   placementVillageOf,
   reservedTrees,
   sacredOakLife,
@@ -52,7 +54,19 @@ import {
 } from '../village-view';
 import { visitedWife } from '../village-view-scene';
 import { protectionLevel, sceneWeather } from '../weather-view';
-import type { ScenePloughLegs } from '../village-view-scene-types';
+import type { SceneVillage, ScenePloughLegs } from '../village-view-scene-types';
+import { simplifiedRoute, withCartRoutes } from '../cart-routes';
+
+/**
+ * Scéna, jak ji vidí prohlížeč: pohled projde JSONem (server action) a trasy vozů a spřežení
+ * se spočítají z cílů (cart-routes.ts).
+ */
+function routedScene(s: VillageState): SceneVillage {
+  const sent = JSON.parse(
+    JSON.stringify(buildVillageView(record(s), landscape, DAY).scene),
+  ) as SceneVillage;
+  return withCartRoutes(sent, landscape);
+}
 
 const DAY = dayIndexOf({ year: 503, month: 4, day: 12 });
 const SIZE = 16;
@@ -2392,8 +2406,7 @@ describe('buildVillageView – tesař a vozy (wagons.md)', () => {
       crops: [{ crop: 'spring', ...createCropWork(s.parts, DAY - 30, 0, true) }],
     };
     const plough = springCrop(s.season).plough!;
-    const legs = (): ScenePloughLegs | undefined =>
-      buildVillageView(record(s), landscape, DAY).scene.ploughLegs;
+    const legs = (): ScenePloughLegs | undefined => routedScene(s).ploughLegs;
     // den, jehož práci scéna ukazuje (poslední dopočítaný)
     const today = s.lastDay;
     // doma – žádné cesty
@@ -2465,7 +2478,7 @@ describe('buildVillageView – tesař a vozy (wagons.md)', () => {
         },
       ],
     };
-    const view = buildVillageView(record(s), landscape, DAY);
+    const view = { scene: routedScene(s) };
     const cart = view.scene.carts![0]!;
     expect(cart.job).toMatchObject({ activity: 'haul', load: 'sheaves' });
     const route = cart.route!;
@@ -2477,6 +2490,16 @@ describe('buildVillageView – tesař a vozy (wagons.md)', () => {
     expect(Math.hypot(first.x - 50, first.z - 60)).toBeLessThanOrEqual(16);
     const target = view.scene.fields.flatMap((f) => f.parts).find((p) => p.id === part.id)!;
     expect(Math.hypot(last.x - target.x, last.z - target.z)).toBeLessThanOrEqual(10);
+    // táž trasa, jakou dřív počítal server ze stavu vsi (villageCartRoutes) – jen ji počítá prohlížeč
+    const server = villageCartRoutes(s, DAY, landscape, obstaclesOf(landscape), 'two-wheel', [
+      { x: target.x, z: target.z, reachM: CARTS.reachM },
+    ])![0]!;
+    expect(route).toEqual(simplifiedRoute(server.points));
+    // server trasu neposílá – jen cíl a vstup tras
+    const sent = buildVillageView(record(s), landscape, DAY).scene;
+    expect(sent.carts![0]!.route).toBeUndefined();
+    expect(sent.carts![0]!.goal).toBeDefined();
+    expect(sent.cartWorld).toBeDefined();
     // po cm
     for (const p of route) {
       expect(Math.round(p.x * 100)).toBeCloseTo(p.x * 100, 6);
@@ -2489,11 +2512,11 @@ describe('buildVillageView – tesař a vozy (wagons.md)', () => {
       manDays: 2,
       carts: 1,
     };
-    const mowing = buildVillageView(record(s), landscape, DAY).scene.carts![0]!;
+    const mowing = routedScene(s).carts![0]!;
     expect(mowing.job?.load).toBe('hay');
     expect(mowing.route?.length).toBeGreaterThanOrEqual(2);
     s.labor.shares = [];
-    expect(buildVillageView(record(s), landscape, DAY).scene.carts![0]!.route).toBeUndefined();
+    expect(routedScene(s).carts![0]!.route).toBeUndefined();
   });
 
   it('vůz mimo svoz (Co vozy vozí): uhlí a osivo jako zboží, osivo tam, voda; trasa k milíři', () => {
@@ -2501,7 +2524,7 @@ describe('buildVillageView – tesař a vozy (wagons.md)', () => {
     const part = s.parts.find((p) => p.cell?.x === 11)!;
     const job = (share: LaborShare): NonNullable<NonNullable<VillageView['scene']['carts']>[0]> => {
       s.labor = { day: DAY, shares: [share] };
-      return buildVillageView(record(s), landscape, DAY).scene.carts![0]!;
+      return routedScene(s).carts![0]!;
     };
     const charcoal = job({
       activity: 'haul',
@@ -2560,7 +2583,7 @@ describe('buildVillageView – tesař a vozy (wagons.md)', () => {
       { x: 31, z: -41, smithId: 50, kg: 400.4, day: DAY - 10 },
       { x: 28, z: -38, smithId: 50, kg: 36, day: DAY - 5 * 365 },
     ];
-    const scene = buildVillageView(record(s), landscape, DAY).scene;
+    const scene = routedScene(s);
     expect(scene.oreSites).toEqual([
       { dwellingId: 50, x: 30, z: -40, heapKg: 392, digging: false },
     ]);
@@ -2588,7 +2611,7 @@ describe('buildVillageView – tesař a vozy (wagons.md)', () => {
         },
       ],
     };
-    const homes = buildVillageView(record(s), landscape, DAY).scene.labor!.homes!;
+    const homes = routedScene(s).labor!.homes!;
     const count = (id: number): number => s.people.filter((p) => p.dwellingId === id).length;
     for (const h of homes) expect(h.people).toBe(count(h.id));
     expect(homes.map((h) => h.id).sort()).toEqual(

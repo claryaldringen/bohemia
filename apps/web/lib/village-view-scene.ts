@@ -254,7 +254,7 @@ export function sceneVillage(
   const earthworks = sceneEarthworks(state, day);
   const home = wagonHome(state);
   const carts = sceneCarts(state, day, landscape, fields);
-  const ploughLegs = scenePloughLegs(state, day, landscape, fields);
+  const ploughLegs = scenePloughLegs(state, fields);
   const hayMeadows = hayMeadowLooks(state, day).map((view): SceneHayMeadow => {
     const center = tileCenterWorld(landscape, view.cell.x, view.cell.y);
     return {

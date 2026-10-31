@@ -17,6 +17,7 @@ import {
   monthInWindow,
   ORCHARD_PLANTING_WINDOWS,
   obstaclesOf,
+  cartWorldOf,
   isAbandoned,
   structureCondition,
   summarizeVillage,
@@ -498,7 +499,7 @@ export function buildVillageView(
     ...threshingFloorsOf(state, summary.constructions),
     roads: roadViews(state, landscape, day, summary),
     scene: {
-      ...sceneVillage(state, landscape, day, summary),
+      ...sceneWithCartWorld(sceneVillage(state, landscape, day, summary), state, landscape, day),
       trails: sceneTrails(state),
       expeditions: sceneExpeditions(state),
       ...(context.neighbourScenes?.length ? { neighbours: context.neighbourScenes } : {}),
@@ -514,6 +515,25 @@ export function buildVillageView(
     ...grainPitsField(state, day),
     ...junctionsField(state, day),
   };
+}
+
+/**
+ * Scéna se vstupem vozových tras (`cartWorldOf`) – jen když dnes jede vůz nebo spřežení; trasy
+ * z něj spočítá prohlížeč (cart-routes.ts).
+ */
+function sceneWithCartWorld(
+  scene: SceneVillage,
+  state: VillageState,
+  landscape: Landscape,
+  day: number,
+): SceneVillage {
+  const drives =
+    (scene.carts ?? []).some((c) => c.goal !== undefined) ||
+    scene.ploughLegs?.outGoals !== undefined ||
+    scene.ploughLegs?.homeGoals !== undefined;
+  return drives
+    ? { ...scene, cartWorld: cartWorldOf(state, day, landscape, obstaclesOf(landscape)) }
+    : scene;
 }
 
 /** Počasí roku pro lištu (`VillageView.weather` – disasters.md); obyčejný rok bez údaje. */
