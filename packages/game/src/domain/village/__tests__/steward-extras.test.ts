@@ -9,7 +9,7 @@ import {
 } from '../../landscape';
 import { foundVillage } from '../actions';
 import { bufferFill } from '../field-food';
-import { NO_CRAFTS } from '../productivity';
+import { fieldWorkPerHa, NO_CRAFTS } from '../productivity';
 import { STEWARD } from '../rules-steward';
 import { advanceVillage } from '../simulate';
 import { fieldSowingTargets } from '../simulate-plan';
@@ -21,7 +21,9 @@ import {
   penStep,
   roadApplesStep,
   roadStep,
+  roadUpgradeSavedPerYear,
   sacredStep,
+  threshingStep,
 } from '../steward-extras';
 import {
   inStewardWindows,
@@ -32,9 +34,11 @@ import {
 } from '../steward';
 import { craftCoverage } from '../crafts';
 import { monthInWindow } from '../orchard';
-import { ORCHARD_PLANTING_WINDOWS } from '../rules-fields';
+import { ORCHARD_PLANTING_WINDOWS, THRESHING } from '../rules-fields';
 import { cellHa } from '../steward-land';
 import { BUILD_COSTS } from '../costs';
+import { roadUpgradeCost } from '../road-upgrades';
+import { fieldCapacity } from '../field-capacity';
 import { planWagonRoad, wagonPlanInputOf } from '../wagon-road';
 import type { Road, VillageState } from '../types';
 import { withBuiltFirstDwelling } from './village-fixtures';
@@ -408,10 +412,117 @@ describe('steward-extras – humno, ohrady, posvátná místa a cesty', () => {
     expect(s.trails ?? []).toHaveLength(0);
   });
 
+  it('rok 0 s hrdlem práce: humno jen když práce výmlatu pokryje cenu, ohrady ne', () => {
+    const base = structuredClone(grown);
+    base.threshingFloors = [];
+    base.constructions = base.constructions.filter((c) => c.kind !== 'threshing-floor');
+    base.pens = [];
+    base.livestock = {
+      ...(base.livestock ?? ({} as NonNullable<VillageState['livestock']>)),
+      herds: { sheep: 0, goat: 0, pig: 0, cow: 4 },
+    } as NonNullable<VillageState['livestock']>;
+    const labor: StewardOutlook = { ...OPEN_OUTLOOK, bottleneck: 'labor', lasting: 'labor' };
+    const day = at(3);
+    const first = (outlook: StewardOutlook): VillageState => {
+      const s = structuredClone(base);
+      s.foundedDay = day - 100;
+      threshingStep(s, { ...ctxOf(day), outlook });
+      penStep(s, { ...ctxOf(day), outlook });
+      return s;
+    };
+    const bound = first(labor);
+    expect(penStarted(bound, 'cattle')).toBe(false);
+    const threshLabor = (s: VillageState): number =>
+      fieldCapacity(s, day, NO_CRAFTS.pottery)!.sownHa *
+      fieldWorkPerHa('thresh', NO_CRAFTS.tools) *
+      THRESHING.emergencyWork;
+    const floorCost = BUILD_COSTS['threshing-floor'].laborManDays;
+    expect(kinds(bound).includes('threshing-floor')).toBe(threshLabor(base) >= floorCost);
+    const small = structuredClone(base);
+    small.parts = small.parts.slice(0, 1);
+    expect(threshLabor(small)).toBeLessThan(floorCost);
+    small.foundedDay = day - 100;
+    threshingStep(small, { ...ctxOf(day), outlook: labor });
+    expect(kinds(small)).not.toContain('threshing-floor');
+    const land = first(OPEN_OUTLOOK);
+    expect(kinds(land)).toContain('threshing-floor');
+    expect(penStarted(land, 'cattle')).toBe(true);
+    // starší ves s hrdlem práce staví jako dřív
+    const older = structuredClone(base);
+    threshingStep(older, { ...ctxOf(day), outlook: labor });
+    penStep(older, { ...ctxOf(day), outlook: labor });
+    expect(kinds(older)).toContain('threshing-floor');
+    expect(penStarted(older, 'cattle')).toBe(true);
+  });
+
+  it('cesty: horizont návratnosti podle režimu – střední provoz v Růstu ano, v Obnově ne', () => {
+    const s = structuredClone(grown);
+    // ≈ 6 pochůzek denně: vrátí se za ≈ 16 let (Růst 25, Obnova 5)
+    for (const r of s.roads!.roads) r.traffic = [6];
+    const growth = structuredClone(s);
+    roadStep(growth, ctxOf(at(11)));
+    expect(kinds(growth)).toContain('road');
+    const recovery = structuredClone(s);
+    roadStep(recovery, ctxOf(at(11), 'recovery'));
+    expect(kinds(recovery)).not.toContain('road');
+    const rare = structuredClone(s);
+    for (const r of rare.roads!.roads) r.traffic = [2];
+    roadStep(rare, ctxOf(at(11)));
+    expect(kinds(rare)).not.toContain('road');
+  });
+
   it('pojistka: bufferFill mimo Nouzi (hlídá spuštění testu)', () => {
     expect(bufferFill(fieldSowingTargets(grown, grown.lastDay, NO_CRAFTS))).toBeGreaterThanOrEqual(
       0,
     );
+  });
+});
+
+describe('steward-extras – úspora vylepšení cesty (roadUpgradeSavedPerYear)', () => {
+  const road = (extra: Partial<Road> = {}): Road => ({
+    id: 1,
+    points: [
+      { x: 0, z: 0 },
+      { x: 100, z: 0 },
+    ],
+    bornDay: 0,
+    grade: 'trodden',
+    traffic: [10],
+    spots: [],
+    ...extra,
+  });
+
+  it('100 m při 10 pochůzkách denně ušetří ≈ 1,6 čd za rok – vrátí se za ≈ 9,4 roku', () => {
+    const r = road();
+    const saved = roadUpgradeSavedPerYear(r);
+    expect(saved).toBeCloseTo((10 * 365 * 2 * 100 * (1 / 1.5 - 1 / 1.7)) / 36_000, 6);
+    expect(roadUpgradeCost(r).manDays / saved).toBeCloseTo(9.4, 1);
+    expect(roadUpgradeSavedPerYear(road({ traffic: [0] }))).toBe(0);
+  });
+
+  it('mokřina s hatí a jízdy vozem úsporu zvětší', () => {
+    const dry = roadUpgradeSavedPerYear(road());
+    const wet = roadUpgradeSavedPerYear(road({ ground: { wet: [[20, 70]], fords: [] } }));
+    expect(wet).toBeGreaterThan(dry * 5);
+    const carts = roadUpgradeSavedPerYear(road({ cartTraffic: [2] }));
+    expect(carts).toBeGreaterThan(dry);
+    const worn = roadUpgradeSavedPerYear(road({ cartTraffic: [2], cart: true }));
+    expect(worn).toBeGreaterThan(dry);
+    expect(worn).toBeLessThan(carts);
+  });
+
+  it('horizont: v Růstu se vrátí od ≈ 3,8 pochůzky denně, v Obnově od ≈ 19, v Nouzi nikdy', () => {
+    const pays = (trips: number, mode: StewardMode): boolean => {
+      const r = road({ traffic: [trips] });
+      return (
+        roadUpgradeSavedPerYear(r) * STEWARD.roadPaybackYears[mode] > roadUpgradeCost(r).manDays
+      );
+    };
+    expect(pays(4, 'growth')).toBe(true);
+    expect(pays(3.5, 'growth')).toBe(false);
+    expect(pays(20, 'recovery')).toBe(true);
+    expect(pays(18, 'recovery')).toBe(false);
+    expect(pays(1000, 'emergency')).toBe(false);
   });
 });
 

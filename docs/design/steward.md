@@ -237,7 +237,8 @@ svého druhu (pole a čtverce po blocích) a všechny čerpají ze stejného roz
    vede kolem polí (zeleň chrání díly – disasters.md, Ochrana dílu). V oknech výsadby (orchard.md).
 9. **Posvátná místa** – štěstí pod `STEWARD.happinessFloor` a duby k mání; napřed modla, svatyně
    jedna (happiness.md). Mimo žně.
-10. **Cesty** – vylepšení pevné cesty, když ušetřená chůze × provoz převáží cenu; vozová cesta,
+10. **Cesty** – vylepšení pevné cesty, když ušetřená chůze a jízdy vozem za horizont režimu
+    převáží cenu; vozová cesta,
     když ves má vůz a hlavní tahy dřeva, sena a snopů; zemská stezka jedna, k nejbližšímu kraji
     mapy, od `STEWARD.trailPeople` lidí (krok Růstu – v Obnově s nižší předností). Mimo setí
     a žně.
@@ -350,15 +351,61 @@ plán ověřil: střed políčka, jeden čtverec bez mřížky.
   v letech 3–5 hladověla zdravá ves na seedu krajiny 2 v letech 14–18 (až 12 dní), s jedním ne
   (měření 31. 10. 2026).
 - **Posvátná místa:** štěstí pod `happinessFloor` (60) – modla (nejvýš dvě), pak svatyně; místo
-  nejbližší středu vsi do `sacredSearchTiles`, které projde kontrolou umístění. Mimo žně.
-- **Cesty (krok Růstu, mimo setí a žně):** vylepšení vyšlapané cesty, když úspora chůze (provoz
-  × délka × rozdíl `ROAD_WALK.speed`) za `roadPaybackYears` (10) převýší cenu – 100 m za 15
-  člověkodní se při 10 pochůzkách denně vrátí za ≈ 9,4 roku (oprava 31. 10. 2026: s 5 lety se
-  vyplatilo až od ≈ 19 pochůzek denně a správce cesty nestavěl; hra trvá 1000 let, herní rok je
-  ≈ 8,8 h); vozová cesta po upravené cestě s provozem ≥ `wagonTrips` a vozem ve vsi; zemská stezka
+  nejbližší středu vsi do `sacredSearchTiles`, které projde kontrolou umístění. Mimo žně. Práh je
+  nad startem schválně – štěstí nad 50 zvedá práci; odklad v mladé vsi měření zamítlo (Mladá ves
+  níž).
+- **Cesty (krok Růstu, mimo setí a žně):** vylepšení vyšlapané cesty, když úspora chůze a jízd
+  vozem za `roadPaybackYears` let režimu převýší cenu (Návratnost vylepšení cesty níž); vozová
+  cesta po upravené cestě s provozem ≥ `wagonTrips` a vozem ve vsi; zemská stezka
   jedna, k nejbližšímu kraji, od `trailPeople` (30) lidí. Vozová cesta i stezka jen s celou cenou
   (práce všech úseků) v rozpočtu práce, jako ostatní stavby. Co nešlo (blokovaná cesta, směr), správce zkusí znovu za
   `retryDays` (120) dní (`steward.skips`).
+
+### Mladá ves (návrh Clauda, 1. 11. 2026)
+
+Martin 1. 11. 2026: „Důležitý je správce. Vylepši ho. Měl by přece umět spočítat ideální umístění
+všeho a nejlepší postupy.“ Rozbor (diagnostika seedů 3 a 17 před úlohou): v roce 0–1 správce
+staví dvě modly, svatyni (400 člověkodní ve vsi o 5 lidech, seed 3), humno a ohrady, volná práce
+v roce 0 a 1 je nula. Mladá ves potřebuje práci na pole a stravu.
+
+- **Posvátná místa beze změny (měření zamítlo odklad):** zkoušel jsem je nestavět v prvních
+  `youngYears` (3) letech, modlu až od 8 a svatyni od 20 (12) lidí a práh štěstí 45 pod startem.
+  Rychlé měření (6 krajin × 25 let) rod zhoršilo: práh 45 – lidé rodu 30,0 → 24,2, hladové dny
+  2 534 → 3 321, pojistka 0,43 → 0,37; práh 60 s odkladem – 26,8–27,0 lidí, pojistka 0,40–0,42
+  (seed 51: 37 → 15 lidí). Lidé za 5 a 10 let se nezměnili a pojistka mladé vsi se nezvedla.
+  Důvod: štěstí násobí veškerou práci vsi (`HAPPINESS_LABOR` – 50 → × 1, 90 → × 1,08); dvě modly
+  a svatyně (460 člověkodní, +40) zvednou práci o ≈ 8 % napořád – i ve vsi o 5 lidech se vrátí za
+  ≈ 4–5 let a odklad investici jen posune. Práh štěstí zůstává 60 (nad startem schválně).
+- **Humno a ohrady v roce 0** (prvních 365 dní vsi) jen s kladnou hodnotou v úzkém hrdle výhledu
+  (Model kapacity vsi): humno se v roce 0 musí vrátit za jeden rok, ne za `paybackYears`; při
+  hrdle **práce** se počítá jen ušetřená práce výmlatu (`THRESHING.emergencyWork`) – zrno hrdlo
+  nezvedne –, při hrdle půdy nebo osiva i ztráta zrna (osivo a strava z omezené půdy). Ohrady stád
+  a spřežení v roce 0 při hrdle práce ne – maso a mléko práci nezvednou, a stádo bez ohrady jen
+  neroste (přebytek nad místy na noc se v zimě porazí). Ohrada koní (vojvodova rodina cvičí) beze
+  změny.
+
+### Návratnost vylepšení cesty (návrh Clauda, 1. 11. 2026)
+
+Martin 1. 11. 2026: „Zdá se, že správce nijak nevylepšuje cesty.“ Pevné cesty vznikají samy
+z vyšlapanosti (roads.md) – správce je jen vylepšuje. S jedním horizontem 10 let se ve Vlkově
+(27 lidí, 11 vyšlapaných úseků 5–120 m, 0,5–7,6 pochůzky denně) nevrátil žádný úsek – návratnost
+12–181 let.
+
+- **Úspora za rok** (`roadUpgradeSavedPerYear`): chůze – pochůzky za den (poslední roční průměr,
+  tam a zpět jedna) × 365 × 2 × rozdíl ceny úseku vyšlapaného a upraveného (`roadPieceCost`: suchý
+  kus 1,5 → 1,7, mokřina 0,5 → 1,7 s hatí, brod + 30 m → lávka, stromy u cesty) ÷ den chůze
+  (1 m/s, 10 h); jízdy vozem – loňské jízdy (`Road.cartTraffic`) × 365 × rozdíl `CART_SPEED`
+  (vyšlapaná 1,3 nebo vyježděná 1,6 → upravená 1,8) mimo mokřinu ÷ den vozky
+  (`TEAM_TRAVEL.speedMps`, `WAGON_ROAD.dayHours`) – jako cena jízdy u vozové cesty.
+- **Horizont podle životnosti a režimu** (`roadPaybackYears`): upravená cesta s provozem nezarůstá
+  a bez provozu vydrží 15 let (`ROAD_DECAY`), cesta slouží desítky let → v **Růstu 25 let**
+  (generace), v **Obnově 5 let** (práce je drahá – vrátí se jen velmi vytížený úsek), v Nouzi se
+  cesty nestaví. 100 m za 15 člověkodní se v Růstu vrátí od ≈ 3,8 pochůzky denně (dřív od ≈ 9,4),
+  v Obnově od ≈ 19.
+- **Vlkov (stav 1. 11. 2026):** v Růstu by se vylepšilo 6 nejvytíženějších úseků (5,6–7,6
+  pochůzky denně, 78 m, 11,8 člověkodní; návratnost 12–17 let); úsek s 3,6 pochůzky (26 let)
+  a úseky s 2,1 a 0,5 pochůzky (44 a 184–188 let) ne. Vozy ve Vlkově nejezdí – přínos vozům se tam
+  neprojeví.
 
 ## Rozmístění – „absolutní skiller“ (návrh Clauda)
 
@@ -749,34 +796,36 @@ domů a ta se po založení nemění.
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                                     | Kdo                                             |
-| -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| Zbytek vsi spravuje NPC; hráč může svou ves svěřit správci a vždy smí v každé vsi rodu stavět                  | Martin (zadání issue #9, 24. 10. 2026)          |
-| Přepínač Správce u každé vsi; ves syna zapnutý, první ves vypnutý; hráč přepíná kdykoli a staví i sám          | Martin (30. 10. 2026)                           |
-| Rozsah první verze: obydlí, pole, ohrady, hřbitov, sad, humno, dílny, cesty, odchod syna, jména synů           | Martin (30. 10. 2026)                           |
-| Úroveň „Absolutní skiller“ – optimalizuje rozestavení, pole a vzdálenosti podle krajiny                        | Martin (30. 10. 2026)                           |
-| Cíl „Růst se zásobou“ – napřed pole a klučení, až když není kam, odchod syna                                   | Martin (30. 10. 2026)                           |
-| Přestavba „Přestaví, ne hráčovo“ – jen vlastní stavby, když se to vyplatí                                      | Martin (30. 10. 2026)                           |
-| Nástupnictví náhodou až s pozvánkami, ne ve fázi 3                                                             | Martin (30. 10. 2026)                           |
-| Krok simulovaného dne `stewardDay` v pevné dny (každý 10. den, odchod 31. 8.), bez krajiny spí                 | návrh Clauda                                    |
-| Doménový příkaz `applyBuildIntent` – jedno pravidlo pro hráče i správce; use-casy se na něj přepojí            | návrh Clauda                                    |
-| Správce nezná budoucnost (seed počasí, rozpis pohrom), jen co vidí hráč a četnosti z pravidel                  | návrh Clauda                                    |
-| Režimy Nouze / Obnova / Růst podle pojistky zásob; rozpočet práce ≈ 120 dní volné práce                        | návrh Clauda                                    |
-| Hodnota a cena v člověkodnech za rok; cíl polí na lidi za 2 roky × 1,1                                         | návrh Clauda                                    |
-| Plán sídla ze šablon (shluk, řadová ves, samoty), hospodářství dům + blok polí, rezervy, uložený ve stavu      | návrh Clauda                                    |
-| Území vsi do 800 m od středu; správce plánuje jen na svém území (Voroného buňky zrušeny 1. 11. 2026)           | návrh Clauda                                    |
-| Značka „postavil správce“ jako množina id `steward.built`; převod: bez stavu vypnutý                           | návrh Clauda                                    |
-| Přestavba obydlí přestěhováním na konci životnosti; ostatní stavby nová + stará chátrá                         | návrh Clauda                                    |
-| Hráč smí zrušit rozestavěnou stavbu správce → veto na 5 let                                                    | návrh Clauda                                    |
-| Jména synů při narození jako u vnuků; odchod nejstaršího ženatého způsobilého syna, nejvýš jednou za rok       | návrh Clauda                                    |
-| ~~Odchod na téže mapě, když tam je místo pro 2× díl~~; vždy nová mapa (stezka, nejkratší cesta)                | návrh Clauda, Martin (1. 11. 2026)              |
-| Odchod přes odchozí schránku `steward.departures` a use-case `settleStewardDepartures`                         | návrh Clauda                                    |
-| UI: přepínač s ikonou v seznamu vsí a v panelu dvorce, ikona u staveb správce, žádné kroniky navíc ani plán    | návrh Clauda                                    |
-| Ověření skriptem `measure-steward.ts` – 20 krajin v 5 typech, 50 let, srovnání se skriptem, Vlkovem a mezí     | návrh Clauda                                    |
-| Nouze jen při rostoucím hladu; kroky Růstu i v Obnově z poloviny rozpočtu (sad jen první); syn z pasti po roce | návrh Clauda (oprava 31. 10. 2026)              |
-| Model kapacity vsi: cíl polí nejvýš podle práce v oknech setí, „je kam“ a přelidnění podle trvalého hrdla      | návrh Clauda (Martin 1. 11. 2026: „Vylepši ho“) |
-| Syn odchází jen se životaschopnou výpravou (pár, ≥ 4 dospělí, plný náklad jídla a osiva, pojistka matky ≥ 0,5) | návrh Clauda (Martin 1. 11. 2026: „Vylepši ho“) |
-| Blok domácnosti podle práce (nejvýš podle jídla), pole napřed u stojícího domu, políčka dál od nejbližšího     | návrh Clauda (Martin 1. 11. 2026: „Vylepši ho“) |
+| Rozhodnutí                                                                                                              | Kdo                                                                  |
+| ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| Zbytek vsi spravuje NPC; hráč může svou ves svěřit správci a vždy smí v každé vsi rodu stavět                           | Martin (zadání issue #9, 24. 10. 2026)                               |
+| Přepínač Správce u každé vsi; ves syna zapnutý, první ves vypnutý; hráč přepíná kdykoli a staví i sám                   | Martin (30. 10. 2026)                                                |
+| Rozsah první verze: obydlí, pole, ohrady, hřbitov, sad, humno, dílny, cesty, odchod syna, jména synů                    | Martin (30. 10. 2026)                                                |
+| Úroveň „Absolutní skiller“ – optimalizuje rozestavení, pole a vzdálenosti podle krajiny                                 | Martin (30. 10. 2026)                                                |
+| Cíl „Růst se zásobou“ – napřed pole a klučení, až když není kam, odchod syna                                            | Martin (30. 10. 2026)                                                |
+| Přestavba „Přestaví, ne hráčovo“ – jen vlastní stavby, když se to vyplatí                                               | Martin (30. 10. 2026)                                                |
+| Nástupnictví náhodou až s pozvánkami, ne ve fázi 3                                                                      | Martin (30. 10. 2026)                                                |
+| Krok simulovaného dne `stewardDay` v pevné dny (každý 10. den, odchod 31. 8.), bez krajiny spí                          | návrh Clauda                                                         |
+| Doménový příkaz `applyBuildIntent` – jedno pravidlo pro hráče i správce; use-casy se na něj přepojí                     | návrh Clauda                                                         |
+| Správce nezná budoucnost (seed počasí, rozpis pohrom), jen co vidí hráč a četnosti z pravidel                           | návrh Clauda                                                         |
+| Režimy Nouze / Obnova / Růst podle pojistky zásob; rozpočet práce ≈ 120 dní volné práce                                 | návrh Clauda                                                         |
+| Hodnota a cena v člověkodnech za rok; cíl polí na lidi za 2 roky × 1,1                                                  | návrh Clauda                                                         |
+| Plán sídla ze šablon (shluk, řadová ves, samoty), hospodářství dům + blok polí, rezervy, uložený ve stavu               | návrh Clauda                                                         |
+| Území vsi do 800 m od středu; správce plánuje jen na svém území (Voroného buňky zrušeny 1. 11. 2026)                    | návrh Clauda                                                         |
+| Značka „postavil správce“ jako množina id `steward.built`; převod: bez stavu vypnutý                                    | návrh Clauda                                                         |
+| Přestavba obydlí přestěhováním na konci životnosti; ostatní stavby nová + stará chátrá                                  | návrh Clauda                                                         |
+| Hráč smí zrušit rozestavěnou stavbu správce → veto na 5 let                                                             | návrh Clauda                                                         |
+| Jména synů při narození jako u vnuků; odchod nejstaršího ženatého způsobilého syna, nejvýš jednou za rok                | návrh Clauda                                                         |
+| ~~Odchod na téže mapě, když tam je místo pro 2× díl~~; vždy nová mapa (stezka, nejkratší cesta)                         | návrh Clauda, Martin (1. 11. 2026)                                   |
+| Odchod přes odchozí schránku `steward.departures` a use-case `settleStewardDepartures`                                  | návrh Clauda                                                         |
+| UI: přepínač s ikonou v seznamu vsí a v panelu dvorce, ikona u staveb správce, žádné kroniky navíc ani plán             | návrh Clauda                                                         |
+| Ověření skriptem `measure-steward.ts` – 20 krajin v 5 typech, 50 let, srovnání se skriptem, Vlkovem a mezí              | návrh Clauda                                                         |
+| Nouze jen při rostoucím hladu; kroky Růstu i v Obnově z poloviny rozpočtu (sad jen první); syn z pasti po roce          | návrh Clauda (oprava 31. 10. 2026)                                   |
+| Model kapacity vsi: cíl polí nejvýš podle práce v oknech setí, „je kam“ a přelidnění podle trvalého hrdla               | návrh Clauda (Martin 1. 11. 2026: „Vylepši ho“)                      |
+| Syn odchází jen se životaschopnou výpravou (pár, ≥ 4 dospělí, plný náklad jídla a osiva, pojistka matky ≥ 0,5)          | návrh Clauda (Martin 1. 11. 2026: „Vylepši ho“)                      |
+| Blok domácnosti podle práce (nejvýš podle jídla), pole napřed u stojícího domu, políčka dál od nejbližšího              | návrh Clauda (Martin 1. 11. 2026: „Vylepši ho“)                      |
+| Rok 0 s hrdlem práce: humno jen s ušetřenou prací výmlatu za rok, ohrady stád ne; odklad posvátných míst měření zamítlo | návrh Clauda (Martin 1. 11. 2026: „Vylepši ho“)                      |
+| Vylepšení cesty: úspora chůze i vozů (mokřina, brod), horizont Růst 25 let, Obnova 5 let                                | návrh Clauda (Martin 1. 11. 2026: „správce nijak nevylepšuje cesty“) |
 
 ## Otevřené otázky
 
