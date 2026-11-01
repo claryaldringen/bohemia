@@ -43,7 +43,7 @@ function roadsOf(list: Road[]): VillageRoads {
   return { ...emptyRoads(DAY), nextId: 100, roads: list };
 }
 
-const allLive: JunctionRoads = { live: () => true, fixed: new Set() };
+const allLive: JunctionRoads = { fixed: new Set() };
 
 /** Konec osy u středu: [předposlední, poslední]. */
 function nodeEnd(road: Road): [RoadPoint, RoadPoint] {
@@ -78,15 +78,20 @@ describe('křižovatky v síti (updateJunctions)', () => {
     expect(json(roads)).toEqual(before);
   });
 
-  it('čtyři živé cesty → kříž; znamení stejné po změně tvaru na Y', () => {
+  it('čtyři cesty → kříž; zarůstající rameno zůstane, opuštěné ne – znamení stejné po změně na Y', () => {
     const roads = roadsOf([arm(1, 40, 2), arm(2, -40, 0), arm(3, 0, 40), arm(4, 1, -40)]);
     updateJunctions(roads, DAY, SEED, allLive);
     const cross = json(roads.junctions![0]!);
     expect(cross.shape).toBe('cross');
     const nextId = roads.nextId;
-    // jedna cesta osiřela (provoz pod udržovacím prahem) – kříž se změní na Y, znamení zůstane
-    const live: JunctionRoads = { live: (r) => r.id !== 4, fixed: new Set() };
-    expect(updateJunctions(roads, DAY + 30, SEED, live)).toBe(true);
+    // po cestě 4 už nikdo nechodí a zarůstá – pořád tam leží, kříž zůstane (Vlkov 1. 11. 2026)
+    const four = roads.roads.find((r) => r.id === 4)!;
+    four.condition = [{ x: 0.5, z: -20, c: 1 }];
+    expect(updateJunctions(roads, DAY + 30, SEED, allLive)).toBe(false);
+    expect(roads.junctions![0]!.arms).toContain(4);
+    // cesta 4 opuštěná (pod stavbou) – kříž se změní na Y, znamení zůstane
+    four.abandoned = true;
+    expect(updateJunctions(roads, DAY + 30, SEED, allLive)).toBe(true);
     const y = roads.junctions![0]!;
     expect(y.shape).toBe('y');
     expect(y.id).toBe(cross.id);
@@ -96,10 +101,10 @@ describe('křižovatky v síti (updateJunctions)', () => {
     expect(roads.nextId).toBe(nextId);
   });
 
-  it('pahýl ani opuštěná cesta rameno nejsou; dvě živá ramena → křižovatka zanikne a cesty se spojí', () => {
+  it('opuštěná cesta ramenem není; dvě ramena → křižovatka zanikne a cesty se spojí', () => {
     const abandoned = { ...arm(4, 0, -40), abandoned: true as const };
     const roads = roadsOf([arm(1, 40, 0), arm(2, -40, 0), arm(3, 0, 40), abandoned]);
-    const live: JunctionRoads = { live: (r) => !r.abandoned, fixed: new Set() };
+    const live = allLive;
     updateJunctions(roads, DAY, SEED, live);
     expect(roads.junctions![0]!.shape).toBe('y');
     expect(roads.junctions![0]!.arms).not.toContain(4);
@@ -340,10 +345,12 @@ describe('křižovatky v síti (updateJunctions)', () => {
       const roads = roadsOf([arm(1, 40, 0), arm(2, -40, 0), arm(3, 0, 40)]);
       updateJunctions(roads, DAY, seed, allLive);
       const first = json(roads.junctions![0]!);
-      // jedna cesta osiřela → křižovatka zanikne, pak ožije
-      const dead: JunctionRoads = { live: (r) => r.id !== 3, fixed: new Set() };
-      updateJunctions(roads, DAY + 30, seed, dead);
+      // jedna cesta opuštěná → křižovatka zanikne, pak ožije
+      const three = roads.roads.find((r) => r.id === 3)!;
+      three.abandoned = true;
+      updateJunctions(roads, DAY + 30, seed, allLive);
       expect(roads.junctions).toBeUndefined();
+      delete three.abandoned;
       updateJunctions(roads, DAY + 60, seed, allLive);
       const again = roads.junctions![0]!;
       expect(again.id).not.toBe(first.id);

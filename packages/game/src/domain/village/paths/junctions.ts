@@ -397,10 +397,11 @@ export function landmarkPlace(
 
 // --- křižovatky v síti (Úloha 9b) ----------------------------------------------------------------
 
-/** Cesty pro křižovatky: které konce jsou živé a které úseky se neohýbají. */
+/**
+ * Cesty pro křižovatky: které úseky se neohýbají a kde uzel stojí. Ramenem je každý neopuštěný
+ * úsek v uzlu (`junctionArm`) – provoz tras ramena neurčuje.
+ */
 export interface JunctionRoads {
-  /** Živý konec úseku – vede po něm trasa aspoň v udržovacím prahu druhu (`liveRoadEnd`). */
-  live: (road: Road, atStart: boolean) => boolean;
   /** Úseky, které se neohýbají: zemská stezka a cesta ve vylepšení (vozová cesta podle druhu). */
   fixed: ReadonlySet<number>;
   /**
@@ -957,14 +958,25 @@ function spaceJunctions(
 }
 
 /**
+ * Rameno křižovatky (paths.md – Křižovatky, Kdy; návrh Clauda 1. 11. 2026): každý neopuštěný úsek,
+ * který v uzlu končí – i zarůstající, po kterém už nikdo nechodí (cesta tam pořád leží; zanikne až
+ * se zarostlou cestou). Opuštěný úsek (`abandoned` – pod stavbou, objížďka) ne – stejně jako při
+ * spojování úseků (`mergeRoadChains`), takže uzel se dvěma rameny se spojí a se 3–4 má křižovatku.
+ * Spojka (`link`) je ramenem vždy.
+ */
+export function junctionArm(road: Road): boolean {
+  return road.link === true || (!road.abandoned && road.points.length >= 2);
+}
+
+/**
  * Křižovatky sítě (paths.md – Křižovatky; mutuje – měsíční úklid, krok 6): v uzlu, kde končí 3 nebo
- * 4 živé cesty (`live` – opuštěná ani pahýl se nepočítá), stojí křižovatka – kříž nebo Y natočené
+ * 4 cesty (`junctionArm` – i zarůstající, opuštěná ne), stojí křižovatka – kříž nebo Y natočené
  * k cestám, konce os vedou přesně do vchodů. Beze změny ramen zůstane, jak je; přibude-li nebo
- * ubude-li rameno, tvar a natočení se spočítají znovu a znamení zůstane; klesnou-li živá ramena pod
- * 3, křižovatka zanikne (strom znamení stojí dál jako strom u cesty). Uzel s 5+ živými cestami se
- * nejdřív rozdělí na dva uzly se spojkou (`splitCrowded`). Vrátí, jestli se něco změnilo; beze
- * změny nic, ani nová id. Dvě křižovatky blíž než `junctionSpacingM` se pak sloučí nebo odsunou
- * (`spaceJunctions`).
+ * ubude-li rameno, tvar a natočení se spočítají znovu a znamení zůstane; klesnou-li ramena pod 3
+ * (cesta zarostla nebo je opuštěná), křižovatka zanikne (strom znamení stojí dál jako strom
+ * u cesty). Uzel s 5+ cestami se nejdřív rozdělí na dva uzly se spojkou (`splitCrowded`). Vrátí,
+ * jestli se něco změnilo; beze změny nic, ani nová id. Dvě křižovatky blíž než `junctionSpacingM`
+ * se pak sloučí nebo odsunou (`spaceJunctions`).
  */
 export function updateJunctions(
   roads: VillageRoads,
@@ -972,7 +984,8 @@ export function updateJunctions(
   seed: number,
   net: JunctionRoads,
 ): boolean {
-  const isLive = (e: RoadEnd): boolean => e.road.link === true || net.live(e.road, e.atStart);
+  // „živá“ cesta v pomocných funkcích = rameno (`junctionArm`)
+  const isLive = (e: RoadEnd): boolean => junctionArm(e.road);
   let split = false;
   // uzel s 5+ živými cestami se rozdělí; skupina o 4+ ramenech (8+ cest) se dělí dál
   for (let pass = 0; pass < 3; pass++) {

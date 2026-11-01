@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { type GridWindow } from '../paths/network-grid';
 import { nearAnchor, roadAnchors } from '../paths/road-anchors';
+import { roadPieces } from '../paths/road-condition';
+import { roadChainEnds, roadEndsNetwork } from '../paths/road-ends';
 import { TIDY_RUNS, roadsMonth } from '../paths/roads';
 import { accessDue } from '../paths/roads-access';
 import { emptyRoads, endKey, mergeRoadChains } from '../paths/roads-form';
@@ -500,6 +502,47 @@ describe('cesty k vchodům', () => {
     expect(
       json(s.roads!.roads.map((r) => ({ id: r.id, spots: r.spots, points: r.points }))),
     ).toEqual(snapshot);
+  }, 60_000);
+});
+
+describe('křižovatka se zarůstající cestou (Vlkov, Martin 1. 11. 2026)', () => {
+  // Vlkov: tři vozové cesty končily v jednom bodě bez křižovatky – po jedné už nikdo nejezdil
+  // (provoz pod udržovacím prahem), ramenem nebyla, ale zarůstala roky; cesty se ani nespojily.
+  // Pravidlo 11: „Žádná cesta nemůže existovat jen tak sama v prostoru, vždycky musí spojovat dvě
+  // místa – kombinaci budov a křižovatek.“
+  it('rameno bez provozu drží křižovatku, dokud cesta nezaroste; pak se zbylé cesty spojí', () => {
+    const s = cemeteryVillage();
+    roadsMonth(s, monthDay(1), LANDSCAPE, null);
+    expect(s.roads!.junctions?.map((j) => [j.shape, j.arms.length])).toEqual([['y', 3]]);
+    const water = { x: 60, z: 71.25 };
+    const toWater = s.roads!.roads.find((r) =>
+      [r.points[0]!, r.points[r.points.length - 1]!].some(
+        (p) => Math.hypot(p.x - water.x, p.z - water.z) <= 3,
+      ),
+    )!;
+    expect(s.roads!.junctions![0]!.arms).toContain(toWater.id);
+    // k vodě se skoro nechodí (0,1 cesty za den – pod udržovacím prahem vyšlapané cesty)
+    s.routes = {
+      ...s.routes!,
+      key: 'test-cemetery-quiet',
+      list: s.routes!.list.map((r) => (r.purpose === 'water' ? { ...r, trips: 10 } : r)),
+    };
+    roadsMonth(s, monthDay(2), LANDSCAPE, null);
+    expect(s.roads!.roads.some((r) => r.id === toWater.id)).toBe(true);
+    expect(s.roads!.junctions?.map((j) => [j.shape, j.arms.length])).toEqual([['y', 3]]);
+    expect(s.roads!.junctions![0]!.arms).toContain(toWater.id);
+    // žádná cesta nekončí na jiné cestě bez křižovatky (road-ends.ts, kind 'road')
+    const net = roadEndsNetwork(s, LANDSCAPE);
+    for (const r of s.roads!.roads.filter((x) => !x.abandoned)) {
+      expect(roadChainEnds(net, r.id)!.map((e) => e.kind)).not.toContain('road');
+    }
+    // cesta k vodě zarostla (kusy na nule) – zmizí, křižovatka zanikne a zbylé dvě se spojí
+    const dying = s.roads!.roads.find((r) => r.id === toWater.id)!;
+    dying.condition = roadPieces(dying.points).map((p) => ({ x: p.x, z: p.z, c: 0 }));
+    roadsMonth(s, monthDay(3), LANDSCAPE, null);
+    expect(s.roads!.roads.some((r) => r.id === toWater.id)).toBe(false);
+    expect(s.roads!.junctions).toBeUndefined();
+    expect(s.roads!.roads.filter((r) => !r.abandoned)).toHaveLength(1);
   }, 60_000);
 });
 

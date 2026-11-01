@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { junctionSpacingM, updateJunctions, type JunctionRoads } from '../paths/junctions';
-import { liveRoadEnd, type RoadTraffic } from '../paths/road-condition';
 import { rebuildJunctionHints } from '../paths/roads';
 import { emptyRoads } from '../paths/roads-form';
 import { ROAD_LAND } from '../rules';
@@ -14,7 +13,7 @@ import type { Road, RoadGrade, RoadPoint, Trail, VillageRoads } from '../types';
 const DAY = dayIndexOf({ year: 601, month: 4, day: 1 });
 const SEED = 4242;
 const json = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
-const allLive: JunctionRoads = { live: () => true, fixed: new Set() };
+const allLive: JunctionRoads = { fixed: new Set() };
 
 /** Úsek z `from` do `to` – body po 4 m, na cm. */
 function seg(id: number, from: RoadPoint, to: RoadPoint, grade: RoadGrade = 'trodden'): Road {
@@ -180,24 +179,17 @@ describe('křižovatky blízko sebe (updateJunctions)', () => {
     expect(roads.junctions!.length === 1 || gap(roads) >= min).toBe(true);
   });
 
-  it('přestavba: budoucí vozová je pro křižovatku živá a široká jako vozová (rebuildJunctionHints)', () => {
+  it('přestavba: budoucí vozová je pro rozestup křižovatek široká jako vozová (rebuildJunctionHints)', () => {
     const road = seg(1, { x: -30, z: 0 }, A, 'improved');
-    // provoz po úseku 0,3 cesty za den: pod prahem upravené (0,5), nad prahem vozové (0,25)
-    const traffic: RoadTraffic = () => 30;
-    const live = (r: Road): boolean => liveRoadEnd(r, false, traffic, [], new Set());
     const plain = rebuildJunctionHints(undefined, []);
     expect(plain.loose).toBeUndefined();
-    expect(live(plain.asBuilt(road))).toBe(live(road));
+    expect(plain.width).toBeUndefined();
     const trail = { pieces: [{ roadId: 7 }] } as unknown as Trail;
     const soon = rebuildJunctionHints({ wagon: (r) => r.id === 1 }, [trail]);
-    expect(soon.asBuilt(road).grade).toBe('wagon');
     expect(soon.width?.(road)).toBe(ROAD_LAND.widthM.wagon);
     expect([...(soon.loose ?? [])]).toEqual([7]);
-    expect(live(road)).toBe(false);
-    expect(live(soon.asBuilt(road))).toBe(true);
     // mimo budoucí vozovou beze změny
     const other = seg(2, { x: 30, z: 0 }, A, 'improved');
-    expect(soon.asBuilt(other)).toBe(other);
     expect(soon.width?.(other)).toBeUndefined();
   });
 

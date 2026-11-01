@@ -546,9 +546,12 @@ udržovacím prahem druhu klesá; když dojde na nulu, kus zmizí. Vyšlapaná a
 provozu zaroste za **5 let**, upravená (s hatí a lávkou) za **15 let**, vozová za **30 let**;
 zemská stezka a cesta ve vylepšení nezarůstají. **Udržovací práh** (návrh Clauda, `ROAD_DECAY`):
 vyšlapaná 1 cesta za den, upravená 0,5, vozová 0,25; stav kusu (plný = práh × roky × 365,25 dne) se
-sčítá po týchž intervalech jako vyšlapanost. Opuštěná cesta (žádná trasa po ní celý měsíc) se vyřadí ze
+sčítá po týchž intervalech jako vyšlapanost. ~~Opuštěná cesta (žádná trasa po ní celý měsíc) se vyřadí ze
 sítě – není ramenem křižovatky ani cestou hráče – a jen bledne, dokud nezmizí; vrátí-li se na ni
-provoz, ožije.
+provoz, ožije.~~ Návrh Clauda 1. 11. 2026 ([Křižovatka i se zarůstající
+cestou](#křižovatka-i-se-zarůstající-cestou-vlkov-1-11-2026)): cesta bez provozu jen bledne, dokud
+nezmizí, a **dokud leží, zůstává v síti** – je ramenem křižovatky i cestou hráče; vrátí-li se na ni
+provoz, ožije. Ze sítě se vyřadí jen opuštěný úsek (`abandoned` – pod stavbou, objížďka vozové cesty).
 
 ### Provoz po cestě (Martin 25. 10. 2026)
 
@@ -841,8 +844,10 @@ Nový systém přehrazení řeší sám (návrh Clauda):
 
 Návrh Clauda:
 
-- **Kdy:** v uzlu, kde končí **3 nebo 4 živé cesty** (každou vede trasa aspoň v udržovacím prahu
-  jejího druhu – opuštěná ani pahýl se nepočítá). Dvě cesty křižovatku nemají (spojí se). Pět a víc
+- **Kdy:** v uzlu, kde končí **3 nebo 4 cesty** – i zarůstající, po které už nikdo nechodí
+  (opuštěná se nepočítá; pahýly úklid odstraní dřív). ~~Každou vede trasa aspoň v udržovacím prahu
+  jejího druhu.~~ (návrh Clauda 1. 11. 2026 – [Křižovatka i se zarůstající
+  cestou](#křižovatka-i-se-zarůstající-cestou-vlkov-1-11-2026)). Dvě cesty křižovatku nemají (spojí se). Pět a víc
   se nečeká; kdyby se sešly, uzel se rozdělí na **dvě křižovatky 10 m od sebe** (u širších cest
   dál – Rozestup níž) spojené krátkou cestou – ramena se rozdělí na dvě skupiny sousedních podle
   úhlu, každá skupina 2–3 ramena plus spojka.
@@ -901,9 +906,9 @@ Návrh Clauda:
     kreslí rameno od vchodu dovnitř jako pás křižovatky. Oblouk (body po 1 m) se uloží
     zjednodušený jako ostatní osy cest (odchylka do 0,25 m) – každý bod osy zdražuje chůzi i vozy
     (Vlkov: s body po 1 m dopočet o 12 % pomalejší);
-  - **živá cesta** = provoz kusu u křižovatky aspoň udržovací práh druhu, stejně jako u zarůstání:
-    cesta, která končí ve vchodu stavby, kam se chodí, je živá (nezarůstá), zemská stezka a cesta
-    ve vylepšení taky; opuštěná ne. Ramena se posuzují každý měsíc;
+  - **rameno** = každá neopuštěná cesta, která v uzlu končí, i zarůstající (~~živá cesta = provoz
+    kusu u křižovatky aspoň udržovací práh druhu~~ – návrh Clauda 1. 11. 2026); opuštěná ne.
+    Ramena se posuzují každý měsíc;
   - **neohýbá se** vozová cesta, zemská stezka, cesta ve vylepšení a úsek kratší než 12 m (spojka
     do branky – ohnul by se celý); jejich rameno leží přesně v jejich směru, druhá pevná cesta
     navazuje, jak je (rovný kus do vchodu zatím ne);
@@ -942,7 +947,8 @@ Návrh Clauda:
     dvojice pod rozestupem – Y a Y 6,7 m, dva kříže 6 m, kříž a Y 11,7 m – mají v obou uzlech
     vozovou cestu, takže zůstávají jako přijatá výjimka).
 - **Změna:** přibude-li nebo ubude-li rameno, tvar a natočení se spočítají znovu, znamení zůstane;
-  klesnou-li živá ramena na 2, křižovatka zanikne a cesty se spojí.
+  klesnou-li ramena na 2 (cesta zarostla a zmizela, nebo je opuštěná), křižovatka zanikne a cesty
+  se spojí.
 - **Data:** `VillageRoads.junctions` – id, střed, tvar, natočení, β, ramena (id úseku ve vchodu),
   znamení, den vzniku. Úsek ví, že končí ve vchodu (konec osy = vchod).
 - **Co hráč vidí:** udusaná hlína ve tvaru kříže nebo Y – pásy ramen v šířce přicházejících cest,
@@ -952,6 +958,29 @@ Návrh Clauda:
   – Cesta přes pole](roads.md#cesta-přes-pole)).
 - **Pěšiny dne** rozcestí-plácky nemají (dřív jemný kruh `ribbonJunctions`) – čáry tras se jen
   potkají.
+
+### Křižovatka i se zarůstající cestou (Vlkov, 1. 11. 2026)
+
+Martin 1. 11. 2026 (Vlkov): vozové cesty 1394, 1275 a 1264 „se spolu střetávají, ale přesto mezi
+nimi není křižovatka“ – v panelu cesty končily „(!)“ na jiné cestě bez křižovatky, proti pravidlu 11
+(„Žádná cesta nemůže existovat jen tak sama v prostoru, vždycky musí spojovat dvě místa – kombinaci
+budov a křižovatek.“).
+
+- **Příčina:** všechny tři končily v jednom bodě (203,34; −232,44), ale po 1275 už nikdo nejezdil –
+  provoz na jejím jediném kusu 0 (udržovací práh vozové 0,25 cesty za den), stav kusu 45 % a klesá.
+  Ramena se počítala jen ze **živých** cest, takže v uzlu byla 2 → křižovatka zanikla. Spojit se ale
+  zbylé dvě nemohly – v uzlu pořád ležela třetí (spojování úseků bere každý neopuštěný úsek). Stav
+  „tři cesty v bodě bez křižovatky“ tak trval, dokud 1275 nezaroste (≈ 13 herních let). Ve
+  Vlkově takových uzlů bylo pět (vždy dvě živé a jedna zarůstající cesta, 12 konců „(!)“).
+- **Pravidlo (návrh Clauda):** ramenem křižovatky je **každá neopuštěná cesta**, která v uzlu končí
+  – i zarůstající, po které už nikdo nechodí: dokud tam leží, je to cesta, která se s ostatními
+  potkává. Zanikne až se zarůstáním (kusy na nule) – pak má uzel 2 cesty, křižovatka zanikne a cesty
+  se spojí. Opuštěná (pod stavbou, objížďka) ramenem není, ale ani nebrání spojení. Uzel tak má vždy
+  buď 2 cesty (spojí se), nebo 3–4 (křižovatka), nebo 5+ (rozdělí se) – „cesta na cestě bez
+  křižovatky“ nevzniká. Mrtvá cesta nezmizí hned – zarůstá podle druhu jako každá jiná (Zarůstání).
+- **Starší vsi** se srovnají v nejbližším měsíčním úklidu (křižovatky se počítají každý měsíc
+  i bez úklidu) – převod netřeba. Vlkov (stav z 1. 11. 2026, dopočet měsíce): 5 nových křižovatek
+  Y v těch pěti uzlech, žádná se neposunula ani nezanikla, konců „(!)“ 12 → 0; za rok beze změny.
 
 ### Ohyb ramene ne přes stavbu (26. 10. 2026)
 
@@ -1296,7 +1325,9 @@ hotové, kus staré vozové osy delší než 60 m, kam nová síť nedosáhne, s
   2586 2 m a upravená 1121 u ohrady 1958 1,5 m (dřív vyšlapaná 808 4,5 m); křižovatky J1130–J1356
   5,9 m od sebe (rozestup 12,1 m). Opraveno ve verzi 2 (níž).
 - **Rozestup křižovatek i při přestavbě** (návrh Clauda po ověření 26. 10. 2026): úsek, ze kterého
-  bude vozová cesta, je pro křižovatku nejen široký, ale i **živý jako vozová** (práh provozu vozové
+  bude vozová cesta, je pro křižovatku nejen široký, ale i **živý jako vozová** (od 1. 11. 2026
+  odpadá – ramenem je každá neopuštěná cesta, [Křižovatka i se zarůstající
+  cestou](#křižovatka-i-se-zarůstající-cestou-vlkov-1-11-2026); práh provozu vozové
   – dřív uzel vznikl až po přepočtu vozových, kdy se s vozovými rameny už nehne); úsek **zemské
   stezky** uzel při rozestupu nedrží a spojka po stezce se smí sloučit (stezka se po každém průchodu
   znovu najde); po vrácení kusu staré vozové osy se síť **ustálí znovu ještě před přepočtem
