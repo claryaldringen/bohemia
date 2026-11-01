@@ -3,7 +3,7 @@
 Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). Pravidla a rozhodnutí: vision.md, accounts.md v `docs/design/`.
 
 - **Web:** server actions `app/game/actions.ts` (`getVillageView`, `selectVillage`, `foundVillage`,
-  `foundDevVillage`, `placeDwelling`, `relocateHousehold`, `cancelConstruction`, `leaveVillage`,
+  `placeDwelling`, `relocateHousehold`, `cancelConstruction`, `leaveVillage`,
   `settleJourney`, `placeWorkshop`,
   `placeField`, `placeCemetery`, `placeOrchard`, `placeSacred`, `placePen`,
   `buildTrail`, `sendExpedition`, `declareHunt`, `renameVillage`, `nameLineMan` → `VillageView` / `null` / `{ error }`; `restartGame(input?)` → `{ ok: true }` /
@@ -118,9 +118,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `dynastyForVillage` v `application/dynasty-for-village.ts`): pohled (`viewOf`), nabídka panelu
   (`panelOptionsForPlayer`) i akce (`guardedAction`) volají `dynastyOfPlayer(playerId, today,
 villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočte do dneška zobrazená
-  ves každá jiná nespící ves **téže mapy** (kontrola umístění při akci – `neighboursOf` – a nabídka panelu musí vidět sousedy aktuální; `mustAdvanceNow`, stejně `currentVillageViewStamp`) a každá jiná nespící ves víc než `WORKER_LAG_DAYS` = 3 herní dny (≈ 4 min; Martin 31. 10. 2026) pozadu (`lagsBehindWorker` – worker neběží nebo dohání výpadek); ostatní vsi téže
-  mapy se načtou celé, jak jsou uložené (`find` přes paměť vsí – sousedé na mapě), **vsi jiných
-  map jen souhrnem** (`digestsOf` → `VillageDigestRecord`, sloupec `village.digest` – viz
+  ves a každá jiná nespící ves víc než `WORKER_LAG_DAYS` = 3 herní dny (≈ 4 min; Martin 31. 10. 2026) pozadu (`lagsBehindWorker` – worker neběží nebo dohání výpadek; `mustAdvanceNow`, stejně `currentVillageViewStamp` – jedna ves, jedna mapa, sousedy na téže mapě dopočítávat netřeba); **ostatní vsi
+  jen souhrnem** (`digestsOf` → `VillageDigestRecord`, sloupec `village.digest` – viz
   docs/code/worker.md, Souhrn vsi): přepínač (`villageListItem` – celá ves jde přes týž
   `villageDigest`, takže položka je táž), otisk pohledu (id, jméno, verze) a vlastní mapy kolem
   (`ownMapsAround`) stav nepotřebují. Výsledek je `DynastyView` (vsi `DynastyVillage` – celá
@@ -131,8 +130,7 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   dopočet; ze smíšených dnů ho ověří plný dopočet `advanceDynasty` – smíšené dny nikdy neukážou falešný
   konec rodu. **Bez workeru** ostatní vsi (jiných map) zaostávají až 3 herní dny (≈ 4 min): přepínač ukazuje
   jejich starší stav, konec rodu rozhodnutý v jiné vsi se ukáže až o ≤ 4 min později (do té doby web
-  přijímá akce) a nová ves syna ze schránky nezobrazené vsi se objeví se zpožděním (Martin 31. 10. 2026 – mez 3 herní dny); sousedé na téže mapě jsou vždy aktuální. Plný dopočet (`dynastyStatus`) dál dělá skok v čase a restart. Vsi na téže mapě: web je dopočte
-  do dneška; worker je počítá po dávkách, takže sousedé ve workeru mohou být až o dávku staří. Testy `dynasty-for-village.test.ts` (pod mezí / nad mezí, determinismus zobrazené vsi
+  přijímá akce) a nová ves syna ze schránky nezobrazené vsi se objeví se zpožděním (Martin 31. 10. 2026 – mez 3 herní dny). Plný dopočet (`dynastyStatus`) dál dělá skok v čase a restart. Testy `dynasty-for-village.test.ts` (pod mezí / nad mezí, determinismus zobrazené vsi
   a zbytku, akce, skutečný i falešný konec rodu, schránka správce, souhrn = plné stavy, ves bez
   souhrnu, konec rodu ze souhrnů); `village-list.test.ts` – položka přepínače ze souhrnu je táž
   jako z celého stavu (hlad, humno, počasí roku, povodeň, pohroma, správce, vymřelá, opuštěná,
@@ -181,7 +179,7 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   načtený dřív v témže požadavku, dokud levný otisk (`stampsOf` – verze a jméno) sedí, `save`
   paměť obnoví a neúspěšné uložení ji pro ves zahodí (optimistický zámek a opakování platí dál).
   Akce tak načte každou ves jednou místo ověření vsi + dopočtu + use-case + pohledu (≥ 4×)
-  a `neighboursOf` bere ostatní vsi mapy z paměti (dopočet všech vsí hráče je načítá stejně). Změna jména verzi
+  (dopočet všech vsí hráče je načítá stejně). Změna jména verzi
   nemění, proto je jméno v otisku zvlášť. e2e testy po přímé změně uložené vsi volají háček
   `pollVillage` (`lib/e2e-hooks.ts`) – sám by dotaz přišel až s dalším herním dnem.
 
@@ -190,8 +188,8 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
 
 - **Rozhraní jako v 0 A.D., bez popisků a průvodce** (Martin): `components/game/VillageGame.tsx`
   skládá `hud/` – `TopBar` (jméno vsi = přepínač vsí `hud/VillageSwitcher.tsx` – klik otevře
-  seznam vsí hráče se jménem a lidmi, klik na ves ji přepne – ves na téže mapě na místě, na jiné
-  mapě novým načtením stránky; přejmenování dvojklikem nebo tužkou; upozornění z jiné vsi
+  seznam vsí hráče se jménem a lidmi, klik na ves ji přepne – ves na jiné mapě novým načtením
+  stránky (jedna ves, jedna mapa); přejmenování dvojklikem nebo tužkou; upozornění z jiné vsi
   krátkým řádkem se jménem vsi – `otherVillageNotices`; ikony s čísly: lidé a kolik jich pole uživí v jedné ikoně („31 / ≈ 22“, `peopleLabel`), obilí, luštěniny
   (ikona `legumes`, když jsou v zásobě, na poli nebo v jídle – `showsLegumes`), maso,
   sýr (ikona `cheese`, v popisku mléko za den) když je mléko nebo sýr, ovoce (jablka) jen když
@@ -218,9 +216,8 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   se zalomit smí – `whitespace-normal`; náhled bez hry s nejbohatšími daty:
   http://localhost:3010/dev/panels (`?panel=dvorec`, `ohrada`, `pole`, `pole-dil`, `rudiste`… – `app/dev/panels/dev-panels.ts`,
   i seznam vsí a nabídka hry); u obydlí a víc vybraných obydlí – počet domácností a lidí –
-  tlačítka Přestěhovat po typu nového domu a Odejít – růžice odchodu `LeaveCompass`: uprostřed
-  nová ves na téže mapě (umístění první zemnice nejméně 300 m od staveb všech vsí mapy, pak se
-  rozhraní přepne), kolem 8 směrů nové mapy (dny cesty, lidé a jídlo v popisku, směr s vlastní
+  tlačítka Přestěhovat po typu nového domu a Odejít – růžice odchodu `LeaveCompass`: 8 směrů nové
+  mapy, uprostřed nic (jedna ves, jedna mapa – „sem“ zrušené 1. 11. 2026) (dny cesty, lidé a jídlo v popisku, směr s vlastní
   vsí zašedlý) –, průběh stěhování se Zrušit – `hud/RelocationControls.tsx`; u víc domácností se
   nové domy umisťují postupně, po umístění jednoho hned další jako Shift + klik; **odchod syna
   vojvody** (lord.md – Dělení vsi): pohled `dynasty.sons` (`lib/dynasty-view.ts`, z `leadingSons` /
@@ -232,8 +229,8 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   `departFromVillage` (`dwellingIds` nebo `sonId`) → server action `leaveVillage` (`{ villageId, sonId, destination }`,
   `parseLeaveVillageInput`) → `leaveVillageForPlayer`; ves na cestě
   ukáže řádek `JourneyBanner` a po příjezdu nabídne jen zemnici – `settleJourney`; stavby jiných
-  vsí na téže mapě se kreslí s vlastními a nevybírají – `lib/scene/neighbour-villages.ts`,
-  `SceneVillage.neighbours`, pohled `lib/departure-view.ts`), `BuildGrid` (vpravo dole), `NoticeLines` (mizející řádky nahoře),
+  vsí na téže mapě (od 1. 11. 2026 nejsou – zbylý kód `lib/scene/neighbour-villages.ts`,
+  `SceneVillage.neighbours` je mrtvý, k odstranění), pohled `lib/departure-view.ts`), `BuildGrid` (vpravo dole), `NoticeLines` (mizející řádky nahoře),
   `CursorReason` (jde s kurzorem při umisťování: u prošlého umístění **cena ikonami s čísly** –
   práce celkem v člověkodnech i s překážkami, u obydlí i s kácením, a ikona stromů s počtem
   stromů ke kácení, když nestačí klády, u modly a svatyně ikona dubu s počtem dubů ke kácení –

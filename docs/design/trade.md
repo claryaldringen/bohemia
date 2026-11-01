@@ -365,7 +365,7 @@ Návrh Clauda (18. 10. 2026) – detaily, které návrh výš nechal otevřené:
 - **Dny cesty:** 2 dny do 400 m stezky, každých dalších 250 m den navíc, nejvýš 6, a 1 den za
   krajem mapy (tedy 3–7 dní celkem).
 - **Sousedé:** povaha ze seedu vsi a směru (`neighbourOf` – dokud mapy nemají polohu ve světě,
-  stojí za „seed světa“ seed vsi; dvě vsi na téže mapě tak mají každá své sousedy). Od 19. 10.
+  stojí za „seed světa“ seed vsi; od 1. 11. 2026 má mapa jen jednu ves – jedna ves, jedna mapa). Od 19. 10.
   2026 má soused druh (`neighbourKind` – každý ze 4 druhů dvakrát kolem vsi) a podle něj nabízí
   2–3 druhy zboží a shání 2–3 – viz [Jen společné suroviny](#jen-společné-suroviny); do té doby
   nabízel aspoň jedno zboží zvenku. Roční zásoba každého nabízeného zboží v hodnotě 600–1 500 kg

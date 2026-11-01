@@ -74,7 +74,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   kroniku rodu). `spouseId` u ženy = její muž (i vedlejší manželky), u muže hlavní manželka –
   `wivesOf`, `mainWifeOf`, `isSecondaryWife`. **Ves bez rodu** (`lords: []`, `NO_DYNASTY`,
   `isDynastyTracked` false) se chová jako před rodem – zakládá ji `foundVillage` bez `lord`
-  (testy, e2e seed, starší varianty kalibrace, vývojová druhá ves `foundDevVillage`)
+  (testy, e2e seed, starší varianty kalibrace)
   i `travellingVillage`.
   - **Zakladatelé** (lord.md – Zakladatelé; Martin 24. 10. 2026: „Vesnici zakládá vojvoda a jeho
     rodina.“): `foundVillage({ …, lord: { name? } })` – vojvoda (`LORD.founders.lordAge` 25, id
@@ -85,8 +85,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     (nikdo mimo rodinu – `familyTrains` false). Bez `lord` dva páry `START_AGES`. Osadníci
     (`settlers`) zakladatele nemění – vojvodou je nejstarší muž rodu mezi nimi (jeho jméno
     zůstane), bez něj ves bez rodu (`lord` se nepoužije). Web zakládá první ves vždy s rodem
-    (`foundVillageForSettlement`, `lordName?`); `foundAnotherVillage` a odchod (`foundedVillageState`
-    bez `lord`) beze změny.
+    (`foundVillageForSettlement`, `lordName?`); odchod (`foundedVillageState` bez `lord`) beze
+    změny.
   - **Jména od hráče** (lord.md – Jména): `checkPersonName` (`dynasty-names.ts`) – po
     `normalizePersonName` (NFC, ořez) jen `\p{L}`, 1–`LORD.nameMaxLength` (20) znaků (počítá se
     `[...name]`); důvody „Jen písmena.“, „Nejvýš 20 písmen.“, prázdné „Vojvoda potřebuje jméno.“ /
@@ -218,17 +218,20 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `relocateHousehold` (`relocate-household.ts`, důvody česky `RELOCATION_BLOCKED`).
 
 - **Víc vsí jednoho hráče** (migration.md, fáze 2): sídlo (`settlement`) = mapa s krajinou,
-  na jedné mapě může být víc vsí (`village.id` je primární klíč, `settlement_id` jen cizí klíč);
+  **jedna ves, jedna mapa** (Martin 1. 11. 2026) – `village.id` je primární klíč, `settlement_id`
+  cizí klíč s unikátním indexem `village_settlement_uq` (migrace `0011`);
   nová mapa = nové sídlo s polohou v mřížce map (`settlement.grid_x` / `grid_y`, port
   `Settlement.worldCell`, `SettlementRepository.create` – mřížka je zatím každého hráče zvlášť,
   políčko nejvýš jedno aktivní na hráče; `assignWorldCell` dá sídelnímu sídlu (0, 0)).
   Port `VillageRepository` jde podle id vsi (`find`, `save`, `rename`), `listBySettlement`,
-  `create` (první ves sídla – atomicky, zámek řádku sídla) a `add` (další ves). Use-casy berou
+  `create` (ves sídla – atomicky, zámek řádku sídla; sídlo s vsí → null), `addOnce` (schránka
+  správce – sídlo s jinou vsí → null); `add` (další ves sídla) je pryč. Use-casy berou
   `villageId`; `findPlayerVillage` ověří, že ves patří hráči (sídlo mezi jeho aktivními),
   `firstPlayerVillage` = výchozí ves (sídelní sídlo první). `dynastyStatus` projde všechny vsi
   všech aktivních sídel (konec hry až po vymření všech), `restartGame` archivuje všechna sídla.
-  `foundAnotherVillage` = další ves téhož sídla nejméně `NEW_VILLAGE_MIN_DISTANCE_M` (300 m)
-  od staveb ostatních (`villages-apart.ts`).
+  `foundVillageForSettlement` sídlo s vsí odmítne (`ALREADY_FOUNDED`); `foundAnotherVillage`,
+  `NEW_VILLAGE_MIN_DISTANCE_M` a `villages-apart.ts` jsou pryč – `village-site.ts` má jen
+  `freeVillageSite(landscape, obstacles)` pro příjezd vsi na cestě se správcem.
 
 - **Odchod do nové vsi** (migration.md, fáze 3 a 4; `departure.ts`): `departVillage` – domácnosti
   vybraných obydlí odejdou celé (rodokmen – rodiče osadníků jako předci, odešlí ve staré vsi
@@ -249,19 +252,19 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `VILLAGE_TRAVELLING`), pohled ji ukáže přes `abandonedVillageAt` (domy chátrají podle dne
   odchodu, pak jámy; pole ladem); `isGameOver` ji počítá jako mrtvou. Nová ves z osadníků:
   `foundVillage({ settlers })` – jedna domácnost na staveništi první zemnice, id lidí ze staré
-  vsi. Use-case `leaveVillage` (`leave-village.ts`): na téže mapě (`here` – místo první zemnice
-  ověří proti stavbám všech vsí mapy a 300 m dřív, než lidé odejdou, pak `add`), nebo na novou mapu
-  (`map` – sídlo vedle ve směru `neighbourCell` z `world-grid.ts`, `generateAcceptedLandscape`,
+  vsi. Use-case `leaveVillage` (`leave-village.ts`): jen na novou mapu – jiný cíl než `map`
+  (dřívější `here`) odmítne `LEAVE_ONLY_TO_NEW_MAP` (`map` – sídlo vedle ve směru `neighbourCell` z `world-grid.ts`, `generateAcceptedLandscape`,
   prázdné vlastní sídlo na políčku se použije znovu, vlastní ves tam → `OWN_MAP_THERE`; ves na
-  cestě `travellingVillage` s `VillageState.journey`, dny `travelDays` – 1–3 podle
-  `edgeDistanceM` od dvorce, po hotové stezce 1). `settleJourney` po příjezdu založí ves
-  (`settlersOf`). **Vsi na téže mapě o sobě vědí:** `neighbourSnapshot` (`neighbourhood.ts`) –
+  cestě `travellingVillage` s `VillageState.journey` – `create` na novém sídle, dny `travelDays`
+  – 1–3 podle `edgeDistanceM` od dvorce, po hotové stezce 1). `settleJourney` po příjezdu založí
+  ves (`settlersOf`). **Vsi na téže mapě** (od 1. 11. 2026 nejsou – jedna ves, jedna mapa;
+  `updateVillage` přehled už nepřipojuje, `NeighbourSnapshot.villages` je pryč, zbylé čtení
+  `state.neighbours` je mrtvý kód k odstranění): `neighbourSnapshot` (`neighbourhood.ts`) –
   stavby a políčka jiných vsí mapy (natočené čtverce polí, sadů, hřbitovů, ohrad a lesa
   s mřížkou zvlášť v `squares`, natočený pozemek jen jako tvar obydlí – fields.md, Natočené
   stavby), jejich
   odstraněné, pokácené a vyhrazené stromy;
-  `updateVillage` ho připojí (`withNeighbours`, jen když na mapě jiná ves je – otisk napřed)
-  a před uložením odebere. `obstacleChangesAt` a `reservedTrees` ho započítají (kácení se
+  `updateVillage` ho připojoval (`withNeighbours`) a před uložením odebral (`neighboursOf` – pryč). `obstacleChangesAt` a `reservedTrees` ho započítají (kácení se
   nekříží), `placementVillageOf` dává `PlacementVillage.foreign` – kontroly umístění
   (`checkFootprintFree`, čtverce `foreign`, pozemky – rejstřík cizí půdy `foreignIndex` podle
   skutečných ploch) odmítnou `FOREIGN_LAND`; v prohlížeči totéž `foreignFromScene`.

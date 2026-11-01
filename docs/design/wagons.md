@@ -312,7 +312,7 @@ Podrobnosti jsou návrh Clauda (čísla `CART_IRON` v `rules.ts`, modul `cart-ir
   kovárna, která má kde kopat rudu a odkud brát uhlí (bez uhlí jen s uhlířem ve vsi).
 - **Ves bez kováře:** syn tesaře **od 14 let** (nejstarší), jinak tesař sám, dojde do **nejbližší
   vsi s kovářem** a přinese kování:
-  - **druhá ves hráče na téže mapě** – obývané kovárny jiných vsí mapy jsou v přehledu sousedních
+  - ~~**druhá ves hráče na téže mapě**~~ (od 1. 11. 2026 není – jedna ves, jedna mapa) – obývané kovárny jiných vsí mapy jsou v přehledu sousedních
     vsí (`NeighbourSnapshot.smithies`, se jménem vsi); jde se krajinou rovně ke kovárně, celou cestu
     je vidět. Dny tam a zpět jako nákup u sousedů krajinou (vzdálenost × 1,5, dny jako výprava) bez
     dne za krajem mapy (2–6 dní),
@@ -320,7 +320,7 @@ Podrobnosti jsou návrh Clauda (čísla `CART_IRON` v `rules.ts`, modul `cart-ir
     zemské stezce, nebo krajinou ke kraji mapy od dílny tesaře (`purchaseRoute`).
 
   **Cíl a dopravu ves volí podle nejmenší práce vsi celkem** (`ironOptions`, `ironPlan`): ze všech
-  vsí s kovářem (sousedé, jiná ves na téže mapě) a obou způsobů – vozem po stezce sjízdné pro vozy
+  vsí s kovářem (sousedé; jiná ves na téže mapě od 1. 11. 2026 není) a obou způsobů – vozem po stezce sjízdné pro vozy
   (tesař a sedlák × dny cesty), nebo pěšky s nosiči (tesař a nosiči × dny, víc cest u malé vsi) –
   ta s nejmenšími člověkodny; při shodě kratší cesta. Vozem jen s volným vozem. Proto může ves jet
   vozem k dalšímu kováři místo s nosiči k nejbližšímu. **Platba obilím** jako nákup nástrojů

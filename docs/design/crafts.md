@@ -874,7 +874,8 @@ návrh Clauda; čísla v `rules.ts` (`CRAFT_BUYING`), rešerše
   s platbou tam a s výrobky zpátky, po hotové stezce, jinak rovně krajinou od dvorce ke kraji mapy;
   jde-li vícekrát, karavana jde každou cestu zvlášť.
 - **Námět (zatím ne):** nákup u hráčovy vlastní vsi v sousední mapě, když tam řemeslník je –
-  simulace jedné vsi o jiných mapách neví (jen o vsích na téže mapě – `neighbourSnapshot`); šlo
+  simulace jedné vsi o jiných mapách neví (vsi na téže mapě od 1. 11. 2026 nejsou – jedna ves,
+  jedna mapa); šlo
   by přidat podobný snímek sousedních map v `updateVillage`. Do té doby simulace počítá i ve směru
   vlastní vsi se sousedem bez simulace.
 

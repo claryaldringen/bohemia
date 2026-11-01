@@ -31,12 +31,10 @@ Auth vzniká líně přes `getAuth()` – `next build` stránky jen importuje a 
   (tabulka `player_time_offset`, port `TimeOffsetRepository`) a dopočítá jeho vsi. Dnešní den
   hráče je vždy `playerToday` z `lib/game.ts` (den světa + posun, nejvýš 31. 12. 1499) – nikdy
   `gameDayIndex` přímo; prohlížeč dostane posun se stránkou a hodiny posune `shiftWorldClock`
-  (datum v liště, roční období a dým ve scéně). Posun jen roste, platí i bez `devMode`. Vedle
-  šipek je i tlačítko **Druhá ves na téže mapě** (server action `foundDevVillage` → use-case
-  `foundDevVillage`, bez `devMode` odmítne) – jen pro vyzkoušení přepínače vsí, dokud odchod do
-  nové vsi (migration.md, fáze 3 a 4) není: nová ves se 4 lidmi na nejbližším volném místě
-  aspoň 300 m od ostatních (`freeVillageSite`), lidé ze staré vsi neodcházejí.
-  Dál **Vynutit zlý rok** a **Vynutit pohromu** (`DevDisasterButtons` v `TopBar` – každé otevře
+  (datum v liště, roční období a dým ve scéně). Posun jen roste, platí i bez `devMode`. (Tlačítko
+  **Druhá ves na téže mapě** – `foundDevVillage` – je od 1. 11. 2026 pryč: jedna ves, jedna mapa;
+  e2e přepínače vsí zapíše druhou ves na mapu vedle rovnou do databáze – `villageOnNextMap`.)
+  Vedle šipek **Vynutit zlý rok** a **Vynutit pohromu** (`DevDisasterButtons` v `TopBar` – každé otevře
   řadu ikon druhů): server action `forceDevDisaster` (`{ villageId, kind: 'year' | 'disaster',
 value }`, `parseDevDisasterInput`) → use-cases `forceBadYear` / `forceDisaster`
   (`application/dev-disasters.ts`, bez `devMode` odmítnou). Zlý rok zapíše letošní léto nebo zimu

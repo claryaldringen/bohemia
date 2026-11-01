@@ -223,7 +223,7 @@ Beze změny (milíř u buků – crafts.md); nošení uhlí ke kováři je dnes 
   „na rudišti ani hliništi by vzniknout neměla, v háji je to jedno“; háje, zbytky jam a milířiště
   beze změny), mimo obydlí, pozemky, stavby, humna a jejich vstup, milíře, pevné
   cesty a zemní práce vozových cest (pláň i svahy úvozu a náspu celé plánované osy), mimo stavby
-  a půdu jiných vsí na téže mapě, bez stromu, keře či kamene na místě, aspoň 3 m od ostatních
+  a půdu jiných vsí na téže mapě (od 1. 11. 2026 nejsou – jedna ves, jedna mapa), bez stromu, keře či kamene na místě, aspoň 3 m od ostatních
   jam – jámy se drží pohromadě. Když do 60 m nic není, hledá se dál až do 180 m; ani tam nic –
   novou jámu letos nevykopou a zrno navíc zůstane mimo jámy (do prázdných jam se plní dál; příští
   rok se místo hledá znovu). Místo vybírá jen server (simulace), scéna dostane polohy jam –
@@ -239,7 +239,8 @@ Beze změny (milíř u buků – crafts.md); nošení uhlí ke kováři je dnes 
   milíř, čtverce pole, sadu, hřbitova a ohrady) i pro zemní práce vozové cesty – pláň a svahy úvozu
   a náspu celé plánované osy, hotové i rozestavěné. Stavba **jiné vsi** na téže mapě jámu
   neodstraní – změnila by stav dvou vsí naráz; jámy se proto kopou jen na vlastní půdě, mimo
-  stavby a půdu jiných vsí (návrh Clauda).
+  stavby a půdu jiných vsí (návrh Clauda; jiné vsi na téže mapě od 1. 11. 2026 nejsou – jedna ves,
+  jedna mapa).
 - **Opakovaně:** prázdná jáma se znovu naplní příští sklizní (jen naplnit a zapečetit); nové se
   kopou, jen když staré nestačí. Prázdná jáma po **10 letech** od vykopání se zasype a kope se
   nová (rešerše: jámy na Butser vydržely i 17 let – stěny se ale čištěním a vypalováním drolí).
