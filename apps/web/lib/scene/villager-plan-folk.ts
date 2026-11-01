@@ -309,10 +309,21 @@ export const SNARE_EDGE = {
  */
 export function snarers(ctx: Context): Placer {
   const c = ctx.center;
-  const trees = ctx.ground
-    .treesIn(c.x, c.z, SNARE_EDGE.reachM, SNARE_EDGE.trees)
-    .map((t) => ({ ...t, d: Math.hypot(t.x - c.x, t.z - c.z) }))
-    .sort((a, b) => a.d - b.d || a.x - b.x || a.z - b.z);
+  // `treesIn` ořízne stromy v pořadí indexu, ne podle vzdálenosti – hledá se ve čtvercích od
+  // malého: celý čtverec (pod stropem) s dost stromy v kruhu dává opravdu nejbližší
+  const need = (SNARE_EDGE.figures - 1) * SNARE_EDGE.every + 1;
+  let trees: { x: number; z: number; d: number }[] = [];
+  for (let half = SNARE_EDGE.reachM / 8; ; half *= 2) {
+    const reach = Math.min(half, SNARE_EDGE.reachM);
+    trees = ctx.ground
+      .treesIn(c.x, c.z, reach, SNARE_EDGE.trees)
+      .map((t) => ({ ...t, d: Math.hypot(t.x - c.x, t.z - c.z) }))
+      .sort((a, b) => a.d - b.d || a.x - b.x || a.z - b.z);
+    const complete = trees.length < SNARE_EDGE.trees;
+    if (reach >= SNARE_EDGE.reachM || (complete && (trees[need - 1]?.d ?? Infinity) <= reach)) {
+      break;
+    }
+  }
   return (i) => {
     if (i >= SNARE_EDGE.figures) return null;
     const tree = trees[i * SNARE_EDGE.every];
