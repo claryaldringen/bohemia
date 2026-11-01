@@ -372,7 +372,7 @@ píšťala, buben) stojí v prostoru postavy (natáčí se s ní) i v klipu 0 A.
   0,45 kola, s hotovou dřevěnou prací celý) stojí před dílnou (`CARPENTER_CART` –
   `carpenterCartSpot`, oj podél vchodu). Kreslí ho **cart-renderer.ts z dílů `wagons.glb`** jako
   stojící vůz bez id (`buildingCartPlans` ve village-carts.ts, `CartParked.build`): fáze 1 korba
-  rovně na špalcích bez kol (`buildingCartPose`, náprava `CART_BLOCKS_M` nad zemí), 2 korba
+  rovně spodkem na zemi bez kol (`buildingCartPose`, `CART_BODY_LOW_M`), 2 korba
   s koly (čtyřkolák i s předkem), 3 celý s ojí (`buildingCartParts`) – žádný nový model ani draw
   call. Tesař s pomocníkem stojí u korby (`carpenterCartSpots` – po bocích a u zadku, klip
   `build`), role fází `cart`: otesává díly (`split` – sekera a špalek), staví vůz (póza úlohy);

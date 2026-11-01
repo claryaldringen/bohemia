@@ -1095,7 +1095,7 @@ export interface CartShuttle {
 
 /**
  * Vůz stojící u ohrady bez volů – nebo rozdělaný u tesaře (`build` – fáze stavby, SceneCraftYard:
- * 1 korba na špalcích bez kol, 2 korba s koly, 3 celý vůz bez kování).
+ * 1 korba na zemi bez kol, 2 korba s koly, 3 celý vůz bez kování).
  */
 export interface CartParked {
   id?: number;
@@ -1104,12 +1104,16 @@ export interface CartParked {
   build?: 1 | 2 | 3;
 }
 
-/** Výška nápravy rozdělané korby na špalcích nad zemí (m; fáze 1 – bez kol, návrh Clauda). */
-export const CART_BLOCKS_M = 0.28;
+/**
+ * Spodek korby v modelu nad zemí (m, wagons.glb – nejnižší bod `wagon2-body` i `wagon4-body`):
+ * rozdělaná korba bez kol (fáze 1) jím leží na zemi – špalky pod ní se nekreslí, ať nevisí ve
+ * vzduchu (návrh Clauda).
+ */
+export const CART_BODY_LOW_M = 0.342;
 
 /**
- * Rozdělaný vůz u tesaře: fáze 1 – korba rovně na špalcích (náprava ve výšce `CART_BLOCKS_M`,
- * kola ani předek nejsou), jinak jako stojící vůz (kola a oj ukáže cart-renderer podle fáze).
+ * Rozdělaný vůz u tesaře: fáze 1 – korba rovně spodkem na zemi (`CART_BODY_LOW_M`, kola ani
+ * předek nejsou), jinak jako stojící vůz (kola a oj ukáže cart-renderer podle fáze).
  */
 export function buildingCartPose(
   kind: CartKind,
@@ -1125,7 +1129,7 @@ export function buildingCartPose(
   const body = out.body;
   axes(h.x, 0, h.z, -h.z, 0, h.x, body);
   body.x = spot.x - body.ux * CART_PARTS.hubY * k;
-  body.y = ground(spot.x, spot.z) + CART_BLOCKS_M * k - body.uy * CART_PARTS.hubY * k;
+  body.y = ground(spot.x, spot.z) - body.uy * CART_BODY_LOW_M * k;
   body.z = spot.z - body.uz * CART_PARTS.hubY * k;
   copyFrame(body, out.front);
   return out;

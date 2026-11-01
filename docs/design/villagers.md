@@ -880,7 +880,7 @@ a `lib/village-view.ts`, rozvrh je znovu nedefinuje – `PersonJob`, `LaborActiv
     zápis do `docs/code/village-crafts.md` a `village-fields.md`. Tuto úlohu lze dělat až po 8.
     **Implementováno 1. 11. 2026** (ve scéně neověřeno – Vlkov): rozdělaný vůz tesaře stojí před
     dílnou (`CARPENTER_CART`) **po fázích z průběhu dřevěné práce** (`SceneCraftYard.cart` –
-    `cartBuildStage`: do 45 % korba na špalcích bez kol, pak s koly a předkem, s hotovou dřevěnou
+    `cartBuildStage`: do 45 % korba na zemi bez kol, pak s koly a předkem, s hotovou dřevěnou
     prací celý vůz s ojí, který čeká na kování) – díly z `wagons.glb` v cart-renderer.ts (žádný
     nový model ani draw call). Tesař s pomocníkem stojí u korby (`carpenterCartSpots`), role
     `cart`: otesává díly (`split` – sekera a špalek), staví vůz (`build` s paličkou). Stoh u

@@ -2,8 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { SceneCart, SceneVillage } from '../../village-view';
 import {
   buildingCartParts,
-  CART_BLOCKS_M,
-  CART_PARTS,
+  CART_BODY_LOW_M,
   CART_SCALE,
   cartPlanPose,
   createCartPose,
@@ -231,7 +230,7 @@ describe('rozdělaný vůz u tesaře (úloha 11)', () => {
     expect(Math.hypot(spot.x - 30, spot.z + 12)).toBeLessThan(8);
   });
 
-  it('fáze 1 korba na špalcích bez kol, 2 s koly a předkem, 3 celý vůz s ojí', () => {
+  it('fáze 1 korba na zemi bez kol, 2 s koly a předkem, 3 celý vůz s ojí', () => {
     expect(buildingCartParts('four-wheel', 1)).toEqual({
       wheels: false,
       front: false,
@@ -252,12 +251,9 @@ describe('rozdělaný vůz u tesaře (úloha 11)', () => {
     const b = cartPlanPose(whole!, 0, createCartPose());
     expect(a.leg).toBe('parked');
     expect(a.hitched).toBe(false);
-    // bez kol leží korba rovně a níž – náprava ve výšce špalků
+    // bez kol leží korba rovně a níž – spodkem na zemi (nevisí ve vzduchu)
     expect(a.body.fy).toBeCloseTo(0, 9);
-    expect(a.body.y + a.body.uy * CART_PARTS.hubY * CART_SCALE).toBeCloseTo(
-      CART_BLOCKS_M * CART_SCALE,
-      6,
-    );
+    expect(a.body.y + a.body.uy * CART_BODY_LOW_M * CART_SCALE).toBeCloseTo(0, 6);
     expect(a.body.y).toBeLessThan(b.body.y);
   });
 });
