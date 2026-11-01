@@ -439,8 +439,17 @@ export function rideHorsePose(
   out.forwardZ = state.headingZ;
   out.head = 0;
   const stride = (state.pace > RIDE_PACE.walk ? STRIDE_M.trot : STRIDE_M.walk) * RIDE_HORSE_SCALE;
-  out.stride = state.riding ? Math.sin((2 * Math.PI * state.distance) / stride) : 0;
+  out.stride =
+    state.riding && !waiting(plan, state) ? Math.sin((2 * Math.PI * state.distance) / stride) : 0;
   return out;
+}
+
+/**
+ * Kůň v bloku jízdy stojí na začátku trasy – skupina se teprve rozjíždí (jezdec za čelem čeká,
+ * než je na něj místo) nebo se už vrátila.
+ */
+function waiting(plan: RidePlan, state: RideState): boolean {
+  return state.distance - plan.behind <= 0;
 }
 
 /**
@@ -455,9 +464,18 @@ export function riderPose(plan: RidePlan): PoseFn {
     out.headingZ = state.headingZ;
     out.pace = 1;
     if (state.riding) {
+      // na koni je vidět vždy – i když ho rozvrh posílá domů (doma, konec průvodu, povodeň);
+      // kůň nikdy nejede bez jezdce (horses.md – Ve scéně)
+      out.hidden = false;
+      delete out.stage;
       out.x = state.x;
       out.z = state.z;
-      out.clip = state.pace > RIDE_PACE.walk ? 'ride-trot' : 'ride';
+      // na stojícím koni sedí klidně (klip 0 A.D. `rider/…/idle_relax_01`)
+      out.clip = waiting(plan, state)
+        ? 'ride-idle'
+        : state.pace > RIDE_PACE.walk
+          ? 'ride-trot'
+          : 'ride';
       out.lift = RIDER_SEAT_M * RIDE_HORSE_SCALE;
       return out;
     }

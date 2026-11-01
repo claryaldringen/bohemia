@@ -86,13 +86,27 @@ export const CRAFT_YARD_STEPS = {
   clayKg: [0.5, 30, 120],
 } as const;
 
+/**
+ * Fáze rozdělaného vozu u tesaře podle průběhu dřevěné práce 0–1 (villagers.md – Fáze činností,
+ * Tesař; návrh Clauda): napřed korba (ložní plocha, vůz na špalcích bez kol), od `wheels` korba
+ * s koly, s hotovou dřevěnou prací celý vůz (čeká na kování – wagons.md, Kování vozů).
+ */
+export const CART_BUILD_STAGES = { wheels: 0.45 } as const;
+
+/** Fáze stavby vozu 1–3 z průběhu dřevěné práce 0–1 (`CART_BUILD_STAGES`). */
+export function cartBuildStage(progress: number): 1 | 2 | 3 {
+  if (progress >= 1 - 1e-9) return 3;
+  return progress >= CART_BUILD_STAGES.wheels ? 2 : 1;
+}
+
 /** Stupeň zásoby 0–3: kolik hranic `steps` množství `kg` dosáhlo. */
 export function yardStage(kg: number, steps: readonly number[]): number {
   return steps.filter((step) => kg >= step).length;
 }
 
 /**
- * Dvůr hotové obývané dílny pro scénu (`SceneCraftYard`) – jen čtení stavu: kovář – činnost dne,
+ * Dvůr hotové obývané dílny pro scénu (`SceneCraftYard`) – jen čtení stavu: tesař – rozdělaný vůz
+ * po fázích (`cartBuildStage`); kovář – činnost dne,
  * měchař u tavby (syn 10–13 z rozdělení práce dne, nebo dospělý z domácnosti – `smithBellows`),
  * houba a hřivny po stupních; hrnčíř – hlína v jámě po stupních a šlapání, když dnes vyrábí.
  * Jiná řemesla nic.
@@ -105,6 +119,12 @@ export function craftYard(
 ): SceneCraftYard | null {
   const w = dwelling.workshop;
   if (!w) return null;
+  if (w.craft === 'carpenter') {
+    // rozdělaný vůz roste se dnem výroby (průběh dřevěné práce – workCarpenter v jádru)
+    if (!w.cart) return null;
+    const progress = w.cart.done / CARPENTRY.cartManDays[w.cart.kind];
+    return { cart: { kind: w.cart.kind, stage: cartBuildStage(progress) } };
+  }
   if (w.craft === 'potter') {
     const clay = yardStage(w.clayKg ?? 0, CRAFT_YARD_STEPS.clayKg);
     const treading = w.activity === 'producing' && clay > 0;
@@ -472,6 +492,27 @@ function haulLoad(state: VillageState, share: LaborShare): CartLoad {
  * dílů, políčko louky, strom stavby), mimo svoz k milíři a na břeh pro vodu (wagons.md – Co vozy
  * vozí); výprava – od ohrady na začátek zemské stezky a po ní ke kraji mapy. Bez cíle null.
  */
+/** Jak blízko středu humna vůz zastaví a skládá snopy (m – kraj mlatu; návrh Clauda). */
+const FLOOR_CART_REACH_M = 9;
+
+/** Hotové humno nejblíž bodu `p` (pole svozu), nebo null. */
+function sheafFloor(
+  state: VillageState,
+  p: { x: number; z: number },
+): { x: number; z: number } | null {
+  let best: { x: number; z: number } | null = null;
+  let bestD = Infinity;
+  for (const f of state.threshingFloors ?? []) {
+    if (f.builtDay === null) continue;
+    const d = Math.hypot(f.position.x - p.x, f.position.z - p.z);
+    if (d < bestD) {
+      bestD = d;
+      best = { x: f.position.x, z: f.position.z };
+    }
+  }
+  return best;
+}
+
 function cartGoalToday(
   state: VillageState,
   landscape: Landscape,
@@ -508,7 +549,11 @@ function cartGoalToday(
     const ids = new Set(t.parts ?? []);
     const parts = (field?.parts ?? []).filter((p) => p.id !== undefined && ids.has(p.id));
     // bez dílů vůz nikam nejede (ani čtyřkolák)
-    return parts.length > 0 ? toNearest(parts, CARTS.reachM) : null;
+    const goal = parts.length > 0 ? toNearest(parts, CARTS.reachM) : null;
+    // snopy s hotovým humnem: plný vůz z pole k humnu (villagers.md – Fáze činností; návrh
+    // Clauda – počty a čas svozu dál řídí simulace)
+    const floor = job.load === 'sheaves' && goal ? sheafFloor(state, goal.to ?? parts[0]!) : null;
+    return goal && floor ? { ...goal, via: { to: floor, reachM: FLOOR_CART_REACH_M } } : goal;
   }
   if (t.kind === 'meadow') {
     return toNearest(

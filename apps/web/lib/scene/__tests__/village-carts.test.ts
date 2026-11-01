@@ -1,9 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import type { SceneCart, SceneVillage } from '../../village-view';
-import { cartPlanPose, createCartPose, shuttleAt, type CartShuttle } from '../cart-layout';
+import {
+  buildingCartParts,
+  CART_BODY_LOW_M,
+  CART_SCALE,
+  cartPlanPose,
+  createCartPose,
+  shuttleAt,
+  type CartShuttle,
+} from '../cart-layout';
+import { carpenterCartSpot } from '../craft-yard-layout';
 import { penLayout } from '../pen-layout';
 import { penHerds } from '../village-pens';
-import { draftTeamsToday, drivingCarts, parkedCartSpot, villageCartPlans } from '../village-carts';
+import {
+  buildingCartPlans,
+  draftTeamsToday,
+  drivingCarts,
+  parkedCartSpot,
+  villageCartPlans,
+} from '../village-carts';
 
 // Vozy ve vsi (wagons.md – fáze 3): kdo jede, kdo stojí u ohrady a že voli nejsou zároveň u vozu,
 // u rádla a v ohradě.
@@ -191,5 +206,54 @@ describe('vozy ve vsi (village-carts.ts)', () => {
     const rest = draftTeamsToday(idle, 1);
     expect(rest).toEqual({ carts: 0, cartOxen: 0, plough: 1 });
     expect(penHerds(idle, 0).get(7)?.oxen).toBe(2);
+  });
+});
+
+describe('rozdělaný vůz u tesaře (úloha 11)', () => {
+  const yard = (stage: 1 | 2 | 3, kind: 'two-wheel' | 'four-wheel' = 'four-wheel') => ({
+    id: 70,
+    craft: 'carpenter' as const,
+    position: { x: 30, z: -12, rotation: 0.6 },
+    yard: { cart: { kind, stage } },
+  });
+
+  it('před dílnou tesaře stojí vůz po fázích, jiné dílny ani tesař bez vozu ne', () => {
+    const plans = buildingCartPlans([
+      yard(1),
+      { id: 71, craft: 'carpenter', position: { x: 0, z: 0, rotation: 0 } },
+      { id: 72, craft: 'smith', position: { x: 9, z: 0, rotation: 0 }, yard: { bloom: 2 } },
+    ]);
+    expect(plans).toEqual([{ kind: 'four-wheel', parked: carpenterCartSpot(yard(1)), build: 1 }]);
+    // vůz je ve vyklízené ploše před vchodem dílny (≈ 7 m od středu domu)
+    const spot = plans[0]!.parked;
+    expect(Math.hypot(spot.x - 30, spot.z + 12)).toBeGreaterThan(6);
+    expect(Math.hypot(spot.x - 30, spot.z + 12)).toBeLessThan(8);
+  });
+
+  it('fáze 1 korba na zemi bez kol, 2 s koly a předkem, 3 celý vůz s ojí', () => {
+    expect(buildingCartParts('four-wheel', 1)).toEqual({
+      wheels: false,
+      front: false,
+      pole: false,
+    });
+    expect(buildingCartParts('four-wheel', 2)).toEqual({ wheels: true, front: true, pole: false });
+    expect(buildingCartParts('four-wheel', 3)).toEqual({ wheels: true, front: true, pole: true });
+    expect(buildingCartParts('two-wheel', 2)).toEqual({ wheels: true, front: false, pole: false });
+    // stojící vůz u ohrady (bez fáze) je celý
+    expect(buildingCartParts('four-wheel', undefined)).toEqual({
+      wheels: true,
+      front: true,
+      pole: true,
+    });
+    const [low] = buildingCartPlans([yard(1, 'two-wheel')]);
+    const [whole] = buildingCartPlans([yard(2, 'two-wheel')]);
+    const a = cartPlanPose(low!, 0, createCartPose());
+    const b = cartPlanPose(whole!, 0, createCartPose());
+    expect(a.leg).toBe('parked');
+    expect(a.hitched).toBe(false);
+    // bez kol leží korba rovně a níž – spodkem na zemi (nevisí ve vzduchu)
+    expect(a.body.fy).toBeCloseTo(0, 9);
+    expect(a.body.y + a.body.uy * CART_BODY_LOW_M * CART_SCALE).toBeCloseTo(0, 6);
+    expect(a.body.y).toBeLessThan(b.body.y);
   });
 });

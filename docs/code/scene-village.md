@@ -270,6 +270,12 @@ nepoužívaly (Martin 21. 10. 2026: „ať do něj mlátí holemi“). Místa js
   a na mlatu roztírání, dusání holí přes mlat, mazání v podřepu.
 - **Nošení**: pěší nosiči snopů (`carriers` – podíl `carry`) nesou snopy obilí a luštěnin z pole na
   nejbližší hotové humno (`sheafFloor` – vstup před mlatem, len domů); bez humna domů jako dřív.
+  **Vůz se snopy jede k humnu** (villagers.md – Fáze činností; návrh Clauda): cíl svozu snopů
+  s hotovým humnem nese `CartGoal.via` (`sheafFloor` ve `village-view-crafts.ts`, dosah
+  `FLOOR_CART_REACH_M` 9 m od středu mlatu); prohlížeč dopočítá `SceneCart.viaRoute` (pole →
+  humno → ohrada vozovou sítí – `cartViaRoute` v `cart-routes.ts`, i ve Web Workeru), vůz jede
+  prázdný k poli, nakládá, plný k humnu, skládá (`ShuttleRoute.dropM`) a prázdný k ohradě
+  (úsek `return` – panel „vrací se k ohradě“, „veze snopy na humno“, „skládá snopy na humně“).
   Zrno z humna do jam (`grainPitWorkers` ve `villager-plan-crafts.ts`): první dva u hrdla
   s motykou, další nosí v koši od vstupu humna, kde zrno čeká (`grainKg`), k jámě po pěšinách.
 - **Ukázky**: `/dev/buildings` – Humno mezi plochami (`showcaseThreshingFloor`: posuvník do
@@ -290,6 +296,32 @@ modelu dílny (x napříč, z k vchodu – jako `PORCH_SPOTS`), s variantou rozm
 (`shapedToWorld`), a leží ve vyklízené ploše dílny (`DWELLING_CLEARING_M` – před vchodem do 7,5 m;
 hlídá test). Klíč zná z práce dne jen tavbu (pec se mění jen při ní), žár pece sedí nad
 `decalHeight` jako síť.
+
+Hrnčíř u kruhu sedí na špalku (vlastní klip `wheel` – předklon, ruce na hrnci 0,45 m před patou,
+pravá noha roztáčí kruh; místo `PORCH_SPOTS.hrncir[0]` 0,6 m od středu kruhu, pánev na přední
+hraně špalku). Ženy u dojných zvířat (`milkers`) dojí na špalku (`milk`), starší u domů sedí
+(`sit`) a chodí se modlit před hotovou modlu či svatyni (`pray` – klip 0 A.D. s rukama k nebi,
+role fází `elder-home`). Špalek je prop postavy (`stump`), ne objekt scény – úloha 10 scény.
+
+### Rekvizity fází činností (úloha 9 scény)
+
+Rekvizity jsou **propy postav** v `man.glb` / `woman.glb` (`tools/blender/people.json`,
+`people_from_0ad.py`), ne objekty scény: každá má vlastní kloub kostry a v klipu, kde není, má
+měřítko 0 (kanály posunu a natočení skrytého propu skript vynechá). Postava tak zůstává jeden mesh
+s jedním atlasem a materiálem – žádný další draw call ani vertex buffer (WebGPU: postava má právě
+8); cena je ve vrcholech (≈ 7,9–8,1 tisíce na postavu místo ≈ 6) a ve VAT (klouby × snímky).
+Klip = animace 0 A.D. + rekvizita (jiný název téže animace): `bind` (povříslo – snop na zemi),
+`rake` (hrábě), `pitch` (vidle 0 A.D.), `forge` (kladivo a kleště 0 A.D.), `split` (úder
+krumpáče se sekerou a štípací špalek 0,8 m před patou), `sieve` (síto), `pots` (nádoby na zemi),
+`carry-tools` / `carry-pots` / `carry-fish` (nůše s nástroji, nádobami, rybami – rychlost chůze
+jako `carry`), `snare` (oko – zatím nezapojeno: oka se ve scéně nekreslí, wildlife.md), `cook`
+(vařečka a hrnec na ohništi – ženy u dveří `COOK_SHARE` za přadlenami, `villager-plan-folk.ts`).
+Vlastní klipy mají rekvizitu přímo: `milk` džber, `spin` přeslici, `weave` stav (stojí před
+tkající, jen když tká – zapojí úloha 12), `pipe` píšťalu, `drum` buben.
+**Volné propy** (bod `seat` – snop, špalek, síto, nádoby, oko, hrnec, džber, přeslice, stav,
+píšťala, buben) stojí v prostoru postavy (natáčí se s ní) i v klipu 0 A.D.; nástroje drží ruka
+(`prop-weapon_R/L`), náklad sedí na nůši (`prop-back`). Test `villager-motion.test.ts` hlídá,
+že klip v GLB svou rekvizitu ukazuje.
 
 - **Pěšiny**: obdélník hotové kovárny a hrnčíře pro pěšiny zahrne dvůr (`WORKSHOP_YARD_PATH_BOX_M`
   v `network-grid.ts` – `dwellingBox`, test v `craft-yard-layout.test.ts`), brána leží před dvorem
@@ -319,7 +351,14 @@ hlídá test). Klíč zná z práce dne jen tavbu (pec se mění jen při ní), 
   z podílu dílny, syn 10–13 z vlastního podílu `craft` s věkem (bere ho z rosteru podle věku);
   kovář sám jen u pece. Při překování a kování kovář u kovadliny s kladivem (klip `build` –
   palička z 0 A.D. `build.dae`), další u měchů výhně a u koryta. Postavy bez nového klipu ani
-  vertex bufferu.
+  vertex bufferu. **Fáze** (villager-phases.ts – village-people.md, Fáze činností): při tavbě
+  napřed praní rudy v sítu (`sieve`) a pražení (`winnow` s lopatou), překování s kladivem
+  a kleštěmi (`forge`) tempem 0,7, kování nástrojů `forge` 1,3 a odnos nástrojů do cizí
+  domácnosti v nůši s nástroji (`carry-tools`); hrnčíř po kruhu či šlapání suší a vsazuje do pece
+  (`pots` – sehnutí nad třemi nádobami na zemi), hlídá oheň a nese nádoby v nůši (`carry-pots`);
+  uhlíř podle stavu milíře štípe na špalku (`split`), zahrnuje (`hoe`), hlídá (`idle`), vytahuje
+  uhlí hráběmi (`rake`) a sype do koše (`fruit`). Rekvizity jsou propy postav – viz Rekvizity
+  fází činností.
 - **Hrnčíř**: mělká **jáma s hlínou** před přístřeškem vpravo (`CLAY_PIT`) – val vykopané země
   a hladina hlíny podle stupně (prázdná jáma tmavé dno; kreslí se jen s hlínou nebo šlapáním).
   Když hrnčíř vyrábí, jeden šlape hlínu – pomalu tam a zpět napříč jámou (`treadingLine`, klip
@@ -327,6 +366,17 @@ hlídá test). Klíč zná z práce dne jen tavbu (pec se mění jen při ní), 
 - **Ukázka**: `/dev/buildings` – **Kovárna a hrnčíř** (`showcaseCraftYards`, kreslí renderer
   variant): tavba s žárem a dýmem, překování (hodně houby), kování nástrojů (plná hromádka
   hřiven), hrnčíř s plnou jámou a se skoro prázdnou. Bez postav (ty ukazuje ves).
+- **Tesař – vznikající vůz** (villagers.md – Fáze činností, Tesař; úloha 11 scény): rozdělaný
+  vůz (`SceneCraftYard.cart` – druh a fáze 1–3 z `cartBuildStage` ve village-view-crafts.ts:
+  průběh dřevěné práce `Workshop.cart.done` ÷ `CARPENTRY.cartManDays`, od `CART_BUILD_STAGES.wheels`
+  0,45 kola, s hotovou dřevěnou prací celý) stojí před dílnou (`CARPENTER_CART` –
+  `carpenterCartSpot`, oj podél vchodu). Kreslí ho **cart-renderer.ts z dílů `wagons.glb`** jako
+  stojící vůz bez id (`buildingCartPlans` ve village-carts.ts, `CartParked.build`): fáze 1 korba
+  rovně spodkem na zemi bez kol (`buildingCartPose`, `CART_BODY_LOW_M`), 2 korba
+  s koly (čtyřkolák i s předkem), 3 celý s ojí (`buildingCartParts`) – žádný nový model ani draw
+  call. Tesař s pomocníkem stojí u korby (`carpenterCartSpots` – po bocích a u zadku, klip
+  `build`), role fází `cart`: otesává díly (`split` – sekera a špalek), staví vůz (póza úlohy);
+  vůz čekající na kování už jen stojí (tesař dělá nářadí u přístřešku).
 
 ## Divoká zvěř, pes a prut (modely – wildlife Úloha W8; ve scéně W10–W11)
 
@@ -636,7 +686,8 @@ Kdo, kdy a na kterém koni jede, určuje jádro (`lordRides` → `SceneLord.ride
   není sladěný s karavanou; horses.md – Kdy jsou jezdci venku). Plány jdou přes `DraftCrew.rides` → `VillageVillagers.rides()`
   → `onCrew` → `VillageLivestock.setRides`.
 - **Kreslení a buffery:** jezdec = instance `villagers-man` s klipem `ride` / `ride-trot`
-  (`riderPose`), zvednutá o výšku sedu `RIDER_SEAT_M` × `RIDE_HORSE_SCALE` přes `VillagerPose.lift`
+  (`riderPose`; jezdec za čelem skupiny, který v bloku jízdy čeká na začátku trasy, sedí na
+  stojícím koni klipem `ride-idle` – kůň bez kroku, `waiting`), zvednutá o výšku sedu `RIDER_SEAT_M` × `RIDE_HORSE_SCALE` přes `VillagerPose.lift`
   – jen posun matice, **žádný vertex atribut** (8 bufferů jako dosud). Kůň = skupina `horse`
   v `livestock.ts` (`rideHorsePose` – krok a klus morph targety jako kráva, 7 bufferů). Stojící kůň
   (`Group.still`) se zapíše jednou a překreslení nenastavuje, jedoucí ano. Bez sedla (horses.md).

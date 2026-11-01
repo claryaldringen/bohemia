@@ -4,7 +4,9 @@ import type { ScenePerson } from '../../person-view';
 import type { LaborShare, SceneExpedition, SceneVillage } from '../../village-view';
 import type { SceneWedding } from '../../wedding-view';
 import { LIVESTOCK_EPOCH_MS } from '../livestock-motion';
+import { personActivity } from '../../person-activity';
 import { createVillagerPose, villagerSeconds, type HerdView } from '../villager-motion';
+import { COOK_SHARE, doorChore, SNARE_EDGE, SPIN_SHARE, WEAVE_SHARE } from '../villager-plan-folk';
 import { pickPerson } from '../villager-pick';
 import {
   LEADER_AGE,
@@ -234,6 +236,57 @@ describe('DayRoster – lidé dne k postavám', () => {
     expect(order(3)).toEqual(order(3));
     const seeds = [4, 5, 6, 7].map((s) => order(s).join());
     expect(seeds.some((o) => o !== order(3).join())).toBe(true);
+  });
+});
+
+describe('žena u dveří, oka na zajíce (villagers.md – Fáze činností; úloha 12)', () => {
+  it('ženy u dveří předou, vaří, tkají u stavu; s malým dítětem v domě ho hlídají', () => {
+    expect(doorChore(0.1, false)).toEqual({ clip: 'spin', stage: 'spin' });
+    expect(doorChore(SPIN_SHARE + 0.01, false)).toEqual({ clip: 'cook', stage: 'cook' });
+    expect(doorChore(SPIN_SHARE + COOK_SHARE + 0.01, false)).toEqual({
+      clip: 'weave',
+      stage: 'weave',
+    });
+    const rest = SPIN_SHARE + COOK_SHARE + WEAVE_SHARE + 0.01;
+    expect(doorChore(rest, true)).toEqual({ clip: 'idle', stage: 'mind' });
+    expect(doorChore(rest, false)).toEqual({ clip: 'idle', stage: null });
+    // malé dítě (pod 7 let) má jen dvorec – dcera 5 let; v domě 2 je nejmladší 9 let
+    const roster = new DayRoster(persons(), 3);
+    expect(roster.hasSmallChild(1)).toBe(true);
+    expect(roster.hasSmallChild(2)).toBe(false);
+    // panel řekne práci u domu podle úseku pózy
+    const job: PersonJob = { kind: 'share', activity: 'domestic', target: { kind: 'village' } };
+    const text = (stage: 'weave' | 'mind' | null): string =>
+      personActivity({ id: 1, job, stage, hidden: false, herd: null }, village());
+    expect(text('weave')).toBe('tká na stavu před domem');
+    expect(text('mind')).toBe('hlídá děti u domu');
+    expect(text(null)).toBe('pracuje u domu');
+  });
+
+  it('oka na zajíce: v zimě klečí s okem na okraji lesa nejblíž vsi, čelem k lesu', () => {
+    const trees = Array.from({ length: 40 }, (_, i) => ({ x: 60 + (i % 8) * 4, z: (i >> 3) * 4 }));
+    const ground: VillagerGround = { ...GROUND, treesIn: () => trees };
+    const shares: LaborShare[] = [{ activity: 'snare', target: { kind: 'village' }, manDays: 4 }];
+    const people = planVillagers(village(shares), ground, { seed: 5, herds: 0, paths: PATHS });
+    const snarers = people.filter((p) => p.job?.kind === 'share' && p.job.activity === 'snare');
+    expect(snarers.length).toBeGreaterThan(0);
+    expect(snarers.length).toBeLessThanOrEqual(SNARE_EDGE.figures);
+    for (const figure of snarers) {
+      const pose = figure.pose(100, [], createVillagerPose());
+      expect(pose.clip).toBe('snare');
+      const tree = [...trees].sort(
+        (a, b) => Math.hypot(a.x - pose.x, a.z - pose.z) - Math.hypot(b.x - pose.x, b.z - pose.z),
+      )[0]!;
+      expect(Math.hypot(tree.x - pose.x, tree.z - pose.z)).toBeLessThan(SNARE_EDGE.fromTreeM + 2.5);
+      // čelem ke kmeni (k lesu), od vsi na kraji lesa
+      expect((tree.x - pose.x) * pose.headingX + (tree.z - pose.z) * pose.headingZ).toBeGreaterThan(
+        0,
+      );
+      expect(pose.x).toBeLessThan(tree.x);
+    }
+    // bez stromů nikdo
+    const none = planVillagers(village(shares), GROUND, { seed: 5, herds: 0, paths: PATHS });
+    expect(none.some((p) => p.job?.kind === 'share' && p.job.activity === 'snare')).toBe(false);
   });
 });
 
@@ -741,7 +794,7 @@ describe('vojvodova rodina na dvorku (lord.md – Ve scéně)', () => {
     const mid = pose(lord, hour(19.5));
     const end = pose(lord, hour(19.99));
     expect(mid.hidden).toBe(false);
-    expect(mid.clip).toBe('walk');
+    expect(mid.clip).toBe('walk-lord');
     expect(dist(mid.x, mid.z)).toBeLessThan(dist(start.x, start.z));
     expect(dist(end.x, end.z)).toBeLessThan(dist(mid.x, mid.z));
     expect(dist(end.x, end.z)).toBeLessThan(6);
@@ -749,7 +802,7 @@ describe('vojvodova rodina na dvorku (lord.md – Ve scéně)', () => {
     for (const h of [21, 2, 6.5]) expect(pose(lord, hour(h)).hidden).toBe(true);
     const back = pose(lord, hour(7.5));
     expect(back.hidden).toBe(false);
-    expect(back.clip).toBe('walk');
+    expect(back.clip).toBe('walk-lord');
     expect(dist(back.x, back.z)).toBeGreaterThan(dist(end.x, end.z));
     // ostatní se nemění – chlapec je večer skrytý jako dřív
     expect(pose(boy, hour(19.5)).hidden).toBe(true);
@@ -761,6 +814,22 @@ describe('vojvodova rodina na dvorku (lord.md – Ve scéně)', () => {
     const morning = pose(lord, hour(7.5));
     expect(onManor(morning.x, morning.z)).toBe(true);
     expect(morning.clip).toBe('idle');
+  });
+
+  it('vojvoda (`lordId`) mimo výcvik stojí jako vladař – střídá stání se založenýma rukama', () => {
+    const village = manorVillage();
+    village.labor!.lord!.lordId = 101;
+    const lord = plan(village).find((p) => p.person === 101)!;
+    const clips = (who: PlannedVillager): Set<string> => {
+      const out = new Set<string>();
+      for (let t = hour(7); t < hour(19); t += 0.5) out.add(pose(who, t).clip);
+      return out;
+    };
+    const lordClips = [...clips(lord)].filter((c) => c.startsWith('lord-idle-'));
+    expect(lordClips.length).toBeGreaterThan(1);
+    for (const other of plan(village).filter((p) => p.person !== 101)) {
+      expect([...clips(other)].some((c) => c.startsWith('lord-'))).toBe(false);
+    }
   });
 
   it('žena rodiny dělá domácí práce – celý den nestojí na místě, z pozemku nevychází', () => {
@@ -949,6 +1018,30 @@ describe('obsazení dne jako člověk → úloha (villagers.md – Divadlo)', ()
       (t) => t.job.kind === 'share' && t.job.activity === 'build',
     );
     expect(build.map((t) => t.kind).sort()).toEqual(['bout', 'hold']);
+  });
+
+  it('role fází z plánu dne (villager-phases.ts): žnec váže snopy, starší a nečinní o žních na pole', () => {
+    const { tasks } = plan(CASES[0]!.v());
+    const reapers = [...tasks.values()].filter(
+      (t) => t.job.kind === 'share' && t.job.activity === 'harvest',
+    );
+    const reapAt = reapers.map((t) => t.at);
+    expect(reapers.map((t) => t.role)).toEqual(reapers.map(() => 'reap'));
+    for (const t of tasks.values()) {
+      if (t.job.kind === 'elder' || (t.job.kind === 'share' && t.job.activity === 'idle')) {
+        // dnes se žne – pomoc o žních u některého žnece (místo z pózy žnece v začátku dne)
+        expect(t.role).toBe(t.job.kind === 'elder' ? 'elder' : 'idle');
+        expect(reapAt).toContainEqual(t.places!.aid);
+      }
+      if (t.job.kind === 'herd' || t.job.kind === 'traffic' || t.job.kind === 'cart') {
+        expect(t.role).toBeUndefined();
+      }
+    }
+    // stejný plán = stejné role a místa
+    const again = plan(CASES[0]!.v()).tasks;
+    for (const [id, t] of tasks) {
+      expect([again.get(id)!.role, again.get(id)!.places]).toEqual([t.role, t.places]);
+    }
   });
 
   it('rozvrh z obsazení dne: kdo v něm není, je doma; úloha činnosti = obsazení dne jejího začátku', () => {

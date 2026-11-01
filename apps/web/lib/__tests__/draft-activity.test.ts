@@ -169,6 +169,26 @@ describe('co dělá spřežení, vůz a lidé u nich', () => {
     expect(
       cartActivityText(job({ activity: 'haul', target: field, load: 'sheaves' }), 3, 'back'),
     ).toBe('veze snopy');
+    // svoz snopů na humno (villagers.md – Fáze činností): plný k humnu, skládá tam, prázdný zpět
+    const floor: SceneVillage = {
+      ...VILLAGE,
+      carts: [
+        {
+          ...charcoal,
+          job: { activity: 'haul', target: field, load: 'sheaves' },
+          viaRoute: {
+            points: [
+              { x: 0, z: 0 },
+              { x: 5, z: 5 },
+            ],
+            drop: { x: 5, z: 5 },
+          },
+        },
+      ],
+    };
+    expect(cartActivityText(floor, 3, 'back')).toBe('veze snopy na humno');
+    expect(cartActivityText(floor, 3, 'unload')).toBe('skládá snopy na humně');
+    expect(cartActivityText(floor, 3, 'return')).toBe('vrací se k ohradě');
     expect(cartActivityText(job({ activity: 'haul', target: field, load: 'hay' }), 3, 'out')).toBe(
       'jede pro seno',
     );

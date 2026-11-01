@@ -184,6 +184,9 @@ function hailBandWeight(strip: HailStrip, x: number, z: number, onWater: boolean
  * plocha vody nad zatopenými políčky a hnědé bahno s naplaveninou. Mimo den pohromy a její
  * dozvuk je vše vypnuté (žádný draw call navíc). Ztmavení a záblesky – storm.ts, scéna.
  */
+/** Od takové hloubky vody (m) se na místo nechodí (postavy – villager-schedule.ts). */
+const FLOODED_DEPTH_M = 0.05;
+
 export class StormRenderer {
   private readonly particles: RainRenderer;
   private readonly cover: GroundOverlay;
@@ -272,6 +275,19 @@ export class StormRenderer {
   }
 
   /** Povodeň (`SceneVillage.flood`): plocha vody a bahno; null – bez povodně. */
+  /**
+   * Je bod pod vodou povodně v den světa `gameDay` (desetinný)? Pro postavy (villager-schedule.ts
+   * – kdo má cíl na rozlité vodě, jde domů): stejná hladina jako plocha vody (`floodLevel`).
+   */
+  floodedAt(x: number, z: number, gameDay: number): boolean {
+    const flood = this.flood;
+    if (!flood || !this.floodAbove) return false;
+    const level = floodLevel(gameDay - flood.day);
+    if (level <= 0) return false;
+    const height = flood.heightM * level;
+    return floodDepthAt(this.context.landscape, this.floodAbove, height, x, z) > FLOODED_DEPTH_M;
+  }
+
   setFlood(flood: SceneFlood | null): void {
     this.flood = flood;
     this.disposeWater();

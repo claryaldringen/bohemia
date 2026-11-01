@@ -13,6 +13,7 @@ import {
   parkedCartPose,
   routeAt,
   shuttleAt,
+  shuttleLeg,
   shuttleRoute,
   type CartKind,
   type CartPose,
@@ -426,6 +427,55 @@ describe('jízda tam a zpět (svoz – fáze 3)', () => {
     expect(four.body.uy).toBeGreaterThan(0.999);
     expect(four.pole.by).toBeLessThan(0.15);
     expect(four.pole.bx).toBeGreaterThan(four.pole.ax);
+  });
+});
+
+describe('svoz snopů na humno (villagers.md – Fáze činností)', () => {
+  const AXIS = [
+    { x: 0, z: 0 },
+    { x: 0, z: 60 },
+  ];
+  // z pole k humnu stranou a odtud zpět k ohradě
+  const VIA = [
+    { x: 0, z: 60 },
+    { x: 40, z: 40 },
+    { x: 40, z: 10 },
+    { x: 0, z: 0 },
+  ];
+  const shuttle = shuttleRoute(AXIS, 'two-wheel', undefined, { points: VIA, drop: VIA[1]! });
+  const WINDOW = { startMs: 1_000_000, endMs: 1_086_000 };
+  const schedule = { window: WINDOW, maxTrips: 8, phase: 0 };
+  const at = (ms: number): ShuttleState =>
+    shuttleAt(shuttle, schedule, ms, { s: 0, speed: 0, loaded: false });
+
+  it('prázdný k poli, nakládá, plný k humnu, skládá, prázdný k ohradě', () => {
+    const drop = shuttle.dropM!;
+    expect(drop).toBeGreaterThan(shuttle.farM);
+    expect(drop).toBeLessThan(shuttle.route.length);
+    // humno – kde vůz skládá (40, 40)
+    const p = routeAt(shuttle.route, drop, point());
+    expect(Math.hypot(p.x - 40, p.z - 40)).toBeLessThan(6);
+    const samples = Array.from({ length: 860 }, (_, i) => at(WINDOW.startMs + i * 100));
+    const moving = samples.filter((x) => x.speed > 0);
+    expect(moving.filter((x) => x.s < shuttle.farM).every((x) => !x.loaded)).toBe(true);
+    const full = moving.filter((x) => x.s > shuttle.farM && x.s < drop);
+    expect(full.length).toBeGreaterThan(0);
+    expect(full.every((x) => x.loaded)).toBe(true);
+    const empty = moving.filter((x) => x.s > drop);
+    expect(empty.length).toBeGreaterThan(0);
+    expect(empty.every((x) => !x.loaded)).toBe(true);
+    expect(samples.some((x) => x.speed === 0 && x.s === drop)).toBe(true);
+    // úseky pro panel vozky: veze snopy na humno, skládá, vrací se k ohradě
+    expect(shuttleLeg(shuttle, full[0]!)).toBe('back');
+    expect(shuttleLeg(shuttle, { s: drop, speed: 0 })).toBe('unload');
+    expect(shuttleLeg(shuttle, empty[0]!)).toBe('return');
+    expect(shuttleLeg(shuttle, { s: shuttle.farM, speed: 0 })).toBe('load');
+    // spojitě – vůz neskáče
+    for (let i = 1; i < samples.length; i++) {
+      const a = samples[i - 1]!.s;
+      const b = samples[i]!.s;
+      expect(Math.min(Math.abs(b - a), shuttle.route.length - Math.abs(b - a))).toBeLessThan(2);
+    }
   });
 });
 

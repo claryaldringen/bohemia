@@ -1,4 +1,12 @@
-import { PATH_WALK, routeLine, type StoredRoute } from '@bohemia/game';
+import {
+  PATH_WALK,
+  routeLine,
+  walkGraph,
+  walkingDistances,
+  type PathLine,
+  type StoredRoute,
+  type WalkGraph,
+} from '@bohemia/game';
 import type { VillagerPaths } from './villager-plan-types';
 
 // Chůze postav po uložených trasách vsi (paths.md – kudy lidé chodí, rozhoduje jen simulace;
@@ -79,7 +87,32 @@ export function routeWalker(routes: readonly StoredRoute[], cellM: number): Vill
       .map((_, i) => (i === 0 || i === points.length - 2 ? 1 : PATH_WALK.speed));
     return { points, pace };
   };
+  // odhad délky chůze po síti (paths.md – Odhad vzdáleností): graf os uložených tras plnou
+  // silou pěšiny, bez půdy krajiny (rovně = délka úsečky) – staví se až při prvním dotazu
+  let graph: WalkGraph | null = null;
+  const lengths = new Map<string, number>();
+  const walkLength = (a: { x: number; z: number }, b: { x: number; z: number }): number => {
+    const key = `${a.x.toFixed(1)},${a.z.toFixed(1)},${b.x.toFixed(1)},${b.z.toFixed(1)}`;
+    const known = lengths.get(key);
+    if (known !== undefined) return known;
+    graph ??= walkGraph(
+      walked.map((w): PathLine => ({
+        points: w.points.map(([x, z]) => ({ x, z })),
+        strength: w.points.map(() => 1),
+        years: [],
+        openStart: true,
+        openEnd: true,
+      })),
+    );
+    const found = walkingDistances(graph, [a], [b])[0];
+    const length =
+      found !== undefined && Number.isFinite(found) ? found : Math.hypot(b.x - a.x, b.z - a.z);
+    if (lengths.size >= MEMO_SIZE) lengths.clear();
+    lengths.set(key, length);
+    return length;
+  };
   return {
+    walkLength,
     route(a, b, reach = START_REACH_M, dwellingId) {
       const key = `${a.x.toFixed(2)},${a.z.toFixed(2)},${b.x.toFixed(2)},${b.z.toFixed(2)},${reach},${dwellingId ?? ''}`;
       if (memo.has(key)) return memo.get(key)!;

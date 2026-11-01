@@ -2451,6 +2451,24 @@ describe('buildVillageView – tesař a vozy (wagons.md)', () => {
     return s;
   };
 
+  it('scéna: rozdělaný vůz u tesaře po fázích a stoh sena u ohrady podle zásoby (úloha 11)', () => {
+    const s = carpenterVillage();
+    const yard = (v: VillageState): unknown =>
+      buildVillageView(record(v), landscape, DAY).scene.dwellings.find((d) => d.id === 50)?.yard;
+    // 10 z 25 člověkodní – korba bez kol
+    expect(yard(s)).toEqual({ cart: { kind: 'two-wheel', stage: 1 } });
+    s.dwellings.find((d) => d.id === 50)!.workshop!.cart = { kind: 'two-wheel', done: 20 };
+    expect(yard(s)).toEqual({ cart: { kind: 'two-wheel', stage: 2 } });
+    // stoh u hotové ohrady: bez sena žádný, plná zásoba na zimu plný
+    const hayOf = (kg: number): number | undefined => {
+      s.hay = { kg, mowing: null };
+      return buildVillageView(record(s), landscape, DAY).scene.pens![0]!.hay;
+    };
+    expect(hayOf(0)).toBe(0);
+    expect(hayOf(500)).toBe(2);
+    expect(hayOf(1600)).toBe(3);
+  });
+
   it('dílna tesaře: rozdělaný vůz, pokrytí staveb, vozy a dřevěné nářadí v řemeslech', () => {
     const view = buildVillageView(record(carpenterVillage()), landscape, DAY);
     const workshop = view.crafts.workshops.find((w) => w.dwellingId === 50)!;
@@ -2578,6 +2596,23 @@ describe('buildVillageView – tesař a vozy (wagons.md)', () => {
       expect(Math.round(p.x * 100)).toBeCloseTo(p.x * 100, 6);
       expect(Math.round(p.z * 100)).toBeCloseTo(p.z * 100, 6);
     }
+    // bez humna vůz veze snopy zpět k ohradě; s hotovým humnem plný k humnu a odtud k ohradě
+    // (villagers.md – Fáze činností)
+    expect(cart.viaRoute).toBeUndefined();
+    s.threshingFloors = [{ id: 90, position: { x: 70, z: 75, rotation: 0 }, builtDay: 1 }];
+    expect(buildVillageView(record(s), landscape, DAY).scene.carts![0]!.goal!.via).toEqual({
+      to: { x: 70, z: 75 },
+      reachM: 9,
+    });
+    const via = routedScene(s).carts![0]!.viaRoute!;
+    expect(Math.hypot(via.drop.x - 70, via.drop.z - 75)).toBeLessThanOrEqual(9);
+    expect(via.points[0]).toEqual(route[route.length - 1]);
+    const end = via.points[via.points.length - 1]!;
+    expect(Math.hypot(end.x - first.x, end.z - first.z)).toBeLessThanOrEqual(4);
+    // rozestavěné humno – jako bez humna
+    s.threshingFloors = [{ id: 90, position: { x: 70, z: 75, rotation: 0 }, builtDay: null }];
+    expect(routedScene(s).carts![0]!.viaRoute).toBeUndefined();
+    delete s.threshingFloors;
     // seč – seno, klády ke stavbě; vůz bez úlohy trasu nemá
     s.labor.shares[0] = {
       activity: 'haul',

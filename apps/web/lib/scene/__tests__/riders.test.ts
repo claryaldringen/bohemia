@@ -74,6 +74,22 @@ describe('jezdec na koni (horses.md – Ve scéně)', () => {
     }
   });
 
+  it('druhý ve skupině na začátku bloku čeká na stojícím koni – klip sedu na místě', () => {
+    const [lead] = ridePlans(input(LORD));
+    // jezdec kus za čelem skupiny (rideGroups – jedou po dvou)
+    const second = { ...lead!, behind: 0.5 };
+    const start = at(8) + 0.01;
+    const horse = rideHorsePose(second, start, createRideState(), createLivestockPose());
+    const rider = riderPose(second)(start, [], createVillagerPose());
+    expect(horse.stride).toBe(0);
+    expect(rider.clip).toBe('ride-idle');
+    expect(rider.lift).toBeCloseTo(RIDER_SEAT_M * RIDE_HORSE_SCALE, 6);
+    // v půli bloku už jede
+    expect(['ride', 'ride-trot']).toContain(
+      riderPose(second)(at(8.4), [], createVillagerPose()).clip,
+    );
+  });
+
   it('jede jen v bloku jízdy (po luku a boji), jinak kůň stojí u kůlu a jezdec je doma', () => {
     const [lead, second] = ridePlans(input(LORD));
     // trainees prázdné: luk ani boj, bloky jízdy 8–9 a 14–15 h (po hodině z dvou)
@@ -119,6 +135,32 @@ describe('jezdec na koni (horses.md – Ve scéně)', () => {
     expect(hitch(pose(9.01))).toBeLessThan(0.5);
     // v půlce bloku je od kůlu nejdál
     expect(hitch(pose(8.5))).toBeGreaterThan(hitch(pose(8.1)));
+  });
+
+  it('na koni je jezdec vidět, i když ho rozvrh posílá domů – kůň nikdy bez jezdce', () => {
+    const plans = ridePlans(input(LORD));
+    // pózy, které rozvrh vrátí skryté: doma, konec průvodu domů (pohřeb, svatba), povodeň či pauza
+    const scheduled = [
+      { ...createVillagerPose(), hidden: true, stage: 'home' as const },
+      { ...createVillagerPose(), hidden: true, stage: 'back' as const },
+      { ...createVillagerPose(), hidden: true },
+    ];
+    let mounted = 0;
+    for (const plan of plans) {
+      const pose = riderPose(plan);
+      for (let hour = 0; hour < 24; hour += 0.05) {
+        const t = at(hour);
+        if (!isRiding(plan, t)) continue;
+        mounted++;
+        for (const s of scheduled) {
+          const out = pose(t, [], { ...s });
+          expect(out.hidden).toBe(false);
+          expect(out.stage).toBeUndefined();
+          expect(['ride', 'ride-trot', 'ride-idle']).toContain(out.clip);
+        }
+      }
+    }
+    expect(mounted).toBeGreaterThan(0);
   });
 
   it('koně na jízdě v čase (ohrada je pustí jen v bloku)', () => {

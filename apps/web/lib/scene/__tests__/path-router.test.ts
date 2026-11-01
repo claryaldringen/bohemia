@@ -103,4 +103,23 @@ describe('obdélník domu pro pěšiny sedí s postavami ve scéně', () => {
       expect(box.maxZ).toBeCloseTo(scene.maxZ, 9);
     }
   });
+
+  it('odhad délky chůze po síti (walkLength) – po trase kratší chůze, mimo ni rovně, stejně znovu', () => {
+    const walker = routeWalker([east('d:1', 'water', 0, 40)], CELL_M);
+    // po celé trase (200 m) rychleji než rovně – PATH_WALK
+    const along = walker.walkLength!({ x: 0, z: 0 }, { x: 200, z: 0 });
+    expect(along).toBeLessThan(200);
+    expect(along).toBeCloseTo(200 / PATH_WALK.speed, 0);
+    // daleko od sítě rovně
+    const off = walker.walkLength!({ x: 0, z: 400 }, { x: 30, z: 440 });
+    expect(off).toBeCloseTo(50, 6);
+    // stejný dotaz = stejný výsledek (čistá funkce sítě)
+    expect(walker.walkLength!({ x: 0, z: 0 }, { x: 200, z: 0 })).toBe(along);
+    expect(
+      routeWalker([east('d:1', 'water', 0, 40)], CELL_M).walkLength!(
+        { x: 0, z: 0 },
+        { x: 200, z: 0 },
+      ),
+    ).toBe(along);
+  });
 });

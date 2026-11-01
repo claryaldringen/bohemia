@@ -2,12 +2,16 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   VILLAGER_CLIPS,
+  MAN_ONLY_CLIPS,
+  TOOL_WALK,
+  isWalkClip,
   createVillagerPose,
   route,
   rowWork,
   shuttle,
   villagerSeconds,
   walkSpeed,
+  type VillagerClip,
 } from '../villager-motion';
 
 const pose = createVillagerPose;
@@ -70,21 +74,116 @@ describe('villager-motion – pohyb jako funkce času', () => {
     const spec = JSON.parse(
       readFileSync(new URL('../../../../../tools/blender/people.json', import.meta.url), 'utf8'),
     ) as { name: string; clips: { name: string }[] }[];
-    const manOnly = [
-      'ride',
-      'ride-trot',
-      'ride-idle',
-      'bow-draw',
-      'bow-release',
-      'spear-thrust',
-      'walk-spear',
-      'sword-strike',
-      'shield-block',
-    ];
     for (const figure of spec) {
       const expected =
-        figure.name === 'man' ? VILLAGER_CLIPS : VILLAGER_CLIPS.filter((c) => !manOnly.includes(c));
+        figure.name === 'man'
+          ? VILLAGER_CLIPS
+          : VILLAGER_CLIPS.filter((c) => !MAN_ONLY_CLIPS.includes(c));
       expect(figure.clips.map((c) => c.name).sort()).toEqual([...expected].sort());
+    }
+  });
+
+  it('GLB postav mají klipy z people.json (přegenerované – úloha 10)', () => {
+    for (const name of ['man', 'woman']) {
+      const glb = readFileSync(
+        new URL(`../../../public/models/people/${name}.glb`, import.meta.url),
+      );
+      // GLB: hlavička 12 B, pak blok JSON (délka, typ, data)
+      const json = JSON.parse(glb.subarray(20, 20 + glb.readUInt32LE(12)).toString('utf8')) as {
+        animations: { name: string }[];
+      };
+      const expected =
+        name === 'man' ? VILLAGER_CLIPS : VILLAGER_CLIPS.filter((c) => !MAN_ONLY_CLIPS.includes(c));
+      expect(json.animations.map((a) => a.name).sort()).toEqual([...expected].sort());
+    }
+  });
+
+  it('vlastní klipy (dojení, předení, tkaní, sezení, kruh, hudba) jsou z klíčových póz', () => {
+    const spec = JSON.parse(
+      readFileSync(new URL('../../../../../tools/blender/people.json', import.meta.url), 'utf8'),
+    ) as { name: string; clips: { name: string; keys?: unknown; props: string[] }[] }[];
+    for (const figure of spec) {
+      const keyed = figure.clips.filter((c) => c.keys).map((c) => c.name);
+      expect(keyed.sort()).toEqual(['drum', 'milk', 'pipe', 'sit', 'spin', 'weave', 'wheel']);
+      // sedí na špalku
+      for (const c of figure.clips.filter((c) => ['milk', 'sit', 'wheel'].includes(c.name))) {
+        expect(c.props).toContain('stump');
+      }
+    }
+  });
+
+  it('cesta s nářadím a chůze vladaře mají rychlost chůze', () => {
+    expect(TOOL_WALK.hoe).toBe('walk-hoe');
+    expect(isWalkClip('walk-axe')).toBe(true);
+    expect(isWalkClip('sit')).toBe(false);
+    expect(walkSpeed('man', 'walk-lord', 1)).toBeGreaterThan(walkSpeed('man', 'walk', 1));
+  });
+
+  it('rekvizity fází (úloha 9): klip ukazuje svou rekvizitu v people.json i v GLB', () => {
+    // klip → rekvizity, které v něm musí být vidět (villagers.md – Fáze činností)
+    const expected: Partial<Record<VillagerClip, readonly string[]>> = {
+      bind: ['sheaf'],
+      rake: ['rake'],
+      pitch: ['pitchfork'],
+      forge: ['hammer', 'tongs'],
+      split: ['split-axe', 'block'],
+      sieve: ['sieve'],
+      pots: ['pots'],
+      'carry-tools': ['basket', 'tools-load'],
+      'carry-pots': ['basket', 'pots-load'],
+      'carry-fish': ['basket', 'fish-load'],
+      snare: ['snare'],
+      cook: ['ladle', 'cookpot'],
+      milk: ['stump', 'pail'],
+      spin: ['distaff'],
+      weave: ['loom'],
+      pipe: ['pipe'],
+      drum: ['drum'],
+    };
+    const spec = JSON.parse(
+      readFileSync(new URL('../../../../../tools/blender/people.json', import.meta.url), 'utf8'),
+    ) as { name: string; props: { name: string }[]; clips: { name: string; props: string[] }[] }[];
+    for (const figure of spec) {
+      const glb = readFileSync(
+        new URL(`../../../public/models/people/${figure.name}.glb`, import.meta.url),
+      );
+      const jsonLength = glb.readUInt32LE(12);
+      const json = JSON.parse(glb.subarray(20, 20 + jsonLength).toString('utf8')) as {
+        nodes: { name: string }[];
+        accessors: { bufferView: number; byteOffset?: number }[];
+        bufferViews: { byteOffset?: number }[];
+        animations: {
+          name: string;
+          channels: { sampler: number; target: { node: number; path: string } }[];
+          samplers: { output: number }[];
+        }[];
+      };
+      // blok BIN hned za JSON (délka, typ, data)
+      const bin = 20 + jsonLength + 8;
+      const firstFloat = (accessor: number): number => {
+        const a = json.accessors[accessor]!;
+        const view = json.bufferViews[a.bufferView]!;
+        return glb.readFloatLE(bin + (view.byteOffset ?? 0) + (a.byteOffset ?? 0));
+      };
+      for (const [clip, props] of Object.entries(expected)) {
+        const clipSpec = figure.clips.find((c) => c.name === clip);
+        const anim = json.animations.find((a) => a.name === clip);
+        for (const prop of props) {
+          expect(
+            figure.props.map((p) => p.name),
+            `${figure.name}: ${prop}`,
+          ).toContain(prop);
+          expect(clipSpec?.props, `${figure.name} ${clip}`).toContain(prop);
+          // kloub rekvizity má v klipu nenulové měřítko (skrytá rekvizita má 0)
+          const node = json.nodes.findIndex((n) => n.name === `prop_${prop}`);
+          expect(node, `${figure.name}: uzel prop_${prop}`).toBeGreaterThanOrEqual(0);
+          const scale = anim?.channels.find(
+            (c) => c.target.node === node && c.target.path === 'scale',
+          );
+          expect(scale, `${figure.name} ${clip}: měřítko ${prop}`).toBeDefined();
+          expect(firstFloat(anim!.samplers[scale!.sampler]!.output)).toBeGreaterThan(0.5);
+        }
+      }
     }
   });
 });

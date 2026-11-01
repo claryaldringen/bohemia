@@ -26,8 +26,11 @@ export type PersonJob =
   | { kind: 'elder' }
   | { kind: 'caravan'; trip: SceneExpedition['trip'] | null; porter: boolean }
   | { kind: 'funeral'; bearer: boolean }
-  /** Svatba (kinship.md – Svatba ve scéně): nevěsta, ženich, nebo svatebčan. */
-  | { kind: 'wedding'; role: 'bride' | 'groom' | 'guest' }
+  /**
+   * Svatba (kinship.md – Svatba ve scéně): nevěsta, ženich, nebo svatebčan – hudebník s píšťalou
+   * či bubnem (`music`, wedding-plan.ts).
+   */
+  | { kind: 'wedding'; role: 'bride' | 'groom' | 'guest'; music?: 'pipe' | 'drum' }
   /**
    * U spřežení s rádlem (oxen.md – Spřežení postupuje s orbou): oráč u rukojeti, nebo honák
    * s provazem; `team` = pořadí spřežení dne (plough-team-renderer.ts). Postavu kreslí spřežení.
@@ -144,6 +147,14 @@ export class DayRoster {
   hasMen(home: number): boolean {
     for (const p of this.byId.values()) {
       if (p.home === home && p.sex === 'male' && p.age >= AGE.olderChild) return true;
+    }
+    return false;
+  }
+
+  /** Má domácnost `home` malé dítě (pod 7 let – AGE.olderChild; i kojence)? */
+  hasSmallChild(home: number): boolean {
+    for (const p of this.byId.values()) {
+      if (p.home === home && p.age < AGE.olderChild) return true;
     }
     return false;
   }

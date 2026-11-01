@@ -3,6 +3,7 @@ import { HAY_WINTER_MONTHS, dateOfDayIndex } from '@bohemia/game';
 import type { SceneVillage } from '../../village-view';
 import { ploughingToday } from '../plough-front';
 import { grazingHorses } from '../livestock-placement';
+import { HAYSTACK_SIZES, haystackSize } from '../pen-layout';
 import { penHerds, scenePenViews } from '../village-pens';
 
 // Ohrady ve vsi (oxen.md): pohled na ohrady a zvířata v nich (kde se orá – plough-front.test.ts).
@@ -79,6 +80,16 @@ describe('ohrady ve vsi', () => {
     expect(views[1]!.progress).toBeCloseTo(0.4, 9);
     // obydlí leží na −z od ohrady
     expect(views[0]!.facing.z).toBeLessThan(0);
+  });
+
+  it('stoh sena u ohrady roste se zásobou sena – stupeň z pohledu na ves (úloha 11)', () => {
+    const pens = village.pens!.map((p, i) => (i === 0 ? { ...p, hay: 1 } : p));
+    const views = scenePenViews({ ...village, pens });
+    expect(views[0]!.hay).toBe(1);
+    expect(views[1]!.hay).toBeUndefined();
+    expect(haystackSize(undefined)).toBe(1);
+    expect([0, 1, 2, 3].map(haystackSize)).toEqual([...HAYSTACK_SIZES]);
+    expect(HAYSTACK_SIZES[0]).toBe(0);
   });
 
   it('zvířata jen v hotových ohradách; v den orby jsou voli spřežení na poli', () => {

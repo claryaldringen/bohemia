@@ -326,7 +326,11 @@ export function weddingFigures(
         : adultHair(c.who, ctx.sexes.married);
     const pose = weddingPose(plan, index, c.who.kind, c.who.scale);
     const role = member.role === 'bride' || member.role === 'groom' ? member.role : 'guest';
-    const out = figure(c, pose, hair, { kind: 'wedding', role });
+    const out = figure(c, pose, hair, {
+      kind: 'wedding',
+      role,
+      ...(member.music ? { music: member.music } : {}),
+    });
     // nevěsta s věncem v běleném lnu, svatebčané pestřeji
     const cloth =
       member.role === 'bride' ? BRIDE_CLOTH : weddingCloth(weddingLookRoll(plan, index));

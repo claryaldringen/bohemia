@@ -71,7 +71,7 @@ import { CartRenderer } from './cart-renderer';
 import type { DraftPick, DraftSelection } from './draft-pick';
 import type { Project } from './villager-pick';
 import type { DraftCrews } from './villager-plan';
-import { draftTeamsToday, villageCartPlans } from './village-carts';
+import { buildingCartPlans, draftTeamsToday, villageCartPlans } from './village-carts';
 import { penHerds, scenePenViews } from './village-pens';
 import { SACRED_SITE_KIND, sacredBuildingKey } from './sacred-layout';
 import { SacredRenderer } from './sacred-renderer';
@@ -525,8 +525,11 @@ export class VillageRenderer {
     const pens = this.pens.builtPens();
     // vozy výprav jedou v karavaně podle postupu výpravy v herním čase (caravan.ts)
     const caravans = (village.expeditions ?? []).filter((e) => e.carts.length > 0);
+    // rozdělané vozy u tesařů (fáze stavby – craft-yard-layout.ts)
+    const building = buildingCartPlans(carpenterYardViews(village.dwellings));
     const key = JSON.stringify([
       village.carts ?? [],
+      building,
       window,
       pens.map((p) => [p.id, p.layout.square, p.layout.front, p.layout.side]),
       caravans,
@@ -543,7 +546,7 @@ export class VillageRenderer {
     );
     // vůz se spřežením má vozku (jede, nebo v karavaně), stojící u ohrady ne
     this.cartCrews = plans.flatMap((p) => (!('parked' in p) && p.id !== undefined ? [p.id] : []));
-    this.carts.setCarts(plans, Date.now());
+    this.carts.setCarts([...plans, ...building], Date.now());
     return true;
   }
 
@@ -1768,6 +1771,15 @@ export class VillageRenderer {
 }
 
 /** Hotové kovárny a hrnčíři pro dvory dílen (craft-yard-layout.ts). */
+/** Hotové dílny tesařů s rozdělaným vozem (`SceneCraftYard.cart`). */
+function carpenterYardViews(dwellings: SceneVillage['dwellings']): CraftYardView[] {
+  return dwellings.flatMap((d): CraftYardView[] =>
+    d.built && d.craft === 'carpenter' && d.yard?.cart
+      ? [{ id: d.id, craft: d.craft, position: d.position, frame: sceneFrame(d), yard: d.yard }]
+      : [],
+  );
+}
+
 function craftYardViews(dwellings: SceneVillage['dwellings']): CraftYardView[] {
   return dwellings.flatMap((d): CraftYardView[] =>
     d.built && (d.craft === 'smith' || d.craft === 'potter')

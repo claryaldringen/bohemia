@@ -533,6 +533,13 @@ export class LandscapeScene {
       onLoaded: () => this.renderWhenReady(),
       // karavany výprav jdou v herním čase (caravan.ts) – okno herního dne jako orba za den
       dayWindow: (day) => this.village?.gameDayWindow(day) ?? null,
+      // povodeň (villagers.md – Události): na rozlitou vodu se nechodí, kdo tam je, jde domů
+      flooded: (x, z, nowMs) =>
+        this.storm?.floodedAt(
+          x,
+          z,
+          this.disasterDayOverride ?? gameDayAt(nowMs, this.worldClock ?? OFFICIAL_WORLD),
+        ) ?? false,
       // pohřby (cemetery.md – Pohřeb ve scéně): máry, hranice a oheň kreslí ves
       onFunerals: (plans) => {
         if (this.village?.setFunerals(plans, Date.now())) this.renderWhenReady();

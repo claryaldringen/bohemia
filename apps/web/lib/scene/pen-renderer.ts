@@ -19,6 +19,7 @@ import {
 } from './instanced-model';
 import {
   PEN_HAYSTACK_SCALE,
+  haystackSize,
   penFenceStage,
   penLayout,
   penMudAt,
@@ -89,6 +90,11 @@ export interface PenView {
   species?: PenSpecies;
   /** Smršť vsi (disasters.md – Smršť): stoh ohrady v její stopě leží rozmetaný. */
   tornado?: { strength: TornadoStrength; track: TornadoTrack };
+  /**
+   * Stoh sena hotové ohrady – stupeň 0–3 zásoby (`ScenePen.hay`, villagers.md – odvoz sena na
+   * stoh); bez údaje plný.
+   */
+  hay?: number;
 }
 
 interface PenEntry {
@@ -163,7 +169,7 @@ export class PenRenderer {
         ? Math.round(fenceDecayAmount(view.condition) * FENCE_DECAY_STEPS) / FENCE_DECAY_STEPS
         : 0;
       const tornadoKey = view.tornado ? JSON.stringify(view.tornado) : '';
-      const key = `${layoutKey}|${Math.round(view.progress * 400)}|${decay}|${fenceDecay}|${pendingKey}|${tornadoKey}`;
+      const key = `${layoutKey}|${Math.round(view.progress * 400)}|${decay}|${fenceDecay}|${pendingKey}|${tornadoKey}|${view.hay ?? 3}`;
       const current = this.entries.get(view.id);
       if (current?.key === key) continue;
       changed = true;
@@ -198,7 +204,7 @@ export class PenRenderer {
         layoutKey,
         pendingKey,
         layout,
-        stage,
+        stage: { ...stage, haystack: stage.haystack * haystackSize(view.hay) },
         decay,
         scattered: view.tornado
           ? stackScattered(view.tornado, layout.haystack.x, layout.haystack.z)

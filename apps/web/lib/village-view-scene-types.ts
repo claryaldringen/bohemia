@@ -515,6 +515,12 @@ export interface SceneCraftYard {
   bars?: number;
   clay?: number;
   treading?: true;
+  /**
+   * Tesař (wagons.md – Tesař; villagers.md – Fáze činností, Tesař): rozdělaný vůz u dílny po
+   * fázích stavby – 1 korba bez kol na špalcích, 2 korba s koly, 3 dřevěná práce hotová (čeká
+   * na kování); stupně `CART_BUILD_STAGES` ve village-view-crafts.ts. Bez údaje vůz nevzniká.
+   */
+  cart?: { kind: CartKind; stage: 1 | 2 | 3 };
 }
 
 /** Rudiště kováře ve scéně (crafts.md – Uhlí a ruda kováře). */
@@ -576,6 +582,13 @@ export interface SceneCart {
    * neposílá. Bez jízdy, nebo když vůz k cíli nedojede, chybí – vůz stojí u ohrady.
    */
   route?: { x: number; z: number }[];
+  /**
+   * Svoz snopů s hotovým humnem (villagers.md – Fáze činností; Zjednodušení a co chybí): od konce
+   * `route` (pole) plný k humnu (`drop` – kde skládá) a odtud prázdný zpět k ohradě – osa vozové
+   * sítě z `goal.via`.
+   * Bez humna, nebo když k němu vůz nedojede, chybí – vůz veze snopy zpět k ohradě jako dřív.
+   */
+  viaRoute?: { points: { x: number; z: number }[]; drop: { x: number; z: number } };
 }
 
 /**
@@ -660,6 +673,12 @@ export interface ScenePen {
    * pěšin jako na serveru – `PathVillage.pens`). Ohrada se zvířaty údaj nemá.
    */
   stocked?: false;
+  /**
+   * Stoh sena u ohrady (villagers.md – Fáze činností, Rolník: odvoz sena na stoh) – stupeň 0–3
+   * zásoby sena vsi na hotovou ohradu (`HAY_STACK_KG` ve village-view-buildings.ts): po svozu
+   * roste, přes zimu ubývá, 0 = stoh není. Bez údaje plný stoh (ukázky, starší data).
+   */
+  hay?: number;
 }
 
 /**
@@ -1047,6 +1066,8 @@ export interface SceneLord {
   trainees: { id: number; bow: number; combat: number; riding: number }[];
   /** Ženy rodiny u dvorce (id). */
   household: number[];
+  /** Vojvoda (id) – mimo výcvik stojí a chodí jako vladař (úloha 10 scény). */
+  lordId?: number;
   /**
    * Večerní návštěva vedlejší manželky (lord.md – Rod vojvody, Manželky; jen vzhled): vojvoda (id)
    * jde po výcviku k obydlí manželky `home` a ráno se vrátí. Jen když vojvoda dnes cvičí.

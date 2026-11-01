@@ -7,7 +7,7 @@
 // villager-plan.ts z rozdělení práce dne, pohyb je čistá funkce času (villager-motion.ts).
 import { dogPlansKey, type DogPlan } from './dogs';
 import { FishingLines, fishingLine } from './fishing-lines';
-import { ridePlansKey, type RidePlan } from './riders';
+import { isRiding, rideArea, ridePlansKey, type RidePlan } from './riders';
 import type { HuntSpotFn } from './villager-plan-lord';
 import '@babylonjs/core/Meshes/thinInstanceMesh';
 import '@babylonjs/loaders/glTF';
@@ -27,6 +27,7 @@ import { ShaderLanguage } from '@babylonjs/core/Materials/shaderLanguage';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import type { BaseTexture } from '@babylonjs/core/Materials/Textures/baseTexture';
 import { RawTexture } from '@babylonjs/core/Materials/Textures/rawTexture';
+import { ToHalfFloat } from '@babylonjs/core/Misc/halfFloat';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
@@ -45,15 +46,19 @@ import {
   createVillagerPose,
   villagerSeconds,
   walkSpeed,
+  isWalkClip,
   type HerdView,
+  type PoseFn,
   type VillagerKind,
   type VillagerPose,
   type VillagerStage,
 } from './villager-motion';
+import { LIVESTOCK_EPOCH_MS } from './livestock-motion';
 import { carryErrands } from './villager-errands';
 import { personFigure } from './villager-plan-cast';
+import { phaseWalking, type PhaseName } from './villager-phases';
 import { activityStage } from './villager-schedule';
-import { scheduledState, Timetable } from './villager-timetable';
+import { dayExtent, scheduledState, Timetable } from './villager-timetable';
 import type { ScenePerson } from '../person-view';
 import { samePersonState, type PersonFigureState } from '../person-activity';
 import { RING_SIZE_M, SelectionRing } from './selection-ring';
@@ -69,24 +74,22 @@ import {
   type PlannedVillager,
   type VillagerGround,
   type VillagerPaths,
+  type WalkRouteFn,
 } from './villager-plan';
 import type { PersonJob } from './villager-roster';
 
 const KINDS: readonly VillagerKind[] = ['woman', 'man'];
 
 /**
- * Tempo chůze rovně ode dveří k práci (m/s – villager-schedule.ts `straightWalk`, do úlohy 6):
+ * Tempo chůze ode dveří k práci (m/s – délky z odhadu sítě pěšin, `Timetable.setEstimate`):
  * dospělá žena krokem; jiná velikost postavy jde stejně rychle, nohy jdou tempem podle velikosti.
  */
 const SCHEDULE_WALK_M_S = walkSpeed('woman', 'walk', FIGURE_SCALE);
 
-/**
- * Postavy dne bez rozvrhu (do úlohy 5 – Události přerušují): řetěz s vědry při požáru, karavana,
- * pohřeb, svatba a parta porážky jdou podle své události, ne podle rozvrhu člověka.
- */
-const EVENT_KEY = /^(fire|caravan|funeral|wedding|slaughter-crew):/;
 /** Snímků za sekundu zapečené animace (klíče animací 0 A.D.). */
 const BAKE_FPS = 24;
+/** Jak dlouho (ms) smí jeden kousek pečení VAT držet hlavní vlákno, než ho pustí (`idle`). */
+const BAKE_SLICE_MS = 8;
 /** Dál od kamery (m) se lidé nehýbou – jsou pár pixelů a pohyb by jen zbytečně kreslil. */
 const ANIMATE_RANGE_M = 700;
 /** Výška obalu postav nad terénem (m). */
@@ -121,6 +124,11 @@ export interface VillagersEnvironment {
   herds(nowMs: number): readonly HerdView[];
   /** Dočetly se modely a lidé se objevili – překreslit. */
   onLoaded(): void;
+  /**
+   * Je bod v okamžik `nowMs` pod vodou povodně (storm-renderer.ts – `floodedAt`)? Lidé na rozlitou
+   * vodu nechodí a kdo tam je, jde domů (villagers.md – Události). Bez údaje sucho.
+   */
+  flooded?(x: number, z: number, nowMs: number): boolean;
   /** Okno herního dne (skutečný čas) – karavany výprav (caravan.ts); bez hodin null. */
   dayWindow?(day: number): { startMs: number; endMs: number } | null;
   /**
@@ -156,7 +164,11 @@ interface BakedModel {
   matricesIndices: Float32Array;
   matricesWeights: Float32Array;
   boneCount: number;
-  vat: Float32Array;
+  /**
+   * Matice kostí po snímcích (RGBA): half-float (bity v Uint16Array), kde ho engine neumí,
+   * float32. Babylon si stejné pole drží pro obnovu po ztrátě kontextu – jiná kopie není.
+   */
+  vat: Uint16Array | Float32Array;
   frames: number;
   clips: Map<string, { start: number; end: number }>;
   texture: BaseTexture | null;
@@ -228,10 +240,13 @@ export class VillageVillagers {
   private timetable: Timetable | null = null;
   /** Lidé s postavou podle rozvrhu (id). */
   private scheduled = new Set<number>();
-  /** Postavy dne bez rozvrhu: cizí, lidé na události (`EVENT_KEY`) a jezdci (riders.ts). */
+  /** Postavy dne bez rozvrhu: cizí (`STRANGER`) a ukázky bez lidí ve scéně. */
   private dayFigures: PlannedVillager[] = [];
-  /** Lidé, jejichž postavu dnes kreslí postava dne – jejich postava z rozvrhu je skrytá. */
-  private away = new Set<number>();
+  /**
+   * Jezdci s trasou (riders.ts): v bloku jízdy sedí na koni vždy – kůň nejede bez jezdce, i kdyby
+   * jezdec z rozvrhu ke koni ještě nedošel (villagers.md – Události).
+   */
+  private mounted = new Map<number, { ride: RidePlan; pose: PoseFn }>();
   /** Vojvoda (role `voivode`) – výběr se mu při vstupu do domu nezruší. */
   private lords = new Set<number>();
   /** Vybraný člověk byl od výběru venku – až zajde do domu, výběr se zruší (kromě vojvody). */
@@ -540,16 +555,18 @@ export class VillageVillagers {
     let job = figure?.job ?? null;
     let leg: 'out' | 'back' | null = null;
     let indoors = false;
+    let phase: PhaseName | null = null;
     const timetable = this.timetable;
-    if (timetable && this.scheduled.has(id) && !this.away.has(id)) {
+    if (timetable && this.scheduled.has(id) && !this.mountedAt(id, t)) {
       const state = scheduledState(
         timetable.activity(id, t),
         t,
         this.selectedOut,
         this.lords.has(id),
+        timetable.phase(id, t),
       );
       if (!state.home) this.selectedOut = true;
-      ({ job, leg, indoors } = state);
+      ({ job, leg, indoors, phase } = state);
     }
     const herd = job?.kind === 'herd' ? (herds[job.herd]?.species ?? null) : null;
     this.emitPerson({
@@ -559,6 +576,7 @@ export class VillageVillagers {
       hidden: shown?.hidden ?? true,
       herd,
       leg,
+      ...(phase ? { phase } : {}),
       ...(indoors ? { indoors: true as const } : {}),
     });
   }
@@ -641,25 +659,36 @@ export class VillageVillagers {
     const persons = village.labor?.persons;
     const living = persons ? new Set(persons.map((person) => person.id)) : undefined;
     const timetable = persons && village.labor ? this.scheduleDay(village, persons, plan, t) : null;
-    // jezdci (riders.ts) jedou s koněm podle bloků dne a lidé na události podle své události – do
-    // úlohy 5 postavy dne jako dosud; cizí (`STRANGER`) a ukázky bez lidí také
-    const riders = new Set(
-      (plan.crew.rides ?? []).filter((r) => r.route !== null).map((r) => r.riderId),
-    );
+    // lidé vsi jdou z rozvrhu i na události (villagers.md – Události přerušují); postavy dne jen
+    // cizí (`STRANGER`) a ukázky bez lidí
     const day = plan.people.filter(
-      (p) =>
-        this.models?.has(p.kind) &&
-        (!timetable || p.person === undefined || riders.has(p.person) || EVENT_KEY.test(p.key)),
+      (p) => this.models?.has(p.kind) && (!timetable || p.person === undefined),
     );
-    this.away = new Set(day.flatMap((p) => (p.person === undefined ? [] : [p.person])));
+    this.mounted = new Map();
+    if (timetable) {
+      const poses = new Map(plan.people.map((p) => [p.person, p.pose]));
+      for (const ride of plan.crew.rides ?? []) {
+        const pose = poses.get(ride.riderId);
+        if (ride.route && pose) this.mounted.set(ride.riderId, { ride, pose });
+      }
+    }
     // pochůzka postavy dne je celý cyklus (villagers.md – Pochůzka se dokončí): cizí na cestě dojde
     this.dayFigures = carryErrands(this.dayFigures, day, t, living);
     const scheduled = timetable && persons ? this.personFigures(persons, timetable) : [];
     this.scheduled = new Set(scheduled.map((p) => p.person!));
     this.people = [...scheduled, ...this.dayFigures];
     this.setFishingLines(t);
+    // obal i z dveří lidí s rozvrhem, míst úloh dne a tras jízd (pevné za den) – kdo vyjde z domu
+    // mimo poslední pózy, hýbe se hned, ne až s dalším přeplánováním
     this.extent = unionExtent(
       caravanExtent(village),
+      timetable && persons
+        ? dayExtent(
+            plan.tasks,
+            persons.map((p) => plan.doors.get(p.home) ?? null),
+          )
+        : null,
+      ...[...this.mounted.values()].map((m) => rideArea(m.ride)),
       ...this.funerals.map((f) => f.extent),
       ...this.weddings.map((w) => w.extent),
     );
@@ -708,6 +737,7 @@ export class VillageVillagers {
     plan: {
       tasks: Parameters<Timetable['setDay']>[2];
       doors: ReadonlyMap<number, { x: number; z: number }>;
+      walk: WalkRouteFn;
     },
     t: number,
   ): Timetable {
@@ -715,6 +745,15 @@ export class VillageVillagers {
     if (this.timetable?.seed !== seed) this.timetable = new Timetable(seed, SCHEDULE_WALK_M_S);
     const timetable = this.timetable;
     timetable.setDoors(new Map(persons.map((p) => [p.id, plan.doors.get(p.home) ?? null])));
+    // délky chůze z odhadu po síti pěšin, přesná trasa jen pro kreslenou pózu (villagers.md –
+    // Cesty postav; úloha 6)
+    const paths = this.paths;
+    timetable.setEstimate(paths?.walkLength ? (a, b) => paths.walkLength!(a, b) : null);
+    const homes = new Map(persons.map((p) => [p.id, p.home]));
+    timetable.setRouter((id, from, to) => plan.walk(from, to, homes.get(id)));
+    // povodeň – na rozlitou vodu se nechodí (villagers.md – Události)
+    const flooded = this.env.flooded;
+    timetable.setWet(flooded ? (x, z, at) => flooded(x, z, at * 1000 + LIVESTOCK_EPOCH_MS) : null);
     const day = village.labor!.day;
     const window = this.env.dayWindow?.(day) ?? null;
     timetable.setDay(day, window ? villagerSeconds(window.startMs) : t, plan.tasks);
@@ -732,22 +771,39 @@ export class VillageVillagers {
     const out: PlannedVillager[] = [];
     for (const person of persons) {
       const id = person.id;
-      let walkPace = 1;
+      let kind: VillagerKind = 'man';
+      let scale = 1;
       const figure = personFigure(timetable.seed, person, (t, herds, pose): VillagerPose => {
         timetable.pose(id, t, herds, pose);
         // chůze rovně ode dveří jde tempem `SCHEDULE_WALK_M_S` – nohy podle velikosti postavy
         const a = timetable.activity(id, t);
-        if (a.kind !== 'errand' && pose.clip === 'walk') {
+        if (a.kind !== 'errand' || a.retreat) {
+          // tempo po trase (poměr délky a času – activityPose) × nohy podle velikosti a klipu
+          // (cesta ode dveří, domů a ke kroku jinde – villager-phases.ts; s košem, s úlovkem)
           const stage = activityStage(a, t);
-          if (stage === 'out' || stage === 'back') pose.pace = walkPace;
+          const walking =
+            stage === 'out' || stage === 'back'
+              ? isWalkClip(pose.clip) || stage === 'back'
+              : stage === 'work' && phaseWalking(timetable.phase(id, t));
+          if (walking) pose.pace *= SCHEDULE_WALK_M_S / walkSpeed(kind, pose.clip, scale);
         }
-        if (this.away.has(id) || this.crewJobs.has(id)) pose.hidden = true;
+        // v bloku jízdy na koni (kůň nejede bez jezdce)
+        const mount = this.mountedAt(id, t);
+        if (mount) mount.pose(t, herds, pose);
+        else if (this.crewJobs.has(id)) pose.hidden = true;
         return pose;
       });
-      walkPace = SCHEDULE_WALK_M_S / walkSpeed(figure.kind, 'walk', figure.scale);
+      kind = figure.kind;
+      scale = figure.scale;
       if (this.models?.has(figure.kind)) out.push(figure);
     }
     return out;
+  }
+
+  /** Jízda jezdce `id`, když je v okamžik `t` v bloku jízdy (riders.ts – `isRiding`). */
+  private mountedAt(id: number, t: number): { ride: RidePlan; pose: PoseFn } | null {
+    const mount = this.mounted.get(id);
+    return mount && isRiding(mount.ride, t) ? mount : null;
   }
 
   /** Vlasce rybářů (klip `fish`) – rybář stojí, poloha z pózy v čase `t`. */
@@ -916,7 +972,9 @@ export class VillageVillagers {
       false,
       false,
       Texture.NEAREST_NEAREST,
-      Constants.TEXTURETYPE_FLOAT,
+      model.vat instanceof Uint16Array
+        ? Constants.TEXTURETYPE_HALF_FLOAT
+        : Constants.TEXTURETYPE_FLOAT,
     );
     vat.name = `villagers-${name}-vat`;
     const manager = new BakedVertexAnimationManager(this.scene);
@@ -1166,16 +1224,29 @@ function villageSeed(village: SceneVillage): number {
   return first ? (Math.round(first.x * 13) * 31 + Math.round(first.z * 7)) | 0 : 1;
 }
 
+/** Počká, až má prohlížeč volno (nejdéle 50 ms); bez `requestIdleCallback` (Safari) další úloha. */
+function idle(): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof requestIdleCallback === 'function')
+      requestIdleCallback(() => resolve(), { timeout: 50 });
+    else setTimeout(resolve, 0);
+  });
+}
+
 /**
  * Načte GLB postavy a zapeče všechny její animace do pole matic kostí (VAT): pro každý klip
  * snímky po 1/24 s včetně posledního (= prvního, smyčka navazuje). Matice i vrcholy se převedou
- * do souřadnic scény (převod os glTF – zrcadlení – se zapeče, mesh pak nemá rodiče).
+ * do souřadnic scény (převod os glTF – zrcadlení – se zapeče, mesh pak nemá rodiče). VAT je
+ * half-float (polovina paměti; posuny kostí do ±3 m na ≈ 2 mm), peče se po kouscích
+ * `BAKE_SLICE_MS` mezi volnými chvílemi hlavního vlákna.
  */
 export async function loadBakedModel(scene: Scene, url: string): Promise<BakedModel | null> {
   const container = await LoadAssetContainerAsync(url, scene);
   if (scene.isDisposed) return null;
   container.addAllToScene();
   for (const group of container.animationGroups) group.stop();
+  // pečení jde po kouscích a scéna mezitím kreslí – zdrojový model nesmí být vidět
+  for (const mesh of container.meshes) mesh.setEnabled(false);
   const source = container.meshes.find(
     (mesh): mesh is Mesh => mesh instanceof Mesh && mesh.getTotalVertices() > 0 && !!mesh.skeleton,
   );
@@ -1201,21 +1272,29 @@ export async function loadBakedModel(scene: Scene, url: string): Promise<BakedMo
 
   const boneCount = skeleton.bones.length;
   const floatsPerFrame = (boneCount + 1) * 16;
-  const chunks: Float32Array[] = [];
+  const groups = container.animationGroups.map((group) => {
+    const fps = group.targetedAnimations[0]?.animation.framePerSecond ?? 60;
+    const durationS = (group.to - group.from) / fps;
+    return { group, fps, durationS, count: Math.max(1, Math.round(durationS * BAKE_FPS)) + 1 };
+  });
+  const frames = groups.reduce((sum, g) => sum + g.count, 0);
+  // jedno pole rovnou ve formátu textury – žádné kusy po klipech ani jejich spojování
+  const half = scene.getEngine().getCaps().textureHalfFloat;
+  const vat = half
+    ? new Uint16Array(floatsPerFrame * frames)
+    : new Float32Array(floatsPerFrame * frames);
+  const row = new Float32Array(floatsPerFrame);
   const clips = new Map<string, { start: number; end: number }>();
   let frame = 0;
   const m = new Matrix();
   const tmp = new Matrix();
-  for (const group of container.animationGroups) {
+  let slice = performance.now();
+  for (const { group, fps, durationS, count } of groups) {
     for (const r of rest) {
       r.node.position.copyFrom(r.position);
       if (r.rotation) (r.node.rotationQuaternion ??= new Quaternion()).copyFrom(r.rotation);
       r.node.scaling.copyFrom(r.scaling);
     }
-    const fps = group.targetedAnimations[0]?.animation.framePerSecond ?? 60;
-    const durationS = (group.to - group.from) / fps;
-    const count = Math.max(1, Math.round(durationS * BAKE_FPS)) + 1;
-    const data = new Float32Array(floatsPerFrame * count);
     for (let k = 0; k < count; k++) {
       const at = group.from + Math.min(durationS, k / BAKE_FPS) * fps;
       for (const { animation, target } of group.targetedAnimations) {
@@ -1235,18 +1314,26 @@ export async function loadBakedModel(scene: Scene, url: string): Promise<BakedMo
         // matice v souřadnicích meshe -> ve scéně: W⁻¹ · M · W (řádkové vektory Babylonu)
         inverse.multiplyToRef(m, tmp);
         tmp.multiplyToRef(world, m);
-        m.copyToArray(data, k * floatsPerFrame + b * 16);
+        m.copyToArray(row, b * 16);
+      }
+      const o = (frame + k) * floatsPerFrame;
+      if (vat instanceof Uint16Array) {
+        for (let i = 0; i < floatsPerFrame; i++) vat[o + i] = ToHalfFloat(row[i]!);
+      } else {
+        vat.set(row, o);
+      }
+      // pečení po kouscích – hlavní vlákno mezi nimi kreslí a reaguje (žádná dlouhá úloha)
+      if (performance.now() - slice > BAKE_SLICE_MS) {
+        await idle();
+        if (scene.isDisposed) {
+          container.dispose();
+          return null;
+        }
+        slice = performance.now();
       }
     }
     clips.set(group.name, { start: frame, end: frame + count - 1 });
-    chunks.push(data);
     frame += count;
-  }
-  const vat = new Float32Array(floatsPerFrame * frame);
-  let offset = 0;
-  for (const chunk of chunks) {
-    vat.set(chunk, offset);
-    offset += chunk.length;
   }
 
   const positions = source.getVerticesData(VertexBuffer.PositionKind)!;
@@ -1302,7 +1389,7 @@ export async function loadBakedModel(scene: Scene, url: string): Promise<BakedMo
     matricesWeights,
     boneCount,
     vat,
-    frames: frame,
+    frames,
     clips,
     texture,
     mask,

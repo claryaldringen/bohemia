@@ -92,12 +92,13 @@ vodu a dřevo, vozy) už jsou v jádru.
   klip `weed`, 12 s – dřív 6 s) a s otepí jde až domů. **Mez 400 m po pěšině** (dřív 220 m; `ERRAND_MAX_M`)
   – jádro chodí pro dřevo nejvýš za cenu `ERRAND_MAX_COST` 450 (cena ≥ délka, do kopce a lesem
   víc), dál méně často a proud se nekreslí.
-- **Na pole a zpět** – jedna cesta za den na člověkoden polní práce (kopání, setí, pletí, žeň,
-  seč na dílu, zakládání); od domu, ke kterému díly dnešní fronty patří (holdings.ts), k jeho
-  prvnímu dílu.
+- ~~**Na pole a zpět** – jedna cesta za den na člověkoden polní práce~~ – od 31. 10. 2026 proud
+  na pole není (Martin 31. 10. 2026: „Ano“ – cesta na pole a domů je součást práce): pracovník
+  jde ode dveří svého domu k řadě na poli a na konci činnosti domů (Činnosti od začátku do konce,
+  úloha 4), nosiči úrody z domu k panákům a s nůší zpět.
 - **Kolik nejvýš:** 24 lidí na cestách (`MAX_TRAFFIC`, nad to poměrně méně). Každý druh cesty,
   po které někdo chodí, má aspoň jednoho člověka. Vlkov (28 lidí, voda ≈ 500 m od domů) ve žních:
-  7 pro vodu, 4 na pole a 6 nosičů úrody, kteří teď chodí celých 470 m; v prosinci 8 pro vodu
+  7 pro vodu a 6 nosičů úrody, kteří teď chodí celých 470 m (dřív i 4 na pole); v prosinci 8 pro vodu
   a 1 pro dřevo; v létě s dvoukolákem, který vodu většině domácností přiveze, 2 pro vodu.
 - **Lidé v proudu** jsou rozestoupení (fáze se zlatým řezem – přibude-li člověk, ostatní zůstanou,
   kde byli), doma mezi cestami na chvíli zmizí (zajdou dovnitř). Vyjdou z nejbližšího volného
@@ -106,7 +107,7 @@ vodu a dřevo, vozy) už jsou v jádru.
   ženy nesoucí vodu nesmí z cesty náhle zmizet, ale musí dojít domů a do toho domu vejít.“
   Podrobnosti návrh Clauda:
   - **Pochůzka je celý cyklus:** vyjde z domu (volné místo u vchodu) → jde k cíli → u cíle pracuje
-    (voda – nabírá, dřevo – sbírá, milíř a pole – chvíli postojí) → vrací se s nákladem → vejde do
+    (voda – nabírá, dřevo – sbírá, milíř – chvíli postojí) → vrací se s nákladem → vejde do
     domu. Postava nikdy nezmizí ani neskočí uprostřed cyklu.
   - **Při změně plánu** (nový den, jiný počet lidí v proudu, jiná trasa, jiný člověk v postavě –
     los lidí je na každý den jiný): kdo je na cestě, svůj **rozběhnutý cyklus dokončí** po dosavadní
@@ -334,8 +335,10 @@ cart-renderer.ts) – proto nešli vybrat. Podrobnosti jsou návrh Clauda – je
 
 ## Činnosti od začátku do konce (návrh Clauda; Martin 31. 10. 2026)
 
-Stav: **schváleno** (Martin 31. 10. 2026: „Ano, začni“; nové animace: „Ověř 0 A.D., pak Blender“) – v kódu úlohy 1–2
-(rozvrh a obsazení jako člověk → úloha, scéna ho zatím nepoužívá).
+Stav: **schváleno** (Martin 31. 10. 2026: „Ano, začni“; nové animace: „Ověř 0 A.D., pak Blender“) – v kódu úlohy 1–6
+(rozvrh, obsazení jako člověk → úloha, postavy podle rozvrhu, cesta na pole jako součást práce,
+události přerušují, délky ze sítě pěšin); úlohy 7–10 (fáze, rekvizity, animace) jsou hotové
+jako koncept ke schválení očima, úlohy 11–12 zbývají.
 
 Martin (31. 10. 2026): „Nevím jak je to teď, ale obecně by měla být vizuální stránka oddělena od
 herní mechaniky. Ve vykreslování by lidé měli dělat své činnosti od začátku do konce, bez ohledu
@@ -471,8 +474,10 @@ do hry. Mění se jen to, jak scéna z rozdělení práce dělá postavy. Podrob
   herních dní, déle než nejdelší činnost) a postava stojí, kde má – uprostřed cesty k vodě,
   v řadě na poli. Řetězy započaté v různých okamžicích **splynou**, jakmile padnou na týž bod
   mřížky (po pár činnostech), takže po načtení vychází totéž co v prohlížeči otevřeném celou
-  dobu; test to hlídá na stovkách lidí a časů. Kdyby někde nesplynuly, liší se póza nejvýš po
-  dobu jedné činnosti, pak je shoda.
+  dobu; test to hlídá na stovkách lidí a časů. Kdyby někde nesplynuly, liší se póza nejvýš do
+  zvonu (≤ 55 min), pak je shoda. Shoda dvou prohlížečů platí jen se stejným vstupem: rozběhnutá
+  činnost si drží délky z doby, kdy začala (síť pěšin dorazí až po prvním výpočtu, povodeň je
+  aktuální stav hladiny, obsazení dne dorazí po přelomu) – rozdíl pak také trvá do zvonu.
 - **Zvon** (návrh Clauda – bez něj řetězy v testu nesplývají: pochůzky mají pevnou délku a pauza
   30–90 s je na splynutí málo; **jednou za hodinu** – Martin 31. 10. 2026: „Podle tvého
   doporučení“): každý člověk má po 55 minutách (`BELL_S`, < `HISTORY_S` 60 minut) vlastní
@@ -529,9 +534,10 @@ do hry. Mění se jen to, jak scéna z rozdělení práce dělá postavy. Podrob
   jen lidé, kterým právě skončila (Vlkov: 60 lidí, činnost 2–14 minut → pár za minutu).
 - **Mimo záběr** se rozvrh posouvá jen délkami ze sítě pěšin – bez přesných tras a póz; ty se
   dopočítají, až postava vejde do záběru nebo ji hráč vybere.
-- **Instance postav jsou pevná zásoba** (nejvýš `MAX_WORKERS` 60 + `MAX_TRAFFIC` 24 + starší,
-  pasáci a události); kdo je doma, je skrytý – žádná nová pole matic s každým dnem. Žádný nový
-  atribut na vrchol (WebGPU – 8 vertex bufferů).
+- **Instance postav**: jedna na člověka vsi (+ cizí a postavy dne), kdo je doma, je skrytý
+  (měřítko 0). Pole matic, nastavení klipů a vzhledu se znovu alokují s přeplánováním (`rebuild`
+  – jednou za herní den, klíč obsahuje `labor`), ne za snímek. Žádný nový atribut na vrchol
+  (WebGPU – 8 vertex bufferů).
 - Cíl: přelom dne nejvýš 2 ms navíc, snímek beze změny (klid 16,8 ms) – změřit na Vlkově před
   a po.
 
@@ -593,32 +599,32 @@ Cesta ode dveří na místo a zpět (`walk`, nosiči `carry`) je u každé role 
 
 **Rolník (žně, svoz, seno)**
 
-| Fáze                      | Kde                 | Animace a rekvizita                            | Stav                                           |
-| ------------------------- | ------------------- | ---------------------------------------------- | ---------------------------------------------- |
-| Cesta na pole             | ode dveří po pěšině | `walk`, srp / motyka na zádech                 | je (nově jako součást práce)                   |
-| Orba, setí, pletí         | pole                | `hoe`, `seed` + `basket`, `weed`               | je                                             |
-| Žně                       | pole                | `reap` + `sickle`                              | je                                             |
-| Vázání snopů              | pole                | `weed` (sehnutí) + povříslo ve ruce            | nové (rekvizita povříslo/snop nová)            |
-| Nakládání snopů na vůz    | pole u vozu         | `fruit` (zdvih nahoru) + snop                  | nové (rekvizita snop)                          |
-| Vůz se snopy jede k humnu | pěšina → humno      | `walk` vedle voznice, vůz se spřežením         | nové (cíl cesty; vůz a spřežení jsou)          |
-| Mlácení a prohazování     | humno               | `thresh` + `thresh-stick`, `winnow` + `shovel` | je                                             |
-| Hrabání sena              | louka               | `hoe` (tažení) + hrábě                         | nové (rekvizita hrábě)                         |
-| Kupy a stoh               | louka               | `fruit` (nahazování) + vidle                   | nové (rekvizita vidle, stoh jako objekt scény) |
-| Odvoz sena                | louka → dvůr        | `walk` u vozu se senem                         | nové (vůz s nákladem sena)                     |
-| Cesta domů                | pěšina              | `walk` / `carry`                               | je (nově jako součást práce)                   |
+| Fáze                      | Kde                 | Animace a rekvizita                            | Stav                                                             |
+| ------------------------- | ------------------- | ---------------------------------------------- | ---------------------------------------------------------------- |
+| Cesta na pole             | ode dveří po pěšině | `walk`, srp / motyka na zádech                 | je (nově jako součást práce)                                     |
+| Orba, setí, pletí         | pole                | `hoe`, `seed` + `basket`, `weed`               | je                                                               |
+| Žně                       | pole                | `reap` + `sickle`                              | je                                                               |
+| Vázání snopů              | pole                | `weed` (sehnutí) + povříslo ve ruce            | nové (rekvizita povříslo/snop nová)                              |
+| Nakládání snopů na vůz    | pole u vozu         | `fruit` (zdvih nahoru) + snop                  | nové (rekvizita snop)                                            |
+| Vůz se snopy jede k humnu | pěšina → humno      | `walk` vedle voznice, vůz se spřežením         | nové (cíl cesty; vůz a spřežení jsou)                            |
+| Mlácení a prohazování     | humno               | `thresh` + `thresh-stick`, `winnow` + `shovel` | je                                                               |
+| Hrabání sena              | louka               | `hoe` (tažení) + hrábě                         | nové (rekvizita hrábě)                                           |
+| Kupy a stoh               | louka               | `fruit` (nahazování) + vidle                   | je (vidle – úloha 9; stoh u ohrady podle zásoby sena – úloha 11) |
+| Odvoz sena                | louka → dvůr        | `walk` u vozu se senem                         | je (vůz se senem ke stohu u ohrady, skládá do stohu – úloha 11)  |
+| Cesta domů                | pěšina              | `walk` / `carry`                               | je (nově jako součást práce)                                     |
 
 **Žena**
 
-| Fáze                         | Kde            | Animace a rekvizita                                                   | Stav                                                 |
-| ---------------------------- | -------------- | --------------------------------------------------------------------- | ---------------------------------------------------- |
-| Voda: cesta, nabrání, návrat | studna / potok | `carry-water` + `yoke`, `water-idle`                                  | je                                                   |
-| Vaření a oheň                | před domem     | `weed` (skloněná nad ohništěm) + vařečka, hrnec u ohně                | nové (dnes jen stojí; rekvizita nová)                |
-| Dojení                       | ohrada, chlév  | sed u krávy, džber                                                    | nová animace – chybí v 0 A.D. (dnes zástupné `weed`) |
-| Předení                      | před domem     | stoj / sed, přeslice                                                  | nová animace – chybí v 0 A.D.                        |
-| Tkaní (len, vlna)            | v domě / před  | stoj u stavu                                                          | nová animace – chybí v 0 A.D.                        |
-| Péče o děti                  | před domem     | `idle` s dítětem (menší postava), případně `carry-meat-idle` bez masa | nové (postava dítěte je, pozice nová)                |
-| Pomoc o žních (vázání, svoz) | pole           | jako rolník                                                           | nové (žena v řadě žňů)                               |
-| Nošení jídla, sad, pletí     | pole, sad      | `carry`, `fruit`, `weed`                                              | je                                                   |
+| Fáze                         | Kde            | Animace a rekvizita                                    | Stav                                                                                   |
+| ---------------------------- | -------------- | ------------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| Voda: cesta, nabrání, návrat | studna / potok | `carry-water` + `yoke`, `water-idle`                   | je                                                                                     |
+| Vaření a oheň                | před domem     | `weed` (skloněná nad ohništěm) + vařečka, hrnec u ohně | nové (dnes jen stojí; rekvizita nová)                                                  |
+| Dojení                       | ohrada, chlév  | sed u krávy, džber                                     | nová animace – chybí v 0 A.D. (dnes zástupné `weed`)                                   |
+| Předení                      | před domem     | stoj / sed, přeslice                                   | nová animace – chybí v 0 A.D.                                                          |
+| Tkaní (len, vlna)            | v domě / před  | stoj u stavu                                           | je (vlastní klip `weave` se stavem, žena u dveří – úloha 12)                           |
+| Péče o děti                  | před domem     | `idle` s dítětem (menší postava)                       | je zjednodušeně (žena u dveří domu s dítětem pod 7 let – bez postavy dítěte; úloha 12) |
+| Pomoc o žních (vázání, svoz) | pole           | jako rolník                                            | nové (žena v řadě žňů)                                                                 |
+| Nošení jídla, sad, pletí     | pole, sad      | `carry`, `fruit`, `weed`                               | je                                                                                     |
 
 **Děti a starší**
 
@@ -664,11 +670,11 @@ Cesta ode dveří na místo a zpět (`walk`, nosiči `carry`) je u každé role 
 
 **Tesař**
 
-| Fáze                | Kde         | Animace a rekvizita                                           | Stav                                                        |
-| ------------------- | ----------- | ------------------------------------------------------------- | ----------------------------------------------------------- |
-| Kácení a ořez kmenů | les, dvůr   | `fell` + `axe`                                                | je                                                          |
-| Stavba              | staveniště  | `build` + `mallet`                                            | je                                                          |
-| Výroba vozu         | dvůr tesaře | `build` + `mallet`; vůz vzniká po dílech (kola, ložní plocha) | nové (vůz ve scéně dosud nevzniká – model dílů v `wagons/`) |
+| Fáze                | Kde         | Animace a rekvizita                                           | Stav                                                                             |
+| ------------------- | ----------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Kácení a ořez kmenů | les, dvůr   | `fell` + `axe`                                                | je                                                                               |
+| Stavba              | staveniště  | `build` + `mallet`                                            | je                                                                               |
+| Výroba vozu         | dvůr tesaře | `build` + `mallet`; vůz vzniká po dílech (kola, ložní plocha) | je (vůz před dílnou po fázích – korba, kola, celý; `split` a `build` – úloha 11) |
 
 **Vozka**
 
@@ -680,12 +686,12 @@ Cesta ode dveří na místo a zpět (`walk`, nosiči `carry`) je u každé role 
 
 **Rybář**
 
-| Fáze          | Kde           | Animace a rekvizita            | Stav                                        |
-| ------------- | ------------- | ------------------------------ | ------------------------------------------- |
-| Cesta k tůni  | pěšina → tůň  | `walk`, prut na rameni         | nové (dnes se objeví u vody)                |
-| Lov           | tůň, potok    | `fish` (stání) + `fishing-rod` | je                                          |
-| Oka na zajíce | zvěřní stezka | `weed` (kladení) + oko         | nové (dnes se nekreslí; rekvizita oko)      |
-| Odnos úlovku  | tůň → dvůr    | `carry-meat` / koš s rybami    | nové (klip `carry-meat` je; rekvizita ryby) |
+| Fáze          | Kde           | Animace a rekvizita            | Stav                                                          |
+| ------------- | ------------- | ------------------------------ | ------------------------------------------------------------- |
+| Cesta k tůni  | pěšina → tůň  | `walk`, prut na rameni         | nové (dnes se objeví u vody)                                  |
+| Lov           | tůň, potok    | `fish` (stání) + `fishing-rod` | je                                                            |
+| Oka na zajíce | zvěřní stezka | `weed` (kladení) + oko         | je (`snare` + oko na okraji lesa, oka se nekreslí – úloha 12) |
+| Odnos úlovku  | tůň → dvůr    | `carry-meat` / koš s rybami    | nové (klip `carry-meat` je; rekvizita ryby)                   |
 
 **Vojvoda a synové**
 
@@ -697,10 +703,10 @@ Cesta ode dveří na místo a zpět (`walk`, nosiči `carry`) je u každé role 
 
 **Svatba**
 
-| Fáze                   | Kde         | Animace a rekvizita             | Stav                                                          |
-| ---------------------- | ----------- | ------------------------------- | ------------------------------------------------------------- |
-| Průvod, obřad, hostina | ves, dvorec | `walk`, `idle`                  | je (`wedding-plan.ts`)                                        |
-| Hudebníci              | u hostiny   | hra na píšťalu / buben ve stoje | nová animace – chybí v 0 A.D. (nebo tanec 0 A.D., **ověřit**) |
+| Fáze                   | Kde         | Animace a rekvizita             | Stav                                                                    |
+| ---------------------- | ----------- | ------------------------------- | ----------------------------------------------------------------------- |
+| Průvod, obřad, hostina | ves, dvorec | `walk`, `idle`                  | je (`wedding-plan.ts`)                                                  |
+| Hudebníci              | u hostiny   | hra na píšťalu / buben ve stoje | je (vlastní klipy `pipe` a `drum`, dva svatebčané v podkově – úloha 12) |
 
 **Souhrn:** nových fází celkem 33 (z toho 6 s **novou animací** – chybí v 0 A.D.,
 ostatní jsou existující klip s novou rekvizitou či místem) a nové rekvizity: povříslo
@@ -723,12 +729,15 @@ a `lib/village-view.ts`, rozvrh je znovu nedefinuje – `PersonJob`, `LaborActiv
    nepřeruší, další činnost podle dne, kdy začne, stejný čas = stejný výsledek, řetězy z různých
    počátků (`t − HISTORY_S` a dřívější) splynou před `t` (stovky lidí a časů), úloha u objektu
    bez losované délky.
+   **Implementováno 31. 10. 2026** (`villager-schedule.ts`; mapa kódu `village-people.md`).
 2. **Obsazení dne jako člověk → úloha** (`villager-plan.ts` – `planVillagersWithCrew`,
    `dayRoster`; `villager-plan-cast.ts` – `cast`, `figure`; `villager-roster.ts` – `DayRoster`):
    navíc vrátit mapu id člověka → úloha, póza nebo trasa, místo; kdo co dělá se rozhoduje **při
    každém vyjití z domu** (los ze seedu vsi, id člověka a začátku činnosti), ne po dnech ani
    obdobích. Testy ve `__tests__/villager-people.test.ts` a `villager-plan.test.ts` – stejný
    začátek = stejná úloha, rozdělení lidí odpovídá obsazení dne.
+   **Implementováno 31. 10. 2026** (`DayCast` – člověk → úloha, póza, místo; mapa kódu
+   `village-people.md`).
 3. **Napojení ve scéně** (`villagers.ts` – `update`, `rebuild`, `animate`, `setPaths`): obsazení
    dnů v paměti (nejvýš 30 dnů), rozvrhy lidí místo postav dne, pevná zásoba instancí; pryč
    `carryErrands` a `WALK_OVER_M` (`villager-errands.ts` zůstane pro cykly pochůzek); výběr
@@ -747,44 +756,156 @@ a `lib/village-view.ts`, rozvrh je znovu nedefinuje – `PersonJob`, `LaborActiv
    `carriers` s příchodem ode dveří po `fieldPath`; `road-traffic.ts` –
    `FIELD_TRIPS_PER_MAN_DAY`), texty v Provozu na cestách. Vozy po svozu snopů jedou k humnu
    (Zjednodušení a co chybí).
+   **Implementováno 31. 10. 2026:** proud „na pole a zpět“ zanikl (`TRAFFIC_LOOK.field`,
+   `FIELD_COMMUTE` pryč; `FIELD_TRIPS_PER_MAN_DAY` → `KILN_TRIPS_PER_MAN_DAY` – zůstává jen uhlíř
+   k milíři). Řady na poli a nosiči úrody jdou z rozvrhu ode dveří svého domu (práce na místě –
+   `bout`): nosič dojde k nosičům u panáků, nosí a na konci činnosti jde domů (návrh Clauda –
+   nosič úrody zůstává prací na místě s několika cestami, ne pochůzkou: díl patří nejbližšímu
+   domu, nosič ale bydlí kdekoli). Vozy k humnu – zatím ne (úloha 8).
 5. **Události přerušují** (`funeral-plan.ts`, `wedding-plan.ts`, `villager-plan-fire.ts`,
    `caravan.ts`; `flood-water.ts` jen pro rozlitou vodu): událost přepíše rozvrh od svého začátku
    (příchod pěšky, opozdilci rovnou na místo), k požáru jen lidé ve vsi, z povodně domů. Test na
    každou událost.
+   **Implementováno 31. 10. 2026** (`villager-schedule.ts` – `settle`, `nextActivity`,
+   `interruptOf`; testy `villager-events.test.ts`): události jsou úlohy obsazení dne
+   s `PersonTask.interrupt` – pohřeb, svatba, karavana (i odchod do nové vsi – role `leaving`)
+   a jízda vojvodovy rodiny `all`, požár `near` (`FIRE_REACH_M` 150 m od místa, kde člověk
+   v okamžik vzplanutí je – návrh Clauda). Od přelomu dne, kdy obsazení událost dá, se rozběhnutá
+   činnost utne (`Activity.cut`), člověk jde pěšky **z místa, kde ho zastihla** (`Activity.from` – kde právě
+   kreslená postava je, i u kroku jinde – paběrky, modlitba, odnos),
+   k póze události v okamžik příchodu (opozdilec tak dojde rovnou, kde průvod právě je), drží ji,
+   dokud ji obsazení dává, a jde domů; skončí-li póza události doma (průvod domů), cesta zpět se
+   nekreslí. Povodeň: `ScheduleInput.wet` (`StormRenderer.floodedAt` – stejná hladina jako plocha
+   vody): kdo má místo práce pod vodou, od přelomu dne jde domů (`Activity.retreat`), na místo
+   pod vodou nikdo nevyjde. Postavy dne pro lidi vsi zanikly (pryč `EVENT_KEY` a `away`) – lidé
+   na událostech i jezdci jdou z rozvrhu. **Jezdci s trasou** drží úlohu dne jako úlohu u objektu
+   a v bloku jízdy sedí na koni vždy (`VillageVillagers.mounted` – kůň nejede bez jezdce, i kdyby
+   jezdec ještě nedošel; návrh Clauda). Porážka (`slaughter-crew`) nepřerušuje – úloha u objektu
+   od vyjití. Smrt: člověk vypadne z `labor.persons`, postava zmizí s novým stavem vsi
+   (`Timetable.retain`). Místo úlohy (`PersonTask.at`) je póza na začátku dne (dřív v t = 0).
 6. **Délka ze sítě pěšin, přesná trasa jen v záběru** (`villager-plan-traffic.ts` – `errandPath`,
    `activeSeconds`; `villager-motion.ts` – `shuttle`, `alongRoute` s tempem podle poměru délek;
    `villagers.ts` – přesná trasa při vstupu do záběru a výběru), měření na Vlkově (přelom dne,
    snímek), zápis do `docs/code/village-people.md` (Postavy – lidé ve vsi) a sem („Implementováno
    …“).
+   **Implementováno 31. 10. 2026:** délka chůze práce na místě, úlohy u objektu, cesty k události
+   a z povodně domů = odhad po síti pěšin (`VillagerPaths.walkLength` v `path-router.ts` –
+   `walkGraph` a `walkingDistances` z jádra nad osami uložených tras plnou silou pěšiny;
+   `Timetable.setEstimate`) ÷ tempo chůze – stejné časy ve všech prohlížečích i mimo záběr; bez
+   sítě rovně. Přesná trasa (`walkRoute` – po pěšinách, kolem domů, po suchu, na vzdálený díl
+   `fieldPath`; `planVillagersWithCrew` → `walk`, `Timetable.setRouter`) se hledá **až když se
+   póza kreslí** (ves v záběru, vybraná postava), jednou za úsek činnosti (`activityPose` –
+   `PoseWalk`); postava po ní dojde v čase z odhadu, tempo nohou podle poměru délky trasy a času
+   (0,6–1,8×). Návrh Clauda – zjednodušení: odhad zatím bez půdy krajiny (mokřina, les, brod
+   rovně jako louka) a bez pevných cest (jen pěšiny uložených tras); pochůzky (voda, dřevo, nosiči
+   kováře) dál chodí celý cyklus po trase z plánu dne (`shuttle`), která se počítá pro všechny
+   domácnosti jako dosud. Měření na Vlkově (přelom dne, snímek) zbývá.
 7. **Rozvrh postav napřed, fáze potom** (navazuje na úlohy 1–3 – bez nich fáze nemají kam
    zapadnout): do typu činnosti z úlohy 1 (`villager-schedule.ts`) přidat **seznam fází** (druh,
    délka podílem, místo) jako čistou funkci druhu činnosti a losu; `scheduleAt` vrací i aktuální
    fázi a klip. Testy ve `__tests__/villager-schedule.test.ts`: součet fází = délka činnosti,
    stejný čas = stejná fáze, první fáze chůze ode dveří a poslední návrat.
+   **Implementováno 1. 11. 2026** (`villager-phases.ts`; mapa kódu `village-people.md` – Fáze
+   činností): `activityPhases` – cesta ode dveří, práce v místě po krocích role (podíly losem
+   podle člověka a začátku činnosti), návrat; kroky jinde (odnos do cizí domácnosti, řada žnečů)
+   s cestou tam a zpět, jen když se vejde (jinak práce úlohy u místa). Návrh Clauda – `scheduleAt`
+   vrací dál jen činnost (volá ho řetěz rozvrhu, fáze by se počítaly zbytečně); fázi a klip vrací
+   `schedulePhaseAt`, ve scéně se fáze počítají líně s pózou (`Timetable.phase`). Úloha u objektu
+   a pochůzka mají jen jednu fázi práce (póza úlohy či cyklus pochůzky).
 8. **Fáze z existujících klipů** (rolník, kovář, uhlíř, hrnčíř, vozka, rybář, vojvoda a synové –
    stav „nové“ bez nové animace): `villager-plan-fields.ts`, `villager-plan-crafts.ts`,
    `villager-plan-traffic.ts`, `villager-plan-fire.ts` (jen kontrola) a `villagers.ts` – fáze
    mapují na stávající `VillagerClip`; vůz se snopy a senem jede k humnu a na dvůr, rybář k tůni
    a s úlovkem zpět, kování rozlišené tempem. Testy `villager-plan.test.ts`; panel vybrané
    postavy (`lib/person-activity.ts`) fázi řekne.
+   **Implementováno 1. 11. 2026** (role `villager-plan-phases.ts`, klipy `PHASE_STEPS`; podíly
+   kroků jsou návrh Clauda, doladit hraním): rolník – žně a vázání snopů (sehnutí `weed`), louka
+   seč, hrabání (`hoe`) a kupky (`fruit`), nakladač u vozu (`fruit`), **vůz se snopy k humnu**
+   (Zjednodušení a co chybí); kovář – při tavbě praní (`weed`) a pražení rudy (`winnow`
+   s lopatou), překování pomalejším `build` (tempo 0,7) vs. kování nástrojů rychlejším (1,3)
+   a odnos nástrojů s košem do cizí domácnosti; uhlíř podle stavu milíře – štípání (`fell`),
+   zahrnutí (`hoe`), hlídání (`idle`), vytahování uhlí (`hoe`) a do koše (`fruit`); hrnčíř –
+   sušení (`weed`), vsazení do pece (`fruit`), hlídání ohně (`idle`), odnos nádob; rybář jde
+   k tůni ode dveří (rozvrh – úloha 3) a nese úlovek domů v koši (`carry`); vozka – nakládání
+   dělá nakladač u vozu (vozku kreslí vůz); o žních cvičící muži (žne `reap`, váže `weed`),
+   starší a nečinní (paběrky `weed`) u řady žnečů – výrostci jako nečinní (věk úloha nezná).
+   Lov – nosič úlovku už nese maso (`carry-meat` v póze lovu – `villager-plan-lord.ts`). Panel
+   řekne fázi (`PHASE_TEXTS`). Martin 31. 10. 2026: „Z OAD použij vše, co je pro nás
+   použitelné“ – **v GLB nejsou** (ověřeno v `tools/blender/people.json`):
+   varianty postávání (`idle_relax_m_b…l`, `idle_relax_f_short/long`, shrbení `idle_relax_h_*`),
+   modlitba `pray`, vladař `idle_minister_*`, chůze s nářadím `walk_axe/hoe/shovel` a nošení rudy
+   `carry_ore_*` – starší u domu dál `idle`, modlitba u modly a vladař čekají na úlohu
+   s přegenerováním GLB. Seno na dvůr zatím bez místa; nepoužité klipy `carry-meat-idle` a `heal` vyřazeny
+   z GLB (1. 11. 2026 – šetří VAT).
 9. **Nové rekvizity** (povříslo, hrábě, vidle, kladivo a kleště, špalek, síto, nádoby, koš
    s nástroji, oka, ryby, vařečka s hrncem, džber): `tools/blender/people_from_0ad.py`
    (funkce po vzoru srpu a vahadla), `tools/blender/people.json` (props a klipy s `props`),
    regenerace `man.glb` a `woman.glb` v `apps/web/public/models/people/`, zápis do
    `LICENSES.md`; test `VILLAGER_CLIPS` proti GLB. WebGPU limit 8 vertex bufferů – rekvizity jsou
    klouby kostry, ne nový atribut.
+   **Hotovo (1. 11. 2026 – ke schválení očima, ve scéně neověřeno):** z 0 A.D. vidle, kladivo,
+   kleště a sekera ke štípání; ostatní vlastní jednoduché modely (CC0 tvar, textury 0 A.D.):
+   povříslo se snopem, hrábě, štípací špalek, síto, nádoby na zemi, nůše s nástroji / nádobami
+   / rybami, oko, vařečka s hrncem na ohništi, džber, přeslice, stav, píšťala a buben. Klipy jsou
+   stávající animace s novou rekvizitou (`bind`, `rake`, `pitch`, `forge`, `split`, `sieve`,
+   `pots`, `carry-tools`, `carry-pots`, `carry-fish`, `snare`, `cook`), vlastní klipy dostaly
+   rekvizitu přímo. Návrh Clauda: snopy na vůz a seno se podávají vidlemi (`pitch` – klip `farming`,
+   ne dlouhý `fruit`, šetří VAT), vsazení do pece je sehnutí nad nádobami jako sušení, štípání je
+   úder krumpáče 0 A.D. se sekerou (shora na špalek), předení bez vřetena (z dálky neviditelné),
+   vaří čtvrtina žen u dveří (`COOK_SHARE`), prohazování zrna zůstává s lopatou (Martin 21. 10.
+   2026). Oko je v GLB, ale nezapojené (oka se ve scéně nekreslí – wildlife.md), stav jen při
+   tkaní (úloha 12). Volné rekvizity (snop, špalek, síto, hrnec, džber, stav, buben…) jsou propy
+   postavy, ne objekty scény – žádný další draw call.
 10. **Nové animace** (dojení, předení, tkaní, sezení starších, točení na kruhu, hudebníci;
     napřed **ověřit v datech 0 A.D.**, zda vhodný klip není): vlastní v Blenderu nad kostrou
     bipeda 0 A.D. (`people_from_0ad.py`, nový typ klipu bez zdroje `.dae`), nové názvy
     v `VillagerClip` a `VILLAGER_CLIPS` (`villager-motion.ts`), `lib/person-activity.ts`
     a zástupné klipy (dojení = `weed`, sezení = `idle`) po dokončení nahradit. Každý klip zvlášť
     ověřit očima ve scéně; nejdřív dojení a točení na kruhu (dnes zástupné).
+    **Hotovo (koncept, 1. 11. 2026 – ke schválení očima):** Martin 31. 10. 2026 k šesti
+    animacím: „Ověř 0 A.D., pak Blender.“ – 0 A.D. žádnou z nich nemá (`0ad-animations.md`), takže
+    jsou vlastní (CC0) z klíčových póz skriptem (`people.json` – klíč `keys`, `keyed_frames`):
+    `milk` (dojení na špalku), `spin` (předení s vřetenem ve stoje), `weave` (tkaní – člunek
+    zleva doprava a přiražení útku nahoru), `sit` (starší na špalku, rozhlíží se), `wheel` (sed
+    u kruhu, ruce na hrnci, noha roztáčí kruh), `pipe` a `drum` (píšťala, buben ve stoje).
+    Špalek pod sedící postavou je nový prop (návrh Clauda – bez něj by seděla ve vzduchu).
+    Z 0 A.D. přibyly modlitba `pray`, léčení `heal` (1. 11. vyřazeno – nepoužité), varianty stání `rest-a`–`e`, chůze
+    s motykou a sekerou `walk-hoe` / `walk-axe` a vladař `lord-idle-a`–`c`, `walk-lord`;
+    `idle_relax_h_*` / `walk_relax_h_*` nejsou shrbení starci, ale hrdinové („hero“ – ověřeno
+    náhledem), proto vynechány; nošení rudy čeká na rekvizitu (úloha 9), `idle_hoe/axe_*` jsou
+    10–14 s dlouhé (velká textura VAT). Zapojeno: dojení, kruh, sezení a modlitba starších
+    (návrh Clauda – starší mimo žně sedí, postojí a zajdou k nejbližší hotové modle či svatyni),
+    předení žen u dveří, vojvoda jako vladař, cesta s nářadím. Tkaní a hudba jsou
+    v GLB, zapojí je úloha 12 (stav, hudebníci na svatbě); léčení se vrátí s nemocí v simulaci.
+    Ve scéně zatím neověřeno (Vlkov).
 11. **Tesař – vznikající vůz a stoh/seno** (`villager-plan-crafts.ts`, `wagons/` GLB,
     `scene-village.md`): díly vozu po fázích ve scéně, stoh a kupy sena jako objekty scény;
     zápis do `docs/code/village-crafts.md` a `village-fields.md`. Tuto úlohu lze dělat až po 8.
+    **Implementováno 1. 11. 2026** (ve scéně neověřeno – Vlkov): rozdělaný vůz tesaře stojí před
+    dílnou (`CARPENTER_CART`) **po fázích z průběhu dřevěné práce** (`SceneCraftYard.cart` –
+    `cartBuildStage`: do 45 % korba na zemi bez kol, pak s koly a předkem, s hotovou dřevěnou
+    prací celý vůz s ojí, který čeká na kování) – díly z `wagons.glb` v cart-renderer.ts (žádný
+    nový model ani draw call). Tesař s pomocníkem stojí u korby (`carpenterCartSpots`), role
+    `cart`: otesává díly (`split` – sekera a špalek), staví vůz (`build` s paličkou). Stoh u
+    ohrady (dřív jen model) roste se zásobou sena vsi (`ScenePen.hay` – stupně `HAY_STACK_KG` na
+    hotovou ohradu, velikost `HAYSTACK_SIZES`), vůz se senem jede ke stohu a skládá do něj (panel
+    „veze seno ke stohu“, „skládá seno do stohu“). Návrh Clauda – zjednodušení: vůz se senem
+    skládá u ohrady na konci trasy (k samotnému stohu uvnitř plotu nezajede), nakladači u stohu
+    nejsou (vozka je model vozu bez rekvizit); kupky na louce zůstávají z `hay-meadows.ts`.
 12. **Žena, děti a svatba** (vaření, péče o děti, pomoc o žních, hudebníci; `villager-plan.ts`,
     `villager-plan-cast.ts`, `wedding-plan.ts`): po úlohách 9 a 10; e2e `apps/web/e2e/village.spec.ts`
     a zápis do `docs/code/village-people.md` („Implementováno …“).
+    **Implementováno 1. 11. 2026** (ve scéně neověřeno; e2e pustí Martin): ženy u dveří
+    (`doorChore` – podle `phase` postavy) předou (`SPIN_SHARE` 0,5), vaří (`COOK_SHARE` 0,25),
+    **tkají u stavu** (`WEAVE_SHARE` 0,1 – klip `weave` se stavem), zbytek postává – s malým
+    dítětem v domě (pod 7 let, `DayRoster.hasSmallChild`) **hlídá děti u dveří** (panel „hlídá
+    děti u domu“; rekvizitu dítěte ani klip s dítětem nemáme – návrh Clauda: jen stání u dveří).
+    **Hudebníci na svatbě:** dva dospělí svatebčané (losem podle svatby – `weddingMusicians`)
+    hrají na svém místě v podkově na píšťalu a buben (`pipe`, `drum`), panel „hraje na píšťalu
+    na svatbě“, „bubnuje na svatbě“. **Oka na zajíce:** podíl práce `snare` (jádro – mimo
+    sezónu ryb) klečí s okem na okraji lesa nejblíž vsi (`snarers`, `SNARE_EDGE`), samotná oka
+    se dál nekreslí. Pomoc dětí o žních pokryla úloha 8 (paběrky nečinných a výrostců, nosiči
+    úrody); vaření úloha 9.
 
 | Rozhodnutí                                                                                                 | Proč                                                                     |
 | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
@@ -815,10 +936,12 @@ a `lib/village-view.ts`, rozvrh je znovu nedefinuje – `PersonJob`, `LaborActiv
 
 ## Zjednodušení a co chybí
 
-- **Vozy po svozu snopů mají jet k humnu** (návrh Clauda; Martin 31. 10. 2026 – patří k
-  „divadlu“): dnes jezdí jen ohrada → pole a pěší nosiči na humno chodí. Vůz po naložení snopů
-  pojede pole → humno a vrátí se, nosiči jdou s ním nebo mezi ním; počty a čas svozu dál řídí
-  simulace (`village-livestock.md` – vozy se spřežením ve scéně).
+- **Vozy po svozu snopů jedou k humnu** (návrh Clauda; Martin 31. 10. 2026 – patří k
+  „divadlu“; **implementováno 1. 11. 2026**, úloha 8): s hotovým humnem jede vůz prázdný k poli,
+  nakládá, plný k humnu, tam skládá a prázdný se vrací k ohradě; pěší nosiči na humno chodí dál.
+  Bez humna, nebo když k němu vůz nedojede, jako dřív (plný zpět k ohradě). Počty a čas svozu dál
+  řídí simulace (`scene-village.md` – Humno ve scéně). **Seno na dvůr zatím ne** – vůz se senem
+  jede plný k ohradě (stoh jako objekt scény je úloha 11).
 - Noc se nemodeluje – lidé pracují pořád (herní den trvá ≈ 86 s).
 - **Žně všemi rukama** ([pole](fields.md); Martin 24. 10. 2026): výrostci od 10 let a starší dají
   ve žňový den **celkem** 0,5 člověkodne na žeň a výmlat (vázání, odnos, paběrky; starší po minimu

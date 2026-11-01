@@ -334,7 +334,8 @@ export interface CartPose {
 }
 
 /** Úsek jízdy vozu (`CartPose.leg`). */
-export type CartLeg = 'out' | 'load' | 'back' | 'unload' | 'parked' | 'away' | 'loop';
+/** Úsek jízdy vozu; `return` – od humna prázdný k ohradě (svoz snopů na humno). */
+export type CartLeg = 'out' | 'load' | 'back' | 'unload' | 'return' | 'parked' | 'away' | 'loop';
 
 function figure(): FigurePose {
   return { x: 0, y: 0, z: 0, hx: 0, hz: 1, pace: 1 };
@@ -701,6 +702,11 @@ export const CART_TURN_M: Record<CartKind, number> = { 'two-wheel': 3.5, 'four-w
 export interface ShuttleRoute {
   route: CartRoute;
   farM: number;
+  /**
+   * Svoz snopů na humno (`shuttleRoute` s `via`): kde na trase vůz u humna stojí a skládá – od
+   * cíle k němu jede plný, odtud prázdný k ohradě. Bez údaje skládá u ohrady.
+   */
+  dropM?: number;
 }
 
 /**
@@ -792,11 +798,11 @@ function unit2(x: number, z: number): Point {
 }
 
 /** Kde je bod trasy nejblíž bodu `p` (m od začátku, po kroku `step`). */
-export function nearestOnRoute(route: CartRoute, p: Point, step = 0.25): number {
+export function nearestOnRoute(route: CartRoute, p: Point, step = 0.25, from = 0): number {
   const at: RoutePoint = { x: 0, z: 0, hx: 0, hz: 1, heading: 0 };
-  let best = 0;
+  let best = from;
   let bestD = Infinity;
-  for (let s = 0; s <= route.length; s += step) {
+  for (let s = from; s <= route.length; s += step) {
     routeAt(route, s, at);
     const d = (at.x - p.x) ** 2 + (at.z - p.z) ** 2;
     if (d < bestD) {
@@ -816,6 +822,7 @@ export function shuttleRoute(
   points: readonly Point[],
   kind: CartKind,
   walkable?: (x: number, z: number) => boolean,
+  via?: { points: readonly Point[]; drop: Point },
 ): ShuttleRoute {
   const axis = points.filter(
     (p, i) => i === 0 || Math.hypot(p.x - points[i - 1]!.x, p.z - points[i - 1]!.z) > 0.01,
@@ -837,6 +844,18 @@ export function shuttleRoute(
     radius,
     walkable,
   );
+  if (via && via.points.length >= 2) {
+    // svoz snopů na humno (villagers.md – Fáze činností): od cíle plný k humnu (`drop`), odtud
+    // prázdný k ohradě
+    const drop = via.drop;
+    const route = cartRoute([...axis, ...far.points, ...via.points.slice(1), ...home.points], {
+      closed: true,
+      turnRadius: radius,
+    });
+    const farM = nearestOnRoute(route, far.middle);
+    // humno až za cílem (osa od ohrady k poli může vést kolem humna)
+    return { route, farM, dropM: nearestOnRoute(route, drop, 0.25, farM) };
+  }
   const back = [...axis].reverse();
   const route = cartRoute([...axis, ...far.points, ...back, ...home.points], {
     closed: true,
@@ -890,17 +909,20 @@ export function shuttleAt(
   const far = shuttle.farM;
   const fast = schedule.window !== null;
   const stop = fast ? CART_STOP_S.fast : CART_STOP_S.real;
+  // u humna třetí zastávka (skládá snopy – `dropM`)
+  const drop = shuttle.dropM;
+  const stops = drop === undefined ? 2 : 3;
   let speed = CART_SPEED_M_S;
-  let cycle = L / speed + 2 * stop;
+  let cycle = L / speed + stops * stop;
   let time: number;
   if (schedule.window) {
     const dayS = Math.max(1, (schedule.window.endMs - schedule.window.startMs) / 1000);
     const trips = Math.min(
       Math.max(1, schedule.maxTrips),
-      Math.max(1, Math.floor(dayS / (L / CART_FAST_M_S + 2 * stop))),
+      Math.max(1, Math.floor(dayS / (L / CART_FAST_M_S + stops * stop))),
     );
     cycle = dayS / trips;
-    speed = Math.max(CART_SPEED_M_S, L / Math.max(1, cycle - 2 * stop));
+    speed = Math.max(CART_SPEED_M_S, L / Math.max(1, cycle - stops * stop));
     // den se opakuje: poslední jízda končí u ohrady a další den (nová trasa) začíná u ohrady –
     // i když nová data přijdou až chvíli po začátku dne, vůz neskáče
     const inDay = ((((nowMs - schedule.window.startMs) / 1000) % dayS) + dayS) % dayS;
@@ -909,6 +931,7 @@ export function shuttleAt(
     time = (((villagerSeconds(nowMs) + schedule.phase * cycle) % cycle) + cycle) % cycle;
   }
   const outS = far / speed;
+  if (drop !== undefined) return viaAt(far, drop, L, speed, stop, time, out);
   const backS = (L - far) / speed;
   if (time < outS) {
     out.s = time * speed;
@@ -927,6 +950,33 @@ export function shuttleAt(
     out.speed = 0;
     out.loaded = time < outS + stop + backS + stop / 2;
   }
+  return out;
+}
+
+/**
+ * Jízda přes humno v čase cyklu `time`: prázdný k cíli, nakládá, plný k humnu (`drop`), skládá
+ * (náklad zmizí v půlce), prázdný k ohradě a tam chvíli stojí.
+ */
+function viaAt(
+  far: number,
+  drop: number,
+  L: number,
+  speed: number,
+  stop: number,
+  time: number,
+  out: ShuttleState,
+): ShuttleState {
+  const t1 = far / speed;
+  const t2 = t1 + stop;
+  const t3 = t2 + (drop - far) / speed;
+  const t4 = t3 + stop;
+  const t5 = t4 + (L - drop) / speed;
+  if (time < t1) [out.s, out.speed, out.loaded] = [time * speed, speed, false];
+  else if (time < t2) [out.s, out.speed, out.loaded] = [far, 0, time >= t1 + stop / 2];
+  else if (time < t3) [out.s, out.speed, out.loaded] = [far + (time - t2) * speed, speed, true];
+  else if (time < t4) [out.s, out.speed, out.loaded] = [drop, 0, time < t3 + stop / 2];
+  else if (time < t5) [out.s, out.speed, out.loaded] = [drop + (time - t4) * speed, speed, false];
+  else [out.s, out.speed, out.loaded] = [L, 0, false];
   return out;
 }
 
@@ -1043,11 +1093,59 @@ export interface CartShuttle {
   loadedOut?: boolean;
 }
 
-/** Vůz stojící u ohrady bez volů. */
+/**
+ * Vůz stojící u ohrady bez volů – nebo rozdělaný u tesaře (`build` – fáze stavby, SceneCraftYard:
+ * 1 korba na zemi bez kol, 2 korba s koly, 3 celý vůz bez kování).
+ */
 export interface CartParked {
   id?: number;
   kind: CartKind;
   parked: CartSpot;
+  build?: 1 | 2 | 3;
+}
+
+/**
+ * Spodek korby v modelu nad zemí (m, wagons.glb – nejnižší bod `wagon2-body` i `wagon4-body`):
+ * rozdělaná korba bez kol (fáze 1) jím leží na zemi – špalky pod ní se nekreslí, ať nevisí ve
+ * vzduchu (návrh Clauda).
+ */
+export const CART_BODY_LOW_M = 0.342;
+
+/**
+ * Rozdělaný vůz u tesaře: fáze 1 – korba rovně spodkem na zemi (`CART_BODY_LOW_M`, kola ani
+ * předek nejsou), jinak jako stojící vůz (kola a oj ukáže cart-renderer podle fáze).
+ */
+export function buildingCartPose(
+  kind: CartKind,
+  spot: CartSpot,
+  stage: 1 | 2 | 3,
+  out: CartPose,
+  ground: GroundFn = FLAT,
+): CartPose {
+  parkedCartPose(kind, spot, out, ground);
+  if (stage > 1) return out;
+  const k = CART_SCALE;
+  const h = unit2(spot.hx, spot.hz);
+  const body = out.body;
+  axes(h.x, 0, h.z, -h.z, 0, h.x, body);
+  body.x = spot.x - body.ux * CART_PARTS.hubY * k;
+  body.y = ground(spot.x, spot.z) - body.uy * CART_BODY_LOW_M * k;
+  body.z = spot.z - body.uz * CART_PARTS.hubY * k;
+  copyFrame(body, out.front);
+  return out;
+}
+
+/** Díly rozdělaného vozu ve fázi `stage` (bez fáze celý vůz): kola od 2, předek od 2, oj od 3. */
+export function buildingCartParts(
+  kind: CartKind,
+  stage: 1 | 2 | 3 | undefined,
+): { wheels: boolean; front: boolean; pole: boolean } {
+  const s = stage ?? 3;
+  return {
+    wheels: s >= 2,
+    front: kind === 'four-wheel' && s >= 2,
+    pole: kind === 'four-wheel' && s >= 3,
+  };
 }
 
 /**
@@ -1085,6 +1183,9 @@ export function cartPlanPose(
   out.hidden = false;
   if ('parked' in plan) {
     out.leg = 'parked';
+    if (plan.build !== undefined) {
+      return buildingCartPose(plan.kind, plan.parked, plan.build, out, ground);
+    }
     return parkedCartPose(plan.kind, plan.parked, out, ground);
   }
   const t = villagerSeconds(nowMs);
@@ -1115,7 +1216,16 @@ export function cartPlanPose(
 
 /** Úsek jízdy tam a zpět: k cíli, u cíle (nakládá), zpátky, u ohrady (skládá). */
 export function shuttleLeg(shuttle: ShuttleRoute, at: { s: number; speed: number }): CartLeg {
-  if (at.speed > 0) return at.s < shuttle.farM ? 'out' : 'back';
+  const drop = shuttle.dropM;
+  if (at.speed > 0) {
+    if (at.s < shuttle.farM) return 'out';
+    // od humna prázdný k ohradě
+    return drop !== undefined && at.s >= drop ? 'return' : 'back';
+  }
+  if (drop !== undefined) {
+    if (Math.abs(at.s - drop) < 1e-6) return 'unload';
+    return at.s < shuttle.route.length - 1e-6 ? 'load' : 'return';
+  }
   return at.s < shuttle.route.length - 1e-6 ? 'load' : 'unload';
 }
 

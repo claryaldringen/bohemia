@@ -1,6 +1,16 @@
 // Domácí práce, nosiči, nečinní, starší u domů a děti u stád.
 import type { SceneLabor } from '../village-view';
-import { fetcher, herder, route, shuttle, stand, walkSpeed, type PoseFn } from './villager-motion';
+import {
+  fetcher,
+  herder,
+  route,
+  shuttle,
+  stand,
+  walkSpeed,
+  type PoseFn,
+  type VillagerClip,
+  type VillagerStage,
+} from './villager-motion';
 import type { ScenePerson } from '../person-view';
 import { ADULTS, ELDERS, YOUNGSTERS } from './villager-roster';
 import {
@@ -61,6 +71,31 @@ export function porters(
     });
 }
 
+/** Kolik žen u dveří přede (podle `phase` postavy – návrh Clauda). */
+export const SPIN_SHARE = 0.5;
+/**
+ * Kolik žen u dveří vaří na ohništi před domem (villagers.md – Vaření a oheň; vařečka a hrnec –
+ * úloha 9, návrh Clauda) – další po přadlenách.
+ */
+export const COOK_SHARE = 0.25;
+/**
+ * Kolik žen u dveří tká u stavu (villagers.md – Žena, Tkaní; klip `weave` se stavem – úloha 12,
+ * návrh Clauda) – po kuchařkách; zbytek postává, s malým dítětem v domě ho hlídá u dveří.
+ */
+export const WEAVE_SHARE = 0.1;
+
+/** Co žena u dveří dělá podle `phase` postavy – klip a úsek (věta panelu – person-activity.ts). */
+export function doorChore(
+  phase: number,
+  smallChild: boolean,
+): { clip: VillagerClip; stage: VillagerStage | null } {
+  if (phase < SPIN_SHARE) return { clip: 'spin', stage: 'spin' };
+  if (phase < SPIN_SHARE + COOK_SHARE) return { clip: 'cook', stage: 'cook' };
+  if (phase < SPIN_SHARE + COOK_SHARE + WEAVE_SHARE) return { clip: 'weave', stage: 'weave' };
+  // péče o děti: bez rekvizity dítěte ani klipu s dítětem – stojí u dveří (návrh Clauda)
+  return { clip: 'idle', stage: smallChild ? 'mind' : null };
+}
+
 /**
  * Domácí práce venku: u obydlí (po domech dokola) postávají ženy před vchodem a některé
  * chodí kousek od domu (pro vodu a dřevo po pěšinách chodí provoz na cestách).
@@ -88,7 +123,19 @@ export function domestic(ctx: Context): Placer {
       if (path) return fetcher(path, who.kind, who.scale, 10 + who.phase * 8, who.phase);
     }
     const out = unit(door.x - home.position.x, door.z - home.position.z);
-    return stand(door.x, door.z, out.x, out.z, 'idle');
+    // předení před domem (villagers.md – Žena; vlastní klip `spin`), vaření na ohništi (`cook` –
+    // hrnec stojí před ženou, směrem od domu), tkaní u stavu (`weave`), péče o malé děti – žena;
+    // muži postávají
+    if (who.kind !== 'woman') return stand(door.x, door.z, out.x, out.z, 'idle');
+    const chore = doorChore(who.phase, ctx.roster?.hasSmallChild(home.id) ?? false);
+    const pose = stand(door.x, door.z, out.x, out.z, chore.clip);
+    if (!chore.stage) return pose;
+    const stage = chore.stage;
+    return (t, herds, o) => {
+      pose(t, herds, o);
+      o.stage = stage;
+      return o;
+    };
   };
 }
 
@@ -110,7 +157,10 @@ export function idlers(ctx: Context): Placer {
   };
 }
 
-/** Starší u domů – stojí u boční stěny čelem ven (sedět zatím neumí – chybí animace). */
+/**
+ * Starší u domů – sedí na špalku u boční stěny čelem ven (vlastní klip `sit`); fáze dne střídají
+ * sezení, postávání a modlitbu u modly (villager-phases.ts, role `elder-home`).
+ */
 export function elders(ctx: Context, count: number): PlannedVillager[] {
   const homes = [...ctx.homes].sort((a, b) => a.id - b.id);
   const out: PlannedVillager[] = [];
@@ -135,7 +185,7 @@ export function elders(ctx: Context, count: number): PlannedVillager[] {
     out.push(
       figure(
         { who: { ...who, scale: who.scale * 0.97 }, person: c.person },
-        stand(spot.x, spot.z, away.x, away.z, 'idle', 0.7),
+        stand(spot.x, spot.z, away.x, away.z, 'sit', 0.7),
         'grey',
         { kind: 'elder' },
       ),
@@ -236,6 +286,54 @@ export function anglers(ctx: Context, index: number): Placer {
   return (i) => {
     const spot = anglerSpot(ctx, index, i);
     return spot ? stand(spot.x, spot.z, spot.headingX, spot.headingZ, 'fish', 0.6) : null;
+  };
+}
+
+/**
+ * Oka na zajíce (wildlife.md – Drobná zvěř a ryby; villagers.md – Rybář, Oka): kde je hledat –
+ * stromy do `reachM` od středu vsi (nejvýš `trees` nejbližších), kolik postav nejvýš, odstup mezi
+ * nimi (po kolikátém stromu) a jak daleko od kmene směrem ke vsi klečí (m; návrh Clauda).
+ */
+export const SNARE_EDGE = {
+  reachM: 160,
+  trees: 240,
+  figures: 3,
+  every: 9,
+  fromTreeM: 1.8,
+} as const;
+
+/**
+ * Lidé, kteří kladou oka (podíl práce `snare` – mimo sezónu ryb, jádro small-game.ts): klečí na
+ * okraji lesa nejblíž vsi u kmene (klip `snare` s okem), čelem k lesu. Samotná oka scéna
+ * nekreslí. Bez stromů v dosahu nikdo.
+ */
+export function snarers(ctx: Context): Placer {
+  const c = ctx.center;
+  // `treesIn` ořízne stromy v pořadí indexu, ne podle vzdálenosti – hledá se ve čtvercích od
+  // malého: celý čtverec (pod stropem) s dost stromy v kruhu dává opravdu nejbližší
+  const need = (SNARE_EDGE.figures - 1) * SNARE_EDGE.every + 1;
+  let trees: { x: number; z: number; d: number }[] = [];
+  for (let half = SNARE_EDGE.reachM / 8; ; half *= 2) {
+    const reach = Math.min(half, SNARE_EDGE.reachM);
+    trees = ctx.ground
+      .treesIn(c.x, c.z, reach, SNARE_EDGE.trees)
+      .map((t) => ({ ...t, d: Math.hypot(t.x - c.x, t.z - c.z) }))
+      .sort((a, b) => a.d - b.d || a.x - b.x || a.z - b.z);
+    const complete = trees.length < SNARE_EDGE.trees;
+    if (reach >= SNARE_EDGE.reachM || (complete && (trees[need - 1]?.d ?? Infinity) <= reach)) {
+      break;
+    }
+  }
+  return (i) => {
+    if (i >= SNARE_EDGE.figures) return null;
+    const tree = trees[i * SNARE_EDGE.every];
+    if (!tree || tree.d < 1e-6) return null;
+    const toVillage = unit(c.x - tree.x, c.z - tree.z);
+    const r = SNARE_EDGE.fromTreeM;
+    const spot = nearestFree(ctx, tree.x + toVillage.x * r, tree.z + toVillage.z * r, 2);
+    if (!spot) return null;
+    const face = unit(tree.x - spot.x, tree.z - spot.z);
+    return stand(spot.x, spot.z, face.x, face.z, 'snare');
   };
 }
 

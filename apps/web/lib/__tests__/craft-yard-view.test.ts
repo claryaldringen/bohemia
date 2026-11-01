@@ -1,6 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { dayIndexOf, foundVillage, type VillageState, type WorkshopActivity } from '@bohemia/game';
-import { CRAFT_YARD_STEPS, craftYard, workshopSmokes, yardStage } from '../village-view-crafts';
+import {
+  CARPENTRY,
+  dayIndexOf,
+  foundVillage,
+  type VillageState,
+  type WorkshopActivity,
+} from '@bohemia/game';
+import {
+  CART_BUILD_STAGES,
+  CRAFT_YARD_STEPS,
+  cartBuildStage,
+  craftYard,
+  workshopSmokes,
+  yardStage,
+} from '../village-view-crafts';
 
 // Dvůr kovárny a hrnčíře v pohledu na ves (production-chains.md – Kovář; crafts.md – Hlína
 // hrnčíře): činnost kováře dne, měchař, houba a hřivny po stupních, hlína v jámě a šlapání.
@@ -85,5 +98,60 @@ describe('dvůr dílny v pohledu na ves (production-chains.md – Kovář)', () 
     expect(craftYard(resting, dwelling(resting, 60), DAY, 1)).toEqual({ clay: 3 });
     const empty = yardVillage('idle', 'no-clay', 0);
     expect(craftYard(empty, dwelling(empty, 60), DAY, 1)).toBeNull();
+  });
+});
+
+describe('rozdělaný vůz u tesaře (villagers.md – Fáze činností, Tesař; úloha 11)', () => {
+  /** Ves s tesařem 70 a rozdělaným vozem (`done` člověkodní dřevěné práce). */
+  function carpenterVillage(done: number | null): VillageState {
+    const s = foundVillage({
+      seed: 7,
+      day: DAY,
+      dwellingPosition: { x: -50, z: -50, rotation: 0 },
+    });
+    s.dwellings.push({
+      type: 'polozemnice',
+      builtDay: DAY - 400,
+      condition: 1,
+      id: 70,
+      position: { x: 0, z: 0, rotation: 0 },
+      workshop: {
+        craft: 'carpenter',
+        felling: null,
+        fuelKg: 0,
+        activity: 'producing',
+        ...(done === null ? {} : { cart: { kind: 'two-wheel' as const, done } }),
+      },
+    });
+    return s;
+  }
+
+  it('fáze stavby podle průběhu dřevěné práce – korba, kola, hotový vůz', () => {
+    expect(cartBuildStage(0)).toBe(1);
+    expect(cartBuildStage(CART_BUILD_STAGES.wheels - 0.01)).toBe(1);
+    expect(cartBuildStage(CART_BUILD_STAGES.wheels)).toBe(2);
+    expect(cartBuildStage(0.99)).toBe(2);
+    expect(cartBuildStage(1)).toBe(3);
+  });
+
+  it('vůz vzniká se dny výroby – den po dni přibývá práce, fáze roste', () => {
+    const total = CARPENTRY.cartManDays['two-wheel'];
+    expect(craftYard(carpenterVillage(null), dwelling(carpenterVillage(null), 70), DAY, 0)).toBe(
+      null,
+    );
+    // tesař dělá vůz den po dni (workCarpenter) – fáze dvora sleduje průběh
+    const stages = [0, 0.3, 0.6, 0.9, 1].map((share) => {
+      const s = carpenterVillage(share * total);
+      return craftYard(s, dwelling(s, 70), DAY, 0)?.cart;
+    });
+    expect(stages).toEqual([
+      { kind: 'two-wheel', stage: 1 },
+      { kind: 'two-wheel', stage: 1 },
+      { kind: 'two-wheel', stage: 2 },
+      { kind: 'two-wheel', stage: 2 },
+      { kind: 'two-wheel', stage: 3 },
+    ]);
+    // tesař netopí
+    expect(workshopSmokes(dwelling(carpenterVillage(0), 70).workshop!)).toBe(false);
   });
 });

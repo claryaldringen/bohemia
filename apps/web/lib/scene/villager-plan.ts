@@ -25,7 +25,7 @@ import {
   type VillagerGround,
   type VillagerPlanOptions,
 } from './villager-plan-types';
-import { doorPoint, targetKey } from './villager-plan-geometry';
+import { doorPoint, fieldPath, targetKey, walkRoute } from './villager-plan-geometry';
 import {
   adultHair,
   cast,
@@ -74,6 +74,7 @@ import { lordFigures } from './villager-plan-lord';
 import { shoeingFigures } from './villager-plan-shoeing';
 import {
   anglers,
+  snarers,
   domestic,
   elders,
   herderPeople,
@@ -90,6 +91,8 @@ import {
   weddingFigures,
 } from './villager-plan-events';
 import { slaughterFigures } from './villager-plan-slaughter';
+import { villagerSeconds, type Route } from './villager-motion';
+import { planPhases } from './villager-plan-phases';
 import { personTasks, type PersonTask } from './villager-schedule';
 import { fireChainFigures, fireChainLayout } from './villager-plan-fire';
 import type { SlaughterPlan } from './slaughter-plan';
@@ -132,7 +135,10 @@ export function planVillagers(
  * `tasks` = obsazení dne jako člověk → úloha (villagers.md – Činnosti od začátku do konce): co
  * který člověk dnes dělá, když vyjde z domu (villager-schedule.ts – rozvrh si z něj vybírá při
  * vyjití). Stejná pravidla i počty jako postavy dne; bez lidí ve scéně prázdné. `doors` = dveře
- * obydlí (id obydlí → bod před vchodem) – odtud lidé vycházejí a kam se vracejí.
+ * obydlí (id obydlí → bod před vchodem) – odtud lidé vycházejí a kam se vracejí. `walk` = přesná
+ * trasa z bodu do bodu (po pěšinách, kolem domů, po suchu – `walkRoute`, na vzdálený díl
+ * `fieldPath`) nad domy dne; hledá se jen pro postavu v záběru nebo vybranou (villagers.md –
+ * Cesty postav), null – rovně.
  */
 export function planVillagersWithCrew(
   village: SceneVillage,
@@ -144,11 +150,13 @@ export function planVillagersWithCrew(
   slaughter: SlaughterPlan | null;
   tasks: Map<number, PersonTask>;
   doors: Map<number, { x: number; z: number }>;
+  walk: WalkRouteFn;
 } {
   const crew: DraftCrew = { teams: [], carts: [] };
   const labor = village.labor;
   if (!labor || village.dwellings.length === 0) {
-    return { people: [], crew, slaughter: null, tasks: new Map(), doors: new Map() };
+    const walk: WalkRouteFn = () => null;
+    return { people: [], crew, slaughter: null, tasks: new Map(), doors: new Map(), walk };
   }
   const ctx = context(
     village,
@@ -316,9 +324,31 @@ export function planVillagersWithCrew(
     people,
     crew,
     slaughter: slaughter.plan,
-    tasks: personTasks(people, crew, builders),
+    // místo úlohy (chůze ode dveří, dosah k požáru) z pózy na začátku dne
+    tasks: personTasks(
+      people,
+      crew,
+      builders,
+      dayStartS(options, labor.day),
+      // fáze činností (villager-phases.ts): role podle podílu a stavu vsi, odnos a pomoc o žních
+      planPhases(ctx, people, dayStartS(options, labor.day)),
+    ),
     doors,
+    walk: (a, b, homeId) => walkRoute(ctx, a, b, homeId) ?? fieldPath(ctx, a, b, homeId),
   };
+}
+
+/** Přesná trasa chodce z `a` do `b` (od domu `homeId` – jeho pěšina má přednost), nebo null. */
+export type WalkRouteFn = (
+  a: { x: number; z: number },
+  b: { x: number; z: number },
+  homeId?: number,
+) => Route | null;
+
+/** Začátek herního dne `day` (s, `villagerSeconds`); bez hodin světa 0. */
+function dayStartS(options: VillagerPlanOptions, day: number): number {
+  const window = options.dayWindow?.(day);
+  return window ? villagerSeconds(window.startMs) : 0;
 }
 
 /**
@@ -612,8 +642,9 @@ export function placer(ctx: Context, share: SceneLaborShare, count: number): Pla
       // rybáři na břehu tůně s prutem (wildlife.md – Ve scéně)
       return t.kind === 'pool' ? anglers(ctx, t.index) : none;
     case 'snare':
-      // oka na zajíce u okraje lesa – scéna je nekreslí (wildlife.md – Ve scéně: oka se nekreslí)
-      return none;
+      // oka na zajíce na okraji lesa nejblíž vsi (wildlife.md – Ve scéně: oka se nekreslí,
+      // klečí se u nich s okem v ruce – klip `snare`)
+      return snarers(ctx);
     case 'herding':
       // dospělí pasáci stojí u stád spolu s dětmi (`herders`, diet.md – Pasáci)
       return none;

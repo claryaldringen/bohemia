@@ -1,8 +1,10 @@
-// Provoz na cestách: lidé pro vodu, dřevo a na pole (villagers.md – Provoz na cestách).
+// Provoz na cestách: lidé pro vodu, dřevo a uhlíř k milíři (villagers.md – Provoz na cestách).
+// Na pole se proudem nechodí – cesta ode dveří je součást práce na poli (rozvrh člověka,
+// villager-schedule.ts; Martin 31. 10. 2026: „Ano“).
 import { type Sex } from '@bohemia/game';
-import type { LaborActivity, SceneLabor } from '../village-view';
+import type { SceneLabor } from '../village-view';
 import {
-  FIELD_TRIPS_PER_MAN_DAY,
+  KILN_TRIPS_PER_MAN_DAY,
   streamPhase,
   trafficCounts,
   trafficHomes,
@@ -27,19 +29,15 @@ import { ADULTS, YOUNGSTERS } from './villager-roster';
 import {
   FIGURE_SCALE,
   TRAFFIC_HOME_S,
-  WOMEN,
   type Context,
   type House,
   type PlannedVillager,
   type Point,
-  type Square,
   type VillagerGround,
 } from './villager-plan-types';
 import {
   fieldPath,
   nearestFree,
-  nearestHouse,
-  squareEdge,
   stringHash,
   towards,
   trafficDoor,
@@ -47,7 +45,6 @@ import {
   walkRoute,
 } from './villager-plan-geometry';
 import { adultHair, cast, figure, womenChance } from './villager-plan-cast';
-import { fieldWork, workedSquares } from './villager-plan-fields';
 
 /**
  * Pochůzka nejvýš tak daleko (m po pěšině). Pro vodu se chodí vždy, i daleko (paths.md – Pochůzky
@@ -240,7 +237,7 @@ export function errandPath(
 
 /**
  * Jak chodí lidé po cestě kterého druhu: podíl žen a dětí (pro vodu chodily hlavně ženy a děti),
- * co dělají na konci (nabírají vodu, sbírají dřevo, u pole chvíli postojí), s čím jdou zpět.
+ * co dělají na konci (nabírají vodu, sbírají dřevo, u milíře chvíli postojí), s čím jdou zpět.
  */
 export const TRAFFIC_LOOK: Record<
   TrafficKind,
@@ -271,14 +268,6 @@ export const TRAFFIC_LOOK: Record<
     endS: 12,
     backClip: 'carry-wood',
   },
-  field: {
-    women: 0.45,
-    children: 0,
-    outClip: 'walk',
-    endClip: 'idle',
-    endS: 2,
-    backClip: 'walk',
-  },
   // uhlíř ze zemnice k milíři a zpět (crafts.md – Milíř u skácených buků)
   kiln: {
     women: 0.35,
@@ -290,17 +279,6 @@ export const TRAFFIC_LOOK: Record<
   },
 };
 
-/** Na pole a zpět chodí lidé od těchto prací (u nosičů úrody, kteří chodí tak jako tak, ne). */
-export const FIELD_COMMUTE: ReadonlySet<LaborActivity> = new Set([
-  'dig',
-  'reclaim',
-  'sow',
-  'weed',
-  'harvest',
-  'mow',
-  'found-field',
-]);
-
 /** Proud lidí po jedné trase (`TrafficStream`) s trasou a podílem žen. */
 export interface TrafficRoute extends TrafficStream {
   key: string;
@@ -311,10 +289,10 @@ export interface TrafficRoute extends TrafficStream {
 }
 
 /**
- * Lidé na cestách (road-traffic.ts): pro vodu a k lesu po pěšině každé domácnosti, mezi domem
- * a polem od domů, ke kterým patří díly dnešní práce. Kolik jich na které trase je, určí cesty
- * za den a délka cesty (`trafficCounts`, nejvýš `max`); po trase jdou rozestoupení (fáze se
- * zlatým řezem), tam bez nákladu, zpět s vodou, dřevem nebo z pole, a doma na chvíli zmizí.
+ * Lidé na cestách (road-traffic.ts): pro vodu a k lesu po pěšině každé domácnosti, uhlíř ze
+ * zemnice k milíři. Kolik jich na které trase je, určí cesty za den a délka cesty
+ * (`trafficCounts`, nejvýš `max`); po trase jdou rozestoupení (fáze se zlatým řezem), tam bez
+ * nákladu, zpět s vodou nebo dřevem, a doma na chvíli zmizí.
  */
 export function trafficFigures(ctx: Context, labor: SceneLabor, max: number): PlannedVillager[] {
   const streams = trafficRoutes(ctx, labor);
@@ -364,7 +342,7 @@ export function trafficFigures(ctx: Context, labor: SceneLabor, max: number): Pl
 /**
  * Kdo jde po cestě (villagers.md – Výběr postavy): člověk z domácnosti, od jejíchž dveří proud
  * vychází – pro vodu a dřevo dospělí i výrostci (dítě, když ho los postavy chce, jinak dospělý),
- * na pole dospělí, k milíři uhlíř; z dílny, která dnes pracuje, na pole nikdo.
+ * k milíři uhlíř.
  */
 export function trafficWalker(
   ctx: Context,
@@ -374,14 +352,13 @@ export function trafficWalker(
 ): ScenePerson | null {
   const roster = ctx.roster!;
   const homes = new Set([stream.home]);
-  if (stream.kind === 'field' && roster.busy(stream.home)) return null;
   const adults = (): ScenePerson | null => roster.take({ ...ADULTS, homes, sex });
   if (stream.kind !== 'water' && stream.kind !== 'wood') return adults();
   const kids = (): ScenePerson | null => roster.take({ ...YOUNGSTERS, homes, sex });
   return child ? (kids() ?? adults()) : (adults() ?? kids());
 }
 
-/** Proudy lidí vsi: voda a dřevo po domácnostech, pole po prácích dne a domech. */
+/** Proudy lidí vsi: voda a dřevo po domácnostech, uhlíř k milíři. */
 export function trafficRoutes(ctx: Context, labor: SceneLabor): TrafficRoute[] {
   const homes = ctx.homes.filter((h) => h.inhabited).sort((a, b) => a.id - b.id);
   const people = new Map(
@@ -439,43 +416,11 @@ export function trafficRoutes(ctx: Context, labor: SceneLabor): TrafficRoute[] {
     add(
       'kiln',
       `kiln:${t.id}:${t.kiln ?? ''}`,
-      share.manDays * FIELD_TRIPS_PER_MAN_DAY,
+      share.manDays * KILN_TRIPS_PER_MAN_DAY,
       walkRoute(ctx, door, edge, home.id) ?? fieldPath(ctx, door, edge, home.id),
       TRAFFIC_LOOK.kiln.women,
       home.id,
     );
-  });
-  labor.shares.forEach((share) => {
-    if (!FIELD_COMMUTE.has(share.activity) || share.target.kind !== 'field') return;
-    if (share.manDays <= 0) return;
-    const fieldId = share.target.id;
-    const work = fieldWork(ctx, fieldId);
-    if (!work) return;
-    const squares = workedSquares(ctx, share, work);
-    if (squares.length === 0) return;
-    // díl patří k nejbližšímu domu (holdings.ts) – od každého domu ke svému prvnímu dílu fronty
-    const groups = new Map<number, { home: House; square: Square; n: number }>();
-    for (const view of squares) {
-      const home = nearestHouse(homes, view.part);
-      if (!home) continue;
-      const group = groups.get(home.id);
-      if (group) group.n++;
-      else groups.set(home.id, { home, square: view.part, n: 1 });
-    }
-    for (const { home, square, n } of groups.values()) {
-      const door = trafficDoor(ctx, home);
-      if (!door) continue;
-      const trips = (share.manDays * FIELD_TRIPS_PER_MAN_DAY * n) / squares.length;
-      const edge = squareEdge(square, door);
-      add(
-        'field',
-        `field:${share.activity}:${fieldId}:${home.id}`,
-        trips,
-        walkRoute(ctx, door, edge, home.id) ?? fieldPath(ctx, door, edge, home.id),
-        WOMEN[share.activity],
-        home.id,
-      );
-    }
   });
   return out;
 }

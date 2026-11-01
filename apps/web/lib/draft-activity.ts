@@ -75,7 +75,8 @@ export type CartGoal =
 /** Věty jízdy tam a zpět: k cíli, u cíle, zpátky, u ohrady. */
 const CART_TEXTS: Record<CartGoal, readonly [string, string, string, string]> = {
   sheaves: ['jede pro snopy', 'nakládá snopy', 'veze snopy', 'skládá snopy'],
-  hay: ['jede pro seno', 'nakládá seno', 'veze seno', 'skládá seno'],
+  // seno se skládá do stohu u ohrady (villagers.md – Fáze činností, Rolník: odvoz sena)
+  hay: ['jede pro seno', 'nakládá seno', 'veze seno ke stohu', 'skládá seno do stohu'],
   logs: ['jede pro klády', 'nakládá klády', 'veze klády ke stavbě', 'skládá klády'],
   charcoal: ['jede pro uhlí k milíři', 'nakládá uhlí', 'veze uhlí ke kováři', 'skládá uhlí'],
   ore: ['jede pro rudu', 'nakládá rudu', 'veze rudu do kovárny', 'skládá rudu'],
@@ -126,7 +127,11 @@ export function cartActivityText(
         return to ? `veze zboží do vesnice ${to}` : 'veze zboží k sousedům';
     }
   }
-  const [out, load, back, unload] = CART_TEXTS[cartGoal(job)];
+  const [out, load, back0, unload0] = CART_TEXTS[cartGoal(job)];
+  // svoz snopů na humno (SceneCart.viaRoute) – skládá na humně, ne u ohrady
+  const floor = cart?.viaRoute !== undefined;
+  const back = floor ? `${back0} na humno` : back0;
+  const unload = floor ? `${unload0} na humně` : unload0;
   switch (leg) {
     case 'load':
       return load;
@@ -134,6 +139,9 @@ export function cartActivityText(
       return back;
     case 'unload':
       return unload;
+    case 'return':
+      // od humna prázdný k ohradě (svoz snopů na humno)
+      return 'vrací se k ohradě';
     case 'loop':
     case 'away':
     case 'out':

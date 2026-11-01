@@ -28,7 +28,6 @@ export type VillagerClip =
   | 'bleed'
   | 'gut'
   | 'carry-meat'
-  | 'carry-meat-idle'
   | 'fish'
   // dítě s řehtačkou na hlídaném dílu (wildlife.md – Ve scéně): řehtačka zvednutá v pravé ruce
   | 'walk-rattle'
@@ -47,7 +46,50 @@ export type VillagerClip =
   // pěší lovec cestou k lesu a zpět s oštěpem (chůze kopiníka z 0 A.D.) – jen `man.glb`
   | 'walk-spear'
   | 'sword-strike'
-  | 'shield-block';
+  | 'shield-block'
+  // další klipy 0 A.D. (villagers.md – Pro implementaci, úloha 10): modlitba u modly a svatyně
+  // (ruce k nebi), varianty odpočinkového stání (`rest-c`–`rest-e` jen `man.glb` – žena místo
+  // nich stojí klipem `idle`), cesta s motykou a sekerou na rameni
+  | 'pray'
+  | 'rest-a'
+  | 'rest-b'
+  | 'rest-c'
+  | 'rest-d'
+  | 'rest-e'
+  | 'walk-hoe'
+  | 'walk-axe'
+  // vojvoda: stání se založenýma rukama a chůze vladaře (idle_minister, walk_relax_minister) – jen
+  // `man.glb`
+  | 'lord-idle-a'
+  | 'lord-idle-b'
+  | 'lord-idle-c'
+  | 'walk-lord'
+  // vlastní klipy z klíčových póz (CC0, people_from_0ad.py `keyed_frames`) – v 0 A.D. chybí:
+  // dojení a sezení na špalku, předení, tkaní, sed u hrnčířského kruhu, píšťala a buben
+  // (s rekvizitami úlohy 9: džber, přeslice, stav, píšťala, buben)
+  | 'milk'
+  | 'spin'
+  | 'weave'
+  | 'sit'
+  | 'wheel'
+  | 'pipe'
+  | 'drum'
+  // rekvizity fází činností (villagers.md – Pro implementaci, úloha 9): klip 0 A.D. s novou
+  // rekvizitou – vázání snopu s povříslem, hrábě, vidle, kladivo a kleště, štípání na špalku
+  // (úder krumpáče se sekerou), síto na rudu, nádoby na zemi, nůše s nástroji / nádobami / rybami,
+  // oko na zajíce, vaření (vařečka, hrnec na ohništi)
+  | 'bind'
+  | 'rake'
+  | 'pitch'
+  | 'forge'
+  | 'split'
+  | 'sieve'
+  | 'pots'
+  | 'carry-tools'
+  | 'carry-pots'
+  | 'carry-fish'
+  | 'snare'
+  | 'cook';
 
 /** Všechny klipy – GLB je musí mít (people.json, hlídá test). */
 export const VILLAGER_CLIPS: readonly VillagerClip[] = [
@@ -70,7 +112,6 @@ export const VILLAGER_CLIPS: readonly VillagerClip[] = [
   'bleed',
   'gut',
   'carry-meat',
-  'carry-meat-idle',
   'fish',
   'walk-rattle',
   'idle-rattle',
@@ -86,7 +127,87 @@ export const VILLAGER_CLIPS: readonly VillagerClip[] = [
   'walk-spear',
   'sword-strike',
   'shield-block',
+  'pray',
+  'rest-a',
+  'rest-b',
+  'rest-c',
+  'rest-d',
+  'rest-e',
+  'walk-hoe',
+  'walk-axe',
+  'lord-idle-a',
+  'lord-idle-b',
+  'lord-idle-c',
+  'walk-lord',
+  'milk',
+  'spin',
+  'weave',
+  'sit',
+  'wheel',
+  'pipe',
+  'drum',
+  'bind',
+  'rake',
+  'pitch',
+  'forge',
+  'split',
+  'sieve',
+  'pots',
+  'carry-tools',
+  'carry-pots',
+  'carry-fish',
+  'snare',
+  'cook',
 ];
+
+/** Klipy jen v `man.glb` (žena místo nich hraje `idle` – villagers.ts). */
+export const MAN_ONLY_CLIPS: readonly VillagerClip[] = [
+  'ride',
+  'ride-trot',
+  'ride-idle',
+  'bow-draw',
+  'bow-release',
+  'spear-thrust',
+  'walk-spear',
+  'sword-strike',
+  'shield-block',
+  'rest-c',
+  'rest-d',
+  'rest-e',
+  'lord-idle-a',
+  'lord-idle-b',
+  'lord-idle-c',
+  'walk-lord',
+];
+
+/** Varianty odpočinkového stání (starší u domu – villager-phases.ts); žena má jen `rest-a/b`. */
+export const REST_CLIPS: readonly VillagerClip[] = [
+  'rest-a',
+  'rest-b',
+  'rest-c',
+  'rest-d',
+  'rest-e',
+];
+
+/** Stání vojvody – střídá se po `LORD_IDLE_S` (villager-plan-lord.ts). */
+export const LORD_IDLE_CLIPS: readonly VillagerClip[] = [
+  'lord-idle-a',
+  'lord-idle-b',
+  'lord-idle-c',
+];
+
+/**
+ * Cesta k práci a domů s nářadím na rameni (0 A.D. walk_hoe, walk_axe): klip práce → klip chůze.
+ */
+export const TOOL_WALK: Partial<Record<VillagerClip, VillagerClip>> = {
+  hoe: 'walk-hoe',
+  fell: 'walk-axe',
+};
+
+/** Klip chůze (nohy jdou tempem podle rychlosti klipu – villagers.ts). */
+export function isWalkClip(clip: VillagerClip): boolean {
+  return clip === 'walk' || clip === 'walk-hoe' || clip === 'walk-axe' || clip === 'walk-lord';
+}
 
 /** Čas postav (s) ve skutečný okamžik `nowMs` – stejný počátek jako zvířata. */
 export function villagerSeconds(nowMs: number): number {
@@ -132,7 +253,12 @@ export type VillagerStage =
   | 'home'
   // výcvik vojvodovy rodiny (lord.md): střílí z luku, bojuje
   | 'bow'
-  | 'combat';
+  | 'combat'
+  // žena u dveří (villagers.md – Fáze činností, Žena): přede, vaří, tká, hlídá malé děti
+  | 'spin'
+  | 'cook'
+  | 'weave'
+  | 'mind';
 
 export function createVillagerPose(): VillagerPose {
   return { x: 0, z: 0, headingX: 0, headingZ: 1, clip: 'idle', pace: 1 };
@@ -166,19 +292,33 @@ export const CLIP_SPEED_M_S: Record<VillagerKind, Partial<Record<VillagerClip, n
   woman: {
     walk: 1.25,
     carry: 1.05,
+    // nůše s nástroji, nádobami či rybami – táž chůze jako s košem (carry_grain)
+    'carry-tools': 1.05,
+    'carry-pots': 1.05,
+    'carry-fish': 1.05,
     'carry-wood': 1.05,
     'carry-water': 1.25,
     'carry-meat': 1.05,
     'walk-rattle': 1.25,
+    // chůze s nářadím z 0 A.D. (people_from_0ad.py: 0,88 m/s muž při chůzi 0,86) – žena podle výšky
+    'walk-hoe': 0.95,
+    'walk-axe': 0.95,
   },
   man: {
     walk: 1.0,
     carry: 1.1,
+    'carry-tools': 1.1,
+    'carry-pots': 1.1,
+    'carry-fish': 1.1,
     'carry-wood': 1.0,
     'carry-water': 1.0,
     'carry-meat': 1.0,
     'walk-rattle': 1.0,
     'walk-spear': 0.97,
+    'walk-hoe': 1.02,
+    'walk-axe': 1.02,
+    // chůze vladaře (people_from_0ad.py: 1,04 m/s při chůzi 0,86)
+    'walk-lord': 1.2,
   },
 };
 

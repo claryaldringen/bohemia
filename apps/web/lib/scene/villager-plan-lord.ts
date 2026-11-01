@@ -25,6 +25,7 @@ import {
   alongRoute,
   CLIP_SPEED_M_S,
   fetcher,
+  LORD_IDLE_CLIPS,
   route,
   type Route,
   type PoseFn,
@@ -34,6 +35,9 @@ import {
 } from './villager-motion';
 import { trainingGroundOf, type TrainingGround, type TrainingSpot } from './training-ground-layout';
 import type { Point } from './villager-plan-types';
+
+/** Po kolika sekundách vojvoda mimo výcvik změní stání vladaře (`LORD_IDLE_CLIPS`). */
+export const LORD_IDLE_S = 6;
 
 /**
  * Rozvrh výcviku dne (lord.md – Den rodiny: dva bloky, dopoledne a odpoledne – Vegetius; návrh
@@ -92,6 +96,7 @@ function drillPose(
   combat: { spot: TrainingSpot; role: 'pair-a' | 'pair-b' | 'post' | 'wait' },
   rest: TrainingSpot,
   window: DayWindow | null,
+  lord = false,
 ): PoseFn {
   const lane = ground.lanes[archer.lane]!;
   return (t, _herds, out) => {
@@ -134,9 +139,19 @@ function drillPose(
       }
       return put(out, combat.spot, 'idle');
     }
-    // mimo výcvik (poledne, jízda, večer) ve dne stojí u dvorku jako ostatní muži mimo práci;
-    // skrytý je jen v noci (jako ženy rodiny)
-    put(out, rest, 'idle');
+    // mimo výcvik (poledne, jízda, večer) ve dne stojí u dvorku jako ostatní muži mimo práci –
+    // vojvoda jako vladař (založené ruce, střídá se po LORD_IDLE_S); skrytý je jen v noci (jako
+    // ženy rodiny)
+    put(
+      out,
+      rest,
+      lord
+        ? LORD_IDLE_CLIPS[
+            ((Math.floor(t / LORD_IDLE_S) % LORD_IDLE_CLIPS.length) + LORD_IDLE_CLIPS.length) %
+              LORD_IDLE_CLIPS.length
+          ]!
+        : 'idle',
+    );
     if (hour !== null && isNight(hour)) out.hidden = true;
     return out;
   };
@@ -155,7 +170,7 @@ const VISIT_BACK_H: readonly [number, number] = [HOUSEHOLD_HOURS[0], HOUSEHOLD_H
 function visitPose(base: PoseFn, r: Route, window: DayWindow | null): PoseFn {
   const walk = (out: VillagerPose, d: number, reverse: boolean): VillagerPose => {
     alongRoute(r, d, reverse, out);
-    out.clip = 'walk';
+    out.clip = 'walk-lord';
     out.pace = 1;
     out.hidden = false;
     return out;
@@ -337,6 +352,7 @@ export function lordFigures(
       combatSpot(ground, Math.max(0, fighters.indexOf(hours.id))),
       restSpot(ctx, lord.home, idx),
       window,
+      lord.lordId === hours.id,
     );
     const ride = riding.get(hours.id);
     const mounted = ride ? riderPose(ride) : null;

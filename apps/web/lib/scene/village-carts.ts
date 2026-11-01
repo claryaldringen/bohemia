@@ -12,15 +12,29 @@ import {
   nearestOnRoute,
   shuttleRoute,
   type CartCaravan,
+  type CartParked,
   type CartPlan,
   type CartSpot,
 } from './cart-layout';
 import { caravanHead, caravanPlan, caravanProgress, type DayWindow } from './caravan';
+import { carpenterCartSpot, type CraftYardView } from './craft-yard-layout';
 import type { PenLayout } from './pen-layout';
 import { route as walkRoute } from './villager-motion';
 
 /** Vůz stojí u boční stěny ohrady venku – od plotu (m) a rozestup víc vozů vedle sebe (m). */
 const PARKED_M = { fromFence: 2.3, apart: 2.6, back: 1.5 } as const;
+
+/**
+ * Rozdělané vozy u tesařů (villagers.md – Fáze činností, Tesař): před dílnou (`CARPENTER_CART`)
+ * stojí vůz po fázích stavby z dvora dílny (`SceneCraftYard.cart` – roste se dny výroby). Bez id
+ * – vůz ještě není vozem vsi.
+ */
+export function buildingCartPlans(yards: readonly CraftYardView[]): CartParked[] {
+  return yards.flatMap((view): CartParked[] => {
+    const cart = view.craft === 'carpenter' ? view.yard?.cart : undefined;
+    return cart ? [{ kind: cart.kind, parked: carpenterCartSpot(view), build: cart.stage }] : [];
+  });
+}
 
 /** Vozy, které dnes jedou (mají úlohu i trasu) – dvoukolák táhne vůl, čtyřkolák pár. */
 export function drivingCarts(village: Pick<SceneVillage, 'carts'>): SceneCart[] {
@@ -129,7 +143,8 @@ export function villageCartPlans(
         id: cart.id,
         kind: cart.kind,
         cargo: job.load,
-        shuttle: shuttleRoute(cart.route!, cart.kind, walkable),
+        // svoz snopů s hotovým humnem – plný k humnu, odtud k ohradě (SceneCart.viaRoute)
+        shuttle: shuttleRoute(cart.route!, cart.kind, walkable, cart.viaRoute),
         schedule: {
           // svoz úrody, sena a klád v okně herního dne (ladicí – práce dne se vejde do dne);
           // voda, uhlí a osivo (Co vozy vozí) jezdí tempem volů ve skutečném čase jako provoz

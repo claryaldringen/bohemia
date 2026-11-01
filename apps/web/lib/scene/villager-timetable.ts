@@ -4,20 +4,29 @@
 // až při dalším vyjití z domu (villager-schedule.ts). Čistý modul bez Babylonu; počítá líně –
 // činnost člověka jen tehdy, když scéna chce jeho pózu (ves v záběru) nebo stav vybraného.
 import {
-  activityLength,
   activityPose,
   activityStage,
   castTimeline,
   departAfter,
   HISTORY_S,
+  nextActivity,
+  rehold,
   scheduleAt,
-  straightWalk,
+  settle,
+  uncut,
   type Activity,
   type CastSpan,
   type DayCast,
   type ScheduleInput,
 } from './villager-schedule';
-import type { HerdView, PoseFn, VillagerPose } from './villager-motion';
+import { activityPhases, phaseAt, type ActivityPhase, type PhaseName } from './villager-phases';
+import {
+  createVillagerPose,
+  type HerdView,
+  type PoseFn,
+  type Route,
+  type VillagerPose,
+} from './villager-motion';
 import type { PersonJob } from './villager-roster';
 
 /** Kolik herních dnů obsazení si scéna pamatuje (villagers.md – Pro implementaci, úloha 3). */
@@ -29,35 +38,115 @@ interface Point {
   z: number;
 }
 
+/** Obdélník na zemi (m). */
+export interface Extent {
+  minX: number;
+  maxX: number;
+  minZ: number;
+  maxZ: number;
+}
+
+/**
+ * Kde se lidé s rozvrhem během dne můžou objevit: dveře jejich domů (`doors`) a místa úloh
+ * obsazení dne `cast` i s kroky jinde (`PersonTask.places`) – pevné za den. Scéna z toho skládá
+ * obal postav pro ořez (villagers.ts), ať se hýbe i ten, kdo vyjde z domu mimo poslední pózy.
+ * Nic – null.
+ */
+export function dayExtent(cast: DayCast, doors: Iterable<Point | null>): Extent | null {
+  let out: Extent | null = null;
+  const add = (p: Point | null | undefined): void => {
+    if (!p) return;
+    if (!out) out = { minX: p.x, maxX: p.x, minZ: p.z, maxZ: p.z };
+    else {
+      out.minX = Math.min(out.minX, p.x);
+      out.maxX = Math.max(out.maxX, p.x);
+      out.minZ = Math.min(out.minZ, p.z);
+      out.maxZ = Math.max(out.maxZ, p.z);
+    }
+  };
+  for (const door of doors) add(door);
+  for (const task of cast.values()) {
+    add(task.at);
+    for (const place of Object.values(task.places ?? {})) add(place);
+  }
+  return out;
+}
+
 /** Poslední činnost člověka, póza z ní (líně) a další činnost po návratu (doma – kdy vyjde). */
 interface Entry {
   act: Activity;
   pose: PoseFn | null;
+  /** Fáze činnosti (villager-phases.ts) – líně, s pózou. */
+  phases?: ActivityPhase[] | null;
 }
 
 /** Úsek cesty činnosti pro panel postavy: k práci a z ní (pochůzku řekne její póza). */
 export type ActivityLeg = 'out' | 'back';
 
 /**
- * Rozvrhy lidí jedné vsi (`seed`) – `speed` = tempo chůze rovně ode dveří (m/s; do úlohy 6, pak
- * délky ze sítě pěšin). Obsazení dnů přidává `setDay` (z plánu dne), dveře domů `setDoors`.
+ * Rozvrhy lidí jedné vsi (`seed`) – `speed` = tempo chůze (m/s; délky z odhadu sítě pěšin –
+ * `setEstimate`, bez sítě rovně). Obsazení dnů přidává `setDay` (z plánu dne), dveře domů `setDoors`.
  */
 export class Timetable {
   private days: { day: number; from: number; cast: DayCast }[] = [];
   private castOf: (t: number) => CastSpan = castTimeline([]);
   private doors: ReadonlyMap<number, Point | null> = new Map();
   private readonly entries = new Map<number, Entry>();
+  private wet: ((x: number, z: number, t: number) => boolean) | null = null;
+  private estimate: ((a: Point, b: Point) => number) | null = null;
+  private router: ((personId: number, from: Point, to: Point) => Route | null) | null = null;
   readonly input: ScheduleInput;
+  private readonly speed: number;
 
   constructor(
     readonly seed: number,
     speed: number,
   ) {
+    const v = Math.max(0.1, speed);
+    this.speed = v;
+    // délka chůze z odhadu po síti pěšin (villagers.md – Cesty postav; bez sítě rovně)
+    const walkM = (a: Point, b: Point): number =>
+      this.estimate?.(a, b) ?? Math.hypot(b.x - a.x, b.z - a.z);
     this.input = {
       seed,
       castOf: (t) => this.castOf(t),
-      lengthOf: straightWalk((id) => this.doors.get(id) ?? null, speed),
+      lengthOf: (id, task) => {
+        if (task.errand) {
+          return { outS: task.errand.homeS / 2, endS: 0, backS: task.errand.homeS / 2 };
+        }
+        const door = this.doors.get(id) ?? null;
+        const walk = door && task.at ? walkM(door, task.at) / v : 0;
+        return { outS: walk, endS: 0, backS: walk };
+      },
+      doorOf: (id) => this.doors.get(id) ?? null,
+      walkS: (a, b) => walkM(a, b) / v,
+      wet: (x, z, t) => this.wet?.(x, z, t) ?? false,
+      placeAt: (a, t) => this.placeAt(a, t),
     };
+  }
+
+  /**
+   * Odhad délky chůze po síti pěšin (`VillagerPaths.walkLength` – stejný model jako simulace,
+   * stejné časy ve všech prohlížečích i mimo záběr); null – rovně. Platí od další činnosti.
+   */
+  setEstimate(estimate: ((a: Point, b: Point) => number) | null): void {
+    this.estimate = estimate;
+  }
+
+  /**
+   * Přesná trasa chůze (po pěšinách, kolem domů – villager-plan.ts `walk`) – hledá se jen pro
+   * pózu, která se kreslí (postava v záběru nebo vybraná), jednou za úsek činnosti.
+   */
+  setRouter(router: ((personId: number, from: Point, to: Point) => Route | null) | null): void {
+    this.router = router;
+  }
+
+  /**
+   * Povodeň (villagers.md – Události): je místo v okamžik `t` (s) pod vodou? Platí od dalšího
+   * výpočtu činností (kdo je venku s cílem pod vodou, jde od přelomu dne domů). Null – sucho.
+   */
+  setWet(wet: ((x: number, z: number, t: number) => boolean) | null): void {
+    this.wet = wet;
   }
 
   /** Počet známých dnů obsazení (pro testy). */
@@ -91,16 +180,22 @@ export class Timetable {
     }
     this.castOf = castTimeline(this.days);
     for (const [id, e] of this.entries) {
-      const a = e.act;
+      const a = uncut(e.act);
+      let next = a;
       if (a.kind === 'home') {
         // doma – vyjde podle obsazení, jaké je teď (villagers.md: rozhoduje se při vyjití)
         const out = departAfter(this.input, id, a.start);
-        e.act = { ...a, end: out ? out.start : Infinity };
-        e.pose = null;
-      } else if (a.kind === 'hold' && a.task) {
+        next = { ...a, end: out ? out.start : Infinity };
+      } else if (a.kind === 'hold') {
         // úloha u objektu – s novým dnem ji obsazení může přestat dávat
-        e.act = activityLength(this.input, id, a.start, a.task) ?? a;
+        next = rehold(this.input, id, a);
+      }
+      // nový den může přinést událost, která rozběhnutou činnost přeruší (villagers.md – Události)
+      const settled = settle(this.input, id, next);
+      if (settled.end !== e.act.end || settled.cut?.by !== e.act.cut?.by || next !== a) {
+        e.act = settled;
         e.pose = null;
+        e.phases = null;
       }
     }
   }
@@ -126,11 +221,43 @@ export class Timetable {
     return this.entry(id, t).act;
   }
 
-  /** Póza postavy člověka v `t` – doma skrytá u dveří (`activityPose`). */
+  /** Póza postavy člověka v `t` – doma skrytá u dveří (`activityPose` po fázích činnosti). */
   pose(id: number, t: number, herds: readonly HerdView[], out: VillagerPose): VillagerPose {
     const e = this.entry(id, t);
-    e.pose ??= activityPose(e.act, this.doorOf(id) ?? e.act.task?.at ?? { x: 0, z: 0 });
+    const router = this.router;
+    e.pose ??= activityPose(
+      e.act,
+      this.doorOf(id) ?? e.act.task?.at ?? { x: 0, z: 0 },
+      router ? { routeOf: (from, to) => router(id, from, to), speed: this.speed } : undefined,
+      this.phasesOf(e),
+    );
     return e.pose(t, herds, out);
+  }
+
+  /** Fáze činnosti člověka v `t` (villager-phases.ts – panel postavy, tempo nohou). */
+  phase(id: number, t: number): ActivityPhase {
+    return phaseAt(this.phasesOf(this.entry(id, t)), t);
+  }
+
+  /**
+   * Kde člověk v činnosti `a` v `t` je – stejně jako kreslená póza (fáze, přesná trasa): odtud jde
+   * k události a od tohoto místa se měří dosah k požáru (villager-schedule.ts – `whereAt`).
+   */
+  private placeAt(a: Activity, t: number): Point {
+    const id = a.person;
+    const router = this.router;
+    const pose = activityPose(
+      a,
+      this.doorOf(id) ?? a.task?.at ?? { x: 0, z: 0 },
+      router ? { routeOf: (from, to) => router(id, from, to), speed: this.speed } : undefined,
+      activityPhases(a, this.seed, (p, q) => this.input.walkS!(p, q, id)),
+    )(t, [], createVillagerPose());
+    return { x: pose.x, z: pose.z };
+  }
+
+  private phasesOf(e: Entry): ActivityPhase[] {
+    e.phases ??= activityPhases(e.act, this.seed, (a, b) => this.input.walkS!(a, b, e.act.person));
+    return e.phases;
   }
 
   /**
@@ -151,23 +278,14 @@ export class Timetable {
     while (t >= e.act.end) {
       e.act = this.after(id, e.act);
       e.pose = null;
+      e.phases = null;
     }
     return e;
   }
 
-  /** Činnost po `prev`: po činnosti doma (pauza do dalšího vyjití), z domu další činnost. */
+  /** Činnost po `prev` (villager-schedule.ts – `nextActivity`), přerušená událostí do ní. */
   private after(id: number, prev: Activity): Activity {
-    const home = (since: number, out: Activity | null): Activity => ({
-      person: id,
-      kind: 'home',
-      task: null,
-      start: since,
-      arrive: since,
-      leave: since,
-      end: out ? out.start : Infinity,
-    });
-    if (prev.kind !== 'home') return home(prev.end, departAfter(this.input, id, prev.end));
-    return departAfter(this.input, id, prev.start) ?? home(prev.end, null);
+    return settle(this.input, id, nextActivity(this.input, id, prev));
   }
 }
 
@@ -188,6 +306,11 @@ export interface ScheduledState {
   home: boolean;
   /** Vešel do domu, když byl předtím venku – výběr se zruší (kromě vojvody). */
   indoors: boolean;
+  /**
+   * Fáze činnosti, když ji panel řekne jinak než úloha (villager-phases.ts – váže snopy, pere
+   * rudu, nese nástroje…); cesta, práce úlohy a doma null.
+   */
+  phase: PhaseName | null;
 }
 
 /**
@@ -200,14 +323,20 @@ export function scheduledState(
   t: number,
   wasOut: boolean,
   lord: boolean,
+  phase: ActivityPhase | null = null,
 ): ScheduledState {
   const home = activityIndoors(a, t);
   const stage = activityStage(a, t);
   const leg = !home && a.kind !== 'errand' && (stage === 'out' || stage === 'back') ? stage : null;
+  const named = phase && !home && !GENERIC_PHASES.has(phase.name) ? phase.name : null;
   return {
     job: home ? null : (a.task?.job ?? null),
     leg,
     home,
     indoors: home && wasOut && !lord,
+    phase: named,
   };
 }
+
+/** Fáze, které panel řekne podle úlohy a úseku cesty (ne podle fáze). */
+const GENERIC_PHASES: ReadonlySet<PhaseName> = new Set(['out', 'work', 'back', 'home']);

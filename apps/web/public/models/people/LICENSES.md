@@ -40,10 +40,9 @@ Rekvizity (výcvikové, dřevěné – všechny s texturou `props/wood_e.png`, �
 `props/weap_shaft_wood_a.dae` (kopí bez hrotu), `props/shield/round_noboss_f.dae` (pletený štít).
 Jezdecké klipy 0 A.D. mají na koni sed – poloha jezdce na koni se odvozuje ve scéně.
 
-Porážka (oba soubory, klipy `butcher`, `bleed`, `gut`, `carry-meat`, `carry-meat-idle`): animace
+Porážka (oba soubory, klipy `butcher`, `bleed`, `gut`, `carry-meat`): animace
 `animation/biped/gatherer/gather_meat.dae` (butcher), `gather_berries.dae` (bleed),
-`slaughter.dae` (gut), `carry_meat_f.dae` / `carry_meat_m.dae` a `idle_carry_meat_f.dae` /
-`idle_carry_meat_m.dae` (žena / muž). Rekvizity: nůž `props/weapons/dagger_01.dae` (textura
+`slaughter.dae` (gut), `carry_meat_f.dae` / `carry_meat_m.dae` (žena / muž). Rekvizity: nůž `props/weapons/dagger_01.dae` (textura
 `props/prop_weap.dds`), kýta `props/special/brontoburger.dae` (textura `props/shuttle_meat.png`).
 Miska na krev je nový jednoduchý model (skript, `procedural_bowl`) s texturou z `prop_weap.dds`.
 
@@ -63,3 +62,40 @@ Humno (klipy `thresh` a `winnow`, oba soubory): mlácení holí je animace
 lopatou `animation/biped/gatherer/farming.dae`. Mlatcí hůl (`procedural_stick`, ≈ 1,2 m)
 a dřevěná lopata (`procedural_shovel`, násada a list z jednoho kusu dřeva) jsou nové jednoduché
 modely (skript, **CC0**) s texturou dřeva z `prop_weap.dds` (0 A.D.).
+
+Další klipy 0 A.D. (úloha 10 scény, 1. 11. 2026; Martin 31. 10. 2026: „Z OAD použij vše, co je pro
+nás použitelné“) – animace z `art/animation/biped/`, CC BY-SA 3.0 (Wildfire Games):
+
+| Klip                                     | `woman.glb`                                               | `man.glb`                                                                |
+| ---------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `pray` (modlitba u modly a svatyně)      | `citizen/pray.dae`                                        | `citizen/pray.dae`                                                       |
+| `rest-a` … (varianty stání)              | `citizen/idle_relax_f_short.dae`, `idle_relax_f_long.dae` | `citizen/idle_relax_m_b.dae`, `_d`, `_f`, `_h`, `_j` (`rest-a`–`rest-e`) |
+| `walk-hoe`, `walk-axe` (cesta s nářadím) | `gatherer/walk_hoe.dae`, `walk_axe.dae` (motyka, sekera)  | totéž                                                                    |
+| `lord-idle-a`–`c`, `walk-lord` (vojvoda) | –                                                         | `citizen/idle_minister_01.dae`–`03`, `walk_relax_minister.dae`           |
+
+Vlastní klipy z klíčových póz – **vlastní práce, CC0** (skript `keyed_frames` v
+`people_from_0ad.py`, pózy v `people.json` – klíč `keys`): `milk` (dojení), `spin` (předení),
+`weave` (tkaní), `sit` (sezení starších), `wheel` (hrnčířský kruh), `pipe` (píšťala), `drum`
+(buben). Pohyb je vlastní, kostra a výchozí póza (`idle_relax_f.dae` / `idle_relax_m_a.dae`)
+jsou z 0 A.D. – soubory GLB jako celek zůstávají pod CC BY-SA 3.0. Špalek k sezení
+(`procedural_stump`) je nový jednoduchý model (skript, **CC0**) s texturou dřeva z `prop_weap.dds`
+(0 A.D.).
+
+Rekvizity fází činností (úloha 9 scény, 1. 11. 2026 – `docs/design/villagers.md`, Fáze činností),
+oba soubory. Klipy jsou stávající animace 0 A.D. s novou rekvizitou: `bind` (vázání snopu,
+`gatherer/gather_berries.dae`), `rake` a `pitch` (hrábě, vidle – `gatherer/farming.dae`), `forge`
+(kladivo a kleště – `citizen/build.dae`), `split` (štípání na špalku – `gatherer/gather_mine.dae`),
+`sieve`, `pots`, `snare`, `cook` (síto, nádoby, oko, vaření – `gatherer/gather_berries.dae`)
+a `carry-tools`, `carry-pots`, `carry-fish` (nůše s nástroji, nádobami, rybami –
+`gatherer/carry_grain_f.dae` / `carry_grain_m.dae`); vlastní klipy `milk`, `spin`, `weave`, `pipe`
+a `drum` dostaly džber, přeslici, stav, píšťalu a buben.
+
+- **Z 0 A.D.** (CC BY-SA 3.0, Wildfire Games): vidle `art/meshes/props/tool_pitchfork.dae`
+  (textura `art/textures/skins/props/prop_tools.dds`), kladivo `props/tool_hammer.dae`, kleště
+  `props/tool_tongs_01.dae` a sekera ke štípání `props/tool_axe.dae` (textura
+  `props/prop_weap.dds`); zmenšené skriptem (`scale` v `people.json`).
+- **Nové jednoduché modely** (skript `people_from_0ad.py`, tvar **vlastní práce, CC0**) s texturami
+  z 0 A.D.: snop s povříslem a pletené síto (`props/basket_iber_1.dds`), hrábě, štípací špalek,
+  nástroje v nůši, ryby, oko na zajíce, vařečka, džber a píšťala (`props/prop_weap.dds`), nádoby
+  na zemi i v nůši a hrnec na ohništi (`props/vase_rome_1.dds`), přeslice, stav a buben
+  (`props/prop_tools.dds`). Soubory GLB jako celek zůstávají pod CC BY-SA 3.0.

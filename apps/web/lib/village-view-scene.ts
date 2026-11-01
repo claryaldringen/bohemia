@@ -493,6 +493,7 @@ function sceneLord(state: VillageState, counts: LaborDay['lord'], day: number): 
   const visits =
     wife && lordId !== undefined && family.trainees.some((p) => p.id === lordId && !men.has(p.id));
   return {
+    ...(lordId !== undefined ? { lordId } : {}),
     ...(visits && wife && lordId !== undefined ? { visit: { lordId, home: wife.dwellingId } } : {}),
     ...(riding.length > 0 ? { riders: riding } : {}),
     ...(riding.length > 0 && rides?.trailId != null ? { borderTrailId: rides.trailId } : {}),

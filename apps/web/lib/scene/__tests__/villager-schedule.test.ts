@@ -16,7 +16,6 @@ import {
   castTimeline,
   nextStart,
   scheduleAt,
-  straightWalk,
   type Activity,
   type DayCast,
   type PersonTask,
@@ -24,6 +23,8 @@ import {
   type TaskKind,
   type TaskWalk,
 } from '../villager-schedule';
+import { straightWalk } from './straight-walk';
+import { activityPhases, schedulePhaseAt, type PhaseRole } from '../villager-phases';
 
 // Rozvrh člověka (villagers.md – Činnosti od začátku do konce): čistá funkce času a obsazení dnů.
 
@@ -340,5 +341,89 @@ describe('rozvrh člověka – čistá funkce času (villager-schedule.ts)', () 
     expect(pose(a.start + 102, [], out).stage).toBe('end');
     expect(pose(a.start + 150, [], out).stage).toBe('back');
     expect(pose(a.start + 206, [], out).hidden).toBe(true);
+  });
+});
+
+describe('fáze činnosti – rozvrh napřed, fáze potom (villager-phases.ts, úloha 7)', () => {
+  const ROLES: PhaseRole[] = ['reap', 'pottery', 'forge', 'kiln-burn', 'fish', 'elder'];
+  /** Obsazení se stejnými klíči jako `syntheticCast`, práce na místě s rolí fází a místy jinde. */
+  const phased = (d: number): DayCast => {
+    const cast = new Map<number, PersonTask>();
+    for (const [p, t] of syntheticCast(d, 120)) {
+      const role = ROLES[p % ROLES.length]!;
+      cast.set(p, {
+        ...t,
+        pose: stand(0, 0, 0, 1, 'reap'),
+        role,
+        places: { drop: { x: 6, z: 0 }, aid: { x: 0, z: 8 } },
+      });
+    }
+    return cast;
+  };
+  const PHASED = input(phased);
+
+  it('součet fází = délka činnosti, fáze navazují; první cesta ode dveří, poslední návrat', () => {
+    let checked = 0;
+    for (let p = 1; p <= 120; p++) {
+      for (const a of activities(PHASED, p, T0 + HISTORY_S)) {
+        if (a.start > T0 + 3 * HISTORY_S || a.end === Infinity) break;
+        const phases = activityPhases(a, PHASED.seed);
+        expect(phases[0]!.from).toBe(a.start);
+        expect(phases.at(-1)!.to).toBe(a.end);
+        const sum = phases.reduce((s, ph) => s + (ph.to - ph.from), 0);
+        expect(sum).toBeCloseTo(a.end - a.start, 6);
+        for (let k = 1; k < phases.length; k++) expect(phases[k]!.from).toBe(phases[k - 1]!.to);
+        if (a.kind === 'home') {
+          expect(phases.map((ph) => ph.name)).toEqual(['home']);
+          continue;
+        }
+        if (a.cut || a.retreat || a.arrive === a.start) continue;
+        expect(phases[0]!.name).toBe('out');
+        if (a.leave < a.end) expect(['back', 'bring-catch']).toContain(phases.at(-1)!.name);
+        checked++;
+      }
+    }
+    expect(checked).toBeGreaterThan(200);
+  });
+
+  it('stejný čas = stejná fáze a klip, i z jiného počátku řetězu', () => {
+    for (let p = 1; p <= 60; p++) {
+      for (let k = 0; k < 8; k++) {
+        const t = T0 + 2 * HISTORY_S + k * 97 + p * 13;
+        const a = schedulePhaseAt(PHASED, p, t);
+        const b = schedulePhaseAt(PHASED, p, t, t - 2 * HISTORY_S);
+        // úloha u objektu splyne až svým koncem a doma od počátku řetězu – začátek se může
+        // lišit, fáze, její konec a klip ne
+        if (a.activity.kind === 'hold' || a.activity.kind === 'home') {
+          expect([b.phase.name, b.phase.to]).toEqual([a.phase.name, a.phase.to]);
+        } else expect(b.phase).toEqual(a.phase);
+        expect(b.clip).toBe(a.clip);
+        expect(schedulePhaseAt(PHASED, p, t)).toEqual(a);
+      }
+    }
+  });
+
+  it('klip podle fáze: vázání snopů s povříslem, práce úlohy pózou úlohy, doma idle', () => {
+    let bind = 0;
+    let work = 0;
+    for (let p = 6; p <= 120; p += ROLES.length) {
+      // role 'reap' (p % 6 === 0)
+      for (let k = 0; k < 40; k++) {
+        const t = T0 + 2 * HISTORY_S + k * 31;
+        const { activity, phase, clip } = schedulePhaseAt(PHASED, p, t);
+        if (activity.kind !== 'bout') continue;
+        if (phase.name === 'bind') {
+          expect(clip).toBe('bind');
+          bind++;
+        }
+        if (phase.name === 'work') {
+          expect(clip).toBe('reap');
+          work++;
+        }
+        if (phase.name === 'home') expect(clip).toBe('idle');
+      }
+    }
+    expect(bind).toBeGreaterThan(0);
+    expect(work).toBeGreaterThan(0);
   });
 });
