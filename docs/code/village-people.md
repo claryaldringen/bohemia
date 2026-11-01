@@ -413,6 +413,22 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     s činností), `scheduledState(…, phase)` → `PersonFigureState.phase` → `PHASE_TEXTS`
     v `person-activity.ts` („váže snopy“, „pere rudu“, „nese nástroje do domácností“…; rybář „jde
     k tůni“). Tempo nohou na cestách fází podle klipu (`walkSpeed` – s košem jinak než bez).
+    Tesař s rozdělaným vozem (úloha 11) má roli `cart` – otesává díly (`split`, „otesává díly
+    vozu“) a staví vůz (póza úlohy `build` u korby, „staví vůz“); vůz po fázích kreslí scéna
+    (scene-village.md – Tesař – vznikající vůz).
+    **Implementováno – Žena, děti a svatba (úloha 12, 1. 11. 2026):** ženy u dveří (`domestic`
+    → `doorChore` podle `phase` postavy, villager-plan-folk.ts) předou (`SPIN_SHARE` 0,5),
+    vaří (`COOK_SHARE` 0,25), tkají u stavu (`WEAVE_SHARE` 0,1 – klip `weave`), zbytek postává;
+    s malým dítětem v domě (`DayRoster.hasSmallChild` – pod `AGE.olderChild`) ho hlídá u dveří.
+    Úsek pózy (`VillagerStage` `spin` / `cook` / `weave` / `mind`) řekne panel („přede před
+    domem“, „vaří na ohništi před domem“, „tká na stavu před domem“, „hlídá děti u domu“ –
+    `DOOR_CHORE_TEXTS`); muži u dveří postávají. Postava dítěte u matky ani nošení na zádech
+    není (žádná rekvizita ani klip – návrh Clauda: jen stání u dveří). Hudebníci na svatbě
+    (wedding-plan.ts – `weddingMusicians`, `WEDDING_MUSIC`): dva dospělí svatebčané losem podle
+    svatby hrají na svém místě v podkově na píšťalu a buben (`WeddingMember.music` → klip
+    `pipe` / `drum`, úloha `wedding` s `music` – „hraje na píšťalu na svatbě“, „bubnuje na
+    svatbě“), v průvodu jdou. Oka na zajíce – Lovci, rybáři a děti s řehtačkou. Pomoc o žních
+    (paběrky, nosiči) je z úlohy 8.
     Rozvrh se počítá líně: jen když `write` kreslí pózy (ves v záběru, při omezeném pohybu stojí)
     nebo pro vybraného (`updateSelection`); mimo záběr nic. Vlasce rybářů se překreslí, jen když se
     změní, kdo rybaří. Výběr: `scheduledState` – úloha a cesta (`leg` – „jde na pole“, „jde domů“
@@ -530,7 +546,9 @@ miska je natočená o −90° kolem X (svislice bodu `weapon_L` je jeho osa Y) a
   (`footHunterPose`) – cvičící muži dvorce mimo blok lovu cvičí, odešlí synové rodu se berou
   z rozpisu (`takeId`) jen na blok lovu, jinak jsou doma. Panel: úloha `lord`.
 - **Rybáři:** podíl práce `fish` s cílem tůně – postava na břehu s prutem (`anglers`), panel
-  podle podílu práce. Oka (`snare`) postavu nemají.
+  podle podílu práce. Oka (`snare` – v zimě, small-game.ts): nejvýš 3 postavy klečí s okem
+  na okraji lesa nejblíž vsi (`snarers`, `SNARE_EDGE` – stromy do 160 m od středu vsi, po
+  devátém stromu, 1,8 m od kmene ke vsi, čelem k lesu); samotná oka se nekreslí (úloha 12 scény).
 - **Děti s řehtačkou:** výrostci (`YOUNGSTERS`) po pasácích, jedno na hlídaný díl (nejvýš 4) –
   úloha `watch`, panel „hlídá pole“. Chodí s řehtačkou zvednutou v pravé ruce (`walk-rattle`,
   na koncích `idle-rattle`); pěší lovec nese cestou oštěp (`walk-spear`).

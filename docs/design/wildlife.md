@@ -340,8 +340,9 @@ kde to nestačí.
 - **Rybáři:** stojí na břehu tůně (dosavadní póza stání) s **prutem** – nová rekvizita (vlastní CC0
   model ≈ 3 m, vlasec jako čára), samostatná instance natočená podle postavy, **žádný nový vertex
   atribut** (postava má právě 8 bufferů). Počet z jádra (hodiny rybaření ÷ délka dne), nejvýš 3 na
-  tůň. Oka se nekreslí. Ves bez tůně do dosahu jádro rybaří na své vodě (`waterHa`) jako na
-  jedné tůni – rybáři pak stojí na břehu potoka v místě nejblíž vsi; voda bez potoka (jen
+  tůň. Oka se nekreslí – lidé, kteří je v zimě kladou, klečí s okem na okraji lesa nejblíž vsi
+  (villagers.md – Fáze činností, Rybář; úloha 12 scény). Ves bez tůně do dosahu jádro rybaří
+  na své vodě (`waterHa`) jako na jedné tůni – rybáři pak stojí na břehu potoka v místě nejblíž vsi; voda bez potoka (jen
   políčka vody) rybáře nekreslí.
 - **Psi:** u dvorce (stojí, leží), s pěšími lovci a s jezdci na objížďce; na začátku a konci
   lovu 3 s dobíhají od dvorce k lovcům a zpět (neskočí).

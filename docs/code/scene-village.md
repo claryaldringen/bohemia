@@ -366,6 +366,17 @@ píšťala, buben) stojí v prostoru postavy (natáčí se s ní) i v klipu 0 A.
 - **Ukázka**: `/dev/buildings` – **Kovárna a hrnčíř** (`showcaseCraftYards`, kreslí renderer
   variant): tavba s žárem a dýmem, překování (hodně houby), kování nástrojů (plná hromádka
   hřiven), hrnčíř s plnou jámou a se skoro prázdnou. Bez postav (ty ukazuje ves).
+- **Tesař – vznikající vůz** (villagers.md – Fáze činností, Tesař; úloha 11 scény): rozdělaný
+  vůz (`SceneCraftYard.cart` – druh a fáze 1–3 z `cartBuildStage` ve village-view-crafts.ts:
+  průběh dřevěné práce `Workshop.cart.done` ÷ `CARPENTRY.cartManDays`, od `CART_BUILD_STAGES.wheels`
+  0,45 kola, s hotovou dřevěnou prací celý) stojí před dílnou (`CARPENTER_CART` –
+  `carpenterCartSpot`, oj podél vchodu). Kreslí ho **cart-renderer.ts z dílů `wagons.glb`** jako
+  stojící vůz bez id (`buildingCartPlans` ve village-carts.ts, `CartParked.build`): fáze 1 korba
+  rovně na špalcích bez kol (`buildingCartPose`, náprava `CART_BLOCKS_M` nad zemí), 2 korba
+  s koly (čtyřkolák i s předkem), 3 celý s ojí (`buildingCartParts`) – žádný nový model ani draw
+  call. Tesař s pomocníkem stojí u korby (`carpenterCartSpots` – po bocích a u zadku, klip
+  `build`), role fází `cart`: otesává díly (`split` – sekera a špalek), staví vůz (póza úlohy);
+  vůz čekající na kování už jen stojí (tesař dělá nářadí u přístřešku).
 
 ## Divoká zvěř, pes a prut (modely – wildlife Úloha W8; ve scéně W10–W11)
 

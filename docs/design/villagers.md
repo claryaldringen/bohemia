@@ -596,32 +596,32 @@ Cesta ode dveří na místo a zpět (`walk`, nosiči `carry`) je u každé role 
 
 **Rolník (žně, svoz, seno)**
 
-| Fáze                      | Kde                 | Animace a rekvizita                            | Stav                                           |
-| ------------------------- | ------------------- | ---------------------------------------------- | ---------------------------------------------- |
-| Cesta na pole             | ode dveří po pěšině | `walk`, srp / motyka na zádech                 | je (nově jako součást práce)                   |
-| Orba, setí, pletí         | pole                | `hoe`, `seed` + `basket`, `weed`               | je                                             |
-| Žně                       | pole                | `reap` + `sickle`                              | je                                             |
-| Vázání snopů              | pole                | `weed` (sehnutí) + povříslo ve ruce            | nové (rekvizita povříslo/snop nová)            |
-| Nakládání snopů na vůz    | pole u vozu         | `fruit` (zdvih nahoru) + snop                  | nové (rekvizita snop)                          |
-| Vůz se snopy jede k humnu | pěšina → humno      | `walk` vedle voznice, vůz se spřežením         | nové (cíl cesty; vůz a spřežení jsou)          |
-| Mlácení a prohazování     | humno               | `thresh` + `thresh-stick`, `winnow` + `shovel` | je                                             |
-| Hrabání sena              | louka               | `hoe` (tažení) + hrábě                         | nové (rekvizita hrábě)                         |
-| Kupy a stoh               | louka               | `fruit` (nahazování) + vidle                   | nové (rekvizita vidle, stoh jako objekt scény) |
-| Odvoz sena                | louka → dvůr        | `walk` u vozu se senem                         | nové (vůz s nákladem sena)                     |
-| Cesta domů                | pěšina              | `walk` / `carry`                               | je (nově jako součást práce)                   |
+| Fáze                      | Kde                 | Animace a rekvizita                            | Stav                                                             |
+| ------------------------- | ------------------- | ---------------------------------------------- | ---------------------------------------------------------------- |
+| Cesta na pole             | ode dveří po pěšině | `walk`, srp / motyka na zádech                 | je (nově jako součást práce)                                     |
+| Orba, setí, pletí         | pole                | `hoe`, `seed` + `basket`, `weed`               | je                                                               |
+| Žně                       | pole                | `reap` + `sickle`                              | je                                                               |
+| Vázání snopů              | pole                | `weed` (sehnutí) + povříslo ve ruce            | nové (rekvizita povříslo/snop nová)                              |
+| Nakládání snopů na vůz    | pole u vozu         | `fruit` (zdvih nahoru) + snop                  | nové (rekvizita snop)                                            |
+| Vůz se snopy jede k humnu | pěšina → humno      | `walk` vedle voznice, vůz se spřežením         | nové (cíl cesty; vůz a spřežení jsou)                            |
+| Mlácení a prohazování     | humno               | `thresh` + `thresh-stick`, `winnow` + `shovel` | je                                                               |
+| Hrabání sena              | louka               | `hoe` (tažení) + hrábě                         | nové (rekvizita hrábě)                                           |
+| Kupy a stoh               | louka               | `fruit` (nahazování) + vidle                   | je (vidle – úloha 9; stoh u ohrady podle zásoby sena – úloha 11) |
+| Odvoz sena                | louka → dvůr        | `walk` u vozu se senem                         | je (vůz se senem ke stohu u ohrady, skládá do stohu – úloha 11)  |
+| Cesta domů                | pěšina              | `walk` / `carry`                               | je (nově jako součást práce)                                     |
 
 **Žena**
 
-| Fáze                         | Kde            | Animace a rekvizita                                                   | Stav                                                 |
-| ---------------------------- | -------------- | --------------------------------------------------------------------- | ---------------------------------------------------- |
-| Voda: cesta, nabrání, návrat | studna / potok | `carry-water` + `yoke`, `water-idle`                                  | je                                                   |
-| Vaření a oheň                | před domem     | `weed` (skloněná nad ohništěm) + vařečka, hrnec u ohně                | nové (dnes jen stojí; rekvizita nová)                |
-| Dojení                       | ohrada, chlév  | sed u krávy, džber                                                    | nová animace – chybí v 0 A.D. (dnes zástupné `weed`) |
-| Předení                      | před domem     | stoj / sed, přeslice                                                  | nová animace – chybí v 0 A.D.                        |
-| Tkaní (len, vlna)            | v domě / před  | stoj u stavu                                                          | nová animace – chybí v 0 A.D.                        |
-| Péče o děti                  | před domem     | `idle` s dítětem (menší postava), případně `carry-meat-idle` bez masa | nové (postava dítěte je, pozice nová)                |
-| Pomoc o žních (vázání, svoz) | pole           | jako rolník                                                           | nové (žena v řadě žňů)                               |
-| Nošení jídla, sad, pletí     | pole, sad      | `carry`, `fruit`, `weed`                                              | je                                                   |
+| Fáze                         | Kde            | Animace a rekvizita                                                   | Stav                                                                                   |
+| ---------------------------- | -------------- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Voda: cesta, nabrání, návrat | studna / potok | `carry-water` + `yoke`, `water-idle`                                  | je                                                                                     |
+| Vaření a oheň                | před domem     | `weed` (skloněná nad ohništěm) + vařečka, hrnec u ohně                | nové (dnes jen stojí; rekvizita nová)                                                  |
+| Dojení                       | ohrada, chlév  | sed u krávy, džber                                                    | nová animace – chybí v 0 A.D. (dnes zástupné `weed`)                                   |
+| Předení                      | před domem     | stoj / sed, přeslice                                                  | nová animace – chybí v 0 A.D.                                                          |
+| Tkaní (len, vlna)            | v domě / před  | stoj u stavu                                                          | je (vlastní klip `weave` se stavem, žena u dveří – úloha 12)                           |
+| Péče o děti                  | před domem     | `idle` s dítětem (menší postava), případně `carry-meat-idle` bez masa | je zjednodušeně (žena u dveří domu s dítětem pod 7 let – bez postavy dítěte; úloha 12) |
+| Pomoc o žních (vázání, svoz) | pole           | jako rolník                                                           | nové (žena v řadě žňů)                                                                 |
+| Nošení jídla, sad, pletí     | pole, sad      | `carry`, `fruit`, `weed`                                              | je                                                                                     |
 
 **Děti a starší**
 
@@ -667,11 +667,11 @@ Cesta ode dveří na místo a zpět (`walk`, nosiči `carry`) je u každé role 
 
 **Tesař**
 
-| Fáze                | Kde         | Animace a rekvizita                                           | Stav                                                        |
-| ------------------- | ----------- | ------------------------------------------------------------- | ----------------------------------------------------------- |
-| Kácení a ořez kmenů | les, dvůr   | `fell` + `axe`                                                | je                                                          |
-| Stavba              | staveniště  | `build` + `mallet`                                            | je                                                          |
-| Výroba vozu         | dvůr tesaře | `build` + `mallet`; vůz vzniká po dílech (kola, ložní plocha) | nové (vůz ve scéně dosud nevzniká – model dílů v `wagons/`) |
+| Fáze                | Kde         | Animace a rekvizita                                           | Stav                                                                             |
+| ------------------- | ----------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Kácení a ořez kmenů | les, dvůr   | `fell` + `axe`                                                | je                                                                               |
+| Stavba              | staveniště  | `build` + `mallet`                                            | je                                                                               |
+| Výroba vozu         | dvůr tesaře | `build` + `mallet`; vůz vzniká po dílech (kola, ložní plocha) | je (vůz před dílnou po fázích – korba, kola, celý; `split` a `build` – úloha 11) |
 
 **Vozka**
 
@@ -683,12 +683,12 @@ Cesta ode dveří na místo a zpět (`walk`, nosiči `carry`) je u každé role 
 
 **Rybář**
 
-| Fáze          | Kde           | Animace a rekvizita            | Stav                                        |
-| ------------- | ------------- | ------------------------------ | ------------------------------------------- |
-| Cesta k tůni  | pěšina → tůň  | `walk`, prut na rameni         | nové (dnes se objeví u vody)                |
-| Lov           | tůň, potok    | `fish` (stání) + `fishing-rod` | je                                          |
-| Oka na zajíce | zvěřní stezka | `weed` (kladení) + oko         | nové (dnes se nekreslí; rekvizita oko)      |
-| Odnos úlovku  | tůň → dvůr    | `carry-meat` / koš s rybami    | nové (klip `carry-meat` je; rekvizita ryby) |
+| Fáze          | Kde           | Animace a rekvizita            | Stav                                                          |
+| ------------- | ------------- | ------------------------------ | ------------------------------------------------------------- |
+| Cesta k tůni  | pěšina → tůň  | `walk`, prut na rameni         | nové (dnes se objeví u vody)                                  |
+| Lov           | tůň, potok    | `fish` (stání) + `fishing-rod` | je                                                            |
+| Oka na zajíce | zvěřní stezka | `weed` (kladení) + oko         | je (`snare` + oko na okraji lesa, oka se nekreslí – úloha 12) |
+| Odnos úlovku  | tůň → dvůr    | `carry-meat` / koš s rybami    | nové (klip `carry-meat` je; rekvizita ryby)                   |
 
 **Vojvoda a synové**
 
@@ -700,10 +700,10 @@ Cesta ode dveří na místo a zpět (`walk`, nosiči `carry`) je u každé role 
 
 **Svatba**
 
-| Fáze                   | Kde         | Animace a rekvizita             | Stav                                                          |
-| ---------------------- | ----------- | ------------------------------- | ------------------------------------------------------------- |
-| Průvod, obřad, hostina | ves, dvorec | `walk`, `idle`                  | je (`wedding-plan.ts`)                                        |
-| Hudebníci              | u hostiny   | hra na píšťalu / buben ve stoje | nová animace – chybí v 0 A.D. (nebo tanec 0 A.D., **ověřit**) |
+| Fáze                   | Kde         | Animace a rekvizita             | Stav                                                                    |
+| ---------------------- | ----------- | ------------------------------- | ----------------------------------------------------------------------- |
+| Průvod, obřad, hostina | ves, dvorec | `walk`, `idle`                  | je (`wedding-plan.ts`)                                                  |
+| Hudebníci              | u hostiny   | hra na píšťalu / buben ve stoje | je (vlastní klipy `pipe` a `drum`, dva svatebčané v podkově – úloha 12) |
 
 **Souhrn:** nových fází celkem 33 (z toho 6 s **novou animací** – chybí v 0 A.D.,
 ostatní jsou existující klip s novou rekvizitou či místem) a nové rekvizity: povříslo
@@ -726,12 +726,15 @@ a `lib/village-view.ts`, rozvrh je znovu nedefinuje – `PersonJob`, `LaborActiv
    nepřeruší, další činnost podle dne, kdy začne, stejný čas = stejný výsledek, řetězy z různých
    počátků (`t − HISTORY_S` a dřívější) splynou před `t` (stovky lidí a časů), úloha u objektu
    bez losované délky.
+   **Implementováno 31. 10. 2026** (`villager-schedule.ts`; mapa kódu `village-people.md`).
 2. **Obsazení dne jako člověk → úloha** (`villager-plan.ts` – `planVillagersWithCrew`,
    `dayRoster`; `villager-plan-cast.ts` – `cast`, `figure`; `villager-roster.ts` – `DayRoster`):
    navíc vrátit mapu id člověka → úloha, póza nebo trasa, místo; kdo co dělá se rozhoduje **při
    každém vyjití z domu** (los ze seedu vsi, id člověka a začátku činnosti), ne po dnech ani
    obdobích. Testy ve `__tests__/villager-people.test.ts` a `villager-plan.test.ts` – stejný
    začátek = stejná úloha, rozdělení lidí odpovídá obsazení dne.
+   **Implementováno 31. 10. 2026** (`DayCast` – člověk → úloha, póza, místo; mapa kódu
+   `village-people.md`).
 3. **Napojení ve scéně** (`villagers.ts` – `update`, `rebuild`, `animate`, `setPaths`): obsazení
    dnů v paměti (nejvýš 30 dnů), rozvrhy lidí místo postav dne, pevná zásoba instancí; pryč
    `carryErrands` a `WALK_OVER_M` (`villager-errands.ts` zůstane pro cykly pochůzek); výběr
@@ -873,9 +876,31 @@ a `lib/village-view.ts`, rozvrh je znovu nedefinuje – `PersonJob`, `LaborActiv
 11. **Tesař – vznikající vůz a stoh/seno** (`villager-plan-crafts.ts`, `wagons/` GLB,
     `scene-village.md`): díly vozu po fázích ve scéně, stoh a kupy sena jako objekty scény;
     zápis do `docs/code/village-crafts.md` a `village-fields.md`. Tuto úlohu lze dělat až po 8.
+    **Implementováno 1. 11. 2026** (ve scéně neověřeno – Vlkov): rozdělaný vůz tesaře stojí před
+    dílnou (`CARPENTER_CART`) **po fázích z průběhu dřevěné práce** (`SceneCraftYard.cart` –
+    `cartBuildStage`: do 45 % korba na špalcích bez kol, pak s koly a předkem, s hotovou dřevěnou
+    prací celý vůz s ojí, který čeká na kování) – díly z `wagons.glb` v cart-renderer.ts (žádný
+    nový model ani draw call). Tesař s pomocníkem stojí u korby (`carpenterCartSpots`), role
+    `cart`: otesává díly (`split` – sekera a špalek), staví vůz (`build` s paličkou). Stoh u
+    ohrady (dřív jen model) roste se zásobou sena vsi (`ScenePen.hay` – stupně `HAY_STACK_KG` na
+    hotovou ohradu, velikost `HAYSTACK_SIZES`), vůz se senem jede ke stohu a skládá do něj (panel
+    „veze seno ke stohu“, „skládá seno do stohu“). Návrh Clauda – zjednodušení: vůz se senem
+    skládá u ohrady na konci trasy (k samotnému stohu uvnitř plotu nezajede), nakladači u stohu
+    nejsou (vozka je model vozu bez rekvizit); kupky na louce zůstávají z `hay-meadows.ts`.
 12. **Žena, děti a svatba** (vaření, péče o děti, pomoc o žních, hudebníci; `villager-plan.ts`,
     `villager-plan-cast.ts`, `wedding-plan.ts`): po úlohách 9 a 10; e2e `apps/web/e2e/village.spec.ts`
     a zápis do `docs/code/village-people.md` („Implementováno …“).
+    **Implementováno 1. 11. 2026** (ve scéně neověřeno; e2e pustí Martin): ženy u dveří
+    (`doorChore` – podle `phase` postavy) předou (`SPIN_SHARE` 0,5), vaří (`COOK_SHARE` 0,25),
+    **tkají u stavu** (`WEAVE_SHARE` 0,1 – klip `weave` se stavem), zbytek postává – s malým
+    dítětem v domě (pod 7 let, `DayRoster.hasSmallChild`) **hlídá děti u dveří** (panel „hlídá
+    děti u domu“; rekvizitu dítěte ani klip s dítětem nemáme – návrh Clauda: jen stání u dveří).
+    **Hudebníci na svatbě:** dva dospělí svatebčané (losem podle svatby – `weddingMusicians`)
+    hrají na svém místě v podkově na píšťalu a buben (`pipe`, `drum`), panel „hraje na píšťalu
+    na svatbě“, „bubnuje na svatbě“. **Oka na zajíce:** podíl práce `snare` (jádro – mimo
+    sezónu ryb) klečí s okem na okraji lesa nejblíž vsi (`snarers`, `SNARE_EDGE`), samotná oka
+    se dál nekreslí. Pomoc dětí o žních pokryla úloha 8 (paběrky nečinných a výrostců, nosiči
+    úrody); vaření úloha 9.
 
 | Rozhodnutí                                                                                                 | Proč                                                                     |
 | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |

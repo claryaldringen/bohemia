@@ -442,6 +442,12 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   se vzhledem `meadow` / `mown` / `haystacks`, postavy sečou po čele práce); dekorativní
   `chooseHayMeadows` jen ve vývojové ukázce (oxen.md). Den pro
   odhad a seno: herní den rozdělení práce, jinak roční období scény (`setSeason`).
+  **Odvoz sena na stoh** (villagers.md – Fáze činností, Rolník; úloha 11 scény): na louce sečou,
+  hrabou (`rake`) a skládají kupky (`pitch`), vůz se senem jede plný k ohradě a skládá do stohu
+  (`CART_TEXTS.hay` v draft-activity.ts). Stoh u hotové ohrady roste se zásobou sena vsi
+  (`HayState.kg` rovným dílem na hotové ohrady → `ScenePen.hay` 0–3 podle `HAY_STACK_KG` ve
+  village-view-buildings.ts; `haystackSize` / `HAYSTACK_SIZES` v pen-layout.ts), přes zimu
+  ubývá, bez sena není; bez údaje (ukázky) plný.
   Assety z `tools/blender/fields.py` (postup v hlavičce). Vývojové stránky: /dev/buildings
   projde posuvníkem všechny vzhledy pole i louku na seno, /dev/landscape tlačítka „Vzhled“
   a „Ukázka polí“ (pole v každém vzhledu; s „Lidé“ postavy na rozpracovaných čtvercích).

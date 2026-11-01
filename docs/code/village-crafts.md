@@ -207,7 +207,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`VillageNeighbour.carts`), `SceneVillage.carts` (`sceneCarts` – u ohrady, cíl dne, náklad
   `job.load` a cíl dne `goal` – trasu `route` z něj spočítá prohlížeč, `withCartRoutes` v
   `lib/cart-routes.ts`: osa jako `villageCartRoutes` zjednodušená `simplifiedRoute`; scéna
-  je kreslí – Vozy se spřežením). Dílna tesaře má model `tesar` (Řemeslné dílny).
+  je kreslí – Vozy se spřežením). Dílna tesaře má model `tesar` (Řemeslné dílny). Rozdělaný vůz
+  (`Workshop.cart`) stojí ve scéně před dílnou po fázích stavby (`SceneCraftYard.cart` –
+  `cartBuildStage`; scene-village.md – Tesař – vznikající vůz), tesař s pomocníkem u něj.
 
 - **Co vozy vozí** ([wagons.md](../design/wagons.md) – Co vozy vozí; Martin 19. 10. 2026:
   „Pokud budou mít k dispozici vůz, ať na pole, pro vodu nebo pro dřevěné uhlí jede vůz.“;
