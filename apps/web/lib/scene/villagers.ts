@@ -45,6 +45,7 @@ import {
   createVillagerPose,
   villagerSeconds,
   walkSpeed,
+  isWalkClip,
   type HerdView,
   type PoseFn,
   type VillagerKind,
@@ -766,7 +767,7 @@ export class VillageVillagers {
           const stage = activityStage(a, t);
           const walking =
             stage === 'out' || stage === 'back'
-              ? pose.clip === 'walk' || stage === 'back'
+              ? isWalkClip(pose.clip) || stage === 'back'
               : stage === 'work' && phaseWalking(timetable.phase(id, t));
           if (walking) pose.pace *= SCHEDULE_WALK_M_S / walkSpeed(kind, pose.clip, scale);
         }

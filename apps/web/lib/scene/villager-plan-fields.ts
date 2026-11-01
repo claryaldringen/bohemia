@@ -147,8 +147,8 @@ export function meadowRows(ctx: Context, cells: readonly TileCell[], count: numb
 }
 
 /**
- * Dojení (diet.md – Práce se zvířaty): ženy u bočních stěn obydlí, sehnuté k dojnému zvířeti
- * (klip pletí – dojení animace nemá), po domech dokola.
+ * Dojení (diet.md – Práce se zvířaty): ženy u bočních stěn obydlí, na špalku u dojného zvířete
+ * (vlastní klip `milk` – villagers.md, úloha 10), po domech dokola.
  */
 export function milkers(ctx: Context): Placer {
   const homes = [...ctx.homes].sort((a, b) => a.id - b.id);
@@ -162,7 +162,7 @@ export function milkers(ctx: Context): Placer {
     const spot = nearestFree(ctx, p.x, p.z, 2);
     if (!spot) return null;
     const toward = unit(home.position.x - spot.x, home.position.z - spot.z);
-    return stand(spot.x, spot.z, -toward.z * side, toward.x * side, 'weed');
+    return stand(spot.x, spot.z, -toward.z * side, toward.x * side, 'milk');
   };
 }
 

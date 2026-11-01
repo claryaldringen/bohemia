@@ -9,6 +9,7 @@
 import {
   alongRoute,
   createVillagerPose,
+  TOOL_WALK,
   type HerdView,
   type PoseFn,
   type Route,
@@ -785,11 +786,16 @@ export function activityPose(
       const span = a.arrive - a.start;
       walkLeg(out, from.x, from.z, x, z, (t - a.start) / span, going, span, speed);
       out.stage = 'out';
+      // k práci s motykou či sekerou na rameni (0 A.D. walk_hoe, walk_axe)
+      const tool = at ? TOOL_WALK[at.clip] : undefined;
+      if (tool) out.clip = tool;
     } else {
       coming = routed(coming, { x, z }, door);
       const span = end - a.leave;
       walkLeg(out, x, z, door.x, door.z, (t - a.leave) / span, coming, span, speed);
       out.stage = 'back';
+      const tool = at ? TOOL_WALK[at.clip] : undefined;
+      if (tool) out.clip = tool;
       // návrat s nákladem (rybář nese úlovek)
       const back = phaseOf(t);
       if (back?.clip && back.from >= a.leave) out.clip = back.clip;

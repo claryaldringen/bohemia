@@ -2,6 +2,7 @@
 // kterou posloupnost fází dostane úloha člověka – podle podílu práce a stavu vsi dne (dvůr kovárny,
 // stav milíře, dílna hrnčíře, žně) – a kde se dělají kroky jinde: odnos výrobků do cizí domácnosti
 // (kovář, hrnčíř) a pole žní (cvičící muži, starší a nečinní pomáhají o žních). Čistý modul.
+import { SACRED_BUILDINGS } from '@bohemia/game';
 import { hash01 } from './smoke-schedule';
 import { createVillagerPose } from './villager-motion';
 import { doorPoint, stringHash } from './villager-plan-geometry';
@@ -35,6 +36,24 @@ export function planPhases(
     const aid = pick(harvest, f.key, 0x41d);
     return aid ? { aid } : undefined;
   };
+  // hotové modly a svatyně – starší se chodí modlit k nejbližší (úloha 10, návrh Clauda)
+  const shrines = (ctx.village.sacred?.buildings ?? [])
+    .filter((b) => b.built)
+    .map((b) => ({
+      x: b.position.x,
+      z: b.position.z,
+      r: SACRED_BUILDINGS[b.kind].footprintM / 2 + SHRINE_GAP_M,
+    }));
+  const shrineOf = (at: Point): PhasePlaces | undefined => {
+    let s: (typeof shrines)[number] | undefined;
+    for (const c of shrines) {
+      if (!s || Math.hypot(c.x - at.x, c.z - at.z) < Math.hypot(s.x - at.x, s.z - at.z)) s = c;
+    }
+    if (!s) return undefined;
+    const d = Math.hypot(at.x - s.x, at.z - s.z) || 1;
+    // před modlou na straně, odkud přichází – cesta tam míří k ní, stojí čelem k ní
+    return { shrine: { x: s.x + ((at.x - s.x) / d) * s.r, z: s.z + ((at.z - s.z) / d) * s.r } };
+  };
   const dropOf = (f: PlannedVillager, at: Point): PhasePlaces | undefined => {
     // jiná domácnost než dílna (nejbližší dům místu práce je dílna sama)
     const own = nearest(doors, at);
@@ -51,7 +70,9 @@ export function planPhases(
     switch (job.kind) {
       case 'elder': {
         const places = aidOf(f);
-        return places ? { role: 'elder', places } : null;
+        if (places) return { role: 'elder', places };
+        const shrine = shrineOf(at);
+        return { role: 'elder-home', ...(shrine ? { places: shrine } : {}) };
       }
       case 'lord': {
         if (job.household) return null;
@@ -143,6 +164,9 @@ function harvestSpots(people: readonly PlannedVillager[], probeT: number): Point
   }
   return out;
 }
+
+/** Jak daleko od okraje půdorysu modly či svatyně se stojí při modlitbě (m). */
+export const SHRINE_GAP_M = 1.2;
 
 function nearest<T extends { door: Point }>(list: readonly T[], at: Point): T | undefined {
   let best: T | undefined;

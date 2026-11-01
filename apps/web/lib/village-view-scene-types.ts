@@ -1054,6 +1054,8 @@ export interface SceneLord {
   trainees: { id: number; bow: number; combat: number; riding: number }[];
   /** Ženy rodiny u dvorce (id). */
   household: number[];
+  /** Vojvoda (id) – mimo výcvik stojí a chodí jako vladař (úloha 10 scény). */
+  lordId?: number;
   /**
    * Večerní návštěva vedlejší manželky (lord.md – Rod vojvody, Manželky; jen vzhled): vojvoda (id)
    * jde po výcviku k obydlí manželky `home` a ráno se vrátí. Jen když vojvoda dnes cvičí.

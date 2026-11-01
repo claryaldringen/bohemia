@@ -741,7 +741,7 @@ describe('vojvodova rodina na dvorku (lord.md – Ve scéně)', () => {
     const mid = pose(lord, hour(19.5));
     const end = pose(lord, hour(19.99));
     expect(mid.hidden).toBe(false);
-    expect(mid.clip).toBe('walk');
+    expect(mid.clip).toBe('walk-lord');
     expect(dist(mid.x, mid.z)).toBeLessThan(dist(start.x, start.z));
     expect(dist(end.x, end.z)).toBeLessThan(dist(mid.x, mid.z));
     expect(dist(end.x, end.z)).toBeLessThan(6);
@@ -749,7 +749,7 @@ describe('vojvodova rodina na dvorku (lord.md – Ve scéně)', () => {
     for (const h of [21, 2, 6.5]) expect(pose(lord, hour(h)).hidden).toBe(true);
     const back = pose(lord, hour(7.5));
     expect(back.hidden).toBe(false);
-    expect(back.clip).toBe('walk');
+    expect(back.clip).toBe('walk-lord');
     expect(dist(back.x, back.z)).toBeGreaterThan(dist(end.x, end.z));
     // ostatní se nemění – chlapec je večer skrytý jako dřív
     expect(pose(boy, hour(19.5)).hidden).toBe(true);
@@ -761,6 +761,22 @@ describe('vojvodova rodina na dvorku (lord.md – Ve scéně)', () => {
     const morning = pose(lord, hour(7.5));
     expect(onManor(morning.x, morning.z)).toBe(true);
     expect(morning.clip).toBe('idle');
+  });
+
+  it('vojvoda (`lordId`) mimo výcvik stojí jako vladař – střídá stání se založenýma rukama', () => {
+    const village = manorVillage();
+    village.labor!.lord!.lordId = 101;
+    const lord = plan(village).find((p) => p.person === 101)!;
+    const clips = (who: PlannedVillager): Set<string> => {
+      const out = new Set<string>();
+      for (let t = hour(7); t < hour(19); t += 0.5) out.add(pose(who, t).clip);
+      return out;
+    };
+    const lordClips = [...clips(lord)].filter((c) => c.startsWith('lord-idle-'));
+    expect(lordClips.length).toBeGreaterThan(1);
+    for (const other of plan(village).filter((p) => p.person !== 101)) {
+      expect([...clips(other)].some((c) => c.startsWith('lord-'))).toBe(false);
+    }
   });
 
   it('žena rodiny dělá domácí práce – celý den nestojí na místě, z pozemku nevychází', () => {

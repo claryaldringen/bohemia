@@ -2,6 +2,9 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   VILLAGER_CLIPS,
+  MAN_ONLY_CLIPS,
+  TOOL_WALK,
+  isWalkClip,
   createVillagerPose,
   route,
   rowWork,
@@ -70,21 +73,48 @@ describe('villager-motion – pohyb jako funkce času', () => {
     const spec = JSON.parse(
       readFileSync(new URL('../../../../../tools/blender/people.json', import.meta.url), 'utf8'),
     ) as { name: string; clips: { name: string }[] }[];
-    const manOnly = [
-      'ride',
-      'ride-trot',
-      'ride-idle',
-      'bow-draw',
-      'bow-release',
-      'spear-thrust',
-      'walk-spear',
-      'sword-strike',
-      'shield-block',
-    ];
     for (const figure of spec) {
       const expected =
-        figure.name === 'man' ? VILLAGER_CLIPS : VILLAGER_CLIPS.filter((c) => !manOnly.includes(c));
+        figure.name === 'man'
+          ? VILLAGER_CLIPS
+          : VILLAGER_CLIPS.filter((c) => !MAN_ONLY_CLIPS.includes(c));
       expect(figure.clips.map((c) => c.name).sort()).toEqual([...expected].sort());
     }
+  });
+
+  it('GLB postav mají klipy z people.json (přegenerované – úloha 10)', () => {
+    for (const name of ['man', 'woman']) {
+      const glb = readFileSync(
+        new URL(`../../../public/models/people/${name}.glb`, import.meta.url),
+      );
+      // GLB: hlavička 12 B, pak blok JSON (délka, typ, data)
+      const json = JSON.parse(glb.subarray(20, 20 + glb.readUInt32LE(12)).toString('utf8')) as {
+        animations: { name: string }[];
+      };
+      const expected =
+        name === 'man' ? VILLAGER_CLIPS : VILLAGER_CLIPS.filter((c) => !MAN_ONLY_CLIPS.includes(c));
+      expect(json.animations.map((a) => a.name).sort()).toEqual([...expected].sort());
+    }
+  });
+
+  it('vlastní klipy (dojení, předení, tkaní, sezení, kruh, hudba) jsou z klíčových póz', () => {
+    const spec = JSON.parse(
+      readFileSync(new URL('../../../../../tools/blender/people.json', import.meta.url), 'utf8'),
+    ) as { name: string; clips: { name: string; keys?: unknown; props: string[] }[] }[];
+    for (const figure of spec) {
+      const keyed = figure.clips.filter((c) => c.keys).map((c) => c.name);
+      expect(keyed.sort()).toEqual(['drum', 'milk', 'pipe', 'sit', 'spin', 'weave', 'wheel']);
+      // sedí na špalku
+      for (const c of figure.clips.filter((c) => ['milk', 'sit', 'wheel'].includes(c.name))) {
+        expect(c.props).toContain('stump');
+      }
+    }
+  });
+
+  it('cesta s nářadím a chůze vladaře mají rychlost chůze', () => {
+    expect(TOOL_WALK.hoe).toBe('walk-hoe');
+    expect(isWalkClip('walk-axe')).toBe(true);
+    expect(isWalkClip('sit')).toBe(false);
+    expect(walkSpeed('man', 'walk-lord', 1)).toBeGreaterThan(walkSpeed('man', 'walk', 1));
   });
 });

@@ -61,6 +61,9 @@ export function porters(
     });
 }
 
+/** Kolik žen u dveří přede (podle `phase` postavy – návrh Clauda). */
+export const SPIN_SHARE = 0.6;
+
 /**
  * Domácí práce venku: u obydlí (po domech dokola) postávají ženy před vchodem a některé
  * chodí kousek od domu (pro vodu a dřevo po pěšinách chodí provoz na cestách).
@@ -88,7 +91,9 @@ export function domestic(ctx: Context): Placer {
       if (path) return fetcher(path, who.kind, who.scale, 10 + who.phase * 8, who.phase);
     }
     const out = unit(door.x - home.position.x, door.z - home.position.z);
-    return stand(door.x, door.z, out.x, out.z, 'idle');
+    // předení před domem (villagers.md – Žena; vlastní klip `spin`) – žena, některé jen postávají
+    const spins = who.kind === 'woman' && who.phase < SPIN_SHARE;
+    return stand(door.x, door.z, out.x, out.z, spins ? 'spin' : 'idle');
   };
 }
 
@@ -110,7 +115,10 @@ export function idlers(ctx: Context): Placer {
   };
 }
 
-/** Starší u domů – stojí u boční stěny čelem ven (sedět zatím neumí – chybí animace). */
+/**
+ * Starší u domů – sedí na špalku u boční stěny čelem ven (vlastní klip `sit`); fáze dne střídají
+ * sezení, postávání a modlitbu u modly (villager-phases.ts, role `elder-home`).
+ */
 export function elders(ctx: Context, count: number): PlannedVillager[] {
   const homes = [...ctx.homes].sort((a, b) => a.id - b.id);
   const out: PlannedVillager[] = [];
@@ -135,7 +143,7 @@ export function elders(ctx: Context, count: number): PlannedVillager[] {
     out.push(
       figure(
         { who: { ...who, scale: who.scale * 0.97 }, person: c.person },
-        stand(spot.x, spot.z, away.x, away.z, 'idle', 0.7),
+        stand(spot.x, spot.z, away.x, away.z, 'sit', 0.7),
         'grey',
         { kind: 'elder' },
       ),

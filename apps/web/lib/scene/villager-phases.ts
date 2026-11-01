@@ -6,7 +6,7 @@
 // funkce činnosti, role a losu podle člověka a začátku činnosti – bez Babylonu; počítá se, jen
 // když se póza kreslí nebo se ptá panel vybrané postavy.
 import { hash01 } from './smoke-schedule';
-import { createVillagerPose, type VillagerClip } from './villager-motion';
+import { createVillagerPose, REST_CLIPS, type VillagerClip } from './villager-motion';
 import {
   activityPose,
   GRID_S,
@@ -60,6 +60,12 @@ export type PhaseName =
   | 'help-bind'
   | 'glean'
   | 'from-harvest'
+  // starší doma (Děti a starší): sezení na špalku, postávání, modlitba u modly či svatyně
+  | 'sit'
+  | 'rest'
+  | 'to-shrine'
+  | 'pray'
+  | 'from-shrine'
   // návrat k dílně z odnosu
   | 'return';
 
@@ -83,10 +89,14 @@ export type PhaseRole =
   | 'fish'
   | 'train'
   | 'elder'
+  | 'elder-home'
   | 'idle';
 
-/** Fáze role a kde se dělá: u místa úlohy, u cizího domu (odnos – `drop`), na poli žní (`aid`). */
-type PhasePlace = 'site' | 'drop' | 'aid';
+/**
+ * Fáze role a kde se dělá: u místa úlohy, u cizího domu (odnos – `drop`), na poli žní (`aid`),
+ * před modlou či svatyní (`shrine`).
+ */
+type PhasePlace = 'site' | 'drop' | 'aid' | 'shrine';
 
 /**
  * Krok posloupnosti fází role (podíl práce v místě): `clip` – klip místo pózy úlohy (postava
@@ -97,6 +107,8 @@ interface PhaseStep {
   name: PhaseName;
   share: number;
   clip?: VillagerClip;
+  /** Klip losem podle člověka a kroku (varianty stání) – místo `clip`. */
+  variants?: readonly VillagerClip[];
   pace?: number;
   place?: PhasePlace;
 }
@@ -109,6 +121,7 @@ const TRANSIT: Record<
   // odnos – cesta tam je sama odnos (jméno kroku), zpět k dílně
   drop: { go: null, come: 'return', clip: 'carry' },
   aid: { go: 'to-harvest', come: 'from-harvest', clip: 'walk' },
+  shrine: { go: 'to-shrine', come: 'from-shrine', clip: 'walk' },
 };
 
 /**
@@ -198,6 +211,14 @@ export const PHASE_STEPS: Record<PhaseRole, readonly PhaseStep[]> = {
     { name: 'work', share: 0.4 },
     { name: 'glean', share: 0.6, clip: 'weed', place: 'aid' },
   ],
+  // starší doma bez žní (úloha 10, návrh Clauda): sedí na špalku (póza úlohy – `sit`), postojí
+  // (varianty stání 0 A.D.) a zajdou se pomodlit k nejbližší hotové modle či svatyni
+  'elder-home': [
+    { name: 'work', share: 0.35 },
+    { name: 'rest', share: 0.2, variants: REST_CLIPS },
+    { name: 'pray', share: 0.15, clip: 'pray', place: 'shrine' },
+    { name: 'work', share: 0.3 },
+  ],
   idle: [
     { name: 'work', share: 0.3 },
     { name: 'glean', share: 0.7, clip: 'weed', place: 'aid' },
@@ -242,6 +263,8 @@ export interface ActivityPhase {
 export interface PhasePlaces {
   drop?: Point;
   aid?: Point;
+  /** Před modlou či svatyní (čelem k ní – cesta tam míří k ní). */
+  shrine?: Point;
 }
 
 /**
@@ -302,10 +325,12 @@ function workPhases(
   const places: PhasePlaces = task.places ?? {};
   // kroky jinde bez místa (dnes se nežne, nikam se nenese) – zůstanou u místa úlohy pózou úlohy
   const steps = PHASE_STEPS[role].filter((s) => !s.place || s.place === 'site' || places[s.place]);
-  const weights = steps.map((s, k) => {
-    const r = hash01((seed ^ PHASE_SALT) + k * 0x9e37, a.person, Math.round(a.start / GRID_S));
-    return s.share * (1 + PHASE_JITTER * (r - 0.5));
-  });
+  const draws = steps.map((_, k) =>
+    hash01((seed ^ PHASE_SALT) + k * 0x9e37, a.person, Math.round(a.start / GRID_S)),
+  );
+  const weights = steps.map((s, k) => s.share * (1 + PHASE_JITTER * (draws[k]! - 0.5)));
+  const clipOf = (k: number): Pick<ActivityPhase, 'clip' | 'pace'> =>
+    stepClip(steps[k]!, draws[k]!);
   const total = weights.reduce((s, w) => s + w, 0);
   if (total <= 0 || span < MIN_PHASE_S * steps.length) return whole;
   const out: ActivityPhase[] = [];
@@ -337,7 +362,7 @@ function workPhases(
       for (let i = k; i < j; i++) {
         const st = steps[i]!;
         const v = i === j - 1 ? to - go : u + (weights[i]! / inner) * stay;
-        out.push({ name: st.name, from: u, to: v, at: target, ...clipOf(st) });
+        out.push({ name: st.name, from: u, to: v, at: target, ...clipOf(i) });
         u = v;
       }
       out.push({
@@ -348,7 +373,7 @@ function workPhases(
         walk: { from: target, to: site },
       });
     } else if (!place) {
-      out.push({ name: s.name, from, to, ...clipOf(s) });
+      out.push({ name: s.name, from, to, ...clipOf(k) });
     } else {
       // krok jinde se nevejde – práce úlohy na místě
       out.push({ name: 'work', from, to });
@@ -359,9 +384,13 @@ function workPhases(
   return out;
 }
 
-function clipOf(s: PhaseStep): Pick<ActivityPhase, 'clip' | 'pace'> {
+/** Klip a tempo kroku; varianty losem `draw` (0–1, týž los jako podíl kroku). */
+function stepClip(s: PhaseStep, draw: number): Pick<ActivityPhase, 'clip' | 'pace'> {
+  // los podílu kroku je v [0, 1) – varianta z jeho „druhé číslice“, ať nezávisí na délce kroku
+  const variant = s.variants?.[Math.floor(((draw * 7) % 1) * s.variants.length)];
+  const clip = variant ?? s.clip;
   return {
-    ...(s.clip ? { clip: s.clip } : {}),
+    ...(clip ? { clip } : {}),
     ...(s.pace !== undefined ? { pace: s.pace } : {}),
   };
 }

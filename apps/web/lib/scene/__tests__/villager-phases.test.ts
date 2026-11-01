@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { personActivity, PHASE_TEXTS } from '../../person-activity';
 import type { SceneVillage } from '../../village-view';
-import { createVillagerPose, stand, type VillagerClip } from '../villager-motion';
+import { createVillagerPose, REST_CLIPS, stand, type VillagerClip } from '../villager-motion';
 import {
   activityPhases,
   phaseAt,
@@ -21,7 +21,11 @@ import type { PersonJob } from '../villager-roster';
 
 const DOOR = { x: -20, z: 0 };
 const SITE = { x: 0, z: 0 };
-const NEAR: PhasePlaces = { drop: { x: 10, z: 0 }, aid: { x: 0, z: 12 } };
+const NEAR: PhasePlaces = {
+  drop: { x: 10, z: 0 },
+  aid: { x: 0, z: 12 },
+  shrine: { x: -8, z: 6 },
+};
 
 const JOBS: Record<PhaseRole, PersonJob> = {
   reap: { kind: 'share', activity: 'harvest', target: { kind: 'field', id: 1 } },
@@ -39,6 +43,7 @@ const JOBS: Record<PhaseRole, PersonJob> = {
   fish: { kind: 'share', activity: 'fish', target: { kind: 'pool', index: 0 } },
   train: { kind: 'lord', household: false },
   elder: { kind: 'elder' },
+  'elder-home': { kind: 'elder' },
   idle: { kind: 'share', activity: 'idle', target: { kind: 'village' } },
 };
 
@@ -121,6 +126,69 @@ describe('fáze rolí z existujících klipů (villager-phases.ts)', () => {
     expect(clipOf('fish', 'bring-catch')).toBe('carry');
     expect(clipOf('train', 'help-reap')).toBe('reap');
     expect(clipOf('elder', 'glean')).toBe('weed');
+  });
+
+  it('starší doma: sedí (póza úlohy), postojí variantou stání, jdou se pomodlit k modle (úloha 10)', () => {
+    const sitting = {
+      ...bout('elder-home'),
+      task: { ...task('elder-home'), pose: stand(0, 0, 0, 1, 'sit') },
+    };
+    const phases = activityPhases(sitting, 11);
+    expect(phases.map((p) => p.name)).toEqual([
+      'out',
+      'work',
+      'rest',
+      'to-shrine',
+      'pray',
+      'from-shrine',
+      'work',
+      'back',
+    ]);
+    const rest = phases.find((p) => p.name === 'rest')!;
+    expect(REST_CLIPS).toContain(rest.clip);
+    const pray = phases.find((p) => p.name === 'pray')!;
+    expect(pray.clip).toBe('pray');
+    expect(pray.at).toEqual(NEAR.shrine);
+    // modlí se čelem k modle (směr cesty od místa úlohy) a sedí pózou úlohy
+    const pose = activityPose(sitting, DOOR, undefined, phases);
+    const o = pose((pray.from + pray.to) / 2, [], createVillagerPose());
+    expect([o.clip, o.x, o.z]).toEqual(['pray', NEAR.shrine!.x, NEAR.shrine!.z]);
+    expect(o.headingX).toBeLessThan(0);
+    const work = phases.find((p) => p.name === 'work')!;
+    expect(pose(work.from + 1, [], createVillagerPose()).clip).toBe('sit');
+    // varianta stání se losuje podle člověka – různí lidé stojí různě
+    const variants = new Set(
+      Array.from(
+        { length: 40 },
+        (_, k) =>
+          activityPhases({ ...sitting, person: k }, 11).find((p) => p.name === 'rest')?.clip,
+      ),
+    );
+    expect(variants.size).toBeGreaterThan(2);
+    // bez modly ve vsi se nemodlí
+    const noShrine: PhasePlaces = { drop: NEAR.drop!, aid: NEAR.aid! };
+    expect(activityPhases(bout('elder-home', noShrine), 11).map((p) => p.name)).not.toContain(
+      'pray',
+    );
+  });
+
+  it('k práci s motykou či sekerou jde s nářadím na rameni (walk-hoe, walk-axe)', () => {
+    const a: Activity = {
+      ...bout('reap'),
+      task: { ...task('reap'), role: undefined, pose: stand(0, 0, 0, 1, 'hoe') },
+    };
+    const pose = activityPose(a, DOOR, undefined, activityPhases(a, 11));
+    expect(pose(a.start + 10, [], createVillagerPose()).clip).toBe('walk-hoe');
+    expect(pose(a.leave + 10, [], createVillagerPose()).clip).toBe('walk-hoe');
+    const fell: Activity = { ...a, task: { ...a.task!, pose: stand(0, 0, 0, 1, 'fell') } };
+    expect(
+      activityPose(
+        fell,
+        DOOR,
+        undefined,
+        activityPhases(fell, 11),
+      )(a.start + 10, [], createVillagerPose()).clip,
+    ).toBe('walk-axe');
   });
 
   it('odnos do domácností: s košem k cizímu domu a zpět k dílně, pak domů', () => {
