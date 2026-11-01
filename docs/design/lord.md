@@ -206,6 +206,27 @@ pozná hrozbu ze dvou odhadů, které už počítá – nový odhad nevzniká.
 - **Odlišení rodiny** (nepovinné): barvený plášť přes masku látky postavy – bez nového vertex
   atributu (postava má 8 vertex bufferů, víc WebGPU nedovolí).
 - Výcvik jen ve dne; v zimě luk a boj na dvorku dál, jízda kratší okruh kolem vsi.
+- **Den rodiny ve skutečném čase** (návrh Clauda, 1. 11. 2026; Martin 1. 11. 2026: „Koukám na
+  vojvodu a ten mezi jednotlivými činnostmi mizí a zase se objevuje. A lukostřelbu i boj cvičí
+  velice krátce, skoro to není vidět“): scéna už nerozvrhuje výcvik do hodin herního dne
+  (≈ 86 s – hodina luku vojvody trvala 1,8 s a v noci herního dne, každých 86 s, vojvoda zmizel),
+  ale do **cyklu 20 minut** skutečného času, stejného pro celou rodinu (dvojice i střídačka
+  u terče cvičí spolu). Jádro dál počítá hodiny po dnech (tabulka výš), scéna z nich bere jen
+  poměr a kdo cvičí:
+
+  | Část cyklu                                 | Kdy (od začátku cyklu)   | Kolik                                             |
+  | ------------------------------------------ | ------------------------ | ------------------------------------------------- |
+  | doma (v dvorci, skrytý)                    | 0 – nejméně 1 min        | do odchodu na první cvičení                       |
+  | luk, pak boj (v dalším cyklu boj, pak luk) | první končí v 8. minutě  | hodina jádra = 2 minuty (muž 14–44 let luk 4 min) |
+  | jízda (jen s koněm, skupina spolu)         | od 13. minuty            | podle nejdelší jízdy ve skupině, nejvýš 4 min     |
+  | u dvorku (vojvoda jako vladař)             | po výcviku do 19. minuty | pak vejde do dvorce                               |
+  | návštěva vedlejší manželky (jen vojvoda)   | od 17,5 minuty           | u ní 4 minuty, zpět do 5. minuty dalšího cyklu    |
+
+  Mezi dvorcem, dráhou luku, místem boje, koněm a stáním u dvorku se chodí přirozenou chůzí,
+  skrytý je člověk jen doma a u manželky (vejde a vyjde dveřmi) – noc herního dne nic neschovává.
+  Manželky mimo dvorec se střídají po cyklech. Lov (wildlife.md – Ve scéně) začne v chvíli jízdy
+  cyklu – lovci k ní dojdou ke kůlu a po lovu se chůzí vrátí do dne rodiny. Ženy rodiny: cyklus
+  10 minut – doma 1–2 minuty, pak domácí práce u dvorce a vejdou.
 
 ## Dopad na pracovní sílu vsi
 
@@ -382,9 +403,10 @@ Clauda.
   jejího domu porody nemění (návrh Clauda – muž je plodný bez omezení, návštěvy se nepočítají).
   Přeplněnost tlumí porody v domě, kde žena bydlí. Děti různých manželek jsou nevlastní
   sourozenci a nevezmou se.
-- **Ve scéně** (návrh Clauda, jen zobrazení): večer po výcviku jde vojvoda po pěšinách k domu
-  jedné vedlejší manželky (střídá je po dnech, deterministicky) a ráno se vrátí do dvorce –
-  výcvik ani práci to nemění.
+- **Ve scéně** (návrh Clauda, jen zobrazení): po výcviku a jízdě jde vojvoda po pěšinách k domu
+  jedné vedlejší manželky (střídá je po cyklech dne rodiny, deterministicky), vejde, za čtyři
+  minuty vyjde a vrátí se do dvorce – ve skutečném čase (Ve scéně – Den rodiny ve skutečném
+  čase); výcvik ani práci to nemění.
 - **Nová hlavní manželka** (Martin, 24. 10. 2026): po smrti hlavní manželky je hlavní **matka
   nejstaršího syna**, tedy matka dědice (nejstaršího žijícího syna muže; žije-li on bez živé
   matky, další nejstarší syn s živou matkou – návrh Clauda). Nebydlí-li s mužem (u vojvody

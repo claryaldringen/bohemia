@@ -56,7 +56,7 @@ import {
   sceneRoadApples,
   type VillageView,
 } from '../village-view';
-import { visitedWife } from '../village-view-scene';
+import { visitedWives } from '../village-view-scene';
 import { protectionLevel, sceneWeather } from '../weather-view';
 import type { SceneVillage, ScenePloughLegs } from '../village-view-scene-types';
 import {
@@ -2858,12 +2858,12 @@ describe('návštěvy vedlejších manželek vojvody (lord.md – Rod vojvody, M
     id,
     dwellingId,
   });
-  it('střídají se po dnech podle id (day % počet), manželky v dvorci se nenavštěvují', () => {
+  it('v pořadí podle id (scéna je střídá po cyklech), manželky v dvorci se nenavštěvují', () => {
     const wives = [w(30, 4), w(12, 2), w(20, 3), w(11, 1)];
-    expect([0, 1, 2, 3, 4].map((d) => visitedWife(wives, 1, d)?.id)).toEqual([12, 20, 30, 12, 20]);
+    expect(visitedWives(wives, 1).map((x) => x.id)).toEqual([12, 20, 30]);
   });
   it('bez vedlejších manželek mimo dvorec nikdo', () => {
-    expect(visitedWife([], 1, 5)).toBeUndefined();
-    expect(visitedWife([w(11, 1)], 1, 5)).toBeUndefined();
+    expect(visitedWives([], 1)).toEqual([]);
+    expect(visitedWives([w(11, 1)], 1)).toEqual([]);
   });
 });

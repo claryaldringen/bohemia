@@ -6,7 +6,15 @@
 // den. Data vsi je pak už nemají, scéna je ale dohraje (návrh Clauda): pamatuje si každou viděnou
 // karavanu (i s vozy, jak jely) a běžící lov do jejich konce ve skutečném čase. Prohlížeč, který
 // ves otevře později, karavanu vrácenou v jádru už nevidí – jen ty, které jádro ještě má.
-import type { SceneCart, SceneExpedition, SceneHunt, SceneVillage } from '../village-view';
+import type {
+  SceneCart,
+  SceneExpedition,
+  SceneHunt,
+  SceneLord,
+  SceneVillage,
+} from '../village-view';
+import { LIVESTOCK_EPOCH_MS } from './livestock-motion';
+import { cycleIndex, LORD_CYCLE, LORD_CYCLE_S } from './lord-day';
 import {
   CARAVAN_LINGER_S,
   caravanPlan,
@@ -47,6 +55,11 @@ export function caravanEndMs(
 export class ActivityMemory {
   private caravans = new Map<string, SeenCaravan>();
   private hunt: { hunt: SceneHunt; endMs: number } | null = null;
+  /** Jízdy rodiny, jak byly na začátku běžící výcvikové jízdy cyklu (`slot`). */
+  private ride: {
+    slot: number;
+    lord: Pick<SceneLord, 'riders' | 'borderTrailId' | 'escort'>;
+  } | null = null;
 
   /**
    * Ves doplněná o činnosti, které ve skutečném čase `nowMs` ještě běží: karavany, které data už
@@ -91,7 +104,38 @@ export class ActivityMemory {
       else delete wildlife.hunt;
       out = { ...out, wildlife };
     }
-    return out;
+    return this.rideAt(out, nowMs);
+  }
+
+  /**
+   * Výcviková jízda cyklu (lord-day.ts – `rideSlot`) trvá minuty, tedy přes víc herních dní – kdo
+   * jede, kudy (objížďka, k hranici) a doprovod výpravy zůstanou až do jejího konce takové, jaké
+   * byly, když scéna jízdu poprvé viděla (jinak by jezdec uprostřed jízdy přeskočil na jinou trasu
+   * nebo zmizel, když ho data dalšího dne už nemají – lov, zranění). Mimo jízdu beze změny.
+   */
+  private rideAt(village: SceneVillage, nowMs: number): SceneVillage {
+    const t = (nowMs - LIVESTOCK_EPOCH_MS) / 1000;
+    const k = cycleIndex(t);
+    const from = k * LORD_CYCLE_S + LORD_CYCLE.ride;
+    if (t < from || t >= from + LORD_CYCLE.rideMax) {
+      this.ride = null;
+      return village;
+    }
+    const lord = village.labor?.lord;
+    if (!lord || !village.labor) return village;
+    if (!this.ride || this.ride.slot !== k) {
+      const seen: Pick<SceneLord, 'riders' | 'borderTrailId' | 'escort'> = {};
+      if (lord.riders) seen.riders = lord.riders;
+      if (lord.borderTrailId !== undefined) seen.borderTrailId = lord.borderTrailId;
+      if (lord.escort) seen.escort = lord.escort;
+      this.ride = { slot: k, lord: seen };
+      return village;
+    }
+    const kept: SceneLord = { ...lord };
+    delete kept.riders;
+    delete kept.borderTrailId;
+    delete kept.escort;
+    return { ...village, labor: { ...village.labor, lord: { ...kept, ...this.ride.lord } } };
   }
 
   /** Lov, který je teď vidět: běžící zapamatovaný, jinak lov z dat (bez dne lovu beze změny). */

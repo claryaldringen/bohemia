@@ -524,14 +524,27 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   s hodinami dne z jádra (`trainingFamily` + `trainingHours`, jízda jen s koněm – `Horse.riderId`)
   a ženy domácnosti dvorce; kdo je dnes na poli (podle počtů `LaborDay.lord`, napřed nejmladší dospělí –
   jádro dává jen počty, jména volí scéna), tam není a je mezi ostatními. Obsazení `lordFigures` jde hned po pohřbu a karavanách
-  (`takeId` – do práce vsi pak rodina nejde). Rozvrh (návrh Clauda): dva bloky od 8 a 14 h, v každém
-  polovina hodin – napřed luk, pak boj, pak jízda (na dvorku ten čas není); mimo bloky ve dne (7–19 h)
-  muži stojí (`idle`) u dvorku, skrytí (`hidden`) jsou jen v noci; ženy domácnosti chodí
-  mezi vchodem a kouskem dvora (`fetcher` jako domácí práce u domů). Luk: dráhy cvičiště, na střídačku po dvou výstřelech
-  (`bow-draw` 2,2 s, `bow-release`), ostatní čekají v řadě za střelcem. Boj: napřed dvojice
+  (`takeId` – do práce vsi pak rodina nejde). **Den rodiny ve skutečném čase** (`lord-day.ts`,
+  návrh Clauda; lord.md – Ve scéně, villagers.md – Bez časosběru): cyklus `LORD_CYCLE_S` 20 minut
+  zarovnaný na `LIVESTOCK_EPOCH_MS` (celá rodina naráz), `traineeSteps(day, k)` dá kroky cyklu `k`
+  – doma (skrytý ve dveřích dvorce, `manorDoor`) nejméně do `LORD_CYCLE.lead` 1 min, chůze
+  k prvnímu cvičení, které končí v `switch` 8 min (sudé cykly luk, liché boj), chůze ke druhému,
+  jezdec chůze ke koni (`besideHorse`), čekání a jízda v `ride` 13 min (`rideSlot`, nejvýš
+  `rideMax` 4 min), stání u dvorku (`restSpot`, vojvoda klipy vladaře po `LORD_IDLE_S`) do `rest`
+  19 min a vejde. Délky z hodin jádra `drillSeconds` (`DRILL_S_PER_H` 120 s za hodinu, aspoň
+  `MIN_DRILL_S` 60 s). Návštěva (`visitPlan`, `SceneLord.visit.homes` – manželky se střídají po
+  cyklech): od `LORD_VISIT.from` 17,5 min po trase `visitRoute` k jejím dveřím, `stay` 4 min
+  skrytý, zpět nejpozději `backBy` (5 min do dalšího cyklu – další cyklus začne až po návratu
+  a `HOME_MIN_S`); nevejde-li se aspoň `minStay` nebo zasáhne do lovu (`busy`), v cyklu nejde.
+  `traineePose` – chůze rovně tempem chůze (vladař `walk-lord`), skrytý jen doma a u manželky,
+  noc herního dne nic neschovává. Lov přeruší den (`huntBridge` – `HUNT_BRIDGE_S` 40 s chůzí ke
+  kůlu a po lovu zpět). Ženy domácnosti `householdPose` – cyklus `HOUSEHOLD_CYCLE_S` 10 min
+  posunutý podle ženy: doma 1–2 min, pak celé otočky pochůzky mezi vchodem a kouskem dvora (jako
+  `fetcher`) a vejde. Luk: dráhy cvičiště, na střídačku po dvou výstřelech
+  (`bow-draw` 2,2 s, `bow-release`), ostatní čekají v řadě za střelcem – k terči a zpět do řady
+  dojdou chůzí. Boj: napřed dvojice
   (útok `sword-strike` a krytí `shield-block` se střídají po 1,6 s), pak kůl (meč a oštěp po 4 s),
-  ostatní čekají u kůlu. Ženy rodiny před vchodem domu dvorce (`own` – uvnitř pozemku) od 7 do
-  19 h. Činnost v panelu (`PersonJob` `lord`, úsek pózy `bow` / `combat`): „cvičí lukostřelbu“,
+  ostatní čekají u kůlu. Ženy rodiny před vchodem domu dvorce (`own` – uvnitř pozemku). Činnost v panelu (`PersonJob` `lord`, úsek pózy `bow` / `combat`): „cvičí lukostřelbu“,
   „cvičí boj“, „vede domácnost“. **Výjimka pozemku:** `plotBox` dvorce zahrnuje i dvůr – ostatní
   postavy na celý pozemek dvorce nevstoupí (ženy u domů, starší, provoz vycházejí před bránou),
   stojí na něm jen rodina.

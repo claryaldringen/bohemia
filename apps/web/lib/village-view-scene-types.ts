@@ -1077,10 +1077,12 @@ export interface SceneLord {
   /** Vojvoda (id) – mimo výcvik stojí a chodí jako vladař (úloha 10 scény). */
   lordId?: number;
   /**
-   * Večerní návštěva vedlejší manželky (lord.md – Rod vojvody, Manželky; jen vzhled): vojvoda (id)
-   * jde po výcviku k obydlí manželky `home` a ráno se vrátí. Jen když vojvoda dnes cvičí.
+   * Návštěvy vedlejších manželek (lord.md – Rod vojvody, Manželky; jen vzhled): vojvoda (id) jde
+   * po výcviku k obydlí manželky a za čas se vrátí – manželky mimo dvorec (`homes`, obydlí v pořadí
+   * podle id manželky) se střídají po cyklech dne rodiny ve skutečném čase (lord-day.ts). Jen když
+   * vojvoda dnes cvičí.
    */
-  visit?: { lordId: number; home: number };
+  visit?: { lordId: number; homes: number[] };
   /**
    * Jezdci dne (horses.md – Kdy a kam se jezdí, dokud není lov; z jádra `lordRides`): kdo jede, na
    * kterém koni (id), výcvik koně a hodiny jízdy dne; vojvoda první. Jen cvičící (ne na poli). Bez

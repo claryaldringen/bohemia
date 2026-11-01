@@ -3,7 +3,9 @@
 // a svoz úrody jdou přirozenou chůzí – rychlost nejvýš ≈ 1,3× chůze a klip chůze nejvýš ≈ 1,3× –
 // ve skutečném čase přes tolik herních dní, kolik trvají.
 import { describe, expect, it } from 'vitest';
-import type { SceneExpedition, SceneVillage } from '../../village-view';
+import type { SceneExpedition, SceneLord, SceneVillage } from '../../village-view';
+import { LIVESTOCK_EPOCH_MS } from '../livestock-motion';
+import { HUNT_BRIDGE_S, LORD_CYCLE, LORD_CYCLE_S } from '../lord-day';
 import { ActivityMemory, caravanEndMs } from '../activity-memory';
 import { CART_SPEED_M_S, shuttleAt, shuttleRoute } from '../cart-layout';
 import { caravanHead, caravanSpeed, caravanTimeline } from '../caravan';
@@ -47,6 +49,11 @@ describe('lidé ve scéně nesprintují', () => {
     const [from, to] = huntSpan(window(5))!;
     expect(from).toBeGreaterThan(window(5).startMs);
     expect(to - from).toBe(HUNT_REAL_S * 1000);
+    // v chvíli výcvikové jízdy cyklu (lovci jsou u koní), lovci ke kůlu stihnou dojít
+    const slot = (from - LIVESTOCK_EPOCH_MS) / 1000 - LORD_CYCLE.ride;
+    expect(((slot % LORD_CYCLE_S) + LORD_CYCLE_S) % LORD_CYCLE_S).toBeCloseTo(0, 6);
+    expect(from - window(5).startMs).toBeGreaterThanOrEqual(HUNT_BRIDGE_S * 1000);
+    expect(from - window(5).startMs).toBeLessThan((HUNT_BRIDGE_S + LORD_CYCLE_S) * 1000);
   });
 
   it('karavana jde chůzí, s vozem nebo dobytkem tempem volů', () => {
@@ -166,5 +173,36 @@ describe('scéna dohraje karavanu a lov, které data už nemají (activity-memor
     expect(
       memory.apply(village({ wildlife: wild() }), end + 1, window).wildlife?.hunt,
     ).toBeUndefined();
+  });
+});
+
+describe('výcviková jízda rodiny dojede, jak začala (activity-memory.ts)', () => {
+  const slot = (k: number, s: number): number =>
+    LIVESTOCK_EPOCH_MS + (k * LORD_CYCLE_S + LORD_CYCLE.ride + s) * 1000;
+  const withLord = (lord: Partial<SceneLord>): SceneVillage =>
+    village({
+      labor: { lord: { home: 1, trainees: [], household: [], ...lord } },
+    } as Partial<SceneVillage>);
+  const RIDERS = [{ id: 10, horseId: 1, training: 40, hours: 2 }];
+
+  it('jezdci a trasa (objížďka / k hranici) se uprostřed jízdy nemění, po ní ano', () => {
+    const memory = new ActivityMemory();
+    const first = memory.apply(withLord({ riders: RIDERS }), slot(5, 1), window);
+    expect(first.labor?.lord?.riders).toEqual(RIDERS);
+    // další herní den uprostřed jízdy: jezdec loví (jádro ho mezi jezdci nemá), den jízdy k hranici
+    const mid = memory.apply(withLord({ borderTrailId: 3 }), slot(5, 90), window);
+    expect(mid.labor?.lord?.riders).toEqual(RIDERS);
+    expect(mid.labor?.lord?.borderTrailId).toBeUndefined();
+    // po jízdě platí data dne
+    const after = memory.apply(
+      withLord({ borderTrailId: 3 }),
+      slot(5, LORD_CYCLE.rideMax + 1),
+      window,
+    );
+    expect(after.labor?.lord?.riders).toBeUndefined();
+    expect(after.labor?.lord?.borderTrailId).toBe(3);
+    // další jízda začne s tím, co data mají
+    const next = memory.apply(withLord({ borderTrailId: 3 }), slot(6, 1), window);
+    expect(next.labor?.lord?.borderTrailId).toBe(3);
   });
 });
