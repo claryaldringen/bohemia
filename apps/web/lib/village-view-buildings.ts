@@ -43,6 +43,7 @@ import {
 import { fruitVisible, treeGrowth } from './orchard-look';
 
 import { sacredOakGrowth } from './sacred-look';
+import { yardStage } from './village-view-crafts';
 
 /**
  * Ohrady pro scénu: druh, čtverce, stavba (průběh z rozestavěné stavby) a zvířata – voli
@@ -57,6 +58,9 @@ export function scenePens(
 ): ScenePen[] {
   const winter = HAY_WINTER_MONTHS.includes(dateOfDayIndex(day).month);
   const stocked = stockedPenIds(state);
+  // seno vsi rovným dílem do stohů hotových ohrad (villagers.md – odvoz sena na stoh)
+  const builtPens = summary.pens.filter((p) => p.built).length;
+  const hay = yardStage((state.hay?.kg ?? 0) / Math.max(1, builtPens), HAY_STACK_KG);
   return summary.pens.map((pen) => {
     const building = pen.built
       ? undefined
@@ -98,9 +102,16 @@ export function scenePens(
         : {}),
       ...wearOf(structureCondition(wear, 'pen', day), 'condition'),
       ...(pen.built && !stocked.has(pen.id) ? { stocked: false as const } : {}),
+      ...(pen.built ? { hay } : {}),
     };
   });
 }
+
+/**
+ * Hranice stupňů stohu sena u ohrady (kg na hotovou ohradu; návrh Clauda – „pár stupňů“ jako
+ * dvůr dílny): zbytek, menší stoh, plný stoh na zimu (vůl spotřebuje přes zimu ≈ 1,5 t).
+ */
+export const HAY_STACK_KG = [20, 400, 1500] as const;
 
 /**
  * Všechny čtverce ohrady ve scéně – první a další (oxen.md – Ohrady podle druhu), se stranou

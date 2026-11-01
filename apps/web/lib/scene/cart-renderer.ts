@@ -20,6 +20,7 @@ import {
   CART_PARTS,
   CART_PREFIX,
   CART_SCALE,
+  buildingCartParts,
   cartLength,
   cartPlanPose,
   cartPlanRoute,
@@ -350,11 +351,13 @@ export class CartRenderer {
     this.plans.forEach((plan, cart) => {
       const prefix = CART_PREFIX[plan.kind];
       add(`${prefix}-body`, cart);
-      if (plan.kind === 'four-wheel') {
-        add('wagon4-front', cart);
-        add('wagon4-pole', cart);
+      // rozdělaný vůz u tesaře – díly podle fáze stavby (korba, kola a předek, oj)
+      const parts = buildingCartParts(plan.kind, 'parked' in plan ? plan.build : undefined);
+      if (parts.front) add('wagon4-front', cart);
+      if (parts.pole) add('wagon4-pole', cart);
+      if (parts.wheels) {
+        for (let w = 0; w < cartWheelCount(plan.kind); w++) add('wagon-wheel', cart, w);
       }
-      for (let w = 0; w < cartWheelCount(plan.kind); w++) add('wagon-wheel', cart, w);
       if ('parked' in plan) return;
       if (plan.cargo !== 'empty') add(`${prefix}-${plan.cargo}`, cart);
       add(YOKE_PART[plan.kind], cart);

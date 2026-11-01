@@ -2451,6 +2451,24 @@ describe('buildVillageView – tesař a vozy (wagons.md)', () => {
     return s;
   };
 
+  it('scéna: rozdělaný vůz u tesaře po fázích a stoh sena u ohrady podle zásoby (úloha 11)', () => {
+    const s = carpenterVillage();
+    const yard = (v: VillageState): unknown =>
+      buildVillageView(record(v), landscape, DAY).scene.dwellings.find((d) => d.id === 50)?.yard;
+    // 10 z 25 člověkodní – korba bez kol
+    expect(yard(s)).toEqual({ cart: { kind: 'two-wheel', stage: 1 } });
+    s.dwellings.find((d) => d.id === 50)!.workshop!.cart = { kind: 'two-wheel', done: 20 };
+    expect(yard(s)).toEqual({ cart: { kind: 'two-wheel', stage: 2 } });
+    // stoh u hotové ohrady: bez sena žádný, plná zásoba na zimu plný
+    const hayOf = (kg: number): number | undefined => {
+      s.hay = { kg, mowing: null };
+      return buildVillageView(record(s), landscape, DAY).scene.pens![0]!.hay;
+    };
+    expect(hayOf(0)).toBe(0);
+    expect(hayOf(500)).toBe(2);
+    expect(hayOf(1600)).toBe(3);
+  });
+
   it('dílna tesaře: rozdělaný vůz, pokrytí staveb, vozy a dřevěné nářadí v řemeslech', () => {
     const view = buildVillageView(record(carpenterVillage()), landscape, DAY);
     const workshop = view.crafts.workshops.find((w) => w.dwellingId === 50)!;

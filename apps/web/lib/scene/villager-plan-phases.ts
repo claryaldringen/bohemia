@@ -121,6 +121,10 @@ export function planPhases(
       }
       return null;
     }
+    // tesař s pomocníkem staví rozdělaný vůz (vůz čekající na kování už jen stojí)
+    if (house?.craft === 'carpenter') {
+      return (house.yard?.cart?.stage ?? 3) < 3 ? { role: 'cart' } : null;
+    }
     if (house?.craft === 'potter') {
       const places = dropOf(f, at);
       return { role: 'pottery', ...(places ? { places } : {}) };

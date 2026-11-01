@@ -408,6 +408,44 @@ export function smeltSpots(view: CraftYardView): CraftSpot[] {
   ];
 }
 
+/**
+ * Rozdělaný vůz před dílnou tesaře (villagers.md – Fáze činností, Tesař; návrh Clauda): střed
+ * nápravy (osy modelu dílny – m) a směr oje podél vchodu (+x) – ve vyklízené ploše dílny před
+ * špalkem se sekerou, oj (čtyřkolák ji má na zemi před sebou) míří k boku dvora.
+ */
+export const CARPENTER_CART = { lx: -0.6, lz: 7.1, dx: 1, dz: 0 } as const;
+
+/** Místo rozdělaného vozu tesaře ve světě – střed a směr oje (jako stojící vůz u ohrady). */
+export function carpenterCartSpot(view: CraftYardView): {
+  x: number;
+  z: number;
+  hx: number;
+  hz: number;
+} {
+  const [x, z] = at(view, CARPENTER_CART.lx, CARPENTER_CART.lz);
+  const h = direction(view, CARPENTER_CART.dx, CARPENTER_CART.dz);
+  return { x, z, hx: h.x, hz: h.z };
+}
+
+/**
+ * Tesař a pomocník u rozdělaného vozu (m od středu nápravy v osách modelu dílny): po bocích
+ * korby čelem k ní, třetí u zadku vozu – klip `build` (palička), fáze střídá villager-phases.ts.
+ */
+const CART_WORK_SPOTS: readonly (readonly [number, number, number, number])[] = [
+  [0.35, -1.25, 0, 1],
+  [-0.45, 1.25, 0, -1],
+  [-2.0, 0.2, 1, 0],
+];
+
+/** Místa tesaře a pomocníka u rozdělaného vozu (svět). */
+export function carpenterCartSpots(view: CraftYardView): CraftSpot[] {
+  return CART_WORK_SPOTS.map(([u, v, dx, dz]) => {
+    const p = at(view, CARPENTER_CART.lx + u, CARPENTER_CART.lz + v);
+    const h = direction(view, dx, dz);
+    return { x: p[0], z: p[1], hx: h.x, hz: h.z, clip: 'build' as const };
+  });
+}
+
 /** Úsečka, po které hrnčíř šlape hlínu v jámě (tam a zpět napříč jámou – svět). */
 export function treadingLine(view: CraftYardView): [Point, Point] {
   const half = CLAY_PIT.radius * 0.55;

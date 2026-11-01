@@ -103,6 +103,8 @@ export const PHASE_TEXTS: Partial<Record<PhaseName, string>> = {
   'fire-pots': 'vsazuje nádoby do pece',
   'watch-fire': 'hlídá oheň v peci',
   'deliver-pots': 'nese nádoby do domácností',
+  'hew-cart': 'otesává díly vozu',
+  'build-cart': 'staví vůz',
   'bring-catch': 'nese úlovek domů',
   'to-harvest': 'jde pomoct se žněmi',
   'help-reap': 'pomáhá se žněmi',

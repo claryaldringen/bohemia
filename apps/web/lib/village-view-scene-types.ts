@@ -515,6 +515,12 @@ export interface SceneCraftYard {
   bars?: number;
   clay?: number;
   treading?: true;
+  /**
+   * Tesař (wagons.md – Tesař; villagers.md – Fáze činností, Tesař): rozdělaný vůz u dílny po
+   * fázích stavby – 1 korba bez kol na špalcích, 2 korba s koly, 3 dřevěná práce hotová (čeká
+   * na kování); stupně `CART_BUILD_STAGES` ve village-view-crafts.ts. Bez údaje vůz nevzniká.
+   */
+  cart?: { kind: CartKind; stage: 1 | 2 | 3 };
 }
 
 /** Rudiště kováře ve scéně (crafts.md – Uhlí a ruda kováře). */
@@ -667,6 +673,12 @@ export interface ScenePen {
    * pěšin jako na serveru – `PathVillage.pens`). Ohrada se zvířaty údaj nemá.
    */
   stocked?: false;
+  /**
+   * Stoh sena u ohrady (villagers.md – Fáze činností, Rolník: odvoz sena na stoh) – stupeň 0–3
+   * zásoby sena vsi na hotovou ohradu (`HAY_STACK_KG` ve village-view-buildings.ts): po svozu
+   * roste, přes zimu ubývá, 0 = stoh není. Bez údaje plný stoh (ukázky, starší data).
+   */
+  hay?: number;
 }
 
 /**

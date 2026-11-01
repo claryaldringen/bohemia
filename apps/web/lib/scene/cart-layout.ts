@@ -1093,11 +1093,55 @@ export interface CartShuttle {
   loadedOut?: boolean;
 }
 
-/** Vůz stojící u ohrady bez volů. */
+/**
+ * Vůz stojící u ohrady bez volů – nebo rozdělaný u tesaře (`build` – fáze stavby, SceneCraftYard:
+ * 1 korba na špalcích bez kol, 2 korba s koly, 3 celý vůz bez kování).
+ */
 export interface CartParked {
   id?: number;
   kind: CartKind;
   parked: CartSpot;
+  build?: 1 | 2 | 3;
+}
+
+/** Výška nápravy rozdělané korby na špalcích nad zemí (m; fáze 1 – bez kol, návrh Clauda). */
+export const CART_BLOCKS_M = 0.28;
+
+/**
+ * Rozdělaný vůz u tesaře: fáze 1 – korba rovně na špalcích (náprava ve výšce `CART_BLOCKS_M`,
+ * kola ani předek nejsou), jinak jako stojící vůz (kola a oj ukáže cart-renderer podle fáze).
+ */
+export function buildingCartPose(
+  kind: CartKind,
+  spot: CartSpot,
+  stage: 1 | 2 | 3,
+  out: CartPose,
+  ground: GroundFn = FLAT,
+): CartPose {
+  parkedCartPose(kind, spot, out, ground);
+  if (stage > 1) return out;
+  const k = CART_SCALE;
+  const h = unit2(spot.hx, spot.hz);
+  const body = out.body;
+  axes(h.x, 0, h.z, -h.z, 0, h.x, body);
+  body.x = spot.x - body.ux * CART_PARTS.hubY * k;
+  body.y = ground(spot.x, spot.z) + CART_BLOCKS_M * k - body.uy * CART_PARTS.hubY * k;
+  body.z = spot.z - body.uz * CART_PARTS.hubY * k;
+  copyFrame(body, out.front);
+  return out;
+}
+
+/** Díly rozdělaného vozu ve fázi `stage` (bez fáze celý vůz): kola od 2, předek od 2, oj od 3. */
+export function buildingCartParts(
+  kind: CartKind,
+  stage: 1 | 2 | 3 | undefined,
+): { wheels: boolean; front: boolean; pole: boolean } {
+  const s = stage ?? 3;
+  return {
+    wheels: s >= 2,
+    front: kind === 'four-wheel' && s >= 2,
+    pole: kind === 'four-wheel' && s >= 3,
+  };
 }
 
 /**
@@ -1135,6 +1179,9 @@ export function cartPlanPose(
   out.hidden = false;
   if ('parked' in plan) {
     out.leg = 'parked';
+    if (plan.build !== undefined) {
+      return buildingCartPose(plan.kind, plan.parked, plan.build, out, ground);
+    }
     return parkedCartPose(plan.kind, plan.parked, out, ground);
   }
   const t = villagerSeconds(nowMs);

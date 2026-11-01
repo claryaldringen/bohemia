@@ -40,6 +40,7 @@ const JOBS: Record<PhaseRole, PersonJob> = {
   'kiln-burn': { kind: 'share', activity: 'craft', target: { kind: 'kiln', id: 4, x: 0, z: 0 } },
   'kiln-draw': { kind: 'share', activity: 'craft', target: { kind: 'kiln', id: 4, x: 0, z: 0 } },
   pottery: { kind: 'share', activity: 'craft', target: { kind: 'dwelling', id: 5 } },
+  cart: { kind: 'share', activity: 'craft', target: { kind: 'dwelling', id: 6 } },
   fish: { kind: 'share', activity: 'fish', target: { kind: 'pool', index: 0 } },
   train: { kind: 'lord', household: false },
   elder: { kind: 'elder' },
@@ -128,6 +129,16 @@ describe('fáze rolí z existujících klipů (villager-phases.ts)', () => {
     expect(clipOf('fish', 'bring-catch')).toBe('carry-fish');
     expect(clipOf('train', 'help-reap')).toBe('reap');
     expect(clipOf('elder', 'glean')).toBe('weed');
+  });
+
+  it('tesař u rozdělaného vozu: otesává díly sekerou na špalku, staví vůz pózou úlohy (úloha 11)', () => {
+    const phases = activityPhases(bout('cart'), 11);
+    expect(phases.map((p) => p.name)).toEqual(['out', 'hew-cart', 'build-cart', 'back']);
+    expect(phases.find((p) => p.name === 'hew-cart')!.clip).toBe('split');
+    // stavba vozu – póza úlohy u korby (klip `build` s paličkou – carpenterCartSpots)
+    expect(phases.find((p) => p.name === 'build-cart')!.clip).toBeUndefined();
+    expect(PHASE_TEXTS['hew-cart']).toBe('otesává díly vozu');
+    expect(PHASE_TEXTS['build-cart']).toBe('staví vůz');
   });
 
   it('starší doma: sedí (póza úlohy), postojí variantou stání, jdou se pomodlit k modle (úloha 10)', () => {

@@ -14,7 +14,7 @@ import {
 } from './villager-motion';
 import { shuttleErrand } from './villager-errands';
 import { craftSpots, forestKilnAnchor, type CraftSpot } from './workshop-layout';
-import { smeltSpots, treadingLine } from './craft-yard-layout';
+import { carpenterCartSpots, smeltSpots, treadingLine } from './craft-yard-layout';
 import { orePitRadius } from './ore-site-layout';
 import { GRAIN_PIT_RADIUS_M } from './grain-pit-layout';
 import { FLOOR_ENTRANCE, floorPoint } from './threshing-floor-layout';
@@ -210,7 +210,8 @@ export const FETCH_LOAD_S = 5;
  * nejde stát (voda, jiný dům), nahradí nejbližší volné. Podle dvora dne (craft-yard-layout.ts):
  * při tavbě kovář sype rudu a uhlí do redukční pece a druhý šlape měch (měchař – syn 10–13 má
  * v rozdělení práce vlastní podíl s věkem, `bellows`), při překování kove u kovadliny; hrnčíř
- * šlape hlínu v jámě (střídavě po dnech napřed šlapání, nebo kruh).
+ * šlape hlínu v jámě (střídavě po dnech napřed šlapání, nebo kruh); tesař s pomocníkem staví
+ * rozdělaný vůz před dílnou (`carpenterCartSpots`).
  */
 export function craftsmen(ctx: Context, dwellingId: number, bellows = false): Placer {
   const house = ctx.houses.find((h) => h.id === dwellingId && h.built && h.craft);
@@ -226,9 +227,14 @@ export function craftsmen(ctx: Context, dwellingId: number, bellows = false): Pl
   const furnace = smelting ? smeltSpots(view) : [];
   // měchař z podílu syna stojí jen u měchu; sám kovář taví bez měchaře
   if (bellows) return smelting ? standAt(ctx, house, [furnace[1]!]) : none;
+  // tesař s pomocníkem u rozdělaného vozu (villagers.md – Fáze činností, Tesař), dokud ho
+  // nedodělá – vůz čekající na kování už jen stojí
+  const cart = house.craft === 'carpenter' && (house.yard?.cart?.stage ?? 3) < 3;
   const spots = smelting
     ? [furnace[0]!, ...(house.yard?.bellows ? [furnace[1]!] : []), ...porch]
-    : porch;
+    : cart
+      ? carpenterCartSpots(view)
+      : porch;
   const place = standAt(ctx, house, spots);
   if (house.craft !== 'potter' || !house.yard?.treading) return place;
   const tread = treading(view, stringHash(`tread:${house.id}`));

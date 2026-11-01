@@ -52,6 +52,9 @@ export type PhaseName =
   | 'fire-pots'
   | 'watch-fire'
   | 'deliver-pots'
+  // tesař u rozdělaného vozu (Tesař)
+  | 'hew-cart'
+  | 'build-cart'
   // rybář – odnos úlovku domů (Rybář)
   | 'bring-catch'
   // pomoc o žních: cvičící muži, starší a nečinní (Vojvoda a synové, Děti a starší)
@@ -86,6 +89,7 @@ export type PhaseRole =
   | 'kiln-burn'
   | 'kiln-draw'
   | 'pottery'
+  | 'cart'
   | 'fish'
   | 'train'
   | 'elder'
@@ -200,6 +204,12 @@ export const PHASE_STEPS: Record<PhaseRole, readonly PhaseStep[]> = {
     { name: 'fire-pots', share: 0.1, clip: 'pots' },
     { name: 'watch-fire', share: 0.1, clip: 'idle' },
     { name: 'deliver-pots', share: 0.2, clip: 'idle', place: 'drop', carry: 'carry-pots' },
+  ],
+  // tesař s pomocníkem u rozdělaného vozu: otesává díly sekerou na špalku, sestavuje paličkou
+  // (póza úlohy – `build` u korby); fázi vozu (korba, kola) kreslí vůz sám (craft-yard-layout.ts)
+  cart: [
+    { name: 'hew-cart', share: 0.35, clip: 'split' },
+    { name: 'build-cart', share: 0.65 },
   ],
   // rybář – loví (póza úlohy), úlovek nese domů v koši (`BACK_PHASE`)
   fish: [{ name: 'work', share: 1 }],

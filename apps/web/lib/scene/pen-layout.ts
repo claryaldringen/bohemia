@@ -930,6 +930,18 @@ export interface PenStage {
   mud: number;
 }
 
+/**
+ * Velikost stohu podle stupně zásoby sena 0–3 (`PenView.hay` – podíl plného stohu; návrh Clauda):
+ * po svozu roste, přes zimu ubývá, bez sena stoh není.
+ */
+export const HAYSTACK_SIZES = [0, 0.5, 0.75, 1] as const;
+
+/** Podíl plného stohu ohrady pro stupeň zásoby sena (bez údaje plný). */
+export function haystackSize(hay: number | undefined): number {
+  if (hay === undefined) return 1;
+  return HAYSTACK_SIZES[Math.max(0, Math.min(3, Math.round(hay)))]!;
+}
+
 /** Ohrada při průběhu stavby `progress` (0–1). */
 export function penStage(progress: number): PenStage {
   const p = Math.min(1, Math.max(0, progress));

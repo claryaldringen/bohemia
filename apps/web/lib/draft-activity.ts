@@ -75,7 +75,8 @@ export type CartGoal =
 /** Věty jízdy tam a zpět: k cíli, u cíle, zpátky, u ohrady. */
 const CART_TEXTS: Record<CartGoal, readonly [string, string, string, string]> = {
   sheaves: ['jede pro snopy', 'nakládá snopy', 'veze snopy', 'skládá snopy'],
-  hay: ['jede pro seno', 'nakládá seno', 'veze seno', 'skládá seno'],
+  // seno se skládá do stohu u ohrady (villagers.md – Fáze činností, Rolník: odvoz sena)
+  hay: ['jede pro seno', 'nakládá seno', 'veze seno ke stohu', 'skládá seno do stohu'],
   logs: ['jede pro klády', 'nakládá klády', 'veze klády ke stavbě', 'skládá klády'],
   charcoal: ['jede pro uhlí k milíři', 'nakládá uhlí', 'veze uhlí ke kováři', 'skládá uhlí'],
   ore: ['jede pro rudu', 'nakládá rudu', 'veze rudu do kovárny', 'skládá rudu'],

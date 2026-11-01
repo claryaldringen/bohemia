@@ -38,6 +38,7 @@ export function scenePenViews(
       facing: { x: toward.x - pen.x, z: toward.z - pen.z },
       progress: pen.built ? 1 : Math.min(0.999, Math.max(0, pen.progress)),
       ...(pen.condition === undefined ? {} : { condition: pen.condition }),
+      ...(pen.hay === undefined ? {} : { hay: pen.hay }),
       ...(tornado ? { tornado } : {}),
       ...(fenced.length > 0 ? { extra: fenced.map((q) => ({ x: q.x, z: q.z })) } : {}),
       ...(pending.length > 0

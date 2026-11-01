@@ -86,13 +86,27 @@ export const CRAFT_YARD_STEPS = {
   clayKg: [0.5, 30, 120],
 } as const;
 
+/**
+ * Fáze rozdělaného vozu u tesaře podle průběhu dřevěné práce 0–1 (villagers.md – Fáze činností,
+ * Tesař; návrh Clauda): napřed korba (ložní plocha, vůz na špalcích bez kol), od `wheels` korba
+ * s koly, s hotovou dřevěnou prací celý vůz (čeká na kování – wagons.md, Kování vozů).
+ */
+export const CART_BUILD_STAGES = { wheels: 0.45 } as const;
+
+/** Fáze stavby vozu 1–3 z průběhu dřevěné práce 0–1 (`CART_BUILD_STAGES`). */
+export function cartBuildStage(progress: number): 1 | 2 | 3 {
+  if (progress >= 1 - 1e-9) return 3;
+  return progress >= CART_BUILD_STAGES.wheels ? 2 : 1;
+}
+
 /** Stupeň zásoby 0–3: kolik hranic `steps` množství `kg` dosáhlo. */
 export function yardStage(kg: number, steps: readonly number[]): number {
   return steps.filter((step) => kg >= step).length;
 }
 
 /**
- * Dvůr hotové obývané dílny pro scénu (`SceneCraftYard`) – jen čtení stavu: kovář – činnost dne,
+ * Dvůr hotové obývané dílny pro scénu (`SceneCraftYard`) – jen čtení stavu: tesař – rozdělaný vůz
+ * po fázích (`cartBuildStage`); kovář – činnost dne,
  * měchař u tavby (syn 10–13 z rozdělení práce dne, nebo dospělý z domácnosti – `smithBellows`),
  * houba a hřivny po stupních; hrnčíř – hlína v jámě po stupních a šlapání, když dnes vyrábí.
  * Jiná řemesla nic.
@@ -105,6 +119,12 @@ export function craftYard(
 ): SceneCraftYard | null {
   const w = dwelling.workshop;
   if (!w) return null;
+  if (w.craft === 'carpenter') {
+    // rozdělaný vůz roste se dnem výroby (průběh dřevěné práce – workCarpenter v jádru)
+    if (!w.cart) return null;
+    const progress = w.cart.done / CARPENTRY.cartManDays[w.cart.kind];
+    return { cart: { kind: w.cart.kind, stage: cartBuildStage(progress) } };
+  }
   if (w.craft === 'potter') {
     const clay = yardStage(w.clayKg ?? 0, CRAFT_YARD_STEPS.clayKg);
     const treading = w.activity === 'producing' && clay > 0;
