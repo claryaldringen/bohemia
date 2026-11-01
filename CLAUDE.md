@@ -195,6 +195,7 @@ npm run test:e2e:worker   # jen e2e s workerem (spec pustí apps/worker vedle ne
 npm run format:check  # npm run format = oprava
 npm run db:generate   # nová migrace po změně schématu v packages/db/src/schema
 npm run db:seed-dev   # vývojový účet v lokální DB bez registrace
+npm run village-log -- --village <id|jméno> [--player <id>] [--from rok]   # deník vsí (tabulka village_year)
 npx tsx packages/game/scripts/measure-landscapes.ts 500   # měření generátoru krajiny (+ initial = verze 1)
 npx tsx packages/game/scripts/measure-village.ts --quick --out quick.jsonl   # kalibrace vsi (50 vsí)
 npx tsx packages/game/scripts/measure-village.ts 200 60 --out base.jsonl     # závěrečné ověření

@@ -53,6 +53,7 @@ export * from './cancel-construction';
 export * from './relocation';
 export * from './departure';
 export * from './digest';
+export * from './year-log';
 export * from './son-departure';
 export * from './neighbourhood';
 export * from './world-grid';

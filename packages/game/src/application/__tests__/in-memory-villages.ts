@@ -1,4 +1,4 @@
-import { villageDigest, type VillageState } from '../../domain/village';
+import { villageDigest, type VillageState, type VillageYearRow } from '../../domain/village';
 import type {
   VillageDigestRecord,
   VillageRecord,
@@ -25,6 +25,8 @@ export class InMemoryVillages implements VillageRepository {
   beforeSave: ((villageId: string) => void) | null = null;
   /** Seed počasí kraje po sídlech – sídlo bez záznamu je bez počasí (null). */
   readonly weatherSeeds = new Map<string, number>();
+  /** Deník vsí: řádky podle vsi a roku. */
+  readonly yearLog = new Map<string, Map<number, VillageYearRow>>();
   private nextId = 1;
 
   async weatherSeedOf(settlementId: string): Promise<number | null> {
@@ -94,6 +96,7 @@ export class InMemoryVillages implements VillageRepository {
     villageId: string,
     state: VillageState,
     expectedVersion: number,
+    yearRows: readonly VillageYearRow[] = [],
   ): Promise<VillageRecord | null> {
     await Promise.resolve();
     this.beforeSave?.(villageId);
@@ -106,6 +109,9 @@ export class InMemoryVillages implements VillageRepository {
     };
     this.records.set(villageId, record);
     this.saves++;
+    const log = this.yearLog.get(villageId) ?? new Map<number, VillageYearRow>();
+    for (const row of yearRows) log.set(row.year, structuredClone(row));
+    this.yearLog.set(villageId, log);
     return structuredClone(record);
   }
 

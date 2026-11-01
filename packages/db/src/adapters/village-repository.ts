@@ -7,9 +7,10 @@ import {
   type VillageRecord,
   type VillageRepository,
   type VillageStamp,
+  type VillageYearRow,
 } from '@bohemia/game';
 import type { Database } from '../client';
-import { settlement, village } from '../schema';
+import { settlement, village, villageYear } from '../schema';
 
 type VillageRow = typeof village.$inferSelect;
 
@@ -24,6 +25,55 @@ function written(
   digestVersion: number | SQL,
 ): { state: VillageRecord['state']; digest: VillageDigest; digestVersion: number | SQL } {
   return { state, digest: villageDigest(state), digestVersion };
+}
+
+type SavedRow = Pick<VillageRow, 'id' | 'settlementId' | 'name' | 'version'>;
+
+/** Řádek deníku vsi pro zápis. */
+function yearValues(villageId: string, r: VillageYearRow): typeof villageYear.$inferInsert {
+  const { year, day, adults, children, births, deaths, deathsHunger } = r;
+  return {
+    villageId,
+    year,
+    day,
+    adults,
+    children,
+    births,
+    deaths,
+    deathsHunger,
+    harvestKg: r.harvestKg,
+    storesKg: r.storesKg,
+    hungryDays: r.hungryDays,
+    fieldM2: r.fieldM2,
+    sownM2: r.sownM2,
+    data: {
+      herds: r.herds,
+      stewardOn: r.stewardOn,
+      built: r.built,
+      sonsLeft: r.sonsLeft,
+      disasters: r.disasters,
+      chronicleFull: r.chronicleFull,
+    },
+  };
+}
+
+/** Přepis řádku deníku při shodě (ves + rok): všechny sloupce z nové hodnoty. */
+function yearConflictSet(): Record<string, SQL> {
+  return {
+    day: sql`excluded.day`,
+    adults: sql`excluded.adults`,
+    children: sql`excluded.children`,
+    births: sql`excluded.births`,
+    deaths: sql`excluded.deaths`,
+    deathsHunger: sql`excluded.deaths_hunger`,
+    harvestKg: sql`excluded.harvest_kg`,
+    storesKg: sql`excluded.stores_kg`,
+    hungryDays: sql`excluded.hungry_days`,
+    fieldM2: sql`excluded.field_m2`,
+    sownM2: sql`excluded.sown_m2`,
+    data: sql`excluded.data`,
+    writtenAt: sql`now()`,
+  };
 }
 
 function toRecord(row: VillageRow): VillageRecord {
@@ -145,24 +195,41 @@ export function createVillageRepository(db: Database): VillageRepository {
       }
     },
 
-    async save(villageId, state, expectedVersion): Promise<VillageRecord | null> {
+    async save(villageId, state, expectedVersion, yearRows = []): Promise<VillageRecord | null> {
       // Zpět jen identitu, jméno a verzi – stav (u velké vsi přes 1 MB JSON) má volající v ruce,
       // databáze by ho jinak celý serializovala a posílala zpátky.
-      const [row] = await db
-        .update(village)
-        .set({
-          ...written(state, sql`${village.version} + 1`),
-          version: sql`${village.version} + 1`,
-          updatedAt: sql`now()`,
-        })
-        .where(and(eq(village.id, villageId), eq(village.version, expectedVersion)))
-        .returning({
-          id: village.id,
-          settlementId: village.settlementId,
-          name: village.name,
-          version: village.version,
-        });
-      return row ? { ...row, state } : null;
+      const update = (tx: Pick<Database, 'update'>): Promise<SavedRow[]> =>
+        tx
+          .update(village)
+          .set({
+            ...written(state, sql`${village.version} + 1`),
+            version: sql`${village.version} + 1`,
+            updatedAt: sql`now()`,
+          })
+          .where(and(eq(village.id, villageId), eq(village.version, expectedVersion)))
+          .returning({
+            id: village.id,
+            settlementId: village.settlementId,
+            name: village.name,
+            version: village.version,
+          });
+      if (yearRows.length === 0) {
+        const [row] = await update(db);
+        return row ? { ...row, state } : null;
+      }
+      // řádky deníku jen s úspěšným zápisem stavu, v téže transakci (idempotentně: ves + rok)
+      return db.transaction(async (tx) => {
+        const [row] = await update(tx);
+        if (!row) return null;
+        await tx
+          .insert(villageYear)
+          .values(yearRows.map((r) => yearValues(villageId, r)))
+          .onConflictDoUpdate({
+            target: [villageYear.villageId, villageYear.year],
+            set: yearConflictSet(),
+          });
+        return { ...row, state };
+      });
     },
 
     async rename(villageId, name): Promise<boolean> {

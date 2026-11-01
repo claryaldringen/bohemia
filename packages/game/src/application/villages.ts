@@ -1,4 +1,4 @@
-import type { VillageDigest, VillageState } from '../domain/village';
+import type { VillageDigest, VillageState, VillageYearRow } from '../domain/village';
 
 /** Uložená ves – stav simulace s verzí pro optimistické zamykání. */
 export interface VillageRecord {
@@ -76,12 +76,14 @@ export interface VillageRepository {
   /**
    * Uloží nový stav, jen když je uložená verze `expectedVersion` (jinak ji mezitím změnil
    * jiný požadavek) – pak vrátí null a nic nezmění. Vrácený záznam nese předaný stav (ne kopii
-   * z úložiště) s novou verzí.
+   * z úložiště) s novou verzí. `yearRows` = řádky deníku vsí za roky dokončené při dopočtu –
+   * zapíšou se v témže uložení (jedna ves a rok = jeden řádek, opakovaný zápis ho přepíše).
    */
   save(
     villageId: string,
     state: VillageState,
     expectedVersion: number,
+    yearRows?: readonly VillageYearRow[],
   ): Promise<VillageRecord | null>;
   /** Přejmenuje ves (stav ani verzi nemění); false = ves neexistuje. */
   rename(villageId: string, name: string): Promise<boolean>;
