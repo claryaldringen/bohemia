@@ -41,6 +41,23 @@ value }`, `parseDevDisasterInput`) → use-cases `forceBadYear` / `forceDisaster
   do `disasters.override.weather[rok]` (ukáže se, až bude vidět – sucho od 1. 5.), pohroma zítřejší
   kroupy, smršť F2 (pruh a stopa přes střed vsi), stoletou vodu nebo požár prvního obydlí
   (`override.hail`, `.tornado`, `.weather[rok].flood`, `.fire`) – přebijí los i ochranu nové vsi.
+- **Průběh přeskoku** (Martin, 1. 11. 2026: „Když hru posunu o rok, pořád to dost trvá. Můžeš
+  udělat nějaký progressbar, abych viděl průběh přepočtu?“): skutečné dopočítané dny, ne odhad
+  podle času. Port `ProgressReport` (`onProgress` v `DynastyDeps`, `application/villages.ts`):
+  `dynastyStatus` spočte celek z otisků vsí (`stampsOf` – dny do dneška, spící ves 0) a hlásí
+  `{ doneDays, totalDays }` po každém odsimulovaném dni – den se dozví z přestávky (`Pause`
+  dostává index dne z `advanceVillageSteps`; s hlášením má počítaná ves přestávky vždy, výsledek
+  je týž). Hotovo jen roste a nepřeleze celek (opakovaný pokus po souběhu). Smyčku mezi dny uvolňuje
+  dál `computePause` (≈ 50 ms v kuse, `setImmediate`); delší kusy bez přestávky (převody a trasy
+  2,6 MB Vlkova) drží server nejvýš ≈ 0,35 s (studený start ≈ 0,85 s). Web: `skipTimeForPlayer`
+  zapisuje průběh do paměti procesu (`lib/skip-progress.ts`, `globalThis`) a po konci ho smaže –
+  obojí uvnitř fronty hráče. Čte ho **Route Handler** `GET /api/dev/skip-progress` (jen přihlášený
+  s `devMode`, jen vlastní průběh, `no-store`) – server action to být nemůže, Next řadí server
+  actions jednoho klienta za sebe a dotaz by čekal za přeskokem. `DevTimeButtons` se během skoku
+  ptá každých 400 ms (`useSkipProgress`, `usePolling`) a pod šipkami běží tenký ukazatel
+  (`dev-skip-progress`, `role="progressbar"`) bez textu – „Přepočet 40 %“ a dny jsou v popisku šipek.
+  Skok o rok Vlkova (paměťové repozitáře, `computePause`): ≈ 4,1 s s hlášením i bez něj (rozdíl
+  v šumu, studený start ≈ 6,2 s).
 - **Hlášky Better Auth** se překládají v `lib/auth-errors.ts` – nové chybové kódy doplnit tam.
 - **Změna polí uživatele** (`user.additionalFields` v `lib/auth.ts`) → upravit i
   `packages/db/src/schema/auth.ts` a vygenerovat migraci.

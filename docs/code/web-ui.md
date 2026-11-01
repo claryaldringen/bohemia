@@ -78,7 +78,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   klíče `player:<id>` (`dynastyStatus` dopočítává všechny vsi hráče, ne jednu): další volání počká
   na dokončení předchozího (i chybou – nepřilepí se) a načte už dopočítanou ves, takže dopočte jen
   zbytek do svého dne. Mapa je v `globalThis`, po dokončení se klíč uklidí. Klientský
-  `usePolling` už běží po jednom dotazu (další až po dokončení), takže nic nemění.
+  `usePolling` už běží po jednom dotazu (další až po dokončení), takže nic nemění. Průběh skoku
+  v čase se čte mimo frontu i mimo server actions – Route Handler `GET /api/dev/skip-progress`
+  (accounts.md, Průběh přeskoku).
   - **Zámek hráče v DB (i proti workeru):** fronta v procesu je první vrstva; uvnitř ní se bere
     `PlayerLock.run` (`exclusivePlayer` / `exclusivePlayerShared`, zámek z `getPlayerLock()`
     v `lib/db.ts`, v `globalThis` jako pool DB – HMR `next dev` nové spojení neotevře). Adaptér

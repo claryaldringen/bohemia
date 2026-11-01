@@ -1495,11 +1495,16 @@ test('vývojový režim: vynucené sucho – ikona na liště, upozornění a oc
   await page.keyboard.press('c');
   await confirmPlacement(page, { kind: 'squares', cells: spots.cells });
   await expect.poll(async () => (await villageState(s.settlementId)).fields.length).toBe(1);
-  // bez vývojového režimu tlačítka pohrom nejsou
+  // bez vývojového režimu tlačítka pohrom nejsou a průběh přeskoku se nedá číst
   await expect(page.getByTestId('dev-disasters')).toHaveCount(0);
+  expect((await page.request.get('/api/dev/skip-progress')).status()).toBe(403);
   await query('UPDATE "user" SET dev_mode = true WHERE email = $1', [email]);
   await page.reload();
   await expect(readyScene(page)).toBeVisible({ timeout: 60_000 });
+  // s ním ano – žádný přeskok neběží (Route Handler, ne server action – nečeká za přeskokem)
+  const idle = await page.request.get('/api/dev/skip-progress');
+  expect(idle.status()).toBe(200);
+  expect(await idle.json()).toEqual({ progress: null });
 
   // Kruté sucho letos – vidět je až od 1. 5., proto se v e2e světě skáče po měsících; vynutí se
   // znovu po každém skoku (skok přes Nový rok by ho jinak nechal v loňsku).

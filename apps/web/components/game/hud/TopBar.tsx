@@ -6,6 +6,7 @@ import {
   FORCED_DISASTER_KINDS,
   getWorldState,
   type BadYearKind,
+  type ComputeProgress,
   type ForcedDisasterKind,
   type TimeSkip,
   type WorldClock,
@@ -18,9 +19,10 @@ import {
   type WeatherView,
 } from '@/lib/disasters-view';
 import { useDismiss } from '@/hooks/use-dismiss';
+import { useSkipProgress } from '@/hooks/use-skip-progress';
 import { dateRefreshDelay, formatWorldState } from '@/lib/game-date';
 import { MENU_HOTKEY } from '@/lib/game-menu';
-import { formatDecimal, formatInteger, formatPercent } from '@/lib/village-format';
+import { formatDecimal, formatInteger, formatPercent, plural } from '@/lib/village-format';
 import type { VillageListItem } from '@/lib/village-list';
 import type { VillageView } from '@/lib/village-view';
 import { Tooltip } from './Tooltip';
@@ -365,9 +367,31 @@ const TIME_SKIP_BUTTONS: readonly { skip: TimeSkip; label: string; icon: string 
   { skip: 'decade', label: '+10 let', icon: 'M2.5 6v12l7.5-6zM10 6v12l7.5-6zM18.5 6h2.5v12h-2.5z' },
 ];
 
+/** Popisek tlačítek skoku během přepočtu – procenta a dny všech vsí rodu (před první odpovědí 0 %). */
+function SkipProgressTip({ progress }: { progress: ComputeProgress | null }): ReactElement {
+  return (
+    <span className="block whitespace-nowrap">
+      Přepočet {skipPercent(progress)} %
+      {progress !== null && progress.totalDays > 0 && (
+        <span className="block opacity-75">
+          {formatInteger(progress.doneDays)} / {formatInteger(progress.totalDays)}{' '}
+          {plural(progress.totalDays, 'den', 'dny', 'dní')}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** Kolik procent přepočtu je hotovo – dolů na celá, 100 % až po posledním dni. */
+function skipPercent(progress: ComputeProgress | null): number {
+  if (progress === null || progress.totalDays <= 0) return 0;
+  return Math.floor((progress.doneDays / progress.totalDays) * 100);
+}
+
 /**
  * Vývojový režim: tři šipky vedle data – ▶ přeskočí měsíc (30 herních dní), ⏩ rok, ⏭ 10 let.
- * Dokud server přeskočení nedokončí (`pending`), všechna tlačítka čekají.
+ * Dokud server přeskočení nedokončí (`pending`), všechna tlačítka čekají a pod nimi běží tenký
+ * ukazatel přepočtu (průběh se čte z `/api/dev/skip-progress`, procenta a dny v popisku tlačítek).
  */
 export function DevTimeButtons({
   pending,
@@ -377,13 +401,21 @@ export function DevTimeButtons({
   pending: TimeSkip | null;
   onSkip: (skip: TimeSkip) => void;
 }): ReactElement {
+  const progress = useSkipProgress(pending !== null);
+  const percent = skipPercent(progress);
   return (
-    <span data-testid="dev-time" className="flex items-center">
+    <span data-testid="dev-time" className="relative flex items-center">
       {TIME_SKIP_BUTTONS.map(({ skip, label, icon }) => (
         <IconButton
           key={skip}
           label={label}
-          tooltip={<span className="whitespace-nowrap">{label}</span>}
+          tooltip={
+            pending === null ? (
+              <span className="whitespace-nowrap">{label}</span>
+            ) : (
+              <SkipProgressTip progress={progress} />
+            )
+          }
           testId={`dev-skip-${skip}`}
           disabled={pending !== null}
           busy={pending === skip}
@@ -394,6 +426,22 @@ export function DevTimeButtons({
           </svg>
         </IconButton>
       ))}
+      {pending !== null && (
+        <span
+          role="progressbar"
+          aria-label="Přepočet"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={percent}
+          data-testid="dev-skip-progress"
+          className="pointer-events-none absolute inset-x-1 bottom-0 h-[3px] overflow-hidden rounded-full bg-black/45"
+        >
+          <span
+            className="block h-full bg-[#f3cf86] transition-[width] duration-300 ease-linear"
+            style={{ width: `${percent}%` }}
+          />
+        </span>
+      )}
     </span>
   );
 }

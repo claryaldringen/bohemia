@@ -103,11 +103,24 @@ export interface VillageRepository {
 }
 
 /**
- * Port: přestávka v dlouhém dopočtu vsi. Use-case se po každém odsimulovaném dni zeptá – slib =
- * počkat (server mezi tím obslouží jiné požadavky, běží v jednom vlákně), null = hned dál.
- * Výsledek dopočtu na přestávkách nezávisí.
+ * Port: přestávka v dlouhém dopočtu vsi. Use-case se po každém odsimulovaném dni zeptá (`day` =
+ * index toho dne; u přestávek mimo dny, např. při přestavbě sítě cest, chybí) – slib = počkat
+ * (server mezi tím obslouží jiné požadavky, běží v jednom vlákně), null = hned dál. Výsledek
+ * dopočtu na přestávkách nezávisí.
  */
-export type Pause = () => Promise<void> | null;
+export type Pause = (day?: number) => Promise<void> | null;
+
+/** Průběh dopočtu vsí rodu – dopočítané dny všech vsí dohromady z dnů, které jim chyběly. */
+export interface ComputeProgress {
+  doneDays: number;
+  totalDays: number;
+}
+
+/**
+ * Port: hlášení průběhu dlouhého dopočtu vsí (přeskok času – accounts.md, Vývojový režim). Jen
+ * čte – výsledek dopočtu na hlášení nezávisí.
+ */
+export type ProgressReport = (progress: ComputeProgress) => void;
 
 /** Výsledek herní akce nad vsí – ves po akci, nebo důvod odmítnutí česky pro hráče. */
 export type VillageResult = { ok: true; village: VillageRecord } | { ok: false; reason: string };
