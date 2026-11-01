@@ -13,7 +13,8 @@
     "format": "prettier --write . --ignore-path ../../.gitignore",
     "test": "vitest run --passWithNoTests --testTimeout=30000",
     "test:e2e": "playwright test",
-    "seed:dev": "tsx scripts/seed-dev-user.ts"
+    "seed:dev": "tsx scripts/seed-dev-user.ts",
+    "test:e2e:worker": "playwright test --project=worker"
   },
   "dependencies": {
     "@babylonjs/core": "^9.31.0",

@@ -189,8 +189,9 @@ npm run build
 npm run typecheck     # next typegen + tsc
 npm run lint
 npm run test          # unit testy (Vitest)
-npm run test:db       # testy adaptérů proti DB bohemia_test (Homebrew Postgres musí běžet)
-npm run test:e2e      # Playwright – build + next start na :3011 proti DB bohemia_test
+npm run test:db       # testy adaptérů a souběhu web × worker proti DB bohemia_test (Homebrew Postgres musí běžet)
+npm run test:e2e      # Playwright – build + next start na :3011 proti DB bohemia_test (projekty chromium a worker)
+npm run test:e2e:worker   # jen e2e s workerem (spec pustí apps/worker vedle next start)
 npm run format:check  # npm run format = oprava
 npm run db:generate   # nová migrace po změně schématu v packages/db/src/schema
 npm run db:seed-dev   # vývojový účet v lokální DB bez registrace

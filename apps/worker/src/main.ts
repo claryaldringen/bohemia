@@ -16,6 +16,7 @@ import {
 import { readConfig, redactedUrl } from './config';
 import { createLogger } from './log';
 import { abortableSleep, runLoop, type LoopDeps } from './loop';
+import { signalHandler } from './signals';
 
 /** Svět a databáze musí být stejné jako ve webu – proměnné z prostředí mají přednost. */
 function loadWebEnv(): void {
@@ -50,16 +51,12 @@ async function main(): Promise<void> {
   };
 
   const stop = new AbortController();
-  let signals = 0;
-  const onSignal = (name: string): void => {
-    signals++;
-    if (signals > 1) {
-      log.warn(`${name} podruhé – končím hned`);
-      process.exit(1);
-    }
-    log.info(`${name} – dokončuji dávku a končím`);
-    stop.abort();
-  };
+  const onSignal = signalHandler({
+    now: () => Date.now(),
+    log,
+    stop: () => stop.abort(),
+    exitNow: () => process.exit(1),
+  });
   process.on('SIGINT', () => onSignal('SIGINT'));
   process.on('SIGTERM', () => onSignal('SIGTERM'));
 

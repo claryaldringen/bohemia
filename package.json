@@ -16,10 +16,11 @@
     "typecheck": "turbo typecheck",
     "test": "turbo test",
     "test:e2e": "npm run test:e2e -w @bohemia/web",
+    "test:e2e:worker": "npm run test:e2e:worker -w @bohemia/web",
     "db:migrate": "npm run db:migrate -w @bohemia/db",
     "db:generate": "npm run db:generate -w @bohemia/db",
     "db:seed-dev": "npm run seed:dev -w @bohemia/web",
-    "test:db": "npm run test:db -w @bohemia/db"
+    "test:db": "npm run test:db -w @bohemia/db && npm run test:db -w @bohemia/server"
   },
   "devDependencies": {
     "turbo": "^2.11.8"
