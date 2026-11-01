@@ -1,6 +1,5 @@
 import { penCells } from './pens';
-import { villageOrigin } from './placement-squares';
-import { abandonedVillageAt, isVillageTravelling, villageCentre } from './departure';
+import { abandonedVillageAt, isVillageTravelling } from './departure';
 import { plotCells } from './plot-cells';
 import { gridKey, squareKey } from './square-grid';
 import { fieldGrids } from './squares';
@@ -115,14 +114,6 @@ export function neighbourSnapshot(
       .map((d) => ({ x: d.position.x, z: d.position.z, name }));
   });
   if (smithies.length > 0) snapshot.smithies = smithies;
-  // středy obývaných vsí a den založení – území vsi pro plán správce (steward.md – Mapa hodnot
-  // krajiny); vylidněná ves území nedrží
-  const villages = standing.flatMap((state) => {
-    if (state.people.length === 0 || !villageOrigin(state)) return [];
-    const centre = villageCentre(state);
-    return [{ x: centre.x, z: centre.z, foundedDay: state.foundedDay }];
-  });
-  if (villages.length > 0) snapshot.villages = villages;
   return snapshot;
 }
 

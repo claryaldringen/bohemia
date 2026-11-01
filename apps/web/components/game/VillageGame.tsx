@@ -3,8 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import {
   CRAFT_BASE,
-  NEW_VILLAGE_MIN_DISTANCE_M,
-  TOO_CLOSE_TO_VILLAGE,
   shiftWorldClock,
   suggestVillageName,
   type Direction8,
@@ -25,7 +23,6 @@ import {
   buildTrail,
   declareHunt,
   cancelConstruction,
-  foundDevVillage,
   forceDevDisaster,
   foundVillage,
   getVillageView,
@@ -68,12 +65,7 @@ import { nextPollDelayMs } from '@/lib/village-polling';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
 import { structureGridAt, type CellSquare } from '@/lib/scene/field-cells';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
-import {
-  distanceToPoints,
-  isNeighbourTarget,
-  scenePoints,
-  withNeighbourVillages,
-} from '@/lib/scene/neighbour-villages';
+import { isNeighbourTarget, withNeighbourVillages } from '@/lib/scene/neighbour-villages';
 import { wholeTarget, type VillageTarget } from '@/lib/scene/village-picking';
 import { DIRECTION_NAMES } from '@/lib/trade-names';
 import {
@@ -340,7 +332,6 @@ export function VillageGame({
   const [menuOpen, setMenuOpen] = useState(false);
   const [timeOffsetDays, setTimeOffsetDays] = useState(initialTimeOffsetDays);
   const [skipping, setSkipping] = useState<TimeSkip | null>(null);
-  const [foundingDevVillage, setFoundingDevVillage] = useState(false);
   const [forcingDisaster, setForcingDisaster] = useState(false);
   const [soundOn, setSoundOn] = useSoundPreference();
   // Hodiny hráče: svět posunutý o jeho posun času – datum, roční období i dým jako na serveru.
@@ -799,12 +790,12 @@ export function VillageGame({
   };
 
   /**
-   * Odejít do nové vsi (migration.md – fáze 3 a 4): domácnosti obydlí `householdIds`. Na téže
-   * mapě hráč nejdřív umístí první zemnici nové vsi (nejméně 300 m od staveb všech vsí mapy),
-   * pak se rozhraní přepne na novou ves; na novou mapu lidé hned vyrazí (ve vsi zůstane řádek).
+   * Odejít do nové vsi (migration.md – fáze 3 a 4): domácnosti obydlí `householdIds` nebo syn
+   * vojvody vyrazí na novou mapu ve směru `direction` (ve vsi zůstane řádek cesty). Jedna ves, jedna
+   * mapa – na téže mapě nová ves nevznikne.
    */
   const departFromVillage = (
-    target: 'here' | Direction8,
+    direction: Direction8,
     who: { dwellingIds: number[] } | { sonId: number },
   ): void => {
     const villageId = viewRef.current?.id;
@@ -812,61 +803,27 @@ export function VillageGame({
     if ('dwellingIds' in who && who.dwellingIds.length === 0) return;
     const leaving = 'sonId' in who ? 'Syn vojvody vyrazil' : 'Lidé vyrazili';
     setSelected(null);
-    if (target !== 'here') {
-      void runAction(() =>
-        leaveVillage({ villageId, ...who, destination: { kind: 'map', direction: target } }),
-      ).then((failure) => {
-        pushNotice(
-          failure === null
-            ? {
-                kind: 'households-left',
-                tone: 'info',
-                text: `${leaving} na ${DIRECTION_NAMES[target].name}`,
-              }
-            : { kind: 'error', tone: 'error', text: failure },
-        );
-      });
-      return;
-    }
-    setPlacingItem(null);
-    const mode = dwellingMode('zemnice');
-    if (mode.kind !== 'dwelling') return;
-    const firstHome: PlacementMode = {
-      kind: 'dwelling',
-      type: 'zemnice',
-      // nová ves stojí nejméně 300 m od staveb všech vsí mapy (migration.md)
-      check: (position: Position) => {
-        const far = distanceToPoints(position, scenePoints(sceneVillageRef.current));
-        if (far < NEW_VILLAGE_MIN_DISTANCE_M) return { ok: false, reason: TOO_CLOSE_TO_VILLAGE };
-        return mode.check(position);
-      },
-    };
-    placement.start(firstHome, (result) => {
-      if (result.kind !== 'dwelling') return;
-      void runAction(() =>
-        leaveVillage({
-          villageId,
-          ...who,
-          destination: { kind: 'here', dwelling: result.position },
-        }),
-      ).then((failure) => {
-        if (failure !== null) {
-          pushNotice({ kind: 'error', tone: 'error', text: failure });
-          return;
-        }
-        const founded = viewRef.current?.id;
-        if (founded) rememberVillage(founded);
-        lookAtVillage();
-      });
+    void runAction(() =>
+      leaveVillage({ villageId, ...who, destination: { kind: 'map', direction } }),
+    ).then((failure) => {
+      pushNotice(
+        failure === null
+          ? {
+              kind: 'households-left',
+              tone: 'info',
+              text: `${leaving} na ${DIRECTION_NAMES[direction].name}`,
+            }
+          : { kind: 'error', tone: 'error', text: failure },
+      );
     });
   };
 
   /** Odchod domácností obydlí `householdIds`. */
-  const leave = (target: 'here' | Direction8, householdIds: readonly number[]): void =>
-    departFromVillage(target, { dwellingIds: [...householdIds] });
+  const leave = (direction: Direction8, householdIds: readonly number[]): void =>
+    departFromVillage(direction, { dwellingIds: [...householdIds] });
   /** Odchod s poměrnou částí vsi pod vedením syna vojvody (lord.md – Dělení vsi). */
-  const leaveWithSon = (target: 'here' | Direction8, sonId: number): void =>
-    departFromVillage(target, { sonId });
+  const leaveWithSon = (direction: Direction8, sonId: number): void =>
+    departFromVillage(direction, { sonId });
 
   /** Je vybraná ohrada druhu `variant`? Pak stavba téhož druhu ohradu rozšiřuje. */
   function extendsSelectedPen(
@@ -1113,25 +1070,6 @@ export function VillageGame({
     });
   };
 
-  /** Vývojový režim: druhá ves na téže mapě – rozhraní se na ni hned přepne. */
-  const foundSecondVillage = (): void => {
-    const villageId = viewRef.current?.id;
-    if (!villageId || foundingDevVillage) return;
-    cancelPlacement();
-    setSelected(null);
-    setFoundingDevVillage(true);
-    void runAction(() => foundDevVillage({ villageId })).then((failure) => {
-      setFoundingDevVillage(false);
-      if (failure !== null) {
-        pushNotice({ kind: 'error', tone: 'error', text: failure });
-        return;
-      }
-      const founded = viewRef.current?.id;
-      if (founded) rememberVillage(founded);
-      lookAtVillage();
-    });
-  };
-
   /**
    * Vývojový režim: přeskočí čas o měsíc, nebo rok. Server posune čas hráče a vrátí ves
    * v novém dni – hodiny v liště a ve scéně se posunou s ní. Dokud se čeká, šipky čekají.
@@ -1254,11 +1192,6 @@ export function VillageGame({
         onSelectVillage={switchVillage}
         onSetSteward={toggleSteward}
         devTime={devMode ? { pending: skipping, onSkip: skipTimeBy } : null}
-        devVillage={
-          devMode && view && !view.extinct
-            ? { pending: foundingDevVillage, onFound: foundSecondVillage }
-            : null
-        }
         devDisasters={
           devMode && view && !view.extinct
             ? { pending: forcingDisaster, onForce: forceDisasterChoice }

@@ -343,47 +343,21 @@ export function planCentre(state: VillageState): { x: number; z: number } | null
 }
 
 /**
- * Území vsi – políčka (1 v masce) do `FIELD_LIMITS.maxDistanceM` od středu vsi (`planCentre`), která jsou středu
- * blíž než středům ostatních vsí mapy (`neighbours.villages` – Voroného buňka). Ves syna ve schránce
- * (`steward.departures[].dwelling`) se počítá jako ostatní. Při shodě
- * vzdálenosti vyhraje starší ves (dřívější den založení), pak menší x a z středu. Ves bez středu
- * nemá území (samé 0).
+ * Území vsi – políčka (1 v masce) do `FIELD_LIMITS.maxDistanceM` od středu vsi (`planCentre`).
+ * Jedna ves, jedna mapa (Martin 1. 11. 2026) – území nedělí jiná ves. Ves bez středu nemá území
+ * (samé 0).
  */
 export function villageTerritory(state: VillageState, landscape: Landscape): Uint8Array {
   const size = landscape.size;
   const mask = new Uint8Array(size * size);
   const centre = planCentre(state);
   if (!centre) return mask;
-  // ves syna, dokud ji schránka nevybavila (`steward.departures[].dwelling`), zabírá své území už
-  // od dne odchodu – výsledek tak nezávisí na tom, jak často se hra načítá (steward.md, S4)
-  const pending = (state.steward?.departures ?? [])
-    .filter((d) => d.dwelling !== undefined && d.villageId === undefined)
-    .map((d) => ({ x: d.dwelling!.x, z: d.dwelling!.z, foundedDay: d.id }));
-  const others = [...(state.neighbours?.villages ?? []), ...pending];
   const reach2 = FIELD_LIMITS.maxDistanceM * FIELD_LIMITS.maxDistanceM;
-  const wins = (
-    d: number,
-    o: { x: number; z: number; foundedDay: number },
-    od: number,
-  ): boolean => {
-    if (d !== od) return d < od;
-    if (state.foundedDay !== o.foundedDay) return state.foundedDay < o.foundedDay;
-    return centre.x !== o.x ? centre.x < o.x : centre.z < o.z;
-  };
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       const c = tileCenterWorld(landscape, x, y);
       const d = (c.x - centre.x) * (c.x - centre.x) + (c.z - centre.z) * (c.z - centre.z);
-      if (d > reach2) continue;
-      let mine = true;
-      for (const o of others) {
-        const od = (c.x - o.x) * (c.x - o.x) + (c.z - o.z) * (c.z - o.z);
-        if (!wins(d, o, od)) {
-          mine = false;
-          break;
-        }
-      }
-      if (mine) mask[y * size + x] = 1;
+      if (d <= reach2) mask[y * size + x] = 1;
     }
   }
   return mask;

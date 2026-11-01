@@ -20,13 +20,11 @@ import {
   stewardCrowded,
   stewardDeparture,
   stewardFieldRoom,
-  stewardHereSite,
   stewardSonDay,
 } from '../steward-son';
 import { craftCoverage } from '../crafts';
 import { averageRotationShare } from '../field-capacity';
 import type { Dwelling, FieldPart, Person, VillageState } from '../types';
-import { NEW_VILLAGE_MIN_DISTANCE_M } from '../rules';
 import { DAY, kin, trackedVillage, type KinSpec } from './kin-fixtures';
 import { makeLandscape } from './placement-fixtures';
 
@@ -145,8 +143,7 @@ describe('odchod syna (krok 2)', () => {
     expect(record).toBeDefined();
     const seed = deriveSeed(s.seed, `steward-son:${AUG31}`);
     expect(record).toMatchObject({ id: AUG31, sonId: 30, seed, name: suggestVillageName(seed) });
-    // tady by budoucí území nic neuživilo – nová mapa; směry všech osm, první bez stezky nejkratší
-    expect(record?.dwelling).toBeUndefined();
+    // jedna ves, jedna mapa – směry všech osm, první bez stezky nejkratší
     expect(record?.directions).toHaveLength(8);
     expect(record?.settlers?.lordId).toBe(30);
     expect(record?.settlers?.stewarded).toBe(true);
@@ -248,16 +245,13 @@ describe('odchod syna (krok 2)', () => {
     expect(departingSon(s, AUG31)?.id).toBe(40);
   });
 
-  it('tady – místo nejméně 300 m od staveb vsi, jen když budoucí území uživí 2× díl', () => {
-    const s = lordVillage();
-    const coverage = craftCoverage(s, AUG31);
-    const site = stewardHereSite(s, AUG31, fertile, fertileObstacles, 6, coverage);
-    expect(site).not.toBeNull();
-    for (const d of s.dwellings) {
-      const dist = Math.sqrt((d.position.x - site!.x) ** 2 + (d.position.z - site!.z) ** 2);
-      expect(dist).toBeGreaterThanOrEqual(NEW_VILLAGE_MIN_DISTANCE_M);
-    }
-    expect(stewardHereSite(s, AUG31, barren, barrenObstacles, 6, coverage)).toBeNull();
+  it('jedna ves, jedna mapa – syn jde vždy na novou mapu, i s úrodnou mapou kolem', () => {
+    const s = withFields(lordVillage());
+    s.steward!.hungerPeak = STEWARD.departureHungerDays;
+    expect(stewardDeparture(s, AUG31, fertile, fertileObstacles)).toBe(true);
+    const [record] = s.steward?.departures ?? [];
+    expect(record && 'dwelling' in record).toBe(false);
+    expect(record?.directions).toHaveLength(8);
   });
 
   it('v simulaci nejvýš jeden odchod za rok a výsledek nezávisí na kouscích dopočtu', () => {
@@ -389,23 +383,12 @@ describe('úklid značek správce (S2)', () => {
   });
 });
 
-describe('území budoucí vsi syna (S4)', () => {
-  it('záznam schránky s místem zabírá území jako ves sousedů', () => {
+describe('území vsi (jedna ves, jedna mapa)', () => {
+  it('záznam schránky území vsi nezmenší – syn jde na novou mapu', () => {
     const s = lordVillage();
     const before = villageTerritory(s, fertile).reduce((a, b) => a + b, 0);
-    s.steward!.departures = [
-      {
-        id: AUG31,
-        sonId: 30,
-        seed: 1,
-        name: 'Lhota',
-        dwelling: { x: 60, z: 0, rotation: 0 },
-        directions: [],
-      },
-    ];
-    const after = villageTerritory(s, fertile).reduce((a, b) => a + b, 0);
-    expect(after).toBeLessThan(before);
-    s.steward!.departures![0]!.villageId = 'ves-2';
+    expect(before).toBeGreaterThan(0);
+    s.steward!.departures = [{ id: AUG31, sonId: 30, seed: 1, name: 'Lhota', directions: [] }];
     expect(villageTerritory(s, fertile).reduce((a, b) => a + b, 0)).toBe(before);
   });
 });

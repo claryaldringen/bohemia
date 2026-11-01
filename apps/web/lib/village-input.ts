@@ -408,13 +408,12 @@ export type LeaveVillageInput =
   | { dwellingIds: number[]; destination: LeaveDestination }
   | { sonId: number; destination: LeaveDestination };
 
-/** Cíl odchodu `{ kind: 'here', dwelling }` nebo `{ kind: 'map', direction }`; jinak null. */
+/**
+ * Cíl odchodu `{ kind: 'map', direction }`; jinak null – i dřívější `{ kind: 'here' }` (jedna ves,
+ * jedna mapa – migration.md).
+ */
 function parseLeaveDestination(destination: unknown): LeaveDestination | null {
   if (!isRecord(destination)) return null;
-  if (destination.kind === 'here') {
-    const dwelling = parsePosition(destination.dwelling);
-    return dwelling ? { kind: 'here', dwelling } : null;
-  }
   if (destination.kind === 'map') {
     const direction = parseDirection(destination.direction);
     return direction ? { kind: 'map', direction } : null;
@@ -425,7 +424,6 @@ function parseLeaveDestination(destination: unknown): LeaveDestination | null {
 /**
  * Vstup odchodu do nové vsi (migration.md) `{ dwellingIds, destination }`, nebo odchodu syna
  * vojvody s poměrnou částí vsi (lord.md – Dělení vsi) `{ sonId, destination }` – `destination` je
- * `{ kind: 'here', dwelling: { x, z, rotation } }` (první zemnice na téže mapě), nebo
  * `{ kind: 'map', direction }` (nová mapa ve směru); jinak null.
  */
 export function parseLeaveVillageInput(value: unknown): LeaveVillageInput | null {

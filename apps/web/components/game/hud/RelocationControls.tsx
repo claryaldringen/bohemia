@@ -106,13 +106,16 @@ export function RelocateButtons({
   );
 }
 
-/** Rozložení růžice odchodu (3 × 3): uprostřed „na téže mapě“, kolem 8 směrů nové mapy. */
-const LEAVE_COMPASS: readonly ('here' | Direction8)[] = [
+/**
+ * Rozložení růžice odchodu (3 × 3): kolem 8 směrů nové mapy, uprostřed nic (null) – jedna ves,
+ * jedna mapa, na téže mapě se nová ves nezakládá.
+ */
+const LEAVE_COMPASS: readonly (Direction8 | null)[] = [
   'NW',
   'N',
   'NE',
   'W',
-  'here',
+  null,
   'E',
   'SW',
   'S',
@@ -125,12 +128,9 @@ function LeaveTooltip({
   target,
 }: {
   leave: SelectionLeave;
-  target: 'here' | LeaveDirection;
+  target: LeaveDirection;
 }): ReactElement {
-  const title =
-    target === 'here'
-      ? 'Odejít – nová ves na téže mapě'
-      : `Odejít na ${DIRECTION_NAMES[target.direction].name} – nová mapa`;
+  const title = `Odejít na ${DIRECTION_NAMES[target.direction].name} – nová mapa`;
   return (
     <span className="block">
       <span className="font-serif text-sm font-semibold text-[#f3dfb0]">{title}</span>
@@ -163,14 +163,12 @@ function LeaveTooltip({
             <img src="/icons/resources/horse.png" alt="Kůň s sebou" width={16} height={16} />
           </span>
         )}
-        {target !== 'here' && (
-          <span className="flex items-center gap-1">
-            <img src="/icons/resources/date.png" alt="Dny cesty" width={16} height={16} />
-            {target.days} {plural(target.days, 'den', 'dny', 'dní')}
-          </span>
-        )}
+        <span className="flex items-center gap-1">
+          <img src="/icons/resources/date.png" alt="Dny cesty" width={16} height={16} />
+          {target.days} {plural(target.days, 'den', 'dny', 'dní')}
+        </span>
       </span>
-      {target !== 'here' && target.blocked && (
+      {target.blocked && (
         <span data-testid="leave-blocked" className="mt-0.5 block font-semibold text-red-400">
           {target.blocked}
         </span>
@@ -180,16 +178,15 @@ function LeaveTooltip({
 }
 
 /**
- * Růžice odchodu (migration.md – fáze 3 a 4): uprostřed nová ves na téže mapě (hráč pak umístí
- * první zemnici), kolem šipky na novou mapu ve směru – tam, kde leží vlastní ves, zašedlé
- * s důvodem.
+ * Růžice odchodu (migration.md – fáze 3 a 4): šipky na novou mapu ve směru – tam, kde leží vlastní
+ * ves, zašedlé s důvodem. Jedna ves, jedna mapa – na téže mapě se neodchází.
  */
 export function LeaveCompass({
   leave,
   onLeave,
 }: {
   leave: SelectionLeave;
-  onLeave?: (target: 'here' | Direction8, households: readonly number[]) => void;
+  onLeave?: (direction: Direction8, households: readonly number[]) => void;
 }): ReactElement {
   return (
     <div
@@ -199,33 +196,7 @@ export function LeaveCompass({
       className="grid grid-cols-3 gap-1"
     >
       {LEAVE_COMPASS.map((target) => {
-        if (target === 'here') {
-          return (
-            <Tooltip
-              key={target}
-              placement="above"
-              content={<LeaveTooltip leave={leave} target="here" />}
-            >
-              <button
-                type="button"
-                data-testid="leave-here"
-                aria-label="Odejít – nová ves na téže mapě"
-                disabled={!onLeave}
-                onClick={() => onLeave?.('here', leave.households)}
-                className="hud-icon-button h-9 w-9"
-              >
-                <img
-                  src="/icons/build/zemnice.png"
-                  alt=""
-                  width={128}
-                  height={128}
-                  draggable={false}
-                  className="h-full w-full object-cover"
-                />
-              </button>
-            </Tooltip>
-          );
-        }
+        if (target === null) return <span key="centre" />;
         const option = leave.directions.find((d) => d.direction === target);
         if (!option) return <span key={target} />;
         const { arrow, name } = DIRECTION_NAMES[target];
@@ -262,7 +233,7 @@ export function LeaveControls({
   onLeave,
 }: {
   leave: SelectionLeave | null;
-  onLeave?: (target: 'here' | Direction8, households: readonly number[]) => void;
+  onLeave?: (direction: Direction8, households: readonly number[]) => void;
 }): ReactElement {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);

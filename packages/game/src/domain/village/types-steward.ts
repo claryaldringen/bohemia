@@ -1,6 +1,5 @@
 // Stav správce vsi (steward.md – Stav správce). Vetá (soužití s hráčem) a odchozí schránka odchodu synů – `StewardDeparture`.
 import type { Settlers } from './departure';
-import type { Position } from './types-people';
 import type { Direction8 } from './types-state';
 
 /** Šablona rozvrhu vsi (steward.md – Plán sídla): shluk, řadová ves, samoty v polnostech. */
@@ -97,8 +96,6 @@ export interface StewardDeparture {
   seed: number;
   /** Jméno nové vsi (`suggestVillageName(seed)`). */
   name: string;
-  /** Tady: poloha první zemnice na téže mapě. Chybí – nová mapa. */
-  dwelling?: Position;
   /**
    * Směry na novou mapu v pořadí, jak je správce zkouší (napřed hotová stezka, pak nejkratší cesta
    * ke kraji, při shodě pevné pořadí) – use-case vezme první, kde není vlastní ves.

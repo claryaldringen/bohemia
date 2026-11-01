@@ -64,7 +64,7 @@ async function player(ownerId: string, states: VillageState[]): Promise<string[]
       i === 0
         ? await settlements.createSeat(place)
         : await settlements.create({ ...place, worldCell: { x: i, y: 0 } });
-    await villages.add(settlement!.id, `Ves ${i}`, s);
+    await villages.create(settlement!.id, `Ves ${i}`, s);
     ids.push(settlement!.id);
   }
   return ids;

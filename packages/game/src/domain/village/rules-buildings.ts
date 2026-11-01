@@ -148,10 +148,6 @@ export const HUMNO = {
   maxHeightDiffM: 1,
 } as const;
 
-// migration.md – Odchod do nové vsi (návrh Clauda): první zemnice nové vsi na téže mapě stojí
-// nejméně 300 m od staveb jiných vsí.
-export const NEW_VILLAGE_MIN_DISTANCE_M = 300;
-
 // abandonment.md – Chátrání (Martin 18. 10. 2026: „stavby, kam nikdo nechodí, budou postupně
 // chátrat a rozpadnou se“; čísla návrh Clauda podle rešerše research/2026-10-18-abandonment.md):
 // opuštěná stavba spadne za `fallYears` let od plného stavu – modla (dubový kůl Ø 0,5 m v zemi)

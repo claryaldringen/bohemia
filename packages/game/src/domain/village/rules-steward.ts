@@ -221,12 +221,6 @@ export const STEWARD = {
    * kg čisté úrody na člověkoden aspoň 1,5 × denní potřeba obilí dospělého (`FOOD_NEED_KG_PER_YEAR`).
    */
   minKgPerManDay: (1.5 * FOOD_NEED_KG_PER_YEAR.adult) / 365,
-  /** Jména synů a odchod syna – Tady: budoucí území místa uživí aspoň tolikrát lidí dílu. */
-  hereCapacity: 2,
-  /** Tady – upřesnění: kandidáti místa nové vsi jen na každém tolikátém políčku (v obou osách). */
-  hereStrideTiles: 4,
-  /** Tady – upřesnění: nejvýš tolik nejlepších kandidátů podle hodnoty domu se ověří. */
-  hereTries: 12,
   /** Odchozí schránka: kolikrát se nevybavitelný záznam zkusí vybavit, pak se nechá být. */
   departureAttempts: 5,
 } as const;

@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { obstaclesOf, tileCenterWorld } from '../../landscape';
 import { foundVillage } from '../actions';
-import { neighbourSnapshot, withNeighbours } from '../neighbourhood';
 import { STEWARD } from '../rules-steward';
 import {
   dwellingSiteValue,
@@ -103,24 +102,12 @@ describe('území vsi', () => {
     rotation: 0,
   });
   const mine = foundVillage({ seed: 1, day: DAY, dwellingPosition: position(30, 20) });
-  const other = foundVillage({ seed: 2, day: DAY + 10, dwellingPosition: position(30, 40) });
 
-  it('sama ves má vše do 800 m, se sousedem jen svou Voroného buňku', () => {
+  it('ves má vše do 800 m od středu – jedna ves, jedna mapa, území nedělí', () => {
     const alone = villageTerritory(mine, land);
     expect(alone[at(30, 45)]).toBe(1);
-    const shared = withNeighbours(mine, neighbourSnapshot([other], DAY + 10));
-    expect(shared.neighbours?.villages).toEqual([
-      { ...tileCenterWorld(land, 30, 40), foundedDay: DAY + 10 },
-    ]);
-    const territory = villageTerritory(shared, land);
-    expect(territory[at(30, 25)]).toBe(1);
-    expect(territory[at(30, 35)]).toBe(0);
-    // na půli cesty vyhraje starší ves
-    expect(territory[at(30, 30)]).toBe(1);
-    const theirs = villageTerritory(
-      withNeighbours(other, neighbourSnapshot([mine], DAY + 10)),
-      land,
-    );
-    expect(theirs[at(30, 30)]).toBe(0);
+    expect(alone[at(30, 30)]).toBe(1);
+    // vzdálenější políčko než 800 m od středu (15 m políčko × 55) k území nepatří
+    expect(alone[at(30, 20 + 55)] ?? 0).toBe(0);
   });
 });

@@ -803,9 +803,9 @@ describe('SelectionPanel – odchod do nové vsi', () => {
     expect(html).not.toContain('data-testid="leave-compass"');
   });
 
-  it('růžice: na téže mapě a na novou mapu, tam, kde leží vlastní ves, zašedlé s důvodem', () => {
+  it('růžice: jen na novou mapu (jedna ves, jedna mapa), tam, kde leží vlastní ves, zašedlé s důvodem', () => {
     const html = renderToStaticMarkup(<LeaveCompass leave={leave} onLeave={() => undefined} />);
-    expect(button(html, 'leave-here')).not.toContain(' disabled=""');
+    expect(html).not.toContain('data-testid="leave-here"');
     expect(button(html, 'leave-N')).not.toContain(' disabled=""');
     expect(button(html, 'leave-E')).toContain(' disabled=""');
     expect(html).toContain('Tím směrem leží tvoje ves Budeč.');

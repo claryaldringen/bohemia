@@ -11,36 +11,29 @@ import { flushWear } from './paths/wear';
 import { settlersOf, edgeDistanceM, travelDays, villageCentre } from './departure';
 import { currentLord, wivesOf } from './dynasty';
 import { generatedLineName } from './dynasty-names';
-import { averageRotationShare, fieldCapacity } from './field-capacity';
+import { fieldCapacity } from './field-capacity';
 import { foundedState } from './founding';
 import { suggestVillageName } from './names';
-import { checkDwellingPlacement } from './placement-dwellings';
 import { FIELD_LIMITS } from './rules-fields';
 import { STEWARD } from './rules-steward';
 import { departWithSon, leadingSons, sonShare } from './son-departure';
-import { squareCenter } from './square-grid';
-import {
-  dwellingSiteValue,
-  fieldCellValue,
-  fieldCells,
-  landValues,
-  planCentre,
-  takenTiles,
-  villageTerritory,
-} from './steward-land';
+import { fieldCellValue, fieldCells, takenTiles, villageTerritory } from './steward-land';
 import { isStewardOn, pruneStewardBuilt } from './steward-state';
 import { DIRECTIONS, builtTrail } from './trail';
 import type {
   CraftCoverage,
-  FieldPart,
   Person,
-  Position,
   StewardDeparture,
   StewardDirection,
   VillageState,
 } from './types';
-import { freeVillageSite, villagePoints, type VillagePoint } from './villages-apart';
-import { NEW_VILLAGE_MIN_DISTANCE_M } from './rules';
+import { freeVillageSite } from './village-site';
+
+/** Bod ve světě (m). */
+interface Point {
+  x: number;
+  z: number;
+}
 
 /**
  * Kroky 1 a 2 dne správce (mutuje stav): jména synů v každý den správce, odchod syna v den
@@ -114,8 +107,8 @@ export function stewardCrowded(state: VillageState, day: number, coverage: Craft
 }
 
 /** Polohy obydlí a stavenišť vsi (m) – od nich se měří dosah pole. */
-function housePoints(state: VillageState): VillagePoint[] {
-  const points: VillagePoint[] = state.dwellings.map((d) => ({ x: d.position.x, z: d.position.z }));
+function housePoints(state: VillageState): Point[] {
+  const points: Point[] = state.dwellings.map((d) => ({ x: d.position.x, z: d.position.z }));
   for (const c of state.constructions) {
     if (c.kind === 'dwelling' && c.position) points.push({ x: c.position.x, z: c.position.z });
   }
@@ -123,15 +116,14 @@ function housePoints(state: VillageState): VillagePoint[] {
 }
 
 /** Vzdálenost (m) bodu k nejbližšímu z `points` (bez bodů nekonečno). */
-function nearestM(x: number, z: number, points: readonly VillagePoint[]): number {
+function nearestM(x: number, z: number, points: readonly Point[]): number {
   let best = Number.POSITIVE_INFINITY;
   for (const p of points) best = Math.min(best, (p.x - x) * (p.x - x) + (p.z - z) * (p.z - z));
   return Math.sqrt(best);
 }
 
 /**
- * Je kam pole rozšířit (krok 2, Kdy není kam)? Na území vsi (`villageTerritory` – ne na území jiné
- * vsi) zbývá volné políčko (`takenTiles`) s úrodou, nejdál `FIELD_LIMITS.maxDistanceM` od
+ * Je kam pole rozšířit (krok 2, Kdy není kam)? Na území vsi (`villageTerritory`) zbývá volné políčko (`takenTiles`) s úrodou, nejdál `FIELD_LIMITS.maxDistanceM` od
  * nejbližšího obydlí, jehož hodnota (`fieldCellValue` – kg čisté úrody na člověkoden založení
  * a polní práce, se záplavami, zvěří a počasím) je aspoň `STEWARD.minKgPerManDay`. Louka i les
  * (klučení) – napřed nová pole, až když není kam, odchod.
@@ -171,134 +163,6 @@ export function departingSon(state: VillageState, day: number): Person | null {
   return able.find((son) => wivesOf(state, son).length > 0) ?? able[0] ?? null;
 }
 
-/** Body staveb všech vsí mapy (m): vlastní a ze snímku sousedů (`state.neighbours`). */
-function mapPoints(state: VillageState, landscape: Landscape): VillagePoint[] {
-  const points = villagePoints(state, (x, y, grid) => squareCenter(landscape, grid, { x, y }));
-  const n = state.neighbours;
-  if (!n) return points;
-  for (const d of n.dwellings) points.push({ x: d.position.x, z: d.position.z });
-  for (const b of n.sacredBuildings) points.push({ x: b.position.x, z: b.position.z });
-  for (const f of n.threshingFloors ?? []) points.push({ x: f.position.x, z: f.position.z });
-  for (const c of n.cells) points.push(tileCenterWorld(landscape, c.x, c.y));
-  for (const s of n.squares ?? []) points.push(squareCenter(landscape, s.grid, s.cell));
-  return points;
-}
-
-/**
- * Kolik lidí uživí budoucí území místa `site` (steward.md – Tady): volná políčka s úrodou nejdál
- * `FIELD_LIMITS.maxDistanceM` od místa, blíž jemu než středu kterékoli vsi mapy (`centres`),
- * s hodnotou aspoň `STEWARD.minKgPerManDay` – jako jedno pole v ustáleném oběhu (`fieldCapacity`
- * s lidmi mateřské vsi – stejná potřeba na člověka).
- */
-function siteCapacity(
-  state: VillageState,
-  day: number,
-  landscape: Landscape,
-  obstacles: ObstacleLayer,
-  site: VillagePoint,
-  centres: readonly VillagePoint[],
-  taken: Uint8Array,
-  coverage: CraftCoverage,
-): number {
-  const cells = fieldCells(landscape, obstacles);
-  const size = landscape.size;
-  const reach = FIELD_LIMITS.maxDistanceM;
-  const reachTiles = Math.ceil(reach / landscape.cellSizeM);
-  const half = (size * landscape.cellSizeM) / 2;
-  const sx = Math.floor((site.x + half) / landscape.cellSizeM);
-  const sy = Math.floor((site.z + half) / landscape.cellSizeM);
-  let count = 0;
-  let fertility = 0;
-  for (let y = Math.max(0, sy - reachTiles); y <= Math.min(size - 1, sy + reachTiles); y++) {
-    for (let x = Math.max(0, sx - reachTiles); x <= Math.min(size - 1, sx + reachTiles); x++) {
-      const t = y * size + x;
-      if (taken[t] || !(cells.kg[t]! > 0)) continue;
-      const c = tileCenterWorld(landscape, x, y);
-      const own = (c.x - site.x) * (c.x - site.x) + (c.z - site.z) * (c.z - site.z);
-      if (own > reach * reach) continue;
-      if (centres.some((o) => (c.x - o.x) * (c.x - o.x) + (c.z - o.z) * (c.z - o.z) <= own)) {
-        continue;
-      }
-      if (fieldCellValue(cells, t, Math.sqrt(own)) < STEWARD.minKgPerManDay) continue;
-      count++;
-      fertility += landscape.fertility[t]!;
-    }
-  }
-  if (count === 0) return 0;
-  const part: FieldPart = {
-    id: -1,
-    fieldId: -1,
-    areaM2: count * landscape.cellSizeM * landscape.cellSizeM,
-    distanceM: 0,
-    naturalFertility: fertility / count,
-    fertilityShare: averageRotationShare(),
-    bonusUntilDay: null,
-    state: 'fallow',
-    sownYears: 0,
-    fallowSinceDay: null,
-    foundingCost: 0,
-    foundingDone: 0,
-    surface: 'meadow',
-  };
-  const capacity = fieldCapacity(
-    { parts: [part], people: state.people, fieldFood: state.fieldFood },
-    day,
-    coverage.pottery,
-  );
-  return capacity?.people ?? 0;
-}
-
-/**
- * Místo první zemnice nové vsi na téže mapě (steward.md – Tady; návrh Clauda – upřesnění):
- * kandidáti na každém `STEWARD.hereStrideTiles`. políčku, nejméně `NEW_VILLAGE_MIN_DISTANCE_M` od
- * staveb všech vsí mapy, seřazení podle hodnoty domu (`dwellingSiteValue` – nižší cena je lepší,
- * při shodě index); prvních `STEWARD.hereTries` se ověří – první, jehož budoucí území uživí aspoň
- * `STEWARD.hereCapacity` × `people` lidí a kde zemnice projde kontrolou místa (les se nekluče).
- * Žádné – null (nová mapa).
- */
-export function stewardHereSite(
-  state: VillageState,
-  day: number,
-  landscape: Landscape,
-  obstacles: ObstacleLayer,
-  people: number,
-  coverage: CraftCoverage,
-): Position | null {
-  const size = landscape.size;
-  const points = mapPoints(state, landscape);
-  const min2 = NEW_VILLAGE_MIN_DISTANCE_M * NEW_VILLAGE_MIN_DISTANCE_M;
-  const values = landValues(landscape);
-  const candidates: { tile: number; value: number }[] = [];
-  const stride = STEWARD.hereStrideTiles;
-  for (let y = 1; y < size - 1; y += stride) {
-    for (let x = 1; x < size - 1; x += stride) {
-      const tile = y * size + x;
-      const value = dwellingSiteValue(landscape, values, tile, people);
-      if (value === null) continue;
-      const c = tileCenterWorld(landscape, x, y);
-      if (points.some((p) => (p.x - c.x) * (p.x - c.x) + (p.z - c.z) * (p.z - c.z) < min2)) {
-        continue;
-      }
-      candidates.push({ tile, value });
-    }
-  }
-  candidates.sort((a, b) => a.value - b.value || a.tile - b.tile);
-  const own = planCentre(state);
-  const centres = [...(own ? [own] : []), ...(state.neighbours?.villages ?? [])];
-  const taken = takenTiles(state, day, landscape);
-  for (const { tile } of candidates.slice(0, STEWARD.hereTries)) {
-    const c = tileCenterWorld(landscape, tile % size, Math.floor(tile / size));
-    const fed = siteCapacity(state, day, landscape, obstacles, c, centres, taken, coverage);
-    if (fed < STEWARD.hereCapacity * people) continue;
-    const position: Position = { x: c.x, z: c.z, rotation: 0 };
-    const check = checkDwellingPlacement(landscape, null, 'zemnice', position, obstacles, {
-      clearForest: false,
-    });
-    if (check.ok) return position;
-  }
-  return null;
-}
-
 /**
  * Směry na novou mapu (steward.md – Kam): napřed s hotovou zemskou stezkou (cesta 1 den), pak
  * nejkratší cesta ke kraji mapy (`edgeDistanceM`), při shodě pevné pořadí `DIRECTIONS`. Vlastní
@@ -335,8 +199,8 @@ function isDepartureDate(day: number): boolean {
  * (`steward.lastYearHunger` – pole navíc rok nepomohla) –, a se synem, který smí vést
  * (`departingSon`): syn odejde s dílem
  * vsi (`departWithSon`) a osadníci jdou do odchozí schránky `steward.departures` se seedem
- * (`deriveSeed(seed vsi, 'steward-son:' + den)`), jménem (`suggestVillageName`) a cílem: místo na
- * téže mapě (`stewardHereSite`), jinak směry na novou mapu. Jen jednou za rok (jeden den v roce).
+ * (`deriveSeed(seed vsi, 'steward-son:' + den)`), jménem (`suggestVillageName`) a směry na novou
+ * mapu – jedna ves, jedna mapa (Martin 1. 11. 2026). Jen jednou za rok (jeden den v roce).
  * Vrací, zda syn odešel.
  */
 export function stewardDeparture(
@@ -362,10 +226,8 @@ export function stewardDeparture(
   if (!share) return false;
   const seed = deriveSeed(state.seed, `steward-son:${day}`);
   const name = suggestVillageName(seed);
-  const people = share.personIds.length;
-  const dwelling = stewardHereSite(state, day, landscape, obstacles, people, coverage);
   const directions = stewardDirections(state, landscape);
-  const direction = dwelling ? undefined : directions[0]?.direction;
+  const direction = directions[0]?.direction;
   // odchod stav klonuje – vyšlapanost cest napřed do stavu (jako `startStewardBuild`); akce běží
   // na vsi dopočítané do dneška (`lastDay` uprostřed dopočtu drží den jeho začátku)
   if (state.roads?.wear) flushWear(state.roads.wear);
@@ -381,7 +243,6 @@ export function stewardDeparture(
     sonId: son.id,
     seed,
     name,
-    ...(dwelling ? { dwelling } : {}),
     directions,
     settlers: departed.settlers,
   };
@@ -468,7 +329,7 @@ export function stewardArrival(
   if (!journey || !isStewardOn(state) || !landscape || !obstacles) return null;
   const day = Math.max(journey.arrivalDay, state.lastDay);
   if (day > toDay) return null;
-  const dwelling = freeVillageSite(landscape, [], obstacles);
+  const dwelling = freeVillageSite(landscape, obstacles);
   if (!dwelling) return null;
   const founded = foundedState(
     state.seed,

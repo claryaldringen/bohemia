@@ -42,17 +42,15 @@ export function lagsBehindWorker(
 }
 
 /**
- * Web dopočte ves do dneška, když je zobrazená, leží na téže mapě (sídle) jako zobrazená – kontrola
- * umístění při akci a nabídka panelu musí vidět sousedy aktuální – nebo zaostává za workerem.
+ * Web dopočte ves do dneška, když je zobrazená, nebo zaostává za workerem (`lagsBehindWorker`).
+ * Jedna ves, jedna mapa (Martin 1. 11. 2026) – sousedy na téže mapě dopočítávat netřeba.
  */
 export function mustAdvanceNow(
-  stamp: Pick<VillageStamp, 'id' | 'settlementId' | 'lastDay' | 'asleep'>,
-  shown: Pick<VillageStamp, 'id' | 'settlementId'> | undefined,
+  stamp: Pick<VillageStamp, 'id' | 'lastDay' | 'asleep'>,
+  shown: Pick<VillageStamp, 'id'> | undefined,
   today: number,
 ): boolean {
-  if (stamp.id === shown?.id) return true;
-  if (stamp.asleep) return false;
-  return stamp.settlementId === shown?.settlementId || stamp.lastDay < today - WORKER_LAG_DAYS;
+  return stamp.id === shown?.id || lagsBehindWorker(stamp, today);
 }
 
 export interface DynastyForVillageInput extends DynastyInput {
@@ -153,9 +151,9 @@ function asView(status: {
 
 /**
  * Vsi aktivních sídel hráče v pořadí jako `dynastyStatus` (sídelní první, pak podle založení):
- * zobrazená a zaostalé dopočtené do dneška (`loadVillage` – uloží se), ostatní vsi téže mapy
- * uložené celé (`find` – přes paměť vsí serveru; sousedé na mapě), vsi jiných map jen souhrnem.
- * Bez zobrazené vsi mezi vsemi hráče se vrátí všechny celé (dřívější chování).
+ * zobrazená a zaostalé dopočtené do dneška (`loadVillage` – uloží se), ostatní jen souhrnem (bez
+ * souhrnu celé – `find`). Bez zobrazené vsi mezi vsemi hráče se vrátí všechny celé (dřívější
+ * chování).
  */
 async function collect(deps: DynastyDeps, input: DynastyForVillageInput): Promise<Collected> {
   const settlements = await deps.settlements.listActive(input.playerId);
@@ -163,9 +161,7 @@ async function collect(deps: DynastyDeps, input: DynastyForVillageInput): Promis
   const stamps = await deps.villages.stampsOf(settlements.map((s) => s.id));
   const shown = stamps.find((v) => v.id === input.villageId);
   const brief = (stamp: VillageStamp): boolean =>
-    shown !== undefined &&
-    stamp.settlementId !== shown.settlementId &&
-    !mustAdvanceNow(stamp, shown, input.today);
+    shown !== undefined && !mustAdvanceNow(stamp, shown, input.today);
   const briefIds = stamps.filter(brief).map((s) => s.id);
   const digests = new Map(
     (briefIds.length > 0 ? await deps.villages.digestsOf(briefIds) : []).map((d) => [d.id, d]),

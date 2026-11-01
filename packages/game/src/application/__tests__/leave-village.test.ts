@@ -2,21 +2,26 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../domain/calendar';
 import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
 import {
-  FOREIGN_LAND,
   SUCCESSOR_STAYS,
   isVillageTravelling,
   type Person,
   type Position,
   type VillageState,
 } from '../../domain/village';
-import { block, makeLandscape } from '../../domain/village/__tests__/placement-fixtures';
+import { makeLandscape } from '../../domain/village/__tests__/placement-fixtures';
 import { withBuiltFirstDwelling } from '../../domain/village/__tests__/village-fixtures';
-import { foundVillageForSettlement, TOO_CLOSE_TO_VILLAGE } from '../found-village';
-import { NOT_ARRIVED, OWN_MAP_THERE, leaveVillage, settleJourney } from '../leave-village';
+import { foundVillageForSettlement } from '../found-village';
+import {
+  LEAVE_ONLY_TO_NEW_MAP,
+  NOT_ARRIVED,
+  OWN_MAP_THERE,
+  leaveVillage,
+  settleJourney,
+  type LeaveDestination,
+} from '../leave-village';
 import { loadVillage } from '../load-village';
 import { setSteward } from '../set-steward';
 import { placeDwelling } from '../place-dwelling';
-import { placeField } from '../place-field';
 import { dynastyStatus } from '../restart-game';
 import type { LandscapeSource, SeedSource } from '../settlements';
 import { VILLAGE_ABANDONED, VILLAGE_TRAVELLING } from '../update-village';
@@ -104,87 +109,43 @@ async function player(): Promise<{
   };
 }
 
-describe('leaveVillage – na téže mapě', () => {
-  it('domácnost založí druhou ves daleko od staré – s jídlem a dílem stád', async () => {
-    const { deps, settlementId, villageId, sonHome } = await player();
-    const result = await leaveVillage(deps, {
-      playerId: PLAYER,
-      villageId,
-      today: TODAY + 1,
-      dwellingIds: [sonHome],
-      destination: { kind: 'here', dwelling: at(200, 200) },
-    });
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.settlement.id).toBe(settlementId);
-    expect(result.to.settlementId).toBe(settlementId);
-    expect(result.to.state.people).toHaveLength(2);
-    expect(result.to.state.constructions[0]).toMatchObject({ dwellingType: 'zemnice' });
-    expect(result.to.state.constructions[0]!.position).toEqual(at(200, 200));
-    expect(result.to.state.storesKg).toBeGreaterThan(0);
-    // zůstalo 5 zakladatelů rodu
-    expect(result.from.state.people).toHaveLength(5);
-    expect(result.from.state.chronicle.at(-1)).toMatchObject({
-      kind: 'households-left',
-      people: 2,
-    });
-    const status = await dynastyStatus(deps, { playerId: PLAYER, today: TODAY + 2 });
-    expect(status.villages).toHaveLength(2);
-  });
-
-  it('příliš blízko staré vsi nebo z prázdného domu odmítne a nic nezmění', async () => {
+describe('leaveVillage – jedna ves, jedna mapa', () => {
+  it('cíl na téže mapě (dřívější `here`) server odmítne a nic nezmění', async () => {
     const { deps, villageId, sonHome } = await player();
-    const near = await leaveVillage(deps, {
+    const here = await leaveVillage(deps, {
       playerId: PLAYER,
       villageId,
       today: TODAY + 1,
       dwellingIds: [sonHome],
-      destination: { kind: 'here', dwelling: at(-100, -100) },
+      destination: { kind: 'here', dwelling: at(200, 200) } as unknown as LeaveDestination,
     });
-    expect(near).toEqual({ ok: false, reason: TOO_CLOSE_TO_VILLAGE });
+    expect(here).toEqual({ ok: false, reason: LEAVE_ONLY_TO_NEW_MAP });
     const empty = await leaveVillage(deps, {
       playerId: PLAYER,
       villageId,
       today: TODAY + 1,
       dwellingIds: [12345],
-      destination: { kind: 'here', dwelling: at(200, 200) },
+      destination: { kind: 'map', direction: 'E' },
     });
     expect(empty.ok).toBe(false);
     expect(deps.villages.records.size).toBe(1);
     expect((await deps.villages.find(villageId))!.state.people).toHaveLength(7);
   });
 
-  it('stará ves zná novou: pole přes její staveniště nejde', async () => {
-    const { deps, villageId, sonHome } = await player();
-    const left = await leaveVillage(deps, {
-      playerId: PLAYER,
-      villageId,
-      today: TODAY + 1,
-      dwellingIds: [sonHome],
-      destination: { kind: 'here', dwelling: at(200, 200) },
-    });
-    if (!left.ok) throw new Error(left.reason);
-    // políčka 36–38 × 37–38 = svět 180–225 × 195–225 m – přes první zemnici nové vsi
-    const result = await placeField(deps, {
-      villageId,
-      landscape,
-      today: TODAY + 2,
-      cells: block(36, 37, 3, 2),
-    });
-    expect(result).toEqual({ ok: false, reason: FOREIGN_LAND });
-  });
-
-  it('odejdou-li všichni, stará ves je opuštěná a akce v ní nejdou', async () => {
-    const { deps, villageId, sonHome } = await player();
+  it('odejdou-li všichni, stará ves je opuštěná a akce v ní nejdou; každé sídlo má jednu ves', async () => {
+    const { deps, settlementId, villageId, sonHome } = await player();
     const left = await leaveVillage(deps, {
       playerId: PLAYER,
       villageId,
       today: TODAY + 1,
       dwellingIds: [1, sonHome],
-      destination: { kind: 'here', dwelling: at(200, 200) },
+      destination: { kind: 'map', direction: 'E' },
     });
     if (!left.ok) throw new Error(left.reason);
     expect(left.from.state.abandonedDay).toBe(TODAY + 1);
+    expect(left.to.settlementId).not.toBe(settlementId);
+    expect(await deps.villages.listBySettlement(settlementId)).toHaveLength(1);
+    expect(await deps.villages.listBySettlement(left.to.settlementId)).toHaveLength(1);
     const result = await placeDwelling(deps, {
       villageId,
       landscape,
@@ -334,11 +295,13 @@ describe('leaveVillage – syn vojvody s poměrnou částí vsi', () => {
       villageId,
       today: TODAY + 1,
       sonId,
-      destination: { kind: 'here', dwelling: at(200, 200) },
+      destination: { kind: 'map', direction: 'E' },
     });
     if (!result.ok) throw new Error(result.reason);
+    expect(result.to.settlementId).not.toBe(result.from.settlementId);
     expect(result.to.state.people.map((p) => p.id)).toContain(sonId);
-    expect(result.to.state.dynasty?.lordId).toBe(sonId);
+    // na cestě vede syn (po příjezdu je vojvodou – test níž)
+    expect(result.to.state.journey?.lordId).toBe(sonId);
     expect(result.from.state.people.map((p) => p.id)).not.toContain(sonId);
     expect(result.from.state.chronicle).toContainEqual(
       expect.objectContaining({
@@ -356,7 +319,7 @@ describe('leaveVillage – syn vojvody s poměrnou částí vsi', () => {
       villageId,
       today: TODAY + 1,
       sonId: heirId,
-      destination: { kind: 'here', dwelling: at(200, 200) },
+      destination: { kind: 'map', direction: 'E' },
     });
     expect(result).toEqual({ ok: false, reason: SUCCESSOR_STAYS });
     expect(deps.villages.records.size).toBe(1);

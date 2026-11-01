@@ -33,7 +33,7 @@ export function SonsRow({
   onPreviewSon,
 }: {
   sons: readonly SelectionSon[];
-  onLeaveSon?: ((target: 'here' | Direction8, sonId: number) => void) | undefined;
+  onLeaveSon?: ((direction: Direction8, sonId: number) => void) | undefined;
   onPreviewSon?: ((dwellingIds: readonly number[] | null) => void) | undefined;
 }): ReactElement {
   const [chosenId, setChosenId] = useState<number | null>(null);

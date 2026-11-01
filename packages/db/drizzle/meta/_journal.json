@@ -78,6 +78,13 @@
       "when": 1793533562394,
       "tag": "0010_village_digest",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793554027562,
+      "tag": "0011_funny_night_thrasher",
+      "breakpoints": true
     }
   ]
 }

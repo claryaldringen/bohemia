@@ -318,10 +318,10 @@ describe('vstup stezky a obchodu (trade.md)', () => {
 describe('vstupy odchodu do nové vsi (migration.md – fáze 3 a 4)', () => {
   const dwelling = { x: 1, z: 2, rotation: 0 };
 
-  it('odchod na téže mapě i na novou mapu', () => {
+  it('odchod jen na novou mapu – na téže mapě (`here`) null (jedna ves, jedna mapa)', () => {
     expect(
       parseLeaveVillageInput({ dwellingIds: [3, 5], destination: { kind: 'here', dwelling } }),
-    ).toEqual({ dwellingIds: [3, 5], destination: { kind: 'here', dwelling } });
+    ).toBeNull();
     expect(
       parseLeaveVillageInput({ dwellingIds: [3], destination: { kind: 'map', direction: 'SW' } }),
     ).toEqual({ dwellingIds: [3], destination: { kind: 'map', direction: 'SW' } });
@@ -331,10 +331,9 @@ describe('vstupy odchodu do nové vsi (migration.md – fáze 3 a 4)', () => {
     expect(
       parseLeaveVillageInput({ sonId: 7, destination: { kind: 'map', direction: 'N' } }),
     ).toEqual({ sonId: 7, destination: { kind: 'map', direction: 'N' } });
-    expect(parseLeaveVillageInput({ sonId: 7, destination: { kind: 'here', dwelling } })).toEqual({
-      sonId: 7,
-      destination: { kind: 'here', dwelling },
-    });
+    expect(
+      parseLeaveVillageInput({ sonId: 7, destination: { kind: 'here', dwelling } }),
+    ).toBeNull();
     expect(
       parseLeaveVillageInput({ sonId: 0, destination: { kind: 'map', direction: 'N' } }),
     ).toBeNull();
@@ -354,10 +353,10 @@ describe('vstupy odchodu do nové vsi (migration.md – fáze 3 a 4)', () => {
 
   it('bez obydlí, se špatným id, směrem nebo cílem null', () => {
     expect(
-      parseLeaveVillageInput({ dwellingIds: [], destination: { kind: 'here', dwelling } }),
+      parseLeaveVillageInput({ dwellingIds: [], destination: { kind: 'map', direction: 'N' } }),
     ).toBeNull();
     expect(
-      parseLeaveVillageInput({ dwellingIds: [0], destination: { kind: 'here', dwelling } }),
+      parseLeaveVillageInput({ dwellingIds: [0], destination: { kind: 'map', direction: 'N' } }),
     ).toBeNull();
     expect(
       parseLeaveVillageInput({ dwellingIds: [1], destination: { kind: 'map', direction: 'UP' } }),

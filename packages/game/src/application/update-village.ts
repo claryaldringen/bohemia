@@ -6,10 +6,6 @@ import {
   isVillageAsleep,
   isVillageExtinct,
   isVillageTravelling,
-  neighbourSnapshot,
-  withNeighbours,
-  withoutNeighbours,
-  type NeighbourSnapshot,
   withForestDistances,
   withKinship,
   withLivestockLand,
@@ -268,12 +264,9 @@ export async function updateVillage(
     if (base.horsePenStockFailed !== undefined && record.state.horsePenStockFailed === undefined) {
       console.error(`Ves ${villageId}: převod ohrad koní selhal: ${base.horsePenStockFailed}`);
     }
-    // jiné vsi na téže mapě – kontroly umístění a kácení o nich vědí (migration.md); přehled se
-    // neukládá
-    const neighbours = withNeighbours(base, await neighboursOf(villages, record, today));
-    // ves z doby před obilnými jámami uloží zásoby do jam u humna nebo dvorce – jámy ne na půdě
-    // jiných vsí (production-chains.md – Obilné jámy)
-    const pitted = withGrainPits(neighbours, landscape, obstacles);
+    // ves z doby před obilnými jámami uloží zásoby do jam u humna nebo dvorce (production-chains.md
+    // – Obilné jámy)
+    const pitted = withGrainPits(base, landscape, obstacles);
     // rozestavěné díly v lese dostanou fáze klučení (forest.md – Klučení lesa pro pole, Starší vsi)
     const attached = withForestClearing(pitted, obstacles);
     if (
@@ -306,41 +299,20 @@ export async function updateVillage(
     if (!changed.ok) return changed;
     // na místo zříceniny jde stavět – stavba zbytek jámy odstraní (ruins.ts); stavba na obilné
     // jámě taky – vesničané zrno přendají (production-chains.md – Obilné jámy)
-    const stripped = withoutNeighbours(changed.state);
-    const next = withoutBuiltOverGrainPits(withoutBuiltOverRuins(stripped, landscape), landscape);
+    const next = withoutBuiltOverGrainPits(
+      withoutBuiltOverRuins(changed.state, landscape),
+      landscape,
+    );
     const untouched =
       changed.state === attached &&
-      attached === neighbours &&
+      attached === base &&
       base === record.state &&
-      next === stripped;
+      next === changed.state;
     if (next === record.state || untouched) return { ok: true, village: record };
     const saved: VillageRecord | null = await villages.save(villageId, next, record.version);
     if (saved !== null) return { ok: true, village: saved };
   }
   throw new Error(`Ves ${villageId} se nepodařilo uložit – příliš mnoho souběžných změn.`);
-}
-
-/**
- * Přehled ostatních vsí na mapě (sídle) vsi `record` v den `today`, nebo null, když je na mapě
- * sama. Ostatní vsi se načtou jen tehdy, když na mapě nějaké jsou (levný otisk napřed).
- */
-async function neighboursOf(
-  villages: VillageRepository,
-  record: VillageRecord,
-  today: number,
-): Promise<NeighbourSnapshot | null> {
-  const stamps = await villages.stampsOf([record.settlementId]);
-  if (!stamps.some((s) => s.id !== record.id && s.settlementId === record.settlementId)) {
-    return null;
-  }
-  const others = (await villages.listBySettlement(record.settlementId)).filter(
-    (v) => v.id !== record.id,
-  );
-  return neighbourSnapshot(
-    others.map((v) => v.state),
-    today,
-    others.map((v) => v.name),
-  );
 }
 
 /** Ves je opuštěná – odešli z ní všichni (migration.md). */

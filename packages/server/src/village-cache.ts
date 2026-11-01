@@ -80,11 +80,6 @@ export function cachedVillages(inner: VillageRepository): VillageRepository {
     async create(settlementId, name, state) {
       return remember(await inner.create(settlementId, name, state));
     },
-    async add(settlementId, name, state) {
-      const record = await inner.add(settlementId, name, state);
-      remember(record);
-      return record;
-    },
     async findByOrigin(origin) {
       return remember(await inner.findByOrigin(origin));
     },
