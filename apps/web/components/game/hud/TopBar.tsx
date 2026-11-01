@@ -335,7 +335,9 @@ function IconButton({
   children: ReactNode;
 }): ReactElement {
   return (
-    <Tooltip content={tooltip} placement="below-left">
+    // otevřená nabídka leží pod tlačítkem – popisek (zůstává i po kliknutí, dokud má tlačítko
+    // fokus) by ji zakryl
+    <Tooltip content={tooltip} placement="below-left" off={expanded === true}>
       <button
         type="button"
         data-hud-block
@@ -474,7 +476,7 @@ export function DevDisasterButtons({
         <span
           data-hud-block
           data-testid="dev-disaster-choices"
-          className="hud-panel absolute top-10 right-0 flex gap-1 p-1"
+          className="hud-panel absolute top-10 right-0 z-50 flex gap-1 p-1"
         >
           {choices.map(({ key, icon, label, choice }) => (
             <IconButton

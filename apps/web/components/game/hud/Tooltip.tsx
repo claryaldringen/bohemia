@@ -17,23 +17,28 @@ export function Tooltip({
   content,
   placement = 'below',
   block = false,
+  off = false,
   children,
 }: {
   content: ReactNode;
   placement?: keyof typeof PLACEMENT;
   /** Obal přes celou šířku (tlačítko nabídky), jinak jen kolem obsahu. */
   block?: boolean;
+  /** Popisek se neukáže – např. tlačítko s otevřenou nabídkou by jím nabídku zakrylo. */
+  off?: boolean;
   children: ReactNode;
 }): ReactElement {
   return (
     <span className={`group/tooltip relative ${block ? 'flex' : 'inline-flex'}`}>
       {children}
-      <span
-        role="tooltip"
-        className={`hud-tooltip pointer-events-none absolute z-40 hidden w-max max-w-64 px-2 whitespace-normal py-1 text-xs leading-snug group-focus-within/tooltip:block group-hover/tooltip:block ${PLACEMENT[placement]}`}
-      >
-        {content}
-      </span>
+      {!off && (
+        <span
+          role="tooltip"
+          className={`hud-tooltip pointer-events-none absolute z-40 hidden w-max max-w-64 px-2 whitespace-normal py-1 text-xs leading-snug group-focus-within/tooltip:block group-hover/tooltip:block ${PLACEMENT[placement]}`}
+        >
+          {content}
+        </span>
+      )}
     </span>
   );
 }
