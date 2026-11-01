@@ -375,6 +375,28 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     přes `Timetable.setRouter` jen pro kreslenou pózu, jednou za úsek (`activityPose` – `PoseWalk`,
     `walkLeg`: po trase v čase z odhadu, `pace` = délka ÷ čas ÷ tempo, 0,6–1,8). Testy
     `villager-events.test.ts`, `path-router.test.ts`.
+    **Fáze činností** (villagers.md – Fáze činností; úlohy 7–8): `villager-phases.ts` (čisté,
+    testy `villager-phases.test.ts`, `villager-schedule.test.ts`) – `activityPhases(a, seed, walkS)`
+    rozloží činnost na fáze (`ActivityPhase` – jméno, od–do, klip a tempo, místo jinde, chůze):
+    `out` ode dveří, práce v místě po krocích role (`PHASE_STEPS` – podíly mírně losem
+    `PHASE_JITTER` podle člověka a začátku; kratší práce než `MIN_PHASE_S` na krok a úloha
+    u objektu a pochůzka jen `work`), `back` domů (rybář `bring-catch` s košem); součet = délka
+    činnosti, přerušení ji utne. Krok jinde (`PhasePlaces` – `drop` cizí dům, `aid` řada žnečů)
+    s cestou tam a zpět, jen když se cesta vejde do `TRANSIT_SHARE` jeho délky. `phaseAt`,
+    `phaseWalking`, `schedulePhaseAt` (rozvrh + fáze + klip). Role z plánu dne
+    `villager-plan-phases.ts` (`planPhases` → `personTasks` – `PersonTask.role`, `places`): žnec
+    `reap` (vázání `weed`), louka `meadow` (hrabání `hoe`, kupky `fruit`), nakladač u vozu
+    `load-sheaves` / `load-hay` (`fruit`), kovář podle dvora dne `smelt` (praní `weed`, pražení
+    `winnow`) / `refine` (`build` tempem 0,7) / `forge` (`build` 1,3, odnos nástrojů `carry`
+    k cizímu domu), uhlíř podle stavu milíře `kiln-wood` (štípání `fell`) / `kiln-build`
+    (zahrnutí `hoe`) / `kiln-burn` (hlídání `idle`, zahrnutí) / `kiln-draw` (`hoe`, do koše
+    `fruit`), hrnčíř `pottery` (sušení `weed`, vsazení `fruit`, hlídání, odnos nádob), rybář `fish`,
+    o žních cvičící muži `train` (žne a váže u řady žnečů), starší `elder` a nečinní `idle`
+    (paběrky). `activityPose(…, phases)` – fáze s klipem stojí, kde ji zastihla (póza úlohy
+    v začátku fáze), krok jinde jde rovně na místo a zpět; `Timetable.phase` (fáze v paměti
+    s činností), `scheduledState(…, phase)` → `PersonFigureState.phase` → `PHASE_TEXTS`
+    v `person-activity.ts` („váže snopy“, „pere rudu“, „nese nástroje do domácností“…; rybář „jde
+    k tůni“). Tempo nohou na cestách fází podle klipu (`walkSpeed` – s košem jinak než bez).
     Rozvrh se počítá líně: jen když `write` kreslí pózy (ves v záběru, při omezeném pohybu stojí)
     nebo pro vybraného (`updateSelection`); mimo záběr nic. Vlasce rybářů se překreslí, jen když se
     změní, kdo rybaří. Výběr: `scheduledState` – úloha a cesta (`leg` – „jde na pole“, „jde domů“

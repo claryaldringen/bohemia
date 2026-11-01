@@ -270,6 +270,12 @@ nepoužívaly (Martin 21. 10. 2026: „ať do něj mlátí holemi“). Místa js
   a na mlatu roztírání, dusání holí přes mlat, mazání v podřepu.
 - **Nošení**: pěší nosiči snopů (`carriers` – podíl `carry`) nesou snopy obilí a luštěnin z pole na
   nejbližší hotové humno (`sheafFloor` – vstup před mlatem, len domů); bez humna domů jako dřív.
+  **Vůz se snopy jede k humnu** (villagers.md – Fáze činností; návrh Clauda): cíl svozu snopů
+  s hotovým humnem nese `CartGoal.via` (`sheafFloor` ve `village-view-crafts.ts`, dosah
+  `FLOOR_CART_REACH_M` 9 m od středu mlatu); prohlížeč dopočítá `SceneCart.viaRoute` (pole →
+  humno → ohrada vozovou sítí – `cartViaRoute` v `cart-routes.ts`, i ve Web Workeru), vůz jede
+  prázdný k poli, nakládá, plný k humnu, skládá (`ShuttleRoute.dropM`) a prázdný k ohradě
+  (úsek `return` – panel „vrací se k ohradě“, „veze snopy na humno“, „skládá snopy na humně“).
   Zrno z humna do jam (`grainPitWorkers` ve `villager-plan-crafts.ts`): první dva u hrdla
   s motykou, další nosí v koši od vstupu humna, kde zrno čeká (`grainKg`), k jámě po pěšinách.
 - **Ukázky**: `/dev/buildings` – Humno mezi plochami (`showcaseThreshingFloor`: posuvník do
@@ -319,7 +325,13 @@ hlídá test). Klíč zná z práce dne jen tavbu (pec se mění jen při ní), 
   z podílu dílny, syn 10–13 z vlastního podílu `craft` s věkem (bere ho z rosteru podle věku);
   kovář sám jen u pece. Při překování a kování kovář u kovadliny s kladivem (klip `build` –
   palička z 0 A.D. `build.dae`), další u měchů výhně a u koryta. Postavy bez nového klipu ani
-  vertex bufferu.
+  vertex bufferu. **Fáze** (villager-phases.ts – village-people.md, Fáze činností): při tavbě
+  napřed praní rudy (`weed`) a pražení (`winnow` s lopatou), překování `build` tempem 0,7, kování
+  nástrojů `build` 1,3 a odnos nástrojů do cizí domácnosti s košem (`carry`); hrnčíř po kruhu
+  či šlapání suší (`weed`), vsazuje do pece (`fruit`), hlídá oheň a nese nádoby do domácnosti;
+  uhlíř podle stavu milíře štípe (`fell`), zahrnuje (`hoe`), hlídá (`idle`), vytahuje uhlí
+  (`hoe`) a sype do koše (`fruit`). Chybějící rekvizity (kladivo a kleště, síto, nádoby, koš
+  s nástroji, hrábě, špalek) zastupuje rekvizita klipu – úloha 9.
 - **Hrnčíř**: mělká **jáma s hlínou** před přístřeškem vpravo (`CLAY_PIT`) – val vykopané země
   a hladina hlíny podle stupně (prázdná jáma tmavé dno; kreslí se jen s hlínou nebo šlapáním).
   Když hrnčíř vyrábí, jeden šlape hlínu – pomalu tam a zpět napříč jámou (`treadingLine`, klip

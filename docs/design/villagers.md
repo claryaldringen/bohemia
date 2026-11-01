@@ -797,12 +797,37 @@ a `lib/village-view.ts`, rozvrh je znovu nedefinuje – `PersonJob`, `LaborActiv
    délka podílem, místo) jako čistou funkci druhu činnosti a losu; `scheduleAt` vrací i aktuální
    fázi a klip. Testy ve `__tests__/villager-schedule.test.ts`: součet fází = délka činnosti,
    stejný čas = stejná fáze, první fáze chůze ode dveří a poslední návrat.
+   **Implementováno 1. 11. 2026** (`villager-phases.ts`; mapa kódu `village-people.md` – Fáze
+   činností): `activityPhases` – cesta ode dveří, práce v místě po krocích role (podíly losem
+   podle člověka a začátku činnosti), návrat; kroky jinde (odnos do cizí domácnosti, řada žnečů)
+   s cestou tam a zpět, jen když se vejde (jinak práce úlohy u místa). Návrh Clauda – `scheduleAt`
+   vrací dál jen činnost (volá ho řetěz rozvrhu, fáze by se počítaly zbytečně); fázi a klip vrací
+   `schedulePhaseAt`, ve scéně se fáze počítají líně s pózou (`Timetable.phase`). Úloha u objektu
+   a pochůzka mají jen jednu fázi práce (póza úlohy či cyklus pochůzky).
 8. **Fáze z existujících klipů** (rolník, kovář, uhlíř, hrnčíř, vozka, rybář, vojvoda a synové –
    stav „nové“ bez nové animace): `villager-plan-fields.ts`, `villager-plan-crafts.ts`,
    `villager-plan-traffic.ts`, `villager-plan-fire.ts` (jen kontrola) a `villagers.ts` – fáze
    mapují na stávající `VillagerClip`; vůz se snopy a senem jede k humnu a na dvůr, rybář k tůni
    a s úlovkem zpět, kování rozlišené tempem. Testy `villager-plan.test.ts`; panel vybrané
    postavy (`lib/person-activity.ts`) fázi řekne.
+   **Implementováno 1. 11. 2026** (role `villager-plan-phases.ts`, klipy `PHASE_STEPS`; podíly
+   kroků jsou návrh Clauda, doladit hraním): rolník – žně a vázání snopů (sehnutí `weed`), louka
+   seč, hrabání (`hoe`) a kupky (`fruit`), nakladač u vozu (`fruit`), **vůz se snopy k humnu**
+   (Zjednodušení a co chybí); kovář – při tavbě praní (`weed`) a pražení rudy (`winnow`
+   s lopatou), překování pomalejším `build` (tempo 0,7) vs. kování nástrojů rychlejším (1,3)
+   a odnos nástrojů s košem do cizí domácnosti; uhlíř podle stavu milíře – štípání (`fell`),
+   zahrnutí (`hoe`), hlídání (`idle`), vytahování uhlí (`hoe`) a do koše (`fruit`); hrnčíř –
+   sušení (`weed`), vsazení do pece (`fruit`), hlídání ohně (`idle`), odnos nádob; rybář jde
+   k tůni ode dveří (rozvrh – úloha 3) a nese úlovek domů v koši (`carry`); vozka – nakládání
+   dělá nakladač u vozu (vozku kreslí vůz); o žních cvičící muži (žne `reap`, váže `weed`),
+   starší a nečinní (paběrky `weed`) u řady žnečů – výrostci jako nečinní (věk úloha nezná).
+   Lov – nosič úlovku už nese maso (`carry-meat` v póze lovu – `villager-plan-lord.ts`). Panel
+   řekne fázi (`PHASE_TEXTS`). Martin 31. 10. 2026: „Z OAD použij vše, co je pro nás
+   použitelné“ – **v GLB nejsou** (ověřeno v `tools/blender/people.json`):
+   varianty postávání (`idle_relax_m_b…l`, `idle_relax_f_short/long`, shrbení `idle_relax_h_*`),
+   modlitba `pray`, vladař `idle_minister_*`, chůze s nářadím `walk_axe/hoe/shovel` a nošení rudy
+   `carry_ore_*` – starší u domu dál `idle`, modlitba u modly a vladař čekají na úlohu
+   s přegenerováním GLB. Seno na dvůr a `carry-meat-idle` zatím bez místa.
 9. **Nové rekvizity** (povříslo, hrábě, vidle, kladivo a kleště, špalek, síto, nádoby, koš
    s nástroji, oka, ryby, vařečka s hrncem, džber): `tools/blender/people_from_0ad.py`
    (funkce po vzoru srpu a vahadla), `tools/blender/people.json` (props a klipy s `props`),
@@ -851,10 +876,12 @@ a `lib/village-view.ts`, rozvrh je znovu nedefinuje – `PersonJob`, `LaborActiv
 
 ## Zjednodušení a co chybí
 
-- **Vozy po svozu snopů mají jet k humnu** (návrh Clauda; Martin 31. 10. 2026 – patří k
-  „divadlu“): dnes jezdí jen ohrada → pole a pěší nosiči na humno chodí. Vůz po naložení snopů
-  pojede pole → humno a vrátí se, nosiči jdou s ním nebo mezi ním; počty a čas svozu dál řídí
-  simulace (`village-livestock.md` – vozy se spřežením ve scéně).
+- **Vozy po svozu snopů jedou k humnu** (návrh Clauda; Martin 31. 10. 2026 – patří k
+  „divadlu“; **implementováno 1. 11. 2026**, úloha 8): s hotovým humnem jede vůz prázdný k poli,
+  nakládá, plný k humnu, tam skládá a prázdný se vrací k ohradě; pěší nosiči na humno chodí dál.
+  Bez humna, nebo když k němu vůz nedojede, jako dřív (plný zpět k ohradě). Počty a čas svozu dál
+  řídí simulace (`scene-village.md` – Humno ve scéně). **Seno na dvůr zatím ne** – vůz se senem
+  jede plný k ohradě (stoh jako objekt scény je úloha 11).
 - Noc se nemodeluje – lidé pracují pořád (herní den trvá ≈ 86 s).
 - **Žně všemi rukama** ([pole](fields.md); Martin 24. 10. 2026): výrostci od 10 let a starší dají
   ve žňový den **celkem** 0,5 člověkodne na žeň a výmlat (vázání, odnos, paběrky; starší po minimu

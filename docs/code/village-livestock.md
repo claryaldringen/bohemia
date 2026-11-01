@@ -336,7 +336,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`village-carts.ts`, čisté funkce, testy): `villageCartPlans` z `SceneVillage.carts` – vůz s trasou
   dne jede tam a zpět (`CartShuttle`: `shuttleRoute` – osa tam, smyčka obratiště za cílem
   `CART_TURN_M`, zpět, smyčka u ohrady jako uzavřená trasa; `shuttleAt` – prázdný tam, u cíle
-  nakládá, plný zpět, u ohrady skládá; svoz v okně herního dne – ladicí `PLOUGH_DAY_DEBUG` jako
+  nakládá, plný zpět, u ohrady skládá – snopy s hotovým humnem plné k humnu, tam skládá, prázdný
+  k ohradě: `viaRoute`, `dropM` – scene-village.md, Humno ve scéně; svoz v okně herního dne –
+  ladicí `PLOUGH_DAY_DEBUG` jako
   orba: jízd kolik se vejde při `CART_FAST_M_S`, nejvýš `CARTS.loadsPerCartDay`, den se opakuje;
   výprava dokola tempem volů naložená tam i zpět), vůz bez jízdy stojí u ohrady (`CartParked`,
   `parkedCartSpot`, `parkedCartPose` – dvoukolák na oji, bez volů). `cartPlanPose` = póza podle
