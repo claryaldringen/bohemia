@@ -12,6 +12,7 @@
   "scripts": {
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "village-log": "tsx scripts/village-log.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "format:check": "prettier --check . --ignore-path ../../.gitignore",

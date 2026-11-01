@@ -47,7 +47,10 @@ import {
   withSowingRotation,
   withThreshingGrace,
   withToolEquipment,
+  nextYearEnd,
+  villageYearRow,
   type VillageState,
+  type VillageYearRow,
 } from '../domain/village';
 import type { Pause, VillageRecord, VillageRepository, VillageResult } from './villages';
 
@@ -112,6 +115,31 @@ async function advancedToTodayWithPauses(
     const wait = pause();
     if (wait) await wait;
   }
+}
+
+/**
+ * Dopočet do dneška po kouscích končících na přelomu roku; z každého dokončeného roku řádek
+ * deníku vsí (year-log.ts). Výsledek stavu je týž jako bez dělení (determinismus nezávisí na
+ * kouscích), řádky jsou idempotentní (unikátní ves a rok).
+ */
+async function advancedWithYearLog(
+  state: VillageState,
+  today: number,
+  obstacles: ObstacleLayer,
+  landscape: Landscape,
+  pause: Pause | undefined,
+): Promise<{ state: VillageState; rows: VillageYearRow[] }> {
+  const rows: VillageYearRow[] = [];
+  let current = state;
+  while (current.lastDay < today && !isVillageAsleep(current)) {
+    const yearEnd = nextYearEnd(current.lastDay);
+    const to = Math.min(today, yearEnd);
+    const next = await advancedToTodayWithPauses(current, to, obstacles, landscape, pause);
+    if (next.lastDay === yearEnd) rows.push(villageYearRow(next));
+    if (next.lastDay <= current.lastDay) return { state: next, rows };
+    current = next;
+  }
+  return { state: current, rows };
 }
 
 /**
@@ -277,7 +305,8 @@ export async function updateVillage(
         `Ves ${villageId}: převod klučení lesa selhal: ${attached.forestClearingFailed}`,
       );
     }
-    const advanced = await advancedToTodayWithPauses(attached, today, obstacles, landscape, pause);
+    const logged = await advancedWithYearLog(attached, today, obstacles, landscape, pause);
+    const advanced = logged.state;
     // ves uložená před trasami (nebo s trasami jiného rozložení) si je spočítá – i když se jen
     // zobrazuje, ať je scéna má (paths.md – Kdy se trasy počítají a co se ukládá)
     // starší ves přejde na nový systém cest: jednou uklidí síť a smaže stará pole (paths.md –
@@ -309,7 +338,12 @@ export async function updateVillage(
       base === record.state &&
       next === changed.state;
     if (next === record.state || untouched) return { ok: true, village: record };
-    const saved: VillageRecord | null = await villages.save(villageId, next, record.version);
+    const saved: VillageRecord | null = await villages.save(
+      villageId,
+      next,
+      record.version,
+      logged.rows,
+    );
     if (saved !== null) return { ok: true, village: saved };
   }
   throw new Error(`Ves ${villageId} se nepodařilo uložit – příliš mnoho souběžných změn.`);

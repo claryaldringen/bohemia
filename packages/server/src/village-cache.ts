@@ -86,8 +86,8 @@ export function cachedVillages(inner: VillageRepository): VillageRepository {
     async addOnce(settlementId, name, state) {
       return remember(await inner.addOnce(settlementId, name, state));
     },
-    async save(villageId, state, expectedVersion) {
-      const saved = await inner.save(villageId, state, expectedVersion);
+    async save(villageId, state, expectedVersion, yearRows) {
+      const saved = await inner.save(villageId, state, expectedVersion, yearRows);
       if (saved) remember(saved);
       else records()?.delete(villageId);
       return saved;

@@ -356,3 +356,12 @@ nespí, čeká na správce). `advancedToToday` u ní nic nesimuluje: jen převod
 posunu dne, a když nic nezmění (JSON shodný), vrátí týž objekt – `updateVillage` ji pak neuloží
 (`untouched`). `lastDay` spící vsi zaostává; `abandonedVillageAt` ho v pohledu zvedne na den
 pohledu, `currentVillageViewStamp` spící vsi s `lastDay < dnes` ignoruje.
+
+## Deník vsí (`village_year`)
+
+Martin 1. 11. 2026: „na tohle asi ser, podle mě bude stačit logovat hru“ (místo velkého měření správce). Za každou ves a dokončený herní rok jeden řádek – `villageYearRow(stav)` v `domain/village/year-log.ts` (čistá funkce nad stavem na konci roku: lidé dospělí/děti, narození a úmrtí z kroniky roku, z toho hladem, sklizeň, zásoby, dny hladu, pole a oseto, stáda, správce zapnutý, dostavěné stavby podle druhu, odchody synů, pohromy).
+
+- `updateVillage` dopočítává po kouscích končících na přelomu roku (`nextYearEnd`; stav je týž jako bez dělení) a řádky předá `VillageRepository.save(…, yearRows)`; adaptér je zapíše v téže transakci jako stav (`ON CONFLICT (village_id, year) DO UPDATE` – opakovaný zápis řádek přepíše). Worker i web jdou stejnou cestou. Cena zápisu: jeden upsert za ves a rok, v měření v řádu jednotek ms na save (v šumu).
+- Počty událostí se čtou z kroniky (max. 500 událostí) – při přetečení je `chronicleFull` a počty jsou dolní odhad. Nejnižší zásoby za rok se nesledují (stav na konci roku jen).
+- Spotřeba obilí není ve stavu: příkaz ji dopočítá jako zásoby loni + sklizeň – zásoby letos (jen když je řádek loňska). Dostavěné stavby jsou všechny, ne jen správcovy.
+- Výpis: `npm run village-log -- --village <id|jméno> [--player <id>] [--from rok]` (bez filtrů všechny vsi; `DATABASE_URL` jinak `bohemia`).

@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import {
   boolean,
   index,
+  primaryKey,
   uniqueIndex,
   integer,
   jsonb,
@@ -10,7 +11,7 @@ import {
   timestamp,
   uuid,
 } from 'drizzle-orm/pg-core';
-import type { VillageDigest, VillageState } from '@bohemia/game';
+import type { VillageDigest, VillageState, VillageYearRow } from '@bohemia/game';
 import { settlement } from './settlement';
 
 /**
@@ -59,3 +60,39 @@ export const village = pgTable(
       .where(sql`${table.state}->>'origin' IS NOT NULL`),
   ],
 );
+
+/**
+ * Deník vsí – jeden řádek za ves a dokončený herní rok (`villageYearRow`), zapisuje ho adaptér
+ * při uložení vsi, která přešla přes přelom roku; opakovaný zápis řádek přepíše. Čísla, která se
+ * čtou přímo (příkaz `village-log`), jsou sloupce, zbytek v `data`.
+ */
+export const villageYear = pgTable(
+  'village_year',
+  {
+    villageId: uuid('village_id')
+      .notNull()
+      .references(() => village.id, { onDelete: 'cascade' }),
+    year: integer('year').notNull(),
+    day: integer('day').notNull(),
+    adults: integer('adults').notNull(),
+    children: integer('children').notNull(),
+    births: integer('births').notNull(),
+    deaths: integer('deaths').notNull(),
+    deathsHunger: integer('deaths_hunger').notNull(),
+    harvestKg: integer('harvest_kg').notNull(),
+    storesKg: integer('stores_kg').notNull(),
+    hungryDays: integer('hungry_days').notNull(),
+    fieldM2: integer('field_m2').notNull(),
+    sownM2: integer('sown_m2').notNull(),
+    // stáda, správce, stavby, odchody synů, pohromy
+    data: jsonb('data').$type<VillageYearData>().notNull(),
+    writtenAt: timestamp('written_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.villageId, table.year] })],
+);
+
+/** Část řádku deníku, která nemá vlastní sloupec. */
+export type VillageYearData = Pick<
+  VillageYearRow,
+  'herds' | 'stewardOn' | 'built' | 'sonsLeft' | 'disasters' | 'chronicleFull'
+>;

@@ -16,6 +16,7 @@ import {
   villageDigest,
   type VillageRecord,
   type VillageState,
+  type VillageYearRow,
 } from '@bohemia/game';
 import { createDatabase } from '../../client';
 import { schema } from '../../index';
@@ -392,5 +393,63 @@ describe('createVillageRepository', () => {
     await villageOnMap(1, 'Budeč', state());
     await db.execute(sql`DELETE FROM "user" WHERE id = 'hrac-1'`);
     expect(await db.select().from(schema.village)).toHaveLength(0);
+  });
+
+  describe('deník vsí', () => {
+    const row = (year: number, births: number): VillageYearRow => ({
+      year,
+      day: 365 * (year - 500) + 364,
+      adults: 12,
+      children: 7,
+      births,
+      deaths: 2,
+      deathsHunger: 1,
+      harvestKg: 9000,
+      storesKg: 4000,
+      hungryDays: 3,
+      fieldM2: 40000,
+      sownM2: 30000,
+      herds: { sheep: 4, goat: 2, pig: 1, cow: 3 },
+      stewardOn: true,
+      built: { dwelling: 1, field: 2 },
+      sonsLeft: 0,
+      disasters: { hail: 1 },
+      chronicleFull: false,
+    });
+    const rowsOf = (id: string): Promise<(typeof schema.villageYear.$inferSelect)[]> =>
+      db
+        .select()
+        .from(schema.villageYear)
+        .where(sql`${schema.villageYear.villageId} = ${id}`)
+        .orderBy(schema.villageYear.year);
+
+    it('save zapíše řádky roků a opakovaný zápis řádek roku přepíše', async () => {
+      const created = (await villages.create(settlementId, 'Libice', state()))!;
+      const saved = (await villages.save(created.id, state(), 1, [row(500, 5), row(501, 6)]))!;
+      expect((await rowsOf(created.id)).map((r) => [r.year, r.births])).toEqual([
+        [500, 5],
+        [501, 6],
+      ]);
+      await villages.save(created.id, state(), saved.version, [row(501, 9)]);
+      const rows = await rowsOf(created.id);
+      expect(rows.map((r) => [r.year, r.births])).toEqual([
+        [500, 5],
+        [501, 9],
+      ]);
+      expect(rows[1]?.data.built).toEqual({ dwelling: 1, field: 2 });
+    });
+
+    it('save se starou verzí neuloží ani řádky', async () => {
+      const created = (await villages.create(settlementId, 'Libice', state()))!;
+      expect(await villages.save(created.id, state(), 99, [row(500, 5)])).toBeNull();
+      expect(await rowsOf(created.id)).toHaveLength(0);
+    });
+
+    it('smazání vsi smaže i její deník', async () => {
+      const created = (await villages.create(settlementId, 'Libice', state()))!;
+      await villages.save(created.id, state(), 1, [row(500, 5)]);
+      await db.execute(sql`DELETE FROM village WHERE id = ${created.id}`);
+      expect(await db.select().from(schema.villageYear)).toHaveLength(0);
+    });
   });
 });
