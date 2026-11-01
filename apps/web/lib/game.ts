@@ -38,6 +38,7 @@ import { ownMapsAround } from './departure-view';
 import { getDatabase, getPlayerLock } from './db';
 import { exclusivePlayer, exclusivePlayerShared } from './exclusive';
 import { formatWorldState } from './game-date';
+import { clearSkipProgress, reportSkipProgress } from './skip-progress';
 
 const landscapes = cachedLandscapes(LANDSCAPE_CACHE_SIZE);
 
@@ -225,6 +226,7 @@ export async function restartGameForPlayer(
 /**
  * Vývojový režim: přeskočí čas hráče o měsíc, nebo rok (use-case `skipTime` – bez `devMode`
  * odmítne) a dopočítá jeho vsi do nového dneška. Vrátí nový posun času, nebo chybu česky.
+ * Průběh dopočtu je mezitím k přečtení přes `skipProgressOf` (po konci zmizí).
  */
 export async function skipTimeForPlayer(
   playerId: string,
@@ -234,12 +236,22 @@ export async function skipTimeForPlayer(
   const clock = currentWorld();
   const world = worldDayOf(Date.now(), clock);
   if (!world.ok) return { ok: false, error: `${formatWorldState(world.state, clock)}.` };
-  const result = await exclusivePlayer(getPlayerLock(), playerId, () =>
-    skipTime(
-      { ...dynastyDeps(), offsets: timeOffsets() },
-      { playerId, devMode, worldDay: world.day, skip },
-    ),
-  );
+  // průběh se zapisuje a maže uvnitř fronty hráče – druhý přeskok (jiný panel) čeká za prvním
+  // a jeho průběh nesmaže
+  const result = await exclusivePlayer(getPlayerLock(), playerId, async () => {
+    try {
+      return await skipTime(
+        {
+          ...dynastyDeps(),
+          offsets: timeOffsets(),
+          onProgress: (progress) => reportSkipProgress(playerId, progress),
+        },
+        { playerId, devMode, worldDay: world.day, skip },
+      );
+    } finally {
+      clearSkipProgress(playerId);
+    }
+  });
   return result.ok
     ? { ok: true, offsetDays: result.offsetDays }
     : { ok: false, error: result.reason };

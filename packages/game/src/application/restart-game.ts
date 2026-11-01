@@ -10,7 +10,13 @@ import { enterGame, settlementLandscape } from './enter-game';
 import { loadVillage } from './load-village';
 import { updateVillage } from './update-village';
 import type { LandscapeSource, SeedSource, Settlement, SettlementRepository } from './settlements';
-import type { Pause, VillageRecord, VillageRepository } from './villages';
+import type {
+  Pause,
+  ProgressReport,
+  VillageRecord,
+  VillageRepository,
+  VillageStamp,
+} from './villages';
 
 // Konec hry a nový začátek (population.md – Hlad a vymření; Martin, 18. 10. 2026: „když hráči
 // vymřou všechny vesnice, tak pro něj hra končí – musí začínat znovu“).
@@ -22,6 +28,8 @@ export interface DynastyDeps {
   landscapes?: LandscapeSource;
   /** Přestávky v dlouhém dopočtu vsí (server) – bez nich se dopočítá vcelku. */
   pause?: Pause;
+  /** Hlášení průběhu dopočtu vsí rodu (přeskok času) – na výsledek nemá vliv. */
+  onProgress?: ProgressReport;
 }
 
 export interface DynastyInput {
@@ -55,18 +63,61 @@ export async function dynastyStatus(
   const villages: VillageRecord[] = [];
   // jen id vsí (levný dotaz bez stavu) – stav načte a dopočítá až `loadVillage`, jednou
   const stamps = await deps.villages.stampsOf(settlements.map((s) => s.id));
+  const progress = deps.onProgress && progressOf(stamps, input.today, deps.onProgress);
   for (const settlement of settlements) {
     const landscape = settlementLandscape(settlement, deps.landscapes);
     for (const stored of stamps.filter((v) => v.settlementId === settlement.id)) {
-      const village = await loadVillage(deps, {
-        villageId: stored.id,
-        today: input.today,
-        landscape,
-      });
+      const village = await loadVillage(
+        progress ? { ...deps, pause: progress.pauseFor(stored, deps.pause) } : deps,
+        { villageId: stored.id, today: input.today, landscape },
+      );
+      progress?.finished(stored);
       if (village) villages.push(village);
     }
   }
   return closeDynastyDay(deps, { settlements, villages, today: input.today });
+}
+
+/**
+ * Průběh dopočtu vsí rodu (`onProgress` – accounts.md, Průběh přeskoku): celkem jsou dny, které
+ * vsím do dneška chybí (spící ves se nedopočítává – 0), hotovo = dny dopočítaných vsí + den, kam
+ * došla počítaná ves. Den počítané vsi se dozví z přestávek (`Pause` dostane odsimulovaný den),
+ * proto má počítaná ves přestávky vždy (bez `pause` jen hlášení) – výsledek je týž jako bez nich.
+ * Hlášené hotovo jen roste a nepřeleze celek (opakovaný pokus `updateVillage` po souběhu začne
+ * od čerstvé verze), po každém dni nejvýš jedno hlášení.
+ */
+function progressOf(
+  stamps: readonly VillageStamp[],
+  today: number,
+  report: ProgressReport,
+): {
+  pauseFor: (stamp: VillageStamp, pause: Pause | undefined) => Pause;
+  finished: (stamp: VillageStamp) => void;
+} {
+  const missing = (stamp: VillageStamp): number =>
+    stamp.asleep ? 0 : Math.max(0, today - stamp.lastDay);
+  const totalDays = stamps.reduce((sum, stamp) => sum + missing(stamp), 0);
+  // dny vsí, které už jsou dopočítané
+  let finishedDays = 0;
+  let doneDays = 0;
+  const advance = (days: number): void => {
+    if (days <= doneDays) return;
+    doneDays = Math.min(days, totalDays);
+    report({ doneDays, totalDays });
+  };
+  report({ doneDays, totalDays });
+  return {
+    pauseFor: (stamp, pause) => (day) => {
+      if (day !== undefined) {
+        advance(finishedDays + Math.min(missing(stamp), Math.max(0, day - stamp.lastDay)));
+      }
+      return pause?.(day) ?? null;
+    },
+    finished: (stamp) => {
+      finishedDays += missing(stamp);
+      advance(finishedDays);
+    },
+  };
 }
 
 /**

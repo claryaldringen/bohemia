@@ -112,7 +112,7 @@ async function advancedToTodayWithPauses(
   for (;;) {
     const step = steps.next();
     if (step.done) return step.value;
-    const wait = pause();
+    const wait = pause(step.value);
     if (wait) await wait;
   }
 }
