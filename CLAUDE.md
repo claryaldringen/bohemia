@@ -58,10 +58,11 @@ Next.js 16 má oproti starším verzím breaking changes – dokumentace k nains
 v `node_modules/next/dist/docs/`. Soubor `apps/web/AGENTS.md` generuje sám `next dev`; patří
 do gitu (po smazání by ho vytvořil znovu).
 
+- **Worker:** `apps/worker` – samostatný Node proces (`tsx`), který průběžně dopočítává vsi hráčů
+  (use-case `advanceWorldStep`), i když nikdo není online; `npm run dev` ho pouští s webem
+
 **Plánováno (zatím neexistuje):**
 
-- `apps/worker` – samostatný Node proces, který posouvá svět (stavby, narození, úmrtí, roční
-  období) i když nikdo není online
 - Pozvánkové kódy (s mechanikou vazalství), odesílání skutečných e-mailů
 
 ## Struktura repa
@@ -75,11 +76,13 @@ apps/web/            Next.js – úvodní stránka, registrace, přihlášení, 
   lib/scene/         3D scéna krajiny v Babylonu – čisté TS třídy bez Reactu
   public/models/     modely stromů, dekorací, zvířat a lidí a atlas impostorů z 0 A.D. (licence v LICENSES.md)
   e2e/               Playwright testy (proti produkčnímu buildu a databázi bohemia_test)
+apps/worker/         samostatný proces – smyčka `advanceWorldStep` (loop.ts), konfigurace z env, log (docs/code/worker.md)
 packages/game/       herní jádro
   src/domain/        pravidla – calendar.ts, landscape/ (generování krajiny po vrstvách)
     village/         simulace vsi – lidé, obydlí, pole, jídlo a práce den po dni
   src/application/   use-casy a porty (enterGame, SettlementRepository, SeedSource)
   scripts/           vývojové nástroje (measure-landscapes.ts, measure-village.ts, village-calculator.ts)
+packages/server/     sdílené součástky vstupních bodů (web, worker): paměť vsí, přestávky dopočtu, mezipaměť krajin, createGameDeps, svět z env
 packages/db/         Drizzle schéma, klient, migrace a adaptéry portů (src/adapters/)
 docs/design/         herní design – vize + dokument pro každou mechaniku, rešerše v research/
 docs/code/           mapa kódu – podrobnosti mechanik po oblastech (viz Mapa kódu níž)
@@ -108,6 +111,7 @@ název). Pravidla a rozhodnutí jsou v `docs/design/`.
 | `docs/code/village-steward.md`   | správce vsi – stav, příkaz stavby, mapa hodnot a plán, den správce, přestavba a veto, synové a schránka odchodů, rozhraní, měření    |
 | `docs/code/village-wildlife.md`  | divoká zvěř – stav, stropy z krajiny, roční přepočet, škody na polích, šelmy, psi a lov rodu, hlídky polí, ryby a oka, převod, Vlkov |
 | `docs/code/village-disasters.md` | počasí kraje – seed počasí mapy, roční los, shlukování, povodeň kraje, odhalení, ochrana nové vsi                                    |
+| `docs/code/worker.md`            | worker – smyčka, odklady, spánek do dalšího dne, konfigurace, spuštění a ukončení                                                    |
 | `docs/code/web-ui.md`            | server actions, dotazování na ves, rozhraní jako 0 A.D., katalog staveb, ovládání, e2e                                               |
 
 **Nová mechanika nebo změna:** zapiš ji do příslušného souboru v `docs/code/` (a pravidla do
@@ -178,13 +182,16 @@ Martin 21. 10. 2026: „Musíme změnit styl práce. Pálíme hrozně moc token�
 ```bash
 npm install
 npm run db:migrate    # migrace do lokální DB bohemia (bez DATABASE_URL)
-npm run dev           # http://localhost:3010
+npm run dev           # web na http://localhost:3010 i worker
+npm run dev:web       # jen web (bez workeru)
+npm run worker        # jen worker (čte apps/web/.env.local, Ctrl+C = čistý konec)
 npm run build
 npm run typecheck     # next typegen + tsc
 npm run lint
 npm run test          # unit testy (Vitest)
-npm run test:db       # testy adaptérů proti DB bohemia_test (Homebrew Postgres musí běžet)
-npm run test:e2e      # Playwright – build + next start na :3011 proti DB bohemia_test
+npm run test:db       # testy adaptérů a souběhu web × worker proti DB bohemia_test (Homebrew Postgres musí běžet)
+npm run test:e2e      # Playwright – build + next start na :3011 proti DB bohemia_test (projekty chromium a worker)
+npm run test:e2e:worker   # jen e2e s workerem (spec pustí apps/worker vedle next start)
 npm run format:check  # npm run format = oprava
 npm run db:generate   # nová migrace po změně schématu v packages/db/src/schema
 npm run db:seed-dev   # vývojový účet v lokální DB bez registrace
@@ -194,6 +201,7 @@ npx tsx packages/game/scripts/measure-village.ts 200 60 --out base.jsonl     # z
 npx tsx packages/game/scripts/measure-village.ts 200 60 --variant meadow-burn --out burn.jsonl
 npx tsx packages/game/scripts/village-calculator.ts --preset full --fertility 56   # ustálený stav
 npx tsx apps/web/scripts/measure-scenery-culling.ts   # trojúhelníky a draw cally s ořezem po čtvercích
+NODE_OPTIONS=--conditions=react-server npx tsx apps/web/scripts/measure-absence.ts --villages 1,5,20   # otevření hry a akce po nepřítomnosti s workerem a bez něj (DB bohemia_measure)
 ```
 
 Všechny příkazy jdou přes Turborepo do jednotlivých workspaces. Před commitem musí projít

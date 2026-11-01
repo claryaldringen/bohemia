@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { PlayerLock } from '@bohemia/game';
 import {
   EXCLUSIVE_WARN_MS,
   exclusive,
+  exclusivePlayer,
+  exclusivePlayerShared,
   exclusiveShared,
   pendingExclusiveKeys,
   playerLockKey,
@@ -213,5 +216,75 @@ describe('exclusiveShared – chyby a úklid', () => {
       Symbol.for('bohemia.exclusive-shared')
     ];
     expect(shared?.size ?? 0).toBe(0);
+  });
+});
+
+/** Zámek v DB jako záznamník: kolikrát se o něj kdo řekl a kolik operací ho drželo naráz. */
+class RecordingLock implements PlayerLock {
+  calls = 0;
+  holding = 0;
+  maxHolding = 0;
+
+  async run<T>(_playerId: string, run: () => Promise<T>): Promise<T> {
+    this.calls++;
+    this.holding++;
+    this.maxHolding = Math.max(this.maxHolding, this.holding);
+    try {
+      return await run();
+    } finally {
+      this.holding--;
+    }
+  }
+
+  tryRun<T>(): Promise<{ ran: true; value: T } | { ran: false }> {
+    return Promise.resolve({ ran: false });
+  }
+}
+
+describe('exclusivePlayer – zámek v DB uvnitř fronty', () => {
+  it('druhá operace hráče si o zámek v DB řekne, až první skončí', async () => {
+    const lock = new RecordingLock();
+    let finishFirst: () => void = () => undefined;
+    const first = exclusivePlayer(
+      lock,
+      'hrac',
+      () => new Promise<string>((resolve) => (finishFirst = (): void => resolve('první'))),
+    );
+    const second = exclusivePlayer(lock, 'hrac', () => Promise.resolve('druhá'));
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(lock.calls).toBe(1); // druhá čeká ve frontě v procesu, ne na spojení zámku
+    finishFirst();
+    expect(await first).toBe('první');
+    expect(await second).toBe('druhá');
+    expect(lock.calls).toBe(2);
+    expect(lock.maxHolding).toBe(1);
+  });
+
+  it('jiný hráč na frontu nečeká, chyba projde a frontu nezasekne', async () => {
+    const lock = new RecordingLock();
+    let finishFirst: () => void = () => undefined;
+    const first = exclusivePlayer(
+      lock,
+      'hrac-a',
+      () => new Promise<void>((resolve) => (finishFirst = resolve)),
+    );
+    expect(await exclusivePlayer(lock, 'hrac-b', () => Promise.resolve('b'))).toBe('b');
+    finishFirst();
+    await first;
+    await expect(
+      exclusivePlayer(lock, 'hrac-a', () => Promise.reject(new Error('selhalo'))),
+    ).rejects.toThrow('selhalo');
+    expect(await exclusivePlayer(lock, 'hrac-a', () => Promise.resolve('dál'))).toBe('dál');
+  });
+
+  it('sdílené dotazy téhož dne vezmou zámek v DB jednou', async () => {
+    const lock = new RecordingLock();
+    const village = new FakeVillage();
+    const results = await Promise.all(
+      [1, 2, 3, 4, 5].map(() => exclusivePlayerShared(lock, 'hrac', '9', () => village.advance(9))),
+    );
+    expect(results).toEqual([9, 9, 9, 9, 9]);
+    expect(lock.calls).toBe(1);
+    expect(village.computes).toBe(1);
   });
 });

@@ -5,6 +5,12 @@
 // a dopočítával by potřetí. Tady se druhý požadavek na dokončení prvního počká a načte už
 // dopočítanou ves, takže dopočte jen zbytek do svého dne (obvykle nic). Je to jen infrastruktura
 // vstupního bodu – herní logika zůstává v use-casech.
+//
+// Proti jinému procesu (worker) platí druhá vrstva – zámek hráče v DB (`PlayerLock`), který se
+// bere až uvnitř fronty (`exclusivePlayer`). Pořadí je vždy fronta v procesu → zámek v DB a worker
+// zámek jen zkouší, takže čekání do kruhu (deadlock) nevznikne.
+
+import type { PlayerLock } from '@bohemia/game';
 
 type Tail = Promise<void>;
 
@@ -112,6 +118,28 @@ export function exclusiveShared<T>(
     if (entries.get(id) === entry) entries.delete(id);
   });
   return queued.result;
+}
+
+/**
+ * Operace nad vsemi hráče: fronta v procesu (`exclusive`), uvnitř zámek hráče v DB `locks` –
+ * spojení zámku se tak bere jen pro operaci, která je na řadě, a čeká se v DB jen na jiný proces.
+ */
+export function exclusivePlayer<T>(
+  locks: PlayerLock,
+  playerId: string,
+  run: () => Promise<T>,
+): Promise<T> {
+  return exclusive(playerLockKey(playerId), () => locks.run(playerId, run));
+}
+
+/** Jako `exclusivePlayer`, ale se sdílením volání téhož `variant` (`exclusiveShared`). */
+export function exclusivePlayerShared<T>(
+  locks: PlayerLock,
+  playerId: string,
+  variant: string,
+  run: () => Promise<T>,
+): Promise<T> {
+  return exclusiveShared(playerLockKey(playerId), variant, () => locks.run(playerId, run));
 }
 
 /** Počet klíčů, na které se ještě čeká (testy – mapa se musí uklidit). */

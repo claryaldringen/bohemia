@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
-import { abandonForLineEnd, abandonedVillageAt, isVillageDormant } from '../departure';
+import {
+  abandonForLineEnd,
+  abandonedVillageAt,
+  isVillageAsleep,
+  isVillageDormant,
+} from '../departure';
 import { NO_DYNASTY } from '../dynasty';
 import { isGameOver, isLineExtinct, lineEndDay, lineEndWhere } from '../extinction';
 import { removePeople } from '../kinship';
@@ -149,6 +154,11 @@ describe('ves opuštěná – rod vymřel (abandonForLineEnd)', () => {
     expect(Object.values(shown.livestock!.herds).every((n) => n === 0)).toBe(true);
     expect(Object.values(shown.livestock!.young).every((n) => n === 0)).toBe(true);
     expect(next.people).toHaveLength(2);
+    // spící ves se kvůli dni neukládá: pohled je stejný se zaostalým i posunutým lastDay
+    const shifted = abandonedVillageAt({ ...next, lastDay: DAY + 41 }, DAY + 41);
+    expect(shown).toEqual(shifted);
+    expect(isVillageAsleep(next)).toBe(true);
+    expect(isVillageAsleep({ ...next, abandonedDay: undefined })).toBe(false);
   });
 });
 

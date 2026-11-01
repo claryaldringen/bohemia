@@ -78,31 +78,104 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   klíče `player:<id>` (`dynastyStatus` dopočítává všechny vsi hráče, ne jednu): další volání počká
   na dokončení předchozího (i chybou – nepřilepí se) a načte už dopočítanou ves, takže dopočte jen
   zbytek do svého dne. Mapa je v `globalThis`, po dokončení se klíč uklidí. Klientský
-  `usePolling` už běží po jednom dotazu (další až po dokončení), takže nic nemění. Jen jeden
-  proces serveru; více procesů by dál řešil jen zámek verze.
-  - **Sdílení dotazů:** `dynastyOfPlayer` jde přes `exclusiveShared(klíč, den)` – dotaz se stejným
-    dnem, který přijde, dokud je posledním členem fronty právě takový dotaz (čeká nebo běží),
+  `usePolling` už běží po jednom dotazu (další až po dokončení), takže nic nemění.
+  - **Zámek hráče v DB (i proti workeru):** fronta v procesu je první vrstva; uvnitř ní se bere
+    `PlayerLock.run` (`exclusivePlayer` / `exclusivePlayerShared`, zámek z `getPlayerLock()`
+    v `lib/db.ts`, v `globalThis` jako pool DB – HMR `next dev` nové spojení neotevře). Adaptér
+    `packages/db/src/adapters/player-lock.ts`: `pg_advisory_lock(PLAYER_LOCK_NAMESPACE, otisk)` na
+    úrovni spojení, otisk = 32bitové FNV-1a z UTF-8 id hráče (`playerLockHash`, pevné hodnoty
+    v testu – po spuštění se nesmí změnit). Srážka otisků dvou hráčů je jen zbytečné čekání
+    (≈ n² / 2³³ – 10 000 hráčů ≈ 1,2 %). **Vlastní malý pool jen pro zámky** (`createLockPool`,
+    `createPlayerLocks` v `@bohemia/server` – web `WEB_LOCK_POOL_SIZE` 20, worker
+    `WORKER_LOCK_POOL_SIZE` 2): spojení drží zámek po celou operaci, dotazy operace jdou hlavním
+    poolem. Odemčení ve `finally` i po chybě; když odemčení selže nebo spojení spadne (posluchač
+    `error` na vypůjčeném spojení – jinak by pád spojení shodil proces), spojení se z poolu zahodí
+    a Postgres zámek uvolní sám – stejně při pádu nebo zabití procesu. Operace, které spojení
+    zámku spadlo pod rukama, doběhne bez zámku (`onLost` → `console.warn`); pojistkou zůstává
+    zámek verze v `updateVillage`. `tryRun` (worker) nečeká nikdy – `pg_try_advisory_lock`.
+    Volitelný `waitTimeoutMs` (Postgres `lock_timeout` na spojení zámku → `PlayerLockTimeoutError`,
+    zámek se nevezme) web nepoužívá – čeká jako fronta, varování po `EXCLUSIVE_WARN_MS` zahrne
+    i čekání na zámek v DB. **Bez deadlocku:** pořadí vždy fronta v procesu → zámek v DB, jeden
+    zámek hráče na operaci, nevnořuje se (`…Locked` varianty – `guardedAction` volá
+    `dynastyOfPlayerLocked`), bere se před transakcí, nikdy v ní, a worker jen zkouší. Testy:
+    `player-lock.db.test.ts` (dva pooly = dva procesy: `tryRun` → obsazeno, `run` počká, chyba
+    pustí, `pg_terminate_backend` držitele pustí, různí hráči se neblokují, 20 souběžných nikdy
+    dva naráz, časový limit), `exclusive.test.ts` (zámek v DB až uvnitř fronty, sdílené dotazy
+    ho berou jednou).
+  - **Sdílení dotazů:** `dynastyOfPlayer` jde přes `exclusiveShared(klíč, den:ves)` – dotaz se
+    stejným dnem a vsí, který přijde, dokud je posledním členem fronty právě takový dotaz (čeká nebo běží),
     dostane jeho Promise místo nového místa ve frontě. Fronta tak neroste, když klient dotazuje
     rychleji, než server stíhá, a akce hráče nečeká za zbytečnými dotazy. Jakmile se za dotaz
     zařadí akce, další dotaz už se řadí za ni.
   - **Den akce až ve frontě:** `guardedAction` v `lib/village.ts` načte den, ves a stav konce hry
-    až uvnitř zámku (dopočet jde přes `dynastyOfPlayerLocked`, `exclusive` se nevnořuje). Akce
+    až uvnitř zámku (dopočet jde přes `dynastyOfPlayerLocked` (= use-case `dynastyForVillage`),
+    `exclusivePlayer` se nevnořuje). Akce
     zařazená za skok v čase nebo jinou akci tak dostane aktuální den, ne ten z doby zařazení.
   - **Proč bez timeoutu:** timeout, který by frontu uvolnil, by vrátil souběžné dopočty (skok
     o desetiletí trvá minuty). Po `EXCLUSIVE_WARN_MS` (120 s) čekání nebo běhu se jen zapíše
     `console.warn`.
+- **Web dopočítá jen zobrazenou ves** (plán workeru – 3. Web po workeru; use-case
+  `dynastyForVillage` v `application/dynasty-for-village.ts`): pohled (`viewOf`), nabídka panelu
+  (`panelOptionsForPlayer`) i akce (`guardedAction`) volají `dynastyOfPlayer(playerId, today,
+villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočte do dneška zobrazená
+  ves každá jiná nespící ves **téže mapy** (kontrola umístění při akci – `neighboursOf` – a nabídka panelu musí vidět sousedy aktuální; `mustAdvanceNow`, stejně `currentVillageViewStamp`) a každá jiná nespící ves víc než `WORKER_LAG_DAYS` = 3 herní dny (≈ 4 min; Martin 31. 10. 2026) pozadu (`lagsBehindWorker` – worker neběží nebo dohání výpadek); ostatní vsi téže
+  mapy se načtou celé, jak jsou uložené (`find` přes paměť vsí – sousedé na mapě), **vsi jiných
+  map jen souhrnem** (`digestsOf` → `VillageDigestRecord`, sloupec `village.digest` – viz
+  docs/code/worker.md, Souhrn vsi): přepínač (`villageListItem` – celá ves jde přes týž
+  `villageDigest`, takže položka je táž), otisk pohledu (id, jméno, verze) a vlastní mapy kolem
+  (`ownMapsAround`) stav nepotřebují. Výsledek je `DynastyView` (vsi `DynastyVillage` – celá
+  nebo souhrn, `isFullVillage`); po konci hry jsou všechny vsi celé (kronika konce rodu). U dopočtených vsí se vybaví odchozí schránky
+  správce (kola jako `advanceDynasty` – nová ves syna je v přepínači hned). Konec hry se nejdřív
+  pozná z faktů vsí (`isGameOverOf` nad `LineFacts` – z celé vsi `lineFacts`, ze souhrnu přímo);
+  nastal-li, načtou se vsi celé a: jsou-li všechny na dnešku, `closeDynastyDay` jako plný
+  dopočet; ze smíšených dnů ho ověří plný dopočet `advanceDynasty` – smíšené dny nikdy neukážou falešný
+  konec rodu. **Bez workeru** ostatní vsi (jiných map) zaostávají až 3 herní dny (≈ 4 min): přepínač ukazuje
+  jejich starší stav, konec rodu rozhodnutý v jiné vsi se ukáže až o ≤ 4 min později (do té doby web
+  přijímá akce) a nová ves syna ze schránky nezobrazené vsi se objeví se zpožděním (Martin 31. 10. 2026 – mez 3 herní dny); sousedé na téže mapě jsou vždy aktuální. Plný dopočet (`dynastyStatus`) dál dělá skok v čase a restart. Vsi na téže mapě: web je dopočte
+  do dneška; worker je počítá po dávkách, takže sousedé ve workeru mohou být až o dávku staří. Testy `dynasty-for-village.test.ts` (pod mezí / nad mezí, determinismus zobrazené vsi
+  a zbytku, akce, skutečný i falešný konec rodu, schránka správce, souhrn = plné stavy, ves bez
+  souhrnu, konec rodu ze souhrnů); `village-list.test.ts` – položka přepínače ze souhrnu je táž
+  jako z celého stavu (hlad, humno, počasí roku, povodeň, pohroma, správce, vymřelá, opuštěná,
+  na cestě; den pohledu až 5 dní po dni vsi).
+- **Krok světa** (worker bez procesu kolem – plán workeru, 1. Co worker dělá; use-case
+  `application/advance-world.ts`): `advanceWorldStep(deps, { worldDay, stepDays, limit, skip })`
+  vezme z fronty (port `WorldQueue.behind(worldDay, limit)` v `application/world-queue.ts` →
+  `{ playerId, today, oldestDay }[]`) hráče nejvíc pozadu a každému `advancePlayer` posune vsi
+  o dávku: cíl `T = min(dnešek, nejstarší lastDay nespící vsi + stepDays)` (`WORLD_STEP_DAYS` =
+  10), každá nespící ves s `lastDay < T` zvlášť pod `PlayerLock.tryRun` → `loadVillage(T)` (s
+  `pause`) → vybavení její schránky správce (`settleStewardDeparturesSafely` – nová ves vznikne
+  v den odchodu a vezme ji další kolo). Zámek drží web → hráč `busy` a kolo jde na dalšího.
+  Posunulo-li se něco, jedno závěrečné držení zjistí konec rodu (`closeDynastyDay(T)`) – jen když
+  jsou všechny nespící vsi právě na `T` (smíšené dny by mohly dát falešný konec, ověří se po další
+  dávce). Výsledek `PlayerStep` (`done | busy | failed`, `targetDay`, vsi, dny, nové vsi,
+  `gameOver`, ms z volitelného `deps.now`, u chyby `{ villageId, cause }`) a souhrn `WorldStep`
+  (`idle` – nikdo bez odkladu nebyl pozadu). Odklady (busy, chyba) drží volající a předá je jako
+  `skip` – use-case hodiny nezná. Adaptér `packages/db/src/adapters/world-queue.ts`: jeden dotaz
+  nad `last_day` / `asleep` (bez JSON), dnešek `LEAST(den + posun, LAST_WORLD_DAY)` jako
+  `playerDay`, archivovaná sídla a spící vsi venku, pořadí zpoždění ↓, id `COLLATE "C"`.
+  Jednorázové převody starších vsí počítané od dne načtení (`withPenGrace`,
+  `withThreshingGrace`) dostanou den dávky `T`, ne dnešek hráče – stejně jako dřív den, kdy hráč
+  ves otevřel. Testy `advance-world.test.ts` (fronta, dávka ≤ `stepDays`, obsazený a odložený
+  hráč, spící vsi, chyba jednoho hráče, po 1 / 3 / 10 dnech i se zbytkem ve webu = dopočet
+  najednou, schránka, příjezd se správcem, konec rodu jen ze stejného dne),
+  `world-queue.db.test.ts`.
 - **Dotazování na ves** (`VillageGame` + `hooks/use-polling.ts`): klient se zeptá na začátku
   dalšího herního dne hráče (`nextPollDelayMs` v `lib/village-polling.ts` – začátek dne po dni
   pohledu přes `realTimeOf` + 1 s, nejdřív za 5 s, nejpozději za 86 s; po návratu do panelu hned). Pošle
   `{ villageId, known }` – `known` = `VillageView.stamp`, otisk pohledu (`villageViewStamp`
   v `application/village-stamp.ts`: vybraná ves, den, id + jméno + verze všech vsí hráče –
   pohled je čistá funkce těchto údajů). Server (`villageViewIfChanged`) nejdřív levně
-  (`currentVillageViewStamp` – sídla hráče a `VillageRepository.stampsOf`: id, jméno, verze
-  a `state->>'lastDay'` bez stavu) a při shodě, když jsou všechny vsi dopočítané do dneška,
-  vrátí `{ unchanged: true }` bez načtení stavů (Vlkov: celý řádek ≈ 830 kB / 50 ms, dotaz na
-  něj jde v celé cestě 3×). `dynastyStatus` bere id vsí z levných otisků (`stampsOf`, v pořadí
+  (`currentVillageViewStamp` – sídla hráče a `VillageRepository.stampsOf`: id, jméno, verze,
+  `last_day` a `asleep` – generované sloupce tabulky `village` (migrace 0009), plní se při každém
+  zápisu ze stavu JSON, který zůstává zdrojem pravdy; spánek = `extinctDay` nebo `abandonedDay`
+  jako `isVillageExtinct` / `isVillageAbandoned`; index `village_awake_day_idx` nespících vsí podle
+  dne je pro frontu workeru; `stampsOf` Vlkova z ≈ 6,2 ms na ≈ 0,15 ms, protože se JSON nerozbaluje) a při shodě, když by pohled nic nepočítal (zobrazená ves na
+  dnešku, každá jiná nespící ves nejvýš `WORKER_LAG_DAYS` pozadu – `lagsBehindWorker`; spící vsi
+  se nepočítají), vrátí `{ unchanged: true }` bez načtení stavů (Vlkov: celý řádek ≈ 830 kB / 50 ms, dotaz na
+  něj jde v celé cestě 3×). Když worker uloží jinou ves, otisk se změní (verze) a pohled se pošle
+  znovu – zhruba jednou za herní den, jako dřív. `dynastyStatus` bere id vsí z levných otisků (`stampsOf`, v pořadí
   založení) – stav každé vsi načte jen `loadVillage`, jednou. Akce a přeskok času vracejí vždy celý pohled.
-  **Paměť vsí na jeden požadavek** (`lib/village-cache.ts` – identity map): server actions
+  **Paměť vsí na jeden požadavek** (`packages/server/src/village-cache.ts` – identity map): server actions
   (`villageAction`, `getVillageView`, výběr a založení vsi, skok v čase) a první pohled běží ve
   `withVillageCache` (AsyncLocalStorage v `globalThis`); úložiště z `cachedVillages` tam vrací záznam
   načtený dřív v témže požadavku, dokud levný otisk (`stampsOf` – verze a jméno) sedí, `save`

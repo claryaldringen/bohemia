@@ -1,5 +1,6 @@
-import type { VillageState } from '../../src/domain/village';
+import { villageDigest, type VillageState } from '../../src/domain/village';
 import type {
+  VillageDigestRecord,
   VillageRecord,
   VillageRepository,
   VillageStamp,
@@ -63,7 +64,23 @@ export class SingleVillageRepository implements VillageRepository {
     await Promise.resolve();
     if (!settlementIds.includes(this.record.settlementId)) return [];
     const { id, settlementId, name, version, state } = this.record;
-    return [{ id, settlementId, name, version, lastDay: state.lastDay }];
+    return [
+      {
+        id,
+        settlementId,
+        name,
+        version,
+        lastDay: state.lastDay,
+        asleep: state.extinctDay !== undefined || state.abandonedDay !== undefined,
+      },
+    ];
+  }
+
+  async digestsOf(villageIds: readonly string[]): Promise<VillageDigestRecord[]> {
+    await Promise.resolve();
+    if (!villageIds.includes(this.record.id)) return [];
+    const { id, settlementId, name, version, state } = this.record;
+    return [{ id, settlementId, name, version, digest: villageDigest(state) }];
   }
 
   /** Měření běží bez počasí kraje – ves bez `weatherSeed` má všechny roky normální. */

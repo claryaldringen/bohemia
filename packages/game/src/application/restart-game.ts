@@ -53,12 +53,10 @@ export async function dynastyStatus(
 ): Promise<DynastyStatus> {
   const settlements = await deps.settlements.listActive(input.playerId);
   const villages: VillageRecord[] = [];
-  const landscapes = new Map<string, Landscape>();
   // jen id vsí (levný dotaz bez stavu) – stav načte a dopočítá až `loadVillage`, jednou
   const stamps = await deps.villages.stampsOf(settlements.map((s) => s.id));
   for (const settlement of settlements) {
     const landscape = settlementLandscape(settlement, deps.landscapes);
-    landscapes.set(settlement.id, landscape);
     for (const stored of stamps.filter((v) => v.settlementId === settlement.id)) {
       const village = await loadVillage(deps, {
         villageId: stored.id,
@@ -68,16 +66,35 @@ export async function dynastyStatus(
       if (village) villages.push(village);
     }
   }
+  return closeDynastyDay(deps, { settlements, villages, today: input.today });
+}
+
+/**
+ * Konec rodu (lord.md – Konec rodu) nad vsemi hráče, které už jsou dopočítané do dneška `today`:
+ * když vymřel rod po meči (`isLineExtinct`), každá ves, která ještě žije, zanikne ode dne konce
+ * rodu (`abandonForLineEnd`) a uloží se. Vrací stav rodu jako `dynastyStatus`; `villages` jsou
+ * výsledné záznamy. Samostatně ho volá i worker po dopočtu všech vsí hráče.
+ */
+export async function closeDynastyDay(
+  deps: DynastyDeps,
+  input: { settlements: Settlement[]; villages: VillageRecord[]; today: number },
+): Promise<DynastyStatus> {
+  const { settlements, today } = input;
+  const villages = [...input.villages];
   const states = villages.map((v) => v.state);
   const endDay = isLineExtinct(states) ? lineEndDay(states) : undefined;
   if (endDay !== undefined) {
+    const landscapes = new Map<string, Landscape>();
+    for (const settlement of settlements) {
+      landscapes.set(settlement.id, settlementLandscape(settlement, deps.landscapes));
+    }
     for (const [i, village] of villages.entries()) {
       const landscape = landscapes.get(village.settlementId);
       if (isVillageDormant(village.state) || !landscape) continue;
       const result = await updateVillage(
         deps.villages,
         village.id,
-        input.today,
+        today,
         landscape,
         (state) => ({ ok: true, state: abandonForLineEnd(state, endDay) }),
         deps.pause,

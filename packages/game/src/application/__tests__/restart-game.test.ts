@@ -112,6 +112,32 @@ describe('dynastyStatus', () => {
   });
 });
 
+describe('spící vsi se kvůli dni neukládají', () => {
+  it('vymřelá ves: pozdější dopočet nic neuloží a konec hry zůstane', async () => {
+    const { settlements, villages, villageId } = await playerWithVillage(true);
+    const deps = { settlements, villages, landscapes };
+    const first = await dynastyStatus(deps, { playerId: PLAYER, today: TODAY });
+    expect(first.gameOver).toBe(true);
+    const saved = villages.records.get(villageId);
+    const saves = villages.saves;
+    const later = await dynastyStatus(deps, { playerId: PLAYER, today: TODAY + 30 });
+    expect(later.gameOver).toBe(true);
+    expect(villages.saves).toBe(saves);
+    expect(villages.records.get(villageId)?.version).toBe(saved?.version);
+    expect(villages.records.get(villageId)?.state.lastDay).toBe(saved?.state.lastDay);
+    expect(later.villages[0]?.state).toEqual(saved?.state);
+  }, 30_000);
+
+  it('načtení spící vsi verzi nemění', async () => {
+    const { settlements, villages, villageId } = await playerWithVillage(true);
+    await dynastyStatus({ settlements, villages, landscapes }, { playerId: PLAYER, today: TODAY });
+    const version = villages.records.get(villageId)?.version;
+    const loaded = await loadVillage({ villages }, { villageId, today: TODAY + 100, landscape });
+    expect(loaded?.version).toBe(version);
+    expect(villages.records.get(villageId)?.version).toBe(version);
+  }, 30_000);
+});
+
 describe('konec rodu (lord.md – Konec rodu)', () => {
   it('rod vymřel – hra končí, ves s lidmi je opuštěná ode dne konce rodu a uložená', async () => {
     const { settlements, villages, villageId } = await playerWithVillage(false);
@@ -139,7 +165,8 @@ describe('konec rodu (lord.md – Konec rodu)', () => {
     expect(again.gameOver).toBe(true);
     expect(villages.records.get(villageId)?.state.people).toEqual(saved?.people);
     expect(villages.records.get(villageId)?.state.chronicle).toEqual(saved?.chronicle);
-    expect(villages.records.get(villageId)?.version).toBeGreaterThanOrEqual(version ?? 0);
+    // spící ves se kvůli dni neukládá (worker.md – Úloha 4)
+    expect(villages.records.get(villageId)?.version).toBe(version);
   }, 30_000);
 
   it('restart bez abandon je po konci rodu povolen; se živým rodem odmítne', async () => {

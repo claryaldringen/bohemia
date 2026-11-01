@@ -16,6 +16,7 @@ import {
   WEATHER,
   WEATHER_EFFECTS,
   weatherOf,
+  LOCAL_DISASTER_KINDS,
   type ChronicleEvent,
   type Crop,
   type FloodLevel,
@@ -386,13 +387,6 @@ export interface OtherVillageDisasters {
   last?: { day: number; notice: DisasterNotice };
 }
 
-const LOCAL_KINDS: ReadonlySet<ChronicleEvent['kind']> = new Set([
-  'hail',
-  'flood',
-  'fire',
-  'tornado',
-]);
-
 /** Počasí a poslední místní pohroma vsi pro přepínač vsí; nic – undefined. */
 export function otherVillageDisasters(
   state: Pick<VillageState, 'weatherSeed' | 'disasters' | 'chronicle'>,
@@ -402,7 +396,7 @@ export function otherVillageDisasters(
   let last: OtherVillageDisasters['last'];
   for (let i = state.chronicle.length - 1; i >= 0; i--) {
     const event = state.chronicle[i];
-    if (!event || !LOCAL_KINDS.has(event.kind)) continue;
+    if (!event || !LOCAL_DISASTER_KINDS.has(event.kind)) continue;
     const notice = disasterEntryNotice({
       day: event.day,
       kind: event.kind,

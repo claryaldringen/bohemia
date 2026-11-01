@@ -7,7 +7,11 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock('server-only', () => ({}));
-vi.mock('../db', () => ({ getDatabase: (): object => ({}) }));
+vi.mock('../db', () => ({
+  getDatabase: (): object => ({}),
+  // zámek v DB jen projde – řazení hlídá fronta v procesu (exclusive.ts)
+  getPlayerLock: (): object => ({ run: (_id: string, run: () => Promise<unknown>) => run() }),
+}));
 vi.mock('@bohemia/db', () => ({ createVillageRepository: (): object => ({}) }));
 vi.mock('@bohemia/game', async (importOriginal) => ({
   ...(await importOriginal<object>()),
