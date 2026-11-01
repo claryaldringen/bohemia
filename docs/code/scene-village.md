@@ -303,6 +303,26 @@ hraně špalku). Ženy u dojných zvířat (`milkers`) dojí na špalku (`milk`)
 (`sit`) a chodí se modlit před hotovou modlu či svatyni (`pray` – klip 0 A.D. s rukama k nebi,
 role fází `elder-home`). Špalek je prop postavy (`stump`), ne objekt scény – úloha 10 scény.
 
+### Rekvizity fází činností (úloha 9 scény)
+
+Rekvizity jsou **propy postav** v `man.glb` / `woman.glb` (`tools/blender/people.json`,
+`people_from_0ad.py`), ne objekty scény: každá má vlastní kloub kostry a v klipu, kde není, má
+měřítko 0 (kanály posunu a natočení skrytého propu skript vynechá). Postava tak zůstává jeden mesh
+s jedním atlasem a materiálem – žádný další draw call ani vertex buffer (WebGPU: postava má právě
+8); cena je ve vrcholech (≈ 7,9–8,1 tisíce na postavu místo ≈ 6) a ve VAT (klouby × snímky).
+Klip = animace 0 A.D. + rekvizita (jiný název téže animace): `bind` (povříslo – snop na zemi),
+`rake` (hrábě), `pitch` (vidle 0 A.D.), `forge` (kladivo a kleště 0 A.D.), `split` (úder
+krumpáče se sekerou a štípací špalek 0,8 m před patou), `sieve` (síto), `pots` (nádoby na zemi),
+`carry-tools` / `carry-pots` / `carry-fish` (nůše s nástroji, nádobami, rybami – rychlost chůze
+jako `carry`), `snare` (oko – zatím nezapojeno: oka se ve scéně nekreslí, wildlife.md), `cook`
+(vařečka a hrnec na ohništi – ženy u dveří `COOK_SHARE` za přadlenami, `villager-plan-folk.ts`).
+Vlastní klipy mají rekvizitu přímo: `milk` džber, `spin` přeslici, `weave` stav (stojí před
+tkající, jen když tká – zapojí úloha 12), `pipe` píšťalu, `drum` buben.
+**Volné propy** (bod `seat` – snop, špalek, síto, nádoby, oko, hrnec, džber, přeslice, stav,
+píšťala, buben) stojí v prostoru postavy (natáčí se s ní) i v klipu 0 A.D.; nástroje drží ruka
+(`prop-weapon_R/L`), náklad sedí na nůši (`prop-back`). Test `villager-motion.test.ts` hlídá,
+že klip v GLB svou rekvizitu ukazuje.
+
 - **Pěšiny**: obdélník hotové kovárny a hrnčíře pro pěšiny zahrne dvůr (`WORKSHOP_YARD_PATH_BOX_M`
   v `network-grid.ts` – `dwellingBox`, test v `craft-yard-layout.test.ts`), brána leží před dvorem
   a od vchodu se k ní chodí osou mezi pecí a jámou; pěšina tak nevede přes pec ani jámu ani po
@@ -332,12 +352,13 @@ role fází `elder-home`). Špalek je prop postavy (`stump`), ne objekt scény �
   kovář sám jen u pece. Při překování a kování kovář u kovadliny s kladivem (klip `build` –
   palička z 0 A.D. `build.dae`), další u měchů výhně a u koryta. Postavy bez nového klipu ani
   vertex bufferu. **Fáze** (villager-phases.ts – village-people.md, Fáze činností): při tavbě
-  napřed praní rudy (`weed`) a pražení (`winnow` s lopatou), překování `build` tempem 0,7, kování
-  nástrojů `build` 1,3 a odnos nástrojů do cizí domácnosti s košem (`carry`); hrnčíř po kruhu
-  či šlapání suší (`weed`), vsazuje do pece (`fruit`), hlídá oheň a nese nádoby do domácnosti;
-  uhlíř podle stavu milíře štípe (`fell`), zahrnuje (`hoe`), hlídá (`idle`), vytahuje uhlí
-  (`hoe`) a sype do koše (`fruit`). Chybějící rekvizity (kladivo a kleště, síto, nádoby, koš
-  s nástroji, hrábě, špalek) zastupuje rekvizita klipu – úloha 9.
+  napřed praní rudy v sítu (`sieve`) a pražení (`winnow` s lopatou), překování s kladivem
+  a kleštěmi (`forge`) tempem 0,7, kování nástrojů `forge` 1,3 a odnos nástrojů do cizí
+  domácnosti v nůši s nástroji (`carry-tools`); hrnčíř po kruhu či šlapání suší a vsazuje do pece
+  (`pots` – sehnutí nad třemi nádobami na zemi), hlídá oheň a nese nádoby v nůši (`carry-pots`);
+  uhlíř podle stavu milíře štípe na špalku (`split`), zahrnuje (`hoe`), hlídá (`idle`), vytahuje
+  uhlí hráběmi (`rake`) a sype do koše (`fruit`). Rekvizity jsou propy postav – viz Rekvizity
+  fází činností.
 - **Hrnčíř**: mělká **jáma s hlínou** před přístřeškem vpravo (`CLAY_PIT`) – val vykopané země
   a hladina hlíny podle stupně (prázdná jáma tmavé dno; kreslí se jen s hlínou nebo šlapáním).
   Když hrnčíř vyrábí, jeden šlape hlínu – pomalu tam a zpět napříč jámou (`treadingLine`, klip

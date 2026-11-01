@@ -337,7 +337,8 @@ cart-renderer.ts) – proto nešli vybrat. Podrobnosti jsou návrh Clauda – je
 
 Stav: **schváleno** (Martin 31. 10. 2026: „Ano, začni“; nové animace: „Ověř 0 A.D., pak Blender“) – v kódu úlohy 1–6
 (rozvrh, obsazení jako člověk → úloha, postavy podle rozvrhu, cesta na pole jako součást práce,
-události přerušují, délky ze sítě pěšin); úlohy 7–12 (fáze, rekvizity, animace) zbývají.
+události přerušují, délky ze sítě pěšin); úlohy 7–10 (fáze, rekvizity, animace) jsou hotové
+jako koncept ke schválení očima, úlohy 11–12 zbývají.
 
 Martin (31. 10. 2026): „Nevím jak je to teď, ale obecně by měla být vizuální stránka oddělena od
 herní mechaniky. Ve vykreslování by lidé měli dělat své činnosti od začátku do konce, bez ohledu
@@ -834,6 +835,19 @@ a `lib/village-view.ts`, rozvrh je znovu nedefinuje – `PersonJob`, `LaborActiv
    regenerace `man.glb` a `woman.glb` v `apps/web/public/models/people/`, zápis do
    `LICENSES.md`; test `VILLAGER_CLIPS` proti GLB. WebGPU limit 8 vertex bufferů – rekvizity jsou
    klouby kostry, ne nový atribut.
+   **Hotovo (1. 11. 2026 – ke schválení očima, ve scéně neověřeno):** z 0 A.D. vidle, kladivo,
+   kleště a sekera ke štípání; ostatní vlastní jednoduché modely (CC0 tvar, textury 0 A.D.):
+   povříslo se snopem, hrábě, štípací špalek, síto, nádoby na zemi, nůše s nástroji / nádobami
+   / rybami, oko, vařečka s hrncem na ohništi, džber, přeslice, stav, píšťala a buben. Klipy jsou
+   stávající animace s novou rekvizitou (`bind`, `rake`, `pitch`, `forge`, `split`, `sieve`,
+   `pots`, `carry-tools`, `carry-pots`, `carry-fish`, `snare`, `cook`), vlastní klipy dostaly
+   rekvizitu přímo. Návrh Clauda: snopy na vůz a seno se podávají vidlemi (`pitch` – klip `farming`,
+   ne dlouhý `fruit`, šetří VAT), vsazení do pece je sehnutí nad nádobami jako sušení, štípání je
+   úder krumpáče 0 A.D. se sekerou (shora na špalek), předení bez vřetena (z dálky neviditelné),
+   vaří čtvrtina žen u dveří (`COOK_SHARE`), prohazování zrna zůstává s lopatou (Martin 21. 10.
+   2026). Oko je v GLB, ale nezapojené (oka se ve scéně nekreslí – wildlife.md), stav jen při
+   tkaní (úloha 12). Volné rekvizity (snop, špalek, síto, hrnec, džber, stav, buben…) jsou propy
+   postavy, ne objekty scény – žádný další draw call.
 10. **Nové animace** (dojení, předení, tkaní, sezení starších, točení na kruhu, hudebníci;
     napřed **ověřit v datech 0 A.D.**, zda vhodný klip není): vlastní v Blenderu nad kostrou
     bipeda 0 A.D. (`people_from_0ad.py`, nový typ klipu bez zdroje `.dae`), nové názvy
