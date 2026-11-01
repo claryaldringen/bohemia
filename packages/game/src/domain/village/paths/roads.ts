@@ -233,14 +233,31 @@ export function roadsMonth(
   landscape: Landscape,
   obstacles: ObstacleLayer | null,
 ): void {
+  const steps = roadsMonthSteps(state, day, landscape, obstacles);
+  for (;;) {
+    if (steps.next().done) return;
+  }
+}
+
+/**
+ * `roadsMonth` po krocích: zastaví se mezi sčítáním vyšlapanosti, zánikem cest, vznikem cest
+ * a úklidem, aby volající mohl dát přestávku (server – dlouhý dopočet neblokuje ostatní
+ * požadavky). Výsledek je týž.
+ */
+export function* roadsMonthSteps(
+  state: VillageState,
+  day: number,
+  landscape: Landscape,
+  obstacles: ObstacleLayer | null,
+): Generator<void, void, void> {
   if (dateOfDayIndex(day).day !== 1) return;
   const clock = ROADS_MONTH_TIMING.clock;
   if (!clock) {
-    roadsMonthRun(state, day, landscape, obstacles);
+    yield* roadsMonthRunSteps(state, day, landscape, obstacles);
     return;
   }
   const t0 = clock();
-  roadsMonthRun(state, day, landscape, obstacles);
+  yield* roadsMonthRunSteps(state, day, landscape, obstacles);
   ROADS_MONTH_TIMING.ms += clock() - t0;
   ROADS_MONTH_TIMING.runs++;
 }
@@ -263,7 +280,22 @@ function roadsMonthRun(
   /** Jen přestavba sítě (`rebuildRoadsPass`). */
   rebuild?: RebuildHints,
 ): void {
+  const steps = roadsMonthRunSteps(state, day, landscape, obstacles, rebuild);
+  for (;;) {
+    if (steps.next().done) return;
+  }
+}
+
+function* roadsMonthRunSteps(
+  state: VillageState,
+  day: number,
+  landscape: Landscape,
+  obstacles: ObstacleLayer | null,
+  /** Jen přestavba sítě (`rebuildRoadsPass`). */
+  rebuild?: RebuildHints,
+): Generator<void, void, void> {
   settleVillageWear(state, day, landscape);
+  yield;
   const roads = state.roads;
   // zánik: kusy na nule pryč, kus pod hotovou stavbou opuštěný – napřed, aby souběžnost se starou
   // cestou zmizela dřív, než z vyšlapané objížďky vznikne cesta (paths.md – Stavba přes cestu)
@@ -277,10 +309,12 @@ function roadsMonthRun(
       if (blocked) abandonBlockedStretches(roads, state.constructions, state.trails, blocked);
     }
   }
+  yield;
   const routes = state.routes;
   if (!state.roads || !routes || routes.list.length === 0) return;
   const cellM = pathCellM(landscape);
   const { lines, anchors } = monthRoutes(routes, landscape, cellM, fencesOf(state, landscape, day));
+  yield;
   const buildings = ringBuildingsOf(state, day, landscape);
   const entrances = entrancesOf(state, landscape, day);
   // kontext míst na stromy a provozní pole jen, když se cesty opravdu mění
@@ -313,7 +347,7 @@ function roadsMonthRun(
       lost.size > 0 ? remembered : undefined,
     );
     if (due) {
-      const formed = formRoadsKept(
+      const formed = yield* formRoadsKept(
         state,
         state.roads,
         { lines, anchors, wear, day, base: baseOf(), lost, remembered },
@@ -329,6 +363,7 @@ function roadsMonthRun(
   } else {
     delete state.roads.lostRuns;
   }
+  yield;
   const walk = (): ((x: number, z: number) => boolean) | null =>
     villageBlockedAt(state, day, landscape);
   tidyMonth(
@@ -709,7 +744,7 @@ function survivedTidy(road: Road, before: VillageRoads, after: VillageRoads): bo
  * kotvy (`anchorTermini`). Vrátí nové cesty, které zůstaly; nic-li nezůstalo, stav nezmění
  * (mutuje stav a `remembered`).
  */
-function formRoadsKept(
+function* formRoadsKept(
   state: VillageState,
   roads: VillageRoads,
   month: {
@@ -722,11 +757,12 @@ function formRoadsKept(
     remembered: Set<string>;
   },
   field: () => TrafficField,
-): Road[] {
+): Generator<void, Road[], void> {
   const { lines, anchors, wear, day, base, remembered } = month;
   const isEnd = anchorTermini(anchors);
   const skip = new Set(month.lost);
   for (let round = 0; round < FORM_ROUNDS; round++) {
+    yield;
     const draft = draftOf(state, roads);
     const context: SpotContext = {
       ...base,
@@ -737,6 +773,7 @@ function formRoadsKept(
     };
     const formed = formWearRuns(draft.roads, lines, wear, anchors, day, context, field(), skip);
     if (formed.length === 0) return [];
+    yield;
     tidyRoads(draft.roads, draft.constructions, isEnd, context, undefined, draft.trails);
     const lost = formed.filter(({ road }) => !survivedTidy(road, roads, draft.roads));
     if (lost.length === 0) {

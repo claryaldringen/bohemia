@@ -191,10 +191,12 @@ describe('loadVillage', () => {
     const paused = await foundedVillages();
     const later = TODAY + 200;
     let pauses = 0;
+    let dayPauses = 0;
     let waits = 0;
-    const pause = (): Promise<void> | null => {
+    const pause = (day?: number): Promise<void> | null => {
       pauses++;
-      // každý třetí den opravdu počká (jako server po kousku práce)
+      if (day !== undefined) dayPauses++;
+      // každá třetí přestávka opravdu počká (jako server po kousku práce) – i ty uvnitř dne
       if (pauses % 3 !== 0) return null;
       waits++;
       return new Promise((resolve) => setTimeout(resolve, 0));
@@ -204,8 +206,10 @@ describe('loadVillage', () => {
       { villages: paused, pause },
       { villageId: VID, today: later, landscape },
     );
-    expect(pauses).toBe(200);
-    expect(waits).toBe(66);
+    // jedna přestávka po každém dni a k tomu zastavení uvnitř dne (cesty, trasy – bez indexu dne)
+    expect(dayPauses).toBe(200);
+    expect(pauses).toBeGreaterThan(200);
+    expect(waits).toBe(Math.floor(pauses / 3));
     expect(b).toEqual(a);
     expect(JSON.stringify(b!.state)).toBe(
       JSON.stringify(

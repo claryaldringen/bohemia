@@ -48,8 +48,16 @@ value }`, `parseDevDisasterInput`) → use-cases `forceBadYear` / `forceDisaster
   `{ doneDays, totalDays }` po každém odsimulovaném dni – den se dozví z přestávky (`Pause`
   dostává index dne z `advanceVillageSteps`; s hlášením má počítaná ves přestávky vždy, výsledek
   je týž). Hotovo jen roste a nepřeleze celek (opakovaný pokus po souběhu). Smyčku mezi dny uvolňuje
-  dál `computePause` (≈ 50 ms v kuse, `setImmediate`); delší kusy bez přestávky (převody a trasy
-  2,6 MB Vlkova) drží server nejvýš ≈ 0,35 s (studený start ≈ 0,85 s). Web: `skipTimeForPlayer`
+  dál `computePause` (≈ 50 ms v kuse, `setImmediate`). Přestávky jsou i **uvnitř dne**: den vsi
+  je generátor (`simulateDaySteps`) a drahé kroky se zastavují (`yield` bez hodnoty → `pause()` bez
+  indexu dne) – měsíční kontrola cest (`roadsMonthSteps`: vyšlapanost, zánik, vznik, úklid), přepočet
+  tras a chůze (`refreshWalkDistancesSteps` → `villagePathNetworkSteps` → `computePathNetworkSteps`
+  po domácnostech v kole, `walkingDistancesSteps` po osmi cílech, obydlí po jednom) a mezi velkými
+  kroky dne (chov, plán osevu, práce, správce, jídlo). Synchronní verze (`roadsMonth`,
+  `refreshWalkDistances`, `computePathNetwork`, `routeAll`, `walkingDistances`) jsou jen výčet
+  generátoru, výsledek je týž. Nejdelší kus bez přestávky u Vlkova (skok o rok, `measure-pauses.ts`):
+  teplý ≈ 0,1 s (dřív ≈ 1,0 s), studený ≈ 0,45 s. Nedělitelné zůstává `obstaclesOf` při prvním
+  načtení krajiny (≈ 0,3 s studený) a jedno volání `tidyMonth` (≈ 60–90 ms). Web: `skipTimeForPlayer`
   zapisuje průběh do paměti procesu (`lib/skip-progress.ts`, `globalThis`) a po konci ho smaže –
   obojí uvnitř fronty hráče. Čte ho **Route Handler** `GET /api/dev/skip-progress` (jen přihlášený
   s `devMode`, jen vlastní průběh, `no-store`) – server action to být nemůže, Next řadí server

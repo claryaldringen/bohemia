@@ -36,7 +36,7 @@ import {
   type RouteRecord,
   type SearchState,
   type Traffic,
-  routeAll,
+  routeAllSteps,
   smoothTraffic,
   trodden,
   villageBuildings,
@@ -95,9 +95,26 @@ export { PathHeap, quantizedStep, villageBuildings } from './network-search';
 export { simplifyPathLine, smoothPathLine } from './network-lines';
 
 export function computePathNetwork(input: PathNetworkInput): PathNetwork {
+  const steps = computePathNetworkSteps(input);
+  for (;;) {
+    const step = steps.next();
+    if (step.done) return step.value;
+  }
+}
+
+/**
+ * `computePathNetwork` po krocích: zastaví se po mřížce, po každé domácnosti v kole, po vyhlazení
+ * každého kola i před čárami, aby volající mohl dát přestávku (server – dlouhý dopočet neblokuje
+ * ostatní požadavky). Výsledek je týž.
+ */
+export function* computePathNetworkSteps(
+  input: PathNetworkInput,
+): Generator<void, PathNetwork, void> {
   const v = input.village;
   const { dwellings: buildings, all: obstaclesOnly } = villageBuildings(v);
+  yield;
   const grid = villageGrid(input, obstaclesOnly);
+  yield;
   const all = grid.width * grid.height;
   const empty: PathNetwork = {
     lines: [],
@@ -164,7 +181,7 @@ export function computePathNetwork(input: PathNetworkInput): PathNetwork {
       }
     }
     const last = pass === PASSES - 1;
-    result = routeAll(
+    result = yield* routeAllSteps(
       grid,
       costs,
       homes,
@@ -174,6 +191,7 @@ export function computePathNetwork(input: PathNetworkInput): PathNetwork {
       last ? records : null,
     );
     smooth = smoothTraffic(grid, result.cells);
+    yield;
   }
   return {
     lines: extractLines(grid, result, new Map(homes.map((h) => [h.gate, h.gatePoint]))),
@@ -220,7 +238,18 @@ export function establishedVillage(v: PathVillage): PathVillage {
  * hotových obydlí ke všem stavbám (`establishedVillage`).
  */
 export function computeStableNetwork(input: PathNetworkInput): PathNetwork {
-  return computePathNetwork({
+  const steps = computeStableNetworkSteps(input);
+  for (;;) {
+    const step = steps.next();
+    if (step.done) return step.value;
+  }
+}
+
+/** `computeStableNetwork` po krocích (viz `computePathNetworkSteps`). */
+export function computeStableNetworkSteps(
+  input: PathNetworkInput,
+): Generator<void, PathNetwork, void> {
+  return computePathNetworkSteps({
     ...input,
     village: establishedVillage(stableVillage(input.village)),
     keepRoutes: true,

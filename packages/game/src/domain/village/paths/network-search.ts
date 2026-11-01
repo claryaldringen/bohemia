@@ -319,6 +319,26 @@ export function routeAll(
   ends: Map<number, PathErrands> | null,
   routes: RouteRecord[] | null = null,
 ): Traffic {
+  const steps = routeAllSteps(grid, costs, homes, groups, state, ends, routes);
+  for (;;) {
+    const step = steps.next();
+    if (step.done) return step.value;
+  }
+}
+
+/**
+ * `routeAll` po krocích: po každé domácnosti (hledání cesty) se zastaví, aby volající mohl dát
+ * přestávku (server – dlouhý dopočet neblokuje ostatní požadavky). Výsledek je týž.
+ */
+export function* routeAllSteps(
+  grid: Grid,
+  costs: PassCosts,
+  homes: readonly Household[],
+  groups: readonly TripGroup[],
+  state: SearchState,
+  ends: Map<number, PathErrands> | null,
+  routes: RouteRecord[] | null = null,
+): Generator<void, Traffic, void> {
   const traffic: Traffic = {
     cells: new Float32Array(grid.width * grid.height),
     edges: new Float32Array(grid.width * grid.height * 4),
@@ -368,8 +388,10 @@ export function routeAll(
       // každá domácnost zvlášť od brány k nejbližšímu místu – po sobě, takže se další přidá
       // k pěšině, kterou vyšlapali sousedé
       const trail = errandTrail(grid.width * grid.height);
-      group.weights.forEach((w, k) => {
-        if (w < MIN_TRIP) return;
+      for (let k = 0; k < group.weights.length; k++) {
+        const w = group.weights[k]!;
+        if (w < MIN_TRIP) continue;
+        yield;
         const gate = homes[k]!.gate;
         const at = searchErrand(
           grid,
@@ -384,7 +406,7 @@ export function routeAll(
         if (at < 0) {
           // pro vodu / dřevo nemá kam (moc daleko, za vodou) – další kola už nehledají
           group.weights[k] = 0;
-          return;
+          continue;
         }
         if (first) {
           const total = state.dist[at]! + (marks[at] ? 0 : trail.rest[at]!);
@@ -404,7 +426,7 @@ export function routeAll(
         const end = addErrand(grid, state, traffic, costs, trail, marks, at, trips, years, path);
         remember(group, k, end);
         if (routes && path) routes.push({ home: k, group, trips, cells: path });
-      });
+      }
       group.reach = reach;
       continue;
     }
@@ -417,6 +439,7 @@ export function routeAll(
       if (!toGates(group)) continue;
     }
     for (const { w, k } of walkers) {
+      yield;
       const home = homes[k]!;
       if (walkers.length > 1) {
         // víc domácností ke stejnému cíli: každá zvlášť, nejvytíženější první – další se po

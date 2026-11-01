@@ -752,6 +752,28 @@ export function walkingDistances(
   ground: WalkGround | null = null,
   memo: WalkMemo | null = null,
 ): number[] {
+  const steps = walkingDistancesSteps(graph, origins, targets, ground, memo);
+  for (;;) {
+    const step = steps.next();
+    if (step.done) return step.value;
+  }
+}
+
+/** Cíle, po kterých se `walkingDistancesSteps` zastaví (dost málo na to, aby kus trval milisekundy). */
+const WALK_STEP_TARGETS = 8;
+
+/**
+ * `walkingDistances` po krocích: po každých `WALK_STEP_TARGETS` cílech (rovně z obydlí i po síti)
+ * se zastaví, aby volající mohl dát přestávku (server – dlouhý dopočet neblokuje ostatní
+ * požadavky). Výsledek je týž.
+ */
+export function* walkingDistancesSteps(
+  graph: WalkGraph,
+  origins: readonly PathPoint[],
+  targets: readonly PathPoint[],
+  ground: WalkGround | null = null,
+  memo: WalkMemo | null = null,
+): Generator<void, number[], void> {
   if (targets.length === 0) return [];
   const n = graph.x.length;
   const dist = new Float64Array(n).fill(Infinity);
@@ -797,13 +819,17 @@ export function walkingDistances(
   };
   // rovně z obydlí ke každému cíli – horní mez výsledku; uzel, ke kterému je rovně aspoň tak daleko
   // jako nejdelší z nich, cestu k žádnému cíli nezkrátí a do sítě nevstupuje (výsledek týž)
-  const direct = targets.map((t) =>
-    cheapest(
-      origins.length,
-      (k) => length2(t.x - origins[k]!.x, t.z - origins[k]!.z),
-      (k) => straight(origins[k]!, t.x, t.z),
-    ),
-  );
+  const direct: number[] = [];
+  for (const [q, t] of targets.entries()) {
+    if (q % WALK_STEP_TARGETS === 0) yield;
+    direct.push(
+      cheapest(
+        origins.length,
+        (k) => length2(t.x - origins[k]!.x, t.z - origins[k]!.z),
+        (k) => straight(origins[k]!, t.x, t.z),
+      ),
+    );
+  }
   let limit = 0;
   for (const d of direct) if (d > limit) limit = d;
   // na síť z každého obydlí jen v nejbližším bodě každé pěšiny a cesty (paths.md – Odhad
@@ -856,7 +882,9 @@ export function walkingDistances(
     bounds.set([min, x0, x1, z0, z1], ci * 5);
   });
   // z nejbližšího bodu každé pěšiny a cesty k cíli, nebo rovně z obydlí – kratší z obou
-  return targets.map((t, q) => {
+  const result: number[] = [];
+  for (const [q, t] of targets.entries()) {
+    if (q % WALK_STEP_TARGETS === 0) yield;
     let best = direct[q]!;
     for (let ci = 0; ci < chains.length; ci++) {
       const b = ci * 5;
@@ -876,8 +904,9 @@ export function walkingDistances(
       const cost = dist[id]! + straight({ x: graph.x[id]!, z: graph.z[id]! }, t.x, t.z);
       if (cost < best) best = cost;
     }
-    return best;
-  });
+    result.push(best);
+  }
+  return result;
 }
 
 /** Trasa chodce z bodu do bodu (`walkingRoute`) – body a cena chůze úseků. */

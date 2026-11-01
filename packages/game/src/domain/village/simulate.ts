@@ -20,8 +20,8 @@ import { arrangeMarriages } from './marriage';
 import { bufferFill } from './field-food';
 import { withOxen } from './oxen';
 import { overgrowthDay } from './overgrowth';
-import { roadsDay, roadsMonth } from './paths/roads';
-import { refreshWalkDistances } from './paths/village';
+import { roadsDay, roadsMonthSteps } from './paths/roads';
+import { refreshWalkDistancesSteps } from './paths/village';
 import { flushWear } from './paths/wear';
 import { roadFieldsDay } from './road-fields';
 import { villageSacredOaks } from './sacred';
@@ -103,14 +103,15 @@ export function advanceVillage(
  * `advanceVillage` po dnech: po každém odsimulovaném dni se zastaví (vrátí jeho index), aby
  * volající mohl mezi dny pustit ke slovu jinou práci (server – dlouhý dopočet neblokuje ostatní
  * požadavky). Výsledek (hodnota po posledním kroku) je stejný jako u `advanceVillage` – je to
- * tatáž smyčka, stav se klonuje jen jednou. RangeError jako `advanceVillage` (při prvním kroku).
+ * tatáž smyčka, stav se klonuje jen jednou. Uvnitř dne se zastaví i u drahých kroků (cesty, trasy,
+ * chůze) – bez hodnoty. RangeError jako `advanceVillage` (při prvním kroku).
  */
 export function* advanceVillageSteps(
   state: VillageState,
   toDay: number,
   obstacles: ObstacleLayer | null,
   landscape: Landscape | null = null,
-): Generator<number, VillageState, void> {
+): Generator<number | void, VillageState, void> {
   if (!Number.isInteger(toDay) || toDay >= TOTAL_GAME_DAYS) {
     throw new RangeError(`Den ${toDay} neleží ve světě (0 až ${TOTAL_GAME_DAYS - 1}).`);
   }
@@ -164,7 +165,7 @@ export function* advanceVillageSteps(
   withFourWheelReach(next);
   // vymřelá, opuštěná a ves na cestě se nesimulují – jen se posune den (migration.md)
   for (let day = next.lastDay + 1; day <= toDay && !isVillageDormant(next); day++) {
-    simulateDay(next, day, obstacles, landscape);
+    yield* simulateDaySteps(next, day, obstacles, landscape);
     yield day;
   }
   next.lastDay = toDay;
@@ -180,13 +181,17 @@ function trimChronicle(state: VillageState): void {
   if (excess > 0) state.chronicle.splice(0, excess);
 }
 
-/** Jeden den vsi v pevném pořadí kroků (mutuje stav). */
-function simulateDay(
+/**
+ * Jeden den vsi v pevném pořadí kroků (mutuje stav). Drahé kroky (měsíční kontrola cest, přepočet
+ * tras a chůze) se zastavují (`yield` bez hodnoty), aby volající mohl dát přestávku – pořadí kroků
+ * ani výsledek tím nezávisí.
+ */
+function* simulateDaySteps(
   state: VillageState,
   day: number,
   obstacles: ObstacleLayer | null,
   landscape: Landscape | null,
-): void {
+): Generator<void, void, void> {
   const date = dateOfDayIndex(day);
   // vojvodova rodina (lord.md): cvičí, nebo pracuje – rozhodnout jednou na začátku dne, ať ho
   // stejně vidí pasení, plán osevu, nákupy i `work()` (i v den přechodu)
@@ -210,11 +215,13 @@ function simulateDay(
   // vyšlapanost a vznik cest (paths.md – Vyšlapanost a vznik cesty): 1. dne v měsíci interval se
   // stálými trasami a z vyšlapaných čar tras nové cesty; přepočet tras ji sečte sám (před novými
   // trasami)
-  if (landscape && date.day === 1) roadsMonth(state, day, landscape, obstacles);
+  if (landscape && date.day === 1) yield* roadsMonthSteps(state, day, landscape, obstacles);
+  yield;
   // pevné cesty ubírají polím plochu (roads.md a fields.md – Cesta přes pole) – jen když se od
   // včerejška změnily cesty nebo čtverce polí
   if (landscape) roadFieldsDay(state, day, landscape);
-  if (landscape) refreshWalkDistances(state, day, landscape, obstacles);
+  if (landscape) yield* refreshWalkDistancesSteps(state, day, landscape, obstacles);
+  yield;
   // pokrytí výrobky řemeslníků ze včerejších zásob – meze produktivity celého dne (crafts.md)
   const coverage = craftCoverage(state, day);
   rotLogs(state);
@@ -230,6 +237,7 @@ function simulateDay(
   state.chronicle.push(...overgrowthDay(state, day, obstacles ?? landscape));
   // stáda, seno a ohrady: mláďata, seč, porážka, vejce, zimní krmení, spřežení (diet.md, oxen.md)
   state.chronicle.push(...husbandryDay(state, day, coverage.tools, landscape, obstacles));
+  yield;
   // ušetřené posvátné duby stářím usychají a souše padají – den plyne z dubu (happiness.md)
   state.chronicle.push(...sacredOakEvents(villageSacredOaks(state), obstacles, day));
   // 1. 9. nový hospodářský rok a postup dílů, každý den nutné díly a konce oken setí (fields.md –
@@ -239,6 +247,7 @@ function simulateDay(
   famineMemoryDay(state, day);
   if (isOn(date, PLANNING_DAY)) startSeason(state, day, coverage, landscape);
   const waiting = seasonDay(state, day, coverage);
+  yield;
   lordHelpDay(state, day, coverage, landscape, waiting);
   // zvěř: 1. 6. ohrožené díly polí podle vzdálenosti od lesa (wildlife.md – Škody)
   damageWindowStart(state, day, landscape);
@@ -260,6 +269,7 @@ function simulateDay(
     landscape,
     new Set(waiting.map((j) => j.crop)),
   );
+  yield;
   // nástroje a nádoby v užívání se opotřebí (crafts.md – Účinek)
   wearCraftStocks(state, day);
   // škody zvěře na polích po práci dne – nesklizené díly (wildlife.md – Škody)
@@ -287,6 +297,7 @@ function simulateDay(
   // kroky 1 a 2 – jména synů, 31. 8. odchod syna do schránky (steward-son.ts)
   stewardSonDay(state, day, landscape, obstacles);
   stewardDay(state, day, landscape, obstacles);
+  yield;
   // zbytky jam po zaniklých obydlích zarůstají, pod novou stavbou zmizí (ruins.ts)
   updateRuins(state, day, landscape);
   updateOrePits(state, day);
@@ -315,6 +326,7 @@ function simulateDay(
   state.chronicle.push(...arrangeMarriages(state, day, storesFill));
   state.chronicle.push(...extraWivesDay(state, day, storesFill));
   const { satiation, energy, fruit, meat } = eat(state, day, coverage);
+  yield;
   // nouzová porážka běží až v `eat()`, po `work()` – doplnit hlášení kusů do dnešního rozvrhu práce
   // (jen hlášení pro scénu, simulaci to nemění)
   const slaughteredToday = state.livestock?.slaughtered;

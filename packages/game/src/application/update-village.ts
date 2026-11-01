@@ -112,7 +112,8 @@ async function advancedToTodayWithPauses(
   for (;;) {
     const step = steps.next();
     if (step.done) return step.value;
-    const wait = pause(step.value);
+    // zastavení uvnitř dne (drahé kroky) nese `undefined`, konec dne jeho index
+    const wait = pause(typeof step.value === 'number' ? step.value : undefined);
     if (wait) await wait;
   }
 }
