@@ -139,6 +139,18 @@ describe('měření správce – tabulka', () => {
     expect(good.find((r) => r.name.startsWith('Odchody synů o'))?.measured).toContain('0 z 1');
   });
 
+  it('výčet po vsích jde po seedech vzestupně, ne v pořadí kontrolního bodu', () => {
+    const rows = summarize([
+      result({ seed: 28, sownShare: 0.3 }),
+      result({ seed: 3, sownShare: 0.1 }),
+      result({ seed: 17, sownShare: 0.2 }),
+    ]);
+    // využití = podíl × ROTATION_FACTOR (3,5): seed 3 → 0,35, 17 → 0,70, 28 → 1,05
+    expect(rows.find((r) => r.name.startsWith('Využití oběhu'))?.measured).toContain(
+      '(0,35 0,70 1,05)',
+    );
+  });
+
   it('cíl založení + vracení: vracení přílohu oběhu (1 ze 2 let osevu) a zakládání při růstu', () => {
     // bez nástrojů: vracení louky 100 ÷ 2 = 50 čd na osetý ha z polní práce 209 čd
     expect(overheadTarget(0)).toBeCloseTo(50 / 209, 6);

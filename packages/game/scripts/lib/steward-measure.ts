@@ -621,8 +621,11 @@ function values(
 
 /** Tabulka kritérií B (správce) proti A (hráč skriptu) a D (horní mez); C (Vlkov) se neměří. */
 export function summarize(results: readonly DynastyResult[]): Row[] {
-  const a = results.filter((r) => r.strategy === 'player');
-  const b = results.filter((r) => r.strategy === 'steward');
+  // výčty hodnot po vsích (využití oběhu, pokrytí nástroji, dílny) po seedech vzestupně – jako
+  // řádky seedů pod tabulkou; kontrolní bod je v pořadí dokončení úloh, které se mezi běhy liší
+  const bySeed = [...results].sort((x, y) => x.seed - y.seed);
+  const a = bySeed.filter((r) => r.strategy === 'player');
+  const b = bySeed.filter((r) => r.strategy === 'steward');
   const t = Math.max(...results.map((r) => r.years)) < 50 ? QUICK : FULL;
   const hasA = a.length > 0;
   const rows: Row[] = [];
