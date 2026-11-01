@@ -333,9 +333,10 @@ kde to nestačí.
   stejných morph targetů – žádný nový atribut) – jen scéna.
 - **Lovci:** v den velkého lovu vyjedou jezdci a vyjdou pěší se psy branou k okraji lesa u roty
   a vrátí se (jako jezdci v bloku jízdy – [koně](horses.md), Ve scéně); prasata před nimi utíkají.
-  Hlídka v létě = dosavadní objížďka. Den má 86 s: cesta k lesu smí trvat nejvýš 70 % půlky
-  bloku lovu – pěší rychlou chůzí dojdou ≈ 70 m, poklusem ≈ 100 m, jezdci cvalem ≈ 135 m. Les
-  u zvěře dál než to jdou lovci k nejbližšímu okraji lesa, a když ani ten nestihnou, jen ke
+  Hlídka v létě = dosavadní objížďka. Lov jde ve skutečném čase (1. 11. 2026, návrh Clauda –
+  villagers.md, Činnosti od začátku do konce): vyrazí za šera dne lovu a trvá 10 minut (≈ 7 herních
+  dní); cesta k lesu smí trvat nejvýš 70 % půlky lovu – pěší svižnou chůzí dojdou ≈ 300 m, jezdci
+  klusem ≈ 630 m. Les u zvěře dál než to jdou lovci k nejbližšímu okraji lesa, a když ani ten nestihnou, jen ke
   kraji svého dosahu – nikdy se neotočí v půlce cesty.
 - **Rybáři:** stojí na břehu tůně (dosavadní póza stání) s **prutem** – nová rekvizita (vlastní CC0
   model ≈ 3 m, vlasec jako čára), samostatná instance natočená podle postavy, **žádný nový vertex
@@ -512,6 +513,8 @@ Martin: „Souhlasím se všemi návrhy“ – tři otázky z plánu jsou uzavř
 
 - **Lov trvá 3–21 h herního dne** a lovci jdou k lesu rychleji (jezdci až 6 m/s, pěší až 3,2 m/s) –
   den má 86 s, krokem by k lesu nedošli. Dál než ≈ 100 m pěší les nestihnou a v půlce dne se otočí.
+  **Nahrazeno 1. 11. 2026** (Martin: „Občas ve hře vidím nějakého vesničana, jak brutálně
+  sprintuje“): lov jde ve skutečném čase 10 minut, pěší chůzí, jezdci nejvýš klusem (výš – Lovci).
 - **Úlovek nese pěší lovec** cestou zpět (klip `carry-meat`), jen když jádro ten den ulovilo –
   bez nového modelu; kus na koni by potřeboval mršinu natočenou podle koně.
 - **Oštěp** je v `man.glb` jen v klipu `spear-thrust` – pěší lovci ho drží, když v lese stojí;

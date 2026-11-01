@@ -3,7 +3,14 @@ import { describe, expect, it } from 'vitest';
 import { sceneExpeditions } from '../../caravan-view';
 import type { SceneCart, SceneExpedition, SceneVillage } from '../../village-view';
 import { cartPlanPose, createCartPose, routeAt, type CartCaravan } from '../cart-layout';
-import { CARAVAN_GAP_M, caravanHead, caravanPlan, caravanProgress, memberSpot } from '../caravan';
+import {
+  CARAVAN_GAP_M,
+  CARAVAN_LINGER_S,
+  caravanHead,
+  caravanPlan,
+  caravanTimeline,
+  memberSpot,
+} from '../caravan';
 import { caravanAnimalPose, caravanHerds } from '../caravan-cattle';
 import { LIVESTOCK_EPOCH_MS, createLivestockPose, livestockClock } from '../livestock-motion';
 import { villageCartPlans } from '../village-carts';
@@ -16,6 +23,8 @@ import { planVillagers, type VillagerGround } from '../villager-plan';
 
 const WINDOW = { startMs: 1_000_000, endMs: 1_090_000 };
 const at = (f: number): number => WINDOW.startMs + f * (WINDOW.endMs - WINDOW.startMs);
+/** `s` skutečných sekund od začátku dne, kdy cesta začala. */
+const sec = (s: number): number => WINDOW.startMs + s * 1000;
 
 const expedition = (over: Partial<SceneExpedition> = {}): SceneExpedition => ({
   id: 3,
@@ -147,53 +156,59 @@ describe('karavana – kdo jde tam a kdo zpátky', () => {
   });
 });
 
-describe('karavana – rozvrh v čase', () => {
+describe('karavana – rozvrh ve skutečném čase', () => {
   const columns = { out: 20, back: 15 };
 
-  it('postup plyne přes herní den dnešním tempem; s tempem 0 stojí', () => {
-    const e = expedition({ progress: 0.3, rate: 0.2 });
-    expect(caravanProgress(e, WINDOW, at(0))).toBeCloseTo(0.3);
-    expect(caravanProgress(e, WINDOW, at(0.5))).toBeCloseTo(0.4);
-    expect(caravanProgress(e, WINDOW, at(1))).toBeCloseTo(0.5);
-    expect(caravanProgress(e, WINDOW, at(2))).toBeCloseTo(0.5);
-    const waiting = expedition({ progress: 0.3, rate: 0 });
-    expect(caravanProgress(waiting, WINDOW, at(0.9))).toBeCloseTo(0.3);
-    expect(caravanHead(waiting, 0.3, 300, columns).perDay).toBe(0);
+  it('tam po stezce chůzí, den za krajem mapy pryč, zpátky po stezce chůzí', () => {
+    const e = expedition({ onMap: 0.8 });
+    const t = caravanTimeline(e, WINDOW, 300, columns);
+    expect(t.speed).toBe(1.2);
+    expect(t.startMs).toBe(WINDOW.startMs);
+    expect(t.outEndMs).toBeCloseTo(sec(320 / 1.2), 6);
+    expect(t.awayEndMs - t.outEndMs).toBe(WINDOW.endMs - WINDOW.startMs);
+    expect(t.endMs - t.awayEndMs).toBeCloseTo((315 / 1.2) * 1000, 6);
+    const out = caravanHead(t, sec(100), 300, columns);
+    expect(out).toEqual({ leg: 'out', head: 120, speed: 1.2 });
+    expect(caravanHead(t, t.outEndMs + 1000, 300, columns).leg).toBe('away');
+    const back = caravanHead(t, t.awayEndMs + 100_000, 300, columns);
+    expect(back.leg).toBe('back');
+    expect(back.head).toBeCloseTo(300 - 120);
+    // poslední člen dojde za kraj mapy právě na konci cesty tam a domů na konci cesty zpátky
+    expect(memberSpot(caravanHead(t, t.outEndMs - 10, 300, columns), 20, 300, 9).visible).toBe(
+      true,
+    );
+    expect(memberSpot(caravanHead(t, t.endMs, 300, columns), 15, 300, 7).s).toBeCloseTo(0);
+    // po chvíli v hloučku jdou domů
+    expect(caravanHead(t, t.endMs + CARAVAN_LINGER_S * 1000, 300, columns).leg).toBe('done');
   });
 
-  it('tam po stezce, za krajem mapy pryč, zpátky po stezce – den za krajem mapy podle onMap', () => {
-    const e = expedition({ onMap: 0.8 });
-    const out = caravanHead(e, 0.2, 300, columns);
-    expect(out.leg).toBe('out');
-    expect(out.head).toBeCloseTo(0.5 * 320);
-    expect(caravanHead(e, 0.5, 300, columns).leg).toBe('away');
-    const back = caravanHead(e, 0.8, 300, columns);
-    expect(back.leg).toBe('back');
-    expect(back.head).toBeCloseTo(300 - 0.5 * 315);
-    // poslední člen dojde za kraj mapy právě na konci cesty tam a domů na konci cesty zpátky
-    expect(memberSpot(caravanHead(e, 0.3999, 300, columns), 20, 300, 9).visible).toBe(true);
-    expect(memberSpot(caravanHead(e, 1, 300, columns), 15, 300, 7).s).toBeCloseTo(0);
+  it('s vozem nebo dobytkem tempem volů; do vsi na téže mapě bez dne za krajem', () => {
+    const t = caravanTimeline(expedition({ carts: [7], onMap: 1 }), WINDOW, 300, columns);
+    expect(t.speed).toBe(0.85);
+    expect(t.awayEndMs).toBe(t.outEndMs);
+    const herd = { out: { cows: 2, oxen: 0 }, back: { cows: 0, oxen: 0 } };
+    expect(caravanTimeline(expedition({ cattle: herd }), WINDOW, 300, columns).speed).toBe(0.85);
   });
 
   it('za krajem mapy člen zmizí, před odchodem a po návratu stojí v hloučku u začátku', () => {
-    const e = expedition();
-    const head = caravanHead(e, 0.39, 300, columns);
-    expect(memberSpot(head, 0, 300, 0).visible).toBe(false);
-    expect(memberSpot(caravanHead(e, 0, 300, columns), 6, 300, 3).waiting).toBe(3);
-    expect(memberSpot(caravanHead(e, 0.5, 300, columns), 0, 300, 0).visible).toBe(false);
+    const t = caravanTimeline(expedition(), WINDOW, 300, columns);
+    expect(memberSpot(caravanHead(t, t.outEndMs - 1, 300, columns), 0, 300, 0).visible).toBe(false);
+    expect(memberSpot(caravanHead(t, sec(-5), 300, columns), 6, 300, 3).waiting).toBe(3);
+    expect(memberSpot(caravanHead(t, t.outEndMs + 1, 300, columns), 0, 300, 0).visible).toBe(false);
   });
 });
 
 describe('karavana ve scéně – postavy a vůz', () => {
+  // 300 m stezky chůzí 1,2 m/s: tam ≈ 261 s, den u souseda 90 s, zpátky ≈ 260 s
   it('karavana je vidět i bez práce dne; tam rodina, zpátky dva lidé navíc', () => {
     const e = expedition({ rate: 0 });
-    // výprava dnes nepostoupila (ves bez dospělých) – karavana nezmizí, stojí na cestě
+    // výprava dnes v jádru nepostoupila (ves bez dospělých) – karavana ve scéně jde dál
     const still = caravanAt(
       { ...village(e), labor: { ...village(e).labor!, shares: [] } },
-      at(0.5),
+      sec(50),
     );
     expect(still.length).toBeGreaterThan(0);
-    const going = caravanAt(village(expedition({ progress: 0.15 })), at(0));
+    const going = caravanAt(village(expedition()), sec(100));
     const out = going.filter((p) => !p.hidden);
     expect(out).toHaveLength(8);
     expect(out.filter((p) => p.clip === 'carry')).toHaveLength(5);
@@ -201,19 +216,30 @@ describe('karavana ve scéně – postavy a vůz', () => {
     const child = going.find((p) => p.key.endsWith('leaving:2'))!;
     expect(child.scale).toBeLessThan(going.find((p) => p.key.endsWith('leaving:0'))!.scale);
     expect(going.find((p) => p.key.endsWith('leaving:1'))!.kind).toBe('woman');
-    const back = caravanAt(village(expedition({ progress: 0.9 })), at(0)).filter((p) => !p.hidden);
+    const back = caravanAt(village(expedition()), sec(261 + 90 + 100)).filter((p) => !p.hidden);
     expect(back).toHaveLength(7);
     expect(back.filter((p) => p.key.includes(':coming:'))).toHaveLength(2);
     // u souseda (den za krajem mapy) není vidět nikdo
-    expect(caravanAt(village(expedition({ progress: 0.5 })), at(0)).every((p) => p.hidden)).toBe(
-      true,
-    );
+    expect(caravanAt(village(expedition()), sec(300)).every((p) => p.hidden)).toBe(true);
     // nosiči podle práce dne nejsou – jen karavana
     const all = planVillagers(village(e), GROUND, { seed: 1, herds: 0, dayWindow: () => WINDOW });
     expect(all.some((p) => p.key.startsWith('trade:'))).toBe(false);
   });
 
-  it('vůz jede v čele karavany po stezce, za krajem mapy zmizí a vrátí se obráceně', () => {
+  it('lidé jdou chůzí – klip chůze se nepřehrává rychleji než svižná chůze', () => {
+    const people = planVillagers(village(expedition()), GROUND, {
+      seed: 1,
+      herds: 0,
+      dayWindow: () => WINDOW,
+    }).filter((p) => p.key.startsWith('caravan:'));
+    const t = (sec(100) - LIVESTOCK_EPOCH_MS) / 1000;
+    for (const p of people) {
+      const pose = p.pose(t, [], { ...createVillagerPose(), hidden: false });
+      if (!pose.hidden) expect(pose.pace).toBeLessThanOrEqual(1.3);
+    }
+  });
+
+  it('vůz jede v čele karavany po stezce tempem volů, za krajem mapy zmizí a vrátí se obráceně', () => {
     const e = expedition({ porters: 2, carts: [77], carriesBack: true });
     const cart: SceneCart = {
       id: 77,
@@ -224,27 +250,21 @@ describe('karavana ve scéně – postavy a vůz', () => {
       job: { activity: 'trade', target: { kind: 'trail', id: 40 }, load: 'goods' },
       route: [{ x: -20, z: 0 }, ...TRAIL.points],
     };
-    const plan = (progress: number): CartCaravan => {
-      const [p] = villageCartPlans(
-        village(expedition({ ...e, progress }), [cart]),
-        [],
-        null,
-        () => WINDOW,
-      );
-      expect('routes' in p!).toBe(true);
-      return p as CartCaravan;
-    };
+    const [p] = villageCartPlans(village(e, [cart]), [], () => WINDOW);
+    expect('routes' in p!).toBe(true);
+    const plan = p as CartCaravan;
     const pose = createCartPose();
-    const going = cartPlanPose(plan(0.2), at(0), pose);
+    // 0,85 m/s: tam ≈ 368 s, den u souseda 90 s, zpátky ≈ 366 s
+    const going = cartPlanPose(plan, sec(150), pose);
     expect(going.hidden).toBe(false);
     expect(going.loaded).toBe(true);
     expect(going.body.x).toBeGreaterThan(100);
-    expect(cartPlanPose(plan(0.5), at(0), pose).hidden).toBe(true);
-    const back = cartPlanPose(plan(0.85), at(0), pose);
+    expect(cartPlanPose(plan, sec(400), pose).hidden).toBe(true);
+    const back = cartPlanPose(plan, sec(368 + 90 + 100), pose);
     expect(back.hidden).toBe(false);
     // zpátky jede čelem ke vsi (jho blíž vsi než korba)
     expect(back.yoke.x).toBeLessThan(back.body.x);
-    const r = plan(0.2).routes.out;
+    const r = plan.routes.out;
     expect(routeAt(r, 0, { x: 0, z: 0, hx: 0, hz: 1, heading: 0 }).x).toBeCloseTo(-20, 0);
   });
 });
@@ -314,7 +334,8 @@ describe('nákup u souseda jako karavana (crafts.md – Nákup u sousedů)', () 
       carriesOut: true,
       carriesBack: true,
     });
-    // druhá cesta tam a zpět (7 dní na cestu) – postup v ní 2/7, den za den 1/7
+    // druhá cesta tam a zpět (7 dní na cestu) – postup v ní 2/7, den za den 1/7; začala 502
+    expect(e!.startDay).toBe(502);
     expect(e!.progress).toBeCloseTo(2 / 7, 3);
     expect(e!.rate).toBeCloseTo(1 / 7, 3);
   });
@@ -330,9 +351,10 @@ describe('nákup u souseda jako karavana (crafts.md – Nákup u sousedů)', () 
       dayWindow: () => WINDOW,
     });
     expect(all.some((p) => p.key.startsWith('trade:'))).toBe(false);
-    // u souseda pryč, cestou zpátky zase vidět
-    expect(caravanAt(scene(purchase({ done: 3 })), at(0.5)).every((p) => p.hidden)).toBe(true);
-    const back = caravanAt(scene(purchase({ done: 5 })), at(0.5)).filter((p) => !p.hidden);
+    // 960 m chůzí: tam ≈ 803 s, u souseda pryč, cestou zpátky zase vidět
+    const v = scene(purchase({ done: 1 }));
+    expect(caravanAt(v, sec(803 + 45)).every((p) => p.hidden)).toBe(true);
+    const back = caravanAt(v, sec(803 + 90 + 100)).filter((p) => !p.hidden);
     expect(back).toHaveLength(3);
     expect(back.every((p) => p.key.includes(':back:'))).toBe(true);
   });
@@ -423,8 +445,9 @@ describe('tesař pro kování jako jedna postava (wagons.md – Kování vozů)'
   });
 
   it('jde-li skupina víckrát, každou cestu zvlášť', () => {
-    // 2 cesty po 4 dnech, pátý den – druhá cesta, první den z ní
+    // 2 cesty po 4 dnech, pátý den – druhá cesta, první den z ní (začala 500)
     const [e] = sceneExpeditions(state(trip({ porters: 1, days: 8, tripDays: 4, done: 4 })));
+    expect(e!.startDay).toBe(500);
     expect(e!.progress).toBe(0);
     expect(e!.rate).toBeCloseTo(1 / 4, 6);
   });
@@ -453,8 +476,8 @@ describe('tesař pro kování jako jedna postava (wagons.md – Kování vozů)'
       { x: 340, z: 0 },
     ]);
     expect(e!.onMap).toBe(1);
-    // druhý den jde zpátky
-    const back = caravanAt(scene({ ...t, done: 1 }), at(0.5)).filter((p) => !p.hidden);
+    // po cestě tam (300 m chůzí ≈ 250 s) hned zpátky – bez dne za krajem mapy
+    const back = caravanAt(scene(t), sec(350)).filter((p) => !p.hidden);
     expect(back).toHaveLength(1);
     expect(back[0]!.key).toContain(':back:');
   });
@@ -526,8 +549,6 @@ describe('dobytek v karavaně (trade.md – Dobytek ve třech druzích)', () => 
       leaving: [],
       coming: [],
       cattle: { out: { cows: 1, oxen: 0 }, back: { cows: 0, oxen: 1 } },
-      progress: 0.2,
-      rate: 0,
     });
     const [herd] = caravanHerds({ expeditions: [e], trails: [TRAIL] });
     expect(herd!.animals.map((a) => a.leg)).toEqual(['out', 'back']);
@@ -539,17 +560,14 @@ describe('dobytek v karavaně (trade.md – Dobytek ve třech druzích)', () => 
     expect(pose.x).toBeLessThan(300);
     expect(pose.forwardX).toBeCloseTo(1, 9);
     expect(caravanAnimalPose(herd!, 1, WINDOW, clock, pose)).toBe(false);
-    // zpátky – vůl jde ke vsi
-    const [back] = caravanHerds({
-      expeditions: [{ ...e, progress: 0.85 }],
-      trails: [TRAIL],
-    });
-    expect(caravanAnimalPose(back!, 0, WINDOW, clock, pose)).toBe(false);
-    expect(caravanAnimalPose(back!, 1, WINDOW, clock, pose)).toBe(true);
+    // tempem volů (0,85 m/s): tam ≈ 366 s, den u souseda 90 s – zpátky vůl jde ke vsi
+    const back = livestockClock(sec(366 + 90 + 100));
+    expect(caravanAnimalPose(herd!, 0, WINDOW, back, pose)).toBe(false);
+    expect(caravanAnimalPose(herd!, 1, WINDOW, back, pose)).toBe(true);
     expect(pose.forwardX).toBeCloseTo(-1, 9);
     // u souseda za krajem mapy nikdo
-    const [away] = caravanHerds({ expeditions: [{ ...e, progress: 0.5 }], trails: [TRAIL] });
-    expect(caravanAnimalPose(away!, 0, WINDOW, clock, pose)).toBe(false);
-    expect(caravanAnimalPose(away!, 1, WINDOW, clock, pose)).toBe(false);
+    const away = livestockClock(sec(400));
+    expect(caravanAnimalPose(herd!, 0, WINDOW, away, pose)).toBe(false);
+    expect(caravanAnimalPose(herd!, 1, WINDOW, away, pose)).toBe(false);
   });
 });

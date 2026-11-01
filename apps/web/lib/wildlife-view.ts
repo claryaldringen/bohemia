@@ -232,6 +232,7 @@ function sceneDefense(
   const hunt = w.hunt?.today;
   if (hunt && hunt.day === day && hunt.riders.length + hunt.foot.length > 0) {
     out.hunt = {
+      day: hunt.day,
       target: hunt.target,
       riders: hunt.riders.map((r) => ({ id: r.personId, horseId: r.horseId })),
       foot: [...hunt.foot],

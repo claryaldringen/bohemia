@@ -293,6 +293,14 @@ describe('žena u dveří, oka na zajíce (villagers.md – Fáze činností; ú
 describe('planVillagers s lidmi vsi – kdo je která postava', () => {
   const plan = (v: SceneVillage = village()): PlannedVillager[] =>
     planVillagers(v, GROUND, { seed: 5, herds: 2, paths: PATHS });
+  /** S hodinami světa – karavany jdou ve skutečném čase od dne, kdy cesta začala. */
+  const planAt = (v: SceneVillage): PlannedVillager[] =>
+    planVillagers(v, GROUND, {
+      seed: 5,
+      herds: 2,
+      paths: PATHS,
+      dayWindow: (day) => ({ startMs: day * 86_400, endMs: (day + 1) * 86_400 }),
+    });
 
   it('každá postava je jiný člověk, pohlaví a velikost podle něj', () => {
     const people = plan();
@@ -380,7 +388,7 @@ describe('planVillagers s lidmi vsi – kdo je která postava', () => {
       onMap: 0.6,
       trip: { kind: 'iron', to: 'Olšany', travellerId: 404 },
     };
-    const people = plan({ ...village(), expeditions: [iron] });
+    const people = planAt({ ...village(), expeditions: [iron] });
     const caravan = people.filter((p) => p.key.startsWith('caravan:'));
     const traveller = caravan.filter((p) => p.person === 404);
     expect(traveller.length).toBe(2); // tam a zpátky – vidět je vždy nejvýš jedna
@@ -416,7 +424,7 @@ describe('planVillagers s lidmi vsi – kdo je která postava', () => {
       onMap: 0.6,
       trip: { kind: 'trade', to: 'Olšany' },
     };
-    const caravan = plan({ ...village(), expeditions: [trade] }).filter((p) =>
+    const caravan = planAt({ ...village(), expeditions: [trade] }).filter((p) =>
       p.key.startsWith('caravan:'),
     );
     expect(caravan.filter((p) => p.person === undefined)).toHaveLength(1);

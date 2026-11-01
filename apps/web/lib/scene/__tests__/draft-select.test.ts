@@ -99,7 +99,7 @@ describe('výběr vozu', () => {
     kind: 'two-wheel',
     cargo: 'sheaves',
     shuttle,
-    schedule: { window: WINDOW, maxTrips: 8, phase: 0 },
+    schedule: { phase: 0 },
   };
 
   it('klik na korbu, vola a vozku; stojící vůz jen korba; vůz za krajem mapy nic', () => {
@@ -139,7 +139,7 @@ describe('výběr vozu', () => {
     expect(shuttleLeg(shuttle, { s: shuttle.route.length, speed: 0 })).toBe('unload');
     const legs = new Set(
       Array.from(
-        { length: 860 },
+        { length: 4000 },
         (_, i) => cartPlanPose(plan, WINDOW.startMs + i * 100, createCartPose()).leg,
       ),
     );

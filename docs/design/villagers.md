@@ -130,7 +130,7 @@ vodu a dřevo, vozy) už jsou v jádru.
   syn nosí sám celý den tam a zpět a proud by z jednoho chlapce udělal deset. Kovář, který jede
   s vozem pro rudu, jde s vozem – pěšky se nekreslí.
 - **Vozy** s vodou, uhlím, rudou a osivem jezdí po vozové síti tam a zpět tempem volů ve
-  skutečném čase (svoz úrody dál v okně herního dne – ladicí); voda v sudech, uhlí a osivo jako
+  skutečném čase (od 1. 11. 2026 i svoz úrody – Činnosti od začátku do konce); voda v sudech, uhlí a osivo jako
   zboží, ruda jako hromada rezavých hrud (wagons.md – Co vozy vozí).
 - **Výkon** (Vlkov, Chromium s WebGL 2, M1 Pro): přestavba lidí po změně vsi 6–11 ms (dřív
   4–8 ms s polovinou postav – bez lidí na vzdáleném poli), zápis póz za snímek pod 0,1 ms; zoom
@@ -366,6 +366,7 @@ do hry. Mění se jen to, jak scéna z rozdělení práce dělá postavy. Podrob
   (`TRAFFIC_DAY_S`), na cestě je cesty × doba cesty ÷ 900 s lidí.
 - **Pohřeb, svatba a karavany** mají vlastní čas: začnou se svým herním dnem a hrají se ve
   skutečném čase přes několik dní (pohřeb ≈ 3 minuty – scéna dostává pohřby posledních 7 dnů).
+  Od 1. 11. 2026 stejně kování, lov rodu a svoz úrody (Bez časosběru níž).
 - **Co nesedí s Martinovým přáním:** každých 86 s se celé obsazení rozhodne znovu – lidé
   přeskakují mezi poli, z řady na poli se stane nosič vody a panel vybrané ženy během pár minut
   řekne „žne“, „doma“, „nese vodu“ a „seje“. Postava dnes znamená **práci dne**, ne člověka a jeho
@@ -434,6 +435,37 @@ do hry. Mění se jen to, jak scéna z rozdělení práce dělá postavy. Podrob
   činnost a zůstane doma. Postav je tak nejvýš o pár víc, než dává obsazení, a jen po dobu jedné
   pochůzky.
 
+### Bez časosběru – kování, lov, karavany a svoz (1. 11. 2026)
+
+Martin (1. 11. 2026): „Občas ve hře vidím nějakého vesničana, jak brutálně sprintuje“. Příčina:
+čtyři činnosti se ještě vtěsnávaly do herního dne (≈ 86 s) a postava šla mnohonásobnou
+rychlostí, klip chůze se přehrával zrychleně. Teď jdou jako pohřeb – začnou se svým herním dnem
+a hrají se ve skutečném čase přirozenou chůzí (rychlost nejvýš ≈ 1,3× chůze, klip nejvýš ≈ 1,3×),
+jádro je dál počítá po dnech. Čísla a podrobnosti jsou návrh Clauda:
+
+| Činnost          | Dřív (okno herního dne)                                                                        | Teď (skutečný čas)                                                                                                                                                                            |
+| ---------------- | ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Kování           | cesta 100 m → 5,1 m/s (klip 5,9×), 600 m → 66 m/s (klip 6×, dál klouže); 1,5 h na koně = 5,4 s | kovář běžnou chůzí (1,2 m/s), **2 minuty na koně**; cizí kovář z kraje mapy jde přes deset herních dní                                                                                        |
+| Lov rodu         | blok 3–21 h = 65 s, pěší až 4,5 m/s (klip ≈ 5×), jezdci cvalem 6 m/s                           | **lov 10 minut** (≈ 7 herních dní, jako kalendář lovu po 7 dnech) za šera dne lovu; pěší 1,0–1,45 m/s, jezdci krokem až klusem (3 m/s), psi s nimi; dosah k lesu pěší ≈ 300 m, jezdci ≈ 630 m |
+| Karavana         | postup výpravy v herním čase, stezka 300 m → ≈ 2,4 m/s (klip až 3×)                            | lidé chůzí 1,2 m/s, s vozy nebo dobytkem **tempem volů** 0,85 m/s; herní den za krajem mapy; 1 km stezky tam a zpět ≈ 30 minut (s vozy ≈ 40)                                                  |
+| Svoz úrody vozem | jízdy dne v okně dne, až 4 m/s                                                                 | dokola tempem volů 0,85 m/s – za herní den se stihne, kolik se stihne                                                                                                                         |
+
+- **Odkud scéna ví o činnosti z dřívějška:** kování posílá server – poslední kování za 40 herních
+  dní (≈ hodina, kronika `horses-shod`). Lov a karavany jádro po svém dni nemá (lov jen v den lovu,
+  výprava zmizí po návratu, který v jádru přijde dřív než ve scéně) – **scéna si je pamatuje**: každou
+  viděnou karavanu (i s vozy, jak jely) a běžící lov dohraje do konce. Prohlížeč otevřený později
+  tak karavanu, která je v jádru už doma, nevidí – jen ty, které jádro ještě má; postava ale nikdy
+  nezmizí uprostřed cesty.
+- **Víc najednou:** další jízda téže výpravy nebo další výprava je další karavana – naráz jich může
+  jít víc. Vůz jede s tou starší, dokud ji nedojede. Lov se nepřekrývá: lov navíc, vyhlášený, dokud
+  lovci ještě nejsou zpátky, se ve scéně neukáže (jádro ho počítá).
+- **Co se ve scéně může na pár minut zdvojit:** po návratu výpravy v jádru jsou koupený dobytek
+  a lidé od souseda už ve vsi, zatímco karavana s nimi ještě jde; kování nové, než staré doběhne,
+  staré nahradí (kování je vzácné).
+- **Mimo:** orba za herní den (`PLOUGH_DAY_DEBUG`, Martin 19. 10. 2026: „Vím, že to bude divně
+  zrychlené…“) – spřežení s oráčem dál projede celou dnešní orbu za herní den; vypnutí přepínačem.
+  Výcvik jezdců na dvorku a útěk divoké zvěře zůstávají v herním dni.
+
 ### Události
 
 **Přeruší hned** – člověk nechá činnost, kde je, a jde pěšky k události:
@@ -449,8 +481,8 @@ do hry. Mění se jen to, jak scéna z rozdělení práce dělá postavy. Podrob
   po suché zemi (nikdo nestojí ve vodě).
 - **Odchod do nové vsi:** odcházející jdou rovnou k vozům; kdo je daleko, dojde později po stejné
   cestě.
-- **Karavana** (výprava, nákup, kování): nosiči, pomocníci a tesař jdou ke karavaně; karavana jede
-  dál podle herního času.
+- **Karavana** (výprava, nákup, kování): nosiči, pomocníci a tesař jdou ke karavaně; karavana jde
+  ve skutečném čase od dne, kdy cesta začala (Bez časosběru výš).
 - **Smrt:** postava zmizí hned (jako dnes) – mrtvý nechodí ani nejde vybrat.
 
 **Nepřeruší:**

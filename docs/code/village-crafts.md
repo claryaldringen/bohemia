@@ -244,8 +244,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `SceneCart.job.load` – uhlí a osivo `goods`, ruda `ore` (hromada `wagon{2,4}-ore`), voda `water`
   (sudy `wagon{2,4}-water` tam i zpět),
   osivo `outbound` (`CartShuttle.loadedOut` – naložené tam), trasa k milíři a břehu
-  (`cartGoalToday` → `cartGoalRoute` v prohlížeči); voda, uhlí, ruda a osivo jezdí tempem volů ve skutečném čase (`steadyJob`
-  v `village-carts.ts`), ne v okně herního dne jako svoz úrody. Komu vůz vodu přivezl, ukazuje
+  (`cartGoalToday` → `cartGoalRoute` v prohlížeči); voda, uhlí, ruda a osivo jezdí tempem volů ve skutečném čase jako všechny vozy
+  (`village-carts.ts`). Komu vůz vodu přivezl, ukazuje
   `SceneLabor.homes[].cartWater` (týž `waterCartPlan` z `waterHouseholdsToday` ve `village-view-scene.ts` – druh vozu
   vítězného plánu z `LaborShare.fourWheel` a jeho uložená jízda `storedWaterCartDrive`) – pěšky pro
   ni chodí méně lidí (Postavy – Provoz na cestách).

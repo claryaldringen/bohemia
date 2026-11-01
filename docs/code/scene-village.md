@@ -478,12 +478,17 @@ na `waterHa`, bod osy potoka nejblíž vsi – `streamSpot`; bez potoka nic). No
 nepřeplánují (`wildlifeKey` bere jen pole W10).
 
 - **Lov** (`huntPlans` v `riders.ts`, `huntRoute` v `rider-route.ts`): jezdci lovu jsou plány jízdy
-  (`RidePlan`) s blokem `HUNT_BLOCK` 3–21 h – `rideState` jede půlku bloku po trase tam a pak po
-  téže trase zpět, koně kreslí livestock.ts a ohrada je skryje (`ridingHorseIds`) jako u objížďky.
+  (`RidePlan`) ve skutečném čase (`RidePlan.span` z `huntSpan` – od 3 h dne lovu `HUNT_START_H`
+  `HUNT_REAL_S` 600 s, přes ≈ 7 herních dní; `rideBlockAt` vrací sekundy) – `rideState` jede půlku
+  lovu po trase tam a pak po téže trase zpět, koně kreslí livestock.ts a ohrada je skryje (`ridingHorseIds`) jako u objížďky.
   Trasa: od kůlu u brány po pěšinách (`walkRoute`) k okraji lesa u zvěře (`VillageWildlife.huntSpot`
   – první stanoviště skupiny na okraji lesa podle cíle: prasata, jinak jelení, vlci, medvěd; bez
   zvěře ve scéně `forestEdge` – první kruh kolem kůlu se 3 stromy), pak sem a tam podél okraje
-  (`huntSweep`, ±22 m, 6 m do lesa), dokud trasa nepokryje půlku bloku (nikdy se nepřetočí).
+  (`huntSweep`, ±22 m, 6 m do lesa), dokud trasa nepokryje půlku lovu (nikdy se nepřetočí). Tempo
+  `HUNT_PACE`: pěší 1,0–1,45 m/s (svižná chůze, klip `walk-spear` nejvýš ≈ 1,25×), jezdci krokem až
+  klusem (1,5–3 m/s); okno lovu je den lovu (`SceneHunt.day`). Jádro má lov jen v den lovu – běžící
+  lov si scéna pamatuje do návratu lovců (`ActivityMemory` v `activity-memory.ts`, nový lov jiného
+  dne až po něm) a jezdci lovu mezitím nejedou objížďku.
   Tempo cesty k lesu = délka ÷ 70 % půlky bloku v mezích `HUNT_PACE` (jezdci 1,5–6 m/s – klus nad
   1,5, pěší 1–3,2 m/s, k dalšímu lesu poklusem až 4,5 m/s). Cestu volí `huntWay` zvlášť pro jezdce
   a pěší: les u zvěře dál, než stihnou (pěší ≈ 73 m chůzí, jezdci ≈ 136 m) → nejbližší okraj lesa
@@ -701,15 +706,15 @@ Kdo a kdy kuje, určuje jádro (`shoeingDay` → `SceneLabor.shoeing`); scéna j
 - **Plán** `lib/scene/shoeing-plan.ts` (čisté funkce času): `shoeingSpots` – u branky ohrady
   (`penSquaresEntrance` jako porážka) kůl 2 m stranou podél plotu, kůň vně ohrady podél plotu hlavou
   ke kůlu (`hitch`), kovář u předního kopyta čelem k ohradě. `shoeingSchedule` – kování kolem
-  poledne (`SHOE_NOON_H`), `SHOE_HORSE_H` 1,5 h na koně (nejvýš `SHOE_MAX_H` 8 h); cesta tam
-  končí na začátku kování, zpět začíná po něm, obě se vejdou do výpravy dne (`SHOEING_TRIP_H` –
-  vlastní 5–19, cizí 4–20 h): krátká běžnou chůzí, delší časosběrem (rychlost a tempo klipu jako
-  karavana; klip nejvýš 6×). Posledních 80 m u ohrady jde kovář mírněji (aspoň 3× chůze, nejvýš
-  60 % času cesty), když to cesta dovolí – daleký úsek mimo ves pak rychleji (`shoeingWalked`;
-  cizí kovář z kraje mapy). `tiedHours` – kůň po koni rovným dílem. `smithShoeingPose` – mimo výpravu skrytý
+  ve skutečném čase (villagers.md – Činnosti od začátku do konce): kovář vyjde se začátkem dne
+  kování (`SceneShoeing.day`; server posílá poslední kování za `SHOEING_VIEW_DAYS` 40 dní –
+  `sceneShoeing` ve `village-view-scene.ts`), jde běžnou chůzí (`walkSpeed`, klip 1×), u branky
+  `SHOE_HORSE_S` 120 s na koně a zpět chůzí – i přes víc herních dní. `tiedSpans` – kůň po koni
+  (ms; `RidePlan.tied` je skutečný čas). Po návratu kováře ho plán nemá (`VillagerPlanOptions.nowMs`;
+  konec se odhaduje s pomalou chůzí, ať postava nezmizí cestou). Kování nové, než staré doběhne,
+  staré nahradí (vzácné). `smithShoeingPose` – mimo výpravu skrytý
   (v kovárně, u souseda), cestou `walk` po `way` (stage `out` / `back`), u koně klip `build`
-  (předklon s kladívkem), na začátku každého koně chvíli `idle`. Bez hodin světa (ukázky) se den
-  opakuje po `FALLBACK_DAY_S` 86,4 s (`dayHour`, `hourSeconds` v `riders.ts`).
+  (předklon s kladívkem), na začátku každého koně chvíli `idle`. Bez hodin světa se nekuje.
 - **Postava** `lib/scene/villager-plan-shoeing.ts` – `shoeingFigures` (volá `planVillagersWithCrew`
   hned po vojvodově rodině, mezi lidmi s pevným místem dne): vlastní kovář je muž z domácnosti
   kovárny (`ctx.roster`, záložně starší chlapec), cesta od dveří kovárny po pěšinách (`walkRoute`);

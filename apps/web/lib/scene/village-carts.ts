@@ -4,7 +4,7 @@
 // výprava: po zemské stezce ke kraji mapy a zpět, naložený), nebo stojí u ohrady bez volů – a kolik
 // spřežení dnes táhne vůz a kolik orá (voli nejsou zároveň u vozu, u rádla a v ohradě). Kreslí
 // village-renderer.ts (cart-renderer.ts, plough-team-renderer.ts, pen-animals.ts).
-import { CARTS, DRAFT_OXEN } from '@bohemia/game';
+import { DRAFT_OXEN } from '@bohemia/game';
 import type { SceneCart, SceneExpedition, SceneVillage } from '../village-view';
 import {
   CART_TURN_M,
@@ -16,7 +16,7 @@ import {
   type CartPlan,
   type CartSpot,
 } from './cart-layout';
-import { caravanHead, caravanPlan, caravanProgress, type DayWindow } from './caravan';
+import { caravanHead, caravanPlan, caravanTimeline, type DayWindow } from './caravan';
 import { carpenterCartSpot, type CraftYardView } from './craft-yard-layout';
 import type { PenLayout } from './pen-layout';
 import { route as walkRoute } from './villager-motion';
@@ -81,33 +81,16 @@ export function parkedCartSpot(
 }
 
 /**
- * Jízda mimo svoz (wagons.md – Co vozy vozí): voda v sudech, uhlí od milíře, ruda z rudiště
- * (crafts.md – Uhlí a ruda kováře), osivo na pole – vůz jezdí tam a zpět tempem volů ve skutečném
- * čase, ne v okně herního dne.
- */
-export function steadyJob(job: NonNullable<SceneCart['job']>): boolean {
-  return (
-    job.load === 'water' ||
-    job.target.kind === 'kiln' ||
-    job.target.kind === 'ore' ||
-    job.target.kind === 'clay' ||
-    job.outbound === true
-  );
-}
-
-/**
  * Co vozy vsi dnes ve scéně dělají (`CartPlan` pro cart-renderer.ts): vůz s úlohou a trasou jede
  * tam a zpět (`shuttleRoute` – smyčky obratišť za cílem a u ohrady), náklad podle úlohy (snopy,
- * seno, klády a uhlí zpátky, osivo tam, sudy na vodu tam i zpět, zboží výpravy tam i zpět); svoz
- * v okně herního dne `window` (ladicí – jízdy dne se vejdou do herního dne, PLOUGH_DAY_DEBUG),
- * výprava dokola tempem volů jako nosiči.
+ * seno, klády a uhlí zpátky, osivo tam, sudy na vodu tam i zpět, zboží výpravy tam i zpět) dokola
+ * tempem volů ve skutečném čase; vůz výpravy jede v karavaně (caravan.ts).
  * Víc vozů na téže trase jede za sebou. Vůz bez jízdy stojí u ohrady (nejbližší hotové), bez
  * ohrady se nekreslí.
  */
 export function villageCartPlans(
   village: Pick<SceneVillage, 'carts' | 'expeditions' | 'trails'>,
   pens: readonly { id: number; layout: PenLayout }[],
-  window: { startMs: number; endMs: number } | null,
   dayWindow: (day: number) => DayWindow | null = () => null,
   walkable?: (x: number, z: number) => boolean,
 ): CartPlan[] {
@@ -131,7 +114,12 @@ export function villageCartPlans(
         : undefined;
     const caravan =
       expedition && driving.has(cart.id)
-        ? caravanCartPlan(village, cart, expedition, dayWindow(expedition.day))
+        ? caravanCartPlan(
+            village,
+            cart,
+            expedition,
+            dayWindow(expedition.startDay ?? expedition.day),
+          )
         : null;
     if (caravan) {
       plans.push(caravan);
@@ -145,15 +133,10 @@ export function villageCartPlans(
         cargo: job.load,
         // svoz snopů s hotovým humnem – plný k humnu, odtud k ohradě (SceneCart.viaRoute)
         shuttle: shuttleRoute(cart.route!, cart.kind, walkable, cart.viaRoute),
-        schedule: {
-          // svoz úrody, sena a klád v okně herního dne (ladicí – práce dne se vejde do dne);
-          // voda, uhlí a osivo (Co vozy vozí) jezdí tempem volů ve skutečném čase jako provoz
-          // na cestách (villagers.md) – jízda k vodě by se do 86 s vešla jen čtyřicetikilometrovou
-          // rychlostí
-          window: job.activity === 'haul' && !steadyJob(job) ? window : null,
-          maxTrips: CARTS.loadsPerCartDay,
-          phase: group.indexOf(cart.id) / group.length,
-        },
+        // všechny vozy – i svoz úrody, sena a klád – jezdí tempem volů ve skutečném čase jako
+        // provoz na cestách (villagers.md – Činnosti od začátku do konce): voli ani vozka
+        // nejdou časosběrem, za herní den se stihne, kolik se stihne
+        schedule: { phase: group.indexOf(cart.id) / group.length },
         // sudy na vodu jsou na voze tam (prázdné) i zpět (plné) – wagons.md, Co vozy vozí
         ...(job.activity === 'trade' || job.load === 'water' ? { loadedBothWays: true } : {}),
         ...(job.outbound ? { loadedOut: true } : {}),
@@ -191,23 +174,27 @@ export function caravanCartPlan(
   const plan = caravanPlan(e);
   const columns = { out: plan.out.length, back: plan.back.length };
   const k = Math.max(0, e.carts.indexOf(cart.id));
-  const daySeconds = window ? Math.max(1, (window.endMs - window.startMs) / 1000) : 86;
+  // ve skutečném čase od dne, kdy cesta začala (caravan.ts) – bez okna se nekreslí
+  if (!window) return null;
+  const timeline = caravanTimeline(e, window, L, columns);
   return {
     id: cart.id,
     kind: cart.kind,
     cargo: 'goods',
     routes: { out, back },
     at: (nowMs) => {
-      const head = caravanHead(e, caravanProgress(e, window, nowMs), L, columns);
+      const head = caravanHead(timeline, nowMs, L, columns);
       if (head.leg === 'away') return { leg: 'back', s: 0, speed: 0, visible: false };
+      // doma – stojí na konci cesty zpět u ohrady
+      if (head.leg === 'done') return { leg: 'back', s: back.length, speed: 0, visible: true };
       const behind = plan[head.leg].carts[k] ?? 0;
       const onTrail = head.leg === 'out' ? head.head - behind : head.head + behind;
       const s = Math.min(out.length, Math.max(0, start + onTrail));
-      const moving = head.perDay > 0 && s > 0 && s < out.length;
+      const moving = head.speed > 0 && s > 0 && s < out.length;
       return {
         leg: head.leg,
         s: head.leg === 'out' ? s : Math.max(0, back.length - s),
-        speed: moving ? head.perDay / daySeconds : 0,
+        speed: moving ? head.speed : 0,
         visible: onTrail <= L,
       };
     },

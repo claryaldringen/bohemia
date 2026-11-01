@@ -517,11 +517,10 @@ export class VillageRenderer {
   }
 
   /**
-   * Vozy (wagons.md – fáze 3): svoz tam a zpět po trase dne (ladicí – jízdy dne za herní den jako
-   * orba, PLOUGH_DAY_DEBUG), výprava po stezce, vůz bez jízdy u ohrady. Vrátí true při změně.
+   * Vozy (wagons.md – fáze 3): svoz tam a zpět po trase dne tempem volů ve skutečném čase, výprava
+   * po stezce, vůz bez jízdy u ohrady. Vrátí true při změně.
    */
   private updateCarts(village: SceneVillage): boolean {
-    const window = PLOUGH_DAY_DEBUG && village.labor ? this.dayWindow(village.labor.day) : null;
     const pens = this.pens.builtPens();
     // vozy výprav jedou v karavaně podle postupu výpravy v herním čase (caravan.ts)
     const caravans = (village.expeditions ?? []).filter((e) => e.carts.length > 0);
@@ -530,17 +529,15 @@ export class VillageRenderer {
     const key = JSON.stringify([
       village.carts ?? [],
       building,
-      window,
       pens.map((p) => [p.id, p.layout.square, p.layout.front, p.layout.side]),
       caravans,
-      caravans.map((e) => this.dayWindow(e.day)),
+      caravans.map((e) => this.dayWindow(e.startDay ?? e.day)),
     ]);
     if (key === this.cartsKey) return false;
     this.cartsKey = key;
     const plans = villageCartPlans(
       village,
       pens,
-      window,
       (day) => this.dayWindow(day),
       this.context.walkable,
     );

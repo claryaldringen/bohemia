@@ -11,7 +11,8 @@ import {
 } from '../rider-route';
 import {
   createRideState,
-  HUNT_BLOCK,
+  HUNT_REAL_S,
+  HUNT_START_H,
   huntPlans,
   isRiding,
   rideState,
@@ -195,26 +196,27 @@ describe('lov ve scéně (huntPlans – wildlife.md, Ve scéně)', () => {
     window,
   };
   const hourT = (h: number): number => (h / 24) * (DAY_MS / 1000);
+  /** Lov ve skutečném čase (s): za šera dne lovu, HUNT_REAL_S dlouho. */
+  const HUNT_T = [hourT(HUNT_START_H), hourT(HUNT_START_H) + HUNT_REAL_S] as const;
 
-  it('jezdci a pěší vyrazí v 6 h, v půlce bloku jsou u lesa a ve 19 h zase u kůlu', () => {
+  it('jezdci a pěší vyrazí za šera, v půlce lovu jsou u lesa a na konci zase u kůlu', () => {
     const { rides, foot } = huntPlans(huntInput);
     expect(rides.map((r) => r.riderId)).toEqual([10, 12]);
     expect(foot.map((r) => r.riderId)).toEqual([20, 21]);
     const state = createRideState();
     for (const plan of [rides[0]!, foot[0]!]) {
-      expect(isRiding(plan, hourT(HUNT_BLOCK[0] - 0.5))).toBe(false);
-      expect(isRiding(plan, hourT(HUNT_BLOCK[1] + 0.5))).toBe(false);
-      const mid = (HUNT_BLOCK[0] + HUNT_BLOCK[1]) / 2;
-      rideState(plan, hourT(mid - 0.2), state);
+      expect(isRiding(plan, HUNT_T[0] - 2)).toBe(false);
+      expect(isRiding(plan, HUNT_T[1] + 2)).toBe(false);
+      rideState(plan, (HUNT_T[0] + HUNT_T[1]) / 2 - 1, state);
       // u okraje lesa (sem a tam podél něj nejvýš o HUNT_SWEEP_M)
       expect(Math.hypot(state.x - 104, state.z)).toBeLessThan(HUNT_SWEEP_M.along + 8);
-      rideState(plan, hourT(HUNT_BLOCK[1] - 0.01), state);
+      rideState(plan, HUNT_T[1] - 0.05, state);
       expect(Math.hypot(state.x - 4, state.z)).toBeLessThan(6);
     }
   });
 
   it('trasa pokryje půlku bloku – jízda se nepřetočí na začátek; pěší stojí s oštěpem', () => {
-    const halfS = ((HUNT_BLOCK[1] - HUNT_BLOCK[0]) / 2) * hourT(1);
+    const halfS = HUNT_REAL_S / 2;
     const way = [huntInput.hitch, { x: 44, z: 0 }];
     const sweep: [Point, Point] = [
       { x: 50, z: 20 },
@@ -230,7 +232,7 @@ describe('lov ve scéně (huntPlans – wildlife.md, Ve scéně)', () => {
   });
 
   it('pěší lovec stojí s oštěpem u okraje lesa dřív, než se v půlce bloku obrátí', () => {
-    const halfS = ((HUNT_BLOCK[1] - HUNT_BLOCK[0]) / 2) * hourT(1);
+    const halfS = HUNT_REAL_S / 2;
     // cesta k lesu na hranici dosahu – zabere celých 70 % půlky bloku
     const way = [huntInput.hitch, { x: 104, z: 0 }];
     const sweep: [Point, Point] = [
@@ -246,29 +248,29 @@ describe('lov ve scéně (huntPlans – wildlife.md, Ve scéně)', () => {
   });
 
   it('lovci vždy stihnou dojít k lesu a vrátit se – daleký les u zvěře nahradí bližší', () => {
-    const halfS = ((HUNT_BLOCK[1] - HUNT_BLOCK[0]) / 2) * hourT(1);
-    const mid = (HUNT_BLOCK[0] + HUNT_BLOCK[1]) / 2;
+    const halfS = HUNT_REAL_S / 2;
     const state = createRideState();
-    const far = { ...huntInput, edge: { x: 404, z: 0 } };
+    // les u zvěře dál, než dojdou pěší chůzí i jezdci klusem za 70 % půlky lovu
+    const far = { ...huntInput, edge: { x: 1004, z: 0 } };
     // bližší okraj lesa 90 m od kůlu – pěší i jezdci k němu
     const near = huntPlans({ ...far, nearEdge: { x: 4, z: 90 } });
     for (const plan of [near.foot[0]!, near.rides[0]!]) {
-      rideState(plan, hourT(mid - 0.2), state);
+      rideState(plan, (HUNT_T[0] + HUNT_T[1]) / 2 - 1, state);
       expect(Math.hypot(state.x - 4, state.z - 90)).toBeLessThan(HUNT_SWEEP_M.along + 8);
     }
-    // bez bližšího lesa poklusem, nejdál kam za cestu doběhnou – cesta se vejde do půlky bloku
+    // bez bližšího lesa svižnou chůzí, nejdál kam za cestu dojdou – cesta se vejde do půlky lovu
     const alone = huntPlans(far).foot[0]!;
     const route = alone.route!;
-    const wayEnd = route.points.findIndex((p) => p.x > 403 || p.z !== 0);
-    expect(Math.max(...route.pace)).toBeLessThanOrEqual(HUNT_PACE.foot.trot);
+    const wayEnd = route.points.findIndex((p) => p.x > 1003 || p.z !== 0);
+    expect(Math.max(...route.pace)).toBeLessThanOrEqual(HUNT_PACE.foot.max);
     expect(route.times[wayEnd === -1 ? route.points.length - 1 : wayEnd - 1]!).toBeLessThanOrEqual(
       HUNT_WAY_SHARE * halfS + 1e-6,
     );
     expect(wayLength(route.points.slice(0, 2))).toBeLessThanOrEqual(
-      HUNT_PACE.foot.trot * HUNT_WAY_SHARE * halfS + 1e-6,
+      HUNT_PACE.foot.max * HUNT_WAY_SHARE * halfS + 1e-6,
     );
     for (const plan of [near.foot[0]!, near.rides[0]!, alone]) {
-      rideState(plan, hourT(HUNT_BLOCK[1] - 0.01), state);
+      rideState(plan, HUNT_T[1] - 0.05, state);
       expect(Math.hypot(state.x - 4, state.z)).toBeLessThan(6);
     }
   });

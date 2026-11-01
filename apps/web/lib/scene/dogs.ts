@@ -147,9 +147,8 @@ export function dogPose(
 /** Jak daleko pes doběhl k vůdci (0 u dvorce – 1 u vůdce) na krajích bloku vůdce. */
 function joinShare(leader: RidePlan, t: number): number {
   const block = rideBlockAt(leader, t);
-  if (!block || !leader.window) return 1;
-  const hourS = (leader.window.endMs - leader.window.startMs) / 1000 / 24;
-  const edgeS = Math.min(block.elapsed, block.length - block.elapsed) * hourS;
+  if (!block) return 1;
+  const edgeS = Math.min(block.elapsed, block.length - block.elapsed);
   return Math.min(1, Math.max(0, edgeS / DOG_JOIN_S));
 }
 

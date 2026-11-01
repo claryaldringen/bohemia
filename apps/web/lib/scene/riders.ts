@@ -70,12 +70,17 @@ export interface RidePlan {
    * je v ohradě. Null – bez rozvrhu (ukázky bez hodin světa) se jede nepřetržitě.
    */
   blocks: readonly (readonly [number, number])[] | null;
+  /**
+   * Jízda ve skutečném čase (ms od–do) místo bloků dne – lov (`huntPlans`) jde přes víc herních
+   * dní. S ním se `blocks` nečtou.
+   */
+  span?: readonly [number, number];
   /** Kde kůň stojí, když se nejede – u kůlu u brány dvorce, čelem ke kůlu. */
   hitch: TrainingSpot;
   window: DayWindow | null;
   /**
-   * Hodiny dne, kdy kůň stojí uvázaný u kůlu `hitch` mimo ohradu (kování u branky ohrady –
-   * shoeing-plan.ts); jezdec nejede (`route` null). Bez údaje jen jízdy.
+   * Kdy kůň stojí uvázaný u kůlu `hitch` mimo ohradu (skutečný čas, ms od–do – kování u branky
+   * ohrady, shoeing-plan.ts); jezdec nejede (`route` null). Bez údaje jen jízdy.
    */
   tied?: readonly (readonly [number, number])[];
 }
@@ -214,11 +219,14 @@ export function hitchSpot(hitch: TrainingSpot, index: number): TrainingSpot {
 }
 
 /**
- * Blok lovu (h herního dne; wildlife.md – Ve scéně, návrh Clauda): lovci vyrazí za šera ve 3 h,
- * do půlky bloku jsou u lesa a v lese, ve 21 h jsou zpět – den má 86 s, kratší blok by lovci
- * k lesu nedošli.
+ * Lov ve skutečném čase (wildlife.md – Ve scéně, návrh Clauda; villagers.md – Činnosti od začátku
+ * do konce): lovci vyrazí za šera dne lovu (`HUNT_START_H`) a lov trvá `HUNT_REAL_S` – půlku tam
+ * k lesu a v lese, půlku zpět – přirozenou chůzí a krokem až klusem. Deset minut je ≈ 7 herních
+ * dní, tedy jako kalendář lovu (každých 7 dní); jádro lov dál počítá za jeden den.
  */
-export const HUNT_BLOCK: readonly [number, number] = [3, 21];
+export const HUNT_REAL_S = 600;
+/** Hodina dne lovu, kdy lovci vyrazí. */
+export const HUNT_START_H = 3;
 /** Pěší lovci jdou za sebou po tolika m, střídavě kousek vlevo a vpravo. */
 const FOOT_GAP_M = 1.8;
 const FOOT_SIDE_M = 0.6;
@@ -236,10 +244,9 @@ export interface HuntPlanInput {
 }
 
 /**
- * Cesta lovců (wildlife.md – Ve scéně): k lesu u zvěře, když ho stihnou (pěší rychlou chůzí
- * `HUNT_PACE.foot.max`, jezdci cvalem za `HUNT_WAY_SHARE` půlky bloku); jinak k bližšímu z obou
- * okrajů lesa a nejdál, kam doběhnou (pěší poklusem `trot`) – v půlce bloku se nikdy neotáčejí
- * v poli.
+ * Cesta lovců (wildlife.md – Ve scéně): k lesu u zvěře, když ho stihnou (pěší svižnou chůzí
+ * `HUNT_PACE.foot.max`, jezdci klusem za `HUNT_WAY_SHARE` půlky lovu); jinak k bližšímu z obou
+ * okrajů lesa a nejdál, kam dojdou – v půlce lovu se nikdy neotáčejí v poli.
  */
 export function huntWay(
   way: readonly Point[],
@@ -248,10 +255,9 @@ export function huntWay(
   foot: boolean,
 ): Point[] {
   const wayS = HUNT_WAY_SHARE * halfS;
-  const easy = foot ? HUNT_PACE.foot.max : HUNT_PACE.ride.max;
-  const fastest = foot ? HUNT_PACE.foot.trot : HUNT_PACE.ride.max;
+  const fastest = foot ? HUNT_PACE.foot.max : HUNT_PACE.ride.max;
   let best = way;
-  if (near && wayLength(way) > easy * wayS && wayLength(near) < wayLength(way)) best = near;
+  if (near && wayLength(way) > fastest * wayS && wayLength(near) < wayLength(way)) best = near;
   return cutWay(best, fastest * wayS);
 }
 
@@ -286,16 +292,27 @@ export function huntSweep(
 }
 
 /**
- * Plány lovu dne (wildlife.md – Ve scéně; jádro `hunt.today`): jezdci jako blok jízdy
- * (`rideState` – půlku bloku tam, pak po téže trase zpět), ale celý den lovu (`HUNT_BLOCK`)
- * a po trase k okraji lesa u zvěře (`huntRoute`) – vojvoda vede, po dvou; pěší s oštěpy za nimi
- * vlastním tempem v řadě (`foot` – plán bez koně, `horseId` −1). Bez hodin světa se neloví.
+ * Začátek a konec lovu ve skutečném čase (ms): za šera dne lovu (`window` – okno dne lovu,
+ * `HUNT_START_H`), `HUNT_REAL_S` dlouho. Bez okna null.
+ */
+export function huntSpan(window: DayWindow | null): readonly [number, number] | null {
+  if (!window || window.endMs <= window.startMs) return null;
+  const startMs = window.startMs + HUNT_START_H * hourSeconds(window) * 1000;
+  return [startMs, startMs + HUNT_REAL_S * 1000];
+}
+
+/**
+ * Plány lovu (wildlife.md – Ve scéně; jádro `hunt.today`): jezdci jako blok jízdy (`rideState` –
+ * půlku lovu tam, pak po téže trase zpět), ale ve skutečném čase (`huntSpan` – `span` plánu, přes
+ * víc herních dní) a po trase k okraji lesa u zvěře (`huntRoute`) – vojvoda vede, po dvou; pěší
+ * s oštěpy za nimi vlastním tempem v řadě (`foot` – plán bez koně, `horseId` −1). `window` je okno
+ * dne lovu. Bez hodin světa se neloví.
  */
 export function huntPlans(input: HuntPlanInput): { rides: RidePlan[]; foot: RidePlan[] } {
   const { hunt, hitch, edge, leg, walkable, window } = input;
-  if (!window || window.endMs <= window.startMs) return { rides: [], foot: [] };
-  const hourS = (window.endMs - window.startMs) / 1000 / 24;
-  const halfS = ((HUNT_BLOCK[1] - HUNT_BLOCK[0]) / 2) * hourS;
+  const span = huntSpan(window);
+  if (!span) return { rides: [], foot: [] };
+  const halfS = HUNT_REAL_S / 2;
   const wayTo = (to: Point): Point[] => {
     const found = leg(hitch, to);
     return found && found.length >= 2 ? [hitch, ...found.slice(1, -1), to] : [hitch, to];
@@ -303,7 +320,6 @@ export function huntPlans(input: HuntPlanInput): { rides: RidePlan[]; foot: Ride
   const way = wayTo(edge);
   const near = input.nearEdge ? wayTo(input.nearEdge) : null;
   const sweep = huntSweep(hitch, edge, walkable);
-  const blocks = [HUNT_BLOCK];
   const route = (foot: boolean): RideRoute | null => {
     const go = huntWay(way, near, halfS, foot);
     const end = go[go.length - 1]!;
@@ -318,7 +334,8 @@ export function huntPlans(input: HuntPlanInput): { rides: RidePlan[]; foot: Ride
     behind: Math.floor(k / 2) * GAP_M,
     side: hunt.riders.length === 1 ? 0 : (k % 2 === 0 ? 1 : -1) * SIDE_M,
     offset: 0,
-    blocks,
+    blocks: null,
+    span,
     hitch: hitchSpot(hitch, k),
     window,
   }));
@@ -329,7 +346,8 @@ export function huntPlans(input: HuntPlanInput): { rides: RidePlan[]; foot: Ride
     behind: k * FOOT_GAP_M,
     side: (k % 2 === 0 ? -1 : 1) * FOOT_SIDE_M,
     offset: 0,
-    blocks,
+    blocks: null,
+    span,
     hitch: { ...hitch },
     window,
   }));
@@ -346,7 +364,7 @@ export function huntPlans(input: HuntPlanInput): { rides: RidePlan[]; foot: Ride
  */
 export function rideState(plan: RidePlan, t: number, out: RideState): RideState {
   const block = plan.route ? rideBlockAt(plan, t) : null;
-  if (!plan.route || (plan.blocks && !block)) {
+  if (!plan.route || ((plan.blocks || plan.span) && !block)) {
     out.x = plan.hitch.x;
     out.z = plan.hitch.z;
     out.headingX = plan.hitch.headingX;
@@ -360,10 +378,9 @@ export function rideState(plan: RidePlan, t: number, out: RideState): RideState 
   let back = false;
   if (block) {
     // v půlce bloku se jede zpět po téže trase
-    const hourS = (plan.window!.endMs - plan.window!.startMs) / 1000 / 24;
     const half = block.length / 2;
     back = block.elapsed > half;
-    d = rideDistance(plan.route, Math.min(block.elapsed, block.length - block.elapsed) * hourS);
+    d = rideDistance(plan.route, Math.min(block.elapsed, block.length - block.elapsed));
   } else {
     d = rideDistance(plan.route, t) + plan.offset;
   }
@@ -379,13 +396,25 @@ export function rideState(plan: RidePlan, t: number, out: RideState): RideState 
   return out;
 }
 
-/** Blok jízdy, ve kterém je čas `t`: hodiny od začátku a délka bloku (h); jinak null. */
+/**
+ * Blok jízdy, ve kterém je čas `t`: skutečné sekundy od začátku a délka bloku (s) – jízda ve
+ * skutečném čase (`span`), nebo blok hodin dne (`blocks`); jinak null.
+ */
 export function rideBlockAt(plan: RidePlan, t: number): { elapsed: number; length: number } | null {
+  if (plan.span) {
+    const ms = t * 1000 + LIVESTOCK_EPOCH_MS;
+    const [from, to] = plan.span;
+    return ms >= from && ms < to
+      ? { elapsed: (ms - from) / 1000, length: (to - from) / 1000 }
+      : null;
+  }
   if (!plan.blocks) return null;
   const hour = hourOfDay(plan.window, t);
   if (hour === null) return null;
+  const hourS = hourSeconds(plan.window);
   for (const [from, to] of plan.blocks) {
-    if (hour >= from && hour < to) return { elapsed: hour - from, length: to - from };
+    if (hour >= from && hour < to)
+      return { elapsed: (hour - from) * hourS, length: (to - from) * hourS };
   }
   return null;
 }
@@ -399,8 +428,8 @@ export function ridingHorseIds(plans: readonly RidePlan[], nowMs: number): Set<n
 /** Stojí kůň v čase `t` uvázaný u kůlu mimo ohradu (`RidePlan.tied`)? */
 export function isTied(plan: RidePlan, t: number): boolean {
   if (!plan.tied || plan.tied.length === 0) return false;
-  const hour = dayHour(plan.window, t);
-  return plan.tied.some(([from, to]) => hour >= from && hour < to);
+  const ms = t * 1000 + LIVESTOCK_EPOCH_MS;
+  return plan.tied.some(([from, to]) => ms >= from && ms < to);
 }
 
 /** Je kůň v čase `t` mimo ohradu – jede, nebo stojí uvázaný (ohrada ho nekreslí)? */
@@ -410,7 +439,7 @@ export function isAway(plan: RidePlan, t: number): boolean {
 
 /** Jede jezdec v čase `t` (je v bloku jízdy, nebo bez rozvrhu s trasou)? */
 export function isRiding(plan: RidePlan, t: number): boolean {
-  return plan.route !== null && (plan.blocks ? rideBlockAt(plan, t) !== null : true);
+  return plan.route !== null && (plan.blocks || plan.span ? rideBlockAt(plan, t) !== null : true);
 }
 
 /** Obal míst, kam se kůň plánu dostane (trasa i kůl) – pro ořez. */
@@ -494,7 +523,7 @@ export function ridePlansKey(plans: readonly RidePlan[]): string {
   return plans
     .map(
       (p) =>
-        `${p.riderId}:${p.horseId}:${p.route ? `${p.route.length.toFixed(1)}/${p.route.points.length}` : '-'}:${p.offset.toFixed(1)}:${p.hitch.x.toFixed(1)},${p.hitch.z.toFixed(1)}:${p.window?.startMs ?? ''}:${p.blocks?.map((b) => b.join('-')).join(',') ?? ''}:${p.tied?.map((b) => b.join('-')).join(',') ?? ''}`,
+        `${p.riderId}:${p.horseId}:${p.route ? `${p.route.length.toFixed(1)}/${p.route.points.length}` : '-'}:${p.offset.toFixed(1)}:${p.hitch.x.toFixed(1)},${p.hitch.z.toFixed(1)}:${p.window?.startMs ?? ''}:${p.span?.join('-') ?? ''}:${p.blocks?.map((b) => b.join('-')).join(',') ?? ''}:${p.tied?.map((b) => b.join('-')).join(',') ?? ''}`,
     )
     .join('|');
 }

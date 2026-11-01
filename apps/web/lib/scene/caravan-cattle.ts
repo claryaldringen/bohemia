@@ -1,15 +1,15 @@
 // Dobytek v karavaně výpravy (docs/design/trade.md – Dobytek ve třech druzích, Ve scéně; Martin
 // 20. 10. 2026: „s dobytkem by také mělo jít obchodovat. Představuju si tři kategorie - krávy,
 // mladé voly (musí se vycvičit) a vycvičené voly“): krávy a voli jdou po zemské stezce po svých
-// s karavanou – tam prodaní, zpátky koupení – na místech zástupu z caravan.ts (stejný postup výpravy
-// v herním čase jako lidé). Kreslí je stádo vsi (livestock.ts) modelem krávy – vůl je o kus větší.
+// s karavanou – tam prodaní, zpátky koupení – na místech zástupu z caravan.ts (týž rozvrh ve
+// skutečném čase jako lidé, tempem volů). Kreslí je stádo vsi (livestock.ts) modelem krávy – vůl je o kus větší.
 // Čisté funkce bez Babylonu.
 import type { SceneExpedition } from '../village-view';
 import {
   caravanHead,
+  caravanTimeline,
   caravanPlan,
   caravanPoints,
-  caravanProgress,
   memberSpot,
   waitingOffset,
   type CaravanAnimal,
@@ -72,7 +72,7 @@ export function caravanHerds(village: {
     const xs = points.map((p) => p.x);
     const zs = points.map((p) => p.z);
     out.push({
-      key: String(e.id),
+      key: `${e.id}:${e.startDay ?? e.day}`,
       expedition: e,
       path: route(points.map((p) => [p.x, p.z] as const)),
       start: { x: x0, z: z0 },
@@ -108,13 +108,15 @@ export function caravanAnimalPose(
   const e = herd.expedition;
   const L = herd.path.length;
   const nowMs = clock.seconds * 1000 + LIVESTOCK_EPOCH_MS;
-  const head = caravanHead(e, caravanProgress(e, window, nowMs), L, herd.columns);
   out.stride = 0;
   out.head = 0;
   out.x = herd.start.x;
   out.z = herd.start.z;
   out.forwardX = herd.first.x;
   out.forwardZ = herd.first.z;
+  // ve skutečném čase od dne, kdy cesta začala (caravan.ts) – bez okna se nekreslí
+  if (!window) return false;
+  const head = caravanHead(caravanTimeline(e, window, L, herd.columns), nowMs, L, herd.columns);
   if (head.leg !== leg) return false;
   const spot = memberSpot(head, animal.behind, L, waitIndex);
   if (!spot.visible) return false;
@@ -132,7 +134,7 @@ export function caravanAnimalPose(
   out.forwardX = scratch.headingX;
   out.forwardZ = scratch.headingZ;
   const scale = animal.kind === 'ox' ? CARAVAN_OX_SCALE : 1;
-  out.stride = head.perDay > 0 ? Math.sin((2 * Math.PI * spot.s) / (STRIDE_M * scale)) : 0;
+  out.stride = head.speed > 0 ? Math.sin((2 * Math.PI * spot.s) / (STRIDE_M * scale)) : 0;
   return true;
 }
 
@@ -142,9 +144,7 @@ export function caravanHerdsKey(herds: readonly CaravanHerd[]): string {
     herds.map((h) => [
       h.key,
       h.expedition.cattle,
-      h.expedition.progress,
-      h.expedition.rate,
-      h.expedition.day,
+      h.expedition.startDay ?? h.expedition.day,
       h.expedition.onMap,
       h.expedition.trailId,
       h.path.length,

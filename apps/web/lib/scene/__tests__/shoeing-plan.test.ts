@@ -3,15 +3,7 @@ import type { ScenePerson } from '../../person-view';
 import type { SceneShoeing, SceneVillage } from '../../village-view';
 import { LIVESTOCK_EPOCH_MS } from '../livestock-motion';
 import { isAway, isTied, rideHorsePose, createRideState, ridingHorseIds } from '../riders';
-import {
-  SHOE_HORSE_H,
-  SHOE_NOON_H,
-  SHOEING_TRIP_H,
-  shoeingSchedule,
-  shoeingSpots,
-  shoeingWalked,
-  tiedHours,
-} from '../shoeing-plan';
+import { SHOE_HORSE_S, shoeingSchedule, shoeingSpots, tiedSpans } from '../shoeing-plan';
 import { createVillagerPose, type VillagerPose } from '../villager-motion';
 import { planVillagersWithCrew, type PlannedVillager, type VillagerGround } from '../villager-plan';
 import { SHOEING_KEY } from '../villager-plan-shoeing';
@@ -26,10 +18,9 @@ const GROUND: VillagerGround = {
   treesIn: () => [],
 };
 
-/** Den 1000 začíná v epoše postav a trvá 86,4 s – hodina = 3,6 s. */
+/** Den 1000 začíná v epoše postav (t = 0 s) a trvá 86,4 s – kování jde ve skutečném čase dál. */
 const DAY = 1000;
 const window = { startMs: LIVESTOCK_EPOCH_MS, endMs: LIVESTOCK_EPOCH_MS + 86_400 };
-const hour = (h: number): number => h * 3.6;
 
 const PEN = { x: -52.5, z: 22.5 };
 /** Kraj mapy, odkud přichází cizí kovář (čára krajinou od vsi). */
@@ -101,8 +92,19 @@ const HORSES = [
   { pen: 61, id: 4 },
 ];
 
-function plan(v: SceneVillage): ReturnType<typeof planVillagersWithCrew> {
-  return planVillagersWithCrew(v, GROUND, { seed: 3, herds: 0, dayWindow: () => window });
+function plan(v: SceneVillage, nowMs?: number): ReturnType<typeof planVillagersWithCrew> {
+  return planVillagersWithCrew(v, GROUND, {
+    seed: 3,
+    herds: 0,
+    dayWindow: () => window,
+    ...(nowMs !== undefined ? { nowMs } : {}),
+  });
+}
+
+/** První okamžik (s od začátku dne kování), kdy kovář kuje. */
+function firstBuild(smith: PlannedVillager): number {
+  for (let t = 0; t < 3600; t += 0.5) if (at(smith, t).clip === 'build') return t;
+  return Infinity;
 }
 
 const at = (p: PlannedVillager, t: number): VillagerPose => p.pose(t, [], createVillagerPose());
@@ -110,26 +112,18 @@ const dist = (a: { x: number; z: number }, b: { x: number; z: number }): number 
   Math.hypot(a.x - b.x, a.z - b.z);
 
 describe('rozvrh kování', () => {
-  it('kuje se kolem poledne, na koně 1,5 h; krátká cesta běžnou chůzí, dlouhá časosběrem', () => {
-    const near = shoeingSchedule(15, 2, true, 3.6, 1.2);
-    expect(near.arrive).toBeCloseTo(SHOE_NOON_H - SHOE_HORSE_H, 9);
-    expect(near.done).toBeCloseTo(SHOE_NOON_H + SHOE_HORSE_H, 9);
-    expect(near.pace).toBe(1);
-    expect(near.depart).toBeCloseTo(near.arrive - 15 / 1.2 / 3.6, 9);
-    const far = shoeingSchedule(700, 2, false, 3.6, 1.2);
-    expect(far.depart).toBe(SHOEING_TRIP_H.foreign[0]);
-    expect(far.back).toBeCloseTo(SHOEING_TRIP_H.foreign[1], 9);
-    expect(far.pace).toBeGreaterThan(1);
-    // u ohrady mírnější časosběr, daleko rychleji – celá cesta se vejde přesně do výpravy
-    expect(far.nearM).toBeGreaterThan(0);
-    expect(far.nearSpeed).toBeLessThan(far.speed);
-    const legS = (far.arrive - far.depart) * 3.6;
-    expect(shoeingWalked(far, 700, legS).d).toBeCloseTo(700, 6);
-    expect(shoeingWalked(far, 700, legS - 0.1).pace).toBe(far.nearPace);
-    expect(tiedHours(near, 2)).toEqual([
-      [near.arrive, SHOE_NOON_H],
-      [SHOE_NOON_H, near.done],
-    ]);
+  it('ve skutečném čase: běžnou chůzí ke koním, každý kůň SHOE_HORSE_S, zpět chůzí', () => {
+    const s = shoeingSchedule(100, 2, 1000, 1.2);
+    expect(s.departMs).toBe(1000);
+    expect(s.arriveMs).toBeCloseTo(1000 + (100 / 1.2) * 1000, 6);
+    expect(s.doneMs - s.arriveMs).toBeCloseTo(2 * SHOE_HORSE_S * 1000, 6);
+    expect(s.backMs - s.doneMs).toBeCloseTo(s.arriveMs - s.departMs, 6);
+    expect(s.speed).toBe(1.2);
+    const spans = tiedSpans(s, 2);
+    expect(spans[0]![0]).toBe(s.arriveMs);
+    expect(spans[0]![1]).toBeCloseTo(s.arriveMs + SHOE_HORSE_S * 1000, 6);
+    expect(spans[1]![0]).toBe(spans[0]![1]);
+    expect(spans[1]![1]).toBeCloseTo(s.doneMs, 6);
   });
 
   it('kůň stojí u kůlu vně branky, kovář u něj čelem k ohradě', () => {
@@ -144,7 +138,7 @@ describe('rozvrh kování', () => {
 
 describe('kovář v den kování (villager-plan-shoeing.ts)', () => {
   it('vlastní kovář je člověk z kovárny, jde od kovárny k ohradě, kuje a vrací se', () => {
-    const { people, crew } = plan(village({ own: true, horses: HORSES }, true));
+    const { people, crew } = plan(village({ day: DAY, own: true, horses: HORSES }, true));
     const smiths = people.filter((p) => p.key === SHOEING_KEY.own);
     expect(smiths).toHaveLength(1);
     const smith = smiths[0]!;
@@ -152,31 +146,38 @@ describe('kovář v den kování (villager-plan-shoeing.ts)', () => {
     expect(smith.kind).toBe('man');
     // podíl kování už postavu u plotu nemá
     expect(people.some((p) => p.key.startsWith('horse-shoeing:'))).toBe(false);
-    // ráno v kovárně (není vidět), v poledne u ohrady kuje, večer zase v kovárně
-    expect(at(smith, hour(4.5)).hidden).toBe(true);
-    const noon = at(smith, hour(SHOE_NOON_H - 0.5));
-    expect(noon.hidden).toBe(false);
-    expect(noon.clip).toBe('build');
-    expect(dist(noon, PEN)).toBeLessThan(15);
-    expect(at(smith, hour(20)).hidden).toBe(true);
-    // cestou – mezi kovárnou a ohradou, chůze
-    const rides = crew.rides ?? [];
-    expect(rides.map((r) => r.horseId)).toEqual([3, 4]);
-    const before = at(smith, hour(SHOE_NOON_H - SHOE_HORSE_H) - 1);
+    // před dnem kování v kovárně (není vidět), cestou chůzí, u ohrady kuje, pak zase v kovárně
+    expect(at(smith, -1).hidden).toBe(true);
+    const before = at(smith, 2);
+    expect(before.hidden).toBe(false);
     expect(before.clip).toBe('walk');
+    expect(before.pace).toBe(1);
     expect(before.stage).toBe('out');
     expect(dist(before, { x: 40, z: -20 })).toBeLessThan(dist({ x: 40, z: -20 }, PEN));
+    const build = firstBuild(smith);
+    // ≈ 100 m chůzí – víc než jeden herní den by trvala jen delší cesta
+    expect(build).toBeGreaterThan(60);
+    expect(build).toBeLessThan(200);
+    const shoeing = at(smith, build + SHOE_HORSE_S / 2);
+    expect(shoeing.clip).toBe('build');
+    expect(dist(shoeing, PEN)).toBeLessThan(15);
+    expect(at(smith, build + 2 * SHOE_HORSE_S + 5).stage).toBe('back');
+    expect(at(smith, build * 2 + 2 * SHOE_HORSE_S + 5).hidden).toBe(true);
+    const rides = crew.rides ?? [];
+    expect(rides.map((r) => r.horseId)).toEqual([3, 4]);
   });
 
   it('koně stojí u kůlu jeden po druhém, jinak jsou v ohradě', () => {
-    const { crew } = plan(village({ own: true, horses: HORSES }, true));
+    const v = village({ day: DAY, own: true, horses: HORSES }, true);
+    const { people, crew } = plan(v);
+    const build = firstBuild(people.find((p) => p.key === SHOEING_KEY.own)!);
     const [first, second] = crew.rides!;
-    const t1 = hour(SHOE_NOON_H - 0.5);
-    const t2 = hour(SHOE_NOON_H + 0.5);
+    const t1 = build + SHOE_HORSE_S / 2;
+    const t2 = build + SHOE_HORSE_S * 1.5;
     expect(isTied(first!, t1)).toBe(true);
     expect(isTied(second!, t1)).toBe(false);
     expect(isTied(second!, t2)).toBe(true);
-    expect(isAway(first!, hour(8))).toBe(false);
+    expect(isAway(first!, 1)).toBe(false);
     expect([...ridingHorseIds(crew.rides!, LIVESTOCK_EPOCH_MS + t1 * 1000)]).toEqual([3]);
     const pose: LivestockPose = {
       x: 0,
@@ -191,28 +192,40 @@ describe('kovář v den kování (villager-plan-shoeing.ts)', () => {
     expect(pose.stride).toBe(0);
   });
 
-  it('cizí kovář je cizí postava, přichází z kraje mapy a odchází tam', () => {
+  it('cizí kovář je cizí postava, přichází z kraje mapy chůzí a odchází tam', () => {
     const line = [{ x: 0, z: 0 }, EDGE];
-    const { people, crew } = plan(village({ own: false, horses: HORSES, line }, false));
+    const { people, crew } = plan(village({ day: DAY, own: false, horses: HORSES, line }, false));
     const smith = people.find((p) => p.key === SHOEING_KEY.foreign)!;
     expect(smith).toBeDefined();
     expect(smith.person).toBeUndefined();
     expect(crew.rides).toHaveLength(2);
-    const [from, to] = SHOEING_TRIP_H.foreign;
-    // na začátku cesty u kraje mapy, v poledne u ohrady, na konci zase u kraje
-    const start = at(smith, hour(from) + 0.01);
+    // na začátku cesty u kraje mapy, u ohrady kuje, na konci zase u kraje
+    const start = at(smith, 0.01);
     expect(start.hidden).toBe(false);
+    expect(start.pace).toBe(1);
     expect(dist(start, EDGE)).toBeLessThan(10);
-    expect(dist(at(smith, hour(SHOE_NOON_H)), PEN)).toBeLessThan(15);
-    const end = at(smith, hour(to) - 0.01);
-    expect(dist(end, EDGE)).toBeLessThan(10);
-    expect(end.stage).toBe('back');
-    expect(at(smith, hour(to) + 0.5).hidden).toBe(true);
-    expect(at(smith, hour(from) - 0.5).hidden).toBe(true);
+    const build = firstBuild(smith);
+    // přes půl mapy (≈ 540 m) chůzí – několik herních dní
+    expect(build).toBeGreaterThan(400);
+    expect(dist(at(smith, build + 10), PEN)).toBeLessThan(15);
+    // kovář napřed koně přivede (stojí 15 % času koně), pak kuje
+    const end = (build - 0.15 * SHOE_HORSE_S) * 2 + 2 * SHOE_HORSE_S;
+    expect(dist(at(smith, end - 0.5), EDGE)).toBeLessThan(10);
+    expect(at(smith, end - 0.5).stage).toBe('back');
+    expect(at(smith, end + 0.5).hidden).toBe(true);
+    expect(at(smith, -0.5).hidden).toBe(true);
   });
 
-  it('bez kování dne nikdo nekuje u brány, plán je deterministický', () => {
-    const v = village({ own: true, horses: HORSES }, true);
+  it('po návratu kováře ho plán nemá (kování skončilo ve skutečném čase)', () => {
+    const v = village({ day: DAY, own: true, horses: HORSES }, true);
+    const during = plan(v, LIVESTOCK_EPOCH_MS + 60_000).people;
+    expect(during.some((p) => p.key === SHOEING_KEY.own)).toBe(true);
+    const after = plan(v, LIVESTOCK_EPOCH_MS + 3_600_000).people;
+    expect(after.some((p) => p.key === SHOEING_KEY.own)).toBe(false);
+  });
+
+  it('bez kování nikdo nekuje u brány, plán je deterministický', () => {
+    const v = village({ day: DAY, own: true, horses: HORSES }, true);
     const labor = { ...v.labor! };
     delete labor.shoeing;
     const none = plan({ ...v, labor });
@@ -220,8 +233,8 @@ describe('kovář v den kování (villager-plan-shoeing.ts)', () => {
     expect(none.crew.rides ?? []).toHaveLength(0);
     const a = plan(v).people.find((p) => p.key === SHOEING_KEY.own)!;
     const b = plan(v).people.find((p) => p.key === SHOEING_KEY.own)!;
-    for (const h of [6, 9, 10.7, 12, 13.4, 16]) {
-      expect(at(a, hour(h))).toEqual(at(b, hour(h)));
+    for (const t of [1, 30, 90, 200, 300, 450]) {
+      expect(at(a, t)).toEqual(at(b, t));
     }
   });
 });

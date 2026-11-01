@@ -9,11 +9,20 @@ import {
 } from '../dogs';
 import { createLivestockPose, LIVESTOCK_EPOCH_MS } from '../livestock-motion';
 import { straightLeg } from '../rider-route';
-import { createRideState, HUNT_BLOCK, huntPlans, rideState, type RidePlan } from '../riders';
+import {
+  createRideState,
+  HUNT_REAL_S,
+  HUNT_START_H,
+  huntPlans,
+  rideState,
+  type RidePlan,
+} from '../riders';
 
 const DAY_MS = 86_400;
 const window = { startMs: LIVESTOCK_EPOCH_MS, endMs: LIVESTOCK_EPOCH_MS + DAY_MS };
 const hourT = (h: number): number => (h / 24) * (DAY_MS / 1000);
+/** Lov ve skutečném čase (s): za šera dne lovu, HUNT_REAL_S dlouho. */
+const HUNT_T = [hourT(HUNT_START_H), hourT(HUNT_START_H) + HUNT_REAL_S] as const;
 const hitch = { x: 4, z: 0, headingX: 1, headingZ: 0 };
 const hunt = (foot: number[]): ReturnType<typeof huntPlans> =>
   huntPlans({
@@ -39,7 +48,7 @@ describe('psi dvorce (dogs.ts – wildlife.md, Psi)', () => {
     const plans = dogPlans(input({ hunt: hunt([20, 21]) }));
     const pose = createLivestockPose();
     const state = createDogState();
-    for (const edge of [hourT(HUNT_BLOCK[0]), hourT(HUNT_BLOCK[1])]) {
+    for (const edge of [HUNT_T[0], HUNT_T[1]]) {
       for (const plan of plans) {
         let last: { x: number; z: number } | null = null;
         for (let t = edge - 1; t <= edge + DOG_JOIN_S + 1; t += 0.1) {
@@ -74,12 +83,12 @@ describe('psi dvorce (dogs.ts – wildlife.md, Psi)', () => {
     const pose = createLivestockPose();
     const state = createDogState();
     const lead = createRideState();
-    const mid = hourT((HUNT_BLOCK[0] + HUNT_BLOCK[1]) / 2 - 0.3);
+    const mid = (HUNT_T[0] + HUNT_T[1]) / 2 - 1;
     for (const plan of plans) {
       dogPose(plan, mid, state, pose);
       rideState(plan.leader!, mid, lead);
       expect(Math.hypot(pose.x - lead.x, pose.z - lead.z)).toBeLessThan(6);
-      dogPose(plan, hourT(HUNT_BLOCK[1] + 1), state, pose);
+      dogPose(plan, HUNT_T[1] + 4, state, pose);
       expect(Math.hypot(pose.x - hitch.x, pose.z - hitch.z)).toBeLessThan(8);
     }
     // bez pěších běží s jezdci

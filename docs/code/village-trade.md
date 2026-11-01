@@ -68,9 +68,13 @@ směr)` – stálá povaha podle druhu souseda (`neighbourKind` – obilnáři, 
   ze společné práce – `idle` nezmenší); `finishExpeditions` (po práci – zboží do zásob, kronika
   `trade-departed` / `trade-returned`). Rozdělení práce: činnost `trade`, cíl `{ kind: 'trail' }`
   – ve scéně jde výprava jako **karavana** (`scene/caravan.ts`, data `SceneVillage.expeditions`
-  z `lib/caravan-view.ts`): jedna skupina po zemské stezce podle postupu výpravy v herním čase
-  (`caravanProgress` – postup dne plynule dnešním tempem, `caravanHead` – tam, den za krajem mapy
-  pryč, zpátky), ne podle práce dne – nosiči nezmizí, ani když výprava dnes nepostoupila; tam
+  z `lib/caravan-view.ts`): jedna skupina po zemské stezce ve skutečném čase od začátku dne, kdy
+  běžící cesta začala (`SceneExpedition.startDay`; `caravanTimeline` – tam chůzí 1,2 m/s, s vozy
+  nebo dobytkem tempem volů 0,85 m/s – `caravanSpeed`, herní den za krajem mapy, do vsi na téže
+  mapě bez něj, zpátky; `caravanHead`; po návratu `CARAVAN_LINGER_S` v hloučku), ne podle práce
+  dne ani postupu v jádru – výprava se v jádru vrátí dřív a scéna si karavanu i s vozy pamatuje do
+  jejího konce (`ActivityMemory` v `scene/activity-memory.ts`, klíč výprava + `startDay`; naráz jich
+  může jít víc, starší napřed – vůz dojede rozjetou cestu); tam
   nosiči s nákladem a lidé, kteří odcházejí (`givePeople.members`), zpátky nosiči a lidé od
   souseda (`newcomerProfiles`); postavy `caravanFigures` ve `villager-plan.ts` (podíl `trade`
   se pak nekreslí; `VillagerPose.hidden` za krajem mapy), vůz v čele `caravanCartPlan`

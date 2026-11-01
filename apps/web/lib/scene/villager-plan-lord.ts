@@ -20,10 +20,9 @@ import {
 import { cast, figure } from './villager-plan-cast';
 import { hash01 } from './smoke-schedule';
 import { doorPoint, free, walkRoute } from './villager-plan-geometry';
-import { type Context, type PlannedVillager } from './villager-plan-types';
+import { FIGURE_SCALE, type Context, type PlannedVillager } from './villager-plan-types';
 import {
   alongRoute,
-  CLIP_SPEED_M_S,
   fetcher,
   LORD_IDLE_CLIPS,
   route,
@@ -32,6 +31,7 @@ import {
   type VillagerClip,
   type VillagerKind,
   type VillagerPose,
+  walkSpeed,
 } from './villager-motion';
 import { trainingGroundOf, type TrainingGround, type TrainingSpot } from './training-ground-layout';
 import type { Point } from './villager-plan-types';
@@ -298,6 +298,7 @@ export function lordFigures(
   labor: SceneLabor,
   window: DayWindow | null,
   huntSpot: HuntSpotFn | null = null,
+  huntWindow: DayWindow | null = window,
 ): { people: PlannedVillager[]; rides: RidePlan[]; dogs: DogPlan[] } {
   const lord = labor.lord;
   if (!lord || !ctx.roster) return { people: [], rides: [], dogs: [] };
@@ -310,6 +311,9 @@ export function lordFigures(
     const r = walkRoute(ctx, a, b);
     return r ? r.points.map(([x, z]) => ({ x, z })) : [a, b];
   };
+  const wild = ctx.village.wildlife;
+  // jezdci lovu (lov jde ve skutečném čase přes víc dní) objížďku nejedou – kůň je na lovu
+  const hunters = new Set((wild?.hunt?.riders ?? []).map((r) => r.id));
   const patrolRides = ridePlans({
     village: ctx.village,
     lord,
@@ -317,10 +321,10 @@ export function lordFigures(
     homes: ctx.homes.map((h) => ({ x: h.position.x, z: h.position.z })),
     leg,
     window,
-  });
-  // lov dne (wildlife.md – Ve scéně): jezdci a pěší s oštěpy k okraji lesa u zvěře a zpět
-  const wild = ctx.village.wildlife;
-  const hunt = wild?.hunt ? huntParty(ctx, wild.hunt, hitch, leg, window, huntSpot) : null;
+  }).filter((r) => !hunters.has(r.riderId));
+  // lov (wildlife.md – Ve scéně): jezdci a pěší s oštěpy k okraji lesa u zvěře a zpět – ve
+  // skutečném čase od dne lovu (`huntWindow`)
+  const hunt = wild?.hunt ? huntParty(ctx, wild.hunt, hitch, leg, huntWindow, huntSpot) : null;
   const rides = [...patrolRides, ...(hunt?.rides ?? [])];
   const riding = new Map(rides.map((r) => [r.riderId, r]));
   const walking = new Map((hunt?.foot ?? []).map((r) => [r.riderId, r]));
@@ -489,10 +493,10 @@ export function footHunterPose(plan: RidePlan, carrier: boolean, otherwise: Pose
       out.pace = 1;
     } else if (back && carrier) {
       out.clip = 'carry-meat';
-      out.pace = state.pace / (CLIP_SPEED_M_S.man['carry-meat'] ?? 1);
+      out.pace = state.pace / walkSpeed('man', 'carry-meat', FIGURE_SCALE);
     } else {
       out.clip = 'walk-spear';
-      out.pace = state.pace / (CLIP_SPEED_M_S.man['walk-spear'] ?? 1);
+      out.pace = state.pace / walkSpeed('man', 'walk-spear', FIGURE_SCALE);
     }
     return out;
   };
