@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   formatCompare,
   formatRows,
+  hardFailures,
+  overheadTarget,
   landscapeGroups,
   runDynasty,
   summarize,
@@ -109,29 +111,45 @@ describe('měření správce – tabulka', () => {
     expect(status('Čas správce')).toBe('MIMO');
   });
 
-  it('kritéria plánu úloh: podíl osevu, založení, malé odchody, chůze bez A', () => {
+  it('kritéria plánu úloh: využití oběhu, založení, malé odchody a vsi, chůze bez A', () => {
     const steward = result({
-      sownShare: 0.3,
+      sownShare: 0.2,
       fieldOverhead: 0.4,
       departureSizes: [1, 6],
+      tinyVillages: 1,
       sownWalkM: 300,
     });
     const rows = summarize([steward]);
     const status = (prefix: string): string | undefined =>
       rows.find((r) => r.name.startsWith(prefix))?.status;
-    expect(status('Podíl osevu')).toBe('MIMO');
+    expect(status('Využití oběhu')).toBe('MIMO');
     expect(status('Založení + vracení')).toBe('MIMO');
     expect(status('Odchody synů o ≤ 2')).toBe('MIMO');
+    expect(status('Vsi rodu o ≤ 2')).toBe('MIMO');
+    expect(hardFailures(rows).map((r) => r.name)).toEqual(['Vsi rodu o ≤ 2 lidech kdykoli (B)']);
     expect(status('Chůze vážená osevem')).toBe('MIMO');
     expect(status('Vzdálenost dílů')).toBe('OK');
-    const good = summarize([result({ sownShare: 0.5, fieldOverhead: 0.1, departureSizes: [6] })]);
-    expect(good.find((r) => r.name.startsWith('Podíl osevu'))?.status).toBe('OK');
+    // 2 roky osevu ze 7: podíl 0,25 = využití 0,875
+    const good = summarize([
+      result({ sownShare: 0.25, fieldOverhead: 0.3, departureSizes: [6], tinyVillages: 0 }),
+    ]);
+    expect(good.find((r) => r.name.startsWith('Využití oběhu'))?.status).toBe('OK');
+    expect(good.find((r) => r.name.startsWith('Založení + vracení'))?.status).toBe('OK');
+    expect(hardFailures(good)).toEqual([]);
     expect(good.find((r) => r.name.startsWith('Odchody synů o'))?.measured).toContain('0 z 1');
+  });
+
+  it('cíl založení + vracení: vracení přílohu oběhu (1 ze 2 let osevu) a zakládání při růstu', () => {
+    // bez nástrojů: vracení louky 100 ÷ 2 = 50 čd na osetý ha z polní práce 209 čd
+    expect(overheadTarget(0)).toBeCloseTo(50 / 209, 6);
+    // růst 5 % za rok: zakládání 0,05 × 3,5 × 100 = 17,5 čd navíc
+    expect(overheadTarget(0.05)).toBeCloseTo(67.5 / 209, 6);
   });
 
   it('starší kontrolní bod bez nových kritérií: pomlčka, ne chyba', () => {
     const rows = summarize([result({})]);
-    expect(rows.find((r) => r.name.startsWith('Podíl osevu'))?.status).toBe('–');
+    expect(rows.find((r) => r.name.startsWith('Využití oběhu'))?.status).toBe('–');
+    expect(rows.find((r) => r.name.startsWith('Vsi rodu o ≤ 2'))?.status).toBe('–');
     expect(rows.find((r) => r.name.startsWith('Chůze vážená'))?.status).toBe('–');
   });
 

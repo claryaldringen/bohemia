@@ -12,10 +12,16 @@ import { settlersOf, edgeDistanceM, travelDays, villageCentre } from './departur
 import { currentLord, wivesOf } from './dynasty';
 import { generatedLineName } from './dynasty-names';
 import { foundedState } from './founding';
+import { bufferFill } from './field-food';
 import { suggestVillageName } from './names';
-import { FIELD_LIMITS } from './rules-fields';
+import { ageGroup, ageYears } from './people';
+import { LEAVING } from './rules-buildings';
+import { CARTS } from './rules-crafts';
+import { FIELD_LIMITS, FOOD_NEED_KG_PER_YEAR, START_SEED_YEARS } from './rules-fields';
+import { AGE } from './rules-people';
 import { STEWARD } from './rules-steward';
-import { departWithSon, leadingSons, sonShare } from './son-departure';
+import { fieldSowingTargets } from './simulate-plan';
+import { departWithSon, leadingSons, sonDeparturePreview } from './son-departure';
 import { fieldCellValue, fieldCells, takenTiles, villageTerritory } from './steward-land';
 import { stewardOutlook, type StewardOutlook } from './steward-outlook';
 import { isStewardOn, pruneStewardBuilt } from './steward-state';
@@ -153,16 +159,107 @@ export function stewardFieldRoom(
 }
 
 /**
- * Kdo odejde (steward.md – Kdo odejde): ze synů, kteří smějí vést (`leadingSons` s `check.ok`),
- * nejstarší ženatý, jinak nejstarší způsobilý (i svobodný) – ženatý založí rod hned. Ves bez rodu
- * (`dynasty.lordId` null – jen testy a starší kalibrace) syna nemá. Nikdo – null (správce
- * počká, až syn dospěje – rozhodnutí na noc 30. → 31. 10. 2026, otázka 2).
+ * Výprava syna podle náhledu odchodu (`sonDeparturePreview` – poměrná část vsi `sonShare`, jídlo,
+ * osivo a vůz jako `departWithSon`; steward.md – Životaschopná výprava).
+ */
+export interface StewardExpedition {
+  son: Person;
+  /** Lidé dílu. */
+  people: number;
+  /** Dospělí dílu (14–44 let – plná práce). */
+  adults: number;
+  /** V dílu je pár: žena 16–44 let s manželem od 16 let. */
+  pair: boolean;
+  /** Jídlo a osivo ÷ co má výprava nést – rok jídla do žní a osivo, nejvýš kolik unesou. */
+  load: number;
+  /** Osivo ÷ osivo na první osev (půl roční potřeby, nejvýš kolik unesou pěšky). */
+  seed: number;
+  /** Díl splní podmínky výpravy (bez pojistky mateřské vsi – ta až s odchodem). */
+  viable: boolean;
+}
+
+/**
+ * Výprava syna `son` (steward.md – Životaschopná výprava; Martin 30. 10. 2026 – poměrná část vsi,
+ * pravidlo dílu se nemění, správce volí jen kdy): díl má aspoň `STEWARD.expeditionAdults` dospělých,
+ * pár v plodném věku a jídlo s osivem aspoň `STEWARD.expeditionLoad` toho, co má nést – rok jídla
+ * do příštích žní (31. 8. je po žních) a osivo na první osev (`START_SEED_YEARS`), nejvýš kolik
+ * unesou (`LEAVING`, vůz `CARTS.loadKg`); osivo zvlášť aspoň tento podíl půl roční potřeby nebo
+ * osiva pěšky. Syn ve vsi nikde – null.
+ */
+export function stewardExpedition(
+  state: VillageState,
+  son: Person,
+  day: number,
+): StewardExpedition | null {
+  const preview = sonDeparturePreview(state, son.id, day);
+  if (!preview) return null;
+  const ids = new Set(preview.share.personIds);
+  const leavers = state.people.filter((p) => ids.has(p.id));
+  const adults = leavers.filter((p) => ageGroup(p, day) === 'adult').length;
+  const pair = leavers.some((p) => {
+    if (p.sex !== 'female' || p.spouseId === undefined || !ids.has(p.spouseId)) return false;
+    const age = ageYears(p.bornDay, day);
+    const husband = leavers.find((h) => h.id === p.spouseId);
+    return (
+      age >= AGE.fertile &&
+      age < AGE.elder &&
+      husband !== undefined &&
+      ageYears(husband.bornDay, day) >= AGE.fertile
+    );
+  });
+  const need = leavers.reduce((sum, p) => sum + FOOD_NEED_KG_PER_YEAR[ageGroup(p, day)], 0);
+  const carriers = leavers.filter((p) => ageYears(p.bornDay, day) >= LEAVING.carryFromAge).length;
+  const cartKg = preview.cart ? CARTS.loadKg[preview.cart] : 0;
+  const seedNeed = need * START_SEED_YEARS;
+  const carry = carriers * (LEAVING.carryKgPerPerson + LEAVING.seedKgPerCarrier) + cartKg;
+  const loadWant = Math.min(need + seedNeed, carry);
+  const seedWant = Math.min(seedNeed, carriers * LEAVING.seedKgPerCarrier);
+  const load = loadWant > 0 ? (preview.foodKg + preview.seedKg) / loadWant : 0;
+  const seed = seedWant > 0 ? preview.seedKg / seedWant : 0;
+  return {
+    son,
+    people: leavers.length,
+    adults,
+    pair,
+    load,
+    seed,
+    viable:
+      adults >= STEWARD.expeditionAdults &&
+      pair &&
+      load >= STEWARD.expeditionLoad &&
+      seed >= STEWARD.expeditionLoad,
+  };
+}
+
+/**
+ * Kdo odejde (steward.md – Kdo odejde, Životaschopná výprava): ze synů, kteří smějí vést
+ * (`leadingSons` s `check.ok`), jen ten, jehož díl je životaschopná výprava (`stewardExpedition`)
+ * a po jehož odchodu má mateřská ves pojistku aspoň `STEWARD.departureMotherFill`; z nich ten
+ * s nejvíc dospělými, pak nejvíc lidmi, ženatý před svobodným, starší, nižší id. Nikdo – null
+ * (správce počká, až syn dospěje, ožení se nebo ves doroste). Ves bez rodu syna nemá. Pojistku
+ * po odchodu počítá na stavu z `departWithSon` – stejně jako odchod sám.
  */
 export function departingSon(state: VillageState, day: number): Person | null {
-  const able = leadingSons(state, day)
+  const married = (e: StewardExpedition): number => (wivesOf(state, e.son).length > 0 ? 1 : 0);
+  const viable = leadingSons(state, day)
     .filter((s) => s.check.ok)
-    .map((s) => s.son);
-  return able.find((son) => wivesOf(state, son).length > 0) ?? able[0] ?? null;
+    .map((s) => stewardExpedition(state, s.son, day))
+    .filter((e): e is StewardExpedition => e !== null && e.viable)
+    .sort(
+      (a, b) =>
+        b.adults - a.adults ||
+        b.people - a.people ||
+        married(b) - married(a) ||
+        a.son.bornDay - b.son.bornDay ||
+        a.son.id - b.son.id,
+    );
+  for (const e of viable) {
+    // akce běží na vsi dopočítané do dneška (`lastDay` uprostřed dopočtu drží den jeho začátku)
+    const after = departWithSon({ ...state, lastDay: day }, day, e.son.id).state;
+    const fill = bufferFill(fieldSowingTargets(after, day, craftCoverage(after, day)));
+    if (fill >= STEWARD.departureMotherFill) return e.son;
+  }
+  return null;
 }
 
 /**
@@ -198,8 +295,8 @@ function isDepartureDate(day: number): boolean {
  * na nová pole (`stewardFieldRoom`), nebo ves, která od minulého dne odchodu hladověla aspoň
  * `STEWARD.departureHungerDays` (`steward.hungerPeak`) – bez místa na pole, nebo i s ním, když pole
  * podle „Pole uživí“ stačí (past osiva – steward.md, Hranice) nebo ves hladověla už loni
- * (`steward.lastYearHunger` – pole navíc rok nepomohla) –, a se synem, který smí vést
- * (`departingSon`): syn odejde s dílem
+ * (`steward.lastYearHunger` – pole navíc rok nepomohla) –, a se synem, jehož díl je životaschopná
+ * výprava (`departingSon` – jinak správce počká): syn odejde s dílem
  * vsi (`departWithSon`) a osadníci jdou do odchozí schránky `steward.departures` se seedem
  * (`deriveSeed(seed vsi, 'steward-son:' + den)`), jménem (`suggestVillageName`) a směry na novou
  * mapu – jedna ves, jedna mapa (Martin 1. 11. 2026). Jen jednou za rok (jeden den v roce).
@@ -225,8 +322,6 @@ export function stewardDeparture(
   if (!trapped && stewardFieldRoom(state, day, landscape, obstacles, outlook)) return false;
   const son = departingSon(state, day);
   if (!son) return false;
-  const share = sonShare(state, son.id, day);
-  if (!share) return false;
   const seed = deriveSeed(state.seed, `steward-son:${day}`);
   const name = suggestVillageName(seed);
   const directions = stewardDirections(state, landscape);

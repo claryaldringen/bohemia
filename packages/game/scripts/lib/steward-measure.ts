@@ -29,6 +29,12 @@ import {
   waitingHouseholds,
   type VillageState,
 } from '../../src/domain/village';
+import { ROTATION, ROTATION_FACTOR } from '../../src/domain/village/field-capacity';
+import {
+  FIELD_WORK_PER_HA,
+  FOUNDING_COST_PER_HA,
+  RECLAIM_COST_PER_HA,
+} from '../../src/domain/village/rules-fields';
 import { fieldSowingTargets } from '../../src/domain/village/simulate-plan';
 import { realLand, type CalibrationLand } from './calibration-land';
 import { steadyState } from './steady-state';
@@ -158,6 +164,8 @@ export interface DynastyResult {
   fieldOverhead?: number;
   /** Lidé každého odchodu syna (osadníci nové vsi). */
   departureSizes?: number[];
+  /** Vsi rodu, které měly po některém kroku dopočtu 1–`TINY_VILLAGE` lidí (i mateřská). */
+  tinyVillages?: number;
   /** Pojistka a hladové dny zvlášť mateřská ves / vsi synů (NaN – žádná ves synů). */
   bufferMother?: number;
   bufferSons?: number;
@@ -373,6 +381,7 @@ export function runDynasty(opts: RunOptions): DynastyResult {
         colony.state = after;
         if (opts.strategy === 'player') playerTend(colony, to);
         if (after.people.length === 0) continue;
+        if (after.people.length <= TINY_VILLAGE) tally.tiny.add(index);
         const mother = index === 0;
         const days = to - cursor;
         tally.villageDays += days;
@@ -412,6 +421,7 @@ export function runDynasty(opts: RunOptions): DynastyResult {
   result.sownWalkM = tally.sownM2 > 0 ? tally.sownWalk / tally.sownM2 : NaN;
   result.fieldOverhead = tally.fieldLabor > 0 ? tally.overheadLabor / tally.fieldLabor : NaN;
   result.departureSizes = tally.departures;
+  result.tinyVillages = tally.tiny.size;
   result.villageYears = tally.villageDays / DAYS_PER_YEAR;
   fillLand(result, colonies);
   return result;
@@ -429,6 +439,8 @@ interface Tally {
   fieldLabor: number;
   overheadLabor: number;
   departures: number[];
+  /** Indexy vsí rodu, které kdy měly 1–`TINY_VILLAGE` lidí. */
+  tiny: Set<number>;
 }
 
 function newTally(): Tally {
@@ -443,6 +455,7 @@ function newTally(): Tally {
     fieldLabor: 0,
     overheadLabor: 0,
     departures: [],
+    tiny: new Set(),
   };
 }
 
@@ -521,6 +534,30 @@ export interface Row {
   target: string;
   measured: string;
   status: Status;
+  /** Tvrdé kritérium – MIMO znamená, že úloha neprošla, ať jsou ostatní řádky jakékoli. */
+  hard?: true;
+}
+
+/** Tvrdá kritéria, která neprošla (výpis pod tabulkou měření). */
+export function hardFailures(rows: readonly Row[]): Row[] {
+  return rows.filter((r) => r.hard && r.status === 'MIMO');
+}
+
+/**
+ * Cíl „založení + vracení přílohu ÷ polní práce“ (plán úloh správce, úloha 3): vracení pětiletého
+ * přílohu (stadium louka – drn jako založení louky) je součást oběhu – ročně se vrací 1 ÷
+ * `ROTATION.sown` oseté plochy; k tomu zakládání nových dílů celého oběhu (`ROTATION_FACTOR`) při
+ * růstu osevu `growth` za rok. Sazby bez nástrojů (worst); jmenovatel je polní práce na osetý
+ * hektar (vracení, kopání, setí, pletí jen jaře – ozim se neplete, žně, mlácení) – zakládání v něm
+ * není (jako ve vzorku práce).
+ */
+export function overheadTarget(growth: number): number {
+  const w = FIELD_WORK_PER_HA;
+  const reclaim = RECLAIM_COST_PER_HA.meadow.worst / ROTATION.sown;
+  const field =
+    reclaim + w.dig.worst + w.sow.worst + w.weed.worst / 2 + w.harvest.worst + w.thresh.worst;
+  const founding = growth * ROTATION_FACTOR * FOUNDING_COST_PER_HA.meadow.worst;
+  return (reclaim + founding) / field;
 }
 
 const mean = (values: readonly number[]): number =>
@@ -543,8 +580,10 @@ interface Targets {
   deaths: number;
   bufferAvg: number;
   bufferMin: number;
-  sownShare: number;
-  overhead: number;
+  /** Využití oběhu – podíl osevu × `ROTATION_FACTOR` (1 = osetý celý díl oběhu, 2 roky ze 7). */
+  rotationUse: number;
+  /** Růst osevu za rok, se kterým se počítá zakládání v cíli `overheadTarget`. */
+  overheadGrowth: number;
   /** Chůze bez A (m); s A platí B ≤ A. */
   walkM: number;
   /** Lidé rodu za 25 let bez A (rychlé měření – výchozí stav plánu 23,2). */
@@ -556,8 +595,8 @@ const QUICK: Targets = {
   deaths: 5,
   bufferAvg: 0.6,
   bufferMin: 0,
-  sownShare: 0.45,
-  overhead: 0.15,
+  rotationUse: 0.8,
+  overheadGrowth: 0.05,
   walkM: 266,
   people25: 23,
 };
@@ -566,8 +605,8 @@ const FULL: Targets = {
   deaths: 0,
   bufferAvg: 0.9,
   bufferMin: 0.5,
-  sownShare: 0.5,
-  overhead: 0.1,
+  rotationUse: 0.9,
+  overheadGrowth: 0.03,
   walkM: 266,
   people25: 23,
 };
@@ -641,21 +680,21 @@ export function summarize(results: readonly DynastyResult[]): Row[] {
     measured: `${fmt(mean(values(b, (r) => r.bufferMother)), 2)} / ${fmt(mean(values(b, (r) => r.bufferSons)), 2)}`,
     status: 'info',
   });
-  const sown = mean(values(b, (r) => r.sownShare));
+  const use = values(b, (r) => r.sownShare).map((v) => v * ROTATION_FACTOR);
+  const sown = mean(use);
   rows.push({
-    name: `Podíl osevu na polích – mateřská ves, červen od roku ${sownFromYear(t.quick ? Math.max(...b.map((r) => r.years)) : 50)} (B)`,
-    target: `≥ ${fmt(t.sownShare, 2)}`,
-    measured: `${fmt(sown, 2)} (${values(b, (r) => r.sownShare)
-      .map((v) => fmt(v, 2))
-      .join(' ')})`,
-    status: Number.isFinite(sown) ? ok(sown >= t.sownShare) : '–',
+    name: `Využití oběhu – mateřská ves, červen od roku ${sownFromYear(t.quick ? Math.max(...b.map((r) => r.years)) : 50)} (B)`,
+    target: `≥ ${fmt(t.rotationUse, 2)}`,
+    measured: `${fmt(sown, 2)} (${use.map((v) => fmt(v, 2)).join(' ')})`,
+    status: Number.isFinite(sown) ? ok(sown >= t.rotationUse) : '–',
   });
   const overhead = mean(values(b, (r) => r.fieldOverhead));
+  const overheadMax = overheadTarget(t.overheadGrowth);
   rows.push({
     name: 'Založení + vracení přílohu ÷ polní práce (B)',
-    target: `≤ ${fmt(t.overhead * 100, 0)} %`,
+    target: `≤ ${fmt(overheadMax * 100, 0)} %`,
     measured: `${fmt(overhead * 100, 0)} %`,
-    status: Number.isFinite(overhead) ? ok(overhead <= t.overhead) : '–',
+    status: Number.isFinite(overhead) ? ok(overhead <= overheadMax) : '–',
   });
   const sizes = b.flatMap((r) => r.departureSizes ?? []);
   const tiny = sizes.filter((n) => n <= TINY_VILLAGE).length;
@@ -664,6 +703,14 @@ export function summarize(results: readonly DynastyResult[]): Row[] {
     target: '0',
     measured: `${tiny} z ${sizes.length} (lidé ${sizes.join(' ') || '–'})`,
     status: ok(tiny === 0),
+  });
+  const small = values(b, (r) => r.tinyVillages);
+  rows.push({
+    name: `Vsi rodu o ≤ ${TINY_VILLAGE} lidech kdykoli (B)`,
+    target: '0 (tvrdé)',
+    measured: small.length > 0 ? `${sum(small)} (${small.join(' ')})` : '–',
+    status: small.length > 0 ? ok(sum(small) === 0) : '–',
+    hard: true,
   });
   rows.push({
     name: 'Úrodnost dílů (A / B)',

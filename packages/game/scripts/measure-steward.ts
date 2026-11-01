@@ -28,6 +28,7 @@ import { formatDiag, stewardDiag } from './lib/steward-diag';
 import {
   formatCompare,
   formatRows,
+  hardFailures,
   landscapeGroups,
   runDynasty,
   summarize,
@@ -228,6 +229,10 @@ async function main(): Promise<void> {
       ? formatCompare(summarize(readAnyCheckpoint(config.baseline)), rows)
       : formatRows(rows),
   );
+  const broken = hardFailures(rows);
+  if (broken.length > 0) {
+    console.log(`Tvrdá kritéria MIMO: ${broken.map((r) => r.name).join('; ')}`);
+  }
   for (const r of results.sort((a, b) => a.seed - b.seed || a.strategy.localeCompare(b.strategy))) {
     console.log(
       `  ${r.strategy === 'steward' ? 'B' : 'A'} ${r.group.padEnd(8)} seed ${String(r.seed).padStart(3)}: lidé ${r.snapshots.map((s) => `${s.year}→${s.people}`).join(' ')}, vsí ${r.villages}, hladem ${r.hungerDeaths}, pole ${r.fieldHa.toFixed(1)} ha`,

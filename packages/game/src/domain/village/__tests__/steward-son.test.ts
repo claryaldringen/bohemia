@@ -19,9 +19,12 @@ import {
   stewardArrival,
   stewardCrowded,
   stewardDeparture,
+  stewardExpedition,
   stewardFieldRoom,
   stewardSonDay,
 } from '../steward-son';
+import { bufferFill } from '../field-food';
+import { fieldSowingTargets } from '../simulate-plan';
 import { craftCoverage } from '../crafts';
 import { averageRotationShare } from '../field-capacity';
 import type { Dwelling, FieldPart, Person, VillageState } from '../types';
@@ -63,14 +66,16 @@ const household = (first: number, size: number, home: number): KinSpec[] =>
   }));
 
 /**
- * Vojvoda 10 s ženou 11 v dvorci 1, nástupce 20 (dům 2), ženatý Bořivoj 30 (dům 3), svobodný
- * Dobromil 40 (dům 3) a dvě domácnosti – 16 lidí, žádné pole. Den vsi = `day`.
+ * Vojvoda 10 s ženou 11 a dcerou 12 v dvorci 1, nástupce 20 (dům 2), ženatý Bořivoj 30 (dům 3),
+ * svobodný Dobromil 40 (dům 3) a dvě domácnosti (4 a 5 dospělých) – 17 lidí, žádné pole. Díl
+ * Bořivoje (17 ÷ 4 dílníci) je on, žena a domácnost domu 4 – 6 dospělých s párem. Den vsi = `day`.
  */
 function lordVillage(day = AUG31 - 2, on = true): VillageState {
   const s = trackedVillage(
     [
       { id: 10, age: 60, sex: 'male', spouse: 11 },
       { id: 11, age: 55, sex: 'female', spouse: 10 },
+      { id: 12, age: 10, sex: 'female', father: 10, mother: 11 },
       { id: 20, age: 30, sex: 'male', spouse: 21, father: 10, mother: 11, home: 2 },
       { id: 21, age: 28, sex: 'female', spouse: 20, home: 2 },
       { id: 30, age: 24, sex: 'male', spouse: 31, father: 10, mother: 11, home: 3 },
@@ -239,9 +244,91 @@ describe('odchod syna (krok 2)', () => {
     expect(s.steward?.lastYearHunger).toBeUndefined();
   });
 
-  it('svobodný syn odejde, když ženatý není', () => {
+  const son30 = (s: VillageState): Person => s.people.find((p) => p.id === 30)!;
+  /** Pojistka mateřské vsi po odchodu syna `sonId` (jako `departingSon`). */
+  const motherFill = (s: VillageState, sonId: number): number => {
+    const after = departWithSon({ ...s, lastDay: AUG31 }, AUG31, sonId).state;
+    return bufferFill(fieldSowingTargets(after, AUG31, craftCoverage(after, AUG31)));
+  };
+
+  it('díl pod prahem výpravy – správce syna nepošle a počká; životaschopný díl pošle', () => {
+    // bez dcery vojvody (16 ÷ 4 dílníci = 4) by domácnost domu 4 díl od cíle oddálila – Bořivoj by
+    // šel jen se ženou: 2 dospělí, ves o dvou lidech
+    const small = lordVillage();
+    small.people = small.people.filter((p) => p.id !== 12);
+    expect(stewardExpedition(small, son30(small), AUG31)).toMatchObject({
+      people: 2,
+      adults: 2,
+      pair: true,
+      viable: false,
+    });
+    expect(departingSon(small, AUG31)).toBeNull();
+    expect(stewardCrowded(small, AUG31, craftCoverage(small, AUG31))).toBe(true);
+    expect(stewardDeparture(small, AUG31, barren, barrenObstacles)).toBe(false);
+    expect(small.steward?.departures ?? []).toHaveLength(0);
+    // s dcerou (17 ÷ 4): Bořivoj, žena a domácnost domu 4 – 6 dospělých s párem, plný náklad
+    const ok = lordVillage();
+    const e = stewardExpedition(ok, son30(ok), AUG31);
+    expect(e).toMatchObject({ people: 6, adults: STEWARD.expeditionAdults + 2, pair: true });
+    expect(e?.load).toBeGreaterThanOrEqual(STEWARD.expeditionLoad);
+    expect(e?.seed).toBeGreaterThanOrEqual(STEWARD.expeditionLoad);
+    expect(e?.viable).toBe(true);
+    // bez páru (žena Bořivoje zemřela) díl neprojde, i když dospělých je dost
+    const widower = lordVillage();
+    widower.people = widower.people.filter((p) => p.id !== 31);
+    delete son30(widower).spouseId;
+    expect(stewardExpedition(widower, son30(widower), AUG31)?.pair).toBe(false);
+  });
+
+  it('bez zásob na náklad výpravy nikdo neodejde a mateřská ves si nechá pojistku', () => {
+    // 300 kg – díl zásob výpravy nedá ani polovinu toho, co unesou
+    const poor = lordVillage();
+    poor.storesKg = 300;
+    expect(stewardExpedition(poor, son30(poor), AUG31)?.load).toBeLessThan(STEWARD.expeditionLoad);
+    expect(departingSon(poor, AUG31)).toBeNull();
+    // 700 kg – výprava by nesla dost, ale mateřské vsi by po odchodu zbylo pod pojistku Nouze
+    const thin = lordVillage();
+    thin.storesKg = 700;
+    expect(stewardExpedition(thin, son30(thin), AUG31)?.viable).toBe(true);
+    expect(motherFill(thin, 30)).toBeLessThan(STEWARD.departureMotherFill);
+    expect(departingSon(thin, AUG31)).toBeNull();
+    // 800 kg – obojí stačí
+    const enough = lordVillage();
+    enough.storesKg = 800;
+    expect(motherFill(enough, 30)).toBeGreaterThanOrEqual(STEWARD.departureMotherFill);
+    expect(departingSon(enough, AUG31)?.id).toBe(30);
+  });
+
+  it('ze způsobilých synů odejde ten s nejživotaschopnějším dílem', () => {
+    // Dobromil (dům 3, svobodný) s domácností domu 4 jako pár: 5 dospělých – Bořivoj má 6
+    const s = lordVillage();
+    for (const [a, b] of [
+      [50, 51],
+      [51, 50],
+    ] as const) {
+      const p = s.people.find((x) => x.id === a);
+      if (p) p.spouseId = b;
+    }
+    const dobromil = s.people.find((p) => p.id === 40)!;
+    expect(stewardExpedition(s, dobromil, AUG31)?.viable).toBe(true);
+    expect(stewardExpedition(s, dobromil, AUG31)?.adults).toBeLessThan(
+      stewardExpedition(s, son30(s), AUG31)?.adults ?? 0,
+    );
+    expect(departingSon(s, AUG31)?.id).toBe(30);
+  });
+
+  it('svobodný syn odejde, když ženatý není – s dílem, ve kterém je pár', () => {
     const s = lordVillage();
     s.people = s.people.filter((p) => p.id !== 30 && p.id !== 31);
+    // díl Dobromila (15 ÷ 3 dílníci = 5): on a domácnost domu 4 – bez páru správce počká
+    expect(departingSon(s, AUG31)).toBeNull();
+    for (const [a, b] of [
+      [50, 51],
+      [51, 50],
+    ] as const) {
+      const p = s.people.find((x) => x.id === a);
+      if (p) p.spouseId = b;
+    }
     expect(departingSon(s, AUG31)?.id).toBe(40);
   });
 
