@@ -244,13 +244,17 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
   `drawLandmark(seed, id)` – strom 40 % / kámen 30 % / kůl 30 %, podoba, natočení, druh stromu
   (`speciesOf` z `roads-trees.ts`); `landmarkPlace` – nejširší mezera, 1,5 m za vchody. Testy
   `junctions.test.ts`.
-  **Zapojení (Úloha 9b):** `updateJunctions(roads, day, seed, { live, fixed })` – krok 6 měsíčního
-  úklidu (`tidyMonth` v `roads.ts`, po cestách k vchodům), běží každý měsíc i bez úklidu (ramena
-  určuje provoz tras), beze změny nic a žádná nová id; vrací, jestli se něco změnilo (pak se posune
-  `tidyKey`). Uzel = bod, kde končí úseky (klíč na cm); křižovatka stojí, kde končí 3–4 živé konce
-  – `liveRoadEnd` (`road-condition.ts`): neopuštěný úsek s provozem kusu u konce ≥ `ROAD_DECAY.keep`
-  druhu, stejně jako stav kusů (cesta do vchodu se drží, jízdy vozů); zemská stezka a cesta ve
-  vylepšení (`fixedRoadIds`) živé. **Osa vede přesně do vchodu a odtud rovně po rameni do středu**
+  **Zapojení (Úloha 9b):** `updateJunctions(roads, day, seed, { fixed, … })` – krok 6 měsíčního
+  úklidu (`tidyMonth` v `roads.ts`, po cestách k vchodům), běží každý měsíc i bez úklidu (starší ves
+  se srovná v prvním měsíci, kotvy a plocha vsi se mění se stavbami), beze změny nic a žádná nová
+  id; vrací, jestli se něco změnilo (pak se posune `tidyKey`). Uzel = bod, kde končí úseky (klíč na
+  cm); křižovatka stojí, kde končí 3–4 ramena – **rameno = `junctionArm`**: každý neopuštěný úsek
+  (i zarůstající bez provozu – zanikne až s ním; spojka `link` vždy), stejná množina jako při
+  spojování úseků (`chainPair` v `roads-form.ts`), takže uzel se 2 rameny se spojí a „cesta na
+  cestě bez křižovatky“ (`road-ends.ts`, `kind: 'road'`) v uzlu nevzniká (Vlkov 1. 11. 2026 – dřív
+  ramena jen z provozu tras, `liveRoadEnd`, a uzel se zarůstající třetí cestou zůstal bez
+  křižovatky i bez spojení; paths.md – Křižovatka i se zarůstající cestou). Test
+  `road-stubs.test.ts` – „křižovatka se zarůstající cestou“. **Osa vede přesně do vchodu a odtud rovně po rameni do středu**
   (`bendEnd`) – úseky dál sdílejí bod uzlu, takže spojení, pahýly, copánky i díry v úklidu se
   nemění; oblouk po 1 m se uloží zjednodušený (`simplifyPathLine`, `SIMPLIFY_M`) – body osy
   zdražují chůzi a vozy. Oblouk, který by vedl neprůchodnou plochou (`JunctionRoads.blocked` –
@@ -698,8 +702,8 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
 cellM)` (`road-condition.ts`, index buněk tras v `WeakMap` podle pole tras) – součet `trips` tras,
   které mají buňku (`routeCells`) do `ROAD_TRAFFIC.bandCells` (0,75) buňky od bodu osy (pás jako
   `roadBandCells`), každá trasa jednou; ne provozní pole vyšlapanosti (`trafficAt` – pás ± 1 buňky
-  3,75 m – zůstává pro vznik cesty a roční `road.traffic`). Stejně `liveRoadEnd` (živá ramena
-  křižovatek – `tidyMonth`). **Opuštěný úsek** provoz nedostane nikdy (ani jízdy vozů) – bledne
+  3,75 m – zůstává pro vznik cesty a roční `road.traffic`). Ramena křižovatek provoz neurčuje
+  (`junctionArm`, od 1. 11. 2026). **Opuštěný úsek** provoz nedostane nikdy (ani jízdy vozů) – bledne
   podle druhu. Kus pod hotovou stavbou: `capUnderBuilding` z `abandonBlockedStretches` (každý měsíc
   pro všechny opuštěné; kus osy s během ≥ `BLOCK_MIN_RUN_M` v neprůchodné ploše) – stav nejvýš
   `keep × ROAD_TRAFFIC.underBuildingDays` (330), zmizí do roka. Nezarůstá zemská stezka, cesta ve
@@ -774,21 +778,21 @@ landscape, obstacles)` v `paths/roads-rebuild.ts`; `updateVillage` volá po `wit
   `buildWagonRoadNow` geometricky (`absorbParallelRoads` vyřízne starou cestu pod ním), zbytky
   napojí další ustálení. `patchAxes` napojuje konce vrácených kusů do `ROAD_JOIN.gapM` (12 m). Průchody dostanou `rebuildRoadsPass(…, RebuildHints)` → `roadsMonthRun` →
   `tidyMonth` → `rebuildJunctionHints` (`roads.ts`): úsek u staré vozové osy (`wagon`) má pro
-  křižovatku šířku `ROAD_LAND.widthM.wagon` (`JunctionRoads.width`) a práh živosti vozové
-  (`asBuilt` → `liveRoadEnd`), úseky stezek jsou `JunctionRoads.loose` (uzel při rozestupu nedrží,
-  spojka se smí sloučit – stezka se znovu najde), takže křižovatky s budoucím vozovým ramenem se
-  odsunou či sloučí předem. Po `patchAxes` vozových os se síť ustálí znovu (`settle(futureWagon)`
-  – vrácený kus se napojí do uzlu u křižovatky, Vlkov J1130 5,9 m) a teprve pak se přepočítají
-  vozové. Pak znovu průchody až do ustálení. Kronika se vrátí na původní délku, `flushWear` na
-  konci.
-  Pozor: vznik cesty (`commitDraft`) nahradí `state.roads` kopií – po průchodu číst znovu ze stavu.
-  `trailAxisRoads` (`trail-axis.ts`) bere křižovatky jako jeden uzel (`junctions`, konce ramen
-  nejblíž středu) – `restoredTrailPieces` je předává. Test
-  `roads-rebuild.test.ts` (i syntetická ves s hotovou, nepoužitou a rozestavěnou vozovou cestou);
-  měření Vlkova ve scratchpadu (`diag-rebuild/metrics.mts`). Scéna: `SceneEarthwork.abandonedYears`
-  (`sceneEarthworks`) – svahy i lem opuštěné zemní práce zarostou za `SLOPE_LOOK.wildYears`
-  (`slopeLattice`), opuštěná ustoupí živé zemní práci v dosahu svahů (`SlopeContext.live`) a živá
-  na opuštěnou nenavazuje (konec se vytrácí).
+  křižovatku šířku `ROAD_LAND.widthM.wagon` (`JunctionRoads.width`; práh živosti `asBuilt` odpadl
+  1. 11. 2026 – ramenem je každý neopuštěný úsek), úseky stezek jsou `JunctionRoads.loose` (uzel při rozestupu nedrží,
+     spojka se smí sloučit – stezka se znovu najde), takže křižovatky s budoucím vozovým ramenem se
+     odsunou či sloučí předem. Po `patchAxes` vozových os se síť ustálí znovu (`settle(futureWagon)`
+     – vrácený kus se napojí do uzlu u křižovatky, Vlkov J1130 5,9 m) a teprve pak se přepočítají
+     vozové. Pak znovu průchody až do ustálení. Kronika se vrátí na původní délku, `flushWear` na
+     konci.
+     Pozor: vznik cesty (`commitDraft`) nahradí `state.roads` kopií – po průchodu číst znovu ze stavu.
+     `trailAxisRoads` (`trail-axis.ts`) bere křižovatky jako jeden uzel (`junctions`, konce ramen
+     nejblíž středu) – `restoredTrailPieces` je předává. Test
+     `roads-rebuild.test.ts` (i syntetická ves s hotovou, nepoužitou a rozestavěnou vozovou cestou);
+     měření Vlkova ve scratchpadu (`diag-rebuild/metrics.mts`). Scéna: `SceneEarthwork.abandonedYears`
+     (`sceneEarthworks`) – svahy i lem opuštěné zemní práce zarostou za `SLOPE_LOOK.wildYears`
+     (`slopeLattice`), opuštěná ustoupí živé zemní práci v dosahu svahů (`SlopeContext.live`) a živá
+     na opuštěnou nenavazuje (konec se vytrácí).
 - **Jednorázová oprava sítě (Martin 25. 10. 2026 – „ty cesty pořád zlobí“, hřbitov ve Vlkově):**
   `withRoadsRepaired` / `withRoadsRepairedSteps` (`paths/roads-repair.ts`) při načtení po přestavbě
   (`update-village.ts` – `withPauses`, port `Pause` mezi kroky), příznak `VillageRoads.repaired`

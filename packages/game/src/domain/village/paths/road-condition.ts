@@ -186,29 +186,6 @@ function endsAtEntrance(road: Road, entrances: readonly RoadPoint[]): boolean {
   return ends.some((e) => nearEntrance(e, entrances));
 }
 
-/**
- * Živý konec cesty pro křižovatku (paths.md – Křižovatky): cesta, kterou vede trasa aspoň
- * v udržovacím prahu jejího druhu – provoz kusu u konce (`atStart`) jako ve stavu kusů
- * (`settleRoadCondition`: cesta do vchodu se drží, jízdy vozů loni). Opuštěná ne; zemská stezka
- * a cesta ve vylepšení (`frozen` – nezarůstají) ano.
- */
-export function liveRoadEnd(
-  road: Road,
-  atStart: boolean,
-  traffic: RoadTraffic,
-  entrances: readonly RoadPoint[],
-  frozen: ReadonlySet<number>,
-): boolean {
-  if (road.abandoned || road.points.length < 2) return false;
-  if (road.link || frozen.has(road.id) || endsAtEntrance(road, entrances)) return true;
-  const { keep } = decayOf(road);
-  if (Math.round((road.cartTraffic?.[road.cartTraffic.length - 1] ?? 0) * 100) >= keep) return true;
-  const pieces = roadPieces(road.points);
-  const piece = atStart ? pieces[0] : pieces[pieces.length - 1];
-  if (!piece) return false;
-  return pieceTraffic(axisSlice(road.points, piece.from, piece.to), traffic) >= keep;
-}
-
 /** Úseky, které se nemění: ve vylepšení (stavby `road`) a zemské stezky (nezarůstají). */
 export function fixedRoadIds(
   constructions: readonly Construction[],

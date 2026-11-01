@@ -49,7 +49,7 @@ import {
 import { annualCartNetwork, markCartRoads, takeOverCartRoads } from './roads-carts';
 import { abandonBlockedStretches, cutDeadRoads } from './roads-overgrow';
 import { accessDue, accessRoads, gateGuardOf, type GateGuard } from './roads-access';
-import { fixedRoadIds, liveRoadEnd, nearEntrance, trafficOnRoads } from './road-condition';
+import { fixedRoadIds, nearEntrance } from './road-condition';
 import { updateJunctions } from './junctions';
 import {
   type RingBuilding,
@@ -444,24 +444,22 @@ export interface RebuildHints {
 }
 
 /**
- * Křižovatky při přestavbě (`RebuildHints`): `asBuilt` – úsek budoucí vozové cesty jako vozová
- * (práh živosti), `width` – její šířka pro rozestup, `loose` – úseky zemských stezek, které uzel
- * nedrží. Mimo přestavbu úsek beze změny a nic dalšího.
+ * Křižovatky při přestavbě (`RebuildHints`): `width` – šířka úseku budoucí vozové cesty pro
+ * rozestup, `loose` – úseky zemských stezek, které uzel nedrží. Mimo přestavbu nic. (Práh živosti
+ * budoucí vozové – dřív `asBuilt` – odpadl: ramenem je každý neopuštěný úsek, `junctionArm`.)
  */
 export function rebuildJunctionHints(
   rebuild: RebuildHints | undefined,
   trails: readonly Trail[] | undefined,
 ): {
-  asBuilt: (road: Road) => Road;
   loose?: ReadonlySet<number>;
   width?: (road: Road) => number | undefined;
 } {
-  if (!rebuild) return { asBuilt: (road) => road };
+  if (!rebuild) return {};
   const loose = new Set((trails ?? []).flatMap((t) => t.pieces.map((q) => q.roadId)));
   const wagon = rebuild.wagon;
-  if (!wagon) return { asBuilt: (road) => road, loose };
+  if (!wagon) return { loose };
   return {
-    asBuilt: (road) => (road.grade !== 'wagon' && wagon(road) ? { ...road, grade: 'wagon' } : road),
     loose,
     width: (road) => (wagon(road) ? ROAD_LAND.widthM.wagon : undefined),
   };
@@ -590,17 +588,15 @@ function tidyMonth(
       () => base().terrain,
       month.fences,
     );
-  // křižovatky (krok 6) – ramena jen z živých cest; i bez úklidu, provoz se mění s trasami
+  // křižovatky (krok 6) – ramena ze všech neopuštěných cest (i zarůstajících – `junctionArm`); i bez
+  // úklidu: starší ves se tak srovná v prvním měsíci, kotvy u vchodů a plocha vsi se mění se stavbami
   const junctions = (): boolean => {
     const frozen = fixedRoadIds(state.constructions, state.trails);
     const entrances = month.anchors.points.filter((a) => a.kind === 'entrance');
     const hints = rebuildJunctionHints(month.rebuild, state.trails);
-    const traffic = trafficOnRoads(routes.list, month.cellM);
     let walkable: ReturnType<typeof month.walk> | undefined;
     let footprint: ReturnType<typeof month.footprint> | undefined;
     return updateJunctions(roads, month.day, state.seed, {
-      live: (road, atStart) =>
-        liveRoadEnd(hints.asBuilt(road), atStart, traffic, entrances, frozen),
       fixed: frozen,
       ...(hints.loose ? { loose: hints.loose } : {}),
       // uzel u vchodu se při rozestupu křižovatek nehýbe – vchod by přišel o cestu
