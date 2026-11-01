@@ -8,6 +8,7 @@ import { dynastyForVillage, WORKER_LAG_DAYS } from '../dynasty-for-village';
 import { dynastyStatus } from '../restart-game';
 import type { LandscapeSource } from '../settlements';
 import { currentVillageViewStamp, villageViewStamp } from '../village-stamp';
+import { isFullVillage } from '../villages';
 import { InMemorySettlements } from './in-memory-settlements';
 import { InMemoryVillages } from './in-memory-villages';
 
@@ -146,7 +147,9 @@ describe('currentVillageViewStamp – ostatní vsi drží worker', () => {
     // zobrazená ves není na dnešku – pohled by ji dopočítal
     expect(await currentVillageViewStamp(deps, input)).toBeNull();
     const status = await dynastyForVillage(deps, input);
-    expect(status.villages.find((v) => v.id === otherId)?.state.lastDay).toBe(
+    // jiná ves z jiné mapy jen souhrnem – bez načtení stavu
+    const other = status.villages.find((v) => v.id === otherId);
+    expect(other && !isFullVillage(other) ? other.digest.lastDay : null).toBe(
       TODAY - WORKER_LAG_DAYS,
     );
     const finds = deps.villages.finds;

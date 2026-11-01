@@ -13,6 +13,7 @@ import {
   settleStewardDepartures,
   settlersOf,
   stewardDepartureOrigin,
+  villageDigest,
   type VillageState,
 } from '@bohemia/game';
 import { createDatabase } from '../../client';
@@ -172,6 +173,45 @@ describe('createVillageRepository', () => {
     await db.execute(sql`UPDATE village SET state = state - 'extinctDay' WHERE id = ${awake!.id}`);
     const [woken] = (await villages.stampsOf([settlementId])).filter((s) => s.id === awake!.id);
     expect(woken?.asleep).toBe(false);
+  });
+
+  it('digestsOf vrátí souhrn uložené verze bez stavu – po každém zápisu nový, bez souhrnu nic', async () => {
+    const first = (await villages.create(settlementId, 'Libice', state()))!;
+    const second = await villages.add(settlementId, 'Lhota', { ...state(), extinctDay: DAY + 2 });
+    const digests = await villages.digestsOf([first.id, second.id, UNKNOWN, 'neni-uuid']);
+    const byId = (a: { id: string }, b: { id: string }): number => (a.id < b.id ? -1 : 1);
+    expect(digests.sort(byId)).toEqual(
+      [
+        {
+          id: first.id,
+          settlementId,
+          name: 'Libice',
+          version: 1,
+          digest: villageDigest(first.state),
+        },
+        {
+          id: second.id,
+          settlementId,
+          name: 'Lhota',
+          version: 1,
+          digest: villageDigest(second.state),
+        },
+      ].sort(byId),
+    );
+    // save souhrn obnoví (týž stav jako uložený)
+    const later = advanceVillage(state(), DAY + 9, null);
+    await villages.save(first.id, later, 1);
+    const [saved] = await villages.digestsOf([first.id]);
+    expect(saved).toMatchObject({ version: 2, digest: villageDigest(later) });
+    expect(saved?.digest.lastDay).toBe(DAY + 9);
+    // stav zapsaný mimo adaptér (e2e, ruční SQL) zvýší verzi – starý souhrn neplatí
+    await db.execute(sql`UPDATE village SET version = version + 1 WHERE id = ${first.id}`);
+    expect(await villages.digestsOf([first.id])).toEqual([]);
+    // ves uložená před souhrnem (null) nebo se souhrnem jiné verze tvaru chybí – načte se celá
+    await db.execute(sql`UPDATE village SET digest = NULL WHERE id = ${first.id}`);
+    await db.execute(sql`UPDATE village SET digest = '{"v":0}'::jsonb WHERE id = ${second.id}`);
+    expect(await villages.digestsOf([first.id, second.id])).toEqual([]);
+    expect(await villages.digestsOf([])).toEqual([]);
   });
 
   it('fronta „nejvíc pozadu“ jde ze sloupců bez JSON a využije index', async () => {

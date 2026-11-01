@@ -25,9 +25,43 @@ export function isVillageExtinct(state: Pick<VillageState, 'extinctDay'>): boole
  * neukončí.
  */
 export function isLineExtinct(villages: readonly LineVillage[]): boolean {
+  return isLineExtinctOf(villages.map(lineFacts));
+}
+
+/**
+ * Co o vsi potřebuje konec hry bez celého stavu (souhrn vsi – `VillageDigest`): rod ves sleduje,
+ * kolik v ní žije mužů rodu a den vymření / opuštění.
+ */
+export interface LineFacts {
+  /** Ves sleduje rod (`isDynastyTracked`). */
+  tracked: boolean;
+  /** Žijící muži rodu po meči, i chlapci (`isLineMan`). */
+  lineMen: number;
+  extinctDay?: number;
+  abandonedDay?: number;
+}
+
+/** Fakta konce rodu ze stavu vsi. */
+export function lineFacts(state: LineVillage): LineFacts {
+  return {
+    tracked: isDynastyTracked(state),
+    lineMen: (state.people ?? []).filter(isLineMan).length,
+    ...(state.extinctDay !== undefined ? { extinctDay: state.extinctDay } : {}),
+    ...(state.abandonedDay !== undefined ? { abandonedDay: state.abandonedDay } : {}),
+  };
+}
+
+/** `isLineExtinct` nad fakty vsí (ze stavů i souhrnů – jedno pravidlo). */
+export function isLineExtinctOf(villages: readonly LineFacts[]): boolean {
+  return villages.some((v) => v.tracked) && !villages.some((v) => v.lineMen > 0);
+}
+
+/** `isGameOver` nad fakty vsí (ze stavů i souhrnů – jedno pravidlo). */
+export function isGameOverOf(villages: readonly LineFacts[]): boolean {
+  if (villages.length === 0) return false;
   return (
-    villages.some((v) => isDynastyTracked(v)) &&
-    !villages.some((v) => (v.people ?? []).some(isLineMan))
+    villages.every((v) => v.extinctDay !== undefined || v.abandonedDay !== undefined) ||
+    isLineExtinctOf(villages)
   );
 }
 
@@ -63,11 +97,7 @@ export function lineEndDay(villages: readonly LineVillage[]): number | undefined
 export function isGameOver(
   villages: readonly (Pick<VillageState, 'extinctDay' | 'abandonedDay'> & LineVillage)[],
 ): boolean {
-  if (villages.length === 0) return false;
-  return (
-    villages.every((v) => isVillageExtinct(v) || v.abandonedDay !== undefined) ||
-    isLineExtinct(villages)
-  );
+  return isGameOverOf(villages.map(lineFacts));
 }
 
 /** Jak dlouho vymřelá ves žila – herní rok založení a vymření a celé roky mezi nimi. */

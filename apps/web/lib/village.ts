@@ -4,6 +4,7 @@ import {
   NOT_PLAYER_VILLAGE,
   NO_VILLAGE,
   NO_WORLD_CELL,
+  isFullVillage,
   isVillageTravelling,
   leaveVillage,
   neighbourSnapshot,
@@ -46,6 +47,7 @@ import {
   type SquareGrid,
   type TileCell,
   type TimeSkip,
+  type DynastyVillage,
   type VillageRecord,
   type VillageRepository,
   type VillageResult,
@@ -168,12 +170,14 @@ async function viewOf(
   record?: VillageRecord,
 ): Promise<VillageActionResult> {
   const status = await dynastyOfPlayer(ctx.playerId, ctx.day, ctx.villageId);
-  const listed = status.villages.find((v) => v.id === ctx.villageId);
+  // zobrazená ves a vsi téže mapy jsou celé, vsi jiných map jen souhrnem (`dynastyForVillage`)
+  const full = (status.villages as readonly DynastyVillage[]).filter(isFullVillage);
+  const listed = full.find((v) => v.id === ctx.villageId);
   const current = listed ?? record;
   if (!current) return { error: NO_VILLAGE };
   // jiné vsi na téže mapě (migration.md) – jejich stavby a paseky, a vlastní vsi na sousedních
   // mapách
-  const sameMap = status.villages.filter(
+  const sameMap = full.filter(
     (v) => v.settlementId === current.settlementId && v.id !== current.id,
   );
   const from = status.settlements.find((s) => s.id === current.settlementId);
@@ -213,9 +217,11 @@ export function panelOptionsForPlayer(
     const ctx = await context(playerId, villageId);
     if (!ctx.ok) return { error: ctx.error };
     const status = await dynastyOfPlayer(ctx.playerId, ctx.day, ctx.villageId);
-    const current = status.villages.find((v) => v.id === ctx.villageId);
+    // zobrazená ves a vsi téže mapy jsou celé (`dynastyForVillage`)
+    const full = (status.villages as readonly DynastyVillage[]).filter(isFullVillage);
+    const current = full.find((v) => v.id === ctx.villageId);
     if (!current) return { error: NO_VILLAGE };
-    const sameMap = status.villages.filter(
+    const sameMap = full.filter(
       (v) => v.settlementId === current.settlementId && v.id !== current.id,
     );
     const neighbours = neighbourSnapshot(

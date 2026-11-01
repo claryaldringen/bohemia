@@ -26,7 +26,7 @@ import {
   settlementLandscape,
   skipTime,
   type Direction8,
-  type DynastyStatus,
+  type DynastyView,
   type EnterGameResult,
   type Landscape,
   type PlayerVillage,
@@ -158,7 +158,7 @@ export function dynastyOfPlayer(
   playerId: string,
   today: number,
   villageId: string,
-): Promise<DynastyStatus> {
+): Promise<DynastyView> {
   // dotazy se stejným dnem a vsí sdílejí jeden dopočet; uvnitř fronty zámek hráče v DB
   // (exclusive.ts)
   return exclusivePlayerShared(getPlayerLock(), playerId, `${today}:${villageId}`, () =>
@@ -176,7 +176,7 @@ export async function dynastyOfPlayerLocked(
   playerId: string,
   today: number,
   villageId: string,
-): Promise<DynastyStatus> {
+): Promise<DynastyView> {
   return dynastyForVillage(dynastyDeps(), { playerId, today, villageId });
 }
 

@@ -118,17 +118,25 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `dynastyForVillage` v `application/dynasty-for-village.ts`): pohled (`viewOf`), nabídka panelu
   (`panelOptionsForPlayer`) i akce (`guardedAction`) volají `dynastyOfPlayer(playerId, today,
 villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočte do dneška zobrazená
-  ves každá jiná nespící ves **téže mapy** (kontrola umístění při akci – `neighboursOf` – a nabídka panelu musí vidět sousedy aktuální; `mustAdvanceNow`, stejně `currentVillageViewStamp`) a každá jiná nespící ves víc než `WORKER_LAG_DAYS` = 3 herní dny (≈ 4 min; Martin 31. 10. 2026) pozadu (`lagsBehindWorker` – worker neběží nebo dohání výpadek); ostatní vsi se
-  načtou, jak jsou uložené (`find` přes paměť vsí). U dopočtených vsí se vybaví odchozí schránky
-  správce (kola jako `advanceDynasty` – nová ves syna je v přepínači hned). Konec hry: jsou-li
-  všechny vsi na dnešku, `closeDynastyDay` jako plný dopočet; ze smíšených dnů vychází-li konec
-  (`isGameOver`), ověří ho plný dopočet `advanceDynasty` – smíšené dny nikdy neukážou falešný
+  ves každá jiná nespící ves **téže mapy** (kontrola umístění při akci – `neighboursOf` – a nabídka panelu musí vidět sousedy aktuální; `mustAdvanceNow`, stejně `currentVillageViewStamp`) a každá jiná nespící ves víc než `WORKER_LAG_DAYS` = 3 herní dny (≈ 4 min; Martin 31. 10. 2026) pozadu (`lagsBehindWorker` – worker neběží nebo dohání výpadek); ostatní vsi téže
+  mapy se načtou celé, jak jsou uložené (`find` přes paměť vsí – sousedé na mapě), **vsi jiných
+  map jen souhrnem** (`digestsOf` → `VillageDigestRecord`, sloupec `village.digest` – viz
+  docs/code/worker.md, Souhrn vsi): přepínač (`villageListItem` – celá ves jde přes týž
+  `villageDigest`, takže položka je táž), otisk pohledu (id, jméno, verze) a vlastní mapy kolem
+  (`ownMapsAround`) stav nepotřebují. Výsledek je `DynastyView` (vsi `DynastyVillage` – celá
+  nebo souhrn, `isFullVillage`); po konci hry jsou všechny vsi celé (kronika konce rodu). U dopočtených vsí se vybaví odchozí schránky
+  správce (kola jako `advanceDynasty` – nová ves syna je v přepínači hned). Konec hry se nejdřív
+  pozná z faktů vsí (`isGameOverOf` nad `LineFacts` – z celé vsi `lineFacts`, ze souhrnu přímo);
+  nastal-li, načtou se vsi celé a: jsou-li všechny na dnešku, `closeDynastyDay` jako plný
+  dopočet; ze smíšených dnů ho ověří plný dopočet `advanceDynasty` – smíšené dny nikdy neukážou falešný
   konec rodu. **Bez workeru** ostatní vsi (jiných map) zaostávají až 3 herní dny (≈ 4 min): přepínač ukazuje
   jejich starší stav, konec rodu rozhodnutý v jiné vsi se ukáže až o ≤ 4 min později (do té doby web
-  přijímá akce) a nová ves syna ze schránky nezobrazené vsi se objeví se zpožděním (Martin
-  31. 10. 2026 – mez 3 herní dny); sousedé na téže mapě jsou vždy aktuální. Plný dopočet (`dynastyStatus`) dál dělá skok v čase a restart. Vsi na téže mapě: web je dopočte
+  přijímá akce) a nová ves syna ze schránky nezobrazené vsi se objeví se zpožděním (Martin 31. 10. 2026 – mez 3 herní dny); sousedé na téže mapě jsou vždy aktuální. Plný dopočet (`dynastyStatus`) dál dělá skok v čase a restart. Vsi na téže mapě: web je dopočte
   do dneška; worker je počítá po dávkách, takže sousedé ve workeru mohou být až o dávku staří. Testy `dynasty-for-village.test.ts` (pod mezí / nad mezí, determinismus zobrazené vsi
-  a zbytku, akce, skutečný i falešný konec rodu, schránka správce).
+  a zbytku, akce, skutečný i falešný konec rodu, schránka správce, souhrn = plné stavy, ves bez
+  souhrnu, konec rodu ze souhrnů); `village-list.test.ts` – položka přepínače ze souhrnu je táž
+  jako z celého stavu (hlad, humno, počasí roku, povodeň, pohroma, správce, vymřelá, opuštěná,
+  na cestě; den pohledu až 5 dní po dni vsi).
 - **Krok světa** (worker bez procesu kolem – plán workeru, 1. Co worker dělá; use-case
   `application/advance-world.ts`): `advanceWorldStep(deps, { worldDay, stepDays, limit, skip })`
   vezme z fronty (port `WorldQueue.behind(worldDay, limit)` v `application/world-queue.ts` →

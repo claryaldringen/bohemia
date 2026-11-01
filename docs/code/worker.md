@@ -121,7 +121,36 @@ jádro workeru v reálném čase (1 den = 86,4 s); podíl generování krajin ve
 pro přepínač vsí (`villageListItem`): ≈ 0,5 s čekání na databázi (přenos 20 × 2,6 MB JSONB),
 ≈ 0,3 s parsování řádků (`_parseRowAsArray`), ≈ 0,1 s GC; samotné sestavení pohledu je zlomek.
 Web načte všech 20 stavů po každé uložené verzi (worker ukládá každý herní den ≈ 86 s).
-**Návrh dalšího kroku** (plán – Rizika, „souhrny vsí ve sloupci“): zapisovat při uložení vsi
-malý souhrn pro přepínač (`villageListItem`: jméno, počet lidí, stav, den…) do sloupce `village`
-a `dynastyForVillage` pro ostatní vsi načítat jen souhrn bez `state`; akce pak sahá jen na
-zobrazenou ves (≈ 0,2 s nezávisle na počtu vsí). Mimo plán – čeká na schválení Martina.
+**Souhrn vsi (1. 11. 2026, plán – Doplnění):** cíl Martina z 31. 10. 2026 „**Otevření do 2 s,
+akce do 0,5 s**“ splní malý souhrn vsi ve sloupci `village.digest` (migrace
+`0010_village_digest` – `digest jsonb`, `digest_version integer`):
+
+- **Co nese** (`VillageDigest`, `domain/village/digest.ts`, ≈ 300 B u Vlkova): den vsi, počet
+  lidí, na cestě, hlad (`hungerLevel`), nouzový výmlat (`threshingStatus().emergency`), správce,
+  fakta konce rodu (`LineFacts` – sleduje rod, muži rodu, `extinctDay` / `abandonedDay`), vstupy
+  počasí roku (`weatherSeed`, z pohrom jen povodeň a vynucené počasí – ochrana dílů má u Vlkova
+  120 kB) a poslední místní pohromu z kroniky (`LOCAL_DISASTER_KINDS`). Co závisí na dni pohledu
+  (odhalené počasí roku), se počítá až v pohledu ze vstupů – položka přepínače je táž i pro dnešek
+  o pár dní po dni vsi. `VILLAGE_DIGEST_VERSION` = tvar; jiný tvar se nepoužije.
+- **Kdo ho píše:** adaptér (`createVillageRepository` – `create`, `add`, `addOnce`, `save`) ze
+  stavu přes `villageDigest` (0,01 ms), s `digest_version` = nová `version`. Generovaný sloupec
+  zvolen nebyl: pravidla hladu, výmlatu a mužů rodu jsou v jádru (TS) a v SQL by se musela
+  opakovat. Cena zápisu to nerozhodlo – změřeno `UPDATE` 2,6 MB JSONB: bez dalších sloupců
+  54–56 ms, se dvěma generovanými sloupci ze stavu 54–55 ms, se zapsaným souhrnem 53–54 ms
+  (rozdíl v šumu); den vsi ve workeru 43–44 ms před i po.
+- **Kdo ho čte:** `dynastyForVillage` – vsi **jiných map**, které nejsou víc než
+  `WORKER_LAG_DAYS` pozadu, jen přes `digestsOf` (port `VillageRepository`, bez stavu); zobrazená
+  ves a vsi téže mapy celé jako dřív. Souhrn platí jen při `digest_version = version` – zápis
+  stavu mimo adaptér (e2e, ruční SQL) verzi zvýší a ves se načte celá; ves bez souhrnu (uložená
+  před migrací) taky – souhrn dostane při dalším uložení (worker ≈ každý herní den). Konec hry ze
+  souhrnů pozná `isGameOverOf`; když nastal, načtou se vsi celé a rozhodne se jako dřív.
+
+Měřeno `--villages 1,5,20 --days 100 --scenarios B` (běh sám na stroji):
+
+| vsí | otevření před | otevření po |   akce před |       akce po |
+| --: | ------------: | ----------: | ----------: | ------------: |
+|   1 |     0,26 s OK |   0,27 s OK |   0,18 s OK |     0,19 s OK |
+|   5 |     0,34 s OK |   0,19 s OK |   0,44 s OK |     0,17 s OK |
+|  20 |     0,72 s OK |   0,21 s OK | 1,08 s MIMO | **0,18 s OK** |
+
+Akce i otevření jsou s workerem v cíli pro 1 / 5 / 20 vsí a na počtu vsí už skoro nezávisí.

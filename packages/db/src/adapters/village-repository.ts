@@ -1,11 +1,30 @@
-import { and, asc, eq, inArray, sql } from 'drizzle-orm';
-import type { VillageRecord, VillageRepository, VillageStamp } from '@bohemia/game';
+import { and, asc, eq, inArray, sql, type SQL } from 'drizzle-orm';
+import {
+  isCurrentDigest,
+  villageDigest,
+  type VillageDigest,
+  type VillageDigestRecord,
+  type VillageRecord,
+  type VillageRepository,
+  type VillageStamp,
+} from '@bohemia/game';
 import type { Database } from '../client';
 import { settlement, village } from '../schema';
 
 type VillageRow = typeof village.$inferSelect;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Řádek vsi pro zápis stavu – souhrn se odvodí ze stavu (zdroj pravdy je stav) a nese verzi,
+ * kterou zápis vsi dá (`digestVersion` = nová `version`).
+ */
+function written(
+  state: VillageRecord['state'],
+  digestVersion: number | SQL,
+): { state: VillageRecord['state']; digest: VillageDigest; digestVersion: number | SQL } {
+  return { state, digest: villageDigest(state), digestVersion };
+}
 
 function toRecord(row: VillageRow): VillageRecord {
   return {
@@ -77,7 +96,7 @@ export function createVillageRepository(db: Database): VillageRepository {
         if (existing) return null;
         const [row] = await tx
           .insert(village)
-          .values({ settlementId, name, state, version: 1 })
+          .values({ settlementId, name, ...written(state, 1), version: 1 })
           .returning();
         return row ? toRecord(row) : null;
       });
@@ -86,7 +105,7 @@ export function createVillageRepository(db: Database): VillageRepository {
     async add(settlementId, name, state): Promise<VillageRecord> {
       const [row] = await db
         .insert(village)
-        .values({ settlementId, name, state, version: 1 })
+        .values({ settlementId, name, ...written(state, 1), version: 1 })
         .returning();
       if (!row) throw new Error(`Ves sídla ${settlementId} nešlo založit.`);
       return toRecord(row);
@@ -116,7 +135,7 @@ export function createVillageRepository(db: Database): VillageRepository {
           if (existing) return toRecord(existing);
           const [row] = await tx
             .insert(village)
-            .values({ settlementId, name, state, version: 1 })
+            .values({ settlementId, name, ...written(state, 1), version: 1 })
             .returning();
           return row ? toRecord(row) : null;
         });
@@ -132,7 +151,11 @@ export function createVillageRepository(db: Database): VillageRepository {
       // databáze by ho jinak celý serializovala a posílala zpátky.
       const [row] = await db
         .update(village)
-        .set({ state, version: sql`${village.version} + 1`, updatedAt: sql`now()` })
+        .set({
+          ...written(state, sql`${village.version} + 1`),
+          version: sql`${village.version} + 1`,
+          updatedAt: sql`now()`,
+        })
         .where(and(eq(village.id, villageId), eq(village.version, expectedVersion)))
         .returning({
           id: village.id,
@@ -151,6 +174,26 @@ export function createVillageRepository(db: Database): VillageRepository {
         .where(eq(village.id, villageId))
         .returning({ id: village.id });
       return rows.length > 0;
+    },
+
+    async digestsOf(villageIds): Promise<VillageDigestRecord[]> {
+      const ids = villageIds.filter((id) => UUID.test(id));
+      if (ids.length === 0) return [];
+      // jen malý souhrn (pár KB) – stav vsi se nepřenáší ani neparsuje
+      const rows = await db
+        .select({
+          id: village.id,
+          settlementId: village.settlementId,
+          name: village.name,
+          version: village.version,
+          digest: village.digest,
+        })
+        .from(village)
+        // souhrn jen k uložené verzi stavu (zápis mimo adaptér ho zneplatní)
+        .where(and(inArray(village.id, ids), eq(village.digestVersion, village.version)));
+      return rows.flatMap(({ digest, ...row }) =>
+        isCurrentDigest(digest) ? [{ ...row, digest }] : [],
+      );
     },
 
     async stampsOf(settlementIds): Promise<VillageStamp[]> {

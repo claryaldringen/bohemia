@@ -71,6 +71,13 @@
       "when": 1793475270522,
       "tag": "0009_village_day_asleep",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793533562394,
+      "tag": "0010_village_digest",
+      "breakpoints": true
     }
   ]
 }

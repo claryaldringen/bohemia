@@ -10,7 +10,7 @@ import {
   timestamp,
   uuid,
 } from 'drizzle-orm/pg-core';
-import type { VillageState } from '@bohemia/game';
+import type { VillageDigest, VillageState } from '@bohemia/game';
 import { settlement } from './settlement';
 
 /**
@@ -34,6 +34,14 @@ export const village = pgTable(
     asleep: boolean('asleep')
       .notNull()
       .generatedAlwaysAs(sql`(state ? 'extinctDay') OR (state ? 'abandonedDay')`),
+    // Souhrn vsi (`villageDigest`) pro přepínač vsí a konec hry – zapisuje ho adaptér při každém
+    // zápisu stavu (pravidla hladu, výmlatu a počasí jsou v jádru, SQL je spočítat neumí). Zdroj
+    // pravdy je dál `state`; null, jiná verze tvaru (`isCurrentDigest`) nebo souhrn starší verze
+    // stavu = načíst ves celou.
+    digest: jsonb('digest').$type<VillageDigest>(),
+    // Verze stavu, ze které je souhrn: platí jen při shodě s `version` – zápis stavu mimo adaptér
+    // (e2e, ruční SQL) verzi zvýší a souhrn tím zneplatní.
+    digestVersion: integer('digest_version'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },

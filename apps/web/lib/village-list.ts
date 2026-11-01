@@ -1,13 +1,9 @@
 import {
-  isVillageAbandoned,
-  isVillageDormant,
-  isVillageExtinct,
-  isStewardOn,
-  isVillageTravelling,
-  summarizeVillage,
-  threshingStatus,
+  isFullVillage,
+  villageDigest,
+  type DynastyVillage,
   type HungerLevel,
-  type VillageRecord,
+  type VillageDigest,
 } from '@bohemia/game';
 import { otherVillageDisasters, type OtherVillageDisasters } from './disasters-view';
 
@@ -48,26 +44,48 @@ export interface VillageListItem {
   steward?: true;
 }
 
-/** Položka přepínače z uložené vsi dopočítané do dne `day`. */
-export function villageListItem(record: VillageRecord, day: number): VillageListItem {
-  const extinct = isVillageExtinct(record.state);
-  const dormant = isVillageDormant(record.state);
-  const summary = dormant ? null : summarizeVillage(record.state, day);
-  const threshing = dormant ? null : threshingStatus(record.state, day);
-  const disasters = dormant ? undefined : otherVillageDisasters(record.state, day);
+/**
+ * Položka přepínače z uložené vsi (celé, nebo jen se souhrnem – `dynastyForVillage`) v den
+ * `day`. Celá ves jde přes týž souhrn (`villageDigest`), takže položka ze souhrnu je táž jako
+ * ze stavu; na dni závisí jen počasí roku (ze vstupů v souhrnu).
+ */
+export function villageListItem(village: DynastyVillage, day: number): VillageListItem {
+  const digest = isFullVillage(village) ? villageDigest(village.state) : village.digest;
+  return listItemOf(village, digest, day);
+}
+
+function listItemOf(
+  village: Pick<DynastyVillage, 'id' | 'settlementId' | 'name'>,
+  digest: VillageDigest,
+  day: number,
+): VillageListItem {
+  const extinct = digest.extinctDay !== undefined;
+  const abandoned = digest.abandonedDay !== undefined;
+  // ves se nesimuluje (`isVillageDormant`) – hlad, humno ani pohromy se neukazují
+  const dormant = extinct || abandoned || digest.travelling;
+  const disasters = dormant
+    ? undefined
+    : otherVillageDisasters(
+        {
+          weatherSeed: digest.weatherSeed,
+          disasters: digest.disasters,
+          chronicle: digest.lastLocalDisaster ? [digest.lastLocalDisaster] : [],
+        },
+        day,
+      );
   return {
-    id: record.id,
-    settlementId: record.settlementId,
-    name: record.name,
+    id: village.id,
+    settlementId: village.settlementId,
+    name: village.name,
     // opuštěná ves po konci rodu drží lidi jen jako záznam – nikdo v ní nežije (lord.md)
-    people: isVillageAbandoned(record.state) ? 0 : record.state.people.length,
+    people: abandoned ? 0 : digest.people,
     extinct,
-    abandoned: isVillageAbandoned(record.state),
-    travelling: isVillageTravelling(record.state),
-    hunger: summary?.hunger ?? 'fed',
-    ...(threshing?.emergency ? { threshing: { emergency: true as const } } : {}),
+    abandoned,
+    travelling: digest.travelling,
+    hunger: dormant ? 'fed' : digest.hunger,
+    ...(!dormant && digest.threshingEmergency ? { threshing: { emergency: true as const } } : {}),
     ...(disasters ? { disasters } : {}),
-    ...(isStewardOn(record.state) ? { steward: true as const } : {}),
+    ...(digest.steward ? { steward: true as const } : {}),
   };
 }
 

@@ -3,6 +3,7 @@ import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
 import {
   departWithSon,
   newSteward,
+  villageDigest,
   type Dwelling,
   type StewardDeparture,
   type VillageState,
@@ -19,7 +20,12 @@ import { advanceDynasty } from '../advance-dynasty';
 import { dynastyForVillage, WORKER_LAG_DAYS } from '../dynasty-for-village';
 import type { LandscapeSource, SeedSource } from '../settlements';
 import { updateVillage } from '../update-village';
-import type { VillageRecord } from '../villages';
+import {
+  isFullVillage,
+  type DynastyVillage,
+  type VillageDigestRecord,
+  type VillageRecord,
+} from '../villages';
 import { InMemorySettlements } from './in-memory-settlements';
 import { InMemoryVillages } from './in-memory-villages';
 
@@ -91,8 +97,29 @@ async function world(
   };
 }
 
-const byId = (villages: readonly VillageRecord[], id: string): VillageRecord =>
-  villages.find((v) => v.id === id)!;
+/** Celá ves z výsledku (zobrazená, téže mapy, pozadu, po konci hry) – jinak test spadne. */
+const byId = (villages: readonly DynastyVillage[], id: string): VillageRecord => {
+  const found = villages.find((v) => v.id === id);
+  if (!found || !isFullVillage(found)) throw new Error(`Ves ${id} není celá.`);
+  return found;
+};
+/** Ves z výsledku jen se souhrnem (jiná mapa, ne pozadu) – jinak test spadne. */
+const briefById = (villages: readonly DynastyVillage[], id: string): VillageDigestRecord => {
+  const found = villages.find((v) => v.id === id);
+  if (!found || isFullVillage(found)) throw new Error(`Ves ${id} není jen souhrnem.`);
+  return found;
+};
+/** Ves pohledu rodu jako souhrn – celá ves přes týž `villageDigest`. */
+const asBrief = (v: DynastyVillage): VillageDigestRecord =>
+  isFullVillage(v)
+    ? {
+        id: v.id,
+        settlementId: v.settlementId,
+        name: v.name,
+        version: v.version,
+        digest: villageDigest(v.state),
+      }
+    : v;
 const input = (villageId: string): { playerId: string; villageId: string; today: number } => ({
   playerId: PLAYER,
   villageId,
@@ -105,11 +132,14 @@ describe('dynastyForVillage – web dopočítá jen zobrazenou ves', () => {
       tracked(FAMILY, TODAY - 5),
       tracked(FAMILY, TODAY - 1),
     );
-    const before = deps.villages.records.get(otherId)!;
+    const before = structuredClone(deps.villages.records.get(otherId)!);
+    const finds = deps.villages.finds;
     const status = await dynastyForVillage(deps, input(shownId));
     expect(status.villages.map((v) => v.id)).toEqual([shownId, otherId]);
     expect(byId(status.villages, shownId).state.lastDay).toBe(TODAY);
-    expect(byId(status.villages, otherId)).toEqual(before);
+    // jiná ves z jiné mapy jen souhrnem uložené verze – stav se nenačte
+    expect(briefById(status.villages, otherId)).toEqual(asBrief(before));
+    expect(deps.villages.finds).toBe(finds + 1);
     expect(deps.villages.records.get(otherId)!.version).toBe(before.version);
     expect(status.gameOver).toBe(false);
   });
@@ -117,7 +147,7 @@ describe('dynastyForVillage – web dopočítá jen zobrazenou ves', () => {
   it(`jiná ves právě ${WORKER_LAG_DAYS} dny pozadu se nepočítá, o den víc ano`, async () => {
     const atLimit = await world(tracked(FAMILY, TODAY), tracked(FAMILY, TODAY - WORKER_LAG_DAYS));
     const limit = await dynastyForVillage(atLimit.deps, input(atLimit.shownId));
-    expect(byId(limit.villages, atLimit.otherId).state.lastDay).toBe(TODAY - WORKER_LAG_DAYS);
+    expect(briefById(limit.villages, atLimit.otherId).digest.lastDay).toBe(TODAY - WORKER_LAG_DAYS);
 
     const over = await world(tracked(FAMILY, TODAY), tracked(FAMILY, TODAY - 5));
     const status = await dynastyForVillage(over.deps, input(over.shownId));
@@ -164,8 +194,35 @@ describe('dynastyForVillage – web dopočítá jen zobrazenou ves', () => {
     const full = await advanceDynasty(deps, { playerId: PLAYER, today: TODAY });
     const saves = deps.villages.saves;
     const status = await dynastyForVillage(deps, input(shownId));
-    expect(status).toEqual(full);
+    // pohled ze souhrnu = pohled z plných stavů: zobrazená celá, jiná ves souhrnem téhož stavu
+    expect(status.gameOver).toBe(full.gameOver);
+    expect(status.settlements).toEqual(full.settlements);
+    expect(status.villages.map(asBrief)).toEqual(full.villages.map(asBrief));
+    expect(byId(status.villages, shownId)).toEqual(byId(full.villages, shownId));
     expect(deps.villages.saves).toBe(saves);
+  });
+
+  it('ves bez souhrnu (uložená před ním) se načte celá', async () => {
+    const { deps, shownId, otherId } = await world(
+      tracked(FAMILY, TODAY - 1),
+      tracked(FAMILY, TODAY - 1),
+    );
+    deps.villages.withoutDigest.add(otherId);
+    const status = await dynastyForVillage(deps, input(shownId));
+    expect(byId(status.villages, otherId)).toEqual(deps.villages.records.get(otherId));
+  });
+
+  it('konec rodu ze souhrnů se potvrdí z celých vsí (všechny na dnešku)', async () => {
+    const { deps, shownId, otherId } = await world(
+      tracked(WIDOW, TODAY - 1),
+      tracked(WIDOW, TODAY - 1),
+    );
+    await advanceDynasty(deps, { playerId: PLAYER, today: TODAY - 1 });
+    const status = await dynastyForVillage(deps, input(shownId));
+    expect(status.gameOver).toBe(true);
+    // po konci hry jsou všechny vsi celé (kronika konce rodu)
+    expect(status.villages.every(isFullVillage)).toBe(true);
+    expect(byId(status.villages, otherId).state.abandonedDay).toBeDefined();
   });
 
   it('akce na zobrazené vsi dopadne stejně jako po plném dopočtu', async () => {

@@ -19,6 +19,7 @@ import {
   type WorldStepDeps,
 } from '../advance-world';
 import { dynastyForVillage } from '../dynasty-for-village';
+import { isFullVillage } from '../villages';
 import { loadVillage } from '../load-village';
 import type { LandscapeSource, SeedSource } from '../settlements';
 import { InMemoryPlayerLock } from './in-memory-locks';
@@ -296,7 +297,8 @@ describe('advanceWorldStep – krok světa', () => {
         villageId: mixed.id,
         today: TODAY,
       });
-      expect(JSON.stringify(view.villages[0]!.state)).toBe(expected);
+      const shown = view.villages[0]!;
+      expect(isFullVillage(shown) ? JSON.stringify(shown.state) : null).toBe(expected);
     },
   );
 

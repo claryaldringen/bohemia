@@ -1,4 +1,4 @@
-import type { VillageState } from '../domain/village';
+import type { VillageDigest, VillageState } from '../domain/village';
 
 /** Uložená ves – stav simulace s verzí pro optimistické zamykání. */
 export interface VillageRecord {
@@ -27,6 +27,26 @@ export interface VillageStamp {
    * a worker ji přeskakuje. Pravidlo jako `isVillageExtinct` / `isVillageAbandoned`.
    */
   asleep: boolean;
+}
+
+/**
+ * Ves jen se souhrnem (`VillageDigest`), bez stavu – ostatní vsi hráče pro přepínač vsí a konec
+ * hry (`dynastyForVillage`). Souhrn je odvozený ze stavu uložené verze `version`.
+ */
+export interface VillageDigestRecord {
+  id: string;
+  settlementId: string;
+  name: string;
+  version: number;
+  digest: VillageDigest;
+}
+
+/** Ves v pohledu rodu – celá (se stavem), nebo jen souhrn. */
+export type DynastyVillage = VillageRecord | VillageDigestRecord;
+
+/** Ves v pohledu rodu je celá (se stavem). */
+export function isFullVillage(village: DynastyVillage): village is VillageRecord {
+  return 'state' in village;
 }
 
 /** Port: úložiště vsí. Sídlo (mapa) může mít víc vsí, každá má vlastní id. */
@@ -66,6 +86,12 @@ export interface VillageRepository {
   rename(villageId: string, name: string): Promise<boolean>;
   /** Otisky všech vsí sídel `settlementIds` v pořadí založení – bez načtení stavu (levný dotaz). */
   stampsOf(settlementIds: readonly string[]): Promise<VillageStamp[]>;
+  /**
+   * Souhrny vsí `villageIds` bez stavu (levný dotaz – souhrn ukládá každé uložení vsi). Ves, která
+   * souhrn současné verze nemá (uložená před ním, `isCurrentDigest`), ve výsledku chybí – volající
+   * ji načte celou. Pořadí výsledku nehraje roli.
+   */
+  digestsOf(villageIds: readonly string[]): Promise<VillageDigestRecord[]>;
   /**
    * Seed počasí kraje – mapy (sídla), na které ves stojí (disasters.md – Kraj a ochrana nové vsi);
    * neznámé sídlo nebo úložiště bez počasí (testy, kalibrace) → null. Klientovi se nikdy neposílá.
