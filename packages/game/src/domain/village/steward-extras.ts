@@ -18,7 +18,8 @@ import { checkSacredBuildingPlacement } from './placement-sacred';
 import { villageCarts } from './carts';
 import { roadApplesOption, villageRoadApples } from './road-apples';
 import { roadUpgradeCost } from './road-upgrades';
-import { roadLengthM } from './paths/roads-geometry';
+import { roadLengthM, roadWetM } from './paths/roads-geometry';
+import { roadPieceCost } from './paths/walking';
 import {
   ADULT_DEATHS_PER_YEAR,
   CEMETERY,
@@ -31,7 +32,7 @@ import { ageGroup } from './people';
 import { APPLE_FOOD_VALUE, ORCHARD, ORCHARD_PLANTING_WINDOWS, THRESHING } from './rules-fields';
 import { DIET } from './diet';
 import { OXEN } from './rules-livestock';
-import { ROAD_WALK } from './rules-roads';
+import { CART_SPEED, TEAM_TRAVEL, WAGON_ROAD } from './rules-roads';
 import { STEWARD } from './rules-steward';
 import { hasShrine } from './sacred';
 import { planCentre, takenTiles, walkDaysPerYear, cellHa } from './steward-land';
@@ -104,6 +105,19 @@ function fits(state: VillageState, ctx: StewardContext, step: string, manDays: n
 
 function slotIntent(ctx: StewardContext, tile: number): { x: number; y: number } {
   return tileCell(ctx.landscape, tile);
+}
+
+/** Ves je mladší než `years` let od založení (steward.md – Ostatní stavby, Mladá ves). */
+function youngerThan(state: VillageState, ctx: StewardContext, years: number): boolean {
+  return ctx.day - state.foundedDay < years * DAYS_PER_YEAR;
+}
+
+/**
+ * Rok 0 vsi s úzkým hrdlem práce (steward.md – Ostatní stavby, Mladá ves): humno a ohrady jen
+ * s kladnou hodnotou v hrdle – práce je to, co ves brzdí, a zrno ani maso ho nezvednou.
+ */
+function firstYearLaborBound(state: VillageState, ctx: StewardContext): boolean {
+  return youngerThan(state, ctx, 1) && ctx.outlook.bottleneck === 'labor';
 }
 
 // --- 5. hřbitov ------------------------------------------------------------------------
@@ -179,7 +193,9 @@ function cemeteryEdgeTiles(state: VillageState, ctx: StewardContext): Set<number
 /**
  * Krok 6 – humno: ves bez humna mlátí nouzově (o `THRESHING.emergencyWork` víc práce výmlatu
  * a o `emergencyLoss` méně zrna); humno se postaví, když tato roční ztráta (polní práce osevu
- * × podíl) za `STEWARD.paybackYears` převýší jeho práci. Další humno, když výmlat nestíhá
+ * × podíl) za `STEWARD.paybackYears` převýší jeho práci. V roce 0 vsi jen s kladnou hodnotou
+ * v úzkém hrdle za první rok: při hrdle práce se počítá jen ušetřená práce výmlatu (zrno hrdlo
+ * nezvedne), jinak i zrno (osivo a strava z omezené půdy). Další humno, když výmlat nestíhá
  * (`threshingStatus.floorShort`). Do 31. 7.
  */
 export function threshingStep(state: VillageState, ctx: StewardContext): void {
@@ -193,8 +209,11 @@ export function threshingStep(state: VillageState, ctx: StewardContext): void {
     if (!capacity || capacity.sownHa <= 0) return;
     const work = capacity.sownHa * fieldWorkPerHa('thresh', ctx.coverage.tools);
     const all = capacity.sownHa * sownWork(ctx);
-    const yearly = work * THRESHING.emergencyWork + all * THRESHING.emergencyLoss;
-    if (yearly * STEWARD.paybackYears < cost) return;
+    const labor = work * THRESHING.emergencyWork;
+    const grain = all * THRESHING.emergencyLoss;
+    const first = youngerThan(state, ctx, 1);
+    const yearly = first && ctx.outlook.bottleneck === 'labor' ? labor : labor + grain;
+    if (yearly * (first ? 1 : STEWARD.paybackYears) < cost) return;
   } else if (builtThreshingFloorCount(state) === 0 || !threshingStatus(state, ctx.day).floorShort) {
     return;
   }
@@ -221,6 +240,8 @@ function sownWork(ctx: StewardContext): number {
  * – ohrada volů, když ves má skot v ohradě a aspoň `OXEN.minCows` krávy a orba ušetří (kopání
  * motykou − orba rádlem na osetý hektar) za `paybackYears` víc než seno volů a ohrada; (c) koně
  * v Růstu (v Obnově s nižší předností), když vojvodova rodina cvičí a ves nemá ohradu koní.
+ * V roce 0 vsi s úzkým hrdlem práce (a) ani (b) ne – maso a mléko práci nezvednou
+ * (`firstYearLaborBound`).
  */
 export function penStep(state: VillageState, ctx: StewardContext): void {
   if (!inStewardWindows(ctx.date, STEWARD.offHarvestWindows)) return;
@@ -231,7 +252,7 @@ export function penStep(state: VillageState, ctx: StewardContext): void {
   const room = herdRoom(state);
   const over = new Set(herdsOverRoom(state));
   const people = state.people.length;
-  if (herds) {
+  if (herds && !firstYearLaborBound(state, ctx)) {
     for (const [herd, pen] of HERD_PENS) {
       const full = over.has(herd) || Math.round(herds[herd]) >= Math.max(room[herd], 2);
       const wanted = people * (STEWARD.penPlacesPerPerson[herd] ?? 0);
@@ -431,8 +452,8 @@ function trafficOf(road: Road): number {
 
 /**
  * Krok 10 – cesty, v Růstu (v Obnově s nižší předností) a mimo setí a žně: (a) vylepšení
- * vyšlapané cesty, když úspora chůze (provoz × délka × rozdíl rychlostí vyšlapané a upravené
- * cesty) za `STEWARD.roadPaybackYears` převýší cenu; (b) vozová cesta po upravené cestě s provozem
+ * vyšlapané cesty, když úspora chůze a jízd vozem (`roadUpgradeSavedPerYear`) za
+ * `STEWARD.roadPaybackYears` let režimu převýší cenu; (b) vozová cesta po upravené cestě s provozem
  * aspoň `STEWARD.wagonTrips` a vozem ve vsi; (c) jedna zemská stezka k nejbližšímu kraji mapy od
  * `STEWARD.trailPeople` lidí. Vždy jen s celou cenou (práce úseků) v rozpočtu práce.
  */
@@ -445,13 +466,34 @@ export function roadStep(state: VillageState, ctx: StewardContext): void {
   trailStep(state, ctx);
 }
 
+/**
+ * Kolik člověkodní za rok ušetří vylepšení vyšlapané cesty (steward.md – Ostatní stavby, Cesty):
+ * chůze – pochůzky za den (`trafficOf`, tam a zpět jedna) × rozdíl ceny úseku vyšlapaného
+ * a upraveného (`roadPieceCost`: mokřina s hatí, brod s lávkou, stromy u cesty); jízdy vozem –
+ * loňské jízdy (`Road.cartTraffic`) × rozdíl `CART_SPEED` vyšlapané (vyježděné) a upravené cesty
+ * mimo mokřinu, den vozky jako u vozové cesty (`WAGON_ROAD.dayHours`, `TEAM_TRAVEL.speedMps`).
+ */
+export function roadUpgradeSavedPerYear(road: Road): number {
+  const length = roadLengthM(road);
+  const improved = { ...road, grade: 'improved' as const, unbridged: false };
+  const walkM = roadPieceCost(road, 0, length) - roadPieceCost(improved, 0, length);
+  const walk = walkDaysPerYear(trafficOf(road) * DAYS_PER_YEAR, Math.max(0, walkM));
+  const carts = road.cartTraffic?.[road.cartTraffic.length - 1] ?? 0;
+  const from = road.cart === true ? CART_SPEED.road.cart : CART_SPEED.road.trodden;
+  const cartM =
+    Math.max(0, length - roadWetM(road.ground)) * (1 / from - 1 / CART_SPEED.road.improved);
+  const cart =
+    (carts * DAYS_PER_YEAR * cartM) / (TEAM_TRAVEL.speedMps * 3600 * WAGON_ROAD.dayHours);
+  return walk + cart;
+}
+
 function upgradeRoad(state: VillageState, ctx: StewardContext, roads: readonly Road[]): boolean {
-  const gain = 1 / ROAD_WALK.speed.trodden - 1 / ROAD_WALK.speed.improved;
+  const years = STEWARD.roadPaybackYears[ctx.mode];
+  if (years <= 0) return false;
   const cands = roads
     .filter((r) => r.grade === 'trodden' && !skipped(state, ctx, 'road-upgrade', r.id))
     .map((road) => {
-      const trips = trafficOf(road) * DAYS_PER_YEAR;
-      const saved = walkDaysPerYear(trips, roadLengthM(road)) * gain * STEWARD.roadPaybackYears;
+      const saved = roadUpgradeSavedPerYear(road) * years;
       return { road, cost: roadUpgradeCost(road).manDays, saved };
     })
     .filter((c) => c.saved > c.cost)

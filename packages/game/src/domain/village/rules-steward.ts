@@ -161,18 +161,27 @@ export const STEWARD = {
   >,
   /** 8. Jabloně u cest: cesta vede „kolem polí“, když je jejich díl do tolika metrů od osy. */
   roadFieldM: 40,
-  /** 9. Posvátná místa: štěstí vsi, pod kterým správce staví modlu a svatyni (HAPPINESS.start = 50). */
+  /**
+   * 9. Posvátná místa: štěstí vsi, pod kterým správce staví modlu a svatyni (HAPPINESS.start = 50).
+   * Nad startem schválně – štěstí nad 50 zvedá práci (`HAPPINESS_LABOR`); odklad posvátných míst
+   * v mladé vsi a práh pod startem rychlé měření 1. 11. 2026 zamítlo (steward.md – Mladá ves).
+   */
   happinessFloor: 60,
   /** 9. Posvátná místa: modla nebo svatyně nejvýš tolik políček od středu vsi. */
   sacredSearchTiles: 8,
   /** 9. Posvátná místa: nejvýš tolik kontrol místa za den správce. */
   sacredChecks: 40,
   /**
-   * 10. Cesty: vylepšení cesty se vyplatí, když úspora chůze za tolik let pokryje cenu – 100 m za
-   * 15 člověkodní se při 10 pochůzkách denně vrátí za ≈ 9,4 roku (oprava 31. 10. 2026; dřív 5 –
-   * vyplatilo se až od ≈ 19 pochůzek denně, správce cesty nestavěl).
+   * 10. Cesty – návratnost vylepšení (steward.md – Ostatní stavby, Cesty; návrh Clauda 1. 11. 2026):
+   * vylepšení vyšlapané cesty se vyplatí, když úspora chůze a jízd vozem za tolik let režimu pokryje
+   * cenu. Horizont podle životnosti: upravená cesta s provozem nezarůstá a bez provozu vydrží 15 let
+   * (`ROAD_DECAY`) – v Růstu generace (25 let), v Obnově krátký (práce je drahá), v Nouzi se
+   * nestaví. 100 m za 15 člověkodní se v Růstu vrátí od ≈ 3,8 pochůzky denně, v Obnově od ≈ 19
+   * (dřív jedno číslo 10 let pro oba režimy – ve Vlkově se nevrátil žádný úsek, 12–181 let).
    */
-  roadPaybackYears: 10,
+  roadPaybackYears: { emergency: 0, recovery: 5, growth: 25 } as Readonly<
+    Record<StewardMode, number>
+  >,
   /** 10. Cesty: vozová cesta tam, kde cesta má aspoň tolik pochůzek za den (průměr roku). */
   wagonTrips: 1,
   /** 10. Cesty: zemská stezka od tolika lidí ve vsi (režim Růst). */
