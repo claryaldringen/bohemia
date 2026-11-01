@@ -111,7 +111,6 @@ export const PHASE_TEXTS: Partial<Record<PhaseName, string>> = {
   'help-bind': 'pomáhá vázat snopy',
   glean: 'sbírá paběrky',
   'from-harvest': 'vrací se ze žní',
-  sit: 'sedí před domem',
   rest: 'postává před domem',
   'to-shrine': 'jde se pomodlit',
   pray: 'modlí se',

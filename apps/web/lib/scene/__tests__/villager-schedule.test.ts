@@ -16,7 +16,6 @@ import {
   castTimeline,
   nextStart,
   scheduleAt,
-  straightWalk,
   type Activity,
   type DayCast,
   type PersonTask,
@@ -24,6 +23,7 @@ import {
   type TaskKind,
   type TaskWalk,
 } from '../villager-schedule';
+import { straightWalk } from './straight-walk';
 import { activityPhases, schedulePhaseAt, type PhaseRole } from '../villager-phases';
 
 // Rozvrh člověka (villagers.md – Činnosti od začátku do konce): čistá funkce času a obsazení dnů.

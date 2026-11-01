@@ -63,8 +63,8 @@ export type PhaseName =
   | 'help-bind'
   | 'glean'
   | 'from-harvest'
-  // starší doma (Děti a starší): sezení na špalku, postávání, modlitba u modly či svatyně
-  | 'sit'
+  // starší doma (Děti a starší): postávání, modlitba u modly či svatyně (sezení na špalku je
+  // fáze `work` – póza úlohy)
   | 'rest'
   | 'to-shrine'
   | 'pray'
@@ -426,7 +426,7 @@ export function phaseWalking(p: ActivityPhase): boolean {
 /**
  * Činnost, fáze a klip člověka v okamžik `t` (villagers.md – Pro implementaci, úloha 7): rozvrh
  * (`scheduleAt` – řetěz od `origin`), jeho fáze a klip, který postava v `t` hraje (doma `idle`).
- * Čistá funkce vstupu a času – stejný `t` = stejná fáze.
+ * Čistá funkce vstupu a času – stejný `t` = stejná fáze. Jen pro testy (scéna má `Timetable`).
  */
 export function schedulePhaseAt(
   input: ScheduleInput,

@@ -8,12 +8,12 @@ import {
   HISTORY_S,
   interruptOf,
   scheduleAt,
-  straightWalk,
   type Activity,
   type DayCast,
   type PersonTask,
   type ScheduleInput,
 } from '../villager-schedule';
+import { straightWalk } from './straight-walk';
 import { Timetable } from '../villager-timetable';
 
 // Události přerušují (villagers.md – Činnosti od začátku do konce, Události; úloha 5): pohřeb,

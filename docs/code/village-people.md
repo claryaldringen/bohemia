@@ -365,7 +365,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   by přesáhla zvon člověka, nezačne, po zvonu vyjde každý řetěz v týž okamžik – řetězy z různých
   počátků tak splynou nejpozději u prvního zvonu (bez zvonu nesplývají – test). `activityPose`
   (ode dveří rovně k práci, póza úlohy, zpět; pochůzka cyklem posunutým na začátek činnosti; doma
-  skrytá) a `straightWalk` (délky chůze rovně ode dveří – do úlohy 6).
+  skrytá).
   **Ve scéně** (úloha 3): `Timetable` (`villager-timetable.ts`, čistý, testy
   `villager-timetable.test.ts`) drží obsazení nejvýš `MAX_DAYS` 30 dnů (`setDay` – den práce od
   začátku okna `dayWindow`, týž den nahradí obsazení) a poslední činnost každého člověka; další

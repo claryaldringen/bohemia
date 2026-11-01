@@ -81,7 +81,7 @@ import type { PersonJob } from './villager-roster';
 const KINDS: readonly VillagerKind[] = ['woman', 'man'];
 
 /**
- * Tempo chůze rovně ode dveří k práci (m/s – villager-schedule.ts `straightWalk`, do úlohy 6):
+ * Tempo chůze ode dveří k práci (m/s – délky z odhadu sítě pěšin, `Timetable.setEstimate`):
  * dospělá žena krokem; jiná velikost postavy jde stejně rychle, nohy jdou tempem podle velikosti.
  */
 const SCHEDULE_WALK_M_S = walkSpeed('woman', 'walk', FIGURE_SCALE);

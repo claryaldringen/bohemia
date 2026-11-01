@@ -84,8 +84,8 @@ interface Entry {
 export type ActivityLeg = 'out' | 'back';
 
 /**
- * Rozvrhy lidí jedné vsi (`seed`) – `speed` = tempo chůze rovně ode dveří (m/s; do úlohy 6, pak
- * délky ze sítě pěšin). Obsazení dnů přidává `setDay` (z plánu dne), dveře domů `setDoors`.
+ * Rozvrhy lidí jedné vsi (`seed`) – `speed` = tempo chůze (m/s; délky z odhadu sítě pěšin –
+ * `setEstimate`, bez sítě rovně). Obsazení dnů přidává `setDay` (z plánu dne), dveře domů `setDoors`.
  */
 export class Timetable {
   private days: { day: number; from: number; cast: DayCast }[] = [];
