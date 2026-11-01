@@ -771,7 +771,8 @@ export function activityPose(
     const x = at?.x ?? task.at?.x ?? door.x;
     const z = at?.z ?? task.at?.z ?? door.z;
     if (out1) {
-      going = routed(going, from, { x, z });
+      // bod cíle jen pro první hledání trasy – za snímek nic nealokuje (null = bez trasy)
+      if (going === undefined) going = routed(going, from, { x, z });
       const span = a.arrive - a.start;
       walkLeg(out, from.x, from.z, x, z, (t - a.start) / span, going, span, speed);
       out.stage = 'out';
@@ -779,7 +780,7 @@ export function activityPose(
       const tool = at ? TOOL_WALK[at.clip] : undefined;
       if (tool) out.clip = tool;
     } else {
-      coming = routed(coming, { x, z }, door);
+      if (coming === undefined) coming = routed(coming, { x, z }, door);
       const span = end - a.leave;
       walkLeg(out, x, z, door.x, door.z, (t - a.leave) / span, coming, span, speed);
       out.stage = 'back';
