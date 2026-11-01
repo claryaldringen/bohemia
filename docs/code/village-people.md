@@ -431,7 +431,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     svatbě“), v průvodu jdou. Oka na zajíce – Lovci, rybáři a děti s řehtačkou. Pomoc o žních
     (paběrky, nosiči) je z úlohy 8.
     Rozvrh se počítá líně: jen když `write` kreslí pózy (ves v záběru, při omezeném pohybu stojí)
-    nebo pro vybraného (`updateSelection`); mimo záběr nic. Vlasce rybářů se překreslí, jen když se
+    nebo pro vybraného (`updateSelection`); mimo záběr nic. Obal postav pro ořez (`bounds`) skládá
+    `write` z posledních póz a z obdélníku dne (`extent`): dveře lidí s rozvrhem a místa úloh dne
+    i s kroky jinde (`dayExtent` ve `villager-timetable.ts`), trasy jízd (`rideArea`), stezky
+    karavan, pohřby a svatby – kdo vyjde z domu, když jsou všichni doma, se hýbe hned. Vlasce rybářů se překreslí, jen když se
     změní, kdo rybaří. Výběr: `scheduledState` – úloha a cesta (`leg` – „jde na pole“, „jde domů“
     v `person-activity.ts`) z rozběhnuté činnosti, i přes přelom dne; když vybraný zajde do domu
     (byl od výběru venku), `onPersonState` ohlásí `indoors` a `VillageGame` / `DevVillagePreview`

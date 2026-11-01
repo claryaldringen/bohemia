@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createVillagerPose, route, shuttle, stand } from '../villager-motion';
 import { shuttleErrand } from '../villager-errands';
 import { GRID_S, HISTORY_S, type Activity, type PersonTask } from '../villager-schedule';
-import { MAX_DAYS, scheduledState, Timetable } from '../villager-timetable';
+import { dayExtent, MAX_DAYS, scheduledState, Timetable } from '../villager-timetable';
 import { personActivity, type PersonFigureState } from '../../person-activity';
 import { selectionDetails } from '../../selection-details';
 import type { SceneVillage } from '../../village-view';
@@ -131,6 +131,44 @@ describe('rozvrhy ve scéně (villager-timetable.ts)', () => {
     const t = T0 + 2 * HISTORY_S;
     for (let s = T0 + HISTORY_S; s < t; s += 7) stepped.activity(202, s);
     expect(stepped.activity(202, t)).toEqual(fresh.activity(202, t));
+  });
+
+  it('obal dne (dveře a místa úloh) pokryje každou pózu – i kdo vyjde, když jsou všichni doma', () => {
+    const tt = new Timetable(3, 1.25);
+    const doors = new Map([
+      [202, DOOR],
+      [203, { x: -40, z: 10 }],
+    ]);
+    tt.setDoors(doors);
+    // druhý: nečinný o žních – u místa úlohy a paběrky jinde (krok jinde)
+    const idle: PersonTask = {
+      ...reapTask(),
+      key: 'idle:0',
+      role: 'idle',
+      places: { aid: { x: -20, z: 90 } },
+    };
+    const cast = new Map([
+      [202, waterTask()],
+      [203, idle],
+    ]);
+    tt.setDay(1, T0, cast);
+    const box = dayExtent(cast, doors.values())!;
+    expect(box).toEqual({ minX: -40, maxX: 100, minZ: 0, maxZ: 90 });
+    const out = createVillagerPose();
+    let seen = 0;
+    for (let s = T0 + HISTORY_S; s < T0 + 3 * HISTORY_S; s += 3) {
+      for (const id of [202, 203]) {
+        const p = tt.pose(id, s, [], out);
+        if (p.hidden) continue;
+        seen++;
+        expect(p.x).toBeGreaterThanOrEqual(box.minX - 1e-6);
+        expect(p.x).toBeLessThanOrEqual(box.maxX + 1e-6);
+        expect(p.z).toBeGreaterThanOrEqual(box.minZ - 1e-6);
+        expect(p.z).toBeLessThanOrEqual(box.maxZ + 1e-6);
+      }
+    }
+    expect(seen).toBeGreaterThan(100);
+    expect(dayExtent(new Map(), [null])).toBeNull();
   });
 });
 

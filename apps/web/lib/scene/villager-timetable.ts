@@ -38,6 +38,40 @@ interface Point {
   z: number;
 }
 
+/** Obdélník na zemi (m). */
+export interface Extent {
+  minX: number;
+  maxX: number;
+  minZ: number;
+  maxZ: number;
+}
+
+/**
+ * Kde se lidé s rozvrhem během dne můžou objevit: dveře jejich domů (`doors`) a místa úloh
+ * obsazení dne `cast` i s kroky jinde (`PersonTask.places`) – pevné za den. Scéna z toho skládá
+ * obal postav pro ořez (villagers.ts), ať se hýbe i ten, kdo vyjde z domu mimo poslední pózy.
+ * Nic – null.
+ */
+export function dayExtent(cast: DayCast, doors: Iterable<Point | null>): Extent | null {
+  let out: Extent | null = null;
+  const add = (p: Point | null | undefined): void => {
+    if (!p) return;
+    if (!out) out = { minX: p.x, maxX: p.x, minZ: p.z, maxZ: p.z };
+    else {
+      out.minX = Math.min(out.minX, p.x);
+      out.maxX = Math.max(out.maxX, p.x);
+      out.minZ = Math.min(out.minZ, p.z);
+      out.maxZ = Math.max(out.maxZ, p.z);
+    }
+  };
+  for (const door of doors) add(door);
+  for (const task of cast.values()) {
+    add(task.at);
+    for (const place of Object.values(task.places ?? {})) add(place);
+  }
+  return out;
+}
+
 /** Poslední činnost člověka, póza z ní (líně) a další činnost po návratu (doma – kdy vyjde). */
 interface Entry {
   act: Activity;

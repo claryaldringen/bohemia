@@ -7,7 +7,7 @@
 // villager-plan.ts z rozdělení práce dne, pohyb je čistá funkce času (villager-motion.ts).
 import { dogPlansKey, type DogPlan } from './dogs';
 import { FishingLines, fishingLine } from './fishing-lines';
-import { isRiding, ridePlansKey, type RidePlan } from './riders';
+import { isRiding, rideArea, ridePlansKey, type RidePlan } from './riders';
 import type { HuntSpotFn } from './villager-plan-lord';
 import '@babylonjs/core/Meshes/thinInstanceMesh';
 import '@babylonjs/loaders/glTF';
@@ -57,7 +57,7 @@ import { carryErrands } from './villager-errands';
 import { personFigure } from './villager-plan-cast';
 import { phaseWalking, type PhaseName } from './villager-phases';
 import { activityStage } from './villager-schedule';
-import { scheduledState, Timetable } from './villager-timetable';
+import { dayExtent, scheduledState, Timetable } from './villager-timetable';
 import type { ScenePerson } from '../person-view';
 import { samePersonState, type PersonFigureState } from '../person-activity';
 import { RING_SIZE_M, SelectionRing } from './selection-ring';
@@ -671,8 +671,17 @@ export class VillageVillagers {
     this.scheduled = new Set(scheduled.map((p) => p.person!));
     this.people = [...scheduled, ...this.dayFigures];
     this.setFishingLines(t);
+    // obal i z dveří lidí s rozvrhem, míst úloh dne a tras jízd (pevné za den) – kdo vyjde z domu
+    // mimo poslední pózy, hýbe se hned, ne až s dalším přeplánováním
     this.extent = unionExtent(
       caravanExtent(village),
+      timetable && persons
+        ? dayExtent(
+            plan.tasks,
+            persons.map((p) => plan.doors.get(p.home) ?? null),
+          )
+        : null,
+      ...[...this.mounted.values()].map((m) => rideArea(m.ride)),
       ...this.funerals.map((f) => f.extent),
       ...this.weddings.map((w) => w.extent),
     );
