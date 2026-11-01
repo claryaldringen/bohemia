@@ -201,6 +201,7 @@ npx tsx packages/game/scripts/measure-village.ts 200 60 --out base.jsonl     # z
 npx tsx packages/game/scripts/measure-village.ts 200 60 --variant meadow-burn --out burn.jsonl
 npx tsx packages/game/scripts/village-calculator.ts --preset full --fertility 56   # ustálený stav
 npx tsx apps/web/scripts/measure-scenery-culling.ts   # trojúhelníky a draw cally s ořezem po čtvercích
+NODE_OPTIONS=--conditions=react-server npx tsx apps/web/scripts/measure-absence.ts --villages 1,5,20   # otevření hry a akce po nepřítomnosti s workerem a bez něj (DB bohemia_measure)
 ```
 
 Všechny příkazy jdou přes Turborepo do jednotlivých workspaces. Před commitem musí projít

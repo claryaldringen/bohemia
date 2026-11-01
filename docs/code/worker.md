@@ -62,3 +62,55 @@ po chvíli zabije („Force killing…“) – ověřeno 1. 11. 2026, worker sti
   v den odchodu worker sám založí a hráč na ni přepne v seznamu vsí. Na konci SIGTERM → kód 0,
   „worker skončil“, žádný advisory zámek. Projekt `chromium` (všechny ostatní specifikace) běží
   bez workeru – záložní cesta webu. Společné kroky vsi jsou v `e2e/village-helpers.ts`.
+
+## Výkon (měření)
+
+`apps/web/scripts/measure-absence.ts` (plán workeru – 7. Měření): rod s `--villages` kopiemi
+Vlkova (2,6 MB JSON, vlastní sídlo každá), svět posunutý o `--days` (výchozí 1000 ≈ 1 skutečný
+den), řízené hodiny. Měří skutečné serverové funkce webu (`villageViewForPlayer`,
+`renameVillageForPlayer`) a `advanceWorldStep`. Databáze `bohemia_measure` (`--db bohemia_measure*`,
+vytvoří se a zmigruje sama, vývojová `bohemia` se jen čte), `--scenarios A,B,C`, `--profile` =
+nejdražší funkce otevření a akce.
+
+```bash
+cd apps/web && NODE_OPTIONS=--conditions=react-server nice npx tsx scripts/measure-absence.ts \
+  --villages 1,5,20 --days 1000
+```
+
+Změřeno 1. 11. 2026 (M-série, 10 jader, jedno jádro na proces; čas na serveru bez sítě a
+vykreslení). A = bez workeru (dnešní chování), B = worker dožene, pak +1 den a otevření / akce
+(přejmenování), C = worker doběhl polovinu kol.
+
+| scénář           | vsí |  dní | worker |  otevření |        akce |
+| ---------------- | --: | ---: | -----: | --------: | ----------: |
+| A bez workeru    |   1 | 1000 |      – |    21,7 s |      0,19 s |
+| A bez workeru    |   5 | 1000 |      – |      94 s |      0,37 s |
+| A bez workeru    |  20 | 1000 |      – |     441 s |       6,6 s |
+| B s workerem     |   1 | 1000 |   33 s | 0,26 s OK |   0,18 s OK |
+| B s workerem     |   5 | 1000 |  158 s |  1,4 s OK |  1,5 s MIMO |
+| B s workerem     |  20 | 1000 |  673 s | 0,72 s OK | 1,10 s MIMO |
+| C během dohánění |   1 | 1000 |   16 s |     8,2 s |           – |
+| C během dohánění |   5 | 1000 |  257 s |      41 s |           – |
+| C během dohánění |  20 | 1000 |  302 s |     156 s |           – |
+
+Čistší opakování B (100 dní – čas B na délce nepřítomnosti nezávisí, běh jen sám na stroji,
+mezipaměť webu zahřátá prvním pohledem): 1 vs. otevření 0,27 s / akce 0,19 s, 5 vsí 0,54 s /
+0,66 s, 20 vsí 0,71 s / **1,24 s**. První pohled po startu serveru (studená mezipaměť krajiny
+a vrstvy překážek) 0,6–1,0 s.
+
+**Kapacita jádra:** 31–43 ms na herní den Vlkova → ≈ 2000–2700 vsí velikosti Vlkova na jedno
+jádro workeru v reálném čase (1 den = 86,4 s); podíl generování krajin ve workeru ≈ 0 %
+(mezipaměť 128). Plán odhadoval 3–4 tisíce – měřeno je méně, pořád o řád víc než rod do 20 vsí.
+
+**Závěr:** otevření s workerem je v cíli (do 2 s) pro 1 / 5 / 20 vsí. **Akce přes 0,5 s od 5 vsí**
+(0,66 s, 20 vsí 1,1–1,2 s). Bez workeru je otevření po dni nepřítomnosti nepoužitelné (22 s až
+7 min) a během dohánění (C) web dopočítává, co worker nestihl – proto worker musí běžet.
+
+**Kde je čas akce (profil `--profile`, 20 vsí):** téměř všechno je načtení stavů ostatních vsí
+pro přepínač vsí (`villageListItem`): ≈ 0,5 s čekání na databázi (přenos 20 × 2,6 MB JSONB),
+≈ 0,3 s parsování řádků (`_parseRowAsArray`), ≈ 0,1 s GC; samotné sestavení pohledu je zlomek.
+Web načte všech 20 stavů po každé uložené verzi (worker ukládá každý herní den ≈ 86 s).
+**Návrh dalšího kroku** (plán – Rizika, „souhrny vsí ve sloupci“): zapisovat při uložení vsi
+malý souhrn pro přepínač (`villageListItem`: jméno, počet lidí, stav, den…) do sloupce `village`
+a `dynastyForVillage` pro ostatní vsi načítat jen souhrn bez `state`; akce pak sahá jen na
+zobrazenou ves (≈ 0,2 s nezávisle na počtu vsí). Mimo plán – čeká na schválení Martina.
