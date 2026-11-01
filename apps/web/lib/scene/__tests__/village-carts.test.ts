@@ -82,33 +82,29 @@ describe('vozy ve vsi (village-carts.ts)', () => {
   it('jede jen vůz s úlohou a trasou; ostatní stojí u ohrady', () => {
     const v = village([hauling(1), cart({ id: 2 }), cart({ id: 3, job: hauling(3).job })]);
     expect(drivingCarts(v).map((c) => c.id)).toEqual([1]);
-    const plans = villageCartPlans(v, pens, null);
+    const plans = villageCartPlans(v, pens);
     expect(plans).toHaveLength(3);
     expect('shuttle' in plans[0]!).toBe(true);
     expect('parked' in plans[1]!).toBe(true);
     // bez trasy (nedojede) stojí
     expect('parked' in plans[2]!).toBe(true);
     // bez ohrady se stojící vůz nekreslí
-    expect(villageCartPlans(village([cart()]), [], null)).toEqual([]);
+    expect(villageCartPlans(village([cart()]), [])).toEqual([]);
   });
 
-  it('svoz v okně herního dne, výprava dokola a naložená tam i zpět, náklad podle úlohy', () => {
-    const window = { startMs: 0, endMs: 86_000 };
+  it('svoz i výprava dokola tempem volů, výprava naložená tam i zpět, náklad podle úlohy', () => {
     const trade = cart({
       id: 2,
       kind: 'four-wheel',
       job: { activity: 'trade', target: { kind: 'trail', id: 1 }, load: 'goods' },
       route: ROUTE,
     });
-    const [haul, goods] = villageCartPlans(village([hauling(1), trade]), pens, window);
+    const [haul, goods] = villageCartPlans(village([hauling(1), trade]), pens);
     expect(haul).toMatchObject({ kind: 'two-wheel', cargo: 'sheaves' });
-    expect('shuttle' in haul! && haul.schedule.window).toEqual(window);
     expect(goods).toMatchObject({ kind: 'four-wheel', cargo: 'goods', loadedBothWays: true });
-    expect('shuttle' in goods! && goods.schedule.window).toBeNull();
   });
 
   it('mimo svoz (Co vozy vozí): osivo naložené tam, uhlí zpátky, sudy na vodu tam i zpět', () => {
-    const window = { startMs: 0, endMs: 86_000 };
     const job = (load: 'goods' | 'water', outbound?: true): SceneCart =>
       cart({
         id: 1,
@@ -120,12 +116,12 @@ describe('vozy ve vsi (village-carts.ts)', () => {
         },
         route: ROUTE,
       });
-    const [seed] = villageCartPlans(village([job('goods', true)]), pens, window);
+    const [seed] = villageCartPlans(village([job('goods', true)]), pens);
     expect(seed).toMatchObject({ cargo: 'goods', loadedOut: true });
-    const [coal] = villageCartPlans(village([job('goods')]), pens, window);
+    const [coal] = villageCartPlans(village([job('goods')]), pens);
     expect(coal).toMatchObject({ cargo: 'goods' });
     expect('loadedOut' in coal!).toBe(false);
-    const [water] = villageCartPlans(village([job('water')]), pens, window);
+    const [water] = villageCartPlans(village([job('water')]), pens);
     expect(water).toMatchObject({ cargo: 'water', loadedBothWays: true });
     // sudy jsou na voze celou cestu – prázdné tam, plné zpět
     for (let ms = 0; ms < 86_000; ms += 2000) {
@@ -138,9 +134,6 @@ describe('vozy ve vsi (village-carts.ts)', () => {
     const out = { s: 0, speed: 0, loaded: false };
     let sawOut = false;
     let sawBack = false;
-    // mimo svoz jezdí vůz tempem volů ve skutečném čase (`steadyJob`) – bez okna dne
-    expect(shuttle.schedule.window).toBeNull();
-    expect((water as CartShuttle).schedule.window).toBeNull();
     const [kiln] = villageCartPlans(
       village([
         cart({
@@ -150,11 +143,8 @@ describe('vozy ve vsi (village-carts.ts)', () => {
         }),
       ]),
       pens,
-      window,
     );
-    expect((kiln as CartShuttle).schedule.window).toBeNull();
-    // svoz snopů dál v okně herního dne
-    expect((coal as CartShuttle).schedule.window).toEqual(window);
+    expect(kiln).toMatchObject({ cargo: 'goods' });
     for (let ms = 0; ms < 600_000; ms += 500) {
       cartPlanPose(seed!, ms, pose);
       const at = shuttleAt(shuttle.shuttle, shuttle.schedule, ms, out);
@@ -170,7 +160,7 @@ describe('vozy ve vsi (village-carts.ts)', () => {
   });
 
   it('víc vozů na téže trase jede za sebou (posun fáze)', () => {
-    const plans = villageCartPlans(village([hauling(1), hauling(2)]), pens, null);
+    const plans = villageCartPlans(village([hauling(1), hauling(2)]), pens);
     const phases = plans.map((p) => ('shuttle' in p ? p.schedule.phase : -1));
     expect(phases).toEqual([0, 0.5]);
   });

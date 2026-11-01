@@ -453,9 +453,11 @@ Návrh Clauda (18. 10. 2026) – detaily, které návrh výš nechal otevřené:
   - **časový rozvrh:** karavana jde podle postupu výpravy v herním čase (odvedená práce ÷ cena),
     v herním dni plynule dnešním tempem – dojde domů právě, když se výprava v jádru vrátí. Dny
     cesty bez dne za krajem mapy se dělí napůl tam a zpátky; den za krajem mapy (`beyondEdgeDays`)
-    je karavana u souseda a není vidět. Skutečnou chůzí by 1 km trval čtvrt hodiny a výprava by se
-    vrátila dřív, než by karavana došla na kraj mapy – jde proto zrychleně (časosběr jako jednotky
-    v 0 A.D.), krok se přehrává rychleji (nejvýš 3×);
+    je karavana u souseda a není vidět. **Změna (1. 11. 2026, návrh Clauda podle Martina –
+    villagers.md, Činnosti od začátku do konce):** karavana už nejde časosběrem – vyrazí se svým
+    herním dnem a jde ve skutečném čase chůzí (s vozy a dobytkem tempem volů), za krajem mapy herní
+    den, zpět stejně; 1 km stezky tak trvá tam a zpět ≈ 30 minut (s vozy ≈ 40) a v jádru se výprava
+    vrátí dřív – scéna karavanu dohraje;
   - před odchodem a po návratu stojí karavana v hloučku u začátku stezky; lidé na výpravě mají
     vlastní podíl práce, takže jde plným tempem – stojí jen výjimečně (ves bez dospělých);
   - ukázka na `/dev/landscape` – tlačítko **Karavana** (nosiči, pak vůz; výprava trvá 90 s).

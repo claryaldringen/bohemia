@@ -249,16 +249,17 @@ export function trailRoute(
 }
 
 /**
- * Tempo lovu (m/s; wildlife.md – Ve scéně, návrh Clauda): cesta k okraji lesa trvá nejvýš 70 %
- * půlky bloku lovu – den má 86 s, krokem by lovci les nikdy neviděli –, jezdci nejvýš cvalem,
- * pěší nejvýš rychlou chůzí (`max`, ≈ 70 m), k dalšímu lesu poklusem (`trot`, ≈ 100 m) a dál
- * jdou jen ke kraji svého dosahu (`huntWay` – k lesu u zvěře, nestihnou-li ho, k nejbližšímu
- * okraji lesa). V lese krokem (`sweep`); pěší se zastavují s oštěpem (`stop` – úsek `HUNT_STOP_M`
- * tak pomalu, že stojí, scéna hraje `spear-thrust`).
+ * Tempo lovu (m/s; wildlife.md – Ve scéně, návrh Clauda): lov jde ve skutečném čase (riders.ts –
+ * `HUNT_REAL_S`, villagers.md – Činnosti od začátku do konce), žádný časosběr – cesta k okraji lesa
+ * trvá nejvýš 70 % půlky lovu, jezdci krokem až klusem, pěší chůzí, k dalšímu lesu nejvýš svižnou
+ * chůzí (`max` ≈ 1,25× chůze s oštěpem) a dál jdou jen ke kraji svého dosahu (`huntWay` – k lesu
+ * u zvěře, nestihnou-li ho, k nejbližšímu okraji lesa). V lese krokem (`sweep`); pěší se
+ * zastavují s oštěpem (`stop` – úsek `HUNT_STOP_M` tak pomalu, že stojí, scéna hraje
+ * `spear-thrust`).
  */
 export const HUNT_PACE = {
-  ride: { min: RIDE_PACE.walk, max: 6, sweep: RIDE_PACE.walk },
-  foot: { min: 1.0, max: 3.2, trot: 4.5, sweep: 0.9 },
+  ride: { min: RIDE_PACE.walk, max: RIDE_PACE.trot, sweep: RIDE_PACE.walk },
+  foot: { min: 1.0, max: 1.45, sweep: 0.9 },
   stop: 0.05,
 } as const;
 /** Podíl půlky bloku lovu na cestu k lesu. */
@@ -285,9 +286,7 @@ export function huntRoute(
   const pace = foot ? HUNT_PACE.foot : HUNT_PACE.ride;
   const length = wayLength(way);
   const wayS = Math.max(1, HUNT_WAY_SHARE * halfS);
-  // pěší ke vzdálenějšímu lesu poklusem
-  const max = foot && length > pace.max * wayS ? HUNT_PACE.foot.trot : pace.max;
-  const speed = Math.min(max, Math.max(pace.min, length / wayS));
+  const speed = Math.min(pace.max, Math.max(pace.min, length / wayS));
   const points: Point[] = [...way];
   const paces: number[] = way.slice(1).map(() => speed);
   const edge = way[way.length - 1]!;

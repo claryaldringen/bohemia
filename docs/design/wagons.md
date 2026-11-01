@@ -173,8 +173,8 @@ níž je návrh Clauda, čísla v `CART_JOBS` (`rules.ts`).
   (hromada rezavých hrud – díly `wagon2-ore` a `wagon4-ore`), osivo tam (zboží,
   zpátky prázdný), voda v sudech tam i zpět (prázdné sudy k vodě, plné domů – díly `wagon2-water`
   a `wagon4-water`: stojící sudy po ≈ 150 l s víkem a čepem, převázané provazem; dvoukolák dva,
-  čtyřkolák čtyři). Na rozdíl od svozu úrody (ladicí – jízdy dne v okně herního dne) jezdí vozy
-  s vodou, uhlím, rudou a osivem tempem volů ve skutečném čase (`steadyJob` v `village-carts.ts`) – do
+  čtyřkolák čtyři). Vozy s vodou, uhlím, rudou a osivem – a od 1. 11. 2026 i svoz úrody
+  (villagers.md – Činnosti od začátku do konce) – jezdí tempem volů ve skutečném čase – do
   86 s herního dne by se jízda k vodě vešla jen čtyřicetikilometrovou rychlostí; jsou tak součástí
   provozu na cestách (villagers.md). Ve dny, kdy vůz vodu veze, chodí pro ni pěšky jen tolik
   lidí, kolik vůz nepřivezl. Rozdělení práce dne má podíl `haul`

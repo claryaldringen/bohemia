@@ -123,6 +123,7 @@ export function withShoeingDemo(
       ],
       persons: [...(base.persons ?? []), ...smithPerson],
       shoeing: {
+        day: base.day,
         own: stage === 'own',
         horses,
         // cizí kovář jde krajinou od vsi ke kraji mapy na východě (jako nákup u sousedů)

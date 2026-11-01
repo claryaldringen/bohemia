@@ -4,15 +4,13 @@
 // na voze a ušetří se člověkodny.“). Čisté funkce bez Babylonu: kde na zemské stezce karavana je
 // (jedna skupina, ne proud nosičů), kdo v ní jde tam a kdo zpátky a kde stojí každý člen.
 //
-// Časový rozvrh (návrh Clauda): karavana jde podle postupu výpravy v herním čase, ne skutečnou
-// chůzí – cesta tam a zpět trvá dny výpravy (den ≈ 86 s), skutečná chůze 1 km by trvala čtvrt
-// hodiny a výprava by se vrátila dřív, než by karavana došla na kraj mapy. Postup výpravy 0–1
-// (odvedená práce ÷ cena) se v herním dni plynule posouvá dnešním tempem (u dat dne D od jeho
-// začátku k postupu po dni D + 1 – karavana tak dojde domů právě, když se výprava v jádru vrátí).
-// Dny cesty se dělí: na mapě tam a zpět (každé polovina dní bez dne za krajem mapy), mezi tím den
-// za krajem mapy – karavana je u souseda, není vidět. Lidé na výpravě mají vlastní podíl práce, jde
-// plným tempem; stojí jen výjimečně (ves bez dospělých – tempo 0). Rychlost
-// je tak vyšší než chůze (časosběr jako jednotky v 0 A.D.), klip se přehrává rychleji.
+// Časový rozvrh (návrh Clauda; villagers.md – Činnosti od začátku do konce, Martin 31. 10. 2026:
+// „Ve vykreslování by lidé měli dělat své činnosti od začátku do konce“): karavana vyrazí se
+// začátkem herního dne, kdy cesta začala (`SceneExpedition.startDay`), a jde ve skutečném čase
+// přirozenou chůzí – lidé běžnou chůzí, s vozy nebo dobytkem tempem volů (`caravanSpeed`), žádný
+// časosběr. Za krajem mapy je herní den u souseda (do vsi na téže mapě hned zpět), pak se vrací
+// stejným tempem. Jádro výpravu počítá dál po dnech a vrátí se dřív – scéna si běžící karavanu
+// pamatuje do jejího návratu (activity-memory.ts), naráz jich tak může jít víc.
 // Dobytek (trade.md – Dobytek ve třech druzích; Martin 20. 10. 2026: „s dobytkem by také mělo jít
 // obchodovat“) jde po svých za vozy po dvou vedle sebe – prodaný tam, koupený zpátky – a za ním
 // honák (nosič výpravy); kreslí ho stádo vsi (livestock.ts) podle týchž míst jako lidi.
@@ -166,53 +164,90 @@ export function caravanPlan(e: SceneExpedition): CaravanPlan {
 }
 
 /**
- * Postup výpravy 0–1 v okamžiku `nowMs`: postup na konci dne dat (`e.day`) a dnešní tempo
- * (`e.rate` za herní den) plynule přes herní den `window` (den dat). Bez okna stojí na postupu
- * dat.
+ * Rychlost karavany (m/s): lidé běžnou chůzí (muž 1,0 m/s × měřítko postavy 1,2 – ženy jdou
+ * s nimi o kus pomaleji, než by šly samy), s vozy nebo dobytkem tempem volů (CART_SPEED_M_S
+ * v cart-layout.ts).
  */
-export function caravanProgress(
-  e: SceneExpedition,
-  window: DayWindow | null,
-  nowMs: number,
-): number {
-  if (!window) return Math.min(1, e.progress);
-  const span = Math.max(1, window.endMs - window.startMs);
-  const f = Math.min(1, Math.max(0, (nowMs - window.startMs) / span));
-  return Math.min(1, e.progress + e.rate * f);
+export const CARAVAN_SPEED_M_S = { walk: 1.2, oxen: 0.85 } as const;
+/** Po návratu stojí karavana chvíli v hloučku u začátku stezky, pak jdou lidé domů (s). */
+export const CARAVAN_LINGER_S = 20;
+
+/** Rychlost karavany – s vozy nebo dobytkem tempem volů, jinak chůzí. */
+export function caravanSpeed(e: Pick<SceneExpedition, 'carts' | 'cattle'>): number {
+  const herd = e.cattle;
+  const animals = herd
+    ? herd.out.cows + herd.out.oxen + herd.back.cows + herd.back.oxen > 0
+    : false;
+  return e.carts.length > 0 || animals ? CARAVAN_SPEED_M_S.oxen : CARAVAN_SPEED_M_S.walk;
 }
 
-/** Úsek cesty karavany: tam po stezce, u souseda za krajem mapy, zpátky po stezce. */
-export type CaravanLeg = 'out' | 'away' | 'back';
+/** Rozvrh karavany ve skutečném čase (ms) a rychlost (m/s). */
+export interface CaravanTimeline {
+  startMs: number;
+  /** Poslední člen zástupu je za krajem mapy (u vsi na téže mapě na konci cesty). */
+  outEndMs: number;
+  /** Čelo se objeví na kraji mapy na cestě zpátky. */
+  awayEndMs: number;
+  /** Poslední člen došel na začátek stezky. */
+  endMs: number;
+  speed: number;
+}
+
+/**
+ * Rozvrh karavany z okna dne, kdy cesta začala (`window`), délky stezky `trailM` a zástupů: tam
+ * celá stezka a zástup tempem `caravanSpeed`, herní den u souseda (`onMap` < 1 – den za krajem
+ * mapy; do vsi na téže mapě 0), zpátky totéž.
+ */
+export function caravanTimeline(
+  e: Pick<SceneExpedition, 'carts' | 'cattle' | 'onMap'>,
+  window: DayWindow,
+  trailM: number,
+  columns: { out: number; back: number },
+): CaravanTimeline {
+  const speed = caravanSpeed(e);
+  const startMs = window.startMs;
+  const outEndMs = startMs + ((trailM + columns.out) / speed) * 1000;
+  const awayMs = e.onMap < 1 ? Math.max(0, window.endMs - window.startMs) : 0;
+  const awayEndMs = outEndMs + awayMs;
+  const endMs = awayEndMs + ((trailM + columns.back) / speed) * 1000;
+  return { startMs, outEndMs, awayEndMs, endMs, speed };
+}
+
+/** Úsek cesty karavany: tam po stezce, u souseda za krajem mapy, zpátky po stezce, doma. */
+export type CaravanLeg = 'out' | 'away' | 'back' | 'done';
 
 /** Kde je čelo karavany: úsek a vzdálenost čela od začátku stezky (m – může být mimo 0…L). */
 export interface CaravanHead {
   leg: CaravanLeg;
   head: number;
-  /** Rychlost čela po stezce (m za herní den – scéna ji přepočte na m/s). */
-  perDay: number;
+  /** Rychlost čela po stezce (m/s; 0 – stojí). */
+  speed: number;
 }
 
 /**
- * Čelo karavany při postupu `p` na stezce délky `trailM` (m) a se zástupem dlouhým `columnM` –
- * tam: čelo jde od začátku stezky, až za kraj mapy dojde i poslední člen; zpátky: čelo se objeví
- * na kraji mapy a jde k začátku stezky, až tam dojde i poslední. Den za krajem mapy (`e.onMap`)
- * je karavana pryč.
+ * Čelo karavany v okamžiku `nowMs` na stezce délky `trailM` (m) – tam: čelo jde od začátku
+ * stezky, až za kraj mapy dojde i poslední člen; zpátky: čelo se objeví na kraji mapy a jde
+ * k začátku stezky, až tam dojde i poslední. Před odchodem stojí na začátku, po návratu chvíli
+ * v hloučku (CARAVAN_LINGER_S), pak je doma (`done` – není vidět).
  */
 export function caravanHead(
-  e: Pick<SceneExpedition, 'onMap' | 'rate'>,
-  p: number,
+  t: CaravanTimeline,
+  nowMs: number,
   trailM: number,
   columns: { out: number; back: number },
 ): CaravanHead {
-  const half = Math.max(1e-6, e.onMap / 2);
-  if (p < half) {
-    const span = trailM + columns.out;
-    return { leg: 'out', head: (p / half) * span, perDay: (span / half) * e.rate };
+  if (nowMs < t.startMs) return { leg: 'out', head: 0, speed: 0 };
+  if (nowMs < t.outEndMs) {
+    return { leg: 'out', head: ((nowMs - t.startMs) / 1000) * t.speed, speed: t.speed };
   }
-  if (p < 1 - half) return { leg: 'away', head: trailM, perDay: 0 };
-  const span = trailM + columns.back;
-  const u = Math.min(1, (p - (1 - half)) / half);
-  return { leg: 'back', head: trailM - u * span, perDay: (span / half) * e.rate };
+  if (nowMs < t.awayEndMs) return { leg: 'away', head: trailM, speed: 0 };
+  if (nowMs < t.endMs) {
+    return { leg: 'back', head: trailM - ((nowMs - t.awayEndMs) / 1000) * t.speed, speed: t.speed };
+  }
+  if (nowMs < t.endMs + CARAVAN_LINGER_S * 1000) {
+    return { leg: 'back', head: -columns.back, speed: 0 };
+  }
+  return { leg: 'done', head: 0, speed: 0 };
 }
 
 /** Kde je člen karavany na stezce: vzdálenost od začátku (m), jestli je vidět, jestli stojí. */
@@ -237,7 +272,8 @@ export function memberSpot(
   trailM: number,
   index: number,
 ): MemberSpot {
-  if (head.leg === 'away') return { s: trailM, visible: false, waiting: null };
+  if (head.leg === 'away' || head.leg === 'done')
+    return { s: trailM, visible: false, waiting: null };
   const s = head.leg === 'out' ? head.head - behind : head.head + behind;
   if (s > trailM) return { s: trailM, visible: false, waiting: null };
   if (s < 0) return { s: 0, visible: true, waiting: index };

@@ -189,18 +189,24 @@ export function planVillagersWithCrew(
   const firefighters = fireChainFigures(ctx, fireChainLayout(village.fire));
   const caravanPeople: PlannedVillager[] = [];
   for (const e of village.expeditions ?? []) {
-    caravanPeople.push(...caravanFigures(ctx, e, options.dayWindow?.(e.day) ?? null));
+    caravanPeople.push(...caravanFigures(ctx, e, options.dayWindow?.(e.startDay ?? e.day) ?? null));
   }
   // vozka vozu výpravy jde s karavanou
   staff.caravanCarts();
   // vojvodova rodina na dvorku (lord.md – Ve scéně): jediní, kdo stojí na oploceném pozemku
   // dvorce – cvičí, nebo vede domácnost; do práce vsi nejde
-  const family = lordFigures(ctx, labor, dayWindow, options.huntSpot ?? null);
+  // lov jde ve skutečném čase od svého dne (riders.ts – `huntSpan`)
+  const huntDay = village.wildlife?.hunt?.day;
+  const huntWindow = huntDay !== undefined ? (options.dayWindow?.(huntDay) ?? null) : dayWindow;
+  const family = lordFigures(ctx, labor, dayWindow, options.huntSpot ?? null, huntWindow);
   if (family.rides.length > 0) crew.rides = family.rides;
   if (family.dogs.length > 0) crew.dogs = family.dogs;
   // kovář dne (horses.md – Kování, Ve scéně): dojde k brance ohrady koní a kuje koně u kůlu –
   // pevné místo dne; jeho podíl práce už postavu u plotu nemá
-  const shoeing = shoeingFigures(ctx, labor, dayWindow);
+  const shoeingWindow = labor.shoeing
+    ? (options.dayWindow?.(labor.shoeing.day ?? labor.day) ?? null)
+    : null;
+  const shoeing = shoeingFigures(ctx, labor, shoeingWindow, options.nowMs ?? null);
   if (shoeing.rides.length > 0) crew.rides = [...(crew.rides ?? []), ...shoeing.rides];
   if (shoeing.people.length > 0) {
     labor.shares.forEach((share, s) => {

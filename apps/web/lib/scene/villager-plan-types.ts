@@ -230,6 +230,11 @@ export interface VillagerPaths {
 
 export interface VillagerPlanOptions {
   seed: number;
+  /**
+   * Skutečný čas plánu (ms) – činnosti ve skutečném čase přes víc herních dní (kování, lov,
+   * karavany) po svém konci nikoho neberou. Bez údaje se konec nehlídá.
+   */
+  nowMs?: number;
   /** Kolik stád se pase (pasáčci – jeden na stádo, když jsou děti). */
   herds: number;
   maxWorkers?: number;

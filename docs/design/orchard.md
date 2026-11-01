@@ -169,7 +169,7 @@ Clauda.
   pamatuje (`OrchardWork.hauled`).
 - **Jabloně podél cest** se sklízejí ručně (stromy jednotlivě podél cesty – vůz nepomůže).
 - **Ve scéně:** vůz s proutěnými koši jablek (`wagon2-apples`, `wagon4-apples`) jezdí z kraje sadu
-  ke vsi v okně herního dne jako svoz snopů; v roce vozů se odnos jablek počítá do úspor vozů
+  ke vsi tempem volů ve skutečném čase jako svoz snopů; v roce vozů se odnos jablek počítá do úspor vozů
   ([vozy](wagons.md) – Kolik vozů ves chce).
 
 ## Naměřeno

@@ -335,7 +335,7 @@ describe('jízda tam a zpět (svoz – fáze 3)', () => {
   ];
   const shuttle = shuttleRoute(AXIS, 'two-wheel');
   const WINDOW = { startMs: 1_000_000, endMs: 1_086_000 };
-  const schedule = { window: WINDOW, maxTrips: 8, phase: 0 };
+  const schedule = { phase: 0 };
   const at = (ms: number): ShuttleState =>
     shuttleAt(shuttle, schedule, ms, { s: 0, speed: 0, loaded: false });
 
@@ -355,13 +355,8 @@ describe('jízda tam a zpět (svoz – fáze 3)', () => {
     expect(Math.hypot(far.x - 30, far.z - 70)).toBeLessThan(15);
   });
 
-  it('za herní den několik jízd: prázdný tam, u cíle nakládá, plný zpátky; den začíná i končí u ohrady', () => {
-    const home = (x: ShuttleState): boolean =>
-      x.speed === 0 && !x.loaded && (x.s === 0 || x.s === shuttle.route.length);
-    expect(home(at(WINDOW.startMs - 500))).toBe(true);
-    expect(home(at(WINDOW.endMs - 500))).toBe(true);
-    expect(at(WINDOW.startMs + 200).speed).toBeGreaterThan(0);
-    const samples = Array.from({ length: 860 }, (_, i) => at(WINDOW.startMs + i * 100));
+  it('dokola tempem volů: prázdný tam, u cíle nakládá, plný zpátky, u ohrady skládá', () => {
+    const samples = Array.from({ length: 4000 }, (_, i) => at(WINDOW.startMs + i * 100));
     // jede tam prázdný, zpátky plný, mezi tím stojí
     const out = samples.filter((x) => x.speed > 0 && x.s < shuttle.farM);
     const back = samples.filter((x) => x.speed > 0 && x.s > shuttle.farM);
@@ -370,14 +365,8 @@ describe('jízda tam a zpět (svoz – fáze 3)', () => {
     expect(back.length).toBeGreaterThan(0);
     expect(back.every((x) => x.loaded)).toBe(true);
     expect(samples.some((x) => x.speed === 0 && x.s === shuttle.farM)).toBe(true);
-    // počet obratů u cíle = počet jízd (aspoň 1, nejvýš 8), rychlost aspoň tempem volů
-    let trips = 0;
-    for (let i = 1; i < samples.length; i++) {
-      if (samples[i - 1]!.s < shuttle.farM && samples[i]!.s >= shuttle.farM) trips++;
-    }
-    expect(trips).toBeGreaterThanOrEqual(1);
-    expect(trips).toBeLessThanOrEqual(8);
-    expect(Math.max(...samples.map((x) => x.speed))).toBeGreaterThanOrEqual(CART_SPEED_M_S);
+    // voli jdou svým tempem (žádný časosběr – villagers.md, Činnosti od začátku do konce)
+    expect(Math.max(...samples.map((x) => x.speed))).toBe(CART_SPEED_M_S);
     // spojitě – vůz neskáče
     for (let i = 1; i < samples.length; i++) {
       const a = samples[i - 1]!.s;
@@ -387,8 +376,8 @@ describe('jízda tam a zpět (svoz – fáze 3)', () => {
     }
   });
 
-  it('bez okna dne jezdí dokola tempem volů; stejný okamžik = stejné místo', () => {
-    const real = { window: null, maxTrips: 8, phase: 0.3 };
+  it('stejný okamžik = stejné místo', () => {
+    const real = { phase: 0.3 };
     const a = shuttleAt(shuttle, real, 5_000_000, { s: 0, speed: 0, loaded: false });
     const b = shuttleAt(shuttle, real, 5_000_000, { s: 0, speed: 0, loaded: false });
     expect(a).toEqual(b);
@@ -444,7 +433,7 @@ describe('svoz snopů na humno (villagers.md – Fáze činností)', () => {
   ];
   const shuttle = shuttleRoute(AXIS, 'two-wheel', undefined, { points: VIA, drop: VIA[1]! });
   const WINDOW = { startMs: 1_000_000, endMs: 1_086_000 };
-  const schedule = { window: WINDOW, maxTrips: 8, phase: 0 };
+  const schedule = { phase: 0 };
   const at = (ms: number): ShuttleState =>
     shuttleAt(shuttle, schedule, ms, { s: 0, speed: 0, loaded: false });
 
@@ -455,7 +444,7 @@ describe('svoz snopů na humno (villagers.md – Fáze činností)', () => {
     // humno – kde vůz skládá (40, 40)
     const p = routeAt(shuttle.route, drop, point());
     expect(Math.hypot(p.x - 40, p.z - 40)).toBeLessThan(6);
-    const samples = Array.from({ length: 860 }, (_, i) => at(WINDOW.startMs + i * 100));
+    const samples = Array.from({ length: 4000 }, (_, i) => at(WINDOW.startMs + i * 100));
     const moving = samples.filter((x) => x.speed > 0);
     expect(moving.filter((x) => x.s < shuttle.farM).every((x) => !x.loaded)).toBe(true);
     const full = moving.filter((x) => x.s > shuttle.farM && x.s < drop);

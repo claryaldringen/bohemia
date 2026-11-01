@@ -865,23 +865,14 @@ export function shuttleRoute(
 }
 
 /** Jak dlouho vůz stojí u cíle (nakládá) a u ohrady (skládá) – s. */
-export const CART_STOP_S = { fast: 3, real: 20 } as const;
-/**
- * Ladicí zrychlení svozu (s orbou za herní den – PLOUGH_DAY_DEBUG): jízd za herní den tolik, kolik
- * se jich vejde při této rychlosti (m/s), nejvýš CARTS.loadsPerCartDay – a aspoň jedna (dlouhá
- * trasa se pak jede rychleji).
- */
-export const CART_FAST_M_S = 4;
+export const CART_STOP_S = 20;
 
-/** Kdy vůz jezdí: okno herního dne (ladicí – jízdy dne se do něj vejdou), nebo pořád dokola. */
+/**
+ * Kdy vůz jezdí: pořád dokola tempem volů ve skutečném čase (CART_SPEED_M_S), jako nosiči na
+ * stezce – i svoz úrody (villagers.md – Činnosti od začátku do konce: lidé ani voli nejdou
+ * časosběrem, za herní den se stihne, kolik se stihne).
+ */
 export interface CartSchedule {
-  /**
-   * Okno herního dne (skutečný čas, ms) – vůz za den udělá `trips` jízd (CART_FAST_M_S, nejvýš
-   * `maxTrips`); null = jezdí dokola skutečným tempem (CART_SPEED_M_S), jako nosiči na stezce.
-   */
-  window: { startMs: number; endMs: number } | null;
-  /** Nejvýš jízd za herní den (CARTS.loadsPerCartDay). */
-  maxTrips: number;
   /** Posun fáze 0–1 (víc vozů na téže trase jede za sebou). */
   phase: number;
 }
@@ -896,8 +887,7 @@ export interface ShuttleState {
 /**
  * Vůz na jízdě tam a zpět v okamžiku `nowMs` (čistá funkce skutečného času): od ohrady prázdný
  * k cíli, tam stojí (nakládá – náklad se objeví v půlce), plný zpátky a u ohrady stojí (skládá).
- * S oknem dne jízdy rovnoměrně přes den (kolik se jich vejde – CART_FAST_M_S; mimo okno se den
- * opakuje – den končí i začíná u ohrady); bez okna dokola tempem volů. Zapisuje do `out`.
+ * Dokola tempem volů (CART_SPEED_M_S). Zapisuje do `out`.
  */
 export function shuttleAt(
   shuttle: ShuttleRoute,
@@ -907,29 +897,13 @@ export function shuttleAt(
 ): ShuttleState {
   const L = shuttle.route.length;
   const far = shuttle.farM;
-  const fast = schedule.window !== null;
-  const stop = fast ? CART_STOP_S.fast : CART_STOP_S.real;
+  const stop = CART_STOP_S;
   // u humna třetí zastávka (skládá snopy – `dropM`)
   const drop = shuttle.dropM;
   const stops = drop === undefined ? 2 : 3;
-  let speed = CART_SPEED_M_S;
-  let cycle = L / speed + stops * stop;
-  let time: number;
-  if (schedule.window) {
-    const dayS = Math.max(1, (schedule.window.endMs - schedule.window.startMs) / 1000);
-    const trips = Math.min(
-      Math.max(1, schedule.maxTrips),
-      Math.max(1, Math.floor(dayS / (L / CART_FAST_M_S + stops * stop))),
-    );
-    cycle = dayS / trips;
-    speed = Math.max(CART_SPEED_M_S, L / Math.max(1, cycle - stops * stop));
-    // den se opakuje: poslední jízda končí u ohrady a další den (nová trasa) začíná u ohrady –
-    // i když nová data přijdou až chvíli po začátku dne, vůz neskáče
-    const inDay = ((((nowMs - schedule.window.startMs) / 1000) % dayS) + dayS) % dayS;
-    time = (((inDay + schedule.phase * cycle) % cycle) + cycle) % cycle;
-  } else {
-    time = (((villagerSeconds(nowMs) + schedule.phase * cycle) % cycle) + cycle) % cycle;
-  }
+  const speed = CART_SPEED_M_S;
+  const cycle = L / speed + stops * stop;
+  const time = (((villagerSeconds(nowMs) + schedule.phase * cycle) % cycle) + cycle) % cycle;
   const outS = far / speed;
   if (drop !== undefined) return viaAt(far, drop, L, speed, stop, time, out);
   const backS = (L - far) / speed;

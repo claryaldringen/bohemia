@@ -6,7 +6,7 @@ import { AGE, penGateToward, penSquaresEntrance } from '@bohemia/game';
 import type { SceneLabor, SceneShoeing } from '../village-view';
 import { scenePenSquares } from '../village-view';
 import type { DayWindow } from './caravan';
-import { hourSeconds, type RidePlan } from './riders';
+import type { RidePlan } from './riders';
 import {
   shodHorsePlans,
   shoeingSchedule,
@@ -20,6 +20,9 @@ import { adultHair, cast, figure, STRANGER } from './villager-plan-cast';
 import { trafficDoor, walkRoute } from './villager-plan-geometry';
 import { ADULTS } from './villager-roster';
 import type { Context, PlannedVillager, Point } from './villager-plan-types';
+
+/** Měřítko nejmenší postavy, která jde kovat (odhad konce kování – pomalejší chůze). */
+const SLOW_SCALE = 0.9;
 
 /** Klíč postavy kováře (vlastní / cizí) – stálý po celý den kování. */
 export const SHOEING_KEY = { own: 'shoeing:own', foreign: 'shoeing:foreign' } as const;
@@ -67,18 +70,21 @@ function foreignWay(ctx: Context, shoeing: SceneShoeing, goal: Point): Route | n
 }
 
 /**
- * Kovář dne a koně u kůlu (horses.md – Kování, Ve scéně): s kováním dne (`labor.shoeing`) a hotovou
- * ohradou koní postava kováře – vlastní je člověk z domácnosti kovárny (muž), cizí je cizí postava
- * (`STRANGER`). Bez kování, ohrady nebo cesty nic (podíl `horse-shoeing` pak stojí u plotu jako dřív).
+ * Kovář a koně u kůlu (horses.md – Kování, Ve scéně): s kováním posledních dní (`labor.shoeing`,
+ * den kování `shoeing.day`) a hotovou ohradou koní postava kováře – vlastní je člověk z domácnosti
+ * kovárny (muž), cizí je cizí postava (`STRANGER`). Kování jde ve skutečném čase od začátku svého
+ * dne (`window` – okno dne kování; shoeing-plan.ts) a postava je v plánu, dokud se kovář nevrátí.
+ * Bez kování, okna, ohrady nebo cesty nic (podíl `horse-shoeing` pak stojí u plotu jako dřív).
  */
 export function shoeingFigures(
   ctx: Context,
   labor: SceneLabor,
   window: DayWindow | null,
+  nowMs: number | null = null,
 ): { people: PlannedVillager[]; rides: RidePlan[] } {
   const none = { people: [], rides: [] };
   const shoeing = labor.shoeing;
-  if (!shoeing || shoeing.horses.length === 0) return none;
+  if (!shoeing || shoeing.horses.length === 0 || !window) return none;
   const gate = horseGate(ctx, shoeing.horses[0]!.pen);
   if (!gate) return none;
   const spots = shoeingSpots(gate);
@@ -97,6 +103,13 @@ export function shoeingFigures(
     way = foreignWay(ctx, shoeing, spots.smith);
   }
   if (!way || way.length <= 0) return none;
+  // kovář už je zpátky (kování skončilo ve skutečném čase) – nikoho nebere; odhad s pomalou chůzí
+  // (syn kováře je menší postava), ať postava nezmizí cestou
+  if (nowMs !== null) {
+    const slow = walkSpeed('man', 'walk', SLOW_SCALE);
+    const ahead = shoeingSchedule(way.length, shoeing.horses.length, window.startMs, slow);
+    if (nowMs >= ahead.backMs) return none;
+  }
   const key = shoeing.own ? SHOEING_KEY.own : SHOEING_KEY.foreign;
   const c = cast(
     ctx,
@@ -123,11 +136,9 @@ export function shoeingFigures(
     schedule: shoeingSchedule(
       way.length,
       shoeing.horses.length,
-      shoeing.own,
-      hourSeconds(window),
+      window.startMs,
       walkSpeed(c.who.kind, 'walk', c.who.scale),
     ),
-    window,
   };
   const target = { kind: 'pen', id: shoeing.horses[0]!.pen } as const;
   const smith = figure(c, smithShoeingPose(plan), adultHair(c.who, ctx.sexes.married), {

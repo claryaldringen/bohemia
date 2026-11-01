@@ -728,6 +728,11 @@ export interface SceneExpedition {
   progress: number;
   rate: number;
   day: number;
+  /**
+   * Herní den, kdy právě běžící cesta začala – scéna karavanu hraje ve skutečném čase od začátku
+   * toho dne (scene/caravan.ts – `caravanTimeline`). Chybí (ukázky) = `day`.
+   */
+  startDay?: number;
   onMap: number;
   /**
    * Co je to za cestu (villagers.md – Výběr postavy): výprava k sousedovi, nákup u souseda, nebo
@@ -1039,15 +1044,18 @@ export interface SceneLabor {
    */
   lord?: SceneLord;
   /**
-   * Kování jezdeckých koní dnes (horses.md – Kování, Ve scéně; z jádra `shoeingDay`): vlastní kovář
-   * dojde od kovárny k ohradě, cizí kovář přijde ze směru souseda a stejnou cestou odejde. Bez
-   * údaje se dnes nekuje.
+   * Poslední kování jezdeckých koní za `SHOEING_VIEW_DAYS` dní (horses.md – Kování, Ve scéně; z jádra
+   * `shoeingDay`): vlastní kovář dojde od kovárny k ohradě, cizí kovář přijde ze směru souseda
+   * a stejnou cestou odejde – ve skutečném čase od začátku dne kování (villagers.md – Činnosti od
+   * začátku do konce). Bez údaje se nekuje.
    */
   shoeing?: SceneShoeing;
 }
 
-/** Kování dne ve scéně (`SceneLabor.shoeing`). */
+/** Kování ve scéně (`SceneLabor.shoeing`). */
 export interface SceneShoeing {
+  /** Herní den kování – scéna ho hraje ve skutečném čase od začátku toho dne. */
+  day: number;
   /** Vlastní kovář (z kovárny vsi), jinak kovář ze sousední vsi. */
   own: boolean;
   /** Okovaní koně – ohrada (id) a kůň (id), v pořadí kování. */
@@ -1279,8 +1287,13 @@ export interface SceneWildlife {
   pools?: ScenePool[];
 }
 
-/** Lov dne ve scéně (`SceneWildlife.hunt`). */
+/**
+ * Lov ve scéně (`SceneWildlife.hunt`) – hraje se ve skutečném čase od dne lovu `day` přes víc
+ * herních dní (riders.ts – `huntSpan`); scéna si běžící lov pamatuje (activity-memory.ts), i když ho
+ * data dalšího dne už nemají. Bez `day` (ukázky) den práce.
+ */
 export interface SceneHunt {
+  day?: number;
   target: 'game' | 'wolves' | 'bear';
   riders: { id: number; horseId: number }[];
   foot: number[];

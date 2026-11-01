@@ -417,18 +417,37 @@ export function sceneLabor(
 }
 
 /**
- * Kování dne pro scénu (horses.md – Kování, Ve scéně): z jádra `shoeingDay` – koně a u cizího
- * kováře cesta ze směru souseda (zemská stezka, jinak čára krajinou jako nákup u sousedů).
+ * Kolik herních dní dozadu scéna dostává kování (≈ 1 skutečná hodina – kovář jde ve skutečném
+ * čase chůzí přes půl mapy a kuje každého koně dvě minuty; návrh Clauda, villagers.md – Činnosti
+ * od začátku do konce).
+ */
+export const SHOEING_VIEW_DAYS = 40;
+
+/**
+ * Poslední kování pro scénu (horses.md – Kování, Ve scéně): nejnovější den s kováním za
+ * `SHOEING_VIEW_DAYS` (kronika `horses-shod`), z jádra `shoeingDay` – koně a u cizího kováře cesta
+ * ze směru souseda (zemská stezka, jinak čára krajinou jako nákup u sousedů).
  */
 function sceneShoeing(
   state: VillageState,
   day: number,
   landscape: Landscape | null,
 ): SceneShoeing | null {
-  const today = shoeingDay(state, day, landscape);
-  if (!today) return null;
+  let shodDay: number | null = null;
+  // kronika je od nejstarší – odzadu, jen posledních SHOEING_VIEW_DAYS dní
+  for (let i = state.chronicle.length - 1; i >= 0; i--) {
+    const entry = state.chronicle[i]!;
+    if (entry.day <= day - SHOEING_VIEW_DAYS) break;
+    if (entry.day <= day && entry.kind === 'horses-shod') {
+      shodDay = entry.day;
+      break;
+    }
+  }
+  const today = shodDay === null ? null : shoeingDay(state, shodDay, landscape);
+  if (!today || shodDay === null) return null;
   const route = today.route;
   return {
+    day: shodDay,
     own: today.own,
     horses: today.horses.map((h) => ({ pen: h.penId, id: h.horseId })),
     ...(route && route.trailId !== null ? { trailId: route.trailId } : {}),

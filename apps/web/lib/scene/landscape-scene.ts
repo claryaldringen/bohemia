@@ -1,3 +1,4 @@
+import { ActivityMemory } from './activity-memory';
 import '@babylonjs/core/Culling/ray';
 import { Ray as PickingRay } from '@babylonjs/core/Culling/ray.core';
 import type { Camera } from '@babylonjs/core/Cameras/camera';
@@ -282,6 +283,10 @@ export class LandscapeScene {
   private paths: VillagePaths | null = null;
   /** Poslední stav vsi od rozhraní – vykreslí se, jakmile je krajina hotová. */
   private villageState: SceneVillage | null = null;
+  /** Ves, jak přišla ze serveru – `villageState` je doplněná o běžící činnosti (`activities`). */
+  private villageSource: SceneVillage | null = null;
+  /** Karavany a lov, které ve skutečném čase ještě běží (activity-memory.ts). */
+  private readonly activities = new ActivityMemory();
   /** Počasí vsi naposledy předané scéně (JSON) – při změně se hned přepočte vzhled. */
   private weatherKey = 'null';
   private placement: ActivePlacement | null = null;
@@ -736,8 +741,15 @@ export class LandscapeScene {
    * Vykreslí ves (inkrementálně – přestaví jen obydlí a pole, která se změnila; krajina zůstane).
    * Jde volat kdykoli, i před dokončením `setLandscape` – ves se pak ukáže s krajinou.
    */
-  setVillage(village: SceneVillage): void {
+  setVillage(source: SceneVillage): void {
     if (this.disposed) return;
+    this.villageSource = source;
+    // karavany a lov se dohrají ve skutečném čase, i když je data dalšího dne už nemají
+    const village = this.activities.apply(
+      source,
+      Date.now(),
+      (day) => this.village?.gameDayWindow(day) ?? null,
+    );
     this.villageState = village;
     this.applyVillage();
     // počasí roku se ukáže hned, ne až při další kontrole období
@@ -1015,7 +1027,7 @@ export class LandscapeScene {
   setWorkDayClock(clock: ((day: number) => { startMs: number; endMs: number }) | null): void {
     this.workDayClock = clock;
     this.village?.setPloughClock(clock);
-    if (this.villageState) this.setVillage(this.villageState);
+    if (this.villageSource) this.setVillage(this.villageSource);
     if (this.villagers?.clockChanged(Date.now())) this.renderWhenReady();
   }
 

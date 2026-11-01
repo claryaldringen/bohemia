@@ -416,7 +416,7 @@ export class VillageLivestock {
       const area = herd.area;
       addArea('cow', area);
       const shown = herd.animals.map(() => true);
-      const window = this.env.dayWindow?.(herd.expedition.day) ?? null;
+      const window = this.env.dayWindow?.(herd.expedition.startDay ?? herd.expedition.day) ?? null;
       groups.push({
         members: herd.animals.map((a) => ({
           species: 'cow',

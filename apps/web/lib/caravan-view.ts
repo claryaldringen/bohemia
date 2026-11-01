@@ -97,6 +97,8 @@ function tradeCaravans(state: VillageState): SceneExpedition[] {
       progress: Math.round(local * 1e4) / 1e4,
       rate: e.cost > 0 ? Math.round(((perDay * trips) / e.cost) * 1e4) / 1e4 : 0,
       day,
+      // začátek běžící jízdy – jízdy vozu jdou za sebou po dnech výpravy
+      startDay: e.startedDay + Math.round(trip * tripDays),
       onMap: tripDays > 0 ? Math.max(0.2, (tripDays - TRADE.beyondEdgeDays) / tripDays) : 1,
       trip: { kind: 'trade', to: neighbourOf(state.seed, e.direction).name },
     };
@@ -127,6 +129,7 @@ function purchaseCaravan(state: VillageState, p: CraftPurchase): SceneExpedition
     progress: Math.round(progress * 1e4) / 1e4,
     rate: p.done < p.days ? Math.round((1 / trip) * 1e4) / 1e4 : 0,
     day: state.lastDay,
+    startDay: p.startedDay + round * trip,
     onMap: Math.max(0.2, (trip - TRADE.beyondEdgeDays) / trip),
     trip: { kind: 'purchase', to: neighbourOf(state.seed, p.direction).name },
   };
@@ -168,6 +171,7 @@ function ironCaravan(state: VillageState, dwelling: Dwelling, trip: IronTrip): S
     progress: Math.round(progress * 1e4) / 1e4,
     rate: trip.done < days ? Math.round((1 / leg) * 1e4) / 1e4 : 0,
     day: state.lastDay,
+    startDay: trip.startedDay + round * leg,
     // do vsi na téže mapě je celá cesta vidět, k sousedovi den za krajem mapy (jako nákup)
     onMap: trip.to.kind === 'village' ? 1 : Math.max(0.2, (leg - TRADE.beyondEdgeDays) / leg),
     trip: {

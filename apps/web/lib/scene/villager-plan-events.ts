@@ -3,8 +3,8 @@ import { AGE, type Sex } from '@bohemia/game';
 import type { SceneExpedition, SceneVillage } from '../village-view';
 import {
   caravanHead,
+  caravanTimeline,
   caravanPlan,
-  caravanProgress,
   caravanPoints,
   memberSpot,
   waitingOffset,
@@ -124,6 +124,9 @@ export function funeralFigures(ctx: Context, plan: FuneralPlan): PlannedVillager
   });
 }
 
+/** Klip chůze se v karavaně přehrává nejvýš tolikrát rychleji (svižná chůze, ne běh). */
+const MAX_CLIP_PACE = 1.3;
+
 /** Klip člena karavany na cestě: nosič se zbožím nese, ostatní jdou. */
 export function caravanClip(member: CaravanMember): VillagerClip {
   return member.loaded ? 'carry' : 'walk';
@@ -131,7 +134,7 @@ export function caravanClip(member: CaravanMember): VillagerClip {
 
 /**
  * Karavana výpravy k sousedovi (trade.md – Ve scéně, caravan.ts): jedna skupina po zemské
- * stezce podle postupu výpravy v herním čase – tam nosiči se zbožím (s vozy jen pomocníci, náklad
+ * stezce ve skutečném čase od dne, kdy cesta začala (`window` – okno toho dne) – tam nosiči se zbožím (s vozy jen pomocníci, náklad
  * veze vůz – kreslí village-carts.ts) a lidé, kteří odcházejí k sousedovi; za krajem mapy zmizí
  * a za dny výpravy se objeví na cestě zpátky – nosiči a lidé od souseda (pohlaví a věk z jádra).
  * Před odchodem a po návratu stojí v hloučku u začátku stezky; výjimečně (ves bez dospělých) stojí
@@ -149,7 +152,9 @@ export function caravanFigures(
   const L = path.length;
   const plan = caravanPlan(e);
   const columns = { out: plan.out.length, back: plan.back.length };
-  const daySeconds = window ? Math.max(1, (window.endMs - window.startMs) / 1000) : 86;
+  // ve skutečném čase od dne, kdy cesta začala (caravan.ts) – bez okna se nekreslí
+  if (!window) return [];
+  const timeline = caravanTimeline(e, window, L, columns);
   const [x0, z0] = [points[0]!.x, points[0]!.z];
   const first = unit(points[1]!.x - x0, points[1]!.z - z0);
   const out: PlannedVillager[] = [];
@@ -173,7 +178,7 @@ export function caravanFigures(
   };
   for (const leg of ['out', 'back'] as const) {
     plan[leg].members.forEach((member, index) => {
-      const key = `caravan:${e.id}:${member.key}`;
+      const key = `caravan:${e.id}:${e.startDay ?? e.day}:${member.key}`;
       const person = member.sex !== null;
       const child = person && (member.age ?? 30) < 14;
       const [, role = '', ...rest] = member.key.split(':');
@@ -193,7 +198,7 @@ export function caravanFigures(
       const base = walkSpeed(who.kind, clip, who.scale);
       const pose: PoseFn = (t, _herds, o) => {
         const nowMs = t * 1000 + LIVESTOCK_EPOCH_MS;
-        const head = caravanHead(e, caravanProgress(e, window, nowMs), L, columns);
+        const head = caravanHead(timeline, nowMs, L, columns);
         o.hidden = head.leg !== leg;
         if (o.hidden) {
           o.x = x0;
@@ -219,9 +224,10 @@ export function caravanFigures(
         // vedle osy (pomocník u vozu) – vlevo od směru chůze
         o.x -= o.headingZ * member.side;
         o.z += o.headingX * member.side;
-        const speed = head.perDay / daySeconds;
+        const speed = head.speed;
         o.clip = speed > 0 ? clip : 'idle';
-        o.pace = speed > 0 ? Math.min(3, Math.max(0.6, speed / Math.max(0.1, base))) : 1;
+        o.pace =
+          speed > 0 ? Math.min(MAX_CLIP_PACE, Math.max(0.6, speed / Math.max(0.1, base))) : 1;
         o.stage = leg;
         return o;
       };

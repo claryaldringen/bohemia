@@ -645,6 +645,7 @@ export class VillageVillagers {
     const t = villagerSeconds(nowMs);
     const plan = planVillagersWithCrew(village, ground, {
       seed: villageSeed(village),
+      nowMs,
       // pasák jen u stád na pastvě – ta jsou v plánu napřed (livestock-placement.ts)
       herds: herds.filter((h) => h.tended !== false).length,
       paths: this.paths,
