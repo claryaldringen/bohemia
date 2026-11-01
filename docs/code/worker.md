@@ -31,12 +31,23 @@ vstupní bod (composition root) jako web – žádná herní logika, jen plánov
 
 ## Ukončení
 
-První SIGINT / SIGTERM dokončí rozpočítanou dávku, zavře pooly (zámky padnou se spojením) a vypíše
+První SIGINT / SIGTERM dokončí rozpočítanou dávku (hráče; `shouldStop` se kontroluje mezi hráči kola), zavře pooly (zámky padnou se spojením) a vypíše
 „worker skončil“; druhý signál skončí hned. Jedno Ctrl + C v terminálu přijde víckrát (dostane ho
 celá skupina procesů a `tsx` ho přepošle) – signál do `REPEATED_SIGNAL_MS` (1 s) po prvním patří
 témuž stisku a ignoruje se. Pod `npm run dev` ukončuje dítě i `tsx watch`: na opakovaný signál ho
 po chvíli zabije („Force killing…“) – ověřeno 1. 11. 2026, worker stihl dávku dokončit a vypsat
 „worker skončil“; nedokončená dávka by se jen zahodila (zámek padne se spojením).
+
+## Výjimky a omezení
+
+- **Sousedé na mapě s víc vsemi:** ve workeru vidí ves při dávce sousedy tak staré, jak jsou uložení
+  (až o dávku starší); ves počítaná po sousedovi ho vidí dál než sebe. Platí „výsledek na kouscích
+  nezávisí“ jen pro ves samotnou na mapě. Web dopočte sousedy do dneška (`mustAdvanceNow`).
+- **Konec rodu ve workeru:** `closeDynastyDay` se zjišťuje ke dni dávky `T`, ne ke dni hráče –
+  výjimka z „po kouscích“ vedle převodů `withPenGrace` / `withThreshingGrace`. Konec hry je stejný.
+- **Chyba jedné vsi** nezastaví ostatní vsi hráče; hráč se označí `failed` (odklad) až na konci.
+- Hlavní pool má posluchač `error` (restart Postgresu worker neshodí); web čeká na zámek v DB
+  nejvýš `WEB_LOCK_WAIT_MS` (45 s), pak chyba.
 
 ## Testy
 

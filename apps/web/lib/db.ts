@@ -1,7 +1,7 @@
 import 'server-only';
 import { createDatabase, databaseUrl, type Database } from '@bohemia/db';
 import type { PlayerLock } from '@bohemia/game';
-import { WEB_LOCK_POOL_SIZE, createPlayerLocks } from '@bohemia/server';
+import { WEB_LOCK_POOL_SIZE, WEB_LOCK_WAIT_MS, createPlayerLocks } from '@bohemia/server';
 
 // V dev režimu Next při každé změně kódu moduly znovu načte – pooly sdílíme přes globalThis,
 // jinak by každé načtení otevřelo nová spojení do databáze. Pool zámků hráčů zavře až konec
@@ -21,5 +21,6 @@ export function getPlayerLock(): PlayerLock {
   return (globalForDb.bohemiaLocks ??= createPlayerLocks(
     databaseUrl(process.env),
     WEB_LOCK_POOL_SIZE,
+    { waitTimeoutMs: WEB_LOCK_WAIT_MS },
   ).locks);
 }

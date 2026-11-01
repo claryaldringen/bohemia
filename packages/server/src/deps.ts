@@ -6,6 +6,7 @@ import {
   createVillageRepository,
   createWorldQueue,
   type Database,
+  type PlayerLockOptions,
 } from '@bohemia/db';
 import type {
   LandscapeSource,
@@ -35,14 +36,20 @@ export function seeds(): { nextSeed: () => number } {
  */
 export const WEB_LOCK_POOL_SIZE = 20;
 export const WORKER_LOCK_POOL_SIZE = 2;
+/**
+ * Nejdéle čeká web na zámek hráče v DB (ms) – drží ho nejvýš jedna dávka workeru; zaseknutý nebo
+ * pozastavený worker tak požadavek hráče nezablokuje natrvalo (chyba „zkus znovu“).
+ */
+export const WEB_LOCK_WAIT_MS = 45_000;
 
 /** Zámek hráče v Postgresu s vlastním malým poolem spojení; `close` pool zavře (konec procesu). */
 export function createPlayerLocks(
   url: string,
   max: number,
+  options: PlayerLockOptions = {},
 ): { locks: PlayerLock; close: () => Promise<void> } {
   const pool = createLockPool(url, max);
-  return { locks: createPlayerLock(pool), close: () => pool.end() };
+  return { locks: createPlayerLock(pool, options), close: () => pool.end() };
 }
 
 /** Závislosti use-casů nad vsemi hráče: sídla, vsi, mezipaměť krajin, přestávky, seedy a zámek. */

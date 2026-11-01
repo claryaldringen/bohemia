@@ -30,6 +30,10 @@ async function main(): Promise<void> {
   const log = createLogger(config.logLevel);
 
   const db = createDatabase(config.databaseUrl);
+  // restart Postgresu zahodí nečinná spojení – worker se nesmí shodit, pool se připojí znovu
+  db.$client.on('error', (error: Error) => {
+    log.warn(`spojení s databází spadlo, zkusí se znovu: ${error.message}`);
+  });
   const { locks, close: closeLocks } = createPlayerLocks(config.databaseUrl, WORKER_LOCK_POOL_SIZE);
   const gameDeps = createGameDeps(db, {
     landscapes: cachedLandscapes(config.landscapes),

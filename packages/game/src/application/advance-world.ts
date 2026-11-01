@@ -11,7 +11,11 @@ import type { WorldQueue } from './world-queue';
 // Krok světa (docs/superpowers/plans/2026-10-31-worker.md – 1. Co worker dělá): worker posouvá vsi
 // hráčů nejvíc pozadu po dávkách do jejich dneška, i když nikdo není online. Zámek hráče jen
 // zkouší (`tryRun`) – když ho drží web (hráč právě jedná), hráče přeskočí; web si stejně dopočte,
-// co potřebuje. Výsledek vsi na dávkách nezávisí (determinismus „po kouscích“).
+// co potřebuje. Výsledek jedné vsi na dávkách nezávisí (determinismus „po kouscích“); to platí
+// pro ves, která je na mapě sama. Na mapě s víc vsemi vidí ves při dávce sousedy tak staré, jak
+// jsou uložení (až `stepDays` dní starší než ona; ves počítaná po sousedovi vidí souseda dál než
+// sebe) – stejně jako dřív, kdy soused byl tak starý, jak dávno hráč hrál. Výjimka z „po kouscích“:
+// konec rodu zjišťuje `closeDynastyDay` ke dni dávky, ne ke dni hráče.
 
 /**
  * Nejvýš o tolik herních dní posune worker vsi hráče v jedné dávce (plán – 1. Co worker dělá:
@@ -98,33 +102,49 @@ export async function advancePlayer(
     step.targetDay = target;
     // záznamy dopočtené v této dávce – závěrečné zjištění konce rodu je nenačítá znovu
     const advanced = new Map<string, VillageRecord>();
+    let failure: { villageId: string; cause: unknown } | null = null;
     for (const stamp of awake) {
       if (stamp.lastDay >= target) continue;
       villageId = stamp.id;
-      const settlement = settlements.find((s) => s.id === stamp.settlementId);
-      if (!settlement) continue;
-      const landscape = settlementLandscape(settlement, deps.landscapes);
-      const held = await deps.locks.tryRun(input.playerId, async () => {
-        const village = await loadVillage(deps, { villageId: stamp.id, today: target, landscape });
-        if (!village || pendingStewardDepartures(village.state).length === 0) {
-          return { village, founded: 0 };
-        }
-        const founded = await settleStewardDeparturesSafely(deps, {
-          playerId: input.playerId,
-          villageId: stamp.id,
+      try {
+        const settlement = settlements.find((s) => s.id === stamp.settlementId);
+        if (!settlement) continue;
+        const landscape = settlementLandscape(settlement, deps.landscapes);
+        const held = await deps.locks.tryRun(input.playerId, async () => {
+          const village = await loadVillage(deps, {
+            villageId: stamp.id,
+            today: target,
+            landscape,
+          });
+          if (!village || pendingStewardDepartures(village.state).length === 0) {
+            return { village, founded: 0 };
+          }
+          const founded = await settleStewardDeparturesSafely(deps, {
+            playerId: input.playerId,
+            villageId: stamp.id,
+          });
+          return { village, founded: founded.length };
         });
-        return { village, founded: founded.length };
-      });
-      if (!held.ran) {
-        step.outcome = 'busy';
-        return finish();
+        if (!held.ran) {
+          step.outcome = 'busy';
+          return finish();
+        }
+        const { village, founded } = held.value;
+        if (!village) continue; // ves mezitím zmizela (restart hry)
+        advanced.set(village.id, village);
+        step.villages++;
+        step.days += Math.max(0, village.state.lastDay - stamp.lastDay);
+        step.founded += founded;
+      } catch (error) {
+        // chyba jedné vsi nezastaví ostatní vsi hráče (výsledek vsí na pořadí nezávisí) – hráč
+        // se označí `failed` na konci, první chyba se zapíše
+        failure ??= { villageId: stamp.id, cause: error };
       }
-      const { village, founded } = held.value;
-      if (!village) continue; // ves mezitím zmizela (restart hry)
-      advanced.set(village.id, village);
-      step.villages++;
-      step.days += Math.max(0, village.state.lastDay - stamp.lastDay);
-      step.founded += founded;
+    }
+    if (failure) {
+      step.outcome = 'failed';
+      step.error = failure;
+      return finish();
     }
     villageId = null;
     if (advanced.size === 0) return finish();
@@ -189,6 +209,8 @@ export interface WorldStepInput {
    * přeskočí. Odklady drží volající (worker) v mapě se svými hodinami – use-case hodiny nezná.
    */
   skip?: ReadonlySet<string>;
+  /** Vrátí true, když se má kolo ukončit (signál workeru) – kontroluje se mezi hráči. */
+  shouldStop?: () => boolean;
 }
 
 /** Souhrn kola. */
@@ -219,6 +241,7 @@ export async function advanceWorldStep(
   const due = queue.filter((p) => !skip.has(p.playerId)).slice(0, input.limit);
   const players: PlayerStep[] = [];
   for (const player of due) {
+    if (input.shouldStop?.()) break;
     players.push(
       await advancePlayer(deps, {
         playerId: player.playerId,

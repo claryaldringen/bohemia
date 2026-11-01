@@ -35,6 +35,20 @@ export function lagsBehindWorker(
   return !stamp.asleep && stamp.lastDay < today - WORKER_LAG_DAYS;
 }
 
+/**
+ * Web dopočte ves do dneška, když je zobrazená, leží na téže mapě (sídle) jako zobrazená – kontrola
+ * umístění při akci a nabídka panelu musí vidět sousedy aktuální – nebo zaostává za workerem.
+ */
+export function mustAdvanceNow(
+  stamp: Pick<VillageStamp, 'id' | 'settlementId' | 'lastDay' | 'asleep'>,
+  shown: Pick<VillageStamp, 'id' | 'settlementId'> | undefined,
+  today: number,
+): boolean {
+  if (stamp.id === shown?.id) return true;
+  if (stamp.asleep) return false;
+  return stamp.settlementId === shown?.settlementId || stamp.lastDay < today - WORKER_LAG_DAYS;
+}
+
 export interface DynastyForVillageInput extends DynastyInput {
   /** Ves, na kterou se hráč dívá (nebo v ní jedná) – ta se dopočte do dneška vždy. */
   villageId: string;
@@ -49,7 +63,7 @@ interface Collected {
 
 /**
  * Stav rodu pro pohled a akci na ves `villageId` (plán workeru – 3. Web po workeru): zobrazená ves
- * a každá jiná nespící ves víc než `WORKER_LAG_DAYS` pozadu se dopočtou do dneška (a vybaví se
+ * a každá jiná nespící ves téže mapy nebo víc než `WORKER_LAG_DAYS` pozadu se dopočtou do dneška (a vybaví se
  * jejich odchozí schránky správce – nová ves syna se v přepínači objeví hned), ostatní vsi se
  * vrátí, jak jsou uložené. Konec hry ze vsí dopočtených do různých dnů se ověří plným dopočtem
  * (`advanceDynasty`) – smíšené dny nikdy neukážou falešný konec rodu. Vrací `DynastyStatus` jako
@@ -94,12 +108,13 @@ async function collect(deps: DynastyDeps, input: DynastyForVillageInput): Promis
   const settlements = await deps.settlements.listActive(input.playerId);
   // otisky bez stavu (levný dotaz) – podle `lastDay` a `asleep` se pozná, co dopočítat
   const stamps = await deps.villages.stampsOf(settlements.map((s) => s.id));
+  const shown = stamps.find((v) => v.id === input.villageId);
   const villages: VillageRecord[] = [];
   const advanced = new Set<string>();
   for (const settlement of settlements) {
     const landscape = settlementLandscape(settlement, deps.landscapes);
     for (const stamp of stamps.filter((v) => v.settlementId === settlement.id)) {
-      const advance = stamp.id === input.villageId || lagsBehindWorker(stamp, input.today);
+      const advance = mustAdvanceNow(stamp, shown, input.today);
       const village = advance
         ? await loadVillage(deps, { villageId: stamp.id, today: input.today, landscape })
         : await deps.villages.find(stamp.id);

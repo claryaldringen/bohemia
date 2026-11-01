@@ -21,6 +21,7 @@ export interface LoopDeps {
     stepDays: number;
     limit: number;
     skip: ReadonlySet<string>;
+    shouldStop: () => boolean;
   }) => Promise<WorldStep>;
   now: () => number;
   /** Spánek, který signál ukončení přeruší. */
@@ -38,6 +39,11 @@ export interface Totals {
 }
 
 const SUMMARY_MS = 60_000;
+
+/** Chyba do logu i se stackem (příčina se hledá podle něj). */
+function errorText(error: unknown): string {
+  return error instanceof Error ? (error.stack ?? error.message) : String(error);
+}
 
 function describe(player: PlayerStep): string {
   const base = `hráč ${player.playerId}: ${player.outcome}, ${player.villages} vsí, ${player.days} dní, ${Math.round(player.ms)} ms`;
@@ -84,6 +90,7 @@ export async function runLoop(
           stepDays: options.stepDays,
           limit: options.limit,
           skip: skips.active(nowMs),
+          shouldStop: () => signal.aborted,
         });
         idle = step.idle;
         total.rounds++;
@@ -97,11 +104,7 @@ export async function runLoop(
             window.failures++;
             deps.log.warn(
               `chyba u hráče ${player.playerId} (ves ${player.error?.villageId ?? '-'}): ` +
-                String(
-                  player.error?.cause instanceof Error
-                    ? player.error.cause.message
-                    : player.error?.cause,
-                ),
+                errorText(player.error?.cause),
             );
           } else skips.done(player.playerId);
           deps.log.debug(describe(player));
@@ -117,7 +120,7 @@ export async function runLoop(
       } catch (error) {
         total.failures++;
         window.failures++;
-        deps.log.warn(`kolo selhalo: ${error instanceof Error ? error.message : String(error)}`);
+        deps.log.warn(`kolo selhalo: ${errorText(error)}`);
       }
     }
     flush(false);

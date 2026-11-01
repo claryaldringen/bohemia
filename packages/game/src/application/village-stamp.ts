@@ -1,4 +1,4 @@
-import { lagsBehindWorker } from './dynasty-for-village';
+import { mustAdvanceNow } from './dynasty-for-village';
 import type { SettlementRepository } from './settlements';
 import type { VillageRepository } from './villages';
 
@@ -41,7 +41,7 @@ export interface CurrentViewStampInput {
 /**
  * Otisk pohledu na ves, jaký by teď vrátil dotaz – bez načtení stavů vsí. Jen když by pohled nic
  * nepočítal (`dynastyForVillage`): vybraná ves je mezi vsemi hráče a je dopočítaná do dneška
- * a žádná jiná ves není víc než `WORKER_LAG_DAYS` pozadu (jinak by je dotaz dopočítal a uložil –
+ * a žádná jiná ves téže mapy není pozadu a žádná ves jiné mapy není víc než `WORKER_LAG_DAYS` pozadu (jinak by je dotaz dopočítal a uložil –
  * otisk se změní); spící vsi se nepočítají. Jinak null (dotaz musí proběhnout celý). Posun
  * ostatních vsí workerem otisk změní (nová verze) – pohled se pošle znovu, zhruba jednou za herní
  * den. Konec rodu ze smíšených dnů (pohled by ho ověřil plným dopočtem) otisk nepozná – uzavře ho
@@ -55,6 +55,12 @@ export async function currentVillageViewStamp(
   const stamps = await deps.villages.stampsOf(settlements.map((s) => s.id));
   const shown = stamps.find((v) => v.id === input.villageId);
   if (!shown || (!shown.asleep && shown.lastDay < input.today)) return null;
-  if (stamps.some((v) => lagsBehindWorker(v, input.today))) return null;
+  if (
+    stamps.some(
+      (v) => !v.asleep && v.lastDay < input.today && mustAdvanceNow(v, shown, input.today),
+    )
+  ) {
+    return null;
+  }
   return villageViewStamp(input.villageId, input.today, stamps);
 }

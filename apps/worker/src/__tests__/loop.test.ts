@@ -108,7 +108,7 @@ describe('runLoop', () => {
     const total = await runLoop(h.deps, options, stop.signal);
     expect(total.failures).toBe(1);
     expect(total.players).toBe(1);
-    expect(h.logs.some((l) => l.includes('kolo selhalo: spojení spadlo'))).toBe(true);
+    expect(h.logs.some((l) => l.includes('kolo selhalo: Error: spojení spadlo'))).toBe(true);
   });
 
   it('když svět neběží, jen spí', async () => {

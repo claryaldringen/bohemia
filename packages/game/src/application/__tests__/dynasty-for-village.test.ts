@@ -125,6 +125,23 @@ describe('dynastyForVillage – web dopočítá jen zobrazenou ves', () => {
     expect(over.deps.villages.records.get(over.otherId)!.state.lastDay).toBe(TODAY);
   });
 
+  it('sousední ves téže mapy se dopočte do dneška i pod mezí (kontrola umístění vidí aktuální stav)', async () => {
+    const settlements = new InMemorySettlements();
+    const villages = new InMemoryVillages();
+    const seat = await settlements.createSeat({
+      ownerId: PLAYER,
+      landscapeSeed: 11,
+      layerVersions: CURRENT_LAYER_VERSIONS,
+    });
+    const a = await villages.add(seat.id, 'Libice', tracked(FAMILY, TODAY - 1));
+    const b = await villages.add(seat.id, 'Paseka', tracked(FAMILY, TODAY - 1));
+    const deps = { settlements, villages, seeds: seeds(), landscapes };
+    const status = await dynastyForVillage(deps, input(a.id));
+    expect(byId(status.villages, a.id).state.lastDay).toBe(TODAY);
+    expect(byId(status.villages, b.id).state.lastDay).toBe(TODAY);
+    expect(villages.records.get(b.id)!.state.lastDay).toBe(TODAY);
+  });
+
   it('zobrazená ves vyjde stejně jako při plném dopočtu (determinismus)', async () => {
     const make = (): ReturnType<typeof world> =>
       world(tracked(FAMILY, TODAY - 7), tracked(FAMILY, TODAY - 2));
