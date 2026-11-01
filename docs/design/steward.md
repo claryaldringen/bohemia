@@ -281,8 +281,9 @@ Kroky 3 a 4 (`domain/village/steward.ts` – `stewardDay`):
   ÷ `FIELD_STORES.balanceYears` ÷ úroda na člověka z „Pole uživí“ – proti „Pole uživí podle dnešní
   půdy“; zakládané díly se počítají jako v oběhu (jinak by správce zakládal, dokud se první pole
   nedostaví).
-- **Blok pole:** volná políčka bloku prvního hospodářství plánu, které jich má aspoň na nejmenší
-  pole (0,1 ha); souvislý výběr od nejbližšího políčka bloku, počet podle chybějících lidí
+- **Blok pole:** volná políčka bloku prvního hospodářství plánu se stojícím domem, pak políčka
+  bloků ostatních hospodářství nejblíž stojícím domům (Pole blízko a podle práce), které má
+  aspoň na nejmenší pole (0,1 ha); souvislý výběr od nejbližšího políčka bloku, počet podle chybějících lidí
   a úrodnosti (lidé na hektar jako „Pole uživí“), nejvýš co unese rozpočet. Neprojde-li, první
   políčko bloku se z plánu zahodí (nejvýš `slotTries` pokusů za den).
 - **Nouze a pole:** pole v Nouzi stejně jako jindy – v rozpočtu práce (ten bere jen volnou práci).
@@ -401,7 +402,8 @@ deterministické funkce (`steward-land.ts`, pod ESLint pravidlem `det-math` jako
   vodu a dřevo za rok + očekávané ztráty záplav a požáru − úroda. Typ krajiny tak nikdo nezadává –
   vyjde z čísel.
 - **Hospodářství jako jednotka:** místo domu (poloha, u polozemnice pozemek a natočení po 15°) +
-  blok čtverců pole kolem něj, velký na domácnost (≈ 6–8 lidí) při úrodnosti bloku; domy na kraji
+  blok čtverců pole kolem něj, velký na to, co domácnost (≈ 6–8 lidí) oseje, nejvýš na její jídlo
+  při úrodnosti bloku (Pole blízko a podle práce); domy na kraji
   bloků, aby úseky vyšly jako lány nebo výseče (holdings.ts).
 - **Rezervy pro růst:** plán je na `STEWARD.planPeople` – víc z dvojnásobku dnešních lidí a toho,
   co území uživí do 800 m –, s místy pro hřbitov a jeho rozšíření, humno, ohrady, sad a dílny.
@@ -453,7 +455,9 @@ stavby), nejvýš jedno pole na den správce.
   lesa pro dřevo. Rozestup 12 m mezi vyklízenými plochami = středy domů ≥ 24,2 m.
 - **Plán na lidi:** dvojnásobek dnešních lidí, aspoň 4 domácnosti po 7 lidech, nejvýš co uživí
   louka území – „víc z“ v textu výš čtu jako dvojnásobek omezený tím, co území uživí. Blok pole
-  domácnosti je její potřeba z pole × oběh × 1,25 (rezerva) při průměrné úrodnosti louky území.
+  domácnosti je menší z toho, co oseje (osev na člověka podle práce × 7 × oběh × 1,25 – Pole
+  blízko a podle práce), a její potřeby z pole × oběh × 1,25 (rezerva) při průměrné úrodnosti
+  louky území.
 - **Území vsi:** do 800 m od středu vsi (dvorec, jinak první obydlí). (Voroného buňka středů vsí
   mapy – zrušeno 1. 11. 2026, jedna ves, jedna mapa.)
 - **Šablony:** shluk = domy nejblíž středu; řadová ves = domy do 100 m od vody od středu do stran
@@ -477,6 +481,48 @@ stavby), nejvýš jedno pole na den správce.
   jen proto, že má méně domů.
 - **Uložení:** blok pole se ukládá jako běhy políček (≈ 0,5 kB plánu na domácnost); plán staršího
   tvaru se zahodí a spočítá znovu.
+
+### Pole blízko a podle práce (návrh Clauda, 1. 11. 2026)
+
+Martin 1. 11. 2026: „Důležitý je správce. Vylepši ho. Měl by přece umět spočítat ideální umístění
+všeho a nejlepší postupy.“ Ves brzdí práce ve špičce setí, ne půda (Model kapacity vsi), ale blok
+domácnosti se dřív počítal podle jídla (9–17 ha na 7 lidí při osevu 0,3–0,4 ha na člověka) a nové
+pole šlo i do bloku hospodářství, jehož dům ještě nestojí – díl pak měří vzdálenost od stávajících
+domů a ta se po založení nemění.
+
+- **Blok domácnosti podle práce:** blok = co domácnost oseje – 7 lidí × osev na člověka podle
+  práce v oknech setí (výhled vsi `laborHa` ÷ lidé vsi, tedy dospělí domácnosti × osev na
+  dospělého při dnešním podílu dospělých) × oběh 3,5 × rezerva 1,25 –, nejvýš kolik potřebuje
+  k jídlu (blok podle úrodnosti jako dřív). Ves samých dospělých, kterou práce nebrzdí, má blok
+  jako dřív; ves s dětmi a málo rukama menší (test: 5 dospělých a 12 dětí – 282 místo 622 políček).
+  Žádné nové číslo.
+- **Nové pole napřed u stojícího domu:** blok prvního hospodářství se stojícím obydlím (v pořadí
+  plánu), které má volná políčka aspoň na nejmenší pole; když bloky stojících domů nestačí,
+  políčka bloků ostatních hospodářství nejblíž stojícím domům (a hospodářství podle nejbližšího
+  z nich). Ves bez stojícího domu jako dřív. Klučení lesa (jen když louka v plánu nestačí) ve
+  stejném pořadí.
+- **Výběr políček bloku zůstává po kole od nejbližšího.** Plán vylepšení navrhoval brát
+  nejhodnotnější volné políčko (`fieldCellValue` – úroda po záplavách, zvěři a počasí na člověkoden
+  založení a práce × příplatek za vzdálenost). Ověřeno na krajinách 1, 13 a 28 (ves se 13 lidmi):
+  - podle hodnoty z celého kruhu 800 m si domy berou tatáž nejlepší políčka – hodnota políčka
+    od vlastního domu 1,23–1,24 místo 1,23–1,32 kg na člověkoden, vzdálenost 251–340 m místo
+    216–256 m, o 50–170 % víc běhů v uloženém plánu (nad 1 kB na domácnost) a vyšší cena šablony;
+  - blok rostoucí od okraje k nejhodnotnějšímu sousedovi – 270–392 m, hodnota 1,15–1,23;
+  - podle hodnoty jen ve vlastní Voroného buňce domu – hodnota stejná (±0,3 %), o 4–10 m dál.
+
+  Úrodnost i ztráty se mění plynule a příplatek za chůzi je jen 1 % na 10 m, takže nejbližší
+  políčko je skoro vždy i nejhodnotnější; nejhorší políčka už vylučuje práh poloviny mediánu louky
+  (`fieldValueFloor`). Hodnota políčka dál rozhoduje šablonu (cena rozvrhu) a „je kam pole
+  rozšířit“.
+
+- **Verze pravidel plánu** (`STEWARD_PLAN_VERSION` = 2, `steward.plan.version`): hotový plán
+  starší verze se přepočítá vedle platného (jako po 5 letech) – správce mezitím staví podle
+  starého; rozpracovaný přepočet starší verze se zahodí a začne znovu. Převod jednou
+  a idempotentně, po kouscích dopočtu stejně (test).
+- **Rychlé měření** (6 krajin × 25 let, `measure-steward.ts`, před → po): lidé rodu 27,7 → 30,0,
+  hladové dny na rod 2 871 → 2 534, pojistka 0,42 → 0,43, využití oběhu 0,58 → 0,64 (cíl 0,8 dál
+  mimo – vsi v pasti osiva), založení + vracení přílohu 39 → 38 % polní práce, chůze vážená osevem
+  237 → 232 m (vzdálenost dílů 263 m), čas správce 3,9 → 3,5 %, nejdražší den 143 → 127 ms.
 
 ## Přestavba vlastních staveb (Martin 30. 10. 2026 – „Přestaví, ne hráčovo“; podrobnosti návrh Clauda)
 
@@ -730,6 +776,7 @@ stavby), nejvýš jedno pole na den správce.
 | Nouze jen při rostoucím hladu; kroky Růstu i v Obnově z poloviny rozpočtu (sad jen první); syn z pasti po roce | návrh Clauda (oprava 31. 10. 2026)              |
 | Model kapacity vsi: cíl polí nejvýš podle práce v oknech setí, „je kam“ a přelidnění podle trvalého hrdla      | návrh Clauda (Martin 1. 11. 2026: „Vylepši ho“) |
 | Syn odchází jen se životaschopnou výpravou (pár, ≥ 4 dospělí, plný náklad jídla a osiva, pojistka matky ≥ 0,5) | návrh Clauda (Martin 1. 11. 2026: „Vylepši ho“) |
+| Blok domácnosti podle práce (nejvýš podle jídla), pole napřed u stojícího domu, políčka dál od nejbližšího     | návrh Clauda (Martin 1. 11. 2026: „Vylepši ho“) |
 
 ## Otevřené otázky
 

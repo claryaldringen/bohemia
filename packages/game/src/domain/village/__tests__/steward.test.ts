@@ -32,6 +32,7 @@ import {
   type StewardContext,
 } from '../steward';
 import { newSteward } from '../steward-state';
+import { fieldCells, takenTiles } from '../steward-land';
 import { farmCells, planSettlement } from '../steward-plan';
 import type { Dwelling, VillageState } from '../types';
 import { couple, kin } from './kin-fixtures';
@@ -277,6 +278,37 @@ describe('den správce – režim a pole', () => {
     s.commonLaborHistory = Array.from({ length: 30 }, () => 3);
     const late = Math.floor(dayIndexOf({ year: 503, month: 10, day: 20 }) / 10) * 10;
     expect(chooseDwellingType(s, contextOf(late))).toBe('zemnice');
+  });
+
+  it('nové pole napřed u hospodářství se stojícím domem, pak nejblíž stojícím domům', () => {
+    const s = waitingVillage(SEPT);
+    const plan = s.steward!.plan!;
+    const home = tileOf(s.dwellings[0]!.position);
+    const housed = plan.farms.findIndex((f) => f.house === home);
+    expect(housed).toBeGreaterThanOrEqual(0);
+    // hospodářství se stojícím domem až poslední v plánu – blok je stejně jeho
+    const reordered = [...plan.farms.filter((_, i) => i !== housed), plan.farms[housed]!];
+    const moved = { ...s, steward: { ...s.steward!, plan: { ...plan, farms: reordered } } };
+    expect(nextFieldBlock(moved, contextOf(SEPT), 3, 10_000)?.farm).toBe(reordered.length - 1);
+    // jeho blok je plný – políčko nejblíž stojícímu domu z bloků ostatních hospodářství
+    const full = new Set(farmCells(plan.farms[housed]!, landscape.size));
+    const block = nextFieldBlock(s, contextOf(SEPT), 3, 10_000, full);
+    expect(block).not.toBeNull();
+    expect(block!.farm).not.toBe(housed);
+    const cells = fieldCells(landscape, obstacles);
+    const taken = takenTiles(s, SEPT, landscape);
+    const d2 = (t: number): number => {
+      const dx = (t % landscape.size) - (home % landscape.size);
+      const dy = Math.floor(t / landscape.size) - Math.floor(home / landscape.size);
+      return dx * dx + dy * dy;
+    };
+    const candidates = plan.farms
+      .filter((_, i) => i !== housed)
+      .flatMap((f) => farmCells(f, landscape.size))
+      .filter(
+        (t) => !taken[t] && cells.kg[t]! > 0 && landscape.surface[t] !== SURFACE_CODES.forest,
+      );
+    expect(d2(block!.cells[0]!)).toBe(Math.min(...candidates.map(d2)));
   });
 
   it('klučení lesa – les u bloku jen v okně lesa, když louka v plánu nestačí', () => {

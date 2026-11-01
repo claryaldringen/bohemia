@@ -13,6 +13,8 @@ import { foundVillage } from '../actions';
 import { applyBuildIntent } from '../build-intent';
 import { streamHeights } from '../part-protection';
 import { waterDistanceM } from '../placement-squares';
+import { ROTATION_FACTOR } from '../field-capacity';
+import { NO_CRAFTS } from '../productivity';
 import { CEMETERY_DISTANCE_M } from '../rules-people';
 import { STEWARD } from '../rules-steward';
 import { newSteward } from '../steward-state';
@@ -24,7 +26,9 @@ import {
   needsReplan,
   planSettlement,
   planStamp,
+  STEWARD_PLAN_VERSION,
 } from '../steward-plan';
+import { stewardOutlook } from '../steward-outlook';
 import type { Person, StewardFarm, StewardPlan, StewardSlotKind, VillageState } from '../types';
 import { makeLandscape } from './placement-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
@@ -193,6 +197,67 @@ describe('kdy se plán přepočítá', () => {
     expect(planned(again).startDay).toBe(DAY + 30);
     for (const f of planned(again).farms) expect(Array.isArray(f.runs)).toBe(true);
     expect(again.steward?.nextPlan).toBeUndefined();
+  });
+});
+
+describe('pole blízko a podle práce (verze pravidel rozvrhu)', () => {
+  const done = planOf(village(plain, { x: 64, y: 64 }), plain, obstaclesOf(plain));
+
+  it('nový plán nese verzi pravidel; hotový plán starší verze se přepočítá vedle platného', () => {
+    expect(planned(done).version).toBe(STEWARD_PLAN_VERSION);
+    const oldPlan = { ...planned(done) };
+    delete oldPlan.version;
+    const old = { ...done, steward: { ...done.steward!, plan: oldPlan } };
+    expect(needsReplan(old, DAY + 30)).toBe(true);
+    const run = (roundTrip: boolean): VillageState => {
+      let s: VillageState = old;
+      for (let k = 0; k < 20; k++) {
+        s = planSettlement(s, DAY + 30 + k, plain, obstaclesOf(plain));
+        if (roundTrip) s = JSON.parse(JSON.stringify(s)) as VillageState;
+        // starý plán platí, dokud nový není hotový
+        if (s.steward?.nextPlan) expect(planned(s)).toEqual(oldPlan);
+        else break;
+      }
+      return s;
+    };
+    const after = run(false);
+    expect(planned(after).version).toBe(STEWARD_PLAN_VERSION);
+    expect(planned(after).startDay).toBe(DAY + 30);
+    expect(needsReplan(after, DAY + 60)).toBe(false);
+    // po kouscích s uložením stavu vyjde bit po bitu stejně; převod je jednorázový
+    expect(JSON.stringify(run(true).steward)).toBe(JSON.stringify(after.steward));
+    expect(planSettlement(after, DAY + 60, plain, obstaclesOf(plain))).toBe(after);
+  });
+
+  it('rozpracovaný přepočet starší verze se zahodí a začne znovu', () => {
+    const day = DAY + (STEWARD.replanYears + 1) * YEAR;
+    const started = planSettlement(done, day, plain, obstaclesOf(plain));
+    const stale = { ...started.steward!.nextPlan! };
+    delete stale.version;
+    const s = { ...started, steward: { ...started.steward!, nextPlan: stale } };
+    expect(needsReplan(s, day + 1)).toBe(true);
+    const next = planSettlement(s, day + 1, plain, obstaclesOf(plain));
+    expect(next.steward?.nextPlan?.version).toBe(STEWARD_PLAN_VERSION);
+    expect(next.steward?.nextPlan?.startDay).toBe(day + 1);
+  });
+
+  it('blok domácnosti nepřesáhne, co domácnost oseje – ves s dětmi má menší blok', () => {
+    const ha = (plain.cellSizeM * plain.cellSizeM) / 10_000;
+    const adults = village(plain, { x: 64, y: 64 }, 12);
+    const first = adults.people[0]!;
+    const kids: Person[] = adults.people.map((p, k) =>
+      k < 5 ? p : { ...first, id: p.id, bornDay: DAY - 3 * YEAR },
+    );
+    const withKids = { ...adults, people: kids };
+    const big = planned(planOf(adults, plain, obstaclesOf(plain)));
+    const small = planned(planOf(withKids, plain, obstaclesOf(plain)));
+    const laborHa = stewardOutlook(withKids, DAY, NO_CRAFTS).laborHa;
+    const sownPerPerson = laborHa / withKids.people.length;
+    const laborCells = Math.ceil(
+      (STEWARD.householdPeople * sownPerPerson * ROTATION_FACTOR * STEWARD.blockReserve) / ha,
+    );
+    expect(small.blockCells).toBeLessThanOrEqual(laborCells);
+    expect(small.blockCells).toBeLessThan(big.blockCells);
   });
 });
 
