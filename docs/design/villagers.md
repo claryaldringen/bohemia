@@ -554,6 +554,9 @@ jádro je dál počítá po dnech. Čísla a podrobnosti jsou návrh Clauda:
   prohlížeč **jen pro postavu v záběru nebo vybranou**, jednou za činnost, a postava po ní jde
   tak, aby dorazila ve stejný čas (tempo chůze o pár procent jinak, ať nohy neklouzají – jako dnes
   po vyšlapané pěšině).
+- **Kudy:** délka i přesná trasa jsou z téhož modelu jako odhad simulace – kratší z rovně
+  a „rovně k síti, po pěšinách a pevných cestách, rovně k cíli“ (paths.md – Odhad vzdáleností,
+  kudy chodí postavy ve scéně, 1. 11. 2026); trasa je cena délky činnosti.
 - Trasy si prohlížeč pamatuje a přepočítá je **jen při postavení nebo zániku stavby**
   (optimalizace tras – Martin 31. 10. 2026); rozběhnutá činnost jde po své trase dál.
 
@@ -785,7 +788,7 @@ a `lib/village-view.ts`, rozvrh je znovu nedefinuje – `PersonJob`, `LaborActiv
    `walkThen` při přeplánování. Instance se dál přidělují při přeplánování (postavy dne se mění).
 4. **Cesta na pole a domů jako součást práce** (Martin 31. 10. 2026: „Ano“; `villager-plan-traffic.ts` –
    `trafficFigures` bez druhu „na pole a zpět“, `villager-plan-fields.ts` – `fieldRows`,
-   `carriers` s příchodem ode dveří po `fieldPath`; `road-traffic.ts` –
+   `carriers` s příchodem ode dveří po `walkRoute`; `road-traffic.ts` –
    `FIELD_TRIPS_PER_MAN_DAY`), texty v Provozu na cestách. Vozy po svozu snopů jedou k humnu
    (Zjednodušení a co chybí).
    **Implementováno 31. 10. 2026:** proud „na pole a zpět“ zanikl (`TRAFFIC_LOOK.field`,
@@ -824,8 +827,8 @@ a `lib/village-view.ts`, rozvrh je znovu nedefinuje – `PersonJob`, `LaborActiv
    a z povodně domů = odhad po síti pěšin (`VillagerPaths.walkLength` v `path-router.ts` –
    `walkGraph` a `walkingDistances` z jádra nad osami uložených tras plnou silou pěšiny;
    `Timetable.setEstimate`) ÷ tempo chůze – stejné časy ve všech prohlížečích i mimo záběr; bez
-   sítě rovně. Přesná trasa (`walkRoute` – po pěšinách, kolem domů, po suchu, na vzdálený díl
-   `fieldPath`; `planVillagersWithCrew` → `walk`, `Timetable.setRouter`) se hledá **až když se
+   sítě rovně. Přesná trasa (`walkRoute` – týmž modelem jako odhad po pěšinách a pevných
+   cestách, kolem domů, po suchu – paths.md, Odhad vzdáleností; `planVillagersWithCrew` → `walk`, `Timetable.setRouter`) se hledá **až když se
    póza kreslí** (ves v záběru, vybraná postava), jednou za úsek činnosti (`activityPose` –
    `PoseWalk`); postava po ní dojde v čase z odhadu, tempo nohou podle poměru délky trasy a času
    (0,6–1,8×). Návrh Clauda – zjednodušení: odhad zatím bez půdy krajiny (mokřina, les, brod

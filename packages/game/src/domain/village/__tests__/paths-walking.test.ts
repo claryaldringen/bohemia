@@ -24,12 +24,13 @@ import {
   walkGraph,
   walkGroundOf,
   walkingDistances,
+  walkingRoute,
   waterWalkDistance,
   withFieldWalk,
 } from '../paths/walking';
 import { waterFetchingLabor } from '../labor';
 import { isCropPart, partWalkSpeed, pathCostFactor, roadWalkSpeed } from '../paths/walk-speed';
-import { FIELD_WALK, PATH_WALK } from '../rules';
+import { FIELD_WALK, PATH_WALK, ROAD_WALK } from '../rules';
 import { advanceVillage } from '../simulate';
 import type { Person, VillageState } from '../types';
 import { partWork } from '../year-plan';
@@ -467,5 +468,64 @@ describe('walkingDistances – ořezávání podle dolní meze', () => {
     );
     const fast = walkingDistances(graph, origins, targets, ground);
     fast.forEach((d, k) => expect(d).toBeCloseTo(brute[k]!, 9));
+  });
+});
+
+describe('walkingRoute – trasa chodce týmž modelem jako odhad', () => {
+  // pevná cesta oklikou: z (0, 0) na sever k (0, 60), na východ k (200, 60) a na jih k (200, 0)
+  const detour = {
+    points: [
+      { x: 0, z: 0 },
+      { x: 0, z: 60 },
+      { x: 200, z: 60 },
+      { x: 200, z: 0 },
+    ],
+    grade: 'improved' as const,
+  };
+
+  it('cena je přesně odhad simulace (walkingDistances) – s poli, pěšinami i cestou', () => {
+    const base = { terrain: pathTestTerrain() };
+    const ground = withFieldWalk(base, [
+      {
+        id: 1,
+        parts: [-37.5, -22.5, -7.5, 7.5, 22.5].flatMap((x) =>
+          [22.5, 37.5, 52.5].map((z) => ({ ...part(x, z, 'sown'), look: 'green' as const })),
+        ),
+      },
+    ]);
+    const lines = [line(-100, 100, 1, 10), line(-60, 60, 0.5, 65), line(-120, -20, 0.8, -40)];
+    const graph = walkGraph(lines, { roads: [detour], ground });
+    for (let k = 0; k < 30; k++) {
+      const a = { x: -110 + ((k * 41) % 220), z: -100 + ((k * 29) % 190) };
+      const b = { x: -110 + ((k * 37) % 220), z: -100 + ((k * 53) % 190) };
+      const found = walkingRoute(graph, a, b, ground);
+      expect(found.cost).toBeCloseTo(walkingDistances(graph, [a], [b], ground)[0]!, 9);
+      expect(found.points[0]).toEqual(a);
+      expect(found.points[found.points.length - 1]).toEqual(b);
+      expect(found.costs).toHaveLength(found.points.length - 1);
+      expect(found.costs.reduce((s, c) => s + c, 0)).toBeCloseTo(found.cost, 6);
+    }
+  });
+
+  it('po cestě oklikou, když je po ní chůze kratší než rovně (jinak rovně)', () => {
+    const graph = walkGraph([], { roads: [detour] });
+    // 200 m rovně proti 320 m cesty rychlostí 1,7 (≈ 188 m chůze) – po cestě přes oba rohy
+    const far = walkingRoute(graph, { x: 0, z: 0 }, { x: 200, z: 0 });
+    expect(far.cost).toBeCloseTo(320 / ROAD_WALK.speed.improved, 6);
+    expect(far.points.map((p) => [p.x, p.z])).toEqual([
+      [0, 0],
+      [0, 0],
+      [0, 60],
+      [200, 60],
+      [200, 0],
+      [200, 0],
+    ]);
+    // krátká cesta od cesty: rovně je kratší než k ní, po ní a zpět
+    const near = walkingRoute(graph, { x: 30, z: 0 }, { x: 60, z: 0 });
+    expect(near.points).toEqual([
+      { x: 30, z: 0 },
+      { x: 60, z: 0 },
+    ]);
+    expect(near.cost).toBeCloseTo(30, 9);
   });
 });

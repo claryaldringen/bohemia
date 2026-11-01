@@ -11,6 +11,7 @@ import {
 import type { LaborTarget } from '../village-view';
 import { chickenBox } from './livestock-placement';
 import { localToWorld } from './village-layout';
+import { WALK_PACE_MAX } from './path-router';
 import { route, stand, type PoseFn, type Route, type VillagerClip } from './villager-motion';
 import {
   HOUSE_MARGIN_M,
@@ -294,20 +295,6 @@ export function towards(center: { x: number; z: number }, to: Point, distance: n
   return { x: center.x + (dx / len) * distance, z: center.z + (dz / len) * distance };
 }
 
-/** Jak daleko od pěšiny smí být díl pole, na který se jde po pěšině a pak přes pole (m). */
-export const FIELD_ENTRY_M = 260;
-
-/**
- * Cesta na díl daleko v poli (Vlkov – pole přes 40 ha, pěšina dne končí na kraji pole u vsi): po
- * pěšinách k nejbližšímu bodu pěšiny u dílu a od něj rovně přes pole (pole lidi nezdržuje –
- * paths.md); rovný kus musí vést po suchu. Bez pěšin nebo přes vodu null.
- */
-export function fieldPath(ctx: Context, door: Point, edge: Point, homeId?: number): Route | null {
-  const along = ctx.paths?.route(door, edge, FIELD_ENTRY_M, homeId);
-  if (!along || along.points.length < 2 || !trafficRouteOk(ctx, along.points)) return null;
-  return route(along.points, along.pace);
-}
-
 /** O kolik metrů smí trasa po pěšinách zasáhnout do obdélníku domu, pozemku nebo ohrady. */
 export const ROUTE_HOUSE_SLACK_M = 1.5;
 
@@ -362,8 +349,22 @@ export function squareEdge(square: Square, p: Point): Point {
 }
 
 /**
- * Trasa z `a` do `b` po suchu, která obchází domy: když úsečka protne dům, vloží se bod
- * stranou od domu (až třikrát). Když trasa vede vodou, hrobem nebo domem, null.
+ * O kolik smí být chůze po uložené trasě domácnosti delší než nejkratší chůze podle odhadu
+ * simulace (`VillagerPaths.walkLength`), aby po ní postava ještě šla – trasa domácnosti má
+ * přednost, jen když je skoro stejně dobrá (návrh Clauda 1. 11. 2026; jen vzhled).
+ */
+export const STORED_ROUTE_SLACK = 0.1;
+
+/**
+ * Trasa chodce z `a` do `b` (paths.md – Odhad vzdáleností, kudy chodí postavy ve scéně) týmž
+ * modelem jako odhad simulace: kratší z „rovně“ a „rovně k síti, po pěšinách a pevných cestách
+ * a rovně k cíli“ (`VillagerPaths.network`). Uložená trasa domácnosti `homeId` (nebo jiná), která
+ * začíná u `a` a končí u `b`, má přednost, když je chůze po ní nejvýš o STORED_ROUTE_SLACK delší
+ * a v čase rozvrhu se po ní jde nejvýš WALK_PACE_MAX× přirozenou chůzí.
+ * Trasa po síti i uložená musí projít (`pathRouteOk` – odbočky po suchu mimo hroby, celá mimo
+ * domy a ploty); rovně se po suchu obchází domy (`straightRoute`). Když neprojde nic z toho,
+ * uložená trasa i delší, pak trasa po síti s mírnějším měřítkem provozu (`trafficRouteOk` – roh
+ * domu, ploty ohrad ne), jinak null (voda, hrob, dům).
  */
 export function walkRoute(
   ctx: Pick<Context, 'houses' | 'ground' | 'graves'> & { paths?: VillagerPaths | null },
@@ -371,10 +372,49 @@ export function walkRoute(
   b: Point,
   homeId?: number,
 ): Route | null {
-  const along = ctx.paths?.route(a, b, undefined, homeId);
-  if (along && along.points.length >= 2 && pathRouteOk(ctx, along.points)) {
-    return route(along.points, along.pace);
+  const paths = ctx.paths;
+  const along = paths?.route(a, b, undefined, homeId);
+  const stored =
+    along && along.points.length >= 2 && pathRouteOk(ctx, along.points)
+      ? route(along.points, along.pace)
+      : null;
+  // délka chůze nejkratší trasy pro rozvrh – po uložené trasě v témže čase postava nesmí jít
+  // rychleji než WALK_PACE_MAX (path-router.ts)
+  const best = paths?.walkLength?.(a, b);
+  if (
+    stored &&
+    (best === undefined ||
+      (walkOf(stored) <= best * (1 + STORED_ROUTE_SLACK) && stored.length <= best * WALK_PACE_MAX))
+  ) {
+    return stored;
   }
+  const net = paths?.network?.(a, b) ?? null;
+  if (net && net.points.length >= 2 && pathRouteOk(ctx, net.points)) {
+    return route(net.points, net.pace);
+  }
+  const straight = straightRoute(ctx, a, b);
+  if (straight) return straight;
+  if (stored) return stored;
+  if (net && net.points.length >= 2 && trafficRouteOk(ctx, net.points)) {
+    return route(net.points, net.pace);
+  }
+  return null;
+}
+
+/** Délka chůze trasy (s tempem úseků – po pěšině kratší). */
+function walkOf(r: Route): number {
+  return r.walkLength ?? r.length;
+}
+
+/**
+ * Trasa z `a` do `b` rovně po suchu, která obchází domy: když úsečka protne dům, vloží se bod
+ * stranou od domu (až třikrát). Když trasa vede vodou, hrobem nebo domem, null.
+ */
+export function straightRoute(
+  ctx: Pick<Context, 'houses' | 'ground' | 'graves'>,
+  a: Point,
+  b: Point,
+): Route | null {
   let points: Point[] = [a, b];
   for (let pass = 0; pass < 4; pass++) {
     const next: Point[] = [points[0]!];

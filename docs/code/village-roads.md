@@ -80,10 +80,23 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
   ní jasně výraznější. Sníh přes `applySeasonGround` – materiály pěšin a cest zvlášť
   (`decalMaterial(group, kind)`, `SNOW`: pěšina dne 0,3, ať stopa ve sněhu trochu prosvítá, cesta
   0,55). Pěšiny dne stromy nemají (stromy jsou jen u pevných cest – níž).
-  Postavy: `path-router.ts` – `routeWalker(routes, cellM)` (osa uložené trasy z `routeLine`, tempo
-  `PATH_WALK`; trasa od brány domu k cíli nebo obráceně; bez hledání cesty; `VillagePaths` ho staví
-  při změně klíče tras, bez tras `paths()` = null a postavy jdou krátkým pohybem) → `VillagerPaths.route` →
-  `route(points, pace)` – `shuttle` jde po pěšině rychleji. Vývojová stránka: tlačítka
+  Postavy (paths.md – Odhad vzdáleností, kudy chodí postavy ve scéně): `path-router.ts` –
+  `routeWalker(routes, cellM, { lines, roads, ground })`: `route` = uložená trasa od brány domu
+  k cíli nebo obráceně (osa z `routeLine`, tempo `PATH_WALK`, do 30 m od obou konců); `network`
+  a `walkLength` = trasa chodce a její cena z jádra (`walkingRoute` v `paths/walking.ts` – týž
+  model jako `walkingDistances` simulace, zpětné sledování předchůdců, Dijkstra končí u ceny
+  rovně) nad grafem `walkGraph(pěšiny stálých tras se silou z vyšlapanosti – routeLinesOf, pevné
+cesty, půda)`; graf a půda (`walkGroundOf` + `withFieldWalk` – pole v `VillagePaths.walkGround`
+  v paměti podle dílů a jejich ceny) se staví až při prvním dotazu, dotazy v paměti (4 000).
+  `VillagePaths` staví chodce při změně klíče tras, dne vyšlapanosti nebo `roadsKey`; bez tras
+  `paths()` = null a postavy jdou krátkým pohybem. `walkRoute` (`villager-plan-geometry.ts`):
+  uložená trasa, když je nejvýš o `STORED_ROUTE_SLACK` (10 %) delší než odhad → `network`
+  (`pathRouteOk`) → rovně kolem domů (`straightRoute`) → uložená delší → `network`
+  (`trafficRouteOk`) → null; `route(points, pace)` – `shuttle` jde po pěšině a cestě rychleji
+  (tempo úseku = délka ÷ cena, oříznuté na 0,4–`WALK_PACE_MAX` 1,3; `walkLength` = součet délka ÷
+  tempo – délka chůze rozvrhu, po nakreslené trase nikdy rychleji než 1,3×; `scheduledWalk`
+  ve `villager-plan.ts` trasu rozvrhu delší než 1,3 × délka chůze zahodí – rovně). Testy `walk-network.test.ts`,
+  `paths-walking.test.ts` (`walkingRoute`). Vývojová stránka: tlačítka
   **Pěšiny**, **Cesta** (ukázka pevné cesty se stromy v každém stadiu – `dev-road.ts`), **Provoz**
   (teplotní mapa) a **Stáří**.
   - **Zvyk a ploty** (Úloha 2 nového systému cest, `WALK_VERSION` `routes-v2`): `ROUTE_HABIT.offRoad`

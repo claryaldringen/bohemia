@@ -5,6 +5,7 @@ import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
+import { cartFieldsOf } from '../cart-routes';
 import { routeLinesOf } from '../scene-routes';
 import {
   computePathNetwork,
@@ -15,14 +16,18 @@ import {
   pathNetworkKey,
   pathTerrainOf,
   pathWindowFor,
+  partWalkSpeed,
   roadsKey,
   villagePathBounds,
+  walkGroundOf,
+  withFieldWalk,
   withObstacles,
   type Landscape,
   type ObstacleLayer,
   type PathLine,
   type PathNetwork,
   type PathTerrain,
+  type WalkGround,
 } from '@bohemia/game';
 import type { SceneRoad, SceneVillage } from '../village-view';
 import type { DecorModel } from './decor-placement';
@@ -167,8 +172,10 @@ export class VillagePaths {
   /** Pás pěšin dne pro masku polí (pod pěšinou obilí neroste – track-mask.ts). */
   private track: Track | null = null;
   private router: VillagerPaths | null = null;
-  /** Klíč tras, ze kterých je `router` (null = bez tras). */
+  /** Klíč tras, vyšlapanosti a pevných cest, ze kterých je `router` (null = bez tras). */
   private walkKey: string | null = null;
+  /** Půda chůze s poli vsi pro `router` a klíč dílů, ze kterých je (`walkGround`). */
+  private fieldWalk: { key: string; ground: WalkGround } | null = null;
   private meshes: Mesh[] = [];
   /** Pevné cesty (obtisky z dat) a jejich klíč. */
   private roadMeshes: Mesh[] = [];
@@ -226,20 +233,33 @@ export class VillagePaths {
    */
   private updateRouteLines(village: SceneVillage): void {
     const list = village.routes?.list ?? null;
-    // postavy chodí po uložených trasách (path-router.ts) – nový klíč tras = nový chodec; bez tras
-    // (vývojová stránka bez serveru, zahozená data) postavy jdou krátkým pohybem
-    const walkKey = list ? (village.routes?.key ?? '') : null;
-    if (walkKey !== this.walkKey) {
-      this.walkKey = walkKey;
-      this.router = list ? routeWalker(list, pathCellM(this.env.landscape)) : null;
-      this.env.onChange();
-    }
     const cells = village.wear?.cells ?? null;
     const key = list && cells !== null ? `${village.routes?.key}|${village.wear?.day ?? ''}|` : '';
-    if (key === this.linesKey) return;
-    this.linesKey = key;
-    // bez vyšlapanosti (ves bez `state.roads`, zahozená data) čáry sítě – pěšiny nezmizí
-    this.routeLines = routeLinesOf(village, pathCellM(this.env.landscape));
+    const linesChanged = key !== this.linesKey;
+    if (linesChanged) {
+      this.linesKey = key;
+      // bez vyšlapanosti (ves bez `state.roads`, zahozená data) čáry sítě – pěšiny nezmizí
+      this.routeLines = routeLinesOf(village, pathCellM(this.env.landscape));
+    }
+    // postavy chodí po síti vsi (path-router.ts – pěšiny stálých tras se silou z vyšlapanosti
+    // a pevné cesty, týž model jako odhad simulace) – nové trasy, vyšlapanost nebo cesty = nový
+    // chodec; bez tras (vývojová stránka bez serveru, zahozená data) postavy jdou krátkým pohybem
+    const roads = village.roads ?? [];
+    const walkKey = list ? `${key}|${village.routes?.key ?? ''}|${roadsKey(roads)}` : null;
+    if (walkKey !== this.walkKey) {
+      this.walkKey = walkKey;
+      const landscape = this.env.landscape;
+      this.router = list
+        ? routeWalker(list, pathCellM(landscape), {
+            lines: this.routeLines,
+            roads,
+            // půda chůze rovně jako v simulaci (krajina a pole vsi) – až při prvním dotazu
+            ground: () => this.walkGround(village),
+          })
+        : null;
+      this.env.onChange();
+    }
+    if (!linesChanged) return;
     if (this.network && this.key !== '') {
       const network = this.network;
       const stats = this.stats;
@@ -249,6 +269,26 @@ export class VillagePaths {
         if (!this.disposed && stats) this.show(network, stats);
       }, 0);
     }
+  }
+
+  /**
+   * Půda chůze rovně pro postavy (path-router.ts): terén krajiny a pole vsi (`withFieldWalk` –
+   * stálá cena polí jako v simulaci). Pole se přepočítají jen při změně dílů nebo jejich ceny
+   * chůze – nový chodec po měsíční vyšlapanosti je znovu nepočítá.
+   */
+  private walkGround(village: SceneVillage): WalkGround {
+    const fields = cartFieldsOf(village);
+    const key = fields
+      .map((f) =>
+        f.parts
+          .map((p) => `${p.x},${p.z},${p.size},${p.rotation ?? 0},${partWalkSpeed(p)}`)
+          .join(';'),
+      )
+      .join('|');
+    if (this.fieldWalk?.key !== key) {
+      this.fieldWalk = { key, ground: withFieldWalk(walkGroundOf(this.env.landscape), fields) };
+    }
+    return this.fieldWalk.ground;
   }
 
   /** Přepočítá hned (bez čekání) – testovací háčky a vývojová stránka. */
