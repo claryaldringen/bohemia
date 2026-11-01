@@ -4,7 +4,10 @@ import { BUILD_COSTS } from './costs';
 import { villageCemeteries } from './cemetery';
 import { fieldCapacity } from './field-capacity';
 import { yearlyFoodNeed } from './field-food';
-import { villageFoodCosts } from './husbandry';
+import { breedingCows, villageFoodCosts } from './husbandry';
+import { horsePenPayment } from './horse-pen-payment';
+import { youngsterHerders } from './herding';
+import { LIVESTOCK } from './livestock';
 import { oxYearCost } from './draft';
 import { villageHappiness } from './happiness';
 import { orchardAreaM2, villageOrchards, monthInWindow, roadAppleYieldKg } from './orchard';
@@ -237,8 +240,9 @@ function sownWork(ctx: StewardContext): number {
 /**
  * Krok 7 – ohrady, jedna za den správce, mimo žně: (a) plné stádo druhu (ovce, kozy, prasata,
  * skot; kusy na noc pod hranicí `STEWARD.penPlacesPerPerson` × lidé) → ohrada druhu; (b) spřežení
- * – ohrada volů, když ves má skot v ohradě a aspoň `OXEN.minCows` krávy a orba ušetří (kopání
- * motykou − orba rádlem na osetý hektar) za `paybackYears` víc než seno volů a ohrada; (c) koně
+ * – ohrada volů, když ves má skot v ohradě, chovný pár krav a výrostky na pasení a orba ušetří na
+ * osevu výhledu (kopání motykou − orba rádlem na osetý hektar) za `paybackYears` víc než seno volů
+ * a ohrada (`teamPenValue`); (c) koně
  * v Růstu (v Obnově s nižší předností), když vojvodova rodina cvičí a ves nemá ohradu koní.
  * V roce 0 vsi s úzkým hrdlem práce (a) ani (b) ne – maso a mléko práci nezvednou
  * (`firstYearLaborBound`).
@@ -268,7 +272,8 @@ export function penStep(state: VillageState, ctx: StewardContext): void {
     state.lord?.trains === true &&
     allowed(ctx, 'horses') &&
     !(state.pens ?? []).some((p) => p.species === 'horse') &&
-    fits(state, ctx, 'horses', PEN_BY_SPECIES.horse.laborManDays)
+    fits(state, ctx, 'horses', PEN_BY_SPECIES.horse.laborManDays) &&
+    horsePenKeepsCows(state, ctx)
   ) {
     buildPen(state, ctx, 'horse');
   }
@@ -292,16 +297,42 @@ function buildPen(state: VillageState, ctx: StewardContext, species: PenSpecies)
   ).started;
 }
 
-/** Vyplatí se první ohrada volů (spřežení)? */
+/**
+ * Zaplatí ves koně nové ohrady koní, aniž prodá krávy, které drží na mléko a voly (`breedingCows`;
+ * steward.md – Ohrada volů podle stáda a osevu; návrh Clauda 1. 11. 2026)? Platba bere krávy nad
+ * chovný pár (`horsePenPayment`) – seed krajiny 28 v roce 20 zaplatil 8 krav z 11, stádo kleslo na 3
+ * a obměna volů se zastavila. Správce pak s ohradou koní počká na hřivny nebo přebytek obilí.
+ */
+function horsePenKeepsCows(state: VillageState, ctx: StewardContext): boolean {
+  const payment = horsePenPayment(state, ctx.day, ctx.coverage);
+  if (!payment) return false;
+  const cows = state.livestock?.herds.cow ?? 0;
+  return cows - payment.cows >= Math.min(cows, breedingCows(state)) - 1e-9;
+}
+
+/**
+ * Vyplatí se první ohrada volů (spřežení)? (steward.md – Ohrada volů podle stáda a osevu; návrh
+ * Clauda 1. 11. 2026): ves má ohradu skotu, chovný pár krav a výrostky, kteří stádo pasou – s ohradou
+ * volů pak drží krávy na voly (`breedingCows` + `oxenCows`) a telata nad chovným párem nejdou na
+ * maso, takže stádo doroste k telatům do výcviku (seed krajiny 28: ohrada volů v roce 9 při 3–4
+ * kravách, krávy 4 → 11, orba od roku 15). Dřív až od `OXEN.minCows` krav – stádo, kterému půlka
+ * telat jde na maso, se drží pod třemi (seedy 3, 13, 17: 2,6–2,7 krávy) a ohrada přišla o 8 let
+ * později nebo vůbec. Orba na osevu výhledu (`StewardOutlook` – nejmenší z osevů podle práce,
+ * osiva a půdy) ušetří v oknech setí (kopání motykou − orba rádlem) za `paybackYears` víc než seno
+ * volů a ohrada.
+ */
 function teamPenValue(state: VillageState, ctx: StewardContext): boolean {
   if (oxPens(state).length > 0) return false;
   const herds = state.livestock?.herds;
-  if (!herds || herds.cow < OXEN.minCows) return false;
+  if (!herds || Math.round(herds.cow) < LIVESTOCK.breedingMin) return false;
+  // bez výrostků stádo nikdo nepase a porážka ho srazí na chovný pár (diet.md – Pasáci)
+  if (youngsterHerders(state, ctx.day) <= 0) return false;
   if (!(state.pens ?? []).some((p) => p.species === 'cattle' && p.builtDay !== null)) return false;
-  const capacity = fieldCapacity(state, ctx.day, ctx.coverage.pottery);
-  if (!capacity || capacity.sownHa <= 0) return false;
+  const { laborHa, seedHa, landHa } = ctx.outlook;
+  const sownHa = Math.min(laborHa, seedHa, landHa);
+  if (!(sownHa > 0) || !Number.isFinite(sownHa)) return false;
   const tools = ctx.coverage.tools;
-  const saved = capacity.sownHa * (fieldWorkPerHa('dig', tools) - ploughWorkPerHa(tools));
+  const saved = sownHa * (fieldWorkPerHa('dig', tools) - ploughWorkPerHa(tools));
   const hay = OXEN.teamSize * oxYearCost(villageFoodCosts(state, ctx.day, tools).hayPerKg);
   const pen = BUILD_COSTS.pen.laborManDays;
   return (saved - hay) * STEWARD.paybackYears > pen;

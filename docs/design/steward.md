@@ -339,8 +339,9 @@ plán ověřil: střed políčka, jeden čtverec bez mřížky.
   `THRESHING.emergencyWork` + polní práce osevu × `emergencyLoss`) za `paybackYears` (3) převýší
   jeho práci; další, když výmlat nestíhá (`floorShort`). Do 31. 7.
 - **Ohrady:** druh stáda s plným stádem (≥ 2 kusy a ≥ místa) a ohradami pod
-  `penPlacesPerPerson` × lidé; spřežení, když ves má ohradu skotu a `OXEN.minCows` krávy a orba
-  (kopání motykou − orba rádlem na osetý hektar) za `paybackYears` přebije seno volů a ohradu;
+  `penPlacesPerPerson` × lidé; spřežení, když ves má ohradu skotu, chovný pár krav a výrostky na
+  pasení a orba na osevu výhledu (kopání motykou − orba rádlem na osetý hektar) za `paybackYears`
+  přebije seno volů a ohradu (Ohrada volů podle stáda a osevu níž);
   koně, když vojvodova rodina cvičí (krok Růstu). Mimo žně (1. 7. – 31. 8.). Plán ověřuje sloty
   ohrad pro skot; před stavbou se slot ověří pro stavěný druh (napojení na ohradu téhož druhu,
   cena koní) – slot, který se mu nehodí, zůstane v plánu pro jiný druh.
@@ -406,6 +407,37 @@ z vyšlapanosti (roads.md) – správce je jen vylepšuje. S jedním horizontem 
   pochůzky denně, 78 m, 11,8 člověkodní; návratnost 12–17 let); úsek s 3,6 pochůzky (26 let)
   a úseky s 2,1 a 0,5 pochůzky (44 a 184–188 let) ne. Vozy ve Vlkově nejezdí – přínos vozům se tam
   neprojeví.
+
+### Ohrada volů podle stáda a osevu (návrh Clauda, 1. 11. 2026)
+
+Proč skot ve vsích správce nerostl (rozbor 1. 11. 2026, seedy krajin 3, 13, 17, 25, 28, 51; čísla
+ve zprávě `steward-better-2b.md`): ohrada skotu stojí od roku 3–4 (45 míst), seno a pastva by
+uživily 3–30 krav, a přesto má ves 2–3 krávy 30 let. Stádo drží pravidla simulace, ne správce:
+
+1. **Roky 0–8 bez pasáků** – zakladatelé nemají děti 7–13 let, pasení je 0 a porážka srazí každé
+   stádo na chovný pár (diet.md – Pasáci).
+2. **Půlka telat na maso** – ves bez ohrady volů drží jen chovný pár krav; když maso nestačí, jde
+   1. 11. na maso polovina letošních telat a stádo stojí na 2,6–2,7 kravách.
+3. **Nákup osiva kravami** – ves v pasti osiva platí 1. 9. osivo kravami nad dvě
+   (`TRADE.keepCows`; seed 13 a 17 skoro každý rok od roku 11–13 jednu krávu).
+4. **Platba za koně** – ohrada koní bere krávy nad chovný pár (seed 28, rok 20: 8 krav z 11).
+
+Ohrada volů zvedne krávy, které ves drží (`breedingCows` + `oxenCows`), takže telata nad
+chovným párem už nejdou na maso a stádo doroste k telatům do výcviku: seed 28 ji postavil v roce
+9 při 3–4 kravách, krávy 4 → 11, voli od roku 15, dvě rádla, osev podle práce 10 → 60–106 ha.
+Kde ves osivo platí kravami (3, 13, 17, 25), ohrada volů stádo nezachrání – stojí prázdná, chátrá
+a ves pro voly, kteří nepřijdou, seče seno.
+
+- **Ohrada volů od chovného páru** (`teamPenValue`): ohrada skotu, chovný pár krav (zaokrouhleně)
+  a výrostci na pasení (`youngsterHerders` – bez nich ohrada nic neudrží). Dřív od `OXEN.minCows`
+  (3) krav – stádo, kterému půlka telat jde na maso, tři krávy nemá a ohrada přišla o roky později
+  nebo vůbec.
+- **Úspora orby podle výhledu**: osev = nejmenší z osevů výhledu (práce, osivo, půda –
+  `StewardOutlook`), ne osev podle půdy (`fieldCapacity`). Orba ušetří ≈ 90 člověkodní na hektar
+  v oknech setí (kopání 100 − orba 10) – vyplatí se vždy, když se něco oseje.
+- **Ohrada koní nekupuje koně za krávy na mléko a voly**: správce ji začne, jen když platba
+  (`horsePenPayment`) nechá ve stádu aspoň `breedingCows`; jinak počká na hřivny nebo přebytek
+  obilí.
 
 ## Rozmístění – „absolutní skiller“ (návrh Clauda)
 
@@ -826,6 +858,7 @@ domů a ta se po založení nemění.
 | Blok domácnosti podle práce (nejvýš podle jídla), pole napřed u stojícího domu, políčka dál od nejbližšího              | návrh Clauda (Martin 1. 11. 2026: „Vylepši ho“)                      |
 | Rok 0 s hrdlem práce: humno jen s ušetřenou prací výmlatu za rok, ohrady stád ne; odklad posvátných míst měření zamítlo | návrh Clauda (Martin 1. 11. 2026: „Vylepši ho“)                      |
 | Vylepšení cesty: úspora chůze i vozů (mokřina, brod), horizont Růst 25 let, Obnova 5 let                                | návrh Clauda (Martin 1. 11. 2026: „správce nijak nevylepšuje cesty“) |
+| Ohrada volů od chovného páru krav s pasáky, úspora orby podle výhledu; koně ne za krávy na mléko a voly                 | návrh Clauda (1. 11. 2026)                                           |
 
 ## Otevřené otázky
 
