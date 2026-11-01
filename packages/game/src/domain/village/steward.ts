@@ -29,6 +29,7 @@ import { fieldSowingTargets } from './simulate-plan';
 import { fieldCells, planCentre, takenTiles, villageTerritory } from './steward-land';
 import { extraSteps } from './steward-extras';
 import { cellRuns, farmCells, planSettlement, playerClaimsPlan } from './steward-plan';
+import { stewardOutlook, type StewardOutlook } from './steward-outlook';
 import { isStewardOn, markStewardStarted } from './steward-state';
 import { sowingYieldFactor } from './weather-effects';
 import type {
@@ -64,6 +65,8 @@ export interface StewardContext {
   readonly obstacles: ObstacleLayer;
   readonly coverage: CraftCoverage;
   readonly mode: StewardMode;
+  /** Výhled vsi dne – osev podle práce, osiva a půdy a úzké hrdlo (`steward-outlook.ts`). */
+  readonly outlook: StewardOutlook;
 }
 
 /** Výsledek pokusu o stavbu správce. */
@@ -125,6 +128,7 @@ function decideDay(
     obstacles,
     coverage,
     mode: stewardMode(state, day, coverage),
+    outlook: stewardOutlook(state, day, coverage),
   };
   // hlad dne pro příští den správce (Nouze, jen když hlad roste)
   if (state.steward) state.steward.lastHunger = state.starvationDays ?? 0;
@@ -193,11 +197,15 @@ export interface FieldTarget {
  * udržuje, ves bez ní by si ji z polí nikdy nenaplnila a jedla by osivo. Proti „Pole uživí podle
  * dnešní půdy“ (`fieldCapacity` – už × podíl dnešní půdy `soil`). Zakládané díly se počítají, jako
  * by už byly v oběhu – jinak by správce zakládal pole, dokud se první nedostaví.
+ * Model kapacity vsi (`stewardOutlook`): potřeba nejvýš lidé, které uživí osev podle práce
+ * a osiva × `STEWARD.fieldReserve` – pole nad to by ves neosela, jen by zarůstala; doplnění
+ * pojistky jen, když je úzkým hrdlem půda (steward.md – Model kapacity vsi).
  */
 export function fieldTarget(
   state: VillageState,
   day: number,
   coverage: CraftCoverage,
+  outlook: StewardOutlook = stewardOutlook(state, day, coverage),
 ): FieldTarget {
   const people = state.people.length;
   if (people === 0) return { need: 0, have: 0 };
@@ -224,8 +232,16 @@ export function fieldTarget(
   );
   const targets = fieldSowingTargets(state, day, coverage);
   const missingKg = Math.max(0, targets.bufferKg - targets.leftKg);
-  const refill = perPerson > 0 ? missingKg / FIELD_STORES.balanceYears / perPerson : 0;
-  return { need: grown / sowingYieldFactor(state) + refill, have };
+  const refill =
+    perPerson > 0 && outlook.bottleneck === 'land'
+      ? missingKg / FIELD_STORES.balanceYears / perPerson
+      : 0;
+  const sowable = Math.min(outlook.laborHa, outlook.seedHa);
+  const workable =
+    outlook.landHa > 0 && Number.isFinite(sowable)
+      ? ((outlook.landPeople * sowable) / outlook.landHa) * STEWARD.fieldReserve
+      : Infinity;
+  return { need: Math.min(grown / sowingYieldFactor(state) + refill, workable), have };
 }
 
 /** Kolik lidí uživí hektar pole přirozené úrodnosti `fertility` v ustáleném oběhu. */
@@ -554,7 +570,9 @@ function forestNear(
  * bere jen volnou práci, polím v oběhu ji nevezme.
  */
 function fieldStep(state: VillageState, ctx: StewardContext): void {
-  const target = fieldTarget(state, ctx.day, ctx.coverage);
+  // v Nouzi jen pole, která ves oseje – když brzdí práce nebo osivo, další pole nepomůžou
+  if (ctx.mode === 'emergency' && ctx.outlook.bottleneck !== 'land') return;
+  const target = fieldTarget(state, ctx.day, ctx.coverage, ctx.outlook);
   if (target.have >= target.need) return;
   const skip = new Set<number>();
   for (let attempt = 0; attempt < STEWARD.slotTries; attempt++) {

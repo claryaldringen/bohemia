@@ -10,6 +10,7 @@ import { STEWARD } from './rules-steward';
 import { dwellingBuildLabor } from './rules';
 import { startStewardBuild, stewardMode, tileCell, type StewardContext } from './steward';
 import { dwellingSiteValue, landValues, takenTiles } from './steward-land';
+import { stewardOutlook } from './steward-outlook';
 import { isStewardBuilt, isStewardOn } from './steward-state';
 import { dateOfDayIndex } from '../calendar';
 import type { BuildIntent } from './build-intent';
@@ -105,6 +106,7 @@ export function stewardRelocate(
     obstacles,
     coverage,
     mode: stewardMode(state, day, coverage),
+    outlook: stewardOutlook(state, day, coverage),
   };
   for (const { t } of ranked.slice(0, STEWARD.slotTries)) {
     const cell = tileCell(landscape, t);

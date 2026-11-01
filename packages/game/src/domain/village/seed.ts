@@ -103,7 +103,7 @@ export function foodUntilHarvestKg(state: VillageState, day: number): number {
 }
 
 /** Osivo obilí, které letošní plán už vzal (kg – plány s osivem ze zásob). */
-function grainSeedTakenKg(state: Pick<VillageState, 'season'>): number {
+export function grainSeedTakenKg(state: Pick<VillageState, 'season'>): number {
   if (!state.season) return 0;
   let kg = 0;
   for (const { crop, work } of seasonCrops(state.season)) {

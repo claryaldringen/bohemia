@@ -16,6 +16,7 @@ import {
   type VillageState,
 } from '../../src/domain/village';
 import { fieldSowingTargets, sowingCapacity } from '../../src/domain/village/simulate-plan';
+import { stewardOutlook, type StewardOutlook } from '../../src/domain/village/steward-outlook';
 import { stewardCrowded, stewardFieldRoom } from '../../src/domain/village/steward-son';
 import type { ChunkView } from './steward-measure';
 
@@ -47,6 +48,8 @@ export interface SeptemberView {
   /** Kapacita setí (člověkodny): podzim ozimu, celý podzim, jaro; orba ano/ne. */
   capacity: { autumnWinter: number; autumn: number; spring: number; plough: boolean };
   tools: number;
+  /** Výhled vsi (osev podle práce, osiva a půdy, hrdlo). */
+  outlook: StewardOutlook;
 }
 
 export interface DiagYear {
@@ -168,7 +171,8 @@ function september(
   targets: ReturnType<typeof fieldSowingTargets>,
 ): SeptemberView {
   const day = view.to;
-  const target = fieldTarget(s, day, coverage);
+  const outlook = stewardOutlook(s, day, coverage);
+  const target = fieldTarget(s, day, coverage, outlook);
   const inRotation = s.parts.filter((p) => p.state !== 'founding');
   const area = inRotation.reduce((sum, p) => sum + p.areaM2, 0);
   const walk = inRotation.reduce((sum, p) => sum + p.areaM2 * p.distanceM, 0);
@@ -193,8 +197,8 @@ function september(
       s.parts.filter((p) => p.state === 'founding').reduce((sum, p) => sum + p.areaM2, 0),
     ),
     walkM: area > 0 ? Math.round(walk / area) : 0,
-    crowded: stewardCrowded(s, day, coverage),
-    fieldRoom: stewardFieldRoom(s, day, view.landscape, view.obstacles),
+    crowded: stewardCrowded(s, day, coverage, outlook),
+    fieldRoom: stewardFieldRoom(s, day, view.landscape, view.obstacles, outlook),
     capacity: {
       autumnWinter: Math.round(capacity.autumnWinter),
       autumn: Math.round(capacity.autumn),
@@ -202,6 +206,7 @@ function september(
       plough: capacity.plough !== undefined,
     },
     tools: Math.round(coverage.tools * 100) / 100,
+    outlook,
   };
 }
 
@@ -232,7 +237,7 @@ export function formatDiag(villages: readonly DiagVillage[]): string {
   for (const v of villages) {
     lines.push(`--- ves ${v.index}${v.index === 0 ? ' (mateřská)' : ''} od roku ${v.foundYear}`);
     lines.push(
-      ' rok lidé dosp  zásoby potřeba plán sklizeň  ha/oseto/zakl  chůze pojistka hlad† N/O/R  cíl potř/uživí  kapacita pod/jaro  přelid/kam  práce  stavby',
+      ' rok lidé dosp  zásoby potřeba plán sklizeň  ha/oseto/zakl  chůze pojistka hlad† N/O/R  cíl potř/uživí  kapacita pod/jaro  výhled práce/osivo/půda ha hrdlo  přelid/kam  práce  stavby',
     );
     for (const y of v.years) {
       const s = y.sep;
@@ -252,6 +257,9 @@ export function formatDiag(villages: readonly DiagVillage[]): string {
           s ? `${s.targetNeed}/${s.targetHave}` : '-',
           s
             ? `${s.capacity.autumnWinter}/${s.capacity.spring}${s.capacity.plough ? 'P' : ''}`
+            : '-',
+          s
+            ? `${s.outlook.laborHa.toFixed(1)}/${s.outlook.seedHa.toFixed(1)}/${s.outlook.landHa.toFixed(1)} ${s.outlook.bottleneck}`
             : '-',
           s ? `${s.crowded ? 1 : 0}${s.fieldRoom ? 1 : 0}` : '-',
           `pole ${Math.round(fieldWork)} založ ${Math.round(y.labor['found-field'] ?? 0)} vrac ${Math.round(y.labor['reclaim'] ?? 0)} kop ${Math.round(y.labor['dig'] ?? 0)} volno ${Math.round(y.labor['idle'] ?? 0)}`,

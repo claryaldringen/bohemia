@@ -11,13 +11,13 @@ import { flushWear } from './paths/wear';
 import { settlersOf, edgeDistanceM, travelDays, villageCentre } from './departure';
 import { currentLord, wivesOf } from './dynasty';
 import { generatedLineName } from './dynasty-names';
-import { fieldCapacity } from './field-capacity';
 import { foundedState } from './founding';
 import { suggestVillageName } from './names';
 import { FIELD_LIMITS } from './rules-fields';
 import { STEWARD } from './rules-steward';
 import { departWithSon, leadingSons, sonShare } from './son-departure';
 import { fieldCellValue, fieldCells, takenTiles, villageTerritory } from './steward-land';
+import { stewardOutlook, type StewardOutlook } from './steward-outlook';
 import { isStewardOn, pruneStewardBuilt } from './steward-state';
 import { DIRECTIONS, builtTrail } from './trail';
 import type {
@@ -91,19 +91,17 @@ export function nameStewardSons(state: VillageState, day: number): void {
 // --- 2. odchod syna --------------------------------------------------------------------
 
 /**
- * Přelidnění (krok 2): lidí víc, než pole uživí podle dnešní půdy (`fieldCapacity`, zakládané díly
- * jako v oběhu – jako `fieldTarget`) × `STEWARD.crowdedShare`.
+ * Přelidnění (krok 2): lidí víc, než ves udrží (`stewardOutlook` – „Pole uživí“ při osevu trvalého
+ * hrdla: půdy, nebo práce v oknech setí; zakládané díly jako v oběhu – jako `fieldTarget`)
+ * × `STEWARD.crowdedShare`.
  */
-export function stewardCrowded(state: VillageState, day: number, coverage: CraftCoverage): boolean {
-  const parts = state.parts.map((p) =>
-    p.state === 'founding' ? { ...p, state: 'fallow' as const } : p,
-  );
-  const capacity = fieldCapacity(
-    { parts, people: state.people, fieldFood: state.fieldFood },
-    day,
-    coverage.pottery,
-  );
-  return state.people.length > (capacity?.people ?? 0) * STEWARD.crowdedShare;
+export function stewardCrowded(
+  state: VillageState,
+  day: number,
+  coverage: CraftCoverage,
+  outlook: StewardOutlook = stewardOutlook(state, day, coverage),
+): boolean {
+  return state.people.length > outlook.sustainablePeople * STEWARD.crowdedShare;
 }
 
 /** Polohy obydlí a stavenišť vsi (m) – od nich se měří dosah pole. */
@@ -126,14 +124,18 @@ function nearestM(x: number, z: number, points: readonly Point[]): number {
  * Je kam pole rozšířit (krok 2, Kdy není kam)? Na území vsi (`villageTerritory`) zbývá volné políčko (`takenTiles`) s úrodou, nejdál `FIELD_LIMITS.maxDistanceM` od
  * nejbližšího obydlí, jehož hodnota (`fieldCellValue` – kg čisté úrody na člověkoden založení
  * a polní práce, se záplavami, zvěří a počasím) je aspoň `STEWARD.minKgPerManDay`. Louka i les
- * (klučení) – napřed nová pole, až když není kam, odchod.
+ * (klučení) – napřed nová pole, až když není kam, odchod. S výhledem vsi (`outlook`) je kam jen,
+ * když trvalým hrdlem je půda – když brzdí práce, další pole nepomůžou (steward.md – Model
+ * kapacity vsi).
  */
 export function stewardFieldRoom(
   state: VillageState,
   day: number,
   landscape: Landscape,
   obstacles: ObstacleLayer,
+  outlook?: StewardOutlook,
 ): boolean {
+  if (outlook?.lasting === 'labor') return false;
   const houses = housePoints(state);
   if (houses.length === 0) return false;
   const cells = fieldCells(landscape, obstacles);
@@ -211,7 +213,8 @@ export function stewardDeparture(
 ): boolean {
   if (!isDepartureDate(day) || !isStewardOn(state) || state.people.length === 0) return false;
   const coverage = craftCoverage(state, day);
-  const crowded = stewardCrowded(state, day, coverage);
+  const outlook = stewardOutlook(state, day, coverage);
+  const crowded = stewardCrowded(state, day, coverage, outlook);
   const hungry = (state.steward?.hungerPeak ?? 0) >= STEWARD.departureHungerDays;
   if (!crowded && !hungry) return false;
   // past osiva: ves hladoví, i když „Pole uživí“ stačí – další pole by zůstala neosetá, pomůže jen
@@ -219,7 +222,7 @@ export function stewardDeparture(
   // když není kam, odchod
   const lastYear = (state.steward?.lastYearHunger ?? 0) >= STEWARD.departureHungerDays;
   const trapped = hungry && (!crowded || lastYear);
-  if (!trapped && stewardFieldRoom(state, day, landscape, obstacles)) return false;
+  if (!trapped && stewardFieldRoom(state, day, landscape, obstacles, outlook)) return false;
   const son = departingSon(state, day);
   if (!son) return false;
   const share = sonShare(state, son.id, day);
