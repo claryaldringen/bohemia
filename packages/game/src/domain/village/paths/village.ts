@@ -33,7 +33,7 @@ import { villageWoods } from '../woods';
 import { clearingRouteObstacles, withoutHiddenChanges } from './clearing-routes';
 import { earthworkSpansOf } from './earthworks';
 import {
-  computeStableNetwork,
+  computeStableNetworkSteps,
   establishedVillage,
   stableRouteWeights,
   kilnsKey,
@@ -63,6 +63,7 @@ import {
   walkGraph,
   walkGroundOf,
   walkingDistances,
+  walkingDistancesSteps,
   walkMemoOf,
   waterWalkDistance,
   withFieldWalk,
@@ -507,6 +508,21 @@ export function villagePathNetwork(
   /** Ves pro pěšiny, kterou už volající spočítal ze stejného stavu a dne. */
   village: PathVillage = pathVillageOf(state, day, landscape),
 ): PathNetwork | null {
+  const steps = villagePathNetworkSteps(state, day, landscape, obstacles, village);
+  for (;;) {
+    const step = steps.next();
+    if (step.done) return step.value;
+  }
+}
+
+/** `villagePathNetwork` po krocích (viz `computePathNetworkSteps`); mezipaměť bez zastavení. */
+export function* villagePathNetworkSteps(
+  state: VillageState,
+  day: number,
+  landscape: Landscape,
+  obstacles: ObstacleLayer | null,
+  village: PathVillage,
+): Generator<void, PathNetwork | null, void> {
   const wear = villageWear(state);
   // vyšlapanost je vstup sítě (slévání tras) – patří do klíče (bez nového kódování)
   const stored = state.roads?.wear;
@@ -514,7 +530,14 @@ export function villagePathNetwork(
   const input = `${JSON.stringify(establishedVillage(village))}|${stored ? wearRevisionKey(stored) : ''}`;
   const last = lastNetworks.get(landscape);
   if (last && last.obstacles === obstacles && last.input === input) return last.network;
-  const network = computeVillageNetwork(state, day, landscape, obstacles, village, wear);
+  const network = yield* computeVillageNetworkSteps(
+    state,
+    day,
+    landscape,
+    obstacles,
+    village,
+    wear,
+  );
   lastNetworks.set(landscape, { obstacles, input, network });
   return network;
 }
@@ -543,17 +566,18 @@ function villageNetworkInput(
   };
 }
 
-function computeVillageNetwork(
+function* computeVillageNetworkSteps(
   state: VillageState,
   day: number,
   landscape: Landscape,
   obstacles: ObstacleLayer | null,
   village: PathVillage,
   wear: ReadonlyMap<number, number> | null,
-): PathNetwork | null {
+): Generator<void, PathNetwork | null, void> {
   const input = villageNetworkInput(state, day, landscape, obstacles, village, wear);
+  yield;
   // stálé trasy posledního kola se ukládají do stavu (`refreshWalkDistances`, `withRoutes`)
-  return input ? computeStableNetwork(input) : null;
+  return input ? yield* computeStableNetworkSteps(input) : null;
 }
 
 /**
@@ -1010,6 +1034,23 @@ export function refreshWalkDistances(
   landscape: Landscape,
   obstacles: ObstacleLayer | null,
 ): void {
+  const steps = refreshWalkDistancesSteps(state, day, landscape, obstacles);
+  for (;;) {
+    if (steps.next().done) return;
+  }
+}
+
+/**
+ * `refreshWalkDistances` po krocích: zastaví se mezi hledáním sítě, tras, grafu chůze, vzdáleností
+ * k dílům a obydlím, aby volající mohl dát přestávku (server – dlouhý dopočet neblokuje ostatní
+ * požadavky). Výsledek je týž.
+ */
+export function* refreshWalkDistancesSteps(
+  state: VillageState,
+  day: number,
+  landscape: Landscape,
+  obstacles: ObstacleLayer | null,
+): Generator<void, void, void> {
   const routes = state.routes;
   // měsíční převážení 1. dne v měsíci
   const monthly = dateOfDayIndex(day).day === 1;
@@ -1029,8 +1070,11 @@ export function refreshWalkDistances(
   state.walkLayoutKey = key;
   // vyšlapanost do dneška ještě se starými trasami – nové trasy se po ní slévají (paths.md)
   settleVillageWear(state, day, landscape);
+  yield;
   const village = pathVillageOf(state, day, landscape);
-  const network = villagePathNetwork(state, day, landscape, obstacles, village);
+  yield;
+  const network = yield* villagePathNetworkSteps(state, day, landscape, obstacles, village);
+  yield;
   state.routes = routesOf(state, day, landscape, obstacles, network, key);
   if (!network) {
     for (const p of state.parts) delete p.walkDistanceM;
@@ -1059,7 +1103,9 @@ export function refreshWalkDistances(
   ];
   // délky rovně z paměti krajiny – úsečky se mezi přepočty opakují (Trasy v paměti)
   const memo = walkMemoOf(landscape);
-  const walks = targets.length > 0 ? walkingDistances(graph, origins, targets, ground, memo) : [];
+  yield;
+  const walks =
+    targets.length > 0 ? yield* walkingDistancesSteps(graph, origins, targets, ground, memo) : [];
   parts.forEach((p, k) => {
     p.walkDistanceM = rounded(walks[k]!);
   });
@@ -1071,6 +1117,7 @@ export function refreshWalkDistances(
   const walk: Walk = (from, to) => walkingDistances(graph, [from], to, ground, memo);
   const edges = groundSpots(ground, PATH_FOREST_EDGE);
   for (const d of state.dwellings) {
+    yield;
     const edge = nearestSpot(edges, d.position);
     if (edge) d.forestWalkM = rounded(walk(d.position, [edge])[0]!);
     else delete d.forestWalkM;
