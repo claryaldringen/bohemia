@@ -59,7 +59,6 @@ import {
 import {
   atTree,
   doorPoint,
-  fieldPath,
   free,
   nearestFree,
   nearestHouse,
@@ -370,7 +369,7 @@ export function carriers(ctx: Context, share: SceneLaborShare, fieldId: number):
       z: square.z + ax.z * cu + az.z * cv,
     };
     const homeId = floor ? undefined : home?.id;
-    const path = walkRoute(ctx, door, edge, homeId) ?? fieldPath(ctx, door, edge, homeId);
+    const path = walkRoute(ctx, door, edge, homeId);
     if (!path) return fallback();
     return shuttle(path, {
       outClip: 'walk',

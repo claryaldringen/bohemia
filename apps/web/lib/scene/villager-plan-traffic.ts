@@ -36,7 +36,6 @@ import {
   type VillagerGround,
 } from './villager-plan-types';
 import {
-  fieldPath,
   nearestFree,
   stringHash,
   towards,
@@ -182,8 +181,8 @@ const grovesOfPlan = new WeakMap<object, GroveIndex>();
 
 /**
  * Trasy pro dřevo k nejbližším větším skupinkám stromů (vrstva překážek se stavem vsi – pokácené
- * stromy se nepočítají): po pěšinách, nebo od vchodu rovně po suchu kolem domů; postava se
- * zastaví na volném místě na kraji skupinky.
+ * stromy se nepočítají): `walkRoute` – kratší z rovně a po síti pěšin a pevných cest (týž model
+ * jako odhad simulace), kolem domů po suchu; postava se zastaví na volném místě na kraji skupinky.
  */
 function groveRoutes(ctx: Context, home: House, door: Point): Route[] {
   const out: Route[] = [];
@@ -195,7 +194,7 @@ function groveRoutes(ctx: Context, home: House, door: Point): Route[] {
     const edge = towards(tree, door, WOOD_GATHER_M);
     const goal = nearestFree(ctx, edge.x, edge.z, 4);
     if (!goal) continue;
-    const path = walkRoute(ctx, door, goal, home.id) ?? fieldPath(ctx, door, goal, home.id);
+    const path = walkRoute(ctx, door, goal, home.id);
     if (path && path.length >= 1) out.push(path);
   }
   return out;
@@ -206,7 +205,8 @@ function groveRoutes(ctx: Context, home: House, door: Point): Route[] {
  * nebo cíl ve vodě. Konec pochůzky mimo rastr schůdné země (vzdálená voda) je suchý břeh ze sítě
  * pěšin – postava se zastaví na něm. Pro dřevo vyhraje nejkratší chůze ke konci pěšiny pro dřevo
  * (okraj lesa ze sítě pěšin) nebo k nejbližší větší skupince stromů (villagers.md – K lesu pro
- * dřevo).
+ * dřevo). Když pěšina domácnosti neprojde (dům, voda na odbočce), jde se ke konci pěšiny jako
+ * kamkoli jinam (`walkRoute` – po síti pěšin a pevných cest, nebo rovně).
  */
 export function errandPath(
   ctx: Context,
@@ -224,6 +224,10 @@ export function errandPath(
   if (goal && along && along.points.length >= 2) {
     const points = [...along.points.slice(0, -1), [goal.x, goal.z] as const];
     if (trafficRouteOk(ctx, points, false)) options.push(route(points, along.pace));
+    else {
+      const walked = walkRoute(ctx, door, goal, home.id);
+      if (walked) options.push(walked);
+    }
   }
   let best: Route | null = null;
   for (const path of options) {
@@ -417,7 +421,7 @@ export function trafficRoutes(ctx: Context, labor: SceneLabor): TrafficRoute[] {
       'kiln',
       `kiln:${t.id}:${t.kiln ?? ''}`,
       share.manDays * KILN_TRIPS_PER_MAN_DAY,
-      walkRoute(ctx, door, edge, home.id) ?? fieldPath(ctx, door, edge, home.id),
+      walkRoute(ctx, door, edge, home.id),
       TRAFFIC_LOOK.kiln.women,
       home.id,
     );

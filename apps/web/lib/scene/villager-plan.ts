@@ -22,10 +22,12 @@ import {
   type DraftCrews,
   type Placer,
   type PlannedVillager,
+  type Point,
   type VillagerGround,
   type VillagerPlanOptions,
 } from './villager-plan-types';
-import { doorPoint, fieldPath, targetKey, walkRoute } from './villager-plan-geometry';
+import { doorPoint, targetKey, walkRoute } from './villager-plan-geometry';
+import { WALK_PACE_MAX } from './path-router';
 import {
   adultHair,
   cast,
@@ -136,9 +138,9 @@ export function planVillagers(
  * který člověk dnes dělá, když vyjde z domu (villager-schedule.ts – rozvrh si z něj vybírá při
  * vyjití). Stejná pravidla i počty jako postavy dne; bez lidí ve scéně prázdné. `doors` = dveře
  * obydlí (id obydlí → bod před vchodem) – odtud lidé vycházejí a kam se vracejí. `walk` = přesná
- * trasa z bodu do bodu (po pěšinách, kolem domů, po suchu – `walkRoute`, na vzdálený díl
- * `fieldPath`) nad domy dne; hledá se jen pro postavu v záběru nebo vybranou (villagers.md –
- * Cesty postav), null – rovně.
+ * trasa z bodu do bodu (`walkRoute` – trasa domácnosti, jinak kratší z rovně a po síti pěšin
+ * a pevných cest týmž modelem jako odhad simulace; kolem domů, po suchu) nad domy dne; hledá se
+ * jen pro postavu v záběru nebo vybranou (villagers.md – Cesty postav), null – rovně.
  */
 export function planVillagersWithCrew(
   village: SceneVillage,
@@ -334,8 +336,21 @@ export function planVillagersWithCrew(
       planPhases(ctx, people, dayStartS(options, labor.day)),
     ),
     doors,
-    walk: (a, b, homeId) => walkRoute(ctx, a, b, homeId) ?? fieldPath(ctx, a, b, homeId),
+    walk: (a, b, homeId) => scheduledWalk(ctx, a, b, homeId),
   };
+}
+
+/**
+ * Trasa pro chůzi rozvrhu (villagers.md – Cesty postav): `walkRoute`, jen když se po ní v čase
+ * z rozvrhu (`VillagerPaths.walkLength` ÷ tempo) jde nejvýš WALK_PACE_MAX× přirozenou chůzí – jinak
+ * null a postava jde v tom čase rovně. Odhad simulace domy a pozemky neobchází: cíl za domem nebo
+ * dveře u sousedního pozemku (jediná schůdná trasa je oklika po cestě) by jinak znamenaly běh
+ * (Martin 1. 11. 2026 – žena z obydlí 1321 „sprintovala po cestě“; návrh Clauda).
+ */
+export function scheduledWalk(ctx: Context, a: Point, b: Point, homeId?: number): Route | null {
+  const r = walkRoute(ctx, a, b, homeId);
+  const span = ctx.paths?.walkLength?.(a, b) ?? Math.hypot(b.x - a.x, b.z - a.z);
+  return r && r.length <= span * WALK_PACE_MAX + 0.5 ? r : null;
 }
 
 /** Přesná trasa chodce z `a` do `b` (od domu `homeId` – jeho pěšina má přednost), nebo null. */

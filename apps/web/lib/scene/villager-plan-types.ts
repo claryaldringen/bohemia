@@ -221,9 +221,20 @@ export interface VillagerPaths {
   /** Kam chodí domácnost (id obydlí) pro vodu nebo dřevo – konec její pěšiny, nebo null. */
   errand(dwellingId: number, kind: 'water' | 'wood'): { x: number; z: number } | null;
   /**
-   * Odhad délky chůze (m chůze po louce) z `a` do `b` po síti pěšin – stejný model jako simulace
-   * (paths.md – Odhad vzdáleností: kratší z rovně a rovně k síti, po ní a rovně k cíli), bez
-   * hledání trasy. Délky činností rozvrhu (villager-schedule.ts). Bez údaje rovně.
+   * Trasa chodce z `a` do `b` po síti vsi – pěšinách stálých tras a pevných cestách – týmž modelem
+   * jako odhad simulace (paths.md – Odhad vzdáleností: kratší z rovně a rovně k síti, po ní
+   * a rovně k cíli – `walkingRoute`): body [x, z] od `a` do `b` a tempo úseků, nebo null, když je
+   * rovně kratší. Bez údaje se po síti nechodí.
+   */
+  network?(
+    a: { x: number; z: number },
+    b: { x: number; z: number },
+  ): { points: readonly (readonly [number, number])[]; pace: readonly number[] } | null;
+  /**
+   * Délka chůze (m přirozené chůze) z `a` do `b` po trase `network` (nebo rovně) pro rozvrh – cena
+   * odhadu simulace, jen kde by po pěšině či cestě šla postava rychleji než `WALK_PACE_MAX`
+   * (path-router.ts), počítá se tou mezí; po nakreslené trase tak v čase činnosti nikdy neběží.
+   * Délky činností rozvrhu (villager-schedule.ts). Bez údaje rovně.
    */
   walkLength?(a: { x: number; z: number }, b: { x: number; z: number }): number;
 }

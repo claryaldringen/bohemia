@@ -880,6 +880,96 @@ export function walkingDistances(
   });
 }
 
+/** Trasa chodce z bodu do bodu (`walkingRoute`) – body a cena chůze úseků. */
+export interface WalkingRoute {
+  /** Body od `from` do `to`: rovně jen ty dva, po síti `from`, body pěšin a cest, `to`. */
+  points: PathPoint[];
+  /** Cena chůze každého úseku (m chůze po louce) – o jedno číslo méně než bodů. */
+  costs: number[];
+  /** Cena celé trasy – táž jako `walkingDistances(graph, [from], [to], ground, memo)[0]`. */
+  cost: number;
+}
+
+/**
+ * Trasa chodce z `from` do `to` týmž modelem jako odhad simulace (`walkingDistances` – paths.md,
+ * Odhad vzdáleností): kratší z „rovně“ a „rovně k nejbližšímu bodu pěšiny či cesty, po síti
+ * a z nejbližšího bodu pěšiny či cesty rovně k cíli“ – navíc vrátí body (zpětné sledování
+ * předchůdců). Prohlížeč podle ní vede postavy ve scéně (path-router.ts); cena je přesně odhad
+ * simulace. Při shodě rovně; po síti při shodě první řetěz (jako `walkingDistances`).
+ */
+export function walkingRoute(
+  graph: WalkGraph,
+  from: PathPoint,
+  to: PathPoint,
+  ground: WalkGround | null = null,
+  memo: WalkMemo | null = null,
+): WalkingRoute {
+  if (ground && memo) syncWalkMemo(memo, ground);
+  const straight = (a: PathPoint, x: number, z: number): number =>
+    ground
+      ? memo
+        ? memoWalkLength(memo, ground, a, { x, z })
+        : groundWalkLength(ground, a, { x, z })
+      : length2(x - a.x, z - a.z);
+  const direct = straight(from, to.x, to.z);
+  const n = graph.x.length;
+  const dist = new Float64Array(n).fill(Infinity);
+  // předchůdce na síti; −1 = na síť se sem vstoupilo rovně z `from`
+  const prev = new Int32Array(n).fill(-1);
+  const heap = new PathHeap();
+  for (const chain of graph.chains) {
+    const id = nearestNode(graph, chain, from);
+    if (id < 0) continue;
+    const lb = length2(graph.x[id]! - from.x, graph.z[id]! - from.z);
+    if (lb >= direct || lb >= dist[id]!) continue;
+    const cost = straight(from, graph.x[id]!, graph.z[id]!);
+    if (cost >= direct || cost >= dist[id]!) continue;
+    dist[id] = cost;
+    heap.push(id, cost);
+  }
+  while (heap.size > 0) {
+    const c = heap.pop();
+    const d = heap.topKey;
+    if (d > dist[c]!) continue;
+    // uzly dál než rovně trasu nezkrátí (cena k cíli je aspoň vzdálenost po síti) – vzdálenosti
+    // uzlů blíž jsou tytéž jako po celém průchodu
+    if (d >= direct) break;
+    for (const { to: next, cost } of graph.links[c]!) {
+      const nd = d + cost;
+      if (nd < dist[next]!) {
+        dist[next] = nd;
+        prev[next] = c;
+        heap.push(next, nd);
+      }
+    }
+  }
+  let best = direct;
+  let end = -1;
+  for (const chain of graph.chains) {
+    const id = nearestNode(graph, chain, to);
+    if (id < 0 || !Number.isFinite(dist[id]!)) continue;
+    if (dist[id]! + length2(to.x - graph.x[id]!, to.z - graph.z[id]!) >= best) continue;
+    const cost = dist[id]! + straight({ x: graph.x[id]!, z: graph.z[id]! }, to.x, to.z);
+    if (cost < best) {
+      best = cost;
+      end = id;
+    }
+  }
+  if (end < 0) return { points: [from, to], costs: [direct], cost: direct };
+  const nodes: number[] = [];
+  for (let id = end; id >= 0; id = prev[id]!) nodes.push(id);
+  nodes.reverse();
+  const points: PathPoint[] = [from];
+  const costs: number[] = [dist[nodes[0]!]!];
+  nodes.forEach((id, k) => {
+    points.push({ x: graph.x[id]!, z: graph.z[id]! });
+    if (k > 0) costs.push(dist[id]! - dist[nodes[k - 1]!]!);
+  });
+  points.push(to);
+  costs.push(best - dist[end]!);
+  return { points, costs, cost: best };
+}
+
 /** Bod řetězu `chain` nejblíž `p` vzdušnou čarou (při shodě první), prázdný řetěz −1. */
 function nearestNode(graph: WalkGraph, chain: readonly number[], p: PathPoint): number {
   let best = -1;

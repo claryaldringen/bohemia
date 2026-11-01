@@ -389,134 +389,136 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `StormRenderer.floodedAt`) – místo práce pod vodou: domů (`Activity.retreat`), na vodu se
   nevychází (`departAfter`). Jezdec s trasou (riders.ts) v bloku jízdy sedí na koni vždy
   (`mounted`, `mountedAt` – kůň nejede bez jezdce; `riderPose` zruší i skrytou pózu rozvrhu). **Délky a trasy** (úloha 6): délka chůze
-  = odhad po síti pěšin `VillagerPaths.walkLength` (`path-router.ts` – `walkGraph`
-  - `walkingDistances` z jádra, paměť dotazů) ÷ `SCHEDULE_WALK_M_S` (`Timetable.setEstimate`,
-    bez sítě rovně); přesná trasa `planVillagersWithCrew` → `walk` (`walkRoute` ?? `fieldPath`)
-    přes `Timetable.setRouter` jen pro kreslenou pózu, jednou za úsek (`activityPose` – `PoseWalk`,
-    `walkLeg`: po trase v čase z odhadu, `pace` = délka ÷ čas ÷ tempo, 0,6–1,8). Testy
-    `villager-events.test.ts`, `path-router.test.ts`.
-    **Fáze činností** (villagers.md – Fáze činností; úlohy 7–8): `villager-phases.ts` (čisté,
-    testy `villager-phases.test.ts`, `villager-schedule.test.ts`) – `activityPhases(a, seed, walkS)`
-    rozloží činnost na fáze (`ActivityPhase` – jméno, od–do, klip a tempo, místo jinde, chůze):
-    `out` ode dveří, práce v místě po krocích role (`PHASE_STEPS` – podíly mírně losem
-    `PHASE_JITTER` podle člověka a začátku; kratší práce než `MIN_PHASE_S` na krok a úloha
-    u objektu a pochůzka jen `work`), `back` domů (rybář `bring-catch` s rybami v nůši); součet = délka
-    činnosti, přerušení ji utne. Krok jinde (`PhasePlaces` – `drop` cizí dům, `aid` řada žnečů)
-    s cestou tam a zpět, jen když se cesta vejde do `TRANSIT_SHARE` jeho délky. `phaseAt`,
-    `phaseWalking`, `schedulePhaseAt` (rozvrh + fáze + klip). Role z plánu dne
-    `villager-plan-phases.ts` (`planPhases` → `personTasks` – `PersonTask.role`, `places`): žnec
-    `reap` (vázání `bind` – povříslo), louka `meadow` (hrabání `rake`, kupky vidlemi `pitch`),
-    nakladač u vozu `load-sheaves` / `load-hay` (`pitch`), kovář podle dvora dne `smelt` (praní
-    v sítu `sieve`, pražení `winnow`) / `refine` (kladivo a kleště `forge` tempem 0,7) / `forge`
-    (`forge` 1,3, odnos nástrojů v nůši `carry-tools` k cizímu domu – `PhaseStep.carry`), uhlíř
-    podle stavu milíře `kiln-wood` (štípání na špalku `split`) / `kiln-build` (zahrnutí `hoe`)
-    / `kiln-burn` (hlídání `idle`, zahrnutí) / `kiln-draw` (hrábě `rake`, do koše `fruit`),
-    hrnčíř `pottery` (sušení a vsazení `pots`, hlídání, odnos nádob `carry-pots`), rybář `fish`
-    (úlovek domů `carry-fish`; rekvizity úlohy 9 – scene-village.md, Rekvizity fází činností),
-    o žních cvičící muži `train` (žne a váže u řady žnečů), starší `elder` a nečinní `idle`
-    (paběrky); starší mimo žně `elder-home` (úloha 10): sedí na špalku (póza úlohy `sit`),
-    postojí variantou stání (`rest` – `variants: REST_CLIPS`, los podle člověka a kroku)
-    a zajdou se pomodlit (`pray`) k nejbližší hotové modle či svatyni (`PhasePlaces.shrine` –
-    `SHRINE_GAP_M` od okraje půdorysu na straně, odkud jdou; bez modly krok odpadne). `activityPose(…, phases)` – fáze s klipem stojí, kde ji zastihla (póza úlohy
-    v začátku fáze), krok jinde jde rovně na místo a zpět; `Timetable.phase` (fáze v paměti
-    s činností), `scheduledState(…, phase)` → `PersonFigureState.phase` → `PHASE_TEXTS`
-    v `person-activity.ts` („váže snopy“, „pere rudu“, „nese nástroje do domácností“…; rybář „jde
-    k tůni“). Tempo nohou na cestách fází podle klipu (`walkSpeed` – s košem jinak než bez).
-    Tesař s rozdělaným vozem (úloha 11) má roli `cart` – otesává díly (`split`, „otesává díly
-    vozu“) a staví vůz (póza úlohy `build` u korby, „staví vůz“); vůz po fázích kreslí scéna
-    (scene-village.md – Tesař – vznikající vůz).
-    **Implementováno – Žena, děti a svatba (úloha 12, 1. 11. 2026):** ženy u dveří (`domestic`
-    → `doorChore` podle `phase` postavy, villager-plan-folk.ts) předou (`SPIN_SHARE` 0,5),
-    vaří (`COOK_SHARE` 0,25), tkají u stavu (`WEAVE_SHARE` 0,1 – klip `weave`), zbytek postává;
-    s malým dítětem v domě (`DayRoster.hasSmallChild` – pod `AGE.olderChild`) ho hlídá u dveří.
-    Úsek pózy (`VillagerStage` `spin` / `cook` / `weave` / `mind`) řekne panel („přede před
-    domem“, „vaří na ohništi před domem“, „tká na stavu před domem“, „hlídá děti u domu“ –
-    `DOOR_CHORE_TEXTS`); muži u dveří postávají. Postava dítěte u matky ani nošení na zádech
-    není (žádná rekvizita ani klip – návrh Clauda: jen stání u dveří). Hudebníci na svatbě
-    (wedding-plan.ts – `weddingMusicians`, `WEDDING_MUSIC`): dva dospělí svatebčané losem podle
-    svatby hrají na svém místě v podkově na píšťalu a buben (`WeddingMember.music` → klip
-    `pipe` / `drum`, úloha `wedding` s `music` – „hraje na píšťalu na svatbě“, „bubnuje na
-    svatbě“), v průvodu jdou. Oka na zajíce – Lovci, rybáři a děti s řehtačkou. Pomoc o žních
-    (paběrky, nosiči) je z úlohy 8.
-    Rozvrh se počítá líně: jen když `write` kreslí pózy (ves v záběru, při omezeném pohybu stojí)
-    nebo pro vybraného (`updateSelection`); mimo záběr nic. Obal postav pro ořez (`bounds`) skládá
-    `write` z posledních póz a z obdélníku dne (`extent`): dveře lidí s rozvrhem a místa úloh dne
-    i s kroky jinde (`dayExtent` ve `villager-timetable.ts`), trasy jízd (`rideArea`), stezky
-    karavan, pohřby a svatby – kdo vyjde z domu, když jsou všichni doma, se hýbe hned. Vlasce rybářů se překreslí, jen když se
-    změní, kdo rybaří. Výběr: `scheduledState` – úloha a cesta (`leg` – „jde na pole“, „jde domů“
-    v `person-activity.ts`) z rozběhnuté činnosti, i přes přelom dne; když vybraný zajde do domu
-    (byl od výběru venku), `onPersonState` ohlásí `indoors` a `VillageGame` / `DevVillagePreview`
-    výběr zruší – **kromě vojvody** (role `voivode`, panel „doma“). Pryč `walkThen` při
-    přeplánování (dojití na další čtverec – nahrazuje cesta ode dveří k nové práci).
-    **Výběr spřežení a vozu** (villagers.md – Výběr spřežení a vozu; Martin 20. 10. 2026: „nešlo mi
-    kliknout na volské spřežení ani na člověka, co jej vedl“, podrobnosti návrh Clauda): oráč, honák
-    a vozka jsou lidé vsi – `planVillagersWithCrew` (`DraftCrew`; vstup `draft` =
-    `VillageRenderer.draftCrews()` – kolik spřežení a id zapřažených vozů ves kreslí) jim přiřadí
-    člověka hned po pasácích (vozku vozu výpravy s karavanou; oráč dospělý muž, honák nejblíž
-    `LEADER_AGE` 12), podíl orby a svoz jejich vozů postavy nemají; úloha `PersonJob` `plough`
-    (`team`, `role`) a `cart`. Klik: `VillageRenderer.pickDraft` (`PloughTeams.pick`,
-    `CartRenderer.pick` – válce dílů promítnuté na plátno, `draft-pick.ts`, jen při kliknutí)
-    se porovná s `VillageVillagers.pickHit` (bližší vyhraje); `draftHitTarget` vybere spřežení
-    `plough-team` (pořadí dne `team`) nebo vůz `cart` (id), na oráče, honáka či vozku `person`.
-    `LandscapeScene.setSelection` → `draftSelectionFor` → `VillageRenderer.selectDraft` – kroužek
-    `SelectionRing` (`selection-ring.ts`, i kroužek postav) sleduje pohyb, stav (`TeamActivity`
-    z `draft-state.ts`, `CartPose.leg`) jen při změně → `onDraftState` (`DraftFigureState`
-    z `lib/draft-activity.ts` – i lidé u spřežení) → `selectionDetails(…, personState, draftState)`
-    → panely `TeamBody`, `CartBody` (texty, `teamPen`, `cartPen`), u oráče a vozky tlačítko
-    spřežení / vozu. `CartPlan.id`. Ukázky `/dev/panels?panel=sprezeni` (`vuz`, `vuz-stoji`,
-    `postava-orac`, `postava-vozka`); `/dev/landscape` ukázky s prací dne bez lidí dostanou ukázkové
-    lidi (`withDemoPersons`).
-    **Pohřeb** (villagers.md – Pohřeb): průvod s márami a kruh kolem hranice jsou postavy s klíčem
-    `funeral:` z `funeral-plan.ts` (`funeralFigures` ve `villager-plan-events.ts`) – jdou mimo rozpočet
-    `MAX_WORKERS`, ve dnech obřadu se o ně sníží počet pracujících postav (`funeralActiveIn`).
-    **Svatba** (villagers.md – Svatba): průvod, pár a podkova svatebčanů jsou postavy s klíčem
-    `wedding:` (`weddingFigures`, nejvýš `MAX_WEDDING_FIGURES_TOTAL` = 60) – mimo `MAX_WORKERS`,
-    lidé vsi ubírají z pracujících ve dnech, kdy jsou vidět (`weddingVillagersIn`); nevěsta má kód
-    vlasů `wreath` (věnec z kvítků – shader po masce vlasů, villagerLook.w = 4), svatebčané pestřejší
-    oděv (`WEDDING_CLOTH`). Svatebčan je člověk vsi (`WeddingMember.person` → `roster.takeId`,
-    jen kdo je ten den vidět – `weddingMembersIn`; lidé z okolí jako cizí postavy), jde vybrat
-    kliknutím; činnost `PersonJob` `wedding` – „jde na svatbu“, „je oddávána“ / „je oddáván“,
-    „stojí u obřadu“, „vrací se ze svatby“ (úseky `wait` / `ring` / `home` ve `weddingPose`).
-    **Provoz na cestách** (villagers.md – Provoz na cestách; Martin 19. 10. 2026: „Chci vidět
-    vesničany, jak chodí pro vodu nebo na pole.“): `road-traffic.ts` (čisté funkce) – proud lidí
-    pro vodu (`waterTrips` – `WATER_FETCHING.tripsPerPerson` × lidé z `SceneLabor.homes`, bez vody
-    přivezené vozem `cartWater`), k lesu (`woodErrandTrips` z jádra) a uhlíř k milíři
-    (`KILN_TRIPS_PER_MAN_DAY`); **proud na pole není** (od 31. 10. 2026 – úloha 4 Činností od
-    začátku do konce: řady na poli a nosiči úrody jdou z rozvrhu ode dveří svého domu a na konci
-    činnosti domů); na cestě cesty × doba cesty ÷ `TRAFFIC_DAY_S` (900 s) lidí, nejvýš
-    `MAX_TRAFFIC` (24), voda a dřevo aspoň jeden (`trafficCounts`), fáze se zlatým řezem
-    (`streamPhase`). `trafficFigures` ve `villager-plan-traffic.ts` – po pěšinách (`errandPath`, k milíři
-    `fieldPath`: po pěšině, `route(a, b, reach)`, a dál rovně; kontrola `trafficRouteOk`
-    – ohrady se neberou, do domu jen o `ROUTE_HOUSE_SLACK_M`), vyjde se od vchodu (`trafficDoor` –
-    volné místo do 16 m), doma na chvíli zmizí (`ShuttleOptions.restHidden`).
-    **Pochůzka se dokončí** (villagers.md – Pochůzka se dokončí; Martin 24. 10. 2026): postavy
-    proudu a nosiči kováře nesou `PlannedVillager.errand` (`shuttleErrand` – cyklus `shuttleCycle`:
-    délka, posun fáze, kdy v cyklu dojde domů, a otisk trasy `sig`); `VillageVillagers.rebuild`
-    po novém plánu volá `carryErrands(staré, nové, t)` (`villager-errands.ts`, čisté funkce, testy
-    `villager-errands.test.ts`): kdo je venku a v novém plánu nemá tutéž pochůzku (klíč, otisk,
-    člověk, postava), dojde ji jako postava `…#done` (`untilS` – ve dveřích zmizí, příští
-    přeplánování ji vynechá); nové pochůzky čekají doma do svého začátku cyklu (`fromS`,
-    `nextStart`) a ne dřív, než se jejich člověk vrátí; jiná práce člověka, který se vrací, je
-    skrytá do návratu a od dveří k ní dojde (`WALK_OVER_M`, přesunuté z `villagers.ts`). Bez
-    minulého plánu (první zobrazení) je proud rozběhnutý. Pochůzky se nepřecházejí `walkThen`.
-    **K lesu pro dřevo** (villagers.md – K lesu pro dřevo): `errandPath` pro dřevo vybere nejkratší
-    chůzi ke konci pěšiny pro dřevo (okraj lesa ze sítě pěšin jádra) nebo k jedné ze tří
-    nejbližších větších skupinek stromů (`WOOD_GROVE` – 6 stromů do 15 m, `GroveIndex` – stromy
-    z `VillagerGround.treesIn` líně po čtvercích 30 m, hustota jen u prošlých stromů, poloměry
-    30 → 250 m, `WOOD_SEARCH_M`; jeden index na plán), trasa `walkRoute` / `fieldPath`, cíl 2,5 m
-    před krajním stromem; mez `ERRAND_MAX_M.wood` 400 m. Pro vodu s vahadlem
-    a vědry (klipy `carry-water` a `water-idle`, prop `yoke` – `procedural_yoke` v
-    `people_from_0ad.py`, ruce `reach` na provazech). Schůdná země postav přes celou krajinu líně
-    po 4 m (`lazyWalkable`, `VillageLivestock.walkGroundFor`) – pole až 800 m od obydlí; `inBox`
-    má rychlé odmítnutí podle dosahu domu, `routeWalker` (`path-router.ts`) vede postavy po
-    uložených trasách simulace a pamatuje si dotazy (`route(a, b, reach, dwellingId)` – trasa
-    domácnosti `d:<id>` má přednost před geometricky bližší cizí); krátké pohyby (`walkRoute`)
-    obcházejí plot ohrady (box ohrady = plot odsazený `PEN_FENCE_INSET_M`, ulička 3 m mezi
-    ohradami průchozí; strana, kde navazuje další čtverec téže ohrady, plot nemá). Svatby, pohřby
-    a karavany bez uložené trasy jdou také přes `walkRoute`, plot nepřekročí.
-    **Kovář** (crafts.md – Uhlí a ruda kováře): kopáči na valu jámy s motykou (`oreDiggers`), nosiči
-    uhlí a rudy s košem (`smithFetchFigures` – postava na každého nosiče z `LaborShare.ages`, nejvýš
-    `FETCH_MAX`, ne proud; synové pod 14 let menší postavy dětí); kovář s vozem se nekreslí.
+  = odhad po síti vsi `VillagerPaths.walkLength` (`path-router.ts` – cena `walkingRoute`
+  z jádra nad pěšinami stálých tras a pevnými cestami, paměť dotazů) ÷ `SCHEDULE_WALK_M_S` (`Timetable.setEstimate`,
+  bez sítě rovně); přesná trasa `planVillagersWithCrew` → `walk` (`walkRoute` – týž model, village-roads.md)
+  přes `Timetable.setRouter` jen pro kreslenou pózu, jednou za úsek (`activityPose` – `PoseWalk`,
+  `walkLeg`: po trase v čase z odhadu, `pace` = délka ÷ čas ÷ tempo, 0,6–1,8). Testy
+  `villager-events.test.ts`, `path-router.test.ts`.
+  **Fáze činností** (villagers.md – Fáze činností; úlohy 7–8): `villager-phases.ts` (čisté,
+  testy `villager-phases.test.ts`, `villager-schedule.test.ts`) – `activityPhases(a, seed, walkS)`
+  rozloží činnost na fáze (`ActivityPhase` – jméno, od–do, klip a tempo, místo jinde, chůze):
+  `out` ode dveří, práce v místě po krocích role (`PHASE_STEPS` – podíly mírně losem
+  `PHASE_JITTER` podle člověka a začátku; kratší práce než `MIN_PHASE_S` na krok a úloha
+  u objektu a pochůzka jen `work`), `back` domů (rybář `bring-catch` s rybami v nůši); součet = délka
+  činnosti, přerušení ji utne. Krok jinde (`PhasePlaces` – `drop` cizí dům, `aid` řada žnečů)
+  s cestou tam a zpět, jen když se cesta vejde do `TRANSIT_SHARE` jeho délky. `phaseAt`,
+  `phaseWalking`, `schedulePhaseAt` (rozvrh + fáze + klip). Role z plánu dne
+  `villager-plan-phases.ts` (`planPhases` → `personTasks` – `PersonTask.role`, `places`): žnec
+  `reap` (vázání `bind` – povříslo), louka `meadow` (hrabání `rake`, kupky vidlemi `pitch`),
+  nakladač u vozu `load-sheaves` / `load-hay` (`pitch`), kovář podle dvora dne `smelt` (praní
+  v sítu `sieve`, pražení `winnow`) / `refine` (kladivo a kleště `forge` tempem 0,7) / `forge`
+  (`forge` 1,3, odnos nástrojů v nůši `carry-tools` k cizímu domu – `PhaseStep.carry`), uhlíř
+  podle stavu milíře `kiln-wood` (štípání na špalku `split`) / `kiln-build` (zahrnutí `hoe`)
+  / `kiln-burn` (hlídání `idle`, zahrnutí) / `kiln-draw` (hrábě `rake`, do koše `fruit`),
+  hrnčíř `pottery` (sušení a vsazení `pots`, hlídání, odnos nádob `carry-pots`), rybář `fish`
+  (úlovek domů `carry-fish`; rekvizity úlohy 9 – scene-village.md, Rekvizity fází činností),
+  o žních cvičící muži `train` (žne a váže u řady žnečů), starší `elder` a nečinní `idle`
+  (paběrky); starší mimo žně `elder-home` (úloha 10): sedí na špalku (póza úlohy `sit`),
+  postojí variantou stání (`rest` – `variants: REST_CLIPS`, los podle člověka a kroku)
+  a zajdou se pomodlit (`pray`) k nejbližší hotové modle či svatyni (`PhasePlaces.shrine` –
+  `SHRINE_GAP_M` od okraje půdorysu na straně, odkud jdou; bez modly krok odpadne). `activityPose(…, phases)` – fáze s klipem stojí, kde ji zastihla (póza úlohy
+  v začátku fáze), krok jinde jde rovně na místo a zpět; `Timetable.phase` (fáze v paměti
+  s činností), `scheduledState(…, phase)` → `PersonFigureState.phase` → `PHASE_TEXTS`
+  v `person-activity.ts` („váže snopy“, „pere rudu“, „nese nástroje do domácností“…; rybář „jde
+  k tůni“). Tempo nohou na cestách fází podle klipu (`walkSpeed` – s košem jinak než bez).
+  Tesař s rozdělaným vozem (úloha 11) má roli `cart` – otesává díly (`split`, „otesává díly
+  vozu“) a staví vůz (póza úlohy `build` u korby, „staví vůz“); vůz po fázích kreslí scéna
+  (scene-village.md – Tesař – vznikající vůz).
+  **Implementováno – Žena, děti a svatba (úloha 12, 1. 11. 2026):** ženy u dveří (`domestic`
+  → `doorChore` podle `phase` postavy, villager-plan-folk.ts) předou (`SPIN_SHARE` 0,5),
+  vaří (`COOK_SHARE` 0,25), tkají u stavu (`WEAVE_SHARE` 0,1 – klip `weave`), zbytek postává;
+  s malým dítětem v domě (`DayRoster.hasSmallChild` – pod `AGE.olderChild`) ho hlídá u dveří.
+  Úsek pózy (`VillagerStage` `spin` / `cook` / `weave` / `mind`) řekne panel („přede před
+  domem“, „vaří na ohništi před domem“, „tká na stavu před domem“, „hlídá děti u domu“ –
+  `DOOR_CHORE_TEXTS`); muži u dveří postávají. Postava dítěte u matky ani nošení na zádech
+  není (žádná rekvizita ani klip – návrh Clauda: jen stání u dveří). Hudebníci na svatbě
+  (wedding-plan.ts – `weddingMusicians`, `WEDDING_MUSIC`): dva dospělí svatebčané losem podle
+  svatby hrají na svém místě v podkově na píšťalu a buben (`WeddingMember.music` → klip
+  `pipe` / `drum`, úloha `wedding` s `music` – „hraje na píšťalu na svatbě“, „bubnuje na
+  svatbě“), v průvodu jdou. Oka na zajíce – Lovci, rybáři a děti s řehtačkou. Pomoc o žních
+  (paběrky, nosiči) je z úlohy 8.
+  Rozvrh se počítá líně: jen když `write` kreslí pózy (ves v záběru, při omezeném pohybu stojí)
+  nebo pro vybraného (`updateSelection`); mimo záběr nic. Obal postav pro ořez (`bounds`) skládá
+  `write` z posledních póz a z obdélníku dne (`extent`): dveře lidí s rozvrhem a místa úloh dne
+  i s kroky jinde (`dayExtent` ve `villager-timetable.ts`), trasy jízd (`rideArea`), stezky
+  karavan, pohřby a svatby – kdo vyjde z domu, když jsou všichni doma, se hýbe hned. Vlasce rybářů se překreslí, jen když se
+  změní, kdo rybaří. Výběr: `scheduledState` – úloha a cesta (`leg` – „jde na pole“, „jde domů“
+  v `person-activity.ts`) z rozběhnuté činnosti, i přes přelom dne; když vybraný zajde do domu
+  (byl od výběru venku), `onPersonState` ohlásí `indoors` a `VillageGame` / `DevVillagePreview`
+  výběr zruší – **kromě vojvody** (role `voivode`, panel „doma“). Pryč `walkThen` při
+  přeplánování (dojití na další čtverec – nahrazuje cesta ode dveří k nové práci).
+  **Výběr spřežení a vozu** (villagers.md – Výběr spřežení a vozu; Martin 20. 10. 2026: „nešlo mi
+  kliknout na volské spřežení ani na člověka, co jej vedl“, podrobnosti návrh Clauda): oráč, honák
+  a vozka jsou lidé vsi – `planVillagersWithCrew` (`DraftCrew`; vstup `draft` =
+  `VillageRenderer.draftCrews()` – kolik spřežení a id zapřažených vozů ves kreslí) jim přiřadí
+  člověka hned po pasácích (vozku vozu výpravy s karavanou; oráč dospělý muž, honák nejblíž
+  `LEADER_AGE` 12), podíl orby a svoz jejich vozů postavy nemají; úloha `PersonJob` `plough`
+  (`team`, `role`) a `cart`. Klik: `VillageRenderer.pickDraft` (`PloughTeams.pick`,
+  `CartRenderer.pick` – válce dílů promítnuté na plátno, `draft-pick.ts`, jen při kliknutí)
+  se porovná s `VillageVillagers.pickHit` (bližší vyhraje); `draftHitTarget` vybere spřežení
+  `plough-team` (pořadí dne `team`) nebo vůz `cart` (id), na oráče, honáka či vozku `person`.
+  `LandscapeScene.setSelection` → `draftSelectionFor` → `VillageRenderer.selectDraft` – kroužek
+  `SelectionRing` (`selection-ring.ts`, i kroužek postav) sleduje pohyb, stav (`TeamActivity`
+  z `draft-state.ts`, `CartPose.leg`) jen při změně → `onDraftState` (`DraftFigureState`
+  z `lib/draft-activity.ts` – i lidé u spřežení) → `selectionDetails(…, personState, draftState)`
+  → panely `TeamBody`, `CartBody` (texty, `teamPen`, `cartPen`), u oráče a vozky tlačítko
+  spřežení / vozu. `CartPlan.id`. Ukázky `/dev/panels?panel=sprezeni` (`vuz`, `vuz-stoji`,
+  `postava-orac`, `postava-vozka`); `/dev/landscape` ukázky s prací dne bez lidí dostanou ukázkové
+  lidi (`withDemoPersons`).
+  **Pohřeb** (villagers.md – Pohřeb): průvod s márami a kruh kolem hranice jsou postavy s klíčem
+  `funeral:` z `funeral-plan.ts` (`funeralFigures` ve `villager-plan-events.ts`) – jdou mimo rozpočet
+  `MAX_WORKERS`, ve dnech obřadu se o ně sníží počet pracujících postav (`funeralActiveIn`).
+  **Svatba** (villagers.md – Svatba): průvod, pár a podkova svatebčanů jsou postavy s klíčem
+  `wedding:` (`weddingFigures`, nejvýš `MAX_WEDDING_FIGURES_TOTAL` = 60) – mimo `MAX_WORKERS`,
+  lidé vsi ubírají z pracujících ve dnech, kdy jsou vidět (`weddingVillagersIn`); nevěsta má kód
+  vlasů `wreath` (věnec z kvítků – shader po masce vlasů, villagerLook.w = 4), svatebčané pestřejší
+  oděv (`WEDDING_CLOTH`). Svatebčan je člověk vsi (`WeddingMember.person` → `roster.takeId`,
+  jen kdo je ten den vidět – `weddingMembersIn`; lidé z okolí jako cizí postavy), jde vybrat
+  kliknutím; činnost `PersonJob` `wedding` – „jde na svatbu“, „je oddávána“ / „je oddáván“,
+  „stojí u obřadu“, „vrací se ze svatby“ (úseky `wait` / `ring` / `home` ve `weddingPose`).
+  **Provoz na cestách** (villagers.md – Provoz na cestách; Martin 19. 10. 2026: „Chci vidět
+  vesničany, jak chodí pro vodu nebo na pole.“): `road-traffic.ts` (čisté funkce) – proud lidí
+  pro vodu (`waterTrips` – `WATER_FETCHING.tripsPerPerson` × lidé z `SceneLabor.homes`, bez vody
+  přivezené vozem `cartWater`), k lesu (`woodErrandTrips` z jádra) a uhlíř k milíři
+  (`KILN_TRIPS_PER_MAN_DAY`); **proud na pole není** (od 31. 10. 2026 – úloha 4 Činností od
+  začátku do konce: řady na poli a nosiči úrody jdou z rozvrhu ode dveří svého domu a na konci
+  činnosti domů); na cestě cesty × doba cesty ÷ `TRAFFIC_DAY_S` (900 s) lidí, nejvýš
+  `MAX_TRAFFIC` (24), voda a dřevo aspoň jeden (`trafficCounts`), fáze se zlatým řezem
+  (`streamPhase`). `trafficFigures` ve `villager-plan-traffic.ts` – po pěšinách (`errandPath`, k milíři
+  `walkRoute` – po síti pěšin a pevných cest týmž modelem jako odhad, village-roads.md; kontrola `trafficRouteOk`
+  – ohrady se neberou, do domu jen o `ROUTE_HOUSE_SLACK_M`), vyjde se od vchodu (`trafficDoor` –
+  volné místo do 16 m), doma na chvíli zmizí (`ShuttleOptions.restHidden`).
+  **Pochůzka se dokončí** (villagers.md – Pochůzka se dokončí; Martin 24. 10. 2026): postavy
+  proudu a nosiči kováře nesou `PlannedVillager.errand` (`shuttleErrand` – cyklus `shuttleCycle`:
+  délka, posun fáze, kdy v cyklu dojde domů, a otisk trasy `sig`); `VillageVillagers.rebuild`
+  po novém plánu volá `carryErrands(staré, nové, t)` (`villager-errands.ts`, čisté funkce, testy
+  `villager-errands.test.ts`): kdo je venku a v novém plánu nemá tutéž pochůzku (klíč, otisk,
+  člověk, postava), dojde ji jako postava `…#done` (`untilS` – ve dveřích zmizí, příští
+  přeplánování ji vynechá); nové pochůzky čekají doma do svého začátku cyklu (`fromS`,
+  `nextStart`) a ne dřív, než se jejich člověk vrátí; jiná práce člověka, který se vrací, je
+  skrytá do návratu a od dveří k ní dojde (`WALK_OVER_M`, přesunuté z `villagers.ts`). Bez
+  minulého plánu (první zobrazení) je proud rozběhnutý. Pochůzky se nepřecházejí `walkThen`.
+  **K lesu pro dřevo** (villagers.md – K lesu pro dřevo): `errandPath` pro dřevo vybere nejkratší
+  chůzi ke konci pěšiny pro dřevo (okraj lesa ze sítě pěšin jádra) nebo k jedné ze tří
+  nejbližších větších skupinek stromů (`WOOD_GROVE` – 6 stromů do 15 m, `GroveIndex` – stromy
+  z `VillagerGround.treesIn` líně po čtvercích 30 m, hustota jen u prošlých stromů, poloměry
+  30 → 250 m, `WOOD_SEARCH_M`; jeden index na plán), trasa `walkRoute`, cíl 2,5 m
+  před krajním stromem; mez `ERRAND_MAX_M.wood` 400 m. Pro vodu s vahadlem
+  a vědry (klipy `carry-water` a `water-idle`, prop `yoke` – `procedural_yoke` v
+  `people_from_0ad.py`, ruce `reach` na provazech). Schůdná země postav přes celou krajinu líně
+  po 4 m (`lazyWalkable`, `VillageLivestock.walkGroundFor`) – pole až 800 m od obydlí; `inBox`
+  má rychlé odmítnutí podle dosahu domu, `routeWalker` (`path-router.ts`) vede postavy po
+  síti vsi týmž modelem jako odhad simulace a pamatuje si dotazy (`route(a, b, reach, dwellingId)` –
+  uložená trasa domácnosti `d:<id>` má přednost před geometricky bližší cizí; `network` – po
+  pěšinách a pevných cestách, když je to kratší než rovně – village-roads.md); pochůzka pro
+  vodu a dřevo, když pěšina domácnosti neprojde, jde ke konci pěšiny přes `walkRoute`; krátké pohyby (`walkRoute`)
+  obcházejí plot ohrady (box ohrady = plot odsazený `PEN_FENCE_INSET_M`, ulička 3 m mezi
+  ohradami průchozí; strana, kde navazuje další čtverec téže ohrady, plot nemá). Svatby, pohřby
+  a karavany bez uložené trasy jdou také přes `walkRoute`, plot nepřekročí.
+  **Kovář** (crafts.md – Uhlí a ruda kováře): kopáči na valu jámy s motykou (`oreDiggers`), nosiči
+  uhlí a rudy s košem (`smithFetchFigures` – postava na každého nosiče z `LaborShare.ages`, nejvýš
+  `FETCH_MAX`, ne proud; synové pod 14 let menší postavy dětí); kovář s vozem se nekreslí.
 
 - **Vojvodova rodina na dvorku** (lord.md – Ve scéně; `villager-plan-lord.ts`, Úloha 9): pohled
   posílá `SceneLabor.lord` (`village-view-scene.ts` – `sceneLord`) – obydlí vojvody, cvičící

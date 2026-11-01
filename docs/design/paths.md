@@ -1075,6 +1075,28 @@ nespadne“. Model návrh Clauda:
   (jízdy roku do vyšlapanosti a příznak vozová) hledá trasy vozu jednou za rok.
 - **Přesné trasy jen pro pohled:** trasu vozu, spřežení a postav počítá pohled na ves (scéna)
   stejnými deterministickými funkcemi jen pro to, co ukazuje – simulace mřížku vozu nestaví.
+- **Kudy chodí postavy ve scéně** (1. 11. 2026 – Martin: „Koukám na tuhle buchtu: person 4431,
+  která jde na pole. Ale místo, aby to vzala po cestě … tak šla přímo skrz pole.“ a „Tenhle týpek:
+  person 4473 šel pro dřevo a taky se vysral na cesty a šel přímo“; model návrh Clauda): postava
+  jde **týmž modelem jako odhad simulace** – kratší z „rovně“ a „rovně k nejbližšímu bodu
+  pěšiny či cesty, po síti a z nejbližšího bodu rovně k cíli“; síť jsou pěšiny stálých tras se
+  silou z vyšlapanosti a pevné cesty (stupeň, olemování, mokřina a brody), rovně po půdě krajiny
+  a polí – tatáž data jako simulace, takže délka činnosti (odhad) je cena právě té trasy. Platí
+  pro všechny cesty chodců (pole, dřevo, voda, stádo, dílna, stavba, jízdy vojvody). Uložená
+  trasa domácnosti, která začíná u brány a končí u cíle, má přednost, jen když je chůze po ní
+  nejvýš o 10 % delší než nejkratší podle odhadu. Trasa po síti nesmí přes dům, plot ohrady, hrob
+  ani vodu mimo brod (jinak rovně kolem domů, pak uložená trasa, pak síť s mírnějším měřítkem
+  provozu). Dřív scéna šla po uložené trase jen tehdy, když končila do 30 m od cíle – na velkém
+  poli a ke skupince stromů tak šla rovně (Vlkov: z domu 2137 na 3 782 dílů polí 3 246 rovně,
+  po síti 0; teď po síti 3 530, rovně 46).
+- **Tempo ve scéně nejvýš jako po pěšině** (1. 11. 2026 – Martin: „Žena rolníka z tohoto domu:
+  dwelling 1321 právě sprintovala po cestě road 1459“; návrh Clauda): po pevné cestě je chůze
+  v ceně simulace 1,5–1,7× rychlejší, ve scéně jde postava nejvýš 1,3× přirozenou chůzí (jako po
+  plné pěšině – rychlejší krok vypadá jako běh) a délka chůze v rozvrhu se o rozdíl prodlouží;
+  odhad doby a nakreslená trasa jsou táž trasa. Když jediná schůdná trasa vede dlouhou oklikou,
+  kterou odhad (rovně skrz dům a pozemek) nezná – cíl za domem, dveře u sousedního pozemku –,
+  jde postava v čase rozvrhu rovně (neběží). Dřív: obydlí 1321 → humno 2609 rovně 18 m, odhad
+  18 m, nakreslená uložená trasa 105 m po cestě 1459 → 5,7× = 8,6 m/s.
 
 ## Převod starých vsí (Martin 23. 10. 2026)
 
