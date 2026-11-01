@@ -403,7 +403,7 @@ describe('fáze činnosti – rozvrh napřed, fáze potom (villager-phases.ts, �
     }
   });
 
-  it('klip podle fáze: vázání snopů sehnutím, práce úlohy pózou úlohy, doma idle', () => {
+  it('klip podle fáze: vázání snopů s povříslem, práce úlohy pózou úlohy, doma idle', () => {
     let bind = 0;
     let work = 0;
     for (let p = 6; p <= 120; p += ROLES.length) {
@@ -413,7 +413,7 @@ describe('fáze činnosti – rozvrh napřed, fáze potom (villager-phases.ts, �
         const { activity, phase, clip } = schedulePhaseAt(PHASED, p, t);
         if (activity.kind !== 'bout') continue;
         if (phase.name === 'bind') {
-          expect(clip).toBe('weed');
+          expect(clip).toBe('bind');
           bind++;
         }
         if (phase.name === 'work') {

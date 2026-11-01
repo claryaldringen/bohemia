@@ -96,15 +96,16 @@ describe('fáze rolí z existujících klipů (villager-phases.ts)', () => {
     }
   });
 
-  it('fáze mapují na stávající klipy – žně a vázání, kování tempem, tavba po přípravě rudy', () => {
+  it('fáze mají klipy s rekvizitami – vázání s povříslem, kování tempem, tavba po praní rudy', () => {
     const named = (role: PhaseRole): ActivityPhase[] => activityPhases(bout(role), 11);
     const clipOf = (role: PhaseRole, name: PhaseName): VillagerClip | undefined =>
       named(role).find((p) => p.name === name)?.clip;
-    expect(clipOf('reap', 'bind')).toBe('weed');
-    expect(clipOf('meadow', 'rake-hay')).toBe('hoe');
-    expect(clipOf('meadow', 'heap-hay')).toBe('fruit');
-    expect(clipOf('load-sheaves', 'load-sheaves')).toBe('fruit');
-    expect(clipOf('smelt', 'wash-ore')).toBe('weed');
+    expect(clipOf('reap', 'bind')).toBe('bind');
+    expect(clipOf('meadow', 'rake-hay')).toBe('rake');
+    expect(clipOf('meadow', 'heap-hay')).toBe('pitch');
+    expect(clipOf('load-sheaves', 'load-sheaves')).toBe('pitch');
+    expect(clipOf('load-hay', 'load-hay')).toBe('pitch');
+    expect(clipOf('smelt', 'wash-ore')).toBe('sieve');
     expect(clipOf('smelt', 'roast-ore')).toBe('winnow');
     expect(named('smelt').map((p) => p.name)).toEqual([
       'out',
@@ -113,17 +114,18 @@ describe('fáze rolí z existujících klipů (villager-phases.ts)', () => {
       'smelt',
       'back',
     ]);
-    // překování těžší a pomalejší než kování nástrojů – týž klip, jiné tempo
+    // překování těžší a pomalejší než kování nástrojů – týž klip (kladivo a kleště), jiné tempo
     const refine = named('refine').find((p) => p.name === 'refine')!;
     const forge = named('forge').find((p) => p.name === 'forge')!;
-    expect([refine.clip, forge.clip]).toEqual(['build', 'build']);
+    expect([refine.clip, forge.clip]).toEqual(['forge', 'forge']);
     expect(refine.pace!).toBeLessThan(forge.pace!);
-    expect(clipOf('kiln-wood', 'split-wood')).toBe('fell');
+    expect(clipOf('kiln-wood', 'split-wood')).toBe('split');
     expect(clipOf('kiln-burn', 'tend-kiln')).toBe('idle');
     expect(clipOf('kiln-burn', 'cover-kiln')).toBe('hoe');
-    expect(clipOf('kiln-draw', 'draw-coal')).toBe('hoe');
-    expect(clipOf('pottery', 'dry-pots')).toBe('weed');
-    expect(clipOf('fish', 'bring-catch')).toBe('carry');
+    expect(clipOf('kiln-draw', 'draw-coal')).toBe('rake');
+    expect(clipOf('pottery', 'dry-pots')).toBe('pots');
+    expect(clipOf('pottery', 'fire-pots')).toBe('pots');
+    expect(clipOf('fish', 'bring-catch')).toBe('carry-fish');
     expect(clipOf('train', 'help-reap')).toBe('reap');
     expect(clipOf('elder', 'glean')).toBe('weed');
   });
@@ -191,19 +193,19 @@ describe('fáze rolí z existujících klipů (villager-phases.ts)', () => {
     ).toBe('walk-axe');
   });
 
-  it('odnos do domácností: s košem k cizímu domu a zpět k dílně, pak domů', () => {
+  it('odnos do domácností: s nůší nástrojů k cizímu domu a zpět k dílně, pak domů', () => {
     const a = bout('forge');
     const phases = activityPhases(a, 11);
     const names = phases.map((p) => p.name);
     expect(names).toEqual(['out', 'forge', 'deliver-tools', 'deliver-tools', 'return', 'back']);
     const go = phases[2]!;
-    expect(go.clip).toBe('carry');
+    expect(go.clip).toBe('carry-tools');
     expect(go.walk).toEqual({ from: SITE, to: NEAR.drop });
     expect(phaseWalking(go)).toBe(true);
     const pose = activityPose(a, DOOR, undefined, phases);
     const out = createVillagerPose();
     const mid = pose((go.from + go.to) / 2, [], out);
-    expect([mid.clip, mid.x]).toEqual(['carry', 5]);
+    expect([mid.clip, mid.x]).toEqual(['carry-tools', 5]);
     const at = phases[3]!;
     expect(pose((at.from + at.to) / 2, [], out)).toMatchObject({ x: 10, z: 0, clip: 'idle' });
     expect(pose(phases[4]!.to - 1e-6, [], out).x).toBeCloseTo(0, 3);
@@ -237,7 +239,7 @@ describe('fáze rolí z existujících klipů (villager-phases.ts)', () => {
     const out = createVillagerPose();
     for (const p of phases.filter((x) => x.name === 'bind' || x.name === 'work')) {
       const got = pose((p.from + p.to) / 2, [], out);
-      expect(got.clip).toBe(p.name === 'bind' ? 'weed' : 'reap');
+      expect(got.clip).toBe(p.name === 'bind' ? 'bind' : 'reap');
       expect([got.x, got.z]).toEqual([0, 0]);
     }
     // stejný začátek = stejné fáze; jiný začátek – jiný los podílů

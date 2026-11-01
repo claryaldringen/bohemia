@@ -111,6 +111,8 @@ interface PhaseStep {
   variants?: readonly VillagerClip[];
   pace?: number;
   place?: PhasePlace;
+  /** Klip cesty na místo jinde místo klipu `TRANSIT` (odnos – nůše s nástroji či nádobami). */
+  carry?: VillagerClip;
 }
 
 /** Cesta na místo kroku jinde a zpět – jméno a klip (odnos nese koš, k poli jde s prázdnýma). */
@@ -126,53 +128,53 @@ const TRANSIT: Record<
 
 /**
  * Posloupnosti fází rolí (villagers.md – Fáze činností; podíly práce v místě – návrh Clauda,
- * doladit hraním). Klipy jen stávající (`VillagerClip`); chybějící rekvizity (povříslo, hrábě,
- * vidle, kladivo a kleště, špalek, síto, nádoby, koš s nástroji, ryby) zatím nahrazuje rekvizita
- * klipu – úloha 9. Pořadí a podíly se losem mírně mění (`PHASE_JITTER`).
+ * doladit hraním). Rekvizity fází (úloha 9) jsou v klipech (`people.json` – povříslo, hrábě,
+ * vidle, kladivo a kleště, štípací špalek, síto, nádoby, nůše s nástroji, nádobami a rybami).
+ * Pořadí a podíly se losem mírně mění (`PHASE_JITTER`).
  */
 export const PHASE_STEPS: Record<PhaseRole, readonly PhaseStep[]> = {
-  // žně: srp, pak sehnutí nad snopem (vázání – zatím bez povříslu)
+  // žně: srp, pak sehnutí nad snopem s povříslem
   reap: [
     { name: 'work', share: 0.35 },
-    { name: 'bind', share: 0.15, clip: 'weed' },
+    { name: 'bind', share: 0.15, clip: 'bind' },
     { name: 'work', share: 0.35 },
-    { name: 'bind', share: 0.15, clip: 'weed' },
+    { name: 'bind', share: 0.15, clip: 'bind' },
   ],
-  // louka: seč, hrabání (motyka místo hrábí), kupky (zdvih nahoru – koš místo vidlí)
+  // louka: seč, hrabání hráběmi, kupky vidlemi
   meadow: [
     { name: 'work', share: 0.5 },
-    { name: 'rake-hay', share: 0.3, clip: 'hoe', pace: 0.8 },
-    { name: 'heap-hay', share: 0.2, clip: 'fruit' },
+    { name: 'rake-hay', share: 0.3, clip: 'rake', pace: 0.8 },
+    { name: 'heap-hay', share: 0.2, clip: 'pitch' },
   ],
-  // nakladač u vozu: nosí snopy, zdvih na vůz
+  // nakladač u vozu: nosí snopy, vidlemi je podává na vůz
   'load-sheaves': [
     { name: 'work', share: 0.55 },
-    { name: 'load-sheaves', share: 0.45, clip: 'fruit' },
+    { name: 'load-sheaves', share: 0.45, clip: 'pitch' },
   ],
   'load-hay': [
     { name: 'work', share: 0.5 },
-    { name: 'load-hay', share: 0.5, clip: 'fruit' },
+    { name: 'load-hay', share: 0.5, clip: 'pitch' },
   ],
-  // tavba: praní rudy (sehnutí – síto chybí), pražení u ohně s lopatou, sypání do pece
+  // tavba: praní rudy v sítu, pražení u ohně s lopatou, sypání do pece
   smelt: [
-    { name: 'wash-ore', share: 0.15, clip: 'weed' },
+    { name: 'wash-ore', share: 0.15, clip: 'sieve' },
     { name: 'roast-ore', share: 0.2, clip: 'winnow', pace: 0.7 },
     { name: 'smelt', share: 0.65 },
   ],
-  // překování houby na hřivny – těžší, pomalejší údery (palice místo kladiva)
+  // překování houby na hřivny – kladivo a kleště, těžší a pomalejší údery
   refine: [
-    { name: 'refine', share: 0.45, clip: 'build', pace: 0.7 },
+    { name: 'refine', share: 0.45, clip: 'forge', pace: 0.7 },
     { name: 'work', share: 0.1 },
-    { name: 'refine', share: 0.45, clip: 'build', pace: 0.7 },
+    { name: 'refine', share: 0.45, clip: 'forge', pace: 0.7 },
   ],
-  // kování nástrojů – rychlejší, lehčí údery, pak odnos do domácností (koš místo koše s nástroji)
+  // kování nástrojů – rychlejší, lehčí údery, pak odnos do domácností v nůši s nástroji
   forge: [
-    { name: 'forge', share: 0.7, clip: 'build', pace: 1.3 },
-    { name: 'deliver-tools', share: 0.3, clip: 'idle', place: 'drop' },
+    { name: 'forge', share: 0.7, clip: 'forge', pace: 1.3 },
+    { name: 'deliver-tools', share: 0.3, clip: 'idle', place: 'drop', carry: 'carry-tools' },
   ],
-  // milíř: štípání dřeva (sekera bez špalku), skládání
+  // milíř: štípání dřeva na špalku, skládání
   'kiln-wood': [
-    { name: 'split-wood', share: 0.6, clip: 'fell' },
+    { name: 'split-wood', share: 0.6, clip: 'split' },
     { name: 'stack-kiln', share: 0.4 },
   ],
   'kiln-build': [
@@ -185,18 +187,19 @@ export const PHASE_STEPS: Record<PhaseRole, readonly PhaseStep[]> = {
     { name: 'cover-kiln', share: 0.2, clip: 'hoe' },
     { name: 'tend-kiln', share: 0.4, clip: 'idle' },
   ],
-  // vytahování uhlí (motyka místo hrábí), sypání do koše
+  // vytahování uhlí hráběmi, sypání do koše
   'kiln-draw': [
-    { name: 'draw-coal', share: 0.6, clip: 'hoe' },
+    { name: 'draw-coal', share: 0.6, clip: 'rake' },
     { name: 'basket-coal', share: 0.4, clip: 'fruit' },
   ],
-  // hrnčíř: kruh či šlapání (póza úlohy), sušení, vsazení do pece, hlídání ohně, odnos nádob
+  // hrnčíř: kruh či šlapání (póza úlohy), sušení a vsazení do pece (sehnutí nad nádobami),
+  // hlídání ohně, odnos nádob v nůši
   pottery: [
     { name: 'throw-pots', share: 0.45 },
-    { name: 'dry-pots', share: 0.15, clip: 'weed' },
-    { name: 'fire-pots', share: 0.1, clip: 'fruit' },
+    { name: 'dry-pots', share: 0.15, clip: 'pots' },
+    { name: 'fire-pots', share: 0.1, clip: 'pots' },
     { name: 'watch-fire', share: 0.1, clip: 'idle' },
-    { name: 'deliver-pots', share: 0.2, clip: 'idle', place: 'drop' },
+    { name: 'deliver-pots', share: 0.2, clip: 'idle', place: 'drop', carry: 'carry-pots' },
   ],
   // rybář – loví (póza úlohy), úlovek nese domů v koši (`BACK_PHASE`)
   fish: [{ name: 'work', share: 1 }],
@@ -204,7 +207,7 @@ export const PHASE_STEPS: Record<PhaseRole, readonly PhaseStep[]> = {
   train: [
     { name: 'work', share: 0.4 },
     { name: 'help-reap', share: 0.35, clip: 'reap', place: 'aid' },
-    { name: 'help-bind', share: 0.25, clip: 'weed', place: 'aid' },
+    { name: 'help-bind', share: 0.25, clip: 'bind', place: 'aid' },
   ],
   // starší a nečinní o žních – paběrky na poli, pak zpět před dům
   elder: [
@@ -225,9 +228,9 @@ export const PHASE_STEPS: Record<PhaseRole, readonly PhaseStep[]> = {
   ],
 };
 
-/** Návrat domů s nákladem – rybář nese úlovek (koš místo ryb). */
+/** Návrat domů s nákladem – rybář nese úlovek (ryby v nůši). */
 const BACK_PHASE: Partial<Record<PhaseRole, { name: PhaseName; clip: VillagerClip }>> = {
-  fish: { name: 'bring-catch', clip: 'carry' },
+  fish: { name: 'bring-catch', clip: 'carry-fish' },
 };
 
 /** O kolik se podíl kroku losem mění (± polovina – `share × (1 ± PHASE_JITTER / 2)`). */
@@ -352,7 +355,7 @@ function workPhases(
         name: transit.go ?? s.name,
         from,
         to: from + go,
-        clip: transit.clip,
+        clip: s.carry ?? transit.clip,
         walk: { from: site, to: target },
       });
       // kroky na místě – podíly zbytku po cestě

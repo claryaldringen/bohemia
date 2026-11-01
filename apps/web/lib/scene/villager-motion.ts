@@ -68,13 +68,30 @@ export type VillagerClip =
   | 'walk-lord'
   // vlastní klipy z klíčových póz (CC0, people_from_0ad.py `keyed_frames`) – v 0 A.D. chybí:
   // dojení a sezení na špalku, předení, tkaní, sed u hrnčířského kruhu, píšťala a buben
+  // (s rekvizitami úlohy 9: džber, přeslice, stav, píšťala, buben)
   | 'milk'
   | 'spin'
   | 'weave'
   | 'sit'
   | 'wheel'
   | 'pipe'
-  | 'drum';
+  | 'drum'
+  // rekvizity fází činností (villagers.md – Pro implementaci, úloha 9): klip 0 A.D. s novou
+  // rekvizitou – vázání snopu s povříslem, hrábě, vidle, kladivo a kleště, štípání na špalku
+  // (úder krumpáče se sekerou), síto na rudu, nádoby na zemi, nůše s nástroji / nádobami / rybami,
+  // oko na zajíce, vaření (vařečka, hrnec na ohništi)
+  | 'bind'
+  | 'rake'
+  | 'pitch'
+  | 'forge'
+  | 'split'
+  | 'sieve'
+  | 'pots'
+  | 'carry-tools'
+  | 'carry-pots'
+  | 'carry-fish'
+  | 'snare'
+  | 'cook';
 
 /** Všechny klipy – GLB je musí mít (people.json, hlídá test). */
 export const VILLAGER_CLIPS: readonly VillagerClip[] = [
@@ -133,6 +150,18 @@ export const VILLAGER_CLIPS: readonly VillagerClip[] = [
   'wheel',
   'pipe',
   'drum',
+  'bind',
+  'rake',
+  'pitch',
+  'forge',
+  'split',
+  'sieve',
+  'pots',
+  'carry-tools',
+  'carry-pots',
+  'carry-fish',
+  'snare',
+  'cook',
 ];
 
 /** Klipy jen v `man.glb` (žena místo nich hraje `idle` – villagers.ts). */
@@ -262,6 +291,10 @@ export const CLIP_SPEED_M_S: Record<VillagerKind, Partial<Record<VillagerClip, n
   woman: {
     walk: 1.25,
     carry: 1.05,
+    // nůše s nástroji, nádobami či rybami – táž chůze jako s košem (carry_grain)
+    'carry-tools': 1.05,
+    'carry-pots': 1.05,
+    'carry-fish': 1.05,
     'carry-wood': 1.05,
     'carry-water': 1.25,
     'carry-meat': 1.05,
@@ -273,6 +306,9 @@ export const CLIP_SPEED_M_S: Record<VillagerKind, Partial<Record<VillagerClip, n
   man: {
     walk: 1.0,
     carry: 1.1,
+    'carry-tools': 1.1,
+    'carry-pots': 1.1,
+    'carry-fish': 1.1,
     'carry-wood': 1.0,
     'carry-water': 1.0,
     'carry-meat': 1.0,

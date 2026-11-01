@@ -63,6 +63,11 @@ export function porters(
 
 /** Kolik žen u dveří přede (podle `phase` postavy – návrh Clauda). */
 export const SPIN_SHARE = 0.6;
+/**
+ * Kolik žen u dveří vaří na ohništi před domem (villagers.md – Vaření a oheň; vařečka a hrnec –
+ * úloha 9, návrh Clauda) – další po přadlenách, zbytek postává.
+ */
+export const COOK_SHARE = 0.25;
 
 /**
  * Domácí práce venku: u obydlí (po domech dokola) postávají ženy před vchodem a některé
@@ -91,9 +96,12 @@ export function domestic(ctx: Context): Placer {
       if (path) return fetcher(path, who.kind, who.scale, 10 + who.phase * 8, who.phase);
     }
     const out = unit(door.x - home.position.x, door.z - home.position.z);
-    // předení před domem (villagers.md – Žena; vlastní klip `spin`) – žena, některé jen postávají
-    const spins = who.kind === 'woman' && who.phase < SPIN_SHARE;
-    return stand(door.x, door.z, out.x, out.z, spins ? 'spin' : 'idle');
+    // předení před domem (villagers.md – Žena; vlastní klip `spin`), vaření na ohništi (`cook` –
+    // hrnec stojí před ženou, směrem od domu) – žena, některé jen postávají
+    const woman = who.kind === 'woman';
+    const spins = woman && who.phase < SPIN_SHARE;
+    const cooks = woman && !spins && who.phase < SPIN_SHARE + COOK_SHARE;
+    return stand(door.x, door.z, out.x, out.z, spins ? 'spin' : cooks ? 'cook' : 'idle');
   };
 }
 

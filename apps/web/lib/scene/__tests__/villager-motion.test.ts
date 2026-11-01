@@ -11,6 +11,7 @@ import {
   shuttle,
   villagerSeconds,
   walkSpeed,
+  type VillagerClip,
 } from '../villager-motion';
 
 const pose = createVillagerPose;
@@ -116,5 +117,73 @@ describe('villager-motion – pohyb jako funkce času', () => {
     expect(isWalkClip('walk-axe')).toBe(true);
     expect(isWalkClip('sit')).toBe(false);
     expect(walkSpeed('man', 'walk-lord', 1)).toBeGreaterThan(walkSpeed('man', 'walk', 1));
+  });
+
+  it('rekvizity fází (úloha 9): klip ukazuje svou rekvizitu v people.json i v GLB', () => {
+    // klip → rekvizity, které v něm musí být vidět (villagers.md – Fáze činností)
+    const expected: Partial<Record<VillagerClip, readonly string[]>> = {
+      bind: ['sheaf'],
+      rake: ['rake'],
+      pitch: ['pitchfork'],
+      forge: ['hammer', 'tongs'],
+      split: ['split-axe', 'block'],
+      sieve: ['sieve'],
+      pots: ['pots'],
+      'carry-tools': ['basket', 'tools-load'],
+      'carry-pots': ['basket', 'pots-load'],
+      'carry-fish': ['basket', 'fish-load'],
+      snare: ['snare'],
+      cook: ['ladle', 'cookpot'],
+      milk: ['stump', 'pail'],
+      spin: ['distaff'],
+      weave: ['loom'],
+      pipe: ['pipe'],
+      drum: ['drum'],
+    };
+    const spec = JSON.parse(
+      readFileSync(new URL('../../../../../tools/blender/people.json', import.meta.url), 'utf8'),
+    ) as { name: string; props: { name: string }[]; clips: { name: string; props: string[] }[] }[];
+    for (const figure of spec) {
+      const glb = readFileSync(
+        new URL(`../../../public/models/people/${figure.name}.glb`, import.meta.url),
+      );
+      const jsonLength = glb.readUInt32LE(12);
+      const json = JSON.parse(glb.subarray(20, 20 + jsonLength).toString('utf8')) as {
+        nodes: { name: string }[];
+        accessors: { bufferView: number; byteOffset?: number }[];
+        bufferViews: { byteOffset?: number }[];
+        animations: {
+          name: string;
+          channels: { sampler: number; target: { node: number; path: string } }[];
+          samplers: { output: number }[];
+        }[];
+      };
+      // blok BIN hned za JSON (délka, typ, data)
+      const bin = 20 + jsonLength + 8;
+      const firstFloat = (accessor: number): number => {
+        const a = json.accessors[accessor]!;
+        const view = json.bufferViews[a.bufferView]!;
+        return glb.readFloatLE(bin + (view.byteOffset ?? 0) + (a.byteOffset ?? 0));
+      };
+      for (const [clip, props] of Object.entries(expected)) {
+        const clipSpec = figure.clips.find((c) => c.name === clip);
+        const anim = json.animations.find((a) => a.name === clip);
+        for (const prop of props) {
+          expect(
+            figure.props.map((p) => p.name),
+            `${figure.name}: ${prop}`,
+          ).toContain(prop);
+          expect(clipSpec?.props, `${figure.name} ${clip}`).toContain(prop);
+          // kloub rekvizity má v klipu nenulové měřítko (skrytá rekvizita má 0)
+          const node = json.nodes.findIndex((n) => n.name === `prop_${prop}`);
+          expect(node, `${figure.name}: uzel prop_${prop}`).toBeGreaterThanOrEqual(0);
+          const scale = anim?.channels.find(
+            (c) => c.target.node === node && c.target.path === 'scale',
+          );
+          expect(scale, `${figure.name} ${clip}: měřítko ${prop}`).toBeDefined();
+          expect(firstFloat(anim!.samplers[scale!.sampler]!.output)).toBeGreaterThan(0.5);
+        }
+      }
+    }
   });
 });
