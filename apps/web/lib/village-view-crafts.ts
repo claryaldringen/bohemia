@@ -472,6 +472,27 @@ function haulLoad(state: VillageState, share: LaborShare): CartLoad {
  * dílů, políčko louky, strom stavby), mimo svoz k milíři a na břeh pro vodu (wagons.md – Co vozy
  * vozí); výprava – od ohrady na začátek zemské stezky a po ní ke kraji mapy. Bez cíle null.
  */
+/** Jak blízko středu humna vůz zastaví a skládá snopy (m – kraj mlatu; návrh Clauda). */
+const FLOOR_CART_REACH_M = 9;
+
+/** Hotové humno nejblíž bodu `p` (pole svozu), nebo null. */
+function sheafFloor(
+  state: VillageState,
+  p: { x: number; z: number },
+): { x: number; z: number } | null {
+  let best: { x: number; z: number } | null = null;
+  let bestD = Infinity;
+  for (const f of state.threshingFloors ?? []) {
+    if (f.builtDay === null) continue;
+    const d = Math.hypot(f.position.x - p.x, f.position.z - p.z);
+    if (d < bestD) {
+      bestD = d;
+      best = { x: f.position.x, z: f.position.z };
+    }
+  }
+  return best;
+}
+
 function cartGoalToday(
   state: VillageState,
   landscape: Landscape,
@@ -508,7 +529,11 @@ function cartGoalToday(
     const ids = new Set(t.parts ?? []);
     const parts = (field?.parts ?? []).filter((p) => p.id !== undefined && ids.has(p.id));
     // bez dílů vůz nikam nejede (ani čtyřkolák)
-    return parts.length > 0 ? toNearest(parts, CARTS.reachM) : null;
+    const goal = parts.length > 0 ? toNearest(parts, CARTS.reachM) : null;
+    // snopy s hotovým humnem: plný vůz z pole k humnu (villagers.md – Fáze činností; návrh
+    // Clauda – počty a čas svozu dál řídí simulace)
+    const floor = job.load === 'sheaves' && goal ? sheafFloor(state, goal.to ?? parts[0]!) : null;
+    return goal && floor ? { ...goal, via: { to: floor, reachM: FLOOR_CART_REACH_M } } : goal;
   }
   if (t.kind === 'meadow') {
     return toNearest(

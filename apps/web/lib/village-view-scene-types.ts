@@ -576,6 +576,13 @@ export interface SceneCart {
    * neposílá. Bez jízdy, nebo když vůz k cíli nedojede, chybí – vůz stojí u ohrady.
    */
   route?: { x: number; z: number }[];
+  /**
+   * Svoz snopů s hotovým humnem (villagers.md – Fáze činností; Zjednodušení a co chybí): od konce
+   * `route` (pole) plný k humnu (`drop` – kde skládá) a odtud prázdný zpět k ohradě – osa vozové
+   * sítě z `goal.via`.
+   * Bez humna, nebo když k němu vůz nedojede, chybí – vůz veze snopy zpět k ohradě jako dřív.
+   */
+  viaRoute?: { points: { x: number; z: number }[]; drop: { x: number; z: number } };
 }
 
 /**

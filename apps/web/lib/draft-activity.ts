@@ -126,7 +126,11 @@ export function cartActivityText(
         return to ? `veze zboží do vesnice ${to}` : 'veze zboží k sousedům';
     }
   }
-  const [out, load, back, unload] = CART_TEXTS[cartGoal(job)];
+  const [out, load, back0, unload0] = CART_TEXTS[cartGoal(job)];
+  // svoz snopů na humno (SceneCart.viaRoute) – skládá na humně, ne u ohrady
+  const floor = cart?.viaRoute !== undefined;
+  const back = floor ? `${back0} na humno` : back0;
+  const unload = floor ? `${unload0} na humně` : unload0;
   switch (leg) {
     case 'load':
       return load;
@@ -134,6 +138,9 @@ export function cartActivityText(
       return back;
     case 'unload':
       return unload;
+    case 'return':
+      // od humna prázdný k ohradě (svoz snopů na humno)
+      return 'vrací se k ohradě';
     case 'loop':
     case 'away':
     case 'out':

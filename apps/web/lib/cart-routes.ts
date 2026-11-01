@@ -29,6 +29,11 @@ export interface CartGoal {
   from?: Point;
   then?: Point[];
   reverse?: true;
+  /**
+   * Plný vůz od cíle dál k `via.to` (svoz snopů na humno) a odtud zpět k ohradě
+   * (`SceneCart.viaRoute` – `cartViaRoute`).
+   */
+  via?: { to: Point; reachM: number };
 }
 
 /** Nejvýš tolik bodů trasy vozu do scény (osa se zjednoduší). */
@@ -82,6 +87,45 @@ export function cartGoalRoute(
 }
 
 /**
+ * Pokračování jízdy vozu `kind` od konce osy `axis` (pole) k `via.to` (humno) a odtud k začátku
+ * osy (ohrada) – zjednodušená osa po cm; nedojede-li tam nebo zpět, null (vůz jede jako dřív).
+ */
+export function cartViaRoute(
+  world: CartWorld,
+  landscape: Landscape,
+  obstacles: ObstacleLayer | null,
+  kind: CartKind,
+  axis: readonly Point[],
+  via: NonNullable<CartGoal['via']>,
+): { points: Point[]; drop: Point } | null {
+  if (axis.length < 2) return null;
+  const field = axis[axis.length - 1]!;
+  const pen = axis[0]!;
+  const leg = (from: Point, to: Point, reachM: number): Point[] | null => {
+    const route = cartWorldRoutes(
+      world,
+      landscape,
+      obstacles,
+      kind,
+      [{ ...to, reachM }],
+      from,
+    )?.[0];
+    return route?.reached && route.points.length >= 2 ? route.points : null;
+  };
+  const there = leg(field, via.to, via.reachM);
+  if (!there) return null;
+  const drop = there[there.length - 1]!;
+  const back = leg(drop, pen, CART_HOME_REACH_M);
+  if (!back) return null;
+  // od konce osy (pole) – hledání může začít od nejbližšího uzlu mřížky
+  const start = Math.hypot(there[0]!.x - field.x, there[0]!.z - field.z) > 0.01 ? [field] : [];
+  return { points: simplifiedRoute([...start, ...there, ...back.slice(1)]), drop };
+}
+
+/** Jak blízko ohrady (začátku osy) končí návrat od humna (m) – pak smyčka u ohrady. */
+const CART_HOME_REACH_M = 3;
+
+/**
  * Scéna s trasami vozů a spřežení spočítanými z cílů (`SceneCart.goal`, `ScenePloughLegs`
  * `outGoals` / `homeGoals`) a vstupu `scene.cartWorld`: vůz bez trasy stojí u ohrady, spřežení
  * stojí na poli (`stand`) jen v den bez cesty tam ani zpět. Bez cílů scéna beze změny.
@@ -105,6 +149,8 @@ export interface CartRoutesRequest {
 /** Spočítané trasy – po vozech scény (null = bez trasy) a spřežení tam a zpět. */
 export interface CartRoutesResult {
   carts: (Point[] | null)[];
+  /** Pokračování k humnu a zpět (`cartViaRoute`) po vozech; bez něj null. */
+  vias?: ({ points: Point[]; drop: Point } | null)[];
   out: Point[] | null;
   home: Point[] | null;
 }
@@ -148,8 +194,17 @@ export function cartRoutesOf(request: CartRoutesRequest, landscape: Landscape): 
     }
     return null;
   };
+  const carts = request.carts.map((c) => (c.goal ? routeOf(c.kind, c.goal) : null));
+  const vias = request.carts.map((c, i) => {
+    const axis = carts[i];
+    const via = c.goal?.via;
+    return world && axis && via
+      ? cartViaRoute(world, landscape, obstacles, c.kind, axis, via)
+      : null;
+  });
   return {
-    carts: request.carts.map((c) => (c.goal ? routeOf(c.kind, c.goal) : null)),
+    carts,
+    ...(vias.some((v) => v !== null) ? { vias } : {}),
     out: firstRoute(request.outGoals),
     home: firstRoute(request.homeGoals),
   };
@@ -159,7 +214,8 @@ export function cartRoutesOf(request: CartRoutesRequest, landscape: Landscape): 
 export function withCartRouteResult(scene: SceneVillage, result: CartRoutesResult): SceneVillage {
   const carts = scene.carts?.map((c, i) => {
     const route = result.carts[i] ?? null;
-    return route ? { ...c, route } : c;
+    const viaRoute = route ? (result.vias?.[i] ?? null) : null;
+    return route ? { ...c, route, ...(viaRoute ? { viaRoute } : {}) } : c;
   });
   const { out, home } = result;
   const stand = !out && !home ? scene.ploughLegs?.stand : undefined;

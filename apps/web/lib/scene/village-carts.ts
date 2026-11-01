@@ -129,7 +129,8 @@ export function villageCartPlans(
         id: cart.id,
         kind: cart.kind,
         cargo: job.load,
-        shuttle: shuttleRoute(cart.route!, cart.kind, walkable),
+        // svoz snopů s hotovým humnem – plný k humnu, odtud k ohradě (SceneCart.viaRoute)
+        shuttle: shuttleRoute(cart.route!, cart.kind, walkable, cart.viaRoute),
         schedule: {
           // svoz úrody, sena a klád v okně herního dne (ladicí – práce dne se vejde do dne);
           // voda, uhlí a osivo (Co vozy vozí) jezdí tempem volů ve skutečném čase jako provoz
