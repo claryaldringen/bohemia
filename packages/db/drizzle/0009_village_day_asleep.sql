@@ -1,0 +1,3 @@
+ALTER TABLE "village" ADD COLUMN "last_day" integer GENERATED ALWAYS AS ((state->>'lastDay')::int) STORED;--> statement-breakpoint
+ALTER TABLE "village" ADD COLUMN "asleep" boolean GENERATED ALWAYS AS ((state ? 'extinctDay') OR (state ? 'abandonedDay')) STORED NOT NULL;--> statement-breakpoint
+CREATE INDEX "village_awake_day_idx" ON "village" USING btree ("settlement_id","last_day") WHERE NOT "village"."asleep";

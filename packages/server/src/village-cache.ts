@@ -102,6 +102,8 @@ export function cachedVillages(inner: VillageRepository): VillageRepository {
       return inner.rename(villageId, name);
     },
     stampsOf: (settlementIds) => inner.stampsOf(settlementIds),
+    // souhrn je malý a v úložišti vždy k uložené verzi – paměť ho nedrží
+    digestsOf: (villageIds) => inner.digestsOf(villageIds),
     weatherSeedOf: (settlementId) => inner.weatherSeedOf(settlementId),
   };
 }

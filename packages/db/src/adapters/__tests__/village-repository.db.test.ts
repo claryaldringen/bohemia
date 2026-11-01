@@ -7,10 +7,13 @@ import {
   advanceVillage,
   dayIndexOf,
   foundVillage,
+  isVillageAbandoned,
+  isVillageExtinct,
   newSteward,
   settleStewardDepartures,
   settlersOf,
   stewardDepartureOrigin,
+  villageDigest,
   type VillageState,
 } from '@bohemia/game';
 import { createDatabase } from '../../client';
@@ -119,11 +122,112 @@ describe('createVillageRepository', () => {
     await villages.save(second.id, later, 1);
     const stamps = await villages.stampsOf([settlementId, UNKNOWN]);
     expect(stamps.sort((a, b) => a.name.localeCompare(b.name))).toEqual([
-      { id: second.id, settlementId, name: 'Budeč', version: 2, lastDay: later.lastDay },
-      { id: first!.id, settlementId, name: 'Libice', version: 1, lastDay: state().lastDay },
+      {
+        id: second.id,
+        settlementId,
+        name: 'Budeč',
+        version: 2,
+        lastDay: later.lastDay,
+        asleep: false,
+      },
+      {
+        id: first!.id,
+        settlementId,
+        name: 'Libice',
+        version: 1,
+        lastDay: state().lastDay,
+        asleep: false,
+      },
     ]);
     expect(await villages.stampsOf([])).toEqual([]);
     expect(await villages.stampsOf([UNKNOWN])).toEqual([]);
+  });
+
+  it('sloupce last_day a asleep se plní při každém zápisu a shodují se s pravidly domény', async () => {
+    const awake = await villages.create(settlementId, 'Žije', state());
+    const extinct = await villages.add(settlementId, 'Vymřela', {
+      ...state(),
+      extinctDay: DAY + 3,
+    });
+    const abandoned = await villages.add(settlementId, 'Opuštěna', {
+      ...state(),
+      abandonedDay: DAY + 4,
+    });
+    const stamps = await villages.stampsOf([settlementId]);
+    for (const stamp of stamps) {
+      const record = (await villages.find(stamp.id))!;
+      expect(stamp.asleep).toBe(isVillageExtinct(record.state) || isVillageAbandoned(record.state));
+      expect(stamp.lastDay).toBe(record.state.lastDay);
+    }
+    expect(
+      stamps
+        .filter((s) => s.asleep)
+        .map((s) => s.id)
+        .sort(),
+    ).toEqual([extinct.id, abandoned.id].sort());
+    // save přepíše oba sloupce (i přímý zápis mimo adaptér by je přepočítal – jsou generované)
+    const later = advanceVillage(state(), DAY + 9, null);
+    await villages.save(awake!.id, { ...later, extinctDay: DAY + 9 }, 1);
+    const [after] = (await villages.stampsOf([settlementId])).filter((s) => s.id === awake!.id);
+    expect(after).toMatchObject({ lastDay: later.lastDay, asleep: true });
+    await db.execute(sql`UPDATE village SET state = state - 'extinctDay' WHERE id = ${awake!.id}`);
+    const [woken] = (await villages.stampsOf([settlementId])).filter((s) => s.id === awake!.id);
+    expect(woken?.asleep).toBe(false);
+  });
+
+  it('digestsOf vrátí souhrn uložené verze bez stavu – po každém zápisu nový, bez souhrnu nic', async () => {
+    const first = (await villages.create(settlementId, 'Libice', state()))!;
+    const second = await villages.add(settlementId, 'Lhota', { ...state(), extinctDay: DAY + 2 });
+    const digests = await villages.digestsOf([first.id, second.id, UNKNOWN, 'neni-uuid']);
+    const byId = (a: { id: string }, b: { id: string }): number => (a.id < b.id ? -1 : 1);
+    expect(digests.sort(byId)).toEqual(
+      [
+        {
+          id: first.id,
+          settlementId,
+          name: 'Libice',
+          version: 1,
+          digest: villageDigest(first.state),
+        },
+        {
+          id: second.id,
+          settlementId,
+          name: 'Lhota',
+          version: 1,
+          digest: villageDigest(second.state),
+        },
+      ].sort(byId),
+    );
+    // save souhrn obnoví (týž stav jako uložený)
+    const later = advanceVillage(state(), DAY + 9, null);
+    await villages.save(first.id, later, 1);
+    const [saved] = await villages.digestsOf([first.id]);
+    expect(saved).toMatchObject({ version: 2, digest: villageDigest(later) });
+    expect(saved?.digest.lastDay).toBe(DAY + 9);
+    // stav zapsaný mimo adaptér (e2e, ruční SQL) zvýší verzi – starý souhrn neplatí
+    await db.execute(sql`UPDATE village SET version = version + 1 WHERE id = ${first.id}`);
+    expect(await villages.digestsOf([first.id])).toEqual([]);
+    // ves uložená před souhrnem (null) nebo se souhrnem jiné verze tvaru chybí – načte se celá
+    await db.execute(sql`UPDATE village SET digest = NULL WHERE id = ${first.id}`);
+    await db.execute(sql`UPDATE village SET digest = '{"v":0}'::jsonb WHERE id = ${second.id}`);
+    expect(await villages.digestsOf([first.id, second.id])).toEqual([]);
+    expect(await villages.digestsOf([])).toEqual([]);
+  });
+
+  it('fronta „nejvíc pozadu“ jde ze sloupců bez JSON a využije index', async () => {
+    const a = await villages.create(settlementId, 'A', state());
+    const b = await villages.add(settlementId, 'B', advanceVillage(state(), DAY + 5, null));
+    await villages.add(settlementId, 'C', { ...state(), extinctDay: DAY + 1 });
+    const behind = sql`SELECT id FROM village WHERE NOT asleep AND settlement_id = ${settlementId}
+      AND last_day < ${DAY + 8} ORDER BY last_day ASC, id ASC`;
+    const rows = await db.execute<{ id: string }>(behind);
+    expect(rows.rows.map((r) => r.id)).toEqual([a!.id, b.id]);
+    // na tak malé tabulce plánovač index nevybere sám – ověříme, že ho jde použít
+    await db.transaction(async (tx) => {
+      await tx.execute(sql`SET LOCAL enable_seqscan = off`);
+      const plan = await tx.execute<{ 'QUERY PLAN': string }>(sql`EXPLAIN ${behind}`);
+      expect(plan.rows.map((r) => r['QUERY PLAN']).join('\n')).toContain('village_awake_day_idx');
+    });
   });
 
   it('weatherSeedOf vrátí seed počasí sídla – každé sídlo jiný, neznámé null', async () => {

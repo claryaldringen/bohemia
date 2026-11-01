@@ -1,3 +1,4 @@
+import { mustAdvanceNow } from './dynasty-for-village';
 import type { SettlementRepository } from './settlements';
 import type { VillageRepository } from './villages';
 
@@ -38,9 +39,13 @@ export interface CurrentViewStampInput {
 }
 
 /**
- * Otisk pohledu na ves, jaký by teď vrátil dotaz – bez načtení stavů vsí. Jen když jsou všechny
- * vsi hráče dopočítané do dneška (jinak by je dotaz dopočítal a uložil – otisk se změní)
- * a vybraná ves mezi nimi je; jinak null (dotaz musí proběhnout celý).
+ * Otisk pohledu na ves, jaký by teď vrátil dotaz – bez načtení stavů vsí. Jen když by pohled nic
+ * nepočítal (`dynastyForVillage`): vybraná ves je mezi vsemi hráče a je dopočítaná do dneška
+ * a žádná jiná ves téže mapy není pozadu a žádná ves jiné mapy není víc než `WORKER_LAG_DAYS` pozadu (jinak by je dotaz dopočítal a uložil –
+ * otisk se změní); spící vsi se nepočítají. Jinak null (dotaz musí proběhnout celý). Posun
+ * ostatních vsí workerem otisk změní (nová verze) – pohled se pošle znovu, zhruba jednou za herní
+ * den. Konec rodu ze smíšených dnů (pohled by ho ověřil plným dopočtem) otisk nepozná – uzavře ho
+ * worker po dopočtu vsí hráče (nové verze), bez workeru pohled, až jiná ves přejde mez.
  */
 export async function currentVillageViewStamp(
   deps: { settlements: SettlementRepository; villages: VillageRepository },
@@ -48,7 +53,14 @@ export async function currentVillageViewStamp(
 ): Promise<string | null> {
   const settlements = await deps.settlements.listActive(input.playerId);
   const stamps = await deps.villages.stampsOf(settlements.map((s) => s.id));
-  if (!stamps.some((v) => v.id === input.villageId)) return null;
-  if (stamps.some((v) => v.lastDay < input.today)) return null;
+  const shown = stamps.find((v) => v.id === input.villageId);
+  if (!shown || (!shown.asleep && shown.lastDay < input.today)) return null;
+  if (
+    stamps.some(
+      (v) => !v.asleep && v.lastDay < input.today && mustAdvanceNow(v, shown, input.today),
+    )
+  ) {
+    return null;
+  }
   return villageViewStamp(input.villageId, input.today, stamps);
 }

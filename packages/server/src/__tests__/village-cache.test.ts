@@ -9,12 +9,12 @@ import {
   type Position,
 } from '@bohemia/game';
 import { describe, expect, it } from 'vitest';
-import { InMemorySettlements } from '../../../../packages/game/src/application/__tests__/in-memory-settlements';
-import { InMemoryVillages } from '../../../../packages/game/src/application/__tests__/in-memory-villages';
+import { InMemorySettlements } from '../../../game/src/application/__tests__/in-memory-settlements';
+import { InMemoryVillages } from '../../../game/src/application/__tests__/in-memory-villages';
 import {
   block,
   makeLandscape,
-} from '../../../../packages/game/src/domain/village/__tests__/placement-fixtures';
+} from '../../../game/src/domain/village/__tests__/placement-fixtures';
 import { cachedVillages, withVillageCache } from '../village-cache';
 
 const TODAY = dayIndexOf({ year: 540, month: 4, day: 12 });

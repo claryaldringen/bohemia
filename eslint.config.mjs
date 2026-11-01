@@ -130,6 +130,36 @@ export default defineConfig(
     },
   },
   {
+    // Knihovna pro composition rooty (web, worker): smí node:*, @bohemia/db a @bohemia/game,
+    // ale ne rámce jednotlivých vstupních bodů.
+    files: ['packages/server/src/**/*.ts'],
+    ignores: ['**/__tests__/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: [
+                'next',
+                'next/*',
+                'react',
+                'react/*',
+                'react-dom',
+                'react-dom/*',
+                'better-auth',
+                'better-auth/*',
+                'server-only',
+              ],
+              message:
+                '@bohemia/server je sdílený vstupními body – žádný Next, React ani Better Auth.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ['packages/game/src/domain/**/*.ts'],
     ignores: ['**/__tests__/**'],
     rules: {

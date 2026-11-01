@@ -107,6 +107,14 @@ export function isVillageTravelling(state: Pick<VillageState, 'journey'>): boole
 }
 
 /**
+ * Ves spí: vymřelá nebo opuštěná. Nemění se (jen den by se posouval), takže se kvůli dni
+ * neukládá; shoduje se se sloupcem `asleep` v DB. Ves na cestě nespí – čeká na správce.
+ */
+export function isVillageAsleep(state: Pick<VillageState, 'extinctDay' | 'abandonedDay'>): boolean {
+  return isVillageExtinct(state) || isVillageAbandoned(state);
+}
+
+/**
  * Ves se nesimuluje: vymřelá, opuštěná, nebo na cestě. `advanceVillage` u ní jen posune den.
  */
 export function isVillageDormant(
@@ -637,6 +645,8 @@ export function abandonedVillageAt(state: VillageState, day: number): VillageSta
   void looseHorses;
   return {
     ...kept,
+    // pohled je jen projekce na den – spící ves se kvůli dni neukládá, její lastDay zaostává
+    lastDay: Math.max(state.lastDay, day),
     people: [],
     ...(state.livestock ? { livestock: withoutAnimals(state.livestock) } : {}),
     dwellings,

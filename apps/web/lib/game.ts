@@ -1,24 +1,32 @@
 import 'server-only';
-import { randomInt } from 'node:crypto';
 import {
   createSettlementRepository,
   createTimeOffsetRepository,
   createVillageRepository,
 } from '@bohemia/db';
 import {
+  LANDSCAPE_CACHE_SIZE,
+  cachedLandscapes,
+  cachedVillages,
+  computePause,
+  createGameDeps,
+  currentWorld,
+  playerTodayOf,
+  seeds,
+  worldDayOf,
+  type GameDeps,
+} from '@bohemia/server';
+import {
   currentVillageViewStamp,
-  dynastyStatus,
+  dynastyForVillage,
   enterGame,
   findPlayerVillage,
   firstPlayerVillage,
-  pendingStewardDepartures,
-  playerTime,
   restartGame,
   settlementLandscape,
-  settleStewardDeparturesSafely,
   skipTime,
   type Direction8,
-  type DynastyStatus,
+  type DynastyView,
   type EnterGameResult,
   type Landscape,
   type PlayerVillage,
@@ -26,25 +34,12 @@ import {
   type TimeOffsetRepository,
   type TimeSkip,
 } from '@bohemia/game';
-import { computePause } from './compute-pause';
 import { ownMapsAround } from './departure-view';
-import { getDatabase } from './db';
-import { exclusive, exclusiveShared, playerLockKey } from './exclusive';
-import { cachedLandscapes } from './landscape-cache';
-import { cachedVillages } from './village-cache';
-import { currentWorld, gameDayIndex } from './world';
+import { getDatabase, getPlayerLock } from './db';
+import { exclusivePlayer, exclusivePlayerShared } from './exclusive';
+import { formatWorldState } from './game-date';
 
-/**
- * Kolik krajin sídel držet v paměti serveru. Krajina sama má ≈ 0,1 MB, s vrstvou překážek
- * (generuje se až pro stavby) ještě 1,8–2,0 MB – změřeno na 20 krajinách; plná mezipaměť
- * tak drží nejvýš ≈ 65 MB.
- */
-const LANDSCAPE_CACHE_SIZE = 32;
 const landscapes = cachedLandscapes(LANDSCAPE_CACHE_SIZE);
-
-function seeds(): { nextSeed: () => number } {
-  return { nextSeed: () => randomInt(0, 2 ** 31) };
-}
 
 /**
  * Composition root: use-case vstupu do hry s Drizzle repozitářem, kryptografickými seedy
@@ -111,7 +106,8 @@ export function playerVillage(playerId: string, villageId: string): Promise<Play
 
 /**
  * Otisk pohledu na ves `villageId` hráče v den `today` bez načtení stavů vsí (levné dotazy na
- * sídla a verze vsí); null, když by dotaz na ves musel vsi dopočítat nebo ves hráči nepatří.
+ * sídla a verze vsí); null, když by dotaz na ves musel některou ves dopočítat (zobrazenou, nebo
+ * jinou víc než `WORKER_LAG_DAYS` pozadu) nebo ves hráči nepatří.
  */
 export function currentViewStampOfPlayer(
   playerId: string,
@@ -139,62 +135,49 @@ export type PlayerToday =
  * dopočítávají vsi hráče a provádějí jeho akce.
  */
 export async function playerToday(playerId: string): Promise<PlayerToday> {
-  const world = gameDayIndex(Date.now(), currentWorld());
-  if (!world.ok) return world;
-  const time = await playerTime({ offsets: timeOffsets() }, { playerId, worldDay: world.day });
-  return { ok: true, day: time.today, offsetDays: time.offsetDays };
+  const world = currentWorld();
+  const today = await playerTodayOf(timeOffsets(), playerId, Date.now(), world);
+  return today.ok ? today : { ok: false, error: `${formatWorldState(today.state, world)}.` };
 }
 
-function dynastyDeps(): Parameters<typeof dynastyStatus>[0] {
-  const db = getDatabase();
-  return {
-    settlements: createSettlementRepository(db),
-    villages: cachedVillages(createVillageRepository(db)),
+function dynastyDeps(): GameDeps {
+  // dlouhý dopočet vsí (přeskok času, restart po dlouhé době) neblokuje ostatní požadavky
+  return createGameDeps(getDatabase(), {
     landscapes,
-    // dlouhý dopočet vsí (přeskok času, restart po dlouhé době) neblokuje ostatní požadavky
     pause: computePause(),
-  };
+    locks: getPlayerLock(),
+  });
 }
 
 /**
- * Všechny vsi hráče dopočítané do dneška `today` (přepínač vsí) a jestli mu vymřely všechny –
- * konec hry.
+ * Vsi hráče pro pohled nebo akci na ves `villageId` (přepínač vsí) a jestli mu vymřely všechny –
+ * konec hry. Ves `villageId` se dopočte do dneška `today`, ostatní vsi drží worker – web je
+ * dopočte, jen když jsou víc než `WORKER_LAG_DAYS` pozadu (use-case `dynastyForVillage`).
  */
-export function dynastyOfPlayer(playerId: string, today: number): Promise<DynastyStatus> {
-  // dotazy se stejným dnem sdílejí jeden dopočet (exclusive.ts)
-  return exclusiveShared(playerLockKey(playerId), String(today), () =>
-    dynastyOfPlayerLocked(playerId, today),
+export function dynastyOfPlayer(
+  playerId: string,
+  today: number,
+  villageId: string,
+): Promise<DynastyView> {
+  // dotazy se stejným dnem a vsí sdílejí jeden dopočet; uvnitř fronty zámek hráče v DB
+  // (exclusive.ts)
+  return exclusivePlayerShared(getPlayerLock(), playerId, `${today}:${villageId}`, () =>
+    dynastyOfPlayerLocked(playerId, today, villageId),
   );
 }
 
-/** Nejvýš tolik kol vybavení schránek za jeden dopočet (nová ves může mít vlastní odchod). */
-const DEPARTURE_ROUNDS = 4;
-
 /**
- * Totéž bez zámku – jen pro volající, kteří už zámek hráče drží (`exclusive` se nevnořuje). Vsi
- * hráče dopočítané do dneška; za dopočtem se vybaví odchozí schránky správce (steward.md – Kde
- * správce běží) – nové vsi synů vzniknou a dopočítají se v dalším kole.
+ * Totéž bez zámku – jen pro volající, kteří už zámek hráče drží (frontu v procesu i zámek v DB –
+ * `exclusivePlayer` se nevnořuje). Za dopočtem se vybaví odchozí schránky správce dopočtených vsí
+ * (steward.md – Kde správce běží) – nové vsi synů se v přepínači objeví hned. Plný dopočet všech
+ * vsí (`dynastyStatus` / `advanceDynasty`) zůstává skoku v čase, restartu a ověření konce rodu.
  */
 export async function dynastyOfPlayerLocked(
   playerId: string,
   today: number,
-): Promise<DynastyStatus> {
-  const deps = dynastyDeps();
-  let status = await dynastyStatus(deps, { playerId, today });
-  for (let round = 0; round < DEPARTURE_ROUNDS; round++) {
-    let settled = 0;
-    for (const village of status.villages) {
-      if (pendingStewardDepartures(village.state).length === 0) continue;
-      const founded = await settleStewardDeparturesSafely(
-        { ...deps, seeds: seeds() },
-        { playerId, villageId: village.id },
-      );
-      settled += founded.length;
-    }
-    if (settled === 0) break;
-    status = await dynastyStatus(deps, { playerId, today });
-  }
-  return status;
+  villageId: string,
+): Promise<DynastyView> {
+  return dynastyForVillage(dynastyDeps(), { playerId, today, villageId });
 }
 
 /**
@@ -212,8 +195,8 @@ export async function ownMapsOfPlayer(
 }
 
 /** Závislosti use-casů nad vsemi hráče (sídla, vsi, mezipaměť krajin, seedy). */
-export function gameDeps(): ReturnType<typeof dynastyDeps> & { seeds: { nextSeed: () => number } } {
-  return { ...dynastyDeps(), seeds: seeds() };
+export function gameDeps(): GameDeps {
+  return dynastyDeps();
 }
 
 /**
@@ -226,13 +209,14 @@ export async function restartGameForPlayer(
   options: { abandon: boolean } = { abandon: false },
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   // den se načte až uvnitř zámku – akce za skokem v čase dostane den po skoku
-  const result = await exclusive(playerLockKey(playerId), async () => {
+  const result = await exclusivePlayer(getPlayerLock(), playerId, async () => {
     const today = await playerToday(playerId);
     if (!today.ok) return today;
-    const restarted = await restartGame(
-      { ...dynastyDeps(), seeds: seeds() },
-      { playerId, today: today.day, abandon: options.abandon },
-    );
+    const restarted = await restartGame(dynastyDeps(), {
+      playerId,
+      today: today.day,
+      abandon: options.abandon,
+    });
     return restarted.ok ? { ok: true as const } : { ok: false as const, error: restarted.reason };
   });
   return result.ok ? { ok: true } : { ok: false, error: result.error };
@@ -247,9 +231,10 @@ export async function skipTimeForPlayer(
   devMode: boolean,
   skip: TimeSkip,
 ): Promise<{ ok: true; offsetDays: number } | { ok: false; error: string }> {
-  const world = gameDayIndex(Date.now(), currentWorld());
-  if (!world.ok) return world;
-  const result = await exclusive(playerLockKey(playerId), () =>
+  const clock = currentWorld();
+  const world = worldDayOf(Date.now(), clock);
+  if (!world.ok) return { ok: false, error: `${formatWorldState(world.state, clock)}.` };
+  const result = await exclusivePlayer(getPlayerLock(), playerId, () =>
     skipTime(
       { ...dynastyDeps(), offsets: timeOffsets() },
       { playerId, devMode, worldDay: world.day, skip },
