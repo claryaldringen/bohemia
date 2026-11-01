@@ -8,7 +8,13 @@
     "BETTER_AUTH_URL",
     "GOOGLE_CLIENT_ID",
     "GOOGLE_CLIENT_SECRET",
-    "MAIL_OUTBOX_DIR"
+    "MAIL_OUTBOX_DIR",
+    "WORKER_STEP_DAYS",
+    "WORKER_LIMIT",
+    "WORKER_IDLE_MS",
+    "WORKER_PAUSE_MS",
+    "WORKER_LANDSCAPES",
+    "WORKER_LOG"
   ],
   "tasks": {
     "build": { "dependsOn": ["^build"], "outputs": [".next/**", "!.next/cache/**", "dist/**"] },

@@ -58,10 +58,11 @@ Next.js 16 má oproti starším verzím breaking changes – dokumentace k nains
 v `node_modules/next/dist/docs/`. Soubor `apps/web/AGENTS.md` generuje sám `next dev`; patří
 do gitu (po smazání by ho vytvořil znovu).
 
+- **Worker:** `apps/worker` – samostatný Node proces (`tsx`), který průběžně dopočítává vsi hráčů
+  (use-case `advanceWorldStep`), i když nikdo není online; `npm run dev` ho pouští s webem
+
 **Plánováno (zatím neexistuje):**
 
-- `apps/worker` – samostatný Node proces, který posouvá svět (stavby, narození, úmrtí, roční
-  období) i když nikdo není online
 - Pozvánkové kódy (s mechanikou vazalství), odesílání skutečných e-mailů
 
 ## Struktura repa
@@ -75,6 +76,7 @@ apps/web/            Next.js – úvodní stránka, registrace, přihlášení, 
   lib/scene/         3D scéna krajiny v Babylonu – čisté TS třídy bez Reactu
   public/models/     modely stromů, dekorací, zvířat a lidí a atlas impostorů z 0 A.D. (licence v LICENSES.md)
   e2e/               Playwright testy (proti produkčnímu buildu a databázi bohemia_test)
+apps/worker/         samostatný proces – smyčka `advanceWorldStep` (loop.ts), konfigurace z env, log (docs/code/worker.md)
 packages/game/       herní jádro
   src/domain/        pravidla – calendar.ts, landscape/ (generování krajiny po vrstvách)
     village/         simulace vsi – lidé, obydlí, pole, jídlo a práce den po dni
@@ -109,6 +111,7 @@ název). Pravidla a rozhodnutí jsou v `docs/design/`.
 | `docs/code/village-steward.md`   | správce vsi – stav, příkaz stavby, mapa hodnot a plán, den správce, přestavba a veto, synové a schránka odchodů, rozhraní, měření    |
 | `docs/code/village-wildlife.md`  | divoká zvěř – stav, stropy z krajiny, roční přepočet, škody na polích, šelmy, psi a lov rodu, hlídky polí, ryby a oka, převod, Vlkov |
 | `docs/code/village-disasters.md` | počasí kraje – seed počasí mapy, roční los, shlukování, povodeň kraje, odhalení, ochrana nové vsi                                    |
+| `docs/code/worker.md`            | worker – smyčka, odklady, spánek do dalšího dne, konfigurace, spuštění a ukončení                                                    |
 | `docs/code/web-ui.md`            | server actions, dotazování na ves, rozhraní jako 0 A.D., katalog staveb, ovládání, e2e                                               |
 
 **Nová mechanika nebo změna:** zapiš ji do příslušného souboru v `docs/code/` (a pravidla do
@@ -179,7 +182,9 @@ Martin 21. 10. 2026: „Musíme změnit styl práce. Pálíme hrozně moc token�
 ```bash
 npm install
 npm run db:migrate    # migrace do lokální DB bohemia (bez DATABASE_URL)
-npm run dev           # http://localhost:3010
+npm run dev           # web na http://localhost:3010 i worker
+npm run dev:web       # jen web (bez workeru)
+npm run worker        # jen worker (čte apps/web/.env.local, Ctrl+C = čistý konec)
 npm run build
 npm run typecheck     # next typegen + tsc
 npm run lint

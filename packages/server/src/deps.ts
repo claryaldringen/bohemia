@@ -4,6 +4,7 @@ import {
   createPlayerLock,
   createSettlementRepository,
   createVillageRepository,
+  createWorldQueue,
   type Database,
 } from '@bohemia/db';
 import type {
@@ -12,6 +13,7 @@ import type {
   PlayerLock,
   SettlementRepository,
   VillageRepository,
+  WorldQueue,
 } from '@bohemia/game';
 import { cachedVillages } from './village-cache';
 
@@ -51,6 +53,8 @@ export interface GameDeps {
   pause: Pause;
   seeds: { nextSeed: () => number };
   locks: PlayerLock;
+  /** Fronta vsí pozadu – používá worker (`advanceWorldStep`), web ji nepotřebuje. */
+  queue: WorldQueue;
 }
 
 /**
@@ -69,5 +73,6 @@ export function createGameDeps(
     pause: options.pause,
     seeds: seeds(),
     locks: options.locks,
+    queue: createWorldQueue(db),
   };
 }

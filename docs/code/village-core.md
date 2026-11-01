@@ -4,7 +4,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 
 - **Jádro** `packages/game/src/domain/village/` (simulace, umístění `placement.ts` (rozcestník, kontroly v `placement-<téma>.ts`), souhrn
   `summary.ts`), use-casy a port `VillageRepository` v `application/`, tabulka `village`.
-  Ves se dopočítá při každém načtení a akci (worker zatím není).
+  Ves se dopočítá při každém načtení a akci (mezitím ji posouvá worker – `docs/code/worker.md`).
 
 - **API jádra:** `foundVillage` (4 lidé, zásoby, stavba první zemnice, volitelně první pole),
   `advanceVillage(state, toDay)` (dopočítá ves do dne včetně) a akce hráče `startNewDwelling`,
