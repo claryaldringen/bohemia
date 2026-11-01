@@ -757,7 +757,8 @@ stavby), nejvýš jedno pole na den správce.
    jídla na nosiče, vůz 400 / 800 kg – migration.md) unesou pěšky ≈ 50 dní jídla dospělého, rok
    do žní jen s vozem; správce proto chce „plný náklad“, ne rok jídla. Má výprava syna brát víc
    (třeba poměrný díl zásob až na rok, nebo stáda navíc), nebo je hladový první rok nové vsi
-   výzva? Rozhodne Martin.
+   výzva? **Uzavřeno** – Martin 1. 11. 2026 na otázku „Syn správce teď odchází jen s plně
+   naloženou výpravou, takže odchodů je málo. Je to v pořádku?“: „ano“.
 
 **Na noc 30. → 31. 10. 2026 rozhodl Claude (Martin spí, ráno k potvrzení):** 1) v první verzi
 ne – správce staví lépe dál, akce pro hráče i správce až po potvrzení; 2) správce napřed kluče
