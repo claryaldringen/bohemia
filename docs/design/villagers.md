@@ -768,7 +768,8 @@ a `lib/village-view.ts`, rozvrh je znovu nedefinuje – `PersonJob`, `LaborActiv
    s `PersonTask.interrupt` – pohřeb, svatba, karavana (i odchod do nové vsi – role `leaving`)
    a jízda vojvodovy rodiny `all`, požár `near` (`FIRE_REACH_M` 150 m od místa, kde člověk
    v okamžik vzplanutí je – návrh Clauda). Od přelomu dne, kdy obsazení událost dá, se rozběhnutá
-   činnost utne (`Activity.cut`), člověk jde pěšky **z místa, kde ho zastihla** (`Activity.from`),
+   činnost utne (`Activity.cut`), člověk jde pěšky **z místa, kde ho zastihla** (`Activity.from` – kde právě
+   kreslená postava je, i u kroku jinde – paběrky, modlitba, odnos),
    k póze události v okamžik příchodu (opozdilec tak dojde rovnou, kde průvod právě je), drží ji,
    dokud ji obsazení dává, a jde domů; skončí-li póza události doma (průvod domů), cesta zpět se
    nekreslí. Povodeň: `ScheduleInput.wet` (`StormRenderer.floodedAt` – stejná hladina jako plocha

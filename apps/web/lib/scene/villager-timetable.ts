@@ -20,7 +20,13 @@ import {
   type ScheduleInput,
 } from './villager-schedule';
 import { activityPhases, phaseAt, type ActivityPhase, type PhaseName } from './villager-phases';
-import type { HerdView, PoseFn, Route, VillagerPose } from './villager-motion';
+import {
+  createVillagerPose,
+  type HerdView,
+  type PoseFn,
+  type Route,
+  type VillagerPose,
+} from './villager-motion';
 import type { PersonJob } from './villager-roster';
 
 /** Kolik herních dnů obsazení si scéna pamatuje (villagers.md – Pro implementaci, úloha 3). */
@@ -81,6 +87,7 @@ export class Timetable {
       doorOf: (id) => this.doors.get(id) ?? null,
       walkS: (a, b) => walkM(a, b) / v,
       wet: (x, z, t) => this.wet?.(x, z, t) ?? false,
+      placeAt: (a, t) => this.placeAt(a, t),
     };
   }
 
@@ -196,6 +203,22 @@ export class Timetable {
   /** Fáze činnosti člověka v `t` (villager-phases.ts – panel postavy, tempo nohou). */
   phase(id: number, t: number): ActivityPhase {
     return phaseAt(this.phasesOf(this.entry(id, t)), t);
+  }
+
+  /**
+   * Kde člověk v činnosti `a` v `t` je – stejně jako kreslená póza (fáze, přesná trasa): odtud jde
+   * k události a od tohoto místa se měří dosah k požáru (villager-schedule.ts – `whereAt`).
+   */
+  private placeAt(a: Activity, t: number): Point {
+    const id = a.person;
+    const router = this.router;
+    const pose = activityPose(
+      a,
+      this.doorOf(id) ?? a.task?.at ?? { x: 0, z: 0 },
+      router ? { routeOf: (from, to) => router(id, from, to), speed: this.speed } : undefined,
+      activityPhases(a, this.seed, (p, q) => this.input.walkS!(p, q, id)),
+    )(t, [], createVillagerPose());
+    return { x: pose.x, z: pose.z };
   }
 
   private phasesOf(e: Entry): ActivityPhase[] {

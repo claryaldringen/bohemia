@@ -151,6 +151,37 @@ describe('události přerušují (villager-schedule.ts – settle, nextActivity)
     expect(next.task?.key).toBe('share:harvest:30');
   });
 
+  it('k události jde z místa, kde ho zastihla i u kroku jinde (paběrky) – bez skoku', () => {
+    // nečinný o žních: u místa úlohy, pak paběrky u žnečů 30 m dál (villager-phases.ts – `idle`)
+    const site = { x: 20, z: 0 };
+    const aid = { x: 20, z: 30 };
+    const idle: PersonTask = { ...reapTask(site), key: 'idle:0', role: 'idle', places: { aid } };
+    const tt = timetable([new Map([[ID, idle]])]);
+    let cutAt = NaN;
+    for (let s = T0 + HISTORY_S; s < T0 + 5 * HISTORY_S && Number.isNaN(cutAt); s += 5) {
+      const phase = tt.phase(ID, s);
+      if (phase.name === 'glean' && phase.at) cutAt = Math.round((phase.from + phase.to) / 2);
+    }
+    expect(cutAt).not.toBeNaN();
+    // pohřeb: jde z paběrků, ne od místa úlohy
+    const funeral = timetable([new Map([[ID, idle]])]);
+    funeral.setDay(2, cutAt, new Map([[ID, eventTask('funeral', { x: -60, z: 20 })]]));
+    const before = poseAt(funeral, cutAt - 0.01);
+    expect(Math.hypot(before.x - aid.x, before.z - aid.z)).toBeLessThan(2);
+    const after = funeral.activity(ID, cutAt + 1);
+    expect(after.start).toBe(cutAt);
+    expect(Math.hypot(after.from!.x - before.x, after.from!.z - before.z)).toBeLessThan(0.5);
+    const p0 = poseAt(funeral, cutAt + 0.01);
+    expect(Math.hypot(p0.x - before.x, p0.z - before.z)).toBeLessThan(0.5);
+    // požár na dosah od paběrků, ale ne od místa úlohy – dosah od skutečného místa
+    const fireAt = { x: aid.x, z: aid.z + FIRE_REACH_M - 5 };
+    expect(Math.hypot(fireAt.x - site.x, fireAt.z - site.z)).toBeGreaterThan(FIRE_REACH_M);
+    const fire = timetable([new Map([[ID, idle]])]);
+    fire.setDay(2, cutAt, new Map([[ID, eventTask('fire', fireAt)]]));
+    expect(fire.activity(ID, cutAt - 1).end).toBe(cutAt);
+    expect(fire.activity(ID, cutAt + 1).task?.key).toBe('fire:7:202');
+  });
+
   it('k požáru jdou jen lidé blízko – vzdálený dokončí práci na poli', () => {
     const fire = eventTask('fire', { x: 10, z: -10 });
     for (const [at, cut] of [

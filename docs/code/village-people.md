@@ -375,11 +375,12 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   spřežení a vůz – `crewJobs`). **Události přerušují** (úloha 5): úloha obsazení
   s `PersonTask.interrupt` (`interruptOf` – pohřeb, svatba, karavana a jezdec `all`, požár
   `near` do `FIRE_REACH_M`) utne rozběhnutou činnost od přelomu dne, kdy ji obsazení dá
-  (`settle` → `Activity.cut`), a člověk jde z místa přerušení (`Activity.from`) k póze události
-  (`nextActivity`, `rehold` – konec podle obsazení); povodeň `Timetable.setWet` (env `flooded` →
+  (`settle` → `Activity.cut`), a člověk jde z místa přerušení (`Activity.from` – kreslená póza po
+  fázích a trase, `ScheduleInput.placeAt` → `Timetable.placeAt`; od něj se měří i dosah požáru)
+  k póze události (`nextActivity`, `rehold` – konec podle obsazení); povodeň `Timetable.setWet` (env `flooded` →
   `StormRenderer.floodedAt`) – místo práce pod vodou: domů (`Activity.retreat`), na vodu se
   nevychází (`departAfter`). Jezdec s trasou (riders.ts) v bloku jízdy sedí na koni vždy
-  (`mounted`, `mountedAt` – kůň nejede bez jezdce). **Délky a trasy** (úloha 6): délka chůze
+  (`mounted`, `mountedAt` – kůň nejede bez jezdce; `riderPose` zruší i skrytou pózu rozvrhu). **Délky a trasy** (úloha 6): délka chůze
   = odhad po síti pěšin `VillagerPaths.walkLength` (`path-router.ts` – `walkGraph`
   - `walkingDistances` z jádra, paměť dotazů) ÷ `SCHEDULE_WALK_M_S` (`Timetable.setEstimate`,
     bez sítě rovně); přesná trasa `planVillagersWithCrew` → `walk` (`walkRoute` ?? `fieldPath`)

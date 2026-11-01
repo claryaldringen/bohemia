@@ -140,6 +140,12 @@ export interface ScheduleInput {
    * vodě, jde domů; nové činnosti vedou jen po suché zemi)? Bez údaje sucho.
    */
   wet?(x: number, z: number, t: number): boolean;
+  /**
+   * Kde člověk v činnosti `a` v okamžik `t` je – jako kreslená póza, po fázích činnosti a po
+   * trase (villager-timetable.ts): odkud jde k události, dosah k požáru. Bez údaje póza úlohy
+   * bez fází a rovně.
+   */
+  placeAt?(a: Activity, t: number): Point;
 }
 
 /** Bod na zemi (m). */
@@ -300,10 +306,11 @@ export function uncut(a: Activity): Activity {
   return { ...rest, end: cut.end };
 }
 
-/** Kde člověk v činnosti `a` v okamžik `t` je (doma u dveří). */
+/** Kde člověk v činnosti `a` v okamžik `t` je (doma u dveří; jinak `ScheduleInput.placeAt`). */
 function whereAt(input: ScheduleInput, a: Activity, t: number): Point {
   const door = input.doorOf?.(a.person) ?? a.task?.at ?? { x: 0, z: 0 };
   if (a.kind === 'home') return door;
+  if (input.placeAt) return input.placeAt(a, t);
   const pose = activityPose(uncut(a), door)(t, [], createVillagerPose());
   return { x: pose.x, z: pose.z };
 }
