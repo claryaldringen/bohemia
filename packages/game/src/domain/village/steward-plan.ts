@@ -7,6 +7,7 @@
 
 import { dateOfDayIndex } from '../calendar';
 import { SURFACE_CODES, tileCenterWorld, type Landscape, type ObstacleLayer } from '../landscape';
+import { craftCoverage } from './crafts';
 import { netYieldPerHa, ROTATION, ROTATION_FACTOR } from './field-capacity';
 import { fieldFoodShare, yearlyFoodNeed } from './field-food';
 import { distanceFactor } from './fields';
@@ -34,7 +35,9 @@ import {
   type FieldCells,
   type LandValues,
 } from './steward-land';
+import { stewardOutlook } from './steward-outlook';
 import type {
+  CraftCoverage,
   PenSpecies,
   Position,
   StewardFarm,
@@ -130,8 +133,20 @@ function isCurrentPlan(plan: StewardPlan | undefined): plan is StewardPlan {
 }
 
 /**
+ * Verze pravidel rozvrhu: 2 = blok domácnosti podle toho, co oseje (steward.md – Pole blízko a podle
+ * práce). Plán starší verze platí, dokud se vedle něj nespočítá nový.
+ */
+export const STEWARD_PLAN_VERSION = 2;
+
+/** Plán dnešního tvaru i dnešních pravidel rozvrhu (rozpracovaný přepočet starší verze se zahodí). */
+function isFreshPlan(plan: StewardPlan | undefined): plan is StewardPlan {
+  return isCurrentPlan(plan) && (plan.version ?? 1) >= STEWARD_PLAN_VERSION;
+}
+
+/**
  * Má se plán sídla přepočítat celý (steward.md – Kdy se plán přepočítá)? Bez plánu (nebo se
- * starým tvarem) ano; rozpracovaný nebo rozpracovaný přepočet ne (dopočítá se po etapách); hotový,
+ * starým tvarem) ano; rozpracovaný nebo rozpracovaný přepočet ne (dopočítá se po etapách); hotový
+ * plán starší verze pravidel (`STEWARD_PLAN_VERSION`) ano – počítá se vedle něj; hotový,
  * když došly sloty druhu (`exhausted`, nejdřív `STEWARD.exhaustedReplanDays` po dokončení), když
  * od jeho dokončení uběhlo `STEWARD.replanYears` let, nebo když se stavby vsi mimo správcovy
  * (`built`) od otisku změnily o víc než `STEWARD.replanChanges`; hned, když je v `steward.replan`
@@ -140,7 +155,10 @@ function isCurrentPlan(plan: StewardPlan | undefined): plan is StewardPlan {
 export function needsReplan(state: VillageState, day: number): boolean {
   const plan = state.steward?.plan;
   if (!isCurrentPlan(plan)) return true;
-  if (plan.stage !== 'done' || state.steward?.nextPlan) return false;
+  const pending = state.steward?.nextPlan;
+  if (plan.stage !== 'done' || isFreshPlan(pending)) return false;
+  // plán starších pravidel, nebo rozpracovaný přepočet starších pravidel – znovu vedle platného
+  if (!isFreshPlan(plan) || pending) return true;
   if (state.steward?.replan) return true;
   const done = plan.doneDay ?? plan.startDay;
   if (plan.exhausted && day - done >= STEWARD.exhaustedReplanDays) return true;
@@ -210,13 +228,15 @@ export function playerClaimsPlan(state: VillageState, landscape: Landscape): boo
  * dávkách. Přepočet hotového plánu (`needsReplan`) se počítá po etapách v `steward.nextPlan`
  * a správce zatím staví podle platného `plan`; hotový přepočet ho jedním krokem nahradí. Hotový
  * plán, který přepočet nepotřebuje, a ves bez správce nebo bez středu vrací týž stav. Plán starého
- * tvaru se zahodí a počítá znovu. Vstupní stav nemění.
+ * tvaru se zahodí a počítá znovu; plán starší verze pravidel platí, než se vedle něj spočítá nový.
+ * `coverage` (řemesla vsi dne) bere výhled vsi pro velikost bloku domácnosti. Vstupní stav nemění.
  */
 export function planSettlement(
   state: VillageState,
   day: number,
   landscape: Landscape,
   obstacles: ObstacleLayer,
+  coverage: CraftCoverage = craftCoverage(state, day),
 ): VillageState {
   const steward = state.steward;
   if (!steward || !planCentre(state)) return state;
@@ -225,7 +245,7 @@ export function planSettlement(
     plan.stage === 'checks'
       ? checksStage(state, day, landscape, obstacles, plan)
       : slotsStage(state, day, landscape, obstacles, plan);
-  const pending = isCurrentPlan(steward.nextPlan) ? steward.nextPlan : undefined;
+  const pending = isFreshPlan(steward.nextPlan) ? steward.nextPlan : undefined;
   if (current?.stage === 'done' && pending) {
     const next = pending.stage === 'done' ? pending : advance(pending);
     if (next.stage !== 'done') return { ...state, steward: { ...steward, nextPlan: next } };
@@ -235,10 +255,13 @@ export function planSettlement(
     return { ...state, steward: swapped };
   }
   let plan: StewardPlan;
-  if (!current) plan = templatesStage(state, day, landscape, obstacles);
+  if (!current) plan = templatesStage(state, day, landscape, obstacles, coverage);
   else if (current.stage !== 'done') plan = advance(current);
   else if (needsReplan(state, day)) {
-    const started = { ...steward, nextPlan: templatesStage(state, day, landscape, obstacles) };
+    const started = {
+      ...steward,
+      nextPlan: templatesStage(state, day, landscape, obstacles, coverage),
+    };
     delete started.replan;
     return { ...state, steward: started };
   } else return state;
@@ -333,6 +356,11 @@ function tileDistM(land: PlanLand, a: number, b: number): number {
   return Math.sqrt(dx * dx + dy * dy) * land.cellM;
 }
 
+/** Políčka stojících obydlí vsi (rozestavěná ne – v nich se ještě nebydlí). */
+export function dwellingTiles(state: VillageState, landscape: Landscape): number[] {
+  return state.dwellings.map((d) => tileAt(landscape, d.position));
+}
+
 /** Políčko pod bodem světa (m). */
 function tileAt(landscape: Landscape, p: { x: number; z: number }): number {
   const half = (landscape.size * landscape.cellSizeM) / 2;
@@ -370,11 +398,18 @@ function discOffsets(radius: number): Int32Array {
   return out;
 }
 
-/** Kolik lidí plán čeká a kolik políček potřebuje blok jedné domácnosti. */
+/**
+ * Kolik lidí plán čeká a kolik políček potřebuje blok jedné domácnosti (steward.md – Pole blízko
+ * a podle práce): blok je to, co domácnost oseje – `STEWARD.householdPeople` × osev na člověka
+ * podle práce v oknech setí (výhled vsi, `laborHa` ÷ lidé) × `ROTATION_FACTOR` × `blockReserve` –,
+ * nejvýš kolik potřebuje k jídlu při průměrné úrodnosti louky území (`netYieldPerHa`). Bez lidí
+ * nebo bez práce v oknech jen podle jídla.
+ */
 function planSize(
   state: VillageState,
   day: number,
   land: PlanLand,
+  coverage: CraftCoverage,
 ): { people: number; households: number; blockCells: number } {
   const people = state.people.length;
   const perPerson =
@@ -400,10 +435,19 @@ function planSize(
   );
   const planned = Math.max(STEWARD.householdPeople, Math.min(wanted, capacity));
   const households = Math.ceil(planned / STEWARD.householdPeople);
-  const blockCells = Math.ceil(
+  const foodCells = Math.ceil(
     (STEWARD.householdPeople * perPerson * ROTATION_FACTOR * STEWARD.blockReserve) /
       (Math.max(1, netYieldPerHa(fertility)) * ha),
   );
+  const laborHa = people > 0 ? stewardOutlook(state, day, coverage).laborHa : 0;
+  const laborCells =
+    Number.isFinite(laborHa) && laborHa > 0
+      ? Math.ceil(
+          (STEWARD.householdPeople * (laborHa / people) * ROTATION_FACTOR * STEWARD.blockReserve) /
+            ha,
+        )
+      : foodCells;
+  const blockCells = Math.max(1, Math.min(foodCells, laborCells));
   return { people: planned, households, blockCells };
 }
 
@@ -436,9 +480,10 @@ function templatesStage(
   day: number,
   landscape: Landscape,
   obstacles: ObstacleLayer,
+  coverage: CraftCoverage,
 ): StewardPlan {
   const land = planLand(state, day, landscape, obstacles);
-  const size = planSize(state, day, land);
+  const size = planSize(state, day, land, coverage);
   const existing = existingHouses(state, landscape);
   const owned = ownedFields(land, existing, fieldTiles(state, day, landscape));
   const layouts = TEMPLATES.map((t) => layoutOf(t, land, size, existing, owned));
@@ -454,6 +499,7 @@ function templatesStage(
   });
   return {
     stage: 'checks',
+    version: STEWARD_PLAN_VERSION,
     startDay: day,
     stamp: planStamp(state),
     people: size.people,

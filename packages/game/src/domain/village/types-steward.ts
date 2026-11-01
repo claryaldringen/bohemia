@@ -37,6 +37,11 @@ export interface StewardFarm {
  */
 export interface StewardPlan {
   stage: StewardPlanStage;
+  /**
+   * Verze pravidel rozvrhu (`STEWARD_PLAN_VERSION`); plán bez ní nebo se starší se přepočítá
+   * vedle platného (steward.md – Pole blízko a podle práce).
+   */
+  version?: number;
   /** Den, kdy přepočet začal (etapa `sites`). */
   startDay: number;
   /** Den, kdy byl plán hotový – od něj se počítá `STEWARD.replanYears`. */

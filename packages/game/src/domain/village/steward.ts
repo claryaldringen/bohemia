@@ -28,7 +28,13 @@ import { STEWARD, type StewardMonthDay, type StewardWindow } from './rules-stewa
 import { fieldSowingTargets } from './simulate-plan';
 import { fieldCells, planCentre, takenTiles, villageTerritory } from './steward-land';
 import { extraSteps } from './steward-extras';
-import { cellRuns, farmCells, planSettlement, playerClaimsPlan } from './steward-plan';
+import {
+  cellRuns,
+  dwellingTiles,
+  farmCells,
+  planSettlement,
+  playerClaimsPlan,
+} from './steward-plan';
 import { stewardOutlook, type StewardOutlook } from './steward-outlook';
 import { isStewardOn, markStewardStarted } from './steward-state';
 import { sowingYieldFactor } from './weather-effects';
@@ -118,9 +124,10 @@ function decideDay(
   if (state.steward && !state.steward.replan && playerClaimsPlan(state, landscape)) {
     state.steward.replan = true;
   }
-  const planned = planSettlement(state, day, landscape, obstacles);
-  if (planned !== state) state.steward = planned.steward;
+  // plán sídla stavby ani řemesla nemění – pokrytí řemesly platí před ním i po něm
   const coverage = craftCoverage(state, day);
+  const planned = planSettlement(state, day, landscape, obstacles, coverage);
+  if (planned !== state) state.steward = planned.steward;
   const ctx: StewardContext = {
     day,
     date: dateOfDayIndex(day),
@@ -481,10 +488,57 @@ function minFieldCells(landscape: Landscape): number {
 }
 
 /**
- * Další blok pole z plánu (steward.md – Pole; Klučení lesa): v oknech louky (1. 9. – 28. 2.,
- * 15. 6. – 31. 7.) volná políčka bloku prvního hospodářství, které jich má dost; když louka v plánu
- * nestačí, v okně lesa (1. 10. – 31. 1.) les na území vsi do `STEWARD.forestSearchTiles` od bloku.
- * Počet čtverců podle chybějících lidí (`shortPeople`) a úrodnosti, nejvýš co unese `budget`.
+ * Pořadí hospodářství pro nové pole (steward.md – Pole blízko a podle práce): napřed ta se stojícím
+ * domem (v pořadí plánu), pak ostatní – jejich volná políčka od nejbližšího ke stojícím domům
+ * vsi a hospodářství podle nejbližšího z nich (při shodě v pořadí plánu). Ves bez stojícího domu:
+ * pořadí plánu, políčka od domu hospodářství. Políčka, která neprojdou `accept`, vypadnou.
+ */
+function farmsByHomes(
+  state: VillageState,
+  plan: StewardPlan,
+  landscape: Landscape,
+  accept: (tile: number) => boolean,
+): { farm: number; cells: number[] }[] {
+  const size = landscape.size;
+  const homes = dwellingTiles(state, landscape);
+  const homeSet = new Set(homes);
+  const ids = new Set(state.dwellings.map((d) => d.id));
+  const standing: { farm: number; cells: number[] }[] = [];
+  const others: { farm: number; cells: number[]; key: number }[] = [];
+  const homeDist2 = (t: number): number => {
+    let best = Infinity;
+    for (const h of homes) {
+      const dx = (t % size) - (h % size);
+      const dy = Math.floor(t / size) - Math.floor(h / size);
+      best = Math.min(best, dx * dx + dy * dy);
+    }
+    return best;
+  };
+  plan.farms.forEach((f, farm) => {
+    const cells = farmCells(f, size).filter(accept);
+    const housed =
+      homes.length === 0 ||
+      homeSet.has(f.house) ||
+      (f.dwellingId !== undefined && ids.has(f.dwellingId));
+    if (housed) {
+      standing.push({ farm, cells });
+      return;
+    }
+    const keyed = cells.map((t) => [homeDist2(t), t] as const);
+    keyed.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    others.push({ farm, cells: keyed.map((e) => e[1]), key: keyed[0]?.[0] ?? Infinity });
+  });
+  others.sort((a, b) => a.key - b.key || a.farm - b.farm);
+  return [...standing, ...others.map(({ farm, cells }) => ({ farm, cells }))];
+}
+
+/**
+ * Další blok pole z plánu (steward.md – Pole; Klučení lesa; Pole blízko a podle práce): v oknech
+ * louky (1. 9. – 28. 2., 15. 6. – 31. 7.) volná políčka bloku prvního hospodářství (napřed se
+ * stojícím domem, pak políčka nejblíž stojícím domům – `farmsByHomes`), které jich má dost; když
+ * louka v plánu nestačí, v okně lesa (1. 10. – 31. 1.) les na území vsi do
+ * `STEWARD.forestSearchTiles` od bloku. Počet čtverců podle chybějících lidí (`shortPeople`)
+ * a úrodnosti, nejvýš co unese `budget`.
  */
 export function nextFieldBlock(
   state: VillageState,
@@ -513,22 +567,21 @@ export function nextFieldBlock(
   const usable = (t: number): boolean =>
     !taken[t] && !skip.has(t) && cells.kg[t]! > 0 && !vetoed(state, ctx, 'field', t);
   if (inStewardWindows(ctx.date, STEWARD.meadowFieldWindows)) {
-    for (let i = 0; i < plan.farms.length; i++) {
-      const free = farmCells(plan.farms[i]!, size).filter(
-        (t) => usable(t) && landscape.surface[t] !== SURFACE_CODES.forest,
-      );
-      const block = pick(i, free, false);
+    const meadow = (t: number): boolean =>
+      usable(t) && landscape.surface[t] !== SURFACE_CODES.forest;
+    for (const { farm, cells: free } of farmsByHomes(state, plan, landscape, meadow)) {
+      const block = pick(farm, free, false);
       if (block) return block;
     }
   }
   if (!inStewardWindows(ctx.date, STEWARD.forestFieldWindows)) return null;
   const territory = villageTerritory(state, landscape);
-  for (let i = 0; i < plan.farms.length; i++) {
-    const forest = forestNear(farmCells(plan.farms[i]!, size), size, landscape, (t) => {
+  for (const { farm, cells: block } of farmsByHomes(state, plan, landscape, () => true)) {
+    const forest = forestNear(block, size, landscape, (t) => {
       return territory[t] === 1 && landscape.surface[t] === SURFACE_CODES.forest && usable(t);
     });
-    const block = pick(i, forest, true);
-    if (block) return block;
+    const found = pick(farm, forest, true);
+    if (found) return found;
   }
   return null;
 }
