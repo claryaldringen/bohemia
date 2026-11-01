@@ -316,7 +316,18 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   occlusionTexture), animace zapečené do textury matic kostí (Babylon VAT) a postavy jako thin
   instances – mesh `villagers-woman` / `villagers-man` (klip, fáze, tempo na instanci,
   `villagerLook` = barva oděvu a kód vlasů: šátek, šediny) + měkký kruhový stín
-  `villagers-shadow` (alphaIndex 5 – po obtiscích vsi). **WebGPU má limit 8 vertex bufferů**
+  `villagers-shadow` (alphaIndex 5 – po obtiscích vsi). Klipy úlohy 10 (villagers.md – Pro
+  implementaci, bod 10): z 0 A.D. modlitba `pray`, léčení `heal` (scéna nemoc nezná – v GLB,
+  nezapojeno), varianty stání `rest-a`–`rest-e` (žena jen `a`, `b` – místo ostatních `idle`,
+  `MAN_ONLY_CLIPS`), cesta s nářadím `walk-hoe` / `walk-axe` (`TOOL_WALK` – ode dveří k práci
+  s motykou či sekerou a zpět, `villager-schedule.ts`; tempo nohou `isWalkClip`), vojvoda
+  `lord-idle-a`–`c` (mimo výcvik střídá po `LORD_IDLE_S`, `SceneLord.lordId`) a `walk-lord`
+  (návštěva manželky); vlastní klipy z klíčových póz (`keys` v `people.json`,
+  `keyed_frames` v `people_from_0ad.py`, CC0) `milk` (dojení na špalku – `milkers`), `spin`
+  (předení – ženy u dveří, `SPIN_SHARE`), `sit` (starší), `wheel` (hrnčíř u kruhu –
+  `PORCH_SPOTS`), `weave`, `pipe`, `drum` (tkaní a hudba – v GLB, zapojí úloha 12: stav,
+  hudebníci na svatbě). Špalek pod sedící postavou je volný prop `stump` (bod `seat` v počátku
+  postavy). VAT: muž 2893 snímků × 69 kostí (dřív 1731), žena 2230 × 65 (dřív 1283). **WebGPU má limit 8 vertex bufferů**
   a postava jich má právě 8 (pozice, normála, uv, kosti 2×, matice, VAT, look) – další atribut
   na vrchol nepřidávat, patří do textury. Klipy se střídají střihem (VAT prolínat neumí). Hýbou
   se jen v záběru (`WATER_FPS`), při omezeném pohybu stojí. Ve vývojovém náhledu tlačítko
@@ -392,7 +403,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     (zahrnutí `hoe`) / `kiln-burn` (hlídání `idle`, zahrnutí) / `kiln-draw` (`hoe`, do koše
     `fruit`), hrnčíř `pottery` (sušení `weed`, vsazení `fruit`, hlídání, odnos nádob), rybář `fish`,
     o žních cvičící muži `train` (žne a váže u řady žnečů), starší `elder` a nečinní `idle`
-    (paběrky). `activityPose(…, phases)` – fáze s klipem stojí, kde ji zastihla (póza úlohy
+    (paběrky); starší mimo žně `elder-home` (úloha 10): sedí na špalku (póza úlohy `sit`),
+    postojí variantou stání (`rest` – `variants: REST_CLIPS`, los podle člověka a kroku)
+    a zajdou se pomodlit (`pray`) k nejbližší hotové modle či svatyni (`PhasePlaces.shrine` –
+    `SHRINE_GAP_M` od okraje půdorysu na straně, odkud jdou; bez modly krok odpadne). `activityPose(…, phases)` – fáze s klipem stojí, kde ji zastihla (póza úlohy
     v začátku fáze), krok jinde jde rovně na místo a zpět; `Timetable.phase` (fáze v paměti
     s činností), `scheduledState(…, phase)` → `PersonFigureState.phase` → `PHASE_TEXTS`
     v `person-activity.ts` („váže snopy“, „pere rudu“, „nese nástroje do domácností“…; rybář „jde

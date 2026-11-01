@@ -840,6 +840,22 @@ a `lib/village-view.ts`, rozvrh je znovu nedefinuje – `PersonJob`, `LaborActiv
     v `VillagerClip` a `VILLAGER_CLIPS` (`villager-motion.ts`), `lib/person-activity.ts`
     a zástupné klipy (dojení = `weed`, sezení = `idle`) po dokončení nahradit. Každý klip zvlášť
     ověřit očima ve scéně; nejdřív dojení a točení na kruhu (dnes zástupné).
+    **Hotovo (koncept, 1. 11. 2026 – ke schválení očima):** Martin 31. 10. 2026 k šesti
+    animacím: „Ověř 0 A.D., pak Blender.“ – 0 A.D. žádnou z nich nemá (`0ad-animations.md`), takže
+    jsou vlastní (CC0) z klíčových póz skriptem (`people.json` – klíč `keys`, `keyed_frames`):
+    `milk` (dojení na špalku), `spin` (předení s vřetenem ve stoje), `weave` (tkaní – člunek
+    zleva doprava a přiražení útku nahoru), `sit` (starší na špalku, rozhlíží se), `wheel` (sed
+    u kruhu, ruce na hrnci, noha roztáčí kruh), `pipe` a `drum` (píšťala, buben ve stoje).
+    Špalek pod sedící postavou je nový prop (návrh Clauda – bez něj by seděla ve vzduchu).
+    Z 0 A.D. přibyly modlitba `pray`, léčení `heal`, varianty stání `rest-a`–`e`, chůze
+    s motykou a sekerou `walk-hoe` / `walk-axe` a vladař `lord-idle-a`–`c`, `walk-lord`;
+    `idle_relax_h_*` / `walk_relax_h_*` nejsou shrbení starci, ale hrdinové („hero“ – ověřeno
+    náhledem), proto vynechány; nošení rudy čeká na rekvizitu (úloha 9), `idle_hoe/axe_*` jsou
+    10–14 s dlouhé (velká textura VAT). Zapojeno: dojení, kruh, sezení a modlitba starších
+    (návrh Clauda – starší mimo žně sedí, postojí a zajdou k nejbližší hotové modle či svatyni),
+    předení žen u dveří, vojvoda jako vladař, cesta s nářadím. Tkaní, hudba a léčení jsou
+    v GLB, zapojí je úloha 12 (stav, hudebníci na svatbě) a nemoc, až ji simulace bude mít.
+    Ve scéně zatím neověřeno (Vlkov).
 11. **Tesař – vznikající vůz a stoh/seno** (`villager-plan-crafts.ts`, `wagons/` GLB,
     `scene-village.md`): díly vozu po fázích ve scéně, stoh a kupy sena jako objekty scény;
     zápis do `docs/code/village-crafts.md` a `village-fields.md`. Tuto úlohu lze dělat až po 8.

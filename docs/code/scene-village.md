@@ -297,6 +297,12 @@ modelu dílny (x napříč, z k vchodu – jako `PORCH_SPOTS`), s variantou rozm
 hlídá test). Klíč zná z práce dne jen tavbu (pec se mění jen při ní), žár pece sedí nad
 `decalHeight` jako síť.
 
+Hrnčíř u kruhu sedí na špalku (vlastní klip `wheel` – předklon, ruce na hrnci 0,45 m před patou,
+pravá noha roztáčí kruh; místo `PORCH_SPOTS.hrncir[0]` 0,6 m od středu kruhu, pánev na přední
+hraně špalku). Ženy u dojných zvířat (`milkers`) dojí na špalku (`milk`), starší u domů sedí
+(`sit`) a chodí se modlit před hotovou modlu či svatyni (`pray` – klip 0 A.D. s rukama k nebi,
+role fází `elder-home`). Špalek je prop postavy (`stump`), ne objekt scény – úloha 10 scény.
+
 - **Pěšiny**: obdélník hotové kovárny a hrnčíře pro pěšiny zahrne dvůr (`WORKSHOP_YARD_PATH_BOX_M`
   v `network-grid.ts` – `dwellingBox`, test v `craft-yard-layout.test.ts`), brána leží před dvorem
   a od vchodu se k ní chodí osou mezi pecí a jámou; pěšina tak nevede přes pec ani jámu ani po
