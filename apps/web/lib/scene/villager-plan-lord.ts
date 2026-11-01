@@ -1,14 +1,25 @@
 // Vojvodova rodina na dvorku (docs/design/lord.md – Ve scéně): muži a chlapci střílejí na terče,
-// bojují ve dvojici nebo u kůlu, ženy rodiny stojí u dvorce jako ženy u domů. Kdo, kolik hodin
-// a zda vůbec cvičí, určuje jádro (`SceneLabor.lord`); scéna jen rozvrhne hodiny do dne.
+// bojují ve dvojici nebo u kůlu a vyjíždějí na koních, ženy rodiny pracují u dvorce jako ženy
+// u domů. Kdo, kolik a zda vůbec cvičí, určuje jádro (`SceneLabor.lord`); den rodiny ve skutečném
+// čase (vyjde z dvorce → luk a boj → jízda → u dvorku → vejde) skládá lord-day.ts.
 import type { SceneHunt, SceneLabor, SceneLord } from '../village-view';
 import { type DayWindow } from './caravan';
 import { dogPlans, type DogPlan } from './dogs';
+import { LIVESTOCK_EPOCH_MS } from './livestock-motion';
+import {
+  drillSeconds,
+  householdPose,
+  HUNT_BRIDGE_S,
+  memoSteps,
+  traineePose,
+  traineeSteps,
+  type ArcherSlot,
+  type FighterSlot,
+  type TraineeDay,
+} from './lord-day';
 import { HUNT_PACE } from './rider-route';
 import {
   createRideState,
-  DRILL_BLOCKS_H,
-  hourOfDay,
   huntPlans,
   isRiding,
   rideBlockAt,
@@ -22,207 +33,18 @@ import { hash01 } from './smoke-schedule';
 import { doorPoint, free, walkRoute } from './villager-plan-geometry';
 import { FIGURE_SCALE, type Context, type PlannedVillager } from './villager-plan-types';
 import {
-  alongRoute,
-  fetcher,
-  LORD_IDLE_CLIPS,
+  createVillagerPose,
   route,
   type Route,
   type PoseFn,
-  type VillagerClip,
-  type VillagerKind,
   type VillagerPose,
   walkSpeed,
 } from './villager-motion';
 import { trainingGroundOf, type TrainingGround, type TrainingSpot } from './training-ground-layout';
 import type { Point } from './villager-plan-types';
 
-/** Po kolika sekundách vojvoda mimo výcvik změní stání vladaře (`LORD_IDLE_CLIPS`). */
-export const LORD_IDLE_S = 6;
-
-/**
- * Rozvrh výcviku dne (lord.md – Den rodiny: dva bloky, dopoledne a odpoledne – Vegetius; návrh
- * Clauda): bloky začínají v 8 a ve 14 h, v každém polovina hodin dne – napřed luk, pak boj, pak
- * jízda (jezdce v tu dobu kreslí riders.ts na koni, na dvorku ten čas není). Ženy rodiny jsou u dvorce od 7 do 19 h.
- */
-export { DRILL_BLOCKS_H };
-export const HOUSEHOLD_HOURS: readonly [number, number] = [7, 19];
-/** Výstřel: míření (bow-draw) a výstřel (bow-release) – s; střídačka u terče po dvou výstřelech. */
-const SHOT_S = 3.2;
-const AIM_S = 2.2;
-const TURN_S = SHOT_S * 2;
-/** Dvojice se střídá v útoku a krytí po tolika s; u kůlu meč a oštěp po 4 s. */
-const BOUT_S = 1.6;
-const POST_SWITCH_S = 4;
 /** Ženy rodiny chodí od vchodu nejvýš tak daleko (m) – zůstávají na pozemku dvorce. */
 const HOUSEWORK_M = 3.5;
-
-/** Co cvičící dělá v hodinu `hour` (0–24): luk, boj, nebo nic (doma, na koni). */
-export function drillAt(
-  hours: SceneLord['trainees'][number],
-  hour: number,
-): 'bow' | 'combat' | null {
-  for (const start of DRILL_BLOCKS_H) {
-    const h = hour - start;
-    if (h < 0) continue;
-    const bow = hours.bow / DRILL_BLOCKS_H.length;
-    const combat = hours.combat / DRILL_BLOCKS_H.length;
-    if (h < bow) return 'bow';
-    if (h < bow + combat) return 'combat';
-  }
-  return null;
-}
-
-const hourOf = hourOfDay;
-
-function put(out: VillagerPose, s: TrainingSpot, clip: VillagerClip): VillagerPose {
-  out.x = s.x;
-  out.z = s.z;
-  out.headingX = s.headingX;
-  out.headingZ = s.headingZ;
-  out.clip = clip;
-  out.pace = 1;
-  return out;
-}
-
-/**
- * Póza cvičícího: v hodinách luku u své dráhy (střílí na střídačku – `rank` z `ranks`, ostatní
- * čekají kousek za ním), v hodinách boje na svém místě boje, jinak není vidět (doma, na koni).
- * Bez hodin světa (ukázky) celý den u luku, kdo luk nemá, u boje. Klipy se střídají střihem.
- */
-function drillPose(
-  hours: SceneLord['trainees'][number],
-  ground: TrainingGround,
-  archer: { lane: number; rank: number; ranks: number },
-  combat: { spot: TrainingSpot; role: 'pair-a' | 'pair-b' | 'post' | 'wait' },
-  rest: TrainingSpot,
-  window: DayWindow | null,
-  lord = false,
-): PoseFn {
-  const lane = ground.lanes[archer.lane]!;
-  return (t, _herds, out) => {
-    const hour = hourOf(window, t);
-    const drill =
-      hour === null
-        ? hours.bow > 0
-          ? 'bow'
-          : hours.combat > 0
-            ? 'combat'
-            : null
-        : drillAt(hours, hour);
-    if (drill === 'bow') {
-      out.stage = 'bow';
-      const turn = Math.floor(t / TURN_S);
-      if (turn % archer.ranks !== archer.rank) {
-        put(out, lane.wait, 'idle');
-        // čekající stojí v řadě za sebou – kdo jde na řadu dřív, stojí vpředu
-        const back =
-          (((archer.rank - (turn % archer.ranks) + archer.ranks) % archer.ranks) - 1) * 0.9;
-        out.x -= lane.wait.headingX * back;
-        out.z -= lane.wait.headingZ * back;
-        return out;
-      }
-      return put(out, lane.shoot, t % SHOT_S < AIM_S ? 'bow-draw' : 'bow-release');
-    }
-    if (drill === 'combat') {
-      out.stage = 'combat';
-      const beat = Math.floor(t / BOUT_S) % 2 === 0;
-      if (combat.role === 'pair-a')
-        return put(out, combat.spot, beat ? 'sword-strike' : 'shield-block');
-      if (combat.role === 'pair-b')
-        return put(out, combat.spot, beat ? 'shield-block' : 'sword-strike');
-      if (combat.role === 'post') {
-        return put(
-          out,
-          combat.spot,
-          Math.floor(t / POST_SWITCH_S) % 2 === 0 ? 'sword-strike' : 'spear-thrust',
-        );
-      }
-      return put(out, combat.spot, 'idle');
-    }
-    // mimo výcvik (poledne, jízda, večer) ve dne stojí u dvorku jako ostatní muži mimo práci –
-    // vojvoda jako vladař (založené ruce, střídá se po LORD_IDLE_S); skrytý je jen v noci (jako
-    // ženy rodiny)
-    put(
-      out,
-      rest,
-      lord
-        ? LORD_IDLE_CLIPS[
-            ((Math.floor(t / LORD_IDLE_S) % LORD_IDLE_CLIPS.length) + LORD_IDLE_CLIPS.length) %
-              LORD_IDLE_CLIPS.length
-          ]!
-        : 'idle',
-    );
-    if (hour !== null && isNight(hour)) out.hidden = true;
-    return out;
-  };
-}
-
-/** Večerní odchod k vedlejší manželce začíná po konci dne rodiny (19 h), ráno se vrací v 7–8 h. */
-const VISIT_OUT_H: readonly [number, number] = [HOUSEHOLD_HOURS[1], HOUSEHOLD_HOURS[1] + 1];
-const VISIT_BACK_H: readonly [number, number] = [HOUSEHOLD_HOURS[0], HOUSEHOLD_HOURS[0] + 1];
-
-/**
- * Návštěva vedlejší manželky (lord.md – Rod vojvody, Manželky; návrh Clauda): scéna nemá noc,
- * proto „večer“ = hodina po konci dne rodiny (19–20 h) – vojvoda jde po trase `r` k manželce
- * a v domě (skrytý) zůstane přes noc; „ráno“ = 7–8 h, kdy jde stejnou cestou zpět ke dvorku.
- * Jinak platí `base` (výcvik, jízda i práce se nemění).
- */
-function visitPose(base: PoseFn, r: Route, window: DayWindow | null): PoseFn {
-  const walk = (out: VillagerPose, d: number, reverse: boolean): VillagerPose => {
-    alongRoute(r, d, reverse, out);
-    out.clip = 'walk-lord';
-    out.pace = 1;
-    out.hidden = false;
-    return out;
-  };
-  return (t, herds, out) => {
-    const hour = hourOf(window, t);
-    if (hour === null) return base(t, herds, out);
-    if (hour >= VISIT_OUT_H[0] && hour < VISIT_OUT_H[1])
-      return walk(out, (hour - VISIT_OUT_H[0]) * r.length, false);
-    if (hour >= VISIT_OUT_H[1] || hour < VISIT_BACK_H[0]) {
-      base(t, herds, out);
-      out.hidden = true;
-      return out;
-    }
-    if (hour < VISIT_BACK_H[1]) return walk(out, (1 - (hour - VISIT_BACK_H[0])) * r.length, true);
-    return base(t, herds, out);
-  };
-}
-
-/** Noc (mimo dobu, kdy je rodina vidět u dvorku). */
-function isNight(hour: number): boolean {
-  return hour < HOUSEHOLD_HOURS[0] || hour >= HOUSEHOLD_HOURS[1];
-}
-
-/**
- * Žena rodiny u dvorce: ve dne domácí práce jako ženy u domů (`domestic` – postává před vchodem
- * a chodí kousek pro vodu a dřevo, tady po dvoře uvnitř pozemku), v noci doma.
- */
-function householdPose(
-  spot: TrainingSpot,
-  who: { kind: VillagerKind; scale: number; phase: number },
-  window: DayWindow | null,
-): PoseFn {
-  // kousek od vchodu podél dvora (uvnitř pozemku)
-  const goal = { x: spot.x + spot.headingX * HOUSEWORK_M, z: spot.z + spot.headingZ * HOUSEWORK_M };
-  const work = fetcher(
-    route([
-      [spot.x, spot.z],
-      [goal.x, goal.z],
-    ]),
-    who.kind,
-    who.scale,
-    10 + who.phase * 8,
-    who.phase,
-  );
-  return (t, herds, out) => {
-    work(t, herds, out);
-    const hour = hourOf(window, t);
-    if (hour !== null && isNight(hour)) out.hidden = true;
-    return out;
-  };
-}
 
 /** Kde muž rodiny stojí mimo výcvik: před vchodem dvorce, na druhé straně než ženy (uvnitř pozemku). */
 function restSpot(ctx: Context, homeId: number, i: number): TrainingSpot {
@@ -236,29 +58,32 @@ function restSpot(ctx: Context, homeId: number, i: number): TrainingSpot {
   return { x: door.x, z: door.z, headingX: hx / n, headingZ: hz / n };
 }
 
-/** Trasa vojvody od dvorku k domu vedlejší manželky po pěšinách (`walkRoute`), jinak rovně. */
-function visitRoute(ctx: Context, lord: SceneLord, idx: number): Route | null {
-  const wife = lord.visit
-    ? (ctx.homes.find((h) => h.id === lord.visit!.home) ??
-      ctx.houses.find((h) => h.id === lord.visit!.home))
-    : undefined;
+/** Vchod dvorce (dveře uprostřed) – doma je cvičící skrytý tady. */
+function manorDoor(ctx: Context, homeId: number): TrainingSpot {
+  const home = ctx.homes.find((h) => h.id === homeId) ?? ctx.houses.find((h) => h.id === homeId);
+  if (!home) return { x: 0, z: 0, headingX: 0, headingZ: 1 };
+  const door = doorPoint({ ...home, box: home.own ?? home.box }, 0);
+  const hx = door.x - home.position.x;
+  const hz = door.z - home.position.z;
+  const n = Math.hypot(hx, hz) || 1;
+  return { x: door.x, z: door.z, headingX: hx / n, headingZ: hz / n };
+}
+
+/** Trasa vojvody od stání u dvorku `from` k domu vedlejší manželky `homeId` po pěšinách, jinak rovně. */
+function visitRoute(ctx: Context, lord: SceneLord, from: Point, homeId: number): Route | null {
+  const wife = ctx.homes.find((h) => h.id === homeId) ?? ctx.houses.find((h) => h.id === homeId);
   if (!wife || wife.id === lord.home) return null;
-  const from = restSpot(ctx, lord.home, idx);
   const door = doorPoint({ ...wife, box: wife.own ?? wife.box }, 0);
-  const a = { x: from.x, z: from.z };
-  const walked = walkRoute(ctx, a, door, lord.home);
+  const walked = walkRoute(ctx, from, door, lord.home);
   if (walked && walked.length > 0.1) return walked;
   return route([
-    [a.x, a.z],
+    [from.x, from.z],
     [door.x, door.z],
   ]);
 }
 
 /** Místo boje `k`-tého bojujícího: napřed dvojice, pak kůl, ostatní čekají u kůlu. */
-function combatSpot(
-  ground: TrainingGround,
-  k: number,
-): { spot: TrainingSpot; role: 'pair-a' | 'pair-b' | 'post' | 'wait' } {
+function combatSpot(ground: TrainingGround, k: number): FighterSlot {
   const pair = ground.pairs[Math.floor(k / 2)];
   if (pair) return { spot: pair[k % 2]!, role: k % 2 === 0 ? 'pair-a' : 'pair-b' };
   const extra = k - ground.pairs.length * 2;
@@ -285,13 +110,104 @@ function hitchSpot(ground: TrainingGround): TrainingSpot {
   };
 }
 
+/** Kde jezdec čeká u svého koně (vlevo od koně u kůlu – jako `riderPose`). */
+function besideHorse(plan: RidePlan): TrainingSpot {
+  const h = plan.hitch;
+  return {
+    x: h.x - h.headingZ * 0.8,
+    z: h.z + h.headingX * 0.8,
+    headingX: h.headingX,
+    headingZ: h.headingZ,
+  };
+}
+
+/** Bod pózy v čase `t` (poloha, směr, skrytý). */
+interface PosePoint extends Point {
+  hx: number;
+  hz: number;
+  hidden: boolean;
+}
+
+/** Chůze z `a` do `b` přirozeným tempem `speed` (nejvýš za `span` s), pak stojí (případně vejde). */
+function walkBetween(
+  out: VillagerPose,
+  a: PosePoint,
+  b: PosePoint,
+  since: number,
+  span: number,
+  speed: number,
+): VillagerPose {
+  out.hidden = false;
+  delete out.lift;
+  delete out.stage;
+  const d = Math.hypot(b.x - a.x, b.z - a.z);
+  const dur = Math.min(span, d / speed);
+  if (since >= dur) {
+    out.x = b.x;
+    out.z = b.z;
+    out.headingX = b.hx;
+    out.headingZ = b.hz;
+    out.clip = 'idle';
+    out.pace = 1;
+    if (b.hidden) out.hidden = true;
+    return out;
+  }
+  const f = since / dur;
+  out.x = a.x + (b.x - a.x) * f;
+  out.z = a.z + (b.z - a.z) * f;
+  out.headingX = (b.x - a.x) / d;
+  out.headingZ = (b.z - a.z) / d;
+  out.clip = 'walk';
+  out.pace = Math.min(1.3, d / dur / speed);
+  return out;
+}
+
+/**
+ * Lovec z rodiny (wildlife.md – Ve scéně): lov (`hunt`, ve skutečném čase `span` – ms) přeruší den
+ * rodiny (`base`); `HUNT_BRIDGE_S` před lovem dojde chůzí tam, kde lov začíná (u kůlu, ke koni),
+ * po lovu odtud dojde tam, kde ho den rodiny zastihne – nikdy se nepřenese střihem.
+ */
+function huntBridge(
+  base: PoseFn,
+  hunt: PoseFn,
+  span: readonly [number, number],
+  speed: number,
+): PoseFn {
+  const hs = (span[0] - LIVESTOCK_EPOCH_MS) / 1000;
+  const he = (span[1] - LIVESTOCK_EPOCH_MS) / 1000;
+  const probe = createVillagerPose();
+  const at = (fn: PoseFn, t: number, herds: Parameters<PoseFn>[1]): PosePoint => {
+    probe.hidden = false;
+    const p = fn(t, herds, probe);
+    return { x: p.x, z: p.z, hx: p.headingX, hz: p.headingZ, hidden: p.hidden === true };
+  };
+  let into: [PosePoint, PosePoint] | null = null;
+  let back: [PosePoint, PosePoint] | null = null;
+  return (t, herds, out) => {
+    if (t >= hs && t < he) return hunt(t, herds, out);
+    if (t >= hs - HUNT_BRIDGE_S && t < hs) {
+      into ??= [at(base, hs - HUNT_BRIDGE_S, herds), { ...at(hunt, hs, herds), hidden: false }];
+      return walkBetween(out, into[0], into[1], t - (hs - HUNT_BRIDGE_S), HUNT_BRIDGE_S, speed);
+    }
+    if (t >= he && t < he + HUNT_BRIDGE_S) {
+      back ??= [
+        { ...at(hunt, he - 1e-3, herds), hidden: false },
+        at(base, he + HUNT_BRIDGE_S, herds),
+      ];
+      return walkBetween(out, back[0], back[1], t - he, HUNT_BRIDGE_S, speed);
+    }
+    return base(t, herds, out);
+  };
+}
+
 /**
  * Rodina na dvorku (lord.md – Ve scéně; villagers.md – výjimka z pravidla „nikdo nestojí na
- * oploceném pozemku“): cvičící muži a chlapci na cvičišti (`trainingGroundOf`), ženy rodiny
- * u dvorce. Lidé s pevným místem dne – berou se z rozpisu lidí (`takeId`) hned po pohřbu
- * a karavanách, do práce vsi pak nejdou. Jezdci dne (`SceneLord.riders`, doprovod výpravy) jsou
- * ve dne na koni (riders.ts – `ridePlans`) a plány jízd jdou koním (`rides`). Bez lidí ve scéně,
- * rodiny nebo cvičiště nic.
+ * oploceném pozemku“ a Bez časosběru): cvičící muži a chlapci jdou den rodiny ve skutečném čase
+ * (lord-day.ts – z dvorce na cvičiště `trainingGroundOf`, ke koni, k vedlejší manželce), ženy
+ * rodiny pracují u dvorce. Lidé s pevným místem dne – berou se z rozpisu lidí (`takeId`) hned po
+ * pohřbu a karavanách, do práce vsi pak nejdou. Jezdci dne (`SceneLord.riders`, doprovod výpravy)
+ * vyjíždějí v cyklu (riders.ts – `ridePlans`) a plány jízd jdou koním (`rides`). Bez lidí ve
+ * scéně, rodiny nebo cvičiště nic.
  */
 export function lordFigures(
   ctx: Context,
@@ -312,8 +228,15 @@ export function lordFigures(
     return r ? r.points.map(([x, z]) => ({ x, z })) : [a, b];
   };
   const wild = ctx.village.wildlife;
-  // jezdci lovu (lov jde ve skutečném čase přes víc dní) objížďku nejedou – kůň je na lovu
+  // lov (wildlife.md – Ve scéně): jezdci a pěší s oštěpy k okraji lesa u zvěře a zpět – ve
+  // skutečném čase od dne lovu (`huntWindow`)
+  const hunt = wild?.hunt ? huntParty(ctx, wild.hunt, hitch, leg, huntWindow, huntSpot) : null;
+  const huntSpan = hunt?.rides[0]?.span ?? hunt?.foot[0]?.span ?? null;
+  // jezdci lovu objížďku nejedou, když jsou na lovu (s cestou ke kůlu a zpět) – kůň je na lovu
   const hunters = new Set((wild?.hunt?.riders ?? []).map((r) => r.id));
+  const busy: readonly [number, number] | null = huntSpan
+    ? [huntSpan[0] - HUNT_BRIDGE_S * 1000, huntSpan[1] + HUNT_BRIDGE_S * 1000]
+    : null;
   const patrolRides = ridePlans({
     village: ctx.village,
     lord,
@@ -321,12 +244,12 @@ export function lordFigures(
     homes: ctx.homes.map((h) => ({ x: h.position.x, z: h.position.z })),
     leg,
     window,
-  }).filter((r) => !hunters.has(r.riderId));
-  // lov (wildlife.md – Ve scéně): jezdci a pěší s oštěpy k okraji lesa u zvěře a zpět – ve
-  // skutečném čase od dne lovu (`huntWindow`)
-  const hunt = wild?.hunt ? huntParty(ctx, wild.hunt, hitch, leg, huntWindow, huntSpot) : null;
+  }).flatMap((r): RidePlan[] =>
+    !hunters.has(r.riderId) ? [r] : busy && r.span ? [{ ...r, except: busy }] : [],
+  );
   const rides = [...patrolRides, ...(hunt?.rides ?? [])];
-  const riding = new Map(rides.map((r) => [r.riderId, r]));
+  const patrolOf = new Map(patrolRides.map((r) => [r.riderId, r]));
+  const huntRideOf = new Map((hunt?.rides ?? []).map((r) => [r.riderId, r]));
   const walking = new Map((hunt?.foot ?? []).map((r) => [r.riderId, r]));
   const carrier = hunt && (wild?.hunt?.kills ?? 0) > 0 ? (hunt.foot[0]?.riderId ?? null) : null;
   const dogs = dogPlans({
@@ -338,7 +261,9 @@ export function lordFigures(
     free: (x, z) => free(ctx, x, z),
   });
   const lanes = ground.lanes.length;
-  // jezdci cvičí luk a boj na dvorku jako ostatní, na koni jsou jen v bloku jízdy
+  const door = manorDoor(ctx, lord.home);
+  // vedlejší manželky se střídají po cyklech (podle pořadí z jádra)
+  const wives = lord.visit?.homes ?? [];
   const archers = lord.trainees.filter((h) => h.bow > 0).map((h) => h.id);
   const fighters = lord.trainees.filter((h) => h.combat > 0).map((h) => h.id);
   for (const [idx, hours] of lord.trainees.entries()) {
@@ -346,34 +271,66 @@ export function lordFigures(
       ctx.roster!.takeId(hours.id),
     );
     if (!c) continue;
-    const a = Math.max(0, archers.indexOf(hours.id));
-    const lane = a % lanes;
-    const ranks = Math.ceil((archers.length - lane) / lanes);
-    const pose = drillPose(
-      hours,
-      ground,
-      { lane, rank: Math.floor(a / lanes), ranks: Math.max(1, ranks) },
-      combatSpot(ground, Math.max(0, fighters.indexOf(hours.id))),
-      restSpot(ctx, lord.home, idx),
-      window,
-      lord.lordId === hours.id,
-    );
-    const ride = riding.get(hours.id);
-    const mounted = ride ? riderPose(ride) : null;
+    const isLord = lord.lordId === hours.id || lord.visit?.lordId === hours.id;
+    const speed = walkSpeed('man', isLord ? 'walk-lord' : 'walk', c.who.scale);
+    const a = archers.indexOf(hours.id);
+    const lane = Math.max(0, a) % lanes;
+    const archer: ArcherSlot | null =
+      a >= 0
+        ? {
+            lane: ground.lanes[lane]!,
+            rank: Math.floor(a / lanes),
+            ranks: Math.max(1, Math.ceil((archers.length - lane) / lanes)),
+          }
+        : null;
+    const f = fighters.indexOf(hours.id);
+    const fighter = f >= 0 ? combatSpot(ground, f) : null;
+    const patrol = patrolOf.get(hours.id);
+    const rest = restSpot(ctx, lord.home, idx);
+    const visits = lord.visit?.lordId === hours.id && wives.length > 0;
+    const routes = new Map<number, Route | null>();
+    const day: TraineeDay = {
+      drills: { bow: drillSeconds(hours.bow), combat: drillSeconds(hours.combat) },
+      ride: patrol?.span ? (patrol.span[1] - patrol.span[0]) / 1000 : 0,
+      places: {
+        door,
+        rest,
+        bow: archer ? archer.lane.wait : null,
+        combat: fighter ? fighter.spot : null,
+        hitch: patrol?.span ? besideHorse(patrol) : null,
+      },
+      speed,
+      visit: visits
+        ? (k): Route | null => {
+            const home = wives[((k % wives.length) + wives.length) % wives.length]!;
+            if (!routes.has(home)) routes.set(home, visitRoute(ctx, lord, rest, home));
+            return routes.get(home) ?? null;
+          }
+        : null,
+      busy: hunters.has(hours.id) || walking.has(hours.id) ? busy : null,
+    };
+    const mounted = patrol ? riderPose(patrol) : null;
+    let pose: PoseFn = traineePose({
+      stepsOf: memoSteps((k) => traineeSteps(day, k)),
+      door,
+      archer,
+      fighter,
+      speed,
+      lord: isLord,
+      mounted: patrol ? (t): boolean => isRiding(patrol, t) : null,
+      mountedPose: mounted,
+    });
+    // bez hodin světa (ukázky) jezdec jede nepřetržitě
+    if (patrol && mounted && !patrol.span) {
+      const onFoot = pose;
+      pose = (t, herds, o) => (isRiding(patrol, t) ? mounted(t, herds, o) : onFoot(t, herds, o));
+    }
+    const huntRide = huntRideOf.get(hours.id);
     const foot = walking.get(hours.id);
-    const posed: PoseFn =
-      ride && mounted
-        ? (t, herds, o) => (isRiding(ride, t) ? mounted(t, herds, o) : pose(t, herds, o))
-        : foot
-          ? footHunterPose(foot, carrier === hours.id, pose)
-          : pose;
-    const visit = lord.visit && lord.visit.lordId === hours.id ? visitRoute(ctx, lord, idx) : null;
-    out.push(
-      figure(c, visit ? visitPose(posed, visit, window) : posed, 'natural', {
-        kind: 'lord',
-        household: false,
-      }),
-    );
+    if (huntRide?.span) pose = huntBridge(pose, riderPose(huntRide), huntRide.span, speed);
+    else if (foot?.span)
+      pose = huntBridge(pose, footHunterPose(foot, carrier === hours.id, null), foot.span, speed);
+    out.push(figure(c, pose, 'natural', { kind: 'lord', household: false }));
     walking.delete(hours.id);
   }
   // pěší lovci mimo cvičící (odešlí synové rodu) – jen v bloku lovu, jinak jsou doma
@@ -397,14 +354,31 @@ export function lordFigures(
       if (!c) return;
       const side = (i % 2 === 0 ? -1 : 1) * (1.3 + Math.floor(i / 2) * 1.1);
       // u dvorce před vchodem domu (uvnitř pozemku), ne před bránou
-      const door = doorPoint({ ...home, box: home.own ?? home.box }, side);
-      const hx = door.x - home.position.x;
-      const hz = door.z - home.position.z;
+      const spot = doorPoint({ ...home, box: home.own ?? home.box }, side);
+      const hx = spot.x - home.position.x;
+      const hz = spot.z - home.position.z;
       const n = Math.hypot(hx, hz) || 1;
-      const spot = { x: door.x, z: door.z, headingX: hx / n, headingZ: hz / n };
-      out.push(
-        figure(c, householdPose(spot, c.who, window), 'linen', { kind: 'lord', household: true }),
+      const goal = { x: spot.x + (hx / n) * HOUSEWORK_M, z: spot.z + (hz / n) * HOUSEWORK_M };
+      const { kind, scale, phase } = c.who;
+      const pose = householdPose(
+        spot,
+        route([
+          [spot.x, spot.z],
+          [goal.x, goal.z],
+        ]),
+        {
+          outClip: 'walk',
+          outSpeed: walkSpeed(kind, 'walk', scale),
+          endClip: 'weed',
+          endS: 4,
+          backClip: 'carry',
+          backSpeed: walkSpeed(kind, 'carry', scale),
+          restClip: 'idle',
+          restS: 10 + phase * 8,
+        },
+        phase,
       );
+      out.push(figure(c, pose, 'linen', { kind: 'lord', household: true }));
     });
   }
   return { people: out, rides, dogs };

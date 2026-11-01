@@ -9,20 +9,12 @@ import {
 } from '../dogs';
 import { createLivestockPose, LIVESTOCK_EPOCH_MS } from '../livestock-motion';
 import { straightLeg } from '../rider-route';
-import {
-  createRideState,
-  HUNT_REAL_S,
-  HUNT_START_H,
-  huntPlans,
-  rideState,
-  type RidePlan,
-} from '../riders';
+import { createRideState, huntSpan, huntPlans, rideState, type RidePlan } from '../riders';
 
 const DAY_MS = 86_400;
 const window = { startMs: LIVESTOCK_EPOCH_MS, endMs: LIVESTOCK_EPOCH_MS + DAY_MS };
-const hourT = (h: number): number => (h / 24) * (DAY_MS / 1000);
-/** Lov ve skutečném čase (s): za šera dne lovu, HUNT_REAL_S dlouho. */
-const HUNT_T = [hourT(HUNT_START_H), hourT(HUNT_START_H) + HUNT_REAL_S] as const;
+/** Lov ve skutečném čase (s): od šera dne lovu, až rodina vyjíždí (`huntSpan`), HUNT_REAL_S dlouho. */
+const HUNT_T = huntSpan(window)!.map((ms) => (ms - LIVESTOCK_EPOCH_MS) / 1000) as [number, number];
 const hitch = { x: 4, z: 0, headingX: 1, headingZ: 0 };
 const hunt = (foot: number[]): ReturnType<typeof huntPlans> =>
   huntPlans({

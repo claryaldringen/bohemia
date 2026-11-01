@@ -25,18 +25,12 @@ import {
   type RideRoute,
   type RideSpot,
 } from './rider-route';
+import { drillSeconds, LORD_CYCLE, LORD_CYCLE_S, HUNT_BRIDGE_S, rideSlot } from './lord-day';
 import type { TrainingSpot } from './training-ground-layout';
 import type { PoseFn } from './villager-motion';
 import { squareCorners } from './villager-plan-geometry';
 import { WINTER_MONTHS, type Point, type Square } from './villager-plan-types';
 
-/**
- * Bloky výcviku dne (lord.md – Den rodiny: dopoledne a odpoledne; návrh Clauda): začínají v 8 a ve
- * 14 h, v každém polovina hodin dne – napřed luk, pak boj, pak jízda (`drillAt`, `rideBlocks`).
- */
-export const DRILL_BLOCKS_H: readonly number[] = [8, 14];
-/** Jezdec mimo blok jízdy (bez výcviku) je vidět ve dne (h) – v noci je doma. */
-export const RIDE_HOURS: readonly [number, number] = [7, 19];
 /** Velikost jezdeckého koně ve scéně (jako kůň na pastvě – 1,0–1,12). */
 export const RIDE_HORSE_SCALE = 1.06;
 /**
@@ -72,9 +66,14 @@ export interface RidePlan {
   blocks: readonly (readonly [number, number])[] | null;
   /**
    * Jízda ve skutečném čase (ms od–do) místo bloků dne – lov (`huntPlans`) jde přes víc herních
-   * dní. S ním se `blocks` nečtou.
+   * dní, výcviková jízda (`ridePlans`) se opakuje v každém cyklu dne rodiny (`period`). S ním se
+   * `blocks` nečtou.
    */
   span?: readonly [number, number];
+  /** Jízda `span` se opakuje po tolika ms (lord-day.ts – cyklus dne rodiny). */
+  period?: number;
+  /** Opakovaná jízda, která zasáhne do tohoto času (ms od–do – lov jezdce), se nejede. */
+  except?: readonly [number, number];
   /** Kde kůň stojí, když se nejede – u kůlu u brány dvorce, čelem ke kůlu. */
   hitch: TrainingSpot;
   window: DayWindow | null;
@@ -131,19 +130,18 @@ export interface RidePlanInput {
 }
 
 /**
- * Bloky jízdy jezdce (h herního dne): v každém bloku výcviku (`DRILL_BLOCKS_H`) po luku a boji
- * (stejné dělení jako `drillAt`) polovina hodin jízdy dne (`SceneRide.hours`).
+ * Výcviková jízda ve skutečném čase (lord.md – Ve scéně; villagers.md – Bez časosběru; návrh
+ * Clauda): v každém cyklu dne rodiny (`LORD_CYCLE_S`) od `LORD_CYCLE.ride`, po luku a boji –
+ * skupina jede spolu tak dlouho, kolik dá nejdelší jízda dne ve skupině (hodina jízdy jádra =
+ * `DRILL_S_PER_H` s, nejvýš `LORD_CYCLE.rideMax`), krokem a klusem půlku tam a půlku zpět.
+ * Vrátí `span` (ms, první cyklus) a `period` (ms).
  */
-export function rideBlocks(lord: SceneLord, ride: SceneRide): [number, number][] {
-  const hours = lord.trainees.find((h) => h.id === ride.id);
-  const n = DRILL_BLOCKS_H.length;
-  const before = ((hours?.bow ?? 0) + (hours?.combat ?? 0)) / n;
-  return ride.hours > 0
-    ? DRILL_BLOCKS_H.map((start): [number, number] => [
-        start + before,
-        start + before + ride.hours / n,
-      ])
-    : [];
+export function rideSpan(hours: number): { span: readonly [number, number]; period: number } {
+  const [from, to] = rideSlot(0, drillSeconds(hours));
+  return {
+    span: [LIVESTOCK_EPOCH_MS + from * 1000, LIVESTOCK_EPOCH_MS + to * 1000],
+    period: LORD_CYCLE_S * 1000,
+  };
 }
 
 /**
@@ -175,6 +173,7 @@ export function ridePlans(input: RidePlanInput): RidePlan[] {
   const at = (index: number): TrainingSpot => hitchSpot(hitch, index);
   const groups = rideGroups(riders);
   groups.forEach((group, g) => {
+    const longest = Math.max(...group.map((r) => r.hours));
     group.forEach((ride: SceneRide, k) => {
       // víc skupin jede ve stejných blocích vedle sebe (každá o dvě šířky dál od osy)
       const lane = group.length === 1 ? 0 : (k % 2 === 0 ? 1 : -1) * SIDE_M;
@@ -185,7 +184,8 @@ export function ridePlans(input: RidePlanInput): RidePlan[] {
         behind: Math.floor(k / 2) * GAP_M,
         side: lane + g * 2 * SIDE_M,
         offset: 0,
-        blocks: window ? rideBlocks(lord, ride) : null,
+        blocks: null,
+        ...(window && longest > 0 ? rideSpan(longest) : {}),
         hitch: at(plans.length),
         window,
       });
@@ -199,7 +199,8 @@ export function ridePlans(input: RidePlanInput): RidePlan[] {
       behind: 0,
       side: 0,
       offset: 0,
-      blocks: window ? rideBlocks(lord, lord.escort) : null,
+      blocks: null,
+      ...(window && lord.escort.hours > 0 ? rideSpan(lord.escort.hours) : {}),
       hitch: at(plans.length),
       window,
     });
@@ -292,12 +293,21 @@ export function huntSweep(
 }
 
 /**
- * Začátek a konec lovu ve skutečném čase (ms): za šera dne lovu (`window` – okno dne lovu,
- * `HUNT_START_H`), `HUNT_REAL_S` dlouho. Bez okna null.
+ * Začátek a konec lovu ve skutečném čase (ms): od šera dne lovu (`window` – okno dne lovu,
+ * `HUNT_START_H`) v nejbližší chvíli, kdy jezdci dne rodiny vyjíždějí (lord-day.ts – `rideSlot`;
+ * návrh Clauda: lovci jsou pak u koní a lov nahradí výcvikovou jízdu cyklu), a aspoň
+ * `HUNT_BRIDGE_S` po začátku dne lovu (lovci k té chvíli dojdou ke kůlu), `HUNT_REAL_S` dlouho.
+ * Bez okna null.
  */
 export function huntSpan(window: DayWindow | null): readonly [number, number] | null {
   if (!window || window.endMs <= window.startMs) return null;
-  const startMs = window.startMs + HUNT_START_H * hourSeconds(window) * 1000;
+  const earliest = Math.max(
+    window.startMs + HUNT_START_H * hourSeconds(window) * 1000,
+    window.startMs + HUNT_BRIDGE_S * 1000,
+  );
+  const t = (earliest - LIVESTOCK_EPOCH_MS) / 1000;
+  const k = Math.ceil((t - LORD_CYCLE.ride) / LORD_CYCLE_S);
+  const startMs = LIVESTOCK_EPOCH_MS + (k * LORD_CYCLE_S + LORD_CYCLE.ride) * 1000;
   return [startMs, startMs + HUNT_REAL_S * 1000];
 }
 
@@ -355,12 +365,12 @@ export function huntPlans(input: HuntPlanInput): { rides: RidePlan[]; foot: Ride
 }
 
 /**
- * Kde je jezdec s koněm v čase `t` (s skutečného času). Jede jen v bloku jízdy (`blocks`, podíl
- * z hodin jádra – `rideBlocks`): blok začíná u kůlu, kůň jede po trase tempem `rideDistance`
- * z počátku bloku a v druhé půlce bloku se po téže trase vrací, takže na konci stojí zase u kůlu
- * (návrh Clauda: den má 86 s, okruh nebo cesta k hranici se do bloku nevejde, proto jen vyjede
- * a vrátí se). Mimo blok kůň stojí u kůlu (jezdec cvičí, kůň je v ohradě – `riding` false). Bez
- * rozvrhu (`blocks` null, bez hodin světa) jede nepřetržitě po celé trase.
+ * Kde je jezdec s koněm v čase `t` (s skutečného času). Jede jen v bloku jízdy (`span` ve
+ * skutečném čase – `rideSpan`, lov; dřív `blocks` hodin dne): blok začíná u kůlu, kůň jede po
+ * trase tempem `rideDistance` z počátku bloku a v druhé půlce bloku se po téže trase vrací, takže
+ * na konci stojí zase u kůlu (návrh Clauda: okruh nebo cesta k hranici se do bloku nevejde, proto
+ * jen vyjede a vrátí se). Mimo blok kůň stojí u kůlu (jezdec cvičí, kůň je v ohradě – `riding`
+ * false). Bez rozvrhu (bez `span` i `blocks`, bez hodin světa) jede nepřetržitě po celé trase.
  */
 export function rideState(plan: RidePlan, t: number, out: RideState): RideState {
   const block = plan.route ? rideBlockAt(plan, t) : null;
@@ -385,12 +395,13 @@ export function rideState(plan: RidePlan, t: number, out: RideState): RideState 
     d = rideDistance(plan.route, t) + plan.offset;
   }
   rideSpot(plan.route, Math.max(0, d - plan.behind), out);
+  // stranou od osy podle směru trasy (i cestou zpět – na obratu se jezdec nepřenese na druhou stranu)
+  out.x -= out.headingZ * plan.side;
+  out.z += out.headingX * plan.side;
   if (back) {
     out.headingX = -out.headingX;
     out.headingZ = -out.headingZ;
   }
-  out.x -= out.headingZ * plan.side;
-  out.z += out.headingX * plan.side;
   out.riding = true;
   out.distance = d;
   return out;
@@ -403,10 +414,14 @@ export function rideState(plan: RidePlan, t: number, out: RideState): RideState 
 export function rideBlockAt(plan: RidePlan, t: number): { elapsed: number; length: number } | null {
   if (plan.span) {
     const ms = t * 1000 + LIVESTOCK_EPOCH_MS;
-    const [from, to] = plan.span;
-    return ms >= from && ms < to
-      ? { elapsed: (ms - from) / 1000, length: (to - from) / 1000 }
-      : null;
+    const [from0, to0] = plan.span;
+    const length = to0 - from0;
+    // opakovaná jízda – kolikátá v řadě (`period`)
+    const n = plan.period ? Math.floor((ms - from0) / plan.period) : 0;
+    const from = from0 + n * (plan.period ?? 0);
+    if (ms < from || ms >= from + length) return null;
+    if (plan.except && plan.except[0] < from + length && plan.except[1] > from) return null;
+    return { elapsed: (ms - from) / 1000, length: length / 1000 };
   }
   if (!plan.blocks) return null;
   const hour = hourOfDay(plan.window, t);
@@ -483,7 +498,8 @@ function waiting(plan: RidePlan, state: RideState): boolean {
 
 /**
  * Póza jezdce (villagers.ts): na koni klip sedu – krokem `ride`, klusem `ride-trot` – zvednutý
- * o výšku sedu; když kůň stojí u kůlu, jezdec ve dne stojí vedle něj, v noci je doma.
+ * o výšku sedu; když kůň stojí u kůlu, jezdec stojí vedle něj (noc herního dne nic neschovává –
+ * den rodiny jde ve skutečném čase, lord-day.ts).
  */
 export function riderPose(plan: RidePlan): PoseFn {
   const state = createRideState();
@@ -512,8 +528,7 @@ export function riderPose(plan: RidePlan): PoseFn {
     out.x = state.x - state.headingZ * 0.8;
     out.z = state.z + state.headingX * 0.8;
     out.clip = 'idle';
-    const hour = hourOfDay(plan.window, t);
-    if (hour !== null && (hour < RIDE_HOURS[0] || hour >= RIDE_HOURS[1])) out.hidden = true;
+    out.hidden = false;
     return out;
   };
 }
@@ -523,7 +538,7 @@ export function ridePlansKey(plans: readonly RidePlan[]): string {
   return plans
     .map(
       (p) =>
-        `${p.riderId}:${p.horseId}:${p.route ? `${p.route.length.toFixed(1)}/${p.route.points.length}` : '-'}:${p.offset.toFixed(1)}:${p.hitch.x.toFixed(1)},${p.hitch.z.toFixed(1)}:${p.window?.startMs ?? ''}:${p.span?.join('-') ?? ''}:${p.blocks?.map((b) => b.join('-')).join(',') ?? ''}:${p.tied?.map((b) => b.join('-')).join(',') ?? ''}`,
+        `${p.riderId}:${p.horseId}:${p.route ? `${p.route.length.toFixed(1)}/${p.route.points.length}` : '-'}:${p.offset.toFixed(1)}:${p.hitch.x.toFixed(1)},${p.hitch.z.toFixed(1)}:${p.window?.startMs ?? ''}:${p.span?.join('-') ?? ''}:${p.period ?? ''}:${p.except?.join('-') ?? ''}:${p.blocks?.map((b) => b.join('-')).join(',') ?? ''}:${p.tied?.map((b) => b.join('-')).join(',') ?? ''}`,
     )
     .join('|');
 }

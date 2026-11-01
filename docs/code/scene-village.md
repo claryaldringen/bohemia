@@ -683,10 +683,16 @@ Kdo, kdy a na kterém koni jede, určuje jádro (`lordRides` → `SceneLord.ride
   (po celé jízdě znovu od kůlu), `rideSpot` – poloha a směr. Skupiny po 4 (`rideGroups`).
 - **Plán dne** `lib/scene/riders.ts`: `ridePlans` (v `lordFigures`, `villager-plan-lord.ts`) – trasa,
   místo ve skupině (po dvou, 3,6 m za sebou, 0,9 m stranou), víc skupin rozestoupeně po trase,
-  koně u kůlu vedle sebe. `rideBlocks` – bloky jízdy z hodin jádra (`DRILL_BLOCKS_H` 8 a 14 h, po luku a boji jako
-  `drillAt`). `rideState` – jede jen v bloku (`isRiding`): od kůlu po trase a v půlce bloku zpět,
-  takže blok začíná i končí u kůlu; mimo blok jezdec cvičí na dvorku (`lordFigures`) a kůň je
-  v ohradě, mezi bloky ho `livestock.ts` skrývá (`Group.hidden`). Jízda k hranici a doprovod se
+  koně u kůlu vedle sebe. `rideSpan` – výcviková jízda ve skutečném čase v každém cyklu dne rodiny
+  (`span` od `LORD_CYCLE.ride`, `period` = `LORD_CYCLE_S`; lord-day.ts), skupina tak dlouho, kolik
+  dá nejdelší jízda ve skupině (hodina jádra 2 minuty, nejvýš 4); `except` – opakovaná jízda, která
+  zasáhne do lovu jezdce, se nejede. `rideBlockAt` počítá i opakování. `rideState` – jede jen
+  v bloku (`isRiding`): od kůlu po trase a v půlce bloku zpět (odsazení do strany podle směru
+  tam i zpět – na obratu žádný skok), takže blok začíná i končí u kůlu; mimo blok jezdec cvičí na
+  dvorku (`lordFigures`) a kůň je v ohradě, mezi bloky ho `livestock.ts` skrývá (`Group.hidden`).
+  Kdo jede a kudy, scéna drží po celou jízdu, jak byla na začátku (`ActivityMemory` – `rideAt`).
+  Lov (`huntSpan`) začíná v chvíli výcvikové jízdy cyklu (`rideSlot`), aspoň `HUNT_BRIDGE_S` po
+  začátku dne lovu. Jízda k hranici a doprovod se
   do bloku nevejdou – jen vyjedou a vrátí se, neprojedou celou trasu (známé omezení, doprovod
   není sladěný s karavanou; horses.md – Kdy jsou jezdci venku). Plány jdou přes `DraftCrew.rides` → `VillageVillagers.rides()`
   → `onCrew` → `VillageLivestock.setRides`.

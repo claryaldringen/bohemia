@@ -199,7 +199,10 @@ Tři řádky v panelu obchodu jako u dobytka ([obchod](trade.md) – Dobytek ve 
   Jezdec jede **jen v bloku jízdy** (`SceneRide.hours` ÷ počet bloků, po luku a boji); zbytek dne
   střílí a bojuje na dvorku jako ostatní. Herní den trvá ≈ 86 s, blok jízdy tedy jen několik
   sekund, a okruh polí ani cesta k hranici (stovky metrů až kilometry krokem 1,5 m/s) se do
-  něj nevejde. Proto jezdec **jen vyjede po trase dne a vrátí se**: blok začíná u kůlu u brány,
+  něj nevejde. Od 1. 11. 2026 jde jízda ve skutečném čase (návrh Clauda – lord.md, Ve scéně, Den
+  rodiny ve skutečném čase): v každém cyklu dne rodiny (20 minut) od 13. minuty, skupina spolu
+  tak dlouho, kolik dá nejdelší jízda ve skupině (hodina jádra 2 minuty, nejvýš 4) – vyjede
+  stovky metrů a vrátí se, ani tak nedojede celou trasu. Proto jezdec **jen vyjede po trase dne a vrátí se**: blok začíná u kůlu u brány,
   v půlce bloku se otočí a na konci stojí zase u kůlu (žádný pop-in uprostřed trasy a večerní
   skok koně). Jízda k hranici a doprovod výpravy se kreslí stejně, bez dojetí ke kraji
   (jednodušší než pokračování přes bloky a dny). Mimo blok je kůň v ohradě (v noci a v zimě

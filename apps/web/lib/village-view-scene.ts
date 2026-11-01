@@ -456,16 +456,14 @@ function sceneShoeing(
 }
 
 /**
- * Kterou vedlejší manželku mimo dvorec vojvoda dnes večer navštíví (lord.md – Rod vojvody,
- * Manželky; jen vzhled): střídají se po dnech podle id, `day % počet`. Bez nich nikoho.
+ * Vedlejší manželky mimo dvorec, které vojvoda navštěvuje (lord.md – Rod vojvody, Manželky; jen
+ * vzhled): v pořadí podle id – scéna je střídá po cyklech dne rodiny (lord-day.ts). Bez nich prázdné.
  */
-export function visitedWife<W extends { id: number; dwellingId: number }>(
+export function visitedWives<W extends { id: number; dwellingId: number }>(
   wives: readonly W[],
   manor: number,
-  day: number,
-): W | undefined {
-  const apart = wives.filter((w) => w.dwellingId !== manor).sort((a, b) => a.id - b.id);
-  return apart.length > 0 ? apart[day % apart.length] : undefined;
+): W[] {
+  return wives.filter((w) => w.dwellingId !== manor).sort((a, b) => a.id - b.id);
 }
 
 /**
@@ -507,13 +505,17 @@ function sceneLord(state: VillageState, counts: LaborDay['lord'], day: number): 
   const riding = (rides?.riders ?? []).filter((r) => !men.has(r.riderId)).map(scene);
   const escort = rides?.escort && !men.has(rides.escort.riderId) ? rides.escort : null;
   // vedlejší manželky mimo dvorec se střídají po dnech (podle id, `day % počet`) – jen vzhled
-  const wife = visitedWife(family.wivesApart, home, day);
+  const wives = visitedWives(family.wivesApart, home);
   const lordId = family.lord?.id;
   const visits =
-    wife && lordId !== undefined && family.trainees.some((p) => p.id === lordId && !men.has(p.id));
+    wives.length > 0 &&
+    lordId !== undefined &&
+    family.trainees.some((p) => p.id === lordId && !men.has(p.id));
   return {
     ...(lordId !== undefined ? { lordId } : {}),
-    ...(visits && wife && lordId !== undefined ? { visit: { lordId, home: wife.dwellingId } } : {}),
+    ...(visits && lordId !== undefined
+      ? { visit: { lordId, homes: wives.map((w) => w.dwellingId) } }
+      : {}),
     ...(riding.length > 0 ? { riders: riding } : {}),
     ...(riding.length > 0 && rides?.trailId != null ? { borderTrailId: rides.trailId } : {}),
     ...(escort

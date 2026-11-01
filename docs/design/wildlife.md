@@ -334,8 +334,9 @@ kde to nestačí.
 - **Lovci:** v den velkého lovu vyjedou jezdci a vyjdou pěší se psy branou k okraji lesa u roty
   a vrátí se (jako jezdci v bloku jízdy – [koně](horses.md), Ve scéně); prasata před nimi utíkají.
   Hlídka v létě = dosavadní objížďka. Lov jde ve skutečném čase (1. 11. 2026, návrh Clauda –
-  villagers.md, Činnosti od začátku do konce): vyrazí za šera dne lovu a trvá 10 minut (≈ 7 herních
-  dní); cesta k lesu smí trvat nejvýš 70 % půlky lovu – pěší svižnou chůzí dojdou ≈ 300 m, jezdci
+  villagers.md, Činnosti od začátku do konce): vyrazí od šera dne lovu v nejbližší chvíli, kdy
+  rodina vyjíždí na jízdu cyklu (lord.md – Ve scéně, Den rodiny ve skutečném čase; lovci k ní dojdou
+  ke kůlu chůzí), a trvá 10 minut (≈ 7 herních dní); cesta k lesu smí trvat nejvýš 70 % půlky lovu – pěší svižnou chůzí dojdou ≈ 300 m, jezdci
   klusem ≈ 630 m. Les u zvěře dál než to jdou lovci k nejbližšímu okraji lesa, a když ani ten nestihnou, jen ke
   kraji svého dosahu – nikdy se neotočí v půlce cesty.
 - **Rybáři:** stojí na břehu tůně (dosavadní póza stání) s **prutem** – nová rekvizita (vlastní CC0

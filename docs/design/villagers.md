@@ -464,7 +464,16 @@ jádro je dál počítá po dnech. Čísla a podrobnosti jsou návrh Clauda:
   staré nahradí (kování je vzácné).
 - **Mimo:** orba za herní den (`PLOUGH_DAY_DEBUG`, Martin 19. 10. 2026: „Vím, že to bude divně
   zrychlené…“) – spřežení s oráčem dál projede celou dnešní orbu za herní den; vypnutí přepínačem.
-  Výcvik jezdců na dvorku a útěk divoké zvěře zůstávají v herním dni.
+  Útěk divoké zvěře zůstává v herním dni.
+- **Den vojvodovy rodiny** (1. 11. 2026, návrh Clauda; Martin 1. 11. 2026: „Koukám na vojvodu
+  a ten mezi jednotlivými činnostmi mizí a zase se objevuje. A lukostřelbu i boj cvičí velice
+  krátce, skoro to není vidět“): výcvik, jízdy a návštěvy vedlejší manželky běžely v hodinách
+  herního dne – luk vojvody 1,8 s, jízda 3,6 s, mezi lukem, bojem a stáním skok střihem a v noci
+  herního dne (každých ≈ 86 s) celá rodina zmizela. Teď cyklus 20 minut skutečného času (lord.md –
+  Ve scéně, Den rodiny ve skutečném čase): vyjde z dvorce, luk a boj po minutách (hodina jádra
+  = 2 minuty), jízda krokem a klusem až 4 minuty, u dvorku, vejde; mezi místy chůzí, skrytý jen
+  doma a u manželky. Kdo jede a kudy, scéna drží po celou jízdu, jak začala (data dalšího dne
+  by jezdce uprostřed jízdy přesunula).
 
 ### Události
 
