@@ -257,7 +257,12 @@ export type VillagerStage =
   | 'home'
   // výcvik vojvodovy rodiny (lord.md): střílí z luku, bojuje
   | 'bow'
-  | 'combat';
+  | 'combat'
+  // žena u dveří (villagers.md – Fáze činností, Žena): přede, vaří, tká, hlídá malé děti
+  | 'spin'
+  | 'cook'
+  | 'weave'
+  | 'mind';
 
 export function createVillagerPose(): VillagerPose {
   return { x: 0, z: 0, headingX: 0, headingZ: 1, clip: 'idle', pace: 1 };

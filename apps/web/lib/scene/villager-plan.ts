@@ -74,6 +74,7 @@ import { lordFigures } from './villager-plan-lord';
 import { shoeingFigures } from './villager-plan-shoeing';
 import {
   anglers,
+  snarers,
   domestic,
   elders,
   herderPeople,
@@ -641,8 +642,9 @@ export function placer(ctx: Context, share: SceneLaborShare, count: number): Pla
       // rybáři na břehu tůně s prutem (wildlife.md – Ve scéně)
       return t.kind === 'pool' ? anglers(ctx, t.index) : none;
     case 'snare':
-      // oka na zajíce u okraje lesa – scéna je nekreslí (wildlife.md – Ve scéně: oka se nekreslí)
-      return none;
+      // oka na zajíce na okraji lesa nejblíž vsi (wildlife.md – Ve scéně: oka se nekreslí,
+      // klečí se u nich s okem v ruce – klip `snare`)
+      return snarers(ctx);
     case 'herding':
       // dospělí pasáci stojí u stád spolu s dětmi (`herders`, diet.md – Pasáci)
       return none;

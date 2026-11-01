@@ -4,7 +4,9 @@ import type { ScenePerson } from '../../person-view';
 import type { LaborShare, SceneExpedition, SceneVillage } from '../../village-view';
 import type { SceneWedding } from '../../wedding-view';
 import { LIVESTOCK_EPOCH_MS } from '../livestock-motion';
+import { personActivity } from '../../person-activity';
 import { createVillagerPose, villagerSeconds, type HerdView } from '../villager-motion';
+import { COOK_SHARE, doorChore, SNARE_EDGE, SPIN_SHARE, WEAVE_SHARE } from '../villager-plan-folk';
 import { pickPerson } from '../villager-pick';
 import {
   LEADER_AGE,
@@ -234,6 +236,57 @@ describe('DayRoster – lidé dne k postavám', () => {
     expect(order(3)).toEqual(order(3));
     const seeds = [4, 5, 6, 7].map((s) => order(s).join());
     expect(seeds.some((o) => o !== order(3).join())).toBe(true);
+  });
+});
+
+describe('žena u dveří, oka na zajíce (villagers.md – Fáze činností; úloha 12)', () => {
+  it('ženy u dveří předou, vaří, tkají u stavu; s malým dítětem v domě ho hlídají', () => {
+    expect(doorChore(0.1, false)).toEqual({ clip: 'spin', stage: 'spin' });
+    expect(doorChore(SPIN_SHARE + 0.01, false)).toEqual({ clip: 'cook', stage: 'cook' });
+    expect(doorChore(SPIN_SHARE + COOK_SHARE + 0.01, false)).toEqual({
+      clip: 'weave',
+      stage: 'weave',
+    });
+    const rest = SPIN_SHARE + COOK_SHARE + WEAVE_SHARE + 0.01;
+    expect(doorChore(rest, true)).toEqual({ clip: 'idle', stage: 'mind' });
+    expect(doorChore(rest, false)).toEqual({ clip: 'idle', stage: null });
+    // malé dítě (pod 7 let) má jen dvorec – dcera 5 let; v domě 2 je nejmladší 9 let
+    const roster = new DayRoster(persons(), 3);
+    expect(roster.hasSmallChild(1)).toBe(true);
+    expect(roster.hasSmallChild(2)).toBe(false);
+    // panel řekne práci u domu podle úseku pózy
+    const job: PersonJob = { kind: 'share', activity: 'domestic', target: { kind: 'village' } };
+    const text = (stage: 'weave' | 'mind' | null): string =>
+      personActivity({ id: 1, job, stage, hidden: false, herd: null }, village());
+    expect(text('weave')).toBe('tká na stavu před domem');
+    expect(text('mind')).toBe('hlídá děti u domu');
+    expect(text(null)).toBe('pracuje u domu');
+  });
+
+  it('oka na zajíce: v zimě klečí s okem na okraji lesa nejblíž vsi, čelem k lesu', () => {
+    const trees = Array.from({ length: 40 }, (_, i) => ({ x: 60 + (i % 8) * 4, z: (i >> 3) * 4 }));
+    const ground: VillagerGround = { ...GROUND, treesIn: () => trees };
+    const shares: LaborShare[] = [{ activity: 'snare', target: { kind: 'village' }, manDays: 4 }];
+    const people = planVillagers(village(shares), ground, { seed: 5, herds: 0, paths: PATHS });
+    const snarers = people.filter((p) => p.job?.kind === 'share' && p.job.activity === 'snare');
+    expect(snarers.length).toBeGreaterThan(0);
+    expect(snarers.length).toBeLessThanOrEqual(SNARE_EDGE.figures);
+    for (const figure of snarers) {
+      const pose = figure.pose(100, [], createVillagerPose());
+      expect(pose.clip).toBe('snare');
+      const tree = [...trees].sort(
+        (a, b) => Math.hypot(a.x - pose.x, a.z - pose.z) - Math.hypot(b.x - pose.x, b.z - pose.z),
+      )[0]!;
+      expect(Math.hypot(tree.x - pose.x, tree.z - pose.z)).toBeLessThan(SNARE_EDGE.fromTreeM + 2.5);
+      // čelem ke kmeni (k lesu), od vsi na kraji lesa
+      expect((tree.x - pose.x) * pose.headingX + (tree.z - pose.z) * pose.headingZ).toBeGreaterThan(
+        0,
+      );
+      expect(pose.x).toBeLessThan(tree.x);
+    }
+    // bez stromů nikdo
+    const none = planVillagers(village(shares), GROUND, { seed: 5, herds: 0, paths: PATHS });
+    expect(none.some((p) => p.job?.kind === 'share' && p.job.activity === 'snare')).toBe(false);
   });
 });
 

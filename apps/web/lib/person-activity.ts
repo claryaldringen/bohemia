@@ -119,6 +119,14 @@ export const PHASE_TEXTS: Partial<Record<PhaseName, string>> = {
   return: 'vrací se do dílny',
 };
 
+/** Žena u dveří (villager-plan-folk.ts – `doorChore`): přede, vaří, tká, hlídá malé děti. */
+const DOOR_CHORE_TEXTS: Partial<Record<VillagerStage, string>> = {
+  spin: 'přede před domem',
+  cook: 'vaří na ohništi před domem',
+  weave: 'tká na stavu před domem',
+  mind: 'hlídá děti u domu',
+};
+
 const DWELLING_SITES: Record<string, string> = {
   zemnice: 'staví zemnici',
   polozemnice: 'staví polozemnici',
@@ -165,6 +173,8 @@ export function personActivity(
       if (stage === 'ring') {
         if (job.role === 'bride') return 'je oddávána';
         if (job.role === 'groom') return 'je oddáván';
+        if (job.music === 'pipe') return 'hraje na píšťalu na svatbě';
+        if (job.music === 'drum') return 'bubnuje na svatbě';
         return 'stojí u obřadu';
       }
       return 'jde na svatbu';
@@ -321,7 +331,7 @@ function shareText(
     case 'plant':
       return 'sází buky';
     case 'domestic':
-      return 'pracuje u domu';
+      return (stage && DOOR_CHORE_TEXTS[stage]) ?? 'pracuje u domu';
     case 'trade':
       return 'nese zboží k sousedům';
     case 'haul':

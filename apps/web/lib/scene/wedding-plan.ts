@@ -180,6 +180,31 @@ export interface WeddingMember {
   groupPace?: number;
   ringMs: number;
   leaveMs: number;
+  /**
+   * Hudebník u obřadu a hostiny (villagers.md – Svatba, Hudebníci; návrh Clauda): na svém místě
+   * v podkově hraje na píšťalu nebo buben (klipy `pipe`, `drum` s rekvizitou). Bez údaje stojí.
+   */
+  music?: 'pipe' | 'drum';
+}
+
+/**
+ * Hudebníci svatby – kolik a čím hrají (návrh Clauda): dva dospělí svatebčané (ne pár, děti
+ * ani starší) – píšťala a buben, vybraní losem podle svatby.
+ */
+export const WEDDING_MUSIC: readonly NonNullable<WeddingMember['music']>[] = ['pipe', 'drum'];
+
+/** Kteří lidé svatby hrají (indexy `members` → nástroj): dospělí svatebčané losem podle `key`. */
+export function weddingMusicians(
+  key: string,
+  members: readonly Pick<WeddingMember, 'key' | 'role' | 'child' | 'elder'>[],
+): Map<number, NonNullable<WeddingMember['music']>> {
+  const adults = members
+    .map((m, index) => ({ m, index }))
+    .filter(({ m }) => (m.role === 'guest' || m.role === 'companion') && !m.child && !m.elder)
+    .sort((a, b) => hashText(`${key}:${a.m.key}`, 31) - hashText(`${key}:${b.m.key}`, 31));
+  return new Map(
+    WEDDING_MUSIC.flatMap((music, k) => (adults[k] ? [[adults[k].index, music]] : [])),
+  );
 }
 
 /** Plán svatby ve scéně – místo, skupiny, časy a lidé. */
@@ -925,6 +950,9 @@ export function weddingPlan(
     add(m.ring.x, m.ring.z);
     for (const [x, z] of m.home.points) add(x, z);
   }
+  // hudebníci u obřadu a hostiny (Svatba – Hudebníci)
+  for (const [index, music] of weddingMusicians(wedding.key, members))
+    members[index]!.music = music;
   const figuresUntilMs = Math.max(
     endMs,
     ...members.map(
@@ -1067,7 +1095,8 @@ export function weddingPose(
       if (d >= m.toRing.length) {
         if (spouse) face(nowMs >= t.vowsMs && partner ? partner.ring : plan.site.focus);
         else face(plan.site.couple);
-        o.clip = 'idle';
+        // hudebník hraje na svém místě v podkově (píšťala, buben), ostatní stojí
+        o.clip = m.music ?? 'idle';
         o.pace = 1;
       } else {
         o.clip = 'walk';
