@@ -474,8 +474,10 @@ do hry. Mění se jen to, jak scéna z rozdělení práce dělá postavy. Podrob
   herních dní, déle než nejdelší činnost) a postava stojí, kde má – uprostřed cesty k vodě,
   v řadě na poli. Řetězy započaté v různých okamžicích **splynou**, jakmile padnou na týž bod
   mřížky (po pár činnostech), takže po načtení vychází totéž co v prohlížeči otevřeném celou
-  dobu; test to hlídá na stovkách lidí a časů. Kdyby někde nesplynuly, liší se póza nejvýš po
-  dobu jedné činnosti, pak je shoda.
+  dobu; test to hlídá na stovkách lidí a časů. Kdyby někde nesplynuly, liší se póza nejvýš do
+  zvonu (≤ 55 min), pak je shoda. Shoda dvou prohlížečů platí jen se stejným vstupem: rozběhnutá
+  činnost si drží délky z doby, kdy začala (síť pěšin dorazí až po prvním výpočtu, povodeň je
+  aktuální stav hladiny, obsazení dne dorazí po přelomu) – rozdíl pak také trvá do zvonu.
 - **Zvon** (návrh Clauda – bez něj řetězy v testu nesplývají: pochůzky mají pevnou délku a pauza
   30–90 s je na splynutí málo; **jednou za hodinu** – Martin 31. 10. 2026: „Podle tvého
   doporučení“): každý člověk má po 55 minutách (`BELL_S`, < `HISTORY_S` 60 minut) vlastní
@@ -532,9 +534,10 @@ do hry. Mění se jen to, jak scéna z rozdělení práce dělá postavy. Podrob
   jen lidé, kterým právě skončila (Vlkov: 60 lidí, činnost 2–14 minut → pár za minutu).
 - **Mimo záběr** se rozvrh posouvá jen délkami ze sítě pěšin – bez přesných tras a póz; ty se
   dopočítají, až postava vejde do záběru nebo ji hráč vybere.
-- **Instance postav jsou pevná zásoba** (nejvýš `MAX_WORKERS` 60 + `MAX_TRAFFIC` 24 + starší,
-  pasáci a události); kdo je doma, je skrytý – žádná nová pole matic s každým dnem. Žádný nový
-  atribut na vrchol (WebGPU – 8 vertex bufferů).
+- **Instance postav**: jedna na člověka vsi (+ cizí a postavy dne), kdo je doma, je skrytý
+  (měřítko 0). Pole matic, nastavení klipů a vzhledu se znovu alokují s přeplánováním (`rebuild`
+  – jednou za herní den, klíč obsahuje `labor`), ne za snímek. Žádný nový atribut na vrchol
+  (WebGPU – 8 vertex bufferů).
 - Cíl: přelom dne nejvýš 2 ms navíc, snímek beze změny (klid 16,8 ms) – změřit na Vlkově před
   a po.
 
