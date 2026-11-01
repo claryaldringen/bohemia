@@ -9,6 +9,7 @@ import {
   type Landscape,
   type ObstacleLayer,
 } from '../../src/domain/landscape';
+import type { ChronicleEvent } from '../../src/domain/village';
 import { dateOfDayIndex, dayIndexOf } from '../../src/domain/calendar';
 import {
   STEWARD_TIMING,
@@ -42,6 +43,21 @@ const PLAYER_PARTS_PER_YEAR = 8;
 const PARTS_PER_PERSON = 12;
 /** Nejvýš tolik vsí rodu (matka + synové) – hlídá dobu běhu. */
 const MAX_COLONIES = 12;
+/** Odchod s nejvýš tolika lidmi je ves, která sama nepřežije (plán úloh správce, 1. 11. 2026). */
+const TINY_VILLAGE = 2;
+/** Polní práce plánu (fields.md – Práce) – jmenovatel podílu založení a vracení přílohu. */
+const FIELD_LABOR = new Set([
+  'reclaim',
+  'dig',
+  'sow',
+  'weed',
+  'harvest',
+  'carry',
+  'thresh',
+  'plough',
+]);
+/** Práce navíc kvůli ploše polí: zakládání dílů a vracení zarostlého přílohu. */
+const FIELD_OVERHEAD = new Set(['found-field', 'reclaim']);
 const OUTLINE: [number, number][] = [
   [0, 0],
   [15, 0],
@@ -133,6 +149,40 @@ export interface DynastyResult {
   steadyPeoplePerHa: number;
   /** CPU dopočtu (ms) a z něj čas správce (ms) a nejdražší den správce (ms). */
   ms: { total: number; steward: number; maxStewardDay: number };
+  // --- kritéria plánu úloh správce (1. 11. 2026); ve starších kontrolních bodech chybí ---
+  /** Podíl oseté plochy v červnu na polích v oběhu – mateřská ves od roku `sownFromYear`. */
+  sownShare?: number;
+  /** Vzdálenost osetých dílů v červnu (m, podle osetých ploch) – všechny vsi od `sownFromYear`. */
+  sownWalkM?: number;
+  /** Zakládání dílů + vracení přílohu ÷ polní práce (vzorek práce dne po krocích dopočtu). */
+  fieldOverhead?: number;
+  /** Lidé každého odchodu syna (osadníci nové vsi). */
+  departureSizes?: number[];
+  /** Pojistka a hladové dny zvlášť mateřská ves / vsi synů (NaN – žádná ves synů). */
+  bufferMother?: number;
+  bufferSons?: number;
+  hungryDaysMother?: number;
+  hungryDaysSons?: number;
+  /** Roky vsí s lidmi (všechny vsi rodu) – jmenovatel úmrtí hladem na ves a rok. */
+  villageYears?: number;
+}
+
+/** Od kterého roku se měří podíl osevu (krátký běh od poloviny). */
+export function sownFromYear(years: number): number {
+  return Math.min(10, Math.floor(years / 2));
+}
+
+/** Krok dopočtu jedné vsi rodu – pro diagnostiku (`steward-diag.ts`). */
+export interface ChunkView {
+  /** Pořadí vsi v rodu (0 = mateřská ves). */
+  index: number;
+  foundDay: number;
+  from: number;
+  to: number;
+  state: VillageState;
+  chronicle: readonly ChronicleEvent[];
+  landscape: Landscape;
+  obstacles: ObstacleLayer;
 }
 
 interface Colony {
@@ -140,6 +190,7 @@ interface Colony {
   landscape: Landscape;
   obstacles: ObstacleLayer;
   land: CalibrationLand | null;
+  foundDay: number;
   playerYear: number;
   /** Pozice dalšího čtverce v pořadí hráče (`CalibrationLand.take`). */
   next: number;
@@ -151,6 +202,8 @@ export interface RunOptions {
   strategy: Strategy;
   years: number;
   clock?: () => number;
+  /** Každý krok dopočtu každé vsi (diagnostika) – výsledek běhu nemění. */
+  observe?: (view: ChunkView) => void;
 }
 
 function foundMother(land: CalibrationLand, seed: number, day: number): VillageState {
@@ -207,21 +260,21 @@ function playerTend(colony: Colony, day: number): void {
 }
 
 /** Vybaví schránku odchodů vsi: syn založí novou ves (tady, nebo na nové mapě). */
-function settleDepartures(colonies: Colony[]): void {
+function settleDepartures(colonies: Colony[], sizes: number[]): void {
   for (const colony of [...colonies]) {
     for (const record of pendingStewardDepartures(colony.state)) {
       if (colonies.length >= MAX_COLONIES || !record.settlers) {
         colony.state = failStewardDeparture(colony.state, record.id);
         continue;
       }
-      const here = record.dwelling !== undefined;
-      const landscape = here
-        ? colony.landscape
-        : generateLandscape(record.seed, CURRENT_LAYER_VERSIONS);
-      const dwelling = record.dwelling ?? freeVillageSite(landscape, []);
+      // jedna ves, jedna mapa (Martin 1. 11. 2026) – syn odchází vždy na novou mapu
+      const landscape = generateLandscape(record.seed, CURRENT_LAYER_VERSIONS);
+      const obstacles = obstaclesOf(landscape);
+      const dwelling = freeVillageSite(landscape, obstacles);
       const founded = dwelling
         ? foundedState(record.seed, {
             landscape,
+            obstacles,
             today: record.id,
             dwelling,
             settlers: record.settlers,
@@ -231,12 +284,14 @@ function settleDepartures(colonies: Colony[]): void {
         colony.state = failStewardDeparture(colony.state, record.id);
         continue;
       }
+      sizes.push(record.settlers.people.length);
       colony.state = settleStewardDeparture(colony.state, record.id, `son-${colonies.length}`);
       colonies.push({
         state: founded.state,
         landscape,
-        obstacles: here ? colony.obstacles : obstaclesOf(landscape),
+        obstacles,
         land: null,
+        foundDay: record.id,
         playerYear: 0,
         next: 0,
       });
@@ -263,6 +318,7 @@ export function runDynasty(opts: RunOptions): DynastyResult {
     landscape,
     obstacles: land.obstacles,
     land,
+    foundDay,
     playerYear: 0,
     next: START_PARTS,
   };
@@ -287,8 +343,7 @@ export function runDynasty(opts: RunOptions): DynastyResult {
     ms: { total: 0, steward: 0, maxStewardDay: 0 },
   };
   const pending = SNAPSHOT_YEARS.filter((y) => y <= opts.years);
-  let bufferSum = 0;
-  let bufferCount = 0;
+  const tally = newTally();
   STEWARD_TIMING.clock = opts.strategy === 'steward' ? clock : null;
   STEWARD_TIMING.ms = 0;
   STEWARD_TIMING.days = 0;
@@ -296,7 +351,7 @@ export function runDynasty(opts: RunOptions): DynastyResult {
   try {
     for (let cursor = foundDay; cursor < endDay;) {
       const to = Math.min(endDay, cursor + CHUNK_DAYS);
-      for (const colony of [...colonies]) {
+      for (const [index, colony] of [...colonies].entries()) {
         const started = clock();
         const after = advanceVillage(colony.state, to, colony.obstacles, colony.landscape);
         result.ms.total += clock() - started;
@@ -304,18 +359,37 @@ export function runDynasty(opts: RunOptions): DynastyResult {
           if (e.kind === 'death' && e.cause === 'hunger') result.hungerDeaths++;
           if (e.kind === 'hunger-began') result.hungerBeginnings++;
         }
+        opts.observe?.({
+          index,
+          foundDay: colony.foundDay,
+          from: cursor,
+          to,
+          state: after,
+          chronicle: after.chronicle,
+          landscape: colony.landscape,
+          obstacles: colony.obstacles,
+        });
         after.chronicle = [];
-        if (after.hungry && after.people.length > 0) result.hungryDays += to - cursor;
         colony.state = after;
         if (opts.strategy === 'player') playerTend(colony, to);
-        if (to - foundDay > DAYS_PER_YEAR && after.people.length > 0) {
+        if (after.people.length === 0) continue;
+        const mother = index === 0;
+        const days = to - cursor;
+        tally.villageDays += days;
+        if (after.hungry) {
+          result.hungryDays += days;
+          if (mother) tally.hungryMother += days;
+          else tally.hungrySons += days;
+        }
+        countLabor(tally, after, days);
+        countJune(tally, after, to, mother, (to - foundDay) / DAYS_PER_YEAR, opts.years);
+        if (to - foundDay > DAYS_PER_YEAR) {
           const fill = bufferFill(fieldSowingTargets(after, to, craftCoverage(after, to)));
-          bufferSum += fill;
-          bufferCount++;
+          tally.buffer[mother ? 'mother' : 'sons'].push(fill);
           result.bufferMin = Math.min(result.bufferMin, fill);
         }
       }
-      if (opts.strategy === 'steward') settleDepartures(colonies);
+      if (opts.strategy === 'steward') settleDepartures(colonies, tally.departures);
       cursor = to;
       while (pending.length > 0 && cursor - foundDay >= Math.round(pending[0]! * DAYS_PER_YEAR)) {
         result.snapshots.push({ year: pending.shift()!, people: peopleOf(colonies) });
@@ -328,9 +402,81 @@ export function runDynasty(opts: RunOptions): DynastyResult {
   }
   result.villages = colonies.length;
   result.departures = colonies.length - 1;
-  result.bufferAvg = bufferCount > 0 ? bufferSum / bufferCount : 1;
+  const all = [...tally.buffer.mother, ...tally.buffer.sons];
+  result.bufferAvg = all.length > 0 ? mean(all) : 1;
+  result.bufferMother = mean(tally.buffer.mother);
+  result.bufferSons = mean(tally.buffer.sons);
+  result.hungryDaysMother = tally.hungryMother;
+  result.hungryDaysSons = tally.hungrySons;
+  result.sownShare = mean(tally.sownShares);
+  result.sownWalkM = tally.sownM2 > 0 ? tally.sownWalk / tally.sownM2 : NaN;
+  result.fieldOverhead = tally.fieldLabor > 0 ? tally.overheadLabor / tally.fieldLabor : NaN;
+  result.departureSizes = tally.departures;
+  result.villageYears = tally.villageDays / DAYS_PER_YEAR;
   fillLand(result, colonies);
   return result;
+}
+
+/** Průběžné součty kritérií plánu úloh správce. */
+interface Tally {
+  buffer: { mother: number[]; sons: number[] };
+  hungryMother: number;
+  hungrySons: number;
+  villageDays: number;
+  sownShares: number[];
+  sownM2: number;
+  sownWalk: number;
+  fieldLabor: number;
+  overheadLabor: number;
+  departures: number[];
+}
+
+function newTally(): Tally {
+  return {
+    buffer: { mother: [], sons: [] },
+    hungryMother: 0,
+    hungrySons: 0,
+    villageDays: 0,
+    sownShares: [],
+    sownM2: 0,
+    sownWalk: 0,
+    fieldLabor: 0,
+    overheadLabor: 0,
+    departures: [],
+  };
+}
+
+/** Práce posledního dne kroku × dny kroku (odhad – vzorek jednoho dne z `CHUNK_DAYS`). */
+function countLabor(tally: Tally, state: VillageState, days: number): void {
+  for (const share of state.labor?.shares ?? []) {
+    const md = share.manDays * days;
+    if (FIELD_LABOR.has(share.activity)) tally.fieldLabor += md;
+    if (FIELD_OVERHEAD.has(share.activity)) tally.overheadLabor += md;
+  }
+}
+
+/** Červnový snímek (první krok června): podíl osevu mateřské vsi a vzdálenost osetých dílů. */
+function countJune(
+  tally: Tally,
+  state: VillageState,
+  to: number,
+  mother: boolean,
+  age: number,
+  years: number,
+): void {
+  const date = dateOfDayIndex(to);
+  if (date.month !== 6 || date.day > CHUNK_DAYS || age < sownFromYear(years)) return;
+  let rotation = 0;
+  let sown = 0;
+  for (const p of state.parts) {
+    if (p.state === 'founding') continue;
+    rotation += p.areaM2;
+    if (p.state !== 'sown') continue;
+    sown += p.areaM2;
+    tally.sownM2 += p.areaM2;
+    tally.sownWalk += p.areaM2 * p.distanceM;
+  }
+  if (mother && rotation > 0) tally.sownShares.push(sown / rotation);
 }
 
 /** Pole, úrodnost, vzdálenost dílů a horní mez lidí na hektar z konce běhu. */
@@ -382,15 +528,64 @@ const mean = (values: readonly number[]): number =>
 const fmt = (v: number, digits = 1): string =>
   Number.isFinite(v) ? v.toFixed(digits).replace('.', ',') : '–';
 const ok = (pass: boolean): Status => (pass ? 'OK' : 'MIMO');
+const sum = (values: readonly number[]): number => values.reduce((x, y) => x + y, 0);
 
 function peopleAt(runs: readonly DynastyResult[], year: number): number {
   return mean(runs.flatMap((r) => r.snapshots.filter((s) => s.year === year).map((s) => s.people)));
+}
+
+/**
+ * Cíle kritérií: rychlé měření (pod 50 let – po každé úloze vylepšení správce) a dlouhé 20 × 50
+ * (steward.md – Ověření kvality; plán úloh správce 1. 11. 2026, Jak rychle měřit).
+ */
+interface Targets {
+  quick: boolean;
+  deaths: number;
+  bufferAvg: number;
+  bufferMin: number;
+  sownShare: number;
+  overhead: number;
+  /** Chůze bez A (m); s A platí B ≤ A. */
+  walkM: number;
+  /** Lidé rodu za 25 let bez A (rychlé měření – výchozí stav plánu 23,2). */
+  people25: number;
+}
+
+const QUICK: Targets = {
+  quick: true,
+  deaths: 5,
+  bufferAvg: 0.6,
+  bufferMin: 0,
+  sownShare: 0.45,
+  overhead: 0.15,
+  walkM: 266,
+  people25: 23,
+};
+const FULL: Targets = {
+  quick: false,
+  deaths: 0,
+  bufferAvg: 0.9,
+  bufferMin: 0.5,
+  sownShare: 0.5,
+  overhead: 0.1,
+  walkM: 266,
+  people25: 23,
+};
+
+/** Hodnoty kritéria (chybí ve starším kontrolním bodu – vynechá se). */
+function values(
+  runs: readonly DynastyResult[],
+  pick: (r: DynastyResult) => number | undefined,
+): number[] {
+  return runs.map(pick).filter((v): v is number => v !== undefined && Number.isFinite(v));
 }
 
 /** Tabulka kritérií B (správce) proti A (hráč skriptu) a D (horní mez); C (Vlkov) se neměří. */
 export function summarize(results: readonly DynastyResult[]): Row[] {
   const a = results.filter((r) => r.strategy === 'player');
   const b = results.filter((r) => r.strategy === 'steward');
+  const t = Math.max(...results.map((r) => r.years)) < 50 ? QUICK : FULL;
+  const hasA = a.length > 0;
   const rows: Row[] = [];
   const years = [...new Set(b.flatMap((r) => r.snapshots.map((s) => s.year)))].sort(
     (x, y) => x - y,
@@ -398,33 +593,77 @@ export function summarize(results: readonly DynastyResult[]): Row[] {
   for (const y of years) {
     const pa = peopleAt(a, y);
     const pb = peopleAt(b, y);
+    const quick25 = !hasA && t.quick && y === 25;
     rows.push({
       name: `Lidé rodu za ${y} let (A / B)`,
-      target: 'B ≥ A × 1,15',
-      measured: `${fmt(pa)} / ${fmt(pb)} (${fmt(pb / pa, 2)}×)`,
-      status: Number.isFinite(pa) ? ok(pb >= pa * 1.15) : 'info',
+      target: quick25 ? `B ≥ ${t.people25}` : 'B ≥ A × 1,15',
+      measured: `${fmt(pa)} / ${fmt(pb)}${hasA ? ` (${fmt(pb / pa, 2)}×)` : ''}`,
+      status: hasA ? ok(pb >= pa * 1.15) : quick25 ? ok(pb >= t.people25) : 'info',
     });
   }
   const deaths = (rs: readonly DynastyResult[]): number => mean(rs.map((r) => r.hungerDeaths));
   rows.push({
-    name: 'Úmrtí hladem na ves rodu (A / B)',
-    target: 'B = 0 mimo kruté roky',
+    name: 'Úmrtí hladem na rod (A / B)',
+    target: t.quick ? `B ≤ ${t.deaths}` : 'B = 0 mimo kruté roky',
     measured: `${fmt(deaths(a))} / ${fmt(deaths(b))}`,
-    status: ok(deaths(b) === 0),
+    status: ok(deaths(b) <= t.deaths),
+  });
+  const perYear = sum(b.map((r) => r.hungerDeaths)) / sum(values(b, (r) => r.villageYears));
+  rows.push({
+    name: 'Úmrtí hladem na ves a rok (B)',
+    target: 'info',
+    measured: fmt(perYear, 2),
+    status: 'info',
   });
   rows.push({
-    name: 'Hladové dny na ves rodu (A / B)',
+    name: 'Hladové dny na rod (A / B)',
     target: 'info',
     measured: `${fmt(mean(a.map((r) => r.hungryDays)), 0)} / ${fmt(mean(b.map((r) => r.hungryDays)), 0)}`,
     status: 'info',
   });
   rows.push({
+    name: 'Hladové dny – mateřská ves / vsi synů (B)',
+    target: 'info',
+    measured: `${fmt(mean(values(b, (r) => r.hungryDaysMother)), 0)} / ${fmt(mean(values(b, (r) => r.hungryDaysSons)), 0)}`,
+    status: 'info',
+  });
+  const bufAvg = mean(b.map((r) => r.bufferAvg));
+  const bufMin = Math.min(...b.map((r) => r.bufferMin));
+  rows.push({
     name: 'Pojistka zásob – průměr / nejnižší (B)',
-    target: '≥ 0,9 / ≥ 0,5',
-    measured: `${fmt(mean(b.map((r) => r.bufferAvg)), 2)} / ${fmt(Math.min(...b.map((r) => r.bufferMin)), 2)}`,
-    status: ok(
-      mean(b.map((r) => r.bufferAvg)) >= 0.9 && Math.min(...b.map((r) => r.bufferMin)) >= 0.5,
-    ),
+    target: t.quick ? `≥ ${fmt(t.bufferAvg)} / –` : `≥ ${fmt(t.bufferAvg)} / ≥ ${fmt(t.bufferMin)}`,
+    measured: `${fmt(bufAvg, 2)} / ${fmt(bufMin, 2)}`,
+    status: ok(bufAvg >= t.bufferAvg && bufMin >= t.bufferMin),
+  });
+  rows.push({
+    name: 'Pojistka – mateřská ves / vsi synů (B)',
+    target: 'info',
+    measured: `${fmt(mean(values(b, (r) => r.bufferMother)), 2)} / ${fmt(mean(values(b, (r) => r.bufferSons)), 2)}`,
+    status: 'info',
+  });
+  const sown = mean(values(b, (r) => r.sownShare));
+  rows.push({
+    name: `Podíl osevu na polích – mateřská ves, červen od roku ${sownFromYear(t.quick ? Math.max(...b.map((r) => r.years)) : 50)} (B)`,
+    target: `≥ ${fmt(t.sownShare, 2)}`,
+    measured: `${fmt(sown, 2)} (${values(b, (r) => r.sownShare)
+      .map((v) => fmt(v, 2))
+      .join(' ')})`,
+    status: Number.isFinite(sown) ? ok(sown >= t.sownShare) : '–',
+  });
+  const overhead = mean(values(b, (r) => r.fieldOverhead));
+  rows.push({
+    name: 'Založení + vracení přílohu ÷ polní práce (B)',
+    target: `≤ ${fmt(t.overhead * 100, 0)} %`,
+    measured: `${fmt(overhead * 100, 0)} %`,
+    status: Number.isFinite(overhead) ? ok(overhead <= t.overhead) : '–',
+  });
+  const sizes = b.flatMap((r) => r.departureSizes ?? []);
+  const tiny = sizes.filter((n) => n <= TINY_VILLAGE).length;
+  rows.push({
+    name: `Odchody synů o ≤ ${TINY_VILLAGE} lidech (B)`,
+    target: '0',
+    measured: `${tiny} z ${sizes.length} (lidé ${sizes.join(' ') || '–'})`,
+    status: ok(tiny === 0),
   });
   rows.push({
     name: 'Úrodnost dílů (A / B)',
@@ -447,13 +686,13 @@ export function summarize(results: readonly DynastyResult[]): Row[] {
     status: ok(perHa >= 0.9 * upper),
   });
   rows.push({
-    name: 'Vzdálenost dílů m (A / B)',
-    target: 'B ≤ A',
-    measured: `${fmt(mean(a.map((r) => r.walkM)), 0)} / ${fmt(mean(b.map((r) => r.walkM)), 0)}`,
-    status: Number.isFinite(mean(a.map((r) => r.walkM)))
-      ? ok(mean(b.map((r) => r.walkM)) <= mean(a.map((r) => r.walkM)))
-      : 'info',
+    name: 'Pole na konci ha (A / B)',
+    target: 'info',
+    measured: `${fmt(mean(a.map((r) => r.fieldHa)))} / ${fmt(mean(b.map((r) => r.fieldHa)))}`,
+    status: 'info',
   });
+  rows.push(walkRow('Vzdálenost dílů m (A / B)', a, b, (r) => r.walkM, t));
+  rows.push(walkRow('Chůze vážená osevem m (A / B)', a, b, (r) => r.sownWalkM, t));
   const share = mean(b.map((r) => r.ms.steward / r.ms.total));
   const worst = Math.max(...b.map((r) => r.ms.maxStewardDay));
   rows.push({
@@ -469,6 +708,33 @@ export function summarize(results: readonly DynastyResult[]): Row[] {
     status: '–',
   });
   return rows;
+}
+
+/** Chůze: B ≤ A, bez A (jen správce) proti pevnému cíli. */
+function walkRow(
+  name: string,
+  a: readonly DynastyResult[],
+  b: readonly DynastyResult[],
+  pick: (r: DynastyResult) => number | undefined,
+  t: Targets,
+): Row {
+  const wa = mean(values(a, pick));
+  const wb = mean(values(b, pick));
+  const hasA = Number.isFinite(wa);
+  return {
+    name,
+    target: hasA ? 'B ≤ A' : `B ≤ ${t.walkM}`,
+    measured: `${fmt(wa, 0)} / ${fmt(wb, 0)}`,
+    status: !Number.isFinite(wb) ? '–' : ok(wb <= (hasA ? wa : t.walkM)),
+  };
+}
+
+/** Tabulka před / po: řádky stejného jména vedle sebe (status podle „po“). */
+export function formatCompare(before: readonly Row[], after: readonly Row[]): string {
+  const old = new Map(before.map((r) => [r.name, r.measured]));
+  return formatRows(
+    after.map((r) => ({ ...r, measured: `${old.get(r.name) ?? '–'}  →  ${r.measured}` })),
+  );
 }
 
 export function formatRows(rows: readonly Row[]): string {

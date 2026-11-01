@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  formatCompare,
   formatRows,
   landscapeGroups,
   runDynasty,
@@ -79,15 +80,17 @@ describe('měření správce – tabulka', () => {
     const rows = summarize([player, result({})]);
     const statuses = Object.fromEntries(rows.map((r) => [r.name.split(' (')[0], r.status]));
     expect(statuses['Lidé rodu za 10 let']).toBe('OK');
-    expect(statuses['Úmrtí hladem na ves rodu']).toBe('OK');
+    expect(statuses['Úmrtí hladem na rod']).toBe('OK');
     expect(statuses['Čas správce z dopočtu / nejdražší den']).toBe('OK');
     expect(statuses['Vzdálenost dílů m']).toBe('OK');
     expect(rows.find((r) => r.name.startsWith('Lidí na ha'))?.measured).toContain('100 %');
   });
 
   it('kritéria porušena: MIMO', () => {
+    // krátký běh (10 let) – cíle rychlého měření (≤ 5 úmrtí, pojistka ≥ 0,6)
     const bad = result({
-      hungerDeaths: 2,
+      hungerDeaths: 6,
+      bufferAvg: 0.5,
       bufferMin: 0.2,
       fertilityShare: 0.5,
       ms: { total: 1000, steward: 100, maxStewardDay: 300 },
@@ -104,6 +107,37 @@ describe('měření správce – tabulka', () => {
     expect(status('Pojistka')).toBe('MIMO');
     expect(status('Úrodnost')).toBe('MIMO');
     expect(status('Čas správce')).toBe('MIMO');
+  });
+
+  it('kritéria plánu úloh: podíl osevu, založení, malé odchody, chůze bez A', () => {
+    const steward = result({
+      sownShare: 0.3,
+      fieldOverhead: 0.4,
+      departureSizes: [1, 6],
+      sownWalkM: 300,
+    });
+    const rows = summarize([steward]);
+    const status = (prefix: string): string | undefined =>
+      rows.find((r) => r.name.startsWith(prefix))?.status;
+    expect(status('Podíl osevu')).toBe('MIMO');
+    expect(status('Založení + vracení')).toBe('MIMO');
+    expect(status('Odchody synů o ≤ 2')).toBe('MIMO');
+    expect(status('Chůze vážená osevem')).toBe('MIMO');
+    expect(status('Vzdálenost dílů')).toBe('OK');
+    const good = summarize([result({ sownShare: 0.5, fieldOverhead: 0.1, departureSizes: [6] })]);
+    expect(good.find((r) => r.name.startsWith('Podíl osevu'))?.status).toBe('OK');
+    expect(good.find((r) => r.name.startsWith('Odchody synů o'))?.measured).toContain('0 z 1');
+  });
+
+  it('starší kontrolní bod bez nových kritérií: pomlčka, ne chyba', () => {
+    const rows = summarize([result({})]);
+    expect(rows.find((r) => r.name.startsWith('Podíl osevu'))?.status).toBe('–');
+    expect(rows.find((r) => r.name.startsWith('Chůze vážená'))?.status).toBe('–');
+  });
+
+  it('tabulka před → po spáruje řádky podle jména', () => {
+    const text = formatCompare(summarize([result({ walkM: 300 })]), summarize([result({})]));
+    expect(text).toMatch(/Vzdálenost dílů m \(A \/ B\).*– \/ 300 {2}→ {2}– \/ 100/);
   });
 
   it('formátuje zarovnané řádky', () => {
@@ -123,5 +157,7 @@ describe('měření správce – běh', () => {
     expect(run()).toEqual(first);
     expect(first.snapshots).toEqual([]);
     expect(first.villages).toBe(1);
+    expect(first.departureSizes).toEqual([]);
+    expect(first.villageYears).toBeCloseTo(1, 1);
   }, 120_000);
 });
