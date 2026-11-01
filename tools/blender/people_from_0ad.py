@@ -4,7 +4,7 @@ blender -b --factory-startup --python tools/blender/people_from_0ad.py -- \
     tools/blender/people.json <0ad>/binaries/data/mods/public/art apps/web/public/models/people
 
 people.json: [{"name", "height_m" | "length_m", "body": {"dae", "texture", "tint", "pattern"?,
-"flatten"?, "multiply"?, "coat"?}, "props": [{"name", "dae" | "procedural" (sickle | rod | yoke | bowl | stick | shovel | rattle), "point", "texture",
+"flatten"?, "multiply"?, "coat"?}, "props": [{"name", "dae" | "procedural" (sickle | rod | yoke | bowl | stick | shovel | rattle | stump), "point", "texture",
 "tint"?, "uv"?, "scale"? (měřítko kolem bodu, výchozí 1), "rotate_deg"? ([x, y, z] natočení v osách bodu),
 "offset_m"? ([x, y, z] posun v osách bodu, v metrech)}], "clips": [{"name", "animation", "props": [jména propů viditelných v klipu],
 "pose"?, "report"?, "report_tip"?}]}]
@@ -25,6 +25,11 @@ i rychlost chůze při přehrání rychlostí 1 (podle chodidla na zemi). „rep
 v prvním snímku klipu držadlo a špičku propu (m, vpřed / vzhůru / vpravo od paty postavy – prut
 a vlasec, apps/web/lib/scene/fishing-lines.ts) a s „aim“ i „rotate_deg“, který by prop natočil
 podél „aim“.
+
+Klip bez animace 0 A.D. („keys“ místo „animation“ – dojení, předení, sezení…): vlastní smyčka
+z klíčových póz nad jedním snímkem klipu 0 A.D. (keyed_frames – posun pánve, natočení kostí, ruce
+a nohy dvoukloubovou IK; rozměry pro postavu 1,6 m). Prop, jehož „point“ v kostře není (sedátko
+„seat“), je volný – stojí v počátku postavy (špalek pod sedící postavou).
 
 Na rozdíl od fauna_from_0ad.py se kostra i animace převádějí: GLB má skin (48 kostí bipeda
 0 A.D. + body propů jako další klouby) a každá animace 0 A.D. je jedna animace glTF (klíče
@@ -533,7 +538,21 @@ def procedural_rattle(uv_wood):
     return {"matrix": Matrix.Identity(4), "positions": positions, "normals": normals, "uvs": uvs, "tris": tris}
 
 
+def procedural_stump(uv_wood):
+    """Špalek k sezení (sedátko klíčových klipů – sezení starších, hrnčířský kruh; CC0,
+    procedurálně): osmiboký kmínek v prostoru postavy (volný prop – bod „seat“ v počátku
+    postavy), střed 0,3 m za patou, výška 0,42 m, poloměr 0,16 m (postava 1,6 m ≈ 3,55 jednotky)."""
+    out = ([], [], [], [])
+    u = 3.55 / 1.6
+    _tapered_rod(out, 8, 0.0, 0.42 * u, 0.17 * u, 0.15 * u, uv_wood)
+    # víko: plochý kvádr navrch
+    _box(out, -0.11 * u, 0.11 * u, -0.11 * u, 0.11 * u, 0.4 * u, 0.42 * u, uv_wood)
+    positions, normals, uvs, tris = out
+    return {"matrix": Matrix.Translation((0.0, 0.3 * u, 0.0)), "positions": positions, "normals": normals, "uvs": uvs, "tris": tris}
+
+
 PROCEDURAL = {
+    "stump": lambda r: procedural_stump(r["wood"]),
     "sickle": lambda r: procedural_sickle(r["blade"], r["handle"]),
     "rod": lambda r: procedural_rod(r["wood"]),
     "yoke": lambda r: procedural_yoke(r["wood"], r["band"], r["rope"]),
@@ -801,6 +820,94 @@ def apply_pose(frames, children, pose, unit_m):
             two_bone_ik(worlds, children, f"arm_{side}", f"forearm_{side}", f"hand_{side}", target, pole)
 
 
+KEY_ORDER = ["hip", "spine", "spine1", "chest", "neck", "head", "shoulder_L", "shoulder_R", "hand_L", "hand_R"]
+
+
+def _blend_pose(poses, t, duration):
+    """Póza klíčového klipu v čase t: mezi sousedními klíči hladce (kosinus), za posledním zpět
+    k prvnímu (smyčka). Chybějící hodnota v jednom z klíčů = hodnota druhého (ruce, nohy)."""
+    ts = [p["t"] for p in poses]
+    k = max(i for i, s in enumerate(ts) if s <= t + 1e-9)
+    a, b = poses[k], poses[(k + 1) % len(poses)]
+    t1 = ts[k + 1] if k + 1 < len(poses) else duration
+    u = 0.0 if t1 <= ts[k] else (t - ts[k]) / (t1 - ts[k])
+    u = 0.5 - 0.5 * math.cos(math.pi * u)
+
+    def mix(x, y):
+        if x is None:
+            return y
+        if y is None:
+            return x
+        return [p + (q - p) * u for p, q in zip(x, y)]
+
+    out = {"hip": mix(a.get("hip"), b.get("hip")), "turn": {}, "hands": {}, "feet": {}, "elbow": {}}
+    for key in ("turn", "hands", "feet", "elbow"):
+        for name in set(a.get(key, {})) | set(b.get(key, {})):
+            zero = [0.0, 0.0, 0.0] if key == "turn" else None
+            out[key][name] = mix(a.get(key, {}).get(name, zero), b.get(key, {}).get(name, zero))
+    return out
+
+
+def keyed_frames(path, keys, unit_m, size):
+    """Vlastní klip z klíčových póz (vlastní práce, CC0) na kostře bipeda 0 A.D.: výchozí snímek
+    klipu 0 A.D. (`base`, `base_frame`) a v `poses` po čase `t` (s, smyčka délky `duration_s`):
+    „hip“ = posun pánve [vlevo, vpřed, nahoru] (m – sed, klek), „turn“ = {kost: [předklon, úklon
+    vlevo, otočení vlevo]} (stupně kolem os postavy, pivot v kosti – podstrom s ní), „hands“ /
+    „feet“ = {"L"/"R": [vlevo, vpřed, výška]} (m od paty, dvoukloubová IK; nohy bez údaje drží
+    chodidlo, kde bylo, a chodidla zůstávají naplocho), „elbow“ = {"L"/"R": [ven, vpřed, nahoru]}
+    směr lokte. Rozměry jsou pro postavu 1,6 m (`size` = výška postavy / 1,6). Uzel „seat“
+    (sedátko – volný prop) stojí v počátku postavy."""
+    _, base_frames, children = animation_frames(path)
+    base = base_frames[keys.get("base_frame", 0)]
+    duration = keys["duration_s"]
+    poses = sorted(keys["poses"], key=lambda p: p["t"])
+    n = max(2, round(duration * 24))
+    times = [k * duration / n for k in range(n + 1)]
+    m = size / unit_m
+
+    def figure(v):
+        return Vector((v[0], -v[1], v[2])) * m
+
+    frames = []
+    for t in times:
+        pose = _blend_pose(poses, t % duration, duration)
+        worlds = {k: v.copy() for k, v in base.items()}
+        feet = {s: worlds[f"foot_{s}"].copy() for s in "LR"}
+        if pose["hip"]:
+            shift = Matrix.Translation(figure(pose["hip"]))
+            for name in subtree(children, "hip"):
+                if name in worlds:
+                    worlds[name] = shift @ worlds[name]
+        for bone in KEY_ORDER + sorted(set(pose["turn"]) - set(KEY_ORDER)):
+            deg = pose["turn"].get(bone)
+            if not deg or bone not in worlds:
+                continue
+            # postava hledí na −Y, X vlevo: předklon kolem +X, úklon vlevo kolem −Y, otočení kolem +Z
+            rotation = (
+                Matrix.Rotation(math.radians(deg[2]), 3, "Z")
+                @ Matrix.Rotation(math.radians(-deg[1]), 3, "Y")
+                @ Matrix.Rotation(math.radians(deg[0]), 3, "X")
+            )
+            rotate_subtree(worlds, children, bone, rotation, worlds[bone].to_translation())
+        for side in "LR":
+            sign = 1 if side == "L" else -1
+            target = pose["feet"].get(side)
+            goal = figure(target) if target else feet[side].to_translation()
+            # koleno vpřed a trochu ven
+            two_bone_ik(worlds, children, f"thigh_{side}", f"leg_{side}", f"foot_{side}", goal, Vector((sign * 0.25, -1.0, 0.0)))
+            now = worlds[f"foot_{side}"]
+            flat = feet[side].to_3x3() @ now.to_3x3().inverted()
+            rotate_subtree(worlds, children, f"foot_{side}", flat, now.to_translation())
+        for side, target in pose["hands"].items():
+            sign = 1 if side == "L" else -1
+            e = pose["elbow"].get(side)
+            pole = Vector((sign * e[0], -e[1], e[2])) if e else Vector((sign * 0.8, 1.0, -0.4))
+            two_bone_ik(worlds, children, f"arm_{side}", f"forearm_{side}", f"hand_{side}", figure(target), pole)
+        worlds["seat"] = Matrix.Identity(4)
+        frames.append(worlds)
+    return times, frames, children
+
+
 def report_points(clip, frames, names, unit_m):
     """Poloha uzlů v klipu v metrech – souřadnice scény (x vlevo postavy, y nahoru, z vpřed)."""
     for name in names:
@@ -938,13 +1045,19 @@ def convert(spec, art, out_dir):
     props = []
     for prop in spec.get("props", []):
         point = prop["point"]
-        parent = parents[point]
-        while parent not in rest_world:
-            parent = parents[parent]
-        local = worlds[parent].inverted() @ worlds[point]
         # Každý prop vlastní kloub (srp a motyka sdílejí bod weapon_R, ale skrývají se zvlášť).
         joint = f"prop_{prop['name']}"
-        rest_world[joint] = rest_world[parent] @ local
+        if point not in worlds:
+            # volný prop (sedátko „seat“): v klidu v počátku postavy, klíčový klip ho drží tam
+            parent = names[0]
+            local = rest_world[parent].inverted()
+            rest_world[joint] = Matrix.Identity(4)
+        else:
+            parent = parents[point]
+            while parent not in rest_world:
+                parent = parents[parent]
+            local = worlds[parent].inverted() @ worlds[point]
+            rest_world[joint] = rest_world[parent] @ local
         props.append(dict(prop, parent=parent, local=local, kind="prop", joint=joint))
         parts.append(props[-1])
     atlas, atlas_h, mask = build_atlas(parts, art)
@@ -1074,7 +1187,11 @@ def convert(spec, art, out_dir):
     animations = []
     prop_points = {p["joint"]: p for p in props}
     for clip in spec["clips"]:
-        times, frames, children = animation_frames(os.path.join(art, clip["animation"]))
+        if clip.get("keys"):
+            size = spec.get("height_m", 1.6) / 1.6
+            times, frames, children = keyed_frames(os.path.join(art, clip["keys"]["base"]), clip["keys"], scale, size)
+        else:
+            times, frames, children = animation_frames(os.path.join(art, clip["animation"]))
         if clip.get("pose"):
             apply_pose(frames, children, clip["pose"], scale)
         if clip.get("report"):

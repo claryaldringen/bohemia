@@ -63,3 +63,22 @@ Humno (klipy `thresh` a `winnow`, oba soubory): mlácení holí je animace
 lopatou `animation/biped/gatherer/farming.dae`. Mlatcí hůl (`procedural_stick`, ≈ 1,2 m)
 a dřevěná lopata (`procedural_shovel`, násada a list z jednoho kusu dřeva) jsou nové jednoduché
 modely (skript, **CC0**) s texturou dřeva z `prop_weap.dds` (0 A.D.).
+
+Další klipy 0 A.D. (úloha 10 scény, 1. 11. 2026; Martin 31. 10. 2026: „Z OAD použij vše, co je pro
+nás použitelné“) – animace z `art/animation/biped/`, CC BY-SA 3.0 (Wildfire Games):
+
+| Klip                                     | `woman.glb`                                               | `man.glb`                                                                |
+| ---------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `pray` (modlitba u modly a svatyně)      | `citizen/pray.dae`                                        | `citizen/pray.dae`                                                       |
+| `heal` (léčení)                          | `citizen/healing_f.dae`                                   | `citizen/healing_m.dae`                                                  |
+| `rest-a` … (varianty stání)              | `citizen/idle_relax_f_short.dae`, `idle_relax_f_long.dae` | `citizen/idle_relax_m_b.dae`, `_d`, `_f`, `_h`, `_j` (`rest-a`–`rest-e`) |
+| `walk-hoe`, `walk-axe` (cesta s nářadím) | `gatherer/walk_hoe.dae`, `walk_axe.dae` (motyka, sekera)  | totéž                                                                    |
+| `lord-idle-a`–`c`, `walk-lord` (vojvoda) | –                                                         | `citizen/idle_minister_01.dae`–`03`, `walk_relax_minister.dae`           |
+
+Vlastní klipy z klíčových póz – **vlastní práce, CC0** (skript `keyed_frames` v
+`people_from_0ad.py`, pózy v `people.json` – klíč `keys`): `milk` (dojení), `spin` (předení),
+`weave` (tkaní), `sit` (sezení starších), `wheel` (hrnčířský kruh), `pipe` (píšťala), `drum`
+(buben). Pohyb je vlastní, kostra a výchozí póza (`idle_relax_f.dae` / `idle_relax_m_a.dae`)
+jsou z 0 A.D. – soubory GLB jako celek zůstávají pod CC BY-SA 3.0. Špalek k sezení
+(`procedural_stump`) je nový jednoduchý model (skript, **CC0**) s texturou dřeva z `prop_weap.dds`
+(0 A.D.).
