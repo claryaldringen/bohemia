@@ -464,6 +464,10 @@ export function riderPose(plan: RidePlan): PoseFn {
     out.headingZ = state.headingZ;
     out.pace = 1;
     if (state.riding) {
+      // na koni je vidět vždy – i když ho rozvrh posílá domů (doma, konec průvodu, povodeň);
+      // kůň nikdy nejede bez jezdce (horses.md – Ve scéně)
+      out.hidden = false;
+      delete out.stage;
       out.x = state.x;
       out.z = state.z;
       // na stojícím koni sedí klidně (klip 0 A.D. `rider/…/idle_relax_01`)

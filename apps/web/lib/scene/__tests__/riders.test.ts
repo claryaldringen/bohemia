@@ -137,6 +137,32 @@ describe('jezdec na koni (horses.md – Ve scéně)', () => {
     expect(hitch(pose(8.5))).toBeGreaterThan(hitch(pose(8.1)));
   });
 
+  it('na koni je jezdec vidět, i když ho rozvrh posílá domů – kůň nikdy bez jezdce', () => {
+    const plans = ridePlans(input(LORD));
+    // pózy, které rozvrh vrátí skryté: doma, konec průvodu domů (pohřeb, svatba), povodeň či pauza
+    const scheduled = [
+      { ...createVillagerPose(), hidden: true, stage: 'home' as const },
+      { ...createVillagerPose(), hidden: true, stage: 'back' as const },
+      { ...createVillagerPose(), hidden: true },
+    ];
+    let mounted = 0;
+    for (const plan of plans) {
+      const pose = riderPose(plan);
+      for (let hour = 0; hour < 24; hour += 0.05) {
+        const t = at(hour);
+        if (!isRiding(plan, t)) continue;
+        mounted++;
+        for (const s of scheduled) {
+          const out = pose(t, [], { ...s });
+          expect(out.hidden).toBe(false);
+          expect(out.stage).toBeUndefined();
+          expect(['ride', 'ride-trot', 'ride-idle']).toContain(out.clip);
+        }
+      }
+    }
+    expect(mounted).toBeGreaterThan(0);
+  });
+
   it('koně na jízdě v čase (ohrada je pustí jen v bloku)', () => {
     const plans = ridePlans(input(LORD));
     const ms = (hour: number): number => LIVESTOCK_EPOCH_MS + at(hour) * 1000;
