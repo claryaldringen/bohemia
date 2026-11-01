@@ -317,8 +317,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   instances – mesh `villagers-woman` / `villagers-man` (klip, fáze, tempo na instanci,
   `villagerLook` = barva oděvu a kód vlasů: šátek, šediny) + měkký kruhový stín
   `villagers-shadow` (alphaIndex 5 – po obtiscích vsi). Klipy úlohy 10 (villagers.md – Pro
-  implementaci, bod 10): z 0 A.D. modlitba `pray`, léčení `heal` (scéna nemoc nezná – v GLB,
-  nezapojeno), varianty stání `rest-a`–`rest-e` (žena jen `a`, `b` – místo ostatních `idle`,
+  implementaci, bod 10): z 0 A.D. modlitba `pray` (léčení `heal` vyřazeno 1. 11. –
+  nic ho nepoužívalo, šetří VAT), varianty stání `rest-a`–`rest-e` (žena jen `a`, `b` – místo ostatních `idle`,
   `MAN_ONLY_CLIPS`), cesta s nářadím `walk-hoe` / `walk-axe` (`TOOL_WALK` – ode dveří k práci
   s motykou či sekerou a zpět, `villager-schedule.ts`; tempo nohou `isWalkClip`), vojvoda
   `lord-idle-a`–`c` (mimo výcvik střídá po `LORD_IDLE_S`, `SceneLord.lordId`) a `walk-lord`
@@ -327,7 +327,12 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (předení – ženy u dveří, `SPIN_SHARE`), `sit` (starší), `wheel` (hrnčíř u kruhu –
   `PORCH_SPOTS`), `weave`, `pipe`, `drum` (tkaní a hudba – v GLB, zapojí úloha 12: stav,
   hudebníci na svatbě). Špalek pod sedící postavou je volný prop `stump` (bod `seat` v počátku
-  postavy). VAT: muž 2893 snímků × 69 kostí (dřív 1731), žena 2230 × 65 (dřív 1283). **WebGPU má limit 8 vertex bufferů**
+  postavy). VAT: half-float (`TEXTURETYPE_HALF_FLOAT`, kde ho engine neumí, float32 – `getCaps()
+.textureHalfFloat`), jedno pole rovnou ve formátu textury, peče se po kouscích
+  `BAKE_SLICE_MS` (8 ms) mezi `requestIdleCallback` – žádná dlouhá úloha; zdrojový model je při
+  pečení vypnutý. Babylon si pole drží pro obnovu po ztrátě kontextu – jiná kopie v JS není.
+  Textura muže 360 × 3305 px (9,5 MB na GPU), ženy 344 × 2602 px (7,2 MB);
+  dřív float32 360 × 3467 a 344 × 2804 (35,4 MB obě). **WebGPU má limit 8 vertex bufferů**
   a postava jich má právě 8 (pozice, normála, uv, kosti 2×, matice, VAT, look) – další atribut
   na vrchol nepřidávat, patří do textury. Klipy se střídají střihem (VAT prolínat neumí). Hýbou
   se jen v záběru (`WATER_FPS`), při omezeném pohybu stojí. Ve vývojovém náhledu tlačítko
@@ -537,12 +542,14 @@ POSITION, NORMAL, TEXCOORD_0 jako dosud – 8 bufferů s VAT a barvou instance; 
 Klipy sedu mají sed na koni, poloha jezdce se odvodí z koně ve scéně (Úloha 11).
 `people_from_0ad.py` navíc umí `<polygons>` v COLLADA (luk, meč a štít z 0 A.D.).
 Porážka (návrh `slaughter`): klipy `butcher` (`gather_meat` + nůž, klek), `bleed` (klek s miskou),
-`gut` (`slaughter.dae` + nůž, vestoje), `carry-meat` a `carry-meat-idle` (kýta na rameni) a propy
-`knife` (`dagger_01`), `meat` (`brontoburger`) a `bowl` (procedurální `procedural_bowl`); sekvenci
-zatím nic nepoužívá, GLB jsou o ≈ 190 kB větší, VAT texturu tvoří ≈ 1400 řádků (man).
-Propy mají volitelná pole `scale` (měřítko kolem bodu), `rotate_deg` a `offset_m` (posun v osách bodu,
-metry): kýta má `scale` 0,55 (≈ 0,4 m), u muže `offset_m` ji snižuje o 0,3 m z výšky nad hlavou na rameno;
-miska je natočená o −90° kolem X (svislice bodu `weapon_L` je jeho osa Y) a dnem stojí v bodě ruky.
+`gut` (`slaughter.dae` + nůž, vestoje), `carry-meat` (kýta na rameni; `carry-meat-idle` vyřazeno
+
+1. 11. – nic ho nepoužívalo) a propy
+       `knife` (`dagger_01`), `meat` (`brontoburger`) a `bowl` (procedurální `procedural_bowl`); sekvenci
+       zatím nic nepoužívá, GLB jsou o ≈ 190 kB větší, VAT texturu tvoří ≈ 1400 řádků (man).
+       Propy mají volitelná pole `scale` (měřítko kolem bodu), `rotate_deg` a `offset_m` (posun v osách bodu,
+       metry): kýta má `scale` 0,55 (≈ 0,4 m), u muže `offset_m` ji snižuje o 0,3 m z výšky nad hlavou na rameno;
+       miska je natočená o −90° kolem X (svislice bodu `weapon_L` je jeho osa Y) a dnem stojí v bodě ruky.
 
 ## Lovci, rybáři a děti s řehtačkou (postavy – wildlife Úloha W11)
 

@@ -422,11 +422,6 @@
         "props": ["head", "meat"]
       },
       {
-        "name": "carry-meat-idle",
-        "animation": "animation/biped/gatherer/idle_carry_meat_f.dae",
-        "props": ["head", "meat"]
-      },
-      {
         "name": "fish",
         "animation": "animation/biped/citizen/idle_relax_f.dae",
         "props": ["head", "fishing-rod"],
@@ -479,11 +474,6 @@
       {
         "name": "pray",
         "animation": "animation/biped/citizen/pray.dae",
-        "props": ["head"]
-      },
-      {
-        "name": "heal",
-        "animation": "animation/biped/citizen/healing_f.dae",
         "props": ["head"]
       },
       {
@@ -1470,11 +1460,6 @@
         "props": ["head", "meat"]
       },
       {
-        "name": "carry-meat-idle",
-        "animation": "animation/biped/gatherer/idle_carry_meat_m.dae",
-        "props": ["head", "meat"]
-      },
-      {
         "name": "fish",
         "animation": "animation/biped/citizen/idle_relax_m_a.dae",
         "props": ["head", "fishing-rod"],
@@ -1527,11 +1512,6 @@
       {
         "name": "pray",
         "animation": "animation/biped/citizen/pray.dae",
-        "props": ["head"]
-      },
-      {
-        "name": "heal",
-        "animation": "animation/biped/citizen/healing_m.dae",
         "props": ["head"]
       },
       {

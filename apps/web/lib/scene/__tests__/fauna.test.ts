@@ -118,7 +118,6 @@ describe('jezdec a výcvik – postava man.glb', () => {
       'bleed',
       'gut',
       'carry-meat',
-      'carry-meat-idle',
     ]) {
       expect(clips).toContain(name);
     }

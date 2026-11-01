@@ -27,6 +27,7 @@ import { ShaderLanguage } from '@babylonjs/core/Materials/shaderLanguage';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import type { BaseTexture } from '@babylonjs/core/Materials/Textures/baseTexture';
 import { RawTexture } from '@babylonjs/core/Materials/Textures/rawTexture';
+import { ToHalfFloat } from '@babylonjs/core/Misc/halfFloat';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
@@ -87,6 +88,8 @@ const SCHEDULE_WALK_M_S = walkSpeed('woman', 'walk', FIGURE_SCALE);
 
 /** Snímků za sekundu zapečené animace (klíče animací 0 A.D.). */
 const BAKE_FPS = 24;
+/** Jak dlouho (ms) smí jeden kousek pečení VAT držet hlavní vlákno, než ho pustí (`idle`). */
+const BAKE_SLICE_MS = 8;
 /** Dál od kamery (m) se lidé nehýbou – jsou pár pixelů a pohyb by jen zbytečně kreslil. */
 const ANIMATE_RANGE_M = 700;
 /** Výška obalu postav nad terénem (m). */
@@ -161,7 +164,11 @@ interface BakedModel {
   matricesIndices: Float32Array;
   matricesWeights: Float32Array;
   boneCount: number;
-  vat: Float32Array;
+  /**
+   * Matice kostí po snímcích (RGBA): half-float (bity v Uint16Array), kde ho engine neumí,
+   * float32. Babylon si stejné pole drží pro obnovu po ztrátě kontextu – jiná kopie není.
+   */
+  vat: Uint16Array | Float32Array;
   frames: number;
   clips: Map<string, { start: number; end: number }>;
   texture: BaseTexture | null;
@@ -965,7 +972,9 @@ export class VillageVillagers {
       false,
       false,
       Texture.NEAREST_NEAREST,
-      Constants.TEXTURETYPE_FLOAT,
+      model.vat instanceof Uint16Array
+        ? Constants.TEXTURETYPE_HALF_FLOAT
+        : Constants.TEXTURETYPE_FLOAT,
     );
     vat.name = `villagers-${name}-vat`;
     const manager = new BakedVertexAnimationManager(this.scene);
@@ -1215,16 +1224,29 @@ function villageSeed(village: SceneVillage): number {
   return first ? (Math.round(first.x * 13) * 31 + Math.round(first.z * 7)) | 0 : 1;
 }
 
+/** Počká, až má prohlížeč volno (nejdéle 50 ms); bez `requestIdleCallback` (Safari) další úloha. */
+function idle(): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof requestIdleCallback === 'function')
+      requestIdleCallback(() => resolve(), { timeout: 50 });
+    else setTimeout(resolve, 0);
+  });
+}
+
 /**
  * Načte GLB postavy a zapeče všechny její animace do pole matic kostí (VAT): pro každý klip
  * snímky po 1/24 s včetně posledního (= prvního, smyčka navazuje). Matice i vrcholy se převedou
- * do souřadnic scény (převod os glTF – zrcadlení – se zapeče, mesh pak nemá rodiče).
+ * do souřadnic scény (převod os glTF – zrcadlení – se zapeče, mesh pak nemá rodiče). VAT je
+ * half-float (polovina paměti; posuny kostí do ±3 m na ≈ 2 mm), peče se po kouscích
+ * `BAKE_SLICE_MS` mezi volnými chvílemi hlavního vlákna.
  */
 export async function loadBakedModel(scene: Scene, url: string): Promise<BakedModel | null> {
   const container = await LoadAssetContainerAsync(url, scene);
   if (scene.isDisposed) return null;
   container.addAllToScene();
   for (const group of container.animationGroups) group.stop();
+  // pečení jde po kouscích a scéna mezitím kreslí – zdrojový model nesmí být vidět
+  for (const mesh of container.meshes) mesh.setEnabled(false);
   const source = container.meshes.find(
     (mesh): mesh is Mesh => mesh instanceof Mesh && mesh.getTotalVertices() > 0 && !!mesh.skeleton,
   );
@@ -1250,21 +1272,29 @@ export async function loadBakedModel(scene: Scene, url: string): Promise<BakedMo
 
   const boneCount = skeleton.bones.length;
   const floatsPerFrame = (boneCount + 1) * 16;
-  const chunks: Float32Array[] = [];
+  const groups = container.animationGroups.map((group) => {
+    const fps = group.targetedAnimations[0]?.animation.framePerSecond ?? 60;
+    const durationS = (group.to - group.from) / fps;
+    return { group, fps, durationS, count: Math.max(1, Math.round(durationS * BAKE_FPS)) + 1 };
+  });
+  const frames = groups.reduce((sum, g) => sum + g.count, 0);
+  // jedno pole rovnou ve formátu textury – žádné kusy po klipech ani jejich spojování
+  const half = scene.getEngine().getCaps().textureHalfFloat;
+  const vat = half
+    ? new Uint16Array(floatsPerFrame * frames)
+    : new Float32Array(floatsPerFrame * frames);
+  const row = new Float32Array(floatsPerFrame);
   const clips = new Map<string, { start: number; end: number }>();
   let frame = 0;
   const m = new Matrix();
   const tmp = new Matrix();
-  for (const group of container.animationGroups) {
+  let slice = performance.now();
+  for (const { group, fps, durationS, count } of groups) {
     for (const r of rest) {
       r.node.position.copyFrom(r.position);
       if (r.rotation) (r.node.rotationQuaternion ??= new Quaternion()).copyFrom(r.rotation);
       r.node.scaling.copyFrom(r.scaling);
     }
-    const fps = group.targetedAnimations[0]?.animation.framePerSecond ?? 60;
-    const durationS = (group.to - group.from) / fps;
-    const count = Math.max(1, Math.round(durationS * BAKE_FPS)) + 1;
-    const data = new Float32Array(floatsPerFrame * count);
     for (let k = 0; k < count; k++) {
       const at = group.from + Math.min(durationS, k / BAKE_FPS) * fps;
       for (const { animation, target } of group.targetedAnimations) {
@@ -1284,18 +1314,26 @@ export async function loadBakedModel(scene: Scene, url: string): Promise<BakedMo
         // matice v souřadnicích meshe -> ve scéně: W⁻¹ · M · W (řádkové vektory Babylonu)
         inverse.multiplyToRef(m, tmp);
         tmp.multiplyToRef(world, m);
-        m.copyToArray(data, k * floatsPerFrame + b * 16);
+        m.copyToArray(row, b * 16);
+      }
+      const o = (frame + k) * floatsPerFrame;
+      if (vat instanceof Uint16Array) {
+        for (let i = 0; i < floatsPerFrame; i++) vat[o + i] = ToHalfFloat(row[i]!);
+      } else {
+        vat.set(row, o);
+      }
+      // pečení po kouscích – hlavní vlákno mezi nimi kreslí a reaguje (žádná dlouhá úloha)
+      if (performance.now() - slice > BAKE_SLICE_MS) {
+        await idle();
+        if (scene.isDisposed) {
+          container.dispose();
+          return null;
+        }
+        slice = performance.now();
       }
     }
     clips.set(group.name, { start: frame, end: frame + count - 1 });
-    chunks.push(data);
     frame += count;
-  }
-  const vat = new Float32Array(floatsPerFrame * frame);
-  let offset = 0;
-  for (const chunk of chunks) {
-    vat.set(chunk, offset);
-    offset += chunk.length;
   }
 
   const positions = source.getVerticesData(VertexBuffer.PositionKind)!;
@@ -1351,7 +1389,7 @@ export async function loadBakedModel(scene: Scene, url: string): Promise<BakedMo
     matricesWeights,
     boneCount,
     vat,
-    frames: frame,
+    frames,
     clips,
     texture,
     mask,

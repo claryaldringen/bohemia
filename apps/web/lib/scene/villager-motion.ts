@@ -28,7 +28,6 @@ export type VillagerClip =
   | 'bleed'
   | 'gut'
   | 'carry-meat'
-  | 'carry-meat-idle'
   | 'fish'
   // dítě s řehtačkou na hlídaném dílu (wildlife.md – Ve scéně): řehtačka zvednutá v pravé ruce
   | 'walk-rattle'
@@ -49,10 +48,9 @@ export type VillagerClip =
   | 'sword-strike'
   | 'shield-block'
   // další klipy 0 A.D. (villagers.md – Pro implementaci, úloha 10): modlitba u modly a svatyně
-  // (ruce k nebi), léčení, varianty odpočinkového stání (`rest-c`–`rest-e` jen `man.glb` – žena
-  // místo nich stojí klipem `idle`), cesta s motykou a sekerou na rameni
+  // (ruce k nebi), varianty odpočinkového stání (`rest-c`–`rest-e` jen `man.glb` – žena místo
+  // nich stojí klipem `idle`), cesta s motykou a sekerou na rameni
   | 'pray'
-  | 'heal'
   | 'rest-a'
   | 'rest-b'
   | 'rest-c'
@@ -114,7 +112,6 @@ export const VILLAGER_CLIPS: readonly VillagerClip[] = [
   'bleed',
   'gut',
   'carry-meat',
-  'carry-meat-idle',
   'fish',
   'walk-rattle',
   'idle-rattle',
@@ -131,7 +128,6 @@ export const VILLAGER_CLIPS: readonly VillagerClip[] = [
   'sword-strike',
   'shield-block',
   'pray',
-  'heal',
   'rest-a',
   'rest-b',
   'rest-c',

@@ -612,16 +612,16 @@ Cesta ode dveří na místo a zpět (`walk`, nosiči `carry`) je u každé role 
 
 **Žena**
 
-| Fáze                         | Kde            | Animace a rekvizita                                                   | Stav                                                                                   |
-| ---------------------------- | -------------- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| Voda: cesta, nabrání, návrat | studna / potok | `carry-water` + `yoke`, `water-idle`                                  | je                                                                                     |
-| Vaření a oheň                | před domem     | `weed` (skloněná nad ohništěm) + vařečka, hrnec u ohně                | nové (dnes jen stojí; rekvizita nová)                                                  |
-| Dojení                       | ohrada, chlév  | sed u krávy, džber                                                    | nová animace – chybí v 0 A.D. (dnes zástupné `weed`)                                   |
-| Předení                      | před domem     | stoj / sed, přeslice                                                  | nová animace – chybí v 0 A.D.                                                          |
-| Tkaní (len, vlna)            | v domě / před  | stoj u stavu                                                          | je (vlastní klip `weave` se stavem, žena u dveří – úloha 12)                           |
-| Péče o děti                  | před domem     | `idle` s dítětem (menší postava), případně `carry-meat-idle` bez masa | je zjednodušeně (žena u dveří domu s dítětem pod 7 let – bez postavy dítěte; úloha 12) |
-| Pomoc o žních (vázání, svoz) | pole           | jako rolník                                                           | nové (žena v řadě žňů)                                                                 |
-| Nošení jídla, sad, pletí     | pole, sad      | `carry`, `fruit`, `weed`                                              | je                                                                                     |
+| Fáze                         | Kde            | Animace a rekvizita                                    | Stav                                                                                   |
+| ---------------------------- | -------------- | ------------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| Voda: cesta, nabrání, návrat | studna / potok | `carry-water` + `yoke`, `water-idle`                   | je                                                                                     |
+| Vaření a oheň                | před domem     | `weed` (skloněná nad ohništěm) + vařečka, hrnec u ohně | nové (dnes jen stojí; rekvizita nová)                                                  |
+| Dojení                       | ohrada, chlév  | sed u krávy, džber                                     | nová animace – chybí v 0 A.D. (dnes zástupné `weed`)                                   |
+| Předení                      | před domem     | stoj / sed, přeslice                                   | nová animace – chybí v 0 A.D.                                                          |
+| Tkaní (len, vlna)            | v domě / před  | stoj u stavu                                           | je (vlastní klip `weave` se stavem, žena u dveří – úloha 12)                           |
+| Péče o děti                  | před domem     | `idle` s dítětem (menší postava)                       | je zjednodušeně (žena u dveří domu s dítětem pod 7 let – bez postavy dítěte; úloha 12) |
+| Pomoc o žních (vázání, svoz) | pole           | jako rolník                                            | nové (žena v řadě žňů)                                                                 |
+| Nošení jídla, sad, pletí     | pole, sad      | `carry`, `fruit`, `weed`                               | je                                                                                     |
 
 **Děti a starší**
 
@@ -832,7 +832,8 @@ a `lib/village-view.ts`, rozvrh je znovu nedefinuje – `PersonJob`, `LaborActiv
    varianty postávání (`idle_relax_m_b…l`, `idle_relax_f_short/long`, shrbení `idle_relax_h_*`),
    modlitba `pray`, vladař `idle_minister_*`, chůze s nářadím `walk_axe/hoe/shovel` a nošení rudy
    `carry_ore_*` – starší u domu dál `idle`, modlitba u modly a vladař čekají na úlohu
-   s přegenerováním GLB. Seno na dvůr a `carry-meat-idle` zatím bez místa.
+   s přegenerováním GLB. Seno na dvůr zatím bez místa; nepoužité klipy `carry-meat-idle` a `heal` vyřazeny
+   z GLB (1. 11. 2026 – šetří VAT).
 9. **Nové rekvizity** (povříslo, hrábě, vidle, kladivo a kleště, špalek, síto, nádoby, koš
    s nástroji, oka, ryby, vařečka s hrncem, džber): `tools/blender/people_from_0ad.py`
    (funkce po vzoru srpu a vahadla), `tools/blender/people.json` (props a klipy s `props`),
@@ -865,14 +866,14 @@ a `lib/village-view.ts`, rozvrh je znovu nedefinuje – `PersonJob`, `LaborActiv
     zleva doprava a přiražení útku nahoru), `sit` (starší na špalku, rozhlíží se), `wheel` (sed
     u kruhu, ruce na hrnci, noha roztáčí kruh), `pipe` a `drum` (píšťala, buben ve stoje).
     Špalek pod sedící postavou je nový prop (návrh Clauda – bez něj by seděla ve vzduchu).
-    Z 0 A.D. přibyly modlitba `pray`, léčení `heal`, varianty stání `rest-a`–`e`, chůze
+    Z 0 A.D. přibyly modlitba `pray`, léčení `heal` (1. 11. vyřazeno – nepoužité), varianty stání `rest-a`–`e`, chůze
     s motykou a sekerou `walk-hoe` / `walk-axe` a vladař `lord-idle-a`–`c`, `walk-lord`;
     `idle_relax_h_*` / `walk_relax_h_*` nejsou shrbení starci, ale hrdinové („hero“ – ověřeno
     náhledem), proto vynechány; nošení rudy čeká na rekvizitu (úloha 9), `idle_hoe/axe_*` jsou
     10–14 s dlouhé (velká textura VAT). Zapojeno: dojení, kruh, sezení a modlitba starších
     (návrh Clauda – starší mimo žně sedí, postojí a zajdou k nejbližší hotové modle či svatyni),
-    předení žen u dveří, vojvoda jako vladař, cesta s nářadím. Tkaní, hudba a léčení jsou
-    v GLB, zapojí je úloha 12 (stav, hudebníci na svatbě) a nemoc, až ji simulace bude mít.
+    předení žen u dveří, vojvoda jako vladař, cesta s nářadím. Tkaní a hudba jsou
+    v GLB, zapojí je úloha 12 (stav, hudebníci na svatbě); léčení se vrátí s nemocí v simulaci.
     Ve scéně zatím neověřeno (Vlkov).
 11. **Tesař – vznikající vůz a stoh/seno** (`villager-plan-crafts.ts`, `wagons/` GLB,
     `scene-village.md`): díly vozu po fázích ve scéně, stoh a kupy sena jako objekty scény;

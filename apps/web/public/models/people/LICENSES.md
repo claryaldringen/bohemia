@@ -40,10 +40,9 @@ Rekvizity (výcvikové, dřevěné – všechny s texturou `props/wood_e.png`, �
 `props/weap_shaft_wood_a.dae` (kopí bez hrotu), `props/shield/round_noboss_f.dae` (pletený štít).
 Jezdecké klipy 0 A.D. mají na koni sed – poloha jezdce na koni se odvozuje ve scéně.
 
-Porážka (oba soubory, klipy `butcher`, `bleed`, `gut`, `carry-meat`, `carry-meat-idle`): animace
+Porážka (oba soubory, klipy `butcher`, `bleed`, `gut`, `carry-meat`): animace
 `animation/biped/gatherer/gather_meat.dae` (butcher), `gather_berries.dae` (bleed),
-`slaughter.dae` (gut), `carry_meat_f.dae` / `carry_meat_m.dae` a `idle_carry_meat_f.dae` /
-`idle_carry_meat_m.dae` (žena / muž). Rekvizity: nůž `props/weapons/dagger_01.dae` (textura
+`slaughter.dae` (gut), `carry_meat_f.dae` / `carry_meat_m.dae` (žena / muž). Rekvizity: nůž `props/weapons/dagger_01.dae` (textura
 `props/prop_weap.dds`), kýta `props/special/brontoburger.dae` (textura `props/shuttle_meat.png`).
 Miska na krev je nový jednoduchý model (skript, `procedural_bowl`) s texturou z `prop_weap.dds`.
 
@@ -70,7 +69,6 @@ nás použitelné“) – animace z `art/animation/biped/`, CC BY-SA 3.0 (Wildfi
 | Klip                                     | `woman.glb`                                               | `man.glb`                                                                |
 | ---------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------ |
 | `pray` (modlitba u modly a svatyně)      | `citizen/pray.dae`                                        | `citizen/pray.dae`                                                       |
-| `heal` (léčení)                          | `citizen/healing_f.dae`                                   | `citizen/healing_m.dae`                                                  |
 | `rest-a` … (varianty stání)              | `citizen/idle_relax_f_short.dae`, `idle_relax_f_long.dae` | `citizen/idle_relax_m_b.dae`, `_d`, `_f`, `_h`, `_j` (`rest-a`–`rest-e`) |
 | `walk-hoe`, `walk-axe` (cesta s nářadím) | `gatherer/walk_hoe.dae`, `walk_axe.dae` (motyka, sekera)  | totéž                                                                    |
 | `lord-idle-a`–`c`, `walk-lord` (vojvoda) | –                                                         | `citizen/idle_minister_01.dae`–`03`, `walk_relax_minister.dae`           |
