@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { createVillagerPose, route, shuttle, stand } from '../villager-motion';
+import {
+  createVillagerPose,
+  herder,
+  route,
+  shuttle,
+  stand,
+  type HerdView,
+} from '../villager-motion';
+import type { PlannedVillager } from '../villager-plan-types';
 import { shuttleErrand } from '../villager-errands';
 import { hash01 } from '../smoke-schedule';
 import {
@@ -15,6 +23,7 @@ import {
   bellAt,
   castTimeline,
   nextStart,
+  personTasks,
   scheduleAt,
   type Activity,
   type DayCast,
@@ -425,5 +434,35 @@ describe('fáze činnosti – rozvrh napřed, fáze potom (villager-phases.ts, �
     }
     expect(bind).toBeGreaterThan(0);
     expect(work).toBeGreaterThan(0);
+  });
+});
+
+// Martin 1. 11. 2026: „Tenhle týpek právě sprintoval ke stádu … Ani se mi na něj nepodařilo
+// kliknout, jak běžel rychle“ – chůze ode dveří se počítala k místu pasáka bez stád (u návsi),
+// ale šel ke stádu na pastvě: stovky metrů za čas cesty pár desítek metrů.
+describe('personTasks – místo pasáka u stáda', () => {
+  const herd: HerdView = { x: 300, z: 40, radiusM: 6, moving: 0, headingX: 1, headingZ: 0 };
+  const herdsman: PlannedVillager = {
+    key: 'herd:0',
+    kind: 'man',
+    scale: 1,
+    phase: 0,
+    look: { cloth: [1, 1, 1], hair: 'natural' },
+    pose: herder(0, { x: 5, z: 5 }, 7, 0, 0.7, 0.8),
+    person: 1,
+    job: { kind: 'herd', herd: 0 },
+  };
+
+  it('místo pasáka (odkud se počítá chůze ode dveří) je u stáda', () => {
+    const tasks = personTasks([herdsman], { teams: [], carts: [] }, new Set(), 0, undefined, [
+      herd,
+    ]);
+    const at = tasks.get(1)!.at!;
+    expect(Math.hypot(at.x - herd.x, at.z - herd.z)).toBeLessThan(herd.radiusM + 6);
+  });
+
+  it('bez stád (ještě nenačtená zvířata) zůstane u místa pasáka', () => {
+    const at = personTasks([herdsman], { teams: [], carts: [] }).get(1)!.at!;
+    expect(at).toEqual({ x: 5, z: 5 });
   });
 });

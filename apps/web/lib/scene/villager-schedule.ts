@@ -587,13 +587,15 @@ export function personTasks(
   holds: ReadonlySet<string> = new Set(),
   probeT = 0,
   phasesOf?: (f: PlannedVillager, at: Point) => { role: PhaseRole; places?: PhasePlaces } | null,
+  herds: readonly HerdView[] = [],
 ): Map<number, PersonTask> {
   const riders = new Set((crew.rides ?? []).filter((r) => r.route !== null).map((r) => r.riderId));
   const out = new Map<number, PersonTask>();
   const pose = createVillagerPose();
   for (const f of people) {
     if (f.person === undefined || !f.job || out.has(f.person)) continue;
-    f.pose(probeT, [], pose);
+    // se stády – pasák bez nich stojí u návsi, chůze ode dveří by se počítala tam, ne ke stádu
+    f.pose(probeT, herds, pose);
     const rider = riders.has(f.person);
     const interrupt = interruptOf(f.job, rider);
     const at = { x: pose.x, z: pose.z };

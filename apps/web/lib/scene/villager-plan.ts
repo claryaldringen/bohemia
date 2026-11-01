@@ -332,6 +332,7 @@ export function planVillagersWithCrew(
       dayStartS(options, labor.day),
       // fáze činností (villager-phases.ts): role podle podílu a stavu vsi, odnos a pomoc o žních
       planPhases(ctx, people, dayStartS(options, labor.day)),
+      options.herdPlaces,
     ),
     doors,
     walk: (a, b, homeId) => walkRoute(ctx, a, b, homeId) ?? fieldPath(ctx, a, b, homeId),

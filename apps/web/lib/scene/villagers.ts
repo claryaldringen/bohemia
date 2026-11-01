@@ -647,6 +647,7 @@ export class VillageVillagers {
       seed: villageSeed(village),
       // pasák jen u stád na pastvě – ta jsou v plánu napřed (livestock-placement.ts)
       herds: herds.filter((h) => h.tended !== false).length,
+      herdPlaces: herds,
       paths: this.paths,
       dayWindow: (day) => this.env.dayWindow?.(day) ?? null,
       funerals: this.funerals,

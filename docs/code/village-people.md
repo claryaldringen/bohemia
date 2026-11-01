@@ -358,7 +358,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   **Rozvrh člověka** (villagers.md – Činnosti od začátku do konce; úlohy 1–3):
   `planVillagersWithCrew` vrací i `tasks` – obsazení dne jako člověk → úloha (`PersonTask`: klíč
   postavy, `job`, druh `errand` / `bout` / `hold`, rozsah práce, póza, cyklus pochůzky, místo;
-  `personTasks` a `taskKind` ve `villager-schedule.ts`, první stavitel `hold`) a `doors` (id
+  `personTasks` a `taskKind` ve `villager-schedule.ts`, první stavitel `hold`; místo z pózy na
+  začátku dne se stády teď – `herdPlaces`, jinak by pasák „stál“ u návsi a ke stádu sprintoval) a `doors` (id
   obydlí → `doorPoint`). `villager-schedule.ts` (čisté funkce, testy
   `villager-schedule.test.ts`): řetěz činností člověka – doma (pauza `PAUSE_S` 30–90 s), vyjití
   s úlohou obsazení v tu chvíli (`castOf`, `castTimeline` – dny před nejstarším jako nejstarší),

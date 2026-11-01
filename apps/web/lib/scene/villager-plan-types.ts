@@ -9,6 +9,7 @@ import { type FuneralPlan } from './funeral-plan';
 import { type WeddingPlan } from './wedding-plan';
 import { type CellSquare } from './field-cells';
 import {
+  type HerdView,
   type PoseFn,
   type ShuttleCycle,
   type VillagerClip,
@@ -232,6 +233,8 @@ export interface VillagerPlanOptions {
   seed: number;
   /** Kolik stád se pase (pasáčci – jeden na stádo, když jsou děti). */
   herds: number;
+  /** Stáda teď (poloha a stěhování) – místo pasáka, odkud se počítá chůze ode dveří. */
+  herdPlaces?: readonly HerdView[];
   maxWorkers?: number;
   /** Nejvýš tolik lidí na cestách (provoz – road-traffic.ts); bez údaje MAX_TRAFFIC. */
   maxTraffic?: number;
