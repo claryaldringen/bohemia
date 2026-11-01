@@ -120,7 +120,7 @@ describe('SonsRow – klik', () => {
     });
   };
 
-  it('klik na syna ukáže obrys dílu a růžici; Odejít sem pošle sonId, druhý klik vše zruší', () => {
+  it('klik na syna ukáže obrys dílu a růžici; Odejít na sever pošle sonId, druhý klik vše zruší', () => {
     const onLeaveSon = vi.fn();
     const onPreviewSon = vi.fn();
     act(() =>
@@ -131,8 +131,8 @@ describe('SonsRow – klik', () => {
     expect(onPreviewSon).toHaveBeenLastCalledWith([3, 4]);
     expect(host.querySelector('[data-testid="son-7"]')!.getAttribute('aria-pressed')).toBe('true');
     expect(host.querySelector('[data-testid="leave-compass"]')).not.toBeNull();
-    click('leave-here');
-    expect(onLeaveSon).toHaveBeenCalledWith('here', 7);
+    // jedna ves, jedna mapa – tlačítko „sem“ (na téže mapě) v růžici není
+    expect(host.querySelector('[data-testid="leave-here"]')).toBeNull();
     click('leave-N');
     expect(onLeaveSon).toHaveBeenLastCalledWith('N', 7);
     click('son-7');

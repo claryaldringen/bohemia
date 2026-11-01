@@ -10,7 +10,6 @@ import {
   neighbourSnapshot,
   settleJourney,
   cancelUnfinishedConstruction,
-  foundDevVillage,
   foundVillageForSettlement,
   declareHuntInVillage,
   forceBadYear,
@@ -370,24 +369,6 @@ export async function foundVillageForPlayer(
   );
 }
 
-/**
- * Vývojový režim: druhá ves na mapě vsi `villageId` (jen pro vyzkoušení přepínače – lidé ze
- * staré vsi neodcházejí). Vrátí pohled na novou ves.
- */
-export async function foundDevVillageForPlayer(
-  playerId: string,
-  devMode: boolean,
-  villageId: string,
-): Promise<VillageActionResult> {
-  const done = await guardedAction(playerId, villageId, (ctx) =>
-    foundDevVillage(gameDeps(), { playerId, devMode, villageId, today: ctx.day }),
-  );
-  if (!done.ok) return done.result;
-  const { ctx, value: result } = done;
-  if (!result.ok) return { error: result.reason };
-  return viewOf({ ...ctx, villageId: result.village.id }, result.village);
-}
-
 export function placeDwellingForPlayer(
   playerId: string,
   villageId: string,
@@ -711,9 +692,8 @@ export function sendExpeditionForPlayer(
 
 /**
  * Odchod do nové vsi (migration.md – fáze 3 a 4): domácnosti obydlí `dwellingIds` (nebo syn vojvody
- * `sonId` s poměrnou částí vsi – lord.md) odejdou na
- * téže mapě (vrátí pohled na novou ves) nebo na novou mapu (vrátí pohled na starou ves – lidé
- * jsou na cestě).
+ * `sonId` s poměrnou částí vsi – lord.md) odejdou na novou mapu (vrátí pohled na starou ves – lidé
+ * jsou na cestě; jedna ves, jedna mapa).
  */
 export async function leaveVillageForPlayer(
   playerId: string,
@@ -732,9 +712,7 @@ export async function leaveVillageForPlayer(
   if (!done.ok) return done.result;
   const { ctx, value: result } = done;
   if (!result.ok) return { error: result.reason };
-  return input.destination.kind === 'here'
-    ? viewOf({ ...ctx, villageId: result.to.id }, result.to)
-    : viewOf(ctx, result.from);
+  return viewOf(ctx, result.from);
 }
 
 /** Lidé dorazili na novou mapu – první zemnice nové vsi (migration.md – fáze 4). */

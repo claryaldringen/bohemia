@@ -396,33 +396,6 @@ export function DevTimeButtons({
   );
 }
 
-/**
- * Vývojový režim: druhá ves na téže mapě (jen pro vyzkoušení přepínače vsí – migration.md).
- * Dokud server ves zakládá, tlačítko čeká.
- */
-export function DevVillageButton({
-  pending,
-  onFound,
-}: {
-  pending: boolean;
-  onFound: () => void;
-}): ReactElement {
-  return (
-    <IconButton
-      label="Druhá ves na téže mapě"
-      tooltip={<span className="whitespace-nowrap">Druhá ves na téže mapě</span>}
-      testId="dev-second-village"
-      disabled={pending}
-      busy={pending}
-      onClick={onFound}
-    >
-      <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
-        <path d="M3 11l7-6 7 6v8H3zM17 3h2v3h3v2h-3v3h-2V8h-3V6h3z" />
-      </svg>
-    </IconButton>
-  );
-}
-
 /** Vynutit zlý rok – ikona a popisek druhu (vývojový režim). */
 const BAD_YEAR_LOOKS: Record<BadYearKind, { icon: string; label: string }> = {
   dry: { icon: 'drought', label: 'Suché léto' },
@@ -544,7 +517,6 @@ export function TopBar({
   onSelectVillage,
   onSetSteward,
   devTime,
-  devVillage = null,
   devDisasters = null,
 }: {
   view: VillageView | null;
@@ -563,8 +535,6 @@ export function TopBar({
   onSetSteward?: (villageId: string, on: boolean) => Promise<unknown>;
   /** Vývojový režim – šipky přeskočení času vedle data; bez něj null. */
   devTime: { pending: TimeSkip | null; onSkip: (skip: TimeSkip) => void } | null;
-  /** Vývojový režim – druhá ves na téže mapě; bez něj (nebo bez vsi) null. */
-  devVillage?: { pending: boolean; onFound: () => void } | null;
   /** Vývojový režim – vynutit zlý rok a pohromu; bez něj (nebo bez vsi) null. */
   devDisasters?: { pending: boolean; onForce: (choice: DevDisasterChoice) => void } | null;
 }): ReactElement {
@@ -667,9 +637,6 @@ export function TopBar({
           </span>
         </Resource>
         {devTime && <DevTimeButtons pending={devTime.pending} onSkip={devTime.onSkip} />}
-        {devVillage && (
-          <DevVillageButton pending={devVillage.pending} onFound={devVillage.onFound} />
-        )}
         {devDisasters && (
           <DevDisasterButtons pending={devDisasters.pending} onForce={devDisasters.onForce} />
         )}

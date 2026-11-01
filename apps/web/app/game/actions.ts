@@ -13,7 +13,6 @@ import {
   cancelConstructionForPlayer,
   sendExpeditionForPlayer,
   forceDevDisasterForPlayer,
-  foundDevVillageForPlayer,
   foundVillageForPlayer,
   placeCemeteryForPlayer,
   placeDwellingForPlayer,
@@ -223,20 +222,6 @@ export async function foundVillage(input: unknown): Promise<VillageActionResult>
 }
 
 /**
- * Vývojový režim: založí druhou ves na mapě vsi `{ villageId }` (jen pro vyzkoušení přepínače vsí
- * – bez lidí ze staré vsi) a vrátí pohled na ni. Jen pro účet s `devMode`.
- */
-export async function foundDevVillage(input: unknown): Promise<VillageActionResult> {
-  const session = await getSession();
-  if (!session) return { error: NOT_SIGNED_IN };
-  const villageId = villageIdOf(input);
-  if (villageId === null) return { error: INVALID_INPUT };
-  return withVillageCache(() =>
-    foundDevVillageForPlayer(session.user.id, session.user.devMode === true, villageId),
-  );
-}
-
-/**
  * Vývojový režim (disasters.md – plán P10): vynutí letošní zlý rok `{ villageId, kind: 'year',
  * value }`, nebo zítřejší pohromu `{ villageId, kind: 'disaster', value }` a vrátí pohled na ves.
  * Jen pro účet s `devMode` (příznak účtu – klient ho nastavit nemůže; bez něj use-case odmítne).
@@ -274,9 +259,9 @@ export async function cancelConstruction(input: unknown): Promise<VillageActionR
 }
 
 /**
- * Odchod do nové vsi (migration.md – fáze 3 a 4): `{ villageId, dwellingIds, destination }` –
- * na téže mapě (`{ kind: 'here', dwelling }`, vrátí novou ves) nebo na novou mapu (`{ kind: 'map',
- * direction }`, vrátí starou ves). Server místo i domácnosti ověří znovu.
+ * Odchod do nové vsi (migration.md – fáze 3 a 4): `{ villageId, dwellingIds, destination }` – na
+ * novou mapu (`{ kind: 'map', direction }`, vrátí starou ves; jedna ves, jedna mapa – jiný cíl
+ * server odmítne). Server domácnosti ověří znovu.
  */
 export async function leaveVillage(input: unknown): Promise<VillageActionResult> {
   return villageAction(input, parseLeaveVillageInput, leaveVillageForPlayer);

@@ -161,34 +161,3 @@ export function foreignFromScene(scene: SceneVillage): ForeignStructures | undef
     ...(squares.length > 0 ? { squares } : {}),
   };
 }
-
-/** Bod stavby ve světě (m). */
-interface Point {
-  x: number;
-  z: number;
-}
-
-/** Body staveb vsi a jiných vsí na téže mapě – obydlí, díly polí, hřbitovy, sady, ohrady, modly. */
-export function scenePoints(scene: SceneVillage): Point[] {
-  const points: Point[] = [];
-  const add = (s: Pick<SceneNeighbour, 'dwellings' | 'fields'> & Partial<SceneNeighbour>): void => {
-    for (const d of s.dwellings) points.push({ x: d.position.x, z: d.position.z });
-    for (const f of s.fields) for (const p of f.parts) points.push({ x: p.x, z: p.z });
-    for (const c of s.cemeteries ?? []) for (const q of c.squares) points.push({ x: q.x, z: q.z });
-    for (const o of s.orchards ?? []) for (const q of o.squares) points.push({ x: q.x, z: q.z });
-    for (const p of s.pens ?? [])
-      for (const q of scenePenSquares(p)) points.push({ x: q.x, z: q.z });
-    for (const b of s.sacredBuildings ?? []) points.push({ x: b.position.x, z: b.position.z });
-    for (const f of s.threshingFloors ?? []) points.push({ x: f.position.x, z: f.position.z });
-  };
-  add({ ...scene, sacredBuildings: scene.sacred?.buildings ?? [] });
-  for (const n of scene.neighbours ?? []) add(n);
-  return points;
-}
-
-/** Vzdálenost bodu k nejbližší stavbě (m); bez staveb nekonečno. */
-export function distanceToPoints(point: Point, points: readonly Point[]): number {
-  let best = Number.POSITIVE_INFINITY;
-  for (const p of points) best = Math.min(best, Math.hypot(point.x - p.x, point.z - p.z));
-  return best;
-}

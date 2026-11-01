@@ -86,7 +86,8 @@ async function world(dwelling?: Position): Promise<{
     sonId: 30,
     seed: 99,
     name: 'Lhota',
-    ...(dwelling ? { dwelling } : {}),
+    // starší záznam (před pravidlem jedna ves, jedna mapa) nesl místo na téže mapě
+    ...(dwelling ? ({ dwelling } as Partial<StewardDeparture>) : {}),
     directions: [{ direction: 'N', travelDays: 2 }],
     settlers: departed.settlers,
   };
@@ -106,25 +107,32 @@ const withOrigin = (villages: InMemoryVillages): VillageState[] =>
   [...villages.records.values()].map((r) => r.state).filter((s) => s.origin !== undefined);
 
 describe('settleStewardDepartures – vybavení schránky', () => {
-  it('tady: ves syna vznikne na místě ze záznamu – vojvodou syn, správce zapnutý', async () => {
+  it('starší záznam s místem na téže mapě jde taky na novou mapu – sídlo má jednu ves', async () => {
     const { deps, villageId, seatId } = await world(at(200, 200));
     const settled = await settleStewardDepartures(deps, { playerId: PLAYER, villageId });
     expect(settled).toHaveLength(1);
     const village = settled[0]!;
-    expect(village.settlementId).toBe(seatId);
+    expect(village.settlementId).not.toBe(seatId);
     expect(village.name).toBe('Lhota');
     expect(village.state.origin).toBe(stewardDepartureOrigin(villageId, DAY));
-    expect(village.state.dynasty?.lordId).toBe(30);
-    expect(village.state.steward?.on).toBe(true);
-    expect(village.state.lastDay).toBe(DAY);
+    expect(isVillageTravelling(village.state)).toBe(true);
+    expect(await deps.villages.listBySettlement(seatId)).toHaveLength(1);
     const mother = (await deps.villages.find(villageId))!.state;
     expect(mother.steward?.departures?.[0]).toMatchObject({ id: DAY, villageId: village.id });
     expect(mother.steward?.departures?.[0]?.settlers).toBeUndefined();
     expect(pendingStewardDepartures(mother)).toHaveLength(0);
   });
 
+  it('sídlo, které už ves má, ves syna nepřijme (jedna ves, jedna mapa)', async () => {
+    const { deps, villageId, seatId } = await world();
+    const mother = (await deps.villages.find(villageId))!.state;
+    const origin = stewardDepartureOrigin(villageId, DAY);
+    expect(await deps.villages.addOnce(seatId, 'Lhota', { ...mother, origin })).toBeNull();
+    expect(await deps.villages.listBySettlement(seatId)).toHaveLength(1);
+  });
+
   it('opakované i souběžné volání založí ves právě jednou', async () => {
-    const { deps, villageId } = await world(at(200, 200));
+    const { deps, villageId } = await world();
     const [a, b] = await Promise.all([
       settleStewardDepartures(deps, { playerId: PLAYER, villageId }),
       settleStewardDepartures(deps, { playerId: PLAYER, villageId }),
@@ -137,10 +145,16 @@ describe('settleStewardDepartures – vybavení schránky', () => {
   });
 
   it('pád mezi založením vsi a značkou v mateřské vsi – ves se podruhé nezaloží', async () => {
-    const { deps, villageId, seatId } = await world(at(200, 200));
+    const { deps, villageId } = await world();
     const origin = stewardDepartureOrigin(villageId, DAY);
     const mother = (await deps.villages.find(villageId))!.state;
-    const lost = await deps.villages.addOnce(seatId, 'Lhota', { ...mother, origin });
+    const map = await deps.settlements.create({
+      ownerId: PLAYER,
+      landscapeSeed: 12,
+      layerVersions: CURRENT_LAYER_VERSIONS,
+      worldCell: { x: 5, y: 5 },
+    });
+    const lost = await deps.villages.addOnce(map!.id, 'Lhota', { ...mother, origin });
     const settled = await settleStewardDepartures(deps, { playerId: PLAYER, villageId });
     expect(settled.map((v) => v.id)).toEqual([lost!.id]);
     expect(withOrigin(deps.villages)).toHaveLength(1);
@@ -170,7 +184,7 @@ describe('settleStewardDepartures – vybavení schránky', () => {
   });
 
   it('chyba při vybavení se zaloguje a nezastaví načtení hry (Safely)', async () => {
-    const { deps, villageId } = await world(at(200, 200));
+    const { deps, villageId } = await world();
     const broken = {
       ...deps,
       villages: Object.assign(Object.create(deps.villages) as InMemoryVillages, {
@@ -190,7 +204,7 @@ describe('settleStewardDepartures – vybavení schránky', () => {
   });
 
   it('záznam, který nejde vybavit, se po několika pokusech přestane zkoušet', async () => {
-    const { deps, villageId } = await world(at(200, 200));
+    const { deps, villageId } = await world();
     let state = (await deps.villages.find(villageId))!.state;
     for (let i = 0; i < 5; i++) state = failStewardDeparture(state, DAY);
     expect(state.steward?.departures?.[0]?.attempts).toBe(5);

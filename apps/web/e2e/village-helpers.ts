@@ -56,7 +56,31 @@ export async function seat(email: string): Promise<Seat> {
   };
 }
 
-/** Uložený stav první vsi sídla (sídlo může mít víc vsí – migration.md). */
+/**
+ * Druhá ves hráče na mapě vedle – sídlo na políčku (1, 0) se stejnou krajinou a stav zkopírovaný
+ * z vsi sídla `settlementId` (jedna ves, jedna mapa – migration.md). Pro přepínač vsí bez odchodu.
+ */
+export async function villageOnNextMap(
+  settlementId: string,
+  name: string,
+): Promise<{ id: string; name: string }> {
+  const [map] = await query<{ id: string }>(
+    `INSERT INTO settlement (owner_id, landscape_seed, layer_versions, grid_x, grid_y)
+       SELECT owner_id, landscape_seed, layer_versions, 1, 0 FROM settlement WHERE id = $1
+     RETURNING id`,
+    [settlementId],
+  );
+  const [village] = await query<{ id: string; name: string }>(
+    `INSERT INTO village (settlement_id, name, state)
+       SELECT $2, $3, state FROM village WHERE settlement_id = $1
+     RETURNING id, name`,
+    [settlementId, map!.id, name],
+  );
+  if (!village) throw new Error('Druhá ves nevznikla.');
+  return village;
+}
+
+/** Uložený stav vsi sídla (jedna ves, jedna mapa – migration.md). */
 export async function villageState(settlementId: string): Promise<VillageState> {
   const [row] = await query<{ state: VillageState }>(
     'SELECT state FROM village WHERE settlement_id = $1 ORDER BY created_at, id LIMIT 1',
@@ -67,7 +91,7 @@ export async function villageState(settlementId: string): Promise<VillageState> 
 }
 
 /**
- * Uloží upravený stav první vsi sídla (jako by ho zapsal server) – ukáže ho až další dotaz na ves
+ * Uloží upravený stav vsi sídla (jako by ho zapsal server) – ukáže ho až další dotaz na ves
  * (`pollVillage`; sám by přišel až s dalším herním dnem).
  */
 /**

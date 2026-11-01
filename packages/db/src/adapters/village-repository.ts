@@ -102,15 +102,6 @@ export function createVillageRepository(db: Database): VillageRepository {
       });
     },
 
-    async add(settlementId, name, state): Promise<VillageRecord> {
-      const [row] = await db
-        .insert(village)
-        .values({ settlementId, name, ...written(state, 1), version: 1 })
-        .returning();
-      if (!row) throw new Error(`Ves sídla ${settlementId} nešlo založit.`);
-      return toRecord(row);
-    },
-
     findByOrigin: byOrigin,
 
     async addOnce(settlementId, name, state): Promise<VillageRecord | null> {
@@ -133,6 +124,13 @@ export function createVillageRepository(db: Database): VillageRepository {
             .where(sql`${village.state}->>'origin' = ${origin}`)
             .limit(1);
           if (existing) return toRecord(existing);
+          // jedna ves, jedna mapa – sídlo s jinou vsí nic nezaloží
+          const [other] = await tx
+            .select({ id: village.id })
+            .from(village)
+            .where(eq(village.settlementId, settlementId))
+            .limit(1);
+          if (other) return null;
           const [row] = await tx
             .insert(village)
             .values({ settlementId, name, ...written(state, 1), version: 1 })
@@ -140,7 +138,8 @@ export function createVillageRepository(db: Database): VillageRepository {
           return row ? toRecord(row) : null;
         });
       } catch (error) {
-        // souběh na různých sídlech: unikátní index `village_origin_uq` pustil jen jednu ves
+        // souběh na různých sídlech: unikátní index `village_origin_uq` pustil jen jednu ves (index
+        // `village_settlement_uq` – jinou ves sídla – zámek řádku sídla nepustí, `byOrigin` pak null)
         if (!isUniqueViolation(error)) throw error;
         return byOrigin(origin);
       }

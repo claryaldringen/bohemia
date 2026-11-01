@@ -15,7 +15,7 @@ v `docs/design/`, postup po úlohách v [plánu](../superpowers/plans/2026-10-27
 - **Kopie ve vsi** – `VillageState.weatherSeed` (volitelné): `withWeatherSeed(state, seed)`
   (`weather.ts`) v `updateVillage` hned po načtení (starší vsi – jednou, idempotentně; seed se řídí
   mapou, null nemění nic) a v `foundedVillageState(seed, input, lord, weatherSeed)` před dopočtem
-  dne založení (`foundVillageForSettlement`, `foundAnotherVillage`, osadníci v `leave-village.ts`).
+  dne založení (`foundVillageForSettlement`, osadníci v `leave-village.ts`).
   **Ves bez `weatherSeed` má všechny roky normální** (unit testy, kalibrace, zlaté otisky).
 - **Klient seed nikdy nedostane** – `buildVillageView` ho neposílá (test v `village-view.test.ts`);
   co už je vidět, dává `revealedWeather`.

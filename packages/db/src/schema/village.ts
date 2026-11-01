@@ -14,8 +14,9 @@ import type { VillageDigest, VillageState } from '@bohemia/game';
 import { settlement } from './settlement';
 
 /**
- * Vsi sídel – celý stav simulace jako JSON, verze hlídá souběžné zápisy. Sídlo (mapa) může mít
- * víc vsí (migration.md – Víc vsí jednoho hráče); pořadí vsí sídla dává `created_at`.
+ * Vsi sídel – celý stav simulace jako JSON, verze hlídá souběžné zápisy. Sídlo (mapa) má nejvýš
+ * jednu ves (Martin 1. 11. 2026: „Jedna ves, jedna mapa“ – migration.md, Víc vsí jednoho hráče) –
+ * hlídá unikátní index `village_settlement_uq`.
  */
 export const village = pgTable(
   'village',
@@ -46,7 +47,8 @@ export const village = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
-    index('village_settlement_idx').on(table.settlementId, table.createdAt),
+    // jedna ves, jedna mapa – i archivované sídlo si svou ves nechá, nové sídlo má nové id
+    uniqueIndex('village_settlement_uq').on(table.settlementId),
     // fronta workeru: nespící vsi sídla podle dne dopočtu
     index('village_awake_day_idx')
       .on(table.settlementId, table.lastDay)

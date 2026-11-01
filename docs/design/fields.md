@@ -287,7 +287,7 @@ Clauda**; implementace v `square-grid.ts` a `squares.ts` (jádro), ve scéně `f
   bláto, rozpad) se počítá v jejích osách – [oxen.md](oxen.md).
 - Volně stojící stavby (zemnice, dílny, modla, svatyně) se natáčejí po 15° odjakživa; dvorec
   vojvody hráč nestaví, zůstává v osách.
-- **Jiné vsi na téže mapě** ([stěhování](migration.md) – Vsi na téže mapě): přehled jiných vsí
+- **Jiné vsi na téže mapě** (od 1. 11. 2026 nejsou – jedna ves, jedna mapa; [stěhování](migration.md) – Vsi na téže mapě): přehled jiných vsí
   nese natočené čtverce polí, sadů, hřbitovů, ohrad a lesa vsi s jejich mřížkou zvlášť
   (`squares`), natočený
   pozemek jako tvar obydlí. Cizí půdu blokují kontroly podle skutečné plochy – natočený čtverec

@@ -49,18 +49,19 @@ export function isFullVillage(village: DynastyVillage): village is VillageRecord
   return 'state' in village;
 }
 
-/** Port: úložiště vsí. Sídlo (mapa) může mít víc vsí, každá má vlastní id. */
+/**
+ * Port: úložiště vsí. Sídlo (mapa) má nejvýš jednu ves – jedna ves, jedna mapa (Martin 1. 11.
+ * 2026); ves má vlastní id.
+ */
 export interface VillageRepository {
   find(villageId: string): Promise<VillageRecord | null>;
-  /** Vsi sídla v pořadí založení. */
+  /** Ves sídla – nejvýš jedna (prázdný seznam = sídlo bez vsi). */
   listBySettlement(settlementId: string): Promise<VillageRecord[]>;
   /**
-   * Atomicky založí první ves sídla (verze 1); když už sídlo nějakou ves má, vrátí null a nic
-   * nezmění (souběžná založení první zemnice).
+   * Atomicky založí ves sídla (verze 1); když už sídlo ves má, vrátí null a nic nezmění (jedna
+   * ves, jedna mapa – i souběžná založení první zemnice).
    */
   create(settlementId: string, name: string, state: VillageState): Promise<VillageRecord | null>;
-  /** Založí další ves sídla (víc vsí na téže mapě – migration.md). */
-  add(settlementId: string, name: string, state: VillageState): Promise<VillageRecord>;
   /**
    * Ves s klíčem založení `origin` (`VillageState.origin` – schránka odchodu syna) v kterémkoli
    * sídle; žádná – null.
@@ -69,7 +70,7 @@ export interface VillageRepository {
   /**
    * Atomicky založí ves sídla se stavem nesoucím klíč `state.origin` (povinný): když ves s tímto
    * klíčem už existuje, vrátí ji a nic nezaloží (opakované i souběžné vybavení schránky se seřadí
-   * na zámku řádku sídla). Neznámé sídlo – null.
+   * na zámku řádku sídla). Neznámé sídlo, nebo sídlo, které už jinou ves má – null.
    */
   addOnce(settlementId: string, name: string, state: VillageState): Promise<VillageRecord | null>;
   /**

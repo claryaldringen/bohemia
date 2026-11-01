@@ -2,10 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { SceneVillage } from '../../village-view';
 import {
   NEIGHBOUR_ID_BASE,
-  distanceToPoints,
   foreignFromScene,
   isNeighbourTarget,
-  scenePoints,
   withNeighbourVillages,
 } from '../neighbour-villages';
 
@@ -168,12 +166,5 @@ describe('foreignFromScene a vzdálenost', () => {
       square: { x: 421, z: 3, rotation: Math.PI / 4 },
     });
     expect(foreignFromScene(withNeighbour)).not.toHaveProperty('squares');
-  });
-
-  it('nejbližší stavba vlastní i jiné vsi', () => {
-    const points = scenePoints(withNeighbour);
-    expect(distanceToPoints({ x: 200, z: 0 }, points)).toBeCloseTo(200, 6);
-    expect(distanceToPoints({ x: 400, z: 300 }, points)).toBeCloseTo(270, 0);
-    expect(distanceToPoints({ x: 0, z: 0 }, [])).toBe(Number.POSITIVE_INFINITY);
   });
 });

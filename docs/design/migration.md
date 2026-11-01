@@ -1,23 +1,26 @@
 # Stěhování – domácnost na nové místo, odchod do nové vsi
 
 Stav: schváleno 18. 10. 2026 (Martin: „Ano, takhle je to dobré, spusť to“). Hotové všechny čtyři
-fáze – přestěhování domácnosti, výběr víc obydlí, víc vsí s přepínačem, odchod na téže mapě i na
-novou mapu – viz Na stavitelích.
+fáze – přestěhování domácnosti, výběr víc obydlí, víc vsí s přepínačem, odchod na novou mapu –
+viz Na stavitelích. **Jedna ves, jedna mapa** (Martin 1. 11. 2026: „Vsi na téže mapě – zrušme vsi
+na téže mapě. Jedna ves, jedna mapa“) – odchod jinam na stejné mapě je zrušený.
 
 ## Proč
 
 Raní Slované stěhovali domy i celé vsi často (Martin: „V minulosti se to dělo mockrát“). Dům
 dožil, pole kolem se vyčerpala, ves přerostla, co okolí uživí – a část lidí odešla založit ves
 jinde. Hráč má mít obojí v rukou: **přestěhovat domácnost** na jiné místo vsi a **vyvést část
-lidí** do nové vsi na stejné nebo nové mapě (Martin). K odchodu na novou mapu dojde hlavně tehdy,
+lidí** do nové vsi na nové mapě (Martin; původně i na stejné mapě – zrušeno 1. 11. 2026, jedna
+ves, jedna mapa). K odchodu na novou mapu dojde hlavně tehdy,
 když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
 
 ## Cíle, ne-cíle, anti-cíle
 
 - **Cíl:** vybrané obydlí → „Přestěhovat“ → hráč umístí nový dům, obyvatelé si ho postaví a
   přestěhují se; starý dům zůstane prázdný (Martin).
-- **Cíl:** hráč označí víc obydlí (nebo všechna), vyvede jejich lidi a založí s nimi ves jinde
-  na stejné mapě nebo na nové mapě (Martin).
+- **Cíl:** hráč označí víc obydlí (nebo všechna), vyvede jejich lidi a založí s nimi ves na nové
+  mapě (Martin). Na stejné mapě druhá ves nevznikne – **jedna ves, jedna mapa** (Martin 1. 11.
+  2026).
 - **Cíl:** když odejde jen část, **stará ves zůstane** – hráč má víc vsí a přepíná mezi nimi
   (Martin).
 - **Ne-cíl (teď):** stěhování do cizí (obydlené) vsi, osidlování vsi NPC vojvody, vazalské
@@ -50,10 +53,9 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
   vsi): syn vojvody odchází s poměrnou částí vsi a v nové vsi je vojvodou.
 - **Odejít** s vybranými obydlími: jejich domácnosti (všichni lidé) opustí ves. Domy zůstanou
   prázdné (obsadit je může zbytek vsi, jinak se rozpadají).
-- **Kam:**
-  - **jinam na stejné mapě** – hráč umístí první zemnici nové vsi na téže krajině (stejně jako
-    při založení vsi, mimo stávající ves – nejméně ≈ 300 m od jejích staveb, návrh Clauda);
-    vznikne **druhá ves na téže mapě** se svým jménem, poli a zásobami;
+- **Kam:** jen **na novou mapu** – **jedna ves, jedna mapa** (Martin 1. 11. 2026: „Vsi na téže
+  mapě – zrušme vsi na téže mapě. Jedna ves, jedna mapa“; dřívější volba „jinam na stejné mapě“
+  s první zemnicí ≥ 300 m od staré vsi je zrušená, server takový cíl odmítne):
   - **na novou mapu** – hráč zvolí směr (8 šipek – jako v [návrhu války](war.md)); vedle mapy
     staré vsi vznikne nová mapa (nové sídlo s novou krajinou, poloha v mřížce světa vedle staré –
     první kus mřížky map, na kterou naváže válka). Cesta trvá **1–3 herní dny** podle terénu
@@ -89,7 +91,9 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
 
 ## Víc vsí jednoho hráče
 
-- Hráč (hlava rodu) má víc vsí. **Jméno vsi v horní liště** je přepínač – seznam vsí (jméno,
+- Hráč (hlava rodu) má víc vsí – **každou na vlastní mapě** (sídle): sídlo má nejvýš jednu ves
+  (Martin 1. 11. 2026: „Jedna ves, jedna mapa“; hlídá i unikátní index v databázi). Stará ves po
+  odchodu všech zůstane opuštěná na své mapě – i tak je to ta jediná ves mapy. **Jméno vsi v horní liště** je přepínač – seznam vsí (jméno,
   lidé), klik přepne pohled na jinou ves (na jiné mapě se načte její krajina). Přejmenování
   zůstane u jména vybrané vsi (jako dnes – návrh Clauda: dvojklik nebo ikona).
 - Každá ves se simuluje sama (stejná pravidla, vlastní zásoby, práce a lidé); vsi spolu zatím
@@ -103,8 +107,7 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
 - Tlačítka v panelu výběru: Přestěhovat, Odejít (ikony, popisek s cenou / počtem lidí – jako
   v 0 A.D.).
 - Při přestěhování: staveniště nového domu, obyvatelé chodí stavět; po dostavění se přestěhují.
-- Při odchodu: lidé odejdou ke kraji mapy (směr), mapa nové vsi se načte; na stejné mapě lidé
-  dojdou na místo nové vsi.
+- Při odchodu: lidé odejdou ke kraji mapy (směr), mapa nové vsi se načte.
 - Přepínač vsí v horní liště.
 
 ## Rozhodnutí
@@ -112,17 +115,18 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
 | Rozhodnutí                                                                                                | Kdo                                               |
 | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
 | Přestěhování domácnosti: obyvatelé postaví nový dům jinde, starý zůstane prázdný                          | Martin                                            |
-| Výběr víc / všech obydlí, vyvedení lidí do nové vsi na stejné nebo nové mapě                              | Martin                                            |
+| Výběr víc / všech obydlí, vyvedení lidí do nové vsi na nové mapě (původně i na stejné)                    | Martin                                            |
+| Jedna ves, jedna mapa – odchod jen na novou mapu, sídlo má nejvýš jednu ves                               | Martin (1. 11. 2026)                              |
 | Při odchodu části lidí stará ves zůstane – hráč má víc vsí                                                | Martin                                            |
 | Přestěhování bez lidí k osídlení, bydlí ve starém do dostavění; Ctrl/Shift + klik, Ctrl + A               | návrh Clauda                                      |
-| Nová ves ≥ 300 m od staré na téže mapě; nová mapa vedle staré v mřížce, cesta 1–3 dny                     | návrh Clauda                                      |
+| ~~Nová ves ≥ 300 m od staré na téže mapě~~ (zrušeno 1. 11.); nová mapa vedle staré, cesta 1–3 dny         | návrh Clauda                                      |
 | S sebou 25 kg jídla na člověka od 7 let a poměrný díl stád; klády a výrobky zůstanou                      | návrh Clauda                                      |
 | Přepínač vsí jménem v horní liště; upozornění z jiných vsí se jménem                                      | návrh Clauda                                      |
-| Víc vsí na mapě = víc vsí sídla (ves má vlastní id), nová mapa = sídlo s polohou v mřížce                 | návrh Clauda                                      |
-| Vybraná ves v cookie; ves na téže mapě se přepne na místě, na jiné mapě novým načtením                    | návrh Clauda                                      |
+| Ves má vlastní id, nová mapa = sídlo s polohou v mřížce (víc vsí na sídle zrušeno 1. 11.)                 | návrh Clauda                                      |
+| Vybraná ves v cookie; ves na jiné mapě se přepne novým načtením                                           | návrh Clauda                                      |
 | Typ nového domu dvěma tlačítky v panelu (zemnice, polozemnice); Ctrl + A jen hotová obydlí                | návrh Clauda                                      |
 | Odchod: odejdou celé domácnosti, všichni bydlí na staveništi první zemnice, opuštěná ves se nesimuluje    | návrh Clauda                                      |
-| Vsi na téže mapě: přehled cizích staveb, půdy, pasek a vyhrazených stromů při dopočtu – neukládá se       | návrh Clauda                                      |
+| ~~Vsi na téže mapě: přehled cizích staveb, půdy, pasek a vyhrazených stromů~~ (zrušeno 1. 11.)            | návrh Clauda                                      |
 | Mřížka map každého hráče zvlášť, sídelní sídlo v (0, 0); cesta 1–3 dny podle vzdálenosti ke kraji         | návrh Clauda                                      |
 | Vlastní ves v sousední mapě nahradí souseda bez simulace – tím směrem se neodchází ani neobchoduje        | návrh Clauda                                      |
 | Odcházející si vezmou volný vůz s voly a víc jídla                                                        | návrh Clauda, Martin („Ano, udělej to jak říkáš“) |
@@ -131,9 +135,17 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
 
 ## Na stavitelích
 
-- Dnes má sídlo (settlement) jednu ves a hráč jedno sídelní sídlo. Víc vsí na téže mapě = víc
-  vsí jednoho sídla (nebo sídlo na vsi – rozhodnout podle schématu `settlement` / `village`);
-  nová mapa = nové sídlo s polohou v mřížce světa (sloupec a řádek).
+- **Jedna ves, jedna mapa** (Martin 1. 11. 2026): sídlo (settlement) má nejvýš jednu ves –
+  unikátní index `village_settlement_uq` (migrace `0011`), port úložiště vsí zakládá jen
+  `create` (sídlo s vsí → null) a `addOnce` (schránka správce; sídlo s jinou vsí → null). Nová
+  mapa = nové sídlo s polohou v mřížce světa (sloupec a řádek). Archivované sídlo si svou ves
+  nechá – nové sídlo po restartu má nové id; ves na cestě i opuštěná ves jsou tou jedinou vsí
+  své mapy. Převod dat nebyl potřeba (v databázi měla každá mapa jen jednu ves).
+- Odchod jinam na stejné mapě (fáze 3), vývojová druhá ves na téže mapě, 300 m mezi vsemi
+  (`NEW_VILLAGE_MIN_DISTANCE_M`, `villages-apart.ts`), `foundAnotherVillage` a dopočet sousedů
+  téže mapy (`neighboursOf` v `updateVillage`) jsou pryč. Přehled vsí téže mapy
+  (`NeighbourSnapshot`, `neighbourhood.ts`, scéna `neighbour-villages.ts`) se už nesestavuje při
+  dopočtu – zbylé čtení `state.neighbours` je mrtvé a odstraní se zvlášť.
 - Pořadí: (1) přestěhování domácnosti a výběr víc obydlí, (2) víc vsí a přepínač, (3) odchod na
   stejnou mapu, (4) odchod na novou mapu s mřížkou světa.
 
@@ -143,8 +155,9 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
    `startRelocation` (`actions.ts`), zrušení `cancelConstruction` (`cancel-construction.ts`), use-casy `relocate-household.ts`, panel
    výběru (`RelocationControls.tsx`), výběr víc obydlí `village-selection.ts`.
 2. **Víc vsí a přepínač – hotovo.** Migrace `0005_multi_village`, use-casy podle id vsi,
-   `player-villages.ts`, přepínač `VillageSwitcher.tsx`, vývojová druhá ves na téže mapě.
-3. **Odchod na stejnou mapu – hotovo.** Jádro `departure.ts` (`departVillage`, `leavingFood`,
+   `player-villages.ts`, přepínač `VillageSwitcher.tsx` (vývojová druhá ves na téže mapě – zrušeno
+   1. 11. 2026, jedna ves, jedna mapa).
+3. **Odchod na stejnou mapu – hotovo, zrušeno 1. 11. 2026** (jedna ves, jedna mapa). Jádro `departure.ts` (`departVillage`, `leavingFood`,
    `abandonedVillageAt`), vsi na téže mapě `neighbourhood.ts` (`neighbourSnapshot`,
    `withNeighbours`), use-case `leaveVillage` (`leave-village.ts`), růžice odchodu v panelu
    (`LeaveControls`, `LeaveCompass` v `RelocationControls.tsx`), stavby jiné vsi ve scéně
@@ -156,22 +169,23 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
 ### Rozhodnutí fází 1 a 2 (návrh Clauda)
 
 - **Schéma – nejmenší změna:** ves dostala vlastní `id` (UUID, primární klíč), `settlement_id`
-  zůstal jen cizím klíčem s indexem – víc vsí na téže mapě je víc vsí jednoho sídla (krajina,
+  zůstal jen cizím klíčem s indexem – víc vsí na téže mapě bylo víc vsí jednoho sídla (do 1. 11.
+  2026; od té doby unikátní index – jedna ves, jedna mapa; krajina,
   seed a verze vrstev patří sídlu, nekopírují se do vsí). Nová mapa je nové sídlo hráče
   (`is_seat` false) se sloupci `grid_x` (sloupec) a `grid_y` (řádek) mřížky světa; na políčku
   leží nejvýš jedno aktivní sídlo (unikátní index přes všechny hráče – svět je jeden, war.md).
   Sídelní sídla z doby před mřížkou polohu nemají (null). Nesahal jsem na vazalství ani na
   oddělenou tabulku map – sídlo už mapou je.
-- **První ves sídla** se zakládá atomicky (`create` zamkne řádek sídla), další přidává `add` –
-  souběžná založení první zemnice dál založí jedinou ves.
+- **Ves sídla** se zakládá atomicky (`create` zamkne řádek sídla) – souběžná založení první
+  zemnice dál založí jedinou ves. (Další ves sídla přidávalo `add` – zrušeno 1. 11. 2026.)
 - **Akce podle id vsi:** každá server action nese `villageId` a server ověří, že ves leží
   v aktivním sídle hráče (`findPlayerVillage`). Konec hry a restart už šly přes všechna sídla;
   `dynastyStatus` teď prochází i všechny vsi každého sídla.
 - **Výběr vsi se pamatuje v cookie** (ne v query parametru): adresa zůstane `/game`, výběr vydrží
   i po zavření prohlížeče a cizí nebo archivovaná ves se tiše vrátí na první ves hráče. Cookie
   zapisuje prohlížeč – zápis v server action by Next.js odpověděl novým vykreslením stránky. Ves na
-  téže mapě se přepne bez nového načtení scény (pohled skočí na ni), ves na jiné mapě načte
-  stránku znovu s její krajinou.
+  jiné mapě načte stránku znovu s její krajinou (jedna ves, jedna mapa – jiná ves na téže mapě
+  není).
 - **Přepínač:** klik na jméno otevře seznam vsí (jméno a lidé, vymřelá zašedlá), přejmenování
   dvojklikem na jméno nebo tužkou vedle něj. Upozornění z jiné vsi: hlad, umírání hladem
   a vymření – řádek „Jméno: text“, jen když nově vznikne.
@@ -194,9 +208,11 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
   vybere jen hotová obydlí – na staveništi ještě nikdo nebydlí; při umisťování nic.
 - **Pohled na ves dopočítá všechny vsi hráče** (přepínač ukazuje aktuální lidi, konec hry až po
   vymření všech) – při desítkách vsí to bude chtít lehčí seznam bez dopočtu.
-- **Vývojová druhá ves** (dev mód, tlačítko vedle šipek času): nová ves se 4 lidmi na
-  nejbližším volném místě k místu vsi krajiny, nejméně 300 m od staveb ostatních vsí – jen pro
-  vyzkoušení přepínače, lidé ze staré vsi neodcházejí.
+- ~~**Vývojová druhá ves**~~ (dev mód, tlačítko vedle šipek času: nová ves se 4 lidmi na téže
+  mapě – jen pro vyzkoušení přepínače) – **zrušená 1. 11. 2026** (jedna ves, jedna mapa; návrh
+  Clauda: tlačítko pryč, ne na novou mapu – byla jen náhradou, dokud odchod nebyl, a odchod na
+  novou mapu přepínač vyzkouší sám; e2e přepínače si druhou ves na mapě vedle zapíše rovnou do
+  databáze).
 
 ### Rozhodnutí fází 3 a 4 (návrh Clauda)
 
@@ -220,7 +236,7 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
   každé obydlí ztrácí stav podílem prázdného obydlí (`emptyLifespanYears`) ode dne odchodu, na
   nule se zřítí a zbude jáma, která `RUIN_YEARS` zarůstá; pole leží ladem. Konec hry počítá
   opuštěnou ves jako mrtvou (hra končí, když žádná ves nežije – ves na cestě žije).
-- **Vsi na téže mapě o sobě vědí** přes přehled (`NeighbourSnapshot`), který se sestaví při
+- ~~**Vsi na téže mapě o sobě vědí**~~ (zrušeno 1. 11. 2026 – jedna ves, jedna mapa) přes přehled (`NeighbourSnapshot`), který se sestaví při
   každém dopočtu (`updateVillage`) a pohledu z uložených vsí mapy a **neukládá se**: stavby
   (obydlí, rozestavěná obydlí, modly, svatyně) a políčka (pole, sady, hřbitovy, ohrady, les vsi,
   pozemky). Kontroly umístění na serveru i v prohlížeči je znají jako cizí půdu („Tady hospodaří
@@ -229,17 +245,18 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
   nekácí. Simulace jedné vsi tak závisí i na tom, kdy se druhá naposledy uložila – výsledek
   dopočtu po kouscích už není úplně stejný, přijatelné. Vsi se načítají jen tehdy, když na mapě
   jiná ves je (levný otisk napřed).
-- **Scéna** kreslí stavby jiné vsi s vlastními (id posunutá o 10 000 000 × pořadí vsi) – jen
+- ~~**Scéna** kreslí stavby jiné vsi~~ (zrušeno 1. 11. 2026) s vlastními (id posunutá o 10 000 000 × pořadí vsi) – jen
   pohled, bez lidí, práce a stád té vsi; vybrat je nejde (klik na ně jako na prázdnou zem).
   Minimapa je ukazuje taky.
-- **Odchod na téže mapě:** růžice v panelu (uprostřed „nová ves na téže mapě“) → hráč umístí první
-  zemnici – nejméně 300 m od staveb všech vsí mapy (ověří prohlížeč i server dřív, než lidé
-  odejdou) → ves se hned založí a rozhraní se na ni přepne. Jméno navrhne hra.
+- ~~**Odchod na téže mapě**~~ – **zrušen 1. 11. 2026** (Martin: „Jedna ves, jedna mapa“): růžice
+  v panelu má jen 8 směrů na novou mapu (uprostřed nic), cíl `here` server odmítne („Odejít jde
+  jen na novou mapu.“). Dřív: hráč umístil první zemnici nejméně 300 m od staveb všech vsí mapy
+  a ves se hned založila.
 - **Mřížka map je zatím každého hráče zvlášť** (unikátní políčko na hráče, ne na svět): sídelní
   sídlo dostane s prvním odchodem na novou mapu polohu (0, 0), nová mapa leží o políčko vedle ve
   směru šipky (sever +y, východ +x – jako osa krajiny). Sdílený svět všech hráčů chce návrh, kde
   noví hráči v mřížce začínají – do té doby mají hráči každý svůj kus světa. Políčko vlastního
-  sídla bez vsí se použije znovu.
+  sídla bez vsi se použije znovu; sídlo s vsí (i opuštěnou) ne – tím směrem leží vlastní ves.
 - **Cesta na novou mapu:** 1–3 herní dny podle vzdálenosti od dvorce ke kraji mapy ve směru
   (každých 400 m den), po hotové zemské stezce tím směrem 1 den. Ves na cestě se nesimuluje (lidé
   nestárnou ani nejí – pár dní); v přepínači je s poznámkou „na cestě“, po přepnutí se načte nová
@@ -255,7 +272,7 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
 ### Připraveno pro fáze 3 a 4 (stav po fázi 2)
 
 - `foundAnotherVillage` (další ves téhož sídla, první zemnice nejméně 300 m od staveb ostatních
-  – `villages-apart.ts`, `NEW_VILLAGE_MIN_DISTANCE_M`) – fáze 3 doplní umístění první zemnice
+  – `villages-apart.ts`, `NEW_VILLAGE_MIN_DISTANCE_M`; vše zrušeno 1. 11. 2026) – fáze 3 doplní umístění první zemnice
   hráčem, přesun vybraných domácností a jídla s sebou a kroniku „ves opuštěna“.
 - `SettlementRepository.create` s polohou v mřížce (políčko jedno na svět) – fáze 4 ještě musí
   přidělit polohu sídelnímu sídlu (dnes null) při prvním odchodu a vybrat sousední políčko

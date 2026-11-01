@@ -56,7 +56,7 @@ export * from './digest';
 export * from './son-departure';
 export * from './neighbourhood';
 export * from './world-grid';
-export * from './villages-apart';
+export * from './village-site';
 export * from './fields';
 export * from './holdings';
 export * from './year-plan';

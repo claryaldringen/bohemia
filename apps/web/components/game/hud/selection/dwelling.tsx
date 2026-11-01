@@ -22,12 +22,11 @@ export interface RelocationActions {
   /** Zruší rozestavěné stěhování (stavba nového domu) – hotovo, až se vrátí. */
   onCancelConstruction?: (constructionId: number) => Promise<void>;
   /**
-   * Odejít do nové vsi (migration.md – fáze 3 a 4): na téže mapě (`here` – hráč pak umístí první
-   * zemnici), nebo na novou mapu ve směru.
+   * Odejít do nové vsi (migration.md – fáze 3 a 4): na novou mapu ve směru (jedna ves, jedna mapa).
    */
-  onLeave?: (target: 'here' | Direction8, householdIds: readonly number[]) => void;
+  onLeave?: (direction: Direction8, householdIds: readonly number[]) => void;
   /** Odchod syna vojvody s poměrnou částí vsi (lord.md – Dělení vsi): cíl jako u `onLeave`. */
-  onLeaveSon?: (target: 'here' | Direction8, sonId: number) => void;
+  onLeaveSon?: (direction: Direction8, sonId: number) => void;
   /** Obrys obydlí dílu vybraného syna ve scéně; null – obrys zmizí. */
   onPreviewSon?: (dwellingIds: readonly number[] | null) => void;
 }

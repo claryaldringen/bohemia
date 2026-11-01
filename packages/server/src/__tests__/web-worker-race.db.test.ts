@@ -96,7 +96,6 @@ class SaveLog {
       find: (id) => inner.find(id),
       listBySettlement: (id) => inner.listBySettlement(id),
       create: (...args) => inner.create(...args),
-      add: (...args) => inner.add(...args),
       findByOrigin: (origin) => inner.findByOrigin(origin),
       addOnce: (...args) => inner.addOnce(...args),
       rename: (id, name) => inner.rename(id, name),

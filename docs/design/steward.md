@@ -83,21 +83,16 @@ postavit, vylepšit nebo může vesnici úplně vystěhovat a založit jinde.**�
   se dál simuluje. Zdrojem pravdy je přepínač `steward.on` vsi na cestě (hráč ho cestou může
   zapnout i vypnout), `journey.stewarded` je jen počáteční hodnota; po založení správce zůstane
   tak, jak ho hráč nechal.
-- **Jiné vsi na téže mapě.** Kontroly umístění vidí stavby ostatních vsí z přehledu sousedů
-  (`withNeighbours`, neukládá se). Ten je snímek z doby dopočtu – kdyby správce plánoval podle
-  staveb sousední vsi, závisel by výsledek na pořadí dopočtu vsí. Proto správce plánuje jen na
-  **území své vsi**: políčka blíž středu (dvorci) své vsi než středu kterékoli jiné vsi mapy,
-  která už stojí (Voroného buňky; `NeighbourSnapshot` dostane střed a den založení každé vsi –
-  obojí se po založení nemění). Ves syna ve schránce, která ještě nevznikla, se počítá od dne
-  odchodu podle `steward.departures[].dwelling`, takže mateřská ves neplánuje přes její místo. Stavbu jiné vsi na svém území (staví ji hráč) správce
-  respektuje přes kontrolu umístění – tahle jediná výjimka může na kouscích dopočtu záviset (viz
-  Otevřené otázky).
+- **Jiné vsi na téže mapě nejsou** – jedna ves, jedna mapa (Martin 1. 11. 2026: „Vsi na téže mapě
+  – zrušme vsi na téže mapě. Jedna ves, jedna mapa“). Správce plánuje na **území své vsi** (do
+  800 m od středu – dvorce); území už nedělí Voroného buňky s jinými vsemi mapy ani místo vsi syna
+  ve schránce (obojí zrušeno 1. 11. 2026).
 - **Odchod syna vytváří novou ves** – nový záznam vsi (a na nové mapě i sídlo s krajinou), což
   doména udělat nemůže. Správce proto v simulaci provede jen doménovou část (`departWithSon` – lidé,
   jídlo, stáda, vůz odejdou v ten den) a osadníky uloží do **odchozí schránky**
   `steward.departures` (seed, jméno a cíl nové vsi spočítané deterministicky). Use-case
-  **`settleStewardDepartures`** po dopočtu schránku vybaví: založí ves (`foundedVillageState` na
-  téže mapě, `travellingVillage` na nové mapě) se dnem odchodu a záznam ve schránce označí id nové
+  **`settleStewardDepartures`** po dopočtu schránku vybaví: založí ves na nové mapě
+  (`travellingVillage` – jedna ves, jedna mapa) se dnem odchodu a záznam ve schránce označí id nové
   vsi – idempotentně (podle id záznamu), takže pád serveru mezi uložením mateřské vsi a založením
   nové nic neztratí ani nezdvojí. Web ho volá za každým dopočtem vsi hráče, worker později taky.
 
@@ -222,8 +217,7 @@ svého druhu (pole a čtverce po blocích) a všechny čerpají ze stejného roz
 - **Kdy není kam** (krok 2): v plánu nezbývá čtverec, jehož práce uživí víc, než sní ten, kdo ji
   dělá – hodnota čtverce (kg čisté úrody za člověkoden založení a polní práce, `squareValue`
   rozšířené o záplavy, zvěř a ochranu) pod `STEWARD.minKgPerManDay` (≈ 1,5 × denní potřeba obilí
-  dospělého) –, nebo leží dál než 800 m od nejbližšího obydlí (fields.md – Založení pole), nebo
-  na území jiné vsi. Napřed tedy nová pole, až když není kam, odchod (Martin 30. 10. 2026).
+  dospělého) –, nebo leží dál než 800 m od nejbližšího obydlí (fields.md – Založení pole). Napřed tedy nová pole, až když není kam, odchod (Martin 30. 10. 2026).
 
 ### Den správce – upřesnění (návrh Clauda – `STEWARD` v `rules-steward.ts`)
 
@@ -420,8 +414,8 @@ stavby), nejvýš jedno pole na den správce.
 - **Plán na lidi:** dvojnásobek dnešních lidí, aspoň 4 domácnosti po 7 lidech, nejvýš co uživí
   louka území – „víc z“ v textu výš čtu jako dvojnásobek omezený tím, co území uživí. Blok pole
   domácnosti je její potřeba z pole × oběh × 1,25 (rezerva) při průměrné úrodnosti louky území.
-- **Území vsi:** Voroného buňka středů vsí mapy (dvorec, jinak první obydlí) do 800 m; při shodě
-  vzdálenosti vyhraje starší ves.
+- **Území vsi:** do 800 m od středu vsi (dvorec, jinak první obydlí). (Voroného buňka středů vsí
+  mapy – zrušeno 1. 11. 2026, jedna ves, jedna mapa.)
 - **Šablony:** shluk = domy nejblíž středu; řadová ves = domy do 100 m od vody od středu do stran
   s rozestupem na šířku bloku; samoty = domy uprostřed nejbohatších bloků s rozestupem na šířku
   bloku. Bloky si domy berou po kole po nejbližším volném políčku. Cena = člověkodny za rok (polní
@@ -505,11 +499,9 @@ stavby), nejvýš jedno pole na den správce.
   ve hře má vojvodu vždy. Odchod vede `departWithSon` s dílem `sonShare` (1 ÷ dílníků, domácnosti nejblíž domu syna).
   Nejvýš jeden odchod za rok z jedné vsi; po odchodu se plán mateřské vsi přepočítá (menší ves,
   uvolněné domy).
-- **Kam – na téže mapě, nebo na nové mapě:**
-  - **Tady** (`here`), když na mapě je místo nové vsi (jako `freeVillageSite` – ≥ 300 m od staveb
-    všech vsí), jehož budoucí území uživí aspoň `STEWARD.hereCapacity` (≈ 2×) lidí dílu podle mapy
-    hodnot; místo první zemnice vybere správce mezi nimi podle hodnoty domu. Bez cesty.
-  - Jinak **na novou mapu** (`map`): směr bez vlastní vsi (vlastní ves v sousední mapě nahradí
+- **Kam – vždy na novou mapu** (Martin 1. 11. 2026: „Jedna ves, jedna mapa“; dřívější „Tady“ –
+  nová ves na téže mapě, když tam bylo místo pro 2× díl – je zrušené):
+  - **na novou mapu** (`map`): směr bez vlastní vsi (vlastní ves v sousední mapě nahradí
     souseda – tím směrem se neodchází, migration.md), napřed směr s hotovou zemskou stezkou (cesta
     1 den), pak nejkratší cesta ke kraji mapy (`edgeDistanceM`), při shodě pevné pořadí směrů.
     Novou krajinu vytvoří až `settleStewardDepartures` (seed sídla z `SeedSource` jednou); po
@@ -536,14 +528,12 @@ stavby), nejvýš jedno pole na den správce.
   pole, i když hladoví – ale jen rok: hladověla-li aspoň `departureHungerDays` už do minulého 31. 8. (`steward.lastYearHunger`), pole navíc nepomohla a syn odejde i s místem na pole (oprava 31. 10. 2026: ves rodu na seedu krajiny 2 hladověla na stropu 8 let se synem, který smí vést,
   a nikdo neodešel). Kronika `seed-short` se nepoužívá – zkracuje se na konci dopočtu, takže by
   výsledek závisel na kouscích.
-- **Tady:** kandidáti na každém `hereStrideTiles` (4.) políčku ≥ 300 m od staveb všech vsí mapy
-  (vlastní a ze snímku sousedů), seřazení podle hodnoty domu; ověří se nejvýš `hereTries` (12)
-  nejlepších – budoucí území (≤ 800 m, blíž místu než středu jiné vsi, volná políčka s hodnotou
-  nad prahem) jako jedno pole v ustáleném oběhu musí uživit `hereCapacity` (2) × lidí dílu.
 - **Nová mapa:** doména vlastní vsi na sousedních mapách nezná – do schránky uloží všech osm směrů
   v pořadí (stezka, kraj, pevné pořadí) a use-case vezme první bez vlastní vsi. Kronika odchodu
-  nese první směr. Když na novou mapu nejde (mapa bez místa ve světě), ves vznikne na nejbližším
-  volném místě téže mapy.
+  nese první směr. Když na novou mapu nejde (všech osm směrů má vlastní ves, mapa bez místa ve
+  světě), záznam čeká ve schránce a po `departureAttempts` (5) pokusech se nezkouší – na téže mapě
+  ves nevznikne (jedna ves, jedna mapa – Martin 1. 11. 2026; dřív nejbližší volné místo téže
+  mapy). Otevřené: cíl o mapu dál (návrh Clauda – až s větším rodem).
 - **Příjezd:** ves na cestě se správcem se v den příjezdu založí na nejbližším volném místě
   k místu vsi nové krajiny (`freeVillageSite`) – plán nové vsi ještě neexistuje. **Odchod syna,
   který spustí hráč** (`leaveVillage` se `sonId`), se po příjezdu sám nezaloží – čeká, až hráč
@@ -639,12 +629,12 @@ stavby), nejvýš jedno pole na den správce.
 | Režimy Nouze / Obnova / Růst podle pojistky zásob; rozpočet práce ≈ 120 dní volné práce                        | návrh Clauda                           |
 | Hodnota a cena v člověkodnech za rok; cíl polí na lidi za 2 roky × 1,1                                         | návrh Clauda                           |
 | Plán sídla ze šablon (shluk, řadová ves, samoty), hospodářství dům + blok polí, rezervy, uložený ve stavu      | návrh Clauda                           |
-| Území vsi = Voroného buňka středů vsí mapy; správce plánuje jen na svém území                                  | návrh Clauda                           |
+| Území vsi do 800 m od středu; správce plánuje jen na svém území (Voroného buňky zrušeny 1. 11. 2026)           | návrh Clauda                           |
 | Značka „postavil správce“ jako množina id `steward.built`; převod: bez stavu vypnutý                           | návrh Clauda                           |
 | Přestavba obydlí přestěhováním na konci životnosti; ostatní stavby nová + stará chátrá                         | návrh Clauda                           |
 | Hráč smí zrušit rozestavěnou stavbu správce → veto na 5 let                                                    | návrh Clauda                           |
 | Jména synů při narození jako u vnuků; odchod nejstaršího ženatého způsobilého syna, nejvýš jednou za rok       | návrh Clauda                           |
-| Odchod na téže mapě, když tam je místo pro 2× díl; jinak nová mapa (stezka, nejkratší cesta)                   | návrh Clauda                           |
+| ~~Odchod na téže mapě, když tam je místo pro 2× díl~~; vždy nová mapa (stezka, nejkratší cesta)                | návrh Clauda, Martin (1. 11. 2026)     |
 | Odchod přes odchozí schránku `steward.departures` a use-case `settleStewardDepartures`                         | návrh Clauda                           |
 | UI: přepínač s ikonou v seznamu vsí a v panelu dvorce, ikona u staveb správce, žádné kroniky navíc ani plán    | návrh Clauda                           |
 | Ověření skriptem `measure-steward.ts` – 20 krajin v 5 typech, 50 let, srovnání se skriptem, Vlkovem a mezí     | návrh Clauda                           |
@@ -660,11 +650,10 @@ stavby), nejvýš jedno pole na den správce.
    (vojvodou nejstarší muž rodu mezi nimi) jako hráč.
 3. **Výpravy za obchodem a velký lov rodu** – v první verzi je správce nedělá (nejsou stavby).
    Chce je Martin v další verzi (nákup obilí v hladovém roce, lov prasat na polích)?
-4. **Tady, nebo na nové mapě** – návrh Clauda dává přednost téže mapě, jen když je místo pro
-   dvojnásobek dílu. Má rod raději zůstat pohromadě (budoucí seniorát, válka), nebo se šířit?
-5. **Vsi na téže mapě** – stavba hráče na území jiné vsi je jediné místo, kde výsledek správce
-   může záviset na pořadí dopočtu vsí. Stačí to, nebo dopočítávat vsi jedné mapy naráz den po dni
-   (≈ 2× dražší dopočet, plně deterministické)?
+4. ~~**Tady, nebo na nové mapě**~~ – uzavřeno: vždy nová mapa (Martin 1. 11. 2026: „Jedna ves,
+   jedna mapa“).
+5. ~~**Vsi na téže mapě**~~ – odpadá (jedna ves, jedna mapa – Martin 1. 11. 2026); výsledek
+   správce na pořadí dopočtu vsí nezávisí.
 6. **Správce v první vsi** – zapnout ho sám po dlouhé nepřítomnosti hráče? Návrh Clauda: ne,
    rozhoduje jen hráč (Martin 30. 10. 2026 – první ves vypnutý).
 7. **Strop počtu vsí rodu** (závěrečná recenze, S3) – žádný strop vsí na rod ani na mapu: každá

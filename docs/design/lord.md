@@ -714,7 +714,8 @@ autopilot (fáze 3). Co níž není výslovně Martinovo, je návrh Clauda.
   lidí není co nejblíž dílu – po celých domácnostech, jako dnes při odchodu; domácnost, která by díl
   oddálila od cíle, se přeskočí a pokračuje další nejbližší (návrh Clauda). Do dílu nepatří
   dvorec, domácnosti ostatních synů vojvody (mají svůj díl) ani domácnost, která si staví dům.
-  Nejbližší obydlí drží díl pohromadě – ve fázi 3 ho půjde spravovat i na místě (zadání issue).
+  Nejbližší obydlí drží díl pohromadě – ve fázi 3 ho půjde spravovat i na místě (zadání issue;
+  s pravidlem jedna ves, jedna mapa otevřené – viz Nástupnictví níž).
 - Dům, který syn drží a bydlí v něm i jiní, zůstane zbytku domácnosti podle
   [příbuzenství](kinship.md) jako po smrti hospodáře.
 - **Jídlo, osivo, stáda a vůz** podle lidí dílu jako dnes ([stěhování](migration.md) – poměrný
@@ -737,6 +738,9 @@ autopilot (fáze 3). Co níž není výslovně Martinovo, je návrh Clauda.
 - **Ves bez muže rodu** (vojvoda nové vsi zemře a jiný muž rodu v ní není) žije dál bez vojvody
   – lidé pracují, nikdo necvičí. Nástupce z jiné vsi hráče řeší fáze 4 (seniorát); u mateřské
   vsi stejně.
+- **Nová ves stojí vždy na nové mapě** – syn odchází jen na novou mapu ve zvoleném směru (Martin
+  1. 11. 2026: „Vsi na téže mapě – zrušme vsi na téže mapě. Jedna ves, jedna mapa“); dřívější
+     „Odejít sem“ (nová ves na téže mapě) je zrušené, server takový cíl odmítne.
 - Obě vsi patří hráči a hráč řídí obě ([stěhování](migration.md) – Víc vsí jednoho hráče).
   Podřízenost syna otci a rodové panství řeší fáze 4.
 
@@ -748,6 +752,11 @@ autopilot (fáze 3). Co níž není výslovně Martinovo, je návrh Clauda.
   poměrnou částí vsi, kterou spravuje na místě, nebo s ní odejde; zbytek vsi spravuje NPC.
   Martin 24. 10. 2026: „S tímhle počkáme, dokud nebude fungovat NPC mechanika“ – fáze 3. Díl
   počítá stejně jako tady (Poměrná část vsi), fáze 3 ho jen použije.
+- **Otevřená otázka na později (1. 11. 2026):** zadání issue „mladší syn může svou poměrnou část
+  vsi **spravovat na místě**“ bude s pravidlem **jedna ves, jedna mapa** (Martin 1. 11. 2026:
+  „Jedna ves, jedna mapa“) potřebovat jiné řešení – díl na místě by byl druhou vsí na téže mapě.
+  Návrh Clauda: syn svůj díl převezme jen odchodem na novou mapu (spravovat na místě nejde);
+  rozhodne se s fází 3 (NPC).
 
 ### Odchod bez syna
 
@@ -763,7 +772,8 @@ autopilot (fáze 3). Co níž není výslovně Martinovo, je návrh Clauda.
 - **Výběr dvorce** → v panelu **řada ikon synů** – ikona muže rodu, jméno a věk v popisku;
   nástupce a syn bez jména zašedlí s důvodem u kurzoru („Nástupce zůstává.“, „Syn potřebuje
   jméno.“), syn mladší 16 let chybí. Klik na syna označí ve scéně obydlí jeho dílu (obrys jako
-  výběr) a ukáže tlačítka Odejít sem / na novou mapu.
+  výběr) a ukáže růžici Odejít na novou mapu (8 směrů; „sem“ zrušené 1. 11. 2026 – jedna ves,
+  jedna mapa).
 - Popisek odchodu: počet lidí dílu, vůz, kůň.
 - Kdy odejít, rozhodne hráč sám: ikona lidí v horní liště „lidí / ≈ N“ zčervená, když je lidí víc,
   než pole uživí (už dnes; s opravou podle dnešní půdy včas). Žádné další upozornění ani rada.

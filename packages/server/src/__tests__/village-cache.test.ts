@@ -23,7 +23,7 @@ const landscape = makeLandscape({ surface: () => 'meadow' });
 const landscapes: LandscapeSource = { landscapeOf: () => landscape };
 const at = (x: number, z: number): Position => ({ x, z, rotation: 0 });
 
-/** Hráč se sídlem a dvěma vsemi na téže mapě (druhá má sousedku – `neighboursOf`). */
+/** Hráč se dvěma vsemi – každá na vlastní mapě (jedna ves, jedna mapa). */
 async function world(): Promise<{
   settlements: InMemorySettlements;
   store: InMemoryVillages;
@@ -48,8 +48,14 @@ async function world(): Promise<{
     },
   );
   if (!r.ok) throw new Error(r.reason);
-  // druhá ves téže mapy (stačí kopie stavu) – dopočet každé vsi načítá i tu druhou
-  await store.add(seat.id, 'Druhá', structuredClone(r.village.state));
+  // druhá ves na mapě vedle (stačí kopie stavu) – stav rodu načítá i tu druhou
+  const map = await settlements.create({
+    ownerId: PLAYER,
+    landscapeSeed: 12,
+    layerVersions: CURRENT_LAYER_VERSIONS,
+    worldCell: { x: 1, y: 0 },
+  });
+  await store.add(map!.id, 'Druhá', structuredClone(r.village.state));
   store.finds = 0;
   return { settlements, store, villageId: r.village.id };
 }
@@ -75,14 +81,14 @@ describe('paměť vsí na jeden požadavek (village-cache.ts)', () => {
   it('akce načte každou ves jednou a výsledek je stejný jako bez paměti', async () => {
     const plain = await world();
     const before = await action(plain.settlements, cachedVillages(plain.store), plain.villageId);
-    // bez rozsahu se nic nepamatuje – ověření vsi, 2× dopočet, use-case, sousedé
+    // bez rozsahu se nic nepamatuje – ověření vsi, 2× dopočet obou vsí, use-case
     expect(plain.store.finds).toBeGreaterThanOrEqual(6);
 
     const cached = await world();
     const after = await withVillageCache(() =>
       action(cached.settlements, cachedVillages(cached.store), cached.villageId),
     );
-    // dvě vsi, každá načtená jednou (sousedé z paměti)
+    // dvě vsi, každá načtená jednou (dál z paměti)
     expect(cached.store.finds).toBe(2);
     expect(after).toEqual(before);
     expect(cached.store.records).toEqual(plain.store.records);

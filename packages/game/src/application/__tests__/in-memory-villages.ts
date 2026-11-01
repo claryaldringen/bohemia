@@ -56,9 +56,14 @@ export class InMemoryVillages implements VillageRepository {
     return this.insert(settlementId, name, state);
   }
 
+  /**
+   * Ves sídla pro testy (mimo port) – jako `create`, ale vrátí ji rovnou; sídlo, které už ves má,
+   * je chyba testu (jedna ves, jedna mapa).
+   */
   async add(settlementId: string, name: string, state: VillageState): Promise<VillageRecord> {
-    await Promise.resolve();
-    return this.insert(settlementId, name, state);
+    const created = await this.create(settlementId, name, state);
+    if (!created) throw new Error(`Sídlo ${settlementId} už ves má – jedna ves, jedna mapa.`);
+    return created;
   }
 
   async findByOrigin(origin: string): Promise<VillageRecord | null> {
@@ -80,6 +85,8 @@ export class InMemoryVillages implements VillageRepository {
     // kontrola a zápis bez dalšího await – atomicky jako zámek řádku sídla v databázi
     const existing = [...this.records.values()].find((r) => r.state.origin === state.origin);
     if (existing) return structuredClone(existing);
+    // jedna ves, jedna mapa – sídlo s jinou vsí nic nezaloží
+    if ([...this.records.values()].some((r) => r.settlementId === settlementId)) return null;
     return this.insert(settlementId, name, state);
   }
 

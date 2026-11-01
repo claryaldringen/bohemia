@@ -11,7 +11,6 @@ import {
   clearingFellCost,
   fellDueTrees,
   foundField,
-  freeVillageSite,
   fieldPartsFromCells,
   generateLandscapeAttempt,
   orchardPartsFromCells,
@@ -43,6 +42,7 @@ import {
   selectAllDwellings,
   twoHouseholds,
   villageSpots,
+  villageOnNextMap,
   villageState,
   withBuiltFirstDwelling,
   writeVillageState,
@@ -1011,60 +1011,58 @@ test('domácnosti se stěhují do nových domů – Ctrl + A vybere obydlí, dom
     .toBe(1);
 });
 
-test('druhá ves na téže mapě (vývojový režim) – jméno vsi v liště přepíná mezi vsemi', async ({
-  page,
-}) => {
-  const { email, seat: s } = await newPlayer(page, 'vsi');
+test('druhá ves na jiné mapě – jméno vsi v liště přepíná mezi vsemi', async ({ page }) => {
+  const { seat: s } = await newPlayer(page, 'vsi');
   await found(page, villageSpots(s.landscape).dwelling);
   const name = page.getByTestId('village-name');
   const first = suggestVillageName(s.seed);
   await expect(name).toHaveText(first);
-  // bez vývojového režimu tlačítko druhé vsi není
+  // jedna ves, jedna mapa – vývojové tlačítko druhé vsi na téže mapě už není; druhá ves leží na
+  // mapě vedle
   await expect(page.getByTestId('dev-second-village')).toHaveCount(0);
-  await query('UPDATE "user" SET dev_mode = true WHERE email = $1', [email]);
+  const [one] = await query<{ id: string }>('SELECT id FROM village WHERE settlement_id = $1', [
+    s.settlementId,
+  ]);
+  const two = await villageOnNextMap(s.settlementId, 'Budeč');
   await page.reload();
   await expect(readyScene(page)).toBeVisible({ timeout: 60_000 });
+  await expect(name).toHaveText(first, { timeout: 30_000 });
 
-  // Druhá ves vznikne na téže mapě a rozhraní se na ni hned přepne.
-  await page.getByTestId('dev-second-village').click();
-  const villages = (): Promise<{ id: string; name: string }[]> =>
-    query<{ id: string; name: string }>(
-      'SELECT id, name FROM village WHERE settlement_id = $1 ORDER BY created_at, id',
-      [s.settlementId],
-    );
-  await expect.poll(async () => (await villages()).length, { timeout: 30_000 }).toBe(2);
-  const [one, two] = await villages();
-  expect(one!.name).toBe(first);
-  await expect(name).toHaveText(two!.name, { timeout: 30_000 });
+  // Klik na jméno otevře seznam vsí (jméno a lidé), klik na ves ji přepne.
+  await name.click();
+  const list = page.getByTestId('village-list');
+  await expect(list.getByRole('option')).toHaveCount(2);
+  await expect(list.locator(`[data-village="${one!.id}"]`)).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await expect(list.locator(`[data-village="${two.id}"]`)).toContainText('Budeč');
+  await list.locator(`[data-village="${two.id}"] [data-testid="village-select"]`).click();
+  await expect(list).toHaveCount(0);
+  await expect(readyScene(page)).toBeVisible({ timeout: 60_000 });
+  await expect(name).toHaveText('Budeč', { timeout: 30_000 });
 
   // Přejmenování platí jen pro vybranou ves.
   await page.getByRole('button', { name: 'Přejmenovat ves' }).click();
   await page.getByRole('textbox', { name: 'Jméno vsi' }).fill('Druhovice');
   await page.keyboard.press('Enter');
   await expect(name).toHaveText('Druhovice');
+  const names = async (): Promise<string[]> =>
+    (
+      await query<{ name: string }>('SELECT name FROM village WHERE id = ANY($1) ORDER BY name', [
+        [one!.id, two.id],
+      ])
+    ).map((v) => v.name);
+  await expect.poll(names, { timeout: 30_000 }).toEqual(['Druhovice', first].sort());
 
-  // Klik na jméno otevře seznam vsí (jméno a lidé), klik na ves ji přepne.
-  await name.click();
-  const list = page.getByTestId('village-list');
-  await expect(list.getByRole('option')).toHaveCount(2);
-  await expect(list.locator(`[data-village="${two!.id}"]`)).toHaveAttribute(
-    'aria-selected',
-    'true',
-  );
-  await expect(list.locator(`[data-village="${one!.id}"]`)).toContainText(first);
-  await list.locator(`[data-village="${one!.id}"] [data-testid="village-select"]`).click();
-  await expect(list).toHaveCount(0);
-  await expect(name).toHaveText(first);
-  expect((await villages()).map((v) => v.name)).toEqual([first, 'Druhovice']);
-
-  // Výběr se pamatuje – po novém načtení stránky je vybraná zase první ves, pak druhá.
-  await page.reload();
-  await expect(name).toHaveText(first, { timeout: 30_000 });
-  await name.click();
-  await list.locator(`[data-village="${two!.id}"] [data-testid="village-select"]`).click();
-  await expect(name).toHaveText('Druhovice');
+  // Výběr se pamatuje – po novém načtení stránky je vybraná zase druhá ves, pak první.
   await page.reload();
   await expect(name).toHaveText('Druhovice', { timeout: 30_000 });
+  await name.click();
+  await list.locator(`[data-village="${one!.id}"] [data-testid="village-select"]`).click();
+  await expect(name).toHaveText(first, { timeout: 30_000 });
+  await page.reload();
+  await expect(name).toHaveText(first, { timeout: 30_000 });
 });
 
 test('ves postaví ve dvorci zemskou stezku a pošle po ní výpravu k sousedovi', async ({ page }) => {
@@ -1154,46 +1152,6 @@ test('ves postaví ve dvorci zemskou stezku a pošle po ní výpravu k sousedovi
   expect(sent.chronicle.some((e) => e.kind === 'trade-departed')).toBe(true);
 });
 
-test('lidé odejdou založit novou ves na téže mapě – stará ves zůstane opuštěná', async ({
-  page,
-}) => {
-  const { seat: s } = await newPlayer(page, 'odchod');
-  const spots = villageSpots(s.landscape);
-  await found(page, spots.dwelling);
-  const before = await twoHouseholds(s, spots.dwelling);
-  await pollVillage(page);
-
-  // Všechna obydlí → Odejít → nová ves na téže mapě: hráč umístí první zemnici daleko od staré.
-  const panel = await selectAllDwellings(page);
-  await panel.getByTestId('leave-village').click();
-  await panel.getByTestId('leave-here').click();
-  const site = freeVillageSite(
-    s.landscape,
-    before.dwellings.map((d) => ({ x: d.position.x, z: d.position.z })),
-  );
-  expect(site).not.toBeNull();
-  await confirmPlacement(page, { kind: 'dwelling', type: 'zemnice', position: site! });
-
-  const villages = (): Promise<{ id: string; name: string; state: VillageState }[]> =>
-    query<{ id: string; name: string; state: VillageState }>(
-      'SELECT id, name, state FROM village WHERE settlement_id = $1 ORDER BY created_at, id',
-      [s.settlementId],
-    );
-  await expect.poll(async () => (await villages()).length, { timeout: 30_000 }).toBe(2);
-  const [old, fresh] = await villages();
-  // odešli všichni – stará ves je opuštěná, nová stojí jako staveniště první zemnice
-  expect(old!.state.abandonedDay).toBeDefined();
-  expect(old!.state.people).toEqual([]);
-  expect(fresh!.state.people).toHaveLength(before.people.length);
-  expect(fresh!.state.constructions[0]!.position).toEqual(site);
-  // rozhraní se přepnulo na novou ves, stará je v přepínači opuštěná
-  await expect(page.getByTestId('village-name')).toHaveText(fresh!.name, { timeout: 30_000 });
-  await page.getByTestId('village-name').click();
-  await expect(
-    page.getByTestId('village-list').locator(`[data-village="${old!.id}"]`),
-  ).toHaveAttribute('data-state', 'abandoned');
-});
-
 test('lidé odejdou na novou mapu – po cestě umístí první zemnici', async ({ page }) => {
   const { email, seat: s } = await newPlayer(page, 'novamapa');
   const spots = villageSpots(s.landscape);
@@ -1234,8 +1192,15 @@ test('lidé odejdou na novou mapu – po cestě umístí první zemnici', async 
     page.locator('[data-testid="village-notice"][data-kind="households-left"]'),
   ).toBeVisible();
 
-  // Přepnutí na ves na cestě načte novou mapu – řádek „na cestě“, stavět se zatím nedá.
+  // Odešli všichni – stará ves zůstala opuštěná na své mapě (jedna ves, jedna mapa); přepnutí na
+  // ves na cestě načte novou mapu – řádek „na cestě“, stavět se zatím nedá.
+  const [old] = await query<{ id: string }>('SELECT id FROM village WHERE settlement_id = $1', [
+    s.settlementId,
+  ]);
   await page.getByTestId('village-name').click();
+  await expect(
+    page.getByTestId('village-list').locator(`[data-village="${old!.id}"]`),
+  ).toHaveAttribute('data-state', 'abandoned');
   await page
     .getByTestId('village-list')
     .locator(`[data-village="${travelling!.id}"] [data-testid="village-select"]`)
@@ -1605,30 +1570,23 @@ test('správce vsi – zapnutí a vypnutí přepínačem v seznamu vsí, ikona u
 });
 
 test('správce jiné vsi ze seznamu – pohled zůstane na zobrazené vsi', async ({ page }) => {
-  const { email, seat: s } = await newPlayer(page, 'spravce2');
+  const { seat: s } = await newPlayer(page, 'spravce2');
   await found(page, villageSpots(s.landscape).dwelling);
-  await query('UPDATE "user" SET dev_mode = true WHERE email = $1', [email]);
+  const two = await villageOnNextMap(s.settlementId, 'Budeč');
   await page.reload();
   await expect(readyScene(page)).toBeVisible({ timeout: 60_000 });
-  await page.getByTestId('dev-second-village').click();
-  const villages = (): Promise<{ id: string; name: string }[]> =>
-    query<{ id: string; name: string }>(
-      'SELECT id, name FROM village WHERE settlement_id = $1 ORDER BY created_at, id',
-      [s.settlementId],
-    );
-  await expect.poll(async () => (await villages()).length, { timeout: 30_000 }).toBe(2);
-  const [one, two] = await villages();
   const name = page.getByTestId('village-name');
-  await expect(name).toHaveText(two!.name, { timeout: 30_000 });
+  const first = suggestVillageName(s.seed);
+  await expect(name).toHaveText(first, { timeout: 30_000 });
 
-  // zapnutí správce u první vsi (zobrazená je druhá) nepřepne pohled
+  // zapnutí správce u druhé vsi (zobrazená je první) nepřepne pohled
   await name.click();
   const toggle = page
     .getByTestId('village-list')
-    .locator(`[data-village="${one!.id}"]`)
+    .locator(`[data-village="${two.id}"]`)
     .getByTestId('village-steward-toggle');
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
-  await expect(name).toHaveText(two!.name);
+  await expect(name).toHaveText(first);
   await expect(page.getByTestId('steward-badge')).toHaveCount(0);
 });

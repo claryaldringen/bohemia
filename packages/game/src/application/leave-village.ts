@@ -1,33 +1,26 @@
 import { obstaclesOf, type Landscape } from '../domain/landscape';
 import {
   DIRECTIONS,
-  NEW_VILLAGE_MIN_DISTANCE_M,
   builtTrail,
   checkDwellingPlacement,
   checkSonLeader,
   departVillage,
   departWithSon,
   departureBlock,
-  distanceToVillages,
   edgeDistanceM,
   journeyArrived,
-  neighbourSnapshot,
   placementVillageOf,
   settlersOf,
-  squareCenter,
   suggestVillageName,
   travelDays,
   travellingVillage,
   villageCentre,
-  villagePoints,
-  withNeighbours,
   type Direction8,
   type Position,
   type Settlers,
-  type VillageState,
 } from '../domain/village';
 import { settlementLandscape } from './enter-game';
-import { TOO_CLOSE_TO_VILLAGE, foundedVillageState } from './found-village';
+import { foundedVillageState } from './found-village';
 import { NOT_PLAYER_VILLAGE, findPlayerVillage } from './player-villages';
 import type { LandscapeSource, SeedSource, Settlement, SettlementRepository } from './settlements';
 import { updateLivingVillage, updateVillage } from './update-village';
@@ -35,8 +28,8 @@ import { targetSettlement } from './new-village';
 import type { VillageRecord, VillageRepository } from './villages';
 
 // Odchod do nové vsi (migration.md – fáze 3 a 4): domácnosti vybraných obydlí odejdou a založí
-// ves jinde na téže mapě (hráč hned umístí první zemnici), nebo na nové mapě vedle ve zvoleném
-// směru (cesta 1–3 dny, pak první zemnice). Stará ves zůstane.
+// ves na nové mapě vedle ve zvoleném směru (cesta 1–3 dny, pak první zemnice). Jedna ves, jedna
+// mapa – na téže mapě druhá ves nevznikne. Stará ves zůstane.
 
 export interface LeaveVillageDeps {
   settlements: SettlementRepository;
@@ -47,11 +40,13 @@ export interface LeaveVillageDeps {
 }
 
 /**
- * Kam lidé odejdou: na téže mapě s polohou první zemnice nové vsi (`here`), nebo na novou mapu
- * ve směru (`map`).
+ * Kam lidé odejdou: na novou mapu ve směru (`map`). Jedna ves, jedna mapa (Martin 1. 11. 2026:
+ * „Jedna ves, jedna mapa“) – na téže mapě novou ves založit nejde.
  */
-export type LeaveDestination =
-  { kind: 'here'; dwelling: Position } | { kind: 'map'; direction: Direction8 };
+export interface LeaveDestination {
+  kind: 'map';
+  direction: Direction8;
+}
 
 interface LeaveVillageBase {
   playerId: string;
@@ -74,25 +69,25 @@ export type LeaveVillageResult =
       ok: true;
       /** Stará ves po odchodu. */
       from: VillageRecord;
-      /** Nová ves – založená (na téže mapě), nebo lidé na cestě (nová mapa). */
+      /** Nová ves – lidé na cestě na novou mapu. */
       to: VillageRecord;
-      /** Sídlo nové vsi (na nové mapě nové sídlo). */
+      /** Sídlo nové vsi – nová mapa. */
       settlement: Settlement;
     }
   | { ok: false; reason: string };
 
 /** Neznámý směr odchodu. */
 export const UNKNOWN_LEAVE_DIRECTION = 'Neznámý směr.';
+/** Cíl odchodu jinde než na nové mapě (jedna ves, jedna mapa – migration.md). */
+export const LEAVE_ONLY_TO_NEW_MAP = 'Odejít jde jen na novou mapu.';
 export { NO_WORLD_CELL, OWN_MAP_THERE } from './new-village';
 
 /**
  * Domácnosti obydlí `dwellingIds` – nebo syn vojvody `sonId` s poměrnou částí vsi (lord.md – Dělení
- * vsi; vojvodou nové vsi je on) – odejdou založit novou ves. Na téže mapě (`here`) server ověří
- * místo první zemnice (krajina, stavby a půda všech vsí mapy, nejméně 300 m od nich) dřív, než
- * lidé odejdou; ves se pak hned založí s osadníky. Na novou mapu (`map`) sídelní sídlo dostane
- * polohu (0, 0), vedle ve směru vznikne nové sídlo s novou krajinou (prázdné vlastní sídlo na tom
- * políčku se použije znovu) a lidé jsou na cestě 1–3 dny (`travelDays`). Stará ves zůstane – i
- * opuštěná, když odešli všichni.
+ * vsi; vojvodou nové vsi je on) – odejdou založit novou ves na nové mapě (jedna ves, jedna mapa –
+ * jiný cíl než `map` server odmítne): sídelní sídlo dostane polohu (0, 0), vedle ve směru vznikne
+ * nové sídlo s novou krajinou (prázdné vlastní sídlo na tom políčku se použije znovu) a lidé jsou
+ * na cestě 1–3 dny (`travelDays`). Stará ves zůstane – i opuštěná, když odešli všichni.
  */
 export async function leaveVillage(
   deps: LeaveVillageDeps,
@@ -102,38 +97,9 @@ export async function leaveVillage(
   if (!found) return { ok: false, reason: NOT_PLAYER_VILLAGE };
   const landscape = settlementLandscape(found.settlement, deps.landscapes);
   const { destination } = input;
-  if (destination.kind === 'here') {
-    const problem = await herePlacementProblem(
-      deps,
-      found.settlement.id,
-      landscape,
-      destination,
-      input.today,
-    );
-    if (problem) return { ok: false, reason: problem };
-    // jméno nové vsi zná kronika odchodu syna (lord.md – Dělení vsi: „Bořivoj odešel založit ves
-    // Lhota“) – u syna se vybere napřed
-    const sonVillageName = sonVillage(deps, input);
-    const departed = await depart(deps, input, landscape, undefined, sonVillageName);
-    if (!departed.ok) return departed;
-    const state = foundedVillageState(
-      deps.seeds.nextSeed(),
-      {
-        landscape,
-        today: input.today,
-        dwelling: destination.dwelling,
-        settlers: departed.settlers,
-      },
-      undefined,
-      await deps.villages.weatherSeedOf(found.settlement.id),
-    );
-    if (!state.ok) throw new Error(`Ves z osadníků nešla založit: ${state.reason}`);
-    const to = await deps.villages.add(
-      found.settlement.id,
-      sonVillageName ?? suggestVillageName(deps.seeds.nextSeed()),
-      state.state,
-    );
-    return { ok: true, from: departed.from, to, settlement: found.settlement };
+  // jedna ves, jedna mapa – odejít jde jen na novou mapu (vstup z klienta může nést cokoli)
+  if ((destination as { kind?: unknown }).kind !== 'map') {
+    return { ok: false, reason: LEAVE_ONLY_TO_NEW_MAP };
   }
   if (!DIRECTIONS.includes(destination.direction)) {
     return { ok: false, reason: UNKNOWN_LEAVE_DIRECTION };
@@ -149,7 +115,8 @@ export async function leaveVillage(
   const departed = await depart(deps, input, landscape, destination.direction, sonVillageName);
   if (!departed.ok) return departed;
   const seed = deps.seeds.nextSeed();
-  const to = await deps.villages.add(
+  // akce hráče jdou pod zámkem hráče (web i worker) a `targetSettlement` ověřil, že sídlo ves nemá
+  const to = await deps.villages.create(
     target.settlement.id,
     sonVillageName ?? suggestVillageName(seed),
     travellingVillage(
@@ -164,63 +131,8 @@ export async function leaveVillage(
       false,
     ),
   );
+  if (!to) throw new Error(`Na nové mapě ${target.settlement.id} už ves stojí.`);
   return { ok: true, from: departed.from, to, settlement: target.settlement };
-}
-
-/**
- * Proč na téže mapě první zemnice nové vsi na místě `destination` stát nemůže: krajina, stavby
- * a půda všech vsí mapy (`foreign`) a vzdálenost nejméně NEW_VILLAGE_MIN_DISTANCE_M od jejich
- * staveb. Česky, nebo null.
- */
-async function herePlacementProblem(
-  deps: LeaveVillageDeps,
-  settlementId: string,
-  landscape: Landscape,
-  destination: { dwelling: Position },
-  today: number,
-): Promise<string | null> {
-  const villages = (await deps.villages.listBySettlement(settlementId)).map((v) => v.state);
-  const points = villages.flatMap((v) =>
-    villagePoints(v, (x, y, grid) => squareCenter(landscape, grid, { x, y })),
-  );
-  if (distanceToVillages(destination.dwelling, points) < NEW_VILLAGE_MIN_DISTANCE_M) {
-    return TOO_CLOSE_TO_VILLAGE;
-  }
-  // nová ves ještě nemá nic – zná jen stavby a paseky ostatních vsí mapy
-  const empty = emptyVillage(today);
-  const village = placementVillageOf(
-    withNeighbours(empty, neighbourSnapshot(villages, today)),
-    today,
-  );
-  const check = checkDwellingPlacement(
-    landscape,
-    village,
-    'zemnice',
-    destination.dwelling,
-    obstaclesOf(landscape),
-  );
-  return check.ok ? null : (check.reason ?? 'Sem zemnice nepatří.');
-}
-
-/** Prázdná ves pro kontrolu umístění první zemnice (bez lidí a staveb). */
-function emptyVillage(day: number): VillageState {
-  return {
-    seed: 0,
-    foundedDay: day,
-    lastDay: day,
-    nextId: 1,
-    people: [],
-    dwellings: [],
-    fields: [],
-    parts: [],
-    constructions: [],
-    season: null,
-    threshingSeason: null,
-    storesKg: 0,
-    hungry: false,
-    commonLaborHistory: [],
-    chronicle: [],
-  };
 }
 
 /** Jméno nové vsi syna vojvody (ze seedu) – odchod domácností ho vybírá až po odchodu. */
@@ -238,7 +150,7 @@ async function depart(
   deps: LeaveVillageDeps,
   input: LeaveVillageInput,
   landscape: Landscape,
-  direction?: Direction8,
+  direction: Direction8,
   villageName?: string,
 ): Promise<
   | { ok: true; from: VillageRecord; settlers: Settlers; day: number; travelDays: number }
@@ -260,17 +172,15 @@ async function depart(
           ? departureBlock(state, input.dwellingIds)
           : checkSonLeader(state, sonId, day).reason;
       if (block) return { ok: false, reason: block };
-      const days = direction
-        ? travelDays(
-            edgeDistanceM(landscape, villageCentre(state), direction),
-            builtTrail(state, direction) !== null,
-          )
-        : 0;
+      const days = travelDays(
+        edgeDistanceM(landscape, villageCentre(state), direction),
+        builtTrail(state, direction) !== null,
+      );
       const departed =
         sonId === undefined
           ? departVillage(state, day, input.dwellingIds, direction)
           : departWithSon(state, day, sonId, {
-              ...(direction ? { direction } : {}),
+              direction,
               ...(villageName === undefined ? {} : { villageName }),
             });
       captured.outcome = { settlers: departed.settlers, day, travelDays: days };
