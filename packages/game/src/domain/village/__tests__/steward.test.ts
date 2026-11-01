@@ -1,3 +1,4 @@
+import type { StewardOutlook } from '../steward-outlook';
 import { describe, expect, it } from 'vitest';
 import { dateOfDayIndex, dayIndexOf, type GameDate } from '../../calendar';
 import {
@@ -75,6 +76,18 @@ function newConstructions(before: VillageState, after: VillageState): number[] {
   return after.constructions.filter((c) => c.id >= before.nextId).map((c) => c.id);
 }
 
+/** Výhled bez úzkého hrdla v práci a osivu (cíl polí jako dřív). */
+const OPEN_OUTLOOK: StewardOutlook = {
+  laborHa: Infinity,
+  seedHa: Infinity,
+  landHa: 0,
+  bottleneck: 'land',
+  lasting: 'land',
+  workPerHa: 0,
+  landPeople: 0,
+  sustainablePeople: 0,
+};
+
 /** Podklady dne správce `day` (bez plánu sídla a režimu z vsi). */
 function contextOf(day: number): StewardContext {
   return {
@@ -84,6 +97,7 @@ function contextOf(day: number): StewardContext {
     obstacles,
     coverage: NO_CRAFTS,
     mode: 'growth',
+    outlook: OPEN_OUTLOOK,
   };
 }
 

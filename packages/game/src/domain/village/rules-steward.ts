@@ -1,6 +1,7 @@
 // Čísla správce vsi (steward.md). Každé číslo s odkazem na sekci návrhu; změna čísla = i text
 // v návrhu.
 import { FOOD_NEED_KG_PER_YEAR } from './rules-fields';
+import { LORD } from './rules-lord';
 
 import type { StewardMode } from './steward';
 
@@ -221,6 +222,22 @@ export const STEWARD = {
    * kg čisté úrody na člověkoden aspoň 1,5 × denní potřeba obilí dospělého (`FOOD_NEED_KG_PER_YEAR`).
    */
   minKgPerManDay: (1.5 * FOOD_NEED_KG_PER_YEAR.adult) / 365,
+  /**
+   * Krok 2 – Životaschopná výprava: díl syna má aspoň tolik dospělých (14–44 let, plná práce) –
+   * jako ves, která uživí cvičící rodinu vojvody (`LORD.minVillageAdults`, Martin 24. 10. 2026);
+   * 80 % práce zakladatelů nové vsi (5 dospělých).
+   */
+  expeditionAdults: LORD.minVillageAdults,
+  /**
+   * Krok 2 – Životaschopná výprava: jídlo a osivo výpravy aspoň tento podíl toho, co má nést – rok
+   * jídla do příštích žní a osivo na první osev, nejvýš kolik unesou (pěšky a na voze).
+   */
+  expeditionLoad: 0.9,
+  /**
+   * Krok 2 – Životaschopná výprava: pojistka mateřské vsi (`bufferFill`) po odchodu aspoň tolik –
+   * odchod ji nesmí poslat do Nouze (`emergencyFill`).
+   */
+  departureMotherFill: 0.5,
   /** Odchozí schránka: kolikrát se nevybavitelný záznam zkusí vybavit, pak se nechá být. */
   departureAttempts: 5,
 } as const;

@@ -14,11 +14,21 @@
 //   --foreground         běžná priorita (jinak nice 19)
 //   --report-only        jen tabulka z hotových úloh v --out
 //   --pool N             kolik seedů krajin se prohlíží při výběru skupin (výchozí 60)
+//   --seeds 3,13,17      jen tyto seedy krajin (rychlé měření po úloze vylepšení správce)
+//   --strategy steward   jen B (správce) nebo jen A (player) – A se úlohami správce nemění
+//   --baseline old.jsonl tabulka před → po: kritéria z jiného kontrolního bodu vedle dnešních
+//   --diag SEED          roční diagnostika jedné vsi se správcem (lib/steward-diag.ts) místo měření;
+//                        --diag-out soubor.json uloží i záznamy
+import { readFileSync, writeFileSync } from 'node:fs';
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
+import { dayIndexOf } from '../src/domain/calendar';
 import { defaultWorkers, lowerProcessPriority, lowerThreadPriority } from './lib/background';
-import { appendCheckpoint, openCheckpoint, readCheckpoint } from './lib/checkpoint';
+import { appendCheckpoint, decode, openCheckpoint, readCheckpoint } from './lib/checkpoint';
+import { formatDiag, stewardDiag } from './lib/steward-diag';
 import {
+  formatCompare,
   formatRows,
+  hardFailures,
   landscapeGroups,
   runDynasty,
   summarize,
@@ -35,6 +45,11 @@ interface Config {
   workers: number;
   foreground: boolean;
   reportOnly: boolean;
+  seeds: number[] | null;
+  strategy: Strategy | null;
+  baseline: string | null;
+  diag: number | null;
+  diagOut: string | null;
 }
 
 interface Task {
@@ -64,8 +79,24 @@ function parseConfig(argv: readonly string[]): Config {
     if (!Number.isInteger(n) || n < 1) throw new Error(`${label}: čekám celé číslo ≥ 1.`);
     return n;
   };
+  const text = (name: string): string | null => {
+    const value = flags.get(name);
+    return typeof value === 'string' && value !== '' ? value : null;
+  };
+  const seeds = text('seeds')?.split(',').map(Number) ?? null;
+  if (seeds?.some((n) => !Number.isInteger(n) || n < 0)) throw new Error('--seeds: čekám 3,13,17.');
+  const strategy = text('strategy');
+  if (strategy !== null && strategy !== 'steward' && strategy !== 'player') {
+    throw new Error('--strategy: steward nebo player.');
+  }
+  const diag = text('diag');
   const out = flags.get('out');
   return {
+    seeds,
+    strategy,
+    baseline: text('baseline'),
+    diag: diag === null ? null : Number(diag),
+    diagOut: text('diag-out'),
     villages: count(positional[0], PER_GROUP * 5, 'počet vsí'),
     years: count(positional[1], 50, 'roky'),
     pool: count(flags.get('pool'), 60, '--pool'),
@@ -81,10 +112,38 @@ const taskKey = (t: Task): string => `${t.strategy}:${t.seed}`;
 
 function buildTasks(): Task[] {
   const groups = landscapeGroups(Math.max(config.pool, PER_GROUP * 5), PER_GROUP);
-  return villageTasks(groups, config.villages).flatMap((v): Task[] => [
-    { ...v, strategy: 'steward' },
-    { ...v, strategy: 'player' },
-  ]);
+  const villages = config.seeds
+    ? config.seeds.map((seed) => ({
+        group: groups.find((g) => g.seeds.includes(seed))?.name ?? 'jiná',
+        seed,
+      }))
+    : villageTasks(groups, config.villages);
+  const strategies: Strategy[] = config.strategy ? [config.strategy] : ['steward', 'player'];
+  return villages.flatMap((v) => strategies.map((strategy): Task => ({ ...v, strategy })));
+}
+
+/** Kontrolní bod jiného běhu (nastavení z jeho hlavičky) – pro `--baseline`. */
+function readAnyCheckpoint(path: string): DynastyResult[] {
+  const header = decode<{ config: Record<string, unknown> }>(
+    readFileSync(path, 'utf8').split('\n')[0] ?? '{}',
+  );
+  return [...readCheckpoint<DynastyResult>(path, header.config).values()];
+}
+
+/** Roční diagnostika jedné vsi se správcem (`--diag`). */
+function runDiag(seed: number): void {
+  const foundDay = dayIndexOf({ year: 500, month: 9, day: 1 });
+  const diag = stewardDiag(foundDay);
+  const result = runDynasty({
+    group: 'diag',
+    seed,
+    strategy: 'steward',
+    years: config.years,
+    observe: diag.observe,
+  });
+  console.log(formatDiag(diag.villages));
+  console.log(formatRows(summarize([result])));
+  if (config.diagOut) writeFileSync(config.diagOut, JSON.stringify(diag.villages));
 }
 
 async function runAll(
@@ -127,8 +186,18 @@ async function main(): Promise<void> {
   const started = performance.now();
   const priority = config.foreground ? 'běžná priorita' : lowerProcessPriority(false);
   const out = config.out;
+  if (config.diag !== null) {
+    runDiag(config.diag);
+    return;
+  }
   if (config.reportOnly && !out) throw new Error('--report-only potřebuje --out soubor.jsonl.');
-  const checkpoint = { villages: config.villages, years: config.years, pool: config.pool };
+  const checkpoint = {
+    villages: config.villages,
+    years: config.years,
+    pool: config.pool,
+    ...(config.seeds ? { seeds: config.seeds } : {}),
+    ...(config.strategy ? { strategy: config.strategy } : {}),
+  };
   const tasks = buildTasks();
   const done = !out
     ? new Map<string, DynastyResult>()
@@ -154,7 +223,16 @@ async function main(): Promise<void> {
   console.log(
     `Vzorek: ${villages} vsí × ${config.years} let, skupiny krajin: ${[...new Set(results.map((r) => r.group))].join(', ')}`,
   );
-  console.log(formatRows(summarize(results)));
+  const rows = summarize(results);
+  console.log(
+    config.baseline
+      ? formatCompare(summarize(readAnyCheckpoint(config.baseline)), rows)
+      : formatRows(rows),
+  );
+  const broken = hardFailures(rows);
+  if (broken.length > 0) {
+    console.log(`Tvrdá kritéria MIMO: ${broken.map((r) => r.name).join('; ')}`);
+  }
   for (const r of results.sort((a, b) => a.seed - b.seed || a.strategy.localeCompare(b.strategy))) {
     console.log(
       `  ${r.strategy === 'steward' ? 'B' : 'A'} ${r.group.padEnd(8)} seed ${String(r.seed).padStart(3)}: lidé ${r.snapshots.map((s) => `${s.year}→${s.people}`).join(' ')}, vsí ${r.villages}, hladem ${r.hungerDeaths}, pole ${r.fieldHa.toFixed(1)} ha`,

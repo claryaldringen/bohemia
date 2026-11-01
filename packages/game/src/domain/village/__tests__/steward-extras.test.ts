@@ -1,3 +1,4 @@
+import type { StewardOutlook } from '../steward-outlook';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { dateOfDayIndex, dayIndexOf } from '../../calendar';
 import {
@@ -61,8 +62,28 @@ function dayOn(year: number, month: number, d: number): number {
   return Math.ceil(dayIndexOf({ year, month, day: d }) / STEWARD.everyDays) * STEWARD.everyDays;
 }
 
+/** Výhled bez úzkého hrdla v práci a osivu (cíl polí jako dřív). */
+const OPEN_OUTLOOK: StewardOutlook = {
+  laborHa: Infinity,
+  seedHa: Infinity,
+  landHa: 0,
+  bottleneck: 'land',
+  lasting: 'land',
+  workPerHa: 0,
+  landPeople: 0,
+  sustainablePeople: 0,
+};
+
 function ctxOf(day: number, mode: StewardMode = 'growth'): StewardContext {
-  return { day, date: dateOfDayIndex(day), landscape, obstacles, coverage: NO_CRAFTS, mode };
+  return {
+    day,
+    date: dateOfDayIndex(day),
+    landscape,
+    obstacles,
+    coverage: NO_CRAFTS,
+    mode,
+    outlook: OPEN_OUTLOOK,
+  };
 }
 
 /** Ves dopočítaná do dne `day` s hotovým plánem; volná práce štědrá (rozpočet práce nebrání). */
@@ -108,7 +129,10 @@ describe('steward-extras – hřbitov', () => {
   it('rozšíření o čtverec, až když volná místa nestačí na graveYears; v Nouzi ne', () => {
     let s = planned(withBuiltFirstDwelling(village(SEPT)));
     extraSteps(s, ctxOf(SEPT));
-    s = advanceVillage(s, SEPT + 80, obstacles, landscape);
+    // hřbitov se dělí o práci s ostatními stavbami správce – dopočet, dokud nestojí
+    for (let to = SEPT + 80; to <= SEPT + 240 && s.cemeteries?.[0]?.builtDay == null; to += 20) {
+      s = advanceVillage(s, to, obstacles, landscape);
+    }
     const cem = s.cemeteries?.[0];
     expect(cem?.builtDay).not.toBeNull();
     const done = planned(s);

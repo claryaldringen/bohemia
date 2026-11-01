@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  formatCompare,
   formatRows,
+  hardFailures,
+  overheadTarget,
   landscapeGroups,
   runDynasty,
   summarize,
@@ -79,15 +82,17 @@ describe('měření správce – tabulka', () => {
     const rows = summarize([player, result({})]);
     const statuses = Object.fromEntries(rows.map((r) => [r.name.split(' (')[0], r.status]));
     expect(statuses['Lidé rodu za 10 let']).toBe('OK');
-    expect(statuses['Úmrtí hladem na ves rodu']).toBe('OK');
+    expect(statuses['Úmrtí hladem na rod']).toBe('OK');
     expect(statuses['Čas správce z dopočtu / nejdražší den']).toBe('OK');
     expect(statuses['Vzdálenost dílů m']).toBe('OK');
     expect(rows.find((r) => r.name.startsWith('Lidí na ha'))?.measured).toContain('100 %');
   });
 
   it('kritéria porušena: MIMO', () => {
+    // krátký běh (10 let) – cíle rychlého měření (≤ 5 úmrtí, pojistka ≥ 0,6)
     const bad = result({
-      hungerDeaths: 2,
+      hungerDeaths: 6,
+      bufferAvg: 0.5,
       bufferMin: 0.2,
       fertilityShare: 0.5,
       ms: { total: 1000, steward: 100, maxStewardDay: 300 },
@@ -104,6 +109,53 @@ describe('měření správce – tabulka', () => {
     expect(status('Pojistka')).toBe('MIMO');
     expect(status('Úrodnost')).toBe('MIMO');
     expect(status('Čas správce')).toBe('MIMO');
+  });
+
+  it('kritéria plánu úloh: využití oběhu, založení, malé odchody a vsi, chůze bez A', () => {
+    const steward = result({
+      sownShare: 0.2,
+      fieldOverhead: 0.4,
+      departureSizes: [1, 6],
+      tinyVillages: 1,
+      sownWalkM: 300,
+    });
+    const rows = summarize([steward]);
+    const status = (prefix: string): string | undefined =>
+      rows.find((r) => r.name.startsWith(prefix))?.status;
+    expect(status('Využití oběhu')).toBe('MIMO');
+    expect(status('Založení + vracení')).toBe('MIMO');
+    expect(status('Odchody synů o ≤ 2')).toBe('MIMO');
+    expect(status('Vsi rodu o ≤ 2')).toBe('MIMO');
+    expect(hardFailures(rows).map((r) => r.name)).toEqual(['Vsi rodu o ≤ 2 lidech kdykoli (B)']);
+    expect(status('Chůze vážená osevem')).toBe('MIMO');
+    expect(status('Vzdálenost dílů')).toBe('OK');
+    // 2 roky osevu ze 7: podíl 0,25 = využití 0,875
+    const good = summarize([
+      result({ sownShare: 0.25, fieldOverhead: 0.3, departureSizes: [6], tinyVillages: 0 }),
+    ]);
+    expect(good.find((r) => r.name.startsWith('Využití oběhu'))?.status).toBe('OK');
+    expect(good.find((r) => r.name.startsWith('Založení + vracení'))?.status).toBe('OK');
+    expect(hardFailures(good)).toEqual([]);
+    expect(good.find((r) => r.name.startsWith('Odchody synů o'))?.measured).toContain('0 z 1');
+  });
+
+  it('cíl založení + vracení: vracení přílohu oběhu (1 ze 2 let osevu) a zakládání při růstu', () => {
+    // bez nástrojů: vracení louky 100 ÷ 2 = 50 čd na osetý ha z polní práce 209 čd
+    expect(overheadTarget(0)).toBeCloseTo(50 / 209, 6);
+    // růst 5 % za rok: zakládání 0,05 × 3,5 × 100 = 17,5 čd navíc
+    expect(overheadTarget(0.05)).toBeCloseTo(67.5 / 209, 6);
+  });
+
+  it('starší kontrolní bod bez nových kritérií: pomlčka, ne chyba', () => {
+    const rows = summarize([result({})]);
+    expect(rows.find((r) => r.name.startsWith('Využití oběhu'))?.status).toBe('–');
+    expect(rows.find((r) => r.name.startsWith('Vsi rodu o ≤ 2'))?.status).toBe('–');
+    expect(rows.find((r) => r.name.startsWith('Chůze vážená'))?.status).toBe('–');
+  });
+
+  it('tabulka před → po spáruje řádky podle jména', () => {
+    const text = formatCompare(summarize([result({ walkM: 300 })]), summarize([result({})]));
+    expect(text).toMatch(/Vzdálenost dílů m \(A \/ B\).*– \/ 300 {2}→ {2}– \/ 100/);
   });
 
   it('formátuje zarovnané řádky', () => {
@@ -123,5 +175,7 @@ describe('měření správce – běh', () => {
     expect(run()).toEqual(first);
     expect(first.snapshots).toEqual([]);
     expect(first.villages).toBe(1);
+    expect(first.departureSizes).toEqual([]);
+    expect(first.villageYears).toBeCloseTo(1, 1);
   }, 120_000);
 });
