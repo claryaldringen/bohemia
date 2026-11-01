@@ -141,6 +141,185 @@
         "uv": {
           "wood": [0.06, 0.36, 0.14, 0.58]
         }
+      },
+      {
+        "name": "sheaf",
+        "procedural": "sheaf",
+        "point": "seat",
+        "texture": "textures/skins/props/basket_iber_1.dds",
+        "uv": {
+          "straw": [0.05, 0.1, 0.95, 0.6],
+          "band": [0.05, 0.7, 0.95, 0.8]
+        }
+      },
+      {
+        "name": "rake",
+        "procedural": "rake",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58]
+        }
+      },
+      {
+        "name": "pitchfork",
+        "dae": "meshes/props/tool_pitchfork.dae",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_tools.dds",
+        "scale": 0.75
+      },
+      {
+        "name": "hammer",
+        "dae": "meshes/props/tool_hammer.dae",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "scale": 0.65
+      },
+      {
+        "name": "tongs",
+        "dae": "meshes/props/tool_tongs_01.dae",
+        "point": "prop-weapon_L",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "scale": 0.8
+      },
+      {
+        "name": "split-axe",
+        "dae": "meshes/props/tool_axe.dae",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds"
+      },
+      {
+        "name": "block",
+        "procedural": "block",
+        "point": "seat",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58]
+        }
+      },
+      {
+        "name": "sieve",
+        "procedural": "sieve",
+        "point": "seat",
+        "texture": "textures/skins/props/basket_iber_1.dds",
+        "uv": {
+          "wicker": [0.05, 0.05, 0.95, 0.95]
+        }
+      },
+      {
+        "name": "pots",
+        "procedural": "pots",
+        "point": "seat",
+        "texture": "textures/skins/props/vase_rome_1.dds",
+        "uv": {
+          "clay": [0.45, 0.1, 0.75, 0.5]
+        }
+      },
+      {
+        "name": "tools-load",
+        "procedural": "tools-load",
+        "point": "prop-back",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58],
+          "metal": [0.75, 0.78, 0.95, 0.86]
+        }
+      },
+      {
+        "name": "pots-load",
+        "procedural": "pots-load",
+        "point": "prop-back",
+        "texture": "textures/skins/props/vase_rome_1.dds",
+        "uv": {
+          "clay": [0.45, 0.1, 0.75, 0.5]
+        }
+      },
+      {
+        "name": "fish-load",
+        "procedural": "fish-load",
+        "point": "prop-back",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "scales": [0.75, 0.78, 0.95, 0.86]
+        }
+      },
+      {
+        "name": "snare",
+        "procedural": "snare",
+        "point": "seat",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58],
+          "rope": [0.06, 0.72, 0.14, 0.84]
+        }
+      },
+      {
+        "name": "ladle",
+        "procedural": "ladle",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58]
+        }
+      },
+      {
+        "name": "cookpot",
+        "procedural": "cookpot",
+        "point": "seat",
+        "texture": "textures/skins/props/vase_rome_1.dds",
+        "uv": {
+          "clay": [0.45, 0.1, 0.75, 0.5],
+          "soot": [0.6, 0.86, 0.75, 0.94]
+        }
+      },
+      {
+        "name": "pail",
+        "procedural": "pail",
+        "point": "seat",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58],
+          "band": [0.75, 0.78, 0.95, 0.86]
+        }
+      },
+      {
+        "name": "distaff",
+        "procedural": "distaff",
+        "point": "seat",
+        "texture": "textures/skins/props/prop_tools.dds",
+        "uv": {
+          "wood": [0.65, 0.1, 0.95, 0.9],
+          "wool": [0.1, 0.2, 0.45, 0.8]
+        }
+      },
+      {
+        "name": "loom",
+        "procedural": "loom",
+        "point": "seat",
+        "texture": "textures/skins/props/prop_tools.dds",
+        "uv": {
+          "wood": [0.65, 0.1, 0.95, 0.9],
+          "warp": [0.1, 0.2, 0.45, 0.8]
+        }
+      },
+      {
+        "name": "pipe",
+        "procedural": "pipe",
+        "point": "seat",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58]
+        }
+      },
+      {
+        "name": "drum",
+        "procedural": "drum",
+        "point": "seat",
+        "texture": "textures/skins/props/prop_tools.dds",
+        "uv": {
+          "body": [0.65, 0.1, 0.95, 0.9],
+          "hide": [0.1, 0.2, 0.45, 0.8]
+        }
       }
     ],
     "clips": [
@@ -365,7 +544,7 @@
             }
           ]
         },
-        "props": ["head", "stump"]
+        "props": ["head", "stump", "pail"]
       },
       {
         "name": "spin",
@@ -415,7 +594,7 @@
             }
           ]
         },
-        "props": ["head"]
+        "props": ["head", "distaff"]
       },
       {
         "name": "weave",
@@ -468,7 +647,7 @@
             }
           ]
         },
-        "props": ["head"]
+        "props": ["head", "loom"]
       },
       {
         "name": "sit",
@@ -675,7 +854,7 @@
             }
           ]
         },
-        "props": ["head"]
+        "props": ["head", "pipe"]
       },
       {
         "name": "drum",
@@ -729,7 +908,67 @@
             }
           ]
         },
-        "props": ["head"]
+        "props": ["head", "drum"]
+      },
+      {
+        "name": "bind",
+        "animation": "animation/biped/gatherer/gather_berries.dae",
+        "props": ["head", "sheaf"]
+      },
+      {
+        "name": "rake",
+        "animation": "animation/biped/gatherer/farming.dae",
+        "props": ["head", "rake"]
+      },
+      {
+        "name": "pitch",
+        "animation": "animation/biped/gatherer/farming.dae",
+        "props": ["head", "pitchfork"]
+      },
+      {
+        "name": "forge",
+        "animation": "animation/biped/citizen/build.dae",
+        "props": ["head", "hammer", "tongs"]
+      },
+      {
+        "name": "split",
+        "animation": "animation/biped/gatherer/gather_mine.dae",
+        "props": ["head", "split-axe", "block"]
+      },
+      {
+        "name": "sieve",
+        "animation": "animation/biped/gatherer/gather_berries.dae",
+        "props": ["head", "sieve"]
+      },
+      {
+        "name": "pots",
+        "animation": "animation/biped/gatherer/gather_berries.dae",
+        "props": ["head", "pots"]
+      },
+      {
+        "name": "carry-tools",
+        "animation": "animation/biped/gatherer/carry_grain_f.dae",
+        "props": ["head", "basket", "tools-load"]
+      },
+      {
+        "name": "carry-pots",
+        "animation": "animation/biped/gatherer/carry_grain_f.dae",
+        "props": ["head", "basket", "pots-load"]
+      },
+      {
+        "name": "carry-fish",
+        "animation": "animation/biped/gatherer/carry_grain_f.dae",
+        "props": ["head", "basket", "fish-load"]
+      },
+      {
+        "name": "snare",
+        "animation": "animation/biped/gatherer/gather_berries.dae",
+        "props": ["head", "snare"]
+      },
+      {
+        "name": "cook",
+        "animation": "animation/biped/gatherer/gather_berries.dae",
+        "props": ["head", "ladle", "cookpot"]
       }
     ]
   },
@@ -900,6 +1139,190 @@
         "uv": {
           "wood": [0.06, 0.36, 0.14, 0.58]
         }
+      },
+      {
+        "name": "sheaf",
+        "procedural": "sheaf",
+        "point": "seat",
+        "texture": "textures/skins/props/basket_iber_1.dds",
+        "uv": {
+          "straw": [0.05, 0.1, 0.95, 0.6],
+          "band": [0.05, 0.7, 0.95, 0.8]
+        }
+      },
+      {
+        "name": "rake",
+        "procedural": "rake",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58]
+        }
+      },
+      {
+        "name": "pitchfork",
+        "dae": "meshes/props/tool_pitchfork.dae",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_tools.dds",
+        "scale": 0.75
+      },
+      {
+        "name": "hammer",
+        "dae": "meshes/props/tool_hammer.dae",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "scale": 0.65
+      },
+      {
+        "name": "tongs",
+        "dae": "meshes/props/tool_tongs_01.dae",
+        "point": "prop-weapon_L",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "scale": 0.8
+      },
+      {
+        "name": "split-axe",
+        "dae": "meshes/props/tool_axe.dae",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds"
+      },
+      {
+        "name": "block",
+        "procedural": "block",
+        "point": "seat",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58]
+        }
+      },
+      {
+        "name": "sieve",
+        "procedural": "sieve",
+        "point": "seat",
+        "texture": "textures/skins/props/basket_iber_1.dds",
+        "uv": {
+          "wicker": [0.05, 0.05, 0.95, 0.95]
+        }
+      },
+      {
+        "name": "pots",
+        "procedural": "pots",
+        "point": "seat",
+        "texture": "textures/skins/props/vase_rome_1.dds",
+        "uv": {
+          "clay": [0.45, 0.1, 0.75, 0.5]
+        }
+      },
+      {
+        "name": "tools-load",
+        "procedural": "tools-load",
+        "point": "prop-back",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58],
+          "metal": [0.75, 0.78, 0.95, 0.86]
+        }
+      },
+      {
+        "name": "pots-load",
+        "procedural": "pots-load",
+        "point": "prop-back",
+        "texture": "textures/skins/props/vase_rome_1.dds",
+        "uv": {
+          "clay": [0.45, 0.1, 0.75, 0.5]
+        }
+      },
+      {
+        "name": "fish-load",
+        "procedural": "fish-load",
+        "point": "prop-back",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "scales": [0.75, 0.78, 0.95, 0.86]
+        }
+      },
+      {
+        "name": "snare",
+        "procedural": "snare",
+        "point": "seat",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58],
+          "rope": [0.06, 0.72, 0.14, 0.84]
+        }
+      },
+      {
+        "name": "ladle",
+        "procedural": "ladle",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58]
+        }
+      },
+      {
+        "name": "cookpot",
+        "procedural": "cookpot",
+        "point": "seat",
+        "texture": "textures/skins/props/vase_rome_1.dds",
+        "uv": {
+          "clay": [0.45, 0.1, 0.75, 0.5],
+          "soot": [0.6, 0.86, 0.75, 0.94]
+        }
+      },
+      {
+        "name": "pail",
+        "procedural": "pail",
+        "point": "seat",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58],
+          "band": [0.75, 0.78, 0.95, 0.86]
+        },
+        "scale": 1.075
+      },
+      {
+        "name": "distaff",
+        "procedural": "distaff",
+        "point": "seat",
+        "texture": "textures/skins/props/prop_tools.dds",
+        "uv": {
+          "wood": [0.65, 0.1, 0.95, 0.9],
+          "wool": [0.1, 0.2, 0.45, 0.8]
+        },
+        "scale": 1.075
+      },
+      {
+        "name": "loom",
+        "procedural": "loom",
+        "point": "seat",
+        "texture": "textures/skins/props/prop_tools.dds",
+        "uv": {
+          "wood": [0.65, 0.1, 0.95, 0.9],
+          "warp": [0.1, 0.2, 0.45, 0.8]
+        },
+        "scale": 1.075
+      },
+      {
+        "name": "pipe",
+        "procedural": "pipe",
+        "point": "seat",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58]
+        },
+        "scale": 1.075
+      },
+      {
+        "name": "drum",
+        "procedural": "drum",
+        "point": "seat",
+        "texture": "textures/skins/props/prop_tools.dds",
+        "uv": {
+          "body": [0.65, 0.1, 0.95, 0.9],
+          "hide": [0.1, 0.2, 0.45, 0.8]
+        },
+        "scale": 1.075
       }
     ],
     "clips": [
@@ -1204,7 +1627,7 @@
             }
           ]
         },
-        "props": ["head", "stump"]
+        "props": ["head", "stump", "pail"]
       },
       {
         "name": "spin",
@@ -1254,7 +1677,7 @@
             }
           ]
         },
-        "props": ["head"]
+        "props": ["head", "distaff"]
       },
       {
         "name": "weave",
@@ -1307,7 +1730,7 @@
             }
           ]
         },
-        "props": ["head"]
+        "props": ["head", "loom"]
       },
       {
         "name": "sit",
@@ -1514,7 +1937,7 @@
             }
           ]
         },
-        "props": ["head"]
+        "props": ["head", "pipe"]
       },
       {
         "name": "drum",
@@ -1568,7 +1991,67 @@
             }
           ]
         },
-        "props": ["head"]
+        "props": ["head", "drum"]
+      },
+      {
+        "name": "bind",
+        "animation": "animation/biped/gatherer/gather_berries.dae",
+        "props": ["head", "sheaf"]
+      },
+      {
+        "name": "rake",
+        "animation": "animation/biped/gatherer/farming.dae",
+        "props": ["head", "rake"]
+      },
+      {
+        "name": "pitch",
+        "animation": "animation/biped/gatherer/farming.dae",
+        "props": ["head", "pitchfork"]
+      },
+      {
+        "name": "forge",
+        "animation": "animation/biped/citizen/build.dae",
+        "props": ["head", "hammer", "tongs"]
+      },
+      {
+        "name": "split",
+        "animation": "animation/biped/gatherer/gather_mine.dae",
+        "props": ["head", "split-axe", "block"]
+      },
+      {
+        "name": "sieve",
+        "animation": "animation/biped/gatherer/gather_berries.dae",
+        "props": ["head", "sieve"]
+      },
+      {
+        "name": "pots",
+        "animation": "animation/biped/gatherer/gather_berries.dae",
+        "props": ["head", "pots"]
+      },
+      {
+        "name": "carry-tools",
+        "animation": "animation/biped/gatherer/carry_grain_m.dae",
+        "props": ["head", "basket", "tools-load"]
+      },
+      {
+        "name": "carry-pots",
+        "animation": "animation/biped/gatherer/carry_grain_m.dae",
+        "props": ["head", "basket", "pots-load"]
+      },
+      {
+        "name": "carry-fish",
+        "animation": "animation/biped/gatherer/carry_grain_m.dae",
+        "props": ["head", "basket", "fish-load"]
+      },
+      {
+        "name": "snare",
+        "animation": "animation/biped/gatherer/gather_berries.dae",
+        "props": ["head", "snare"]
+      },
+      {
+        "name": "cook",
+        "animation": "animation/biped/gatherer/gather_berries.dae",
+        "props": ["head", "ladle", "cookpot"]
       }
     ]
   }
