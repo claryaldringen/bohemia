@@ -1,4 +1,5 @@
-import type { StewardOutlook } from '../steward-outlook';
+import { stewardOutlook, type StewardOutlook } from '../steward-outlook';
+import { youngsterHerders } from '../herding';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { dateOfDayIndex, dayIndexOf } from '../../calendar';
 import {
@@ -354,7 +355,7 @@ describe('steward-extras – humno, ohrady, posvátná místa a cesty', () => {
     expect(horse(emergency)).toBe(false);
   });
 
-  it('spřežení: ohrada volů, když ves má skot v ohradě a dost krav', () => {
+  it('spřežení: ohrada volů s ohradou skotu, chovným párem krav a pasáky', () => {
     const base = withLeft(grown, 10_000);
     const herds = (cow: number): NonNullable<VillageState['livestock']> =>
       ({
@@ -371,15 +372,42 @@ describe('steward-extras – humno, ohrady, posvátná místa a cesty', () => {
     cattle.builtDay ??= base.lastDay;
     base.constructions = base.constructions.filter((c) => c.kind !== 'pen');
     base.pens = [cattle];
-    base.livestock = herds(6);
+    // chovný pár krav (po zimní porážce 1,96 – zaokrouhleně pár) – s ohradou volů ves drží krávy na
+    // voly a stádo doroste (steward.md – Ohrada volů podle stáda a osevu)
+    base.livestock = herds(1.96);
+    const day = at(10);
+    // výrostek 7–13 let, který stádo pase
+    const herder = base.people[0]!;
+    const noHerders = structuredClone(base);
+    noHerders.people = noHerders.people.filter(
+      (p) => youngsterHerders({ ...noHerders, people: [p] }, day) <= 0,
+    );
+    base.people = [
+      ...noHerders.people,
+      { ...herder, id: 99_001, bornDay: day - Math.round(10 * 365.25) },
+    ];
+    expect(youngsterHerders(base, day)).toBeGreaterThan(0);
     const team = (s: VillageState): boolean => penStarted(s, 'team');
+    const ctx = (s: VillageState): StewardContext => ({
+      ...ctxOf(day),
+      outlook: stewardOutlook(s, day, NO_CRAFTS),
+    });
     const s = structuredClone(base);
-    penStep(s, ctxOf(at(10)));
+    penStep(s, ctx(s));
     expect(team(s)).toBe(true);
+    // bez výrostků stádo nikdo nepase – porážka ho srazí na chovný pár, ohrada volů by stála prázdná
+    const alone = structuredClone(base);
+    alone.people = noHerders.people;
+    penStep(alone, ctx(alone));
+    expect(team(alone)).toBe(false);
     const fewCows = structuredClone(base);
     fewCows.livestock!.herds.cow = 1;
-    penStep(fewCows, ctxOf(at(10)));
+    penStep(fewCows, ctx(fewCows));
     expect(team(fewCows)).toBe(false);
+    // bez osevu výhledu (výhled bez půdy) orba nic neušetří
+    const noSowing = structuredClone(base);
+    penStep(noSowing, ctxOf(day));
+    expect(team(noSowing)).toBe(false);
   });
 
   it('vozová cesta: jen s vozem a s celou cenou v rozpočtu práce', () => {
