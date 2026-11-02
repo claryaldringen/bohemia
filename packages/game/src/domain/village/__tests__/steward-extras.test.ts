@@ -23,6 +23,7 @@ import {
   roadApplesStep,
   roadStep,
   roadUpgradeSavedPerYear,
+  sacredLaborGainPerYear,
   sacredStep,
   threshingStep,
 } from '../steward-extras';
@@ -36,6 +37,8 @@ import {
 import { craftCoverage } from '../crafts';
 import { monthInWindow } from '../orchard';
 import { ORCHARD_PLANTING_WINDOWS, THRESHING } from '../rules-fields';
+import { SACRED_BUILDINGS } from '../rules-people';
+import { laborPerDay } from '../people';
 import { cellHa } from '../steward-land';
 import { BUILD_COSTS } from '../costs';
 import { roadUpgradeCost } from '../road-upgrades';
@@ -102,6 +105,11 @@ function planned(state: VillageState): VillageState {
 }
 
 const kinds = (s: VillageState): string[] => s.constructions.map((c) => c.kind);
+
+/** Štěstí vsi `value` (bez úmrtí a dřiny v paměti). */
+function setMood(s: VillageState, value: number): void {
+  s.happiness = { value, deaths: [], toil: [] };
+}
 
 /** Rozestavěná ohrada druhu `species`. */
 const penStarted = (s: VillageState, species: string): boolean =>
@@ -239,29 +247,82 @@ describe('steward-extras – humno, ohrady, posvátná místa a cesty', () => {
     expect(harvest.constructions.some((c) => c.kind === 'pen')).toBe(false);
   });
 
-  it('modla jen pod hranicí štěstí a v Obnově ano, v Nouzi ne', () => {
-    const low = structuredClone(grown);
-    low.happiness = {
-      ...(low.happiness ?? { value: 50 }),
-      value: STEWARD.happinessFloor - 20,
-    } as never;
+  it('modla podle návratnosti: v Růstu i v Obnově ano, v Nouzi ne', () => {
     const ctx = ctxOf(at(10));
-    const growth = structuredClone(low);
+    const growth = structuredClone(grown);
     sacredStep(growth, ctx);
-    const happy = structuredClone(grown);
-    happy.happiness = {
-      ...(happy.happiness ?? { value: 50 }),
-      value: STEWARD.happinessFloor + 5,
-    } as never;
-    sacredStep(happy, ctx);
-    expect(kinds(happy)).not.toContain('idol');
-    const emergency = structuredClone(low);
-    extraSteps(emergency, ctxOf(ctx.day, 'emergency'));
-    expect(kinds(emergency)).not.toContain('idol');
     expect(kinds(growth).filter((k) => k === 'idol')).toHaveLength(1);
-    const recovery = structuredClone(low);
+    const recovery = structuredClone(grown);
     extraSteps(recovery, ctxOf(ctx.day, 'recovery'));
     expect(kinds(recovery)).toContain('idol');
+    const emergency = structuredClone(grown);
+    extraSteps(emergency, ctxOf(ctx.day, 'emergency'));
+    expect(kinds(emergency)).not.toContain('idol');
+    // štěstí 100 – modla práci nepřidá
+    const happy = structuredClone(grown);
+    setMood(happy, 100);
+    sacredStep(happy, ctx);
+    expect(kinds(happy)).not.toContain('idol');
+  });
+
+  it('přínos posvátné stavby: body štěstí × násobek práce × roční práce dospělých', () => {
+    const day = at(10);
+    const s = structuredClone(grown);
+    const adults = s.people.reduce((sum, p) => sum + laborPerDay(p, day), 0);
+    expect(adults).toBeGreaterThan(0);
+    setMood(s, 50);
+    // nad 50: bod štěstí = 0,1 / 50 práce
+    expect(sacredLaborGainPerYear(s, day, 'idol', null)).toBeCloseTo(8 * 0.002 * adults * YEAR, 6);
+    expect(sacredLaborGainPerYear(s, day, 'shrine', null)).toBeCloseTo(
+      25 * 0.002 * adults * YEAR,
+      6,
+    );
+    // pod 50 dvakrát strmější (0,2 / 50 na bod)
+    setMood(s, 30);
+    expect(sacredLaborGainPerYear(s, day, 'idol', null)).toBeCloseTo(8 * 0.004 * adults * YEAR, 6);
+    // strop štěstí 100 ořízne přínos
+    setMood(s, 96);
+    expect(sacredLaborGainPerYear(s, day, 'idol', null)).toBeCloseTo(4 * 0.002 * adults * YEAR, 6);
+    // strop posvátných míst (+40): dvě modly a svatyně = 41 → nic dalšího
+    setMood(s, 50);
+    const at0 = { x: 0, z: 0, rotation: 0 };
+    s.sacredBuildings = [
+      { id: 9001, kind: 'idol', position: at0, builtDay: 0 },
+      { id: 9002, kind: 'idol', position: at0, builtDay: 0 },
+      { id: 9003, kind: 'shrine', position: at0, builtDay: 0 },
+    ];
+    expect(sacredLaborGainPerYear(s, day, 'idol', null)).toBe(0);
+  });
+
+  it('svatyně v Obnově jen ve vsi, které se do 5 let vrátí; v Růstu i v malé', () => {
+    const day = at(10);
+    const base = structuredClone(grown);
+    const at0 = { x: 0, z: 0, rotation: 0 };
+    base.sacredBuildings = [
+      { id: 9001, kind: 'idol', position: at0, builtDay: 0 },
+      { id: 9002, kind: 'idol', position: at0, builtDay: 0 },
+    ];
+    setMood(base, 66);
+    const yearly = sacredLaborGainPerYear(base, day, 'shrine', null);
+    const cost = SACRED_BUILDINGS.shrine.laborManDays;
+    expect(yearly * STEWARD.sacredPaybackYears.growth).toBeGreaterThanOrEqual(cost);
+    const recovery = structuredClone(base);
+    sacredStep(recovery, ctxOf(day, 'recovery'));
+    expect(kinds(recovery).includes('shrine')).toBe(
+      yearly * STEWARD.sacredPaybackYears.recovery >= cost,
+    );
+    // jen jeden dospělý: v Obnově ne
+    const small = structuredClone(base);
+    let kept = false;
+    small.people = small.people.filter((p) => {
+      if (laborPerDay(p, day) <= 0) return true;
+      if (kept) return false;
+      kept = true;
+      return true;
+    });
+    expect(sacredLaborGainPerYear(small, day, 'shrine', null) * 5).toBeLessThan(cost);
+    sacredStep(small, ctxOf(day, 'recovery'));
+    expect(kinds(small)).not.toContain('shrine');
   });
 
   it('cesty: vylepšení v Růstu i Obnově, ne v Nouzi; v okně roku a při dost velkém provozu', () => {

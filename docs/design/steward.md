@@ -235,8 +235,8 @@ svého druhu (pole a čtverce po blocích) a všechny čerpají ze stejného roz
    žně.
 8. **Sad, jabloně u cest** – ovoce ve stravě pod plnou potřebou; jabloně podél pevné cesty, která
    vede kolem polí (zeleň chrání díly – disasters.md, Ochrana dílu). V oknech výsadby (orchard.md).
-9. **Posvátná místa** – štěstí pod `STEWARD.happinessFloor` a duby k mání; napřed modla, svatyně
-   jedna (happiness.md). Mimo žně.
+9. **Posvátná místa** – podle návratnosti (Posvátná místa podle návratnosti níž) a duby k mání;
+   napřed modla, svatyně jedna (happiness.md). Mimo žně.
 10. **Cesty** – vylepšení pevné cesty, když ušetřená chůze a jízdy vozem za horizont režimu
     převáží cenu; vozová cesta,
     když ves má vůz a hlavní tahy dřeva, sena a snopů; zemská stezka jedna, k nejbližšímu kraji
@@ -299,6 +299,18 @@ Kroky 3 a 4 (`domain/village/steward.ts` – `stewardDay`):
   uživí (S6). **Změna prahu (Martin 31. 10. 2026: „2 – osivo se nejí“):** osivo do roční potřeby
   ves sní až pod přídělem 0,5 (dřív 0,75, `SEED_STORES.floorRation` – [pole](fields.md), Osivo
   ze zásob) – víc hladu krátce, plný osev; past osiva tím ustupuje.
+- **Past osiva ve vsi seedu krajiny 13 (rozbor 2. 11. 2026, rychlé měření 6 × 25 let):** osivo
+  zakladatelů (1 800 kg) se vyseje do jara roku 4 – setí bere osivo jen na setí napřed (`takeSeed`),
+  i když ves má 2,7–4,7 t obilí, takže lhůta 15 let nechrání nic. Ves má 16 let jen 5 dospělých,
+  potřeba z pole roste s dětmi 1 100 → 2 600 kg (rok 13), úroda zůstane ≈ 2 400 kg. Od roku 11
+  osivo chybí a nákup neprojde (hřivny 0, krávy nad chovné 0), od roku 13 ves každý podzim
+  skutečně hladoví a sní i koupené osivo; od roku 16 oseje 0,1–0,7 ha. **Ve správci:** past
+  zmírnila návratnost posvátných míst (svatyně v roce 1 – práce × 1,05 po celá léta pěti
+  dospělých; lidé za 25 let 21 → 30, využití oběhu 0,32 → 0,66). **Cíl polí s předstihem 5 let,
+  když brzdí půda** (návrh Clauda, zamítnut): seed 13 o kus lepší, součet horší (hladové dny
+  285 → 443, využití oběhu 0,91 → 0,86 – pole čekají ladem). Co zbývá, jsou pravidla osiva –
+  otázky pro Martina ve zprávě `steward-better-7.md` (rezerva zakladatelů napřed ze zásob, nákup
+  bez krav nad chovné, koupené osivo v hladu).
 - **Klučení lesa:** jen když louka v plánu nestačí, v okně lesa (1. 10. – 31. 1.); les na území vsi
   do `forestSearchTiles` (10) políček od bloku hospodářství. Druhá podmínka návrhu („les dává
   víc“) zatím ne.
@@ -351,10 +363,10 @@ plán ověřil: střed políčka, jeden čtverec bez mřížky.
   jen první zdroj ovoce (ves bez sadu i jabloní), další čtverce až v Růstu – s pěti sady z Obnovy
   v letech 3–5 hladověla zdravá ves na seedu krajiny 2 v letech 14–18 (až 12 dní), s jedním ne
   (měření 31. 10. 2026).
-- **Posvátná místa:** štěstí pod `happinessFloor` (60) – modla (nejvýš dvě), pak svatyně; místo
-  nejbližší středu vsi do `sacredSearchTiles`, které projde kontrolou umístění. Mimo žně. Práh je
-  nad startem schválně – štěstí nad 50 zvedá práci; odklad v mladé vsi měření zamítlo (Mladá ves
-  níž).
+- **Posvátná místa:** modla (nejvýš dvě), pak svatyně, když se vrátí za `sacredPaybackYears` let
+  režimu (Posvátná místa podle návratnosti níž; do 2. 11. 2026 práh štěstí 60); místo nejbližší
+  středu vsi do `sacredSearchTiles`, které projde kontrolou umístění. Mimo žně. Odklad v mladé vsi
+  měření zamítlo (Mladá ves níž).
 - **Cesty (krok Růstu, mimo setí a žně):** vylepšení vyšlapané cesty, když úspora chůze a jízd
   vozem za `roadPaybackYears` let režimu převýší cenu (Návratnost vylepšení cesty níž); vozová
   cesta po upravené cestě s provozem ≥ `wagonTrips` a vozem ve vsi; zemská stezka
@@ -376,7 +388,7 @@ v roce 0 a 1 je nula. Mladá ves potřebuje práci na pole a stravu.
   (seed 51: 37 → 15 lidí). Lidé za 5 a 10 let se nezměnili a pojistka mladé vsi se nezvedla.
   Důvod: štěstí násobí veškerou práci vsi (`HAPPINESS_LABOR` – 50 → × 1, 90 → × 1,08); dvě modly
   a svatyně (460 člověkodní, +40) zvednou práci o ≈ 8 % napořád – i ve vsi o 5 lidech se vrátí za
-  ≈ 4–5 let a odklad investici jen posune. Práh štěstí zůstává 60 (nad startem schválně).
+  ≈ 4–5 let a odklad investici jen posune. Práh štěstí zůstal 60 (nad startem schválně); od 2. 11. 2026 ho nahradila návratnost (Posvátná místa podle návratnosti).
 - **Humno a ohrady v roce 0** (prvních 365 dní vsi) jen s kladnou hodnotou v úzkém hrdle výhledu
   (Model kapacity vsi): humno se v roce 0 musí vrátit za jeden rok, ne za `paybackYears`; při
   hrdle **práce** se počítá jen ušetřená práce výmlatu (`THRESHING.emergencyWork`) – zrno hrdlo
@@ -407,6 +419,29 @@ z vyšlapanosti (roads.md) – správce je jen vylepšuje. S jedním horizontem 
   pochůzky denně, 78 m, 11,8 člověkodní; návratnost 12–17 let); úsek s 3,6 pochůzky (26 let)
   a úseky s 2,1 a 0,5 pochůzky (44 a 184–188 let) ne. Vozy ve Vlkově nejezdí – přínos vozům se tam
   neprojeví.
+
+### Posvátná místa podle návratnosti (návrh Clauda, 2. 11. 2026)
+
+Dřív správce stavěl modlu a svatyni, když štěstí kleslo pod 60. Štěstí ale násobí veškerou práci
+vsi (`HAPPINESS_LABOR` – 0 → × 0,8, 50 → × 1, 100 → × 1,1) a nic jiného nedělá, takže o stavbě
+rozhoduje návratnost jako u cest a humna (zpráva `steward-better-5.md` – „správnější by bylo
+hodnotit posvátná místa návratností“):
+
+- **Přínos za rok** (`sacredLaborGainPerYear`): body štěstí stavby (modla +8, svatyně +25) nad
+  dnešní posvátná místa jen do stropu +40 (duby, háje a hotové stavby – `sacredHappiness`)
+  a dnešní štěstí jen do 100; rozdíl násobku práce `happinessLaborFactor` (pod 50 je bod 0,004
+  práce, nad 50 0,002) × roční práce lidí vsi (dospělí × 365 – i řemeslníci, štěstí násobí
+  všechno).
+- **Cena:** práce stavby `SACRED_BUILDINGS.laborManDays` (30 a 400 čd, i s kácením blízkých
+  dubů); jinou surovinu stavba nebere – duby jsou v ceně kácením.
+- **Horizont podle režimu** (`STEWARD.sacredPaybackYears`, jako `roadPaybackYears`): stavba, ke
+  které se chodí, nechátrá (abandonment.md) – v **Růstu 25 let** (generace), v **Obnově 5 let**
+  (práce je drahá), v **Nouzi** se nestaví.
+- **Co z toho plyne:** nad štěstím 50 dá modla ≈ 5,8 čd a svatyně ≈ 18 čd na dospělého za rok –
+  v Růstu se obě vrátí už ve vsi o jednom dospělém, v Obnově modla taky a svatyně od ≈ 4,4
+  dospělého. Mladá ves v Obnově tak se svatyní počká, až se jí vyplatí. Ves se štěstím nad 60
+  staví taky (bod nad 50 platí stejně, dřív nic); nestaví, když by stavba štěstí nezvedla (strop
+  +40, štěstí 100).
 
 ### Ohrada volů podle stáda a osevu (návrh Clauda, 1. 11. 2026)
 
@@ -981,6 +1016,7 @@ kód, který se pak zahřeje, stojí ≈ 3× víc než zahřátý).
 | Syn odejde, jen když obě vsi po odchodu uživí osevem vlastní prací 1,2× své lidi (půda se nepočítá)                     | Martin (2. 11. 2026) / čísla návrh Clauda                            |
 | Měření: využití oběhu = 1 − odpočatá půda ladem, vracení přílohu ≤ 24 %, založení a vzdálenost dílů jen info            | návrh Clauda (2. 11. 2026)                                           |
 | Měření: čas správce na hodinách CPU vlákna; akce staveb kopírují stav přes `cloneState`                                 | návrh Clauda (2. 11. 2026)                                           |
+| Posvátná místa podle návratnosti: přínos štěstí k práci vsi za horizont režimu (Růst 25, Obnova 5) proti ceně stavby    | návrh Clauda (2. 11. 2026)                                           |
 
 ## Otevřené otázky
 
