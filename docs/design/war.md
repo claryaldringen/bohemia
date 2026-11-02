@@ -590,6 +590,8 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
   s rodinami odstěhují do jiné vsi svého rodu; novým držitelem je vítěz a ves dostane jeho
   správce – „Pokud rod jinou ves nemá, nebude postoupení vsi v nabídce, pouze vazalství“ –
   poslední ves rodu postoupit nejde.
+- **Délka míru:** „Ne, tohle řešit nebudeme. Mír je na dobu neurčitou“ – mír nemá lhůtu ani
+  podmínku délky.
 
 ## Otázky na Martina
 
