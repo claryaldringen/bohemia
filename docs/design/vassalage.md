@@ -423,6 +423,10 @@ pozvaný vazal):
   muži rodu ne; „Ano, mělo by to být stejné, jako v obchodě – muže, ženy a nebo celé rodiny“
   (Martin 2. 11. 2026) – stejné druhy jako výměna lidí ([obchod](trade.md) – Výměna lidí).
 
+- **Práce jako dávka (robota):** vazalovi lidé se v pánově vsi zapojí do práce jako ostatní
+  vesničané, po odpracování domluvených člověkodní se vrátí, jídlo jim dává pánova ves – „Ano.
+  Tohle dostane větší smysl, až se budou stavět velké veřejné stavby typu opevnění“ (Martin 2. 11. 2026).
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
