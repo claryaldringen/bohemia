@@ -586,6 +586,10 @@ Clauda.
 
 ### Konec rodu – konec hry (Martin 24. 10. 2026 – „Začít znovu, ves zanikne“)
 
+> **Změna 2. 11. 2026 (vazalství – odúmrť):** má-li vymřelý rod pána, jeho vsi i vazalové
+> nezaniknou, ale připadnou pánovi jako **odúmrť** ([vazalství](vassalage.md) – Konec); bez pána
+> platí pravidlo níž.
+
 - **Kdy:** v den, kdy zemře **poslední žijící muž rodu** v kterékoli vsi hráče – **i chlapec nebo
   kojenec** (Martin: „Pokud rod po meči zcela vymře, hra končí“). Ženy rodu ani synové dcer rod
   nedrží. Dítě narozené po smrti otce hra nemá (rodí jen žena se žijícím mužem), rod

@@ -38,8 +38,11 @@ kolem 40 generací – dědictví, sňatky a nástupnictví jsou hlavní mechani
   donutí stát se vazalem (Martin 2. 11. 2026).
 - **Na vrcholu nestojí nikdo** – hráči jsou si na začátku rovni; kdo chce výš, musí si ostatní
   podrobit (Martin 2. 11. 2026: „V tom ta hra vlastně spočívá“). Vazalem se hráč stane
-  pozvánkou nebo přijetím nabídky s podmínkami (přijme, odmítne, nebo jedná o podmínkách);
-  o dávkách rozhoduje pán, vazal smí odejít kdykoli. Návrh: [docs/design/vassalage.md](docs/design/vassalage.md).
+  pozvánkou nebo dohodou s podmínkami (nabídka i žádost, jednání do shody); vazalství je síť
+  dvoustranných dohod (víc pánů smí), nic se nevynucuje – hlavní je vojenská služba mužů rodu,
+  dávky v makrokomoditách nabízí vazal a jednou ročně je potvrdí; vypovědět smí kdokoli kdykoli.
+  Hráč smí řídit víc vsí (vojvoda nebo správce – správce je šlechtic). Návrh:
+  [docs/design/vassalage.md](docs/design/vassalage.md).
 
 ---
 
