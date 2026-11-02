@@ -478,6 +478,10 @@ pozvaný vazal):
 - **Smrt vojvody pána nebo vazala:** vazalství trvá, nástupce ho převezme bez nové přísahy se
   všemi podmínkami, dávkami i půjčkami – „Ano“ (Martin 2. 11. 2026).
 
+- **Půjčka po odchodu vazala:** dluh trvá, splátky chodí dál (samostatná dohoda); neplacení se
+  zapíše, vymáhat lze rozsudkem nebo válkou – „Tak jak říkáš“ (Martin 2. 11. 2026). Martin dodal:
+  „teď mě napadá, že bychom měli formalizovat akt odchodu“.
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
