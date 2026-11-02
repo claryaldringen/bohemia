@@ -469,6 +469,12 @@ pozvaný vazal):
 - **Sňatky mezi rody hráčů:** ano, ale v další verzi jako samostatná mechanika (příbuzenství,
   dědictví, spojenectví) – „Ano, tak jak říkáš“ (Martin 2. 11. 2026).
 
+- **Vazalové vazalů:** C a D mají povinnosti jen ke svému pánovi B (dohoda je jen mezi dvěma
+  hráči); „Ano, ale A má přehled o celém tom vazalském stromu. Tj. může pro válku požadovat
+  odpovídající počet lidí“ (Martin 2. 11. 2026) – pán vidí celý strom pod sebou (vazaly vazalů
+  a jejich muže rodu schopné služby) a podle toho žádá od B počet mužů; B je může přivést i od
+  svých vazalů.
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
