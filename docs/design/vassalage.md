@@ -385,6 +385,10 @@ pozvaný vazal):
 - **Počet jednání:** hráč smí jednat s kolika hráči chce, mezi dvěma hráči vždy jen jedno
   jednání – „ano“ (Martin 2. 11. 2026; mez 5 odeslaných nabídek zrušena).
 
+- **Po odmítnutí:** novou nabídku témuž hráči nejdřív za jeden skutečný den – „Ok, tak jak
+  navrhuješ.“; **blokování:** „Hráč, který se cítí být spamován, může spamujícího hráče zablokovat.
+  Ten to však uvidí a může to vzít jako urážku“ (Martin 2. 11. 2026).
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
