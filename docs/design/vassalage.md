@@ -378,6 +378,8 @@ pozvaný vazal):
 - **Dávky** – viz citace v Podmínkách (Martin 2. 11. 2026): nabízí vazal podle výhledu přebytku,
   jednou ročně je potvrdí v dialogu (víc / míň / vzkaz), pán dostane upozornění.
 
+- **Platnost nabídky:** „Ať visí do nekonečna. Oba se k tomu musí nějak postavit“ (Martin 2. 11. 2026) – nabídka nepropadá; trvá, dokud ji strany nevyřídí.
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
