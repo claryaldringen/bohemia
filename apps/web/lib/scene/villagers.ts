@@ -740,6 +740,7 @@ export class VillageVillagers {
       tasks: Parameters<Timetable['setDay']>[2];
       doors: ReadonlyMap<number, { x: number; z: number }>;
       walk: WalkRouteFn;
+      length: (a: { x: number; z: number }, b: { x: number; z: number }) => number;
     },
     t: number,
   ): Timetable {
@@ -749,8 +750,8 @@ export class VillageVillagers {
     timetable.setDoors(new Map(persons.map((p) => [p.id, plan.doors.get(p.home) ?? null])));
     // délky chůze z odhadu po síti pěšin, přesná trasa jen pro kreslenou pózu (villagers.md –
     // Cesty postav; úloha 6)
-    const paths = this.paths;
-    timetable.setEstimate(paths?.walkLength ? (a, b) => paths.walkLength!(a, b) : null);
+    // – kolem domů nejméně schůdná trasa (`scheduledLength`; roh domu – villagers.md, Bez časosběru)
+    timetable.setEstimate(plan.length);
     const homes = new Map(persons.map((p) => [p.id, p.home]));
     timetable.setRouter((id, from, to) => plan.walk(from, to, homes.get(id)));
     // povodeň – na rozlitou vodu se nechodí (villagers.md – Události)

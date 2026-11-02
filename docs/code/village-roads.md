@@ -95,7 +95,10 @@ cesty, půda)`; graf a půda (`walkGroundOf` + `withFieldWalk` – pole v `Villa
   (`trafficRouteOk`) → null; `route(points, pace)` – `shuttle` jde po pěšině a cestě rychleji
   (tempo úseku = délka ÷ cena, oříznuté na 0,4–`WALK_PACE_MAX` 1,3; `walkLength` = součet délka ÷
   tempo – délka chůze rozvrhu, po nakreslené trase nikdy rychleji než 1,3×; `scheduledWalk`
-  ve `villager-plan.ts` trasu rozvrhu delší než 1,3 × délka chůze zahodí – rovně). Testy `walk-network.test.ts`,
+  ve `villager-plan.ts` trasu rozvrhu delší než 1,3 × délka chůze zahodí – rovně; délku chůze
+  rozvrhu dává `scheduledLength` – odhad simulace, ale když schůdná trasa `walkRoute` je delší než
+  1,3 × odhad, její délka – cíl hned za domem, roh domu; `planVillagersWithCrew().length` v paměti
+  dne, `Timetable.setEstimate` ve `villagers.ts`). Testy `walk-network.test.ts`,
   `paths-walking.test.ts` (`walkingRoute`). Vývojová stránka: tlačítka
   **Pěšiny**, **Cesta** (ukázka pevné cesty se stromy v každém stadiu – `dev-road.ts`), **Provoz**
   (teplotní mapa) a **Stáří**.

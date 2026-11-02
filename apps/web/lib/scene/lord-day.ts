@@ -391,7 +391,16 @@ export function traineePose(input: TraineePoseInput): PoseFn {
     if (!s) return inside(out, door);
     switch (s.kind) {
       case 'walk': {
-        out.stage = 'out';
+        // kam jde (panel postavy – person-activity.ts): na cvičiště, ke koni, k manželce, ke dvorci
+        const next = s.route && !s.reverse ? 'away' : stepAt(stepsOf, s.to + 1e-3)?.kind;
+        out.stage =
+          next === 'bow' || next === 'combat'
+            ? 'out'
+            : next === 'wait' || next === 'ride'
+              ? 'hitch'
+              : next === 'away'
+                ? 'visit'
+                : 'back';
         if (s.route) {
           // zpět po téže trase – vzdálenost od začátku trasy ubývá, směr otočený
           const d = Math.min(s.route.length, (t - s.from) * speed);
@@ -434,12 +443,14 @@ export function traineePose(input: TraineePoseInput): PoseFn {
         return combatAt(s, t, out);
       case 'ride':
         if (input.mountedPose && input.mounted?.(t)) return input.mountedPose(t, herds, out);
-        delete out.stage;
+        out.stage = 'wait';
         return put(out, s.at, 'idle');
       case 'wait':
-        delete out.stage;
+        out.stage = 'wait';
         return put(out, s.at, 'idle');
       case 'away':
+        // u vedlejší manželky – skrytý v jejích dveřích
+        out.stage = 'visit';
         return inside(out, s.at);
       case 'rest': {
         out.stage = 'rest';

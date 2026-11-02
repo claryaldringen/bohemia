@@ -459,9 +459,18 @@ jádro je dál počítá po dnech. Čísla a podrobnosti jsou návrh Clauda:
 - **Víc najednou:** další jízda téže výpravy nebo další výprava je další karavana – naráz jich může
   jít víc. Vůz jede s tou starší, dokud ji nedojede. Lov se nepřekrývá: lov navíc, vyhlášený, dokud
   lovci ještě nejsou zpátky, se ve scéně neukáže (jádro ho počítá).
-- **Co se ve scéně může na pár minut zdvojit:** po návratu výpravy v jádru jsou koupený dobytek
-  a lidé od souseda už ve vsi, zatímco karavana s nimi ještě jde; kování nové, než staré doběhne,
-  staré nahradí (kování je vzácné).
+- **Kdo s karavanou teprve jde, ve vsi ještě není** (návrh Clauda, 2. 11. 2026): po návratu
+  výpravy v jádru jsou koupený dobytek a lidé od souseda už ve vsi, zatímco karavana s nimi ve
+  scéně ještě jde – dřív se na pár minut zdvojili. Teď scéna koupené krávy a voly z ohrad a ze
+  stáda krav ubere a lidi, kteří ve vsi přibyli po posledních datech s karavanou (nejvýš tolik,
+  kolik jich jde, ne novorozence), do vsi nepustí, dokud karavana ve scéně nedojde. Prohlížeč
+  otevřený později karavanu, která je v jádru už doma, dál nevidí (jádro výpravu po návratu nemá;
+  poslat ji ze serveru by chtělo uložit vrácené výpravy – zatím ne). Kování nové, než staré
+  doběhne, staré nahradí (kování je vzácné).
+- **Roh domu** (návrh Clauda, 2. 11. 2026): odhad chůze simulace domy a pozemky neobchází – cíl hned
+  za domem dostal v rozvrhu čas na chůzi rovně a postava šla rohem domu (nebo by kolem běžela).
+  Rozvrh scény teď bere délku schůdné trasy kolem domů a po pěšinách, když je delší, než se za čas
+  odhadu dá dojít 1,3× chůzí; jinak odhad simulace. Simulace se nemění.
 - **Mimo:** orba za herní den (`PLOUGH_DAY_DEBUG`, Martin 19. 10. 2026: „Vím, že to bude divně
   zrychlené…“) – spřežení s oráčem dál projede celou dnešní orbu za herní den; vypnutí přepínačem.
   Útěk divoké zvěře zůstává v herním dni.
@@ -474,6 +483,11 @@ jádro je dál počítá po dnech. Čísla a podrobnosti jsou návrh Clauda:
   = 2 minuty), jízda krokem a klusem až 4 minuty, u dvorku, vejde; mezi místy chůzí, skrytý jen
   doma a u manželky. Kdo jede a kudy, scéna drží po celou jízdu, jak začala (data dalšího dne
   by jezdce uprostřed jízdy přesunula).
+- **Den rodiny v rozvrhu** (návrh Clauda, 2. 11. 2026): den rodiny je pro rozvrh úloha u objektu –
+  člověk ho drží, dokud ho obsazení dává, a chůze tam a zpět se měří k místu, kde v den rodiny
+  právě je (dvorec, terče, kůň, stání u dvorku). Ve žňový den muž rodiny den rodiny dojde (vrátí se
+  ke dvorci), jde na pole a z pole domů; další den dojde zpět do dne rodiny – nic neskočí ani
+  neběží. Kůň před jízdou dojde z ohrady ke kůlu a po jízdě se vrátí (horses.md – Ve scéně).
 
 ### Události
 

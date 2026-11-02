@@ -194,6 +194,9 @@ Tři řádky v panelu obchodu jako u dobytka ([obchod](trade.md) – Dobytek ve 
 - **Jezdec** = postava `man.glb` s novou animací sedu z `art/animation/biped/rider/cavalry/` (stejná
   kostra bipeda) – nový klip v GLB. Poloha a natočení jezdce se odvodí z koně v `animate()` (takt
   `WATER_FPS`); jedoucí jezdec nastaví `needsRender`, stojící ne.
+- **Z ohrady ke kůlu chůzí (návrh Clauda, 2. 11. 2026):** před každou jízdou kůň dojde krokem
+  (1,2 m/s) od branky své ohrady tam, kde jízda začne, 10 s stojí, jezdec nasedne; po jízdě se
+  vrátí a do ohrady vejde u branky (ohrada ho mezitím nekreslí). Dřív se u kůlu objevil.
 - **Kdy jsou jezdci venku (návrh Clauda, 24. 10. 2026):** scéna ukazuje to, co simuluje jádro
   ([lord.md](lord.md) – Výcvik: v každém ze dvou bloků dne napřed luk, pak boj, pak jízda).
   Jezdec jede **jen v bloku jízdy** (`SceneRide.hours` ÷ počet bloků, po luku a boji); zbytek dne

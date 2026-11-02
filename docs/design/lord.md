@@ -228,6 +228,17 @@ pozná hrozbu ze dvou odhadů, které už počítá – nový odhad nevzniká.
   cyklu – lovci k ní dojdou ke kůlu a po lovu se chůzí vrátí do dne rodiny. Ženy rodiny: cyklus
   10 minut – doma 1–2 minuty, pak domácí práce u dvorce a vejdou.
 
+- **Ve žňový den chůzí** (návrh Clauda, 2. 11. 2026): kdo je ten den na poli, den rodiny dojde
+  – vrátí se ke dvorci, odkud v něm právě je –, jde na pole a z pole domů; další den chůzí zpět do
+  dne rodiny (villagers.md – Bez časosběru, Den rodiny v rozvrhu). Dřív se postava přesunula skokem.
+- **Kůň z ohrady ke kůlu** (návrh Clauda, 2. 11. 2026): před každou jízdou kůň dojde krokem
+  (1,2 m/s) od branky své ohrady tam, kde jízda začne, 10 s tam stojí, jezdec nasedne; po jízdě se
+  vrátí a do ohrady vejde u branky. Dřív se objevil u kůlu.
+- **Panel vybraného muže rodiny** (návrh Clauda, 2. 11. 2026) říká, co právě dělá: cvičí
+  lukostřelbu / boj, jde na cvičiště, jde ke koni, čeká u koně, jede na koni, je na lovu, stojí
+  u dvorce, jde ke dvorci, jde za manželkou, je u manželky (dřív u chůze i stání „cvičí
+  lukostřelbu“).
+
 ## Dopad na pracovní sílu vsi
 
 Příklad: ves 40 lidí, ≈ 20 dospělých. Dvorec s 8 lidmi – vojvoda 42, žena 39, dědic 21 se ženou

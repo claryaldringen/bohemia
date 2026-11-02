@@ -27,7 +27,9 @@ import {
   riderPose,
   rideState,
   type RidePlan,
+  withLead,
 } from './riders';
+import { horseGate } from './villager-plan-shoeing';
 import { cast, figure } from './villager-plan-cast';
 import { hash01 } from './smoke-schedule';
 import { doorPoint, free, walkRoute } from './villager-plan-geometry';
@@ -42,6 +44,9 @@ import {
 } from './villager-motion';
 import { trainingGroundOf, type TrainingGround, type TrainingSpot } from './training-ground-layout';
 import type { Point } from './villager-plan-types';
+
+/** Kůň vyjde z ohrady tak daleko před branku (m), než zamíří ke kůlu. */
+const LEAD_OUT_M = 1;
 
 /** Ženy rodiny chodí od vchodu nejvýš tak daleko (m) – zůstávají na pozemku dvorce. */
 const HOUSEWORK_M = 3.5;
@@ -139,7 +144,8 @@ function walkBetween(
 ): VillagerPose {
   out.hidden = false;
   delete out.lift;
-  delete out.stage;
+  // k lovu a z něj (panel postavy – person-activity.ts)
+  out.stage = 'hunt';
   const d = Math.hypot(b.x - a.x, b.z - a.z);
   const dur = Math.min(span, d / speed);
   if (since >= dur) {
@@ -247,7 +253,16 @@ export function lordFigures(
   }).flatMap((r): RidePlan[] =>
     !hunters.has(r.riderId) ? [r] : busy && r.span ? [{ ...r, except: busy }] : [],
   );
-  const rides = [...patrolRides, ...(hunt?.rides ?? [])];
+  // kůň dojde z ohrady ke kůlu před jízdou a vrátí se po ní (riders.ts – `withLead`): z branky
+  // ohrady, kde stojí, kousek před ni – vyjde a vejde u branky
+  const penGate = (horseId: number): Point | null => {
+    const pen = (ctx.village.pens ?? []).find((p) => p.horses?.some((h) => h.id === horseId));
+    const gate = pen ? horseGate(ctx, pen.id) : null;
+    return gate ? { x: gate.x + gate.outX * LEAD_OUT_M, z: gate.z + gate.outZ * LEAD_OUT_M } : null;
+  };
+  const rides = [...patrolRides, ...(hunt?.rides ?? [])].map((r) =>
+    withLead(r, penGate(r.horseId), leg),
+  );
   const patrolOf = new Map(patrolRides.map((r) => [r.riderId, r]));
   const huntRideOf = new Map((hunt?.rides ?? []).map((r) => [r.riderId, r]));
   const walking = new Map((hunt?.foot ?? []).map((r) => [r.riderId, r]));
@@ -461,7 +476,7 @@ export function footHunterPose(plan: RidePlan, carrier: boolean, otherwise: Pose
     out.z = state.z;
     out.headingX = state.headingX;
     out.headingZ = state.headingZ;
-    out.stage = back ? 'back' : 'out';
+    out.stage = 'hunt';
     if (state.pace <= HUNT_PACE.stop * 2) {
       out.clip = 'spear-thrust';
       out.pace = 1;

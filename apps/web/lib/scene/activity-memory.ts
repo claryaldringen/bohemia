@@ -30,6 +30,66 @@ interface SeenCaravan {
   expedition: SceneExpedition;
   carts: SceneCart[];
   endMs: number;
+  /** Lidé vsi (id), když karavanu měla data naposled – kdo přibyl potom, přišel s ní. */
+  known: ReadonlySet<number>;
+}
+
+/**
+ * Ves bez toho, co dohrávané karavany (`lingering` – v jádru už doma, ve scéně ještě jdou) teprve
+ * přivádějí (návrh Clauda 2. 11. 2026; villagers.md – Bez časosběru): koupené krávy a voli
+ * (`cattle.back`) ubudou z ohrad a ze stáda krav, lidé od souseda (`coming`) – kdo ve vsi přibyl
+ * po posledních datech s karavanou, nejvýš tolik, kolik jich jde, ne novorozenci – ve vsi ještě
+ * nejsou. Až karavana ve scéně dojde, jsou ve vsi. Bez dohrávané karavany beze změny.
+ */
+export function withoutArriving(
+  village: SceneVillage,
+  lingering: readonly Pick<SeenCaravan, 'expedition' | 'known'>[],
+): SceneVillage {
+  let cows = 0;
+  let oxen = 0;
+  const away = new Set<number>();
+  const persons = village.labor?.persons ?? [];
+  for (const seen of lingering) {
+    cows += seen.expedition.cattle?.back.cows ?? 0;
+    oxen += seen.expedition.cattle?.back.oxen ?? 0;
+    const fresh = persons
+      .filter((p) => !seen.known.has(p.id) && !away.has(p.id) && p.age >= 1)
+      .sort((a, b) => b.id - a.id)
+      .slice(0, seen.expedition.coming.length);
+    for (const p of fresh) away.add(p.id);
+  }
+  if (cows === 0 && oxen === 0 && away.size === 0) return village;
+  let out = village;
+  if (cows > 0 || oxen > 0) {
+    // z ohrad v pořadí id (jako voli venku – village-pens.ts), krávy i ze stáda na pastvě
+    let c = cows;
+    let o = oxen;
+    const pens = (village.pens ?? [])
+      .slice()
+      .sort((a, b) => a.id - b.id)
+      .map((pen) => {
+        const dc = Math.min(pen.cows, c);
+        const dox = Math.min(pen.oxen, o);
+        c -= dc;
+        o -= dox;
+        return dc > 0 || dox > 0 ? { ...pen, cows: pen.cows - dc, oxen: pen.oxen - dox } : pen;
+      });
+    const order = new Map(pens.map((pen) => [pen.id, pen]));
+    out = { ...out, ...(village.pens ? { pens: village.pens.map((p) => order.get(p.id)!) } : {}) };
+    if (village.livestock && cows > 0) {
+      out = {
+        ...out,
+        livestock: { ...village.livestock, cow: Math.max(0, village.livestock.cow - cows) },
+      };
+    }
+  }
+  if (away.size > 0 && out.labor) {
+    out = {
+      ...out,
+      labor: { ...out.labor, persons: persons.filter((p) => !away.has(p.id)) },
+    };
+  }
+  return out;
 }
 
 /** Klíč karavany – výprava a den, kdy běžící cesta začala (víc jízd = víc karavan). */
@@ -73,11 +133,12 @@ export class ActivityMemory {
   ): SceneVillage {
     const incoming = village.expeditions ?? [];
     const keys = new Set(incoming.map(caravanKey));
+    const known = new Set((village.labor?.persons ?? []).map((p) => p.id));
     for (const e of incoming) {
       const endMs = caravanEndMs(e, village.trails, dayWindow(e.startDay ?? e.day));
       if (endMs === null) continue;
       const carts = (village.carts ?? []).filter((c) => e.carts.includes(c.id));
-      this.caravans.set(caravanKey(e), { expedition: e, carts, endMs });
+      this.caravans.set(caravanKey(e), { expedition: e, carts, endMs, known });
     }
     for (const [key, seen] of this.caravans) if (seen.endMs <= nowMs) this.caravans.delete(key);
     const lingering = [...this.caravans.entries()]
@@ -92,7 +153,7 @@ export class ActivityMemory {
         kept.has(c.id) && c.job?.activity !== 'trade' ? kept.get(c.id)! : c,
       );
       out = {
-        ...village,
+        ...withoutArriving(village, lingering),
         expeditions: [...lingering.map((seen) => seen.expedition), ...incoming],
         ...(village.carts ? { carts } : {}),
       };

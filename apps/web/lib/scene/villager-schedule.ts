@@ -98,6 +98,12 @@ export interface PersonTask {
   errand: Errand | null;
   /** Kde se pracuje (m) – odtud se počítá chůze ode dveří; null – u spřežení či vozu. */
   at: { x: number; z: number } | null;
+  /**
+   * Kde úloha v okamžik `t` je, když se místo samo mění – vojvodova rodina má vlastní den ve
+   * skutečném čase (lord-day.ts: dvorec, terče, kůň, stání u dvorku). Chůze tam se pak měří
+   * k místu v chvíli příchodu a zpět od místa v chvíli odchodu, ne k `at` (jinak by běžel).
+   */
+  placeAt?: (t: number) => { x: number; z: number };
   /** Událost – přeruší rozběhnutou činnost, jakmile ji obsazení dne dá (`Interrupt`). */
   interrupt?: Interrupt;
   /**
@@ -130,7 +136,11 @@ export interface TaskWalk {
 export interface ScheduleInput {
   seed: number;
   castOf(t: number): CastSpan;
-  lengthOf(personId: number, task: PersonTask): TaskWalk;
+  /**
+   * Chůze úlohy; `when` – kdy dojde (`out`) a kdy odchází (`back`) u úlohy s místem v čase
+   * (`PersonTask.placeAt`), jinak se nepoužije.
+   */
+  lengthOf(personId: number, task: PersonTask, when?: { out?: number; back?: number }): TaskWalk;
   /** Dveře domu člověka (události – odkud jde, kdo je doma); bez údaje místo práce. */
   doorOf?(personId: number): Point | null;
   /** Chůze (s) z bodu do bodu – člověk jde z místa, kde ho událost zastihla; bez údaje 0. */
@@ -238,15 +248,19 @@ export function activityLength(
   task: PersonTask,
   limit = Infinity,
 ): Activity | null {
-  const walk = input.lengthOf(personId, task);
+  // úloha s místem v čase – k místu, kde bude v chvíli příchodu (jedno zpřesnění)
+  const first = input.lengthOf(personId, task, { out: start, back: start });
+  const walk = task.placeAt
+    ? input.lengthOf(personId, task, { out: start + first.outS, back: start })
+    : first;
   const arrive = start + walk.outS;
-  const made = (end: number): Activity => ({
+  const made = (end: number, backS = walk.backS): Activity => ({
     person: personId,
     kind: task.kind,
     task,
     start,
     arrive,
-    leave: end - walk.backS,
+    leave: end - backS,
     end,
   });
   if (task.kind === 'errand') {
@@ -262,7 +276,9 @@ export function activityLength(
   }
   const until = holdUntil(input, personId, start, task);
   if (until === Infinity) return made(Infinity);
-  return made(gridUp(Math.max(until, arrive) + walk.backS));
+  const leave = Math.max(until, arrive);
+  const backS = input.lengthOf(personId, task, { back: leave }).backS;
+  return made(gridUp(leave + backS), backS);
 }
 
 /** Úloha u objektu – drží ji, dokud ji obsazení dne dává (i přes přelom dne): přelom bez ní. */
@@ -323,7 +339,7 @@ export function rehold(input: ScheduleInput, personId: number, a: Activity): Act
   if (!a.task || a.retreat) return a;
   const until = holdUntil(input, personId, a.start, a.task);
   if (until === Infinity) return { ...a, leave: Infinity, end: Infinity };
-  const backS = input.lengthOf(personId, a.task).backS;
+  const backS = input.lengthOf(personId, a.task, { back: Math.max(until, a.arrive) }).backS;
   const end = gridUp(Math.max(until, a.arrive) + backS);
   return { ...a, leave: end - backS, end };
 }
@@ -389,7 +405,10 @@ export function nextActivity(input: ScheduleInput, personId: number, prev: Activ
         retreat: true,
       };
     }
-    const approach = task.at ? (input.walkS?.(from, task.at, personId) ?? 0) : 0;
+    // k místu úlohy – u úlohy s místem v čase tam, kde bude v chvíli příchodu (jedno zpřesnění)
+    const walkTo = (p: Point | null): number => (p ? (input.walkS?.(from, p, personId) ?? 0) : 0);
+    const first = walkTo(task.placeAt?.(at) ?? task.at);
+    const approach = task.placeAt ? walkTo(task.placeAt(at + first)) : first;
     return rehold(input, personId, {
       person: personId,
       kind: 'hold',
@@ -562,8 +581,11 @@ export function taskKind(
     if (HOLD_SHARES.has(job.activity)) return { kind: 'hold', range: 'long' };
     return { kind: 'bout', range: SHORT_SHARES.has(job.activity) ? 'short' : 'long' };
   }
-  // starší u domu, vojvodova rodina na cvičišti a u dvorce
-  if (job.kind === 'elder' || job.kind === 'lord') return { kind: 'bout', range: 'short' };
+  // vojvodova rodina má vlastní den ve skutečném čase (lord-day.ts – sám vyjde z dvorce a vejde):
+  // drží ho, dokud ho obsazení dává, a přes přelom dne navazuje (žně – na pole dojde, vrátí se)
+  if (job.kind === 'lord') return { kind: 'hold', range: 'short' };
+  // starší u domu
+  if (job.kind === 'elder') return { kind: 'bout', range: 'short' };
   return { kind: 'bout', range: 'long' };
 }
 
@@ -607,6 +629,7 @@ export function personTasks(
       pose: f.pose,
       errand: f.errand ?? null,
       at,
+      ...(f.job.kind === 'lord' ? { placeAt: placeOf(f.pose, herds) } : {}),
       ...(interrupt ? { interrupt } : {}),
       ...(phases ? { role: phases.role, ...(phases.places ? { places: phases.places } : {}) } : {}),
     });
@@ -628,6 +651,16 @@ export function personTasks(
 }
 
 /** Postava doma – skrytá u dveří. */
+/** Místo pózy v čase (`PersonTask.placeAt`) – vlastní vzorek, nic nesdílí. */
+function placeOf(pose: PoseFn, herds: readonly HerdView[]): (t: number) => Point {
+  const probe = createVillagerPose();
+  return (t) => {
+    probe.hidden = false;
+    const p = pose(t, herds, probe);
+    return { x: p.x, z: p.z };
+  };
+}
+
 function inside(out: VillagerPose, door: { x: number; z: number }): VillagerPose {
   out.x = door.x;
   out.z = door.z;

@@ -141,6 +141,61 @@ describe('scéna dohraje karavanu a lov, které data už nemají (activity-memor
     expect(memory.apply(village({}), end + 1, window).expeditions).toBeUndefined();
   });
 
+  // dřív se na pár minut zdvojil koupený dobytek a lidé od souseda (v jádru už ve vsi, ve scéně
+  // ještě s karavanou) – návrh Clauda 2. 11. 2026: do vsi přijdou, až karavana ve scéně dojde
+  it('koupený dobytek a lidé od souseda jsou ve vsi, až karavana ve scéně dojde', () => {
+    const memory = new ActivityMemory();
+    const person = (id: number, age: number) => ({
+      id,
+      age,
+      sex: 'male' as const,
+      home: 1,
+      role: 'farmer' as const,
+    });
+    const labor = (ids: [number, number][]) =>
+      ({
+        day: 10,
+        month: 6,
+        people: { children: 0, adults: 2, elders: 0 },
+        shares: [],
+        persons: ids.map(([id, age]) => person(id, age)),
+      }) as unknown as SceneVillage['labor'];
+    const pen = (cows: number, oxen: number) =>
+      ({ id: 3, built: true, cows, oxen, trainees: 0 }) as unknown as NonNullable<
+        SceneVillage['pens']
+      >[number];
+    const e = expedition({
+      coming: [{ sex: 'female', age: 20 }],
+      cattle: { out: { cows: 0, oxen: 0 }, back: { cows: 2, oxen: 1 } },
+    });
+    memory.apply(
+      village({ expeditions: [e], labor: labor([[1, 30]]), pens: [pen(1, 0)] }),
+      window(10).startMs,
+      window,
+    );
+    // jádro: výprava je doma – žena od souseda (id 7) i koupené krávy a vůl jsou ve vsi, narodilo se
+    // dítě (id 8, 0 let)
+    const home = village({
+      labor: labor([
+        [1, 30],
+        [7, 20],
+        [8, 0],
+      ]),
+      pens: [pen(3, 1)],
+      livestock: { sheep: 0, goat: 0, pig: 0, cow: 2 },
+    });
+    const walking = memory.apply(home, window(14).startMs, window);
+    expect(walking.expeditions?.map((x) => x.id)).toEqual([9]);
+    expect(walking.labor?.persons?.map((p) => p.id)).toEqual([1, 8]);
+    expect(walking.pens?.[0]).toMatchObject({ cows: 1, oxen: 0 });
+    expect(walking.livestock?.cow).toBe(0);
+    // karavana ve scéně došla – všichni ve vsi
+    const end = caravanEndMs(e, [TRAIL], window(10))!;
+    const arrived = memory.apply(home, end + 1, window);
+    expect(arrived.labor?.persons?.map((p) => p.id)).toEqual([1, 7, 8]);
+    expect(arrived.pens?.[0]).toMatchObject({ cows: 3, oxen: 1 });
+  });
+
   it('další jízda téže výpravy je další karavana – naráz jdou obě', () => {
     const memory = new ActivityMemory();
     memory.apply(village({ expeditions: [expedition()] }), window(10).startMs, window);

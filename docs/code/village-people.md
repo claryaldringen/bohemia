@@ -358,7 +358,11 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   **Rozvrh člověka** (villagers.md – Činnosti od začátku do konce; úlohy 1–3):
   `planVillagersWithCrew` vrací i `tasks` – obsazení dne jako člověk → úloha (`PersonTask`: klíč
   postavy, `job`, druh `errand` / `bout` / `hold`, rozsah práce, póza, cyklus pochůzky, místo;
-  `personTasks` a `taskKind` ve `villager-schedule.ts`, první stavitel `hold`; místo z pózy na
+  `personTasks` a `taskKind` ve `villager-schedule.ts`, první stavitel `hold`, vojvodova rodina
+  `hold` s `PersonTask.placeAt` – místo v čase z pózy dne rodiny: chůze tam a zpět se měří
+  k místu v chvíli příchodu a odchodu (`lengthOf(id, task, { out, back })`), `Timetable.setDay`
+  dá běžícímu dni rodiny dnešní úlohu stejného klíče (lov, jízdy); test `lord-harvest.test.ts` –
+  žňový den chůzí; místo z pózy na
   začátku dne se stády teď – `herdPlaces`, jinak by pasák „stál“ u návsi a ke stádu sprintoval) a `doors` (id
   obydlí → `doorPoint`). `villager-schedule.ts` (čisté funkce, testy
   `villager-schedule.test.ts`): řetěz činností člověka – doma (pauza `PAUSE_S` 30–90 s), vyjití
@@ -526,7 +530,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   s hodinami dne z jádra (`trainingFamily` + `trainingHours`, jízda jen s koněm – `Horse.riderId`)
   a ženy domácnosti dvorce; kdo je dnes na poli (podle počtů `LaborDay.lord`, napřed nejmladší dospělí –
   jádro dává jen počty, jména volí scéna), tam není a je mezi ostatními. Obsazení `lordFigures` jde hned po pohřbu a karavanách
-  (`takeId` – do práce vsi pak rodina nejde). **Den rodiny ve skutečném čase** (`lord-day.ts`,
+  (`takeId` – do práce vsi pak rodina nejde). Panel muže rodiny podle úseku (`stage` z `traineePose`:
+  `out` na cvičiště, `back` ke dvorci, `hitch` ke koni, `wait` u koně, `visit` k manželce a u ní;
+  `ride` na koni – `riderPose`; `hunt` – pěší lovec a `huntBridge`; texty `LORD_TEXTS`
+  v `person-activity.ts`). **Den rodiny ve skutečném čase** (`lord-day.ts`,
   návrh Clauda; lord.md – Ve scéně, villagers.md – Bez časosběru): cyklus `LORD_CYCLE_S` 20 minut
   zarovnaný na `LIVESTOCK_EPOCH_MS` (celá rodina naráz), `traineeSteps(day, k)` dá kroky cyklu `k`
   – doma (skrytý ve dveřích dvorce, `manorDoor`) nejméně do `LORD_CYCLE.lead` 1 min, chůze

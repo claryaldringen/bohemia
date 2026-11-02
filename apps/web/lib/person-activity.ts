@@ -126,6 +126,23 @@ const DOOR_CHORE_TEXTS: Partial<Record<VillagerStage, string>> = {
   mind: 'hlídá děti u domu',
 };
 
+/**
+ * Muž rodiny podle úseku dne rodiny (lord-day.ts – `traineePose`, riders.ts, lov): cvičí, jde
+ * mezi místy, stojí u dvorce, u koně, na koni, na lovu, cestou k vedlejší manželce.
+ */
+const LORD_TEXTS: Partial<Record<VillagerStage, string>> = {
+  bow: 'cvičí lukostřelbu',
+  combat: 'cvičí boj',
+  out: 'jde na cvičiště',
+  back: 'jde ke dvorci',
+  rest: 'stojí u dvorce',
+  hitch: 'jde ke koni',
+  wait: 'čeká u koně',
+  ride: 'jede na koni',
+  hunt: 'je na lovu',
+  visit: 'jde za manželkou',
+};
+
 const DWELLING_SITES: Record<string, string> = {
   zemnice: 'staví zemnici',
   polozemnice: 'staví polozemnici',
@@ -149,7 +166,10 @@ export function personActivity(
   if (job.kind === 'plough' || job.kind === 'cart') {
     return crewActivityText(job, draft, village) ?? 'doma';
   }
-  if (state.hidden) return 'doma';
+  if (state.hidden) {
+    // vojvoda u vedlejší manželky (lord-day.ts – krok `away`) je v jejím domě, ne doma
+    return job.kind === 'lord' && state.stage === 'visit' ? 'je u manželky' : 'doma';
+  }
   const phase = state.phase ? PHASE_TEXTS[state.phase] : undefined;
   if (phase) return phase;
   if (state.leg) return legText(job, state.leg);
@@ -185,7 +205,7 @@ export function personActivity(
       return 'hasí požár';
     case 'lord':
       if (job.household) return 'vede domácnost';
-      return stage === 'combat' ? 'cvičí boj' : 'cvičí lukostřelbu';
+      return (stage && LORD_TEXTS[stage]) ?? 'jde ke dvorci';
   }
 }
 

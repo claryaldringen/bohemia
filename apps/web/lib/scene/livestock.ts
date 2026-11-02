@@ -4,6 +4,7 @@ import {
   rideArea,
   rideHorsePose,
   isAway,
+  isLed,
   isRiding,
   ridePlansKey,
   type RidePlan,
@@ -434,7 +435,8 @@ export class VillageLivestock {
       });
     }
 
-    // jezdečtí koně dne (horses.md – Ve scéně; riders.ts) – na trase objížďky, jinak u kůlu
+    // jezdečtí koně dne (horses.md – Ve scéně; riders.ts) – na trase objížďky, u kůlu, cestou z ohrady
+    // ke kůlu a zpět (`RidePlan.lead`)
     for (const plan of this.rides) {
       const area = rideArea(plan);
       addArea('horse', area);
@@ -450,7 +452,10 @@ export class VillageLivestock {
           return rideHorsePose(plan, clock.seconds, state, out);
         },
         // mimo blok jízdy a mimo kůl je kůň v ohradě (village-pens.ts) – tady se nekreslí
-        still: (clock) => !isRiding(plan, clock.seconds) && isAway(plan, clock.seconds) === written,
+        still: (clock) =>
+          !isRiding(plan, clock.seconds) &&
+          !isLed(plan, clock.seconds) &&
+          isAway(plan, clock.seconds) === written,
         hidden: (_index, clock) => !isAway(plan, clock.seconds),
         written: null,
         current: new BoundingInfo(Vector3.Zero(), Vector3.Zero()),

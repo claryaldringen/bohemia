@@ -691,6 +691,10 @@ Kdo, kdy a na kterém koni jede, určuje jádro (`lordRides` → `SceneLord.ride
   tam i zpět – na obratu žádný skok), takže blok začíná i končí u kůlu; mimo blok jezdec cvičí na
   dvorku (`lordFigures`) a kůň je v ohradě, mezi bloky ho `livestock.ts` skrývá (`Group.hidden`).
   Kdo jede a kudy, scéna drží po celou jízdu, jak byla na začátku (`ActivityMemory` – `rideAt`).
+  Kůň z ohrady ke kůlu: `withLead(plan, gate, leg)` (`RidePlan.lead` – od branky ohrady koně
+  `horseGate` + 1 m tam, kde jízda začne; `lordFigures` pro výcvikové jízdy i lov), `leadAt` /
+  `isLed` – před jízdou krokem `LEAD_M_S` 1,2 m/s a `LEAD_WAIT_S` 10 s u kůlu, po jízdě zpět;
+  `isAway` je zahrnuje (ohrada koně nekreslí), `rideHorsePose` kreslí cestu, `livestock.ts` – `still`.
   Lov (`huntSpan`) začíná v chvíli výcvikové jízdy cyklu (`rideSlot`), aspoň `HUNT_BRIDGE_S` po
   začátku dne lovu. Jízda k hranici a doprovod se
   do bloku nevejdou – jen vyjedou a vrátí se, neprojedou celou trasu (známé omezení, doprovod
