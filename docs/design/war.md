@@ -508,6 +508,9 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
 - **Odkud tažení vyrazí:** „Záleží jak velké tažení podniká. Rozhodne, kteří vazalové půjdou (ze
   kterých vsí) a u které vsi rodu se vojsko shromáždí.“ – vůdce tažení vybere vazaly a vsi,
   odkud muži jdou, a **shromaždiště** u některé vsi svého rodu; odtud vojsko vyrazí.
+- **Kdo vojsko vede:** muž rodu, kterého určí hráč (i jeho vlastní muž, syn, bratr); padne-li,
+  velení přejde na dalšího muže rodu ve vojsku – „Ano, ale v tom případě nemá na tažení žádný vliv“
+  (vede-li tažení jiný muž než hráčův, hráč tažení neřídí – upřesňuje se níž).
 
 ## Otázky na Martina
 
