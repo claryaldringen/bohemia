@@ -561,6 +561,11 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
 - **Co se odnese při včasném útěku:** dospělý 25 kg zásob, dítě méně, dobytek celý; zbytek v domech
   vezme útočník; obilí v zapečetěných jamách zůstane skryté a útočník ho najde jen s určitou
   pravděpodobností – „Tak jak říkáš“.
+- **Vzdaní:** útočník u vzdaného domu vybere pobít / odvést / nechat být – „Ano, ale muži a chlapci
+  rodu mají velkou pravděpodobnost vzdání se, pokud považují svou situaci za bezvýchodnou. Cílem
+  útočníka je nepřátelského šlechtice spíš zajmout než zabít, protože za něj může požadovat
+  výkupné“ – muži rodu se v bezvýchodné situaci často vzdají; **zajetí šlechtice a výkupné**
+  (nahrazuje „muži rodu se nevzdávají“).
 
 ## Otázky na Martina
 
