@@ -8,7 +8,7 @@ import { villageFoodCosts } from './husbandry';
 import { horsePenPayment } from './horse-pen-payment';
 import { LIVESTOCK } from './livestock';
 import { oxYearCost } from './draft';
-import { villageHappiness } from './happiness';
+import { happinessLaborFactor, villageHappiness } from './happiness';
 import { orchardAreaM2, villageOrchards, monthInWindow, roadAppleYieldKg } from './orchard';
 import { fieldWorkPerHa } from './productivity';
 import { ploughWorkPerHa } from './plough';
@@ -27,16 +27,18 @@ import {
   CEMETERY,
   childDeathsPerYear,
   ELDER_DEATHS_PER_YEAR,
+  HAPPINESS,
+  HAPPINESS_BONUS,
   SACRED_BUILDINGS,
 } from './rules-people';
 import { usedPlaces } from './burials';
-import { ageGroup } from './people';
+import { ageGroup, laborPerDay } from './people';
 import { APPLE_FOOD_VALUE, ORCHARD, ORCHARD_PLANTING_WINDOWS, THRESHING } from './rules-fields';
 import { DIET } from './diet';
 import { OXEN } from './rules-livestock';
 import { CART_SPEED, TEAM_TRAVEL, WAGON_ROAD } from './rules-roads';
 import { STEWARD } from './rules-steward';
-import { hasShrine } from './sacred';
+import { hasShrine, sacredBuildingHappiness, sacredHappiness } from './sacred';
 import { planCentre, takenTiles, walkDaysPerYear, cellHa } from './steward-land';
 import {
   inStewardWindows,
@@ -401,18 +403,48 @@ export function roadApplesStep(state: VillageState, ctx: StewardContext): void {
 // --- 9. posvátná místa -----------------------------------------------------------------
 
 /**
- * Krok 9 – posvátná místa: štěstí pod `STEWARD.happinessFloor` a dost dubů → napřed modla
- * (nejvýš dvě), pak svatyně (jedna). Místo nejbližší středu vsi, které projde kontrolou
- * umístění; mimo žně.
+ * Kolik člověkodní za rok přidá hotová modla nebo svatyně (steward.md – Posvátná místa podle
+ * návratnosti): štěstí stavby (`sacredBuildingHappiness`) nad dnešní posvátná místa jen do stropu
+ * `HAPPINESS_BONUS.sacredMax` a dnešní štěstí jen do `HAPPINESS.max`; rozdíl násobku práce
+ * (`happinessLaborFactor` – pod 50 dvakrát strmější) × roční práce lidí vsi (`laborPerDay` × 365
+ * – štěstí násobí veškerou práci). `obstacles` – stáří posvátných dubů (bez vrstvy nejmladší).
+ */
+export function sacredLaborGainPerYear(
+  state: VillageState,
+  day: number,
+  kind: 'idol' | 'shrine',
+  obstacles: StewardContext['obstacles'] | null,
+): number {
+  const sacred = sacredHappiness(state, day, obstacles);
+  const points =
+    Math.min(HAPPINESS_BONUS.sacredMax, sacred + sacredBuildingHappiness(kind)) - sacred;
+  if (points <= 0) return 0;
+  const happiness = villageHappiness(state);
+  const gain =
+    happinessLaborFactor(Math.min(HAPPINESS.max, happiness + points)) -
+    happinessLaborFactor(happiness);
+  const labor = state.people.reduce((sum, p) => sum + laborPerDay(p, day), 0);
+  return Math.max(0, gain) * labor * DAYS_PER_YEAR;
+}
+
+/**
+ * Krok 9 – posvátná místa podle návratnosti (návrh Clauda 2. 11. 2026): napřed modla (nejvýš
+ * dvě), pak svatyně (jedna), když práce, kterou štěstí stavby přidá (`sacredLaborGainPerYear`),
+ * za `STEWARD.sacredPaybackYears` let režimu pokryje cenu stavby (práce i s kácením dubů –
+ * `SACRED_BUILDINGS.laborManDays`; jinou surovinu stavba nebere). Místo nejbližší středu vsi,
+ * které projde kontrolou umístění; mimo žně.
  */
 export function sacredStep(state: VillageState, ctx: StewardContext): void {
   if (!inStewardWindows(ctx.date, STEWARD.offHarvestWindows)) return;
-  if (villageHappiness(state) >= STEWARD.happinessFloor) return;
   if (state.constructions.some((c) => c.kind === 'idol' || c.kind === 'shrine')) return;
   const idols = (state.sacredBuildings ?? []).filter((b) => b.kind === 'idol').length;
   const kind =
     idols < SACRED_BUILDINGS.idol.counted ? 'idol' : hasShrine(state) ? null : ('shrine' as const);
-  if (!kind || !fits(state, ctx, 'sacred', SACRED_BUILDINGS[kind].laborManDays)) return;
+  if (!kind) return;
+  const cost = SACRED_BUILDINGS[kind].laborManDays;
+  const years = STEWARD.sacredPaybackYears[ctx.mode];
+  if (sacredLaborGainPerYear(state, ctx.day, kind, ctx.obstacles) * years < cost) return;
+  if (!fits(state, ctx, 'sacred', cost)) return;
   const centre = planCentre(state);
   if (!centre) return;
   const { landscape } = ctx;

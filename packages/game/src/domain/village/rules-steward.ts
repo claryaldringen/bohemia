@@ -162,11 +162,18 @@ export const STEWARD = {
   /** 8. Jabloně u cest: cesta vede „kolem polí“, když je jejich díl do tolika metrů od osy. */
   roadFieldM: 40,
   /**
-   * 9. Posvátná místa: štěstí vsi, pod kterým správce staví modlu a svatyni (HAPPINESS.start = 50).
-   * Nad startem schválně – štěstí nad 50 zvedá práci (`HAPPINESS_LABOR`); odklad posvátných míst
-   * v mladé vsi a práh pod startem rychlé měření 1. 11. 2026 zamítlo (steward.md – Mladá ves).
+   * 9. Posvátná místa – návratnost (steward.md – Posvátná místa podle návratnosti; návrh Clauda
+   * 2. 11. 2026, dřív práh štěstí 60): modla nebo svatyně se postaví, když práce, kterou její štěstí
+   * přidá (`HAPPINESS_LABOR` × práce vsi), za tolik let režimu pokryje její cenu. Horizont jako
+   * u cest: stavba, ke které se chodí, nechátrá (`ABANDONMENT`) – v Růstu generace (25 let),
+   * v Obnově krátký (práce je drahá), v Nouzi se nestaví. Při štěstí nad 50 dá bod štěstí
+   * 0,002 práce – modla (30 čd, +8) ≈ 5,8 čd a svatyně (400 čd, +25) ≈ 18 čd na dospělého za rok:
+   * v Růstu se obě vrátí už ve vsi o jednom dospělém, v Obnově modla taky, svatyně od ≈ 4,4
+   * dospělého. Strop posvátných míst (+40) a štěstí 100 přínos ořežou – nad nimi se nestaví.
    */
-  happinessFloor: 60,
+  sacredPaybackYears: { emergency: 0, recovery: 5, growth: 25 } as Readonly<
+    Record<StewardMode, number>
+  >,
   /** 9. Posvátná místa: modla nebo svatyně nejvýš tolik políček od středu vsi. */
   sacredSearchTiles: 8,
   /** 9. Posvátná místa: nejvýš tolik kontrol místa za den správce. */
