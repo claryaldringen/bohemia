@@ -511,6 +511,9 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
 - **Kdo vojsko vede:** muž rodu, kterého určí hráč (i jeho vlastní muž, syn, bratr); padne-li,
   velení přejde na dalšího muže rodu ve vojsku – „Ano, ale v tom případě nemá na tažení žádný vliv“
   (vede-li tažení jiný muž než hráčův, hráč tažení neřídí – upřesňuje se níž).
+- **Řízení tažení:** vede-li tažení jiný muž než hráčův, hráč dá jen rozkaz na začátku (cíl, kdo
+  jde, shromaždiště) a dál řídí NPC podle rozkazu; živě (cesty, útok, ústup) řídí hráč jen tažení,
+  které vede jeho vlastní muž – „Přesně tak“.
 
 ## Otázky na Martina
 
