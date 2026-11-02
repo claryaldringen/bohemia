@@ -603,6 +603,13 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
 - **Cesta k cíli:** „Hráč musí k cíli dojít mapu po mapě. Bude tak jednodušší plenit příhraniční
   vesnice a těžší probít se k centru dominia“ – cíl se nevybírá ze seznamu; vojsko jde mapu po
   mapě (směr na okraji jako 18. 10.), mezilehlé mapy se procházejí (ne jen čas cesty).
+- **Průchod územím neutrálního rodu:** projít smí; „Neutrálnímu rodu by mělo jít dát vědět, že chci
+  táhnout přes jeho území. On se k tomu sice může vyjádřit, ale nic to neznamená. Nicméně však
+  nebude překvapen, až se u jeho vesnice objeví cizí vojsko a může dát předem vesnici vědět, že
+  vojsko jen prochází a nehrozí jí nebezpečí. Správce tak nezačne vesnici opevňovat ani neuteče
+  s vesničany do lesa“ – **ohlášení průchodu** (vzkaz, odpověď nic nezavazuje); ohlášené vojsko
+  vsi označí za neškodné, takže se nebrání ani neutíká; bez ohlášení se ves zachová podle postoje;
+  zápis „cizí vojsko prošlo“.
 
 ## Otázky na Martina
 
