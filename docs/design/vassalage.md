@@ -526,6 +526,10 @@ pozvaný vazal):
   (např. odměna za rok), hráč přijme / odmítne / protinávrh; „Ano, správce je pánovým vazalem“
   (Martin 2. 11. 2026).
 
+- **Pravomoci správce v cizí vsi:** běžné řízení (stavby, pole, obchod, zapnutí NPC), ne
+  vystěhování vsi, posílání synů držitele ani povyšování; zásoby patří vsi; držitel ho smí
+  kdykoli odvolat (vypovědět) – „Ano“ (Martin 2. 11. 2026).
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
