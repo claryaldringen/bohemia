@@ -493,6 +493,8 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
   v lehkém přístřešku, v zimě je potřeba postavit na noc bytelnější přístřešky nebo alespoň
   rozdělat hodně ohňů“ – zimní pomalejší pochod, píce (seno) pro koně s sebou, delší večerní
   ležení (méně hodin pochodu za den).
+- **Zásoby tažení:** jídlo pro muže (v zimě i seno pro koně) na nosičích, koních nebo vozech; když
+  dojde, vojsko se vrátí, nebo si jídlo vezme v napadené vsi jako kořist – „Ano“.
 
 ## Otázky na Martina
 
