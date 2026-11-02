@@ -447,6 +447,9 @@ pozvaný vazal):
   v nouzi není podmínkou dohody; vazal požádá, pán dá zdarma, nebo půjčí se splátkami (i v jiném
   zboží).
 
+- **Splátky půjčky:** jako dávky – 1. 11. dialog se splátkou podle kalendáře, domluvené / míň /
+  víc, vzkaz, pán v upozorněních – „ano“ (Martin 2. 11. 2026).
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
