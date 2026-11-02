@@ -270,7 +270,10 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   Ustálený stav bez simulace (osev, pole, práce po měsících, špičky, zásoby, dřevo, sad)
   okamžitě: `village-calculator.ts` (jádro `scripts/lib/steady-state.ts`). Kopii stavu na začátku
   `advanceVillage` dělá `cloneState` (`clone.ts` – ručně, stav jsou data jako v JSON) a stavby polí
-  hledají zakládané díly v indexu po polích – obojí kvůli rychlosti, výsledky stejné. **Záznamy
+  hledají zakládané díly v indexu po polích – obojí kvůli rychlosti, výsledky stejné. Stejně
+  kopírují stav akce staveb (`actions.ts` – obydlí, dílna, pole, hřbitov, sad, posvátné místo,
+  humno; `startRoadUpgrade`, `startTrail`, `startWagonRoad`, `startRoadApples`, `startPen`)
+  – `structuredClone` celého stavu byla u velké vsi polovina času dne správce (2. 11. 2026). **Záznamy
   v `clearedObstacles`, `felledTrees`, `chronicle` a body pevných cest se nemění na místě** – kopie
   stavu je sdílí (kopíruje jen seznamy); změna záznamu = nový objekt na jeho místě (`plantOnStump`,
   `mergeHaySlaughter`, `mergeFields`). V testech je hlídá `freezeSharedRecords` (`src/test-setup.ts`

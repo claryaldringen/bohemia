@@ -1,3 +1,4 @@
+import { cloneState } from './clone';
 import {
   length2,
   obstaclesNear,
@@ -1127,7 +1128,7 @@ export function startWagonRoad(
 ): VillageState {
   const plan = planWagonRoad(wagonPlanInputOf(state, day, roadId, landscape, obstacles));
   if (!plan.ok) throw new RangeError(plan.reason);
-  const next = structuredClone(state);
+  const next = cloneState(state);
   next.roads ??= {
     nextId: 1,
     roads: [],

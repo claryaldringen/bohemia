@@ -1,3 +1,4 @@
+import { cloneState } from './clone';
 import { dateOfDayIndex } from '../calendar';
 import type { ObstacleLayer } from '../landscape';
 import { HAY, hayWinterDaysLeft, oxenHayCoverage, villageHayKg } from './hay';
@@ -819,7 +820,7 @@ export function startPen(
 ): VillageState {
   const plan = planPenWood(state, input.squares, day, obstacles, walk, extendId, input.species);
   if (plan.missing > 0) throw new RangeError('Na ohradu chybí dřevo – klády ani stromy nestačí.');
-  const next = structuredClone(state);
+  const next = cloneState(state);
   recordClearedObstacles(
     next,
     input.squares.flatMap((q) => q.obstacleIds),

@@ -1,4 +1,5 @@
 // Zemská stezka (docs/design/trade.md – Zemská stezka, první vylepšení vsi z dvorce vojvody).
+import { cloneState } from './clone';
 import { relineRoad } from './paths/road-lining';
 // Hráč zvolí jeden z 8 směrů; stezka vede od dvorce ke kraji mapy v tom směru – trasu najde
 // nejlevnější chůze po terénu pěšin (svahy, brody, les, kmeny a balvany) se slevou po pevných
@@ -651,7 +652,7 @@ export function startTrail(
 ): VillageState {
   const plan = planTrail(state, direction, day, landscape, obstacles, walk);
   if (!plan.ok) throw new RangeError(plan.reason);
-  const next = structuredClone(plan.state);
+  const next = cloneState(plan.state);
   const trailId = next.nextId++;
   const trail: Trail = {
     id: trailId,

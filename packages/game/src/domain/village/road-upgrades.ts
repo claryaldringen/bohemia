@@ -1,3 +1,4 @@
+import { cloneState } from './clone';
 import type { Landscape, ObstacleLayer } from '../landscape';
 import { obstacleChangesAt } from './obstacles';
 import { roadChain } from './paths/road-chains';
@@ -327,7 +328,7 @@ export function startRoadUpgrade(
   );
   if (!option) throw new RangeError(NO_UPGRADE);
   if (option.blocked) throw new RangeError(option.blocked);
-  const next = structuredClone(state);
+  const next = cloneState(state);
   const targets = chainTargets(next, roadId);
   const cost = chainCost(targets);
   // průsek lesem – kácí se, až práce na úsek dojde (roadSwathDay); cena předem
