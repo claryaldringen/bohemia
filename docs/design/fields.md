@@ -1461,8 +1461,7 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
     vesničané nedělají práci, která k ničemu nevede): v jarním okně setí (březen–duben, nákup
     osiva 1. 3. už proběhl) ves kope, orá a vrací z přílohu pod jař, luštěniny a len jen díly, na
     které osivo má – vzaté, které smí do země, a zrno a luštěniny ve snopech, které výmlat ještě
-    dá (osivo se dělí mezi plodiny v pořadí plánu). Dřív kopala i díly bez osiva, které na konci
-    dubna vypadly i s rozkopáním (ves v pasti osiva 126–255 člověkodnů ročně). Podzimní příprava
+    dá (osivo se dělí mezi plodiny v pořadí plánu). Dřív kopala i díly bez osiva, které na konci dubna vypadly i s rozkopáním. Podzimní příprava
     pod jař a příprava ozimu se neomezují – osivo jaře může přijít nákupem 1. 3. a nezasetý ozim
     přejde do jaře i se zkopanou částí. Hráč práci na polích nezadává, pravidlo hry se nemění.
   - **Plán osevu** počítá zásoby k příští sklizni bez osiva, které ještě čeká na setí – díly se
@@ -1576,6 +1575,9 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
       zmizelo do jara roku 4 (1 784 → 1 227 → 693 → 293 → 0), i když ves měla 2,7–4,7 t běžného
       obilí, a lhůta 15 let nechránila nic. Teď nutné díly sejí napřed z běžného zrna nad příděl 1
       a osivo zakladatelů jen doplní, co z něj nejde (Osivo ze zásob – Osivo pro ves bez zásob).
+      Rychlé měření správce (6 vsí × 25 let): hladové dny rodu 285 → 124, lidé rodu za 25 let
+      40,0 → 40,2, pojistka 0,73 → 0,72, využití oběhu 0,91 → 0,90; ves seedu 13 drží osivo
+      zakladatelů celé do roku 13 (pak ho ve skutečném hladu sní), lidé za 25 let 30 → 36.
 - **Hlad zabíjí** (Martin, 18. 10. 2026 – dřív „hlad ves nezničí“): hlad tlumí porody a lidé
   umírají hlady podle nahromaděného hladu, dokud se jejich počet nesrovná s tím, co zásoby
   uživí – každé úmrtí zvedne příděl ostatním. Bez jídla ves do dvou měsíců vymře a hráč, kterému

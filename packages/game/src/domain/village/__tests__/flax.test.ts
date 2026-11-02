@@ -186,7 +186,9 @@ describe('len napřed – výběr s kapacitou (do Úlohy 5 pro páry k rádlům)
     // ves pod pojistkou seje osivo do roční potřeby jen nad příděl 0,75 – menší osev; dřív 165:82576eb1
     // 165:82576eb1 (31. 10. 2026, SEED_STORES.floorRation 0,75 → 0,5 – Martin: „osivo se nejí“): práh
     // 0,5 už plán osevu k 1. 9. nemění oproti stavu s prahem 0,6 – otisk je zpět na 165:82576eb1
-    expect(fingerprint(plans)).toBe('165:82576eb1');
+    // 163:1fa9eda1 (2. 11. 2026, příprava jaře jen na díly s osivem – fields.md, Osivo ze zásob):
+    // nová ves založená 1. 3. nekope jař, na kterou nemá osivo – výběr dílů se mění; dřív 165:82576eb1
+    expect(fingerprint(plans)).toBe('163:1fa9eda1');
   });
 });
 
