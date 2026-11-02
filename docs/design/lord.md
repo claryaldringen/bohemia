@@ -371,7 +371,8 @@ Clauda.
   zakladatelů a děti přibývají, s dnešní zásobou ves padala do pasti osiva. Podrobnosti
   a měření: [pole](fields.md) – Zásoby a nasycení, Start. **Oprava, návrh Clauda 2. 11. 2026:**
   setí bere osivo zakladatelů, až když běžné obilí nad příděl do žní nestačí – dřív ho bralo
-  napřed a do jara roku 4 bylo pryč.
+  napřed a do jara roku 4 bylo pryč. Když ves v lhůtě šetří přídělem, sní osivo zakladatelů nad
+  osivo příštího osevu (návrh Clauda 2. 11. 2026 – velká zásoba má pomoct, ne způsobit hlad).
 - **Ves z výpravy** ([stěhování](migration.md)) zakladatele nemění – odejdou, kdo odejdou – a nese
   vlastní náklad (velká zásoba jen první vsi).
 

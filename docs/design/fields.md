@@ -1513,7 +1513,10 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
       rezerva, jen se **do lhůty (15 let od založení) neuvolní 1. 6. ani 1. 12.** a cíle osevu ho
       nepočítají za jídlo (ves kvůli němu neoseje méně) – slouží na víc osevů. Při skutečném hladu
       ho ves sní jako každou rezervu (návrh Clauda). Setí na něj sáhne, až když běžné zrno nad
-      příděl 1 nestačí (oprava, návrh Clauda 2. 11. 2026 – viz výš).
+      příděl 1 nestačí (oprava, návrh Clauda 2. 11. 2026 – viz výš). **Když ves v lhůtě šetří
+      přídělem**, sní rezervu nad osivo příštího osevu (roční osivo do potřeby z pole podle cílů
+      osevu, nejméně osivo nutných dílů, které na setí čeká) – ne až po 5 dnech úplně bez jídla
+      (návrh Clauda 2. 11. 2026 podle záměru Martina: velká zásoba má vsi pomoct, ne způsobit hlad).
     - **Otevřená otázka:** půjčka osiva od pána (vazal si osivo vypůjčí a vrátí ze sklizně) – až
       s vazalstvím (návrh Clauda, Martin 27. 10. 2026 odložil).
 - Úroda se sníží podle nedodělané práce (pletí, sklizeň, odnos – viz Včasnost).
@@ -1577,7 +1580,11 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
       a osivo zakladatelů jen doplní, co z něj nejde (Osivo ze zásob – Osivo pro ves bez zásob).
       Rychlé měření správce (6 vsí × 25 let): hladové dny rodu 285 → 124, lidé rodu za 25 let
       40,0 → 40,2, pojistka 0,73 → 0,72, využití oběhu 0,91 → 0,90; ves seedu 13 drží osivo
-      zakladatelů celé do roku 13 (pak ho ve skutečném hladu sní), lidé za 25 let 30 → 36.
+      zakladatelů celé do roku 13 (pak ho ve skutečném hladu sní), lidé za 25 let 30 → 36. Zamčená
+      rezerva ale přinesla šetření vsím, kterým běžné obilí na osivo stačí (seed 25: hladové dny
+      10 → 250) – proto ji ves, která šetří, sní nad osivo příštího osevu (Osivo pro ves bez zásob):
+      hladové dny rodu 124 → 95 (seed 25: 250 → 20), lidé 40,2 → 39,8, pojistka 0,72 → 0,71,
+      využití oběhu 0,90.
 - **Hlad zabíjí** (Martin, 18. 10. 2026 – dřív „hlad ves nezničí“): hlad tlumí porody a lidé
   umírají hlady podle nahromaděného hladu, dokud se jejich počet nesrovná s tím, co zásoby
   uživí – každé úmrtí zvedne příděl ostatním. Bez jídla ves do dvou měsíců vymře a hráč, kterému

@@ -213,6 +213,34 @@ describe('osivo pro ves bez zásob (fields.md – Osivo pro ves bez zásob)', ()
     expect(hungry.reservedSeedUntilDay).toBeUndefined();
   });
 
+  it('ves, která šetří přídělem, sní osivo zakladatelů nad osivo příštího osevu (návrh Clauda 2. 11. 2026)', () => {
+    const s = village(4, 4000, 4);
+    s.reservedSeedKg = 1800;
+    s.reservedSeedUntilDay = at(610, 1, 1);
+    s.season = { startDay: at(600, 9, 1), crops: [], seedFloorKg: 300 };
+    const day = at(601, 2, 10);
+    // ves nešetří – rezerva celá
+    seedBuyingDay(s, day);
+    expect(s.reservedSeedKg).toBe(1800);
+    // ves šetří – běžné obilí k jídlu, rezerva jen na roční osivo podle cílů osevu
+    s.hungry = true;
+    seedBuyingDay(s, day + 1);
+    expect(s.reservedSeedKg).toBe(300);
+    expect(s.reservedSeedUntilDay).toBe(at(610, 1, 1));
+    expect(s.storesKg).toBe(4000);
+    // rezerva pod osivo příštího osevu zůstane celá
+    seedBuyingDay(s, day + 2);
+    expect(s.reservedSeedKg).toBe(300);
+    // ves bez plánu osevu šetří – rezervu sní celou
+    const plain = village(4, 4000, 4);
+    plain.reservedSeedKg = 1800;
+    plain.reservedSeedUntilDay = at(610, 1, 1);
+    plain.hungry = true;
+    seedBuyingDay(plain, day);
+    expect(plain.reservedSeedKg).toBeUndefined();
+    expect(plain.reservedSeedUntilDay).toBeUndefined();
+  });
+
   it('zakladatelé první vsi drží osivo přes 1. 6. – po kouscích dopočtu stejně', () => {
     const start = foundVillage({
       seed: 5,
@@ -303,8 +331,8 @@ describe('osivo pro ves bez zásob (fields.md – Osivo pro ves bez zásob)', ()
     );
     const reserved = s.reservedSeedKg ?? 0;
     expect(reserved).toBeGreaterThan(0);
-    // běžné obilí nestačí na jídlo do žní celé – ves potřebuje pole, osivo má nad příděl
-    s.storesKg = reserved + 1500;
+    // běžné obilí: ves nešetří, ale potřebuje pole – osivo má nad příděl
+    s.storesKg = reserved + 2500;
     const end = at(600, 11, 30);
     const whole = advanceVillage(s, end, null);
     const pieces = advanceVillage(advanceVillage(s, at(600, 9, 20), null), end, null);

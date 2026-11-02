@@ -122,9 +122,21 @@ export function buySeed(state: VillageState, day: number, shortKg: number): Chro
 }
 
 /**
+ * Osivo příštího osevu, které si ves z osiva zakladatelů nechá, i když šetří přídělem (kg obilí –
+ * fields.md, Zásoby a nasycení, Start): roční osivo do potřeby z pole podle cílů osevu
+ * (`FarmSeason.seedFloorKg`), nejméně osivo nutných dílů, které na setí čeká (`seedAheadKg`).
+ */
+export function foundersSeedKeepKg(state: VillageState): number {
+  const ahead = seedAheadKg(state, true);
+  const legumesShort = Math.max(0, ahead.legumes - Math.max(0, state.legumesKg ?? 0));
+  return Math.max(state.season?.seedFloorKg ?? 0, ahead.grain + legumesShort);
+}
+
+/**
  * Osivo dne (mutuje stav): 1. 6. (SEED_BUYING.releaseDay) je nezaseté osivo, které ves měla jen na
  * setí, obyčejné zrno; osivo zakladatelů (`reservedSeedUntilDay` – FOUNDERS_STORES) až po své
- * lhůtě; v den nákupu (SEED_BUYING.days) ves koupí osivo, které nutným dílům chybí.
+ * lhůtě – v ní, když ves šetří přídělem (`hungry`), jen nad osivo příštího osevu
+ * (`foundersSeedKeepKg`); v den nákupu (SEED_BUYING.days) ves koupí osivo, které nutným dílům chybí.
  */
 export function seedBuyingDay(state: VillageState, day: number): ChronicleEvent[] {
   if (state.reservedSeedKg === undefined) {
@@ -137,7 +149,15 @@ export function seedBuyingDay(state: VillageState, day: number): ChronicleEvent[
       delete state.reservedSeedKg;
       delete state.reservedSeedUntilDay;
     } else if (kept) {
-      // lhůta osiva zakladatelů ještě běží
+      // lhůta osiva zakladatelů ještě běží – když ves šetří přídělem, sní rezervu nad osivo
+      // příštího osevu (návrh Clauda 2. 11. 2026 – velká zásoba má vsi pomoct, ne způsobit hlad)
+      if (state.hungry) {
+        const keep = foundersSeedKeepKg(state);
+        if (keep <= EPSILON) {
+          delete state.reservedSeedKg;
+          delete state.reservedSeedUntilDay;
+        } else if (state.reservedSeedKg > keep) state.reservedSeedKg = keep;
+      }
     } else if (isOn(day, SEED_BUYING.releaseDay)) {
       delete state.reservedSeedKg;
       delete state.reservedSeedUntilDay;
