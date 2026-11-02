@@ -37,7 +37,13 @@ import type { VillageDugSite } from './ore-site-view';
 import type { VillageKiln } from './kiln-view';
 import type { VillageGrainPit } from './grain-pit-view';
 import type { VillageJunction } from './junction-view';
-import type { DepartingSon, VillageFieldPart, VillageThreshingFloor } from './village-view-types';
+import type {
+  DepartingSon,
+  FieldOutlookView,
+  PartOutlookView,
+  VillageFieldPart,
+  VillageThreshingFloor,
+} from './village-view-types';
 import type { HouseholdRelocation } from './relocation-view';
 import { TREE_GROWTH_YEARS } from './orchard-look';
 import {
@@ -248,6 +254,8 @@ type SelectionKinds =
       ashBonus: number;
       /** Kolik z pole zarůstá (m² – fields.md, Zarůstání); 0 = nic. */
       overgrowingM2: number;
+      /** Očekávaná úroda osetých dílů a jestli práce stačí (fields.md – Co hráč vidí); jinak chybí. */
+      outlook?: FieldOutlookView;
       /** Zakládání pole (průběh 0–1), hotové null. */
       founding: number | null;
       /** Id všech polí vsi – tlačítko „Označit všechna pole“. */
@@ -314,6 +322,8 @@ type SelectionKinds =
       protection?: PartProtectionView;
       /** Řádky odhadu ztrát letos – počasí, kroupy, povodeň, smršť (disasters.md); žádné chybí. */
       losses?: PartLossRow[];
+      /** Očekávaná úroda a jestli práce stačí (fields.md – Co hráč vidí); mimo osev chybí. */
+      outlook?: PartOutlookView;
       /** Id všech polí vsi – tlačítko „Označit všechna pole“. */
       fieldIds?: readonly number[];
     }
@@ -1054,6 +1064,7 @@ function selectionKinds(
     ...(field.clearing ? { clearing: field.clearing } : {}),
     ashBonus: field.ashBonus,
     overgrowingM2: field.overgrowingM2,
+    ...(field.outlook ? { outlook: field.outlook } : {}),
     founding: founding ? founding.progress : null,
     fieldIds: view?.fields.map((f) => f.id) ?? [],
   };
@@ -1241,6 +1252,7 @@ function fieldPartDetails(
     rest: part.rest ?? null,
     surplus: part.work?.surplus === true,
     founding: part.founding ?? null,
+    ...(part.outlook ? { outlook: part.outlook } : {}),
     fieldIds: view?.fields.map((f) => f.id) ?? [],
   };
 }

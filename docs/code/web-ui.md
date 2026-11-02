@@ -437,6 +437,30 @@ počítají plodiny); nad potřebu v popisku jsou díly letošní práce nad pot
 řadě, který ves vezme z volné práce, se tam přesune. Ukázky `/dev/panels?panel=pole`,
 `pole-dil`, `pole-dil-na-rade`.
 
+## Panel pole a dílu – očekávaná úroda a jestli práce stačí
+
+fields.md – Co hráč vidí, Očekávaná úroda a jestli práce stačí (návrh Clauda, 2. 11. 2026). Data:
+`fieldViews(state, day, coverage, landscape)` (`lib/village-view-fields.ts`; `buildVillageView`
+předá `summary.crafts.coverage` a krajinu) volá jednou `fieldOutlook` z jádra (`field-outlook.ts`
+– `village-fields.md`) se stejným `partYearWork`. `partOutlookView` → `VillageFieldPart.outlook`
+(`PartOutlookView`: kg a `fullKg` celé, vlivy `weather` / `wildlife` / `disasters` / `work`
+v celých procentech, nulové chybí; `short` – `WorkShortfallView` s celými člověkodny, pod půl dne
+okno chybí). `fieldOutlookOf` → pole `outlook` (`FieldOutlookView`: kg po plodinách v pořadí ozim,
+jař, luštěniny, len; okna sjednocená podle měsíce konce). `selectionDetails` je předá jako
+`outlook` dílu i pole. Slova jsou v `lib/field-outlook-labels.ts` (`outlookYieldLabel`,
+`shortfallLabel`, `fieldOutlookLabel`; měsíc `monthGenitive` z `lib/game-date.ts`). Panel
+(`hud/selection/fields.tsx`):
+
+- **Díl** – v řádku letošní práce za sklizní `selection-outlook` (ikona `sheaves`, kg; popisek
+  „Očekávaná úroda – jař (kg): z úrodnosti 1 800; počasí −20 %; zvěř −5 %…“) a `WorkShort`
+  (`selection-work-short` – ikona `labor`, „−N“ červeně, `data-alert`; popisek „Práce nestačí:
+  příprava a setí do konce dubna – chybí 40 člověkodnů, orba 3 člověkodny; …“).
+- **Pole** – pod řádkem výměry `selection-outlook` se součtem jídla (obilí a luštěniny, len jen
+  v popisku jako třený) a `WorkShort` z oken pole.
+
+Testy `hud/__tests__/FieldOutlook.test.tsx`, pohled `village-view.test.ts` („očekávaná úroda
+a práce“). Ukázky `/dev/panels?panel=pole`, `pole-dil`.
+
 ## Vozy, uhlí, keramika a nářadí mimo lištu
 
 Martin 24. 10. 2026: počet vozů ne na liště, ale v ohradě s voly; uhlí u uhlíře; keramiku a

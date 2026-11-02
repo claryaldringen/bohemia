@@ -306,6 +306,40 @@ describe('buildVillageView – díl pole pro panel (fields.md – Co hráč vid�
   });
 });
 
+describe('buildVillageView – očekávaná úroda a práce (fields.md – Co hráč vidí)', () => {
+  it('osetý díl nese úrodu z jádra, pole součet; nesmyslně velké setí hlásí chybějící práci', () => {
+    const s = settled();
+    s.constructions = s.constructions.filter((c) => c.kind !== 'field');
+    for (const p of s.parts) {
+      p.foundingDone = p.foundingCost;
+      p.state = 'ready';
+    }
+    const [sown, other] = s.parts;
+    for (const p of [sown!, other!]) {
+      p.state = 'sown';
+      p.crop = 'spring';
+    }
+    const work = createCropWork([sown!, other!], DAY - 30, 1, false, undefined, 'spring');
+    s.season = { startDay: DAY - 200, crops: [{ crop: 'spring', ...work }] };
+    const field = buildVillageView(record(s), landscape, DAY).fields[0]!;
+    const shown = field.parts.find((p) => p.id === sown!.id)!;
+    expect(shown.outlook).toMatchObject({ crop: 'spring' });
+    expect(shown.outlook!.kg).toBeGreaterThan(0);
+    expect(shown.outlook!.short).toBeUndefined();
+    const both = field.parts.reduce((sum, p) => sum + (p.outlook?.kg ?? 0), 0);
+    expect(field.outlook).toEqual({ crops: [{ crop: 'spring', kg: both }] });
+    // díl mimo osev výhled nemá
+    expect(field.parts.find((p) => p.id === s.parts[2]!.id)!.outlook).toBeUndefined();
+    // setí nad síly vsi do konce dubna – díly hlásí přípravu a setí
+    s.season.crops[0]!.required.sow *= 1000;
+    const short = buildVillageView(record(s), landscape, DAY).fields[0]!;
+    expect(short.parts.find((p) => p.id === sown!.id)!.outlook!.short).toEqual([
+      expect.objectContaining({ steps: ['prep', 'sow'], endMonth: 4 }),
+    ]);
+    expect(short.outlook!.short![0]!.manDays).toBeGreaterThan(0);
+  });
+});
+
 describe('buildVillageView – osevní postup v panelu (fields.md – Osevní postup po dílech)', () => {
   it('díl: co poroste příště, úhor s odpočinkem, nad potřebu; pole: na řadě a odpočívá', () => {
     const s = settled();

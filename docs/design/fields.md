@@ -2047,12 +2047,37 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
   s klasy), každá v procentech, jak k dílu došla práce (Postup práce po čtvercích), a kolikátý rok
   je díl v osevu. Příloh: roky ladem, roky bez pastvy a seče (zarůstání), jestli se na něm pasou
   stáda a kolik je posečeno. Zakládaný díl: průběh, zbývající práce a dospělé stromy, které dají
-  klády. Očekávaná úroda dílu – později (závisí na celé sklizni vsi).
+  klády. **Očekávaná úroda dílu** (návrh Clauda, 2. 11. 2026; viz Očekávaná úroda a jestli
+  práce stačí níž) – ikona snopů s kg v řádku letošní práce a vedle ní varování, když práce do
+  konce okna nestačí.
 - **Panel pole** (dvojklik): výměra, úrodnost, kolik dílů se zakládá, je oseto a leží
   v přílohu podle stadia (mladý příloh, pastvina, křoviny, mladý les) – ikony a čísla; oseté díly
   podle plodiny (ozim, jař); **kolik z pole zarůstá** – ikona zarůstání (keř a mladá bříza)
   s plochou přílohu, který se poslední vegetační období nespásl ani neposekl, i toho, který už
-  zarostl (viz Zarůstání). Očekávaná úroda a jestli práce stačí – později.
+  zarostl (viz Zarůstání). **Očekávaná úroda pole** – ikona snopů se součtem úrody jídla
+  z osetých dílů (obilí a luštěniny; v popisku po plodinách, len zvlášť jako třený) a varování,
+  když práce nestačí (návrh Clauda, 2. 11. 2026).
+- **Očekávaná úroda a jestli práce stačí** (návrh Clauda, 2. 11. 2026 – první verze; dřív
+  „později“): jen pro díly letošního osevu, které ještě nejsou sklizené; sklizený díl ani díl
+  mimo osev úrodu neukazuje. Počítá se v jádře stejnými funkcemi jako sklizeň a pomoc rodiny
+  vojvody – panel nic nového neodhaduje a simulace výhled nepoužívá.
+  - **Úroda dílu** (kg – snopy obilí a luštěnin, u lnu třený len): úroda z dnešní úrodnosti dílu
+    × co ji mění. V popisku úroda z úrodnosti a změny v procentech: **počasí, které už je vidět**
+    (disasters.md – Kdy je vidět; dobrý rok přidá), **škoda zvěře** letos (jen obilí – wildlife.md),
+    **kroupy, voda a smršť**, které letos přišly, a **nedodělaná práce** – setí a pletí, jejichž
+    okno skončilo nedodělané (ubírá jako při sklizni). Na práci, jejíž okno ještě běží nebo přijde,
+    se počítá, že se stihne – jestli ne, říká varování.
+  - **Jestli práce stačí** – kroky přípravy půdy a setí (jedno okno: ozim do konce října, jař,
+    luštěniny a len do konce dubna – vrácení a kopání napřed na podzim) a sklizně (ozim, luštěniny
+    a len do konce července, jař do konce srpna i s výmlatem ozimu): zbytek letošní nutné práce
+    proti volné práci vsi do konce okna i s pomocí cvičící rodiny vojvody, lidé i orba spřežení
+    (stejně jako Kdy jde rodina na pole – lord.md). Když nestačí, ukáže díl ikonu práce
+    s chybějícími člověkodny červeně a v popisku u kurzoru okna a kroky („Práce nestačí: příprava
+    a setí do konce dubna – chybí 40 člověkodnů“). Díl hlásí jen kroky, které sám ještě nemá
+    hotové (zasetý díl setí nehlásí). Díl nad potřebu (jen z volné práce po stavbách) varování
+    nemá – práci mu dají stavby, ne okno. Pod půl člověkodne se nehlásí.
+  - Chybějící práce okna je za celou ves (plodiny okna se dělí o tytéž ruce), ne za díl – které
+    díly na konci zůstanou, určí postup práce po dílech (díly nejdál od domu poslední).
 - **Horní lišta:** zásoby obilí, volná společná práce za den, nasycení (barva ikony); výměra polí
   klesne, když díl zaroste lesem a vypadne z pole.
 - **Vytyčení:** nově zadané pole je hned vytyčené – kolíky v rozích a po čtvercích a provázek

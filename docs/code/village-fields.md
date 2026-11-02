@@ -581,3 +581,24 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   panel `GrainPitBody` (zrno v kg, stáří, plnost; portrét `icons/build/obilna-jama.png` –
   `icons.py obilna-jama`), postavy u hrdla (`grainPitWorkers` ve `villager-plan-crafts.ts`, činnost
   „ukládá zrno do obilné jámy“), ukázka `/dev/panels?panel=jama`.
+- **Výhled osetých dílů – očekávaná úroda a jestli práce stačí** (fields.md – Co hráč vidí,
+  Očekávaná úroda a jestli práce stačí; návrh Clauda 2. 11. 2026; `field-outlook.ts`):
+  `fieldOutlook(state, day, coverage, landscape, yearWork?)` → díl id → `PartOutlook` jen pro
+  díly plodin letošního `season`, které ještě nejsou sklizené (`harvestedKg === null`) a jsou
+  `sown`. Úroda dílu: `cropGrossPerHa(effectiveFertility)` × ha (`fullKg`) × podíl práce
+  (`workFactor`: setí a pletí, jejichž okno skončilo – `windowDaysLeft(CROP_WINDOWS…)` je 0 –
+  hotovým podílem `sownShare` / `workedShare` s `unweededYield`, jinak celé; `isWeedFree`) × ztráty
+  `dayPartLosses(…, estimate = true)` – stejný výpočet jako `harvestKg` při sklizni, počasí jen co
+  už je vidět, škoda zvěře `wildlife.damage.parts` jen u obilí. Rozpad do popisku: `weather`
+  (`partWeatherFactor` s ochranou dílu), `wildlife`, `disasters` (zbytek ztrát – kroupy, voda,
+  smršť), `work` – podíly 1 − násobek (dobrý rok záporný). Jestli práce stačí
+  (`seasonShortfalls`): `cropLoadOf(planLoad(season, orchardHarvestLoad))` proti
+  `sowingCapacity(…, { lord: true })` jako `lordSowingHelp` – okna `autumnWinter` (ozim, konec
+  října), `spring` (jař, luštěniny, len – podzim napřed, konec dubna), `july` (sklizeň ozimu,
+  luštěnin, lnu), `august` (sklizeň jaře a výmlat ozimu); orba zvlášť (`plough.autumnWinter`,
+  zbytek podzimu + jaro); okno, které letos už neběží (`SOWING_CAPACITY_WINDOWS`), se nehlásí.
+  `PartOutlook.short` = `WorkShortfall` (`steps`, `endMonth`, `manDays`, `ploughManDays`) jen pro
+  kroky, které díl podle `partYearWork` ještě nemá hotové; díly nad potřebu (`surplus`) bez
+  varování. Simulace výhled nepoužívá. Testy `field-outlook.test.ts` (den před žní výhled ozimu
+  ≈ sklizeň do 5 %, pletí po okně, setí nad síly). Zobrazení: `web-ui.md` – Panel pole a dílu –
+  očekávaná úroda.

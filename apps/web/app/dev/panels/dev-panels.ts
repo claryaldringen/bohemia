@@ -997,6 +997,15 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       ashParts: 24,
       ashBonus: 40,
       overgrowingM2: 13_050,
+      // očekávaná úroda a chybějící práce (fields.md – Co hráč vidí)
+      outlook: {
+        crops: [
+          { crop: 'winter', kg: 41_200 },
+          { crop: 'spring', kg: 28_900 },
+          { crop: 'legume', kg: 4_300 },
+        ],
+        short: [{ steps: ['harvest'], endMonth: 7, manDays: 64 }],
+      },
       founding: 0.42,
       clearing: { fell: 3, dry: 5, burn: 4 },
     },
@@ -1033,6 +1042,14 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       founding: null,
       // škoda zvěře letos, díl se hlídá (wildlife.md – Co hráč vidí)
       damage: { percent: 12, kg: 41, edgeM: 80, watched: true },
+      outlook: {
+        crop: 'winter',
+        kg: 33,
+        fullKg: 41,
+        wildlife: 12,
+        weather: 8,
+        short: [{ steps: ['harvest'], endMonth: 7, manDays: 64 }],
+      },
     },
   },
   {

@@ -424,7 +424,7 @@ export function buildVillageView(
       orchardId: c.orchardId,
       treesToFell: c.treesToFell,
     })),
-    fields: fieldViews(state, day),
+    fields: fieldViews(state, day, summary.crafts.coverage, landscape),
     hungry: summary.hungry,
     starving: summary.starving,
     hunger: summary.hunger,
