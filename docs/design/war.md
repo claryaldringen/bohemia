@@ -572,6 +572,8 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
   „ok“.
 - **Zajatý hráčův muž:** hráč dál řídí své vsi (formální správce – syn) a jedná o výkupném;
   nevede vojsko ani necestuje, dokud zajetí neskončí; poprava = smrt, rozhodne nástupnictví – „ok“.
+- **Ranění:** 60 herních dní nepracují ani necvičí, 1 z 5 do 30 dní zemře; raněný útočník jde
+  s vojskem domů a zpomalí ho – „ok“.
 
 ## Otázky na Martina
 
