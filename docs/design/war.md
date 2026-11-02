@@ -577,6 +577,8 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
 - **Kořist:** jídlo ze zásob (obilí, luštěniny, maso, sýr) kolik unesou – 25 kg na muže, s vozy
   víc; nehlídaný dobytek a koně mimo palisádu (stádo zpomalí návrat); odvedení lidé; domy, pole
   a sady se zatím nepálí – „ok“.
+- **Postoje vsi bez hráče:** do posledního / vzdát se při přesile (útočníků víc než 1,5× obránců) /
+  raději utéct (včas do lesa nebo za palisádu se zásobami a stády); výchozí „raději utéct“ – „ok“.
 
 ## Otázky na Martina
 
