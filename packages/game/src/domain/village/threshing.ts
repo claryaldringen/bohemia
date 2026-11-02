@@ -44,6 +44,9 @@ const LATE_THRESH_MONTHS = { from: 3, to: 8 } as const;
 /** Výmlat na jídlo vymlátí zrno na tolik dní dopředu (dnešek a zítřek – ztráty a chyby zaokrouhlení). */
 const URGENT_FOOD_DAYS = 2;
 
+/** Část stavu vsi, ze které se počítá výmlat dne a výhled snopů. */
+type ThreshState = Pick<VillageState, 'sheaves' | 'threshingFloors' | 'threshingGraceUntil'>;
+
 /** Snopy vsi (vsi bez snopů prázdné). */
 export function villageSheaves(state: Pick<VillageState, 'sheaves'>): Sheaves {
   return state.sheaves ?? { grainKg: 0, legumesKg: 0 };
@@ -117,50 +120,43 @@ export function canThresh(
 
 /**
  * Snopy ve výhledu jídla a plánu osevu (production-chains.md – Humno): kg zrna a luštěnin, které
- * z nich výmlat dá – jen když ves smí mlátit (humno, nebo rok odkladu), se ztrátami (`sheafYield`).
- * Jinak nic – snopy, které nebude kde vymlátit, ves nesní.
+ * z nich výmlat dá – jen když ves smí mlátit (humno, nebo bez něj nouzově), se ztrátami
+ * (`sheafYields`). Jinak nic – snopy, které nebude kde vymlátit, ves nesní.
  */
 export function sheavesOutlook(
-  state: Pick<VillageState, 'sheaves' | 'threshingFloors' | 'threshingGraceUntil'>,
+  state: ThreshState,
   day: number,
 ): { grainKg: number; legumesKg: number } {
   const sheaves = villageSheaves(state);
   if (!canThresh(state, day)) return { grainKg: 0, legumesKg: 0 };
+  const yields = sheafYields(state, day);
   return {
-    grainKg: Math.max(0, sheaves.grainKg) * sheafYield(state, day, 'grain'),
-    legumesKg: Math.max(0, sheaves.legumesKg) * sheafYield(state, day, 'legumes'),
+    grainKg: Math.max(0, sheaves.grainKg) * yields.grain,
+    legumesKg: Math.max(0, sheaves.legumesKg) * yields.legumes,
   };
 }
 
 /**
- * Kolik ze snopů druhu výmlat podle výhledu dá (0–1, návrh Clauda): v roce odkladu se, co humna
- * dnes nevezmou, mlátí hned nouzově – ta část o THRESHING.emergencyLoss méně; mimo odklad mlátí
- * jen humna – výmlat trvá práce ÷ kapacita humen dní a část, kterou humna v okně výmlatu druhu
- * nestihnou, se do výmlatu kazí (THRESHING.spoilPerMonth – průměrně polovinu doby po okně).
+ * Kolik ze snopů každého druhu výmlat podle výhledu dá (0–1, návrh Clauda): co humna dnes
+ * nevezmou, mlátí se hned nouzově – ta část o THRESHING.emergencyLoss méně. Podíl mimo humna je
+ * po druzích z úloh dne (`threshTasks` – humna berou snopy v pořadí výmlatu, v srpnu ozim před
+ * luštěninami), takže výhled je přesně výmlat dne při dost rukou (oprava, návrh Clauda 2. 11. 2026
+ * – dřív jeden společný podíl obou druhů).
  */
-function sheafYield(
-  state: Pick<VillageState, 'sheaves' | 'threshingFloors' | 'threshingGraceUntil'>,
-  day: number,
-  kind: SheafKind,
-): number {
-  const work = THRESHED_CROPS.reduce((sum, c) => sum + sheafWork(state, c), 0);
-  if (work <= EPSILON || kindWork(state, kind) <= EPSILON) return 1;
-  const capacity = threshingCapacity(state, day);
-  if (capacity.emergency) {
-    const ground = Math.max(0, work - capacity.floorManDays) / work;
-    return 1 - THRESHING.emergencyLoss * ground;
+function sheafYields(state: ThreshState, day: number): Record<SheafKind, number> {
+  const floor: Record<SheafKind, number> = { grain: 0, legumes: 0 };
+  const ground: Record<SheafKind, number> = { grain: 0, legumes: 0 };
+  for (const task of threshTasks(state, day)) {
+    const kind = sheafKind(task.crop);
+    floor[kind] += task.floor;
+    ground[kind] += (task.remaining - task.floor) / (1 + THRESHING.emergencyWork);
   }
-  if (capacity.floorManDays <= 0) return 0;
-  const days = work / capacity.floorManDays;
-  const windowLeft = Math.max(
-    0,
-    ...THRESHED_CROPS.filter((c) => sheafKind(c) === kind && sheafWork(state, c) > EPSILON).map(
-      (c) => threshWindowDaysAhead(c, day),
-    ),
-  );
-  const late = Math.max(0, days - windowLeft);
-  if (late <= 0) return 1;
-  return 1 - (late / days) * (1 - DAILY_KEEP ** (late / 2));
+  const kindYield = (kind: SheafKind): number => {
+    const progress = floor[kind] + ground[kind];
+    if (progress <= EPSILON) return 1;
+    return (floor[kind] + ground[kind] * (1 - THRESHING.emergencyLoss)) / progress;
+  };
+  return { grain: kindYield('grain'), legumes: kindYield('legumes') };
 }
 
 /**
@@ -313,7 +309,7 @@ export interface ThreshTask {
  * Kapacitu humen berou úlohy v tomto pořadí, co se na humna nevejde, mlátí se v roce odkladu
  * nouzově (víc práce).
  */
-export function threshTasks(state: VillageState, day: number, foodKg = 0): ThreshTask[] {
+export function threshTasks(state: ThreshState, day: number, foodKg = 0): ThreshTask[] {
   const capacity = threshingCapacity(state, day);
   if (capacity.floorManDays <= 0 && !capacity.emergency) return [];
   const month = dateOfDayIndex(day).month;
@@ -370,11 +366,12 @@ export function threshForFoodKg(
 
 /**
  * Kolik práce výmlatu (postupu, člověkodny na humně) dá `foodKg` kg zrna obilí – po plodinách
- * obilí v pořadí plodin (ozim první), nejvýš jejich zbývající práce. Nouzově vymlácené zrno je
- * o ztrátu menší – mlátí se ho víc.
+ * obilí v pořadí plodin (ozim první), nejvýš jejich zbývající práce. Výmlat na jídlo bere humna
+ * první – do jejich kapacity plný výnos; co se nevejde, mlátí se nouzově a je o ztrátu menší –
+ * mlátí se ho víc (oprava, návrh Clauda 2. 11. 2026 – dřív s humnem celé jako z humna).
  */
 function urgentProgress(
-  state: VillageState,
+  state: ThreshState,
   foodKg: number,
   capacity: ThreshingCapacity,
 ): Map<ThreshedCrop, number> {
@@ -382,8 +379,15 @@ function urgentProgress(
   const pool = villageSheaves(state).grainKg;
   const work = kindWork(state, 'grain');
   if (foodKg <= EPSILON || pool <= EPSILON || work <= EPSILON) return progress;
-  const yieldShare = capacity.floorManDays > 0 ? 1 : 1 - THRESHING.emergencyLoss;
-  let need = Math.min(work, (foodKg / (pool * yieldShare)) * work);
+  const kgPerWork = pool / work;
+  const onFloors = Math.min(work, capacity.floorManDays);
+  const floorKg = onFloors * kgPerWork;
+  let need = Math.min(
+    work,
+    foodKg <= floorKg
+      ? foodKg / kgPerWork
+      : onFloors + (foodKg - floorKg) / (kgPerWork * (1 - THRESHING.emergencyLoss)),
+  );
   for (const crop of THRESHED_CROPS) {
     if (need <= EPSILON) break;
     if (sheafKind(crop) !== 'grain') continue;

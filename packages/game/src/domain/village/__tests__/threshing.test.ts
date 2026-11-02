@@ -172,6 +172,22 @@ describe('výmlat v srpnu a září na humně', () => {
     );
   });
 
+  it('výmlat na dnešní jídlo nad kapacitu humna: zbytek nouzově o ztrátu víc – zrna tolik, kolik chybí', () => {
+    const day = at(601, 8, 10);
+    // 25 kg zrna na čd výmlatu; 400 kg na jídlo = 16 čd – humno vezme 12 čd (300 kg), zbylých
+    // 100 kg se vymlátí nouzově na udusané zemi (o 10 % méně zrna – mlátí se ho víc)
+    const s = withSheaves(day, { grainKg: 1000, legumesKg: 0, work: { winter: 40 } });
+    const stores = s.storesKg;
+    const [urgent] = threshTasks(s, day, 400);
+    expect(urgent).toMatchObject({ crop: 'winter', urgent: true, floor: 12 });
+    expect(urgent!.remaining).toBeCloseTo(
+      12 + (100 / (25 * (1 - THRESHING.emergencyLoss))) * (1 + THRESHING.emergencyWork),
+      9,
+    );
+    threshCrop(s, urgent!, urgent!.remaining);
+    expect(s.storesKg).toBeCloseTo(stores + 400, 9);
+  });
+
   it('výmlat ve svém okně je pro dřinu sezónní úlohou s koncem okna – po okně ne', () => {
     const day = at(601, 8, 10);
     const sheaves = { grainKg: 1000, legumesKg: 0, work: { winter: 120, spring: 40 } };
@@ -403,7 +419,23 @@ describe('výhled jídla a plán osevu', () => {
     expect(empty.diet.energy).toBe(0);
   });
 
-  it('výhled se ztrátami: nouzově o 10 % méně, pomalé humno mimo okno se snopy kazí', () => {
+  it('výhled po druzích snopů: humno bere snopy v pořadí výmlatu – výhled dá, co výmlat dne vymlátí', () => {
+    const day = at(601, 8, 10);
+    // ozim i luštěniny mají okno v srpnu – humno (12 čd) vezme napřed ozim (pořadí plodin), zbytek
+    // luštěnin (8 z 10 čd) jde nouzově; dřív společný podíl 8/20 nouzově pro oba druhy
+    const s = withSheaves(day, { grainKg: 400, legumesKg: 200, work: { winter: 10, legume: 10 } });
+    const outlook = sheavesOutlook(s, day);
+    expect(outlook.grainKg).toBeCloseTo(400, 9);
+    expect(outlook.legumesKg).toBeCloseTo((200 * (2 + 8 * (1 - THRESHING.emergencyLoss))) / 10, 9);
+    // celý výmlat dne (dost rukou) dá přesně výhled
+    const stores = s.storesKg;
+    const legumes = s.legumesKg ?? 0;
+    for (const task of threshTasks(s, day)) threshCrop(s, task, task.remaining);
+    expect(s.storesKg - stores).toBeCloseTo(outlook.grainKg, 9);
+    expect((s.legumesKg ?? 0) - legumes).toBeCloseTo(outlook.legumesKg, 9);
+  });
+
+  it('výhled se ztrátami: nouzově o 10 % méně – přebytek nad kapacitu humen se mlátí hned, nic se nekazí', () => {
     const day = at(601, 9, 10);
     const sheaves = { grainKg: 1000, legumesKg: 0, work: { spring: 120 } };
     // odklad bez humna – celé nouzově
