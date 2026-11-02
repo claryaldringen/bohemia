@@ -419,6 +419,10 @@ pozvaný vazal):
 - **Kam dávka dojde:** do vsi, kterou pán určí při jednání; jinak do jeho vlastní vsi – „ok“
   (Martin 2. 11. 2026).
 
+- **Lidé jako dávka:** vybírá vazal v ročním dialogu (předvyplněno, koho ves nejméně postrádá),
+  muži rodu ne; „Ano, mělo by to být stejné, jako v obchodě – muže, ženy a nebo celé rodiny“
+  (Martin 2. 11. 2026) – stejné druhy jako výměna lidí ([obchod](trade.md) – Výměna lidí).
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
