@@ -1,13 +1,12 @@
-import { length2, type Landscape } from '../landscape';
+import { type Landscape } from '../landscape';
 import { addCart, cartOxen, cartsAway, trailCartPassable, villageCarts } from './carts';
 import { addCartDemand } from './draft';
 import { oxPens, oxenHome } from './oxen';
 import { groupCap, neighbourCrafts, productPrice, purchaseRoute, tripOf } from './craft-buying';
 import { NO_STOCKS, cartAwaitingIron, cartIronBarsKg, occupiedWorkshops } from './crafts';
 import { neighbourOf } from './neighbours';
-import { CARTS, CART_IRON, CRAFT_BUYING, NEIGHBOR_DIRECTIONS, TRADE } from './rules';
+import { CARTS, CART_IRON, NEIGHBOR_DIRECTIONS } from './rules';
 import { smithHead, smithSons } from './smith-supply';
-import { trailTripDays } from './trail';
 import type {
   Cart,
   CartKind,
@@ -28,8 +27,8 @@ import type {
 // (1,2 kg hřiven na kg – production-chains.md, Kovář). Tesař vůz rozdělá; s hotovou dřevěnou prací
 // čeká na kování a dělá zatím dřevěné nářadí. Ves s hřivnami ho má z nich (chybí-li, kovář na
 // zakázku taví a překovává přednostně – `smithBarsTargetKg`), ves bez
-// kováře pošle syna tesaře od 14 let, nebo tesaře, do nejbližší vsi s kovářem – jiné vsi hráče na
-// téže mapě, nebo souseda za krajem mapy (cesta a platba obilím jako nákup u sousedů). Platbu sám
+// kováře pošle syna tesaře od 14 let, nebo tesaře, k nejbližšímu sousedovi s kovářem za krajem
+// mapy (cesta a platba obilím jako nákup u sousedů). Platbu sám
 // neunese (Martin 20. 10. 2026: „pokud zaplatil 173 kg obilí, tak nemohl jít sám. Buď si musel
 // půjčit vůz nebo muselo jít alespoň 6 lidí, aby to obilí unesli“): veze ji volný vůz se sedlákem,
 // nebo ji nesou nosiči z vsi po 25 kg. Kroky mutují stav (volat na klonu), den po dni,
@@ -75,14 +74,6 @@ export function ironCarrier(
   return { person: byId.get(head.id)!, son: false };
 }
 
-/**
- * Dny cesty tam a zpět k jiné vsi na téže mapě (m vzdušnou čarou): krajinou jako nákup u sousedů
- * (× CRAFT_BUYING.offTrailFactor, dny jako výprava – `trailTripDays`) bez dne za krajem mapy.
- */
-export function mapTripDays(distanceM: number): number {
-  return trailTripDays(distanceM * CRAFT_BUYING.offTrailFactor) - TRADE.beyondEdgeDays;
-}
-
 /** Kam a za kolik dní tam a zpět jde tesař pro kování. */
 export interface IronRoute {
   to: IronTripTarget;
@@ -90,11 +81,9 @@ export interface IronRoute {
 }
 
 /**
- * Vsi s kovářem, kam může tesař z `from` jít pro kování (wagons.md – Kování vozů): obývané kovárny
- * jiných vsí hráče na téže mapě (`neighbourSnapshot` – smithies; jde se k nim krajinou, celou
- * cestu je vidět) a sousedé za krajem mapy s kovářem (`neighbourCrafts` – po hotové stezce, nebo
- * krajinou ke kraji mapy jako nákup u sousedů), s dny cesty tam a zpět. V pořadí: vsi na téže mapě,
- * pak směry.
+ * Sousedé za krajem mapy s kovářem, kam může tesař z `from` jít pro kování (wagons.md – Kování
+ * vozů): `neighbourCrafts` – po hotové stezce, nebo krajinou ke kraji mapy jako nákup u sousedů,
+ * s dny cesty tam a zpět. V pořadí směrů.
  */
 export function ironDestinations(
   state: VillageState,
@@ -102,12 +91,6 @@ export function ironDestinations(
   landscape: Landscape | null,
 ): IronRoute[] {
   const out: IronRoute[] = [];
-  for (const smithy of state.neighbours?.smithies ?? []) {
-    out.push({
-      to: { kind: 'village', name: smithy.name, x: smithy.x, z: smithy.z },
-      days: mapTripDays(length2(smithy.x - from.x, smithy.z - from.z)),
-    });
-  }
   for (const direction of NEIGHBOR_DIRECTIONS) {
     if (!neighbourCrafts(state.seed, direction).includes('smith')) continue;
     const route = purchaseRoute(state, direction, landscape, from);
@@ -127,7 +110,7 @@ export function ironDestinations(
 
 /**
  * Projede vůz cestou pro kování (wagons.md – Kování vozů): jen po hotové zemské stezce sjízdné pro
- * vozy (jako vozy výprav – `trailCartPassable`); krajinou ke kraji mapy a do vsi na téže mapě ne.
+ * vozy (jako vozy výprav – `trailCartPassable`); krajinou ke kraji mapy ne.
  */
 function cartCanGo(state: VillageState, route: IronRoute, landscape: Landscape | null): boolean {
   if (route.to.kind !== 'neighbour' || route.to.trailId === null) return false;
@@ -251,7 +234,7 @@ function ironTripCrew(trip: Pick<IronTrip, 'porters' | 'cartId'>): number {
 
 /**
  * Cesty pro kování dne v rozdělení práce (činnost `trade` – jako nákup u sousedů): kam jde skupina
- * (stezka, kraj mapy, jiná ves na téže mapě) a kolik lidí z vsi s ní je. Jen cesty s nosiči nebo
+ * (stezka, kraj mapy) a kolik lidí z vsi s ní je. Jen cesty s nosiči nebo
  * vozem.
  */
 export function ironTripShares(
@@ -265,11 +248,9 @@ export function ironTripShares(
     if (manDays <= 0) continue;
     const to = trip.to;
     const target: LaborTarget =
-      to.kind === 'village'
-        ? { kind: 'village' }
-        : to.trailId !== null
-          ? { kind: 'trail', id: to.trailId }
-          : { kind: 'edge', direction: to.direction, ...to.edge };
+      to.trailId !== null
+        ? { kind: 'trail', id: to.trailId }
+        : { kind: 'edge', direction: to.direction, ...to.edge };
     out.push({ target, manDays });
   }
   return out;
@@ -425,14 +406,37 @@ export function ironTripDaysLeft(trip: Pick<IronTrip, 'days' | 'done'>): number 
 
 /**
  * Čára cesty pro kování krajinou (scéna – postava jako karavana nákupu u sousedů): od dílny tesaře
- * rovně k bodu na kraji mapy, nebo ke kovárně jiné vsi na téže mapě; po zemské stezce null.
+ * rovně k bodu na kraji mapy; po zemské stezce null.
  */
 export function ironTripLine(
   dwelling: Pick<Dwelling, 'position'>,
   trip: Pick<IronTrip, 'to'>,
 ): { x: number; z: number }[] | null {
   const from = { x: dwelling.position.x, z: dwelling.position.z };
-  if (trip.to.kind === 'village') return [from, { x: trip.to.x, z: trip.to.z }];
   if (trip.to.trailId !== null) return null;
   return [from, { ...trip.to.edge }];
+}
+
+/**
+ * Převod vsi uložené v době, kdy rod mohl mít vsi na téže mapě (zrušeno – migration.md): cesta
+ * pro kování ke kovárně jiné vsi (`to.kind === 'village'`) se zahodí (vůz čeká na kování, tesař
+ * se vrátí k práci) a zbylý přehled sousedních vsí `neighbours` (dřív jen dočasný pohled) se
+ * odebere. Bez čeho převádět, vrátí tentýž objekt; idempotentní.
+ */
+export function withoutSameMapVillages(state: VillageState): VillageState {
+  const legacy = state as VillageState & { neighbours?: unknown };
+  const staleTrip = (trip: unknown): boolean =>
+    (trip as { to?: { kind?: string } } | null | undefined)?.to?.kind === 'village';
+  const stale = state.dwellings.some((d) => staleTrip(d.workshop?.ironTrip));
+  if (legacy.neighbours === undefined && !stale) return state;
+  const next: VillageState & { neighbours?: unknown } = { ...state };
+  delete next.neighbours;
+  if (stale) {
+    next.dwellings = state.dwellings.map((d) =>
+      d.workshop && staleTrip(d.workshop.ironTrip)
+        ? { ...d, workshop: { ...d.workshop, ironTrip: null } }
+        : d,
+    );
+  }
+  return next;
 }

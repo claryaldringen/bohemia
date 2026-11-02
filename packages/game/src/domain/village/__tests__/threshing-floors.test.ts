@@ -3,10 +3,8 @@ import { dayIndexOf } from '../../calendar';
 import { packObstacles, type ObstaclePlacement } from '../../landscape';
 import { foundVillage, startThreshingFloor, type PartInput } from '../actions';
 import { BUILD_COSTS, buildAffordability } from '../costs';
-import { neighbourSnapshot } from '../neighbourhood';
 import { obstacleChangesAt } from '../obstacles';
 import {
-  FOREIGN_LAND,
   checkDwellingPlacement,
   checkSacredBuildingPlacement,
   checkThreshingFloorPlacement,
@@ -126,13 +124,6 @@ describe('humno – umístění (volně jako dílna)', () => {
     expect(checkThreshingFloorPlacement(landscape, v, at(HOME.x, HOME.z + 2), layer).reason).toBe(
       'Překrývá se s rozestavěným obydlím.',
     );
-    const foreign: PlacementVillage = {
-      ...v,
-      foreign: { dwellings: [], sacredBuildings: [], cells: [{ x: 10, y: 10 }] },
-    };
-    expect(checkThreshingFloorPlacement(landscape, foreign, at(37.5, 37.5), layer).reason).toBe(
-      FOREIGN_LAND,
-    );
   });
 
   it('na poli projde – pole se o průnik zmenší (fields.md – Pole jako krajina)', () => {
@@ -248,21 +239,6 @@ describe('humno – stavba ze společné práce', () => {
       (e): e is Extract<ChronicleEvent, { kind: 'land-taken' }> => e.kind === 'land-taken',
     );
     expect(taken.map((e) => e.by)).toEqual(['threshing-floor']);
-  });
-
-  it('jiná ves na téže mapě humno zná – stavět přes něj nejde (migration.md)', () => {
-    const ours = startThreshingFloor(village(), DAY, at(-60, 30), layer);
-    const snapshot = neighbourSnapshot([ours], DAY)!;
-    expect(snapshot.threshingFloors).toEqual([{ position: at(-60, 30) }]);
-    const other: VillageState = {
-      ...foundVillage({ seed: 9, day: DAY, dwellingPosition: at(80, 80), obstacles: layer }),
-      neighbours: snapshot,
-    };
-    const v = placementVillageOf(other, DAY);
-    expect(checkThreshingFloorPlacement(landscape, v, at(-58, 33), layer).reason).toBe(
-      FOREIGN_LAND,
-    );
-    expect(checkDwellingPlacement(landscape, v, 'zemnice', at(-60, 30)).reason).toBe(FOREIGN_LAND);
   });
 
   it('zbytek jámy pod humnem zmizí (population.md – Po zániku)', () => {

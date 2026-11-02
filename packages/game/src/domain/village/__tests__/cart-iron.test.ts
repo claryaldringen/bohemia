@@ -8,14 +8,13 @@ import {
   ironPriceKg,
   ironOptions,
   ironPlan,
-  mapTripDays,
   smithAtHome,
   ironTripHelpers,
+  withoutSameMapVillages,
 } from '../cart-iron';
 import { cartsAway, haulCartsToday } from '../carts';
 import { withOxen } from '../oxen';
 import { neighbourCrafts, productPrice, purchaseRoute } from '../craft-buying';
-import { neighbourSnapshot } from '../neighbourhood';
 import { summarizeVillage } from '../summary';
 import {
   cartAwaitingIron,
@@ -350,79 +349,6 @@ describe('ves bez kováře – tesař jde pro kování (wagons.md – Kování v
     expect(s.storesKg).toBe(50);
   });
 
-  it('druhá ves hráče na téže mapě s kovárnou, když je blíž než soused', () => {
-    const s = crowd(withWaitingCart(village(), [16]), 9);
-    s.neighbours = {
-      dwellings: [],
-      sacredBuildings: [],
-      cells: [],
-      cleared: [],
-      felled: [],
-      reserved: [],
-      smithies: [{ x: 340, z: 0, name: 'Lhota' }],
-    };
-    const options = ironOptions(s, DAY, { x: 40, z: 0 }, null, ironPriceKg(3));
-    const near = ironPlan(options, false)!;
-    expect(near.to).toEqual({ kind: 'village', name: 'Lhota', x: 340, z: 0 });
-    expect(near.days).toBe(mapTripDays(300));
-    // 7 lidí × dny cesty
-    expect(near.labor).toBe(7 * mapTripDays(300));
-    const events = cartIronDay(s, DAY + 1, null);
-    expect(events).toEqual([
-      { day: DAY + 1, kind: 'iron-trip', cart: 'two-wheel', to: 'Lhota', son: true, porters: 6 },
-    ]);
-    // se zemskou stezkou ke kováři souseda je soused blíž než kovárna na kraji mapy
-    const direction = NEIGHBOR_DIRECTIONS.find((d) =>
-      neighbourCrafts(s.seed, d).includes('smith'),
-    )!;
-    s.trails = [
-      { id: 1, direction, pieces: [], lengthM: 300, startedDay: DAY - 50, builtDay: DAY - 10 },
-    ];
-    s.neighbours.smithies = [{ x: 2_000, z: 0, name: 'Daleko' }];
-    expect(mapTripDays(1_960)).toBeGreaterThan(purchaseRoute(s, direction, null).days);
-    const far = ironOptions(s, DAY, { x: 40, z: 0 }, null, ironPriceKg(3));
-    expect(ironPlan(far, false)!.to).toMatchObject({ kind: 'neighbour', direction, trailId: 1 });
-  });
-
-  it('ves volí nejmenší práci celkem – vozem k dalšímu kováři místo nosičů k nejbližšímu', () => {
-    // nejbližší kovář: ves na téže mapě 300 m (pěšky 7 lidí × 3 dny = 21 čd); soused po stezce
-    // sjízdné pro vozy (3 dny) – vozem tesař a sedlák × 3 dny = 6 čd
-    const base = withTeamPen(crowd(withWaitingCart(village(), [16]), 9));
-    base.carts = [{ id: 7, kind: 'two-wheel', builtDay: DAY - 10 }];
-    base.neighbours = {
-      dwellings: [],
-      sacredBuildings: [],
-      cells: [],
-      cleared: [],
-      felled: [],
-      reserved: [],
-      smithies: [{ x: 340, z: 0, name: 'Lhota' }],
-    };
-    const direction = NEIGHBOR_DIRECTIONS.find((d) =>
-      neighbourCrafts(base.seed, d).includes('smith'),
-    )!;
-    // delší stezka – soused je dál (dny) než ves na mapě
-    base.trails = [
-      { id: 1, direction, pieces: [], lengthM: 900, startedDay: DAY - 50, builtDay: DAY - 10 },
-    ];
-    const s = withOxen(base);
-    const options = ironOptions(s, DAY, { x: 40, z: 0 }, null, ironPriceKg(3));
-    const foot = ironPlan(options, false)!;
-    const any = ironPlan(options, true)!;
-    expect(foot).toMatchObject({ to: { kind: 'village' }, cart: false, porters: 6 });
-    expect(any).toMatchObject({ to: { kind: 'neighbour', direction }, cart: true, porters: 0 });
-    expect(any.days).toBeGreaterThan(foot.days);
-    expect(any.labor).toBe(2 * any.days);
-    expect(any.labor).toBeLessThan(foot.labor);
-    cartIronDay(s, DAY + 1, null);
-    expect(carpenter(s).ironTrip).toMatchObject({
-      cartId: 7,
-      to: { kind: 'neighbour', direction },
-    });
-    // rok vozů vidí, kolik práce vůz ušetřil (wagons.md – Kolik vozů ves chce)
-    expect(s.draft!.demand!.days!.at(-1)!.j![0]).toBeCloseTo(foot.labor - any.labor, 2);
-  });
-
   it('při shodě práce kratší cesta', () => {
     const s = crowd(withWaitingCart(village(), [16]), 9);
     const options = ironOptions(s, DAY, { x: 40, z: 0 }, null, ironPriceKg(3));
@@ -469,17 +395,6 @@ describe('ves bez kováře – tesař jde pro kování (wagons.md – Kování v
   });
 });
 
-describe('kovárny jiných vsí na téže mapě (wagons.md – Kování vozů)', () => {
-  it('přehled sousedních vsí nese obývané kovárny se jménem vsi', () => {
-    const other = withWorkshop(village(), 'smith', SMITH_ID, 70, [], 200);
-    const snapshot = neighbourSnapshot([other], DAY, ['Lhota'])!;
-    expect(snapshot.smithies).toEqual([{ x: 200, z: 0, name: 'Lhota' }]);
-    // prázdná kovárna se nepočítá, ves bez kovárny pole nemá
-    other.people = other.people.filter((p) => p.dwellingId !== SMITH_ID);
-    expect(neighbourSnapshot([other], DAY, ['Lhota'])!.smithies).toBeUndefined();
-  });
-});
-
 describe('kování v panelu dílny tesaře (wagons.md – Kování vozů)', () => {
   const ironOf = (s: VillageState, day: number) =>
     summarizeVillage(s, day).crafts.workshops.find((w) => w.dwellingId === CARPENTER_ID)!.carpenter!
@@ -509,5 +424,24 @@ describe('kování v panelu dílny tesaře (wagons.md – Kování vozů)', () =
   it('bez vozu, který čeká, nic', () => {
     const s = withWorkshop(village(), 'carpenter', CARPENTER_ID, CARPENTER);
     expect(ironOf(s, DAY)).toBeNull();
+  });
+});
+
+describe('převod vsí rodu na téže mapě (zrušeno – migration.md)', () => {
+  it('zahodí zbylý přehled sousedů i cestu pro kování do jiné vsi, podruhé nic nemění', () => {
+    const s = withWaitingCart(village(), [16]);
+    const legacy = JSON.parse(JSON.stringify(s)) as VillageState & { neighbours?: unknown };
+    legacy.neighbours = { dwellings: [], cells: [], smithies: [{ x: 1, z: 2, name: 'Lhota' }] };
+    const dwelling = legacy.dwellings.find((d) => d.id === CARPENTER_ID)!;
+    dwelling.workshop!.ironTrip = {
+      to: { kind: 'village', name: 'Lhota', x: 340, z: 0 },
+    } as never;
+    const once = withoutSameMapVillages(legacy);
+    expect('neighbours' in once).toBe(false);
+    expect(once.dwellings.find((d) => d.id === CARPENTER_ID)!.workshop!.ironTrip).toBeNull();
+    // idempotence: druhý průchod vrátí tentýž objekt
+    expect(withoutSameMapVillages(once)).toBe(once);
+    // ves bez zbytků se nezmění
+    expect(withoutSameMapVillages(s)).toBe(s);
   });
 });

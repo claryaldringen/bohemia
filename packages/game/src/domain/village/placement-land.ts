@@ -47,7 +47,6 @@ import { kilnCircle } from './charcoal';
 import { pointsBounds, squareCenter, squareKey } from './square-grid';
 import { threshingFloorFootprint } from './threshing-floors';
 import {
-  FOREIGN_LAND,
   M2_PER_HA,
   OK,
   type PlacementCheck,
@@ -62,7 +61,6 @@ import {
   dwellingPlot,
   freeShape,
   landIndex,
-  onForeignLand,
   placedDwelling,
   squaresUnder,
 } from './placement-geometry';
@@ -91,7 +89,7 @@ function gateProbe(gate: { x: number; z: number }): Point[] {
   ];
 }
 
-/** Obydlí vsi s branou – hotová, rozestavěná i obydlí jiných vsí na téže mapě. */
+/** Obydlí vsi s branou – hotová i rozestavěná. */
 function gateOwners(village: PlacementVillage): GateOwner[] {
   return [
     ...village.dwellings.map(placedDwelling),
@@ -108,7 +106,6 @@ function gateOwners(village: PlacementVillage): GateOwner[] {
           ]
         : [],
     ),
-    ...(village.foreign?.dwellings ?? []),
   ];
 }
 
@@ -117,7 +114,7 @@ function gateOwners(village: PlacementVillage): GateOwner[] {
  * zakaž to“ – na otázku, jestli zakázat umístění domu, jehož branka vede do cizího pozemku): místo
  * před brankou nebo vchodem – brána, odkud vychází síť pěšin (`dwellingGatePoint`; Vlkov: branka
  * polozemnice vedla do pozemku dvorce a domácnost neměla kudy chodit) – nesmí padnout do pozemku
- * nebo půdorysu jiného obydlí (i dvora dvorce, rozestavěného i jiné vsi), do modly či svatyně, do
+ * nebo půdorysu jiného obydlí (i dvora dvorce, i rozestavěného), do modly či svatyně, do
  * hřbitova, ohrady ani do vody. Pole, sad, les a louka branku neblokují (pole je krajina). Vrátí
  * důvod, nebo null.
  */
@@ -139,12 +136,12 @@ export function gateProblem(
     if (!hits(dwellingPlot(landscape, d))) continue;
     return d.plot && !d.craft ? `${what} do cizího pozemku.` : `${what} do jiného obydlí.`;
   }
-  const sacred = [...(village.sacredBuildings ?? []), ...(village.foreign?.sacredBuildings ?? [])];
+  const sacred = village.sacredBuildings ?? [];
   for (const b of sacred) {
     if (!hits([sacredFootprint(b.kind, b.position)])) continue;
     return b.kind === 'idol' ? `${what} na modlu.` : `${what} do svatyně.`;
   }
-  const floors = [...(village.threshingFloors ?? []), ...(village.foreign?.threshingFloors ?? [])];
+  const floors = village.threshingFloors ?? [];
   if (floors.some((f) => hits([threshingFloorFootprint(f.position)]))) return `${what} na humno.`;
   const under = new Set(squaresUnder(landscape, village, freeShape(probe)).map((q) => q.kind));
   if (under.has('cemetery')) return `${what} do hřbitova.`;
@@ -243,8 +240,6 @@ export function checkFootprintFree(
   ) {
     return fail(BLOCKS_GATE);
   }
-  // stavby a půda jiné vsi na téže mapě (migration.md)
-  if (shapes.some((shape) => onForeignLand(landscape, village, shape))) return fail(FOREIGN_LAND);
   const under = new Set(
     shapes.flatMap((shape) => squaresUnder(landscape, village, shape)).map((q) => q.kind),
   );

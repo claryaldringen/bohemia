@@ -65,7 +65,6 @@ import { nextPollDelayMs } from '@/lib/village-polling';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
 import { structureGridAt, type CellSquare } from '@/lib/scene/field-cells';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
-import { isNeighbourTarget, withNeighbourVillages } from '@/lib/scene/neighbour-villages';
 import { wholeTarget, type VillageTarget } from '@/lib/scene/village-picking';
 import { DIRECTION_NAMES } from '@/lib/trade-names';
 import {
@@ -282,7 +281,7 @@ function withPending(scene: SceneVillage, pending: readonly PendingSite[]): Scen
  * s tlačítkem Začít znovu (nové sídlo, stránka se načte znovu). Nabídka hry (tlačítko v liště,
  * F10) nabízí Začít znovu i se živou vsí (po potvrzení) a odhlášení. Ve vývojovém režimu jsou
  * vedle data šipky přeskočení času – hodiny v liště i ve scéně jdou o posun času hráče napřed.
- * Hráč může mít víc vsí (migration.md): jméno vsi v liště je přepínač – ves na téže mapě se
+ * Hráč může mít víc vsí (migration.md): jméno vsi v liště je přepínač – ves na stejné mapě se
  * přepne na místě, na jiné mapě se stránka načte znovu (jiná krajina). Akce nesou id vsi.
  * Ctrl / Shift + klik přidá obydlí k výběru, Ctrl + A vybere všechna; panel výběru obydlí
  * nabídne Přestěhovat (nový dům postupně každé domácnosti).
@@ -440,11 +439,9 @@ export function VillageGame({
     () => withPending(view ? view.scene : EMPTY_SCENE, pending),
     [view, pending],
   );
-  // stavby jiných vsí na téže mapě se kreslí s vlastními – jen pohled (migration.md)
-  const drawnVillage = useMemo(() => withNeighbourVillages(sceneVillage), [sceneVillage]);
   useEffect(() => {
-    scene?.setVillage(drawnVillage);
-  }, [scene, drawnVillage]);
+    scene?.setVillage(sceneVillage);
+  }, [scene, sceneVillage]);
 
   // R vrací pohled na ves – na první obydlí, jakmile ves stojí.
   const home = view?.scene.dwellings[0]?.position ?? null;
@@ -464,15 +461,7 @@ export function VillageGame({
             '[výběr]',
             describeTarget(target, sceneVillageRef.current, viewRef.current?.roads),
           );
-        // stavby jiné vsi na téže mapě se nevybírají – klik na ně jako na prázdnou zem
-        setSelected((prev) =>
-          nextSelection(
-            prev,
-            target && isNeighbourTarget(target) ? null : target,
-            additive,
-            double,
-          ),
-        );
+        setSelected((prev) => nextSelection(prev, target, additive, double));
       }),
     [scene],
   );
@@ -525,7 +514,7 @@ export function VillageGame({
       if (plan) setWagonPlan({ roadId: wagonRoadId, plan });
     }, 30);
     return () => clearTimeout(timer);
-  }, [scene, wagonRoadId, wagonOpen, drawnVillage]);
+  }, [scene, wagonRoadId, wagonOpen, sceneVillage]);
 
   // Testovací háček: kde je bod krajiny na obrazovce (kliknutí na obydlí v e2e testu).
   useEffect(() => {
@@ -1198,7 +1187,7 @@ export function VillageGame({
             : null
         }
       />
-      <Minimap landscape={decoded} scene={scene} village={drawnVillage} />
+      <Minimap landscape={decoded} scene={scene} village={sceneVillage} />
       <SelectionPanel
         details={selectionDetails(view, sceneVillage, current, personState, draftState)}
         onSelectTarget={setSelected}

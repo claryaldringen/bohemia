@@ -253,14 +253,12 @@ function uprootTrees(
     .filter((id) => falls(base, 'tree:' + id, rule.trees));
   if (fallen.length === 0) return 0;
   state.felledTrees = [...(state.felledTrees ?? []), ...fallen.map((id) => ({ id, day }))];
-  // padlé kmeny leží na místě (hromada u lesa, ne u vsi) – jen za stromy, které soused ještě
-  // nezapsal (dvě vsi téže mapy se dopočítají nezávisle, kmen by se jinak započetl dvakrát)
-  const neighbourFelled = new Set((state.neighbours?.felled ?? []).map((f) => f.id));
+  // padlé kmeny leží na místě (hromada u lesa, ne u vsi)
   const spots = new Map<number, { x: number; z: number }>();
   for (const [id, p] of positions) spots.set(id, p);
   const trunks = fallen.flatMap((id) => {
     const at = spots.get(id);
-    return at && !neighbourFelled.has(id) ? [at] : [];
+    return at ? [at] : [];
   });
   addFallenTrunks(state, trunks);
   return fallen.length;

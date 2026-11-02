@@ -364,9 +364,9 @@ export function villageTerritory(state: VillageState, landscape: Landscape): Uin
 }
 
 /**
- * Políčka zabraná stavbami vsi a sousedů v den `day` (1 v masce): čtverce polí, sadů, hřbitovů,
+ * Políčka zabraná stavbami vsi v den `day` (1 v masce): čtverce polí, sadů, hřbitovů,
  * ohrad a lesa vsi, políčka pod obydlími a rozestavěnými obydlími, posvátnými stavbami a humny,
- * a políčka a čtverce sousedů (`neighbours`). Plán na nich nic nového nechystá.
+ * Plán na nich nic nového nechystá.
  */
 export function takenTiles(state: VillageState, day: number, landscape: Landscape): Uint8Array {
   const size = landscape.size;
@@ -388,12 +388,6 @@ export function takenTiles(state: VillageState, day: number, landscape: Landscap
   }
   for (const s of state.sacredBuildings ?? []) markPoint(s.position.x, s.position.z);
   for (const f of state.threshingFloors ?? []) markPoint(f.position.x, f.position.z);
-  const n = state.neighbours;
-  if (n) {
-    for (const cell of n.cells) mask[cell.y * size + cell.x] = 1;
-    for (const d of n.dwellings) markPoint(d.position.x, d.position.z);
-    for (const s of n.sacredBuildings) markPoint(s.position.x, s.position.z);
-  }
   return mask;
 }
 

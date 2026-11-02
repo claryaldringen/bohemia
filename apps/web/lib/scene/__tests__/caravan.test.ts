@@ -467,20 +467,6 @@ describe('tesař pro kování jako jedna postava (wagons.md – Kování vozů)'
     expect(e).toMatchObject({ trailId: 40, carts: [7], porters: 0, leaving: [], coming: [] });
     expect(e!.line).toBeUndefined();
   });
-
-  it('do jiné vsi na téže mapě – celou cestu vidět, ke kovárně a zpět', () => {
-    const t = trip({ days: 2, to: { kind: 'village', name: 'Lhota', x: 340, z: 0 } });
-    const [e] = sceneExpeditions(state(t));
-    expect(e!.line).toEqual([
-      { x: 40, z: 0 },
-      { x: 340, z: 0 },
-    ]);
-    expect(e!.onMap).toBe(1);
-    // po cestě tam (300 m chůzí ≈ 250 s) hned zpátky – bez dne za krajem mapy
-    const back = caravanAt(scene(t), sec(350)).filter((p) => !p.hidden);
-    expect(back).toHaveLength(1);
-    expect(back[0]!.key).toContain(':back:');
-  });
 });
 
 describe('dobytek v karavaně (trade.md – Dobytek ve třech druzích)', () => {

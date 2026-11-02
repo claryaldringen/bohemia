@@ -73,7 +73,6 @@ import {
 } from './placement-land';
 import {
   type DwellingPlacementCheck,
-  FOREIGN_LAND,
   OK,
   type PlacementCheck,
   type PlacementVillage,
@@ -88,7 +87,6 @@ import {
   dwellingFootprint,
   footprintSamples,
   freeShape,
-  onForeignLand,
   ownedAt,
   ownedLand,
   plotHousePosition,
@@ -357,7 +355,7 @@ function polylineDistance(
  * Milíř je samostatná stavba uprostřed skácených buků: pod čtvercem milíře (MILIR.footprintM)
  * krajina, ne voda a dost rovná zem (jako u obydlí, les smí – uhlíř ho stejně kácí); kruh milíře
  * s pruhem kolem (MILIR.clearingRadiusM + KILN_SITE.marginM) nezasahuje na pole, do sadu, na
- * hřbitov, do ohrady, na obydlí ani pozemek, na modlu či svatyni, před branku ani na půdu jiné vsi;
+ * hřbitov, do ohrady, na obydlí ani pozemek, na modlu či svatyni, ani před branku;
  * aspoň KILN_SITE.homeM od obydlí (i rozestavěných), KILN_SITE.kilnM od jiného milíře a kruh
  * s KILN_SITE.roadM od osy pevné cesty; ne na skalním výchozu, pod posvátným dubem ani na háji.
  * Kontrola je deterministická (stejně v prohlížeči i na serveru).
@@ -467,7 +465,6 @@ export function checkPlotPlacement(
   if (!terrain.ok) return { ...terrain, ...none };
   const sites = sacredSitesOf(obstacles);
   for (const shape of shapes) {
-    if (onForeignLand(landscape, village, shape)) return { ...fail(FOREIGN_LAND), ...none };
     const taken = plotSquareProblem(landscape, village, shape, obstacles, sites, takeLand);
     if (taken) return { ...fail(taken), ...none };
   }

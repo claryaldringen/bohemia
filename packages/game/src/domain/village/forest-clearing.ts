@@ -111,8 +111,7 @@ export function fellDueTrees(state: VillageState, part: FieldPart, day: number):
   const done = fellingDone(part);
   const due = done ? clearing.fell.length : treesDue(part, part.foundingDone);
   if (due > clearing.felled) {
-    // stojí jen strom, který není odstraněný, pařezem ani mladým stromkem (i od sousední vsi
-    // na téže mapě – jako ve `fellTrees`)
+    // stojí jen strom, který není odstraněný, pařezem ani mladým stromkem
     const changes = obstacleChangesAt(state, day);
     const gone = new Set([...changes.removed, ...changes.stumps, ...changes.saplings]);
     const falling = clearing.fell.slice(clearing.felled, due).filter((t) => !gone.has(t.id));

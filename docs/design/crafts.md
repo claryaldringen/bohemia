@@ -268,7 +268,7 @@ návrh Clauda (čísla `KILN_SITE` v `rules.ts`).
 - **Milíř je samostatná stavba** na místě dávky: uhlíř vybere dávku 15 buků (první buk nejblíž své
   zemnici, dávka = buky nejblíž k němu) a milíř postaví na **rovném volném místě uprostřed nich** –
   od středu dávky po kružnicích po 2 m do 40 m. Místo není na poli, v sadu, na hřbitově, v ohradě,
-  na pozemku, na modle ani svatyni, před brankou ani na půdě jiné vsi, aspoň 20 m od domů,
+  na pozemku, na modle ani svatyni, před brankou, aspoň 20 m od domů,
   12 m od jiného milíře, kruh milíře (+ 1 m) ne na pevné cestě (2 m od osy), ne na skalním
   výchozu, pod posvátným dubem ani na háji, ne ve vodě a ne na svahu (rozdíl výšek pod milířem
   jako u obydlí). Když volné místo není, stojí milíř uprostřed dávky (rozhodnutí Clauda).

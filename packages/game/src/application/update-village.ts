@@ -41,6 +41,7 @@ import {
   withoutBuiltOverGrainPits,
   withGrainPits,
   withoutForeignGoods,
+  withoutSameMapVillages,
   withCattleKinds,
   withIronBarsTrade,
   withSeason,
@@ -203,8 +204,11 @@ export async function updateVillage(
     if (record === null) return { ok: false, reason: NO_VILLAGE };
     // seed počasí mapy se nemění – stačí se zeptat jednou
     weatherSeed ??= await villages.weatherSeedOf(record.settlementId);
+    // vsi rodu na téže mapě jsou zrušené (migration.md) – zbytky se zahodí
+    const rotated = withSowingRotation(
+      withSeason(withWeatherSeed(withoutSameMapVillages(record.state), weatherSeed)),
+    );
     // převod na osevní postup selhal při tomto načtení – ves jde dál, chyba se zapíše do logu
-    const rotated = withSowingRotation(withSeason(withWeatherSeed(record.state, weatherSeed)));
     const failure = rotated.sowingRotationFailed;
     if (failure !== undefined && record.state.sowingRotationFailed === undefined) {
       console.error(`Ves ${villageId}: převod na osevní postup selhal: ${failure}`);

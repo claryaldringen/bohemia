@@ -291,8 +291,8 @@ export interface WorkshopSummary {
     woodworkCoverage: number;
     /**
      * Kování k vozu (wagons.md – Kování vozů): vůz s hotovou dřevěnou prací čeká na kování (kg),
-     * nebo pro něj tesař či jeho syn (věk) jde do vsi `to` (jméno, soused ve směru, nebo ves na
-     * téže mapě) s nosiči (`porters`), nebo s vozem a sedlákem (`cart` – druh vozu), a vrátí se za
+     * nebo pro něj tesař či jeho syn (věk) jde do vsi `to` (jméno, soused ve směru)
+     * s nosiči (`porters`), nebo s vozem a sedlákem (`cart` – druh vozu), a vrátí se za
      * `daysLeft` dní; jinak null.
      */
     iron: {

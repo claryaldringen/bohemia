@@ -3,11 +3,10 @@
 
 import type { ChronicleEvent, LaborDay } from './types-chronicle';
 import type { StewardState } from './types-steward';
-import type { Construction, SacredBuildingKind, FarmSeason } from './types-construction';
+import type { Construction, FarmSeason } from './types-construction';
 import type {
   Cart,
   CharcoalUse,
-  Craft,
   CraftStocks,
   DraftState,
   KilnRemnant,
@@ -27,9 +26,7 @@ import type {
   SacredOak,
   SacredRuin,
   Sheaves,
-  SquareGrid,
   ThreshingFloor,
-  TileCell,
   VillageWood,
 } from './types-land';
 import type {
@@ -45,13 +42,10 @@ import type {
 import type {
   Ancestor,
   Dwelling,
-  DwellingPlot,
   DwellingRuin,
-  DwellingType,
   Emigrant,
   NeighborDirection,
   Person,
-  Position,
 } from './types-people';
 import type { CartDrive, RoadGrade, VillageRoads } from './types-roads';
 import type { VillageRoutes } from './types-routes';
@@ -414,12 +408,6 @@ export interface VillageState {
    */
   journey?: VillageJourney;
   /**
-   * Stavby a změny překážek jiných vsí na téže mapě (migration.md – Vsi na téže mapě) – jen
-   * dočasně při dopočtu a pohledu (`withNeighbours`), neukládá se. Kontroly umístění je znají,
-   * kácení se s nimi nekříží.
-   */
-  neighbours?: NeighbourSnapshot;
-  /**
    * Rod vojvody (lord.md – Rod vojvody, fáze 1): dnešní vojvoda a vojvodové po sobě. Chybí – ves
    * uložená před rodem (`withDynasty` ji převede); `lords` prázdné – ves bez rodu (chová se jako
    * před rodem, končí jen vymřením).
@@ -468,40 +456,6 @@ export interface VillageJourney {
   lordId?: number;
   /** Ves založí syn (`Settlers.stewarded`) – správce od založení; chybí = vypnutý. */
   stewarded?: true;
-}
-
-/**
- * Jiné vsi na téže mapě pro jednu ves (migration.md – Vsi na téže mapě): co zabírají (obydlí
- * a rozestavěná obydlí, posvátné stavby, políčka polí, sadů, hřbitovů, ohrad a lesa vsi) a které
- * překážky krajiny už odstranily, pokácely nebo si vyhradily.
- */
-export interface NeighbourSnapshot {
-  dwellings: {
-    type: DwellingType;
-    position: Position;
-    plot?: DwellingPlot;
-    craft?: Craft;
-    plainShape?: true;
-  }[];
-  sacredBuildings: { kind: SacredBuildingKind; position: Position }[];
-  /** Humna i rozestavěná (production-chains.md – Humno) – zabírají půdorys. Chybí = žádná. */
-  threshingFloors?: { position: Position }[];
-  /** Políčka krajiny, která zabírají (v mřížce krajiny). */
-  cells: TileCell[];
-  /**
-   * Čtverce natočených polí, sadů, hřbitovů, ohrad a lesa vsi v jejich mřížce (fields.md –
-   * Natočené stavby) – v `cells` nejsou. Natočené pozemky nese obydlí (`plot.square`). Chybí =
-   * žádné.
-   */
-  squares?: { cell: TileCell; grid: SquareGrid }[];
-  /**
-   * Obývané kovárny jiných vsí (wagons.md – Kování vozů): poloha (m) a jméno vsi – tesař ves bez
-   * kováře pro kování dojde k nejbližší. Chybí = žádné.
-   */
-  smithies?: { x: number; z: number; name: string }[];
-  cleared: ObstacleChange[];
-  felled: ObstacleChange[];
-  reserved: number[];
 }
 
 // --- dvorec, zemská stezka a obchod (trade.md) ----------------------------------------------

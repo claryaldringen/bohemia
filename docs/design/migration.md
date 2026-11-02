@@ -278,7 +278,7 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
   přidělit polohu sídelnímu sídlu (dnes null) při prvním odchodu a vybrat sousední políčko
   podle směru.
 - Tlačítko **Odejít** je v panelu výběru (jednoho i víc obydlí) zatím zašedlé.
-- **Otevřené pro fázi 3:** vsi na téže mapě o sobě nevědí – scéna kreslí jen vybranou ves,
+- ~~**Otevřené pro fázi 3:**~~ (zrušeno 1. 11. 2026 – jedna ves, jedna mapa) vsi na téže mapě o sobě nevědí – scéna kreslí jen vybranou ves,
   kontroly umístění neznají stavby druhé vsi a obě můžou kácet tytéž stromy (vrstva překážek je
   krajiny, změny má každá ves zvlášť). Do odchodu na stejnou mapu je drží od sebe jen 300 m.
   (Vyřešeno ve fázi 3 – viz výše.)

@@ -6,7 +6,6 @@ import {
   type DwellingPlot,
   type DwellingType,
   type FieldSurface,
-  type NeighbourSnapshot,
   type PenSpecies,
   type Position,
   type SacredBuildingKind,
@@ -29,18 +28,6 @@ export interface PlacementCheck {
    */
   warning?: string;
 }
-
-/**
- * Stavby a půda jiných vsí na téže mapě (migration.md – Vsi na téže mapě): obydlí a rozestavěná
- * obydlí (s pozemky), modly a svatyně, políčka jejich polí, sadů, hřbitovů, ohrad a lesa
- * a natočené čtverce polí, sadů a lesa v jejich mřížce (`squares` – fields.md, Natočené stavby).
- */
-export type ForeignStructures = Readonly<
-  Pick<NeighbourSnapshot, 'dwellings' | 'sacredBuildings' | 'threshingFloors' | 'cells' | 'squares'>
->;
-
-/** Stavba zasahuje na stavbu nebo půdu jiné vsi na téže mapě (migration.md). */
-export const FOREIGN_LAND = 'Tady hospodaří jiná ves.';
 
 /** Co z vsi potřebuje kontrola překryvu – VillageState ji splňuje, klient ji složí ze scény. */
 export interface PlacementVillage {
@@ -117,11 +104,6 @@ export interface PlacementVillage {
   readonly woods?: readonly { readonly cell: TileCell; readonly grid?: SquareGrid }[];
   /** Překážky, které ves už odstranila nebo pokácela (`obstacleChangesAt`); bez nich žádné. */
   readonly obstacleChanges?: ObstacleChanges;
-  /**
-   * Stavby a půda jiných vsí na téže mapě – stavět přes ně ani na jejich políčka nejde, pole
-   * na ně nenavazují (migration.md). Bez údaje žádné.
-   */
-  readonly foreign?: ForeignStructures;
   /**
    * Stromy vyhrazené rozestavěnými stavbami (`reservedTrees`) – patří své stavbě, mýcení za ně
    * kládu nedá (forest.md). Bez údaje žádné.

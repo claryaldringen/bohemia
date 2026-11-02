@@ -12,11 +12,9 @@ import {
   type Landscape,
   type VillageState,
 } from '@bohemia/game';
-import type { SceneSacred, SceneVillage } from './village-view';
 
 // Odchod do nové vsi v pohledu na ves (migration.md – fáze 3 a 4): cesta na novou mapu po
-// směrech, vlastní vsi na sousedních mapách, lidé na cestě, opuštěná ves a stavby jiných vsí
-// téže mapy pro scénu. Čistý modul – smí i do prohlížeče (typy).
+// směrech, vlastní vsi na sousedních mapách, lidé na cestě, opuštěná ves. Čistý modul – smí i do prohlížeče (typy).
 
 /** Odchod na novou mapu ve směru – dny cesty, nebo proč tím směrem nejde. */
 export interface LeaveDirection {
@@ -53,30 +51,6 @@ export interface VillageAbandonment {
   foundedYear: number;
   abandonedYear: number;
   years: number;
-}
-
-/**
- * Stavby jiné vsi na téže mapě pro scénu (migration.md – Vsi na téže mapě): jen pohled – obydlí,
- * díly polí, hřbitovy, sady, ohrady, zbytky jam, humna a modly se svatyněmi; v prohlížeči se
- * jiná ves nesimuluje.
- */
-export type SceneNeighbour = Pick<SceneVillage, 'dwellings' | 'fields'> &
-  Partial<Pick<SceneVillage, 'cemeteries' | 'orchards' | 'pens' | 'ruins' | 'threshingFloors'>> & {
-    sacredBuildings?: SceneSacred['buildings'];
-  };
-
-/** Stavby jiné vsi ze scény té vsi – bez lidí, zvířat, práce a cest. */
-export function neighbourScene(scene: SceneVillage): SceneNeighbour {
-  return {
-    dwellings: scene.dwellings,
-    fields: scene.fields,
-    ...(scene.cemeteries ? { cemeteries: scene.cemeteries } : {}),
-    ...(scene.orchards ? { orchards: scene.orchards } : {}),
-    ...(scene.pens ? { pens: scene.pens } : {}),
-    ...(scene.ruins ? { ruins: scene.ruins } : {}),
-    ...(scene.threshingFloors ? { threshingFloors: scene.threshingFloors } : {}),
-    ...(scene.sacred?.buildings.length ? { sacredBuildings: scene.sacred.buildings } : {}),
-  };
 }
 
 /** Políčko mřížky sídla (null = sídlo bez polohy). */

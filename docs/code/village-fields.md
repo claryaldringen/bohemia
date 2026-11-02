@@ -475,7 +475,7 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   ve `VillageState.threshingFloors` (`ThreshingFloor`, id = id stavby, `builtDay` null), po
   dostavění dostane den (`finishThreshingFloor`, `builtThreshingFloors`); půdorys
   `threshingFloorFootprint` znají kontroly ostatních staveb (`PlacementVillage.threshingFloors`,
-  čtverce – příznak `threshing`), jiné vsi (`NeighbourSnapshot.threshingFloors`), zbytky jam,
+  čtverce – příznak `threshing`), zbytky jam,
   stromy u cest a vzdálenost vsí. Use-case `placeThreshingFloor`, server action
   `placeThreshingFloor` (`{ villageId, position }`), mřížka staveb [K] (umístění i `PlacementMode`
   `threshing-floor` – duch jen obrys půdorysu), ikona
@@ -561,15 +561,13 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   180 m, pak null – `GrainPitWork.noSiteYear`: letos jen do prázdných jam, zrno navíc mimo jámy),
   suché (terén pěšin – ne voda, břeh, brod, mokřina, les), mimo čtverce staveb, `structureShapes`
   (ruins.ts – obydlí, pozemky, stavby, humna), milíře, pevné cesty, zemní práce vozových cest
-  (`earthworkCheck` – pláň a svahy celé plánované osy přes `editedHeight`), vstup humna, půdu
-  jiných vsí (`onForeignGround` z placement.ts – `state.neighbours`), překážky a ostatní jámy; bez
+  (`earthworkCheck` – pláň a svahy celé plánované osy přes `editedHeight`), vstup humna, překážky a ostatní jámy; bez
   krajiny řada jam kus od humna. **Stavba na jámě** (hráč zavřenou nevidí – kontrola umístění jámy
   nezná): `withoutBuiltOverGrainPits` po akci v `updateVillage` a `moveGrainFromCoveredPits`
   v simulaci (jen den, kdy přibylo id – stavby vsi berou id z `nextId` a vznikají před kontrolou;
   podmínka popsaná u kontroly v `simulateDay`) – i pod zemními pracemi vozové cesty;
-  `moveGrainFromPits` přendá zrno do prázdných jam nebo domů bez ztráty, jáma zmizí. Stavba jiné
-  vsi jámu neodstraní (jámy se kopou jen na vlastní půdě). Nová ves `grainPits: []` (zásoby osadníků doma),
-  ves uložená dřív `withGrainPits` v `updateVillage` (s přehledem jiných vsí; zásoby do jam bez
+  `moveGrainFromPits` přendá zrno do prázdných jam nebo domů bez ztráty, jáma zmizí. Nová ves `grainPits: []` (zásoby osadníků doma),
+  ves uložená dřív `withGrainPits` v `updateVillage` (zásoby do jam bez
   práce, zapečetěné kromě poslední, ke dni `lastDay`, co se pro chybějící místo nevejde, zůstane
   mimo jámy; jednou). Rozdělení práce: činnost a cíl `grain-pit`
   (`{ kind: 'grain-pit', id, x, z }` – `DayWork.grainPits`); síť pěšin vede k otevřené jámě pro zrno

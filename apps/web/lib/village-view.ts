@@ -37,8 +37,6 @@ import {
   villageLifespan,
   villageOrchards,
   abandonedVillageAt,
-  withNeighbours,
-  type NeighbourSnapshot,
   type PenSpecies,
   type HerdPlaces,
   penHerdSpecies,
@@ -103,12 +101,7 @@ import { sceneExpeditions } from './caravan-view';
 import type { VillageListItem } from './village-list';
 import type { LineEndView } from './line-end-view';
 
-import {
-  journeyView,
-  leaveOptions,
-  villageAbandonment,
-  type SceneNeighbour,
-} from './departure-view';
+import { journeyView, leaveOptions, villageAbandonment } from './departure-view';
 
 // Pohled na ves pro panel a scénu (DTO server actions). Čistý modul – smí ho importovat
 // i klient (typy, převod scény na data pro kontrolu umístění).
@@ -300,26 +293,10 @@ export interface VillageViewContext {
   lineEnded?: LineEndView | null;
   /** Všechny vsi hráče pro přepínač; bez nich jen tahle ves. */
   villages?: VillageListItem[];
-  /**
-   * Jiné vsi na téže mapě (migration.md) – přehled jejich staveb a pasek (`neighbourSnapshot`)
-   * a jejich stavby pro scénu. Bez nich je ves na mapě sama.
-   */
-  neighbours?: NeighbourSnapshot | null;
-  neighbourScenes?: SceneNeighbour[];
   /** Vlastní vsi na sousedních mapách po směrech – tam se neodchází ani neobchoduje. */
   ownMaps?: Partial<Record<Direction8, string>>;
   /** Proč z téhle mapy na novou mapu odejít nejde (mapa bez polohy v mřížce), nebo null. */
   mapsBlocked?: string | null;
-}
-
-/** Stavby vsi pro scénu – jako v pohledu na ves (stavby jiné vsi na téže mapě). */
-export function sceneOfVillage(
-  state: VillageState,
-  landscape: Landscape,
-  day: number,
-): SceneVillage {
-  const shown = abandonedVillageAt(state, day);
-  return sceneVillage(shown, landscape, day, summarizeVillage(shown, day, obstaclesOf(landscape)));
 }
 
 /**
@@ -350,8 +327,8 @@ export function buildVillageView(
   context: VillageViewContext = {},
 ): VillageView {
   const { name } = record;
-  // jiné vsi na téže mapě (paseky, cizí půda) a opuštěná ves jen jako pohled (migration.md)
-  const state = abandonedVillageAt(withNeighbours(record.state, context.neighbours ?? null), day);
+  // opuštěná ves jen jako pohled (migration.md)
+  const state = abandonedVillageAt(record.state, day);
   const obstacles = obstaclesOf(landscape);
   const summary = summarizeVillage(state, day, obstacles);
   const gameOver = context.gameOver ?? false;
@@ -503,7 +480,6 @@ export function buildVillageView(
       ...sceneWithCartWorld(sceneVillage(state, landscape, day, summary), state, landscape, day),
       trails: sceneTrails(state),
       expeditions: sceneExpeditions(state),
-      ...(context.neighbourScenes?.length ? { neighbours: context.neighbourScenes } : {}),
     },
     chronicle: chronicle(state, name),
     purchases: purchaseViews(state),

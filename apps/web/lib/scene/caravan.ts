@@ -8,7 +8,7 @@
 // „Ve vykreslování by lidé měli dělat své činnosti od začátku do konce“): karavana vyrazí se
 // začátkem herního dne, kdy cesta začala (`SceneExpedition.startDay`), a jde ve skutečném čase
 // přirozenou chůzí – lidé běžnou chůzí, s vozy nebo dobytkem tempem volů (`caravanSpeed`), žádný
-// časosběr. Za krajem mapy je herní den u souseda (do vsi na téže mapě hned zpět), pak se vrací
+// časosběr. Za krajem mapy je herní den u souseda, pak se vrací
 // stejným tempem. Jádro výpravu počítá dál po dnech a vrátí se dřív – scéna si běžící karavanu
 // pamatuje do jejího návratu (activity-memory.ts), naráz jich tak může jít víc.
 // Dobytek (trade.md – Dobytek ve třech druzích; Martin 20. 10. 2026: „s dobytkem by také mělo jít
@@ -184,7 +184,7 @@ export function caravanSpeed(e: Pick<SceneExpedition, 'carts' | 'cattle'>): numb
 /** Rozvrh karavany ve skutečném čase (ms) a rychlost (m/s). */
 export interface CaravanTimeline {
   startMs: number;
-  /** Poslední člen zástupu je za krajem mapy (u vsi na téže mapě na konci cesty). */
+  /** Poslední člen zástupu je za krajem mapy (u souseda na konci cesty). */
   outEndMs: number;
   /** Čelo se objeví na kraji mapy na cestě zpátky. */
   awayEndMs: number;
@@ -196,7 +196,7 @@ export interface CaravanTimeline {
 /**
  * Rozvrh karavany z okna dne, kdy cesta začala (`window`), délky stezky `trailM` a zástupů: tam
  * celá stezka a zástup tempem `caravanSpeed`, herní den u souseda (`onMap` < 1 – den za krajem
- * mapy; do vsi na téže mapě 0), zpátky totéž.
+ * mapy), zpátky totéž.
  */
 export function caravanTimeline(
   e: Pick<SceneExpedition, 'carts' | 'cattle' | 'onMap'>,

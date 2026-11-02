@@ -15,7 +15,6 @@ import { obstacleChangesAt, obstacleStatus } from './obstacles';
 import { editedHeight, naturalHeightAt, profileLength, terrainEditsFrom } from './paths/earthworks';
 import { threshingFloorEntrance } from './paths/entrances';
 import { heightAboveStreamAt } from './part-protection';
-import { onForeignGround } from './placement';
 import { PATH_FOREST, PATH_FORD, PATH_WATER, PATH_WATER_SPOT, PATH_WETLAND } from './paths/terrain';
 import { walkGroundOf } from './paths/walking';
 import { moveGrainFromPits } from './grain-pits';
@@ -29,8 +28,7 @@ import type { GrainPit, VillageState } from './types';
 // místě obilné jámy po sklizni vykopou“; podrobnosti návrh Clauda): jámy kopou vesničané sami
 // u humna (bez humna u dvorce vojvody) – suché místo mimo vodu, mokřinu a les, mimo pole, sady,
 // hřbitovy, ohrady a les vsi, mimo obydlí, pozemky, stavby, humna i jejich vstup, milíře a pevné
-// cesty, mimo zemní práce vozových cest (pláň i svahy úvozu a náspu celé plánované osy) a mimo
-// stavby a půdu jiných vsí na téže mapě, bez stromu, keře či kamene na místě, aspoň
+// cesty, mimo zemní práce vozových cest (pláň i svahy úvozu a náspu celé plánované osy), bez stromu, keře či kamene na místě, aspoň
 // GRAIN_PITS.spacingM od ostatních jam. Hledá se od humna po kružnicích (GRAIN_PITS.stepM) do
 // GRAIN_PITS.siteM, když tam nic není, dál až do FAR_SEARCH × siteM – nejbližší vhodné místo, takže
 // se jámy drží pohromadě; ani tam nic – jámu nevykopou a zrno zůstane mimo jámy. Místo vybírá jen
@@ -39,8 +37,7 @@ import type { GrainPit, VillageState } from './types';
 //
 // Hráč zavřenou jámu nevidí, stavbu na ní proto nezakazuje: jáma pod stavbou nebo zemními pracemi
 // vozové cesty zmizí a vesničané zrno přendají (`withoutBuiltOverGrainPits` po akci hráče,
-// `moveGrainFromCoveredPits` v simulaci). Stavba jiné vsi na téže mapě jámu neodstraní – změnila by
-// stav dvou vsí naráz (návrh Clauda; jámy se kopou jen na vlastní půdě).
+// `moveGrainFromCoveredPits` v simulaci).
 
 /** Poloměr jámy i s okrajem (m) – kolik místa zabere a od čeho drží odstup. */
 const PIT_RADIUS_M = 1.2;
@@ -197,9 +194,8 @@ function siteCheck(
     const square = pitSquare(p, STRUCTURE_MARGIN_M);
     if (land.overlapping(square).length > 0) return false;
     if (shapes.some((shape) => polygonsOverlap(shape, square))) return false;
-    // zemní práce vozových cest (pláň i svahy), stavby a půda jiných vsí na téže mapě
+    // zemní práce vozových cest (pláň i svahy)
     if (earthwork?.(p, PIT_RADIUS_M + STRUCTURE_MARGIN_M)) return false;
-    if (onForeignGround(landscape, state.neighbours, square)) return false;
     // strom, keř ani kámen na místě (i stromy, které přidala ves – u cest, les vsi)
     const r = OBSTACLE_CLEAR_M;
     for (const k of obstaclesNear(obstacles, p.x - r, p.z - r, p.x + r, p.z + r)) {

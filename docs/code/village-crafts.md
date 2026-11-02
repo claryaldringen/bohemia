@@ -259,8 +259,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   kovář (`smithAtHome`) ho vyrobí jako zakázku (`ironOrderKg` → `smithToolsTarget` v
   `restingCrafters`, `smithsForgeCharcoalKg`, `smithsCharcoalPerYear`), jinak `Workshop.ironTrip`
   (`IronTrip`): syn tesaře od 14 (`ironCarrier`), nebo tesař jde do vsi s kovářem s nejmenší prací
-  vsi celkem (`ironDestinations` – kovárny jiných vsí mapy `NeighbourSnapshot.smithies` s jménem –
-  `neighbourSnapshot(…, names)` –, dny `mapTripDays`; sousedé `neighbourCrafts` přes
+  vsi celkem (`ironDestinations` – sousedé `neighbourCrafts` přes
   `purchaseRoute(…, from)` od dílny; `ironOptions` – pěšky s nosiči i vozem, `ironPlan` – nejméně
   čd, při shodě kratší cesta; úspora vozu proti cestě pěšky do roku vozů – `addCartDemand`),
   platba obilím `ironPriceKg` ze zásob, jen když ves nešetří jídlem (`hungry`); kronika `iron-trip`

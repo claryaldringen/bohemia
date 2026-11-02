@@ -48,8 +48,6 @@ import { type ScenePerson } from './person-view';
 
 import { type SceneWedding } from './wedding-view';
 
-import { type SceneNeighbour } from './departure-view';
-
 export interface SceneVillage {
   /**
    * Hotová obydlí (`built: true`, id obydlí) i rozestavěná (`built: false`, id stavby); řemeslná
@@ -333,12 +331,6 @@ export interface SceneVillage {
   wildlife?: SceneWildlife;
   /** Ohrady (oxen.md) – čtverec, stavba a zvířata v ní. Bez údaje žádné. */
   pens?: ScenePen[];
-  /**
-   * Stavby jiných vsí na téže mapě – jen pohled (migration.md – Vsi na téže mapě). Scéna je
-   * kreslí s ostatními stavbami (`withNeighbourVillages`), kontrola umístění je zná jako
-   * cizí půdu (`placementVillageFromScene`). Bez údaje žádné.
-   */
-  neighbours?: SceneNeighbour[];
   /**
    * Les vsi (fields.md – Les vsi) – čtverce polí zarostlé lesem: políčko, povrch při založení
    * a stáří lesa v celých letech (od 30). Stromy jsou mezi překážkami přidanými vsí

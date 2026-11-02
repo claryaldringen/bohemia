@@ -55,7 +55,6 @@ export * from './departure';
 export * from './digest';
 export * from './year-log';
 export * from './son-departure';
-export * from './neighbourhood';
 export * from './world-grid';
 export * from './village-site';
 export * from './fields';
@@ -197,8 +196,8 @@ export {
   ironTripHelpers,
   ironTripLine,
   ironTripShares,
-  mapTripDays,
   smithAtHome,
+  withoutSameMapVillages,
   type IronPlan,
   type IronRoute,
 } from './cart-iron';

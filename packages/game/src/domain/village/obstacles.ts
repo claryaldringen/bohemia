@@ -131,13 +131,11 @@ export function plantOnStump(state: VillageState, id: number, day: number): bool
 }
 
 type ChangeLists = Pick<VillageState, 'clearedObstacles' | 'felledTrees' | 'roads'> &
-  Partial<Pick<VillageState, 'woods' | 'neighbours'>>;
+  Partial<Pick<VillageState, 'woods'>>;
 
-/** Odstraněné překážky (vlastní i sousedů) – množina a seřazená id k seznamům, ze kterých vznikly. */
+/** Odstraněné překážky vsi – množina a seřazená id k seznamům, ze kterých vznikly. */
 interface RemovedIds {
   ownLength: number;
-  theirs: readonly ObstacleChange[] | undefined;
-  theirsLength: number;
   set: ReadonlySet<number>;
   sorted: readonly number[];
 }
@@ -155,25 +153,13 @@ const removedMemo = new WeakMap<readonly ObstacleChange[], RemovedIds>();
 /** Množina k (zmrazenému) seznamu `removed` z paměti – `obstacleStatus` ji nestaví znovu. */
 const removedSets = new WeakMap<readonly number[], ReadonlySet<number>>();
 
-function removedIds(
-  own: readonly ObstacleChange[] | undefined,
-  theirs: readonly ObstacleChange[] | undefined,
-): RemovedIds {
+function removedIds(own: readonly ObstacleChange[] | undefined): RemovedIds {
   const key = own ?? NO_CHANGES;
   const known = removedMemo.get(key);
-  if (
-    known &&
-    known.ownLength === key.length &&
-    known.theirs === theirs &&
-    known.theirsLength === (theirs?.length ?? 0)
-  ) {
-    return known;
-  }
-  const set = new Set([...key, ...(theirs ?? [])].map((c) => c.id));
+  if (known && known.ownLength === key.length) return known;
+  const set = new Set(key.map((c) => c.id));
   const entry: RemovedIds = {
     ownLength: key.length,
-    theirs,
-    theirsLength: theirs?.length ?? 0,
     set,
     sorted: Object.freeze([...set].sort((a, b) => a - b)),
   };
@@ -188,12 +174,10 @@ function removedIds(
  * lesa vsi je dospělý, mladý stromek, nebo po kácení pařez a pak nálet (mladý stromek).
  */
 export function obstacleChangesAt(state: ChangeLists, day: number): ObstacleChanges {
-  // paseky a pařezy jiných vsí na téže mapě platí i tady (migration.md – Vsi na téže mapě)
-  const neighbours = state.neighbours;
-  const { set: removed, sorted } = removedIds(state.clearedObstacles, neighbours?.cleared);
+  const { set: removed, sorted } = removedIds(state.clearedObstacles);
   // u stromu pokáceného víckrát platí poslední kácení (i se sazenicí)
   const lastFelled = new Map<number, ObstacleChange>();
-  for (const f of [...(state.felledTrees ?? []), ...(neighbours?.felled ?? [])]) {
+  for (const f of state.felledTrees ?? []) {
     const known = lastFelled.get(f.id);
     if (!known || f.day >= known.day) lastFelled.set(f.id, f);
   }

@@ -191,11 +191,9 @@ export function treesToFell(c: Pick<Construction, 'wood'>): number {
  * do klád z mýcení (pole, hřbitov, staveniště) a nekácí je nikdo jiný.
  */
 export function reservedTrees(
-  state: Pick<VillageState, 'constructions'> &
-    Partial<Pick<VillageState, 'dwellings' | 'neighbours'>>,
+  state: Pick<VillageState, 'constructions'> & Partial<Pick<VillageState, 'dwellings'>>,
 ): Set<number> {
-  // stromy, které si vyhradily jiné vsi na téže mapě, nekácí ani tahle (migration.md)
-  const reserved = new Set<number>(state.neighbours?.reserved ?? []);
+  const reserved = new Set<number>();
   for (const c of state.constructions) {
     if (!c.wood) continue;
     for (let i = c.wood.felled; i < c.wood.fell.length; i++) {
