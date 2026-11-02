@@ -533,6 +533,10 @@ pozvaný vazal):
 - **Ponechaná odúmrť:** „Když si odúmrť ponechá, může ji spravovat buď sám nebo do ní poslat
   správce – a je jedno, jestli to bude někdo z jeho rodu nebo nějaký jiný vazal“ (Martin 2. 11. 2026).
 
+- **Vazalové vymřelého pána:** „Vazalové jsou součástí odúmrti“ (Martin 2. 11. 2026) – vyšší pán
+  o nich rozhoduje jako o vsích (ponechat si je, nebo je věnovat svým vazalům); vypovědět smějí
+  kdykoli.
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
