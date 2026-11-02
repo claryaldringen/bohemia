@@ -522,6 +522,10 @@ pozvaný vazal):
 - **Koho povýšit:** dospělého muže od 16 let z kterékoli pánovy vsi, nejvýš jednoho za herní rok;
   s ním manželka a děti – „Ano“ (Martin 2. 11. 2026).
 
+- **Hráč jako správce cizí vsi:** stejným jednáním – pán nabídne správu konkrétní vsi s podmínkami
+  (např. odměna za rok), hráč přijme / odmítne / protinávrh; „Ano, správce je pánovým vazalem“
+  (Martin 2. 11. 2026).
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
