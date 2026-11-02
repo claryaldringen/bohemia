@@ -450,6 +450,9 @@ pozvaný vazal):
 - **Splátky půjčky:** jako dávky – 1. 11. dialog se splátkou podle kalendáře, domluvené / míň /
   víc, vzkaz, pán v upozorněních – „ano“ (Martin 2. 11. 2026).
 
+- **Ochrana vojskem:** na žádost vazala, pán rozhodne, jestli a koho pošle (svůj rod, další
+  vazalové); nic se nevynucuje – „Ano“ (Martin 2. 11. 2026).
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
