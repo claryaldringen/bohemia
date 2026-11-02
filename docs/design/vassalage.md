@@ -430,6 +430,11 @@ pozvaný vazal):
 - **Vojenská služba** jako podmínka dohody (např. 4 muži na 30 dní ročně, když pán vede válku),
   funguje s [válkou](war.md) – „Ano. Bude to hlavní věc na vazalství.“ (Martin 2. 11. 2026).
 
+- **Svolání do války:** stejně jako u dávek (dialog, domluvený počet, míň / víc, vzkaz, pán vidí
+  v upozorněních) – „Stejně jako u dávek, ale vazal musí poslat muže schopné vojenské služby, tj.
+  příslušníky svého rodu, protože nikdo jiný vojenské zkušenosti nemá“ (Martin 2. 11. 2026) –
+  službu konají jen muži rodu (zohlednit i ve [válce](war.md), kde návrh počítá s vesničany).
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
