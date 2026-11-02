@@ -1,256 +1,362 @@
 # Pozvánky a vazalství – první verze
 
-Stav: **návrh ke schválení** (2. 11. 2026). Implementace zatím není. Navazuje na
-[vizi](vision.md) – Hráči a vazalství, na [účty](accounts.md) (pozvánkové kódy byly mimo rozsah
-„přijdou s mechanikou vazalství“) a na [seniorát](seniorate.md) (#9, fáze 4 – výhoda pozvaného
-hráče v nástupnictví). Historické opory: [rešerše](research/2026-11-02-vassalage-seniorate.md).
-Co níž není výslovně Martinovo, je návrh Clauda.
+Stav: **návrh ke schválení (přepracováno podle odpovědí 2. 11. 2026)**. Implementace zatím není.
+Navazuje na [vizi](vision.md) – Hráči a vazalství, na [účty](accounts.md) (pozvánkové kódy byly
+mimo rozsah „přijdou s mechanikou vazalství“) a na [seniorát](seniorate.md) (#9, fáze 4 –
+nástupnictví bez losu za pozvaného hráče). Historické opory:
+[rešerše](research/2026-11-02-vassalage-seniorate.md). Martinovy odpovědi jsou citované
+v oddílu [Odpovědi Martina 2. 11. 2026](#odpovědi-martina-2-11-2026); co níž není výslovně
+Martinovo, je návrh Clauda.
 
 ## Proč
 
 - **Vize** (Martin – „Registrace, sdílený svět, vazalství přes pozvánky“): pozvaný hráč začíná
-  jako vazal toho, kdo ho pozval; hráč bez pozvánky se automaticky stane vazalem některého ze
-  stávajících hráčů; svět je strom vazalství; vazalství není navždy (osamostatnění, vzpoura,
-  přísaha jinému pánovi); pozvat hráče se vyplácí.
+  jako vazal toho, kdo ho pozval; vazalství není navždy; pozvat hráče se vyplácí.
+- **Na začátku jsou si všichni rovni** – Martin 2. 11. 2026: „**Na začátku na vrcholu nestojí
+  nikdo. Všichni hráči jsou si rovni a pokud se chce někdo dostat na vrchol, musí si nějakým
+  způsobem podrobit ostatní. V tom ta hra vlastně spočívá.**“
 - **Pomoc v nouzi nemá zdroj.** Martin 1. 11. 2026 k pomoci pána vsi v nouzi: „**zatím nemáme
-  feudální systém. Není odkud brát**“. Vazalství dá pomoci zdroj – pánovu ves, kam plynou dávky.
-- **Seniorát potřebuje pozvaného hráče** – kdo přivedl hráče, o svou ves losem nepřijde (zadání
-  issue #9, [seniorát](seniorate.md)).
+  feudální systém. Není odkud brát**“. Vazalství dá pomoci zdroj – pánovu ves, slíbí-li ji pán
+  v podmínkách.
+- **Seniorát potřebuje pozvaného hráče** – za každého pozvaného hráče jedno nástupnictví bez
+  losu ([seniorát](seniorate.md)).
 - **Kostra světa potřebuje jednu mřížku map** – kde začíná nový hráč, „patří do návrhu vazalství
   a světa“ ([prémiové krajiny](premium-landscapes.md) – Kostra světa).
 
 ## Cíle, ne-cíle, anti-cíle
 
-- **Cíl:** pozvánkový kód – pozvaný začíná jako vazal toho, kdo ho pozval (Martin – vize).
-- **Cíl:** hráč bez pozvánky dostane pána sám (Martin – vize), tak, aby strom zůstal vyvážený.
-- **Cíl:** vazalství něco znamená už v první verzi: **dávka** nahoru, **pomoc v nouzi** dolů.
-- **Cíl:** vazalství **není trvalé** (Martin – vize): přísaha jinému pánovi a osamostatnění.
-- **Ne-cíl (první verze):** vzpoura, obrana a svolání vazalů – až s [válkou](war.md); sňatky mezi
-  rody, služby (povoz, stavba hradiště), prestiž a tituly, zprávy mezi hráči, NPC vazalové.
-- **Anti-cíl:** dávka, která vazala vyhladoví – odvádí se jen z přebytku.
-- **Anti-cíl:** výhoda za falešné účty – počítá se jen vazal, který opravdu hraje.
-- **Anti-cíl:** vazal, který změní pána, zatímco spí – sám nikdy neodejde bez své akce; změnit
-  pána může jen propuštění pánem nebo vymření rodu.
+- **Cíl:** na začátku nikdo nahoře – svět je **les stromů**, každý nezávislý hráč je kořen
+  svého stromu (Martin 2. 11. 2026).
+- **Cíl:** pozvaný začíná jako vazal toho, kdo ho pozval (Martin – vize; 2. 11. 2026).
+- **Cíl:** hráč bez pozvánky je **úplně nezávislý** (Martin 2. 11. 2026).
+- **Cíl:** vazalství je **dohoda dvou hráčů** – pán navrhne a stanoví podmínky, druhý přijme,
+  odmítne nebo jedná (Martin 2. 11. 2026).
+- **Cíl:** vazal smí odejít **kdykoli** (Martin 2. 11. 2026).
+- **Ne-cíl (první verze):** podrobení silou, vzpoura, obrana a svolání vazalů – až s
+  [válkou](war.md); sňatky mezi rody, služby (povoz, stavba hradiště), prestiž a tituly, volné
+  zprávy mezi hráči, NPC vazalové.
+- **Anti-cíl:** dávka, která vazala vyhladoví, zatímco spí – každá ves si nechá pojistku (Plnění
+  podmínek).
+- **Anti-cíl:** podmínky, které jedna strana změní sama – změna jen novou dohodou.
+- **Anti-cíl:** výhoda za falešné účty – nástupnictví bez losu dá jen pozvaný, který začal hrát.
+- **Anti-cíl:** vazal bez vlastního souhlasu – vazalem se hráč stane jen pozvánkou, kterou sám
+  použil, nebo přijetím nabídky.
+
+## Les stromů – na začátku nikdo nahoře (Martin 2. 11. 2026)
+
+- Každý hráč je buď **nezávislý**, nebo **vazal právě jednoho pána**. Nezávislý hráč je kořen
+  svého stromu – nikomu nic neodvádí a nikdo mu nic nedluží. Žádný nehráčský kníže ani jiný
+  společný kořen není.
+- Kdo chce na vrchol, musí si ostatní podrobit (Martin). V první verzi jen **dohodou** – nabídkou
+  vazalství s podmínkami (níž). Podrobení silou (nájezd, porážka, podmínky vítěze) přijde
+  s [válkou](war.md); do té doby je nátlak jen hrozbou do budoucna (návrh Clauda).
+- **Kdo začal dřív, má výhodu** (Martin: „Ano – ti co začali dříve, budou mít jistou výhodu“) –
+  větší rod, víc vsí a zásob, a tedy lepší podmínky v jednání.
+- **Vazal vazala není vazalem pána** (návrh Clauda): dávky a pomoc jdou jen mezi přímým pánem
+  a vazalem. Vazal si své vazaly nechává, i když změní pána – podrobí-li si hráč kořen stromu,
+  stojí nad celým jeho stromem (otázka 3).
+- **Bez kruhu:** pánem nesmí být hráč, který je ve stromu pod budoucím vazalem.
 
 ## Kdo je pán a vazal (návrh Clauda)
 
 - Vazalství je vztah dvou **hráčů – rodů**, ne vsí ani jednotlivých mužů. Platí pro **všechny
-  vsi rodu** (rodové panství – [seniorát](seniorate.md)) a trvá přes generace.
-- Svět je strom: pán, jeho vazalové, jejich vazalové… Kdo je nahoře, viz Vrchol stromu.
+  vsi rodu** (rodové panství – [seniorát](seniorate.md)) a trvá přes generace, dokud ho jedna
+  strana neukončí (Konec vazalství).
 - Za pána jedná hráč (jeho muž – vojvoda vlastní vsi, [seniorát](seniorate.md)); dávka jde do
-  **vlastní vsi pána**.
-
-## Vrchol stromu (návrh Clauda; otázka 1)
-
-- Na vrcholu stojí **kníže** – nehráčský kořen stromu, bez vsi a bez simulace. Hráči přímo pod
-  ním jsou **svobodní páni**.
-- V první verzi kníže nic nežádá a nic nedává: svobodní páni neodvádějí dávku a pomoc nedostávají.
-- **Proč:** při ostrém spuštění 1. 1. 2027 v 00:00 nerozhoduje, kdo klikne první; kníže může
-  později dostat vlastní doménu (hradiště, dávky) a historicky sedí na místě přemyslovského
-  knížete (rešerše – Hradská soustava).
+  **vlastní vsi pána**, pomoc z ní odchází.
+- Počet vazalů omezený není.
 
 ## Pozvánkový kód (návrh Clauda)
 
-- **Kdo vydává:** hráč s živým rodem.
+- **Kdo vydává:** hráč s živým rodem – nezávislý i vazal.
 - **Kolik:** nejvýš **3 nevyužité kódy** najednou; využitý, propadlý nebo zrušený kód místo
-  uvolní. Počet vazalů omezený není.
+  uvolní.
 - **Podoba:** 8 znaků z písmen a číslic bez zaměnitelných (bez O, I, L, 0, 1), zobrazený po
   čtyřech – `BH7K-M2QX`; k němu odkaz na registraci s vyplněným kódem.
 - **Jednorázový**, platí **14 skutečných dní** (≈ 38 herních let); vydavatel ho smí zrušit.
-- **Použití:** při registraci volitelné pole „Pozvánka“ (i u přihlášení přes Google, kód z odkazu
-  se zapamatuje). Server kód ověří a zarezervuje; spotřebuje ho první vstup do hry – v tu chvíli
-  vznikne vazalství. Neplatný kód: „Pozvánka neplatí.“ u pole; registrace jde i bez něj (pak
-  Přidělení bez pozvánky).
-- **Stávající hráč** použije kód jen v okně přísahy (Konec vazalství) – kód je souhlas nového
-  pána.
-- **Bez kruhu:** kód nejde použít, je-li vydavatel ve stromu pod tím, kdo ho použije.
+- **Použití:** jen při registraci – volitelné pole „Pozvánka“ (i u přihlášení přes Google, kód
+  z odkazu se zapamatuje). Server kód ověří a zarezervuje; spotřebuje ho první vstup do hry –
+  v tu chvíli vznikne vazalství. Neplatný kód: „Pozvánka neplatí.“ u pole; registrace jde i bez
+  něj a hráč je pak nezávislý.
+- **Stávající hráč** kód nepoužívá – vazalem se stane přijetím nabídky (Nabídka vazalství).
 
-## Přidělení bez pozvánky (návrh Clauda; otázka 2)
+## Pozvaný hráč (Martin 2. 11. 2026: „Ano, začíná jako vazal“)
 
-- **Do šířky od vrcholu.** Pánem se stane **činný hráč s živým rodem**, který má **méně než 5
-  přidělených vazalů** (pozvaní se nepočítají); mezi nimi ten **nejblíž vrcholu** (nejméně pánů
-  nad sebou), pak s nejméně přidělenými vazaly, pak ten, kdo hraje nejdéle, pak nižší id.
-- **Kníže má také 5 míst** – prvních pět hráčů bez pozvánky jsou svobodní páni, další dostanou za
-  pána některého z nich. Nemá-li žádný činný hráč volné místo (nebo žádný činný není), jde hráč
-  pod knížete i nad jeho 5 míst.
-- **Činný hráč** = byl ve hře aspoň **3 různé skutečné dny z posledních 14**.
-- **Proč:** strom zůstane vyvážený, nováček dostane pána, který hraje, a nikdo nezbohatne na
-  náhodných nováčcích – pozvaní jdou nad limit, takže zvát se dál vyplácí.
+- Začíná jako **vazal toho, kdo ho pozval**, s mapou blízko pána (Místo na mapě světa).
+- **Výchozí podmínky: žádné** (návrh Clauda) – bez dávky a bez slíbené pomoci; nováček nemá
+  z čeho odvádět a podmínkám ještě nerozumí. Kód podmínky nenese. Pán smí kdykoli navrhnout
+  nové podmínky (Změna podmínek) a pozvaný je přijme, odmítne nebo jedná; poslat obilí ručně
+  smí pán vždy.
+- Odejít smí **kdykoli** jako každý vazal (Konec vazalství).
+- **Nástupnictví bez losu** (Martin 2. 11. 2026: „Jedno nástupnictví za pozvaného“): každý
+  pozvaný hráč, který **začal hrát**, připíše tomu, kdo ho pozval, jedno nástupnictví bez losu
+  ([seniorát](seniorate.md) – Nástupnictví hráče). Připíše se jednou za pozvaný účet a platí,
+  i když pozvaný později od pána odejde nebo přestane hrát.
+- **„Začal hrát“** (návrh Clauda) = pozvaný byl ve hře aspoň **3 různé skutečné dny** – jeden
+  falešný účet na jedno přihlášení nestačí.
+
+## Hráč bez pozvánky – nezávislý (Martin 2. 11. 2026)
+
+- Martin: „**Bude úplně nezávislý – buď svou nezávislost uhájí nebo ho některý z ostatních
+  hráčů donutí stát se jeho vazalem.**“
+- Žádné přidělení pána. Nováček je kořen vlastního stromu; vazalem se stane, jen když přijme
+  nabídku. Donutit ho v první verzi nejde – jen přesvědčit podmínkami (dar, pomoc v nouzi);
+  donucení přijde s válkou (návrh Clauda).
 
 ## Místo na mapě světa (návrh Clauda)
 
 - **Předpoklad:** jedna **mřížka světa** pro všechny hráče místo vlastní mřížky každého hráče
   ([prémiové krajiny](premium-landscapes.md) – Kostra světa). Vsi rodu (odchody synů) dál
   vznikají vedle mapy, ze které se odchází ([stěhování](migration.md)).
-- **Vazal** začíná na volném políčku **nejblíž mapě vlastní vsi pána**, aspoň **2 políčka** od
-  map ostatních hráčů (sousední políčka tak zůstanou [sousedům](trade.md) pro obchod). Vzdálenost
-  je počet kroků mřížkou v 8 směrech, při shodě pevné pořadí směrů.
-- **Svobodný pán** začíná na volném políčku nejblíž středu světa, aspoň **3 políčka** od map
-  ostatních hráčů.
+- **Pozvaný** začíná na volném políčku **nejblíž mapě vlastní vsi pána**, aspoň **2 políčka** od
+  map ostatních hráčů (sousední políčka tak zůstanou [sousedům](trade.md) pro obchod).
+  Vzdálenost je počet kroků mřížkou v 8 směrech, při shodě pevné pořadí směrů.
+- **Nezávislý nováček** začíná na volném políčku nejblíž středu světa, aspoň **3 políčka** od map
+  ostatních hráčů – svět se plní od středu ven, kdo přijde později, začíná na okraji osídlení.
+- Změna pána ani odchod mapu nemění – kdo se stane vazalem vzdáleného pána, má k němu dlouhou
+  cestu (Plnění podmínek).
 - Typ prémiové krajiny se nemění (premium-landscapes.md). Rozmístění NPC a kostra řek a stezek –
   návrh světa (Později).
 
-## Co vazalství znamená v první verzi
+## Nabídka vazalství a jednání (Martin 2. 11. 2026; podrobnosti návrh Clauda)
 
-### Dávka – vazal pánovi (návrh Clauda; otázka 3)
+Martin: „**Hráč navrhne jinému hráči, aby se stal jeho vazalem a stanoví podmínky. Druhý hráč
+to buď přijme, odmítne nebo se bude jednat o podmínkách.**“ O dávkách rozhoduje pán (Martin:
+„O dávkách rozhoduje pán“) – v první verzi tím, že je napíše do nabídky.
 
-- **Kdy:** **1. 11.** každého roku – po výmlatu, ve stejný den, kdy sousedé obnovují zásoby
-  ([obchod](trade.md)).
-- **Kolik:** každá ves rodu vazala odvede **desetinu obilí nad dvě roční potřeby** své vsi; osivo
-  se nepočítá (nejí se). Ves se zásobou 3,4 roční potřeby odvede 0,14 roční potřeby, ves pod dvěma
-  ročními potřebami nic. **Proč dvě:** dva zlé roky za sebou přinášejí hlad (rešerše
-  [pohrom](research/2026-10-27-disasters.md)) – dávka vazala nikdy nepřipraví o zásobu na dva
-  roky.
-- **Kam:** do vlastní vsi pána. Cesta **2 herní dny na každé políčko vzdálenosti** (přechod mapy
-  1–3 dny – [válka](war.md)); v první verzi jen jako náklad, bez vozu ve scéně.
-- Ves na cestě, opuštěná nebo vymřelá neodvádí. Svobodný pán neodvádí.
-- **Jen o patro výš:** pán z přijaté dávky odvede svému pánovi až příští 1. 11. podle svého
-  přebytku – dávka přichází po 1. 11.
-- **Kronika:** vazalova ves „Pánovi odvedeno 180 kg obilí“, pánova ves „Dávka od Ctibora: 180 kg
-  obilí“.
+### Podmínky (první verze)
 
-### Pomoc v nouzi – pán vazalovi (návrh Clauda)
+Nabídka je sada podmínek z pevného výběru – každá je ikona s čísly, žádná není povinná
+(nabídka bez podmínek je holá přísaha):
 
-- **Sama, bez rozkazu:** má-li ves vazala **hlad** (upozornění hladu – [obyvatelstvo](population.md),
-  Hlad a vymření), pošle jí vlastní ves pána obilí na **60 dní** jídla hladové vsi – jen
-  z pánova obilí **nad dvě roční potřeby** (pán svou ves neohrozí), nejvýš **jednou za rok** pro
-  každou ves. Cesta jako u dávky.
-- **Ručně:** pán smí kdykoli poslat obilí kterékoli vsi vazala, i bez hladu a i ze zásoby pod dvě
-  roční potřeby – rozhodnutí hráče. Po 100 kg.
-- **Přepínač Pomoc vazalům** – pán smí samočinnou pomoc vypnout. Hladověla-li pak ves vazala bez
-  pomoci, ač pán obilí nad dvě roční potřeby měl, otevře se vazalovi okno přísahy (Konec
-  vazalství).
-- Pomoc se nevrací.
-- **Kronika:** „Pán poslal 300 kg obilí“.
+1. **Dávka – vazal pánovi:**
+   - **co:** jedno zboží z [obchodu se sousedy](trade.md) – obilí, luštěniny, maso, sýr, klády,
+     keramika, uhlí, hřivny; dobytek Později (žene se, druhy a chovné jádro);
+   - **kolik:** pevné množství **z každé vsi rodu vazala** za rok (např. 150 kg obilí) –
+     s rodem vazala roste i dávka; historicky se odvádělo z každého dvora (rešerše);
+   - **kdy:** 1. den měsíce, který pán zvolí, jednou ročně; výchozí **1. 11.** – po výmlatu, ve
+     stejný den, kdy sousedé obnovují zásoby ([obchod](trade.md)).
+   - Víc dávek (různé zboží) smí nabídka mít víc, každou zvlášť.
+2. **Pomoc v nouzi – pán vazalovi:** má-li ves vazala **hlad** (upozornění hladu –
+   [obyvatelstvo](population.md), Hlad a vymření), pošle jí vlastní ves pána sama obilí na
+   **30, 60 nebo 90 dní** jídla hladové vsi (pán zvolí), nejvýš **jednou za rok** pro každou ves.
+3. **Dar při přijetí** – jedno zboží a množství, které jedna strana pošle druhé v den přijetí
+   (pán vábí nezávislého, nebo vazal platí za přijetí). Jen jednou, nevrací se (otázka 2).
 
-### Co první verze nemá
+Vojenská služba, svolání, ochrana proti nájezdu, sňatky a povoz – Později (s [válkou](war.md)).
 
-- obranu, svolání vazalů k nájezdu a zákaz nájezdu na pána – až s [válkou](war.md);
-- sňatky mezi rody, služby, prestiž – Později.
+### Kdo komu smí nabídnout
 
-## Pozvaný hráč a nástupnictví (návrh Clauda; otázka 5)
+- Nabídku posílá **budoucí pán** (Martin) – hráč s živým rodem jinému hráči s živým rodem, který
+  není jeho přímým vazalem a není ve stromu nad ním (bez kruhu). Zda smí o vazalství požádat
+  i budoucí vazal: otázka 1.
+- Adresát může být **nezávislý i vazal jiného pána** – přijetím od dosavadního pána odejde
+  (vize: „přísahat jinému pánovi“); vazal smí odejít kdykoli, takže jde jen o jeden krok místo
+  dvou.
+- Svému přímému vazalovi pán neposílá nabídku, ale **nové podmínky** (Změna podmínek).
 
-- Zadání issue #9 (Martin): „**Pokud hráč přivede jiného hráče, tak po smrti vojvody přebírá
-  vesnici nejstarší syn … a hráč pokračuje ve hře za něj**“.
-- **„Přivedl hráče“** = hráč má v den, kdy se zpracuje smrt jeho muže, aspoň jednoho **činného
-  přímého vazala, kterého sám pozval** kódem. Pak hráč pokračuje za nástupce vsi bez losu
-  ([seniorát](seniorate.md) – Nástupnictví hráče).
-- **Proč činný a stále vazal:** jinak by stačil jeden falešný účet; pozvaný, který od pána
-  odešel, výhodu nedává – pán o vazala přišel. Přidělený vazal výhodu nedává.
+### Jak jednání probíhá
 
-## Konec vazalství (návrh Clauda; otázka 4)
+- **Odeslání:** pán vybere hráče, sestaví podmínky a pošle. Nabídka platí **3 skutečné dny**
+  (≈ 8 herních let – dost i pro hráče, který den nehraje); pak propadne. Odesílatel ji smí
+  stáhnout, dokud není přijatá.
+- **Adresát** může:
+  - **přijmout** – vazalství vznikne hned s těmito podmínkami (server ověří: oba rody žijí,
+    nevznikne kruh);
+  - **odmítnout** – jednání končí;
+  - **protinávrh** – upraví podmínky (stejný formulář předvyplněný nabídkou) a pošle zpět.
+    Protinávrh nahradí nabídku a platí znovu 3 dny; role se nemění – vazalem by byl pořád
+    adresát první nabídky.
+- **Strany se střídají** – na protinávrh odesílatel přijme, odmítne, nebo pošle další protinávrh.
+  Počet kol omezený není; jednání skončí přijetím, odmítnutím, stažením nebo propadnutím.
+- **Meze proti zahlcení:** mezi dvěma hráči nejvýš **jedno otevřené jednání**; hráč smí mít
+  nejvýš **5 otevřených nabídek**, které sám poslal; po odmítnutí smí tentýž hráč témuž adresátovi
+  poslat novou až po **1 skutečném dni**.
+- **Kronika** obou vsí hráčů: „Bořivoj nabídl vazalství“, „Ctibor přijal Bořivoje za pána“,
+  „Ctibor odmítl“.
+
+### Změna podmínek
+
+- Kterákoli strana stávajícího vazalství smí navrhnout **nové podmínky** – stejný formulář
+  a stejné jednání (přijetí / odmítnutí / protinávrh, 3 dny).
+- **Dokud druhá strana nepřijme, platí staré podmínky.** Odmítnutí vazalství neukončí – pán smí
+  vazala propustit a vazal smí odejít (Konec vazalství), obojí kdykoli.
+
+### Plnění podmínek
+
+- **Plní se samo** – server, ne kliknutí hráče; svět běží i bez přihlášených hráčů. Dávka odejde
+  v den splatnosti, pomoc v den hladu, dar v den přijetí.
+- **Pojistka vsi** (anti-cíl): dávka nesáhne na osivo a jídlo vsi nesníží pod **dvě roční
+  potřeby** – dva zlé roky za sebou přinášejí hlad (rešerše
+  [pohrom](research/2026-10-27-disasters.md)). Pomoc v nouzi stejně neohrozí pána – jde jen
+  z jídla vlastní vsi pána nad dvě roční potřeby. Ostatní zboží (klády, keramika, uhlí, hřivny)
+  ves odvede, jen co má.
+- **Nedoplatek:** nemá-li ves na dávku nad pojistku, odvede, co jde, a zbytek se zapíše jako
+  **nedoplatek** – v kronice obou a u vazala v panelu (zlomená pečeť s počtem). Nedoplatek se
+  nepřenáší a nic dalšího nespouští. Stejně **nepomohl-li pán**, protože pod pojistkou nic neměl
+  – zapíše se „Pán nepomohl“ u pána.
+- **Co když pán (nebo vazal) podmínky nedodrží:** jinak než nedostatkem to nejde – podmínky
+  nikdo nemůže obejít ani změnit sám. Na nedoplatek nebo nepomoc druhá strana odpoví tím, co smí
+  vždy: vazal odejde, pán vazala propustí, nebo jeden z nich navrhne nové podmínky. Trest silou
+  až s válkou.
+- **Cesta:** **2 herní dny na každé políčko vzdálenosti** (přechod mapy 1–3 dny –
+  [válka](war.md)); v první verzi jen jako náklad, bez vozu ve scéně. Co je na cestě, dojde
+  i po konci vazalství.
+- **Dávka se odvádí jen o patro výš:** co pán přijal, je jeho zásoba – svému pánovi odvede podle
+  svých podmínek.
+- Ves na cestě (výprava), opuštěná nebo vymřelá neodvádí a pomoc nedostane.
+- **Ručně:** pán smí kdykoli poslat obilí kterékoli vsi vazala, i bez hladu a i ze zásoby pod
+  pojistkou – rozhodnutí hráče. Po 100 kg.
+- **Kronika:** vazalova ves „Pánovi odvedeno 150 kg obilí“, pánova ves „Dávka od Ctibora: 150 kg
+  obilí“, „Pán poslal 300 kg obilí“, „Nedoplatek 40 kg obilí“.
+
+## Konec vazalství (Martin 2. 11. 2026: „Kdykoli“; podrobnosti návrh Clauda)
 
 Vazalství není trvalé (Martin – vize). Bez války v první verzi takto:
 
-- **Okno přísahy** – přísaha je osobní (rešerše): zemře-li hráčův muž vazala nebo hráčův muž jeho
-  pána, má vazal **3 skutečné dny** (≈ 8 herních let) na změnu. V okně smí:
-  - **přísahat jinému pánovi** – zadá jeho pozvánkový kód (souhlas nového pána); ne pánovi, který
-    je ve stromu pod ním;
-  - **osamostatnit se** – přejde pod knížete, jen má-li jeho rod **víc lidí** než rod pána (ve
-    všech vsích rodu);
-  - nic neudělat – vazalství trvá.
-- **Okno se otevře i**, když pán **14 skutečných dní** nebyl ve hře, nebo když vazalova ves
-  hladověla bez pomoci, ač pán obilí měl (Pomoc v nouzi). Pak smí vazal osamostatnit se i bez
-  převahy lidí.
-- **Pán vazala propustí** kdykoli (s potvrzením) – vazal přejde k pánovu pánovi (od knížete je
-  svobodný).
-- **Vymře-li rod vazala** (konec hry): jeho vazalové přejdou k jeho pánovi a otevře se jim okno
-  přísahy. Začne-li hráč znovu, je nový rod vazalem téhož pána (žije-li jeho rod, jinak
-  Přidělení bez pozvánky) a okno přísahy se otevře i jemu.
-- **Vymře-li rod pána:** jeho vazalové přejdou k jeho pánovi a otevře se jim okno přísahy;
-  začne-li pán znovu, vazaly nemá – mohou se k němu vrátit jeho kódem.
-- **Vzpoura** – až s válkou.
-- **Proč okno:** vazalství drží, ale každá generace (≈ 9 skutečných dní) ho může změnit – strom
-  se hýbe, ale ne každou hodinu.
+- **Vazal odejde kdykoli** – tlačítko s potvrzením, platí hned; vazal se stane nezávislým a své
+  vazaly si nechá.
+- **Pán vazala propustí** kdykoli (s potvrzením) – vazal se stane nezávislým.
+- **Přijetí jiné nabídky** = odchod a nové vazalství v jednom kroku.
+- **Podmínky zaniknou s vazalstvím:** dávky ani pomoc už nejdou, nedoplatky se mažou; zásilky na
+  cestě dojdou; dar ani pomoc se nevracejí. Rozjednané nové podmínky propadnou.
+- **Vymře-li rod vazala** (konec hry): vazalství zanikne a vazalové vymřelého rodu se stanou
+  nezávislými – nikdo se nestane vazalem bez souhlasu, ani pána svého pána.
+- **Vymře-li rod pána:** jeho vazalové se stanou nezávislými.
+- **Začne-li hráč znovu** (po vymření nebo z nabídky hry – [obyvatelstvo](population.md)): nový
+  rod je nezávislý jako hráč bez pozvánky; vazalství starého rodu zanikla s ním.
+- **Vzpoura** a podrobení silou – až s válkou.
 
 ## Co hráč vidí (UI jako 0 A.D.)
 
 - **Registrace:** pole „Pozvánka“ (formulář mimo hru, s popisky jako dnes – [účty](accounts.md)).
-- **Horní lišta:** ikona **sepjatých rukou** (přísaha) s počtem vazalů → panel vazalství.
+- **Horní lišta:** ikona **sepjatých rukou** (přísaha) s počtem vazalů → panel vazalství; čeká-li
+  nabídka na odpověď, svítí na ikoně pečeť.
 - **Panel vazalství:**
-  - nahoře **pán** – portrét jeho muže, popisek „Bořivoj – Lhota“; nad svobodným pánem korunka
-    knížete (popisek „Kníže“);
-  - řada **vazalů** – portrét, počet lidí, klas s loňskou dávkou (kg), ikona hladu, když
-    hladoví; praporec u pozvaných;
-  - po kliku na vazala **Poslat obilí** (vůz s klasem, množství) a **Propustit** (rozetnutý
-    řetěz, potvrzení);
+  - nahoře **pán** – portrét jeho muže, popisek „Bořivoj – Lhota“, vedle ikony podmínek (klas
+    s kg a měsícem, sýpka s dny pomoci) a tlačítko **Odejít** (rozetnutý řetěz, potvrzení);
+    nezávislý hráč má místo pána **praporec svého rodu** (popisek „Nezávislý“);
+  - řada **vazalů** – portrét, počet lidí, ikony podmínek, klas s loňskou dávkou (kg), zlomená
+    pečeť s nedoplatky, ikona hladu, když hladoví; praporec u pozvaných;
+  - po kliku na vazala **Poslat obilí** (vůz s klasem, množství), **Nové podmínky** (pečeť
+    s perem) a **Propustit** (rozetnutý řetěz, potvrzení);
+  - **Hráči** – ostatní hráči podle vzdálenosti map: portrét, počet lidí, ikona pána (nebo
+    praporec nezávislého); klik → **Nabídnout vazalství** (pečeť) – zašedlé s důvodem u kurzoru
+    („Je nad tebou.“, „Jednáte už.“, „Odmítl – zkus zítra.“);
+  - **Jednání** – řádky podmínek jako ikony s čísly: klas a zboží s kg, měsíc, sýpka s 30 / 60 /
+    90 dny, vůz s darem a šipkou, kdo komu; přesýpací hodiny se zbývajícími dny; tlačítka
+    **Přijmout** (podaná ruka), **Odmítnout** (křížek), **Protinávrh** (pero – úprava čísel
+    a poslat zpět), u odesílatele **Stáhnout**;
   - **Pozvánky** – pečeť s počtem volných míst; klik vydá kód, ukáže kód a odkaz s tlačítkem
     kopírovat (výjimka – kód je text); vydané kódy s přesýpacími hodinami a zbývajícími dny,
-    křížek kód zruší;
-  - **Pomoc vazalům** – přepínač s ikonou sýpky, zapnutý svítí;
-  - **okno přísahy** – u pána přesýpací hodiny se zbývajícími dny, tlačítko **Přísahat** (pole
-    pro kód) a **Osamostatnit se** (zašedlé s důvodem u kurzoru „Tvůj rod je menší než pánův.“).
-- **Upozornění** jako ostatní ve hře: „Ctibor hladoví.“ (vazal), „Můžeš zvolit pána.“, „Bořivoj
-  tě propustil.“, „Ctibor přísahal jinému pánovi.“
-- Dávka a pomoc se projeví v zásobách a kronice; ve scéně nic (vůz Později).
+    křížek kód zruší; u pozvaných, kteří začali hrát, ikona nástupnictví.
+- **Upozornění** jako ostatní ve hře: „Bořivoj ti nabízí vazalství.“, „Ctibor přijal.“, „Ctibor
+  odmítl.“, „Ctibor navrhuje jiné podmínky.“, „Ctibor odešel.“, „Bořivoj tě propustil.“,
+  „Ctibor hladoví.“
+- Dávka, dar a pomoc se projeví v zásobách a kronice; ve scéně nic (vůz Později).
 
 ## Čísla (návrh Clauda – do `rules-vassalage.ts`)
 
-| Co                                     | Číslo                                                |
-| -------------------------------------- | ---------------------------------------------------- |
-| Nevyužité kódy najednou                | 3                                                    |
-| Platnost kódu                          | 14 skutečných dní                                    |
-| Činný hráč                             | 3 dny ve hře z posledních 14                         |
-| Přidělení vazalové na pána (i knížete) | nejvýš 5                                             |
-| Mapa vazala / svobodného pána          | aspoň 2 / 3 políčka od ostatních hráčů               |
-| Dávka                                  | 1/10 obilí nad 2 roční potřeby, 1. 11.               |
-| Cesta dávky a pomoci                   | 2 herní dny na políčko vzdálenosti                   |
-| Samočinná pomoc                        | 60 dní jídla, jen nad 2 roční potřeby pána, 1× ročně |
-| Okno přísahy                           | 3 skutečné dny                                       |
-| Nečinný pán                            | 14 skutečných dní mimo hru                           |
+| Co                             | Číslo                                                   |
+| ------------------------------ | ------------------------------------------------------- |
+| Nevyužité kódy najednou        | 3                                                       |
+| Platnost kódu                  | 14 skutečných dní                                       |
+| Pozvaný „začal hrát“           | 3 různé skutečné dny ve hře                             |
+| Mapa pozvaného / nezávislého   | aspoň 2 / 3 políčka od ostatních hráčů                  |
+| Platnost nabídky a protinávrhu | 3 skutečné dny                                          |
+| Otevřené nabídky jednoho hráče | nejvýš 5; mezi dvěma hráči 1                            |
+| Nová nabídka po odmítnutí      | po 1 skutečném dni                                      |
+| Dávka                          | pán zvolí zboží, kg z každé vsi, měsíc (výchozí 1. 11.) |
+| Pojistka vsi                   | osivo a jídlo na 2 roční potřeby                        |
+| Pomoc v nouzi                  | 30 / 60 / 90 dní jídla, 1× ročně na ves                 |
+| Cesta dávky, daru a pomoci     | 2 herní dny na políčko vzdálenosti                      |
+| Ruční pomoc                    | po 100 kg                                               |
 
 ## Pro implementaci (poznámky, ne kód)
 
 - **DB:** `invite_code` (kód, vydavatel, vytvořen, platí do, rezervace, využil, zrušen),
-  `vassalage` (pán, vazal, od, jak vzniklo – pozvánka / přidělení / přísaha), dny ve hře
-  hráče; adaptéry portů v `packages/db/src/adapters/`. Kníže je pevný kořen (bez řádku hráče).
-- **Use-casy:** `issueInvite`, `revokeInvite`, `redeemInvite` (v `enterGame`), `assignLord`,
-  `swearFealty`, `becomeIndependent`, `releaseVassal`, `sendAid`, `setAidToVassals`.
-  Přihlašování zůstává mimo hexagon – doména zná jen id hráčů a strom.
-- **Dávka a pomoc jsou vnější události:** ves v simulaci 1. 11. odečte dávku do odchozí schránky
-  (jen ze svého stavu – deterministicky); hlad zapíše do stavu. Use-case `deliverShipments` po
-  dopočtu (web i worker) odešle pomoc z pánovy vsi dnes a doručí náklad v den příjezdu, nejdřív
-  dnes – jako `settleStewardDepartures`, idempotentně podle id zásilky. Výsledek každé vsi tak
-  nezávisí na kouscích dopočtu.
+  `vassalage` (pán, vazal, podmínky, od, jak vzniklo – pozvánka / nabídka), `vassal_offer` (pán,
+  vazal, kdo je na tahu, podmínky, platí do, stav, předchozí kolo), dny ve hře hráče,
+  `succession_credit` (hráč, pozvaný, připsáno, spotřebováno – [seniorát](seniorate.md));
+  adaptéry portů v `packages/db/src/adapters/`. Strom nemá společný kořen – nezávislý hráč je
+  hráč bez řádku `vassalage` jako vazal.
+- **Use-casy:** `issueInvite`, `revokeInvite`, `redeemInvite` (v `enterGame`), `offerVassalage`,
+  `counterOffer`, `acceptOffer`, `rejectOffer`, `withdrawOffer`, `proposeTerms`, `leaveLord`,
+  `releaseVassal`, `sendAid`, `deliverShipments`. Přihlašování zůstává mimo hexagon – doména zná
+  jen id hráčů, strom a podmínky. Kontrola kruhu a mezí jednání je doménová funkce.
+- **Podmínky jako akce nad vsí:** přijetím (i změnou nebo koncem vazalství) se podmínky zapíší do
+  stavu každé vsi rodu vazala jako akce v ten den, po dopočtu na dnešek – jako akce hráče. Ves
+  v simulaci v den splatnosti odečte dávku nad pojistkou do odchozí schránky jen ze svého stavu
+  (deterministicky) a nedoplatek zapíše do kroniky; hlad zapíše do stavu. Nová ves rodu podmínky
+  zdědí od mateřské vsi.
+- **Zásilky jsou vnější události:** `deliverShipments` po dopočtu (web i worker) odešle pomoc
+  a dar z pánovy vsi dnes a doručí náklad v den příjezdu, nejdřív dnes – jako
+  `settleStewardDepartures`, idempotentně podle id zásilky. Výsledek každé vsi tak nezávisí na
+  kouscích dopočtu.
 - **Mřížka světa:** `settlement.grid_x` / `grid_y` se stanou souřadnicemi společné mřížky; vývojová
   sídla se do ostrého světa nepřenášejí (premium-landscapes.md).
-- Testy: kód (platnost, rezervace, jednorázovost, kruh), přidělení do šířky, dávka jen nad dvě
-  roční potřeby, samočinná pomoc, okno přísahy, propuštění, vymření rodu pána i vazala.
+- Testy: kód (platnost, rezervace, jednorázovost), pozvaný bez podmínek, nástupnictví až po
+  3 dnech pozvaného a jen jednou, nabídka – přijetí, odmítnutí, protinávrhy, propadnutí,
+  stažení, kruh a meze; změna podmínek (staré platí do přijetí), dávka nad pojistkou
+  a nedoplatek, samočinná pomoc, odchod, propuštění, přetažení cizího vazala, vymření rodu pána
+  i vazala, začít znovu.
 
 ## Později
 
-- **Válka:** obrana vazala, svolání vazalů k nájezdu, zákaz nájezdu na pána a spoluvazaly,
-  vzpoura, NPC vojvoda jako vazal po porážce ([válka](war.md)).
+- **Válka:** podrobení silou (porážka → vazalství s podmínkami vítěze), obrana vazala, svolání
+  vazalů k nájezdu, zákaz nájezdu na pána a spoluvazaly, vzpoura, NPC vojvoda jako vazal po
+  porážce ([válka](war.md)); podmínky „vojenská služba“ a „ochrana“.
+- **Pověst** – kdo kolikrát odešel, propustil, nezaplatil nebo nepomohl, viditelné ostatním.
 - **Sňatky mezi rody** – nevěsty z rodu pána nebo vazala místo „z okolí“ (lord.md – Manželky).
-- **Dávky v dalším zboží** (dobytek, hřivny, kožešiny) a **služby** – povoz, stavba a opravy
-  pánova hradiště (rešerše – Hradská soustava).
+- **Dávky v dobytku** a **služby** – povoz, stavba a opravy pánova hradiště (rešerše – Hradská
+  soustava).
 - **Družina** pána živená z dávek (rešerše – Ibrahim ibn Jakub).
-- **Kníže s doménou** a hradská soustava; prestiž a tituly podle vazalů.
+- Prestiž a tituly podle velikosti stromu; hradská soustava.
 - Pohled do scény vazalovy vsi; vůz s dávkou ve scéně; obchod mezi vsemi hráčů.
 - Návrh světa: rozmístění NPC vsí a kostra řek a stezek ve společné mřížce.
 
 ## Navazuje
 
-- [Seniorát](seniorate.md) – hráčův muž, vlastní ves, výhoda pozvaného hráče.
+- [Seniorát](seniorate.md) – hráčův muž, vlastní ves, nástupnictví bez losu za pozvaného.
 - [Účty](accounts.md) – registrace s pozvánkou.
 - [Prémiové krajiny](premium-landscapes.md) – společná mřížka světa.
-- [Válka](war.md) – vzpoura a obrana.
+- [Obchod](trade.md) – zboží dávek.
+- [Válka](war.md) – podrobení silou, vzpoura a obrana.
 
-## Otázky na Martina
+## Odpovědi Martina 2. 11. 2026
 
-1. **Kdo stojí na vrcholu stromu?** Doporučení: **nehráčský kníže** – prvních pět hráčů bez
-   pozvánky jsou svobodní páni pod ním, při spuštění tak nerozhoduje, kdo klikne první.
-   Možnosti: a) kníže; b) první hráč světa; c) Martin.
-2. **Komu se přidělí hráč bez pozvánky?** Doporučení: **do šířky od vrcholu** – činnému hráči
-   nejblíž vrcholu, každý pán nejvýš 5 přidělených. Možnosti: a) do šířky; b) nejsilnějšímu rodu;
-   c) náhodně mezi činnými hráči.
-3. **Jakou dávku odvádí vazal?** Doporučení: **desetinu obilí nad dvě roční potřeby, 1. 11.**
-   – vazala nevyhladoví, bohatý vazal dá víc. Možnosti: a) desetina přebytku; b) pevná dávka
-   podle počtu lidí; c) v první verzi žádná dávka, jen pomoc pána.
-4. **Kdy smí vazal od pána odejít?** Doporučení: **jen v okně přísahy** – 3 dny po smrti
-   vojvody jedné ze stran, při nečinném pánovi nebo nepomoci v hladu. Možnosti: a) okno přísahy;
-   b) kdykoli; c) v první verzi nikdy (až vzpourou ve válce).
-5. **Kdy hráč „přivedl jiného hráče“** (seniorát – bez losu)? Doporučení: **má činného vazala,
-   kterého sám pozval** – výhoda trvá, dokud vazal hraje a zůstává jeho. Možnosti: a) činný
-   pozvaný vazal; b) stačí jednou kohokoli pozvat – navždy; c) každý pozvaný dá jedno nástupnictví
-   bez losu.
+Na otázky první verze návrhu (kníže, přidělení do šířky, desetina přebytku, okno přísahy, činný
+pozvaný vazal):
+
+1. **Vrchol stromu:** „**Na začátku na vrcholu nestojí nikdo. Všichni hráči jsou si rovni a pokud
+   se chce někdo dostat na vrchol, musí si nějakým způsobem podrobit ostatní. V tom ta hra
+   vlastně spočívá. Ano – ti co začali dříve, budou mít jistou výhodu**“ – kníže zrušen, svět je
+   les stromů.
+2. **Hráč bez pozvánky:** „**Bude úplně nezávislý – buď svou nezávislost uhájí nebo ho některý
+   z ostatních hráčů donutí stát se jeho vazalem.**“ – přidělení pána zrušeno.
+3. **Dávka:** „**O dávkách rozhoduje pán**“ – dávka je podmínka v nabídce, ne pevné pravidlo.
+4. **Odchod vazala:** „**Kdykoli**“ – okno přísahy zrušeno.
+5. **Jak se hráč stane vazalem bez pozvánky:** „**Hráč navrhne jinému hráči, aby se stal jeho
+   vazalem a stanoví podmínky. Druhý hráč to buď přijme, odmítne nebo se bude jednat
+   o podmínkách**“ – Nabídka vazalství a jednání.
+6. **Pozvaný hráč:** „**Ano, začíná jako vazal**“.
+7. **Nástupnictví za pozvaného** (seniorát): „**Jedno nástupnictví za pozvaného**“ – každý
+   pozvaný hráč, který začal hrát, dá jedno nástupnictví bez losu.
+
+## Otevřené otázky
+
+1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
+   žádosti z druhé strany nemá hladový nebo ohrožený hráč jak si říct o ochranu – musí čekat, až
+   ho někdo osloví. Doporučení: **ano** – stejné jednání, jen ho otevře budoucí vazal („Přijmi mě
+   za vazala“ s podmínkami, které nabízí); o podmínkách dál rozhoduje pán tím, že je přijme nebo
+   upraví. Možnosti: a) obě strany; b) jen budoucí pán.
+2. **Odchod hned po daru nebo pomoci.** Vazal smí odejít kdykoli, tedy i den po daru při přijetí
+   nebo po pomoci v hladu – „vezmi a uteč“. Doporučení: **bez ceny** – riziko nese pán, dar je
+   jeho rozhodnutí; odchod se jen zapíše do kroniky obou rodů a pověst nebo trest přijdou
+   s válkou. Možnosti: a) bez ceny; b) kdo odejde do 5 herních let po daru nebo pomoci, vrátí
+   je; c) dar při přijetí v první verzi nebude.
+3. **Patří k pánovi i vazalové jeho vazalů?** Návrh: vazal si své vazaly nechá i při změně pána,
+   dávky jdou jen o patro výš – kdo si podrobí kořen stromu, stojí nad celým stromem, ale od
+   jeho vazalů nic nedostává a oni s ním nic nesjednali. Doporučení: **ano, strom se skládá** –
+   cesta na vrchol vede přes podrobení silných pánů, ne každého hráče zvlášť. Možnosti: a) strom
+   se skládá; b) vazalové odcházejícího vazala se stanou nezávislými.
