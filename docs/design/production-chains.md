@@ -178,13 +178,20 @@ Beze změny (milíř u buků – crafts.md); nošení uhlí ke kováři je dnes 
   z práce srpna vedle žně jaře (návrh Clauda). V témže měsíci má přednost žeň.
 - **Výhled jídla** (návrh Clauda): snopy, které ves smí vymlátit (humno, nebo bez něj nouzově
   o ztrátu méně), počítá jako zrno se ztrátami (nouzový výmlat −10 % podílu, který se na humna
-  nevejde; pomalé humno – snopy, které se za oknem kazí, než na ně dojde) – ves po žni nešetří
-  jídlem; jí se jen vymlácené. Hlad a šetření jídlem
+  nevejde) – ves po žni nešetří jídlem; jí se jen vymlácené. **Oprava (návrh Clauda 2. 11.
+  2026):** podíl mimo humna se počítá **po druzích snopů** – humna berou snopy v pořadí výmlatu
+  dne (v srpnu ozim před luštěninami), takže výhled obilí a luštěnin dá přesně to, co výmlat dne
+  při dost rukou vymlátí; dřív jeden společný podíl pro obilí i luštěniny. Dřívější „pomalé humno
+  – snopy, které se za oknem kazí“ od 21. 10. 2026 neplatí: přebytek nad kapacitu humen se mlátí
+  hned nouzově. Hlad a šetření jídlem
   jdou i podle energie, kterou ves opravdu snědla (zásoby došly dřív, než se vymlátilo) – ves
   nehladoví potají.
 - **Výmlat na dnešní jídlo** (návrh Clauda): chybí-li v zásobách zrno na jídlo (na dva dny
   dopředu), ves vymlátí ze snopů obilí, které smí mlátit, tolik napřed – před žní i všemi
-  ostatními pracemi.
+  ostatními pracemi. Potřeba se počítá celá jako obilí (jiné jídlo potřebu obilí jen zmenší –
+  přebytek zůstane v zásobách, je to jen výmlat o pár dní dřív). **Oprava (návrh Clauda 2. 11.
+  2026):** co se z výmlatu na jídlo nevejde na humna, mlátí se nouzově o 10 % zrna méně – ves ho
+  vymlátí o tolik víc, aby zrna bylo, kolik chybí (dřív se počítalo celé jako z humna).
 - **Výmlat je dřina jako ostatní polní práce** (happiness.md – dřina): výmlat ve svém okně se
   počítá do sezónních úloh, které ves dnešním tempem musí stihnout.
 - **Když humno nestačí** (návrh Clauda): mlátí se dál, dokud je co; nevymlácené snopy čekají

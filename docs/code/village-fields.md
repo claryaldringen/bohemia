@@ -499,7 +499,8 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   přednost – `THRESH_RANK`; po konci okna se mlátí dál – září–únor s koncem v dnešním měsíci,
   březen–srpen `THRESH_OVERDUE_END` po všech pracích; **výmlat na dnešní jídlo** napřed –
   `threshForFoodKg`: chybí-li zrno na 2 dny jídla, úloha `urgent` s `THRESH_URGENT_END` před
-  žní) a `threshCrop` převede snopy do zásob podílem postupu na práci druhu (obilí ozimu a jaře
+  žní; `urgentProgress` – na humnech do jejich kapacity plným výnosem, zbytek nouzově a o ztrátu
+  `emergencyLoss` víc snopů, aby zrna bylo, kolik chybí; oprava 2. 11. 2026) a `threshCrop` převede snopy do zásob podílem postupu na práci druhu (obilí ozimu a jaře
   spolu). Úroda bez práce výmlatu jde rovnou do zásob (`addSheaves`). Výmlat v okně je dřina
   (`threshSeasonTasks` v `isToilDay`). Mlátí se jen
   s hotovým humnem (`threshingCapacity` – `floorManDaysPerDay` 12 čd na humno, humna se sčítají),
@@ -514,8 +515,9 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   dopočtu) – prázdné snopy a rok odkladu, úroda už v zásobách zůstane. `threshingSeason` se
   zahodí 1. 10. (`THRESH_END_DAY`, bez ztráty – dřívější „nevymlácené 1. 3. propadne“ zmizelo).
   Výhled jídla (`DietInput.sheavesGrainKg` / `sheavesLegumesKg` – `sheavesOutlook`, jen když ves
-  smí mlátit, se ztrátami `sheafYield` – nouzově −10 % podílu mimo humna, pomalé humno o snopy
-  zkažené za oknem), plán osevu (`sowingTargets`, `fieldStoresKg(state, day)`) a dobré zásoby
+  smí mlátit, se ztrátami `sheafYields` – nouzově −10 % podílu mimo humna po druzích snopů,
+  odvozeno z úloh dne `threshTasks`: výhled = výmlat dne při dost rukou; oprava 2. 11. 2026,
+  dřív společný podíl obou druhů a mrtvá větev „pomalé humno“), plán osevu (`sowingTargets`, `fieldStoresKg(state, day)`) a dobré zásoby
   štěstí počítají snopy jako zrno; jí se jen vymlácené. Hlad a příděl (`eat` – `state.ration`)
   jdou podle menšího z výhledu a snědené energie. Odchod do nové vsi dělí snopy jako zásoby
   (`leavingFood`, `takeSheaves`). Plán osevu odečte
