@@ -1,23 +1,25 @@
-# Pozvánky a vazalství – první verze
+# Vazalství a pozvánky – návrh ke schválení
 
-Stav: **návrh ke schválení (přepracováno podle odpovědí 2. 11. 2026)**. Implementace zatím není.
-Navazuje na [vizi](vision.md) – Hráči a vazalství, na [účty](accounts.md) (pozvánkové kódy byly
-mimo rozsah „přijdou s mechanikou vazalství“) a na [seniorát](seniorate.md) (#9, fáze 4 –
-nástupnictví bez losu za pozvaného hráče). Historické opory:
-[rešerše](research/2026-11-02-vassalage-seniorate.md). Martinovy odpovědi jsou citované
-v oddílu [Odpovědi Martina 2. 11. 2026](#odpovědi-martina-2-11-2026); co níž není výslovně
-Martinovo, je návrh Clauda.
+Stav: **návrh ke schválení – sjednoceno s rozhodnutími Martina 2. 11. 2026** (druhá verze).
+Implementace zatím není. Tělo dokumentu odpovídá oddílu
+[Odpovědi Martina 2. 11. 2026](#odpovědi-martina-2-11-2026), který zůstává jako záznam; kde
+odpovědi mlčí, je řešení označené **návrh Clauda**. Navazuje na [vizi](vision.md) – Hráči
+a vazalství, [účty](accounts.md) (pozvánkové kódy), [seniorát](seniorate.md) (hráčův muž,
+nástupnictví bez losu), [správce vsi](steward.md) (NPC řízení), [obchod](trade.md) (doprava,
+výměna lidí) a [válku](war.md) (vojenská služba, přinucení, rozsudek). Historické opory:
+[rešerše](research/2026-11-02-vassalage-seniorate.md).
 
 ## Proč
 
-- **Vize** (Martin – „Registrace, sdílený svět, vazalství přes pozvánky“): pozvaný hráč začíná
-  jako vazal toho, kdo ho pozval; vazalství není navždy; pozvat hráče se vyplácí.
-- **Na začátku jsou si všichni rovni** – Martin 2. 11. 2026: „**Na začátku na vrcholu nestojí
+- **Na začátku si jsou všichni rovni** – Martin 2. 11. 2026: „**Na začátku na vrcholu nestojí
   nikdo. Všichni hráči jsou si rovni a pokud se chce někdo dostat na vrchol, musí si nějakým
   způsobem podrobit ostatní. V tom ta hra vlastně spočívá.**“
-- **Pomoc v nouzi nemá zdroj.** Martin 1. 11. 2026 k pomoci pána vsi v nouzi: „**zatím nemáme
-  feudální systém. Není odkud brát**“. Vazalství dá pomoci zdroj – pánovu ves, slíbí-li ji pán
-  v podmínkách.
+- **Vazalství je hlavně vojenská služba** – Martin 2. 11. 2026: „**Ano. Bude to hlavní věc na
+  vazalství.**“ Kdo si podrobí jiné rody, dostane jejich muže do války a jejich dávky.
+- **Pomoc v nouzi dostane zdroj** – Martin 1. 11. 2026: „**zatím nemáme feudální systém. Není
+  odkud brát**“. Vazal o pomoc požádá svého pána (Povinnosti pána).
+- **Hráč smí řídit víc vsí** – Martin 2. 11. 2026: „**někteří hráči mohou hrou procházet jako
+  profesionální správci majetku svého pána**“ (Správce a tři role ve vsi).
 - **Seniorát potřebuje pozvaného hráče** – za každého pozvaného hráče jedno nástupnictví bez
   losu ([seniorát](seniorate.md)).
 - **Kostra světa potřebuje jednu mřížku map** – kde začíná nový hráč, „patří do návrhu vazalství
@@ -25,48 +27,51 @@ Martinovo, je návrh Clauda.
 
 ## Cíle, ne-cíle, anti-cíle
 
-- **Cíl:** na začátku nikdo nahoře – svět je **les stromů**, každý nezávislý hráč je kořen
-  svého stromu (Martin 2. 11. 2026).
-- **Cíl:** pozvaný začíná jako vazal toho, kdo ho pozval (Martin – vize; 2. 11. 2026).
-- **Cíl:** hráč bez pozvánky je **úplně nezávislý** (Martin 2. 11. 2026).
-- **Cíl:** vazalství je **dohoda dvou hráčů** – pán navrhne a stanoví podmínky, druhý přijme,
-  odmítne nebo jedná (Martin 2. 11. 2026).
-- **Cíl:** vazal smí odejít **kdykoli** (Martin 2. 11. 2026).
-- **Ne-cíl (první verze):** podrobení silou, vzpoura, obrana a svolání vazalů – až s
-  [válkou](war.md); sňatky mezi rody, služby (povoz, stavba hradiště), prestiž a tituly, volné
-  zprávy mezi hráči, NPC vazalové.
-- **Anti-cíl:** dávka, která vazala vyhladoví, zatímco spí – každá ves si nechá pojistku (Plnění
-  podmínek).
+- **Cíl:** na začátku nikdo nahoře; vazalství je **dvoustranná dohoda** dvou rodů a hráč jich smí
+  mít víc – svět je **síť dohod** (Martin 2. 11. 2026).
+- **Cíl:** dohodu **nevynucuje žádné pravidlo** – Martin 2. 11. 2026: „**žádné herní pravidlo
+  nenutí vazalství dodržet**“. Plnění je rozhodnutí hráče v dialogu; neplnění řeší pán (přinutí,
+  vypoví, rozsoudí) a [válka](war.md).
+- **Cíl:** hlavní podmínkou je **vojenská služba mužů rodu**; dávky jen z **makrokomodit**, vazal
+  vidí, kolik může postrádat včetně dopravy (Martin 2. 11. 2026).
+- **Cíl:** hráč smí **řídit víc vsí** – kde je vojvodou nebo správcem (Martin 2. 11. 2026).
+- **Ne-cíl (první verze):** sňatky mezi rody (Martin – další verze), pověst a tituly, mikrokomodity
+  v dávkách a obchodu mezi hráči, volné zprávy mimo jednání a dialogy (vzkaz jen k nim), NPC rody
+  s vlastní vůlí. Rozsudek pána a přinucení k poslušnosti přijdou **s válkou** (návrh Clauda).
+- **Anti-cíl:** dávka, která odejde sama a vazala položí – nic neodchází bez potvrzení vazala
+  a výhled ukazuje jen to, co ves postrádat může (Dávky).
 - **Anti-cíl:** podmínky, které jedna strana změní sama – změna jen novou dohodou.
 - **Anti-cíl:** výhoda za falešné účty – nástupnictví bez losu dá jen pozvaný, který začal hrát.
 - **Anti-cíl:** vazal bez vlastního souhlasu – vazalem se hráč stane jen pozvánkou, kterou sám
-  použil, nebo přijetím nabídky.
+  použil, nebo přijetím dohody. Výjimka: vazalové vymřelého pána přejdou s odúmrtí (Martin), smějí
+  ale kdykoli vypovědět.
+- **Anti-cíl:** zahlcení nabídkami – jedno jednání mezi dvěma hráči, den pauzy po odmítnutí,
+  blokování (Martin 2. 11. 2026).
 
-## Les stromů – na začátku nikdo nahoře (Martin 2. 11. 2026)
+## Síť dohod – na začátku nikdo nahoře (Martin 2. 11. 2026)
 
-- Každý hráč je buď **nezávislý**, nebo **vazal právě jednoho pána**. Nezávislý hráč je kořen
-  svého stromu – nikomu nic neodvádí a nikdo mu nic nedluží. Žádný nehráčský kníže ani jiný
-  společný kořen není.
-- Kdo chce na vrchol, musí si ostatní podrobit (Martin). V první verzi jen **dohodou** – nabídkou
-  vazalství s podmínkami (níž). Podrobení silou (nájezd, porážka, podmínky vítěze) přijde
-  s [válkou](war.md); do té doby je nátlak jen hrozbou do budoucna (návrh Clauda).
-- **Kdo začal dřív, má výhodu** (Martin: „Ano – ti co začali dříve, budou mít jistou výhodu“) –
-  větší rod, víc vsí a zásob, a tedy lepší podmínky v jednání.
-- **Vazal vazala není vazalem pána** (návrh Clauda): dávky a pomoc jdou jen mezi přímým pánem
-  a vazalem. Vazal si své vazaly nechává, i když změní pána – podrobí-li si hráč kořen stromu,
-  stojí nad celým jeho stromem (otázka 3).
-- **Bez kruhu:** pánem nesmí být hráč, který je ve stromu pod budoucím vazalem.
+- **Nikdo nahoře:** žádný nehráčský kníže ani společný kořen. Kdo začal dřív, má výhodu (Martin:
+  „Ano – ti co začali dříve, budou mít jistou výhodu“) – větší rod, víc vsí, mužů a zásob, a tedy
+  lepší podmínky v jednání.
+- **Víc pánů** – Martin 2. 11. 2026: „**Člověk dokonce může být vazalem více pánů, protože
+  vazalství není pevně daný vztah – žádné herní pravidlo nenutí vazalství dodržet.**“ Hráč smí
+  mít kolik pánů a vazalů chce; **nezávislý** je hráč bez pána.
+- **Zákaz vzájemného vazalství:** A nesmí být vazalem B, když je B vazalem A. Delší kruhy přes víc
+  hráčů zakázané nejsou (Martin: „udělej to, jak říkáš“).
+- **Strom pod hráčem** = všichni, ke kterým od hráče vede cesta dolů po dohodách – vazalové,
+  jejich vazalové atd., každý jednou; kruh se ukáže jednou a dál nepokračuje (návrh Clauda). Pán
+  ho vidí celý (Služby – Přehled pána).
+- **Vazalové vazalů:** C a D mají povinnosti jen ke svému pánovi B – dohoda je jen mezi dvěma
+  stranami (Martin). Pán A je vidí a podle nich žádá od B muže (Svolání).
+- **Strany dohody jsou rody** – hráči, nebo NPC rod povýšeného vesničana (Správce). Dohoda platí
+  pro **všechny vsi rodu** (vsi, jichž je rod držitelem) a trvá přes generace (Konec vazalství –
+  Smrt vojvody). Za rod hráče jedná hráč (jeho muž – [seniorát](seniorate.md)).
+- **Podrobit si ostatní** jde dohodou, nátlakem a válkou – výzva k válce je nabídka vazalství
+  ([válka](war.md)).
 
-## Kdo je pán a vazal (návrh Clauda)
+## Pozvánky a nováčci
 
-- Vazalství je vztah dvou **hráčů – rodů**, ne vsí ani jednotlivých mužů. Platí pro **všechny
-  vsi rodu** (rodové panství – [seniorát](seniorate.md)) a trvá přes generace, dokud ho jedna
-  strana neukončí (Konec vazalství).
-- Za pána jedná hráč (jeho muž – vojvoda vlastní vsi, [seniorát](seniorate.md)); dávka jde do
-  **vlastní vsi pána**, pomoc z ní odchází.
-- Počet vazalů omezený není.
-
-## Pozvánkový kód (návrh Clauda)
+### Pozvánkový kód (návrh Clauda)
 
 - **Kdo vydává:** hráč s živým rodem – nezávislý i vazal.
 - **Kolik:** nejvýš **3 nevyužité kódy** najednou; využitý, propadlý nebo zrušený kód místo
@@ -78,32 +83,29 @@ Martinovo, je návrh Clauda.
   z odkazu se zapamatuje). Server kód ověří a zarezervuje; spotřebuje ho první vstup do hry –
   v tu chvíli vznikne vazalství. Neplatný kód: „Pozvánka neplatí.“ u pole; registrace jde i bez
   něj a hráč je pak nezávislý.
-- **Stávající hráč** kód nepoužívá – vazalem se stane přijetím nabídky (Nabídka vazalství).
+- **Stávající hráč** kód nepoužívá – vazalem se stane jednáním (Vznik a jednání).
 
-## Pozvaný hráč (Martin 2. 11. 2026: „Ano, začíná jako vazal“)
+### Pozvaný hráč (Martin 2. 11. 2026: „Ano, začíná jako vazal“)
 
 - Začíná jako **vazal toho, kdo ho pozval**, s mapou blízko pána (Místo na mapě světa).
-- **Výchozí podmínky: žádné** (návrh Clauda) – bez dávky a bez slíbené pomoci; nováček nemá
-  z čeho odvádět a podmínkám ještě nerozumí. Kód podmínky nenese. Pán smí kdykoli navrhnout
-  nové podmínky (Změna podmínek) a pozvaný je přijme, odmítne nebo jedná; poslat obilí ručně
-  smí pán vždy.
-- Odejít smí **kdykoli** jako každý vazal (Konec vazalství).
+- **Bez dávek** – pán mu je smí navrhnout později stejným jednáním (Martin: „Ok“). Bez dalších
+  podmínek, i bez vojenské služby – holá přísaha (návrh Clauda); nováček nemá z čeho odvádět.
+- Vypovědět smí **kdykoli** jako každý vazal (Konec vazalství) a smí mít i další pány.
 - **Nástupnictví bez losu** (Martin 2. 11. 2026: „Jedno nástupnictví za pozvaného“): každý
   pozvaný hráč, který **začal hrát**, připíše tomu, kdo ho pozval, jedno nástupnictví bez losu
   ([seniorát](seniorate.md) – Nástupnictví hráče). Připíše se jednou za pozvaný účet a platí,
-  i když pozvaný později od pána odejde nebo přestane hrát.
+  i když pozvaný později vypoví nebo přestane hrát.
 - **„Začal hrát“** (návrh Clauda) = pozvaný byl ve hře aspoň **3 různé skutečné dny** – jeden
   falešný účet na jedno přihlášení nestačí.
 
-## Hráč bez pozvánky – nezávislý (Martin 2. 11. 2026)
+### Hráč bez pozvánky – nezávislý (Martin 2. 11. 2026)
 
 - Martin: „**Bude úplně nezávislý – buď svou nezávislost uhájí nebo ho některý z ostatních
   hráčů donutí stát se jeho vazalem.**“
-- Žádné přidělení pána. Nováček je kořen vlastního stromu; vazalem se stane, jen když přijme
-  nabídku. Donutit ho v první verzi nejde – jen přesvědčit podmínkami (dar, pomoc v nouzi);
-  donucení přijde s válkou (návrh Clauda).
+- Žádné přidělení pána. Vazalem se stane, jen když přijme nabídku nebo sám požádá; donutit ho jde
+  nátlakem a válkou ([válka](war.md)).
 
-## Místo na mapě světa (návrh Clauda)
+### Místo na mapě světa (návrh Clauda)
 
 - **Předpoklad:** jedna **mřížka světa** pro všechny hráče místo vlastní mřížky každého hráče
   ([prémiové krajiny](premium-landscapes.md) – Kostra světa). Vsi rodu (odchody synů) dál
@@ -113,246 +115,520 @@ Martinovo, je návrh Clauda.
   Vzdálenost je počet kroků mřížkou v 8 směrech, při shodě pevné pořadí směrů.
 - **Nezávislý nováček** začíná na volném políčku nejblíž středu světa, aspoň **3 políčka** od map
   ostatních hráčů – svět se plní od středu ven, kdo přijde později, začíná na okraji osídlení.
-- Změna pána ani odchod mapu nemění – kdo se stane vazalem vzdáleného pána, má k němu dlouhou
-  cestu (Plnění podmínek).
+- Nový pán ani vypovězení mapu nemění – kdo se stane vazalem vzdáleného pána, má k němu dlouhou
+  cestu a odvede méně (Dávky – Výhled).
 - Typ prémiové krajiny se nemění (premium-landscapes.md). Rozmístění NPC a kostra řek a stezek –
   návrh světa (Později).
 
-## Nabídka vazalství a jednání (Martin 2. 11. 2026; podrobnosti návrh Clauda)
+## Vznik a jednání (Martin 2. 11. 2026; podrobnosti návrh Clauda)
 
 Martin: „**Hráč navrhne jinému hráči, aby se stal jeho vazalem a stanoví podmínky. Druhý hráč
-to buď přijme, odmítne nebo se bude jednat o podmínkách.**“ O dávkách rozhoduje pán (Martin:
-„O dávkách rozhoduje pán“) – v první verzi tím, že je napíše do nabídky.
+to buď přijme, odmítne nebo se bude jednat o podmínkách.**“
 
-### Podmínky (první verze)
+### Nabídka a žádost
 
-Nabídka je sada podmínek z pevného výběru – každá je ikona s čísly, žádná není povinná
-(nabídka bez podmínek je holá přísaha):
+- **Nabídka vazalství** – budoucí pán pošle hráči návrh dohody s podmínkami.
+- **Žádost o vazalství** – budoucí vazal pošle hráči „Přijmi mě za vazala“ s podmínkami, které
+  nabízí – „Ano, stejným jednáním“ (Martin 2. 11. 2026). Hladový nebo ohrožený hráč si tak řekne
+  o pána sám.
+- **Adresát** smí být nezávislý i vazal jiného pána – přijetím přibude další pán, dosavadní
+  dohody trvají (Martin – víc pánů).
+- **Nelze:** vzájemné vazalství (Síť dohod), rod, který vymřel, a hráč, který odesílatele
+  zablokoval (Meze).
 
-> **Dávky podle Martina 2. 11. 2026 (nahrazuje návrh níž, podrobnosti dopracovat):** „Vazal bude
-> posílat roční dávky. Jejich výše se sjedná při založení vazalství, přičemž vazal uvidí svůj
-> ekonomický výkon a kolik kterého zboží může ročně postrádat, aby ho to nepoložilo. Na základě
-> toho pak učiní nabídku budoucímu pánovi. Ten to buď odsouhlasí nebo dá protinabídku a takto to
-> bude, dokud se neshodnou. Vazalovi se pak jednou ročně objeví dialog, ve kterém odsouhlasí
-> poslání zboží pánovi – v tom dialogu může poslat i míň nebo víc zboží než bylo domluveno
-> a připojit k tomu vzkaz. Pánovi se příjem poplatku zobrazí v notifikacích.“ – dávku tedy
-> **nabízí vazal** podle výhledu přebytku, **neodchází sama** (Plnění níž), ale vazal ji jednou
-> ročně potvrdí (víc, míň, se vzkazem).
->
-> **Neodpoví-li vazal na roční dialog:** „c)“ – dialog počká, dokud vazal nepřijde (Martin 2. 11. 2026).
->
-> **Druhy dávek – jen makrokomodity** (Martin 2. 11. 2026: „Měli bychom brát v úvahu jen zboží,
-> které lze obchodovat za celou ves – např. nástroje a keramiku si nakupuje každý sám. Měli bychom
-> to rozdělit na makrokomodity, které řeší celá obec/vojvoda atd. a mikrokomodity, které si lidé
-> řeší sami a v ekonomických ukazatelích se neobjevují.“; výčet: „**Makrokomodity – obilí, seno,
-> dobytek, koně, klády, lidé, práce.**“). Mikrokomodity (nástroje, keramika, uhlí, ruda, hlína,
-> maso, sýr) do dávek nepatří. Rozdělení zatím platí pro vazalství; zbytek ekonomiky (obchod se
-> sousedy, horní lišta) beze změny – návrh Clauda.
->
-> **Doprava** (Martin 2. 11. 2026: „U každé komodity uvažuj i náklady na dopravu – např. vazal bude
-> mít přebytek klád, ale počet klád bude omezen prací lidí a vozů, které musí klády k pánovi
-> dopravit.“): dávku dopravuje vazal stejně jako výpravu k sousedům ([obchod](trade.md) –
-> Doprava): nosič 25 kg, kláda 100 kg = dva nosiči, vůz 400 / 800 kg s voly a vozkou, honák na
-> 10 kusů dobytka, lidé a práce jdou po svých; cesta tam i zpět stojí práci (lidé × dny – 2 herní
-> dny na políčko vzdálenosti, návrh Clauda) a vozy s voly ten čas neorou. Výhled „kolik můžu
-> postrádat“ proto ukazuje u každé komodity **nejvýš tolik, kolik ves zvládne i dopravit** –
-> menší z přebytku a z dopravy podle volné práce a vozů v měsíci odvodu; blízký vazal odvede víc
-> než vzdálený.
+### Podmínky dohody (návrh Clauda podle Martina)
 
-1. **Dávka – vazal pánovi:**
-   - **co:** jedno zboží z [obchodu se sousedy](trade.md) – obilí, luštěniny, maso, sýr, klády,
-     keramika, uhlí, hřivny; dobytek Později (žene se, druhy a chovné jádro);
-   - **kolik:** pevné množství **z každé vsi rodu vazala** za rok (např. 150 kg obilí) –
-     s rodem vazala roste i dávka; historicky se odvádělo z každého dvora (rešerše);
-   - **kdy:** 1. den měsíce, který pán zvolí, jednou ročně; výchozí **1. 11.** – po výmlatu, ve
-     stejný den, kdy sousedé obnovují zásoby ([obchod](trade.md)).
-   - Víc dávek (různé zboží) smí nabídka mít víc, každou zvlášť.
-2. **Pomoc v nouzi – pán vazalovi:** má-li ves vazala **hlad** (upozornění hladu –
-   [obyvatelstvo](population.md), Hlad a vymření), pošle jí vlastní ves pána sama obilí na
-   **30, 60 nebo 90 dní** jídla hladové vsi (pán zvolí), nejvýš **jednou za rok** pro každou ves.
-3. ~~**Dar při přijetí**~~ – **zrušeno** (Martin 2. 11. 2026: „Dar je píčovina.“).
+Dohoda je sada řádků z pevného výběru – každý je ikona s čísly, žádný není povinný (dohoda bez
+řádků je holá přísaha):
 
-Vojenská služba, svolání, ochrana proti nájezdu, sňatky a povoz – Později (s [válkou](war.md)).
+1. **Dávky** – vazal pánovi ročně, makrokomodity (Dávky).
+2. **Vojenská služba** – počet mužů rodu a dní ročně, když pán vede válku, např. 4 muži na
+   30 herních dní (Služby).
+3. **Cílová ves** – kam dávky, robota a muži do služby přicházejí; určí ji pán při jednání, bez
+   ní je to **vlastní ves pána** (ves hráčova muže – [seniorát](seniorate.md)) (Martin: „ok“).
+4. **Odměna** – pán vazalovi ročně, makrokomodity; hlavně za správu vsi (Martin: „např. odměna
+   za rok“).
+5. **Správa vsi** – pán svěří vazalovi konkrétní ves (Správce a tři role ve vsi).
 
-### Kdo komu smí nabídnout
-
-- Nabídku posílá **budoucí pán** (Martin) – hráč s živým rodem jinému hráči s živým rodem, který
-  není jeho přímým vazalem a není ve stromu nad ním (bez kruhu). Zda smí o vazalství požádat
-  i budoucí vazal: otázka 1.
-- Adresát může být **nezávislý i vazal jiného pána** – přijetím od dosavadního pána odejde
-  (vize: „přísahat jinému pánovi“); vazal smí odejít kdykoli, takže jde jen o jeden krok místo
-  dvou.
-- Svému přímému vazalovi pán neposílá nabídku, ale **nové podmínky** (Změna podmínek).
+Podmínkou **nejsou**: pomoc v nouzi a ochrana vojskem – jsou na žádost (Povinnosti pána); půjčka
+je samostatná dohoda; **dar při přijetí je zrušen** (Martin 2. 11. 2026: „Dar je píčovina.“).
 
 ### Jak jednání probíhá
 
-- **Odeslání:** pán vybere hráče, sestaví podmínky a pošle. Nabídka platí **3 skutečné dny**
-  (≈ 8 herních let – dost i pro hráče, který den nehraje); pak propadne. Odesílatel ji smí
-  stáhnout, dokud není přijatá.
+- **Odeslání:** strana sestaví podmínky a pošle, volitelně se vzkazem.
 - **Adresát** může:
-  - **přijmout** – vazalství vznikne hned s těmito podmínkami (server ověří: oba rody žijí,
-    nevznikne kruh);
+  - **přijmout** – dohoda vznikne hned (server ověří: oba rody žijí, nevznikne vzájemné
+    vazalství);
   - **odmítnout** – jednání končí;
-  - **protinávrh** – upraví podmínky (stejný formulář předvyplněný nabídkou) a pošle zpět.
-    Protinávrh nahradí nabídku a platí znovu 3 dny; role se nemění – vazalem by byl pořád
-    adresát první nabídky.
-- **Strany se střídají** – na protinávrh odesílatel přijme, odmítne, nebo pošle další protinávrh.
-  Počet kol omezený není; jednání skončí přijetím, odmítnutím, stažením nebo propadnutím.
-- **Meze proti zahlcení:** mezi dvěma hráči nejvýš **jedno otevřené jednání**; hráč smí mít
-  nejvýš **5 otevřených nabídek**, které sám poslal; po odmítnutí smí tentýž hráč témuž adresátovi
-  poslat novou až po **1 skutečném dni**.
-- **Kronika** obou vsí hráčů: „Bořivoj nabídl vazalství“, „Ctibor přijal Bořivoje za pána“,
-  „Ctibor odmítl“.
+  - **protinávrh** – upraví podmínky (stejný formulář předvyplněný návrhem) a pošle zpět; role se
+    nemění – vazalem by byl pořád ten, koho první návrh za vazala měl.
+- **Strany se střídají**, počet kol omezený není.
+- **Návrh nepropadá** – Martin 2. 11. 2026: „**Ať visí do nekonečna. Oba se k tomu musí nějak
+  postavit**“. Jednání skončí přijetím, odmítnutím, stažením, zablokováním nebo vymřením strany.
+- **Stažení:** odesílatel smí návrh vzít zpět, dokud druhý neodpověděl – „Ano“ (Martin 2. 11.
+  2026); u protinávrhu jeho autor (návrh Clauda).
+- **Kronika** obou rodů: „Bořivoj nabídl vazalství“, „Ctibor žádá o přijetí“, „Ctibor přijal
+  Bořivoje za pána“, „Ctibor odmítl“.
+
+### Meze – jedno jednání, pauza, blokování (Martin 2. 11. 2026)
+
+- **Mezi dvěma hráči vždy jen jedno jednání** („ano“); s různými hráči smí hráč jednat najednou
+  s kolika chce (mez 5 odeslaných nabídek zrušena). Jedno jednání platí pro **všechny druhy** –
+  vazalství, nové podmínky, půjčka, správa vsi, obchod – a smí mít víc bodů najednou (návrh Clauda).
+- **Pauza po odmítnutí:** odmítnutý smí témuž hráči poslat nový návrh nejdřív za **1 skutečný den**
+  („Ok, tak jak navrhuješ.“).
+- **Blokování** – Martin 2. 11. 2026: „**Hráč, který se cítí být spamován, může spamujícího hráče
+  zablokovat. Ten to však uvidí a může to vzít jako urážku**“:
+  - zablokovaný nesmí blokujícímu posílat návrhy, žádosti ani vzkazy, dokud ho neodblokuje;
+  - rozběhlé jednání skončí;
+  - zablokovaný to vidí v upozornění a v kronice obou rodů je to **urážka** („Bořivoj zablokoval
+    Ctibora“) – „ano“ (Martin);
+  - stávající dohody blokování neruší – dávky, služba a splátky jdou dál, jen bez vzkazů od
+    zablokovaného (návrh Clauda).
 
 ### Změna podmínek
 
-- Kterákoli strana stávajícího vazalství smí navrhnout **nové podmínky** – stejný formulář
-  a stejné jednání (přijetí / odmítnutí / protinávrh, 3 dny).
-- **Dokud druhá strana nepřijme, platí staré podmínky.** Odmítnutí vazalství neukončí – pán smí
-  vazala propustit a vazal smí odejít (Konec vazalství), obojí kdykoli.
+- Kterákoli strana stávající dohody smí navrhnout **nové podmínky** – stejný formulář a stejné
+  jednání.
+- **Dokud druhá strana nepřijme, platí staré.** Odmítnutí dohodu neukončí – ukončí ji jen
+  vypovězení (Konec vazalství).
 
-### Plnění podmínek
+## Dávky (Martin 2. 11. 2026; podrobnosti návrh Clauda)
 
-- **Plní se samo** – server, ne kliknutí hráče; svět běží i bez přihlášených hráčů. Dávka odejde
-  v den splatnosti, pomoc v den hladu, dar v den přijetí.
-- **Pojistka vsi** (anti-cíl): dávka nesáhne na osivo a jídlo vsi nesníží pod **dvě roční
-  potřeby** – dva zlé roky za sebou přinášejí hlad (rešerše
-  [pohrom](research/2026-10-27-disasters.md)). Pomoc v nouzi stejně neohrozí pána – jde jen
-  z jídla vlastní vsi pána nad dvě roční potřeby. Ostatní zboží (klády, keramika, uhlí, hřivny)
-  ves odvede, jen co má.
-- **Nedoplatek:** nemá-li ves na dávku nad pojistku, odvede, co jde, a zbytek se zapíše jako
-  **nedoplatek** – v kronice obou a u vazala v panelu (zlomená pečeť s počtem). Nedoplatek se
-  nepřenáší a nic dalšího nespouští. Stejně **nepomohl-li pán**, protože pod pojistkou nic neměl
-  – zapíše se „Pán nepomohl“ u pána.
-- **Co když pán (nebo vazal) podmínky nedodrží:** jinak než nedostatkem to nejde – podmínky
-  nikdo nemůže obejít ani změnit sám. Na nedoplatek nebo nepomoc druhá strana odpoví tím, co smí
-  vždy: vazal odejde, pán vazala propustí, nebo jeden z nich navrhne nové podmínky. Trest silou
-  až s válkou.
-- **Cesta:** **2 herní dny na každé políčko vzdálenosti** (přechod mapy 1–3 dny –
-  [válka](war.md)); v první verzi jen jako náklad, bez vozu ve scéně. Co je na cestě, dojde
-  i po konci vazalství.
-- **Dávka se odvádí jen o patro výš:** co pán přijal, je jeho zásoba – svému pánovi odvede podle
-  svých podmínek.
-- Ves na cestě (výprava), opuštěná nebo vymřelá neodvádí a pomoc nedostane.
-- **Ručně:** pán smí kdykoli poslat obilí kterékoli vsi vazala, i bez hladu a i ze zásoby pod
-  pojistkou – rozhodnutí hráče. Po 100 kg.
+> Martin 2. 11. 2026: „**Vazal bude posílat roční dávky. Jejich výše se sjedná při založení
+> vazalství, přičemž vazal uvidí svůj ekonomický výkon a kolik kterého zboží může ročně
+> postrádat, aby ho to nepoložilo. Na základě toho pak učiní nabídku budoucímu pánovi. Ten to buď
+> odsouhlasí nebo dá protinabídku a takto to bude, dokud se neshodnou. Vazalovi se pak jednou
+> ročně objeví dialog, ve kterém odsouhlasí poslání zboží pánovi – v tom dialogu může poslat
+> i míň nebo víc zboží než bylo domluveno a připojit k tomu vzkaz. Pánovi se příjem poplatku
+> zobrazí v notifikacích.**“
+
+První odpověď „O dávkách rozhoduje pán“ (Martin 2. 11. 2026) tím platí takto: pán rozhoduje
+tím, že nabídku vazala odsouhlasí, nebo dá protinabídku – bez jeho souhlasu dávka nevznikne.
+
+### Makrokomodity – co se odvádí
+
+- Martin 2. 11. 2026: „**Měli bychom brát v úvahu jen zboží, které lze obchodovat za celou ves –
+  např. nástroje a keramiku si nakupuje každý sám.**“ Výčet: „**Makrokomodity – obilí, seno,
+  dobytek, koně, klády, lidé, práce.**“
+- **Obilí** a **seno** (kg), **dobytek** (kusy po druzích jako v [obchodě](trade.md) – Dobytek ve
+  třech druzích), **koně** (kusy), **klády** (kusy), **lidé** (muži, ženy, celé rodiny – Lidé
+  a robota), **práce** (člověkodni – robota).
+- **Ne:** luštěniny (Martin: „ne“) ani mikrokomodity – nástroje, keramika, uhlí, ruda, hlína,
+  maso, sýr; ani hřivny (nejsou ve výčtu – návrh Clauda).
+- Rozdělení na makro- a mikrokomodity zatím platí pro vazalství a obchod mezi hráči; obchod se
+  sousedy a horní lišta beze změny (návrh Clauda).
+
+### Výhled „kolik můžu postrádat“ (Martin; výpočet návrh Clauda)
+
+- Vazal při jednání i v ročním dialogu vidí u každé makrokomodity, **kolik ho může ročně stát,
+  aniž by ho to položilo** – za celý rod, součet vsí.
+- **Pojistka vsi** (návrh Clauda): osivo a jídlo na **dvě roční potřeby** (dva zlé roky za sebou
+  přinášejí hlad – rešerše [pohrom](research/2026-10-27-disasters.md)); seno na zimu stád;
+  chovné jádro stád ([obchod](trade.md)); jezdecký kůň každého muže rodu; lidé, bez kterých ves
+  neudrží pole; práce mimo osev a žně.
+- **Doprava** – Martin 2. 11. 2026: „**U každé komodity uvažuj i náklady na dopravu – např. vazal
+  bude mít přebytek klád, ale počet klád bude omezen prací lidí a vozů, které musí klády k pánovi
+  dopravit.**“ Výhled je proto **menší z přebytku a z dopravy** – kolik ves zvládne dovézt do
+  cílové vsi volnou prací, vozy a voly v listopadu (Doprava níž). Blízký vazal odvede víc než
+  vzdálený.
+- **Víc pánů:** výhled odečte, co ves už odvádí jiným pánům a na splátkách (návrh Clauda).
+- **Pán výhled vazala nevidí** (návrh Clauda) – vidí rodokmen (Služby – Přehled pána) a to, co
+  mu vazal nabídne.
+
+### Sjednání
+
+- Dávka se sjedná **za celý rod** (Martin: „ano“) – co a kolik ročně – v jednání o vazalství nebo
+  o nových podmínkách.
+- **Obvykle ji nabízí vazal** (Martin) – v žádosti nebo v protinávrhu na nabídku pána; formulář
+  mu ukáže výhled u každého řádku. Pán odsouhlasí nebo dá protinabídku, „dokud se neshodnou“.
+  Navrhnout dávku smí i pán (pozvanému později – Martin: „Ok“).
+
+### Roční dialog 1. 11. (Martin: „1. listopad je ok“)
+
+- Každý rok **1. 11.** (po výmlatu, před zimou; ve stejný den sousedé obnovují zásoby –
+  [obchod](trade.md)) se vazalovi objeví dialog **Odvody** – u každého pána domluvené dávky a
+  splátky půjček (Povinnosti pána), předvyplněné.
+- U každého řádku smí vazal poslat **domluvené, míň, nebo víc** a připojit **vzkaz** (Martin).
+- **Rozdělení po vsích rodu:** předvyplněné podle přebytku vsí, vazal ho smí změnit (Martin:
+  „ano“). Odvádějí jen vsi rodu vazala – vsi, které spravuje pro jiného držitele, ne (návrh
+  Clauda).
+- **Neodpoví-li vazal, dialog počká, dokud nepřijde** (Martin: „c)“). Další 1. 11. se k němu
+  přičte další rok, druhý dialog nevznikne; v dialogu je vidět, za kolik let (návrh Clauda).
+- **Pán** dostane upozornění s tím, co a kdy přijde, a se vzkazem (Martin: „Pánovi se příjem
+  poplatku zobrazí v notifikacích.“); čekající dialog vazala vidí jako přesýpací hodiny (návrh
+  Clauda).
+- **Nic se nevymáhá.** Méně než domluveno se zapíše v kronice obou rodů („Ctibor odvedl 100 z
+  150 kg obilí“) – je to neplnění (Konec vazalství – Neformální výpověď).
+
+### Doprava a cílová ves
+
+- **Doveze vazal** (Martin: „ano“) – jeho nosiči, vozy a honáci, náklady na dopravu nese on; ve
+  scéně odchází jako **výprava** (jako k sousedům – [obchod](trade.md), Doprava): nosič 25 kg,
+  kláda 100 kg = dva nosiči, vůz 400 / 800 kg s voly a vozkou, honák na 10 kusů dobytka nebo
+  koní; lidé a robota jdou po svých.
+- **Cesta** (návrh Clauda): každá ves rodu posílá svůj díl zvlášť v den odpovědi, **2 herní dny
+  na políčko vzdálenosti** tam i zpět (přechod mapy 1–3 dny – [válka](war.md)); nosiči a vozky
+  po dobu cesty nepracují, vozy s voly neorou.
+- **Kam:** do **cílové vsi** z dohody, jinak do vlastní vsi pána (Martin: „ok“).
+- Co je na cestě, dojde i po konci vazalství.
+- **Jen o patro výš:** co pán přijal, je jeho; svým pánům odvádí podle svých dohod.
 - **Kronika:** vazalova ves „Pánovi odvedeno 150 kg obilí“, pánova ves „Dávka od Ctibora: 150 kg
-  obilí“, „Pán poslal 300 kg obilí“, „Nedoplatek 40 kg obilí“.
+  obilí“.
 
-## Konec vazalství (Martin 2. 11. 2026: „Kdykoli“; podrobnosti návrh Clauda)
+### Lidé a robota
 
-Vazalství není trvalé (Martin – vize). Bez války v první verzi takto:
+- **Lidé** – Martin 2. 11. 2026: „**Ano, mělo by to být stejné, jako v obchodě – muže, ženy a nebo
+  celé rodiny**“ – stejné druhy jako ve výměně lidí ([obchod](trade.md) – Výměna lidí), **muži
+  rodu ne**. V dialogu předvyplněno, koho ves nejméně postrádá; vazal smí výběr změnit. V cílové
+  vsi se usadí jako noví vesničané (jako ve výměně lidí).
+- **Robota** – Martin 2. 11. 2026: „**Ano. Tohle dostane větší smysl, až se budou stavět velké
+  veřejné stavby typu opevnění**“. Domluvené **člověkodni za rok**; vazal v dialogu vybere lidi
+  (předvyplněno – dospělí od 16 let, které ves nejméně postrádá, ne muži rodu). V pánově vsi se
+  zapojí do práce jako ostatní vesničané, **jídlo jim dává pánova ves**, po odpracování se vrátí.
+  Cesta se do odpracovaných dní nepočítá (návrh Clauda).
 
-- **Vazal odejde kdykoli** – tlačítko s potvrzením, platí hned; vazal se stane nezávislým a své
-  vazaly si nechá.
-- **Pán vazala propustí** kdykoli (s potvrzením) – vazal se stane nezávislým.
-- **Přijetí jiné nabídky** = odchod a nové vazalství v jednom kroku.
-- **Podmínky zaniknou s vazalstvím:** dávky ani pomoc už nejdou, nedoplatky se mažou; zásilky na
-  cestě dojdou; dar ani pomoc se nevracejí. Rozjednané nové podmínky propadnou.
-- **Vymře-li rod vazala** (konec hry): vazalství zanikne a vazalové vymřelého rodu se stanou
-  nezávislými – nikdo se nestane vazalem bez souhlasu, ani pána svého pána.
-- **Vymře-li rod pána:** jeho vazalové se stanou nezávislými.
-- **Začne-li hráč znovu** (po vymření nebo z nabídky hry – [obyvatelstvo](population.md)): nový
-  rod je nezávislý jako hráč bez pozvánky; vazalství starého rodu zanikla s ním.
-- **Vzpoura** a podrobení silou – až s válkou.
+## Služby (Martin 2. 11. 2026; podrobnosti návrh Clauda)
+
+### Vojenská služba – hlavní podmínka
+
+- Řádek dohody: **počet mužů a dní ročně, když pán vede válku** ([válka](war.md)) – Martin:
+  „**Ano. Bude to hlavní věc na vazalství.**“
+- **Jen muži rodu** – Martin 2. 11. 2026: „**vazal musí poslat muže schopné vojenské služby, tj.
+  příslušníky svého rodu, protože nikdo jiný vojenské zkušenosti nemá**“. Vesničané vazala do
+  pánovy války nechodí (co dělají v nájezdu a obraně vlastní vsi, řeší [válka](war.md)).
+- **Kdo smí** – Martin 2. 11. 2026: „**Může všechny včetně sebe a sám může ve válce i zemřít – je
+  to legitimní způsob smrti.**“ Kterýkoli muž rodu od 16 let **včetně hráčova muže**; padne-li
+  hráčův muž, hráč pokračuje podle [seniorátu](seniorate.md) – Nástupnictví hráče.
+
+### Svolání (Martin: „Stejně jako u dávek“)
+
+- Vede-li pán válku, smí vazaly **svolat** – vazalovi se objeví dialog **Svolání**: domluvený
+  počet mužů a dní a cílová ves (z dohody, nebo ves, odkud pán vede výpravu – návrh Clauda);
+  předvyplnění nejzdatnějšími muži rodu podle výcviku (návrh Clauda).
+- Vazal smí poslat **domluvené, míň, nebo víc** mužů a připojit vzkaz; pán to vidí
+  v upozorněních (Martin).
+- **Neodpoví-li vazal**, dialog počká jako u dávek – nejdéle do konce pánovy války; pak propadne
+  a kronika zapíše „Ctibor nepřišel do války“ (návrh Clauda).
+- **Kolik:** za herní rok nejvýš domluvené dny služby; pán smí během války svolat i víckrát, dokud
+  dny nevyčerpá (návrh Clauda).
+- **Cesta a jídlo** (návrh Clauda): pěšky nebo na svých koních ([koně](horses.md)), 2 herní dny
+  na políčko; jídlo na cestu nesou z domova, během služby je **živí ves, kde slouží** (jako
+  u roboty).
+- **Ve službě velí pán** – muži se připojí k jeho výpravě nebo obraně jako jeho muži (síla podle
+  výcviku a koní – [válka](war.md)); vrátí se po domluvených dnech, nebo dřív, když je pán
+  propustí nebo válka skončí. Hráčův muž ve službě: jeho vlastní ves mezitím řídí NPC jménem
+  formálního správce (Správce a tři role ve vsi); hráč výpravu pána vidí (návrh Clauda).
+- **Vazalové vazalů** – Martin 2. 11. 2026: „**A má přehled o celém tom vazalském stromu. Tj. může
+  pro válku požadovat odpovídající počet lidí**“. Pán A žádá od B; B smí svolat své vazaly (jejich
+  službu vůči B) s cílem rovnou u A a jejich muži se počítají do služby B (Martin: B je může
+  přivést i od svých vazalů; cíl u A – návrh Clauda).
+- **Víc pánů:** každý pán svolává zvlášť a vazal odpoví každému zvlášť, i když spolu páni válčí
+  (návrh Clauda).
+
+### Přehled pána – rodokmen a strom pod sebou
+
+- **Rodokmen šlechty je veřejný** – Martin 2. 11. 2026: „**v tomto případě i pán uvidí počet
+  vojensky zdatných mužů, protože rodokmeny šlechty jsou prakticky veřejné**“. Každý hráč vidí
+  u každého rodu muže rodu od 16 let a jejich věk, ne výcvik ani koně (návrh Clauda; otázka 2).
+- **Schopný služby** = muž rodu od 16 let, který není raněný ani už ve službě (návrh Clauda).
+- **Pán vidí celý strom pod sebou** (Martin) – vazaly, vazaly vazalů… a u každého počet mužů
+  schopných služby; podle toho jedná o službu.
+
+## Povinnosti pána (Martin 2. 11. 2026)
+
+### Pomoc na žádost – dar nebo půjčka
+
+- Martin 2. 11. 2026: „**Vazal musí o pomoc požádat – není to nic, co by se určovalo dopředu.
+  Hmotná pomoc může být poskytnuta buď nezištně nebo jako půjčka se splátkovým kalendářem, která
+  může být splacena i jiným zbožím, než tím, které vazal obdržel.**“
+- **Žádost** (návrh Clauda): vazal pošle pánovi jednání „Žádost o pomoc“ – co (makrokomodity),
+  kolik, kam a vzkaz.
+- **Pán** dá **zdarma**, nabídne **půjčku** se splátkovým kalendářem (rok, co, kolik – splátky
+  i v jiném zboží), nebo odmítne; vazal půjčku přijme, odmítne nebo dá protinávrh.
+- **Doveze pán** – dopravu platí ten, kdo posílá (jako v obchodě mezi hráči – návrh Clauda).
+- **Splátky jako dávky** (Martin: „ano“): v ročním dialogu 1. 11. řádek splátky podle kalendáře –
+  domluvené, míň, nebo víc, se vzkazem; pán je vidí v upozorněních.
+- **Půjčka je samostatná dohoda** – trvá i po vypovězení vazalství, splátky chodí dál; neplacení
+  se zapíše, vymáhat ho lze rozsudkem nebo válkou (Martin: „Tak jak říkáš“).
+
+### Ochrana vojskem
+
+- **Na žádost vazala** (Martin: „Ano“) – žádost o ochranu: která ves a vzkaz. Pán rozhodne, jestli
+  a koho pošle – muže svého rodu, nebo svolá své vazaly s cílem v chráněné vsi; nic se
+  nevynucuje.
+- Poslaní muži se brání s chráněnou vsí ([válka](war.md) – Obrana bez hráče), živí je chráněná
+  ves a vrátí se, když je pán odvolá nebo válka skončí (návrh Clauda).
+
+## Mír a spory (Martin 2. 11. 2026)
+
+- **Válka mezi vazaly téhož pána i s vlastním pánem** – „**Ano, hra to nezakazuje**“. Žádný
+  zemský mír jako pravidlo; pán zasáhne po svém – ochranou, pomocí, rozsudkem, vypovězením.
+- **Rozsudek pána** – Martin 2. 11. 2026: „**Tohle je dobrý návrh. Vyřeší se tím de iure stránka
+  sporu, de facto se bude řešit až následně (sankce, válka, atd.)**“:
+  1. **žaloba** – vazal pošle pánovi vzkaz na jiného jeho vazala;
+  2. **vyjádření** druhé strany (vzkaz); pán smí soudit i bez něj po 1 skutečném dni (návrh
+     Clauda);
+  3. **rozsudek** – náhrada zbožím, dobytkem, vrácením lidí, mír na dobu, nebo zamítnutí;
+  4. **splnění** dialogem jako u dávek – celé, míň, nebo nic; hra nic nevynucuje, nesplnění se
+     zapíše („Ctibor neposlechl pána“).
+- „Mír na dobu“ je rozsudek, ne pravidlo – kdo ho poruší, zapíše se jako neposlušný; válku hra
+  nezakáže (návrh Clauda).
+- **Zavede se spolu s válkou** (návrh Clauda) – bez ní rozsudek nemá de facto stránku.
+
+## Hospodářství mezi hráči (Martin 2. 11. 2026)
+
+- **Obchod mezi kýmkoli** (ne jen pán – vazal) **stejným jednáním** jako vazalství – nabídka zboží
+  za zboží, protinávrh; **jen makrokomodity**; **dopravu platí ten, kdo posílá** („Ano“).
+- Po přijetí se oběma stranám objeví dialog odeslání jako u dávek – celé, míň, nebo nic; každá
+  strana posílá ze vsi, kterou v jednání určila (návrh Clauda). Nic se nevynucuje.
+- **Sňatky mezi rody hráčů:** ano, ale v další verzi jako samostatná mechanika (příbuzenství,
+  dědictví, spojenectví) – „Ano, tak jak říkáš“.
+
+## Konec vazalství (Martin 2. 11. 2026)
+
+### Formální vypovězení věrnosti (Martin: „Ano hned.“)
+
+- **Kterákoli strana** smí dohodu kdykoli formálně vypovědět – vazal pánovi, nebo pán vazalovi –
+  se vzkazem a s potvrzením. **Platí hned**, druhá strana dostane upozornění, zapíše se do kronik
+  obou rodů a **vidí ho celý strom** (všichni nad a pod oběma stranami – návrh Clauda).
+- Dávky, lidé a muži na cestě ještě dojdou, muži ve službě se vrátí domů; pak **závazky
+  z vazalství končí** – čekající dialogy pro tuto dohodu zmizí, správa vsi skončí. **Půjčky
+  trvají.**
+- Ostatní dohody obou stran trvají – vazal si nechá své vazaly i jiné pány.
+
+### Neformální výpověď – neplnění (Martin)
+
+- Martin 2. 11. 2026: „**Ale výpověď může být i neformální – vazal prostě přestane plnit své
+  závazky. Pak může pán vazala buď přinutit k poslušnosti nebo mu také vypovědět vazalství.**“
+- **Neplnění není odchod** – vazalství trvá, dokud ho jedna strana formálně nevypoví.
+- Neplnění se zapíše (méně než domluveno, nepřišel do války, nesplatil, neposlechl pána) a pán ho
+  vidí u vazala; **přinutit k poslušnosti** jde válkou ([válka](war.md) – výzva vlastnímu
+  vazalovi).
+- Pomoc a ochrana jsou na žádost – pán, který nepomohl, nic neporušil; vazal smí vypovědět.
+
+### Smrt vojvody (Martin: „Ano“)
+
+- Vazalství trvá – nástupce ho převezme **bez nové přísahy** se všemi podmínkami, dávkami
+  i půjčkami. Dohoda je mezi rody, ne muži.
+
+### Vymření rodu – odúmrť (Martin 2. 11. 2026)
+
+- **Rod bez pána:** Martin: „**Pokud nad pánem už nikdo nebude, tak ano**“ – jeho vazalové
+  přijdou o tuto dohodu (kdo nemá jiného pána, je nezávislý) a **dluhy zaniknou**. Vsi zaniknou
+  jako dnes ([vojvodova rodina](lord.md) – Konec rodu).
+- **Rod s pánem:** „**Pokud však nad pánem bude ještě někdo, tak ten o statcích vymřelého rodu
+  rozhoduje jako o odúmrti**“ – rozhoduje pán vymřelého. Má-li vymřelý víc pánů – otázka 1.
+- **Odúmrť** = celé vsi vymřelého rodu s lidmi, zásobami a stavbami a **jeho vazalové** (Martin:
+  „Vazalové jsou součástí odúmrti“). Vsi s pánem tedy nezaniknou – mění [vojvodovu
+  rodinu](lord.md) – Konec rodu (návrh Clauda). Ženy a dcery vymřelého rodu zůstanou ve vsi jako
+  vesničanky (návrh Clauda).
+- **Co s ní** – Martin: „**Může ji buď ponechat v celku nebo rozdělit. Celek či jednotlivé díly
+  může ponechat ve svém držení nebo věnovat svým vazalům a je jedno, jestli jsou z jeho rodu nebo
+  ne**“.
+- **Dělení** – Martin: „**Dělit odúmrť půjde pouze v případě, že bude mít vymřelý rod více jak
+  jednu ves. Ideální dělení pak bude po celých panstvích**“ – ves se nedělí, díly jsou celé vsi.
+- **Ponechaná** – Martin: „**může ji spravovat buď sám nebo do ní poslat správce – a je jedno,
+  jestli to bude někdo z jeho rodu nebo nějaký jiný vazal**“ (Správce a tři role ve vsi).
+- **Věnovaná** – obdarovaný se stane držitelem; věnování je jednání, obdarovaný smí odmítnout
+  a ves pak zůstane pánovi (návrh Clauda).
+- **Vazalové vymřelého:** pán si je ponechá – stanou se jeho vazaly se stejnými podmínkami
+  a půjčkami jako při smrti vojvody – nebo je věnuje svým vazalům (Martin); vypovědět smějí
+  kdykoli. Pohledávky vymřelého jdou s vazaly, jeho dluhy zaniknou (návrh Clauda).
+- **Do rozhodnutí** vsi odúmrti spravuje pán sám (řídí je NPC jeho jménem) – návrh Clauda.
+
+### Začít znovu
+
+- Začne-li hráč znovu (po vymření nebo z nabídky hry – [obyvatelstvo](population.md)), nový rod
+  je nezávislý jako hráč bez pozvánky; dohody starého rodu skončily jeho vymřením (výš).
+
+## Správce a tři role ve vsi (Martin 2. 11. 2026)
+
+Martin 2. 11. 2026: „**Správce je šlechtic. V ideálním případě je to někdo z rodu. Tj. když hráč
+není ve své vsi přítomen (např. spí nebo je v zaměstnání), ves je spravovaná NPC, ale formálním
+správcem je některý ze synů. Pokud hráč bude chtít někde použít správce, ale nebude ho mít
+k dispozici, může povýšit do šlechtického stavu a učinit svým vazalem někoho neurozeného nebo
+ideálně k tomuto účelu přivést nového hráče. Tak mě napadá, že hráč by měl mít možnost řídit
+několik vsí najednou – někteří hráči mohou hrou procházet jako profesionální správci majetku
+svého pána.**“
+
+### Tři role (Martin: „Ano“)
+
+- **Držitel** – rod, kterému ves patří (odvádí z ní dávky, rozhoduje o ní jako o odúmrti).
+- **Vojvoda** – muž držitelova rodu, který ve vsi sídlí ([vojvodova rodina](lord.md)).
+- **Správce** – šlechtic, který ves formálně spravuje: syn, jiný muž rodu, povýšený vesničan
+  jako vazal, nebo jiný hráč.
+- **Ve vsi hráčova muže** je držitelem rod hráče, vojvodou hráčův muž a formálním správcem syn
+  (Martin) – nejstarší syn od 16 let, bez něj vojvoda sám (návrh Clauda).
+- **Hráč řídí každou ves, kde je vojvodou nebo správcem, i několik najednou; když u ní není,
+  řídí ji NPC jménem formálního správce** (Martin: „Ano“) – NPC je dnešní [správce
+  vsi](steward.md) se svým přepínačem (otázka 3).
+
+### Kdo spravuje ves bez vojvody
+
+Ves bez vojvody držitelova rodu (ponechaná odúmrť, ves bez muže rodu) potřebuje správce:
+
+- **sám držitel** – formálním správcem je hráčův muž, ves řídí hráč, bez něj NPC;
+- **muž rodu** – přestěhuje se s rodinou jako dosazený vojvoda ([seniorát](seniorate.md) – Ves bez
+  muže rodu) a ves dál vede on jako ostatní vsi rodu;
+- **povýšený vesničan** (níž), nebo **jiný hráč** dohodou (níž).
+
+### Povýšení vesničana (Martin: „Ano“)
+
+- Založí **nový šlechtický rod** (NPC, za který nehraje hráč), **vazala toho, kdo ho povýšil**;
+  jeho synové jsou šlechtici a cvičí jako synové vojvody ([vojvodova rodina](lord.md)); pán mu
+  svěří ves do správy.
+- **Koho:** dospělého muže **od 16 let** z kterékoli pánovy vsi, **nejvýš jednoho za herní rok**;
+  s ním manželka a děti (Martin).
+- **Kam** (návrh Clauda): povýšení se dělá pro konkrétní ves bez vojvody – povýšený s rodinou se
+  do ní přestěhuje (2 herní dny na políčko) a sídlí ve dvorci. Je **správcem, ne držitelem** – ves
+  dál patří pánovi a ves řídí NPC jménem povýšeného.
+- **Dohoda NPC rodu** (návrh Clauda): holá přísaha a správa vsi; pán smí podmínky měnit (např.
+  vojenská služba), NPC rod vždy přijme a plní přesně – nevypovídá, neposílá míň ani víc. Vlastní
+  vsi nemá, dávky z něj nejdou; jeho muži slouží ve válce.
+- Pán smí povýšeného ze správy odvolat – zůstane jeho vazalem bez vsi; vymře-li NPC rod, ves se
+  vrátí do správy držitele (návrh Clauda).
+
+### Hráč jako správce cizí vsi (Martin: „Ano, správce je pánovým vazalem“)
+
+- **Stejným jednáním** – pán nabídne správu konkrétní vsi s podmínkami (např. odměna za rok),
+  hráč přijme, odmítne, nebo dá protinávrh. Správa je řádek dohody – **správce je pánovým
+  vazalem**. Nového hráče k tomu pán přivede pozvánkou a správu mu nabídne jednáním.
+- **Pravomoci** (Martin: „Ano“): **běžné řízení** – stavby, pole, obchod, zapnutí NPC; **ne**
+  vystěhování vsi, posílání synů držitele ani povyšování. Zásoby patří vsi – dávky z ní odvádí
+  držitel. Výpravu do války ze spravované vsi správce nevede (návrh Clauda – válka není běžné
+  řízení).
+- **Odvolání:** držitel smí správce **kdykoli odvolat** (vypovědět); odvoláním skončí správa,
+  vazalství trvá, dokud ho někdo nevypoví (návrh Clauda).
+- Formálním správcem je hráčův muž správce – nikam se nestěhuje, ves řídí na dálku; když u ní
+  hráč není, řídí ji NPC jeho jménem (návrh Clauda).
+
+### Hráč řídí víc vsí (Martin 2. 11. 2026)
+
+- Hráč řídí **vlastní ves** (jeho muž je v ní vojvodou), vsi, které **spravuje sám** (formálně
+  jeho muž), a **vsi cizích držitelů**, které spravuje dohodou. Jako senior navíc smí stavět,
+  vetovat a vystěhovat ve všech vsích rodu ([seniorát](seniorate.md)).
+- Mezi vsemi přepíná seznamem vsí v horní liště ([stěhování](migration.md) – Víc vsí jednoho
+  hráče). Počet vsí omezený není – brzdí ho čas hráče (návrh Clauda).
 
 ## Co hráč vidí (UI jako 0 A.D.)
 
 - **Registrace:** pole „Pozvánka“ (formulář mimo hru, s popisky jako dnes – [účty](accounts.md)).
-- **Horní lišta:** ikona **sepjatých rukou** (přísaha) s počtem vazalů → panel vazalství; čeká-li
-  nabídka na odpověď, svítí na ikoně pečeť.
-- **Panel vazalství:**
-  - nahoře **pán** – portrét jeho muže, popisek „Bořivoj – Lhota“, vedle ikony podmínek (klas
-    s kg a měsícem, sýpka s dny pomoci) a tlačítko **Odejít** (rozetnutý řetěz, potvrzení);
-    nezávislý hráč má místo pána **praporec svého rodu** (popisek „Nezávislý“);
-  - řada **vazalů** – portrét, počet lidí, ikony podmínek, klas s loňskou dávkou (kg), zlomená
-    pečeť s nedoplatky, ikona hladu, když hladoví; praporec u pozvaných;
-  - po kliku na vazala **Poslat obilí** (vůz s klasem, množství), **Nové podmínky** (pečeť
-    s perem) a **Propustit** (rozetnutý řetěz, potvrzení);
-  - **Hráči** – ostatní hráči podle vzdálenosti map: portrét, počet lidí, ikona pána (nebo
-    praporec nezávislého); klik → **Nabídnout vazalství** (pečeť) – zašedlé s důvodem u kurzoru
-    („Je nad tebou.“, „Jednáte už.“, „Odmítl – zkus zítra.“);
-  - **Jednání** – řádky podmínek jako ikony s čísly: klas a zboží s kg, měsíc, sýpka s 30 / 60 /
-    90 dny, vůz s darem a šipkou, kdo komu; přesýpací hodiny se zbývajícími dny; tlačítka
-    **Přijmout** (podaná ruka), **Odmítnout** (křížek), **Protinávrh** (pero – úprava čísel
-    a poslat zpět), u odesílatele **Stáhnout**;
-  - **Pozvánky** – pečeť s počtem volných míst; klik vydá kód, ukáže kód a odkaz s tlačítkem
+- **Horní lišta:** ikona **praporu** s počtem vazalů → panel **„Rod a vazalové“** (Martin: „Ano“);
+  čeká-li jednání nebo dialog, svítí na ikoně pečeť s počtem.
+- **Panel „Rod a vazalové“** – strom nad i pod hráčem:
+  - **rod** – řada portrétů mužů rodu od 16 let ([seniorát](seniorate.md) – senior se stolcem,
+    hráčův muž s praporcem), štít u schopných služby, raněný zašedlý;
+  - **páni** – portrét, praporec rodu, ikony podmínek s čísly (klas s kg, kláda s počtem, meč
+    s muži × dny, ves s klíčem u správy), tlačítko **Vypovědět** (rozetnutý řetěz, vzkaz,
+    potvrzení); nezávislý má místo pánů praporec svého rodu (popisek „Nezávislý“);
+  - **vazalové** a pod nimi odsazeně vazalové vazalů – portrét, štít s počtem mužů schopných
+    služby, ikony podmínek, zlomená pečeť s počtem neplnění, ikona hladu; praporec u pozvaných,
+    klíč u povýšených NPC rodů;
+  - po kliku na vazala **Nové podmínky** (pečeť s perem), **Vypovědět**, **Rozsudek** (váhy – až
+    s válkou);
+  - **hráči** podle vzdálenosti map – portrét, štít s počtem mužů rodu (veřejný rodokmen); klik →
+    **Nabídnout vazalství** (pečeť), **Požádat o přijetí** (sepjaté ruce), **Obchod** (vůz),
+    **Blokovat** (zavřená brána) – zašedlé s důvodem u kurzoru („Je tvým pánem.“, „Jednáte
+    už.“, „Odmítl – zkus zítra.“, „Zablokoval tě.“);
+  - **jednání** – řádky podmínek jako ikony s čísly, u dávek výhled šedým číslem; **Přijmout**
+    (podaná ruka), **Odmítnout** (křížek), **Protinávrh** (pero), u autora **Stáhnout**;
+  - **pozvánky** – pečeť s počtem volných míst; klik vydá kód, ukáže kód a odkaz s tlačítkem
     kopírovat (výjimka – kód je text); vydané kódy s přesýpacími hodinami a zbývajícími dny,
     křížek kód zruší; u pozvaných, kteří začali hrát, ikona nástupnictví.
-- **Upozornění** jako ostatní ve hře: „Bořivoj ti nabízí vazalství.“, „Ctibor přijal.“, „Ctibor
-  odmítl.“, „Ctibor navrhuje jiné podmínky.“, „Ctibor odešel.“, „Bořivoj tě propustil.“,
-  „Ctibor hladoví.“
-- Dávka, dar a pomoc se projeví v zásobách a kronice; ve scéně nic (vůz Později).
+- **Dialogy jako upozornění:** jednání a žádosti, **Odvody** (1. 11.), **Svolání**, žádost
+  o pomoc a o ochranu, vypovězení, **odúmrť** (vsi a vazalové s volbou ponechat / věnovat komu /
+  správce). V Odvodech řádek na pána, u zboží domluvené číslo s posuvníkem míň / víc, vsi rodu
+  s rozdělením, tlačítko **Odeslat** (vůz).
+- **Vzkaz** je text hráče – vstup, ne popisek (návrh Clauda); jinak jen ikony, čísla a popisky
+  (`Tooltip`).
+- **Seznam vsí v horní liště:** praporec u vlastní vsi, stolec u vsi seniora, **klíč** u vsí,
+  které hráč spravuje ([seniorát](seniorate.md)).
+- **Ve scéně:** výprava s dávkou, lidmi nebo muži do služby odchází a přichází jako výprava
+  k sousedům.
 
-## Čísla (návrh Clauda – do `rules-vassalage.ts`)
+## Čísla (návrh Clauda – do `rules-vassalage.ts`, kde není uvedeno jinak)
 
-| Co                             | Číslo                                                   |
-| ------------------------------ | ------------------------------------------------------- |
-| Nevyužité kódy najednou        | 3                                                       |
-| Platnost kódu                  | 14 skutečných dní                                       |
-| Pozvaný „začal hrát“           | 3 různé skutečné dny ve hře                             |
-| Mapa pozvaného / nezávislého   | aspoň 2 / 3 políčka od ostatních hráčů                  |
-| Platnost nabídky a protinávrhu | 3 skutečné dny                                          |
-| Otevřené nabídky jednoho hráče | nejvýš 5; mezi dvěma hráči 1                            |
-| Nová nabídka po odmítnutí      | po 1 skutečném dni                                      |
-| Dávka                          | pán zvolí zboží, kg z každé vsi, měsíc (výchozí 1. 11.) |
-| Pojistka vsi                   | osivo a jídlo na 2 roční potřeby                        |
-| Pomoc v nouzi                  | 30 / 60 / 90 dní jídla, 1× ročně na ves                 |
-| Cesta dávky, daru a pomoci     | 2 herní dny na políčko vzdálenosti                      |
-| Ruční pomoc                    | po 100 kg                                               |
+| Co                                | Číslo                                                      |
+| --------------------------------- | ---------------------------------------------------------- |
+| Nevyužité kódy najednou           | 3                                                          |
+| Platnost kódu                     | 14 skutečných dní                                          |
+| Pozvaný „začal hrát“              | 3 různé skutečné dny ve hře                                |
+| Mapa pozvaného / nezávislého      | aspoň 2 / 3 políčka od ostatních hráčů                     |
+| Platnost návrhu v jednání         | nepropadá (Martin)                                         |
+| Jednání mezi dvěma hráči          | 1 najednou, s různými hráči bez meze (Martin)              |
+| Nový návrh po odmítnutí           | po 1 skutečném dni (Martin)                                |
+| Roční dialog (dávky, splátky)     | 1. 11. (Martin), čeká na vazala                            |
+| Pojistka ve výhledu               | osivo a jídlo na 2 roční potřeby                           |
+| Cesta dávky, lidí, služby, pomoci | 2 herní dny na políčko vzdálenosti                         |
+| Doprava                           | nosič 25 kg, kláda 2 nosiči, vůz 400 / 800 kg, honák 10    |
+| Služba                            | muž rodu od 16 let (Martin), dny za herní rok podle dohody |
+| Povýšení vesničana                | muž od 16 let, nejvýš 1 za herní rok (Martin)              |
+| Rozsudek bez vyjádření            | po 1 skutečném dni                                         |
 
 ## Pro implementaci (poznámky, ne kód)
 
 - **DB:** `invite_code` (kód, vydavatel, vytvořen, platí do, rezervace, využil, zrušen),
-  `vassalage` (pán, vazal, podmínky, od, jak vzniklo – pozvánka / nabídka), `vassal_offer` (pán,
-  vazal, kdo je na tahu, podmínky, platí do, stav, předchozí kolo), dny ve hře hráče,
-  `succession_credit` (hráč, pozvaný, připsáno, spotřebováno – [seniorát](seniorate.md));
-  adaptéry portů v `packages/db/src/adapters/`. Strom nemá společný kořen – nezávislý hráč je
-  hráč bez řádku `vassalage` jako vazal.
-- **Use-casy:** `issueInvite`, `revokeInvite`, `redeemInvite` (v `enterGame`), `offerVassalage`,
-  `counterOffer`, `acceptOffer`, `rejectOffer`, `withdrawOffer`, `proposeTerms`, `leaveLord`,
-  `releaseVassal`, `sendAid`, `deliverShipments`. Přihlašování zůstává mimo hexagon – doména zná
-  jen id hráčů, strom a podmínky. Kontrola kruhu a mezí jednání je doménová funkce.
-- **Podmínky jako akce nad vsí:** přijetím (i změnou nebo koncem vazalství) se podmínky zapíší do
-  stavu každé vsi rodu vazala jako akce v ten den, po dopočtu na dnešek – jako akce hráče. Ves
-  v simulaci v den splatnosti odečte dávku nad pojistkou do odchozí schránky jen ze svého stavu
-  (deterministicky) a nedoplatek zapíše do kroniky; hlad zapíše do stavu. Nová ves rodu podmínky
-  zdědí od mateřské vsi.
-- **Zásilky jsou vnější události:** `deliverShipments` po dopočtu (web i worker) odešle pomoc
-  a dar z pánovy vsi dnes a doručí náklad v den příjezdu, nejdřív dnes – jako
-  `settleStewardDepartures`, idempotentně podle id zásilky. Výsledek každé vsi tak nezávisí na
-  kouscích dopočtu.
+  `vassalage` (pán, vazal, podmínky, od, jak vzniklo – pozvánka / jednání / odúmrť / povýšení),
+  `negotiation` (strany, kdo je na tahu, body, stav, předchozí kolo, vzkazy), `loan` (věřitel,
+  dlužník, kalendář, splaceno), `dialog` (hráč, druh – odvody / svolání / rozsudek / obchod,
+  rok, řádky, stav), `player_block`, `stewardship` (ves, správce – hráč nebo NPC rod, od),
+  `npc_dynasty`, `succession_credit` ([seniorát](seniorate.md)), dny ve hře hráče; adaptéry portů
+  v `packages/db/src/adapters/`. Nezávislý hráč je hráč bez řádku `vassalage` jako vazal.
+- **Use-casy:** `issueInvite`, `revokeInvite`, `redeemInvite` (v `enterGame`), `openNegotiation`
+  (nabídka, žádost, podmínky, půjčka, pomoc, správa, obchod), `counterNegotiation`,
+  `acceptNegotiation`, `rejectNegotiation`, `withdrawNegotiation`, `blockPlayer`,
+  `unblockPlayer`, `renounceVassalage`, `openAnnualDialogs`, `answerDialog`, `summonVassals`,
+  `requestProtection`, `decideEscheat`, `ennobleVillager`, `dismissSteward`, `deliverShipments`.
+  Doménové funkce: zákaz vzájemného vazalství, strom pod hráčem (každý jednou), výhled přebytku
+  a dopravy (čistá funkce stavů vsí a pravidel), meze jednání.
+- **Plnění je akce hráče:** odpověď v dialogu se zapíše do každé vsi rodu jako akce v den
+  odpovědi po dopočtu na dnešek (odejde zboží, lidé, muži – jako výprava); simulace sama nic
+  neodvádí, determinismus vsí se nemění. Příjezd je **vnější událost** s herním dnem a id –
+  `deliverShipments` po dopočtu (web i worker), idempotentně podle id zásilky, jako
+  `settleStewardDepartures`.
+- **Roční dialogy** vytváří worker k 1. 11. herního roku idempotentně podle (hráč, pán, rok);
+  po výpadku doběhne podle herního data. Čekající dialog se jen navýší.
+- **Robota a služba:** lidé dočasně v cizí vsi – nová volitelná část stavu (hosté: odkud, do
+  kdy, druh), jídlo z hostitelské vsi; starší vsi se převedou jednou a idempotentně.
+- **Odúmrť** rozšíří konec rodu ([vojvodova rodina](lord.md) – Konec rodu): má-li rod pána, vsi se
+  dál dopočítávají a změní držitele. **NPC rod** je rod bez hráče – osoby ve stavu vsi se značkou
+  rodu, výcvik jako synové vojvody.
 - **Mřížka světa:** `settlement.grid_x` / `grid_y` se stanou souřadnicemi společné mřížky; vývojová
   sídla se do ostrého světa nepřenášejí (premium-landscapes.md).
-- Testy: kód (platnost, rezervace, jednorázovost), pozvaný bez podmínek, nástupnictví až po
-  3 dnech pozvaného a jen jednou, nabídka – přijetí, odmítnutí, protinávrhy, propadnutí,
-  stažení, kruh a meze; změna podmínek (staré platí do přijetí), dávka nad pojistkou
-  a nedoplatek, samočinná pomoc, odchod, propuštění, přetažení cizího vazala, vymření rodu pána
-  i vazala, začít znovu.
+- **Testy:** kód (platnost, rezervace, jednorázovost), pozvaný bez podmínek, nástupnictví až po
+  3 dnech pozvaného a jen jednou; jednání – přijetí, odmítnutí, protinávrhy, stažení, jedno
+  jednání mezi dvěma, pauza, blokování, vzájemné vazalství, víc pánů; výhled s dopravou; roční
+  dialog (míň, víc, čekání, další rok); lidé a robota; svolání a vazalové vazalů; půjčka po
+  vypovězení; smrt vojvody; odúmrť s děleným i celým panstvím; povýšení (1 za rok); správce cizí
+  vsi a jeho pravomoci; začít znovu.
 
 ## Později
 
-- **Válka:** podrobení silou (porážka → vazalství s podmínkami vítěze), obrana vazala, svolání
-  vazalů k nájezdu, zákaz nájezdu na pána a spoluvazaly, vzpoura, NPC vojvoda jako vazal po
-  porážce ([válka](war.md)); podmínky „vojenská služba“ a „ochrana“.
-- **Pověst** – kdo kolikrát odešel, propustil, nezaplatil nebo nepomohl, viditelné ostatním.
-- **Sňatky mezi rody** – nevěsty z rodu pána nebo vazala místo „z okolí“ (lord.md – Manželky).
-- **Dávky v dobytku** a **služby** – povoz, stavba a opravy pánova hradiště (rešerše – Hradská
-  soustava).
-- **Družina** pána živená z dávek (rešerše – Ibrahim ibn Jakub).
-- Prestiž a tituly podle velikosti stromu; hradská soustava.
-- Pohled do scény vazalovy vsi; vůz s dávkou ve scéně; obchod mezi vsemi hráčů.
+- **Pověst** – kdo kolikrát vypověděl, neplnil, neposlechl nebo zablokoval, souhrnně viditelné
+  ostatním (dnes jen kronika).
+- **Sňatky mezi rody** – další verze, samostatná mechanika (Martin).
+- **Velké veřejné stavby** s robotou vazalů – opevnění, hradiště (Martin; [válka](war.md)).
+- **NPC rody s vlastní vůlí** (vypovězení, vzpoura), NPC vsi ve světě jako pánové a vazalové.
+- **Družina** pána živená z dávek (rešerše – Ibrahim ibn Jakub); prestiž a tituly podle stromu;
+  hradská soustava.
+- Mikrokomodity v obchodě mezi hráči; pohled do scény cizí vsi.
 - Návrh světa: rozmístění NPC vsí a kostra řek a stezek ve společné mřížce.
 
 ## Navazuje
 
-- [Seniorát](seniorate.md) – hráčův muž, vlastní ves, nástupnictví bez losu za pozvaného.
+- [Seniorát](seniorate.md) – hráčův muž, víc řízených vsí, nástupnictví bez losu za pozvaného.
+- [Správce vsi](steward.md) – NPC řízení jménem formálního správce.
+- [Vojvodova rodina](lord.md) – rod, výcvik mužů, konec rodu (odúmrť).
 - [Účty](accounts.md) – registrace s pozvánkou.
 - [Prémiové krajiny](premium-landscapes.md) – společná mřížka světa.
-- [Obchod](trade.md) – zboží dávek.
-- [Válka](war.md) – podrobení silou, vzpoura a obrana.
+- [Obchod](trade.md) – doprava, dobytek, výměna lidí.
+- [Válka](war.md) – vojenská služba, ochrana, přinucení, rozsudek.
 
 ## Odpovědi Martina 2. 11. 2026
+
+Záznam rozhodnutí, jak padla (zmínky o „Lese stromů“, zemském míru nebo číslech otázek patří
+k první verzi návrhu); tělo dokumentu výš je podle nich přepsané.
 
 Na otázky první verze návrhu (kníže, přidělení do šířky, desetina přebytku, okno přísahy, činný
 pozvaný vazal):
@@ -543,18 +819,21 @@ pozvaný vazal):
 
 ## Otevřené otázky
 
-1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
-   žádosti z druhé strany nemá hladový nebo ohrožený hráč jak si říct o ochranu – musí čekat, až
-   ho někdo osloví. Doporučení: **ano** – stejné jednání, jen ho otevře budoucí vazal („Přijmi mě
-   za vazala“ s podmínkami, které nabízí); o podmínkách dál rozhoduje pán tím, že je přijme nebo
-   upraví. Možnosti: a) obě strany; b) jen budoucí pán.
-2. **Odchod hned po daru nebo pomoci.** Vazal smí odejít kdykoli, tedy i den po daru při přijetí
-   nebo po pomoci v hladu – „vezmi a uteč“. Doporučení: **bez ceny** – riziko nese pán, dar je
-   jeho rozhodnutí; odchod se jen zapíše do kroniky obou rodů a pověst nebo trest přijdou
-   s válkou. Možnosti: a) bez ceny; b) kdo odejde do 5 herních let po daru nebo pomoci, vrátí
-   je; c) dar při přijetí v první verzi nebude.
-3. **Patří k pánovi i vazalové jeho vazalů?** Návrh: vazal si své vazaly nechá i při změně pána,
-   dávky jdou jen o patro výš – kdo si podrobí kořen stromu, stojí nad celým stromem, ale od
-   jeho vazalů nic nedostává a oni s ním nic nesjednali. Doporučení: **ano, strom se skládá** –
-   cesta na vrchol vede přes podrobení silných pánů, ne každého hráče zvlášť. Možnosti: a) strom
-   se skládá; b) vazalové odcházejícího vazala se stanou nezávislými.
+Otázky první verze (žádost od vazala, odchod po daru, vazalové vazalů) jsou zodpovězené výš.
+Nové, které mění hru:
+
+1. **Komu připadne odúmrť, má-li vymřelý rod víc pánů?** Víc pánů je dovolené a odúmrť patří
+   „tomu nad pánem“ (Martin). Doporučení: **pánovi s nejstarší trvající dohodou** – první přísaha
+   má přednost (historicky „ligický“ pán); ostatní páni přijdou jen o dohodu. Možnosti: a) nejstarší
+   dohoda; b) vsi a vazalové se rozdělí mezi pány po celých vsích, zbytek nejstarší dohodě;
+   c) vymřelý s víc pány se bere jako bez pána – vsi zaniknou, vazalové budou nezávislí.
+2. **Komu je rodokmen veřejný?** Martin: „rodokmeny šlechty jsou prakticky veřejné“. Veřejný všem
+   znamená, že i útočník vidí, kolik mužů rodu cíl má. Doporučení: **všem hráčům – muži rodu od
+   16 let a věk, ne výcvik ani koně**; sílu vojska dál zakrývá mlha války. Možnosti: a) všem;
+   b) jen pánům ve stromu nad rodem; c) všem jen počet mužů, jména a věk jen pánům.
+3. **Řídí NPC ves samo, když hráč není u hry?** Martin: „když hráč není ve své vsi přítomen …,
+   ves je spravovaná NPC“; dnes je to přepínač správce, v první vsi vypnutý (Martin 30. 10. 2026)
+   a mezi pravomocemi správce je „zapnutí NPC“. Doporučení: **přepínač zůstává** – zapnutý = NPC
+   řídí jménem formálního správce, i když je hráč pryč; hráč, který chce stavět sám, ho vypne.
+   Možnosti: a) přepínač beze změny; b) NPC řídí vždy, když hráč není ve hře, přepínač zmizí;
+   c) přepínač zůstane, ale v každé vsi bude výchozí zapnutý.
