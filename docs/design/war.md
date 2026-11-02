@@ -592,6 +592,8 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
   poslední ves rodu postoupit nejde.
 - **Délka míru:** „Ne, tohle řešit nebudeme. Mír je na dobu neurčitou“ – mír nemá lhůtu ani
   podmínku délky.
+- **Horní lišta:** zkřížené oštěpy s počtem válek (v míru zašedlé, klik = panel války); v ochranné
+  lhůtě štít s přesýpacími hodinami a zbývajícími dny – „ok, zkusme to“.
 
 ## Otázky na Martina
 
