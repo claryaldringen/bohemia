@@ -574,6 +574,9 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
   nevede vojsko ani necestuje, dokud zajetí neskončí; poprava = smrt, rozhodne nástupnictví – „ok“.
 - **Ranění:** 60 herních dní nepracují ani necvičí, 1 z 5 do 30 dní zemře; raněný útočník jde
   s vojskem domů a zpomalí ho – „ok“.
+- **Kořist:** jídlo ze zásob (obilí, luštěniny, maso, sýr) kolik unesou – 25 kg na muže, s vozy
+  víc; nehlídaný dobytek a koně mimo palisádu (stádo zpomalí návrat); odvedení lidé; domy, pole
+  a sady se zatím nepálí – „ok“.
 
 ## Otázky na Martina
 
