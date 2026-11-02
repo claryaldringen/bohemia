@@ -581,6 +581,11 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
   raději utéct (včas do lesa nebo za palisádu se zásobami a stády); výchozí „raději utéct“ – „ok“.
 - **Opevnění:** „Typy hrazení bychom asi měli probrat zvlášť, je to dost rozsáhlé téma“ –
   palisáda níž je jen zástupný návrh; opevnění bude samostatný návrh (`fortifications.md`).
+- **Konec války – mírové jednání:** „Tak válka nemusí být jen ohledně vazalství. Pokud chce
+  napadený jednat o míru, mělo by se to zobrazit útočníkovi a měli by si dohodnout podmínky –
+  jednorázový poplatek, vazalství, tribut nebo postoupení vesnic“ – napadený (i útočník) smí
+  nabídnout **mír** stejným jednáním; podmínky: jednorázový poplatek, vazalství, tribut
+  (opakovaná platba bez vazalství), postoupení vsí; nikdo se nestane vazalem automaticky.
 
 ## Otázky na Martina
 
