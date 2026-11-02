@@ -552,6 +552,8 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
   útočí a při 45 % ztrátách, pokud se brání.“ – vojsko jde rozdělit na skupiny s vlastním
   rozkazem; **bod zlomu** (útěk) při ztrátě 30 % v útoku, 45 % v obraně.
 - **Bod zlomu po skupinách:** počítá se za každou skupinu zvlášť – „Za každou skupinu zvlášť“.
+- **Muži rodu a bod zlomu:** utíkají jako ostatní ve skupině; velitel neuteče sám, ustoupí jen na
+  pokyn hráče nebo rozkazu NPC – „Jak navrhuješ“.
 
 ## Otázky na Martina
 
