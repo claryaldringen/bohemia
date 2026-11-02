@@ -525,6 +525,8 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
   ≈ 0,6); muž rodu 1 + 2 × vojenská zkušenost ÷ 100 (1–3) – nejslabší muž rodu je nad nejlepším
   vesničanem lovcem („i vojvoda vycvičený na 10 musí být výš, než lovící vesničan“); kůň
   a výzbroj zvlášť – „ano“.
+- **Kůň:** násobí sílu muže rodu až 1,5× podle jízdy a výcviku koně (zkušenost 60 na dobrém koni
+  ≈ 3,3); vesničané na koních nebojují – „ano“.
 
 ## Otázky na Martina
 
