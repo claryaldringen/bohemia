@@ -521,6 +521,10 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
   nezahrnujeme ani výzbroj a výstroj“ – strop dovedností: výcvik doma 50, lov 70, nad 70 jen
   válka (mění [lord.md](lord.md) – Výcvik, strop dnes 100); síla musí růst s dovedností znatelně;
   výzbroj a výstroj zvlášť.
+- **Síla pěšky – dvě stupnice:** vesničan 0,25 + 0,5 × lovecká zkušenost ÷ 100 (lov nejvýš 70 →
+  ≈ 0,6); muž rodu 1 + 2 × vojenská zkušenost ÷ 100 (1–3) – nejslabší muž rodu je nad nejlepším
+  vesničanem lovcem („i vojvoda vycvičený na 10 musí být výš, než lovící vesničan“); kůň
+  a výzbroj zvlášť – „ano“.
 
 ## Otázky na Martina
 
