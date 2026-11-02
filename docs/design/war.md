@@ -495,6 +495,8 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
   ležení (méně hodin pochodu za den).
 - **Zásoby tažení:** jídlo pro muže (v zimě i seno pro koně) na nosičích, koních nebo vozech; když
   dojde, vojsko se vrátí, nebo si jídlo vezme v napadené vsi jako kořist – „Ano“.
+- **Poslední muž rodu doma:** při nájezdu vždy uteče (rod spícímu hráči nájezd nevyhladí); na
+  tažení padnout smí – „Ok“.
 
 ## Otázky na Martina
 
