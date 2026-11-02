@@ -389,6 +389,10 @@ pozvaný vazal):
   navrhuješ.“; **blokování:** „Hráč, který se cítí být spamován, může spamujícího hráče zablokovat.
   Ten to však uvidí a může to vzít jako urážku“ (Martin 2. 11. 2026).
 
+- **Zablokování:** zablokovaný nesmí blokujícímu posílat nabídky ani vzkazy, dokud ho neodblokuje;
+  rozběhlé jednání skončí; zablokovaný to vidí a v kronice je to urážka – „ano“ (Martin 2. 11.
+  2026).
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
