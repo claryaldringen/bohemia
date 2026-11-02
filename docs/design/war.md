@@ -535,6 +535,9 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
   smí určit **zástupce velitele**; bez něj se výprava při odchodu hráče nebo smrti velitele
   rozpadne a lidé se snaží vrátit domů (mění rozhodnutí 18. 10. „vojsko stojí a po dni se
   vrátí“).
+- **Tempo vojska na cizí mapě:** kompromis jako jednotky v 0 A.D. – svižná chůze ≈ 3–4 m/s ve
+  skutečném čase, 1 km ≈ 4–5 minut ≈ 3 herní dny; poloha vojska je táž ve scéně i v simulaci
+  (výjimka z „Bez časosběru“ – vojáci jdou rychleji než lidé ve vsi) – „Ten kompromis zní dobře“.
 
 ## Otázky na Martina
 
