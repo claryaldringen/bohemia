@@ -551,6 +551,7 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
   že bude hlídat nějaké místo. K útěku (bod zlomu) by mělo dojít při 30 % ztrátách pokud hráč
   útočí a při 45 % ztrátách, pokud se brání.“ – vojsko jde rozdělit na skupiny s vlastním
   rozkazem; **bod zlomu** (útěk) při ztrátě 30 % v útoku, 45 % v obraně.
+- **Bod zlomu po skupinách:** počítá se za každou skupinu zvlášť – „Za každou skupinu zvlášť“.
 
 ## Otázky na Martina
 
