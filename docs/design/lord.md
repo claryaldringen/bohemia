@@ -780,7 +780,8 @@ autopilot (fáze 3). Co níž není výslovně Martinovo, je návrh Clauda.
   vsi (už dnes).
 - **Ves bez muže rodu** (vojvoda nové vsi zemře a jiný muž rodu v ní není) žije dál bez vojvody
   – lidé pracují, nikdo necvičí. Nástupce z jiné vsi hráče řeší fáze 4 (seniorát); u mateřské
-  vsi stejně.
+  vsi stejně. Martin 2. 11. 2026: „Poslat muže rodu“ – rod do ní pošle muže rodu z jiné vsi
+  ([seniorát](seniorate.md) – Ves bez muže rodu).
 - **Nová ves stojí vždy na nové mapě** – syn odchází jen na novou mapu ve zvoleném směru (Martin
   1. 11. 2026: „Vsi na téže mapě – zrušme vsi na téže mapě. Jedna ves, jedna mapa“); dřívější
      „Odejít sem“ (nová ves na téže mapě) je zrušené, server takový cíl odmítne.
@@ -795,11 +796,15 @@ autopilot (fáze 3). Co níž není výslovně Martinovo, je návrh Clauda.
   poměrnou částí vsi, kterou spravuje na místě, nebo s ní odejde; zbytek vsi spravuje NPC.
   Martin 24. 10. 2026: „S tímhle počkáme, dokud nebude fungovat NPC mechanika“ – fáze 3. Díl
   počítá stejně jako tady (Poměrná část vsi), fáze 3 ho jen použije.
-- **Otevřená otázka na později (1. 11. 2026):** zadání issue „mladší syn může svou poměrnou část
-  vsi **spravovat na místě**“ bude s pravidlem **jedna ves, jedna mapa** (Martin 1. 11. 2026:
-  „Jedna ves, jedna mapa“) potřebovat jiné řešení – díl na místě by byl druhou vsí na téže mapě.
-  Návrh Clauda: syn svůj díl převezme jen odchodem na novou mapu (spravovat na místě nejde);
-  rozhodne se s fází 3 (NPC). Návrh ke schválení: [seniorát](seniorate.md) – otázka 3.
+- ~~**Otevřená otázka na později (1. 11. 2026):**~~ zadání issue „mladší syn může svou poměrnou
+  část vsi **spravovat na místě**“ s pravidlem **jedna ves, jedna mapa** (Martin 1. 11. 2026:
+  „Jedna ves, jedna mapa“) – díl na místě by byl druhou vsí na téže mapě. Rozhodnuto
+  (Martin 2. 11. 2026: „Jen odchod na mapu“) – syn svůj díl převezme jen odchodem na novou mapu
+  ([seniorát](seniorate.md) – Nástupnictví hráče).
+- **Upřesněno 2. 11. 2026** ([seniorát](seniorate.md)): „s pozvaným hráčem“ = **jedno
+  nástupnictví bez losu za každého pozvaného hráče**, který začal hrát (Martin: „Jedno
+  nástupnictví za pozvaného“); v losu má nástupce **polovinu**, zbytek mladší synové od 16 let
+  rovným dílem (Martin: „Nástupce polovinu“).
 
 ### Odchod bez syna
 
@@ -854,19 +859,24 @@ autopilot (fáze 3). Co níž není výslovně Martinovo, je návrh Clauda.
   odchází z dvorce, nová ves má vojvodu a jeho synové cvičí až od ≥ 4 dospělých mimo rodinu,
   výsledek nezávisí na kouscích dopočtu.
 
-## Seniorát a rodové panství (#9, fáze 4) – návrh ke schválení
+## Seniorát a rodové panství (#9, fáze 4) – schváleno odpověďmi 2. 11. 2026
 
-Stav: **návrh ke schválení** (2. 11. 2026). Celý návrh je v samostatném dokumentu
-[seniorát](seniorate.md), výhodu pozvaného hráče řeší [vazalství](vassalage.md). Nástupnictví ve
-vsi (fáze 1) a poměrná část vsi (fáze 2) se nemění. Ve zkratce (návrh Clauda):
+Stav: **schváleno odpověďmi Martina 2. 11. 2026 – zbývá potvrdit celek**. Celý návrh je
+v samostatném dokumentu [seniorát](seniorate.md), pozvánky a pozvaného hráče řeší
+[vazalství](vassalage.md). Nástupnictví ve vsi (fáze 1) a poměrná část vsi (fáze 2) se nemění.
+Ve zkratce:
 
 - Hráč hraje za **jednoho muže rodu** – vojvodu své **vlastní vsi**; ostatní vsi rodu vedou NPC
-  vojvodové se zapnutým správcem.
+  vojvodové se zapnutým správcem (návrh Clauda).
 - **Senior** = nejstarší žijící muž rodu ve všech vsích; je-li to hráčův muž, hráč smí v každé
-  vsi rodu stavět, vylepšovat a vystěhovat ji (zadání issue).
-- Po smrti hráčova muže: s pozvaným hráčem hraje dál za nástupce, bez něj **los mezi syny od 16
-  let** – mladší syn odchází se svou poměrnou částí vsi na novou mapu, mateřskou ves vede NPC.
-- Ves bez muže rodu dostane vojvodu z jiné vsi rodu.
+  vsi rodu stavět, vylepšovat a vystěhovat ji (zadání issue). Kdo seniorem není, ostatní vsi
+  rodu jen vidí (Martin 2. 11. 2026: „Jen se dívat“).
+- Po smrti hráčova muže: za každého pozvaného hráče **jedno nástupnictví bez losu** – hráč hraje
+  dál za nástupce (Martin 2. 11. 2026: „Jedno nástupnictví za pozvaného“); jinak **los mezi syny
+  od 16 let**, nástupce má polovinu (Martin 2. 11. 2026: „Nástupce polovinu“) – mladší syn
+  odchází se svou poměrnou částí vsi na novou mapu, mateřskou ves vede NPC (Martin 2. 11. 2026:
+  „Jen odchod na mapu“).
+- Ves bez muže rodu dostane vojvodu z jiné vsi rodu (Martin 2. 11. 2026: „Poslat muže rodu“).
 
 ## Pro implementaci (poznámky, ne kód)
 
@@ -885,8 +895,9 @@ vsi (fáze 1) a poměrná část vsi (fáze 2) se nemění. Ve zkratce (návrh C
 - Vazalství a nástupnictví ([vize](vision.md)) – vycvičený dědic jako hodnota rodu.
 - [Správce vsi](steward.md) – autopilot vsí rodu (#9, fáze 3): stavby, pole, odchod syna
   a jména synů ve vsích se zapnutým správcem.
-- [Seniorát](seniorate.md) – rodové panství (#9, fáze 4, návrh ke schválení) a
-  [vazalství](vassalage.md) – pozvánky, pán a vazal (návrh ke schválení).
+- [Seniorát](seniorate.md) – rodové panství (#9, fáze 4, schváleno odpověďmi 2. 11. 2026 –
+  zbývá potvrdit celek) a [vazalství](vassalage.md) – pozvánky, nabídka vazalství a jednání
+  (návrh ke schválení, přepracováno podle odpovědí 2. 11. 2026).
 
 ## Otevřené otázky
 
@@ -911,81 +922,83 @@ dílu – 1 ÷ (vojvoda + synové od 16 let ve vsi), lidé z obydlí nejblíž d
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                                                                                                  | Kdo                    |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
-| Vojvoda a synové nepracují na poli, cvičí lukostřelbu, boj a jízdu; na pole jen při hladu                                                                                   | Martin (22. 10. 2026)  |
-| Terče na lukostřelbu na dvorku dvorce                                                                                                                                       | Martin (22. 10. 2026)  |
-| Vojvodova žena a dcery jen domácnost, na pole jen při hrozícím hladu                                                                                                        | Martin (23. 10. 2026)  |
-| Jízda jen s koněm                                                                                                                                                           | Martin (22. 10. 2026)  |
-| Rodina = domácnost dvorce; cvičí potomci po meči, snachy jen domácnost, zeť pracuje                                                                                         | návrh Clauda           |
-| Výcvik od 7 let (luk), od 10 boj a jízda; 2 / 4 / 6 h denně, od 45 let 3 h; synové nepasou                                                                                  | návrh Clauda           |
-| Dva bloky denně, luk hlavní, cvičné zbraně ze dřeva a proutí – bez zbraní jako surovin                                                                                      | návrh Clauda (rešerše) |
-| Na pole: chybí práce na potřebný osev (jen podíl dne), nebo nevychází výhled jídla; návrat po 30 dnech                                                                      | návrh Clauda           |
-| Dovednosti luk / boj / jízda 0–100 u člověka; 29 % zbytku za rok při 2 h; stropy 40 / 100 / −3 ročně                                                                        | návrh Clauda           |
-| Bez výcviku −5 % ročně, nejníž polovina nejvyšší dosažené                                                                                                                   | návrh Clauda           |
-| 2 slaměné terče, střelnice 20 m, cvičný kůl, stojan, kůl na koně; bez ceny; bez dvorce 1 terč u zemnice                                                                     | návrh Clauda           |
-| Síla v boji 1 × (1 + boj / 100) – jen návrh pro válku                                                                                                                       | návrh Clauda           |
-| Cvičí jen domácnost dvorce (kdo se oddělí, pracuje jako ostatní)                                                                                                            | Martin (23. 10. 2026)  |
-| Rodina cvičí, až má ves aspoň 4 dospělé mimo rodinu; do té doby pracuje                                                                                                     | Martin (24. 10. 2026)  |
-| Zpět k práci až pod 3 dospělé mimo rodinu (hystereze)                                                                                                                       | návrh Clauda           |
-| ~~Zeť jako vojvoda: řešit později~~ – zeť vojvodou není, bez muže rodu hra končí                                                                                            | Martin (24. 10. 2026)  |
-| Ztráta ≈ 25–30 % práce vsi je v pořádku                                                                                                                                     | Martin (23. 10. 2026)  |
-| Issue #9 ve fázích: 1) jména, odchod synů, vojvoda cvičí celý život → 2) dělení vsi → 3) NPC → 4) seniorát                                                                  | Martin (24. 10. 2026)  |
-| Nástupnictví a náhoda „bez pozvánky“ až s mechanikou NPC                                                                                                                    | Martin (24. 10. 2026)  |
-| Jméno vojvody vybírá hráč při založení hry, jména synů hráč, jména vnuků se generují                                                                                        | Martin (24. 10. 2026)  |
-| Jméno je vlastní text bez kontroly, jen písmena                                                                                                                             | Martin (24. 10. 2026)  |
-| Jména mají legitimní mužští potomci vojvody                                                                                                                                 | Martin (24. 10. 2026)  |
-| Narození syna: upozornění, čeká se na hráče, do té doby syn bez jména                                                                                                       | Martin (24. 10. 2026)  |
-| Po sňatku odcházejí z dvorce všichni synové včetně nejstaršího; bez obydlí cvičí, dokud neodejde                                                                            | Martin (24. 10. 2026)  |
-| Vojvoda cvičí celý život (na rozdíl od synů), hlad a stáří jako dosud                                                                                                       | Martin (24. 10. 2026)  |
-| ~~Rod po meči; legitimní jsou děti manželek, děti konkubín jsou běžní obyvatelé~~ – rod po meči, konkubíny zrušeny – nahrazeno revizí 24. 10. 2026 (níž)                    | Martin (24. 10. 2026)  |
-| Příznak rodu u člověka od narození                                                                                                                                          | návrh Clauda           |
-| Jméno: NFC, oříznuté okraje, 1–20 písmen Unicode, bez mezer; ověřuje server; neskloňuje se; trvalé (Martin bez odpovědi)                                                    | návrh Clauda           |
-| Panel jména (portrét, pole, kostka, potvrdit) před první zemnicí; Začít znovu ho předvyplní                                                                                 | návrh Clauda           |
-| Upozornění „Syn vojvody čeká na jméno“ nemizí, počet, od nejstaršího; svět běží dál                                                                                         | návrh Clauda           |
-| Vnuci: jméno při narození ze seznamu ≈ 60 slovanských jmen, ze seedu vsi a dne, ne jméno žijícího                                                                           | návrh Clauda           |
-| Jméno v panelu a popisku člověka, v panelu dvorce, v upozorněních a kronice; ostatní bez jmen                                                                               | návrh Clauda           |
-| Ženatý syn vojvody má přednost při osídlení (Martin bez odpovědi), po něm ~~konkubíny z dvorce~~ vedlejší manželky z přeplněného dvorce; svobodní synové sami neodcházejí   | návrh Clauda           |
-| ~~Po smrti vojvody se do dvorce vrací nejstarší syn, bez něj vnuk po meči~~ – nástupce upřesněn revizí 24. 10. 2026 (níž)                                                   | Martin (24. 10. 2026)  |
-| Bez syna i vnuka nejstarší muž rodu ve vsi; vojvodou je i chlapec                                                                                                           | návrh Clauda           |
-| Převod: vojvoda a synové čekají na jméno od hráče, ostatní muži rodu generovaná, bez stěhování                                                                              | návrh Clauda           |
-| Převod: ~~manželky a konkubíny~~ vedlejší manželky se zpětně nedoplňují; rod i v dvorci bez muže od 14 let; převod hru neukončí                                             | návrh Clauda           |
-| ~~Ves zakládá vojvoda se 4 manželkami a 4 konkubínami~~ – nahrazeno revizí 24. 10. 2026 (níž)                                                                               | Martin (24. 10. 2026)  |
-| Víc manželek ~~a konkubíny~~ smějí mít všichni muži rodu – konkubíny nahrazeno revizí 24. 10. 2026 (níž)                                                                    | Martin (24. 10. 2026)  |
-| ~~Konkubíny bydlí ve vlastních obydlích se svými dětmi~~ – nahrazeno revizí 24. 10. 2026 (níž)                                                                              | Martin (24. 10. 2026)  |
-| ~~Manželky vedou domácnost, konkubíny pracují~~ – nahrazeno revizí 24. 10. 2026 (níž)                                                                                       | Martin (24. 10. 2026)  |
-| Vymře-li rod po meči, hra končí; Začít znovu, ves zanikne                                                                                                                   | Martin (24. 10. 2026)  |
-| ~~Zakladatelé: vojvoda 25, manželky 23–17, konkubíny 22–16 let, bez dětí; konkubíny v dvorci do postavení obydlí; rodina cvičí hned~~ – nahrazeno revizí 24. 10. 2026 (níž) | návrh Clauda           |
-| ~~Nejvýš 4 manželky a 4 konkubíny; další manželky a konkubíny jen z okolí ≈ 30 % ročně; konkubína jen do prázdného obydlí~~ – nahrazeno revizí 24. 10. 2026 (níž)           | návrh Clauda           |
-| ~~Plodnost a rozestup na ženu; rodí i konkubína žijícího muže; po jeho smrti je svobodná~~ – nahrazeno revizí 24. 10. 2026 (níž)                                            | návrh Clauda           |
-| Konec hry smrtí posledního muže rodu (i dítěte); vsi se přestanou dopočítávat, „Ves opuštěna“, obrazovka „Rod vymřel“ s kronikou rodu                                       | návrh Clauda           |
-| Revize: konkubíny zrušeny; vojvoda bydlí v dvorci s hlavní manželkou a jejími dětmi, vedlejší manželky s dětmi ve vlastních domech, vojvoda je navštěvuje                   | Martin (24. 10. 2026)  |
-| Vedlejší manželky odcházejí do vlastních obydlí, až když je dvorec přeplněný                                                                                                | Martin (24. 10. 2026)  |
-| Cvičí všichni synové vojvody v dvorci bez ohledu na matku; kdo s matkou odejde, pracuje; k rodu patří a jméno mu dá hráč                                                    | Martin (24. 10. 2026)  |
-| Opravy dvorce a domů vojvodových manželek dělají ostatní muži vsi                                                                                                           | Martin (24. 10. 2026)  |
-| Vedlejší manželky vedou domácnost (na pole jen při hladu); manželky synů mimo dvorec pracují                                                                                | Martin (24. 10. 2026)  |
-| Nástupcem je nejstarší syn hlavní manželky                                                                                                                                  | Martin (24. 10. 2026)  |
-| Bez syna hlavní manželky nastoupí syn vedlejší manželky (nejstarší žijící syn vojvody od ní; až bez něj vnuk po meči)                                                       | Martin (24. 10. 2026)  |
-| Zemře-li hlavní manželka, novou hlavní je matka nejstaršího syna (dědice); přestěhuje se do dvorce, pokud v něm nebydlí                                                     | Martin (24. 10. 2026)  |
-| Z přeplněného dvorce odchází vedlejší manželka s nejstarším synem, který by se mohl starat už o dům                                                                         | Martin (24. 10. 2026)  |
-| Začátek bez lidí mimo rodinu: rodina zpočátku pracuje, pravidlo ≥ 4 dospělí mimo rodinu beze změny                                                                          | Martin (24. 10. 2026)  |
-| První generaci stačí partneři z okolí                                                                                                                                       | Martin (24. 10. 2026)  |
-| Zakladatelé: vojvoda 25, hlavní manželka 22, vedlejší 20, 18 a 16 let, bez dětí; všech 5 v první zemnici; rodina zpočátku pracuje                                           | návrh Clauda           |
-| Zakladatelé první vsi nesou jídlo na 3 roky a osivo na 2 roky potřeby (osivo jen na setí, 15 let se neuvolní) – Martin 2. 11. 2026                                          | Martin / návrh Clauda  |
-| Nejvýš 4 žijící manželky, hlavní je první; další jen z okolí ≈ 30 % ročně – vždy do domu muže, i přeplněného                                                                | Martin (24. 10. 2026)  |
-| Přednost při osídlení: ženatý syn vojvody → vedlejší manželka z přeplněného domu muže rodu → ostatní                                                                        | návrh Clauda           |
-| Porody na ženu, žena nemusí bydlet s mužem; návštěvy vojvody jen ve scéně                                                                                                   | návrh Clauda           |
-| K rodině patří i vojvodovy vedlejší manželky mimo dvorec, jejich děti tam pracují; samotné děti jdou k otci                                                                 | návrh Clauda           |
-| Opravy domů rodiny ze společné práce vsi jako dosud (model práci mužů a žen nedělí)                                                                                         | návrh Clauda           |
-| Převod: dnešní žena muže rodu je hlavní manželka; Vlkov beze změny                                                                                                          | návrh Clauda           |
-| Převod: příznak „syn hlavní manželky“ mají všichni muži rodu kromě vojvody (ves měla jednu ženu na muže), jako při narození                                                 | návrh Clauda           |
-| Rod se sousedovi nedává – výměna lidí nevybere muže rodu ani manželku muže rodu                                                                                             | návrh Clauda           |
-| Z přeplněného domu odchází vedlejší manželka s nejstarším synem (bez syna až po nich, při shodě nejdéle vdaná), jen kolik je třeba                                          | Martin / návrh Clauda  |
-| Přelidnění řeší odchod části vsi se synem vojvody do nové vsi – rozhodnutí hráče, u NPC vsí autopilot; ves se v simulaci nebrzdí (žádná brzda sňatků)                       | Martin (30. 10. 2026)  |
-| Fáze 2: mladší syn odchází s poměrnou částí vsi, nástupcem je nejstarší syn (zadání issue #9)                                                                               | Martin (24. 10. 2026)  |
-| Fáze 2: díl = 1 ÷ (vojvoda + synové od 16 let ve vsi), lidé z obydlí nejblíž domu syna                                                                                      | Martin (30. 10. 2026)  |
-| Fáze 2: syn vede od 16 let a se jménem; s ním jeho jezdecký kůň                                                                                                             | návrh Clauda           |
-| Odchod vybraných obydlí zůstává vedle odchodu syna – „spíš stěhování sídla v rámci mapy“                                                                                    | Martin (30. 10. 2026)  |
+| Rozhodnutí                                                                                                                                                                                           | Kdo                    |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| Vojvoda a synové nepracují na poli, cvičí lukostřelbu, boj a jízdu; na pole jen při hladu                                                                                                            | Martin (22. 10. 2026)  |
+| Terče na lukostřelbu na dvorku dvorce                                                                                                                                                                | Martin (22. 10. 2026)  |
+| Vojvodova žena a dcery jen domácnost, na pole jen při hrozícím hladu                                                                                                                                 | Martin (23. 10. 2026)  |
+| Jízda jen s koněm                                                                                                                                                                                    | Martin (22. 10. 2026)  |
+| Rodina = domácnost dvorce; cvičí potomci po meči, snachy jen domácnost, zeť pracuje                                                                                                                  | návrh Clauda           |
+| Výcvik od 7 let (luk), od 10 boj a jízda; 2 / 4 / 6 h denně, od 45 let 3 h; synové nepasou                                                                                                           | návrh Clauda           |
+| Dva bloky denně, luk hlavní, cvičné zbraně ze dřeva a proutí – bez zbraní jako surovin                                                                                                               | návrh Clauda (rešerše) |
+| Na pole: chybí práce na potřebný osev (jen podíl dne), nebo nevychází výhled jídla; návrat po 30 dnech                                                                                               | návrh Clauda           |
+| Dovednosti luk / boj / jízda 0–100 u člověka; 29 % zbytku za rok při 2 h; stropy 40 / 100 / −3 ročně                                                                                                 | návrh Clauda           |
+| Bez výcviku −5 % ročně, nejníž polovina nejvyšší dosažené                                                                                                                                            | návrh Clauda           |
+| 2 slaměné terče, střelnice 20 m, cvičný kůl, stojan, kůl na koně; bez ceny; bez dvorce 1 terč u zemnice                                                                                              | návrh Clauda           |
+| Síla v boji 1 × (1 + boj / 100) – jen návrh pro válku                                                                                                                                                | návrh Clauda           |
+| Cvičí jen domácnost dvorce (kdo se oddělí, pracuje jako ostatní)                                                                                                                                     | Martin (23. 10. 2026)  |
+| Rodina cvičí, až má ves aspoň 4 dospělé mimo rodinu; do té doby pracuje                                                                                                                              | Martin (24. 10. 2026)  |
+| Zpět k práci až pod 3 dospělé mimo rodinu (hystereze)                                                                                                                                                | návrh Clauda           |
+| ~~Zeť jako vojvoda: řešit později~~ – zeť vojvodou není, bez muže rodu hra končí                                                                                                                     | Martin (24. 10. 2026)  |
+| Ztráta ≈ 25–30 % práce vsi je v pořádku                                                                                                                                                              | Martin (23. 10. 2026)  |
+| Issue #9 ve fázích: 1) jména, odchod synů, vojvoda cvičí celý život → 2) dělení vsi → 3) NPC → 4) seniorát                                                                                           | Martin (24. 10. 2026)  |
+| Nástupnictví a náhoda „bez pozvánky“ až s mechanikou NPC                                                                                                                                             | Martin (24. 10. 2026)  |
+| Jméno vojvody vybírá hráč při založení hry, jména synů hráč, jména vnuků se generují                                                                                                                 | Martin (24. 10. 2026)  |
+| Jméno je vlastní text bez kontroly, jen písmena                                                                                                                                                      | Martin (24. 10. 2026)  |
+| Jména mají legitimní mužští potomci vojvody                                                                                                                                                          | Martin (24. 10. 2026)  |
+| Narození syna: upozornění, čeká se na hráče, do té doby syn bez jména                                                                                                                                | Martin (24. 10. 2026)  |
+| Po sňatku odcházejí z dvorce všichni synové včetně nejstaršího; bez obydlí cvičí, dokud neodejde                                                                                                     | Martin (24. 10. 2026)  |
+| Vojvoda cvičí celý život (na rozdíl od synů), hlad a stáří jako dosud                                                                                                                                | Martin (24. 10. 2026)  |
+| ~~Rod po meči; legitimní jsou děti manželek, děti konkubín jsou běžní obyvatelé~~ – rod po meči, konkubíny zrušeny – nahrazeno revizí 24. 10. 2026 (níž)                                             | Martin (24. 10. 2026)  |
+| Příznak rodu u člověka od narození                                                                                                                                                                   | návrh Clauda           |
+| Jméno: NFC, oříznuté okraje, 1–20 písmen Unicode, bez mezer; ověřuje server; neskloňuje se; trvalé (Martin bez odpovědi)                                                                             | návrh Clauda           |
+| Panel jména (portrét, pole, kostka, potvrdit) před první zemnicí; Začít znovu ho předvyplní                                                                                                          | návrh Clauda           |
+| Upozornění „Syn vojvody čeká na jméno“ nemizí, počet, od nejstaršího; svět běží dál                                                                                                                  | návrh Clauda           |
+| Vnuci: jméno při narození ze seznamu ≈ 60 slovanských jmen, ze seedu vsi a dne, ne jméno žijícího                                                                                                    | návrh Clauda           |
+| Jméno v panelu a popisku člověka, v panelu dvorce, v upozorněních a kronice; ostatní bez jmen                                                                                                        | návrh Clauda           |
+| Ženatý syn vojvody má přednost při osídlení (Martin bez odpovědi), po něm ~~konkubíny z dvorce~~ vedlejší manželky z přeplněného dvorce; svobodní synové sami neodcházejí                            | návrh Clauda           |
+| ~~Po smrti vojvody se do dvorce vrací nejstarší syn, bez něj vnuk po meči~~ – nástupce upřesněn revizí 24. 10. 2026 (níž)                                                                            | Martin (24. 10. 2026)  |
+| Bez syna i vnuka nejstarší muž rodu ve vsi; vojvodou je i chlapec                                                                                                                                    | návrh Clauda           |
+| Převod: vojvoda a synové čekají na jméno od hráče, ostatní muži rodu generovaná, bez stěhování                                                                                                       | návrh Clauda           |
+| Převod: ~~manželky a konkubíny~~ vedlejší manželky se zpětně nedoplňují; rod i v dvorci bez muže od 14 let; převod hru neukončí                                                                      | návrh Clauda           |
+| ~~Ves zakládá vojvoda se 4 manželkami a 4 konkubínami~~ – nahrazeno revizí 24. 10. 2026 (níž)                                                                                                        | Martin (24. 10. 2026)  |
+| Víc manželek ~~a konkubíny~~ smějí mít všichni muži rodu – konkubíny nahrazeno revizí 24. 10. 2026 (níž)                                                                                             | Martin (24. 10. 2026)  |
+| ~~Konkubíny bydlí ve vlastních obydlích se svými dětmi~~ – nahrazeno revizí 24. 10. 2026 (níž)                                                                                                       | Martin (24. 10. 2026)  |
+| ~~Manželky vedou domácnost, konkubíny pracují~~ – nahrazeno revizí 24. 10. 2026 (níž)                                                                                                                | Martin (24. 10. 2026)  |
+| Vymře-li rod po meči, hra končí; Začít znovu, ves zanikne                                                                                                                                            | Martin (24. 10. 2026)  |
+| ~~Zakladatelé: vojvoda 25, manželky 23–17, konkubíny 22–16 let, bez dětí; konkubíny v dvorci do postavení obydlí; rodina cvičí hned~~ – nahrazeno revizí 24. 10. 2026 (níž)                          | návrh Clauda           |
+| ~~Nejvýš 4 manželky a 4 konkubíny; další manželky a konkubíny jen z okolí ≈ 30 % ročně; konkubína jen do prázdného obydlí~~ – nahrazeno revizí 24. 10. 2026 (níž)                                    | návrh Clauda           |
+| ~~Plodnost a rozestup na ženu; rodí i konkubína žijícího muže; po jeho smrti je svobodná~~ – nahrazeno revizí 24. 10. 2026 (níž)                                                                     | návrh Clauda           |
+| Konec hry smrtí posledního muže rodu (i dítěte); vsi se přestanou dopočítávat, „Ves opuštěna“, obrazovka „Rod vymřel“ s kronikou rodu                                                                | návrh Clauda           |
+| Revize: konkubíny zrušeny; vojvoda bydlí v dvorci s hlavní manželkou a jejími dětmi, vedlejší manželky s dětmi ve vlastních domech, vojvoda je navštěvuje                                            | Martin (24. 10. 2026)  |
+| Vedlejší manželky odcházejí do vlastních obydlí, až když je dvorec přeplněný                                                                                                                         | Martin (24. 10. 2026)  |
+| Cvičí všichni synové vojvody v dvorci bez ohledu na matku; kdo s matkou odejde, pracuje; k rodu patří a jméno mu dá hráč                                                                             | Martin (24. 10. 2026)  |
+| Opravy dvorce a domů vojvodových manželek dělají ostatní muži vsi                                                                                                                                    | Martin (24. 10. 2026)  |
+| Vedlejší manželky vedou domácnost (na pole jen při hladu); manželky synů mimo dvorec pracují                                                                                                         | Martin (24. 10. 2026)  |
+| Nástupcem je nejstarší syn hlavní manželky                                                                                                                                                           | Martin (24. 10. 2026)  |
+| Bez syna hlavní manželky nastoupí syn vedlejší manželky (nejstarší žijící syn vojvody od ní; až bez něj vnuk po meči)                                                                                | Martin (24. 10. 2026)  |
+| Zemře-li hlavní manželka, novou hlavní je matka nejstaršího syna (dědice); přestěhuje se do dvorce, pokud v něm nebydlí                                                                              | Martin (24. 10. 2026)  |
+| Z přeplněného dvorce odchází vedlejší manželka s nejstarším synem, který by se mohl starat už o dům                                                                                                  | Martin (24. 10. 2026)  |
+| Začátek bez lidí mimo rodinu: rodina zpočátku pracuje, pravidlo ≥ 4 dospělí mimo rodinu beze změny                                                                                                   | Martin (24. 10. 2026)  |
+| První generaci stačí partneři z okolí                                                                                                                                                                | Martin (24. 10. 2026)  |
+| Zakladatelé: vojvoda 25, hlavní manželka 22, vedlejší 20, 18 a 16 let, bez dětí; všech 5 v první zemnici; rodina zpočátku pracuje                                                                    | návrh Clauda           |
+| Zakladatelé první vsi nesou jídlo na 3 roky a osivo na 2 roky potřeby (osivo jen na setí, 15 let se neuvolní) – Martin 2. 11. 2026                                                                   | Martin / návrh Clauda  |
+| Nejvýš 4 žijící manželky, hlavní je první; další jen z okolí ≈ 30 % ročně – vždy do domu muže, i přeplněného                                                                                         | Martin (24. 10. 2026)  |
+| Přednost při osídlení: ženatý syn vojvody → vedlejší manželka z přeplněného domu muže rodu → ostatní                                                                                                 | návrh Clauda           |
+| Porody na ženu, žena nemusí bydlet s mužem; návštěvy vojvody jen ve scéně                                                                                                                            | návrh Clauda           |
+| K rodině patří i vojvodovy vedlejší manželky mimo dvorec, jejich děti tam pracují; samotné děti jdou k otci                                                                                          | návrh Clauda           |
+| Opravy domů rodiny ze společné práce vsi jako dosud (model práci mužů a žen nedělí)                                                                                                                  | návrh Clauda           |
+| Převod: dnešní žena muže rodu je hlavní manželka; Vlkov beze změny                                                                                                                                   | návrh Clauda           |
+| Převod: příznak „syn hlavní manželky“ mají všichni muži rodu kromě vojvody (ves měla jednu ženu na muže), jako při narození                                                                          | návrh Clauda           |
+| Rod se sousedovi nedává – výměna lidí nevybere muže rodu ani manželku muže rodu                                                                                                                      | návrh Clauda           |
+| Z přeplněného domu odchází vedlejší manželka s nejstarším synem (bez syna až po nich, při shodě nejdéle vdaná), jen kolik je třeba                                                                   | Martin / návrh Clauda  |
+| Přelidnění řeší odchod části vsi se synem vojvody do nové vsi – rozhodnutí hráče, u NPC vsí autopilot; ves se v simulaci nebrzdí (žádná brzda sňatků)                                                | Martin (30. 10. 2026)  |
+| Fáze 2: mladší syn odchází s poměrnou částí vsi, nástupcem je nejstarší syn (zadání issue #9)                                                                                                        | Martin (24. 10. 2026)  |
+| Fáze 2: díl = 1 ÷ (vojvoda + synové od 16 let ve vsi), lidé z obydlí nejblíž domu syna                                                                                                               | Martin (30. 10. 2026)  |
+| Fáze 2: syn vede od 16 let a se jménem; s ním jeho jezdecký kůň                                                                                                                                      | návrh Clauda           |
+| Odchod vybraných obydlí zůstává vedle odchodu syna – „spíš stěhování sídla v rámci mapy“                                                                                                             | Martin (30. 10. 2026)  |
+| Fáze 4: ne-senior ostatní vsi rodu jen vidí; los nástupce ½, zbytek mladší synové od 16 let; mladší syn z losu jen odchod na mapu; do vsi bez muže rodu se pošle muž rodu ([seniorát](seniorate.md)) | Martin (2. 11. 2026)   |
+| Fáze 4: za každého pozvaného hráče, který začal hrát, jedno nástupnictví bez losu ([seniorát](seniorate.md), [vazalství](vassalage.md))                                                              | Martin (2. 11. 2026)   |
 
 ## Odpovědi Martina (23. 10. 2026)
 

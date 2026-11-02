@@ -1,6 +1,8 @@
 # Seniorát a rodové panství (#9, fáze 4)
 
-Stav: **návrh ke schválení** (2. 11. 2026). Implementace zatím není. Navazuje na
+Stav: **schváleno odpověďmi Martina 2. 11. 2026 – zbývá potvrdit celek** (odpovědi citované
+v oddílu [Odpovědi Martina 2. 11. 2026](#odpovědi-martina-2-11-2026)). Implementace zatím není.
+Navazuje na
 [vojvodovu rodinu](lord.md) – Rod vojvody (fáze 1: rod po meči, nástupnictví), Dělení vsi
 (fáze 2: odchod mladšího syna s poměrnou částí vsi) – a na [správce vsi](steward.md) (fáze 3: NPC
 autopilot). Pozvaného hráče popisuje [vazalství](vassalage.md). Historické opory:
@@ -45,8 +47,9 @@ mechanika.“ – správce (fáze 3) už funguje. Martin 30. 10. 2026: „Tohle 
   nástupce, nebo losem za mladšího syna (Martin – zadání).
 - **Cíl:** **seniorát** – nejstarší muž rodu vládne celému rodovému panství; je-li to hráčův muž,
   hráč rozhoduje ve všech vsích rodu (Martin – zadání).
-- **Cíl:** pozvat hráče se vyplatí – hráč s pozvaným hráčem o svou ves losem nepřijde (Martin –
-  zadání; vize: „Pozvat hráče se vyplácí“).
+- **Cíl:** pozvat hráče se vyplatí – za každého pozvaného hráče jedno nástupnictví, ve kterém
+  hráč o svou ves losem nepřijde (Martin – zadání a 2. 11. 2026; vize: „Pozvat hráče se
+  vyplácí“).
 - **Cíl:** ves bez muže rodu dostane vojvodu z jiné vsi rodu (lord.md – Nová ves: „Nástupce
   z jiné vsi hráče řeší fáze 4“).
 - **Ne-cíl (první verze):** spory o seniorát, úděly s vlastními pravidly, NPC senior, který sám
@@ -87,8 +90,8 @@ mechanika.“ – správce (fáze 3) už funguje. Martin 30. 10. 2026: „Tohle 
 - **Co senior v cizí vsi rodu nesmí** (návrh Clauda): vypnout správce, pojmenovat syna, poslat
   syna pryč – to je věc NPC vojvody vsi a jeho správce.
 - **Hráč, který není seniorem**, smí rozhodovat jen ve vlastní vsi; ostatní vsi rodu vidí (seznam
-  vsí, scéna), ale stavět v nich nesmí (otázka 1). NPC senior v první verzi nic navíc nedělá – vsi
-  vedou jejich správci.
+  vsí, scéna), ale stavět v nich nesmí (Martin 2. 11. 2026: „Jen se dívat“). NPC senior v první
+  verzi nic navíc nedělá – vsi vedou jejich správci.
 - **Kronika:** „Seniorem rodu je Bořivoj“ ve všech vsích rodu, kdykoli se senior změní.
 
 ## Nástupnictví hráče – po smrti hráčova muže (Martin – zadání; podrobnosti návrh Clauda)
@@ -96,20 +99,30 @@ mechanika.“ – správce (fáze 3) už funguje. Martin 30. 10. 2026: „Tohle 
 Ves sama dědí jako dosud – nástupcem je nejstarší syn hlavní manželky (fáze 1). Nově se rozhoduje
 jen to, **za koho hraje hráč dál**.
 
-1. **S pozvaným hráčem** (hráč má činného vazala, kterého sám pozval – [vazalství](vassalage.md),
-   Pozvaný hráč a nástupnictví): hráč pokračuje za **nástupce vsi** (Martin – zadání). Vlastní ves
-   zůstává, nic se nedělí.
-2. **Bez pozvaného hráče rozhoduje los** (Martin – zadání: „rozhoduje náhoda“):
+1. **Nástupnictví bez losu za pozvaného hráče** (Martin – zadání; 2. 11. 2026: „Jedno
+   nástupnictví za pozvaného“): každý pozvaný hráč, který začal hrát, připíše hráči **jedno
+   nástupnictví bez losu** ([vazalství](vassalage.md) – Pozvaný hráč). Má-li hráč nevyužité
+   nástupnictví a los by jinak byl (bod 2), hráč pokračuje za **nástupce vsi** a jedno
+   nástupnictví se **spotřebuje**. Vlastní ves zůstává, nic se nedělí. Podrobnosti (návrh
+   Clauda):
+   - spotřebuje se samo – hráč nevolí, zda ho použije; bez losu (jen nástupce, bod 5) se
+     nespotřebuje;
+   - nástupnictví se sčítají (tři pozvaní = tři nástupnictví) a nepropadají;
+   - patří hráči, ne rodu – platí i pro nový rod, začne-li hráč znovu (přivedl hráče on);
+   - nezáleží na tom, zda pozvaný dál hraje nebo zůstal vazalem – připsáno je jednou provždy.
+2. **Bez nevyužitého nástupnictví rozhoduje los** (Martin – zadání: „rozhoduje náhoda“):
    - **Kdo je v losu:** nástupce a **mladší synové zemřelého od 16 let** ve vsi – ti, kdo by
      mohli vést odchod (lord.md – Kdo může vést odchod), jméno nemusí mít. Synové mladší 16 let
      v losu nejsou. Je-li v losu jen nástupce, los není.
-   - **Šance:** každý syn v losu **stejně** (návrh Clauda; otázka 2). Se třemi syny od 16 let tak
-     hráč zůstane nástupcem s pravděpodobností ⅓.
+   - **Šance:** **nástupce polovinu**, zbytek rovným dílem mezi mladší syny od 16 let
+     (Martin 2. 11. 2026: „Nástupce polovinu“). S jedním mladším bratrem tedy ½ a ½, se dvěma
+     ½, ¼ a ¼, se třemi ½ a po ⅙.
    - **Náhoda ze seedu vsi a dne smrti** (`deriveSeed(state.seed, 'player-lot:' + den)`) – výsledek
      nezávisí na tom, kdy se ves dopočítá.
-3. **Padne-li nástupce**, je to jako s pozvaným hráčem.
+3. **Padne-li nástupce**, hráč pokračuje za nástupce jako v bodě 1.
 4. **Padne-li mladší syn** – hráč je v jeho kůži a **odchází s jeho poměrnou částí vsi na novou
-   mapu** (návrh Clauda – jedna ves, jedna mapa; zadání „spravovat na místě“ viz otázka 3):
+   mapu** (Martin 2. 11. 2026: „Jen odchod na mapu“ – jedna ves, jedna mapa; díl „spravovat na
+   místě“ ze zadání by byl druhou vsí na téže mapě):
    - Díl, lidé, jídlo, osivo, stáda, vůz a kůň **přesně jako odchod syna** (fáze 2,
      `sonShare` / `departWithSon`) – po smrti otce se počítají jen synové od 16 let (už
      rozhodnuto).
@@ -133,7 +146,7 @@ jen to, **za koho hraje hráč dál**.
 - **Proč los jen mezi syny** (návrh Clauda): zadání mluví o „mladších synech“; vnuci a bratři
   odchod nevedou (lord.md – Kdo může vést odchod).
 
-## Ves bez muže rodu – dosazení vojvody (návrh Clauda; otázka 4)
+## Ves bez muže rodu – dosazení vojvody (Martin 2. 11. 2026: „Poslat muže rodu“; podrobnosti návrh Clauda)
 
 - Zemře-li vojvoda a ve vsi už žádný muž rodu není (lord.md – Nová ves: „Ves bez muže rodu žije dál
   bez vojvody … Nástupce z jiné vsi hráče řeší fáze 4“), **rod dosadí vojvodu z jiné vsi rodu**.
@@ -158,7 +171,8 @@ jen to, **za koho hraje hráč dál**.
   zašedlé: „Ves vede Ctibor.“ (jméno vojvody vsi).
 - **Panel rodu** – nová ikona **štítu rodu** v horní liště: řada portrétů mužů rodu od 16 let
   seřazená podle věku, první senior se stolcem, hráčův muž s praporcem. Popisek: jméno, věk, ves.
-  Klik přepne pohled na jeho ves. Bez textu navíc.
+  Klik přepne pohled na jeho ves. Bez textu navíc. Má-li hráč nevyužitá nástupnictví bez losu,
+  ukazuje je panel jako pečeť s počtem (popisek „Nástupnictví bez losu“).
 - **Po losu na mladšího syna:** obrys dílu ve scéně mateřské vsi (jako výběr syna – fáze 2),
   růžice směrů a ikona přesýpacích hodin s počtem zbývajících dní; panel jména, nemá-li syn jméno.
 - **Žádná vysvětlení** – kdo je senior, pozná hráč ze stolce a z panelu rodu.
@@ -167,7 +181,8 @@ jen to, **za koho hraje hráč dál**.
 
 - **Hráčův muž** = vojvoda první vsi hráče se správcem vypnutým; není-li taková, vojvoda nejstarší
   vsi s vojvodou. Ostatní vsi hráče dostanou zapnutého správce.
-- Vazalství (a tedy výhoda pozvaného hráče) zatím nikdo nemá – po smrti hráčova muže rozhoduje los.
+- Nástupnictví bez losu zatím nikdo nemá (pozvánky ještě nejsou) – po smrti hráčova muže
+  rozhoduje los.
 
 ## Pro implementaci (poznámky, ne kód)
 
@@ -176,15 +191,18 @@ personId }`. Seniorát a práva čistými funkcemi v doméně (`dynastySenior(st
   `canActInVillage(player, villageId, states)`), které volají use-casy hráče před každou akcí.
 - **Los a odchod po pohřbu** jsou událost světa mimo simulaci vsi: use-case
   `resolvePlayerSuccession` po dopočtu vlastní vsi (web i worker), idempotentně podle dne smrti.
-  Výsledek losu je deterministický (seed vsi a dne smrti); výhoda pozvaného hráče se čte z DB
-  v okamžiku zpracování. Odchod jde přes `departWithSon` a odchozí schránku jako u správce
-  (`settleStewardDepartures`) – v den volby hráče, nebo 30. den.
+  Výsledek losu je deterministický (seed vsi a dne smrti, nástupce váha ½); nevyužité
+  nástupnictví se čte z DB (`succession_credit` – [vazalství](vassalage.md)) a spotřebuje se ve
+  stejné transakci jako výsledek – idempotentně podle dne smrti, jednou na jednu smrt. Odchod
+  jde přes `departWithSon` a odchozí schránku jako u správce (`settleStewardDepartures`) – v den
+  volby hráče, nebo 30. den.
 - **Dosazení vojvody** je use-case `appointLord` po dopočtu vsí rodu na dnešek: lidé odejdou
   z vsi kandidáta dnes a přijdou do cílové vsi v den příjezdu jako vnější událost (jako akce
   hráče) – výsledek každé vsi pak nezávisí na kouscích dopočtu.
 - Čísla (30 dní, 16 let, 2 dny na mapu) do `rules*.ts` s odkazem sem.
-- Testy: senior napříč vsemi, práva seniora a ne-seniora, los jen mezi syny od 16 let, stejný los
-  při různých kouscích dopočtu, odchod po pohřbu ve lhůtě i bez hráče, dosazení vojvody, převod.
+- Testy: senior napříč vsemi, práva seniora a ne-seniora, los jen mezi syny od 16 let s váhou
+  nástupce ½, stejný los při různých kouscích dopočtu, nástupnictví bez losu (spotřebuje se jen
+  místo losu, jen jednou), odchod po pohřbu ve lhůtě i bez hráče, dosazení vojvody, převod.
 
 ## Později
 
@@ -193,22 +211,21 @@ personId }`. Seniorát a práva čistými funkcemi v doméně (`dynastySenior(st
 - Hráč smí převzít jinou ves rodu (přejít za jiného muže rodu).
 - Sňatky mezi rody hráčů ([vazalství](vassalage.md) – Později).
 
-## Otázky na Martina
+## Odpovědi Martina 2. 11. 2026
 
-1. **Co smí hráč ve vsích rodu, když není seniorem?** Doporučení: **jen se dívat** – rozhoduje
-   jen ve vlastní vsi, ve všech ostatních až jako senior; jinak by seniorát nic neznamenal.
-   Možnosti: a) jen se dívat; b) totéž co senior (seniorát jen čestný); c) stavět smí, vystěhovat
-   ne.
-2. **Jaké šance má los po smrti hráčova muže?** Doporučení: **každý syn od 16 let stejně**
-   (s nástupcem a dvěma mladšími bratry zůstane hráč ve své vsi s šancí ⅓). Možnosti: a) každý
-   stejně; b) nástupce polovinu, mladší synové zbytek; c) vždy mladší syn, je-li nějaký.
-3. **Mladší syn z losu – jen odchod, nebo i „spravovat na místě“?** Zadání říká, že díl může
-   spravovat, nebo s ním odejít; s pravidlem jedna ves, jedna mapa by díl na místě byl druhou vsí
-   na téže mapě. Doporučení: **jen odchod na novou mapu** (do 30 dní). Možnosti: a) jen odchod;
-   b) syn smí zůstat v mateřské vsi a stavět v ní vedle NPC bratra, dokud sám neodejde.
-4. **Ves, ve které vymřou muži rodu** – Doporučení: **rod do ní pošle muže rodu z jiné vsi**
-   (nejstaršího, který nikde nevládne, s rodinou). Možnosti: a) poslat muže rodu; b) nechat ves
-   bez vojvody jako dnes (lidé žijí, nikdo necvičí).
+1. **Co smí hráč ve vsích rodu, když není seniorem:** „**Jen se dívat**“ (doporučení) –
+   rozhoduje jen ve vlastní vsi, ve všech ostatních až jako senior.
+2. **Šance losu po smrti hráčova muže:** „**Nástupce polovinu**“ – nástupce ½, zbytek rovným
+   dílem mezi mladší syny od 16 let (návrh byl „každý stejně“ – opraveno v Nástupnictví hráče).
+3. **Mladší syn z losu:** „**Jen odchod na mapu**“ (doporučení) – díl na místě spravovat nejde.
+4. **Ves, kde vymřou muži rodu:** „**Poslat muže rodu**“ (doporučení) – Ves bez muže rodu.
+5. **Kdy hráč „přivedl hráče“:** „**Jedno nástupnictví za pozvaného**“ – každý pozvaný hráč,
+   který začal hrát, dá jedno nástupnictví bez losu, pak se spotřebuje (návrh byl „má činného
+   pozvaného vazala“ – opraveno v Nástupnictví hráče a ve [vazalství](vassalage.md) – Pozvaný
+   hráč).
 
-Výhodu pozvaného hráče (kdy hráč „přivedl jiného hráče“) řeší [vazalství](vassalage.md) –
-otázka 5.
+## Otevřené otázky
+
+Nové otázky odpovědi neotevřely – **zbývá potvrdit celek**. Podrobnosti nástupnictví bez losu
+(spotřebuje se samo jen místo losu, sčítá se, patří hráči i po novém začátku, „začal hrát“ = 3
+různé dny ve hře) jsou návrh Clauda.
