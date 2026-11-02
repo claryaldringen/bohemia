@@ -586,6 +586,10 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
   jednorázový poplatek, vazalství, tribut nebo postoupení vesnic“ – napadený (i útočník) smí
   nabídnout **mír** stejným jednáním; podmínky: jednorázový poplatek, vazalství, tribut
   (opakovaná platba bez vazalství), postoupení vsí; nikdo se nestane vazalem automaticky.
+- **Postoupení vsi:** ves přejde celá (lidé, stavby, pole, zásoby), muži rodu poraženého v ní se
+  s rodinami odstěhují do jiné vsi svého rodu; novým držitelem je vítěz a ves dostane jeho
+  správce – „Pokud rod jinou ves nemá, nebude postoupení vsi v nabídce, pouze vazalství“ –
+  poslední ves rodu postoupit nejde.
 
 ## Otázky na Martina
 
