@@ -138,6 +138,26 @@ Nabídka je sada podmínek z pevného výběru – každá je ikona s čísly, �
 > a připojit k tomu vzkaz. Pánovi se příjem poplatku zobrazí v notifikacích.“ – dávku tedy
 > **nabízí vazal** podle výhledu přebytku, **neodchází sama** (Plnění níž), ale vazal ji jednou
 > ročně potvrdí (víc, míň, se vzkazem).
+>
+> **Neodpoví-li vazal na roční dialog:** „c)“ – dialog počká, dokud vazal nepřijde (Martin 2. 11. 2026).
+>
+> **Druhy dávek – jen makrokomodity** (Martin 2. 11. 2026: „Měli bychom brát v úvahu jen zboží,
+> které lze obchodovat za celou ves – např. nástroje a keramiku si nakupuje každý sám. Měli bychom
+> to rozdělit na makrokomodity, které řeší celá obec/vojvoda atd. a mikrokomodity, které si lidé
+> řeší sami a v ekonomických ukazatelích se neobjevují.“; výčet: „**Makrokomodity – obilí, seno,
+> dobytek, koně, klády, lidé, práce.**“). Mikrokomodity (nástroje, keramika, uhlí, ruda, hlína,
+> maso, sýr) do dávek nepatří. Rozdělení zatím platí pro vazalství; zbytek ekonomiky (obchod se
+> sousedy, horní lišta) beze změny – návrh Clauda.
+>
+> **Doprava** (Martin 2. 11. 2026: „U každé komodity uvažuj i náklady na dopravu – např. vazal bude
+> mít přebytek klád, ale počet klád bude omezen prací lidí a vozů, které musí klády k pánovi
+> dopravit.“): dávku dopravuje vazal stejně jako výpravu k sousedům ([obchod](trade.md) –
+> Doprava): nosič 25 kg, kláda 100 kg = dva nosiči, vůz 400 / 800 kg s voly a vozkou, honák na
+> 10 kusů dobytka, lidé a práce jdou po svých; cesta tam i zpět stojí práci (lidé × dny – 2 herní
+> dny na políčko vzdálenosti, návrh Clauda) a vozy s voly ten čas neorou. Výhled „kolik můžu
+> postrádat“ proto ukazuje u každé komodity **nejvýš tolik, kolik ves zvládne i dopravit** –
+> menší z přebytku a z dopravy podle volné práce a vozů v měsíci odvodu; blízký vazal odvede víc
+> než vzdálený.
 
 1. **Dávka – vazal pánovi:**
    - **co:** jedno zboží z [obchodu se sousedy](trade.md) – obilí, luštěniny, maso, sýr, klády,
