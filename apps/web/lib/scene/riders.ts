@@ -82,6 +82,82 @@ export interface RidePlan {
    * ohrady, shoeing-plan.ts); jezdec nejede (`route` null). Bez údaje jen jízdy.
    */
   tied?: readonly (readonly [number, number])[];
+  /**
+   * Cesta koně od branky jeho ohrady ke kůlu `hitch` (horses.md – Ve scéně; návrh Clauda): před
+   * každou jízdou (`span`) ji kůň dojde a u kůlu chvíli stojí, po jízdě se po ní vrátí do ohrady –
+   * z ohrady vyjde a do ní vejde u branky. Bez údaje se kůň objeví u kůlu.
+   */
+  lead?: RideLead;
+}
+
+/** Cesta koně z ohrady ke kůlu – body od branky ke kůlu a délka (m). */
+export interface RideLead {
+  points: readonly Point[];
+  length: number;
+  /** Směr koně u kůlu – jako na začátku jízdy. */
+  heading: Point;
+}
+
+/** Kůň bez jezdce jde z ohrady ke kůlu a zpět krokem (m/s, návrh Clauda). */
+export const LEAD_M_S = 1.2;
+/** U kůlu stojí před jízdou (s) – jezdec nasedá na stojícího koně. */
+export const LEAD_WAIT_S = 10;
+
+/**
+ * Cesta koně z branky ohrady `gate` ke kůlu plánu (po pěšinách `leg`, jinak rovně) – končí tam,
+ * kde jízda začíná (místo koně ve skupině, čelem po trase), ať se kůň při nasednutí nepřenese.
+ */
+export function withLead(plan: RidePlan, gate: Point | null, leg: RideLeg): RidePlan {
+  if (!gate || !plan.span) return plan;
+  const start = rideState(
+    plan,
+    (plan.span[0] - LIVESTOCK_EPOCH_MS) / 1000 + 1e-3,
+    createRideState(),
+  );
+  const end = { x: start.x, z: start.z };
+  const found = leg(gate, end);
+  const points = found && found.length >= 2 ? [gate, ...found.slice(1, -1), end] : [gate, end];
+  let length = 0;
+  for (let i = 1; i < points.length; i++) {
+    length += Math.hypot(points[i]!.x - points[i - 1]!.x, points[i]!.z - points[i - 1]!.z);
+  }
+  if (length <= 0.5) return plan;
+  return {
+    ...plan,
+    lead: { points, length, heading: { x: start.headingX, z: start.headingZ } },
+  };
+}
+
+/**
+ * Kde je kůň na cestě z ohrady ke kůlu v čase `t`: vzdálenost od branky (m; u kůlu `length`) a zda
+ * jde zpět do ohrady – před jízdou dojde a `LEAD_WAIT_S` stojí u kůlu, po jízdě se vrátí. Mimo null.
+ */
+function leadAt(plan: RidePlan, t: number): { d: number; back: boolean } | null {
+  const lead = plan.lead;
+  if (!lead || !plan.span) return null;
+  const walkMs = (lead.length / LEAD_M_S) * 1000;
+  const preMs = walkMs + LEAD_WAIT_S * 1000;
+  const ms = t * 1000 + LIVESTOCK_EPOCH_MS;
+  const [from0, to0] = plan.span;
+  const period = plan.period ?? 0;
+  const base = period ? Math.floor((ms - from0) / period) : 0;
+  for (const n of period ? [base, base + 1] : [0]) {
+    const from = from0 + n * period;
+    const to = from + (to0 - from0);
+    if (plan.except && plan.except[0] < to && plan.except[1] > from) continue;
+    if (ms >= from - preMs && ms < from) {
+      return { d: Math.min(lead.length, ((ms - from + preMs) / 1000) * LEAD_M_S), back: false };
+    }
+    if (ms >= to && ms < to + walkMs) {
+      return { d: Math.max(0, lead.length - ((ms - to) / 1000) * LEAD_M_S), back: true };
+    }
+  }
+  return null;
+}
+
+/** Jde kůň v čase `t` z ohrady ke kůlu, stojí u něj před jízdou, nebo se vrací do ohrady? */
+export function isLed(plan: RidePlan, t: number): boolean {
+  return leadAt(plan, t) !== null;
 }
 
 /** Délka herního dne bez hodin světa (s – ukázky): 365 skutečných dní = 1000 herních let. */
@@ -449,7 +525,7 @@ export function isTied(plan: RidePlan, t: number): boolean {
 
 /** Je kůň v čase `t` mimo ohradu – jede, nebo stojí uvázaný (ohrada ho nekreslí)? */
 export function isAway(plan: RidePlan, t: number): boolean {
-  return isRiding(plan, t) || isTied(plan, t);
+  return isRiding(plan, t) || isTied(plan, t) || isLed(plan, t);
 }
 
 /** Jede jezdec v čase `t` (je v bloku jízdy, nebo bez rozvrhu s trasou)? */
@@ -459,7 +535,7 @@ export function isRiding(plan: RidePlan, t: number): boolean {
 
 /** Obal míst, kam se kůň plánu dostane (trasa i kůl) – pro ořez. */
 export function rideArea(plan: RidePlan): Area {
-  const points: Point[] = [plan.hitch, ...(plan.route?.points ?? [])];
+  const points: Point[] = [plan.hitch, ...(plan.route?.points ?? []), ...(plan.lead?.points ?? [])];
   const pad = Math.abs(plan.side) + 2;
   return {
     minX: Math.min(...points.map((p) => p.x)) - pad,
@@ -477,6 +553,30 @@ export function rideHorsePose(
   out: LivestockPose,
 ): LivestockPose {
   rideState(plan, t, state);
+  const led = state.riding ? null : leadAt(plan, t);
+  if (led && plan.lead) {
+    // z ohrady ke kůlu a zpět krokem (u kůlu stojí, kde jízda začne)
+    const pts = plan.lead.points;
+    let rest = led.d;
+    let i = 1;
+    for (; i < pts.length - 1; i++) {
+      const len = Math.hypot(pts[i]!.x - pts[i - 1]!.x, pts[i]!.z - pts[i - 1]!.z);
+      if (rest <= len) break;
+      rest -= len;
+    }
+    const a = pts[i - 1]!;
+    const b = pts[i]!;
+    const len = Math.hypot(b.x - a.x, b.z - a.z) || 1;
+    const f = Math.min(1, rest / len);
+    const walking = led.d > 0 && led.d < plan.lead.length;
+    out.x = a.x + (b.x - a.x) * f;
+    out.z = a.z + (b.z - a.z) * f;
+    out.forwardX = walking ? ((b.x - a.x) / len) * (led.back ? -1 : 1) : plan.lead.heading.x;
+    out.forwardZ = walking ? ((b.z - a.z) / len) * (led.back ? -1 : 1) : plan.lead.heading.z;
+    out.head = 0;
+    out.stride = walking ? Math.sin((2 * Math.PI * led.d) / (STRIDE_M.walk * RIDE_HORSE_SCALE)) : 0;
+    return out;
+  }
   out.x = state.x;
   out.z = state.z;
   out.forwardX = state.headingX;
@@ -538,7 +638,7 @@ export function ridePlansKey(plans: readonly RidePlan[]): string {
   return plans
     .map(
       (p) =>
-        `${p.riderId}:${p.horseId}:${p.route ? `${p.route.length.toFixed(1)}/${p.route.points.length}` : '-'}:${p.offset.toFixed(1)}:${p.hitch.x.toFixed(1)},${p.hitch.z.toFixed(1)}:${p.window?.startMs ?? ''}:${p.span?.join('-') ?? ''}:${p.period ?? ''}:${p.except?.join('-') ?? ''}:${p.blocks?.map((b) => b.join('-')).join(',') ?? ''}:${p.tied?.map((b) => b.join('-')).join(',') ?? ''}`,
+        `${p.riderId}:${p.horseId}:${p.route ? `${p.route.length.toFixed(1)}/${p.route.points.length}` : '-'}:${p.offset.toFixed(1)}:${p.hitch.x.toFixed(1)},${p.hitch.z.toFixed(1)}:${p.window?.startMs ?? ''}:${p.span?.join('-') ?? ''}:${p.period ?? ''}:${p.except?.join('-') ?? ''}:${p.blocks?.map((b) => b.join('-')).join(',') ?? ''}:${p.tied?.map((b) => b.join('-')).join(',') ?? ''}:${p.lead?.length.toFixed(1) ?? ''}`,
     )
     .join('|');
 }

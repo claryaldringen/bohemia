@@ -28,7 +28,7 @@ const SLOW_SCALE = 0.9;
 export const SHOEING_KEY = { own: 'shoeing:own', foreign: 'shoeing:foreign' } as const;
 
 /** Branka hotové ohrady koní `penId` (bez ní null). */
-function horseGate(ctx: Context, penId: number): ShoeingGate | null {
+export function horseGate(ctx: Context, penId: number): ShoeingGate | null {
   const pen = (ctx.village.pens ?? []).find((p) => p.id === penId && p.built);
   if (!pen) return null;
   const squares = scenePenSquares({

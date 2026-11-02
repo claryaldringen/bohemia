@@ -16,7 +16,10 @@ import {
   HUNT_REAL_S,
   huntPlans,
   huntSpan,
+  isAway,
   isRiding,
+  LEAD_M_S,
+  withLead,
   rideState,
   ridingHorseIds,
   RIDE_HORSE_SCALE,
@@ -193,6 +196,39 @@ describe('jezdec na koni (horses.md – Ve scéně)', () => {
       }
     }
     expect(mounted).toBeGreaterThan(0);
+  });
+
+  // lord-real-time.md – Co zbylo: kůň skočil z ohrady ke kůlu na začátku jízdy (a zpět)
+  it('kůň dojde z branky ohrady ke kůlu před jízdou a po ní zpět – neskočí', () => {
+    const gate = { x: 30, z: 20 };
+    const [plan] = ridePlans(input(LORD)).map((p) => withLead(p, gate, straightLeg));
+    const state = createRideState();
+    let prev: { x: number; z: number; away: boolean } | null = null;
+    let led = 0;
+    for (let t = ride(-120); t < ride(RIDE_S + 120); t += 0.25) {
+      const away = isAway(plan!, t);
+      const p = rideHorsePose(plan!, t, state, createLivestockPose());
+      if (prev && prev.away !== away) {
+        // z ohrady vyjde a do ní vejde u branky
+        const at = away ? p : prev;
+        expect(Math.hypot(at.x - gate.x, at.z - gate.z), `${t}`).toBeLessThan(1);
+      }
+      // cestou z ohrady a do ní krokem (jízdu po trase hlídají testy výš)
+      if (prev?.away && away && !isRiding(plan!, t) && !isRiding(plan!, t - 0.25)) {
+        const speed = Math.hypot(p.x - prev.x, p.z - prev.z) / 0.25;
+        expect(speed, `${t}`).toBeLessThanOrEqual(LEAD_M_S * 1.05);
+        if (speed > 0.5) led++;
+      }
+      prev = { x: p.x, z: p.z, away };
+    }
+    // tam i zpět krokem bez jezdce
+    expect(led * 0.25).toBeGreaterThan((2 * plan!.lead!.length) / LEAD_M_S - 2);
+    // u kůlu stojí, kde jízda začne, když jezdec nasedá
+    const start = rideHorsePose(plan!, ride(-1), state, createLivestockPose());
+    const go = rideHorsePose(plan!, ride(0.01), state, createLivestockPose());
+    expect(Math.hypot(start.x - go.x, start.z - go.z)).toBeLessThan(0.1);
+    expect(Math.hypot(start.x - plan!.hitch.x, start.z - plan!.hitch.z)).toBeLessThan(5);
+    expect(start.stride).toBe(0);
   });
 
   it('koně na jízdě v čase (ohrada je pustí jen v jízdě)', () => {
