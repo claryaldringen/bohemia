@@ -129,6 +129,16 @@ to buď přijme, odmítne nebo se bude jednat o podmínkách.**“ O dávkách r
 Nabídka je sada podmínek z pevného výběru – každá je ikona s čísly, žádná není povinná
 (nabídka bez podmínek je holá přísaha):
 
+> **Dávky podle Martina 2. 11. 2026 (nahrazuje návrh níž, podrobnosti dopracovat):** „Vazal bude
+> posílat roční dávky. Jejich výše se sjedná při založení vazalství, přičemž vazal uvidí svůj
+> ekonomický výkon a kolik kterého zboží může ročně postrádat, aby ho to nepoložilo. Na základě
+> toho pak učiní nabídku budoucímu pánovi. Ten to buď odsouhlasí nebo dá protinabídku a takto to
+> bude, dokud se neshodnou. Vazalovi se pak jednou ročně objeví dialog, ve kterém odsouhlasí
+> poslání zboží pánovi – v tom dialogu může poslat i míň nebo víc zboží než bylo domluveno
+> a připojit k tomu vzkaz. Pánovi se příjem poplatku zobrazí v notifikacích.“ – dávku tedy
+> **nabízí vazal** podle výhledu přebytku, **neodchází sama** (Plnění níž), ale vazal ji jednou
+> ročně potvrdí (víc, míň, se vzkazem).
+
 1. **Dávka – vazal pánovi:**
    - **co:** jedno zboží z [obchodu se sousedy](trade.md) – obilí, luštěniny, maso, sýr, klády,
      keramika, uhlí, hřivny; dobytek Později (žene se, druhy a chovné jádro);
@@ -140,8 +150,7 @@ Nabídka je sada podmínek z pevného výběru – každá je ikona s čísly, �
 2. **Pomoc v nouzi – pán vazalovi:** má-li ves vazala **hlad** (upozornění hladu –
    [obyvatelstvo](population.md), Hlad a vymření), pošle jí vlastní ves pána sama obilí na
    **30, 60 nebo 90 dní** jídla hladové vsi (pán zvolí), nejvýš **jednou za rok** pro každou ves.
-3. **Dar při přijetí** – jedno zboží a množství, které jedna strana pošle druhé v den přijetí
-   (pán vábí nezávislého, nebo vazal platí za přijetí). Jen jednou, nevrací se (otázka 2).
+3. ~~**Dar při přijetí**~~ – **zrušeno** (Martin 2. 11. 2026: „Dar je píčovina.“).
 
 Vojenská služba, svolání, ochrana proti nájezdu, sňatky a povoz – Později (s [válkou](war.md)).
 
@@ -342,6 +351,12 @@ pozvaný vazal):
 6. **Pozvaný hráč:** „**Ano, začíná jako vazal**“.
 7. **Nástupnictví za pozvaného** (seniorát): „**Jedno nástupnictví za pozvaného**“ – každý
    pozvaný hráč, který začal hrát, dá jedno nástupnictví bez losu.
+
+- **Žádost o vazalství od budoucího vazala** (otevřená otázka 1): „Ano, stejným jednáním“
+  (Martin 2. 11. 2026).
+- **Dar při přijetí:** „Dar je píčovina.“ (Martin 2. 11. 2026) – zrušen, otázka 2 odpadá.
+- **Dávky** – viz citace v Podmínkách (Martin 2. 11. 2026): nabízí vazal podle výhledu přebytku,
+  jednou ročně je potvrdí v dialogu (víc / míň / vzkaz), pán dostane upozornění.
 
 ## Otevřené otázky
 
