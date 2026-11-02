@@ -17,9 +17,6 @@ import { type PlacementVillage } from './placement-types';
 export function placementVillageOf(state: VillageState, day: number): PlacementVillage {
   return {
     ...state,
-    // stavby a půda jiných vsí na téže mapě (migration.md – Vsi na téže mapě) – přehled sám,
-    // rejstřík cizí půdy se pamatuje podle něj
-    ...(state.neighbours ? { foreign: state.neighbours } : {}),
     obstacleChanges: obstacleChangesAt(state, day),
     reservedTrees: [...reservedTrees(state)],
     sacredBuildings: sacredBuildingPlots(state),

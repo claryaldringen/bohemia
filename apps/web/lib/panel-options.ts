@@ -11,9 +11,7 @@ import {
   roadApplesOption,
   trailOptions,
   villageRoadWalk,
-  withNeighbours,
   type Landscape,
-  type NeighbourSnapshot,
   type RoadApplesOption,
   type TrailOption,
   type VillageState,
@@ -53,16 +51,15 @@ export function panelAskKey(ask: PanelAsk): string {
 
 /**
  * Nabídka panelu `ask` pro ves se stavem `own` v den `day` – stav připravený jako v pohledu
- * (sousedé z mapy `neighbours`, opuštěná ves jen to, co z ní stojí).
+ * (opuštěná ves jen to, co z ní stojí).
  */
 export function panelOptionsOf(
   own: VillageState,
   landscape: Landscape,
   day: number,
-  neighbours: NeighbourSnapshot | null,
   ask: PanelAsk,
 ): PanelOptions {
-  const state = abandonedVillageAt(withNeighbours(own, neighbours), day);
+  const state = abandonedVillageAt(own, day);
   const obstacles = obstaclesOf(landscape);
   if (ask.panel === 'trails') {
     const walk = villageRoadWalk(state, landscape);

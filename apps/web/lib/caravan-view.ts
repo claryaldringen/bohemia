@@ -141,7 +141,7 @@ function purchaseCaravan(state: VillageState, p: CraftPurchase): SceneExpedition
  * aby to obilí unesli“): s vozem jede po zemské stezce vůz se sedlákem (honák u spřežení) a tesař
  * nebo jeho syn vedle vozu; pěšky tesař nebo syn (pohlaví a věk z jádra) a nosiči s obilím tam
  * – zpátky jdou s kováním bez nákladu. Po stezce, nebo krajinou rovně ke kraji mapy (za krajem
- * zmizí), nebo do jiné vsi na téže mapě ke kovárně a zpět (celou cestu vidět). Jde-li skupina
+ * zmizí). Jde-li skupina
  * víckrát, každou cestu zvlášť jako nákup u sousedů.
  */
 function ironCaravan(state: VillageState, dwelling: Dwelling, trip: IronTrip): SceneExpedition {
@@ -172,8 +172,8 @@ function ironCaravan(state: VillageState, dwelling: Dwelling, trip: IronTrip): S
     rate: trip.done < days ? Math.round((1 / leg) * 1e4) / 1e4 : 0,
     day: state.lastDay,
     startDay: trip.startedDay + round * leg,
-    // do vsi na téže mapě je celá cesta vidět, k sousedovi den za krajem mapy (jako nákup)
-    onMap: trip.to.kind === 'village' ? 1 : Math.max(0.2, (leg - TRADE.beyondEdgeDays) / leg),
+    // k sousedovi den za krajem mapy (jako nákup)
+    onMap: Math.max(0.2, (leg - TRADE.beyondEdgeDays) / leg),
     trip: {
       kind: 'iron',
       to: trip.to.name,

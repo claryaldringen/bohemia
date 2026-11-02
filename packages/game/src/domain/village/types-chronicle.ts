@@ -316,8 +316,7 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'cart-made'; cart: CartKind }
   /**
    * Ves nemá kováře – tesař (`son` – jeho syn) šel pro kování k vozu do nejbližší vsi s kovářem
-   * `to` (jméno; soused za krajem mapy ve směru `direction`, jinak jiná ves hráče na téže mapě –
-   * wagons.md, Kování vozů).
+   * `to` (jméno; soused za krajem mapy ve směru `direction` – wagons.md, Kování vozů).
    */
   | {
       kind: 'iron-trip';

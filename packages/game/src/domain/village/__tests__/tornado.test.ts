@@ -296,28 +296,6 @@ describe('škody podle síly', () => {
     expect(fallen / inTrack.length).toBeLessThan(0.42);
   });
 
-  it('kmeny stromů, které už soused zapsal, se nezapočtou podruhé', () => {
-    const placements: ObstaclePlacement[] = [];
-    for (let i = 0; i < 20; i++) {
-      placements.push({
-        id: i + 1,
-        kind: 'tree',
-        look: 'oak-1',
-        x: i * 10 - 100,
-        z: 3,
-        rotation: 0,
-        scale: 1,
-      });
-    }
-    const layer: ObstacleLayer = packObstacles(placements, 128, 15);
-    const s = village();
-    s.woodLogs = 0;
-    s.neighbours = { felled: placements.map((p) => ({ id: p.id, day: DAY - 1 })) } as never;
-    force(s, DAY, 'F3');
-    tornadoEvents(s, tornadoDay(s, DAY, null, layer));
-    expect(s.woodLogs).toBeCloseTo(0);
-  });
-
   it('sad a jabloně u cest: vyvrácený čtverec jde do obnovy, jabloň se zasadí znovu', () => {
     const s = village();
     const square = (y: number): Orchard['squares'][number] => ({

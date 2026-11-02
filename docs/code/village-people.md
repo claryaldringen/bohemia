@@ -257,17 +257,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   prázdné vlastní sídlo na políčku se použije znovu, vlastní ves tam → `OWN_MAP_THERE`; ves na
   cestě `travellingVillage` s `VillageState.journey` – `create` na novém sídle, dny `travelDays`
   – 1–3 podle `edgeDistanceM` od dvorce, po hotové stezce 1). `settleJourney` po příjezdu založí
-  ves (`settlersOf`). **Vsi na téže mapě** (od 1. 11. 2026 nejsou – jedna ves, jedna mapa;
-  `updateVillage` přehled už nepřipojuje, `NeighbourSnapshot.villages` je pryč, zbylé čtení
-  `state.neighbours` je mrtvý kód k odstranění): `neighbourSnapshot` (`neighbourhood.ts`) –
-  stavby a políčka jiných vsí mapy (natočené čtverce polí, sadů, hřbitovů, ohrad a lesa
-  s mřížkou zvlášť v `squares`, natočený pozemek jen jako tvar obydlí – fields.md, Natočené
-  stavby), jejich
-  odstraněné, pokácené a vyhrazené stromy;
-  `updateVillage` ho připojoval (`withNeighbours`) a před uložením odebral (`neighboursOf` – pryč). `obstacleChangesAt` a `reservedTrees` ho započítají (kácení se
-  nekříží), `placementVillageOf` dává `PlacementVillage.foreign` – kontroly umístění
-  (`checkFootprintFree`, čtverce `foreign`, pozemky – rejstřík cizí půdy `foreignIndex` podle
-  skutečných ploch) odmítnou `FOREIGN_LAND`; v prohlížeči totéž `foreignFromScene`.
+  ves (`settlersOf`). **Vsi na téže mapě** (od 1. 11. 2026 nejsou – jedna ves, jedna mapa; kód přehledu
+  `neighbourSnapshot`, `state.neighbours`, cizí půdy v kontrolách umístění i stavby cizích vsí
+  ve scéně je pryč; `withoutSameMapVillages` v `cart-iron.ts` při načtení jednou a idempotentně
+  zahodí zbytky ve starších vsích – `neighbours` a cestu pro kování ke kovárně jiné vsi).
 
 - **Odchod syna vojvody s poměrnou částí vsi** (lord.md – Dělení vsi, #9 fáze 2;
   `son-departure.ts`): `checkSonLeader(state, sonId, day)` → `PlacementCheck` – syn

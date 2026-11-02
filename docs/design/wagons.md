@@ -336,7 +336,7 @@ Podrobnosti jsou návrh Clauda (čísla `CART_IRON` v `rules.ts`, modul `cart-ir
     sjízdné pro vozy** (jako vozy výprav – `trailCartPassable`). Dvoukolák napřed (jeden vůl),
     platbu unese každý vůz (400 / 800 kg). Jede s ním **sedlák z vsi** (`CART_IRON.cartCrew`)
     a tesař nebo syn; vůz i vůl jsou celou cestu pryč (`cartsAway`, `oxenAway` – vozit ani orat
-    nemohou). Krajinou ke kraji mapy a do jiné vsi na téže mapě vůz nejede.
+    nemohou). Krajinou ke kraji mapy vůz nejede.
   - **jinak nosiči** – skupina jako nákup u sousedů (`tripOf`): tolik lidí, kolik je nákladů po
     25 kg (TRADE.porterKg), tesař nebo syn nese taky – **173 kg = tesař a 6 nosičů** (7 lidí),
     346 kg za čtyřkolák = 14 nákladů. Skupina je nejvýš malá skupina vsi (`groupCap` – polovina
@@ -350,7 +350,7 @@ Podrobnosti jsou návrh Clauda (čísla `CART_IRON` v `rules.ts`, modul `cart-ir
     zrovna nebyl, ať si ves spočítá, že další vůz se vyplatí. Jen ves s ohradou volů.
 
 - **Kronika a upozornění:** „Tesař šel se 6 nosiči pro kování k vozu do vsi Lhota (sever)“, „Tesař
-  jel s vozem pro kování…“ (u syna „Syn tesaře šel…“, u vsi na téže mapě bez směru), po návratu
+  jel s vozem pro kování…“ (u syna „Syn tesaře šel…“), po návratu
   „Tesař přinesl kování“ – a vůz je hotový.
 - **Ve scéně skupina, nebo vůz** (místo jedné postavy – Martin, sonda Vlkov) jako karavana nákupu
   u sousedů: pěšky tesař nebo syn (pohlaví a věk z jádra) a nosiči, tam s obilím, zpátky bez

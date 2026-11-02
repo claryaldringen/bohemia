@@ -1,7 +1,6 @@
 // Paměť vsí na jeden požadavek (identity map): akce nad vsí i dotaz na ves načítaly stav téže vsi
 // víckrát – ověření vsi (`playerVillage`), dopočet všech vsí hráče (`dynastyStatus`), use-case
-// (`updateVillage`) a pohled po akci (`dynastyStatus` znovu), u každého dopočtu navíc ostatní vsi
-// mapy (`neighboursOf` → `listBySettlement`). U velké vsi je stav přes 2 MB JSON. V rozsahu
+// (`updateVillage`) a pohled po akci (`dynastyStatus` znovu). U velké vsi je stav přes 2 MB JSON. V rozsahu
 // `withVillageCache` se záznam vsi načte z úložiště jednou a dál se vrací z paměti, dokud
 // levný otisk (`stampsOf` – verze a jméno bez stavu) říká, že se v úložišti nezměnil. Uložení
 // paměť obnoví, neúspěšné (optimistický zámek – ves mezitím uložil jiný požadavek) ji pro ves

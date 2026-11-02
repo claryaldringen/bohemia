@@ -28,7 +28,6 @@ import { GRAVE_GRID, fenceLayout, gravePlacements } from '../cemetery-layout';
 import { fieldSpace } from '../field-space';
 import { homesteadLayout, insidePlot, plotHouse, plotStakingLine } from '../homestead-layout';
 import { squareLookup } from '../livestock-placement';
-import { foreignFromScene } from '../neighbour-villages';
 import { orchardRowLines, orchardTreeSpots } from '../orchard-layout';
 import {
   insidePen,
@@ -421,46 +420,5 @@ describe('natočená ohrada ve scéně', () => {
     void _nones;
     expect(zero).toEqual(none);
     expect(penLayout(square, penFacing(square, toward)).rotation).toBeUndefined();
-  });
-});
-
-describe('natočený hřbitov a ohrada jiné vsi', () => {
-  it('cizí půda pro kontrolu umístění nese jejich mřížku', () => {
-    const cemetery = square(G30, { x: 0, y: 0 });
-    const village: SceneVillage = {
-      dwellings: [],
-      fields: [],
-      neighbours: [
-        {
-          dwellings: [],
-          fields: [],
-          cemeteries: [
-            { id: 3, grid: G30, squares: [cemetery], built: true, progress: 1, graves: 0 },
-          ],
-          pens: [
-            {
-              id: 4,
-              cell: { x: 0, y: 0 },
-              grid: G45,
-              x: 7.5,
-              z: 7.5,
-              size: 15,
-              rotation: G45.rotation,
-              built: true,
-              progress: 1,
-              oxen: 0,
-              trainees: 0,
-              cows: 0,
-            },
-          ],
-        },
-      ],
-    };
-    const foreign = foreignFromScene(village)!;
-    expect(foreign.cells).toEqual([]);
-    expect(foreign.squares).toEqual([
-      { cell: { x: 0, y: 0 }, grid: G30 },
-      { cell: { x: 0, y: 0 }, grid: G45 },
-    ]);
   });
 });

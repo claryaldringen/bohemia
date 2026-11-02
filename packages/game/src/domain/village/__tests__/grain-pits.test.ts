@@ -28,9 +28,8 @@ import { advanceVillage } from '../simulate';
 import { threshingFloorFootprint } from '../threshing-floors';
 import { pointInPolygon } from '../polygon';
 import type { GrainPit, RoadProfilePoint, VillageRoads, VillageState } from '../types';
-import { neighbourSnapshot } from '../neighbourhood';
 import { makeLandscape } from './placement-fixtures';
-import { withBuiltFirstDwelling, withThreshingFloor } from './village-fixtures';
+import { withThreshingFloor } from './village-fixtures';
 
 // Obilné jámy (production-chains.md – Obilné jámy): vesničané po výmlatu vykopou jámy, naplní je
 // zrnem a zapečetí; během roku otvírají jednu jámu po druhé. Zásoba obilí `storesKg` zůstává celá
@@ -449,32 +448,6 @@ describe('místo jámy', () => {
       for (const o of s.orePits) {
         expect(Math.hypot(p.x - o.x, p.z - o.z)).toBeGreaterThanOrEqual(GRAIN_PITS.orePitClearM);
       }
-    }
-  });
-
-  it('mimo stavby a půdu jiné vsi na téže mapě', () => {
-    const before = found(grainPitSites(withFloor(), at(600, 9, 1), landscape, null, 6));
-    // jiná ves postavila obydlí přímo na prvním místě jámy – celé políčko pod ním je její
-    const first = before[0]!;
-    const other = withBuiltFirstDwelling(
-      foundVillage({
-        seed: 7,
-        day: at(600, 3, 1),
-        dwellingPosition: { x: first.x, z: first.z, rotation: 0 },
-      }),
-    );
-    const s = withFloor();
-    s.neighbours = neighbourSnapshot([other], at(600, 9, 1))!;
-    const sites = found(grainPitSites(s, at(600, 9, 1), landscape, null, 6));
-    const tile = (v: number): number => Math.floor((v + 120) / 15);
-    for (const p of sites) {
-      // čtverec jámy s okrajem (2,2 m) leží mimo cizí políčko
-      const inside =
-        tile(p.x - 2.2) <= tile(first.x) &&
-        tile(p.x + 2.2) >= tile(first.x) &&
-        tile(p.z - 2.2) <= tile(first.z) &&
-        tile(p.z + 2.2) >= tile(first.z);
-      expect(inside).toBe(false);
     }
   });
 

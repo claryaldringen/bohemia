@@ -18,7 +18,7 @@ import {
   PLOT_VARIANTS,
 } from './rules';
 import { type DwellingShape, dwellingShape, isPlainShape, shapedFootprint } from './dwelling-shape';
-import { type LandSquare, type Placed, PolygonIndex, villageLandSquares } from './squares';
+import { type LandSquare, PolygonIndex, villageLandSquares } from './squares';
 import {
   type Landscape,
   heightAtWorld,
@@ -29,19 +29,10 @@ import {
 import { type Point, polygonsOverlap, rectangleCorners } from './polygon';
 import { type Shape, plotShapes } from './plot-cells';
 import { buildingLocalToWorld } from './obstacles';
-import {
-  rotationTurn,
-  squareCorners,
-  squareLocalToWorld,
-  squareTile,
-  turnRotation,
-} from './square-grid';
-import { sacredFootprint } from './sacred';
-import { threshingFloorFootprint } from './threshing-floors';
+import { rotationTurn, squareLocalToWorld, turnRotation } from './square-grid';
 import { workshopFootprints } from './crafts';
 import {
   FOOTPRINT_SAMPLE_STEP_M,
-  type ForeignStructures,
   OK,
   type PlacementCheck,
   type PlacementVillage,
@@ -341,82 +332,6 @@ export function ownedLand(
   const owned = ownedAt(landscape, village, kinds);
   const groves = new Set(groveTiles);
   return (x, z, tile) => groves.has(tile) || (owned !== null && owned(x, z));
-}
-
-/** Rejstřík cizí půdy – staví se jednou pro tytéž stavby jiných vsí a krajinu. */
-const foreignIndexCache = new WeakMap<
-  ForeignStructures,
-  { landscape: Landscape; index: PolygonIndex<Placed> }
->();
-
-/**
- * Půda jiných vsí na téže mapě (migration.md) v rejstříku po políčkách: políčka jejich polí,
- * sadů, hřbitovů, ohrad, lesa a pozemků, celá políčka pod jejich volnými obydlími a posvátnými
- * stavbami (jako dřív) a přesně podle tvaru natočené čtverce polí, sadů a lesa a natočené
- * pozemky (fields.md – Natočené stavby; dům stojí uvnitř pozemku). Bez jiných vsí null.
- */
-function foreignIndex(
-  landscape: Landscape,
-  village: Pick<PlacementVillage, 'foreign'> | null,
-): PolygonIndex<Placed> | null {
-  const foreign = village?.foreign;
-  if (!foreign) return null;
-  const cached = foreignIndexCache.get(foreign);
-  if (cached && cached.landscape === landscape) return cached.index;
-  const tiles = new Set(foreign.cells.map((c) => cellIndex(landscape, c)));
-  const shapes: Placed[] = (foreign.squares ?? []).map((s) => ({
-    corners: squareCorners(landscape, s.grid, s.cell),
-    tile: squareTile(landscape, s.grid, s.cell),
-  }));
-  for (const d of foreign.dwellings) {
-    const plot = d.plot && !d.craft ? plotShapes(landscape, d.plot) : [];
-    if (plot.some((shape) => shape.tile === null)) {
-      shapes.push(...plot);
-      continue;
-    }
-    for (const polygon of dwellingPlot(landscape, d)) {
-      for (const index of cellsUnderPolygon(landscape, polygon)) tiles.add(index);
-    }
-  }
-  for (const b of foreign.sacredBuildings) {
-    for (const index of cellsUnderPolygon(landscape, sacredFootprint(b.kind, b.position))) {
-      tiles.add(index);
-    }
-  }
-  for (const f of foreign.threshingFloors ?? []) {
-    for (const index of cellsUnderPolygon(landscape, threshingFloorFootprint(f.position))) {
-      tiles.add(index);
-    }
-  }
-  for (const tile of [...tiles].sort((a, b) => a - b)) {
-    const cell = { x: tile % landscape.size, y: Math.floor(tile / landscape.size) };
-    shapes.push({ corners: cellCorners(landscape, cell), tile });
-  }
-  const index = new PolygonIndex(landscape, shapes);
-  foreignIndexCache.set(foreign, { landscape, index });
-  return index;
-}
-
-/** Zasahuje tvar na stavbu nebo půdu jiné vsi na téže mapě (dotyk hranou ne)? */
-export function onForeignLand(
-  landscape: Landscape,
-  village: Pick<PlacementVillage, 'foreign'> | null,
-  shape: Pick<Shape, 'corners' | 'tile'>,
-): boolean {
-  const index = foreignIndex(landscape, village);
-  return index !== null && index.overlapping(shape.corners, shape.tile).length > 0;
-}
-
-/**
- * Zasahuje mnohoúhelník (svět, m) na stavbu nebo půdu jiné vsi na téže mapě (migration.md –
- * `foreign` = přehled ostatních vsí)? Pro místa, která ves vybírá sama (obilné jámy).
- */
-export function onForeignGround(
-  landscape: Landscape,
-  foreign: PlacementVillage['foreign'],
-  corners: readonly Point[],
-): boolean {
-  return foreign !== undefined && onForeignLand(landscape, { foreign }, { corners, tile: null });
 }
 
 /** Body mřížky po FOOTPRINT_SAMPLE_STEP_M přes otočený půdorys obydlí, včetně okrajů. */

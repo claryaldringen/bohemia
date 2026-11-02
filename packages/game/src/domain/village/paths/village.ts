@@ -684,13 +684,9 @@ export function routeTreesDay(day: number): number {
 function treesAtCut(state: VillageState, cut: number): VillageState {
   const own = withoutHiddenChanges(state, clearingRouteObstacles(state));
   const felled = own.felledTrees?.filter((f) => f.day <= cut);
-  const neighbours = state.neighbours;
   return {
     ...own,
     ...(felled ? { felledTrees: felled } : {}),
-    ...(neighbours?.felled
-      ? { neighbours: { ...neighbours, felled: neighbours.felled.filter((f) => f.day <= cut) } }
-      : {}),
   };
 }
 
@@ -711,10 +707,8 @@ export function routeObstacleChanges(state: VillageState, day: number): Obstacle
 function routeTreesKey(state: VillageState, day: number): string {
   const cut = routeTreesDay(day);
   const own = withoutHiddenChanges(state, clearingRouteObstacles(state));
-  const felled = [...(own.felledTrees ?? []), ...(state.neighbours?.felled ?? [])].filter(
-    (f) => f.day <= cut,
-  ).length;
-  const cleared = (own.clearedObstacles ?? []).length + (state.neighbours?.cleared ?? []).length;
+  const felled = (own.felledTrees ?? []).filter((f) => f.day <= cut).length;
+  const cleared = (own.clearedObstacles ?? []).length;
   // stromy u cest jsou součást cesty (Martin 31. 10. 2026) – jejich sázení mapu nemění
   return `${felled > 0 ? cut : ''}:${felled}:${cleared}:${state.roads?.swath?.length ?? 0}`;
 }

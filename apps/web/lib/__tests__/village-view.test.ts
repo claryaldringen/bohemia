@@ -30,7 +30,6 @@ import {
   sacredOakLife,
   sacredOakNow,
   sacredSitesOf,
-  neighbourSnapshot,
   startRelocation,
   surfaceAt,
   tileCenterWorld,
@@ -2008,7 +2007,7 @@ describe('pevné cesty v pohledu na ves (roads.md)', () => {
     const roadId = buildVillageView(record(s), landscape, DAY).roads[0]!.id;
     // nabídku pošle server až na vyžádání panelu – tentýž výpočet nad týmž stavem jako dřív v pohledu
     const ask = { panel: 'road-apples', roadId } as const;
-    const asked = panelOptionsOf(s, landscape, DAY, null, ask);
+    const asked = panelOptionsOf(s, landscape, DAY, ask);
     if (asked.panel !== 'road-apples') throw new Error('jiný panel');
     const option = asked.option;
     expect(option).toEqual(roadApplesOption(s, roadId, DAY, landscape, obstaclesOf(landscape)));
@@ -2022,11 +2021,11 @@ describe('pevné cesty v pohledu na ves (roads.md)', () => {
       progress: 0,
       waits: false,
     });
-    const again = panelOptionsOf(started, landscape, DAY, null, ask);
+    const again = panelOptionsOf(started, landscape, DAY, ask);
     expect(again.panel === 'road-apples' && again.option.blocked).toMatch(/sázejí/);
     // kompas stezek – tentýž výpočet jako dřív v pohledu na dvorec
     const obstacles = obstaclesOf(landscape);
-    expect(panelOptionsOf(s, landscape, DAY, null, { panel: 'trails' })).toEqual({
+    expect(panelOptionsOf(s, landscape, DAY, { panel: 'trails' })).toEqual({
       panel: 'trails',
       trails: trailOptions(s, DAY, landscape, obstacles, villageRoadWalk(s, landscape)),
     });
@@ -2392,22 +2391,9 @@ describe('buildVillageView – odchod do nové vsi (migration.md – fáze 3 a 4
     expect(view.scene.dwellings).toEqual([]);
   });
 
-  it('jiná ves na téže mapě: její stavby pro scénu, paseky a vlastní vsi kolem po směrech', () => {
-    const other = settled();
-    other.clearedObstacles = [{ id: 4242, day: DAY }];
-    const neighbourScene = buildVillageView(record(other), landscape, DAY).scene;
-    const view = buildVillageView(record(settled()), landscape, DAY, {
-      neighbours: neighbourSnapshot([other], DAY),
-      neighbourScenes: [{ dwellings: neighbourScene.dwellings, fields: neighbourScene.fields }],
-      ownMaps: { S: 'Budeč' },
-    });
-    expect(view.scene.neighbours).toHaveLength(1);
-    expect(view.scene.obstacles?.removed).toContain(4242);
+  it('vlastní vsi na sousedních mapách po směrech blokují odchod tím směrem', () => {
+    const view = buildVillageView(record(settled()), landscape, DAY, { ownMaps: { S: 'Budeč' } });
     expect(view.leave.directions.find((d) => d.direction === 'S')!.blocked).toMatch(/Budeč/);
-    // kontrola umístění v prohlížeči zná cizí půdu
-    const placement = placementVillageFromScene(view.scene);
-    expect(placement.foreign?.dwellings).toHaveLength(1);
-    expect(placement.foreign?.cells.length).toBeGreaterThan(0);
   });
 });
 

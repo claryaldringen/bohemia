@@ -199,7 +199,7 @@ function isNullVillage(input: unknown): boolean {
 }
 
 /**
- * Pohled na jinou ves hráče na téže mapě `{ villageId }` (přepínač v horní liště) – ověří, že ves
+ * Pohled na jinou ves hráče `{ villageId }` (přepínač v horní liště) – ověří, že ves
  * patří hráči. Výběr si zapamatuje prohlížeč (cookie – `lib/village-choice.ts`); ves na jiné mapě
  * si klient otevře novým načtením stránky (jiná krajina).
  */

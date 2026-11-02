@@ -63,7 +63,6 @@ import {
   dwellingFootprint,
   freeShape,
   landIndex,
-  onForeignLand,
   ownedAt,
   placedDwelling,
 } from './placement-geometry';
@@ -260,8 +259,6 @@ export interface SquareFlags {
   /** Humno i rozestavěné (production-chains.md – Humno). */
   threshing: boolean;
   woodEdge: boolean;
-  /** Stavby a půda jiné vsi na téže mapě (migration.md). */
-  foreign: boolean;
 }
 
 /** Shoduje se čtverec stavby vsi přesně se čtvercem (tatáž mřížka a souřadnice)? */
@@ -310,7 +307,6 @@ export function squareFlags(
       sacred: sacred.overlapping(square.corners, square.tile).length > 0,
       threshing: floors.overlapping(square.corners, square.tile).length > 0,
       woodEdge: woods.some((w) => !sameSquare(w, square)),
-      foreign: onForeignLand(landscape, village, square),
       ground,
       woodExact,
     };
@@ -493,7 +489,6 @@ export function buildSquares(
     sacred: false,
     threshing: false,
     woodEdge: false,
-    foreign: false,
     far: false,
   };
   const squares: BuildSquare[] = [];

@@ -163,7 +163,7 @@ function threshingFloorCrowned(position: Position): Point[] {
  * HUMNO.sizeM natočený jako obydlí na louce nebo v lese (Stavba v lese – les i les vsi osadníci
  * vyklučí za sazbu lesa i s pruhem pod korunami), ne ve vodě, s rozdílem výšek nejvýš
  * HUMNO.maxHeightDiffM; nepřekrývá obydlí (i rozestavěná a jejich pozemky), jiné humno, modlu,
- * svatyni, hřbitov, ohradu, sad, milíř ani stavby jiné vsi, nezatarasí branku a nestojí na
+ * svatyni, hřbitov, ohradu, sad, milíř, nezatarasí branku a nestojí na
  * skalním výchozu, čtverci háje ani pod korunou posvátného dubu. Na pole smí (fields.md – Pole
  * jako krajina): díly pod půdorysem se o průnik zmenší (`takenLand`, varování „Pole se zmenší“),
  * překážky na nich stavba neplatí – patří poli. Ostatní překážky na půdorysu osadníci odstraní za

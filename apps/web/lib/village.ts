@@ -5,9 +5,7 @@ import {
   NO_VILLAGE,
   NO_WORLD_CELL,
   isFullVillage,
-  isVillageTravelling,
   leaveVillage,
-  neighbourSnapshot,
   settleJourney,
   cancelUnfinishedConstruction,
   foundVillageForSettlement,
@@ -70,12 +68,12 @@ import {
   type GameEntry,
   type PlayerToday,
 } from './game';
-import { neighbourScene, ownMapsAround } from './departure-view';
+import { ownMapsAround } from './departure-view';
 import type { LeaveVillageInput } from './village-input';
 import { lineEndView } from './line-end-view';
 import { panelOptionsOf, type PanelAsk, type PanelOptions } from './panel-options';
 import { villageListItem } from './village-list';
-import { buildVillageView, sceneOfVillage, type VillageView } from './village-view';
+import { buildVillageView, type VillageView } from './village-view';
 
 // Composition root vsi: dnešní herní den hráče (světové hodiny + jeho posun času), Drizzle
 // repozitář, use-casy a převod na VillageView. Hráč může mít víc vsí (migration.md – Víc vsí
@@ -159,9 +157,8 @@ async function guardedAction<T>(
 }
 
 /**
- * Pohled na ves z kontextu: ves kontextu se dopočte do dneška, ostatní vsi hráče (přepínač vsí,
- * sousedé na mapě) jsou, jak je drží worker – web je dopočte, jen když jsou víc než
- * `WORKER_LAG_DAYS` pozadu (`dynastyForVillage`; konec hry až po vymření všech). `record` – ves
+ * Pohled na ves z kontextu: ves kontextu se dopočte do dneška, ostatní vsi hráče (přepínač vsí) jsou,
+ * jak je drží worker – web je dopočte, jen když jsou víc než `WORKER_LAG_DAYS` pozadu (`dynastyForVillage`; konec hry až po vymření všech). `record` – ves
  * právě uložená akcí (kdyby ji stav rodu nenašel).
  */
 async function viewOf(
@@ -169,29 +166,16 @@ async function viewOf(
   record?: VillageRecord,
 ): Promise<VillageActionResult> {
   const status = await dynastyOfPlayer(ctx.playerId, ctx.day, ctx.villageId);
-  // zobrazená ves a vsi téže mapy jsou celé, vsi jiných map jen souhrnem (`dynastyForVillage`)
+  // zobrazená ves je celá, vsi jiných map jen souhrnem (`dynastyForVillage`)
   const full = (status.villages as readonly DynastyVillage[]).filter(isFullVillage);
   const listed = full.find((v) => v.id === ctx.villageId);
   const current = listed ?? record;
   if (!current) return { error: NO_VILLAGE };
-  // jiné vsi na téže mapě (migration.md) – jejich stavby a paseky, a vlastní vsi na sousedních
-  // mapách
-  const sameMap = full.filter(
-    (v) => v.settlementId === current.settlementId && v.id !== current.id,
-  );
   const from = status.settlements.find((s) => s.id === current.settlementId);
   const view = buildVillageView(current, ctx.landscape, ctx.day, {
     gameOver: status.gameOver,
     lineEnded: status.gameOver ? lineEndView(status.villages) : null,
     villages: status.villages.map((v) => villageListItem(v, ctx.day)),
-    neighbours: neighbourSnapshot(
-      sameMap.map((v) => v.state),
-      ctx.day,
-      sameMap.map((v) => v.name),
-    ),
-    neighbourScenes: sameMap
-      .filter((v) => !isVillageTravelling(v.state))
-      .map((v) => neighbourScene(sceneOfVillage(v.state, ctx.landscape, ctx.day))),
     ownMaps: ownMapsAround(status.settlements, status.villages, current.settlementId),
     mapsBlocked: from && from.worldCell === null && !from.isSeat ? NO_WORLD_CELL : null,
   });
@@ -204,7 +188,7 @@ async function viewOf(
 
 /**
  * Nabídka panelu (kompas zemských stezek, výsadba jabloní u cesty) vsi `villageId` hráče
- * dopočítané do dneška – stejný stav a sousedé jako pohled (`viewOf`), jen až na vyžádání panelu
+ * dopočítané do dneška – stejný stav jako pohled (`viewOf`), jen až na vyžádání panelu
  * (panel-options.ts).
  */
 export function panelOptionsForPlayer(
@@ -216,19 +200,11 @@ export function panelOptionsForPlayer(
     const ctx = await context(playerId, villageId);
     if (!ctx.ok) return { error: ctx.error };
     const status = await dynastyOfPlayer(ctx.playerId, ctx.day, ctx.villageId);
-    // zobrazená ves a vsi téže mapy jsou celé (`dynastyForVillage`)
+    // zobrazená ves je celá (`dynastyForVillage`)
     const full = (status.villages as readonly DynastyVillage[]).filter(isFullVillage);
     const current = full.find((v) => v.id === ctx.villageId);
     if (!current) return { error: NO_VILLAGE };
-    const sameMap = full.filter(
-      (v) => v.settlementId === current.settlementId && v.id !== current.id,
-    );
-    const neighbours = neighbourSnapshot(
-      sameMap.map((v) => v.state),
-      ctx.day,
-      sameMap.map((v) => v.name),
-    );
-    return panelOptionsOf(current.state, ctx.landscape, ctx.day, neighbours, ask);
+    return panelOptionsOf(current.state, ctx.landscape, ctx.day, ask);
   });
 }
 

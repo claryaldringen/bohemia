@@ -1,17 +1,11 @@
 // Umisťování staveb (rozcestník) – kontroly jsou rozdělené podle témat do placement-<téma>.ts.
 // Podmoduly neimportují odsud, jen přímo ze sourozenců.
 
-export {
-  FOREIGN_LAND,
-  MAX_CEMETERY_CELLS,
-  MAX_FIELD_CELLS,
-  MAX_ORCHARD_CELLS,
-} from './placement-types';
+export { MAX_CEMETERY_CELLS, MAX_FIELD_CELLS, MAX_ORCHARD_CELLS } from './placement-types';
 export type {
   CemeteryPreview,
   DwellingPlacementCheck,
   FieldPreview,
-  ForeignStructures,
   OrchardPreview,
   PlacementCheck,
   PlacementVillage,
@@ -23,7 +17,6 @@ export {
   dwellingFootprint,
   dwellingPlot,
   nearestPlotVariant,
-  onForeignGround,
   plotHousePosition,
   plotHouseRotation,
   rotatedPlot,

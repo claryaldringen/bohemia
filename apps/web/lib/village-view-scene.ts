@@ -2,6 +2,7 @@
 
 import {
   SceneThreshingFloor,
+  type ScenePlot,
   sceneMound,
   scenePlot,
   SceneFieldPart,
@@ -87,9 +88,9 @@ import {
   type VillageSummary,
   villageCemeteries,
   villageOrchards,
+  type DwellingPlot,
 } from '@bohemia/game';
 import { sceneGrainPits } from './grain-pit-view';
-import { foreignFromScene, plotOfScene } from './scene/neighbour-villages';
 import { sceneFunerals } from './funeral-view';
 import { scenePersons } from './person-view';
 import { sceneWeddings } from './wedding-view';
@@ -592,6 +593,21 @@ function waterCartShares(state: VillageState, shares: readonly LaborShare[]): Ma
 }
 
 /**
+ * Pozemek ze scény pro kontrolu umístění  – i s dvorem dvorce (trade.md)
+ * a natočený (střed a natočení čtverce – fields.md, Natočené stavby).
+ */
+export function plotOfScene(plot: ScenePlot): DwellingPlot {
+  return {
+    cell: plot.cell,
+    variant: plot.variant,
+    ...(plot.yard ? { yard: plot.yard.cell } : {}),
+    ...(plot.rotation !== undefined && !plot.yard
+      ? { square: { x: plot.x, z: plot.z, rotation: plot.rotation } }
+      : {}),
+  };
+}
+
+/**
  * Data pro kontrolu umístění v prohlížeči (`checkDwellingPlacement`, `fieldPartsFromCells`,
  * `cemeteryPartsFromCells`, `orchardPartsFromCells`) ze scény vsi – hotová i rozestavěná obydlí
  * jako obydlí, pole podle čtverců dílů, pohřebiště a sady podle svých čtverců, odstraněné
@@ -620,8 +636,6 @@ function scenePlacementVillage(scene: SceneVillage): PlacementVillage {
       ...(d.plainShape ? { plainShape: true } : {}),
     })),
     constructions: [],
-    // stavby a půda jiných vsí na téže mapě (migration.md)
-    ...(foreignFromScene(scene) ? { foreign: foreignFromScene(scene) } : {}),
     // natočená pole (fields.md – Natočené stavby) – díly jsou čtverce v jejich mřížce
     fields: scene.fields.map((f) => ({ id: f.id, ...(f.grid ? { grid: f.grid } : {}) })),
     // pole a plocha dílu (políčko) pro navazující pole – rozšíření a sloučení (fields.md)

@@ -293,18 +293,15 @@ export interface Workshop {
 }
 /**
  * Kam jde tesař pro kování (wagons.md – Kování vozů): k sousedovi za krajem mapy (směr, hotová
- * zemská stezka, nebo bod na kraji mapy, kam se jde krajinou), nebo do jiné vsi hráče na téže mapě
- * (kovárna – m). `name` = jméno vsi.
+ * zemská stezka, nebo bod na kraji mapy, kam se jde krajinou). `name` = jméno souseda.
  */
-export type IronTripTarget =
-  | {
-      kind: 'neighbour';
-      name: string;
-      direction: Direction8;
-      trailId: number | null;
-      edge: { x: number; z: number };
-    }
-  | { kind: 'village'; name: string; x: number; z: number };
+export interface IronTripTarget {
+  kind: 'neighbour';
+  name: string;
+  direction: Direction8;
+  trailId: number | null;
+  edge: { x: number; z: number };
+}
 /**
  * Cesta pro kování k vozu (wagons.md – Kování vozů): kdo vede (syn tesaře od 14 let, nebo tesař –
  * id), den odchodu, dny cesty tam a zpět a kolik jich už ušel, kolik kování nese (kg) a kolik obilí
