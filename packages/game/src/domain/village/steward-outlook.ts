@@ -1,11 +1,11 @@
 import { dateOfDayIndex, dayIndexOf } from '../calendar';
-import { fieldCapacity, ROTATION } from './field-capacity';
+import { fieldCapacity, harvestPerPersonKg, netYieldPerHa, ROTATION } from './field-capacity';
 import { distanceFactor, fallowStage, partWalkDistance, reclaimCostPerHa } from './fields';
 import { ableTeams } from './oxen';
 import { ploughWorkPerHa } from './plough';
 import { fieldWorkPerHa } from './productivity';
-import { SEED_KG_PER_HA, WINDOWS } from './rules-fields';
-import { foodUntilHarvestKg, grainSeedTakenKg, sowableSeedKg } from './seed';
+import { SEED_KG_PER_HA, SEED_STORES, WINDOWS } from './rules-fields';
+import { foodUntilHarvestKg, grainSeedTakenKg, reservedSeedKg, sowableSeedKg } from './seed';
 import { sowingCapacity } from './simulate-plan';
 import type { CraftCoverage, FieldPart, VillageState } from './types';
 
@@ -150,4 +150,63 @@ export function stewardOutlook(
     landPeople,
     sustainablePeople: landHa > 0 ? (landPeople * Math.min(landHa, laborHa)) / landHa : 0,
   };
+}
+
+/** Půda, na které ves seje (pro `stewardFedPeople`): úrodnost a stav dílů, strava vsi. */
+export interface StewardSoil {
+  /** Přirozená úrodnost dílů (vážená plochou). */
+  fertility: number;
+  /** Dnešní půda ÷ ustálená, nejvýš 1 (`FieldCapacity.soil`). */
+  soil: number;
+  /** Podíl jídla z pole (`fieldFoodShare`) – strava vsi. */
+  fieldFood: VillageState['fieldFood'];
+}
+
+/** Půda vsi – díly v oběhu (zakládané jako by už byly); ves bez polí null. */
+export function stewardSoil(state: VillageState, day: number): StewardSoil | null {
+  const capacity = fieldCapacity(
+    { parts: rotationParts(state), people: state.people, fieldFood: state.fieldFood },
+    day,
+  );
+  if (!capacity) return null;
+  return { fertility: capacity.fertility, soil: capacity.soil, fieldFood: state.fieldFood };
+}
+
+/**
+ * Osivo na příští osev (kg) i mimo okna setí: osivo jen na setí (`reservedSeedKg`), zrno zásob
+ * a nevymlácených snopů nad příděl SEED_STORES.floorRation potřeby do žní (pod ním by ho ves
+ * snědla – fields.md, Osivo ze zásob) a luštěniny.
+ */
+function nextSowingSeedKg(state: VillageState, day: number): number {
+  const reserved = reservedSeedKg(state);
+  const grain = Math.max(0, state.storesKg) + (state.sheaves?.grainKg ?? 0) - reserved;
+  const free = Math.max(0, grain - SEED_STORES.floorRation * foodUntilHarvestKg(state, day));
+  return reserved + free + Math.max(0, state.legumesKg ?? 0) + (state.sheaves?.legumesKg ?? 0);
+}
+
+/**
+ * Kolik lidí ves uživí osevem vlastní prací (steward.md – Životaschopná výprava; Martin
+ * 2. 11. 2026): osev = menší z osevu podle práce (`stewardOutlook` – kapacita setí hospodářského
+ * roku) a s `seed` i podle osiva na příští osev (`nextSowingSeedKg`), × čistá úroda hektaru
+ * `netYieldPerHa` při úrodnosti a stavu půdy `soil` ÷ úroda na průměrného člověka vsi
+ * (`harvestPerPersonKg` se stravou `soil.fieldFood`). Půda vsi se nepočítá (návrh Clauda):
+ * přelidněné vsi bez místa na pole je odchod lékem a nová ves si pole teprve založí. Ves bez lidí 0.
+ */
+export function stewardFedPeople(
+  state: VillageState,
+  day: number,
+  coverage: CraftCoverage,
+  soil: StewardSoil,
+  seed = true,
+): number {
+  const perPerson = harvestPerPersonKg(
+    { people: state.people, fieldFood: soil.fieldFood },
+    day,
+    coverage.pottery,
+  );
+  if (perPerson <= 0) return 0;
+  const { laborHa } = stewardOutlook(state, day, coverage);
+  const seedHa = seed ? nextSowingSeedKg(state, day) / SEED_KG_PER_HA : Infinity;
+  const sownHa = Math.min(laborHa, seedHa);
+  return (sownHa * netYieldPerHa(soil.fertility) * soil.soil) / perPerson;
 }

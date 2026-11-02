@@ -247,6 +247,13 @@ export const STEWARD = {
    * odchod ji nesmí poslat do Nouze (`emergencyFill`).
    */
   departureMotherFill: 0.5,
+  /**
+   * Krok 2 – Životaschopná výprava (Martin 2. 11. 2026: „neměl by syn odcházet, až když je ve
+   * zdrojové vesnici dost lidí, aby obě vesnice mohly bezpečně fungovat?“; číslo návrh Clauda):
+   * mateřská i nová ves po odchodu oseje vlastní prací a osivem tolik, že uživí aspoň tolikrát své
+   * lidi i s dětmi (`stewardFedPeople`) – rezerva na děti, které se narodí, a na horší rok.
+   */
+  departureFeedShare: 1.2,
   /** Odchozí schránka: kolikrát se nevybavitelný záznam zkusí vybavit, pak se nechá být. */
   departureAttempts: 5,
 } as const;

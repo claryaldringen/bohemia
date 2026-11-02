@@ -8,7 +8,8 @@ import { tileCenterWorld, type Landscape, type ObstacleLayer } from '../landscap
 import { deriveSeed } from '../landscape/random';
 import { craftCoverage } from './crafts';
 import { flushWear } from './paths/wear';
-import { settlersOf, edgeDistanceM, travelDays, villageCentre } from './departure';
+import { foundVillage } from './actions';
+import { settlersOf, edgeDistanceM, travelDays, villageCentre, type Settlers } from './departure';
 import { currentLord, wivesOf } from './dynasty';
 import { generatedLineName } from './dynasty-names';
 import { foundedState } from './founding';
@@ -23,7 +24,13 @@ import { STEWARD } from './rules-steward';
 import { fieldSowingTargets } from './simulate-plan';
 import { departWithSon, leadingSons, sonDeparturePreview } from './son-departure';
 import { fieldCellValue, fieldCells, takenTiles, villageTerritory } from './steward-land';
-import { stewardOutlook, type StewardOutlook } from './steward-outlook';
+import {
+  stewardFedPeople,
+  stewardOutlook,
+  stewardSoil,
+  type StewardOutlook,
+  type StewardSoil,
+} from './steward-outlook';
 import { isStewardOn, pruneStewardBuilt } from './steward-state';
 import { DIRECTIONS, builtTrail } from './trail';
 import type {
@@ -67,6 +74,9 @@ export function stewardSonDay(
   else steward.lastYearHunger = steward.hungerPeak;
   delete steward.hungerPeak;
 }
+
+/** Místo zemnice nové vsi v odhadu `departureFed` – krajinu nové mapy doména ještě nezná. */
+const COLONY_SITE = { x: 0, z: 0, rotation: 0 } as const;
 
 /**
  * Nejvyšší nahromaděný hlad (`starvationDays`) od posledního dne odchodu (mutuje stav) – 31. 8.
@@ -234,7 +244,8 @@ export function stewardExpedition(
 /**
  * Kdo odejde (steward.md – Kdo odejde, Životaschopná výprava): ze synů, kteří smějí vést
  * (`leadingSons` s `check.ok`), jen ten, jehož díl je životaschopná výprava (`stewardExpedition`)
- * a po jehož odchodu má mateřská ves pojistku aspoň `STEWARD.departureMotherFill`; z nich ten
+ * a po jehož odchodu má mateřská ves pojistku aspoň `STEWARD.departureMotherFill` a obě vsi
+ * uživí vlastní prací aspoň `STEWARD.departureFeedShare` × své lidi (`departureFed`); z nich ten
  * s nejvíc dospělými, pak nejvíc lidmi, ženatý před svobodným, starší, nižší id. Nikdo – null
  * (správce počká, až syn dospěje, ožení se nebo ves doroste). Ves bez rodu syna nemá. Pojistku
  * po odchodu počítá na stavu z `departWithSon` – stejně jako odchod sám.
@@ -255,11 +266,51 @@ export function departingSon(state: VillageState, day: number): Person | null {
     );
   for (const e of viable) {
     // akce běží na vsi dopočítané do dneška (`lastDay` uprostřed dopočtu drží den jeho začátku)
-    const after = departWithSon({ ...state, lastDay: day }, day, e.son.id).state;
+    const { state: after, settlers } = departWithSon({ ...state, lastDay: day }, day, e.son.id);
     const fill = bufferFill(fieldSowingTargets(after, day, craftCoverage(after, day)));
-    if (fill >= STEWARD.departureMotherFill) return e.son;
+    if (fill < STEWARD.departureMotherFill) continue;
+    const fed = departureFed(state, after, settlers, day);
+    if (fed.mother >= STEWARD.departureFeedShare && fed.colony >= STEWARD.departureFeedShare) {
+      return e.son;
+    }
   }
   return null;
+}
+
+/** Kolikrát osev vlastní prací uživí lidi mateřské a nové vsi po odchodu (`departureFed`). */
+export interface DepartureFed {
+  mother: number;
+  colony: number;
+}
+
+/**
+ * Obě vsi po odchodu syna (steward.md – Životaschopná výprava; Martin 2. 11. 2026: „neměl by syn
+ * odcházet, až když je ve zdrojové vesnici dost lidí, aby obě vesnice mohly bezpečně fungovat?
+ * Inteligentní hráč by to tak udělal“): kolikrát osev vlastní prací (`stewardFedPeople`) uživí
+ * lidi mateřské vsi (stav `after` z `departWithSon`; i podle osiva na příští osev – past osiva)
+ * a nové vsi (osadníci – stav, jak ho založí `foundVillage`; jen podle práce – osivo výpravy hlídá
+ * `stewardExpedition` a chybějící ves koupí u sousedů, fields.md – Osivo pro ves bez zásob). Nová
+ * ves seje na úrodnosti mateřské vsi (sousední mapa) s odpočatou půdou a stravou mateřské vsi.
+ * Mateřská ves bez polí – obojí 0 (úrodnost neznámá, sama nic neoseje).
+ */
+export function departureFed(
+  state: VillageState,
+  after: VillageState,
+  settlers: Settlers,
+  day: number,
+): DepartureFed {
+  const soil = stewardSoil(state, day);
+  if (!soil) return { mother: 0, colony: 0 };
+  const ratio = (village: VillageState, villageSoil: StewardSoil, seed: boolean): number =>
+    village.people.length > 0
+      ? stewardFedPeople(village, day, craftCoverage(village, day), villageSoil, seed) /
+        village.people.length
+      : 0;
+  const colony = foundVillage({ seed: state.seed, day, dwellingPosition: COLONY_SITE, settlers });
+  return {
+    mother: ratio(after, stewardSoil(after, day) ?? soil, true),
+    colony: ratio(colony, { ...soil, soil: 1 }, false),
+  };
 }
 
 /**
