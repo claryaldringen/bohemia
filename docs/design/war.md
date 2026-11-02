@@ -488,6 +488,11 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
 - **Opakované nájezdy na tutéž ves:** bez omezení – „Kolikrát chce. Ono to válečné tažení jde
   reálně podniknout jen v některé části roku. Zimní tažení sice bude možné, ale extrémně náročné.
   Vojenské tažení také není dílem okamžiku“.
+- **Zimní tažení:** „Vojsko jde pomaleji. Musí sebou vézt zásoby píce pro koně. Pokud je tažení
+  vícedenní, vojsko potřebuje víc času na ubytování – zatímco v létě může spát pod širákem nebo
+  v lehkém přístřešku, v zimě je potřeba postavit na noc bytelnější přístřešky nebo alespoň
+  rozdělat hodně ohňů“ – zimní pomalejší pochod, píce (seno) pro koně s sebou, delší večerní
+  ležení (méně hodin pochodu za den).
 
 ## Otázky na Martina
 
