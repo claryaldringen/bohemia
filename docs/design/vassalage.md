@@ -401,6 +401,9 @@ pozvaný vazal):
 - **Vzájemné vazalství:** A nesmí být vazalem B, když je B vazalem A; delší kruhy přes víc hráčů
   zakázané nejsou – „Anu, udělej to, jak říkáš“ (Martin 2. 11. 2026).
 
+- **Pozvaný hráč** začíná bez dávek, pán mu je smí navrhnout později stejným jednáním – „Ok“
+  (Martin 2. 11. 2026).
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
