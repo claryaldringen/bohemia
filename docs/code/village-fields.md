@@ -234,7 +234,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   nutných dílů (`seedAheadKg(state, true)` – bez `surplus`, chybějící luštěniny za obilí) −
   `sowableSeedKg`; od `minKg` `buySeed`: zásoba obilí sousedů (`neighbourStock` ve směrech
   `NEIGHBOR_DIRECTIONS`, ubude `storeStock`), cena `buyPrice('grain')`, platba hřivny → krávy
-  `cattleForSale` (`sellPrice` × `goodWorth`), přeplatek obilím do zásob (`changeKg`); kronika
+  `surplusCows` (husbandry.ts – nad krávy na mléko a voly, jako porážka; od 2. 11. 2026, dřív
+  `cattleForSale`) (`sellPrice` × `goodWorth`), přeplatek obilím do zásob (`changeKg`); kronika
   `seed-bought` / `seed-short` (`reason` `pay` / `supply`; upozornění `seed-short`).
 - **Postup práce po čtvercích** (Martin – fields.md): kopání, setí a sklizeň mění díl, až k němu
   dojde práce. `field-progress.ts` (jen čte): díly plodiny v pořadí `CropWork.partIds` (dávka

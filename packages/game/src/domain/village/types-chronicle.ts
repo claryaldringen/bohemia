@@ -456,7 +456,10 @@ export type LaborActivity =
    * (`LaborDay.aside`).
    */
   | 'milking'
-  /** Pasení dospělými – jen v rozdělení práce z doby před 19. 10. 2026 (pasou výrostci). */
+  /**
+   * Pasení dospělým z práce vsi – ves bez výrostků (diet.md – Pasáci, Dospělý pasák; od 2. 11. 2026)
+   * a v rozdělení práce z doby před 19. 10. 2026.
+   */
   | 'herding'
   /**
    * Péče o zvířata – zimní krmení, voda a kydání krav a volů, prasata a slepice; bokem

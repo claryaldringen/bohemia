@@ -54,7 +54,7 @@ import {
 } from './plough-trip';
 import { isToilDay, windowEndDay } from './happiness';
 import { mow, mowingNeededRemaining, mowingRemaining, recordMowingLabor } from './hay';
-import { herdingDay, recordHerding } from './herding';
+import { adultHerding, herdingDay, recordHerding } from './herding';
 import { horseCareLabor, villageHorses } from './horses';
 import { finishShoeing, planShoeing } from './horse-shoeing';
 import {
@@ -380,6 +380,18 @@ export function work(
   if (watchLabor > EPSILON) {
     dayTasks.push({ name: 'watch', remaining: watchLabor, end: Infinity, tie: 4, rank: 2 });
   }
+  // dospělý pasák (diet.md – Pasáci, Dospělý pasák; Martin 2. 11. 2026): ves bez výrostků pase
+  // z práce vsi za polními úlohami dne, nutnou sečí a hlídkou polí, před stavbami (návrh Clauda)
+  const adultHerdingWanted = adultHerding(state, day, villageOxen(state));
+  if (adultHerdingWanted > EPSILON) {
+    dayTasks.push({
+      name: 'herding',
+      remaining: adultHerdingWanted,
+      end: Infinity,
+      tie: 4,
+      rank: 3,
+    });
+  }
   const orchard = orchardTask(state, day);
   if (orchard) {
     const tie = orchard.name === ORCHARD_TASK_NAMES.harvest ? 0 : 2;
@@ -649,6 +661,8 @@ export function work(
   let mowLabor: number | undefined;
   // postup nutné seče dnes (s vozy víc, než na ni ves dala práce – svoz) – volná práce na seč (níž)
   let mowWork = 0;
+  // co dnes pásl dospělý (plných pasáků – diet.md, Pasáci, Dospělý pasák)
+  let adultHerded = 0;
   const mowingBefore = state.hay?.mowing?.done ?? 0;
   dayTasks.forEach((task, i) => {
     const labor = allocation.taskAmounts[i] ?? 0;
@@ -740,6 +754,8 @@ export function work(
       grainPits = workGrainPits(state, day, amount, moreGrain, pitSite);
     } else if (task.name === 'watch') {
       payWatch(state, day, task.remaining, amount);
+    } else if (task.name === 'herding') {
+      adultHerded += amount;
     } else {
       workOrchards(state, amount);
     }
@@ -758,7 +774,7 @@ export function work(
   for (const helper of bellows.values()) if (helper?.kind === 'son') busy.add(helper.personId);
   // co dnes výrostci uhlídali – podle toho ves při porážce drží stádo (diet.md – Pasáci)
   const herding = herdingDay(state, day, villageOxen(state), busy);
-  recordHerding(state, herding);
+  recordHerding(state, herding, adultHerded);
   // lidé na cestách k sousedům – podíl z rozdělení dne (trade.md – Doprava): skupiny nákupu
   // u sousedů ujdou den napřed (jdou pevně dny cesty – crafts.md, Nákup u sousedů), zbytek
   // dostanou výpravy obchodu

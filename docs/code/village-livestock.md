@@ -9,7 +9,11 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `hay.mowCapacityKg` (1. seč + otava nejvýš `aftermathYieldShare` 1. seče). `farmInput`
   (husbandry.ts) dá `mowKg` (`mowableHerdHayKg` – strop × `PLAN_HAY_KEEP` bez sena `hayOxen`
   a koní) a `cowsComing`; `winterTargets` dělí `mowKg` jako seno v pořadí `HERD_PRIORITY`
-  a místa (`roomForWinter`) uplatní před pastvou a senem. Koupený dobytek: `hayOxen` + `oxenComing`,
+  a místa (`roomForWinter`) uplatní před pastvou a senem. **Seno jen na skutečné voly** (oxen.md –
+  Seno, od 2. 11. 2026): `hayOxen(state, day)` = voli ohrad + `oxenComing` + `looseOxen` +
+  `trainableCalves` (oxen.ts – telata, která výcvik dnes dostane: chybějící voli, místa, přírůstek
+  nad `breedingCows`, bez sena a dřeva; cíl `oxenGoal` v husbandry.ts – týž jako
+  `trainTeamsWhenReady`); dřív aspoň `oxenTrainingTarget`. Koupený dobytek: `hayOxen` + `oxenComing`,
   `withCowsComing` v `mowingNeed` a `winterHayNeedKg`; otava má v seči všechny posečené louky
   1. seče se stropem práce `HayMowing.wanted` (`mowingRemaining`, `mowingNeededRemaining`),
      přibude-li dobytek (`hayCattle` > `HayMowing.cattle`), `raiseAftermath` strop zvedne.
@@ -114,7 +118,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `villageDams` – dospělé kusy bez letošních mláďat × podíl samic; `dailyMilk`, `yearlyMilk`,
   `milkEnergyBetween` berou dojné samice). Porážka 1. 11. (`slaughter`): stádo přes zimu nejvýš
   `winterKeepTargets` – `winterTargets`, místo pro jarní mláďata podle výrostků příštího léta
-  (`youngRoomTargets`, `nextSummerDay` 1. 7., `youngsterHerders` z věku dnešních dětí), bez
+  (`youngRoomTargets`, `nextSummerDay` 1. 7., `herderCapacity` z věku dnešních dětí – bez
+  výrostků dospělý `HERDING.adultShare`), bez
   starých kusů (`retiringHeads`), chovné minimum `breedingFloor` vždy; staré a nad nosnost na maso
   vždy, `keepUneatable` jen pro ostatní. Kusy na maso čekají přes zimu (`winterWait` – čerstvá
   spotřeba zimy `freshMeatPerDayKg` × 151 dní, napřed prasata v lese, pak krávy, ovce, kozy; co
@@ -135,10 +140,16 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   bez zápisu (dřívější) beze změny do porážky 1. 11. Práce na vlně je v `DOMESTIC` (přerozdělení). Zimní úhyn 1. 3. (do 24. 10. 2026 – nahradila ho `hayShortSlaughter`)
   (`starveHerds` z `herdHayCoverage` – pod polovinou přídělu, chovný pár přežije, kronika
   `herd-starved`). **Pasáci** (`herding.ts`, `HERDING`): plný pasák 40 krav (i voli), 100 ovcí či
-  koz, 50 prasat, výrostek 7–13 let `childShare` 40 %; **pasou jen výrostci** (`isYoungster`,
-  mimo práci vsi; dospělí ani starší ne – Martin 19. 10. 2026: „Když bude ve vsi málo vhodných
+  koz, 50 prasat, výrostek 7–13 let `childShare` 40 %; **pasou výrostci** (`isYoungster`,
+  mimo práci vsi; starší ne – Martin 19. 10. 2026: „Když bude ve vsi málo vhodných
   dětí na pasení, tak to omezí i velikost stád.“); `herdingDay` – kolik výrostků dnes pase;
-  přežvýkavci duben–říjen, prasata celý rok; `recordHerding` sčítá `LivestockState.herding` od
+  **dospělý pasák** (diet.md – Pasáci, Dospělý pasák, od 2. 11. 2026): `adultHerding(state, day,
+oxen)` – jen ve vsi bez výrostků (`youngsterCount` 0), potřeba nejvýš `HERDING.adultShare` (0,4)
+  plných pasáků = člověkodní; `work` (simulate-work.ts) ji dá jako úlohu dne `herding` (`end`
+  Infinity, `tie` 4, `rank` 3 – za polními úlohami, nutnou sečí a hlídkou, před stavbami),
+  odvedená práce jde do `recordHerding(state, herding, adult)`; `labor-report.ts` ji zapíše jako
+  činnost `herding` (web: `herderCount`, `herderKinds` – dospělý u stáda). Nový stav není – platí
+  od dalšího dne. Přežvýkavci duben–říjen, prasata celý rok; `recordHerding` sčítá `LivestockState.herding` od
   porážky do porážky, `herdingCoverage` jde do porážky, `pastureGrazing` a pastvy; `LaborDay.herders`
   (výrostci u stád) → `SceneLabor.herders` → `herderKinds` ve `villager-plan-cast.ts`. Porážka a uzení jdou před polními úlohami (přes zimu po dnech).
   Louka a les do 600 m pro pastvu jsou z krajiny ve stavu
@@ -234,7 +245,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   – výcvik 2 roky, služba 10 let), 6 volů na čtverec (`PEN_PLACES_PER_SQUARE.team`, `oxPlaces`),
   rádla `VillageState.ards`, potah `DRAFT_OXEN` (rádlo 2, čtyřkolák 2, dvoukolák 1); páry s rádlem
   `ableTeams` / `ploughPairsHome`, výcvik `oxenTraining` / `trainTeamsWhenReady` k cíli `OxenGoal`
-  (`oxenTrainingTarget`, páry, telata jen nad `breedingCows`; krávy navíc na telata
+  (`oxenTrainingTarget`, páry, telata jen nad `breedingCows` – `calvesForTraining`, veřejně
+  `trainableCalves` pro seno; krávy navíc na telata
   `oxenCalvesWanted` v `minCows`), převod starých vsí `withOxen` (spřežení = 2 voli, výcvik = 2 telata – čtení
   přes `oxenOf` funguje i bez převodu). `draft.ts`: páry k rádlům k 1. 9. (potřeba `DraftState.ploughNeed` – nejméně
   párů, které v oknech orby zorají všechny díly na řadě po postupu – nutné i nad potřebu,
@@ -433,7 +445,7 @@ Návrh: `docs/design/horses.md` – Koně se stavbou ohrady.
 
 - `horse-stock.ts` – `horsePenValueKg()` (hodnota koní z `TRADE_GOOD_VALUES`, `HORSE_PEN_STOCK` v `rules-trade.ts`), `giveHorsePenStock` (hřebec 3 roky + 2 klisny 4 roky, kronika `horses-arrived`), `withHorsePenStock` (převod starších vsí: hotová ohrada koní s `horses === undefined`; voláno v `updateVillage` i `advanceVillageSteps`, selhání → `horsePenStockFailed`).
 - `finishPen` (`oxen.ts`) volá `giveHorsePenStock` při dokončení založení ohrady koní (rozšíření ne).
-- `horse-pen-payment.ts` – `horsePenPayment(state, day, coverage)` čistě poskládá platbu (hřivny → krávy a koně bez jezdce → obilí a luštěniny nad pojistkou přes `paymentPool` z `craft-buying.ts`; voli nikdy), `payHorsePen`, `refundHorsePen`. `foundPen` (`actions.ts`) ji odečte a uloží do `Construction.horsePenPaid`; bez platby `RangeError(HORSE_PEN_NO_SURPLUS)` (rozšíření platbu nechce); `cancelConstruction` ji vrátí (koně do hotové ohrady koní, jinak obilím v ceně prodeje). Přeplatek: obilí z přebytku napřed, kus zvířete navíc jen na zbytek (nejlevnější, který stačí). Stavba rozestavěná před změnou (bez `horsePenPaid`) dostane koně po dokončení zdarma.
+- `horse-pen-payment.ts` – `horsePenPayment(state, day, coverage)` čistě poskládá platbu (hřivny → krávy nad krávy na mléko a voly – `surplusCows` z husbandry.ts, od 2. 11. 2026, dřív `cattleForSale` nad chovný pár – a koně bez jezdce → obilí a luštěniny nad pojistkou přes `paymentPool` z `craft-buying.ts`; voli nikdy), `payHorsePen`, `refundHorsePen`. `foundPen` (`actions.ts`) ji odečte a uloží do `Construction.horsePenPaid`; bez platby `RangeError(HORSE_PEN_NO_SURPLUS)` (rozšíření platbu nechce); `cancelConstruction` ji vrátí (koně do hotové ohrady koní, jinak obilím v ceně prodeje). Přeplatek: obilí z přebytku napřed, kus zvířete navíc jen na zbytek (nejlevnější, který stačí). Stavba rozestavěná před změnou (bez `horsePenPaid`) dostane koně po dokončení zdarma.
 - Web: `BuildOption.variants.horse` (`village-view.ts` – `horsePenOption`) nese práci, stromy, platbu, důvod zablokování a `extendAffordable` (rozšíření vybrané ohrady koní – `isBuildAffordable`); tooltip v `BuildGrid.tsx` ukáže platbu ikonami.
 
 ## Kování jezdeckých koní

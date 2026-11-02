@@ -76,7 +76,8 @@ export const SEED_STORES = { keepRation: 1, floorRation: 0.5 } as const;
 // jaře i s odkladem za počasí) nezaseje, je obyčejné zrno; rezerva nad osivo jaře se uvolní už
 // `winterReleaseDay` (1. 12. – po setí ozimu). Při hladovění (`eatFromStarvationDays` = 5 dnů bez jídla, dřív než začnou umírat – STARVATION.threshold)
 // ves rezervu sní – osivo se šetří, ne za cenu smrti. Za jeden nákup nejvýš `maxCows` kráva (návrh Clauda:
-// ves přijde nejvýš o jednu dojnici navíc k dvěma, které si nechává – `TRADE.keepCows`).
+// ves přijde nejvýš o jednu dojnici nad krávy, které drží na mléko a voly – `surplusCows`; od 2. 11.
+// 2026, dřív nad dvě – `TRADE.keepCows`, který dál platí pro obchod hráče).
 export const SEED_BUYING = {
   days: [
     { month: 9, day: 1 },

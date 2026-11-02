@@ -155,8 +155,8 @@ Raně středověká strava nebyla jen obilí. Plné nasycení potřebuje kombina
   ≈ 35 kg bílkovin ročně, z obilí ≈ 13 kg – s ≈ 110 l mléka ≈ **100 kg masa ročně** (vlastní
   výpočet; 1,6 g/kg je asi dvojnásobek bezpečné dávky FAO/WHO – Martinova volba). Dřív pevně
   60 kg (20 % energie) – nahrazeno.
-- **Práce:** pasou děti a starší bez práce vsi (Martin), co nezvládnou, pasou dospělí (Pasáci
-  níž, od 19. 10. 2026); porážka a uzení ≈ **1 člověkoden na 20 kg masa**; dojení a péče viz Práce
+- **Práce:** pasou výrostci bez práce vsi, ves bez výrostků dospělý z práce vsi (Pasáci níž –
+  od 19. 10. 2026 a Dospělý pasák od 2. 11. 2026); porážka a uzení ≈ **1 člověkoden na 20 kg masa**; dojení a péče viz Práce
   se zvířaty; seno podle [orání rádlem](oxen.md).
 - **Ohrada:** krávy a voli přes zimu v ohradě s přístřeškem ([orání rádlem](oxen.md)); ovce
   a kozy přezimují u domů na seně, prasata v lese (návrh Clauda, Martin 19. 10. 2026).
@@ -322,15 +322,30 @@ mohou pást jen 2 malí kluci, nezvládne udržet stádo 100 krav**“.
   ([population.md](population.md) – Práce). Dospělí ani starší pasáky nejsou (návrh Clauda –
   starší zůstávají u denního minima domácnosti, dospělí na polích a stavbách). Dřív pasli
   napřed děti a starší a co nezvládli, dospělí ze společné práce (nejvýš jeden z domácnosti) –
-  ves bez dětí tak stáda uhlídala za práci; teď je bez dětí neuhlídá.
+  ves bez dětí tak stáda uhlídala za práci; od 19. 10. do 2. 11. 2026 je bez dětí neuhlídala
+  (dospělý pasák níž).
+- **Dospělý pasák, když nejsou děti** (od 2. 11. 2026; Martin schválil návrh Clauda, čísla návrh
+  Clauda): zakladatelé nemají děti 7–13 let, takže prvních ≈ 8 let bylo pasení 0 a porážka 1. 11.
+  srazila každé stádo na chovný pár (ovce 9,8 → 2, krávy 2,6 → 2) – ves neměla maso ani stáda
+  a voli nemohli vzniknout. Teď, **když ve vsi není žádný výrostek** (synové cvičící vojvodovy
+  rodiny se nepočítají), pase dospělý **za jednoho výrostka**: uhlídá nejvýš **0,4 plného pasáka**
+  (16 krav nebo 40 ovcí – jako výrostek, ať ves s jedním dítětem nepase hůř než bez dětí)
+  a stojí to **tolik člověkodní z práce vsi, kolik pase** (plný pasák = člověkoden; 3 krávy a 10
+  ovcí ≈ 0,18 člověkodne denně, ≈ 37 za sezónu pastvy, nejvýš 0,4 denně). Pase za polními úlohami
+  dne, nutnou sečí a noční hlídkou polí, před stavbami – ve dny, kdy práce vsi nestačí, stádo
+  neuhlídá a co nikdo neuhlídal, jde 1. 11. na maso. Vesničané to dělají sami, hráč nic nezadává
+  („Vesničané sami používají, co jim ulehčí práci“). S výrostkem dospělý nepase – málo dětí dál
+  omezí stáda (Martin 19. 10. 2026). Ve scéně stojí u stáda dospělý pasák (rozdělení práce,
+  činnost `herding`).
 - **Kdy:** krávy, voli, ovce a kozy od dubna do října (v zimě jsou v ohradě a u domů na seně),
   prasata v lese celý rok.
 - **Nosnost:** ves sčítá od porážky do porážky, jaký podíl potřeby pasáci uhlídali; při porážce
   si nechá nejvýš ten podíl každého stáda – **co nikdo neuhlídal, jde na maso** a stádo nad to
   neroste. S chovným stádem podle potřeby se to skládá: stádo je nejvýš menší z obojího.
 - **Místo pro mláďata** (od 19. 10. 2026 – Porážka v zimě): stádo přes zimu i s jarními mláďaty
-  nesmí přesáhnout, co uhlídají výrostci příštího léta (odhad z věku dnešních dětí). Porody
-  výrostci neomezují – rodí všechny samice.
+  nesmí přesáhnout, co uhlídají výrostci příštího léta (odhad z věku dnešních dětí; bez výrostků
+  dospělý pasák – 0,4 plného pasáka, od 2. 11. 2026). Porody výrostci neomezují – rodí všechny
+  samice.
 - **Ve scéně** stojí u stád pasáčci z jádra – výrostci, kteří dnes pasou, nejvýš jeden u každého
   stáda; stádo, na které výrostci nestačí, zůstane u domů (Pastva a vždy s pasákem). Rozdělení
   práce z doby před pasáky ukáže děti jako dřív, z doby před 19. 10. 2026 i starší a dospělé.
@@ -645,7 +660,8 @@ podle zásob – beze změny), stropy podílů energie a 1,6 g/kg zůstávají.
      vždy;
   2. **cena zdroje** = práce vsi na kus (seno, porážka) mínus práce na obilí, které jeho maso
      a mléko nahradí, na kilogram bílkovin navíc proti obilí; ves přidává po kusech (luštěniny po
-     **25 kg**). **Pasáci nestojí nic a plán je nepočítá** – výrostci omezí stádo jen přes
+     **25 kg**). **Pasáci nestojí nic a plán je nepočítá** (dospělý pasák ve vsi bez výrostků
+     stojí práci – plán ho nepočítá, je jen na první roky; návrh Clauda) – výrostci omezí stádo jen přes
      nosnost, tedy podíl, který přes rok uhlídali (Pasáci, Martin: „Když bude ve vsi málo
      vhodných dětí na pasení, tak to omezí i velikost stád.“). Plán dřív navíc nechal jen tolik
      kusů, kolik uhlídají výrostci v den rozhodnutí, a ovce v pořadí chovu jim místo vzaly
@@ -1188,6 +1204,7 @@ výsledek porážky (kusy, maso) nemá vliv. Podrobnosti a soubory: `docs/code/s
 | Pasáci omezují stádo – co nikdo neuhlídá, jde na maso; pasou děti, starší, pak dospělí                                                                                                                           | Martin – nápad                                    |
 | Pasák 40 krav, 100 ovcí či koz, 50 prasat (pes v číslech); dítě 40 %, starší 75 %                                                                                                                                | návrh Clauda (rešerše)                            |
 | Dospělý pasák nejvýš jeden z domácnosti, pasení hned po dojení (stáda nepočkají)                                                                                                                                 | návrh Clauda                                      |
+| Dospělý pasák jen ve vsi bez výrostků – za jednoho výrostka (0,4 pasáka), z práce vsi kolik pase                                                                                                                 | Martin (2. 11. 2026), čísla návrh Clauda          |
 | Seno denně: kráva 5, vůl 6, ovce a koza 1 kg; zimní úhyn pod půlkou přídělu, pár přežije                                                                                                                         | návrh Clauda (rešerše)                            |
 | Uzené maso se jí do 31. 8., pak se zkazí; seno ztrácí 10 % ročně, staré do nové seče shnije                                                                                                                      | návrh Clauda (rešerše)                            |
 | Mláďata navíc na maso: prasata, krávy, kozy, ovce; porážka před polními úlohami listopadu                                                                                                                        | návrh Clauda                                      |

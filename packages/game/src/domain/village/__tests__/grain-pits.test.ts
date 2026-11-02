@@ -608,6 +608,7 @@ describe('práce na jámách v rozdělení práce', () => {
           slaughter: 0,
           'grain-pit': 2,
           watch: 0,
+          herding: 0,
           'orchard-care': 0,
           'orchard-harvest': 0,
         },

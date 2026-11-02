@@ -535,6 +535,40 @@ export function oxenTraining(
   obstacles: ObstacleLayer | null,
 ): OxTraining | string {
   const built = oxPens(state).filter((pen) => pen.builtDay !== null);
+  const calves = calvesForTraining(state, day, goal);
+  if (typeof calves === 'string') return calves;
+  let n = calves;
+  const winterDays = hayWinterDaysLeft(day, isLongWinterRevealed(state, day));
+  if (winterDays > 0) {
+    const fed = Math.floor(villageHayKg(state) / (HAY.dailyKg.ox * winterDays) + EPSILON);
+    n = Math.min(n, fed - villageOxen(state));
+    if (n <= 0) return 'Na výcvik chybí seno.';
+  }
+  const pairs = Math.min(goal.ploughPairs, Math.floor((villageOxen(state) + n) / DRAFT_OXEN.ard));
+  const ards = Math.max(0, pairs - villageArds(state) - pendingArds(state));
+  if (ards > 0) {
+    const pen = built[0]!;
+    if (penWood(state, ARD.trees * ards, pen, day, obstacles).missing > 0) {
+      return 'Na rádlo chybí dřevo.';
+    }
+  }
+  return { calves: n, ards };
+}
+
+/**
+ * Telata, která výcvik dnes opravdu dostane (oxen.md – Voli po kusech, Seno): kolik volů chybí,
+ * kolik se jich vejde do hotových ohrad volů a kolik telat je nad chovnými kravami (s výjimkou
+ * náhrady posledního páru) – bez sena a dřeva na rádlo. Podle toho ves seče seno na voly
+ * (husbandry.ts – `hayOxen`). Bez telat 0.
+ */
+export function trainableCalves(state: VillageState, day: number, goal: OxenGoal): number {
+  const calves = calvesForTraining(state, day, goal);
+  return typeof calves === 'string' ? 0 : calves;
+}
+
+/** Telata do výcviku bez sena a dřeva (`oxenTraining`), nebo česky důvod, proč žádná. */
+function calvesForTraining(state: VillageState, day: number, goal: OxenGoal): number | string {
+  const built = oxPens(state).filter((pen) => pen.builtDay !== null);
   if (built.length === 0) {
     return oxPens(state).length > 0 ? 'Ohrada volů se ještě staví.' : 'Ves nemá ohradu volů.';
   }
@@ -559,22 +593,7 @@ export function oxenTraining(
     : 0;
   const calves = Math.max(spare, urgent);
   if (calves <= 0) return 'Na výcvik chybí telata – krávy nemají přírůstek nad chovné stádo.';
-  let n = Math.min(missing, room, calves);
-  const winterDays = hayWinterDaysLeft(day, isLongWinterRevealed(state, day));
-  if (winterDays > 0) {
-    const fed = Math.floor(villageHayKg(state) / (HAY.dailyKg.ox * winterDays) + EPSILON);
-    n = Math.min(n, fed - villageOxen(state));
-    if (n <= 0) return 'Na výcvik chybí seno.';
-  }
-  const pairs = Math.min(goal.ploughPairs, Math.floor((villageOxen(state) + n) / DRAFT_OXEN.ard));
-  const ards = Math.max(0, pairs - villageArds(state) - pendingArds(state));
-  if (ards > 0) {
-    const pen = built[0]!;
-    if (penWood(state, ARD.trees * ards, pen, day, obstacles).missing > 0) {
-      return 'Na rádlo chybí dřevo.';
-    }
-  }
-  return { calves: n, ards };
+  return Math.min(missing, room, calves);
 }
 
 /**

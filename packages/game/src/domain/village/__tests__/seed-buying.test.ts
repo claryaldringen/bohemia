@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { foundVillage, type PartInput } from '../actions';
 import { departVillage } from '../departure';
+import { breedingCows, oxenCalvesWanted, surplusCows } from '../husbandry';
 import { neighbourStock } from '../neighbours';
 import { LEAVING, NEIGHBOR_DIRECTIONS, SEED_BUYING, TRADE } from '../rules';
 import { reservedSeedKg, sowableSeedKg, foodUntilHarvestKg } from '../seed';
@@ -134,6 +135,34 @@ describe('osivo pro ves bez zásob (fields.md – Osivo pro ves bez zásob)', ()
     const bought = eventsOf(end, 'seed-bought');
     expect(bought).toHaveLength(1);
     expect(bought[0]!.pay.cows ?? 0).toBeLessThanOrEqual(SEED_BUYING.maxCows);
+  }, 60_000);
+
+  it('za osivo neprodá krávy, které ves drží na mléko a voly – jako porážka', () => {
+    // Martin 2. 11. 2026 (návrh Clauda): jen krávy nad chovné (`breedingCows` a krávy na telata)
+    const day = at(600, 9, 1);
+    const s = village(20, 0, 0);
+    s.pens = [
+      {
+        id: 900,
+        species: 'team',
+        cell: { x: 100, y: 120 },
+        x: 1500,
+        z: 1800,
+        builtDay: s.lastDay - 400,
+        team: null,
+        training: null,
+      },
+    ];
+    const keep = breedingCows(s) + oxenCalvesWanted(s, day);
+    expect(keep).toBeGreaterThan(TRADE.keepCows + 1);
+    s.livestock!.herds.cow = Math.ceil(keep);
+    expect(surplusCows(s, day)).toBe(0);
+    const end = advanceVillage(s, at(600, 9, 2), null);
+    expect(eventsOf(end, 'seed-bought').reduce((sum, e) => sum + (e.pay.cows ?? 0), 0)).toBe(0);
+    // bez ohrady volů drží jen chovný pár – krávy nad něj za osivo dá
+    const plain = village(20, 0, Math.ceil(keep));
+    const sold = advanceVillage(plain, at(600, 9, 2), null);
+    expect(eventsOf(sold, 'seed-bought')[0]?.pay.cows ?? 0).toBeGreaterThan(0);
   }, 60_000);
 
   it('rezervu osiva ves sní při skutečném hladu, jinak ji drží', () => {

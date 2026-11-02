@@ -260,6 +260,15 @@ volů (`draft.ts`).
   k orbě, na který rádlo chybí (koupený vycvičený vůl k vlastnímu), vyrobí ho bez výcviku. Ves
   prodá voly ve výcviku a vycvičené voly mimo posledních 2 let služby.
 - **Seno:** seč (25. 5. a otava 1. 8.) počítá s voly, které ves cvičí a krmí, aspoň s těmi, které má.
+  **Změna (2. 11. 2026) – seno jen na skutečné voly** (návrh Clauda, Martin: „3. ok“): seč počítá
+  s voly, které ves má (i telata ve výcviku), které výprava teprve přivede, s voly bez ohrady
+  a s telaty, která výcvik opravdu dostane (voli chybí do cíle, místo v ohradách volů a telata nad
+  chovnými kravami – bez sena a dřeva na rádlo); rezerva seče (`HAY_CUTS.reserve`) beze změny. Dřív
+  aspoň s voly, které ves chce (`oxenTrainingTarget`) – i bez telat, takže ves s ohradou volů
+  a 2–3 kravami sekla na 2–6 volů, kteří nepřišli (seed krajiny 13: seno 4 → 26 t, ≈ 150–250
+  člověkodní ročně, otava v září proti setí ozimu). Telata jdou do výcviku hned, jak je přírůstek
+  nad chovné krávy (po mláďatech 1. 4.) – do letní seče jsou voly v ohradě, takže ves, která voly
+  chystá, seno dostane včas.
 - **Panel ohrady volů:** voli v ohradě, místa / kolik volů ves chce (červeně, když chybí;
   v popisku vycvičení a ve výcviku – jako `herdPlaces` u stád), páry s rádlem / páry k orbě
   (ikona rádla `resources/ard.png`), vozy má / chce po druzích, nejstarší vůl (stáří, kolik let
@@ -904,3 +913,4 @@ Kapacita rádel (`ploughCap`) se nemění.
 | „Co může být přednějšího než orba?“ – orba rádlem první ze sezónních úloh, hned po minimu, koních, výpravách a vozech pro kováře                                                                                                                                                                                                               | Martin (24. 10. 2026), pořadí návrh Clauda                 |
 | Pod pojistkou zásob páry k rádlům i na nutné díly mimo postup (nouzové přílohy) a nahoru hned – úzkým hrdlem osevu Vlkova bylo jediné rádlo, ne lidé                                                                                                                                                                                           | Martin (27. 10. 2026), návrh Clauda                        |
 | Páry k rádlům a rádla nahoru hned, když orba nestačí na plán setí („Nejen že smí, ale dokonce by měla“), dolů po dvou plánech                                                                                                                                                                                                                  | Martin (27. 10. 2026), provedení návrh Clauda              |
+| Seno jen na skutečné voly – voli ves má nebo přicházejí a telata, která výcvik opravdu dostane                                                                                                                                                                                                                                                 | Martin (2. 11. 2026), návrh Clauda                         |

@@ -1,5 +1,5 @@
 import { dateOfDayIndex } from '../calendar';
-import { cattleForSale } from './cattle-trade';
+import { surplusCows } from './husbandry';
 import { neighbourStock } from './neighbours';
 import { NEIGHBOR_DIRECTIONS, SEED_BUYING } from './rules';
 import { foodUntilHarvestKg, reservedSeedKg, seedAheadKg, sowableSeedKg } from './seed';
@@ -12,8 +12,9 @@ import type { ChronicleEvent, NeighbourStock, VillageState } from './types';
 // u sousedů (princip „vesničané sami používají, co jim ulehčí práci“ – hráč nic nezadává):
 // v den SEED_BUYING.days (1. 9. před setím ozimu, 1. 3. před setím jaře) jen tolik obilí, kolik
 // na osivo chybí, kolik ho sousedé letos ještě mají (`neighbourStock` – po zlém roce méně) a kolik
-// ves zaplatí bez ohrožení: napřed hřivnami, pak kravami nad dvě, které si nechává (`cattleForSale`, TRADE.keepCows), nejvýš SEED_BUYING.maxCows za nákup v ceně,
-// za kterou by je soused vzal (`sellPrice` × `goodWorth` – po zlém roce méně); jídlem ani voly
+// ves zaplatí bez ohrožení: napřed hřivnami, pak kravami nad ty, které drží na mléko a voly
+// (`surplusCows` – jako porážka; Martin 2. 11. 2026, dřív krávy nad dvě), nejvýš
+// SEED_BUYING.maxCows za nákup v ceně, za kterou by je soused vzal (`sellPrice` × `goodWorth` – po zlém roce méně); jídlem ani voly
 // neplatí. Přeplatek za poslední kus dá soused v obilí do zásob (kolik ho ještě má). Koupené
 // osivo ves nesní (`VillageState.reservedSeedKg`). Nekoupí-li dost, zapíše do kroniky, kolik
 // osiva chybí. Kroky mutují stav – volat na klonu; deterministicky, na kouscích dopočtu nezávisí.
@@ -47,7 +48,10 @@ interface SeedPayment {
   valueKg: number;
 }
 
-/** Čím ves zaplatí hodnotu `dueKg` (kg obilí u souseda): hřivny, pak krávy nad dvě, které si ves nechává (`cattleForSale`), nejvýš SEED_BUYING.maxCows. */
+/**
+ * Čím ves zaplatí hodnotu `dueKg` (kg obilí u souseda): hřivny, pak krávy nad ty, které drží na
+ * mléko a voly (`surplusCows`), nejvýš SEED_BUYING.maxCows.
+ */
 function seedPayment(state: VillageState, day: number, dueKg: number): SeedPayment {
   const barValue = sellPrice('ironBars') * goodWorth(state, 'ironBars', day);
   const ironBarsKg = Math.min(
@@ -57,7 +61,7 @@ function seedPayment(state: VillageState, day: number, dueKg: number): SeedPayme
   let valueKg = ironBarsKg * barValue;
   const cowValue = sellPrice('cows') * goodWorth(state, 'cows', day);
   const cows = Math.min(
-    cattleForSale(state, 'cows', day),
+    surplusCows(state, day),
     SEED_BUYING.maxCows,
     Math.max(0, Math.ceil((dueKg - valueKg) / cowValue - EPSILON)),
   );

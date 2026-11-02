@@ -1,8 +1,8 @@
 import { paymentPool } from './craft-buying';
 import { horsePenValueKg } from './horse-stock';
 import { addHorses, horseValueKg, horsesForSale, horsesToSell, removeHorses } from './horse-trade';
-import { cattleForSale } from './cattle-trade';
 import { horsePens, isFoalByAge } from './horses';
+import { surplusCows } from './husbandry';
 import { HORSE_GOODS } from './neighbours';
 import { addGood, goodWorth, sellPrice as plainPrice, sellValue } from './trade';
 import type { CraftCoverage, HorseGood, HorsePenPayment, TradedHorse, VillageState } from './types';
@@ -11,8 +11,9 @@ import type { CraftCoverage, HorseGood, HorsePenPayment, TradedHorse, VillageSta
 // ohrady – mělo by jít platit nejenom obilím, ale hřivnami i jinými zvířaty. Mělo by se to
 // nakombinovat tak, aby to pro vesnici bylo dostupné a aby kvůli tomu obchodu nehrozil hlad“).
 // Hodnota koní (`horsePenValueKg`) se poskládá z toho, co ves sama prodá, v ceně, za kterou by
-// zboží vzal soused (`sellPrice`): napřed hřivny, pak přebytek zvířat (krávy nad chovný pár, koně
-// bez jezdce nad chovné – `cattleForSale`, `horsesForSale`; voli se nikdy neprodávají, ať
+// zboží vzal soused (`sellPrice`): napřed hřivny, pak přebytek zvířat (krávy nad ty, které ves
+// drží na mléko a voly – `surplusCows`, jako porážka, Martin 2. 11. 2026, dřív nad chovný pár; koně
+// bez jezdce nad chovné – `horsesForSale`; voli se nikdy neprodávají, ať
 // spřežení ani výcvik nepřijdou o voly), nakonec obilí a luštěniny jen z přebytku nad pojistkou
 // zásob (`paymentPool` – jako nákup u sousedů). Čistá funkce stavu a dne, deterministická.
 
@@ -35,7 +36,7 @@ function unitValues(state: VillageState, good: 'cows' | HorseGood, day: number):
   // koně žijí v ohradách – bez hotové ohrady koní nemá ves co prodat
   if (good !== 'cows' && !horsePens(state).some((pen) => pen.builtDay !== null)) return [];
   if (good === 'cows') {
-    return Array.from({ length: cattleForSale(state, 'cows', day) }, () => sellPrice('cows'));
+    return Array.from({ length: surplusCows(state, day) }, () => sellPrice('cows'));
   }
   const horses = horsesToSell(state, good, horsesForSale(state, good, day), day);
   return horses.map((h) =>

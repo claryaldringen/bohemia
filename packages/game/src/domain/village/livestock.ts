@@ -11,7 +11,7 @@ import {
   villageFoodNeed,
 } from './diet';
 import type { FoodCosts } from './economy';
-import { HERDING, herdingDemand, youngsterHerders, type HerdingState } from './herding';
+import { HERDING, herderCapacity, herdingDemand, type HerdingState } from './herding';
 import { isOvergrown } from './fields';
 import { fallowPastureHa, hayPlanNaturalHa, PASTURE, pastureParts } from './pasture';
 import {
@@ -705,8 +705,9 @@ export function breedingFloor(input: {
 /**
  * Místo pro mláďata (diet.md – Porážka v zimě; Martin 19. 10. 2026: „Když bude ve vsi málo
  * vhodných dětí na pasení, tak to omezí i velikost stád.“; podrobnosti návrh Clauda): ves si na
- * zimu nechá nejvýš tolik kusů, aby k nim jarní mláďata (`growth`) uhlídali výrostci příštího léta
- * – odhad z věku dnešních dětí (`youngsterHerders` k `nextSummerDay`), voli na pastvě napřed.
+ * zimu nechá nejvýš tolik kusů, aby k nim jarní mláďata (`growth`) uhlídali pasáci příštího léta
+ * – odhad z věku dnešních dětí, bez výrostků dospělý (`herderCapacity` k `nextSummerDay` – diet.md,
+ * Pasáci, Dospělý pasák), voli na pastvě napřed.
  * Chovné minimum (`breedingFloor`) zůstává vždy; nad ním výrostci hlídají v pořadí přednosti
  * (`HERD_PRIORITY` – oxen.md, Co nejvíc sena a co největší stáda).
  */
@@ -717,7 +718,7 @@ export function youngRoomTargets(
   input: { oxen: number; minCows?: number; minSheep?: number },
 ): Record<HerdSpecies, number> {
   const summer = nextSummerDay(day);
-  const capacity = youngsterHerders(state, summer);
+  const capacity = herderCapacity(state, summer);
   const floor = breedingFloor(input);
   const kept = herdRecord((s) => Math.min(targets[s], floor[s]));
   const grown = (h: Record<HerdSpecies, number>): Record<HerdSpecies, number> =>

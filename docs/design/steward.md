@@ -422,22 +422,30 @@ uživily 3–30 krav, a přesto má ves 2–3 krávy 30 let. Stádo drží pravi
    (`TRADE.keepCows`; seed 13 a 17 skoro každý rok od roku 11–13 jednu krávu).
 4. **Platba za koně** – ohrada koní bere krávy nad chovný pár (seed 28, rok 20: 8 krav z 11).
 
+Body 1, 3 a 4 a seno pro voly, kteří nepřijdou, změnila 2. 11. 2026 pravidla simulace (Martin
+schválil návrhy Clauda): dospělý pasák ve vsi bez výrostků (diet.md – Pasáci), nákup osiva
+a platba za koně jen krávami nad krávy na mléko a voly (fields.md, horses.md) a seno jen na
+skutečné voly (oxen.md – Seno).
+
 Ohrada volů zvedne krávy, které ves drží (`breedingCows` + `oxenCows`), takže telata nad
 chovným párem už nejdou na maso a stádo doroste k telatům do výcviku: seed 28 ji postavil v roce
 9 při 3–4 kravách, krávy 4 → 11, voli od roku 15, dvě rádla, osev podle práce 10 → 60–106 ha.
 Kde ves osivo platí kravami (3, 13, 17, 25), ohrada volů stádo nezachrání – stojí prázdná, chátrá
 a ves pro voly, kteří nepřijdou, seče seno.
 
-- **Ohrada volů od chovného páru** (`teamPenValue`): ohrada skotu, chovný pár krav (zaokrouhleně)
-  a výrostci na pasení (`youngsterHerders` – bez nich ohrada nic neudrží). Dřív od `OXEN.minCows`
-  (3) krav – stádo, kterému půlka telat jde na maso, tři krávy nemá a ohrada přišla o roky později
-  nebo vůbec.
+- **Ohrada volů od chovného páru** (`teamPenValue`): ohrada skotu a chovný pár krav
+  (zaokrouhleně). Dřív od `OXEN.minCows` (3) krav – stádo, kterému půlka telat jde na maso, tři
+  krávy nemá a ohrada přišla o roky později nebo vůbec. Od 1. do 2. 11. 2026 navíc jen s výrostky
+  na pasení (`youngsterHerders`); od 2. 11. 2026 pase ve vsi bez výrostků dospělý (diet.md –
+  Pasáci, Dospělý pasák), podmínka odpadla.
 - **Úspora orby podle výhledu**: osev = nejmenší z osevů výhledu (práce, osivo, půda –
   `StewardOutlook`), ne osev podle půdy (`fieldCapacity`). Orba ušetří ≈ 90 člověkodní na hektar
   v oknech setí (kopání 100 − orba 10) – vyplatí se vždy, když se něco oseje.
-- **Ohrada koní nekupuje koně za krávy na mléko a voly**: správce ji začne, jen když platba
-  (`horsePenPayment`) nechá ve stádu aspoň `breedingCows`; jinak počká na hřivny nebo přebytek
-  obilí.
+- **Ohrada koní nekupuje koně za krávy na mléko a voly**: od 2. 11. 2026 to hlídá pravidlo
+  simulace pro hráče i správce – platba za koně bere jen krávy nad ty, které ves drží na mléko
+  a voly (horses.md – Koně se stavbou ohrady; Martin: „Ostatní jsi rozhodl dobře“). Správce jen
+  pozná, jestli přebytek na koně stačí (`horsePenPayment`). Od 1. do 2. 11. 2026 to správce
+  obcházel sám (`horsePenKeepsCows` – platba musela nechat aspoň `breedingCows`).
 
 ## Rozmístění – „absolutní skiller“ (návrh Clauda)
 
