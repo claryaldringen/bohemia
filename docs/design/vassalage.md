@@ -825,6 +825,9 @@ pozvaný vazal):
 - **Veřejný rodokmen:** všem hráčům, jen muži rodu a jejich věk – výcvik ani koně ne (síla vojska
   skrytá, dokud ho někdo neuvidí) – „Souhlas“ (Martin 2. 11. 2026).
 
+- **NPC jen s přepínačem:** přepínač „Správce“ u vsi zůstává (v první vsi výchozí vypnutý); bez
+  něj ves offline žije jen podle pravidel vesničanů – „Souhlas“ (Martin 2. 11. 2026).
+
 ## Otevřené otázky
 
 Otázky první verze (žádost od vazala, odchod po daru, vazalové vazalů) jsou zodpovězené výš.
