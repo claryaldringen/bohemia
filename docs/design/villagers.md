@@ -906,7 +906,7 @@ a `lib/village-view.ts`, rozvrh je znovu nedefinuje – `PersonJob`, `LaborActiv
     v `VillagerClip` a `VILLAGER_CLIPS` (`villager-motion.ts`), `lib/person-activity.ts`
     a zástupné klipy (dojení = `weed`, sezení = `idle`) po dokončení nahradit. Každý klip zvlášť
     ověřit očima ve scéně; nejdřív dojení a točení na kruhu (dnes zástupné).
-    **Hotovo (koncept, 1. 11. 2026 – ke schválení očima):** Martin 31. 10. 2026 k šesti
+    **Hotovo, schváleno očima** (Martin 2. 11. 2026: „Animace jsem prohlédl a asi je to ok.“): Martin 31. 10. 2026 k šesti
     animacím: „Ověř 0 A.D., pak Blender.“ – 0 A.D. žádnou z nich nemá (`0ad-animations.md`), takže
     jsou vlastní (CC0) z klíčových póz skriptem (`people.json` – klíč `keys`, `keyed_frames`):
     `milk` (dojení na špalku), `spin` (předení s vřetenem ve stoje), `weave` (tkaní – člunek
