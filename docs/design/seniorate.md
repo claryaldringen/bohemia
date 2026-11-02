@@ -9,6 +9,12 @@ autopilot). Pozvaného hráče popisuje [vazalství](vassalage.md). Historické 
 [rešerše](research/2026-11-02-vassalage-seniorate.md). Co níž není výslovně Martinovo, je návrh
 Clauda.
 
+**Změna podle Martina 2. 11. 2026 – tři role ve vsi:** ves má **držitele** (rod), **vojvodu**
+(muž rodu, který v ní sídlí) a **správce** (šlechtic, který ji formálně spravuje); hráč řídí
+každou ves, kde je vojvodou nebo správcem, i několik najednou ([vazalství](vassalage.md) –
+Správce a tři role ve vsi). Dřív hráč rozhodoval jen ve vlastní vsi (a jako senior). Úpravy jsou
+níž označené „změna podle Martina 2. 11. 2026“.
+
 ## Zadání (Martin – issue #9, 24. 10. 2026)
 
 - „**Pokud hráč přivede jiného hráče, tak po smrti vojvody přebírá vesnici nejstarší syn,
@@ -45,6 +51,8 @@ mechanika.“ – správce (fáze 3) už funguje. Martin 30. 10. 2026: „Tohle 
 
 - **Cíl:** hráč hraje za **jednoho muže rodu** – vojvodu své vsi; po jeho smrti pokračuje za
   nástupce, nebo losem za mladšího syna (Martin – zadání).
+- **Cíl:** hráč smí **řídit víc vsí** – každou, kde je vojvodou nebo správcem (změna podle
+  Martina 2. 11. 2026: „hráč by měl mít možnost řídit několik vsí najednou“).
 - **Cíl:** **seniorát** – nejstarší muž rodu vládne celému rodovému panství; je-li to hráčův muž,
   hráč rozhoduje ve všech vsích rodu (Martin – zadání).
 - **Cíl:** pozvat hráče se vyplatí – za každého pozvaného hráče jedno nástupnictví, ve kterém
@@ -63,12 +71,27 @@ mechanika.“ – správce (fáze 3) už funguje. Martin 30. 10. 2026: „Tohle 
 
 - **Hráčův muž** = muž rodu, za kterého hráč hraje. Je vždy vojvodou některé vsi rodu – to je
   **vlastní ves** hráče. Na začátku hry je to zakladatel.
-- **Vlastní ves** je jediná ves, kde hráč smí přepínat správce (Martin – zadání: „ale může ji také
-  svěřit do rukou správce“), dávat jména synům a posílat syny pryč. První vlastní ves má správce
-  vypnutý (steward.md beze změny).
+- **Správce je šlechtic** (Martin 2. 11. 2026): „když hráč není ve své vsi přítomen (např. spí
+  nebo je v zaměstnání), ves je spravovaná NPC, ale formálním správcem je některý ze synů“. Ve
+  vlastní vsi je formálním správcem nejstarší syn od 16 let, bez něj vojvoda sám (návrh Clauda);
+  NPC je dnešní [správce vsi](steward.md) a řídí jeho jménem, je-li přepínač zapnutý.
+- **Vsi, které hráč řídí** (změna podle Martina 2. 11. 2026 – dřív „vlastní ves je jediná ves,
+  kde hráč smí přepínat správce, dávat jména synům a posílat syny pryč“):
+  - **vlastní ves** – vše jako dosud: přepínač správce (Martin – zadání: „ale může ji také svěřit
+    do rukou správce“), jména synů, posílání synů; první vlastní ves má správce vypnutý (steward.md
+    beze změny);
+  - **vsi rodu, které spravuje sám** – ves bez vojvody rodu (ponechaná odúmrť, ves bez muže rodu,
+    než dorazí dosazený vojvoda); formálním správcem je hráčův muž, práva jako ve vlastní vsi
+    (návrh Clauda);
+  - **cizí vsi, které spravuje dohodou** – jen běžné řízení: stavby, pole, obchod, přepínač
+    správce; ne vystěhování, syny držitele ani povyšování ([vazalství](vassalage.md) – Hráč jako
+    správce cizí vsi).
 - **Ostatní vsi rodu** vedou NPC vojvodové rodu – **správce je v nich vždy zapnutý** (Martin –
   zadání: „ostatní vesnice jsou i nadále spravovány ostatními NPC členy rodu“). Jména synů v nich
-  generuje správce (steward.md – Jména synů).
+  generuje správce (steward.md – Jména synů). Hráč do nich mluví jen jako senior (níž).
+- **Ves rodu svěřená správci mimo rod** (povýšený vesničan, jiný hráč – [vazalství](vassalage.md)):
+  běžné řízení má správce; hráč jako držitel smí to, co správce nesmí – vystěhovat ves, posílat
+  syny, povýšit vesničana a správce odvolat (návrh Clauda).
 - **Rodové panství** = všechny vsi rodu hráče (vsi, kde žije vojvoda rodu, i vsi bez vojvody,
   dokud v nich žijí lidé).
 
@@ -89,9 +112,10 @@ mechanika.“ – správce (fáze 3) už funguje. Martin 30. 10. 2026: „Tohle 
     může vést odchod, Celá ves s vojvodou); stará mapa zůstane opuštěná.
 - **Co senior v cizí vsi rodu nesmí** (návrh Clauda): vypnout správce, pojmenovat syna, poslat
   syna pryč – to je věc NPC vojvody vsi a jeho správce.
-- **Hráč, který není seniorem**, smí rozhodovat jen ve vlastní vsi; ostatní vsi rodu vidí (seznam
-  vsí, scéna), ale stavět v nich nesmí (Martin 2. 11. 2026: „Jen se dívat“). NPC senior v první
-  verzi nic navíc nedělá – vsi vedou jejich správci.
+- **Hráč, který není seniorem**, smí rozhodovat jen ve vsích, které řídí – vlastní, spravované
+  sám a spravované dohodou (změna podle Martina 2. 11. 2026; dřív „jen ve vlastní vsi“); vsi NPC
+  vojvodů rodu vidí (seznam vsí, scéna), ale stavět v nich nesmí (Martin 2. 11. 2026: „Jen se
+  dívat“). NPC senior v první verzi nic navíc nedělá – vsi vedou jejich správci.
 - **Kronika:** „Seniorem rodu je Bořivoj“ ve všech vsích rodu, kdykoli se senior změní.
 
 ## Nástupnictví hráče – po smrti hráčova muže (Martin – zadání; podrobnosti návrh Clauda)
@@ -141,6 +165,9 @@ jen to, **za koho hraje hráč dál**.
    dosazení (níž).
 6. **Žádný muž rodu nežije** – konec hry jako dnes (lord.md – Konec rodu).
 
+- **Vsi, které hráč spravoval** (sám nebo dohodou), spravuje dál – správa je dohoda rodu,
+  formálním správcem se stane nový hráčův muž (návrh Clauda; [vazalství](vassalage.md) – Smrt
+  vojvody).
 - **Upozornění** „Bořivoj zemřel. Hraješ za Ctibora.“ (jako ostatní upozornění hry); kronika
   mateřské vsi „Ctibor odešel založit ves Lhota“ (fáze 2).
 - **Proč los jen mezi syny** (návrh Clauda): zadání mluví o „mladších synech“; vnuci a bratři
@@ -159,19 +186,25 @@ jen to, **za koho hraje hráč dál**.
   Clauda; přechod mapy 1–3 dny – war.md, migration.md). Po příjezdu se nastěhuje do dvorce jako
   nástupce (lord.md – Nástupnictví, Kdo se stěhuje) a je vojvodou.
 - Kandidáta nevybírá senior ani hráč – v první verzi ho určí pravidlo (výběr seniorem Později).
+- **Než vojvoda dorazí** (nebo když kandidát není), ves **spravuje hráč sám** – formálním
+  správcem je hráčův muž, když u ní hráč není, řídí ji NPC; hráč ji smí místo čekání svěřit
+  povýšenému vesničanovi nebo jinému hráči ([vazalství](vassalage.md) – Kdo spravuje ves bez
+  vojvody). Změna podle Martina 2. 11. 2026 (dřív ves bez muže rodu jen čekala); návrh Clauda.
 - **Kronika:** „Vojvodou je Bořivoj“ (ves, kam přišel); „Bořivoj odešel vládnout ve Lhotě“ (ves,
   odkud odešel).
 
 ## Co hráč vidí (UI jako 0 A.D.)
 
 - **Seznam vsí v horní liště** (migration.md – Víc vsí jednoho hráče): u vlastní vsi **praporec**
-  hráčova rodu, u vsi seniora **stolec**. Ikona správce jako dnes.
+  hráčova rodu, u vsi seniora **stolec**, u vsí, které hráč spravuje (sám nebo dohodou), **klíč**
+  (změna podle Martina 2. 11. 2026). Ikona správce jako dnes.
 - **Ves, kde hráč nesmí rozhodovat:** stavební tlačítka zašedlá s důvodem u kurzoru
   „Rozhoduje Bořivoj.“ (jméno seniora). U seniora v cizí vsi rodu přepínač správce a jména synů
   zašedlé: „Ves vede Ctibor.“ (jméno vojvody vsi).
-- **Panel rodu** – nová ikona **štítu rodu** v horní liště: řada portrétů mužů rodu od 16 let
-  seřazená podle věku, první senior se stolcem, hráčův muž s praporcem. Popisek: jméno, věk, ves.
-  Klik přepne pohled na jeho ves. Bez textu navíc. Má-li hráč nevyužitá nástupnictví bez losu,
+- **Panel rodu** – horní část panelu **„Rod a vazalové“** z ikony **praporu** v horní liště
+  (Martin 2. 11. 2026 – [vazalství](vassalage.md), Co hráč vidí; dřív samostatná ikona štítu
+  rodu): řada portrétů mužů rodu od 16 let seřazená podle věku, první senior se stolcem, hráčův
+  muž s praporcem. Popisek: jméno, věk, ves. Klik přepne pohled na jeho ves. Bez textu navíc. Má-li hráč nevyužitá nástupnictví bez losu,
   ukazuje je panel jako pečeť s počtem (popisek „Nástupnictví bez losu“).
 - **Po losu na mladšího syna:** obrys dílu ve scéně mateřské vsi (jako výběr syna – fáze 2),
   růžice směrů a ikona přesýpacích hodin s počtem zbývajících dní; panel jména, nemá-li syn jméno.
@@ -189,6 +222,8 @@ jen to, **za koho hraje hráč dál**.
 - **Hráčův muž** se ukládá u hráče (sídlo / účet), ne ve stavu vsi: `playerLord: { villageId,
 personId }`. Seniorát a práva čistými funkcemi v doméně (`dynastySenior(states)`,
   `canActInVillage(player, villageId, states)`), které volají use-casy hráče před každou akcí.
+  `canActInVillage` nově zná i správu vsi (`stewardship` – [vazalství](vassalage.md)) a rozliší
+  běžné řízení od práv držitele.
 - **Los a odchod po pohřbu** jsou událost světa mimo simulaci vsi: use-case
   `resolvePlayerSuccession` po dopočtu vlastní vsi (web i worker), idempotentně podle dne smrti.
   Výsledek losu je deterministický (seed vsi a dne smrti, nástupce váha ½); nevyužité
@@ -223,9 +258,14 @@ personId }`. Seniorát a práva čistými funkcemi v doméně (`dynastySenior(st
    který začal hrát, dá jedno nástupnictví bez losu, pak se spotřebuje (návrh byl „má činného
    pozvaného vazala“ – opraveno v Nástupnictví hráče a ve [vazalství](vassalage.md) – Pozvaný
    hráč).
+6. **Správce a tři role** (k vazalství): „**Správce je šlechtic. V ideálním případě je to někdo
+   z rodu.** … **hráč by měl mít možnost řídit několik vsí najednou**“; tři role držitel, vojvoda,
+   správce – „Ano“ – zapracováno v Hráčův muž a vlastní ves a v Seniorátu
+   ([vazalství](vassalage.md) – Správce a tři role ve vsi).
 
 ## Otevřené otázky
 
-Nové otázky odpovědi neotevřely – **zbývá potvrdit celek**. Podrobnosti nástupnictví bez losu
+Zda NPC řídí ves samo, když hráč není u hry, nebo dál podle přepínače: [vazalství](vassalage.md)
+– otázka 3. Jinak **zbývá potvrdit celek**. Podrobnosti nástupnictví bez losu
 (spotřebuje se samo jen místo losu, sčítá se, patří hráči i po novém začátku, „začal hrát“ = 3
 různé dny ve hře) jsou návrh Clauda.

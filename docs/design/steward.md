@@ -53,6 +53,25 @@ postavit, vylepšit nebo může vesnici úplně vystěhovat a založit jinde.**�
 - **Anti-cíl:** správce, který zdrží dopočet – jeho práce musí být malý zlomek ceny dne (viz
   Výpočetní rozpočet).
 
+## Správce je šlechtic (Martin 2. 11. 2026)
+
+- Martin 2. 11. 2026: „**Správce je šlechtic. V ideálním případě je to někdo z rodu. Tj. když hráč
+  není ve své vsi přítomen (např. spí nebo je v zaměstnání), ves je spravovaná NPC, ale formálním
+  správcem je některý ze synů.**“
+- **Dnešní NPC řízení (celý tento dokument) je to, co dělá formální správce, když hráč není
+  u vsi.** Rozhoduje dál stejnými pravidly a stejným přepínačem; mění se jen to, **čím jménem**:
+  ve vlastní vsi hráče nejstarší syn od 16 let, bez něj vojvoda sám; ve vsi NPC vojvody rodu on
+  nebo jeho syn; ve vsi svěřené povýšenému vesničanovi nebo jinému hráči ten správce (návrh
+  Clauda).
+- Ves má tři role – **držitele** (rod), **vojvodu** a **správce**; hráč řídí každou ves, kde je
+  vojvodou nebo správcem, i několik najednou. Správcem cizí vsi smí být jiný hráč (pánův vazal,
+  jen běžné řízení včetně přepínače) a ves bez šlechtice dostane povýšeného vesničana – vše
+  v [vazalství](vassalage.md) – Správce a tři role ve vsi; dopad na rodové vsi v
+  [seniorátu](seniorate.md).
+- Zda se NPC zapíná samo, když hráč odejde ze hry, nebo dál jen přepínačem (dnes v první vsi
+  vypnutý – Martin 30. 10. 2026): [vazalství](vassalage.md) – otázka 3. Do rozhodnutí platí
+  přepínač beze změny.
+
 ## Kde správce běží (návrh Clauda)
 
 - **Krok simulovaného dne, ne use-case workeru.** Ves se dopočítává zpětně při načtení a akci
