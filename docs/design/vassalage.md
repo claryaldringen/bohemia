@@ -497,6 +497,10 @@ pozvaný vazal):
   ponechat ve svém držení nebo věnovat svým vazalům a je jedno, jestli jsou z jeho rodu nebo ne“
   (Martin 2. 11. 2026).
 
+- **Dělení odúmrti:** „Dělit odúmrť půjde pouze v případě, že bude mít vymřelý rod více jak jednu
+  ves. Ideální dělení pak bude po celých panstvích“ (Martin 2. 11. 2026) – ves se nedělí,
+  rozdělují se celé vsi.
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
