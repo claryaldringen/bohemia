@@ -566,6 +566,10 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
   útočníka je nepřátelského šlechtice spíš zajmout než zabít, protože za něj může požadovat
   výkupné“ – muži rodu se v bezvýchodné situaci často vzdají; **zajetí šlechtice a výkupné**
   (nahrazuje „muži rodu se nevzdávají“).
+- **Výkupné:** zajatý šlechtic žije ve dvorci věznitele; věznitel pošle rodu zajatce požadavek
+  stejným jednáním jako u vazalství (zboží, lidé, i vazalství); přijetí / odmítnutí / protinávrh,
+  po zaplacení propuštění; nezaplatí-li, věznitel smí držet, propustit, nebo popravit (kronika) –
+  „ok“.
 
 ## Otázky na Martina
 
