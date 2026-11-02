@@ -482,6 +482,8 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
 
 - **Výzva před válkou:** „Formální vyhlášení či opověď je dobré, ale nikoli nezbytné“ – válka
   smí začít i bez výzvy (přepadení); výzva / opověď je možnost, ne povinnost.
+- **Přepadení bez opovědi:** žádný herní trest, ale veřejný zápis do kronik obou rodů „přepadení
+  bez opovědi“ – „Jak říkáš“.
 
 ## Otázky na Martina
 
