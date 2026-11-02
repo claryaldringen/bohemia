@@ -579,6 +579,8 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
   a sady se zatím nepálí – „ok“.
 - **Postoje vsi bez hráče:** do posledního / vzdát se při přesile (útočníků víc než 1,5× obránců) /
   raději utéct (včas do lesa nebo za palisádu se zásobami a stády); výchozí „raději utéct“ – „ok“.
+- **Opevnění:** „Typy hrazení bychom asi měli probrat zvlášť, je to dost rozsáhlé téma“ –
+  palisáda níž je jen zástupný návrh; opevnění bude samostatný návrh (`fortifications.md`).
 
 ## Otázky na Martina
 
