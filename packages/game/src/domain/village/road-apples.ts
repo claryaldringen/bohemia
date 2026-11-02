@@ -1,3 +1,4 @@
+import { cloneState } from './clone';
 import { dateOfDayIndex } from '../calendar';
 import { length2, obstaclesNear, type Landscape, type ObstacleLayer } from '../landscape';
 import { deriveSeed } from '../landscape/random';
@@ -221,7 +222,7 @@ export function startRoadApples(
   if (option.blocked) throw new RangeError(option.blocked);
   const spots = chainAppleSpots(state, roadId, day, landscape, obstacles);
   const chain = roadChain(state.roads?.roads ?? [], roadId).map((link) => link.road.id);
-  const next = structuredClone(state);
+  const next = cloneState(state);
   const roads = next.roads!;
   const id = next.nextId++;
   const apples = spots.map((p): RoadApple => ({

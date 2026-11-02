@@ -1,3 +1,4 @@
+import { cloneState } from './clone';
 import { TOTAL_GAME_DAYS } from '../calendar';
 import { newSteward } from './steward-state';
 import type { ObstacleLayer } from '../landscape';
@@ -790,7 +791,7 @@ function addDwellingSite(
     ...(site.walk ? { walk: site.walk } : {}),
   });
   if (plan.missing > 0) throw new RangeError('Na stavbu ves nemá dřevo – není z čeho kácet.');
-  const next = structuredClone(state);
+  const next = cloneState(state);
   payUpfront(next, type);
   recordClearedObstacles(next, obstacleIds, day);
   const wood = takeWood(next, plan, position);
@@ -866,7 +867,7 @@ export function startWorkshop(
     ...(site.walk ? { walk: site.walk } : {}),
   });
   if (plan.missing > 0) throw new RangeError('Na stavbu ves nemá dřevo – není z čeho kácet.');
-  const next = structuredClone(state);
+  const next = cloneState(state);
   payUpfront(next, craft);
   recordClearedObstacles(next, obstacleIds, day);
   const wood = takeWood(next, plan, position);
@@ -914,7 +915,7 @@ export function foundField(state: VillageState, day: number, field: FieldInput):
     state.parts.filter((p) => joined.has(p.fieldId)).reduce((sum, p) => sum + p.areaM2, 0),
   );
   requireAffordable(state, 'field');
-  const next = structuredClone(state);
+  const next = cloneState(state);
   payUpfront(next, 'field');
   addField(next, day, field);
   return next;
@@ -982,7 +983,7 @@ export function foundCemetery(
     throw new RangeError('Rozšíření musí mít stejně velké čtverce jako hřbitov.');
   }
   requireAffordable(state, 'cemetery');
-  const next = structuredClone(state);
+  const next = cloneState(state);
   payUpfront(next, 'cemetery');
   // čtverce polí pod hřbitovem z pole zmizí (fields.md – Pole jako krajina)
   giveWayToBuilding(next, day, input.takenLand ?? [], 'cemetery');
@@ -1091,7 +1092,7 @@ export function foundOrchard(state: VillageState, day: number, input: OrchardInp
     throw new RangeError('Čtverec už patří sadu.');
   }
   requireAffordable(state, 'orchard');
-  const next = structuredClone(state);
+  const next = cloneState(state);
   payUpfront(next, 'orchard');
   // čtverce polí pod sadem z pole zmizí (fields.md – Pole jako krajina)
   giveWayToBuilding(next, day, input.takenLand ?? [], 'orchard');
@@ -1182,7 +1183,7 @@ export function startSacredBuilding(
     },
   );
   if (plan.missing > 0) throw new RangeError('Na stavbu ves nemá dospělé duby ke kácení.');
-  const next = structuredClone(state);
+  const next = cloneState(state);
   payUpfront(next, kind);
   recordClearedObstacles(next, obstacleIds, day);
   addLogs(next, logsFromClearedTrees(site.clearedTrees ?? 0));
@@ -1257,7 +1258,7 @@ export function startThreshingFloor(
     ...(site.walk ? { walk: site.walk } : {}),
   });
   if (plan.missing > 0) throw new RangeError('Na humno ves nemá dřevo – není z čeho kácet.');
-  const next = structuredClone(state);
+  const next = cloneState(state);
   payUpfront(next, 'threshing-floor');
   recordClearedObstacles(next, obstacleIds, day);
   const wood = takeWood(next, plan, position);

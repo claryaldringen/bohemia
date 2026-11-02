@@ -805,20 +805,116 @@ domů a ta se po založení nemění.
   a vsi synů. Pod 50 let platí cíle rychlého měření (úmrtí hladem ≤ 5 na rod, pojistka ≥ 0,6, chůze
   ≤ 266 m). Diagnostika jedné vsi po letech: `--diag SEED`. Martin 1. 11. 2026 k dlouhému
   měření: „na tohle asi ser, podle mě bude stačit logovat hru“. Kritéria polí a malých vsí (návrh Clauda, 1. 11. 2026 – úloha 3 plánu):
-  - **Využití oběhu** = podíl osevu na polích v červnu × `ROTATION_FACTOR` (oběh 2 roky osevu
-    a 5 přílohu – ustálený podíl osevu je 2/7 ≈ 0,29, takže dřívější cíl „podíl ≥ 0,45“ byl
-    nedosažitelný); cíl ≥ 0,8 rychlé, ≥ 0,9 dlouhé.
-  - **Založení + vracení přílohu ÷ polní práce:** vracení pětiletého přílohu (stadium louka – drn
-    jako založení louky, 100 čd/ha bez nástrojů) je součást oběhu – ročně se vrací polovina oseté
-    plochy, samo ≈ 24 % polní práce; k tomu zakládání dílů celého oběhu při růstu osevu 5 % za
-    rok (rychlé, ≈ 8 %) nebo 3 % (dlouhé, ≈ 5 %). Cíl ≤ 32 % rychlé, ≤ 29 % dlouhé – počítá ho
-    měření ze sazeb (`overheadTarget`), změna sazeb ho posune sama.
+  - ~~**Využití oběhu** = podíl osevu na polích v červnu × `ROTATION_FACTOR`~~ – s orbou
+    vycházelo 1,07–1,58 (viz Kritéria polí s rádlem níž); teď jen info „Osev ÷ osev ustáleného
+    oběhu“.
+  - **Využití oběhu** (návrh Clauda 2. 11. 2026) = 1 − podíl **odpočaté půdy ladem** v červnu na
+    polích v oběhu (mateřská ves od roku 10): díl hotový k osevu nebo příloh s úrodností aspoň
+    95 % (`FERTILITY.fallowReady`), který ves neosela, ačkoli odpočívat nepotřebuje. 1 = žádný díl
+    neleží déle, než musí; rezerva polí 1,1 dá ≈ 0,91. Cíl ≥ 0,8 rychlé, ≥ 0,9 dlouhé.
+  - ~~**Založení + vracení přílohu ÷ polní práce** ≤ 32 % (rychlé) / 29 % (dlouhé)~~ – cíl počítal
+    s motykou a založením louky 100 čd/ha; teď jen info s podílem založení a člověkodny založení
+    na hektar polí.
+  - **Vracení přílohu ÷ polní práce** (návrh Clauda 2. 11. 2026) ≤ `overheadTarget(0)` ≈ 24 % –
+    vracení louky celého oběhu motykou (polovina oseté plochy ročně, 100 čd/ha). S rádlem drn
+    rozorá orba (`PLOUGH_SOD_FACTOR`) a vracení zbude jen u zarostlého přílohu, takže podíl
+    klesne; nad mez jde jen ves, která nechává příloh zarůst a pak ho kluče.
   - **Vsi rodu o ≤ 2 lidech kdykoli = 0 – tvrdé kritérium** (ves o 1–2 lidech nemá práci ani
     děti a hladoví napořád); měření ho vypíše pod tabulkou, když neprojde.
+  - **Chůze:** kritériem je **chůze vážená osevem** (≤ 266 m rychlé, ≤ A dlouhé); vzdálenost všech
+    dílů je od 2. 11. 2026 jen info (Kritéria polí s rádlem níž).
 - **Testy** (unit): výsledek nezávisí na kouscích dopočtu (i s plánem po etapách a odchodem),
   správce neprojde, kam hráč nesmí (stejná kontrola i cena), stavby hráče nikdy nezboří ani
   nepřesune, veto drží, převod idempotentní, správce bez krajiny nic nedělá, nová ves syna má
   správce zapnutého, schránka odchodů se vybaví právě jednou.
+- **Hodiny měření** (návrh Clauda, 2. 11. 2026): čas správce i dopočtu měří `threadClock` – čas
+  CPU vlákna, ne čas na zdi (Čas správce níž).
+
+### Kritéria polí s rádlem (návrh Clauda, 2. 11. 2026)
+
+S rádlem (spřežení od roku 11–17) přestala tři kritéria rychlého měření měřit to, k čemu byla:
+
+- **Založení + vracení přílohu ÷ polní práce (38 % proti cíli 32 %).** Cíl počítal s motykou:
+  polní práce 209 čd na osetý hektar, vracení louky 100 čd/ha, založení louky 100 čd/ha. S rádlem:
+  - polní práce klesne na ≈ 77 čd/ha (orba 10, drn 25, setí 10, pletí 4, žně 30, mlácení 15);
+  - drn přílohu rozorá orba – vracení přílohu zmizí (je v orbě);
+  - louka se rádlem zakládá jen za překážky, les dál 250 čd/ha.
+
+  Podíl založení pak ukazuje hlavně krajinu (kolik louky zbývá) a rychlost růstu, ne zbytečnou
+  práci: při růstu 5 % za rok vychází s loukou ≈ 2 %, s lesem ≈ 57 %. Rozbor po letech (seedy 3,
+  13, 17, 25, 28, 51) zbytečnou práci nenašel:
+  - do rádla je to vracení louky v oběhu motykou (42–250 čd ročně, ≈ 24 % polní práce, jak cíl
+    počítal);
+  - po rádle už jen zakládání při růstu. Seed 25 (59 %) má 20 → 64 ha polí za 13 let, lidé
+    22 → 50, ves je přelidněná a „je kam“ – kluče les (≈ 250 čd/ha), protože louka v plánu
+    došla (Cíl „Růst se zásobou“, Martin 30. 10. 2026);
+  - založená pole se osévají: odpočatá půda ladem je v 5 vsích 0–10 % (rezerva 1,1 dá ≈ 9 %);
+  - výjimkou je seed 13 v pasti osiva (68 % odpočaté půdy ladem). Ves tam nezakládá zbytečně
+    – od roku 13 nemá osivo a pole nemá čím osít.
+
+  Kritérium proto měří zbytečnou práci přímo:
+  - **využití oběhu** – odpočatá půda ladem, tedy založená, a přesto neosetá pole;
+  - **vracení přílohu ÷ polní práce ≤ 24 %** – nad vracení oběhu motykou jde jen ves, která nechá
+    příloh zarůst;
+  - založení + vracení zůstává info s podílem založení a člověkodny založení na hektar polí.
+
+- **Vzdálenost dílů 284 m (cíl ≤ 266 m), chůze vážená osevem 251 m.** Víc polí je dál správně.
+  Chůze stojí práci jen při práci na dílu: 1 % na 10 m nad 100 m z práce osetého hektaru. Díl
+  ladem a pastvina nestojí nic – pasák jde jednou cestou se stádem. Odhad pro díl o 100 m dál:
+  - s rádlem + 10 % ze ≈ 77 čd na osetý hektar, díl oběhu osetý 2 roky ze 7 → ≈ 2,2 čd/ha za rok,
+    za 25 let ≈ 55 čd/ha;
+  - motykou ≈ 6 čd/ha za rok;
+  - klučení lesa místo louky stojí 150–250 čd/ha navíc – louka o 100 m dál se vyplatí na 40
+    (motyka) až 100 let (rádlo).
+
+  Plán navíc vybírá díly na řadě po blocích hospodářství nejblíž domu (`sowingBlocks`) a nová
+  pole jdou napřed k stojícím domům (Pole blízko a podle práce). Proto vzdálené díly častěji leží ladem a osev
+  je blíž (251 m proti 284 m). Kritériem je **chůze vážená osevem**; vzdálenost všech dílů
+  (i ladem a čerstvě založených) je jen info.
+
+- **Využití oběhu 1,07–1,58.** Podíl osevu × 3,5 předpokládal ustálený oběh 2 roky osevu a 5 let
+  přílohu. Rostoucí ves ale seje čerstvě založené díly (2 osevy z plné úrodnosti), a když
+  odpočaté díly nestačí, i příloh 70–95 % (`late`) – osev pak přesáhne 2/7 polí bez plýtvání.
+  Nové **využití oběhu = 1 − odpočatá půda ladem** měří, co kritérium hledalo – pole, která
+  nepotřebují odpočívat, a přesto leží. Starý podíl × 3,5 zůstává jako info.
+
+**Proč za 25 let neodešel žádný syn** (pravidla odchodu beze změny – schválil Martin). Odchod
+v den odchodu (31. 8.) potřebuje spouštěč a pak syna se životaschopnou výpravou, po jejímž
+odchodu obě vsi uživí 1,2× své lidi. Spouštěč je jeden ze dvou:
+
+- přelidnění (lidí víc než 1,05 × udržitelní) **a zároveň** není kam pole rozšířit;
+- hlad aspoň 8 dní od minulého 31. 8.
+
+Rychlé měření (6 seedů, po letech):
+
+- **Synové od 16 let** jsou až od roku 17–21 (zakladatelé mají první děti v letech 1–5).
+  **Životaschopnou výpravu** (≥ 4 dospělí s párem, plný náklad) mají až v letech 22–24, když
+  synovi dorostou děti. Dřív by odešel jen sám nebo se ženou (1–3 lidé).
+- **Spouštěč nenastal.** Přelidnění přichází v letech 21–25 (seedy 3, 25, 28), ale vždy je
+  ještě kam pole rozšířit. Správce proto zakládá a kluče, jak velí Cíl „Růst se zásobou“.
+  Ves se zásobou zakladatelů nehladoví. Výjimka je seed 13 – od roku 14 hladoví v pasti osiva,
+  ale výprava nemá jídlo ani osivo (náklad 0,26, osivo 0) a nikdo ze synů nemá pár.
+- **Kdy by syn odešel:** ves rodu, která dorostla na ≈ 40–55 lidí a vyčerpala půdu v dosahu
+  800 m (les i louku v plánu), nebo ves, která rok hladoví a má syna s domácností aspoň
+  4 dospělých a zásobami. Typicky po roce 25–35. Uvidí se to až v delším běhu nebo v deníku vsí.
+
+### Čas správce (návrh Clauda, 2. 11. 2026)
+
+Nejdražší den správce 216 ms (cíl ≤ 200 ms) byl v rychlém měření ve vsi seed 25 (50 lidí, 2 800 dílů,
+64 ha). Profil dne:
+
+- polovinu času správce zabírala kopie celého stavu (`structuredClone`) v každé akci stavby – pole,
+  sad a vylepšení cesty v jednom dni = tři kopie po ≈ 13 ms;
+- akce staveb teď kopírují přes `cloneState` (jako dopočet; sdílené záznamy se nemění na místě),
+  4,5× rychleji. Výsledky měření jsou bit po bitu stejné. Drahý den roku 24: 80 → 44 ms, den se
+  stezkou roku 20: 37 → 25 ms (bez zátěže, zahřáté).
+
+Zbytek rozdílu nebyl ve správci. Tentýž den trval na zdi 44 ms bez zátěže a 191 ms při zátěži
+stroje 94 (měření běží v 5 vláknech s `nice 19` vedle jiné práce); GC v něm bylo jen 0–21 ms.
+Nejdražší den na zdi tak měřil zátěž stroje: týž běh dal 157, 159 i 216 ms. Měření proto počítá
+čas CPU vlákna (`threadClock` – `process.threadCpuUsage`), ne čas na zdi. Rychlé měření na
+hodinách CPU: čas správce 3,7 % dopočtu, nejdražší den 151 ms (seed 25; den, kdy poprvé běží
+kód, který se pak zahřeje, stojí ≈ 3× víc než zahřátý).
 
 ## Pro implementaci (poznámky, ne kód)
 
@@ -883,6 +979,8 @@ domů a ta se po založení nemění.
 | Vylepšení cesty: úspora chůze i vozů (mokřina, brod), horizont Růst 25 let, Obnova 5 let                                | návrh Clauda (Martin 1. 11. 2026: „správce nijak nevylepšuje cesty“) |
 | Ohrada volů od chovného páru krav s pasáky, úspora orby podle výhledu; koně ne za krávy na mléko a voly                 | návrh Clauda (1. 11. 2026)                                           |
 | Syn odejde, jen když obě vsi po odchodu uživí osevem vlastní prací 1,2× své lidi (půda se nepočítá)                     | Martin (2. 11. 2026) / čísla návrh Clauda                            |
+| Měření: využití oběhu = 1 − odpočatá půda ladem, vracení přílohu ≤ 24 %, založení a vzdálenost dílů jen info            | návrh Clauda (2. 11. 2026)                                           |
+| Měření: čas správce na hodinách CPU vlákna; akce staveb kopírují stav přes `cloneState`                                 | návrh Clauda (2. 11. 2026)                                           |
 
 ## Otevřené otázky
 
