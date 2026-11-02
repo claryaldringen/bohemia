@@ -404,6 +404,9 @@ pozvaný vazal):
 - **Pozvaný hráč** začíná bez dávek, pán mu je smí navrhnout později stejným jednáním – „Ok“
   (Martin 2. 11. 2026).
 
+- **Luštěniny k obilí?** „ne“ (Martin 2. 11. 2026) – luštěniny nejsou makrokomodita, do dávek
+  nepatří.
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
