@@ -933,7 +933,11 @@ Návrh Clauda:
   - uzel s **pevným ramenem** (zemská stezka, cesta ve vylepšení, vozová cesta – její osa leží na
     zemních pracích) se nehýbe jako kotva: sloučí se do něj, nebo se odsune jen druhá; spojka, která
     je sama pevná (nebo vozová), se neslučuje a nemaže. **Přijatá výjimka:** mají-li pevné rameno
-    (nebo kotvu) oba uzly, zůstanou, kde jsou, i když se plácky překrývají;
+    (nebo kotvu) oba uzly, zůstanou, kde jsou, i když se plácky překrývají; ve scéně se plácky
+    o úsek mezi nimi dělí v půli překryvu a koleje vozové cesty vedou po celé jeho délce
+    (oprava z 2. 11. 2026 – Martin ve Vlkově: „Tento úsek (road 1387 – od junction 1131 do
+    junction 1619) je veden jako vozová cesta, ale nevypadá tak“; provedení návrh Clauda,
+    `docs/code/scene.md`);
   - nový střed musí být **průchodný** (ne v domě, plotu ani zemních pracích) a žádný úsek se posunem
     nezkrátí pod 15 m (už kratší vůbec); jinak se uzel nehýbe a posun převezme druhý, případně
     zůstanou obě (stejná výjimka). Pole a voda se nekontrolují. Odsunem se může jiná dvojice dostat

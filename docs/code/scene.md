@@ -189,7 +189,13 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   a měkký okraj ramene podle navazující cesty, vyjetá vozová bez hlíny), **žádný štěrk na plácku**;
   koleje vozové cesty vedou přes plácek jen mezi rameny, která svírají aspoň 120° (Bézierova
   křivka řez–řez), jinak dojdou ke středu a vytratí se. Krátký úsek celý v dosahu řezu (5 m
-  k brance) je celý rameno plácku a k volnému konci se vytrácí jako pás.
+  k brance) je celý rameno plácku a k volnému konci se vytrácí jako pás. **Úsek mezi dvěma
+  křižovatkami, jejichž řezy se překrývají** (přijatá výjimka rozestupu, paths.md – Rozestup;
+  oprava 2. 11. 2026 – Martin, Vlkov: vozová 1387 ≈ 10 m mezi 1131 a 1619 „nevypadá“ jako
+  vozová): `overlapSplit` ho rozdělí v půli překryvu – ramena obou plácků začínají v témže bodě
+  a míří po ose úseku (tečna pro průjezd 120° je tam, ne v zatáčce u druhé křižovatky); pás nemá,
+  koleje jdou z dělicího bodu průjezdem nebo ke středu. Dřív první řez sebral skoro celý úsek
+  a koleje vynechal – úsek byl jen hlína plácku bez štěrku.
 - **Světlo:** letní slunce a obloha podle 0 A.D., kontrast 1,1. **Stíny od slunce**
   (`sun-shadows.ts`) – stínová mapa 4096 přes celou krajinu se vykreslí jednou (s denní dobou po krocích – Den a noc); vrhají je meshe
   pojmenované `trees-*`, `impostors-*` a `decor-*` (při přejmenování zachovat prefix). Znovu se
