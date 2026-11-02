@@ -529,6 +529,12 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
   ≈ 3,3); vesničané na koních nebojují – „ano“.
 - **Výzbroj a výstroj:** „Zatím jen koeficient. Reálné věci budeme řešit někdy později vlastní
   mechanikou“ – zůstává násobek za kovárnu (× 1,5 s plným pokrytím), věci Později.
+- **Hráč odejde od tažení:** pokračuje NPC podle rozkazu, hráč po návratu převezme velení – „Ano,
+  ale v tom případě by měl na začátku určit svého nástupce. Samozřejmě nemusí, ale pokud pak
+  odejde nebo umře, výprava se rozpadne a lidé se pokusí vrátit zpátky“ – na začátku tažení hráč
+  smí určit **zástupce velitele**; bez něj se výprava při odchodu hráče nebo smrti velitele
+  rozpadne a lidé se snaží vrátit domů (mění rozhodnutí 18. 10. „vojsko stojí a po dni se
+  vrátí“).
 
 ## Otázky na Martina
 
