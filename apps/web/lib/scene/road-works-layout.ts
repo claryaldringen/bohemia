@@ -257,6 +257,24 @@ export function roadBands(
   const atCut = (p: Pt): number =>
     cuts.findIndex((c) => Math.hypot(c.x - p.x, c.z - p.z) <= JUNCTION_END_M);
   for (const piece of pieces) {
+    // úsek mezi dvěma křižovatkami, jejichž plácky se na něm překrývají (paths.md – Rozestup,
+    // přijatá výjimka): plácky se o něj dělí v půli překryvu, ať ramena obou míří po ose úseku
+    // a koleje vedou skrz (Vlkov 1387 mezi 1131 a 1619)
+    const split = overlapSplit(piece.points, cuts, atCut);
+    if (split) {
+      piece.points = [];
+      for (const [end, j, axis] of [
+        [1, split.endJunction, split.toEnd],
+        [0, split.startJunction, split.toStart],
+      ] as const) {
+        junctionEnds.push({
+          piece,
+          end,
+          arm: { junction: j, kind: piece.kind, axis, strength: fadeAt(piece.road, axis[0]!) },
+        });
+      }
+      continue;
+    }
     for (const end of [1, 0] as const) {
       const pts = piece.points;
       if (pts.length < 2) continue;
@@ -318,7 +336,10 @@ export function roadBands(
   };
   for (const piece of pieces) {
     const { points } = piece;
-    if (points.length < 2) continue;
+    const own = junctionEnds.filter((e) => e.piece === piece);
+    // celý úsek v plácích dvou křižovatek (`overlapSplit`) nemá pás, jen koleje z dělicího bodu
+    const between = points.length < 2 && own.length === 2 && own.every((e) => !e.arm.openM);
+    if (points.length < 2 && !between) continue;
     const before = neighbour(piece, piece.from);
     const after = neighbour(piece, piece.to);
     // konec v řezu křižovatky: pás tam začíná v plné šířce svého druhu, tak jako rameno plácku –
@@ -336,18 +357,18 @@ export function roadBands(
       ...(narrowStart !== undefined ? { narrowStart } : {}),
       ...(narrowEnd !== undefined ? { narrowEnd } : {}),
     };
-    out[piece.kind].push(line);
+    if (!between) out[piece.kind].push(line);
     const kind = rutKind(piece);
     if (kind === null) continue;
     // koleje se vytratí, kde vozová cesta přechází v jinou – i na plácku křižovatky, kudy
     // vozová cesta nevede skrz (koleje tam dojdou až ke středu a vytratí se)
     const other = (n: Piece | null): boolean =>
       n !== null && (kind === 'gravel' ? n.kind !== 'wagon' : !n.cart);
-    let rutPoints = points;
+    let rutPoints = between ? [own[0]!.arm.axis[0]!] : points;
     let openStart = line.openStart || other(before);
     let openEnd = line.openEnd || other(after);
-    for (const e of junctionEnds) {
-      if (e.piece !== piece || paired.has(e)) continue;
+    for (const e of own) {
+      if (paired.has(e)) continue;
       const inner = [...e.arm.axis].reverse();
       if (e.end === 1) {
         rutPoints = [...rutPoints, ...e.arm.axis.slice(1)];
@@ -357,6 +378,8 @@ export function roadBands(
         openStart = true;
       }
     }
+    // úsek mezi křižovatkami, kudy vozová cesta vede skrz obě: koleje kreslí oba průjezdy
+    if (rutPoints.length < 2) continue;
     addRuts(out[kind], {
       points: rutPoints,
       strength: rutPoints.map((p) => fadeAt(piece.road, p)),
@@ -447,6 +470,42 @@ export function cutAxisEnd(
     return { kept, inner };
   }
   return { kept: [], inner: [...points] };
+}
+
+/**
+ * Úsek, který začíná i končí v křižovatce a jehož řezy se překrývají (z pásu by mezi nimi zbylo
+ * méně než MIN_KEPT_M): dělicí bod v půli překryvu po ose a ramena obou plácků od něj do středů
+ * (`toEnd` ke křižovatce na konci osy, `toStart` k té na začátku). Jinak null – řeže se po koncích
+ * (`cutAxisEnd`). Bez dělení by první řez sebral skoro celý úsek a rameno druhé křižovatky by
+ * začínalo v zatáčce u ní – koleje by přes plácky nevedly skrz (Vlkov 1387, 2. 11. 2026).
+ */
+export function overlapSplit(
+  points: readonly Pt[],
+  cuts: readonly JunctionCut[],
+  atCut: (p: Pt) => number,
+): { startJunction: number; endJunction: number; toStart: Pt[]; toEnd: Pt[] } | null {
+  if (points.length < 2) return null;
+  const startJunction = atCut(points[0]!);
+  const endJunction = atCut(points[points.length - 1]!);
+  if (startJunction < 0 || endJunction < 0) return null;
+  const at = lengthsAlong(points);
+  const length = at[at.length - 1]!;
+  const atEnd = cuts[endJunction]!;
+  const atStart = cuts[startJunction]!;
+  // poloha řezů po ose: konec pásu u křižovatky na konci a začátek u té na začátku
+  const endCut = roadLength({ points: cutAxisEnd(points, atEnd, atEnd.radius).kept });
+  const startCut =
+    length -
+    roadLength({ points: cutAxisEnd([...points].reverse(), atStart, atStart.radius).kept });
+  if (endCut - startCut >= MIN_KEPT_M) return null;
+  const s = (startCut + endCut) / 2;
+  if (s < 1e-3 || s > length - 1e-3) return null;
+  return {
+    startJunction,
+    endJunction,
+    toStart: axisPart(points, 0, s).reverse(),
+    toEnd: axisPart(points, s, length),
+  };
 }
 
 /** Směr ramene v řezu – od středu ven. */

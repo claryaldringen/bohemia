@@ -324,7 +324,9 @@ cesty, půda)`; graf a půda (`walkGroundOf` + `withFieldWalk` – pole v `Villa
   vnitřních rozích), v řezu přesně průřez pásu; obtisky `roads-junction-worn/earth` (barva
   a povrch jako cesty, bez štěrku). Koleje (`gravel`, `ruts`) přes plácek jen mezi rameny téhož
   druhu kolejí, která svírají aspoň 120° (`throughCurve`), jinak dojdou ke středu a vytratí se.
-  Krátký úsek celý v dosahu řezu je celý rameno (`openM` – vytrácí se k volnému konci). Maska
+  Krátký úsek celý v dosahu řezu je celý rameno (`openM` – vytrácí se k volnému konci); úsek
+  mezi dvěma křižovatkami s překrytými řezy se dělí v půli překryvu (`overlapSplit`, koleje po
+  celé délce – Vlkov 1387, 2. 11. 2026). Maska
   polí (`roadTrack`) se neřeže – pásy do středu a kruh o průměrném poloměru obrysu
   (`junctionRibbons`, plácek upravené vrstvy i u vozové cesty). Znamení: `junctionLandmarkPieces` → modely `junction-stone-1…2`,
   `junction-post-1…2` (`tools/blender/roads.py`, atlas jako hať, 0 A.D. textury, vlastní tvary)

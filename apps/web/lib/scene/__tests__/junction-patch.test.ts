@@ -8,9 +8,11 @@ import {
   type PatchArm,
 } from '../junction-patch';
 import {
+  axisPart,
   cutAxisEnd,
   junctionPatchGrid,
   roadBands,
+  roadLength,
   throughCurve,
   type JunctionCut,
 } from '../road-works-layout';
@@ -219,6 +221,137 @@ describe('plácek křižovatky (junction-patch.ts)', () => {
     };
     expect(near(0, 4.95)).toBeLessThan(0.05);
     expect(near(0, 2)).toBeGreaterThan(0.5);
+  });
+
+  it('vozová cesta mezi blízkými křižovatkami (plácky se překrývají): koleje po celé délce', () => {
+    // Vlkov 2. 11. 2026 (Martin: „je veden jako vozová cesta, ale nevypadá tak“): vozová 1387
+    // ≈ 10 m mezi křižovatkou 1131 (kříž) a novou 1619 (Y) – obě mají pevné rameno, plácky se
+    // překrývají (paths.md – Rozestup, přijatá výjimka). Úsek byl celý v plácku bez štěrku.
+    type Pt = { x: number; z: number };
+    const road = (id: number, grade: SceneRoad['grade'], pts: [number, number][]): SceneRoad => ({
+      id,
+      grade,
+      points: pts.map(([x, z]) => ({ x, z })),
+    });
+    const short = road(1387, 'wagon', [
+      [237.01, -308.76],
+      [233.83, -305.58],
+      [232.3, -304.62],
+      [230.45, -304.22],
+      [228.36, -304.2],
+    ]);
+    const roads = [
+      road(1386, 'wagon', [
+        [237.01, -308.76],
+        [240.19, -305.58],
+        [242.64, -304.39],
+        [251.25, -303.75],
+      ]),
+      road(1385, 'wagon', [
+        [217.5, -315],
+        [228.43, -314.95],
+        [230.95, -314.09],
+        [233.83, -311.94],
+        [237.01, -308.76],
+      ]),
+      road(1476, 'improved', [
+        [252.76, -322.45],
+        [249.46, -320.23],
+        [240.19, -311.94],
+        [237.01, -308.76],
+      ]),
+      short,
+      road(1617, 'wagon', [
+        [228.36, -304.2],
+        [222.52, -304.14],
+        [220.63, -304.76],
+        [217.25, -306.83],
+        [207.35, -307.93],
+      ]),
+      road(1618, 'improved', [
+        [228.75, -285],
+        [228.07, -298.96],
+        [228.36, -304.2],
+      ]),
+    ];
+    const cuts: JunctionCut[] = [
+      { x: 237.01, z: -308.76, radius: 6.75 },
+      { x: 228.36, z: -304.2, radius: 6.75 },
+    ];
+    const bands = roadBands(roads, cuts);
+    // plácky se o úsek dělí v půli překryvu – ramena obou křižovatek začínají v témže bodě
+    const meet = bands.arms.filter((a) =>
+      bands.arms.some(
+        (b) =>
+          b.junction !== a.junction &&
+          Math.hypot(b.axis[0]!.x - a.axis[0]!.x, b.axis[0]!.z - a.axis[0]!.z) < 1e-6,
+      ),
+    );
+    expect(meet).toHaveLength(2);
+    const m = meet[0]!.axis[0]!;
+    const d0 = Math.hypot(m.x - cuts[0]!.x, m.z - cuts[0]!.z);
+    const d1 = Math.hypot(m.x - cuts[1]!.x, m.z - cuts[1]!.z);
+    expect(Math.abs(d0 - d1)).toBeLessThan(0.5);
+    // štěrk v kolejích po celé délce úseku (±0,65 m od osy) a nikde se tu nevytrácí
+    const lineDist = (p: Pt, line: readonly Pt[]): number => {
+      let best = Infinity;
+      for (let k = 1; k < line.length; k++) {
+        const a = line[k - 1]!;
+        const b = line[k]!;
+        const dx = b.x - a.x;
+        const dz = b.z - a.z;
+        const l2 = dx * dx + dz * dz;
+        const t = l2 > 0 ? Math.min(1, Math.max(0, ((p.x - a.x) * dx + (p.z - a.z) * dz) / l2)) : 0;
+        best = Math.min(best, Math.hypot(p.x - a.x - dx * t, p.z - a.z - dz * t));
+      }
+      return best;
+    };
+    const length = roadLength(short);
+    for (let s = 0; s <= length; s += 0.25) {
+      const p = axisPart(short.points, 0, Math.max(s, 1e-3)).at(-1)!;
+      const near = Math.min(...bands.gravel.map((l) => lineDist(p, l.points)));
+      expect(near).toBeLessThan(0.65 + 0.3);
+    }
+    for (const line of bands.gravel) {
+      const ends = [
+        line.openStart ? line.points[0] : null,
+        line.openEnd ? line.points.at(-1) : null,
+      ];
+      for (const e of ends) if (e) expect(lineDist(e, short.points)).toBeGreaterThan(3);
+    }
+    // vozová cesta skrz nevede (odbočky jsou vyšlapané): koleje úseku ze středu do středu,
+    // u obou se vytratí
+    const lone = (x: number): SceneRoad[] => [
+      road(10 + x, 'trodden', [
+        [x, 20],
+        [x, 0],
+      ]),
+      road(20 + x, 'trodden', [
+        [x, -20],
+        [x, 0],
+      ]),
+    ];
+    const pair = roadBands(
+      [
+        road(1, 'wagon', [
+          [0, 0],
+          [8, 0],
+        ]),
+        ...lone(0),
+        ...lone(8),
+      ],
+      [
+        { x: 0, z: 0, radius: 6 },
+        { x: 8, z: 0, radius: 6 },
+      ],
+    );
+    expect(pair.wagon).toEqual([]);
+    expect(pair.gravel).toHaveLength(2);
+    for (const rut of pair.gravel) {
+      expect(rut.points[0]!.x).toBeCloseTo(0, 6);
+      expect(rut.points.at(-1)!.x).toBeCloseTo(8, 6);
+      expect([rut.openStart, rut.openEnd]).toEqual([true, true]);
+    }
   });
 
   it('smíšená křižovatka: pás u řezu nezužuje ze středu, v řezu má plnou šířku jako rameno plácku', () => {
