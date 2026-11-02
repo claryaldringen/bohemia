@@ -503,6 +503,8 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
   zapojit do boje, a to i do útočného, ale jejich bojová hodnota bude nevalná“ – muži vesničané
   smějí do obrany i na tažení se slabou silou (zkušenost z lovu; vojenská služba vazala pánovi dál
   jen muži rodu – vazalství).
+- **Válka mezi rody:** vztah dvou rodů, platí pro všechny jejich vsi, každou jde přepadnout zvlášť
+  – „Ano“.
 
 ## Otázky na Martina
 
