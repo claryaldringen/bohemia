@@ -484,6 +484,7 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
   smí začít i bez výzvy (přepadení); výzva / opověď je možnost, ne povinnost.
 - **Přepadení bez opovědi:** žádný herní trest, ale veřejný zápis do kronik obou rodů „přepadení
   bez opovědi“ – „Jak říkáš“.
+- **Ochrana nového hráče:** 7 skutečných dní od registrace, končí dřív, když sám napadne – „ok“.
 
 ## Otázky na Martina
 
