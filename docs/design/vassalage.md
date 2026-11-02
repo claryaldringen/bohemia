@@ -501,6 +501,15 @@ pozvaný vazal):
   ves. Ideální dělení pak bude po celých panstvích“ (Martin 2. 11. 2026) – ves se nedělí,
   rozdělují se celé vsi.
 
+- **Postavení správce** (Martin 2. 11. 2026): „Správce je šlechtic. V ideálním případě je to někdo
+  z rodu. Tj. když hráč není ve své vsi přítomen (např. spí nebo je v zaměstnání), ves je
+  spravovaná NPC, ale formálním správcem je některý ze synů. Pokud hráč bude chtít někde použít
+  správce, ale nebude ho mít k dispozici, může povýšit do šlechtického stavu a učinit svým vazalem
+  někoho neurozeného nebo ideálně k tomuto účelu přivést nového hráče. Tak mě napadá, že hráč by
+  měl mít možnost řídit několik vsí najednou – někteří hráči mohou hrou procházet jako
+  profesionální správci majetku svého pána.“ – mění [správce](steward.md) (dnes jen přepínač
+  NPC) i [seniorát](seniorate.md) (hráč dnes řídí jen vlastní ves); dopracovat.
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
