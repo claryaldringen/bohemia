@@ -427,6 +427,9 @@ pozvaný vazal):
   vesničané, po odpracování domluvených člověkodní se vrátí, jídlo jim dává pánova ves – „Ano.
   Tohle dostane větší smysl, až se budou stavět velké veřejné stavby typu opevnění“ (Martin 2. 11. 2026).
 
+- **Vojenská služba** jako podmínka dohody (např. 4 muži na 30 dní ročně, když pán vede válku),
+  funguje s [válkou](war.md) – „Ano. Bude to hlavní věc na vazalství.“ (Martin 2. 11. 2026).
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
