@@ -382,6 +382,9 @@ pozvaný vazal):
 
 - **Stažení nabídky:** odesílatel ji smí vzít zpět, dokud druhý neodpověděl – „Ano“ (Martin 2. 11. 2026).
 
+- **Počet jednání:** hráč smí jednat s kolika hráči chce, mezi dvěma hráči vždy jen jedno
+  jednání – „ano“ (Martin 2. 11. 2026; mez 5 odeslaných nabídek zrušena).
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
