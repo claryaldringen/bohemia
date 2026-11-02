@@ -1123,3 +1123,20 @@ describe('obsazení dne jako člověk → úloha (villagers.md – Divadlo)', ()
     expect(outside).toBeGreaterThan(20);
   });
 });
+
+// Roh domu (walk-network.md – Co zbylo; villagers.md – Bez časosběru): odhad simulace domy
+// neobchází, cíl hned za domem by v rozvrhu dostal čas na chůzi rovně a postava by šla rohem domu
+// (nebo běžela kolem) – rozvrh dostane délku schůdné trasy kolem domu.
+describe('cíl hned za domem – rozvrh dá čas na obejití domu', () => {
+  it('trasa kolem domu se přijme a délka rozvrhu ji pokryje', () => {
+    const plan = planVillagersWithCrew(village(), GROUND, { seed: 7, herds: 0 });
+    const door = plan.doors.get(2)!;
+    const behind = { x: 20, z: -7 };
+    const straight = Math.hypot(behind.x - door.x, behind.z - door.z);
+    const walked = plan.walk(door, behind, 2);
+    expect(walked).not.toBeNull();
+    // obchází dům – delší, než by se za čas rovné chůze stihlo 1,3× chůzí
+    expect(walked!.length).toBeGreaterThan(straight * 1.3);
+    expect(plan.length(door, behind)).toBeGreaterThanOrEqual(walked!.length - 0.5);
+  });
+});

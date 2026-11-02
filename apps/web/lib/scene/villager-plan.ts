@@ -153,12 +153,15 @@ export function planVillagersWithCrew(
   tasks: Map<number, PersonTask>;
   doors: Map<number, { x: number; z: number }>;
   walk: WalkRouteFn;
+  /** Délka chůze rozvrhu (m – `scheduledLength`): odhad simulace, kolem domů nejméně trasa. */
+  length: (a: Point, b: Point) => number;
 } {
   const crew: DraftCrew = { teams: [], carts: [] };
   const labor = village.labor;
   if (!labor || village.dwellings.length === 0) {
     const walk: WalkRouteFn = () => null;
-    return { people: [], crew, slaughter: null, tasks: new Map(), doors: new Map(), walk };
+    const length = (a: Point, b: Point): number => Math.hypot(b.x - a.x, b.z - a.z);
+    return { people: [], crew, slaughter: null, tasks: new Map(), doors: new Map(), walk, length };
   }
   const ctx = context(
     village,
@@ -328,6 +331,17 @@ export function planVillagersWithCrew(
   people.push(...firefighters);
   const doors = new Map<number, { x: number; z: number }>();
   for (const h of ctx.homes) if (!h.pen) doors.set(h.id, doorPoint(h));
+  // délky chůze rozvrhu (`scheduledLength`) – stejné dvojice míst se během dne ptají znovu
+  const lengths = new Map<string, number>();
+  const length = (a: Point, b: Point): number => {
+    const key = `${a.x.toFixed(2)},${a.z.toFixed(2)}>${b.x.toFixed(2)},${b.z.toFixed(2)}`;
+    let m = lengths.get(key);
+    if (m === undefined) {
+      m = scheduledLength(ctx, a, b);
+      lengths.set(key, m);
+    }
+    return m;
+  };
   return {
     people,
     crew,
@@ -343,7 +357,8 @@ export function planVillagersWithCrew(
       options.herdPlaces,
     ),
     doors,
-    walk: (a, b, homeId) => scheduledWalk(ctx, a, b, homeId),
+    walk: (a, b, homeId) => scheduledWalk(ctx, a, b, homeId, length(a, b)),
+    length,
   };
 }
 
@@ -354,10 +369,28 @@ export function planVillagersWithCrew(
  * dveře u sousedního pozemku (jediná schůdná trasa je oklika po cestě) by jinak znamenaly běh
  * (Martin 1. 11. 2026 – žena z obydlí 1321 „sprintovala po cestě“; návrh Clauda).
  */
-export function scheduledWalk(ctx: Context, a: Point, b: Point, homeId?: number): Route | null {
+export function scheduledWalk(
+  ctx: Context,
+  a: Point,
+  b: Point,
+  homeId?: number,
+  span = scheduledLength(ctx, a, b),
+): Route | null {
   const r = walkRoute(ctx, a, b, homeId);
-  const span = ctx.paths?.walkLength?.(a, b) ?? Math.hypot(b.x - a.x, b.z - a.z);
   return r && r.length <= span * WALK_PACE_MAX + 0.5 ? r : null;
+}
+
+/**
+ * Délka chůze rozvrhu z `a` do `b` (m; villagers.md – Bez časosběru, Roh domu; návrh Clauda
+ * 2. 11. 2026): odhad simulace (`VillagerPaths.walkLength`, bez sítě rovně) – ten ale domy
+ * a pozemky neobchází. Když schůdná trasa (`walkRoute` – kolem domů, po pěšinách) je delší, než
+ * se za čas odhadu dá dojít WALK_PACE_MAX× chůzí, dostane rozvrh délku té trasy: cíl hned za domem
+ * má čas na obejití domu a postava nejde rohem domu ani neběží. Simulace se nemění (jen vzhled).
+ */
+export function scheduledLength(ctx: Context, a: Point, b: Point): number {
+  const estimate = ctx.paths?.walkLength?.(a, b) ?? Math.hypot(b.x - a.x, b.z - a.z);
+  const r = walkRoute(ctx, a, b);
+  return r && r.length > estimate * WALK_PACE_MAX + 0.5 ? r.length : estimate;
 }
 
 /** Přesná trasa chodce z `a` do `b` (od domu `homeId` – jeho pěšina má přednost), nebo null. */

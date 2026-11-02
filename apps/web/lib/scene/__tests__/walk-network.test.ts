@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { ROAD_WALK, walkGraph, walkingDistances, type StoredRoute } from '@bohemia/game';
 import { WALK_PACE_MAX, routeWalker } from '../path-router';
-import { scheduledWalk, walkRoute } from '../villager-plan';
+import { scheduledLength,
+  scheduledWalk, walkRoute } from '../villager-plan';
 import { errandPath } from '../villager-plan-traffic';
 import type { Context, House, VillagerGround, VillagerPaths } from '../villager-plan-types';
 
@@ -165,7 +166,7 @@ describe('chůze po síti vsi (pěšiny stálých tras a pevné cesty)', () => {
     expect(walkRoute(ctx(detour(1)), DOOR, b, 1)!.points).toHaveLength(4);
   });
 
-  it('rozvrh: jediná trasa dlouhou oklikou by byla během – v čase rozvrhu se jde rovně', () => {
+  it('rozvrh: jediná schůdná trasa je dlouhá oklika – rozvrh dá čas na ni (ne rovně, ne během)', () => {
     // přímka vede přes vodu (z = 0, x 5–15), uložená trasa domácnosti jde oklikou 40 m stranou
     const wet: VillagerGround = {
       ...GROUND,
@@ -187,9 +188,12 @@ describe('chůze po síti vsi (pěšiny stálých tras a pevné cesty)', () => {
       walkLength: (from, to) => Math.hypot(to.x - from.x, to.z - from.z),
     };
     const ctx = { houses: [], graves: [], ground: wet, paths } as unknown as Context;
-    // trasa existuje (100 m), ale v čase rozvrhu (20 m chůze) by postava běžela 5×
+    // trasa existuje (100 m), ale v čase odhadu (20 m chůze) by postava běžela 5× – rovně ne
     expect(walkRoute(ctx, DOOR, b, 1)!.length).toBeCloseTo(100, 6);
-    expect(scheduledWalk(ctx, DOOR, b, 1)).toBeNull();
+    expect(scheduledWalk(ctx, DOOR, b, 1, 20)).toBeNull();
+    // délka rozvrhu je délka okliky (návrh Clauda 2. 11. 2026 – roh domu, voda), po ní se jde
+    expect(scheduledLength(ctx, DOOR, b)).toBeCloseTo(100, 6);
+    expect(scheduledWalk(ctx, DOOR, b, 1)!.points).toHaveLength(4);
     // s délkou chůze, ve které se oklika ujde, po ní
     const slow = { ...ctx, paths: { ...paths, walkLength: () => 90 } } as unknown as Context;
     expect(scheduledWalk(slow, DOOR, b, 1)!.points).toHaveLength(4);
