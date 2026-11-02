@@ -597,6 +597,9 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
 - **Panel války:** řádek na každý rod ve válce – portrét vojvody, jméno rodu, poslední střet (lebka
   s padlými, klas s kořistí), tlačítko „Nabídnout mír“ (jednání); svolání vazalů ikonou rohu –
   „ok“.
+- **Panel Vojsko:** „Tohle by mělo být textové, bez mapy“ – přípravu tažení (cíl, muži rodu
+  a vazalové, skupiny a rozkazy, vesničané, shromaždiště, zástupce, jídlo, odhad síly) panel
+  ukáže textově, bez mapy okolí (výjimka z pravidla „bez popisků“).
 
 ## Otázky na Martina
 
