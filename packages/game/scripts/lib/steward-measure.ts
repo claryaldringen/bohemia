@@ -27,10 +27,12 @@ import {
   settleStewardDeparture,
   startNewDwelling,
   waitingHouseholds,
+  type FieldPart,
   type VillageState,
 } from '../../src/domain/village';
 import { ROTATION, ROTATION_FACTOR } from '../../src/domain/village/field-capacity';
 import {
+  FERTILITY,
   FIELD_WORK_PER_HA,
   FOUNDING_COST_PER_HA,
   RECLAIM_COST_PER_HA,
@@ -158,10 +160,19 @@ export interface DynastyResult {
   // --- kritéria plánu úloh správce (1. 11. 2026); ve starších kontrolních bodech chybí ---
   /** Podíl oseté plochy v červnu na polích v oběhu – mateřská ves od roku `sownFromYear`. */
   sownShare?: number;
+  /**
+   * Podíl odpočaté půdy ladem v červnu – díly hotové k osevu a příloh s úrodností aspoň
+   * `FERTILITY.fallowReady`, které ves neosela – na polích v oběhu; mateřská ves od `sownFromYear`.
+   */
+  restedIdleShare?: number;
   /** Vzdálenost osetých dílů v červnu (m, podle osetých ploch) – všechny vsi od `sownFromYear`. */
   sownWalkM?: number;
   /** Zakládání dílů + vracení přílohu ÷ polní práce (vzorek práce dne po krocích dopočtu). */
   fieldOverhead?: number;
+  /** Člověkodny (vzorek práce dne) – zakládání dílů, vracení přílohu a polní práce celkem. */
+  labor?: { founding: number; reclaim: number; field: number };
+  /** Plocha všech dílů rodu na konci i se zakládanými (ha) – jmenovatel založení na hektar. */
+  foundedHa?: number;
   /** Lidé každého odchodu syna (osadníci nové vsi). */
   departureSizes?: number[];
   /** Vsi rodu, které měly po některém kroku dopočtu 1–`TINY_VILLAGE` lidí (i mateřská). */
@@ -209,6 +220,7 @@ export interface RunOptions {
   seed: number;
   strategy: Strategy;
   years: number;
+  /** Hodiny (ms) – výchozí `threadClock`. */
   clock?: () => number;
   /** Každý krok dopočtu každé vsi (diagnostika) – výsledek běhu nemění. */
   observe?: (view: ChunkView) => void;
@@ -312,8 +324,20 @@ function peopleOf(colonies: readonly Colony[]): number {
 }
 
 /** Rod ze zakladatelů na skutečné krajině `seed` po `years` let se správcem, nebo hráčem skriptu. */
+/**
+ * Hodiny měření (ms): čas CPU vlákna (`process.threadCpuUsage` – uživatel + jádro), ne čas na
+ * zdi. Měření běží v několika vláknech s `nice 19` vedle jiné práce – na zdi pak stejný den správce
+ * trval 44 ms bez zátěže a 191 ms při zátěži stroje 94 (návrh Clauda 2. 11. 2026, steward.md –
+ * Ověření kvality). Bez API vlákna (starší Node) čas na zdi.
+ */
+export function threadClock(): number {
+  if (typeof process.threadCpuUsage !== 'function') return performance.now();
+  const usage = process.threadCpuUsage();
+  return (usage.user + usage.system) / 1000;
+}
+
 export function runDynasty(opts: RunOptions): DynastyResult {
-  const clock = opts.clock ?? ((): number => performance.now());
+  const clock = opts.clock ?? threadClock;
   const land = realLand(opts.seed);
   const landscape = land.landscape;
   if (!landscape) throw new Error('Měření správce potřebuje skutečnou krajinu.');
@@ -418,8 +442,16 @@ export function runDynasty(opts: RunOptions): DynastyResult {
   result.hungryDaysMother = tally.hungryMother;
   result.hungryDaysSons = tally.hungrySons;
   result.sownShare = mean(tally.sownShares);
+  result.restedIdleShare = mean(tally.restedIdle);
   result.sownWalkM = tally.sownM2 > 0 ? tally.sownWalk / tally.sownM2 : NaN;
   result.fieldOverhead = tally.fieldLabor > 0 ? tally.overheadLabor / tally.fieldLabor : NaN;
+  result.labor = {
+    founding: tally.overheadLabor - tally.reclaimLabor,
+    reclaim: tally.reclaimLabor,
+    field: tally.fieldLabor,
+  };
+  result.foundedHa =
+    colonies.reduce((sum, c) => sum + c.state.parts.reduce((a, p) => a + p.areaM2, 0), 0) / 10_000;
   result.departureSizes = tally.departures;
   result.tinyVillages = tally.tiny.size;
   result.villageYears = tally.villageDays / DAYS_PER_YEAR;
@@ -434,10 +466,12 @@ interface Tally {
   hungrySons: number;
   villageDays: number;
   sownShares: number[];
+  restedIdle: number[];
   sownM2: number;
   sownWalk: number;
   fieldLabor: number;
   overheadLabor: number;
+  reclaimLabor: number;
   departures: number[];
   /** Indexy vsí rodu, které kdy měly 1–`TINY_VILLAGE` lidí. */
   tiny: Set<number>;
@@ -450,10 +484,12 @@ function newTally(): Tally {
     hungrySons: 0,
     villageDays: 0,
     sownShares: [],
+    restedIdle: [],
     sownM2: 0,
     sownWalk: 0,
     fieldLabor: 0,
     overheadLabor: 0,
+    reclaimLabor: 0,
     departures: [],
     tiny: new Set(),
   };
@@ -465,6 +501,7 @@ function countLabor(tally: Tally, state: VillageState, days: number): void {
     const md = share.manDays * days;
     if (FIELD_LABOR.has(share.activity)) tally.fieldLabor += md;
     if (FIELD_OVERHEAD.has(share.activity)) tally.overheadLabor += md;
+    if (share.activity === 'reclaim') tally.reclaimLabor += md;
   }
 }
 
@@ -481,15 +518,29 @@ function countJune(
   if (date.month !== 6 || date.day > CHUNK_DAYS || age < sownFromYear(years)) return;
   let rotation = 0;
   let sown = 0;
+  let idle = 0;
   for (const p of state.parts) {
     if (p.state === 'founding') continue;
     rotation += p.areaM2;
+    if (isRestedIdle(p)) idle += p.areaM2;
     if (p.state !== 'sown') continue;
     sown += p.areaM2;
     tally.sownM2 += p.areaM2;
     tally.sownWalk += p.areaM2 * p.distanceM;
   }
-  if (mother && rotation > 0) tally.sownShares.push(sown / rotation);
+  if (mother && rotation > 0) {
+    tally.sownShares.push(sown / rotation);
+    tally.restedIdle.push(idle / rotation);
+  }
+}
+
+/**
+ * Odpočatá půda ladem: díl hotový k osevu, nebo příloh, který už je odpočatý (úrodnost aspoň
+ * `FERTILITY.fallowReady`) – v červnu ho ves neosela, ačkoli odpočívat nepotřebuje.
+ */
+export function isRestedIdle(p: Pick<FieldPart, 'state' | 'fertilityShare'>): boolean {
+  if (p.state === 'ready') return true;
+  return p.state === 'fallow' && p.fertilityShare >= FERTILITY.fallowReady - 1e-9;
 }
 
 /** Pole, úrodnost, vzdálenost dílů a horní mez lidí na hektar z konce běhu. */
@@ -549,7 +600,11 @@ export function hardFailures(rows: readonly Row[]): Row[] {
  * `ROTATION.sown` oseté plochy; k tomu zakládání nových dílů celého oběhu (`ROTATION_FACTOR`) při
  * růstu osevu `growth` za rok. Sazby bez nástrojů (worst); jmenovatel je polní práce na osetý
  * hektar (vracení, kopání, setí, pletí jen jaře – ozim se neplete, žně, mlácení) – zakládání v něm
- * není (jako ve vzorku práce).
+ * není (jako ve vzorku práce). Měření bere růst 0 – horní mez vracení přílohu ÷ polní práce (návrh
+ * Clauda 2. 11. 2026): motykou je vracení louky celý oběh, s rádlem rozorá drn orba a vracení zbude
+ * jen u zarostlého přílohu (křoviny, mladý les). Zakládání se nehodnotí – s rádlem stojí louka jen
+ * překážky a les 250 čd/ha, podíl pak ukazuje krajinu a růst, ne zbytečnou práci (tu hlídá využití
+ * oběhu – odpočatá půda ladem).
  */
 export function overheadTarget(growth: number): number {
   const w = FIELD_WORK_PER_HA;
@@ -580,10 +635,11 @@ interface Targets {
   deaths: number;
   bufferAvg: number;
   bufferMin: number;
-  /** Využití oběhu – podíl osevu × `ROTATION_FACTOR` (1 = osetý celý díl oběhu, 2 roky ze 7). */
+  /**
+   * Využití oběhu – 1 − podíl odpočaté půdy ladem v červnu (`isRestedIdle`): 1 = žádný díl
+   * neodpočívá déle, než potřebuje; rezerva polí `STEWARD.fieldReserve` 1,1 dá ≈ 0,91.
+   */
   rotationUse: number;
-  /** Růst osevu za rok, se kterým se počítá zakládání v cíli `overheadTarget`. */
-  overheadGrowth: number;
   /** Chůze bez A (m); s A platí B ≤ A. */
   walkM: number;
   /** Lidé rodu za 25 let bez A (rychlé měření – výchozí stav plánu 23,2). */
@@ -596,7 +652,6 @@ const QUICK: Targets = {
   bufferAvg: 0.6,
   bufferMin: 0,
   rotationUse: 0.8,
-  overheadGrowth: 0.05,
   walkM: 266,
   people25: 23,
 };
@@ -606,7 +661,6 @@ const FULL: Targets = {
   bufferAvg: 0.9,
   bufferMin: 0.5,
   rotationUse: 0.9,
-  overheadGrowth: 0.03,
   walkM: 266,
   people25: 23,
 };
@@ -683,21 +737,45 @@ export function summarize(results: readonly DynastyResult[]): Row[] {
     measured: `${fmt(mean(values(b, (r) => r.bufferMother)), 2)} / ${fmt(mean(values(b, (r) => r.bufferSons)), 2)}`,
     status: 'info',
   });
-  const use = values(b, (r) => r.sownShare).map((v) => v * ROTATION_FACTOR);
-  const sown = mean(use);
+  const from = sownFromYear(t.quick ? Math.max(...b.map((r) => r.years)) : 50);
+  const use = values(b, (r) => r.restedIdleShare).map((v) => 1 - v);
+  const used = mean(use);
   rows.push({
-    name: `Využití oběhu – mateřská ves, červen od roku ${sownFromYear(t.quick ? Math.max(...b.map((r) => r.years)) : 50)} (B)`,
+    name: `Využití oběhu (1 − odpočatá půda ladem) – mateřská ves, červen od roku ${from} (B)`,
     target: `≥ ${fmt(t.rotationUse, 2)}`,
-    measured: `${fmt(sown, 2)} (${use.map((v) => fmt(v, 2)).join(' ')})`,
-    status: Number.isFinite(sown) ? ok(sown >= t.rotationUse) : '–',
+    measured: `${fmt(used, 2)} (${use.map((v) => fmt(v, 2)).join(' ')})`,
+    status: Number.isFinite(used) ? ok(used >= t.rotationUse) : '–',
+  });
+  const sown = values(b, (r) => r.sownShare).map((v) => v * ROTATION_FACTOR);
+  rows.push({
+    name: `Osev ÷ osev ustáleného oběhu – mateřská ves, červen od roku ${from} (B)`,
+    target: 'info',
+    measured: `${fmt(mean(sown), 2)} (${sown.map((v) => fmt(v, 2)).join(' ')})`,
+    status: 'info',
   });
   const overhead = mean(values(b, (r) => r.fieldOverhead));
-  const overheadMax = overheadTarget(t.overheadGrowth);
+  const laborShare = (pick: (l: NonNullable<DynastyResult['labor']>) => number): number =>
+    mean(values(b, (r) => (r.labor && r.labor.field > 0 ? pick(r.labor) / r.labor.field : NaN)));
+  const foundingPerHa = mean(
+    values(b, (r) =>
+      r.labor && r.foundedHa !== undefined && r.foundedHa > 0
+        ? r.labor.founding / r.foundedHa
+        : NaN,
+    ),
+  );
   rows.push({
     name: 'Založení + vracení přílohu ÷ polní práce (B)',
-    target: `≤ ${fmt(overheadMax * 100, 0)} %`,
-    measured: `${fmt(overhead * 100, 0)} %`,
-    status: Number.isFinite(overhead) ? ok(overhead <= overheadMax) : '–',
+    target: 'info',
+    measured: `${fmt(overhead * 100, 0)} % (založení ${fmt(laborShare((l) => l.founding) * 100, 0)} %, ${fmt(foundingPerHa, 0)} čd na ha polí)`,
+    status: 'info',
+  });
+  const reclaim = laborShare((l) => l.reclaim);
+  const reclaimMax = overheadTarget(0);
+  rows.push({
+    name: 'Vracení přílohu ÷ polní práce (B)',
+    target: `≤ ${fmt(reclaimMax * 100, 0)} %`,
+    measured: `${fmt(reclaim * 100, 0)} %`,
+    status: Number.isFinite(reclaim) ? ok(reclaim <= reclaimMax) : '–',
   });
   const sizes = b.flatMap((r) => r.departureSizes ?? []);
   const tiny = sizes.filter((n) => n <= TINY_VILLAGE).length;
@@ -741,7 +819,13 @@ export function summarize(results: readonly DynastyResult[]): Row[] {
     measured: `${fmt(mean(a.map((r) => r.fieldHa)))} / ${fmt(mean(b.map((r) => r.fieldHa)))}`,
     status: 'info',
   });
-  rows.push(walkRow('Vzdálenost dílů m (A / B)', a, b, (r) => r.walkM, t));
+  // vzdálenost všech dílů (i ladem a čerstvě založených) jen info – chůze stojí práci jen při
+  // práci na dílu, kritériem je chůze vážená osevem (návrh Clauda 2. 11. 2026)
+  rows.push({
+    ...walkRow('Vzdálenost dílů m (A / B)', a, b, (r) => r.walkM, t),
+    target: 'info',
+    status: 'info',
+  });
   rows.push(walkRow('Chůze vážená osevem m (A / B)', a, b, (r) => r.sownWalkM, t));
   const share = mean(b.map((r) => r.ms.steward / r.ms.total));
   const worst = Math.max(...b.map((r) => r.ms.maxStewardDay));

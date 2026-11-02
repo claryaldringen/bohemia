@@ -3,10 +3,12 @@ import {
   formatCompare,
   formatRows,
   hardFailures,
+  isRestedIdle,
   overheadTarget,
   landscapeGroups,
   runDynasty,
   summarize,
+  threadClock,
   villageTasks,
   type DynastyResult,
 } from '../lib/steward-measure';
@@ -84,7 +86,7 @@ describe('měření správce – tabulka', () => {
     expect(statuses['Lidé rodu za 10 let']).toBe('OK');
     expect(statuses['Úmrtí hladem na rod']).toBe('OK');
     expect(statuses['Čas správce z dopočtu / nejdražší den']).toBe('OK');
-    expect(statuses['Vzdálenost dílů m']).toBe('OK');
+    expect(statuses['Vzdálenost dílů m']).toBe('info');
     expect(rows.find((r) => r.name.startsWith('Lidí na ha'))?.measured).toContain('100 %');
   });
 
@@ -113,8 +115,10 @@ describe('měření správce – tabulka', () => {
 
   it('kritéria plánu úloh: využití oběhu, založení, malé odchody a vsi, chůze bez A', () => {
     const steward = result({
-      sownShare: 0.2,
+      restedIdleShare: 0.3,
       fieldOverhead: 0.4,
+      labor: { founding: 100, reclaim: 300, field: 1000 },
+      foundedHa: 2,
       departureSizes: [1, 6],
       tinyVillages: 1,
       sownWalkM: 300,
@@ -123,32 +127,55 @@ describe('měření správce – tabulka', () => {
     const status = (prefix: string): string | undefined =>
       rows.find((r) => r.name.startsWith(prefix))?.status;
     expect(status('Využití oběhu')).toBe('MIMO');
-    expect(status('Založení + vracení')).toBe('MIMO');
+    // založení + vracení jen info; vracení 30 % nad mez oběhu motykou (24 %)
+    expect(status('Založení + vracení')).toBe('info');
+    expect(rows.find((r) => r.name.startsWith('Založení + vracení'))?.measured).toBe(
+      '40 % (založení 10 %, 50 čd na ha polí)',
+    );
+    expect(status('Vracení přílohu')).toBe('MIMO');
     expect(status('Odchody synů o ≤ 2')).toBe('MIMO');
     expect(status('Vsi rodu o ≤ 2')).toBe('MIMO');
     expect(hardFailures(rows).map((r) => r.name)).toEqual(['Vsi rodu o ≤ 2 lidech kdykoli (B)']);
     expect(status('Chůze vážená osevem')).toBe('MIMO');
-    expect(status('Vzdálenost dílů')).toBe('OK');
-    // 2 roky osevu ze 7: podíl 0,25 = využití 0,875
+    expect(status('Vzdálenost dílů')).toBe('info');
+    // odpočatá půda ladem 10 % = využití 0,9 (rezerva polí 1,1 dá ≈ 0,91)
     const good = summarize([
-      result({ sownShare: 0.25, fieldOverhead: 0.3, departureSizes: [6], tinyVillages: 0 }),
+      result({
+        restedIdleShare: 0.1,
+        fieldOverhead: 0.3,
+        labor: { founding: 100, reclaim: 200, field: 1000 },
+        departureSizes: [6],
+        tinyVillages: 0,
+      }),
     ]);
     expect(good.find((r) => r.name.startsWith('Využití oběhu'))?.status).toBe('OK');
-    expect(good.find((r) => r.name.startsWith('Založení + vracení'))?.status).toBe('OK');
+    expect(good.find((r) => r.name.startsWith('Vracení přílohu'))?.status).toBe('OK');
     expect(hardFailures(good)).toEqual([]);
     expect(good.find((r) => r.name.startsWith('Odchody synů o'))?.measured).toContain('0 z 1');
   });
 
+  it('odpočatá půda ladem: díl hotový k osevu a odpočatý příloh, ne osetý ani odpočívající díl', () => {
+    expect(isRestedIdle({ state: 'ready', fertilityShare: 1 })).toBe(true);
+    expect(isRestedIdle({ state: 'fallow', fertilityShare: 0.95 })).toBe(true);
+    // příloh na 0,91 (4 roky ze 5) ještě odpočívá – osev by ho vyčerpal pod 70 %
+    expect(isRestedIdle({ state: 'fallow', fertilityShare: 0.91 })).toBe(false);
+    expect(isRestedIdle({ state: 'sown', fertilityShare: 1 })).toBe(false);
+  });
+
   it('výčet po vsích jde po seedech vzestupně, ne v pořadí kontrolního bodu', () => {
     const rows = summarize([
-      result({ seed: 28, sownShare: 0.3 }),
-      result({ seed: 3, sownShare: 0.1 }),
-      result({ seed: 17, sownShare: 0.2 }),
+      result({ seed: 28, sownShare: 0.3, restedIdleShare: 0.3 }),
+      result({ seed: 3, sownShare: 0.1, restedIdleShare: 0.1 }),
+      result({ seed: 17, sownShare: 0.2, restedIdleShare: 0.2 }),
     ]);
-    // využití = podíl × ROTATION_FACTOR (3,5): seed 3 → 0,35, 17 → 0,70, 28 → 1,05
+    // využití = 1 − odpočatá půda ladem: seed 3 → 0,90, 17 → 0,80, 28 → 0,70
     expect(rows.find((r) => r.name.startsWith('Využití oběhu'))?.measured).toContain(
-      '(0,35 0,70 1,05)',
+      '(0,90 0,80 0,70)',
     );
+    // osev ÷ ustálený oběh = podíl × ROTATION_FACTOR (3,5) – jen info, s orbou bývá nad 1
+    const sown = rows.find((r) => r.name.startsWith('Osev ÷ osev ustáleného'));
+    expect(sown?.measured).toContain('(0,35 0,70 1,05)');
+    expect(sown?.status).toBe('info');
   });
 
   it('cíl založení + vracení: vracení přílohu oběhu (1 ze 2 let osevu) a zakládání při růstu', () => {
@@ -178,6 +205,17 @@ describe('měření správce – tabulka', () => {
 });
 
 describe('měření správce – běh', () => {
+  it('hodiny měří čas CPU vlákna – čekání se nepočítá', async () => {
+    const start = threadClock();
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    expect(threadClock() - start).toBeLessThan(40);
+    let x = 0;
+    const busy = threadClock();
+    for (let i = 0; i < 2e7; i++) x += i;
+    expect(x).toBeGreaterThan(0);
+    expect(threadClock() - busy).toBeGreaterThan(0);
+  });
+
   it('rok rodu je s pevnými hodinami opakovatelný a nese snímky jen do délky běhu', () => {
     const [group] = landscapeGroups(5, 1);
     const seed = group?.seeds[0] ?? 0;
