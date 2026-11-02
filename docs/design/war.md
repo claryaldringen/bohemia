@@ -538,6 +538,11 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
 - **Tempo vojska na cizí mapě:** kompromis jako jednotky v 0 A.D. – svižná chůze ≈ 3–4 m/s ve
   skutečném čase, 1 km ≈ 4–5 minut ≈ 3 herní dny; poloha vojska je táž ve scéně i v simulaci
   (výjimka z „Bez časosběru“ – vojáci jdou rychleji než lidé ve vsi) – „Ten kompromis zní dobře“.
+- **Boj – kompromis:** „Měl by to být nějaký kompromis. Hráč může ovládat vojvodu a ostatní jeho
+  vazalové se budou držet nějakého rozkazu, který dostali před bitvou – typicky držet se vévody
+  a bránit ho, nebo agresivně útočit na všechno co se hýbe.“ – hráč řídí živě jen svého muže,
+  ostatní muži se řídí **rozkazem před bitvou** (např. držet se velitele a bránit ho / útočit na
+  vše); boj tedy probíhá muž po muži ve skutečném čase, ne jedním výpočtem skupiny.
 
 ## Otázky na Martina
 
