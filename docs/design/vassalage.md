@@ -530,6 +530,9 @@ pozvaný vazal):
   vystěhování vsi, posílání synů držitele ani povyšování; zásoby patří vsi; držitel ho smí
   kdykoli odvolat (vypovědět) – „Ano“ (Martin 2. 11. 2026).
 
+- **Ponechaná odúmrť:** „Když si odúmrť ponechá, může ji spravovat buď sám nebo do ní poslat
+  správce – a je jedno, jestli to bude někdo z jeho rodu nebo nějaký jiný vazal“ (Martin 2. 11. 2026).
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
