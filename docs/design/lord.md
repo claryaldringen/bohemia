@@ -736,6 +736,9 @@ autopilot (fáze 3). Co níž není výslovně Martinovo, je návrh Clauda.
   lidí není co nejblíž dílu – po celých domácnostech, jako dnes při odchodu; domácnost, která by díl
   oddálila od cíle, se přeskočí a pokračuje další nejbližší (návrh Clauda). Do dílu nepatří
   dvorec, domácnosti ostatních synů vojvody (mají svůj díl) ani domácnost, která si staví dům.
+  Domácnost s chlapcem vojvody pod 16 let do dílu také nepatří – Martin 2. 11. 2026 na otázku,
+  zda ji pustit do dílu (ves skoro celá rod pak výpravu nesestaví): „C“ = nechat, jak je; syn
+  počká, až ve vsi přibudou domácnosti mimo rod.
   Nejbližší obydlí drží díl pohromadě – ve fázi 3 ho půjde spravovat i na místě (zadání issue;
   s pravidlem jedna ves, jedna mapa otevřené – viz Nástupnictví níž).
 - Dům, který syn drží a bydlí v něm i jiní, zůstane zbytku domácnosti podle

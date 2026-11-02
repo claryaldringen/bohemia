@@ -607,6 +607,7 @@ Podrobně v [plánu](../superpowers/plans/2026-10-27-disasters.md).
 | Smršť: stopa ze seedu mapy, 0,5 / 10 000 km² ročně, síly F0–F4, úmrtí jen F3–F4 („Takhle vzácné tornádo je dobré“)          | Martin (27. 10. 2026), čísla návrh Clauda (rešerše §6) |
 | Ve scéně: návrh Clauda („Jinak je to dobré“); v suchu slunce praží, při kroupách scéna potemní a blýská se                  | Martin (27. 10. 2026)                                  |
 | Četnosti léta a zimy v tabulkách; zlé roky se shlukují ×1,25; násobí se hrubá úroda, osivo celé                             | návrh Clauda (rešerše), schváleno                      |
+| Řada zlých let (Vlkov 834–836) – pohromy beze změny, posílit odolnost (zásoba na zlý rok)                                   | Martin (2. 11. 2026: „a“)                              |
 | Osev počítá s průměrem let 0,95; paměť hladu – pojistka 0,75 na 10 let po krutém roce                                       | návrh Clauda, schváleno                                |
 | Seno s rezervou +15 %; seč plánuje s letošním výnosem                                                                       | návrh Clauda, schváleno                                |
 | Sousedé po zlém roce: poloviční zásoba obilí a ×1,5 cena; po krutém čtvrtinová a ×2                                         | návrh Clauda (rešerše), schváleno                      |
