@@ -462,6 +462,10 @@ pozvaný vazal):
   „Tohle je dobrý návrh. Vyřeší se tím de iure stránka sporu, de facto se bude řešit až následně
   (sankce, válka, atd.)“ (Martin 2. 11. 2026); zavést spolu s [válkou](war.md) (návrh Clauda).
 
+- **Obchod mezi hráči:** mezi kýmkoli (ne jen pán – vazal), stejným jednáním jako vazalství
+  (nabídka zboží za zboží, protinávrh), jen makrokomodity, dopravu platí ten, kdo posílá – „Ano“
+  (Martin 2. 11. 2026).
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
