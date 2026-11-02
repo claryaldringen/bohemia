@@ -475,6 +475,9 @@ pozvaný vazal):
   a jejich muže rodu schopné služby) a podle toho žádá od B počet mužů; B je může přivést i od
   svých vazalů.
 
+- **Smrt vojvody pána nebo vazala:** vazalství trvá, nástupce ho převezme bez nové přísahy se
+  všemi podmínkami, dávkami i půjčkami – „Ano“ (Martin 2. 11. 2026).
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
