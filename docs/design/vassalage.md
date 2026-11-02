@@ -410,6 +410,9 @@ pozvaný vazal):
 - **Termín ročního dialogu dávky:** 1. 11. (po výmlatu, před zimou) – „1. listopad je ok“
   (Martin 2. 11. 2026).
 
+- **Dávka za rod:** sjedná se za celý rod, v ročním dialogu ji vazal rozdělí mezi své vsi
+  (výchozí podle přebytku vsí) – „ano“ (Martin 2. 11. 2026).
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
