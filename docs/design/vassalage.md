@@ -441,6 +441,12 @@ pozvaný vazal):
   rodokmeny šlechty jsou prakticky veřejné“ (Martin 2. 11. 2026) – kterýkoli muž rodu od 16 let
   včetně hráčova muže; pán vidí počet mužů rodu schopných služby (rodokmen veřejný).
 
+- **Pomoc v nouzi:** „Vazal musí o pomoc požádat – není to nic, co by se určovalo dopředu.
+  Hmotná pomoc může být poskytnuta buď nezištně nebo jako půjčka se splátkovým kalendářem, která
+  může být splacena i jiným zbožím, než tím, které vazal obdržel.“ (Martin 2. 11. 2026) – pomoc
+  v nouzi není podmínkou dohody; vazal požádá, pán dá zdarma, nebo půjčí se splátkami (i v jiném
+  zboží).
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
