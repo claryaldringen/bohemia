@@ -34,10 +34,12 @@ kolem 40 generací – dědictví, sňatky a nástupnictví jsou hlavní mechani
 - Registrace a přihlášení jsou povinné.
 - Nový hráč **s pozvánkou** (unikátní kód od stávajícího hráče) začíná jako vazal toho, kdo ho
   pozval.
-- Nový hráč **bez pozvánky** je automaticky přidělen jako vazal některému ze stávajících hráčů –
-  podle herní mechaniky, která se teprve navrhne.
-- Svět je strom vazalství. Vazalství není trvalé (osamostatnění, vzpoura, přísaha jinému pánovi) –
-  detaily se navrhnou.
+- Nový hráč **bez pozvánky** je **úplně nezávislý** – svou nezávislost uhájí, nebo ho jiný hráč
+  donutí stát se vazalem (Martin 2. 11. 2026).
+- **Na vrcholu nestojí nikdo** – hráči jsou si na začátku rovni; kdo chce výš, musí si ostatní
+  podrobit (Martin 2. 11. 2026: „V tom ta hra vlastně spočívá“). Vazalem se hráč stane
+  pozvánkou nebo přijetím nabídky s podmínkami (přijme, odmítne, nebo jedná o podmínkách);
+  o dávkách rozhoduje pán, vazal smí odejít kdykoli. Návrh: [docs/design/vassalage.md](docs/design/vassalage.md).
 
 ---
 
