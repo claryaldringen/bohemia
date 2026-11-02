@@ -505,6 +505,9 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
   jen muži rodu – vazalství).
 - **Válka mezi rody:** vztah dvou rodů, platí pro všechny jejich vsi, každou jde přepadnout zvlášť
   – „Ano“.
+- **Odkud tažení vyrazí:** „Záleží jak velké tažení podniká. Rozhodne, kteří vazalové půjdou (ze
+  kterých vsí) a u které vsi rodu se vojsko shromáždí.“ – vůdce tažení vybere vazaly a vsi,
+  odkud muži jdou, a **shromaždiště** u některé vsi svého rodu; odtud vojsko vyrazí.
 
 ## Otázky na Martina
 
