@@ -527,6 +527,8 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
   a výzbroj zvlášť – „ano“.
 - **Kůň:** násobí sílu muže rodu až 1,5× podle jízdy a výcviku koně (zkušenost 60 na dobrém koni
   ≈ 3,3); vesničané na koních nebojují – „ano“.
+- **Výzbroj a výstroj:** „Zatím jen koeficient. Reálné věci budeme řešit někdy později vlastní
+  mechanikou“ – zůstává násobek za kovárnu (× 1,5 s plným pokrytím), věci Později.
 
 ## Otázky na Martina
 
