@@ -731,6 +731,10 @@ describe('orba rádlem', () => {
     s.season = createPlan(s.parts, at(600, 9, 1), 0, true);
     // bez zásob – nezačaté díly ves potřebuje a neuvolní je (fields.md – Osevní postup po dílech)
     s.storesKg = 0;
+    // osivo jař koupí 1. 3. za hřivny, jídlo do 6. 3. maso – bez osiva by jař nekopali (fields.md –
+    // Osivo ze zásob, Příprava jaře jen na díly s osivem)
+    s.crafts = { charcoalKg: 0, potteryKg: 0, ironBarsKg: 1000 };
+    s.meatKg = 200;
     s.hay = { kg: 0, mowing: null, winter: { oxenNeedKg: 2400, oxenEatenKg: 0 } };
     const spring = advanceVillage(s, at(601, 3, 1), null);
     expect(spring.pens![0]!.oxen).toEqual([]);

@@ -115,6 +115,7 @@ import type {
 } from './types';
 import {
   foodUntilHarvestKg,
+  seedPrepShares,
   seedSowCap,
   seedUseKg,
   seedStore,
@@ -211,8 +212,21 @@ export function fieldTasks(
     const rank = CROP_ORDER.indexOf(crop) * TASK_ORDER.length + order;
     let remaining = neededTaskRemaining(work, name);
     if (name === 'sow' && remaining > 0) remaining = seedCap(crop, work, remaining);
+    // příprava půdy jaře jen na díly, na které je osivo (`seedPrepShares`)
+    const prep =
+      name === 'sow' || name === 'weed' || name === 'harvest' ? undefined : prepShares?.get(work);
+    if (prep !== undefined && remaining > 0) {
+      const required = name === 'plough' ? (work.plough?.required ?? 0) : work.required[name];
+      remaining = Math.min(remaining, Math.max(0, prep * required - cropTaskDone(work, name)));
+    }
     if (remaining > 0) entries.push({ name, crop, remaining, work, end, rank });
   };
+  // jarní okno setí: příprava jaře, luštěnin a lnu jen na díly s osivem (oprava, návrh Clauda
+  // 2. 11. 2026 – fields.md, Osivo ze zásob)
+  const prepShares =
+    state.season !== null && month >= 3 && month <= 4
+      ? seedPrepShares(state, day, partsByIdOf(state.parts))
+      : null;
   if (state.season !== null) {
     for (const { crop, work } of seasonCrops(state.season)) {
       // díly nad potřebu dostanou práci až po stavbách (`surplusFieldDay`)
@@ -323,6 +337,9 @@ export function work(
   // orba: páry volů s rádlem, se železnou špičkou od kováře rychleji (oxen.md); slabí voli po
   // zimě pomaleji; voli s vozem na výpravě neorají (wagons.md)
   const partsById = partsByIdOf(state.parts);
+  // potřeba do sklizně pro příděl, nad kterým nutné díly sejí z běžného zrna (`takeSeed`) – jednou
+  // za den, před prvním osivem dne
+  let sowFoodKg: number | null = null;
   const teamsCap = ploughCapacityPerDay(state, coverage.tools, day);
   const ploughCap = teamsCap * teamsHomeShare(state, day);
   // spřežení na poli od rána (oxen.md – Spřežení zůstane na poli) – cesta dne jednou za den
@@ -730,7 +747,8 @@ export function work(
       const after = cropTaskDone(task.field.work, task.field.name);
       // osivo zaseté části ze zásob v den setí (fields.md – Úroda, Osivo ze zásob)
       if (task.field.name === 'sow' && after > before) {
-        takeSeed(state, task.field.work, task.field.crop, partsById);
+        sowFoodKg ??= foodUntilHarvestKg(state, day);
+        takeSeed(state, task.field.work, task.field.crop, partsById, sowFoodKg);
       }
       fieldWork.push({
         task: task.field.name,
