@@ -493,6 +493,10 @@ pozvaný vazal):
   zaniknou]. Pokud však nad pánem bude ještě někdo, tak ten o statcích vymřelého rodu rozhoduje
   jako o odúmrti“ (Martin 2. 11. 2026) – **odúmrť**: rozhoduje pán vymřelého pána.
 
+- **Co s odúmrtí:** „Může ji buď ponechat v celku nebo rozdělit. Celek či jednotlivé díly může
+  ponechat ve svém držení nebo věnovat svým vazalům a je jedno, jestli jsou z jeho rodu nebo ne“
+  (Martin 2. 11. 2026).
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
