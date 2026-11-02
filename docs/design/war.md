@@ -514,6 +514,13 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
 - **Řízení tažení:** vede-li tažení jiný muž než hráčův, hráč dá jen rozkaz na začátku (cíl, kdo
   jde, shromaždiště) a dál řídí NPC podle rozkazu; živě (cesty, útok, ústup) řídí hráč jen tažení,
   které vede jeho vlastní muž – „Přesně tak“.
+- **Výcvik a zkušenost:** „Muž se cvičením doma může dostat max na 50 % tréninku, pokud loví tak na
+  70 % a zbytek zkušeností může získat jedině válkou. To, že zkušenost klesá, když muž necvičí,
+  neloví nebo neválčí je dobré. Je však potřeba zohlednit, že musí být rozdíl mezi vesničanem,
+  vojvodou vycvičeným na 10 % a vojvodou vycvičeným třeba na 60 %. A to do toho ještě
+  nezahrnujeme ani výzbroj a výstroj“ – strop dovedností: výcvik doma 50, lov 70, nad 70 jen
+  válka (mění [lord.md](lord.md) – Výcvik, strop dnes 100); síla musí růst s dovedností znatelně;
+  výzbroj a výstroj zvlášť.
 
 ## Otázky na Martina
 
