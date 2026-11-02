@@ -600,6 +600,9 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
 - **Panel Vojsko:** „Tohle by mělo být textové, bez mapy“ – přípravu tažení (cíl, muži rodu
   a vazalové, skupiny a rozkazy, vesničané, shromaždiště, zástupce, jídlo, odhad síly) panel
   ukáže textově, bez mapy okolí (výjimka z pravidla „bez popisků“).
+- **Cesta k cíli:** „Hráč musí k cíli dojít mapu po mapě. Bude tak jednodušší plenit příhraniční
+  vesnice a těžší probít se k centru dominia“ – cíl se nevybírá ze seznamu; vojsko jde mapu po
+  mapě (směr na okraji jako 18. 10.), mezilehlé mapy se procházejí (ne jen čas cesty).
 
 ## Otázky na Martina
 
