@@ -453,6 +453,9 @@ pozvaný vazal):
 - **Ochrana vojskem:** na žádost vazala, pán rozhodne, jestli a koho pošle (svůj rod, další
   vazalové); nic se nevynucuje – „Ano“ (Martin 2. 11. 2026).
 
+- **Válka mezi vazaly téhož pána i s vlastním pánem:** „Ano, hra to nezakazuje“ (Martin 2. 11. 2026) – žádný zemský mír jako pravidlo; pán zasáhne po svém (pomoc, propuštění). Upravit
+  [válku](war.md) (návrh má zemský mír ve stromu).
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
