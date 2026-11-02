@@ -515,6 +515,10 @@ pozvaný vazal):
   vesničan jako vazal, nebo jiný hráč); hráč řídí každou ves, kde je vojvodou nebo správcem,
   i několik najednou; když u ní není, řídí ji NPC jménem formálního správce – „Ano“ (Martin 2. 11. 2026).
 
+- **Povýšení vesničana:** založí nový šlechtický rod (NPC, za který nehraje hráč), vazala toho,
+  kdo ho povýšil; jeho synové jsou šlechtici a cvičí jako synové vojvody; pán mu svěří ves do
+  správy – „Ano“ (Martin 2. 11. 2026).
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
