@@ -456,6 +456,12 @@ pozvaný vazal):
 - **Válka mezi vazaly téhož pána i s vlastním pánem:** „Ano, hra to nezakazuje“ (Martin 2. 11. 2026) – žádný zemský mír jako pravidlo; pán zasáhne po svém (pomoc, propuštění). Upravit
   [válku](war.md) (návrh má zemský mír ve stromu).
 
+- **Spory a rozsudek pána:** žaloba vazala (vzkaz) → vyjádření druhé strany → rozsudek pána
+  (náhrada zbožím, dobytkem, vrácením lidí, mír na dobu, nebo zamítnutí) → splnění dialogem jako
+  u dávek (celé / míň / nic); hra nic nevynucuje, nesplnění se zapíše („neposlechl pána“) –
+  „Tohle je dobrý návrh. Vyřeší se tím de iure stránka sporu, de facto se bude řešit až následně
+  (sankce, válka, atd.)“ (Martin 2. 11. 2026); zavést spolu s [válkou](war.md) (návrh Clauda).
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
