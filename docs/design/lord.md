@@ -799,7 +799,7 @@ autopilot (fáze 3). Co níž není výslovně Martinovo, je návrh Clauda.
   vsi **spravovat na místě**“ bude s pravidlem **jedna ves, jedna mapa** (Martin 1. 11. 2026:
   „Jedna ves, jedna mapa“) potřebovat jiné řešení – díl na místě by byl druhou vsí na téže mapě.
   Návrh Clauda: syn svůj díl převezme jen odchodem na novou mapu (spravovat na místě nejde);
-  rozhodne se s fází 3 (NPC).
+  rozhodne se s fází 3 (NPC). Návrh ke schválení: [seniorát](seniorate.md) – otázka 3.
 
 ### Odchod bez syna
 
@@ -854,6 +854,20 @@ autopilot (fáze 3). Co níž není výslovně Martinovo, je návrh Clauda.
   odchází z dvorce, nová ves má vojvodu a jeho synové cvičí až od ≥ 4 dospělých mimo rodinu,
   výsledek nezávisí na kouscích dopočtu.
 
+## Seniorát a rodové panství (#9, fáze 4) – návrh ke schválení
+
+Stav: **návrh ke schválení** (2. 11. 2026). Celý návrh je v samostatném dokumentu
+[seniorát](seniorate.md), výhodu pozvaného hráče řeší [vazalství](vassalage.md). Nástupnictví ve
+vsi (fáze 1) a poměrná část vsi (fáze 2) se nemění. Ve zkratce (návrh Clauda):
+
+- Hráč hraje za **jednoho muže rodu** – vojvodu své **vlastní vsi**; ostatní vsi rodu vedou NPC
+  vojvodové se zapnutým správcem.
+- **Senior** = nejstarší žijící muž rodu ve všech vsích; je-li to hráčův muž, hráč smí v každé
+  vsi rodu stavět, vylepšovat a vystěhovat ji (zadání issue).
+- Po smrti hráčova muže: s pozvaným hráčem hraje dál za nástupce, bez něj **los mezi syny od 16
+  let** – mladší syn odchází se svou poměrnou částí vsi na novou mapu, mateřskou ves vede NPC.
+- Ves bez muže rodu dostane vojvodu z jiné vsi rodu.
+
 ## Pro implementaci (poznámky, ne kód)
 
 - Volitelné části stavu: dovednosti u člověka, den, od kdy výhled vychází (hystereze). Převod
@@ -871,6 +885,8 @@ autopilot (fáze 3). Co níž není výslovně Martinovo, je návrh Clauda.
 - Vazalství a nástupnictví ([vize](vision.md)) – vycvičený dědic jako hodnota rodu.
 - [Správce vsi](steward.md) – autopilot vsí rodu (#9, fáze 3): stavby, pole, odchod syna
   a jména synů ve vsích se zapnutým správcem.
+- [Seniorát](seniorate.md) – rodové panství (#9, fáze 4, návrh ke schválení) a
+  [vazalství](vassalage.md) – pozvánky, pán a vazal (návrh ke schválení).
 
 ## Otevřené otázky
 

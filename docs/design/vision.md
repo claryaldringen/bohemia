@@ -34,6 +34,9 @@ ne jeden pán.
 - Svět je tedy strom vazalství a někdo stojí na jeho vrcholu.
 - Vazalství není navždy: vazalové se mohou osamostatnit, vzbouřit nebo přísahat jinému pánovi.
 - Pozvat hráče se vyplácí – pán získá vazala, a tedy moc.
+- **Návrh první verze ke schválení** (2. 11. 2026): [pozvánky a vazalství](vassalage.md) –
+  pozvánkový kód, přidělení bez pozvánky, dávka a pomoc v nouzi, okno přísahy; souvisí
+  s [seniorátem](seniorate.md) (nástupnictví hráče).
 
 ## Rozhodnutí
 
@@ -69,10 +72,12 @@ ne jeden pán.
 Mechaniky probereme postupně. Zatím nerozhodnuto:
 
 1. **Vrchol hierarchie** – kdo stojí nahoře na začátku: první hráči, Martin, nebo nehráčský
-   panovník?
-2. **Přidělení pána hráči bez pozvánky** – podle čeho?
-3. **Změny vazalství** – jak se lze osamostatnit, vzbouřit nebo přejít k jinému pánovi.
-4. **Povinnosti pána a vazala** – odvody, vojenská služba, ochrana.
+   panovník? (Návrh: [vazalství](vassalage.md) – Vrchol stromu.)
+2. **Přidělení pána hráči bez pozvánky** – podle čeho? (Návrh: [vazalství](vassalage.md).)
+3. **Změny vazalství** – jak se lze osamostatnit, vzbouřit nebo přejít k jinému pánovi. (Návrh:
+   [vazalství](vassalage.md) – Konec vazalství; vzpoura až s válkou.)
+4. **Povinnosti pána a vazala** – odvody, vojenská služba, ochrana. (Návrh první verze: dávka
+   a pomoc v nouzi – [vazalství](vassalage.md).)
 5. **Smrt, dědictví a nástupnictví** – co když rod vymře? Co když hráč dlouho není online a
    mezitím uběhnou generace? (Zčásti rozhodnuto: když hráči vymřou všechny vesnice, hra pro něj
    končí a začíná znovu; začít znovu může i sám z nabídky hry – Martin, 18. 10. 2026,
