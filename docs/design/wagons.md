@@ -78,6 +78,12 @@ serpentiny.“ Vozy vyrábí nový řemeslník **tesař** (Martin).
   hromadu a ke stavbám, **zboží obchodní výpravy** po stezce. Vůz ušetří práci nošení jen tam,
   kam **dojede vozová cesta**; jinam se nosí jako dnes. Bez vozu (nebo bez spřežení) vše jako
   dnes.
+  **Ve scéně jede vůz se snopy s hotovým humnem z pole k humnu**
+  (návrh Clauda, Martin 31. 10. 2026 „do návrhu scény“; ve hře od 1. 11. 2026): prázdný k poli,
+  nakládá, plný k humnu (zastaví do 9 m od středu mlatu), skládá a prázdný zpět k ohradě – tempem
+  volů 0,85 m/s ve skutečném čase jako ostatní jízdy ([villagers.md](villagers.md) – Fáze
+  činností, Bez časosběru). Bez humna plný zpět k ohradě. Jen scéna – počty a čas svozu řídí
+  simulace.
 - **Obchod:** výprava s vozem potřebuje méně lidí (honák a pomocník na vůz místo nosičů po 25 kg)
   – jen po stezce, která je pro vozy sjízdná (sklon, brody, hať).
 

@@ -34,6 +34,7 @@ import {
   type PartStage,
   type NextCrop,
   type PartYearWork,
+  type OutlookStep,
   type RelocationBlock,
   type RoadGrade,
   type RoadUpgrade,
@@ -557,6 +558,11 @@ export interface VillageView {
      * období nespásl ani neposekl, i ten, který už zarostl křovinami a mladým lesem.
      */
     overgrowingM2: number;
+    /**
+     * Očekávaná úroda osetých dílů pole podle plodiny (kg) a okna, na která práce nestačí (ze
+     * součtu výhledů dílů – `FieldOutlookView`); pole bez letošního osevu chybí.
+     */
+    outlook?: FieldOutlookView;
     /** Díly pole pro panel vybraného dílu (klik na pole – fields.md, Co hráč vidí). */
     parts: VillageFieldPart[];
   }[];
@@ -812,6 +818,41 @@ export interface VillageFieldPart {
   protection?: PartProtectionView;
   /** Odhad ztrát úrody letos z počasí a pohrom (disasters.md – Co hráč vidí); žádné – chybí. */
   losses?: PartLossesView;
+  /** Očekávaná úroda a jestli práce stačí (`fieldOutlook`); díl mimo nesklizený osev chybí. */
+  outlook?: PartOutlookView;
+}
+
+/**
+ * Práce, která do konce okna nestačí (`WorkShortfall` z jádra): kroky dílu, měsíc konce okna
+ * a chybějící práce lidí a orby (celé člověkodny, aspoň 1; dost – chybí).
+ */
+export interface WorkShortfallView {
+  steps: readonly OutlookStep[];
+  endMonth: number;
+  manDays?: number;
+  ploughManDays?: number;
+}
+
+/**
+ * Výhled osetého dílu pro panel (`PartOutlook` z jádra – fields.md, Co hráč vidí, Očekávaná úroda
+ * a jestli práce stačí): úroda (kg, celé), úroda z úrodnosti a co ji mění (celá procenta, kladné
+ * ubírá, záporné přidá – nulové chybí) a okna, na která práce nestačí (stačí-li, chybí).
+ */
+export interface PartOutlookView {
+  crop: Crop;
+  kg: number;
+  fullKg: number;
+  weather?: number;
+  wildlife?: number;
+  disasters?: number;
+  work?: number;
+  short?: WorkShortfallView[];
+}
+
+/** Výhled pole (součet dílů): úroda podle plodiny v pořadí ozim, jař, luštěniny, len a okna. */
+export interface FieldOutlookView {
+  crops: { crop: Crop; kg: number }[];
+  short?: WorkShortfallView[];
 }
 
 /**

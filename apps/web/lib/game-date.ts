@@ -25,6 +25,11 @@ const MONTHS_GENITIVE = [
   'prosince',
 ] as const;
 
+/** Měsíc ve 2. pádě – „října“ (1–12). */
+export function monthGenitive(month: number): string {
+  return MONTHS_GENITIVE[(month - 1 + 12) % 12]!;
+}
+
 const SEASON_NAMES: Record<Season, string> = {
   spring: 'jaro',
   summer: 'léto',

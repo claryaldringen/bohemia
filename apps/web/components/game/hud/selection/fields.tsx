@@ -26,11 +26,31 @@ import type { PartClearingView } from '@/lib/village-view-types';
 import { Tooltip } from '../Tooltip';
 import { FieldDamage } from './wildlife';
 import { protectionLabel } from '@/lib/disasters-view';
+import {
+  fieldOutlookKg,
+  fieldOutlookLabel,
+  outlookYieldLabel,
+  shortfallLabel,
+  shortfallManDays,
+} from '@/lib/field-outlook-labels';
+import type { WorkShortfallView } from '@/lib/village-view-types';
 import { Stat, Bar, Wear, RepairBar, ROW, formatM2, Walk, Flag, formatTons } from './parts';
 
 /** Krátký název plodiny malými písmeny (ozim, jař, luštěniny, len) – do popisků. */
 function cropShort(crop: keyof typeof CROP_LABELS): string {
   return CROP_LABELS[crop].name.split(' – ')[0]!.toLowerCase();
+}
+
+/**
+ * Práce do konce okna nestačí (fields.md – Co hráč vidí, Očekávaná úroda a jestli práce stačí):
+ * ikona práce s chybějícími člověkodny červeně, okna a kroky v popisku u kurzoru.
+ */
+function WorkShort({ short }: { short: readonly WorkShortfallView[] }): ReactElement {
+  return (
+    <Stat icon="labor" name={shortfallLabel(short)} testId="selection-work-short" alert>
+      −{formatInteger(shortfallManDays(short))}
+    </Stat>
+  );
 }
 
 /**
@@ -174,6 +194,14 @@ export function FieldBody({
           </Stat>
         )}
       </div>
+      {details.outlook && (
+        <div className={ROW}>
+          <Stat icon="sheaves" name={fieldOutlookLabel(details.outlook)} testId="selection-outlook">
+            {formatInteger(fieldOutlookKg(details.outlook))}
+          </Stat>
+          {details.outlook.short && <WorkShort short={details.outlook.short} />}
+        </div>
+      )}
       <ul aria-label="Díly pole" className="flex flex-wrap gap-x-2.5 gap-y-1">
         {details.stages.map(({ stage, count }) => (
           <li key={stage}>
@@ -432,6 +460,16 @@ export function FieldPartBody({
           <Stat icon="harvest" name="Sklizeň" testId="selection-harvest">
             {formatPercent(crop.harvest)}
           </Stat>
+          {details.outlook && (
+            <Stat
+              icon="sheaves"
+              name={outlookYieldLabel(details.outlook)}
+              testId="selection-outlook"
+            >
+              {formatInteger(details.outlook.kg)}
+            </Stat>
+          )}
+          {details.outlook?.short && <WorkShort short={details.outlook.short} />}
         </div>
       )}
       {(next !== null || details.sownYears !== null || details.surplus) && (

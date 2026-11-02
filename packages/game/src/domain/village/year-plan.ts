@@ -457,7 +457,7 @@ export function cropTaskWindows(crop: Crop, task: CropTask): readonly WindowSegm
 }
 
 /** Hotový podíl úlohy vůči práci, která se letos dělá (0–1); bez takové práce 1. */
-function workedShare(work: CropWork, task: TaskName): number {
+export function workedShare(work: CropWork, task: TaskName): number {
   const workable = workableRequired(work, task);
   return workable > 0 ? Math.min(1, work.done[task] / workable) : 1;
 }
@@ -601,7 +601,7 @@ export function withOnceWeedingRates(season: FarmSeason): FarmSeason {
  * Podíl úrody neopletého dílu plodiny (luštěniny a len plevel snášejí hůř). Ozim se neplete
  * (fields.md – Pletí jednou a rychle) – plná úroda, i když starší plán pletí ozimu měl.
  */
-function unweededYield(crop: Crop): number {
+export function unweededYield(crop: Crop): number {
   if (crop === 'winter') return 1;
   if (crop === 'legume') return LEGUMES.unweededYield;
   if (crop === 'flax') return FLAX.unweededYield;

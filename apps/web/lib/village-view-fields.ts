@@ -6,6 +6,9 @@ import {
   PartClearingView,
   VillageView,
   DAYS_PER_YEAR,
+  type FieldOutlookView,
+  type PartOutlookView,
+  type WorkShortfallView,
 } from './village-view-types';
 import { fieldDamageViews, type FieldDamageView } from './wildlife-view';
 import {
@@ -33,7 +36,12 @@ import {
   partOvergrowthYears,
   isOvergrown,
   squareCenter,
+  fieldOutlook,
+  type CraftCoverage,
   type Crop,
+  type OutlookStep,
+  type PartOutlook,
+  type WorkShortfall,
   type FieldPart,
   type FieldSurface,
   type Landscape,
@@ -87,10 +95,21 @@ export const FLAX_BLOOM_MONTH = 6;
  * Pole pro panel výběru – výměra, úrodnost vážená plochou, díly podle stadia, povrchu a plodiny
  * a díly s popelem z vymýceného lesa.
  */
-export function fieldViews(state: VillageState, day: number): VillageView['fields'] {
+export function fieldViews(
+  state: VillageState,
+  day: number,
+  coverage: CraftCoverage,
+  landscape: Landscape | null,
+): VillageView['fields'] {
   const holdings = villageHoldings(state);
   const work = partYearWork(state, day);
   const rotation = partRotation(state, day, work);
+  const outlooks = new Map(
+    [...fieldOutlook(state, day, coverage, landscape, work)].map(([id, o]) => [
+      id,
+      partOutlookView(o),
+    ]),
+  );
   const damage = fieldDamageViews(state, day);
   const holdingOf = (id: number): number | null => {
     const at = holdings.byPart.get(id);
@@ -144,6 +163,7 @@ export function fieldViews(state: VillageState, day: number): VillageView['field
       ...(clearing.fell + clearing.dry + clearing.burn > 0 ? { clearing } : {}),
       ashBonus,
       overgrowingM2,
+      ...fieldOutlookOf(parts.flatMap((p) => outlooks.get(p.id) ?? [])),
       parts: parts.map((p) =>
         fieldPartView(
           p,
@@ -155,12 +175,75 @@ export function fieldViews(state: VillageState, day: number): VillageView['field
           {
             protection: partProtectionView(state, p.id),
             losses: partLossesView(state, day, p.id, work.get(p.id)?.crop?.crop),
+            outlook: outlooks.get(p.id),
           },
         ),
       ),
     };
   });
 }
+
+/** Pořadí plodin ve výhledu pole a kroků v chybějící práci. */
+const OUTLOOK_CROPS: readonly Crop[] = ['winter', 'spring', 'legume', 'flax'];
+const OUTLOOK_STEPS: readonly OutlookStep[] = ['prep', 'sow', 'harvest'];
+
+/** Chybějící práce okna pro panel – celé člověkodny; pod půl dne (zaokrouhlení) chybí celá. */
+function shortfallView(s: WorkShortfall): WorkShortfallView | null {
+  const manDays = Math.round(s.manDays);
+  const ploughManDays = Math.round(s.ploughManDays);
+  if (manDays <= 0 && ploughManDays <= 0) return null;
+  return {
+    steps: [...s.steps],
+    endMonth: s.endMonth,
+    ...(manDays > 0 ? { manDays } : {}),
+    ...(ploughManDays > 0 ? { ploughManDays } : {}),
+  };
+}
+
+/** Výhled dílu pro panel (`PartOutlookView`) – kg celé, vlivy v celých procentech. */
+function partOutlookView(o: PartOutlook): PartOutlookView {
+  const pct = (share: number): number => Math.round(share * 100);
+  const short = o.short.flatMap((s) => shortfallView(s) ?? []);
+  const effects = (['weather', 'wildlife', 'disasters', 'work'] as const).flatMap((key) => {
+    const value = pct(o[key]);
+    return value !== 0 ? [[key, value] as const] : [];
+  });
+  return {
+    crop: o.crop,
+    kg: Math.round(o.kg),
+    fullKg: Math.round(o.fullKg),
+    ...Object.fromEntries(effects),
+    ...(short.length > 0 ? { short } : {}),
+  };
+}
+
+/**
+ * Výhled pole ze součtu dílů: úroda podle plodiny a okna, na která práce nestačí – jedno okno
+ * (měsíc konce) jednou, kroky sjednocené (chybějící práce okna je za celou ves, u dílů stejná).
+ */
+function fieldOutlookOf(parts: readonly PartOutlookView[]): { outlook?: FieldOutlookView } {
+  if (parts.length === 0) return {};
+  const kg = new Map<Crop, number>();
+  const windows = new Map<number, WorkShortfallView>();
+  for (const p of parts) {
+    kg.set(p.crop, (kg.get(p.crop) ?? 0) + p.kg);
+    for (const s of p.short ?? []) {
+      const seen = windows.get(s.endMonth);
+      const steps = new Set([...(seen?.steps ?? []), ...s.steps]);
+      windows.set(s.endMonth, { ...s, steps: OUTLOOK_STEPS.filter((x) => steps.has(x)) });
+    }
+  }
+  const short = [...windows.values()].sort((a, b) => windowOrder(a) - windowOrder(b));
+  return {
+    outlook: {
+      crops: OUTLOOK_CROPS.flatMap((crop) => (kg.has(crop) ? [{ crop, kg: kg.get(crop)! }] : [])),
+      ...(short.length > 0 ? { short } : {}),
+    },
+  };
+}
+
+/** Pořadí oken od 1. 9. (hospodářský rok) – podzim napřed. */
+const windowOrder = (s: WorkShortfallView): number => (s.endMonth + 3) % 12;
 
 /** Podíl na setiny – v pohledu stačí, panel ukazuje celá procenta. */
 const hundredths = (share: number): number => Math.round(share * 100) / 100;
@@ -173,7 +256,11 @@ function fieldPartView(
   work: PartYearWork | undefined,
   rotation: PartRotation | undefined,
   damage?: FieldDamageView,
-  disasters: { protection?: PartProtectionView; losses?: PartLossesView } = {},
+  disasters: {
+    protection?: PartProtectionView;
+    losses?: PartLossesView;
+    outlook?: PartOutlookView | undefined;
+  } = {},
 ): VillageFieldPart {
   const ash = forestBonus(part, day);
   const crop = work?.crop;
@@ -191,6 +278,7 @@ function fieldPartView(
     ...(damage ? { damage } : {}),
     ...(disasters.protection ? { protection: disasters.protection } : {}),
     ...(disasters.losses ? { losses: disasters.losses } : {}),
+    ...(disasters.outlook ? { outlook: disasters.outlook } : {}),
     ...(holding !== null ? { holding } : {}),
     ...(part.state === 'sown' ? { sownYears: part.sownYears } : {}),
     ...(part.state === 'fallow' ? { fallowYears: fallowYears(part, day) } : {}),
