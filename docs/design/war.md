@@ -594,6 +594,9 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
   podmínku délky.
 - **Horní lišta:** zkřížené oštěpy s počtem válek (v míru zašedlé, klik = panel války); v ochranné
   lhůtě štít s přesýpacími hodinami a zbývajícími dny – „ok, zkusme to“.
+- **Panel války:** řádek na každý rod ve válce – portrét vojvody, jméno rodu, poslední střet (lebka
+  s padlými, klas s kořistí), tlačítko „Nabídnout mír“ (jednání); svolání vazalů ikonou rohu –
+  „ok“.
 
 ## Otázky na Martina
 
