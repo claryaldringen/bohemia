@@ -435,6 +435,12 @@ pozvaný vazal):
   příslušníky svého rodu, protože nikdo jiný vojenské zkušenosti nemá“ (Martin 2. 11. 2026) –
   službu konají jen muži rodu (zohlednit i ve [válce](war.md), kde návrh počítá s vesničany).
 
+- **Kdo smí do služby:** „Může všechny včetně sebe a sám může ve válce i zemřít – je to
+  legitimní způsob smrti. Stejně jako v případě zboží – může poslat míň vojáků nebo víc vojáků.
+  Jediný rozdíl bude, že v tomto případě i pán uvidí počet vojensky zdatných mužů, protože
+  rodokmeny šlechty jsou prakticky veřejné“ (Martin 2. 11. 2026) – kterýkoli muž rodu od 16 let
+  včetně hráčova muže; pán vidí počet mužů rodu schopných služby (rodokmen veřejný).
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
