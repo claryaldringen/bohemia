@@ -510,6 +510,11 @@ pozvaný vazal):
   profesionální správci majetku svého pána.“ – mění [správce](steward.md) (dnes jen přepínač
   NPC) i [seniorát](seniorate.md) (hráč dnes řídí jen vlastní ves); dopracovat.
 
+- **Tři role ve vsi:** **držitel** (rod, kterému ves patří), **vojvoda** (muž držitelova rodu, který
+  ve vsi sídlí), **správce** (šlechtic, který ves formálně spravuje – syn, jiný muž rodu, povýšený
+  vesničan jako vazal, nebo jiný hráč); hráč řídí každou ves, kde je vojvodou nebo správcem,
+  i několik najednou; když u ní není, řídí ji NPC jménem formálního správce – „Ano“ (Martin 2. 11. 2026).
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
