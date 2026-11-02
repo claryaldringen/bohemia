@@ -11,7 +11,8 @@ import {
   recordMowingLabor,
   winterHayAvailable,
 } from '../hay';
-import { mowingNeed } from '../husbandry';
+import { oxenTrainingTarget } from '../draft';
+import { breedingCows, hayOxen, mowingNeed } from '../husbandry';
 import { LIVESTOCK, roomForWinter, winterTargets } from '../livestock';
 import { herdRoom, penCapacity } from '../pens';
 import { HAY_CUTS } from '../rules';
@@ -224,6 +225,25 @@ describe('koupený dobytek', () => {
       before.necessaryKg + 2 * HAY.dailyKg.ox * HAY_WINTER_DAYS,
       6,
     );
+  });
+
+  it('seno jen na skutečné voly – ohrada volů bez telat do výcviku seno navíc nechce', () => {
+    // Martin 2. 11. 2026 (návrh Clauda): voli ves má nebo přicházejí a telata, která výcvik
+    // opravdu dostane – ne voli, které ves chce, ale telata na ně nemá
+    const day = at(600, 5, 25);
+    const s = village(day);
+    s.livestock!.herds = { sheep: 0, goat: 0, pig: 0, cow: 2 };
+    const before = mowingNeed(s, day);
+    s.pens = [{ ...pen(5, 'team', 1, 8), training: null }];
+    expect(oxenTrainingTarget(s)).toBeGreaterThan(0);
+    const noCalves = mowingNeed(s, day);
+    expect(noCalves.necessaryKg).toBeCloseTo(before.necessaryKg, 6);
+    expect(hayOxen(s, day)).toBe(0);
+    // stádo s telaty nad chovné krávy – seno i na telata, která do výcviku půjdou
+    s.livestock!.herds.cow = 20;
+    const calves = Math.min(oxenTrainingTarget(s), Math.floor(20 - breedingCows(s) + 1e-9));
+    expect(calves).toBeGreaterThan(0);
+    expect(hayOxen(s, day)).toBe(calves);
   });
 
   it('kráva koupená po 1. 8. – otava na ni seče, dokud běží její okno', () => {

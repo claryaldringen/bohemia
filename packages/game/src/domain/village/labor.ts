@@ -7,10 +7,11 @@ import type { Dwelling, OrchardTaskName, Person, TaskName } from './types';
  * Sezónní práce v rozdělení práce vsi – polní (fields.md), orba rádlem, seč sena (oxen.md),
  * porážka a uzení (diet.md), v sadech (orchard.md) a ukládání zrna do obilných jam
  * (production-chains.md – Obilné jámy). Práce se zvířaty a domácí výroba jdou bokem
- * (population.md – Práce): dojí a krmí ženy, pasou výrostci, domácí výrobu obstarají ženy.
+ * (population.md – Práce): dojí a krmí ženy, pasou výrostci, domácí výrobu obstarají ženy. Ves
+ * bez výrostků pase dospělým z práce vsi (`herding` – diet.md, Pasáci, Dospělý pasák).
  */
 export type LaborTaskName =
-  TaskName | OrchardTaskName | 'plough' | 'mow' | 'slaughter' | 'grain-pit' | 'watch';
+  TaskName | OrchardTaskName | 'plough' | 'mow' | 'slaughter' | 'grain-pit' | 'watch' | 'herding';
 
 /**
  * Úlohy, na které jde pomoc rodiny vojvody (`lordHelp`): jen práce potřebného osevu – vrácení a
@@ -237,6 +238,7 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     slaughter: 0,
     'grain-pit': 0,
     watch: 0,
+    herding: 0,
     'orchard-care': 0,
     'orchard-harvest': 0,
   };

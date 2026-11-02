@@ -225,7 +225,7 @@ Martin 26. 10. 2026: „Když se postaví ohrada pro koně, tak se v ní sami ob
 - **Hodnota koní** = cena z obchodu: 2 400 + 2 × 1 600 = **5 600 kg obilí**; odvozená z cen koní, při jejich změně se změní i tady. Platí se za ohradu, ne za čtverec.
 - **Čím se platí** (platba se poskládá při zahájení stavby a odečte se předem; ves nic nevybírá hráč):
   1. **hřivny** (cena jako v obchodu),
-  2. **zvířata, která by ves sama prodala** – krávy nad chovný pár a koně bez jezdce nad chovné (stejná pravidla jako obchod, cena jako při prodeji sousedovi); **voli se nikdy neberou** (spřežení ani výcvik nepřijdou o voly),
+  2. **zvířata, která by ves sama prodala** – krávy nad ty, které ves drží na mléko a voly (jako porážka: chovné krávy a krávy na telata do výcviku; **změna 2. 11. 2026**, návrh Clauda, Martin: „Ostatní jsi rozhodl dobře“ – dřív krávy nad chovný pár, seed krajiny 28 tak za koně dal 8 krav z 11 a obměna volů se zastavila) a koně bez jezdce nad chovné (stejná pravidla jako obchod, cena jako při prodeji sousedovi); **voli se nikdy neberou** (spřežení ani výcvik nepřijdou o voly),
   3. **obilí a luštěniny jen z přebytku nad pojistkou** (stejný výpočet jako nákup u sousedů) – nehrozí hlad ani chybějící osivo.
      Poslední kus zvířete se vezme celý jen tehdy, když ho přebytek obilí nepokryje. Když se 5 600 poskládat nedá, stavba je zablokovaná (zašedlé tlačítko, červený důvod „Na koně nestačí přebytek hřiven, zvířat ani obilí.“).
 - **Přeplatek:** nejdřív se doplatí obilím a luštěninami z přebytku; kus zvířete navíc (návrh Clauda) se vezme jen na zbytek, který obilí nepokryje, a to nejlevnější kus, který ho pokryje.

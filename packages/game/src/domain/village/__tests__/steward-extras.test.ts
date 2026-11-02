@@ -355,7 +355,7 @@ describe('steward-extras – humno, ohrady, posvátná místa a cesty', () => {
     expect(horse(emergency)).toBe(false);
   });
 
-  it('spřežení: ohrada volů s ohradou skotu, chovným párem krav a pasáky', () => {
+  it('spřežení: ohrada volů s ohradou skotu a chovným párem krav – i bez výrostků', () => {
     const base = withLeft(grown, 10_000);
     const herds = (cow: number): NonNullable<VillageState['livestock']> =>
       ({
@@ -395,11 +395,12 @@ describe('steward-extras – humno, ohrady, posvátná místa a cesty', () => {
     const s = structuredClone(base);
     penStep(s, ctx(s));
     expect(team(s)).toBe(true);
-    // bez výrostků stádo nikdo nepase – porážka ho srazí na chovný pár, ohrada volů by stála prázdná
+    // bez výrostků pase dospělý (diet.md – Pasáci, Dospělý pasák; Martin 2. 11. 2026) – ohrada
+    // volů i tak
     const alone = structuredClone(base);
     alone.people = noHerders.people;
     penStep(alone, ctx(alone));
-    expect(team(alone)).toBe(false);
+    expect(team(alone)).toBe(true);
     const fewCows = structuredClone(base);
     fewCows.livestock!.herds.cow = 1;
     penStep(fewCows, ctx(fewCows));

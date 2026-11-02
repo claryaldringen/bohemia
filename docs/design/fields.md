@@ -1481,7 +1481,10 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
       (bez dílů nad potřebu; chybějící luštěniny za obilí), a odečte osivo, které smí do země.
       Chybí-li aspoň 5 kg, koupí **jen chybějící osivo** – nejvýš kolik obilí sousedé letos ještě
       mají (po zlém roce kraje méně) – a zaplatí, **čím může bez ohrožení: hřivnami, pak kravami
-      nad dvě, které si ves nechává** (TRADE.keepCows), **nejvýš jednu za nákup** (SEED_BUYING.maxCows, návrh Clauda; cena jako v obchodu, po zlém roce kraje nižší). Jídlem ani voly neplatí.
+      nad ty, které ves drží na mléko a voly** – jako porážka: chovné krávy (kráva na 2 domácnosti,
+      s ohradou volů i krávy na obměnu volů) a krávy na telata do výcviku (`surplusCows`; **změna 2. 11. 2026**, návrh Clauda, Martin: „Ostatní jsi rozhodl dobře“ – dřív krávy nad dvě,
+      TRADE.keepCows, takže ves v pasti osiva prodávala krávy, které drží na voly, a voli nikdy
+      nevznikli), **nejvýš jednu za nákup** (SEED_BUYING.maxCows, návrh Clauda; cena jako v obchodu, po zlém roce kraje nižší). Jídlem ani voly neplatí.
       Přeplatek za poslední kus dá soused v obilí do zásob (k jídlu), kolik ho ještě má. Zboží se
       vymění hned (bez cesty nosičů). Nekoupí-li dost (nemá čím zaplatit, sousedé nemají), díly
       bez osiva **nezaseje** a kronika to zapíše (upozornění „Chybí osivo na setí“).
@@ -2292,4 +2295,4 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Obilné jámy srpen–listopad po polních pracích, v zapečetěné jámě 3 % za rok; plán osevu ztráty jako doma                                                                                                                                                                  | návrh Clauda                                         |
 | Osevní postup po dílech (po ozimu jař, po jaři úhor) a setí do konce okna místo plánu k 1. 9.; nad potřebu celá práce po stavbách                                                                                                                                         | návrh Clauda, Martin schválil (25. 10. 2026)         |
 | Osivo ze zásob v den setí, sklizeň ho neodečítá; osivo do roční potřeby od přídělu 0,50, nad ni od 1; osivo v plánu se nejí (v hladu ano); luštěniny chybějící na osivo za obilí; start + osivo na půl roční potřeby; převod starých prací – osivo zaseté části odpuštěné | Martin (27. 10. 2026), pravidla a čísla návrh Clauda |
-| Osivo pro ves bez zásob: osadníci nesou osivo na první osev (půl roční potřeby, 20 kg na nosiče, zbytek na voze); ves 1. 9. a 1. 3. koupí chybějící osivo za hřivny a krávy nad dvě (nejvýš jedna za nákup); to ves nesní (do 1. 6., při hladu ano)                       | Martin (27. 10. 2026), pravidla a čísla návrh Clauda |
+| Osivo pro ves bez zásob: osadníci nesou osivo na první osev (půl roční potřeby, 20 kg na nosiče, zbytek na voze); ves 1. 9. a 1. 3. koupí chybějící osivo za hřivny a krávy nad chovné (nejvýš jedna za nákup); to ves nesní (do 1. 6., při hladu ano)                    | Martin (27. 10. 2026), pravidla a čísla návrh Clauda |

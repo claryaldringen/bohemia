@@ -12,6 +12,7 @@ import {
   refundHorsePen,
 } from '../horse-pen-payment';
 import { sowingTargets } from '../field-food';
+import { breedingCows, oxenCalvesWanted, surplusCows } from '../husbandry';
 import { legumeNeedPerYear } from '../livestock';
 import { horsePenValueKg, withHorsePenStock } from '../horse-stock';
 import { penSquaresFromCells } from '../placement';
@@ -110,6 +111,35 @@ describe('cena ohrady koní', () => {
     const s = village();
     s.livestock!.herds.cow = 2;
     expect(pay(s)).toBeNull();
+  });
+
+  it('s ohradou volů nechá krávy na mléko a voly – platí jen krávami nad ně', () => {
+    // Martin 2. 11. 2026 (návrh Clauda): jako porážka – `breedingCows` a krávy na telata
+    const s = village();
+    s.crafts = { charcoalKg: 0, potteryKg: 0, ironBarsKg: 20 };
+    s.storesKg = 200_000;
+    s.pens = [
+      {
+        id: 900,
+        species: 'team',
+        cell: { x: 30, y: 30 },
+        x: 400,
+        z: 400,
+        builtDay: s.lastDay - 400,
+        team: null,
+        training: null,
+      },
+    ];
+    const keep = breedingCows(s) + oxenCalvesWanted(s, s.lastDay);
+    expect(keep).toBeGreaterThan(3);
+    s.livestock!.herds.cow = 8;
+    const p = pay(s)!;
+    expect(surplusCows(s, s.lastDay)).toBe(Math.floor(8 - keep + 1e-9));
+    expect(p.cows).toBeLessThanOrEqual(surplusCows(s, s.lastDay));
+    expect(8 - p.cows).toBeGreaterThanOrEqual(keep - 1e-9);
+    // bez ohrady volů jen chovný pár – zaplatí víc krav
+    s.pens = [];
+    expect(pay(s)!.cows).toBeGreaterThan(p.cows);
   });
 
   it('zrušení stavby vrátí přesně zaplacené', () => {

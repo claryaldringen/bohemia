@@ -102,7 +102,10 @@ a smysl přebytkům (obilí, sýr, maso, klády po mýcení) – jen se surovina
   Osivo pro ves bez zásob): ves bez osiva na nutné díly ho **sama** koupí u sousedů 1. 9. a 1. 3.
   – bez stezky a bez panelu, jako nákup u řemeslníků. Jen chybějící osivo, nejvýš kolik obilí
   sousedé letos ještě mají (zásoba obilí ubude, po zlém roce kraje je menší); platí hřivnami, pak
-  kravami nad chovný pár v ceně, za kterou je soused bere (po zlém roce kraje nižší). Půjčka osiva
+  kravami nad ty, které ves drží na mléko a voly – jako porážka (chovné krávy a krávy na telata do
+  výcviku; změna 2. 11. 2026, návrh Clauda, Martin: „Ostatní jsi rozhodl dobře“ – dřív nad dvě)
+  v ceně, za kterou je soused bere (po zlém roce kraje nižší). Obchod hráče se sousedy dál nabízí
+  krávy nad chovný pár – o tom rozhoduje hráč. Půjčka osiva
   od pána – otevřená otázka (s vazalstvím).
 
 ## Jen společné suroviny
@@ -495,3 +498,4 @@ Návrh Clauda (18. 10. 2026) – detaily, které návrh výš nechal otevřené:
 | Ceny dobytka (kráva 600, mladý vůl 350, vycvičený 1 200), kdo dobytek nabízí a shání, honák         | návrh Clauda                              |
 | Hřivny místo nástrojů v obchodu (45 kg obilí za kg), starší vsi převedou nástroje kg ÷ 1,2          | Martin (20. 10. 2026), čísla návrh Clauda |
 | Nákup osiva: ves 1. 9. a 1. 3. sama koupí chybějící osivo za hřivny a krávy nad chovný pár          | Martin (27. 10. 2026), návrh Clauda       |
+| Nákup osiva a platba za koně jen krávami nad krávy na mléko a voly (jako porážka)                   | Martin (2. 11. 2026), návrh Clauda        |

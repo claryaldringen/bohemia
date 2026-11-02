@@ -4,9 +4,8 @@ import { BUILD_COSTS } from './costs';
 import { villageCemeteries } from './cemetery';
 import { fieldCapacity } from './field-capacity';
 import { yearlyFoodNeed } from './field-food';
-import { breedingCows, villageFoodCosts } from './husbandry';
+import { villageFoodCosts } from './husbandry';
 import { horsePenPayment } from './horse-pen-payment';
-import { youngsterHerders } from './herding';
 import { LIVESTOCK } from './livestock';
 import { oxYearCost } from './draft';
 import { villageHappiness } from './happiness';
@@ -273,7 +272,9 @@ export function penStep(state: VillageState, ctx: StewardContext): void {
     allowed(ctx, 'horses') &&
     !(state.pens ?? []).some((p) => p.species === 'horse') &&
     fits(state, ctx, 'horses', PEN_BY_SPECIES.horse.laborManDays) &&
-    horsePenKeepsCows(state, ctx)
+    // platba bere jen krávy nad ty, které ves drží na mléko a voly (`surplusCows` – horses.md,
+    // Koně se stavbou ohrady; Martin 2. 11. 2026) – správce jen pozná, jestli přebytek stačí
+    horsePenPayment(state, ctx.day, ctx.coverage) !== null
   ) {
     buildPen(state, ctx, 'horse');
   }
@@ -298,21 +299,9 @@ function buildPen(state: VillageState, ctx: StewardContext, species: PenSpecies)
 }
 
 /**
- * Zaplatí ves koně nové ohrady koní, aniž prodá krávy, které drží na mléko a voly (`breedingCows`;
- * steward.md – Ohrada volů podle stáda a osevu; návrh Clauda 1. 11. 2026)? Platba bere krávy nad
- * chovný pár (`horsePenPayment`) – seed krajiny 28 v roce 20 zaplatil 8 krav z 11, stádo kleslo na 3
- * a obměna volů se zastavila. Správce pak s ohradou koní počká na hřivny nebo přebytek obilí.
- */
-function horsePenKeepsCows(state: VillageState, ctx: StewardContext): boolean {
-  const payment = horsePenPayment(state, ctx.day, ctx.coverage);
-  if (!payment) return false;
-  const cows = state.livestock?.herds.cow ?? 0;
-  return cows - payment.cows >= Math.min(cows, breedingCows(state)) - 1e-9;
-}
-
-/**
  * Vyplatí se první ohrada volů (spřežení)? (steward.md – Ohrada volů podle stáda a osevu; návrh
- * Clauda 1. 11. 2026): ves má ohradu skotu, chovný pár krav a výrostky, kteří stádo pasou – s ohradou
+ * Clauda 1. 11. 2026): ves má ohradu skotu a chovný pár krav (pase ho výrostek, bez výrostků
+ * dospělý – diet.md, Pasáci, Dospělý pasák; dřív jen s výrostky) – s ohradou
  * volů pak drží krávy na voly (`breedingCows` + `oxenCows`) a telata nad chovným párem nejdou na
  * maso, takže stádo doroste k telatům do výcviku (seed krajiny 28: ohrada volů v roce 9 při 3–4
  * kravách, krávy 4 → 11, orba od roku 15). Dřív až od `OXEN.minCows` krav – stádo, kterému půlka
@@ -325,8 +314,6 @@ function teamPenValue(state: VillageState, ctx: StewardContext): boolean {
   if (oxPens(state).length > 0) return false;
   const herds = state.livestock?.herds;
   if (!herds || Math.round(herds.cow) < LIVESTOCK.breedingMin) return false;
-  // bez výrostků stádo nikdo nepase a porážka ho srazí na chovný pár (diet.md – Pasáci)
-  if (youngsterHerders(state, ctx.day) <= 0) return false;
   if (!(state.pens ?? []).some((p) => p.species === 'cattle' && p.builtDay !== null)) return false;
   const { laborHa, seedHa, landHa } = ctx.outlook;
   const sownHa = Math.min(laborHa, seedHa, landHa);
