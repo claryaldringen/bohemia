@@ -393,6 +393,11 @@ pozvaný vazal):
   rozběhlé jednání skončí; zablokovaný to vidí a v kronice je to urážka – „ano“ (Martin 2. 11.
   2026).
 
+- **Nabídka cizímu vazalovi a víc pánů:** „Ano smí. Člověk dokonce může být vazalem více pánů,
+  protože vazalství není pevně daný vztah – žádné herní pravidlo nenutí vazalství dodržet“
+  (Martin 2. 11. 2026) – vazalství je dvoustranná dohoda, hráč jich smí mít víc; strom je tedy
+  síť vztahů (přepracovat Les stromů, zemský mír a strom).
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
