@@ -482,6 +482,13 @@ pozvaný vazal):
   zapíše, vymáhat lze rozsudkem nebo válkou – „Tak jak říkáš“ (Martin 2. 11. 2026). Martin dodal:
   „teď mě napadá, že bychom měli formalizovat akt odchodu“.
 
+- **Akt odchodu:** formální **vypovězení věrnosti** se vzkazem – platí hned, pán dostane
+  upozornění, zapíše se do kronik obou rodů a vidí ho celý strom; dávky a muži na cestě ještě
+  dojdou, pak závazky z vazalství končí (půjčky trvají) – „Ano hned. Ale výpověď může být i
+  neformální – vazal prostě přestane plnit své závazky. Pak může pán vazala buď přinutit
+  k poslušnosti nebo mu také vypovědět vazalství“ (Martin 2. 11. 2026) – neplnění není odchod;
+  vazalství trvá, dokud ho jedna strana formálně nevypoví (pán vazalovi, nebo vazal pánovi).
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
