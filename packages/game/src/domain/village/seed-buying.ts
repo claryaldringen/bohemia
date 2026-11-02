@@ -83,20 +83,16 @@ export function buySeed(state: VillageState, day: number, shortKg: number): Chro
     sellers.push(stock);
     supplyKg += grain;
   }
-  const short = (seedKg: number): ChronicleEvent[] =>
-    shortKg - seedKg < SEED_BUYING.minKg
-      ? []
-      : [
-          {
-            day,
-            kind: 'seed-short',
-            shortKg: shortKg - seedKg,
-            reason: supplyKg < shortKg - EPSILON ? 'supply' : 'pay',
-          },
-        ];
   const grainPrice = buyPrice('grain');
   const payment = seedPayment(state, day, Math.min(shortKg, supplyKg) * grainPrice);
   const getKg = Math.min(payment.valueKg / grainPrice, supplyKg);
+  // důvod chybějícího osiva: platba, když za ni ves dostane méně, než sousedé mají; jinak zásoba
+  // sousedů (oprava 2. 11. 2026 – dřív `supply`, kdykoli sousedé neměli celé chybějící množství)
+  const reason = getKg < supplyKg - EPSILON ? 'pay' : 'supply';
+  const short = (seedKg: number): ChronicleEvent[] =>
+    shortKg - seedKg < SEED_BUYING.minKg
+      ? []
+      : [{ day, kind: 'seed-short', shortKg: shortKg - seedKg, reason }];
   const seedKg = Math.min(getKg, shortKg);
   if (seedKg < SEED_BUYING.minKg) return short(0);
   addGood(state, 'ironBars', -payment.ironBarsKg, day);

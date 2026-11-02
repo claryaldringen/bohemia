@@ -6,7 +6,7 @@ import { breedingCows, oxenCalvesWanted, surplusCows } from '../husbandry';
 import { neighbourStock } from '../neighbours';
 import { LEAVING, NEIGHBOR_DIRECTIONS, SEED_BUYING, TRADE } from '../rules';
 import { reservedSeedKg, sowableSeedKg, foodUntilHarvestKg } from '../seed';
-import { seedBuyingDay, seedShortKg } from '../seed-buying';
+import { buySeed, seedBuyingDay, seedShortKg } from '../seed-buying';
 import { fieldSowingTargets } from '../simulate-plan';
 import { NO_CRAFTS } from '../productivity';
 import { advanceVillage } from '../simulate';
@@ -289,6 +289,48 @@ describe('osivo pro ves bez zásob (fields.md – Osivo pro ves bez zásob)', ()
     }
     expect(pieces).toEqual(JSON.parse(JSON.stringify(whole)));
   }, 120_000);
+
+  it('zakladatelé sejí napřed z běžného obilí – rezerva zůstane, po kouscích stejně (oprava, návrh Clauda 2. 11. 2026)', () => {
+    const s = readyParts(
+      foundVillage({
+        seed: 11,
+        day: at(600, 6, 1),
+        dwellingPosition: POSITION,
+        firstField: { outline: OUTLINE, parts: partsInput(12) },
+        lord: {},
+      }),
+      at(600, 8, 31),
+    );
+    const reserved = s.reservedSeedKg ?? 0;
+    expect(reserved).toBeGreaterThan(0);
+    // běžné obilí nestačí na jídlo do žní celé – ves potřebuje pole, osivo má nad příděl
+    s.storesKg = reserved + 1500;
+    const end = at(600, 11, 30);
+    const whole = advanceVillage(s, end, null);
+    const pieces = advanceVillage(advanceVillage(s, at(600, 9, 20), null), end, null);
+    expect(JSON.stringify(pieces)).toBe(JSON.stringify(whole));
+    const winter = whole.season!.crops.find((c) => c.crop === 'winter' && !c.surplus);
+    expect(winter?.seedKg ?? 0).toBeGreaterThan(SEED_BUYING.minKg);
+    expect(whole.reservedSeedKg).toBeCloseTo(reserved, 6);
+  }, 120_000);
+
+  it('kronika: osivo chybí kvůli platbě, i když sousedé nemají celé chybějící množství', () => {
+    const s = advanceVillage(village(20, 0, TRADE.keepCows), at(600, 9, 1), null);
+    const day = at(601, 3, 1);
+    s.lastDay = day - 1;
+    const supply = grainSupply(s, day);
+    expect(supply).toBeGreaterThan(SEED_BUYING.minKg);
+    // bez hřiven a krav nad chovné brzdí platba
+    const poor = structuredClone(s);
+    expect(buySeed(poor, day, supply + 500)).toEqual([
+      { day, kind: 'seed-short', shortKg: supply + 500, reason: 'pay' },
+    ]);
+    // s hřivnami koupí všechno, co sousedé mají – brzdí zásoba sousedů
+    const rich = structuredClone(s);
+    rich.crafts = { charcoalKg: 0, potteryKg: 0, ironBarsKg: 100_000 };
+    const events = buySeed(rich, day, supply + 500);
+    expect(events.at(-1)).toMatchObject({ kind: 'seed-short', reason: 'supply' });
+  });
 
   it('ves se zásobami osivo nekupuje', () => {
     const end = advanceVillage(village(20, 4000, 6), at(600, 10, 31), null);

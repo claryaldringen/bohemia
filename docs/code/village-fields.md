@@ -228,7 +228,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 - **Osivo pro ves bez zásob** (fields.md – Osivo ze zásob, Osivo pro ves bez zásob; Martin 27. 10. 2026): `VillageState.reservedSeedKg` = osivo ve `storesKg` jen na setí (osadníků –
   `Settlers.seedKg`, village-people.md; koupené). `reservedSeedKg()` ho omezí zásobami;
   `sowableSeedKg` ho přičte vždy a prahy přídělu počítá ze zbytku zásob (obilí nad potřebu ho
-  nedostane); `seedReserve` ho nesní nikdy; `takeSeed` ho u nutných dílů bere napřed.
+  nedostane); `seedReserve` ho nesní nikdy; `takeSeed(…, foodKg)` u nutných dílů bere napřed
+  běžné zrno nad `SEED_STORES.keepRation × foodKg` (`foodUntilHarvestKg` – `work()` jednou za den
+  `sowFoodKg`), pak rezervu, pak zrno pod příděl (oprava 2. 11. 2026, dřív rezervu napřed).
   `seed-buying.ts` (`seedBuyingDay` v `simulateDay` po `startPurchases`): 1. 6.
   (`SEED_BUYING.releaseDay`) ho smaže; 1. 9. a 1. 3. (`SEED_BUYING.days`) `seedShortKg` = osivo
   nutných dílů (`seedAheadKg(state, true)` – bez `surplus`, chybějící luštěniny za obilí) −
@@ -236,7 +238,12 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `NEIGHBOR_DIRECTIONS`, ubude `storeStock`), cena `buyPrice('grain')`, platba hřivny → krávy
   `surplusCows` (husbandry.ts – nad krávy na mléko a voly, jako porážka; od 2. 11. 2026, dřív
   `cattleForSale`) (`sellPrice` × `goodWorth`), přeplatek obilím do zásob (`changeKg`); kronika
-  `seed-bought` / `seed-short` (`reason` `pay` / `supply`; upozornění `seed-short`).
+  `seed-bought` / `seed-short` (`reason`: `pay`, když `getKg` < zásoba sousedů, jinak `supply` –
+  oprava 2. 11. 2026; upozornění `seed-short`).
+- **Příprava jaře jen na díly s osivem** (fields.md – Osivo ze zásob; oprava, návrh Clauda 2. 11. 2026): `seedPrepShares` (seed.ts) v březnu–dubnu – nutné plány jaře, luštěnin a lnu
+  v otevřeném okně setí (ne ozim, ne `surplus`) → podíl plánu, na který stačí `seedKg` + osivo
+  z poolu (`sowableSeedKg` + `sheaves.grainKg` / `legumesKg`, dělí se v pořadí `seasonCrops`).
+  `fieldTasks` omezí `reclaim`, `dig` a `plough` na podíl × potřebná práce − hotová.
 - **Postup práce po čtvercích** (Martin – fields.md): kopání, setí a sklizeň mění díl, až k němu
   dojde práce. `field-progress.ts` (jen čte): díly plodiny v pořadí `CropWork.partIds` (dávka
   po úsecích hospodářství od domu ven – řadí `createCropWork` s `workOrder`, ves bez hospodářství

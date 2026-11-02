@@ -215,7 +215,7 @@ export function surplusFieldDay(
     addCropTaskWork(work, task, wanted);
     const after = cropTaskDone(work, task);
     if (after - before <= EPSILON) return;
-    if (task === 'sow' && partsById) takeSeed(state, work, work.crop, partsById);
+    if (task === 'sow' && partsById) takeSeed(state, work, work.crop, partsById, food ?? 0);
     fieldWork.push({ task, work, before, after, amount: after - before });
     left -= after - before;
     if (task === 'plough') teams -= (after - before) / factor;

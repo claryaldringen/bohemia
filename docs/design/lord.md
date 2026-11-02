@@ -369,7 +369,9 @@ Clauda.
   návrh Clauda): zakladatelé přinesou jídlo na **3 roky** a osivo na **2 roky** potřeby (2 700 kg
   a 1 800 kg); osivo je jen na setí a 15 let se neuvolní – prvních ≈ 15 let pracuje jen pět
   zakladatelů a děti přibývají, s dnešní zásobou ves padala do pasti osiva. Podrobnosti
-  a měření: [pole](fields.md) – Zásoby a nasycení, Start.
+  a měření: [pole](fields.md) – Zásoby a nasycení, Start. **Oprava, návrh Clauda 2. 11. 2026:**
+  setí bere osivo zakladatelů, až když běžné obilí nad příděl do žní nestačí – dřív ho bralo
+  napřed a do jara roku 4 bylo pryč.
 - **Ves z výpravy** ([stěhování](migration.md)) zakladatele nemění – odejdou, kdo odejdou – a nese
   vlastní náklad (velká zásoba jen první vsi).
 

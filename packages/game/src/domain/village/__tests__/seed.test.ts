@@ -16,6 +16,7 @@ import {
   workSeedKg,
 } from '../seed';
 import { advanceVillage } from '../simulate';
+import { fieldTasks } from '../simulate-work';
 import { harvestWinter } from '../simulate-food';
 import type { CropWork, FieldPart, SeasonCrop, VillageState } from '../types';
 import { villageSheaves } from '../threshing';
@@ -84,15 +85,15 @@ describe('osivo ze zásob při setí (fields.md – Úroda, Osivo ze zásob)', (
     expect(workSeedKg(work, byId(s), 'winter')).toBeCloseTo(total, 9);
     // polovina zaseta – zásoby přijdou o osivo poloviny
     work.done.sow = work.required.sow / 2;
-    expect(takeSeed(s, work, 'winter', byId(s))).toBeCloseTo(total / 2, 9);
+    expect(takeSeed(s, work, 'winter', byId(s), 0)).toBeCloseTo(total / 2, 9);
     expect(s.storesKg).toBeCloseTo(1000 - total / 2, 9);
     expect(work.seedKg).toBeCloseTo(sownShare(work) * total, 9);
     // stejný zasetý podíl osivo znovu nebere
-    expect(takeSeed(s, work, 'winter', byId(s))).toBe(0);
+    expect(takeSeed(s, work, 'winter', byId(s), 0)).toBe(0);
     expect(s.storesKg).toBeCloseTo(1000 - total / 2, 9);
     // dosetí vezme zbytek
     work.done.sow = work.required.sow;
-    expect(takeSeed(s, work, 'winter', byId(s))).toBeCloseTo(total / 2, 9);
+    expect(takeSeed(s, work, 'winter', byId(s), 0)).toBeCloseTo(total / 2, 9);
     expect(s.storesKg).toBeCloseTo(1000 - total, 9);
     expect(seedAheadKg(s)).toEqual({ grain: 0, legumes: 0 });
   });
@@ -122,7 +123,7 @@ describe('osivo ze zásob při setí (fields.md – Úroda, Osivo ze zásob)', (
     for (const task of Object.keys(work.required) as (keyof CropWork['done'])[]) {
       work.done[task] = work.required[task];
     }
-    takeSeed(s, work, 'winter', byId(s));
+    takeSeed(s, work, 'winter', byId(s), 0);
     const gross = grossYieldPerHa(70) * 4 * PART_HA;
     expect(harvestKg(work, s.parts, at(601, 7, 31), 'spring')).toBeCloseTo(gross, 6);
   });
@@ -144,7 +145,7 @@ describe('osivo ze zásob při setí (fields.md – Úroda, Osivo ze zásob)', (
     expect(withSeedForgiven(forgiven)).toBe(forgiven);
     // nezasetá polovina vezme osivo ze zásob při setí jako nový plán
     converted.done.sow = converted.required.sow;
-    expect(takeSeed(forgiven, converted, 'winter', byId(forgiven))).toBeCloseTo(total / 2, 9);
+    expect(takeSeed(forgiven, converted, 'winter', byId(forgiven), 0)).toBeCloseTo(total / 2, 9);
     expect(forgiven.storesKg).toBeCloseTo(1000 - total / 2, 9);
     // sklizeň osivo neodečte (ani u práce, která převodem neprošla)
     for (const task of Object.keys(converted.required) as (keyof CropWork['done'])[]) {
@@ -206,16 +207,89 @@ describe('osivo ze zásob při setí (fields.md – Úroda, Osivo ze zásob)', (
   }, 120_000);
 });
 
+describe('osivo jen na setí až po běžném obilí (fields.md – Osivo ze zásob; oprava, návrh Clauda 2. 11. 2026)', () => {
+  const DAY = at(600, 9, 15);
+  const TOTAL = 4 * PART_HA * SEED_KG_PER_HA;
+  /** Ozim celý zasetý (osivo se vezme jedním `takeSeed`), rezerva `reserved` a běžné obilí nad příděl `above`. */
+  function sown(
+    reserved: number,
+    above: number,
+  ): { s: VillageState; work: SeasonCrop; food: number } {
+    const { s, work } = withWinter(4, 0);
+    const food = foodUntilHarvestKg(s, DAY);
+    s.storesKg = reserved + SEED_STORES.keepRation * food + above;
+    s.reservedSeedKg = reserved;
+    work.done.sow = work.required.sow;
+    return { s, work, food };
+  }
+
+  it('nutné díly sejí napřed z běžného obilí nad příděl keepRation – rezerva zůstane', () => {
+    const { s, work, food } = sown(500, TOTAL + 100);
+    expect(takeSeed(s, work, 'winter', byId(s), food)).toBeCloseTo(TOTAL, 9);
+    expect(s.reservedSeedKg).toBeCloseTo(500, 9);
+  });
+
+  it('běžné obilí nad příděl nestačí – zbytek z rezervy', () => {
+    const { s, work, food } = sown(500, 10);
+    expect(takeSeed(s, work, 'winter', byId(s), food)).toBeCloseTo(TOTAL, 9);
+    expect(s.reservedSeedKg).toBeCloseTo(500 - (TOTAL - 10), 9);
+  });
+
+  it('pod příděl keepRation běžné obilí nesáhne, dokud je rezerva', () => {
+    const { s, work, food } = sown(500, -200);
+    const ordinary = s.storesKg - 500;
+    expect(takeSeed(s, work, 'winter', byId(s), food)).toBeCloseTo(TOTAL, 9);
+    expect(s.reservedSeedKg).toBeCloseTo(500 - TOTAL, 9);
+    expect(s.storesKg - s.reservedSeedKg!).toBeCloseTo(ordinary, 9);
+  });
+});
+
+describe('příprava jaře jen na díly s osivem (fields.md – Osivo ze zásob; oprava, návrh Clauda 2. 11. 2026)', () => {
+  const MARCH = at(601, 3, 10);
+  const TOTAL = 4 * PART_HA * SEED_KG_PER_HA;
+  function withSpring(storesKg: number): { s: VillageState; work: SeasonCrop } {
+    const s = village(4, storesKg, MARCH - 1);
+    const work: SeasonCrop = {
+      crop: 'spring',
+      ...createCropWork(s.parts, at(600, 10, 1), NO_CRAFTS.tools, false, undefined, 'spring'),
+    };
+    s.season = { startDay: at(600, 9, 1), crops: [work] };
+    return { s, work };
+  }
+  const digOf = (s: VillageState, day: number): number =>
+    fieldTasks(s, day, 0).find((e) => e.name === 'dig' && e.crop === 'spring')?.remaining ?? 0;
+
+  it('v jarním okně setí bez osiva vesničané díly nekopou (nezasetý díl by vypadl i s rozkopáním)', () => {
+    const { s, work } = withSpring(0);
+    expect(work.required.dig).toBeGreaterThan(0);
+    expect(digOf(s, MARCH)).toBe(0);
+  });
+
+  it('osivo na polovinu plánu – kopou polovinu, zrno ve snopech se počítá', () => {
+    const { s, work } = withSpring(0);
+    const food = foodUntilHarvestKg(s, MARCH);
+    s.storesKg = SEED_STORES.keepRation * food + TOTAL / 2;
+    expect(digOf(s, MARCH)).toBeCloseTo(work.required.dig / 2, 6);
+    s.sheaves = { grainKg: TOTAL / 2, legumesKg: 0 };
+    expect(digOf(s, MARCH)).toBeCloseTo(work.required.dig, 6);
+  });
+
+  it('na podzim kopou pod jař i bez osiva – osivo může přijít nákupem 1. 3.', () => {
+    const { s, work } = withSpring(0);
+    expect(digOf(s, at(600, 10, 10))).toBeCloseTo(work.required.dig, 6);
+  });
+});
+
 describe('osivo – nálezy recenze', () => {
   it('zásoby nestačí: k plánu se přičte jen skutečně vzaté osivo', () => {
     const { s, work } = withWinter(4, 3);
     work.done.sow = work.required.sow;
-    expect(takeSeed(s, work, 'winter', byId(s))).toBeCloseTo(3, 9);
+    expect(takeSeed(s, work, 'winter', byId(s), 0)).toBeCloseTo(3, 9);
     expect(work.seedKg).toBeCloseTo(3, 9);
     // zásoba přibyla – zbytek se doplní
     s.storesKg = 1000;
     const total = 4 * PART_HA * SEED_KG_PER_HA;
-    expect(takeSeed(s, work, 'winter', byId(s))).toBeCloseTo(total - 3, 9);
+    expect(takeSeed(s, work, 'winter', byId(s), 0)).toBeCloseTo(total - 3, 9);
     expect(work.seedKg).toBeCloseTo(total, 9);
   });
 
