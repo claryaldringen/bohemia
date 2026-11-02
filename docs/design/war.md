@@ -570,6 +570,8 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
   stejným jednáním jako u vazalství (zboží, lidé, i vazalství); přijetí / odmítnutí / protinávrh,
   po zaplacení propuštění; nezaplatí-li, věznitel smí držet, propustit, nebo popravit (kronika) –
   „ok“.
+- **Zajatý hráčův muž:** hráč dál řídí své vsi (formální správce – syn) a jedná o výkupném;
+  nevede vojsko ani necestuje, dokud zajetí neskončí; poprava = smrt, rozhodne nástupnictví – „ok“.
 
 ## Otázky na Martina
 
