@@ -497,6 +497,8 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
   dojde, vojsko se vrátí, nebo si jídlo vezme v napadené vsi jako kořist – „Ano“.
 - **Poslední muž rodu doma:** při nájezdu vždy uteče (rod spícímu hráči nájezd nevyhladí); na
   tažení padnout smí – „Ok“.
+- **Bývalý pán proti vazalovi, který vypověděl:** smí ho napadnout kdykoli jako kohokoli jiného,
+  žádné zvláštní pravidlo; výpověď je v kronice – „Ano smí“.
 
 ## Otázky na Martina
 
