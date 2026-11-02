@@ -103,6 +103,25 @@ export function netYieldPerHa(fertility: number): number {
   return grossYieldPerHa(fertility * averageSownShare()) - SEED_KG_PER_HA;
 }
 
+/**
+ * Úroda z pole na průměrného člověka vsi rok co rok (kg obilí – fields.md, Pole uživí): potřeba
+ * z pole podílem `fieldFoodShare` a pojistka zásob se ztrátami skladováním (`steadyHarvestKg`).
+ * Ves bez lidí 0.
+ */
+export function harvestPerPersonKg(
+  state: Pick<VillageState, 'people' | 'fieldFood'>,
+  day: number,
+  potteryCoverage: number = NO_CRAFTS.pottery,
+): number {
+  if (state.people.length === 0) return 0;
+  const foodNeed = yearlyFoodNeed(state, day);
+  return steadyHarvestKg(
+    (fieldFoodShare(state) * foodNeed) / state.people.length,
+    bufferKg(foodNeed / state.people.length),
+    potteryCoverage,
+  );
+}
+
 /** Kolik lidí uživí pole vsi v ustáleném oběhu (fields.md – Co hráč vidí, Pole uživí). */
 export interface FieldCapacity {
   /** Uživí se ≈ tolik lidí (při dnešním složení a stravě vsi). */
@@ -145,12 +164,7 @@ export function fieldCapacity(
   const rotationHa = areaM2 / 10_000;
   const sownHa = rotationHa / ROTATION_FACTOR;
   const harvestKg = sownHa * netYieldPerHa(fertility);
-  const foodNeed = yearlyFoodNeed(state, day);
-  const perPerson = steadyHarvestKg(
-    (fieldFoodShare(state) * foodNeed) / state.people.length,
-    bufferKg(foodNeed / state.people.length),
-    potteryCoverage,
-  );
+  const perPerson = harvestPerPersonKg(state, day, potteryCoverage);
   return {
     people: perPerson > 0 ? (harvestKg / perPerson) * soil : 0,
     rotationHa,

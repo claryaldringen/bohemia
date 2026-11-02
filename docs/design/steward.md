@@ -728,6 +728,21 @@ domů a ta se po založení nemění.
     (`bufferFill`) aspoň `departureMotherFill` = 0,5 – odchod ji nesmí poslat do Nouze
     (`emergencyFill`). Výprava bere jen poměrný díl, takže pojistka na člověka odchodem neklesne –
     pojistka hlídá hlavně ves, která zásoby nemá.
+  - **Obě vsi po odchodu uživí své lidi** (Martin 2. 11. 2026: „No a neměl by syn odcházet, až
+    když je ve zdrojové vesnici dost lidí, aby obě vesnice mohly bezpečně fungovat? Inteligentní
+    hráč by to tak udělal“; čísla a podoba návrh Clauda): mateřská ves (stav z `departWithSon`)
+    i nová ves (osadníci, jak je založí `foundVillage`) **oseje vlastní prací tolik, že uživí aspoň
+    `departureFeedShare` = 1,2× své lidi i s dětmi** – rezerva na děti, které se narodí, a na horší
+    rok. Osev podle modelu kapacity vsi (Model kapacity vsi): kapacita setí hospodářského roku
+    (lidé po denním minimu, spřežení orbou, rodina vojvody podle svých pravidel) ÷ práce na osetý
+    hektar; u mateřské vsi nejvýš i podle **osiva na příští osev** (osivo jen na setí a zrno nad
+    polovinu přídělu do žní – past osiva); úroda čistým výnosem hektaru při úrodnosti polí
+    mateřské vsi (nová ves na sousední mapě stejnou, s odpočatou půdou) ÷ úroda na člověka jako
+    „Pole uživí“ (potřeba z pole podle stravy mateřské vsi a pojistka). **Půda se nepočítá:**
+    přelidněné vsi bez místa na pole je odchod lékem (ubude lidí, pole zůstanou) a nová ves si pole
+    teprve založí. Osivo nové vsi hlídá náklad výpravy (výš) a chybějící koupí u sousedů
+    ([pole](fields.md) – Osivo pro ves bez zásob). Mateřská ves bez polí sama nic neoseje – syn
+    neodejde. Jinak správce počká. Je to pravidlo správce – hráč odchod spouští sám.
   - **Kdo:** ze synů, kteří smějí vést a mají životaschopný díl, ten s nejvíc dospělými, pak
     nejvíc lidmi, ženatý před svobodným, starší, nižší id (deterministicky). Nikdo – správce
     počká (syn dospěje, ožení se, ves doroste); přelidnění mezitím řeší model kapacity vsi (cíl
@@ -867,6 +882,7 @@ domů a ta se po založení nemění.
 | Rok 0 s hrdlem práce: humno jen s ušetřenou prací výmlatu za rok, ohrady stád ne; odklad posvátných míst měření zamítlo | návrh Clauda (Martin 1. 11. 2026: „Vylepši ho“)                      |
 | Vylepšení cesty: úspora chůze i vozů (mokřina, brod), horizont Růst 25 let, Obnova 5 let                                | návrh Clauda (Martin 1. 11. 2026: „správce nijak nevylepšuje cesty“) |
 | Ohrada volů od chovného páru krav s pasáky, úspora orby podle výhledu; koně ne za krávy na mléko a voly                 | návrh Clauda (1. 11. 2026)                                           |
+| Syn odejde, jen když obě vsi po odchodu uživí osevem vlastní prací 1,2× své lidi (půda se nepočítá)                     | Martin (2. 11. 2026) / čísla návrh Clauda                            |
 
 ## Otevřené otázky
 

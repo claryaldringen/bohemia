@@ -65,7 +65,7 @@ import type {
   VillageState,
 } from './types';
 import { addLogs } from './wood';
-import { partsSeedKg, seedAheadKg, seedStore } from './seed';
+import { keptSeedKg, partsSeedKg, seedAheadKg, seedStore } from './seed';
 import { legumeEnergy } from './legumes';
 import {
   addToCropWork,
@@ -601,7 +601,8 @@ function joinBands(
  * Cíle osevu (fields.md – Kolik ves oseje, Osev podle zásob): úroda na rok spotřeby z pole
  * a pojistku bez toho, co ze zásob k příští sklizni zbude; luštěniny podle rovnovážného hospodaření
  * (`plannedLegumeKg` – soupeří cenou v práci se stády, diet.md) a podle své zásoby. Osivo, které
- * na setí čeká, zásoby k sklizni nekrmí; s `reserveSeed = false` krmí (správce – vystačí zásoby
+ * na setí čeká, ani osivo zakladatelů v lhůtě (`keptSeedKg`), zásoby k sklizni nekrmí; s
+ * `reserveSeed = false` krmí (správce – vystačí zásoby
  * do žní, i kdyby ves snědla osivo? steward.md – Cíl, Režim správce).
  */
 export function fieldSowingTargets(
@@ -611,12 +612,14 @@ export function fieldSowingTargets(
   reserveSeed = true,
 ): SowingTargets {
   const seed = reserveSeed ? seedAheadKg(state) : null;
+  // osivo zakladatelů na víc osevů (FOUNDERS_STORES) jídlem není, ani když ho plán ještě nevzal
+  const kept = seed ? keptSeedKg(state, day) : 0;
   return sowingTargets(
     state,
     day,
     plannedLegumeKg(state, day, coverage.tools),
     coverage.pottery,
-    seed ? seed.grain + legumeEnergy(seed.legumes) : 0,
+    seed ? Math.max(seed.grain, kept) + legumeEnergy(seed.legumes) : 0,
   );
 }
 

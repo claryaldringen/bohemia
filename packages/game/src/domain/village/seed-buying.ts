@@ -127,15 +127,24 @@ export function buySeed(state: VillageState, day: number, shortKg: number): Chro
 
 /**
  * Osivo dne (mutuje stav): 1. 6. (SEED_BUYING.releaseDay) je nezaseté osivo, které ves měla jen na
- * setí, obyčejné zrno; v den nákupu (SEED_BUYING.days) ves koupí osivo, které nutným dílům chybí.
+ * setí, obyčejné zrno; osivo zakladatelů (`reservedSeedUntilDay` – FOUNDERS_STORES) až po své
+ * lhůtě; v den nákupu (SEED_BUYING.days) ves koupí osivo, které nutným dílům chybí.
  */
 export function seedBuyingDay(state: VillageState, day: number): ChronicleEvent[] {
-  if (state.reservedSeedKg !== undefined) {
-    if (isOn(day, SEED_BUYING.releaseDay)) {
-      delete state.reservedSeedKg;
-    } else if ((state.starvationDays ?? 0) >= SEED_BUYING.eatFromStarvationDays) {
+  if (state.reservedSeedKg === undefined) {
+    delete state.reservedSeedUntilDay;
+  } else {
+    // osivo zakladatelů slouží na víc osevů – do své lhůty se 1. 6. ani 1. 12. neuvolní
+    const kept = state.reservedSeedUntilDay !== undefined && day < state.reservedSeedUntilDay;
+    if ((state.starvationDays ?? 0) >= SEED_BUYING.eatFromStarvationDays) {
       // skutečný hlad (dny bez jídla): rezervu ves smí sníst (osivo se šetří, ne za cenu smrti)
       delete state.reservedSeedKg;
+      delete state.reservedSeedUntilDay;
+    } else if (kept) {
+      // lhůta osiva zakladatelů ještě běží
+    } else if (isOn(day, SEED_BUYING.releaseDay)) {
+      delete state.reservedSeedKg;
+      delete state.reservedSeedUntilDay;
     } else if (isOn(day, SEED_BUYING.winterReleaseDay)) {
       // po setí ozimu zůstane rezerva jen na osivo jaře
       const keep = Math.min(state.reservedSeedKg, seedAheadKg(state).grain);

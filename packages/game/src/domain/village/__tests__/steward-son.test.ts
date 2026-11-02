@@ -13,6 +13,7 @@ import { departWithSon } from '../son-departure';
 import { newSteward } from '../steward-state';
 import {
   departingSon,
+  departureFed,
   nameStewardSons,
   pendingStewardDepartures,
   settleStewardDeparture,
@@ -65,12 +66,30 @@ const household = (first: number, size: number, home: number): KinSpec[] =>
     home,
   }));
 
+/** Díl pole `areaM2` v oběhu (příloh) s úrodností `fertility`. */
+const fallowPart = (id: number, areaM2: number, fertility = 60): FieldPart => ({
+  id,
+  fieldId: id + 1,
+  areaM2,
+  distanceM: 50,
+  naturalFertility: fertility,
+  fertilityShare: averageRotationShare(),
+  bonusUntilDay: null,
+  state: 'fallow',
+  sownYears: 0,
+  fallowSinceDay: null,
+  foundingCost: 0,
+  foundingDone: 0,
+  surface: 'meadow',
+});
+
 /**
  * Vojvoda 10 s ženou 11 a dcerou 12 v dvorci 1, nástupce 20 (dům 2), ženatý Bořivoj 30 (dům 3),
- * svobodný Dobromil 40 (dům 3) a dvě domácnosti (4 a 5 dospělých) – 17 lidí, žádné pole. Díl
- * Bořivoje (17 ÷ 4 dílníci) je on, žena a domácnost domu 4 – 6 dospělých s párem. Den vsi = `day`.
+ * svobodný Dobromil 40 (dům 3) a dvě domácnosti (4 a 5 dospělých) – 17 lidí, pole 15 ha
+ * (`fieldM2` – přelidněná). Díl Bořivoje (17 ÷ 4 dílníci) je on, žena a domácnost domu 4 –
+ * 6 dospělých s párem. Den vsi = `day`.
  */
-function lordVillage(day = AUG31 - 2, on = true): VillageState {
+function lordVillage(day = AUG31 - 2, on = true, fieldM2 = 150_000): VillageState {
   const s = trackedVillage(
     [
       { id: 10, age: 60, sex: 'male', spouse: 11 },
@@ -87,6 +106,7 @@ function lordVillage(day = AUG31 - 2, on = true): VillageState {
     [at(1, 0, 0), at(2, 40, 0), at(3, 0, 40), at(4, -40, 0), at(5, 0, -40)],
     { storesKg: 4000, steward: newSteward(day, on) },
   );
+  if (fieldM2 > 0) s.parts.push(fallowPart(800, fieldM2));
   const names: Record<number, string> = { 20: 'Bořek', 30: 'Bořivoj', 40: 'Dobromil' };
   for (const p of s.people) {
     if (p.id === 20) p.mainWifeSon = true;
@@ -177,24 +197,9 @@ describe('odchod syna (krok 2)', () => {
     expect(s.steward?.departures ?? []).toHaveLength(0);
   });
 
-  /** Ves s polem 40 ha – „Pole uživí“ stačí (není přelidněná). */
+  /** Ves s polem 40 ha navíc – „Pole uživí“ stačí (není přelidněná). */
   const withFields = (s: VillageState): VillageState => {
-    const part: FieldPart = {
-      id: 900,
-      fieldId: 901,
-      areaM2: 400_000,
-      distanceM: 50,
-      naturalFertility: 60,
-      fertilityShare: averageRotationShare(),
-      bonusUntilDay: null,
-      state: 'fallow',
-      sownYears: 0,
-      fallowSinceDay: null,
-      foundingCost: 0,
-      foundingDone: 0,
-      surface: 'meadow',
-    };
-    s.parts.push(part);
+    s.parts.push(fallowPart(900, 400_000));
     return s;
   };
 
@@ -251,6 +256,12 @@ describe('odchod syna (krok 2)', () => {
     return bufferFill(fieldSowingTargets(after, AUG31, craftCoverage(after, AUG31)));
   };
 
+  /** Kolikrát osev vlastní prací uživí obě vsi po odchodu syna `sonId` (jako `departingSon`). */
+  const fedAfter = (s: VillageState, sonId: number): ReturnType<typeof departureFed> => {
+    const { state: after, settlers } = departWithSon({ ...s, lastDay: AUG31 }, AUG31, sonId);
+    return departureFed(s, after, settlers, AUG31);
+  };
+
   it('díl pod prahem výpravy – správce syna nepošle a počká; životaschopný díl pošle', () => {
     // bez dcery vojvody (16 ÷ 4 dílníci = 4) by domácnost domu 4 díl od cíle oddálila – Bořivoj by
     // šel jen se ženou: 2 dospělí, ves o dvou lidech
@@ -292,11 +303,52 @@ describe('odchod syna (krok 2)', () => {
     expect(stewardExpedition(thin, son30(thin), AUG31)?.viable).toBe(true);
     expect(motherFill(thin, 30)).toBeLessThan(STEWARD.departureMotherFill);
     expect(departingSon(thin, AUG31)).toBeNull();
-    // 800 kg – obojí stačí
-    const enough = lordVillage();
-    enough.storesKg = 800;
-    expect(motherFill(enough, 30)).toBeGreaterThanOrEqual(STEWARD.departureMotherFill);
-    expect(departingSon(enough, AUG31)?.id).toBe(30);
+    // 800 kg – pojistka stačí, ale mateřské vsi nezbude osivo na příští osev (uživí ji osev)
+    const seedless = lordVillage();
+    seedless.storesKg = 800;
+    expect(motherFill(seedless, 30)).toBeGreaterThanOrEqual(STEWARD.departureMotherFill);
+    expect(fedAfter(seedless, 30).mother).toBeLessThan(STEWARD.departureFeedShare);
+    expect(departingSon(seedless, AUG31)).toBeNull();
+    // 4000 kg – vše stačí
+    expect(departingSon(lordVillage(), AUG31)?.id).toBe(30);
+  });
+
+  it('obě vsi po odchodu uživí své lidi vlastní prací s rezervou – jinak správce počká', () => {
+    const s = lordVillage();
+    const fed = fedAfter(s, 30);
+    expect(fed.mother).toBeGreaterThanOrEqual(STEWARD.departureFeedShare);
+    expect(fed.colony).toBeGreaterThanOrEqual(STEWARD.departureFeedShare);
+    expect(departingSon(s, AUG31)?.id).toBe(30);
+    // mateřská ves bez polí sama nic neoseje – přelidněná, výprava životaschopná, a přesto nic
+    const fieldless = lordVillage(AUG31 - 2, true, 0);
+    expect(stewardCrowded(fieldless, AUG31, craftCoverage(fieldless, AUG31))).toBe(true);
+    expect(stewardExpedition(fieldless, son30(fieldless), AUG31)?.viable).toBe(true);
+    expect(fedAfter(fieldless, 30)).toEqual({ mother: 0, colony: 0 });
+    expect(departingSon(fieldless, AUG31)).toBeNull();
+    expect(stewardDeparture(fieldless, AUG31, barren, barrenObstacles)).toBe(false);
+    // pole skoro bez úrody – osev vlastní prací neuživí ani jednu ves
+    const poor = lordVillage();
+    poor.parts[0]!.naturalFertility = 2;
+    const poorFed = fedAfter(poor, 30);
+    expect(poorFed.mother).toBeLessThan(STEWARD.departureFeedShare);
+    expect(poorFed.colony).toBeLessThan(STEWARD.departureFeedShare);
+    expect(departingSon(poor, AUG31)).toBeNull();
+    // nová ves s mnoha dětmi – její 4 páry rukou je neuživí, mateřská ves beze změny
+    const { state: after, settlers } = departWithSon({ ...s, lastDay: AUG31 }, AUG31, 30);
+    const template = settlers.people[0]!;
+    const children = Array.from({ length: 20 }, (_, i): Person => {
+      const child: Person = { ...template, id: 1000 + i, bornDay: AUG31 - 5 * 365 };
+      delete child.spouseId;
+      return child;
+    });
+    const crowdedColony = departureFed(
+      s,
+      after,
+      { ...settlers, people: [...settlers.people, ...children] },
+      AUG31,
+    );
+    expect(crowdedColony.colony).toBeLessThan(STEWARD.departureFeedShare);
+    expect(crowdedColony.mother).toBeCloseTo(fed.mother, 9);
   });
 
   it('ze způsobilých synů odejde ten s nejživotaschopnějším dílem', () => {

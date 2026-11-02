@@ -1493,6 +1493,10 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
       i s odkladem za počasí) nezaseje, je obyčejné zrno; rezerva nad osivo jaře se uvolní už
       **1. 12.** (po setí ozimu). **Při skutečném hladu** (5 dnů bez jídla, dřív než začnou umírat
       – SEED_BUYING.eatFromStarvationDays) ji ves sní: osivo se šetří, ne za cenu smrti (návrh Clauda).
+    - **Osivo zakladatelů první vsi** (Zásoby a nasycení – Start; Martin 2. 11. 2026) je stejná
+      rezerva, jen se **do lhůty (15 let od založení) neuvolní 1. 6. ani 1. 12.** a cíle osevu ho
+      nepočítají za jídlo (ves kvůli němu neoseje méně) – slouží na víc osevů. Při skutečném hladu
+      ho ves sní jako každou rezervu (návrh Clauda).
     - **Otevřená otázka:** půjčka osiva od pána (vazal si osivo vypůjčí a vrátí ze sklizně) – až
       s vazalstvím (návrh Clauda, Martin 27. 10. 2026 odložil).
 - Úroda se sníží podle nedodělané práce (pletí, sklizeň, odnos – viz Včasnost).
@@ -1532,6 +1536,23 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
 - **Start:** osadníci přinesli zásoby na **18 měsíců** potřeby (návrh Clauda) a k nim osivo na
   první osev – **půl roční potřeby** (od 27. 10. 2026, kdy osivo bere setí ze zásob; návrh Clauda)
   – ves přežije i založení těsně po jarním setí.
+  - **Zakladatelé první vsi – velká zásoba** (Martin 2. 11. 2026: „Ta úplně první ves –
+    zakladatelé budou mít velkou zásobu jídla/osiva. Ber to analogicky, jako když přišel praotec
+    Čech do Čech“; čísla návrh Clauda z měření správce): úplně první ves hráče (vojvoda
+    s manželkami – [vojvoda](lord.md), Zakladatelé) přinese jídlo na **3 roky** potřeby
+    zakladatelů a **osivo na 2 roky** potřeby (`FOUNDERS_STORES`; 5 dospělých × 180 kg = 900 kg:
+    2 700 kg jídla a 1 800 kg osiva ≈ 10 ha osevu, dřív 1 800 kg celkem). Osivo je **jen na setí**
+    (rezerva jako osivo osadníků – Osivo pro ves bez zásob), **15 let od založení** se neuvolní
+    1. 6. ani 1. 12. a cíle osevu ho nepočítají za jídlo – slouží na víc osevů, dokud nedorostou
+       první děti; sní se jen ve skutečném hladu. Ztráty skladováním (10 % ročně bez hrnčíře) jdou
+       z celé zásoby obilí – rezerva osiva je nejvýš tolik, kolik obilí zbývá; za první rok tak ves
+       ztratí ≈ 450 kg a jídlo bez sklizně vydrží kratší dobu než 3 roky. Proč: prvních ≈ 15 let pracuje jen 5
+       zakladatelů a dětí přibývá (potřeba 900 → 2 800 kg) – s dnešní zásobou ves v hladu snědla
+       osivo a spadla do pasti osiva (měření: osev ≈ 6 → 0,3 ha, deset let bez sklizně). Rychlé
+       měření správce (6 vsí × 25 let): s ochranou osiva past zmizí už s dnešní velikostí, pojistku
+       ≥ 0,6 (měřítko kvality správce) drží až 3 roky jídla a 2 roky osiva – hladové dny rodu
+       2 114 → 789, pojistka 0,44 → 0,67, lidé rodu za 25 let 31 → 38. Ves bez rodu (testy) a ves
+       z výpravy syna (nese vlastní náklad) beze změny.
 - **Hlad zabíjí** (Martin, 18. 10. 2026 – dřív „hlad ves nezničí“): hlad tlumí porody a lidé
   umírají hlady podle nahromaděného hladu, dokud se jejich počet nesrovná s tím, co zásoby
   uživí – každé úmrtí zvedne příděl ostatním. Bez jídla ves do dvou měsíců vymře a hráč, kterému
@@ -2296,3 +2317,4 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Osevní postup po dílech (po ozimu jař, po jaři úhor) a setí do konce okna místo plánu k 1. 9.; nad potřebu celá práce po stavbách                                                                                                                                         | návrh Clauda, Martin schválil (25. 10. 2026)         |
 | Osivo ze zásob v den setí, sklizeň ho neodečítá; osivo do roční potřeby od přídělu 0,50, nad ni od 1; osivo v plánu se nejí (v hladu ano); luštěniny chybějící na osivo za obilí; start + osivo na půl roční potřeby; převod starých prací – osivo zaseté části odpuštěné | Martin (27. 10. 2026), pravidla a čísla návrh Clauda |
 | Osivo pro ves bez zásob: osadníci nesou osivo na první osev (půl roční potřeby, 20 kg na nosiče, zbytek na voze); ves 1. 9. a 1. 3. koupí chybějící osivo za hřivny a krávy nad chovné (nejvýš jedna za nákup); to ves nesní (do 1. 6., při hladu ano)                    | Martin (27. 10. 2026), pravidla a čísla návrh Clauda |
+| Zakladatelé první vsi: jídlo na 3 roky a osivo na 2 roky potřeby; osivo jen na setí, 15 let se neuvolní a cíle osevu ho nepočítají za jídlo                                                                                                                               | Martin (2. 11. 2026), čísla návrh Clauda             |

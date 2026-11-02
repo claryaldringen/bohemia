@@ -17,6 +17,7 @@ import { ageGroup, ageYears } from '../people';
 import {
   BIRTH_SPACING,
   FOOD_NEED_KG_PER_YEAR,
+  FOUNDERS_STORES,
   LORD,
   START_AGES,
   START_SEED_YEARS,
@@ -80,7 +81,23 @@ describe('zakladatelé rodu', () => {
     expect(s.manorId).toBe(1);
     expect(s.nextId).toBe(8);
     const need = s.people.reduce((sum, p) => sum + FOOD_NEED_KG_PER_YEAR[ageGroup(p, DAY)], 0);
-    expect(s.storesKg).toBeCloseTo((need * START_STORES_MONTHS) / 12 + need * START_SEED_YEARS, 6);
+    // velká zásoba zakladatelů (FOUNDERS_STORES): jídlo na víc let a osivo jen na setí
+    const seedKg = need * FOUNDERS_STORES.seedYears;
+    expect(s.storesKg).toBeCloseTo(need * FOUNDERS_STORES.foodYears + seedKg, 6);
+    expect(s.reservedSeedKg).toBeCloseTo(seedKg, 6);
+    expect(s.reservedSeedUntilDay).toBe(DAY + Math.ceil(FOUNDERS_STORES.seedKeepYears * 365.25));
+    // ves bez rodu beze změny – 18 měsíců jídla a osivo na první osev, bez rezervy
+    const plain = found();
+    const plainNeed = plain.people.reduce(
+      (sum, p) => sum + FOOD_NEED_KG_PER_YEAR[ageGroup(p, DAY)],
+      0,
+    );
+    expect(plain.storesKg).toBeCloseTo(
+      (plainNeed * START_STORES_MONTHS) / 12 + plainNeed * START_SEED_YEARS,
+      6,
+    );
+    expect(plain.reservedSeedKg).toBeUndefined();
+    expect(plain.reservedSeedUntilDay).toBeUndefined();
     const { herds, young } = foundingLivestock({ people: s.people }, DAY);
     expect(s.livestock?.herds).toEqual(herds);
     expect(s.livestock?.young).toEqual(young);
@@ -144,6 +161,10 @@ describe('zakladatelé rodu', () => {
     });
     // zakladatelé výpravu nemění – jméno vojvody z `lord` se nepoužije
     expect(withLine.people.map((p) => p.id)).toEqual([20, 21, 22, 23]);
+    // ves z výpravy nese vlastní náklad – zásoba zakladatelů jen první vsi
+    expect(withLine.storesKg).toBe(100);
+    expect(withLine.reservedSeedKg).toBeUndefined();
+    expect(withLine.reservedSeedUntilDay).toBeUndefined();
     expect(foundBy([person(20, 50), person(23, 45, { sex: 'female' })]).dynasty).toEqual(
       NO_DYNASTY,
     );
