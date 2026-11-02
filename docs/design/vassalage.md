@@ -817,6 +817,11 @@ pozvaný vazal):
   (páni, vazalové, vazalové vazalů, počet mužů rodu schopných služby), podmínky ikonami s čísly,
   jednání / žádosti / dávky / svolání jako upozornění s dialogem; jako 0 A.D. – „Ano“ (Martin 2. 11. 2026).
 
+- **Odúmrť rodu s víc pány:** „Ať spravují odúmrť všichni. Sice si polezou do zelí, ale alespoň
+  budou mít důvod ten spor nějak řešit – buď se dohodnout, válčit nebo jít se sporem k vyšší
+  instanci“ (Martin 2. 11. 2026) – odúmrť připadne všem pánům společně; o dělení se musí
+  dohodnout, válčit, nebo jít k rozsudku vyššího pána.
+
 ## Otevřené otázky
 
 Otázky první verze (žádost od vazala, odchod po daru, vazalové vazalů) jsou zodpovězené výš.
