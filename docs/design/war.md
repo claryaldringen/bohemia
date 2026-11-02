@@ -554,6 +554,10 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
 - **Bod zlomu po skupinách:** počítá se za každou skupinu zvlášť – „Za každou skupinu zvlášť“.
 - **Muži rodu a bod zlomu:** utíkají jako ostatní ve skupině; velitel neuteče sám, ustoupí jen na
   pokyn hráče nebo rozkazu NPC – „Jak navrhuješ“.
+- **Útěk obránců – dvě situace:** „vesnice už na začátku, když zjistí, že se u ní objevili útočníci
+  (a nebo že k ní směřují) rozhodne, že se radši schová v nejbližším lese – pobere zásoby všechna
+  zvířata a schová se v lese. Druhá možnost je, že uteče během obrany“ – **včasný útěk** se
+  zásobami a stády do nejbližšího lesa, nebo **útěk při bodu zlomu** během obrany.
 
 ## Otázky na Martina
 
