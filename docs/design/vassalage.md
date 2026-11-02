@@ -380,6 +380,8 @@ pozvaný vazal):
 
 - **Platnost nabídky:** „Ať visí do nekonečna. Oba se k tomu musí nějak postavit“ (Martin 2. 11. 2026) – nabídka nepropadá; trvá, dokud ji strany nevyřídí.
 
+- **Stažení nabídky:** odesílatel ji smí vzít zpět, dokud druhý neodpověděl – „Ano“ (Martin 2. 11. 2026).
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
