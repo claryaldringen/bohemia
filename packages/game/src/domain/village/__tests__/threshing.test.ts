@@ -13,6 +13,7 @@ import {
   sheafWork,
   sheavesOutlook,
   spoilSheaves,
+  THRESHED_CROPS,
   THRESH_OVERDUE_END,
   THRESH_URGENT_END,
   threshCrop,
@@ -25,10 +26,13 @@ import {
   withThreshingGrace,
 } from '../threshing';
 import type { ChronicleEvent, VillageState } from '../types';
+import { craftCoverage } from '../crafts';
+import { ageGroup } from '../people';
+import { harvestLaborPerDay } from '../simulate-plan';
 import { threshingFloorHaulPoints } from '../threshing-floors';
 import { THRESHING_FLOOR_ENTRANCE_M } from '../paths/entrances';
 import { withThreshingFloor } from './village-fixtures';
-import { seasonCrop, springCrop } from '../year-plan';
+import { emptyTaskRecord, seasonCrop, springCrop } from '../year-plan';
 
 // Snopy a výmlat hned po žni (production-chains.md – Humno): sklizeň jde do snopů, výmlat je
 // převádí do zásob – ozim a luštěniny v srpnu, jař v září, na humně (kapacita se sčítá), starší
@@ -83,6 +87,45 @@ function withSheaves(
   }));
   if (graceUntil !== undefined) s.threshingGraceUntil = graceUntil;
   return s;
+}
+
+/** Ves s `count` dospělými navíc (kopie prvního dospělého) – ruce pro výmlat. */
+function withHands(s: VillageState, day: number, count: number): VillageState {
+  const adult = s.people.find((p) => ageGroup(p, day) === 'adult')!;
+  for (let k = 0; k < count; k++) s.people.push({ ...structuredClone(adult), id: 10_000 + k });
+  return s;
+}
+
+/** Práce vsi za den ve žních – ruce pro výmlat, které simulace ukládá (`threshHands`). */
+const handsPerDay = (s: VillageState, day: number): number =>
+  harvestLaborPerDay(s, day, craftCoverage(s, day));
+
+/** Ves s rukama pro výmlat dne, jak je simulace uloží na začátku dne. */
+function withThreshHands(s: VillageState, day: number): VillageState {
+  s.threshHands = handsPerDay(s, day);
+  return s;
+}
+
+/**
+ * Výmlat po dnech jako simulace (mutuje `s`): ubytek snopů na začátku dne, úlohy výmlatu dne
+ * s `hands` čd práce denně, dokud snopy nejsou vymlácené. Vrátí, kolik zrna a luštěnin přibylo.
+ */
+function threshByDays(
+  s: VillageState,
+  day: number,
+  hands: number,
+): { grainKg: number; legumesKg: number } {
+  const stores = s.storesKg;
+  const legumes = s.legumesKg ?? 0;
+  for (let d = 0; d < 365 && THRESHED_CROPS.some((c) => sheafWork(s, c) > 1e-9); d++) {
+    if (d > 0) spoilSheaves(s, day + d);
+    let labor = hands;
+    for (const task of threshTasks(s, day + d)) {
+      const used = threshCrop(s, task, labor);
+      labor -= used.floor + used.ground;
+    }
+  }
+  return { grainKg: s.storesKg - stores, legumesKg: (s.legumesKg ?? 0) - legumes };
 }
 
 describe('sklizeň jde do snopů', () => {
@@ -455,6 +498,81 @@ describe('výhled jídla a plán osevu', () => {
       1000 * (1 - THRESHING.emergencyLoss * (588 / 600)),
       9,
     );
+  });
+
+  it('výhled s rukama vsi do konce okna: humno mlátí víc dní – dřív výhled počítal všechno dnes', () => {
+    // 1. 9.: 200 čd výmlatu jaře, jedno humno, ruce ≈ 30 čd denně – humno mlátí 8 dní
+    const day = at(601, 9, 1);
+    const sheaves = { grainKg: 2000, legumesKg: 0, work: { spring: 200 } };
+    const s = withThreshHands(withHands(withSheaves(day, sheaves), day, 28), day);
+    const hands = s.threshHands!;
+    expect(hands).toBeGreaterThan(25);
+    expect(hands).toBeLessThan(35);
+    const outlook = sheavesOutlook(s, day);
+    // výhled = výmlat po dnech s rukama vsi (bez kazení – okno stačí)
+    expect(outlook.grainKg).toBeCloseTo(threshByDays(structuredClone(s), day, hands).grainKg, 6);
+    // dřív: 12 čd na humně a 188 nouzově hned dnes – 90,6 %
+    const allToday = 2000 * ((12 + 188 * (1 - THRESHING.emergencyLoss)) / 200);
+    expect(allToday).toBeCloseTo(1812, 9);
+    expect(outlook.grainKg).toBeGreaterThan(allToday + 60);
+    expect(outlook.grainKg).toBeLessThan(2000);
+    // bez rukou ve stavu (ves před prvním dopočítaným dnem) výmlat dne při dost rukou
+    delete s.threshHands;
+    expect(sheavesOutlook(s, day).grainKg).toBeCloseTo(allToday, 9);
+  });
+
+  it('výhled s rukama vsi: co ruce do konce okna nestihnou, se kazí; v okně se nekazí nic', () => {
+    // malá ves (≈ 2,4 čd rukou denně) – všechno na humně, bez nouzového výmlatu
+    const sheaves = { grainKg: 1000, legumesKg: 0, work: { spring: 60 } };
+    const early = at(601, 9, 1);
+    const fits = withThreshHands(withSheaves(early, sheaves), early);
+    expect(fits.threshHands! * 30).toBeGreaterThan(60);
+    expect(sheavesOutlook(fits, early).grainKg).toBeCloseTo(1000, 9);
+    // 25. 9. zbývá 6 dní okna – zbytek se po okně kazí, než ho ruce vymlátí
+    const late = at(601, 9, 25);
+    const s = withThreshHands(withSheaves(late, sheaves), late);
+    const hands = s.threshHands!;
+    expect(hands * 6).toBeLessThan(60);
+    const outlook = sheavesOutlook(s, late);
+    expect(outlook.grainKg).toBeCloseTo(threshByDays(structuredClone(s), late, hands).grainKg, 6);
+    expect(outlook.grainKg).toBeLessThan(1000 - 10);
+  });
+
+  it('výhled s rukama vsi: v srpnu má přednost žeň jaře – výmlat dostane jen zbytek rukou', () => {
+    const day = at(601, 8, 10);
+    const sheaves = { grainKg: 1000, legumesKg: 0, work: { winter: 40 } };
+    const idle = withThreshHands(withSheaves(day, sheaves), day);
+    // bez žně stihnou ruce výmlat v okně – bez ztrát
+    expect(idle.threshHands! * 22).toBeGreaterThan(40);
+    expect(sheavesOutlook(idle, day).grainKg).toBeCloseTo(1000, 9);
+    // žeň jaře vezme všechny ruce do konce srpna – ozim se pak kazí, než ho vymlátí
+    const busy = structuredClone(idle);
+    busy.season = {
+      startDay: at(600, 9, 1),
+      crops: [
+        {
+          crop: 'spring',
+          partIds: [],
+          required: { ...emptyTaskRecord(), harvest: 1000 },
+          done: emptyTaskRecord(),
+          harvestedKg: null,
+        },
+      ],
+    };
+    const outlook = sheavesOutlook(busy, day);
+    expect(outlook.grainKg).toBeLessThan(1000 - 10);
+    // po konci srpna všechny ruce: jako výmlat po dnech od 1. 9. po 22 dnech ubytku
+    const september = structuredClone(idle);
+    for (let d = 1; d <= 22; d++) spoilSheaves(september, day + d);
+    expect(outlook.grainKg).toBeCloseTo(
+      threshByDays(september, at(601, 9, 1), idle.threshHands!).grainKg,
+      6,
+    );
+  });
+
+  it('simulace ukládá ruce pro výmlat na začátku dne – výhled je pak má', () => {
+    const s = advanceVillage(bare(at(601, 3, 1)), at(601, 3, 10), null);
+    expect(s.threshHands).toBeGreaterThan(0);
   });
 
   it('ves s prázdnými zásobami před žní nehladoví potají: energie pod 0,9 jen s hladem', () => {

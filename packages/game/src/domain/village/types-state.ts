@@ -189,6 +189,13 @@ export interface VillageState {
    */
   threshingGraceUntil?: number;
   /**
+   * Ruce pro výmlat (člověkodny za den – production-chains.md, Humno, Výhled jídla): práce vsi
+   * ve žních (`harvestLaborPerDay` – tatáž jako výhled práce `sowingCapacity`), spočítaná na
+   * začátku dne simulace; podle ní výhled výmlatu do konce okna (`sheavesOutlook`). Chybí (ves
+   * před prvním dopočítaným dnem) = výhled bez omezení rukou – výmlat dne.
+   */
+  threshHands?: number;
+  /**
    * Obilné jámy (production-chains.md – Obilné jámy) – zapečetěné, otevřená a prázdné. Zásoba
    * obilí `storesKg` zůstává celá (zrno v jamách i mimo ně – na humně a doma); jámy jen říkají, kde
    * zrno leží a jak rychle ubývá. U vsí uložených dřív chybí – převod (`withGrainPits`) uloží

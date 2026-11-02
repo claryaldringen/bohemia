@@ -515,9 +515,18 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   dopočtu) – prázdné snopy a rok odkladu, úroda už v zásobách zůstane. `threshingSeason` se
   zahodí 1. 10. (`THRESH_END_DAY`, bez ztráty – dřívější „nevymlácené 1. 3. propadne“ zmizelo).
   Výhled jídla (`DietInput.sheavesGrainKg` / `sheavesLegumesKg` – `sheavesOutlook`, jen když ves
-  smí mlátit, se ztrátami `sheafYields` – nouzově −10 % podílu mimo humna po druzích snopů,
-  odvozeno z úloh dne `threshTasks`: výhled = výmlat dne při dost rukou; oprava 2. 11. 2026,
-  dřív společný podíl obou druhů a mrtvá větev „pomalé humno“), plán osevu (`sowingTargets`, `fieldStoresKg(state, day)`) a dobré zásoby
+  smí mlátit, se ztrátami `sheafYields` – nouzově −10 % podílu mimo humna po druzích snopů
+  v pořadí úloh dne `threshTasks`; oprava 2. 11. 2026, dřív společný podíl obou druhů a mrtvá
+  větev „pomalé humno“; **ruce do konce okna** – oprava 2. 11. 2026: `sheafYields` mlátí den po
+  dni s rukama `VillageState.threshHands` (simulate.ts je uloží na začátku dne po `spoilSheaves`
+  z `harvestLaborPerDay` – simulate-plan.ts, práce vsi za den ve žních, tatáž jako okna `july` /
+  `august` v `sowingCapacity`; uložené, ne počítané ve výhledu – import práce vsi z threshing.ts
+  by přes dobytek a stavby udělal cyklus s nedefinovanými konstantami `PROTEIN` a `PEN`) bez zbytku
+  nutné žně jaře rozloženého do konce srpna (`threshHands()`); humna do kapacity, zbytek nouzově;
+  po okně plodiny (`threshWindowDaysLeft`, v den žně i celé okno) ubytek `DAILY_KEEP` jako
+  `spoilSheaves`, nejvýš rok; bez `threshHands` (ves před prvním dopočítaným dnem, testy) výmlat
+  dne při dost rukou – jako dřív, kdy výhled počítal všechno dnes), plán osevu (`sowingTargets`,
+  `fieldStoresKg(state, day)`) a dobré zásoby
   štěstí počítají snopy jako zrno; jí se jen vymlácené. Hlad a příděl (`eat` – `state.ration`)
   jdou podle menšího z výhledu a snědené energie. Odchod do nové vsi dělí snopy jako zásoby
   (`leavingFood`, `takeSheaves`). Plán osevu odečte

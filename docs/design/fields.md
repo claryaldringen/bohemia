@@ -1191,8 +1191,10 @@ První sezónu po vymýcení lesa se díl **neplete** (viz Úroda).
   nestačí „Humno nestačí na výmlat“ – jen když humno stálo celé okno výmlatu). Výhled jídla, plán
   osevu a dobré zásoby (štěstí) počítají snopy jako zrno, jen když je smí vymlátit (humno nebo
   odklad), se ztrátami (nouzově o 10 % méně – podíl mimo humna po druzích snopů v pořadí výmlatu
-  dne; oprava, návrh Clauda 2. 11. 2026, production-chains.md – Humno; „pomalé humno“ od
-  21. 10. 2026 neplatí – přebytek nad kapacitu humen se mlátí hned nouzově); jí se
+  dne; oprava, návrh Clauda 2. 11. 2026, production-chains.md – Humno; „pomalé humno“ od 21. 10. 2026 neplatí – přebytek nad kapacitu humen se mlátí hned nouzově) a s rukama vsi do
+  konce okna výmlatu (oprava, návrh Clauda 2. 11. 2026: výmlat den po dni s prací vsi ve žních,
+  v srpnu po žni jaře – víc dní na humnech, co ruce v okně nestihnou, se kazí; dřív výhled
+  počítal, že se všechno vymlátí dnes); jí se
   jen vymlácené – hlad a šetření jdou i podle snědené energie. Plán osevu odečte čekající výmlat z podzimní práce (září
   – mlátí se před setím ozimu) a výmlat ozimu a luštěnin z práce srpna (vedle žně jaře). Úroda
   sklizená do zásob před převodem tam zůstane. Čísla v `THRESHING` (rules.ts), rešerše

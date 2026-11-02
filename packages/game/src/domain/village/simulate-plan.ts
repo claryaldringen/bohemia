@@ -734,6 +734,41 @@ function freeLabor(state: VillageState, day: number, coverage: CraftCoverage): F
 }
 
 /**
+ * Žně všemi rukama (fields.md – Žně všemi rukama; Martin 24. 10. 2026: „Dílny i vojvodova
+ * rodina“): v oknech žní a výmlatu i řemeslníci se syny (`WorkshopLabor` – řemeslo i žeň), cvičící
+ * muži rodiny (`freeMen`) a výrostci se staršími (`harvestHelperLabor`) – tytéž ruce jako `work()`.
+ */
+function harvestHands(
+  state: VillageState,
+  day: number,
+  coverage: CraftCoverage,
+  { crafts, apart, productivity, manor }: FreeLabor,
+): number {
+  return (
+    [...crafts].reduce((sum, id) => {
+      const labor = workshopLabor(state, day, id, coverage.pottery, productivity);
+      return sum + labor.craft + labor.harvest;
+    }, 0) +
+    (manor ? manor.freeMen : 0) +
+    harvestHelperLabor(state, day, apart, productivity, coverage.pottery) * productivity
+  );
+}
+
+/**
+ * Práce vsi za den na poli ve žních a výmlatu (člověkodny – den oken `july` a `august`
+ * v `sowingCapacity`): volná práce vsi po denním minimu se žňovými rukama, ve špičce
+ * PEAK_CAPACITY_SHARE. Podle ní i výhled výmlatu (`sheavesOutlook` – ruce do konce okna).
+ */
+export function harvestLaborPerDay(
+  state: VillageState,
+  day: number,
+  coverage: CraftCoverage,
+): number {
+  const labor = freeLabor(state, day, coverage);
+  return (labor.villageFree + harvestHands(state, day, coverage, labor)) * PEAK_CAPACITY_SHARE;
+}
+
+/**
  * Volná práce vsi ve špičkách polních prací od dneška do konce hospodářského roku: všechna
  * práce po denním minimu (PEAK_CAPACITY_SHARE) krát dny oken – podzim pro ozim (září–říjen)
  * a celý podzim (září–listopad) bez výmlatu snopů, který ves čeká (production-chains.md – Humno),
@@ -758,21 +793,13 @@ export function sowingCapacity(
   pairs?: number,
   options: { lord?: boolean; ploughCapacity?: NonNullable<SowingCapacity['plough']> } = {},
 ): SowingCapacity {
-  const { crafts, apart, productivity, manor, villageFree } = freeLabor(state, day, coverage);
+  const labor = freeLabor(state, day, coverage);
+  const { manor, villageFree } = labor;
   // s rodinou (`lord` – lord.md, Kdy jde rodina na pole, bod 1) i práce cvičících mužů rodiny
   // po minimu dvorce (`freeMen`; ženy jen při hladu) – jen lidé, spřežení ne
   const lordFree = options.lord === true && manor ? manor.freeMen : 0;
   const free = (villageFree + lordFree) * PEAK_CAPACITY_SHARE;
-  // žně všemi rukama (fields.md – Žně všemi rukama; Martin 24. 10. 2026: „Dílny i vojvodova
-  // rodina“): v oknech žní a výmlatu i řemeslníci se syny (`WorkshopLabor` – řemeslo i žeň), cvičící
-  // muži rodiny (`freeMen`) a výrostci se staršími (`harvestHelperLabor`) – tytéž ruce jako `work()`
-  const hands =
-    [...crafts].reduce((sum, id) => {
-      const labor = workshopLabor(state, day, id, coverage.pottery, productivity);
-      return sum + labor.craft + labor.harvest;
-    }, 0) +
-    (manor ? manor.freeMen : 0) +
-    harvestHelperLabor(state, day, apart, productivity, coverage.pottery) * productivity;
+  const hands = harvestHands(state, day, coverage, labor);
   const harvestFree = (villageFree + hands) * PEAK_CAPACITY_SHARE;
   const days = (
     segments: Parameters<typeof windowDaysLeft>[1],
