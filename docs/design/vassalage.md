@@ -519,6 +519,9 @@ pozvaný vazal):
   kdo ho povýšil; jeho synové jsou šlechtici a cvičí jako synové vojvody; pán mu svěří ves do
   správy – „Ano“ (Martin 2. 11. 2026).
 
+- **Koho povýšit:** dospělého muže od 16 let z kterékoli pánovy vsi, nejvýš jednoho za herní rok;
+  s ním manželka a děti – „Ano“ (Martin 2. 11. 2026).
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
