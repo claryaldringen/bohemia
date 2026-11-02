@@ -822,6 +822,9 @@ pozvaný vazal):
   instanci“ (Martin 2. 11. 2026) – odúmrť připadne všem pánům společně; o dělení se musí
   dohodnout, válčit, nebo jít k rozsudku vyššího pána.
 
+- **Veřejný rodokmen:** všem hráčům, jen muži rodu a jejich věk – výcvik ani koně ne (síla vojska
+  skrytá, dokud ho někdo neuvidí) – „Souhlas“ (Martin 2. 11. 2026).
+
 ## Otevřené otázky
 
 Otázky první verze (žádost od vazala, odchod po daru, vazalové vazalů) jsou zodpovězené výš.
