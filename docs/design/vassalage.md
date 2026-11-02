@@ -466,6 +466,9 @@ pozvaný vazal):
   (nabídka zboží za zboží, protinávrh), jen makrokomodity, dopravu platí ten, kdo posílá – „Ano“
   (Martin 2. 11. 2026).
 
+- **Sňatky mezi rody hráčů:** ano, ale v další verzi jako samostatná mechanika (příbuzenství,
+  dědictví, spojenectví) – „Ano, tak jak říkáš“ (Martin 2. 11. 2026).
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
