@@ -60,7 +60,14 @@ import { rotLogs } from './wood';
 import { localDisastersDay } from './local-disasters';
 import { decideRebuilds, finishConstructions } from './simulate-build';
 import { eat, endThreshing, harvest, harvestWinter } from './simulate-food';
-import { fieldSowingTargets, isOn, lordHelpDay, seasonDay, startSeason } from './simulate-plan';
+import {
+  fieldSowingTargets,
+  harvestLaborPerDay,
+  isOn,
+  lordHelpDay,
+  seasonDay,
+  startSeason,
+} from './simulate-plan';
 import { work } from './simulate-work';
 import { patrolHuntDay, settlePatrol } from './field-patrol';
 import { huntDay, planHuntDay } from './hunt';
@@ -225,8 +232,10 @@ function* simulateDaySteps(
   // pokrytí výrobky řemeslníků ze včerejších zásob – meze produktivity celého dne (crafts.md)
   const coverage = craftCoverage(state, day);
   rotLogs(state);
-  // snopy, které dnes nikdo nemlátí, se kazí (production-chains.md – Humno)
+  // snopy, které dnes nikdo nemlátí, se kazí (production-chains.md – Humno); ruce pro výmlat dne
+  // – podle nich výhled výmlatu do konce okna (`sheavesOutlook`)
   spoilSheaves(state, day);
+  state.threshHands = harvestLaborPerDay(state, day, coverage);
   // vozy, které dosloužily – tesař vyrobí nové (wagons.md – Vůz)
   state.chronicle.push(...retireCarts(state, day));
   // sady: shnilá jablka, konec péče a stárnutí (1. 3.), začátek a konec sklizně a péče, obnova

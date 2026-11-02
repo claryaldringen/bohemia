@@ -183,7 +183,14 @@ Beze změny (milíř u buků – crafts.md); nošení uhlí ke kováři je dnes 
   dne (v srpnu ozim před luštěninami), takže výhled obilí a luštěnin dá přesně to, co výmlat dne
   při dost rukou vymlátí; dřív jeden společný podíl pro obilí i luštěniny. Dřívější „pomalé humno
   – snopy, které se za oknem kazí“ od 21. 10. 2026 neplatí: přebytek nad kapacitu humen se mlátí
-  hned nouzově. Hlad a šetření jídlem
+  hned nouzově. **Oprava (návrh Clauda 2. 11. 2026) – ruce do konce okna:** výhled už nepočítá,
+  že se všechno vymlátí dnes. Výmlat jde den po dni s rukama vsi – práce vsi ve žních (volná
+  práce po denním minimu a žňové ruce, stejná jako v plánu osevu), v srpnu bez zbytku žně jaře
+  rozloženého do konce srpna (žeň má přednost); každý den napřed humna do jejich kapacity, zbytek
+  rukou nouzově. Ves, která mlátí víc dní, tak vymlátí víc na humnech (příklad: 200 čd výmlatu,
+  jedno humno, ≈ 30 čd rukou denně – dřív výhled 90,6 %, teď 94,8 %, stejně jako výmlat po dnech).
+  Co ruce do konce okna nestihnou, se kazí 10 % za měsíc, než to vymlátí (stejnýma rukama) –
+  výhled to teď vidí. Hlad a šetření jídlem
   jdou i podle energie, kterou ves opravdu snědla (zásoby došly dřív, než se vymlátilo) – ves
   nehladoví potají.
 - **Výmlat na dnešní jídlo** (návrh Clauda): chybí-li v zásobách zrno na jídlo (na dva dny
@@ -307,6 +314,7 @@ postav. Nejdelší snímek se nesmí zhoršit.
 | Plán osevu odečte výmlat z podzimu a srpna; výhled jídla počítá snopy, jen když je smí mlátit     | návrh Clauda                              |
 | Humno nestačí – mlátí se dál, snopy se kazí, upozornění; luštěniny taky na humně                  | návrh Clauda                              |
 | Výmlat na dnešní jídlo napřed; výhled se ztrátami; hlad i podle snědené energie                   | návrh Clauda                              |
+| Výhled výmlatu s rukama vsi do konce okna – víc dní na humnech, po okně ubytek (oprava 2. 11.)    | návrh Clauda (2. 11. 2026)                |
 | Upozornění na humno 90 dní před žní, i při prvním pohledu a z jiné vsi; snopy v liště             | návrh Clauda                              |
 | Zpožděný výmlat na jaře a v létě až po ostatních pracích; výmlat v okně je dřina                  | návrh Clauda                              |
 | Stavba na zavřené jámě dovolená – zrno se přendá                                                  | návrh Clauda                              |

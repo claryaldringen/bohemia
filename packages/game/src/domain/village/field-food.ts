@@ -62,10 +62,19 @@ export function yearlyFieldNeed(
   return fieldFoodShare(state) * yearlyFoodNeed(state, day);
 }
 
-/** Stav vsi, ze kterého se počítají zásoby z pole – zásoby a snopy, které ves smí vymlátit. */
+/**
+ * Stav vsi, ze kterého se počítají zásoby z pole – zásoby a snopy, které ves smí vymlátit (s rukama
+ * pro výmlat a plánem – žeň jaře má v srpnu přednost, `sheavesOutlook`).
+ */
 export type FieldStoresState = Pick<
   VillageState,
-  'storesKg' | 'legumesKg' | 'sheaves' | 'threshingFloors' | 'threshingGraceUntil'
+  | 'storesKg'
+  | 'legumesKg'
+  | 'sheaves'
+  | 'threshingFloors'
+  | 'threshingGraceUntil'
+  | 'threshHands'
+  | 'season'
 >;
 
 /**
