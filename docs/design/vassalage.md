@@ -537,6 +537,10 @@ pozvaný vazal):
   o nich rozhoduje jako o vsích (ponechat si je, nebo je věnovat svým vazalům); vypovědět smějí
   kdykoli.
 
+- **Rozhraní:** panel „Rod a vazalové“ z ikony praporu v horní liště – strom nad i pod hráčem
+  (páni, vazalové, vazalové vazalů, počet mužů rodu schopných služby), podmínky ikonami s čísly,
+  jednání / žádosti / dávky / svolání jako upozornění s dialogem; jako 0 A.D. – „Ano“ (Martin 2. 11. 2026).
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
