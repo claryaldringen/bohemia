@@ -407,6 +407,9 @@ pozvaný vazal):
 - **Luštěniny k obilí?** „ne“ (Martin 2. 11. 2026) – luštěniny nejsou makrokomodita, do dávek
   nepatří.
 
+- **Termín ročního dialogu dávky:** 1. 11. (po výmlatu, před zimou) – „1. listopad je ok“
+  (Martin 2. 11. 2026).
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
