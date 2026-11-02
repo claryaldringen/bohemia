@@ -558,6 +558,9 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
   (a nebo že k ní směřují) rozhodne, že se radši schová v nejbližším lese – pobere zásoby všechna
   zvířata a schová se v lese. Druhá možnost je, že uteče během obrany“ – **včasný útěk** se
   zásobami a stády do nejbližšího lesa, nebo **útěk při bodu zlomu** během obrany.
+- **Co se odnese při včasném útěku:** dospělý 25 kg zásob, dítě méně, dobytek celý; zbytek v domech
+  vezme útočník; obilí v zapečetěných jamách zůstane skryté a útočník ho najde jen s určitou
+  pravděpodobností – „Tak jak říkáš“.
 
 ## Otázky na Martina
 
