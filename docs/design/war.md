@@ -499,6 +499,10 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
   tažení padnout smí – „Ok“.
 - **Bývalý pán proti vazalovi, který vypověděl:** smí ho napadnout kdykoli jako kohokoli jiného,
   žádné zvláštní pravidlo; výpověď je v kronice – „Ano smí“.
+- **Vesničané v boji:** „Vesničané (muži) mohou mít určité zkušenosti z lovu. Takže ano, lze je
+  zapojit do boje, a to i do útočného, ale jejich bojová hodnota bude nevalná“ – muži vesničané
+  smějí do obrany i na tažení se slabou silou (zkušenost z lovu; vojenská služba vazala pánovi dál
+  jen muži rodu – vazalství).
 
 ## Otázky na Martina
 
