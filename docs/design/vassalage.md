@@ -416,6 +416,9 @@ pozvaný vazal):
 - **Kdo dávku doveze:** vazal – jeho nosiči, vozy a honáci, náklady na dopravu nese on; ve scéně
   odchází jako výprava – „ano“ (Martin 2. 11. 2026).
 
+- **Kam dávka dojde:** do vsi, kterou pán určí při jednání; jinak do jeho vlastní vsi – „ok“
+  (Martin 2. 11. 2026).
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
