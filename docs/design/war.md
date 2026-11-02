@@ -543,6 +543,8 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
   a bránit ho, nebo agresivně útočit na všechno co se hýbe.“ – hráč řídí živě jen svého muže,
   ostatní muži se řídí **rozkazem před bitvou** (např. držet se velitele a bránit ho / útočit na
   vše); boj tedy probíhá muž po muži ve skutečném čase, ne jedním výpočtem skupiny.
+- **Souboj mužů:** každý má zdraví, které v boji ubývá podle síly protivníka; luk na dálku, oštěp
+  či sekera zblízka; na nule padlý nebo raněný (los); server počítá deterministicky – „ok“.
 
 ## Otázky na Martina
 
