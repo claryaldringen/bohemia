@@ -186,7 +186,8 @@ describe('jezdec na koni (horses.md – Ve scéně)', () => {
         for (const s of scheduled) {
           const out = pose(t, [], { ...s });
           expect(out.hidden).toBe(false);
-          expect(out.stage).toBeUndefined();
+          // úsek rozvrhu (domů) přepíše jízda – panel řekne „jede na koni“
+          expect(out.stage).toBe('ride');
           expect(['ride', 'ride-trot', 'ride-idle']).toContain(out.clip);
         }
       }

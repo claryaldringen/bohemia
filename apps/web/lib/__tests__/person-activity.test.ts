@@ -170,3 +170,27 @@ describe('selectionDetails – postava', () => {
     expect(presentTarget(gone, target)).toBeNull();
   });
 });
+
+// Panel vojvody a synů (lord.md – Ve scéně): věta podle toho, co postava v den rodiny právě dělá
+// (lord-day.ts – úsek dne v `stage`), ne vždy „cvičí lukostřelbu“.
+describe('vojvodova rodina – co právě dělá', () => {
+  const lord = (stage: PersonFigureState['stage'], hidden = false): string =>
+    personActivity(
+      { id: 101, job: { kind: 'lord', household: false }, stage, hidden, herd: null },
+      VILLAGE,
+    );
+  it('jde, stojí u dvorce, cvičí, u koně, jede, u manželky', () => {
+    expect(lord('bow')).toBe('cvičí lukostřelbu');
+    expect(lord('combat')).toBe('cvičí boj');
+    expect(lord('out')).toBe('jde na cvičiště');
+    expect(lord('back')).toBe('jde ke dvorci');
+    expect(lord('rest')).toBe('stojí u dvorce');
+    expect(lord('hitch')).toBe('jde ke koni');
+    expect(lord('wait')).toBe('čeká u koně');
+    expect(lord('ride')).toBe('jede na koni');
+    expect(lord('hunt')).toBe('je na lovu');
+    expect(lord('visit')).toBe('jde za manželkou');
+    expect(lord('visit', true)).toBe('je u manželky');
+    expect(lord(null, true)).toBe('doma');
+  });
+});

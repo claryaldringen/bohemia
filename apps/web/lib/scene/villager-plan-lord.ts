@@ -139,7 +139,8 @@ function walkBetween(
 ): VillagerPose {
   out.hidden = false;
   delete out.lift;
-  delete out.stage;
+  // k lovu a z něj (panel postavy – person-activity.ts)
+  out.stage = 'hunt';
   const d = Math.hypot(b.x - a.x, b.z - a.z);
   const dur = Math.min(span, d / speed);
   if (since >= dur) {
@@ -461,7 +462,7 @@ export function footHunterPose(plan: RidePlan, carrier: boolean, otherwise: Pose
     out.z = state.z;
     out.headingX = state.headingX;
     out.headingZ = state.headingZ;
-    out.stage = back ? 'back' : 'out';
+    out.stage = 'hunt';
     if (state.pace <= HUNT_PACE.stop * 2) {
       out.clip = 'spear-thrust';
       out.pace = 1;

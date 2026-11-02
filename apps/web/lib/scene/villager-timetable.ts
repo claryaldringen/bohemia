@@ -110,13 +110,21 @@ export class Timetable {
     this.input = {
       seed,
       castOf: (t) => this.castOf(t),
-      lengthOf: (id, task) => {
+      lengthOf: (id, task, when) => {
         if (task.errand) {
           return { outS: task.errand.homeS / 2, endS: 0, backS: task.errand.homeS / 2 };
         }
         const door = this.doors.get(id) ?? null;
-        const walk = door && task.at ? walkM(door, task.at) / v : 0;
-        return { outS: walk, endS: 0, backS: walk };
+        // úloha s místem v čase (vojvodova rodina) – tam, kde v chvíli příchodu a odchodu bude
+        const place = (t: number | undefined): Point | null =>
+          t !== undefined && task.placeAt ? task.placeAt(t) : task.at;
+        const there = place(when?.out);
+        const back = place(when?.back);
+        return {
+          outS: door && there ? walkM(door, there) / v : 0,
+          endS: 0,
+          backS: door && back ? walkM(door, back) / v : 0,
+        };
       },
       doorOf: (id) => this.doors.get(id) ?? null,
       walkS: (a, b) => walkM(a, b) / v,
@@ -179,6 +187,7 @@ export class Timetable {
       if (this.days.length > MAX_DAYS) this.days.splice(0, this.days.length - MAX_DAYS);
     }
     this.castOf = castTimeline(this.days);
+    const newest = this.days[this.days.length - 1]?.day === day;
     for (const [id, e] of this.entries) {
       const a = uncut(e.act);
       let next = a;
@@ -187,8 +196,13 @@ export class Timetable {
         const out = departAfter(this.input, id, a.start);
         next = { ...a, end: out ? out.start : Infinity };
       } else if (a.kind === 'hold') {
-        // úloha u objektu – s novým dnem ji obsazení může přestat dávat
-        next = rehold(this.input, id, a);
+        // úloha u objektu – s novým dnem ji obsazení může přestat dávat; vojvodova rodina (úloha
+        // s místem v čase) dostane do běžícího dne rodiny dnešní plán – lov, jízdy, hodiny dne
+        // (lord-day.ts – čistá funkce skutečného času, cyklus navazuje)
+        const fresh = newest ? cast.get(id) : undefined;
+        const task =
+          fresh?.placeAt && a.task && fresh.key === a.task.key && fresh !== a.task ? fresh : a.task;
+        next = rehold(this.input, id, task === a.task ? a : { ...a, task });
       }
       // nový den může přinést událost, která rozběhnutou činnost přeruší (villagers.md – Události)
       const settled = settle(this.input, id, next);
