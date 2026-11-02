@@ -485,6 +485,9 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
 - **Přepadení bez opovědi:** žádný herní trest, ale veřejný zápis do kronik obou rodů „přepadení
   bez opovědi“ – „Jak říkáš“.
 - **Ochrana nového hráče:** 7 skutečných dní od registrace, končí dřív, když sám napadne – „ok“.
+- **Opakované nájezdy na tutéž ves:** bez omezení – „Kolikrát chce. Ono to válečné tažení jde
+  reálně podniknout jen v některé části roku. Zimní tažení sice bude možné, ale extrémně náročné.
+  Vojenské tažení také není dílem okamžiku“.
 
 ## Otázky na Martina
 
