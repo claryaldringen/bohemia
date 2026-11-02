@@ -6,6 +6,8 @@ import { neighbourStock } from '../neighbours';
 import { LEAVING, NEIGHBOR_DIRECTIONS, SEED_BUYING, TRADE } from '../rules';
 import { reservedSeedKg, sowableSeedKg, foodUntilHarvestKg } from '../seed';
 import { seedBuyingDay, seedShortKg } from '../seed-buying';
+import { fieldSowingTargets } from '../simulate-plan';
+import { NO_CRAFTS } from '../productivity';
 import { advanceVillage } from '../simulate';
 import { buyPrice, sellPrice } from '../trade';
 import type { ChronicleEvent, SeasonCrop, VillageState } from '../types';
@@ -154,6 +156,50 @@ describe('osivo pro ves bez zásob (fields.md – Osivo pro ves bez zásob)', ()
     expect(s.reservedSeedKg).toBe(100);
     seedBuyingDay(s, at(600, 12, 1));
     expect(s.reservedSeedKg).toBeUndefined();
+  });
+
+  it('osivo zakladatelů se do lhůty neuvolní 1. 6. ani 1. 12., po ní jako každá rezerva', () => {
+    const s = village(4, 3000, 4);
+    s.reservedSeedKg = 1000;
+    s.reservedSeedUntilDay = at(602, 3, 1);
+    for (const day of [at(600, 12, 1), at(601, 6, 1), at(601, 12, 1)]) {
+      seedBuyingDay(s, day);
+      expect(s.reservedSeedKg).toBe(1000);
+    }
+    // lhůta osiva cíle osevu: osivo zakladatelů jídlem není, po lhůtě ano
+    const before = fieldSowingTargets(s, at(601, 9, 1), NO_CRAFTS).leftKg;
+    const after = fieldSowingTargets(s, at(602, 9, 1), NO_CRAFTS).leftKg;
+    expect(after).toBeGreaterThan(before);
+    // po lhůtě 1. 6. obyčejné zrno a značka lhůty zmizí
+    seedBuyingDay(s, at(602, 6, 1));
+    expect(s.reservedSeedKg).toBeUndefined();
+    expect(s.reservedSeedUntilDay).toBeUndefined();
+    // ve skutečném hladu ji ves sní i v lhůtě
+    const hungry = village(4, 3000, 4);
+    hungry.reservedSeedKg = 1000;
+    hungry.reservedSeedUntilDay = at(610, 1, 1);
+    hungry.starvationDays = SEED_BUYING.eatFromStarvationDays;
+    seedBuyingDay(hungry, at(600, 10, 2));
+    expect(hungry.reservedSeedKg).toBeUndefined();
+    expect(hungry.reservedSeedUntilDay).toBeUndefined();
+  });
+
+  it('zakladatelé první vsi drží osivo přes 1. 6. – po kouscích dopočtu stejně', () => {
+    const start = foundVillage({
+      seed: 5,
+      day: at(600, 3, 1),
+      dwellingPosition: POSITION,
+      lord: {},
+    });
+    const reserved = start.reservedSeedKg ?? 0;
+    expect(reserved).toBeGreaterThan(0);
+    const end = at(600, 6, 10);
+    const whole = advanceVillage(start, end, null);
+    const pieces = advanceVillage(advanceVillage(start, at(600, 6, 1), null), end, null);
+    expect(JSON.stringify(pieces)).toBe(JSON.stringify(whole));
+    // ozim ani jař ves bez pole nezasela – rezerva přežila 1. 6. celá
+    expect(whole.reservedSeedKg).toBe(reserved);
+    expect(whole.reservedSeedUntilDay).toBe(start.reservedSeedUntilDay);
   });
 
   it('ves bez čeho platit nezaseje a zapíše, kolik osiva chybí', () => {

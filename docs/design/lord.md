@@ -353,7 +353,14 @@ Clauda.
   vedlejších manželek v jejich domech a nepřibudou ženatí synové mimo dvorec se ženami a zeťové –
   odhadem ≈ 15 let, podobně jako se dvěma páry. Martin 24. 10. 2026: „Nechat, rodina zpočátku
   pracuje“ – pravidlo ≥ 4 dospělí mimo rodinu platí beze změny.
-- **Ves z výpravy** ([stěhování](migration.md)) zakladatele nemění – odejdou, kdo odejdou.
+- **Velká zásoba zakladatelů** (Martin 2. 11. 2026: „Ta úplně první ves – zakladatelé budou mít
+  velkou zásobu jídla/osiva. Ber to analogicky, jako když přišel praotec Čech do Čech“; čísla
+  návrh Clauda): zakladatelé přinesou jídlo na **3 roky** a osivo na **2 roky** potřeby (2 700 kg
+  a 1 800 kg); osivo je jen na setí a 15 let se neuvolní – prvních ≈ 15 let pracuje jen pět
+  zakladatelů a děti přibývají, s dnešní zásobou ves padala do pasti osiva. Podrobnosti
+  a měření: [pole](fields.md) – Zásoby a nasycení, Start.
+- **Ves z výpravy** ([stěhování](migration.md)) zakladatele nemění – odejdou, kdo odejdou – a nese
+  vlastní náklad (velká zásoba jen první vsi).
 
 ### Manželky (Martin 24. 10. 2026; podrobnosti návrh Clauda)
 
@@ -937,6 +944,7 @@ dílu – 1 ÷ (vojvoda + synové od 16 let ve vsi), lidé z obydlí nejblíž d
 | Začátek bez lidí mimo rodinu: rodina zpočátku pracuje, pravidlo ≥ 4 dospělí mimo rodinu beze změny                                                                          | Martin (24. 10. 2026)  |
 | První generaci stačí partneři z okolí                                                                                                                                       | Martin (24. 10. 2026)  |
 | Zakladatelé: vojvoda 25, hlavní manželka 22, vedlejší 20, 18 a 16 let, bez dětí; všech 5 v první zemnici; rodina zpočátku pracuje                                           | návrh Clauda           |
+| Zakladatelé první vsi nesou jídlo na 3 roky a osivo na 2 roky potřeby (osivo jen na setí, 15 let se neuvolní) – Martin 2. 11. 2026                                          | Martin / návrh Clauda  |
 | Nejvýš 4 žijící manželky, hlavní je první; další jen z okolí ≈ 30 % ročně – vždy do domu muže, i přeplněného                                                                | Martin (24. 10. 2026)  |
 | Přednost při osídlení: ženatý syn vojvody → vedlejší manželka z přeplněného domu muže rodu → ostatní                                                                        | návrh Clauda           |
 | Porody na ženu, žena nemusí bydlet s mužem; návštěvy vojvody jen ve scéně                                                                                                   | návrh Clauda           |

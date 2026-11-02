@@ -51,6 +51,7 @@ import {
   LORD,
   START_SEED_YEARS,
   START_STORES_MONTHS,
+  FOUNDERS_STORES,
   dwellingBuildLabor,
   workshopTrees,
 } from './rules';
@@ -422,7 +423,8 @@ function settlersDynasty(lord: Person | undefined, day: number): DynastyState {
 
 /**
  * Založí ves: s vojvodou (`lord`) jeho rodina podle LORD.founders (lord.md – Zakladatelé), bez něj
- * ves bez rodu se 4 lidmi podle START_AGES; zásoby na START_STORES_MONTHS a stavba první zemnice
+ * ves bez rodu se 4 lidmi podle START_AGES; zásoby zakladatelů podle FOUNDERS_STORES (ves bez rodu
+ * na START_STORES_MONTHS) a stavba první zemnice
  * (population.md – Založení vsi). Zemnici si zakladatelé postaví vlastní prací jako každou
  * stavbu – do dostavění bydlí na staveništi a pak se do ní nastěhují (jejich domácnost má id
  * budoucí zemnice, stavba ho nese v `dwellingId`). První pole je volitelné (hráč staví, kdy
@@ -532,6 +534,9 @@ export function foundVillage(input: {
   const constructionId = settlers ? householdId + 1 : householdId + 1 + people.length;
   const annualNeed = people.reduce((sum, p) => sum + FOOD_NEED_KG_PER_YEAR[ageGroup(p, day)], 0);
   const food = settlers?.food;
+  // zakladatelé první vsi (vojvoda s manželkami) nesou velkou zásobu jídla a osiva jen na setí
+  // (fields.md – Zásoby a nasycení, Start; FOUNDERS_STORES – jako praotec Čech)
+  const foundersSeedKg = founders ? annualNeed * FOUNDERS_STORES.seedYears : 0;
   const state: VillageState = {
     seed,
     foundedDay: day,
@@ -567,9 +572,18 @@ export function foundVillage(input: {
     sowingRotation: true,
     storesKg: food
       ? food.grainKg + (settlers?.seedKg ?? 0)
-      : (annualNeed * START_STORES_MONTHS) / MONTHS_PER_YEAR + annualNeed * START_SEED_YEARS,
+      : founders
+        ? annualNeed * FOUNDERS_STORES.foodYears + foundersSeedKg
+        : (annualNeed * START_STORES_MONTHS) / MONTHS_PER_YEAR + annualNeed * START_SEED_YEARS,
     // osivo, které osadníci přinesli, ves nesní (fields.md – Osivo pro ves bez zásob)
     ...(settlers?.seedKg ? { reservedSeedKg: settlers.seedKg } : {}),
+    // osivo zakladatelů na víc osevů – neuvolní se do FOUNDERS_STORES.seedKeepYears let
+    ...(foundersSeedKg > 0
+      ? {
+          reservedSeedKg: foundersSeedKg,
+          reservedSeedUntilDay: day + Math.ceil(FOUNDERS_STORES.seedKeepYears * DAYS_PER_YEAR),
+        }
+      : {}),
     // nová ves mlátí až na humně, které postaví hráč – bez odkladu (production-chains.md – Humno)
     sheaves: { grainKg: 0, legumesKg: 0 },
     // zásoby osadníků jsou doma; jámy vesničané vykopou po prvním výmlatu (production-chains.md –

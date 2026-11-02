@@ -84,6 +84,18 @@ export function reservedSeedKg(state: Pick<VillageState, 'storesKg' | 'reservedS
 }
 
 /**
+ * Osivo zakladatelů v lhůtě (kg – fields.md, Zásoby a nasycení, Start; FOUNDERS_STORES): rezerva
+ * osiva (`reservedSeedKg`) před `reservedSeedUntilDay` – slouží na víc osevů, jídlem není. Jinak 0.
+ */
+export function keptSeedKg(
+  state: Pick<VillageState, 'storesKg' | 'reservedSeedKg' | 'reservedSeedUntilDay'>,
+  day: number,
+): number {
+  const until = state.reservedSeedUntilDay;
+  return until !== undefined && day < until ? reservedSeedKg(state) : 0;
+}
+
+/**
  * Potřeba z pole do sklizně, se kterou počítá přídělový systém (kg obilí – `daysUntilFoodHarvest`);
  * z ní si ves nechá na jídlo příděl SEED_STORES.floorRation nebo keepRation. Podíl pole větší
  * z dlouhodobého (`fieldFoodShare`) a včerejší stravy – po úbytku stád jí ves obilí víc.

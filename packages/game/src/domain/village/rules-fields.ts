@@ -24,6 +24,18 @@ export const START_STORES_MONTHS = 18;
 // osadníci k jídlu na START_STORES_MONTHS přinesli i osivo na první osev – půl roční potřeby
 // (175 kg osiva na ≈ 380 kg čisté úrody hektaru)
 export const START_SEED_YEARS = 0.5;
+// fields.md – Zásoby a nasycení, Start – zakladatelé první vsi (Martin 2. 11. 2026: „Ta úplně
+// první ves – zakladatelé budou mít velkou zásobu jídla/osiva. Ber to analogicky, jako když přišel
+// praotec Čech do Čech“; čísla návrh Clauda z měření správce): vojvoda s manželkami (lord.md –
+// Zakladatelé) přinese jídlo na `foodYears` roční potřeby zakladatelů a osivo na `seedYears` roční
+// potřeby (osivo jen na setí – `VillageState.reservedSeedKg`); osivo se do `seedKeepYears` let od
+// založení neuvolní 1. 6. ani 1. 12. (SEED_BUYING) a cíle osevu ho nepočítají za jídlo – slouží na
+// víc osevů, dokud nedorostou první děti; sní se jen ve skutečném hladu. Ztráty skladováním
+// (STORAGE_LOSS_PER_YEAR) jdou z celé zásoby obilí – rezerva je nejvýš tolik, kolik obilí zbývá.
+// Měření správce 6 × 25 let (2. 11. 2026): s ochranou osiva past zmizí už s 18 měsíci a půl rokem
+// osiva, pojistku ≥ 0,6 drží až 3 + 2 roky (hladové dny 2 114 → 789). Ves bez rodu a ves
+// z výpravy beze změny.
+export const FOUNDERS_STORES = { foodYears: 3, seedYears: 2, seedKeepYears: 15 } as const;
 // fields.md – Kolik ves oseje, Osev podle stravy (návrh Clauda, Martin schválil směr 19. 10. 2026):
 // potřeba z pole = podíl energie, který ves za uplynulý hospodářský rok potřebovala z obilí
 // a luštěnin, × dnešní roční potřeba; podíl nejméně minShare = 1 − strop masa (0,4) − strop

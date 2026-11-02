@@ -93,6 +93,12 @@ export interface VillageState {
    */
   reservedSeedKg?: number;
   /**
+   * Osivo zakladatelů první vsi (fields.md – Zásoby a nasycení, Start; FOUNDERS_STORES): před tímto
+   * dnem se `reservedSeedKg` neuvolní 1. 6. ani 1. 12. a cíle osevu ho nepočítají za jídlo – slouží
+   * na víc osevů. Ve skutečném hladu ves rezervu sní i dřív. Chybí = rezerva bez ochrany.
+   */
+  reservedSeedUntilDay?: number;
+  /**
    * Nedodělek domácí výroby – jen ve vsích uložených před 19. 10. 2026; domácí výroba z práce
    * vsi nebere (population.md – Práce), simulace ho nečte ani nepíše.
    */
