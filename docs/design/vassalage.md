@@ -489,6 +489,10 @@ pozvaný vazal):
   k poslušnosti nebo mu také vypovědět vazalství“ (Martin 2. 11. 2026) – neplnění není odchod;
   vazalství trvá, dokud ho jedna strana formálně nevypoví (pán vazalovi, nebo vazal pánovi).
 
+- **Vymření rodu pána:** „Pokud nad pánem už nikdo nebude, tak ano [vazalové nezávislí, dluhy
+  zaniknou]. Pokud však nad pánem bude ještě někdo, tak ten o statcích vymřelého rodu rozhoduje
+  jako o odúmrti“ (Martin 2. 11. 2026) – **odúmrť**: rozhoduje pán vymřelého pána.
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
