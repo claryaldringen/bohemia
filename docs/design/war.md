@@ -478,6 +478,11 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
 | Palisáda kolem dvorce jako útočiště                                                        | návrh Clauda   |
 | Vypovězení vazalem = válka bez lhůty do roka                                               | návrh Clauda   |
 
+## Odpovědi Martina 2. 11. 2026
+
+- **Výzva před válkou:** „Formální vyhlášení či opověď je dobré, ale nikoli nezbytné“ – válka
+  smí začít i bez výzvy (přepadení); výzva / opověď je možnost, ne povinnost.
+
 ## Otázky na Martina
 
 1. **Musí válce předcházet výzva?** Doporučení: **ano – výzva a 24 skutečných hodin na odpověď**
