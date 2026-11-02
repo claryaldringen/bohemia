@@ -545,6 +545,12 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
   vše); boj tedy probíhá muž po muži ve skutečném čase, ne jedním výpočtem skupiny.
 - **Souboj mužů:** každý má zdraví, které v boji ubývá podle síly protivníka; luk na dálku, oštěp
   či sekera zblízka; na nule padlý nebo raněný (los); server počítá deterministicky – „ok“.
+- **Rozkazy před bitvou:** držet se velitele a bránit ho, útočit na vše, držet místo (brod, brána);
+  rozkaz „ustoupit“ ne – „Ustoupení vynech – když ustoupí velitel, jeho muži spořádaně ustoupí
+  s ním. Vojsko by mělo jít rozdělit – tj. např. část dostane rozkaz, že jde s velitelem a část,
+  že bude hlídat nějaké místo. K útěku (bod zlomu) by mělo dojít při 30 % ztrátách pokud hráč
+  útočí a při 45 % ztrátách, pokud se brání.“ – vojsko jde rozdělit na skupiny s vlastním
+  rozkazem; **bod zlomu** (útěk) při ztrátě 30 % v útoku, 45 % v obraně.
 
 ## Otázky na Martina
 
