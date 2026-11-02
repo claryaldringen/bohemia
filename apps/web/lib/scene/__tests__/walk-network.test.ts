@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ROAD_WALK, walkGraph, walkingDistances, type StoredRoute } from '@bohemia/game';
 import { WALK_PACE_MAX, routeWalker } from '../path-router';
-import { scheduledLength,
-  scheduledWalk, walkRoute } from '../villager-plan';
+import { scheduledLength, scheduledWalk, walkRoute } from '../villager-plan';
 import { errandPath } from '../villager-plan-traffic';
 import type { Context, House, VillagerGround, VillagerPaths } from '../villager-plan-types';
 

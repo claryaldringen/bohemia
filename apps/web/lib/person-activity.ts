@@ -209,7 +209,6 @@ export function personActivity(
   }
 }
 
-
 /**
  * Cesta k práci na místě či k úloze u objektu a domů (villagers.md – Činnosti od začátku do konce:
  * vyjde z domu, dojde k práci, vrátí se domů).

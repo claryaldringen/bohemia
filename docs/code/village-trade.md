@@ -74,7 +74,9 @@ směr)` – stálá povaha podle druhu souseda (`neighbourKind` – obilnáři, 
   mapě bez něj, zpátky; `caravanHead`; po návratu `CARAVAN_LINGER_S` v hloučku), ne podle práce
   dne ani postupu v jádru – výprava se v jádru vrátí dřív a scéna si karavanu i s vozy pamatuje do
   jejího konce (`ActivityMemory` v `scene/activity-memory.ts`, klíč výprava + `startDay`; naráz jich
-  může jít víc, starší napřed – vůz dojede rozjetou cestu); tam
+  může jít víc, starší napřed – vůz dojede rozjetou cestu; `withoutArriving` – koupené krávy a voli
+  dohrávané karavany ubudou z ohrad a `livestock.cow`, lidé přibylí po posledních datech s ní
+  (`SeenCaravan.known`, nejvýš `coming.length`, ne novorozenci) z `labor.persons`, dokud nedojde); tam
   nosiči s nákladem a lidé, kteří odcházejí (`givePeople.members`), zpátky nosiči a lidé od
   souseda (`newcomerProfiles`); postavy `caravanFigures` ve `villager-plan.ts` (podíl `trade`
   se pak nekreslí; `VillagerPose.hidden` za krajem mapy), vůz v čele `caravanCartPlan`
