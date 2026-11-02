@@ -398,6 +398,9 @@ pozvaný vazal):
   (Martin 2. 11. 2026) – vazalství je dvoustranná dohoda, hráč jich smí mít víc; strom je tedy
   síť vztahů (přepracovat Les stromů, zemský mír a strom).
 
+- **Vzájemné vazalství:** A nesmí být vazalem B, když je B vazalem A; delší kruhy přes víc hráčů
+  zakázané nejsou – „Anu, udělej to, jak říkáš“ (Martin 2. 11. 2026).
+
 ## Otevřené otázky
 
 1. **Smí o vazalství požádat i budoucí vazal?** Martin popsal nabídku od budoucího pána. Bez
