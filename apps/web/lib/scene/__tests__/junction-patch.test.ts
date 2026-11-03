@@ -141,6 +141,36 @@ describe('plácek křižovatky (junction-patch.ts)', () => {
     expect(plain.wagon[0]!.points.at(-1)).toEqual({ x: 0, z: 0 });
   });
 
+  it('hvězda s pěti rameny: pět pásů do řezu, koleje skrz jen po vozové cestě, ne do páté', () => {
+    const road = (id: number, deg: number, grade: SceneRoad['grade']): SceneRoad => {
+      const a = (deg * Math.PI) / 180;
+      return {
+        id,
+        points: [
+          { x: Math.round(Math.cos(a) * 3000) / 100, z: Math.round(Math.sin(a) * 3000) / 100 },
+          { x: 0, z: 0 },
+        ],
+        grade,
+      };
+    };
+    // vozová skrz (0° a 180°), upravené 90° a 270°, napojená vyšlapaná v ose mezery (45°)
+    const roads = [
+      road(1, 0, 'wagon'),
+      road(2, 180, 'wagon'),
+      road(3, 90, 'improved'),
+      road(4, 270, 'improved'),
+      road(5, 45, 'trodden'),
+    ];
+    const bands = roadBands(roads, [{ x: 0, z: 0, radius: 6.75 }]);
+    expect(bands.arms).toHaveLength(5);
+    expect([...bands.wagon, ...bands.trodden, ...bands.improved]).toHaveLength(5);
+    const through = bands.gravel.filter((l) => l.points.every((p) => Math.abs(p.x) <= 6.75 + 1e-6));
+    expect(through).toHaveLength(2);
+    for (const rut of through) {
+      for (const p of rut.points) expect(Math.abs(p.z)).toBeCloseTo(0.65, 6);
+    }
+  });
+
   it('vozová cesta, která v křižovatce končí: koleje dojdou ke středu a vytratí se', () => {
     const roads: SceneRoad[] = [
       {

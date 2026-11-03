@@ -313,13 +313,41 @@ describe('křižovatky v síti (updateJunctions)', () => {
     expect(JUNCTION.bendM).toBe(12);
   });
 
-  it('pět živých cest → dvě křižovatky 10 m od sebe a spojka (Martin, #6 bod 9)', () => {
+  it('pět živých cest → jedna hvězda (Martin 3. 11. 2026: pět ramen smí jedna křižovatka)', () => {
     const roads = roadsOf([
       arm(1, 40, 0),
-      arm(2, 12, 38),
-      arm(3, -32, 24),
-      arm(4, -32, -24),
-      arm(5, 12, -38),
+      arm(2, 0, 40),
+      arm(3, -40, 0),
+      arm(4, 0, -40),
+      arm(5, 28, 28),
+    ]);
+    expect(updateJunctions(roads, DAY, SEED, allLive)).toBe(true);
+    expect(roads.junctions).toHaveLength(1);
+    const j = roads.junctions![0]!;
+    expect(j.shape).toBe('star');
+    expect([...j.arms].sort()).toEqual([1, 2, 3, 4, 5]);
+    expect(roads.roads.some((r) => r.link)).toBe(false);
+    // konce os vedou přesně do vchodů pěti ramen
+    const dirs = junctionArmDirs(j.shape, j.rotation, j.spread);
+    const entrances = junctionEntrances(j, dirs, junctionEntranceM([ROAD_LAND.widthM.trodden]));
+    j.arms.forEach((id, k) => {
+      const [entrance, center] = nodeEnd(roads.roads.find((r) => r.id === id)!);
+      expect(center).toEqual({ x: 0, z: 0 });
+      expect(entrance).toEqual(entrances[k]);
+    });
+    const before = json(roads);
+    expect(updateJunctions(roads, DAY + 30, SEED, allLive)).toBe(false);
+    expect(json(roads)).toEqual(before);
+  });
+
+  it('šest živých cest → dvě křižovatky 10 m od sebe a spojka (Martin, #6 bod 9)', () => {
+    const roads = roadsOf([
+      arm(1, 40, 0),
+      arm(2, 20, 35),
+      arm(3, -20, 35),
+      arm(4, -40, 0),
+      arm(5, -20, -35),
+      arm(6, 20, -35),
     ]);
     expect(updateJunctions(roads, DAY, SEED, allLive)).toBe(true);
     expect(roads.junctions).toHaveLength(2);
@@ -332,8 +360,8 @@ describe('křižovatky v síti (updateJunctions)', () => {
     expect(a!.arms).toContain(link[0]!.id);
     expect(b!.arms).toContain(link[0]!.id);
     const used = [...a!.arms, ...b!.arms].filter((id) => id !== link[0]!.id);
-    expect([...used].sort()).toEqual([1, 2, 3, 4, 5]);
-    expect(a!.arms.length + b!.arms.length).toBe(5 + 2);
+    expect([...used].sort()).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(a!.arms.length + b!.arms.length).toBe(6 + 2);
     // podruhé nic
     const before = json(roads);
     expect(updateJunctions(roads, DAY + 30, SEED, allLive)).toBe(false);

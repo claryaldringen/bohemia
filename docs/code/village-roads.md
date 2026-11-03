@@ -249,10 +249,11 @@ cesty, půda)`; graf a půda (`walkGroundOf` + `withFieldWalk` – pole v `Villa
 - **Křižovatky** (nový systém cest, Úloha 9a – čisté funkce; [paths.md –
   Křižovatky](../design/paths.md#křižovatky-pravidlo-9); Martin 22. 10. 2026, pravidla 9 a 11):
   `paths/junctions.ts`, čísla `JUNCTION` (`rules-roads.ts`), data `RoadJunction` a volitelné
-  `VillageRoads.junctions` (`types-roads.ts` – tvar `cross` / `y`, natočení a β v rad, ramena = id
+  `VillageRoads.junctions` (`types-roads.ts` – tvar `cross` / `y` / `star`, natočení a β v rad, ramena = id
   úseků ve vchodech v pořadí `junctionArmDirs`, znamení, den vzniku). `fitJunction(dirs, fixed)` –
+  5 cest hvězda (kříž a páté rameno `JUNCTION.starArmDeg` 45° od ramene 0 – Martin 3. 11. 2026),
   4 cesty kříž, 3 cesty Y s β 30–60°; natočení po 5° s nejmenším součtem čtverců odchylek přes
-  všechna přiřazení (nejvýš 24), při shodě menší natočení a menší β; pevná cesta (stezka, vozová)
+  všechna přiřazení (nejvýš 120), při shodě menší natočení a menší β; pevná cesta (stezka, vozová)
   určí natočení přesně. `junctionEntranceM` (1,5 × nejširší cesta), `junctionEntrances` (vchody
   na cm). `bendRoadEnd(points, entrance, armDir, bendM)` – posledních 12 m osy u křižovatky (bližší
   konec) nahradí kubický Bézierův oblouk do vchodu (tečna osy i ramene, body po 1 m, na cm).
@@ -264,7 +265,7 @@ cesty, půda)`; graf a půda (`walkGroundOf` + `withFieldWalk` – pole v `Villa
   úklidu (`tidyMonth` v `roads.ts`, po cestách k vchodům), běží každý měsíc i bez úklidu (starší ves
   se srovná v prvním měsíci, kotvy a plocha vsi se mění se stavbami), beze změny nic a žádná nová
   id; vrací, jestli se něco změnilo (pak se posune `tidyKey`). Uzel = bod, kde končí úseky (klíč na
-  cm); křižovatka stojí, kde končí 3–4 ramena – **rameno = `junctionArm`**: každý neopuštěný úsek
+  cm); křižovatka stojí, kde končí 3–5 ramen (`JUNCTION.maxArms`) – **rameno = `junctionArm`**: každý neopuštěný úsek
   (i zarůstající bez provozu – zanikne až s ním; spojka `link` vždy), stejná množina jako při
   spojování úseků (`chainPair` v `roads-form.ts`), takže uzel se 2 rameny se spojí a „cesta na
   cestě bez křižovatky“ (`road-ends.ts`, `kind: 'road'`) v uzlu nevzniká (Vlkov 1. 11. 2026 – dřív
@@ -288,8 +289,8 @@ cesty, půda)`; graf a půda (`walkGroundOf` + `withFieldWalk` – pole v `Villa
   se stromem zůstane). Znamení: strom = `RoadTree` v `roads.trees` (`spot` = id křižovatky, id
   z `nextId`, roste od keře) a zůstane i po zániku; kámen a kůl jsou v `obstacleChangesAt`
   (`added`, id `junctionLandmarkId` = ROAD_TREE_ID_BASE + id křižovatky) jako balvan a keř
-  a zmizí s křižovatkou. Uzel s 5+ živými konci křižovatku zatím nemá (`splitCrowdedNode` se
-  nevolá – na Vlkově žádný). Plocha pod křižovatkou (`roadCapsules` v `road-land.ts`): místo kruhu
+  a zmizí s křižovatkou. Uzel se 6+ živými konci se rozdělí (`splitCrowded` / `splitCrowdedNode`
+  – skupiny 3 + 3, 3 + 4 …, 10+ se dělí dál). Plocha pod křižovatkou (`roadCapsules` v `road-land.ts`): místo kruhu
   pásy ramen (pásy cest) a spojnice sousedních ramen (mezera pod 180°) ve vzdálenosti šířky
   nejširší cesty. Scéna: `SceneVillage.junctions` (Úloha 12 níž). Měření `road-report.ts` – objekty po tvarech
   a znameních, uzly 5+, přepočty a ohyby (`JUNCTION_RUNS`). Testy `junctions-network.test.ts`,
@@ -297,12 +298,21 @@ cesty, půda)`; graf a půda (`walkGroundOf` + `withFieldWalk` – pole v `Villa
   **Rozestup (paths.md – Křižovatky, Rozestup; Martin 24. 10. 2026):** `junctionReachM(widths)` –
   dosah plácku (kružnice opsaná obrysu ve scéně: `length2(vchod, půl šířky nejširší cesty)`),
   `junctionSpacingM(a, b)` = dosah + dosah + `JUNCTION.spacingReserveM` (1 m; vyšlapané ≈ 7 m,
-  vozové ≈ 12,1 m). `spaceJunctions` v `updateJunctions` po `splitCrowded`, před tvarem: uzly s 3–4
+  vozové ≈ 12,1 m). `spaceJunctions` v `updateJunctions` po `splitCrowded`, před tvarem: uzly s 3–5
   živými konci (`hubsOf`, pořadí podle klíče – nezávisí na pořadí úseků), nejbližší dvojice pod
   rozestupem napřed, po každé změně znovu (`guard` = počet uzlů). **Sloučení** (`mergeHubs`):
   jediný spojovací úsek, ne v `fixed` (stezka, vylepšení), živý v obou uzlech a bez něj nejvýš
-  4 živé konce (dvě Y) → konce do středu mezi uzly (na cm), spojka zmizí (`relinkApples`), zůstane
-  křižovatka s menším id (znamení, vznik), druhá zanikne; `fitNode` pak dá kříž. **Odsunutí**
+  5 živých konců (kříž a Y) → konce do středu mezi uzly (na cm), spojka zmizí (`relinkApples`), zůstane
+  křižovatka s menším id (znamení, vznik), druhá zanikne; `fitNode` pak dá kříž nebo hvězdu.
+  **Přitažení napojení** (`pullJoin` / `pullInto`, paths.md – Napojení blízko křižovatky, Martin 3. 11. 2026) – i když mají oba uzly pevné rameno: uzel se 3 rameny, kde spojka a další rameno jsou
+  kusy jedné cesty (stejný `grade`, `cart`, `unbridged`, `fixed`; nejrovnější pokračování), a cíl
+  s nejvýš 4 rameny (napřed starší křižovatka) → osa napojené cesty bez posledních `bendM`
+  (`axisHead`) a rovně do středu cíle; ne `isFixed`, ne kotva, ne přes `blocked` / `footprint` víc
+  než dřív; `delete lined`, místa na stromy daleko od osy zmizí. Pak `net.chain` (`tidyMonth`:
+  `mergeRoadChains`) spojí kusy cesty. **Při napojení** `junctionSnap(roads, road, at, widthM)` –
+  `joinTarget` (`roads-form.ts`, vznik z vyšlapanosti) a `joinRoadGaps` (`roads-tidy.ts`, ne do
+  vlastního uzlu): bod blíž než `junctionSpacingM` od konce úseku s 3–4 rameny → střed uzlu, úsek se
+  nerozdělí. Testy `junctions-snap.test.ts` (Vlkov 1131 + 1619, po kouscích = vcelku). **Odsunutí**
   (`moveHub`) jinak: oba uzly po spojnici o půl chybějícího rozestupu + `SPACING_TIE` (2 cm – po
   zaokrouhlení na cm nad rozestupem, podruhé nic); konce úseků i `junction.x/z` se posunou, ohnuté
   konce `fitNode` ohne znovu. Kotva `net.anchor` (`tidyMonth`: do `ROAD_ANCHORS.entranceM` od vchodu
@@ -338,7 +348,7 @@ cesty, půda)`; graf a půda (`walkGroundOf` + `withFieldWalk` – pole v `Villa
   `junction-view.ts` (`VillageView.junctions`: tvar, počet cest, znamení, stáří), panel
   `JunctionBody` (`selection/roads.tsx` – ikony `krizovatka-kriz` / `krizovatka-y` z
   `tools/blender/icons.py`, počet cest, znamení, stáří; názvy jen v popiscích). Náhled
-  `/dev/panels?panel=krizovatka`, ukázka tří křižovatek `/dev/landscape` (tlačítko Křižovatky,
+  `/dev/panels?panel=krizovatka`, ukázka čtyř křižovatek (i vozová hvězda) `/dev/landscape` (tlačítko Křižovatky,
   `dev-junctions.ts`).
 
 - **Vylepšení pevné cesty a chůze podle stupně** ([roads.md](../design/roads.md) – fáze 2):

@@ -2,7 +2,7 @@
 // označit; buď kříž se 4 vchody, nebo Y se 3 vchody; natočená tak, aby cesty co nejlépe navazovaly,
 // a cesty vedou přesně do jejích vchodů; kousek bokem stojí náhodně strom, velký vztyčený kámen
 // nebo dřevěný kůl, jednou vylosované to zůstane …“). Čisté funkce: tvar a natočení, vchody, ohyb
-// konce osy do vchodu, rozdělení uzlu s 5+ cestami, rozestup a los znamení; v síti je drží
+// konce osy do vchodu, rozdělení uzlu s 6+ cestami, rozestup, přitažení napojení a los znamení; v síti je drží
 // `updateJunctions` (měsíční úklid – krok 6).
 // Deterministická vrstva (jen přesná aritmetika a det-math – soubor hlídá ESLint jako síť pěšin).
 
@@ -72,11 +72,19 @@ function normAngle(angle: number): number {
   return b >= TWO_PI ? b - TWO_PI : b;
 }
 
-/** Posun ramen od natočení: kříž po 90°, Y kmen a dvě větve o β od směru proti kmeni. */
+/**
+ * Posun ramen od natočení: kříž po 90°, Y kmen a dvě větve o β od směru proti kmeni, hvězda kříž
+ * a páté rameno `JUNCTION.starArmDeg` (45°) od ramene 0 – v ose mezery mezi rameny 0 a 1.
+ */
 function armOffsets(shape: JunctionShape, spread: number): number[] {
-  return shape === 'cross'
-    ? [0, HALF_PI, Math.PI, 3 * HALF_PI]
-    : [0, Math.PI - spread, Math.PI + spread];
+  if (shape === 'cross') return [0, HALF_PI, Math.PI, 3 * HALF_PI];
+  if (shape === 'star') return [0, HALF_PI, Math.PI, 3 * HALF_PI, JUNCTION.starArmDeg * DEG];
+  return [0, Math.PI - spread, Math.PI + spread];
+}
+
+/** Tvar podle počtu ramen: 3 Y, 4 kříž, 5 hvězda (`JUNCTION.maxArms`). */
+function shapeOf(arms: number): JunctionShape | null {
+  return arms === 3 ? 'y' : arms === 4 ? 'cross' : arms === 5 ? 'star' : null;
 }
 
 /** Směry ramen od středu (rad, [0, 2π)) v pořadí `RoadJunction.arms` – rameno 0 je u Y kmen. */
@@ -145,7 +153,11 @@ function permutations(n: number): number[][] {
   });
 }
 
-const PERMUTATIONS: Record<number, number[][]> = { 3: permutations(3), 4: permutations(4) };
+const PERMUTATIONS: Record<number, number[][]> = {
+  3: permutations(3),
+  4: permutations(4),
+  5: permutations(5),
+};
 
 /** Je kandidát lepší: menší odchylky, při shodě menší natočení, pak menší β. */
 function better(cost: number, rotation: number, spread: number, best: JunctionFit | null): boolean {
@@ -157,7 +169,7 @@ function better(cost: number, rotation: number, spread: number, best: JunctionFi
 }
 
 /**
- * Tvar a natočení (paths.md – Křižovatky): 4 cesty kříž, 3 cesty Y s β 30–60° po 5°. Natočení po 5°
+ * Tvar a natočení (paths.md – Křižovatky): 5 cest hvězda, 4 kříž, 3 Y s β 30–60° po 5°. Natočení po 5°
  * s nejmenším součtem čtverců odchylek ramen od směrů cest (`dirs` – od středu k bodu osy
  * `JUNCTION.bendM` daleko) přes všechna přiřazení ramen; při shodě menší natočení a menší β.
  * Pevná cesta (`fixed` – zemská stezka, vozová cesta) se neohýbá: natočení se k ní přizpůsobí, aby
@@ -166,14 +178,14 @@ function better(cost: number, rotation: number, spread: number, best: JunctionFi
 export function fitJunction(dirs: readonly number[], fixed: readonly boolean[] = []): JunctionFit {
   const n = dirs.length;
   const perms = PERMUTATIONS[n];
-  if (!perms) throw new Error(`Křižovatka má 3 nebo 4 ramena, ne ${n}.`);
-  const shape: JunctionShape = n === 4 ? 'cross' : 'y';
+  const shape = shapeOf(n);
+  if (!perms || !shape) throw new Error(`Křižovatka má 3 až ${JUNCTION.maxArms} ramena, ne ${n}.`);
   const [fromDeg, toDeg] = JUNCTION.spreadDeg;
   const spreads: number[] = [];
   if (shape === 'y') {
     for (let d = fromDeg; d <= toDeg; d += JUNCTION.rotationStepDeg) spreads.push(d * DEG);
   } else spreads.push(0);
-  // natočení po 5° – kříž se po 90° opakuje, stačí čtvrtina kruhu
+  // natočení po 5° – kříž se po 90° opakuje, stačí čtvrtina kruhu (Y a hvězda celý kruh)
   const grid: number[] = [];
   const steps = Math.round((shape === 'cross' ? HALF_PI : TWO_PI) / STEP);
   for (let k = 0; k < steps; k++) grid.push(k * STEP);
@@ -277,7 +289,7 @@ export function bendRoadEnd(
   return atStart ? out.reverse() : out;
 }
 
-/** Rozdělení uzlu s 5+ cestami na dvě křižovatky. */
+/** Rozdělení uzlu s 6+ cestami na dvě křižovatky. */
 export interface CrowdedSplit {
   /** Středy obou křižovatek (m, na cm) – `pairM` od sebe, spojí je krátká cesta. */
   centers: [RoadPoint, RoadPoint];
@@ -286,10 +298,11 @@ export interface CrowdedSplit {
 }
 
 /**
- * Uzel s 5+ cestami (paths.md – Křižovatky: „víc než 4 cesty se nečekají, kdyby se sešly, vzniknou
- * dvě křižovatky kousek od sebe“): ramena se rozdělí na dvě skupiny sousedních podle úhlu (polovina
- * a zbytek – u pěti 2 + 3) tak, aby mezery na hranicích skupin byly co největší; středy se posunou
- * o polovinu `pairM` ke svým ramenům. Každá skupina plus spojka dá 3–4 ramena. Méně než 5 → null.
+ * Uzel s 6+ cestami (paths.md – Křižovatky: „víc než 4 cesty se nečekají, kdyby se sešly, vzniknou
+ * dvě křižovatky kousek od sebe“; Martin 3. 11. 2026: pět ramen smí jedna křižovatka, šest a víc se
+ * dál dělí): ramena se rozdělí na dvě skupiny sousedních podle úhlu (polovina a zbytek – u sedmi
+ * 3 + 4) tak, aby mezery na hranicích skupin byly co největší; středy se posunou o polovinu `pairM`
+ * ke svým ramenům. Každá skupina plus spojka dá 4–5 ramen (10+ cest se dělí dál). Do 5 → null.
  */
 export function splitCrowdedNode(
   center: RoadPoint,
@@ -297,7 +310,7 @@ export function splitCrowdedNode(
   pairM: number = JUNCTION.pairM,
 ): CrowdedSplit | null {
   const n = dirs.length;
-  if (n < 5) return null;
+  if (n <= JUNCTION.maxArms) return null;
   const angle = dirs.map(normAngle);
   const order = dirs.map((_, i) => i).sort((a, b) => angle[a]! - angle[b]! || a - b);
   const at = (k: number): number => order[((k % n) + n) % n]!;
@@ -427,6 +440,11 @@ export interface JunctionRoads {
    * kterého bude vozová cesta, má šířku vozové (křižovatka s vozovým ramenem se pak už nehne).
    */
   width?: (road: Road) => number | undefined;
+  /**
+   * Spojí úseky v uzlech, kde končí právě dva (`mergeRoadChains`) – po přitažení napojení do
+   * křižovatky (`pullJoin`) zbydou ve starém uzlu dva kusy jedné cesty. Chybí = nespojí se.
+   */
+  chain?: () => void;
 }
 
 /** Kolikrát se křižovatka spočítala znovu a kolik konců os se ohnulo – pro měření, hra je nečte. */
@@ -716,7 +734,7 @@ function nodesOf(roads: VillageRoads): Map<string, RoadEnd[]> {
 }
 
 /**
- * Uzly s 5+ živými cestami (mutuje): středy se posunou o polovinu `JUNCTION.pairM` (`splitCrowdedNode`),
+ * Uzly s 6+ živými cestami (mutuje): středy se posunou o polovinu `JUNCTION.pairM` (`splitCrowdedNode`),
  * konce každé skupiny se přesunou do svého středu a mezi středy vznikne spojka (`Road.link`).
  * Vrátí, jestli se nějaký uzel rozdělil.
  */
@@ -729,7 +747,7 @@ function splitCrowded(
   let done = false;
   for (const ends of nodes.values()) {
     const live = ends.filter(isLive);
-    if (live.length < 5) continue;
+    if (live.length <= JUNCTION.maxArms) continue;
     const first = live[0]!;
     const at = first.atStart
       ? first.road.points[0]!
@@ -761,7 +779,7 @@ function splitCrowded(
   return done;
 }
 
-/** Uzel s 3–4 živými cestami – místo křižovatky. */
+/** Uzel s 3–5 živými cestami – místo křižovatky. */
 interface Hub {
   key: string;
   center: RoadPoint;
@@ -774,12 +792,12 @@ function endPoint(end: RoadEnd): RoadPoint {
   return end.atStart ? end.road.points[0]! : end.road.points[end.road.points.length - 1]!;
 }
 
-/** Uzly s 3–4 živými cestami podle klíče (pořadí nezávisí na pořadí úseků). */
+/** Uzly s 3–5 živými cestami podle klíče (pořadí nezávisí na pořadí úseků). */
 function hubsOf(nodes: Map<string, RoadEnd[]>, isLive: (end: RoadEnd) => boolean): Hub[] {
   const hubs: Hub[] = [];
   for (const [key, ends] of nodes) {
     const live = ends.filter(isLive);
-    if (live.length < 3 || live.length > 4) continue;
+    if (live.length < 3 || live.length > JUNCTION.maxArms) continue;
     const at = endPoint(live[0]!);
     hubs.push({ key, center: { x: at.x, z: at.z }, ends, live });
   }
@@ -853,7 +871,7 @@ function mergeHubs(roads: VillageRoads, a: Hub, b: Hub, link: Road, to: RoadPoin
   relinkApples(roads, link.id);
 }
 
-/** Smí se spojka sloučit: není pevná a bez ní mají uzly nejvýš 4 živé cesty (dvě Y). */
+/** Smí se spojka sloučit: není pevná a bez ní mají uzly nejvýš 5 živých cest (kříž a Y). */
 function mergeable(
   link: Road,
   a: Hub,
@@ -866,15 +884,147 @@ function mergeable(
     link.grade !== 'wagon' &&
     a.live.length - others(a) === 1 &&
     b.live.length - others(b) === 1 &&
-    others(a) + others(b) <= 4
+    others(a) + others(b) <= JUNCTION.maxArms
   );
 }
 
 /**
- * Křižovatky blízko sebe (paths.md – Křižovatky; mutuje): dvojice uzlů s 3–4 živými cestami blíž
+ * Osa od začátku `line` po bod `m` daleko (na cm) – začátek osy před řezem; delší osa beze změny.
+ */
+function axisHead(line: readonly RoadPoint[], m: number): RoadPoint[] {
+  const out: RoadPoint[] = [{ x: line[0]!.x, z: line[0]!.z }];
+  let walked = 0;
+  for (let i = 1; i < line.length; i++) {
+    const a = line[i - 1]!;
+    const b = line[i]!;
+    const seg = length2(b.x - a.x, b.z - a.z);
+    if (seg > 0 && walked + seg >= m) {
+      const t = (m - walked) / seg;
+      const cut = { x: cm(a.x + (b.x - a.x) * t), z: cm(a.z + (b.z - a.z) * t) };
+      const last = out[out.length - 1]!;
+      if (last.x !== cut.x || last.z !== cut.z) out.push(cut);
+      return out;
+    }
+    walked += seg;
+    out.push({ x: b.x, z: b.z });
+  }
+  return out;
+}
+
+/** Stáří křižovatky v uzlu pro výběr cíle přitažení – id uložené křižovatky, bez ní nejmladší. */
+function junctionAge(roads: VillageRoads, hub: Hub): number {
+  return roads.junctions?.find((j) => nodeKey(j) === hub.key)?.id ?? Number.MAX_SAFE_INTEGER;
+}
+
+/**
+ * Přitažení napojení z uzlu `from` do křižovatky `to` (mutuje; paths.md – Křižovatky, Napojení
+ * blízko křižovatky – Martin 3. 11. 2026, provedení návrh Clauda). `from` je napojení: tři ramena,
+ * z nichž dvě jsou kusy jedné cesty – spojka `link` do `to` a její pokračování (stejný druh, při
+ * víc možnostech nejrovnější pokračování spojky) – a třetí je napojená cesta. Ta se přitáhne: osa bez
+ * posledních `JUNCTION.bendM` (ohyb do vchodu napojení) a odtud rovně do středu `to`; tvar `to` se
+ * pak spočítá znovu a konec se ohne do vchodu nového ramene. `to` smí mít nejvýš 4 ramena (po
+ * přitažení 5 – hvězda). Nepřitáhne se cesta, která se u křižovatky neohýbá (`isFixed` – vozová,
+ * zemská stezka, ve vylepšení, kratší než `bendM`), napojení u vchodu (kotva) ani cesta, jejíž nová
+ * osa by vedla neprůchodnou plochou nebo přes stavbu víc než dosavadní. Místa na stromy daleko od
+ * nové osy zmizí (místo se stromem zůstane). Vrátí, jestli se přitáhla.
+ */
+function pullInto(
+  roads: VillageRoads,
+  to: Hub,
+  from: Hub,
+  link: Road,
+  net: JunctionRoads,
+): boolean {
+  if (from.live.length !== 3 || to.live.length >= JUNCTION.maxArms) return false;
+  if (net.anchor?.(from.center)) return false;
+  const back = from.live.find((e) => e.road === link);
+  const rest = from.live.filter((e) => e.road !== link);
+  if (!back || rest.length !== 2) return false;
+  // kusy jedné cesty: rozdělení napojením oba zdědí druh, vozovou stopu i most
+  const piece = (road: Road): boolean =>
+    !road.link &&
+    road.grade === link.grade &&
+    !!road.cart === !!link.cart &&
+    !!road.unbridged === !!link.unbridged &&
+    net.fixed.has(road.id) === net.fixed.has(link.id);
+  const ahead = normAngle(endDir(from.center, back) + Math.PI);
+  const turn = (e: RoadEnd): number => deviation(endDir(from.center, e), ahead);
+  const through = rest
+    .filter((e) => piece(e.road))
+    .sort((p, q) => turn(p) - turn(q) || p.road.id - q.road.id)[0];
+  const join = rest.find((e) => e !== through);
+  if (!through || !join || isFixed(join.road, net)) return false;
+  const road = join.road;
+  const line = [...fromNode(join)].reverse();
+  const head = axisHead(line, roadLengthM(road) - JUNCTION.bendM);
+  const last = head[head.length - 1]!;
+  if (last.x !== to.center.x || last.z !== to.center.z) head.push({ ...to.center });
+  if (head.length < 2) return false;
+  const before = road.points;
+  const after = join.atStart ? head.reverse() : head;
+  if (net.blocked) {
+    const at = (x: number, z: number): boolean => net.blocked!({ x, z });
+    if (blockedRun(after, at) > blockedRun(before, at)) return false;
+  }
+  if (net.footprint && bentFootprintWorse(after, before, net.footprint)) return false;
+  road.points = after;
+  delete road.lined;
+  const axis = axisDistance([after]);
+  const occupied = new Set(roads.trees.map((t) => t.spot));
+  road.spots = road.spots.filter(
+    (s) => occupied.has(s.id) || axis(s.x, s.z) <= ROAD_TREES.offsetM.to + ROAD_CLEAR_M,
+  );
+  return true;
+}
+
+/**
+ * Napojení blízko křižovatky se přitáhne do ní (`pullInto`) – cílem napřed starší křižovatka
+ * (menší id), pak druhá. Vrátí, jestli se přitáhlo.
+ */
+function pullJoin(roads: VillageRoads, a: Hub, b: Hub, link: Road, net: JunctionRoads): boolean {
+  const [older, newer] = junctionAge(roads, b) < junctionAge(roads, a) ? [b, a] : [a, b];
+  return pullInto(roads, older, newer, link, net) || pullInto(roads, newer, older, link, net);
+}
+
+/**
+ * Napojení blízko křižovatky (paths.md – Křižovatky; Martin 3. 11. 2026: „ano“ – nové napojení blíž
+ * než rozestup křižovatek se přitáhne přímo do stávající křižovatky): bod `at` na úseku `road`, kde
+ * by se nová cesta šířky `widthM` napojila (úsek by se tam rozdělil), leží blíž než rozestup
+ * křižovatek (`junctionSpacingM` – ramena uzlu a nové napojení) od konce úseku, ve kterém končí 3–4
+ * ramena (křižovatka) – nová cesta se napojí přímo do toho uzlu a úsek se nerozdělí. Vrátí střed
+ * uzlu (bližší konec), nebo null. Nic nemění.
+ */
+export function junctionSnap(
+  roads: VillageRoads,
+  road: Road,
+  at: RoadPoint,
+  widthM: number,
+): RoadPoint | null {
+  if (road.points.length < 2) return null;
+  let best: { point: RoadPoint; d: number } | null = null;
+  for (const end of [road.points[0]!, road.points[road.points.length - 1]!]) {
+    const key = nodeKey(end);
+    const arms = roads.roads.filter(
+      (r) =>
+        r.points.length >= 2 &&
+        junctionArm(r) &&
+        (nodeKey(r.points[0]!) === key || nodeKey(r.points[r.points.length - 1]!) === key),
+    );
+    if (arms.length < 3 || arms.length >= JUNCTION.maxArms) continue;
+    const d = length2(at.x - end.x, at.z - end.z);
+    const min = junctionSpacingM(arms.map(roadLandWidthM), [roadLandWidthM(road), widthM]);
+    if (d < min && (!best || d < best.d)) best = { point: { x: end.x, z: end.z }, d };
+  }
+  return best?.point ?? null;
+}
+
+/**
+ * Křižovatky blízko sebe (paths.md – Křižovatky; mutuje): dvojice uzlů s 3–5 živými cestami blíž
  * než `junctionSpacingM` (nejbližší napřed). Spojuje-li je jediný úsek, který se smí ztratit
- * (není pevný – zemská stezka, cesta ve vylepšení), a dohromady mají bez něj nejvýš 4 živé cesty,
- * sloučí se do jednoho uzlu (doprostřed, nebo do kotvy) a spojka zmizí. Jinak se odsunou od sebe
+ * (není pevný – zemská stezka, cesta ve vylepšení), a dohromady mají bez něj nejvýš 5 živých cest,
+ * sloučí se do jednoho uzlu (doprostřed, nebo do kotvy) a spojka zmizí. Je-li jeden uzel napojením
+ * na spojku, napojená cesta se přitáhne do druhého (`pullJoin`, i když mají oba pevné rameno) a kusy
+ * spojky se spojí (`JunctionRoads.chain`). Jinak se odsunou od sebe
  * po spojnici středů na rozestup (kotva stojí, posune se jen druhý; dvě kotvy zůstanou). Vrátí,
  * jestli se něco změnilo.
  */
@@ -913,11 +1063,7 @@ function spaceJunctions(
     const link = links.length === 1 ? links[0]!.road : null;
     const others = (hub: Hub): number => hub.live.filter((e) => e.road !== link).length;
     const pairKey = `${a.key}|${b.key}`;
-    if (holdA && holdB) {
-      stuck.add(pairKey);
-      continue;
-    }
-    if (link && mergeable(link, a, b, others, net)) {
+    if (!(holdA && holdB) && link && mergeable(link, a, b, others, net)) {
       const to = holdA
         ? a.center
         : holdB
@@ -929,6 +1075,17 @@ function spaceJunctions(
         nodes = nodesOf(roads);
         continue;
       }
+    }
+    // napojení blízko křižovatky se přitáhne do ní (Martin 3. 11. 2026) – i u dvou pevných ramen
+    if (link && pullJoin(roads, a, b, link, net)) {
+      net.chain?.();
+      done = true;
+      nodes = nodesOf(roads);
+      continue;
+    }
+    if (holdA && holdB) {
+      stuck.add(pairKey);
+      continue;
     }
     const ux = (b.center.x - a.center.x) / d;
     const uz = (b.center.z - a.center.z) / d;
@@ -969,12 +1126,12 @@ export function junctionArm(road: Road): boolean {
 }
 
 /**
- * Křižovatky sítě (paths.md – Křižovatky; mutuje – měsíční úklid, krok 6): v uzlu, kde končí 3 nebo
- * 4 cesty (`junctionArm` – i zarůstající, opuštěná ne), stojí křižovatka – kříž nebo Y natočené
+ * Křižovatky sítě (paths.md – Křižovatky; mutuje – měsíční úklid, krok 6): v uzlu, kde končí 3 až
+ * 5 cest (`junctionArm` – i zarůstající, opuštěná ne), stojí křižovatka – Y, kříž nebo hvězda natočené
  * k cestám, konce os vedou přesně do vchodů. Beze změny ramen zůstane, jak je; přibude-li nebo
  * ubude-li rameno, tvar a natočení se spočítají znovu a znamení zůstane; klesnou-li ramena pod 3
  * (cesta zarostla nebo je opuštěná), křižovatka zanikne (strom znamení stojí dál jako strom
- * u cesty). Uzel s 5+ cestami se nejdřív rozdělí na dva uzly se spojkou (`splitCrowded`). Vrátí,
+ * u cesty). Uzel s 6+ cestami se nejdřív rozdělí na dva uzly se spojkou (`splitCrowded`). Vrátí,
  * jestli se něco změnilo; beze změny nic, ani nová id. Dvě křižovatky blíž než `junctionSpacingM`
  * se pak sloučí nebo odsunou (`spaceJunctions`).
  */
@@ -987,7 +1144,7 @@ export function updateJunctions(
   // „živá“ cesta v pomocných funkcích = rameno (`junctionArm`)
   const isLive = (e: RoadEnd): boolean => junctionArm(e.road);
   let split = false;
-  // uzel s 5+ živými cestami se rozdělí; skupina o 4+ ramenech (8+ cest) se dělí dál
+  // uzel s 6+ živými cestami se rozdělí; skupina o 5+ ramenech (10+ cest) se dělí dál
   for (let pass = 0; pass < 3; pass++) {
     if (!splitCrowded(roads, day, nodesOf(roads), isLive)) break;
     split = true;
@@ -1001,7 +1158,7 @@ export function updateJunctions(
   for (const [key, ends] of nodes) {
     if (ends.length < 3) continue;
     const live = ends.filter(isLive);
-    if (live.length < 3 || live.length > 4) continue;
+    if (live.length < 3 || live.length > JUNCTION.maxArms) continue;
     const first = live[0]!;
     const at = first.atStart
       ? first.road.points[0]!

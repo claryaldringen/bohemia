@@ -148,38 +148,57 @@ describe('bendRoadEnd – cesta vede přesně do vchodu', () => {
   });
 });
 
-describe('splitCrowdedNode – pět cest dají dvě křižovatky a spojku', () => {
+describe('splitCrowdedNode – sedm cest dají dvě křižovatky a spojku (Martin 3. 11. 2026: šest a víc)', () => {
   const center = { x: 10, z: 20 };
-  const dirs = [deg(0), deg(60), deg(150), deg(200), deg(290)];
+  const dirs = [deg(0), deg(50), deg(100), deg(150), deg(200), deg(250), deg(300)];
 
-  it('dvě skupiny sousedních ramen 2 + 3, středy 10 m od sebe', () => {
+  it('dvě skupiny sousedních ramen 3 + 4, středy 10 m od sebe', () => {
     const split = splitCrowdedNode(center, dirs, JUNCTION.pairM)!;
     expect(split).not.toBeNull();
     const sizes = split.groups.map((g) => g.length).sort();
-    expect(sizes).toEqual([2, 3]);
-    expect([...split.groups[0], ...split.groups[1]].sort()).toEqual([0, 1, 2, 3, 4]);
+    expect(sizes).toEqual([3, 4]);
+    expect([...split.groups[0], ...split.groups[1]].sort()).toEqual([0, 1, 2, 3, 4, 5, 6]);
     expect(dist(split.centers[0], split.centers[1])).toBeCloseTo(JUNCTION.pairM, 1);
     for (const c of split.centers) expect(onCm(c.x) && onCm(c.z)).toBe(true);
   });
 
-  it('každá křižovatka i se spojkou má 3–4 ramena a jde do tvaru', () => {
+  it('každá křižovatka i se spojkou má 4–5 ramen a jde do tvaru', () => {
     const split = splitCrowdedNode(center, dirs, JUNCTION.pairM)!;
     const [a, b] = split.centers;
     const ab = Math.atan2(b.z - a.z, b.x - a.x);
     for (const [k, group] of split.groups.entries()) {
       const link = k === 0 ? ab : ab + Math.PI;
       const groupDirs = [...group.map((i) => dirs[i]!), link];
-      expect(groupDirs.length === 3 || groupDirs.length === 4).toBe(true);
+      expect(groupDirs.length === 4 || groupDirs.length === 5).toBe(true);
       const fit = fitJunction(
         groupDirs,
         groupDirs.map(() => false),
       );
-      expect(fit.shape).toBe(groupDirs.length === 4 ? 'cross' : 'y');
+      expect(fit.shape).toBe(groupDirs.length === 5 ? 'star' : 'cross');
     }
   });
 
-  it('čtyři cesty uzel nedělí', () => {
+  it('čtyři ani pět cest uzel nedělí, šest ano (3 + 3)', () => {
     expect(splitCrowdedNode(center, dirs.slice(0, 4), JUNCTION.pairM)).toBeNull();
+    expect(splitCrowdedNode(center, dirs.slice(0, 5), JUNCTION.pairM)).toBeNull();
+    const six = splitCrowdedNode(center, dirs.slice(0, 6), JUNCTION.pairM)!;
+    expect(six.groups.map((g) => g.length)).toEqual([3, 3]);
+  });
+
+  it('hvězda: kříž a páté rameno 45° od ramene 0; pět cest dá hvězdu s nejmenšími odchylkami', () => {
+    const arms = junctionArmDirs('star', deg(10));
+    expect(arms.map((a) => Math.round(a / deg(1)))).toEqual([10, 100, 190, 280, 55]);
+    // kříž po 90° a pátá cesta v mezeře 40° od jednoho ramene
+    const fit = fitJunction([deg(0), deg(90), deg(180), deg(270), deg(40)]);
+    expect(fit.shape).toBe('star');
+    const dirs5 = junctionArmDirs(fit.shape, fit.rotation, fit.spread);
+    expect(fit.assign.slice(0, 4).map((k) => Math.round(dirs5[k]! / deg(1)))).toEqual([
+      0, 90, 180, 270,
+    ]);
+    expect(fit.assign[4]).toBe(4);
+    // pevná cesta určí natočení přesně (mimo krok 5°)
+    const fixed = fitJunction([deg(2), deg(92), deg(182), deg(272), deg(40)], [true]);
+    expect(fixed.rotation).toBeCloseTo(deg(2), 9);
   });
 });
 
