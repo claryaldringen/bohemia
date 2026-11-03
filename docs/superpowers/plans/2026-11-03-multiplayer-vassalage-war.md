@@ -1,10 +1,10 @@
-# Víc hráčů v jednom světě, seniorát, vazalství a válka – plán implementace
+# Víc hráčů v jednom světě, seniorát, vazalství, opevnění a válka – plán implementace
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 ## Shrnutí
 
-- **Pět fází, 47 úloh po ≈ 100–150 krocích agenta (≈ 6 300 kroků).** Každá úloha je jeden běh
+- **Šest fází, 55 úloh po ≈ 100–150 krocích agenta (≈ 7 360 kroků).** Každá úloha je jeden běh
   agenta s vlastní větví, testy a commitem.
 - **F1 Svět pro víc hráčů (10 úloh):** společná mřížka map, rod jako záznam `house`, umístění
   nováčka, veřejný rodokmen, upozornění mezi hráči, schránka vnějších událostí vsi, pozvánky –
@@ -15,30 +15,36 @@
 - **F3 Jednání (4):** nabídka, žádost, protinávrh, přijetí, odmítnutí, stažení, pauza, blokování.
 - **F4 Vazalství (10):** dávky s výhledem a dopravou, Odvody 1. 11., zásilky, lidé a robota,
   pomoc a půjčky, obchod mezi hráči, správa cizí vsi a víc vsí, povýšení, odúmrť, vypovězení.
-- **F5 Válka (17):** po Ú5.12 hratelná válka podle rozkazu s obranou bez obránce a mírem; Ú5.13–5.17
-  svolání a průchod, živé vedení, scéna, rozsudek, měření.
+- **F5 Opevnění (8):** polský plot, palisáda, val s příkopem a nástavba na valu; obvod kreslený po
+  čtvercích jako pole, brány v síti cest, stavba po úsecích s robotou vazalů, stáří a přestavba,
+  násobky, útočiště a prolomení pro válku, správce podle hrozby. **Nepotřebuje druhého hráče** –
+  může běžet souběžně s F1–F4 (nejlépe vedle F2–F3); musí být hotová před Ú6.4, 6.8 a 6.9.
+- **F6 Válka (17):** po Ú6.12 hratelná válka podle rozkazu s obranou bez obránce, opevněním
+  a mírem; Ú6.13–6.17 svolání a průchod, živé vedení, scéna, rozsudek, měření.
 - **Klíčová rozhodnutí (návrh Clauda):** držitel vsi = `settlement.owner_id`; mezi hráči nic
   nesahá do cizí vsi přímo – jen **schránka vsi**, jejíž zápis zvedne verzi vsi; tažení je
   **deterministická funkce taktů a záměrů** s **bariérou** vůči dopočtu vsí.
 - **Hlavní rizika:** souběh web × worker × tažení, výkon workeru (4 takty/s), únik cizích dat
-  (mlha války, veřejný rodokmen), rozsah F5.
+  (mlha války, veřejný rodokmen), rozsah F6.
 
 **Cíl:** Všichni hráči hrají v jednom světě: vidí se, jednají spolu, uzavírají vazalství s dávkami
 a službou, rod žije přes seniorát a nástupnictví a spory se řeší válkou a mírem.
 
 **Architektura:** Hexagon beze změny – nové domény `packages/game/src/domain/world`,
-`domain/negotiation`, `domain/vassalage`, `domain/war`; use-casy v `application/` s porty, adaptéry
-v `packages/db/src/adapters/`, vstupní body web a worker. Vše, co se týká dvou hráčů, žije
+`domain/negotiation`, `domain/vassalage`, `domain/village/fortification`, `domain/war`; use-casy
+v `application/` s porty, adaptéry v `packages/db/src/adapters/`, vstupní body web a worker. Vše, co se týká dvou hráčů, žije
 v samostatných tabulkách (rody, jednání, dohody, dialogy, zásilky, války, tažení); do stavu vsi
 se to dostane jen vnější událostí ze schránky v pevný herní den.
 
 **Stack:** TypeScript 6, Vitest (in-memory porty, adaptéry proti `bohemia_test`), Drizzle +
 PostgreSQL 17, Next.js 16 (server actions, Route Handler pro tažení), Babylon 9, Playwright.
 
-**Spec:** `docs/design/vassalage.md`, `docs/design/seniorate.md`, `docs/design/war.md` (schváleny
+**Spec:** `docs/design/fortifications.md` (schválen Martinem 3. 11. 2026 – „ano“; válka z něj bere
+násobky, útočiště a prolomení), `docs/design/vassalage.md`, `docs/design/seniorate.md`,
+`docs/design/war.md` (schváleny
 Martinem 3. 11. 2026 jako celek). **Při rozporu platí oddíl „Odpovědi Martina“ dokumentu** – u
 války tři odpovědi z 3. 11. 2026 tělo ještě nepřepsalo (vesničan s pevnou silou, únava z mrazu,
-bod zlomu podle počtu) – sjednotí je Ú5.1. U vazalství odpovědi rozhodly otevřené otázky:
+bod zlomu podle počtu) – sjednotí je Ú6.1. U vazalství odpovědi rozhodly otevřené otázky:
 odúmrť s víc pány „ať spravují odúmrť všichni“, rodokmen veřejný všem (muži rodu a věk),
 přepínač správce zůstává.
 
@@ -48,8 +54,9 @@ přepínač správce zůstává.
   argumentu ani `Math.random()` v `packages/game`; skutečný čas a náhoda parametrem nebo portem.
 - **Čísla pravidel jen v `rules*.ts`** s odkazem na sekci návrhu: nové `domain/world/rules-world.ts`
   (`WORLD`, `INVITES`), `domain/negotiation/rules-negotiation.ts` (`NEGOTIATION`),
-  `domain/vassalage/rules-vassalage.ts` (`VASSALAGE`), `domain/war/rules-war.ts` (`WAR`); změna
-  čísla = i text v návrhu.
+  `domain/vassalage/rules-vassalage.ts` (`VASSALAGE`), `domain/war/rules-war.ts` (`WAR`),
+  `domain/village/rules-fortifications.ts` (`FORTIFICATIONS` – válka násobky opevnění jen čte);
+  změna čísla = i text v návrhu.
 - **Nové části stavu vsi jsou volitelné** a starší vsi se převedou jednou a idempotentně
   (`updateVillage` / začátek `advanceVillageSteps`).
 - **Výsledek vsi nezávisí na kouscích dopočtu** – každá úloha, která mění stav vsi nebo schránku,
@@ -64,13 +71,14 @@ přepínač správce zůstává.
 - **Babylon** z konkrétních modulů, jen ve scéně; kreslí se jen při změně; WebGPU limit 8 vertex
   bufferů; grafika jen CC0 nebo 0 A.D. se zdrojem v `LICENSES.md`.
 - **Deterministická matematika** (`det-math.ts`, ESLint) i v `domain/war/**` – tažení musí vyjít
-  stejně ve webu i workeru.
+  stejně ve webu i workeru – a v `domain/village/fortification/**` (obvod opevnění počítá server
+  i prohlížeč).
 - **Migrace:** `npm run db:generate` po změně schématu, ruční SQL jen pro převod dat; subagent pouští
   migrace jen do `bohemia_test` (`test:db`), do `bohemia` je pustí hlavní session po sloučení
   (paměť – „Migraci pouštím já“).
 - **Dokumentace:** mapa kódu v nových `docs/code/world.md`, `docs/code/vassalage.md`,
-  `docs/code/war.md` (+ řádek v tabulce `CLAUDE.md`), pravidla v `docs/design/`. Rozhodnutí
-  „návrh Clauda“, Martin citovaný s datem.
+  `docs/code/village-fortifications.md`, `docs/code/war.md` (+ řádky v tabulce `CLAUDE.md`),
+  pravidla v `docs/design/`. Rozhodnutí „návrh Clauda“, Martin citovaný s datem.
 - **Ověření po každé úloze:** `npm run typecheck`, `npm run lint`, `npm run test`,
   `npm run format:check`; u adaptérů `npm run test:db`; u webu, přihlašování a scény
   `npm run test:e2e`. Commit Conventional Commits česky, poslední řádek
@@ -87,9 +95,12 @@ přepínač správce zůstává.
 3. **Rod vymře s rozběhnutými věcmi** (jednání, zásilka na cestě, čekající dialog, správa cizí
    vsi) – jednání skončí, zásilka dojde, dialogy zmizí, správa skončí. Test v Ú4.10.
 4. **Podvržený záměr** (pohyb cizího muže, útok na neviděný cíl, akce ve vsi po odvolání ze
-   správy) – server odmítne a v odpovědi nic neprozradí. Testy v Ú4.8 a Ú5.14.
+   správy) – server odmítne a v odpovědi nic neprozradí. Testy v Ú4.8 a Ú6.14.
 5. **Restart workeru nebo webu uprostřed tažení** – tažení pokračuje z kontrolního bodu se stejným
-   výsledkem, události do vsí se nezdvojí. Test v Ú5.5.
+   výsledkem, události do vsí se nezdvojí. Test v Ú6.5.
+6. **Opevnění a síť cest** – ves bez opevnění má síť pěšin i vozovou síť bit po bitu stejnou (zlatý
+   otisk, nový `WALK_VERSION`); obvod opevnění vyjde stejně ve webu i na serveru (det-math).
+   Testy v Ú5.1 a Ú5.3.
 
 ---
 
@@ -119,6 +130,12 @@ přepínač správce zůstává.
   fronta `WorldQueue`, optimistická verze vsi (`VillageRepository.save(…, expectedVersion)`),
   souhrn vsi `village.digest` (`VillageDigest`, `VILLAGE_DIGEST_VERSION` = 1, platí jen při
   `digest_version = version`).
+- **Ploty a stavby po čtvercích** (pro opevnění): pletený plot pozemků, ohrad a hřbitova
+  (`woven-fence.ts`, `WovenFenceRenderer`, rohy `WOVEN_FENCE_CORNER_M`), obrys plotu ve světě
+  `fenceOutline` / `outlineRuns` (`paths/entrances.ts`), ploty v síti cest (`paths/fences.ts`,
+  `fenceBand`, branky `entranceCells`), plot podle délky (`fence-cost.ts`), malování po čtvercích
+  (`field-painting.ts`, natočená mřížka `square-grid.ts`), rozcestník druhů v katalogu
+  (`build-items.ts` – `variants` ohrad). Opevnění zatím žádné.
 - **Web:** server actions `apps/web/app/game/actions.ts`, dotazování `lib/village-polling.ts`,
   upozornění **odvozená z rozdílu pohledů** (`lib/village-notices.ts`, `NoticeLines.tsx`) – nic
   trvalého, horní lišta `TopBar.tsx`, přepínač `VillageSwitcher.tsx`, panely v
@@ -212,60 +229,71 @@ Date; sinceDay: number; endedAt: Date | null; breaches: number; version: number 
 
 ## Přehled úloh
 
-| Úloha | Co                                                     | Kroky | Závisí na          |
-| ----- | ------------------------------------------------------ | ----- | ------------------ |
-| 1.1   | Mřížka světa a umístění nováčka (doména)               | ≈ 100 | –                  |
-| 1.2   | Společná mřížka v DB a use-casech, seed mapy z políčka | ≈ 140 | 1.1                |
-| 1.3   | Rod jako záznam `house`                                | ≈ 110 | –                  |
-| 1.4   | Veřejný rodokmen a adresář rodů                        | ≈ 120 | 1.2, 1.3           |
-| 1.5   | Upozornění mezi hráči                                  | ≈ 110 | –                  |
-| 1.6   | Schránka vsi – doména a use-casy                       | ≈ 130 | –                  |
-| 1.7   | Schránka vsi – adaptér, worker, souběh                 | ≈ 120 | 1.6                |
-| 1.8   | Pozvánkové kódy a registrace                           | ≈ 130 | 1.3                |
-| 1.9   | Pozvaný jako vazal u pána, aktivní dny, nástupnictví   | ≈ 140 | 1.2, 1.3, 1.5, 1.8 |
-| 1.10  | Panel „Rod a vazalové“ – první verze, e2e dvou hráčů   | ≈ 140 | 1.4, 1.5, 1.9      |
-| 2.1   | Hráčův muž a vlastní ves                               | ≈ 120 | 1.3                |
-| 2.2   | Senior a práva ve vsi                                  | ≈ 140 | 2.1, 1.7           |
-| 2.3   | Rozhraní seniorátu                                     | ≈ 110 | 2.2, 1.10          |
-| 2.4   | Nástupnictví hráče – los a nástupnictví bez losu       | ≈ 140 | 2.1, 1.9           |
-| 2.5   | Odchod mladšího syna po pohřbu                         | ≈ 120 | 2.4                |
-| 2.6   | Dosazení vojvody do vsi bez muže rodu                  | ≈ 130 | 2.1, 1.7           |
-| 3.1   | Doména jednání a stromu dohod                          | ≈ 120 | –                  |
-| 3.2   | DB jednání a blokování                                 | ≈ 130 | 3.1, 1.3           |
-| 3.3   | Use-casy jednání, holá přísaha, upozornění, kronika    | ≈ 140 | 3.2, 1.5, 1.7, 1.9 |
-| 3.4   | Rozhraní jednání                                       | ≈ 140 | 3.3, 1.10          |
-| 4.1   | Makrokomodity a výhled „kolik můžu postrádat“          | ≈ 140 | –                  |
-| 4.2   | Podmínky vazalství, nové podmínky, vypovězení          | ≈ 150 | 3.3, 4.1           |
-| 4.3   | Zásilky mezi vsemi hráčů                               | ≈ 150 | 1.7, 4.1           |
-| 4.4   | Dialogy a roční Odvody 1. 11.                          | ≈ 150 | 4.2, 4.3           |
-| 4.5   | Lidé a robota                                          | ≈ 130 | 4.4                |
-| 4.6   | Pomoc na žádost, dar a půjčka                          | ≈ 130 | 4.4                |
-| 4.7   | Obchod mezi hráči                                      | ≈ 110 | 4.4                |
-| 4.8   | Správa cizí vsi a řízení víc vsí                       | ≈ 150 | 2.2, 3.3           |
-| 4.9   | Povýšení vesničana a NPC rod                           | ≈ 140 | 4.8                |
-| 4.10  | Vymření rodu a odúmrť                                  | ≈ 150 | 4.2, 4.8           |
-| 5.1   | Sjednocení war.md, stropy výcviku, síla                | ≈ 120 | –                  |
-| 5.2   | Válka, ochrana nováčka a vsi, opověď                   | ≈ 140 | 3.3                |
-| 5.3   | Mírové jednání a jeho podmínky                         | ≈ 130 | 5.2, 4.4           |
-| 5.4   | Pohyb vojska mapu po mapě (doména)                     | ≈ 150 | 1.2                |
-| 5.5   | Tažení po taktech – jádro, úložiště, smyčka workeru    | ≈ 150 | 5.4                |
-| 5.6   | Příprava a vyslání tažení, panel Vojsko                | ≈ 150 | 5.1, 5.5           |
-| 5.7   | Ves a tažení – bariéra a dny nájezdu                   | ≈ 150 | 5.5, 1.7           |
-| 5.8   | Boj muž po muži                                        | ≈ 150 | 5.5                |
-| 5.9   | Obránci – postoje, včasný útěk, skryté jámy            | ≈ 140 | 5.8                |
-| 5.10  | Výsledky nájezdu ve vsi a kořist                       | ≈ 140 | 5.7, 5.8           |
-| 5.11  | Vzdaní, zajetí a výkupné                               | ≈ 140 | 5.10, 3.3          |
-| 5.12  | NPC velitel, zástupce, rozpad                          | ≈ 130 | 5.8                |
-| 5.13  | Průchod, svolání vazalů, ochrana pánem                 | ≈ 150 | 4.2, 5.6           |
-| 5.14  | Živé vedení a pohled na cizí mapu                      | ≈ 150 | 5.12               |
-| 5.15  | Scéna války                                            | ≈ 150 | 5.14               |
-| 5.16  | Rozsudek pána                                          | ≈ 110 | 4.4, 5.2           |
-| 5.17  | Měření tažení a e2e celé války                         | ≈ 120 | vše F5             |
+| Úloha | Co                                                     | Kroky | Závisí na           |
+| ----- | ------------------------------------------------------ | ----- | ------------------- |
+| 1.1   | Mřížka světa a umístění nováčka (doména)               | ≈ 100 | –                   |
+| 1.2   | Společná mřížka v DB a use-casech, seed mapy z políčka | ≈ 140 | 1.1                 |
+| 1.3   | Rod jako záznam `house`                                | ≈ 110 | –                   |
+| 1.4   | Veřejný rodokmen a adresář rodů                        | ≈ 120 | 1.2, 1.3            |
+| 1.5   | Upozornění mezi hráči                                  | ≈ 110 | –                   |
+| 1.6   | Schránka vsi – doména a use-casy                       | ≈ 130 | –                   |
+| 1.7   | Schránka vsi – adaptér, worker, souběh                 | ≈ 120 | 1.6                 |
+| 1.8   | Pozvánkové kódy a registrace                           | ≈ 130 | 1.3                 |
+| 1.9   | Pozvaný jako vazal u pána, aktivní dny, nástupnictví   | ≈ 140 | 1.2, 1.3, 1.5, 1.8  |
+| 1.10  | Panel „Rod a vazalové“ – první verze, e2e dvou hráčů   | ≈ 140 | 1.4, 1.5, 1.9       |
+| 2.1   | Hráčův muž a vlastní ves                               | ≈ 120 | 1.3                 |
+| 2.2   | Senior a práva ve vsi                                  | ≈ 140 | 2.1, 1.7            |
+| 2.3   | Rozhraní seniorátu                                     | ≈ 110 | 2.2, 1.10           |
+| 2.4   | Nástupnictví hráče – los a nástupnictví bez losu       | ≈ 140 | 2.1, 1.9            |
+| 2.5   | Odchod mladšího syna po pohřbu                         | ≈ 120 | 2.4                 |
+| 2.6   | Dosazení vojvody do vsi bez muže rodu                  | ≈ 130 | 2.1, 1.7            |
+| 3.1   | Doména jednání a stromu dohod                          | ≈ 120 | –                   |
+| 3.2   | DB jednání a blokování                                 | ≈ 130 | 3.1, 1.3            |
+| 3.3   | Use-casy jednání, holá přísaha, upozornění, kronika    | ≈ 140 | 3.2, 1.5, 1.7, 1.9  |
+| 3.4   | Rozhraní jednání                                       | ≈ 140 | 3.3, 1.10           |
+| 4.1   | Makrokomodity a výhled „kolik můžu postrádat“          | ≈ 140 | –                   |
+| 4.2   | Podmínky vazalství, nové podmínky, vypovězení          | ≈ 150 | 3.3, 4.1            |
+| 4.3   | Zásilky mezi vsemi hráčů                               | ≈ 150 | 1.7, 4.1            |
+| 4.4   | Dialogy a roční Odvody 1. 11.                          | ≈ 150 | 4.2, 4.3            |
+| 4.5   | Lidé a robota                                          | ≈ 130 | 4.4                 |
+| 4.6   | Pomoc na žádost, dar a půjčka                          | ≈ 130 | 4.4                 |
+| 4.7   | Obchod mezi hráči                                      | ≈ 110 | 4.4                 |
+| 4.8   | Správa cizí vsi a řízení víc vsí                       | ≈ 150 | 2.2, 3.3            |
+| 4.9   | Povýšení vesničana a NPC rod                           | ≈ 140 | 4.8                 |
+| 4.10  | Vymření rodu a odúmrť                                  | ≈ 150 | 4.2, 4.8            |
+| 5.1   | Obvod opevnění – geometrie, úseky, brány, cena         | ≈ 130 | –                   |
+| 5.2   | Stavba opevnění po úsecích                             | ≈ 150 | 5.1 (4.5 volitelně) |
+| 5.3   | Brány v síti cest, vozy a stáda                        | ≈ 140 | 5.2                 |
+| 5.4   | Životnost, údržba valu a přestavba úseků               | ≈ 110 | 5.2                 |
+| 5.5   | Obrana opevnění – násobky, útočiště, prolomení         | ≈ 120 | 5.1, 5.4            |
+| 5.6   | Rozhraní opevnění                                      | ≈ 140 | 5.3                 |
+| 5.7   | Opevnění ve scéně                                      | ≈ 150 | 5.3, 5.4            |
+| 5.8   | Správce staví opevnění podle hrozby                    | ≈ 120 | 5.2, 5.5, 1.6       |
+| 6.1   | Sjednocení war.md, stropy výcviku, síla                | ≈ 120 | –                   |
+| 6.2   | Válka, ochrana nováčka a vsi, opověď                   | ≈ 140 | 3.3                 |
+| 6.3   | Mírové jednání a jeho podmínky                         | ≈ 130 | 6.2, 4.4            |
+| 6.4   | Pohyb vojska mapu po mapě (doména)                     | ≈ 150 | 1.2, 5.3            |
+| 6.5   | Tažení po taktech – jádro, úložiště, smyčka workeru    | ≈ 150 | 6.4                 |
+| 6.6   | Příprava a vyslání tažení, panel Vojsko                | ≈ 150 | 6.1, 6.5            |
+| 6.7   | Ves a tažení – bariéra a dny nájezdu                   | ≈ 150 | 6.5, 1.7            |
+| 6.8   | Boj muž po muži                                        | ≈ 150 | 6.5, 5.5            |
+| 6.9   | Obránci – postoje, včasný útěk, skryté jámy            | ≈ 140 | 6.8                 |
+| 6.10  | Výsledky nájezdu ve vsi a kořist                       | ≈ 140 | 6.7, 6.8            |
+| 6.11  | Vzdaní, zajetí a výkupné                               | ≈ 140 | 6.10, 3.3           |
+| 6.12  | NPC velitel, zástupce, rozpad                          | ≈ 130 | 6.8                 |
+| 6.13  | Průchod, svolání vazalů, ochrana pánem                 | ≈ 150 | 4.2, 6.6            |
+| 6.14  | Živé vedení a pohled na cizí mapu                      | ≈ 150 | 6.12                |
+| 6.15  | Scéna války                                            | ≈ 150 | 6.14, 5.7           |
+| 6.16  | Rozsudek pána                                          | ≈ 110 | 4.4, 6.2            |
+| 6.17  | Měření tažení a e2e celé války                         | ≈ 120 | vše F6              |
 
 **Souběžně** (jen když Martin pustí víc proudů – paměť „jeden proud“): čistě doménové úlohy
-1.1, 1.6, 3.1, 4.1, 5.1 a 5.4 nemají společné soubory a jdou kdykoli; F2 může běžet vedle F3
-(práva vs. jednání). Jinak sériově v pořadí tabulky. Každá úloha vlastní větev z
-`feat/multiplayer` (ta z `feat/landscape`).
+1.1, 1.6, 3.1, 4.1, 5.1, 5.4, 5.5, 6.1 a 6.4 nemají společné soubory a jdou kdykoli; F2 může běžet
+vedle F3 (práva vs. jednání). **F5 Opevnění** nepotřebuje druhého hráče a jde vedle kterékoli
+z F1–F4 (nejméně střetů vedle F2–F3; Ú5.2 sahá na `types-state.ts` a `simulate-build.ts` jako
+Ú1.6 – po ní) – jen Ú5.8 čeká na Ú1.6 a celá F5 musí být hotová před Ú6.4, 6.8 a 6.9. Jinak
+sériově v pořadí tabulky. Každá úloha vlastní větev z `feat/multiplayer` (ta z `feat/landscape`);
+Ú5.1–5.7 z `feat/landscape` (Fáze 5 – Kdy).
 
 ---
 
@@ -704,7 +732,7 @@ pro vstupy), ikony (pečeť, sepjaté ruce, podaná ruka, křížek, pero, zavř
 `e2e/multiplayer.spec.ts`.
 
 **Rozhraní – vytváří:** `TERM_ROWS: Record<TermItem['kind'], TermRowComponent>` – rozšíření
-formuláře dalšími řádky (4.2, 4.6, 4.7, 5.3).
+formuláře dalšími řádky (4.2, 4.6, 4.7, 6.3).
 
 - [ ] e2e: A nabídne vazalství, B dá protinávrh, A přijme → B má A v pánech; C odmítne nabídku
       A a A vidí „Odmítl – zkus zítra.“; B zablokuje A a A vidí „Zablokoval tě.“.
@@ -715,7 +743,7 @@ formuláře dalšími řádky (4.2, 4.6, 4.7, 5.3).
 ## Fáze 4 – Vazalství
 
 **Hráč na konci uvidí:** dohodu s dávkami (výhled šedým číslem), vojenskou službou (zatím jen
-podmínka – svolání ve F5), cílovou vsí a odměnou; každý 1. 11. dialog **Odvody** (domluvené / míň
+podmínka – svolání ve F6), cílovou vsí a odměnou; každý 1. 11. dialog **Odvody** (domluvené / míň
 / víc, rozdělení po vsích, vzkaz), zásilky jdou karavanou a dorazí za 2 dny na políčko; lidé
 a robota; žádost o pomoc, dar a půjčka se splátkami; obchod mezi hráči; správa cizí vsi
 (klíč v přepínači) a víc řízených vsí; povýšení vesničana; vypovězení; odúmrť.
@@ -761,10 +789,10 @@ kronika obou rodů; háček `onVassalageEnded` (4.4 smaže dialogy, 4.8 ukončí
 - [ ] Testy: odmítnutí nových podmínek dohodu nemění; vypovězení platí hned a ostatní dohody obou
       stran trvají; upozornění dostanou všichni nad i pod oběma stranami jednou.
 - [ ] Neplnění: `VassalageRepository.addBreach(id, kind: 'levy' | 'repay' | 'summons' |
-'judgment', day)` a počet v `Vassalage.breaches` (zapisují 4.4, 4.6, 5.13, 5.16); neplnění
+'judgment', day)` a počet v `Vassalage.breaches` (zapisují 4.4, 4.6, 6.13, 6.16); neplnění
       dohodu neukončí (vassalage.md – Neformální výpověď).
 - [ ] Panel: strom pod hráčem (`treeBelow`) – vazalové vazalů odsazeně, štít s počtem mužů
-      schopných služby (veřejný rodokmen bez raněných a mužů ve službě – doplní 5.10 a 5.13),
+      schopných služby (veřejný rodokmen bez raněných a mužů ve službě – doplní 6.10 a 6.13),
       ikony podmínek, zlomená pečeť s počtem neplnění, ikona hladu (ze souhrnu vsi).
 - [ ] Commit `feat(game): podmínky vazalství a vypovězení`.
 
@@ -915,22 +943,248 @@ rozdělit, věnovat vazalovi – věnování je jednání `village-gift`, obdaro
 
 ---
 
-## Fáze 5 – Válka
+## Fáze 5 – Opevnění
 
-**Hráč na konci Ú5.12 uvidí:** opověď (s požadavkem) nebo přepadení, panel války a zkřížené oštěpy
+**Hráč na konci uvidí:** v katalogu staveb ikonu opevnění s druhy polský plot, palisáda a val;
+plochu nakreslí po čtvercích jako pole a u kurzoru vidí obrys se zakulacenými rohy, cenu podle
+délky a kolik lidí se vejde do útočiště; brány vzniknou samy na cestách, další přidá kliknutím;
+ves staví po úsecích (robota vazalů napřed), lidé, vozy a stáda chodí branami; panel opevnění
+s délkou, stavem, branami, útočištěm a násobkem, vylepšení plotu na palisádu a nástavba na valu;
+úseky stárnou a obyvatelé je sami přestavují; správce staví opevnění, když ves ohrožuje válka.
+Bez války opevnění jen stojí – násobky, útočiště a prolomení použije F6.
+
+**Kdy:** fáze nepotřebuje druhého hráče. Z F1–F4 čeká jen Ú5.8 na schránku (Ú1.6); Ú5.2 použije
+hosty na robotě z Ú4.5, jsou-li (jinak háček přeskočí). Proto může běžet **souběžně s ranými
+fázemi** – nejlépe vedle F2 a F3, které nesahají na stavby, cesty ani scénu; Ú5.1, 5.4 a 5.5 jsou
+čistá doména a jdou kdykoli. Sériově jde po F4 a **musí být hotová před Ú6.4, 6.8 a 6.9** (válka
+s opevněním počítá). Větve Ú5.1–5.7 vycházejí z `feat/landscape` a slučují se do něj,
+`feat/multiplayer` je převezme sloučením nejpozději před F6; Ú5.8 vychází z `feat/multiplayer`.
+
+**Spec:** `docs/design/fortifications.md` (Martin 3. 11. 2026: „ano“) – čísla v Čísla, poznámky
+v Pro implementaci.
+
+**Rizika:** síť cest (brány mění `villageGrid` – zlatý otisk sítě vsí bez opevnění, nový
+`WALK_VERSION`); geometrie obvodu sdílená serverem a prohlížečem (jen det-math); výkon scény
+(palisáda ≈ 4 kůly na metr – instance a ořez po čtvercích); příkop pod úrovní terénu (prořez,
+terén má 15 samplerů).
+
+### Úloha 5.1 – Obvod opevnění – geometrie, úseky, brány, cena (doména, ≈ 130 kroků)
+
+**Soubory:** nové
+`packages/game/src/domain/village/fortification/{outline.ts,segments.ts,gates.ts,cost.ts,index.ts}`
+(+ `__tests__/outline.test.ts`, `gates.test.ts`), nové `domain/village/rules-fortifications.ts`
+(`FORTIFICATIONS`), `paths/entrances.ts` (`outlineRuns` / `fenceOutline` s poloměrem rohu
+parametrem – dnes `WOVEN_FENCE_CORNER_M`), `eslint.config.mjs` (det-math pravidla i pro
+`domain/village/fortification/**`), `domain/index.ts` (export), nový
+`docs/code/village-fortifications.md` + řádek v tabulce `CLAUDE.md`.
+
+**Rozhraní – vytváří:** `FortKind = 'fence' | 'palisade' | 'rampart'`, `FortTop = 'fence' |
+'palisade'`; `fortificationArea(cells: readonly TileCell[], grid: SquareGrid | null): FortArea |
+FortAreaError` (souvislost stranou, zaplnění děr, nejméně 2 × 2); `fortificationOutline(area,
+kind): FortOutline` (`runs` – rovné úseky a oblouky, vnější poloměr 1,25 / 3 / 8 m, vnitřní
+0,5 m u plotu, jinak polovina; `lengthM` vnějšího okraje; pás 1 / 1,5 / 10 m; `innerAreaM2`); `fortSegments(outline):
+FortSegmentShape[]` (strana okrajového čtverce, oblouk patří k úseku, kde začíná; pevné pořadí po
+směru hodin od severu); `autoGates(outline, crossings: readonly Polyline[], anchor: Pos):
+FortGate[]` (průsečíky s cestami, nejvýš 1 na úsek, bez průsečíku jedna nejblíž `anchor`);
+`addGate(outline, gates, pos): FortGate[] | GateError`; `fortificationCost(kind, lengthM, work:
+'new' | 'upgrade' | 'top'): BuildCost` (jako `fence-cost.ts`); `FORTIFICATIONS` (čísla
+z fortifications.md – Čísla, kromě horizontů správce).
+
+- [ ] Testy: 4 × 4 čtverce – délka plotu ≈ 237,9 m, palisády ≈ 234,8 m, valu ≈ 226,3 m; plocha
+      útočiště ≈ 3 360 / 3 250 / 1 600 m² (zlaté hodnoty zapsat po prvním běhu); tvar L má vnitřní roh 0,5 m u plotu
+      a polovinu vnějšího u palisády a valu; díra se zaplní; plochy dotýkající se jen rohem jsou nesouvislé; natočená mřížka
+      30° dá tutéž délku; úseky po 15 m v pevném pořadí; cesta přes obvod → brána, dvě cesty
+      v jednom úseku → jedna; bez cesty brána u kotvy; cena 100 m = čísla Martina.
+- [ ] `npx vitest run src/domain/village/fortification` v `packages/game` – FAIL, implementace,
+      PASS; `npm run lint` (det-math – žádné `Math.sin/cos/atan2/hypot/log` ani `**`).
+- [ ] `paths/entrances.ts`: poloměr rohu parametrem, dnešní volání beze změny – zlaté otisky sítě
+      pěšin a plotů projdou.
+- [ ] Commit `feat(game): obvod opevnění – geometrie, úseky a brány`.
+
+### Úloha 5.2 – Stavba opevnění po úsecích (≈ 150 kroků)
+
+**Soubory:** `types-state.ts` (`VillageState.fortifications?: Fortification[]`), nové
+`fortification/types.ts`, `types-construction.ts` (`'fortification'` s `fortificationId`,
+`work: 'build' | 'upgrade' | 'top' | 'rebuild' | 'restore'`, `segmentIndex`), nové
+`placement-fortifications.ts` (+ test), `placement.ts` (export), `simulate-build.ts` (práce po
+úsecích), `wood.ts` (vyhrazení stromů pro úsek – zobecnit `planDwellingWood`), `costs.ts`
+(`BUILD_COSTS` – cena podle délky), `cancel-construction.ts`, `labor.ts` (hosté na robotě napřed
+do opevnění – jen když existuje `VillageState.guests` z Ú4.5), nové
+`application/{place-fortification.ts,upgrade-fortification.ts,add-fortification-gate.ts}`
+(+ testy s in-memory porty), `apps/web/app/game/actions.ts` (server actions s `villageId`),
+`docs/code/village-fortifications.md`.
+
+**Rozhraní – vytváří:** `Fortification { id: number; grid: SquareGrid | null; cells: TileCell[];
+kind: FortKind; top?: FortTop; segments: FortSegment[]; gates: FortGate[]; rampartHeight?: number
+}`, `FortSegment { index: number; builtDay: number | null; topBuiltDay?: number | null; state:
+number; breachedDay?: number }`; `checkFortificationPlacement(state, landscape, obstacles, area,
+kind): PlacementCheck` (pás nesmí přes obydlí s pozemkem, dvorec, dílnu, hřbitov, ohradu, humno,
+jámu, modlu, svatyni, posvátný dub a háj ani vodu; les vyklučí; val vezme díly pole a sadu);
+`placeFortification(deps, { playerId, villageId, cells, grid, kind })`,
+`upgradeFortification(deps, { playerId, villageId, fortificationId, work: 'upgrade' | 'top', top?
+})`, `addFortificationGate(deps, { playerId, villageId, fortificationId, position })`; důvody
+`FORT_OVER_BUILDING = 'Opevnění nevede přes obydlí.'`, `FORT_OVER_WATER = 'Opevnění nevede přes
+vodu.'`, `FORT_NOT_CONNECTED = 'Plocha musí být souvislá.'`, `FORT_TOUCHES = 'Opevnění se nesmí
+dotknout jiného.'`.
+
+- [ ] Testy: cena předem – klády na hromadě + stromy k mání pokryjí celou stavbu, práce se
+      nečeká („Hráč staví kdy chce“); práce rovným dílem s ostatními stavbami, úseky jeden po
+      druhém od brány nejblíž dvorci po směru hodin; stromy v pásu pokácené, klády do stavby; val
+      vezme díl pole pod pásem; vylepšení – plot úseku stojí, dokud jeho palisáda není hotová,
+      nic nevrací; nástavba jen na hotový val; zrušení – hotové úseky stojí; robota hostů napřed
+      do opevnění (bez Ú4.5 přeskočit); **po kouscích** (1, 3, 10 dní + zbytek = vcelku, stejný
+      JSON); starší ves bez `fortifications` beze změny.
+- [ ] `test:db` – stav vsi s opevněním přes adaptér tam a zpět.
+- [ ] Commit `feat(game): stavba opevnění po úsecích`.
+
+### Úloha 5.3 – Brány v síti cest, vozy a stáda (≈ 140 kroků)
+
+**Soubory:** `paths/fences.ts` (`villageFences` + hotové úseky opevnění s pásem šířky druhu,
+brány jako branka), `paths/network-grid.ts` (`fenceBand`, `entranceCells` / `gateCells`),
+`wagon-road.ts` (`wagonRoadGrid` – vůz jen branou), cesta stáda na pastvu (`pastureHerds`),
+`rules-roads.ts` (`WALK_VERSION` → `routes-v7`), `fortification/gates.ts` (brána pro novou pevnou
+cestu, vozovou cestu a zemskou stezku přes hotové opevnění), use-casy cest (`placeRoad`, vozová
+cesta, stezka – přidají bránu), nové `paths/__tests__/fortification-paths.test.ts`,
+`docs/code/village-roads.md`.
+
+**Rozhraní – mění:** `villageFences(v, plots)` vrací i úseky opevnění – rozestavěný úsek je
+průchozí jako staveniště, mezera a průlom taky.
+
+- [ ] Testy: domácnost uvnitř chodí na pole vně nejbližší branou; vůz pro seno jen branou na
+      vozové cestě; stádo na pastvu branou; mezera v rozestavěném obvodu je průchozí; nová pevná
+      cesta přes hotové opevnění dostane bránu; **zlatý otisk sítě pěšin a vozové sítě vsi bez
+      opevnění bit po bitu stejný** (Vlkov i testovací vsi); stejný výsledek ve webu i na serveru
+      (tatáž funkce).
+- [ ] `test:e2e` (village.spec – pěšiny a postavy bez opevnění beze změny).
+- [ ] Commit `feat(game): brány opevnění v síti cest`.
+
+### Úloha 5.4 – Životnost, údržba valu a přestavba úseků (≈ 110 kroků)
+
+**Soubory:** nové `fortification/decay.ts` (+ test), `simulate.ts` (pevné pořadí dne – přestavba
+úseků vedle přestaveb obydlí, údržba valu po opravách obydlí), `repair.ts` (údržba valu ze
+společné práce), opuštěná ves (`abandonment` – nikdo nepřestavuje),
+`docs/code/village-fortifications.md`.
+
+**Rozhraní – vytváří:** `segmentState(fort, seg, day): number` (100 % do konce životnosti, bez
+přestavby za ní rovnoměrně na 0 za 5 let); `decideFortRebuilds(state, day): Construction[]`
+(dožilý úsek, průlom přednostně, obnova valu pod výškou 0,75 za ½ ceny; jen když je dřevo);
+`rampartMaintenance(state, day, labor): number` (2 čd na 100 m ročně, nedodělek sníží výšku – za
+50 let bez údržby 0,5).
+
+- [ ] Testy: plot po 15 a palisáda po 20 letech – obyvatelé úsek přestaví sami (i hráčovo
+      opevnění), staré kůly nic nevrátí; bez dřeva úsek chátrá a na nule je mezera; val s plnou
+      údržbou drží výšku, bez ní má za 50 let 0,5; obnova valu; opuštěná ves nepřestavuje; po
+      kouscích.
+- [ ] Commit `feat(game): stáří a přestavba opevnění`.
+
+### Úloha 5.5 – Obrana opevnění – násobky, útočiště, prolomení (doména pro válku, ≈ 120 kroků)
+
+**Soubory:** nové `fortification/{defense.ts,refuge.ts,breach.ts}` (+ testy),
+`fortification/index.ts`, `docs/code/village-fortifications.md`.
+
+**Rozhraní – vytváří:** `segmentMultiplier(fort, seg, day): number` (tabulka Martina podle stavu –
+úsek bez valu `1 + (m − 1) × stav`, na valu `v × (1 + (m ÷ 1,5 − 1) × stav nástavby)`, `v = 1 +
+0,5 × výška`; mezera 1); `defenderMultiplier(forts, defenderPos, attackerPos, day): number`
+(uvnitř obvodu proti útočníkovi vně, v bráně nebo průlomu 1,5 × násobek nejbližšího úseku, jinak
+1,5 u domu); `fortGaps(fort, day, closedGates): Gap[]` (otevřené brány, mezery, průlomy);
+`refugeCapacity(fort): number` (m²); `refugeAdmit(fort, arrivals: Arrival[], gateCloseTick:
+number): RefugeResult` (pořadí lidé → koně a voli → skot → drobný dobytek; kdo přijde po zavření
+brány nebo se nevejde, zůstane venku; zásoby domů uvnitř a 25 / 10 kg zvenku); `breachWork(fort,
+seg, at: 'gate' | 'wall'): number` (mužohodin 0 / 2 / 12 / 96; val se neprolamuje – přechod
+čtvrtinovým tempem `FORTIFICATIONS.rampartPace`); `breachStep(progress, men, hours):
+BreachProgress` (nejvýš 4 muži na místo, průlom 4 m); `surrenderThreshold(defenders,
+fortMultiplier): number` (1,5 × obránci × násobek).
+
+- [ ] Testy: tabulka násobků s „zná místo“ (plot 1,875 … val s palisádou 4,5); útočník uvnitř jen
+      1,5; shnilá palisáda na valu = val 1,5; snížený val s palisádou 2,5; útočiště 4 × 4 čtverce
+      – ≈ 336 lidí za plotem, ≈ 160 za valem; pořadí při nedostatku místa; brána palisády se 4 muži
+      za 3 herní hodiny, zeď za den, pátý muž na místě nezrychlí; 20 obránců za palisádou se vzdá
+      až při 61 útočnících.
+- [ ] Commit `feat(game): obrana opevnění – násobky, útočiště a prolomení`.
+
+### Úloha 5.6 – Rozhraní opevnění (≈ 140 kroků)
+
+**Soubory:** `apps/web/lib/build-items.ts` (rozcestník `variants` plot, palisáda, val – jako
+ohrady), `lib/scene/field-painting.ts` a `field-cells.ts` (malování plochy, náhled obrysu pásu se
+zakulacenými rohy a branami z `fortificationOutline` / `autoGates`),
+`components/game/VillageGame.tsx` (`SUBMIT_SQUARES`, `startBuild('fortification', variant)`),
+`components/game/hud/CursorReason.tsx`
+(cena podle délky, útočiště – ikona lidí s počtem, důvody), nové
+`components/game/hud/selection/fortification.tsx` (+ test), `SelectionPanel.tsx`, `Minimap.tsx`
+(obvod čarou), `lib/village-view.ts` (`SceneFortification` odvozený z jádra),
+`lib/village-picking.ts` (výběr úseku), nové `e2e/fortification.spec.ts`, `docs/code/web-ui.md`.
+
+**Rozhraní – vytváří:** panel – ikona druhu, délka, stav (nejslabší úsek, oranžově za
+životností), brány, útočiště (lidé, dobytek), násobek (štít s číslem), průběh stavby; tlačítka
+„Vylepšit na palisádu“, „Postavit na valu plot“, „Postavit na valu palisádu“ (zašedlé s důvodem
+u kurzoru), ikona brány → klik na obvod; slova jen v `Tooltip`.
+
+- [ ] Testy komponent: panel plotu nabízí vylepšení, panel valu nástavbu; zašedlé „Chybí 120
+      klád.“; cena u kurzoru roste s plochou.
+- [ ] e2e `fortification.spec.ts`: dev ves – nakreslit palisádu 3 × 3 čtverce přes pevnou cestu →
+      brána na cestě, cena u kurzoru, Enter postaví, panel ukáže délku a bránu; menší snímek.
+- [ ] Commit `feat(web): rozhraní opevnění`.
+
+### Úloha 5.7 – Opevnění ve scéně (≈ 150 kroků)
+
+**Soubory:** nové `lib/scene/{fortification-layout.ts,fortification-renderer.ts,rampart-mesh.ts}`
+(rozmístění bez Babylonu + testy čistých funkcí), `lib/scene/woven-fence-renderer.ts` (polský plot
+opevnění – tentýž pletený plot, brána 4 m), `lib/scene/village-renderer.ts`, `lib/scene/pit-cut.ts`
+(prořez příkopu – vzdálenost od úseček obvodu v záběru, nebo maska; zvolit měřením, terén má 15
+samplerů), `tools/blender/fortifications.py` (kůl palisády ve 3 variantách, brána z prken, závora
+– CC0) → `public/models/fortifications/*.glb` + `LICENSE.md` / `LICENSES.md`,
+`lib/scene/village-construction.ts` (staveniště po úsecích), `/dev/buildings` tlačítko
+**Opevnění** (plot, palisáda, val, val s palisádou, staveniště, stáří, průlom),
+`docs/code/scene-village.md`.
+
+- [ ] Palisáda: ≈ 4 kůly na metr v instancích, výška a náklon ze seedu úseku, po obloucích; ořez
+      po čtvercích (předpona z `CULLED_MESHES`); val jako síť podél obvodu (násep 6 m / 2 m,
+      příkop 4 m / 1,5 m), hlína zaroste trávou za 2–3 roky; nástavba na koruně; stavba po
+      úsecích (žlab a kůly od brány, příkop se prohlubuje a val roste); stáří (šednutí, náklon,
+      mezery); brány otevřené a zavřené; průlom. Kreslí se jen při změně (`needsRender`), importy
+      z konkrétních modulů Babylonu, nejvýš 8 vertex bufferů (WebGPU).
+- [ ] `measure-scenery-culling` – draw cally a trojúhelníky s palisádou 350 m zapsat do
+      `docs/code/scene-village.md`; e2e menší snímek ukázky Opevnění.
+- [ ] Commit `feat(scene): opevnění ve scéně`.
+
+### Úloha 5.8 – Správce staví opevnění podle hrozby (≈ 120 kroků)
+
+**Soubory:** nové `fortification/threat.ts` (+ test), `types-state.ts` (`VillageState.threats?:
+ThreatSignal[]`), `inbox.ts` (tělo `threat-signal` – zapisují ho Ú6.7 a 6.10), `steward-extras.ts`
+(krok Opevnění po posvátných místech, před cestami), `steward-plan.ts` (obvod z plánu sídla),
+`rules-steward.ts` (`STEWARD.fortPaybackYears = { growth: 25, recovery: 5 }`, útočiště + 20 %),
+`docs/design/steward.md` (krok v rozhodovacím pořadí – odkaz na fortifications.md),
+`docs/code/village-steward.md`.
+
+**Rozhraní – vytváří:** `ThreatSignal { kind: 'raid-here' | 'raid-house' | 'army-seen' | 'war';
+day: number; endDay?: number }`; `villageThreat(signals, day): number` (`min(1, Σ váha × ½^(stáří ÷
+10 let))`, válka bez úbytku do míru, paměť 50 let); `fortValue(state, day, kind, threat): { gain:
+number; cost: number }` (ztráta nájezdu z kořisti 20 × 25 kg, dobytka venku a 10 % dospělých
+v obilí → čd přes `squareValue`); `stewardFortificationArea(state, plan): FortArea | null`.
+
+- [ ] Testy: hrozba 0 → správce nestaví (dnešní vsi beze změny); po signálu „nájezd na tuto ves“
+      v Růstu postaví druh s nejlepším přínosem × horizont − cena; v Nouzi ne; obvod obsahuje
+      obydlí, dvorec, humna a ohrady, pole ne; útočiště pojme lidi a dobytek + 20 %; hráčovo
+      opevnění nemění; signál slábne s poločasem 10 let; po kouscích.
+- [ ] Commit `feat(game): správce staví opevnění podle hrozby`.
+
+## Fáze 6 – Válka
+
+**Hráč na konci Ú6.12 uvidí:** opověď (s požadavkem) nebo přepadení, panel války a zkřížené oštěpy
 v horní liště, ochranu nováčka (štít s hodinami), přípravu tažení v textovém panelu Vojsko
 (velitel, zástupce, vsi, dobrovolníci a nucení, zásoby, odhad síly a cesty), tažení mapu po
-mapě podle rozkazu, obranu bez obránce podle postoje vsi (výchozí útěk do lesa), padlé, raněné,
-kořist, zajatce a výkupné, mír s podmínkami; vše v upozorněních a kronice. **Po Ú5.15:** živé
-vedení vlastního muže na cizí mapě s mlhou války a vojsko ve scéně. Do Ú5.14 vede NPC i tažení
+mapě podle rozkazu, obranu bez obránce podle postoje vsi (výchozí útěk do lesa, s opevněním do
+útočiště), útok na opevnění (zavřené brány, prolamování, průlom), padlé, raněné,
+kořist, zajatce a výkupné, mír s podmínkami; vše v upozorněních a kronice. **Po Ú6.15:** živé
+vedení vlastního muže na cizí mapě s mlhou války a vojsko ve scéně. Do Ú6.14 vede NPC i tažení
 hráčova muže (`liveCommand: false`).
 
-**Rizika:** výkon workeru (takty, hledání cesty) – měření v Ú5.17, cíl 20 tažení × 60 mužů
+**Rizika:** výkon workeru (takty, hledání cesty) – měření v Ú6.17, cíl 20 tažení × 60 mužů
 ≤ 25 % jednoho jádra; bariéra zpomalí vsi u bojiště (worker je bere přednostně); determinismus
 tažení (det-math, pořadí záměrů, seed); bezpečnost (záměry jen za vlastní muže, mlha na serveru);
 velikost scény (WebGPU 8 bufferů).
 
-### Úloha 5.1 – Sjednocení war.md, stropy výcviku, síla (≈ 120 kroků)
+### Úloha 6.1 – Sjednocení war.md, stropy výcviku, síla (≈ 120 kroků)
 
 **Soubory:** `docs/design/war.md` (tělo podle Odpovědí 3. 11.: vesničan **pevná síla 0,4**, nucený
 × 0,5, dovednost lov vesničana se nezavádí; zima – **únava z mrazu** místo ležení: návrh Clauda
@@ -946,14 +1200,15 @@ nad 70 jednou na 70), nové `domain/war/{strength.ts,rules-war.ts,index.ts}` (+ 
 Person, horse: Parameters<typeof riderPower>[1] | null): number` (1 + 2 × zkušenost ÷ 100, kůň
 × (1 + 0,5 × jízda na koni ÷ 100) – jízda na koni jako `riderPower` v `hunt.ts`); `villagerStrength(forced: boolean, happiness: number): number` (0,4, × 0,5 nucený,
 × 0,8–1,1 štěstí); `armyStrength(members, smithCoverage: number): number` (kovárna až × 1,5);
-`WAR` (všechna čísla z war.md – Čísla, po sjednocení).
+`WAR` (všechna čísla z war.md – Čísla, po sjednocení; násobky opevnění ne – ty jsou ve
+`FORTIFICATIONS` z Ú5.1).
 
 - [ ] Testy příkladů war.md: zkušenost 10 → 1,2; 50 → 2; 70 → 2,4; 90 → 2,8; jezdec s jízdou 60
       na vycvičeném koni × 1,3; nejvýš 4,5; výcvik doma se zastaví na 50, lov na 70; převod jednou.
 - [ ] Commit `feat(game): stropy výcviku a síla vojska` (+ `docs: válka – tělo podle odpovědí
 Martina 3. 11.` zvlášť).
 
-### Úloha 5.2 – Válka, ochrana nováčka a vsi, opověď (≈ 140 kroků)
+### Úloha 6.2 – Válka, ochrana nováčka a vsi, opověď (≈ 140 kroků)
 
 **Soubory:** nové `packages/db/src/schema/war.ts`, `adapters/war-repository.ts` (+ db test),
 `application/{wars.ts,declare-war.ts}` (+ testy), `domain/war/protection.ts` (+ test),
@@ -975,7 +1230,7 @@ today })` (3 herní roky bez střetu – „Válka s Bořivojem utichla.“).
       vlastní opověď ochranu ukončí; válka uvnitř stromu dovolená; utichnutí.
 - [ ] Commit `feat(game): válka mezi rody a ochrana nováčka`.
 
-### Úloha 5.3 – Mírové jednání a jeho podmínky (≈ 130 kroků)
+### Úloha 6.3 – Mírové jednání a jeho podmínky (≈ 130 kroků)
 
 **Soubory:** `domain/negotiation/types.ts` (`peace { fee?: MacroBundle; payer?: string; vassalage?:
 { lord: string; vassal: string; terms: VassalTerms }; tribute?: { goods: MacroBundle; payer:
@@ -989,25 +1244,27 @@ string }; cede?: string[]; releasePrisoners?: string[] }`), `negotiation-effects
       `fee-send` plátci (celé, míň, nic → `sendShipment`); mír bez podmínek.
 - [ ] Commit `feat(game): mírové jednání`.
 
-### Úloha 5.4 – Pohyb vojska mapu po mapě (doména, ≈ 150 kroků)
+### Úloha 6.4 – Pohyb vojska mapu po mapě (doména, ≈ 150 kroků)
 
 **Soubory:** nové `domain/war/{march-grid.ts,march.ts,world-route.ts,season.ts}` (+ testy),
 `eslint.config.mjs` (det-math pravidla pro `domain/war/**`), `application/cell-landscape.ts`
 (krajina prázdného políčka z `cellLandscapeSeed`).
 
 **Rozhraní – vytváří:** `marchGrid(landscape, obstacles, village: VillageState | null): MarchGrid`
-(buňky 10 m: hustý les × ¼, voda jen brody, pevné cesty a zemská stezka vsi na mapě × 1,5); `marchPath(grid, from, to):
-MarchPath` (A* jen det-math); `marchSpeed(group: GroupPace, day: number): number` (≈ 3,5 m/s
+(buňky 10 m: hustý les × ¼, voda jen brody, pevné cesty a zemská stezka vsi na mapě × 1,5; hotové
+úseky opevnění neprůchodné kromě `fortGaps` z Ú5.5, val čtvrtinovým tempem);
+`marchPath(grid, from, to): MarchPath` (A* jen det-math); `marchSpeed(group: GroupPace, day: number): number` (≈ 3,5 m/s
 skutečného času, jezdci × 1,5, stádo × 0,5, pěší ranění × 0,75, sníh × 0,75); `worldRoute(from:
 GridCell, to: GridCell, avoid: (c: GridCell) => boolean): GridCell[]` (8 směrů);
 `edgeCrossing(cellFrom, cellTo, pos): Pos` (okraj → opačný okraj); `frostDay(member, outside:
 boolean, day): MemberDelta`.
 
 - [ ] Testy: 1 km po louce ≈ 4–5 min ≈ 3 herní dny; hustý les čtyřikrát pomaleji; řeka jen přes
-      brod; zima pomaleji a s únavou z mrazu, zastávka ve vsi ji zastaví; zlatá cesta na 3 seedech.
+      brod; zima pomaleji a s únavou z mrazu, zastávka ve vsi ji zastaví; do opevněné vsi jen
+      branou, mezerou nebo přes val; zlatá cesta na 3 seedech.
 - [ ] Commit `feat(game): pohyb vojska po mapách`.
 
-### Úloha 5.5 – Tažení po taktech – jádro, úložiště, smyčka workeru (≈ 150 kroků)
+### Úloha 6.5 – Tažení po taktech – jádro, úložiště, smyčka workeru (≈ 150 kroků)
 
 **Soubory:** nové `domain/war/{campaign.ts,ticks.ts,campaign-types.ts}` (+ testy),
 `packages/db/src/schema/campaign.ts` (`campaign`, `campaign_checkpoint`, `campaign_intent`),
@@ -1031,7 +1288,7 @@ addIntent(id, intent) }`; `CampaignLock.tryRun`; `stepCampaigns(deps, { nowMs })
 - [ ] Smyčka tažení ve workeru vedle smyčky vsí; chyba jednoho tažení nezastaví ostatní.
 - [ ] Commit `feat(game): tažení po taktech`.
 
-### Úloha 5.6 – Příprava a vyslání tažení, panel Vojsko (≈ 150 kroků)
+### Úloha 6.6 – Příprava a vyslání tažení, panel Vojsko (≈ 150 kroků)
 
 **Soubory:** nové `domain/war/{muster.ts,supplies.ts}` (+ testy), `application/{plan-campaign.ts,
 launch-campaign.ts}` (+ testy), `components/game/hud/ArmyPanel.tsx` (textový – výjimka),
@@ -1053,11 +1310,12 @@ today }): Promise<CampaignEstimate | string>`; `launchCampaign(deps, { playerId,
       odpovídá `armyStrength`.
 - [ ] Commit `feat(game): příprava a vyslání tažení`.
 
-### Úloha 5.7 – Ves a tažení – bariéra a dny nájezdu (≈ 150 kroků)
+### Úloha 6.7 – Ves a tažení – bariéra a dny nájezdu (≈ 150 kroků)
 
 **Soubory:** nové `application/village-holds.ts` (+ test), `adapters/village-holds.ts` (+ db test),
 `update-village.ts`, `advance-world.ts`, `world-queue.ts` (přednostní vsi), `inbox.ts` (těla
-`raid-day`, `army-seen`), `step-campaigns.ts`, nové
+`raid-day`, `army-seen` – spolu s ním `threat-signal` pro správce z Ú5.8), `step-campaigns.ts`
+(opevnění vsi se stavem do `CampaignWorld.villageAt`), nové
 `packages/server/src/__tests__/campaign-race.db.test.ts`.
 
 **Rozhraní – vytváří:** `VillageHolds { limitOf(villageIds: readonly string[]): Promise<Map<string,
@@ -1072,7 +1330,7 @@ ves ještě nemá den `d − 1` – takt se zastaví a pokračuje v dalším kol
       pracuje; posel z jiné vsi rodu, kterou vojsko prošlo, spustí postoj dřív.
 - [ ] Commit `feat(game): ves a tažení – bariéra dopočtu`.
 
-### Úloha 5.8 – Boj muž po muži (≈ 150 kroků)
+### Úloha 6.8 – Boj muž po muži (≈ 150 kroků)
 
 **Soubory:** nové `domain/war/{battle.ts,defenders.ts,orders.ts}` (+ testy), `campaign.ts`.
 
@@ -1080,21 +1338,25 @@ ves ještě nemá den `d − 1` – takt se zastaví a pokračuje v dalším kol
 ženy, starší a chlapci 14–15 let 0,1 jen u domu; skupiny domů blíž než 40 m); `battleTick(state,
 rng)`: dohled 150 m (v lese méně), luk 20–60 m poloviční zásah ≈ 4 s (luk mají muži rodu – návrh
 Clauda, vesničané bez dovednosti lovu bojují zblízka), zblízka plný ≈ 2 s, zásah `10 × síla ÷
-násobek obrany` (u domu 1,5, za palisádou 2), na nule padlý / raněný 1 : 1, muž rodu raněný 2 : 3;
+násobek obrany` (`defenderMultiplier` z Ú5.5 – u domu 1,5, za opevněním 1,5 × násobek úseku),
+prolamování brány a zdi `breachStep` (Ú5.5 – prolamující nebojují, průlom otevře mezeru), na nule
+padlý / raněný 1 : 1, muž rodu raněný 2 : 3;
 bod zlomu po skupinách **podle počtu** (30 % tažení, 45 % obrana); rozkazy `follow-leader`,
 `attack-all`, `hold-place` (30 m), změna rozkazu jen do 30 m od velitele.
 
 - [ ] Testy: příklad war.md (muž rodu se silou 2 vs. vesničan 0,4 – pět ran vs. pětadvacet);
       skupina uteče při 30 % / 45 %; velitel sám neuteče; **poslední muž rodu doma** neklesne pod
-      10 zdraví, nevzdá se a uteče i pod řízením hráče; stejný výsledek po kouscích taktů.
+      10 zdraví, nevzdá se a uteče i pod řízením hráče; útok na palisádu – brána se 4 muži ≈ 3 herní
+      hodiny, zeď ≈ den, obránci za ní s násobkem 3; stejný výsledek po kouscích taktů.
 - [ ] Commit `feat(game): boj muž po muži`.
 
-### Úloha 5.9 – Obránci – postoje, včasný útěk, skryté jámy (≈ 140 kroků)
+### Úloha 6.9 – Obránci – postoje, včasný útěk, skryté jámy (≈ 140 kroků)
 
 **Soubory:** `types-state.ts` (`VillageState.defense?: { stance: 'defend' | 'surrender' | 'flee' }`,
 výchozí `flee`), nové `domain/war/flight.ts` (+ test), `application/set-defense-stance.ts`
 (+ test), `ManorPanel.tsx` (stěna štítů, bílá vlajka, stromy – popis v bublině),
-`battle.ts` (vzdání při přesile 1,5×, jezdec za dva).
+`battle.ts` (vzdání při přesile 1,5×, jezdec za dva; za opevněním `surrenderThreshold` z Ú5.5),
+útočiště `refugeAdmit` (Ú5.5 – postoje s opevněním, brány se zavřou na 30 m).
 
 **Rozhraní – vytváří:** `nearestForest(obstacles, from: Pos): Pos | null`; `fleeParty(state, day):
 FleeParty` (dospělý 25 kg, dítě 7–15 let 10 kg, mladší nic, dobytek celý); `pitFound(seed, pitId,
@@ -1102,14 +1364,16 @@ daysInGroup): boolean` (30 % po 1 herním dni ve skupině domů); bez lesa jako 
 přesile“; návrat 1 herní den po odchodu vojska z mapy.
 
 - [ ] Testy: zásoby a dobytek odejdou s lidmi; útočník najde jámu jen s pravděpodobností z pravidla;
-      vlastní vojska a vojska pána a vazalů neškodná; přítomný hráč dostane upozornění „Cizí vojsko
-      u Kněžic!“.
+      vlastní vojska a vojska pána a vazalů neškodná; s opevněním všechny tři postoje napřed do
+      útočiště – kdo nestihne nebo se nevejde, u domů / do lesa; přítomný hráč dostane upozornění
+      „Cizí vojsko u Kněžic!“.
 - [ ] Commit `feat(game): postoje vsi a včasný útěk`.
 
-### Úloha 5.10 – Výsledky nájezdu ve vsi a kořist (≈ 140 kroků)
+### Úloha 6.10 – Výsledky nájezdu ve vsi a kořist (≈ 140 kroků)
 
 **Soubory:** nové `domain/war/raid-apply.ts` (+ test), `inbox.ts` (těla `raid-result`,
-`campaign-return`, `line-man-fell`), `types-people.ts` (`Person.woundedUntil?: number`),
+`campaign-return`, `line-man-fell`, `fortification-breach` – úsek se stavem 0 a obyvatelé ho
+přednostně přestaví, Ú5.4), `types-people.ts` (`Person.woundedUntil?: number`),
 `labor.ts`, `lord.ts` (ranění necvičí), `burials.ts` (padlí obránci na hřbitov),
 `types-chronicle.ts` (věcný zápis nájezdu).
 
@@ -1118,13 +1382,14 @@ ranění 60 dní bez práce a výcviku a 1 z 5 do 30 dní zemře – los ze seed
 pryč, kořist ze zásob podle podílu skupiny, nalezené jámy); `applyCampaignReturn(state, day, body)`
 (kořist do zásob, odvedení jako noví vesničané s novými id, muži rodu zpět).
 
-- [ ] Testy: bilance kořisti (co ubylo obránci, přibude útočníkovi, nosnost 25 kg na muže);
+- [ ] Testy: bilance kořisti (co ubylo obránci, přibude útočníkovi, nosnost 25 kg na muže; zásoby
+      a dobytek v nedobytém útočišti zůstanou);
       padlý muž rodu = smrt s nástupnictvím (lord.md a 2.4); kronika obou rodů „Nájezd Bořivoje
       z Lhoty na Kněžice bez opovědi: padli 3, raněni 2, odvedeno 5, vzato 400 kg obilí a 6 ovcí.“;
       po kouscích.
 - [ ] Commit `feat(game): výsledky nájezdu a kořist`.
 
-### Úloha 5.11 – Vzdaní, zajetí a výkupné (≈ 140 kroků)
+### Úloha 6.11 – Vzdaní, zajetí a výkupné (≈ 140 kroků)
 
 **Soubory:** nové `packages/db/src/schema/prisoner.ts`, `adapters/prisoner-repository.ts` (+ db
 test), `application/prisoners.ts` (+ test), `domain/war/surrender.ts` (+ test),
@@ -1142,13 +1407,15 @@ hráčův muž nevede tažení ani necestuje.
       správce; poprava hráčova muže spustí 2.4.
 - [ ] Commit `feat(game): zajetí a výkupné`.
 
-### Úloha 5.12 – NPC velitel, zástupce, rozpad (≈ 130 kroků)
+### Úloha 6.12 – NPC velitel, zástupce, rozpad (≈ 130 kroků)
 
 **Soubory:** nové `domain/war/npc-commander.ts` (+ test), `campaign.ts` (přítomnost, zástupce,
 rozpad), `notices.ts` (`'campaign-disbanded'`).
 
 **Rozhraní – vytváří:** `npcIntents(state, world): IntentBody[]` (nejkratší cesta s objížďkou lesa
-a přes brody, na mapě cíle útok na nejslabší skupinu domů v dohledu, kořist; obrat při bodu zlomu
+a přes brody, na mapě cíle útok na nejslabší skupinu domů v dohledu – u opevnění mezera, jinak
+brána s nejkratším prolomením, nebo nenapadne, je-li síla pod 1,5 × obránci × násobek, a vezme, co
+je venku –, kořist; obrat při bodu zlomu
 své skupiny, padlé nebo uprchlé polovině vojska, plné nosnosti, jídle jen na cestu domů);
 přítomnost `presence` – bez ní 344 taktů → zástupce (NPC), bez zástupce rozpad; padlý / zajatý
 velitel → zástupce, jinak rozpad; rozpad = hloučky podle vsí domů, jen se brání.
@@ -1158,7 +1425,7 @@ velitel → zástupce, jinak rozpad; rozpad = hloučky podle vsí domů, jen se 
 - [ ] Ruční ověření v dev světě: dva účty, nájezd podle rozkazu, výsledky v kronice.
 - [ ] Commit `feat(game): NPC velitel a rozpad výpravy`.
 
-### Úloha 5.13 – Průchod, svolání vazalů, ochrana pánem (≈ 150 kroků)
+### Úloha 6.13 – Průchod, svolání vazalů, ochrana pánem (≈ 150 kroků)
 
 **Soubory:** nové `application/{passage.ts,summons.ts,protection.ts}` (+ testy), `dialogs.ts`
 (`summons`), `campaign.ts` (ohlášená vojska neškodná, „Nevěřit“), `guests.ts` (ochrana),
@@ -1176,7 +1443,7 @@ války“; vazalové vazalů s cílem u A); `requestProtection` / `sendProtectio
       služby B; ohlášený průchod – ves neutíká; „Nevěřit“ – ves podle postoje.
 - [ ] Commit `feat(game): svolání, průchod a ochrana`.
 
-### Úloha 5.14 – Živé vedení a pohled na cizí mapu (≈ 150 kroků)
+### Úloha 6.14 – Živé vedení a pohled na cizí mapu (≈ 150 kroků)
 
 **Soubory:** nové `apps/web/app/api/campaign/[id]/route.ts` (GET, `no-store`),
 `application/campaign-view.ts` (+ test), `lib/foreign-map.ts`, `hooks/useCampaign.ts`;
@@ -1192,11 +1459,11 @@ objevené.
 
 - [ ] Test (Review Focus 4): záměr za cizího muže, za mrtvého a na neobjevený cíl odmítnut;
       `CampaignView` neobsahuje obránce mimo dohled (test se skrytými obránci v lese).
-- [ ] Dotazování 2× za sekundu s interpolací; zavřená stránka = žádná přítomnost (5.12).
+- [ ] Dotazování 2× za sekundu s interpolací; zavřená stránka = žádná přítomnost (6.12).
 - [ ] e2e: hráčův muž vede tažení, hráč klikne cíl, muž jde.
 - [ ] Commit `feat(web): živé vedení tažení`.
 
-### Úloha 5.15 – Scéna války (≈ 150 kroků)
+### Úloha 6.15 – Scéna války (≈ 150 kroků)
 
 **Soubory:** nové `lib/scene/{army.ts,battle-fx.ts,fog-of-war.ts}` (+ testy čistých funkcí),
 modely 0 A.D. (oštěp, štít, luk) v `public/models/` + `LICENSES.md`, `lib/scene/villager-plan.ts`
@@ -1204,11 +1471,12 @@ modely 0 A.D. (oštěp, štít, luk) v `public/models/` + `LICENSES.md`, `lib/sc
 
 - [ ] Vojsko hloučky po skupinách, muži rodu na koních, ikona rozkazu nad skupinou; střelba, srážky,
       padlí leží do konce dne, ranění sedí u domů; mlha války texturou (žádný další vertex buffer);
-      animace v `animate()` s `needsRender`; importy z konkrétních modulů Babylonu.
+      animace v `animate()` s `needsRender`; importy z konkrétních modulů Babylonu; zavřené brány,
+      prolamování a průlom opevnění (modely a rozmístění z Ú5.7).
 - [ ] e2e: menší snímek ukázky Bitva; `measure-scenery-culling` – draw cally s vojskem zapsat.
 - [ ] Commit `feat(scene): vojsko a boj ve scéně`.
 
-### Úloha 5.16 – Rozsudek pána (≈ 110 kroků)
+### Úloha 6.16 – Rozsudek pána (≈ 110 kroků)
 
 **Soubory:** nové `application/judgment.ts` (+ test), `dialogs.ts` (`judgment`), `HousePanel.tsx`
 (Rozsudek – váhy), `types-chronicle.ts` („Ctibor neposlechl pána“).
@@ -1223,13 +1491,14 @@ bundle: MacroBundle } | { kind: 'return-people'; people: TradePeople } | { kind:
       neposlušnost.
 - [ ] Commit `feat(game): rozsudek pána`.
 
-### Úloha 5.17 – Měření tažení a e2e celé války (≈ 120 kroků)
+### Úloha 6.17 – Měření tažení a e2e celé války (≈ 120 kroků)
 
 **Soubory:** nové `apps/worker/scripts/measure-campaigns.ts`, `e2e/multiplayer-war.spec.ts`;
 `docs/code/war.md`, `docs/code/worker.md` (Výkon).
 
 - [ ] Měření: 1 / 5 / 20 tažení × 60 mužů, takty za sekundu na jedno jádro, podíl hledání cesty;
-      cíl ≤ 25 % jádra pro 20 tažení (zapsat tabulku jako u workeru).
+      cíl ≤ 25 % jádra pro 20 tažení (zapsat tabulku jako u workeru); 5 tažení u opevněných vsí
+      (prolamování a útočiště).
 - [ ] e2e: dva hráči v dev světě, A přepadne B (NPC velitel), B má výchozí postoj útěk – ves
       s dobytkem uteče do lesa, upozornění a kronika obou; A nabídne mír s tributem, B přijme.
 - [ ] Commit `test(e2e): válka dvou hráčů`.
@@ -1238,20 +1507,23 @@ bundle: MacroBundle } | { kind: 'return-people'; people: TradePeople } | { kind:
 
 ## Rizika napříč plánem
 
-- **Rozsah:** F5 je víc než polovina plánu a první mechanika ve skutečném čase. Proto je rozdělená
-  tak, aby po Ú5.12 byla hratelná válka bez živého řízení a scény; zbytek se dá odložit bez
+- **Rozsah:** F6 je nejrozsáhlejší fáze a první mechanika ve skutečném čase. Proto je rozdělená
+  tak, aby po Ú6.12 byla hratelná válka bez živého řízení a scény; zbytek se dá odložit bez
   rozbití.
 - **Výkon workeru:** schránka přidá jeden indexovaný dotaz na dopočet vsi; Odvody a úlohy světa
   jednou za minutu; tažení samostatnou smyčkou. Bariéra může vsi u bojiště zdržet o sekundy – měří
-  Ú5.17.
+  Ú6.17.
 - **Souběh:** pravidlo jednoho zámku drží – mezi hráči jen transakce nad vlastními tabulkami
-  a schránka; tažení má vlastní zámek a na zámek hráče nečeká. Testy souběhu v Ú1.7 a Ú5.7.
+  a schránka; tažení má vlastní zámek a na zámek hráče nečeká. Testy souběhu v Ú1.7 a Ú6.7.
 - **Determinismus:** schránka i výsledky boje přicházejí v pevný herní den; tažení na taktech ze
   seedu; det-math ve `domain/war/**`.
 - **Bezpečnost:** server skládá každý pohled pro přihlášeného; adresář rodů a pohled tažení mají
   testy tvaru odpovědi; server actions nikdy neberou `playerId` ze vstupu.
 - **Kalibrace:** stropy výcviku mění lov rodu (war.md – kalibrace lovu) – ověřit deníkem vsí, ne
   měřením.
+- **Opevnění:** mění síť cest a scénu vsí – zlatý otisk vsí bez opevnění (Ú5.3), měření draw callů
+  s palisádou (Ú5.7); síla opevnění v boji (× 3 za palisádou) se ověří až válkou (Ú6.17) –
+  „zkusíme to takhle a uvidíme“ (Martin 3. 11. 2026).
 
 ## Otázky na Martina
 
@@ -1267,9 +1539,8 @@ bundle: MacroBundle } | { kind: 'return-people'; people: TradePeople } | { kind:
 
 ## Mimo plán
 
-- Opevnění (`fortifications.md` – samostatný návrh). Boj (Ú5.8) umí násobek obrany × 2 „za
-  palisádou“, ale zástupná palisáda jako stavba (cena, útočiště pro ≈ 100 lidí) čeká na
-  `fortifications.md` – bez ní se obránci brání u domů (× 1,5).
+- Z opevnění (`fortifications.md` – Později): prémiové terény (ostrožny, mokřady), obléhání hladem,
+  věže, kamenné hradby, zapálení palisády, předhradí a hradiště jako stupeň sídla.
 - Sňatky mezi rody, pověst a tituly, NPC rody s vlastní vůlí, NPC vsi ve světě, kostra řek
   a stezek, mikrokomodity mezi hráči, volné zprávy, pohled do scény cizí vsi mimo válku.
 - Nasazení na VPS a odesílání e-mailů (pozvánka je kód a odkaz, e-mail nepotřebuje).
