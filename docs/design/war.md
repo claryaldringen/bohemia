@@ -802,6 +802,9 @@ dokumentu výš je podle nich přepsané (3. 11. 2026)**; při rozporu platí te
 - **Scéna:** muži jako dnešní postavy s oštěpem, štítem a lukem z 0 A.D., muži rodu na koních;
   hloučky podle skupin svižnou chůzí; v boji střílejí, srážejí se, padají; padlí leží do konce dne,
   ranění sedí u domů; mlha války – „ok“.
+- **Lovecká zkušenost vesničana:** „Nebudeme to řešit, všichni vesničané budou mít víceméně stejnou
+  (a malou) bojovou hodnotu“ (Martin 3. 11. 2026) – dovednost lov u vesničanů se nezavádí;
+  vesničan má pevnou malou sílu (návrh Clauda: 0,4, nucený × 0,5).
 
 ## Otázky na Martina
 
