@@ -627,6 +627,9 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
   otevře panel nebo dialog – „ok“.
 - **Kronika války:** věcné zápisy bez hodnocení do kronik obou rodů (nájezd s padlými, raněnými,
   odvedenými a kořistí; ohlášený průchod; mír a jeho podmínky) – „ok“.
+- **Scéna:** muži jako dnešní postavy s oštěpem, štítem a lukem z 0 A.D., muži rodu na koních;
+  hloučky podle skupin svižnou chůzí; v boji střílejí, srážejí se, padají; padlí leží do konce dne,
+  ranění sedí u domů; mlha války – „ok“.
 
 ## Otázky na Martina
 
