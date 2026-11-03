@@ -842,6 +842,11 @@ Nový systém přehrazení řeší sám (návrh Clauda):
 
 ## Křižovatky (pravidlo 9)
 
+> **Napojení blízko křižovatky (Martin 3. 11. 2026):** na otázku, zda nové napojení cesty blíž než
+> rozestup křižovatek (≈ 12 m, Vlkov: 9,8 m od křižovatky 1131) přitáhnout přímo do stávající
+> křižovatky (víc ramen, kříž až pět): „ano“ – pět ramen smí jedna křižovatka, šest a víc se dál
+> dělí (podrobnosti návrh Clauda při implementaci).
+
 Návrh Clauda:
 
 - **Kdy:** v uzlu, kde končí **3 nebo 4 cesty** – i zarůstající, po které už nikdo nechodí
