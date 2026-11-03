@@ -37,3 +37,6 @@ Martin 2. 11. 2026: „Typy hrazení bychom asi měli probrat zvlášť, je to d
 - **Správce:** „Opevnění je stavba jako každá jiná, takže usoudí-li správce, že by ho ves mít měla,
   postaví ho“ – správce rozhoduje jako o ostatních stavbách (hodnota proti ceně – návrh Clauda:
   hrozba z války a cizích vojsk poblíž zvedá hodnotu).
+- **Útočiště:** bez pevného stropu – kdo stihne doběhnout, schová se i se zásobami a dobytkem, dokud
+  je místo; plocha z nakresleného obvodu, 10 m² na člověka a 20 m² na kus dobytka (návrh Clauda);
+  kdo se nevejde, zůstane venku – „ok“.
