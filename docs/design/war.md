@@ -1,15 +1,13 @@
 # Válka – návrh ke schválení
 
-Stav: **návrh ke schválení** (2. 11. 2026). Implementace zatím není. Druhá verze: navazuje na
-schválený nájezd na sousední ves (Martin 18. 10. 2026: „Je to dobré, ale uděláme ještě jednu
-drobnou změnu“ – dobrovolníci a rozkaz) a přestavuje ho na **válku rodu proti rodu** podle
-Martinových odpovědí k vazalství z 2. 11. 2026 a je s nimi sesouhlasená (bez zemského míru,
-vojenská služba vazalů jen muži rodu, přinucení vazala, rozsudek pána). Co z 18. 10. platí dál,
-je označené „Martin 18. 10.“, co se mění, shrnuje sekce Co se mění. Navazuje na
-[vazalství](vassalage.md) (jednání s podmínkami, vojenská služba, ochrana, vypovězení,
-rozsudek), [vojvodovu rodinu](lord.md) (výcvik), [koně](horses.md), [stěhování](migration.md)
-(mřížka map) a [obchod](trade.md) (dvorec, zemská stezka). Historické opory:
-[rešerše](research/2026-11-02-war.md). Co níž není výslovně Martinovo, je návrh Clauda.
+Stav: **návrh** (3. 11. 2026). Implementace zatím není. Tělo je přepsané podle oddílu
+[Odpovědi Martina 2. 11. 2026](#odpovědi-martina-2-11-2026) (několik odpovědí je z 3. 11.) – ty
+jsou závazné. Co z nájezdu na sousední ves platí dál, je označené „Martin 18. 10.“; co níž není
+výslovně Martinovo, je **návrh Clauda**. Navazuje na [vazalství](vassalage.md) (jednání
+s podmínkami, vojenská služba a svolání, ochrana, vypovězení, rozsudek), [vojvodovu
+rodinu](lord.md) (výcvik), [koně](horses.md), [divokou zvěř](wildlife.md) (lov),
+[stěhování](migration.md) (mřížka map) a [obchod](trade.md) (dvorec, zemská stezka). Opevnění bude
+samostatný návrh `fortifications.md`. Historické opory: [rešerše](research/2026-11-02-war.md).
 
 ## Proč
 
@@ -18,467 +16,641 @@ rozsudek), [vojvodovu rodinu](lord.md) (výcvik), [koně](horses.md), [stěhová
   spočívá.**“
 - Hráč bez pozvánky (Martin 2. 11. 2026): „**Bude úplně nezávislý – buď svou nezávislost uhájí
   nebo ho některý z ostatních hráčů donutí stát se jeho vazalem.**“
-- Vazalem se hráč stane jednáním – „**přijme, odmítne nebo se bude jednat o podmínkách**“; vazal
-  smí věrnost vypovědět „**Ano hned**“, nebo prostě přestane plnit – „**Pak může pán vazala buď
-  přinutit k poslušnosti nebo mu také vypovědět vazalství**“ (Martin 2. 11. 2026).
 - Vojenská služba: „**Ano. Bude to hlavní věc na vazalství.**“ (Martin 2. 11. 2026) – válka je
   to, k čemu pán vazaly potřebuje.
-- Vazalství nedrží žádné pravidlo (Martin 2. 11. 2026: „**žádné herní pravidlo nenutí vazalství
-  dodržet**“), jen síla: **válka je nátlak**, který z nabídky dělá
-  nabídku, jaká se neodmítá, a který drží vazala, aby neodešel. Historicky stejně – tribut za mír,
-  kdo platit přestal, toho pán napadl znovu (rešerše 5 – Boleslav I. a Ota I.).
-- Hráč je většinu času offline (herní rok ≈ 8 h 46 min skutečného času) – válka musí jít hrát
-  živě útočníkem a zároveň **obrana musí fungovat bez obránce**.
+- Vazalství ani mír nedrží žádné pravidlo (Martin 2. 11. 2026: „**žádné herní pravidlo nenutí
+  vazalství dodržet**“), jen síla: **válka je nátlak**, který z nabídky míru s podmínkami dělá
+  nabídku, jaká se neodmítá. Historicky stejně – tribut za mír, kdo platit přestal, toho pán
+  napadl znovu (rešerše 5 – Boleslav I. a Ota I.).
+- Hráč je většinu času offline (herní rok ≈ 8 h 46 min) – tažení musí jít hrát živě a zároveň
+  **obrana musí fungovat bez obránce**.
 
-## Co se mění proti verzi z 18. 10. 2026
+## Co se mění proti verzím z 18. 10. a 2. 11. 2026
 
-| Bylo (18. 10. 2026)                               | Nově (návrh Clauda podle Martina 2. 11. 2026)                                                          |
-| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| Nepřítel je NPC vojvoda na sousední mapě          | Nepřítel je **rod jiného hráče**; NPC vsi až se simulací sousedů (Později)                             |
-| Poražený vojvoda se stane vazalem vítěze (Martin) | Poražený dostane **výzvu = nabídku vazalství** a rozhodne sám (Martin 2. 11. – přijme, odmítne, jedná) |
-| Diplomacie a příměří jsou ne-cíl                  | **Výzva** před válkou a **mír** – bez nich nejde nabídka s podmínkami                                  |
-| Cíl výpravy: sousední mapa (8 šipek)              | Ves **do 3 políček** mřížky světa (mapa okolí); sousední políčko zůstává 1–3 dny cesty                 |
-| –                                                 | Doplněno: muži rodu a koně v síle, ranění, palisáda, ochrana, nejvýš jeden nájezd za rok               |
-| –                                                 | Podle vazalství 2. 11.: svolání vazalů (jen muži rodu), ochrana na žádost, přinucení vazala, rozsudek  |
+| Bylo                                                     | Nově                                                                                         | Kdo           |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ------------- |
+| Válce musí předcházet výzva a lhůta 24 h                 | **Opověď** smí, nemusí; přepadení bez opovědi jen věcně v kronice                            | Martin 2. 11. |
+| Nejvýš jeden nájezd rodu na ves za herní rok             | **Bez omezení** – brzdí roční doba, zima, zásoby a délka tažení                              | Martin 2. 11. |
+| Vesničan síla 1, muž rodu 1–2 podle boje a luku          | Dvě stupnice: vesničan **0,25–0,6** podle lovu, muž rodu **1–3** podle vojenské zkušenosti   | Martin 2. 11. |
+| Výcvik do 100                                            | Strop: výcvik doma **50**, lov **70**, nad 70 jen **válka**                                  | Martin 2. 11. |
+| Do pánovy války jen muži rodu, vesničané jen vlastní ves | Vesničané smějí i do útoku se slabou silou; vazalové ve službě dál jen muži rodu             | Martin 2. 11. |
+| Útočníky vždy řídí hráč; bez něj vojsko stojí a vrátí se | Živě jen tažení vedené **hráčovým mužem**; jinak rozkaz a NPC; bez **zástupce** se rozpadne  | Martin 2. 11. |
+| Cíl do 3 políček z mapy okolí; mezilehlé mapy jen čas    | **Mapu po mapě** – každou mapou se jde; panel Vojsko **textový, bez mapy**                   | Martin 2. 11. |
+| Po cizí mapě 1 km za herní den                           | **≈ 3–4 m/s** ve skutečném čase, 1 km ≈ 4–5 min ≈ 3 herní dny, táž poloha ve scéně i serveru | Martin 2. 11. |
+| Střet jedním výpočtem síly skupin                        | **Muž po muži** se zdravím; hráč řídí svého muže, ostatní **rozkaz před bitvou**             | Martin 2. 11. |
+| Postoj „do posledního“                                   | **Bránit se** do **bodu zlomu** (30 % ztrát v útoku, 45 % v obraně, po skupinách)            | Martin 3. 11. |
+| Muži rodu se nevzdávají                                  | V bezvýchodné situaci se často vzdají – **zajetí a výkupné**                                 | Martin 2. 11. |
+| Utéct jen do lesa do 300 m; ztratí se podíl zásob        | **Včasný útěk** se zásobami a stády do nejbližšího lesa, jámy skryté; útěk při bodu zlomu    | Martin 2. 11. |
+| Konec války přijetím výzvy = vazalství; mír bez podmínek | **Mírové jednání**: poplatek, vazalství, tribut, postoupení vsí; mír na dobu neurčitou       | Martin 2. 11. |
+| Palisáda kolem dvorce jako hotový návrh                  | Opevnění samostatně (`fortifications.md`), palisáda jen zástupně                             | Martin 2. 11. |
+| Průchod a střet s třetím rodem – Později                 | Průchod neutrálním územím smí, s **ohlášením**                                               | Martin 2. 11. |
 
-**Platí beze změny (Martin 18. 10. 2026):** dobrovolníci a rozkaz; libovolný počet mužů a práce
-doma úměrně zpomalí; padlí mohou ves položit až k vymření; kovárna dává bonus; postup dům od domu,
-sevřená ves se brání společně, samoty ne; obránci se brání, vzdají, nebo utečou do lesa; vzdaný dům
-útočník pobije, nebo odvede; útočníky vždy řídí hráč a výpravu smí kdykoli odvolat; mlha války;
+**Platí dál (Martin 18. 10. 2026):** dobrovolníci a rozkaz; libovolný počet mužů a práce doma
+úměrně zpomalí; padlí mohou ves položit až k vymření; kovárna dává bonus; postup dům od domu,
+sevřená ves se brání společně, samoty ne; vzdaný dům útočník pobije, nebo odvede; mlha války;
 hustý les velmi pomalu, voda jen po brodech; napadený se o vojsku dozví, až ho spatří vesničan;
-vesničané se bez hráče řídí postojem, přítomný hráč velí sám; mřížka map s přechodem okrajem.
+přítomný hráč velí obraně sám; mřížka map s přechodem okrajem.
 
 ## Cíle, ne-cíle, anti-cíle
 
-- **Cíl:** rod si podrobí jiný rod – válka končí přijetím nabídky vazalství (Martin 2. 11. 2026).
-- **Cíl:** nezávislý hráč **může nezávislost uhájit** – obranou, opevněním, odvetou (Martin 2. 11. 2026).
-- **Cíl:** nájezd hraje útočník **živě** jako v 0 A.D., trvá desítky minut skutečného času
-  (Martin 18. 10. – útočníky vždy řídí hráč).
-- **Cíl:** obránce, který spí, **válku předem ví** a ves se brání podle postoje, který nastavil.
-- **Cíl:** síla vojska vychází z toho, co už ve hře je – výcvik rodu (lord.md), koně (horses.md),
-  kovárna, štěstí, počet mužů.
+- **Cíl:** rod si podrobí jiný rod – **mírem s podmínkami** (vazalství, tribut, poplatek,
+  postoupení vsí); vazalem se nikdo nestane bez vlastního rozhodnutí (Martin 2. 11. 2026).
+- **Cíl:** nezávislý hráč **může nezávislost uhájit** – obranou, útěkem, odvetou (Martin 2. 11.).
+- **Cíl:** tažení hraje **živě** ten, jehož muž ho vede – jako hrdinu v 0 A.D.; ostatní tažení
+  jdou podle rozkazu (Martin 2. 11. 2026).
+- **Cíl:** **obrana funguje bez obránce** – postoj vsi nastavený dopředu (Martin 3. 11. 2026).
+- **Cíl:** tažení **není dílem okamžiku** – shromáždění, cesta mapu po mapě, zásoby, roční doba
+  (Martin 2. 11. 2026).
+- **Cíl:** síla vychází z toho, co už ve hře je – výcvik a lov, koně, kovárna, štěstí, počet mužů;
+  rozdíl mezi vesničanem, slabě a dobře vycvičeným mužem rodu je znatelný (Martin 2. 11. 2026).
 - **Cíl:** pán do války **svolá vazaly** – přijdou jen muži jejich rodů – a vazalovi na žádost
-  pošle **ochranu** (Martin 2. 11. 2026; [vazalství](vassalage.md) – Služby, Povinnosti pána).
-- **Ne-cíl (první verze):** NPC vojvodové jako cíl, svolání ostatních vsí vlastního rodu,
-  družina, hradiště a obléhání, pálení vsí, zbraně jako výrobky, rukojmí a výkupné, živý boj
-  s velením jednotkám obou stran.
-- **Anti-cíl:** hráč, který spí, přijde o celou hru – poslední muž rodu doma neumírá (otázka 5).
-- **Anti-cíl:** noc plná nájezdů – tentýž rod na tutéž ves nejvýš jednou za herní rok.
-- **Anti-cíl:** nováček rozdrcený první den – ochranná lhůta.
+  pošle **ochranu** ([vazalství](vassalage.md) – Služby, Povinnosti pána).
+- **Ne-cíl (první verze):** NPC vojvodové jako cíl, družina, opevnění kromě zástupné palisády,
+  obléhání, pálení vsí, zbraně a zbroj jako věci, prodej zajatců.
+- **Anti-cíl:** hráč, který spí, přijde o celou hru – **poslední muž rodu doma vždy uteče**
+  (Martin 2. 11. 2026).
+- **Anti-cíl:** nováček rozdrcený první den – ochrana 7 dní (Martin 2. 11. 2026).
+- **Anti-cíl:** hra hodnotí hráče („zrádce“, „zbabělec“) – kronika zapisuje jen události, soudí
+  hráči (Martin 3. 11. 2026).
 
-## Kdo s kým válčí (návrh Clauda)
+## Kdo s kým válčí
 
-- **Válka je vztah dvou rodů** (hráčů) – jako vazalství. Platí pro **všechny vsi** obou rodů;
-  každou ves jde přepadnout zvlášť.
-- **Vede ji hráč.** Výprava vyráží jen ze **vsi vlastního rodu, kterou hráč řídí** – je v ní
-  vojvodou nebo správcem ([seniorát](seniorate.md); dřív „jen z vlastní vsi“ – hráč smí nově
-  řídit víc vsí, Martin 2. 11. 2026). Ze vsi, kterou spravuje pro cizího držitele, ne – válka
-  není běžné řízení ([vazalství](vassalage.md) – Hráč jako správce cizí vsi). Ostatní vsi rodu
-  (vede je NPC – [správce](steward.md)) se brání podle postoje, samy nevyráží.
-- **Válka platí oběma směry** – kdo je vyzván, smí po začátku války přepadat i on.
-- **Žádný zemský mír** – válka mezi vazaly téhož pána i s vlastním pánem nebo vazalem: „**Ano, hra
-  to nezakazuje**“ (Martin 2. 11. 2026; otázka 4 tím odpadá). Pán zasáhne po svém – ochranou,
-  pomocí, rozsudkem, vypovězením ([vazalství](vassalage.md) – Mír a spory).
-- **Dosah:** výzvu i výpravu jen na ves do **3 políček** mřížky světa (počítáno v 8 směrech jako
-  ve vazalství) – válka je věc sousedů, ne celého světa.
-- **Nelze:** na rod v ochranné lhůtě, na ves v ochraně nové vsi (Ochrana níž).
+- **Válka je vztah dvou rodů** – platí pro **všechny vsi** obou rodů, každou jde přepadnout zvlášť
+  (Martin 2. 11. 2026 – „Ano“).
+- **Platí oběma směry** – napadený smí táhnout také (návrh Clauda).
+- **Žádný zemský mír** – válka i mezi vazaly téhož pána a s vlastním pánem nebo vazalem: „**Ano,
+  hra to nezakazuje**“ (Martin 2. 11. 2026). Pán zasáhne po svém – ochranou, pomocí, rozsudkem,
+  vypovězením ([vazalství](vassalage.md) – Mír a spory).
+- **Bývalý pán proti vazalovi, který vypověděl**, smí táhnout kdykoli jako proti komukoli jinému –
+  žádné zvláštní pravidlo; výpověď je v kronice (Martin 2. 11. 2026 – „Ano smí“).
+- **Přinucení k poslušnosti** (Martin 2. 11. 2026: pán vazala „přinutí k poslušnosti“): vazala,
+  který neplní (dávky, splátky, svolání, rozsudek – [vazalství](vassalage.md), Neformální
+  výpověď), pán napadne jako kohokoli. Opověď smí nést požadavek **splnit dlužné**; splní-li ho
+  vazal, válka skončí (návrh Clauda).
+- **Kdo táhne:** rod; tažení připraví hráč – **vůdce tažení** (Velení níž). Vsi rodu, které vede
+  NPC [správce](steward.md), se brání podle postoje a samy nevyrážejí. Ze vsi, kterou hráč
+  spravuje pro cizího držitele, ne – válka není běžné řízení ([vazalství](vassalage.md) – Hráč
+  jako správce cizí vsi) (návrh Clauda).
+- **Dosah bez pevné meze** – brzdí ho cesta mapu po mapě, zásoby a čas; Martin 2. 11. 2026: „Bude
+  tak jednodušší plenit příhraniční vesnice a těžší probít se k centru dominia“ (zrušení meze
+  3 políček je návrh Clauda).
+- **Nelze:** napadnout rod v ochraně ani novou ves v ochraně (Ochrana níž).
 
-## Výzva, válka a mír (návrh Clauda; otázka 1)
+## Začátek války – opověď, nebo přepadení
 
-- **Výzva = nabídka vazalství:** hráč vyzve jiný rod – pošle mu **nabídku vazalství
-  s podmínkami** (podmínky a jednání podle [vazalství](vassalage.md) – dávku obvykle nabízí vazal
-  podle výhledu, vyzývající ji přijme nebo dá protinabídku; hlavní podmínkou je vojenská služba)
-  a k ní pohrůžku války. Výzva je jediné jednání mezi dvěma hráči (vazalství – Meze); nepropadá –
-  lhůta určuje jen, kdy smí válka začít.
-- **Vyzvaný** (Martin 2. 11. 2026 – přijme, odmítne, jedná):
-  - **přijme** – stane se vazalem, válka nezačne;
-  - **odmítne** – válka začne hned;
-  - **jedná** – protinávrh podmínek (vazalství); lhůta běží dál, vyzývající ji smí prodloužit;
-  - **mlčí** – válka začne po lhůtě.
-- **Lhůta: 24 skutečných hodin** (≈ 2 ¾ herního roku) – hráč, který hraje aspoň jednou denně,
-  výzvu vždy uvidí a stihne se připravit (palisáda, postoj, odveta, jiný pán).
-- **Válka** trvá, dokud neskončí:
-  - **přijetím výzvy** – vyzvaný ji smí přijmout kdykoli během války (i hned po porážce);
-  - **mírem** – kterákoli strana nabídne mír, druhá přijme (bez podmínek; s podmínkami Později);
-  - **sama** – **3 herní roky bez nájezdu** (≈ 26 h) válka vyprchá; další válka chce novou výzvu
-    s lhůtou, takže obránce je zase varován;
-  - **vymřením** jednoho z rodů.
-- **Přinucení k poslušnosti** (Martin 2. 11. 2026: „přinutit k poslušnosti“; podrobnosti návrh
-  Clauda): vazala, který neplní (dávky, splátky, svolání, rozsudek – [vazalství](vassalage.md),
-  Neformální výpověď), smí pán vyzvat jako kohokoli jiného. Výzva vlastnímu vazalovi nese
-  požadavek – **splnit dlužné** nebo **nové podmínky**. Přijme-li ho vazal, hned se mu objeví
-  dialog odeslání dlužného a válka nezačne nebo skončí; odmítne-li, je válka; vypoví-li vazal
-  místo toho věrnost, válka trvá jako s cizím rodem. Lhůta jako u každé výzvy.
-- **Vypovězení vazalem** (otázka 6): vazal smí věrnost formálně vypovědět kdykoli (Martin
-  „Ano hned“, 2. 11. 2026); bývalý pán mu pak do **1 herního roku** smí poslat výzvu **bez
-  lhůty** – válka začne hned (návrh Clauda).
-- **Kdy přesně** vojsko přijde, obránce neví – dozví se, až ho spatří vesničan (Martin 18. 10.).
-  Výzva říká jen, že válka je.
+- Martin 2. 11. 2026: „**Formální vyhlášení či opověď je dobré, ale nikoli nezbytné**“ – válka
+  smí začít i bez opovědi.
+- **Opověď** (podoba návrh Clauda): vzkaz rodu „Chci na vás jít“ (rešerše 8 – Svjatoslav). Válka
+  začne **odesláním**, bez lhůty. Opověď smí nést **požadavek** se stejnými podmínkami jako mír
+  (Konec války níž) – přijme-li ho opovězený, válka hned skončí mírem s těmi podmínkami; protinávrh
+  je mírové jednání; odmítnutí nebo mlčení nic nemění. Opověď s požadavkem je jednání
+  ([vazalství](vassalage.md) – Meze: mezi dvěma hráči jedno jednání naráz).
+- **Přepadení bez opovědi:** válka začne **prvním útokem** vojska na lidi, dobytek nebo zásoby
+  druhého rodu (návrh Clauda – kdy přesně). Žádný herní trest – jen věcný zápis do kronik obou
+  rodů: „Bořivoj z Lhoty přepadl Kněžice bez opovědi.“ (Martin 2. 11. 2026 – „Jak říkáš“).
+- **Kdy** vojsko přijde, obránce neví ani po opovědi – dozví se, až ho spatří vesničan
+  (Martin 18. 10.).
+- **Válka trvá** do míru (Konec války níž), nebo do vymření jednoho z rodů. Bez střetu **3 herní
+  roky** (≈ 26 h) válka **utichne** – zápis „Válka s Bořivojem utichla.“; další útok je nová válka
+  (návrh Clauda – aby horní lišta a panel nedržely mrtvé války).
 
-## Ochrana (návrh Clauda; otázky 2 a 3)
+## Ochrana nového hráče
 
-- **Nový rod – 7 skutečných dní** (≈ 19 herních let; synové zakladatelů dospějí a vycvičí se)
-  ho nikdo nesmí vyzvat. Ochrana skončí dřív, když sám pošle výzvu. Platí i po Začít znovu
-  ([obyvatelstvo](population.md)) – nový rod je nový začátek.
+- **Nový rod – 7 skutečných dní od registrace** (≈ 19 herních let – synové zakladatelů dospějí)
+  ho nikdo nesmí napadnout (Martin 2. 11. 2026 – „ok“). Ochrana **skončí dřív, když sám
+  napadne** – pošle opověď, nebo jeho vojsko zaútočí. Platí i po Začít znovu
+  ([obyvatelstvo](population.md)) – nový rod je nový začátek (návrh Clauda).
+- **Průchod** chráněným územím smí – průchod není útok (návrh Clauda).
 - **Nová ves rodu** (syn odchází na novou mapu – lord.md, Dělení vsi): prvních **5 herních let**
-  ji nikdo nepřepadne – stejně jako ji nezasáhne pohroma (Martin 27. 10. 2026 k pohromám:
+  ji nikdo nenapadne – stejně jako ji nezasáhne pohroma (Martin 27. 10. 2026 k pohromám:
   „Pětiletou ochranu“; převzetí do války je návrh Clauda).
-- **Roční klid:** tentýž rod smí na tutéž ves vyrazit **nejvýš jednou za herní rok** (≈ 8 h 46 min,
-  počítáno od odchodu jeho vojska z mapy vsi). Přes noc tak ves přepadne každý nepřítel nejvýš
-  jednou.
+- Rozkaz k útoku na chráněnou ves je zašedlý s důvodem u kurzoru (Rozhraní).
 
-## Vojsko (Martin 18. 10. – dobrovolníci a rozkaz; síla návrh Clauda)
+## Nájezdy bez omezení – roční doba a zima
 
-- **Velitel:** výprava potřebuje **muže rodu od 16 let** (vojvoda nebo syn); bez něj nevyrazí.
-  Vojvoda smí zůstat doma – pak velí nejstarší syn, který jde.
-- **Muži rodu** (lord.md – kdo cvičí): hráč vybere, kdo z rodiny jde (od 16 let, bez horní
-  hranice); jedou na **svých koních** (horses.md – každý jezdecký kůň má svého jezdce).
-- **Vesničané:** muži 16–44 – nejdřív dobrovolníci, pak nařízení (Dobrovolníci a rozkaz níž).
-  Ženy, děti a starší zůstávají (Martin 18. 10.). Platí jen pro **vlastní nájezd a obranu
-  vlastní vsi** – do války pána vesničané nejdou (níž; otázka 7).
-- **Muži vazalů ve službě** (Martin 2. 11. 2026: „vazal musí poslat muže schopné vojenské
-  služby, tj. příslušníky svého rodu, protože nikdo jiný vojenské zkušenosti nemá“): svolaní muži
-  rodu vazalů – kterýkoli od 16 let, i hráčův muž vazala, a smějí padnout („legitimní způsob
-  smrti“) – přijdou do cílové vsi ([vazalství](vassalage.md) – Svolání) a připojí se k výpravě
-  nebo obraně pána jako jeho muži rodu: síla podle výcviku a koní (tabulka níž), velí pán. Bez
-  velitele z pánova rodu nevyrazí; živí je ves, kde slouží (návrh Clauda).
-- **Výzbroj:** zbraně nejsou surovina (ne-cíl od 18. 10.); co muž má, vystihuje **kovárna**.
-- **Doma:** ves bez mužů ztratí jejich práci úměrně (Martin 18. 10.); muži rodu na výpravě
-  necvičí.
+- **Kolikrát chce** – Martin 2. 11. 2026: „**Ono to válečné tažení jde reálně podniknout jen
+  v některé části roku. Zimní tažení sice bude možné, ale extrémně náročné. Vojenské tažení také
+  není dílem okamžiku**“. Žádný roční klid ani mez na tutéž ves.
+- **Roční doba:** tažení trvá desítky herních dní (Pohyb níž) a muži mezitím chybí doma – za žní
+  a setí to ves pocítí nejvíc (práce úměrně – Martin 18. 10.). Hra nic nezakazuje (návrh Clauda).
+- **Zima** (od 1. 12. do konce února – [kalendář](calendar.md)) – Martin 2. 11. 2026: „**Vojsko
+  jde pomaleji. Musí sebou vézt zásoby píce pro koně. Pokud je tažení vícedenní, vojsko potřebuje
+  víc času na ubytování**“ (čísla návrh Clauda):
+  - **pochod sněhem × 0,75**;
+  - **ležení:** v létě vojsko spí pod širákem – tempo výš s tím počítá a ve scéně jde dál; v zimě
+    se každou herní noc zastaví na **ležení** s ohni a přístřešky na ≈ **třetinu herního dne**
+    (≈ 30 s); dohromady **zimní tempo ≈ polovina letního** (1 km ≈ 9–10 min ≈ 6 herních dní)
+    (otázka 2);
+  - **píce:** koně na tažení dostávají seno, kdykoli by ho dostávali doma (listopad–březen,
+    **6 kg denně**, kůň bez obilí 7 kg – [koně](horses.md)); tažení ho veze s sebou.
 
-### Síla muže (návrh Clauda – do `rules-war.ts`)
+## Vojsko
 
-| Kdo / co               | Síla                                                                                                                |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| Vesničan (muž 16–44)   | **1** (Martin 18. 10. – základ)                                                                                     |
-| Muž rodu pěšky         | **1 + (boj + luk) ÷ 200** – nevycvičený 1, plně vycvičený **2** (lord.md: „syn za dva muže“)                        |
-| Muž rodu na koni       | × **(1 + 0,5 × jízda na koni ÷ 100)**, jízda na koni = jízda × (0,4 + 0,6 × výcvik koně) (horses.md) – nejvýš **3** |
-| Kovárna                | × **1,5** s plným pokrytím nástroji (železné sekery a hroty – 18. 10.)                                              |
-| Štěstí vsi             | × **0,8–1,1** jako práce (18. 10.)                                                                                  |
-| Nucený muž             | × **0,5**, s příbuznými v cílové vsi × **0,3** (18. 10.)                                                            |
-| Ženy a starší v obraně | × **0,3** (18. 10.); chlapci 14–15 let také                                                                         |
-| Obrana u domu          | × **1,5** (18. 10. – znají místo)                                                                                   |
-| Obrana za palisádou    | × **2** místo × 1,5 (Opevnění níž)                                                                                  |
+- **Muži rodu od 16 let** (vojvoda, synové, bratři, vnuci – i hráčův muž) na **svých koních**
+  ([koně](horses.md) – každý jezdecký kůň má svého jezdce). Smějí padnout – „legitimní způsob
+  smrti“ ([vazalství](vassalage.md) – Vojenská služba).
+- **Vesničané** – Martin 2. 11. 2026: „**Vesničané (muži) mohou mít určité zkušenosti z lovu.
+  Takže ano, lze je zapojit do boje, a to i do útočného, ale jejich bojová hodnota bude
+  nevalná**“: muži 16–44 ze vsí vůdcova rodu, které tažení vybere, smějí na tažení i do obrany se
+  slabou silou (Síla). Ženy, děti a starší na tažení nejdou (Martin 18. 10.).
+- **Dobrovolníci a rozkaz** (Martin 18. 10. 2026; čísla návrh Clauda – beze změny), v každé
+  vybrané vsi zvlášť:
+  - muž, který **má v cílové vsi blízké příbuzné** (rodiče, sourozence, děti, ženu odtamtud nebo
+    její rodinu), **nechce** (Martin); jinak se přihlásí s pravděpodobností ≈ 30 % + 0,5 % za
+    bod štěstí nad 50, ves s hladem víc (kořist), čerstvě vdovská domácnost méně;
+  - **rozkaz:** ostatním může hráč nařídit, aby šli – nucení mají nízkou bojovou hodnotu (Síla),
+    **dezertují** (≈ 5 % denně, s příbuznými v cíli ≈ 15 %; dezertér s příbuznými v cíli může cíl
+    varovat), při bodu zlomu utečou první a nařídit muži útok na jeho příbuzné sníží štěstí vsi
+    (≈ −5 na rok za každého) (Martin: „Můžu si tak, lidově řečeno, nasrat do bot.“);
+  - hráč vidí počet dobrovolníků a ochotných / neochotných (ikony + čísla), ne jména.
+- **Muži vazalů ve službě** – jen muži rodu, Martin 2. 11. 2026: „**vazal musí poslat muže schopné
+  vojenské služby, tj. příslušníky svého rodu, protože nikdo jiný vojenské zkušenosti nemá**“.
+  Vesničané vazala do pánovy války nechodí. Na svolání ([vazalství](vassalage.md) – Svolání)
+  přijdou ke **shromaždišti**, velí jim vůdce; na tažení jedí z jeho zásob, ve vsi je živí ves,
+  kde slouží (návrh Clauda).
+- **Výzbroj** – Martin 2. 11. 2026: „**Zatím jen koeficient. Reálné věci budeme řešit někdy
+  později vlastní mechanikou**“ – co muži mají, vystihuje **kovárna** (Síla).
+- **Doma:** ves bez mužů ztratí jejich práci úměrně (Martin 18. 10.).
 
-Příklad: vojvoda a dva synové, všichni boj a luk 85 na vycvičených koních s jízdou 85 (≈ 2,6
-každý), a 12 vesničanů (8 dobrovolníků, 4 nucení = 10) s kovárnou: (7,9 + 10) × 1,5 ≈ **27**.
+## Velení a příprava tažení
 
-### Dobrovolníci a rozkaz (Martin 18. 10. 2026; čísla návrh Clauda – beze změny)
+- **Vůdce tažení** je hráč. Martin 2. 11. 2026: „**Záleží jak velké tažení podniká. Rozhodne,
+  kteří vazalové půjdou (ze kterých vsí) a u které vsi rodu se vojsko shromáždí.**“
+- **Příprava** (textový panel Vojsko – Rozhraní):
+  1. **velitel** – muž rodu od 16 let, kterého hráč určí (i jeho vlastní muž, syn, bratr) (Martin);
+  2. **zástupce velitele** – volitelně další muž vůdcova rodu ve vojsku (Martin – „měl by na
+     začátku určit svého nástupce. Samozřejmě nemusí“);
+  3. **vsi rodu**, odkud jdou muži rodu a vesničané, a **vazalové** ke svolání (Martin);
+  4. **shromaždiště** – ves vůdcova rodu; vojsko vyrazí, když hráč dá pokyn – kdo do té doby
+     nedorazil, čeká ve shromaždišti a vrátí se po dnech služby (návrh Clauda);
+  5. **skupiny a jejich rozkazy** (Boj níž);
+  6. **jídlo a píce**, nosiči, koně a vozy (Pohyb níž);
+  7. **cíl** – ves rodu, kterou tažení napadne; u tažení vedeného NPC je rozkazem, u živého
+     vedení jen odhadem cesty (návrh Clauda);
+  8. u tažení vedeného NPC **co se vzdanými** – pobít / odvést / nechat; šlechtice NPC vždy zajme
+     (návrh Clauda – Martin: „Cílem útočníka je nepřátelského šlechtice spíš zajmout“);
+  9. **ohlášení průchodu** rodům na cestě (Pohyb níž).
+- **Vede hráčův muž** → hráč řídí **živě** cestu, útok i ústup (Martin 2. 11. 2026 – „Přesně
+  tak“).
+- **Vede jiný muž** → hráč dá jen rozkaz na začátku a „**v tom případě nemá na tažení žádný vliv**“
+  (Martin 2. 11. 2026); smí se jen dívat. **NPC velitel** (návrh Clauda) jde po mřížce map
+  nejkratší cestou (les obejde, řeky po brodech), na mapě cíle napadá skupiny domů od nejslabší
+  v dohledu, bere kořist a obrátí se, když jeho skupina dosáhne bodu zlomu, když padne nebo uteče
+  polovina vojska, když je nosnost plná, nebo když jídla zbývá jen na cestu domů.
+- **Hráč odejde od tažení** – zavře hru nebo je mimo mapu vojska déle než **1 herní den**
+  (≈ 86 s; návrh Clauda – krátký pohled domů tažení nezničí):
+  - **se zástupcem** vede zástupce podle rozkazu (NPC); po návratu hráč velení převezme (Martin);
+  - **bez zástupce** se výprava **rozpadne** – Martin 2. 11. 2026: „**pokud pak odejde nebo umře,
+    výprava se rozpadne a lidé se pokusí vrátit zpátky**“.
+- **Padne-li nebo je-li zajat velitel**, velení přejde na **zástupce** a vede NPC podle rozkazu
+  (hráč už vliv nemá); bez zástupce, nebo padne-li i zástupce, se výprava rozpadne (Martin; druhý
+  případ návrh Clauda). Mění rozhodnutí 18. 10. „vojsko stojí a po dni se vrátí“.
+- **Rozpad** (návrh Clauda): lidé se vracejí domů po hloučcích podle vsí nejkratší cestou, nesou,
+  co mají, a nebojují – jen se brání; ranění jdou s nimi. Kronika: „Výprava Bořivoje se
+  rozpadla.“
 
-- **Ohlášení záměru:** hráč ve dvorci zvolí cílovou ves. Každý muž 16–44 se rozhodne:
-  - **má v cílové vsi blízké příbuzné** (rodiče, sourozence, děti, ženu odtamtud nebo její rodinu)
-    → **nechce** (Martin);
-  - jinak se přihlásí s pravděpodobností ≈ 30 % + 0,5 % za bod štěstí nad 50, ves s hladem víc
-    (kořist), čerstvě vdovská domácnost méně.
-- **Rozkaz:** ostatním může hráč nařídit, aby šli – nucení mají nízkou bojovou hodnotu (tabulka
-  výš), **dezertují** (≈ 5 % denně, s příbuznými v cíli ≈ 15 %; dezertér s příbuznými v cíli může
-  cíl varovat), při prohraném střetu utečou první a nařídit muži útok na jeho příbuzné sníží
-  štěstí vsi (≈ −5 na rok za každého) (Martin: „Můžu si tak, lidově řečeno, nasrat do bot.“).
-- Hráč vidí počet dobrovolníků a ochotných / neochotných (ikony + čísla), ne jména.
+## Síla
 
-## Výprava – přesun po mapách
+- **Výcvik a zkušenost** – Martin 2. 11. 2026: „**Muž se cvičením doma může dostat max na 50 %
+  tréninku, pokud loví tak na 70 % a zbytek zkušeností může získat jedině válkou. To, že zkušenost
+  klesá, když muž necvičí, neloví nebo neválčí je dobré. Je však potřeba zohlednit, že musí být
+  rozdíl mezi vesničanem, vojvodou vycvičeným na 10 % a vojvodou vycvičeným třeba na 60 %.**“
+  - **Stropy dovedností** (luk, boj, jízda – [vojvodova rodina](lord.md), Výcvik a zkušenost):
+    výcvik doma (cvičiště, objížďka polí) nejvýš **50**, lov ([divoká zvěř](wildlife.md)) nejvýš
+    **70**, nad 70 jen **válka** (do 100). Úbytek bez výcviku zůstává (lord.md – 5 % ročně, nejníž
+    polovina nejvyšší dosažené). Strop podle věku platí dál – rozhoduje nižší (návrh Clauda).
+  - **Válka cvičí** (návrh Clauda): den na tažení se počítá jako **2 h** výcviku luku a boje
+    (jezdcům i jízdy), den se soubojem jako **6 h**, se stropem 100 a sazbou růstu z lord.md.
+  - **Vojenská zkušenost** muže rodu = **(boj + luk) ÷ 2** (návrh Clauda); jízda je v násobku koně.
+  - **Lov vesničana** (návrh Clauda; otázka 1): nová dovednost **lov 0–70** u muže vesničana – roste
+    za hodiny na **okách** a v **noční hlídce polí** ([divoká zvěř](wildlife.md) – Drobná zvěř,
+    Noční hlídka) sazbou výcviku z lord.md, klesá jako ona; rybaření se nepočítá.
 
-- **Sousední políčko:** přechod okrajem mapy, objeví se na opačném okraji sousední mapy, **1–3
-  herní dny** podle terénu (Martin 18. 10.; čísla 18. 10. návrh Clauda); **zemskou stezkou 1 den**
-  ([obchod](trade.md) – zemská stezka zrychlí, 18. 10.).
-- **Mezilehlé mapy** (cíl 2–3 políčka daleko): jen čas cesty, stejně 1–3 dny na mapu; vojsko jimi
-  projde podél okraje bez střetu a bez scény (průchod a střet s třetím rodem – Později).
-- **Po cizí mapě:** pěší ≈ **1 km za herní den** (≈ 86 s – od okraje mapy ke vsi 1–2 dny), jezdci
-  dvakrát rychleji, ale vojsko jde tempem nejpomalejšího; **hustý les ≈ 1/4**, **voda jen po
-  brodech** (Martin 18. 10.); pevná cesta × 1,5 (roads.md).
-- **Jídlo:** vojsko si nese jídlo na cestu tam i zpět a **3 dny** na cizí mapě, denní potřeba jako
-  doma, ze zásob vsi při odchodu; bez jídla se vrací (18. 10.).
-- **Bez hráče:** útočník smí být během cesty offline. Na cizí mapě vojsko bez hráče **stojí**
-  a po **1 herním dni** se samo vrátí jako při odvolání – útočníky vždy řídí hráč (Martin 18. 10.).
+| Kdo / co                                  | Síla                                                                                                                                        |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Vesničan (muž 16–44) pěšky                | **0,25 + 0,5 × lov ÷ 100** – od 0,25 do ≈ 0,6 (Martin 2. 11.)                                                                               |
+| Muž rodu pěšky                            | **1 + 2 × vojenská zkušenost ÷ 100** – od 1 do 3 (Martin 2. 11.)                                                                            |
+| Muž rodu na koni                          | × **(1 + 0,5 × jízda na koni ÷ 100)**, jízda na koni = jízda × (0,4 + 0,6 × výcvik koně) ([koně](horses.md)) – až **× 1,5** (Martin 2. 11.) |
+| Vesničan na koni                          | nebojuje (Martin 2. 11.)                                                                                                                    |
+| Výzbroj – kovárna                         | × **1,5** s plným pokrytím nástroji (Martin 18. 10. a 2. 11. – zatím koeficient)                                                            |
+| Štěstí vsi (vesničané)                    | × **0,8–1,1** jako práce (18. 10.)                                                                                                          |
+| Nucený vesničan                           | × **0,5**, s příbuznými v cílové vsi × **0,3** (18. 10.)                                                                                    |
+| Ženy, starší a chlapci 14–15 let v obraně | **0,1**, brání se jen u domu (návrh Clauda)                                                                                                 |
+| Obrana u domu                             | × **1,5** (18. 10. – znají místo)                                                                                                           |
+| Za palisádou (zástupně – Opevnění)        | × **2** místo × 1,5                                                                                                                         |
 
-### Jak dlouho to trvá – příklad (návrh Clauda)
+Příklady (Martin 2. 11. 2026: „i vojvoda vycvičený na 10 musí být výš, než lovící vesničan“):
+vesničan bez lovu 0,25, lovec s lovem 70 ≈ 0,6; muž rodu se zkušeností 10 → 1,2, s 50 (strop
+výcviku doma) → 2, se 70 (lov) → 2,4, s 90 (válka) → 2,8. Na vycvičeném koni s jízdou 60 × 1,3
+(zkušenost 60 → 2,2 × 1,3 ≈ 2,9); nejvýš 3 × 1,5 = 4,5.
 
-| Krok                                                           | Herní čas    | Skutečný čas          |
-| -------------------------------------------------------------- | ------------ | --------------------- |
-| Bořivoj vyzve Ctibora (Kněžice 2 políčka od Lhoty), Ctibor spí | lhůta        | **24 h**              |
-| Ohlášení výpravy, dobrovolníci; vyrazí ráno dalšího dne        | 1 den        | ≈ 1,5 min             |
-| Cesta 2 mapy (bez stezky)                                      | ≈ 4 dny      | ≈ 6 min (offline smí) |
-| Na mapě Kněžic – ke vsi, dva střety, kořist (hraje živě)       | ≈ 3 dny      | ≈ 4–5 min             |
-| Návrat se stádem (poloviční tempo)                             | ≈ 6–8 dní    | ≈ 10 min              |
-| **Celá výprava**                                               | **≈ 14 dní** | **≈ 20 min**          |
-| Další výprava Lhoty na Kněžice                                 | za herní rok | za ≈ 8 h 46 min       |
+Vojsko: vojvoda a dva synové se zkušeností 60 na vycvičených koních (≈ 2,9 každý = 8,6)
+a 12 vesničanů s lovem ≈ 20 (8 dobrovolníků po 0,35, 4 nucení po 0,18 = 3,5), s kovárnou
+(8,6 + 3,5) × 1,5 ≈ **18** – tři muži rodu jsou víc než celá ves. Síla je odhad v panelu
+a základ zásahu v souboji (Boj), ne výsledek bitvy.
 
-## Na cizí mapě – nájezd (Martin 18. 10. 2026; čísla návrh Clauda)
+## Pohyb – mapu po mapě
 
-- **Mlha války:** útočník mapu objevuje, kam dohlédnou jeho muži (≈ 150 m, v lese míň);
-  objevené zůstane, dění vidí jen v dohledu (Martin 18. 10.).
-- **Hráč velí jako v 0 A.D.** – výběr, kliknutí kam jít, na co zaútočit; výpravu smí kdykoli
-  odvolat, muži se vrátí s tím, co mají (Martin 18. 10.).
-- **Dům od domu:** domy blíž než **40 m** od sebe tvoří **skupinu**; obránci celé skupiny se
-  shromáždí a brání společně, samota se neubrání (Martin 18. 10. – sevřená ves).
-- **Spatření:** napadený se o vojsku dozví, až ho spatří vesničan (Martin 18. 10.); pak se lidé
-  seběhnou do skupin a za palisádu (Obrana bez hráče).
-- **Ves během nájezdu:** dokud je cizí vojsko na mapě, lidé mimo útočiště nepracují (skrývají se)
-  – ztracené dny práce.
+- Martin 2. 11. 2026: „**Hráč musí k cíli dojít mapu po mapě. Bude tak jednodušší plenit
+  příhraniční vesnice a těžší probít se k centru dominia**“.
+- **Přechod okrajem:** vojsko dojde k okraji a objeví se na opačném okraji sousední mapy
+  (Martin 18. 10.); v 8 směrech jako mřížka vazalství (návrh Clauda). **Každou mapou se jde** i na
+  mezilehlých mapách – žádný skok ani čas cesty bez scény (Martin 2. 11. 2026).
+- **Tempo** – Martin 2. 11. 2026: „**Ten kompromis zní dobře**“: svižná chůze jako jednotky
+  v 0 A.D., **≈ 3–4 m/s ve skutečném čase**, 1 km ≈ **4–5 min ≈ 3 herní dny**. Mapa má
+  ≈ 1,9 km ([krajina](landscape.md)) – přes celou mapu ≈ 9 min (≈ 6 dní), od okraje ke vsi
+  uprostřed ≈ 4–5 min (≈ 3 dny). **Poloha vojska je táž ve scéně i v simulaci** – výjimka
+  z „Bez časosběru“ (vojáci jdou rychleji než lidé ve vsi).
+- **Terén** (Martin 18. 10.): **hustý les ≈ 1/4** tempa, **voda jen po brodech**; pevná cesta
+  a zemská stezka × 1,5 ([cesty](roads.md), [obchod](trade.md)) (návrh Clauda).
+- **Skupina jde tempem nejpomalejšího** (návrh Clauda): skupina jen z jezdců × 1,5; se stádem
+  × 0,5 (18. 10.); s pěšími raněnými × 0,75 (Ztráty); zima výš.
+- **Zásoby tažení** (Martin 2. 11. 2026 – „Ano“): jídlo pro muže (v zimě i seno pro koně) na
+  nosičích, koních nebo vozech, ze zásob vsí, odkud muži jdou (návrh Clauda):
+  - **denní potřeba** jako doma – ≈ 1 kg obilí na muže (≈ 3 400 kcal – [strava](diet.md)),
+    luštěniny, sýr a maso jako jeho podíl (návrh Clauda);
+  - **nosnost:** muž **25 kg** – vlastní zásoby a kořist dohromady (18. 10.); kůň bez jezdce
+    ≈ 80 kg (návrh Clauda); dvoukolák ≈ 400 kg ([vozy](wagons.md)) – jen mimo hustý les a přes
+    brody, tempem spřežení (návrh Clauda);
+  - **když dojde**, vojsko se vrátí, nebo si jídlo vezme v napadené vsi jako kořist (Martin).
+- **Příklad** (návrh Clauda): Bořivoj táhne ze Lhoty na Kněžice o 2 políčka dál, v létě. Ze Lhoty
+  k okraji ≈ 3 dny, přes mezilehlou mapu ≈ 6 dní, ke Kněžicím ≈ 3 dny, střety ≈ 3 dny, zpět se
+  stádem ≈ 24 dní – **≈ 40 herních dní ≈ 1 h skutečného času** a ≈ 40 kg jídla na muže, víc, než
+  unese – proto koně, vůz, nebo kořist. V zimě dvakrát déle.
+- **Průchod územím neutrálního rodu** – projít smí. Martin 2. 11. 2026: „**Neutrálnímu rodu by
+  mělo jít dát vědět, že chci táhnout přes jeho území. On se k tomu sice může vyjádřit, ale nic
+  to neznamená. Nicméně však nebude překvapen, až se u jeho vesnice objeví cizí vojsko a může dát
+  předem vesnici vědět, že vojsko jen prochází a nehrozí jí nebezpečí. Správce tak nezačne
+  vesnici opevňovat ani neuteče s vesničany do lesa**“:
+  - **ohlášení průchodu** – vzkaz rodu (které mapy, zhruba kdy); odpověď je vzkaz a nic
+    nezavazuje;
+  - ohlášení se vsím rodu **předá samo** – ohlášené vojsko berou za neškodné, nebrání se ani
+    neutíkají; neutrální hráč smí v odpovědi zvolit **Nevěřit** a jeho vsi se pak zachovají
+    podle postoje (návrh Clauda – spící hráč nemusí nic dělat);
+  - **bez ohlášení** se ves zachová podle postoje (Obránci);
+  - kronika věcně: „Bořivoj ohlásil průchod.“, „Vojsko Bořivoje prošlo kolem Kněžic.“
+- **Útok po ohlášeném průchodu** hra nezakazuje – Martin 3. 11. 2026: „**Ať se o tom (stejně jako
+  o všem) udělá záznam, ale řešení bude na hráčích**“. Kronika zapíše jen události (ohlášený
+  průchod, útok), žádné hodnocení; útok začne válku bez opovědi a ohlášení tím přestane platit
+  pro všechny vsi rodu (návrh Clauda).
+- **Vlastní vojska** (návrh Clauda): vojsko vlastního rodu a muži pána nebo vazalů ve službě či
+  na ochraně jsou pro ves vždy neškodní; jiné neohlášené vojsko je cizí.
 
-## Střet (návrh Clauda, doladí se hraním)
+## Boj
 
-- Střet nastane, když útočníci dojdou ke skupině, která se rozhodla **bránit** (volba níž).
-- **Síla stran:** útočníci, kteří ke skupině došli, proti obráncům skupiny (s násobky obrany).
-  Každá strana × **náhoda boje 0,85–1,15** – deterministicky ze seedu světa, války a pořadí
-  střetu, takže výsledek nezávisí na tom, kdy a po jakých kouscích ho server spočítá.
-- **Vyhraje silnější.** r = silnější ÷ slabší.
-  - **Poražený** ztratí **20 % × r** svých lidí ve střetu, nejvýš **60 %** (vyrovnaný boj 20 %,
-    dvojnásobná přesila 40 %).
-  - **Vítěz** ztratí **20 % ÷ r** (vyrovnaný 20 %, dvojnásobná přesila 10 %).
-  - Ztráty jsou **napůl padlí, napůl ranění**; koho to potká, určí los ze seedu, jezdci rodu mají
-    poloviční váhu (kůň, výcvik).
-- **Poražení útočníci** ustoupí na dohled od skupiny; nucení se po prohraném střetu vracejí domů
-  sami (18. 10. – utečou první). Hráč smí zkusit jinou skupinu, nebo výpravu odvolat.
-- **Poražení obránci:** přeživší utečou do lesa nebo do útočiště (jako útěk); kdo nemá kam,
-  vzdá se.
-- Příklad: vojsko 27 (výš) proti skupině 5 mužů a 8 žen a starších u domů:
-  (5 + 2,4) × 1,5 ≈ 11, r ≈ 2,4 → obránci ztratí ≈ 48 % (6 lidí: 3 padlí, 3 ranění), útočníci
-  ≈ 8 % (1 raněný).
+- **Kompromis** – Martin 2. 11. 2026: „**Hráč může ovládat vojvodu a ostatní jeho vazalové se
+  budou držet nějakého rozkazu, který dostali před bitvou – typicky držet se vévody a bránit ho,
+  nebo agresivně útočit na všechno co se hýbe.**“ Boj probíhá **muž po muži ve skutečném čase**.
+- **Hráč živě řídí jen svého muže** – výběr, kam jít, na koho zaútočit, jako hrdinu v 0 A.D.
+  Ostatní se řídí rozkazem své skupiny.
+- **Skupiny** – vojsko jde rozdělit (Martin 2. 11. 2026: „část dostane rozkaz, že jde s velitelem
+  a část, že bude hlídat nějaké místo“). Každá skupina má jeden rozkaz:
+  - **držet se velitele a bránit ho** – jdou s ním a útočí na toho, kdo na něj útočí;
+  - **útočit na vše** – na každého nepřítele, který se brání, i na prchající; vzdané nechají
+    (o nich rozhodne velitel – Vzdaní) (návrh Clauda);
+  - **držet místo** (brod, brána, kraj lesa) – brání určené místo a nevzdálí se od něj víc než
+    ≈ 30 m (návrh Clauda).
+- **Ustoupit není rozkaz** – Martin 2. 11. 2026: „**když ustoupí velitel, jeho muži spořádaně
+  ustoupí s ním**“.
+- **Změna rozkazu** (návrh Clauda): před bitvou kterékoli skupině; během boje jen skupině, u níž je
+  velitel na doslech (≈ 30 m) – rozkazy nesou hlasy, ne kurzor. NPC velitel stejně.
+- **Souboj mužů** (Martin 2. 11. 2026 – „ok“; čísla návrh Clauda):
+  - každý má **zdraví 100**; zásah ubere **10 × síla útočníka ÷ násobek obrany** zasaženého
+    (u domu 1,5, za palisádou 2);
+  - **luk na dálku** (20–60 m) – poloviční zásah ≈ každé 4 s; luk mají muži rodu a vesničané
+    s lovem aspoň 30; **zblízka oštěp nebo sekera** – plný zásah ≈ každé 2 s;
+  - zda rána padne, určí **los ze seedu** války, tažení a okamžiku – server počítá
+    deterministicky, výsledek nezávisí na tom, kdo se dívá;
+  - příklad: muž rodu se silou 2 srazí vesničana se silou 0,4 pěti ranami, vesničan jeho
+    pětadvaceti.
+- **Na nule zdraví** padlý, nebo raněný – los **1 : 1**; muž rodu raněný ve **2 ze 3** (návrh
+  Clauda – Martin: šlechtice „spíš zajmout než zabít“). Raněný leží; kdo bojiště udrží, zajme
+  raněné muže rodu protivníka (Zajetí) a o raněných vesničanech rozhodne jako o vzdaných.
+- **Bod zlomu** – Martin 2. 11. 2026: „**K útěku (bod zlomu) by mělo dojít při 30 % ztrátách
+  pokud hráč útočí a při 45 % ztrátách, pokud se brání.**“
+  - **za každou skupinu zvlášť** (Martin – „Za každou skupinu zvlášť“); ztráty = padlí, ranění
+    a zajatí z mužů, kteří do boje vstoupili (návrh Clauda);
+  - **30 %** platí pro skupiny tažení (i když je napadnou), **45 %** pro obránce na území
+    vlastního rodu a muže, kteří ho chrání (návrh Clauda);
+  - **muži rodu utíkají jako ostatní** ve skupině; **velitel neuteče sám** – ustoupí jen na pokyn
+    hráče nebo podle rozkazu NPC (Martin – „Jak navrhuješ“);
+  - prchající se nebrání; pronásledují je jen skupiny „útočit na vše“. Prchající útočníci jdou
+    domů jako při rozpadu, prchající obránci do nejbližšího lesa (návrh Clauda).
+- **Dům od domu** (Martin 18. 10.): domy blíž než **40 m** od sebe tvoří **skupinu domů**; její
+  obránci se seběhnou a brání společně, samota se neubrání.
+- **Mlha války** (Martin 18. 10.): útočník vidí, kam dohlédnou jeho muži (≈ 150 m, v lese míň);
+  objevené zůstane, dění vidí jen v dohledu.
 
-### Volba obránců – bránit, vzdát se, utéct (Martin 18. 10. 2026)
+## Obránci – postoje a útěk
 
-- Před střetem se každá skupina rozhodne podle **postoje vsi**, který nastavil hráč (níž); je-li
-  hráč přítomen, **velí sám** (Martin 18. 10.).
-- **Utéct** jde jen do **lesa do 300 m** od skupiny (návrh Clauda – rešerše 1: les je jejich
-  výhoda) nebo za palisádu. Utečení se zachrání a vrátí se po odchodu útočníků; domy zůstanou,
-  **podíl zásob a dobytka skupiny** padne útočníkům (Martin 18. 10.). Ves v polích daleko od lesa
-  tak má jen bránit se, nebo vzdát se – palisáda je pro ni důležitější.
-- **Vzdát se:** útočník u vzdaného domu vybere **pobít**, nebo **odvést** do své vsi (Martin 18. 10.), nebo **nechat být** (návrh Clauda – vezme jen kořist).
-- **Muži a chlapci rodu se nevzdávají** – bojují, nebo utečou, i když se skupina vzdá (návrh
-  Clauda; rod nesmí skončit v zajetí, které hra nemá).
+- **Postoj vsi** nastaví hráč **dopředu** u každé vsi a ves se podle něj zachová, když vesničan
+  spatří cizí vojsko (Martin 3. 11. 2026 – „ano“):
+  - **Bránit se** (stěna štítů) – lidé se seběhnou do skupin domů a brání se do **bodu zlomu**
+    (45 %). Martin 3. 11. 2026: „**do posledního – to nebude fungovat, lidé v jednu chvíli utečou
+    sami od sebe**“;
+  - **Vzdát se při přesile** (bílá vlajka) – skupina se vzdá, je-li útočníků v dohledu víc než
+    **1,5×** jejích obránců (počet mužů, jezdec za dva – návrh Clauda), jinak se brání;
+  - **Raději utéct** (stromy) – **výchozí** (Martin 2. 11. 2026 – „ok“), i ve vsi správce.
+- **Kdy:** vesničan spatří cizí vojsko (≈ 150 m – Martin 18. 10.), nebo přijde zpráva, že k vsi
+  směřuje – posel z jiné vsi rodu, kterou vojsko prošlo (Martin 2. 11. 2026: „a nebo že k ní
+  směřují“; posel návrh Clauda).
+- **Včasný útěk** – Martin 2. 11. 2026: „**vesnice už na začátku, když zjistí, že se u ní
+  objevili útočníci (a nebo že k ní směřují) rozhodne, že se radši schová v nejbližším lese –
+  pobere zásoby všechna zvířata a schová se v lese**“:
+  - s sebou **dospělý 25 kg** zásob, dítě 7–15 let 10 kg, mladší nic (Martin – „dítě méně“;
+    čísla návrh Clauda); **dobytek celý**;
+  - zbytek v domech vezme útočník; **zapečetěné jámy** s obilím zůstanou skryté – útočník, který
+    ve skupině domů pobude aspoň 1 herní den, najde každou s pravděpodobností **30 %** (los ze
+    seedu; Martin – „s určitou pravděpodobností“, číslo návrh Clauda);
+  - **nejbližší les** (souvislý les vrstvy překážek) – cesta k němu je vidět a útočník smí
+    utíkající dohnat; v lese je najde jen na ≈ 30 m (návrh Clauda – rešerše 1: les je jejich
+    výhoda); za palisádu, je-li (Opevnění). Kde na mapě les není, skupina se zachová jako „vzdát
+    se při přesile“ (návrh Clauda);
+  - lidé se vrátí 1 herní den po odchodu cizího vojska z mapy (návrh Clauda).
+- **Útěk při bodu zlomu** (Martin 2. 11. 2026 – „uteče během obrany“): bránící skupina při 45 %
+  ztrát uteče do lesa bez zásob; kdo nemůže (ranění, obklíčení), vzdá se.
+- **Přítomný hráč** dostane upozornění a smí velet sám (Martin 3. 11. 2026): postoj po skupinách
+  domů, útěk, vlastní výpad – svého muže řídí živě, ostatní rozkazem; bod zlomu platí vždy.
+- **Ves během nájezdu nepracuje** – dokud je cizí vojsko na mapě, lidé mimo les a útočiště se
+  skrývají – ztracené dny práce (návrh Clauda).
+- **Ochrana pánem:** muži, které pán poslal vazalovi na žádost ([vazalství](vassalage.md) –
+  Ochrana vojskem), se brání s vsí podle jejího postoje.
 
-## Ztráty lidí – padlí, ranění, odvedení (návrh Clauda)
+## Vzdaní, zajetí a výkupné
+
+- **Vzdaní:** útočník u vzdaného domu vybere **pobít**, **odvést** do své vsi (Martin 18. 10.),
+  nebo **nechat být** – vezme jen kořist (Martin 2. 11. 2026 – „Ano“).
+- **Muži rodu se vzdávají** – Martin 2. 11. 2026: „**muži a chlapci rodu mají velkou
+  pravděpodobnost vzdání se, pokud považují svou situaci za bezvýchodnou. Cílem útočníka je
+  nepřátelského šlechtice spíš zajmout než zabít, protože za něj může požadovat výkupné**“
+  (nahrazuje „muži rodu se nevzdávají“). Bezvýchodná situace (návrh Clauda): jeho skupina se
+  vzdala, nebo je raněný či pěšky obklíčený a útočník je blíž než les – pak se vzdá
+  s pravděpodobností **80 %** (los ze seedu); jezdec s volnou cestou uteče. U vzdaného šlechtice
+  volí útočník stejně – **zajmout** (odvést), pobít, nechat.
+- **Výkupné** (Martin 2. 11. 2026 – „ok“): zajatý šlechtic žije ve **dvorci věznitele** (jí z jeho
+  zásob, nepracuje, necvičí – návrh Clauda); věznitel pošle rodu zajatce **požadavek** stejným
+  jednáním jako u vazalství (zboží, lidé, i vazalství); přijetí / odmítnutí / protinávrh; po
+  zaplacení **propuštění** – zajatec jde domů mapu po mapě (návrh Clauda). Nezaplatí-li rod,
+  věznitel smí zajatce **držet**, **propustit**, nebo **popravit** – kronika věcně.
+- **Zajatý hráčův muž** (Martin 2. 11. 2026 – „ok“): hráč dál řídí své vsi (formální správce –
+  syn, [vazalství](vassalage.md) – Správce a tři role) a jedná o výkupném; nevede vojsko ani
+  necestuje, dokud zajetí neskončí; poprava = smrt, rozhodne nástupnictví
+  ([seniorát](seniorate.md)).
+
+## Ztráty
 
 - **Padlí** chybí natrvalo; ves může zchudnout až k hladu a vymření (Martin 18. 10.). Padlí
   obránci se pohřbí na hřbitově vsi jako ostatní mrtví; padlí útočníci zůstanou na cizí mapě.
-- **Ranění** **60 herních dní** (≈ 1 h 26 min) nepracují ani necvičí a **1 z 5** do 30 dní zemře
-  na rány (los ze seedu). Raněný útočník jde s vojskem domů (zpomalí ho jen se stádem).
-- **Padlý muž rodu** – smrt jako každá jiná: nástupnictví podle lord.md a [seniorátu](seniorate.md)
-  (padne-li hráčův muž, rozhodne nástupnictví hráče).
-- **Poslední muž rodu** (otázka 5): brání-li se doma, při prohře **vždy unikne** (do lesa nebo na
-  koni); padnout smí jen na výpravě, kterou hráč sám vedl. Hru tak hráči nikdo neukončí, zatímco
-  spí.
-- **Odvedení** (vzdané domy) jdou s vojskem a ve vsi vítěze přibudou jako lidé – usadí se do
-  volných míst, nebo založí domácnost, až bude dům (Martin 18. 10.); rešerše 6 – Hedčané.
+- **Ranění** (Martin 2. 11. 2026 – „ok“): **60 herních dní** (≈ 1 h 26 min) nepracují ani
+  necvičí a **1 z 5** do 30 dní zemře na rány (los ze seedu). Raněný útočník jde s vojskem domů
+  a zpomalí ho – pěší ranění × 0,75, na koni nebo voze ne (návrh Clauda).
+- **Padlý muž rodu** – smrt jako každá jiná: nástupnictví podle lord.md a
+  [seniorátu](seniorate.md) (padne-li hráčův muž, rozhodne nástupnictví hráče).
+- **Poslední muž rodu doma** (Martin 2. 11. 2026 – „Ok“): při nájezdu na vsi rodu **vždy uteče** –
+  neklesne pod 10 zdraví, nevzdá se a nezajme se, i když ho řídí hráč (návrh Clauda – jak);
+  rod spícímu hráči nájezd nevyhladí. **Na tažení padnout i být zajat smí.** „Posledním“ je muž,
+  jehož smrtí by rod skončil ([vojvodova rodina](lord.md) – Konec rodu).
+- **Odvedení** (vzdaní) jdou s vojskem a ve vsi vítěze přibudou jako lidé – usadí se do volných
+  míst, nebo založí domácnost, až bude dům (Martin 18. 10.; rešerše 6 – Hedčané).
 
-## Kořist (Martin 18. 10. 2026 – zásoby a dobytek; čísla návrh Clauda)
+## Kořist
 
-- Z dobyté, vzdané nebo opuštěné skupiny útočník vezme **podíl zásob vsi** podle podílu lidí
-  skupiny na lidech vsi – obilí, maso, sýr, luštěniny, ovoce – do nosnosti **25 kg na muže**
-  (18. 10.). Osivo, klády, nástroje a keramika zůstanou.
-- **Dobytek**, který nehlídají obránci (na pastvě, v ohradách mimo palisádu), útočník smí odehnat;
-  stádo zpomalí návrat na polovinu (18. 10.). Koně rodu a voli v ohradě dvorce za palisádou jsou
-  v bezpečí.
-- Co se neunese, zůstane. Domy, pole a sady v první verzi nikdo nepálí (Později).
+Martin 2. 11. 2026 – „ok“ (podrobnosti návrh Clauda):
 
-## Obrana bez hráče (návrh Clauda)
+- **Jídlo ze zásob** (obilí, luštěniny, maso, sýr) kolik unesou – **25 kg na muže** spolu
+  s vlastními zásobami, s koňmi a vozy víc (Pohyb). Z dobyté, vzdané nebo opuštěné skupiny domů
+  útočník bere podíl zásob vsi podle podílu lidí skupiny (18. 10.); po včasném útěku jen to, co
+  v domech zůstalo, a jámy, které najde.
+- **Nehlídaný dobytek a koně** mimo palisádu – stádo zpomalí návrat na polovinu (18. 10.).
+- **Odvedení lidé** a **zajatí šlechtici**.
+- Osivo, klády, nástroje a keramika zůstanou; **domy, pole a sady se zatím nepálí** (Později).
 
-1. **Válku předem ví** – výzva a lhůta 24 h (otázka 1).
-2. **Nejvýš jeden nájezd** téhož rodu na ves za herní rok; ochrana nového rodu a nové vsi.
-3. **Postoj vsi** – hráč ho nastaví pro každou ves rodu (Martin 18. 10. – tři postoje):
-   - **„Do posledního“** – každá skupina se brání;
-   - **„Vzdát se při přesile“** – brání se, když útočníků v dohledu není víc než 1,5× obránců,
-     jinak se vzdá;
-   - **„Raději utéct“** – kdo může, uteče do lesa nebo za palisádu; kdo nemůže, brání se.
-   - **Výchozí „Raději utéct“** – zachrání lidi, ztratí zásoby (návrh Clauda); ves správce
-     (seniorát) má výchozí totéž.
-4. **Spatření** (Martin 18. 10.): kdo útočníky uvidí, ohlásí je; skupiny se seběhnou a za
-   palisádu se schovají všichni, kdo jsou k dvorci blíž než útočníci.
-5. **Pojistka rodu** – poslední muž rodu doma vždy unikne (otázka 5).
-6. **Přítomný hráč** (Martin 18. 10. – velí sám): mění postoj jednotlivých skupin, pošle všechny
-   „Do útočiště“, vyrazí s vlastní výpravou zpět (válka platí oběma směry).
-7. **Po návratu do hry** hráč najde upozornění a zápis v kronice – co se stalo, kolik padlo, co
-   zmizelo.
+## Konec války – mírové jednání
 
-**Ochrana pánem:** muži, které pán poslal vazalovi na žádost ([vazalství](vassalage.md) –
-Ochrana vojskem), se brání s vsí podle jejího postoje (Martin 2. 11. 2026: na žádost, pán
-rozhodne koho; podrobnosti návrh Clauda).
-
-## Opevnění – palisáda kolem dvorce (návrh Clauda)
-
-- **Vylepšení vsi** z panelu dvorce (jako zemská stezka – trade.md); jen s dvorcem, ne u první
-  zemnice. Hráč ji staví kdy chce, zablokovat smí jen cena předem.
-- **Kde:** po obvodu pozemku dvorce (≈ 30 × 15 m, ≈ 90 m), místo plotu, se **zakulacenými rohy**
-  (polský plot – oblouk místo rohu); brána na místě brány dvorce. Rešerše 3: raná opevnění byla
-  „lehká“, Ibrahim popisuje kruhový nebo čtvercový obrys.
-- **Cena:** ≈ **60 klád** (kůly ≈ 20 cm, 3,5 m, zčásti štípané) a ≈ **250 člověkodní** (žlab,
-  štípání, osazení); kácení navíc podle pravidel lesa (2 čd za strom) – staví se ze společné práce
-  vsi jako ostatní stavby. Čísla ověří rešerše při implementaci.
-- **Útočiště:** za palisádu se vejde ≈ **100 lidí**; obránci za ní mají **× 2** (místo × 1,5 u domu).
-  Kdo je uvnitř, chrání i svůj podíl zásob – kořist bere útočník jen z podílu lidí, kteří zůstali
-  venku.
-- **Bez obléhání:** útočiště drží, dokud cizí vojsko neodejde z mapy, nebo dokud ho útočník
-  nezdolá střetem (obléhání a hlad – Později).
-- **Chátrá** jako polozemnice (≈ 20 let – kůly v zemi hnijí) a opravuje se přestavbou podle
-  pravidel rozpadu ([obyvatelstvo](population.md)).
-- **Správce** ji v první verzi sám nestaví; hráč ji ve vsi rodu nařídit smí (seniorát). Pracovat
-  na ní smí i **robota** vazalů ([vazalství](vassalage.md) – Lidé a robota; Martin 2. 11. 2026:
-  „Tohle dostane větší smysl, až se budou stavět velké veřejné stavby typu opevnění“).
-- **Později:** hradiště – val s příkopem na ostrožně nebo v mokřadu (landscape.md – ostrožny),
-  útočiště pro celou ves a zásoby, postup vsi k hradišti (vize).
-
-## Podrobení (Martin 2. 11. 2026; podrobnosti návrh Clauda)
-
-- **Válka končí podrobením, když poražený přijme výzvu** – stane se vazalem s podmínkami výzvy
-  (vazalství). Nikdo se nestane vazalem bez vlastního rozhodnutí (Martin 2. 11. – přijme, odmítne,
-  jedná).
-- **Porážka vsi:** padne-li, vzdá-li se nebo uteče-li skupina s dvorcem (u palisády útočiště),
-  zapíše se „Kněžice poraženy“ a poraženému se výzva ukáže s tlačítkem **Přijmout** přímo
-  v upozornění. Jinak porážka nic nemění – rozhoduje, kolik ještě unese.
-- **Nátlak:** každý další rok může přijít další nájezd – padlí, odvedení, ztracené zásoby. Vazal
-  pak plní dohodu – dávky a hlavně vojenskou službu. Mír od pána ani od ostatních vazalů žádné
-  pravidlo nezaručuje (Martin 2. 11. 2026: „Ano, hra to nezakazuje“); chrání ho jen to, co si
-  vyžádá (ochrana) a co pán rozsoudí.
-- **Udržení:** neplnícího vazala pán **přinutí k poslušnosti** (výzva vlastnímu vazalovi), nebo
-  mu vazalství vypoví; vypoví-li vazal formálně, smí bývalý pán do roka vyhlásit válku hned
-  (otázka 6).
+- Martin 2. 11. 2026: „**Tak válka nemusí být jen ohledně vazalství. Pokud chce napadený jednat
+  o míru, mělo by se to zobrazit útočníkovi a měli by si dohodnout podmínky – jednorázový
+  poplatek, vazalství, tribut nebo postoupení vesnic**“.
+- **Mír nabídne kterákoli strana** stejným jednáním jako vazalství ([vazalství](vassalage.md) –
+  Jak jednání probíhá): přijetí / odmítnutí / protinávrh; druhé straně se nabídka ukáže
+  v upozornění („Ctibor nabízí mír.“).
+- **Podmínky** (smějí se kombinovat a mír smí být i bez podmínek – návrh Clauda):
+  - **jednorázový poplatek** – zboží, dobytek, lidé; doprava jako u dávek;
+  - **vazalství** s podmínkami ([vazalství](vassalage.md) – Podmínky dohody);
+  - **tribut** – opakovaná platba bez vazalství; chodí v ročním dialogu 1. 11. jako dávky
+    (návrh Clauda); neplnění se zapíše a řešení je na hráčích;
+  - **postoupení vsí** – ves přejde celá (lidé, stavby, pole, zásoby), muži rodu poraženého v ní
+    se s rodinami odstěhují do jiné vsi svého rodu, novým držitelem je vítěz a ves dostane jeho
+    správce; Martin 2. 11. 2026: „**Pokud rod jinou ves nemá, nebude postoupení vsi v nabídce,
+    pouze vazalství**“;
+  - **propuštění zajatců** (návrh Clauda).
+- **Mír je na dobu neurčitou** – Martin 2. 11. 2026: „**Ne, tohle řešit nebudeme. Mír je na dobu
+  neurčitou**“. Žádná lhůta ani podmínka délky; další útok je nová válka a kronika ho zapíše
+  věcně.
+- **Nikdo se nestane vazalem automaticky**; porážka vsi sama nic nemění – rozhoduje, kolik kdo
+  unese (Martin 2. 11. – přijme, odmítne, jedná).
+- **Udržení:** kdo tribut nebo dávky neplní, toho smí druhý napadnout znovu; vazal může vypovědět
+  (Kdo s kým válčí).
 
 ## Spory a rozsudek pána (Martin 2. 11. 2026; zavádí se s válkou)
 
 - Žaloba vazala na jiného pánova vazala → vyjádření → **rozsudek pána** (náhrada zbožím,
-  dobytkem, vrácením lidí, mír na dobu, nebo zamítnutí) → splnění dialogem (celé, míň, nic);
-  podrobnosti ve [vazalství](vassalage.md) – Mír a spory.
+  dobytkem, vrácením lidí, mír, nebo zamítnutí) → splnění dialogem (celé, míň, nic); podrobnosti
+  ve [vazalství](vassalage.md) – Mír a spory.
 - Martin: „**Vyřeší se tím de iure stránka sporu, de facto se bude řešit až následně (sankce,
-  válka, atd.)**“ – kdo rozsudek nesplní, zapíše se „neposlechl pána“ a pán ho smí přinutit
-  k poslušnosti (výš). Rozsudek „mír na dobu“ válku nezakáže – jen ji zapíše jako neposlušnost
+  válka, atd.)**“ – kdo rozsudek nesplní, zapíše se „Ctibor neposlechl pána“ a pán ho smí
+  přinutit k poslušnosti (Kdo s kým válčí). Rozsudek „mír“ válku nezakáže – jen ji zapíše jako
+  neposlušnost (návrh Clauda).
+
+## Opevnění
+
+- Martin 2. 11. 2026: „**Typy hrazení bychom asi měli probrat zvlášť, je to dost rozsáhlé
+  téma**“ – opevnění (druhy hrazení, cena, stavba, chátrání, obléhání) bude samostatný návrh
+  **`fortifications.md`**.
+- Do té doby počítá válka s jednou **zástupnou** stavbou – **palisádou kolem dvorce**: útočiště
+  pro ≈ 100 lidí se zásobami a stády, obránci za ní × 2 místo × 1,5 u domu, útočiště drží, dokud
+  ho útočník nezdolá v boji nebo neodejde z mapy. Podobu, cenu a čísla určí `fortifications.md`
   (návrh Clauda).
 
 ## Co hráč vidí (UI jako 0 A.D.)
 
-- **Horní lišta:** **zkřížené oštěpy** s počtem válek (v míru zašedlé), popisek „Války“; v ochranné
-  lhůtě **štít s přesýpacími hodinami** a zbývajícími dny.
-- **Panel války:** řádek na každý rod – portrét vojvody, jméno rodu a vsi; **přesýpací hodiny**
-  (lhůta výzvy, vyprchání války); poslední nájezd (lebka s padlými, klas s kořistí); tlačítka
-  **Nabídnout mír** (zlomený šíp), **Přijmout výzvu** (sepjaté ruce – vazalství).
-- **Výzva** z panelu **„Rod a vazalové“** u nabídky ([vazalství](vassalage.md)) – tlačítko
-  zkřížených oštěpů, u vlastního vazala s požadavkem dlužného; zašedlé s důvodem u kurzoru:
-  „Ctibor je pod ochranou ještě 3 dny.“, „Kněžice jsou dál než 3 políčka.“, „Jednáte už.“
-- **Svolání** – v panelu války tlačítko rohu (svolat vazaly); u vazalů štít s počtem mužů
-  schopných služby; vazalovi přijde dialog Svolání (vazalství).
-- **Panel Vojsko** ve dvorci (18. 10.): **mapa okolí** – mřížka políček kolem vsi, vsi jako ikony
-  v barvě rodu, nepřítel červeně, dosah zvýrazněný, cíl klikem; posuvník mužů (dobrovolníci
-  zeleně, nucení oranžově); portréty mužů rodu s koněm (luk, boj, jízda v popisku); jídlo na cestu
-  (klas a dny); **síla vojska** jako meč s číslem; u kurzoru cesta v dnech.
-- **Postoj vsi:** tři ikony v panelu dvorce každé vsi (stěna štítů, bílá vlajka, stromy).
-- **Palisáda:** vylepšení v panelu dvorce – ikona kůlů, cena v popisku, zašedlá s důvodem.
-- **Na cizí mapě:** výběr mužů a rozkazy jako v 0 A.D.; u skupiny domů počet obránců v dohledu
-  (odhad, ne přesná síla); po vzdání tři ikony **Pobít / Odvést / Nechat**.
-- **Upozornění:** „Výzva od Bořivoje.“, „Válka s Bořivojem.“, „Cizí vojsko u Kněžic!“, „Kněžice
-  poraženy.“, „Ctibor přijal výzvu.“, „Ochrana končí za 1 den.“, „Bořivoj svolává.“, „Ctibor
-  poslal 3 muže.“, „Ctibor žádá o ochranu.“
-- **Kronika:** „Nájezd Bořivoje z Lhoty: padli 3, raněni 2, odvedeno 5, vzato 400 kg obilí
-  a 6 ovcí.“
+- **Horní lišta** (Martin 2. 11. 2026 – „ok, zkusme to“): **zkřížené oštěpy** s počtem válek
+  (v míru zašedlé, klik = panel války); v ochranné lhůtě **štít s přesýpacími hodinami**
+  a zbývajícími dny.
+- **Panel války** (Martin – „ok“): řádek na každý rod ve válce – portrét vojvody, jméno rodu,
+  poslední střet (lebka s padlými, klas s kořistí), tlačítko **Nabídnout mír** (jednání);
+  **svolání vazalů** ikonou rohu; u vazalů štít s počtem mužů schopných služby (návrh Clauda).
+- **Opověď** (návrh Clauda): v panelu „Rod a vazalové“ ([vazalství](vassalage.md)) u rodu
+  tlačítko zkřížených oštěpů – požadavek (podmínky jako mír) a vzkaz; zašedlé s důvodem
+  u kurzoru: „Ctibor je pod ochranou ještě 3 dny.“, „Jednáte už.“
+- **Panel Vojsko** ve dvorci – Martin 2. 11. 2026: „**Tohle by mělo být textové, bez mapy**“
+  (výjimka z pravidla „bez popisků“): cíl (ves, rod, směr a počet políček), velitel a zástupce
+  (portréty, v popisku boj, luk, jízda a kůň), muži rodu a vazalové, skupiny s rozkazem, vesničané
+  po vsích (dobrovolníci zeleně, nucení oranžově), shromaždiště, jídlo a píce (klas, seno, dny),
+  nosiči, koně a vozy, **odhad síly** (meč s číslem), odhad cesty ve dnech, ohlášení průchodu.
+- **Postoj vsi:** tři ikony v panelu dvorce každé vsi – stěna štítů, bílá vlajka, stromy; popis
+  v bublině (Martin 3. 11. 2026).
+- **Na mapě s vojskem** (návrh Clauda): hráčův muž se vybírá a řídí jako hrdina v 0 A.D.; nad
+  skupinou ikona rozkazu (štít u velitele, zkřížené oštěpy, praporec); u skupiny domů počet
+  obránců v dohledu (odhad); po vzdání tři ikony **Pobít / Odvést / Nechat**; rozkaz k útoku na
+  chráněnou ves zašedlý s důvodem.
+- **Zajatci** (návrh Clauda): v panelu dvorce věznitele portrét s pouty – klik = jednání
+  o výkupném, Propustit, Popravit.
+- **Upozornění** (Martin – „ok“): „Cizí vojsko u Kněžic!“, „Kněžice poraženy.“, „Ctibor nabízí
+  mír.“, „Bořivoj svolává.“, „Ctibor poslal 3 muže.“, „Bořivoj ohlásil průchod.“, „Zajat:
+  Ctibor.“; klik otevře panel nebo dialog. Navíc (návrh Clauda): „Bořivoj opověděl válku.“,
+  „Výprava se rozpadla.“, „Ochrana končí za 1 den.“
+- **Kronika** (Martin 2. 11. 2026 – „ok“): věcné zápisy bez hodnocení do kronik obou rodů –
+  „Nájezd Bořivoje z Lhoty na Kněžice bez opovědi: padli 3, raněni 2, odvedeno 5, vzato 400 kg
+  obilí a 6 ovcí.“, „Bořivoj ohlásil průchod.“, „Mír s Bořivojem: tribut 200 kg obilí ročně.“
 
-### Ve scéně (návrh Clauda)
+### Ve scéně
 
-- **Vojsko** – postavy mužů (modely už jsou) s rekvizitami z 0 A.D. (štít, oštěp, luk; licence
-  do `LICENSES.md`), muži rodu na koních; na cestě vlastní mapou až k okraji.
-- **Mlha války** na cizí mapě (18. 10.); vlastní vsi útočník nevidí.
-- **Střet** – krátká srážka u skupiny domů, padlí leží do konce dne; ranění sedí u domu
+Martin 2. 11. 2026 – „ok“ (doplňky návrh Clauda):
+
+- **Vojsko** – muži jako dnešní postavy s **oštěpem, štítem a lukem** z 0 A.D. (licence do
+  `LICENSES.md`), muži rodu **na koních**; hloučky podle skupin svižnou chůzí.
+- **Boj** – střílejí, srážejí se, padají; padlí leží do konce dne, ranění sedí u domů
   a nepracují.
-- **Palisáda** – kůly se zašpičatělými hroty, zakulacené rohy, brána; za ní lidé v útočišti.
-- **Napadená ves** – prázdná pole a pastviny, lidé u domů nebo za palisádou, odehnané stádo jde
-  s vojskem.
+- **Mlha války** na cizí mapě; vlastní vsi útočník vidí jen na své mapě.
+- **Zimní ležení** – ohně a přístřešky, vojsko stojí do rána (návrh Clauda).
+- **Napadená ves** – prázdná pole a pastviny; při včasném útěku lidé se zásobami a stády k lesu;
+  odehnané stádo jde s vojskem.
+- **Palisáda** (zástupně) – podle `fortifications.md`.
 
-## Čísla (návrh Clauda – do `rules-war.ts`)
+## Čísla (návrh Clauda – do `rules-war.ts`, kde není uvedeno jinak)
 
-| Co                                | Číslo                                                    |
-| --------------------------------- | -------------------------------------------------------- |
-| Lhůta výzvy                       | 24 skutečných hodin                                      |
-| Válka vyprchá                     | 3 herní roky bez nájezdu                                 |
-| Výzva bez lhůty po odchodu vazala | do 1 herního roku                                        |
-| Ochrana nového rodu               | 7 skutečných dní (končí vlastní výzvou)                  |
-| Ochrana nové vsi                  | 5 herních let                                            |
-| Roční klid                        | 1 výprava rodu na ves za herní rok                       |
-| Dosah                             | 3 políčka mřížky                                         |
-| Rychlost po cizí mapě             | 1 km za den pěšky, les 1/4, cesta × 1,5                  |
-| Jídlo na cizí mapě                | 3 dny                                                    |
-| Vojsko bez hráče na cizí mapě     | 1 den, pak návrat                                        |
-| Síla muže rodu                    | 1 + (boj + luk) ÷ 200, na koni × (1 + 0,5 × jízda ÷ 100) |
-| Palisáda                          | × 2, ≈ 60 klád, ≈ 250 čd, ≈ 100 lidí, ≈ 20 let           |
-| Náhoda boje                       | 0,85–1,15 pro každou stranu                              |
-| Ztráty                            | poražený 20 % × r (nejvýš 60 %), vítěz 20 % ÷ r          |
-| Ranění                            | 60 dní bez práce, 1 z 5 zemře                            |
-| Útěk                              | les do 300 m nebo palisáda                               |
-| Postoj „Vzdát se při přesile“     | útočníků víc než 1,5× obránců                            |
+| Co                             | Číslo                                                            |
+| ------------------------------ | ---------------------------------------------------------------- |
+| Ochrana nového rodu            | 7 skutečných dní, končí vlastním útokem nebo opovědí (Martin)    |
+| Ochrana nové vsi               | 5 herních let                                                    |
+| Válka utichne                  | 3 herní roky bez střetu                                          |
+| Tempo vojska                   | ≈ 3–4 m/s skutečného času, 1 km ≈ 4–5 min ≈ 3 herní dny (Martin) |
+| Terén a náklad                 | les 1/4, cesta a stezka × 1,5, jezdci × 1,5, stádo × 0,5         |
+| Zima                           | sníh × 0,75, ležení třetina dne – celkem ≈ ½ tempa               |
+| Píce v zimě                    | 6 kg sena na koně denně (horses.md)                              |
+| Jídlo                          | ≈ 1 kg obilí na muže a den                                       |
+| Nosnost                        | muž 25 kg, kůň bez jezdce 80 kg, dvoukolák 400 kg                |
+| Hráč mimo tažení               | 1 herní den, pak zástupce, nebo rozpad                           |
+| Stropy dovedností              | výcvik doma 50, lov 70, válka 100 (Martin)                       |
+| Válka jako výcvik              | den tažení 2 h, den se soubojem 6 h                              |
+| Síla vesničana                 | 0,25 + 0,5 × lov ÷ 100 (Martin)                                  |
+| Síla muže rodu                 | 1 + 2 × (boj + luk) ÷ 200 (Martin; průměr návrh Clauda)          |
+| Kůň                            | × (1 + 0,5 × jízda na koni ÷ 100), až × 1,5 (Martin)             |
+| Zdraví a zásah                 | 100; 10 × síla ÷ násobek obrany; luk polovina                    |
+| Rány                           | zblízka ≈ 2 s, luk ≈ 4 s na 20–60 m                              |
+| Na nule zdraví                 | padlý / raněný 1 : 1, muž rodu raněný 2 : 3                      |
+| Bod zlomu                      | 30 % v útoku, 45 % v obraně, po skupinách (Martin)               |
+| Vzdát se při přesile           | útočníků víc než 1,5× obránců (Martin), jezdec za dva            |
+| Muž rodu v bezvýchodné situaci | vzdá se s pravděpodobností 80 %                                  |
+| Včasný útěk                    | dospělý 25 kg (Martin), dítě 7–15 let 10 kg, dobytek celý        |
+| Nalezení jámy                  | 30 % za jámu po 1 herním dni ve skupině domů                     |
+| Ranění                         | 60 dní bez práce, 1 z 5 zemře (Martin)                           |
+| Poslední muž rodu doma         | neklesne pod 10 zdraví, vždy uteče (Martin)                      |
+| Doslech rozkazu                | 30 m                                                             |
 
-Z 18. 10. beze změny: skupina 40 m, dohled 150 m, nosnost 25 kg, přechod mapy 1–3 dny, ochota
-a dezerce, kovárna × 1,5, obrana u domu × 1,5.
+Z 18. 10. beze změny: skupina domů 40 m, dohled 150 m, nosnost 25 kg, ochota a dezerce, kovárna
+× 1,5, obrana u domu × 1,5, nucený × 0,5 / 0,3, štěstí × 0,8–1,1.
 
 ## Pro implementaci (poznámky, ne kód)
 
-- **Předpoklady:** společná mřížka světa a víc hráčů na ní (vazalství – Místo na mapě světa),
-  mřížka map ze stěhování, [příbuzenství](kinship.md) pro dobrovolníky.
-- **Use-casy:** `issueChallenge` (i vlastnímu vazalovi s požadavkem dlužného), `answerChallenge`,
-  `offerPeace`, `acceptPeace`, `launchRaid`, `orderRaid` (pohyb, útok, odvolání),
-  `resolveClash`, `chooseSurrendered`, `setDefenseStance`, `sendProtection`, `judgeDispute`;
-  svolání `summonVassals` a dialog Svolání z [vazalství](vassalage.md); palisáda jako vylepšení
-  vsi. Válka i výprava jsou herní akce v `packages/game`, web i worker
-  volají stejné use-casy.
-- **DB:** `war` (rody, od, stav, lhůta, poslední nájezd), `challenge` (s odkazem na nabídku
-  vazalství), `war_party` (výprava: ves, lidé, jídlo, poloha, rozkazy, kořist, odvedení),
-  záznam výprav na ves a rok (roční klid).
-- **Vnější události:** výsledek střetu zapíše do obou vsí události s herním dnem a id (padlí,
-  ranění, odvedení, kořist, odchod mužů); simulace je použije v ten den jednou a idempotentně –
-  jako dávka a pomoc ve vazalství. **Před střetem se ves obránce dopočítá do dne střetu** (zámek
-  vsi kvůli souběhu web × worker). Výsledek tak nezávisí na kouscích dopočtu.
-- **Pohyb na cizí mapě** počítá server z rozkazů na vrstvě překážek (les, brody) jen
-  deterministickou matematikou jako síť cest; klient dostává jen to, co je v dohledu (mlha války).
-- **Nové části stavu volitelné:** zranění u člověka (do kdy), postoj vsi, palisáda u dvorce, muži
-  na výpravě; starší vsi se převedou jednou a idempotentně.
-- **Ověřit:** zda změna plotu dvorce na palisádu mění vrstvu překážek nebo síť pěšin – pak nová
-  verze vrstvy (docs/code/landscape.md).
-- **Testy:** výzva a lhůta, válka uvnitř stromu dovolená, ochrana nového rodu, roční klid, střet
-  (determinismus, ztráty podle r), útěk jen do lesa do 300 m, pojistka posledního muže rodu,
-  kořist do nosnosti, palisáda, vyprchání války, svolání (jen muži rodu, míň / víc, vazalové
-  vazalů), ochrana pánem, přinucení vazala, vypovězení vazalem, rozsudek.
+- **Předpoklady:** společná mřížka světa a víc hráčů na ní ([vazalství](vassalage.md) – Místo na
+  mapě světa), mřížka map ze stěhování, [příbuzenství](kinship.md) pro dobrovolníky, dovednosti
+  rodu (lord.md) a nová dovednost lov u vesničanů.
+- **První mechanika ve skutečném čase:** tažení a boj počítá server **po taktech** (např. 4 za
+  sekundu) deterministicky ze seedu války a čísla taktu – worker je dopočítává, i když nikdo není
+  online; poloha vojska je funkce taktu, klient ji jen kreslí a posílá záměry (pohyb hráčova
+  muže, změna rozkazu skupiny), server je ověří (doslech, mlha války, ochrana).
+- **Ves a tažení:** než vojsko vstoupí na mapu vsi, ves se dopočítá do toho okamžiku (zámek vsi
+  kvůli souběhu web × worker); dny vsi běží dál s příznakem nájezdu a výsledky boje (padlí,
+  ranění, odvedení, kořist, útěk, skryté jámy) přicházejí jako **vnější události** s herním
+  okamžikem a id – simulace je použije jednou a idempotentně, jako dávku ve vazalství.
+- **Pohyb na cizí mapě** jen na vrstvě překážek (les, brody) deterministickou matematikou
+  (`det-math.ts`) jako síť cest.
+- **Use-casy:** `declareWar` (opověď s požadavkem), `offerPeace` / `answerPeace` (jednání
+  z vazalství), `announcePassage` / `answerPassage`, `planCampaign` (velitel, zástupce, vsi,
+  vazalové, shromaždiště, skupiny, jídlo, cíl), `launchCampaign`, `commandLeader` (pohyb a útok
+  hráčova muže), `setGroupOrder`, `stepCampaigns` (takt workeru – pohyb, boj, bod zlomu, rozpad),
+  `chooseSurrendered`, `setDefenseStance`, `demandRansom` / `answerRansom`, `decidePrisoner`,
+  `sendProtection`, `summonVassals`, `judgeDispute`.
+- **DB:** `war` (rody, od, jak začala, stav), `campaign` (velitel, zástupce, skupiny a rozkazy,
+  poloha, zásoby, kořist, odvedení, stav), `campaign_member` (muž – zdraví, poloha), `passage`
+  (ohlášení a odpověď), `prisoner`; mír, tribut a výkupné jako dohody a jednání z vazalství.
+- **Nové části stavu volitelné:** zranění u člověka (do kdy), lov u vesničana, postoj vsi, muži na
+  tažení, zajatci ve dvorci, útěk vsi (kde jsou lidé, zásoby a stáda), skryté jámy; starší vsi se
+  převedou jednou a idempotentně.
+- **Stropy dovedností** (lord.md) mění dnešní vsi: dovednosti nad 70 se při převodu jednou ořežou
+  na 70 (nikdo zatím neválčil) a změní se kalibrace lovu ([divoká zvěř](wildlife.md) – Síla
+  lovce) (návrh Clauda).
+- **Testy:** opověď a přepadení (kronika), ochrana nového rodu a vsi, válka uvnitř stromu
+  dovolená, tempo a zima, zásoby a návrat, ohlášený průchod a Nevěřit, souboj a determinismus
+  (stejný výsledek po libovolných kouscích), bod zlomu po skupinách, zástupce a rozpad, postoje
+  a včasný útěk (25 kg, jámy), vzdání mužů rodu a zajetí, výkupné, pojistka posledního muže
+  rodu, kořist do nosnosti, mír s podmínkami (poslední ves nejde postoupit), svolání (jen muži
+  rodu), ochrana pánem, rozsudek.
 
 ## Později
 
 - **NPC vojvodové** jako cíl (Martin 18. 10. – hrají jako hráč; čeká na simulaci sousedů).
-- **Svolání ostatních vsí vlastního rodu** do války, průchod a střet na cizí mapě s třetím
-  rodem.
+- **Opevnění a obléhání** – `fortifications.md` (Martin 2. 11. 2026), hlad v útočišti.
+- **Zbraně, štíty a zbroj** jako věci – „Reálné věci budeme řešit někdy později vlastní mechanikou“
+  (Martin 2. 11. 2026).
 - **Družina** – vycvičení vesničané v dvorci, živení z dávek (rešerše 4 – Ibrahim).
-- **Hradiště a obléhání**, hlad v útočišti; zimní tažení (holý les, zamrzlé řeky – rešerše 1);
-  noc a menší dohled.
-- **Zbraně, štíty a zbroj** jako výrobky kováře a tesaře; pálení vsí a polí; vůz na kořist.
-- **Rukojmí, výkupné, zajatí muži rodu**, mír s podmínkami, sňatek jako mír; prodej zajatců
-  kupcům (rešerše 6).
-- **Živý boj** s velením jednotkám obou stran a výprava z kterékoli vsi rodu.
+- Pálení vsí a polí; prodej zajatců kupcům (rešerše 6); útěk a výměna zajatců; sňatek jako mír.
+- Noc a menší dohled v boji; vesničané na lovu vysoké zvěře.
 
 ## Navazuje
 
-- [Vazalství](vassalage.md) – nabídka s podmínkami, vojenská služba a svolání, ochrana,
-  vypovězení a neplnění, rozsudek pána, přehled o stromu pod sebou.
-- [Vojvodova rodina](lord.md) a [seniorát](seniorate.md) – výcvik, nástupnictví po padlém.
-- [Koně](horses.md) – jízda a výcvik koně v síle jezdce.
-- [Stěhování](migration.md) a [obchod](trade.md) – mřížka map, cesta, zemská stezka, dvorec.
+- [Vazalství](vassalage.md) – jednání s podmínkami (mír, výkupné, opověď), vojenská služba
+  a svolání, ochrana, vypovězení a neplnění, rozsudek pána, přehled o stromu pod sebou.
+- [Vojvodova rodina](lord.md) a [seniorát](seniorate.md) – výcvik a jeho stropy, nástupnictví po
+  padlém nebo popraveném.
+- [Koně](horses.md) – jízda a výcvik koně v síle jezdce, seno.
+- [Divoká zvěř](wildlife.md) – lov rodu a oka vesničanů jako zdroj zkušenosti.
+- [Stěhování](migration.md), [obchod](trade.md), [vozy](wagons.md) – mřížka map, zemská stezka,
+  náklad.
 - [Pohromy](disasters.md) – ochrana nové vsi.
+- `fortifications.md` (bude) – opevnění.
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                 | Kdo            |
-| ------------------------------------------------------------------------------------------ | -------------- |
-| Vazalem se stává jednáním; vypovědět smí hned; neplnícího vazala pán přinutí nebo vypoví   | Martin 2. 11.  |
-| Válka mezi vazaly i s vlastním pánem není zakázaná – žádný zemský mír                      | Martin 2. 11.  |
-| Vojenská služba je hlavní věc vazalství; slouží jen muži rodu, i hráčův muž, smějí padnout | Martin 2. 11.  |
-| Ochrana vojskem na žádost vazala; rozsudek pána řeší spor de iure                          | Martin 2. 11.  |
-| Všichni si rovni, na vrchol se jde podrobením; nezávislost se uhájí, nebo ne               | Martin 2. 11.  |
-| Dobrovolníci a rozkaz, dům od domu, sevřená ves, bránit / vzdát / utéct, pobít nebo odvést | Martin 18. 10. |
-| Útočníky řídí hráč, odvolání, mlha války, ohlášení až po spatření, les a brody, kovárna    | Martin 18. 10. |
-| Postoj vsi bez hráče, přítomný hráč velí sám; padlí mohou ves položit                      | Martin 18. 10. |
-| Válka rodu proti rodu, výzva s lhůtou 24 h, mír, vyprchání po 3 letech                     | návrh Clauda   |
-| Dosah 3 políčka, výprava jen ze vsi vlastního rodu, kterou hráč řídí                       | návrh Clauda   |
-| Přinucení = výzva vlastnímu vazalovi s požadavkem dlužného                                 | návrh Clauda   |
-| Ochrana nového rodu 7 dní, nové vsi 5 let, nejvýš jeden nájezd rodu na ves za rok          | návrh Clauda   |
-| Síla mužů rodu a jezdců, ztráty podle poměru, ranění, náhoda boje                          | návrh Clauda   |
-| Útěk jen do lesa do 300 m, „nechat být“ u vzdaných, muži rodu se nevzdávají                | návrh Clauda   |
-| Poslední muž rodu doma vždy unikne                                                         | návrh Clauda   |
-| Palisáda kolem dvorce jako útočiště                                                        | návrh Clauda   |
-| Vypovězení vazalem = válka bez lhůty do roka                                               | návrh Clauda   |
+| Rozhodnutí                                                                                        | Kdo              |
+| ------------------------------------------------------------------------------------------------- | ---------------- |
+| Vazalem se stává jednáním; vypovědět smí hned; neplnícího vazala pán přinutí nebo vypoví          | Martin 2. 11.    |
+| Válka je vztah dvou rodů, všechny vsi; bez zemského míru; bývalý pán smí táhnout kdykoli          | Martin 2. 11.    |
+| Opověď smí, nemusí; přepadení bez opovědi bez trestu, jen v kronice                               | Martin 2. 11.    |
+| Ochrana nového hráče 7 dní, končí vlastním útokem; nájezdy bez omezení                            | Martin 2. 11.    |
+| Zima: pomalejší pochod, píce, delší ležení; zásoby tažení, bez nich návrat nebo kořist            | Martin 2. 11.    |
+| Vesničané smějí i do útoku se slabou silou; vazalové ve službě jen muži rodu                      | Martin 2. 11.    |
+| Vůdce vybere vazaly, vsi a shromaždiště; živě jen tažení vedené hráčovým mužem, jinak NPC         | Martin 2. 11.    |
+| Zástupce velitele; bez něj se výprava při odchodu hráče nebo smrti velitele rozpadne              | Martin 2. 11.    |
+| Stropy výcviku 50 / lov 70 / válka; dvě stupnice síly; kůň až × 1,5; výzbroj zatím koeficient     | Martin 2. 11.    |
+| Tempo ≈ 3–4 m/s, 1 km ≈ 3 dny, táž poloha ve scéně i simulaci; mapu po mapě                       | Martin 2. 11.    |
+| Boj muž po muži se zdravím; hráč řídí svého muže, ostatní rozkaz před bitvou; skupiny             | Martin 2. 11.    |
+| Bod zlomu 30 % / 45 % po skupinách; muži rodu utíkají jako ostatní, velitel jen na pokyn          | Martin 2. 11.    |
+| Včasný útěk s 25 kg a stády do lesa, jámy skryté; útěk při bodu zlomu                             | Martin 2. 11.    |
+| Muži rodu se v bezvýchodné situaci vzdávají; zajetí a výkupné jednáním; zajatý hráčův muž         | Martin 2. 11.    |
+| Ranění 60 dní, 1 z 5 zemře; poslední muž rodu doma vždy uteče; kořist                             | Martin 2. 11.    |
+| Mírové jednání – poplatek, vazalství, tribut, postoupení vsí (poslední ne); mír na dobu neurčitou | Martin 2. 11.    |
+| Průchod neutrálním územím s ohlášením; útok po něm jen věcně v kronice                            | Martin 2.–3. 11. |
+| Postoje dopředu i při obraně: bránit se do bodu zlomu, vzdát se při 1,5×, raději utéct (výchozí)  | Martin 3. 11.    |
+| Opevnění samostatně (`fortifications.md`); horní lišta, panel války, textový panel Vojsko         | Martin 2. 11.    |
+| Upozornění, kronika věcně, scéna                                                                  | Martin 2. 11.    |
+| Ochrana vojskem na žádost vazala; rozsudek pána řeší spor de iure                                 | Martin 2. 11.    |
+| Dobrovolníci a rozkaz, dům od domu, sevřená ves, pobít nebo odvést, mlha války, les a brody       | Martin 18. 10.   |
+| Podoba opovědi, začátek války prvním útokem, válka utichne po 3 letech                            | návrh Clauda     |
+| Ochrana nové vsi 5 let; zrušení dosahu 3 políčka                                                  | návrh Clauda     |
+| Zimní čísla, jídlo 1 kg, nosnost koně a vozu, tempo skupin                                        | návrh Clauda     |
+| Rozkazy skupin, doslech 30 m, zdraví a zásah, luk, padlý / raněný, 30 % pro tažení                | návrh Clauda     |
+| Vojenská zkušenost = průměr boje a luku; lov vesničana z ok a hlídek; válka jako výcvik           | návrh Clauda     |
+| NPC velitel, rozpad, hráč mimo tažení 1 den                                                       | návrh Clauda     |
+| Ohlášení se vsím předá samo, Nevěřit; vlastní vojska neškodná                                     | návrh Clauda     |
+| Dítě 10 kg, jáma 30 %, bez lesa jako při přesile, posel; vzdání muže rodu 80 %                    | návrh Clauda     |
+| Tribut v dialogu 1. 11., propuštění zajatců jako podmínka; zástupná palisáda                      | návrh Clauda     |
 
 ## Odpovědi Martina 2. 11. 2026
+
+Záznam procházení návrhu bod po bodu 2.–3. 11. 2026 (odpovědi z 3. 11. jsou označené). **Tělo
+dokumentu výš je podle nich přepsané (3. 11. 2026)**; při rozporu platí tento záznam.
 
 - **Výzva před válkou:** „Formální vyhlášení či opověď je dobré, ale nikoli nezbytné“ – válka
   smí začít i bez výzvy (přepadení); výzva / opověď je možnost, ne povinnost.
@@ -633,32 +805,22 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
 
 ## Otázky na Martina
 
-1. **Musí válce předcházet výzva?** Doporučení: **ano – výzva a 24 skutečných hodin na odpověď**
-   (přijmout, odmítnout, jednat); teprve pak smí přijít nájezd, kdy přesně, se obránce dozví až po
-   spatření. Hráč, který spí, tak válku předem ví. Možnosti: a) výzva a 24 hodin; b) výzva a jeden
-   herní rok (≈ 9 hodin); c) bez výzvy – nájezd kdykoli, jako 18. 10.
-2. **Jak dlouho chránit nového hráče?** Doporučení: **7 skutečných dní** (≈ 19 herních let –
-   synové zakladatele dospějí a vycvičí se); ochrana skončí dřív, když sám někoho vyzve.
-   Možnosti: a) 7 dní; b) 3 dny; c) 14 dní.
-3. **Kolikrát smí jeden rod přepadnout tutéž ves?** Doporučení: **nejvýš jednou za herní rok**
-   (≈ 9 hodin) – přes noc od každého nepřítele nejvýš jednou. Možnosti: a) jednou za herní rok;
-   b) bez omezení – brzdí jen cesta a ztráty; c) jednou za skutečný den.
-4. ~~**Smějí spolu válčit hráči ve stejném stromu vazalství?**~~ – rozhodnuto 2. 11. 2026
-   (Martin: „Ano, hra to nezakazuje“): bez zákazu, žádný zemský mír.
-5. **Smí nájezd ukončit hru hráči, který spí?** Doporučení: **ne – poslední muž rodu při obraně
-   vsi vždy unikne**; ostatní muži rodu padnout mohou, poslední jen na výpravě, kterou hráč sám
-   vede. Možnosti: a) poslední muž rodu doma vždy unikne; b) muži rodu doma nikdy nepadnou, jen
-   jsou ranění; c) bez pojistky – padnout může kdokoli.
-6. **Smí bývalý pán napadnout vazala, který formálně vypověděl věrnost, bez lhůty?** Neplnění
-   už Martin rozhodl (2. 11. 2026: pán vazala „přinutí k poslušnosti“ nebo vypoví); otevřené
-   zůstává jen formální vypovězení, které „platí hned“. Doporučení: **ano – do 1 herního roku
-   výzva bez lhůty, válka začne hned**; vazal, který vypovídá, ví, do čeho jde. Možnosti: a) válka
-   bez lhůty do roka; b) rukojmí – syn vazala vyrůstá na pánově dvorci a po vypovězení u pána
-   zůstane; c) nic navíc – výzva s lhůtou jako komukoli jinému.
-7. **Smějí do války vesničané?** Martin 2. 11. 2026 k vojenské službě vazala: „nikdo jiný
-   [než muži rodu] vojenské zkušenosti nemá“; 18. 10. ale schválil vesničany v nájezdu
-   (dobrovolníci a rozkaz). Doporučení: **a) vesničané jdou dál do vlastního nájezdu a brání svou
-   ves, do pánovy války jen muži rodu** – nezkušenost už vystihuje síla 1 proti 2–3 u vycvičeného
-   muže rodu a obrana vsi bez mužů rodu by jinak neexistovala. Možnosti: a) jak výš; b) vesničané
-   jen brání vlastní ves, do žádného nájezdu nejdou – vojsko jsou muži rodu (a později družina);
-   c) vesničané nikde – obrana vsi jen muži rodu a útěk.
+Otázky z 2. 11. 2026 (výzva, ochrana, opakované nájezdy, zemský mír, poslední muž rodu,
+vypovězení, vesničané) jsou zodpovězené výš. Nové:
+
+1. **Odkud má vesničan loveckou zkušenost?** Síla vesničana stojí na lovu (Martin 2. 11. 2026),
+   ale vesničané dnes jen chytají zajíce do ok v zimě a hlídají pole v noci
+   ([divoká zvěř](wildlife.md)) – a oka jen, když chtějí maso nebo hladovějí. Doporučení: **a) oka
+   a noční hlídka polí** – typická ves má pár mužů s lovem 20–40, ostatní ≈ 0,25; ves, která
+   neloví, se hůř brání. Možnosti: a) oka a hlídky; b) navíc chodí vesničané s rodem na lov jako
+   honci pěšky – silnější vesničané, ale dny lovu ubírají práci vsi; c) lov podle věku – každý
+   muž 20–40 let má lov 30, bez nové práce.
+2. **Má vojsko v zimě v noci stát?** Doporučení: **a) ležení ≈ třetinu herního dne s ohni
+   a sníh × 0,75** – zimní tažení je vidět a trvá dvakrát déle. Možnosti: a) jak výš; b) jen
+   pomalejší tempo bez zastávek (× 0,5) – hráč při živém vedení nečeká; c) stát celou zimní noc
+   (≈ dvě třetiny dne) – tempo ≈ ¼, zimní tažení skoro nemožné.
+3. **Bod zlomu podle počtu mužů, nebo podle síly?** Ve skupině bývají muži rodu (1–4,5)
+   i vesničané (0,25–0,6). Doporučení: **a) podle počtu mužů** – je to vidět ve scéně a muži rodu
+   tak skupinu drží, dokud stojí vesničané kolem nich. Možnosti: a) počet mužů; b) podle síly –
+   pád jednoho muže rodu zlomí skupinu vesničanů skoro hned; c) počet, ale padlý nebo zajatý
+   velitel skupiny zlomí skupinu vždy.
