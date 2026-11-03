@@ -805,6 +805,12 @@ dokumentu výš je podle nich přepsané (3. 11. 2026)**; při rozporu platí te
 - **Lovecká zkušenost vesničana:** „Nebudeme to řešit, všichni vesničané budou mít víceméně stejnou
   (a malou) bojovou hodnotu“ (Martin 3. 11. 2026) – dovednost lov u vesničanů se nezavádí;
   vesničan má pevnou malou sílu (návrh Clauda: 0,4, nucený × 0,5).
+- **Zimní noc – bez noci:** Martin 3. 11. 2026: „Středověké vojsko to zpravidla udělalo tak, že se
+  snažilo přenocovat v nějaké vesnici. Jen si to nedokážu představit z hlediska herní mechaniky,
+  když neuznáváme noc“ → **únava z mrazu**: vojsko v zimě venku každý herní den ztrácí trochu síly
+  a zdraví; zastávka ve vsi (vlastní, neutrální, která ho pustí, nebo dobytá) mráz zastaví a muži
+  se zotaví; tažení tak vede od vsi ke vsi; sníh zpomalí pochod; zimní ležení ve třetině dne pryč
+  – „ano“.
 
 ## Otázky na Martina
 
