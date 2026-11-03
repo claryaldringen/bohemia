@@ -617,6 +617,11 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
 - **Postoj „do posledního“ nejde:** „do posledního – to nebude fungovat, lidé v jednu chvíli utečou
   sami od sebe“ (Martin 3. 11. 2026) – postoj se jmenuje **bránit se** a platí do bodu zlomu
   (45 % ztrát v obraně).
+- **Postoje – dopředu i při obraně:** postoj se nastaví dopředu u každé vsi (bránit se – stěna
+  štítů, vzdát se při přesile – bílá vlajka, raději utéct – stromy; popis v bublině) a ves se podle
+  něj zachová, když vesničan spatří cizí vojsko (utéct hned se zásobami a stády / seběhnout se do
+  skupin / vzdát se při přesile 1,5×); přítomný hráč dostane upozornění a smí velet sám (postoj po
+  skupinách, útěk, vlastní výpad); bod zlomu platí vždy – „ano“ (Martin 3. 11. 2026).
 
 ## Otázky na Martina
 
