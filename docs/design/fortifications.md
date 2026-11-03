@@ -22,3 +22,6 @@ Martin 2. 11. 2026: „Typy hrazení bychom asi měli probrat zvlášť, je to d
   opevní levněji – „Kreslení obvodu tak jak říkáš.“
 - **Násobek síly obránců:** polský plot × 1,25, palisáda × 2, val × 1,5, val s plotem × 2, val
   s palisádou × 3; útočník projde jen branou, nebo opevnění musí napřed prolomit (trvá) – „ok“.
+- **Cena na 100 m obvodu:** polský plot 20 čd + 15 klád; palisáda 80 čd + 70 klád; val s příkopem
+  150 čd (jen hlína); plot nebo palisáda na valu jako samotné; vylepšení plotu na palisádu 80 čd +
+  70 klád (plot nevrací nic) – „ano“.
