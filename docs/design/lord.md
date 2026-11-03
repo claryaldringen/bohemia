@@ -163,6 +163,16 @@ pozná hrozbu ze dvou odhadů, které už počítá – nový odhad nevzniká.
   rozhodnou o úlovku; ve **válce** navrhuji sílu muže rodiny **1 × (1 + boj / 100)** – vycvičený
   syn za dva muže – a jezdce podle jízdy a koně. Závazné čísla dají až návrhy lovu a války.
 
+> **Změna podle Martina 2. 11. 2026 (válka):** „Muž se cvičením doma může dostat max na 50 %
+> tréninku, pokud loví tak na 70 % a zbytek zkušeností může získat jedině válkou. To, že zkušenost
+> klesá, když muž necvičí, neloví nebo neválčí je dobré.“ Strop dovedností tedy neurčuje jen věk:
+> výcvik doma (cvičiště, objížďka polí) roste nejvýš k **50**, lov ([divoká zvěř](wildlife.md))
+> k **70**, nad 70 jen **válka** (do 100); strop podle věku výš platí dál – rozhoduje nižší
+> a úbytek bez výcviku zůstává (návrh Clauda). Síla ve válce už není 1 × (1 + boj / 100), ale
+> 1 + 2 × vojenská zkušenost ÷ 100 – podrobnosti, válka jako výcvik a převod dnešních dovedností
+> nad 70 v [návrhu války](war.md) – Síla a Pro implementaci. Čísla výš (typický syn ≈ 90 ve
+> 20 letech) platí do implementace této změny.
+
 ## Terče a cvičiště na dvorku (Martin – terče; podoba návrh Clauda)
 
 - **Dvorek dvorce:** dvorec stojí na pozemku dvou políček (≈ 30 × 15 m) s plotem a branou. Podél
