@@ -625,6 +625,8 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
 - **Upozornění:** krátké zprávy („Cizí vojsko u Kněžic!“, „Kněžice poraženy.“, „Ctibor nabízí mír.“,
   „Bořivoj svolává.“, „Ctibor poslal 3 muže.“, „Bořivoj ohlásil průchod.“, „Zajat: Ctibor.“), klik
   otevře panel nebo dialog – „ok“.
+- **Kronika války:** věcné zápisy bez hodnocení do kronik obou rodů (nájezd s padlými, raněnými,
+  odvedenými a kořistí; ohlášený průchod; mír a jeho podmínky) – „ok“.
 
 ## Otázky na Martina
 
