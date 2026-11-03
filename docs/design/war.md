@@ -614,6 +614,9 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
   strašně debilně. Ať se o tom (stejně jako o všem) udělá záznam, ale řešení bude na hráčích“
   (Martin 3. 11. 2026) – jen věcný záznam událostí (ohlášený průchod, útok), žádné hodnoticí
   nálepky; řešení je na hráčích.
+- **Postoj „do posledního“ nejde:** „do posledního – to nebude fungovat, lidé v jednu chvíli utečou
+  sami od sebe“ (Martin 3. 11. 2026) – postoj se jmenuje **bránit se** a platí do bodu zlomu
+  (45 % ztrát v obraně).
 
 ## Otázky na Martina
 
