@@ -45,3 +45,6 @@ Martin 2. 11. 2026: „Typy hrazení bychom asi měli probrat zvlášť, je to d
 - **Ve scéně:** polský plot jako dnešní ploty pozemků (kolem celé vsi); palisáda – svislé zašpičatělé
   kůly ≈ 3,5 m, brána z prken; val – hliněný násep s příkopem před ním, zaroste trávou; stavba
   postupně po úsecích jako ostatní stavby – „ok“.
+- **Rozhraní:** v katalogu staveb ikona opevnění → druh (plot / palisáda / val); obvod se kreslí jako
+  pole, cena u kurzoru roste s délkou; panel opevnění: délka, stav, brány, tlačítka „Vylepšit na
+  palisádu“ a „Postavit na valu plot / palisádu“ – „ok“.
