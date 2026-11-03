@@ -20,3 +20,5 @@ Martin 2. 11. 2026: „Typy hrazení bychom asi měli probrat zvlášť, je to d
 - **Obvod kreslí hráč:** uzavřený tvar se zakulacenými rohy kolem libovolné části vsi (jako pole);
   kde obvod protne cestu, vznikne brána; delší obvod stojí víc práce i dřeva – sevřená ves se
   opevní levněji – „Kreslení obvodu tak jak říkáš.“
+- **Násobek síly obránců:** polský plot × 1,25, palisáda × 2, val × 1,5, val s plotem × 2, val
+  s palisádou × 3; útočník projde jen branou, nebo opevnění musí napřed prolomit (trvá) – „ok“.
