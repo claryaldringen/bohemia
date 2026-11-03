@@ -25,3 +25,6 @@ Martin 2. 11. 2026: „Typy hrazení bychom asi měli probrat zvlášť, je to d
 - **Cena na 100 m obvodu:** polský plot 20 čd + 15 klád; palisáda 80 čd + 70 klád; val s příkopem
   150 čd (jen hlína); plot nebo palisáda na valu jako samotné; vylepšení plotu na palisádu 80 čd +
   70 klád (plot nevrací nic) – „ano“.
+- **Životnost:** polský plot ≈ 15 let, palisáda ≈ 20 let (kůly hnijí); val nehnije, bez údržby se za
+  50 let sníží a jeho násobek obrany klesne na polovinu; oprava přestavbou jako ostatní stavby –
+  „ok“.
