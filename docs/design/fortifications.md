@@ -34,3 +34,6 @@ Martin 2. 11. 2026: „Typy hrazení bychom asi měli probrat zvlášť, je to d
 - **Prolomení:** podle síly opevnění a počtu mužů – brána v plotu hned, brána v palisádě sekerami za
   pár herních hodin, palisáda mimo bránu za ≈ den (podhrabání, vysekání), val se zdolá útokem do
   kopce (proto násobek obrany); obléhání hladem Později – „ok, zkusíme to takhle a uvidíme“.
+- **Správce:** „Opevnění je stavba jako každá jiná, takže usoudí-li správce, že by ho ves mít měla,
+  postaví ho“ – správce rozhoduje jako o ostatních stavbách (hodnota proti ceně – návrh Clauda:
+  hrozba z války a cizích vojsk poblíž zvedá hodnotu).
