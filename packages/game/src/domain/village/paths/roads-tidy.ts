@@ -33,6 +33,8 @@ import {
 import { retrailPieces } from './roads-overgrow';
 import { dropGoneTrailPieces, endKey, mergeRoadChains, roadsInWork, splitRoad } from './roads-form';
 import { type RoadAnchors, nearAnchor } from './road-anchors';
+import { junctionSnap } from './junctions';
+import { roadLandWidthM } from './road-land';
 import { type StubNetwork, hasLoop, hasStubWork, splitLoops, trimStubs } from './roads-stubs';
 import { SpotContext } from './roads-trees';
 
@@ -708,12 +710,18 @@ function joinRoadGaps(
     const last = other.points[other.points.length - 1]!;
     const near = (q: RoadPoint): boolean =>
       length2(gap.hit.point.x - q.x, gap.hit.point.z - q.z) <= END_SNAP_M;
+    const { road } = gap;
+    // blíž než rozestup od křižovatky na konci úseku → přímo do ní, úsek se nerozdělí (Martin
+    // 3. 11. 2026); ne do uzlu, ze kterého napojovaný úsek vychází
+    const own = gap.atStart ? road.points[road.points.length - 1]! : road.points[0]!;
+    const snap = junctionSnap(roads, other, gap.hit.point, roadLandWidthM(road));
     const at = near(first)
       ? { ...first }
       : near(last)
         ? { ...last }
-        : splitRoad(roads, gap.hit, context);
-    const { road } = gap;
+        : snap && (snap.x !== own.x || snap.z !== own.z)
+          ? snap
+          : splitRoad(roads, gap.hit, context);
     road.points = gap.atStart ? [at, ...road.points] : [...road.points, at];
     road.ground = roadGroundOf(road.points, context.terrain);
     delete road.lined;

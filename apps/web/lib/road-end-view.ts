@@ -7,9 +7,16 @@ import type { VillageTarget } from './scene/village-picking';
 import { DIRECTION_NAMES } from './trade-names';
 import { DWELLING_NAMES } from './village-view-chronicle';
 
-/** Název a portrét křižovatky podle tvaru (paths.md – Křižovatky). */
-export const JUNCTION_NAMES = { cross: 'Křižovatka', y: 'Rozcestí' } as const;
-export const JUNCTION_ICONS = { cross: 'krizovatka-kriz', y: 'krizovatka-y' } as const;
+/**
+ * Název a portrét křižovatky podle tvaru (paths.md – Křižovatky): hvězda (pět ramen) je kříž
+ * s pátým ramenem – jmenuje se i vypadá v portrétu jako kříž.
+ */
+export const JUNCTION_NAMES = { cross: 'Křižovatka', y: 'Rozcestí', star: 'Křižovatka' } as const;
+export const JUNCTION_ICONS = {
+  cross: 'krizovatka-kriz',
+  y: 'krizovatka-y',
+  star: 'krizovatka-kriz',
+} as const;
 
 /** Konec cesty hráče pro panel cesty. */
 export interface VillageRoadEnd {

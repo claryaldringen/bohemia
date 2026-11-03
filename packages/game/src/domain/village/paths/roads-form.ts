@@ -40,6 +40,8 @@ import {
   roadLengthM,
 } from './roads-geometry';
 import { type RoadAnchors, nearAnchor } from './road-anchors';
+import { junctionSnap } from './junctions';
+import { roadLandWidthM } from './road-land';
 import { SpotContext, spotsForRoad } from './roads-trees';
 import { type TrafficField, trafficAt, wearNear } from './wear';
 
@@ -403,6 +405,9 @@ function joinTarget(
   if (length2(hit.point.x - last.x, hit.point.z - last.z) <= END_SNAP_M) {
     return { point: { ...last }, hit: null };
   }
+  // blíž než rozestup od křižovatky na konci pevné cesty → přímo do ní (Martin 3. 11. 2026)
+  const snap = junctionSnap(roads, road, hit.point, roadLandWidthM({ grade: 'trodden' }));
+  if (snap) return { point: snap, hit: null };
   return { point: { x: cm(hit.point.x), z: cm(hit.point.z) }, hit };
 }
 

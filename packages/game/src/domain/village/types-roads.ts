@@ -303,14 +303,16 @@ export interface VillageRoads {
   /** Vyšlapanost (paths.md – Vyšlapanost a vznik cesty); chybí = ještě se nesčítá. */
   wear?: RoadWear;
   /**
-   * Křižovatky (paths.md – Křižovatky) – samostatné objekty v uzlech, kde se potkají 3–4 živé
-   * cesty. Chybí = žádné (zapojí je Úloha 9b plánu cest v2).
+   * Křižovatky (paths.md – Křižovatky) – samostatné objekty v uzlech, kde se potkají 3–5 cest. Chybí = žádné (zapojí je Úloha 9b plánu cest v2).
    */
   junctions?: RoadJunction[];
 }
 
-/** Tvar křižovatky (paths.md – Křižovatky): kříž se 4 vchody, nebo Y se 3 vchody. */
-export type JunctionShape = 'cross' | 'y';
+/**
+ * Tvar křižovatky (paths.md – Křižovatky): kříž se 4 vchody, Y se 3 vchody, nebo hvězda s 5 vchody
+ * (kříž a páté rameno v ose jedné mezery – Martin 3. 11. 2026: pět ramen smí jedna křižovatka).
+ */
+export type JunctionShape = 'cross' | 'y' | 'star';
 
 /** Znamení křižovatky: strom (strom u cesty), vztyčený kámen, nebo dřevěný kůl. */
 export type JunctionLandmarkKind = 'tree' | 'stone' | 'post';

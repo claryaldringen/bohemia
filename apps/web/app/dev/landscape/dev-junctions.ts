@@ -40,9 +40,10 @@ const SPECS: Spec[] = [
   { shape: 'cross', rotationDeg: 20, spreadDeg: 0, grade: 'trodden', landmark: 'stone', look: 1 },
   { shape: 'y', rotationDeg: 100, spreadDeg: 40, grade: 'improved', landmark: 'post', look: 2 },
   { shape: 'y', rotationDeg: 215, spreadDeg: 55, grade: 'trodden', landmark: 'tree', look: 1 },
+  { shape: 'star', rotationDeg: 10, spreadDeg: 0, grade: 'wagon', landmark: 'stone', look: 2 },
 ];
 
-/** Ukázka tří křižovatek vedle vsi. */
+/** Ukázka čtyř křižovatek vedle vsi (kříž, dvě Y a vozová hvězda s pěti rameny). */
 export function junctionsDemo(l: Landscape): JunctionsDemo {
   const village = tileCenterWorld(l, l.villageSite.x, l.villageSite.y);
   const roads: SceneRoad[] = [];

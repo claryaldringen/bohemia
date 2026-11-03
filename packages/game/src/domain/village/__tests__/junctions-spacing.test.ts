@@ -47,7 +47,7 @@ function twoYs(): VillageRoads {
   ]);
 }
 
-/** Kříž a Y 8 m od sebe spojené úsekem 9 – dohromady pět cest bez spojky. */
+/** Kříž a Y 8 m od sebe spojené úsekem 9 – dohromady pět cest bez spojky (vejdou se do hvězdy). */
 function crossAndY(): VillageRoads {
   return roadsOf([
     seg(1, { x: -30, z: 24 }, A),
@@ -57,6 +57,13 @@ function crossAndY(): VillageRoads {
     seg(3, B, { x: 38, z: 24 }),
     seg(4, B, { x: 38, z: -24 }),
   ]);
+}
+
+/** Dva kříže 8 m od sebe spojené úsekem 9 – dohromady šest cest bez spojky (do jedné se nevejdou). */
+function twoCrosses(): VillageRoads {
+  const roads = crossAndY();
+  roads.roads.push(seg(6, B, { x: 44, z: 0 }));
+  return roads;
 }
 
 function upgrade(roads: VillageRoads, grade: RoadGrade): void {
@@ -111,8 +118,26 @@ describe('křižovatky blízko sebe (updateJunctions)', () => {
     expect(json(roads)).toEqual(before);
   });
 
-  it('kříž a Y (5 různých cest) blíž než rozestup → odsunou se podél spojky', () => {
+  it('kříž a Y (5 různých cest) blíž než rozestup → sloučí se do hvězdy, spojka zmizí', () => {
     const roads = crossAndY();
+    updateJunctions(roads, DAY, SEED, allLive);
+    const ids = roads.junctions!.map((j) => j.id);
+    upgrade(roads, 'improved');
+    expect(updateJunctions(roads, DAY + 30, SEED, allLive)).toBe(true);
+    expect(roads.junctions).toHaveLength(1);
+    const j = roads.junctions![0]!;
+    expect(j.shape).toBe('star');
+    expect([...j.arms].sort()).toEqual([1, 2, 3, 4, 5]);
+    expect(j.id).toBe(Math.min(...ids));
+    expect({ x: j.x, z: j.z }).toEqual({ x: 4, z: 0 });
+    expect(roads.roads.some((r) => r.id === 9)).toBe(false);
+    const before = json(roads);
+    expect(updateJunctions(roads, DAY + 60, SEED, allLive)).toBe(false);
+    expect(json(roads)).toEqual(before);
+  });
+
+  it('dva kříže (6 různých cest) blíž než rozestup → odsunou se podél spojky', () => {
+    const roads = twoCrosses();
     updateJunctions(roads, DAY, SEED, allLive);
     const ids = roads.junctions!.map((j) => j.id);
     upgrade(roads, 'improved');
@@ -130,14 +155,14 @@ describe('křižovatky blízko sebe (updateJunctions)', () => {
     const ends = [link.points[0]!, link.points[link.points.length - 1]!].map((p) => p.x).sort();
     expect(ends).toEqual([a!.x, b!.x].sort());
     expect(a!.arms.filter((id) => id !== null)).toHaveLength(4);
-    expect(b!.arms.filter((id) => id !== null)).toHaveLength(3);
+    expect(b!.arms.filter((id) => id !== null)).toHaveLength(4);
     const before = json(roads);
     expect(updateJunctions(roads, DAY + 60, SEED, allLive)).toBe(false);
     expect(json(roads)).toEqual(before);
   });
 
   it('šířka pro rozestup jiná než podle stupně (přestavba – budoucí vozová cesta) → odsunou se dál', () => {
-    const roads = crossAndY();
+    const roads = twoCrosses();
     const wagon = ROAD_LAND.widthM.wagon;
     expect(updateJunctions(roads, DAY, SEED, { ...allLive, width: () => wagon })).toBe(true);
     const min = junctionSpacingM([wagon], [wagon]);
@@ -195,7 +220,7 @@ describe('křižovatky blízko sebe (updateJunctions)', () => {
 
   it('křižovatka v kotvě (vchod) stojí – odsune se jen druhá, sloučí se do kotvy', () => {
     const atA = (p: RoadPoint): boolean => p.x === 0 && p.z === 0;
-    const pushed = crossAndY();
+    const pushed = twoCrosses();
     updateJunctions(pushed, DAY, SEED, allLive);
     upgrade(pushed, 'improved');
     updateJunctions(pushed, DAY + 30, SEED, { ...allLive, anchor: atA });
@@ -212,7 +237,7 @@ describe('křižovatky blízko sebe (updateJunctions)', () => {
   });
 
   it('místo a tvar nezávisí na pořadí úseků', () => {
-    const shapes = [crossAndY(), crossAndY()].map((roads, k) => {
+    const shapes = [twoCrosses(), twoCrosses()].map((roads, k) => {
       if (k === 1) roads.roads.reverse();
       updateJunctions(roads, DAY, SEED, allLive);
       upgrade(roads, 'improved');
@@ -229,7 +254,7 @@ describe('křižovatky blízko sebe (updateJunctions)', () => {
     JSON.stringify(roads.roads.filter((r) => ids.includes(r.id)).map((r) => r.points));
 
   it('vozová cesta (zemní práce na její ose) se nehýbe – odsune se jen druhá křižovatka', () => {
-    const roads = crossAndY();
+    const roads = twoCrosses();
     updateJunctions(roads, DAY, SEED, allLive);
     upgrade(roads, 'improved');
     for (const id of [3, 4]) roads.roads.find((r) => r.id === id)!.grade = 'wagon';
@@ -264,7 +289,7 @@ describe('křižovatky blízko sebe (updateJunctions)', () => {
   });
 
   it('zablokovaný cíl – uzel se nehýbe, druhý převezme celý posun', () => {
-    const roads = crossAndY();
+    const roads = twoCrosses();
     updateJunctions(roads, DAY, SEED, allLive);
     upgrade(roads, 'improved');
     // vlevo (x < 0) stojí dům: levá křižovatka se nesmí posunout doleva
@@ -276,7 +301,7 @@ describe('křižovatky blízko sebe (updateJunctions)', () => {
       junctionSpacingM([ROAD_LAND.widthM.improved], [ROAD_LAND.widthM.improved]),
     );
     // obě strany zablokované – nic se nepohne
-    const both = crossAndY();
+    const both = twoCrosses();
     updateJunctions(both, DAY, SEED, allLive);
     upgrade(both, 'improved');
     const centers = (r: VillageRoads): string =>
@@ -337,7 +362,7 @@ describe('křižovatky blízko sebe (updateJunctions)', () => {
   });
 
   it('druhý průchod po srovnání dvojice nic nemění', () => {
-    const roads = crossAndY();
+    const roads = twoCrosses();
     updateJunctions(roads, DAY, SEED, allLive);
     upgrade(roads, 'improved');
     updateJunctions(roads, DAY + 30, SEED, allLive);

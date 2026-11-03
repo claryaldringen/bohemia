@@ -104,6 +104,28 @@ describe('tvar křižovatky (paths.md – Křižovatky)', () => {
     expect(junctionShape(junction({ arms: [1, null, null, null] }), cross())).toBeNull();
   });
 
+  it('hvězda: pět ramen ve vchodech, obrys v dosahu plácku a bez ostrého rohu i v mezeře 45°', () => {
+    const roads = [...cross(), road(5, 21, 21, { grade: 'wagon' })];
+    const star = junction({ shape: 'star', rotation: 0, arms: [1, 2, 3, 4, 5] });
+    const shape = junctionShape(star, roads)!;
+    expect(shape.arms).toHaveLength(5);
+    const dirs = junctionArmDirs('star', 0);
+    expect(shape.arms.map((a) => a.dir)).toEqual(dirs);
+    expect(Math.round((dirs[4]! * 180) / Math.PI)).toBe(45);
+    const widthM = roadLandWidthM({ grade: 'wagon' });
+    const entranceM = junctionEntranceM([widthM]);
+    expect(shape.entranceM).toBeCloseTo(entranceM, 9);
+    // celý obrys v kružnici opsané (dosah plácku pro rozestup – junctionReachM)
+    const reach = Math.hypot(entranceM, widthM / 2);
+    for (const p of shape.outline) expect(Math.hypot(p.x, p.z)).toBeLessThanOrEqual(reach + 1e-6);
+    // v úzké mezeře (45°) obrys nekončí špičkou ve středu – vnitřní roh je oblouk
+    const inGap = shape.outline.filter((p) => {
+      const a = Math.atan2(p.z, p.x);
+      return a > 0.05 && a < Math.PI / 4 - 0.05;
+    });
+    expect(inGap.length).toBeGreaterThan(2);
+  });
+
   it('tvar je pro stejnou křižovatku stejný; obtisk plácku nekreslí kruh (jen junction-patch)', () => {
     const a = junctionShape(junction(), cross())!;
     const b = junctionShape(junction(), cross())!;

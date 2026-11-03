@@ -195,7 +195,9 @@ export const ROAD_ACCESS = { minM: 3 } as const;
 // paths.md – Křižovatky (Martin, #6, pravidlo 9; návrh Clauda, Úloha 9a): vchod `entranceWidths`
 // (1,5) × šířka nejširší přicházející cesty od středu; posledních `bendM` (12 m) osy se ohne do
 // vchodu obloukem s body po `bendStepM` (1 m); natočení a rozevření Y po `rotationStepDeg` (5°),
-// β z `spreadDeg` (30–60°); uzel s 5+ cestami = dvě křižovatky `pairM` (10 m) od sebe; znamení
+// β z `spreadDeg` (30–60°); nejvýš `maxArms` (5) ramen – hvězda je kříž a páté rameno `starArmDeg`
+// (45°) od ramene 0 v ose mezery (Martin 3. 11. 2026: „ano“ – pět ramen smí jedna křižovatka, šest
+// a víc se dál dělí); uzel s 6+ cestami = dvě křižovatky `pairM` (10 m) od sebe; znamení
 // strom 40 %, vztyčený kámen 30 %, dřevěný kůl 30 % ze `landmarkLooks` (2) podob, `landmarkGapM`
 // (1,5 m) za vchody v nejširší mezeře mezi rameny; dvě křižovatky nejméně dosah plácku jedné +
 // dosah druhé + `spacingReserveM` (1 m) od sebe – dosah je kružnice opsaná obrysu (vchod a půl
@@ -206,6 +208,8 @@ export const JUNCTION = {
   bendStepM: 1,
   rotationStepDeg: 5,
   spreadDeg: [30, 60],
+  maxArms: 5,
+  starArmDeg: 45,
   pairM: 10,
   landmark: { tree: 0.4, stone: 0.3, post: 0.3 },
   landmarkLooks: 2,

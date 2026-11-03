@@ -641,6 +641,10 @@ function tidyMonth(
       // ohyb ramene ne přes stavbu ani plot (paths.md – Křižovatky, Ohyb ramene)
       footprint: (p) => (footprint ??= month.footprint())(p.x, p.z),
       ...(hints.width ? { width: hints.width } : {}),
+      // po přitažení napojení do křižovatky se kusy jedné cesty spojí (paths.md – Křižovatky)
+      chain: () => {
+        mergeRoadChains(roads, state.constructions, state.trails);
+      },
     });
   };
   // cesty beze změny: úklid jen, když nové kotvy a trasy dají práci (pahýl, díra, okruh, vchod)
