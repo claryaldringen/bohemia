@@ -42,3 +42,6 @@ Martin 2. 11. 2026: „Typy hrazení bychom asi měli probrat zvlášť, je to d
   kdo se nevejde, zůstane venku – „ok“.
 - **Terén (ostrožny, mokřady):** „No zatím nemáme prémiové terény, tak není moc důvod to řešit“
   (Martin 3. 11. 2026) – bez bonusu za terén; Později s prémiovými krajinami.
+- **Ve scéně:** polský plot jako dnešní ploty pozemků (kolem celé vsi); palisáda – svislé zašpičatělé
+  kůly ≈ 3,5 m, brána z prken; val – hliněný násep s příkopem před ním, zaroste trávou; stavba
+  postupně po úsecích jako ostatní stavby – „ok“.
