@@ -610,6 +610,10 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
   s vesničany do lesa“ – **ohlášení průchodu** (vzkaz, odpověď nic nezavazuje); ohlášené vojsko
   vsi označí za neškodné, takže se nebrání ani neutíká; bez ohlášení se ves zachová podle postoje;
   zápis „cizí vojsko prošlo“.
+- **Útok po ohlášeném průchodu:** hra nezakazuje; „zradil ohlášený průchod – tohle zní úplně
+  strašně debilně. Ať se o tom (stejně jako o všem) udělá záznam, ale řešení bude na hráčích“
+  (Martin 3. 11. 2026) – jen věcný záznam událostí (ohlášený průchod, útok), žádné hodnoticí
+  nálepky; řešení je na hráčích.
 
 ## Otázky na Martina
 
