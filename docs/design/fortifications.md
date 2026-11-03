@@ -28,3 +28,6 @@ Martin 2. 11. 2026: „Typy hrazení bychom asi měli probrat zvlášť, je to d
 - **Životnost:** polský plot ≈ 15 let, palisáda ≈ 20 let (kůly hnijí); val nehnije, bez údržby se za
   50 let sníží a jeho násobek obrany klesne na polovinu; oprava přestavbou jako ostatní stavby –
   „ok“.
+- **Brány:** vzniknou samy, kde obvod protne cestu; hráč přidá další kliknutím na obvod; brána je
+  slabé místo (útočník ji prolomí rychleji než zeď), obránci ji zavřou a brání – víc bran =
+  pohodlnější cesty, slabší obrana – „ok“.
