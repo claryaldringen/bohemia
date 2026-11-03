@@ -31,3 +31,6 @@ Martin 2. 11. 2026: „Typy hrazení bychom asi měli probrat zvlášť, je to d
 - **Brány:** vzniknou samy, kde obvod protne cestu; hráč přidá další kliknutím na obvod; brána je
   slabé místo (útočník ji prolomí rychleji než zeď), obránci ji zavřou a brání – víc bran =
   pohodlnější cesty, slabší obrana – „ok“.
+- **Prolomení:** podle síly opevnění a počtu mužů – brána v plotu hned, brána v palisádě sekerami za
+  pár herních hodin, palisáda mimo bránu za ≈ den (podhrabání, vysekání), val se zdolá útokem do
+  kopce (proto násobek obrany); obléhání hladem Později – „ok, zkusíme to takhle a uvidíme“.
