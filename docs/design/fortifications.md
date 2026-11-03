@@ -16,3 +16,7 @@ Martin 2. 11. 2026: „Typy hrazení bychom asi měli probrat zvlášť, je to d
   - **polský plot** – nejobyčejnější ohrazení (zakulacené rohy jako všude ve hře);
   - **palisáda** – od začátku, nebo vylepšením polského plotu;
   - **val s příkopem** – hlína z příkopu tvoří val; na koruně valu polský plot nebo palisáda.
+- **Plot nebo palisáda na valu je volitelná:** „hráč se může rozhodnout, že val stačí“.
+- **Obvod kreslí hráč:** uzavřený tvar se zakulacenými rohy kolem libovolné části vsi (jako pole);
+  kde obvod protne cestu, vznikne brána; delší obvod stojí víc práce i dřeva – sevřená ves se
+  opevní levněji – „Kreslení obvodu tak jak říkáš.“
