@@ -811,6 +811,8 @@ dokumentu výš je podle nich přepsané (3. 11. 2026)**; při rozporu platí te
   a zdraví; zastávka ve vsi (vlastní, neutrální, která ho pustí, nebo dobytá) mráz zastaví a muži
   se zotaví; tažení tak vede od vsi ke vsi; sníh zpomalí pochod; zimní ležení ve třetině dne pryč
   – „ano“.
+- **Bod zlomu podle počtu mužů** (padlí a ranění ÷ muži skupiny), ne podle síly – „podle počtu“
+  (Martin 3. 11. 2026).
 
 ## Otázky na Martina
 
