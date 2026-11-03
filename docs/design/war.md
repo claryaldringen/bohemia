@@ -622,6 +622,9 @@ a dezerce, kovárna × 1,5, obrana u domu × 1,5.
   něj zachová, když vesničan spatří cizí vojsko (utéct hned se zásobami a stády / seběhnout se do
   skupin / vzdát se při přesile 1,5×); přítomný hráč dostane upozornění a smí velet sám (postoj po
   skupinách, útěk, vlastní výpad); bod zlomu platí vždy – „ano“ (Martin 3. 11. 2026).
+- **Upozornění:** krátké zprávy („Cizí vojsko u Kněžic!“, „Kněžice poraženy.“, „Ctibor nabízí mír.“,
+  „Bořivoj svolává.“, „Ctibor poslal 3 muže.“, „Bořivoj ohlásil průchod.“, „Zajat: Ctibor.“), klik
+  otevře panel nebo dialog – „ok“.
 
 ## Otázky na Martina
 
