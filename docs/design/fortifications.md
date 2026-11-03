@@ -40,3 +40,5 @@ Martin 2. 11. 2026: „Typy hrazení bychom asi měli probrat zvlášť, je to d
 - **Útočiště:** bez pevného stropu – kdo stihne doběhnout, schová se i se zásobami a dobytkem, dokud
   je místo; plocha z nakresleného obvodu, 10 m² na člověka a 20 m² na kus dobytka (návrh Clauda);
   kdo se nevejde, zůstane venku – „ok“.
+- **Terén (ostrožny, mokřady):** „No zatím nemáme prémiové terény, tak není moc důvod to řešit“
+  (Martin 3. 11. 2026) – bez bonusu za terén; Později s prémiovými krajinami.
