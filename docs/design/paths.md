@@ -845,23 +845,27 @@ Nový systém přehrazení řeší sám (návrh Clauda):
 > **Napojení blízko křižovatky (Martin 3. 11. 2026):** na otázku, zda nové napojení cesty blíž než
 > rozestup křižovatek (≈ 12 m, Vlkov: 9,8 m od křižovatky 1131) přitáhnout přímo do stávající
 > křižovatky (víc ramen, kříž až pět): „ano“ – pět ramen smí jedna křižovatka, šest a víc se dál
-> dělí (podrobnosti návrh Clauda při implementaci).
+> dělí (podrobnosti návrh Clauda při implementaci – [Napojení blízko
+> křižovatky](#napojení-blízko-křižovatky-3-11-2026) níž).
 
 Návrh Clauda:
 
-- **Kdy:** v uzlu, kde končí **3 nebo 4 cesty** – i zarůstající, po které už nikdo nechodí
+- **Kdy:** v uzlu, kde končí **3 až 5 cest** (5 – Martin 3. 11. 2026) – i zarůstající, po které už nikdo nechodí
   (opuštěná se nepočítá; pahýly úklid odstraní dřív). ~~Každou vede trasa aspoň v udržovacím prahu
   jejího druhu.~~ (návrh Clauda 1. 11. 2026 – [Křižovatka i se zarůstající
-  cestou](#křižovatka-i-se-zarůstající-cestou-vlkov-1-11-2026)). Dvě cesty křižovatku nemají (spojí se). Pět a víc
-  se nečeká; kdyby se sešly, uzel se rozdělí na **dvě křižovatky 10 m od sebe** (u širších cest
+  cestou](#křižovatka-i-se-zarůstající-cestou-vlkov-1-11-2026)). Dvě cesty křižovatku nemají (spojí se). ~~Pět a víc
+  se nečeká; kdyby se sešly, uzel se rozdělí~~ **Šest a víc** (Martin 3. 11. 2026) se nečeká; kdyby
+  se sešly, uzel se rozdělí na **dvě křižovatky 10 m od sebe** (u širších cest
   dál – Rozestup níž) spojené krátkou cestou – ramena se rozdělí na dvě skupiny sousedních podle
-  úhlu, každá skupina 2–3 ramena plus spojka.
+  úhlu, každá skupina 3–4 ramena plus spojka (6 cest = dva kříže, 7 = kříž a hvězda).
 - **Tvar:** **kříž** – 4 ramena po 90°; **Y** – 3 ramena: kmen a dvě větve souměrně kolem směru
   proti kmeni, každá větev o β = 30–60° (po 5°) od té osy (β = 60° je souměrné trojcestí po 120°,
-  β = 30° klasické Y).
+  β = 30° klasické Y); **hvězda** – 5 ramen: kříž a páté rameno v ose jedné jeho mezery, 45° od
+  obou sousedů (návrh Clauda 3. 11. 2026 – [Napojení blízko
+  křižovatky](#napojení-blízko-křižovatky-3-11-2026)).
 - **Natočení:** po 5°, aby součet čtverců odchylek ramen od směrů přicházejících cest byl nejmenší
   (směr cesty = od středu k bodu osy 12 m daleko; přiřazení ramen cestám – všechna pořadí, nejvýš
-  24); při shodě menší úhel a menší β. Zemská stezka se neohýbá – je-li v uzlu, natočení se k ní
+  24, u hvězdy 120); při shodě menší úhel a menší β. Zemská stezka se neohýbá – je-li v uzlu, natočení se k ní
   přizpůsobí (její rameno přesně v jejím směru).
 - **Vchody:** na konci ramene, **1,5 × šířka nejširší přicházející cesty** od středu (vyšlapaná
   1,9 m → 2,85 m, upravená 3 m → 4,5 m, vozová 3,5 m → 5,25 m). **Cesta vede přesně do vchodu:**
@@ -929,11 +933,15 @@ Návrh Clauda:
   je kružnice opsaná obrysu – vchod (1,5 × šířka) a půl šířky nejširší cesty v ramenech:
   vyšlapaná ≈ 3 m, upravená ≈ 4,7 m, vozová ≈ 5,5 m, takže dvě vyšlapané ≈ 7 m, dvě vozové
   ≈ 12,1 m. Při měsíčním úklidu (před tvarem křižovatek; nejbližší dvojice napřed):
-  - **vejdou-li se do jedné** – spojuje je jediný úsek a bez něj do nich vedou nejvýš 4 živé cesty
-    (tj. dvě Y) –, **sloučí se** do jedné křižovatky (kříž) uprostřed mezi nimi, krátký spojovací
+  - **vejdou-li se do jedné** – spojuje je jediný úsek a bez něj do nich vedou nejvýš ~~4~~ **5** živých
+    cest (dvě Y, nebo kříž a Y – Martin 3. 11. 2026) –, **sloučí se** do jedné křižovatky (kříž,
+    hvězda) uprostřed mezi nimi, krátký spojovací
     úsek zmizí; zůstane starší křižovatka i se znamením (kámen a kůl se posunou, strom druhé stojí
     dál jako strom u cesty);
-  - **jinak** (5 a víc cest, spojka je zemská stezka nebo cesta ve vylepšení – ta se neruší, nebo je
+  - **je-li jedna z nich napojením** na spojku (i když je spojka pevná nebo vozová a pevné rameno
+    mají obě), napojená cesta se **přitáhne do druhé** ([Napojení blízko
+    křižovatky](#napojení-blízko-křižovatky-3-11-2026));
+  - **jinak** (6 a víc cest, spojka je zemská stezka nebo cesta ve vylepšení – ta se neruší, nebo je
     spojuje víc úseků) se **odsunou od sebe** po spojnici středů na nejmenší rozestup, každá o půl;
   - uzel s **pevným ramenem** (zemská stezka, cesta ve vylepšení, vozová cesta – její osa leží na
     zemních pracích) se nehýbe jako kotva: sloučí se do něj, nebo se odsune jen druhá; spojka, která
@@ -954,10 +962,60 @@ Návrh Clauda:
   - rozestup roste se šířkou cest – vylepší-li se cesty, dvojice se srovná v dalším měsíci; starší
     vsi se srovnají v prvním měsíci, pokud nemají v obou uzlech pevné rameno (Vlkov: všechny tři
     dvojice pod rozestupem – Y a Y 6,7 m, dva kříže 6 m, kříž a Y 11,7 m – mají v obou uzlech
-    vozovou cestu, takže zůstávají jako přijatá výjimka).
+    vozovou cestu, takže zůstávají jako přijatá výjimka; ~~Vlkov 2. 11. 2026: 1131 a 1619 9,8 m –
+    přijatá výjimka~~ – od 3. 11. 2026 se napojení přitáhne: [Napojení blízko
+    křižovatky](#napojení-blízko-křižovatky-3-11-2026)).
 - **Změna:** přibude-li nebo ubude-li rameno, tvar a natočení se spočítají znovu, znamení zůstane;
   klesnou-li ramena na 2 (cesta zarostla a zmizela, nebo je opuštěná), křižovatka zanikne a cesty
   se spojí.
+
+### Napojení blízko křižovatky (3. 11. 2026)
+
+Martin 3. 11. 2026 na otázku, zda nové napojení cesty blíž než rozestup křižovatek (Vlkov: upravená
+cesta 1618 se napojila na vozovou 1387 9,8 m od kříže 1131 a vznikla druhá křižovatka 1619) přitáhnout
+přímo do stávající křižovatky: „ano“ – pět ramen smí jedna křižovatka, šest a víc se dál dělí.
+Provedení návrh Clauda:
+
+- **Při napojení:** kde by se konec nové cesty napojil na pevnou cestu (vznik z vyšlapanosti
+  do 10 m od cesty, zacelení díry do `JOIN_GAP_M`) a ta by se v tom bodě rozdělila (rozcestí), a bod
+  leží **blíž než rozestup křižovatek** od konce té cesty, ve kterém už končí 3–4 cesty (křižovatka
+  – rozestup jako u dvou křižovatek: ramena křižovatky a nové napojení, Vlkov vozové ≈ 12,1 m),
+  **konec nové cesty se napojí přímo do středu té křižovatky a napojovaná cesta se nerozdělí**.
+  Nová cesta pak vede od svého konce rovně do středu; při nejbližším měsíčním úklidu se tvar
+  křižovatky spočítá znovu (přibylo rameno – Y → kříž, kříž → hvězda) a konec se ohne do vchodu
+  nového ramene jako každý jiný (posledních 12 m obloukem). Křižovatka s pěti rameny už nepřitahuje
+  – napojí se jako dřív (rozcestí) a dvojice se řeší podle Rozestupu (odsunutí, šest cest se
+  nevejde do jedné). Do uzlu, ze kterého napojovaná cesta sama vychází, se nepřitahuje (okruh).
+- **Tvar pěti ramen – hvězda:** kříž (4 ramena po 90°) a páté rameno v ose jedné mezery, 45° od
+  obou sousedů. Natočení a přiřazení cest ramenům jako u kříže a Y – po 5°, nejmenší součet čtverců
+  odchylek přes všech 120 pořadí, pevná cesta (vozová, zemská stezka) určí natočení přesně; tím
+  zůstane rovná vozová cesta skrz kříž rovná (pravidelná hvězda po 72° by ohnula všechna ramena
+  a dvě protilehlá vozová ramena by neměla). Vchody jako u ostatních – 1,5 × šířka nejširší cesty;
+  plácek jsou pásy pěti ramen a v každé mezeře oblouk tečný k okrajům sousedních pásů (v mezeře 45°
+  tečné body leží ve vchodech, takže plácek nevyčnívá za kružnici dosahu a rozestup platí beze
+  změny). Koleje vozové cesty vedou přes plácek jen mezi rameny, kudy vozová cesta vede skrz
+  (protilehlá – víc než 120°), do pátého ramene ne. Znamení v nejširší mezeře jako u ostatních.
+  Název v popisku je Křižovatka a portrét je kříž (hvězda je kříž s pátým ramenem).
+- **Staré dvojice (Vlkov 1131 + 1619):** při měsíčním úklidu (krok Rozestup, po sloučení a před
+  odsunutím) se **napojení přitáhne**: uzel se 3 rameny, z nichž dvě jsou kusy jedné cesty (spojka
+  k druhé křižovatce a její pokračování – stejný druh, při víc možnostech nejrovnější pokračování),
+  třetí je napojená cesta. Ta se přitáhne do druhé křižovatky (napřed do starší, menší id), má-li ta
+  nejvýš 4 ramena: osa bez posledních 12 m (oblouk do vchodu napojení) a odtud rovně do středu
+  křižovatky, pak se ohne do vchodu nového ramene. Kusy jedné cesty se spojí zpátky do jednoho
+  úseku (jako „falešné rozcestí“), druhá křižovatka zanikne (strom znamení stojí dál jako strom
+  u cesty, kámen a kůl zmizí), starší si nechá id, znamení i den vzniku. Platí i tam, kde mají obě
+  pevné rameno (přijatá výjimka Rozestupu se na napojení nevztahuje) – vozová cesta se nehýbe,
+  hýbe se jen napojená. **Nepřitáhne se** cesta, která se u křižovatky neohýbá (vozová, zemská
+  stezka, ve vylepšení, kratší než 12 m), napojení u vchodu (do 3 m – vchod by přišel o cestu)
+  a cesta, jejíž nová osa by vedla neprůchodnou plochou nebo přes stavbu či plot víc než dosavadní
+  – ta dvojice zůstane jako dřív. Místa na stromy daleko od nové osy zmizí (místo se stromem
+  zůstane); stav kusů se nepřepočítává (jako při odsunutí). Jednou a idempotentně: po přitažení
+  dvojice není, další měsíc nic; dopočet po kouscích dá totéž co vcelku.
+- **Vlkov (kopie stavu 3. 11. 2026, den 129225 → měsíční úklid):** z 1131 (kříž) + 1619 (Y) je
+  hvězda 1131 (ramena 1618, 1385, 1476, 1386, 1387), vozová 1387 a 1617 jsou zase jeden úsek 1387,
+  1619 zanikla. Stejně dopadla druhá taková dvojice – kříž 1132 a Y 1497 7,9 m od sebe (napojení
+  1396 na vozovou 1494/1495) → hvězda 1132. Konců „(!)“ (napojení bez křižovatky) žádný; dva
+  starší konce nikam (1312, 1350) jinde ve vsi zůstávají, jak byly. Další měsíc beze změny.
 - **Data:** `VillageRoads.junctions` – id, střed, tvar, natočení, β, ramena (id úseku ve vchodu),
   znamení, den vzniku. Úsek ví, že končí ve vchodu (konec osy = vchod).
 - **Co hráč vidí:** udusaná hlína ve tvaru kříže nebo Y – pásy ramen v šířce přicházejících cest,
