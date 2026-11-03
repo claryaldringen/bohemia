@@ -1,5 +1,6 @@
-# Válka – návrh ke schválení
+# Válka
 
+Stav: **schváleno** – Martin 3. 11. 2026 na otázku „Schvaluješ návrhy seniorátu, vazalství a války jako celek, abych podle nich připravil plán implementace?“: „ano“. Původní stav:
 Stav: **návrh** (3. 11. 2026). Implementace zatím není. Tělo je přepsané podle oddílu
 [Odpovědi Martina 2. 11. 2026](#odpovědi-martina-2-11-2026) (několik odpovědí je z 3. 11.) – ty
 jsou závazné. Co z nájezdu na sousední ves platí dál, je označené „Martin 18. 10.“; co níž není

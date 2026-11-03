@@ -1,5 +1,6 @@
 # Seniorát a rodové panství (#9, fáze 4)
 
+Stav: **schváleno** – Martin 3. 11. 2026 na otázku „Schvaluješ návrhy seniorátu, vazalství a války jako celek, abych podle nich připravil plán implementace?“: „ano“. Původní stav:
 Stav: **schváleno odpověďmi Martina 2. 11. 2026 – zbývá potvrdit celek** (odpovědi citované
 v oddílu [Odpovědi Martina 2. 11. 2026](#odpovědi-martina-2-11-2026)). Implementace zatím není.
 Navazuje na

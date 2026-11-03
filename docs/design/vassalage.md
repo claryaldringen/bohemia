@@ -1,5 +1,6 @@
-# Vazalství a pozvánky – návrh ke schválení
+# Vazalství a pozvánky
 
+Stav: **schváleno** – Martin 3. 11. 2026 na otázku „Schvaluješ návrhy seniorátu, vazalství a války jako celek, abych podle nich připravil plán implementace?“: „ano“. Původní stav:
 Stav: **návrh ke schválení – sjednoceno s rozhodnutími Martina 2. 11. 2026** (druhá verze).
 Implementace zatím není. Tělo dokumentu odpovídá oddílu
 [Odpovědi Martina 2. 11. 2026](#odpovědi-martina-2-11-2026), který zůstává jako záznam; kde
