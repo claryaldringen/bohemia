@@ -1,5 +1,6 @@
 import { deriveSeed } from '../domain/landscape/random';
 import { stewardDirections, type Direction8 } from '../domain/village';
+import { appointLords } from './appoint-lord';
 import { settlementLandscape } from './enter-game';
 import type { HouseRepository, PendingDeparture } from './houses';
 import {
@@ -140,8 +141,8 @@ export async function autoPlayerDeparture(
 }
 
 /**
- * Nástupnictví hráče (`resolveSuccessionOf`) a hned za ním odchod mladšího syna, jehož lhůta
- * uplynula (`autoPlayerDeparture`) – volá ho web (`dynastyForVillage`, `advanceDynasty`) i worker
+ * Nástupnictví hráče (`resolveSuccessionOf`), hned za ním odchod mladšího syna, jehož lhůta
+ * uplynula (`autoPlayerDeparture`) a dosazení vojvody do vsí bez muže rodu (`appointLords`) – volá ho web (`dynastyForVillage`, `advanceDynasty`) i worker
  * (`closeAtDay`) na jednom místě. Bez rodů se nic neděje. Volající drží zámek hráče.
  */
 export async function settleSuccessionOf(
@@ -158,6 +159,11 @@ export async function settleSuccessionOf(
         ...(deps.landscapes ? { landscapes: deps.landscapes } : {}),
         houses: deps.houses,
       },
+      input,
+    );
+    // ves, která zůstala bez muže rodu, dostane vojvodu z jiné vsi rodu (seniorate.md)
+    await appointLords(
+      { settlements: deps.settlements, villages: deps.villages, houses: deps.houses },
       input,
     );
   }

@@ -43,6 +43,7 @@ import { roadSwathDay } from './road-swath';
 import { wagonRoadsDay } from './wagon-road';
 import { isVillageDormant } from './departure';
 import { applyInboxDay, inboxByDay, type VillageEvent } from './inbox';
+import { withAwaitingLord } from './appoint-lord';
 import { withDynasty } from './dynasty';
 import { withSteward } from './steward-state';
 import { stewardDay } from './steward';
@@ -155,8 +156,10 @@ export function* advanceVillageSteps(
                     withIronBarsTrade(
                       withToolEquipment(
                         withCattleKinds(
-                          withDynasty(
-                            withKinship(withSeedForgiven(withSowingRotation(withSeason(start)))),
+                          withAwaitingLord(
+                            withDynasty(
+                              withKinship(withSeedForgiven(withSowingRotation(withSeason(start)))),
+                            ),
                           ),
                         ),
                       ),

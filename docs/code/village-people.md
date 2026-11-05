@@ -684,3 +684,37 @@ deadlineDay`; vyrazí hned, správce na cestě vypnutý, první zemnici umístí
 - **Právo** akce `choosePlayerDeparture` je `sendSons` (`ACTION_RIGHTS`): hráčův muž žije v mateřské
   vsi, takže `villageRights` mu dává všechna práva (`dependsOnDynasty` je u vlastní vsi false) a
   `sendSons` je nejbližší význam (odchod syna s dílem); ves navíc ověřuje use-case (`pending.villageId`).
+
+## Dosazení vojvody do vsi bez muže rodu (seniorate.md – Ves bez muže rodu; úloha 2.6)
+
+- **Stav** `VillageState.awaitingLord?: { sinceDay; appointee?: { fromVillageId, personId,
+arrivesDay } }` (volitelné). Nastaví ho `succeedLord` (`succession.ts`), když po smrti vojvody
+  není ve vsi žádný muž rodu (`dynasty.lordId = null`); starší ves bez vojvody ji dostane z
+  `withAwaitingLord` (v `advanceVillageSteps` za `withDynasty`; den = `dynasty.endedDay`, jednou
+  a idempotentně, jen když `lordId === null`).
+- **Doména** `domain/village/appoint-lord.ts` (čisté funkce): `appointCandidate(villages,
+targetVillageId, day, exclude)` – nejstarší muž rodu od `APPOINT_LORD.minAge` (16) let v jiné
+  živé vsi, který není vojvodou své vsi, jejím nástupcem (`successorOf`) ani v `exclude` (hráčův
+  muž); shoda → nižší id osoby, pak vsi; ves bez vojvody kandidáty nedává. `departAppointee(state,
+day, personId, toVillageName)` – muž, jeho manželky a svobodné děti (`AppointeeParty`), jídlo
+  `leavingFood` (25 kg na člověka od 7 let, nejvýš zásoby vsi), `removePeople`, kronika `lord-sent`.
+  `settleAppointee(state, day, party)` (mutuje) – nová id z `nextId`, vazby uvnitř družiny
+  převedené, rodiče mimo družinu zapomenuti, jídlo do zásob, `moveIntoManor`, `dynasty.lordId` +
+  `lords`, smazání `endedDay` a `awaitingLord`, kronika `lord`. **Ves, která už vojvodu má**
+  (příjezd přišel pozdě): družina se přijme (lidé už z domova odešli) a žije v dvorci jako ostatní
+  muži rodu, kronika `line-arrived`, vojvoda se nemění. Číslo cesty `APPOINT_LORD.daysPerMapStep`
+  (2 dny na mapu) je v `rules-lord.ts`.
+- **Schránka:** tělo `lord-arrives` (`inbox.ts`) volá `settleAppointee` na začátku dne příjezdu;
+  vymřelá, opuštěná i putující ves událost nepoužije (dopočet je přeskočí).
+- **Use-case** `application/appoint-lord.ts` `appointLords(deps, { playerId, today })`: pro každou
+  živou ves hráče s `awaitingLord` bez `appointee` najde kandidáta (bez něj ves čeká a zkusí se při
+  dalším volání), 1. verzovaně zapíše `appointee` do cílové vsi (`arrivesDay = today + 2 ×
+cellDistance` sídel), 2. spočte družinu a pošle `lord-arrives` do schránky cíle (`ref`
+  `appoint:<cílová ves>:<sinceDay>` – druhý zápis se zahodí), 3. uloží zdrojovou ves bez družiny.
+  Přerušení mezi kroky dokončí další volání (cíl s `appointee`, jehož muž je ještě ve zdrojové vsi).
+  Volá se v `settleSuccessionOf` (`player-departure.ts`) – tedy na stejných místech jako nástupnictví
+  hráče: web `dynastyForVillage`, `advanceDynasty`, worker `closeAtDay`. Testy:
+  `domain/village/__tests__/appoint-lord.test.ts` (včetně dopočtu po kouscích 1 / 3 / 10),
+  `application/__tests__/appoint-lord.test.ts`.
+- **Kronika** (`village-view-chronicle.ts`): `lord-sent` – „… odešel vládnout do vsi X.“ (ve vsi
+  odkud), `lord` – „Vojvodou se stal …“ (ve vsi kam), `line-arrived`.

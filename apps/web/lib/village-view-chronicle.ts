@@ -351,6 +351,14 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return event.name === undefined
         ? 'Ves má nového vojvodu.'
         : `Vojvodou se stal ${event.name}.`;
+    case 'lord-sent':
+      return event.name === undefined
+        ? `Muž rodu odešel vládnout do vsi ${event.villageName}.`
+        : `${event.name} odešel vládnout do vsi ${event.villageName}.`;
+    case 'line-arrived':
+      return event.name === undefined
+        ? 'Z jiné vsi rodu přišel muž s rodinou.'
+        : `Z jiné vsi rodu přišel ${event.name} s rodinou.`;
     case 'senior':
       return event.name === undefined
         ? 'Rod má nového seniora.'
