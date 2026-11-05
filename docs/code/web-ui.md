@@ -611,11 +611,45 @@ Návrh: [disasters.md – Co hráč vidí](../design/disasters.md). Jádro a č�
 - **Data:** `VillageGame` načte `HouseView` při otevření hry (počet vazalů v liště), při otevření
   panelu, po vydání a zrušení kódu a po každém novém upozornění mezi hráči. Klik na upozornění
   `invite-accepted` / `invitee-played` (`noticePanel` = `'house'`) panel otevře.
-- **Ikony** `public/icons/house/` (banner, seal, shield, hourglass, cross, succession, copy – vlastní
+- **Ikony** `public/icons/house/` (banner, seal, shield, hourglass, cross, succession, copy, hands, handshake, pen, gate – vlastní
   kresba, CC0, zdroj v `public/icons/LICENSES.md`).
 - Testy: `hud/__tests__/HousePanel.behavior.test.tsx`, `lib/__tests__/house-view.test.ts`;
   e2e `e2e/multiplayer.spec.ts` (A vydá kód → B se zaregistruje s kódem → vazalství a upozornění →
   C vidí oba v seznamu hráčů).
+
+## Jednání v panelu Rod a vazalové (úloha 3.4)
+
+Návrh: [vassalage.md](../design/vassalage.md) – Co hráč vidí. Rozhodnutí (kdo je na tahu, důvody
+zašednutí) jsou v `packages/game` ([world.md](world.md) – Panel, Jednání); web jen zobrazuje.
+
+- **Data:** `housePanel` vrací i `negotiations` (`PanelNegotiation`: id, `other`, `myTurn`, `items`,
+  `message`, `rounds`) a `actions[houseId]` (`PanelPlayerActions`: `offer` / `request` = důvod z
+  `canOpen` nebo `null`, `blockedByMe`) pro rody v `others`. `lib/house-view.ts` z nich složí
+  `HouseView.negotiations` (na tahu první), `ownHouseId`, `HouseLinkView.actions` a `waiting`
+  (počet jednání na tahu – pečeť v liště).
+- **`lib/negotiation-view.ts`:** `negotiationView`, `termRows` / `termRowLabel` (popisek řádku z
+  pohledu hráče: „Ctibor se stane tvým vazalem“ / „Staneš se vazalem rodu …“), `openingTerms`
+  (nabídka = hráč pán, žádost = hráč vazal).
+- **`hud/TermsForm.tsx`:** formulář podmínek (řádky + `textarea` vzkazu do `NEGOTIATION.messageMaxChars`
+  – výjimka z „bez popisků“, vzkaz je text hráče). **`TERM_ROWS: Record<TermItem['kind'],
+TermRowComponent>`** je registr řádků: nový druh podmínky = nová komponenta v registru (řádek
+  dostane `item`, `label`, `onChange` – u karty ke čtení chybí). Přísaha je zatím jen pečeť bez
+  úprav (role se v protinávrhu nemění).
+- **`hud/NegotiationCard.tsx`:** druhá strana, řádky, vzkaz; na tahu **Přijmout** (podaná ruka),
+  **Odmítnout** (křížek), **Protinávrh** (pero, otevře `TermsForm`), jinak **Stáhnout**.
+- **`HousePanel.tsx`:** klik na hráče v řádku Hráči ukáže lištu **Nabídnout vazalství** (pečeť),
+  **Požádat o přijetí** (sepjaté ruce), **Blokovat** (zavřená brána); zašedlé tlačítko nese důvod u
+  kurzoru (`Tooltip denied`, `data-reason`). Řádek **Jednání** (pečeť) s kartami je nad Hráči.
+  Chyba akce je řádek `house-error` nahoře v panelu.
+- **Server actions** (`app/game/actions.ts`, hráč jen ze session, den z `playerToday`):
+  `openNegotiation({ to, items, message })`, `answerNegotiation({ negotiationId, answer:
+accept | reject | withdraw | counter, items?, message? })`, `blockHouse({ target })`; vstup parsuje
+  `lib/house-input.ts` (`parseTermItems`, `parseMessage` …), composition root `lib/house.ts`.
+  `VillageGame` po každé akci obnoví pohled panelu.
+- Testy: `lib/__tests__/negotiation-view.test.ts`, `hud/__tests__/NegotiationCard.behavior.test.tsx`,
+  `housePanel` v `application/__tests__/house-panel.test.ts`; e2e `e2e/multiplayer.spec.ts` (A
+  nabídne → B protinávrh → A přijme; C odmítne a A vidí „Odmítl – zkus zítra.“; C zablokuje A a A
+  vidí „Zablokoval tě.“).
 
 ## Seniorát v rozhraní (úloha 2.3, `hud/rights.tsx`)
 

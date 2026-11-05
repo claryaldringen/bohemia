@@ -23,6 +23,8 @@ describe('houseView', () => {
   it('převede data panelu na portréty, štíty a dny', () => {
     const data: HousePanelData = {
       hasHouse: true,
+      negotiations: [],
+      actions: {},
       own: {
         houseId: 'h0',
         men: [
@@ -69,6 +71,8 @@ describe('houseView', () => {
     const view = houseView(
       {
         hasHouse: true,
+        negotiations: [],
+        actions: {},
         own: null,
         lords: [],
         vassals: [],

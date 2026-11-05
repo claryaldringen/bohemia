@@ -1,7 +1,9 @@
+import { canOpen, respondingHouse, type TermItem } from '../domain/negotiation';
 import { INVITES, isInviteUnused } from '../domain/world';
 import type { ActivityRepository } from './activity';
 import type { HouseRepository, PersonRef } from './houses';
 import type { InviteRepository } from './invites';
+import type { NegotiationRepository } from './negotiations';
 import type { SuccessionCreditRepository } from './succession-credits';
 import type { SettlementRepository } from './settlements';
 import type { VassalageRepository } from './vassalages';
@@ -37,6 +39,31 @@ export type PanelInvite =
       played: boolean;
     };
 
+/** Otevřené jednání hráčova rodu (vassalage.md – Vznik a jednání): poslední kolo a kdo je na tahu. */
+export interface PanelNegotiation {
+  id: string;
+  /** Druhá strana jednání (veřejný pohled na rod). */
+  other: PublicHouse;
+  /** Hráčův rod má odpovědět (přijmout, odmítnout, protinávrh); jinak smí kolo stáhnout. */
+  myTurn: boolean;
+  /** Podmínky posledního kola; strany jsou id rodů. */
+  items: TermItem[];
+  /** Vzkaz posledního kola (text hráče). */
+  message: string | null;
+  /** Počet kol. */
+  rounds: number;
+}
+
+/** Co smí hráč vůči cizímu rodu: důvod zašednutí (null = smí) u obou druhů nabídky a blokování. */
+export interface PanelPlayerActions {
+  /** Nabídnout vazalství (hráč pánem). */
+  offer: string | null;
+  /** Požádat o přijetí (hráč vazalem). */
+  request: string | null;
+  /** Hráč tento rod už zablokoval. */
+  blockedByMe: boolean;
+}
+
 /** Data panelu; web z nich složí `HouseView`. */
 export interface HousePanelData {
   /** Hráč má živý rod (bez něj je panel prázdný). */
@@ -57,6 +84,10 @@ export interface HousePanelData {
   others: PublicHouse[];
   invites: PanelInvite[];
   freeInviteSlots: number;
+  /** Otevřená jednání hráčova rodu, nejstarší první. */
+  negotiations: PanelNegotiation[];
+  /** Akce vůči rodům v `others` podle id rodu. */
+  actions: Record<string, PanelPlayerActions>;
 }
 
 export interface HousePanelDeps {
@@ -65,6 +96,7 @@ export interface HousePanelDeps {
   worldDirectory: WorldDirectory;
   vassalages: VassalageRepository;
   invites: InviteRepository;
+  negotiations: NegotiationRepository;
   successionCredits: SuccessionCreditRepository;
   activity: ActivityRepository;
   now: () => Date;
@@ -78,6 +110,8 @@ const EMPTY: HousePanelData = {
   others: [],
   invites: [],
   freeInviteSlots: 0,
+  negotiations: [],
+  actions: {},
 };
 
 /** Rod, kterého adresář nezná (bez sídelního sídla) – jen id. */
@@ -104,6 +138,8 @@ export async function housePanel(
   const lordIds = vassalages.filter((v) => v.vassalHouseId === own.id).map((v) => v.lordHouseId);
   const vassalIds = vassalages.filter((v) => v.lordHouseId === own.id).map((v) => v.vassalHouseId);
 
+  const open = await deps.negotiations.transaction((tx) => tx.openOf(own.id));
+
   const allInvites = await deps.invites.listOf(input.playerId);
   const usedHouseIds = new Map<string, string | null>();
   const used = allInvites
@@ -118,6 +154,7 @@ export async function housePanel(
       own.id,
       ...lordIds,
       ...vassalIds,
+      ...open.map((n) => (n.initiatorHouseId === own.id ? n.recipientHouseId : n.initiatorHouseId)),
       ...[...usedHouseIds.values()].flatMap((id) => (id ? [id] : [])),
     ]),
   ];
@@ -141,6 +178,51 @@ export async function housePanel(
         .filter((h) => !linked.has(h.houseId))
         .slice(0, PANEL_OTHERS_LIMIT)
     : [];
+
+  const negotiations = open.map((n): PanelNegotiation => {
+    const otherId = n.initiatorHouseId === own.id ? n.recipientHouseId : n.initiatorHouseId;
+    const last = n.rounds[n.rounds.length - 1];
+    return {
+      id: n.id,
+      other: publicOf(otherId),
+      myTurn: n.status === 'open' && respondingHouse({ ...n, status: 'open' }) === own.id,
+      items: last?.items ?? [],
+      message: last?.message ?? null,
+      rounds: n.rounds.length,
+    };
+  });
+
+  // důvody zašednutí tlačítek u cizích hráčů – pravidla `canOpen`, web je jen zobrazí
+  const actions: Record<string, PanelPlayerActions> = {};
+  await deps.negotiations.transaction(async (tx): Promise<void> => {
+    const edges = await tx.vassalages.edgesNear(own.id, 1);
+    for (const other of nearby) {
+      const base = {
+        now,
+        fromAlive: true,
+        toAlive: true,
+        blockedByTarget: await tx.blocks(other.houseId, own.id),
+        negotiationOpen: (await tx.openBetween(own.id, other.houseId)) !== null,
+        rejectedByTargetAt: await tx.lastReject(own.id, other.houseId),
+        edges,
+      };
+      actions[other.houseId] = {
+        offer: canOpen({
+          ...base,
+          from: own.id,
+          to: other.houseId,
+          oath: { lord: own.id, vassal: other.houseId },
+        }),
+        request: canOpen({
+          ...base,
+          from: own.id,
+          to: other.houseId,
+          oath: { lord: other.houseId, vassal: own.id },
+        }),
+        blockedByMe: await tx.blocks(own.id, other.houseId),
+      };
+    }
+  });
 
   const invites: PanelInvite[] = [];
   for (const invite of allInvites) {
@@ -172,5 +254,7 @@ export async function housePanel(
     others: nearby,
     invites,
     freeInviteSlots: Math.max(0, INVITES.maxUnused - openCount),
+    negotiations,
+    actions,
   };
 }

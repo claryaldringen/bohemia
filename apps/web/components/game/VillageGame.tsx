@@ -53,6 +53,9 @@ import {
   housePanel,
   issueInvite,
   revokeInvite,
+  openNegotiation,
+  answerNegotiation,
+  blockHouse,
 } from '@/app/game/actions';
 import { PanelOptionsContext, type PanelOptionsSource } from '@/hooks/use-panel-options';
 import type { PanelAsk, PanelOptions } from '@/lib/panel-options';
@@ -380,6 +383,19 @@ export function VillageGame({
     async (code: string): Promise<void> => {
       try {
         const result = await revokeInvite({ code });
+        setHouseError('error' in result ? result.error : null);
+      } catch {
+        setHouseError(CONNECTION_FAILED);
+      }
+      await refreshHouse();
+    },
+    [refreshHouse],
+  );
+  // akce jednání: výsledek (důvod odmítnutí česky) se ukáže v panelu, pohled se obnoví
+  const negotiate = useCallback(
+    async (task: () => Promise<{ ok: true } | { error: string }>): Promise<void> => {
+      try {
+        const result = await task();
         setHouseError('error' in result ? result.error : null);
       } catch {
         setHouseError(CONNECTION_FAILED);
@@ -1436,6 +1452,13 @@ export function VillageGame({
             origin={typeof window === 'undefined' ? null : window.location.origin}
             onIssue={issueHouseInvite}
             onRevoke={revokeHouseInvite}
+            onOpenNegotiation={(to, items, message) =>
+              negotiate(() => openNegotiation({ to, items, message }))
+            }
+            onReply={(negotiationId, reply) =>
+              negotiate(() => answerNegotiation({ negotiationId, ...reply }))
+            }
+            onBlock={(target) => negotiate(() => blockHouse({ target }))}
             onClose={closeHouse}
             onSelectVillage={(villageId) => {
               const target = view?.villages.find((v) => v.id === villageId);
