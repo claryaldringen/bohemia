@@ -3,6 +3,7 @@ import {
   createLockPool,
   createPlayerLock,
   createHouseRepository,
+  createInviteRepository,
   createNoticeRepository,
   createWorldDirectory,
   createSettlementRepository,
@@ -16,7 +17,9 @@ import type {
   Pause,
   PlayerLock,
   HouseRepository,
+  InviteRepository,
   NoticeRepository,
+  RandomSource,
   WorldDirectory,
   SettlementRepository,
   VillageRepository,
@@ -31,6 +34,11 @@ import { worldSeed } from './world';
  * tak drží nejvýš ≈ 65 MB.
  */
 export const LANDSCAPE_CACHE_SIZE = 32;
+
+/** Kryptografická náhoda z [0, 1) pro pozvánkové kódy (26 náhodných bitů na znak stačí na 31 znaků abecedy). */
+export function cryptoRandom(): RandomSource {
+  return { random: () => randomInt(0, 2 ** 26) / 2 ** 26 };
+}
 
 /** Kryptografické seedy pro nová sídla a vsi. */
 export function seeds(): { nextSeed: () => number } {
@@ -65,6 +73,10 @@ export interface GameDeps {
   houses: HouseRepository;
   /** Upozornění mezi hráči (doručují se dotazováním – `docs/code/world.md`). */
   notices: NoticeRepository;
+  /** Pozvánkové kódy (vydání, rezervace při registraci – `docs/code/world.md`). */
+  invites: InviteRepository;
+  /** Kryptografická náhoda pro kódy pozvánek. */
+  random: RandomSource;
   /** Adresář rodů – veřejný rodokmen cizích rodů (`housesNear`). */
   worldDirectory: WorldDirectory;
   /** Skutečný čas (založení a konec rodu). */
@@ -93,6 +105,8 @@ export function createGameDeps(
     settlements: createSettlementRepository(db),
     houses: createHouseRepository(db),
     notices: createNoticeRepository(db),
+    invites: createInviteRepository(db),
+    random: cryptoRandom(),
     worldDirectory: createWorldDirectory(db),
     now: () => new Date(),
     villages: cachedVillages(createVillageRepository(db)),

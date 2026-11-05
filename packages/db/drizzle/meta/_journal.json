@@ -120,6 +120,13 @@
       "when": 1793878384889,
       "tag": "0016_village_inbox",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1793881191056,
+      "tag": "0017_invite",
+      "breakpoints": true
     }
   ]
 }

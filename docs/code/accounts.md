@@ -19,6 +19,12 @@ Pravidla v [docs/design/accounts.md](../design/accounts.md). Na serveru `getSess
 (`apps/web/lib/session.ts`), v prohlížeči `authClient` (`lib/auth-client.ts`). Instance Better
 Auth vzniká líně přes `getAuth()` – `next build` stránky jen importuje a databázi nepotřebuje.
 
+- **Registrace s pozvánkou:** volitelné pole „Pozvánka“ (`?pozvanka=` ho předvyplní). Server
+  action `checkInviteAction` (`app/register/actions.ts`) kód zkontroluje: platný uloží do cookie
+  `bohemia_invite` (httpOnly, 14 dní, `lib/invite-cookie.ts` – přežije i přesměrování přes
+  Google), neplatný dá „Pozvánka neplatí.“ a registrace jde dál bez něj. Po vytvoření uživatele
+  (`databaseHooks.user.create.after` v `lib/auth.ts`) se kód z cookie jen **zarezervuje**
+  (`reserveInvite`); vazalem se pozvaný stane až při vstupu do hry. Podrobnosti: `world.md`.
 - **E-maily** se zatím jen vypisují do terminálu dev serveru (ověřovací odkaz se zkopíruje
   odtamtud). V produkci bez nastaveného odesílání `sendMail` záměrně spadne.
 - **Vývojový účet** bez registrace: `npm run db:seed-dev` založí (nebo obnoví) ověřený účet

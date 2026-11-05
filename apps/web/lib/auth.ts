@@ -2,8 +2,10 @@ import 'server-only';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { nextCookies } from 'better-auth/next-js';
-import { schema, type Database } from '@bohemia/db';
+import { createInviteRepository, schema, type Database } from '@bohemia/db';
+import { reserveInvite } from '@bohemia/game';
 import { getDatabase } from './db';
+import { forgetInvite, rememberedInvite } from './invite-cookie';
 import { resetPasswordMail, sendMail, verificationMail } from './mail';
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
@@ -40,6 +42,25 @@ function createAuth(db: Database) {
       googleClientId && googleClientSecret
         ? { google: { clientId: googleClientId, clientSecret: googleClientSecret } }
         : {},
+    databaseHooks: {
+      user: {
+        create: {
+          // Pozvánka z cookie se k novému uživateli jen zarezervuje (vazalem se stane až při vstupu
+          // do hry); neplatný kód ani chyba registraci nezastaví.
+          after: async (created) => {
+            try {
+              const code = await rememberedInvite();
+              if (!code) return;
+              const invites = createInviteRepository(db);
+              await reserveInvite({ invites, now: () => new Date() }, created.id, code);
+              await forgetInvite();
+            } catch {
+              // Mimo požadavek (seed, skripty) cookie nejsou – nic se nerezervuje.
+            }
+          },
+        },
+      },
+    },
     plugins: [nextCookies()],
   });
 }

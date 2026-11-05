@@ -5,8 +5,14 @@ import { AuthCard } from '@/components/auth/AuthCard';
 import { RegisterForm } from '@/components/auth/RegisterForm';
 import { getSession } from '@/lib/session';
 
-export default async function RegisterPage(): Promise<ReactElement> {
+export default async function RegisterPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ pozvanka?: string | string[] }>;
+}): Promise<ReactElement> {
   if (await getSession()) redirect('/game');
+  const { pozvanka } = await searchParams;
+  const invite = typeof pozvanka === 'string' ? pozvanka.slice(0, 16) : '';
   return (
     <AuthCard
       title="Registrace"
@@ -19,7 +25,7 @@ export default async function RegisterPage(): Promise<ReactElement> {
         </p>
       }
     >
-      <RegisterForm />
+      <RegisterForm initialInvite={invite} />
     </AuthCard>
   );
 }
