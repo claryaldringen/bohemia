@@ -35,7 +35,7 @@ export function disasterDeaths(
         group: ageGroup(p, day),
         age: ageYears(p.bornDay, day),
         cause,
-        ...(p.name === undefined ? {} : { name: p.name }),
+        ...(p.name === undefined ? {} : { name: p.name, personId: p.id }),
       });
       const full = bury(state, day, p);
       if (full) events.push(full);

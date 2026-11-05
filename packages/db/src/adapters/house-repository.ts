@@ -23,7 +23,7 @@ export function toHouse(row: HouseRow): House {
         ? null
         : { villageId: row.seniorVillageId, personId: row.seniorPersonId },
     successionDay: row.successionDay,
-    youngerSonDeadlineDay: row.youngerSonDeadlineDay,
+    pendingDeparture: row.pendingDeparture,
   };
 }
 
@@ -91,13 +91,24 @@ export function createHouseRepository(db: Database): HouseRepository {
           successionDay: input.deathDay,
           lordVillageId: input.lord.villageId,
           lordPersonId: input.lord.personId,
-          youngerSonDeadlineDay: input.youngerSonDeadlineDay ?? sql`NULL`,
+          pendingDeparture: input.pendingDeparture ?? sql`NULL`,
         })
         .where(
           and(
             eq(house.id, houseId),
             or(isNull(house.successionDay), lt(house.successionDay, input.deathDay)),
           ),
+        )
+        .returning({ id: house.id });
+      return rows.length > 0;
+    },
+    async clearPendingDeparture(houseId, sonId): Promise<boolean> {
+      // Podmíněný UPDATE: smaže jen odchod tohoto syna, ze souběžných volání uspěje jedno.
+      const rows = await db
+        .update(house)
+        .set({ pendingDeparture: sql`NULL` })
+        .where(
+          and(eq(house.id, houseId), sql`(${house.pendingDeparture}->>'sonId')::int = ${sonId}`),
         )
         .returning({ id: house.id });
       return rows.length > 0;

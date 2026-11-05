@@ -148,6 +148,13 @@
       "when": 1793896891244,
       "tag": "0020_house_succession",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1793915216546,
+      "tag": "0021_house_pending_departure",
+      "breakpoints": true
     }
   ]
 }

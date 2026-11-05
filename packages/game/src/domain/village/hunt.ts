@@ -330,7 +330,7 @@ export function huntRisk(
         age: ageYears(p.bornDay, day),
         cause: 'hunt',
         prey: quarry,
-        ...name,
+        ...(p.name === undefined ? {} : { name: p.name, personId: p.id }),
       });
       const full = bury(state, day, p);
       if (full) events.push(full);

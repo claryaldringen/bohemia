@@ -30,6 +30,7 @@ import {
   type CraftCoverage,
   type Direction8,
   type Landscape,
+  type PendingDeparture,
   type VillageRecord,
   type VillageState,
   type VillageSummary,
@@ -103,7 +104,12 @@ import { sceneExpeditions } from './caravan-view';
 import type { VillageListItem } from './village-list';
 import type { LineEndView } from './line-end-view';
 
-import { journeyView, leaveOptions, villageAbandonment } from './departure-view';
+import {
+  journeyView,
+  leaveOptions,
+  pendingDepartureView,
+  villageAbandonment,
+} from './departure-view';
 
 // Pohled na ves pro panel a scénu (DTO server actions). Čistý modul – smí ho importovat
 // i klient (typy, převod scény na data pro kontrolu umístění).
@@ -301,6 +307,8 @@ export interface VillageViewContext {
   mapsBlocked?: string | null;
   /** Práva hráče v téhle vsi (`villageAccess`); bez nich všechna (vlastní ves, dev náhled). */
   rights?: VillageRightsView;
+  /** Čekající odchod mladšího syna po pohřbu (`House.pendingDeparture`) – ukáže se v jeho vsi. */
+  pendingDeparture?: PendingDeparture | null;
 }
 
 /**
@@ -336,6 +344,7 @@ export function buildVillageView(
   const obstacles = obstaclesOf(landscape);
   const summary = summarizeVillage(state, day, obstacles);
   const gameOver = context.gameOver ?? false;
+  const leave = leaveOptions(state, landscape, context.ownMaps ?? {}, context.mapsBlocked ?? null);
   const persons = scenePersons(state, day);
   return {
     id: record.id,
@@ -442,7 +451,11 @@ export function buildVillageView(
     extinct: villageLifespan(state),
     abandoned: villageAbandonment(state),
     journey: journeyView(state, day),
-    leave: leaveOptions(state, landscape, context.ownMaps ?? {}, context.mapsBlocked ?? null),
+    leave,
+    pendingDeparture:
+      context.pendingDeparture && context.pendingDeparture.villageId === record.id
+        ? pendingDepartureView(state, context.pendingDeparture, day, leave)
+        : null,
     rights: context.rights ?? { allowed: [...ALL_RIGHTS], reason: null },
     gameOver,
     ...(gameOver && context.lineEnded ? { lineEnded: context.lineEnded } : {}),

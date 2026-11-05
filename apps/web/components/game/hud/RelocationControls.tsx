@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, type ReactElement } from 'react';
+import { useEffect, useRef, useState, type ReactElement } from 'react';
 import {
   CART_NAMES,
   type BuildableDwellingType,
@@ -8,13 +8,18 @@ import {
   type VillageRight,
 } from '@bohemia/game';
 import { useDismiss } from '@/hooks/use-dismiss';
-import type { LeaveDirection, VillageJourneyView } from '@/lib/departure-view';
+import type {
+  LeaveDirection,
+  PendingDepartureView,
+  VillageJourneyView,
+} from '@/lib/departure-view';
 import { RELOCATION_TYPES } from '@/lib/relocation-view';
 import type { SelectionLeave } from '@/lib/selection-details';
 import { DIRECTION_NAMES } from '@/lib/trade-names';
 import { formatInteger, formatManDays, formatPercent, plural } from '@/lib/village-format';
 import { DWELLING_NAMES, type BuildOption } from '@/lib/village-view';
 import { RESOURCE_ICONS } from './BuildGrid';
+import { LineNamePanel } from './LineNamePanel';
 import { useRightDenied } from './rights';
 import { Tooltip } from './Tooltip';
 
@@ -391,6 +396,82 @@ export function RelocationProgress({
         </span>
       </Tooltip>
       <CancelConstructionButton constructionId={constructionId} onCancel={onCancel} />
+    </div>
+  );
+}
+
+/**
+ * Odchod mladšího syna po pohřbu (seniorate.md, bod 4): přesýpací hodiny se zbývajícími dny, obrys
+ * dílu ve scéně (`onPreview`), panel jména syna bez jména a růžice směrů. Zvolený směr pošle
+ * `onChoose` (výprava vyrazí hned, první zemnici umístí hráč); po lhůtě vyrazí sama.
+ */
+export function PlayerDeparturePanel({
+  departure,
+  onChoose,
+  onPreview,
+}: {
+  departure: PendingDepartureView;
+  /** Pošle směr (a jméno syna bez jména) na server – vrátí důvod odmítnutí, nebo null. */
+  onChoose: (direction: Direction8, sonName?: string) => Promise<string | null>;
+  /** Obrys obydlí dílu ve scéně; po zavření panelu null. */
+  onPreview?: ((dwellingIds: readonly number[] | null) => void) | undefined;
+}): ReactElement {
+  const [name, setName] = useState<string | null>(null);
+  const previewKey = JSON.stringify(departure.dwellingIds);
+  useEffect(() => {
+    if (!onPreview) return;
+    const ids = JSON.parse(previewKey) as number[];
+    onPreview(ids.length === 0 ? null : ids);
+    return () => onPreview(null);
+  }, [previewKey, onPreview]);
+  const days = departure.daysLeft;
+  const leave = {
+    households: departure.dwellingIds,
+    people: departure.people,
+    foodKg: departure.foodKg,
+    cart: departure.cart,
+    directions: departure.directions,
+    ...(departure.horse ? { horse: true } : {}),
+  };
+  const needsName = departure.needsName && name === null;
+  return (
+    <div
+      data-testid="player-departure"
+      data-hud-block
+      className="hud-panel pointer-events-auto fixed top-14 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 p-2"
+    >
+      <Tooltip
+        content={`Do odchodu zbývá ${days} ${plural(days, 'den', 'dny', 'dní')} – pak vyrazí výprava sama`}
+        placement="below"
+      >
+        <span
+          data-testid="player-departure-days"
+          tabIndex={0}
+          className="flex items-center gap-1 font-serif text-base text-[#f3dfb0] tabular-nums"
+        >
+          <img src="/icons/house/hourglass.svg" alt="Zbývající dny" width={28} height={28} />
+          {days}
+        </span>
+      </Tooltip>
+      {needsName ? (
+        <LineNamePanel
+          lord={false}
+          portrait="man"
+          taken={departure.taken}
+          onConfirm={(value) => {
+            setName(value);
+            return Promise.resolve(null);
+          }}
+        />
+      ) : (
+        <LeaveCompass
+          leave={leave}
+          right="sendSons"
+          onLeave={(direction) => {
+            void onChoose(direction, departure.needsName ? (name ?? undefined) : undefined);
+          }}
+        />
+      )}
     </div>
   );
 }

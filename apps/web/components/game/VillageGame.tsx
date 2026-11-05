@@ -28,6 +28,7 @@ import {
   foundVillage,
   getVillageView,
   leaveVillage,
+  choosePlayerDeparture,
   nameLineMan,
   settleJourney,
   placeCemetery,
@@ -109,7 +110,7 @@ import { GameView } from './GameView';
 import { BuildGrid } from './hud/BuildGrid';
 import { CursorReason } from './hud/CursorReason';
 import { DefeatScreen } from './hud/DefeatScreen';
-import { JourneyBanner } from './hud/RelocationControls';
+import { JourneyBanner, PlayerDeparturePanel } from './hud/RelocationControls';
 import { GameMenu } from './hud/GameMenu';
 import { HousePanel } from './hud/HousePanel';
 import { RightsProvider, rightDeniedReason } from './hud/rights';
@@ -890,6 +891,32 @@ export function VillageGame({
   /** Odchod domácností obydlí `householdIds`. */
   const leave = (direction: Direction8, householdIds: readonly number[]): void =>
     departFromVillage(direction, { dwellingIds: [...householdIds] });
+  /** Hráč v kůži mladšího syna zvolil směr odchodu po pohřbu (seniorate.md, bod 4). */
+  const choosePlayerDepartureFromPanel = async (
+    direction: Direction8,
+    sonName?: string,
+  ): Promise<string | null> => {
+    const villageId = viewRef.current?.id;
+    if (!scene || !villageId) return null;
+    setSelected(null);
+    const failure = await runAction(() =>
+      choosePlayerDeparture({
+        villageId,
+        direction,
+        ...(sonName === undefined ? {} : { sonName }),
+      }),
+    );
+    pushNotice(
+      failure === null
+        ? {
+            kind: 'households-left',
+            tone: 'info',
+            text: `Výprava vyrazila na ${DIRECTION_NAMES[direction].name}`,
+          }
+        : { kind: 'error', tone: 'error', text: failure },
+    );
+    return failure;
+  };
   /** Odchod s poměrnou částí vsi pod vedením syna vojvody (lord.md – Dělení vsi). */
   const leaveWithSon = (direction: Direction8, sonId: number): void =>
     departFromVillage(direction, { sonId });
@@ -1417,6 +1444,13 @@ export function VillageGame({
           />
         )}
         {view?.journey && <JourneyBanner journey={view.journey} />}
+        {view?.pendingDeparture && !view.journey && (
+          <PlayerDeparturePanel
+            departure={view.pendingDeparture}
+            onPreview={setSonPreview}
+            onChoose={choosePlayerDepartureFromPanel}
+          />
+        )}
         {gameOver && view?.lineEnded && (
           <DefeatScreen
             name={view.lineEnded.village}

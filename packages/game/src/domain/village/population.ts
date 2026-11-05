@@ -370,7 +370,7 @@ export function populationDay(
       dead.add(person.id);
       const group = ageGroup(person, day);
       // jméno zemřelého muže rodu (lord.md – Kde se jméno ukazuje); ostatní jméno nemají
-      const name = person.name === undefined ? {} : { name: person.name };
+      const name = person.name === undefined ? {} : { name: person.name, personId: person.id };
       const age = ageYears(person.bornDay, day);
       events.push(
         roll < base

@@ -63,6 +63,7 @@ const view = {
   extinct: null,
   abandoned: null,
   journey: null,
+  pendingDeparture: null,
   crafts: {
     present: true,
     stocks: { charcoalKg: 40, potteryKg: 12.4, ironBarsKg: 6 },

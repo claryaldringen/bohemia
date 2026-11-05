@@ -27,6 +27,7 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
   relocation: { zemnice: workshop(60), polozemnice: workshop(220) },
   abandoned: null,
   journey: null,
+  pendingDeparture: null,
   leave: { directions: [], cart: null, allCart: null },
   manor: null,
   dayIndex: 1000,

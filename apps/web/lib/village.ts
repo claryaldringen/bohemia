@@ -6,6 +6,7 @@ import {
   NO_WORLD_CELL,
   isFullVillage,
   leaveVillage,
+  choosePlayerDeparture,
   settleJourney,
   cancelUnfinishedConstruction,
   foundVillageForSettlement,
@@ -199,6 +200,7 @@ async function viewOf(
     ...(access
       ? { rights: { allowed: [...access.rights.allowed], reason: access.rights.reason } }
       : {}),
+    ...(access?.pendingDeparture ? { pendingDeparture: access.pendingDeparture } : {}),
     ownMaps: ownMapsAround(status.settlements, status.villages, current.settlementId),
     mapsBlocked: from && from.worldCell === null && !from.isSeat ? NO_WORLD_CELL : null,
   });
@@ -715,6 +717,30 @@ export async function leaveVillageForPlayer(
         ...('sonId' in input ? { sonId: input.sonId } : { dwellingIds: input.dwellingIds }),
         destination: input.destination,
       }),
+  );
+  if (!done.ok) return done.result;
+  const { ctx, value: result } = done;
+  if (!result.ok) return { error: result.reason };
+  return viewOf(ctx, result.from);
+}
+
+/**
+ * Hráč v kůži mladšího syna zvolil směr odchodu po pohřbu (seniorate.md, bod 4): výprava vyrazí
+ * hned se správcem na cestě vypnutým (vrátí pohled na mateřskou ves).
+ */
+export async function choosePlayerDepartureForPlayer(
+  playerId: string,
+  villageId: string,
+  input: { direction: Direction8; sonName?: string },
+): Promise<VillageActionResult> {
+  const done = await guardedAction(playerId, villageId, 'choosePlayerDeparture', (ctx) =>
+    choosePlayerDeparture(gameDeps(), {
+      playerId,
+      villageId: ctx.villageId,
+      direction: input.direction,
+      ...(input.sonName === undefined ? {} : { sonName: input.sonName }),
+      today: ctx.day,
+    }),
   );
   if (!done.ok) return done.result;
   const { ctx, value: result } = done;

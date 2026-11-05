@@ -448,6 +448,18 @@ export function parseLeaveVillageInput(value: unknown): LeaveVillageInput | null
   return { dwellingIds, destination };
 }
 
+/** Vstup volby odchodu mladšího syna po pohřbu `{ direction, sonName? }` (seniorate.md), jinak null. */
+export function parseChoosePlayerDepartureInput(
+  value: unknown,
+): { direction: Direction8; sonName?: string } | null {
+  if (!isRecord(value)) return null;
+  const direction = parseDirection(value.direction);
+  if (direction === null) return null;
+  if (value.sonName === undefined) return { direction };
+  const sonName = parseName(value.sonName);
+  return sonName === null ? null : { direction, sonName };
+}
+
 /** Vstup založení vsi po příjezdu na novou mapu `{ dwelling: { x, z, rotation } }`, jinak null. */
 export function parseSettleJourneyInput(value: unknown): { dwelling: Position } | null {
   if (!isRecord(value)) return null;
