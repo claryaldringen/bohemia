@@ -56,6 +56,7 @@ async function main(): Promise<void> {
           activity: gameDeps.activity,
           credits: gameDeps.successionCredits,
           notices: gameDeps.notices,
+          houses: gameDeps.houses,
         },
         input,
       ),

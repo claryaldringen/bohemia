@@ -91,6 +91,8 @@ describe('enterGame s pozvánkou', () => {
       kind: 'invite-accepted',
       gameDay: 77,
     });
+    // do prohlížeče pána jde jen veřejné id rodu, ne id účtu pozvaného
+    expect(s.notices.notices[0]!.payload).toEqual({ houseId: hostHouse!.id });
   });
 
   it('kód je jednorázový a opakovaný vstup nic nezdvojí', async () => {
@@ -163,12 +165,12 @@ describe('grantSuccessionCredits', () => {
       s,
       activity,
       credits,
-      deps: { invites: s.invites, activity, credits, notices },
+      deps: { invites: s.invites, activity, credits, notices, houses: s.houses },
     };
   }
 
   it('kredit až od 3 různých dnů, jednou za pozvaného, s upozorněním', async () => {
-    const { activity, credits, deps } = await world();
+    const { s, activity, credits, deps } = await world();
     const input = { now: NOW, today: 80 };
     await activity.record('host', '2026-11-05');
     await activity.record('host', '2026-11-06');
@@ -184,6 +186,7 @@ describe('grantSuccessionCredits', () => {
     const posted = (deps.notices as InMemoryNotices).notices;
     expect(posted).toHaveLength(1);
     expect(posted[0]).toMatchObject({ playerId: 'pan', kind: 'invitee-played', gameDay: 80 });
+    expect(posted[0]!.payload).toEqual({ houseId: (await s.houses.activeOf('host'))!.id });
   });
 
   it('platí i po ukončení vazalství', async () => {

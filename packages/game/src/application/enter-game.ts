@@ -126,7 +126,8 @@ async function becomeVassal(deps: EnterGameDeps, lord: House, vassal: House): Pr
   await invitation.notices.post({
     playerId: lord.playerId,
     kind: 'invite-accepted',
-    payload: { houseId: vassal.id, playerId: vassal.playerId },
+    // jen veřejné id rodu – id účtu cizího hráče do prohlížeče nepatří
+    payload: { houseId: vassal.id },
     gameDay: day,
   });
 }

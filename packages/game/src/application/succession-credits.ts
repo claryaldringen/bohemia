@@ -1,5 +1,6 @@
 import { INVITES } from '../domain/world';
 import type { ActivityRepository } from './activity';
+import type { HouseRepository } from './houses';
 import type { InviteRepository } from './invites';
 import type { NoticeRepository } from './notices';
 
@@ -18,6 +19,7 @@ export interface SuccessionCreditDeps {
   activity: ActivityRepository;
   credits: SuccessionCreditRepository;
   notices: NoticeRepository;
+  houses: HouseRepository;
 }
 
 /**
@@ -40,7 +42,8 @@ export async function grantSuccessionCredits(
     await deps.notices.post({
       playerId: invite.issuerId,
       kind: 'invitee-played',
-      payload: { inviteeId: invite.usedBy },
+      // jen veřejné id rodu pozvaného – id účtu cizího hráče do prohlížeče nepatří
+      payload: { houseId: (await deps.houses.activeOf(invite.usedBy))?.id ?? null },
       gameDay: input.today,
     });
   }
