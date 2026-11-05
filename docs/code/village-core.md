@@ -159,7 +159,7 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
 
 - **Schránka vsi** – jediná cesta, jak cizí věc (jiný hráč, svět) změní ves (plán multiplayeru,
   technické rozhodnutí 4). Doména `domain/village/inbox.ts`: `VillageEvent { id, villageId, day,
-  seq, body }`, `NewVillageEvent` (bez `id` a `seq`, s jedinečným `ref` – idempotence zápisu),
+seq, body }`, `NewVillageEvent` (bez `id` a `seq`, s jedinečným `ref` – idempotence zápisu),
   tělo `VillageEventBody` je unie podle `kind` – zatím `{ kind: 'chronicle'; event }` (zápis do
   kroniky s dnem použití); nový druh = nová větev v `applyEvent` (kompilátor ohlídá úplnost).
   - **Kde se použijí:** `advanceVillageSteps(state, toDay, obstacles, landscape, inbox = [])` na
@@ -171,10 +171,11 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
     bez `inbox` (testy, měření) dává totéž co dřív.
   - **Port** `VillageInbox` (`application/inbox.ts`): `post(event)` – den zápisu
     `max(day, lastDay + 1)`, zápis zvedne verzi vsi, `null` = `ref` už zapsaný; `pending(villageId,
-    afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Schránka je člen
+afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Schránka je člen
     úložiště vsí (`VillageRepository.inbox`), takže ji má každý dopočet přes `updateVillage`
     (`loadVillage`, `advancePlayer`, `dynastyStatus`, všechny akce hráče) bez zvláštní
-    závislosti. `EMPTY_INBOX` – prázdná (kalibrace, adaptér DB do úlohy 1.7).
+    závislosti. `EMPTY_INBOX` – prázdná (kalibrace). Adaptér Postgresu `createInboxRepository` (tabulka
+    `village_inbox`, transakce `post`) je popsaný ve `world.md` – Schránka vsi.
   - **Souběh:** `updateVillage` si po načtení vsi vyžádá `pending(villageId, lastDay, dnešek)`
     a předá je dopočtu. Zápis do schránky během dopočtu zvedne verzi vsi → uložení selže na
     kontrole verze → další pokus načte čerstvou ves i události a použije je právě jednou (test
