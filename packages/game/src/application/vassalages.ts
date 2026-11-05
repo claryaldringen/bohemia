@@ -1,3 +1,5 @@
+import type { VassalEdge } from '../domain/vassalage/tree';
+
 /** Podmínky vazalství (zatím žádné – rozšíří úloha 4.2: dávky, vojenská služba). */
 export type VassalTerms = Record<string, never>;
 
@@ -20,11 +22,7 @@ export interface Vassalage {
   version: number;
 }
 
-/** Hrana sítě vazalství: pán a vazal. */
-export interface VassalEdge {
-  lordHouseId: string;
-  vassalHouseId: string;
-}
+export type { VassalEdge };
 
 export type NewVassalage = Pick<
   Vassalage,
