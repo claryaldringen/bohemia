@@ -81,6 +81,8 @@ const DETERMINISTIC_LAYER_FILES = [
   'packages/game/src/domain/village/paths/**/*.ts',
   // natočené stavby – mřížky čtverců (fields.md – Natočené stavby) jdou do sítě pěšin
   'packages/game/src/domain/village/square-grid.ts',
+  // obvod opevnění (fortifications.md – Obvod) – tvar, úseky a brány u kurzoru i na serveru
+  'packages/game/src/domain/village/fortification/**/*.ts',
   // varianty rozměrů obydlí (population.md – Varianty rozměrů) – tvar staveb u kurzoru i na serveru
   'packages/game/src/domain/village/dwelling-shape.ts',
   // plán sídla správce (steward.md – Mapa hodnot krajiny) – ukládá se do stavu, dopočet po kouscích

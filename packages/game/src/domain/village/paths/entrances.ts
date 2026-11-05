@@ -25,6 +25,12 @@ export interface Entrance {
  */
 export const WOVEN_FENCE_CORNER_M = { outer: 1.25, inner: 0.5 } as const;
 
+/** Poloměry zakulaceného vnějšího a vnitřního rohu plotu (m) – opevnění je má podle druhu. */
+export interface FenceCorners {
+  readonly outer: number;
+  readonly inner: number;
+}
+
 /** Branka pleteného plotu: šířka (m) a nejvyšší rozestup kůlů (m – kůl vedle branky). */
 export interface FenceGateStyle {
   gateWidth: number;
@@ -63,7 +69,7 @@ interface FenceRun {
   length: number;
   outX: number;
   outZ: number;
-  /** Úsek končí vnitřním rohem (tři čtverce kolem vrcholu) – oblouk WOVEN_FENCE_CORNER_M.inner. */
+  /** Úsek končí vnitřním rohem (tři čtverce kolem vrcholu) – oblouk `corners.inner`. */
   endInner: boolean;
 }
 
@@ -158,11 +164,13 @@ const SIDES = [
  * Rovné úseky pleteného plotu po obrysu čtverců (jako `outlinePaths` + `pathPieces` ve webu):
  * strany čtverců bez souseda, souvislé strany na jedné přímce spojené, zkrácené o tečny
  * zakulacených rohů – vnější roh (jeden čtverec v rohu, nebo dva čtverce na sebe jen rohem)
- * WOVEN_FENCE_CORNER_M.outer, vnitřní roh (tři čtverce) .inner. V rovném prostoru mřížky.
+ * `corners.outer`, vnitřní roh (tři čtverce) `corners.inner` – pletený plot WOVEN_FENCE_CORNER_M.
+ * V rovném prostoru mřížky.
  */
 function outlineRuns(
   squares: readonly { cell: TileCell; x: number; z: number; size: number }[],
   inset = 0,
+  corners: FenceCorners = WOVEN_FENCE_CORNER_M,
 ): FenceRun[] {
   const present = new Set(squares.map((q) => cellKey(q.cell.x, q.cell.y)));
   const has = (x: number, y: number): boolean => present.has(cellKey(x, y));
@@ -173,7 +181,7 @@ function outlineRuns(
     (has(i - 1, j) ? 1 : 0) +
     (has(i, j) ? 1 : 0);
   const tangent = (i: number, j: number): number =>
-    around(i, j) === 3 ? WOVEN_FENCE_CORNER_M.inner : WOVEN_FENCE_CORNER_M.outer;
+    around(i, j) === 3 ? corners.inner : corners.outer;
   // strany bez souseda podle počátečního vrcholu a směru
   interface Side {
     x: number;
@@ -274,11 +282,13 @@ export interface FenceOutline {
 /**
  * Plot po obrysu čtverců odsazený `inset` dovnitř (hřbitov, ohrada, pozemek): úseky z `outlineRuns`
  * a na konci každého úseku čtvrtkruh do dalšího (vnější roh – střed dovnitř, vnitřní – ven).
- * Natočené čtverce v osách své mřížky kolem středu prvního. Bez čtverců null.
+ * Natočené čtverce v osách své mřížky kolem středu prvního. Bez čtverců null. Poloměry rohů
+ * `corners` – pletený plot WOVEN_FENCE_CORNER_M, opevnění podle druhu (fortifications.md – Obvod).
  */
 export function fenceOutline(
   squares: readonly EntranceSquare[],
   inset: number,
+  corners: FenceCorners = WOVEN_FENCE_CORNER_M,
 ): FenceOutline | null {
   const first = squares[0];
   if (!first) return null;
@@ -289,11 +299,11 @@ export function fenceOutline(
   });
   const segments: FenceSegment[] = [];
   const arcs: FenceArc[] = [];
-  for (const run of outlineRuns(flat, inset)) {
+  for (const run of outlineRuns(flat, inset, corners)) {
     const [x, z] = frame.toWorld(run.x, run.z);
     const [dx, dz] = frame.dirToWorld(run.dx, run.dz);
     segments.push({ x, z, dx, dz, length: Math.max(0, run.length) });
-    const r = run.endInner ? WOVEN_FENCE_CORNER_M.inner : WOVEN_FENCE_CORNER_M.outer;
+    const r = run.endInner ? corners.inner : corners.outer;
     // konec úseku → střed oblouku: vnější roh se stáčí dovnitř (proti `out`), vnitřní ven
     const side = run.endInner ? 1 : -1;
     const ex = run.x + run.dx * run.length;

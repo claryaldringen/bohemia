@@ -84,7 +84,9 @@ v Obraně.
   | val s příkopem (i s nástavbou) | 10 m – příkop 4 m vně, val 6 m u paty | 8 m                   |
 
   Vnitřní roh (tvar L) má u plotu 0,5 m jako pletený plot pozemků, u palisády a valu polovinu
-  vnějšího poloměru (návrh Clauda).
+  vnějšího poloměru (návrh Clauda). Když se dva rohy nevejdou na jednu stranu čtverce (val na
+  pruhu širokém jeden čtverec – 2 × 8 m > 15 m), zmenší se všechny rohy obvodu stejným poměrem
+  (návrh Clauda).
 
 - **Délka obvodu** = délka vnějšího okraje se zakulacenými rohy – jedno číslo pro všechny druhy,
   hráč ho vidí u kurzoru (návrh Clauda). Zakulacený roh ušetří proti ostrému (2 − π/2) × poloměr
@@ -109,7 +111,9 @@ v Obraně.
   mění den po dni, brána podle nich by putovala). Cesta postavená přes hotové opevnění dostane
   bránu taky (návrh Clauda).
 - **Hráč přidá další** kliknutím na obvod (Martin 3. 11. 2026); nejvýš jedna brána na úsek
-  (návrh Clauda).
+  (návrh Clauda). Klik platí do šířky pásu (nejméně 2 m) od vnějšího okraje; brána stojí celá na
+  rovné části úseku – průsečík cesty s obloukem rohu ji posune na konec rovné části (návrh
+  Clauda).
 - Obvod, který žádnou cestu neprotne, dostane jednu bránu v úseku nejblíž dvorci, bez dvorce
   nejblíž středu obydlí (návrh Clauda).
 - Brána je **4 m** široká – projde vůz se spřežením (návrh Clauda) –, je z prken a **nic navíc
