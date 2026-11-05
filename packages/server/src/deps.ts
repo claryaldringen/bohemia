@@ -2,6 +2,9 @@ import { randomInt } from 'node:crypto';
 import {
   createLockPool,
   createPlayerLock,
+  createActivityRepository,
+  createSuccessionCreditRepository,
+  createVassalageRepository,
   createHouseRepository,
   createInviteRepository,
   createNoticeRepository,
@@ -13,6 +16,9 @@ import {
   type PlayerLockOptions,
 } from '@bohemia/db';
 import type {
+  ActivityRepository,
+  SuccessionCreditRepository,
+  VassalageRepository,
   LandscapeSource,
   Pause,
   PlayerLock,
@@ -75,6 +81,12 @@ export interface GameDeps {
   notices: NoticeRepository;
   /** Pozvánkové kódy (vydání, rezervace při registraci – `docs/code/world.md`). */
   invites: InviteRepository;
+  /** Vazalství mezi rody (pozvaný je vazal pozvatele – `docs/code/world.md`). */
+  vassalages: VassalageRepository;
+  /** Aktivní dny hráčů (datum v Europe/Prague). */
+  activity: ActivityRepository;
+  /** Kredity nástupnictví bez losu za pozvané. */
+  successionCredits: SuccessionCreditRepository;
   /** Kryptografická náhoda pro kódy pozvánek. */
   random: RandomSource;
   /** Adresář rodů – veřejný rodokmen cizích rodů (`housesNear`). */
@@ -106,6 +118,9 @@ export function createGameDeps(
     houses: createHouseRepository(db),
     notices: createNoticeRepository(db),
     invites: createInviteRepository(db),
+    vassalages: createVassalageRepository(db),
+    activity: createActivityRepository(db),
+    successionCredits: createSuccessionCreditRepository(db),
     random: cryptoRandom(),
     worldDirectory: createWorldDirectory(db),
     now: () => new Date(),

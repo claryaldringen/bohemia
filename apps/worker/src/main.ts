@@ -3,7 +3,7 @@
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createDatabase } from '@bohemia/db';
-import { advanceWorldStep } from '@bohemia/game';
+import { advanceWorldStep, runWorldTasks } from '@bohemia/game';
 import {
   WORKER_LOCK_POOL_SIZE,
   cachedLandscapes,
@@ -49,6 +49,16 @@ async function main(): Promise<void> {
       return day.ok ? day.day : null;
     },
     step: (input) => advanceWorldStep(stepDeps, input),
+    worldTasks: (input) =>
+      runWorldTasks(
+        {
+          invites: gameDeps.invites,
+          activity: gameDeps.activity,
+          credits: gameDeps.successionCredits,
+          notices: gameDeps.notices,
+        },
+        input,
+      ),
     now: () => Date.now(),
     sleep: abortableSleep,
     log,
