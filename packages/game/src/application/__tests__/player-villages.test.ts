@@ -8,6 +8,7 @@ import { loadVillage } from '../load-village';
 import { findPlayerVillage, firstPlayerVillage } from '../player-villages';
 import { dynastyStatus, restartGame } from '../restart-game';
 import type { LandscapeSource, SeedSource } from '../settlements';
+import { InMemoryHouses } from './in-memory-houses';
 import { InMemorySettlements } from './in-memory-settlements';
 import { InMemoryVillages } from './in-memory-villages';
 
@@ -66,6 +67,8 @@ async function villageOnNewMap(
   if (!founded.ok) throw new Error(founded.reason);
   return { settlementId: map!.id, villageId: founded.village.id };
 }
+
+const NOW = new Date('2026-11-05T12:00:00Z');
 
 describe('findPlayerVillage', () => {
   it('najde ves hráče s jejím sídlem – cizí, neznámou a archivovanou ne', async () => {
@@ -138,7 +141,14 @@ describe('víc vsí a konec hry', () => {
       worldCell: { x: 0, y: 1 },
     });
     const result = await restartGame(
-      { settlements, villages, landscapes, worldSeed: 4242 },
+      {
+        settlements,
+        villages,
+        landscapes,
+        worldSeed: 4242,
+        houses: new InMemoryHouses(),
+        now: () => NOW,
+      },
       { playerId: PLAYER, today: TODAY + 1, abandon: true },
     );
     expect(result.ok).toBe(true);

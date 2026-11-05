@@ -2,6 +2,7 @@ import { randomInt } from 'node:crypto';
 import {
   createLockPool,
   createPlayerLock,
+  createHouseRepository,
   createSettlementRepository,
   createVillageRepository,
   createWorldQueue,
@@ -12,6 +13,7 @@ import type {
   LandscapeSource,
   Pause,
   PlayerLock,
+  HouseRepository,
   SettlementRepository,
   VillageRepository,
   WorldQueue,
@@ -56,6 +58,9 @@ export function createPlayerLocks(
 /** Závislosti use-casů nad vsemi hráče: sídla, vsi, mezipaměť krajin, přestávky, seedy a zámek. */
 export interface GameDeps {
   settlements: SettlementRepository;
+  houses: HouseRepository;
+  /** Skutečný čas (založení a konec rodu). */
+  now: () => Date;
   villages: VillageRepository;
   landscapes: LandscapeSource;
   pause: Pause;
@@ -78,6 +83,8 @@ export function createGameDeps(
 ): GameDeps {
   return {
     settlements: createSettlementRepository(db),
+    houses: createHouseRepository(db),
+    now: () => new Date(),
     villages: cachedVillages(createVillageRepository(db)),
     landscapes: options.landscapes,
     pause: options.pause,

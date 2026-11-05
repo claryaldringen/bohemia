@@ -1,4 +1,5 @@
 export * from './settlements';
+export * from './houses';
 export * from './enter-game';
 export * from './villages';
 export {

@@ -4,6 +4,7 @@ export {
   PLAYER_LOCK_NAMESPACE,
   PlayerLockTimeoutError,
   createPlayerLock,
+  createHouseRepository,
   createSettlementRepository,
   createTimeOffsetRepository,
   createVillageRepository,
