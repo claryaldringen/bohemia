@@ -160,8 +160,10 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
 - **Schránka vsi** – jediná cesta, jak cizí věc (jiný hráč, svět) změní ves (plán multiplayeru,
   technické rozhodnutí 4). Doména `domain/village/inbox.ts`: `VillageEvent { id, villageId, day,
 seq, body }`, `NewVillageEvent` (bez `id` a `seq`, s jedinečným `ref` – idempotence zápisu),
-  tělo `VillageEventBody` je unie podle `kind` – zatím `{ kind: 'chronicle'; event }` (zápis do
-  kroniky s dnem použití); nový druh = nová větev v `applyEvent` (kompilátor ohlídá úplnost).
+  tělo `VillageEventBody` je unie podle `kind`: `{ kind: 'chronicle'; event }` (zápis do kroniky
+  s dnem použití) a `{ kind: 'lord-arrives'; party; fromVillageId }` (příjezd dosazeného vojvody –
+  `settleAppointee`, village-people.md – Dosazení vojvody do vsi bez muže rodu); nový druh = nová
+  větev v `applyEvent` (kompilátor ohlídá úplnost).
   - **Kde se použijí:** `advanceVillageSteps(state, toDay, obstacles, landscape, inbox = [])` na
     začátku dne `d`, před `simulateDaySteps(d)`, použije události dne `d` v pořadí `seq`
     (`applyInboxDay` – mutuje klon stavu jako kroky dne, zápisy kroniky vrací). Události mimo

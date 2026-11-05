@@ -421,6 +421,13 @@ export interface VillageState {
    */
   dynasty?: DynastyState;
   /**
+   * Ves zůstala bez muže rodu a čeká na vojvodu z jiné vsi rodu (seniorate.md – Ves bez muže rodu –
+   * dosazení vojvody): `sinceDay` = den, od kterého je bez vojvody; `appointee` = muž, který už
+   * vyrazil (ves, kde žil, jeho číslo tam a den příjezdu). Chybí – ves nic nečeká (i starší vsi,
+   * `withAwaitingLord` je převede jednou).
+   */
+  awaitingLord?: AwaitingLord;
+  /**
    * Správce vsi (steward.md – Stav správce): zapnutý, značka „postavil správce“, plán. Chybí –
    * správce vypnutý (`withSteward` ji převede).
    */
@@ -440,6 +447,12 @@ export interface DynastyState {
   lords: LordRecord[];
   /** Den, kdy rod vymřel po meči (lord.md – Konec rodu); chybí – rod žije. */
   endedDay?: number;
+}
+
+/** Čekání vsi bez muže rodu na vojvodu z jiné vsi (`VillageState.awaitingLord`). */
+export interface AwaitingLord {
+  sinceDay: number;
+  appointee?: { fromVillageId: string; personId: number; arrivesDay: number };
 }
 
 /** Vojvoda v kronice rodu – od kterého dne do kterého vládl (`toDay` chybí – vládne). */

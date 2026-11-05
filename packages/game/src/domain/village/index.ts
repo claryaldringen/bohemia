@@ -119,6 +119,7 @@ export * from './actions';
 export * from './build-intent';
 export * from './simulate';
 export * from './inbox';
+export * from './appoint-lord';
 export * from './polygon';
 export * from './placement';
 export * from './dwelling-shape';

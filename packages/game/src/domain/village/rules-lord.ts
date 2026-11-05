@@ -84,3 +84,10 @@ export const LORD = {
  * `departDays` = herních dní na volbu směru odchodu po pohřbu, než výprava vyrazí sama.
  */
 export const PLAYER_SUCCESSION = { successorWeight: 0.5, departDays: 30 } as const;
+
+/**
+ * seniorate.md – Ves bez muže rodu – dosazení vojvody (Martin 2. 11. 2026: „Poslat muže rodu“;
+ * čísla návrh Clauda): `daysPerMapStep` = herních dní cesty na každou mapu vzdálenosti (jako
+ * výprava na sousední mapu), `minAge` = od kolika let muž rodu smí být dosazen vojvodou.
+ */
+export const APPOINT_LORD = { daysPerMapStep: 2, minAge: 16 } as const;

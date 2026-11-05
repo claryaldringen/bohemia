@@ -121,6 +121,8 @@ export function succeedLord(state: VillageState, day: number): ChronicleEvent[] 
   const heir = successorOf(state, dynasty.lordId);
   if (!heir) {
     dynasty.lordId = null;
+    // rod žije v jiné vsi, tahle čeká na vojvodu odtamtud (seniorate.md – dosazení vojvody)
+    state.awaitingLord ??= { sinceDay: day };
     // konec rodu ve vsi (lord.md – Konec rodu): den jen jednou, rod může žít v jiné vsi hráče
     if (dynasty.endedDay !== undefined) return [];
     dynasty.endedDay = day;

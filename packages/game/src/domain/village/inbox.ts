@@ -3,6 +3,7 @@
 // simulací dne (`advanceVillageSteps`). Výsledek tak nezávisí na tom, po jakých kouscích se ves
 // dopočítá – události dne patří k tomu dni, ne k dopočtu.
 
+import { settleAppointee, type AppointeeParty } from './appoint-lord';
 import type { ChronicleEvent, VillageState } from './types';
 
 /**
@@ -11,7 +12,12 @@ import type { ChronicleEvent, VillageState } from './types';
  */
 export type VillageEventBody =
   /** Zápis do kroniky vsi – den zápisu je den použití události. */
-  { kind: 'chronicle'; event: ChronicleEvent };
+  | { kind: 'chronicle'; event: ChronicleEvent }
+  /**
+   * Dosazený vojvoda z jiné vsi rodu dorazil s rodinou a jídlem (seniorate.md – dosazení vojvody;
+   * `settleAppointee`). Ves, která mezitím vojvodu má, družinu přijme jako ostatní muže rodu.
+   */
+  | { kind: 'lord-arrives'; party: AppointeeParty; fromVillageId: string };
 
 /**
  * Událost ve schránce vsi `villageId`. `day` = herní den, na jehož začátku se použije (nikdy ne
@@ -46,17 +52,19 @@ export function applyInboxDay(
 }
 
 /** Jedna událost – každý druh těla má svou větev (nový druh bez větve = chyba překladu). */
-function applyEvent(_state: VillageState, day: number, body: VillageEventBody): ChronicleEvent[] {
+function applyEvent(state: VillageState, day: number, body: VillageEventBody): ChronicleEvent[] {
   switch (body.kind) {
     case 'chronicle':
       return [{ ...structuredClone(body.event), day }];
+    case 'lord-arrives':
+      return settleAppointee(state, day, structuredClone(body.party));
     default:
-      return unknownBody(body.kind);
+      return unknownBody(body);
   }
 }
 
-function unknownBody(kind: never): never {
-  throw new Error(`Neznámý druh události schránky vsi: ${String(kind)}`);
+function unknownBody(body: never): never {
+  throw new Error(`Neznámý druh události schránky vsi: ${JSON.stringify(body)}`);
 }
 
 /** Události podle dne – dopočet je hledá den po dni. */

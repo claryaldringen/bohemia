@@ -43,6 +43,16 @@ export type ChronicleEvent = { day: number } & (
     }
   /** Vojvodou se stal muž rodu `name` (lord.md – Nástupnictví); bez jména chybí. */
   | { kind: 'lord'; name?: string }
+  /**
+   * Muž rodu `name` odešel vládnout do vsi `villageName` (seniorate.md – Ves bez muže rodu –
+   * dosazení vojvody); píše se ve vsi, odkud odešel.
+   */
+  | { kind: 'lord-sent'; villageName: string; name?: string }
+  /**
+   * Do vsi, která už vojvodu má, přišel z jiné vsi rodu muž `name` s rodinou (dosazení vojvody
+   * přišlo pozdě) – žije v dvorci jako ostatní muži rodu.
+   */
+  | { kind: 'line-arrived'; name?: string }
   /** Muž rodu `name` si vzal další manželku z okolí (lord.md – Manželky); bez jména chybí. */
   | { kind: 'extra-wife'; name?: string }
   /** Muž rodu `name` má po smrti hlavní manželky novou hlavní (lord.md – Nová hlavní manželka). */
