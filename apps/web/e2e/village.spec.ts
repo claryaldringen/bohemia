@@ -1290,6 +1290,88 @@ test('lidé odejdou na novou mapu – po cestě umístí první zemnici', async 
   await expect(page.getByTestId('journey-banner')).toHaveCount(0);
 });
 
+test('mladší syn po pohřbu zvolí směr – výprava vyrazí hned, mateřská ves zůstane správci', async ({
+  page,
+}) => {
+  const { email, seat: s } = await newPlayer(page, 'pohreb');
+  const spots = villageSpots(s.landscape);
+  await found(page, spots.dwelling);
+  // Stav po smrti otce přímým zápisem: vojvodou je nástupce, hráč hraje za mladšího syna Ctibora.
+  const state = withBuiltFirstDwelling(await villageState(s.settlementId));
+  const father = state.people.find((p) => p.id === state.dynasty!.lordId)!;
+  const mother = state.people.find((p) => p.id === father.spouseId)!;
+  const home = father.dwellingId;
+  const born = state.lastDay - Math.ceil(20 * 365.25);
+  const heirId = state.nextId++;
+  const sonId = state.nextId++;
+  const base = { dwellingId: home, sex: 'male' as const, fatherId: father.id, motherId: mother.id };
+  state.people = state.people.filter((p) => p.id !== father.id);
+  delete mother.spouseId;
+  state.people.push(
+    { ...base, id: heirId, bornDay: born, line: true, mainWifeSon: true, name: 'Bořek' },
+    { ...base, id: sonId, bornDay: born + 200, line: true, name: 'Ctibor' },
+  );
+  state.dynasty = {
+    lordId: heirId,
+    lords: [
+      { id: father.id, name: 'Bořivoj', fromDay: state.foundedDay, toDay: state.lastDay },
+      { id: heirId, name: 'Bořek', fromDay: state.lastDay },
+    ],
+  };
+  state.storesKg = 1500;
+  await writeVillageState(s.settlementId, state);
+  const [mother0] = await query<{ id: string }>('SELECT id FROM village WHERE settlement_id = $1', [
+    s.settlementId,
+  ]);
+  const pending = {
+    villageId: mother0!.id,
+    sonId,
+    deathDay: state.lastDay,
+    deadlineDay: state.lastDay + 25,
+  };
+  await query(
+    `UPDATE house SET lord_village_id = $1, lord_person_id = $2, succession_day = $3,
+            pending_departure = $4::jsonb
+      WHERE ended_at IS NULL AND player_id = (SELECT id FROM "user" WHERE email = $5)`,
+    [mother0!.id, sonId, state.lastDay, JSON.stringify(pending), email],
+  );
+  await page.reload();
+  await expect(readyScene(page)).toBeVisible({ timeout: 60_000 });
+
+  const panel = page.getByTestId('player-departure');
+  await expect(panel).toBeVisible({ timeout: 30_000 });
+  await expect(panel.getByTestId('player-departure-days')).toHaveText(/^\d+$/);
+  await panel.getByTestId('leave-E').click();
+
+  const maps = (): Promise<{ id: string }[]> =>
+    query(
+      `SELECT s.id FROM settlement s JOIN "user" u ON u.id = s.owner_id
+        WHERE u.email = $1 AND s.archived_at IS NULL ORDER BY s.created_at`,
+      [email],
+    );
+  await expect.poll(async () => (await maps()).length, { timeout: 30_000 }).toBe(2);
+  const [, east] = await maps();
+  const [travelling] = await query<{ id: string; state: VillageState }>(
+    'SELECT id, state FROM village WHERE settlement_id = $1',
+    [east!.id],
+  );
+  expect(travelling!.state.journey).toMatchObject({ direction: 'E', lordId: sonId });
+  // výprava vyrazila hned, správce na cestě vypnutý; hráčův muž přešel na novou ves
+  expect(travelling!.state.steward?.on).toBe(false);
+  const [house] = await query<{ lord_village_id: string; pending: unknown }>(
+    `SELECT lord_village_id, pending_departure AS pending FROM house
+      WHERE ended_at IS NULL AND player_id = (SELECT id FROM "user" WHERE email = $1)`,
+    [email],
+  );
+  expect(house).toMatchObject({ lord_village_id: travelling!.id, pending: null });
+  // mateřská ves dál s nástupcem Bořkem a zapnutým správcem
+  const left = await villageState(s.settlementId);
+  expect(left.dynasty?.lordId).toBe(heirId);
+  expect(left.steward?.on).toBe(true);
+  expect(left.people.some((p) => p.id === sonId)).toBe(false);
+  await expect(page.getByTestId('player-departure')).toHaveCount(0);
+});
+
 /** Posune čas hráče tak, aby jeho dnešek byl `month`. `day`. příštího herního roku (accounts.md). */
 async function shiftPlayerTo(email: string, month: number, day: number): Promise<number> {
   const world = {

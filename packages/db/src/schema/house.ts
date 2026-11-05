@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
-import { integer, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import { integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import type { PendingDeparture } from '@bohemia/game';
 import { user } from './auth';
 
 /**
@@ -8,8 +9,8 @@ import { user } from './auth';
  * osoba (ves + id osoby ve stavu vsi), která je hlavou rodu; obě kolonky se plní a mažou spolu.
  * `senior_*` = naposledy zapsaný senior rodu (kronika hlásí jeho změnu), stejně spojené kolonky.
  * `succession_day` = den smrti hráčova muže, pro který už bylo rozhodnuto, za koho hráč hraje dál
- * (nástupnictví hráče – idempotence); `younger_son_deadline_day` = den, do kterého má hráč za
- * vylosovaného mladšího syna zvolit směr odchodu (jinak vyrazí výprava sama).
+ * (nástupnictví hráče – idempotence); `pending_departure` = odchod vylosovaného mladšího syna po
+ * pohřbu, na jehož volbu hráč čeká (ves, syn, den smrti a lhůta; po lhůtě vyrazí výprava sama).
  */
 export const house = pgTable(
   'house',
@@ -25,7 +26,7 @@ export const house = pgTable(
     seniorVillageId: uuid('senior_village_id'),
     seniorPersonId: integer('senior_person_id'),
     successionDay: integer('succession_day'),
-    youngerSonDeadlineDay: integer('younger_son_deadline_day'),
+    pendingDeparture: jsonb('pending_departure').$type<PendingDeparture>(),
   },
   (table) => [
     // Hráč má nejvýš jeden živý rod – hlídá databáze, i při souběžných požadavcích.

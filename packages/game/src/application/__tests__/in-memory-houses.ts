@@ -1,4 +1,4 @@
-import type { House, HouseRepository, PersonRef } from '../houses';
+import type { House, HouseRepository, PendingDeparture, PersonRef } from '../houses';
 
 /** Repozitář rodů v paměti – `create` a `end` se chovají atomicky jako databáze (unikátní index). */
 export class InMemoryHouses implements HouseRepository {
@@ -33,7 +33,7 @@ export class InMemoryHouses implements HouseRepository {
       lord: null,
       senior: null,
       successionDay: null,
-      youngerSonDeadlineDay: null,
+      pendingDeparture: null,
     };
     this.houses.push(house);
     return house;
@@ -60,7 +60,7 @@ export class InMemoryHouses implements HouseRepository {
 
   async commitSuccession(
     houseId: string,
-    input: { deathDay: number; lord: PersonRef; youngerSonDeadlineDay: number | null },
+    input: { deathDay: number; lord: PersonRef; pendingDeparture: PendingDeparture | null },
   ): Promise<boolean> {
     await Promise.resolve();
     const house = this.houses.find((h) => h.id === houseId);
@@ -69,7 +69,15 @@ export class InMemoryHouses implements HouseRepository {
     }
     house.successionDay = input.deathDay;
     house.lord = input.lord;
-    house.youngerSonDeadlineDay = input.youngerSonDeadlineDay;
+    house.pendingDeparture = input.pendingDeparture;
+    return true;
+  }
+
+  async clearPendingDeparture(houseId: string, sonId: number): Promise<boolean> {
+    await Promise.resolve();
+    const house = this.houses.find((h) => h.id === houseId);
+    if (house?.pendingDeparture?.sonId !== sonId) return false;
+    house.pendingDeparture = null;
     return true;
   }
 

@@ -5,11 +5,14 @@ import {
   dateOfDayIndex,
   directionBetween,
   edgeDistanceM,
+  lineMen,
+  sonDeparturePreview,
   travelDays,
   villageCentre,
   type CartKind,
   type Direction8,
   type Landscape,
+  type PendingDeparture,
   type VillageState,
 } from '@bohemia/game';
 
@@ -34,6 +37,56 @@ export interface VillageLeave {
   directions: LeaveDirection[];
   cart: CartKind | null;
   allCart: CartKind | null;
+}
+
+/**
+ * Odchod mladšího syna po pohřbu (seniorate.md, bod 4): kolik dní zbývá na volbu směru, kdo a co
+ * odejde (díl jako u odchodu syna – počty, obrys obydlí), směry a jména rodu pro panel jména.
+ */
+export interface PendingDepartureView {
+  sonId: number;
+  /** Kolik herních dní zbývá na volbu; potom vyrazí výprava sama. */
+  daysLeft: number;
+  /** Syn nemá jméno – panel jména před volbou směru. */
+  needsName: boolean;
+  /** Jména žijících mužů rodu (kostka nabízí jiná). */
+  taken: string[];
+  /** Obydlí k obrysu ve scéně. */
+  dwellingIds: number[];
+  people: number;
+  foodKg: number;
+  cart: CartKind | null;
+  horse: boolean;
+  directions: LeaveDirection[];
+}
+
+/**
+ * Čekající odchod `pending` ve vsi `state` v den `day`; null, když syn ve vsi není nebo lhůta
+ * uplynula (výprava vyráží sama). Díl počítá stejná funkce jako odchod (`sonDeparturePreview` s otcem).
+ */
+export function pendingDepartureView(
+  state: VillageState,
+  pending: PendingDeparture,
+  day: number,
+  leave: VillageLeave,
+): PendingDepartureView | null {
+  const daysLeft = pending.deadlineDay - day;
+  const son = state.people.find((p) => p.id === pending.sonId);
+  if (daysLeft <= 0 || !son || son.fatherId === undefined) return null;
+  const preview = sonDeparturePreview(state, son.id, day, son.fatherId);
+  if (!preview) return null;
+  return {
+    sonId: son.id,
+    daysLeft,
+    needsName: son.name === undefined,
+    taken: lineMen(state).flatMap((p) => (p.name === undefined ? [] : [p.name])),
+    dwellingIds: preview.outlineDwellingIds,
+    people: preview.people,
+    foodKg: preview.foodKg,
+    cart: preview.cart,
+    horse: preview.horse,
+    directions: leave.directions,
+  };
 }
 
 /** Lidé na cestě na novou mapu – směr, den příjezdu a jestli už dorazili. */

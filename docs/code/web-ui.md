@@ -643,3 +643,15 @@ Návrh: [disasters.md – Co hráč vidí](../design/disasters.md). Jádro a č�
   (`house-succession-credits`, popisek „Nástupnictví bez losu“) jen při počtu > 0.
 - Testy: `lib/__tests__/house-view.test.ts`, `hud/__tests__/HousePanel.behavior.test.tsx`; e2e
   `village.spec.ts` – „seniorát – v cizí vsi rodu stavební lišta zašedne s důvodem…“.
+
+## Odchod mladšího syna po pohřbu (úloha 2.5, `hud/RelocationControls.tsx`)
+
+- `VillageView.pendingDeparture` (`PendingDepartureView` v `lib/departure-view.ts`, počítá
+  `pendingDepartureView` ze stejného náhledu jako odchod syna, `sonDeparturePreview` s `fatherId`)
+  je jen ve vsi, kde syn čeká (`House.pendingDeparture.villageId`; přidává `viewOf` z `villageAccess`).
+- `PlayerDeparturePanel` nahoře uprostřed: přesýpací hodiny (`icons/house/hourglass.svg`) s dny do
+  konce lhůty (popisek v `Tooltip`), obrys obydlí dílu ve scéně (`setSonPreview` jako u řady synů),
+  syn bez jména napřed panel jména (`LineNamePanel`), pak růžice `LeaveCompass` (právo `sendSons`).
+- Server action `choosePlayerDeparture` (`app/game/actions.ts` → `choosePlayerDepartureForPlayer` v
+  `lib/village.ts`, vstup `{ villageId, direction, sonName? }` parsuje `parseChoosePlayerDepartureInput`).
+  e2e: `village.spec.ts` „mladší syn po pohřbu zvolí směr“ (stav po smrti otce zapsaný přímo do DB).

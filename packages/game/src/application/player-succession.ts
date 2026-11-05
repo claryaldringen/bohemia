@@ -100,7 +100,10 @@ export async function resolvePlayerSuccession(
   const written = await deps.houses.commitSuccession(house.id, {
     deathDay,
     lord: chosen.ref,
-    youngerSonDeadlineDay: deadlineDay,
+    pendingDeparture:
+      deadlineDay === null
+        ? null
+        : { villageId: chosen.ref.villageId, sonId: chosen.ref.personId, deathDay, deadlineDay },
   });
   // souběžné volání už rozhodlo – jeho výsledek platí, tady nic dalšího (kredit ani upozornění)
   if (!written) return { kind: 'alive' };

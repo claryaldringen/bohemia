@@ -20,8 +20,20 @@ export interface House {
   senior: PersonRef | null;
   /** Den smrti hráčova muže, pro který už bylo nástupnictví rozhodnuto; null – dosud žádné. */
   successionDay: number | null;
-  /** Den, do kterého má hráč za vylosovaného mladšího syna zvolit odchod; null – nic nečeká. */
-  youngerSonDeadlineDay: number | null;
+  /** Odchod vylosovaného mladšího syna, na jehož volbu hráč čeká; null – nic nečeká. */
+  pendingDeparture: PendingDeparture | null;
+}
+
+/**
+ * Odchod mladšího syna po pohřbu (seniorate.md – Nástupnictví hráče, bod 4): syn `sonId` ve vsi
+ * `villageId`, po smrti otce ve dni `deathDay`; hráč má na volbu směru do dne `deadlineDay`, pak
+ * výprava vyrazí sama.
+ */
+export interface PendingDeparture {
+  villageId: string;
+  sonId: number;
+  deathDay: number;
+  deadlineDay: number;
 }
 
 /** Port repozitáře rodů. */
@@ -43,11 +55,16 @@ export interface HouseRepository {
   /**
    * Podmíněný zápis nástupnictví hráče po smrti muže ve dni `deathDay` – jediný příkaz: jen když
    * `successionDay` je null nebo menší než `deathDay`, nastaví `successionDay`, hlavu rodu
-   * `lord` a `youngerSonDeadlineDay` (null – žádný). Vrací, zda zapsal (ze souběžných volání
+   * `lord` a `pendingDeparture` (null – žádný). Vrací, zda zapsal (ze souběžných volání
    * uspěje jedno).
    */
   commitSuccession(
     houseId: string,
-    input: { deathDay: number; lord: PersonRef; youngerSonDeadlineDay: number | null },
+    input: { deathDay: number; lord: PersonRef; pendingDeparture: PendingDeparture | null },
   ): Promise<boolean>;
+  /**
+   * Smaže čekající odchod syna `sonId` (podmíněně – jen když je to ten odchod); true jen když
+   * smazal (ze souběžných volání uspěje jedno).
+   */
+  clearPendingDeparture(houseId: string, sonId: number): Promise<boolean>;
 }

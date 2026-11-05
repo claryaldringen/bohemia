@@ -54,9 +54,13 @@ export interface SonShare {
   personIds: number[];
 }
 
-/** Synové vojvody `dynasty.lordId` ve vsi (muži rodu) – od nejstaršího, při shodě nižší id. */
-function lordSons(state: VillageState): Person[] {
-  const lordId = state.dynasty?.lordId;
+/**
+ * Synové vojvody `dynasty.lordId` ve vsi (muži rodu) – od nejstaršího, při shodě nižší id. S
+ * `fatherId` (zemřelý otec po pohřbu – odchod mladšího syna, seniorate.md) jsou to jeho synové,
+ * tedy i nynější vojvoda a jeho bratři.
+ */
+function lordSons(state: VillageState, fatherId?: number): Person[] {
+  const lordId = fatherId ?? state.dynasty?.lordId;
   if (lordId === undefined || lordId === null) return [];
   return state.people
     .filter((p) => isLineMan(p) && p.fatherId === lordId)
@@ -88,20 +92,23 @@ export function sonHorse(state: Pick<VillageState, 'pens'>, sonId: number): Hors
  * Syn vojvody (muž rodu), žijící ve vsi, od LORD.leaveMinAge let, ne nástupce (`successorOf` – kdo
  * by nastoupil dnes), se jménem; jeho rodina si nesmí stavět nový dům. Důvod česky pro hráče
  * (u kurzoru) i pro server. `relocatingNow` – už spočítané stěhující se domácnosti (jinak se spočtou).
+ * `fatherId` – zemřelý otec: syn je mladší bratr nynějšího vojvody (odchod po pohřbu hráčova muže).
  */
 export function checkSonLeader(
   state: VillageState,
   sonId: number,
   day: number,
   relocatingNow?: ReadonlySet<number>,
+  fatherId?: number,
 ): PlacementCheck {
   if (isVillageDormant(state)) return { ok: false, reason: 'Ve vsi nikdo nežije.' };
   const lordId = state.dynasty?.lordId;
   if (lordId === undefined || lordId === null) return { ok: false, reason: LEAD_NO_LORD };
-  const son = lordSons(state).find((p) => p.id === sonId);
+  const son = lordSons(state, fatherId).find((p) => p.id === sonId);
   if (!son) return { ok: false, reason: LEAD_NOT_SON };
   if (ageYears(son.bornDay, day) < LORD.leaveMinAge) return { ok: false, reason: LEAD_TOO_YOUNG };
-  if (successorOf(state, lordId)?.id === son.id) return { ok: false, reason: SUCCESSOR_STAYS };
+  if (successorOf(state, fatherId ?? lordId)?.id === son.id)
+    return { ok: false, reason: SUCCESSOR_STAYS };
   if (son.name === undefined) return { ok: false, reason: SON_NAME_MISSING };
   const relocating = relocatingNow ?? relocatingHouseholds(state);
   if (sonFamily(state, son).some((p) => relocating.has(p.dwellingId))) {
@@ -144,16 +151,25 @@ function distanceSq(a: { x: number; z: number }, b: { x: number; z: number }): n
  * (zbytek domácnosti v domě zůstane – kinship.md). Pořadí obydlí podle čtverce vzdálenosti, při
  * shodě nižší id. Syn, který ve vsi není, – null. Nekontroluje, smí-li syn vést (`checkSonLeader`).
  */
-export function sonShare(state: VillageState, sonId: number, day: number): SonShare | null {
+export function sonShare(
+  state: VillageState,
+  sonId: number,
+  day: number,
+  fatherId?: number,
+): SonShare | null {
   const son = state.people.find((p) => p.id === sonId);
   if (!son) return null;
   const lord = currentLord(state);
-  const sons = lordSons(state);
+  const sons = lordSons(state, fatherId);
   const grownSons = sons.filter((p) => ageYears(p.bornDay, day) >= LORD.leaveMinAge);
-  const sharers = Math.max(
-    1,
-    (lord ? 1 : 0) + grownSons.length + (grownSons.some((p) => p.id === sonId) ? 0 : 1),
-  );
+  // po smrti otce je vojvodou jeden z jeho synů – počítá se jednou (otec už neděluje)
+  const sharers =
+    fatherId === undefined
+      ? Math.max(
+          1,
+          (lord ? 1 : 0) + grownSons.length + (grownSons.some((p) => p.id === sonId) ? 0 : 1),
+        )
+      : new Set([...(lord ? [lord.id] : []), ...grownSons.map((p) => p.id), sonId]).size;
   const target = state.people.length / sharers;
   const family = sonFamily(state, son);
   const familyIds = new Set(family.map((p) => p.id));
@@ -226,7 +242,8 @@ export function sonDeparturePreview(
   state: VillageState,
   sonId: number,
   day: number,
-  share: SonShare | null = sonShare(state, sonId, day),
+  fatherId?: number,
+  share: SonShare | null = sonShare(state, sonId, day, fatherId),
 ): SonDeparturePreview | null {
   if (!share) return null;
   const leaving = new Set(share.personIds);
@@ -260,12 +277,12 @@ export function departWithSon(
   state: VillageState,
   day: number,
   sonId: number,
-  options: { direction?: Direction8; villageName?: string } = {},
+  options: { direction?: Direction8; villageName?: string; fatherId?: number } = {},
 ): { state: VillageState; settlers: Settlers } {
   validateDepartureDay(state, day);
-  const check = checkSonLeader(state, sonId, day);
+  const check = checkSonLeader(state, sonId, day, undefined, options.fatherId);
   if (!check.ok) throw new RangeError(check.reason ?? LEAD_NOT_SON);
-  const share = sonShare(state, sonId, day);
+  const share = sonShare(state, sonId, day, options.fatherId);
   if (!share) throw new RangeError(LEAD_NOT_SON);
   const leaving = new Set(share.personIds);
   const leavers = state.people.filter((p) => leaving.has(p.id));

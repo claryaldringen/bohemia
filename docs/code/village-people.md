@@ -645,15 +645,42 @@ Porážka (návrh `slaughter`): klipy `butcher` (`gather_meat` + nůž, klek), `
   (½), zbytek rovným dílem. Los je jen při aspoň dvou kandidátech (`isPlayerLot`). Čísla v `rules-lord.ts`.
 - **Use-case** `application/player-succession.ts`: `resolvePlayerSuccession` (rodu hráčův muž
   `House.lord` už není ve vsi) → `successor` / `younger-son` (+ `deadlineDay` = den smrti +
-  `departDays`; odchod po pohřbu dělá až úloha 2.5) / `senior` / `oldest-lord` (ves bez muže rodu) /
+  `departDays`; odchod po pohřbu viz níž) / `senior` / `oldest-lord` (ves bez muže rodu) /
   `none` (konec hry) / `alive` (nic k řešení). Kredit (`consumeOne`) jen místo losu.
 - **Den smrti** se bere z kroniky vojvodů vsi (`dynasty.lords[].toDay`), ne z doby dopočtu – los i
-  `succession_day` tak nezávisí na dělení dopočtu. Jiný muž než vojvoda (po losu na mladšího syna)
-  nemá záznam – bere se dnešek.
+  `succession_day` tak nezávisí na dělení dopočtu. Jiný muž rodu (po losu na mladšího syna) má den
+  smrti v kronice vsi: událost `death` nese `personId` (jen u mužů rodu, spolu s `name`; plní
+  `population.ts`, `hunt.ts`, `disaster-deaths.ts`). Dnešek zbývá jen jako záloha pro starší stavy
+  bez `personId`.
 - **Idempotence:** `HouseRepository.commitSuccession` je jediný podmíněný UPDATE (hlava rodu +
-  `house.succession_day` + `house.younger_son_deadline_day`, jen když `succession_day` je NULL nebo
+  `house.succession_day` + `house.pending_departure`, jen když `succession_day` je NULL nebo
   menší než den smrti). Kredit a upozornění `'player-succession'` jdou až po úspěšném zápisu.
-- **Volání:** `resolveSuccessionOf(deps, …)` v `dynastyForVillage` (web – každý pohled a akce),
+- **Volání:** `settleSuccessionOf(deps, …)` (= `resolveSuccessionOf` + `autoPlayerDeparture`) v `dynastyForVillage` (web – každý pohled a akce),
   `advanceDynasty` a `closeAtDay` workeru (`advance-world.ts`); chybí-li rody, upozornění nebo
   kredity, nic nedělá.
 - Text upozornění: `apps/web/lib/player-notices.ts` (`accusativeOf` skloňuje jméno).
+
+## Odchod mladšího syna po pohřbu (seniorate.md, bod 4; úloha 2.5)
+
+- **Čekající odchod:** při `younger-son` zapíše `commitSuccession` do `house.pending_departure`
+  (jsonb `PendingDeparture` `{ villageId, sonId, deathDay, deadlineDay }`, migrace
+  `0021_house_pending_departure`; nahradila sloupec `younger_son_deadline_day`). Smaže ho jen
+  `HouseRepository.clearPendingDeparture(houseId, sonId)` (podmíněný UPDATE, uspěje jedno volání).
+- **Díl:** `leaveVillage` s `sonId` a `afterFuneral` – syn je mladší bratr nynějšího vojvody, takže
+  `checkSonLeader` / `sonShare` / `departWithSon` / `sonDeparturePreview` berou volitelné `fatherId`
+  (zemřelý otec = `son.fatherId`): synové otce jsou vojvoda i bratři, dílníci se počítají jako
+  množina (vojvoda jednou, otec už neděluje), nástupce zůstává. Bez `fatherId` se chování nemění.
+  `afterFuneral` navíc pojmenuje syna bez jména (`name` z panelu, nebo `generateName` →
+  `generatedLineName`), zapne správce **mateřské vsi** (`setStewardOn`) a řídí správce na cestě
+  (`stewardOnTheWay`: hráč false, auto true). `followPlayerLord` přepíše `House.lord` na novou ves.
+- **Use-case** `application/player-departure.ts`: `choosePlayerDeparture` (ve lhůtě `today <
+deadlineDay`; vyrazí hned, správce na cestě vypnutý, první zemnici umístí hráč; selhání – cizí mapa,
+  chybějící jméno – pending ponechá; po úspěchu `clearPendingDeparture`) a `autoPlayerDeparture`
+  (`today >= deadlineDay`; směry z `stewardDirections`, přeskočí vlastní ves / cizí mapu; seedy
+  `deriveSeed(seed vsi, 'departure:' + deathDay)`; syn nebo ves zanikly → pending se smaže, nástupnictví
+  rozhodne znovu). Opakování nic nezdvojí – syn už ve vsi není. `settleSuccessionOf` je volá všude
+  tam, kde se volá `resolveSuccessionOf`. Pozn.: odchod po lhůtě proběhne v den dopočtu, ne přesně
+  v `deadlineDay` (ves je už dopočtená do dneška).
+- **Právo** akce `choosePlayerDeparture` je `sendSons` (`ACTION_RIGHTS`): hráčův muž žije v mateřské
+  vsi, takže `villageRights` mu dává všechna práva (`dependsOnDynasty` je u vlastní vsi false) a
+  `sendSons` je nejbližší význam (odchod syna s dílem); ves navíc ověřuje use-case (`pending.villageId`).

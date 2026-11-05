@@ -1,4 +1,5 @@
 import { obstaclesOf, type Landscape } from '../domain/landscape';
+import { cloneState } from '../domain/village/clone';
 import {
   DIRECTIONS,
   builtTrail,
@@ -7,6 +8,9 @@ import {
   departVillage,
   departWithSon,
   departureBlock,
+  generatedLineName,
+  nameLineMan,
+  setStewardOn,
   edgeDistanceM,
   journeyArrived,
   placementVillageOf,
@@ -68,7 +72,22 @@ interface LeaveVillageBase {
  * vojvody s poměrnou částí vsi (`sonId` – lord.md, Dělení vsi; server ověří `checkSonLeader`).
  */
 export type LeaveVillageInput = LeaveVillageBase &
-  ({ dwellingIds: number[]; sonId?: never } | { sonId: number; dwellingIds?: never });
+  (
+    | { dwellingIds: number[]; sonId?: never; afterFuneral?: never }
+    | { sonId: number; dwellingIds?: never; afterFuneral?: AfterFuneral }
+  );
+
+/**
+ * Odchod mladšího syna po pohřbu (seniorate.md – Nástupnictví hráče, bod 4): `sonId` je mladší
+ * bratr nynějšího vojvody (jeho otec už nežije), mateřská ves po odchodu dostane správce, syn bez
+ * jména dostane `name` (panel jména), nebo – s `generateName` – vygenerované (`generatedLineName`);
+ * `stewardOnTheWay` – správce nové vsi už na cestě (samotný odchod 30. den), jinak ves čeká na hráče.
+ */
+export interface AfterFuneral {
+  name?: string;
+  generateName?: boolean;
+  stewardOnTheWay: boolean;
+}
 
 export type LeaveVillageResult =
   | {
@@ -82,6 +101,8 @@ export type LeaveVillageResult =
     }
   | { ok: false; reason: string };
 
+/** Syn po pohřbu už ve vsi nežije (nebo nemá otce). */
+export const FUNERAL_SON_GONE = 'Syn už ve vsi není.';
 /** Neznámý směr odchodu. */
 export const UNKNOWN_LEAVE_DIRECTION = 'Neznámý směr.';
 /** Cíl odchodu jinde než na nové mapě (jedna ves, jedna mapa – migration.md). */
@@ -134,7 +155,7 @@ export async function leaveVillage(
         departedDay: departed.day,
         arrivalDay: departed.day + departed.travelDays,
       },
-      false,
+      input.afterFuneral?.stewardOnTheWay ?? false,
     ),
   );
   if (!to) throw new Error(`Na nové mapě ${target.settlement.id} už ves stojí.`);
@@ -183,11 +204,26 @@ async function depart(
     landscape,
     (state) => {
       const day = state.lastDay;
-      const { sonId } = input;
+      const { sonId, afterFuneral } = input;
+      let current = state;
+      let fatherId: number | undefined;
+      if (sonId !== undefined && afterFuneral) {
+        const son = state.people.find((p) => p.id === sonId);
+        if (!son || son.fatherId === undefined) return { ok: false, reason: FUNERAL_SON_GONE };
+        fatherId = son.fatherId;
+        if (son.name === undefined) {
+          const name = afterFuneral.generateName
+            ? generatedLineName(state, day, sonId)
+            : (afterFuneral.name ?? '');
+          const named = nameLineMan(state, sonId, name, day);
+          if (!named.ok) return named;
+          current = named.state;
+        }
+      }
       const block =
         sonId === undefined
-          ? departureBlock(state, input.dwellingIds)
-          : checkSonLeader(state, sonId, day).reason;
+          ? departureBlock(current, input.dwellingIds)
+          : checkSonLeader(current, sonId, day, undefined, fatherId).reason;
       if (block) return { ok: false, reason: block };
       const days = travelDays(
         edgeDistanceM(landscape, villageCentre(state), direction),
@@ -196,12 +232,17 @@ async function depart(
       const departed =
         sonId === undefined
           ? departVillage(state, day, input.dwellingIds, direction)
-          : departWithSon(state, day, sonId, {
+          : departWithSon(current, day, sonId, {
               direction,
               ...(villageName === undefined ? {} : { villageName }),
+              ...(fatherId === undefined ? {} : { fatherId }),
             });
       captured.outcome = { settlers: departed.settlers, day, travelDays: days };
-      return { ok: true, state: departed.state };
+      if (!afterFuneral) return { ok: true, state: departed.state };
+      // mateřská ves dál s nástupcem jako NPC vojvodou a správcem (seniorate.md, bod 4)
+      const mother = cloneState(departed.state);
+      setStewardOn(mother, day, true);
+      return { ok: true, state: mother };
     },
   );
   if (!result.ok) return result;

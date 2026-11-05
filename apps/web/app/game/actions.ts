@@ -28,6 +28,7 @@ import {
   placeWorkshopForPlayer,
   relocateHouseholdForPlayer,
   leaveVillageForPlayer,
+  choosePlayerDepartureForPlayer,
   settleJourneyForPlayer,
   plantRoadApplesForPlayer,
   declareHuntForPlayer,
@@ -60,6 +61,7 @@ import {
   parsePlaceWorkshopInput,
   parseRelocateHouseholdInput,
   parseLeaveVillageInput,
+  parseChoosePlayerDepartureInput,
   parseSettleJourneyInput,
   parsePlantRoadApplesInput,
   parseDeclareHuntInput,
@@ -278,6 +280,14 @@ export async function cancelConstruction(input: unknown): Promise<VillageActionR
  */
 export async function leaveVillage(input: unknown): Promise<VillageActionResult> {
   return villageAction(input, parseLeaveVillageInput, leaveVillageForPlayer);
+}
+
+/**
+ * Odchod mladšího syna po pohřbu (seniorate.md, bod 4): `{ villageId, direction, sonName? }` –
+ * výprava vyrazí hned, první zemnici umístí hráč. Server lhůtu i jméno ověří znovu.
+ */
+export async function choosePlayerDeparture(input: unknown): Promise<VillageActionResult> {
+  return villageAction(input, parseChoosePlayerDepartureInput, choosePlayerDepartureForPlayer);
 }
 
 /**

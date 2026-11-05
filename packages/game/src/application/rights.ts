@@ -5,7 +5,7 @@ import {
   isVillageExtinct,
   type VillageState,
 } from '../domain/village';
-import type { HouseRepository, PersonRef } from './houses';
+import type { HouseRepository, PendingDeparture, PersonRef } from './houses';
 import { findPlayerVillage, NOT_PLAYER_VILLAGE, type PlayerVillage } from './player-villages';
 import type { SettlementRepository } from './settlements';
 import type { VillageRepository } from './villages';
@@ -69,6 +69,9 @@ export const ACTION_RIGHTS = {
   // odchod domácností (i celé vsi) na novou mapu
   leaveHouseholds: 'evacuate',
   leaveWithSon: 'sendSons',
+  // hráč v kůži mladšího syna volí směr odchodu po pohřbu – v mateřské vsi, kde je jeho muž doma,
+  // má všechna práva (`dependsOnDynasty`); jde o odchod syna, proto stejné právo jako leaveWithSon
+  choosePlayerDeparture: 'sendSons',
   nameLineMan: 'nameSons',
   setSteward: 'steward',
   // řízení vsi, které senior v cizí vsi nemá: lov, jméno vsi, vývojové pohromy
@@ -156,6 +159,8 @@ export interface VillageAccess {
   found: PlayerVillage;
   rights: VillageRights;
   senior: PersonRef | null;
+  /** Odchod mladšího syna po pohřbu, na jehož volbu hráč čeká (seniorate.md, bod 4), nebo null. */
+  pendingDeparture: PendingDeparture | null;
 }
 
 /**
@@ -190,7 +195,12 @@ export async function villageAccess(
     playerLord,
     day: input.today,
   });
-  return { found, rights, senior: house?.senior ?? null };
+  return {
+    found,
+    rights,
+    senior: house?.senior ?? null,
+    pendingDeparture: house?.pendingDeparture ?? null,
+  };
 }
 
 /**

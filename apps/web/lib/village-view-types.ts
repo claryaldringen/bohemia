@@ -75,6 +75,7 @@ import type { VillageListItem } from './village-list';
 import type { LineEndView } from './line-end-view';
 
 import {
+  type PendingDepartureView,
   type VillageAbandonment,
   type VillageJourneyView,
   type VillageLeave,
@@ -606,6 +607,8 @@ export interface VillageView {
   journey: VillageJourneyView | null;
   /** Odchod do nové vsi – dny cesty na novou mapu po směrech a kam to nejde (migration.md). */
   leave: VillageLeave;
+  /** Hráč v kůži mladšího syna po pohřbu volí směr odchodu (seniorate.md, bod 4); jinak null. */
+  pendingDeparture: PendingDepartureView | null;
   /**
    * Konec hry – hráči vymřely všechny vsi (ne jen tahle). Rozhraní ukáže obrazovku porážky
    * s tlačítkem Začít znovu.

@@ -76,12 +76,12 @@ describe('HouseRepository (Drizzle)', () => {
       houses.commitSuccession(house.id, {
         deathDay: 500,
         lord: { villageId: village, personId: 1 },
-        youngerSonDeadlineDay: 530,
+        pendingDeparture: { villageId: village, sonId: 1, deathDay: 500, deadlineDay: 530 },
       }),
       houses.commitSuccession(house.id, {
         deathDay: 500,
         lord: { villageId: village, personId: 2 },
-        youngerSonDeadlineDay: null,
+        pendingDeparture: null,
       }),
     ]);
     expect(results.filter(Boolean)).toHaveLength(1);
@@ -89,12 +89,30 @@ describe('HouseRepository (Drizzle)', () => {
     expect(stored?.successionDay).toBe(500);
     expect(stored?.lord?.villageId).toBe(village);
     // stejný nebo dřívější den už neprojde, pozdější ano
-    const again = { lord: { villageId: village, personId: 3 }, youngerSonDeadlineDay: null };
+    const again = { lord: { villageId: village, personId: 3 }, pendingDeparture: null };
     expect(await houses.commitSuccession(house.id, { deathDay: 500, ...again })).toBe(false);
     expect(await houses.commitSuccession(house.id, { deathDay: 400, ...again })).toBe(false);
     expect(await houses.commitSuccession(house.id, { deathDay: 900, ...again })).toBe(true);
     const later = await houses.byId(house.id);
     expect(later?.lord?.personId).toBe(3);
-    expect(later?.youngerSonDeadlineDay).toBeNull();
+    expect(later?.pendingDeparture).toBeNull();
+  });
+
+  it('clearPendingDeparture smaže odchod jen jednou a jen daného syna', async () => {
+    const house = await houses.create({ playerId: 'p1', kind: 'player', createdAt: NOW });
+    const village = '44444444-4444-4444-8444-444444444444';
+    await houses.commitSuccession(house.id, {
+      deathDay: 500,
+      lord: { villageId: village, personId: 1 },
+      pendingDeparture: { villageId: village, sonId: 1, deathDay: 500, deadlineDay: 530 },
+    });
+    expect((await houses.byId(house.id))?.pendingDeparture?.deadlineDay).toBe(530);
+    expect(await houses.clearPendingDeparture(house.id, 2)).toBe(false);
+    const results = await Promise.all([
+      houses.clearPendingDeparture(house.id, 1),
+      houses.clearPendingDeparture(house.id, 1),
+    ]);
+    expect(results.filter(Boolean)).toHaveLength(1);
+    expect((await houses.byId(house.id))?.pendingDeparture).toBeNull();
   });
 });

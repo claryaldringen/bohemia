@@ -125,10 +125,15 @@ describe('resolvePlayerSuccession', () => {
       if (out.kind === 'younger-son') {
         expect(out.lord).toEqual({ villageId: w.ids[0], personId: 21 });
         expect(out.deadlineDay).toBe(DAY + 30);
-        expect(w.house.youngerSonDeadlineDay).toBe(DAY + 30);
+        expect(w.house.pendingDeparture).toEqual({
+          villageId: w.ids[0],
+          sonId: 21,
+          deathDay: DAY,
+          deadlineDay: DAY + 30,
+        });
       } else {
         expect(out.kind).toBe('successor');
-        expect(w.house.youngerSonDeadlineDay).toBeNull();
+        expect(w.house.pendingDeparture).toBeNull();
       }
       expect(w.house.lord).toEqual(out.kind === 'alive' || out.kind === 'none' ? null : out.lord);
       expect(w.house.successionDay).toBe(DAY);
