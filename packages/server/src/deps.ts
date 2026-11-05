@@ -3,6 +3,7 @@ import {
   createLockPool,
   createPlayerLock,
   createHouseRepository,
+  createWorldDirectory,
   createSettlementRepository,
   createVillageRepository,
   createWorldQueue,
@@ -14,6 +15,7 @@ import type {
   Pause,
   PlayerLock,
   HouseRepository,
+  WorldDirectory,
   SettlementRepository,
   VillageRepository,
   WorldQueue,
@@ -59,6 +61,8 @@ export function createPlayerLocks(
 export interface GameDeps {
   settlements: SettlementRepository;
   houses: HouseRepository;
+  /** Adresář rodů – veřejný rodokmen cizích rodů (`housesNear`). */
+  worldDirectory: WorldDirectory;
   /** Skutečný čas (založení a konec rodu). */
   now: () => Date;
   villages: VillageRepository;
@@ -84,6 +88,7 @@ export function createGameDeps(
   return {
     settlements: createSettlementRepository(db),
     houses: createHouseRepository(db),
+    worldDirectory: createWorldDirectory(db),
     now: () => new Date(),
     villages: cachedVillages(createVillageRepository(db)),
     landscapes: options.landscapes,

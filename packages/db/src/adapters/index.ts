@@ -9,4 +9,5 @@ export { createHouseRepository } from './house-repository';
 export { createSettlementRepository } from './settlement-repository';
 export { createTimeOffsetRepository } from './time-offset-repository';
 export { createVillageRepository } from './village-repository';
+export { createWorldDirectory } from './world-directory';
 export { createWorldQueue } from './world-queue';
