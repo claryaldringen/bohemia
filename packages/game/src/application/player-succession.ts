@@ -67,9 +67,13 @@ export async function resolvePlayerSuccession(
   if (home.state.people.some((p) => p.id === lord.personId)) return { kind: 'alive' };
 
   const record = home.state.dynasty?.lords.find((l) => l.id === lord.personId);
-  // vojvoda má den konce vlády (= den smrti) v kronice rodu; jiný muž (po losu na mladšího syna)
-  // jen dnešek – zápis `succession_day` ho stejně zajistí
-  const deathDay = record?.toDay ?? input.today;
+  // vojvoda má den konce vlády (= den smrti) v kronice rodu; jiný muž rodu (mladší syn po losu) má
+  // den smrti v kronice vsi (`death.personId`). Záložní `today` jen pro starší stavy bez `personId`
+  // (tam los závisí na době dopočtu, nic lepšího není) – zápis `succession_day` ho stejně zajistí.
+  const deathEntry = home.state.chronicle.find(
+    (e) => e.kind === 'death' && e.personId === lord.personId,
+  );
+  const deathDay = record?.toDay ?? deathEntry?.day ?? input.today;
   const candidates = playerLotCandidates(home.state, deathDay, lord.personId);
 
   let chosen: { ref: PersonRef; kind: PlayerSuccessionOutcome['kind'] } | null = null;

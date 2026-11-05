@@ -72,6 +72,8 @@ export type ChronicleEvent = { day: number } & (
       /** Zvěř, na jejímž lovu muž zahynul (`cause: 'hunt'`). */
       prey?: 'boar' | 'bear';
       name?: string;
+      /** Id zemřelého muže rodu (vždy spolu s `name`) – den smrti pro los nástupnictví hráče. */
+      personId?: number;
     }
   /** Zemřel poslední člověk – ves vymřela (population.md – Hlad a vymření). */
   | { kind: 'village-extinct' }

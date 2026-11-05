@@ -147,6 +147,32 @@ describe('resolvePlayerSuccession', () => {
     }
   });
 
+  it('los po smrti mladšího syna bere den smrti z kroniky, ne z doby dopočtu', async () => {
+    const specs: KinSpec[] = [
+      { id: 11, age: 50, sex: 'female' },
+      { id: 20, age: 40, sex: 'male', father: 10, mother: 11 },
+      { id: 23, age: 25, sex: 'male', father: 10, mother: 11 },
+    ];
+    for (let seed = 1; seed <= 15; seed++) {
+      const results: string[] = [];
+      for (const delay of [11, 20, 40]) {
+        const state = afterDeath(specs, seed);
+        state.chronicle.push({
+          day: DAY + 10,
+          kind: 'death',
+          group: 'adult',
+          name: 'Mladší',
+          personId: 21,
+        });
+        const w = await world([state]);
+        await w.deps.houses.setLord(w.house.id, { villageId: w.ids[0]!, personId: 21 });
+        results.push(JSON.stringify(await resolve(w, DAY + delay)));
+        expect(w.house.successionDay).toBe(DAY + 10);
+      }
+      expect(new Set(results).size).toBe(1);
+    }
+  });
+
   it('bez nástupce: senior rodu, je-li vojvodou', async () => {
     const w = await world([afterDeath([SONS[0]!]), ruled(50, 50), ruled(60, 35)]);
     expect(await resolve(w)).toEqual({
