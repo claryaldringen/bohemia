@@ -39,7 +39,14 @@ export interface PublicHouse {
   seat: GridCell;
   /** Vzdálenost sídelních sídel (políčka mřížky). */
   distance: number;
-  men: { name: string | null; age: number; villageName: string }[];
+  men: {
+    name: string | null;
+    age: number;
+    villageName: string;
+    /** Ves a osoba v jejím stavu – v panelu vlastního rodu klik přepne na ves, stolec a praporec. */
+    villageId: string;
+    personId: number;
+  }[];
   /** Počet aktivních vsí rodu. */
   villages: number;
 }
@@ -67,6 +74,8 @@ export function publicHouseOf(entry: DirectoryEntry, center: GridCell, today: nu
           name: m.name ?? null,
           age: ageYears(m.bornDay, today),
           villageName: d.name,
+          villageId: d.id,
+          personId: m.id,
         }))
         .filter((m) => m.age >= PUBLIC_MAN_MIN_AGE),
     ),

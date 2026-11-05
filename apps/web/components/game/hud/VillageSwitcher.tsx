@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { VILLAGE_NAME_MAX_LENGTH, checkVillageName } from '@bohemia/game';
 import type { VillageListItem } from '@/lib/village-list';
 import { StewardBadge, StewardToggle } from './StewardToggle';
+import { useRightDenied } from './rights';
 import { Tooltip } from './Tooltip';
 
 // Jméno vsi v horní liště je přepínač vsí (migration.md – Víc vsí jednoho hráče): klik otevře
@@ -73,6 +74,18 @@ export function VillageList({
                   />
                 </Tooltip>
               )}
+              {village.senior && (
+                <Tooltip content="Senior rodu" placement="below">
+                  <img
+                    src="/icons/house/throne.svg"
+                    alt="Senior rodu"
+                    data-testid="senior-throne"
+                    width={16}
+                    height={16}
+                    className="h-4 w-4 shrink-0"
+                  />
+                </Tooltip>
+              )}
               {village.travelling && (
                 <span className="text-xs text-[#bfa77a] italic">na cestě</span>
               )}
@@ -87,6 +100,7 @@ export function VillageList({
                 on={village.steward === true}
                 onToggle={(on) => onSetSteward(village.id, on)}
                 testId="village-steward-toggle"
+                gated={current}
               />
             )}
           </li>
@@ -176,6 +190,7 @@ export function VillageSwitcher({
   const [open, setOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const root = useRef<HTMLDivElement>(null);
+  const renameDenied = useRightDenied('steward');
 
   // klik mimo přepínač a Esc seznam zavřou
   useEffect(() => {
@@ -210,7 +225,7 @@ export function VillageSwitcher({
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
-        onDoubleClick={startRename}
+        onDoubleClick={renameDenied === null ? startRename : undefined}
         className="flex max-w-56 items-center gap-1 rounded px-2 py-0.5 font-serif text-lg text-[#f3dfb0] hover:text-[#ffe9b8] focus-visible:outline-2 focus-visible:outline-[#f3cf86] aria-expanded:text-[#ffe9b8]"
       >
         <span className="truncate">{name}</span>
@@ -224,11 +239,12 @@ export function VillageSwitcher({
         </svg>
       </button>
       {steward && <StewardBadge />}
-      <Tooltip content="Přejmenovat" placement="below">
+      <Tooltip content="Přejmenovat" denied={renameDenied} placement="below">
         <button
           type="button"
           data-testid="village-rename"
           aria-label="Přejmenovat ves"
+          disabled={renameDenied !== null}
           onClick={startRename}
           className="flex h-7 w-7 items-center justify-center rounded text-[#bfa77a] hover:bg-white/5 hover:text-[#ffe9b8] focus-visible:outline-2 focus-visible:outline-[#f3cf86]"
         >

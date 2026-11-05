@@ -44,6 +44,8 @@ export interface VillageListItem {
   steward?: true;
   /** Je tu hráčův muž – vlastní ves hráče (seniorate.md – Hráčův muž a vlastní ves); jinak bez údaje. */
   playerLord?: true;
+  /** Je tu senior rodu – stolec (seniorate.md – Seniorát); jinak bez údaje. */
+  senior?: true;
 }
 
 /**
@@ -56,10 +58,16 @@ export function villageListItem(
   day: number,
   /** Ves hráčova muže (`DynastyView.playerLord.villageId`). */
   playerLordVillageId?: string,
+  /** Ves seniora rodu (`House.senior.villageId`). */
+  seniorVillageId?: string,
 ): VillageListItem {
   const digest = isFullVillage(village) ? villageDigest(village.state) : village.digest;
   const item = listItemOf(village, digest, day);
-  return playerLordVillageId === village.id ? { ...item, playerLord: true as const } : item;
+  return {
+    ...item,
+    ...(playerLordVillageId === village.id ? { playerLord: true as const } : {}),
+    ...(seniorVillageId === village.id ? { senior: true as const } : {}),
+  };
 }
 
 function listItemOf(

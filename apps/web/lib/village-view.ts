@@ -1,4 +1,5 @@
 import {
+  ALL_RIGHTS,
   PEN_BY_SPECIES,
   HORSE_PEN_NO_SURPLUS,
   horsePenPayment,
@@ -50,6 +51,7 @@ import {
   VillagePen,
   VillagePurchase,
   VillageView,
+  VillageRightsView,
   boughtProducts,
 } from './village-view-types';
 import { SceneVillage } from './village-view-scene-types';
@@ -297,6 +299,8 @@ export interface VillageViewContext {
   ownMaps?: Partial<Record<Direction8, string>>;
   /** Proč z téhle mapy na novou mapu odejít nejde (mapa bez polohy v mřížce), nebo null. */
   mapsBlocked?: string | null;
+  /** Práva hráče v téhle vsi (`villageAccess`); bez nich všechna (vlastní ves, dev náhled). */
+  rights?: VillageRightsView;
 }
 
 /**
@@ -439,6 +443,7 @@ export function buildVillageView(
     abandoned: villageAbandonment(state),
     journey: journeyView(state, day),
     leave: leaveOptions(state, landscape, context.ownMaps ?? {}, context.mapsBlocked ?? null),
+    rights: context.rights ?? { allowed: [...ALL_RIGHTS], reason: null },
     gameOver,
     ...(gameOver && context.lineEnded ? { lineEnded: context.lineEnded } : {}),
     cemeteries: summary.cemeteries.map((c) => {

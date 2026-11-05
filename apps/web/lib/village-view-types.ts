@@ -1,5 +1,6 @@
 // Typy pohledu na ves (DTO panelu) – nabídka staveb, panel, řemesla, pole, sady.
 
+import type { VillageRight } from '@bohemia/game';
 import type { ViewPieces } from './view-pieces';
 import type { DwellingResident } from './person-view';
 import { SceneVillage } from './village-view-scene-types';
@@ -377,6 +378,12 @@ export interface VillageCraftSource {
   trail: boolean;
 }
 
+/** Práva hráče ve vsi pro rozhraní (`VillageRights` z jádra bez množiny – jde přes JSON). */
+export interface VillageRightsView {
+  allowed: VillageRight[];
+  reason: string | null;
+}
+
 export interface VillageView {
   /** Id vsi – akce i dotazy jdou podle něj (migration.md – Víc vsí jednoho hráče). */
   id: string;
@@ -399,6 +406,12 @@ export interface VillageView {
    * Upozornění z jiných vsí se ukážou krátkým řádkem se jménem vsi.
    */
   villages: VillageListItem[];
+  /**
+   * Co smí hráč v téhle vsi (seniorate.md – Co hráč vidí): povolená práva a důvod, proč ostatní
+   * chybí („Rozhoduje Bořivoj.“ / „Ves vede Ctibor.“). Počítá server (`villageAccess`), klient
+   * podle toho jen zašedne ovládací prvky.
+   */
+  rights: VillageRightsView;
   dayIndex: number;
   people: { children: number; adults: number; elders: number };
   households: {

@@ -9,7 +9,13 @@ const house = (houseId: string, lordName: string | null, ages: number[]): Public
   lordName,
   seat: { x: 1, y: 2 },
   distance: 3,
-  men: ages.map((age, i) => ({ name: i === 0 ? 'Boleslav' : null, age, villageName: 'Libice' })),
+  men: ages.map((age, i) => ({
+    name: i === 0 ? 'Boleslav' : null,
+    age,
+    villageName: 'Libice',
+    villageId: 'v',
+    personId: i,
+  })),
   villages: 1,
 });
 
@@ -20,9 +26,12 @@ describe('houseView', () => {
       own: {
         houseId: 'h0',
         men: [
-          { name: 'Jan', age: 34, villageName: 'Ves' },
-          { name: null, age: 62, villageName: 'Ves' },
+          { name: 'Jan', age: 34, villageName: 'Ves', villageId: 'v-1', personId: 1 },
+          { name: null, age: 62, villageName: 'Ves', villageId: 'v-2', personId: 2 },
         ],
+        senior: { villageId: 'v-2', personId: 2 },
+        lord: { villageId: 'v-1', personId: 1 },
+        successionCredits: 3,
       },
       lords: [house('h1', 'Boleslav', [40, 17])],
       vassals: [],
@@ -34,10 +43,16 @@ describe('houseView', () => {
       freeInviteSlots: 2,
     };
     const view = houseView(data, NOW);
+    // nejstarší první, stolec u seniora, praporec u hráčova muže, pečeť s počtem
     expect(view.own.map((m) => [m.icon, m.label])).toEqual([
-      ['man', 'Jan, 34 let'],
-      ['elder', '62 let'],
+      ['elder', '62 let – Ves'],
+      ['man', 'Jan, 34 let – Ves'],
     ]);
+    expect(view.own.map((m) => [m.villageId, m.senior, m.lord])).toEqual([
+      ['v-2', true, false],
+      ['v-1', false, true],
+    ]);
+    expect(view.successionCredits).toBe(3);
     expect(view.lords[0]).toMatchObject({ men: 2, label: 'Boleslav – 2 muži', icon: 'man' });
     expect(view.others[0]).toMatchObject({ men: 0, label: 'Rod bez jména – 0 mužů' });
     expect(view.invites[0]).toMatchObject({

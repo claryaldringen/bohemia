@@ -19,6 +19,7 @@ import {
 } from '@/lib/trade-quote';
 import { dearthLabel } from '@/lib/disasters-view';
 import { formatInteger } from '@/lib/village-format';
+import { useRightDenied } from './rights';
 import { Tooltip } from './Tooltip';
 
 // Panel obchodu ve dvorci (trade.md – Obchod, Rozhraní): soused (jméno, směr) a bilance hodnoty
@@ -488,6 +489,7 @@ export function NeighbourTrade({
   /** Počáteční výběr (testy). */
   initial?: { give: TradeGoods; get: TradeGoods; people?: PreviewPeople };
 }): ReactElement {
+  const sendDenied = useRightDenied('trade');
   const [selection, setSelection] = useState<TradeSelection>(() =>
     initial
       ? clampSelection(neighbour, {
@@ -658,6 +660,7 @@ export function NeighbourTrade({
         <span className="ml-auto">
           <Tooltip
             placement="above-left"
+            denied={sendDenied}
             content={
               <span className="flex flex-col gap-0.5">
                 <span>Vyslat výpravu</span>
@@ -673,7 +676,7 @@ export function NeighbourTrade({
               type="button"
               data-testid="trade-send"
               aria-label="Vyslat výpravu"
-              disabled={preview.blocked !== null || busy || !onSend}
+              disabled={preview.blocked !== null || busy || !onSend || sendDenied !== null}
               aria-busy={busy}
               onClick={() => onSend?.(give, get, people)}
               className="hud-inset h-9 w-9 overflow-hidden rounded disabled:cursor-not-allowed disabled:opacity-45 disabled:grayscale"

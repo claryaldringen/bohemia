@@ -40,7 +40,9 @@ import {
   type Settlement,
   type TimeOffsetRepository,
   type TimeSkip,
+  type VillageAccess,
   type VillageRight,
+  villageAccess,
 } from '@bohemia/game';
 import { ownMapsAround } from './departure-view';
 import { getDatabase, getPlayerLock } from './db';
@@ -149,6 +151,19 @@ export function requireVillageRight(
   return requireRight(
     { ...playerVillagesDeps(), houses: createHouseRepository(db) },
     { playerId, villageId, right, today },
+  );
+}
+
+/** Práva hráče ve vsi `villageId` a senior rodu (rights.ts); null, když ves hráči nepatří. */
+export function villageAccessForPlayer(
+  playerId: string,
+  villageId: string,
+  today: number,
+): Promise<VillageAccess | null> {
+  const db = getDatabase();
+  return villageAccess(
+    { ...playerVillagesDeps(), houses: createHouseRepository(db) },
+    { playerId, villageId, today },
   );
 }
 

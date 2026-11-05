@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type ReactElement } from 'react';
+import { useRightDenied } from './rights';
 import { Tooltip } from './Tooltip';
 
 // Správce vsi v rozhraní (steward.md – Co hráč vidí): přepínač (ikona klíčů, zapnutý svítí,
@@ -16,22 +17,30 @@ export function StewardToggle({
   on,
   onToggle,
   testId = 'steward-toggle',
+  gated = true,
 }: {
   on: boolean;
   /** Zapne / vypne správce (server action) – hotovo, až se vrátí. */
   onToggle?: ((on: boolean) => Promise<unknown>) | undefined;
   testId?: string;
+  /**
+   * Přepínač patří zobrazené vsi, takže ho zašedne chybějící právo `steward` (seniorate.md); ves
+   * v seznamu vsí jiná než zobrazená právo nezná – tam rozhodne server.
+   */
+  gated?: boolean;
 }): ReactElement {
   const [pending, setPending] = useState(false);
+  const rightDenied = useRightDenied('steward');
+  const denied = gated ? rightDenied : null;
   return (
-    <Tooltip content="Správce" placement="above">
+    <Tooltip content="Správce" denied={denied} placement="above">
       <button
         type="button"
         data-testid={testId}
         data-hud-block
         aria-label="Správce"
         aria-pressed={on}
-        disabled={pending || !onToggle}
+        disabled={pending || !onToggle || denied !== null}
         onClick={() => {
           if (!onToggle) return;
           setPending(true);

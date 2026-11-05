@@ -616,3 +616,30 @@ Návrh: [disasters.md – Co hráč vidí](../design/disasters.md). Jádro a č�
 - Testy: `hud/__tests__/HousePanel.behavior.test.tsx`, `lib/__tests__/house-view.test.ts`;
   e2e `e2e/multiplayer.spec.ts` (A vydá kód → B se zaregistruje s kódem → vazalství a upozornění →
   C vidí oba v seznamu hráčů).
+
+## Seniorát v rozhraní (úloha 2.3, `hud/rights.tsx`)
+
+- **Práva z jádra:** `VillageView.rights = { allowed, reason }` (`VillageRightsView`) skládá `viewOf`
+  v `lib/village.ts` z `villageAccess` (`packages/game/src/application/rights.ts`, stejné jako
+  `requireRight` v akcích; `villageAccessForPlayer` v `lib/game.ts`). Web nic nerozhoduje, jen
+  zobrazuje. `reason` je „Rozhoduje Bořivoj.“ (nesenior) / „Ves vede Ctibor.“ (senior v cizí vsi);
+  `buildVillageView` bez `context.rights` dá všechna práva (dev náhledy, testy).
+- **Zašednutí:** `RightsProvider` v `VillageGame` (hodnota `view.rights`), `useRightDenied(right)`
+  vrací důvod, nebo null. `Tooltip` má prop `denied` – místo obsahu ukáže červený důvod
+  (`data-testid="rights-reason"`), tlačítko dostane `disabled`. Pokrytá práva (`ACTION_RIGHTS`):
+  `build` – `BuildGrid` (i zkratky – `startBuild`), zrušení stavby, vylepšení cest / vozová cesta /
+  jabloně (`selection/roads.tsx`), zemská stezka (`TrailCompass`); `evacuate` – Přestěhovat
+  a Odejít (`RelocationControls`); `sendSons` – odchod se synem (`LeaveCompass right`);
+  `nameSons` – `LineNamePanel`; `steward` – `StewardToggle` (jen zobrazená ves; ves v seznamu
+  jiná než zobrazená právo nezná, rozhodne server), přejmenování vsi, lov navíc; `trade` – Vyslat
+  výpravu (`NeighbourTrade`). Pohled na ves a výběr zůstávají – dívat se smí každý hráč rodu.
+- **Stolec:** `public/icons/house/throne.svg` (vlastní kresba, CC0). `VillageListItem.senior`
+  (`villageListItem(…, seniorVillageId)` z `House.senior`) → stolec u vsi seniora v `VillageList`
+  (popisek „Senior rodu“) vedle praporce „Tvůj muž“.
+- **Panel rodu:** `PanelMan` nese `villageId` a `personId`; `housePanel` vrací `own.senior`,
+  `own.lord` a `own.successionCredits` (`SuccessionCreditRepository.unused`). `houseView` řadí muže
+  od nejstaršího, `PortraitView.senior` / `.lord` kreslí stolec / praporec na portrétu, popisek
+  „Jan, 34 let – Ves“. Klik na portrét → `onSelectVillage` → `switchVillage`. Pečeť s počtem
+  (`house-succession-credits`, popisek „Nástupnictví bez losu“) jen při počtu > 0.
+- Testy: `lib/__tests__/house-view.test.ts`, `hud/__tests__/HousePanel.behavior.test.tsx`; e2e
+  `village.spec.ts` – „seniorát – v cizí vsi rodu stavební lišta zašedne s důvodem…“.

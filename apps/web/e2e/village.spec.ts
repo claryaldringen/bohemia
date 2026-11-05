@@ -1065,6 +1065,54 @@ test('druhá ves na jiné mapě – jméno vsi v liště přepíná mezi vsemi',
   await expect(name).toHaveText(first, { timeout: 30_000 });
 });
 
+test('seniorát – v cizí vsi rodu stavební lišta zašedne s důvodem, senior ji smí použít', async ({
+  page,
+}) => {
+  const { seat: s } = await newPlayer(page, 'senior');
+  await found(page, villageSpots(s.landscape).dwelling);
+  const [one] = await query<{ id: string }>('SELECT id FROM village WHERE settlement_id = $1', [
+    s.settlementId,
+  ]);
+  // Hráčovým mužem je vojvoda Budče; v původní vsi (cizí ves rodu) vede ves jiný muž a ten je
+  // starší – senior rodu, takže hráč jen sleduje.
+  const two = await villageOnNextMap(s.settlementId, 'Budeč', { own: true });
+  const older = async (villageId: string, years: number): Promise<void> => {
+    await query(
+      `UPDATE village SET version = version + 1, state = jsonb_set(state, '{people}',
+         (SELECT jsonb_agg(CASE WHEN (p->>'id')::int = (state->'dynasty'->>'lordId')::int
+            THEN jsonb_set(p, '{bornDay}', to_jsonb((p->>'bornDay')::int - $2::int)) ELSE p END)
+            FROM jsonb_array_elements(state->'people') p))
+       WHERE id = $1`,
+      [villageId, years * 365],
+    );
+  };
+  await older(one!.id, 20);
+  await page.reload();
+  await expect(readyScene(page)).toBeVisible({ timeout: 60_000 });
+  const grid = page.getByTestId('build-grid');
+  // pole jde stavět kdykoli (jen právo rozhoduje)
+  const first = grid.getByRole('button', { name: 'Pole' });
+  await expect(first).toBeDisabled({ timeout: 30_000 });
+  await first.hover({ force: true });
+  await expect(grid.getByTestId('rights-reason').first()).toHaveText(/^Rozhoduje .+\.$/);
+
+  // Stolec u seniora v přepínači vsí a v panelu rodu.
+  await page.getByTestId('village-name').click();
+  const list = page.getByTestId('village-list');
+  await expect(
+    list.locator(`[data-village="${one!.id}"] [data-testid="senior-throne"]`),
+  ).toBeVisible();
+  await expect(
+    list.locator(`[data-village="${two.id}"] [data-testid="player-lord-banner"]`),
+  ).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  // Hráčův muž zestárne – je nejstarší, takže smí v cizí vsi rodu stavět (ves vede jiný muž).
+  await older(two.id, 40);
+  await pollVillage(page);
+  await expect(first).toBeEnabled({ timeout: 30_000 });
+});
+
 test('ves postaví ve dvorci zemskou stezku a pošle po ní výpravu k sousedovi', async ({ page }) => {
   const { seat: s } = await newPlayer(page, 'obchod');
   const spots = villageSpots(s.landscape);

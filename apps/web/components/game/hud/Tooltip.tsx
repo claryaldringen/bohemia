@@ -18,6 +18,7 @@ export function Tooltip({
   placement = 'below',
   block = false,
   off = false,
+  denied = null,
   children,
 }: {
   content: ReactNode;
@@ -26,6 +27,8 @@ export function Tooltip({
   block?: boolean;
   /** Popisek se neukáže – např. tlačítko s otevřenou nabídkou by jím nabídku zakrylo. */
   off?: boolean;
+  /** Důvod, proč ovládací prvek nejde (chybí právo – seniorate.md); místo obsahu se ukáže červeně. */
+  denied?: string | null;
   children: ReactNode;
 }): ReactElement {
   return (
@@ -36,7 +39,13 @@ export function Tooltip({
           role="tooltip"
           className={`hud-tooltip pointer-events-none absolute z-40 hidden w-max max-w-64 px-2 whitespace-normal py-1 text-xs leading-snug group-focus-within/tooltip:block group-hover/tooltip:block ${PLACEMENT[placement]}`}
         >
-          {content}
+          {denied === null ? (
+            content
+          ) : (
+            <span data-testid="rights-reason" className="font-semibold text-red-400">
+              {denied}
+            </span>
+          )}
         </span>
       )}
     </span>

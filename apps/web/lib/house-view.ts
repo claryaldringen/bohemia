@@ -1,7 +1,12 @@
 // Pohled na panel „Rod a vazalové“ (docs/design/vassalage.md – Co hráč vidí): z dat use-casu
 // `housePanel` složí portréty, štíty a dny pro rozhraní. Čistý modul – smí do prohlížeče. Nese jen
 // veřejné údaje o cizích rodech (jména, věky, počty mužů); žádná id účtů, zásoby ani výzbroj.
-import { formatInviteCode, type HousePanelData, type PublicHouse } from '@bohemia/game';
+import {
+  formatInviteCode,
+  type HousePanelData,
+  type PersonRef,
+  type PublicHouse,
+} from '@bohemia/game';
 import { personPortrait, type PersonPortraitIcon } from './person-view';
 import { plural } from './village-format';
 
@@ -12,8 +17,14 @@ export interface PortraitView {
   icon: PersonPortraitIcon;
   name: string | null;
   age: number;
-  /** Popisek: „Jan, 34 let“. */
+  /** Popisek: „Jan, 34 let“ (a ves, ve které žije). */
   label: string;
+  /** Ves muže – klik na portrét přepne na ni. */
+  villageId: string;
+  /** Senior rodu – stolec. */
+  senior: boolean;
+  /** Hráčův muž – praporec. */
+  lord: boolean;
 }
 
 /** Odkaz na cizí rod: hlava rodu (portrét, jméno), počet mužů (štít) a vzdálenost. */
@@ -48,6 +59,8 @@ export interface HouseView {
   /** Hráč má živý rod. */
   hasHouse: boolean;
   own: PortraitView[];
+  /** Nevyužitá nástupnictví bez losu – pečeť s počtem (0 = bez pečeti). */
+  successionCredits: number;
   lords: HouseLinkView[];
   vassals: HouseLinkView[];
   others: HouseLinkView[];
@@ -62,13 +75,28 @@ function years(age: number): string {
   return `${age} ${plural(age, 'rok', 'roky', 'let')}`;
 }
 
-function portraitOf(man: { name: string | null; age: number }): PortraitView {
+function portraitOf(
+  man: {
+    name: string | null;
+    age: number;
+    villageName: string;
+    villageId: string;
+    personId: number;
+  },
+  marks: { senior: PersonRef | null; lord: PersonRef | null },
+): PortraitView {
   const icon = personPortrait({ age: man.age, sex: 'male' });
+  const is = (ref: PersonRef | null): boolean =>
+    ref !== null && ref.villageId === man.villageId && ref.personId === man.personId;
+  const who = man.name !== null ? `${man.name}, ${years(man.age)}` : years(man.age);
   return {
     icon,
     name: man.name,
     age: man.age,
-    label: man.name !== null ? `${man.name}, ${years(man.age)}` : years(man.age),
+    label: `${who} – ${man.villageName}`,
+    villageId: man.villageId,
+    senior: is(marks.senior),
+    lord: is(marks.lord),
   };
 }
 
@@ -95,7 +123,13 @@ export function houseLinkOf(house: PublicHouse): HouseLinkView {
 export function houseView(data: HousePanelData, nowMs: number): HouseView {
   return {
     hasHouse: data.hasHouse,
-    own: (data.own?.men ?? []).map(portraitOf),
+    // nejstarší první (seniorát je podle věku)
+    own: [...(data.own?.men ?? [])]
+      .sort((a, b) => b.age - a.age)
+      .map((m) =>
+        portraitOf(m, { senior: data.own?.senior ?? null, lord: data.own?.lord ?? null }),
+      ),
+    successionCredits: data.own?.successionCredits ?? 0,
     lords: data.lords.map(houseLinkOf),
     vassals: data.vassals.map(houseLinkOf),
     others: data.others.map(houseLinkOf),
