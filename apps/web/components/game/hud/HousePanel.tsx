@@ -58,12 +58,51 @@ function Row({
   );
 }
 
-function Man({ man }: { man: PortraitView }): ReactElement {
+/**
+ * Muž rodu: portrét (klik přepne na jeho ves), u seniora stolec, u hráčova muže praporec
+ * (seniorate.md – Co hráč vidí).
+ */
+function Man({
+  man,
+  onSelect,
+}: {
+  man: PortraitView;
+  onSelect: (villageId: string) => void;
+}): ReactElement {
   return (
     <Tooltip content={man.label}>
-      <span tabIndex={0} aria-label={man.label} data-testid="house-own-man">
+      <button
+        type="button"
+        aria-label={man.label}
+        data-testid="house-own-man"
+        data-village={man.villageId}
+        data-senior={man.senior || undefined}
+        data-lord={man.lord || undefined}
+        onClick={() => onSelect(man.villageId)}
+        className="relative inline-flex rounded-sm focus-visible:outline-2 focus-visible:outline-[#f3cf86]"
+      >
         <Portrait icon={man.icon} />
-      </span>
+        {man.senior && (
+          <img
+            src={`${ICON}/throne.svg`}
+            alt=""
+            data-testid="house-senior-mark"
+            width={18}
+            height={18}
+            className="absolute -top-1.5 -right-1.5 h-[18px] w-[18px]"
+          />
+        )}
+        {man.lord && (
+          <img
+            src={`${ICON}/banner.svg`}
+            alt=""
+            data-testid="house-lord-mark"
+            width={18}
+            height={18}
+            className="absolute -bottom-1.5 -left-1.5 h-[18px] w-[18px]"
+          />
+        )}
+      </button>
     </Tooltip>
   );
 }
@@ -196,6 +235,7 @@ export function HousePanel({
   onIssue,
   onRevoke,
   onClose,
+  onSelectVillage,
 }: {
   view: HouseView | null;
   error: string | null;
@@ -204,6 +244,8 @@ export function HousePanel({
   onIssue: () => Promise<unknown>;
   onRevoke: (code: string) => Promise<unknown>;
   onClose: () => void;
+  /** Klik na portrét muže rodu přepne pohled na jeho ves. */
+  onSelectVillage?: (villageId: string) => void;
 }): ReactElement {
   const ref = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
@@ -235,8 +277,23 @@ export function HousePanel({
         <>
           <Row label="Rod" testId="house-own" marker={<Portrait icon="people" size={22} />}>
             {view.own.map((m, i) => (
-              <Man key={i} man={m} />
+              <Man key={i} man={m} onSelect={(id) => onSelectVillage?.(id)} />
             ))}
+            {view.successionCredits > 0 && (
+              <Tooltip content="Nástupnictví bez losu">
+                <span
+                  tabIndex={0}
+                  aria-label="Nástupnictví bez losu"
+                  data-testid="house-succession-credits"
+                  className="ml-auto inline-flex items-center gap-0.5"
+                >
+                  <Icon name="seal" size={24} />
+                  <span className="text-sm font-semibold tabular-nums">
+                    {view.successionCredits}
+                  </span>
+                </span>
+              </Tooltip>
+            )}
           </Row>
           <Row label="Páni" testId="house-lords" marker={<Icon name="banner" />}>
             {view.lords.length === 0 ? (

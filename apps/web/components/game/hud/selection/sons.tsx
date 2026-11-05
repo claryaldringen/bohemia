@@ -82,6 +82,7 @@ export function SonsRow({
       {chosen?.leave && (
         <LeaveCompass
           leave={chosen.leave}
+          right="sendSons"
           onLeave={onLeaveSon ? (target) => onLeaveSon(target, chosen.id) : undefined}
         />
       )}

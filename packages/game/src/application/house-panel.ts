@@ -1,7 +1,8 @@
 import { INVITES, isInviteUnused } from '../domain/world';
 import type { ActivityRepository } from './activity';
-import type { HouseRepository } from './houses';
+import type { HouseRepository, PersonRef } from './houses';
 import type { InviteRepository } from './invites';
+import type { SuccessionCreditRepository } from './succession-credits';
 import type { SettlementRepository } from './settlements';
 import type { VassalageRepository } from './vassalages';
 import { publicHouseOf, type PublicHouse, type WorldDirectory } from './world-directory';
@@ -20,6 +21,8 @@ export interface PanelMan {
   name: string | null;
   age: number;
   villageName: string;
+  villageId: string;
+  personId: number;
 }
 
 /** Vydaná pozvánka: nevyužitá (platí do `validUntil`), nebo využitá pozvaným rodem. */
@@ -39,7 +42,15 @@ export interface HousePanelData {
   /** Hráč má živý rod (bez něj je panel prázdný). */
   hasHouse: boolean;
   /** Vlastní rod: id a muži od 16 let. */
-  own: { houseId: string; men: PanelMan[] } | null;
+  own: {
+    houseId: string;
+    men: PanelMan[];
+    /** Senior rodu (stolec) a hráčův muž (praporec) – naposledy zapsaní, viz seniorate.md. */
+    senior: PersonRef | null;
+    lord: PersonRef | null;
+    /** Nevyužitá nástupnictví bez losu (pečeť s počtem). */
+    successionCredits: number;
+  } | null;
   lords: PublicHouse[];
   vassals: PublicHouse[];
   /** Cizí hráči podle vzdálenosti; pány a vazaly neopakují. */
@@ -54,6 +65,7 @@ export interface HousePanelDeps {
   worldDirectory: WorldDirectory;
   vassalages: VassalageRepository;
   invites: InviteRepository;
+  successionCredits: SuccessionCreditRepository;
   activity: ActivityRepository;
   now: () => Date;
 }
@@ -148,7 +160,13 @@ export async function housePanel(
 
   return {
     hasHouse: true,
-    own: { houseId: own.id, men: ownView?.men ?? [] },
+    own: {
+      houseId: own.id,
+      men: ownView?.men ?? [],
+      senior: own.senior,
+      lord: own.lord,
+      successionCredits: await deps.successionCredits.unused(input.playerId),
+    },
     lords: lordIds.map(publicOf),
     vassals: vassalIds.map(publicOf),
     others: nearby,

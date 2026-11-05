@@ -1,7 +1,12 @@
 'use client';
 
 import { useRef, useState, type ReactElement } from 'react';
-import { CART_NAMES, type BuildableDwellingType, type Direction8 } from '@bohemia/game';
+import {
+  CART_NAMES,
+  type BuildableDwellingType,
+  type Direction8,
+  type VillageRight,
+} from '@bohemia/game';
 import { useDismiss } from '@/hooks/use-dismiss';
 import type { LeaveDirection, VillageJourneyView } from '@/lib/departure-view';
 import { RELOCATION_TYPES } from '@/lib/relocation-view';
@@ -10,6 +15,7 @@ import { DIRECTION_NAMES } from '@/lib/trade-names';
 import { formatInteger, formatManDays, formatPercent, plural } from '@/lib/village-format';
 import { DWELLING_NAMES, type BuildOption } from '@/lib/village-view';
 import { RESOURCE_ICONS } from './BuildGrid';
+import { useRightDenied } from './rights';
 import { Tooltip } from './Tooltip';
 
 // Přestěhování a odchod v panelu výběru (migration.md): tlačítka Přestěhovat (nový dům – zemnice,
@@ -72,6 +78,7 @@ export function RelocateButtons({
   households: number;
   onRelocate?: (type: BuildableDwellingType) => void;
 }): ReactElement {
+  const denied = useRightDenied('evacuate');
   return (
     <div role="group" aria-label="Přestěhovat" className="flex items-center gap-1">
       {RELOCATION_TYPES.map((type) => {
@@ -79,6 +86,7 @@ export function RelocateButtons({
         return (
           <Tooltip
             key={type}
+            denied={denied}
             content={<RelocateTooltip type={type} option={option} households={households} />}
             placement="above"
           >
@@ -86,7 +94,7 @@ export function RelocateButtons({
               type="button"
               data-testid={`relocate-${type}`}
               aria-label={`Přestěhovat – ${DWELLING_NAMES[type].nominative.toLowerCase()}`}
-              disabled={!option.affordable || !onRelocate}
+              disabled={!option.affordable || !onRelocate || denied !== null}
               onClick={() => onRelocate?.(type)}
               className="hud-icon-button h-9 w-9"
             >
@@ -184,10 +192,14 @@ function LeaveTooltip({
 export function LeaveCompass({
   leave,
   onLeave,
+  right = 'evacuate',
 }: {
   leave: SelectionLeave;
+  /** Právo, které odchod vyžaduje (vystěhování vsi, nebo odchod se synem – rights.ts). */
+  right?: VillageRight;
   onLeave?: (direction: Direction8, households: readonly number[]) => void;
 }): ReactElement {
+  const denied = useRightDenied(right);
   return (
     <div
       data-testid="leave-compass"
@@ -204,13 +216,14 @@ export function LeaveCompass({
           <Tooltip
             key={target}
             placement="above"
+            denied={denied}
             content={<LeaveTooltip leave={leave} target={option} />}
           >
             <button
               type="button"
               data-testid={`leave-${target}`}
               aria-label={`Odejít na ${name}`}
-              disabled={option.blocked !== null || !onLeave}
+              disabled={option.blocked !== null || !onLeave || denied !== null}
               onClick={() => onLeave?.(target, leave.households)}
               className="hud-icon-button h-9 w-9 text-lg font-bold text-[#ecdfc4]"
             >
@@ -317,13 +330,18 @@ export function CancelConstructionButton({
   onCancel?: (constructionId: number) => Promise<void>;
 }): ReactElement {
   const [busy, setBusy] = useState(false);
+  const denied = useRightDenied('build');
   return (
-    <Tooltip content="Zrušit stavbu – nespotřebované dřevo se vrátí" placement="above">
+    <Tooltip
+      content="Zrušit stavbu – nespotřebované dřevo se vrátí"
+      denied={denied}
+      placement="above"
+    >
       <button
         type="button"
         data-testid="cancel-construction"
         aria-label="Zrušit stavbu"
-        disabled={busy || !onCancel}
+        disabled={busy || !onCancel || denied !== null}
         aria-busy={busy}
         onClick={() => {
           if (!onCancel || busy) return;

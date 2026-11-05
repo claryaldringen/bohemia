@@ -151,17 +151,24 @@ export interface RightsDeps {
   houses: Pick<HouseRepository, 'activeOf'>;
 }
 
+/** Ves hráče s právy, která v ní má, a naposledy zapsaný senior rodu (pro stolec v přepínači). */
+export interface VillageAccess {
+  found: PlayerVillage;
+  rights: VillageRights;
+  senior: PersonRef | null;
+}
+
 /**
- * Ves `villageId` hráče, když v ní smí vykonat `right`; jinak důvod česky (ves hráči nepatří,
- * „Rozhoduje …“, „Ves vede …“). Nahrazuje `findPlayerVillage` v akcích nad vsí. Stavy ostatních
- * vsí rodu se načtou, jen když na nich záleží (cizí ves s vojvodou).
+ * Práva hráče ve vsi `villageId` ke dni `today` (`villageRights` nad skutečnými repozitáři); ves
+ * hráči nepatří – null. Stavy ostatních vsí rodu se načtou, jen když na nich záleží (cizí ves
+ * s vojvodou).
  */
-export async function requireRight(
+export async function villageAccess(
   deps: RightsDeps,
-  input: { playerId: string; villageId: string; right: VillageRight; today: number },
-): Promise<PlayerVillage | string> {
+  input: { playerId: string; villageId: string; today: number },
+): Promise<VillageAccess | null> {
   const found = await findPlayerVillage(deps, input);
-  if (!found) return NOT_PLAYER_VILLAGE;
+  if (!found) return null;
   const house = await deps.houses.activeOf(input.playerId);
   const playerLord = house?.lord ?? null;
   const self = { villageId: found.village.id, state: found.village.state };
@@ -183,6 +190,19 @@ export async function requireRight(
     playerLord,
     day: input.today,
   });
-  if (rights.allowed.has(input.right)) return found;
-  return rights.reason ?? NOT_PLAYER_VILLAGE;
+  return { found, rights, senior: house?.senior ?? null };
+}
+
+/**
+ * Ves `villageId` hráče, když v ní smí vykonat `right`; jinak důvod česky (ves hráči nepatří,
+ * „Rozhoduje …“, „Ves vede …“). Nahrazuje `findPlayerVillage` v akcích nad vsí.
+ */
+export async function requireRight(
+  deps: RightsDeps,
+  input: { playerId: string; villageId: string; right: VillageRight; today: number },
+): Promise<PlayerVillage | string> {
+  const access = await villageAccess(deps, input);
+  if (!access) return NOT_PLAYER_VILLAGE;
+  if (access.rights.allowed.has(input.right)) return access.found;
+  return access.rights.reason ?? NOT_PLAYER_VILLAGE;
 }

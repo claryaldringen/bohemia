@@ -3,6 +3,7 @@ import type { VillageDigest } from '../../domain/village';
 import { INVITES } from '../../domain/world';
 import { housePanel, type HousePanelDeps } from '../house-panel';
 import type { VillageDigestRecord } from '../villages';
+import { InMemoryCredits } from './in-memory-credits';
 import { InMemoryActivity } from './in-memory-activity';
 import { InMemoryHouses } from './in-memory-houses';
 import { InMemoryInvites } from './in-memory-invites';
@@ -44,6 +45,7 @@ async function setup() {
     worldDirectory,
     vassalages,
     invites,
+    successionCredits: new InMemoryCredits(),
     activity,
     now: () => NOW,
   };

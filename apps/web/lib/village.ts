@@ -68,6 +68,7 @@ import {
   playerToday,
   playerVillage,
   requireVillageRight,
+  villageAccessForPlayer,
   skipTimeForPlayer,
   type GameEntry,
   type PlayerToday,
@@ -181,6 +182,8 @@ async function viewOf(
   record?: VillageRecord,
 ): Promise<VillageActionResult> {
   const status = await dynastyOfPlayer(ctx.playerId, ctx.day, ctx.villageId);
+  // práva v zobrazené vsi a ves seniora (stolec) – rozhoduje jádro, web jen posílá
+  const access = await villageAccessForPlayer(ctx.playerId, ctx.villageId, ctx.day);
   // zobrazená ves je celá, vsi jiných map jen souhrnem (`dynastyForVillage`)
   const full = (status.villages as readonly DynastyVillage[]).filter(isFullVillage);
   const listed = full.find((v) => v.id === ctx.villageId);
@@ -190,7 +193,12 @@ async function viewOf(
   const view = buildVillageView(current, ctx.landscape, ctx.day, {
     gameOver: status.gameOver,
     lineEnded: status.gameOver ? lineEndView(status.villages) : null,
-    villages: status.villages.map((v) => villageListItem(v, ctx.day, status.playerLord?.villageId)),
+    villages: status.villages.map((v) =>
+      villageListItem(v, ctx.day, status.playerLord?.villageId, access?.senior?.villageId),
+    ),
+    ...(access
+      ? { rights: { allowed: [...access.rights.allowed], reason: access.rights.reason } }
+      : {}),
     ownMaps: ownMapsAround(status.settlements, status.villages, current.settlementId),
     mapsBlocked: from && from.worldCell === null && !from.isSeat ? NO_WORLD_CELL : null,
   });

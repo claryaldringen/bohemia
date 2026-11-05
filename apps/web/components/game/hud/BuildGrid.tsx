@@ -6,6 +6,7 @@ import { formatInteger, formatManDays } from '@/lib/village-format';
 import { TRADE_GOOD_NAMES } from '@/lib/trade-names';
 import type { SquaresVariant } from '@/lib/scene/village-types';
 import { isBuildAffordable, type BuildOption, type StockResource } from '@/lib/village-view';
+import { useRightDenied } from './rights';
 import { Tooltip } from './Tooltip';
 
 /** Kolik slotů má mřížka staveb (jako příkazový panel 0 A.D.) – prázdné jsou prohlubně. */
@@ -117,15 +118,17 @@ function GridButton({
   hotkey?: string;
   onClick: () => void;
 }): ReactElement {
+  // seniorát: v cizí vsi rodu stavět smí jen senior (rights.ts) – jinak zašedlé s důvodem
+  const denied = useRightDenied('build');
   return (
     <li>
-      <Tooltip content={tooltip} placement="above-left">
+      <Tooltip content={tooltip} denied={denied} placement="above-left">
         <button
           type="button"
           aria-label={label}
           aria-pressed={pressed}
           {...(hotkey ? { 'aria-keyshortcuts': hotkey } : {})}
-          disabled={disabled}
+          disabled={disabled || denied !== null}
           onClick={onClick}
           className="hud-icon-button h-14 w-14"
         >

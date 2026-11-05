@@ -5,6 +5,7 @@ import { useDismiss } from '@/hooks/use-dismiss';
 import type { VillageManor } from '@/lib/manor-view';
 import { DIRECTION_NAMES } from '@/lib/trade-names';
 import { formatDecimal, formatInteger } from '@/lib/village-format';
+import { useRightDenied } from './rights';
 import { Tooltip } from './Tooltip';
 
 // Dvorec vojvody v panelu výběru (trade.md – Dvorec vojvody): vylepšení celé vsi – zemská stezka
@@ -82,6 +83,7 @@ export function TrailCompass({
   busy?: boolean;
   onBuild?: (direction: Direction8) => void;
 }): ReactElement {
+  const denied = useRightDenied('build');
   return (
     <div
       data-testid="trail-compass"
@@ -107,13 +109,24 @@ export function TrailCompass({
         const { arrow, name } = DIRECTION_NAMES[direction];
         const done = option.status === 'built';
         return (
-          <Tooltip key={i} placement="above" content={<TrailTooltip option={option} />}>
+          <Tooltip
+            key={i}
+            denied={denied}
+            placement="above"
+            content={<TrailTooltip option={option} />}
+          >
             <button
               type="button"
               data-testid={`trail-${direction}`}
               data-status={option.status}
               aria-label={`Zemská stezka – ${name}`}
-              disabled={option.status !== 'none' || option.blocked !== null || busy || !onBuild}
+              disabled={
+                option.status !== 'none' ||
+                option.blocked !== null ||
+                busy ||
+                !onBuild ||
+                denied !== null
+              }
               aria-busy={busy}
               onClick={() => onBuild?.(direction)}
               className={`${iconButton(busy)} relative text-xl font-bold ${done ? 'text-[#f3cf86] ring-2 ring-[#c9a14a]' : 'text-[#ecdfc4]'}`}
@@ -153,6 +166,7 @@ export function ManorUpgrades({
 }): ReactElement {
   const [open, setOpen] = useState<'trail' | 'trade' | null>(null);
   const [busy, setBusy] = useState(false);
+  const huntDenied = useRightDenied('steward');
   const rootRef = useRef<HTMLDivElement>(null);
   useDismiss(open !== null, rootRef, () => setOpen(null));
   const build = (direction: Direction8): void => {
@@ -187,6 +201,7 @@ export function ManorUpgrades({
       </Tooltip>
       <Tooltip
         placement="above"
+        denied={huntDenied}
         content={
           <span className="flex flex-col gap-0.5">
             <span>Lov navíc</span>
@@ -202,7 +217,7 @@ export function ManorUpgrades({
           type="button"
           data-testid="manor-hunt"
           aria-label="Lov navíc"
-          disabled={manor.huntDenied !== null || !onDeclareHunt || busy}
+          disabled={manor.huntDenied !== null || !onDeclareHunt || busy || huntDenied !== null}
           onClick={() => {
             if (!onDeclareHunt || busy) return;
             setBusy(true);

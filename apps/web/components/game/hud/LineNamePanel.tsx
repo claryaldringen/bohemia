@@ -7,6 +7,7 @@ import {
   SON_NAME_MISSING,
   suggestLineName,
 } from '@bohemia/game';
+import { useRightDenied } from './rights';
 import { Tooltip } from './Tooltip';
 
 // Panel jména muže rodu (lord.md – Kde se jméno zadává): portrét, textové pole (jediná výjimka
@@ -54,6 +55,8 @@ export function LineNamePanel({
   const [serverReason, setServerReason] = useState<string | null>(null);
   const label = lineNameLabel(lord);
   const reasonId = useId();
+  // seniorát: jména synů dává jen ten, kdo ves vede (rights.ts – `nameSons`)
+  const denied = useRightDenied('nameSons');
   const reason = lineNameReason(draft, lord) ?? serverReason;
 
   useEffect(() => {
@@ -72,7 +75,7 @@ export function LineNamePanel({
 
   const submit = (event: FormEvent): void => {
     event.preventDefault();
-    if (busy || lineNameReason(draft, lord) !== null) return;
+    if (busy || denied !== null || lineNameReason(draft, lord) !== null) return;
     setBusy(true);
     void onConfirm(draft)
       .then((failure) => setServerReason(failure))
@@ -133,12 +136,12 @@ export function LineNamePanel({
           <span aria-hidden>⚄</span>
         </button>
       </Tooltip>
-      <Tooltip content={reason ?? 'Potvrdit'} placement="above">
+      <Tooltip content={reason ?? 'Potvrdit'} denied={denied} placement="above">
         <button
           type="submit"
           aria-label="Potvrdit"
           data-testid="line-name-confirm"
-          disabled={reason !== null || busy}
+          disabled={reason !== null || busy || denied !== null}
           className="hud-icon-button h-9 w-9 text-xl leading-none text-[#b8e07a] disabled:cursor-not-allowed disabled:opacity-45 disabled:grayscale"
         >
           <span aria-hidden>✓</span>

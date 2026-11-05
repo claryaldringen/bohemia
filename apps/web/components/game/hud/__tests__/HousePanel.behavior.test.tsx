@@ -24,9 +24,26 @@ const link = (houseId: string, over: Partial<HouseLinkView> = {}): HouseLinkView
 const VIEW: HouseView = {
   hasHouse: true,
   own: [
-    { icon: 'man', name: 'Jan', age: 34, label: 'Jan, 34 roky' },
-    { icon: 'elder', name: null, age: 62, label: '62 let' },
+    {
+      icon: 'elder',
+      name: null,
+      age: 62,
+      label: '62 let',
+      villageId: 'v-1',
+      senior: true,
+      lord: false,
+    },
+    {
+      icon: 'man',
+      name: 'Jan',
+      age: 34,
+      label: 'Jan, 34 roky',
+      villageId: 'v-2',
+      senior: false,
+      lord: true,
+    },
   ],
+  successionCredits: 2,
   lords: [],
   vassals: [link('h-v')],
   others: [link('h-o')],

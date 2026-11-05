@@ -14,6 +14,7 @@ import {
   WagonRoadPlan,
 } from '@bohemia/game';
 import { SwathTrees } from '../ManorPanel';
+import { useRightDenied } from '../rights';
 import { Tooltip } from '../Tooltip';
 import { Stat, Bar, ROW, Commands, TargetButton, WoodToFell, formatSpeedGain } from './parts';
 import { Oaks } from './sacred';
@@ -226,6 +227,7 @@ export function RoadBody({
   onSelectTarget?: ((target: VillageTarget) => void) | undefined;
 }): ReactElement {
   const [busy, setBusy] = useState(false);
+  const denied = useRightDenied('build');
   const buildWagon = (): void => {
     if (!onBuildWagon || busy) return;
     setBusy(true);
@@ -351,6 +353,7 @@ export function RoadBody({
         {details.upgrades.map((option) => (
           <Tooltip
             key={option.upgrade}
+            denied={denied}
             placement="above"
             content={
               <span className="flex flex-col gap-0.5">
@@ -381,7 +384,7 @@ export function RoadBody({
               type="button"
               data-testid={`road-upgrade-${option.upgrade}`}
               aria-label={ROAD_UPGRADE_NAMES[option.upgrade]}
-              disabled={option.blocked !== null || busy || !onUpgrade}
+              disabled={option.blocked !== null || busy || !onUpgrade || denied !== null}
               aria-busy={busy}
               onClick={() => run(option.upgrade)}
               className={`hud-inset h-10 w-10 overflow-hidden rounded ${busy ? 'disabled:cursor-wait disabled:opacity-60' : 'disabled:cursor-not-allowed disabled:opacity-45 disabled:grayscale'}`}
@@ -398,6 +401,7 @@ export function RoadBody({
         ))}
         {details.wagon.status !== 'built' && (
           <Tooltip
+            denied={denied}
             placement="above"
             content={<WagonTooltip blocked={details.wagon.blocked} plan={wagonPlan} />}
           >
@@ -405,7 +409,9 @@ export function RoadBody({
               type="button"
               data-testid="road-wagon"
               aria-label="Upravit pro vozy"
-              disabled={wagonBlocked !== null || !wagonPlan?.ok || busy || !onBuildWagon}
+              disabled={
+                wagonBlocked !== null || !wagonPlan?.ok || busy || !onBuildWagon || denied !== null
+              }
               aria-busy={busy}
               onClick={buildWagon}
               className={`hud-inset h-10 w-10 overflow-hidden rounded ${busy ? 'disabled:cursor-wait disabled:opacity-60' : 'disabled:cursor-not-allowed disabled:opacity-45 disabled:grayscale'}`}
@@ -421,6 +427,7 @@ export function RoadBody({
           </Tooltip>
         )}
         <Tooltip
+          denied={denied}
           placement="above"
           content={
             <span className="flex flex-col gap-0.5">
@@ -459,7 +466,9 @@ export function RoadBody({
             type="button"
             data-testid="road-plant-apples"
             aria-label="Vysadit jabloně"
-            disabled={!option || option.blocked !== null || busy || !onPlantApples}
+            disabled={
+              !option || option.blocked !== null || busy || !onPlantApples || denied !== null
+            }
             aria-busy={busy}
             onClick={plant}
             className={`hud-inset h-10 w-10 overflow-hidden rounded ${busy ? 'disabled:cursor-wait disabled:opacity-60' : 'disabled:cursor-not-allowed disabled:opacity-45 disabled:grayscale'}`}

@@ -112,6 +112,7 @@ import { DefeatScreen } from './hud/DefeatScreen';
 import { JourneyBanner } from './hud/RelocationControls';
 import { GameMenu } from './hud/GameMenu';
 import { HousePanel } from './hud/HousePanel';
+import { RightsProvider, rightDeniedReason } from './hud/rights';
 import { Minimap } from './hud/Minimap';
 import { LineNamePanel } from './hud/LineNamePanel';
 import { NoticeLines, type NoticeLine } from './hud/NoticeLines';
@@ -909,6 +910,8 @@ export function VillageGame({
   const startBuild = (kind: BuildKind, variant?: string): void => {
     // dokud se nepojmenuje vojvoda, ves se nezakládá – ani zkratkou, ani klikem mimo panel jména
     if (!scene || foundingName || !(kind in options)) return;
+    // seniorát: stavět v cizí vsi rodu smí jen senior (zkratka nesmí obejít zašedlé tlačítko)
+    if (rightDeniedReason(view?.rights, 'build') !== null) return;
     const item = buildItem(kind);
     // stavba s druhy je rozcestník: tlačítko i zkratka otevřou v mřížce druhy, znovu je zavřou
     if (item.placement === 'squares' && item.variants && variant === undefined) {
@@ -1248,193 +1251,199 @@ export function VillageGame({
 
   return (
     <PanelOptionsContext.Provider value={panelSource}>
-      <GameView landscape={landscape} onSceneReady={setScene} overlays={false} />
-      <TopBar
-        view={view}
-        world={clock}
-        initialNowMs={initialNowMs}
-        soundOn={soundOn}
-        onToggleSound={toggleSound}
-        menuOpen={menuShown}
-        onToggleMenu={() => (menuShown ? closeMenu() : openMenu())}
-        onRename={rename}
-        onSelectVillage={switchVillage}
-        onSetSteward={toggleSteward}
-        house={{
-          vassals: house?.vassals.length ?? 0,
-          waiting: house?.waiting ?? 0,
-          open: houseOpen,
-          onToggle: () => (houseOpen ? closeHouse() : openHouse()),
-        }}
-        devTime={devMode ? { pending: skipping, onSkip: skipTimeBy } : null}
-        devDisasters={
-          devMode && view && !view.extinct
-            ? { pending: forcingDisaster, onForce: forceDisasterChoice }
-            : null
-        }
-      />
-      <Minimap landscape={decoded} scene={scene} village={sceneVillage} />
-      <SelectionPanel
-        details={selectionDetails(view, sceneVillage, current, personState, draftState)}
-        onSelectTarget={setSelected}
-        onSetSteward={(on) => {
-          const villageId = viewRef.current?.id;
-          return villageId ? toggleSteward(villageId, on) : Promise.resolve(CONNECTION_FAILED);
-        }}
-        onRelocate={relocate}
-        onLeave={leave}
-        onLeaveSon={leaveWithSon}
-        onPreviewSon={setSonPreview}
-        onCancelConstruction={(constructionId) => {
-          const villageId = viewRef.current?.id;
-          return villageId
-            ? runBuildAction(() => cancelConstruction({ villageId, constructionId }))
-            : Promise.resolve();
-        }}
-        onUpgradeRoad={(roadId, upgrade) => {
-          const villageId = viewRef.current?.id;
-          return villageId
-            ? runBuildAction(() => upgradeRoad({ villageId, roadId, upgrade }))
-            : Promise.resolve();
-        }}
-        onPlantRoadApples={(roadId) => {
-          const villageId = viewRef.current?.id;
-          return villageId
-            ? runBuildAction(() => plantRoadApples({ villageId, roadId }))
-            : Promise.resolve();
-        }}
-        onBuildWagonRoad={(roadId) => {
-          const villageId = viewRef.current?.id;
-          return villageId
-            ? runBuildAction(() => buildWagonRoad({ villageId, roadId }))
-            : Promise.resolve();
-        }}
-        wagonPlan={wagonPlan && wagonPlan.roadId === wagonRoadId ? wagonPlan.plan : null}
-        onBuildTrail={(direction) => {
-          const villageId = viewRef.current?.id;
-          return villageId
-            ? runBuildAction(() => buildTrail({ villageId, direction }))
-            : Promise.resolve();
-        }}
-        onDeclareHunt={() => {
-          const villageId = viewRef.current?.id;
-          // důvod odepření se ukáže řádkem nahoře (u kurzoru) a tlačítko ho má v popisku
-          return villageId
-            ? runAction(() => declareHunt({ villageId })).then((failure) => {
-                if (failure !== null) pushNotice({ kind: 'error', tone: 'error', text: failure });
-                return failure;
-              })
-            : Promise.resolve(null);
-        }}
-        onSendExpedition={(direction, give, get, people) => {
-          const villageId = viewRef.current?.id;
-          // chyba zůstane v panelu obchodu (vrácený důvod) i jako krátký řádek nahoře
-          return villageId
-            ? runAction(() =>
-                sendExpedition({
-                  villageId,
-                  direction,
-                  give,
-                  get,
-                  givePeople: people.give,
-                  getPeople: people.get,
-                }),
-              ).then((failure) => {
-                if (failure !== null) pushNotice({ kind: 'error', tone: 'error', text: failure });
-                return failure;
-              })
-            : Promise.resolve(null);
-        }}
-      />
-      <BuildGrid
-        options={options}
-        active={placement.active ? placingItem : null}
-        disabled={scene === null || foundingName}
-        group={buildGroup}
-        extendingVariant={extendingVariant}
-        onBuild={startBuild}
-      />
-      <NoticeLines
-        notices={notices}
-        status={villageError === null ? null : `Ves teď nejde zobrazit: ${villageError}`}
-        pinned={
-          lineNotice
-            ? {
-                kind: lineNotice.kind,
-                text: lineNotice.text,
-                count: lineNotice.count,
-                onOpen: () => setNamingId(lineNotice.personId),
-              }
-            : null
-        }
-        onExpire={expireNotice}
-      />
-      {foundingName && (
-        <LineNamePanel
-          lord
-          portrait="man"
-          initialName={lastLordName()}
-          taken={[]}
-          onConfirm={confirmFounderName}
-        />
-      )}
-      {!foundingName && namingTarget && (
-        <LineNamePanel
-          key={namingTarget.id}
-          lord={namingTarget.lord}
-          portrait={personPortrait({ age: namingTarget.age, sex: 'male' })}
-          taken={view?.dynasty?.taken ?? []}
-          onConfirm={(name) => confirmLineName(namingTarget.id, namingTarget.lord, name)}
-          onClose={closeLineName}
-        />
-      )}
-      <CursorReason preview={placement.active ? placement.preview : null} />
-      {menuShown && (
-        <GameMenu
-          canRestart={view !== null}
-          email={email}
-          onClose={closeMenu}
-          onRestart={() => restart(true)}
-          onSignOut={signOut}
-        />
-      )}
-      {houseOpen && !menuShown && (
-        <HousePanel
-          view={house}
-          error={houseError}
-          origin={typeof window === 'undefined' ? null : window.location.origin}
-          onIssue={issueHouseInvite}
-          onRevoke={revokeHouseInvite}
-          onClose={closeHouse}
-        />
-      )}
-      {view?.journey && <JourneyBanner journey={view.journey} />}
-      {gameOver && view?.lineEnded && (
-        <DefeatScreen
-          name={view.lineEnded.village}
-          lifespan={{
-            foundedYear: view.lineEnded.foundedYear,
-            extinctYear: view.lineEnded.endedYear,
-            years: view.lineEnded.years,
+      <RightsProvider value={view?.rights ?? null}>
+        <GameView landscape={landscape} onSceneReady={setScene} overlays={false} />
+        <TopBar
+          view={view}
+          world={clock}
+          initialNowMs={initialNowMs}
+          soundOn={soundOn}
+          onToggleSound={toggleSound}
+          menuOpen={menuShown}
+          onToggleMenu={() => (menuShown ? closeMenu() : openMenu())}
+          onRename={rename}
+          onSelectVillage={switchVillage}
+          onSetSteward={toggleSteward}
+          house={{
+            vassals: house?.vassals.length ?? 0,
+            waiting: house?.waiting ?? 0,
+            open: houseOpen,
+            onToggle: () => (houseOpen ? closeHouse() : openHouse()),
           }}
-          line={view.lineEnded}
-          onRestart={() => restart(false)}
+          devTime={devMode ? { pending: skipping, onSkip: skipTimeBy } : null}
+          devDisasters={
+            devMode && view && !view.extinct
+              ? { pending: forcingDisaster, onForce: forceDisasterChoice }
+              : null
+          }
         />
-      )}
-      {gameOver && !view?.lineEnded && view?.extinct && (
-        <DefeatScreen name={view.name} lifespan={view.extinct} onRestart={() => restart(false)} />
-      )}
-      {gameOver && !view?.lineEnded && !view?.extinct && view?.abandoned && (
-        <DefeatScreen
-          name={view.name}
-          lifespan={{
-            foundedYear: view.abandoned.foundedYear,
-            extinctYear: view.abandoned.abandonedYear,
-            years: view.abandoned.years,
+        <Minimap landscape={decoded} scene={scene} village={sceneVillage} />
+        <SelectionPanel
+          details={selectionDetails(view, sceneVillage, current, personState, draftState)}
+          onSelectTarget={setSelected}
+          onSetSteward={(on) => {
+            const villageId = viewRef.current?.id;
+            return villageId ? toggleSteward(villageId, on) : Promise.resolve(CONNECTION_FAILED);
           }}
-          onRestart={() => restart(false)}
+          onRelocate={relocate}
+          onLeave={leave}
+          onLeaveSon={leaveWithSon}
+          onPreviewSon={setSonPreview}
+          onCancelConstruction={(constructionId) => {
+            const villageId = viewRef.current?.id;
+            return villageId
+              ? runBuildAction(() => cancelConstruction({ villageId, constructionId }))
+              : Promise.resolve();
+          }}
+          onUpgradeRoad={(roadId, upgrade) => {
+            const villageId = viewRef.current?.id;
+            return villageId
+              ? runBuildAction(() => upgradeRoad({ villageId, roadId, upgrade }))
+              : Promise.resolve();
+          }}
+          onPlantRoadApples={(roadId) => {
+            const villageId = viewRef.current?.id;
+            return villageId
+              ? runBuildAction(() => plantRoadApples({ villageId, roadId }))
+              : Promise.resolve();
+          }}
+          onBuildWagonRoad={(roadId) => {
+            const villageId = viewRef.current?.id;
+            return villageId
+              ? runBuildAction(() => buildWagonRoad({ villageId, roadId }))
+              : Promise.resolve();
+          }}
+          wagonPlan={wagonPlan && wagonPlan.roadId === wagonRoadId ? wagonPlan.plan : null}
+          onBuildTrail={(direction) => {
+            const villageId = viewRef.current?.id;
+            return villageId
+              ? runBuildAction(() => buildTrail({ villageId, direction }))
+              : Promise.resolve();
+          }}
+          onDeclareHunt={() => {
+            const villageId = viewRef.current?.id;
+            // důvod odepření se ukáže řádkem nahoře (u kurzoru) a tlačítko ho má v popisku
+            return villageId
+              ? runAction(() => declareHunt({ villageId })).then((failure) => {
+                  if (failure !== null) pushNotice({ kind: 'error', tone: 'error', text: failure });
+                  return failure;
+                })
+              : Promise.resolve(null);
+          }}
+          onSendExpedition={(direction, give, get, people) => {
+            const villageId = viewRef.current?.id;
+            // chyba zůstane v panelu obchodu (vrácený důvod) i jako krátký řádek nahoře
+            return villageId
+              ? runAction(() =>
+                  sendExpedition({
+                    villageId,
+                    direction,
+                    give,
+                    get,
+                    givePeople: people.give,
+                    getPeople: people.get,
+                  }),
+                ).then((failure) => {
+                  if (failure !== null) pushNotice({ kind: 'error', tone: 'error', text: failure });
+                  return failure;
+                })
+              : Promise.resolve(null);
+          }}
         />
-      )}
+        <BuildGrid
+          options={options}
+          active={placement.active ? placingItem : null}
+          disabled={scene === null || foundingName}
+          group={buildGroup}
+          extendingVariant={extendingVariant}
+          onBuild={startBuild}
+        />
+        <NoticeLines
+          notices={notices}
+          status={villageError === null ? null : `Ves teď nejde zobrazit: ${villageError}`}
+          pinned={
+            lineNotice
+              ? {
+                  kind: lineNotice.kind,
+                  text: lineNotice.text,
+                  count: lineNotice.count,
+                  onOpen: () => setNamingId(lineNotice.personId),
+                }
+              : null
+          }
+          onExpire={expireNotice}
+        />
+        {foundingName && (
+          <LineNamePanel
+            lord
+            portrait="man"
+            initialName={lastLordName()}
+            taken={[]}
+            onConfirm={confirmFounderName}
+          />
+        )}
+        {!foundingName && namingTarget && (
+          <LineNamePanel
+            key={namingTarget.id}
+            lord={namingTarget.lord}
+            portrait={personPortrait({ age: namingTarget.age, sex: 'male' })}
+            taken={view?.dynasty?.taken ?? []}
+            onConfirm={(name) => confirmLineName(namingTarget.id, namingTarget.lord, name)}
+            onClose={closeLineName}
+          />
+        )}
+        <CursorReason preview={placement.active ? placement.preview : null} />
+        {menuShown && (
+          <GameMenu
+            canRestart={view !== null}
+            email={email}
+            onClose={closeMenu}
+            onRestart={() => restart(true)}
+            onSignOut={signOut}
+          />
+        )}
+        {houseOpen && !menuShown && (
+          <HousePanel
+            view={house}
+            error={houseError}
+            origin={typeof window === 'undefined' ? null : window.location.origin}
+            onIssue={issueHouseInvite}
+            onRevoke={revokeHouseInvite}
+            onClose={closeHouse}
+            onSelectVillage={(villageId) => {
+              const target = view?.villages.find((v) => v.id === villageId);
+              if (target) switchVillage(target);
+            }}
+          />
+        )}
+        {view?.journey && <JourneyBanner journey={view.journey} />}
+        {gameOver && view?.lineEnded && (
+          <DefeatScreen
+            name={view.lineEnded.village}
+            lifespan={{
+              foundedYear: view.lineEnded.foundedYear,
+              extinctYear: view.lineEnded.endedYear,
+              years: view.lineEnded.years,
+            }}
+            line={view.lineEnded}
+            onRestart={() => restart(false)}
+          />
+        )}
+        {gameOver && !view?.lineEnded && view?.extinct && (
+          <DefeatScreen name={view.name} lifespan={view.extinct} onRestart={() => restart(false)} />
+        )}
+        {gameOver && !view?.lineEnded && !view?.extinct && view?.abandoned && (
+          <DefeatScreen
+            name={view.name}
+            lifespan={{
+              foundedYear: view.abandoned.foundedYear,
+              extinctYear: view.abandoned.abandonedYear,
+              years: view.abandoned.years,
+            }}
+            onRestart={() => restart(false)}
+          />
+        )}
+      </RightsProvider>
     </PanelOptionsContext.Provider>
   );
 }
