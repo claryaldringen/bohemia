@@ -7,6 +7,9 @@ import { getSession } from '@/lib/session';
 import { trimKnownSceneData, type KnownSceneData } from '@/lib/scene-routes';
 import { packViewPieces } from '@/lib/view-pieces';
 import { withVillageCache } from '@bohemia/server';
+import { housePanelForPlayer, issueInviteForPlayer, revokeInviteForPlayer } from '@/lib/house';
+import type { HouseView } from '@/lib/house-view';
+import { parseRevokeInviteInput } from '@/lib/house-input';
 import { parsePanelAsk, type PanelOptions } from '@/lib/panel-options';
 import {
   buildTrailForPlayer,
@@ -455,4 +458,30 @@ export async function skipTime(input: unknown): Promise<TimeSkipResult> {
       villageIdOf(input),
     ),
   );
+}
+
+/**
+ * Panel „Rod a vazalové“ (vassalage.md – Co hráč vidí): vlastní rod, páni, vazalové, nejbližší
+ * hráči a pozvánky. Bez vstupu; hráč jen ze session, o cizích rodech jen veřejné údaje.
+ */
+export async function housePanel(): Promise<HouseView | { error: string }> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  return housePanelForPlayer(id);
+}
+
+/** Vydá novou pozvánku (nejvýš tři nevyužité): `{ code }` bez pomlčky, nebo důvod česky. */
+export async function issueInvite(): Promise<{ code: string } | { error: string }> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  return issueInviteForPlayer(id);
+}
+
+/** Zruší vlastní nevyužitý kód: `{ code }`. */
+export async function revokeInvite(input: unknown): Promise<{ ok: true } | { error: string }> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const parsed = parseRevokeInviteInput(input);
+  if (parsed === null) return { error: INVALID_INPUT };
+  return revokeInviteForPlayer(id, parsed.code);
 }

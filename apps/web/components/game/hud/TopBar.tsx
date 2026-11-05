@@ -568,6 +568,7 @@ export function TopBar({
   onSetSteward,
   devTime,
   devDisasters = null,
+  house = null,
 }: {
   view: VillageView | null;
   /** Hodiny světa hráče – ve vývojovém režimu posunuté o jeho posun času. */
@@ -587,6 +588,8 @@ export function TopBar({
   devTime: { pending: TimeSkip | null; onSkip: (skip: TimeSkip) => void } | null;
   /** Vývojový režim – vynutit zlý rok a pohromu; bez něj (nebo bez vsi) null. */
   devDisasters?: { pending: boolean; onForce: (choice: DevDisasterChoice) => void } | null;
+  /** Prapor panelu „Rod a vazalové“: počet vazalů, čekající věci (pečeť) a otevření panelu. */
+  house?: { vassals: number; waiting: number; open: boolean; onToggle: () => void } | null;
 }): ReactElement {
   const [nowMs, setNowMs] = useState(initialNowMs);
   // Datum se obnoví na začátku dalšího herního dne (ostrý svět ≈ 86 s), ne každou sekundu –
@@ -691,6 +694,37 @@ export function TopBar({
           <DevDisasterButtons pending={devDisasters.pending} onForce={devDisasters.onForce} />
         )}
         <span className="mx-1 h-6 border-l border-[#5c4526]" aria-hidden />
+        {house && (
+          <IconButton
+            label="Rod a vazalové"
+            tooltip="Rod a vazalové"
+            testId="house-toggle"
+            expanded={house.open}
+            onClick={house.onToggle}
+          >
+            <span className="relative flex h-6 items-center gap-0.5">
+              <img
+                src="/icons/house/banner.svg"
+                alt=""
+                width={22}
+                height={22}
+                className="h-[22px] w-[22px]"
+              />
+              <span data-testid="house-vassal-count" className="text-xs font-semibold tabular-nums">
+                {house.vassals}
+              </span>
+              {house.waiting > 0 && (
+                <span
+                  data-testid="house-waiting"
+                  className="absolute -top-2 -right-3 flex items-center"
+                >
+                  <img src="/icons/house/seal.svg" alt="" width={14} height={14} />
+                  <span className="text-[10px] font-bold tabular-nums">{house.waiting}</span>
+                </span>
+              )}
+            </span>
+          </IconButton>
+        )}
         <IconButton
           label="Zvuky krajiny"
           tooltip={soundOn ? 'Zvuk' : 'Bez zvuku'}

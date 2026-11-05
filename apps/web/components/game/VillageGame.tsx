@@ -49,6 +49,9 @@ import {
   upgradeRoad,
   buildWagonRoad,
   getPanelOptions,
+  housePanel,
+  issueInvite,
+  revokeInvite,
 } from '@/app/game/actions';
 import { PanelOptionsContext, type PanelOptionsSource } from '@/hooks/use-panel-options';
 import type { PanelAsk, PanelOptions } from '@/lib/panel-options';
@@ -108,10 +111,12 @@ import { CursorReason } from './hud/CursorReason';
 import { DefeatScreen } from './hud/DefeatScreen';
 import { JourneyBanner } from './hud/RelocationControls';
 import { GameMenu } from './hud/GameMenu';
+import { HousePanel } from './hud/HousePanel';
 import { Minimap } from './hud/Minimap';
 import { LineNamePanel } from './hud/LineNamePanel';
 import { NoticeLines, type NoticeLine } from './hud/NoticeLines';
 import { SelectionPanel } from './hud/SelectionPanel';
+import type { HouseView } from '@/lib/house-view';
 import { TopBar, type DevDisasterChoice } from './hud/TopBar';
 
 /** Stav vsi ze serveru: pohled na ves, ještě nezaložená (null), nebo chyba (svět neběží…). */
@@ -336,6 +341,51 @@ export function VillageGame({
   const [buildGroup, setBuildGroup] = useState<BuildKind | null>(null);
   const [notices, setNotices] = useState<NoticeLine[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
+  // Panel „Rod a vazalové“: pohled se načte po otevření hry (počet vazalů v liště) a obnoví po
+  // otevření, po akci a po novém upozornění mezi hráči.
+  const [houseOpen, setHouseOpen] = useState(false);
+  const [house, setHouse] = useState<HouseView | null>(null);
+  const [houseError, setHouseError] = useState<string | null>(null);
+  const refreshHouse = useCallback(async (): Promise<void> => {
+    try {
+      const result = await housePanel();
+      if ('error' in result) setHouseError(result.error);
+      else setHouse(result);
+    } catch {
+      setHouseError(CONNECTION_FAILED);
+    }
+  }, []);
+  useEffect(() => {
+    void refreshHouse();
+  }, [refreshHouse]);
+  const openHouse = useCallback((): void => {
+    setMenuOpen(false);
+    setHouseError(null);
+    setHouseOpen(true);
+    void refreshHouse();
+  }, [refreshHouse]);
+  const closeHouse = useCallback((): void => setHouseOpen(false), []);
+  const issueHouseInvite = useCallback(async (): Promise<void> => {
+    try {
+      const result = await issueInvite();
+      setHouseError('error' in result ? result.error : null);
+    } catch {
+      setHouseError(CONNECTION_FAILED);
+    }
+    await refreshHouse();
+  }, [refreshHouse]);
+  const revokeHouseInvite = useCallback(
+    async (code: string): Promise<void> => {
+      try {
+        const result = await revokeInvite({ code });
+        setHouseError('error' in result ? result.error : null);
+      } catch {
+        setHouseError(CONNECTION_FAILED);
+      }
+      await refreshHouse();
+    },
+    [refreshHouse],
+  );
   const [timeOffsetDays, setTimeOffsetDays] = useState(initialTimeOffsetDays);
   const [skipping, setSkipping] = useState<TimeSkip | null>(null);
   const [forcingDisaster, setForcingDisaster] = useState(false);
@@ -386,20 +436,23 @@ export function VillageGame({
     setNotices((list) => [...list, { ...notice, id: ++noticeId.current }].slice(-MAX_NOTICES));
   }, []);
   // Upozornění mezi hráči přicházejí v odpovědi dotazu na ves (server je tím označí za přečtená).
-  const openNoticePanel = useCallback((panel: NoticePanel): void => {
-    void panel;
-    // Panel „Rod a vazalové“ vznikne v úloze 1.10 – do té doby klik nic neotevře.
-  }, []);
+  const openNoticePanel = useCallback(
+    (panel: NoticePanel): void => {
+      if (panel === 'house') openHouse();
+    },
+    [openHouse],
+  );
   const showPlayerNotices = useCallback(
     (received: readonly PlayerNotice[] | undefined): void => {
       if (!received || received.length === 0) return;
+      void refreshHouse();
       const lines = received.map((n) => {
         const panel = noticePanel(n.kind);
         return { ...playerNoticeLine(n), onOpen: panel ? () => openNoticePanel(panel) : undefined };
       });
       setNotices((list) => mergeNoticeLines(list, lines, MAX_NOTICES));
     },
-    [openNoticePanel],
+    [openNoticePanel, refreshHouse],
   );
   const expireNotice = useCallback((id: number): void => {
     setNotices((list) => list.filter((n) => n.id !== id));
@@ -972,6 +1025,7 @@ export function VillageGame({
     cancelPlacement();
     setSelected(null);
     setBuildGroup(null);
+    setHouseOpen(false);
     setMenuOpen(true);
   };
   const openMenuRef = useRef(openMenu);
@@ -1206,6 +1260,12 @@ export function VillageGame({
         onRename={rename}
         onSelectVillage={switchVillage}
         onSetSteward={toggleSteward}
+        house={{
+          vassals: house?.vassals.length ?? 0,
+          waiting: house?.waiting ?? 0,
+          open: houseOpen,
+          onToggle: () => (houseOpen ? closeHouse() : openHouse()),
+        }}
         devTime={devMode ? { pending: skipping, onSkip: skipTimeBy } : null}
         devDisasters={
           devMode && view && !view.extinct
@@ -1336,6 +1396,16 @@ export function VillageGame({
           onClose={closeMenu}
           onRestart={() => restart(true)}
           onSignOut={signOut}
+        />
+      )}
+      {houseOpen && !menuShown && (
+        <HousePanel
+          view={house}
+          error={houseError}
+          origin={typeof window === 'undefined' ? null : window.location.origin}
+          onIssue={issueHouseInvite}
+          onRevoke={revokeHouseInvite}
+          onClose={closeHouse}
         />
       )}
       {view?.journey && <JourneyBanner journey={view.journey} />}

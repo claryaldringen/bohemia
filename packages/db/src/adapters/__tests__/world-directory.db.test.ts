@@ -67,6 +67,21 @@ describe('WorldDirectory (Drizzle)', () => {
     expect(entries.find((e) => e.house.id === none)?.digests).toEqual([]);
   });
 
+  it('entriesOf vrátí jen vyjmenované živé rody (i vlastní), i se souhrny', async () => {
+    const mine = await player('me', 0, 0);
+    const other = await player('other', 4, 1);
+    await player('third', 2, 2);
+    const entries = await directory.entriesOf([
+      mine,
+      other,
+      '00000000-0000-4000-8000-000000000000',
+    ]);
+    expect(entries.map((e) => e.house.id).sort()).toEqual([mine, other].sort());
+    expect(entries.find((e) => e.house.id === other)?.seat).toEqual({ x: 4, y: 1 });
+    expect(entries.find((e) => e.house.id === other)?.digests).toHaveLength(1);
+    expect(await directory.entriesOf([])).toEqual([]);
+  });
+
   it('skončený rod a archivované sídlo v adresáři nejsou', async () => {
     const mine = await player('me', 0, 0);
     const ended = await player('ended', 1, 0);

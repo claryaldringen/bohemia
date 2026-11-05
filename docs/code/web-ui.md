@@ -593,3 +593,26 @@ Návrh: [disasters.md – Co hráč vidí](../design/disasters.md). Jádro a č�
   `stewardBuilt` cílům dwelling/site/field/field-part/cemetery/orchard/pen/road, jejichž `id` je ve
   `view.steward.built`; `SelectionPanel` ji ukáže vpravo nahoře vedle Zrušit stavbu.
 - e2e: `village.spec.ts` – „správce vsi – zapnutí a vypnutí přepínačem…“.
+
+## Panel „Rod a vazalové“ (úloha 1.10, `hud/HousePanel.tsx`)
+
+- **Lišta:** tlačítko praporu (`TopBar` prop `house`, `data-testid="house-toggle"`) s počtem vazalů;
+  pečeť s počtem čekajících věcí (`house-waiting`) se ukáže, až když něco čeká (první verze: nikdy,
+  jednání přijdou ve fázi 3). Otevřený panel zavře nabídku hry a naopak; Esc panel zavře.
+- **Panel** (`hud-panel` vpravo pod lištou, `role="dialog"` „Rod a vazalové“): řady se značkou
+  s popiskem – **Rod** (portréty mužů od 16 let, popisek „Jan, 34 let“), **Páni** (bez pánů praporec
+  s popiskem „Nezávislý“), **Vazalové**, **Hráči** podle vzdálenosti (portrét hlavy rodu, štít
+  s počtem mužů; popisek s jménem a vzdáleností), **Pozvánky** (pečeť s volnými místy – klik vydá
+  kód; kód po čtveřicích je text, tlačítko kopírovat dá do schránky `…/register?pozvanka=KOD`
+  z `window.location.origin`; přesýpací hodiny se zbývajícími dny; křížek ruší; u využitých pozvánek
+  portrét pozvaného a ikona nástupnictví, když se rozehrál). Důvod odmítnutí (limit kódů) je
+  v popisku tlačítka a pod ním. Tlačítka Vypovědět, Nabídnout vazalství, Obchod, Blokovat a jednání
+  zatím nejsou.
+- **Data:** `VillageGame` načte `HouseView` při otevření hry (počet vazalů v liště), při otevření
+  panelu, po vydání a zrušení kódu a po každém novém upozornění mezi hráči. Klik na upozornění
+  `invite-accepted` / `invitee-played` (`noticePanel` = `'house'`) panel otevře.
+- **Ikony** `public/icons/house/` (banner, seal, shield, hourglass, cross, succession, copy – vlastní
+  kresba, CC0, zdroj v `public/icons/LICENSES.md`).
+- Testy: `hud/__tests__/HousePanel.behavior.test.tsx`, `lib/__tests__/house-view.test.ts`;
+  e2e `e2e/multiplayer.spec.ts` (A vydá kód → B se zaregistruje s kódem → vazalství a upozornění →
+  C vidí oba v seznamu hráčů).

@@ -21,4 +21,9 @@ export class InMemoryWorldDirectory implements WorldDirectory {
       )
       .slice(0, limit);
   }
+
+  async entriesOf(houseIds: string[]): Promise<DirectoryEntry[]> {
+    await Promise.resolve();
+    return this.entries.filter((e) => houseIds.includes(e.house.id));
+  }
 }
