@@ -28,6 +28,7 @@ import {
   findPlayerVillage,
   firstPlayerVillage,
   recordActiveDay,
+  requireRight,
   restartGame,
   settlementLandscape,
   skipTime,
@@ -39,6 +40,7 @@ import {
   type Settlement,
   type TimeOffsetRepository,
   type TimeSkip,
+  type VillageRight,
 } from '@bohemia/game';
 import { ownMapsAround } from './departure-view';
 import { getDatabase, getPlayerLock } from './db';
@@ -131,6 +133,23 @@ function playerVillagesDeps(): Parameters<typeof findPlayerVillage>[0] {
 /** Ves `villageId`, když patří hráči (její sídlo je mezi jeho aktivními sídly); jinak null. */
 export function playerVillage(playerId: string, villageId: string): Promise<PlayerVillage | null> {
   return findPlayerVillage(playerVillagesDeps(), { playerId, villageId });
+}
+
+/**
+ * Ves `villageId` hráče, když v ní smí vykonat `right` v den `today` (seniorát a práva –
+ * rights.ts); jinak důvod česky.
+ */
+export function requireVillageRight(
+  playerId: string,
+  villageId: string,
+  right: VillageRight,
+  today: number,
+): Promise<PlayerVillage | string> {
+  const db = getDatabase();
+  return requireRight(
+    { ...playerVillagesDeps(), houses: createHouseRepository(db) },
+    { playerId, villageId, right, today },
+  );
 }
 
 /**

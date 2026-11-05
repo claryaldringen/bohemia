@@ -8,6 +8,7 @@ import {
 } from '@bohemia/game';
 import type { Database } from '../client';
 import { house, settlement, village } from '../schema';
+import { toHouse } from './house-repository';
 
 /**
  * Drizzle adaptér portu WorldDirectory. Jeden dotaz na nejbližší živé rody (řazení podle
@@ -103,18 +104,7 @@ async function entriesFor(db: Database, rows: SeatRow[]): Promise<DirectoryEntry
   return rows.map((r): DirectoryEntry => {
     const seat: GridCell = { x: r.gridX!, y: r.gridY! };
     return {
-      house: {
-        id: r.house.id,
-        playerId: r.house.playerId,
-        kind: r.house.kind,
-        createdAt: r.house.createdAt,
-        endedAt: r.house.endedAt,
-        endedDay: r.house.endedDay,
-        lord:
-          r.house.lordVillageId === null || r.house.lordPersonId === null
-            ? null
-            : { villageId: r.house.lordVillageId, personId: r.house.lordPersonId },
-      },
+      house: toHouse(r.house),
       seat,
       digests: byOwner.get(r.house.playerId ?? '') ?? [],
     };

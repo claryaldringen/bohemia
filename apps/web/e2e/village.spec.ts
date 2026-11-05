@@ -1023,7 +1023,7 @@ test('druhá ves na jiné mapě – jméno vsi v liště přepíná mezi vsemi',
   const [one] = await query<{ id: string }>('SELECT id FROM village WHERE settlement_id = $1', [
     s.settlementId,
   ]);
-  const two = await villageOnNextMap(s.settlementId, 'Budeč');
+  const two = await villageOnNextMap(s.settlementId, 'Budeč', { own: true });
   await page.reload();
   await expect(readyScene(page)).toBeVisible({ timeout: 60_000 });
   await expect(name).toHaveText(first, { timeout: 30_000 });
@@ -1579,7 +1579,7 @@ test('správce vsi – zapnutí a vypnutí přepínačem v seznamu vsí, ikona u
 test('správce jiné vsi ze seznamu – pohled zůstane na zobrazené vsi', async ({ page }) => {
   const { seat: s } = await newPlayer(page, 'spravce2');
   await found(page, villageSpots(s.landscape).dwelling);
-  const two = await villageOnNextMap(s.settlementId, 'Budeč');
+  const two = await villageOnNextMap(s.settlementId, 'Budeč', { own: true });
   await page.reload();
   await expect(readyScene(page)).toBeVisible({ timeout: 60_000 });
   const name = page.getByTestId('village-name');

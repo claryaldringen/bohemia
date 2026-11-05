@@ -31,6 +31,7 @@ export class InMemoryHouses implements HouseRepository {
       endedAt: null,
       endedDay: null,
       lord: null,
+      senior: null,
     };
     this.houses.push(house);
     return house;
@@ -48,6 +49,11 @@ export class InMemoryHouses implements HouseRepository {
   async setLord(houseId: string, lord: PersonRef | null): Promise<void> {
     const house = this.houses.find((h) => h.id === houseId);
     if (house) house.lord = lord;
+  }
+
+  async setSenior(houseId: string, senior: PersonRef | null): Promise<void> {
+    const house = this.houses.find((h) => h.id === houseId);
+    if (house) house.senior = senior;
   }
 
   private alive(house: House): boolean {

@@ -32,6 +32,9 @@ import {
   buildTrail,
   sendExpedition,
   villageViewStamp,
+  ACTION_RIGHTS,
+  type VillageAction,
+  type VillageRight,
   type Craft,
   type DwellingPlot,
   type BuildableDwellingType,
@@ -64,6 +67,7 @@ import {
   landscapeOfSettlement,
   playerToday,
   playerVillage,
+  requireVillageRight,
   skipTimeForPlayer,
   type GameEntry,
   type PlayerToday,
@@ -102,11 +106,21 @@ function villages(): VillageRepository {
 }
 
 /** Ves `villageId` hráče s krajinou jejího sídla a jeho dnešní den – společný začátek akcí. */
-async function context(playerId: string, villageId: string): Promise<Context> {
+async function context(
+  playerId: string,
+  villageId: string,
+  /** Právo, které akce vyžaduje (rights.ts); bez něj jen pohled na ves – dívat se smí každý hráč rodu. */
+  right?: VillageRight,
+): Promise<Context> {
   const today = await playerToday(playerId);
   if (!today.ok) return today;
-  const found = await playerVillage(playerId, villageId);
-  if (!found) return { ok: false, error: NOT_PLAYER_VILLAGE };
+  const found =
+    right === undefined
+      ? await playerVillage(playerId, villageId)
+      : await requireVillageRight(playerId, villageId, right, today.day);
+  if (found === null || typeof found === 'string') {
+    return { ok: false, error: found ?? NOT_PLAYER_VILLAGE };
+  }
   return {
     ok: true,
     playerId,
@@ -129,6 +143,7 @@ async function context(playerId: string, villageId: string): Promise<Context> {
 async function guardedAction<T>(
   playerId: string,
   villageId: string,
+  action: VillageAction,
   run: (ctx: Extract<Context, { ok: true }>) => Promise<T>,
 ): Promise<
   | { ok: true; ctx: Extract<Context, { ok: true }>; value: T }
@@ -142,7 +157,7 @@ async function guardedAction<T>(
       | { kind: 'error'; error: string }
       | { kind: 'over'; ctx: Extract<Context, { ok: true }> }
     > => {
-      const ctx = await context(playerId, villageId);
+      const ctx = await context(playerId, villageId, ACTION_RIGHTS[action]);
       if (!ctx.ok) return { kind: 'error', error: ctx.error };
       // zámek už držíme (fronta i DB) – dopočet bez vnořeného zámku; zobrazená ves do dneška,
       // ostatní jen víc než WORKER_LAG_DAYS pozadu (akce sama dopočte každou ves, které se dotkne)
@@ -216,13 +231,17 @@ async function toActionResult(
   return result.ok ? viewOf(ctx, result.village) : { error: result.reason };
 }
 
-/** Provede akci nad vsí `villageId` hráče – ověří ves, spustí use-case a vrátí pohled. */
+/**
+ * Provede akci `name` nad vsí `villageId` hráče – ověří ves a právo akce (`ACTION_RIGHTS`),
+ * spustí use-case a vrátí pohled.
+ */
 async function actOn(
   playerId: string,
   villageId: string,
+  name: VillageAction,
   action: (ctx: Extract<Context, { ok: true }>) => Promise<VillageResult>,
 ): Promise<VillageActionResult> {
-  const done = await guardedAction(playerId, villageId, action);
+  const done = await guardedAction(playerId, villageId, name, action);
   if (!done.ok) return done.result;
   return toActionResult(done.ctx, done.value);
 }
@@ -350,7 +369,7 @@ export function placeDwellingForPlayer(
   villageId: string,
   input: { type: BuildableDwellingType; position: Position; plot?: DwellingPlot },
 ): Promise<VillageActionResult> {
-  return actOn(playerId, villageId, (ctx) =>
+  return actOn(playerId, villageId, 'placeDwelling', (ctx) =>
     placeDwelling(
       { villages: villages() },
       { villageId: ctx.villageId, landscape: ctx.landscape, today: ctx.day, ...input },
@@ -369,7 +388,7 @@ export function relocateHouseholdForPlayer(
     plot?: DwellingPlot;
   },
 ): Promise<VillageActionResult> {
-  return actOn(playerId, villageId, (ctx) =>
+  return actOn(playerId, villageId, 'relocateHousehold', (ctx) =>
     relocateHousehold(
       { villages: villages() },
       { villageId: ctx.villageId, landscape: ctx.landscape, today: ctx.day, ...input },
@@ -383,7 +402,7 @@ export function cancelConstructionForPlayer(
   villageId: string,
   input: { constructionId: number },
 ): Promise<VillageActionResult> {
-  return actOn(playerId, villageId, (ctx) =>
+  return actOn(playerId, villageId, 'cancelConstruction', (ctx) =>
     cancelUnfinishedConstruction(
       { villages: villages() },
       { villageId: ctx.villageId, landscape: ctx.landscape, today: ctx.day, ...input },
@@ -396,7 +415,7 @@ export function placeFieldForPlayer(
   villageId: string,
   input: { cells: TileCell[]; grid?: SquareGrid },
 ): Promise<VillageActionResult> {
-  return actOn(playerId, villageId, (ctx) =>
+  return actOn(playerId, villageId, 'placeField', (ctx) =>
     placeField(
       { villages: villages() },
       { villageId: ctx.villageId, landscape: ctx.landscape, today: ctx.day, ...input },
@@ -409,7 +428,7 @@ export function placeCemeteryForPlayer(
   villageId: string,
   input: { cells: TileCell[]; grid?: SquareGrid },
 ): Promise<VillageActionResult> {
-  return actOn(playerId, villageId, (ctx) =>
+  return actOn(playerId, villageId, 'placeCemetery', (ctx) =>
     placeCemetery(
       { villages: villages() },
       { villageId: ctx.villageId, landscape: ctx.landscape, today: ctx.day, ...input },
@@ -422,7 +441,7 @@ export function placeOrchardForPlayer(
   villageId: string,
   input: { cells: TileCell[]; grid?: SquareGrid },
 ): Promise<VillageActionResult> {
-  return actOn(playerId, villageId, (ctx) =>
+  return actOn(playerId, villageId, 'placeOrchard', (ctx) =>
     placeOrchard(
       { villages: villages() },
       { villageId: ctx.villageId, landscape: ctx.landscape, today: ctx.day, ...input },
@@ -435,7 +454,7 @@ export function placeSacredForPlayer(
   villageId: string,
   input: { kind: SacredBuildingKind; position: Position },
 ): Promise<VillageActionResult> {
-  return actOn(playerId, villageId, (ctx) =>
+  return actOn(playerId, villageId, 'placeSacred', (ctx) =>
     placeSacredBuilding(
       { villages: villages() },
       { villageId: ctx.villageId, landscape: ctx.landscape, today: ctx.day, ...input },
@@ -448,7 +467,7 @@ export function placeThreshingFloorForPlayer(
   villageId: string,
   input: { position: Position },
 ): Promise<VillageActionResult> {
-  return actOn(playerId, villageId, (ctx) =>
+  return actOn(playerId, villageId, 'placeThreshingFloor', (ctx) =>
     placeThreshingFloor(
       { villages: villages() },
       { villageId: ctx.villageId, landscape: ctx.landscape, today: ctx.day, ...input },
@@ -461,7 +480,7 @@ export function placeWorkshopForPlayer(
   villageId: string,
   input: { craft: Craft; position: Position },
 ): Promise<VillageActionResult> {
-  return actOn(playerId, villageId, (ctx) =>
+  return actOn(playerId, villageId, 'placeWorkshop', (ctx) =>
     placeWorkshop(
       { villages: villages() },
       { villageId: ctx.villageId, landscape: ctx.landscape, today: ctx.day, ...input },
@@ -475,7 +494,7 @@ export function nameLineManForPlayer(
   villageId: string,
   input: { personId: number; name: string },
 ): Promise<VillageActionResult> {
-  return actOn(playerId, villageId, (ctx) =>
+  return actOn(playerId, villageId, 'nameLineMan', (ctx) =>
     nameLineManInVillage(
       { villages: villages() },
       { villageId: ctx.villageId, today: ctx.day, landscape: ctx.landscape, ...input },
@@ -489,7 +508,7 @@ export function setStewardForPlayer(
   villageId: string,
   input: { on: boolean },
 ): Promise<VillageActionResult> {
-  return actOn(playerId, villageId, (ctx) =>
+  return actOn(playerId, villageId, 'setSteward', (ctx) =>
     setSteward(
       { villages: villages() },
       { playerId, villageId: ctx.villageId, today: ctx.day, landscape: ctx.landscape, ...input },
@@ -502,7 +521,7 @@ export function declareHuntForPlayer(
   playerId: string,
   villageId: string,
 ): Promise<VillageActionResult> {
-  return actOn(playerId, villageId, (ctx) =>
+  return actOn(playerId, villageId, 'declareHunt', (ctx) =>
     declareHuntInVillage(
       { villages: villages() },
       { villageId: ctx.villageId, today: ctx.day, landscape: ctx.landscape },
@@ -520,7 +539,7 @@ export function forceDevDisasterForPlayer(
   villageId: string,
   choice: { kind: 'year'; value: BadYearKind } | { kind: 'disaster'; value: ForcedDisasterKind },
 ): Promise<VillageActionResult> {
-  return actOn(playerId, villageId, (ctx) => {
+  return actOn(playerId, villageId, 'forceDevDisaster', (ctx) => {
     const input = { villageId: ctx.villageId, devMode, today: ctx.day, landscape: ctx.landscape };
     return choice.kind === 'year'
       ? forceBadYear({ villages: villages() }, { ...input, kind: choice.value })
@@ -533,7 +552,7 @@ export function renameVillageForPlayer(
   villageId: string,
   input: { name: string },
 ): Promise<VillageActionResult> {
-  return actOn(playerId, villageId, (ctx) =>
+  return actOn(playerId, villageId, 'renameVillage', (ctx) =>
     renameVillage(
       { villages: villages() },
       { villageId: ctx.villageId, today: ctx.day, name: input.name, landscape: ctx.landscape },
@@ -551,7 +570,7 @@ export function placePenForPlayer(
   input: { cells: TileCell[]; species: PenSpecies; grid?: SquareGrid },
 ): Promise<VillageActionResult> {
   const grid = input.grid;
-  return actOn(playerId, villageId, (ctx) =>
+  return actOn(playerId, villageId, 'placePen', (ctx) =>
     placePen(
       { villages: villages() },
       {
@@ -572,7 +591,7 @@ export function upgradeRoadForPlayer(
   villageId: string,
   input: { roadId: number; upgrade: 'improved' },
 ): Promise<VillageActionResult> {
-  return actOn(playerId, villageId, (ctx) =>
+  return actOn(playerId, villageId, 'upgradeRoad', (ctx) =>
     upgradeRoad(
       { villages: villages() },
       {
@@ -592,7 +611,7 @@ export function buildWagonRoadForPlayer(
   villageId: string,
   input: { roadId: number },
 ): Promise<VillageActionResult> {
-  return actOn(playerId, villageId, (ctx) =>
+  return actOn(playerId, villageId, 'buildWagonRoad', (ctx) =>
     buildWagonRoad(
       { villages: villages() },
       { villageId: ctx.villageId, landscape: ctx.landscape, today: ctx.day, roadId: input.roadId },
@@ -606,7 +625,7 @@ export function plantRoadApplesForPlayer(
   villageId: string,
   input: { roadId: number },
 ): Promise<VillageActionResult> {
-  return actOn(playerId, villageId, (ctx) =>
+  return actOn(playerId, villageId, 'plantRoadApples', (ctx) =>
     plantApplesAlongRoad(
       { villages: villages() },
       { villageId: ctx.villageId, landscape: ctx.landscape, today: ctx.day, roadId: input.roadId },
@@ -620,7 +639,7 @@ export function buildTrailForPlayer(
   villageId: string,
   input: { direction: Direction8 },
 ): Promise<VillageActionResult> {
-  return actOn(playerId, villageId, (ctx) =>
+  return actOn(playerId, villageId, 'buildTrail', (ctx) =>
     buildTrail(
       { villages: villages() },
       {
@@ -645,7 +664,7 @@ export function sendExpeditionForPlayer(
     getPeople?: TradePeople;
   },
 ): Promise<VillageActionResult> {
-  return actOn(playerId, villageId, async (ctx) =>
+  return actOn(playerId, villageId, 'sendExpedition', async (ctx) =>
     sendExpedition(
       { villages: villages() },
       {
@@ -676,14 +695,18 @@ export async function leaveVillageForPlayer(
   villageId: string,
   input: LeaveVillageInput,
 ): Promise<VillageActionResult> {
-  const done = await guardedAction(playerId, villageId, (ctx) =>
-    leaveVillage(gameDeps(), {
-      playerId,
-      villageId,
-      today: ctx.day,
-      ...('sonId' in input ? { sonId: input.sonId } : { dwellingIds: input.dwellingIds }),
-      destination: input.destination,
-    }),
+  const done = await guardedAction(
+    playerId,
+    villageId,
+    'sonId' in input ? 'leaveWithSon' : 'leaveHouseholds',
+    (ctx) =>
+      leaveVillage(gameDeps(), {
+        playerId,
+        villageId,
+        today: ctx.day,
+        ...('sonId' in input ? { sonId: input.sonId } : { dwellingIds: input.dwellingIds }),
+        destination: input.destination,
+      }),
   );
   if (!done.ok) return done.result;
   const { ctx, value: result } = done;
@@ -697,7 +720,7 @@ export async function settleJourneyForPlayer(
   villageId: string,
   input: { dwelling: Position },
 ): Promise<VillageActionResult> {
-  return actOn(playerId, villageId, (ctx) =>
+  return actOn(playerId, villageId, 'settleJourney', (ctx) =>
     settleJourney(gameDeps(), {
       playerId,
       villageId,

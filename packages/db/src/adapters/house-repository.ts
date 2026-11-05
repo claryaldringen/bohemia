@@ -5,7 +5,8 @@ import { house } from '../schema';
 
 type HouseRow = typeof house.$inferSelect;
 
-function toHouse(row: HouseRow): House {
+/** Řádek tabulky rodů jako rod. */
+export function toHouse(row: HouseRow): House {
   return {
     id: row.id,
     playerId: row.playerId,
@@ -17,6 +18,10 @@ function toHouse(row: HouseRow): House {
       row.lordVillageId === null || row.lordPersonId === null
         ? null
         : { villageId: row.lordVillageId, personId: row.lordPersonId },
+    senior:
+      row.seniorVillageId === null || row.seniorPersonId === null
+        ? null
+        : { villageId: row.seniorVillageId, personId: row.seniorPersonId },
   };
 }
 
@@ -64,6 +69,15 @@ export function createHouseRepository(db: Database): HouseRepository {
         .set({
           lordVillageId: lord?.villageId ?? sql`NULL`,
           lordPersonId: lord?.personId ?? sql`NULL`,
+        })
+        .where(eq(house.id, houseId));
+    },
+    async setSenior(houseId, senior): Promise<void> {
+      await db
+        .update(house)
+        .set({
+          seniorVillageId: senior?.villageId ?? sql`NULL`,
+          seniorPersonId: senior?.personId ?? sql`NULL`,
         })
         .where(eq(house.id, houseId));
     },

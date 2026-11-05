@@ -71,6 +71,7 @@ export * from './population';
 export * from './kinship';
 export * from './dynasty';
 export * from './dynasty-names';
+export * from './seniority';
 export * from './steward-state';
 export * from './steward-land';
 export * from './steward-plan';

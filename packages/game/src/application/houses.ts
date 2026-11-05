@@ -16,6 +16,8 @@ export interface House {
   endedAt: Date | null;
   endedDay: number | null;
   lord: PersonRef | null;
+  /** Naposledy zapsaný senior rodu (seniorate.md – Seniorát); null před prvním zápisem. */
+  senior: PersonRef | null;
 }
 
 /** Port repozitáře rodů. */
@@ -32,4 +34,6 @@ export interface HouseRepository {
   end(houseId: string, at: Date, day: number): Promise<boolean>;
   /** Zapíše, nebo (null) vymaže hlavu rodu. */
   setLord(houseId: string, lord: PersonRef | null): Promise<void>;
+  /** Zapíše, nebo (null) vymaže naposledy hlášeného seniora rodu. */
+  setSenior(houseId: string, senior: PersonRef | null): Promise<void>;
 }

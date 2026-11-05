@@ -64,6 +64,7 @@ async function setup(): Promise<{
         endedAt: null,
         endedDay: null,
         lord,
+        senior: null,
       },
       seat: { x, y },
       digests,

@@ -56,4 +56,16 @@ describe('HouseRepository (Drizzle)', () => {
     const b = await houses.create({ playerId: null, kind: 'npc', createdAt: NOW });
     expect(a.id).not.toBe(b.id);
   });
+
+  it('setSenior zapíše a vymaže seniora rodu, hlavu rodu nemění', async () => {
+    const house = await houses.create({ playerId: 'p1', kind: 'player', createdAt: NOW });
+    expect(house.senior).toBeNull();
+    const villageId = '22222222-2222-4222-8222-222222222222';
+    await houses.setSenior(house.id, { villageId, personId: 3 });
+    const stored = await houses.byId(house.id);
+    expect(stored?.senior).toEqual({ villageId, personId: 3 });
+    expect(stored?.lord).toBeNull();
+    await houses.setSenior(house.id, null);
+    expect((await houses.byId(house.id))?.senior).toBeNull();
+  });
 });

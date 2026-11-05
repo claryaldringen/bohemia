@@ -54,6 +54,8 @@ export type ChronicleEvent = { day: number } & (
    * jména chybí. Hra končí, až rod nezbude v žádné vsi hráče.
    */
   | { kind: 'line-ended'; name?: string }
+  /** Seniorem rodu se stal muž rodu `name` (seniorate.md – Seniorát; zapisuje se do všech vsí rodu). */
+  | { kind: 'senior'; name?: string }
   /** Vedlejší manželka odešla z přeplněného dvorce do vlastního domu (lord.md – Manželky). */
   | { kind: 'wife-left-manor' }
   /**
