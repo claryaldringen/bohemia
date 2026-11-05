@@ -129,7 +129,9 @@ akce do 0,5 s**“ splní malý souhrn vsi ve sloupci `village.digest` (migrace
   lidí, na cestě, hlad (`hungerLevel`), nouzový výmlat (`threshingStatus().emergency`), správce,
   fakta konce rodu (`LineFacts` – sleduje rod, muži rodu, `extinctDay` / `abandonedDay`), vstupy
   počasí roku (`weatherSeed`, z pohrom jen povodeň a vynucené počasí – ochrana dílů má u Vlkova
-  120 kB) a poslední místní pohromu z kroniky (`LOCAL_DISASTER_KINDS`). Co závisí na dni pohledu
+  120 kB) a poslední místní pohromu z kroniky (`LOCAL_DISASTER_KINDS`). Od verze 2 (5. 11. 2026, adresář rodů) i `publicLineMen` – muži rodu
+  s číslem osoby, jménem a dnem narození (`PublicLineMan`); souhrn verze 1 se nepoužije
+  (`isCurrentDigest`) a ves ho dostane při dalším uložení. Co závisí na dni pohledu
   (odhalené počasí roku), se počítá až v pohledu ze vstupů – položka přepínače je táž i pro dnešek
   o pár dní po dni vsi. `VILLAGE_DIGEST_VERSION` = tvar; jiný tvar se nepoužije.
 - **Kdo ho píše:** adaptér (`createVillageRepository` – `create`, `add`, `addOnce`, `save`) ze

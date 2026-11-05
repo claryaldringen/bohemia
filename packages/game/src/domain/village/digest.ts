@@ -1,4 +1,5 @@
 import { isVillageTravelling } from './departure';
+import { lineMen } from './dynasty';
 import { lineFacts, type LineFacts } from './extinction';
 import { isStewardOn } from './steward-state';
 import { hungerLevel, type HungerLevel } from './summary';
@@ -14,7 +15,7 @@ import type { VillageState } from './types-state';
 // nese souhrn jako vstup pravidla (`weatherSeed`, `disasters`), ne jako výsledek.
 
 /** Verze tvaru souhrnu – souhrn jiné verze se nepoužije (ves se načte celá a souhrn se obnoví). */
-export const VILLAGE_DIGEST_VERSION = 1;
+export const VILLAGE_DIGEST_VERSION = 2;
 
 /** Místní pohromy v kronice – poslední z nich ukáže přepínač vsí (disasters.md – Co hráč vidí). */
 export const LOCAL_DISASTER_KINDS: ReadonlySet<ChronicleEvent['kind']> = new Set([
@@ -36,6 +37,16 @@ function weatherDisasters(disasters: DisasterState | undefined): WeatherDisaster
   const weather = disasters?.override?.weather;
   if (!flood && !weather) return undefined;
   return { ...(flood ? { flood } : {}), ...(weather ? { override: { weather } } : {}) };
+}
+
+/**
+ * Muž rodu, jak ho smí vidět cizí hráč (vassalage.md – Přehled pána: rodokmeny šlechty jsou
+ * veřejné) – jen číslo osoby ve vsi (pro hlavu rodu), jméno a den narození, nic víc.
+ */
+export interface PublicLineMan {
+  id: number;
+  name?: string;
+  bornDay: number;
 }
 
 /** Souhrn vsi – odvozený ze stavu (`villageDigest`). */
@@ -61,6 +72,8 @@ export interface VillageDigest extends LineFacts {
    * Ochrana dílů (u velké vsi přes 100 kB) do souhrnu nepatří.
    */
   disasters?: WeatherDisasters;
+  /** Žijící muži rodu po meči s jménem a dnem narození (adresář rodů, `housesNear`). */
+  publicLineMen: PublicLineMan[];
   /** Poslední místní pohroma v kronice (`LOCAL_DISASTER_KINDS`). */
   lastLocalDisaster?: ChronicleEvent;
 }
@@ -89,6 +102,11 @@ export function villageDigest(state: VillageState): VillageDigest {
     threshingEmergency: threshingStatus(state, state.lastDay).emergency,
     steward: isStewardOn(state),
     ...lineFacts(state),
+    publicLineMen: lineMen(state).map((p) => ({
+      id: p.id,
+      ...(p.name !== undefined ? { name: p.name } : {}),
+      bornDay: p.bornDay,
+    })),
     ...(state.weatherSeed !== undefined ? { weatherSeed: state.weatherSeed } : {}),
     ...(disasters ? { disasters } : {}),
     ...(last ? { lastLocalDisaster: last } : {}),

@@ -117,6 +117,7 @@ název). Pravidla a rozhodnutí jsou v `docs/design/`.
 | `docs/code/village-wildlife.md`  | divoká zvěř – stav, stropy z krajiny, roční přepočet, škody na polích, šelmy, psi a lov rodu, hlídky polí, ryby a oka, převod, Vlkov |
 | `docs/code/village-disasters.md` | počasí kraje – seed počasí mapy, roční los, shlukování, povodeň kraje, odhalení, ochrana nové vsi                                    |
 | `docs/code/worker.md`            | worker – smyčka, odklady, spánek do dalšího dne, konfigurace, spuštění a ukončení                                                    |
+| `docs/code/world.md`             | svět pro víc hráčů – mřížka a umístění, rod hráče, adresář rodů (co je veřejné), změřený dotaz                                       |
 | `docs/code/web-ui.md`            | server actions, dotazování na ves, rozhraní jako 0 A.D., katalog staveb, ovládání, e2e                                               |
 
 **Nová mechanika nebo změna:** zapiš ji do příslušného souboru v `docs/code/` (a pravidla do
