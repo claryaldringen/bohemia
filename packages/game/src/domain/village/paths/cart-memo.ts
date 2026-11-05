@@ -77,6 +77,8 @@ export function cartGridKey(
     village.threshingFloors ?? null,
     village.earthworks ?? null,
     changes,
+    // stojící opevnění (fortifications.md – Brány) – klíč vsi bez něj beze změny
+    ...(village.fortifications ? [village.fortifications] : []),
   ]);
   return `${layout}${PART_FLAGS}${flags}`;
 }

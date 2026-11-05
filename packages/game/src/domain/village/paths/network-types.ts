@@ -18,6 +18,7 @@ import {
   type SacredBuildingKind,
   type TileCell,
 } from '../types';
+import type { FortWalls } from '../fortification/walls';
 import { type EarthworkSpan } from './earthworks';
 import { type PathTerrain } from './terrain';
 import { type WalkPart } from './walk-speed';
@@ -108,6 +109,11 @@ export interface PathSquare {
   z: number;
   size: number;
   rotation?: number;
+}
+
+/** Opevnění vsi v síti cest – stěny a brány stojících úseků (`fortWalls`). */
+export interface PathFortification extends FortWalls {
+  id: number;
 }
 
 /**
@@ -236,6 +242,12 @@ export interface PathVillage {
    * i vozů se podle nich upraví (`withTerrainEdits` – sklon v úvozu a na náspu). Bez údaje žádné.
    */
   earthworks?: readonly EarthworkSpan[];
+  /**
+   * Opevnění se stojícími úseky (fortifications.md – Brány) – stěny a brány ve světě
+   * (`fortWalls`): chodec, vůz i stádo projde jen branou. Ves bez stojícího opevnění údaj nemá
+   * (síť beze změny).
+   */
+  fortifications?: readonly PathFortification[];
   /**
    * Milíře uhlířů (crafts.md – Milíř u skácených buků) – samostatné stavby, střed (m): pěšina kupu
    * obejde, k milíři se chodí za prací dne (uhlíř ze zemnice, pro uhlí z kovárny). Bez údaje žádné.

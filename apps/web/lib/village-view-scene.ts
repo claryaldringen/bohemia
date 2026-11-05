@@ -88,6 +88,7 @@ import {
   type VillageSummary,
   villageCemeteries,
   villageOrchards,
+  pathFortificationsOf,
   type DwellingPlot,
 } from '@bohemia/game';
 import { sceneGrainPits } from './grain-pit-view';
@@ -253,6 +254,7 @@ export function sceneVillage(
   }));
   const pens = scenePens(state, landscape, day, summary);
   const earthworks = sceneEarthworks(state, day);
+  const fortifications = pathFortificationsOf(state, landscape);
   const home = wagonHome(state);
   const carts = sceneCarts(state, day, landscape, fields);
   const ploughLegs = scenePloughLegs(state, fields);
@@ -320,6 +322,7 @@ export function sceneVillage(
     ...(carts.length > 0 ? { carts } : {}),
     ...(ploughLegs ? { ploughLegs } : {}),
     ...(earthworks.length > 0 ? { earthworks } : {}),
+    ...(fortifications.length > 0 ? { fortifications } : {}),
     ...(state.routes
       ? { routes: { key: sceneRoutesKey(state.routes), list: state.routes.list } }
       : {}),

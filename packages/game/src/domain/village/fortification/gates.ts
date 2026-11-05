@@ -109,6 +109,19 @@ function distanceTo(segment: FortSegmentShape, x: number, z: number): number {
   return best;
 }
 
+/** První průsečík cest `roads` s úsekem – poloha na rovné části (m); bez průsečíku Infinity. */
+function firstCrossing(segment: FortSegmentShape, roads: readonly GatePolyline[]): number {
+  let first = Infinity;
+  for (const road of roads) {
+    for (let k = 0; k + 1 < road.length; k++) {
+      for (const [x, z] of crossings(segment, road[k]!, road[k + 1]!)) {
+        first = Math.min(first, along(segment, x, z));
+      }
+    }
+  }
+  return first;
+}
+
 /**
  * Brány, které vzniknou samy (fortifications.md – Brány): průsečíky obvodu s cestami `roads`,
  * nejvýš jedna na úsek (první po směru hodin); obvod bez průsečíku dostane jednu bránu uprostřed
@@ -122,14 +135,7 @@ export function autoGates(
   const segments = fortSegments(outline);
   const gates: FortGate[] = [];
   for (const segment of segments) {
-    let first = Infinity;
-    for (const road of roads) {
-      for (let k = 0; k + 1 < road.length; k++) {
-        for (const [x, z] of crossings(segment, road[k]!, road[k + 1]!)) {
-          first = Math.min(first, along(segment, x, z));
-        }
-      }
-    }
+    const first = firstCrossing(segment, roads);
     if (first !== Infinity) gates.push(gateAt(segment, first));
   }
   if (gates.length > 0) return gates;
@@ -171,4 +177,27 @@ export function addGate(
   return [...gates, gateAt(nearest, along(nearest, pos.x, pos.z))].sort(
     (a, b) => a.segment - b.segment,
   );
+}
+
+/**
+ * Brány pro cesty přes stojící opevnění (fortifications.md – Brány: cesta postavená přes hotové
+ * opevnění dostane bránu taky – návrh Clauda): stojící úsek (`standing`) bez brány, který cesta
+ * z `roads` protne, dostane bránu u prvního průsečíku jako v `autoGates`; nejvýš jedna na úsek.
+ * Bez nové brány vrátí totéž pole `gates`, jinak nové seřazené podle úseku.
+ */
+export function roadGates(
+  outline: FortOutline,
+  gates: readonly FortGate[],
+  roads: readonly GatePolyline[],
+  standing: (segment: number) => boolean,
+): readonly FortGate[] {
+  const taken = new Set(gates.map((g) => g.segment));
+  const added: FortGate[] = [];
+  for (const segment of fortSegments(outline)) {
+    if (taken.has(segment.index) || !standing(segment.index)) continue;
+    const first = firstCrossing(segment, roads);
+    if (first !== Infinity) added.push(gateAt(segment, first));
+  }
+  if (added.length === 0) return gates;
+  return [...gates, ...added].sort((a, b) => a.segment - b.segment);
 }
