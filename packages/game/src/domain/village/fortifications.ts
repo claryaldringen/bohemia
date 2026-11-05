@@ -7,6 +7,7 @@ import {
   fortificationCost,
   fortificationOutline,
   fortSegments,
+  roadGates,
   type FortGate,
   type FortOutline,
   type FortSegmentShape,
@@ -87,6 +88,37 @@ function runningWork(state: VillageState, id: number): Construction | undefined 
 /** Pevné cesty vsi (i vozové a úseky zemské stezky) – osy pro brány, které vzniknou samy. */
 function roadAxes(state: VillageState): RoadPoint[][] {
   return (state.roads?.roads ?? []).map((r) => r.points);
+}
+
+/**
+ * Brány pro cesty přes stojící opevnění (fortifications.md – Brány: cesta postavená přes hotové
+ * opevnění dostane bránu taky – návrh Clauda; mutuje stav): každý den před přepočtem tras – nová
+ * pevná cesta z vyšlapanosti, hotový úsek vozové cesty a zemské stezky i úsek opevnění dostavěný
+ * přes starou cestu tak bránu dostanou dřív, než je síť pěšin a vozů uzavře (`roadGates`). Stojící
+ * úsek = hotový a neprolomený. Ves bez opevnění nebo bez cest beze změny.
+ */
+export function gateRoadCrossings(
+  state: VillageState,
+  geo: Pick<Landscape, 'size' | 'cellSizeM'>,
+): void {
+  const forts = state.fortifications;
+  if (!forts || forts.length === 0) return;
+  const axes = roadAxes(state);
+  if (axes.length === 0) return;
+  for (const fort of forts) {
+    const standing = new Set(
+      fort.segments
+        .filter((s) => s.builtDay !== null && s.breachedDay === undefined)
+        .map((s) => s.index),
+    );
+    // každý stojící úsek už bránu má – není co přidat
+    for (const g of fort.gates) standing.delete(g.segment);
+    if (standing.size === 0) continue;
+    const outline = outlineOf(geo, fort);
+    if (!outline) continue;
+    const gates = roadGates(outline, fort.gates, axes, (i) => standing.has(i));
+    if (gates !== fort.gates) fort.gates = [...gates];
+  }
 }
 
 /** Kotva vsi – dvorec, bez něj střed obydlí (fortifications.md – Brány); bez obydlí střed mapy. */

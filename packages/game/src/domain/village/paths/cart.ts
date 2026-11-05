@@ -25,7 +25,7 @@ import {
   type PathVillage,
   villageTerrain,
 } from './network';
-import { fieldCellsOf } from './network-grid';
+import { fieldCellsOf, fortWallCells } from './network-grid';
 import { PATH_FORD, PATH_FOREST, PATH_WATER, PATH_WETLAND, type PathTerrain } from './terrain';
 import { roadTreeSpeed } from './walk-speed';
 
@@ -395,6 +395,10 @@ export function cartGrid(
   }
   for (const pen of v.pens ?? []) {
     for (const c of fencedCells(grid, penPathSquares(pen), PEN_FENCE_INSET_M)) block(c);
+  }
+  // stojící opevnění (fortifications.md – Brány): vůz projede jen branou (4 m – vůz se spřežením)
+  for (const fort of v.fortifications ?? []) {
+    for (const c of fortWallCells(grid, fort).wall) block(c);
   }
   for (const b of v.sacred?.buildings ?? []) {
     if (b.kind !== 'shrine') continue;

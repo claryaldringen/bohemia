@@ -41,6 +41,7 @@ import { withToolEquipment } from './iron';
 import { swathRoadsInWork, trailsDay } from './trail';
 import { roadSwathDay } from './road-swath';
 import { wagonRoadsDay } from './wagon-road';
+import { gateRoadCrossings } from './fortifications';
 import { isVillageDormant } from './departure';
 import { applyInboxDay, inboxByDay, type VillageEvent } from './inbox';
 import { withAwaitingLord } from './appoint-lord';
@@ -241,6 +242,8 @@ function* simulateDaySteps(
   // pevné cesty ubírají polím plochu (roads.md a fields.md – Cesta přes pole) – jen když se od
   // včerejška změnily cesty nebo čtverce polí
   if (landscape) roadFieldsDay(state, day, landscape);
+  // cesta přes stojící opevnění dostane bránu (fortifications.md – Brány) – před přepočtem tras
+  if (landscape) gateRoadCrossings(state, landscape);
   if (landscape) yield* refreshWalkDistancesSteps(state, day, landscape, obstacles);
   yield;
   // pokrytí výrobky řemeslníků ze včerejších zásob – meze produktivity celého dne (crafts.md)

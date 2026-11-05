@@ -29,6 +29,8 @@ import {
   type Entrance,
   type FenceOutline,
 } from './entrances';
+import { quadTouchesSquare, type FortWalls } from '../fortification/walls';
+import type { Point } from '../polygon';
 import { villageFences } from './fences';
 import { FENCE_CLEARANCE } from '../rules-roads';
 import { PATH_WATER, PATH_WETLAND, type PathTerrain } from './terrain';
@@ -741,21 +743,71 @@ export function villageGrid(input: PathNetworkInput, buildings: readonly Buildin
   return grid;
 }
 
-/** Plot vsi pro pruh mřížky (`fenceBand`): obrys a buňky jeho branky. */
+/**
+ * Plot vsi pro pruh mřížky (`fenceBand`): obrys a buňky jeho branky. Opevnění (`wall`) nese buňky
+ * stěn bez buněk bran – neprůchodné vždy, bez pruhu a uličky plotů.
+ */
 export interface GridFence {
   outline: FenceOutline;
   gate: ReadonlySet<number>;
+  wall?: readonly number[];
 }
 
-/** Ploty hřbitovů a ohrad (bez pozemků – ty jsou neprůchodné celé) s buňkami branek v `grid`. */
+/**
+ * Buňky stěn a bran opevnění v `grid` (fortifications.md – Brány): buňka, které se stěna dotkne
+ * (`quadTouchesSquare` – čtverec buňky kolem středu), je stěna; buňka, které se dotkne otvor
+ * brány, je brána a stěnou není. Stěna užší než buňka tak síť nepropustí ani úhlopříčně, brána
+ * 4 m vede přes celý pás aspoň jedním sloupcem buněk. Seřazené buňky stěn, množina bran.
+ */
+export function fortWallCells(
+  grid: GridWindow,
+  walls: FortWalls,
+): { wall: number[]; gate: Set<number> } {
+  const half = grid.cellM / 2;
+  const gate = new Set<number>();
+  const touched = (quads: readonly (readonly Point[])[], visit: (c: number) => void): void => {
+    for (const quad of quads) {
+      let minX = Infinity;
+      let minZ = Infinity;
+      let maxX = -Infinity;
+      let maxZ = -Infinity;
+      for (const [x, z] of quad) {
+        minX = Math.min(minX, x);
+        minZ = Math.min(minZ, z);
+        maxX = Math.max(maxX, x);
+        maxZ = Math.max(maxZ, z);
+      }
+      cellsIn(grid, minX - half, minZ - half, maxX + half, maxZ + half, (c, x, z) => {
+        if (quadTouchesSquare(quad, x, z, half)) visit(c);
+      });
+    }
+  };
+  touched(walls.gates, (c) => gate.add(c));
+  const wall = new Set<number>();
+  touched(walls.walls, (c) => {
+    if (!gate.has(c)) wall.add(c);
+  });
+  return { wall: [...wall].sort((a, b) => a - b), gate };
+}
+
+/**
+ * Ploty hřbitovů a ohrad (bez pozemků – ty jsou neprůchodné celé) s buňkami branek v `grid`
+ * a stojící opevnění s buňkami stěn a bran (`fortWallCells`).
+ */
 export function gridFences(
   grid: GridWindow,
-  v: Pick<PathVillage, 'cemeteries' | 'pens' | 'dwellings'>,
+  v: Pick<PathVillage, 'cemeteries' | 'pens' | 'dwellings' | 'fortifications'>,
 ): GridFence[] {
-  return villageFences(v, false).map((f) => ({
-    outline: f.outline,
-    gate: f.gate ? entranceCells(grid, f.gate) : new Set<number>(),
-  }));
+  return villageFences(v, false).map((f) => {
+    if (f.wall) {
+      const { wall, gate } = fortWallCells(grid, f.wall);
+      return { outline: f.outline, gate, wall };
+    }
+    return {
+      outline: f.outline,
+      gate: f.gate ? entranceCells(grid, f.gate) : new Set<number>(),
+    };
+  });
 }
 
 /**
@@ -776,7 +828,9 @@ export function fenceBand(
   const gates = new Set<number>();
   for (const { gate } of fences) for (const c of gate) gates.add(c);
   const near = new Map<number, { count: number; d: number; inside: boolean }>();
-  for (const { outline } of fences) {
+  for (const { outline, wall } of fences) {
+    // stěny opevnění pruh ani uličku nemají – jsou neprůchodné celé (níž)
+    if (wall) continue;
     const m = alleyM;
     cellsIn(
       grid,
@@ -830,6 +884,8 @@ export function fenceBand(
     if (near.get(c)!.inside || opensElsewhere(c)) blockedNow.push(c);
   }
   const blocked = new Set(blockedNow);
+  // stěny opevnění bez bran (fortifications.md – Brány) – neprůchodné vždy
+  for (const { wall } of fences) for (const c of wall ?? []) blocked.add(c);
   const dearer: number[] = [];
   for (const [c, cell] of near) {
     if (!passable(c) || blocked.has(c)) continue;

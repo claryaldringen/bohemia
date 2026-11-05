@@ -11,7 +11,9 @@ v `docs/design/`, postup po úlohách v [plánu](../superpowers/plans/2026-11-03
 ani `**`): tvar počítá server i prohlížeč (u kurzoru) ze stejných funkcí. Čísla v
 `rules-fortifications.ts` (`FORTIFICATIONS` – celá tabulka Čísla kromě horizontů správce), typy
 `FortKind` (`fence` | `palisade` | `rampart`) a `FortTop` v `types-fortifications.ts`. Stav vsi
-a stavba po úsecích (Ú5.2) – níž; síť cest, rozhraní a scéna opevnění zatím nemají.
+a stavba po úsecích (Ú5.2) – níž; stěny a brány v síti cest (Ú5.3) –
+[village-roads.md – Brány opevnění v síti](village-roads.md#brány-opevnění-v-síti-ú53-6-11-2026);
+rozhraní a scéna opevnění zatím nejsou.
 
 ## Plocha a obvod (`outline.ts`)
 
@@ -64,6 +66,17 @@ squares }`, nebo `{ error: 'empty' | 'disconnected' | 'too-small' }`. Opakované
 - `FortGate { segment, offsetM, x, z }` – střed brány na rovné části úseku. Brána 4 m stojí celá
   na rovné části: průsečík na oblouku nebo u konce se posune (`gateAt`), kratší rovná část než
   brána – střed.
+- **`roadGates(outline, gates, roads, standing)`** (Ú5.3) – stojící úsek bez brány, který protne
+  cesta, dostane bránu u prvního průsečíku jako v `autoGates`; bez nové brány vrátí totéž pole.
+  Volá ji denní `gateRoadCrossings` (`fortifications.ts`) – cesta přes hotové opevnění dostane
+  bránu (síť cest: [village-roads.md](village-roads.md#brány-opevnění-v-síti-ú53-6-11-2026)).
+
+## Stěny (`walls.ts`, Ú5.3)
+
+- **`fortWalls(geo, fort)`** – stěny (pás stojících úseků bez otvorů bran) a otvory bran jako
+  čtyřúhelníky ve světě; `quadTouchesSquare` a `insideQuad` pro buňky mřížek a obrys plotu.
+  Podrobnosti a použití v síti pěšin a vozů:
+  [village-roads.md – Brány opevnění v síti](village-roads.md#brány-opevnění-v-síti-ú53-6-11-2026).
 
 ## Cena (`cost.ts`)
 

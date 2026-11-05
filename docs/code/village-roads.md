@@ -1204,3 +1204,50 @@ studeným startem každý den; `cart-memo.test.ts`).
   `walkingDistances` 15 %, síť pěšin 11 %, trasy k práci 6 %, `routeMapKey` 3 %; `work` 26 % –
   hledání tras vozu (`cartRoutesOn`, svoz a voda) 13 %, ceny přesunů spřežení 4 %, mřížka vozu
   4,5 %; plán sezóny 7 % (`neededSelection` 3 %).
+
+## Brány opevnění v síti (Ú5.3, 6. 11. 2026)
+
+Pravidla: [fortifications.md](../design/fortifications.md) – Brány, Pro implementaci (Chůze
+a cesty); opevnění samo: [village-fortifications.md](village-fortifications.md).
+
+- **Stěny** – `fortWalls(geo, fort)` (`fortification/walls.ts`, deterministická vrstva): pás
+  každého **stojícího** úseku (hotový – `builtDay`, neprolomený – bez `breachedDay`) jako
+  čtyřúhelníky z `fortBandPieces` se šířkou druhu, který na úseku stojí (rozdělané vylepšení na
+  palisádu); brána z pásu strany vyřízne obdélník 4 m kolem středu (`offsetM` od začátku rovné
+  části = `endRadius` předchozí strany + `offsetM`) – otvor přes celou šířku pásu. Rozestavěný
+  úsek (staveniště), mezera po zrušené stavbě a průlom stěnu nemají – jsou průchozí.
+- **Ves pro pěšiny** – `PathVillage.fortifications` (`PathFortification { id, walls, gates }`)
+  skládá `pathFortificationsOf(state, geo)` v `pathVillageOf`; opevnění bez stojícího úseku
+  vynechá a **ves bez stojícího opevnění údaj nemá** – JSON vsi, klíče a mřížky beze změny.
+- **Ploty** – `villageFences` vrací i opevnění: `outline` je obrys stěn (`wallOutline` – hrany
+  čtyřúhelníků, uvnitř = uvnitř stěny) pro odstup osy trasy (`routeLine`, `fenceClearance`,
+  `wagonFenceAt`), `wall` nese stěny a brány. `gridFences` z nich udělá buňky (`fortWallCells`):
+  buňka, které se stěna **dotkne čtvercem buňky** (`quadTouchesSquare` – oddělující osy), je stěna,
+  buňka, které se dotkne otvor brány, je brána. Stěna užší než buňka (plot 1 m, buňka 3,75 m)
+  tak síť nepropustí ani úhlopříčným krokem, brána vede přes celý pás aspoň sloupcem buněk.
+- **`fenceBand`** – stěny opevnění pruh ani uličku plotů nemají (v počítání plotů u buňky se
+  vynechají – hřbitov a ohrada se chovají jako dřív), jejich buňky jdou rovnou do `blocked`;
+  buňky bran patří mezi branky (pruh jiného plotu je nezavře). Tímtéž `fenceBand` jde mřížka
+  chodců (`villageGrid` – pěšiny, **stádo na pastvu** – cíl `pasture`, práce, voda, dřevo)
+  i mřížka vozové cesty (`wagonRoadGrid` – plánuje se jen branou).
+- **Vůz** – `cartGrid` (`cart.ts`) zablokuje buňky stěn (`fortWallCells`) jako plot hřbitova:
+  vůz pro seno, dříví či hnůj projede jen branou (4 m – vůz se spřežením), i po pevné nebo vozové
+  cestě. Prohlížeč počítá trasy vozů z `CartWorld` (`cartWorldOf` → `pathVillageOf`) a náhled
+  vozové cesty z `SceneVillage.fortifications` (`pathFortificationsOf`) – tytéž funkce.
+- **Cesta přes opevnění dostane bránu** – `gateRoadCrossings(state, geo)` (`fortifications.ts`)
+  každý den před přepočtem tras (`simulate.ts`, po `roadFieldsDay`): stojící úsek bez brány,
+  který protne osa pevné cesty (i vozové a zemské stezky – `roadAxes`), dostane bránu u prvního
+  průsečíku (`roadGates` v `gates.ts`, jako `autoGates`). Tak bránu dostane nová cesta
+  z vyšlapanosti, dostavěný úsek vozové cesty a stezky i úsek opevnění dostavěný přes starou
+  cestu; úsek ve stavbě ji dostane až s dostavěním. Ves bez opevnění nebo bez cest beze změny.
+- **Klíče a `WALK_VERSION`** – `fortLayoutKey(state)` (plocha, druh, stojící úseky s druhem,
+  brány; bez opevnění null) se připojí na konec proudu `routeMapKey`, do `fenceLayoutKey`
+  a klíče `villageBlockedAt`; `cartGridKey` bere `village.fortifications`. Vše jen když opevnění
+  je, takže **ves bez opevnění má klíče, mřížky, trasy i vozovou síť bit po bitu stejné**
+  (zlatý otisk v `paths/__tests__/fortification-paths.test.ts`; Vlkov ověřen 6. 11. 2026 –
+  klíč mapy, mřížky chodců, vozové cesty i vozu a stálé trasy beze změny). Ves s opevněním
+  dostane nový klíč mapy sama (opevnění je v něm), proto **`WALK_VERSION` zůstává `routes-v11`**
+  – nová verze by jen jednou přepočítala trasy všech vsí se stejným výsledkem.
+- Odhad vzdáleností chůze (`walkGraph`, `walkingDistances`) jde po uložených trasách – přes
+  bránu, protože trasy jdou branou; přímý úsek k síti (napojení v nejbližším bodě pěšiny) stěny
+  nezná (zatím, návrh Clauda – odchylka malá).

@@ -30,6 +30,7 @@ import type {
   VillageState,
 } from '../types';
 import { villageWoods } from '../woods';
+import { fortWalls } from '../fortification/walls';
 import { clearingRouteObstacles, withoutHiddenChanges } from './clearing-routes';
 import { earthworkSpansOf } from './earthworks';
 import {
@@ -47,6 +48,7 @@ import {
   type PathPoint,
   type PathSquare,
   type PathNetworkInput,
+  type PathFortification,
   type PathVillage,
 } from './network';
 import {
@@ -282,6 +284,7 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
   // do ohrady bez zvířat se krmit nechodí (abandonment.md)
   const stocked = stockedPenIds(state);
   const pits = currentGrainPits(state);
+  const fortifications = pathFortificationsOf(state, landscape);
   const pens = villagePens(state).map((p) => ({
     id: p.id,
     cell: { x: p.cell.x, y: p.cell.y },
@@ -361,6 +364,8 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
           })),
         }
       : {}),
+    // stojící opevnění – stěny a brány (fortifications.md – Brány); ves bez něj beze změny
+    ...(fortifications.length > 0 ? { fortifications } : {}),
     // humna (production-chains.md – Humno) – ves bez nich beze změny
     ...((state.threshingFloors ?? []).length > 0
       ? {
@@ -372,6 +377,43 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
         }
       : {}),
   };
+}
+
+/**
+ * Opevnění vsi pro síť cest (fortifications.md – Brány): stěny a brány stojících úseků
+ * (`fortWalls`); opevnění bez stojícího úseku (jen staveniště, mezery, průlomy) vynechá.
+ */
+export function pathFortificationsOf(
+  state: Pick<VillageState, 'fortifications'>,
+  geo: Pick<Landscape, 'size' | 'cellSizeM'>,
+): PathFortification[] {
+  return (state.fortifications ?? []).flatMap((fort) => {
+    const walls = fortWalls(geo, fort);
+    return walls.walls.length > 0 ? [{ id: fort.id, ...walls }] : [];
+  });
+}
+
+/**
+ * Klíč opevnění pro mapy tras (`routeMapKey`, `fenceLayoutKey`, `villageBlockedAt`): plocha, druh,
+ * stojící úseky (hotové, neprolomené, s druhem) a brány – co mění stěny (`fortWalls`). Ves bez
+ * opevnění null – klíče vsí bez opevnění se nemění.
+ */
+export function fortLayoutKey(state: Pick<VillageState, 'fortifications'>): string | null {
+  const forts = state.fortifications ?? [];
+  if (forts.length === 0) return null;
+  return JSON.stringify(
+    forts.map((f) => [
+      f.id,
+      f.kind,
+      f.grid,
+      f.cells.map((c) => `${c.x},${c.y}`).join(';'),
+      f.segments
+        .filter((s) => s.builtDay !== null && s.breachedDay === undefined)
+        .map((s) => `${s.index}${s.kind ? `:${s.kind}` : ''}`)
+        .join(','),
+      f.gates.map((g) => `${g.segment}@${g.offsetM}`).join(','),
+    ]),
+  );
 }
 
 /**
@@ -433,7 +475,8 @@ export function settleVillageWear(state: VillageState, day: number, landscape: L
  */
 export function fenceLayoutKey(state: VillageState): string {
   const k = fenceLayoutParts(state);
-  return JSON.stringify([k.dwellings, k.cemeteries, k.pens]);
+  const fort = fortLayoutKey(state);
+  return JSON.stringify([k.dwellings, k.cemeteries, k.pens, ...(fort === null ? [] : [fort])]);
 }
 
 /**
@@ -460,6 +503,7 @@ export function villageBlockedAt(
     k.kilns,
     k.floors,
     state.roads?.earthworks ?? [],
+    ...[fortLayoutKey(state)].filter((f) => f !== null),
   ]);
   const last = lastBlocked.get(landscape);
   if (last?.key === key) return last.blocked;
@@ -592,6 +636,7 @@ function* computeVillageNetworkSteps(
  */
 export function routeMapKey(state: VillageState, day: number): string {
   const k = walkLayoutParts(state);
+  const fort = fortLayoutKey(state);
   // proud otisku: text + 0x1f, seznam = jeho texty + 0x1e (oddělovače mimo text klíče – různé
   // klíče dají různé proudy); stejný proud jako včera dá stejný otisk bez počítání po znacích
   // (porovnání řetězců je rychlé)
@@ -612,7 +657,9 @@ export function routeMapKey(state: VillageState, day: number): string {
     text(k.floors ?? '-') +
     text(earthworksKey(state)) +
     list((state.grainPits ?? []).map((p) => `${p.id}:${p.x},${p.z}`)) +
-    text(routeTreesKey(state, day));
+    text(routeTreesKey(state, day)) +
+    // opevnění (fortifications.md – Brány) – proud vsi bez opevnění beze změny
+    (fort === null ? '' : text(fort));
   const known = mapKeyDigests.get(stream);
   if (known !== undefined) {
     mapKeyDigests.delete(stream);

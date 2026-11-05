@@ -60,6 +60,7 @@ export type {
   PathNetwork,
   PathSquare,
   PathVillage,
+  PathFortification,
   PathNetworkInput,
   NetworkRoute,
 } from './network-types';

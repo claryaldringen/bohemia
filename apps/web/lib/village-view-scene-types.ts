@@ -2,6 +2,7 @@
 
 import { Landscape } from '@bohemia/game';
 import type { CartWorld } from '@bohemia/game';
+import type { PathFortification } from '@bohemia/game';
 import type { CartGoal } from './cart-routes';
 import { GraveMound } from '@bohemia/game';
 import { DwellingPlot } from '@bohemia/game';
@@ -370,6 +371,12 @@ export interface SceneVillage {
    * a vozů jedou po upraveném terénu (`PathVillage.earthworks`). Bez údaje žádné.
    */
   earthworks?: SceneEarthwork[];
+  /**
+   * Stojící opevnění (fortifications.md – Brány) – stěny a brány jako na serveru
+   * (`pathFortificationsOf` – `PathVillage.fortifications`): náhled vozové cesty a trasy vozů
+   * ve scéně projedou jen branou. Bez údaje žádné.
+   */
+  fortifications?: PathFortification[];
   /**
    * Trasy lidí (paths.md – Trasy) – pěšiny ve scéně vedou po nich. `list` je při dotazu na ves
    * `null`, když klient už má trasy téhož `key` (klient drží poslední – `keepSceneData`).
