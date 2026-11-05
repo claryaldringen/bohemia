@@ -23,6 +23,7 @@ import {
 } from './types';
 import { type DwellingShape, type ShapedDwelling, dwellingShape } from './dwelling-shape';
 import { type LandSquare } from './squares';
+import { fortificationBand } from './fortification/band';
 import {
   type Landscape,
   SURFACE_CODES,
@@ -185,6 +186,13 @@ export const DWELLING_LAND: LandUse = { fields: true, orchards: true, woods: tru
 /** Ostatní stavby na pole (Martin – pole jako krajina) a do lesa vsi. */
 export const FIELD_LAND: LandUse = { fields: true, woods: true };
 
+/** Důvod u kurzoru – stavba přes obydlí (i s pozemkem). */
+export const OVERLAPS_DWELLING = 'Překrývá se s jiným obydlím.';
+/** Důvod u kurzoru – stavba přes rozestavěné obydlí. */
+export const OVERLAPS_DWELLING_SITE = 'Překrývá se s rozestavěným obydlím.';
+/** Důvod u kurzoru – stavba přes pás opevnění (fortifications.md – Obvod). */
+export const OVERLAPS_FORTIFICATION = 'Stojí tu opevnění.';
+
 /**
  * Půdorys nebo pozemek (tvary `shapes`) se nepřekrývá s obydlím či rozestavěným obydlím (i jejich
  * pozemky), modlou, svatyní, humnem, ohradou ani se čtvercem pohřebiště – a podle `land` ani se
@@ -201,7 +209,7 @@ export function checkFootprintFree(
     shapes.some((a) => other.some((b) => polygonsOverlap(a.corners, b)));
   for (const d of village.dwellings) {
     if (overlaps(dwellingPlot(landscape, placedDwelling(d)))) {
-      return fail('Překrývá se s jiným obydlím.');
+      return fail(OVERLAPS_DWELLING);
     }
   }
   for (const c of village.constructions) {
@@ -214,7 +222,7 @@ export function checkFootprintFree(
       ...(c.plainShape ? { plainShape: true } : {}),
     };
     if (overlaps(dwellingPlot(landscape, site))) {
-      return fail('Překrývá se s rozestavěným obydlím.');
+      return fail(OVERLAPS_DWELLING_SITE);
     }
   }
   for (const b of village.sacredBuildings ?? []) {
@@ -225,6 +233,11 @@ export function checkFootprintFree(
   // humno – mlatová plocha s přístřeškem (production-chains.md – Humno)
   for (const f of village.threshingFloors ?? []) {
     if (overlaps([threshingFloorFootprint(f.position)])) return fail('Překrývá se s humnem.');
+  }
+  // pás opevnění (fortifications.md – Obvod): hotové úseky a celý obvod, dokud se staví
+  for (const f of village.fortifications ?? []) {
+    const building = village.constructions.some((c) => c.fortificationId === f.id);
+    if (overlaps(fortificationBand(landscape, f, building))) return fail(OVERLAPS_FORTIFICATION);
   }
   // milíř uhlíře je samostatná stavba (crafts.md – Milíř u skácených buků)
   for (const k of village.kilns ?? []) {

@@ -307,6 +307,54 @@ describe('createVillageRepository', () => {
     expect(advanceVillage(loaded!.state, later, null)).toEqual(advanceVillage(stored, later, null));
   });
 
+  it('opevnění ve stavu vsi projde adaptérem tam a zpět beze změny (fortifications.md)', async () => {
+    const s = state();
+    const fortificationId = s.nextId++;
+    s.fortifications = [
+      {
+        id: fortificationId,
+        grid: { x: 3.5, z: -7.25, rotation: Math.PI / 12 },
+        cells: [
+          { x: 0, y: 0 },
+          { x: 1, y: 0 },
+          { x: 0, y: 1 },
+          { x: 1, y: 1 },
+        ],
+        kind: 'rampart',
+        top: 'palisade',
+        segments: Array.from({ length: 8 }, (_, index) => ({
+          index,
+          builtDay: DAY - 20 + index,
+          topBuiltDay: index < 3 ? DAY - 2 : null,
+          state: 1,
+          ...(index === 5 ? { breachedDay: DAY - 1 } : {}),
+        })),
+        gates: [{ segment: 2, offsetM: 3.25, x: 18.5, z: -4.125 }],
+        rampartHeight: 0.875,
+      },
+    ];
+    s.constructions.push({
+      id: s.nextId++,
+      kind: 'fortification',
+      startedDay: DAY - 2,
+      cost: 40,
+      done: 12.5,
+      dwellingType: null,
+      position: null,
+      dwellingId: null,
+      fieldId: null,
+      fortificationId,
+      fortWork: 'top',
+      fortSegments: [3, 4, 5, 6, 7].map((index) => ({ index, cost: 8 })),
+      wood: { trees: 20, fromPile: 20, fell: [], felled: 0 },
+    });
+    const { id } = (await villages.create(settlementId, 'Libice', s))!;
+    const loaded = await villages.find(id);
+    expect(loaded?.state).toEqual(s);
+    const later = DAY + 60;
+    expect(advanceVillage(loaded!.state, later, null)).toEqual(advanceVillage(s, later, null));
+  });
+
   it('rename změní jméno, stav ani verzi ne; neznámá ves vrátí false', async () => {
     const { id } = (await villages.create(settlementId, 'Libice', state()))!;
     expect(await villages.rename(id, 'Testovice')).toBe(true);

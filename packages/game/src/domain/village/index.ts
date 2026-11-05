@@ -52,6 +52,7 @@ export * from './dwellings';
 export * from './manor';
 export * from './lord';
 export * from './cancel-construction';
+export * from './fortifications';
 export * from './relocation';
 export * from './departure';
 export * from './digest';

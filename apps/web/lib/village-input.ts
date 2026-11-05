@@ -10,6 +10,8 @@ import {
   TRADE_GOOD_VALUES,
   type Craft,
   type Direction8,
+  type FortKind,
+  type FortTop,
   type TradeGood,
   type TradeGoods,
   type TradePeople,
@@ -174,6 +176,51 @@ export function parsePlacePenInput(
   const species = value.species === undefined ? 'cattle' : value.species;
   const known = PEN_SPECIES.find((s) => s === species);
   return known ? { ...input, species: known } : null;
+}
+
+const FORT_KINDS: readonly FortKind[] = ['fence', 'palisade', 'rampart'];
+const FORT_TOPS: readonly FortTop[] = ['fence', 'palisade'];
+
+/**
+ * Vstup stavby opevnění `{ cells, kind, grid? }` – čtverce plochy jako u pole (i v natočené
+ * mřížce) a druh (fortifications.md – Druhy), jinak null. Tvar plochy (souvislost, 2 × 2) odmítne
+ * až kontrola umístění s důvodem pro hráče.
+ */
+export function parsePlaceFortificationInput(
+  value: unknown,
+): { cells: TileCell[]; kind: FortKind; grid?: SquareGrid } | null {
+  const input = parsePlaceFieldInput(value);
+  if (input === null || input.cells.length === 0 || !isRecord(value)) return null;
+  const kind = FORT_KINDS.find((k) => k === value.kind);
+  return kind ? { ...input, kind } : null;
+}
+
+/**
+ * Vstup vylepšení opevnění `{ fortificationId, work, top? }` – plot na palisádu (`upgrade`), nebo
+ * plot či palisáda na val (`top`), jinak null.
+ */
+export function parseUpgradeFortificationInput(
+  value: unknown,
+): { fortificationId: number; work: 'upgrade' | 'top'; top?: FortTop } | null {
+  if (!isRecord(value)) return null;
+  const fortificationId = parsePositiveInt(value.fortificationId);
+  if (fortificationId === null) return null;
+  if (value.work === 'upgrade') return { fortificationId, work: 'upgrade' };
+  if (value.work !== 'top') return null;
+  if (value.top === undefined) return { fortificationId, work: 'top' };
+  const top = FORT_TOPS.find((t) => t === value.top);
+  return top ? { fortificationId, work: 'top', top } : null;
+}
+
+/** Vstup brány opevnění `{ fortificationId, position }` – klik na obvod ve světě, jinak null. */
+export function parseAddFortificationGateInput(
+  value: unknown,
+): { fortificationId: number; position: { x: number; z: number } } | null {
+  if (!isRecord(value) || !isRecord(value.position)) return null;
+  const fortificationId = parsePositiveInt(value.fortificationId);
+  const { x, z } = value.position;
+  if (fortificationId === null || !isFiniteNumber(x) || !isFiniteNumber(z)) return null;
+  return { fortificationId, position: { x, z } };
 }
 
 /** Vstup vylepšení pevné cesty `{ roadId, upgrade }` (roads.md), jinak null. */

@@ -1,5 +1,6 @@
 // Typy vstupu a výsledků kontrol umístění, meze a pomocné formátovací funkce.
 
+import type { BandFortification } from './fortification/band';
 import { type CemeterySquareInput, type OrchardSquareInput, type PartInput } from './actions';
 import {
   type Craft,
@@ -50,7 +51,14 @@ export interface PlacementVillage {
     /** Rozestavěná řemeslná dílna (crafts.md). */
     readonly craft?: Craft;
     readonly plainShape?: boolean;
+    /** Stavba opevnění (fortifications.md) – opevnění, které se staví. */
+    readonly fortificationId?: number;
   }[];
+  /**
+   * Opevnění vsi (fortifications.md – Obvod) – pás zabírá místo jiným stavbám (hotové úseky
+   * a celý obvod, dokud se staví – `fortificationBand`). Chybí = žádné.
+   */
+  readonly fortifications?: readonly (BandFortification & { readonly id: number })[];
   /**
    * Pole – id a vlastní natočená mřížka (fields.md – Natočené stavby); pole bez mřížky (i chybějící
    * údaj) leží v mřížce krajiny.

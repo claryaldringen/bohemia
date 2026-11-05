@@ -22,6 +22,9 @@ import {
   placeField,
   placeOrchard,
   placePen,
+  placeFortification,
+  upgradeFortification,
+  addFortificationGate,
   placeSacredBuilding,
   placeThreshingFloor,
   placeWorkshop,
@@ -53,6 +56,8 @@ import {
   type VillageRepository,
   type VillageResult,
   type PenSpecies,
+  type FortKind,
+  type FortTop,
 } from '@bohemia/game';
 import { getDatabase, getPlayerLock } from './db';
 import { exclusivePlayer } from './exclusive';
@@ -590,6 +595,73 @@ export function placePenForPlayer(
         species: input.species,
         cells: input.cells,
         ...(grid ? { grid } : {}),
+      },
+    ),
+  );
+}
+
+/**
+ * Stavba opevnění (fortifications.md – Obvod, Cena a stavba): čtverce plochy (i natočené – `grid`)
+ * a druh. Server umístění ověří znovu (`checkFortificationPlacement`).
+ */
+export function placeFortificationForPlayer(
+  playerId: string,
+  villageId: string,
+  input: { cells: TileCell[]; kind: FortKind; grid?: SquareGrid },
+): Promise<VillageActionResult> {
+  const grid = input.grid;
+  return actOn(playerId, villageId, 'placeFortification', (ctx) =>
+    placeFortification(
+      { villages: villages() },
+      {
+        villageId: ctx.villageId,
+        landscape: ctx.landscape,
+        today: ctx.day,
+        cells: input.cells,
+        kind: input.kind,
+        ...(grid ? { grid } : {}),
+      },
+    ),
+  );
+}
+
+/** Vylepšení opevnění (fortifications.md – Druhy): plot na palisádu, nebo nástavba na valu. */
+export function upgradeFortificationForPlayer(
+  playerId: string,
+  villageId: string,
+  input: { fortificationId: number; work: 'upgrade' | 'top'; top?: FortTop },
+): Promise<VillageActionResult> {
+  const top = input.top;
+  return actOn(playerId, villageId, 'upgradeFortification', (ctx) =>
+    upgradeFortification(
+      { villages: villages() },
+      {
+        villageId: ctx.villageId,
+        landscape: ctx.landscape,
+        today: ctx.day,
+        fortificationId: input.fortificationId,
+        work: input.work,
+        ...(top ? { top } : {}),
+      },
+    ),
+  );
+}
+
+/** Brána opevnění kliknutím na obvod (fortifications.md – Brány). */
+export function addFortificationGateForPlayer(
+  playerId: string,
+  villageId: string,
+  input: { fortificationId: number; position: { x: number; z: number } },
+): Promise<VillageActionResult> {
+  return actOn(playerId, villageId, 'addFortificationGate', (ctx) =>
+    addFortificationGate(
+      { villages: villages() },
+      {
+        villageId: ctx.villageId,
+        landscape: ctx.landscape,
+        today: ctx.day,
+        fortificationId: input.fortificationId,
+        position: { x: input.position.x, z: input.position.z },
       },
     ),
   );

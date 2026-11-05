@@ -4,6 +4,7 @@
 import type { ChronicleEvent, LaborDay } from './types-chronicle';
 import type { StewardState } from './types-steward';
 import type { Construction, FarmSeason } from './types-construction';
+import type { Fortification } from './fortification/types';
 import type {
   Cart,
   CharcoalUse,
@@ -245,6 +246,11 @@ export interface VillageState {
   hay?: HayState;
   /** Ohrady s přístřeškem (oxen.md); chybí = žádné. */
   pens?: Pen[];
+  /**
+   * Opevnění vsi (fortifications.md) – hotová i rozestavěná (úseky s `builtDay` null). U vsí
+   * uložených dřív chybí (= žádné), nic se nepřevádí.
+   */
+  fortifications?: Fortification[];
   /**
    * Hotová rádla vsi (oxen.md – Voli po kusech): pár vycvičených volů orá, jen když má rádlo; ves
    * staví rádlo s výcvikem nového páru k orbě. Chybí = žádné – u vsí uložených dřív jedno na každé

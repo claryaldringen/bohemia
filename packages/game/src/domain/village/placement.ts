@@ -56,3 +56,14 @@ export {
   sparedOf,
 } from './placement-sacred';
 export type { ThreshingFloorPlacementCheck } from './placement-sacred';
+export {
+  checkFortificationPlacement,
+  FORT_BAD_GRID,
+  FORT_NOT_CONNECTED,
+  FORT_OUTSIDE,
+  FORT_OVER_BUILDING,
+  FORT_OVER_WATER,
+  FORT_TOO_SMALL,
+  FORT_TOUCHES,
+} from './placement-fortifications';
+export type { FortPlacementCheck } from './placement-fortifications';

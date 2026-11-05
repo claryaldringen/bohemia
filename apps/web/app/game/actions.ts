@@ -23,6 +23,9 @@ import {
   placeFieldForPlayer,
   placeOrchardForPlayer,
   placePenForPlayer,
+  placeFortificationForPlayer,
+  upgradeFortificationForPlayer,
+  addFortificationGateForPlayer,
   placeSacredForPlayer,
   placeThreshingFloorForPlayer,
   placeWorkshopForPlayer,
@@ -56,6 +59,9 @@ import {
   parsePlaceFieldInput,
   parsePlaceOrchardInput,
   parsePlacePenInput,
+  parsePlaceFortificationInput,
+  parseUpgradeFortificationInput,
+  parseAddFortificationGateInput,
   parsePlaceSacredInput,
   parsePlaceThreshingFloorInput,
   parsePlaceWorkshopInput,
@@ -342,6 +348,31 @@ export async function placeThreshingFloor(input: unknown): Promise<VillageAction
  */
 export async function placePen(input: unknown): Promise<VillageActionResult> {
   return villageAction(input, parsePlacePenInput, placePenForPlayer);
+}
+
+/**
+ * Stavba opevnění (fortifications.md – Obvod, Cena a stavba): `{ villageId, cells: [{ x, y }],
+ * kind: 'fence' | 'palisade' | 'rampart', grid? }`. Server umístění ověří znovu
+ * (`checkFortificationPlacement`).
+ */
+export async function placeFortification(input: unknown): Promise<VillageActionResult> {
+  return villageAction(input, parsePlaceFortificationInput, placeFortificationForPlayer);
+}
+
+/**
+ * Vylepšení opevnění (fortifications.md – Druhy): `{ villageId, fortificationId, work: 'upgrade' }`
+ * (plot na palisádu), nebo `{ …, work: 'top', top: 'fence' | 'palisade' }` (nástavba na valu).
+ */
+export async function upgradeFortification(input: unknown): Promise<VillageActionResult> {
+  return villageAction(input, parseUpgradeFortificationInput, upgradeFortificationForPlayer);
+}
+
+/**
+ * Brána opevnění (fortifications.md – Brány): `{ villageId, fortificationId, position: { x, z } }`
+ * – klik na obvod ve světě.
+ */
+export async function addFortificationGate(input: unknown): Promise<VillageActionResult> {
+  return villageAction(input, parseAddFortificationGateInput, addFortificationGateForPlayer);
 }
 
 /**

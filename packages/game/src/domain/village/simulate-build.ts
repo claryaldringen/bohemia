@@ -21,6 +21,7 @@ import { finishRoadUpgrade } from './road-upgrades';
 import { finishRepair, isRepairFinished, repairNeed, workRepair } from './repair';
 import { copyPlot, relocationPlot } from './plots';
 import { finishThreshingFloor } from './threshing-floors';
+import { finishFortification, workFortification } from './fortifications';
 import { type ConstructionWork } from './labor-report';
 import { isOrchardPlanted, orchardPlantingNeed, plantOrchard } from './orchard';
 import { moveRelocatedHousehold, relocatingHouseholds } from './relocation';
@@ -240,6 +241,8 @@ export function invest(
     c.done = completes ? c.cost : Math.min(c.cost, c.done + amount);
     // dřevo se kácí jako první část práce stavby (forest.md)
     fellAsWorked(state, c, day);
+    // opevnění: úseky, na které došla práce, stojí hned (fortifications.md – Cena a stavba)
+    if (c.kind === 'fortification') workFortification(state, c, day);
     return;
   }
   // pole zakládá díly od nejbližšího k obydlí, v lese napřed pálí suché díly a pak kácí
@@ -399,6 +402,12 @@ export function finishConstructions(state: VillageState, day: number): void {
         finishPen(state, c.penId, day, c.id);
       }
       if (c.kind === 'ard') finishArd(state);
+      state.chronicle.push(finishedEvent(day, c, null));
+      continue;
+    }
+    if (c.kind === 'fortification') {
+      // dostavěné opevnění, vylepšení na palisádu nebo nástavba na valu (fortifications.md)
+      finishFortification(state, c, day);
       state.chronicle.push(finishedEvent(day, c, null));
       continue;
     }
