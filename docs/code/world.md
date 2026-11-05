@@ -48,12 +48,16 @@ Plán: `docs/superpowers/plans/2026-11-03-multiplayer-vassalage-war.md`. Pravidl
   pozvánku, úloha 1.8), `invitee-played` (pozvaný se rozehrál, úloha 1.9). Text k druhu je v
   `apps/web/lib/player-notices.ts` (`playerNoticeLine`); nový druh = nová větev v `textOf` i
   `noticePanel` (kompilátor ohlídá úplnost).
-- **Doručení dotazováním:** upozornění se nepushují. Při každém dotazu na ves (`poll` ve
-  `VillageGame`) se klient zeptá akcí `getPlayerNotices({ afterId })` (poslední viděné id,
-  odpověď nejvýš `NOTICE_BATCH` = 20; vrací i přečtená – klient podle nich posouvá `afterId`),
-  nepřečtená ukáže jako řádky nahoře uprostřed (`mergeNoticeLines` – v pořadí příchodu, bez
-  duplicit) a zavolá `markNoticesRead({ upToId })`. Obě akce berou hráče jen ze session; `playerId`
-  ve vstupu se ignoruje (`parseNoticesAfterInput`, `parseMarkNoticesReadInput`).
+- **Doručení v odpovědi dotazu na ves:** upozornění se nepushují a nemají vlastní akci (server
+  actions jednoho klienta jedou ve frontě po jedné). `poll` ve `VillageGame` posílá
+  `getVillageView({ …, withNotices: true })`; odpověď (`VillageView` i `VillageUnchanged`, ne
+  `null`/chyba) nese `playerNotices` – výsledek `NoticeRepository.takeUnread(playerId,
+  NOTICE_BATCH = 20)`, tedy nepřečtená od nejstaršího, která se tím zároveň označí za přečtená (jedno
+  `UPDATE … RETURNING`, souběžná volání nevrátí totéž). Doručí se jen jednou. Klient je zpracuje
+  hned po návratu, ještě před kontrolou pořadí dotazu (`seq`) – zahozená odpověď by je jinak
+  ztratila – a ukáže jako řádky nahoře uprostřed (`mergeNoticeLines`). Server doplňuje upozornění
+  do nové kopie výsledku (mimo `withVillageCache`). Hráč je jen ze session, `playerId` ve vstupu
+  se nečte (`wantsPlayerNotices`). `after` a `markRead` v portu zůstávají pro panel s historií.
 - **Id řádku:** řádek hráčského upozornění má id `-id` upozornění, vesnické řádky kladné id z
   čítače – řady se nesrazí.
 - **Klik:** `noticePanel(kind)` vrací panel, který řádek otevírá; `VillageGame.openNoticePanel` zatím

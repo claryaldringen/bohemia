@@ -30,6 +30,11 @@ export interface NoticeRepository {
   post(notice: NewPlayerNotice): Promise<void>;
   /** Upozornění hráče s `id` větším než `afterId`, rostoucí podle `id`, nejvýš `limit`. */
   after(playerId: string, afterId: number, limit: number): Promise<PlayerNotice[]>;
+  /**
+   * Nepřečtená upozornění hráče od nejstaršího, nejvýš `limit`, a zároveň je označí za přečtená
+   * (doručí se jen jednou, ani souběžné volání je nevrátí dvakrát).
+   */
+  takeUnread(playerId: string, limit: number): Promise<PlayerNotice[]>;
   /** Označí za přečtená upozornění hráče s `id` do `upToId` (včetně). */
   markRead(playerId: string, upToId: number): Promise<void>;
 }

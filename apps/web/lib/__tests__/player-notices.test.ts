@@ -3,8 +3,7 @@ import type { PlayerNotice } from '@bohemia/game';
 import {
   mergeNoticeLines,
   noticePanel,
-  parseMarkNoticesReadInput,
-  parseNoticesAfterInput,
+  wantsPlayerNotices,
   playerNoticeLine,
 } from '../player-notices';
 
@@ -52,18 +51,11 @@ describe('mergeNoticeLines', () => {
   });
 });
 
-describe('parsery vstupu', () => {
-  it('markNoticesRead bere jen upToId; playerId ze vstupu se ignoruje', () => {
-    expect(parseMarkNoticesReadInput({ upToId: 7, playerId: 'cizi' })).toEqual({ upToId: 7 });
-    expect(parseMarkNoticesReadInput({ playerId: 'cizi' })).toBeNull();
-    expect(parseMarkNoticesReadInput({ upToId: -1 })).toBeNull();
-    expect(parseMarkNoticesReadInput({ upToId: 1.5 })).toBeNull();
-    expect(parseMarkNoticesReadInput('7')).toBeNull();
-  });
-
-  it('getPlayerNotices bere jen afterId; playerId ze vstupu se ignoruje', () => {
-    expect(parseNoticesAfterInput({ afterId: 0, playerId: 'cizi' })).toEqual({ afterId: 0 });
-    expect(parseNoticesAfterInput({ afterId: '3' })).toBeNull();
-    expect(parseNoticesAfterInput(null)).toBeNull();
+describe('wantsPlayerNotices', () => {
+  it('chce upozornění jen s withNotices: true; playerId ze vstupu se nečte', () => {
+    expect(wantsPlayerNotices({ villageId: 'v1', withNotices: true, playerId: 'cizi' })).toBe(true);
+    expect(wantsPlayerNotices({ villageId: 'v1', withNotices: 'true' })).toBe(false);
+    expect(wantsPlayerNotices({ villageId: 'v1', playerId: 'cizi' })).toBe(false);
+    expect(wantsPlayerNotices(null)).toBe(false);
   });
 });

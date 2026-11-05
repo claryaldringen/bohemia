@@ -11,6 +11,7 @@ import {
   type DwellingPlot,
   type BuildableDwellingType,
   type DwellingType,
+  type PlayerNotice,
   type Position,
   type SacredBuildingKind,
   type SquareGrid,
@@ -25,9 +26,7 @@ import {
   cancelConstruction,
   forceDevDisaster,
   foundVillage,
-  getPlayerNotices,
   getVillageView,
-  markNoticesRead,
   leaveVillage,
   nameLineMan,
   settleJourney,
@@ -386,26 +385,22 @@ export function VillageGame({
   const pushNotice = useCallback((notice: Omit<NoticeLine, 'id'>): void => {
     setNotices((list) => [...list, { ...notice, id: ++noticeId.current }].slice(-MAX_NOTICES));
   }, []);
-  // Upozornění mezi hráči: id posledního viděného (dotaz se ptá na novější) a otevření panelu.
-  const lastNoticeId = useRef(0);
+  // Upozornění mezi hráči přicházejí v odpovědi dotazu na ves (server je tím označí za přečtená).
   const openNoticePanel = useCallback((panel: NoticePanel): void => {
     void panel;
     // Panel „Rod a vazalové“ vznikne v úloze 1.10 – do té doby klik nic neotevře.
   }, []);
-  const pollPlayerNotices = useCallback(async (): Promise<void> => {
-    const received = await getPlayerNotices({ afterId: lastNoticeId.current });
-    if ('error' in received || received.length === 0) return;
-    const newest = received[received.length - 1]!.id;
-    lastNoticeId.current = Math.max(lastNoticeId.current, newest);
-    const lines = received
-      .filter((n) => n.readAt === null)
-      .map((n) => {
+  const showPlayerNotices = useCallback(
+    (received: readonly PlayerNotice[] | undefined): void => {
+      if (!received || received.length === 0) return;
+      const lines = received.map((n) => {
         const panel = noticePanel(n.kind);
         return { ...playerNoticeLine(n), onOpen: panel ? () => openNoticePanel(panel) : undefined };
       });
-    if (lines.length > 0) setNotices((list) => mergeNoticeLines(list, lines, MAX_NOTICES));
-    void markNoticesRead({ upToId: newest });
-  }, [openNoticePanel]);
+      setNotices((list) => mergeNoticeLines(list, lines, MAX_NOTICES));
+    },
+    [openNoticePanel],
+  );
   const expireNotice = useCallback((id: number): void => {
     setNotices((list) => list.filter((n) => n.id !== id));
   }, []);
@@ -561,7 +556,6 @@ export function VillageGame({
 
   const poll = useCallback(async (): Promise<void> => {
     if (busyRef.current) return;
-    void pollPlayerNotices();
     const seq = ++requestSeq.current;
     const known = viewRef.current?.stamp;
     const result = await getVillageView({
@@ -569,7 +563,10 @@ export function VillageGame({
       ...(known ? { known } : {}),
       ...knownSceneData(viewRef.current?.scene),
       pieces: knownViewPieces(viewRef.current),
+      withNotices: true,
     });
+    // Server upozornění už označil za přečtená – ukázat i z odpovědi, která se jinak zahodí.
+    if (result !== null && 'playerNotices' in result) showPlayerNotices(result.playerNotices);
     if (busyRef.current || seq < appliedSeq.current) return;
     appliedSeq.current = seq;
     // Od pohledu, který máme, se nic nezměnilo (stejný den i verze vsí) – server nic neposlal.
@@ -584,7 +581,7 @@ export function VillageGame({
     if (result !== null && 'error' in result && viewRef.current) {
       pushNotice({ kind: 'error', tone: 'error', text: result.error });
     } else await applyVillage(result);
-  }, [applyVillage, pollPlayerNotices, pushNotice, settlementId]);
+  }, [applyVillage, showPlayerNotices, pushNotice, settlementId]);
   // Další dotaz na začátku dalšího herního dne hráče (nejdřív za 5 s, nejpozději za 86 s) – ves
   // se dopočítává po dnech, akce vracejí čerstvou ves samy.
   const pollDelay = useCallback(

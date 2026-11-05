@@ -27,4 +27,18 @@ describe('NoticeRepository (v paměti)', () => {
     await repo.markRead('a', 2);
     expect(repo.notices.map((n) => n.readAt)).toEqual([now, null, null]);
   });
+
+  it('takeUnread vrátí nepřečtená daného hráče od nejstaršího, nejvýš limit, a označí je', async () => {
+    const repo = new InMemoryNotices();
+    await repo.post({ ...base, playerId: 'p1', kind: 'invite-accepted' });
+    await repo.post({ ...base, playerId: 'p2', kind: 'invite-accepted' });
+    await repo.post({ ...base, playerId: 'p1', kind: 'invitee-played' });
+    await repo.post({ ...base, playerId: 'p1', kind: 'invitee-played' });
+    const first = await repo.takeUnread('p1', 2);
+    expect(first.map((n) => n.id)).toEqual([1, 3]);
+    expect(first.every((n) => n.playerId === 'p1' && n.readAt !== null)).toBe(true);
+    expect((await repo.takeUnread('p1', 2)).map((n) => n.id)).toEqual([4]);
+    expect(await repo.takeUnread('p1', 2)).toEqual([]);
+    expect((await repo.takeUnread('p2', 2)).map((n) => n.id)).toEqual([2]);
+  });
 });

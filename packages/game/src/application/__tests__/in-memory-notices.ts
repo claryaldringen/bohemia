@@ -20,6 +20,16 @@ export class InMemoryNotices implements NoticeRepository {
       .slice(0, limit);
   }
 
+  async takeUnread(playerId: string, limit: number): Promise<PlayerNotice[]> {
+    await Promise.resolve();
+    const taken = this.notices
+      .filter((n) => n.playerId === playerId && n.readAt === null)
+      .sort((a, b) => a.id - b.id)
+      .slice(0, limit);
+    for (const n of taken) n.readAt = this.clock();
+    return taken.map((n) => ({ ...n }));
+  }
+
   async markRead(playerId: string, upToId: number): Promise<void> {
     await Promise.resolve();
     for (const n of this.notices) {

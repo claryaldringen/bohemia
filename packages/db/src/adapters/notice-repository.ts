@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, isNull, lte } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, isNull, lte } from 'drizzle-orm';
 import type { NoticeRepository, PlayerNotice, PlayerNoticeKind } from '@bohemia/game';
 import type { Database } from '../client';
 import { playerNotice } from '../schema';
@@ -31,6 +31,22 @@ export function createNoticeRepository(db: Database): NoticeRepository {
         .orderBy(asc(playerNotice.id))
         .limit(limit);
       return rows.map(toNotice);
+    },
+    async takeUnread(playerId, limit): Promise<PlayerNotice[]> {
+      // Jedno UPDATE s podvýběrem; FOR UPDATE SKIP LOCKED, aby souběžné volání nevzalo totéž.
+      const pick = db
+        .select({ id: playerNotice.id })
+        .from(playerNotice)
+        .where(and(eq(playerNotice.playerId, playerId), isNull(playerNotice.readAt)))
+        .orderBy(asc(playerNotice.id))
+        .limit(limit)
+        .for('update', { skipLocked: true });
+      const rows = await db
+        .update(playerNotice)
+        .set({ readAt: new Date() })
+        .where(and(inArray(playerNotice.id, pick), isNull(playerNotice.readAt)))
+        .returning();
+      return rows.map(toNotice).sort((a, b) => a.id - b.id);
     },
     async markRead(playerId, upToId): Promise<void> {
       await db

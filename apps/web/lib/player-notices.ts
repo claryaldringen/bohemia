@@ -56,20 +56,15 @@ export function mergeNoticeLines(
   return [...current, ...fresh].slice(-max);
 }
 
-/** Vstup `getPlayerNotices`: `{ afterId }` – celé číslo ≥ 0; `playerId` ze vstupu se ignoruje. */
-export function parseNoticesAfterInput(input: unknown): { afterId: number } | null {
-  if (typeof input !== 'object' || input === null || !('afterId' in input)) return null;
-  const { afterId } = input;
-  return typeof afterId === 'number' && Number.isSafeInteger(afterId) && afterId >= 0
-    ? { afterId }
-    : null;
+/**
+ * Chce klient v odpovědi dotazu na ves i upozornění mezi hráči? `{ withNotices: true }` ve vstupu
+ * `getVillageView`; `playerId` ze vstupu se nečte (hráč je jen ze session).
+ */
+export function wantsPlayerNotices(input: unknown): boolean {
+  return typeof input === 'object' && input !== null && 'withNotices' in input
+    ? input.withNotices === true
+    : false;
 }
 
-/** Vstup `markNoticesRead`: `{ upToId }` – celé číslo ≥ 0; `playerId` ze vstupu se ignoruje. */
-export function parseMarkNoticesReadInput(input: unknown): { upToId: number } | null {
-  if (typeof input !== 'object' || input === null || !('upToId' in input)) return null;
-  const { upToId } = input;
-  return typeof upToId === 'number' && Number.isSafeInteger(upToId) && upToId >= 0
-    ? { upToId }
-    : null;
-}
+/** Výsledek dotazu na ves s doručenými upozorněními (jen když o ně klient požádal). */
+export type WithPlayerNotices<T> = T & { playerNotices?: PlayerNotice[] };
