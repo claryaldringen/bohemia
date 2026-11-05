@@ -3,6 +3,7 @@ export * from './houses';
 export * from './world-directory';
 export * from './house-panel';
 export * from './notices';
+export * from './negotiations';
 export * from './enter-game';
 export * from './villages';
 export * from './inbox';

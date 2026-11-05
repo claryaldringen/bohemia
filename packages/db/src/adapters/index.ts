@@ -15,5 +15,6 @@ export { createVillageRepository } from './village-repository';
 export { createActivityRepository } from './activity-repository';
 export { createSuccessionCreditRepository } from './succession-credit-repository';
 export { createVassalageRepository } from './vassalage-repository';
+export { createNegotiationRepository } from './negotiation-repository';
 export { createWorldDirectory } from './world-directory';
 export { createWorldQueue } from './world-queue';

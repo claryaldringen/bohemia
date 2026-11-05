@@ -180,3 +180,14 @@ Pravidla: [vassalage.md](../design/vassalage.md) – Pozvaný jako vazal. Typy a
 - `rules-negotiation.ts` – `NEGOTIATION` (`pauseAfterRejectMs` = 1 skutečný den, `messageMaxChars` = 500) a texty důvodů `NEGOTIATION_REASONS`.
 - Blokování a pauza se vedou **mezi rody**; nový rod po restartu začíná s čistým štítem (návrh Clauda).
 - `domain/vassalage/tree.ts` – `VassalEdge` (re-export z `application/vassalages.ts`), `wouldBeMutual` (jen **přímý** vzájemný vztah; delší kruhy A → B → C → A povolené, Martin: „udělej to, jak říkáš“), `treeBelow` (potomci po dohodách, každý jednou, kruh se zastaví; kořen je v seznamu jen při návratu kruhem), `treeAround` (souvislá síť nahoru i dolů).
+
+### Jednání v databázi (úloha 3.2)
+
+Port `NegotiationRepository` (`application/negotiations.ts`), adaptér `db/adapters/negotiation-repository.ts`, in-memory `application/__tests__/in-memory-negotiations.ts`; migrace `0022_negotiation`. Mezihráčské záznamy se mění **v transakci nad vlastními tabulkami bez zámku hráče** (technické rozhodnutí 5 plánu).
+
+- Tabulky: `negotiation` (seřazená dvojice rodů `party_low` < `party_high`, `opener`, `status` `open` / `accepted` / `rejected` / `withdrawn` / `ended`, `version`, `created_at`, `closed_at`), `negotiation_round` (PK `negotiation_id` + `seq`; `author_house_id`, `items` jsonb, `message`), `player_block` (`blocker_house_id` → `blocked_house_id`, PK dvojice) a `negotiation_reject`.
+- `negotiation_reject`: `proposer_house_id` (kdo návrh poslal) + `rejecter_house_id` (kdo odmítl) + `at`, PK dvojice, nové odmítnutí přepíše čas. `tx.lastReject(proposer, rejecter)` je přesně `OpenContext.rejectedByTargetAt` pro `from` = proposer, `to` = rejecter; blokování `tx.blocks(to, from)` je `blockedByTarget`.
+- Unikátní částečný index `negotiation_open_pair_uq (party_low, party_high) WHERE status = 'open'`: mezi dvojicí je nejvýš jedno otevřené jednání bez ohledu na směr. `tx.open` vkládá s `ON CONFLICT DO NOTHING` a při konfliktu vrací `null` (souběžné A → B a B → A: vznikne jedno).
+- `tx.getForUpdate` = `SELECT … FOR UPDATE` řádku jednání (souběžné odpovědi se seřadí); `tx.setStatus(id, status, expectedVersion, at)` mění stav podmíněně na `version` (+1) a vrací `false` při neshodě. Z dvou souběžných přijetí / přijetí a stažení projde jedno.
+- `tx.vassalages` a `tx.notices` jsou stejné adaptéry (`createVassalageRepository`, `createNoticeRepository` přijímají spojení i transakci, typ `Executor`) nad toutéž transakcí – dohoda a upozornění z přijetí se potvrdí nebo vrátí společně se stavem jednání.
+- Testy: `adapters/__tests__/negotiation-repository.db.test.ts`.

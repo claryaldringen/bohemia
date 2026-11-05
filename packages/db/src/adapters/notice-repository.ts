@@ -1,6 +1,6 @@
 import { and, asc, eq, gt, inArray, isNull, lte } from 'drizzle-orm';
 import type { NoticeRepository, PlayerNotice, PlayerNoticeKind } from '@bohemia/game';
-import type { Database } from '../client';
+import type { Executor } from '../client';
 import { playerNotice } from '../schema';
 
 type NoticeRow = typeof playerNotice.$inferSelect;
@@ -18,7 +18,7 @@ function toNotice(row: NoticeRow): PlayerNotice {
 }
 
 /** Drizzle adaptér portu NoticeRepository. */
-export function createNoticeRepository(db: Database): NoticeRepository {
+export function createNoticeRepository(db: Executor): NoticeRepository {
   return {
     async post(notice): Promise<void> {
       await db.insert(playerNotice).values(notice);
