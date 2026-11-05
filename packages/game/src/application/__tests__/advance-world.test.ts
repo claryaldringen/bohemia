@@ -21,7 +21,7 @@ import {
 import { dynastyForVillage } from '../dynasty-for-village';
 import { isFullVillage } from '../villages';
 import { loadVillage } from '../load-village';
-import type { LandscapeSource, SeedSource } from '../settlements';
+import type { LandscapeSource } from '../settlements';
 import { InMemoryPlayerLock } from './in-memory-locks';
 import { InMemorySettlements } from './in-memory-settlements';
 import { InMemoryTimeOffsets } from './in-memory-time-offsets';
@@ -31,10 +31,6 @@ import { InMemoryWorldQueue } from './in-memory-world-queue';
 const TODAY = DAY + 30;
 const landscape = makeLandscape({ size: 48 });
 const landscapes: LandscapeSource = { landscapeOf: () => landscape };
-const seeds = (): SeedSource => {
-  let next = 4242;
-  return { nextSeed: () => next++ };
-};
 const house = (id: number, x: number, z: number): Dwelling => ({
   id,
   type: 'zemnice',
@@ -68,11 +64,12 @@ class World {
   readonly villages = new InMemoryVillages();
   readonly offsets = new InMemoryTimeOffsets();
   readonly locks = new InMemoryPlayerLock();
+  private players = 0;
   readonly deps: WorldStepDeps = {
     settlements: this.settlements,
     villages: this.villages,
     landscapes,
-    seeds: seeds(),
+    worldSeed: 4242,
     locks: this.locks,
     queue: new InMemoryWorldQueue(this.settlements, this.villages, this.offsets),
   };
@@ -80,6 +77,7 @@ class World {
   /** Hráč se vsemi (první na sídelní mapě, další na mapách vedle) – vrátí id vsí. */
   async player(playerId: string, states: VillageState[]): Promise<string[]> {
     const ids: string[] = [];
+    const base = 16 * this.players++; // každý hráč ve svém pásu mřížky
     for (const [i, state] of states.entries()) {
       const place = {
         ownerId: playerId,
@@ -88,8 +86,8 @@ class World {
       };
       const settlement =
         i === 0
-          ? await this.settlements.createSeat(place)
-          : await this.settlements.create({ ...place, worldCell: { x: i, y: 0 } });
+          ? await this.settlements.createSeat({ ...place, worldCell: { x: base, y: 0 } })
+          : await this.settlements.create({ ...place, worldCell: { x: base + i, y: 0 } });
       ids.push((await this.villages.add(settlement!.id, `Ves ${i}`, state)).id);
     }
     return ids;

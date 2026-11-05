@@ -28,6 +28,12 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`decor-placement.ts`); vrstva překážek 2 výchozy a suť na stěnách (`cliff-rocks.ts`, zdroj
   `cliffRock`). Náhled `/dev/landscape` – seedy s ostrožnou a tlačítko **Ostrožna** (obrys).
 
+- **Seed krajiny z políčka světa:** nová mapa (`enterGame`, `targetSettlement`) bere seed z
+  `settlementSeedOf(worldSeed, cell)` (`application/settlement-seed.ts`) = `cellLandscapeSeed`
+  zúžený do rozsahu sloupce `landscape_seed` (int32 s rezervou na pokusy); `generateAcceptedLandscape`
+  dál hledá přijatý pokus a ukládá se jeho seed. Seed světa je `WORLD_SEED` (env, `worldSeed()` v
+  `packages/server/src/world.ts`, výchozí `DEFAULT_WORLD_SEED` pro vývoj) – po ostrém spuštění se
+  nesmí změnit; `SeedSource` zůstává jen pro seedy vsí a jmen.
 - **Uložené sídlo nese seed přijatého pokusu** a jeho krajina se generuje přes
   `generateLandscapeAttempt` bez kontroly pásma. Změna pásma (`band.ts`) proto platí jen pro nová
   sídla. **Po ostrém spuštění** se existující vrstva nesmí změnit (přepsala by krajiny hráčů) –

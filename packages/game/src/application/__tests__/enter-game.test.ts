@@ -7,32 +7,33 @@ import {
   INITIAL_LAYER_VERSIONS,
 } from '../../domain/landscape';
 import { enterGame } from '../enter-game';
-import type { LandscapeSource, SeedSource } from '../settlements';
+import { cellDistance, WORLD } from '../../domain/world';
+import { settlementSeedOf } from '../settlement-seed';
+import type { LandscapeSource } from '../settlements';
 import { InMemorySettlements } from './in-memory-settlements';
 
-const seedsFrom = (...values: number[]): SeedSource => {
-  let next = 0;
-  return { nextSeed: () => values[next++ % values.length]! };
-};
+const WORLD_SEED = 4242;
+const ORIGIN = { x: 0, y: 0 };
 
 describe('enterGame', () => {
-  it('první vstup založí sídelní sídlo s novým seedem a aktuálními verzemi vrstev', async () => {
+  it('první vstup založí sídelní sídlo ve středu světa s krajinou z jeho políčka a aktuálními verzemi vrstev', async () => {
     const settlements = new InMemorySettlements();
     const { settlement, landscape } = await enterGame(
-      { settlements, seeds: seedsFrom(4242) },
+      { settlements, worldSeed: WORLD_SEED },
       'hrac-1',
     );
     expect(settlement).toMatchObject({
       ownerId: 'hrac-1',
       isSeat: true,
+      worldCell: ORIGIN,
       layerVersions: CURRENT_LAYER_VERSIONS,
     });
     expect(settlements.settlements).toHaveLength(1);
-    expect(landscape).toEqual(generateLandscape(4242));
+    expect(landscape).toEqual(generateLandscape(settlementSeedOf(WORLD_SEED, ORIGIN)));
   });
 
   it('další vstup vrátí totéž sídlo a stejnou krajinu', async () => {
-    const deps = { settlements: new InMemorySettlements(), seeds: seedsFrom(1, 2, 3) };
+    const deps = { settlements: new InMemorySettlements(), worldSeed: WORLD_SEED };
     const first = await enterGame(deps, 'hrac-1');
     const second = await enterGame(deps, 'hrac-1');
     expect(second.settlement.id).toBe(first.settlement.id);
@@ -42,7 +43,7 @@ describe('enterGame', () => {
   });
 
   it('souběžné první vstupy založí jediné sídlo', async () => {
-    const deps = { settlements: new InMemorySettlements(), seeds: seedsFrom(10, 20, 30) };
+    const deps = { settlements: new InMemorySettlements(), worldSeed: WORLD_SEED };
     const results = await Promise.all([
       enterGame(deps, 'hrac-1'),
       enterGame(deps, 'hrac-1'),
@@ -55,31 +56,31 @@ describe('enterGame', () => {
 
   it('sídlo se vygeneruje přesně z uloženého seedu, ne z nového', async () => {
     const settlements = new InMemorySettlements();
-    await settlements.createSeat({
+    await settlements.seatAtOrigin({
       ownerId: 'hrac-1',
       landscapeSeed: 7,
       layerVersions: CURRENT_LAYER_VERSIONS,
     });
-    const { landscape } = await enterGame({ settlements, seeds: seedsFrom(999) }, 'hrac-1');
+    const { landscape } = await enterGame({ settlements, worldSeed: WORLD_SEED }, 'hrac-1');
     expect(landscape).toEqual(generateLandscapeAttempt(7, CURRENT_LAYER_VERSIONS));
   });
 
-  // Seed, jehož první pokus nepadne do pásma – generátor pro něj zkouší další pokusy.
-  const seedNeedingRetry = (): number => {
+  // Seed světa, pro který první pokus krajiny středu světa nepadne do pásma – generátor pro něj
+  // zkouší další pokusy.
+  const worldSeedNeedingRetry = (): number => {
     for (let seed = 0; seed < 2000; seed++) {
       const versions = CURRENT_LAYER_VERSIONS;
-      if (!checkBand(generateLandscapeAttempt(seed, versions), versions).ok) return seed;
+      const attempt = generateLandscapeAttempt(settlementSeedOf(seed, ORIGIN), versions);
+      if (!checkBand(attempt, versions).ok) return seed;
     }
     throw new Error('Žádný seed s opakovaným pokusem – test nemá co ověřit.');
   };
 
-  it('nové sídlo uloží seed přijatého pokusu, ne vylosovaný seed', async () => {
-    const drawn = seedNeedingRetry();
+  it('nové sídlo uloží seed přijatého pokusu, ne seed odvozený z políčka', async () => {
+    const worldSeed = worldSeedNeedingRetry();
+    const drawn = settlementSeedOf(worldSeed, ORIGIN);
     const settlements = new InMemorySettlements();
-    const { settlement, landscape } = await enterGame(
-      { settlements, seeds: seedsFrom(drawn) },
-      'hrac-1',
-    );
+    const { settlement, landscape } = await enterGame({ settlements, worldSeed }, 'hrac-1');
     expect(settlement.landscapeSeed).not.toBe(drawn);
     expect(
       checkBand(
@@ -91,43 +92,54 @@ describe('enterGame', () => {
   }, 30_000);
 
   it('uložené sídlo se načte bez kontroly pásma – ladění pásma krajinu nezmění', async () => {
-    const stored = seedNeedingRetry();
+    const stored = settlementSeedOf(worldSeedNeedingRetry(), ORIGIN);
     const settlements = new InMemorySettlements();
-    await settlements.createSeat({
+    await settlements.seatAtOrigin({
       ownerId: 'hrac-1',
       landscapeSeed: stored,
       layerVersions: CURRENT_LAYER_VERSIONS,
     });
-    const { landscape } = await enterGame({ settlements, seeds: seedsFrom(1) }, 'hrac-1');
+    const { landscape } = await enterGame({ settlements, worldSeed: WORLD_SEED }, 'hrac-1');
     expect(landscape).toEqual(generateLandscapeAttempt(stored, CURRENT_LAYER_VERSIONS));
     expect(landscape.heights).not.toEqual(generateLandscape(stored).heights);
   }, 30_000);
 
   it('sídlo založené s původními verzemi vrstev si nechá původní krajinu', async () => {
     const settlements = new InMemorySettlements();
-    await settlements.createSeat({
+    await settlements.seatAtOrigin({
       ownerId: 'hrac-1',
       landscapeSeed: 7,
       layerVersions: INITIAL_LAYER_VERSIONS,
     });
-    const { landscape } = await enterGame({ settlements, seeds: seedsFrom(1) }, 'hrac-1');
+    const { landscape } = await enterGame({ settlements, worldSeed: WORLD_SEED }, 'hrac-1');
     expect(landscape).toEqual(generateLandscapeAttempt(7, INITIAL_LAYER_VERSIONS));
     expect(landscape.surface).not.toEqual(
       generateLandscapeAttempt(7, CURRENT_LAYER_VERSIONS).surface,
     );
   });
 
-  it('různí hráči dostanou různá sídla', async () => {
-    const deps = { settlements: new InMemorySettlements(), seeds: seedsFrom(1, 2) };
+  it('různí hráči dostanou různá sídla na různých políčkách s odstupem', async () => {
+    const deps = { settlements: new InMemorySettlements(), worldSeed: WORLD_SEED };
     const a = await enterGame(deps, 'hrac-a');
     const b = await enterGame(deps, 'hrac-b');
     expect(a.settlement.id).not.toBe(b.settlement.id);
     expect(deps.settlements.settlements).toHaveLength(2);
+    const cellA = a.settlement.worldCell!;
+    const cellB = b.settlement.worldCell!;
+    expect(cellDistance(cellA, cellB)).toBeGreaterThanOrEqual(WORLD.independentGap);
+    expect(b.settlement.landscapeSeed).not.toBe(a.settlement.landscapeSeed);
+  });
+
+  it('souběžní nováčci dostanou každý své políčko – poražený v souběhu to zkusí znovu', async () => {
+    const deps = { settlements: new InMemorySettlements(), worldSeed: WORLD_SEED };
+    const results = await Promise.all(['a', 'b', 'c'].map((id) => enterGame(deps, `hrac-${id}`)));
+    const keys = results.map((r) => `${r.settlement.worldCell!.x},${r.settlement.worldCell!.y}`);
+    expect(new Set(keys).size).toBe(3);
   });
 
   it('krajinu uloženého sídla bere z LandscapeSource (mezipaměť webu)', async () => {
     const settlements = new InMemorySettlements();
-    await settlements.createSeat({
+    await settlements.seatAtOrigin({
       ownerId: 'hrac-1',
       landscapeSeed: 7,
       layerVersions: CURRENT_LAYER_VERSIONS,
@@ -141,7 +153,7 @@ describe('enterGame', () => {
       },
     };
     const { landscape } = await enterGame(
-      { settlements, seeds: seedsFrom(99), landscapes },
+      { settlements, worldSeed: WORLD_SEED, landscapes },
       'hrac-1',
     );
     expect(landscape).toBe(cached);

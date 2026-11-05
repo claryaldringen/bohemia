@@ -36,7 +36,8 @@ import {
   block,
   makeLandscape,
 } from '../../../game/src/domain/village/__tests__/placement-fixtures';
-import { createPlayerLocks, seeds } from '../deps';
+import { createPlayerLocks } from '../deps';
+import { worldSeed } from '../world';
 import { cachedVillages, withVillageCache } from '../village-cache';
 
 const URL = 'postgres://postgres@127.0.0.1:5432/bohemia_test';
@@ -131,7 +132,7 @@ function processDeps(
     settlements: createSettlementRepository(db),
     villages: cachedVillages(log.wrap(createVillageRepository(db), process)),
     landscapes,
-    seeds: seeds(),
+    worldSeed: worldSeed(),
     locks: options.lock ? locks.locks : NO_LOCK,
     queue: createWorldQueue(db),
   };
@@ -195,7 +196,7 @@ async function seedPlayers(log: SaveLog): Promise<Seeded[]> {
   const settlements = createSettlementRepository(setup);
   const villages = createVillageRepository(setup);
   const seeded: Seeded[] = [];
-  for (const [playerId, count] of PLAYERS) {
+  for (const [index, [playerId, count]] of PLAYERS.entries()) {
     for (let i = 0; i < count; i++) {
       const place = {
         ownerId: playerId,
@@ -204,8 +205,8 @@ async function seedPlayers(log: SaveLog): Promise<Seeded[]> {
       };
       const settlement =
         i === 0
-          ? await settlements.createSeat(place)
-          : await settlements.create({ ...place, worldCell: { x: i, y: 0 } });
+          ? await settlements.createSeat({ ...place, worldCell: { x: 16 * index, y: 0 } })
+          : await settlements.create({ ...place, worldCell: { x: 16 * index + i, y: 0 } });
       let seed = 4242 + seeded.length;
       const founded = await foundVillageForSettlement(
         { villages, seeds: { nextSeed: () => seed++ } },

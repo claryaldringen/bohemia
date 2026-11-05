@@ -17,6 +17,7 @@ import type {
   WorldQueue,
 } from '@bohemia/game';
 import { cachedVillages } from './village-cache';
+import { worldSeed } from './world';
 
 /**
  * Kolik krajin sídel držet v paměti serveru. Krajina sama má ≈ 0,1 MB, s vrstvou překážek
@@ -59,6 +60,8 @@ export interface GameDeps {
   landscapes: LandscapeSource;
   pause: Pause;
   seeds: { nextSeed: () => number };
+  /** Seed světa – krajina každého políčka mřížky se z něj odvozuje. */
+  worldSeed: number;
   locks: PlayerLock;
   /** Fronta vsí pozadu – používá worker (`advanceWorldStep`), web ji nepotřebuje. */
   queue: WorldQueue;
@@ -79,6 +82,7 @@ export function createGameDeps(
     landscapes: options.landscapes,
     pause: options.pause,
     seeds: seeds(),
+    worldSeed: worldSeed(),
     locks: options.locks,
     queue: createWorldQueue(db),
   };

@@ -1,5 +1,5 @@
-import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
-import type { Settlement, SettlementRepository } from '@bohemia/game';
+import { and, asc, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
+import type { OccupiedCell, Settlement, SettlementRepository } from '@bohemia/game';
 import type { Database } from '../client';
 import { settlement } from '../schema';
 
@@ -48,31 +48,37 @@ export function createSettlementRepository(db: Database): SettlementRepository {
         .returning({ id: settlement.id });
       return rows.length > 0;
     },
-    async createSeat(input): Promise<Settlement> {
-      // Atomicky: při souběhu vyhraje jeden INSERT, ostatní narazí na unikátní index
-      // a vrátí sídlo, které mezitím vzniklo.
+    async createSeat({ worldCell, ...input }): Promise<Settlement | null> {
+      const existing = await findSeat(input.ownerId);
+      if (existing) return existing;
+      // Atomicky: při souběhu vyhraje jeden INSERT, ostatní narazí na unikátní index (sídelní
+      // sídlo hráče, nebo obsazené políčko světa) a nic nezmění.
       const [created] = await db
         .insert(settlement)
-        .values({ ...input, isSeat: true })
-        .onConflictDoNothing({ target: settlement.ownerId, where: sql`${settlement.isSeat}` })
+        .values({ ...input, isSeat: true, gridX: worldCell.x, gridY: worldCell.y })
+        .onConflictDoNothing()
         .returning();
       if (created) return toSettlement(created);
-      const existing = await findSeat(input.ownerId);
-      if (!existing)
-        throw new Error(`Sídelní sídlo hráče ${input.ownerId} nešlo založit ani najít.`);
-      return existing;
+      // souběžný požadavek téhož hráče mezitím sídlo založil; jinak je políčko cizí
+      return findSeat(input.ownerId);
     },
     async create({ worldCell, ...input }): Promise<Settlement | null> {
-      // Atomicky: obsazené políčko mřížky hráče hlídá unikátní index – druhý INSERT nic nezmění.
+      // Atomicky: obsazené políčko světa hlídá unikátní index – druhý INSERT nic nezmění.
       const [created] = await db
         .insert(settlement)
         .values({ ...input, isSeat: false, gridX: worldCell.x, gridY: worldCell.y })
-        .onConflictDoNothing({
-          target: [settlement.ownerId, settlement.gridX, settlement.gridY],
-          where: sql`${settlement.archivedAt} IS NULL`,
-        })
+        .onConflictDoNothing()
         .returning();
       return created ? toSettlement(created) : null;
+    },
+    async occupiedCells(): Promise<OccupiedCell[]> {
+      const rows = await db
+        .select({ ownerId: settlement.ownerId, x: settlement.gridX, y: settlement.gridY })
+        .from(settlement)
+        .where(and(isNull(settlement.archivedAt), isNotNull(settlement.gridX)));
+      return rows.flatMap((r) =>
+        r.x === null || r.y === null ? [] : [{ ownerId: r.ownerId, cell: { x: r.x, y: r.y } }],
+      );
     },
     async assignWorldCell(settlementId, cell): Promise<Settlement | null> {
       // Jen sídlu bez polohy (podmíněný UPDATE) – souběžná volání ho neposunou dvakrát.

@@ -7,9 +7,9 @@ import {
   type StewardDeparture,
   type VillageState,
 } from '../domain/village';
-import { OWN_MAP_THERE, targetSettlement } from './new-village';
+import { FOREIGN_MAP_THERE, OWN_MAP_THERE, targetSettlement } from './new-village';
 import { findPlayerVillage } from './player-villages';
-import type { SeedSource, Settlement, SettlementRepository } from './settlements';
+import type { Settlement, SettlementRepository } from './settlements';
 import type { VillageRecord, VillageRepository } from './villages';
 
 // Vybavení odchozí schránky správce (steward.md – Kde správce běží): syn vojvody odešel v simulaci
@@ -20,8 +20,8 @@ import type { VillageRecord, VillageRepository } from './villages';
 export interface SettleStewardDeparturesDeps {
   settlements: SettlementRepository;
   villages: VillageRepository;
-  /** Seed krajiny nového sídla (nová mapa) – jen při jeho vzniku. */
-  seeds: SeedSource;
+  /** Seed světa – krajina nového sídla (nová mapa) se odvodí z jeho políčka, jen při vzniku. */
+  worldSeed: number;
 }
 
 export interface SettleStewardDeparturesInput {
@@ -36,7 +36,7 @@ const MARK_ATTEMPTS = 5;
 /**
  * Vybaví schránku mateřské vsi `villageId` hráče: pro každý záznam bez vsi založí ves (nebo najde
  * tu, kterou založilo dřívější či souběžné volání – podle klíče založení) a záznam označí jejím id.
- * Na nové mapě vznikne (nebo se použije prázdné vlastní) sídlo v prvním směru bez vlastní vsi
+ * Na nové mapě vznikne (nebo se použije prázdné vlastní) sídlo v prvním směru bez vlastní vsi a bez cizí mapy
  * a lidé jsou na cestě – po příjezdu správce umístí první zemnici sám. Starší záznam s místem na
  * téže mapě (`dwelling`, z doby před pravidlem jedna ves, jedna mapa) jde taky na novou mapu. Nová ves se dopočítá při příštím načtení. Vrací vsi ze
  * záznamů, které se teď vybavily (i nalezené); ves, která hráči nepatří – nic.
@@ -84,8 +84,8 @@ export async function settleStewardDeparturesSafely(
 }
 
 /**
- * Založí ves záznamu na nové mapě v prvním směru bez vlastní vsi – lidé jsou na cestě. Null –
- * nikam (všechny směry mají vlastní ves, mapa bez místa ve světě; záznam čeká na další volání).
+ * Založí ves záznamu na nové mapě v prvním směru bez vlastní vsi a bez cizí mapy – lidé jsou na cestě. Null –
+ * nikam (všechny směry mají vlastní ves nebo cizí mapu, mapa bez místa ve světě; záznam čeká na další volání).
  */
 async function createVillage(
   deps: SettleStewardDeparturesDeps,
@@ -105,6 +105,8 @@ async function createVillage(
         if (again) return again;
         continue;
       }
+      // cizí mapa tím směrem – zkusit další směr ze záznamu
+      if (target.reason === FOREIGN_MAP_THERE) continue;
       break;
     }
     const state = travellingVillage(settlers, record.seed, record.id, {

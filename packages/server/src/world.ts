@@ -22,3 +22,20 @@ export function worldDayOf(nowMs: number, world: WorldClock): WorldDay {
   if (state.status !== 'running') return { ok: false, state };
   return { ok: true, day: dayIndexOf(state.date) };
 }
+
+/**
+ * Výchozí seed světa pro vývoj a testy. Ostrý svět nastaví `WORLD_SEED` – po spuštění se nesmí
+ * změnit (krajina každého políčka se z něj odvozuje a uložená sídla nesou svůj seed).
+ */
+export const DEFAULT_WORLD_SEED = 500_001;
+
+/** Seed světa z `WORLD_SEED` (celé číslo 0 … 2^31 − 1); bez něj výchozí vývojový. */
+export function worldSeed(env: NodeJS.ProcessEnv = process.env): number {
+  const raw = env.WORLD_SEED?.trim();
+  if (!raw) return DEFAULT_WORLD_SEED;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 0 || value >= 2 ** 31) {
+    throw new Error('WORLD_SEED: čekám celé číslo 0 … 2147483647.');
+  }
+  return value;
+}

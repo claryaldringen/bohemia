@@ -33,7 +33,7 @@ async function playerWithVillage(): Promise<{
 }> {
   const settlements = new InMemorySettlements();
   const villages = new InMemoryVillages();
-  const seat = await settlements.createSeat({
+  const seat = await settlements.seatAtOrigin({
     ownerId: PLAYER,
     landscapeSeed: 11,
     layerVersions: CURRENT_LAYER_VERSIONS,
@@ -138,7 +138,7 @@ describe('víc vsí a konec hry', () => {
       worldCell: { x: 0, y: 1 },
     });
     const result = await restartGame(
-      { settlements, villages, landscapes, seeds: seeds() },
+      { settlements, villages, landscapes, worldSeed: 4242 },
       { playerId: PLAYER, today: TODAY + 1, abandon: true },
     );
     expect(result.ok).toBe(true);

@@ -4,7 +4,7 @@ import { loadVillage } from './load-village';
 import type { PlayerLock } from './locks';
 import { closeDynastyDay, type DynastyDeps } from './restart-game';
 import { settleStewardDeparturesSafely } from './settle-steward-departures';
-import type { SeedSource, Settlement } from './settlements';
+import type { Settlement } from './settlements';
 import type { VillageRecord, VillageStamp } from './villages';
 import type { WorldQueue } from './world-queue';
 
@@ -25,8 +25,8 @@ import type { WorldQueue } from './world-queue';
 export const WORLD_STEP_DAYS = 10;
 
 export interface AdvancePlayerDeps extends DynastyDeps {
-  /** Seed krajiny nového sídla ze schránky správce. */
-  seeds: SeedSource;
+  /** Seed světa – krajina nového sídla ze schránky správce se odvodí z jeho políčka. */
+  worldSeed: number;
   locks: PlayerLock;
   /** Hodiny jen pro statistiku (ms, např. `performance.now`) – výsledek neovlivní; bez nich 0. */
   now?: () => number;

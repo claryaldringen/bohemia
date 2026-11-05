@@ -62,8 +62,9 @@ beforeEach(async () => {
     ownerId: 'hrac-1',
     landscapeSeed: 1,
     layerVersions: CURRENT_LAYER_VERSIONS,
+    worldCell: { x: 0, y: 0 },
   });
-  settlementId = settlement.id;
+  settlementId = settlement!.id;
 });
 
 afterAll(async () => {
@@ -335,8 +336,9 @@ describe('createVillageRepository', () => {
       ownerId: 'hrac-1',
       landscapeSeed: 2,
       layerVersions: CURRENT_LAYER_VERSIONS,
+      worldCell: { x: 1, y: 0 },
     });
-    const otherId = other.id;
+    const otherId = other!.id;
     const keyed = { ...state(), origin: 'steward-son:b:1' };
     const results = await Promise.all([
       villages.addOnce(settlementId, 'Ves A', keyed),
@@ -372,7 +374,7 @@ describe('createVillageRepository', () => {
     const deps = {
       settlements: createSettlementRepository(db),
       villages,
-      seeds: { nextSeed: (): number => 7 },
+      worldSeed: 7,
     };
     const input = { playerId: 'hrac-1', villageId: added.id };
     await Promise.all([settleStewardDepartures(deps, input), settleStewardDepartures(deps, input)]);
