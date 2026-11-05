@@ -55,7 +55,7 @@ začátku svého dne, zápis zvedá verzi vsi) – `docs/code/village-core.md`, 
   actions jednoho klienta jedou ve frontě po jedné). `poll` ve `VillageGame` posílá
   `getVillageView({ …, withNotices: true })`; odpověď (`VillageView` i `VillageUnchanged`, ne
   `null`/chyba) nese `playerNotices` – výsledek `NoticeRepository.takeUnread(playerId,
-  NOTICE_BATCH = 20)`, tedy nepřečtená od nejstaršího, která se tím zároveň označí za přečtená (jedno
+NOTICE_BATCH = 20)`, tedy nepřečtená od nejstaršího, která se tím zároveň označí za přečtená (jedno
   `UPDATE … RETURNING`, souběžná volání nevrátí totéž). Doručí se jen jednou. Klient je zpracuje
   hned po návratu, ještě před kontrolou pořadí dotazu (`seq`) – zahozená odpověď by je jinak
   ztratila – a ukáže jako řádky nahoře uprostřed (`mergeNoticeLines`). Server doplňuje upozornění
@@ -65,3 +65,28 @@ začátku svého dne, zápis zvedá verzi vsi) – `docs/code/village-core.md`, 
   čítače – řady se nesrazí.
 - **Klik:** `noticePanel(kind)` vrací panel, který řádek otevírá; `VillageGame.openNoticePanel` zatím
   nic neotevře (panel „Rod a vazalové“ vznikne v úloze 1.10).
+
+## Schránka vsi
+
+- **Tabulka `village_inbox`** (migrace `0016_village_inbox.sql`, schéma `schema/village-inbox.ts`):
+  `id` (uuid), `seq` (bigserial – pořadí zápisu, v rámci dne se události použijí podle něj),
+  `village_id` → `village` (cascade), `day` (herní den použití), `ref` (text, **unikátní** –
+  idempotence zápisu), `body` (jsonb, `VillageEventBody`), `created_at`; index `(village_id, day)`.
+- **Adaptér** `createInboxRepository` (`adapters/inbox-repository.ts`), členem
+  `VillageRepository.inbox` (`createVillageRepository` ho zapojí; `GameDeps` žádnou druhou instanci
+  nemá – odesílatelé volají `deps.villages.inbox`, `cachedVillages` ho předává dál).
+- **`post` = jedna transakce:** `SELECT last_day FROM village WHERE id = … FOR UPDATE` (řádek vsi
+  zamkne; neznámá ves = chyba, jako v paměti) → `INSERT … ON CONFLICT (ref) DO NOTHING RETURNING`
+  s dnem `greatest(day, last_day + 1)` → jen když se vložilo, `UPDATE village SET version =
+version + 1, digest_version = digest_version + 1`. Duplicitní `ref` = `null` a verze se nemění.
+  Zámek řádku řadí zápis proti `save` vsi (ten zamyká řádek `UPDATE`), takže `last_day` je v okamžiku
+  zápisu pravdivý: událost nikdy nepřistane na už spočítaném dni.
+- **Proč verze:** rozběhnutý dopočet vsi (web i worker) čte stav před zápisem; jeho `save` s původní
+  verzí selže na kontrole verze a `updateVillage` ho zopakuje i s novou událostí (`pending`).
+  `digest_version` jde s `version`, protože zápis do schránky stav vsi nemění – souhrn zůstává
+  platný (`NULL + 1` zůstane `NULL`). Zámek hráče-příjemce se nebere (jen řádek vsi).
+- **`pending(villageId, afterDay, toDay)`:** `afterDay < day ≤ toDay`, `ORDER BY day, seq`.
+- **Testy:** `adapters/__tests__/inbox-repository.db.test.ts` (konflikt rozběhnutého `save`,
+  idempotence `ref`, posun dne, pořadí) a třetí „proces“ posílající události do vsí v
+  `packages/server/src/__tests__/web-worker-race.db.test.ts` (každá událost ze dnů ≤ `lastDay`
+  v kronice právě jednou, výsledek = dopočet jedním procesem se stejnými událostmi).

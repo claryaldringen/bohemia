@@ -1,6 +1,5 @@
 import { and, asc, eq, inArray, sql, type SQL } from 'drizzle-orm';
 import {
-  EMPTY_INBOX,
   isCurrentDigest,
   villageDigest,
   type VillageDigest,
@@ -11,6 +10,7 @@ import {
   type VillageYearRow,
 } from '@bohemia/game';
 import type { Database } from '../client';
+import { createInboxRepository } from './inbox-repository';
 import { settlement, village, villageYear } from '../schema';
 
 type VillageRow = typeof village.$inferSelect;
@@ -103,9 +103,8 @@ export function createVillageRepository(db: Database): VillageRepository {
     return row ? toRecord(row) : null;
   };
   return {
-    // schránka vsí zatím prázdná – adaptér nad tabulkou `village_inbox` přijde v úloze 1.7
-    // (docs/code/village-core.md – Schránka vsi)
-    inbox: EMPTY_INBOX,
+    // schránka vsí nad tabulkou `village_inbox` (docs/code/world.md – Schránka vsi)
+    inbox: createInboxRepository(db),
 
     async find(villageId): Promise<VillageRecord | null> {
       // id vsi přichází i zvenku (cookie, vstup akce) – jiný řetězec než UUID by dotaz shodil

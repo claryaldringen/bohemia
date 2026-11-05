@@ -91,6 +91,21 @@ class SaveLog {
     this.days.set(villageId, days);
   }
 
+  /**
+   * Den dopočtu vsi ve verzi. Zápis do schránky zvedne verzi bez uložení stavu (den se nemění),
+   * takovou verzi nezná `remember` – platí den nejbližší nižší známé verze.
+   */
+  private dayOf(villageId: string, version: number): number | undefined {
+    const days = this.days.get(villageId);
+    if (!days) return undefined;
+    let best: number | undefined;
+    for (let v = version; v >= 1; v--) {
+      best = days.get(v);
+      if (best !== undefined) break;
+    }
+    return best;
+  }
+
   wrap(inner: VillageRepository, process: SaveAttempt['process']): VillageRepository {
     return {
       ...inner,
@@ -103,7 +118,7 @@ class SaveLog {
       stampsOf: (ids) => inner.stampsOf(ids),
       weatherSeedOf: (id) => inner.weatherSeedOf(id),
       save: async (villageId, state, expectedVersion) => {
-        const from = this.days.get(villageId)?.get(expectedVersion);
+        const from = this.dayOf(villageId, expectedVersion);
         if (from === undefined) throw new Error(`Neznámá verze ${expectedVersion} vsi.`);
         const saved = await inner.save(villageId, state, expectedVersion);
         this.attempts.push({ process, villageId, from, to: state.lastDay, ok: saved !== null });
@@ -235,6 +250,10 @@ type Action =
 
 interface RaceResult {
   seeded: Seeded[];
+  /** Události schránky, které třetí proces zapsal (bez odmítnutých duplicit), a řádky `village_inbox`. */
+  posted: number;
+  duplicates: number;
+  inbox: InboxRow[];
   log: SaveLog;
   actions: Action[];
   views: number;
@@ -243,7 +262,18 @@ interface RaceResult {
   final: Map<string, { name: string; state: VillageState }>;
 }
 
-async function race(webLock: boolean): Promise<RaceResult> {
+/** Řádek schránky vsi (den použití přidělila schránka). */
+interface InboxRow {
+  villageId: string;
+  day: number;
+  seq: number;
+  name: string;
+}
+
+/** Jméno z události kroniky zapsané třetím procesem (`race-<n>`). */
+const EVENT_PREFIX = 'race-';
+
+async function race(webLock: boolean, withEvents = false): Promise<RaceResult> {
   const log = new SaveLog();
   const seeded = await seedPlayers(log);
   const worker = processDeps(log, 'worker', { lockPool: 2, lock: true });
@@ -255,6 +285,8 @@ async function race(webLock: boolean): Promise<RaceResult> {
   let views = 0;
   let busy = 0;
   let running = true;
+  let posted = 0;
+  let duplicates = 0;
 
   const workerLoop = async (): Promise<void> => {
     while (running) {
@@ -310,7 +342,40 @@ async function race(webLock: boolean): Promise<RaceResult> {
     }
   };
 
-  const loops = [workerLoop(), webLoop(1), webLoop(2), webLoop(3)];
+  // třetí „proces“: cizí události do schránky náhodných vsí (bez zámku hráče, vlastní pool)
+  const sender = withEvents ? createDatabase(URL) : null;
+  const eventLoop = async (seed: number): Promise<void> => {
+    if (!sender) return;
+    const inbox = createVillageRepository(sender).inbox;
+    const rnd = random(seed);
+    let n = 0;
+    while (running) {
+      const village = seeded[Math.floor(rnd() * seeded.length)]!;
+      // každá sedmá událost opakuje `ref` předchozí – schránka ji musí zahodit
+      const repeat = n > 0 && n % 7 === 0;
+      const id = repeat ? n - 1 : n;
+      const event = await inbox
+        .post({
+          villageId: village.villageId,
+          day: clock.day,
+          ref: `${EVENT_PREFIX}${id}`,
+          body: {
+            kind: 'chronicle',
+            event: { day: clock.day, kind: 'line-named', name: `${EVENT_PREFIX}${id}` },
+          },
+        })
+        .catch((error: unknown) => {
+          failed.push(`events: ${String(error)}`);
+          return null;
+        });
+      if (event) posted++;
+      else duplicates++;
+      n++;
+      await sleep(Math.floor(rnd() * 6));
+    }
+  };
+
+  const loops = [workerLoop(), webLoop(1), webLoop(2), webLoop(3), eventLoop(4)];
   for (let day = 1; day <= DAYS; day++) {
     await sleep(TICK_MS);
     clock.day = START + day;
@@ -327,8 +392,16 @@ async function race(webLock: boolean): Promise<RaceResult> {
     const record = (await worker.deps.villages.find(villageId))!;
     final.set(villageId, { name: record.name, state: record.state });
   }
-  await Promise.all([worker.close(), web.close()]);
-  return { seeded, log, actions, views, busy, failed, final };
+  const rows = await setup.select().from(schema.villageInbox);
+  const inbox = rows.map((row) => ({
+    villageId: row.villageId,
+    day: row.day,
+    seq: row.seq,
+    name:
+      row.body.kind === 'chronicle' && 'name' in row.body.event ? String(row.body.event.name) : '',
+  }));
+  await Promise.all([worker.close(), web.close(), sender?.$client.end()]);
+  return { seeded, log, posted, duplicates, inbox, actions, views, busy, failed, final };
 }
 
 /** Jeden proces v paměti: tytéž vsi, tytéž akce v tytéž dny, pak dopočet do posledního dne. */
@@ -340,6 +413,19 @@ async function reference(
   const ids = new Map<string, string>();
   for (const [i, s] of result.seeded.entries()) {
     ids.set(s.villageId, (await villages.add(`mapa-${i}`, NAMES[i]!, s.state)).id);
+  }
+  // události schránky ve dnech, které přidělila schránka (jeden proces je použije stejně)
+  for (const row of result.inbox) {
+    villages.inbox.events.push({
+      id: `row-${row.seq}`,
+      villageId: ids.get(row.villageId)!,
+      day: row.day,
+      seq: row.seq,
+      body: {
+        kind: 'chronicle',
+        event: { day: row.day, kind: 'line-named', name: row.name },
+      },
+    });
   }
   const names = new Map<string, string>();
   for (const action of result.actions) {
@@ -422,6 +508,36 @@ describe('souběh web × worker nad bohemia_test', () => {
       expect(village.name).toBe(want.name);
       expect(canonical(village.state)).toBe(canonical(want.state));
     }
+  });
+
+  it('se schránkou vsi: cizí události nikdy nezmizí ani se nepoužijí dvakrát, výsledek = jeden proces', async () => {
+    const result = await race(true, true);
+    expect(result.failed).toEqual([]);
+    expect(result.posted).toBeGreaterThan(20);
+    // opakovaný `ref` schránka zahodila – řádků je přesně tolik, kolik zápisů uspělo
+    expect(result.duplicates).toBeGreaterThan(0);
+    expect(result.inbox).toHaveLength(result.posted);
+    expect(new Set(result.inbox.map((row) => row.name)).size).toBe(result.posted);
+    // zápis do schránky zvedá verzi – rozběhnutý dopočet smí narazit na konflikt a zopakovat se
+    const computed = checkSegments(result);
+    for (const days of computed.values()) expect(days).toBeGreaterThanOrEqual(DAYS);
+    const expected = await reference(result);
+    for (const [villageId, village] of result.final) {
+      const want = expected.get(villageId)!;
+      expect(canonical(village.state)).toBe(canonical(want.state));
+      // každá událost ze dnů ≤ lastDay je v kronice právě jednou, žádná jiná tam není
+      const applied = village.state.chronicle
+        .filter((e) => e.kind === 'line-named' && e.name.startsWith(EVENT_PREFIX))
+        .map((e) => (e.kind === 'line-named' ? e.name : ''))
+        .sort();
+      const due = result.inbox
+        .filter((row) => row.villageId === villageId && row.day <= village.state.lastDay)
+        .map((row) => row.name)
+        .sort();
+      expect(applied).toEqual(due);
+    }
+    // vždy aspoň nějaká událost doběhla do kroniky (test by jinak nic neověřoval)
+    expect(result.inbox.some((row) => row.day <= END)).toBe(true);
   });
 
   it('bez zámku webu chrání ves verze: konflikty smí být, nic se neztratí ani nerozbije', async () => {
