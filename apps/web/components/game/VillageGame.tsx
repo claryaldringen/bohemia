@@ -11,6 +11,7 @@ import {
   type DwellingPlot,
   type BuildableDwellingType,
   type DwellingType,
+  type PlayerNotice,
   type Position,
   type SacredBuildingKind,
   type SquareGrid,
@@ -82,6 +83,12 @@ import { useSoundPreference } from './SoundToggle';
 import { rememberVillage } from '@/lib/village-choice';
 import { keepShownVillage, type VillageListItem } from '@/lib/village-list';
 import { lineNameNotice, newNotices } from '@/lib/village-notices';
+import {
+  mergeNoticeLines,
+  noticePanel,
+  playerNoticeLine,
+  type NoticePanel,
+} from '@/lib/player-notices';
 import { lastLordName, rememberLordName } from '@/lib/lord-name-memory';
 import { personPortrait } from '@/lib/person-view';
 import {
@@ -378,6 +385,22 @@ export function VillageGame({
   const pushNotice = useCallback((notice: Omit<NoticeLine, 'id'>): void => {
     setNotices((list) => [...list, { ...notice, id: ++noticeId.current }].slice(-MAX_NOTICES));
   }, []);
+  // Upozornění mezi hráči přicházejí v odpovědi dotazu na ves (server je tím označí za přečtená).
+  const openNoticePanel = useCallback((panel: NoticePanel): void => {
+    void panel;
+    // Panel „Rod a vazalové“ vznikne v úloze 1.10 – do té doby klik nic neotevře.
+  }, []);
+  const showPlayerNotices = useCallback(
+    (received: readonly PlayerNotice[] | undefined): void => {
+      if (!received || received.length === 0) return;
+      const lines = received.map((n) => {
+        const panel = noticePanel(n.kind);
+        return { ...playerNoticeLine(n), onOpen: panel ? () => openNoticePanel(panel) : undefined };
+      });
+      setNotices((list) => mergeNoticeLines(list, lines, MAX_NOTICES));
+    },
+    [openNoticePanel],
+  );
   const expireNotice = useCallback((id: number): void => {
     setNotices((list) => list.filter((n) => n.id !== id));
   }, []);
@@ -540,7 +563,10 @@ export function VillageGame({
       ...(known ? { known } : {}),
       ...knownSceneData(viewRef.current?.scene),
       pieces: knownViewPieces(viewRef.current),
+      withNotices: true,
     });
+    // Server upozornění už označil za přečtená – ukázat i z odpovědi, která se jinak zahodí.
+    if (result !== null && 'playerNotices' in result) showPlayerNotices(result.playerNotices);
     if (busyRef.current || seq < appliedSeq.current) return;
     appliedSeq.current = seq;
     // Od pohledu, který máme, se nic nezměnilo (stejný den i verze vsí) – server nic neposlal.
@@ -555,7 +581,7 @@ export function VillageGame({
     if (result !== null && 'error' in result && viewRef.current) {
       pushNotice({ kind: 'error', tone: 'error', text: result.error });
     } else await applyVillage(result);
-  }, [applyVillage, pushNotice, settlementId]);
+  }, [applyVillage, showPlayerNotices, pushNotice, settlementId]);
   // Další dotaz na začátku dalšího herního dne hráče (nejdřív za 5 s, nejpozději za 86 s) – ves
   // se dopočítává po dnech, akce vracejí čerstvou ves samy.
   const pollDelay = useCallback(

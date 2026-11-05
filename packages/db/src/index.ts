@@ -5,6 +5,7 @@ export {
   PlayerLockTimeoutError,
   createPlayerLock,
   createHouseRepository,
+  createNoticeRepository,
   createWorldDirectory,
   createSettlementRepository,
   createTimeOffsetRepository,

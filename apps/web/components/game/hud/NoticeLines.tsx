@@ -9,6 +9,8 @@ export interface NoticeLine {
   kind: string;
   tone: 'info' | 'warn' | 'error';
   text: string;
+  /** Klik na řádek (upozornění mezi hráči otevře svůj panel); bez něj řádek klik nechytá. */
+  onOpen?: () => void;
 }
 
 /** Jak dlouho řádek zůstane, než zmizí (ms). */
@@ -38,7 +40,17 @@ function Line({
       className={`hud-notice font-serif text-base ${TONES[notice.tone]}`}
       style={{ '--hud-notice-ms': `${NOTICE_MS}ms` } as CSSProperties}
     >
-      {notice.text}
+      {notice.onOpen ? (
+        <button
+          type="button"
+          onClick={notice.onOpen}
+          className="pointer-events-auto cursor-pointer underline-offset-2 hover:underline"
+        >
+          {notice.text}
+        </button>
+      ) : (
+        notice.text
+      )}
     </li>
   );
 }

@@ -1,7 +1,8 @@
 'use server';
 
 import { NOT_PLAYER_VILLAGE } from '@bohemia/game';
-import { restartGameForPlayer } from '@/lib/game';
+import { gameDeps, restartGameForPlayer } from '@/lib/game';
+import { NOTICE_BATCH, wantsPlayerNotices, type WithPlayerNotices } from '@/lib/player-notices';
 import { getSession } from '@/lib/session';
 import { trimKnownSceneData, type KnownSceneData } from '@/lib/scene-routes';
 import { packViewPieces } from '@/lib/view-pieces';
@@ -102,12 +103,21 @@ async function villageAction<T>(
  * žádnou nezná, zakládá ves) – jeho první ves, nebo null, dokud žádnou nemá. Když vybraná ves
  * hráči už nepatří (restart hry v jiném panelu), vrátí jeho první ves (nebo null) – klient pak
  * načte stránku znovu. S `known` (otisk pohledu, který klient má – `VillageView.stamp`) vrátí
- * `{ unchanged: true }`, když se od něj nic nezměnilo.
+ * `{ unchanged: true }`, když se od něj nic nezměnilo. S `withNotices: true` přidá do odpovědi
+ * (i `unchanged`) `playerNotices` – dosud nepřečtená upozornění mezi hráči, která tím označí
+ * za přečtená (doručují se jen jednou).
  */
 export async function getVillageView(
   input: unknown,
-): Promise<VillageView | VillageUnchanged | null | { error: string }> {
-  return withVillageCache(() => villageViewOf(input));
+): Promise<WithPlayerNotices<VillageView | VillageUnchanged> | null | { error: string }> {
+  const result = await withVillageCache(() => villageViewOf(input));
+  if (result === null || 'error' in result || !wantsPlayerNotices(input)) return result;
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  // Doručení = vyzvednutí a označení za přečtená naráz. Výsledek se kopíruje – objekt z dopočtu
+  // se nikdy nedoplňuje (mohl by být sdílený).
+  const playerNotices = await gameDeps().notices.takeUnread(id, NOTICE_BATCH);
+  return { ...result, playerNotices };
 }
 
 async function villageViewOf(
