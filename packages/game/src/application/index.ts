@@ -17,6 +17,7 @@ export * from './village-stamp';
 export * from './found-village';
 export * from './name-line-man';
 export * from './player-lord';
+export * from './player-succession';
 export * from './set-steward';
 export * from './settle-steward-departures';
 export * from './declare-hunt';

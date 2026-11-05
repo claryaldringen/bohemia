@@ -635,3 +635,25 @@ Porážka (návrh `slaughter`): klipy `butcher` (`gather_meat` + nůž, klek), `
   pošle událost `chronicle` do všech živých vsí rodu (`ref` = `senior:<rod>:<den>:<ves>` – `ref`
   je ve schránce unikátní globálně, proto i s vsí) a zapíše nového seniora (`setSenior`). Volá ho
   `advanceDynasty` a `dynastyForVillage` (jen když jsou všechny vsi celé, ne souhrny).
+
+## Nástupnictví hráče (seniorate.md – Nástupnictví hráče; úloha 2.4)
+
+- **Los** (`domain/village/player-lot.ts`): `playerLotCandidates(state, deathDay, deadId)` = nástupce
+  vsi z rodu (`successorOf`) + mladší synové zemřelého, kteří ve vsi žijí a ke dni smrti měli aspoň
+  `LORD.leaveMinAge` let; `drawPlayerLot(seed, deathDay, candidates)` losuje ze seedu
+  `deriveSeed(state.seed, 'player-lot:' + deathDay)` – nástupce `PLAYER_SUCCESSION.successorWeight`
+  (½), zbytek rovným dílem. Los je jen při aspoň dvou kandidátech (`isPlayerLot`). Čísla v `rules-lord.ts`.
+- **Use-case** `application/player-succession.ts`: `resolvePlayerSuccession` (rodu hráčův muž
+  `House.lord` už není ve vsi) → `successor` / `younger-son` (+ `deadlineDay` = den smrti +
+  `departDays`; odchod po pohřbu dělá až úloha 2.5) / `senior` / `oldest-lord` (ves bez muže rodu) /
+  `none` (konec hry) / `alive` (nic k řešení). Kredit (`consumeOne`) jen místo losu.
+- **Den smrti** se bere z kroniky vojvodů vsi (`dynasty.lords[].toDay`), ne z doby dopočtu – los i
+  `succession_day` tak nezávisí na dělení dopočtu. Jiný muž než vojvoda (po losu na mladšího syna)
+  nemá záznam – bere se dnešek.
+- **Idempotence:** `HouseRepository.commitSuccession` je jediný podmíněný UPDATE (hlava rodu +
+  `house.succession_day` + `house.younger_son_deadline_day`, jen když `succession_day` je NULL nebo
+  menší než den smrti). Kredit a upozornění `'player-succession'` jdou až po úspěšném zápisu.
+- **Volání:** `resolveSuccessionOf(deps, …)` v `dynastyForVillage` (web – každý pohled a akce),
+  `advanceDynasty` a `closeAtDay` workeru (`advance-world.ts`); chybí-li rody, upozornění nebo
+  kredity, nic nedělá.
+- Text upozornění: `apps/web/lib/player-notices.ts` (`accusativeOf` skloňuje jméno).

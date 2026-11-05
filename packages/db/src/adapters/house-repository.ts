@@ -1,4 +1,4 @@
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, eq, isNull, lt, or, sql } from 'drizzle-orm';
 import type { House, HouseRepository } from '@bohemia/game';
 import type { Database } from '../client';
 import { house } from '../schema';
@@ -22,6 +22,8 @@ export function toHouse(row: HouseRow): House {
       row.seniorVillageId === null || row.seniorPersonId === null
         ? null
         : { villageId: row.seniorVillageId, personId: row.seniorPersonId },
+    successionDay: row.successionDay,
+    youngerSonDeadlineDay: row.youngerSonDeadlineDay,
   };
 }
 
@@ -80,6 +82,25 @@ export function createHouseRepository(db: Database): HouseRepository {
           seniorPersonId: senior?.personId ?? sql`NULL`,
         })
         .where(eq(house.id, houseId));
+    },
+    async commitSuccession(houseId, input): Promise<boolean> {
+      // Jediný podmíněný UPDATE: ze souběžných volání pro tutéž smrt zapíše jen jedno.
+      const rows = await db
+        .update(house)
+        .set({
+          successionDay: input.deathDay,
+          lordVillageId: input.lord.villageId,
+          lordPersonId: input.lord.personId,
+          youngerSonDeadlineDay: input.youngerSonDeadlineDay ?? sql`NULL`,
+        })
+        .where(
+          and(
+            eq(house.id, houseId),
+            or(isNull(house.successionDay), lt(house.successionDay, input.deathDay)),
+          ),
+        )
+        .returning({ id: house.id });
+      return rows.length > 0;
     },
   };
 }

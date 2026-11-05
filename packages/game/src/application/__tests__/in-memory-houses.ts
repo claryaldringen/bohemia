@@ -32,6 +32,8 @@ export class InMemoryHouses implements HouseRepository {
       endedDay: null,
       lord: null,
       senior: null,
+      successionDay: null,
+      youngerSonDeadlineDay: null,
     };
     this.houses.push(house);
     return house;
@@ -54,6 +56,21 @@ export class InMemoryHouses implements HouseRepository {
   async setSenior(houseId: string, senior: PersonRef | null): Promise<void> {
     const house = this.houses.find((h) => h.id === houseId);
     if (house) house.senior = senior;
+  }
+
+  async commitSuccession(
+    houseId: string,
+    input: { deathDay: number; lord: PersonRef; youngerSonDeadlineDay: number | null },
+  ): Promise<boolean> {
+    await Promise.resolve();
+    const house = this.houses.find((h) => h.id === houseId);
+    if (!house || (house.successionDay !== null && house.successionDay >= input.deathDay)) {
+      return false;
+    }
+    house.successionDay = input.deathDay;
+    house.lord = input.lord;
+    house.youngerSonDeadlineDay = input.youngerSonDeadlineDay;
+    return true;
   }
 
   private alive(house: House): boolean {

@@ -1,5 +1,6 @@
 import { pendingStewardDepartures } from '../domain/village';
 import { announceSenior } from './announce-senior';
+import { resolveSuccessionOf } from './player-succession';
 import { settleStewardDeparturesSafely } from './settle-steward-departures';
 import {
   dynastyStatus,
@@ -37,6 +38,7 @@ export async function advanceDynasty(
   }
   // senior rodu se mohl změnit (smrt, narození, příchod) – kronika ho hlásí všem vsím rodu
   if (deps.houses && !status.gameOver) {
+    await resolveSuccessionOf(deps, input);
     await announceSenior(
       { houses: deps.houses, villages: deps.villages },
       { playerId: input.playerId, villages: status.villages, today: input.today },

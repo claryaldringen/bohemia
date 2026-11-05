@@ -17,11 +17,30 @@ export function noticePanel(kind: PlayerNoticeKind): NoticePanel | null {
     case 'invite-accepted':
     case 'invitee-played':
       return 'house';
+    case 'player-succession':
+      return null;
   }
 }
 
 function nameOf(payload: Record<string, unknown>): string {
   return typeof payload.name === 'string' && payload.name !== '' ? payload.name : 'Pozvaný';
+}
+
+/**
+ * 4. pád mužského jména rodu („Hraješ za Ctibora“): -a → -u, -ek → -ka, měkká souhláska +e, jinak
+ * +a; jména na jinou samohlásku zůstanou. Jména rodu jsou krátký seznam českých mužských jmen.
+ */
+export function accusativeOf(name: string): string {
+  if (name.endsWith('a')) return `${name.slice(0, -1)}u`;
+  if (name.endsWith('něk')) return `${name.slice(0, -3)}ňka`;
+  if (name.endsWith('ek')) return `${name.slice(0, -2)}ka`;
+  if (/[eiyouáéíóúůý]$/i.test(name)) return name;
+  if (/[šžčřcjďťň]$/i.test(name)) return `${name}e`;
+  return `${name}a`;
+}
+
+function stringOf(value: unknown): string | null {
+  return typeof value === 'string' && value !== '' ? value : null;
 }
 
 function textOf(n: PlayerNotice): string {
@@ -30,6 +49,11 @@ function textOf(n: PlayerNotice): string {
       return `${nameOf(n.payload)} přijal pozvánku – je tvým vazalem.`;
     case 'invitee-played':
       return `${nameOf(n.payload)} se rozehrál.`;
+    case 'player-succession': {
+      const dead = stringOf(n.payload.deadName) ?? 'Tvůj muž';
+      const next = stringOf(n.payload.newName);
+      return `${dead} zemřel. Hraješ za ${next === null ? 'dalšího muže rodu' : accusativeOf(next)}.`;
+    }
   }
 }
 
