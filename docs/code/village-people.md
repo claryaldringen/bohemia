@@ -223,6 +223,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   nová mapa = nové sídlo s polohou v mřížce map (`settlement.grid_x` / `grid_y`, port
   `Settlement.worldCell`, `SettlementRepository.create` – mřížka je zatím každého hráče zvlášť,
   políčko nejvýš jedno aktivní na hráče; `assignWorldCell` dá sídelnímu sídlu (0, 0)).
+  Modul `domain/world` (`placement.ts`, `cell-seed.ts`, `rules-world.ts`) je základ společné mřížky
+  světa: `placeNewPlayer` najde nováčkovi políčko po prstencích (nezávislý od středu, odstup 3;
+  pozvaný nejblíž pánovi, odstup 2) a `cellLandscapeSeed` odvodí seed krajiny políčka ze seedu světa.
   Port `VillageRepository` jde podle id vsi (`find`, `save`, `rename`), `listBySettlement`,
   `create` (ves sídla – atomicky, zámek řádku sídla; sídlo s vsí → null), `addOnce` (schránka
   správce – sídlo s jinou vsí → null); `add` (další ves sídla) je pryč. Use-casy berou
