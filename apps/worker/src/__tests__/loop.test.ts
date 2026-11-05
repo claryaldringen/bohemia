@@ -125,4 +125,30 @@ describe('runLoop', () => {
     expect(total.rounds).toBe(0);
     expect(h.sleeps).toEqual([5000, 5000]);
   });
+
+  it('úlohy světa pouští nejvýš jednou za minutu podle hodin', async () => {
+    const stop = new AbortController();
+    // kola po 20 ms (pauza), 40 kol = 800 ms; hodiny se posouvají jen spánkem
+    const steps = Array.from({ length: 40 }, () => step([player('a', 'done')], false));
+    const h = harness(steps, stop);
+    const calls: number[] = [];
+    h.deps.worldTasks = async (input) => {
+      calls.push(input.today);
+    };
+    await runLoop(h.deps, options, stop.signal);
+    expect(calls).toEqual([10]);
+
+    // s hodinami po 30 s na kolo: úlohy se pustí v každém druhém kole
+    const stop2 = new AbortController();
+    const h2 = harness(
+      Array.from({ length: 6 }, () => step([player('a', 'done')], false)),
+      stop2,
+    );
+    const times: number[] = [];
+    h2.deps.worldTasks = async (input) => {
+      times.push(input.now.getTime());
+    };
+    await runLoop(h2.deps, { ...options, pauseMs: 30_000 }, stop2.signal);
+    expect(times).toEqual([1_000_000, 1_060_000, 1_120_000, 1_180_000]);
+  });
 });

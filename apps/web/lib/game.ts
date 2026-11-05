@@ -1,6 +1,10 @@
 import 'server-only';
 import {
+  createActivityRepository,
   createHouseRepository,
+  createInviteRepository,
+  createNoticeRepository,
+  createVassalageRepository,
   createSettlementRepository,
   createTimeOffsetRepository,
   createVillageRepository,
@@ -23,6 +27,7 @@ import {
   enterGame,
   findPlayerVillage,
   firstPlayerVillage,
+  recordActiveDay,
   restartGame,
   settlementLandscape,
   skipTime,
@@ -48,10 +53,20 @@ const landscapes = cachedLandscapes(LANDSCAPE_CACHE_SIZE);
  * a mezipamětí krajin (každá akce vsi i celý dotaz na ves potřebuje krajinu sídla).
  */
 export function enterGameForPlayer(playerId: string): Promise<EnterGameResult> {
+  const db = getDatabase();
   return enterGame(
     {
-      settlements: createSettlementRepository(getDatabase()),
-      houses: createHouseRepository(getDatabase()),
+      settlements: createSettlementRepository(db),
+      houses: createHouseRepository(db),
+      invitation: {
+        invites: createInviteRepository(db),
+        vassalages: createVassalageRepository(db),
+        notices: createNoticeRepository(db),
+        gameDay: () => {
+          const day = worldDayOf(Date.now(), currentWorld());
+          return day.ok ? day.day : 0;
+        },
+      },
       now: () => new Date(),
       worldSeed: worldSeed(),
       landscapes,
@@ -82,6 +97,12 @@ export async function gameEntryForPlayer(
   preferredVillageId: string | null,
 ): Promise<GameEntry> {
   const seat = await enterGameForPlayer(playerId);
+  // Aktivní den (datum v Europe/Prague) – podle nich se pozvaný počítá jako „začal hrát“.
+  await recordActiveDay(
+    { activity: createActivityRepository(getDatabase()) },
+    playerId,
+    new Date(),
+  );
   const deps = playerVillagesDeps();
   const preferred =
     preferredVillageId === null

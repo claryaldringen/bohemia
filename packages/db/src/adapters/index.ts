@@ -12,5 +12,8 @@ export { createNoticeRepository } from './notice-repository';
 export { createSettlementRepository } from './settlement-repository';
 export { createTimeOffsetRepository } from './time-offset-repository';
 export { createVillageRepository } from './village-repository';
+export { createActivityRepository } from './activity-repository';
+export { createSuccessionCreditRepository } from './succession-credit-repository';
+export { createVassalageRepository } from './vassalage-repository';
 export { createWorldDirectory } from './world-directory';
 export { createWorldQueue } from './world-queue';

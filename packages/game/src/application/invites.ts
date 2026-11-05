@@ -53,6 +53,8 @@ export interface InviteRepository {
   reserve(code: string, userId: string, now: Date): Promise<'ok' | 'invalid'>;
   /** Využije uživatelovu rezervaci (jen jednou); vrátí kód, nebo null, když žádná není. */
   consumeReservation(userId: string, now: Date): Promise<Invite | null>;
+  /** Všechny využité kódy (podle nich se počítá nástupnictví za pozvaného). */
+  listUsed(): Promise<Invite[]>;
 }
 
 export interface InviteDeps {

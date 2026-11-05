@@ -45,3 +45,6 @@ export * from './advance-world';
 export * from './player-villages';
 export * from './player-time';
 export * from './invites';
+export * from './vassalages';
+export * from './activity';
+export * from './succession-credits';

@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, isNull, or, ne } from 'drizzle-orm';
+import { and, desc, eq, gt, isNotNull, isNull, or, ne } from 'drizzle-orm';
 import type { Invite, InviteRepository } from '@bohemia/game';
 import type { Database } from '../client';
 import { inviteCode } from '../schema';
@@ -90,6 +90,14 @@ export function createInviteRepository(db: Database): InviteRepository {
         )
         .returning();
       return row ? toInvite(row) : null;
+    },
+    async listUsed(): Promise<Invite[]> {
+      const rows = await db
+        .select()
+        .from(inviteCode)
+        .where(isNotNull(inviteCode.usedBy))
+        .orderBy(inviteCode.usedAt);
+      return rows.map(toInvite);
     },
   };
 }

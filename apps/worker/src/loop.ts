@@ -23,6 +23,8 @@ export interface LoopDeps {
     skip: ReadonlySet<string>;
     shouldStop: () => boolean;
   }) => Promise<WorldStep>;
+  /** Úlohy světa (kredity nástupnictví…) – smyčka je pouští nejvýš jednou za `WORLD_TASKS_MS`. */
+  worldTasks?: (input: { now: Date; today: number }) => Promise<void>;
   now: () => number;
   /** Spánek, který signál ukončení přeruší. */
   sleep: (ms: number, signal: AbortSignal) => Promise<void>;
@@ -39,6 +41,8 @@ export interface Totals {
 }
 
 const SUMMARY_MS = 60_000;
+/** Nejkratší odstup úloh světa (podle hodin z `LoopDeps.now`). */
+export const WORLD_TASKS_MS = 60_000;
 
 /** Chyba do logu i se stackem (příčina se hledá podle něj). */
 function errorText(error: unknown): string {
@@ -65,6 +69,7 @@ export async function runLoop(
   const total = empty();
   let window = empty();
   let summaryAt = deps.now() + SUMMARY_MS;
+  let tasksAt = deps.now();
 
   const flush = (force: boolean): void => {
     if (!force && deps.now() < summaryAt) return;
@@ -83,6 +88,16 @@ export async function runLoop(
     const world = deps.world();
     const worldDay = deps.worldDay(nowMs, world);
     let idle = true;
+    if (worldDay !== null && deps.worldTasks && nowMs >= tasksAt) {
+      tasksAt = nowMs + WORLD_TASKS_MS;
+      try {
+        await deps.worldTasks({ now: new Date(nowMs), today: worldDay });
+      } catch (error) {
+        total.failures++;
+        window.failures++;
+        deps.log.warn(`úlohy světa selhaly: ${errorText(error)}`);
+      }
+    }
     if (worldDay !== null) {
       try {
         const step = await deps.step({

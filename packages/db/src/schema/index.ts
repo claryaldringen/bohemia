@@ -6,3 +6,6 @@ export * from './house';
 export * from './player-notice';
 export * from './village-inbox';
 export * from './invite';
+export * from './vassalage';
+export * from './player-activity';
+export * from './succession-credit';

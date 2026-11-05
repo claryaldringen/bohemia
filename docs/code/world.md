@@ -94,7 +94,7 @@ version + 1, digest_version = digest_version + 1`. Duplicitní `ref` = `null` a 
 ## Pozvánky
 
 Pravidla: [vassalage.md](../design/vassalage.md) – Čísla. Čísla v `INVITES` (`domain/world/rules-world.ts`):
-nevyužité kódy najednou 3, platnost 14 skutečných dní, „začal hrát“ = 3 různé dny (použije úloha 1.9).
+nevyužité kódy najednou 3, platnost 14 skutečných dní, „začal hrát“ = 3 různé dny (`grantSuccessionCredits`).
 
 - **Doména** `domain/world/invite.ts`: `INVITE_ALPHABET` (31 znaků bez O, I, L, 0, 1),
   `newInviteCode(random)` (8 znaků), `formatInviteCode` (`BH7K-M2QX`), `parseInviteCode`
@@ -103,11 +103,44 @@ nevyužité kódy najednou 3, platnost 14 skutečných dní, „začal hrát“ 
 - **Use-casy** `application/invites.ts`: `issueInvite` (jen hráč s živým rodem, strop 3, při kolizi
   kódu nový pokus, náhoda přes port `RandomSource` – web ho plní z `crypto` v
   `cryptoRandom()` v `packages/server`), `revokeInvite`, `checkInvite` (jen čte), `reserveInvite`.
-  Vydávání a rušení zatím nemá rozhraní ve hře (přijde s úlohou 1.9). Chyby: `INVITE_INVALID`
+  Vydávání a rušení zatím nemá rozhraní ve hře (přijde s úlohou 1.10). Chyby: `INVITE_INVALID`
   („Pozvánka neplatí.“), `INVITE_NEEDS_HOUSE`, `INVITE_LIMIT`.
 - **Port** `InviteRepository`: `reserve` je jeden podmíněný `UPDATE … RETURNING` (souběžné
   rezervace dvou uživatelů – uspěje jedna; téhož uživatele je idempotentní); `consumeReservation`
-  využije rezervaci jen jednou – **zatím se nevolá** (vazalství při vstupu do hry je úloha 1.9).
+  využije rezervaci jen jednou – volá ji `enterGame` (viz Vazalství z pozvánky); `listUsed` vrací využité kódy.
   Rezervace platí i po uplynutí `validUntil` kódu, ruší ji jen zrušení kódu.
 - **DB** `invite_code` (migrace `0017_invite`), adaptér `adapters/invite-repository.ts`, v
   `GameDeps` jako `invites` a `random`. Registrace s kódem: `accounts.md`.
+
+## Vazalství z pozvánky
+
+Pravidla: [vassalage.md](../design/vassalage.md) – Pozvaný jako vazal. Typy a port v
+`application/vassalages.ts` (`Vassalage`, `VassalTerms = {}`, `VassalEdge`, `VassalageRepository`:
+`activeOf`, `create`, `end`, `edgesNear`); `breaches` je zatím vždy 0 (rozšíří úloha 4.2).
+
+- **`enterGame`** (`application/enter-game.ts`, volitelná `deps.invitation` = `invites`, `vassalages`,
+  `notices`, `gameDay`): u **nového** hráče (bez sídla) se jako první využije rezervace
+  (`consumeReservation`). Pozvatel s živým rodem a sídlem s polohou → umístění
+  `{ kind: 'invited', lordSeat }` (≥ `WORLD.invitedGap` od ostatních), po založení rodu
+  `vassalages.create({ origin: 'invite', terms: {} })` a pánovi upozornění `'invite-accepted'`
+  (`payload` = `houseId`, `playerId` nováčka; jméno web nezná, řádek zní „Pozvaný přijal…“).
+  Pozvatel vymřel / nemá sídlo → nezávislý, kód je i tak spotřebovaný. Hráč, který už sídlo má,
+  rezervaci nevyužije; opakovaný vstup nic nezdvojí.
+- **DB** `vassalage` (migrace `0018_vassalage`; živé = `ended_at IS NULL`, `end_reason`), adaptér
+  `adapters/vassalage-repository.ts` (`edgesNear` = rekurzivní CTE po živých hranách v obou směrech).
+  V `GameDeps` jako `vassalages`.
+
+## Aktivní dny a nástupnictví za pozvaného
+
+- **Aktivní den** (`application/activity.ts`): `pragueDateOf(at)` (`YYYY-MM-DD` v Europe/Prague),
+  `recordActiveDay`; web ho zapíše v `gameEntryForPlayer` (`apps/web/lib/game.ts`), tabulka
+  `player_activity` (PK hráč + datum, `ON CONFLICT DO NOTHING`), v `GameDeps` jako `activity`.
+- **Kredity** (`application/succession-credits.ts`, tabulka `succession_credit`, unikát
+  `invitee_id`): `grantSuccessionCredits(deps, { now, today })` projde **využité pozvánkové kódy**
+  (`InviteRepository.listUsed`) a pozvateli připíše kredit (`grantOnce`) za každého pozvaného s
+  aspoň `INVITES.playedDays` různými dny, pošle upozornění `'invitee-played'`. Zdroj jsou kódy, ne
+  vazalství – kód přežije vypovězení, přechod pod jiného pána i vymření pána (pozvaný je pak
+  nezávislý, kredit pozvateli přesto patří). `consumeOne(playerId, deathDay)` kredit použije
+  (zatím nikdo nevolá – nástupnictví bez losu je fáze 2); `SKIP LOCKED` brání dvojímu použití.
+- **`runWorldTasks(deps, { now, today })`** – úlohy světa; zatím jen `grantSuccessionCredits`. Worker
+  je pouští jednou za minutu mezi koly (`worker.md`).

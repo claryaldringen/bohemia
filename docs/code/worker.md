@@ -22,7 +22,9 @@ vstupní bod (composition root) jako web – žádná herní logika, jen plánov
   `createGameDeps` (obsahuje i `queue` = `createWorldQueue`), signály, zavření poolů.
 - `src/loop.ts` – `runLoop(deps, options, signal)`: kolo `advanceWorldStep` → při práci pauza
   `pauseMs`, při `idle` spánek `nextWakeMs`; souhrn do logu jednou za minutu; chyba kola ani jednoho
-  hráče smyčku nezastaví. Hodiny, spánek i krok se v testech nahrazují (`LoopDeps`).
+  hráče smyčku nezastaví. Hodiny, spánek i krok se v testech nahrazují (`LoopDeps`). Mezi koly pouští
+  `runWorldTasks` (kredity nástupnictví, `world.md`) nejvýš jednou za minutu (`WORLD_TASKS_MS`, podle
+  hodin `deps.now`); jejich chyba kolo nezastaví.
 - `src/wake.ts` – `nextWakeMs` (do 1 s po začátku dalšího herního dne, nejvýš `idleMs`) a
   `SkipTable` (odklady: zámek ve webu 2 s, chyba 1 min zdvojováním do 15 min; use-case dostane
   množinu `skip`).

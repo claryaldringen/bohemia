@@ -56,4 +56,8 @@ export class InMemoryInvites implements InviteRepository {
     invite.usedAt = now;
     return invite;
   }
+
+  async listUsed(): Promise<Invite[]> {
+    return this.invites.filter((i) => i.usedBy !== null);
+  }
 }
