@@ -42,6 +42,7 @@ import { swathRoadsInWork, trailsDay } from './trail';
 import { roadSwathDay } from './road-swath';
 import { wagonRoadsDay } from './wagon-road';
 import { isVillageDormant } from './departure';
+import { applyInboxDay, inboxByDay, type VillageEvent } from './inbox';
 import { withDynasty } from './dynasty';
 import { withSteward } from './steward-state';
 import { stewardDay } from './steward';
@@ -89,6 +90,10 @@ import { dynastyDay } from './succession';
  * stejně, jinak výsledek na kouscích závisí. `landscape` = krajina sídla jen pro přestavbu
  * polozemnice bez pozemku – postaví ji na nejbližším volném políčku (`relocationPlot`); bez ní
  * (testy, měření) se obydlí přestaví na místě. Také ji volající dává vždy stejně.
+ * `inbox` = události schránky vsi (inbox.ts): události dne `d` se použijí na začátku dne `d`, před
+ * jeho simulací; události mimo dopočítávané dny (`day ≤ state.lastDay`, `day > toDay`, dny, kdy se
+ * ves nesimuluje) se přeskočí – výsledek tak nezávisí na kouscích dopočtu, stačí předat aspoň
+ * události z rozsahu `(state.lastDay, toDay]`. Bez schránky (testy, měření) prázdná.
  * Vymřelá ves (`extinctDay`) se už nesimuluje – jen se posune `lastDay`; lidé, pole, stavby,
  * zásoby i klády stojí, jak byly v den vymření.
  * RangeError, když `toDay` leží za koncem světa nebo před už odsimulovaným dnem.
@@ -98,8 +103,9 @@ export function advanceVillage(
   toDay: number,
   obstacles: ObstacleLayer | null,
   landscape: Landscape | null = null,
+  inbox: readonly VillageEvent[] = [],
 ): VillageState {
-  const steps = advanceVillageSteps(state, toDay, obstacles, landscape);
+  const steps = advanceVillageSteps(state, toDay, obstacles, landscape, inbox);
   for (;;) {
     const step = steps.next();
     if (step.done) return step.value;
@@ -118,6 +124,7 @@ export function* advanceVillageSteps(
   toDay: number,
   obstacles: ObstacleLayer | null,
   landscape: Landscape | null = null,
+  inbox: readonly VillageEvent[] = [],
 ): Generator<number | void, VillageState, void> {
   if (!Number.isInteger(toDay) || toDay >= TOTAL_GAME_DAYS) {
     throw new RangeError(`Den ${toDay} neleží ve světě (0 až ${TOTAL_GAME_DAYS - 1}).`);
@@ -170,8 +177,12 @@ export function* advanceVillageSteps(
   if (cleared !== next) Object.assign(next, cleared);
   // dosahy čtyřkoláku z doby „jen po pevných cestách“ se spočítají znovu (wagons.md)
   withFourWheelReach(next);
+  const eventsByDay = inboxByDay(inbox);
   // vymřelá, opuštěná a ves na cestě se nesimulují – jen se posune den (migration.md)
   for (let day = next.lastDay + 1; day <= toDay && !isVillageDormant(next); day++) {
+    // události schránky dne – na začátku dne, před jeho simulací (village-core.md – Schránka vsi)
+    const events = eventsByDay.get(day);
+    if (events) next.chronicle.push(...applyInboxDay(next, day, events));
     yield* simulateDaySteps(next, day, obstacles, landscape);
     yield day;
   }

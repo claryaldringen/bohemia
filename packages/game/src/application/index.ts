@@ -4,6 +4,7 @@ export * from './world-directory';
 export * from './notices';
 export * from './enter-game';
 export * from './villages';
+export * from './inbox';
 export {
   NO_VILLAGE,
   VILLAGE_ABANDONED,

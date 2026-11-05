@@ -5,6 +5,7 @@ import type {
   VillageRepository,
   VillageStamp,
 } from '../../src/application/villages';
+import { EMPTY_INBOX } from '../../src/application/inbox';
 
 /**
  * Jednoduchý repozitář jedné vsi v paměti pro měřicí skripty – jen to, co potřebuje
@@ -12,6 +13,8 @@ import type {
  */
 export class SingleVillageRepository implements VillageRepository {
   record: VillageRecord;
+  /** Měření bez schránky – žádné vnější události. */
+  readonly inbox = EMPTY_INBOX;
 
   constructor(settlementId: string, name: string, state: VillageState) {
     this.record = { id: 'village-1', settlementId, name, state, version: 1 };

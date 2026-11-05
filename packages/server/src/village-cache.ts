@@ -99,5 +99,7 @@ export function cachedVillages(inner: VillageRepository): VillageRepository {
     // souhrn je malý a v úložišti vždy k uložené verzi – paměť ho nedrží
     digestsOf: (villageIds) => inner.digestsOf(villageIds),
     weatherSeedOf: (settlementId) => inner.weatherSeedOf(settlementId),
+    // schránka se nepamatuje – zápis zvedá verzi vsi, takže zapamatovaný záznam neprojde otiskem
+    inbox: inner.inbox,
   };
 }

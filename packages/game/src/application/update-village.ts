@@ -50,6 +50,7 @@ import {
   withToolEquipment,
   nextYearEnd,
   villageYearRow,
+  type VillageEvent,
   type VillageState,
   type VillageYearRow,
 } from '../domain/village';
@@ -68,17 +69,19 @@ export type VillageChange = { ok: true; state: VillageState } | { ok: false; rea
 /**
  * Ves dopočítaná do dneška (už dopočítanou ani „budoucí“ nevrací zpět). `obstacles` = vrstva
  * překážek krajiny sídla – přestavby podle ní kácí stromy (forest.md); `landscape` = krajina
- * sídla – přestavba polozemnice bez pozemku ji postaví na volném políčku.
+ * sídla – přestavba polozemnice bez pozemku ji postaví na volném políčku; `inbox` = události
+ * schránky vsi z dopočítávaných dnů (`advanceVillage`).
  */
 export function advancedToToday(
   state: VillageState,
   today: number,
   obstacles: ObstacleLayer,
   landscape: Landscape | null = null,
+  inbox: readonly VillageEvent[] = [],
 ): VillageState {
   if (state.lastDay >= today) return state;
   if (isVillageAsleep(state)) return asleepStay(state, obstacles, landscape);
-  return advanceVillage(state, today, obstacles, landscape);
+  return advanceVillage(state, today, obstacles, landscape, inbox);
 }
 
 /**
@@ -105,11 +108,12 @@ async function advancedToTodayWithPauses(
   obstacles: ObstacleLayer,
   landscape: Landscape,
   pause: Pause | undefined,
+  inbox: readonly VillageEvent[],
 ): Promise<VillageState> {
   if (!pause || state.lastDay >= today || isVillageAsleep(state)) {
-    return advancedToToday(state, today, obstacles, landscape);
+    return advancedToToday(state, today, obstacles, landscape, inbox);
   }
-  const steps = advanceVillageSteps(state, today, obstacles, landscape);
+  const steps = advanceVillageSteps(state, today, obstacles, landscape, inbox);
   for (;;) {
     const step = steps.next();
     if (step.done) return step.value;
@@ -122,7 +126,8 @@ async function advancedToTodayWithPauses(
 /**
  * Dopočet do dneška po kouscích končících na přelomu roku; z každého dokončeného roku řádek
  * deníku vsí (year-log.ts). Výsledek stavu je týž jako bez dělení (determinismus nezávisí na
- * kouscích), řádky jsou idempotentní (unikátní ves a rok).
+ * kouscích), řádky jsou idempotentní (unikátní ves a rok). Každý kousek dostane celé `inbox` –
+ * použije jen události svých dnů.
  */
 async function advancedWithYearLog(
   state: VillageState,
@@ -130,13 +135,14 @@ async function advancedWithYearLog(
   obstacles: ObstacleLayer,
   landscape: Landscape,
   pause: Pause | undefined,
+  inbox: readonly VillageEvent[],
 ): Promise<{ state: VillageState; rows: VillageYearRow[] }> {
   const rows: VillageYearRow[] = [];
   let current = state;
   while (current.lastDay < today && !isVillageAsleep(current)) {
     const yearEnd = nextYearEnd(current.lastDay);
     const to = Math.min(today, yearEnd);
-    const next = await advancedToTodayWithPauses(current, to, obstacles, landscape, pause);
+    const next = await advancedToTodayWithPauses(current, to, obstacles, landscape, pause, inbox);
     if (next.lastDay === yearEnd) rows.push(villageYearRow(next));
     if (next.lastDay <= current.lastDay) return { state: next, rows };
     current = next;
@@ -188,6 +194,10 @@ async function withPauses(
  * spočítá (`withRoutes` – paths.md, Kdy se trasy počítají a co se ukládá). S `pause` dělá dopočet
  * mezi dny přestávky. Ves dostane kopii seedu počasí své mapy (`withWeatherSeed` – disasters.md,
  * Kraj) – úložiště bez počasí (null) ji nechá bez něj.
+ * Před dopočtem si vyžádá události schránky vsi z dopočítávaných dnů (`villages.inbox` –
+ * village-core.md, Schránka vsi) a dopočet je použije na začátku jejich dne. Zápis do schránky
+ * zvedá verzi vsi, takže událost zapsaná během dopočtu se projeví konfliktem verze při uložení
+ * a další pokus ji načte znovu s čerstvým stavem – použije se právě jednou.
  */
 export async function updateVillage(
   villages: VillageRepository,
@@ -310,7 +320,13 @@ export async function updateVillage(
         `Ves ${villageId}: převod klučení lesa selhal: ${attached.forestClearingFailed}`,
       );
     }
-    const logged = await advancedWithYearLog(attached, today, obstacles, landscape, pause);
+    // události schránky z dnů, které se budou dopočítávat (village-core.md – Schránka vsi); po
+    // načtení vsi – zápis mezi načtením a uložením zvedne verzi a pokus se zopakuje
+    const inbox =
+      attached.lastDay < today
+        ? await villages.inbox.pending(villageId, attached.lastDay, today)
+        : [];
+    const logged = await advancedWithYearLog(attached, today, obstacles, landscape, pause, inbox);
     const advanced = logged.state;
     // ves uložená před trasami (nebo s trasami jiného rozložení) si je spočítá – i když se jen
     // zobrazuje, ať je scéna má (paths.md – Kdy se trasy počítají a co se ukládá)

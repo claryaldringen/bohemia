@@ -5,6 +5,7 @@ import type {
   VillageRepository,
   VillageStamp,
 } from '../villages';
+import { InMemoryVillageInbox } from './in-memory-inbox';
 
 /**
  * Repozitář vsí v paměti – create a save se chovají atomicky jako databáze. Vsi dostávají id
@@ -27,6 +28,8 @@ export class InMemoryVillages implements VillageRepository {
   readonly weatherSeeds = new Map<string, number>();
   /** Deník vsí: řádky podle vsi a roku. */
   readonly yearLog = new Map<string, Map<number, VillageYearRow>>();
+  /** Schránka vsí – zápis zvedá verzi vsi tady (in-memory-inbox.ts). */
+  readonly inbox: InMemoryVillageInbox = new InMemoryVillageInbox(this);
   private nextId = 1;
 
   async weatherSeedOf(settlementId: string): Promise<number | null> {

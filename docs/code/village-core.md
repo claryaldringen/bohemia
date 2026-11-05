@@ -157,6 +157,32 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   server (jedno vlákno). Jeden drahý den (přepočet sítě pěšin) se nedělí. Výsledek na
   přestávkách nezávisí (test v `villages.test.ts`).
 
+- **Schránka vsi** – jediná cesta, jak cizí věc (jiný hráč, svět) změní ves (plán multiplayeru,
+  technické rozhodnutí 4). Doména `domain/village/inbox.ts`: `VillageEvent { id, villageId, day,
+  seq, body }`, `NewVillageEvent` (bez `id` a `seq`, s jedinečným `ref` – idempotence zápisu),
+  tělo `VillageEventBody` je unie podle `kind` – zatím `{ kind: 'chronicle'; event }` (zápis do
+  kroniky s dnem použití); nový druh = nová větev v `applyEvent` (kompilátor ohlídá úplnost).
+  - **Kde se použijí:** `advanceVillageSteps(state, toDay, obstacles, landscape, inbox = [])` na
+    začátku dne `d`, před `simulateDaySteps(d)`, použije události dne `d` v pořadí `seq`
+    (`applyInboxDay` – mutuje klon stavu jako kroky dne, zápisy kroniky vrací). Události mimo
+    dopočítávané dny (`day ≤ lastDay`, `day > toDay`, dny spící vsi – vymřelé, opuštěné, na
+    cestě) se přeskočí, takže výsledek nezávisí na kouscích ani na přestávkách (test „po
+    kouscích“ 1 / 3 / 10 dní a přerušený generátor v `__tests__/inbox.test.ts`). `advanceVillage`
+    bez `inbox` (testy, měření) dává totéž co dřív.
+  - **Port** `VillageInbox` (`application/inbox.ts`): `post(event)` – den zápisu
+    `max(day, lastDay + 1)`, zápis zvedne verzi vsi, `null` = `ref` už zapsaný; `pending(villageId,
+    afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Schránka je člen
+    úložiště vsí (`VillageRepository.inbox`), takže ji má každý dopočet přes `updateVillage`
+    (`loadVillage`, `advancePlayer`, `dynastyStatus`, všechny akce hráče) bez zvláštní
+    závislosti. `EMPTY_INBOX` – prázdná (kalibrace, adaptér DB do úlohy 1.7).
+  - **Souběh:** `updateVillage` si po načtení vsi vyžádá `pending(villageId, lastDay, dnešek)`
+    a předá je dopočtu. Zápis do schránky během dopočtu zvedne verzi vsi → uložení selže na
+    kontrole verze → další pokus načte čerstvou ves i události a použije je právě jednou (test
+    v `__tests__/village-inbox.test.ts`). Proto ne zámek cílového hráče – dva zámky v jedné operaci
+    by porušily pravidlo „nikdy vnořený“.
+  - **In-memory** `__tests__/in-memory-inbox.ts` (`InMemoryVillages.inbox`) se chová jako budoucí
+    adaptér: posune den, zvedne verzi vsi v `InMemoryVillages`, hlídá `ref`.
+
 - **Výkon dopočtu** (Vlkov, 44 lidí, rok vcelku): po stálých trasách (A4) ≈ 49 s, po mřížce
   a trasách vozu v paměti a chůzi s horní mezí napřed (B1 – village-roads.md, Trasy v paměti)
   ≈ 39 s, po rychlejším hledání vozu (B2a) ≈ 31 s, po C1 (orba chce jen cenu trasy – A* s odhadem
