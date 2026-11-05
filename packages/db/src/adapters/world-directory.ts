@@ -39,54 +39,84 @@ export function createWorldDirectory(db: Database): WorldDirectory {
         )
         .orderBy(distance, house.id)
         .limit(limit);
-      if (rows.length === 0) return [];
-
-      const owners = rows.flatMap((r) => (r.house.playerId === null ? [] : [r.house.playerId]));
-      // souhrn jen k uložené verzi stavu (jako `digestsOf`); vsi aktivních sídel majitelů
-      const digestRows = await db
-        .select({
-          ownerId: settlement.ownerId,
-          id: village.id,
-          settlementId: village.settlementId,
-          name: village.name,
-          version: village.version,
-          digest: village.digest,
-        })
-        .from(village)
-        .innerJoin(settlement, eq(settlement.id, village.settlementId))
-        .where(
+      return entriesFor(db, rows);
+    },
+    async entriesOf(houseIds): Promise<DirectoryEntry[]> {
+      if (houseIds.length === 0) return [];
+      const rows = await db
+        .select({ house, gridX: settlement.gridX, gridY: settlement.gridY })
+        .from(house)
+        .innerJoin(
+          settlement,
           and(
-            inArray(settlement.ownerId, owners),
+            eq(settlement.ownerId, house.playerId),
+            eq(settlement.isSeat, true),
             isNull(settlement.archivedAt),
-            eq(village.digestVersion, village.version),
           ),
         )
-        .orderBy(village.createdAt, village.id);
-      const byOwner = new Map<string, VillageDigestRecord[]>();
-      for (const { ownerId, digest, ...rest } of digestRows) {
-        if (!isCurrentDigest(digest)) continue;
-        byOwner.set(ownerId, [...(byOwner.get(ownerId) ?? []), { ...rest, digest }]);
-      }
-
-      return rows.map((r): DirectoryEntry => {
-        const seat: GridCell = { x: r.gridX!, y: r.gridY! };
-        return {
-          house: {
-            id: r.house.id,
-            playerId: r.house.playerId,
-            kind: r.house.kind,
-            createdAt: r.house.createdAt,
-            endedAt: r.house.endedAt,
-            endedDay: r.house.endedDay,
-            lord:
-              r.house.lordVillageId === null || r.house.lordPersonId === null
-                ? null
-                : { villageId: r.house.lordVillageId, personId: r.house.lordPersonId },
-          },
-          seat,
-          digests: byOwner.get(r.house.playerId ?? '') ?? [],
-        };
-      });
+        .where(
+          and(
+            eq(house.kind, 'player'),
+            isNull(house.endedAt),
+            inArray(house.id, houseIds),
+            sql`${settlement.gridX} IS NOT NULL AND ${settlement.gridY} IS NOT NULL`,
+          ),
+        );
+      return entriesFor(db, rows);
     },
   };
+}
+
+type SeatRow = { house: typeof house.$inferSelect; gridX: number | null; gridY: number | null };
+
+/** Z řádků rodů se sídelním sídlem složí záznamy adresáře (jeden dotaz na souhrny vsí všech). */
+async function entriesFor(db: Database, rows: SeatRow[]): Promise<DirectoryEntry[]> {
+  if (rows.length === 0) return [];
+
+  const owners = rows.flatMap((r) => (r.house.playerId === null ? [] : [r.house.playerId]));
+  // souhrn jen k uložené verzi stavu (jako `digestsOf`); vsi aktivních sídel majitelů
+  const digestRows = await db
+    .select({
+      ownerId: settlement.ownerId,
+      id: village.id,
+      settlementId: village.settlementId,
+      name: village.name,
+      version: village.version,
+      digest: village.digest,
+    })
+    .from(village)
+    .innerJoin(settlement, eq(settlement.id, village.settlementId))
+    .where(
+      and(
+        inArray(settlement.ownerId, owners),
+        isNull(settlement.archivedAt),
+        eq(village.digestVersion, village.version),
+      ),
+    )
+    .orderBy(village.createdAt, village.id);
+  const byOwner = new Map<string, VillageDigestRecord[]>();
+  for (const { ownerId, digest, ...rest } of digestRows) {
+    if (!isCurrentDigest(digest)) continue;
+    byOwner.set(ownerId, [...(byOwner.get(ownerId) ?? []), { ...rest, digest }]);
+  }
+
+  return rows.map((r): DirectoryEntry => {
+    const seat: GridCell = { x: r.gridX!, y: r.gridY! };
+    return {
+      house: {
+        id: r.house.id,
+        playerId: r.house.playerId,
+        kind: r.house.kind,
+        createdAt: r.house.createdAt,
+        endedAt: r.house.endedAt,
+        endedDay: r.house.endedDay,
+        lord:
+          r.house.lordVillageId === null || r.house.lordPersonId === null
+            ? null
+            : { villageId: r.house.lordVillageId, personId: r.house.lordPersonId },
+      },
+      seat,
+      digests: byOwner.get(r.house.playerId ?? '') ?? [],
+    };
+  });
 }

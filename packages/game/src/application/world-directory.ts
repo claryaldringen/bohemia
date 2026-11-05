@@ -27,6 +27,8 @@ export interface WorldDirectory {
    * v aktivních sídlech (jen ty, které mají souhrn současné verze).
    */
   nearestHouses(center: GridCell, limit: number, excludeHouseId: string): Promise<DirectoryEntry[]>;
+  /** Záznamy živých rodů hráčů s danými id (pořadí nezaručeno; rod bez sídelního sídla chybí). */
+  entriesOf(houseIds: string[]): Promise<DirectoryEntry[]>;
 }
 
 /** Cizí rod, jak ho vidí hráč. */
@@ -40,6 +42,36 @@ export interface PublicHouse {
   men: { name: string | null; age: number; villageName: string }[];
   /** Počet aktivních vsí rodu. */
   villages: number;
+}
+
+/** Veřejný pohled na rod z jeho záznamu v adresáři; vzdálenost se měří od `center`. */
+export function publicHouseOf(entry: DirectoryEntry, center: GridCell, today: number): PublicHouse {
+  const awake = entry.digests.filter(
+    (d) => d.digest.extinctDay === undefined && d.digest.abandonedDay === undefined,
+  );
+  const lord = entry.house.lord;
+  const lordName =
+    lord === null
+      ? null
+      : (awake
+          .find((d) => d.id === lord.villageId)
+          ?.digest.publicLineMen.find((m) => m.id === lord.personId)?.name ?? null);
+  return {
+    houseId: entry.house.id,
+    lordName,
+    seat: { x: entry.seat.x, y: entry.seat.y },
+    distance: cellDistance(center, entry.seat),
+    men: awake.flatMap((d) =>
+      d.digest.publicLineMen
+        .map((m) => ({
+          name: m.name ?? null,
+          age: ageYears(m.bornDay, today),
+          villageName: d.name,
+        }))
+        .filter((m) => m.age >= PUBLIC_MAN_MIN_AGE),
+    ),
+    villages: awake.length,
+  };
 }
 
 /** Rody v okolí sídelního sídla diváka (vlastní rod vynechán); divák bez rodu nebo sídla – nic. */
@@ -57,34 +89,7 @@ export async function housesNear(
   const center = seat.worldCell;
   const entries = await deps.worldDirectory.nearestHouses(center, input.limit, own.id);
   return entries
-    .map((entry): PublicHouse => {
-      const awake = entry.digests.filter(
-        (d) => d.digest.extinctDay === undefined && d.digest.abandonedDay === undefined,
-      );
-      const lord = entry.house.lord;
-      const lordName =
-        lord === null
-          ? null
-          : (awake
-              .find((d) => d.id === lord.villageId)
-              ?.digest.publicLineMen.find((m) => m.id === lord.personId)?.name ?? null);
-      return {
-        houseId: entry.house.id,
-        lordName,
-        seat: { x: entry.seat.x, y: entry.seat.y },
-        distance: cellDistance(center, entry.seat),
-        men: awake.flatMap((d) =>
-          d.digest.publicLineMen
-            .map((m) => ({
-              name: m.name ?? null,
-              age: ageYears(m.bornDay, input.today),
-              villageName: d.name,
-            }))
-            .filter((m) => m.age >= PUBLIC_MAN_MIN_AGE),
-        ),
-        villages: awake.length,
-      };
-    })
+    .map((entry) => publicHouseOf(entry, center, input.today))
     .sort((a, b) => a.distance - b.distance || (a.houseId < b.houseId ? -1 : 1))
     .slice(0, input.limit);
 }

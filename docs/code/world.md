@@ -25,6 +25,8 @@ začátku svého dne, zápis zvedá verzi vsi) – `docs/code/village-core.md`, 
   `packages/db/src/adapters/world-directory.ts`, in-memory `__tests__/in-memory-world-directory.ts`;
   v `GameDeps.worldDirectory`. Use-case `housesNear(deps, { viewerId, today, limit })` vrací
   `PublicHouse[]` podle vzdálenosti sídelních sídel od sídla diváka (vlastní rod vynechán).
+  `publicHouseOf(entry, center, today)` skládá `PublicHouse` z jednoho záznamu; port má i
+  `entriesOf(houseIds)` (záznamy konkrétních živých rodů – páni, vazalové, pozvaní, vlastní rod).
 - **Co je veřejné** (vassalage.md – Přehled pána; Martin 2. 11. 2026: „rodokmeny šlechty jsou
   prakticky veřejné“): jméno hlavy rodu, poloha sídla, vzdálenost, počet aktivních vsí a muži rodu
   od 16 let (`PUBLIC_MAN_MIN_AGE`) s jménem, věkem a názvem vsi. **Nic dalšího** – zásoby, výzbroj,
@@ -144,3 +146,22 @@ Pravidla: [vassalage.md](../design/vassalage.md) – Pozvaný jako vazal. Typy a
   (zatím nikdo nevolá – nástupnictví bez losu je fáze 2); `SKIP LOCKED` brání dvojímu použití.
 - **`runWorldTasks(deps, { now, today })`** – úlohy světa; zatím jen `grantSuccessionCredits`. Worker
   je pouští jednou za minutu mezi koly (`worker.md`).
+
+## Panel „Rod a vazalové“ – data a akce (úloha 1.10)
+
+- Use-case `housePanel(deps, { playerId, today })` (`application/house-panel.ts`) vrací
+  `HousePanelData`: `own` (id a muži vlastního rodu od 16 let), `lords` / `vassals` (`PublicHouse`
+  z `VassalageRepository.activeOf` – páni jsou hrany, kde je rod vazalem, vazalové ty, kde je pánem),
+  `others` (nejbližších `PANEL_OTHERS_LIMIT` = 12 cizích rodů bez pánů a vazalů), `invites`
+  a `freeInviteSlots` (`INVITES.maxUnused` − nevyužité platné kódy). Hráč bez rodu dostane
+  `hasHouse: false`. Cizí rody jsou jen `PublicHouse` – stejné veřejné údaje jako v adresáři, žádná
+  id účtů, zásoby ani výzbroj (test to hlídá).
+- `PanelInvite`: `open` (kód, `validUntil`) nebo `used` (kód, `house` pozvaného rodu nebo null,
+  `played` = pozvaný byl aspoň `INVITES.playedDays` různých dnů ve hře – ikona nástupnictví);
+  využitých ukáže posledních 6, zrušené a propadlé vůbec.
+- Web: `lib/house.ts` (composition root: `housePanelForPlayer`, `issueInviteForPlayer`,
+  `revokeInviteForPlayer`), `lib/house-view.ts` (`houseView(data, nowMs)` → `HouseView` s portréty
+  podle věku, `HouseLinkView` se štítem a popiskem, `InviteView` s dny do konce platnosti),
+  `lib/house-input.ts` (tvar vstupu zrušení). Server actions `housePanel`, `issueInvite`,
+  `revokeInvite({ code })` v `app/game/actions.ts` – hráč jen ze session. `issueInvite` vrací kód
+  bez pomlčky, nebo důvod odmítnutí (limit tří kódů, hráč bez rodu).
