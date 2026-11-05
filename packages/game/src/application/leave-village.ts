@@ -24,7 +24,9 @@ import { foundedVillageState } from './found-village';
 import { NOT_PLAYER_VILLAGE, findPlayerVillage } from './player-villages';
 import type { LandscapeSource, SeedSource, Settlement, SettlementRepository } from './settlements';
 import { updateLivingVillage, updateVillage } from './update-village';
+import type { HouseRepository } from './houses';
 import { targetSettlement } from './new-village';
+import { followPlayerLord } from './player-lord';
 import type { VillageRecord, VillageRepository } from './villages';
 
 // Odchod do nové vsi (migration.md – fáze 3 a 4): domácnosti vybraných obydlí odejdou a založí
@@ -39,6 +41,8 @@ export interface LeaveVillageDeps {
   worldSeed: number;
   /** Krajina uloženého sídla – bez ní se pokaždé vygeneruje znovu. */
   landscapes?: LandscapeSource;
+  /** Rody – odejde-li hráčův muž, jeho ves se přepíše na novou (`followPlayerLord`). */
+  houses?: Pick<HouseRepository, 'activeOf' | 'setLord'>;
 }
 
 /**
@@ -134,6 +138,17 @@ export async function leaveVillage(
     ),
   );
   if (!to) throw new Error(`Na nové mapě ${target.settlement.id} už ves stojí.`);
+  if (deps.houses) {
+    await followPlayerLord(
+      { houses: deps.houses },
+      {
+        playerId: input.playerId,
+        fromVillageId: input.villageId,
+        toVillageId: to.id,
+        personIds: departed.settlers.people.map((p) => p.id),
+      },
+    );
+  }
   return { ok: true, from: departed.from, to, settlement: target.settlement };
 }
 

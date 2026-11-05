@@ -42,6 +42,8 @@ export interface VillageListItem {
   disasters?: OtherVillageDisasters;
   /** Správce vsi je zapnutý (steward.md – Co hráč vidí); vypnutý bez údaje. */
   steward?: true;
+  /** Je tu hráčův muž – vlastní ves hráče (seniorate.md – Hráčův muž a vlastní ves); jinak bez údaje. */
+  playerLord?: true;
 }
 
 /**
@@ -49,9 +51,15 @@ export interface VillageListItem {
  * `day`. Celá ves jde přes týž souhrn (`villageDigest`), takže položka ze souhrnu je táž jako
  * ze stavu; na dni závisí jen počasí roku (ze vstupů v souhrnu).
  */
-export function villageListItem(village: DynastyVillage, day: number): VillageListItem {
+export function villageListItem(
+  village: DynastyVillage,
+  day: number,
+  /** Ves hráčova muže (`DynastyView.playerLord.villageId`). */
+  playerLordVillageId?: string,
+): VillageListItem {
   const digest = isFullVillage(village) ? villageDigest(village.state) : village.digest;
-  return listItemOf(village, digest, day);
+  const item = listItemOf(village, digest, day);
+  return playerLordVillageId === village.id ? { ...item, playerLord: true as const } : item;
 }
 
 function listItemOf(

@@ -61,6 +61,18 @@ export function VillageList({
               className={`flex flex-1 items-center justify-between gap-3 rounded px-2 py-1 text-left hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-[#f3cf86] ${current ? 'bg-white/10 text-[#ffe9b8]' : 'text-[#f3dfb0]'} ${village.extinct || village.abandoned ? 'opacity-50' : ''}`}
             >
               <span className="truncate font-serif text-base">{village.name}</span>
+              {village.playerLord && (
+                <Tooltip content="Tvůj muž" placement="below">
+                  <img
+                    src="/icons/house/banner.svg"
+                    alt="Tvůj muž"
+                    data-testid="player-lord-banner"
+                    width={16}
+                    height={16}
+                    className="h-4 w-4 shrink-0"
+                  />
+                </Tooltip>
+              )}
               {village.travelling && (
                 <span className="text-xs text-[#bfa77a] italic">na cestě</span>
               )}

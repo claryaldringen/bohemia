@@ -247,6 +247,18 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `create` pro hráče se živým rodem vrátí ten existující. `enterGame` zajistí rod po vstupu,
   `restartGame` živý rod ukončí (`ended_at`, `ended_day` = herní den restartu) a další `enterGame`
   založí nový. `lord_village_id` / `lord_person_id` = hlava rodu (`setLord`).
+- **Hráčův muž a vlastní ves** (seniorate.md, úloha 2.1): `House.lord` = hráčův muž (ves + číslo
+  osoby), `playerLordOf` ho čte. `ensurePlayerLord` (`application/player-lord.ts`) je převod
+  rozehrané hry – jen dokud je `house.lord` prázdný: mužem je vojvoda první vsi se správcem
+  **vypnutým**, jinak vojvoda nejstarší vsi s vojvodou (`foundedDay`); ostatním živým vsím hráče
+  zapne správce (verzovaný `save` s opakováním). Správci se zapínají před zápisem muže, takže
+  přerušený převod doběhne stejně a opakování nic nemění. Volá ho `dynastyForVillage` na konci
+  každého pohledu a akce hráče (pod jeho zámkem, vsi jsou už převedené na rod; u hráče s mužem je
+  to jeden dotaz na rod) a vrací `DynastyView.playerLord`; bez vojvody k převodu se zkusí příště.
+  `followPlayerLord`: odejde-li hráčův muž (jeho `personId` je mezi osadníky) na novou mapu,
+  přepíše `lord.villageId` na novou ves – volá ho `leaveVillage` a `settleStewardDepartures`
+  (`houses` v jejich závislostech je volitelné). V přepínači vsí je u vsi hráčova muže praporec
+  (`VillageListItem.playerLord`, `banner.svg`, popisek „Tvůj muž“).
 
 - **Odchod do nové vsi** (migration.md, fáze 3 a 4; `departure.ts`): `departVillage` – domácnosti
   vybraných obydlí odejdou celé (rodokmen – rodiče osadníků jako předci, odešlí ve staré vsi

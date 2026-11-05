@@ -6,6 +6,7 @@ import {
   isVillageDormant,
   lineEndDay,
 } from '../domain/village';
+import type { HouseRepository } from './houses';
 import { enterGame, settlementLandscape, type EnterGameDeps } from './enter-game';
 import { loadVillage } from './load-village';
 import { updateVillage } from './update-village';
@@ -30,6 +31,8 @@ export interface DynastyDeps {
   pause?: Pause;
   /** Hlášení průběhu dopočtu vsí rodu (přeskok času) – na výsledek nemá vliv. */
   onProgress?: ProgressReport;
+  /** Rody – hráčův muž odejde-li na novou mapu, jeho ves se přepíše (`followPlayerLord`). */
+  houses?: Pick<HouseRepository, 'activeOf' | 'setLord'>;
 }
 
 export interface DynastyInput {
