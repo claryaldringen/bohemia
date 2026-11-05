@@ -1,5 +1,5 @@
 import { CURRENT_LAYER_VERSIONS, generateAcceptedLandscape } from '../domain/landscape';
-import { settlementSeedOf } from './settlement-seed';
+import { cellLandscapeSeed } from '../domain/world';
 import { SEAT_CELL, neighbourCell, sameCell, type Direction8 } from '../domain/village';
 import type { Settlement, SettlementRepository } from './settlements';
 import type { VillageRepository } from './villages';
@@ -45,7 +45,7 @@ export async function targetSettlement(
     (o) => o.ownerId !== playerId && sameCell(o.cell, targetCell),
   );
   if (foreign) return { ok: false, reason: FOREIGN_MAP_THERE };
-  const accepted = generateAcceptedLandscape(settlementSeedOf(deps.worldSeed, targetCell));
+  const accepted = generateAcceptedLandscape(cellLandscapeSeed(deps.worldSeed, targetCell));
   const created = await deps.settlements.create({
     ownerId: playerId,
     landscapeSeed: accepted.seed,

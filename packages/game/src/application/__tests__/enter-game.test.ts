@@ -7,8 +7,7 @@ import {
   INITIAL_LAYER_VERSIONS,
 } from '../../domain/landscape';
 import { enterGame } from '../enter-game';
-import { cellDistance, WORLD } from '../../domain/world';
-import { settlementSeedOf } from '../settlement-seed';
+import { cellDistance, cellLandscapeSeed, WORLD } from '../../domain/world';
 import type { LandscapeSource } from '../settlements';
 import { InMemorySettlements } from './in-memory-settlements';
 
@@ -29,7 +28,7 @@ describe('enterGame', () => {
       layerVersions: CURRENT_LAYER_VERSIONS,
     });
     expect(settlements.settlements).toHaveLength(1);
-    expect(landscape).toEqual(generateLandscape(settlementSeedOf(WORLD_SEED, ORIGIN)));
+    expect(landscape).toEqual(generateLandscape(cellLandscapeSeed(WORLD_SEED, ORIGIN)));
   });
 
   it('další vstup vrátí totéž sídlo a stejnou krajinu', async () => {
@@ -70,7 +69,7 @@ describe('enterGame', () => {
   const worldSeedNeedingRetry = (): number => {
     for (let seed = 0; seed < 2000; seed++) {
       const versions = CURRENT_LAYER_VERSIONS;
-      const attempt = generateLandscapeAttempt(settlementSeedOf(seed, ORIGIN), versions);
+      const attempt = generateLandscapeAttempt(cellLandscapeSeed(seed, ORIGIN), versions);
       if (!checkBand(attempt, versions).ok) return seed;
     }
     throw new Error('Žádný seed s opakovaným pokusem – test nemá co ověřit.');
@@ -78,7 +77,7 @@ describe('enterGame', () => {
 
   it('nové sídlo uloží seed přijatého pokusu, ne seed odvozený z políčka', async () => {
     const worldSeed = worldSeedNeedingRetry();
-    const drawn = settlementSeedOf(worldSeed, ORIGIN);
+    const drawn = cellLandscapeSeed(worldSeed, ORIGIN);
     const settlements = new InMemorySettlements();
     const { settlement, landscape } = await enterGame({ settlements, worldSeed }, 'hrac-1');
     expect(settlement.landscapeSeed).not.toBe(drawn);
@@ -92,7 +91,7 @@ describe('enterGame', () => {
   }, 30_000);
 
   it('uložené sídlo se načte bez kontroly pásma – ladění pásma krajinu nezmění', async () => {
-    const stored = settlementSeedOf(worldSeedNeedingRetry(), ORIGIN);
+    const stored = cellLandscapeSeed(worldSeedNeedingRetry(), ORIGIN);
     const settlements = new InMemorySettlements();
     await settlements.seatAtOrigin({
       ownerId: 'hrac-1',

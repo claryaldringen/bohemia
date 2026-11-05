@@ -29,7 +29,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `cliffRock`). Náhled `/dev/landscape` – seedy s ostrožnou a tlačítko **Ostrožna** (obrys).
 
 - **Seed krajiny z políčka světa:** nová mapa (`enterGame`, `targetSettlement`) bere seed z
-  `settlementSeedOf(worldSeed, cell)` (`application/settlement-seed.ts`) = `cellLandscapeSeed`
+  `cellLandscapeSeed(worldSeed, cell)` (`domain/world/cell-seed.ts`) – odvozený seed
   zúžený do rozsahu sloupce `landscape_seed` (int32 s rezervou na pokusy); `generateAcceptedLandscape`
   dál hledá přijatý pokus a ukládá se jeho seed. Seed světa je `WORLD_SEED` (env, `worldSeed()` v
   `packages/server/src/world.ts`, výchozí `DEFAULT_WORLD_SEED` pro vývoj) – po ostrém spuštění se

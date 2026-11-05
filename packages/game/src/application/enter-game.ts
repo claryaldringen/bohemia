@@ -4,13 +4,12 @@ import {
   generateLandscapeAttempt,
   type Landscape,
 } from '../domain/landscape';
-import { placeNewPlayer } from '../domain/world';
-import { settlementSeedOf } from './settlement-seed';
+import { cellLandscapeSeed, placeNewPlayer } from '../domain/world';
 import type { LandscapeSource, Settlement, SettlementRepository } from './settlements';
 
 export interface EnterGameDeps {
   settlements: SettlementRepository;
-  /** Seed světa – krajina každého políčka mřížky se z něj odvozuje (`settlementSeedOf` nad `cellLandscapeSeed`). */
+  /** Seed světa – krajina každého políčka mřížky se z něj odvozuje (`cellLandscapeSeed`). */
   worldSeed: number;
   /** Krajina uloženého sídla – bez ní se pokaždé vygeneruje znovu. */
   landscapes?: LandscapeSource;
@@ -32,7 +31,7 @@ export async function enterGame(deps: EnterGameDeps, playerId: string): Promise<
   // políčku rozhodne unikátní index – poražený zkusí znovu s čerstvou mapou obsazení.
   for (let attempt = 0; attempt < PLACEMENT_ATTEMPTS; attempt++) {
     const cell = placeNewPlayer(await deps.settlements.occupiedCells(), { kind: 'independent' });
-    const accepted = generateAcceptedLandscape(settlementSeedOf(deps.worldSeed, cell));
+    const accepted = generateAcceptedLandscape(cellLandscapeSeed(deps.worldSeed, cell));
     const settlement = await deps.settlements.createSeat({
       ownerId: playerId,
       landscapeSeed: accepted.seed,
