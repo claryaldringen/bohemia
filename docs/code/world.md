@@ -33,3 +33,28 @@ Plán: `docs/superpowers/plans/2026-11-03-multiplayer-vassalage-war.md`. Pravidl
   `greatest(abs(grid_x − cx), abs(grid_y − cy))`, pak id rodu, `LIMIT`) a jeden na souhrny vsí
   vybraných rodů. **Změřeno** (5. 11. 2026, lokální Postgres, 1 000 rodů s vsí a souhrnem, limit 20):
   ≈ 2,4 ms celkem (db test `world-directory.db.test.ts` čas vypisuje).
+
+## Upozornění mezi hráči
+
+- **Tabulka `player_notice`** (migrace `0015_player_notice.sql`, schéma `schema/player-notice.ts`):
+  `id` (bigserial – roste, stojí na něm `after`), `player_id` → `user` (cascade), `kind`,
+  `payload` (jsonb, data podle druhu), `game_day`, `created_at`, `read_at` (null = nepřečtené);
+  index `(player_id, id)`.
+- **Port** `NoticeRepository` (`application/notices.ts`): `post` (id, čas a `read_at` doplní
+  úložiště), `after(playerId, afterId, limit)` (jen upozornění hráče, rostoucí podle id),
+  `markRead(playerId, upToId)` (jen jeho, do `upToId`). In-memory `__tests__/in-memory-notices.ts`,
+  adaptér `db/src/adapters/notice-repository.ts`, `GameDeps.notices`.
+- **Druhy** (`PlayerNoticeKind`, unie – další úlohy ji rozšiřují): `invite-accepted` (pozvaný přijal
+  pozvánku, úloha 1.8), `invitee-played` (pozvaný se rozehrál, úloha 1.9). Text k druhu je v
+  `apps/web/lib/player-notices.ts` (`playerNoticeLine`); nový druh = nová větev v `textOf` i
+  `noticePanel` (kompilátor ohlídá úplnost).
+- **Doručení dotazováním:** upozornění se nepushují. Při každém dotazu na ves (`poll` ve
+  `VillageGame`) se klient zeptá akcí `getPlayerNotices({ afterId })` (poslední viděné id,
+  odpověď nejvýš `NOTICE_BATCH` = 20; vrací i přečtená – klient podle nich posouvá `afterId`),
+  nepřečtená ukáže jako řádky nahoře uprostřed (`mergeNoticeLines` – v pořadí příchodu, bez
+  duplicit) a zavolá `markNoticesRead({ upToId })`. Obě akce berou hráče jen ze session; `playerId`
+  ve vstupu se ignoruje (`parseNoticesAfterInput`, `parseMarkNoticesReadInput`).
+- **Id řádku:** řádek hráčského upozornění má id `-id` upozornění, vesnické řádky kladné id z
+  čítače – řady se nesrazí.
+- **Klik:** `noticePanel(kind)` vrací panel, který řádek otevírá; `VillageGame.openNoticePanel` zatím
+  nic neotevře (panel „Rod a vazalové“ vznikne v úloze 1.10).

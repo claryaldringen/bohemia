@@ -10,7 +10,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `{ error }`). **Každá akce nad vsí nese `villageId`** (UUID – `villageIdOf` v
   `lib/village-input.ts`) a server ověří, že ves patří hráči (`context` v `lib/village.ts` →
   `findPlayerVillage`); `getVillageView({ villageId: null })` = první ves hráče (zakládá-li ves,
-  null), založení první vsi jde na sídelní sídlo. Rod vojvody (lord.md – Jména): `foundVillage`
+  null), založení první vsi jde na sídelní sídlo. Při každém dotazu na ves klient vyzvedne i upozornění mezi hráči (`getPlayerNotices`, `markNoticesRead` – `docs/code/world.md`). Rod vojvody (lord.md – Jména): `foundVillage`
   přijímá volitelné `lordName` (`parseFoundVillageInput`; písmena ověří use-case, bez jména vojvoda
   čeká) a ves zakládá vždy vojvoda s manželkami; `nameLineMan({ villageId, personId, name })`
   pojmenuje vojvodu nebo jeho syna (`parseNameLineManInput` → `nameLineManForPlayer` → use-case

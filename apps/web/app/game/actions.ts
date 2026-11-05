@@ -1,7 +1,13 @@
 'use server';
 
 import { NOT_PLAYER_VILLAGE } from '@bohemia/game';
-import { restartGameForPlayer } from '@/lib/game';
+import type { PlayerNotice } from '@bohemia/game';
+import { gameDeps, restartGameForPlayer } from '@/lib/game';
+import {
+  NOTICE_BATCH,
+  parseMarkNoticesReadInput,
+  parseNoticesAfterInput,
+} from '@/lib/player-notices';
 import { getSession } from '@/lib/session';
 import { trimKnownSceneData, type KnownSceneData } from '@/lib/scene-routes';
 import { packViewPieces } from '@/lib/view-pieces';
@@ -95,6 +101,30 @@ async function villageAction<T>(
   const parsed = parse(input);
   if (villageId === null || parsed === null) return { error: INVALID_INPUT };
   return withVillageCache(() => run(id, villageId, parsed));
+}
+
+/**
+ * Upozornění mezi hráči novější než `afterId` (poslední, které klient viděl). Hráč jen ze session –
+ * `playerId` ve vstupu se nečte. Vrací i už přečtená (klient podle nich posouvá `afterId`).
+ */
+export async function getPlayerNotices(
+  input: unknown,
+): Promise<PlayerNotice[] | { error: string }> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const parsed = parseNoticesAfterInput(input);
+  if (parsed === null) return { error: INVALID_INPUT };
+  return gameDeps().notices.after(id, parsed.afterId, NOTICE_BATCH);
+}
+
+/** Označí upozornění hráče do `upToId` za přečtená. Hráč jen ze session, nikdy ze vstupu. */
+export async function markNoticesRead(input: unknown): Promise<{ ok: true } | { error: string }> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const parsed = parseMarkNoticesReadInput(input);
+  if (parsed === null) return { error: INVALID_INPUT };
+  await gameDeps().notices.markRead(id, parsed.upToId);
+  return { ok: true };
 }
 
 /**

@@ -1,6 +1,7 @@
 export * from './settlements';
 export * from './houses';
 export * from './world-directory';
+export * from './notices';
 export * from './enter-game';
 export * from './villages';
 export {

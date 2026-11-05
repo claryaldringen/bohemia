@@ -3,3 +3,4 @@ export * from './settlement';
 export * from './village';
 export * from './player-time';
 export * from './house';
+export * from './player-notice';
