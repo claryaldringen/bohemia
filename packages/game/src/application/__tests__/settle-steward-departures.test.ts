@@ -21,6 +21,7 @@ import {
   settleStewardDeparturesSafely,
 } from '../settle-steward-departures';
 import type { LandscapeSource, SeedSource } from '../settlements';
+import { InMemoryHouses } from './in-memory-houses';
 import { InMemorySettlements } from './in-memory-settlements';
 import { InMemoryVillages } from './in-memory-villages';
 
@@ -106,6 +107,32 @@ async function world(dwelling?: Position): Promise<{
 
 const withOrigin = (villages: InMemoryVillages): VillageState[] =>
   [...villages.records.values()].map((r) => r.state).filter((s) => s.origin !== undefined);
+
+describe('settleStewardDepartures – hráčův muž', () => {
+  it('odejde-li hráčův muž se synem na novou mapu, jeho ves je nová ves', async () => {
+    const { deps, villageId } = await world();
+    const houses = new InMemoryHouses();
+    const house = await houses.create({ playerId: PLAYER, kind: 'player', createdAt: new Date(0) });
+    await houses.setLord(house.id, { villageId, personId: 30 });
+    const settled = await settleStewardDepartures(
+      { ...deps, houses },
+      { playerId: PLAYER, villageId },
+    );
+    expect((await houses.activeOf(PLAYER))?.lord).toEqual({
+      villageId: settled[0]!.id,
+      personId: 30,
+    });
+  });
+
+  it('hráčův muž zůstal v mateřské vsi: beze změny', async () => {
+    const { deps, villageId } = await world();
+    const houses = new InMemoryHouses();
+    const house = await houses.create({ playerId: PLAYER, kind: 'player', createdAt: new Date(0) });
+    await houses.setLord(house.id, { villageId, personId: 10 });
+    await settleStewardDepartures({ ...deps, houses }, { playerId: PLAYER, villageId });
+    expect((await houses.activeOf(PLAYER))?.lord).toEqual({ villageId, personId: 10 });
+  });
+});
 
 describe('settleStewardDepartures – vybavení schránky', () => {
   it('starší záznam s místem na téže mapě jde taky na novou mapu – sídlo má jednu ves', async () => {

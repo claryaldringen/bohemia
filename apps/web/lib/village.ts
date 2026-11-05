@@ -175,7 +175,7 @@ async function viewOf(
   const view = buildVillageView(current, ctx.landscape, ctx.day, {
     gameOver: status.gameOver,
     lineEnded: status.gameOver ? lineEndView(status.villages) : null,
-    villages: status.villages.map((v) => villageListItem(v, ctx.day)),
+    villages: status.villages.map((v) => villageListItem(v, ctx.day, status.playerLord?.villageId)),
     ownMaps: ownMapsAround(status.settlements, status.villages, current.settlementId),
     mapsBlocked: from && from.worldCell === null && !from.isSeat ? NO_WORLD_CELL : null,
   });

@@ -98,6 +98,10 @@ describe('villageListItem – správce', () => {
     off.steward = { on: false, sinceDay: off.lastDay, built: [] };
     expect(villageListItem(record(on), on.lastDay).steward).toBe(true);
     expect(villageListItem(record(off), off.lastDay).steward).toBeUndefined();
+    // praporec hráčova muže: jen u vsi z `playerLord`
+    expect(villageListItem(record(on), on.lastDay, record(on).id).playerLord).toBe(true);
+    expect(villageListItem(record(on), on.lastDay, 'jina').playerLord).toBeUndefined();
+    expect(villageListItem(record(on), on.lastDay).playerLord).toBeUndefined();
   });
 });
 

@@ -17,7 +17,8 @@ začátku svého dne, zápis zvedá verzi vsi) – `docs/code/village-core.md`, 
 
 - Tabulka `house` (`packages/db/src/schema/house.ts`), port `HouseRepository`
   (`application/houses.ts`). Hráč má nejvýš jeden živý rod (`ended_at IS NULL`); `lord` = hlava rodu
-  (ves + číslo osoby).
+  (ves + číslo osoby). Hráčův muž a jeho převod: `application/player-lord.ts`, viz
+  `village-people.md` – „Hráčův muž a vlastní ves“.
 
 ## Adresář rodů
 

@@ -7,6 +7,8 @@ import {
   type StewardDeparture,
   type VillageState,
 } from '../domain/village';
+import type { HouseRepository } from './houses';
+import { followPlayerLord } from './player-lord';
 import { FOREIGN_MAP_THERE, OWN_MAP_THERE, targetSettlement } from './new-village';
 import { findPlayerVillage } from './player-villages';
 import type { Settlement, SettlementRepository } from './settlements';
@@ -22,6 +24,8 @@ export interface SettleStewardDeparturesDeps {
   villages: VillageRepository;
   /** Seed světa – krajina nového sídla (nová mapa) se odvodí z jeho políčka, jen při vzniku. */
   worldSeed: number;
+  /** Rody – odejde-li hráčův muž, jeho ves se přepíše na novou (`followPlayerLord`). */
+  houses?: Pick<HouseRepository, 'activeOf' | 'setLord'>;
 }
 
 export interface SettleStewardDeparturesInput {
@@ -59,6 +63,17 @@ export async function settleStewardDepartures(
         failStewardDeparture(s, record.id),
       );
       continue;
+    }
+    if (deps.houses) {
+      await followPlayerLord(
+        { houses: deps.houses },
+        {
+          playerId: input.playerId,
+          fromVillageId: found.village.id,
+          toVillageId: village.id,
+          personIds: record.settlers?.people.map((p) => p.id) ?? [],
+        },
+      );
     }
     await markSettled(deps.villages, found.village.id, record.id, village.id);
     settled.push(village);

@@ -7,7 +7,9 @@ import {
 } from '../domain/village';
 import { advanceDynasty, DEPARTURE_ROUNDS } from './advance-dynasty';
 import { settlementLandscape } from './enter-game';
+import type { PersonRef } from './houses';
 import { loadVillage } from './load-village';
+import { ensurePlayerLord } from './player-lord';
 import { closeDynastyDay, type DynastyDeps, type DynastyInput } from './restart-game';
 import { settleStewardDeparturesSafely } from './settle-steward-departures';
 import type { Settlement } from './settlements';
@@ -63,9 +65,16 @@ export interface DynastyForVillageInput extends DynastyInput {
  * (jiné mapy, ne pozadu) jsou jen souhrnem (`VillageDigestRecord`). Po konci hry jsou všechny
  * vsi celé (kronika konce rodu potřebuje stavy).
  */
-export type DynastyView =
+export type DynastyView = (
   | { settlements: Settlement[]; villages: DynastyVillage[]; gameOver: false }
-  | { settlements: Settlement[]; villages: VillageRecord[]; gameOver: true };
+  | { settlements: Settlement[]; villages: VillageRecord[]; gameOver: true }
+) & {
+  /**
+   * Hráčův muž (seniorate.md – Hráčův muž a vlastní ves): ve které vsi a jaká osoba. Chybí bez
+   * živého rodu, bez `houses` v závislostech, nebo dokud rod nemá vojvodu k převodu.
+   */
+  playerLord?: PersonRef;
+};
 
 /** Vsi hráče s tím, které z nich web právě dopočetl do dneška. */
 interface Collected {
@@ -85,6 +94,21 @@ interface Collected {
  * Volající drží zámek hráče.
  */
 export async function dynastyForVillage(
+  deps: DynastyDeps & { worldSeed: number },
+  input: DynastyForVillageInput,
+): Promise<DynastyView> {
+  const view = await dynastyViewOf(deps, input);
+  // převod rozehrané hry (hráčův muž) proběhne tady: každý pohled i akce hráče prochází tudy pod
+  // jeho zámkem a vsi jsou právě dopočtené a převedené na rod; po převodu je to jeden dotaz na rod
+  if (!deps.houses || view.gameOver) return view;
+  const playerLord = await ensurePlayerLord(
+    { houses: deps.houses, settlements: deps.settlements, villages: deps.villages },
+    { playerId: input.playerId, today: input.today },
+  );
+  return playerLord ? { ...view, playerLord } : view;
+}
+
+async function dynastyViewOf(
   deps: DynastyDeps & { worldSeed: number },
   input: DynastyForVillageInput,
 ): Promise<DynastyView> {
