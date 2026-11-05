@@ -221,8 +221,13 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   **jedna ves, jedna mapa** (Martin 1. 11. 2026) – `village.id` je primární klíč, `settlement_id`
   cizí klíč s unikátním indexem `village_settlement_uq` (migrace `0011`);
   nová mapa = nové sídlo s polohou v mřížce map (`settlement.grid_x` / `grid_y`, port
-  `Settlement.worldCell`, `SettlementRepository.create` – mřížka je zatím každého hráče zvlášť,
-  políčko nejvýš jedno aktivní na hráče; `assignWorldCell` dá sídelnímu sídlu (0, 0)).
+  `Settlement.worldCell`). **Mřížka je společná všem hráčům** (migrace `0013`, unikátní
+  `settlement_grid_idx` na (grid_x, grid_y) mezi aktivními): `create` a `createSeat` na obsazené
+  políčko vrátí null, `occupiedCells()` dává `placeNewPlayer` mapu obsazení. Odchod na políčko,
+  kde leží mapa **jiného hráče**, odmítne `targetSettlement` textem `FOREIGN_MAP_THERE`
+  (`new-village.ts`); správce (`settleStewardDepartures`) zkusí další směr ze záznamu, bez volného
+  směru záznam čeká. Migrace posunula mapy hráče o `16 × k` sloupců (k = pořadí podle prvního
+  sídla). `assignWorldCell` zůstává jen pro sídla z doby před mřížkou.
   Modul `domain/world` (`placement.ts`, `cell-seed.ts`, `rules-world.ts`) je základ společné mřížky
   světa: `placeNewPlayer` najde nováčkovi políčko po prstencích (nezávislý od středu, odstup 3;
   pozvaný nejblíž pánovi, odstup 2) a `cellLandscapeSeed` odvodí seed krajiny políčka ze seedu světa.

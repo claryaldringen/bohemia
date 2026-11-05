@@ -12,8 +12,8 @@ import {
   createGameDeps,
   currentWorld,
   playerTodayOf,
-  seeds,
   worldDayOf,
+  worldSeed,
   type GameDeps,
 } from '@bohemia/server';
 import {
@@ -48,7 +48,7 @@ const landscapes = cachedLandscapes(LANDSCAPE_CACHE_SIZE);
  */
 export function enterGameForPlayer(playerId: string): Promise<EnterGameResult> {
   return enterGame(
-    { settlements: createSettlementRepository(getDatabase()), seeds: seeds(), landscapes },
+    { settlements: createSettlementRepository(getDatabase()), worldSeed: worldSeed(), landscapes },
     playerId,
   );
 }

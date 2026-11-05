@@ -16,8 +16,8 @@ import { user } from './auth';
  * Sídla hráčů – krajina (mapa) se generuje ze seedu podle uložených verzí vrstev; na jedné mapě
  * může stát víc vsí hráče (tabulka `village`). Restart hry (vymřely všechny vsi) sídla archivuje:
  * `archived_at` a sídelní už nejsou – data i vsi zůstanou. `grid_x` (sloupec) a `grid_y` (řádek)
- * = poloha mapy v mřížce map hráče (war.md – Svět, migration.md – odchod na novou mapu); sídelní
- * sídlo ji dostane (0, 0) s prvním odchodem na novou mapu, do té doby null. `weather_seed` = seed
+ * = poloha mapy ve společné mřížce světa (war.md – Svět, migration.md – odchod na novou mapu);
+ * nové sídelní sídlo ji dostane při založení, null mají jen sídla z doby před mřížkou. `weather_seed` = seed
  * počasí kraje (disasters.md – Kraj a ochrana nové vsi): náhodný z databáze, jiný než seed krajiny
  * (ten zná prohlížeč) – klientovi se nikdy neposílá.
  */
@@ -45,10 +45,10 @@ export const settlement = pgTable(
     uniqueIndex('settlement_owner_seat_idx')
       .on(table.ownerId)
       .where(sql`${table.isSeat}`),
-    // Na políčku mřížky leží nejvýš jedna aktivní mapa hráče – mřížka je zatím každého hráče
-    // zvlášť, sídelní sídlo v (0, 0) (migration.md – fáze 4); sdílený svět chce rozmístění hráčů.
-    uniqueIndex('settlement_owner_grid_idx')
-      .on(table.ownerId, table.gridX, table.gridY)
+    // Na políčku mřížky světa leží nejvýš jedna aktivní mapa – mřížka je společná všem hráčům
+    // (war.md – Svět); nového hráče rozmístí `placeNewPlayer`, souběh rozhodne tento index.
+    uniqueIndex('settlement_grid_idx')
+      .on(table.gridX, table.gridY)
       .where(sql`${table.archivedAt} IS NULL`),
   ],
 );

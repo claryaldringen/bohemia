@@ -1180,8 +1180,10 @@ test('lidé odejdou na novou mapu – po cestě umístí první zemnici', async 
     );
   await expect.poll(async () => (await maps()).length, { timeout: 30_000 }).toBe(2);
   const [home, east] = await maps();
-  expect(home).toMatchObject({ id: s.settlementId, grid_x: 0, grid_y: 0 });
-  expect(east).toMatchObject({ grid_x: 1, grid_y: 0 });
+  // mřížka je společná všem hráčům – poloha domova závisí na pořadí hráčů, východ je o sloupec dál
+  expect(home).toMatchObject({ id: s.settlementId });
+  expect(home!.grid_x).not.toBeNull();
+  expect(east).toMatchObject({ grid_x: home!.grid_x! + 1, grid_y: home!.grid_y });
   const [travelling] = await query<{ id: string; name: string; state: VillageState }>(
     'SELECT id, name, state FROM village WHERE settlement_id = $1',
     [east!.id],

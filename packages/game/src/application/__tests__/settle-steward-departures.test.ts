@@ -50,6 +50,7 @@ async function world(dwelling?: Position): Promise<{
     settlements: InMemorySettlements;
     villages: InMemoryVillages;
     seeds: SeedSource;
+    worldSeed: number;
     landscapes: LandscapeSource;
   };
   villageId: string;
@@ -57,7 +58,7 @@ async function world(dwelling?: Position): Promise<{
 }> {
   const settlements = new InMemorySettlements();
   const villages = new InMemoryVillages();
-  const seat = await settlements.createSeat({
+  const seat = await settlements.seatAtOrigin({
     ownerId: PLAYER,
     landscapeSeed: 11,
     layerVersions: CURRENT_LAYER_VERSIONS,
@@ -97,7 +98,7 @@ async function world(dwelling?: Position): Promise<{
   };
   const added = await villages.add(seat.id, 'Libice', mother);
   return {
-    deps: { settlements, villages, seeds: seeds(), landscapes },
+    deps: { settlements, villages, seeds: seeds(), worldSeed: 4242, landscapes },
     villageId: added.id,
     seatId: seat.id,
   };
@@ -121,6 +122,41 @@ describe('settleStewardDepartures – vybavení schránky', () => {
     expect(mother.steward?.departures?.[0]).toMatchObject({ id: DAY, villageId: village.id });
     expect(mother.steward?.departures?.[0]?.settlers).toBeUndefined();
     expect(pendingStewardDepartures(mother)).toHaveLength(0);
+  });
+
+  it('cizí mapa v prvním směru – správce zkusí další směr ze záznamu', async () => {
+    const { deps, villageId } = await world();
+    deps.villages.edit(villageId, (state) => {
+      const record = state.steward!.departures![0]!;
+      record.directions = [
+        { direction: 'N', travelDays: 2 },
+        { direction: 'E', travelDays: 3 },
+      ];
+    });
+    await deps.settlements.create({
+      ownerId: 'cizi-hrac',
+      landscapeSeed: 99,
+      layerVersions: CURRENT_LAYER_VERSIONS,
+      worldCell: { x: 0, y: 1 },
+    });
+    const [village] = await settleStewardDepartures(deps, { playerId: PLAYER, villageId });
+    expect(village!.state.journey).toMatchObject({ direction: 'E', stewarded: true });
+    const settlement = (await deps.settlements.listActive(PLAYER)).find(
+      (s) => s.id === village!.settlementId,
+    );
+    expect(settlement!.worldCell).toEqual({ x: 1, y: 0 });
+  });
+
+  it('cizí mapa ve všech směrech – záznam čeká jako dnes', async () => {
+    const { deps, villageId } = await world();
+    await deps.settlements.create({
+      ownerId: 'cizi-hrac',
+      landscapeSeed: 99,
+      layerVersions: CURRENT_LAYER_VERSIONS,
+      worldCell: { x: 0, y: 1 },
+    });
+    expect(await settleStewardDepartures(deps, { playerId: PLAYER, villageId })).toEqual([]);
+    expect(withOrigin(deps.villages)).toHaveLength(0);
   });
 
   it('sídlo, které už ves má, ves syna nepřijme (jedna ves, jedna mapa)', async () => {

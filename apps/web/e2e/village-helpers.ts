@@ -57,7 +57,7 @@ export async function seat(email: string): Promise<Seat> {
 }
 
 /**
- * Druhá ves hráče na mapě vedle – sídlo na políčku (1, 0) se stejnou krajinou a stav zkopírovaný
+ * Druhá ves hráče na mapě vedle – sídlo na políčku o sloupec východně od sídla `settlementId` se stejnou krajinou a stav zkopírovaný
  * z vsi sídla `settlementId` (jedna ves, jedna mapa – migration.md). Pro přepínač vsí bez odchodu.
  */
 export async function villageOnNextMap(
@@ -66,7 +66,7 @@ export async function villageOnNextMap(
 ): Promise<{ id: string; name: string }> {
   const [map] = await query<{ id: string }>(
     `INSERT INTO settlement (owner_id, landscape_seed, layer_versions, grid_x, grid_y)
-       SELECT owner_id, landscape_seed, layer_versions, 1, 0 FROM settlement WHERE id = $1
+       SELECT owner_id, landscape_seed, layer_versions, grid_x + 1, grid_y FROM settlement WHERE id = $1
      RETURNING id`,
     [settlementId],
   );

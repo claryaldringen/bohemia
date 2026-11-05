@@ -27,7 +27,7 @@ async function player(): Promise<{
 }> {
   const settlements = new InMemorySettlements();
   const villages = new InMemoryVillages();
-  const seat = await settlements.createSeat({
+  const seat = await settlements.seatAtOrigin({
     ownerId: PLAYER,
     landscapeSeed: 11,
     layerVersions: CURRENT_LAYER_VERSIONS,
@@ -111,7 +111,10 @@ describe('currentVillageViewStamp', () => {
 describe('currentVillageViewStamp – ostatní vsi drží worker', () => {
   /** Hráč s druhou vsí na mapě vedle, dopočítanou jen do dne `otherDay` (worker zaostává). */
   async function twoVillages(otherDay: number): Promise<{
-    deps: Awaited<ReturnType<typeof player>>['deps'] & { seeds: { nextSeed: () => number } };
+    deps: Awaited<ReturnType<typeof player>>['deps'] & {
+      seeds: { nextSeed: () => number };
+      worldSeed: number;
+    };
     villageId: string;
     otherId: string;
   }> {
@@ -135,7 +138,7 @@ describe('currentVillageViewStamp – ostatní vsi drží worker', () => {
     );
     if (!other.ok) throw new Error(other.reason);
     return {
-      deps: { ...deps, seeds: { nextSeed: () => 4444 } },
+      deps: { ...deps, seeds: { nextSeed: () => 4444 }, worldSeed: 4242 },
       villageId,
       otherId: other.village.id,
     };

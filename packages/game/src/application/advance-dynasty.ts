@@ -6,7 +6,6 @@ import {
   type DynastyInput,
   type DynastyStatus,
 } from './restart-game';
-import type { SeedSource } from './settlements';
 
 /** Nejvýš tolik kol vybavení schránek za jeden dopočet (nová ves může mít vlastní odchod). */
 export const DEPARTURE_ROUNDS = 4;
@@ -18,7 +17,7 @@ export const DEPARTURE_ROUNDS = 4;
  * i worker, ať kola schránek existují jednou.
  */
 export async function advanceDynasty(
-  deps: DynastyDeps & { seeds: SeedSource },
+  deps: DynastyDeps & { worldSeed: number },
   input: DynastyInput,
 ): Promise<DynastyStatus> {
   let status = await dynastyStatus(deps, input);

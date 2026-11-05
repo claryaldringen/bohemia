@@ -35,6 +35,8 @@ export interface LeaveVillageDeps {
   settlements: SettlementRepository;
   villages: VillageRepository;
   seeds: SeedSource;
+  /** Seed světa – krajina nové mapy se odvodí z jejího políčka. */
+  worldSeed: number;
   /** Krajina uloženého sídla – bez ní se pokaždé vygeneruje znovu. */
   landscapes?: LandscapeSource;
 }
@@ -80,7 +82,7 @@ export type LeaveVillageResult =
 export const UNKNOWN_LEAVE_DIRECTION = 'Neznámý směr.';
 /** Cíl odchodu jinde než na nové mapě (jedna ves, jedna mapa – migration.md). */
 export const LEAVE_ONLY_TO_NEW_MAP = 'Odejít jde jen na novou mapu.';
-export { NO_WORLD_CELL, OWN_MAP_THERE } from './new-village';
+export { FOREIGN_MAP_THERE, NO_WORLD_CELL, OWN_MAP_THERE } from './new-village';
 
 /**
  * Domácnosti obydlí `dwellingIds` – nebo syn vojvody `sonId` s poměrnou částí vsi (lord.md – Dělení

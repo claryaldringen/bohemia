@@ -14,6 +14,7 @@ import { foundVillageForSettlement } from '../found-village';
 import {
   LEAVE_ONLY_TO_NEW_MAP,
   NOT_ARRIVED,
+  FOREIGN_MAP_THERE,
   OWN_MAP_THERE,
   leaveVillage,
   settleJourney,
@@ -51,6 +52,7 @@ async function player(): Promise<{
     settlements: InMemorySettlements;
     villages: InMemoryVillages;
     seeds: SeedSource;
+    worldSeed: number;
     landscapes: LandscapeSource;
   };
   settlementId: string;
@@ -59,7 +61,7 @@ async function player(): Promise<{
 }> {
   const settlements = new InMemorySettlements();
   const villages = new InMemoryVillages();
-  const seat = await settlements.createSeat({
+  const seat = await settlements.seatAtOrigin({
     ownerId: PLAYER,
     landscapeSeed: 11,
     layerVersions: CURRENT_LAYER_VERSIONS,
@@ -102,7 +104,7 @@ async function player(): Promise<{
     state.storesKg = 1500;
   });
   return {
-    deps: { settlements, villages, seeds: seeds(), landscapes },
+    deps: { settlements, villages, seeds: seeds(), worldSeed: 4242, landscapes },
     settlementId: seat.id,
     villageId: founded.village.id,
     sonHome,
@@ -252,6 +254,27 @@ describe('leaveVillage – na novou mapu', () => {
     if (!west.ok) return;
     expect(west.settlement.worldCell).toEqual({ x: -1, y: 0 });
     expect(west.from.state.abandonedDay).toBe(TODAY + 1);
+  });
+
+  it('na políčku leží mapa jiného hráče – odmítne a nic nezmění', async () => {
+    const { deps, villageId, sonHome } = await player();
+    const foreign = await deps.settlements.create({
+      ownerId: 'cizi-hrac',
+      landscapeSeed: 99,
+      layerVersions: CURRENT_LAYER_VERSIONS,
+      worldCell: { x: 1, y: 0 },
+    });
+    expect(foreign).not.toBeNull();
+    const result = await leaveVillage(deps, {
+      playerId: PLAYER,
+      villageId,
+      today: TODAY + 1,
+      dwellingIds: [sonHome],
+      destination: { kind: 'map', direction: 'E' },
+    });
+    expect(result).toEqual({ ok: false, reason: FOREIGN_MAP_THERE });
+    expect((await deps.villages.find(villageId))!.state.people).toHaveLength(7);
+    expect(await deps.settlements.listActive(PLAYER)).toHaveLength(1);
   });
 });
 

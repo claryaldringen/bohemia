@@ -10,7 +10,7 @@ import { settlementLandscape } from './enter-game';
 import { loadVillage } from './load-village';
 import { closeDynastyDay, type DynastyDeps, type DynastyInput } from './restart-game';
 import { settleStewardDeparturesSafely } from './settle-steward-departures';
-import type { SeedSource, Settlement } from './settlements';
+import type { Settlement } from './settlements';
 import {
   isFullVillage,
   type DynastyVillage,
@@ -85,7 +85,7 @@ interface Collected {
  * Volající drží zámek hráče.
  */
 export async function dynastyForVillage(
-  deps: DynastyDeps & { seeds: SeedSource },
+  deps: DynastyDeps & { worldSeed: number },
   input: DynastyForVillageInput,
 ): Promise<DynastyView> {
   let collected = await collect(deps, input);

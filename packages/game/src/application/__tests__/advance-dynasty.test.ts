@@ -13,7 +13,7 @@ import {
 import { trackedVillage } from '../../domain/village/__tests__/kin-fixtures';
 import { makeLandscape } from '../../domain/village/__tests__/placement-fixtures';
 import { advanceDynasty } from '../advance-dynasty';
-import type { LandscapeSource, SeedSource } from '../settlements';
+import type { LandscapeSource } from '../settlements';
 import { InMemorySettlements } from './in-memory-settlements';
 import { InMemoryVillages } from './in-memory-villages';
 
@@ -22,10 +22,6 @@ const DAY = dayIndexOf({ year: 600, month: 8, day: 31 });
 const landscape = makeLandscape({ size: 48 });
 const landscapes: LandscapeSource = { landscapeOf: () => landscape };
 const at = (x: number, z: number): Position => ({ x, z, rotation: 0 });
-const seeds = (): SeedSource => {
-  let next = 4242;
-  return { nextSeed: () => next++ };
-};
 const house = (id: number, x: number, z: number): Dwelling => ({
   id,
   type: 'zemnice',
@@ -42,7 +38,7 @@ async function world(dwelling?: Position): Promise<{
   deps: {
     settlements: InMemorySettlements;
     villages: InMemoryVillages;
-    seeds: SeedSource;
+    worldSeed: number;
     landscapes: LandscapeSource;
   };
   villageId: string;
@@ -50,7 +46,7 @@ async function world(dwelling?: Position): Promise<{
 }> {
   const settlements = new InMemorySettlements();
   const villages = new InMemoryVillages();
-  const seat = await settlements.createSeat({
+  const seat = await settlements.seatAtOrigin({
     ownerId: PLAYER,
     landscapeSeed: 11,
     layerVersions: CURRENT_LAYER_VERSIONS,
@@ -89,7 +85,7 @@ async function world(dwelling?: Position): Promise<{
   };
   const added = await villages.add(seat.id, 'Libice', mother);
   return {
-    deps: { settlements, villages, seeds: seeds(), landscapes },
+    deps: { settlements, villages, worldSeed: 4242, landscapes },
     villageId: added.id,
     seatId: seat.id,
   };

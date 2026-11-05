@@ -55,15 +55,18 @@ const state = (lastDay: number, sleep?: 'extinct' | 'abandoned'): VillageState =
   ...(sleep === 'abandoned' ? { abandonedDay: lastDay } : {}),
 });
 
+let nextPlayer = 0;
+
 /** Hráč se vsemi – první na sídelní mapě, další na mapách vedle. Vrátí id sídel. */
 async function player(ownerId: string, states: VillageState[]): Promise<string[]> {
   const ids: string[] = [];
+  const base = 16 * nextPlayer++; // každý hráč ve svém pásu mřížky
   for (const [i, s] of states.entries()) {
     const place = { ownerId, landscapeSeed: 1 + i, layerVersions: CURRENT_LAYER_VERSIONS };
     const settlement =
       i === 0
-        ? await settlements.createSeat(place)
-        : await settlements.create({ ...place, worldCell: { x: i, y: 0 } });
+        ? await settlements.createSeat({ ...place, worldCell: { x: base, y: 0 } })
+        : await settlements.create({ ...place, worldCell: { x: base + i, y: 0 } });
     await villages.create(settlement!.id, `Ves ${i}`, s);
     ids.push(settlement!.id);
   }

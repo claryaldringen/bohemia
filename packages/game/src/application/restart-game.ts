@@ -9,7 +9,7 @@ import {
 import { enterGame, settlementLandscape } from './enter-game';
 import { loadVillage } from './load-village';
 import { updateVillage } from './update-village';
-import type { LandscapeSource, SeedSource, Settlement, SettlementRepository } from './settlements';
+import type { LandscapeSource, Settlement, SettlementRepository } from './settlements';
 import type {
   Pause,
   ProgressReport,
@@ -178,7 +178,7 @@ export type RestartGameResult =
  * druhý souběžný nebo opakovaný restart už proběhl), vrátí jeho sídlo beze změny.
  */
 export async function restartGame(
-  deps: DynastyDeps & { seeds: SeedSource },
+  deps: DynastyDeps & { worldSeed: number },
   input: RestartGameInput,
 ): Promise<RestartGameResult> {
   const status = await dynastyStatus(deps, input);
