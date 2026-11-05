@@ -14,3 +14,4 @@ export type * from './types-routes';
 export type * from './types-livestock';
 export type * from './types-wildlife';
 export type * from './types-disasters';
+export type * from './types-fortifications';
