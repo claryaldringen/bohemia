@@ -168,3 +168,15 @@ Pravidla: [vassalage.md](../design/vassalage.md) – Pozvaný jako vazal. Typy a
   `lib/house-input.ts` (tvar vstupu zrušení). Server actions `housePanel`, `issueInvite`,
   `revokeInvite({ code })` v `app/game/actions.ts` – hráč jen ze session. `issueInvite` vrací kód
   bez pomlčky, nebo důvod odmítnutí (limit tří kódů, hráč bez rodu).
+
+## Jednání a strom dohod
+
+Čistá doména (úloha 3.1), strany jsou **rody** (`house.id`), ne hráči. Pravidla:
+[vassalage.md](../design/vassalage.md) – Vznik a jednání, Meze.
+
+- `domain/negotiation/types.ts` – `TermItem` (zatím jen `oath` { lord, vassal }), `NegotiationRound`, `Negotiation` (`open` / `accepted` / `rejected` / `withdrawn`).
+- `domain/negotiation/negotiate.ts` – přechody `openRound`, `counterRound`, `acceptNegotiation`, `rejectNegotiation`, `withdrawRound` → `{ ok, negotiation } | { ok: false, reason }`. Strany se střídají, kol je neomezeně; přijmout, odmítnout a protinávrh smí jen adresát posledního kola, stáhnout jen jeho autor; role přísahy se v protinávrhu nemění. Dohodu z přijetí zakládá až use-case (ověří žijící rody a `wouldBeMutual`).
+- `canOpen(ctx)` – důvod odmítnutí nebo `null`: vymřelý rod, zablokování, jedno otevřené jednání mezi dvojicí, pauza po odmítnutí, vzájemné vazalství („Je tvým pánem.“), už trvající dohoda. Vstup (`OpenContext`) skládá adaptér z DB; čas je jen parametr.
+- `rules-negotiation.ts` – `NEGOTIATION` (`pauseAfterRejectMs` = 1 skutečný den, `messageMaxChars` = 500) a texty důvodů `NEGOTIATION_REASONS`.
+- Blokování a pauza se vedou **mezi rody**; nový rod po restartu začíná s čistým štítem (návrh Clauda).
+- `domain/vassalage/tree.ts` – `VassalEdge` (re-export z `application/vassalages.ts`), `wouldBeMutual` (jen **přímý** vzájemný vztah; delší kruhy A → B → C → A povolené, Martin: „udělej to, jak říkáš“), `treeBelow` (potomci po dohodách, každý jednou, kruh se zastaví; kořen je v seznamu jen při návratu kruhem), `treeAround` (souvislá síť nahoru i dolů).
