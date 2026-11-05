@@ -7,6 +7,7 @@ import {
   lineEndDay,
 } from '../domain/village';
 import type { HouseRepository } from './houses';
+import type { NegotiationRepository } from './negotiations';
 import type { NoticeRepository } from './notices';
 import type { SuccessionCreditRepository } from './succession-credits';
 import { enterGame, settlementLandscape, type EnterGameDeps } from './enter-game';
@@ -41,6 +42,8 @@ export interface DynastyDeps {
   /** Upozornění mezi hráči a kredity – s rody dovolují nástupnictví hráče po smrti jeho muže. */
   notices?: NoticeRepository;
   successionCredits?: Pick<SuccessionCreditRepository, 'unused' | 'consumeOne'>;
+  /** Jednání mezi rody – konec rodu ukončí jeho otevřená jednání (stav `ended`). */
+  negotiations?: NegotiationRepository;
 }
 
 export interface DynastyInput {
@@ -202,8 +205,27 @@ export async function restartGame(
     for (const settlement of status.settlements) await deps.settlements.archive(settlement.id);
     // rod skončil – `enterGame` níže založí nový (staré dohody zanikly vymřením)
     const house = await deps.houses.activeOf(input.playerId);
-    if (house) await deps.houses.end(house.id, deps.now(), input.today);
+    if (house) {
+      const at = deps.now();
+      if (await deps.houses.end(house.id, at, input.today)) {
+        await endNegotiationsOf(deps.negotiations, house.id, at);
+      }
+    }
   }
   const { settlement, landscape } = await enterGame(deps, input.playerId);
   return { ok: true, settlement, landscape };
+}
+
+/** Ukončí otevřená jednání zaniklého rodu (`ended`) – vazalství už by neměl kdo uzavřít. */
+async function endNegotiationsOf(
+  negotiations: NegotiationRepository | undefined,
+  houseId: string,
+  at: Date,
+): Promise<void> {
+  if (!negotiations) return;
+  await negotiations.transaction(async (tx) => {
+    for (const open of await tx.openOf(houseId)) {
+      await tx.setStatus(open.id, 'ended', open.version, at);
+    }
+  });
 }

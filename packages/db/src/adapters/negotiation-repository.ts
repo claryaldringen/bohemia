@@ -1,4 +1,4 @@
-import { and, asc, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, or, sql } from 'drizzle-orm';
 import type {
   NegotiationRecord,
   NegotiationRepository,
@@ -97,6 +97,18 @@ function createTx(db: Executor): NegotiationTx {
           ),
         );
       return row ? load(db, row) : null;
+    },
+    async openOf(houseId): Promise<NegotiationRecord[]> {
+      const rows = await db
+        .select()
+        .from(negotiation)
+        .where(
+          and(
+            eq(negotiation.status, 'open'),
+            or(eq(negotiation.partyLow, houseId), eq(negotiation.partyHigh, houseId)),
+          ),
+        );
+      return Promise.all(rows.map((row) => load(db, row)));
     },
     async addRound(id, round): Promise<void> {
       const [last] = await db

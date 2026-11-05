@@ -8,7 +8,15 @@ export type PlayerNoticeKind =
   /** Pozvaný hráč se rozehrál – pán se dozví, že pozvánka nepřišla vniveč (úloha 1.9). */
   | 'invitee-played'
   /** Hráčův muž zemřel – hráč hraje za jiného (nástupnictví hráče, úloha 2.4). */
-  | 'player-succession';
+  | 'player-succession'
+  /** Jednání mezi rody (úloha 3.3) – payload `{ negotiationId, houseId, name }`, jen veřejné údaje. */
+  | 'negotiation-offer'
+  | 'negotiation-counter'
+  | 'negotiation-accepted'
+  | 'negotiation-rejected'
+  | 'negotiation-withdrawn'
+  /** Druhý rod tě zablokoval – payload `{ houseId, name }`. */
+  | 'blocked';
 
 /** Upozornění pro hráče – řádek ve frontě; `id` roste, na něm stojí `after`. */
 export interface PlayerNotice {

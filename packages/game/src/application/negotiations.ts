@@ -37,6 +37,8 @@ export interface NegotiationTx {
   getForUpdate(id: string): Promise<NegotiationRecord | null>;
   /** Otevřené jednání mezi dvojicí rodů (v libovolném směru), bez zámku; null = žádné. */
   openBetween(a: string, b: string): Promise<NegotiationRecord | null>;
+  /** Všechna otevřená jednání rodu (v libovolném směru), bez zámku; konec rodu je ukončí. */
+  openOf(houseId: string): Promise<NegotiationRecord[]>;
   /** Připojí kolo (pořadí `seq` doplní úložiště). */
   addRound(id: string, round: NegotiationRound): Promise<void>;
   /** Změní stav a zvýší verzi; false, pokud se verze mezitím změnila. `closedAt` při uzavření. */

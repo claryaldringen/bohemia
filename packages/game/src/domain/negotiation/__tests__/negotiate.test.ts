@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
-  acceptNegotiation,
+  acceptRound,
   canOpen,
   counterRound,
   openRound,
-  rejectNegotiation,
+  rejectRound,
   respondingHouse,
   withdrawRound,
   type OpenContext,
@@ -131,21 +131,21 @@ describe('kola jednání', () => {
 
   it('přijmout a odmítnout smí jen adresát posledního kola', () => {
     const n = offer();
-    expect(acceptNegotiation(n, 'B', T0)).toEqual({ ok: false, reason: R.notYourTurn });
-    expect(rejectNegotiation(n, 'B', T0).ok).toBe(false);
-    const a = unwrap(acceptNegotiation(n, 'C', T0));
+    expect(acceptRound(n, 'B', T0)).toEqual({ ok: false, reason: R.notYourTurn });
+    expect(rejectRound(n, 'B', T0).ok).toBe(false);
+    const a = unwrap(acceptRound(n, 'C', T0));
     expect(a.status).toBe('accepted');
     expect(a.resolvedAt).toEqual(T0);
-    expect(unwrap(rejectNegotiation(n, 'C', T0)).status).toBe('rejected');
+    expect(unwrap(rejectRound(n, 'C', T0)).status).toBe('rejected');
   });
 
   it('skončené jednání se dál nemění', () => {
-    const done = unwrap(rejectNegotiation(offer(), 'C', T0));
+    const done = unwrap(rejectRound(offer(), 'C', T0));
     expect(counterRound(done, 'B', oath('B', 'C'), null, T0)).toEqual({
       ok: false,
       reason: R.finished,
     });
-    expect(acceptNegotiation(done, 'C', T0).ok).toBe(false);
+    expect(acceptRound(done, 'C', T0).ok).toBe(false);
     expect(withdrawRound(done, 'B', T0).ok).toBe(false);
     expect(respondingHouse(done)).toBeNull();
   });
@@ -153,7 +153,7 @@ describe('kola jednání', () => {
   it('nemění vstupní jednání', () => {
     const n = offer();
     counterRound(n, 'C', oath('B', 'C'), null, T0);
-    acceptNegotiation(n, 'C', T0);
+    acceptRound(n, 'C', T0);
     expect(n.rounds).toHaveLength(1);
     expect(n.status).toBe('open');
   });

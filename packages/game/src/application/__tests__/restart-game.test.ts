@@ -15,6 +15,9 @@ import { DYNASTY_ALIVE, dynastyStatus, restartGame } from '../restart-game';
 import type { LandscapeSource, SeedSource } from '../settlements';
 import { VILLAGE_EXTINCT } from '../update-village';
 import { InMemoryHouses } from './in-memory-houses';
+import { InMemoryNegotiations } from './in-memory-negotiations';
+import { InMemoryNotices } from './in-memory-notices';
+import { InMemoryVassalages } from './in-memory-vassalages';
 import { InMemorySettlements } from './in-memory-settlements';
 import { InMemoryVillages } from './in-memory-villages';
 
@@ -444,4 +447,36 @@ describe('akce ve vymřelé vsi', () => {
     const loaded = await loadVillage(deps, base);
     expect(loaded?.state.extinctDay).toBe(TODAY - 39);
   });
+});
+
+describe('restartGame a jednání', () => {
+  it('konec rodu ukončí jeho otevřená jednání', async () => {
+    const { settlements, villages } = await playerWithVillage(true);
+    const houses = new InMemoryHouses();
+    const negotiations = new InMemoryNegotiations(
+      new InMemoryVassalages(),
+      new InMemoryNotices(),
+      () => NOW,
+    );
+    const mine = await houses.create({ playerId: PLAYER, kind: 'player', createdAt: NOW });
+    const other = await houses.create({ playerId: 'jiny', kind: 'player', createdAt: NOW });
+    await negotiations.transaction(async (tx) => {
+      await tx.open({
+        initiatorHouseId: other.id,
+        recipientHouseId: mine.id,
+        round: { authorHouseId: other.id, items: [], message: null, at: NOW },
+      });
+    });
+    const deps = {
+      settlements,
+      villages,
+      landscapes,
+      worldSeed: 4242,
+      houses,
+      negotiations,
+      now: () => NOW,
+    };
+    expect((await restartGame(deps, { playerId: PLAYER, today: TODAY })).ok).toBe(true);
+    expect(negotiations.records.map((r) => r.status)).toEqual(['ended']);
+  }, 30_000);
 });

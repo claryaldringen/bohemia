@@ -116,12 +116,12 @@ function respond(
 }
 
 /** Přijetí posledního kola. Dohodu zakládá use-case (ověří žijící rody a `wouldBeMutual`). */
-export function acceptNegotiation(n: Negotiation, actor: string, at: Date): NegotiationResult {
+export function acceptRound(n: Negotiation, actor: string, at: Date): NegotiationResult {
   return respond(n, actor, 'accepted', at);
 }
 
 /** Odmítnutí končí jednání; odmítnutý čeká pauzu (`canOpen`). */
-export function rejectNegotiation(n: Negotiation, actor: string, at: Date): NegotiationResult {
+export function rejectRound(n: Negotiation, actor: string, at: Date): NegotiationResult {
   return respond(n, actor, 'rejected', at);
 }
 

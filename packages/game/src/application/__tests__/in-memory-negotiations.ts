@@ -66,6 +66,14 @@ export class InMemoryNegotiations implements NegotiationRepository {
         const record = openBetween(a, b);
         return record ? copy(record) : null;
       },
+      openOf: async (houseId: string) =>
+        this.records
+          .filter(
+            (r) =>
+              r.status === 'open' &&
+              (r.initiatorHouseId === houseId || r.recipientHouseId === houseId),
+          )
+          .map(copy),
       addRound: async (id: string, round: NegotiationRound) => {
         find(id)?.rounds.push(round);
       },
