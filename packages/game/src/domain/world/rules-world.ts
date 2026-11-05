@@ -8,3 +8,13 @@ export const WORLD = {
   /** Dny cesty na políčko vzdálenosti, tam i zpět (vassalage.md – Doprava a cílová ves). */
   travelDaysPerCell: 2,
 } as const;
+
+/** Pozvánkové kódy (vassalage.md – Čísla). */
+export const INVITES = {
+  /** Nevyužité kódy najednou: nezrušené, nevyužité a ještě platné. */
+  maxUnused: 3,
+  /** Platnost kódu ve skutečných dnech od vydání. */
+  validDays: 14,
+  /** Pozvaný „začal hrát“ po tolika různých skutečných dnech ve hře (úloha 1.9). */
+  playedDays: 3,
+} as const;

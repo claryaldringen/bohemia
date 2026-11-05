@@ -68,7 +68,8 @@ do gitu (po smazání by ho vytvořil znovu).
 
 **Plánováno (zatím neexistuje):**
 
-- Pozvánkové kódy (s mechanikou vazalství), odesílání skutečných e-mailů
+- Vazalství z pozvánkových kódů (kódy a jejich rezervace při registraci už jsou), odesílání
+  skutečných e-mailů
 
 ## Struktura repa
 

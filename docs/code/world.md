@@ -90,3 +90,24 @@ version + 1, digest_version = digest_version + 1`. Duplicitní `ref` = `null` a 
   idempotence `ref`, posun dne, pořadí) a třetí „proces“ posílající události do vsí v
   `packages/server/src/__tests__/web-worker-race.db.test.ts` (každá událost ze dnů ≤ `lastDay`
   v kronice právě jednou, výsledek = dopočet jedním procesem se stejnými událostmi).
+
+## Pozvánky
+
+Pravidla: [vassalage.md](../design/vassalage.md) – Čísla. Čísla v `INVITES` (`domain/world/rules-world.ts`):
+nevyužité kódy najednou 3, platnost 14 skutečných dní, „začal hrát“ = 3 různé dny (použije úloha 1.9).
+
+- **Doména** `domain/world/invite.ts`: `INVITE_ALPHABET` (31 znaků bez O, I, L, 0, 1),
+  `newInviteCode(random)` (8 znaků), `formatInviteCode` (`BH7K-M2QX`), `parseInviteCode`
+  (`'bh7k m2qx'` → `'BH7KM2QX'`, jinak null), `isInviteUnused` (nezrušený, nevyužitý, platný –
+  počítá se do stropu) a `isInviteAvailableTo` (+ ne vlastní a nerezervovaný jiným).
+- **Use-casy** `application/invites.ts`: `issueInvite` (jen hráč s živým rodem, strop 3, při kolizi
+  kódu nový pokus, náhoda přes port `RandomSource` – web ho plní z `crypto` v
+  `cryptoRandom()` v `packages/server`), `revokeInvite`, `checkInvite` (jen čte), `reserveInvite`.
+  Vydávání a rušení zatím nemá rozhraní ve hře (přijde s úlohou 1.9). Chyby: `INVITE_INVALID`
+  („Pozvánka neplatí.“), `INVITE_NEEDS_HOUSE`, `INVITE_LIMIT`.
+- **Port** `InviteRepository`: `reserve` je jeden podmíněný `UPDATE … RETURNING` (souběžné
+  rezervace dvou uživatelů – uspěje jedna; téhož uživatele je idempotentní); `consumeReservation`
+  využije rezervaci jen jednou – **zatím se nevolá** (vazalství při vstupu do hry je úloha 1.9).
+  Rezervace platí i po uplynutí `validUntil` kódu, ruší ji jen zrušení kódu.
+- **DB** `invite_code` (migrace `0017_invite`), adaptér `adapters/invite-repository.ts`, v
+  `GameDeps` jako `invites` a `random`. Registrace s kódem: `accounts.md`.
