@@ -1,4 +1,5 @@
 import type { VillageDigest, VillageState, VillageYearRow } from '../domain/village';
+import type { VillageInbox } from './inbox';
 
 /** Uložená ves – stav simulace s verzí pro optimistické zamykání. */
 export interface VillageRecord {
@@ -100,6 +101,11 @@ export interface VillageRepository {
    * neznámé sídlo nebo úložiště bez počasí (testy, kalibrace) → null. Klientovi se nikdy neposílá.
    */
   weatherSeedOf(settlementId: string): Promise<number | null>;
+  /**
+   * Schránka vsí (inbox.ts) – patří k úložišti vsí, protože zápis do ní zvedá verzi vsi a dopočet
+   * (`updateVillage`) z ní musí číst vždy; každý dopočet přes úložiště ji tak má.
+   */
+  readonly inbox: VillageInbox;
 }
 
 /**

@@ -3,6 +3,9 @@
 Plán: `docs/superpowers/plans/2026-11-03-multiplayer-vassalage-war.md`. Pravidla: `docs/design/vassalage.md`,
 `docs/design/war.md`.
 
+Cizí věc (jiný hráč, svět) mění ves jen přes **schránku vsi** (`VillageInbox`, události na
+začátku svého dne, zápis zvedá verzi vsi) – `docs/code/village-core.md`, Schránka vsi.
+
 ## Mřížka a umístění
 
 - `packages/game/src/domain/world/` – `cellDistance` (Čebyšev: `max(|dx|, |dy|)`), `GridCell`,

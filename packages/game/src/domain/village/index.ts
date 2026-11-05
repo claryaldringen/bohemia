@@ -114,6 +114,7 @@ export {
 export * from './actions';
 export * from './build-intent';
 export * from './simulate';
+export * from './inbox';
 export * from './polygon';
 export * from './placement';
 export * from './dwelling-shape';
