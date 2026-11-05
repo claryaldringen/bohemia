@@ -16,6 +16,12 @@ export function noticePanel(kind: PlayerNoticeKind): NoticePanel | null {
   switch (kind) {
     case 'invite-accepted':
     case 'invitee-played':
+    case 'negotiation-offer':
+    case 'negotiation-counter':
+    case 'negotiation-accepted':
+    case 'negotiation-rejected':
+    case 'negotiation-withdrawn':
+    case 'blocked':
       return 'house';
     case 'player-succession':
       return null;
@@ -24,6 +30,11 @@ export function noticePanel(kind: PlayerNoticeKind): NoticePanel | null {
 
 function nameOf(payload: Record<string, unknown>): string {
   return typeof payload.name === 'string' && payload.name !== '' ? payload.name : 'Pozvaný';
+}
+
+/** Jméno druhého rodu v upozornění z jednání; bez jména „Jiný rod“. */
+function otherName(payload: Record<string, unknown>): string {
+  return typeof payload.name === 'string' && payload.name !== '' ? payload.name : 'Jiný rod';
 }
 
 /**
@@ -49,6 +60,18 @@ function textOf(n: PlayerNotice): string {
       return `${nameOf(n.payload)} přijal pozvánku – je tvým vazalem.`;
     case 'invitee-played':
       return `${nameOf(n.payload)} se rozehrál.`;
+    case 'negotiation-offer':
+      return `${otherName(n.payload)} ti poslal návrh dohody.`;
+    case 'negotiation-counter':
+      return `${otherName(n.payload)} poslal protinávrh.`;
+    case 'negotiation-accepted':
+      return `${otherName(n.payload)} přijal dohodu.`;
+    case 'negotiation-rejected':
+      return `${otherName(n.payload)} odmítl tvůj návrh.`;
+    case 'negotiation-withdrawn':
+      return `${otherName(n.payload)} stáhl svůj návrh.`;
+    case 'blocked':
+      return `${otherName(n.payload)} tě zablokoval.`;
     case 'player-succession': {
       const dead = stringOf(n.payload.deadName) ?? 'Tvůj muž';
       const next = stringOf(n.payload.newName);

@@ -2,6 +2,7 @@
 
 import { boughtProducts, productList } from './village-view-types';
 import { Crop } from '@bohemia/game';
+import { accusativeOf } from './player-notices';
 import {
   paymentValueKg,
   type FloodLevel,
@@ -332,6 +333,11 @@ export function ironTripWho(son: boolean, porters: number, byCart: boolean): str
   return `${who} šel ${porters === 1 ? 's 1 nosičem' : `se ${porters} nosiči`}`;
 }
 
+/** 2. pád mužského jména rodu („vazalem Bořivoje“): jako 4. pád, jen -a → -y. */
+function genitiveOf(name: string): string {
+  return name.endsWith('a') ? `${name.slice(0, -1)}y` : accusativeOf(name);
+}
+
 /** Text události kroniky česky. */
 export function chronicleText(event: ChronicleEvent, villageName: string): string {
   switch (event.kind) {
@@ -359,6 +365,21 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return event.name === undefined
         ? 'Z jiné vsi rodu přišel muž s rodinou.'
         : `Z jiné vsi rodu přišel ${event.name} s rodinou.`;
+    case 'negotiation':
+      switch (event.step) {
+        case 'offer':
+          return `Návrh dohody – ${event.actor} a ${event.other}.`;
+        case 'counter':
+          return `Protinávrh dohody – ${event.actor} a ${event.other}.`;
+        case 'rejected':
+          return `Dohoda odmítnuta – ${event.actor} a ${event.other}.`;
+        case 'withdrawn':
+          return `Návrh dohody stažen – ${event.actor} a ${event.other}.`;
+      }
+    case 'negotiation-accepted':
+      return `${event.vassal} se stal vazalem ${genitiveOf(event.lord)}.`;
+    case 'blocked':
+      return `${event.blocker} zablokoval ${accusativeOf(event.blocked)}.`;
     case 'senior':
       return event.name === undefined
         ? 'Rod má nového seniora.'

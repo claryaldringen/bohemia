@@ -175,7 +175,7 @@ Pravidla: [vassalage.md](../design/vassalage.md) – Pozvaný jako vazal. Typy a
 [vassalage.md](../design/vassalage.md) – Vznik a jednání, Meze.
 
 - `domain/negotiation/types.ts` – `TermItem` (zatím jen `oath` { lord, vassal }), `NegotiationRound`, `Negotiation` (`open` / `accepted` / `rejected` / `withdrawn`).
-- `domain/negotiation/negotiate.ts` – přechody `openRound`, `counterRound`, `acceptNegotiation`, `rejectNegotiation`, `withdrawRound` → `{ ok, negotiation } | { ok: false, reason }`. Strany se střídají, kol je neomezeně; přijmout, odmítnout a protinávrh smí jen adresát posledního kola, stáhnout jen jeho autor; role přísahy se v protinávrhu nemění. Dohodu z přijetí zakládá až use-case (ověří žijící rody a `wouldBeMutual`).
+- `domain/negotiation/negotiate.ts` – přechody `openRound`, `counterRound`, `acceptRound`, `rejectRound`, `withdrawRound` → `{ ok, negotiation } | { ok: false, reason }`. Strany se střídají, kol je neomezeně; přijmout, odmítnout a protinávrh smí jen adresát posledního kola, stáhnout jen jeho autor; role přísahy se v protinávrhu nemění. Dohodu z přijetí zakládá až use-case (ověří žijící rody a `wouldBeMutual`).
 - `canOpen(ctx)` – důvod odmítnutí nebo `null`: vymřelý rod, zablokování, jedno otevřené jednání mezi dvojicí, pauza po odmítnutí, vzájemné vazalství („Je tvým pánem.“), už trvající dohoda. Vstup (`OpenContext`) skládá adaptér z DB; čas je jen parametr.
 - `rules-negotiation.ts` – `NEGOTIATION` (`pauseAfterRejectMs` = 1 skutečný den, `messageMaxChars` = 500) a texty důvodů `NEGOTIATION_REASONS`.
 - Blokování a pauza se vedou **mezi rody**; nový rod po restartu začíná s čistým štítem (návrh Clauda).
@@ -191,3 +191,16 @@ Port `NegotiationRepository` (`application/negotiations.ts`), adaptér `db/adapt
 - `tx.getForUpdate` = `SELECT … FOR UPDATE` řádku jednání (souběžné odpovědi se seřadí); `tx.setStatus(id, status, expectedVersion, at)` mění stav podmíněně na `version` (+1) a vrací `false` při neshodě. Z dvou souběžných přijetí / přijetí a stažení projde jedno.
 - `tx.vassalages` a `tx.notices` jsou stejné adaptéry (`createVassalageRepository`, `createNoticeRepository` přijímají spojení i transakci, typ `Executor`) nad toutéž transakcí – dohoda a upozornění z přijetí se potvrdí nebo vrátí společně se stavem jednání.
 - Testy: `adapters/__tests__/negotiation-repository.db.test.ts`.
+
+### Use-casy jednání (úloha 3.3)
+
+`application/negotiate.ts`, `negotiation-effects.ts`, `negotiation-chronicle.ts`, `blocks.ts`. Hráč jedná za svůj **živý rod** (`houses.activeOf`), `to` / `target` jsou id rodů. Každý use-case běží v jedné `negotiations.transaction`; zámek hráče se nebere.
+
+- `openNegotiation` – `openRound` + `canOpen` se stavem z transakce (blokování, otevřené jednání, pauza, `edgesNear(from, 1)`); souběžné protisměrné otevření odmítne unikátní index (`tx.open` → `null` → „Jednáte už.“). Vzkaz nad `NEGOTIATION.messageMaxChars` odmítne doména.
+- `counterNegotiation`, `rejectNegotiation` (zapíše pauzu `recordReject(autor posledního kola, odmítající)`), `withdrawNegotiation` – záznam se načte `getForUpdate`, doména ověří stranu a tah, druhá strana musí žít. Stav `ended` (rod vymřel, blokování) je pro doménu „skončilo“.
+- `acceptNegotiation` – ověří živé rody, přímou vzájemnost (`wouldBeMutual` nad živými vazalstvími pána) a `check` účinků, pak `setStatus('accepted', verze)` a `apply` účinků – vše v jedné transakci (prohraný souběh = „Jednání už skončilo.“).
+- `NEGOTIATION_EFFECTS: Record<TermItem['kind'], NegotiationEffect>` – `oath` zakládá vazalství `origin: 'negotiation'`, `terms: {}`; druhý pán přibude vedle stávajících, stejná dvojice už svázaná nic nepřidá (`create` vrátí živé). Nový druh řádku bez účinku se nepřeloží.
+- `blockPlayer` / `unblockPlayer` – zablokování ukončí rozběhnuté jednání dvojice (`ended`), zablokovaný dostane upozornění `blocked`; stávající dohody zůstávají. Opakované zablokování nic nezapíše.
+- `restartGame` (s `negotiations` v `DynastyDeps`) po ukončení rodu ukončí jeho otevřená jednání (`tx.openOf`).
+- Upozornění (`PlayerNoticeKind`): `negotiation-offer` / `-counter` / `-accepted` / `-rejected` / `-withdrawn` a `blocked`; payload `{ negotiationId, houseId, name }` (jen veřejné údaje, žádné id účtů); NPC rod upozornění nedostane. Texty v `apps/web/lib/player-notices.ts`, panel `house`.
+- Kronika (neutrální záznamy, žádné hodnocení): `ChronicleEvent` druhy `negotiation` (`step` offer / counter / rejected / withdrawn), `negotiation-accepted` („Ctibor se stal vazalem Bořivoje.“) a `blocked` („Bořivoj zablokoval Ctibora.“); jména jsou hlavy rodů, bez jména `Rod bez jména`. Zapisuje se do **vlastní vsi obou rodů** (`house.lord.villageId`) přes schránku **až po** úspěšné transakci (jiná tabulka); `ref` = `neg:<jednání>:<počet kol>:<krok>:<ves>`, resp. `block:<blokující>:<blokovaný>:<ms>:<ves>` – opakování je bezpečné, selhání schránky akci nevrací.

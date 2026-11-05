@@ -66,6 +66,21 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'line-ended'; name?: string }
   /** Seniorem rodu se stal muž rodu `name` (seniorate.md – Seniorát; zapisuje se do všech vsí rodu). */
   | { kind: 'senior'; name?: string }
+  /**
+   * Jednání mezi rody (vassalage.md – Vznik a jednání): neutrální záznam do vlastní vsi obou rodů.
+   * `self` = jméno hlavy rodu, do jehož vsi se píše, `other` = jméno druhé strany; nabídku
+   * a protinávrh posílá ten, kdo je v textu první (`actor`), jinak je záznam stejný pro oba.
+   */
+  | {
+      kind: 'negotiation';
+      step: 'offer' | 'counter' | 'rejected' | 'withdrawn';
+      actor: string;
+      other: string;
+    }
+  /** Dohoda z jednání: rod `vassal` přísahal rodu `lord` (jména hlav rodů). */
+  | { kind: 'negotiation-accepted'; lord: string; vassal: string }
+  /** Rod `blocker` zablokoval rod `blocked` (vassalage.md – Meze); zapisuje se do kronik obou. */
+  | { kind: 'blocked'; blocker: string; blocked: string }
   /** Vedlejší manželka odešla z přeplněného dvorce do vlastního domu (lord.md – Manželky). */
   | { kind: 'wife-left-manor' }
   /**

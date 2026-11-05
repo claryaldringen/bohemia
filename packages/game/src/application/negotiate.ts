@@ -1,0 +1,374 @@
+import {
+  acceptRound,
+  canOpen,
+  counterRound,
+  NEGOTIATION_REASONS as R,
+  openRound,
+  rejectRound,
+  withdrawRound,
+  type Negotiation,
+  type NegotiationResult,
+  type TermItem,
+} from '../domain/negotiation';
+import { wouldBeMutual } from '../domain/vassalage/tree';
+import type { ChronicleEvent } from '../domain/village';
+import type { HouseRepository, House } from './houses';
+import { NEGOTIATION_EFFECTS } from './negotiation-effects';
+import {
+  chronicleHouses,
+  houseName,
+  noticeHouse,
+  type NegotiationVillages,
+} from './negotiation-chronicle';
+import type { NegotiationRecord, NegotiationRepository, NegotiationTx } from './negotiations';
+
+// Use-casy jednání mezi hráči (vassalage.md – Vznik a jednání, Meze). Strany jsou rody; hráč jedná
+// za svůj živý rod. Vše mění stav v jedné transakci nad vlastními tabulkami (bez zámku hráče),
+// účinky přijetí (vazalství) jedou v téže transakci. Kronika se zapisuje až po ní.
+
+export interface NegotiateDeps extends NegotiationVillages {
+  houses: Pick<HouseRepository, 'activeOf' | 'byId'>;
+  negotiations: NegotiationRepository;
+}
+
+export type NegotiateResult =
+  { ok: true; negotiation: NegotiationRecord } | { ok: false; reason: string };
+
+export const NO_HOUSE = 'Nemáš živý rod.';
+export const NO_NEGOTIATION = 'Jednání neexistuje.';
+
+const fail = (reason: string): { ok: false; reason: string } => ({ ok: false, reason });
+
+const isAlive = (house: House | null): house is House => house !== null && house.endedAt === null;
+
+/** Doménový pohled na záznam; `ended` (rod vymřel) už nelze měnit. */
+function domainOf(record: NegotiationRecord): Negotiation | null {
+  if (record.status === 'ended') return null;
+  return { ...record, status: record.status };
+}
+
+function oathOf(items: readonly TermItem[]): { lord: string; vassal: string } | null {
+  const oath = items.find((i) => i.kind === 'oath');
+  return oath ? { lord: oath.lord, vassal: oath.vassal } : null;
+}
+
+/** Zapsané jednání (po kole / přechodu) – záznam z přechodu domény nese stav a poslední kolo. */
+function lastAuthor(record: NegotiationRecord): string | undefined {
+  return record.rounds[record.rounds.length - 1]?.authorHouseId;
+}
+
+interface Actors {
+  actor: House;
+  other: House;
+}
+
+/** Kroniku obou rodů zapíše po transakci jedním druhem události (`step`). */
+async function chronicleStep(
+  deps: NegotiateDeps,
+  { actor, other }: Actors,
+  record: NegotiationRecord,
+  step: 'offer' | 'counter' | 'rejected' | 'withdrawn',
+  today: number,
+): Promise<void> {
+  const event: ChronicleEvent = {
+    day: today,
+    kind: 'negotiation',
+    step,
+    actor: await houseName(deps, actor),
+    other: await houseName(deps, other),
+  };
+  await chronicleHouses(
+    deps,
+    [actor, other],
+    `neg:${record.id}:${record.rounds.length}:${step}`,
+    event,
+  );
+}
+
+/** Společný začátek odpovědi: hráčův živý rod, jednání a druhá strana (živá, jinak chyba). */
+async function loadForResponse(
+  deps: NegotiateDeps,
+  tx: NegotiationTx,
+  playerId: string,
+  negotiationId: string,
+): Promise<
+  | { ok: true; actor: House; other: House; record: NegotiationRecord; negotiation: Negotiation }
+  | { ok: false; reason: string }
+> {
+  const actor = await deps.houses.activeOf(playerId);
+  if (!actor) return fail(NO_HOUSE);
+  const record = await tx.getForUpdate(negotiationId);
+  if (!record) return fail(NO_NEGOTIATION);
+  const negotiation = domainOf(record);
+  if (!negotiation) return fail(R.finished);
+  if (actor.id !== record.initiatorHouseId && actor.id !== record.recipientHouseId) {
+    return fail(R.notParty);
+  }
+  const otherId =
+    actor.id === record.initiatorHouseId ? record.recipientHouseId : record.initiatorHouseId;
+  const other = await deps.houses.byId(otherId);
+  if (!isAlive(other)) return fail(R.extinct);
+  return { ok: true, actor, other, record, negotiation };
+}
+
+/** Poslední kolo záznamu po `domainResult` – `negotiation.rounds` nese i nové kolo. */
+function withRounds(record: NegotiationRecord, result: Negotiation): NegotiationRecord {
+  return { ...record, rounds: result.rounds };
+}
+
+/** Hráč za svůj rod otevře jednání s rodem `to` (`input.to` = id rodu). */
+export async function openNegotiation(
+  deps: NegotiateDeps,
+  input: {
+    playerId: string;
+    to: string;
+    items: TermItem[];
+    message: string | null;
+    now: Date;
+    today: number;
+  },
+): Promise<NegotiateResult> {
+  const from = await deps.houses.activeOf(input.playerId);
+  if (!from) return fail(NO_HOUSE);
+  const to = await deps.houses.byId(input.to);
+  const opened = openRound({
+    id: '',
+    from: from.id,
+    to: input.to,
+    items: input.items,
+    message: input.message,
+    at: input.now,
+  });
+  if (!opened.ok) return opened;
+  const round = opened.negotiation.rounds[0];
+  if (!round) return fail(R.badOath);
+  const result = await deps.negotiations.transaction(async (tx): Promise<NegotiateResult> => {
+    const reason = canOpen({
+      from: from.id,
+      to: input.to,
+      now: input.now,
+      fromAlive: true,
+      toAlive: isAlive(to),
+      blockedByTarget: await tx.blocks(input.to, from.id),
+      negotiationOpen: (await tx.openBetween(from.id, input.to)) !== null,
+      rejectedByTargetAt: await tx.lastReject(from.id, input.to),
+      oath: oathOf(input.items),
+      edges: await tx.vassalages.edgesNear(from.id, 1),
+    });
+    if (reason) return fail(reason);
+    const record = await tx.open({
+      initiatorHouseId: from.id,
+      recipientHouseId: input.to,
+      round,
+    });
+    if (!record) return fail(R.negotiating);
+    if (to) {
+      await noticeHouse(
+        tx,
+        to,
+        'negotiation-offer',
+        { negotiationId: record.id, houseId: from.id, name: await houseName(deps, from) },
+        input.today,
+      );
+    }
+    return { ok: true, negotiation: record };
+  });
+  if (result.ok && to) {
+    await chronicleStep(deps, { actor: from, other: to }, result.negotiation, 'offer', input.today);
+  }
+  return result;
+}
+
+/** Protinávrh: na tahu je ten, kdo nenapsal poslední kolo. */
+export async function counterNegotiation(
+  deps: NegotiateDeps,
+  input: {
+    playerId: string;
+    negotiationId: string;
+    items: TermItem[];
+    message: string | null;
+    now: Date;
+    today: number;
+  },
+): Promise<NegotiateResult> {
+  let actors: Actors | null = null;
+  const result = await deps.negotiations.transaction(async (tx): Promise<NegotiateResult> => {
+    const loaded = await loadForResponse(deps, tx, input.playerId, input.negotiationId);
+    if (!loaded.ok) return loaded;
+    const next = counterRound(
+      loaded.negotiation,
+      loaded.actor.id,
+      input.items,
+      input.message,
+      input.now,
+    );
+    if (!next.ok) return next;
+    const round = next.negotiation.rounds[next.negotiation.rounds.length - 1];
+    if (!round) return fail(R.finished);
+    await tx.addRound(loaded.record.id, round);
+    await noticeHouse(
+      tx,
+      loaded.other,
+      'negotiation-counter',
+      {
+        negotiationId: loaded.record.id,
+        houseId: loaded.actor.id,
+        name: await houseName(deps, loaded.actor),
+      },
+      input.today,
+    );
+    actors = { actor: loaded.actor, other: loaded.other };
+    return { ok: true, negotiation: withRounds(loaded.record, next.negotiation) };
+  });
+  if (result.ok && actors)
+    await chronicleStep(deps, actors, result.negotiation, 'counter', input.today);
+  return result;
+}
+
+/**
+ * Přijetí posledního kola: ověří živé rody a vzájemnost, uzavře jednání a spustí účinky všech
+ * řádků – vše v jedné transakci (kdo přijetí vyhraje souběh, vazalství vznikne jedno).
+ */
+export async function acceptNegotiation(
+  deps: NegotiateDeps,
+  input: { playerId: string; negotiationId: string; now: Date; today: number },
+): Promise<NegotiateResult> {
+  let actors: Actors | null = null;
+  let oath: { lord: string; vassal: string } | null = null;
+  const result = await deps.negotiations.transaction(async (tx): Promise<NegotiateResult> => {
+    const loaded = await loadForResponse(deps, tx, input.playerId, input.negotiationId);
+    if (!loaded.ok) return loaded;
+    const done = acceptRound(loaded.negotiation, loaded.actor.id, input.now);
+    if (!done.ok) return done;
+    const items = loaded.negotiation.rounds[loaded.negotiation.rounds.length - 1]?.items ?? [];
+    for (const item of items) {
+      if (
+        item.kind === 'oath' &&
+        wouldBeMutual(await tx.vassalages.edgesNear(item.lord, 1), item.lord, item.vassal)
+      ) {
+        return fail(R.isYourLord);
+      }
+      const reason = await NEGOTIATION_EFFECTS[item.kind].check(tx, item);
+      if (reason) return fail(reason);
+    }
+    if (!(await tx.setStatus(loaded.record.id, 'accepted', loaded.record.version, input.now))) {
+      return fail(R.finished);
+    }
+    for (const item of items) {
+      await NEGOTIATION_EFFECTS[item.kind].apply(tx, item, { now: input.now, day: input.today });
+    }
+    await noticeHouse(
+      tx,
+      loaded.other,
+      'negotiation-accepted',
+      {
+        negotiationId: loaded.record.id,
+        houseId: loaded.actor.id,
+        name: await houseName(deps, loaded.actor),
+      },
+      input.today,
+    );
+    actors = { actor: loaded.actor, other: loaded.other };
+    oath = oathOf(items);
+    return {
+      ok: true,
+      negotiation: { ...loaded.record, status: 'accepted', resolvedAt: input.now },
+    };
+  });
+  if (result.ok && actors) {
+    const { actor, other } = actors as Actors;
+    const o = oath as { lord: string; vassal: string } | null;
+    if (o) {
+      const lord = o.lord === actor.id ? actor : other;
+      const vassal = o.vassal === actor.id ? actor : other;
+      await chronicleHouses(
+        deps,
+        [actor, other],
+        `neg:${result.negotiation.id}:${result.negotiation.rounds.length}:accepted`,
+        {
+          day: input.today,
+          kind: 'negotiation-accepted',
+          lord: await houseName(deps, lord),
+          vassal: await houseName(deps, vassal),
+        },
+      );
+    }
+  }
+  return result;
+}
+
+/** Odmítnutí končí jednání a spouští pauzu (odmítnutý smí znovu za 1 skutečný den). */
+export async function rejectNegotiation(
+  deps: NegotiateDeps,
+  input: { playerId: string; negotiationId: string; now: Date; today: number },
+): Promise<NegotiateResult> {
+  let actors: Actors | null = null;
+  const result = await deps.negotiations.transaction(async (tx): Promise<NegotiateResult> => {
+    const loaded = await loadForResponse(deps, tx, input.playerId, input.negotiationId);
+    if (!loaded.ok) return loaded;
+    const done = rejectRound(loaded.negotiation, loaded.actor.id, input.now);
+    if (!done.ok) return done;
+    if (!(await tx.setStatus(loaded.record.id, 'rejected', loaded.record.version, input.now))) {
+      return fail(R.finished);
+    }
+    // navrhovatelem je autor posledního kola; pauza platí pro něj vůči odmítajícímu
+    await tx.recordReject(lastAuthor(loaded.record) ?? loaded.other.id, loaded.actor.id, input.now);
+    await noticeHouse(
+      tx,
+      loaded.other,
+      'negotiation-rejected',
+      {
+        negotiationId: loaded.record.id,
+        houseId: loaded.actor.id,
+        name: await houseName(deps, loaded.actor),
+      },
+      input.today,
+    );
+    actors = { actor: loaded.actor, other: loaded.other };
+    return {
+      ok: true,
+      negotiation: { ...loaded.record, status: 'rejected', resolvedAt: input.now },
+    };
+  });
+  if (result.ok && actors)
+    await chronicleStep(deps, actors, result.negotiation, 'rejected', input.today);
+  return result;
+}
+
+/** Stažení posledního kola – smí jen jeho autor, dokud druhý neodpověděl. */
+export async function withdrawNegotiation(
+  deps: NegotiateDeps,
+  input: { playerId: string; negotiationId: string; now: Date; today: number },
+): Promise<NegotiateResult> {
+  let actors: Actors | null = null;
+  const result = await deps.negotiations.transaction(async (tx): Promise<NegotiateResult> => {
+    const loaded = await loadForResponse(deps, tx, input.playerId, input.negotiationId);
+    if (!loaded.ok) return loaded;
+    const done = withdrawRound(loaded.negotiation, loaded.actor.id, input.now);
+    if (!done.ok) return done;
+    if (!(await tx.setStatus(loaded.record.id, 'withdrawn', loaded.record.version, input.now))) {
+      return fail(R.finished);
+    }
+    await noticeHouse(
+      tx,
+      loaded.other,
+      'negotiation-withdrawn',
+      {
+        negotiationId: loaded.record.id,
+        houseId: loaded.actor.id,
+        name: await houseName(deps, loaded.actor),
+      },
+      input.today,
+    );
+    actors = { actor: loaded.actor, other: loaded.other };
+    return {
+      ok: true,
+      negotiation: { ...loaded.record, status: 'withdrawn', resolvedAt: input.now },
+    };
+  });
+  if (result.ok && actors)
+    await chronicleStep(deps, actors, result.negotiation, 'withdrawn', input.today);
+  return result;
+}
+
+export type { NegotiationResult };
