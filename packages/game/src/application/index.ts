@@ -45,6 +45,7 @@ export * from './locks';
 export * from './world-queue';
 export * from './advance-world';
 export * from './player-villages';
+export * from './rights';
 export * from './player-time';
 export * from './invites';
 export * from './vassalages';

@@ -609,3 +609,29 @@ Porážka (návrh `slaughter`): klipy `butcher` (`gather_meat` + nůž, klek), `
 - **Děti s řehtačkou:** výrostci (`YOUNGSTERS`) po pasácích, jedno na hlídaný díl (nejvýš 4) –
   úloha `watch`, panel „hlídá pole“. Chodí s řehtačkou zvednutou v pravé ruce (`walk-rattle`,
   na koncích `idle-rattle`); pěší lovec nese cestou oštěp (`walk-spear`).
+
+## Seniorát a práva ve vsích rodu (seniorate.md – Seniorát; Martin 2. 11. 2026: „Jen se dívat“)
+
+- **Senior** = `dynastySenior(villages, day)` (`domain/village/seniority.ts`): nejstarší žijící muž
+  rodu (`isLineMan`) ze všech živých vsí rodu, shoda – nižší `bornDay`, pak id osoby, pak id vsi.
+  Čistá funkce stavů vsí, nic se neukládá do simulace.
+- **Práva:** `application/rights.ts`. `villageRights(ctx)` (čistá) dá množinu `VillageRight` a důvod:
+  vlastní ves (`House.lord.villageId`), ves bez vojvody a hráč před převodem (bez `House.lord`) –
+  `ALL_RIGHTS`; senior v cizí vsi rodu – `build`, `veto`, `evacuate` (důvod `ledBy(vojvoda)` =
+  „Ves vede …“); nesenior v cizí vsi – nic (`decidesSenior(senior)` = „Rozhoduje …“). Jméno bez
+  jména: „Vojvoda“, „Senior rodu“.
+- **`requireRight(deps, { playerId, villageId, right, today })`** nahrazuje `findPlayerVillage`
+  v akcích: vrátí `PlayerVillage`, nebo důvod česky. Stavy ostatních vsí rodu načte, jen když
+  na nich záleží (cizí ves s vojvodou) – ve vlastní vsi je to jeden dotaz na rod.
+- **Akce → právo:** `ACTION_RIGHTS` (stejný soubor). Use-casy hráče neznají, ověřuje je vstupní
+  bod: `apps/web/lib/village.ts` – `actOn(playerId, villageId, '<akce>', …)` a `guardedAction`
+  berou klíč `VillageAction` z `ACTION_RIGHTS`, `context()` volá `requireVillageRight`
+  (`lib/game.ts`). Nová akce nad vsí = nový klíč v `ACTION_RIGHTS` (bez něj se nepřeloží); testy
+  `rights.test.ts` (každý klíč odmítne bez práva) a `apps/web/lib/__tests__/action-rights.test.ts`
+  (žádná `…ForPlayer` mimo `actOn`, žádný nepoužitý klíč).
+- **Kronika:** druh `senior` (`types-chronicle.ts`, text v `village-view-chronicle.ts`).
+  `announceSenior` (`application/announce-senior.ts`) porovná seniora s `house.senior`
+  (sloupce `senior_village_id`, `senior_person_id`, migrace `0019_house_senior`) a při změně
+  pošle událost `chronicle` do všech živých vsí rodu (`ref` = `senior:<rod>:<den>:<ves>` – `ref`
+  je ve schránce unikátní globálně, proto i s vsí) a zapíše nového seniora (`setSenior`). Volá ho
+  `advanceDynasty` a `dynastyForVillage` (jen když jsou všechny vsi celé, ne souhrny).

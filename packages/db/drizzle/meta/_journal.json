@@ -134,6 +134,13 @@
       "when": 1793882589401,
       "tag": "0018_vassalage",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793890775533,
+      "tag": "0019_house_senior",
+      "breakpoints": true
     }
   ]
 }

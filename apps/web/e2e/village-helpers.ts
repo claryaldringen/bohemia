@@ -63,6 +63,12 @@ export async function seat(email: string): Promise<Seat> {
 export async function villageOnNextMap(
   settlementId: string,
   name: string,
+  /**
+   * Hráčovým mužem se stane vojvoda nové vsi – ta je pak jeho vlastní a v původní vsi (kopie
+   * s vojvodou) hráč, který není senior, jen se dívá (seniorate.md – Seniorát). Bez toho je nová
+   * ves cizí ves rodu.
+   */
+  options: { own?: boolean } = {},
 ): Promise<{ id: string; name: string }> {
   const [map] = await query<{ id: string }>(
     `INSERT INTO settlement (owner_id, landscape_seed, layer_versions, grid_x, grid_y)
@@ -77,6 +83,14 @@ export async function villageOnNextMap(
     [settlementId, map!.id, name],
   );
   if (!village) throw new Error('Druhá ves nevznikla.');
+  if (options.own) {
+    await query(
+      `UPDATE house SET lord_village_id = $1,
+         lord_person_id = (SELECT (state->'dynasty'->>'lordId')::int FROM village WHERE id = $1)
+       WHERE ended_at IS NULL AND player_id = (SELECT owner_id FROM settlement WHERE id = $2)`,
+      [village.id, settlementId],
+    );
+  }
   return village;
 }
 

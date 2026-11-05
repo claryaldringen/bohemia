@@ -32,7 +32,7 @@ export interface DynastyDeps {
   /** Hlášení průběhu dopočtu vsí rodu (přeskok času) – na výsledek nemá vliv. */
   onProgress?: ProgressReport;
   /** Rody – hráčův muž odejde-li na novou mapu, jeho ves se přepíše (`followPlayerLord`). */
-  houses?: Pick<HouseRepository, 'activeOf' | 'setLord'>;
+  houses?: Pick<HouseRepository, 'activeOf' | 'setLord' | 'setSenior'>;
 }
 
 export interface DynastyInput {

@@ -5,6 +5,7 @@ import {
   pendingStewardDepartures,
   type LineFacts,
 } from '../domain/village';
+import { announceSenior } from './announce-senior';
 import { advanceDynasty, DEPARTURE_ROUNDS } from './advance-dynasty';
 import { settlementLandscape } from './enter-game';
 import type { PersonRef } from './houses';
@@ -105,6 +106,15 @@ export async function dynastyForVillage(
     { houses: deps.houses, settlements: deps.settlements, villages: deps.villages },
     { playerId: input.playerId, today: input.today },
   );
+  // senior rodu: jen z celých vsí (souhrn nenese stav) – plný dopočet (`advanceDynasty`) ho hlásí
+  // i s vsemi jinými mapami
+  const full = view.villages.filter(isFullVillage);
+  if (full.length === view.villages.length) {
+    await announceSenior(
+      { houses: deps.houses, villages: deps.villages },
+      { playerId: input.playerId, villages: full, today: input.today },
+    );
+  }
   return playerLord ? { ...view, playerLord } : view;
 }
 
