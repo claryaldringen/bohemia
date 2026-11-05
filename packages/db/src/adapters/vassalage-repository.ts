@@ -1,6 +1,6 @@
 import { and, eq, isNull, or, sql } from 'drizzle-orm';
 import type { Vassalage, VassalageRepository, VassalEdge } from '@bohemia/game';
-import type { Database } from '../client';
+import type { Executor } from '../client';
 import { vassalage } from '../schema';
 
 type Row = typeof vassalage.$inferSelect;
@@ -21,7 +21,7 @@ function toVassalage(row: Row): Vassalage {
 }
 
 /** Drizzle adaptér portu VassalageRepository. */
-export function createVassalageRepository(db: Database): VassalageRepository {
+export function createVassalageRepository(db: Executor): VassalageRepository {
   const alive = isNull(vassalage.endedAt);
   return {
     async activeOf(houseId): Promise<Vassalage[]> {

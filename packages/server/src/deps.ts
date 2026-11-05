@@ -4,6 +4,7 @@ import {
   createPlayerLock,
   createActivityRepository,
   createSuccessionCreditRepository,
+  createNegotiationRepository,
   createVassalageRepository,
   createHouseRepository,
   createInviteRepository,
@@ -18,6 +19,7 @@ import {
 import type {
   ActivityRepository,
   SuccessionCreditRepository,
+  NegotiationRepository,
   VassalageRepository,
   LandscapeSource,
   Pause,
@@ -83,6 +85,8 @@ export interface GameDeps {
   invites: InviteRepository;
   /** Vazalství mezi rody (pozvaný je vazal pozvatele – `docs/code/world.md`). */
   vassalages: VassalageRepository;
+  /** Jednání mezi rody, blokování a pauza po odmítnutí (`docs/code/world.md`). */
+  negotiations: NegotiationRepository;
   /** Aktivní dny hráčů (datum v Europe/Prague). */
   activity: ActivityRepository;
   /** Kredity nástupnictví bez losu za pozvané. */
@@ -119,6 +123,7 @@ export function createGameDeps(
     notices: createNoticeRepository(db),
     invites: createInviteRepository(db),
     vassalages: createVassalageRepository(db),
+    negotiations: createNegotiationRepository(db),
     activity: createActivityRepository(db),
     successionCredits: createSuccessionCreditRepository(db),
     random: cryptoRandom(),

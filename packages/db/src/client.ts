@@ -34,3 +34,8 @@ export function createLockPool(url: string, max: number): Pool {
   pool.on('error', (error) => console.warn(`Pool zámků hráčů: ${error.message}`));
   return pool;
 }
+
+/** Transakce Drizzle – ve všem, co adaptéry používají (select, insert, update, execute), jako `Database`. */
+export type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0];
+/** Spojení, nebo transakce: adaptér nad ním běží stejně. */
+export type Executor = Database | Transaction;
