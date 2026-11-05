@@ -120,6 +120,7 @@ název). Pravidla a rozhodnutí jsou v `docs/design/`.
 | `docs/code/village-fortifications.md` | opevnění – plocha a obvod, zakulacené rohy, pás a útočiště, úseky, brány na cestách, cena podle délky                                |
 | `docs/code/worker.md`                 | worker – smyčka, odklady, spánek do dalšího dne, konfigurace, spuštění a ukončení                                                    |
 | `docs/code/world.md`                  | svět pro víc hráčů – mřížka a umístění, rod hráče, adresář rodů (co je veřejné), změřený dotaz, schránka vsi                         |
+| `docs/code/vassalage.md`              | vazalství – makrokomodity, výhled přebytku vsi a rodu, doprava dávek do cílové vsi, změřený výhled                                   |
 | `docs/code/web-ui.md`                 | server actions, dotazování na ves, rozhraní jako 0 A.D., katalog staveb, ovládání, e2e                                               |
 
 **Nová mechanika nebo změna:** zapiš ji do příslušného souboru v `docs/code/` (a pravidla do
