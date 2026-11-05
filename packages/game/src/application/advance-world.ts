@@ -2,6 +2,7 @@ import { pendingStewardDepartures } from '../domain/village';
 import { settlementLandscape } from './enter-game';
 import { loadVillage } from './load-village';
 import type { PlayerLock } from './locks';
+import { resolveSuccessionOf } from './player-succession';
 import { closeDynastyDay, type DynastyDeps } from './restart-game';
 import { settleStewardDeparturesSafely } from './settle-steward-departures';
 import type { Settlement } from './settlements';
@@ -179,6 +180,7 @@ async function closeAtDay(
     if (village) villages.push(village);
   }
   const status = await closeDynastyDay(deps, { settlements, villages, today: target });
+  if (!status.gameOver) await resolveSuccessionOf(deps, { playerId, today: target });
   return { gameOver: status.gameOver };
 }
 

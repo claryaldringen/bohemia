@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PlayerNotice } from '@bohemia/game';
 import {
+  accusativeOf,
   mergeNoticeLines,
   noticePanel,
   wantsPlayerNotices,
@@ -30,6 +31,27 @@ describe('playerNoticeLine', () => {
     expect(playerNoticeLine(notice({ kind: 'invitee-played', payload: {} })).text).toBe(
       'Pozvaný se rozehrál.',
     );
+  });
+
+  it('nástupnictví hráče: jména zemřelého a nového muže, jinak náhradní text', () => {
+    expect(
+      playerNoticeLine(
+        notice({ kind: 'player-succession', payload: { deadName: 'Bořivoj', newName: 'Ctibor' } }),
+      ).text,
+    ).toBe('Bořivoj zemřel. Hraješ za Ctibora.');
+    expect(playerNoticeLine(notice({ kind: 'player-succession', payload: {} })).text).toBe(
+      'Tvůj muž zemřel. Hraješ za dalšího muže rodu.',
+    );
+  });
+
+  it('4. pád jmen rodu', () => {
+    expect(['Ctibor', 'Vojta', 'Zdeněk', 'Dobeš', 'Hostivít'].map(accusativeOf)).toEqual([
+      'Ctibora',
+      'Vojtu',
+      'Zdeňka',
+      'Dobeše',
+      'Hostivíta',
+    ]);
   });
 
   it('každý druh míří na panel (zatím jen Rod a vazalové)', () => {

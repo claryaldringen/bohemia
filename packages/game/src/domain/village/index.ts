@@ -55,6 +55,7 @@ export * from './departure';
 export * from './digest';
 export * from './year-log';
 export * from './son-departure';
+export * from './player-lot';
 export * from './world-grid';
 export * from './village-site';
 export * from './fields';

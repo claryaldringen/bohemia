@@ -68,4 +68,33 @@ describe('HouseRepository (Drizzle)', () => {
     await houses.setSenior(house.id, null);
     expect((await houses.byId(house.id))?.senior).toBeNull();
   });
+
+  it('commitSuccession: souběh dvou volání pro tutéž smrt zapíše jedno, pozdější smrt projde', async () => {
+    const house = await houses.create({ playerId: 'p1', kind: 'player', createdAt: NOW });
+    const village = '33333333-3333-4333-8333-333333333333';
+    const results = await Promise.all([
+      houses.commitSuccession(house.id, {
+        deathDay: 500,
+        lord: { villageId: village, personId: 1 },
+        youngerSonDeadlineDay: 530,
+      }),
+      houses.commitSuccession(house.id, {
+        deathDay: 500,
+        lord: { villageId: village, personId: 2 },
+        youngerSonDeadlineDay: null,
+      }),
+    ]);
+    expect(results.filter(Boolean)).toHaveLength(1);
+    const stored = await houses.byId(house.id);
+    expect(stored?.successionDay).toBe(500);
+    expect(stored?.lord?.villageId).toBe(village);
+    // stejný nebo dřívější den už neprojde, pozdější ano
+    const again = { lord: { villageId: village, personId: 3 }, youngerSonDeadlineDay: null };
+    expect(await houses.commitSuccession(house.id, { deathDay: 500, ...again })).toBe(false);
+    expect(await houses.commitSuccession(house.id, { deathDay: 400, ...again })).toBe(false);
+    expect(await houses.commitSuccession(house.id, { deathDay: 900, ...again })).toBe(true);
+    const later = await houses.byId(house.id);
+    expect(later?.lord?.personId).toBe(3);
+    expect(later?.youngerSonDeadlineDay).toBeNull();
+  });
 });

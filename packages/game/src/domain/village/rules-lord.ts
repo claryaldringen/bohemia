@@ -76,3 +76,11 @@ export const LORD = {
    */
   leaveMinAge: 16,
 } as const;
+
+/**
+ * seniorate.md – Nástupnictví hráče (Martin 2. 11. 2026: „Nástupce polovinu“; 30 dní návrh
+ * Clauda): los o to, za koho hráč hraje po smrti svého muže – nástupce vsi vyhrává s podílem
+ * `successorWeight`, zbytek se dělí rovným dílem mezi mladší syny od `LORD.leaveMinAge` let;
+ * `departDays` = herních dní na volbu směru odchodu po pohřbu, než výprava vyrazí sama.
+ */
+export const PLAYER_SUCCESSION = { successorWeight: 0.5, departDays: 30 } as const;

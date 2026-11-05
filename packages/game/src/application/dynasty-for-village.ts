@@ -11,6 +11,7 @@ import { settlementLandscape } from './enter-game';
 import type { PersonRef } from './houses';
 import { loadVillage } from './load-village';
 import { ensurePlayerLord } from './player-lord';
+import { resolveSuccessionOf } from './player-succession';
 import { closeDynastyDay, type DynastyDeps, type DynastyInput } from './restart-game';
 import { settleStewardDeparturesSafely } from './settle-steward-departures';
 import type { Settlement } from './settlements';
@@ -102,6 +103,7 @@ export async function dynastyForVillage(
   // převod rozehrané hry (hráčův muž) proběhne tady: každý pohled i akce hráče prochází tudy pod
   // jeho zámkem a vsi jsou právě dopočtené a převedené na rod; po převodu je to jeden dotaz na rod
   if (!deps.houses || view.gameOver) return view;
+  await resolveSuccessionOf(deps, input);
   const playerLord = await ensurePlayerLord(
     { houses: deps.houses, settlements: deps.settlements, villages: deps.villages },
     { playerId: input.playerId, today: input.today },

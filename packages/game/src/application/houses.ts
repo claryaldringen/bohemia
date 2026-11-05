@@ -18,6 +18,10 @@ export interface House {
   lord: PersonRef | null;
   /** Naposledy zapsaný senior rodu (seniorate.md – Seniorát); null před prvním zápisem. */
   senior: PersonRef | null;
+  /** Den smrti hráčova muže, pro který už bylo nástupnictví rozhodnuto; null – dosud žádné. */
+  successionDay: number | null;
+  /** Den, do kterého má hráč za vylosovaného mladšího syna zvolit odchod; null – nic nečeká. */
+  youngerSonDeadlineDay: number | null;
 }
 
 /** Port repozitáře rodů. */
@@ -36,4 +40,14 @@ export interface HouseRepository {
   setLord(houseId: string, lord: PersonRef | null): Promise<void>;
   /** Zapíše, nebo (null) vymaže naposledy hlášeného seniora rodu. */
   setSenior(houseId: string, senior: PersonRef | null): Promise<void>;
+  /**
+   * Podmíněný zápis nástupnictví hráče po smrti muže ve dni `deathDay` – jediný příkaz: jen když
+   * `successionDay` je null nebo menší než `deathDay`, nastaví `successionDay`, hlavu rodu
+   * `lord` a `youngerSonDeadlineDay` (null – žádný). Vrací, zda zapsal (ze souběžných volání
+   * uspěje jedno).
+   */
+  commitSuccession(
+    houseId: string,
+    input: { deathDay: number; lord: PersonRef; youngerSonDeadlineDay: number | null },
+  ): Promise<boolean>;
 }

@@ -19,7 +19,8 @@ začátku svého dne, zápis zvedá verzi vsi) – `docs/code/village-core.md`, 
   (`application/houses.ts`). Hráč má nejvýš jeden živý rod (`ended_at IS NULL`); `lord` = hlava rodu
   (ves + číslo osoby). Hráčův muž a jeho převod: `application/player-lord.ts`, viz
   `village-people.md` – „Hráčův muž a vlastní ves“. Senior rodu (`house.senior`, sloupce `senior_*`)
-  a práva ve vsích rodu: `village-people.md` – „Seniorát a práva ve vsích rodu“.
+  a práva ve vsích rodu: `village-people.md` – „Seniorát a práva ve vsích rodu“. Nástupnictví hráče po smrti jeho muže (los, kredit,
+  `house.succession_day`, upozornění `'player-succession'`): `village-people.md` – „Nástupnictví hráče“.
 
 ## Adresář rodů
 

@@ -7,6 +7,9 @@ import { user } from './auth';
  * začít znovu = rod skončí (`ended_at`, `ended_day` = herní den konce) a vznikne nový. `lord_*` =
  * osoba (ves + id osoby ve stavu vsi), která je hlavou rodu; obě kolonky se plní a mažou spolu.
  * `senior_*` = naposledy zapsaný senior rodu (kronika hlásí jeho změnu), stejně spojené kolonky.
+ * `succession_day` = den smrti hráčova muže, pro který už bylo rozhodnuto, za koho hráč hraje dál
+ * (nástupnictví hráče – idempotence); `younger_son_deadline_day` = den, do kterého má hráč za
+ * vylosovaného mladšího syna zvolit směr odchodu (jinak vyrazí výprava sama).
  */
 export const house = pgTable(
   'house',
@@ -21,6 +24,8 @@ export const house = pgTable(
     lordPersonId: integer('lord_person_id'),
     seniorVillageId: uuid('senior_village_id'),
     seniorPersonId: integer('senior_person_id'),
+    successionDay: integer('succession_day'),
+    youngerSonDeadlineDay: integer('younger_son_deadline_day'),
   },
   (table) => [
     // Hráč má nejvýš jeden živý rod – hlídá databáze, i při souběžných požadavcích.

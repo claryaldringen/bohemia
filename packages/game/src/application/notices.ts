@@ -6,7 +6,9 @@ export type PlayerNoticeKind =
   /** Pozvaný hráč přijal pozvánku a je vazalem pána (úloha 1.8). */
   | 'invite-accepted'
   /** Pozvaný hráč se rozehrál – pán se dozví, že pozvánka nepřišla vniveč (úloha 1.9). */
-  | 'invitee-played';
+  | 'invitee-played'
+  /** Hráčův muž zemřel – hráč hraje za jiného (nástupnictví hráče, úloha 2.4). */
+  | 'player-succession';
 
 /** Upozornění pro hráče – řádek ve frontě; `id` roste, na něm stojí `after`. */
 export interface PlayerNotice {
