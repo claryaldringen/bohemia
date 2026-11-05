@@ -240,6 +240,13 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `foundVillageForSettlement` sídlo s vsí odmítne (`ALREADY_FOUNDED`); `foundAnotherVillage`,
   `NEW_VILLAGE_MIN_DISTANCE_M` a `villages-apart.ts` jsou pryč – `village-site.ts` má jen
   `freeVillageSite(landscape, obstacles)` pro příjezd vsi na cestě se správcem.
+- **Rod hráče** (multiplayer-vassalage-war.md, úloha 1.3): rod = řádek tabulky `house`
+  (`packages/db/src/schema/house.ts`, port `HouseRepository` v `application/houses.ts`, adaptér
+  `house-repository.ts`, migrace `0014` převedla každého hráče s aktivním sídlem na jeden živý
+  rod). Hráč má nejvýš jeden živý rod (`ended_at IS NULL`, unikátní `house_player_alive_idx`);
+  `create` pro hráče se živým rodem vrátí ten existující. `enterGame` zajistí rod po vstupu,
+  `restartGame` živý rod ukončí (`ended_at`, `ended_day` = herní den restartu) a další `enterGame`
+  založí nový. `lord_village_id` / `lord_person_id` = hlava rodu (`setLord`).
 
 - **Odchod do nové vsi** (migration.md, fáze 3 a 4; `departure.ts`): `departVillage` – domácnosti
   vybraných obydlí odejdou celé (rodokmen – rodiče osadníků jako předci, odešlí ve staré vsi

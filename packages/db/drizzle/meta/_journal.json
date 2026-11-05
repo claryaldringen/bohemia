@@ -99,6 +99,13 @@
       "when": 1793866448440,
       "tag": "0013_shared_world_grid",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793868582041,
+      "tag": "0014_house",
+      "breakpoints": true
     }
   ]
 }

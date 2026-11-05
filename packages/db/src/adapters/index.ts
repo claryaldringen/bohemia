@@ -5,6 +5,7 @@ export {
   playerLockHash,
   type PlayerLockOptions,
 } from './player-lock';
+export { createHouseRepository } from './house-repository';
 export { createSettlementRepository } from './settlement-repository';
 export { createTimeOffsetRepository } from './time-offset-repository';
 export { createVillageRepository } from './village-repository';

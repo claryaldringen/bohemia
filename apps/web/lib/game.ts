@@ -1,5 +1,6 @@
 import 'server-only';
 import {
+  createHouseRepository,
   createSettlementRepository,
   createTimeOffsetRepository,
   createVillageRepository,
@@ -48,7 +49,13 @@ const landscapes = cachedLandscapes(LANDSCAPE_CACHE_SIZE);
  */
 export function enterGameForPlayer(playerId: string): Promise<EnterGameResult> {
   return enterGame(
-    { settlements: createSettlementRepository(getDatabase()), worldSeed: worldSeed(), landscapes },
+    {
+      settlements: createSettlementRepository(getDatabase()),
+      houses: createHouseRepository(getDatabase()),
+      now: () => new Date(),
+      worldSeed: worldSeed(),
+      landscapes,
+    },
     playerId,
   );
 }

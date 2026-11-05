@@ -6,7 +6,7 @@ import {
   isVillageDormant,
   lineEndDay,
 } from '../domain/village';
-import { enterGame, settlementLandscape } from './enter-game';
+import { enterGame, settlementLandscape, type EnterGameDeps } from './enter-game';
 import { loadVillage } from './load-village';
 import { updateVillage } from './update-village';
 import type { LandscapeSource, Settlement, SettlementRepository } from './settlements';
@@ -178,7 +178,7 @@ export type RestartGameResult =
  * druhý souběžný nebo opakovaný restart už proběhl), vrátí jeho sídlo beze změny.
  */
 export async function restartGame(
-  deps: DynastyDeps & { worldSeed: number },
+  deps: DynastyDeps & EnterGameDeps,
   input: RestartGameInput,
 ): Promise<RestartGameResult> {
   const status = await dynastyStatus(deps, input);
@@ -189,6 +189,9 @@ export async function restartGame(
   // hráč bez vsi
   if (status.villages.length > 0) {
     for (const settlement of status.settlements) await deps.settlements.archive(settlement.id);
+    // rod skončil – `enterGame` níže založí nový (staré dohody zanikly vymřením)
+    const house = await deps.houses.activeOf(input.playerId);
+    if (house) await deps.houses.end(house.id, deps.now(), input.today);
   }
   const { settlement, landscape } = await enterGame(deps, input.playerId);
   return { ok: true, settlement, landscape };
