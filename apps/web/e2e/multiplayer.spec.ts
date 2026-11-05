@@ -7,6 +7,7 @@ import { found, newPlayer, pollVillage, query, villageSpots } from './village-he
 // upozornění a vazala v panelu „Rod a vazalové“; cizí hráč bez pozvánky vidí oba v seznamu hráčů.
 
 const SCREENSHOT = process.env.HOUSE_PANEL_SCREENSHOT;
+const NEGOTIATION_SCREENSHOT = process.env.NEGOTIATION_SCREENSHOT;
 
 async function openHousePanel(page: Page): Promise<ReturnType<Page['getByRole']>> {
   const panel = page.getByRole('dialog', { name: 'Rod a vazalové' });
@@ -85,4 +86,117 @@ test('pozvánka: pozvaný je vazal, pozvatel má vazala a upozornění, cizí hr
   if (SCREENSHOT) await a.screenshot({ path: SCREENSHOT });
 
   await Promise.all([ctxA.close(), ctxB.close(), ctxC.close()]);
+});
+
+/** Obnoví panel (data se načítají při otevření): zavře ho a otevře znovu. */
+async function reopenHousePanel(page: Page): Promise<ReturnType<Page['getByRole']>> {
+  const panel = page.getByRole('dialog', { name: 'Rod a vazalové' });
+  if (await panel.isVisible()) await page.getByRole('button', { name: 'Rod a vazalové' }).click();
+  return openHousePanel(page);
+}
+
+async function houseIdOf(email: string): Promise<string> {
+  const [row] = await query<{ id: string }>(
+    `SELECT h.id FROM house h JOIN "user" u ON u.id = h.player_id
+      WHERE u.email = $1 AND h.ended_at IS NULL`,
+    [email],
+  );
+  if (!row) throw new Error(`Hráč ${email} nemá rod.`);
+  return row.id;
+}
+
+/** Klikne na cizího hráče v seznamu a vrátí lištu jeho akcí. */
+async function pickPlayer(
+  panel: ReturnType<Page['getByRole']>,
+  houseId: string,
+): Promise<ReturnType<Page['getByTestId']>> {
+  await panel.locator(`[data-testid="house-other"][data-house-id="${houseId}"]`).click();
+  const actions = panel.getByTestId('house-actions');
+  await expect(actions).toBeVisible();
+  return actions;
+}
+
+async function send(panel: ReturnType<Page['getByRole']>, message: string): Promise<void> {
+  await panel.getByTestId('terms-message').fill(message);
+  await panel.getByTestId('terms-submit').click();
+}
+
+test('jednání: nabídka, protinávrh, přijetí; odmítnutí s pauzou; blokování', async ({
+  browser,
+}) => {
+  test.setTimeout(240_000);
+  await query(`UPDATE house SET ended_at = now() WHERE ended_at IS NULL`, []);
+  const ctxs = await Promise.all([
+    browser.newContext(),
+    browser.newContext(),
+    browser.newContext(),
+  ]);
+  for (const ctx of ctxs) await useUniqueClientIp(ctx);
+  const [a, b, c] = (await Promise.all(ctxs.map((ctx) => ctx.newPage()))) as [Page, Page, Page];
+  for (const page of [a, b, c]) await page.setViewportSize({ width: 1280, height: 720 });
+  const emailA = await registerAndEnterGame(a, 'jedna');
+  const emailB = await registerAndEnterGame(b, 'jednb');
+  const emailC = await registerAndEnterGame(c, 'jednc');
+  const idB = await houseIdOf(emailB);
+  const idC = await houseIdOf(emailC);
+  const idA = await houseIdOf(emailA);
+
+  // A nabídne vazalství B (pečeť + vzkaz); do dokončení odpovědi je nabídka zašedlá
+  const panelA = await openHousePanel(a);
+  const barA = await pickPlayer(panelA, idB);
+  await barA.getByTestId('house-offer').click();
+  await send(panelA, 'Pojď pod můj prapor');
+  await expect(panelA.getByTestId('house-negotiation')).toHaveAttribute('data-my-turn', 'false');
+  await expect(panelA.getByTestId('negotiation-withdraw')).toBeVisible();
+  await pickPlayer(panelA, idB);
+  await expect(panelA.getByTestId('house-offer')).toBeDisabled();
+  await expect(panelA.getByTestId('house-offer')).toHaveAttribute('data-reason', 'Jednáte už.');
+
+  // B vidí nabídku se vzkazem a dá protinávrh
+  const panelB = await reopenHousePanel(b);
+  const cardB = panelB.getByTestId('house-negotiation');
+  await expect(cardB).toHaveAttribute('data-my-turn', 'true');
+  await expect(cardB.getByTestId('house-negotiation-message')).toHaveText('Pojď pod můj prapor');
+  await b.mouse.move(0, 400);
+  if (NEGOTIATION_SCREENSHOT) await b.screenshot({ path: NEGOTIATION_SCREENSHOT });
+  await cardB.getByTestId('negotiation-counter').click();
+  await send(panelB, 'Souhlasím, ale pamatuj na mě');
+
+  // A přijme protinávrh → B má A v pánech, A má B ve vazalech
+  const panelA2 = await reopenHousePanel(a);
+  await expect(panelA2.getByTestId('house-negotiation')).toHaveAttribute('data-my-turn', 'true');
+  await panelA2.getByTestId('negotiation-accept').click();
+  await expect(panelA2.getByTestId('house-vassal')).toHaveCount(1);
+  await expect(panelA2.getByTestId('house-negotiation')).toHaveCount(0);
+  const panelB2 = await reopenHousePanel(b);
+  await expect(panelB2.getByTestId('house-lord')).toHaveCount(1);
+  await expect(panelB2.getByTestId('house-independent')).toHaveCount(0);
+
+  // A nabídne vazalství C; C odmítne → A má pauzu a u kurzoru důvod
+  const panelA3 = await reopenHousePanel(a);
+  const barA3 = await pickPlayer(panelA3, idC);
+  await barA3.getByTestId('house-offer').click();
+  await send(panelA3, 'Přidej se');
+  const panelC = await reopenHousePanel(c);
+  await expect(panelC.getByTestId('house-negotiation')).toHaveAttribute('data-my-turn', 'true');
+  await panelC.getByTestId('negotiation-reject').click();
+  await expect(panelC.getByTestId('house-negotiation')).toHaveCount(0);
+  const panelA4 = await reopenHousePanel(a);
+  const barA4 = await pickPlayer(panelA4, idC);
+  await expect(barA4.getByTestId('house-offer')).toBeDisabled();
+  await barA4.getByTestId('house-offer').hover({ force: true });
+  await expect(
+    barA4.getByTestId('house-offer').locator('xpath=..').getByTestId('rights-reason'),
+  ).toHaveText('Odmítl – zkus zítra.');
+
+  // C zablokuje A → A vidí „Zablokoval tě.“ (blokování má přednost před pauzou)
+  const panelC2 = await reopenHousePanel(c);
+  const barC = await pickPlayer(panelC2, idA);
+  await barC.getByTestId('house-block').click();
+  const panelA5 = await reopenHousePanel(a);
+  const barA5 = await pickPlayer(panelA5, idC);
+  await expect(barA5.getByTestId('house-offer')).toHaveAttribute('data-reason', 'Zablokoval tě.');
+  await expect(barA5.getByTestId('house-request')).toHaveAttribute('data-reason', 'Zablokoval tě.');
+
+  await Promise.all(ctxs.map((ctx) => ctx.close()));
 });

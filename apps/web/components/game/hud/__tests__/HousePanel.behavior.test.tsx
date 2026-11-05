@@ -23,6 +23,8 @@ const link = (houseId: string, over: Partial<HouseLinkView> = {}): HouseLinkView
 });
 const VIEW: HouseView = {
   hasHouse: true,
+  ownHouseId: 'h-me',
+  negotiations: [],
   own: [
     {
       icon: 'elder',

@@ -192,6 +192,13 @@ Port `NegotiationRepository` (`application/negotiations.ts`), adaptér `db/adapt
 - `tx.vassalages` a `tx.notices` jsou stejné adaptéry (`createVassalageRepository`, `createNoticeRepository` přijímají spojení i transakci, typ `Executor`) nad toutéž transakcí – dohoda a upozornění z přijetí se potvrdí nebo vrátí společně se stavem jednání.
 - Testy: `adapters/__tests__/negotiation-repository.db.test.ts`.
 
+### Jednání v panelu (úloha 3.4)
+
+`housePanel` (`HousePanelDeps.negotiations`) přidává `negotiations` (otevřená jednání rodu, `myTurn`
+= `respondingHouse` je hráčův rod) a `actions` (u každého rodu v `others` důvody `canOpen` pro
+nabídku a žádost, `blockedByMe`) – rozhodnutí zůstává v jádře. Rozhraní: [web-ui.md](web-ui.md) –
+Jednání v panelu Rod a vazalové.
+
 ### Use-casy jednání (úloha 3.3)
 
 `application/negotiate.ts`, `negotiation-effects.ts`, `negotiation-chronicle.ts`, `blocks.ts`. Hráč jedná za svůj **živý rod** (`houses.activeOf`), `to` / `target` jsou id rodů. Každý use-case běží v jedné `negotiations.transaction`; zámek hráče se nebere.

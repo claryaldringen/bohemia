@@ -7,6 +7,8 @@ import { InMemoryCredits } from './in-memory-credits';
 import { InMemoryActivity } from './in-memory-activity';
 import { InMemoryHouses } from './in-memory-houses';
 import { InMemoryInvites } from './in-memory-invites';
+import { InMemoryNegotiations } from './in-memory-negotiations';
+import { InMemoryNotices } from './in-memory-notices';
 import { InMemorySettlements } from './in-memory-settlements';
 import { InMemoryVassalages } from './in-memory-vassalages';
 import { InMemoryWorldDirectory } from './in-memory-world-directory';
@@ -39,7 +41,9 @@ async function setup() {
   const vassalages = new InMemoryVassalages();
   const invites = new InMemoryInvites();
   const activity = new InMemoryActivity();
+  const negotiations = new InMemoryNegotiations(vassalages, new InMemoryNotices(), () => NOW);
   const deps: HousePanelDeps = {
+    negotiations,
     houses,
     settlements,
     worldDirectory,
@@ -69,7 +73,7 @@ async function setup() {
     });
     return house;
   };
-  return { deps, make, vassalages, invites, activity };
+  return { deps, make, vassalages, invites, activity, negotiations };
 }
 
 describe('housePanel', () => {
@@ -141,5 +145,36 @@ describe('housePanel', () => {
       await activity.record('guest', `2026-11-0${d + 1}`);
     data = await housePanel(deps, { playerId: 'me', today: TODAY });
     expect(data.invites[1]).toMatchObject({ played: true });
+  });
+  it('jednání: kdo je na tahu a důvody zašednutí tlačítek u cizích hráčů', async () => {
+    const { deps, make, negotiations } = await setup();
+    const me = await make('me', 0, 0, [30]);
+    const a = await make('a', 1, 0, [33]);
+    const b = await make('b', 2, 0, [33]);
+    const c = await make('c', 3, 0, [33]);
+    const oath = { kind: 'oath' as const, lord: me.id, vassal: a.id };
+    await negotiations.transaction((tx) =>
+      tx.open({
+        initiatorHouseId: me.id,
+        recipientHouseId: a.id,
+        round: { authorHouseId: me.id, items: [oath], message: 'Pojď', at: NOW },
+      }),
+    );
+    await negotiations.transaction(async (tx) => {
+      await tx.setBlock(b.id, me.id, true, NOW);
+      await tx.recordReject(me.id, c.id, NOW);
+    });
+    const data = await housePanel(deps, { playerId: 'me', today: TODAY });
+    expect(data.negotiations).toHaveLength(1);
+    expect(data.negotiations[0]).toMatchObject({ myTurn: false, message: 'Pojď', rounds: 1 });
+    expect(data.negotiations[0]?.other.houseId).toBe(a.id);
+    expect(data.actions[a.id]?.offer).toBe('Jednáte už.');
+    expect(data.actions[b.id]).toMatchObject({
+      offer: 'Zablokoval tě.',
+      request: 'Zablokoval tě.',
+    });
+    expect(data.actions[c.id]).toMatchObject({ offer: 'Odmítl – zkus zítra.' });
+    const theirs = await housePanel(deps, { playerId: 'a', today: TODAY });
+    expect(theirs.negotiations[0]?.myTurn).toBe(true);
   });
 });

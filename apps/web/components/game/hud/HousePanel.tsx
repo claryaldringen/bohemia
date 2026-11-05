@@ -1,12 +1,18 @@
 'use client';
 
 import { useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
+import type { TermItem } from '@bohemia/game';
 import type { HouseLinkView, HouseView, InviteView, PortraitView } from '@/lib/house-view';
+import { openingTerms, termRows } from '@/lib/negotiation-view';
+import { NegotiationCard, type NegotiationReply } from './NegotiationCard';
+import { TermsForm } from './TermsForm';
 import { Tooltip } from './Tooltip';
 
 // Panel „Rod a vazalové“ – první verze (vassalage.md – Co hráč vidí): rod, páni, vazalové, hráči
 // podle vzdálenosti a pozvánky. Jako v 0 A.D. jen ikony s čísly, slova v popiscích; výjimkou je
-// pozvánkový kód a odkaz (text). Jednání, podmínky a tlačítka akcí přijdou v dalších fázích.
+// pozvánkový kód a odkaz (text) a vzkaz v jednání (text hráče). Klik na hráče nabídne Nabídnout
+// vazalství / Požádat o přijetí / Blokovat (zašedlé s důvodem u kurzoru), otevřená jednání mají
+// kartu s tlačítky podle role (NegotiationCard).
 
 const ICON = '/icons/house';
 
@@ -112,20 +118,28 @@ function HouseLink({
   house,
   testId,
   tip,
+  selected,
+  onClick,
 }: {
   house: HouseLinkView;
   testId: string;
   tip?: string;
+  /** Hráč je vybraný (zvýrazněný rámeček). */
+  selected?: boolean;
+  /** Klik na rod (seznam hráčů); bez něj jde jen o náhled. */
+  onClick?: () => void;
 }): ReactElement {
   const label = tip ? `${house.label} – ${tip}` : house.label;
+  const Wrapper = onClick ? 'button' : 'span';
   return (
     <Tooltip content={label}>
-      <span
-        tabIndex={0}
+      <Wrapper
+        {...(onClick ? { type: 'button' as const, onClick } : { tabIndex: 0 })}
         aria-label={label}
+        aria-pressed={onClick ? selected === true : undefined}
         data-testid={testId}
         data-house-id={house.houseId}
-        className="relative inline-flex"
+        className={`relative inline-flex rounded-sm ${selected ? 'outline-2 outline-[#f3cf86]' : ''}`}
       >
         <Portrait icon={house.icon} />
         <span className="absolute -right-1.5 -bottom-1.5 flex h-5 w-5 items-center justify-center">
@@ -140,9 +154,48 @@ function HouseLink({
             {house.men}
           </span>
         </span>
-      </span>
+      </Wrapper>
     </Tooltip>
   );
+}
+
+/** Tlačítko akce u cizího hráče; zašedlé nese důvod u kurzoru (`denied`). */
+function PlayerAction({
+  label,
+  icon,
+  testId,
+  reason,
+  busy,
+  onClick,
+}: {
+  label: string;
+  icon: string;
+  testId: string;
+  reason: string | null;
+  busy: boolean;
+  onClick: () => void;
+}): ReactElement {
+  return (
+    <Tooltip content={label} denied={reason}>
+      <button
+        type="button"
+        aria-label={label}
+        data-testid={testId}
+        data-reason={reason ?? undefined}
+        disabled={busy || reason !== null}
+        className="hud-icon-button flex h-8 w-10 items-center justify-center"
+        onClick={onClick}
+      >
+        <Icon name={icon} size={22} />
+      </button>
+    </Tooltip>
+  );
+}
+
+/** Rozpracovaná nabídka: komu a v které roli je hráč (pán / vazal). */
+interface Draft {
+  house: HouseLinkView;
+  direction: 'offer' | 'request';
 }
 
 /** Odkaz pozvánky: absolutní adresa registrace s kódem (z adresy prohlížeče). */
@@ -236,6 +289,9 @@ export function HousePanel({
   onRevoke,
   onClose,
   onSelectVillage,
+  onOpenNegotiation,
+  onReply,
+  onBlock,
 }: {
   view: HouseView | null;
   error: string | null;
@@ -246,9 +302,18 @@ export function HousePanel({
   onClose: () => void;
   /** Klik na portrét muže rodu přepne pohled na jeho ves. */
   onSelectVillage?: (villageId: string) => void;
+  /** Odešle nabídku jednání (id rodu, podmínky, vzkaz); po ní si rodič obnoví `view`. */
+  onOpenNegotiation?: (to: string, items: TermItem[], message: string | null) => Promise<unknown>;
+  /** Odpoví na jednání (přijmout, odmítnout, stáhnout, protinávrh). */
+  onReply?: (negotiationId: string, reply: NegotiationReply) => Promise<unknown>;
+  /** Zablokuje rod. */
+  onBlock?: (houseId: string) => Promise<unknown>;
 }): ReactElement {
   const ref = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
+  // vybraný cizí hráč (tlačítka akcí) a rozpracovaná nabídka (formulář podmínek)
+  const [pickedId, setPickedId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<Draft | null>(null);
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
       if (event.code === 'Escape') onClose();
@@ -275,6 +340,11 @@ export function HousePanel({
         </div>
       ) : (
         <>
+          {error && (
+            <span data-testid="house-error" className="block pb-1 text-xs text-red-400">
+              {error}
+            </span>
+          )}
           <Row label="Rod" testId="house-own" marker={<Portrait icon="people" size={22} />}>
             {view.own.map((m, i) => (
               <Man key={i} man={m} onSelect={(id) => onSelectVillage?.(id)} />
@@ -313,6 +383,21 @@ export function HousePanel({
               ))}
             </Row>
           )}
+          {view.negotiations.length > 0 && (
+            <Row label="Jednání" testId="house-negotiations" marker={<Icon name="seal" />}>
+              <div className="flex w-full flex-col gap-2">
+                {view.negotiations.map((n) => (
+                  <NegotiationCard
+                    key={n.id}
+                    negotiation={n}
+                    busy={busy}
+                    portrait={<HouseLink house={n.other} testId="house-negotiation-other" />}
+                    onReply={(id, reply) => run(() => onReply?.(id, reply) ?? Promise.resolve())}
+                  />
+                ))}
+              </div>
+            </Row>
+          )}
           {view.others.length > 0 && (
             <Row label="Hráči" testId="house-others" marker={<Portrait icon="man" size={22} />}>
               {view.others.map((h) => (
@@ -321,8 +406,80 @@ export function HousePanel({
                   house={h}
                   testId="house-other"
                   tip={`${h.distance} ${h.distance === 1 ? 'pole' : 'polí'} daleko`}
+                  selected={pickedId === h.houseId}
+                  onClick={
+                    h.actions
+                      ? () => {
+                          setDraft(null);
+                          setPickedId(pickedId === h.houseId ? null : h.houseId);
+                        }
+                      : undefined
+                  }
                 />
               ))}
+              {view.others.map((h) =>
+                h.actions && pickedId === h.houseId ? (
+                  <div
+                    key={`actions-${h.houseId}`}
+                    data-testid="house-actions"
+                    className="flex w-full flex-col gap-1.5"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <PlayerAction
+                        label="Nabídnout vazalství"
+                        icon="seal"
+                        testId="house-offer"
+                        reason={h.actions.offer}
+                        busy={busy}
+                        onClick={() => setDraft({ house: h, direction: 'offer' })}
+                      />
+                      <PlayerAction
+                        label="Požádat o přijetí"
+                        icon="hands"
+                        testId="house-request"
+                        reason={h.actions.request}
+                        busy={busy}
+                        onClick={() => setDraft({ house: h, direction: 'request' })}
+                      />
+                      <PlayerAction
+                        label="Blokovat"
+                        icon="gate"
+                        testId="house-block"
+                        reason={h.actions.blocked ? 'Zablokován.' : null}
+                        busy={busy}
+                        onClick={() => {
+                          setPickedId(null);
+                          run(() => onBlock?.(h.houseId) ?? Promise.resolve());
+                        }}
+                      />
+                    </div>
+                    {draft && draft.house.houseId === h.houseId && (
+                      <TermsForm
+                        key={`${h.houseId}-${draft.direction}`}
+                        rows={termRows(
+                          openingTerms(draft.direction, view.ownHouseId, h.houseId),
+                          view.ownHouseId,
+                          h,
+                        )}
+                        submitLabel={
+                          draft.direction === 'offer' ? 'Nabídnout vazalství' : 'Požádat o přijetí'
+                        }
+                        submitIcon={draft.direction === 'offer' ? 'seal' : 'hands'}
+                        busy={busy}
+                        onCancel={() => setDraft(null)}
+                        onSubmit={(items, message) => {
+                          setDraft(null);
+                          setPickedId(null);
+                          run(
+                            () =>
+                              onOpenNegotiation?.(h.houseId, items, message) ?? Promise.resolve(),
+                          );
+                        }}
+                      />
+                    )}
+                  </div>
+                ) : null,
+              )}
             </Row>
           )}
           <Row label="Pozvánky" testId="house-invites" marker={<Icon name="seal" />}>
@@ -345,11 +502,6 @@ export function HousePanel({
                   </span>
                 </button>
               </Tooltip>
-              {error && (
-                <span data-testid="house-error" className="text-xs text-red-400">
-                  {error}
-                </span>
-              )}
               {view.invites.map((invite) => (
                 <InviteRow
                   key={invite.code}

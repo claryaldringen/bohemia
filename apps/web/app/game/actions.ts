@@ -7,9 +7,22 @@ import { getSession } from '@/lib/session';
 import { trimKnownSceneData, type KnownSceneData } from '@/lib/scene-routes';
 import { packViewPieces } from '@/lib/view-pieces';
 import { withVillageCache } from '@bohemia/server';
-import { housePanelForPlayer, issueInviteForPlayer, revokeInviteForPlayer } from '@/lib/house';
+import {
+  answerNegotiationForPlayer,
+  blockHouseForPlayer,
+  housePanelForPlayer,
+  issueInviteForPlayer,
+  openNegotiationForPlayer,
+  revokeInviteForPlayer,
+  type NegotiationActionResult,
+} from '@/lib/house';
 import type { HouseView } from '@/lib/house-view';
-import { parseRevokeInviteInput } from '@/lib/house-input';
+import {
+  parseBlockInput,
+  parseNegotiationAnswerInput,
+  parseOpenNegotiationInput,
+  parseRevokeInviteInput,
+} from '@/lib/house-input';
 import { parsePanelAsk, type PanelOptions } from '@/lib/panel-options';
 import {
   buildTrailForPlayer,
@@ -494,4 +507,31 @@ export async function revokeInvite(input: unknown): Promise<{ ok: true } | { err
   const parsed = parseRevokeInviteInput(input);
   if (parsed === null) return { error: INVALID_INPUT };
   return revokeInviteForPlayer(id, parsed.code);
+}
+
+/** Nabídne vazalství / požádá o přijetí: `{ to, items, message }` (id rodu, podmínky, vzkaz). */
+export async function openNegotiation(input: unknown): Promise<NegotiationActionResult> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const parsed = parseOpenNegotiationInput(input);
+  if (parsed === null) return { error: INVALID_INPUT };
+  return openNegotiationForPlayer(id, parsed);
+}
+
+/** Odpoví na jednání: `{ negotiationId, answer: accept | reject | withdraw | counter, ... }`. */
+export async function answerNegotiation(input: unknown): Promise<NegotiationActionResult> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const parsed = parseNegotiationAnswerInput(input);
+  if (parsed === null) return { error: INVALID_INPUT };
+  return answerNegotiationForPlayer(id, parsed);
+}
+
+/** Zablokuje rod: `{ target }`. */
+export async function blockHouse(input: unknown): Promise<NegotiationActionResult> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const parsed = parseBlockInput(input);
+  if (parsed === null) return { error: INVALID_INPUT };
+  return blockHouseForPlayer(id, parsed.target);
 }

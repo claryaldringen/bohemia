@@ -1,12 +1,21 @@
 import {
+  acceptNegotiation,
+  blockPlayer,
+  counterNegotiation,
   housePanel,
   issueInvite,
+  openNegotiation,
+  rejectNegotiation,
   revokeInvite,
+  withdrawNegotiation,
   type HousePanelData,
+  type NegotiateResult,
   type IssueInviteResult,
 } from '@bohemia/game';
 import { gameDeps, playerToday } from './game';
+import type { NegotiationAnswer } from './house-input';
 import { houseView, type HouseView } from './house-view';
+import type { TermItem } from '@bohemia/game';
 
 // Composition root panelu „Rod a vazalové“: use-casy nad skutečnými repozitáři. Herní logika je
 // v `packages/game` (`housePanel`, `issueInvite`, `revokeInvite`), tady se jen spojují závislosti
@@ -38,4 +47,61 @@ export async function revokeInviteForPlayer(
   return (await revokeInvite(gameDeps(), playerId, code))
     ? { ok: true }
     : { error: 'Pozvánku nejde zrušit.' };
+}
+
+/** Výsledek akce jednání pro klienta: `{ ok }`, nebo důvod odmítnutí česky. */
+export type NegotiationActionResult = { ok: true } | { error: string };
+
+const outcome = (result: { ok: true } | { ok: false; reason: string }): NegotiationActionResult =>
+  result.ok ? { ok: true } : { error: result.reason };
+
+/** Hráč za svůj rod otevře jednání s rodem `to` (nabídka vazalství nebo žádost o přijetí). */
+export async function openNegotiationForPlayer(
+  playerId: string,
+  input: { to: string; items: TermItem[]; message: string | null },
+): Promise<NegotiationActionResult> {
+  const today = await playerToday(playerId);
+  if (!today.ok) return { error: today.error };
+  const result: NegotiateResult = await openNegotiation(gameDeps(), {
+    playerId,
+    ...input,
+    now: new Date(),
+    today: today.day,
+  });
+  return outcome(result);
+}
+
+/** Odpověď na jednání: přijmout, odmítnout, stáhnout, nebo protinávrh. */
+export async function answerNegotiationForPlayer(
+  playerId: string,
+  input: NegotiationAnswer,
+): Promise<NegotiationActionResult> {
+  const today = await playerToday(playerId);
+  if (!today.ok) return { error: today.error };
+  const base = { playerId, negotiationId: input.negotiationId, now: new Date(), today: today.day };
+  const deps = gameDeps();
+  switch (input.answer) {
+    case 'accept':
+      return outcome(await acceptNegotiation(deps, base));
+    case 'reject':
+      return outcome(await rejectNegotiation(deps, base));
+    case 'withdraw':
+      return outcome(await withdrawNegotiation(deps, base));
+    case 'counter':
+      return outcome(
+        await counterNegotiation(deps, { ...base, items: input.items, message: input.message }),
+      );
+  }
+}
+
+/** Hráč za svůj rod zablokuje rod `target`. */
+export async function blockHouseForPlayer(
+  playerId: string,
+  target: string,
+): Promise<NegotiationActionResult> {
+  const today = await playerToday(playerId);
+  if (!today.ok) return { error: today.error };
+  return outcome(
+    await blockPlayer(gameDeps(), { playerId, target, now: new Date(), today: today.day }),
+  );
 }
