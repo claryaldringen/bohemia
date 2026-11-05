@@ -2,6 +2,7 @@
 // Rozcestník je `types.ts`; tento soubor jen drží část typů.
 
 import type { Craft } from './types-crafts';
+import type { FortBuildWork, FortSegmentWork } from './fortification/types';
 import type { AbandonedStructure, Crop } from './types-land';
 import type { HorseGood } from './types-trade';
 import type { TradedHorse } from './types-livestock';
@@ -33,7 +34,12 @@ export type ConstructionKind =
    * Oprava stavby, ke které se zase chodí (abandonment.md – Oprava): modla, svatyně, plot
    * hřbitova a ohrada v `repair` – vesničané ji založí sami ze společné práce.
    */
-  | 'repair';
+  | 'repair'
+  /**
+   * Opevnění (fortifications.md – Cena a stavba): stavba, vylepšení nebo nástavba opevnění
+   * `fortificationId` po úsecích (`fortSegments`) – co dělá, říká `fortWork`.
+   */
+  | 'fortification';
 /**
  * Co může vzít půdu poli (fields.md – Pole jako krajina; Martin 18. 10. 2026): obydlí (i dílna),
  * sad, hřbitov, ohrada, modla, svatyně, jabloně u cesty a stromy u cesty – cokoli kromě pole.
@@ -50,7 +56,9 @@ export type LandTaker =
   /** Pevná cesta přes pole – pás, rozcestí a oddělené kousky (roads.md – Cesta přes pole). */
   | 'road'
   /** Humno (production-chains.md – Humno). */
-  | 'threshing-floor';
+  | 'threshing-floor'
+  /** Val s příkopem (fortifications.md – Obvod: val díl pole nebo sadu pod sebou vezme). */
+  | 'fortification';
 /** Posvátná stavba, kterou staví hráč (happiness.md). */
 export type SacredBuildingKind = 'idol' | 'shrine';
 /**
@@ -142,6 +150,18 @@ export interface Construction {
    * „postavil správce“ pak nepřejde na celek (steward.md – Stav správce). Jinak chybí.
    */
   extends?: true;
+  /** Opevnění (fortifications.md), které stavba `fortification` staví; u ostatních chybí. */
+  fortificationId?: number;
+  /** Co stavba opevnění dělá – stavba, vylepšení, nástavba (přestavba a obnova později). */
+  fortWork?: FortBuildWork;
+  /** Přestavba jednoho úseku (`rebuild` – další úlohy F5); jinak chybí. */
+  segmentIndex?: number;
+  /**
+   * Úseky stavby opevnění v pořadí práce (od brány nejblíž dvorci po směru hodin) a práce každého
+   * (čd). Práce stavby jde napřed do kácení dřeva (`wood`), pak do úseků jeden po druhém – úsek je
+   * hotový, když práce stavby přejde jeho konec (`workFortification`).
+   */
+  fortSegments?: FortSegmentWork[];
 }
 /**
  * Oprava stavby (abandonment.md – Oprava): druh a id stavby (modla a svatyně – id stavby,

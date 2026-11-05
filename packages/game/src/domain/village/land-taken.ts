@@ -213,8 +213,10 @@ export function giveWayToBuilding(
   if (taken.length === 0) return;
   const byCell = new Map(taken.map((t) => [takenKey(t), t]));
   const fieldLoss = shrinkParts(state, day, byCell);
-  // sad ustupuje jen obydlí (population.md) – ostatní stavby na sad nesmí
-  const orchardLoss = by === 'dwelling' ? shrinkOrchards(state, day, byCell) : new Map();
+  // sad ustupuje jen obydlí (population.md) a valu (fortifications.md – Obvod) – ostatní stavby
+  // na sad nesmí
+  const orchardLoss =
+    by === 'dwelling' || by === 'fortification' ? shrinkOrchards(state, day, byCell) : new Map();
   const events: ChronicleEvent[] = [];
   for (const [id, areaM2] of [...fieldLoss].sort((a, b) => a[0] - b[0])) {
     const gone = !state.parts.some((p) => p.fieldId === id);

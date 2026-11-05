@@ -177,6 +177,7 @@ function finishedText(kind: ConstructionKind, craft?: Craft, wagon?: boolean): s
   if (kind === 'road') return 'Cesta je vylepšená – chodí se po ní rychleji.';
   if (kind === 'road-apples') return 'Jabloně podél cesty jsou vysazené.';
   if (kind === 'threshing-floor') return 'Humno je dostavěné – dá se na něm mlátit.';
+  if (kind === 'fortification') return 'Opevnění je dostavěné.';
   return 'Pole je založené – dá se osévat.';
 }
 
@@ -190,6 +191,7 @@ function cancelledText(kind: ConstructionKind, craft?: Craft): string {
   if (kind === 'pen') return 'Stavba ohrady se zrušila.';
   if (kind === 'threshing-floor') return 'Stavba humna se zrušila.';
   if (kind === 'field') return 'Zakládání pole se zrušilo.';
+  if (kind === 'fortification') return 'Stavba opevnění se zrušila – hotové úseky stojí.';
   return 'Stavba se zrušila.';
 }
 
@@ -206,6 +208,7 @@ const LAND_TAKERS: Record<LandTaker, string> = {
   'road-trees': 'stromům u cesty',
   road: 'cestě',
   'threshing-floor': 'humnu',
+  fortification: 'valu',
 };
 
 /** Počasí roku kraje, které se právě ukázalo (disasters.md – Léto, Zima). */
@@ -697,6 +700,7 @@ export function constructionLabel(c: ConstructionSummary): string {
   if (c.kind === 'road') return 'Úprava cesty';
   if (c.kind === 'road-apples') return 'Jabloně u cesty';
   if (c.kind === 'threshing-floor') return 'Humno';
+  if (c.kind === 'fortification') return 'Opevnění';
   if (c.kind === 'repair') return `Oprava – ${REPAIR_NAMES[c.repair?.structure ?? 'idol']}`;
   const type = c.dwellingType ?? 'zemnice';
   if (c.kind === 'rebuild') return `Přestavba na ${DWELLING_NAMES[type].accusative}`;

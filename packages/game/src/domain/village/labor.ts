@@ -455,6 +455,10 @@ export interface AfterConstructions {
   left: number;
 }
 
+// Robota hostů (fortifications.md – Cena a stavba, vassalage.md – Lidé a robota): práce lidí na
+// robotě půjde napřed do rozestavěného opevnění vsi, zbytek do společné práce – až Ú4.5
+// (`VillageState.guests` zatím neexistuje), dnes jde všechna práce staveb rovným dílem (`build`).
+
 /**
  * Práce, kterou stavby nespotřebovaly (`left`), jde do oprav obydlí podle potřeby (Martin
  * 19. 10. 2026: „Opravy obydlí zařaď až za stavbu.“); zbytek vrátí.

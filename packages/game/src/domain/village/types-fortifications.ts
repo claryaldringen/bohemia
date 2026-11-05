@@ -4,3 +4,10 @@
 export type FortKind = 'fence' | 'palisade' | 'rampart';
 /** Nástavba na koruně valu (fortifications.md – Druhy): plot, nebo palisáda. */
 export type FortTop = 'fence' | 'palisade';
+
+export type {
+  FortBuildWork,
+  FortSegment,
+  FortSegmentWork,
+  Fortification,
+} from './fortification/types';

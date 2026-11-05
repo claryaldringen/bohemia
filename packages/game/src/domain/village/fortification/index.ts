@@ -12,3 +12,4 @@ export {
 export * from './segments';
 export * from './gates';
 export * from './cost';
+export * from './band';

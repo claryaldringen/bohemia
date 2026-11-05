@@ -1,6 +1,7 @@
 import { validateActionDay } from './actions';
 import { refundHorsePen } from './horse-pen-payment';
 import { villageCemeteries } from './cemetery';
+import { dropFortificationWork } from './fortifications';
 import { villageOrchards } from './orchard';
 import { villagePens } from './oxen';
 import { returnConstructionWood } from './relocation';
@@ -21,7 +22,7 @@ const DAYS_PER_YEAR = 365;
 // odstraněné překážky a pole či sady, které stavba zmenšila, propadnou. Návrh Claude: automatické
 // stavby vesničanů (přestavba, obnova sadu, oprava, rádlo), zemská stezka a první zemnice
 // zakladatelů se nerozhodují zde. Rozdělaná úprava cesty a vozová cesta (Úloha 10b plánu cest v2)
-// se zruší tak, že hotové úseky zůstanou.
+// se zruší tak, že hotové úseky zůstanou, stejně jako opevnění (fortifications.md).
 
 /** Druhy staveb, které hráč zakládá a jde je zrušit. */
 const CANCELLABLE: ReadonlySet<ConstructionKind> = new Set([
@@ -34,6 +35,7 @@ const CANCELLABLE: ReadonlySet<ConstructionKind> = new Set([
   'pen',
   'threshing-floor',
   'road',
+  'fortification',
 ]);
 
 /** Důvod, proč stavbu zrušit nejde; null = jde. */
@@ -74,6 +76,9 @@ function dropSite(next: VillageState, c: Construction): void {
   } else if (c.kind === 'road') {
     if (c.earthwork !== undefined) dropWagonRoad(next, c);
     else dropRoadUpgrade(next, c);
+  } else if (c.kind === 'fortification') {
+    // hotové úseky stojí, nehotové zmizí (fortifications.md – Cena a stavba)
+    dropFortificationWork(next, c);
   }
 }
 
