@@ -1,0 +1,1 @@
+ALTER TABLE "house" ADD COLUMN "last_ennoble_year" integer;

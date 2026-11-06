@@ -8,12 +8,16 @@ import {
   pollVillage,
   query,
   readyScene,
+  villageOnNextMap,
   villageSpots,
   villageState,
+  writeVillageState,
 } from './village-helpers';
 
 // Víc hráčů ve světě (vassalage.md): pozvánka → pozvaný je vazal pozvatele, pozvatel dostane
 // upozornění a vazala v panelu „Rod a vazalové“; cizí hráč bez pozvánky vidí oba v seznamu hráčů.
+
+type VillageStateJson = Awaited<ReturnType<typeof villageState>>;
 
 const SCREENSHOT = process.env.HOUSE_PANEL_SCREENSHOT;
 const NEGOTIATION_SCREENSHOT = process.env.NEGOTIATION_SCREENSHOT;
@@ -629,4 +633,84 @@ test('správa cizí vsi: A svěří B ves, B v ní postaví pole, A ho odvolá �
   expect((await villageState(seatA.settlementId)).fields).toHaveLength(1);
 
   await Promise.all(ctxs.map((ctx) => ctx.close()));
+});
+
+test('povýšení vesničana: hráč povýší rolníka pro druhou ves bez vojvody → NPC vazal v panelu rodu a ves má klíč', async ({
+  browser,
+}) => {
+  test.setTimeout(240_000);
+  await query(`UPDATE house SET ended_at = now() WHERE ended_at IS NULL`, []);
+  const ctx = await browser.newContext();
+  await useUniqueClientIp(ctx);
+  const page = await ctx.newPage();
+  await page.setViewportSize({ width: 1280, height: 720 });
+  const { email, seat: seatA } = await newPlayer(page, 'povyseni');
+  await found(page, villageSpots(seatA.landscape).dwelling, 'Bořivoj');
+  const houseId = await houseIdOf(email);
+
+  // druhá ves hráče je bez vojvody (přímý zápis do bohemia_test) a čeká na vojvodu
+  const second = await villageOnNextMap(seatA.settlementId, 'Lhota');
+  const [secondRow] = await query<{ settlement_id: string }>(
+    `SELECT settlement_id FROM village WHERE id = $1`,
+    [second.id],
+  );
+  const waiting = await query<{ state: VillageStateJson }>(
+    `SELECT state FROM village WHERE id = $1`,
+    [second.id],
+  );
+  const empty = waiting[0]!.state;
+  for (const p of empty.people) delete p.line;
+  empty.dynasty = {
+    lordId: null,
+    lords: [{ id: 1, fromDay: 0, toDay: empty.lastDay }],
+    endedDay: empty.lastDay,
+  };
+  empty.awaitingLord = { sinceDay: empty.lastDay };
+  await writeVillageState(secondRow!.settlement_id, empty);
+
+  // v první vsi přibude dospělý rolník (muž mimo rod vojvody)
+  const state = await villageState(seatA.settlementId);
+  const lord = state.people.find((p) => p.id === state.dynasty!.lordId)!;
+  const farmerId = Math.max(...state.people.map((p) => p.id)) + 1;
+  const farmer = { ...lord, id: farmerId, bornDay: state.lastDay - 30 * 365 };
+  delete farmer.line;
+  delete farmer.name;
+  delete farmer.spouseId;
+  delete farmer.arms;
+  state.people.push(farmer);
+  state.nextId = Math.max(state.nextId, farmerId + 1);
+  await writeVillageState(seatA.settlementId, state);
+  await pollVillage(page);
+
+  await page.evaluate((id) => window.__bohemiaE2E!.selectPerson!(id), farmerId);
+  const selection = page.getByTestId('selection-panel');
+  await expect(selection.getByTestId('selection-person-ennoble')).toBeVisible({ timeout: 30_000 });
+  await selection.getByTestId('selection-person-ennoble').click();
+
+  // vznikl NPC rod, holá přísaha a správa; muž z první vsi odešel
+  await expect
+    .poll(async () => (await query(`SELECT 1 FROM house WHERE kind = 'npc'`, [])).length)
+    .toBe(1);
+  const agreements = await query<{ origin: string; terms: unknown }>(
+    `SELECT origin, terms FROM vassalage WHERE ended_at IS NULL AND lord_house_id = $1`,
+    [houseId],
+  );
+  expect(agreements).toEqual([{ origin: 'ennoble', terms: {} }]);
+  const stewards = await query<{ village_id: string; kind: string }>(
+    `SELECT village_id, kind FROM stewardship WHERE ended_at IS NULL`,
+    [],
+  );
+  expect(stewards).toEqual([{ village_id: second.id, kind: 'npc' }]);
+  expect((await villageState(seatA.settlementId)).people.some((p) => p.id === farmerId)).toBe(
+    false,
+  );
+
+  // v panelu rodu je NPC vazal; ves v přepínači má klíč
+  const panel = await reopenHousePanel(page);
+  await expect(panel.getByTestId('house-vassal')).toHaveCount(1);
+  await page.keyboard.press('Escape');
+  await page.getByTestId('village-name').click();
+  const entry = page.getByTestId('village-list').locator(`[data-village="${second.id}"]`);
+  await expect(entry.getByTestId('npc-steward-key')).toBeVisible();
+  await ctx.close();
 });

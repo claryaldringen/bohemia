@@ -718,3 +718,8 @@ cellDistance` sídel), 2. spočte družinu a pošle `lord-arrives` do schránky 
   `application/__tests__/appoint-lord.test.ts`.
 - **Kronika** (`village-view-chronicle.ts`): `lord-sent` – „… odešel vládnout do vsi X.“ (ve vsi
   odkud), `lord` – „Vojvodou se stal …“ (ve vsi kam), `line-arrived`.
+
+## Povýšený vesničan
+
+Muž (s manželkou a svobodnými dětmi) putuje do vsi bez vojvody schránkou jako dosazený vojvoda (`noble-arrives`,
+`Person.noble`, `VillageState.nobles`) – podrobnosti a pravidla v [vassalage.md](vassalage.md#povýšení-vesničana-a-npc-rod-vassalagemd--povýšení-vesničana-úloha-49).

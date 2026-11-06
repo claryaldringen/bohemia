@@ -446,6 +446,12 @@ export interface VillageState {
    */
   awaitingLord?: AwaitingLord;
   /**
+   * Ves řídí povýšený vesničan (vassalage.md – Povýšení vesničana): NPC rod `houseId` a číslo jeho
+   * hlavy ve vsi. Ves dál patří hráči, rod hráče v ní nemá své muže (senior ani dosazení vojvody ji
+   * nepočítá). Chybí – ves řídí rod hráče.
+   */
+  nobles?: { houseId: string; headId: number };
+  /**
    * Správce vsi (steward.md – Stav správce): zapnutý, značka „postavil správce“, plán. Chybí –
    * správce vypnutý (`withSteward` ji převede).
    */

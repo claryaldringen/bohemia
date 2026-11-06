@@ -11,6 +11,7 @@ import { user } from './auth';
  * `succession_day` = den smrti hráčova muže, pro který už bylo rozhodnuto, za koho hráč hraje dál
  * (nástupnictví hráče – idempotence); `pending_departure` = odchod vylosovaného mladšího syna po
  * pohřbu, na jehož volbu hráč čeká (ves, syn, den smrti a lhůta; po lhůtě vyrazí výprava sama).
+ * `last_ennoble_year` = herní rok posledního povýšení vesničana (nejvýš jedno za rok).
  */
 export const house = pgTable(
   'house',
@@ -26,6 +27,7 @@ export const house = pgTable(
     seniorVillageId: uuid('senior_village_id'),
     seniorPersonId: integer('senior_person_id'),
     successionDay: integer('succession_day'),
+    lastEnnobleYear: integer('last_ennoble_year'),
     pendingDeparture: jsonb('pending_departure').$type<PendingDeparture>(),
   },
   (table) => [

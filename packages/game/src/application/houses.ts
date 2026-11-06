@@ -21,6 +21,8 @@ export interface House {
   successionDay: number | null;
   /** Odchod vylosovaného mladšího syna, na jehož volbu hráč čeká; null – nic nečeká. */
   pendingDeparture: PendingDeparture | null;
+  /** Herní rok posledního povýšení vesničana (vassalage.md – Povýšení vesničana); null – dosud žádné. */
+  lastEnnobleYear: number | null;
 }
 
 /**
@@ -66,4 +68,9 @@ export interface HouseRepository {
    * smazal (ze souběžných volání uspěje jedno).
    */
   clearPendingDeparture(houseId: string, sonId: number): Promise<boolean>;
+  /**
+   * Zapíše povýšení ve herním roce `year` (nejvýš jedno za rok): podmíněně – jen když rod letos
+   * ještě nepovýšil; true jen když zapsal (ze souběžných volání uspěje jedno).
+   */
+  claimEnnoble(houseId: string, year: number): Promise<boolean>;
 }

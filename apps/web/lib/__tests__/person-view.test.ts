@@ -37,11 +37,11 @@ describe('scenePersons', () => {
       DAY,
     );
     expect(list).toEqual([
-      { id: 1, age: 40, sex: 'male', home: 10, role: 'voivode' },
+      { id: 1, age: 40, sex: 'male', home: 10, role: 'voivode', ennobleable: true },
       { id: 2, age: 38, sex: 'female', home: 10, role: 'voivode-wife' },
-      { id: 3, age: 30, sex: 'male', home: 11, role: 'smith' },
+      { id: 3, age: 30, sex: 'male', home: 11, role: 'smith', ennobleable: true },
       { id: 4, age: 9, sex: 'female', home: 11, role: 'smith-daughter' },
-      { id: 5, age: 25, sex: 'male', home: 12, role: 'farmer' },
+      { id: 5, age: 25, sex: 'male', home: 12, role: 'farmer', ennobleable: true },
     ]);
   });
 

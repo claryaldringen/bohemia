@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { sql } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import path from 'node:path';
-import { CURRENT_LAYER_VERSIONS } from '@bohemia/game';
+import { CURRENT_LAYER_VERSIONS, VILLAGE_DIGEST_VERSION } from '@bohemia/game';
 import { createDatabase } from '../../client';
 import { schema } from '../../index';
 import { createWorldDirectory } from '../world-directory';
@@ -44,7 +44,7 @@ async function player(id: string, x: number, y: number, extra = true): Promise<s
       settlementId: s!.id,
       name: `Ves ${id}`,
       state: {} as never,
-      digest: { v: 2, publicLineMen: [] } as never,
+      digest: { v: VILLAGE_DIGEST_VERSION, publicLineMen: [] } as never,
       digestVersion: 1,
     });
   }
@@ -103,7 +103,7 @@ describe('WorldDirectory (Drizzle)', () => {
       SELECT 'u' || g, true, g, ${layers}::jsonb, (g % 40) - 20, (g / 40) + 1 FROM generate_series(1, 1000) g`);
     await db.execute(sql`
       INSERT INTO village (settlement_id, name, state, digest, digest_version)
-      SELECT id, 'Ves', '{}'::jsonb, '{"v":2,"publicLineMen":[]}'::jsonb, 1 FROM settlement WHERE owner_id <> 'me'`);
+      SELECT id, 'Ves', '{}'::jsonb, '{"v":3,"publicLineMen":[]}'::jsonb, 1 FROM settlement WHERE owner_id <> 'me'`);
     await db.execute(sql`ANALYZE`);
     await directory.nearestHouses({ x: 0, y: 0 }, 20, mine); // zahřátí
     const times: number[] = [];

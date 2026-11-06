@@ -66,6 +66,7 @@ async function setup(): Promise<{
         lord,
         senior: null,
         successionDay: null,
+        lastEnnobleYear: null,
         pendingDeparture: null,
       },
       seat: { x, y },

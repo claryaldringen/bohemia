@@ -81,6 +81,11 @@ export interface Person {
    */
   line?: true;
   /**
+   * Povýšený vesničan a jeho rodina (vassalage.md – Povýšení vesničana): patří do NPC rodu `houseId`,
+   * ne do rodu hráče, i když je muž „po meči“ (`line`) své vsi. Chybí – běžný člověk.
+   */
+  noble?: { houseId: string };
+  /**
    * Syn ženy, která byla hlavní manželkou svého muže (lord.md – Nástupnictví) – přednost
    * v nástupnictví i po její smrti. Chybí – ne.
    */

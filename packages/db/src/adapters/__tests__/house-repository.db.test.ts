@@ -115,4 +115,22 @@ describe('HouseRepository (Drizzle)', () => {
     expect(results.filter(Boolean)).toHaveLength(1);
     expect((await houses.byId(house.id))?.pendingDeparture).toBeNull();
   });
+
+  it('claimEnnoble pustí nejvýš jedno povýšení za herní rok, i souběžně', async () => {
+    const house = await houses.create({ playerId: 'p1', kind: 'player', createdAt: NOW });
+    expect(house.lastEnnobleYear).toBeNull();
+    const results = await Promise.all([
+      houses.claimEnnoble(house.id, 100),
+      houses.claimEnnoble(house.id, 100),
+    ]);
+    expect(results.filter(Boolean)).toHaveLength(1);
+    expect((await houses.byId(house.id))?.lastEnnobleYear).toBe(100);
+    expect(await houses.claimEnnoble(house.id, 100)).toBe(false);
+    expect(await houses.claimEnnoble(house.id, 101)).toBe(true);
+  });
+
+  it('NPC rod nemá hráče', async () => {
+    const npc = await houses.create({ playerId: null, kind: 'npc', createdAt: NOW });
+    expect(npc).toMatchObject({ kind: 'npc', playerId: null });
+  });
 });

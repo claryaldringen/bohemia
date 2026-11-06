@@ -532,6 +532,8 @@ type SelectionKinds =
       /** Ikona domu (`public/icons/build/` – typ obydlí nebo dílna). */
       homeIcon: string | null;
       herd: HerdSpecies | null;
+      /** Smí ho hráč povýšit do šlechtického stavu (vassalage.md – Povýšení vesničana). */
+      ennobleable?: boolean;
       /** Dovednosti, když se člověk cvičil (lord.md – Dovednosti); jinak null. */
       arms?: ArmsView | null;
       /** Má koně (jezdec – horses.md). */
@@ -1129,6 +1131,7 @@ function personDetails(
     homeIcon: home ? (home.craft ? CRAFT_LOOKS[home.craft].icon : home.type) : null,
     herd: herding ? (figure?.herd ?? null) : null,
     arms: person.arms ?? null,
+    ennobleable: person.ennobleable === true,
     horse: person.horse === true,
     mount: mountOf(view, id),
     draft:

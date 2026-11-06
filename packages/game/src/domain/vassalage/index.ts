@@ -8,3 +8,4 @@ export * from './shipment';
 export * from './levy';
 export * from './loan';
 export * from './guests';
+export * from './ennoble';

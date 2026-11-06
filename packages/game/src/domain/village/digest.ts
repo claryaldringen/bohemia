@@ -15,7 +15,7 @@ import type { VillageState } from './types-state';
 // nese souhrn jako vstup pravidla (`weatherSeed`, `disasters`), ne jako výsledek.
 
 /** Verze tvaru souhrnu – souhrn jiné verze se nepoužije (ves se načte celá a souhrn se obnoví). */
-export const VILLAGE_DIGEST_VERSION = 2;
+export const VILLAGE_DIGEST_VERSION = 3;
 
 /** Místní pohromy v kronice – poslední z nich ukáže přepínač vsí (disasters.md – Co hráč vidí). */
 export const LOCAL_DISASTER_KINDS: ReadonlySet<ChronicleEvent['kind']> = new Set([
@@ -65,6 +65,8 @@ export interface VillageDigest extends LineFacts {
   threshingEmergency: boolean;
   /** Správce je zapnutý (`isStewardOn`). */
   steward: boolean;
+  /** Ves čeká na vojvodu a nikdo k ní zatím nejde (`awaitingLord` bez `appointee`) – povýšení ji smí obsadit. */
+  awaitingLord: boolean;
   /** Vstupy počasí roku (`weatherView` v den pohledu): seed počasí kraje… */
   weatherSeed?: number;
   /**
@@ -101,12 +103,15 @@ export function villageDigest(state: VillageState): VillageDigest {
     hunger: hungerLevel(state),
     threshingEmergency: threshingStatus(state, state.lastDay).emergency,
     steward: isStewardOn(state),
+    awaitingLord: state.awaitingLord !== undefined && state.awaitingLord.appointee === undefined,
     ...lineFacts(state),
-    publicLineMen: lineMen(state).map((p) => ({
-      id: p.id,
-      ...(p.name !== undefined ? { name: p.name } : {}),
-      bornDay: p.bornDay,
-    })),
+    publicLineMen: lineMen(state)
+      .filter((p) => !p.noble)
+      .map((p) => ({
+        id: p.id,
+        ...(p.name !== undefined ? { name: p.name } : {}),
+        bornDay: p.bornDay,
+      })),
     ...(state.weatherSeed !== undefined ? { weatherSeed: state.weatherSeed } : {}),
     ...(disasters ? { disasters } : {}),
     ...(last ? { lastLocalDisaster: last } : {}),

@@ -34,6 +34,7 @@ export class InMemoryHouses implements HouseRepository {
       senior: null,
       successionDay: null,
       pendingDeparture: null,
+      lastEnnobleYear: null,
     };
     this.houses.push(house);
     return house;
@@ -78,6 +79,14 @@ export class InMemoryHouses implements HouseRepository {
     const house = this.houses.find((h) => h.id === houseId);
     if (house?.pendingDeparture?.sonId !== sonId) return false;
     house.pendingDeparture = null;
+    return true;
+  }
+
+  async claimEnnoble(houseId: string, year: number): Promise<boolean> {
+    await Promise.resolve();
+    const house = this.houses.find((h) => h.id === houseId);
+    if (!house || (house.lastEnnobleYear !== null && house.lastEnnobleYear >= year)) return false;
+    house.lastEnnobleYear = year;
     return true;
   }
 

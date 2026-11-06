@@ -1,6 +1,13 @@
 import 'server-only';
-import { createVillageRepository } from '@bohemia/db';
 import {
+  createHouseRepository,
+  createSettlementRepository,
+  createStewardshipRepository,
+  createVassalageRepository,
+  createVillageRepository,
+} from '@bohemia/db';
+import {
+  ennobleVillager,
   NOT_PLAYER_VILLAGE,
   NO_VILLAGE,
   NO_WORLD_CELL,
@@ -76,6 +83,7 @@ import {
   playerVillage,
   requireVillageRight,
   stewardedVillagesOf,
+  stewardships,
   villageAccessForPlayer,
   skipTimeForPlayer,
   type GameEntry,
@@ -252,9 +260,18 @@ async function switcherItems(
 ): Promise<VillageListItem[]> {
   let own: VillageListItem[] = [];
   if (ctx.actorId === ctx.playerId) {
-    own = status.villages.map((v) =>
-      villageListItem(v, ctx.day, status.playerLord?.villageId, seniorVillageId),
+    const house = await createHouseRepository(getDatabase()).activeOf(ctx.playerId);
+    const npcStewarded = new Set(
+      house
+        ? (await stewardships().listByHolderHouse(house.id))
+            .filter((s) => s.kind === 'npc')
+            .map((s) => s.villageId)
+        : [],
     );
+    own = status.villages.map((v) => ({
+      ...villageListItem(v, ctx.day, status.playerLord?.villageId, seniorVillageId),
+      ...(npcStewarded.has(v.id) ? { npcSteward: true as const } : {}),
+    }));
   } else {
     const first = await firstVillageOfPlayer(ctx.actorId);
     const today = first ? await playerToday(ctx.actorId) : null;
@@ -579,6 +596,40 @@ export function nameLineManForPlayer(
       { villageId: ctx.villageId, today: ctx.day, landscape: ctx.landscape, ...input },
     ),
   );
+}
+
+/**
+ * Hráč povýší vesničana vsi `villageId` do šlechtického stavu pro svou ves bez vojvody
+ * (vassalage.md – Povýšení vesničana) – právo `ennoble` ověří `actOn` ve vsi, odkud muž jde.
+ */
+export function ennobleVillagerForPlayer(
+  playerId: string,
+  villageId: string,
+  input: { personId: number; targetVillageId: string },
+): Promise<VillageActionResult> {
+  return actOn(playerId, villageId, 'ennobleVillager', async (ctx): Promise<VillageResult> => {
+    const db = getDatabase();
+    const done = await ennobleVillager(
+      {
+        settlements: createSettlementRepository(db),
+        villages: villages(),
+        houses: createHouseRepository(db),
+        vassalages: createVassalageRepository(db),
+        stewardships: createStewardshipRepository(db),
+      },
+      {
+        playerId: ctx.playerId,
+        fromVillageId: ctx.villageId,
+        personId: input.personId,
+        targetVillageId: input.targetVillageId,
+        today: ctx.day,
+        at: new Date(),
+      },
+    );
+    if (!done.ok) return done;
+    const village = await villages().find(ctx.villageId);
+    return village ? { ok: true, village } : { ok: false, reason: NO_VILLAGE };
+  });
 }
 
 /** Hráč zapne nebo vypne správce vsi (steward.md – Soužití s hráčem) – ves ověří `actOn`. */
