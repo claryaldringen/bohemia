@@ -12,6 +12,7 @@ import {
   type WalkingRoute,
   type WalkRoad,
   type WalkWalls,
+  wallDetour,
 } from '@bohemia/game';
 import type { VillagerPaths } from './villager-plan-types';
 
@@ -173,6 +174,12 @@ export function routeWalker(
     return found;
   };
   return {
+    gates(a, b) {
+      const walls = groundOf()?.walls;
+      if (!walls || !cutsWall(walls, a, b)) return [];
+      const via = wallDetour(walls, a, b);
+      return Array.isArray(via) ? via : [];
+    },
     walkLength(a, b) {
       const { span } = walking(a, b);
       return Number.isFinite(span) ? span : Math.hypot(b.x - a.x, b.z - a.z);

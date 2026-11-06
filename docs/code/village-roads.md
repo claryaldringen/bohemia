@@ -1263,18 +1263,23 @@ a cesty); opevnění samo: [village-fortifications.md](village-fortifications.md
   (úseky rovně k cíli 2 545, rovně celé 1 077, po pevné cestě 7 882 – vozová cesta 1264 protne
   úsek s branou 1–2 m vedle otvoru, upravená cesta 1495 roh bez brány), ve scéně 81 z 569
   uložených tras s odbočkou rovně. Teď: `withFortWalk(ground, village.fortifications)`
-  (`walk-walls.ts` – `walkWallsOf`, `cutsWall`, `gateDetour`) dá půdě chůze stěny; úsečka rovně
-  (k síti, od ní k cíli, celá) přes stěnu mimo bránu dostane přirážku `WALL_CLIMB_M` (1000 m –
-  chodec jde stěnou, jen když jinudy nejde, odhad zůstane číslem), úsek osy pěšiny či pevné cesty
-  přes stěnu jde středem nejbližší brány do dvou šířek brány (`gateDetour` – nový bod v řetězu),
-  jinak s přirážkou. Osa stálé trasy jde středy buněk brány (`fortWallCells` – buňka, které se
-  otvor dotkne), proto smí zasáhnout do stěny nejvýš `GATE_SLACK_M` (1 m) od otvoru; úsečky rovně
-  a osy pevných cest bez rezervy. Scéna: `routeWalker.route` nevezme uloženou trasu, jejíž osa
-  nebo odbočka rovně jde stěnou (`walkRoute` pak jde po síti); půdu se stěnami staví
-  `path-renderer.ts` (`walkGround` – `SceneVillage.fortifications`). Vlkov po opravě: 184 tras
-  z 38 048 se stěny dotkne – 152 úseků pěšin do 1 m u brány, 40 tras s přirážkou (díly pole
-  v koutech mezi stěnami bez brány nebo bez pěšiny na jejich straně – tam se dál leze), ve scéně
-  40 z 532 uložených tras (osa do 0,5 m u otvoru brány); `walkingDistances` všech dílů ≈ 0,3 s
-  se stěnami i bez nich. Ves bez opevnění: `withFortWalk` vrátí tutéž půdu,
+  (`walk-walls.ts` – `walkWallsOf`, `cutsWall`, `wallDetour`) dá půdě chůze stěny. Úsečka rovně
+  (k síti, od ní k cíli, celá) i úsek osy pěšiny či pevné cesty přes stěnu mimo bránu jde
+  **objížďkou** (`wallDetour`): nejkratší lomená čára přes graf objížďky (`detourGraphOf` – středy
+  otvorů bran a vypouklé rohy pásu stěn odsazené o 1 m, úsečky bez stěny, nejkratší cesty mezi
+  všemi body; v paměti podle stěn, dosah bodu do grafu také – `reachOf`) – rovně k bráně, branou,
+  kolem rohů k cíli. Cena objížďky = chůze rovně po půdě po jejích kusech; body objížďky jsou
+  v trase postavy (`walkingRoute` – `gateLegs`) i v řetězu grafu chůze (`walkGraph`). Přirážka
+  `WALL_CLIMB_M` (1000 m) jen jako poslední záchrana, kam se bez stěny dojít nedá (opevnění bez
+  brány, kout mezi stěnami). Volající předá mez (`straight(…, limit)` – dosavadní nejlepší): objížďka
+  s dolní mezí (vzdušnou čarou po lomené čáře) aspoň mez se nedopočítá – výsledek týž. Osa stálé
+  trasy jde středy buněk brány (`fortWallCells` – buňka, které se otvor dotkne), proto smí zasáhnout
+  do stěny nejvýš `GATE_SLACK_M` (1 m) od otvoru; úsečky rovně a osy pevných cest bez rezervy.
+  Scéna: `routeWalker.route` nevezme uloženou trasu, jejíž osa nebo odbočka rovně jde stěnou
+  (`walkRoute` pak jde po síti), záložní `straightRoute` jde objížďkou (`VillagerPaths.gates`);
+  půdu se stěnami staví `path-renderer.ts` (`walkGround` – `SceneVillage.fortifications`). Vlkov
+  po opravě: 0 z 38 048 tras jde stěnou mimo bránu (jen osy pěšin do 1 m u otvoru), ve scéně 0
+  z 532 uložených tras; graf objížďky 64 bodů, `walkingDistances` všech dílů 0,32 → 0,47 s.
+  Ves bez opevnění: `withFortWalk` vrátí tutéž půdu,
   graf i ceny bit po bitu stejné – `WALK_VERSION` zůstává (scéna počítá trasy za běhu, uložené
   vzdálenosti dílů vsi s opevněním se srovnají při dalším přepočtu tras).

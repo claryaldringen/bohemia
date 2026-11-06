@@ -10,6 +10,7 @@ import {
 import { routeWalker } from '../path-router';
 import { createVillagerPose, route, shuttle } from '../villager-motion';
 import { houseBox } from '../villager-plan';
+import { straightRoute } from '../villager-plan-geometry';
 
 const CELL_M = 5;
 
@@ -163,5 +164,73 @@ describe('routeWalker – stěnou opevnění jen branou (fortifications.md – B
     // stěna stranou – trasa platí
     const aside = routeWalker(routes, CELL_M, { ground: walled(40, 60, 30, 32) });
     expect(aside.route({ x: 0, z: 0 }, target)).not.toBeNull();
+  });
+
+  it('rovně přes stěnu objížďkou přes bránu (gates, straightRoute)', () => {
+    // stěna x ∈ [49; 51] přes z ∈ [−30; 30] s otvorem brány z ∈ [8; 12]
+    const walls = walkWallsOf([
+      {
+        walls: [
+          [
+            [49, -30],
+            [51, -30],
+            [51, 8],
+            [49, 8],
+          ],
+          [
+            [49, 12],
+            [51, 12],
+            [51, 30],
+            [49, 30],
+          ],
+        ],
+        gates: [
+          [
+            [49, 8],
+            [51, 8],
+            [51, 12],
+            [49, 12],
+          ],
+        ],
+      },
+    ])!;
+    const paths = routeWalker([], CELL_M, {
+      ground: () => ({ terrain: {} as PathTerrain, walls }),
+    });
+    const a = { x: 30, z: -10 };
+    const b = { x: 70, z: -10 };
+    /** Jde lomená čára stěnou (vzorky po 5 cm v pásu x ∈ (49; 51) mimo otvor z ∈ [8; 12])? */
+    const hitsWall = (pts: readonly (readonly [number, number])[]): boolean =>
+      pts.slice(1).some(([qx, qz], i) => {
+        const [px, pz] = pts[i]!;
+        const n = Math.ceil(Math.hypot(qx - px, qz - pz) / 0.05);
+        for (let k = 0; k <= n; k++) {
+          const x = px + ((qx - px) * k) / n;
+          const z = pz + ((qz - pz) * k) / n;
+          if (x > 49.01 && x < 50.99 && z > -30 && z < 30 && (z < 7.99 || z > 12.01)) return true;
+        }
+        return false;
+      });
+    const via = paths.gates!(a, b);
+    expect(via.length).toBeGreaterThan(0);
+    expect(hitsWall([[a.x, a.z], ...via.map((p) => [p.x, p.z] as const), [b.x, b.z]])).toBe(false);
+    expect(paths.gates!(a, { x: 40, z: 20 })).toEqual([]);
+    const ctx = {
+      houses: [],
+      graves: [],
+      ground: { walkable: () => true, tree: () => null, treesIn: () => [] },
+      paths,
+    };
+    const r = straightRoute(ctx, a, b)!;
+    expect(r.points[0]).toEqual([30, -10]);
+    expect(r.points[r.points.length - 1]).toEqual([70, -10]);
+    expect(r.points.length).toBeGreaterThan(2);
+    expect(hitsWall(r.points)).toBe(false);
+    expect(
+      hitsWall([
+        [30, -10],
+        [70, -10],
+      ]),
+    ).toBe(true);
   });
 });

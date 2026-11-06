@@ -1,15 +1,15 @@
 import type { FortWalls } from '../fortification/walls';
 import type { Point } from '../polygon';
-import { FORTIFICATIONS } from '../rules-fortifications';
+import { length2 } from '../../landscape';
 import type { PathPoint } from './network-types';
 
 // Stěny opevnění pro odhad chůze a trasy postav (fortifications.md – Obvod, Brány; Martin
 // 6. 11. 2026: opevnění blokuje chodce celým obvodem kromě bran). Síť pěšin stěny zná po buňkách
 // (`fortWallCells`), chůze po síti (`walking.ts`) jde ale i rovně – k pěšině, od ní k cíli – a po
 // osách pevných cest, které stěnu mohou protnout mimo bránu (brána je nejvýš jedna na úsek, cesta
-// se mohla přestavět). Úsečka přes stěnu proto jde branou, je-li blízko, jinak se přes stěnu
-// „leze“ s velkou přirážkou – chodec ji vezme, jen když jinudy nejde. Jen sčítání a násobení
-// (deterministická vrstva – server i prohlížeč počítají totéž).
+// se mohla přestavět). Úsečka přes stěnu proto jde objížďkou přes bránu (`wallDetour`); přes stěnu
+// se „leze“ s velkou přirážkou jen tam, kam se branou rovně dojít nedá. Jen deterministická
+// matematika (server i prohlížeč počítají totéž).
 
 /**
  * Jak daleko (m) od otvoru brány smí osa pěšiny zasáhnout do stěny (návrh Clauda 6. 11. 2026): osa
@@ -18,8 +18,9 @@ import type { PathPoint } from './network-types';
  */
 export const GATE_SLACK_M = 1;
 /**
- * Přirážka (m chůze) za úsečku přes stěnu mimo bránu (návrh Clauda 6. 11. 2026): tak velká, že
- * chodec jde vždy branou, kudy to jde; konečná, aby odhad simulace zůstal číslem i bez spojení.
+ * Přirážka (m chůze) za úsečku přes stěnu, kterou nejde objet branou (návrh Clauda 6. 11. 2026) –
+ * poslední záchrana: tak velká, že chodec jde vždy branou, kudy to jde; konečná, aby odhad
+ * simulace zůstal číslem i bez spojení.
  */
 export const WALL_CLIMB_M = 1000;
 /** Úsečka, která do stěny zasáhne méně (m), se jí jen dotkne. */
@@ -195,33 +196,181 @@ export function cutsWall(walls: WalkWalls, a: PathPoint, b: PathPoint, slack = 0
   return false;
 }
 
+/** Jak daleko (m) od rohu stěny stojí bod objížďky (`wallDetour` – návrh Clauda 6. 11. 2026). */
+const DETOUR_CORNER_M = 1;
+
+/** Body objížďky stěn a nejkratší cesty mezi nimi (vzdálenost a další bod), v paměti podle stěn. */
+interface DetourGraph {
+  readonly pts: readonly PathPoint[];
+  readonly dist: Float64Array;
+  readonly next: Int32Array;
+  /** Dosah bodů do bodů objížďky (`reachOf`). */
+  readonly reach: Map<string, { cost: Float64Array; via: Int32Array }>;
+}
+const detourGraphs = new WeakMap<WalkWalls, DetourGraph>();
+
 /**
- * Brána, kterou jde úsečka a → b přes stěnu (`cutsWall` s rezervou `slack`): střed otvoru brány
- * nejvýš dvě šířky brány od úsečky, ze kterého a do kterého se jde bez stěny (nejbližší, při shodě
- * první); jinak null.
+ * Graf objížďky: středy otvorů bran a vypouklé rohy pásu stěn odsazené o DETOUR_CORNER_M ven
+ * (podél obou vnějších normál hran v rohu); úsečky mezi nimi bez stěny; nejkratší cesty mezi všemi
+ * dvojicemi (Floydův–Warshallův algoritmus, při shodě dřívější).
  */
-export function gateDetour(
+function detourGraphOf(walls: WalkWalls): DetourGraph {
+  const known = detourGraphs.get(walls);
+  if (known) return known;
+  const pts: PathPoint[] = [...walls.centers];
+  const clear = DETOUR_CORNER_M * DETOUR_CORNER_M * 0.25;
+  for (const q of walls.walls) {
+    const n = q.pts.length;
+    for (let i = 0; i < n; i++) {
+      const p = q.pts[i]!;
+      const before = q.pts[(i + n - 1) % n]!;
+      const after = q.pts[(i + 1) % n]!;
+      // vnější normály hran před rohem a za ním (vnitřek je na straně `sign`)
+      const normal = (from: Point, to: Point): [number, number] => {
+        const ex = to[0] - from[0];
+        const ez = to[1] - from[1];
+        const len = length2(ex, ez) || 1;
+        return [(q.sign * ez) / len, (-q.sign * ex) / len];
+      };
+      const [ax, az] = normal(before, p);
+      const [bx, bz] = normal(p, after);
+      // spoj kusů rovné stěny (obě hrany míří stejně) objížďku nezkrátí
+      if (ax * bx + az * bz > 0.999) continue;
+      const x = p[0] + (ax + bx) * DETOUR_CORNER_M;
+      const z = p[1] + (az + bz) * DETOUR_CORNER_M;
+      // jen vypouklý roh pásu (volno podél obou hran i šikmo) – u vnitřního rohu ani u spoje se
+      // nejkratší cesta nezlomí
+      const free = (fx: number, fz: number): boolean =>
+        !walls.walls.some((w) => squaredDistance(w, fx, fz) < clear);
+      if (!free(x, z)) continue;
+      if (!free(p[0] + ax * DETOUR_CORNER_M, p[1] + az * DETOUR_CORNER_M)) continue;
+      if (!free(p[0] + bx * DETOUR_CORNER_M, p[1] + bz * DETOUR_CORNER_M)) continue;
+      if (pts.some((o) => (o.x - x) * (o.x - x) + (o.z - z) * (o.z - z) < clear)) continue;
+      pts.push({ x, z });
+    }
+  }
+  const w = pts.length;
+  const dist = new Float64Array(w * w).fill(Infinity);
+  const next = new Int32Array(w * w).fill(-1);
+  for (let i = 0; i < w; i++) {
+    dist[i * w + i] = 0;
+    next[i * w + i] = i;
+    for (let j = i + 1; j < w; j++) {
+      const a = pts[i]!;
+      const b = pts[j]!;
+      if (cutsWall(walls, a, b)) continue;
+      const d = length2(b.x - a.x, b.z - a.z);
+      dist[i * w + j] = d;
+      dist[j * w + i] = d;
+      next[i * w + j] = j;
+      next[j * w + i] = i;
+    }
+  }
+  for (let k = 0; k < w; k++) {
+    for (let i = 0; i < w; i++) {
+      const ik = dist[i * w + k]!;
+      if (ik === Infinity) continue;
+      for (let j = 0; j < w; j++) {
+        const d = ik + dist[k * w + j]!;
+        if (d < dist[i * w + j]!) {
+          dist[i * w + j] = d;
+          next[i * w + j] = next[i * w + k]!;
+        }
+      }
+    }
+  }
+  const graph = { pts, dist, next, reach: new Map() };
+  detourGraphs.set(walls, graph);
+  return graph;
+}
+
+/** Kolik bodů si graf objížďky pamatuje dosah (`DetourGraph.reach`), pak začne znovu. */
+const DETOUR_MEMO = 4096;
+
+/**
+ * Dosah bodu `a` do bodů objížďky: nejkratší cesta a → (rovně bez stěny) bod i → po grafu bod j
+ * (`cost[j]`, první bod `via[j]`); v paměti grafu podle bodu a rezervy.
+ */
+function reachOf(
+  walls: WalkWalls,
+  g: DetourGraph,
+  a: PathPoint,
+  slack: number,
+): { cost: Float64Array; via: Int32Array } {
+  const key = `${a.x}|${a.z}|${slack}`;
+  const known = g.reach.get(key);
+  if (known) return known;
+  const w = g.pts.length;
+  const cost = new Float64Array(w).fill(Infinity);
+  const via = new Int32Array(w).fill(-1);
+  for (let i = 0; i < w; i++) {
+    const p = g.pts[i]!;
+    if (cutsWall(walls, a, p, slack)) continue;
+    const d = length2(p.x - a.x, p.z - a.z);
+    for (let j = 0; j < w; j++) {
+      const c = d + g.dist[i * w + j]!;
+      if (c < cost[j]!) {
+        cost[j] = c;
+        via[j] = i;
+      }
+    }
+  }
+  if (g.reach.size >= DETOUR_MEMO) g.reach.clear();
+  const found = { cost, via };
+  g.reach.set(key, found);
+  return found;
+}
+
+/**
+ * Objížďka úsečky a → b přes stěnu opevnění (fortifications.md – Brány): nejkratší lomená čára
+ * a → body objížďky → b bez stěny – rovně k bráně, branou, kolem rohů stěn k cíli (`detourGraphOf`;
+ * středy bran jsou jeho body, takže objížďka jednou branou je mezi nimi) jako body mezi `a` a `b`,
+ * při shodě dřívější body. Rovně z `a` a do `b` s rezervou `slack` u bran (osa pěšiny). Kam se bez
+ * stěny dojít nedá (kout mezi stěnami bez brány), 'none'; objížďka aspoň `limit` m (vzdušnou
+ * čarou po lomené čáře – chůze je aspoň tak dlouhá) se nedopočítá – 'far'.
+ */
+export function wallDetour(
   walls: WalkWalls,
   a: PathPoint,
   b: PathPoint,
   slack = 0,
-): PathPoint | null {
-  const reach = 4 * FORTIFICATIONS.gate.widthM * FORTIFICATIONS.gate.widthM;
-  const dx = b.x - a.x;
-  const dz = b.z - a.z;
-  const len = dx * dx + dz * dz;
-  const near: { k: number; d: number }[] = [];
-  walls.centers.forEach((c, k) => {
-    const t = len > 0 ? Math.min(1, Math.max(0, ((c.x - a.x) * dx + (c.z - a.z) * dz) / len)) : 0;
-    const ox = c.x - (a.x + dx * t);
-    const oz = c.z - (a.z + dz * t);
-    const d = ox * ox + oz * oz;
-    if (d <= reach) near.push({ k, d });
-  });
-  near.sort((p, q) => p.d - q.d || p.k - q.k);
-  for (const { k } of near) {
-    const c = walls.centers[k]!;
-    if (!cutsWall(walls, a, c, slack) && !cutsWall(walls, c, b, slack)) return c;
+  limit = Infinity,
+): PathPoint[] | 'none' | 'far' {
+  const g = detourGraphOf(walls);
+  const w = g.pts.length;
+  const from = reachOf(walls, g, a, slack);
+  // konec objížďky v pořadí dolní meze (dosah + vzdušnou čarou k cíli) – první, od kterého se
+  // k cíli jde bez stěny, je nejkratší
+  const bound = new Float64Array(w);
+  for (let j = 0; j < w; j++) {
+    const r = from.cost[j]!;
+    const p = g.pts[j]!;
+    bound[j] = r === Infinity ? Infinity : r + length2(b.x - p.x, b.z - p.z);
   }
-  return null;
+  let end = -1;
+  for (;;) {
+    let best = Infinity;
+    let pick = -1;
+    for (let j = 0; j < w; j++) {
+      if (bound[j]! < best) {
+        best = bound[j]!;
+        pick = j;
+      }
+    }
+    if (pick < 0) return 'none';
+    if (best >= limit) return 'far';
+    if (!cutsWall(walls, g.pts[pick]!, b, slack)) {
+      end = pick;
+      break;
+    }
+    bound[pick] = Infinity;
+  }
+  const out: PathPoint[] = [];
+  let k = from.via[end]!;
+  out.push(g.pts[k]!);
+  while (k !== end) {
+    k = g.next[k * w + end]!;
+    out.push(g.pts[k]!);
+  }
+  return out;
 }

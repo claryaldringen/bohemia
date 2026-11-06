@@ -6,7 +6,7 @@ import type { FortWalls } from '../fortification/walls';
 import {
   cutsWall,
   GATE_SLACK_M,
-  gateDetour,
+  wallDetour,
   walkWallsOf,
   WALL_CLIMB_M,
   type WalkWalls,
@@ -146,10 +146,30 @@ export function withFortWalk(
   return walls ? { ...ground, walls } : ground;
 }
 
-/** Přirážka za úsečku a → b přes stěnu opevnění mimo bránu (WALL_CLIMB_M); bez stěn 0. */
-function wallExtra(ground: WalkGround | null | undefined, a: PathPoint, b: PathPoint): number {
-  const walls = ground?.walls;
-  return walls && cutsWall(walls, a, b) ? WALL_CLIMB_M : 0;
+/**
+ * Chůze rovně a → b se stěnami opevnění (`withFortWalk`): úsečka přes stěnu mimo bránu jde
+ * objížďkou branou a kolem rohů stěn (`wallDetour` – kusy podle `length`), a kam se tak dojít
+ * nedá, s přirážkou WALL_CLIMB_M (poslední záchrana). Vrátí cenu a body objížďky (bez ní null);
+ * objížďka aspoň `limit` m se nedopočítá – cena Infinity (volající ji stejně nevezme).
+ */
+function walledStraight(
+  walls: WalkWalls,
+  a: PathPoint,
+  b: PathPoint,
+  length: (from: PathPoint, to: PathPoint) => number,
+  limit = Infinity,
+): { cost: number; via: PathPoint[] | null } {
+  if (!cutsWall(walls, a, b)) return { cost: length(a, b), via: null };
+  const via = wallDetour(walls, a, b, 0, limit);
+  if (via === 'far') return { cost: Infinity, via: null };
+  if (via === 'none') return { cost: length(a, b) + WALL_CLIMB_M, via: null };
+  let cost = 0;
+  let at = a;
+  for (const p of [...via, b]) {
+    cost += length(at, p);
+    at = p;
+  }
+  return { cost, via };
 }
 
 /**
@@ -738,8 +758,9 @@ export function walkGraph(
   const walls = options.ground?.walls ?? null;
   /**
    * Úsek osy z uzlu `prev` do nového uzlu bodu `p` s cenou `cost` (`part` – cena kusu úseku).
-   * Přes stěnu opevnění mimo bránu (`cutsWall`) jde úsek branou, je-li blízko (`gateDetour` – bod
-   * brány v řetězu), jinak s přirážkou WALL_CLIMB_M; bez stěn jako dřív.
+   * Přes stěnu opevnění mimo bránu (`cutsWall`) jde úsek objížďkou branou a kolem rohů stěn
+   * (`wallDetour` – body objížďky v řetězu), kde to nejde, s přirážkou WALL_CLIMB_M; bez stěn
+   * jako dřív.
    */
   const step = (
     chain: number[],
@@ -752,19 +773,26 @@ export function walkGraph(
   ): number => {
     const a = prev >= 0 ? { x: graph.x[prev]!, z: graph.z[prev]! } : null;
     const cut = a !== null && walls !== null && cutsWall(walls, a, p, slack);
-    const gate = cut ? gateDetour(walls!, a!, p, slack) : null;
-    const g = gate ? node(gate, false) : -1;
-    if (g >= 0) chain.push(g);
+    const found = cut ? wallDetour(walls!, a!, p, slack) : null;
+    const via = Array.isArray(found) ? found : null;
+    const viaIds = (via ?? []).map((v) => node(v, false));
+    chain.push(...viaIds);
     const id = node(p, end);
     chain.push(id);
     if (!a || prev === id) return id;
-    const length = length2(p.x - a.x, p.z - a.z);
-    if (gate) {
-      const l1 = length2(gate.x - a.x, gate.z - a.z);
-      const l2 = length2(p.x - gate.x, p.z - gate.z);
-      link(prev, g, l1, part(a, gate, l1));
-      link(g, id, l2, part(gate, p, l2));
+    if (via) {
+      let from = prev;
+      let at = a;
+      via.forEach((v, k) => {
+        const l = length2(v.x - at.x, v.z - at.z);
+        link(from, viaIds[k]!, l, part(at, v, l));
+        from = viaIds[k]!;
+        at = v;
+      });
+      const l = length2(p.x - at.x, p.z - at.z);
+      link(from, id, l, part(at, p, l));
     } else {
+      const length = length2(p.x - a.x, p.z - a.z);
       link(prev, id, length, cut ? cost(length) + WALL_CLIMB_M : cost(length));
     }
     return id;
@@ -855,16 +883,17 @@ export function* walkingDistancesSteps(
   const dist = new Float64Array(n).fill(Infinity);
   const heap = new PathHeap();
   if (ground && memo) syncWalkMemo(memo, ground);
-  // přes stěnu opevnění mimo bránu s přirážkou (`withFortWalk`) – mimo paměť délek rovně
-  const walls = ground?.walls ?? null;
-  const straight = (a: PathPoint, x: number, z: number): number => {
-    const value = ground
+  const plain = (a: PathPoint, b: PathPoint): number =>
+    ground
       ? memo
-        ? memoWalkLength(memo, ground, a, { x, z })
-        : groundWalkLength(ground, a, { x, z })
-      : length2(x - a.x, z - a.z);
-    return walls ? value + wallExtra(ground, a, { x, z }) : value;
-  };
+        ? memoWalkLength(memo, ground, a, b)
+        : groundWalkLength(ground, a, b)
+      : length2(b.x - a.x, b.z - a.z);
+  // přes stěnu opevnění mimo bránu objížďkou přes bránu (`withFortWalk`) – mimo paměť délek rovně
+  const walls = ground?.walls ?? null;
+  // `limit`: dražší objížďku stěny není třeba dopočítat (výsledek týž – vrátí Infinity)
+  const straight = (a: PathPoint, x: number, z: number, limit = Infinity): number =>
+    walls ? walledStraight(walls, a, { x, z }, plain, limit).cost : plain(a, { x, z });
   const bound = new Float64Array(Math.max(n, origins.length));
   /**
    * Nejmenší z `start` a `exact(k)` – rovně je vždy aspoň délka úsečky (rychlosti nejvýš louka),
@@ -875,7 +904,7 @@ export function* walkingDistancesSteps(
   const cheapest = (
     count: number,
     lower: (k: number) => number,
-    exact: (k: number) => number,
+    exact: (k: number, limit: number) => number,
     start = Infinity,
   ): number => {
     let first = -1;
@@ -885,14 +914,14 @@ export function* walkingDistancesSteps(
       if (lb < start && (first < 0 || lb < bound[first]!)) first = k;
     }
     if (first < 0) return start;
-    const value = exact(first);
+    const value = exact(first, start);
     let best = value < start ? value : start;
     const order: number[] = [];
     for (let k = 0; k < count; k++) if (k !== first && bound[k]! < best) order.push(k);
     order.sort((a, b) => bound[a]! - bound[b]! || a - b);
     for (const k of order) {
       if (bound[k]! >= best) break;
-      const value = exact(k);
+      const value = exact(k, best);
       if (value < best) best = value;
     }
     return best;
@@ -906,7 +935,7 @@ export function* walkingDistancesSteps(
       cheapest(
         origins.length,
         (k) => length2(t.x - origins[k]!.x, t.z - origins[k]!.z),
-        (k) => straight(origins[k]!, t.x, t.z),
+        (k, below) => straight(origins[k]!, t.x, t.z, below),
       ),
     );
   }
@@ -920,7 +949,7 @@ export function* walkingDistancesSteps(
       if (id < 0) continue;
       const lb = length2(graph.x[id]! - o.x, graph.z[id]! - o.z);
       if (lb >= limit || lb >= dist[id]!) continue;
-      const cost = straight(o, graph.x[id]!, graph.z[id]!);
+      const cost = straight(o, graph.x[id]!, graph.z[id]!, Math.min(limit, dist[id]!));
       if (cost >= limit || cost >= dist[id]!) continue;
       dist[id] = cost;
       heap.push(id, cost);
@@ -981,7 +1010,8 @@ export function* walkingDistancesSteps(
       const id = nearestNode(graph, chain, t);
       if (id < 0 || !Number.isFinite(dist[id]!)) continue;
       if (dist[id]! + length2(t.x - graph.x[id]!, t.z - graph.z[id]!) >= best) continue;
-      const cost = dist[id]! + straight({ x: graph.x[id]!, z: graph.z[id]! }, t.x, t.z);
+      const cost =
+        dist[id]! + straight({ x: graph.x[id]!, z: graph.z[id]! }, t.x, t.z, best - dist[id]!);
       if (cost < best) best = cost;
     }
     result.push(best);
@@ -1014,16 +1044,17 @@ export function walkingRoute(
   memo: WalkMemo | null = null,
 ): WalkingRoute {
   if (ground && memo) syncWalkMemo(memo, ground);
-  // přes stěnu opevnění mimo bránu s přirážkou (`withFortWalk`) – mimo paměť délek rovně
-  const walls = ground?.walls ?? null;
-  const straight = (a: PathPoint, x: number, z: number): number => {
-    const value = ground
+  const plain = (a: PathPoint, b: PathPoint): number =>
+    ground
       ? memo
-        ? memoWalkLength(memo, ground, a, { x, z })
-        : groundWalkLength(ground, a, { x, z })
-      : length2(x - a.x, z - a.z);
-    return walls ? value + wallExtra(ground, a, { x, z }) : value;
-  };
+        ? memoWalkLength(memo, ground, a, b)
+        : groundWalkLength(ground, a, b)
+      : length2(b.x - a.x, b.z - a.z);
+  // přes stěnu opevnění mimo bránu objížďkou přes bránu (`withFortWalk`) – mimo paměť délek rovně
+  const walls = ground?.walls ?? null;
+  // `limit`: dražší objížďku stěny není třeba dopočítat (výsledek týž – vrátí Infinity)
+  const straight = (a: PathPoint, x: number, z: number, limit = Infinity): number =>
+    walls ? walledStraight(walls, a, { x, z }, plain, limit).cost : plain(a, { x, z });
   const direct = straight(from, to.x, to.z);
   const n = graph.x.length;
   const dist = new Float64Array(n).fill(Infinity);
@@ -1035,7 +1066,7 @@ export function walkingRoute(
     if (id < 0) continue;
     const lb = length2(graph.x[id]! - from.x, graph.z[id]! - from.z);
     if (lb >= direct || lb >= dist[id]!) continue;
-    const cost = straight(from, graph.x[id]!, graph.z[id]!);
+    const cost = straight(from, graph.x[id]!, graph.z[id]!, Math.min(direct, dist[id]!));
     if (cost >= direct || cost >= dist[id]!) continue;
     dist[id] = cost;
     heap.push(id, cost);
@@ -1062,13 +1093,14 @@ export function walkingRoute(
     const id = nearestNode(graph, chain, to);
     if (id < 0 || !Number.isFinite(dist[id]!)) continue;
     if (dist[id]! + length2(to.x - graph.x[id]!, to.z - graph.z[id]!) >= best) continue;
-    const cost = dist[id]! + straight({ x: graph.x[id]!, z: graph.z[id]! }, to.x, to.z);
+    const cost =
+      dist[id]! + straight({ x: graph.x[id]!, z: graph.z[id]! }, to.x, to.z, best - dist[id]!);
     if (cost < best) {
       best = cost;
       end = id;
     }
   }
-  if (end < 0) return { points: [from, to], costs: [direct], cost: direct };
+  if (end < 0) return gateLegs({ points: [from, to], costs: [direct], cost: direct });
   const nodes: number[] = [];
   for (let id = end; id >= 0; id = prev[id]!) nodes.push(id);
   nodes.reverse();
@@ -1080,7 +1112,34 @@ export function walkingRoute(
   });
   points.push(to);
   costs.push(best - dist[end]!);
-  return { points, costs, cost: best };
+  return gateLegs({ points, costs, cost: best });
+
+  /** Úsečky rovně (k síti, od ní k cíli, celá) přes stěnu – body objížďky (`walledStraight`). */
+  function gateLegs(found: WalkingRoute): WalkingRoute {
+    if (!walls) return found;
+    const pts = found.points;
+    const out: PathPoint[] = [pts[0]!];
+    const outCosts: number[] = [];
+    for (let i = 1; i < pts.length; i++) {
+      const a = pts[i - 1]!;
+      const b = pts[i]!;
+      const cost = found.costs[i - 1]!;
+      const via = i === 1 || i === pts.length - 1 ? walledStraight(walls, a, b, plain).via : null;
+      // kusy objížďky – poslední dostane zbytek ceny úsečky (součet týž)
+      let rest = cost;
+      let at = a;
+      for (const p of via ?? []) {
+        const piece = plain(at, p);
+        out.push(p);
+        outCosts.push(piece);
+        rest -= piece;
+        at = p;
+      }
+      outCosts.push(rest);
+      out.push(b);
+    }
+    return { points: out, costs: outCosts, cost: found.cost };
+  }
 }
 
 /** Bod řetězu `chain` nejblíž `p` vzdušnou čarou (při shodě první), prázdný řetěz −1. */

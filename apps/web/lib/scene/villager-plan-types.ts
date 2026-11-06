@@ -238,6 +238,12 @@ export interface VillagerPaths {
    * Délky činností rozvrhu (villager-schedule.ts). Bez údaje rovně.
    */
   walkLength?(a: { x: number; z: number }, b: { x: number; z: number }): number;
+  /**
+   * Objížďka úsečky z `a` do `b` přes stěnu opevnění mimo bránu (fortifications.md – Brány): body
+   * branou a kolem rohů stěn (`wallDetour` z jádra – jako odhad simulace); prázdné, když úsečka
+   * stěnu neprotne nebo objet nejde. Bez údaje bez opevnění.
+   */
+  gates?(a: { x: number; z: number }, b: { x: number; z: number }): { x: number; z: number }[];
 }
 
 export interface VillagerPlanOptions {
