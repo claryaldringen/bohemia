@@ -47,6 +47,7 @@ import { isVillageDormant } from './departure';
 import { applyInboxDay, inboxByDay, type VillageEvent } from './inbox';
 import { returnHome } from '../vassalage/guests';
 import { withAwaitingLord } from './appoint-lord';
+import { withArmsCaps } from './arms-caps';
 import { withDynasty } from './dynasty';
 import { withSteward } from './steward-state';
 import { stewardDay } from './steward';
@@ -160,8 +161,12 @@ export function* advanceVillageSteps(
                       withToolEquipment(
                         withCattleKinds(
                           withAwaitingLord(
-                            withDynasty(
-                              withKinship(withSeedForgiven(withSowingRotation(withSeason(start)))),
+                            withArmsCaps(
+                              withDynasty(
+                                withKinship(
+                                  withSeedForgiven(withSowingRotation(withSeason(start))),
+                                ),
+                              ),
                             ),
                           ),
                         ),

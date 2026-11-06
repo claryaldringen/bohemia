@@ -11,7 +11,7 @@ import { adultDailyMin, waterFetchingLabor } from './labor';
 import { villageManorId } from './manor';
 import { ageGroup, ageYears, isInjured, laborPerDay } from './people';
 import { dailyMinPerHousehold } from './productivity';
-import { AGE, HORSES, LORD } from './rules';
+import { AGE, ARMS_CAPS, HORSES, LORD, type ArmsSource } from './rules';
 import { HUNT } from './rules-wildlife';
 import { lordHelpShare } from './sowing';
 import type { ArmsSkills, ChronicleEvent, Person, VillageState } from './types';
@@ -158,6 +158,14 @@ export function armsCap(person: Person, day: number): number {
   if (age < AGE.adult) return LORD.cap.boy;
   if (age < AGE.elder) return LORD.cap.man;
   return Math.max(0, LORD.cap.man - LORD.cap.declinePerYear * (age - AGE.elder));
+}
+
+/**
+ * Strop dovednosti dnes (war.md – Síla): menší z věku (`armsCap`) a zdroje výcviku (`ARMS_CAPS` –
+ * doma 50, lov 70, válka 100).
+ */
+export function trainingCap(person: Person, day: number, source: ArmsSource): number {
+  return Math.min(armsCap(person, day), ARMS_CAPS[source]);
 }
 
 function bestOf(skills: ArmsSkills): Hours {
@@ -438,7 +446,11 @@ export function trainLordDay(state: VillageState, day: number, fieldShare = 0): 
         : trainingHours(p, day, family.lord, mounted.has(p.id));
       if (share > 0 && h.bow + h.combat + h.riding > 0) {
         const hours = { bow: h.bow * share, combat: h.combat * share, riding: h.riding * share };
-        p.arms = trainArms(p.arms ?? NO_ARMS, hours, armsCap(p, day));
+        p.arms = trainArms(
+          p.arms ?? NO_ARMS,
+          hours,
+          trainingCap(p, day, hunting ? 'hunt' : 'home'),
+        );
         if (hours.riding > 0) riding.set(p.id, share);
         continue;
       }
@@ -446,7 +458,7 @@ export function trainLordDay(state: VillageState, day: number, fieldShare = 0): 
     // odešlý syn na lovu cvičí oštěpem místo zapomínání (wildlife.md – Lov rodu)
     if (huntFoot.has(p.id)) {
       const hours = HUNT.training.foot;
-      p.arms = trainArms(p.arms ?? NO_ARMS, hours, armsCap(p, day));
+      p.arms = trainArms(p.arms ?? NO_ARMS, hours, trainingCap(p, day, 'hunt'));
     } else if (p.arms) p.arms = decayArms(p.arms);
   }
   return family ? trainHorsesDay(state, day, riding) : [];

@@ -91,3 +91,13 @@ export const PLAYER_SUCCESSION = { successorWeight: 0.5, departDays: 30 } as con
  * výprava na sousední mapu), `minAge` = od kolika let muž rodu smí být dosazen vojvodou.
  */
 export const APPOINT_LORD = { daysPerMapStep: 2, minAge: 16 } as const;
+
+/**
+ * war.md – Síla, Výcvik a zkušenost (Martin 2. 11. 2026: „Muž se cvičením doma může dostat max na
+ * 50 % tréninku, pokud loví tak na 70 % a zbytek zkušeností může získat jedině válkou“): strop
+ * dovednosti (luk, boj, jízda) podle zdroje výcviku. Rozhoduje menší z něj a stropu podle věku.
+ */
+export const ARMS_CAPS = { home: 50, hunt: 70, war: 100 } as const;
+
+/** Zdroj výcviku, podle kterého platí strop z `ARMS_CAPS`. */
+export type ArmsSource = keyof typeof ARMS_CAPS;

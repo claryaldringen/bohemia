@@ -164,7 +164,7 @@ describe('výcvik den po dni (lord.md – Výcvik a zkušenost)', () => {
     { id: 12, age: 16, sex: 'male', father: 10, mother: 11 },
     { id: 30, age: 30, sex: 'male', home: 2 },
   ];
-  it('syn 16 po roce luk ≈ 40, vojvoda 50 nepřeroste strop, muž mimo dvorec zapomíná', () => {
+  it('syn 16 po roce luk ≈ 20 (strop doma 50), vojvoda 50 nepřeroste strop, muž mimo dvorec zapomíná', () => {
     const s = village(
       specs.map((k) => kin(k)),
       [dwelling(1), dwelling(2)],
@@ -175,11 +175,12 @@ describe('výcvik den po dni (lord.md – Výcvik a zkušenost)', () => {
     for (let d = 1; d <= 365; d++) trainLordDay(s, DAY + d);
     const arms = (id: number): NonNullable<Person['arms']> =>
       s.people.find((p) => p.id === id)!.arms!;
-    expect(arms(12).bow).toBeCloseTo(40, 0);
+    // strop výcviku doma 50 (war.md – Síla): růst míří k 50, ne ke 100
+    expect(arms(12).bow).toBeCloseTo(20, 0);
     expect(arms(12).riding).toBe(0);
     expect(arms(10).bow).toBe(90);
-    expect(arms(10).combat).toBeGreaterThan(15);
-    expect(arms(10).combat).toBeLessThan(25);
+    expect(arms(10).combat).toBeGreaterThan(8);
+    expect(arms(10).combat).toBeLessThan(15);
     expect(arms(30).bow).toBeCloseTo(76, 0);
   });
   it('na poli celý den muži zapomínají, chlapci cvičí dál', () => {

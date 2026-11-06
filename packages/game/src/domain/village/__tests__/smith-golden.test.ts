@@ -139,6 +139,7 @@ describe('ves bez kováře a hrnčíře beze změny (crafts.md – Uhlí a ruda 
       'slaughtered',
       // osivo ze zásob při setí (fields.md – Úroda, Osivo ze zásob, 27. 10. 2026) – zlatá ves má
       // zásoby nad pojistkou, setí osivo neomezí a bez nových klíčů vyšel stav stejně (7bf72274)
+      'armsCapped', // příznak převodu stropů výcviku (war.md – Síla), do stavu nic nemění
       'seedKg',
       'seedWaitingKg',
       'seedFloorKg',
@@ -168,6 +169,7 @@ describe('ves bez kováře a hrnčíře beze změny (crafts.md – Uhlí a ruda 
     // hash c3eb2c09 (26. 10. 2026, oprava po recenzi W4): psi dvorce vznikají hned, rodina na poli neloví, slabý jezdec jde pěšky a pěší lov je vydatnější – jiný lov a obilí psů; dřív f335bac8
     // hash 13eb70fa (26. 10. 2026, W7 ryby a oka; wildlife.md – Drobná zvěř a ryby): vesničané chytají ryby a zajíce z volné práce (nebo při hladu před stavbami), maso jde do zásoby bez porážky – jiná práce vsi, zásoby a stav zvěře; dřív c3eb2c09
     // hash 7bf72274 (26. 10. 2026, oprava po recenzi W7): roční kvóta ryb a zajíců, čerstvé maso a brzda letošním úlovkem – jiný úlovek, jídlo a stav zvěře; dřív 13eb70fa
-    expect(hash(stripped)).toBe('7bf72274');
+    // hash d6a17a0c (6. 11. 2026, Ú6.1 stropy výcviku; war.md – Síla): rodina cvičí doma nejvýš do 50 (dřív 100), takže jezdci a lovci jsou slabší – jiný lov a práce vsi; dřív 7bf72274
+    expect(hash(stripped)).toBe('d6a17a0c');
   }, 120_000);
 });
