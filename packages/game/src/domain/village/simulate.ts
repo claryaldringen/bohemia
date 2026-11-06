@@ -41,6 +41,7 @@ import { withToolEquipment } from './iron';
 import { swathRoadsInWork, trailsDay } from './trail';
 import { roadSwathDay } from './road-swath';
 import { wagonRoadsDay } from './wagon-road';
+import { decideFortRebuilds } from './fortification/decay';
 import { gateRoadCrossings } from './fortifications';
 import { isVillageDormant } from './departure';
 import { applyInboxDay, inboxByDay, type VillageEvent } from './inbox';
@@ -316,6 +317,9 @@ function* simulateDaySteps(
   // dvorec vojvody – po zániku dvorce nejstarší obydlí, starší ves dvorec dostane (trade.md)
   keepManor(state);
   decideRebuilds(state, day, obstacles, landscape);
+  // přestavba dožilých úseků opevnění a obnova valu – hned za přestavbami obydlí (fortifications.md –
+  // Životnost a oprava); stavba dostane práci až další den
+  decideFortRebuilds(state, day, landscape, obstacles);
   occupyEmptyDwellings(state, day);
   // den správce (steward.md – Rozhodovací pořadí v den správce): jen zapnutý správce s krajinou
   // a vrstvou překážek, každý `STEWARD.everyDays`. den – nové stavby dostanou id z `nextId` před

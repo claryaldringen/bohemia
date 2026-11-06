@@ -13,7 +13,7 @@ export interface FortSegment {
   builtDay: number | null;
   /** Nástavba na valu (`Fortification.top`) – den dokončení na úseku; bez nástavby chybí. */
   topBuiltDay?: number | null;
-  /** Stav úseku 0–1 (chátrání – další úlohy F5); nový úsek 1. */
+  /** Stav úseku 0–1 (chátrání – `segmentState`); nový úsek 1. */
   state: number;
   /** Den průlomu (válka – další úlohy F5); chybí = celý. */
   breachedDay?: number;
@@ -38,13 +38,13 @@ export interface Fortification {
   segments: FortSegment[];
   /** Brány seřazené podle úseku (`autoGates`, `addGate`). */
   gates: FortGate[];
-  /** Výška valu 0–1 (údržba valu – další úlohy F5); chybí = plná. */
+  /** Výška valu 0–1 (údržba valu – `rampartMaintenance`); chybí = plná. */
   rampartHeight?: number;
 }
 
 /**
  * Co stavba opevnění dělá (`Construction.fortWork`): nové opevnění, vylepšení plotu na palisádu,
- * nástavba na val; přestavba dožilého úseku a obnova valu jsou další úlohy F5.
+ * nástavba na val, přestavba dožilých úseků (`rebuild`) a obnova valu (`restore`).
  */
 export type FortBuildWork = 'build' | 'upgrade' | 'top' | 'rebuild' | 'restore';
 

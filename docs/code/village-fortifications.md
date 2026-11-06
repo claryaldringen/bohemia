@@ -105,10 +105,10 @@ squares }`, nebo `{ error: 'empty' | 'disconnected' | 'too-small' }`. Opakované
   tvar (obvod, úseky, pás) se z `cells` a `grid` vždy spočítá znovu (`outlineOf`).
 - **`FortSegment { index, builtDay (null = nestojí), topBuiltDay?, state, breachedDay?, kind? }`** –
   `kind` jen u rozdělaného vylepšení (úsek s hotovou palisádou `'palisade'`, `segmentKind`).
-  `state` a `breachedDay` plní až další úlohy F5 (chátrání, válka).
+  `state` plní chátrání (Ú5.4), `breachedDay` válka (další úlohy F5).
 - **Stavba `'fortification'`** (`ConstructionKind`, `LandTaker`) s `fortificationId`, `fortWork`
-  (`FortBuildWork`: `build` | `upgrade` | `top`; `rebuild` a `restore` jsou další úlohy F5),
-  `segmentIndex` (přestavba úseku – později) a `fortSegments` (`FortSegmentWork { index, cost }` –
+  (`FortBuildWork`: `build` | `upgrade` | `top` | `rebuild` | `restore`),
+  `segmentIndex` (nepoužité – přestavba je jedna stavba pro všechny dožilé úseky opevnění) a `fortSegments` (`FortSegmentWork { index, cost }` –
   úseky v pořadí práce). `cost` = kácení vyhrazených stromů (`woodFellingCost`) + práce úseků.
 
 ## Stavba po úsecích (`fortifications.ts`)
@@ -154,6 +154,34 @@ squares }`, nebo `{ error: 'empty' | 'disconnected' | 'too-small' }`. Opakované
   (`returnConstructionWood`).
 - **Robota hostů** napřed do opevnění – až Ú4.5 (`VillageState.guests` zatím není; komentář
   v `labor.ts`).
+
+## Stáří, přestavba a údržba valu (Ú5.4)
+
+- **`fortification/life.ts`** (čistá matematika, bez stavu vsi): `segmentState(fort, seg, day)` –
+  1 do konce životnosti (`FORTIFICATIONS.lifeYears`: plot 15, palisáda 20 let od `builtDay`; val
+  s nástavbou od `topBuiltDay` podle `top`; holý val nehnije), potom rovnoměrně na 0 za
+  `decayYears` (5). `segmentIsOld` = dožilý, `segmentStands` = hotový, neprolomený a (plot,
+  palisáda) se stavem nad 0 – **mezera na nule**; používá ji `fortWalls`, `gateRoadCrossings`
+  i klíč `fortLayoutKey` (stěny a brány shnilý úsek nevidí). Rok = 365 dní.
+- **`fortification/decay.ts`** `decideFortRebuilds(state, day, geo, obstacles)` (krok dne za
+  `decideRebuilds`): u každého opevnění **bez běžící stavby** zapíše `seg.state` ke dni; úsek, na
+  který se staví, stav drží (stojí a brání). Pak založí jednu stavbu `rebuild` pro všechny dožilé
+  úseky (průlom `breachedDay` v plánu první, pak v pořadí práce od brány) za cenu nového úseku
+  (`fortificationCost`, nástavba valu za cenu `top`, klády předem přes `pushWork` – **bez dřeva se
+  nezačne a úsek chátrá dál**, zkouší se každý den). Dokončený úsek: `builtDay` (`topBuiltDay`)
+  = den, `state` 1, `breachedDay` pryč (`workFortification`). Staré kůly nic nevrátí. Hráčovo
+  opevnění stejně – rozhoduje jen stáří. Bez lidí (opuštěná, vymřelá ves) ani bez krajiny nic.
+- **Údržba valu** `rampartMaintenance(state, labor, geo): čd` (v `work()` hned za opravami
+  obydlí): 2 čd na 100 m hotových úseků ročně (`rampartUpkeep`), počítá se za den ze zbytku
+  společné práce. Nedodělek (podíl) sníží `Fortification.rampartHeight` (chybí = plná) tempem
+  `rampartNeglect` – bez údržby 0,5 za 50 let. Víc práce výšku nevrací.
+- **Obnova valu** (`restore`): výška pod `renewBelowHeight` 0,75 a žádná jiná stavba na opevnění →
+  stavba za `renewCostShare` (½) ceny valu přes všechny hotové úseky, bez dřeva; po dokončení
+  (`finishFortification`) se `rampartHeight` smaže (plná).
+- **Odchylky od plánu / zatím nehotové:** funkce berou i `geo` (délky úseků se počítají z tvaru
+  plochy); přednost průlomu před _jinými stavbami vsi_ a podmínka „cizí vojsko odešlo“ patří
+  k válce (Ú5.5); opuštěná ves je mimo simulaci, takže val v ní výšku neztrácí (rozdíl proti
+  abandonment.md řeší až probuzení vsi).
 
 ## Akce
 

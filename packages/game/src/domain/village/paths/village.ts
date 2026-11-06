@@ -30,6 +30,7 @@ import type {
   VillageState,
 } from '../types';
 import { villageWoods } from '../woods';
+import { segmentStands } from '../fortification/life';
 import { fortWalls } from '../fortification/walls';
 import { clearingRouteObstacles, withoutHiddenChanges } from './clearing-routes';
 import { earthworkSpansOf } from './earthworks';
@@ -408,7 +409,7 @@ export function fortLayoutKey(state: Pick<VillageState, 'fortifications'>): stri
       f.grid,
       f.cells.map((c) => `${c.x},${c.y}`).join(';'),
       f.segments
-        .filter((s) => s.builtDay !== null && s.breachedDay === undefined)
+        .filter((s) => segmentStands(f, s))
         .map((s) => `${s.index}${s.kind ? `:${s.kind}` : ''}`)
         .join(','),
       f.gates.map((g) => `${g.segment}@${g.offsetM}`).join(','),

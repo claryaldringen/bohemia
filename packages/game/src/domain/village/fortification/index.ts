@@ -14,3 +14,4 @@ export * from './gates';
 export * from './cost';
 export * from './band';
 export * from './walls';
+export * from './life';

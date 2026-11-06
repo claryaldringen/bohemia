@@ -137,6 +137,7 @@ import {
   withoutWinterWeeding,
 } from './year-plan';
 import { payWatch, watchWanted } from './wildlife-damage';
+import { rampartMaintenance } from './fortification/decay';
 import { build, decayEmptyDwellings, woodworkToday } from './simulate-build';
 import {
   bestWaterPlan,
@@ -859,6 +860,10 @@ export function work(
     Math.min(common, common + help.labor - invested),
     repairNeed,
   );
+  // údržba valu hned po opravách obydlí, ze zbytku společné práce (fortifications.md – Životnost
+  // a oprava); ves bez opevnění nic nespotřebuje
+  const upkeep = rampartMaintenance(state, afterBuild.left, landscape);
+  const freeLabor = afterBuild.left - upkeep;
   const repairs = households.map((d, i) => {
     const need = repairNeeds[i] ?? 0;
     const manDays = repairNeed > 0 ? (afterBuild.repairs * need) / repairNeed : 0;
@@ -870,7 +875,7 @@ export function work(
   // stavbách a opravách, jde na všechnu jejich práci na poli; páry s rádlem jen s kapacitou, která
   // po nutné orbě zbyla (vozy ve dny orby páry neberou – oxen.md, Voli se sdílí)
   const surplus = surplusFieldDay(state, day, {
-    labor: afterBuild.left,
+    labor: freeLabor,
     teamDays: Math.max(
       0,
       ploughCap - morningTeam - owned.reduce((sum, t) => sum + (t.teamDays ?? 0), 0),
@@ -882,13 +887,10 @@ export function work(
   // seč navíc pro růst stád (oxen.md – Seno, dvě seče; Martin 19. 10. 2026: „pokud se něco staví,
   // tak čas věnují primárně té stavbě“): jen z práce, která zbude po stavbách, opravách a dílech
   // nad potřebu – pěšky, bez vozů; co nestihne do konce okna, zůstane neposečené
-  const extraMow = Math.max(
-    0,
-    Math.min(afterBuild.left - surplus.labor, mowingRemaining(state, day)),
-  );
+  const extraMow = Math.max(0, Math.min(freeLabor - surplus.labor, mowingRemaining(state, day)));
   if (extraMow > EPSILON) mow(state, extraMow, day);
   if (!state.hungry) {
-    game = smallGameDay(state, day, afterBuild.left - surplus.labor - extraMow, false);
+    game = smallGameDay(state, day, freeLabor - surplus.labor - extraMow, false);
   }
   // večer: spřežení, které dnes vyjelo a oralo, je u bloku; po zorání okna zpět do ohrady
   settlePloughTeams(state, day, travels, teamsCap <= EPSILON, waiting);
