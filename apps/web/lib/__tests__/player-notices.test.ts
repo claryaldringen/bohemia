@@ -66,6 +66,12 @@ describe('playerNoticeLine', () => {
     expect(noticePanel('campaign-returned')).toBe('war');
   });
 
+  it('x, panel války', () => {
+    const alert = notice({ kind: 'foreign-army', payload: { villageId: 'v-1', name: 'Kněžice' } });
+    expect(playerNoticeLine(alert).text).toBe('Cizí vojsko u vsi Kněžice!');
+    expect(noticePanel('foreign-army')).toBe('war');
+  });
+
   it('každý druh míří na panel (zatím jen Rod a vazalové)', () => {
     expect(noticePanel('invite-accepted')).toBe('house');
     expect(noticePanel('invitee-played')).toBe('house');

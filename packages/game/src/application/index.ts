@@ -27,6 +27,7 @@ export * from './player-succession';
 export * from './set-steward';
 export * from './settle-steward-departures';
 export * from './declare-hunt';
+export * from './set-defense-stance';
 export * from './dev-disasters';
 export * from './place-dwelling';
 export * from './cancel-construction';

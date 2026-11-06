@@ -201,7 +201,8 @@ describe('boj v tažení (war.md – Pro implementaci – determinismus)', () =>
       kin({ id: 4, age: 20, sex: 'male', home: 2 }, SUMMER),
     ],
     [house(1, -860, 30), house(2, -850, 55)],
-    { lastDay: SUMMER },
+    // boj za zeleným stolem – bránit se (výchozí útěk by vesnici vyklidil)
+    { lastDay: SUMMER, defense: { stance: 'defend' } },
   );
   const targetMap: CampaignMap = { landscape: flat(), obstacles: null, villageIds: ['knezice'] };
   const battleWorld: CampaignWorld = {
@@ -247,6 +248,34 @@ describe('boj v tažení (war.md – Pro implementaci – determinismus)', () =>
       }
       expect(s).toEqual(whole);
     }
+  });
+
+  it('přítomný hráč dostane upozornění „Cizí vojsko u …“ jednou, při příchodu k vsi', () => {
+    const watched: CampaignWorld = {
+      ...battleWorld,
+      watcherOf: (id) => (id === 'knezice' ? { playerId: 'p-domaci', name: 'Kněžice' } : null),
+    };
+    const start = raiding();
+    const step = stepCampaign(start, start.tick + 20, [], watched);
+    const alerts = step.notices.filter((n) => n.kind === 'foreign-army');
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toMatchObject({
+      playerId: 'p-domaci',
+      payload: { villageId: 'knezice', name: 'Kněžice' },
+    });
+  });
+
+  it('neškodné vojsko (vlastní, pána, vazalů) nebojuje a vrací se bez upozornění', () => {
+    const friendly: CampaignWorld = {
+      ...battleWorld,
+      harmless: () => true,
+      watcherOf: () => ({ playerId: 'p-domaci', name: 'Kněžice' }),
+    };
+    const start = raiding();
+    const step = stepCampaign(start, start.tick + 20, [], friendly);
+    expect(step.state.battle).toBeUndefined();
+    expect(step.state.phase).toBe('returning');
+    expect(step.notices.filter((n) => n.kind === 'foreign-army')).toEqual([]);
   });
 
   it('po boji se tažení vrací; padlí a ranění se propíšou do mužů', () => {

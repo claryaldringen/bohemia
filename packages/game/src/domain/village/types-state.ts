@@ -69,6 +69,14 @@ export interface LogStack {
   logs: number;
 }
 
+/** Postoj vsi: bránit se (stěna štítů), vzdát se při přesile (bílá vlajka), raději utéct (stromy). */
+export type DefenseStance = 'defend' | 'surrender' | 'flee';
+
+/** Obrana vsi – postoj nastavený hráčem. */
+export interface VillageDefense {
+  stance: DefenseStance;
+}
+
 export interface VillageState {
   seed: number;
   foundedDay: number;
@@ -464,6 +472,11 @@ export interface VillageState {
    * správce vypnutý (`withSteward` ji převede).
    */
   steward?: StewardState;
+  /**
+   * Obrana vsi před cizím vojskem (war.md – Obránci – postoje a útěk): postoj, který hráč nastavil
+   * dopředu. Chybí = výchozí `flee` (raději utéct).
+   */
+  defense?: VillageDefense;
   /**
    * Klíč založení vsi ze schránky odchodu syna (`settleStewardDepartures` – mateřská ves a id
    * záznamu): podle něj úložiště ves nezaloží dvakrát. Simulace ho nečte. Chybí – ves vznikla jinak.

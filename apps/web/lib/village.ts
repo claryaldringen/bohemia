@@ -18,9 +18,11 @@ import {
   cancelUnfinishedConstruction,
   foundVillageForSettlement,
   declareHuntInVillage,
+  setDefenseStanceInVillage,
   forceBadYear,
   forceDisaster,
   type BadYearKind,
+  type DefenseStance,
   type ForcedDisasterKind,
   nameLineManInVillage,
   setSteward,
@@ -668,6 +670,20 @@ export function declareHuntForPlayer(
     declareHuntInVillage(
       { villages: villages() },
       { villageId: ctx.villageId, today: ctx.day, landscape: ctx.landscape },
+    ),
+  );
+}
+
+/** Hráč nastaví postoj vsi před cizím vojskem (war.md – Obránci); právo `war`. */
+export function setDefenseStanceForPlayer(
+  playerId: string,
+  villageId: string,
+  stance: DefenseStance,
+): Promise<VillageActionResult> {
+  return actOn(playerId, villageId, 'setDefenseStance', (ctx) =>
+    setDefenseStanceInVillage(
+      { villages: villages() },
+      { villageId: ctx.villageId, stance, today: ctx.day, landscape: ctx.landscape },
     ),
   );
 }

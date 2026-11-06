@@ -96,6 +96,8 @@ export const ACTION_RIGHTS = {
   renameVillage: 'steward',
   forceDevDisaster: 'steward',
   sendExpedition: 'trade',
+  // postoj vsi před cizím vojskem (war.md – Obránci) – obrana je válka: jen držitel vsi
+  setDefenseStance: 'war',
 } as const satisfies Record<string, VillageRight>;
 
 /** Jméno akce nad vsí. */

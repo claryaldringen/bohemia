@@ -9,7 +9,7 @@ import {
   createLockPool,
   createVillageRepository,
 } from '@bohemia/db';
-import { advanceWorldStep, runWorldTasks, stepCampaigns } from '@bohemia/game';
+import { advanceWorldStep, runWorldTasks, stepCampaigns, villageWatchers } from '@bohemia/game';
 import {
   WORKER_LOCK_POOL_SIZE,
   cachedLandscapes,
@@ -118,6 +118,13 @@ async function main(): Promise<void> {
     }),
     villages: campaignVillages,
     notices: gameDeps.notices,
+    // upozornění „Cizí vojsko u …“ a neškodná vojska pána a vazalů (war.md – Obránci)
+    watchers: villageWatchers({
+      villages: campaignVillages,
+      settlements: gameDeps.settlements,
+      houses: gameDeps.houses,
+      vassalages: gameDeps.vassalages,
+    }),
   };
   const campaignLoop: CampaignLoopDeps = {
     step: (input) => stepCampaigns({ ...campaignDeps, world: currentWorld() }, input),

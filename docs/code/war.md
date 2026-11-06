@@ -264,3 +264,40 @@ group, order, at)` – před bitvou kdykoli, v boji jen na doslech (jinak false)
   1 / 7 / 40 taktech přes JSON = vcelku, ztráty v mužích), `orders.test.ts` (za velitelem, obrana
   velitele, útočit na vše mimo dohled, držet místo ≤ 30 m, změna rozkazu na doslech),
   `defenders.test.ts` (skupiny domů, soupis, poslední muž rodu); přípravky `battle-fixtures.ts`.
+
+## Postoje vsi a včasný útěk (Ú6.9)
+
+Rozhodnutí: `VillageState.defense?: { stance }` (`DefenseStance` = `defend` | `surrender` | `flee`),
+bez nastavení `flee` (`stanceOf`, `WAR.flight.defaultStance`). Postoj mění akce `setDefenseStance`
+(`application/set-defense-stance.ts`, `ACTION_RIGHTS` → právo **`war`** – obrana vsi je válka, správce
+cizí vsi ani senior ji nemají; držitel vsi ano). Čísla útěku: `WAR.flight` (25 / 10 kg, děti od 7 let,
+návrat za 1 den), `WAR.surrenderRatio`, `WAR.pitFoundChance`.
+
+- `domain/war/flight.ts` – `nearestForest(grid, from)` (hustý les mřížky pochodu; používá i útěk při
+  bodu zlomu v `battle.ts`), `fleeParty(state, day, who?)` (dospělý 25 kg, dítě 7–15 let 10 kg, mladší
+  nic, dobytek celý, zásoby nejvýš do výše zásob), `pitFound(seed, pitId, daysInGroup)` (30 % ze
+  seedu jámy po 1 herním dni ve skupině domů), `returnDayAfter(dnes)` (+1 den), `isOverpowered`
+  (útočníků > 1,5× obránců, jezdec za dva), `isHarmlessArmy(armyHouse, villageHouse, edges)`
+  (vlastní rod, pán a vazalové = strom `treeBelow` na kterékoli straně).
+- `domain/war/stance.ts` – `planDefense` se zavolá **jednou při otevření boje** (`campaignBattle`):
+  1. s opevněním s plochou jdou **všichni** přítomní lidé a dobytek napřed do útočiště – nejbližší
+     opevnění, doběh tempem vojska, brány se zavřou, jakmile je první útočník do 30 m (takt
+     `gateCloseTick`), `refugeAdmit` rozhodne, kdo se vejde. Muži uvnitř bojují u středu opevnění
+     (násobek `defenderMultiplier`), ženy a starší nebojují. Postoj `surrender`: skupina uvnitř se
+     vzdá nad `surrenderThreshold(muži, násobek opevnění)`;
+  2. kdo zůstal venku, jedná po **skupinách domů**: `defend` bojuje; `surrender` se vzdá při
+     přesile, jinak bojuje; `flee` do lesa (zásoby, dobytek), **bez lesa jako `surrender`**. Poslední
+     muž rodu se nevzdá – uteče do lesa (bez lesa bojuje);
+  3. kdo odešel nebo se vzdal, v `BattleState` není (nezapočítá se do bodu zlomu); co odnesl, je
+     v `BattleState.shelter` (`ShelterReport`: útočiště, les, vzdaní, `carriedKg`, dobytek) – použije
+     Ú6.10 (kořist, jámy), Ú6.11 (vzdaní).
+- Neškodná vojska: `CampaignWorld.harmless?(villageId, armyPlayerId)`; v `raidTick` bez boje rovnou
+  `turnBack('arrived')`. Upozornění: `CampaignWorld.watcherOf?(villageId)` → při otevření boje
+  `CampaignNotice` druhu `foreign-army` (payload `{ villageId, name }`) majiteli vsi.
+- Zapojení: `application/step-campaigns.ts` – `StepCampaignsDeps.watchers` (volitelné),
+  `villageWatchers(...)` je složí z portů (majitel sídla vsi, `isHarmlessArmy` nad `edgesNear`
+  do 8 kroků); worker je předává v `apps/worker/src/main.ts`.
+- Zjednodušení proti návrhu: rozhodnutí o postoji padá při otevření boje (všichni útočníci na mapě
+  jsou „v dohledu“), utíkající lidé se nedohání, domy uvnitř obvodu (zásoby v bezpečí) se
+  neodlišují od přibíhajících zvenku, vozy a koně se do útěku nepočítají (jen stáda ovcí, koz, prasat
+  a krav). Zásoby, jámy a návrat lidí do vsi aplikuje Ú6.10.

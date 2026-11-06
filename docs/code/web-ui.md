@@ -804,3 +804,12 @@ staví až na hotovém.`, `Val už nástavbu má.`), ikona brány (`aria-pressed
   řádek „Svěřit správu vsi“ s výběrem své vsi (`term-stewardship-select`); `lib/house-input.ts` ho parsuje.
 - Server: akce správce jdou stejnými server actions jako vlastní (`actOn` → `guardedAction`); právo i zámek
   řeší `lib/village.ts`, viz [vassalage.md](vassalage.md) – Správa cizí vsi.
+
+## Postoj vsi ve dvorci (úloha 6.9, `hud/ManorPanel.tsx`)
+
+`ManorUpgrades` má vedle stezky, lovu a obchodu tři ikony postoje (stěna štítů = bránit se, bílá
+vlajka = vzdát se při přesile, stromy = raději utéct; vlastní SVG v `public/icons/war/`, CC0,
+`LICENSES.md`); zvolená má `aria-pressed` a zlatý proužek, popis je v `Tooltip`. `VillageManor.stance`
+plní `manorView` (`stanceOf`), volba jde přes server action `setDefenseStance` → `setDefenseStanceForPlayer`
+(`lib/village.ts`, právo `war` – bez něj tlačítka zašednou s důvodem). Upozornění `foreign-army` →
+„Cizí vojsko u vsi Kněžice!“ (`lib/player-notices.ts`, panel války). Test: `ManorStance.behavior.test.tsx`.

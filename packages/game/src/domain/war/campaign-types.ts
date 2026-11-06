@@ -174,10 +174,20 @@ export interface CampaignWorld {
   landscapeOf(cell: GridCell): CampaignMap | null;
   /** Stav vsi pro den `day` (Ú6.7: ke konci dne `day − 1`, jinak null). */
   villageAt(villageId: string, day: number): VillageState | null;
+  /**
+   * Hráč, kterému ves na mapě cíle patří (upozornění „Cizí vojsko u …!“), a jméno vsi; neví-li
+   * svět, null a nikdo se nevaruje.
+   */
+  watcherOf?(villageId: string): { playerId: string; name: string } | null;
+  /**
+   * Je vojsko hráče `armyPlayerId` pro ves neškodné (vlastní, pána nebo vazalů – `isHarmlessArmy`)?
+   * Neví-li svět, vojsko škodí.
+   */
+  harmless?(villageId: string, armyPlayerId: string): boolean;
 }
 
 /** Druhy upozornění tažení (aplikace je přidá do `PlayerNoticeKind`). */
-export type CampaignNoticeKind = 'campaign-returned';
+export type CampaignNoticeKind = 'campaign-returned' | 'foreign-army';
 
 /** Upozornění pro hráče z taktu tažení. */
 export interface CampaignNotice {

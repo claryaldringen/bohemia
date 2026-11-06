@@ -1,6 +1,11 @@
 /** Panel výběru obydlí, dvorce vojvody a skupiny obydlí. */
 import { type ReactElement } from 'react';
-import { type BuildableDwellingType, Direction8, TradeGoods } from '@bohemia/game';
+import {
+  type BuildableDwellingType,
+  type DefenseStance,
+  Direction8,
+  TradeGoods,
+} from '@bohemia/game';
 import { VillageTarget } from '@/lib/scene/village-picking';
 import { type SelectionDetails } from '@/lib/selection-details';
 import { PreviewPeople } from '@/lib/trade-quote';
@@ -37,6 +42,8 @@ export interface ManorActions {
   onBuildTrail?: (direction: Direction8) => Promise<void>;
   /** Vyhlásí lov navíc na zítřek (server action) – vrátí důvod odepření, nebo null. */
   onDeclareHunt?: () => Promise<string | null | void>;
+  /** Nastaví postoj vsi před cizím vojskem (war.md – Obránci) – vrátí důvod odepření, nebo null. */
+  onSetStance?: (stance: DefenseStance) => Promise<string | null | void>;
   /**
    * Vyšle výpravu k sousedovi (server action) – hotovo, až se vrátí; vrátí důvod, proč ji server
    * odmítl, nebo null (panel obchodu ho ukáže pod tlačítkem).
@@ -59,6 +66,7 @@ export function DwellingBody({
   onPreviewSon,
   onBuildTrail,
   onDeclareHunt,
+  onSetStance,
   onSendExpedition,
   steward,
   onSetSteward,
@@ -122,6 +130,7 @@ export function DwellingBody({
               manor={details.manor}
               onBuildTrail={onBuildTrail}
               onDeclareHunt={onDeclareHunt}
+              onSetStance={onSetStance}
               trade={() => (
                 <TradePanel
                   neighbours={details.manor?.neighbours ?? []}
