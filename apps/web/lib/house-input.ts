@@ -72,6 +72,43 @@ function parseBundle(input: unknown): MacroBundle | null {
   };
 }
 
+const BUNDLE_KEYS = [
+  'grainKg',
+  'hayKg',
+  'cattle',
+  'horses',
+  'logs',
+  'people',
+  'laborDays',
+] as const;
+
+/**
+ * Strana obchodu z klienta: svazek jen makrokomodit. Cokoli navíc (mikrokomodita – hrnce, železo,
+ * nářadí…) se odmítne už tady; lidé a robota (nulové) projdou tvarem, odmítne je doména.
+ */
+function parseTradeSide(input: unknown): MacroBundle | null {
+  if (typeof input !== 'object' || input === null) return null;
+  const keys = Object.keys(input as Record<string, unknown>);
+  if (keys.some((k) => !(BUNDLE_KEYS as readonly string[]).includes(k))) return null;
+  return parseBundle(input);
+}
+
+/** `{ <rod>: <ves> }` – ves, ze které strana obchodu zboží pošle (nejvýš dvě strany). */
+function parseFromVillage(input: unknown): Record<string, string> | null {
+  if (input === undefined) return {};
+  if (typeof input !== 'object' || input === null || Array.isArray(input)) return null;
+  const entries = Object.entries(input as Record<string, unknown>);
+  if (entries.length > 2) return null;
+  const out: Record<string, string> = {};
+  for (const [houseId, villageId] of entries) {
+    const house = idOf(houseId);
+    const village = idOf(villageId);
+    if (house === null || village === null) return null;
+    out[house] = village;
+  }
+  return out;
+}
+
 /**
  * Podmínky z klienta: pole řádků (přísaha mezi dvěma id rodů, dávka, služba, cílová ves, odměna),
  * jinak null. Prázdné pole je platné (změna podmínek na holou přísahu); obsah čísel ověří doména.
@@ -108,6 +145,14 @@ export function parseTermItems(input: unknown): TermItem[] | null {
         const villageId = idOf(row.villageId);
         if (villageId === null) return null;
         items.push({ kind: 'target-village', villageId });
+        break;
+      }
+      case 'trade': {
+        const give = parseTradeSide(row.give);
+        const get = parseTradeSide(row.get);
+        const fromVillage = parseFromVillage(row.fromVillage);
+        if (give === null || get === null || fromVillage === null) return null;
+        items.push({ kind: 'trade', give, get, fromVillage });
         break;
       }
       case 'aid-request': {

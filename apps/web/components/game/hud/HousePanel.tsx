@@ -12,7 +12,7 @@ import {
 } from '@/lib/house-view';
 import { breachLabel, emptyBundle, hungerLabel, termChips, termItemsOf } from '@/lib/terms-view';
 import type { HungerLevel } from '@bohemia/game';
-import { openingTerms, termRows, type NegotiationView } from '@/lib/negotiation-view';
+import { openingTerms, openingTrade, termRows, type NegotiationView } from '@/lib/negotiation-view';
 import { NegotiationCard, type NegotiationReply } from './NegotiationCard';
 import { Chip, TermsForm, type TermsContext } from './TermsForm';
 import { Tooltip } from './Tooltip';
@@ -26,6 +26,12 @@ import { Tooltip } from './Tooltip';
 const ICON = '/icons/house';
 
 function Icon({ name, size = 20 }: { name: string; size?: number }): ReactElement {
+  // vůz (obchod) je ikona zdroje, ne kresba rodu
+  if (name === 'cart') {
+    return (
+      <img src="/icons/resources/cart.png" alt="" width={size} height={size} draggable={false} />
+    );
+  }
   return <img src={`${ICON}/${name}.svg`} alt="" width={size} height={size} draggable={false} />;
 }
 
@@ -465,7 +471,7 @@ function lordIsOwnIn(n: NegotiationView, view: HouseView): boolean {
 /** Rozpracovaná nabídka: komu a v které roli je hráč (pán / vazal). */
 interface Draft {
   house: HouseLinkView;
-  direction: 'offer' | 'request';
+  direction: 'offer' | 'request' | 'trade';
 }
 
 /** Odkaz pozvánky: absolutní adresa registrace s kódem (z adresy prohlížeče). */
@@ -605,6 +611,7 @@ export function HousePanel({
     villages.find((v) => v.id === id)?.name ?? null;
   const contextFor = (houseId: string, lordIsOwn: boolean): TermsContext => ({
     lordIsOwn,
+    ...(view ? { ownHouseId: view.ownHouseId } : {}),
     villages,
     ...(gameYear !== undefined ? { gameYear } : {}),
     ...(onSpare ? { loadSpare: (target) => onSpare(houseId, target) } : {}),
@@ -849,6 +856,14 @@ export function HousePanel({
                         onClick={() => setDraft({ house: h, direction: 'request' })}
                       />
                       <PlayerAction
+                        label="Obchod"
+                        icon="cart"
+                        testId="house-trade"
+                        reason={h.actions.blocked ? 'Zablokován.' : null}
+                        busy={busy}
+                        onClick={() => setDraft({ house: h, direction: 'trade' })}
+                      />
+                      <PlayerAction
                         label="Blokovat"
                         icon="gate"
                         testId="house-block"
@@ -864,14 +879,26 @@ export function HousePanel({
                       <TermsForm
                         key={`${h.houseId}-${draft.direction}`}
                         rows={termRows(
-                          openingTerms(draft.direction, view.ownHouseId, h.houseId),
+                          draft.direction === 'trade'
+                            ? openingTrade(view.ownHouseId, villages[0]?.id ?? null)
+                            : openingTerms(draft.direction, view.ownHouseId, h.houseId),
                           view.ownHouseId,
                           h,
                         )}
                         submitLabel={
-                          draft.direction === 'offer' ? 'Nabídnout vazalství' : 'Požádat o přijetí'
+                          draft.direction === 'offer'
+                            ? 'Nabídnout vazalství'
+                            : draft.direction === 'trade'
+                              ? 'Nabídnout obchod'
+                              : 'Požádat o přijetí'
                         }
-                        submitIcon={draft.direction === 'offer' ? 'seal' : 'hands'}
+                        submitIcon={
+                          draft.direction === 'offer'
+                            ? 'seal'
+                            : draft.direction === 'trade'
+                              ? 'cart'
+                              : 'hands'
+                        }
                         busy={busy}
                         context={contextFor(h.houseId, draft.direction === 'offer')}
                         onCancel={() => setDraft(null)}

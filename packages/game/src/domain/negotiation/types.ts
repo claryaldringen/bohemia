@@ -1,4 +1,5 @@
 import type { AidLine } from '../vassalage/loan';
+import type { MacroBundle } from '../vassalage/macro';
 import type { TermLine } from '../vassalage/terms';
 
 /**
@@ -7,7 +8,21 @@ import type { TermLine } from '../vassalage/terms';
  * dohody) nebo řádek jednání o pomoci (`AidLine` – žádost, dar, půjčka; vassalage.md – Pomoc na
  * žádost). Strany jsou **rody** (`house.id`), ne hráči (technické rozhodnutí 2 plánu).
  */
-export type TermItem = { kind: 'oath'; lord: string; vassal: string } | TermLine | AidLine;
+export type TermItem =
+  { kind: 'oath'; lord: string; vassal: string } | TermLine | AidLine | TradeLine;
+
+/**
+ * Obchod mezi hráči (vassalage.md – Hospodářství mezi hráči): autor kola `give` pošle, `get`
+ * dostane. Jen makrokomodity (zboží, ne lidé a robota), obě strany neprázdné. `fromVillage` =
+ * rod (`house.id`) → jeho ves, ze které zboží pošle; rod bez záznamu pošle z vsi hlavy rodu.
+ * Obchod je samostatné jednání mezi dvěma rody, nevyžaduje vazalství.
+ */
+export interface TradeLine {
+  kind: 'trade';
+  give: MacroBundle;
+  get: MacroBundle;
+  fromVillage: Record<string, string>;
+}
 
 /** Jedno kolo jednání: podmínky jedné strany a volitelný vzkaz. */
 export interface NegotiationRound {

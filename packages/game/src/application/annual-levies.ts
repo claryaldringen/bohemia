@@ -1,8 +1,9 @@
 import { dateOfDayIndex, dayIndexOf } from '../domain/calendar';
-import { NEGOTIATION } from '../domain/negotiation';
+import { NEGOTIATION, TRADE_REASONS } from '../domain/negotiation';
 import {
   LEVY_GOODS,
   bundleOfAmounts,
+  checkAidBundle,
   checkBundle,
   corveeWorkers,
   dueGoods,
@@ -215,7 +216,11 @@ function targetOf(v: Vassalage, lordVillageId: string | undefined): string | nul
 export interface LevyDialogView {
   dialogId: string;
   /** `levy` – roční dávka vazalství, `repay` – řádek splátky půjčky (samostatná dohoda). */
-  kind: 'levy' | 'repay';
+  kind: 'levy' | 'repay' | 'trade-send';
+  /**
+   * U `trade-send` (obchod mezi hráči, plán – úloha 4.7) je `lordHouseId` / `lordName` druhá strana
+   * obchodu a `agreed` zboží, které má hráč poslat; `vassalageId` je prázdné.
+   */
   /** U `repay` prázdné (půjčka nezávisí na vazalství) – místo něj `loanId`. */
   vassalageId: string;
   loanId?: string;
@@ -247,6 +252,11 @@ export async function levyDialogs(
   for (const dialog of await deps.dialogs.listOpen(input.playerId)) {
     if (dialog.kind === 'repay') {
       const view = await repayView(deps, dialog, own);
+      if (view) out.push(view);
+      continue;
+    }
+    if (dialog.kind === 'trade-send') {
+      const view = await tradeView(deps, dialog, own);
       if (view) out.push(view);
       continue;
     }
@@ -336,6 +346,51 @@ async function repayView(
   };
 }
 
+/** Body dialogu obchodu (`openTradeDialogs` v `negotiate.ts`). */
+interface TradeBody {
+  fromHouseId: string;
+  toHouseId: string;
+  toVillageId: string;
+  goods: MacroBundle;
+}
+
+const tradeBodyOf = (dialog: Dialog): TradeBody => dialog.body as unknown as TradeBody;
+
+/** Dialog odeslání obchodu: dohodnuté zboží, rozdělení po vsích předvyplněné podle přebytku. */
+async function tradeView(
+  deps: LevyDeps,
+  dialog: Dialog,
+  own: Awaited<ReturnType<typeof houseVillages>>,
+): Promise<LevyDialogView | null> {
+  const body = tradeBodyOf(dialog);
+  const partner = await deps.houses.byId(body.toHouseId);
+  const targetCell = await cellOfVillage(deps.shipments, body.toVillageId);
+  const spares = own.map((village) => ({
+    id: village.id,
+    spare: houseSpare(
+      [{ state: village.state as never, cell: village.cell }],
+      targetCell ?? village.cell,
+      noMacroGoods(),
+    ),
+  }));
+  const split = suggestSplit(body.goods, spares);
+  return {
+    dialogId: dialog.id,
+    kind: 'trade-send',
+    vassalageId: '',
+    lordHouseId: body.toHouseId,
+    lordName: partner ? await houseName(deps, partner) : '',
+    years: 1,
+    agreed: body.goods,
+    villages: own.map((village) => ({
+      villageId: village.id,
+      name: village.name,
+      suggested: split[village.id] ?? bundleOfAmounts(sumBundles([])),
+      corveeHands: 0,
+    })),
+  };
+}
+
 /** Zboží bez lidí a roboty jako svazek. */
 function bundleOfGoods(goods: MacroGoods): MacroBundle {
   return { ...goods, people: { families: 0, men: 0, women: 0 }, laborDays: 0 };
@@ -376,7 +431,7 @@ export async function answerLevy(
   if (
     !dialog ||
     dialog.playerId !== input.playerId ||
-    (dialog.kind !== 'levy' && dialog.kind !== 'repay')
+    (dialog.kind !== 'levy' && dialog.kind !== 'repay' && dialog.kind !== 'trade-send')
   ) {
     return { ok: false, reason: NOT_YOUR_DIALOG };
   }
@@ -385,6 +440,7 @@ export async function answerLevy(
     return { ok: false, reason: LEVY_MESSAGE_TOO_LONG };
   }
   if (dialog.kind === 'repay') return answerRepay(deps, dialog, input);
+  if (dialog.kind === 'trade-send') return answerTrade(deps, dialog, input);
   const v = await deps.vassalages.byId(dialog.refId);
   if (!v || v.endedAt !== null || !v.terms.tribute) return { ok: false, reason: LEVY_ENDED };
   const vassal = await deps.houses.activeOf(input.playerId);
@@ -567,6 +623,80 @@ async function answerRepay(
         parts,
         arrivesDay,
         loan: true,
+        ...(input.message ? { message: input.message } : {}),
+      },
+      gameDay: input.today,
+    });
+  }
+  return { ok: true, arrivesDay, dialog: { ...dialog, status: 'answered' } };
+}
+
+/**
+ * Odpověď na dialog obchodu (vassalage.md – Hospodářství mezi hráči): pošle zboží z vsí rodu do
+ * domluvené vsi druhé strany (klíč `trade:<dialog>:<ves>`; doveze ten, kdo posílá). Celé, míň,
+ * nebo nic – nic se nevynucuje; druhá strana dostane upozornění, co a kdy dorazí (a že poslal
+ * míň než domluveno). Lidé ani robota v obchodu nejsou.
+ */
+async function answerTrade(
+  deps: LevyDeps,
+  dialog: Dialog,
+  input: {
+    playerId: string;
+    lines: LevyAnswerLine[];
+    split: Record<string, MacroBundle>;
+    message: string | null;
+    today: number;
+  },
+): Promise<AnswerLevyResult> {
+  const body = tradeBodyOf(dialog);
+  const sender = await deps.houses.activeOf(input.playerId);
+  if (!sender || sender.id !== body.fromHouseId) return { ok: false, reason: NOT_YOUR_DIALOG };
+  for (const bundle of Object.values(input.split)) {
+    if (!isEmptyBundle(bundle) && checkAidBundle(bundle) !== null) {
+      return { ok: false, reason: TRADE_REASONS.badGoods };
+    }
+  }
+  const checked = await checkAnswer(deps, input);
+  if (!checked.ok) return checked;
+  const { shipping, sent } = checked;
+
+  let arrivesDay: number | null = null;
+  for (const [villageId, bundle] of shipping) {
+    await deps.prepareVillage(villageId, input.today);
+    const result = await sendShipment(deps.shipments, {
+      fromVillageId: villageId,
+      toVillageId: body.toVillageId,
+      bundle,
+      purpose: 'trade',
+      refId: `trade:${dialog.id}:${villageId}`,
+      today: input.today,
+    });
+    if (!result.ok) return { ok: false, reason: result.reason };
+    arrivesDay = Math.max(arrivesDay ?? 0, result.arrivesDay);
+  }
+  if (!(await deps.dialogs.answer(dialog.id, 'open'))) {
+    return { ok: false, reason: DIALOG_CLOSED };
+  }
+
+  const agreed = flattenBundle(body.goods);
+  const parts: LevyPart[] = LEVY_GOODS.filter((g) => agreed[g] > 0 || sent[g] > 0).map((good) => ({
+    good,
+    sent: sent[good],
+    agreed: agreed[good],
+  }));
+  const partner = await deps.houses.byId(body.toHouseId);
+  if (partner?.playerId) {
+    await deps.notices.post({
+      playerId: partner.playerId,
+      kind: 'levy-sent',
+      payload: {
+        vassalName: await houseName(deps, sender),
+        years: 1,
+        // jen odeslané řádky; `short` – poslal míň, než bylo domluveno (nic se nevynucuje)
+        parts: parts.filter((p) => p.sent > 0),
+        arrivesDay,
+        trade: true,
+        short: LEVY_GOODS.some((g) => sent[g] < agreed[g]),
         ...(input.message ? { message: input.message } : {}),
       },
       gameDay: input.today,

@@ -93,7 +93,7 @@ export function overdueDebt(
 }
 
 /** Svazek bez lidí a roboty – pomoc je jen zboží. */
-function checkAidBundle(b: MacroBundle): string | null {
+export function checkAidBundle(b: MacroBundle): string | null {
   const people = b.people.families + b.people.men + b.people.women;
   if (people !== 0 || b.laborDays !== 0) return AID_REASONS.badBundle;
   return checkBundle(b);

@@ -182,9 +182,21 @@ function LevyRow({
   return (
     <div data-testid={testId} className="flex flex-col gap-1.5 border-t border-[#5c4526] pt-2">
       <div className="flex items-center gap-2">
-        <Tooltip content={dialog.kind === 'repay' ? 'Splátka půjčky' : 'Roční dávka'}>
+        <Tooltip
+          content={
+            dialog.kind === 'repay'
+              ? 'Splátka půjčky'
+              : dialog.kind === 'trade-send'
+                ? 'Obchod'
+                : 'Roční dávka'
+          }
+        >
           <span tabIndex={0} data-testid={`${testId}-kind`} className="inline-flex">
-            <HouseIcon name={dialog.kind === 'repay' ? 'loan' : 'banner'} size={22} />
+            {dialog.kind === 'trade-send' ? (
+              <img src="/icons/resources/cart.png" alt="" width={22} height={22} />
+            ) : (
+              <HouseIcon name={dialog.kind === 'repay' ? 'loan' : 'banner'} size={22} />
+            )}
           </span>
         </Tooltip>
         <span data-testid={`${testId}-lord`} className="text-sm font-semibold">

@@ -3,7 +3,7 @@
 // prohlížeče. Rozhodnutí (kdo je na tahu, kdo smí co) je v `packages/game`, tady se jen zobrazuje.
 import type { PanelNegotiation, TermItem } from '@bohemia/game';
 import type { HouseLinkView } from './house-view';
-import { serviceLabel } from './terms-view';
+import { serviceLabel, tradeFlipped } from './terms-view';
 
 /** Řádek podmínek jako ikona s popiskem; `item` je podmínka, ze které řádek vznikl. */
 export interface TermRowView {
@@ -56,6 +56,8 @@ export function termRowLabel(
       return 'Dar';
     case 'loan':
       return 'Půjčka se splátkovým kalendářem';
+    case 'trade':
+      return 'Obchod';
   }
 }
 
@@ -66,6 +68,34 @@ export function termRows(
   other: { lordName: string | null },
 ): TermRowView[] {
   return items.map((item) => ({ kind: item.kind, item, label: termRowLabel(item, ownId, other) }));
+}
+
+/** Prázdný obchod k vyplnění: hráč dává i dostává zboží; ves odeslání je jeho výchozí ves. */
+export function openingTrade(ownId: string, ownVillageId: string | null): TermItem[] {
+  return [
+    {
+      kind: 'trade',
+      give: {
+        grainKg: 100,
+        hayKg: 0,
+        cattle: { cows: 0, youngOxen: 0, trainedOxen: 0 },
+        horses: 0,
+        logs: 0,
+        people: { families: 0, men: 0, women: 0 },
+        laborDays: 0,
+      },
+      get: {
+        grainKg: 0,
+        hayKg: 0,
+        cattle: { cows: 0, youngOxen: 0, trainedOxen: 0 },
+        horses: 0,
+        logs: 10,
+        people: { families: 0, men: 0, women: 0 },
+        laborDays: 0,
+      },
+      fromVillage: ownVillageId ? { [ownId]: ownVillageId } : {},
+    },
+  ];
 }
 
 /** Podmínky nabídky: `offer` = hráč je pánem, `request` = hráč žádá o přijetí (je vazalem). */
@@ -92,7 +122,12 @@ export function negotiationView(
     id: n.id,
     other,
     myTurn: n.myTurn,
-    rows: termRows(n.items, ownId, n.other),
+    // obchod čte hráč ze svého pohledu: co dostal v poslední nabídce, je jeho „dostaneš“
+    rows: termRows(
+      n.myTurn ? n.items.map((i) => (i.kind === 'trade' ? tradeFlipped(i) : i)) : n.items,
+      ownId,
+      n.other,
+    ),
     message: n.message,
     rounds: n.rounds,
     label: n.myTurn ? `${name} – čeká na tvou odpověď` : `${name} – čeká na odpověď`,

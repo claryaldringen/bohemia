@@ -97,7 +97,14 @@ export type ChronicleEvent = { day: number } & (
   | {
       kind: 'negotiation';
       step:
-        'offer' | 'counter' | 'rejected' | 'withdrawn' | 'terms-accepted' | 'aid-gift' | 'aid-loan';
+        | 'offer'
+        | 'counter'
+        | 'rejected'
+        | 'withdrawn'
+        | 'terms-accepted'
+        | 'aid-gift'
+        | 'aid-loan'
+        | 'trade-accepted';
       actor: string;
       other: string;
     }

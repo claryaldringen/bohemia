@@ -691,6 +691,13 @@ action `levyDialogs()` (rozdělení po vsích se počítá až tehdy, ne s dotaz
   (hodiny a pečeť), `house-panel.test.ts` (`levyYears`); e2e `e2e/multiplayer.spec.ts` – „Odvody 1. 11.“ (dialog se zapíše
   přímo do `bohemia_test`, vsi se dopřeje `commonLaborYearly`, snímek do `LEVY_SCREENSHOT`).
 
+- **Obchod mezi hráči (úloha 4.7):** v liště akcí hráče tlačítko **Obchod** (`house-trade`, vůz `resources/cart.png`) otevře
+  `TermsForm` s řádkem `TradeRow` (`term-row-trade`; hlavičky „Dáš“ / „Dostaneš“ slovy – výjimka z pravidla bez popisků,
+  políčka `term-trade-give-*` / `term-trade-get-*`, výběr vsi odeslání `term-trade-village`). `negotiationView` obchod
+  v kartě, kde je hráč na tahu, převrátí (`tradeFlipped`), aby „Dáš“ bylo vždy jeho. Dialog odeslání je řádek Odvodů
+  `kind: 'trade-send'` v `LevyDialog.tsx` (ikona vozu, posuvník, rozdělení po vsích, Odeslat); otevírá ho upozornění
+  `levy-pending` s `trade: true`. Jádro: [vassalage.md](vassalage.md) – Obchod mezi hráči.
+
 ## Seniorát v rozhraní (úloha 2.3, `hud/rights.tsx`)
 
 - **Práva z jádra:** `VillageView.rights = { allowed, reason }` (`VillageRightsView`) skládá `viewOf`

@@ -441,6 +441,8 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
           return `Dar přijat – ${event.actor} a ${event.other}.`;
         case 'aid-loan':
           return `Půjčka sjednána – ${event.actor} a ${event.other}.`;
+        case 'trade-accepted':
+          return `Obchod sjednán – ${event.actor} a ${event.other}.`;
       }
     case 'negotiation-accepted':
       return `${event.vassal} se stal vazalem ${genitiveOf(event.lord)}.`;

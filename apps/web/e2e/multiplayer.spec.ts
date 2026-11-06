@@ -440,3 +440,101 @@ test('pomoc na žádost: B požádá A o obilí, A dá půjčku, B přijme → z
 
   await Promise.all(ctxs.map((ctx) => ctx.close()));
 });
+
+test('obchod mezi hráči: A nabídne C obilí za klády, C přijme → oba mají dialog, A pošle celé, C míň', async ({
+  browser,
+}) => {
+  test.setTimeout(240_000);
+  await query(`UPDATE house SET ended_at = now() WHERE ended_at IS NULL`, []);
+  const ctxs = await Promise.all([browser.newContext(), browser.newContext()]);
+  for (const ctx of ctxs) await useUniqueClientIp(ctx);
+  const [a, c] = (await Promise.all(ctxs.map((ctx) => ctx.newPage()))) as [Page, Page];
+  for (const page of [a, c]) await page.setViewportSize({ width: 1280, height: 720 });
+  const { email: emailA, seat: seatA } = await newPlayer(a, 'obchoda');
+  await found(a, villageSpots(seatA.landscape).dwelling, 'Bořivoj');
+  const { email: emailC, seat: seatC } = await newPlayer(c, 'obchodc');
+  await found(c, villageSpots(seatC.landscape).dwelling, 'Dalibor');
+  const idC = await houseIdOf(emailC);
+  const idA = await houseIdOf(emailA);
+
+  // čerstvé vsi nemají společnou práci, z níž se platí doprava – dopřejeme ji oběma
+  for (const settlementId of [seatA.settlementId, seatC.settlementId]) {
+    await query(
+      `UPDATE village SET state = jsonb_set(state, '{commonLaborYearly}', '30'),
+              version = version + 1, digest_version = version + 1
+        WHERE settlement_id = $1`,
+      [settlementId],
+    );
+  }
+  // C má co poslat za obilí: čerstvá ves nemá žádné klády
+  await query(
+    `UPDATE village SET state = jsonb_set(state, '{woodLogs}', '10'),
+            version = version + 1, digest_version = version + 1
+      WHERE settlement_id = $1`,
+    [seatC.settlementId],
+  );
+
+  // A nabídne C obchod bez vazalství: dá 6 kg obilí, dostane 4 klády
+  const panelA = await openHousePanel(a);
+  const bar = await pickPlayer(panelA, idC);
+  await bar.getByTestId('house-trade').click();
+  await panelA.getByTestId('term-trade-give-grainKg').fill('6');
+  await panelA.getByTestId('term-trade-get-logs').fill('4');
+  await panelA.getByTestId('terms-submit').click();
+
+  // C vidí obchod z druhé strany (dá klády, dostane obilí) a přijme
+  const panelC = await reopenHousePanel(c);
+  const card = panelC.getByTestId('house-negotiation');
+  await expect(card).toHaveAttribute('data-my-turn', 'true');
+  await expect(card.getByTestId('term-row-trade')).toBeVisible();
+  await panelC.getByTestId('negotiation-accept').click();
+  await expect(panelC.getByTestId('house-negotiation')).toHaveCount(0);
+  // obchod nevyžaduje vazalství
+  await expect(panelC.getByTestId('house-lord')).toHaveCount(0);
+
+  // oba mají dialog odeslání
+  const dialogs = await query<{ player_id: string }>(
+    `SELECT player_id FROM dialog WHERE kind = 'trade-send' AND status = 'open'`,
+    [],
+  );
+  expect(dialogs).toHaveLength(2);
+
+  // A otevře dialog z upozornění a pošle celé
+  await pollVillage(a);
+  await a.getByTestId('village-notice').filter({ hasText: 'čeká odeslání zboží' }).click();
+  const dialogA = a.getByRole('dialog', { name: 'Odvody' });
+  await expect(dialogA).toBeVisible();
+  await dialogA.locator('input[type="range"]').fill('6');
+  await dialogA.getByRole('button', { name: 'Odeslat' }).click();
+  await expect(dialogA.locator('[data-testid$="-sent"]')).toBeVisible({ timeout: 30_000 });
+
+  // C pošle míň (2 z 4 klád)
+  await pollVillage(c);
+  await c.getByTestId('village-notice').filter({ hasText: 'čeká odeslání zboží' }).click();
+  const dialogC = c.getByRole('dialog', { name: 'Odvody' });
+  await expect(dialogC).toBeVisible();
+  await dialogC.locator('input[type="range"]').fill('2');
+  await dialogC.getByRole('button', { name: 'Odeslat' }).click();
+  await expect(dialogC.locator('[data-testid$="-sent"]')).toBeVisible({ timeout: 30_000 });
+
+  // zásilky vznikly: A → C obilí, C → A klády; upozornění dorazila
+  const shipments = await query<{ purpose: string; to_village: string }>(
+    `SELECT s.purpose, v.settlement_id AS to_village FROM shipment s
+       JOIN village v ON v.id = s.to_village_id WHERE s.purpose = 'trade'`,
+    [],
+  );
+  expect(shipments.map((s) => s.to_village).sort()).toEqual(
+    [seatA.settlementId, seatC.settlementId].sort(),
+  );
+  await pollVillage(c);
+  await expect(c.getByTestId('village-notice').filter({ hasText: 'zboží z obchodu' })).toBeVisible({
+    timeout: 60_000,
+  });
+  await pollVillage(a);
+  await expect(
+    a.getByTestId('village-notice').filter({ hasText: 'Míň, než bylo domluveno' }),
+  ).toBeVisible({ timeout: 60_000 });
+  expect(idA).not.toBe(idC);
+
+  await Promise.all(ctxs.map((ctx) => ctx.close()));
+});
