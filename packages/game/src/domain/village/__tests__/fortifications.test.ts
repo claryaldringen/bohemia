@@ -4,7 +4,13 @@ import { packObstacles, type ObstaclePlacement } from '../../landscape';
 import { foundVillage } from '../actions';
 import { applyBuildIntent } from '../build-intent';
 import { cancelConstruction } from '../cancel-construction';
-import { fortificationArea, fortificationOutline, fortSegments } from '../fortification';
+import {
+  fortBlockingSegments,
+  fortificationArea,
+  fortificationOutline,
+  fortRunningWork,
+  fortSegments,
+} from '../fortification';
 import {
   FORT_BUSY,
   FORT_GATE_OFF,
@@ -29,6 +35,7 @@ import { placementVillageOf } from '../placement-village';
 import { blockedGates, checkFootprintFree, BLOCKS_GATE } from '../placement-land';
 import { freeShape } from '../placement-geometry';
 import { dwellingGatePoint } from '../paths/network';
+import { fortLayoutKey, pathFortificationsOf, routeMapKey } from '../paths/village';
 import { advanceVillage } from '../simulate';
 import type { FortKind, VillageState } from '../types';
 import { block, makeLandscape } from './placement-fixtures';
@@ -344,6 +351,61 @@ describe('vylepšení, nástavba a zrušení', () => {
     expect(JSON.stringify(advance(cancelled, 10).fortifications)).toBe(
       JSON.stringify(cancelled.fortifications),
     );
+  });
+});
+
+describe('celý obvod blokuje od zahájení stavby (Martin 6. 11. 2026)', () => {
+  /** Úseky, které ves blokují – index a druh pásu. */
+  const blocking = (s: VillageState): { index: number; kind: FortKind }[] => {
+    const f = s.fortifications![0]!;
+    return fortBlockingSegments(f, fortRunningWork(s, f.id));
+  };
+
+  it('po kouscích: 0 %, rozpracované i hotové – stejné stěny a klíč; zrušení blokování uvolní', () => {
+    const s = start(village(), 'palisade');
+    const all = s.fortifications![0]!.segments.length;
+    expect(blocking(s)).toHaveLength(all);
+    const key = fortLayoutKey(s);
+    const walls = pathFortificationsOf(s, landscape);
+    expect(walls[0]!.walls.length).toBeGreaterThan(0);
+    // dokončení prvního úseku klíč mapy tras nezmění (jen jeho den dokončení)
+    const one = structuredClone(s);
+    one.fortifications![0]!.segments[0]!.builtDay = s.lastDay;
+    expect(routeMapKey(one, s.lastDay)).toBe(routeMapKey(s, s.lastDay));
+    let x = s;
+    let partial = false;
+    for (let d = 0; d < 400 && x.constructions.some((c) => c.kind === 'fortification'); d += 5) {
+      x = advance(x, 5);
+      const built = x.fortifications![0]!.segments.filter((g) => g.builtDay !== null).length;
+      if (built > 0 && built < all) partial = true;
+      expect(fortLayoutKey(x)).toBe(key);
+      expect(pathFortificationsOf(x, landscape)).toEqual(walls);
+    }
+    expect(partial).toBe(true);
+    expect(x.constructions.some((c) => c.kind === 'fortification')).toBe(false);
+    // zrušená stavba: nehotové úseky zmizí a přestanou blokovat, hotové stojí
+    const half = advance(s, 20);
+    const c = half.constructions.find((g) => g.kind === 'fortification')!;
+    const cancelled = cancelConstruction(half, half.lastDay, c.id);
+    const built = cancelled.fortifications![0]!.segments.filter((g) => g.builtDay !== null);
+    expect(blocking(cancelled).map((b) => b.index)).toEqual(built.map((g) => g.index));
+    expect(fortLayoutKey(cancelled)).not.toBe(key);
+  });
+
+  it('vylepšení plotu blokuje od zahájení pásem palisády', () => {
+    const built = finish(start(village(400), 'fence'));
+    expect(new Set(blocking(built).map((b) => b.kind))).toEqual(new Set(['fence']));
+    const up = ok(
+      startFortificationUpgrade(built, built.lastDay, landscape, EMPTY, {
+        fortificationId: built.fortifications![0]!.id,
+        work: 'upgrade',
+      }),
+    );
+    expect(blocking(up).every((b) => b.kind === 'palisade')).toBe(true);
+    expect(blocking(up)).toHaveLength(built.fortifications![0]!.segments.length);
+    const half = advance(up, 20);
+    expect(half.fortifications![0]!.segments.some((g) => g.kind === 'palisade')).toBe(true);
+    expect(fortLayoutKey(half)).toBe(fortLayoutKey(up));
   });
 });
 

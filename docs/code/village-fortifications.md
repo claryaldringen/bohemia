@@ -74,8 +74,14 @@ squares }`, nebo `{ error: 'empty' | 'disconnected' | 'too-small' }`. Opakované
 
 ## Stěny (`walls.ts`, Ú5.3)
 
-- **`fortWalls(geo, fort)`** – stěny (pás stojících úseků bez otvorů bran) a otvory bran jako
-  čtyřúhelníky ve světě; `quadTouchesSquare` a `insideQuad` pro buňky mřížek a obrys plotu.
+- **`fortWalls(geo, fort, work)`** – stěny (pás blokujících úseků bez otvorů bran) a otvory bran
+  jako čtyřúhelníky ve světě; `quadTouchesSquare` a `insideQuad` pro buňky mřížek a obrys plotu.
+- **Celý obvod blokuje od zahájení** (Martin 6. 11. 2026): `segmentBlockKind(fort, seg, work)` –
+  druh pásu, kterým úsek blokuje, nebo null: nehotový úsek blokuje při běžící stavbě či vylepšení
+  (`work` = `fortRunningWork(state, id)` – `Construction.fortWork` stavby na opevnění), stojící
+  úsek (`segmentStands`) vždy; vylepšení plotu pásem palisády; průlom, mezera na nule a nehotové
+  úseky zrušené stavby ne. `fortBlockingSegments` je seznam `{ index, kind }` – z něj stěny,
+  `gateRoadCrossings` i `fortLayoutKey`, takže dokončení úseku stěny ani klíče nemění.
   Podrobnosti a použití v síti pěšin a vozů:
   [village-roads.md – Brány opevnění v síti](village-roads.md#brány-opevnění-v-síti-ú53-6-11-2026).
 
@@ -162,8 +168,8 @@ squares }`, nebo `{ error: 'empty' | 'disconnected' | 'too-small' }`. Opakované
   1 do konce životnosti (`FORTIFICATIONS.lifeYears`: plot 15, palisáda 20 let od `builtDay`; val
   s nástavbou od `topBuiltDay` podle `top`; holý val nehnije), potom rovnoměrně na 0 za
   `decayYears` (5). `segmentIsOld` = dožilý, `segmentStands` = hotový, neprolomený a (plot,
-  palisáda) se stavem nad 0 – **mezera na nule**; používá ji `fortWalls`, `gateRoadCrossings`
-  i klíč `fortLayoutKey` (stěny a brány shnilý úsek nevidí). Rok = 365 dní.
+  palisáda) se stavem nad 0 – **mezera na nule**; používá ji `segmentBlockKind` (stěny,
+  `gateRoadCrossings` i klíč `fortLayoutKey` shnilý úsek nevidí). Rok = 365 dní.
 - **`fortification/decay.ts`** `decideFortRebuilds(state, day, geo, obstacles)` (krok dne za
   `decideRebuilds`): u každého opevnění **bez běžící stavby** zapíše `seg.state` ke dni; úsek, na
   který se staví, stav drží (stojí a brání). Pak založí jednu stavbu `rebuild` pro všechny dožilé

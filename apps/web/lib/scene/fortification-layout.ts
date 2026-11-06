@@ -10,6 +10,7 @@ import {
   type FortLayer,
   type FortSitePhase,
 } from './village-construction';
+import { PEG_SPACING_M } from './staking-layout';
 import { RAIL_WEAVE_M, type FencePost, type FenceRail, type FenceStage } from './woven-fence';
 
 /** Kůlů palisády na metr (fortifications.md – Ve scéně: Ø ≈ 25 cm těsně vedle sebe). */
@@ -565,6 +566,75 @@ export function palisadeLayout(fort: SceneFortification, crown: CrownLift): Pali
     stakes.push(stake(fort, p, k, age, lift, fallen));
   });
   return { stakes, trench };
+}
+
+/** Okraje pásu valu pro vytyčení – kousek od vnějšího okraje příkopu a od paty valu (m). */
+const RAMPART_STAKING_INSET_M = 0.3;
+
+/** Začala už na bodě `u` (0–1 úseku) práce staveniště – kůly, žlab? */
+function siteStarted(phase: FortSitePhase | undefined, u: number): boolean {
+  return phase !== undefined && u < Math.max(phase.posts, phase.trench);
+}
+
+/** Je bod `p` čáry vytyčený (nehotový úsek, na kterém se ještě nepracuje)? */
+function staked(fort: SceneFortification, b: SegmentBuild, u: number): boolean {
+  if (fort.work === 'upgrade')
+    return b.ground?.layer === 'fence' && !siteStarted(b.upgrade?.phase, u);
+  if (b.rampart) return b.rampart.earth <= 0;
+  if (b.ground?.phase === FORT_SITE_DONE) return false;
+  return !siteStarted(b.ground?.phase, u);
+}
+
+/**
+ * Vytyčení rozestavěného opevnění (fortifications.md – Ve scéně; Martin 6. 11. 2026: „Ať je obvod
+ * nějak vyznačen, stejně jako u staveb“): kolíky a provázek po celém obvodu nehotových úseků od
+ * zadání stavby (0 %) – po čáře, kde bude plot či palisáda (vylepšení – čára palisády vedle
+ * stojícího plotu), u valu vnější okraj příkopu a pata valu. Kde už práce začala (kůly, žlab,
+ * hlína), vytyčení ustoupí; mezery bran zůstanou volné. Body po `PEG_SPACING_M` (kolík na
+ * každém bodu, provázek rovně mezi nimi). Bez stavby nebo s jinou prací (přestavba, nástavba,
+ * obnova valu) nic.
+ */
+export function fortStakingLines(fort: SceneFortification): [number, number][][] {
+  const work = fort.work ?? 'build';
+  if (!fort.building || (work !== 'build' && work !== 'upgrade')) return [];
+  const offsets =
+    fort.kind === 'rampart'
+      ? [RAMPART_STAKING_INSET_M, RAMPART_BAND_M - RAMPART_STAKING_INSET_M]
+      : [layerLine(fort, work === 'upgrade' ? 'palisade' : fort.kind)];
+  const { starts, length } = segmentStarts(fort.shapes);
+  const gates = gatePositions(fort);
+  const builds = fort.shapes.map((s) => segmentBuild(fort, s.index));
+  const half = FORT_GATE_M / 2;
+  const lines: [number, number][][] = [];
+  for (const d of offsets) {
+    const line = insetLine(fort, d, PEG_SPACING_M);
+    const marks = line.map(
+      (p) =>
+        !gates.some((g) => loopDistance(p.s, g, length) < half) &&
+        staked(fort, builds[p.segment]!, along(fort, starts, p)),
+    );
+    // souvislé vytyčené kusy obvodu; kus přes začátek čáry se spojí s posledním
+    const runs: [number, number][][] = [];
+    let run: [number, number][] | null = null;
+    line.forEach((p, k) => {
+      if (!marks[k]) {
+        run = null;
+        return;
+      }
+      if (!run) {
+        run = [];
+        runs.push(run);
+      }
+      run.push([p.x, p.z]);
+    });
+    if (runs.length > 0 && marks.every(Boolean)) runs[0]!.push(runs[0]![0]!);
+    else if (runs.length > 1 && marks[0] && marks[marks.length - 1]) {
+      const first = runs.shift()!;
+      runs[runs.length - 1]!.push(...first);
+    }
+    lines.push(...runs.filter((r) => r.length > 1));
+  }
+  return lines;
 }
 
 /**

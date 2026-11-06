@@ -106,13 +106,20 @@ v Obraně.
 - **Úseky:** obvod se dělí na úseky – úsek je jedna strana okrajového čtverce (15 m), oblouk rohu
   patří k úseku, ve kterém začíná (návrh Clauda). Úsek je jednotka stavby, stáří, přestavby
   i průlomu.
+- **Celý obvod blokuje od zahájení stavby** (Martin 6. 11. 2026: „Ať celý obvod blokuje už od
+  zahájení.“): od položení stavby chodci, vozy ani stáda pásem neprojdou – ani rozestavěným
+  úsekem, ani úsekem na 0 % –, jen branou. Pás má šířku druhu, jak bude postaven; vylepšení plotu
+  na palisádu blokuje od zahájení pásem palisády. Průchozí zůstává mezera po úplném chátrání
+  (stav 0 – Životnost a oprava) a průlom (Prolomení); zrušená stavba nehotové úseky odstraní
+  a ty přestanou blokovat (Cena a stavba). Návrh Clauda: síť cest se tak přepočítá jen se změnou
+  obvodu, bran, mezer a průlomů – ne s každým dokončeným úsekem.
 
 ### Brány
 
 - **Vzniknou samy**, kde obvod protne cestu (Martin 3. 11. 2026) – pevnou cestu, vozovou cestu
   a zemskou stezku; pěšiny se přizpůsobí a povedou nejbližší branou (návrh Clauda – pěšiny se
-  mění den po dni, brána podle nich by putovala). Cesta postavená přes hotové opevnění dostane
-  bránu taky (návrh Clauda).
+  mění den po dni, brána podle nich by putovala). Cesta postavená přes hotové i rozestavěné
+  opevnění dostane bránu taky (návrh Clauda; rozestavěné blokuje od zahájení – Obvod).
 - **Hráč přidá další** kliknutím na obvod (Martin 3. 11. 2026); nejvýš jedna brána na úsek
   (návrh Clauda). Klik platí do šířky pásu (nejméně 2 m) od vnějšího okraje; brána stojí celá na
   rovné části úseku – průsečík cesty s obloukem rohu ji posune na konec rovné části (návrh
@@ -217,7 +224,8 @@ tři **úkrytem bližším než les** a liší se jen ti, kdo se do něj nevejdo
   bere ze společné práce vsi rovným dílem s ostatními stavbami ([population.md](population.md) –
   Práce); práce jde do úseků jeden po druhém, od brány nejblíž dvorci po směru hodin (návrh
   Clauda). Hotový úsek stojí a ve scéně je vidět hned; obvod brání celý, až je hotový celý
-  (do té doby jsou nehotové úseky mezery – Obrana).
+  (do té doby jsou nehotové úseky mezery – Obrana). Chůzi ale celý obvod blokuje od zahájení
+  (Obvod – Martin 6. 11. 2026).
 - **Dřevo** (návrh Clauda – jako obydlí, forest.md): napřed klády z hromady, zbytek se vyhradí
   mezi nejbližšími dospělými stromy a pokácí jako první část práce úseku; stromy v pásu se kácejí
   vždy a jejich klády jdou do stavby.
@@ -227,7 +235,8 @@ tři **úkrytem bližším než les** a liší se jen ti, kdo se do něj nevejdo
   Dávky klád od vazalů jdou na hromadu a sníží, co se musí kácet. Pán si robotu vyjedná ve
   vazalství (člověkodni za rok).
 - **Zrušení rozestavěné stavby** jako u ostatních staveb (population.md – Zrušení rozestavěné
-  stavby): hotové úseky zůstanou stát, nehotové zmizí a obvod je otevřený (návrh Clauda).
+  stavby): hotové úseky zůstanou stát, nehotové zmizí a obvod je otevřený (návrh Clauda) –
+  nehotové úseky přestanou blokovat chůzi.
 
 ## Životnost a oprava
 
@@ -367,6 +376,12 @@ Podrobnosti (návrh Clauda):
 - **Stavba po úsecích:** plot – kůly, pak větve (jako plot pozemku); palisáda – vykopaný žlab,
   kůly přibývají od brány; val – příkop se prohlubuje a val roste; u rozestavěného úseku pracují
   vesničané (rýče, nošení kůlů).
+- **Vytyčení od 0 %** (Martin 6. 11. 2026: „Ať je obvod nějak vyznačen, stejně jako u staveb – ať
+  hráč může rozkliknout opevnění, které má zatím 0 %.“): od zadání je celý obvod nehotových úseků
+  vytyčený kolíky a provázkem jako staveniště obydlí, hřbitova a sadu – po čáře plotu či
+  palisády (vylepšení – čára palisády vedle plotu), u valu po vnějším okraji příkopu a po patě
+  valu; mezery bran zůstanou volné. Kde už se na úseku pracuje, vytyčení ustoupí (návrh Clauda).
+  Klik na obvod vybere opevnění i na 0 % – panel ukáže průběh stavby.
 - **Stáří:** kůly šednou a tmavnou, ke konci životnosti se naklánějí, za ní řídnou do mezer; val
   se snižuje a zaobluje. Brány v míru otevřené, při nájezdu zavřené; průlom – vyvrácené kůly,
   rozsekaná brána.
@@ -423,8 +438,10 @@ Změna čísla = i text v tomto návrhu (`CLAUDE.md`).
   `cancel-construction.ts`. Kontrola umístění `placement-fortifications.ts` (tvary, zabraná půda,
   `PolygonIndex`). Čísla v `rules-fortifications.ts`.
 - **Překážky stavby:** pás je zabraná půda (`TakenLand`) – vezme díly pole a sadu pod valem,
-  pokácí stromy a keře v pásu; staveniště je průchozí jako jiná (ohrada, hřbitov).
-- **Chůze a cesty – brány v síti cest:** hotové úseky do `villageFences` (`paths/fences.ts`) jako
+  pokácí stromy a keře v pásu; staveniště opevnění blokuje chůzi celým obvodem kromě bran od
+  zahájení (Obvod – Martin 6. 11. 2026).
+- **Chůze a cesty – brány v síti cest:** blokující úseky (stojící i staveniště běžící stavby –
+  `segmentBlockKind`) do `villageFences` (`paths/fences.ts`) jako
   plot s pásem šířky druhu, brány jako buňky branky (`entranceCells` / `gateCells`) ve `fenceBand`
   (`network-grid.ts`); vozová síť (`wagonRoadGrid`, `wagon-road.ts`) stejnou funkcí – vůz projede
   jen branou; stáda na pastvu branou (`pastureHerds`); brány na průsečících obvodu s pevnou
@@ -493,6 +510,7 @@ Změna čísla = i text v tomto návrhu (`CLAUDE.md`).
 | Přestavba úseků obyvateli, chátrání bez dřeva za 5 let, údržba a obnova valu, průlom       | návrh Clauda  |
 | Časy prolomení, 4 muži na místo, val čtvrtinovým tempem, NPC velitel                       | návrh Clauda  |
 | Hrozba ze signálů s poločasem 10 let, přínos, horizont, obvod správce                      | návrh Clauda  |
+| Celý obvod blokuje chůzi od zahájení stavby; vytyčení a výběr od 0 %                       | Martin 6. 11. |
 
 ## Odpovědi Martina 3. 11. 2026
 

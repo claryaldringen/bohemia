@@ -6,11 +6,14 @@ import { fortBandPieces } from './band';
 import type { FortGate } from './gates';
 import { segmentStands } from './life';
 import { fortificationArea, fortificationOutline, type FortOutline } from './outline';
+import type { FortBuildWork } from './types';
 
-// Stěny opevnění pro síť cest (fortifications.md – Brány, Pro implementaci – Chůze a cesty): pás
-// stojících úseků jako obdélníky (`fortBandPieces`) bez otvorů bran – chodec, vůz ani stádo pásem
-// neprojde, jen branou. Rozestavěný úsek (staveniště), mezera po zrušené stavbě, shnilý úsek na nule a průlom stojící
-// nejsou – jsou průchozí. Server i prohlížeč počítají stěny touto funkcí (jen sčítání a násobení).
+// Stěny opevnění pro síť cest (fortifications.md – Obvod, Brány, Pro implementaci – Chůze a cesty):
+// pás blokujících úseků jako obdélníky (`fortBandPieces`) bez otvorů bran – chodec, vůz ani stádo
+// pásem neprojde, jen branou. Blokuje celý obvod od položení stavby (Martin 6. 11. 2026) – stojící
+// úsek i staveniště běžící stavby; mezera po zrušené stavbě, shnilý úsek na nule a průlom jsou
+// průchozí. Stěny tak nemění dokončení úseku, jen obvod, pás, brány, mezery a průlomy. Server
+// i prohlížeč počítají stěny touto funkcí (jen sčítání a násobení).
 
 /** Stěny a brány opevnění ve světě – podklad mřížek chodců a vozů (`PathVillage.fortifications`). */
 export interface FortWalls {
@@ -35,22 +38,81 @@ export interface WallFortification {
   readonly gates: readonly FortGate[];
 }
 
+/** Stavba ve vsi, jak ji zná `fortRunningWork` (`Construction`). */
+export interface FortWorkRef {
+  readonly kind: string;
+  readonly fortificationId?: number;
+  readonly fortWork?: FortBuildWork;
+}
+
+/**
+ * Práce stavby, která na opevnění `id` běží (`Construction.fortWork`, starší stavby bez údaje
+ * stavějí), bez stavby null – staveniště blokuje jen s ní (`segmentBlockKind`).
+ */
+export function fortRunningWork(
+  state: { readonly constructions: readonly FortWorkRef[] },
+  id: number,
+): FortBuildWork | null {
+  const c = state.constructions.find((x) => x.kind === 'fortification' && x.fortificationId === id);
+  return c ? (c.fortWork ?? 'build') : null;
+}
+
+/** Úsek, jak ho stěny potřebují znát. */
+type WallSegment = WallFortification['segments'][number];
+
+/**
+ * Druh pásu, kterým úsek blokuje chůzi, vozy i stáda, nebo null – průchozí (fortifications.md –
+ * Obvod; Martin 6. 11. 2026: „Ať celý obvod blokuje už od zahájení.“). `work` je práce stavby, která
+ * na opevnění běží (`Construction.fortWork`), bez stavby null. Nehotový úsek blokuje jen při stavbě
+ * nebo vylepšení (staveniště) – po zrušení stavby je to mezera; hotový, když stojí
+ * (`segmentStands`). Vylepšení plotu na palisádu blokuje od zahájení pásem palisády.
+ */
+export function segmentBlockKind(
+  fort: Pick<WallFortification, 'kind'>,
+  segment: WallSegment,
+  work: FortBuildWork | null,
+): FortKind | null {
+  if (segment.breachedDay !== undefined) return null;
+  const upgrade = work === 'upgrade';
+  if (segment.builtDay === null) {
+    if (work !== 'build' && !upgrade) return null;
+    return upgrade ? 'palisade' : fort.kind;
+  }
+  if (!segmentStands(fort, segment)) return null;
+  return upgrade ? 'palisade' : (segment.kind ?? fort.kind);
+}
+
+/** Blokující úseky opevnění – index a druh pásu (`segmentBlockKind`), v pořadí obvodu. */
+export function fortBlockingSegments(
+  fort: Pick<WallFortification, 'kind' | 'segments'>,
+  work: FortBuildWork | null,
+): { index: number; kind: FortKind }[] {
+  return fort.segments.flatMap((s) => {
+    const kind = segmentBlockKind(fort, s, work);
+    return kind === null ? [] : [{ index: s.index, kind }];
+  });
+}
+
 /** Bod úsečky a → b v poměru t. */
 function lerp(a: Point, b: Point, t: number): [number, number] {
   return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
 }
 
 /**
- * Stěny opevnění: pás každého stojícího úseku (hotový, neprolomený – `builtDay` a bez
- * `breachedDay`) se šířkou druhu, který na úseku stojí (rozdělané vylepšení na palisádu); brána
- * vyřízne z pásu strany obdélník šířky brány (`FORTIFICATIONS.gate.widthM`) kolem svého středu.
- * Plocha mimo mřížku nebo bez stojícího úseku – žádné stěny.
+ * Stěny opevnění: pás každého blokujícího úseku (`segmentBlockKind` – stojící úsek i staveniště
+ * běžící stavby `work`) se šířkou druhu, jak bude postaven; brána vyřízne z pásu strany obdélník
+ * šířky brány (`FORTIFICATIONS.gate.widthM`) kolem svého středu. Plocha mimo mřížku nebo bez
+ * blokujícího úseku – žádné stěny.
  */
-export function fortWalls(geo: GridGeometry, fort: WallFortification): FortWalls {
+export function fortWalls(
+  geo: GridGeometry,
+  fort: WallFortification,
+  work: FortBuildWork | null = null,
+): FortWalls {
   const area = fortificationArea(fort.cells, fort.grid, geo);
   if ('error' in area) return { walls: [], gates: [] };
-  const standing = fort.segments.filter((s) => segmentStands(fort, s));
-  if (standing.length === 0) return { walls: [], gates: [] };
+  const blocking = fortBlockingSegments(fort, work);
+  if (blocking.length === 0) return { walls: [], gates: [] };
   // tvar podle druhu opevnění – poloha bran (`offsetM`) se měří od začátku jeho rovné části
   const outline = fortificationOutline(area, fort.kind);
   const outlines = new Map<FortKind, FortOutline>([[fort.kind, outline]]);
@@ -67,13 +129,11 @@ export function fortWalls(geo: GridGeometry, fort: WallFortification): FortWalls
   const half = FORTIFICATIONS.gate.widthM / 2;
   const walls: Point[][] = [];
   const gates: Point[][] = [];
-  for (const segment of standing) {
+  for (const segment of blocking) {
     const index = segment.index;
     const prev = sides[(index + sides.length - 1) % sides.length];
     if (!prev || !sides[index]) continue;
-    const pieces = fortBandPieces(outlineFor(segment.kind ?? fort.kind)).filter(
-      (p) => p.index === index,
-    );
+    const pieces = fortBandPieces(outlineFor(segment.kind)).filter((p) => p.index === index);
     const gate = fort.gates.find((g) => g.segment === index);
     pieces.forEach((piece, k) => {
       // první kus je pás strany (rohy A, B na vnějším okraji, C, D na vnitřním), další roh tvaru L

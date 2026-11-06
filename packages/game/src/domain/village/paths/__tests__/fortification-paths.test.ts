@@ -9,7 +9,7 @@ import {
   type FortGate,
   type FortOutline,
 } from '../../fortification';
-import type { Fortification } from '../../fortification/types';
+import type { FortBuildWork, Fortification } from '../../fortification/types';
 import { gateRoadCrossings } from '../../fortifications';
 import { NO_OBSTACLE_CHANGES } from '../../obstacles';
 import type { Road, VillageState } from '../../types';
@@ -25,8 +25,9 @@ import { emptyRoads } from '../roads-form';
 import { fortLayoutKey, pathFortificationsOf, pathVillageOf, routeMapKey } from '../village';
 import { wagonRoadGrid } from '../wagon-route';
 
-// Brány opevnění v síti cest (fortifications.md – Brány, Pro implementaci): hotové úseky jsou pro
-// chodce, vůz i stádo neprůchodné, projde se jen branou; rozestavěný úsek, mezera a průlom jsou
+// Brány opevnění v síti cest (fortifications.md – Obvod, Brány, Pro implementaci): hotové úseky
+// i celý obvod rozestavěného opevnění (Martin 6. 11. 2026) jsou pro chodce, vůz i stádo
+// neprůchodné, projde se jen branou; mezera po zrušené stavbě, mezera po chátrání a průlom jsou
 // průchozí. Ves bez opevnění má mřížky sítě pěšin i vozů bit po bitu stejné jako před branami.
 
 /** FNV-1a nad bajty pole – otisk mřížky (bit po bitu). */
@@ -146,8 +147,16 @@ function fort(
 
 const TERRAIN = pathTestTerrain();
 
+/** Stavby vsi testu – na opevnění `f` běží práce `work` (bez ní žádná stavba). */
+function works(
+  f: Fortification,
+  work: FortBuildWork | null,
+): { kind: string; fortificationId: number; fortWork: FortBuildWork }[] {
+  return work ? [{ kind: 'fortification', fortificationId: f.id, fortWork: work }] : [];
+}
+
 /** Ves uvnitř opevnění, pole a úhor vně na východě, práce na poli a stádo krav. */
-function fortVillage(f: Fortification | null): PathVillage {
+function fortVillage(f: Fortification | null, work: FortBuildWork | null = null): PathVillage {
   return {
     dwellings: [house(1, -15, -15)],
     fields: [
@@ -163,7 +172,14 @@ function fortVillage(f: Fortification | null): PathVillage {
       shares: [{ target: { kind: 'field', id: 7 }, manDays: 3 }],
     },
     livestock: { cow: 6 },
-    ...(f ? { fortifications: pathFortificationsOf({ fortifications: [f] }, LANDSCAPE) } : {}),
+    ...(f
+      ? {
+          fortifications: pathFortificationsOf(
+            { fortifications: [f], constructions: works(f, work) },
+            LANDSCAPE,
+          ),
+        }
+      : {}),
   };
 }
 
@@ -195,9 +211,12 @@ describe('brány opevnění v síti pěšin (fortifications.md – Brány)', () 
     expect(wall.size).toBeGreaterThan(0);
     expect(gate.size).toBeGreaterThan(0);
     expect([...gate].some((c) => wall.has(c))).toBe(false);
-    // ves bez stojícího úseku (jen staveniště) stěny nemá – síť jako bez opevnění
+    // staveniště na 0 % blokuje celým obvodem kromě bran jako hotové opevnění (Martin 6. 11. 2026)
+    const site = fort([NORTH, EAST], () => ({ builtDay: null }));
+    expect(fortWalls(LANDSCAPE, site, 'build')).toEqual(walls);
+    // nehotové úseky zrušené stavby (bez běžící stavby) stěny nemají – síť jako bez opevnění
     expect(
-      pathFortificationsOf({ fortifications: [fort([], () => ({ builtDay: null }))] }, LANDSCAPE),
+      pathFortificationsOf({ fortifications: [site], constructions: works(site, null) }, LANDSCAPE),
     ).toEqual([]);
   });
 
@@ -232,10 +251,28 @@ describe('brány opevnění v síti pěšin (fortifications.md – Brány)', () 
     }
   });
 
-  it('mezera v rozestavěném obvodu a průlom jsou průchozí', () => {
+  it('rozestavěný obvod blokuje celý kromě bran (0 % i rozpracovaný)', () => {
     const builtWall = cellsOf(fort([NORTH])).wall;
     const north = cellsOf(fort([NORTH])).gate;
-    for (const open of [{ builtDay: null }, { breachedDay: 5 }] as const) {
+    const sites = [
+      fort([NORTH], () => ({ builtDay: null })),
+      fort([NORTH], (i) => (EAST_SIDE.includes(i) ? { builtDay: null } : {})),
+    ];
+    for (const f of sites) {
+      const out = routes(fortVillage(f, 'build')).filter((r) => r.to === 'field:7');
+      expect(out.length).toBeGreaterThan(0);
+      // staveniště na východě neprojde – oklikou severní branou, stěnou nikdy
+      for (const r of out) {
+        expect(hits(r.cells, north)).toBe(true);
+        expect(hits(r.cells, builtWall)).toBe(false);
+      }
+    }
+  });
+
+  it('mezera po zrušené stavbě, po chátrání a průlom jsou průchozí', () => {
+    const builtWall = cellsOf(fort([NORTH])).wall;
+    const north = cellsOf(fort([NORTH])).gate;
+    for (const open of [{ builtDay: null }, { state: 0 }, { breachedDay: 5 }] as const) {
       const f = fort([NORTH], (i) => (EAST_SIDE.includes(i) ? open : {}));
       const out = routes(fortVillage(f)).filter((r) => r.to === 'field:7');
       expect(out.length).toBeGreaterThan(0);
@@ -245,6 +282,9 @@ describe('brány opevnění v síti pěšin (fortifications.md – Brány)', () 
         expect(hits(r.cells, builtWall)).toBe(true);
       }
     }
+    // mezera po chátrání a průlom zůstanou průchozí i při přestavbě
+    const gap = fort([NORTH], (i) => (EAST_SIDE.includes(i) ? { state: 0 } : {}));
+    expect(fortWalls(LANDSCAPE, gap, 'rebuild')).toEqual(fortWalls(LANDSCAPE, gap));
   });
 });
 
@@ -306,12 +346,10 @@ describe('cesta přes hotové opevnění dostane bránu', () => {
     return { id, points, bornDay: DAY, grade: 'trodden', traffic: [], spots: [] };
   }
 
-  it('pevná cesta přes stojící úsek bez brány – brána u průsečíku; přes staveniště ne', () => {
-    const state = plainState();
-    const f = fort([NORTH], (i) => (i === eastAt(-22.5) ? { builtDay: null } : {}));
-    state.fortifications = [f];
-    state.roads = emptyRoads(DAY);
-    state.roads.roads.push(
+  /** Cesty z vnitřku na východ přes z = 7,5 a z = −22,5. */
+  function roadsAcross(): NonNullable<VillageState['roads']> {
+    const roads = emptyRoads(DAY);
+    roads.roads.push(
       road(1, [
         { x: 0, z: 7.5 },
         { x: 60, z: 7.5 },
@@ -321,6 +359,14 @@ describe('cesta přes hotové opevnění dostane bránu', () => {
         { x: 60, z: -22.5 },
       ]),
     );
+    return roads;
+  }
+
+  it('pevná cesta přes stojící úsek bez brány – brána u průsečíku; přes mezeru ne', () => {
+    const state = plainState();
+    const f = fort([NORTH], (i) => (i === eastAt(-22.5) ? { builtDay: null } : {}));
+    state.fortifications = [f];
+    state.roads = roadsAcross();
     const before = routeMapKey(state, DAY);
     gateRoadCrossings(state, LANDSCAPE);
     const gates = state.fortifications[0]!.gates;
@@ -329,13 +375,78 @@ describe('cesta přes hotové opevnění dostane bránu', () => {
     const added = gates.find((g) => g.segment === eastAt(7.5))!;
     expect(added.x).toBeCloseTo(30, 6);
     expect(added.z).toBeCloseTo(7.5, 6);
-    // cesta 2 vede přes rozestavěný úsek (staveniště) – bránu nedostane, dokud ho nedostaví
+    // cesta 2 vede přes mezeru po zrušené stavbě (bez běžící stavby) – je průchozí, bránu nedostane
     expect(gates.some((g) => g.segment === eastAt(-22.5))).toBe(false);
     // brána mění mapu tras (klíč) – ves s opevněním se přepočítá
     expect(routeMapKey(state, DAY)).not.toBe(before);
     // podruhé nic (jednou a idempotentně)
     gateRoadCrossings(state, LANDSCAPE);
     expect(state.fortifications[0]!.gates).toBe(gates);
+  });
+
+  it('cesta přes staveniště běžící stavby dostane bránu hned (obvod blokuje od zahájení)', () => {
+    const state = plainState();
+    const f = fort([NORTH], () => ({ builtDay: null }));
+    state.fortifications = [f];
+    state.roads = roadsAcross();
+    state.constructions.push({
+      id: 77,
+      kind: 'fortification',
+      startedDay: DAY,
+      cost: 100,
+      done: 0,
+      dwellingType: null,
+      position: null,
+      dwellingId: null,
+      fieldId: null,
+      fortificationId: f.id,
+      fortWork: 'build',
+    });
+    gateRoadCrossings(state, LANDSCAPE);
+    const gates = state.fortifications[0]!.gates;
+    expect(gates.some((g) => g.segment === eastAt(7.5))).toBe(true);
+    expect(gates.some((g) => g.segment === eastAt(-22.5))).toBe(true);
+  });
+});
+
+describe('dokončení úseku nemění klíč mapy tras (Martin 6. 11. 2026)', () => {
+  it('0 %, rozpracované a hotové opevnění – tytéž stěny, klíč opevnění i mapy tras', () => {
+    const state = plainState();
+    const f = fort([NORTH, EAST], () => ({ builtDay: null }));
+    state.fortifications = [f];
+    state.constructions.push({
+      id: 77,
+      kind: 'fortification',
+      startedDay: DAY,
+      cost: 100,
+      done: 0,
+      dwellingType: null,
+      position: null,
+      dwellingId: null,
+      fieldId: null,
+      fortificationId: f.id,
+      fortWork: 'build',
+    });
+    const key = fortLayoutKey(state);
+    const route = routeMapKey(state, DAY);
+    const walls = pathFortificationsOf(state, LANDSCAPE);
+    expect(walls).toHaveLength(1);
+    // úsek po úseku – stav, stáří ani průběh blokování nemění
+    for (const s of f.segments) {
+      s.builtDay = DAY + s.index;
+      state.constructions[0]!.done += 5;
+      expect(fortLayoutKey(state)).toBe(key);
+      expect(routeMapKey(state, DAY)).toBe(route);
+    }
+    // stavba skončila – hotové opevnění blokuje stejně; chátrání nad nulou taky
+    state.constructions = [];
+    f.segments[0]!.state = 0.4;
+    expect(fortLayoutKey(state)).toBe(key);
+    expect(routeMapKey(state, DAY)).toBe(route);
+    expect(pathFortificationsOf(state, LANDSCAPE)).toEqual(walls);
+    // mezera po chátrání blokování mění
+    f.segments[0]!.state = 0;
+    expect(fortLayoutKey(state)).not.toBe(key);
   });
 });
 

@@ -30,8 +30,12 @@ import type {
   VillageState,
 } from '../types';
 import { villageWoods } from '../woods';
-import { segmentStands } from '../fortification/life';
-import { fortWalls } from '../fortification/walls';
+import {
+  fortBlockingSegments,
+  fortRunningWork,
+  fortWalls,
+  type FortWorkRef,
+} from '../fortification/walls';
 import { clearingRouteObstacles, withoutHiddenChanges } from './clearing-routes';
 import { earthworkSpansOf } from './earthworks';
 import {
@@ -381,25 +385,30 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
 }
 
 /**
- * Opevnění vsi pro síť cest (fortifications.md – Brány): stěny a brány stojících úseků
- * (`fortWalls`); opevnění bez stojícího úseku (jen staveniště, mezery, průlomy) vynechá.
+ * Opevnění vsi pro síť cest (fortifications.md – Obvod, Brány): stěny a brány blokujících úseků
+ * (`fortWalls` – stojící úseky i celý obvod běžící stavby); opevnění bez blokujícího úseku
+ * (mezery, průlomy, nehotové úseky zrušené stavby) vynechá.
  */
 export function pathFortificationsOf(
-  state: Pick<VillageState, 'fortifications'>,
+  state: Pick<VillageState, 'fortifications'> & { readonly constructions: readonly FortWorkRef[] },
   geo: Pick<Landscape, 'size' | 'cellSizeM'>,
 ): PathFortification[] {
   return (state.fortifications ?? []).flatMap((fort) => {
-    const walls = fortWalls(geo, fort);
+    const walls = fortWalls(geo, fort, fortRunningWork(state, fort.id));
     return walls.walls.length > 0 ? [{ id: fort.id, ...walls }] : [];
   });
 }
 
 /**
- * Klíč opevnění pro mapy tras (`routeMapKey`, `fenceLayoutKey`, `villageBlockedAt`): plocha, druh,
- * stojící úseky (hotové, neprolomené, s druhem) a brány – co mění stěny (`fortWalls`). Ves bez
- * opevnění null – klíče vsí bez opevnění se nemění.
+ * Klíč opevnění pro mapy tras (`routeMapKey`, `fenceLayoutKey`, `villageBlockedAt`): jen co mění
+ * stěny (`fortWalls`) – plocha, druh (tvar obvodu pro polohu bran), blokující úseky s druhem pásu
+ * (`fortBlockingSegments`) a brány. Ne den dokončení, průběh stavby ani stav úseků, který
+ * blokování nemění – dokončení úseku klíč nezmění (Martin 6. 11. 2026). Ves bez opevnění null –
+ * klíče vsí bez opevnění se nemění.
  */
-export function fortLayoutKey(state: Pick<VillageState, 'fortifications'>): string | null {
+export function fortLayoutKey(
+  state: Pick<VillageState, 'fortifications'> & { readonly constructions: readonly FortWorkRef[] },
+): string | null {
   const forts = state.fortifications ?? [];
   if (forts.length === 0) return null;
   return JSON.stringify(
@@ -408,9 +417,8 @@ export function fortLayoutKey(state: Pick<VillageState, 'fortifications'>): stri
       f.kind,
       f.grid,
       f.cells.map((c) => `${c.x},${c.y}`).join(';'),
-      f.segments
-        .filter((s) => segmentStands(f, s))
-        .map((s) => `${s.index}${s.kind ? `:${s.kind}` : ''}`)
+      fortBlockingSegments(f, fortRunningWork(state, f.id))
+        .map((s) => `${s.index}:${s.kind}`)
         .join(','),
       f.gates.map((g) => `${g.segment}@${g.offsetM}`).join(','),
     ]),

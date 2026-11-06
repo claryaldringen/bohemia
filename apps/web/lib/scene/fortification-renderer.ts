@@ -1,8 +1,9 @@
 // Opevnění ve scéně (fortifications.md – Ve scéně): palisáda a brány v instancích dílů
 // models/fortifications/fortifications.glb (tools/blender/fortifications.py) s ořezem po
 // čtvercích (jména `fort-…` – CULLED_MESHES), polský plot jako pletený plot pozemků
-// (WovenFenceRenderer), val s příkopem jako síť podél obvodu (rampart-mesh.ts) a prořez terénu
-// pod příkopem (pit-cut.ts). Rozmístění počítá fortification-layout.ts; kreslí se jen při změně.
+// (WovenFenceRenderer), val s příkopem jako síť podél obvodu (rampart-mesh.ts), prořez terénu
+// pod příkopem (pit-cut.ts) a vytyčení nehotových úseků kolíky a provázkem jako u ostatních
+// stavenišť (staking.ts). Rozmístění počítá fortification-layout.ts; kreslí se jen při změně.
 import type { Material } from '@babylonjs/core/Materials/material';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
@@ -17,15 +18,19 @@ import {
   ditchCuts,
   fortFenceStage,
   fortGateInstances,
+  fortStakingLines,
   palisadeLayout,
   type DitchCut,
   type FortInstance,
   type FortPart,
 } from './fortification-layout';
-import { loadModelParts, setStaticInstances } from './instanced-model';
+import { loadModelParts, setStaticInstances, type ModelInstance } from './instanced-model';
 import type { PitCuts } from './pit-cut';
 import { rampartMeshData, trenchMeshData, type MeshArrays } from './rampart-mesh';
 import { applySeasonGround } from './season-materials';
+import { StakingPegs, createStringMaterial, createStringMesh, pegInstances } from './staking';
+import { stripSegments } from './village-layout';
+import { createStripMesh } from './village-meshes';
 import type { HeightFn } from './village-meshes';
 import type { WovenFenceRenderer } from './woven-fence-renderer';
 
@@ -48,13 +53,18 @@ export interface FortificationContext {
   earthMaterial(): Material;
 }
 
-/** Sítě jednoho opevnění: hlína a tráva valu, žlab staveniště. */
+/** Sítě jednoho opevnění: hlína a tráva valu, žlab a provázek vytyčení staveniště. */
 interface FortMeshes {
   key: string;
   meshes: Mesh[];
   instances: FortInstance[];
   cuts: DitchCut[];
+  /** Kolíky vytyčení nehotových úseků (sdílený mesh `pegs`). */
+  pegs: ModelInstance[];
 }
+
+/** Světlá čára vytyčení na zemi pod provázkem (vyšlapaná tráva) – šířka a výška nad terénem (m). */
+const LAYOUT_LINE = { widthM: 0.2, stepM: 0.5, liftM: 0.06 } as const;
 
 const MATRIX = new Matrix();
 const SCALE = new Vector3();
@@ -80,12 +90,17 @@ export class FortificationRenderer {
   private parts: Map<string, Mesh> | null = null;
   private loading: Promise<void> | null = null;
   private grass: Material | null = null;
+  private string: Material | null = null;
+  private layout: Material | null = null;
+  private readonly pegs: StakingPegs;
   private disposed = false;
 
   constructor(
     private readonly scene: Scene,
     private readonly context: FortificationContext,
-  ) {}
+  ) {
+    this.pegs = new StakingPegs(scene, (mesh) => context.addShadowCaster(mesh));
+  }
 
   /** Opevnění vsi; vrátí true, když se ve scéně něco změnilo. */
   update(forts: readonly SceneFortification[]): boolean {
@@ -113,6 +128,7 @@ export class FortificationRenderer {
     this.context.pitCuts.setDitches(cuts, focus ? { x: focus[0], z: focus[1] } : null);
     if ([...this.forts.values()].some((f) => f.instances.length > 0)) void this.load();
     this.applyInstances();
+    this.pegs.set([...this.forts.values()].flatMap((f) => f.pegs));
     return true;
   }
 
@@ -124,6 +140,9 @@ export class FortificationRenderer {
     this.context.pitCuts.setDitches([]);
     for (const mesh of this.parts?.values() ?? []) mesh.dispose();
     this.grass?.dispose();
+    this.pegs.dispose();
+    this.string?.dispose();
+    this.layout?.dispose();
   }
 
   /** Rozmístění opevnění a jeho sítě (val, žlab); pletený plot jde do sdíleného rendereru. */
@@ -153,7 +172,27 @@ export class FortificationRenderer {
       );
       if (trench) meshes.push(trench);
     }
-    return { key, meshes, instances, cuts: ditchCuts(fort) };
+    // vytyčení nehotových úseků od 0 % – kolíky a provázek po celém obvodu (Martin 6. 11. 2026)
+    const staking = fortStakingLines(fort);
+    if (staking.length > 0) {
+      this.string ??= createStringMaterial(this.scene);
+      meshes.push(
+        createStringMesh(this.scene, `village-fort-string-${fort.id}`, staking, rim, this.string),
+      );
+      // pod provázkem světlá čára na zemi jako u hřbitova – obvod je vidět i z dálky
+      const line = createStripMesh(
+        this.scene,
+        `village-fort-layout-${fort.id}`,
+        staking.flatMap((l) => stripSegments(l, false, LAYOUT_LINE.widthM, LAYOUT_LINE.stepM)),
+        rim,
+        LAYOUT_LINE.liftM,
+      );
+      line.material = this.layoutMaterial();
+      line.isPickable = false;
+      meshes.push(line);
+    }
+    const pegs = staking.length > 0 ? pegInstances(staking, rim) : [];
+    return { key, meshes, instances, cuts: ditchCuts(fort), pegs };
   }
 
   private drop(id: number): void {
@@ -194,6 +233,18 @@ export class FortificationRenderer {
     mesh.receiveShadows = true;
     this.context.addShadowCaster(mesh);
     return mesh;
+  }
+
+  /** Světlá čára vytyčení (provázek, vyšlapaná tráva) – barva jako u hřbitova. */
+  private layoutMaterial(): Material {
+    if (this.layout) return this.layout;
+    const m = new StandardMaterial('village-fort-layout', this.scene);
+    m.diffuseColor = new Color3(0.8, 0.76, 0.64);
+    m.specularColor = Color3.Black();
+    m.zOffset = -4;
+    m.backFaceCulling = false;
+    this.layout = m;
+    return m;
   }
 
   /** Tráva valu – textura trávy z terénu, barvy nesou vrcholy, sníh a usychání jako terén. */

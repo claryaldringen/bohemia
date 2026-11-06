@@ -5,10 +5,11 @@ import {
   autoGates,
   fortificationArea,
   fortificationCost,
+  fortBlockingSegments,
   fortificationOutline,
+  fortRunningWork,
   fortSegments,
   roadGates,
-  segmentStands,
   type FortGate,
   type FortOutline,
   type FortSegmentShape,
@@ -92,11 +93,12 @@ function roadAxes(state: VillageState): RoadPoint[][] {
 }
 
 /**
- * Brány pro cesty přes stojící opevnění (fortifications.md – Brány: cesta postavená přes hotové
+ * Brány pro cesty přes blokující opevnění (fortifications.md – Brány: cesta postavená přes hotové
  * opevnění dostane bránu taky – návrh Clauda; mutuje stav): každý den před přepočtem tras – nová
- * pevná cesta z vyšlapanosti, hotový úsek vozové cesty a zemské stezky i úsek opevnění dostavěný
- * přes starou cestu tak bránu dostanou dřív, než je síť pěšin a vozů uzavře (`roadGates`). Stojící
- * úsek = hotový a neprolomený. Ves bez opevnění nebo bez cest beze změny.
+ * pevná cesta z vyšlapanosti, hotový úsek vozové cesty a zemské stezky i staveniště opevnění přes
+ * starou cestu tak bránu dostanou dřív, než je síť pěšin a vozů uzavře (`roadGates`). Blokující
+ * úsek = stojící nebo staveniště běžící stavby (`segmentBlockKind` – celý obvod blokuje od
+ * položení stavby). Ves bez opevnění nebo bez cest beze změny.
  */
 export function gateRoadCrossings(
   state: VillageState,
@@ -108,7 +110,7 @@ export function gateRoadCrossings(
   if (axes.length === 0) return;
   for (const fort of forts) {
     const standing = new Set(
-      fort.segments.filter((s) => segmentStands(fort, s)).map((s) => s.index),
+      fortBlockingSegments(fort, fortRunningWork(state, fort.id)).map((s) => s.index),
     );
     // každý stojící úsek už bránu má – není co přidat
     for (const g of fort.gates) standing.delete(g.segment);

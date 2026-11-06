@@ -1210,15 +1210,17 @@ studeným startem každý den; `cart-memo.test.ts`).
 Pravidla: [fortifications.md](../design/fortifications.md) – Brány, Pro implementaci (Chůze
 a cesty); opevnění samo: [village-fortifications.md](village-fortifications.md).
 
-- **Stěny** – `fortWalls(geo, fort)` (`fortification/walls.ts`, deterministická vrstva): pás
-  každého **stojícího** úseku (hotový – `builtDay`, neprolomený – bez `breachedDay`) jako
-  čtyřúhelníky z `fortBandPieces` se šířkou druhu, který na úseku stojí (rozdělané vylepšení na
-  palisádu); brána z pásu strany vyřízne obdélník 4 m kolem středu (`offsetM` od začátku rovné
-  části = `endRadius` předchozí strany + `offsetM`) – otvor přes celou šířku pásu. Rozestavěný
-  úsek (staveniště), mezera po zrušené stavbě a průlom stěnu nemají – jsou průchozí.
+- **Stěny** – `fortWalls(geo, fort, work)` (`fortification/walls.ts`, deterministická vrstva):
+  pás každého **blokujícího** úseku (`segmentBlockKind` – Martin 6. 11. 2026: celý obvod blokuje
+  od zahájení stavby) jako čtyřúhelníky z `fortBandPieces` se šířkou druhu, jak bude postaven
+  (vylepšení plotu od zahájení pásem palisády); brána z pásu strany vyřízne obdélník 4 m kolem
+  středu (`offsetM` od začátku rovné části = `endRadius` předchozí strany + `offsetM`) – otvor
+  přes celou šířku pásu. Blokuje stojící úsek i staveniště běžící stavby (`work` =
+  `fortRunningWork`); mezera po zrušené stavbě, mezera po chátrání (stav 0) a průlom stěnu
+  nemají – jsou průchozí.
 - **Ves pro pěšiny** – `PathVillage.fortifications` (`PathFortification { id, walls, gates }`)
-  skládá `pathFortificationsOf(state, geo)` v `pathVillageOf`; opevnění bez stojícího úseku
-  vynechá a **ves bez stojícího opevnění údaj nemá** – JSON vsi, klíče a mřížky beze změny.
+  skládá `pathFortificationsOf(state, geo)` v `pathVillageOf`; opevnění bez blokujícího úseku
+  vynechá a **ves bez blokujícího opevnění údaj nemá** – JSON vsi, klíče a mřížky beze změny.
 - **Ploty** – `villageFences` vrací i opevnění: `outline` je obrys stěn (`wallOutline` – hrany
   čtyřúhelníků, uvnitř = uvnitř stěny) pro odstup osy trasy (`routeLine`, `fenceClearance`,
   `wagonFenceAt`), `wall` nese stěny a brány. `gridFences` z nich udělá buňky (`fortWallCells`):
@@ -1235,19 +1237,25 @@ a cesty); opevnění samo: [village-fortifications.md](village-fortifications.md
   cestě. Prohlížeč počítá trasy vozů z `CartWorld` (`cartWorldOf` → `pathVillageOf`) a náhled
   vozové cesty z `SceneVillage.fortifications` (`pathFortificationsOf`) – tytéž funkce.
 - **Cesta přes opevnění dostane bránu** – `gateRoadCrossings(state, geo)` (`fortifications.ts`)
-  každý den před přepočtem tras (`simulate.ts`, po `roadFieldsDay`): stojící úsek bez brány,
+  každý den před přepočtem tras (`simulate.ts`, po `roadFieldsDay`): blokující úsek bez brány,
   který protne osa pevné cesty (i vozové a zemské stezky – `roadAxes`), dostane bránu u prvního
   průsečíku (`roadGates` v `gates.ts`, jako `autoGates`). Tak bránu dostane nová cesta
-  z vyšlapanosti, dostavěný úsek vozové cesty a stezky i úsek opevnění dostavěný přes starou
-  cestu; úsek ve stavbě ji dostane až s dostavěním. Ves bez opevnění nebo bez cest beze změny.
-- **Klíče a `WALK_VERSION`** – `fortLayoutKey(state)` (plocha, druh, stojící úseky s druhem,
-  brány; bez opevnění null) se připojí na konec proudu `routeMapKey`, do `fenceLayoutKey`
+  z vyšlapanosti, dostavěný úsek vozové cesty a stezky i staveniště opevnění přes starou cestu
+  (hned se zahájením – blokuje od něj). Ves bez opevnění nebo bez cest beze změny.
+- **Klíče a `WALK_VERSION`** – `fortLayoutKey(state)` (plocha, druh, blokující úseky s druhem
+  pásu – `fortBlockingSegments`, brány; bez opevnění null; ne den dokončení, průběh ani stav
+  úseků, který blokování nemění) se připojí na konec proudu `routeMapKey`, do `fenceLayoutKey`
   a klíče `villageBlockedAt`; `cartGridKey` bere `village.fortifications`. Vše jen když opevnění
   je, takže **ves bez opevnění má klíče, mřížky, trasy i vozovou síť bit po bitu stejné**
   (zlatý otisk v `paths/__tests__/fortification-paths.test.ts`; Vlkov ověřen 6. 11. 2026 –
   klíč mapy, mřížky chodců, vozové cesty i vozu a stálé trasy beze změny). Ves s opevněním
   dostane nový klíč mapy sama (opevnění je v něm), proto **`WALK_VERSION` zůstává `routes-v11`**
   – nová verze by jen jednou přepočítala trasy všech vsí se stejným výsledkem.
+- **Měření 6. 11. 2026** (blokování od zahájení): dřív každý dokončený, přestavěný či chátrající
+  úsek změnil `fortLayoutKey` → `routeMapKey` → plný přepočet sítě pěšin (≈ 1,3 s), při stavbě
+  plotu 35–57× za rok. Rok Vlkova s plotem (60 úseků, položen 30. 4. 862): **50,6 s → 14,8 s**
+  (dnů nad 500 ms 33 → 5); bez plotu 11,0 s → 10,5 s, rok Vlkova bez opevnění (simulace) 12,1 s
+  → 12,1 s a stav po roce bez opevnění bit po bitu stejný.
 - Odhad vzdáleností chůze (`walkGraph`, `walkingDistances`) jde po uložených trasách – přes
   bránu, protože trasy jdou branou; přímý úsek k síti (napojení v nejbližším bodě pěšiny) stěny
   nezná (zatím, návrh Clauda – odchylka malá).
