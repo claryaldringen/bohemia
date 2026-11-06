@@ -112,3 +112,5 @@ službě odečte F6). Výhled pro formulář: `houseSpareOutlook` (`application/
 se **jen na vyžádání** (server action `houseSpare`), načítá stavy vsí rodu, odečítá dávky jiným
 pánům. Akce serveru: `houseSpare`, `renounceVassalage` (`apps/web/app/game/actions.ts`,
 `lib/house.ts`, vstupy `lib/house-input.ts`).
+
+Rozhraní podmínek (ikony, formulář s výhledem, Nové podmínky, Vypovědět): [web-ui.md](web-ui.md) – „Podmínky vazalství v panelu“.

@@ -3,6 +3,7 @@
 // prohlížeče. Rozhodnutí (kdo je na tahu, kdo smí co) je v `packages/game`, tady se jen zobrazuje.
 import type { PanelNegotiation, TermItem } from '@bohemia/game';
 import type { HouseLinkView } from './house-view';
+import { serviceLabel } from './terms-view';
 
 /** Řádek podmínek jako ikona s popiskem; `item` je podmínka, ze které řádek vznikl. */
 export interface TermRowView {
@@ -41,13 +42,12 @@ export function termRowLabel(
       return item.lord === ownId
         ? `${houseNameOf(other)} se stane tvým vazalem`
         : `Staneš se vazalem rodu ${houseNameOf(other)}`;
-    // ikony a čísla těchto řádků dělá rozhraní podmínek (úloha 4.2 – web); zatím jen název
     case 'tribute':
       return 'Roční dávka';
     case 'service':
-      return `Vojenská služba – ${item.men} mužů na ${item.days} dní`;
+      return `Vojenská služba: ${serviceLabel(item.men, item.days)}`;
     case 'target-village':
-      return 'Cílová ves';
+      return 'Správa vsi pána';
     case 'reward':
       return 'Roční odměna';
   }

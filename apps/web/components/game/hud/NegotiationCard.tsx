@@ -3,7 +3,7 @@
 import { useState, type ReactElement } from 'react';
 import type { TermItem } from '@bohemia/game';
 import type { NegotiationView } from '@/lib/negotiation-view';
-import { HouseIcon, TermRows, TermsForm } from './TermsForm';
+import { HouseIcon, TermRows, TermsForm, type TermsContext } from './TermsForm';
 import { Tooltip } from './Tooltip';
 
 // Karta jednání (vassalage.md – Co hráč vidí, „jednání“): druhá strana, řádky podmínek jako ikony,
@@ -47,12 +47,15 @@ export function NegotiationCard({
   negotiation,
   portrait,
   busy,
+  context,
   onReply,
 }: {
   negotiation: NegotiationView;
   /** Portrét druhé strany se štítem (komponenta panelu). */
   portrait: ReactElement;
   busy: boolean;
+  /** Čí je rod v dohodě, vsi hráče a výhled (formulář protinávrhu). */
+  context?: TermsContext;
   onReply: (negotiationId: string, reply: NegotiationReply) => void;
 }): ReactElement {
   const [countering, setCountering] = useState(false);
@@ -70,7 +73,7 @@ export function NegotiationCard({
             {portrait}
           </span>
         </Tooltip>
-        <TermRows rows={negotiation.rows} />
+        <TermRows rows={negotiation.rows} context={context} />
       </div>
       {negotiation.message !== null && (
         <p
@@ -86,6 +89,7 @@ export function NegotiationCard({
           submitLabel="Protinávrh"
           submitIcon="pen"
           busy={busy}
+          context={context}
           onCancel={() => setCountering(false)}
           onSubmit={(items, message) => {
             setCountering(false);

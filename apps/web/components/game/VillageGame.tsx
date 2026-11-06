@@ -56,6 +56,8 @@ import {
   openNegotiation,
   answerNegotiation,
   blockHouse,
+  houseSpare,
+  renounceVassalage,
 } from '@/app/game/actions';
 import { PanelOptionsContext, type PanelOptionsSource } from '@/hooks/use-panel-options';
 import type { PanelAsk, PanelOptions } from '@/lib/panel-options';
@@ -1459,6 +1461,21 @@ export function VillageGame({
               negotiate(() => answerNegotiation({ negotiationId, ...reply }))
             }
             onBlock={(target) => negotiate(() => blockHouse({ target }))}
+            villages={(view?.villages ?? []).map((v) => ({ id: v.id, name: v.name }))}
+            onSpare={async (toHouseId, targetVillageId) => {
+              try {
+                const result = await houseSpare({
+                  toHouseId,
+                  ...(targetVillageId !== null ? { targetVillageId } : {}),
+                });
+                return 'spare' in result ? result.spare : null;
+              } catch {
+                return null;
+              }
+            }}
+            onRenounce={(vassalageId, message) =>
+              negotiate(() => renounceVassalage({ vassalageId, message }))
+            }
             onClose={closeHouse}
             onSelectVillage={(villageId) => {
               const target = view?.villages.find((v) => v.id === villageId);

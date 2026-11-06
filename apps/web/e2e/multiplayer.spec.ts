@@ -200,3 +200,77 @@ test('jednání: nabídka, protinávrh, přijetí; odmítnutí s pauzou; blokov�
 
   await Promise.all(ctxs.map((ctx) => ctx.close()));
 });
+
+const TERMS_SCREENSHOT = process.env.TERMS_SCREENSHOT;
+
+test('podmínky vazalství: ikony v panelu, nové podmínky odmítnuty, vypovězení', async ({
+  browser,
+}) => {
+  test.setTimeout(240_000);
+  await query(`UPDATE house SET ended_at = now() WHERE ended_at IS NULL`, []);
+  const ctxs = await Promise.all([browser.newContext(), browser.newContext()]);
+  for (const ctx of ctxs) await useUniqueClientIp(ctx);
+  const [a, b] = (await Promise.all(ctxs.map((ctx) => ctx.newPage()))) as [Page, Page];
+  for (const page of [a, b]) await page.setViewportSize({ width: 1280, height: 720 });
+  const { seat } = await newPlayer(a, 'podmra');
+  await found(a, villageSpots(seat.landscape).dwelling);
+  const emailB = await registerAndEnterGame(b, 'podmrb');
+  const idB = await houseIdOf(emailB);
+
+  // A nabídne B vazalství s dávkou obilí a vojenskou službou
+  const panelA = await openHousePanel(a);
+  const bar = await pickPlayer(panelA, idB);
+  await bar.getByTestId('house-offer').click();
+  await panelA.getByTestId('terms-add-tribute').click();
+  await panelA.getByTestId('term-tribute-grainKg').fill('300');
+  await panelA.getByTestId('terms-add-service').click();
+  await panelA.getByTestId('term-service-men').fill('2');
+  await panelA.getByTestId('term-service-days').fill('20');
+  await panelA.getByTestId('terms-submit').click();
+
+  // B vidí řádky jako ikony a přijme
+  const panelB = await reopenHousePanel(b);
+  await expect(panelB.getByTestId('term-row-tribute')).toBeVisible();
+  await expect(panelB.getByTestId('term-row-service')).toContainText('2 × 20');
+  await panelB.getByTestId('negotiation-accept').click();
+  await expect(panelB.getByTestId('house-lord')).toHaveCount(1);
+
+  // A: u B ikony podmínek
+  const panelA2 = await reopenHousePanel(a);
+  const entry = panelA2.getByTestId('house-vassal-entry');
+  await expect(entry.locator('[data-chip="tribute-grainKg"]')).toContainText('300');
+  await expect(entry.locator('[data-chip="service"]')).toContainText('2 × 20');
+  await a.mouse.move(0, 400);
+  if (TERMS_SCREENSHOT) await a.screenshot({ path: TERMS_SCREENSHOT });
+
+  // A dá nové podmínky, B odmítne → podmínky beze změny
+  await panelA2.getByTestId('house-vassal').click();
+  await panelA2.getByTestId('agreement-new-terms').click();
+  await panelA2.getByTestId('term-tribute-grainKg').fill('900');
+  await panelA2.getByTestId('terms-submit').click();
+  const panelB2 = await reopenHousePanel(b);
+  await expect(panelB2.getByTestId('house-negotiation')).toHaveAttribute('data-my-turn', 'true');
+  await panelB2.getByTestId('negotiation-reject').click();
+  await expect(panelB2.getByTestId('house-negotiation')).toHaveCount(0);
+  const panelA3 = await reopenHousePanel(a);
+  await expect(
+    panelA3.getByTestId('house-vassal-entry').locator('[data-chip="tribute-grainKg"]'),
+  ).toContainText('300');
+
+  // B vypoví → A ho nemá ve vazalech a dostane upozornění
+  await panelB2.getByTestId('house-lord').click();
+  await panelB2.getByTestId('agreement-renounce').click();
+  await panelB2.getByTestId('renounce-message').fill('Dost bylo');
+  await panelB2.getByTestId('renounce-confirm').click();
+  await expect(panelB2.getByTestId('house-independent')).toBeVisible();
+  await pollVillage(a);
+  await expect(
+    a.getByTestId('village-notice').filter({ hasText: 'skončilo vypovězením' }),
+  ).toBeVisible({
+    timeout: 60_000,
+  });
+  const panelA4 = await reopenHousePanel(a);
+  await expect(panelA4.getByTestId('house-vassal')).toHaveCount(0);
+
+  await Promise.all(ctxs.map((ctx) => ctx.close()));
+});
