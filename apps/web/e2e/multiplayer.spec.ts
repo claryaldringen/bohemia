@@ -613,7 +613,10 @@ test('správa cizí vsi: A svěří B ves, B v ní postaví pole, A ho odvolá �
   await expect
     .poll(async () => (await query(`SELECT 1 FROM stewardship WHERE ended_at IS NULL`, [])).length)
     .toBe(0);
-  const agreements = await query(`SELECT 1 FROM vassalage WHERE ended_at IS NULL`, []);
+  const agreements = await query(
+    `SELECT 1 FROM vassalage WHERE ended_at IS NULL AND vassal_house_id = $1`,
+    [idB],
+  );
   expect(agreements).toHaveLength(1);
 
   // B už ves A v přepínači nemá a otevře zase svou vlastní
