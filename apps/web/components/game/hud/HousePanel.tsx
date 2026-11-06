@@ -471,7 +471,7 @@ function lordIsOwnIn(n: NegotiationView, view: HouseView): boolean {
 /** Rozpracovaná nabídka: komu a v které roli je hráč (pán / vazal). */
 interface Draft {
   house: HouseLinkView;
-  direction: 'offer' | 'request' | 'trade';
+  direction: 'offer' | 'request' | 'trade' | 'war';
 }
 
 /** Odkaz pozvánky: absolutní adresa registrace s kódem (z adresy prohlížeče). */
@@ -568,6 +568,7 @@ export function HousePanel({
   onOpenNegotiation,
   onReply,
   onBlock,
+  onDeclareWar,
   villages = [],
   onSpare,
   onRenounce,
@@ -590,6 +591,8 @@ export function HousePanel({
   onReply?: (negotiationId: string, reply: NegotiationReply) => Promise<unknown>;
   /** Zablokuje rod. */
   onBlock?: (houseId: string) => Promise<unknown>;
+  /** Opoví válku rodu (id rodu, požadavek jako podmínky míru, vzkaz). */
+  onDeclareWar?: (to: string, items: TermItem[], message: string | null) => Promise<unknown>;
   /** Vsi hráče (výběr cílové vsi v podmínkách). */
   villages?: readonly { id: string; name: string }[];
   /** Výhled „kolik můžu postrádat“ pro rod `toHouseId` (jen na vyžádání, při otevření formuláře). */
@@ -891,6 +894,14 @@ export function HousePanel({
                         onClick={() => setDraft({ house: h, direction: 'trade' })}
                       />
                       <PlayerAction
+                        label="Opovědět válku"
+                        icon="spears"
+                        testId="house-war"
+                        reason={h.actions.war}
+                        busy={busy}
+                        onClick={() => setDraft({ house: h, direction: 'war' })}
+                      />
+                      <PlayerAction
                         label="Blokovat"
                         icon="gate"
                         testId="house-block"
@@ -908,7 +919,9 @@ export function HousePanel({
                         rows={termRows(
                           draft.direction === 'trade'
                             ? openingTrade(view.ownHouseId, villages[0]?.id ?? null)
-                            : openingTerms(draft.direction, view.ownHouseId, h.houseId),
+                            : draft.direction === 'war'
+                              ? []
+                              : openingTerms(draft.direction, view.ownHouseId, h.houseId),
                           view.ownHouseId,
                           h,
                         )}
@@ -917,24 +930,35 @@ export function HousePanel({
                             ? 'Nabídnout vazalství'
                             : draft.direction === 'trade'
                               ? 'Nabídnout obchod'
-                              : 'Požádat o přijetí'
+                              : draft.direction === 'war'
+                                ? 'Opovědět válku'
+                                : 'Požádat o přijetí'
                         }
                         submitIcon={
                           draft.direction === 'offer'
                             ? 'seal'
                             : draft.direction === 'trade'
                               ? 'cart'
-                              : 'hands'
+                              : draft.direction === 'war'
+                                ? 'spears'
+                                : 'hands'
                         }
+                        allowEmpty={draft.direction === 'war'}
                         busy={busy}
-                        context={contextFor(h.houseId, draft.direction === 'offer')}
+                        context={{
+                          ...contextFor(h.houseId, draft.direction === 'offer'),
+                          ...(draft.direction === 'war' ? { demandFor: h.houseId } : {}),
+                        }}
                         onCancel={() => setDraft(null)}
                         onSubmit={(items, message) => {
+                          const war = draft.direction === 'war';
                           setDraft(null);
                           setPickedId(null);
-                          run(
-                            () =>
-                              onOpenNegotiation?.(h.houseId, items, message) ?? Promise.resolve(),
+                          run(() =>
+                            war
+                              ? (onDeclareWar?.(h.houseId, items, message) ?? Promise.resolve())
+                              : (onOpenNegotiation?.(h.houseId, items, message) ??
+                                Promise.resolve()),
                           );
                         }}
                       />

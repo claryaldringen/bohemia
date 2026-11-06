@@ -3,6 +3,7 @@ import type { NoticeRepository } from './notices';
 import type { LoanTx } from './loans';
 import type { StewardshipTx } from './stewardships';
 import type { VassalageRepository } from './vassalages';
+import type { WarTx } from './wars';
 
 /** Stav jednání v úložišti: doménové stavy a `ended` (rod vymřel, vazalství už nelze uzavřít). */
 export type StoredNegotiationStatus = Negotiation['status'] | 'ended';
@@ -65,6 +66,7 @@ export interface NegotiationTx {
   notices: NoticeTx;
   loans: LoanTx;
   stewardships: StewardshipTx;
+  wars: WarTx;
 }
 
 /** Port repozitáře jednání: vše běží v transakci, účinky přijetí ve stejné. */

@@ -40,6 +40,12 @@ export class InMemoryHouses implements HouseRepository {
     return house;
   }
 
+  async playerHousesSince(since: Date): Promise<House[]> {
+    return this.houses.filter(
+      (h) => h.kind === 'player' && this.alive(h) && h.createdAt.getTime() > since.getTime(),
+    );
+  }
+
   async end(houseId: string, at: Date, day: number): Promise<boolean> {
     await Promise.resolve();
     const house = this.houses.find((h) => h.id === houseId);

@@ -13,6 +13,10 @@ import type { SuccessionCreditRepository } from './succession-credits';
 import type { SettlementRepository } from './settlements';
 import type { StewardshipRepository } from './stewardships';
 import type { VassalageRepository } from './vassalages';
+import { houseProtectedUntil, protectedReason, protectionDaysLeft } from '../domain/war';
+import { WAR_REASONS } from './declare-war';
+import { houseName, UNNAMED_HOUSE } from './negotiation-chronicle';
+import { warOpponent, type War, type WarHow, type WarRepository } from './wars';
 import type { VillageRepository } from './villages';
 import {
   publicHouseOf,
@@ -107,6 +111,19 @@ export interface PanelPlayerActions {
   request: string | null;
   /** Hráč tento rod už zablokoval. */
   blockedByMe: boolean;
+  /** Opovědět válku (war.md – Co hráč vidí): důvod zašednutí „Ctibor je pod ochranou ještě 3 dny.“. */
+  war: string | null;
+}
+
+/** Aktivní válka hráčova rodu (panel války): s kým, od kdy a jak začala. */
+export interface PanelWar {
+  warId: string;
+  /** Druhá strana války (veřejný pohled na rod). */
+  other: PublicHouse;
+  startedAt: Date;
+  startedDay: number;
+  how: WarHow;
+  lastClashDay: number;
 }
 
 /** Ves hráčova rodu, kterou spravuje jiný rod (tlačítko Odvolat; vassalage.md – Odvolání). */
@@ -153,6 +170,10 @@ export interface HousePanelData {
   actions: Record<string, PanelPlayerActions>;
   /** Vsi hráčova rodu ve správě jiných rodů. */
   stewardships: PanelStewardship[];
+  /** Aktivní války hráčova rodu, nejstarší první. */
+  wars: PanelWar[];
+  /** Do kdy trvá ochrana nového rodu (štít s hodinami); null – rod chráněn není. */
+  protectedUntil: Date | null;
 }
 
 export interface HousePanelDeps {
@@ -168,6 +189,8 @@ export interface HousePanelDeps {
   /** Správy cizích vsí a jména vsí k nim; bez nich panel správy nenese. */
   stewardships?: Pick<StewardshipRepository, 'listByHolderHouse'>;
   villages?: Pick<VillageRepository, 'find'>;
+  /** Války a ochrana nováčka; bez nich panel válku nenese. */
+  wars?: Pick<WarRepository, 'activeOf' | 'activeBetween' | 'ownAttackAt'>;
   now: () => Date;
 }
 
@@ -185,6 +208,8 @@ const EMPTY: HousePanelData = {
   negotiations: [],
   actions: {},
   stewardships: [],
+  wars: [],
+  protectedUntil: null,
 };
 
 /** Rod, kterého adresář nezná (bez sídelního sídla) – jen id. */
@@ -259,6 +284,7 @@ export async function housePanel(
     usedHouseIds.set(invite.code, (await deps.houses.activeOf(invite.usedBy!))?.id ?? null);
   }
 
+  const activeWars: War[] = deps.wars ? await deps.wars.activeOf(own.id) : [];
   const wanted = [
     ...new Set([
       own.id,
@@ -267,6 +293,7 @@ export async function housePanel(
       ...treeNodes.map((n) => n.houseId),
       ...open.map((n) => (n.initiatorHouseId === own.id ? n.recipientHouseId : n.initiatorHouseId)),
       ...[...usedHouseIds.values()].flatMap((id) => (id ? [id] : [])),
+      ...activeWars.map((w) => warOpponent(w, own.id)),
     ]),
   ];
   const entries = await deps.worldDirectory.entriesOf(wanted);
@@ -376,9 +403,18 @@ export async function housePanel(
           oath: { lord: other.houseId, vassal: own.id },
         }),
         blockedByMe: await tx.blocks(own.id, other.houseId),
+        war: null,
       };
     }
   });
+  // opověď války: ochrana nováčka, běžící válka a jednání (war.md – Co hráč vidí)
+  if (deps.wars) {
+    for (const other of nearby) {
+      const action = actions[other.houseId];
+      if (!action) continue;
+      action.war = await warReason(deps, deps.wars, other.houseId, own.id, now);
+    }
+  }
 
   const invites: PanelInvite[] = [];
   for (const invite of allInvites) {
@@ -417,7 +453,50 @@ export async function housePanel(
     negotiations,
     actions,
     stewardships: await stewardshipsOf(deps, own.id),
+    wars: activeWars.map((w): PanelWar => ({
+      warId: w.id,
+      other: publicOf(warOpponent(w, own.id)),
+      startedAt: w.startedAt,
+      startedDay: w.startedDay,
+      how: w.how,
+      lastClashDay: w.lastClashDay,
+    })),
+    protectedUntil: deps.wars ? protectionEnd(own, await deps.wars.ownAttackAt(own.id), now) : null,
   };
+}
+
+/** Konec ochrany nového rodu, pokud ještě trvá; jinak null. */
+function protectionEnd(
+  house: { kind: 'player' | 'npc'; createdAt: Date },
+  ownAttackAt: Date | null,
+  now: Date,
+): Date | null {
+  const until = houseProtectedUntil(house, ownAttackAt);
+  return until !== null && until.getTime() > now.getTime() ? until : null;
+}
+
+/** Důvod zašednutí tlačítka opovědi u rodu `targetId`; null – smí. */
+async function warReason(
+  deps: HousePanelDeps,
+  wars: Pick<WarRepository, 'activeBetween' | 'ownAttackAt'>,
+  targetId: string,
+  ownId: string,
+  now: Date,
+): Promise<string | null> {
+  if (await wars.activeBetween(ownId, targetId)) return WAR_REASONS.atWar;
+  const target = await deps.houses.byId(targetId);
+  if (!target || target.endedAt !== null) return WAR_REASONS.extinct;
+  const left = protectionDaysLeft(
+    houseProtectedUntil(target, await wars.ownAttackAt(targetId)),
+    now,
+  );
+  if (left > 0)
+    return protectedReason(
+      deps.villages ? await houseName({ villages: deps.villages }, target) : UNNAMED_HOUSE,
+      left,
+    );
+  const negotiating = await deps.negotiations.transaction((tx) => tx.openBetween(ownId, targetId));
+  return negotiating ? 'Jednáte už.' : null;
 }
 
 /** Vsi rodu, které právě spravuje jiný rod, se jmény vsí. */

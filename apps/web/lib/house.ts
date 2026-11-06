@@ -4,6 +4,7 @@ import {
   blockPlayer,
   dismissSteward,
   counterNegotiation,
+  declareWar,
   housePanel,
   houseSpareOutlook,
   issueInvite,
@@ -77,6 +78,22 @@ export async function openNegotiationForPlayer(
     today: today.day,
   });
   return outcome(result);
+}
+
+/** Hráč za svůj rod opoví válku rodu `target` (volitelně s požadavkem a vzkazem). */
+export async function declareWarForPlayer(
+  playerId: string,
+  input: { target: string; demand: TermItem[]; message: string | null },
+): Promise<NegotiationActionResult> {
+  const today = await playerToday(playerId);
+  if (!today.ok) return { error: today.error };
+  const result = await declareWar(gameDeps(), {
+    playerId,
+    ...input,
+    now: new Date(),
+    today: today.day,
+  });
+  return result.ok ? { ok: true } : { error: result.reason };
 }
 
 /** Odpověď na jednání: přijmout, odmítnout, stáhnout, nebo protinávrh. */

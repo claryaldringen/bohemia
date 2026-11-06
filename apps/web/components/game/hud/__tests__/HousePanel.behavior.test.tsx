@@ -27,6 +27,8 @@ const VIEW: HouseView = {
   hasHouse: true,
   ownHouseId: 'h-me',
   stewardships: [],
+  wars: [],
+  protectionDaysLeft: null,
   agreements: [],
   tree: [],
   status: {},

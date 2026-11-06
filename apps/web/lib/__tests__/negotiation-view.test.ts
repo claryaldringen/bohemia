@@ -56,6 +56,8 @@ describe('negotiationView', () => {
     const data: HousePanelData = {
       hasHouse: true,
       stewardships: [],
+      wars: [],
+      protectedUntil: null,
       agreements: [],
       tree: [],
       status: {},
@@ -74,7 +76,7 @@ describe('negotiationView', () => {
       invites: [],
       freeInviteSlots: 3,
       negotiations: [negotiation({ id: 'n-2', myTurn: false }), negotiation({ id: 'n-1' })],
-      actions: { 'h-b': { offer: 'Jednáte už.', request: null, blockedByMe: false } },
+      actions: { 'h-b': { offer: 'Jednáte už.', request: null, blockedByMe: false, war: null } },
     };
     const view = houseView(data, 0);
     expect(view.negotiations.map((n) => n.id)).toEqual(['n-1', 'n-2']);
@@ -84,6 +86,7 @@ describe('negotiationView', () => {
       offer: 'Jednáte už.',
       request: null,
       blocked: false,
+      war: null,
     });
   });
 });

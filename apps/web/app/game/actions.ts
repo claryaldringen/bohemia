@@ -16,6 +16,7 @@ import {
   dismissStewardForPlayer,
   issueInviteForPlayer,
   openNegotiationForPlayer,
+  declareWarForPlayer,
   revokeInviteForPlayer,
   type NegotiationActionResult,
 } from '@/lib/house';
@@ -31,6 +32,7 @@ import type { EscheatView, LevyDialogView, MacroSpare } from '@bohemia/game';
 import {
   parseAnswerLevyInput,
   parseBlockInput,
+  parseDeclareWarInput,
   parseNegotiationAnswerInput,
   parseOpenNegotiationInput,
   parseRenounceInput,
@@ -569,6 +571,15 @@ export async function openNegotiation(input: unknown): Promise<NegotiationAction
   const parsed = parseOpenNegotiationInput(input);
   if (parsed === null) return { error: INVALID_INPUT };
   return openNegotiationForPlayer(id, parsed);
+}
+
+/** Opoví válku rodu: `{ target, items, message }` (id rodu, požadavek jako podmínky míru, vzkaz). */
+export async function declareWarOnHouse(input: unknown): Promise<NegotiationActionResult> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const parsed = parseDeclareWarInput(input);
+  if (parsed === null) return { error: INVALID_INPUT };
+  return declareWarForPlayer(id, parsed);
 }
 
 /** Odpoví na jednání: `{ negotiationId, answer: accept | reject | withdraw | counter, ... }`. */

@@ -61,6 +61,7 @@ import {
   openNegotiation,
   answerNegotiation,
   blockHouse,
+  declareWarOnHouse,
   houseSpare,
   renounceVassalage,
   dismissSteward,
@@ -135,6 +136,7 @@ import { DefeatScreen } from './hud/DefeatScreen';
 import { JourneyBanner, PlayerDeparturePanel } from './hud/RelocationControls';
 import { GameMenu } from './hud/GameMenu';
 import { HousePanel } from './hud/HousePanel';
+import { WarPanel } from './hud/WarPanel';
 import { LevyDialog } from './hud/LevyDialog';
 import { EscheatDialog } from './hud/EscheatDialog';
 import { RightsProvider, rightDeniedReason } from './hud/rights';
@@ -404,14 +406,24 @@ export function VillageGame({
       setEscheats(null);
     }
   }, []);
+  const [warOpen, setWarOpen] = useState(false);
   const openHouse = useCallback((): void => {
     setMenuOpen(false);
+    setWarOpen(false);
     setHouseError(null);
     setHouseOpen(true);
     void refreshHouse();
     void refreshEscheats();
   }, [refreshHouse, refreshEscheats]);
   const closeHouse = useCallback((): void => setHouseOpen(false), []);
+  // Panel války (war.md – Co hráč vidí): textový přehled válek; data jsou v pohledu na rod
+  const openWar = useCallback((): void => {
+    setMenuOpen(false);
+    setHouseOpen(false);
+    setWarOpen(true);
+    void refreshHouse();
+  }, [refreshHouse]);
+  const closeWar = useCallback((): void => setWarOpen(false), []);
   // Dialog Odvody (úloha 4.4): rozdělení po vsích se počítá až při otevření
   const [levyOpen, setLevyOpen] = useState(false);
   const [levy, setLevy] = useState<LevyDialogView[] | null>(null);
@@ -520,9 +532,10 @@ export function VillageGame({
   const openNoticePanel = useCallback(
     (panel: NoticePanel): void => {
       if (panel === 'house') openHouse();
+      else if (panel === 'war') openWar();
       else void openLevy();
     },
-    [openHouse, openLevy],
+    [openHouse, openLevy, openWar],
   );
   const showPlayerNotices = useCallback(
     (received: readonly PlayerNotice[] | undefined): void => {
@@ -1161,6 +1174,7 @@ export function VillageGame({
     setSelected(null);
     setBuildGroup(null);
     setHouseOpen(false);
+    setWarOpen(false);
     setMenuOpen(true);
   };
   const openMenuRef = useRef(openMenu);
@@ -1410,6 +1424,12 @@ export function VillageGame({
             open: houseOpen,
             onToggle: () => (houseOpen ? closeHouse() : openHouse()),
           }}
+          war={{
+            wars: house?.wars.length ?? 0,
+            protectionDaysLeft: house?.protectionDaysLeft ?? null,
+            open: warOpen,
+            onToggle: () => (warOpen ? closeWar() : openWar()),
+          }}
           devTime={devMode ? { pending: skipping, onSkip: skipTimeBy } : null}
           devDisasters={
             devMode && view && !view.extinct
@@ -1561,6 +1581,7 @@ export function VillageGame({
             onSignOut={signOut}
           />
         )}
+        {warOpen && !menuShown && <WarPanel view={house} onClose={closeWar} />}
         {houseOpen && !menuShown && (
           <HousePanel
             view={house}
@@ -1575,6 +1596,9 @@ export function VillageGame({
               negotiate(() => answerNegotiation({ negotiationId, ...reply }))
             }
             onBlock={(target) => negotiate(() => blockHouse({ target }))}
+            onDeclareWar={(target, items, message) =>
+              negotiate(() => declareWarOnHouse({ target, items, message }))
+            }
             villages={(view?.villages ?? [])
               .filter((v) => !v.stewarded)
               .map((v) => ({ id: v.id, name: v.name }))}

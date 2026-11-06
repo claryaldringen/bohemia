@@ -71,3 +71,6 @@ export * from './loan-house-ended';
 export * from './stewardships';
 export * from './escheat';
 export * from './ennoble';
+export * from './wars';
+export * from './declare-war';
+export * from './war-chronicle';

@@ -8,6 +8,7 @@ import {
   createLoanRepository,
   createStewardshipRepository,
   createEscheatRepository,
+  createWarRepository,
   createSuccessionCreditRepository,
   createNegotiationRepository,
   createVassalageRepository,
@@ -28,6 +29,7 @@ import type {
   LoanRepository,
   StewardshipRepository,
   EscheatRepository,
+  WarRepository,
   DynastyDeps,
   SuccessionCreditRepository,
   NegotiationRepository,
@@ -112,6 +114,8 @@ export interface GameDeps {
   stewardships: StewardshipRepository;
   /** Odúmrti vymřelých rodů (`docs/code/vassalage.md` – Odúmrť). */
   escheats: EscheatRepository;
+  /** Války mezi rody a ochrana nováčka (`docs/code/war.md`). */
+  wars: WarRepository;
   /** Konec rodu přes `endHouse` (odúmrť) – dopočet rodu ho použije při konci hry. */
   ending: NonNullable<DynastyDeps['ending']>;
   /** Kryptografická náhoda pro kódy pozvánek. */
@@ -147,6 +151,7 @@ export function createGameDeps(
   const loans = createLoanRepository(db);
   const stewardships = createStewardshipRepository(db);
   const escheats = createEscheatRepository(db);
+  const wars = createWarRepository(db);
   const now = (): Date => new Date();
   return {
     settlements: createSettlementRepository(db),
@@ -162,7 +167,18 @@ export function createGameDeps(
     loans,
     stewardships,
     escheats,
-    ending: { houses, vassalages, negotiations, dialogs, loans, stewardships, escheats, now },
+    wars,
+    ending: {
+      houses,
+      vassalages,
+      negotiations,
+      dialogs,
+      loans,
+      stewardships,
+      escheats,
+      wars,
+      now,
+    },
     random: cryptoRandom(),
     worldDirectory: createWorldDirectory(db),
     now,

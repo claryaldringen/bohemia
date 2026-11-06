@@ -14,7 +14,8 @@ export type TermItem =
   | AidLine
   | TradeLine
   | StewardshipLine
-  | VillageGiftLine;
+  | VillageGiftLine
+  | WarDemandLine;
 
 /**
  * Obchod mezi hráči (vassalage.md – Hospodářství mezi hráči): autor kola `give` pošle, `get`
@@ -49,6 +50,16 @@ export interface VillageGiftLine {
   escheatId: string;
   villageIds: string[];
   vassalIds: string[];
+}
+
+/**
+ * Požadavek při opovědi války (war.md – Začátek války): `items` jsou podmínky míru (přísaha
+ * a řádky dávky, služby, odměny). Přijetí = válka končí mírem s těmi podmínkami; prázdný požadavek
+ * je holá opověď se vzkazem (přijetí = mír bez podmínek). Je jediným řádkem kola.
+ */
+export interface WarDemandLine {
+  kind: 'war-demand';
+  items: TermItem[];
 }
 
 /** Jedno kolo jednání: podmínky jedné strany a volitelný vzkaz. */

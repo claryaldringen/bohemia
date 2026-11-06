@@ -108,6 +108,17 @@ export type ChronicleEvent = { day: number } & (
       actor: string;
       other: string;
     }
+  /**
+   * Válka mezi rody (war.md – Začátek války, Konec války): neutrální věcný záznam do kronik obou
+   * rodů, bez hodnocení. `actor` = ten, kdo válku začal (`declared`, `ambush`); u `quiet` a `peace`
+   * jsou jména obou stran (`other` = druhá strana z pohledu vsi, do které se píše, doplní web).
+   */
+  | {
+      kind: 'war';
+      step: 'declared' | 'ambush' | 'quiet' | 'peace';
+      actor: string;
+      other: string;
+    }
   /** Dohoda z jednání: rod `vassal` přísahal rodu `lord` (jména hlav rodů). */
   | { kind: 'negotiation-accepted'; lord: string; vassal: string }
   /** Vazalství skončilo formálním vypovězením (jména hlav rodů; text je neutrální, bez viníka). */

@@ -8,6 +8,7 @@ import { InMemoryHouses } from './in-memory-houses';
 import { InMemoryNegotiations } from './in-memory-negotiations';
 import { InMemoryNotices } from './in-memory-notices';
 import { InMemoryVassalages } from './in-memory-vassalages';
+import { InMemoryWars } from './in-memory-wars';
 
 export const NOW = new Date('2026-11-05T12:00:00Z');
 export const DAY_MS = 86_400_000;
@@ -19,13 +20,22 @@ export async function setup(): Promise<{
   vassalages: InMemoryVassalages;
   notices: InMemoryNotices;
   negotiations: InMemoryNegotiations;
+  wars: InMemoryWars;
   posts: NewVillageEvent[];
   ids: Record<string, string>;
 }> {
   const houses = new InMemoryHouses();
   const vassalages = new InMemoryVassalages();
   const notices = new InMemoryNotices();
-  const negotiations = new InMemoryNegotiations(vassalages, notices, () => NOW);
+  const wars = new InMemoryWars();
+  const negotiations = new InMemoryNegotiations(
+    vassalages,
+    notices,
+    () => NOW,
+    undefined,
+    undefined,
+    wars,
+  );
   const posts: NewVillageEvent[] = [];
   const refs = new Set<string>();
   const ids: Record<string, string> = {};
@@ -78,6 +88,7 @@ export async function setup(): Promise<{
     vassalages,
     notices,
     negotiations,
+    wars,
     posts,
     ids,
   };

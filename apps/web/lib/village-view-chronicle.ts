@@ -386,6 +386,19 @@ function genitiveOf(name: string): string {
   return name.endsWith('a') ? `${name.slice(0, -1)}y` : accusativeOf(name);
 }
 
+/** 3. pád mužského jména rodu („válku Ctiborovi“): -a → -ovi, jinak +ovi (Honza → Honzovi). */
+function dativeOf(name: string): string {
+  return name.endsWith('a') ? `${name.slice(0, -1)}ovi` : `${name}ovi`;
+}
+
+/** 7. pád mužského jména rodu („s Bořivojem“): -a → -ou, -ek → -kem, jinak +em; samohláskové beze změny. */
+function instrumentalOf(name: string): string {
+  if (name.endsWith('a')) return `${name.slice(0, -1)}ou`;
+  if (name.endsWith('ek')) return `${name.slice(0, -2)}kem`;
+  if (/[eiyouáéíóúůý]$/i.test(name)) return name;
+  return `${name}em`;
+}
+
 /** Text události kroniky česky. */
 export function chronicleText(event: ChronicleEvent, villageName: string): string {
   switch (event.kind) {
@@ -443,6 +456,17 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
           return `Půjčka sjednána – ${event.actor} a ${event.other}.`;
         case 'trade-accepted':
           return `Obchod sjednán – ${event.actor} a ${event.other}.`;
+      }
+    case 'war':
+      switch (event.step) {
+        case 'declared':
+          return `${event.actor} opověděl válku ${dativeOf(event.other)}.`;
+        case 'ambush':
+          return `${event.actor} přepadl ${accusativeOf(event.other)} bez opovědi.`;
+        case 'quiet':
+          return `Válka s ${instrumentalOf(event.other)} utichla.`;
+        case 'peace':
+          return `Mír s ${instrumentalOf(event.other)}.`;
       }
     case 'negotiation-accepted':
       return `${event.vassal} se stal vazalem ${genitiveOf(event.lord)}.`;

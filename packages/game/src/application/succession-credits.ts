@@ -4,6 +4,12 @@ import type { ActivityRepository } from './activity';
 import type { HouseRepository } from './houses';
 import type { InviteRepository } from './invites';
 import type { NoticeRepository } from './notices';
+import {
+  notifyProtectionEnding,
+  quietWars,
+  type ProtectionNoticeDeps,
+  type QuietWarsDeps,
+} from './declare-war';
 import { reconcileShipments, type ShipmentDeps } from './shipments';
 
 /** Port kreditů nástupnictví bez losu (vassalage.md – Pozvaný jako vazal). */
@@ -56,6 +62,8 @@ export async function grantSuccessionCredits(
 export type WorldTaskDeps = SuccessionCreditDeps & {
   shipments?: ShipmentDeps;
   levies?: AnnualLevyDeps;
+  /** Války a ochrana nováčka (war.md): utichání válek, upozornění na konec ochrany. */
+  wars?: QuietWarsDeps & ProtectionNoticeDeps;
 };
 
 /**
@@ -69,4 +77,8 @@ export async function runWorldTasks(
   await grantSuccessionCredits(deps, input);
   if (deps.shipments) await reconcileShipments(deps.shipments, input.today);
   if (deps.levies) await openAnnualDialogs(deps.levies, { today: input.today });
+  if (deps.wars) {
+    await quietWars(deps.wars, input);
+    await notifyProtectionEnding(deps.wars, input);
+  }
 }

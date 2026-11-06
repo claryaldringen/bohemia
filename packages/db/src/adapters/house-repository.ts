@@ -1,4 +1,4 @@
-import { and, eq, isNull, lt, or, sql } from 'drizzle-orm';
+import { and, eq, gt, isNull, lt, or, sql } from 'drizzle-orm';
 import type { House, HouseRepository } from '@bohemia/game';
 import type { Database } from '../client';
 import { house } from '../schema';
@@ -116,6 +116,13 @@ export function createHouseRepository(db: Database): HouseRepository {
         )
         .returning({ id: house.id });
       return rows.length > 0;
+    },
+    async playerHousesSince(since): Promise<House[]> {
+      const rows = await db
+        .select()
+        .from(house)
+        .where(and(eq(house.kind, 'player'), isNull(house.endedAt), gt(house.createdAt, since)));
+      return rows.map(toHouse);
     },
     async clearPendingDeparture(houseId, sonId): Promise<boolean> {
       // Podmíněný UPDATE: smaže jen odchod tohoto syna, ze souběžných volání uspěje jedno.

@@ -22,6 +22,7 @@ import { houseName, UNNAMED_HOUSE } from './negotiation-chronicle';
 import type { NegotiationRepository } from './negotiations';
 import type { LandscapeSource, Settlement, SettlementRepository } from './settlements';
 import type { StewardshipRepository } from './stewardships';
+import type { WarRepository } from './wars';
 import { updateVillage } from './update-village';
 import type { Vassalage, VassalageRepository } from './vassalages';
 import type { VillageRecord, VillageRepository, VillageStamp } from './villages';
@@ -91,6 +92,7 @@ export interface EndHouseDeps {
   settlements: Pick<SettlementRepository, 'listActive' | 'transferHolder'>;
   villages: VillageRepository;
   landscapes?: LandscapeSource;
+  wars?: Pick<WarRepository, 'extinctOf'>;
 }
 
 export interface EndHouseResult {
@@ -155,6 +157,8 @@ export async function endHouse(
     });
   }
   const ended = await deps.houses.end(houseId, now, day);
+  // války vymřelého rodu skončí (war.md – Konec války: do vymření jednoho z rodů)
+  if (ended && deps.wars) await deps.wars.extinctOf(houseId, now);
   return { ended, escheatId: ended ? escheatId : null };
 }
 
