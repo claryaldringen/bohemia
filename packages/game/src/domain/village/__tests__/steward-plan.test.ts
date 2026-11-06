@@ -99,7 +99,10 @@ describe('plán sídla na syntetických krajinách', () => {
       const flat = planned(
         planOf(village(plain, { x: 64, y: 64 }, extra), plain, obstaclesOf(plain)),
       );
-      expect(flat.template).toBe('cluster');
+      // bloky podle práce bez stropu podle jídla jsou větší (6. 11. 2026): řidší šablona smí
+      // vyhrát, když ušetří víc než `templateMargin`
+      expect(['cluster', 'scattered']).toContain(flat.template);
+      if (extra === 0) expect(flat.template).toBe('cluster');
       const narrow = planned(
         planOf(village(valley, { x: 64, y: 62 }, extra), valley, obstaclesOf(valley)),
       );
@@ -406,7 +409,8 @@ describe('plán sídla na skutečné krajině', () => {
   });
 
   it('plán je malý – nejvýš ≈ 1 kB na domácnost', () => {
-    expect(JSON.stringify(plan).length).toBeLessThanOrEqual(1000 * plan.households);
+    // bloky podle práce bez stropu podle jídla (6. 11. 2026) jsou větší, běhů je víc
+    expect(JSON.stringify(plan).length).toBeLessThanOrEqual(1500 * plan.households);
   });
 
   it('bloky polí se nepřekrývají a nejsou pod domy ani ostatními sloty', () => {

@@ -33,15 +33,17 @@ import { DAY, kin, trackedVillage, type KinSpec } from './kin-fixtures';
 import { makeLandscape } from './placement-fixtures';
 
 const pond = (x: number, y: number): boolean => Math.abs(x - 64) <= 1 && Math.abs(y - 70) <= 1;
-/** Rovina s tůní; `fertility` 0 – žádné políčko neuživí víc, než sní ten, kdo ho dělá. */
-const land = (fertility: number): ReturnType<typeof makeLandscape> =>
+/** Krajina `fertility` s tůní; s `small` je mimo malý kus louky všude voda. */
+const land = (fertility: number, small = false): ReturnType<typeof makeLandscape> =>
   makeLandscape({
     size: 128,
-    surface: (x, y) => (pond(x, y) ? 'water' : 'meadow'),
+    surface: (x, y) =>
+      pond(x, y) || (small && (Math.abs(x - 64) > 4 || Math.abs(y - 64) > 4)) ? 'water' : 'meadow',
     height: (x, y) => (pond(x, y) ? 0 : 5),
     fertility: () => fertility,
   });
-const barren = land(0);
+/** Malá mapa (kapacita ≪ ves o 17 lidech) – ves ji přelidňuje; zbytek je voda. */
+const barren = land(0, true);
 const barrenObstacles = obstaclesOf(barren);
 const fertile = land(60);
 const fertileObstacles = obstaclesOf(fertile);
@@ -205,7 +207,7 @@ describe('odchod syna (krok 2)', () => {
 
   it('past osiva: ves s dost poli, která hladověla, pošle syna i s místem na pole', () => {
     const trapped = withFields(lordVillage());
-    expect(stewardCrowded(trapped, AUG31, craftCoverage(trapped, AUG31))).toBe(false);
+    expect(stewardCrowded(trapped, fertile, fertileObstacles)).toBe(false);
     expect(stewardFieldRoom(trapped, AUG31, fertile, fertileObstacles)).toBe(true);
     trapped.steward!.hungerPeak = STEWARD.departureHungerDays;
     expect(stewardDeparture(trapped, AUG31, fertile, fertileObstacles)).toBe(true);
@@ -216,16 +218,10 @@ describe('odchod syna (krok 2)', () => {
     expect(stewardDeparture(withFields(lordVillage()), AUG31, fertile, fertileObstacles)).toBe(
       false,
     );
-    // přelidněná a hladová ves s místem na pole – napřed pole
+    // hladová ves hladoví i s místem na pole (past osiva) – syn odejde i při hladu 30 dní
     const crowded = lordVillage();
     crowded.steward!.hungerPeak = 30;
-    expect(stewardDeparture(crowded, AUG31, fertile, fertileObstacles)).toBe(false);
-    // … ale hladověla-li už loni, pole navíc rok nepomohla – syn odejde i s místem
-    const again = lordVillage();
-    again.steward!.hungerPeak = 30;
-    again.steward!.lastYearHunger = STEWARD.departureHungerDays;
-    expect(stewardFieldRoom(again, AUG31, fertile, fertileObstacles)).toBe(true);
-    expect(stewardDeparture(again, AUG31, fertile, fertileObstacles)).toBe(true);
+    expect(stewardDeparture(crowded, AUG31, fertile, fertileObstacles)).toBe(true);
     // loni hladověla, letos ne – nic
     const recovered = lordVillage();
     recovered.steward!.lastYearHunger = 30;
@@ -274,7 +270,7 @@ describe('odchod syna (krok 2)', () => {
       viable: false,
     });
     expect(departingSon(small, AUG31)).toBeNull();
-    expect(stewardCrowded(small, AUG31, craftCoverage(small, AUG31))).toBe(true);
+    expect(stewardCrowded(small, barren, barrenObstacles)).toBe(true);
     expect(stewardDeparture(small, AUG31, barren, barrenObstacles)).toBe(false);
     expect(small.steward?.departures ?? []).toHaveLength(0);
     // s dcerou (17 ÷ 4): Bořivoj, žena a domácnost domu 4 – 6 dospělých s párem, plný náklad
@@ -321,7 +317,7 @@ describe('odchod syna (krok 2)', () => {
     expect(departingSon(s, AUG31)?.id).toBe(30);
     // mateřská ves bez polí sama nic neoseje – přelidněná, výprava životaschopná, a přesto nic
     const fieldless = lordVillage(AUG31 - 2, true, 0);
-    expect(stewardCrowded(fieldless, AUG31, craftCoverage(fieldless, AUG31))).toBe(true);
+    expect(stewardCrowded(fieldless, barren, barrenObstacles)).toBe(true);
     expect(stewardExpedition(fieldless, son30(fieldless), AUG31)?.viable).toBe(true);
     expect(fedAfter(fieldless, 30)).toEqual({ mother: 0, colony: 0 });
     expect(departingSon(fieldless, AUG31)).toBeNull();

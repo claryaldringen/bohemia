@@ -221,10 +221,39 @@ roky – pro pole a lidi rozhoduje **trvalé hrdlo** (půda, nebo práce): **udr
   ves neoseje, jen zarůstají a vracení přílohu bere práci oknům setí. Doplnění pojistky polí jen
   při úzkém hrdle půda (při hrdle práce nebo osiva víc polí pojistku nedoplní – dřív spirála
   „nízká pojistka → víc polí“).
-- **Je kam pole rozšířit** jen při hrdle půda – při hrdle práce další pole nepomůžou, přelidněná
-  ves pošle syna.
-- **Přelidnění** = lidí víc než udržitelní × `crowdedShare` (dřív „Pole uživí podle dnešní půdy“).
+- **Je kam pole rozšířit** jen při hrdle půda – při hrdle práce další pole nepomůžou. Odchod syna
+  už na tom nezávisí (viz Kapacita mapy níž).
+- **Přelidnění** už se nepočítá z výhledu vsi, ale z **kapacity mapy** (viz níž; dřív udržitelní
+  lidé × `crowdedShare` 1,05).
 - **Nouze:** pole jen při úzkém hrdle půda.
+
+#### Kapacita mapy (Martin 6. 11. 2026)
+
+Martin 6. 11. 2026: „Tak podle velikosti mapy umíme určit maximální velikost obdělávané půdy,
+podle toho maximální velikost sklizně a podle toho i maximální velikost populace. Čili správce
+bude rozšiřovat vesnici a pole, dokud mu to mapa dovolí, a když populace přesáhne např. 80 % toho,
+co je mapa reálně schopná uživit, dojde k odchodu.“ Upřesnění (návrh Clauda, Martin: „Ano, přesně
+tak“): půda = všechna půda, ze které jde udělat pole, včetně lesa, který jde vyklučit, bez vody
+a skal; osévá se jen díl oběhu (`ROTATION_FACTOR` = 3,5, ne ⅔ – ves má dva osevy a pět let přílohu,
+ne trojpolí); průměrná úroda té půdy po obvyklých ztrátách ÷ spotřeba na člověka. Počítá se **jednou
+pro mapu**, protože se mění jen s krajinou. Mapy nejsou stejné (pásmo krajiny: les 55–70 %,
+úrodná políčka 2 550–3 800), takže kapacita se liší od mapy k mapě.
+
+- **Vzorec** (`mapCapacity(landscape, obstacles)`, `map-capacity.ts`): Σ přes políčka (čistá úroda
+  za léta osevu `fieldCells.kg` × co z ní nechají záplavy, zvěř u lesa a počasí `fieldCells.kept`)
+  ÷ délka oběhu (osev + příloh, dnes 7 let) ÷ úroda, kterou potřebuje člověk: roční potřeba
+  dospělého (180 kg) × `MAP_CAPACITY.fieldFoodShare` (0,8 – podíl potřeby z pole), s pojistkou
+  zásob a ztrátami skladováním bez hrnčíře (`steadyHarvestKg`). Voda a skalní výchoz úrodu nemají,
+  les se počítá jako klučitelný (včetně lesního bonusu prvních let).
+- **Ztráty** jsou odhad z krajiny, který správce už používá v mapě hodnot (záplavy, zvěř,
+  `weatherLoss` s ochranou zeleně) – žádné nové číslo kromě podílu z pole.
+- **Přelidnění:** lidí víc než `STEWARD.mapCrowdedShare` = 0,8 kapacity mapy. Odchod syna pak
+  nečeká na „není kam pole rozšířit“ – správce rozšiřuje pole, dokud mu mapa dovolí, a ves, která
+  mapu naplní, pošle syna. Past osiva (`departureHungerDays`) beze změny.
+- **Uložení:** kapacita se nedává do stavu vsi, ale počítá z krajiny s mezipamětí podle vrstvy
+  překážek (jako `fieldCells`) – krajina u sídla je stejná a deterministická, takže není co
+  převádět ve starých vsích a výsledek nezávisí na kouscích dopočtu.
+- **Pole:** blok domácnosti se bere podle práce, bez stropu podle jídla (Pole blízko a podle práce).
 
 Výhled zná jen dnešní stav vsi (lidé, díly, letošní plán, zásoby) – počasí ani budoucí úrodu
 nečte. Nástroje a rádlo, které hrdlo práce zvednou, a odchod syna jako ventil růstu jen
@@ -236,8 +265,8 @@ Každý den správce projde kroky v tomto pořadí; každý krok smí začít ne
 svého druhu (pole a čtverce po blocích) a všechny čerpají ze stejného rozpočtu práce.
 
 1. **Jména synů** – syn vojvody bez jména (viz Jména synů). Každý den správce.
-2. **Odchod syna** – lidí víc, než pole uživí podle dnešní půdy × `STEWARD.crowdedShare` (≈ 1,05),
-   **plán nemá kam pole rozšířit** (viz Kdy není kam níž) a je syn, který smí vést; nebo ves
+2. **Odchod syna** – lidí víc než `STEWARD.mapCrowdedShare` (0,8) kapacity mapy (Kapacita mapy)
+   a je syn, který smí vést; nebo ves
    v pasti osiva hladoví (viz Odchod syna – upřesnění, Past osiva). Jen **31. 8.** – po žních,
    před plánem osevu 1. 9., takže mateřská ves plánuje osev už pro menší počet lidí.
 3. **Pole** – pole v oběhu pod cílem polí; další blok čtverců z plánu. Louka a křoviny 1. 9. až 28. 2. a 15. 6. až 31. 7. (mimo setí a žně – práce je volná), les 1. 10. až 31. 1.
@@ -633,8 +662,9 @@ domů a ta se po založení nemění.
 
 - **Blok domácnosti podle práce:** blok = co domácnost oseje – 7 lidí × osev na člověka podle
   práce v oknech setí (výhled vsi `laborHa` ÷ lidé vsi, tedy dospělí domácnosti × osev na
-  dospělého při dnešním podílu dospělých) × oběh 3,5 × rezerva 1,25 –, nejvýš kolik potřebuje
-  k jídlu (blok podle úrodnosti jako dřív). Ves samých dospělých, kterou práce nebrzdí, má blok
+  dospělého při dnešním podílu dospělých) × oběh 3,5 × rezerva 1,25. Od 6. 11. 2026 **bez stropu podle jídla** (Martin: správce
+  rozšiřuje pole, dokud mu to mapa dovolí; jídlo omezuje až kapacita mapy) – podle jídla jen ves
+  bez lidí nebo bez práce v oknech. Ves samých dospělých, kterou práce nebrzdí, má blok
   jako dřív; ves s dětmi a málo rukama menší (test: 5 dospělých a 12 dětí – 282 místo 622 políček).
   Žádné nové číslo.
 - **Nové pole napřed u stojícího domu:** blok prvního hospodářství se stojícím obydlím (v pořadí
@@ -744,10 +774,10 @@ domů a ta se po založení nemění.
 
 - **Den:** `departureDate` 31. 8. – jeden den v roce, takže nejvýš jeden odchod za rok bez
   dalšího počítadla. Jména synů v každý den správce (`everyDays`) a hned při narození.
-- **Přelidnění:** lidí víc než udržitelní lidé výhledu vsi (Model kapacity vsi – „Pole uživí“
-  při osevu trvalého hrdla, půdy nebo práce) × `crowdedShare` (1,05); zakládané díly se počítají,
-  jako by už byly v oběhu (jako cíl polí).
-- **Kdy není kam:** trvalým hrdlem je práce (další pole by ves neosela), nebo na území vsi žádné
+- **Přelidnění** (od 6. 11. 2026): lidí víc než `mapCrowdedShare` (0,8) × kapacita mapy
+  (Kapacita mapy) – ne podle dnešních polí vsi. Dřívější pravidlo (udržitelní lidé × 1,05 a „není
+  kam“) zrušeno.
+- **Kdy není kam** (`stewardFieldRoom`, od 6. 11. 2026 odchod syna nepodmiňuje): trvalým hrdlem je práce (další pole by ves neosela), nebo na území vsi žádné
   volné políčko s úrodou nejdál 800 m od obydlí (i staveniště) s hodnotou ≥ `minKgPerManDay` =
   1,5 × 180 kg ÷ 365 ≈ 0,74 kg na člověkoden – louka i les.
 - **Past osiva** (Hranice – past osiva z kroku polí): ves seje jen osivo nad jídlo do žní, takže
@@ -755,8 +785,8 @@ domů a ta se po založení nemění.
   nejvyšší nahromaděný hlad od posledního 31. 8. (`steward.hungerPeak`) a ves, která hladověla
   aspoň `departureHungerDays` (8 dní – nad hladem prvních let nové vsi ≤ 4,5, pod hladem pasti
   11–19 z kouřového testu kroku polí), pošle syna i bez přelidnění podle polí a i s místem na pole
-  (další pole by zůstala neosetá – pomůže jen méně lidí). Přelidněná ves s místem napřed zakládá
-  pole, i když hladoví – ale jen rok: hladověla-li aspoň `departureHungerDays` už do minulého 31. 8. (`steward.lastYearHunger`), pole navíc nepomohla a syn odejde i s místem na pole (oprava 31. 10. 2026: ves rodu na seedu krajiny 2 hladověla na stropu 8 let se synem, který smí vést,
+  (další pole by zůstala neosetá – pomůže jen méně lidí). (Dřívější odklad, kdy přelidněná ves
+  s místem napřed zakládala pole, zrušen 6. 11. 2026 – přelidnění je kapacita mapy. Původní oprava 31. 10. 2026: ves rodu na seedu krajiny 2 hladověla na stropu 8 let se synem, který smí vést,
   a nikdo neodešel). Kronika `seed-short` se nepoužívá – zkracuje se na konci dopočtu, takže by
   výsledek závisel na kouscích.
 - **Životaschopná výprava** (návrh Clauda, 1. 11. 2026 – úloha 3 plánu vylepšení správce; pravidlo
@@ -936,7 +966,7 @@ S rádlem (spřežení od roku 11–17) přestala tři kritéria rychlého měř
 v den odchodu (31. 8.) potřebuje spouštěč a pak syna se životaschopnou výpravou, po jejímž
 odchodu obě vsi uživí 1,2× své lidi. Spouštěč je jeden ze dvou:
 
-- přelidnění (lidí víc než 1,05 × udržitelní) **a zároveň** není kam pole rozšířit;
+- přelidnění (od 6. 11. 2026 lidí víc než 0,8 × kapacita mapy);
 - hlad aspoň 8 dní od minulého 31. 8.
 
 Rychlé měření (6 seedů, po letech):
@@ -1026,6 +1056,7 @@ kód, který se pak zahřeje, stojí ≈ 3× víc než zahřátý).
 | UI: přepínač s ikonou v seznamu vsí a v panelu dvorce, ikona u staveb správce, žádné kroniky navíc ani plán             | návrh Clauda                                                         |
 | Ověření skriptem `measure-steward.ts` – 20 krajin v 5 typech, 50 let, srovnání se skriptem, Vlkovem a mezí              | návrh Clauda                                                         |
 | Nouze jen při rostoucím hladu; kroky Růstu i v Obnově z poloviny rozpočtu (sad jen první); syn z pasti po roce          | návrh Clauda (oprava 31. 10. 2026)                                   |
+| Kapacita mapy: odchod syna při lidech > 0,8 × co uživí všechna obdělatelná půda mapy; pole bez stropu podle jídla       | Martin 6. 11. 2026 („Ano, přesně tak“); vzorec návrh Clauda          |
 | Model kapacity vsi: cíl polí nejvýš podle práce v oknech setí, „je kam“ a přelidnění podle trvalého hrdla               | návrh Clauda (Martin 1. 11. 2026: „Vylepši ho“)                      |
 | Syn odchází jen se životaschopnou výpravou (pár, ≥ 4 dospělí, plný náklad jídla a osiva, pojistka matky ≥ 0,5)          | návrh Clauda (Martin 1. 11. 2026: „Vylepši ho“)                      |
 | Blok domácnosti podle práce (nejvýš podle jídla), pole napřed u stojícího domu, políčka dál od nejbližšího              | návrh Clauda (Martin 1. 11. 2026: „Vylepši ho“)                      |

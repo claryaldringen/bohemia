@@ -401,9 +401,9 @@ function discOffsets(radius: number): Int32Array {
 /**
  * Kolik lidí plán čeká a kolik políček potřebuje blok jedné domácnosti (steward.md – Pole blízko
  * a podle práce): blok je to, co domácnost oseje – `STEWARD.householdPeople` × osev na člověka
- * podle práce v oknech setí (výhled vsi, `laborHa` ÷ lidé) × `ROTATION_FACTOR` × `blockReserve` –,
- * nejvýš kolik potřebuje k jídlu při průměrné úrodnosti louky území (`netYieldPerHa`). Bez lidí
- * nebo bez práce v oknech jen podle jídla.
+ * podle práce v oknech setí (výhled vsi, `laborHa` ÷ lidé) × `ROTATION_FACTOR` × `blockReserve`;
+ * bez stropu podle jídla (Martin 6. 11. 2026) – omezuje jen práce a volná půda mapy. Bez lidí nebo
+ * bez práce v oknech podle jídla při průměrné úrodnosti louky území (`netYieldPerHa`).
  */
 function planSize(
   state: VillageState,
@@ -447,7 +447,9 @@ function planSize(
             ha,
         )
       : foodCells;
-  const blockCells = Math.max(1, Math.min(foodCells, laborCells));
+  // blok podle práce, ne podle jídla (Martin 6. 11. 2026): správce rozšiřuje pole, dokud mu mapa
+  // dovolí; jídlo omezuje až kapacita mapy (odchod syna). Bez práce v oknech jen podle jídla.
+  const blockCells = Math.max(1, laborCells);
   return { people: planned, households, blockCells };
 }
 
