@@ -14,7 +14,10 @@ export interface NegotiationVillages {
 }
 
 /** Jméno hlavy rodu (vlastní ves rodu = `lord.villageId`). */
-export async function houseName(deps: NegotiationVillages, house: House): Promise<string> {
+export async function houseName(
+  deps: { villages: Pick<VillageRepository, 'find'> },
+  house: House,
+): Promise<string> {
   if (!house.lord) return UNNAMED_HOUSE;
   const village = await deps.villages.find(house.lord.villageId);
   const name = village?.state.people.find((p) => p.id === house.lord?.personId)?.name;

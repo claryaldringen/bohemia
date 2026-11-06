@@ -29,7 +29,11 @@ export type PlayerNoticeKind =
   /** Vazalovi se otevřel dialog Odvody – payload `{ lordName, years }`. */
   | 'levy-pending'
   /** Druhý rod tě zablokoval – payload `{ houseId, name }`. */
-  | 'blocked';
+  | 'blocked'
+  /** Rod ti opověděl válku (war.md – Začátek války) – payload `{ houseId, name }`. */
+  | 'war-declared'
+  /** Ochrana nového rodu brzy skončí (war.md – Ochrana nového hráče) – payload `{ daysLeft }`. */
+  | 'protection-ending';
 
 /** Upozornění pro hráče – řádek ve frontě; `id` roste, na něm stojí `after`. */
 export interface PlayerNotice {

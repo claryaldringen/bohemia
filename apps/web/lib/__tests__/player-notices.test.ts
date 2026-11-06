@@ -54,6 +54,14 @@ describe('playerNoticeLine', () => {
     ]);
   });
 
+  it('opověď války a konec ochrany mají text a míří na panel války', () => {
+    const declared = notice({ kind: 'war-declared', payload: { name: 'Bořivoj' } });
+    expect(playerNoticeLine(declared).text).toBe('Bořivoj opověděl válku.');
+    expect(noticePanel('war-declared')).toBe('war');
+    const ending = notice({ kind: 'protection-ending', payload: {} });
+    expect(playerNoticeLine(ending).text).toBe('Ochrana končí za 1 den.');
+  });
+
   it('každý druh míří na panel (zatím jen Rod a vazalové)', () => {
     expect(noticePanel('invite-accepted')).toBe('house');
     expect(noticePanel('invitee-played')).toBe('house');

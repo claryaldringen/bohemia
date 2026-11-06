@@ -16,7 +16,7 @@ import type { NoticeLine } from '@/components/game/hud/NoticeLines';
 export const NOTICE_BATCH = 20;
 
 /** Panel, který upozornění otevírá. „Rod a vazalové“ vznikne v úloze 1.10; dál přibudou další. */
-export type NoticePanel = 'house' | 'levy';
+export type NoticePanel = 'house' | 'levy' | 'war';
 
 /** Panel podle druhu upozornění. Zatím se nic neotevírá (panel neexistuje), mapování je hotové. */
 export function noticePanel(kind: PlayerNoticeKind): NoticePanel | null {
@@ -32,6 +32,9 @@ export function noticePanel(kind: PlayerNoticeKind): NoticePanel | null {
     case 'vassalage-renounced':
     case 'levy-sent':
       return 'house';
+    case 'war-declared':
+    case 'protection-ending':
+      return 'war';
     case 'levy-pending':
       return 'levy';
     case 'player-succession':
@@ -83,6 +86,10 @@ function textOf(n: PlayerNotice): string {
       return `${otherName(n.payload)} stáhl svůj návrh.`;
     case 'blocked':
       return `${otherName(n.payload)} tě zablokoval.`;
+    case 'war-declared':
+      return `${otherName(n.payload)} opověděl válku.`;
+    case 'protection-ending':
+      return 'Ochrana končí za 1 den.';
     case 'vassalage-renounced': {
       const lord = stringOf(n.payload.lordName) ?? 'Pán';
       const vassal = stringOf(n.payload.vassalName) ?? 'Vazal';

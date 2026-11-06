@@ -11,6 +11,7 @@ export {
   createLoanRepository,
   createStewardshipRepository,
   createEscheatRepository,
+  createWarRepository,
   createSuccessionCreditRepository,
   createNegotiationRepository,
   createVassalageRepository,

@@ -11,7 +11,7 @@ import {
   type PersonRef,
   type PublicHouse,
 } from '@bohemia/game';
-import { negotiationView, type NegotiationView } from './negotiation-view';
+import { houseNameOf, negotiationView, type NegotiationView } from './negotiation-view';
 import { personPortrait, type PersonPortraitIcon } from './person-view';
 import { plural } from './village-format';
 
@@ -51,6 +51,20 @@ export interface PlayerActionsView {
   request: string | null;
   /** Rod už je zablokovaný. */
   blocked: boolean;
+  /** Opovědět válku: důvod zašednutí (ochrana, běžící válka, jednání), null = smí. */
+  war: string | null;
+}
+
+/** Válka hráčova rodu v panelu války: s kým, od kdy (herní den) a jak začala. */
+export interface WarView {
+  warId: string;
+  other: HouseLinkView;
+  startedDay: number;
+  how: 'declared' | 'ambush';
+  /** Poslední střet (herní den). */
+  lastClashDay: number;
+  /** Popisek: „Ctibor – opověď“ / „Ctibor – přepadení“. */
+  label: string;
 }
 
 /** Vydaná pozvánka k zobrazení. */
@@ -101,6 +115,10 @@ export interface HouseView {
   status: Record<string, { hunger: HungerLevel | null; shield: number }>;
   /** Vsi rodu ve správě jiných rodů (Odvolat): ves a jméno správce. */
   stewardships: StewardshipView[];
+  /** Aktivní války rodu (zkřížené oštěpy v liště, panel války). */
+  wars: WarView[];
+  /** Zbývající dny ochrany nového rodu (štít s hodinami); null – rod chráněn není. */
+  protectionDaysLeft: number | null;
   /** Čekající věci (jednání, kde je hráč na tahu, a Odvody pánům) – pečeť v liště. */
   waiting: number;
 }
@@ -157,6 +175,7 @@ export function houseLinkOf(house: PublicHouse, actions?: PanelPlayerActions): H
             offer: actions.offer,
             request: actions.request,
             blocked: actions.blockedByMe,
+            war: actions.war,
           },
         }
       : {}),
@@ -242,6 +261,21 @@ export function houseView(data: HousePanelData, nowMs: number): HouseView {
       };
     }),
     negotiations,
+    wars: data.wars.map((w): WarView => {
+      const other = houseLinkOf(w.other);
+      return {
+        warId: w.warId,
+        other,
+        startedDay: w.startedDay,
+        how: w.how,
+        lastClashDay: w.lastClashDay,
+        label: `${houseNameOf(w.other)} – ${w.how === 'declared' ? 'opověď' : 'přepadení'}`,
+      };
+    }),
+    protectionDaysLeft:
+      data.protectedUntil === null
+        ? null
+        : Math.max(1, Math.ceil((data.protectedUntil.getTime() - nowMs) / DAY_MS)),
     waiting:
       negotiations.filter((n) => n.myTurn).length +
       data.agreements.filter((a) => a.other === 'lord' && a.levyYears !== null).length,

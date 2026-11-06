@@ -569,6 +569,7 @@ export function TopBar({
   devTime,
   devDisasters = null,
   house = null,
+  war = null,
 }: {
   view: VillageView | null;
   /** Hodiny světa hráče – ve vývojovém režimu posunuté o jeho posun času. */
@@ -590,6 +591,13 @@ export function TopBar({
   devDisasters?: { pending: boolean; onForce: (choice: DevDisasterChoice) => void } | null;
   /** Prapor panelu „Rod a vazalové“: počet vazalů, čekající věci (pečeť) a otevření panelu. */
   house?: { vassals: number; waiting: number; open: boolean; onToggle: () => void } | null;
+  /** Zkřížené oštěpy (počet válek) a štít s hodinami (ochrana nového rodu, zbývající dny). */
+  war?: {
+    wars: number;
+    protectionDaysLeft: number | null;
+    open: boolean;
+    onToggle: () => void;
+  } | null;
 }): ReactElement {
   const [nowMs, setNowMs] = useState(initialNowMs);
   // Datum se obnoví na začátku dalšího herního dne (ostrý svět ≈ 86 s), ne každou sekundu –
@@ -724,6 +732,54 @@ export function TopBar({
               )}
             </span>
           </IconButton>
+        )}
+        {war && (
+          <IconButton
+            label="Válka"
+            tooltip="Válka"
+            testId="war-toggle"
+            expanded={war.open}
+            onClick={war.onToggle}
+          >
+            <span
+              data-testid="war-count"
+              data-wars={war.wars}
+              className={`relative flex h-6 items-center gap-0.5 ${war.wars === 0 ? 'opacity-40' : ''}`}
+            >
+              <img
+                src="/icons/house/spears.svg"
+                alt=""
+                width={22}
+                height={22}
+                className="h-[22px] w-[22px]"
+              />
+              <span className="text-xs font-semibold tabular-nums">{war.wars}</span>
+            </span>
+          </IconButton>
+        )}
+        {war && war.protectionDaysLeft !== null && (
+          <Tooltip
+            content={`Ochrana nového rodu – ještě ${war.protectionDaysLeft} ${
+              war.protectionDaysLeft === 1 ? 'den' : war.protectionDaysLeft < 5 ? 'dny' : 'dní'
+            }`}
+          >
+            <span
+              tabIndex={0}
+              data-testid="protection-shield"
+              data-days={war.protectionDaysLeft}
+              aria-label={`Ochrana nového rodu – ještě ${war.protectionDaysLeft} dní`}
+              className="flex h-6 items-center gap-0.5"
+            >
+              <img
+                src="/icons/house/shield-hourglass.svg"
+                alt=""
+                width={22}
+                height={22}
+                className="h-[22px] w-[22px]"
+              />
+              <span className="text-xs font-semibold tabular-nums">{war.protectionDaysLeft}</span>
+            </span>
+          </Tooltip>
         )}
         <IconButton
           label="Zvuky krajiny"

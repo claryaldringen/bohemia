@@ -83,6 +83,8 @@ export interface TermsContext {
   gameYear?: number;
   /** Výhled „kolik můžu postrádat“ (jen na vyžádání); null = nedostupný. */
   loadSpare?: (targetVillageId: string | null) => Promise<MacroSpare | null>;
+  /** Opověď války: id napadeného rodu – formulář nabídne požadavek vazalství a smí být prázdný. */
+  demandFor?: string;
 }
 
 /** Platí tuhle podmínku hráčův rod? (dávku vazal, odměnu pán) */
@@ -592,6 +594,30 @@ function VillageGiftRow({ item, label }: TermRowProps): ReactElement {
   );
 }
 
+/** Požadavek při opovědi války: zkřížené oštěpy a vnořené řádky podmínek míru (jen ke čtení). */
+function WarDemandRow({ item, label, context }: TermRowProps): ReactElement {
+  if (item.kind !== 'war-demand') return <span />;
+  return (
+    <div data-testid="term-row-war-demand" className="flex items-center gap-1">
+      <Tooltip content={label}>
+        <span tabIndex={0} aria-label={label} className="inline-flex items-center gap-1">
+          <HouseIcon name="spears" size={20} />
+        </span>
+      </Tooltip>
+      {item.items.length > 0 && (
+        <TermRows
+          rows={item.items.map((i) => ({
+            kind: i.kind,
+            item: i,
+            label: termRowLabel(i, context?.ownHouseId ?? '', { lordName: null }),
+          }))}
+          context={context}
+        />
+      )}
+    </div>
+  );
+}
+
 /** Registr řádků podle druhu podmínky. */
 export const TERM_ROWS: Record<TermItem['kind'], TermRowComponent> = {
   oath: OathRow,
@@ -605,6 +631,7 @@ export const TERM_ROWS: Record<TermItem['kind'], TermRowComponent> = {
   trade: TradeRow,
   stewardship: StewardshipRow,
   'village-gift': VillageGiftRow,
+  'war-demand': WarDemandRow,
 };
 
 /** Řádky podmínek (formulář i karta jednání); `onRemove` přidá křížek u řádků bez přísahy. */
@@ -705,6 +732,7 @@ export function TermsForm({
   submitIcon,
   busy,
   context,
+  allowEmpty = false,
   onSubmit,
   onCancel,
 }: {
@@ -713,6 +741,8 @@ export function TermsForm({
   submitIcon: string;
   busy: boolean;
   context?: TermsContext;
+  /** Prázdný formulář smí odejít (holá opověď války). */
+  allowEmpty?: boolean;
   onSubmit: (items: TermItem[], message: string | null) => void;
   onCancel: () => void;
 }): ReactElement {
@@ -779,6 +809,29 @@ export function TermsForm({
           ))}
         </div>
       )}
+      {context?.demandFor && context.ownHouseId && !present.has('oath') && (
+        <Tooltip content="Požadovat vazalství">
+          <button
+            type="button"
+            aria-label="Požadovat vazalství"
+            data-testid="terms-add-oath"
+            className="hud-icon-button flex h-7 w-9 items-center justify-center"
+            onClick={() => {
+              const item: TermItem = {
+                kind: 'oath',
+                lord: context.ownHouseId!,
+                vassal: context.demandFor!,
+              };
+              setRows((current) => [
+                { kind: 'oath', item, label: 'Požadovaná přísaha vazalství' },
+                ...current,
+              ]);
+            }}
+          >
+            <HouseIcon name="seal" size={20} />
+          </button>
+        </Tooltip>
+      )}
       <div className="flex items-center gap-1.5">
         {(aidMode || tradeMode ? [] : ADDABLE)
           .filter((a) => !present.has(a.kind) && newRow(a.kind, context) !== null)
@@ -818,7 +871,7 @@ export function TermsForm({
             type="button"
             aria-label={submitLabel}
             data-testid="terms-submit"
-            disabled={busy || tooLong || rows.length === 0}
+            disabled={busy || tooLong || (rows.length === 0 && !allowEmpty)}
             className="hud-icon-button flex h-8 w-10 items-center justify-center"
             onClick={() =>
               onSubmit(

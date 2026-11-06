@@ -1,11 +1,20 @@
 import {
   checkStewardshipItems,
+  NEGOTIATION_REASONS,
   checkTradeLine,
   checkVillageGiftItems,
+  checkWarDemandItems,
+  termLinesOf,
   type TermItem,
 } from '../domain/negotiation';
 import { AID_REASONS, checkAidLine, type AidLine } from '../domain/vassalage/loan';
-import { checkTermLine, type TermLine, type VassalTerms } from '../domain/vassalage/terms';
+import {
+  checkTermLine,
+  termsOfLines,
+  type TermLine,
+  type VassalTerms,
+} from '../domain/vassalage/terms';
+import { wouldBeMutual } from '../domain/vassalage/tree';
 import { STEWARD_TAKEN } from './stewardships';
 import type { NegotiationTx } from './negotiations';
 
@@ -30,6 +39,8 @@ export interface EffectContext {
   aidTargetVillageId: string | null;
   /** Pán a vazal dohody, na které správa vsi stojí (řádek `stewardship`); jinak null. */
   stewardship: { lordHouseId: string; stewardHouseId: string } | null;
+  /** Dvojice rodů jednání (autor posledního kola a ten, kdo přijímá) – válka mezi nimi končí mírem. */
+  parties: readonly [string, string];
 }
 
 /**
@@ -111,6 +122,31 @@ export const NEGOTIATION_EFFECTS: { [K in TermItem['kind']]: NegotiationEffect<K
         since: ctx.now,
       });
       if (!started) throw new StewardshipTaken();
+    },
+  },
+  // požadavek při opovědi (war.md – Začátek války): přijetí = válka končí mírem s podmínkami
+  // požadavku; přísaha a řádky se zapíšou stejnými účinky jako u běžného jednání
+  'war-demand': {
+    check: async (tx, item) => {
+      const bad = checkWarDemandItems([item]);
+      if (bad) return bad;
+      for (const inner of item.items) {
+        if (
+          inner.kind === 'oath' &&
+          wouldBeMutual(await tx.vassalages.edgesNear(inner.lord, 1), inner.lord, inner.vassal)
+        ) {
+          return NEGOTIATION_REASONS.isYourLord;
+        }
+        const reason = await checkItem(tx, inner);
+        if (reason) return reason;
+      }
+      return null;
+    },
+    apply: async (tx, item, ctx) => {
+      const war = await tx.wars.activeBetween(ctx.parties[0], ctx.parties[1]);
+      if (war) await tx.wars.end(war.id, 'peace', ctx.now);
+      const terms = termsOfLines(termLinesOf(item.items));
+      for (const inner of item.items) await applyItem(tx, inner, { ...ctx, terms });
     },
   },
   // věnování dílu odúmrti: v transakci nic, vsi a vazaly převede `acceptNegotiation` po ní (zámky)

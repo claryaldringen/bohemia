@@ -714,3 +714,59 @@ test('povýšení vesničana: hráč povýší rolníka pro druhou ves bez vojvo
   await expect(entry.getByTestId('npc-steward-key')).toBeVisible();
   await ctx.close();
 });
+
+test('válka: nový rod je pod ochranou, po jejím vypršení A opoví válku C → C vidí upozornění a oštěpy v liště', async ({
+  browser,
+}) => {
+  test.setTimeout(240_000);
+  await query(`UPDATE house SET ended_at = now() WHERE ended_at IS NULL`, []);
+  const ctxs = await Promise.all([browser.newContext(), browser.newContext()]);
+  for (const ctx of ctxs) await useUniqueClientIp(ctx);
+  const [a, c] = (await Promise.all(ctxs.map((ctx) => ctx.newPage()))) as [Page, Page];
+  for (const page of [a, c]) await page.setViewportSize({ width: 1280, height: 720 });
+  const { seat: seatA } = await newPlayer(a, 'valkaa');
+  await found(a, villageSpots(seatA.landscape).dwelling, 'Bořivoj');
+  const { email: emailC, seat: seatC } = await newPlayer(c, 'valkac');
+  await found(c, villageSpots(seatC.landscape).dwelling, 'Dalibor');
+  const idC = await houseIdOf(emailC);
+
+  // čerstvý rod je chráněn: štít s hodinami v liště, opověď zašedlá s důvodem
+  await expect(c.getByTestId('protection-shield')).toBeVisible();
+  const panelA = await openHousePanel(a);
+  const bar = await pickPlayer(panelA, idC);
+  await expect(bar.getByTestId('house-war')).toBeDisabled();
+  await expect(bar.getByTestId('house-war')).toHaveAttribute(
+    'data-reason',
+    /je pod ochranou ještě \d+ (den|dny|dní)\./,
+  );
+
+  // ochrana vyprší (rody jsou „staré“ 30 dní) → opověď projde
+  await query(
+    `UPDATE house SET created_at = now() - interval '30 days' WHERE ended_at IS NULL`,
+    [],
+  );
+  const panelA2 = await reopenHousePanel(a);
+  const bar2 = await pickPlayer(panelA2, idC);
+  await expect(bar2.getByTestId('house-war')).toBeEnabled();
+  await bar2.getByTestId('house-war').click();
+  await panelA2.getByTestId('terms-message').fill('Chci na vás jít');
+  await panelA2.getByTestId('terms-submit').click();
+
+  // A má v liště jednu válku a panel války s řádkem
+  await expect(a.getByTestId('war-count')).toHaveAttribute('data-wars', '1', { timeout: 30_000 });
+  await a.getByTestId('war-toggle').click();
+  await expect(a.getByTestId('war-row')).toHaveCount(1);
+
+  // C dostane upozornění a vidí oštěpy s jednou válkou
+  // upozornění mizí po pár sekundách – dotaz se opakuje, dokud ho C nezachytí
+  await expect(async () => {
+    await pollVillage(c);
+    await expect(c.getByTestId('village-notice').filter({ hasText: 'opověděl válku' })).toBeVisible(
+      {
+        timeout: 2_000,
+      },
+    );
+  }).toPass({ timeout: 60_000, intervals: [500] });
+  await expect(c.getByTestId('war-count')).toHaveAttribute('data-wars', '1');
+  await Promise.all(ctxs.map((ctx) => ctx.close()));
+});

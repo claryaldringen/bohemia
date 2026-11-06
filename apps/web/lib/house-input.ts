@@ -253,6 +253,20 @@ export function parseOpenNegotiationInput(
   return to !== null && items !== null && message !== undefined ? { to, items, message } : null;
 }
 
+/** `{ target, items, message }` – opověď války: id rodu, požadavek (podmínky míru), vzkaz. */
+export function parseDeclareWarInput(
+  input: unknown,
+): { target: string; demand: TermItem[]; message: string | null } | null {
+  if (typeof input !== 'object' || input === null) return null;
+  const raw = input as { target?: unknown; items?: unknown; message?: unknown };
+  const target = idOf(raw.target);
+  const demand = parseTermItems(raw.items);
+  const message = parseMessage(raw.message);
+  return target !== null && demand !== null && message !== undefined
+    ? { target, demand, message }
+    : null;
+}
+
 export type NegotiationAnswer =
   | { negotiationId: string; answer: 'accept' | 'reject' | 'withdraw' }
   | { negotiationId: string; answer: 'counter'; items: TermItem[]; message: string | null };

@@ -14,6 +14,10 @@ import {
   isTradeLine,
   isStewardshipLine,
   isVillageGiftLine,
+  isWarDemandLine,
+  WAR_DEMAND_REASONS,
+  checkWarDemandItems,
+  type WarDemandLine,
   type VillageGiftLine,
   checkStewardshipItems,
   STEWARDSHIP_REASONS,
@@ -36,6 +40,7 @@ import {
 } from './negotiation-chronicle';
 import type { NegotiationRecord, NegotiationRepository, NegotiationTx } from './negotiations';
 import type { LoanRepository } from './loans';
+import { chronicleWar } from './war-chronicle';
 import { sendShipment, type ShipmentDeps } from './shipments';
 import type { Vassalage } from './vassalages';
 import type { WorldDirectory } from './world-directory';
@@ -93,6 +98,19 @@ function domainOf(record: NegotiationRecord): Negotiation | null {
 function oathOf(items: readonly TermItem[]): { lord: string; vassal: string } | null {
   for (const i of items) if (i.kind === 'oath') return { lord: i.lord, vassal: i.vassal };
   return null;
+}
+
+/** Přísaha v požadavku opovědi musí být mezi stranami jednání; bez požadavku nic neověřuje. */
+function checkWarDemandParties(items: readonly TermItem[], a: string, b: string): string | null {
+  const bad = checkWarDemandItems(items);
+  if (bad) return bad;
+  const line = items.find(isWarDemandLine);
+  const oath = line ? oathOf(line.items) : null;
+  if (!oath) return null;
+  const pair = [a, b];
+  return pair.includes(oath.lord) && pair.includes(oath.vassal) && oath.lord !== oath.vassal
+    ? null
+    : R.badOath;
 }
 
 /** Živá dohoda mezi dvěma rody (v libovolném směru), nebo null. */
@@ -314,8 +332,12 @@ export async function openNegotiation(
     // změna podmínek: dohoda mezi rody musí trvat, cílová ves patří jejímu pánovi
     const oath = oathOf(input.items);
     const trade = input.items.some(isTradeLine);
-    const existing = oath || trade ? null : await agreementBetween(tx, from.id, input.to);
-    if (!oath && !existing && !trade) return fail(NO_AGREEMENT);
+    const warDemand = input.items.some(isWarDemandLine);
+    const existing =
+      oath || trade || warDemand ? null : await agreementBetween(tx, from.id, input.to);
+    if (!oath && !existing && !trade && !warDemand) return fail(NO_AGREEMENT);
+    const badWar = checkWarDemandParties(input.items, from.id, input.to);
+    if (badWar) return fail(badWar);
     const badTrade = await checkTradeRound(deps, input.items, [from.id, input.to]);
     if (badTrade) return fail(badTrade);
     const lordId = oath?.lord ?? existing?.lordHouseId ?? '';
@@ -378,6 +400,10 @@ export async function counterNegotiation(
     );
     if (!next.ok) return next;
     const first = oathOf(loaded.record.rounds[0]?.items ?? []);
+    // protinávrh k opovědi je mírové jednání (samostatná úloha), tady se nepřijímá
+    if ((loaded.record.rounds[0]?.items ?? []).some(isWarDemandLine)) {
+      return fail(WAR_DEMAND_REASONS.noCounter);
+    }
     const trade = (loaded.record.rounds[0]?.items ?? []).some(isTradeLine);
     // obchod zůstává obchodem a ostatní jednání obchodem nebude
     if (input.items.some(isTradeLine) !== trade) return fail(TRADE_REASONS.onlyTrade);
@@ -444,6 +470,7 @@ export async function acceptNegotiation(
   } | null = null;
   let trading: { sendings: TradeSending[]; today: number } | null = null;
   let gift: { line: VillageGiftLine; fromHouseId: string; toHouseId: string } | null = null;
+  let peace: WarDemandLine | null = null;
   const result = await deps.negotiations
     .transaction(async (tx): Promise<NegotiateResult> => {
       const loaded = await loadForResponse(deps, tx, input.playerId, input.negotiationId);
@@ -455,9 +482,20 @@ export async function acceptNegotiation(
       const oathItem = oathOf(items);
       // bez přísahy jde o změnu podmínek existující dohody
       const tradeLine = items.find(isTradeLine);
+      const warLine = items.find(isWarDemandLine);
       const existing =
-        oathItem || tradeLine ? null : await agreementBetween(tx, loaded.actor.id, loaded.other.id);
-      if (!oathItem && !existing && !tradeLine) return fail(NO_AGREEMENT);
+        oathItem || tradeLine || warLine
+          ? null
+          : await agreementBetween(tx, loaded.actor.id, loaded.other.id);
+      if (!oathItem && !existing && !tradeLine && !warLine) return fail(NO_AGREEMENT);
+      if (warLine) {
+        const badWar = checkWarDemandParties(items, loaded.actor.id, loaded.other.id);
+        if (badWar) return fail(badWar);
+        // válka mezitím mohla utichnout nebo skončit jinak – mír nemá co ukončit
+        if (!(await tx.wars.activeBetween(loaded.actor.id, loaded.other.id))) {
+          return fail(WAR_DEMAND_REASONS.noWar);
+        }
+      }
       // obchod: ověří vsi (znovu, mezitím se mohly změnit) a připraví dva dialogy odeslání
       let sendings: TradeSending[] = [];
       if (tradeLine) {
@@ -534,6 +572,7 @@ export async function acceptNegotiation(
             : null,
           aidTargetVillageId: aidTarget,
           stewardship: sides ? { lordHouseId: sides.lordId, stewardHouseId: sides.vassalId } : null,
+          parties: [loaded.actor.id, loaded.other.id],
         });
       }
       await noticeHouse(
@@ -562,7 +601,8 @@ export async function acceptNegotiation(
         trading = { sendings, today: input.today };
       }
       actors = { actor: loaded.actor, other: loaded.other };
-      oath = oathItem;
+      oath = oathItem ?? (warLine ? oathOf(warLine.items) : null);
+      peace = warLine ?? null;
       // dárce = autor posledního kola (druhá strana), obdarovaný přijímá
       if (giftLine)
         gift = { line: giftLine, fromHouseId: loaded.other.id, toHouseId: loaded.actor.id };
@@ -615,7 +655,7 @@ export async function acceptNegotiation(
           vassal: await houseName(deps, vassal),
         },
       );
-    } else {
+    } else if (!(peace as WarDemandLine | null)) {
       await chronicleStep(
         deps,
         actors as Actors,
@@ -627,6 +667,16 @@ export async function acceptNegotiation(
           : opening
             ? 'trade-accepted'
             : 'terms-accepted',
+        input.today,
+      );
+    }
+    if (peace as WarDemandLine | null) {
+      await chronicleWar(
+        deps,
+        actor,
+        other,
+        'peace',
+        `war-peace:${result.negotiation.id}`,
         input.today,
       );
     }
