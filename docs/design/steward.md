@@ -400,8 +400,7 @@ plán ověřil: střed políčka, jeden čtverec bez mřížky.
   jen slotem, který sousedí stranou se čtvercem hřbitova v mřížce krajiny – jinak by vznikl druhý
   hřbitov; bez takového slotu (i u natočeného hřbitova hráče) správce čeká na přepočet plánu.
   Plán proto hledá semeno hřbitova i další sloty **u čtverců stávajícího hřbitova** (ne u středu
-  vsi), jinak by sloty ležely jinde a plné hřbitovy by správce nikdy nerozšířil (oprava
-  6. 11. 2026 – Vlkov, dva plné hřbitovy; návrh Clauda).
+  vsi), jinak by sloty ležely jinde a plné hřbitovy by správce nikdy nerozšířil (oprava 6. 11. 2026 – Vlkov, dva plné hřbitovy; návrh Clauda).
 - **Humno:** ves bez humna mlátí nouzově; vyplatí se, když roční ztráta (práce výmlatu ×
   `THRESHING.emergencyWork` + polní práce osevu × `emergencyLoss`) za `paybackYears` (3) převýší
   jeho práci; další, když výmlat nestíhá (`floorShort`). Do 31. 7.
