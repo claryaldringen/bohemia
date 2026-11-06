@@ -149,6 +149,7 @@ export const STEWARD = {
     orchard: { recovery: 0.5, growth: 1 },
     roadApples: { recovery: 0.5, growth: 1 },
     sacred: { recovery: 1, growth: 1 },
+    fortification: { recovery: 1, growth: 1 },
     road: { recovery: 0.5, growth: 1 },
   } as Readonly<Record<string, Readonly<Partial<Record<StewardMode, number>>>>>,
   /** 5. Hřbitov: volné hroby na tolik let podle očekávané úmrtnosti (jinak rozšíření o čtverec). */
@@ -174,6 +175,21 @@ export const STEWARD = {
   sacredPaybackYears: { emergency: 0, recovery: 5, growth: 25 } as Readonly<
     Record<StewardMode, number>
   >,
+  /**
+   * 9a. Opevnění podle hrozby (fortifications.md – Správce; návrh Clauda 5. 11. 2026): horizont
+   * přínosu jako u posvátných míst – v Růstu generace (25 let), v Obnově 5 let, v Nouzi se
+   * nestaví; nejvýš životnost druhu (plot 15, palisáda 20 let).
+   */
+  fortPaybackYears: { emergency: 0, recovery: 5, growth: 25 } as Readonly<
+    Record<StewardMode, number>
+  >,
+  /**
+   * 9a. Opevnění: obvod správce se kolem obydlí, dvorce, dílen, humen, jam a ohrad rozšiřuje po
+   * prstencích políček (útočiště musí pojmout lidi a dobytek + 20 %), nejvýš tolik prstenců.
+   */
+  fortMaxRings: 6,
+  /** 9a. Opevnění: kg obilí na člověkoden, když v okolí vsi není žádné pole k ocenění. */
+  fortKgPerManDayFallback: 3,
   /** 9. Posvátná místa: modla nebo svatyně nejvýš tolik políček od středu vsi. */
   sacredSearchTiles: 8,
   /** 9. Posvátná místa: nejvýš tolik kontrol místa za den správce. */

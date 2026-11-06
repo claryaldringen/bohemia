@@ -53,3 +53,14 @@ export interface FortSegmentWork {
   index: number;
   cost: number;
 }
+
+/**
+ * Signál hrozby vsi (fortifications.md – Hrozba): vnější událost, kterou ves dostane ze schránky
+ * (`threat-signal`). `day` = den události, u `war` začátek války; `endDay` = den míru (chybí –
+ * válka trvá).
+ */
+export interface ThreatSignal {
+  kind: 'raid-here' | 'raid-house' | 'army-seen' | 'war';
+  day: number;
+  endDay?: number;
+}

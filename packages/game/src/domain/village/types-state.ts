@@ -4,7 +4,7 @@
 import type { ChronicleEvent, LaborDay } from './types-chronicle';
 import type { StewardState } from './types-steward';
 import type { Construction, FarmSeason } from './types-construction';
-import type { Fortification } from './fortification/types';
+import type { Fortification, ThreatSignal } from './fortification/types';
 import type {
   Cart,
   CharcoalUse,
@@ -251,6 +251,11 @@ export interface VillageState {
    * uložených dřív chybí (= žádné), nic se nepřevádí.
    */
   fortifications?: Fortification[];
+  /**
+   * Signály hrozby (fortifications.md – Hrozba): nájezdy, spatřená vojska, válka – zapisuje je
+   * schránka (`threat-signal`), čte správce (`villageThreat`). Ves si pamatuje 50 let; chybí = žádné.
+   */
+  threats?: ThreatSignal[];
   /**
    * Hotová rádla vsi (oxen.md – Voli po kusech): pár vycvičených volů orá, jen když má rádlo; ves
    * staví rádlo s výcvikem nového páru k orbě. Chybí = žádné – u vsí uložených dřív jedno na každé
