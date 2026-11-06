@@ -148,7 +148,8 @@ Plán 2026-11-03 – rozhodnutí 12; Review bod 5. Čísla ve `WAR.campaign`.
   `leg` = úsek po mapě `{ points, meadowM, walkedM }`, `arrived`), `supplies.foodKg`,
   `loot { foodKg, herd }`, `captives`, `liveCommand`, `discovered`, `returnReason`).
   `CampaignIntent { tick, seq, byPlayer, body }`, `IntentBody` = `set-out` | `march { to }` (jen
-  `liveCommand`, ve fázi pochodu) | `turn-back`.
+  `liveCommand`, ve fázi pochodu; v boji pošle velitele) | `turn-back` | `set-order` | `strike`
+  (Ú6.8 – Boj muž po muži).
 - **Krok** – `domain/war/campaign.ts`: `newCampaign(input, clock)` (muži ve shromaždišti, skupiny
   podle `member.group`), `stepCampaign(state, toTick, intents, world)` → `{ state, villageEvents,
 notices, waiting }` – čistá, vstup nemění. Takt na kopii stavu: na začátku nového herního dne
@@ -159,8 +160,8 @@ notices, waiting }` – čistá, vstup nemění. Takt na kopii stavu: na začát
   k cíli; úsek se plánuje na mřížce `marchGrid` políčka a dne – mezipaměť jen v rámci volání);
   konec úseku na okraji = `edgeCrossing` na sousední mapu (zbytek taktu propadne), v cíli stojí;
   skupina bez cesty nebo bez mužů stojí. Trasa po světě `worldRoute` (bez zákazů – průchod Ú6.13).
-  Všechny skupiny na mapě cíle → `raiding`; **`raidTick` je místo pro boj** (Ú6.8 `battleTick`, Ú6.9
-  obránci, Ú6.10 kořist, Ú6.11 vzdaní) – v Ú6.5 hned obrat `arrived`. Návrat ke shromaždišti
+  Všechny skupiny na mapě cíle → `raiding`; **`raidTick` počítá boj** (Ú6.8 – Boj muž po muži;
+  Ú6.9 obránci, Ú6.10 kořist, Ú6.11 vzdaní). Návrat ke shromaždišti
   (rozpad po hloučcích Ú6.12) → `done`: zápis „Vojsko Bořivoje se vrátilo.“ do kroniky každé
   domovské vsi a upozornění `campaign-returned { campaignId, reason }`; při vyrazení „Vojsko
   Bořivoje vyrazilo.“ do shromaždiště. Události jdou do schránky na **následující den** (rozhodnutí
@@ -200,3 +201,66 @@ campaignId, playerId, body, nowMs })` – záměr na takt `tickOfMs(now) + 2`; �
   a cizí zámek jednoho tažení nezastaví ostatní), `db/adapters/__tests__/campaign-repository.db.test.ts`
   (bod bit po bitu, odmítnutí záměru, `stale`, `outbox`, souběh záměru s uložením, dva workery –
   tažení počítá jen jeden).
+
+## Boj muž po muži (Ú6.8)
+
+war.md – Boj, Ztráty; fortifications.md – Obrana, Prolomení. Čísla ve `WAR.combat` (zdraví,
+zásah, luk 20–60 m, zblízka 3 m, los zásahu 1 : 1, rány po 2 / 4 s), `WAR.sight` (150 m, v hustém
+lese 50 m), `WAR.houseGroupM`, `WAR.holdPlaceM`, `WAR.defenderAges`, `WAR.downed`,
+`WAR.breakpoint`, `WAR.lastLineManMinHealth`, `WAR.orderHearingMeters`.
+
+- **Obránci** – `domain/war/defenders.ts`: `houseGroups(dwellings)` (obydlí blíž než 40 m i řetězem
+  → číslo skupiny podle nejmenšího id), `defenderRoster(state, day, { lineMenElsewhere })` →
+  `Defender[]` (pořadí podle id): muži 16–44 `villagerStrength(false, štěstí)`, muži rodu od 14 let
+  `lineManStrength(p, null)` s lukem, ženy, starší a chlapci 14–15 let 0,1 `atHouseOnly`; kdo je
+  pryč (`isAway`) nebo zraněný, chybí. `lastLine` = jediný muž rodu ve vsi a `lineMenElsewhere`
+  (výchozí 0 – tažení zatím jiné vsi hráče nezná). `defenderPlan` – výchozí postoj u domů:
+  útočník do 40 m od domů skupiny (nebo kdo útočí na obránce) a ve dohledu, vodítko 40 m od domů;
+  `atHouseOnly` jen na dosah u svého domu. Postoje, včasný útěk a skryté jámy – Ú6.9.
+- **Rozkazy** – `domain/war/orders.ts`: `attackerPlan` – `follow-leader` (jde za velitelem, když je
+  dál než 6 m; napadne, kdo útočí na velitele nebo na něj), `attack-all` (nejbližší viditelný
+  i prchající, nikoho nevidí → nejbližší vůbec – projdou ves), `hold-place` (`holdAt`, jinak kde
+  skupina stojí; nepřítel do 30 m + dosah zblízka od místa, lukem kdo je na dostřel, vodítko 30 m).
+  Bez velitele a pro NPC velitele (bez `liveCommand`) „útočit na vše“ – rozhodování NPC Ú6.12.
+  `controlledPlan` – hráčem řízený muž: `chosen` (pokyn `strike`), jinak `goal` (pokyn `march` na
+  mapě cíle), brání se jen tomu, kdo na něj útočí na dosah. `battleLeader` = velitel, když bojuje,
+  jinak zástupce; `orderHeard` = bojující muž skupiny do 30 m od velitele; `setGroupOrder(state,
+group, order, at)` – před bitvou kdykoli, v boji jen na doslech (jinak false); mění
+  `CampaignGroup.order` / `holdAt` i skupinu boje.
+- **Boj** – `domain/war/battle.ts`: `BattleState` (JSON v `CampaignState.battle`) – `fighters`
+  (`Fighter`: `a:<index muže>` / `d:<id člověka>`, strana, skupina, síla × `vigor`, zdraví, poloha,
+  `home` – dům, nebo kde útočník vstoupil, `state` `fight` | `breach` | `flee` | `fled` | `down`,
+  `cooldown`, `aim`, `controlled` / `chosen` / `goal`, `route` průchodem, `breachAt`, `fleeTo`,
+  `killed`), `groups` (`BattleGroup` – rozkaz, `holdAt`, `entered`, `broken`), `commander`,
+  `deputy`, `closedGates` `<opevnění>:<úsek>`, `breaches` (`BattleBreach` – místo, `at`,
+  `BreachProgress`), `outcome` `ongoing` | `attackers` | `defenders` | `withdrawn`. `openBattle`
+  (útočníci u skupin, obránci u domů), `battleTick(b, field, rng)` mění `b` na místě:
+  brány do 30 m od útočníka se zavřou → stěny taktu → bod zlomu (padlí a ranění ÷ `entered`,
+  30 % útok, 45 % obrana; velitel neuteče sám) → muži v pevném pořadí (plán, krok) → práce na
+  průlomech (`breachStep`, nejvýš 4 na místo, `hoursPerTick` z `ticks.ts`) → rány (cooldown 8 / 16
+  taktů, los zásahu, `hitDamage(síla, násobek, luk)` = `10 × síla ÷ násobek`, u obránce
+  `defenderMultiplier` s průlomy boje) se sečtou a použijí až po všech – kdo padne, v tomto taktu
+  ještě udeřil → výsledek (útočníci bez bojujících = `defenders`; obránci bez bojujících
+  i prchajících = `attackers`). Na nule `down`, `killed` losem (vesničan 1 : 1, muž rodu 1 ze 3);
+  `lastLine` neklesne pod 10, pak uteče (i `controlled`). Útěk: útočník do `home`, obránce do
+  nejbližší buňky hustého lesa (bez lesa hned `fled`); kdo se nepohne, je `fled`. Pohyb tempem
+  pochodu (3,5 m/s ÷ 4, jezdec × 1,5, terén z `MarchGrid` – val ¼; voda a sráz neprůchodné).
+- **Opevnění v boji** – `battleForts(geo, forts)` (tvar úseků a střed); stěny jsou úsečky úseků,
+  které stojí (ne holý val, ne mezera, prolomený úsek = `breachedDay` dne boje), s výřezem otevřené
+  brány a tětivou rohu. Pohyb stěnu neprojde (sklouzne podél), luk i dosah zblízka (3 m) přes ni
+  ano. Útočník, kterému k cíli vadí stěna, jde nejbližším průchodem (`route` – 3 m před a za ním;
+  když se zavře, cesta neplatí); bez průchodu prolamuje – místo s nejméně zbývající prací, pak
+  nejbližší (brána / zeď uprostřed úseku, `breachWork`), prolamující nebojují, průlom je mezera.
+- **Tažení** – `campaign.ts`: `raidTick` – první takt `campaignBattle` (muži na nohou na mapě cíle
+  v šiku po pěti; obránci z `villageAt(cíl, den)`; ves není na mapě cíle → bez obránců),
+  pak `battleTick` s `tickRandom(seed, tick, 'battle')`, `syncMembers` (zdraví, `fallen`,
+  `wounded`). Konec: `attackers` → obrat `arrived` (háček Ú6.10 kořist a škody, Ú6.11 zajetí),
+  `defenders` → `routed` (háček Ú6.12 rozpad, Ú6.11 ranění zůstanou); `turnBack` v boji →
+  `leaveBattle` (`withdrawn`, skupiny se sejdou u velitele). Padlí a ranění obránci do vsi jako
+  vnější události – Ú6.10.
+- **Testy** – `__tests__/battle.test.ts` (příklad war.md 5 vs. 25 ran, u domu 8 ran po 2 s; bod
+  zlomu 30 % / 45 %, velitel zůstane; poslední muž rodu doma pod řízením hráče – nejníž 10, uteče
+  do lesa; palisáda – brána se zavře, 4 muži ≈ 3 h, zeď ≈ 24 h, šíp za palisádu ÷ 3; tažení po
+  1 / 7 / 40 taktech přes JSON = vcelku, ztráty v mužích), `orders.test.ts` (za velitelem, obrana
+  velitele, útočit na vše mimo dohled, držet místo ≤ 30 m, změna rozkazu na doslech),
+  `defenders.test.ts` (skupiny domů, soupis, poslední muž rodu); přípravky `battle-fixtures.ts`.

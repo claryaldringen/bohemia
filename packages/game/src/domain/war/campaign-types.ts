@@ -3,6 +3,7 @@ import type { Landscape, ObstacleLayer } from '../landscape';
 import type { NewVillageEvent } from '../village/inbox';
 import type { PersonRef, VillageState } from '../village/types';
 import type { GridCell } from '../village/world-grid';
+import type { BattleState } from './battle';
 import type { Pos } from './march-grid';
 
 // Stav tažení (war.md – Velení a příprava tažení, Pohyb; plán 2026-11-03 – Úloha 6.5). Stav je
@@ -81,6 +82,8 @@ export interface CampaignGroup {
   leg: CampaignLeg | null;
   /** Skupina došla do cíle (nebo dál nemůže) a stojí. */
   arrived: boolean;
+  /** Rozkaz „držet místo“ – místo na mapě cíle (war.md – Boj – Skupiny); jinak chybí. */
+  holdAt?: Pos;
 }
 
 /** Zásoby tažení (war.md – Pohyb – Zásoby); píci a nosnost doplní příprava (Ú6.6). */
@@ -95,8 +98,8 @@ export interface CampaignLoot {
   herd: number;
 }
 
-/** Proč se tažení vrací. */
-export type CampaignReturnReason = 'arrived' | 'supplies' | 'order';
+/** Proč se tažení vrací; `routed` = útočníci v boji poraženi (war.md – Bod zlomu). */
+export type CampaignReturnReason = 'arrived' | 'supplies' | 'order' | 'routed';
 
 /** Tažení – celý stav, ze kterého se počítá další takt. */
 export interface CampaignState {
@@ -128,6 +131,8 @@ export interface CampaignState {
   discovered: number[];
   /** Proč se vrací (od fáze `returning`). */
   returnReason: CampaignReturnReason | null;
+  /** Boj na mapě cíle (war.md – Boj; Ú6.8) – od prvního taktu nájezdu; chybí – zatím nebojovali. */
+  battle?: BattleState;
 }
 
 /**
@@ -135,7 +140,13 @@ export interface CampaignState {
  * obrátit domů. Rozkazy skupin, útok a vzdané doplní Ú6.8, Ú6.11 a Ú6.14.
  */
 export type IntentBody =
-  { kind: 'set-out' } | { kind: 'march'; to: CampaignPlace } | { kind: 'turn-back' };
+  | { kind: 'set-out' }
+  | { kind: 'march'; to: CampaignPlace }
+  | { kind: 'turn-back' }
+  /** Rozkaz skupině (war.md – Změna rozkazu); `at` = místo pro „držet místo“. */
+  | { kind: 'set-order'; group: number; order: GroupOrder; at?: Pos }
+  /** Velitel v boji napadne muže (id bojovníka – `Fighter.id`). */
+  | { kind: 'strike'; target: string };
 
 /** Záměr s taktem, ve kterém platí (teď + 2), a pořadím zápisu `seq` (v taktu podle něj). */
 export interface CampaignIntent {
