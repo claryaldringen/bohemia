@@ -23,6 +23,7 @@ import {
   type GameDeps,
 } from '@bohemia/server';
 import {
+  currentStewardViewStamp,
   currentVillageViewStamp,
   dynastyForVillage,
   enterGame,
@@ -234,6 +235,37 @@ export function currentViewStampOfPlayer(
   today: number,
 ): Promise<string | null> {
   return currentVillageViewStamp(playerVillagesDeps(), { playerId, villageId, today });
+}
+
+/**
+ * Otisk pohledu správce na spravovanou cizí ves (`currentStewardViewStamp`); null, když ves
+ * správce nespravuje nebo by dotaz musel počítat.
+ */
+export async function currentStewardViewStampOfPlayer(
+  actorId: string,
+  villageId: string,
+): Promise<string | null> {
+  const house = await createHouseRepository(getDatabase()).activeOf(actorId);
+  if (!house) return null;
+  const stewarded = (await stewardships().listByStewardHouse(house.id))
+    .filter((s) => s.kind === 'player')
+    .map((s) => s.villageId);
+  if (!stewarded.includes(villageId)) return null;
+  const holderId = await lockOwnerOf(actorId, villageId);
+  if (holderId === actorId) return null;
+  const [holderToday, actorToday] = await Promise.all([
+    playerToday(holderId),
+    playerToday(actorId),
+  ]);
+  if (!holderToday.ok || !actorToday.ok) return null;
+  return currentStewardViewStamp(playerVillagesDeps(), {
+    actorId,
+    holderId,
+    villageId,
+    holderToday: holderToday.day,
+    actorToday: actorToday.day,
+    stewardedVillageIds: stewarded,
+  });
 }
 
 /** První ves hráče (sídelní sídlo první); bez vsí null. */

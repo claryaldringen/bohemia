@@ -162,6 +162,26 @@ describe('HousePanel', () => {
   });
 });
 
+describe('odblokování rodu', () => {
+  it('zablokovaný rod má místo Blokovat tlačítko Odblokovat, které zavolá akci', async () => {
+    const onUnblock = vi.fn(async () => undefined);
+    const onBlock = vi.fn(async () => undefined);
+    const other = link('h-o', {
+      actions: { offer: null, request: null, blocked: true, war: null },
+    });
+    render({ view: { ...VIEW, others: [other] }, onBlock, onUnblock });
+    await act(async () => {
+      host.querySelector<HTMLElement>('[data-testid="house-other"][data-house-id="h-o"]')!.click();
+    });
+    expect(host.querySelector('[data-testid="house-block"]')).toBeNull();
+    await act(async () => {
+      host.querySelector<HTMLButtonElement>('[data-testid="house-unblock"]')!.click();
+    });
+    expect(onUnblock).toHaveBeenCalledWith('h-o');
+    expect(onBlock).not.toHaveBeenCalled();
+  });
+});
+
 describe('prapor v liště', () => {
   const bar = (waiting: number): string =>
     renderToStaticMarkup(

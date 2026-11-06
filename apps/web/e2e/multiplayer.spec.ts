@@ -87,7 +87,7 @@ test('pozvánka: pozvaný je vazal, pozvatel má vazala a upozornění, cizí hr
   await expect(panelA2.getByTestId('house-invite-used')).toHaveCount(1);
 
   // C bez kódu: nezávislý, v seznamu hráčů vidí A i B
-  await registerAndEnterGame(c, 'cizinec');
+  const emailC = await registerAndEnterGame(c, 'cizinec');
   const panelC = await openHousePanel(c);
   await expect(panelC.getByTestId('house-independent')).toBeVisible();
   await expect(panelC.getByTestId('house-other')).toHaveCount(2);
@@ -98,6 +98,14 @@ test('pozvánka: pozvaný je vazal, pozvatel má vazala a upozornění, cizí hr
   await expect(panelA3.getByTestId('house-other')).toHaveCount(1);
   await a.mouse.move(0, 400);
   if (SCREENSHOT) await a.screenshot({ path: SCREENSHOT });
+
+  // C ještě nemá ves, přesto mu dojde upozornění od A (dotaz na ves vrací upozornění i bez vsi)
+  const idC = await houseIdOf(emailC);
+  await pickPlayer(panelA3, idC);
+  await panelA3.getByTestId('house-block').click();
+  await expect(c.getByTestId('village-notice').filter({ hasText: 'tě zablokoval' })).toBeVisible({
+    timeout: 60_000,
+  });
 
   await Promise.all([ctxA.close(), ctxB.close(), ctxC.close()]);
 });
@@ -211,6 +219,18 @@ test('jednání: nabídka, protinávrh, přijetí; odmítnutí s pauzou; blokov�
   const barA5 = await pickPlayer(panelA5, idC);
   await expect(barA5.getByTestId('house-offer')).toHaveAttribute('data-reason', 'Zablokoval tě.');
   await expect(barA5.getByTestId('house-request')).toHaveAttribute('data-reason', 'Zablokoval tě.');
+
+  // C blokování zruší → A smí zase nabízet
+  const panelC3 = await reopenHousePanel(c);
+  const barC2 = await pickPlayer(panelC3, idA);
+  await expect(barC2.getByTestId('house-block')).toHaveCount(0);
+  await barC2.getByTestId('house-unblock').click();
+  const panelA6 = await reopenHousePanel(a);
+  const barA6 = await pickPlayer(panelA6, idC);
+  await expect(barA6.getByTestId('house-request')).not.toHaveAttribute(
+    'data-reason',
+    'Zablokoval tě.',
+  );
 
   await Promise.all(ctxs.map((ctx) => ctx.close()));
 });
@@ -803,6 +823,10 @@ test('mír: A a C jsou ve válce, C nabídne mír s poplatkem, A přijme → vá
   await expect(c.getByTestId('war-count')).toHaveAttribute('data-wars', '1', { timeout: 30_000 });
   await c.getByTestId('war-toggle').click();
   await c.getByTestId('war-offer-peace').click();
+  // jedinou vsi rodu postoupit nejde (poslední mapa) – volba je zašedlá
+  await c.getByTestId('peace-cede-side').selectOption('own');
+  await expect(c.getByTestId('peace-cede-village')).toBeDisabled();
+  await c.getByTestId('peace-cede-side').selectOption('none');
   await c.getByTestId('peace-fee').fill('4');
   await c.getByTestId('peace-send').click();
 

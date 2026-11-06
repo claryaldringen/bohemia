@@ -2,6 +2,7 @@ import { escheatGift } from './escheats';
 import {
   acceptNegotiation,
   blockPlayer,
+  unblockPlayer,
   dismissSteward,
   counterNegotiation,
   declareWar,
@@ -131,6 +132,14 @@ export async function blockHouseForPlayer(
   return outcome(
     await blockPlayer(gameDeps(), { playerId, target, now: new Date(), today: today.day }),
   );
+}
+
+/** Hráč zruší své zablokování rodu `target`. */
+export async function unblockHouseForPlayer(
+  playerId: string,
+  target: string,
+): Promise<NegotiationActionResult> {
+  return outcome(await unblockPlayer(gameDeps(), { playerId, target, now: new Date() }));
 }
 
 /**

@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactElement } from 'react';
 import { dateOfDayIndex, type TermItem } from '@bohemia/game';
 import { formatGameDate } from '@/lib/game-date';
 import type { HouseView } from '@/lib/house-view';
+import { cedeBlockReason, type CedeVillage } from '@/lib/peace-cede';
 import { Tooltip } from './Tooltip';
 
 // Panel války (war.md – Co hráč vidí): textový přehled válek rodu – s kým, od kdy, jak začala
@@ -29,16 +30,29 @@ const NO_BUNDLE = {
 function PeaceForm({
   ownHouseId,
   otherId,
+  ownVillages,
+  otherVillages,
   onSubmit,
 }: {
   ownHouseId: string;
   otherId: string;
+  ownVillages: readonly CedeVillage[];
+  otherVillages: readonly CedeVillage[];
   onSubmit: (items: TermItem[]) => void;
 }): ReactElement {
   const [fee, setFee] = useState('');
   const [payer, setPayer] = useState<'own' | 'other'>('own');
   const [tribute, setTribute] = useState('');
   const [vassalage, setVassalage] = useState<'none' | 'lord' | 'vassal'>('none');
+  const [cedeSide, setCedeSide] = useState<'none' | 'own' | 'other'>('none');
+  const [ceded, setCeded] = useState<ReadonlySet<string>>(new Set());
+  const cedeList = cedeSide === 'own' ? ownVillages : cedeSide === 'other' ? otherVillages : [];
+  const toggleCede = (id: string): void =>
+    setCeded((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
   const submit = (): void => {
     const payerId = payer === 'own' ? ownHouseId : otherId;
     const line: Extract<TermItem, { kind: 'peace' }> = { kind: 'peace' };
@@ -56,6 +70,7 @@ function PeaceForm({
           ? { lord: ownHouseId, vassal: otherId, terms: {} }
           : { lord: otherId, vassal: ownHouseId, terms: {} };
     }
+    if (cedeSide !== 'none' && ceded.size > 0) line.cede = [...ceded];
     onSubmit([line]);
   };
   return (
@@ -110,6 +125,48 @@ function PeaceForm({
         <option value="lord">on se stane mým vazalem</option>
         <option value="vassal">stanu se jeho vazalem</option>
       </select>
+      <select
+        data-testid="peace-cede-side"
+        aria-label="Postoupení vsí"
+        className="rounded-sm border border-[#5c4526] bg-[#15100b]"
+        value={cedeSide}
+        onChange={(e) => {
+          setCedeSide(
+            e.target.value === 'own' || e.target.value === 'other' ? e.target.value : 'none',
+          );
+          setCeded(new Set());
+        }}
+      >
+        <option value="none">bez postoupení vsí</option>
+        <option value="own">postoupím já</option>
+        <option value="other">postoupí on</option>
+      </select>
+      {cedeList.length > 0 && (
+        <ul data-testid="peace-cede-list" className="flex flex-col gap-0.5">
+          {cedeList.map((v) => {
+            // bez poslední mapy rodu – u cizí strany mapy neznáme, ověří to server
+            const reason = cedeSide === 'own' ? cedeBlockReason(ownVillages, ceded, v.id) : null;
+            return (
+              <li key={v.id}>
+                <Tooltip content={v.name} denied={reason}>
+                  <label className="flex items-center gap-1">
+                    <input
+                      type="checkbox"
+                      data-testid="peace-cede-village"
+                      data-village-id={v.id}
+                      data-reason={reason ?? undefined}
+                      disabled={reason !== null}
+                      checked={ceded.has(v.id)}
+                      onChange={() => toggleCede(v.id)}
+                    />
+                    <span>{v.name}</span>
+                  </label>
+                </Tooltip>
+              </li>
+            );
+          })}
+        </ul>
+      )}
       <button
         type="button"
         data-testid="peace-send"
@@ -129,8 +186,11 @@ export function WarPanel({
   error = null,
   onClose,
   onOfferPeace,
+  ownVillages = [],
 }: {
   view: HouseView | null;
+  /** Vlastní vsi hráče (výběr vsí k postoupení v míru). */
+  ownVillages?: readonly CedeVillage[];
   error?: string | null;
   onClose: () => void;
   onOfferPeace?: (to: string, items: TermItem[], message: string | null) => void;
@@ -215,6 +275,8 @@ export function WarPanel({
                     <PeaceForm
                       ownHouseId={view.ownHouseId}
                       otherId={war.other.houseId}
+                      ownVillages={ownVillages}
+                      otherVillages={war.otherVillages}
                       onSubmit={(items) => {
                         onOfferPeace(war.other.houseId, items, null);
                         setOffering(null);

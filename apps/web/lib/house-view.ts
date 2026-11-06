@@ -65,6 +65,8 @@ export interface WarView {
   lastClashDay: number;
   /** Popisek: „Ctibor – opověď“ / „Ctibor – přepadení“. */
   label: string;
+  /** Vsi protivníka, které rodokmen zná (kvůli mužům od 16 let); mapu vsi neznáme. */
+  otherVillages: { id: string; name: string; settlementId: string; asleep: boolean }[];
 }
 
 /** Vydaná pozvánka k zobrazení. */
@@ -270,6 +272,9 @@ export function houseView(data: HousePanelData, nowMs: number): HouseView {
         how: w.how,
         lastClashDay: w.lastClashDay,
         label: `${houseNameOf(w.other)} – ${w.how === 'declared' ? 'opověď' : 'přepadení'}`,
+        otherVillages: [
+          ...new Map(w.other.men.map((m) => [m.villageId, m.villageName])).entries(),
+        ].map(([id, name]) => ({ id, name, settlementId: id, asleep: false })),
       };
     }),
     protectionDaysLeft:
