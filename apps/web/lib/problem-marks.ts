@@ -7,9 +7,11 @@ import type { PlacementWhere } from '@bohemia/game';
 /** Čára značky – lomená čára ve světových souřadnicích (x, z). */
 export type MarkLine = readonly (readonly [number, number])[];
 
-/** Poloměr kroužku kolem zatarasené branky (m). */
-export const GATE_RING_RADIUS_M = 1.4;
-const RING_SEGMENTS = 16;
+/** Poloměr vnějšího kroužku kolem zatarasené branky (m) – terč je vidět i z výšky kamery. */
+export const GATE_RING_RADIUS_M = 6;
+/** Další kroužky terče jako podíl vnějšího poloměru (dovnitř). */
+const INNER_RINGS = [0.7, 0.4, 0.15] as const;
+const RING_SEGMENTS = 24;
 
 /** Uzavřený kroužek kolem bodu (a menší uvnitř, aby byl vidět i z dálky). */
 function ring(x: number, z: number, radius: number): MarkLine {
@@ -26,7 +28,20 @@ export function problemMarks(where: PlacementWhere | undefined): MarkLine[] {
   if (!where) return [];
   const lines: MarkLine[] = [];
   for (const p of where.points ?? []) {
-    lines.push(ring(p.x, p.z, GATE_RING_RADIUS_M), ring(p.x, p.z, GATE_RING_RADIUS_M / 2));
+    lines.push(ring(p.x, p.z, GATE_RING_RADIUS_M));
+    for (const share of INNER_RINGS) lines.push(ring(p.x, p.z, GATE_RING_RADIUS_M * share));
+    // kříž přes terč – střed je přesně u branky
+    const r = GATE_RING_RADIUS_M;
+    lines.push(
+      [
+        [p.x - r, p.z],
+        [p.x + r, p.z],
+      ],
+      [
+        [p.x, p.z - r],
+        [p.x, p.z + r],
+      ],
+    );
   }
   for (const polygon of where.footprints ?? []) {
     const first = polygon[0];
