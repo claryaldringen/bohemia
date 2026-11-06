@@ -34,7 +34,7 @@ z něj bere násobky obrany, útočiště a prolomení. Historické opory:
 | -------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ------------------ |
 | Válce musí předcházet výzva a lhůta 24 h                 | **Opověď** smí, nemusí; přepadení bez opovědi jen věcně v kronice                            | Martin 2. 11.      |
 | Nejvýš jeden nájezd rodu na ves za herní rok             | **Bez omezení** – brzdí roční doba, zima, zásoby a délka tažení                              | Martin 2. 11.      |
-| Vesničan síla 1, muž rodu 1–2 podle boje a luku          | Dvě stupnice: vesničan **0,25–0,6** podle lovu, muž rodu **1–3** podle vojenské zkušenosti   | Martin 2. 11.      |
+| Vesničan síla 1, muž rodu 1–2 podle boje a luku          | Dvě stupnice: vesničan **pevně 0,4**, muž rodu **1–3** podle vojenské zkušenosti             | Martin 2. 11.      |
 | Výcvik do 100                                            | Strop: výcvik doma **50**, lov **70**, nad 70 jen **válka**                                  | Martin 2. 11.      |
 | Do pánovy války jen muži rodu, vesničané jen vlastní ves | Vesničané smějí i do útoku se slabou silou; vazalové ve službě dál jen muži rodu             | Martin 2. 11.      |
 | Útočníky vždy řídí hráč; bez něj vojsko stojí a vrátí se | Živě jen tažení vedené **hráčovým mužem**; jinak rozkaz a NPC; bez **zástupce** se rozpadne  | Martin 2. 11.      |
@@ -141,10 +141,12 @@ přítomný hráč velí obraně sám; mřížka map s přechodem okrajem.
   jde pomaleji. Musí sebou vézt zásoby píce pro koně. Pokud je tažení vícedenní, vojsko potřebuje
   víc času na ubytování**“ (čísla návrh Clauda):
   - **pochod sněhem × 0,75**;
-  - **ležení:** v létě vojsko spí pod širákem – tempo výš s tím počítá a ve scéně jde dál; v zimě
-    se každou herní noc zastaví na **ležení** s ohni a přístřešky na ≈ **třetinu herního dne**
-    (≈ 30 s); dohromady **zimní tempo ≈ polovina letního** (1 km ≈ 9–10 min ≈ 6 herních dní)
-    (otázka 2);
+  - **únava z mrazu** (Martin 3. 11. 2026: „Středověké vojsko to zpravidla udělalo tak, že se
+    snažilo přenocovat v nějaké vesnici. Jen si to nedokážu představit z hlediska herní mechaniky,
+    když neuznáváme noc“; čísla návrh Clauda): vojsko, které je v zimě venku, ztrácí každý herní
+    den **3 zdraví a 2 % síly**; zastávka ve vsi (vlastní, neutrální, která ho pustí, nebo dobytá)
+    mráz zastaví a muži se zotaví – **+10 zdraví a +5 % síly za den**. Tažení tak vede od vsi
+    ke vsi; zimní ležení ve třetině dne odpadá, tempo v zimě je jen sníh × 0,75;
   - **píce:** koně na tažení dostávají seno, kdykoli by ho dostávali doma (listopad–březen,
     **6 kg denně**, kůň bez obilí 7 kg – [koně](horses.md)); tažení ho veze s sebou.
 
@@ -226,32 +228,35 @@ přítomný hráč velí obraně sám; mřížka map s přechodem okrajem.
   - **Válka cvičí** (návrh Clauda): den na tažení se počítá jako **2 h** výcviku luku a boje
     (jezdcům i jízdy), den se soubojem jako **6 h**, se stropem 100 a sazbou růstu z lord.md.
   - **Vojenská zkušenost** muže rodu = **(boj + luk) ÷ 2** (návrh Clauda); jízda je v násobku koně.
-  - **Lov vesničana** (návrh Clauda; otázka 1): nová dovednost **lov 0–70** u muže vesničana – roste
-    za hodiny na **okách** a v **noční hlídce polí** ([divoká zvěř](wildlife.md) – Drobná zvěř,
-    Noční hlídka) sazbou výcviku z lord.md, klesá jako ona; rybaření se nepočítá.
+  - **Den lovu** (návrh Clauda): lov rodu je výcvik jako dosud ([divoká zvěř](wildlife.md) – Lov
+    rodu: jezdec luk a jízda, pěší luk a boj), ale **se stropem 70**; hodiny dne lovu zůstávají
+    podle wildlife.md (6 h), jízda i luk rostou sazbou z lord.md.
+  - **Vesničan** – Martin 3. 11. 2026: „Nebudeme to řešit, všichni vesničané budou mít víceméně
+    stejnou (a malou) bojovou hodnotu.“ Dovednost lov u vesničanů se **nezavádí**; vesničan má
+    pevnou sílu (návrh Clauda: **0,4**).
 
 | Kdo / co                                  | Síla                                                                                                                                                                                     |
 | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Vesničan (muž 16–44) pěšky                | **0,25 + 0,5 × lov ÷ 100** – od 0,25 do ≈ 0,6 (Martin 2. 11.)                                                                                                                            |
+| Vesničan (muž 16–44) pěšky                | **0,4**, pevně (Martin 3. 11.; číslo návrh Clauda)                                                                                                                                       |
 | Muž rodu pěšky                            | **1 + 2 × vojenská zkušenost ÷ 100** – od 1 do 3 (Martin 2. 11.)                                                                                                                         |
 | Muž rodu na koni                          | × **(1 + 0,5 × jízda na koni ÷ 100)**, jízda na koni = jízda × (0,4 + 0,6 × výcvik koně) ([koně](horses.md)) – až **× 1,5** (Martin 2. 11.)                                              |
 | Vesničan na koni                          | nebojuje (Martin 2. 11.)                                                                                                                                                                 |
 | Výzbroj – kovárna                         | × **1,5** s plným pokrytím nástroji (Martin 18. 10. a 2. 11. – zatím koeficient)                                                                                                         |
 | Štěstí vsi (vesničané)                    | × **0,8–1,1** jako práce (18. 10.)                                                                                                                                                       |
-| Nucený vesničan                           | × **0,5**, s příbuznými v cílové vsi × **0,3** (18. 10.)                                                                                                                                 |
+| Nucený vesničan                           | × **0,5** (Martin 3. 11.), s příbuznými v cílové vsi × **0,3** (18. 10.)                                                                                                                 |
 | Ženy, starší a chlapci 14–15 let v obraně | **0,1**, brání se jen u domu (návrh Clauda)                                                                                                                                              |
 | Obrana u domu                             | × **1,5** (18. 10. – znají místo)                                                                                                                                                        |
 | Za opevněním (Opevnění)                   | × 1,5 × **násobek opevnění** ([fortifications.md](fortifications.md) – Obrana): plot 1,25, palisáda 2, val 1,5, val s plotem 2, val s palisádou 3 (Martin 3. 11.; násobení návrh Clauda) |
 
 Příklady (Martin 2. 11. 2026: „i vojvoda vycvičený na 10 musí být výš, než lovící vesničan“):
-vesničan bez lovu 0,25, lovec s lovem 70 ≈ 0,6; muž rodu se zkušeností 10 → 1,2, s 50 (strop
-výcviku doma) → 2, se 70 (lov) → 2,4, s 90 (válka) → 2,8. Na vycvičeném koni s jízdou 60 × 1,3
-(zkušenost 60 → 2,2 × 1,3 ≈ 2,9); nejvýš 3 × 1,5 = 4,5.
+vesničan 0,4, nucený 0,2; muž rodu se zkušeností 10 → 1,2, s 50 (strop výcviku doma) → 2, se 70
+(lov) → 2,4, s 90 (válka) → 2,8. Na vycvičeném koni s jízdou 60 × 1,3 (zkušenost 60 → 2,2 × 1,3
+≈ 2,9); nejvýš 3 × 1,5 = 4,5.
 
 Vojsko: vojvoda a dva synové se zkušeností 60 na vycvičených koních (≈ 2,9 každý = 8,6)
-a 12 vesničanů s lovem ≈ 20 (8 dobrovolníků po 0,35, 4 nucení po 0,18 = 3,5), s kovárnou
-(8,6 + 3,5) × 1,5 ≈ **18** – tři muži rodu jsou víc než celá ves. Síla je odhad v panelu
-a základ zásahu v souboji (Boj), ne výsledek bitvy.
+a 12 vesničanů (8 dobrovolníků po 0,4, 4 nucení po 0,2 = 4,0), s kovárnou (8,6 + 4,0) × 1,5
+≈ **19** – tři muži rodu jsou víc než celá ves. Síla je odhad v panelu a základ zásahu v souboji
+(Boj), ne výsledek bitvy.
 
 ## Pohyb – mapu po mapě
 
@@ -322,8 +327,8 @@ a základ zásahu v souboji (Boj), ne výsledek bitvy.
   - každý má **zdraví 100**; zásah ubere **10 × síla útočníka ÷ násobek obrany** zasaženého
     (u domu 1,5, za opevněním 1,5 × násobek opevnění – [fortifications.md](fortifications.md),
     Obrana);
-  - **luk na dálku** (20–60 m) – poloviční zásah ≈ každé 4 s; luk mají muži rodu a vesničané
-    s lovem aspoň 30; **zblízka oštěp nebo sekera** – plný zásah ≈ každé 2 s;
+  - **luk na dálku** (20–60 m) – poloviční zásah ≈ každé 4 s; luk mají jen muži rodu, vesničané
+    bojují zblízka; **zblízka oštěp nebo sekera** – plný zásah ≈ každé 2 s;
   - zda rána padne, určí **los ze seedu** války, tažení a okamžiku – server počítá
     deterministicky, výsledek nezávisí na tom, kdo se dívá;
   - příklad: muž rodu se silou 2 srazí vesničana se silou 0,4 pěti ranami, vesničan jeho
@@ -334,7 +339,7 @@ a základ zásahu v souboji (Boj), ne výsledek bitvy.
 - **Bod zlomu** – Martin 2. 11. 2026: „**K útěku (bod zlomu) by mělo dojít při 30 % ztrátách
   pokud hráč útočí a při 45 % ztrátách, pokud se brání.**“
   - **za každou skupinu zvlášť** (Martin – „Za každou skupinu zvlášť“); ztráty = padlí, ranění
-    a zajatí z mužů, kteří do boje vstoupili (návrh Clauda);
+    a zajatí ÷ počet mužů skupiny, kteří do boje vstoupili – podle počtu, ne podle síly (Martin 3. 11. 2026: „podle počtu“);
   - **30 %** platí pro skupiny tažení (i když je napadnou), **45 %** pro obránce na území
     vlastního rodu a muže, kteří ho chrání (návrh Clauda);
   - **muži rodu utíkají jako ostatní** ve skupině; **velitel neuteče sám** – ustoupí jen na pokyn
@@ -532,7 +537,7 @@ Martin 2. 11. 2026 – „ok“ (doplňky návrh Clauda):
 - **Boj** – střílejí, srážejí se, padají; padlí leží do konce dne, ranění sedí u domů
   a nepracují.
 - **Mlha války** na cizí mapě; vlastní vsi útočník vidí jen na své mapě.
-- **Zimní ležení** – ohně a přístřešky, vojsko stojí do rána (návrh Clauda).
+- **Zima** – vojsko venku je v zimě unavené od mrazu, zastavuje se ve vsích (návrh Clauda).
 - **Napadená ves** – prázdná pole a pastviny; při včasném útěku lidé se zásobami a stády k lesu;
   odehnané stádo jde s vojskem.
 - **Opevnění** – zavřené brány, prolamování (sekery, podhrabání) a průlom podle
@@ -547,21 +552,21 @@ Martin 2. 11. 2026 – „ok“ (doplňky návrh Clauda):
 | Válka utichne                  | 3 herní roky bez střetu                                            |
 | Tempo vojska                   | ≈ 3–4 m/s skutečného času, 1 km ≈ 4–5 min ≈ 3 herní dny (Martin)   |
 | Terén a náklad                 | les 1/4, cesta a stezka × 1,5, jezdci × 1,5, stádo × 0,5           |
-| Zima                           | sníh × 0,75, ležení třetina dne – celkem ≈ ½ tempa                 |
+| Zima (1. 12. – konec února)    | sníh × 0,75; venku −3 zdraví a −2 % síly za den, ve vsi +10 a +5 % |
 | Píce v zimě                    | 6 kg sena na koně denně (horses.md)                                |
 | Jídlo                          | ≈ 1 kg obilí na muže a den                                         |
 | Nosnost                        | muž 25 kg, kůň bez jezdce 80 kg, dvoukolák 400 kg                  |
 | Hráč mimo tažení               | 1 herní den, pak zástupce, nebo rozpad                             |
 | Stropy dovedností              | výcvik doma 50, lov 70, válka 100 (Martin)                         |
-| Válka jako výcvik              | den tažení 2 h, den se soubojem 6 h                                |
-| Síla vesničana                 | 0,25 + 0,5 × lov ÷ 100 (Martin)                                    |
+| Válka jako výcvik              | den tažení 2 h, den se soubojem 6 h; lov rodu se stropem 70        |
+| Síla vesničana                 | 0,4, nucený × 0,5, štěstí × 0,8–1,1 (Martin 3. 11.)                |
 | Síla muže rodu                 | 1 + 2 × (boj + luk) ÷ 200 (Martin; průměr návrh Clauda)            |
 | Kůň                            | × (1 + 0,5 × jízda na koni ÷ 100), až × 1,5 (Martin)               |
 | Zdraví a zásah                 | 100; 10 × síla ÷ násobek obrany; luk polovina                      |
 | Násobek obrany                 | u domu 1,5; za opevněním 1,5 × násobek opevnění (`FORTIFICATIONS`) |
 | Rány                           | zblízka ≈ 2 s, luk ≈ 4 s na 20–60 m                                |
 | Na nule zdraví                 | padlý / raněný 1 : 1, muž rodu raněný 2 : 3                        |
-| Bod zlomu                      | 30 % v útoku, 45 % v obraně, po skupinách (Martin)                 |
+| Bod zlomu                      | 30 % v útoku, 45 % v obraně, po skupinách; padlí a ranění ÷ muži   |
 | Vzdát se při přesile           | útočníků víc než 1,5× obránců (Martin), jezdec za dva              |
 | Muž rodu v bezvýchodné situaci | vzdá se s pravděpodobností 80 %                                    |
 | Včasný útěk                    | dospělý 25 kg (Martin), dítě 7–15 let 10 kg, dobytek celý          |
@@ -649,7 +654,9 @@ Z 18. 10. beze změny: skupina domů 40 m, dohled 150 m, nosnost 25 kg, ochota a
 | Válka je vztah dvou rodů, všechny vsi; bez zemského míru; bývalý pán smí táhnout kdykoli          | Martin 2. 11.    |
 | Opověď smí, nemusí; přepadení bez opovědi bez trestu, jen v kronice                               | Martin 2. 11.    |
 | Ochrana nového hráče 7 dní, končí vlastním útokem; nájezdy bez omezení                            | Martin 2. 11.    |
-| Zima: pomalejší pochod, píce, delší ležení; zásoby tažení, bez nich návrat nebo kořist            | Martin 2. 11.    |
+| Zima: pomalejší pochod, píce; zásoby tažení, bez nich návrat nebo kořist                          | Martin 2. 11.    |
+| Zima: únava z mrazu místo ležení, zastávky ve vsích, sníh × 0,75; bod zlomu podle počtu mužů      | Martin 3. 11.    |
+| Vesničan pevná síla 0,4, nucený × 0,5; dovednost lov vesničana se nezavádí                        | Martin 3. 11.    |
 | Vesničané smějí i do útoku se slabou silou; vazalové ve službě jen muži rodu                      | Martin 2. 11.    |
 | Vůdce vybere vazaly, vsi a shromaždiště; živě jen tažení vedené hráčovým mužem, jinak NPC         | Martin 2. 11.    |
 | Zástupce velitele; bez něj se výprava při odchodu hráče nebo smrti velitele rozpadne              | Martin 2. 11.    |
@@ -672,7 +679,8 @@ Z 18. 10. beze změny: skupina domů 40 m, dohled 150 m, nosnost 25 kg, ochota a
 | Ochrana nové vsi 5 let; zrušení dosahu 3 políčka                                                  | návrh Clauda     |
 | Zimní čísla, jídlo 1 kg, nosnost koně a vozu, tempo skupin                                        | návrh Clauda     |
 | Rozkazy skupin, doslech 30 m, zdraví a zásah, luk, padlý / raněný, 30 % pro tažení                | návrh Clauda     |
-| Vojenská zkušenost = průměr boje a luku; lov vesničana z ok a hlídek; válka jako výcvik           | návrh Clauda     |
+| Vojenská zkušenost = průměr boje a luku; válka jako výcvik; den lovu se stropem 70                | návrh Clauda     |
+| Zimní únava −3 zdraví a −2 % síly za den, ve vsi +10 a +5 %; vesničan 0,4                         | návrh Clauda     |
 | NPC velitel, rozpad, hráč mimo tažení 1 den                                                       | návrh Clauda     |
 | Ohlášení se vsím předá samo, Nevěřit; vlastní vojska neškodná                                     | návrh Clauda     |
 | Dítě 10 kg, jáma 30 %, bez lesa jako při přesile, posel; vzdání muže rodu 80 %                    | návrh Clauda     |
@@ -725,9 +733,8 @@ dokumentu výš je podle nich přepsané (3. 11. 2026)**; při rozporu platí te
   nezahrnujeme ani výzbroj a výstroj“ – strop dovedností: výcvik doma 50, lov 70, nad 70 jen
   válka (mění [lord.md](lord.md) – Výcvik, strop dnes 100); síla musí růst s dovedností znatelně;
   výzbroj a výstroj zvlášť.
-- **Síla pěšky – dvě stupnice:** vesničan 0,25 + 0,5 × lovecká zkušenost ÷ 100 (lov nejvýš 70 →
-  ≈ 0,6); muž rodu 1 + 2 × vojenská zkušenost ÷ 100 (1–3) – nejslabší muž rodu je nad nejlepším
-  vesničanem lovcem („i vojvoda vycvičený na 10 musí být výš, než lovící vesničan“); kůň
+- **Síla pěšky – dvě stupnice:** vesničan pevně 0,4 (Martin 3. 11.); muž rodu 1 + 2 × vojenská zkušenost ÷ 100 (1–3) – nejslabší muž rodu je nad nejlepším
+  vesničanem lovcem („i vojvoda vycvičený na 10 musí být výš, než lovící vesničan“; vesničan 0,4 – Martin 3. 11.); kůň
   a výzbroj zvlášť – „ano“.
 - **Kůň:** násobí sílu muže rodu až 1,5× podle jízdy a výcviku koně (zkušenost 60 na dobrém koni
   ≈ 3,3); vesničané na koních nebojují – „ano“.
@@ -848,22 +855,6 @@ dokumentu výš je podle nich přepsané (3. 11. 2026)**; při rozporu platí te
 
 ## Otázky na Martina
 
-Otázky z 2. 11. 2026 (výzva, ochrana, opakované nájezdy, zemský mír, poslední muž rodu,
-vypovězení, vesničané) jsou zodpovězené výš. Nové:
-
-1. **Odkud má vesničan loveckou zkušenost?** Síla vesničana stojí na lovu (Martin 2. 11. 2026),
-   ale vesničané dnes jen chytají zajíce do ok v zimě a hlídají pole v noci
-   ([divoká zvěř](wildlife.md)) – a oka jen, když chtějí maso nebo hladovějí. Doporučení: **a) oka
-   a noční hlídka polí** – typická ves má pár mužů s lovem 20–40, ostatní ≈ 0,25; ves, která
-   neloví, se hůř brání. Možnosti: a) oka a hlídky; b) navíc chodí vesničané s rodem na lov jako
-   honci pěšky – silnější vesničané, ale dny lovu ubírají práci vsi; c) lov podle věku – každý
-   muž 20–40 let má lov 30, bez nové práce.
-2. **Má vojsko v zimě v noci stát?** Doporučení: **a) ležení ≈ třetinu herního dne s ohni
-   a sníh × 0,75** – zimní tažení je vidět a trvá dvakrát déle. Možnosti: a) jak výš; b) jen
-   pomalejší tempo bez zastávek (× 0,5) – hráč při živém vedení nečeká; c) stát celou zimní noc
-   (≈ dvě třetiny dne) – tempo ≈ ¼, zimní tažení skoro nemožné.
-3. **Bod zlomu podle počtu mužů, nebo podle síly?** Ve skupině bývají muži rodu (1–4,5)
-   i vesničané (0,25–0,6). Doporučení: **a) podle počtu mužů** – je to vidět ve scéně a muži rodu
-   tak skupinu drží, dokud stojí vesničané kolem nich. Možnosti: a) počet mužů; b) podle síly –
-   pád jednoho muže rodu zlomí skupinu vesničanů skoro hned; c) počet, ale padlý nebo zajatý
-   velitel skupiny zlomí skupinu vždy.
+Žádné otevřené. Otázky z 2. 11. 2026 jsou zodpovězené výš; poslední tři (lovecká zkušenost
+vesničana, zimní noc, bod zlomu podle počtu mužů) Martin zodpověděl 3. 11. 2026 (viz Odpovědi
+výše): vesničan má pevnou sílu, zima = únava z mrazu, bod zlomu podle počtu mužů.
