@@ -10,6 +10,7 @@ import { withVillageCache } from '@bohemia/server';
 import {
   answerNegotiationForPlayer,
   blockHouseForPlayer,
+  unblockHouseForPlayer,
   housePanelForPlayer,
   houseSpareForPlayer,
   renounceVassalageForPlayer,
@@ -598,6 +599,15 @@ export async function blockHouse(input: unknown): Promise<NegotiationActionResul
   const parsed = parseBlockInput(input);
   if (parsed === null) return { error: INVALID_INPUT };
   return blockHouseForPlayer(id, parsed.target);
+}
+
+/** Zruší zablokování rodu: `{ target }`. */
+export async function unblockHouse(input: unknown): Promise<NegotiationActionResult> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const parsed = parseBlockInput(input);
+  if (parsed === null) return { error: INVALID_INPUT };
+  return unblockHouseForPlayer(id, parsed.target);
 }
 
 /**

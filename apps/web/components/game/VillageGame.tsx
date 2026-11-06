@@ -61,6 +61,7 @@ import {
   openNegotiation,
   answerNegotiation,
   blockHouse,
+  unblockHouse,
   declareWarOnHouse,
   houseSpare,
   renounceVassalage,
@@ -1605,6 +1606,7 @@ export function VillageGame({
               negotiate(() => answerNegotiation({ negotiationId, ...reply }))
             }
             onBlock={(target) => negotiate(() => blockHouse({ target }))}
+            onUnblock={(target) => negotiate(() => unblockHouse({ target }))}
             onDeclareWar={(target, items, message) =>
               negotiate(() => declareWarOnHouse({ target, items, message }))
             }

@@ -568,6 +568,7 @@ export function HousePanel({
   onOpenNegotiation,
   onReply,
   onBlock,
+  onUnblock,
   onDeclareWar,
   villages = [],
   onSpare,
@@ -591,6 +592,7 @@ export function HousePanel({
   onReply?: (negotiationId: string, reply: NegotiationReply) => Promise<unknown>;
   /** Zablokuje rod. */
   onBlock?: (houseId: string) => Promise<unknown>;
+  onUnblock?: (houseId: string) => Promise<unknown>;
   /** Opoví válku rodu (id rodu, požadavek jako podmínky míru, vzkaz). */
   onDeclareWar?: (to: string, items: TermItem[], message: string | null) => Promise<unknown>;
   /** Vsi hráče (výběr cílové vsi v podmínkách). */
@@ -901,17 +903,31 @@ export function HousePanel({
                         busy={busy}
                         onClick={() => setDraft({ house: h, direction: 'war' })}
                       />
-                      <PlayerAction
-                        label="Blokovat"
-                        icon="gate"
-                        testId="house-block"
-                        reason={h.actions.blocked ? 'Zablokován.' : null}
-                        busy={busy}
-                        onClick={() => {
-                          setPickedId(null);
-                          run(() => onBlock?.(h.houseId) ?? Promise.resolve());
-                        }}
-                      />
+                      {h.actions.blocked ? (
+                        <PlayerAction
+                          label="Odblokovat"
+                          icon="gate-open"
+                          testId="house-unblock"
+                          reason={null}
+                          busy={busy}
+                          onClick={() => {
+                            setPickedId(null);
+                            run(() => onUnblock?.(h.houseId) ?? Promise.resolve());
+                          }}
+                        />
+                      ) : (
+                        <PlayerAction
+                          label="Blokovat"
+                          icon="gate"
+                          testId="house-block"
+                          reason={null}
+                          busy={busy}
+                          onClick={() => {
+                            setPickedId(null);
+                            run(() => onBlock?.(h.houseId) ?? Promise.resolve());
+                          }}
+                        />
+                      )}
                     </div>
                     {draft && draft.house.houseId === h.houseId && (
                       <TermsForm

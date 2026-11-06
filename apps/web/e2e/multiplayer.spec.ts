@@ -212,6 +212,18 @@ test('jednání: nabídka, protinávrh, přijetí; odmítnutí s pauzou; blokov�
   await expect(barA5.getByTestId('house-offer')).toHaveAttribute('data-reason', 'Zablokoval tě.');
   await expect(barA5.getByTestId('house-request')).toHaveAttribute('data-reason', 'Zablokoval tě.');
 
+  // C blokování zruší → A smí zase nabízet
+  const panelC3 = await reopenHousePanel(c);
+  const barC2 = await pickPlayer(panelC3, idA);
+  await expect(barC2.getByTestId('house-block')).toHaveCount(0);
+  await barC2.getByTestId('house-unblock').click();
+  const panelA6 = await reopenHousePanel(a);
+  const barA6 = await pickPlayer(panelA6, idC);
+  await expect(barA6.getByTestId('house-request')).not.toHaveAttribute(
+    'data-reason',
+    'Zablokoval tě.',
+  );
+
   await Promise.all(ctxs.map((ctx) => ctx.close()));
 });
 
