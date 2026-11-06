@@ -77,6 +77,12 @@ export function createDialogRepository(db: Database): DialogRepository {
         .returning({ id: dialog.id });
       return updated.length > 0;
     },
+    async dropOpenOf(playerId) {
+      await db
+        .update(dialog)
+        .set({ status: 'dropped' })
+        .where(and(eq(dialog.playerId, playerId), eq(dialog.status, 'open')));
+    },
     async dropFor(refId) {
       await db
         .update(dialog)

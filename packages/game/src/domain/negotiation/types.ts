@@ -9,7 +9,12 @@ import type { TermLine } from '../vassalage/terms';
  * žádost). Strany jsou **rody** (`house.id`), ne hráči (technické rozhodnutí 2 plánu).
  */
 export type TermItem =
-  { kind: 'oath'; lord: string; vassal: string } | TermLine | AidLine | TradeLine | StewardshipLine;
+  | { kind: 'oath'; lord: string; vassal: string }
+  | TermLine
+  | AidLine
+  | TradeLine
+  | StewardshipLine
+  | VillageGiftLine;
 
 /**
  * Obchod mezi hráči (vassalage.md – Hospodářství mezi hráči): autor kola `give` pošle, `get`
@@ -32,6 +37,18 @@ export interface TradeLine {
 export interface StewardshipLine {
   kind: 'stewardship';
   villageId: string;
+}
+
+/**
+ * Věnování dílu odúmrti (vassalage.md – Vymření rodu – odúmrť): pán nabídne svému vazalovi celé vsi
+ * `villageIds` a vazaly `vassalIds` z odúmrti `escheatId`. Přijetí = obdarovaný se stane držitelem
+ * vsí a pánem vazalů; odmítnutí – díl zůstane pánovi.
+ */
+export interface VillageGiftLine {
+  kind: 'village-gift';
+  escheatId: string;
+  villageIds: string[];
+  vassalIds: string[];
 }
 
 /** Jedno kolo jednání: podmínky jedné strany a volitelný vzkaz. */

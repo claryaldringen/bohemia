@@ -31,7 +31,11 @@ function oathOf(items: readonly TermItem[]): Oath | undefined {
 export function termLinesOf(items: readonly TermItem[]): TermLine[] {
   return items.filter(
     (i): i is TermLine =>
-      i.kind !== 'oath' && i.kind !== 'trade' && i.kind !== 'stewardship' && !isAidLine(i),
+      i.kind !== 'oath' &&
+      i.kind !== 'trade' &&
+      i.kind !== 'stewardship' &&
+      i.kind !== 'village-gift' &&
+      !isAidLine(i),
   );
 }
 

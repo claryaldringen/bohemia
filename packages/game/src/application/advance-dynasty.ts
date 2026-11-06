@@ -22,6 +22,8 @@ export async function advanceDynasty(
   deps: DynastyDeps & { worldSeed: number },
   input: DynastyInput,
 ): Promise<DynastyStatus> {
+  // 2. krok převodu odúmrti – sídla čekající na hráče převezme pod jeho zámkem (escheat.ts)
+  await deps.settlements.acceptTransfers(input.playerId);
   let status = await dynastyStatus(deps, input);
   for (let round = 0; round < DEPARTURE_ROUNDS; round++) {
     let settled = 0;

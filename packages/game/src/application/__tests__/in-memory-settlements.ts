@@ -15,9 +15,42 @@ export class InMemorySettlements implements SettlementRepository {
     return this.settlements.find((s) => s.ownerId === ownerId && s.isSeat) ?? null;
   }
 
+  /** Sídlo → čekající držitel (1. krok převodu – `transferHolder`). */
+  readonly pending = new Map<string, string>();
+
+  async transferHolder(
+    settlementId: string,
+    fromOwnerId: string,
+    toOwnerId: string,
+  ): Promise<boolean> {
+    await Promise.resolve();
+    const s = this.settlements.find((x) => x.id === settlementId);
+    if (!s || s.ownerId !== fromOwnerId || this.pending.has(settlementId)) return false;
+    if (this.archived.has(settlementId)) return false;
+    this.pending.set(settlementId, toOwnerId);
+    // sídlo přestane být sídelní (vymřelý hráč dostane při novém začátku nové)
+    this.settlements[this.settlements.indexOf(s)] = { ...s, isSeat: false };
+    return true;
+  }
+
+  async acceptTransfers(ownerId: string): Promise<Settlement[]> {
+    await Promise.resolve();
+    const out: Settlement[] = [];
+    for (const [id, to] of [...this.pending]) {
+      if (to !== ownerId) continue;
+      const index = this.settlements.findIndex((s) => s.id === id);
+      const s = this.settlements[index];
+      this.pending.delete(id);
+      if (!s) continue;
+      this.settlements[index] = { ...s, ownerId, isSeat: false };
+      out.push(this.settlements[index]);
+    }
+    return out;
+  }
+
   async listActive(ownerId: string): Promise<Settlement[]> {
     return this.settlements
-      .filter((s) => s.ownerId === ownerId && !this.archived.has(s.id))
+      .filter((s) => s.ownerId === ownerId && !this.archived.has(s.id) && !this.pending.has(s.id))
       .sort((a, b) => Number(b.isSeat) - Number(a.isSeat));
   }
 

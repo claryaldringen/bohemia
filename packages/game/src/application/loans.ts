@@ -67,4 +67,9 @@ export interface LoanRepository extends LoanTx {
   addBreach(id: string): Promise<boolean>;
   /** Zruší živé půjčky dlužníka (vymřel bez pána); vrací jejich id. */
   cancelOfDebtor(houseId: string, at: Date): Promise<string[]>;
+  /**
+   * Pohledávky věřitele `fromHouseId` vůči dlužníkovi `debtorHouseId` přejdou na `toHouseId`
+   * (odúmrť – pohledávky vymřelého jdou s vazaly); vrací id přenesených půjček.
+   */
+  moveCredits(fromHouseId: string, debtorHouseId: string, toHouseId: string): Promise<string[]>;
 }

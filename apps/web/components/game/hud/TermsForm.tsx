@@ -572,6 +572,26 @@ function TradeRow({ item, label, onChange, context }: TermRowProps): ReactElemen
   );
 }
 
+/**
+ * Věnování dílu odúmrti (vassalage.md – Vymření rodu – odúmrť): počet vsí a vazalů dílu; řádek
+ * vzniká z rozhodnutí o odúmrti (`EscheatDialog`), ve formuláři se jen zobrazí.
+ */
+function VillageGiftRow({ item, label }: TermRowProps): ReactElement {
+  if (item.kind !== 'village-gift') return <span />;
+  return (
+    <div data-testid="term-row-village-gift" className="flex items-center gap-1">
+      <Tooltip content={label}>
+        <span tabIndex={0} aria-label={label} className="inline-flex items-center gap-1">
+          <HouseIcon name="village-key" size={20} />
+          <span className="tabular-nums">{item.villageIds.length}</span>
+          <HouseIcon name="oath" size={16} />
+          <span className="tabular-nums">{item.vassalIds.length}</span>
+        </span>
+      </Tooltip>
+    </div>
+  );
+}
+
 /** Registr řádků podle druhu podmínky. */
 export const TERM_ROWS: Record<TermItem['kind'], TermRowComponent> = {
   oath: OathRow,
@@ -584,6 +604,7 @@ export const TERM_ROWS: Record<TermItem['kind'], TermRowComponent> = {
   loan: AidRow,
   trade: TradeRow,
   stewardship: StewardshipRow,
+  'village-gift': VillageGiftRow,
 };
 
 /** Řádky podmínek (formulář i karta jednání); `onRemove` přidá křížek u řádků bez přísahy. */

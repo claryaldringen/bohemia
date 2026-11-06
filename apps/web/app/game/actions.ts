@@ -20,8 +20,14 @@ import {
   type NegotiationActionResult,
 } from '@/lib/house';
 import { answerLevyForPlayer, levyDialogsForPlayer } from '@/lib/levies';
+import {
+  consentEscheatForPlayer,
+  escheatDialogsForPlayer,
+  proposeEscheatForPlayer,
+} from '@/lib/escheats';
+import { parseConsentEscheatInput, parseProposeEscheatInput } from '@/lib/escheat-input';
 import type { HouseView } from '@/lib/house-view';
-import type { LevyDialogView, MacroSpare } from '@bohemia/game';
+import type { EscheatView, LevyDialogView, MacroSpare } from '@bohemia/game';
 import {
   parseAnswerLevyInput,
   parseBlockInput,
@@ -634,4 +640,33 @@ export async function answerLevy(
   const parsed = parseAnswerLevyInput(input);
   if (parsed === null) return { error: INVALID_INPUT };
   return answerLevyForPlayer(id, parsed);
+}
+
+/** Nerozhodnuté odúmrti hráče (dialog Odúmrť – počítá se na vyžádání). */
+export async function escheatDialogs(): Promise<{ escheats: EscheatView[] } | { error: string }> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  return escheatDialogsForPlayer(id);
+}
+
+/** Návrh dělení odúmrti: `{ escheatId, parts: [{ toHouseId, villageIds, vassalIds }] }`. */
+export async function proposeEscheat(
+  input: unknown,
+): Promise<{ ok: true; decided: boolean } | { error: string }> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const parsed = parseProposeEscheatInput(input);
+  if (parsed === null) return { error: INVALID_INPUT };
+  return proposeEscheatForPlayer(id, parsed);
+}
+
+/** Souhlas s návrhem dělení odúmrti: `{ escheatId, version }`. */
+export async function consentEscheat(
+  input: unknown,
+): Promise<{ ok: true; decided: boolean } | { error: string }> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const parsed = parseConsentEscheatInput(input);
+  if (parsed === null) return { error: INVALID_INPUT };
+  return consentEscheatForPlayer(id, parsed);
 }

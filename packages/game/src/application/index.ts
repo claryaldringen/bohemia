@@ -69,4 +69,5 @@ export * from './annual-levies';
 export * from './loans';
 export * from './loan-house-ended';
 export * from './stewardships';
+export * from './escheat';
 export * from './ennoble';

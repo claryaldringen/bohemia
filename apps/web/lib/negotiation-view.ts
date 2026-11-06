@@ -60,6 +60,8 @@ export function termRowLabel(
       return 'Obchod';
     case 'stewardship':
       return item.villageId.length > 0 ? 'Správa vsi svěřena tobě' : 'Správa vsi';
+    case 'village-gift':
+      return `Věnování z odúmrti: vsí ${item.villageIds.length}, vazalů ${item.vassalIds.length}`;
   }
 }
 

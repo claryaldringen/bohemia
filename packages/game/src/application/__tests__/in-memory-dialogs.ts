@@ -61,4 +61,10 @@ export class InMemoryDialogs implements DialogRepository {
     await Promise.resolve();
     for (const d of this.rows) if (d.refId === refId && d.status === 'open') d.status = 'dropped';
   }
+
+  async dropOpenOf(playerId: string): Promise<void> {
+    await Promise.resolve();
+    for (const d of this.rows)
+      if (d.playerId === playerId && d.status === 'open') d.status = 'dropped';
+  }
 }

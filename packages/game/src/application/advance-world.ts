@@ -96,6 +96,14 @@ export async function advancePlayer(
   const finish = (): PlayerStep => ({ ...step, ms: (deps.now?.() ?? 0) - started });
   let villageId: string | null = null;
   try {
+    // 2. krok převodu odúmrti: sídla čekající na hráče převezme pod jeho zámkem (escheat.ts)
+    const accepted = await deps.locks.tryRun(input.playerId, () =>
+      deps.settlements.acceptTransfers(input.playerId),
+    );
+    if (!accepted.ran) {
+      step.outcome = 'busy';
+      return finish();
+    }
     const { settlements, stamps } = await stampsOfPlayer(deps, input.playerId);
     const awake = stamps.filter((s) => !s.asleep);
     const oldest = Math.min(input.today, ...awake.map((s) => s.lastDay));

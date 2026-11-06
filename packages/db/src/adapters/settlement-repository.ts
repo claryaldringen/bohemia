@@ -34,8 +34,40 @@ export function createSettlementRepository(db: Database): SettlementRepository {
       const rows = await db
         .select()
         .from(settlement)
-        .where(and(eq(settlement.ownerId, ownerId), isNull(settlement.archivedAt)))
+        .where(
+          and(
+            eq(settlement.ownerId, ownerId),
+            isNull(settlement.archivedAt),
+            // čekající převod (odúmrť) – sídlo nepočítá starý ani nový držitel
+            isNull(settlement.pendingOwnerId),
+          ),
+        )
         .orderBy(desc(settlement.isSeat), asc(settlement.createdAt), asc(settlement.id));
+      return rows.map(toSettlement);
+    },
+    async transferHolder(settlementId, fromOwnerId, toOwnerId): Promise<boolean> {
+      // 1. krok převodu – podmíněný UPDATE: z více souběžných volání uspěje jedno; sídlo přestane
+      // být sídelní (vymřelý hráč dostane při novém začátku nové)
+      const rows = await db
+        .update(settlement)
+        .set({ pendingOwnerId: toOwnerId, isSeat: false })
+        .where(
+          and(
+            eq(settlement.id, settlementId),
+            eq(settlement.ownerId, fromOwnerId),
+            isNull(settlement.pendingOwnerId),
+            isNull(settlement.archivedAt),
+          ),
+        )
+        .returning({ id: settlement.id });
+      return rows.length > 0;
+    },
+    async acceptTransfers(ownerId): Promise<Settlement[]> {
+      const rows = await db
+        .update(settlement)
+        .set({ ownerId, pendingOwnerId: null, isSeat: false })
+        .where(and(eq(settlement.pendingOwnerId, ownerId), isNull(settlement.archivedAt)))
+        .returning();
       return rows.map(toSettlement);
     },
     async archive(settlementId): Promise<boolean> {

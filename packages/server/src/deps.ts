@@ -7,6 +7,7 @@ import {
   createDialogRepository,
   createLoanRepository,
   createStewardshipRepository,
+  createEscheatRepository,
   createSuccessionCreditRepository,
   createNegotiationRepository,
   createVassalageRepository,
@@ -26,6 +27,8 @@ import type {
   DialogRepository,
   LoanRepository,
   StewardshipRepository,
+  EscheatRepository,
+  DynastyDeps,
   SuccessionCreditRepository,
   NegotiationRepository,
   VassalageRepository,
@@ -107,6 +110,10 @@ export interface GameDeps {
   loans: LoanRepository;
   /** Správy cizích vsí (`docs/code/vassalage.md`). */
   stewardships: StewardshipRepository;
+  /** Odúmrti vymřelých rodů (`docs/code/vassalage.md` – Odúmrť). */
+  escheats: EscheatRepository;
+  /** Konec rodu přes `endHouse` (odúmrť) – dopočet rodu ho použije při konci hry. */
+  ending: NonNullable<DynastyDeps['ending']>;
   /** Kryptografická náhoda pro kódy pozvánek. */
   random: RandomSource;
   /** Adresář rodů – veřejný rodokmen cizích rodů (`housesNear`). */
@@ -133,22 +140,32 @@ export function createGameDeps(
   db: Database,
   options: { landscapes: LandscapeSource; pause: Pause; locks: PlayerLock },
 ): GameDeps {
+  const houses = createHouseRepository(db);
+  const vassalages = createVassalageRepository(db);
+  const negotiations = createNegotiationRepository(db);
+  const dialogs = createDialogRepository(db);
+  const loans = createLoanRepository(db);
+  const stewardships = createStewardshipRepository(db);
+  const escheats = createEscheatRepository(db);
+  const now = (): Date => new Date();
   return {
     settlements: createSettlementRepository(db),
-    houses: createHouseRepository(db),
+    houses,
     notices: createNoticeRepository(db),
     invites: createInviteRepository(db),
-    vassalages: createVassalageRepository(db),
-    negotiations: createNegotiationRepository(db),
+    vassalages,
+    negotiations,
     activity: createActivityRepository(db),
     successionCredits: createSuccessionCreditRepository(db),
     shipments: createShipmentRepository(db),
-    dialogs: createDialogRepository(db),
-    loans: createLoanRepository(db),
-    stewardships: createStewardshipRepository(db),
+    dialogs,
+    loans,
+    stewardships,
+    escheats,
+    ending: { houses, vassalages, negotiations, dialogs, loans, stewardships, escheats, now },
     random: cryptoRandom(),
     worldDirectory: createWorldDirectory(db),
-    now: () => new Date(),
+    now,
     villages: cachedVillages(createVillageRepository(db)),
     landscapes: options.landscapes,
     pause: options.pause,

@@ -361,3 +361,50 @@ villageId })` (vlastní ves → hráč sám, spravovaná cizí → `settlement.o
 - **Testy:** `domain/vassalage/__tests__/ennoble.test.ts` (pravidlo, příjezd po 1 / 3 / 10 dnech = vcelku, výcvik
   synů), `application/__tests__/ennoble.test.ts` (rok, NPC termíny, odvolání, vymření), db `claimEnnoble`, e2e
   `multiplayer.spec.ts` „povýšení vesničana“.
+
+## Vymření rodu a odúmrť (`application/escheat.ts`, `domain/vassalage/escheat.ts`, úloha 4.10)
+
+Pravidla: [vassalage.md](../design/vassalage.md) – Vymření rodu – odúmrť.
+
+- **`endHouse(deps, { houseId, day, now })`** – jediné místo konce rodu (hráčova i NPC). Volá ho
+  `closeDynastyDay` při konci hry (web i worker, pod zámkem hráče), `restartGame` (i s `abandon`) a pro NPC
+  rody `endExtinctNobles` (ves s `nobles`, kde NPC rod nemá muže po meči – `extinctNobleHouse`). Závislosti
+  přicházejí v `DynastyDeps.ending` (`createGameDeps`); bez nich se rod ukončí jako dřív.
+- **Rozběhnuté věci** (review bod 3): otevřená jednání → `ended` (`endNegotiationsOf`), všechny otevřené
+  dialogy hráče zmizí (`DialogRepository.dropOpenOf`), správy cizích vsí, které rod spravoval, skončí;
+  zásilka na cestě je ve schránce cílové vsi a dojde sama (ves drží kdokoli).
+- **Bez pána:** vazalství rodu jako pána skončí (`dropFor` jejich dialogů), dluhy zaniknou (`onHouseEnded`),
+  vsi zaniknou jako dřív (`abandonForLineEnd` v `closeDynastyDay`).
+- **NPC rod:** `onNpcHouseEnded` (správa a dohoda s pánem skončí), ves `endNobleHouse` – `nobles` zmizí,
+  ženy a dcery povýšeného bez `noble` a `line`.
+- **S pánem:** `closeDynastyDay` vsi **nezanechá** (`abandonForLineEnd` se přeskočí), `endHouse` založí
+  `Escheat` (tabulka `escheat`, migrace `0028_escheat.sql`, jedna na rod – `dead_house_id` jedinečný):
+  páni od nejstarší dohody, živé vsi, vazalové. Každá živá ves projde `escheatVillage` (ženy bez `line`,
+  správce zapnutý, `dynasty.lordId` null – vojvodu dosadí `withAwaitingLord` z rodu nového držitele),
+  správy hráčů ve vsích vymřelého skončí, každý pán dostane dialog `escheat` (`escheat:<id>:<pán>`).
+  `houses.end` je poslední krok – pád uprostřed příští konec rodu zopakuje (vše idempotentní).
+- **Převod držitele – postupně, nikdy dva zámky naráz:** sloupec `settlement.pending_owner_id`.
+  1. krok pod zámkem **starého** držitele: `SettlementRepository.transferHolder(sídlo, starý, nový)` –
+     podmíněný UPDATE (drží starý, nic nečeká), sídlo přestane být sídelní; `listActive` čekající sídlo
+     nevrací nikomu, fronta workeru (`world-queue.ts`) ho počítá u nového (`coalesce(pending, owner)`).
+  2. krok pod zámkem **nového**: `acceptTransfers(nový)` – na začátku `advancePlayer` (worker, `tryRun`)
+     a `advanceDynasty` (web); idempotentní.
+     Pád mezi kroky: sídlo čeká, nikdo ho nepočítá, nejbližší dopočet nového držitele ho převezme. Verze vsi
+     se převodem nemění – rozběhnutý dopočet vsi uloží (db test `escheat-repository.db.test.ts`).
+- **Rozhodnutí:** `escheatDialogs` (pohled `EscheatView`), `proposeEscheat` (díly `EscheatPart` po celých
+  vsích a vazalech, `checkEscheatPlan` – vsi jedné mapy spolu, odúmrť s jednou vsí vcelku, příjemce pán nebo
+  jeho vazal), `consentEscheat` (souhlas ve verzi návrhu). S jedním pánem platí hned, jinak po souhlasu
+  všech (`escheat.version` – podmíněný zápis, `decided` jednou). `applyEscheat`: vazalové přejdou od
+  vymřelého na pána dílu (`moveVassal` – nová dohoda `origin: 'escheat'` se stejnými podmínkami,
+  `LoanRepository.moveCredits`, stará skončí), vsi od technického držitele k pánovi dílu
+  (`transferVillages` – `locks.run(starý)` pak `locks.run(nový)`), věnovaný díl = jednání s řádkem
+  `village-gift` (`VillageGiftLine`, `checkVillageGiftItems`, účinek v `NEGOTIATION_EFFECTS` nic nezapisuje).
+  Přijetí → `NegotiateDeps.escheatGift` (`giveEscheatPart` po transakci, bez zámku volajícího);
+  odmítnutí → díl zůstane pánovi.
+- **Web:** `lib/escheats.ts` (composition root), akce `escheatDialogs` / `proposeEscheat` /
+  `consentEscheat` (`lib/escheat-input.ts`), `components/game/hud/EscheatDialog.tsx` – ukáže se s panelem
+  rodu, jen když hráč o odúmrti rozhoduje; u vsi a vazala volba příjemce (věnování se šipkou), pečeť =
+  navrhnout / rozhodnout, přísaha = souhlasit. Řádek `village-gift` v jednání: `TermsForm` (`VillageGiftRow`).
+- **Známé meze:** hráč, jehož vsi přešly odúmrtí, při návratu rovnou začíná znovu (obrazovka konce rodu se
+  ukáže jen v pohledu, kde rod skončil). Správa NPC ve vsi odúmrti drží `holder_house_id` vymřelého (ves
+  řídí dál NPC, zámek je u držitele mapy).
