@@ -5,6 +5,7 @@
 
 import {
   FORTIFICATIONS,
+  FORT_DAYS_PER_YEAR,
   fortBandPieces,
   fortSegments,
   fortificationCost,
@@ -15,6 +16,8 @@ import {
   segmentStands,
   villageFortifications,
   villageStock,
+  woodFellingCost,
+  type Construction,
   type FortBuildWork,
   type FortKind,
   type FortOutline,
@@ -48,11 +51,29 @@ export function missingLogsText(missing: number): string {
  */
 export interface SceneFortification extends Pick<
   Fortification,
-  'id' | 'grid' | 'cells' | 'kind' | 'top' | 'segments' | 'gates'
+  'id' | 'grid' | 'cells' | 'kind' | 'top' | 'segments' | 'gates' | 'rampartHeight'
 > {
   building: boolean;
   outline: FortPoint[];
   band: FortPoint[][];
+  /** Tvar úseků v pořadí obvodu (jádro – `fortSegments`): rovná část a oblouk rohu. */
+  shapes: Pick<FortSegmentShape, 'index' | 'line' | 'arc' | 'lengthM'>[];
+  /** Stáří a stavba úseků ve scéně – stejné pořadí jako `shapes` (fortification-layout.ts). */
+  looks: SceneFortSegment[];
+  /** Co stavba na opevnění dělá (`Construction.fortWork`); chybí – nic se nestaví. */
+  work?: FortBuildWork;
+  /** Brány zavřené (nájezd – válka, F6); chybí – v míru otevřené. */
+  gatesClosed?: true;
+}
+
+/** Úsek opevnění ve scéně: stáří (roky) a průběh jeho práce ve stavbě. */
+export interface SceneFortSegment {
+  /** Roky od dokončení úseku; null – úsek ještě nestojí. */
+  age: number | null;
+  /** Roky od dokončení nástavby valu; null – nástavba nestojí; chybí – val bez nástavby. */
+  topAge?: number | null;
+  /** Podíl práce úseku ve stavbě 0–1 (`Construction.fortSegments`); chybí – úsek se nestaví. */
+  progress?: number;
 }
 
 /** Cena práce pro tlačítko panelu – člověkodny a klády. */
@@ -128,28 +149,82 @@ export function fortShape(outline: FortOutline): Pick<SceneFortification, 'outli
   };
 }
 
-/** Opevnění vsi pro scénu; opevnění s neplatnou plochou se vynechá. */
+/** Roky mezi dnem dokončení a dnem `day`; null – nedokončeno. */
+function yearsSince(builtDay: number | null | undefined, day: number): number | null {
+  if (builtDay === null || builtDay === undefined) return null;
+  return Math.max(0, day - builtDay) / FORT_DAYS_PER_YEAR;
+}
+
+/**
+ * Podíl práce každého úseku stavby `c` 0–1 – práce jde napřed do kácení, pak do úseků jeden po
+ * druhém (`workFortification`).
+ */
+export function fortSegmentProgress(
+  c: Pick<Construction, 'done' | 'wood' | 'fortSegments'>,
+): Map<number, number> {
+  const progress = new Map<number, number>();
+  let start = woodFellingCost(c.wood);
+  for (const w of c.fortSegments ?? []) {
+    const p = w.cost > 0 ? (c.done - start) / w.cost : c.done >= start ? 1 : 0;
+    progress.set(w.index, Math.min(1, Math.max(0, p)));
+    start += w.cost;
+  }
+  return progress;
+}
+
+/** Opevnění pro scénu z jádra: tvar obvodu `outline`, vzhled úseků a co se na něm děje. */
+export function sceneFortification(
+  fort: Fortification,
+  outline: FortOutline,
+  looks: SceneFortSegment[],
+  extra: Pick<SceneFortification, 'building' | 'work' | 'gatesClosed'>,
+): SceneFortification {
+  const shapes = fortSegments(outline);
+  return {
+    id: fort.id,
+    grid: fort.grid,
+    cells: fort.cells,
+    kind: fort.kind,
+    ...(fort.top ? { top: fort.top } : {}),
+    segments: fort.segments,
+    gates: fort.gates,
+    ...(fort.rampartHeight !== undefined ? { rampartHeight: fort.rampartHeight } : {}),
+    ...fortShape(outline),
+    shapes: shapes.map(({ index, line, arc, lengthM }) => ({ index, line, arc, lengthM })),
+    looks,
+    ...extra,
+  };
+}
+
+/** Opevnění vsi pro scénu ke dni `day`; opevnění s neplatnou plochou se vynechá. */
 export function sceneFortifications(
   state: Pick<VillageState, 'fortifications' | 'constructions'>,
   landscape: Landscape,
+  day: number,
 ): SceneFortification[] {
   const result: SceneFortification[] = [];
   for (const fort of villageFortifications(state)) {
     const outline = outlineOf(landscape, fort);
     if (!outline) continue;
-    result.push({
-      id: fort.id,
-      grid: fort.grid,
-      cells: fort.cells,
-      kind: fort.kind,
-      ...(fort.top ? { top: fort.top } : {}),
-      segments: fort.segments,
-      gates: fort.gates,
-      building: state.constructions.some(
-        (c) => c.kind === 'fortification' && c.fortificationId === fort.id,
-      ),
-      ...fortShape(outline),
+    const site = state.constructions.find(
+      (c) => c.kind === 'fortification' && c.fortificationId === fort.id,
+    );
+    const progress = site ? fortSegmentProgress(site) : null;
+    const looks = fortSegments(outline).map((shape): SceneFortSegment => {
+      const s = fort.segments.find((x) => x.index === shape.index);
+      const p = progress?.get(shape.index);
+      return {
+        age: yearsSince(s?.builtDay, day),
+        ...(s && 'topBuiltDay' in s ? { topAge: yearsSince(s.topBuiltDay, day) } : {}),
+        ...(p !== undefined ? { progress: p } : {}),
+      };
     });
+    result.push(
+      sceneFortification(fort, outline, looks, {
+        building: site !== undefined,
+        ...(site?.fortWork ? { work: site.fortWork } : {}),
+      }),
+    );
   }
   return result;
 }

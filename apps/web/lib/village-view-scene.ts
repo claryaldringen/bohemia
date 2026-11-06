@@ -256,7 +256,7 @@ export function sceneVillage(
   const pens = scenePens(state, landscape, day, summary);
   const earthworks = sceneEarthworks(state, day);
   const fortifications = pathFortificationsOf(state, landscape);
-  const forts = sceneFortifications(state, landscape);
+  const forts = sceneFortifications(state, landscape, day);
   const home = wagonHome(state);
   const carts = sceneCarts(state, day, landscape, fields);
   const ploughLegs = scenePloughLegs(state, fields);
