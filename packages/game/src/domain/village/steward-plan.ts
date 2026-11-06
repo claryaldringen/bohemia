@@ -135,9 +135,10 @@ function isCurrentPlan(plan: StewardPlan | undefined): plan is StewardPlan {
 
 /**
  * Verze pravidel rozvrhu: 2 = blok domácnosti podle toho, co oseje (steward.md – Pole blízko a podle
- * práce). Plán starší verze platí, dokud se vedle něj nespočítá nový.
+ * práce); 3 = sloty hřbitova u čtverců stávajícího hřbitova (plné hřbitovy se rozšíří). Plán starší
+ * verze platí, dokud se vedle něj nespočítá nový.
  */
-export const STEWARD_PLAN_VERSION = 2;
+export const STEWARD_PLAN_VERSION = 3;
 
 /** Plán dnešního tvaru i dnešních pravidel rozvrhu (rozpracovaný přepočet starší verze se zahodí). */
 function isFreshPlan(plan: StewardPlan | undefined): plan is StewardPlan {
