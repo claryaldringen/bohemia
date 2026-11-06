@@ -1,47 +1,22 @@
 import { dateOfDayIndex } from '../calendar';
-import {
-  dailyMilk,
-  dairyDams,
-  daysUntilMilking,
-  milkEnergyBetween,
-  villageCheeseKg,
-} from './dairy';
-import {
-  DIET,
-  daysUntilMeatEnd,
-  eatDiet,
-  meatEnergy,
-  villageFoodNeed,
-  villageMeatKg,
-  villageProteinNeed,
-  type DietInput,
-  type DietResult,
-} from './diet';
-import { fieldFoodShare } from './field-food';
-import { daysUntilAppleRot } from './food';
-import { grainKeepInput } from './grain-pits';
+import { dailyMilk, dairyDams, milkEnergyBetween } from './dairy';
+import { DIET, eatDiet, meatEnergy, type DietInput, type DietResult } from './diet';
 import { breedingCows } from './husbandry';
-import { daysUntilLegumeHarvest, villageLegumesKg } from './legumes';
 import {
   HERD_SPECIES,
   LIVESTOCK,
   butcher,
   noteSlaughtered,
-  dailyEggsKg,
-  freshMeatAheadEnergy,
   isSlaughterSeason,
   pigForestHa,
   villageDams,
   villageHerds,
 } from './livestock';
-import { villageApplesKg } from './orchard';
 import { EMERGENCY_SLAUGHTER } from './rules';
+import { baseMealInput } from './meal-input';
 import { seedKeepKg, seedReserve } from './seed';
-import { sheavesOutlook } from './threshing';
 import type { ChronicleEvent, HerdSpecies, VillageState } from './types';
 import { woolSheep } from './wool';
-import { daysUntilFoodHarvest } from './year-plan';
-import { winterEstimateLosses } from './disasters';
 
 // Nouzová porážka (diet.md – Nouzová porážka; Martin 19. 10. 2026: „Ano, udělej to všechno“,
 // podrobnosti návrh Clauda). Ves, které výhled jídla do sklizně nevychází, nejdřív porazí
@@ -78,58 +53,14 @@ export function dayMealInput(
   milked: number,
   dams: Record<HerdSpecies, number> = villageDams(state),
 ): DietInput {
-  const need = villageFoodNeed(state, day);
-  const milk = dailyMilk(dams, day);
-  // ozim uživí srpen, když pokryje potřebu z pole, na kterou ves osévala (fields.md – Ozim a jař)
-  // stejný podíl jako `foodUntilHarvestKg` (seed.ts) – prahy setí a jídla se nerozejdou
-  const shares = state.diet?.shares;
-  const fieldShare = Math.max(fieldFoodShare(state), (shares?.grain ?? 0) + (shares?.legumes ?? 0));
-  const daysToHarvest = daysUntilFoodHarvest(
-    state.season,
-    state.parts,
-    day,
-    need * fieldShare,
-    // škoda zvěře a počasí, které už je vidět (disasters.md – Dopady, Úroda)
-    winterEstimateLosses(state, day),
-  );
-  // snopy, které ves vymlátí, jsou ve výhledu jako zrno (production-chains.md – Humno)
-  const sheaves = sheavesOutlook(state, day);
-  // osivo, které na setí čeká, ves nejí – jí přežívací zásobu do žní a to, co na setí nečeká
-  // (fields.md – Úroda, Osivo ze zásob)
-  const seed = seedReserve(state, seedKeepKg(state, day));
+  const base = baseMealInput(state, day, potteryCoverage, milked, dams);
+  // osivo, které na setí čeká, ves nejí – jí přežívací zásobu do žní (z téže stravy) a to, co na
+  // setí nečeká (fields.md – Úroda, Osivo ze zásob)
+  const seed = seedReserve(state, seedKeepKg(state, day, base), day);
   return {
-    grainKg: state.storesKg - seed.grain,
-    // zapečetěné obilné jámy ztrácí méně (production-chains.md – Obilné jámy)
-    ...grainKeepInput(state, potteryCoverage),
-    sheavesGrainKg: sheaves.grainKg,
-    sheavesLegumesKg: sheaves.legumesKg,
-    meatKg: villageMeatKg(state),
-    // čerstvé maso zimní porážky – dnešní a do konce zimy (diet.md – Porážka v zimě)
-    freshMeatKg: state.freshMeatKg ?? 0,
-    freshAheadEnergy: freshMeatAheadEnergy(state, day),
-    fruitKg: villageApplesKg(state),
-    cheeseKg: villageCheeseKg(state),
-    milkL: milk.liters * milked,
-    milkProteinKg: milk.proteinKg * milked,
-    milkEnergy: milk.energy * milked,
-    eggsKg: dailyEggsKg(state),
-    legumesKg: villageLegumesKg(state) - seed.legumes,
-    daysToLegumeHarvest: daysUntilLegumeHarvest(day),
-    needPerDay: need,
-    proteinNeedPerDay: villageProteinNeed(state, day),
-    daysToMilking: daysUntilMilking(day),
-    // výhled do sklizně počítá s mlékem stád (fields.md – Osev podle stravy)
-    milkAheadEnergy: milkEnergyBetween(
-      dams,
-      day + 1,
-      day + daysToHarvest - 1,
-      DIET.caps.dairy * need,
-    ),
-    daysToHarvest,
-    // jablka v nádobách od hrnčíře vydrží déle (crafts.md)
-    daysToRot: daysUntilAppleRot(day, potteryCoverage),
-    daysToMeatEnd: daysUntilMeatEnd(day),
-    potteryCoverage,
+    ...base,
+    grainKg: base.grainKg - seed.grain,
+    legumesKg: (base.legumesKg ?? 0) - seed.legumes,
   };
 }
 

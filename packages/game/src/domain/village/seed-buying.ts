@@ -35,7 +35,7 @@ function isOn(day: number, target: { month: number; day: number }): boolean {
  */
 export function seedShortKg(state: VillageState, day: number): number {
   if (!state.season) return 0;
-  const ahead = seedAheadKg(state, true);
+  const ahead = seedAheadKg(state, true, day);
   // nevymlácené snopy dají osivo výmlatem stejně jako v `seedPrepShares` – ves je nekupuje
   const sheaves = state.sheaves;
   const legumesShort = Math.max(

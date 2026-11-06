@@ -612,7 +612,7 @@ export function fieldSowingTargets(
   coverage: CraftCoverage,
   reserveSeed = true,
 ): SowingTargets {
-  const seed = reserveSeed ? seedAheadKg(state) : null;
+  const seed = reserveSeed ? seedAheadKg(state, false, day) : null;
   // osivo zakladatelů na víc osevů (FOUNDERS_STORES) jídlem není, ani když ho plán ještě nevzal
   const kept = seed ? keptSeedKg(state, day) : 0;
   return sowingTargets(

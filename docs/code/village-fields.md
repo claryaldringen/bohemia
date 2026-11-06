@@ -77,9 +77,13 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   drží 10 let pojistku 0,75 (`bufferEnergyYearsOf`, paměť hladu – [village-disasters.md](village-disasters.md)).
   Nutné díly navíc ves uvolní (`neededSelection.release` v `seasonDay` – nouzové první, pak nejdál
   od domu, ladem jako příloh – `FieldPart.fallowBeforeSeason` – nebo zpět na řadu).
-  **Díly nad potřebu** (fields.md – Osevní postup po dílech, bod 3, Martin 25. 10. 2026;
-  `surplus-fields.ts`): krok `surplusFieldDay` ve `work()` z `afterBuild.left` (práce po stavbách
-  a opravách) a ze zbylých dnů spřežení (`FieldTaskEntry.teamDays`) napřed dělá úlohy ozimu a jaře
+  **Díly nad potřebu** (fields.md – Osevní postup po dílech, bod 3, Martin 25. 10. 2026
+  a 6. 11. 2026; `surplus-fields.ts`): krok `surplusFieldDay` běží ve `work()` dvakrát –
+  `phase: 'sowing'` hned za nutnými úlohami a vozy, před rybami hladové vsi a stavbami (z `common`,
+  příprava půdy a setí plodin, jejichž okno setí dnes běží – `sowingOpenToday`, i nové díly těch
+  plodin), a `phase: 'rest'` z `afterBuild.left` (práce po stavbách a opravách; pletí, žně, odnos,
+  příprava mimo okno setí); dny spřežení předá první krok druhému (`teamDays` ve výsledku). Každý
+  krok ze zbylých dnů spřežení (`FieldTaskEntry.teamDays`) napřed dělá úlohy ozimu a jaře
   nad potřebu (`SeasonCrop.surplus` – příprava, setí, pletí, žně, odnos v pořadí jako
   `fieldTasks`), pak bere další díly na řadě s obilím (`surplusOrder` v `rotation.ts` – první
   osev, jař po ozimu, ozim po jaři; přílohy 70–95 % a nouzové ne) po jednom: nový díl plodiny
@@ -217,16 +221,22 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`fieldTasks` v `simulate-work.ts`) omezí setí na `seedSowCap` (zasetý podíl ≤ (vzaté +
   `sowableSeedKg`) / osivo plánu); po práci `takeSeed` vezme osivo zasetého podílu (obilí ze
   `storesKg` + `drawGrainPits`, luštěniny z `legumesKg`, chybějící luštěniny za obilí). Obilí nad
-  potřebu (`surplus-fields.ts`, `sowableSeedKg(…, false)`) jen z osiva, na které nutné díly
-  nečekají (`seedAheadKg(state, true)`). **Osev má přednost** (6. 11. 2026): `sowableSeedKg(state,
+  potřebu (`surplus-fields.ts`, `sowableSeedKg(…, false, day)`) jen z osiva, na které nutné díly
+  nečekají (`seedAheadKg(state, true, day)`). **Osev má přednost** (6. 11. 2026): `sowableSeedKg(state,
 store, keepKg)` = osivo jen na setí + všechno zrno nad přežívací zásobu `keepKg` = `seedKeepKg`
-  (0,9 × denní potřeba z pole × (dny do žní − `slack`), `slack` = nejnižší
-  `STARVATION.threshold` skupin ve vsi – s `reservedSeedKg` nejvýš
-  `SEED_BUYING.eatFromStarvationDays` – − `SEED_STORES.marginDays` − `starvationDays`; denní
-  potřeba a dny z `fieldNeedUntilHarvest` jako `foodUntilHarvestKg`); bez stropu podle potřeby
-  jídla. `FarmSeason.seedFloorKg` (`recordSeedPlan`: `energyFloorKg` × osivo na kg čisté úrody
+  (zásoby i snopy; `slack` = nejnižší `STARVATION.threshold` skupin ve vsi – s `reservedSeedKg`
+  nejvýš `SEED_BUYING.eatFromStarvationDays` – − `SEED_STORES.marginDays` − `starvationDays`;
+  cílový příděl 0,9 × (1 − `slack` / dny do žní), zrno na něj `grainAheadForOutlookKg` (diet.ts –
+  obrácený výhled `eatDiet` s celou ostatní stravou ze vstupu jídla `baseMealInput` v
+  `meal-input.ts`, společného s `dayMealInput`) ÷ `grainKeepPerDay` ^ ((dny + 1) / 2) – ztráty
+  skladováním do žní); `dayMealInput` předá svůj vstup, jinde se spočte s `craftCoverage(…).pottery`;
+  bez stropu podle potřeby jídla. `FarmSeason.seedFloorKg` (`recordSeedPlan`: `energyFloorKg` × osivo na kg čisté úrody
   dílů plánu) už osev neomezuje – čte ho jen `foundersSeedKeepKg`. Čekající osivo (`seedAheadKg` – nezasetý podíl
-  plánů + `FarmSeason.seedWaitingKg` vybraných dílů mimo čelo) ves nejí (`seedReserve` v
+  plánů, jejichž okno setí letos ještě neskončilo – `sowingOver(state, crop, day)`: měsíc
+  hospodářského roku po posledním měsíci okna setí, bez `springSowingExtended`; s `day` ho
+  předávají `seedReserve`, `sowableSeedKg(…, false)`, `seedShortKg`, `fieldSowingTargets`
+  a `paymentPool`, bez dne `foundersSeedKeepKg` a `winterReleaseDay` – + `FarmSeason.seedWaitingKg`
+  vybraných dílů mimo čelo) ves nejí (`seedReserve` v
   `dayMealInput`, `eat` ho vrátí do zásob) a `fieldSowingTargets` ho odečte od zásob k sklizni
   (`sowingTargets(…, seedAheadKg)`). `expectedWinterKg` odečte jen osivo, které zásoby ještě
   vezmou. Nová ves: `START_SEED_YEARS` osiva navíc.

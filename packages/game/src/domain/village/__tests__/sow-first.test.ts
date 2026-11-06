@@ -3,7 +3,19 @@ import { dayIndexOf } from '../../calendar';
 import { foundVillage, type PartInput } from '../actions';
 import { ageGroup } from '../people';
 import { SEED_STORES, STARVATION } from '../rules';
-import { foodUntilHarvestKg, seedKeepKg, seedReserve, sowableSeedKg, workSeedKg } from '../seed';
+import { craftCoverage } from '../crafts';
+import { eatDiet, grainAheadForOutlookKg, grainKeepPerDay } from '../diet';
+import { dayMealInput } from '../emergency-slaughter';
+import { baseMealInput } from '../meal-input';
+import {
+  foodUntilHarvestKg,
+  seedAheadKg,
+  seedKeepKg,
+  seedReserve,
+  sowableSeedKg,
+  sowingOver,
+  workSeedKg,
+} from '../seed';
 import { advanceVillage } from '../simulate';
 import type { VillageState } from '../types';
 import { villageYearRow } from '../year-log';
@@ -70,23 +82,86 @@ function hungerLimit(s: VillageState, day: number): number {
 describe('osev má přednost (fields.md – Osivo ze zásob; Martin 6. 11. 2026)', () => {
   const START = at(600, 9, 1);
 
-  it('přežívací zásoba: pod 90 % potřeby do žní, víc s nahromaděným hladem a s osivem jen na setí', () => {
+  it('přežívací zásoba ze stravy: příděl do žní drží hlad pod prahem, víc s hladem a s osivem jen na setí', () => {
     const s = advanceVillage(village(50_000), START, null);
     const keep = seedKeepKg(s, START);
-    const food = foodUntilHarvestKg(s, START);
     expect(keep).toBeGreaterThan(0);
-    // příděl pod STARVATION.fedFrom – ves do žní hladoví, ale jen do prahu bez rezervy
-    expect(keep).toBeLessThan(STARVATION.fedFrom * food);
-    // nahromaděný hlad ves zná – s ním si nechá víc, nad práh celých 90 %
+    // s přežívací zásobou dá výhled do žní (celá strava) příděl pod STARVATION.fedFrom – ves
+    // hladoví, ale nahromaděný hlad do žní nedojde k prahu nejcitlivější skupiny bez rezervy
+    const input = baseMealInput(s, START, craftCoverage(s, START).pottery, 1);
+    const target = STARVATION.fedFrom * (1 - hungerLimit(s, START) / input.daysToHarvest);
+    const ahead = grainAheadForOutlookKg(input, target);
+    // obrácený výhled: s tímhle zrnem dá jídlo dne právě cílový příděl
+    const grainKg = (ahead - (input.sheavesGrainKg ?? 0)) / grainKeepPerDay(input);
+    expect(eatDiet({ ...input, grainKg }).outlook).toBeCloseTo(target, 6);
+    // přežívací zásoba je větší o ztráty skladováním do žní – příděl pod plný, nad cílový
+    expect(keep).toBeGreaterThan(ahead);
+    const outlook = eatDiet({ ...input, grainKg: keep }).outlook;
+    expect(outlook).toBeLessThan(1);
+    expect(outlook).toBeGreaterThanOrEqual(target);
+    // nahromaděný hlad ves zná – s ním si nechá víc; s osivem jen na setí nejvýš do prahu, od
+    // kterého by ho ves snědla (SEED_BUYING)
     expect(seedKeepKg({ ...s, starvationDays: 6 }, START)).toBeGreaterThan(keep);
-    expect(seedKeepKg({ ...s, starvationDays: 30 }, START)).toBeCloseTo(
-      STARVATION.fedFrom * food,
-      6,
-    );
-    // s osivem jen na setí nejvýš do prahu, od kterého by ho ves snědla (SEED_BUYING)
     expect(seedKeepKg({ ...s, reservedSeedKg: 100 }, START)).toBeGreaterThan(keep);
     // ves bez lidí si nic nenechá
     expect(seedKeepKg({ ...s, people: [] }, START)).toBe(0);
+  });
+
+  it('ves s mlékem a masem si nechá méně zrna a oseje víc – hlad do žní pod prahem', () => {
+    const s = advanceVillage(village(50_000), START, null);
+    // bez stád a masa – jí jen z pole (a vejce nemá)
+    const bare = structuredClone(s);
+    delete bare.livestock;
+    bare.meatKg = 0;
+    const fed = structuredClone(s);
+    fed.meatKg = 300;
+    const keepBare = seedKeepKg(bare, START);
+    const keepFed = seedKeepKg(fed, START);
+    expect(keepFed).toBeLessThan(keepBare);
+    // zrno nad přežívací zásobu smí do země – ves s mlékem a masem ho má víc
+    const stores = keepBare + 200;
+    expect(sowableSeedKg({ ...fed, storesKg: stores }, 'grain', keepFed)).toBeCloseTo(
+      sowableSeedKg({ ...bare, storesKg: stores }, 'grain', keepBare) + keepBare - keepFed,
+      6,
+    );
+    // ves s mlékem a masem a zrnem jen na přežívací zásobu a osivo dojde do žní bez úmrtí hladem
+    const planned = advanceVillage({ ...village(0), meatKg: 300 }, START, null);
+    const floor = planned.season?.seedFloorKg ?? 0;
+    let v: VillageState = { ...planned, storesKg: seedKeepKg(planned, START) + floor };
+    let maxHunger = 0;
+    for (let day = START + 5; day <= at(601, 8, 31); day += 5) {
+      v = advanceVillage(v, day, null);
+      maxHunger = Math.max(maxHunger, v.starvationDays ?? 0);
+    }
+    expect(maxHunger).toBeLessThanOrEqual(hungerLimit(planned, START) + 1e-6);
+    const deaths = v.chronicle.filter(
+      (e) => e.day > START && e.kind === 'death' && e.cause === 'hunger',
+    );
+    expect(deaths).toEqual([]);
+  }, 120_000);
+
+  it('nezaseté osivo se po okně setí vrátí do zásob jako obyčejné zrno', () => {
+    const s = village(5_000);
+    const parts = s.parts.slice(0, 4);
+    const work = createCropWork(parts, at(600, 9, 15), 0, false, undefined, 'winter');
+    for (const p of parts) p.state = 'sown';
+    const byId = new Map(s.parts.map((p) => [p.id, p]));
+    // zaseta polovina, osivo vzato jen na ni
+    work.done.sow = work.required.sow / 2;
+    work.seedKg = workSeedKg(work, byId, 'winter') / 2;
+    s.season = { startDay: START, crops: [{ crop: 'winter', ...work }] };
+    // poslední den okna ozimu ves nezasetou polovinu nejí, den po něm ji jí
+    const lastDay = at(600, 10, 31);
+    expect(seedAheadKg(s, false, lastDay).grain).toBeCloseTo(work.seedKg, 6);
+    expect(seedReserve(s, 0, lastDay).grain).toBeCloseTo(work.seedKg, 6);
+    expect(seedAheadKg(s, false, lastDay + 1).grain).toBe(0);
+    expect(seedReserve(s, 0, lastDay + 1).grain).toBe(0);
+    expect(dayMealInput(s, lastDay + 1, 0, 1).grainKg).toBe(s.storesKg);
+    // jař: po dubnu (bez dlouhé zimy) totéž
+    expect(sowingOver(s, 'spring', at(601, 4, 30))).toBe(false);
+    expect(sowingOver(s, 'spring', at(601, 6, 1))).toBe(true);
+    expect(sowingOver(s, 'winter', at(601, 3, 1))).toBe(true);
+    expect(sowingOver(s, 'spring', at(600, 11, 1))).toBe(false);
   });
 
   it('ves s málem zrna oseje víc než dřív a nikdo do žní neumře hlady', () => {
@@ -138,7 +213,7 @@ describe('osev má přednost (fields.md – Osivo ze zásob; Martin 6. 11. 2026)
     expect(plan).toBeGreaterThan(0);
     // osivo nebylo mezí – ves ho drží nejvýš na nezasetý podíl plánů, zbytek je jídlo
     const keep = seedKeepKg(s, at(601, 5, 2));
-    expect(seedReserve(s, keep).grain).toBeLessThanOrEqual(unsown + 1e-6);
+    expect(seedReserve(s, keep, at(601, 5, 2)).grain).toBeLessThanOrEqual(unsown + 1e-6);
     expect(s.storesKg - unsown).toBeGreaterThan(keep);
   }, 120_000);
 

@@ -448,6 +448,15 @@ Seno, dvě seče).
      díly nad potřebu jen kapacitou, která zbude. **Změna proti osevu navíc:** setí až odnos
      začatého dílu nad potřebu už nemá přednost před stavbami (Martin 25. 10. 2026 – „ve chvíli,
      kdy stavba přijde, prostě vesnice o část úrody přijde“).
+     **Výjimka – okno setí (Martin 6. 11. 2026: ves „oře a zasívá, dokud trvá časové okno pro
+     orbu a zasetí, nebo dokud se neobhospodaří plocha, co se má obhospodařit, nebo dokud nedojde
+     osivo“; oprava, návrh Clauda):** ve dnech, kdy okno setí plodiny běží (ozim září–říjen, jařiny
+     březen–duben, po dlouhé zimě do 14. 5.), jde příprava půdy a setí jejích dílů nad potřebu
+     i začátek nových dílů **hned za nutnými úlohami, před stavbami** – nutné díly napřed, pak nad
+     potřebu; rozdělení na nutné a nad potřebu zůstává jen pořadím v rámci setí. Pletí, žně a odnos
+     dílů nad potřebu a podzimní příprava jaře (mimo její okno setí) jdou dál až po stavbách.
+     Stavba, která přijde v okně setí, tak počká na zbytek práce po setí – v říjnu a dubnu i stavba
+     obydlí pro novou domácnost.
      Podrobnosti (návrh Clauda, Úloha 4 plánu): díly nad potřebu jsou díly na řadě s obilím
      (první osev, jař po ozimu, ozim po jaři) – přílohy 70–95 % a nouzové ne, ať ves nevyčerpá
      přílohy, ze kterých oseje příští rok. Berou se v pořadí přílohové soustavy od domu, po
@@ -1462,13 +1471,29 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
       a nechá si **0,9 × denní potřeba z pole × (dny do žní − slack)** (nejméně 0; s hladem nad
       prahem 0,9 celé potřeby do žní). Má-li ves osivo jen na setí (níže), počítá místo prahu úmrtí
       s 5 dny, od kterých by ho snědla (SEED_BUYING.eatFromStarvationDays) – osivo jen na setí tak
-      nesní. Ves ji jí vždy; na podzim (≈ 300 dní do žní) je to ≈ 87 % potřeby z pole, na jaře
-      ≈ 82 %. Přídělem počítá, jako by jedla jen z pole – mléko, maso a ovoce jsou rezerva navíc.
+      nesní. Ves ji jí vždy.
+      **Výpočet ze stravy (oprava, návrh Clauda 6. 11. 2026):** hlad se hromadí z energie celé
+      stravy, ne jen z obilí, takže přežívací zásoba je nejmenší zrno, při kterém **celé nasycení
+      do žní** drží příděl aspoň 0,9 × (1 − `slack` / dny do žní) – obrácený výhled jídla dne
+      (`grainAheadForOutlookKg` nad stejným vstupem jako jídlo dne). Ostatní jídlo do žní bere
+      z odhadů, které výhled jídla už má: mléko stád do sklizně, sýr, maso v zásobě do zkažení
+      a čerstvé maso zimní porážky (kusy už vybrané k porážce), vejce, luštěniny v zásobě a ve
+      snopech, jablka do zkažení. Odhad nemá **maso z podzimní porážky, která teprve přijde**
+      (kusy se vyberou 1. 11.), jablka z úrody sadu, která ještě nedozrála, a ryby a zvěřina
+      (úlovek dne se nedá dopředu) – s těmi nepočítá, jsou rezerva navíc. K zrnu přidá ztráty
+      skladováním do žní (zrno leží v průměru půl doby do žní). Dřív počítala jen s potřebou
+      z pole (0,9 × denní potřeba z pole × (dny do žní − `slack`)) – mléko a maso byly rezerva navíc
+      a ves s mlékem a masem si nechala víc zrna, než potřebovala.
     - **Ostatní zrno je osivo:** smí do země bez stropu podle potřeby jídla – ves oře a seje díly
       v plánu (nutné i nad potřebu podle osevního postupu; úhor zůstává úhorem), dokud trvá okno,
       dokud díly nejsou oseté, nebo dokud osivo nedojde. Osivo bere setí v den setí dílu, takže co
-      ves nezaseje, v zásobách prostě zůstane. Díly nad potřebu (jen po stavbách) sejí jen z osiva,
-      na které nutné díly v plánu nečekají (návrh Clauda – nutné mají na osivo přednost). Dřív si
+      ves nezaseje, v zásobách prostě zůstane. Osivo, které na setí v okně ještě čeká, ves nejí;
+      **po konci okna setí plodiny** (ozim po říjnu, jařiny po dubnu, po dlouhé zimě po 14. 5.) se
+      nezaseté osivo jejího plánu vrátí do zásob jako obyčejné zrno (Martin: „Případný zbytek osiva
+      se vrátí do zásob.“ – oprava, návrh Clauda 6. 11. 2026; dřív ho ves držela až do žní). Osivo
+      jen na setí (zakladatelů, osadníků, koupené) má dál svou lhůtu. Díly nad potřebu sejí jen
+      z osiva, na které nutné díly v plánu nečekají (návrh Clauda – nutné mají na osivo přednost),
+      a v okně setí **před stavbami** (Osevní postup po dílech, bod 3). Dřív si
       ves nechávala zrno na příděl 0,5 jen pro osivo do roční potřeby z pole odhadnuté z úrody bez
       ztrát (`seedFloorKg`) a ostatní osivo jen nad celý příděl do žní (1); skutečná úroda je
       o 15–25 % nižší (sucho, zvěř, ztráty skladováním), takže ves pojistku nikdy nedoplnila

@@ -300,7 +300,7 @@ export function paymentPool(
   intoBuffer = false,
 ): PaymentPool {
   // osivo, které čeká na setí, ves nezaplatí (jako `fieldSowingTargets`)
-  const seed = seedAheadKg(state);
+  const seed = seedAheadKg(state, false, day);
   const targets = sowingTargets(
     state,
     day,

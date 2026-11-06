@@ -230,7 +230,7 @@ export function fieldTasks(
       : null;
   if (state.season !== null) {
     for (const { crop, work } of seasonCrops(state.season)) {
-      // díly nad potřebu dostanou práci až po stavbách (`surplusFieldDay`)
+      // díly nad potřebu mají vlastní krok (`surplusFieldDay` – v okně setí před stavbami)
       if (work.surplus) continue;
       // dlouhá zima drží setí jařin do 22. 3. (disasters.md – Zima)
       const held = springSowingHeld(state, day, crop);
@@ -834,6 +834,21 @@ export function work(
       target: { kind: 'water', ...water.spot },
     });
   }
+  // díly nad potřebu v okně setí (fields.md – Osevní postup po dílech, bod 3; Martin 6. 11. 2026:
+  // ves oře a seje, dokud trvá okno): příprava půdy a setí plodin, jejichž okno setí dnes běží, jdou
+  // hned za nutnými úlohami dne, před stavbami; ostatní práce dílů nad potřebu až po nich (níž)
+  const sowingSurplus = surplusFieldDay(state, day, {
+    labor: common,
+    teamDays: Math.max(
+      0,
+      ploughCap - morningTeam - owned.reduce((sum, t) => sum + (t.teamDays ?? 0), 0),
+    ),
+    ploughFactor,
+    toolCoverage: coverage.tools,
+    neededWaiting,
+    phase: 'sowing',
+  });
+  common -= sowingSurplus.labor;
   // hladovějící ves chytá ryby a zajíce hned za polními úlohami, před stavbami (wildlife.md –
   // Drobná zvěř a ryby); jinak až ze zbytku práce po dílech nad potřebu a seči navíc (níž)
   let game: SmallGameResult = { manDays: 0, shares: [] };
@@ -870,19 +885,18 @@ export function work(
     return { dwellingId: d.id, manDays };
   });
   decayEmptyDwellings(state, day, new Set(households.map((d) => d.id)));
-  // díly nad potřebu (fields.md – Osevní postup po dílech, bod 3; Martin 25. 10. 2026: „ve
-  // chvíli, kdy stavba přijde, prostě vesnice o část úrody přijde“): práce, která zbude po
-  // stavbách a opravách, jde na všechnu jejich práci na poli; páry s rádlem jen s kapacitou, která
-  // po nutné orbě zbyla (vozy ve dny orby páry neberou – oxen.md, Voli se sdílí)
+  // ostatní práce dílů nad potřebu (fields.md – Osevní postup po dílech, bod 3; Martin 25. 10.
+  // 2026: „ve chvíli, kdy stavba přijde, prostě vesnice o část úrody přijde“): práce, která zbude
+  // po stavbách a opravách, jde na pletí, žně, odnos a přípravu půdy mimo okno setí; páry s rádlem
+  // jen s kapacitou, která po nutné orbě a orbě v okně setí zbyla (vozy ve dny orby páry neberou –
+  // oxen.md, Voli se sdílí)
   const surplus = surplusFieldDay(state, day, {
     labor: freeLabor,
-    teamDays: Math.max(
-      0,
-      ploughCap - morningTeam - owned.reduce((sum, t) => sum + (t.teamDays ?? 0), 0),
-    ),
+    teamDays: sowingSurplus.teamDays,
     ploughFactor,
     toolCoverage: coverage.tools,
     neededWaiting,
+    phase: 'rest',
   });
   // seč navíc pro růst stád (oxen.md – Seno, dvě seče; Martin 19. 10. 2026: „pokud se něco staví,
   // tak čas věnují primárně té stavbě“): jen z práce, která zbude po stavbách, opravách a dílech
@@ -980,8 +994,8 @@ export function work(
           },
         }
       : {}),
-    fieldWork: [...fieldWork, ...surplus.fieldWork],
-    surplusField: surplus.labor,
+    fieldWork: [...fieldWork, ...sowingSurplus.fieldWork, ...surplus.fieldWork],
+    surplusField: sowingSurplus.labor + surplus.labor,
     ...(game.manDays > 0 ? { smallGame: game.shares } : {}),
     ...(extraMow > EPSILON ? { extraMow } : {}),
     ...(weeders.length > 0 ? { weedChildAges: weeders } : {}),
