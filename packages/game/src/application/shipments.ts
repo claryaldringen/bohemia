@@ -9,6 +9,7 @@ import {
 import { isVillageAbandoned, isVillageExtinct, type ShipmentBody } from '../domain/village';
 import type { Direction8 } from '../domain/village';
 import { GRID_STEPS, OPPOSITE } from '../domain/village/world-grid';
+import { TOTAL_GAME_DAYS } from '../domain/calendar';
 import { cellDistance } from '../domain/world/placement';
 import type { PlayerLock } from './locks';
 import type { SettlementRepository } from './settlements';
@@ -29,8 +30,8 @@ import type { VillageRecord, VillageRepository } from './villages';
 
 /** Kolikrát se zkusí verzovaný zápis vsi při souběžné změně. */
 const SAVE_ATTEMPTS = 5;
-/** Dostatečně vzdálený den pro „všechny nespotřebované události“. */
-const FAR_DAY = Number.MAX_SAFE_INTEGER;
+/** Dostatečně vzdálený den pro „všechny nespotřebované události“ – konec světa (vejde se do DB). */
+const FAR_DAY = TOTAL_GAME_DAYS;
 
 /** Řádek zásilky (tabulka `shipment`). */
 export interface ShipmentRecord {

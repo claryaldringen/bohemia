@@ -117,6 +117,14 @@ describe('VillageInbox (Drizzle)', () => {
     // levá mez je otevřená, pravá uzavřená
     expect(await names(lastDay + 1, lastDay + 2)).toEqual(['b']);
     expect(await names(lastDay, lastDay)).toEqual([]);
+    // meze mimo rozsah sloupce (od počátku / navždy) se oříznou – Postgres je neodmítne
+    expect(await names(Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER)).toEqual([
+      'a',
+      'b',
+      'c',
+      'd',
+      'z',
+    ]);
   });
 
   it('neznámá ves je chyba a nic nezapíše', async () => {

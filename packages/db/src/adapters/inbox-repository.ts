@@ -9,6 +9,15 @@ function toEvent(row: InboxRow): VillageEvent {
   return { id: row.id, villageId: row.villageId, day: row.day, seq: row.seq, body: row.body };
 }
 
+/** Rozsah sloupce `day` (integer) – mez dotazu mimo něj by Postgres odmítl. */
+const INT_MIN = -2_147_483_648;
+const INT_MAX = 2_147_483_647;
+
+/** Mez dne v dotazu oříznutá do rozsahu sloupce (volající smí poslat „od počátku“ / „navždy“). */
+function dayBound(day: number): number {
+  return Math.min(INT_MAX, Math.max(INT_MIN, Math.trunc(day)));
+}
+
 /**
  * Drizzle adaptér portu VillageInbox. `post` je jedna transakce: zamkne řádek vsi (`FOR UPDATE`),
  * vloží událost ve dni `max(day, last_day + 1)` a zvedne `version` i `digest_version` – rozběhnutý
@@ -55,8 +64,8 @@ export function createInboxRepository(db: Database): VillageInbox {
         .where(
           and(
             eq(villageInbox.villageId, villageId),
-            gt(villageInbox.day, afterDay),
-            lte(villageInbox.day, toDay),
+            gt(villageInbox.day, dayBound(afterDay)),
+            lte(villageInbox.day, dayBound(toDay)),
           ),
         )
         .orderBy(asc(villageInbox.day), asc(villageInbox.seq));
