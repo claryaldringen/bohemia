@@ -1,4 +1,6 @@
 import {
+  cutsWall,
+  GATE_SLACK_M,
   PATH_WALK,
   routeLine,
   walkGraph,
@@ -9,6 +11,7 @@ import {
   type WalkGround,
   type WalkingRoute,
   type WalkRoad,
+  type WalkWalls,
 } from '@bohemia/game';
 import type { VillagerPaths } from './villager-plan-types';
 
@@ -17,7 +20,8 @@ import type { VillagerPaths } from './villager-plan-types';
 // postavy týmž modelem jako odhad simulace (`walkingRoute` z jádra) – kratší z rovně a rovně
 // k síti, po pěšinách stálých tras a pevných cestách a rovně k cíli. Trasa domácnosti, která
 // začíná u brány a končí u cíle, má přednost (`route`). Osa trasy se dekóduje stejnou funkcí jádra
-// jako pěšiny (`routeLine`). Po pěšině a cestě se chodí rychleji. Jen vzhled.
+// jako pěšiny (`routeLine`). Po pěšině a cestě se chodí rychleji. Stěnou opevnění se jde jen
+// branou (půda chůze nese stěny – `withFortWalk`; fortifications.md – Brány). Jen vzhled.
 
 /** Z takové dálky (m) od začátku trasy (brány domu) vyjde postava na trasu. */
 const START_REACH_M = 30;
@@ -28,6 +32,18 @@ interface WalkedRoute {
   readonly route: StoredRoute;
   readonly home: string;
   readonly points: readonly (readonly [number, number])[];
+  /** Osa trasy jde stěnou opevnění mimo bránu (spočítá se při prvním dotazu). */
+  cutsWall?: boolean;
+}
+
+/** Jde osa `points` stěnou mimo bránu (osa stálé trasy s rezervou u brány – `GATE_SLACK_M`)? */
+function axisCutsWall(walls: WalkWalls, points: readonly (readonly [number, number])[]): boolean {
+  for (let i = 1; i < points.length; i++) {
+    const [ax, az] = points[i - 1]!;
+    const [bx, bz] = points[i]!;
+    if (cutsWall(walls, { x: ax, z: az }, { x: bx, z: bz }, GATE_SLACK_M)) return true;
+  }
+  return false;
 }
 
 type Found = ReturnType<VillagerPaths['route']>;
@@ -71,6 +87,9 @@ export function routeWalker(
     });
   }
   const memo = new Map<string, Found>();
+  // půda chůze (krajina, pole, stěny opevnění) se staví až při prvním dotazu
+  let ground: WalkGround | null | undefined;
+  const groundOf = (): WalkGround | null => (ground ??= network.ground?.() ?? null);
   const dist = (p: readonly [number, number], x: number, z: number): number =>
     Math.hypot(p[0] - x, p[1] - z);
   const find = (
@@ -96,6 +115,18 @@ export function routeWalker(
         const mine = dwellingId !== undefined && w.home === `d:${dwellingId}`;
         const current = mine ? own : other;
         if (current && current.cost <= cost) continue;
+        // stěnou opevnění jen branou – odbočky na trasu a z ní rovně ani osa trasy jinudy
+        const walls = groundOf()?.walls;
+        if (walls) {
+          w.cutsWall ??= axisCutsWall(walls, w.points);
+          if (
+            w.cutsWall ||
+            cutsWall(walls, a, { x: from[0], z: from[1] }) ||
+            cutsWall(walls, { x: to[0], z: to[1] }, b)
+          ) {
+            continue;
+          }
+        }
         const pick = { points: reversed ? [...w.points].reverse() : w.points, cost };
         if (mine) own = pick;
         else other = pick;
@@ -119,8 +150,6 @@ export function routeWalker(
   // (bez ní osy tras plnou silou) a pevné cesty, rovně po půdě krajiny a polí – jako simulace;
   // graf i půda se staví až při prvním dotazu
   let graph: WalkGraph | null = null;
-  let ground: WalkGround | null | undefined;
-  const groundOf = (): WalkGround | null => (ground ??= network.ground?.() ?? null);
   const graphOf = (): WalkGraph =>
     (graph ??= walkGraph(
       network.lines ??

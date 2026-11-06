@@ -1160,6 +1160,13 @@ nespadne“. Model návrh Clauda:
   sejít z pěšiny šikmo dřív nebo později, vyjde o kus déle. Vlkov (3 783 dílů, přepočet
   `routes-v10`): medián +1,5 % (+4 m), 90 % dílů do +8 % (+26 m), nejvíc +22 % (+88 m),
   průměr 336 → 345 m; voda z obydlí medián +0,3 %, okraj lesa 8 z 10 obydlí beze změny.
+- **Opevnění jen branou** (6. 11. 2026 – pravidlo fortifications.md, Martin 6. 11. 2026: obvod
+  blokuje chodce kromě bran; oprava podle Martina 6. 11. 2026: „někteří lidi procházejí
+  palisádou“): úsečka rovně ani úsek pěšiny či cesty stěnou mimo bránu nejde – úsek cesty, který
+  stěnu protne kousek vedle brány, jde středem brány, jinak se přes stěnu „leze“ s přirážkou
+  1 000 m (návrh Clauda – chodec ji vezme, jen když jinudy nejde: kout mezi stěnami bez brány).
+  Osa pěšiny smí u otvoru brány zasáhnout do stěny nejvýš 1 m (jde středy buněk brány – návrh
+  Clauda). Platí stejně pro odhad simulace i postavy ve scéně.
 - **Svah jen pro vůz, levně:** kus úsečky (dvě buňky) se sklonem do poloviny meze (`maxGrade`
   10 %) stojí × (1 + 4 · (sklon / mez)²) jako ve vozové síti; prudší kus stojí nejvýš jako
   serpentiny se sklonem poloviny meze – vůz rovně do srázu nevyjede, ale objede ho. Po pevné cestě
