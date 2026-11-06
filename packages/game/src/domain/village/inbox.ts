@@ -4,7 +4,8 @@
 // dopočítá – události dne patří k tomu dni, ne k dopočtu.
 
 import { settleAppointee, type AppointeeParty } from './appoint-lord';
-import type { ChronicleEvent, VillageState } from './types';
+import { receiveShipment } from '../vassalage/shipment';
+import type { ChronicleEvent, ShipmentBody, VillageState } from './types';
 
 /**
  * Tělo události schránky – diskriminovaná unie podle `kind`. Další druhy přidají pozdější
@@ -17,7 +18,12 @@ export type VillageEventBody =
    * Dosazený vojvoda z jiné vsi rodu dorazil s rodinou a jídlem (seniorate.md – dosazení vojvody;
    * `settleAppointee`). Ves, která mezitím vojvodu má, družinu přijme jako ostatní muže rodu.
    */
-  | { kind: 'lord-arrives'; party: AppointeeParty; fromVillageId: string };
+  | { kind: 'lord-arrives'; party: AppointeeParty; fromVillageId: string }
+  /**
+   * Zásilka od jiného hráče dorazila (vassalage.md – Doprava a cílová ves; `receiveShipment`) –
+   * zboží, dobytek a lidé z jiné vsi, v cílové dostanou nová místní id.
+   */
+  | { kind: 'shipment'; shipment: ShipmentBody };
 
 /**
  * Událost ve schránce vsi `villageId`. `day` = herní den, na jehož začátku se použije (nikdy ne
@@ -58,6 +64,8 @@ function applyEvent(state: VillageState, day: number, body: VillageEventBody): C
       return [{ ...structuredClone(body.event), day }];
     case 'lord-arrives':
       return settleAppointee(state, day, structuredClone(body.party));
+    case 'shipment':
+      return receiveShipment(state, day, structuredClone(body.shipment));
     default:
       return unknownBody(body);
   }

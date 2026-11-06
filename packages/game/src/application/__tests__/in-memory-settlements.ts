@@ -98,6 +98,12 @@ export class InMemorySettlements implements SettlementRepository {
     );
   }
 
+  async find(settlementId: string): Promise<Settlement | null> {
+    await Promise.resolve();
+    const found = this.settlements.find((s) => s.id === settlementId);
+    return found && !this.archived.has(settlementId) ? found : null;
+  }
+
   async assignWorldCell(settlementId: string, cell: WorldCell): Promise<Settlement | null> {
     await Promise.resolve();
     const index = this.settlements.findIndex((s) => s.id === settlementId);

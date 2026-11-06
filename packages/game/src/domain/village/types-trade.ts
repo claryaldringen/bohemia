@@ -2,7 +2,7 @@
 // Rozcestník je `types.ts`; tento soubor jen drží část typů.
 
 import type { TradedHorse } from './types-livestock';
-import type { Sex } from './types-people';
+import type { Person, Sex } from './types-people';
 import type { Direction8 } from './types-state';
 
 /**
@@ -115,6 +115,19 @@ export interface NeighbourPeople {
  */
 export interface TradeExpedition {
   id: number;
+  /**
+   * Druh výpravy: `'shipment'` = zásilka do vsi jiného hráče (vassalage.md – Doprava a cílová
+   * ves; `dispatchShipment`) – nosiči a honáci se vrátí bez zboží, zboží a lidé dojdou schránkou
+   * cílové vsi. Chybí = obchod se sousedem. Zásilka nemá stezku (`trailId` −1).
+   */
+  kind?: 'shipment';
+  /** Zásilka: kolik políček mapy světa výprava urazí a kam první krok (karavana ve scéně). */
+  destination?: { cells: number; firstStep: Direction8 };
+  /**
+   * Zásilka: id řádku `shipment` v databázi (application/shipments.ts) – značka, že zboží už ze
+   * vsi odešlo; obnova po pádu podle ní pozná, že zásilku stačí dopsat do schránky.
+   */
+  shipmentId?: string;
   direction: Direction8;
   trailId: number;
   startedDay: number;
@@ -201,3 +214,47 @@ export interface VillageTrade {
 }
 
 // --- pevné cesty (roads.md) ------------------------------------------------------------------
+
+/**
+ * Co zásilka veze (kronika, souhrn): obilí a seno (kg), klády, dobytek po druzích, koně (kusy)
+ * a lidé (rodiny, muži, ženy).
+ */
+export interface ShipmentManifest {
+  grainKg: number;
+  hayKg: number;
+  logs: number;
+  cattle: Record<CattleGood, number>;
+  horses: number;
+  people: TradePeople;
+}
+
+/**
+ * Tělo události schránky `shipment` (vassalage.md – Doprava a cílová ves; plán – rozhodnutí 10):
+ * zboží a lidé, kteří dojdou do cílové vsi. Koně putují jako kusy s věkem a výcvikem, lidé jako
+ * skuteční lidé ve skupinách (rodina, svobodný muž či žena) – stejní, jen s novými místními id
+ * (`rehomePeople`). `key` je id zásilky, `direction` odkud přišli (odkud je odesílatel, vzhledem
+ * k cílové vsi).
+ */
+export interface ShipmentBody {
+  key: string;
+  fromVillageId: string;
+  fromName: string;
+  direction: Direction8;
+  /** K čemu zásilka slouží (dávka, dar, půjčka…) – jen popisek do kroniky. */
+  purpose?: string;
+  /** Zásilka se vrací odesílateli (cíl zanikl) – kronika to řekne. */
+  returned?: true;
+  grainKg: number;
+  hayKg: number;
+  logs: number;
+  cattle: Record<CattleGood, number>;
+  horses: TradedHorse[];
+  /** Skupiny lidí s původními údaji (id patří vsi odesílatele). */
+  groups: ShipmentGroup[];
+}
+
+/** Skupina lidí v zásilce – rodina, nebo svobodný muž či žena. */
+export interface ShipmentGroup {
+  kind: NewcomerGroup;
+  people: Person[];
+}

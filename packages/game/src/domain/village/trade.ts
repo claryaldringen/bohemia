@@ -400,7 +400,9 @@ export function expeditionTo(
   state: Pick<VillageState, 'trade'>,
   direction: Direction8,
 ): TradeExpedition | null {
-  return state.trade?.expeditions.find((e) => e.direction === direction) ?? null;
+  return (
+    state.trade?.expeditions.find((e) => e.kind !== 'shipment' && e.direction === direction) ?? null
+  );
 }
 
 /**
@@ -691,6 +693,8 @@ export function workExpeditions(
     if (take <= 0) continue;
     e.done += take;
     left -= take;
+    // zásilka do vsi jiného hráče nejde po stezce k sousedovi – do podílů po stezkách nepatří
+    if (e.kind === 'shipment') continue;
     shares.push({
       trailId: e.trailId,
       manDays: take,
@@ -710,6 +714,9 @@ export function finishExpeditions(state: VillageState, day: number): ChronicleEv
   const events: ChronicleEvent[] = [];
   trade.expeditions = trade.expeditions.filter((e) => {
     if (e.done + EPSILON < e.cost) return true;
+    // zásilka (vassalage.md – Doprava a cílová ves): nosiči se vrátili bez zboží, to dojde
+    // schránkou cílové vsi
+    if (e.kind === 'shipment') return false;
     for (const [g, n] of entries(e.get)) addGood(state, g, n, day);
     // koně po kusech do ohrad koní (horse-trade.ts)
     addHorses(state, e.horses ?? [], day);

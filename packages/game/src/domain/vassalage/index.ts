@@ -4,3 +4,4 @@ export * from './spare';
 export * from './transport';
 export * from './tree';
 export * from './terms';
+export * from './shipment';

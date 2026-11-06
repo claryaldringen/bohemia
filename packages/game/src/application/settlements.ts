@@ -32,6 +32,8 @@ export interface Settlement {
  */
 export interface SettlementRepository {
   findSeat(ownerId: string): Promise<Settlement | null>;
+  /** Aktivní sídlo podle id (zásilky a další akce mezi hráči); archivované nebo neznámé null. */
+  find(settlementId: string): Promise<Settlement | null>;
   /** Aktivní sídla hráče – sídelní první, pak podle založení. */
   listActive(ownerId: string): Promise<Settlement[]>;
   /**

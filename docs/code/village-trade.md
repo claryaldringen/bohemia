@@ -98,6 +98,8 @@ směr)` – stálá povaha podle druhu souseda (`neighbourKind` – obilnáři, 
   `full` / `slow` / `waiting` / `starting` z podílu `trade` v rozdělení práce dne; `slow`
   a `waiting` jen výjimečně – málo dospělých, přesýpací hodiny „Výprava stojí“ / „Málo
   dospělých“); u práce kolik vozy ušetří (`savedManDays`).
+  – **zásilka do vsi jiného hráče** (`TradeExpedition.kind = 'shipment'`, bez stezky, bez návratu
+  zboží) je táž výprava s jinou událostí na konci: `docs/code/vassalage.md` – Zásilky mezi vsemi hráčů.
 
 - **Jen společné suroviny** (trade.md – Jen společné suroviny; Martin 19. 10. 2026: „Nech jen
   společné suroviny, nezaváděj nové.“): obchod zná jen zboží, které má i ves (`TradeGood` – obilí,

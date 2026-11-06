@@ -511,7 +511,7 @@ export function lordRides(state: VillageState, day: number): LordRides | null {
   const rank = (r: { riderId: number }): number => (r.riderId === lordId ? 0 : 1);
   riders.sort((a, b) => rank(a) - rank(b) || a.bornDay - b.bornDay || a.riderId - b.riderId);
   const leaving = (state.trade?.expeditions ?? [])
-    .filter((e) => e.startedDay === day)
+    .filter((e) => e.kind !== 'shipment' && e.startedDay === day)
     .sort((a, b) => a.id - b.id)[0];
   const escortRider = leaving ? (riders.find((r) => rank(r) === 1) ?? riders[0]) : undefined;
   const ride = ({ riderId, horseId, training, hours }: LordRide): LordRide => ({

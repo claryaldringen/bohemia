@@ -13,6 +13,7 @@ import type { Direction8 } from './types-state';
 import type {
   CraftPurchaseGoods,
   CraftPurchasePay,
+  ShipmentManifest,
   NewcomerGroup,
   TradeGoods,
   TradePeople,
@@ -48,6 +49,19 @@ export type ChronicleEvent = { day: number } & (
    * dosazení vojvody); píše se ve vsi, odkud odešel.
    */
   | { kind: 'lord-sent'; villageName: string; name?: string }
+  /**
+   * Zásilka vyrazila do vsi `villageName` jiného hráče (vassalage.md – Doprava a cílová ves) –
+   * co veze; `purpose` = popisek (dávka, dar…).
+   */
+  | { kind: 'shipment-sent'; villageName: string; goods: ShipmentManifest; purpose?: string }
+  /** Zásilka z vsi `villageName` dorazila (do vsi, nebo zpět odesílateli – `returned`). */
+  | {
+      kind: 'shipment-received';
+      villageName: string;
+      goods: ShipmentManifest;
+      purpose?: string;
+      returned?: true;
+    }
   /**
    * Do vsi, která už vojvodu má, přišel z jiné vsi rodu muž `name` s rodinou (dosazení vojvody
    * přišlo pozdě) – žije v dvorci jako ostatní muži rodu.

@@ -10,3 +10,4 @@ export * from './vassalage';
 export * from './player-activity';
 export * from './succession-credit';
 export * from './negotiation';
+export * from './shipment';

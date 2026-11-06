@@ -20,6 +20,7 @@ import {
   type CraftStocks,
   type Direction8,
   type NewcomerGroup,
+  type ShipmentManifest,
   type TradeGoods,
   type TradePeople,
   type DwellingType,
@@ -302,6 +303,25 @@ function tradeTripText(
   return `${lead} – ${carry} ${goodsText(goods)}; ${withThem} ${who}.`;
 }
 
+/** Co zásilka veze: „150 kg obilí, 3 krávy a 1 rodina“ (vassalage.md – Doprava a cílová ves). */
+function shipmentText(goods: ShipmentManifest): string {
+  const cattle = goods.cattle.cows + goods.cattle.youngOxen + goods.cattle.trainedOxen;
+  const parts = [
+    goods.grainKg > 0 ? `${formatInteger(goods.grainKg)} kg obilí` : '',
+    goods.hayKg > 0 ? `${formatInteger(goods.hayKg)} kg sena` : '',
+    goods.logs > 0
+      ? `${formatInteger(goods.logs)} ${plural(goods.logs, 'kláda', 'klády', 'klád')}`
+      : '',
+    cattle > 0 ? `${formatInteger(cattle)} ks dobytka` : '',
+    goods.horses > 0
+      ? `${formatInteger(goods.horses)} ${plural(goods.horses, 'kůň', 'koně', 'koní')}`
+      : '',
+    peopleText(goods.people),
+  ].filter((p) => p !== '');
+  if (parts.length <= 1) return parts[0] ?? 'nic';
+  return `${parts.slice(0, -1).join(', ')} a ${parts[parts.length - 1]}`;
+}
+
 /** Věta kroniky o lidech od souseda: „Ze severu přišla rodina – 4 lidé.“ */
 function newcomerText(direction: Direction8, group: NewcomerGroup, people: number): string {
   const from = DIRECTION_NAMES[direction].from;
@@ -364,6 +384,12 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return event.name === undefined
         ? `Muž rodu odešel vládnout do vsi ${event.villageName}.`
         : `${event.name} odešel vládnout do vsi ${event.villageName}.`;
+    case 'shipment-sent':
+      return `Zásilka vyrazila${event.villageName === '' ? '' : ` do vsi ${event.villageName}`} – ${shipmentText(event.goods)}.`;
+    case 'shipment-received':
+      return event.returned
+        ? `Zásilka se vrátila z vsi ${event.villageName} – ${shipmentText(event.goods)}.`
+        : `Zásilka ${event.villageName === '' ? '' : `z vsi ${event.villageName} `}dorazila – ${shipmentText(event.goods)}.`;
     case 'line-arrived':
       return event.name === undefined
         ? 'Z jiné vsi rodu přišel muž s rodinou.'

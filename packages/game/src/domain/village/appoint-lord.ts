@@ -16,6 +16,7 @@ import { villageManorId } from './manor';
 import { ageYears } from './people';
 import { APPOINT_LORD } from './rules-lord';
 import { successorOf } from './succession';
+import { ARRIVAL_HOME, rehomePeople } from './transfer-people';
 import type { ChronicleEvent, Person, VillageState } from './types';
 
 /** Odkaz na osobu ve vsi (stejný tvar jako `PersonRef` rodů). */
@@ -165,9 +166,6 @@ export function departAppointee(
   return { state: next, party };
 }
 
-/** Dočasné obydlí příchozích, než je `moveIntoManor` přesune do dvorce. */
-const ARRIVAL_HOME = -1;
-
 /**
  * Družina dorazila do vsi (mutuje stav): lidé dostanou nová místní id (`nextId`), vazby uvnitř
  * družiny se převedou, rodiče mimo družinu se zapomenou (jejich id patří jiné vsi), jídlo se přidá
@@ -182,24 +180,7 @@ export function settleAppointee(
   day: number,
   party: AppointeeParty,
 ): ChronicleEvent[] {
-  const ids = new Map<number, number>();
-  for (const p of [...party.people].sort((a, b) => a.id - b.id)) ids.set(p.id, state.nextId++);
-  const mapped = (id: number | undefined): number | undefined =>
-    id === undefined ? undefined : ids.get(id);
-  const arrivals: Person[] = party.people.map((p) => {
-    const { motherId, fatherId, spouseId, ...rest } = structuredClone(p);
-    const mother = mapped(motherId);
-    const father = mapped(fatherId);
-    const spouse = mapped(spouseId);
-    return {
-      ...rest,
-      id: ids.get(p.id)!,
-      dwellingId: ARRIVAL_HOME,
-      ...(mother === undefined ? {} : { motherId: mother }),
-      ...(father === undefined ? {} : { fatherId: father }),
-      ...(spouse === undefined ? {} : { spouseId: spouse }),
-    };
-  });
+  const { arrivals, idMap: ids } = rehomePeople(state, party.people);
   state.people.push(...arrivals);
   const manId = ids.get(party.manId)!;
   const man = state.people.find((p) => p.id === manId)!;

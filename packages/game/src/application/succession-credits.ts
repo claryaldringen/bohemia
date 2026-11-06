@@ -3,6 +3,7 @@ import type { ActivityRepository } from './activity';
 import type { HouseRepository } from './houses';
 import type { InviteRepository } from './invites';
 import type { NoticeRepository } from './notices';
+import { reconcileShipments, type ShipmentDeps } from './shipments';
 
 /** Port kreditů nástupnictví bez losu (vassalage.md – Pozvaný jako vazal). */
 export interface SuccessionCreditRepository {
@@ -50,10 +51,17 @@ export async function grantSuccessionCredits(
   return granted;
 }
 
-/** Úlohy světa, které worker pouští jednou za minutu mezi koly (zatím jen kredity). */
+/** Závislosti úloh světa; `shipments` jen tam, kde se zásilky obnovují (worker). */
+export type WorldTaskDeps = SuccessionCreditDeps & { shipments?: ShipmentDeps };
+
+/**
+ * Úlohy světa, které worker pouští jednou za minutu mezi koly: kredity nástupnictví a obnova
+ * zásilek po pádu (`reconcileShipments`).
+ */
 export async function runWorldTasks(
-  deps: SuccessionCreditDeps,
+  deps: WorldTaskDeps,
   input: { now: Date; today: number },
 ): Promise<void> {
   await grantSuccessionCredits(deps, input);
+  if (deps.shipments) await reconcileShipments(deps.shipments, input.today);
 }

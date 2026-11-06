@@ -80,6 +80,14 @@ export function createSettlementRepository(db: Database): SettlementRepository {
         r.x === null || r.y === null ? [] : [{ ownerId: r.ownerId, cell: { x: r.x, y: r.y } }],
       );
     },
+    async find(settlementId): Promise<Settlement | null> {
+      const [row] = await db
+        .select()
+        .from(settlement)
+        .where(and(eq(settlement.id, settlementId), isNull(settlement.archivedAt)))
+        .limit(1);
+      return row ? toSettlement(row) : null;
+    },
     async assignWorldCell(settlementId, cell): Promise<Settlement | null> {
       // Jen sídlu bez polohy (podmíněný UPDATE) – souběžná volání ho neposunou dvakrát.
       await db
