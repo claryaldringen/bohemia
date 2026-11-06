@@ -167,7 +167,10 @@ export async function getVillageView(
   if (id === null) return { error: NOT_SIGNED_IN };
   // Hráč bez vsi (jen sídlo): upozornění mu dojdou i tak, bez pohledu na ves.
   if (result === null) {
-    return { noVillage: true, playerNotices: await gameDeps().notices.takeUnread(id, NOTICE_BATCH) };
+    return {
+      noVillage: true,
+      playerNotices: await gameDeps().notices.takeUnread(id, NOTICE_BATCH),
+    };
   }
   // Doručení = vyzvednutí a označení za přečtená naráz. Výsledek se kopíruje – objekt z dopočtu
   // se nikdy nedoplňuje (mohl by být sdílený).
