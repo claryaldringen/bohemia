@@ -448,6 +448,12 @@ export interface VillageState {
    */
   awaitingLord?: AwaitingLord;
   /**
+   * Muži rodu, kteří do vsi přišli z jiné vsi rodu a dostali nové místní id (dosazení vojvody,
+   * postoupení vsi) – podle toho hráčův rod najde svého muže (`followLineMoves`). Nejnovější
+   * poslední, zachovává se `LINE_MOVES_KEPT` záznamů.
+   */
+  lineMoves?: LineMove[];
+  /**
    * Ves řídí povýšený vesničan (vassalage.md – Povýšení vesničana): NPC rod `houseId` a číslo jeho
    * hlavy ve vsi. Ves dál patří hráči, rod hráče v ní nemá své muže (senior ani dosazení vojvody ji
    * nepočítá). Chybí – ves řídí rod hráče.
@@ -473,6 +479,14 @@ export interface DynastyState {
   lords: LordRecord[];
   /** Den, kdy rod vymřel po meči (lord.md – Konec rodu); chybí – rod žije. */
   endedDay?: number;
+}
+
+/** Přesun muže rodu do vsi: odkud (ves a číslo osoby) a pod jakým číslem tu žije. */
+export interface LineMove {
+  fromVillageId: string;
+  fromPersonId: number;
+  personId: number;
+  day: number;
 }
 
 /** Čekání vsi bez muže rodu na vojvodu z jiné vsi (`VillageState.awaitingLord`). */

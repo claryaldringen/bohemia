@@ -4,6 +4,7 @@ import type { LoanTx } from './loans';
 import type { StewardshipTx } from './stewardships';
 import type { VassalageRepository } from './vassalages';
 import type { WarTx } from './wars';
+import type { MacroBundle } from '../domain/vassalage';
 
 /** Stav jednání v úložišti: doménové stavy a `ended` (rod vymřel, vazalství už nelze uzavřít). */
 export type StoredNegotiationStatus = Negotiation['status'] | 'ended';
@@ -69,7 +70,36 @@ export interface NegotiationTx {
   wars: WarTx;
 }
 
+/** Tribut z přijatého míru (war.md – Konec války): opakovaná platba bez vazalství, chodí 1. 11. */
+export interface PeaceTribute {
+  negotiationId: string;
+  payerHouseId: string;
+  recipientHouseId: string;
+  goods: MacroBundle;
+  /** Kdy se mír přijal – první Odvody jsou až 1. 11. po tomto dni. */
+  acceptedAt: Date;
+}
+
 /** Port repozitáře jednání: vše běží v transakci, účinky přijetí ve stejné. */
 export interface NegotiationRepository {
+  /** Přijatá mírová jednání s tributem (poslední kolo); výchozí zdroj ročních Odvodů tributu. */
+  peaceTributes(): Promise<PeaceTribute[]>;
   transaction<T>(fn: (tx: NegotiationTx) => Promise<T>): Promise<T>;
+}
+
+/** Tribut z posledního kola přijatého jednání (null – kolo mírový tribut nenese). */
+export function peaceTributeOf(record: NegotiationRecord): PeaceTribute | null {
+  if (record.status !== 'accepted' || record.resolvedAt === null) return null;
+  const items = record.rounds[record.rounds.length - 1]?.items ?? [];
+  const line = items.find((i) => i.kind === 'peace');
+  if (!line || line.kind !== 'peace' || !line.tribute) return null;
+  const { goods, payer } = line.tribute;
+  return {
+    negotiationId: record.id,
+    payerHouseId: payer,
+    recipientHouseId:
+      payer === record.initiatorHouseId ? record.recipientHouseId : record.initiatorHouseId,
+    goods,
+    acceptedAt: record.resolvedAt,
+  };
 }

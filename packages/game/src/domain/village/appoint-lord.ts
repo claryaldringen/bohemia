@@ -19,6 +19,9 @@ import { successorOf } from './succession';
 import { ARRIVAL_HOME, rehomePeople } from './transfer-people';
 import type { ChronicleEvent, Person, VillageState } from './types';
 
+/** Kolik posledních přesunů mužů rodu si ves pamatuje (`VillageState.lineMoves`). */
+const LINE_MOVES_KEPT = 20;
+
 /** Odkaz na osobu ve vsi (stejný tvar jako `PersonRef` rodů). */
 interface PersonKey {
   villageId: string;
@@ -180,6 +183,7 @@ export function settleAppointee(
   state: VillageState,
   day: number,
   party: AppointeeParty,
+  fromVillageId?: string,
 ): ChronicleEvent[] {
   const { arrivals, idMap: ids } = rehomePeople(state, party.people);
   state.people.push(...arrivals);
@@ -197,6 +201,13 @@ export function settleAppointee(
   if (food.cheeseKg > 0) state.cheeseKg = (state.cheeseKg ?? 0) + food.cheeseKg;
   if (food.legumesKg > 0) state.legumesKg = (state.legumesKg ?? 0) + food.legumesKg;
   if (food.applesKg > 0) state.applesKg = (state.applesKg ?? 0) + food.applesKg;
+  if (fromVillageId !== undefined) {
+    const moves = [
+      ...(state.lineMoves ?? []),
+      { fromVillageId, fromPersonId: party.manId, personId: manId, day },
+    ];
+    state.lineMoves = moves.slice(-LINE_MOVES_KEPT);
+  }
   const name = man.name === undefined ? {} : { name: man.name };
   const dynasty = state.dynasty;
   delete state.awaitingLord;

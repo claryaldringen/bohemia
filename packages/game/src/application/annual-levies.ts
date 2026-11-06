@@ -27,6 +27,7 @@ import type { Dialog, DialogRepository } from './dialogs';
 import type { HouseRepository } from './houses';
 import { chronicleHouses, houseName, type NegotiationVillages } from './negotiation-chronicle';
 import type { Loan, LoanRepository } from './loans';
+import type { NegotiationRepository } from './negotiations';
 import type { NoticeRepository } from './notices';
 import { sendCorvee, sendShipment, type ShipmentDeps } from './shipments';
 import type { Vassalage, VassalageRepository } from './vassalages';
@@ -69,6 +70,11 @@ export interface AnnualLevyDeps extends NegotiationVillages {
   notices: Pick<NoticeRepository, 'post'>;
   /** Půjčky: splátky přijdou v Odvodech jako řádek (bez nich Odvody splátky nenabízejí). */
   loans?: Pick<LoanRepository, 'allActive' | 'byId' | 'pay' | 'addBreach'>;
+  /**
+   * Tribut z míru (war.md – Konec války): opakovaná platba bez vazalství, přijde v Odvodech jako
+   * dialog `tribute-send`; `dayOf` převede čas přijetí na herní den.
+   */
+  tributes?: Pick<NegotiationRepository, 'peaceTributes'> & { dayOf: (at: Date) => number };
 }
 
 /** Závislosti odpovědi: zásilky + dopočet vsi do dneška (composition root: `loadVillage`). */
@@ -133,6 +139,57 @@ export async function openAnnualDialogs(
     });
   }
   if (deps.loans) opened += await openRepayDialogs(deps, { year, nov1, today: input.today });
+  if (deps.tributes)
+    opened += await openTributeDialogs(deps, deps.tributes, { year, nov1, today: input.today });
+  return opened;
+}
+
+/**
+ * Tribut z míru: plátci (rod, který žije) se každý 1. 11. otevře dialog s domluveným zbožím do
+ * pánovy – příjemcovy – vsi; čekající dialog jen naroste o rok. Neplnění se nevymáhá, řeší ho
+ * hráči (war.md – Konec války). Mír přijatý až od 1. 11. toho roku se ptá příště.
+ */
+async function openTributeDialogs(
+  deps: AnnualLevyDeps,
+  tributes: NonNullable<AnnualLevyDeps['tributes']>,
+  input: { year: number; nov1: number; today: number },
+): Promise<number> {
+  let opened = 0;
+  for (const t of await tributes.peaceTributes()) {
+    if (tributes.dayOf(t.acceptedAt) >= input.nov1) continue;
+    const payer = await deps.houses.byId(t.payerHouseId);
+    const recipient = await deps.houses.byId(t.recipientHouseId);
+    const toVillageId = recipient?.lord?.villageId;
+    if (!payer || payer.playerId === null || payer.endedAt !== null || !recipient || !toVillageId) {
+      continue;
+    }
+    const waiting = await deps.dialogs.openFor(t.negotiationId, 'tribute-send');
+    if (waiting) {
+      if (waiting.year < input.year) await deps.dialogs.bumpYears(waiting.key, input.year);
+      continue;
+    }
+    const created = await deps.dialogs.openOnce(`tribute:${t.negotiationId}:${input.year}`, {
+      playerId: payer.playerId,
+      kind: 'tribute-send',
+      refId: t.negotiationId,
+      year: input.year,
+      body: {
+        negotiationId: t.negotiationId,
+        fromHouseId: payer.id,
+        toHouseId: recipient.id,
+        toVillageId,
+        goods: t.goods,
+      },
+    });
+    if (!created) continue;
+    opened++;
+    await deps.notices.post({
+      playerId: payer.playerId,
+      kind: 'levy-pending',
+      payload: { lordName: await houseName(deps, recipient), years: 1, peace: true },
+      gameDay: input.today,
+    });
+  }
   return opened;
 }
 
@@ -216,7 +273,7 @@ function targetOf(v: Vassalage, lordVillageId: string | undefined): string | nul
 export interface LevyDialogView {
   dialogId: string;
   /** `levy` – roční dávka vazalství, `repay` – řádek splátky půjčky (samostatná dohoda). */
-  kind: 'levy' | 'repay' | 'trade-send';
+  kind: 'levy' | 'repay' | 'trade-send' | 'fee-send' | 'tribute-send';
   /**
    * U `trade-send` (obchod mezi hráči, plán – úloha 4.7) je `lordHouseId` / `lordName` druhá strana
    * obchodu a `agreed` zboží, které má hráč poslat; `vassalageId` je prázdné.
@@ -255,7 +312,7 @@ export async function levyDialogs(
       if (view) out.push(view);
       continue;
     }
-    if (dialog.kind === 'trade-send') {
+    if (isSendKind(dialog.kind)) {
       const view = await tradeView(deps, dialog, own);
       if (view) out.push(view);
       continue;
@@ -354,6 +411,11 @@ interface TradeBody {
   goods: MacroBundle;
 }
 
+/** Dialogy odeslání zboží druhé straně: obchod, poplatek z míru a tribut z míru (stejná odpověď). */
+type SendKind = 'trade-send' | 'fee-send' | 'tribute-send';
+const isSendKind = (kind: string): kind is SendKind =>
+  kind === 'trade-send' || kind === 'fee-send' || kind === 'tribute-send';
+
 const tradeBodyOf = (dialog: Dialog): TradeBody => dialog.body as unknown as TradeBody;
 
 /** Dialog odeslání obchodu: dohodnuté zboží, rozdělení po vsích předvyplněné podle přebytku. */
@@ -376,12 +438,12 @@ async function tradeView(
   const split = suggestSplit(body.goods, spares);
   return {
     dialogId: dialog.id,
-    kind: 'trade-send',
+    kind: dialog.kind as SendKind,
     vassalageId: '',
     lordHouseId: body.toHouseId,
     lordName: partner ? await houseName(deps, partner) : '',
-    years: 1,
-    agreed: body.goods,
+    years: dialog.kind === 'tribute-send' ? dialog.years : 1,
+    agreed: dialog.kind === 'tribute-send' ? scaleBundle(body.goods, dialog.years) : body.goods,
     villages: own.map((village) => ({
       villageId: village.id,
       name: village.name,
@@ -431,7 +493,7 @@ export async function answerLevy(
   if (
     !dialog ||
     dialog.playerId !== input.playerId ||
-    (dialog.kind !== 'levy' && dialog.kind !== 'repay' && dialog.kind !== 'trade-send')
+    (dialog.kind !== 'levy' && dialog.kind !== 'repay' && !isSendKind(dialog.kind))
   ) {
     return { ok: false, reason: NOT_YOUR_DIALOG };
   }
@@ -440,7 +502,7 @@ export async function answerLevy(
     return { ok: false, reason: LEVY_MESSAGE_TOO_LONG };
   }
   if (dialog.kind === 'repay') return answerRepay(deps, dialog, input);
-  if (dialog.kind === 'trade-send') return answerTrade(deps, dialog, input);
+  if (isSendKind(dialog.kind)) return answerTrade(deps, dialog, input);
   const v = await deps.vassalages.byId(dialog.refId);
   if (!v || v.endedAt !== null || !v.terms.tribute) return { ok: false, reason: LEVY_ENDED };
   const vassal = await deps.houses.activeOf(input.playerId);
@@ -668,7 +730,7 @@ async function answerTrade(
       toVillageId: body.toVillageId,
       bundle,
       purpose: 'trade',
-      refId: `trade:${dialog.id}:${villageId}`,
+      refId: `${dialog.kind.replace('-send', '')}:${dialog.id}:${villageId}`,
       today: input.today,
     });
     if (!result.ok) return { ok: false, reason: result.reason };
@@ -678,7 +740,9 @@ async function answerTrade(
     return { ok: false, reason: DIALOG_CLOSED };
   }
 
-  const agreed = flattenBundle(body.goods);
+  const agreed = flattenBundle(
+    dialog.kind === 'tribute-send' ? scaleBundle(body.goods, dialog.years) : body.goods,
+  );
   const parts: LevyPart[] = LEVY_GOODS.filter((g) => agreed[g] > 0 || sent[g] > 0).map((good) => ({
     good,
     sent: sent[good],

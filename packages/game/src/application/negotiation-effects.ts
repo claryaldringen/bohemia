@@ -4,6 +4,7 @@ import {
   checkTradeLine,
   checkVillageGiftItems,
   checkWarDemandItems,
+  PEACE_REASONS,
   termLinesOf,
   type TermItem,
 } from '../domain/negotiation';
@@ -147,6 +148,31 @@ export const NEGOTIATION_EFFECTS: { [K in TermItem['kind']]: NegotiationEffect<K
       if (war) await tx.wars.end(war.id, 'peace', ctx.now);
       const terms = termsOfLines(termLinesOf(item.items));
       for (const inner of item.items) await applyItem(tx, inner, { ...ctx, terms });
+    },
+  },
+  // mír (war.md – Konec války): v transakci válka končí a vznikne vazalství z míru; poplatek,
+  // postoupení vsí a tribut dělá `acceptNegotiation` po ní (zásilky a převody jedou pod zámky)
+  peace: {
+    check: async (tx, item) => {
+      const v = item.vassalage;
+      if (v && wouldBeMutual(await tx.vassalages.edgesNear(v.lord, 1), v.lord, v.vassal)) {
+        return PEACE_REASONS.isYourLord;
+      }
+      return null;
+    },
+    apply: async (tx, item, ctx) => {
+      const war = await tx.wars.activeBetween(ctx.parties[0], ctx.parties[1]);
+      if (war) await tx.wars.end(war.id, 'peace', ctx.now);
+      const v = item.vassalage;
+      if (!v) return;
+      await tx.vassalages.create({
+        lordHouseId: v.lord,
+        vassalHouseId: v.vassal,
+        terms: v.terms,
+        origin: 'peace',
+        sinceAt: ctx.now,
+        sinceDay: ctx.day,
+      });
     },
   },
   // věnování dílu odúmrti: v transakci nic, vsi a vazaly převede `acceptNegotiation` po ní (zámky)

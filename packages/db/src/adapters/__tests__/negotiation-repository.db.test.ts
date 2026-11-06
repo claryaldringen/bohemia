@@ -8,11 +8,13 @@ import { schema } from '../../index';
 import { createHouseRepository } from '../house-repository';
 import { createNegotiationRepository } from '../negotiation-repository';
 import { createVassalageRepository } from '../vassalage-repository';
+import { createWarRepository } from '../war-repository';
 
 const db = createDatabase('postgres://postgres@127.0.0.1:5432/bohemia_test');
 const negotiations = createNegotiationRepository(db);
 const vassalages = createVassalageRepository(db);
 const houses = createHouseRepository(db);
+const wars = createWarRepository(db);
 
 const NOW = new Date('2026-11-05T12:00:00Z');
 const ids: string[] = [];
@@ -194,5 +196,45 @@ describe('NegotiationRepository (db)', () => {
     expect(await vassalages.activeOf(a)).toHaveLength(0);
     const after = await negotiations.transaction((tx) => tx.getForUpdate(n?.id ?? ''));
     expect(after?.status).toBe('open');
+  });
+
+  it('dvě souběžná přijetí míru: jeden mír, válka skončí jednou; tribut se čte z přijatého jednání', async () => {
+    const [a, b] = ids as [string, string];
+    const goods = {
+      grainKg: 100,
+      hayKg: 0,
+      cattle: { cows: 0, youngOxen: 0, trainedOxen: 0 },
+      horses: 0,
+      logs: 0,
+      people: { families: 0, men: 0, women: 0 },
+      laborDays: 0,
+    };
+    const items = [{ kind: 'peace', tribute: { goods, payer: b } }];
+    await wars.start({ houses: [a, b], startedAt: NOW, startedDay: 1, how: 'declared' });
+    const n = await negotiations.transaction((tx) =>
+      tx.open({
+        initiatorHouseId: a,
+        recipientHouseId: b,
+        round: { authorHouseId: a, items: items as never, message: null, at: NOW },
+      }),
+    );
+    const id = n?.id ?? '';
+    const acceptPeace = (tx: NegotiationTx): Promise<boolean> =>
+      (async () => {
+        const rec = await tx.getForUpdate(id);
+        if (rec?.status !== 'open') return false;
+        if (!(await tx.setStatus(id, 'accepted', rec.version, NOW))) return false;
+        const war = await tx.wars.activeBetween(a, b);
+        return war ? tx.wars.end(war.id, 'peace', NOW) : false;
+      })();
+    const results = await Promise.all([
+      negotiations.transaction(acceptPeace),
+      negotiations.transaction(acceptPeace),
+    ]);
+    expect(results.filter(Boolean)).toHaveLength(1);
+    expect(await wars.activeBetween(a, b)).toBeNull();
+    const tributes = await negotiations.peaceTributes();
+    expect(tributes).toHaveLength(1);
+    expect(tributes[0]).toMatchObject({ payerHouseId: b, recipientHouseId: a });
   });
 });

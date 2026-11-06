@@ -4,7 +4,9 @@ import type {
   NegotiationTx,
   OpenNegotiationInput,
   StoredNegotiationStatus,
+  PeaceTribute,
 } from '../negotiations';
+import { peaceTributeOf } from '../negotiations';
 import type { NoticeTx, VassalageTx } from '../negotiations';
 import type { LoanTx } from '../loans';
 import { InMemoryLoans } from './in-memory-loans';
@@ -33,6 +35,10 @@ export class InMemoryNegotiations implements NegotiationRepository {
     private readonly stewardships: StewardshipTx = new InMemoryStewardships(),
     private readonly wars: WarTx = new InMemoryWars(),
   ) {}
+
+  async peaceTributes(): Promise<PeaceTribute[]> {
+    return this.records.map(peaceTributeOf).filter((t): t is PeaceTribute => t !== null);
+  }
 
   transaction<T>(fn: (tx: NegotiationTx) => Promise<T>): Promise<T> {
     const turn = this.tail.then(() => fn(this.tx()));

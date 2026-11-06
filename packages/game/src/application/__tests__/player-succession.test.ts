@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
 import type { VillageState } from '../../domain/village';
 import { DAY, trackedVillage, type KinSpec } from '../../domain/village/__tests__/kin-fixtures';
+import { departAppointee, settleAppointee } from '../../domain/village';
 import { resolvePlayerSuccession } from '../player-succession';
 import { InMemoryCredits } from './in-memory-credits';
 import { InMemoryHouses } from './in-memory-houses';
@@ -201,5 +202,61 @@ describe('resolvePlayerSuccession', () => {
     expect(await resolve(w)).toEqual({ kind: 'none' });
     expect(w.house.successionDay).toBeNull();
     expect(w.deps.notices.notices).toHaveLength(0);
+  });
+});
+
+describe('muž rodu se přestěhoval do jiné vsi (postoupení vsi)', () => {
+  const ARRIVES = DAY + 60;
+
+  /** Muž `id` ze vsi 0 odejde a dorazí do vsi 1 (nové místní id);  */
+  async function move(w: Awaited<ReturnType<typeof world>>, id: number, deliver = true) {
+    const from = (await w.deps.villages.find(w.ids[0]!))!;
+    const departure = departAppointee(from.state, from.state.lastDay, id, 'V1');
+    await w.deps.villages.save(from.id, departure.state, from.version);
+    if (!deliver) {
+      await w.deps.villages.inbox.post({
+        villageId: w.ids[1]!,
+        day: ARRIVES,
+        ref: `t:${id}`,
+        body: { kind: 'lord-arrives', party: departure.party, fromVillageId: from.id },
+      });
+      return;
+    }
+    const to = (await w.deps.villages.find(w.ids[1]!))!;
+    const next = structuredClone(to.state);
+    settleAppointee(next, ARRIVES, departure.party, from.id);
+    await w.deps.villages.save(to.id, next, to.version);
+  }
+
+  const brother: KinSpec = { id: 40, age: 35, sex: 'male', father: 10 };
+
+  it('hráčův muž po příjezdu: hlava rodu ukazuje na novou ves a id, muž žije', async () => {
+    const w = await world([ruled(10, 30, [brother]), ruled(50, 40)]);
+    await move(w, 10);
+    const dest = (await w.deps.villages.find(w.ids[1]!))!.state;
+    const arrived = dest.people.find((p) => p.line && p.id !== 50 && p.id >= 1000)!;
+    expect(arrived).toBeDefined();
+    expect(await resolve(w)).toEqual({ kind: 'alive' });
+    expect(w.house.lord).toEqual({ villageId: w.ids[1], personId: arrived.id });
+    expect(w.house.successionDay).toBeNull();
+  });
+
+  it('senior rodu se přepíše stejně, ostatní muži beze změny', async () => {
+    const w = await world([ruled(10, 30, [brother]), ruled(50, 40)]);
+    await w.deps.houses.setSenior(w.house.id, { villageId: w.ids[0]!, personId: 40 });
+    await move(w, 40);
+    await resolve(w);
+    const dest = (await w.deps.villages.find(w.ids[1]!))!.state;
+    const arrived = dest.people.find((p) => p.line && p.id >= 1000)!;
+    expect(w.house.senior).toEqual({ villageId: w.ids[1], personId: arrived.id });
+    expect(w.house.lord).toEqual({ villageId: w.ids[0], personId: 10 });
+  });
+
+  it('muž je na cestě: žije, hlava rodu se zatím nemění', async () => {
+    const w = await world([ruled(10, 30, [brother]), ruled(50, 40)]);
+    await move(w, 10, false);
+    expect(await resolve(w)).toEqual({ kind: 'alive' });
+    expect(w.house.lord).toEqual({ villageId: w.ids[0], personId: 10 });
+    expect(w.house.successionDay).toBeNull();
   });
 });

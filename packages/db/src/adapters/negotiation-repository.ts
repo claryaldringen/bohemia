@@ -4,8 +4,10 @@ import type {
   NegotiationRepository,
   NegotiationRound,
   NegotiationTx,
+  PeaceTribute,
   TermItem,
 } from '@bohemia/game';
+import { peaceTributeOf } from '@bohemia/game';
 import type { Database, Executor } from '../client';
 import { negotiation, negotiationReject, negotiationRound, playerBlock } from '../schema';
 import { createLoanRepository } from './loan-repository';
@@ -197,6 +199,29 @@ function createTx(db: Executor): NegotiationTx {
  */
 export function createNegotiationRepository(db: Database): NegotiationRepository {
   return {
+    async peaceTributes(): Promise<PeaceTribute[]> {
+      // přijatá jednání, jejichž některé kolo nese mír s tributem; poslední kolo rozhodne `peaceTributeOf`
+      const rows = await db
+        .select({ n: negotiation })
+        .from(negotiation)
+        .innerJoin(negotiationRound, eq(negotiationRound.negotiationId, negotiation.id))
+        .where(
+          and(
+            eq(negotiation.status, 'accepted'),
+            sql`${negotiationRound.items}::text like '%"peace"%'`,
+            sql`${negotiationRound.items}::text like '%"tribute"%'`,
+          ),
+        );
+      const seen = new Set<string>();
+      const out: PeaceTribute[] = [];
+      for (const { n } of rows) {
+        if (seen.has(n.id)) continue;
+        seen.add(n.id);
+        const tribute = peaceTributeOf(await load(db, n));
+        if (tribute) out.push(tribute);
+      }
+      return out;
+    },
     transaction: <T>(fn: (tx: NegotiationTx) => Promise<T>): Promise<T> =>
       db.transaction((tx) => fn(createTx(tx))),
   };

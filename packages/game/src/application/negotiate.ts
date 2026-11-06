@@ -15,6 +15,10 @@ import {
   isStewardshipLine,
   isVillageGiftLine,
   isWarDemandLine,
+  isPeaceLine,
+  checkPeaceItems,
+  PEACE_REASONS,
+  type PeaceLine,
   WAR_DEMAND_REASONS,
   checkWarDemandItems,
   type WarDemandLine,
@@ -29,6 +33,7 @@ import { AID_REASONS, checkAidItems, isAidLine, type AidLine } from '../domain/v
 import { TERM_REASONS, termsOfLines } from '../domain/vassalage/terms';
 import { wouldBeMutual } from '../domain/vassalage/tree';
 import type { ChronicleEvent } from '../domain/village';
+import type { CedeHooks } from './cede-village';
 import type { DialogRepository } from './dialogs';
 import type { HouseRepository, House } from './houses';
 import { applyItem, checkItem, StewardshipTaken } from './negotiation-effects';
@@ -73,6 +78,8 @@ export interface NegotiateDeps extends NegotiationVillages {
     now: Date;
     today: number;
   }) => Promise<void>;
+  /** Postoupení vsí v míru (`cede-village.ts`); bez něj nejde sjednat mír s postoupením. */
+  cede?: CedeHooks;
   /** Čte se z něj, které vsi rod vlastní (cílová ves musí patřit pánovi). */
   worldDirectory: Pick<WorldDirectory, 'entriesOf'>;
 }
@@ -111,6 +118,30 @@ function checkWarDemandParties(items: readonly TermItem[], a: string, b: string)
   return pair.includes(oath.lord) && pair.includes(oath.vassal) && oath.lord !== oath.vassal
     ? null
     : R.badOath;
+}
+
+/**
+ * Kontrola mírového kola: tvar a čísla (doména), válka mezi stranami běží, postoupené vsi patří
+ * postupující straně a není to její poslední ves. Kolo bez řádku míru je v pořádku.
+ */
+async function checkPeaceRound(
+  deps: NegotiateDeps,
+  tx: NegotiationTx,
+  items: readonly TermItem[],
+  a: string,
+  b: string,
+): Promise<string | null> {
+  const line = items.find(isPeaceLine);
+  if (!line) return null;
+  const bad = checkPeaceItems(items, [a, b]);
+  if (bad) return bad;
+  if (!(await tx.wars.activeBetween(a, b))) return PEACE_REASONS.noWar;
+  if (line.cede) {
+    if (!deps.cede) return PEACE_REASONS.noCede;
+    const checked = await deps.cede.check([a, b], line.cede);
+    if (!checked.ok) return checked.reason;
+  }
+  return null;
 }
 
 /** Živá dohoda mezi dvěma rody (v libovolném směru), nebo null. */
@@ -332,12 +363,14 @@ export async function openNegotiation(
     // změna podmínek: dohoda mezi rody musí trvat, cílová ves patří jejímu pánovi
     const oath = oathOf(input.items);
     const trade = input.items.some(isTradeLine);
-    const warDemand = input.items.some(isWarDemandLine);
+    const warDemand = input.items.some((i) => isWarDemandLine(i) || isPeaceLine(i));
     const existing =
       oath || trade || warDemand ? null : await agreementBetween(tx, from.id, input.to);
     if (!oath && !existing && !trade && !warDemand) return fail(NO_AGREEMENT);
     const badWar = checkWarDemandParties(input.items, from.id, input.to);
     if (badWar) return fail(badWar);
+    const badPeace = await checkPeaceRound(deps, tx, input.items, from.id, input.to);
+    if (badPeace) return fail(badPeace);
     const badTrade = await checkTradeRound(deps, input.items, [from.id, input.to]);
     if (badTrade) return fail(badTrade);
     const lordId = oath?.lord ?? existing?.lordHouseId ?? '';
@@ -400,16 +433,22 @@ export async function counterNegotiation(
     );
     if (!next.ok) return next;
     const first = oathOf(loaded.record.rounds[0]?.items ?? []);
-    // protinávrh k opovědi je mírové jednání (samostatná úloha), tady se nepřijímá
-    if ((loaded.record.rounds[0]?.items ?? []).some(isWarDemandLine)) {
-      return fail(WAR_DEMAND_REASONS.noCounter);
-    }
+    // na opověď i na mír se odpovídá mírovým jednáním (war.md – Konec války); mír mimo ně nepatří
+    const warLike = (loaded.record.rounds[0]?.items ?? []).some(
+      (i) => isWarDemandLine(i) || isPeaceLine(i),
+    );
+    if (warLike && !input.items.some(isPeaceLine)) return fail(WAR_DEMAND_REASONS.noCounter);
+    if (!warLike && input.items.some(isPeaceLine)) return fail(PEACE_REASONS.noWar);
     const trade = (loaded.record.rounds[0]?.items ?? []).some(isTradeLine);
     // obchod zůstává obchodem a ostatní jednání obchodem nebude
     if (input.items.some(isTradeLine) !== trade) return fail(TRADE_REASONS.onlyTrade);
     const existing =
-      first || trade ? null : await agreementBetween(tx, loaded.actor.id, loaded.other.id);
-    if (!first && !existing && !trade) return fail(NO_AGREEMENT);
+      first || trade || warLike
+        ? null
+        : await agreementBetween(tx, loaded.actor.id, loaded.other.id);
+    if (!first && !existing && !trade && !warLike) return fail(NO_AGREEMENT);
+    const badPeace = await checkPeaceRound(deps, tx, input.items, loaded.actor.id, loaded.other.id);
+    if (badPeace) return fail(badPeace);
     const badTrade = await checkTradeRound(deps, input.items, [loaded.actor.id, loaded.other.id]);
     if (badTrade) return fail(badTrade);
     const badVillage = await checkTargetVillage(
@@ -470,7 +509,12 @@ export async function acceptNegotiation(
   } | null = null;
   let trading: { sendings: TradeSending[]; today: number } | null = null;
   let gift: { line: VillageGiftLine; fromHouseId: string; toHouseId: string } | null = null;
-  let peace: WarDemandLine | null = null;
+  let peace: WarDemandLine | PeaceLine | null = null;
+  let peaceLater: {
+    line: PeaceLine;
+    sendings: { fromHouse: House; toHouse: House; toVillageId: string }[];
+    cede: { fromHouseId: string; toHouseId: string; villageIds: string[] } | null;
+  } | null = null;
   const result = await deps.negotiations
     .transaction(async (tx): Promise<NegotiateResult> => {
       const loaded = await loadForResponse(deps, tx, input.playerId, input.negotiationId);
@@ -482,13 +526,43 @@ export async function acceptNegotiation(
       const oathItem = oathOf(items);
       // bez přísahy jde o změnu podmínek existující dohody
       const tradeLine = items.find(isTradeLine);
-      const warLine = items.find(isWarDemandLine);
+      const peaceLine = items.find(isPeaceLine);
+      const warLine = items.find(isWarDemandLine) ?? peaceLine;
       const existing =
         oathItem || tradeLine || warLine
           ? null
           : await agreementBetween(tx, loaded.actor.id, loaded.other.id);
       if (!oathItem && !existing && !tradeLine && !warLine) return fail(NO_AGREEMENT);
-      if (warLine) {
+      // mír: poplatek a postoupení se připraví tady, provedou se po transakci
+      let later: NonNullable<typeof peaceLater> | null = null;
+      if (peaceLine) {
+        const badPeace = await checkPeaceRound(deps, tx, items, loaded.actor.id, loaded.other.id);
+        if (badPeace) return fail(badPeace);
+        later = { line: peaceLine, sendings: [], cede: null };
+        const pays = (payer: string | undefined): House | null =>
+          payer === loaded.actor.id
+            ? loaded.actor
+            : payer === loaded.other.id
+              ? loaded.other
+              : null;
+        const payer = peaceLine.fee ? pays(peaceLine.payer) : null;
+        if (payer && payer.playerId !== null) {
+          if (!deps.dialogs) return fail(TRADE_REASONS.noDialogs);
+          const to = payer === loaded.actor ? loaded.other : loaded.actor;
+          if (to.lord?.villageId === undefined) return fail(TRADE_REASONS.noTarget);
+          later.sendings.push({ fromHouse: payer, toHouse: to, toVillageId: to.lord.villageId });
+        }
+        if (peaceLine.cede && deps.cede) {
+          const checked = await deps.cede.check([loaded.actor.id, loaded.other.id], peaceLine.cede);
+          if (!checked.ok) return fail(checked.reason);
+          later.cede = {
+            fromHouseId: checked.fromHouseId,
+            toHouseId: checked.toHouseId,
+            villageIds: peaceLine.cede,
+          };
+        }
+      }
+      if (warLine && !peaceLine) {
         const badWar = checkWarDemandParties(items, loaded.actor.id, loaded.other.id);
         if (badWar) return fail(badWar);
         // válka mezitím mohla utichnout nebo skončit jinak – mír nemá co ukončit
@@ -586,6 +660,15 @@ export async function acceptNegotiation(
         },
         input.today,
       );
+      for (const s of later?.sendings ?? []) {
+        await noticeHouse(
+          tx,
+          s.fromHouse,
+          'levy-pending',
+          { lordName: await houseName(deps, s.toHouse), years: 1, peace: true },
+          input.today,
+        );
+      }
       if (tradeLine) {
         // obě strany se dozvědí, že čeká odeslání zboží (dialog Odvody, řádek obchodu)
         for (const side of [loaded.actor, loaded.other]) {
@@ -601,8 +684,15 @@ export async function acceptNegotiation(
         trading = { sendings, today: input.today };
       }
       actors = { actor: loaded.actor, other: loaded.other };
-      oath = oathItem ?? (warLine ? oathOf(warLine.items) : null);
+      oath =
+        oathItem ??
+        (peaceLine?.vassalage
+          ? { lord: peaceLine.vassalage.lord, vassal: peaceLine.vassalage.vassal }
+          : warLine && warLine.kind === 'war-demand'
+            ? oathOf(warLine.items)
+            : null);
       peace = warLine ?? null;
+      peaceLater = later;
       // dárce = autor posledního kola (druhá strana), obdarovaný přijímá
       if (giftLine)
         gift = { line: giftLine, fromHouseId: loaded.other.id, toHouseId: loaded.actor.id };
@@ -633,6 +723,38 @@ export async function acceptNegotiation(
   const giving = gift as { line: VillageGiftLine; fromHouseId: string; toHouseId: string } | null;
   if (result.ok && giving && deps.escheatGift) {
     await deps.escheatGift({ ...giving, now: input.now, today: input.today });
+  }
+  const later = peaceLater as {
+    line: PeaceLine;
+    sendings: { fromHouse: House; toHouse: House; toVillageId: string }[];
+    cede: { fromHouseId: string; toHouseId: string; villageIds: string[] } | null;
+  } | null;
+  if (result.ok && later) {
+    if (later.cede && deps.cede) {
+      await deps.cede.apply({
+        ...later.cede,
+        negotiationId: result.negotiation.id,
+        now: input.now,
+        today: input.today,
+      });
+    }
+    if (deps.dialogs && later.line.fee) {
+      for (const s of later.sendings) {
+        await deps.dialogs.openOnce(`fee:${result.negotiation.id}:${s.fromHouse.id}`, {
+          playerId: s.fromHouse.playerId as string,
+          kind: 'fee-send',
+          refId: result.negotiation.id,
+          year: dateOfDayIndex(input.today).year,
+          body: {
+            negotiationId: result.negotiation.id,
+            fromHouseId: s.fromHouse.id,
+            toHouseId: s.toHouse.id,
+            toVillageId: s.toVillageId,
+            goods: later.line.fee,
+          },
+        });
+      }
+    }
   }
   const opening = trading as { sendings: TradeSending[]; today: number } | null;
   if (result.ok && opening && deps.dialogs) {

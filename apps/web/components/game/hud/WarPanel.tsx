@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, type ReactElement } from 'react';
-import { dateOfDayIndex } from '@bohemia/game';
+import { useEffect, useState, type ReactElement } from 'react';
+import { dateOfDayIndex, type TermItem } from '@bohemia/game';
 import { formatGameDate } from '@/lib/game-date';
 import type { HouseView } from '@/lib/house-view';
 import { Tooltip } from './Tooltip';
@@ -12,14 +12,130 @@ import { Tooltip } from './Tooltip';
 
 const ICON = '/icons/house';
 
+const NO_BUNDLE = {
+  cattle: { cows: 0, youngOxen: 0, trainedOxen: 0 },
+  horses: 0,
+  logs: 0,
+  people: { families: 0, men: 0, women: 0 },
+  laborDays: 0,
+  hayKg: 0,
+};
+
+/**
+ * Nabídka míru (war.md – Konec války): poplatek v obilí (platí buď ty, nebo druhá strana), tribut
+ * a volitelně vazalství. Prázdná nabídka je mír bez podmínek. Ostatní podmínky (postoupení vsí)
+ * jdou protinávrhem; čísla a důvody odmítnutí hlídá server.
+ */
+function PeaceForm({
+  ownHouseId,
+  otherId,
+  onSubmit,
+}: {
+  ownHouseId: string;
+  otherId: string;
+  onSubmit: (items: TermItem[]) => void;
+}): ReactElement {
+  const [fee, setFee] = useState('');
+  const [payer, setPayer] = useState<'own' | 'other'>('own');
+  const [tribute, setTribute] = useState('');
+  const [vassalage, setVassalage] = useState<'none' | 'lord' | 'vassal'>('none');
+  const submit = (): void => {
+    const payerId = payer === 'own' ? ownHouseId : otherId;
+    const line: Extract<TermItem, { kind: 'peace' }> = { kind: 'peace' };
+    const feeKg = Number(fee);
+    if (feeKg > 0) {
+      line.fee = { ...NO_BUNDLE, grainKg: feeKg };
+      line.payer = payerId;
+    }
+    const tributeKg = Number(tribute);
+    if (tributeKg > 0)
+      line.tribute = { goods: { ...NO_BUNDLE, grainKg: tributeKg }, payer: payerId };
+    if (vassalage !== 'none') {
+      line.vassalage =
+        vassalage === 'lord'
+          ? { lord: ownHouseId, vassal: otherId, terms: {} }
+          : { lord: otherId, vassal: ownHouseId, terms: {} };
+    }
+    onSubmit([line]);
+  };
+  return (
+    <div data-testid="peace-form" className="flex flex-col gap-1 pt-1 text-xs">
+      <label className="flex items-center gap-1">
+        <img src={`${ICON}/grain.svg`} alt="" width={16} height={16} draggable={false} />
+        <input
+          data-testid="peace-fee"
+          type="number"
+          min={0}
+          aria-label="Poplatek (kg obilí)"
+          className="w-20 rounded-sm border border-[#5c4526] bg-[#15100b] px-1"
+          value={fee}
+          onChange={(e) => setFee(e.target.value)}
+        />
+        <select
+          data-testid="peace-payer"
+          aria-label="Kdo platí"
+          className="rounded-sm border border-[#5c4526] bg-[#15100b]"
+          value={payer}
+          onChange={(e) => setPayer(e.target.value === 'other' ? 'other' : 'own')}
+        >
+          <option value="own">platím já</option>
+          <option value="other">platí on</option>
+        </select>
+      </label>
+      <label className="flex items-center gap-1">
+        <img src={`${ICON}/grain.svg`} alt="" width={16} height={16} draggable={false} />
+        <input
+          data-testid="peace-tribute"
+          type="number"
+          min={0}
+          aria-label="Roční tribut (kg obilí)"
+          className="w-20 rounded-sm border border-[#5c4526] bg-[#15100b] px-1"
+          value={tribute}
+          onChange={(e) => setTribute(e.target.value)}
+        />
+        <span className="opacity-70">ročně</span>
+      </label>
+      <select
+        data-testid="peace-vassalage"
+        aria-label="Vazalství"
+        className="rounded-sm border border-[#5c4526] bg-[#15100b]"
+        value={vassalage}
+        onChange={(e) =>
+          setVassalage(
+            e.target.value === 'lord' || e.target.value === 'vassal' ? e.target.value : 'none',
+          )
+        }
+      >
+        <option value="none">bez vazalství</option>
+        <option value="lord">on se stane mým vazalem</option>
+        <option value="vassal">stanu se jeho vazalem</option>
+      </select>
+      <button
+        type="button"
+        data-testid="peace-send"
+        className="hud-icon-button flex h-7 items-center justify-center gap-1 px-2"
+        onClick={submit}
+      >
+        <img src={`${ICON}/seal.svg`} alt="" width={16} height={16} draggable={false} />
+        Nabídnout mír
+      </button>
+    </div>
+  );
+}
+
 /** Panel války; `view` je pohled na rod (války z panelu rodu). */
 export function WarPanel({
   view,
+  error = null,
   onClose,
+  onOfferPeace,
 }: {
   view: HouseView | null;
+  error?: string | null;
   onClose: () => void;
+  onOfferPeace?: (to: string, items: TermItem[], message: string | null) => void;
 }): ReactElement {
+  const [offering, setOffering] = useState<string | null>(null);
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
       if (event.code === 'Escape') onClose();
@@ -74,9 +190,47 @@ export function WarPanel({
                 Od {formatGameDate(dateOfDayIndex(war.startedDay))} –{' '}
                 {war.how === 'declared' ? 'opověď' : 'přepadení bez opovědi'} – válčí se
               </span>
+              {onOfferPeace && (
+                <>
+                  <Tooltip content="Nabídnout mír">
+                    <button
+                      type="button"
+                      data-testid="war-offer-peace"
+                      aria-label="Nabídnout mír"
+                      className="hud-icon-button mt-1 flex h-6 w-6 items-center justify-center"
+                      onClick={() =>
+                        setOffering(offering === war.other.houseId ? null : war.other.houseId)
+                      }
+                    >
+                      <img
+                        src={`${ICON}/seal.svg`}
+                        alt=""
+                        width={16}
+                        height={16}
+                        draggable={false}
+                      />
+                    </button>
+                  </Tooltip>
+                  {offering === war.other.houseId && view && (
+                    <PeaceForm
+                      ownHouseId={view.ownHouseId}
+                      otherId={war.other.houseId}
+                      onSubmit={(items) => {
+                        onOfferPeace(war.other.houseId, items, null);
+                        setOffering(null);
+                      }}
+                    />
+                  )}
+                </>
+              )}
             </li>
           ))}
         </ul>
+      )}
+      {error && (
+        <p data-testid="war-error" role="alert" className="pt-1 text-xs text-[#e0a090]">
+          {error}
+        </p>
       )}
     </div>
   );

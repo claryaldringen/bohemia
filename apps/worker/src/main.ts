@@ -70,6 +70,13 @@ async function main(): Promise<void> {
             notices: gameDeps.notices,
             villages: gameDeps.villages,
             loans: gameDeps.loans,
+            tributes: {
+              peaceTributes: () => gameDeps.negotiations.peaceTributes(),
+              dayOf: (at) => {
+                const day = worldDayOf(at.getTime(), currentWorld());
+                return day.ok ? day.day : 0;
+              },
+            },
           },
           shipments: {
             shipments: gameDeps.shipments,

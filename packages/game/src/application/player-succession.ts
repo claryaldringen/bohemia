@@ -10,6 +10,7 @@ import {
 } from '../domain/village';
 import type { VillageState } from '../domain/village';
 import type { HouseRepository, PersonRef } from './houses';
+import { followLineMoves } from './player-lord';
 import type { NoticeRepository } from './notices';
 import type { SettlementRepository } from './settlements';
 import type { SuccessionCreditRepository } from './succession-credits';
@@ -21,7 +22,7 @@ import type { VillageRecord, VillageRepository } from './villages';
 // losu a den, do kterého má hráč na volbu směru (`deadlineDay`).
 
 export interface PlayerSuccessionDeps {
-  houses: Pick<HouseRepository, 'activeOf' | 'commitSuccession'>;
+  houses: Pick<HouseRepository, 'activeOf' | 'commitSuccession' | 'setLord' | 'setSenior'>;
   settlements: SettlementRepository;
   villages: VillageRepository;
   notices: NoticeRepository;
@@ -59,6 +60,9 @@ export async function resolvePlayerSuccession(
   deps: PlayerSuccessionDeps,
   input: { playerId: string; today: number },
 ): Promise<PlayerSuccessionOutcome> {
+  // muž, který se přestěhoval do jiné vsi rodu pod novým číslem, žije (jinak by byl „mrtvý“)
+  const followed = await followLineMoves(deps, input.playerId);
+  if (followed.lordTravelling) return { kind: 'alive' };
   const house = await deps.houses.activeOf(input.playerId);
   const lord = house?.lord;
   if (!house || !lord) return { kind: 'alive' };
