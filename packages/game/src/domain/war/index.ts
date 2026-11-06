@@ -8,3 +8,6 @@ export * from './world-route';
 export * from './ticks';
 export * from './campaign-types';
 export * from './campaign';
+export * from './battle';
+export * from './defenders';
+export * from './orders';

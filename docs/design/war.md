@@ -568,6 +568,9 @@ Martin 2. 11. 2026 – „ok“ (doplňky návrh Clauda):
 | Zdraví a zásah                 | 100; 10 × síla ÷ násobek obrany; luk polovina                             |
 | Násobek obrany                 | u domu 1,5; za opevněním 1,5 × násobek opevnění (`FORTIFICATIONS`)        |
 | Rány                           | zblízka ≈ 2 s, luk ≈ 4 s na 20–60 m                                       |
+| Dosah zblízka                  | 3 m – oštěp a sekera dosáhnou i přes palisádu (návrh Clauda)              |
+| Zda rána padne                 | los 1 : 1 každé rány (návrh Clauda)                                       |
+| Dohled v lese                  | 50 m (jinak ≈ 150 m; návrh Clauda)                                        |
 | Na nule zdraví                 | padlý / raněný 1 : 1, muž rodu raněný 2 : 3                               |
 | Bod zlomu                      | 30 % v útoku, 45 % v obraně, po skupinách; padlí a ranění ÷ muži          |
 | Vzdát se při přesile           | útočníků víc než 1,5× obránců (Martin), jezdec za dva                     |

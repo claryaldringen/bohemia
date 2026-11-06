@@ -38,6 +38,11 @@ export function dayOfTick(tick: number, world: WorldClock): number {
   return Number((elapsed * BigInt(TOTAL_GAME_DAYS)) / duration);
 }
 
+/** Herní hodiny jednoho taktu (≈ 0,07 h – 344 taktů na herní den; prolamování v mužohodinách). */
+export function hoursPerTick(world: WorldClock): number {
+  return (24 * TICK_MS * TOTAL_GAME_DAYS) / (world.endMs - world.startMs);
+}
+
 /** Náhoda taktu – jen ze seedu tažení, čísla taktu a účelu (`label`), nikdy z pořadí výpočtu. */
 export function tickRandom(seed: number, tick: number, label: string): Random {
   return createRandom(deriveSeed(seed, `${label}:${tick}`));
