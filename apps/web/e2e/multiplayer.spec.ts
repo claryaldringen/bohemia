@@ -780,11 +780,12 @@ test('mír: A a C jsou ve válce, C nabídne mír s poplatkem, A přijme → vá
   for (const ctx of ctxs) await useUniqueClientIp(ctx);
   const [a, c] = (await Promise.all(ctxs.map((ctx) => ctx.newPage()))) as [Page, Page];
   for (const page of [a, c]) await page.setViewportSize({ width: 1280, height: 720 });
-  const { seat: seatA } = await newPlayer(a, 'mira');
+  const { email: emailA, seat: seatA } = await newPlayer(a, 'mira');
   await found(a, villageSpots(seatA.landscape).dwelling, 'Bořivoj');
   const { email: emailC, seat: seatC } = await newPlayer(c, 'mirc');
   await found(c, villageSpots(seatC.landscape).dwelling, 'Dalibor');
   const idC = await houseIdOf(emailC);
+  const idA = await houseIdOf(emailA);
 
   // ochrana vyprší a A opoví válku C
   await query(
@@ -814,7 +815,10 @@ test('mír: A a C jsou ve válce, C nabídne mír s poplatkem, A přijme → vá
   await expect(panelA2.getByTestId('house-negotiation')).toHaveCount(0);
 
   // válka skončila mírem, C má otevřený dialog poplatku
-  const wars = await query<{ status: string }>(`SELECT status FROM war`, []);
+  const wars = await query<{ status: string }>(
+    `SELECT status FROM war WHERE house_low = ANY($1) AND house_high = ANY($1)`,
+    [[idA, idC]],
+  );
   expect(wars).toEqual([{ status: 'peace' }]);
   const dialogs = await query<{ kind: string }>(
     `SELECT kind FROM dialog WHERE status = 'open' AND player_id = (SELECT player_id FROM house WHERE id = $1)`,
