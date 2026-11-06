@@ -9,6 +9,7 @@ describe('readConfig', () => {
       limit: 50,
       idleMs: 5000,
       landscapes: 128,
+      campaignMs: 1000,
       logLevel: 'info',
     });
     expect(config.databaseUrl).toContain('/bohemia');

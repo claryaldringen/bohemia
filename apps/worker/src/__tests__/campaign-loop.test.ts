@@ -1,0 +1,67 @@
+import type { CampaignResult } from '@bohemia/game';
+import { describe, expect, it } from 'vitest';
+import { runCampaignLoop, type CampaignLoopDeps } from '../campaign-loop';
+
+// Smyčka tažení: kolo po periodě, chyba tažení ani kola smyčku nezastaví, signál ji ukončí.
+
+function harness(steps: (() => Promise<CampaignResult[]>)[]): {
+  deps: CampaignLoopDeps;
+  stop: AbortController;
+  warnings: string[];
+  sleeps: number[];
+  calls: number[];
+} {
+  let clock = 1_000;
+  const stop = new AbortController();
+  const warnings: string[] = [];
+  const sleeps: number[] = [];
+  const calls: number[] = [];
+  const deps: CampaignLoopDeps = {
+    step: ({ nowMs }) => {
+      calls.push(nowMs);
+      const next = steps[calls.length - 1];
+      clock += 300; // výpočet kola trvá 300 ms
+      if (calls.length >= steps.length) stop.abort();
+      return next ? next() : Promise.resolve([]);
+    },
+    now: () => clock,
+    sleep: (ms) => {
+      sleeps.push(ms);
+      clock += ms;
+      return Promise.resolve();
+    },
+    log: { info: () => undefined, warn: (m) => warnings.push(m), debug: () => undefined },
+  };
+  return { deps, stop, warnings, sleeps, calls };
+}
+
+describe('runCampaignLoop', () => {
+  it('chyba jednoho tažení i celého kola smyčku nezastaví; perioda 1 s od začátku kola', async () => {
+    const { deps, stop, warnings, sleeps, calls } = harness([
+      () =>
+        Promise.resolve([
+          { campaignId: 'a', outcome: 'failed', error: new Error('rozbité tažení') },
+          { campaignId: 'b', outcome: 'saved' },
+        ]),
+      () => Promise.reject(new Error('relation "campaign" does not exist')),
+      () => Promise.reject(new Error('relation "campaign" does not exist')),
+      () => Promise.resolve([{ campaignId: 'b', outcome: 'computed' }]),
+    ]);
+    const rounds = await runCampaignLoop(deps, { campaignMs: 1000 }, stop.signal);
+    expect(rounds).toBe(4);
+    expect(calls).toEqual([1_000, 2_000, 3_000, 4_000]);
+    expect(sleeps).toEqual([700, 700, 700]);
+    // stejná chyba kola se v minutě hlásí jen jednou
+    expect(warnings.map((w) => w.split('\n')[0])).toEqual([
+      'chyba tažení a: Error: rozbité tažení',
+      'kolo tažení selhalo: Error: relation "campaign" does not exist',
+    ]);
+  });
+
+  it('signál ukončení před kolem – žádné kolo', async () => {
+    const { deps, stop, calls } = harness([]);
+    stop.abort();
+    expect(await runCampaignLoop(deps, { campaignMs: 1000 }, stop.signal)).toBe(0);
+    expect(calls).toEqual([]);
+  });
+});

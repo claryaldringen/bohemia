@@ -24,3 +24,5 @@ export { createWorldQueue } from './world-queue';
 export { createStewardshipRepository } from './stewardship-repository';
 export { createEscheatRepository } from './escheat-repository';
 export { createWarRepository } from './war-repository';
+export { createCampaignRepository } from './campaign-repository';
+export { CAMPAIGN_LOCK_NAMESPACE, createCampaignLock } from './campaign-lock';

@@ -468,6 +468,10 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
         case 'peace':
           return `Mír s ${instrumentalOf(event.other)}.`;
       }
+    case 'campaign':
+      return event.step === 'set-out'
+        ? `Vojsko ${genitiveOf(event.leader)} vyrazilo.`
+        : `Vojsko ${genitiveOf(event.leader)} se vrátilo.`;
     case 'negotiation-accepted':
       return `${event.vassal} se stal vazalem ${genitiveOf(event.lord)}.`;
     case 'vassalage-renounced':

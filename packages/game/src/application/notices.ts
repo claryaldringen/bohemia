@@ -1,3 +1,5 @@
+import type { CampaignNoticeKind } from '../domain/war';
+
 /**
  * Druhy upozornění mezi hráči. Další úlohy plánu (nástupnictví, jednání, kampaně…) přidávají své
  * druhy do této unie; web k nim doplní text v `playerNoticeLine`.
@@ -33,7 +35,12 @@ export type PlayerNoticeKind =
   /** Rod ti opověděl válku (war.md – Začátek války) – payload `{ houseId, name }`. */
   | 'war-declared'
   /** Ochrana nového rodu brzy skončí (war.md – Ochrana nového hráče) – payload `{ daysLeft }`. */
-  | 'protection-ending';
+  | 'protection-ending'
+  /**
+   * Tažení (`stepCampaigns`): `campaign-returned` – vojsko se vrátilo domů, payload
+   * `{ campaignId, reason }` (`CampaignReturnReason`).
+   */
+  | CampaignNoticeKind;
 
 /** Upozornění pro hráče – řádek ve frontě; `id` roste, na něm stojí `after`. */
 export interface PlayerNotice {

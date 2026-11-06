@@ -49,6 +49,8 @@ export interface PlayerLockOptions {
    * (pojistkou je zámek verze vsi). Výchozí: `console.warn`.
    */
   onLost?: (playerId: string, error: Error) => void;
+  /** Jmenný prostor klíčů (výchozí `PLAYER_LOCK_NAMESPACE`) – jiný má zámek tažení. */
+  namespace?: number;
 }
 
 /** Postgres: čekání na zámek přerušil `lock_timeout`. */
@@ -68,11 +70,11 @@ function warnLost(playerId: string, error: Error): void {
  * odemčení selže nebo spojení spadlo, spojení se z poolu zahodí a zámek padne s ním.
  */
 export function createPlayerLock(pool: Pool, options: PlayerLockOptions = {}): PlayerLock {
-  const { waitTimeoutMs, onLost = warnLost } = options;
+  const { waitTimeoutMs, onLost = warnLost, namespace = PLAYER_LOCK_NAMESPACE } = options;
   const timed = new WeakSet<PoolClient>();
 
   async function lock(client: PoolClient, playerId: string, wait: boolean): Promise<boolean> {
-    const key = [PLAYER_LOCK_NAMESPACE, playerLockHash(playerId)];
+    const key = [namespace, playerLockHash(playerId)];
     if (!wait) {
       const result = await client.query<{ locked: boolean }>(
         'SELECT pg_try_advisory_lock($1, $2) AS locked',
@@ -99,7 +101,7 @@ export function createPlayerLock(pool: Pool, options: PlayerLockOptions = {}): P
     try {
       const result = await client.query<{ unlocked: boolean }>(
         'SELECT pg_advisory_unlock($1, $2) AS unlocked',
-        [PLAYER_LOCK_NAMESPACE, playerLockHash(playerId)],
+        [namespace, playerLockHash(playerId)],
       );
       return result.rows[0]?.unlocked === true ? undefined : new Error('zámek už nebyl držen');
     } catch (error) {

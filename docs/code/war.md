@@ -130,3 +130,73 @@ outside, day)` → `MemberDelta` (`health`, `vigor` = podíl plné síly): v zim
   zlatá cesta na seedech 1–3 – otisk počtu brodů a trasy přes mapu, determinismus, paseka, okraj),
   `world-route.test.ts`, `application/__tests__/cell-landscape.test.ts`. Změna mřížky nebo A*
   změní zlatý otisk – zapsat nový jen se záměrem.
+
+## Tažení po taktech (Ú6.5)
+
+Plán 2026-11-03 – rozhodnutí 12; Review bod 5. Čísla ve `WAR.campaign`.
+
+- **Takty** – `domain/war/ticks.ts`: `TICKS_PER_SECOND` = 4 (`TICK_MS` 250), takt 0 = začátek
+  světa; `tickOfMs(ms, world)`, `msOfTick`, `dayOfTick(tick, world)` (BigInt, shodně
+  s kalendářem); `INTENT_LEAD_TICKS` = 2, `CHECKPOINT_TICKS` = 40; `tickRandom(seed, tick, label)`
+  – náhoda jen ze seedu tažení a čísla taktu (boj Ú6.8).
+- **Stav** – `domain/war/campaign-types.ts`: `CampaignState` (JSON; `tick` = poslední spočtený
+  takt, `day` = jeho herní den; `phase` `assembling` → `marching` → `raiding` → `returning` → `done`,
+  `disbanded` pro rozpad Ú6.12; vůdce `playerId` / `leaderName`, `commander`, `deputy`, `assembly`
+  a `target` (`CampaignVillage` – ves, políčko, bod), `members` (`CampaignMember` – osoba
+  `PersonRef`, hráč, muž rodu, kůň, nucený, síla, zdraví, `vigor`, raněný, skupina, `status`),
+  `groups` (`CampaignGroup` – rozkaz, políčko a poloha, cíl, `route` = zbývající políčka světa,
+  `leg` = úsek po mapě `{ points, meadowM, walkedM }`, `arrived`), `supplies.foodKg`,
+  `loot { foodKg, herd }`, `captives`, `liveCommand`, `discovered`, `returnReason`).
+  `CampaignIntent { tick, seq, byPlayer, body }`, `IntentBody` = `set-out` | `march { to }` (jen
+  `liveCommand`, ve fázi pochodu) | `turn-back`.
+- **Krok** – `domain/war/campaign.ts`: `newCampaign(input, clock)` (muži ve shromaždišti, skupiny
+  podle `member.group`), `stepCampaign(state, toTick, intents, world)` → `{ state, villageEvents,
+notices, waiting }` – čistá, vstup nemění. Takt na kopii stavu: na začátku nového herního dne
+  denní krok (mráz `frostDay` – venku, ve shromaždišti zotavení; jídlo 1 kg na aktivního muže, bez
+  jídla na pochodu obrat `supplies`), záměry taktu podle `seq` (záměr s taktem ≤ `state.tick`
+  a cizí hráč se zahodí), pak fáze. **Pohyb:** skupina jde tempem `marchSpeed ÷ 4` metrů louky za
+  takt po `leg` (`marchPathToEdge` k okraji ve směru `route[0]`, na posledním políčku `marchPath`
+  k cíli; úsek se plánuje na mřížce `marchGrid` políčka a dne – mezipaměť jen v rámci volání);
+  konec úseku na okraji = `edgeCrossing` na sousední mapu (zbytek taktu propadne), v cíli stojí;
+  skupina bez cesty nebo bez mužů stojí. Trasa po světě `worldRoute` (bez zákazů – průchod Ú6.13).
+  Všechny skupiny na mapě cíle → `raiding`; **`raidTick` je místo pro boj** (Ú6.8 `battleTick`, Ú6.9
+  obránci, Ú6.10 kořist, Ú6.11 vzdaní) – v Ú6.5 hned obrat `arrived`. Návrat ke shromaždišti
+  (rozpad po hloučcích Ú6.12) → `done`: zápis „Vojsko Bořivoje se vrátilo.“ do kroniky každé
+  domovské vsi a upozornění `campaign-returned { campaignId, reason }`; při vyrazení „Vojsko
+  Bořivoje vyrazilo.“ do shromaždiště. Události jdou do schránky na **následující den** (rozhodnutí
+  13), `ref` = `camp:<id>:<takt>:<n>`. Stádo kořisti jde se skupinou velitele.
+- **Svět tažení** – `CampaignWorld { clock, landscapeOf(cell), villageAt(villageId, day) }`
+  (synchronní): `null` = data ještě nejsou → takt se zastaví a `waiting` vrátí chybějící políčka /
+  vsi; výsledek se tím nezmění. Mřížka bere cesty a opevnění **první** vsi mapy; `villageAt` v Ú6.5
+  vrací stav, jak ho má úložiště – stav přesně ke dni (bariéra) a víc vsí na mapě je Ú6.7.
+- **Use-case** – `application/step-campaigns.ts`: `stepCampaigns(deps, { nowMs })` – pro každé
+  `campaigns.active()` pod `CampaignLock.tryRun` (jinak `busy`): kontrolní bod → nejdřív doručí
+  starý `outbox`, záměry `intentsAfter(tick)`, `computeCampaign` (načítá chybějící mapy
+  `CampaignCells.mapOf` a vsi a pokračuje, nejvýš 8 kol) do `tickOfMs(now)`. Bod se uloží, když
+  přibylo ≥ 40 taktů, vznikly události nebo tažení skončilo (jinak `computed` – další kolo počítá
+  znovu z bodu); `saveCheckpoint` uloží stav i `outbox` (události a upozornění) atomicky a odmítne
+  (`stale`), když se bod posunul nebo přibyl záměr do spočtených taktů (počet záměrů v rozsahu ≠
+  `seenIntents`). Po uložení doručí `outbox` (`villages.inbox.post` – stejný `ref` podruhé zahozen,
+  `notices.post`) a smaže ho (`clearOutbox`); pád mezi uložením a doručením → další kolo doručí
+  znovu. Chyba tažení = `failed`, ostatní tažení počítají dál. `queueCampaignIntent(deps, {
+campaignId, playerId, body, nowMs })` – záměr na takt `tickOfMs(now) + 2`; úložiště odmítne takt
+  ≤ bodu (null). Porty v `application/campaigns.ts`.
+- **DB** – `schema/campaign.ts`, migrace `0030_campaign`: `campaign` (válka, vůdce, `status`
+  `active` / `done`), `campaign_checkpoint` (`tick`, `state` jsonb – čísla přesně, pořadí klíčů
+  jiné, takt na něm nezávisí; `outbox` jsonb), `campaign_intent` (`seq` serial, takt, hráč, tělo).
+  Adaptér `adapters/campaign-repository.ts`: `addIntent` = `INSERT … SELECT … FOR SHARE OF cp`
+  (takt > bod, tažení aktivní), `saveCheckpoint` v transakci `FOR UPDATE` na bodu a počet záměrů až
+  pod zámkem; `active()` = aktivní nebo s `outbox`. Zámek `adapters/campaign-lock.ts`
+  (`createCampaignLock(pool)` – advisory zámek zámku hráče v prostoru `CAMPAIGN_LOCK_NAMESPACE`).
+  Mapy políček `packages/server/src/campaign-cells.ts` (`createCampaignCells` – políčko se sídlem
+  z uloženého seedu a jeho vsi, prázdné políčko `emptyCellLandscape` v LRU 16).
+- **Testy** – `domain/war/__tests__/campaign.test.ts` (po 1, 7, 40, 400 taktech = vcelku – stejný
+  JSON stavu i události; restart z JSON bodu i s obráceným pořadím klíčů = bez restartu; záměr přesně
+  ve svém taktu, v minulosti a cizí zahozen; obrat rozkazem; bez jídla obrat; chybějící mapa
+  zastaví a po načtení stejný výsledek; přípravky `campaign-fixtures.ts` – rovné mapy),
+  `application/__tests__/step-campaigns.test.ts` (kola po 1 s s restartem portů = vcelku, bod
+  nejvýš po 40 taktech; pád po uložení před doručením – nic se nezdvojí; záměr ≤ bod odmítnut,
+  teď + 2 použit v něm; záměr do spočteného taktu → `stale` a další kolo ho použije; chyba
+  a cizí zámek jednoho tažení nezastaví ostatní), `db/adapters/__tests__/campaign-repository.db.test.ts`
+  (bod bit po bitu, odmítnutí záměru, `stale`, `outbox`, souběh záměru s uložením, dva workery –
+  tažení počítá jen jeden).

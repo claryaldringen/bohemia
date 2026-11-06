@@ -10,6 +10,8 @@ export interface WorkerConfig {
   idleMs: number;
   pauseMs: number;
   landscapes: number;
+  /** Perioda smyčky tažení (ms) – tažení se počítají po taktech (4 za sekundu). */
+  campaignMs: number;
   logLevel: LogLevel;
 }
 
@@ -38,6 +40,7 @@ export function readConfig(env: WorkerEnv): WorkerConfig {
     idleMs: integer(env, 'WORKER_IDLE_MS', 5000, 100),
     pauseMs: integer(env, 'WORKER_PAUSE_MS', 20, 0),
     landscapes: integer(env, 'WORKER_LANDSCAPES', 128, 1),
+    campaignMs: integer(env, 'WORKER_CAMPAIGN_MS', 1000, 100),
     logLevel: level,
   };
 }

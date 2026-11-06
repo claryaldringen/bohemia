@@ -190,7 +190,7 @@ export function marchSeconds(path: MarchPath, speed: number): number {
 }
 
 /** Poloha na trase po ušlých `meadow` metrech louky (tempo × čas); za koncem cíl. */
-export function marchProgress(path: MarchPath, meadow: number): Pos {
+export function marchProgress(path: Pick<MarchPath, 'points' | 'meadowM'>, meadow: number): Pos {
   const m = path.meadowM;
   const last = path.points.length - 1;
   if (meadow <= 0) return { ...path.points[0]! };

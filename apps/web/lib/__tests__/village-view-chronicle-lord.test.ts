@@ -16,6 +16,15 @@ describe('kronika – vojvodova rodina', () => {
     );
   });
 
+  it('tažení vyrazilo a vrátilo se (war.md – Velení)', () => {
+    expect(
+      chronicleText({ day: 4, kind: 'campaign', step: 'set-out', leader: 'Bořivoj' }, 'Ves'),
+    ).toBe('Vojsko Bořivoje vyrazilo.');
+    expect(
+      chronicleText({ day: 5, kind: 'campaign', step: 'returned', leader: 'Bořivoj' }, 'Ves'),
+    ).toBe('Vojsko Bořivoje se vrátilo.');
+  });
+
   it('jméno muže rodu v 1. pádu (lord.md – Jména)', () => {
     expect(chronicleText({ day: 3, kind: 'line-named', name: 'Mrdomír' }, 'Ves')).toBe(
       'Muž rodu dostal jméno – Mrdomír.',
