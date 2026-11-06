@@ -6,7 +6,6 @@ import { NO_CRAFTS } from '../productivity';
 import { STEWARD } from '../rules-steward';
 import { fieldTarget } from '../steward';
 import { stewardOutlook } from '../steward-outlook';
-import { stewardCrowded } from '../steward-son';
 import type { FieldPart, VillageState } from '../types';
 
 const SEPT = dayIndexOf({ year: 504, month: 9, day: 1 });
@@ -60,10 +59,6 @@ describe('výhled vsi – model kapacity (steward.md – Model kapacity vsi)', (
       ((o.landPeople * o.laborHa) / o.landHa) * STEWARD.fieldReserve + 1e-9,
     );
     expect(target.have).toBeGreaterThan(target.need);
-    // přelidnění podle udržitelných lidí, ne podle půdy
-    expect(stewardCrowded(s, SEPT, NO_CRAFTS, o)).toBe(
-      s.people.length > o.sustainablePeople * STEWARD.crowdedShare,
-    );
   });
 
   it('osivo brzdí jen do konce setí – v září bez zásob hrdlem osivo, trvale ne', () => {

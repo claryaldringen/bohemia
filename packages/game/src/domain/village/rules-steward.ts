@@ -225,8 +225,11 @@ export const STEWARD = {
    * roku – po žních, před plánem osevu 1. 9.
    */
   departureDate: { month: 8, day: 31 } as StewardMonthDay,
-  /** Krok 2 – přelidnění: lidí víc než „Pole uživí podle dnešní půdy“ × tolik. */
-  crowdedShare: 1.05,
+  /**
+   * Krok 2 – přelidnění (Martin 6. 11. 2026): lidí víc než tento podíl kapacity mapy
+   * (`mapCapacity`) – „např. 80 % toho, co je mapa reálně schopná uživit“.
+   */
+  mapCrowdedShare: 0.8,
   /**
    * Krok 2 – past osiva (Hranice – past osiva): odchod i bez přelidnění podle polí, když ves od
    * minulého 31. 8. nahromadila aspoň tolik dní hladu – nad hladem prvních let nové vsi (≤ 4,5)
@@ -273,3 +276,15 @@ export interface StewardMonthDay {
 
 /** Okno roku od `from` do `to` včetně; `from` po `to` = okno přes Nový rok. */
 export type StewardWindow = readonly [StewardMonthDay, StewardMonthDay];
+
+/**
+ * Kapacita mapy (steward.md – Model kapacity vsi; Martin 6. 11. 2026): kolik lidí uživí všechna
+ * obdělatelná půda krajiny. Odchod syna při přelidnění: `STEWARD.mapCrowdedShare`.
+ */
+export const MAP_CAPACITY = {
+  /**
+   * Podíl potřeby energie, který na mapě bere obilí z pole (návrh Clauda): zbytek dá maso, mléko,
+   * vejce a ovoce; ustálený podíl vsí je ≈ 0,8 (`FieldFoodYear.longShare`).
+   */
+  fieldFoodShare: 0.8,
+} as const;

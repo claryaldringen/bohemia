@@ -14,6 +14,7 @@ import { currentLord, wivesOf } from './dynasty';
 import { generatedLineName } from './dynasty-names';
 import { foundedState } from './founding';
 import { bufferFill } from './field-food';
+import { mapCapacity } from './map-capacity';
 import { suggestVillageName } from './names';
 import { ageGroup, ageYears } from './people';
 import { LEAVING } from './rules-buildings';
@@ -26,20 +27,13 @@ import { departWithSon, leadingSons, sonDeparturePreview } from './son-departure
 import { fieldCellValue, fieldCells, takenTiles, villageTerritory } from './steward-land';
 import {
   stewardFedPeople,
-  stewardOutlook,
   stewardSoil,
   type StewardOutlook,
   type StewardSoil,
 } from './steward-outlook';
 import { isStewardOn, pruneStewardBuilt } from './steward-state';
 import { DIRECTIONS, builtTrail } from './trail';
-import type {
-  CraftCoverage,
-  Person,
-  StewardDeparture,
-  StewardDirection,
-  VillageState,
-} from './types';
+import type { Person, StewardDeparture, StewardDirection, VillageState } from './types';
 import { freeVillageSite } from './village-site';
 
 /** Bod ve světě (m). */
@@ -107,17 +101,16 @@ export function nameStewardSons(state: VillageState, day: number): void {
 // --- 2. odchod syna --------------------------------------------------------------------
 
 /**
- * Přelidnění (krok 2): lidí víc, než ves udrží (`stewardOutlook` – „Pole uživí“ při osevu trvalého
- * hrdla: půdy, nebo práce v oknech setí; zakládané díly jako v oběhu – jako `fieldTarget`)
- * × `STEWARD.crowdedShare`.
+ * Přelidnění (krok 2; Martin 6. 11. 2026): lidí víc než `STEWARD.mapCrowdedShare` kapacity
+ * mapy (`mapCapacity` – co uživí všechna obdělatelná půda krajiny). Správce rozšiřuje pole, dokud
+ * mu mapa dovolí; odchod nastane, až ves naplní mapu, ne při prvním nedostatku polí.
  */
 export function stewardCrowded(
   state: VillageState,
-  day: number,
-  coverage: CraftCoverage,
-  outlook: StewardOutlook = stewardOutlook(state, day, coverage),
+  landscape: Landscape,
+  obstacles: ObstacleLayer,
 ): boolean {
-  return state.people.length > outlook.sustainablePeople * STEWARD.crowdedShare;
+  return state.people.length > mapCapacity(landscape, obstacles) * STEWARD.mapCrowdedShare;
 }
 
 /** Polohy obydlí a stavenišť vsi (m) – od nich se měří dosah pole. */
@@ -342,11 +335,9 @@ function isDepartureDate(day: number): boolean {
 }
 
 /**
- * Krok 2 (mutuje stav): v den `STEWARD.departureDate` ves přelidněná (`stewardCrowded`) bez místa
- * na nová pole (`stewardFieldRoom`), nebo ves, která od minulého dne odchodu hladověla aspoň
- * `STEWARD.departureHungerDays` (`steward.hungerPeak`) – bez místa na pole, nebo i s ním, když pole
- * podle „Pole uživí“ stačí (past osiva – steward.md, Hranice) nebo ves hladověla už loni
- * (`steward.lastYearHunger` – pole navíc rok nepomohla) –, a se synem, jehož díl je životaschopná
+ * Krok 2 (mutuje stav): v den `STEWARD.departureDate` ves přelidněná vůči kapacitě mapy
+ * (`stewardCrowded`), nebo ves, která od minulého dne odchodu hladověla aspoň
+ * `STEWARD.departureHungerDays` (`steward.hungerPeak` – past osiva, steward.md, Hranice), a se synem, jehož díl je životaschopná
  * výprava (`departingSon` – jinak správce počká): syn odejde s dílem
  * vsi (`departWithSon`) a osadníci jdou do odchozí schránky `steward.departures` se seedem
  * (`deriveSeed(seed vsi, 'steward-son:' + den)`), jménem (`suggestVillageName`) a směry na novou
@@ -360,17 +351,11 @@ export function stewardDeparture(
   obstacles: ObstacleLayer,
 ): boolean {
   if (!isDepartureDate(day) || !isStewardOn(state) || state.people.length === 0) return false;
-  const coverage = craftCoverage(state, day);
-  const outlook = stewardOutlook(state, day, coverage);
-  const crowded = stewardCrowded(state, day, coverage, outlook);
+  const crowded = stewardCrowded(state, landscape, obstacles);
   const hungry = (state.steward?.hungerPeak ?? 0) >= STEWARD.departureHungerDays;
+  // past osiva (hlad i bez přelidnění) a přelidnění mapy: odchod bez ohledu na místo na pole –
+  // přelidněná mapa žádné další pole neunese a hladovějící ves další pole nezachrání
   if (!crowded && !hungry) return false;
-  // past osiva: ves hladoví, i když „Pole uživí“ stačí – další pole by zůstala neosetá, pomůže jen
-  // méně lidí; hladověla-li už loni, pole navíc měla rok a nepomohla; jinak napřed nová pole, až
-  // když není kam, odchod
-  const lastYear = (state.steward?.lastYearHunger ?? 0) >= STEWARD.departureHungerDays;
-  const trapped = hungry && (!crowded || lastYear);
-  if (!trapped && stewardFieldRoom(state, day, landscape, obstacles, outlook)) return false;
   const son = departingSon(state, day);
   if (!son) return false;
   const seed = deriveSeed(state.seed, `steward-son:${day}`);
