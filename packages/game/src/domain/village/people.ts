@@ -20,10 +20,10 @@ export function ageGroup(person: Person, day: number): 'child' | 'adult' | 'elde
 /**
  * Pracovní síla vsi (pole a stavby) za den (population.md – Práce): dospělý 1; starší 0 – kryjí jen
  * denní minimum své domácnosti (`adultDailyMin` v labor.ts); dítě 0 – výrostci 7–13 let pasou
- * (herding.ts); zraněný na lovu 0.
+ * (herding.ts); zraněný na lovu 0; kdo je pryč na čas (`isAway` – robota…), doma nepracuje.
  */
 export function laborPerDay(person: Person, day: number): number {
-  if (isInjured(person, day)) return 0;
+  if (isInjured(person, day) || isAway(person, day)) return 0;
   return ageGroup(person, day) === 'adult' ? LABOR_PER_DAY.adult : 0;
 }
 
@@ -32,9 +32,36 @@ export function isInjured(person: Pick<Person, 'injuredUntilDay'>, day: number):
   return (person.injuredUntilDay ?? 0) > day;
 }
 
-/** Potřeba jídla na den v kg podle věkové skupiny. */
+/**
+ * Je člověk dnes pryč na čas (plán 2026-11-03 – rozhodnutí 11: robota, služba, tažení, zajetí,
+ * ochrana)? Do dne `untilDay` (bez něj, dokud nepřítomnost neukončí jiná mechanika).
+ */
+export function isAway(person: Pick<Person, 'away'>, day: number): boolean {
+  const away = person.away;
+  return away !== undefined && (away.untilDay === undefined || day < away.untilDay);
+}
+
+/** Potřeba jídla na den v kg podle věkové skupiny; kdo je pryč na čas, jí jinde (0). */
 export function foodNeedPerDay(person: Person, day: number): number {
+  if (isAway(person, day)) return 0;
   return FOOD_NEED_KG_PER_YEAR[ageGroup(person, day)] / FOOD_DAYS_PER_YEAR;
+}
+
+/** Hosté ve vsi dnes (rozhodnutí 11) – ti, kdo ještě neodešli (`untilDay` po dnešku). */
+export function guestsToday(state: Pick<VillageState, 'guests'>, day: number): number {
+  let n = 0;
+  for (const g of state.guests ?? []) if (g.untilDay > day) n++;
+  return n;
+}
+
+/** Potřeba jídla hostů na den v kg – dospělí jako dospělí vsi (jedí ze zásob hostitele). */
+export function guestFoodNeedPerDay(state: Pick<VillageState, 'guests'>, day: number): number {
+  return (guestsToday(state, day) * FOOD_NEED_KG_PER_YEAR.adult) / FOOD_DAYS_PER_YEAR;
+}
+
+/** Práce hostů na den (čd) – dospělý 1 (`LABOR_PER_DAY.adult`). */
+export function guestLaborToday(state: Pick<VillageState, 'guests'>, day: number): number {
+  return guestsToday(state, day) * LABOR_PER_DAY.adult;
 }
 
 /**

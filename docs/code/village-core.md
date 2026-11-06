@@ -193,6 +193,32 @@ afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Sc
   - **In-memory** `__tests__/in-memory-inbox.ts` (`InMemoryVillages.inbox`) se chová jako budoucí
     adaptér: posune den, zvedne verzi vsi v `InMemoryVillages`, hlídá `ref`.
 
+- **Nepřítomní a hosté** (plán 2026-11-03 – rozhodnutí 11; vassalage.md – Lidé a robota; kód
+  `domain/vassalage/guests.ts`, `people.ts`) – kdo je pryč jen na čas (robota, později služba,
+  tažení, zajetí, ochrana), zůstává ve stavu domovské vsi s `Person.away` (`kind`, `untilDay`,
+  `hostVillageId`, `refId`); hostitelská ves ho vede jako hosta (`VillageState.guests`, `Guest
+{ ref: PersonRef, kind, untilDay, adult: true }`). Obě části stavu jsou volitelné – starší vsi
+  bez nich se nemění (zlaté hodnoty simulace drží).
+  - **Doma:** `isAway(person, day)` (do dne `untilDay`) – `laborPerDay` i `foodNeedPerDay` vrátí 0,
+    takže nepřítomný nepracuje (práce dne, řemesla, výhledy správce) ani nejí (`villageFoodNeed`,
+    jídlo, maso, mléko). Jinak žije dál ve vsi (stárne, může zemřít).
+  - **U hostitele:** `guestsToday` / `guestFoodNeedPerDay` / `guestLaborToday` – host je dospělý:
+    jí jako dospělý ze zásob hostitele (`villageFoodNeed` ho přičte) a pracuje 1 čd denně.
+    Práce hostů ve `work()` (`simulate-work.ts`) jde **napřed do rozestavěného opevnění**
+    (`build(…, 'fortification')` – rovným dílem po úsecích, bez tesaře), co zbude, se přičte ke
+    společné práci před stavbami – ostatní stavby rovným dílem, opravy obydlí, údržba valu, díly
+    nad potřebu, seč navíc (návrh Clauda podle fortifications.md – Robota vazalů). Polní úlohy
+    dne hosté nedělají; ukazatel volné práce na seč (`recordMowingLabor`) práci hostů nepočítá.
+    Rozdělení práce dne (`labor-report.ts`) dostane práci hostů na opevnění jako další řádky
+    staveb.
+  - **Návrat v pevný den:** `returnHome(state, day)` na začátku každého dne v `advanceVillageSteps`
+    (před událostmi schránky dne): kdo má `untilDay <= day`, je doma (`away` zmizí, kronika
+    `people-back`), hosté s `untilDay <= day` odejdou (prázdné `guests` zmizí). Bez události
+    schránky – výsledek nezávisí na kouscích dopočtu obou vsí (test po kouscích v
+    `vassalage/__tests__/guests.test.ts`).
+  - **Příchod hostů:** tělo schránky `guests-arrive` (`fromVillageId`, `fromName`, `guests`) –
+    `hostGuests` přidá ty, kdo ještě neodešli a ve vsi nejsou; kronika `guests-came`.
+
 - **Výkon dopočtu** (Vlkov, 44 lidí, rok vcelku): po stálých trasách (A4) ≈ 49 s, po mřížce
   a trasách vozu v paměti a chůzi s horní mezí napřed (B1 – village-roads.md, Trasy v paměti)
   ≈ 39 s, po rychlejším hledání vozu (B2a) ≈ 31 s, po C1 (orba chce jen cenu trasy – A* s odhadem

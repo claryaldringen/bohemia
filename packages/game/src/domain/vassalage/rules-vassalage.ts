@@ -32,6 +32,12 @@ export const VASSALAGE = {
     cartCrew: CARTS.tradeCrew,
     sameCellTripDays: TRADE.tripDays.min,
   },
+  /**
+   * Robota (Lidé a robota): dospělí od 16 let (Martin), ne muži rodu; jeden člověk odpracuje
+   * nejvýš měsíc, víc člověkodní = víc lidí; když ves tolik lidí nemá, déle – ale nejvýš rok
+   * (návrh Clauda). Cesta se do dní nepočítá.
+   */
+  corvee: { fromAge: 16, maxStintDays: 30, maxDaysPerPerson: 365 },
   /** Služba: muž rodu od 16 let (Martin), dny za herní rok podle dohody. */
   serviceFromAge: 16,
   /** Povýšení vesničana: muž od 16 let, nejvýš 1 za herní rok (Martin). */

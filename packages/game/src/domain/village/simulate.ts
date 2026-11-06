@@ -45,6 +45,7 @@ import { decideFortRebuilds } from './fortification/decay';
 import { gateRoadCrossings } from './fortifications';
 import { isVillageDormant } from './departure';
 import { applyInboxDay, inboxByDay, type VillageEvent } from './inbox';
+import { returnHome } from '../vassalage/guests';
 import { withAwaitingLord } from './appoint-lord';
 import { withDynasty } from './dynasty';
 import { withSteward } from './steward-state';
@@ -185,6 +186,9 @@ export function* advanceVillageSteps(
   const eventsByDay = inboxByDay(inbox);
   // vymřelá, opuštěná a ves na cestě se nesimulují – jen se posune den (migration.md)
   for (let day = next.lastDay + 1; day <= toDay && !isVillageDormant(next); day++) {
+    // návraty domů a odchody hostů v pevný den (plán 2026-11-03 – rozhodnutí 11) – před
+    // událostmi dne, ať host, který dnes odchází, a nový host, který dnes přijde, nesplynou
+    next.chronicle.push(...returnHome(next, day));
     // události schránky dne – na začátku dne, před jeho simulací (village-core.md – Schránka vsi)
     const events = eventsByDay.get(day);
     if (events) next.chronicle.push(...applyInboxDay(next, day, events));

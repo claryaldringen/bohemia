@@ -45,6 +45,7 @@ import type {
   Dwelling,
   DwellingRuin,
   Emigrant,
+  Guest,
   NeighborDirection,
   Person,
 } from './types-people';
@@ -256,6 +257,12 @@ export interface VillageState {
    * schránka (`threat-signal`), čte správce (`villageThreat`). Ves si pamatuje 50 let; chybí = žádné.
    */
   threats?: ThreatSignal[];
+  /**
+   * Hosté z jiných vsí na čas (plán 2026-11-03 – rozhodnutí 11): robota, později služba, zajetí,
+   * ochrana. Zapisuje je schránka (`guests-arrive`), odcházejí v pevný den (`returnHome`). Chybí
+   * = žádní.
+   */
+  guests?: Guest[];
   /**
    * Hotová rádla vsi (oxen.md – Voli po kusech): pár vycvičených volů orá, jen když má rádlo; ves
    * staví rádlo s výcvikem nového páru k orbě. Chybí = žádné – u vsí uložených dřív jedno na každé

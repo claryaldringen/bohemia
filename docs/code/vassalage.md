@@ -8,7 +8,8 @@ jsou v `tree.ts` (viz `world.md`).
 ## Čísla (`rules-vassalage.ts`)
 
 `VASSALAGE` – tabulka Čísla vassalage.md: roční dialog 1. 11., pojistka `reserveYears` 2, měsíc
-dopravy listopad, `travelDaysPerCell` (= `WORLD.travelDaysPerCell`), služba a povýšení od 16 let,
+dopravy listopad, `travelDaysPerCell` (= `WORLD.travelDaysPerCell`), robota (`corvee` – od 16 let, nejvýš
+30 dní na člověka, déle jen když ves nemá dost lidí, nejvýš rok), služba a povýšení od 16 let,
 rozsudek po 1 skutečném dni. Doprava jen odkazuje na obchod (`TRADE`, `CARTS`, `TRADE_GOOD_VALUES`)
 – nosič 25 kg, kláda 100 kg = 2 nosiči, vůz 400 / 800 kg s 2 vozkami, honák 10 kusů dobytka, koně
 po 4 na ohlávce (horses.md – Nákup a prodej). Pozvánky a mapa jsou v `INVITES` a `WORLD`, pauza
@@ -195,7 +196,8 @@ Pravidla: [vassalage.md](../design/vassalage.md) – „Roční dialog 1. 11.“
 - **Vypovězení:** `renounceVassalage` volá `deps.dialogs?.dropFor(vazalství)` – dialog zmizí. (Háček `onVassalageEnded` je
   globální registr, ale `gameDeps()` vzniká na každý požadavek, proto se čistí přímo v use-casu.)
 - **Data pro rozhraní:** server action `levyDialogs()` → `{ dialogs: LevyDialogView[] }` (`dialogId`, `vassalageId`,
-  `lordHouseId`, `lordName`, `years`, `agreed: MacroBundle`, `villages: { villageId, name, suggested: MacroBundle }[]`);
+  `lordHouseId`, `lordName`, `years`, `agreed: MacroBundle`, `villages: { villageId, name, suggested: MacroBundle,
+corveeHands }[]`);
   předvyplnění `suggestSplit` podle přebytku (menší z přebytku a dopravy, `houseSpare`), počítá se jen na vyžádání.
   `answerLevy({ dialogId, lines: [{ good, amount }], split: { <villageId>: MacroBundle }, message? })` →
   `{ ok: true, arrivesDay } | { error }`. Kód: `apps/web/lib/levies.ts`, vstup `lib/house-input.ts`
@@ -203,6 +205,34 @@ Pravidla: [vassalage.md](../design/vassalage.md) – „Roční dialog 1. 11.“
 - **Rozhraní:** dialog `hud/LevyDialog.tsx`, popis v [web-ui.md](web-ui.md) – Dialog Odvody. `housePanel` nese u každé
   dohody `PanelAgreement.levyYears` (otevřený dialog Odvody k vazalství – `dialogs.openFor(vazalství, 'levy')`; null =
   nečeká), z toho přesýpací hodiny u vazala v panelu pána a pečeť v liště.
+
+## Lidé a robota (`domain/vassalage/guests.ts`, `application/shipments.ts` – `sendCorvee`, úloha 4.5)
+
+Pravidla: vassalage.md – Lidé a robota; nepřítomní a hosté v simulaci: [village-core.md](village-core.md)
+– Nepřítomní a hosté. **Lidé** (rodiny, muži, ženy) jdou natrvalo zásilkou (`dispatchShipment` –
+`emigrantGroups`, muži rodu ne), **robota** (`laborDays`) dočasně – lidé zůstávají ve stavu domovské vsi.
+
+- **Koho ves pošle** – `corveeWorkers(state, day)`: dospělí od `VASSALAGE.corvee.fromAge` (16), kteří
+  dnes pracují (ne zranění, ne už pryč), mimo dvorec vojvody, ne muži rodu ani jejich ženy. Po kolech –
+  v kole nejvýš jeden z domu, napřed domy s nejvíc pracujícími dospělými, v domě svobodní, pak nejmladší;
+  dům si nechá aspoň jednoho pracujícího dospělého (návrh Clauda).
+- **Kolik lidí a dní** – `corveeStints(laborDays, hands)`: tolik lidí, aby nikdo nepracoval víc než
+  `maxStintDays` (30), dny rovným dílem, zbytek po dni prvním; součet přesně `laborDays`. Ves, která
+  tolik lidí nemá, je pošle déle, nejvýš `maxDaysPerPerson` (365) – jinak `CORVEE_NO_HANDS`.
+- **Odeslání** – `dispatchCorvee(state, day, { laborDays, travelDays, homeVillageId, hostVillageId,
+hostName, refId })` (vstupní stav nemění): `sendAway` s `away = { kind: 'labor', untilDay: day +
+2 × cesta + d, hostVillageId, refId }`, hosté `untilDay = day + cesta + d` – **cesta se do dní
+  nepočítá**; kronika `people-away`. `corveeGuests(state, input)` pozná už odeslanou robotu podle `refId`.
+- **Use-case** `sendCorvee(shipmentDeps, { fromVillageId, toVillageId, laborDays, refId, today })` pod
+  zámkem držitele odesílatele: cesta = `shipmentDays(vzdálenost).arrive` (jako zásilka), uloží ves
+  (verzovaně, 5 pokusů) a zapíše `guests-arrive` do schránky pána v den příchodu (`ref` =
+  `guests:<refId>`). Opakování (pád mezi uložením a zápisem, dvojklik) lidi znovu nepošle, jen dopíše
+  událost. Bez řádku v `shipment` – když cíl zanikne, lidé se vrátí sami v den `untilDay`.
+- **Odvody** – `answerLevy` pošle u každé vsi zboží a lidi zásilkou (svazek bez `laborDays`; prázdný
+  se neposílá) a robotu `sendCorvee` s `refId` `levy:<dialog>:<ves>:corvee`; `arrivesDay` = nejpozdější
+  příchod. `LevyDialogView.villages[].corveeHands` = kolik lidí může ves poslat (`corveeWorkers` v den
+  `lastDay`; u splátek 0) – dialog u řádku Robota ukáže u každé vsi „lidé × nejvýš dní“
+  (`corveeStints`), ves bez lidí varuje v popisku.
 
 ## Pomoc a půjčky (`domain/vassalage/loan.ts`, `application/loans.ts`, `negotiate.ts`, `annual-levies.ts`, úloha 4.6)
 

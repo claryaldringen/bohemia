@@ -30,7 +30,14 @@ import { finishTrail } from './trail';
 import { finishWagonRoad } from './wagon-road';
 import { recordRuins } from './ruins';
 import { dwellingBuildLabor, workshopBuildLabor, workshopTrees } from './rules';
-import type { ChronicleEvent, Construction, Dwelling, FieldPart, VillageState } from './types';
+import type {
+  ChronicleEvent,
+  Construction,
+  ConstructionKind,
+  Dwelling,
+  FieldPart,
+  VillageState,
+} from './types';
 import {
   addLogs,
   fellAsWorked,
@@ -122,19 +129,21 @@ export function foundingParts(founding: FoundingIndex, c: Construction): FieldPa
  * to, co potřebuje, a zbytek se znovu rozdělí mezi ostatní; co zbude po všech, propadne.
  * Vrátí, kolik práce šlo do které stavby (rozdělení práce dne pro scénu – labor-report.ts).
  * `carpentry` = pokrytí dřevěné práce tesařem (wagons.md – Tesař): práce stavby se násobí
- * `constructionLaborFactor` – stejná práce s tesařem postaví víc (bez tesaře 1).
+ * `constructionLaborFactor` – stejná práce s tesařem postaví víc (bez tesaře 1). `only` = jen
+ * stavby toho druhu (robota hostů napřed do opevnění – `work`).
  */
 export function build(
   state: VillageState,
   day: number,
   common: number,
   carpentry = 0,
+  only?: ConstructionKind,
 ): ConstructionWork[] {
   const founding = foundingIndex(state);
   // díl louky, který ves se spřežením zakládá bez překážek, práci nepotřebuje – založí se hned
   // (drn rozorá první orba – oxen.md, Jen rádlo); díl v lese s fázemi se zakládá až dohořením
   for (const c of state.constructions) {
-    if (c.kind !== 'field') continue;
+    if (c.kind !== 'field' || (only !== undefined && only !== 'field')) continue;
     for (const part of foundingParts(founding, c)) {
       if (!part.clearing && part.foundingCost - part.foundingDone <= 0) {
         foundPart(state, day, part);
@@ -149,6 +158,7 @@ export function build(
     }
   }
   let active = state.constructions
+    .filter((c) => only === undefined || c.kind === only)
     .map((c) => {
       const factor = constructionLaborFactor(c, carpentry);
       return { c, factor, need: constructionNeed(state, c, day, founding) * factor };

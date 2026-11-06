@@ -89,7 +89,7 @@ import {
 } from './labor';
 import { laborDay, type AsideWork, type HaulWork } from './labor-report';
 import { ORCHARD_TASK_NAMES, orchardWorkRemaining, workOrchards } from './orchard';
-import { laborPerDay } from './people';
+import { guestLaborToday, laborPerDay } from './people';
 import { expeditionLaborToday, workExpeditions } from './trade';
 import {
   DRAFT_OXEN,
@@ -856,6 +856,15 @@ export function work(
     game = smallGameDay(state, day, common, true);
     common -= game.manDays;
   }
+  // robota hostů (fortifications.md – Cena a stavba, vassalage.md – Lidé a robota; návrh Clauda):
+  // práce hostů jde napřed do rozestavěného opevnění vsi (veřejná stavba, rovným dílem po úsecích),
+  // co zbude, do společné práce – ostatní stavby rovným dílem, opravy obydlí, údržba valu, díly
+  // nad potřebu a seč navíc; polní úlohy dne hosté nedělají
+  const guestLabor = guestLaborToday(state, day);
+  const corvee = guestLabor > EPSILON ? build(state, day, guestLabor, 0, 'fortification') : [];
+  if (guestLabor > EPSILON) {
+    common += Math.max(0, guestLabor - corvee.reduce((sum, c) => sum + c.manDays, 0));
+  }
   // tesař pomáhá stavbám – jeho práce jde do staveb a zlevní jejich dřevěnou část (wagons.md)
   const help = carpentryHelp(state, day, coverage, productivity, resting, (extra) =>
     woodworkToday(state, day, common + extra),
@@ -1000,7 +1009,7 @@ export function work(
     ...(extraMow > EPSILON ? { extraMow } : {}),
     ...(weeders.length > 0 ? { weedChildAges: weeders } : {}),
     repairs,
-    constructions,
+    constructions: corvee.length > 0 ? [...corvee, ...constructions] : constructions,
     workshops,
     trade: trade.shares,
     purchases,

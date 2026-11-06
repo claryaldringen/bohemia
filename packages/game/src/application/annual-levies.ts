@@ -4,6 +4,7 @@ import {
   LEVY_GOODS,
   bundleOfAmounts,
   checkBundle,
+  corveeWorkers,
   dueGoods,
   flattenBundle,
   installmentValue,
@@ -20,12 +21,13 @@ import {
   type MacroBundle,
   type MacroGoods,
 } from '../domain/vassalage';
+import type { VillageState } from '../domain/village';
 import type { Dialog, DialogRepository } from './dialogs';
 import type { HouseRepository } from './houses';
 import { chronicleHouses, houseName, type NegotiationVillages } from './negotiation-chronicle';
 import type { Loan, LoanRepository } from './loans';
 import type { NoticeRepository } from './notices';
-import { sendShipment, type ShipmentDeps } from './shipments';
+import { sendCorvee, sendShipment, type ShipmentDeps } from './shipments';
 import type { Vassalage, VassalageRepository } from './vassalages';
 
 // Roční Odvody (vassalage.md – Roční dialog 1. 11.): každý herní rok 1. 11. se vazalovi s domluvenou
@@ -225,8 +227,11 @@ export interface LevyDialogView {
   years: number;
   /** Domluvená dávka za všechny čekající roky (roční dávka × `years`). */
   agreed: MacroBundle;
-  /** Vsi rodu s předvyplněným dílem podle přebytku. */
-  villages: { villageId: string; name: string; suggested: MacroBundle }[];
+  /**
+   * Vsi rodu s předvyplněným dílem podle přebytku; `corveeHands` = kolik lidí může ves poslat na
+   * robotu (`corveeWorkers` – dospělí od 16 let, ne muži rodu), podle toho dialog ukáže lidi × dny.
+   */
+  villages: { villageId: string; name: string; suggested: MacroBundle; corveeHands: number }[];
 }
 
 /**
@@ -273,10 +278,17 @@ export async function levyDialogs(
         villageId: village.id,
         name: village.name,
         suggested: split[village.id] ?? bundleOfAmounts(sumBundles([])),
+        corveeHands: corveeHandsOf(village.state),
       })),
     });
   }
   return out;
+}
+
+/** Kolik lidí může ves poslat na robotu (stav vsi v den jejího posledního spočítaného dne). */
+function corveeHandsOf(state: unknown): number {
+  const village = state as VillageState;
+  return corveeWorkers(village, village.lastDay).length;
 }
 
 /** Řádek splátky půjčky: dluh po splatnosti a rozdělení po vsích předvyplněné podle přebytku. */
@@ -319,6 +331,7 @@ async function repayView(
       villageId: village.id,
       name: village.name,
       suggested: split[village.id] ?? bundleOfAmounts(sumBundles([])),
+      corveeHands: 0,
     })),
   };
 }
@@ -388,16 +401,31 @@ export async function answerLevy(
     if (!targetId) return { ok: false, reason: LEVY_NO_TARGET };
     for (const [villageId, bundle] of shipping) {
       await deps.prepareVillage(villageId, input.today);
-      const result = await sendShipment(deps.shipments, {
-        fromVillageId: villageId,
-        toVillageId: targetId,
-        bundle,
-        purpose: 'levy',
-        refId: `levy:${dialog.id}:${villageId}`,
-        today: input.today,
-      });
-      if (!result.ok) return { ok: false, reason: result.reason };
-      arrivesDay = Math.max(arrivesDay ?? 0, result.arrivesDay);
+      // zboží a lidé (natrvalo) zásilkou, robota lidmi na čas (vassalage.md – Lidé a robota)
+      const goods: MacroBundle = { ...bundle, laborDays: 0 };
+      if (!isEmptyBundle(goods)) {
+        const result = await sendShipment(deps.shipments, {
+          fromVillageId: villageId,
+          toVillageId: targetId,
+          bundle: goods,
+          purpose: 'levy',
+          refId: `levy:${dialog.id}:${villageId}`,
+          today: input.today,
+        });
+        if (!result.ok) return { ok: false, reason: result.reason };
+        arrivesDay = Math.max(arrivesDay ?? 0, result.arrivesDay);
+      }
+      if (bundle.laborDays > 0) {
+        const corvee = await sendCorvee(deps.shipments, {
+          fromVillageId: villageId,
+          toVillageId: targetId,
+          laborDays: bundle.laborDays,
+          refId: `levy:${dialog.id}:${villageId}:corvee`,
+          today: input.today,
+        });
+        if (!corvee.ok) return { ok: false, reason: corvee.reason };
+        arrivesDay = Math.max(arrivesDay ?? 0, corvee.arrivesDay);
+      }
     }
   }
 

@@ -5,7 +5,7 @@ import type { ConstructionKind, LandTaker } from './types-construction';
 import type { Craft } from './types-crafts';
 import type { AbandonedStructure, Crop, TileCell } from './types-land';
 import type { HerdSpecies } from './types-livestock';
-import type { DwellingType } from './types-people';
+import type { AwayKind, DwellingType } from './types-people';
 import type { HuntKills } from './types-wildlife';
 import type { FloodLevel, SummerWeather, TornadoStrength, WinterWeather } from './types-disasters';
 import type { CartJob, CartKind } from './types-roads';
@@ -62,6 +62,15 @@ export type ChronicleEvent = { day: number } & (
       purpose?: string;
       returned?: true;
     }
+  /**
+   * Lidé odešli na čas do vsi `villageName` (vassalage.md – Lidé a robota): `people` lidí, druh
+   * `away`, vrátí se nejpozději v den `untilDay`.
+   */
+  | { kind: 'people-away'; away: AwayKind; people: number; villageName: string; untilDay: number }
+  /** Lidé se vrátili domů (robota odpracovaná…) – `people` lidí, druh `away`. */
+  | { kind: 'people-back'; away: AwayKind; people: number }
+  /** Do vsi přišli hosté z vsi `villageName` – `people` lidí na čas, druh `away`. */
+  | { kind: 'guests-came'; away: AwayKind; people: number; villageName: string }
   /**
    * Do vsi, která už vojvodu má, přišel z jiné vsi rodu muž `name` s rodinou (dosazení vojvody
    * přišlo pozdě) – žije v dvorci jako ostatní muži rodu.

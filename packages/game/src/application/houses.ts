@@ -1,8 +1,7 @@
-/** Odkaz na osobu ve vsi: ves a číslo osoby v jejím stavu. */
-export interface PersonRef {
-  villageId: string;
-  personId: number;
-}
+import type { PersonRef } from '../domain/village';
+
+/** Odkaz na osobu ve vsi: ves a číslo osoby v jejím stavu (tvar z domény – i hosté vsí). */
+export type { PersonRef };
 
 /**
  * Rod – záznam hráčova (`player`) nebo NPC (`npc`) rodu. Hráč má nejvýš jeden živý rod;
