@@ -63,6 +63,7 @@ async function main(): Promise<void> {
             houses: gameDeps.houses,
             notices: gameDeps.notices,
             villages: gameDeps.villages,
+            loans: gameDeps.loans,
           },
           shipments: {
             shipments: gameDeps.shipments,

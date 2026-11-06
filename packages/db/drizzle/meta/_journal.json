@@ -176,6 +176,13 @@
       "when": 1793950776286,
       "tag": "0024_dialog",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1793956619896,
+      "tag": "0025_loan",
+      "breakpoints": true
     }
   ]
 }

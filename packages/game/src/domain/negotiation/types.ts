@@ -1,11 +1,13 @@
+import type { AidLine } from '../vassalage/loan';
 import type { TermLine } from '../vassalage/terms';
 
 /**
  * Řádek podmínek: přísaha (povinná u nové dohody; u změny podmínek existující dohody chybí)
  * a volitelné řádky – dávka, služba, cílová ves a odměna (`TermLine`, vassalage.md – Podmínky
- * dohody). Strany jsou **rody** (`house.id`), ne hráči (technické rozhodnutí 2 plánu).
+ * dohody) nebo řádek jednání o pomoci (`AidLine` – žádost, dar, půjčka; vassalage.md – Pomoc na
+ * žádost). Strany jsou **rody** (`house.id`), ne hráči (technické rozhodnutí 2 plánu).
  */
-export type TermItem = { kind: 'oath'; lord: string; vassal: string } | TermLine;
+export type TermItem = { kind: 'oath'; lord: string; vassal: string } | TermLine | AidLine;
 
 /** Jedno kolo jednání: podmínky jedné strany a volitelný vzkaz. */
 export interface NegotiationRound {

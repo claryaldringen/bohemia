@@ -13,6 +13,7 @@ import { LevyDialog, redistribute, splitTotal } from '../LevyDialog';
 const grain = (n: number) => withBundleValue(emptyBundle(), 'grainKg', n);
 const DIALOG: LevyDialogView = {
   dialogId: 'd-1',
+  kind: 'levy',
   vassalageId: 'va-1',
   lordHouseId: 'h-l',
   lordName: 'Boleslav',

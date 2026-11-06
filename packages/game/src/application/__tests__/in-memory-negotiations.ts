@@ -6,6 +6,8 @@ import type {
   StoredNegotiationStatus,
 } from '../negotiations';
 import type { NoticeTx, VassalageTx } from '../negotiations';
+import type { LoanTx } from '../loans';
+import { InMemoryLoans } from './in-memory-loans';
 import type { NegotiationRound } from '../../domain/negotiation';
 
 /**
@@ -23,6 +25,7 @@ export class InMemoryNegotiations implements NegotiationRepository {
     private readonly vassalages: VassalageTx,
     private readonly notices: NoticeTx,
     private readonly clock: () => Date = () => new Date(0),
+    private readonly loans: LoanTx = new InMemoryLoans(),
   ) {}
 
   transaction<T>(fn: (tx: NegotiationTx) => Promise<T>): Promise<T> {
@@ -103,6 +106,7 @@ export class InMemoryNegotiations implements NegotiationRepository {
       },
       vassalages: this.vassalages,
       notices: this.notices,
+      loans: this.loans,
     };
   }
 }

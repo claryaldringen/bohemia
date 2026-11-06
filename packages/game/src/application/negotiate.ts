@@ -11,6 +11,7 @@ import {
   termLinesOf,
   type TermItem,
 } from '../domain/negotiation';
+import { AID_REASONS, checkAidItems, isAidLine, type AidLine } from '../domain/vassalage/loan';
 import { TERM_REASONS, termsOfLines } from '../domain/vassalage/terms';
 import { wouldBeMutual } from '../domain/vassalage/tree';
 import type { ChronicleEvent } from '../domain/village';
@@ -23,6 +24,8 @@ import {
   type NegotiationVillages,
 } from './negotiation-chronicle';
 import type { NegotiationRecord, NegotiationRepository, NegotiationTx } from './negotiations';
+import type { LoanRepository } from './loans';
+import { sendShipment, type ShipmentDeps } from './shipments';
 import type { Vassalage } from './vassalages';
 import type { WorldDirectory } from './world-directory';
 
@@ -30,7 +33,16 @@ import type { WorldDirectory } from './world-directory';
 // za svůj živý rod. Vše mění stav v jedné transakci nad vlastními tabulkami (bez zámku hráče),
 // účinky přijetí (vazalství) jedou v téže transakci. Kronika se zapisuje až po ní.
 
+/** Závislosti dovozu pomoci: zásilky, dopočet vsi do dneška a zrušení půjčky, jejíž zboží nedošlo. */
+export interface AidDeps {
+  shipments: ShipmentDeps;
+  prepareVillage: (villageId: string, today: number) => Promise<unknown>;
+  loans: Pick<LoanRepository, 'cancelOfNegotiation'>;
+}
+
 export interface NegotiateDeps extends NegotiationVillages {
+  /** Bez něj nejde přijmout dar ani půjčku (nemá kdo poslat zásilku). */
+  aid?: AidDeps;
   houses: Pick<HouseRepository, 'activeOf' | 'byId'>;
   negotiations: NegotiationRepository;
   /** Čte se z něj, které vsi rod vlastní (cílová ves musí patřit pánovi). */
@@ -42,6 +54,7 @@ export type NegotiateResult =
 
 export const NO_HOUSE = 'Nemáš živý rod.';
 export const NO_NEGOTIATION = 'Jednání neexistuje.';
+export const NO_AID = 'Pomoc teď nejde poslat.';
 export const NO_AGREEMENT = 'Dohoda mezi rody neexistuje.';
 
 const fail = (reason: string): { ok: false; reason: string } => ({ ok: false, reason });
@@ -86,6 +99,49 @@ async function checkTargetVillage(
   return null;
 }
 
+/** Ves `villageId` patří rodu `houseId`? */
+async function ownsVillage(
+  deps: NegotiateDeps,
+  houseId: string,
+  villageId: string,
+): Promise<boolean> {
+  const entries = await deps.worldDirectory.entriesOf([houseId]);
+  return entries.some((e) => e.house.id === houseId && e.digests.some((d) => d.id === villageId));
+}
+
+/**
+ * Kontrola kola jednání o pomoci (vassalage.md – Pomoc na žádost): dohoda mezi rody trvá, kolo má
+ * jediný řádek o pomoci (žádost vazala, dar nebo půjčka pána), první kolo je žádost a vsi z řádku
+ * patří těm, kdo je uvádějí. Kolo bez řádků o pomoci je v pořádku jen mimo jednání o pomoci.
+ */
+async function checkAidRound(
+  deps: NegotiateDeps,
+  items: readonly TermItem[],
+  ctx: { authorId: string; agreement: Vassalage | null; aidNegotiation: boolean; first: boolean },
+): Promise<string | null> {
+  const hasAid = items.some(isAidLine);
+  if (!hasAid) return ctx.aidNegotiation ? AID_REASONS.mixed : null;
+  if (!ctx.agreement) return NO_AGREEMENT;
+  const { lordHouseId, vassalHouseId } = ctx.agreement;
+  const bad = checkAidItems(items, ctx.authorId === vassalHouseId);
+  if (bad) return bad;
+  const line = items.find(isAidLine) as AidLine;
+  if (ctx.first && line.kind !== 'aid-request') return AID_REASONS.firstIsRequest;
+  const checks: [string, string | undefined][] =
+    line.kind === 'aid-request'
+      ? [[vassalHouseId, line.villageId]]
+      : [
+          [lordHouseId, line.fromVillageId],
+          [vassalHouseId, line.toVillageId],
+        ];
+  for (const [houseId, villageId] of checks) {
+    if (villageId !== undefined && !(await ownsVillage(deps, houseId, villageId))) {
+      return AID_REASONS.badVillage;
+    }
+  }
+  return null;
+}
+
 /** Zapsané jednání (po kole / přechodu) – záznam z přechodu domény nese stav a poslední kolo. */
 function lastAuthor(record: NegotiationRecord): string | undefined {
   return record.rounds[record.rounds.length - 1]?.authorHouseId;
@@ -101,7 +157,7 @@ async function chronicleStep(
   deps: NegotiateDeps,
   { actor, other }: Actors,
   record: NegotiationRecord,
-  step: 'offer' | 'counter' | 'rejected' | 'withdrawn' | 'terms-accepted',
+  step: 'offer' | 'counter' | 'rejected' | 'withdrawn' | 'terms-accepted' | 'aid-gift' | 'aid-loan',
   today: number,
 ): Promise<void> {
   const event: ChronicleEvent = {
@@ -198,6 +254,13 @@ export async function openNegotiation(
     const lordId = oath?.lord ?? existing?.lordHouseId ?? '';
     const badVillage = await checkTargetVillage(deps, input.items, lordId);
     if (badVillage) return fail(badVillage);
+    const badAid = await checkAidRound(deps, input.items, {
+      authorId: from.id,
+      agreement: existing,
+      aidNegotiation: false,
+      first: true,
+    });
+    if (badAid) return fail(badAid);
     const record = await tx.open({
       initiatorHouseId: from.id,
       recipientHouseId: input.to,
@@ -254,6 +317,13 @@ export async function counterNegotiation(
       first?.lord ?? existing?.lordHouseId ?? '',
     );
     if (badVillage) return fail(badVillage);
+    const badAid = await checkAidRound(deps, input.items, {
+      authorId: loaded.actor.id,
+      agreement: existing,
+      aidNegotiation: (loaded.record.rounds[0]?.items ?? []).some(isAidLine),
+      first: false,
+    });
+    if (badAid) return fail(badAid);
     const round = next.negotiation.rounds[next.negotiation.rounds.length - 1];
     if (!round) return fail(R.finished);
     await tx.addRound(loaded.record.id, round);
@@ -286,6 +356,10 @@ export async function acceptNegotiation(
 ): Promise<NegotiateResult> {
   let actors: Actors | null = null;
   let oath: { lord: string; vassal: string } | null = null;
+  let aid: {
+    line: Extract<AidLine, { kind: 'gift' | 'loan' }>;
+    toVillageId: string | null;
+  } | null = null;
   const result = await deps.negotiations.transaction(async (tx): Promise<NegotiateResult> => {
     const loaded = await loadForResponse(deps, tx, input.playerId, input.negotiationId);
     if (!loaded.ok) return loaded;
@@ -313,8 +387,26 @@ export async function acceptNegotiation(
       const reason = await checkItem(tx, item);
       if (reason) return fail(reason);
     }
+    // jednání o pomoci podmínky dohody nemění; zboží dar i půjčky pošle věřitel po transakci
+    const aidLine = items.find(isAidLine);
+    if (aidLine) {
+      if (!existing) return fail(NO_AGREEMENT);
+      if (aidLine.kind !== 'aid-request' && !deps.aid) return fail(NO_AID);
+    }
+    const vassalHouse = existing ? await deps.houses.byId(existing.vassalHouseId) : null;
+    const aidTarget =
+      aidLine && aidLine.kind !== 'aid-request'
+        ? (aidLine.toVillageId ?? vassalHouse?.lord?.villageId ?? null)
+        : null;
+    if (aidLine && aidLine.kind !== 'aid-request' && aidTarget === null) {
+      return fail(AID_REASONS.noTarget);
+    }
     // staré podmínky platí do této chvíle; selhání (dohoda mezitím skončila) nezapíše nic
-    if (existing && !(await tx.vassalages.updateTerms(existing.id, terms, existing.version))) {
+    if (
+      existing &&
+      !aidLine &&
+      !(await tx.vassalages.updateTerms(existing.id, terms, existing.version))
+    ) {
       return fail(NO_AGREEMENT);
     }
     if (!(await tx.setStatus(loaded.record.id, 'accepted', loaded.record.version, input.now))) {
@@ -325,6 +417,11 @@ export async function acceptNegotiation(
         now: input.now,
         day: input.today,
         terms,
+        negotiationId: loaded.record.id,
+        agreement: existing
+          ? { lordHouseId: existing.lordHouseId, vassalHouseId: existing.vassalHouseId }
+          : null,
+        aidTargetVillageId: aidTarget,
       });
     }
     await noticeHouse(
@@ -340,11 +437,24 @@ export async function acceptNegotiation(
     );
     actors = { actor: loaded.actor, other: loaded.other };
     oath = oathItem;
+    if (aidLine && aidLine.kind !== 'aid-request') aid = { line: aidLine, toVillageId: aidTarget };
     return {
       ok: true,
       negotiation: { ...loaded.record, status: 'accepted', resolvedAt: input.now },
     };
   });
+  const sending = aid as {
+    line: Extract<AidLine, { kind: 'gift' | 'loan' }>;
+    toVillageId: string | null;
+  } | null;
+  if (result.ok && sending && deps.aid && sending.toVillageId) {
+    const failed = await sendAid(deps.aid, sending.line, sending.toVillageId, {
+      negotiationId: result.negotiation.id,
+      today: input.today,
+      now: input.now,
+    });
+    if (failed) return fail(failed);
+  }
   if (result.ok && actors) {
     const { actor, other } = actors as Actors;
     const o = oath as { lord: string; vassal: string } | null;
@@ -367,12 +477,37 @@ export async function acceptNegotiation(
         deps,
         actors as Actors,
         result.negotiation,
-        'terms-accepted',
+        sending ? (sending.line.kind === 'gift' ? 'aid-gift' : 'aid-loan') : 'terms-accepted',
         input.today,
       );
     }
   }
   return result;
+}
+
+/**
+ * Pošle zboží z věřitelovy vsi (dar, půjčka; doveze ten, kdo posílá) – hned po přijetí, pod
+ * zámkem držitele odesílající vsi (`sendShipment`), ne v transakci jednání. Jedinečný klíč
+ * `aid:<jednání>` zaručí jedinou zásilku. Nepodaří-li se, půjčka se zruší a vrací se důvod.
+ */
+async function sendAid(
+  aid: AidDeps,
+  line: Extract<AidLine, { kind: 'gift' | 'loan' }>,
+  toVillageId: string,
+  input: { negotiationId: string; today: number; now: Date },
+): Promise<string | null> {
+  await aid.prepareVillage(line.fromVillageId, input.today);
+  const sent = await sendShipment(aid.shipments, {
+    fromVillageId: line.fromVillageId,
+    toVillageId,
+    bundle: line.bundle,
+    purpose: 'aid',
+    refId: `aid:${input.negotiationId}`,
+    today: input.today,
+  });
+  if (sent.ok) return null;
+  if (line.kind === 'loan') await aid.loans.cancelOfNegotiation(input.negotiationId, input.now);
+  return `Zboží se nepodařilo poslat: ${sent.reason}`;
 }
 
 /** Odmítnutí končí jednání a spouští pauzu (odmítnutý smí znovu za 1 skutečný den). */

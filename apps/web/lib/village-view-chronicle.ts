@@ -407,6 +407,10 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
           return `Návrh dohody stažen – ${event.actor} a ${event.other}.`;
         case 'terms-accepted':
           return `Nové podmínky dohody přijaty – ${event.actor} a ${event.other}.`;
+        case 'aid-gift':
+          return `Dar přijat – ${event.actor} a ${event.other}.`;
+        case 'aid-loan':
+          return `Půjčka sjednána – ${event.actor} a ${event.other}.`;
       }
     case 'negotiation-accepted':
       return `${event.vassal} se stal vazalem ${genitiveOf(event.lord)}.`;

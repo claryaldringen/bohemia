@@ -5,6 +5,7 @@ import { dateOfDayIndex, NEGOTIATION, type LevyDialogView, type MacroBundle } fr
 import { formatGameDate } from '@/lib/game-date';
 import {
   BUNDLE_SLOTS,
+  GOODS_SLOTS,
   bundleValue,
   emptyBundle,
   formatAmount,
@@ -28,6 +29,8 @@ const SLIDER_FACTOR = 2;
 
 /** Řádky dialogu: zboží, které je v dávce domluveno. */
 function agreedSlots(dialog: LevyDialogView): BundleSlot[] {
+  // splátku půjčky lze zaplatit i jiným zbožím (platí podle hodnoty) – nabídne všechno zboží
+  if (dialog.kind === 'repay') return [...GOODS_SLOTS];
   return BUNDLE_SLOTS.filter((slot) => bundleValue(dialog.agreed, slot.key) > 0);
 }
 
@@ -127,7 +130,11 @@ function LevyRow({
   return (
     <div data-testid={testId} className="flex flex-col gap-1.5 border-t border-[#5c4526] pt-2">
       <div className="flex items-center gap-2">
-        <HouseIcon name="banner" size={22} />
+        <Tooltip content={dialog.kind === 'repay' ? 'Splátka půjčky' : 'Roční dávka'}>
+          <span tabIndex={0} data-testid={`${testId}-kind`} className="inline-flex">
+            <HouseIcon name={dialog.kind === 'repay' ? 'loan' : 'banner'} size={22} />
+          </span>
+        </Tooltip>
         <span data-testid={`${testId}-lord`} className="text-sm font-semibold">
           {dialog.lordName}
         </span>
@@ -156,7 +163,12 @@ function LevyRow({
           {slots.map((slot) => {
             const agreed = bundleValue(dialog.agreed, slot.key);
             const total = splitTotal(split, slot.key);
-            const max = Math.max(agreed * SLIDER_FACTOR, total);
+            const owed = dialog.kind === 'repay' ? (dialog.owedKg ?? 0) : 0;
+            const max = Math.max(
+              agreed * SLIDER_FACTOR,
+              total,
+              slot.unit === 'kg' ? owed * 4 : Math.ceil(owed / 40),
+            );
             return (
               <div key={slot.key} className="flex flex-col gap-0.5">
                 <Tooltip content={slot.label}>
