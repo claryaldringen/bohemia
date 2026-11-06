@@ -5,7 +5,8 @@
 
 import { settleAppointee, type AppointeeParty } from './appoint-lord';
 import { receiveShipment } from '../vassalage/shipment';
-import type { ChronicleEvent, ShipmentBody, VillageState } from './types';
+import { pruneThreats } from './fortification/threat';
+import type { ChronicleEvent, ShipmentBody, ThreatSignal, VillageState } from './types';
 
 /**
  * Tělo události schránky – diskriminovaná unie podle `kind`. Další druhy přidají pozdější
@@ -23,7 +24,13 @@ export type VillageEventBody =
    * Zásilka od jiného hráče dorazila (vassalage.md – Doprava a cílová ves; `receiveShipment`) –
    * zboží, dobytek a lidé z jiné vsi, v cílové dostanou nová místní id.
    */
-  | { kind: 'shipment'; shipment: ShipmentBody };
+  | { kind: 'shipment'; shipment: ShipmentBody }
+  /**
+   * Signál hrozby (fortifications.md – Hrozba; zapisuje ho válka): nájezd, cizí vojsko, válka.
+   * Ves ho zapíše do `VillageState.threats` a zapomene po 50 letech; stejný signál dvakrát se
+   * nezapisuje. Konec války (`endDay`) doplní signál `war` téže války (shodný `day`).
+   */
+  | { kind: 'threat-signal'; signal: ThreatSignal };
 
 /**
  * Událost ve schránce vsi `villageId`. `day` = herní den, na jehož začátku se použije (nikdy ne
@@ -66,9 +73,24 @@ function applyEvent(state: VillageState, day: number, body: VillageEventBody): C
       return settleAppointee(state, day, structuredClone(body.party));
     case 'shipment':
       return receiveShipment(state, day, structuredClone(body.shipment));
+    case 'threat-signal':
+      recordThreat(state, day, body.signal);
+      return [];
     default:
       return unknownBody(body);
   }
+}
+
+/** Zapíše signál hrozby (mutuje stav): válka téhož `day` se doplní o konec, ostatní se přidají. */
+function recordThreat(state: VillageState, day: number, signal: ThreatSignal): void {
+  const threats = pruneThreats(state.threats ?? [], day);
+  const same = threats.find((t) => t.kind === signal.kind && t.day === signal.day);
+  if (same) {
+    if (signal.kind === 'war' && signal.endDay !== undefined) same.endDay = signal.endDay;
+  } else {
+    threats.push({ ...signal });
+  }
+  state.threats = threats;
 }
 
 function unknownBody(body: never): never {

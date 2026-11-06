@@ -285,6 +285,10 @@ svého druhu (pole a čtverce po blocích) a všechny čerpají ze stejného roz
    vede kolem polí (zeleň chrání díly – disasters.md, Ochrana dílu). V oknech výsadby (orchard.md).
 9. **Posvátná místa** – podle návratnosti (Posvátná místa podle návratnosti níž) a duby k mání;
    napřed modla, svatyně jedna (happiness.md). Mimo žně.
+   9a. **Opevnění** – podle hrozby z války a nájezdů ([opevnění](fortifications.md) – Správce,
+   Hrozba): přínos druhu × horizont (Růst 25 let, Obnova 5, nejvýš životnost druhu) − cena; hrozba
+   0 = nestaví. Nová stavba (plot, palisáda, val i s nástavbou) nebo vylepšení vlastního (plot →
+   palisáda, nástavba na val); hráčovo opevnění nemění. V Růstu a Obnově, v Nouzi ne; mimo žně.
 10. **Cesty** – vylepšení pevné cesty, když ušetřená chůze a jízdy vozem za horizont režimu
     převáží cenu; vozová cesta,
     když ves má vůz a hlavní tahy dřeva, sena a snopů; zemská stezka jedna, k nejbližšímu kraji

@@ -39,6 +39,10 @@ export function markStewardStarted(state: VillageState, constructionId: number):
   const c = state.constructions.find((x) => x.id === constructionId);
   if (!c) return;
   markStewardBuilt(state, c.id);
+  // opevnění, které správce založil nebo vylepšuje, je jeho (hráčovo nemění – fortifications.md)
+  if (c.kind === 'fortification' && c.fortificationId !== undefined) {
+    markStewardBuilt(state, c.fortificationId);
+  }
   if (c.kind !== 'field') return;
   for (const p of state.parts) {
     if (p.fieldId === c.fieldId && p.state === 'founding') markStewardBuilt(state, p.id);
@@ -76,6 +80,7 @@ export function pruneStewardBuilt(state: VillageState): void {
     state.pens ?? [],
     state.threshingFloors ?? [],
     state.sacredBuildings ?? [],
+    state.fortifications ?? [],
     state.roads?.roads ?? [],
   ] as readonly { id: number }[][]) {
     for (const e of list) alive.add(e.id);

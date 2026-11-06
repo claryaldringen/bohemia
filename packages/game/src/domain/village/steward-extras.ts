@@ -16,6 +16,20 @@ import { oxPens, PEN_BY_SPECIES } from './oxen';
 import { herdRoom, herdsOverRoom, penCapacity } from './pens';
 import { placementVillageOf } from './placement-village';
 import { penSquaresFromCells } from './placement-pens';
+import { villageThreat } from './fortification';
+import { villageFortifications } from './fortifications';
+import {
+  fortHorizonYears,
+  fortLengthAs,
+  fortValue,
+  planBase,
+  planOf,
+  planTop,
+  stewardFortificationFor,
+  stewardKgPerManDay,
+  type FortPlan,
+} from './steward-fortification';
+import { isStewardBuilt } from './steward-state';
 import { checkSacredBuildingPlacement } from './placement-sacred';
 import { villageCarts } from './carts';
 import { roadApplesOption, villageRoadApples } from './road-apples';
@@ -84,6 +98,7 @@ export function extraSteps(state: VillageState, ctx: StewardContext): void {
   if (allowed(ctx, 'orchard')) orchardStep(state, ctx);
   if (allowed(ctx, 'roadApples')) roadApplesStep(state, ctx);
   if (allowed(ctx, 'sacred')) sacredStep(state, ctx);
+  if (allowed(ctx, 'fortification')) fortificationStep(state, ctx);
   if (allowed(ctx, 'road')) roadStep(state, ctx);
 }
 
@@ -475,6 +490,108 @@ export function sacredStep(state: VillageState, ctx: StewardContext): void {
       continue;
     starts++;
     if (startStewardBuild(state, ctx, { kind: 'sacred', building: kind, position }).ok) return;
+  }
+}
+
+// --- 9a. opevnění podle hrozby -----------------------------------------------------------
+
+/** Možnost kroku Opevnění: druh, přínos × horizont − cena a záměr stavby. */
+interface FortOption {
+  plan: FortPlan;
+  value: number;
+  cost: number;
+  intent: BuildIntent;
+}
+
+const FORT_PLANS: readonly FortPlan[] = [
+  'fence',
+  'palisade',
+  'rampart',
+  'rampart-fence',
+  'rampart-palisade',
+];
+
+/**
+ * Krok 9a – opevnění podle hrozby (fortifications.md – Správce; Martin 3. 11. 2026: „Opevnění je
+ * stavba jako každá jiná“): za hrozby nad 0 (`villageThreat` ze signálů války a nájezdů) a mimo
+ * žně správce spočte pro plot, palisádu, val a val s plotem či palisádou přínos × horizont
+ * (`STEWARD.fortPaybackYears`, nejvýš životnost) − cena (`fortValue`) a postaví nejlepší kladný;
+ * má-li vlastní opevnění, počítá jen rozdíl vylepšení (plot → palisáda, nástavba na val). Hráčovo
+ * opevnění nemění a vedle něj nestaví. V Růstu a Obnově, v Nouzi ne.
+ */
+export function fortificationStep(state: VillageState, ctx: StewardContext): void {
+  if (!inStewardWindows(ctx.date, STEWARD.offHarvestWindows)) return;
+  if (state.constructions.some((c) => c.kind === 'fortification')) return;
+  const threat = villageThreat(state.threats, ctx.day);
+  if (threat <= 0) return;
+  const forts = villageFortifications(state);
+  if (forts.some((f) => !isStewardBuilt(state, f.id))) return;
+  const kg = stewardKgPerManDay(state, ctx.landscape, ctx.obstacles);
+  const options: FortOption[] = [];
+  const consider = (
+    plan: FortPlan,
+    from: FortPlan | null,
+    lengthM: number,
+    intent: BuildIntent,
+  ): void => {
+    const years = fortHorizonYears(plan, ctx.mode);
+    if (years <= 0) return;
+    const { gain, cost } = fortValue(state, ctx.day, plan, threat, {
+      lengthM,
+      kgPerManDay: kg,
+      from,
+      years,
+    });
+    options.push({ plan, value: gain * years - cost, cost, intent });
+  };
+  const own = forts[0];
+  if (own) {
+    // vlastní opevnění: jen vylepšení hotového (rozdělaná stavba ani nástavba se nedoplňuje)
+    if (own.segments.some((s) => s.builtDay === null) || own.top !== undefined) return;
+    const from = planOf(own.kind, own.top);
+    if (own.kind === 'fence') {
+      const length = fortLengthAs(ctx.landscape, own, 'palisade');
+      if (length === null) return;
+      consider('palisade', from, length, {
+        kind: 'fortification-upgrade',
+        fortificationId: own.id,
+        work: 'upgrade',
+      });
+    } else if (own.kind === 'rampart') {
+      const length = fortLengthAs(ctx.landscape, own, 'rampart');
+      if (length === null) return;
+      for (const plan of ['rampart-fence', 'rampart-palisade'] as const) {
+        consider(plan, from, length, {
+          kind: 'fortification-upgrade',
+          fortificationId: own.id,
+          work: 'top',
+          top: planTop(plan)!,
+        });
+      }
+    }
+  } else {
+    const areas = new Map<string, ReturnType<typeof stewardFortificationFor>>();
+    for (const plan of FORT_PLANS) {
+      const base = planBase(plan);
+      if (!areas.has(base)) areas.set(base, stewardFortificationFor(state, ctx.landscape, base));
+      const area = areas.get(base);
+      if (!area) continue;
+      consider(plan, null, area.lengthM, {
+        kind: 'fortification',
+        cells: area.cells,
+        grid: null,
+        fortKind: base,
+      });
+    }
+  }
+  const best = options
+    .filter((o) => o.value > 0)
+    .sort((a, b) => b.value - a.value || FORT_PLANS.indexOf(a.plan) - FORT_PLANS.indexOf(b.plan));
+  let starts = 0;
+  for (const option of best) {
+    if (starts++ >= STEWARD.slotTries) return;
+    if (!fits(state, ctx, 'fortification', option.cost)) continue;
+    if (startStewardBuild(state, ctx, option.intent).ok) return;
   }
 }
 

@@ -11,6 +11,7 @@ import {
   startWorkshop,
 } from './actions';
 import { buildAffordability } from './costs';
+import { startFortification, startFortificationUpgrade } from './fortifications';
 import { HORSE_PEN_NO_SURPLUS } from './horse-pen-payment';
 import { villageRoadWalk } from './paths/walking';
 import {
@@ -45,6 +46,8 @@ import type {
   Craft,
   Direction8,
   DwellingPlot,
+  FortKind,
+  FortTop,
   PenSpecies,
   Position,
   SacredBuildingKind,
@@ -126,6 +129,23 @@ export interface SacredIntent {
   position: Position;
 }
 
+/** Nové opevnění z nakreslených čtverců (fortifications.md – Obvod); správce kreslí obvod sám. */
+export interface FortificationIntent {
+  kind: 'fortification';
+  cells: TileCell[];
+  /** Mřížka čtverců; null = mřížka krajiny. */
+  grid: SquareGrid | null;
+  fortKind: FortKind;
+}
+
+/** Vylepšení opevnění – plot na palisádu, nebo nástavba na val (fortifications.md – Druhy). */
+export interface FortificationUpgradeIntent {
+  kind: 'fortification-upgrade';
+  fortificationId: number;
+  work: 'upgrade' | 'top';
+  top?: FortTop;
+}
+
 /** Humno (production-chains.md – Humno) – volně u kurzoru jako dílna. */
 export interface ThreshingFloorIntent {
   kind: 'threshing-floor';
@@ -198,6 +218,8 @@ export interface RoadApplesIntent {
 
 /** Co se má stavět a kde – druh stavby a místo (poloha, pozemek, čtverce, mřížka, cesta). */
 export type BuildIntent =
+  | FortificationIntent
+  | FortificationUpgradeIntent
   | DwellingIntent
   | RelocationIntent
   | WorkshopIntent
@@ -229,6 +251,26 @@ export function applyBuildIntent(
   intent: BuildIntent,
 ): BuildResult {
   switch (intent.kind) {
+    case 'fortification': {
+      const r = startFortification(
+        state,
+        day,
+        landscape,
+        obstacles,
+        { cells: intent.cells, grid: intent.grid, kind: intent.fortKind },
+        villageRoadWalk(state, landscape),
+      );
+      return r.ok ? r : { ok: false, reason: r.reason };
+    }
+    case 'fortification-upgrade':
+      return startFortificationUpgrade(
+        state,
+        day,
+        landscape,
+        obstacles,
+        { fortificationId: intent.fortificationId, work: intent.work, top: intent.top },
+        villageRoadWalk(state, landscape),
+      );
     case 'dwelling':
       return buildDwelling(state, day, landscape, obstacles, intent);
     case 'relocation':

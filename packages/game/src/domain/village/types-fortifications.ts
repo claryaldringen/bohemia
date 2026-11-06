@@ -10,4 +10,5 @@ export type {
   FortSegment,
   FortSegmentWork,
   Fortification,
+  ThreatSignal,
 } from './fortification/types';
