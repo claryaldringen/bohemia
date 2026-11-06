@@ -83,7 +83,7 @@ function applyEvent(state: VillageState, day: number, body: VillageEventBody): C
     case 'chronicle':
       return [{ ...structuredClone(body.event), day }];
     case 'lord-arrives':
-      return settleAppointee(state, day, structuredClone(body.party));
+      return settleAppointee(state, day, structuredClone(body.party), body.fromVillageId);
     case 'noble-arrives':
       return settleNoble(state, day, structuredClone(body.party), body.houseId);
     case 'shipment':

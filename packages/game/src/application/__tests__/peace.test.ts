@@ -4,7 +4,7 @@ import { dayIndexOf } from '../../domain/calendar';
 import { PEACE_REASONS, type TermItem } from '../../domain/negotiation';
 import { DAY, bundle, sender } from '../../domain/vassalage/__tests__/shipment-fixtures';
 import type { MacroBundle } from '../../domain/vassalage';
-import type { VillageState } from '../../domain/village';
+import { applyInboxDay, type VillageState } from '../../domain/village';
 import { answerLevy, openAnnualDialogs, type LevyDeps } from '../annual-levies';
 import { cedeVillages, checkCede } from '../cede-village';
 import {
@@ -340,6 +340,19 @@ describe('mírové jednání', () => {
       expect(events[0]!.body).toMatchObject({ kind: 'lord-arrives', fromVillageId: w.extraA });
       // nový držitel má ve vsi zapnutého správce
       expect(left.steward?.on).toBe(true);
+    });
+
+    it('příchozí muž si zapamatuje, odkud přišel (rod ho podle toho najde)', async () => {
+      const w = await world();
+      await agree(w, 'a', peace({ cede: [w.extraA] }));
+      const event = (w.villages as InMemoryVillages).inbox.events.find(
+        (e) => e.villageId === w.villageA && e.body.kind === 'lord-arrives',
+      )!;
+      const dest = structuredClone((await w.villages.find(w.villageA))!.state);
+      applyInboxDay(dest, event.day, [event]);
+      expect(dest.lineMoves).toEqual([
+        expect.objectContaining({ fromVillageId: w.extraA, fromPersonId: 901 }),
+      ]);
     });
 
     it('opakované provedení nic nezdvojí', async () => {

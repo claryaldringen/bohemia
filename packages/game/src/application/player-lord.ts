@@ -7,6 +7,7 @@ import {
   setStewardOn,
 } from '../domain/village';
 import type { HouseRepository, PersonRef } from './houses';
+import type { VillageInbox } from './inbox';
 import type { SettlementRepository } from './settlements';
 import type { VillageRecord, VillageRepository } from './villages';
 
@@ -103,4 +104,82 @@ export async function followPlayerLord(
   if (!house || !lord) return;
   if (lord.villageId !== input.fromVillageId || !input.personIds.includes(lord.personId)) return;
   await deps.houses.setLord(house.id, { villageId: input.toVillageId, personId: lord.personId });
+}
+
+/** Kolikrát nejvýš se řetěz přesunů jednoho muže sleduje (muž se stihne přestěhovat víckrát). */
+const MAX_HOPS = 5;
+
+export interface FollowMovesDeps {
+  houses: Pick<HouseRepository, 'activeOf' | 'setLord' | 'setSenior'>;
+  settlements: Pick<SettlementRepository, 'listActive'>;
+  villages: Pick<VillageRepository, 'find' | 'listBySettlement'> & { inbox?: VillageInbox };
+}
+
+/**
+ * Muži rodu, kteří se přestěhovali do jiné vsi rodu a dostali tam nové místní id (postoupení vsi,
+ * dosazení vojvody – `VillageState.lineMoves`): `House.lord` a `House.senior` se přepíšou na novou
+ * ves a nové číslo osoby. Muž, který je ještě na cestě (událost `lord-arrives` čeká ve schránce
+ * cílové vsi), se nepřepisuje – vrací se `lordTravelling`, aby ho nikdo nepovažoval za mrtvého.
+ * Muž, který ve své vsi stále je, se nemění. Volající drží zámek hráče; opakování nic nezmění.
+ */
+export async function followLineMoves(
+  deps: FollowMovesDeps,
+  playerId: string,
+): Promise<{ lordTravelling: boolean }> {
+  const house = await deps.houses.activeOf(playerId);
+  if (!house) return { lordTravelling: false };
+  const villages: VillageRecord[] = [];
+  const resolveRef = async (start: PersonRef): Promise<{ ref: PersonRef; travelling: boolean }> => {
+    let ref = start;
+    for (let hop = 0; hop < MAX_HOPS; hop++) {
+      const home = await deps.villages.find(ref.villageId);
+      if (!home || home.state.people.some((p) => p.id === ref.personId)) {
+        return { ref, travelling: false };
+      }
+      if (villages.length === 0) {
+        for (const settlement of await deps.settlements.listActive(playerId)) {
+          villages.push(...(await deps.villages.listBySettlement(settlement.id)));
+        }
+      }
+      let moved: PersonRef | null = null;
+      for (const village of villages) {
+        const move = village.state.lineMoves
+          ?.filter((m) => m.fromVillageId === ref.villageId && m.fromPersonId === ref.personId)
+          .pop();
+        if (move) moved = { villageId: village.id, personId: move.personId };
+      }
+      if (moved) {
+        ref = moved;
+        continue;
+      }
+      for (const village of villages) {
+        const events =
+          (await deps.villages.inbox?.pending(
+            village.id,
+            Number.MIN_SAFE_INTEGER,
+            Number.MAX_SAFE_INTEGER,
+          )) ?? [];
+        const coming = events.some(
+          (e) =>
+            e.body.kind === 'lord-arrives' &&
+            e.body.fromVillageId === ref.villageId &&
+            e.body.party.manId === ref.personId,
+        );
+        if (coming) return { ref, travelling: true };
+      }
+      return { ref, travelling: false };
+    }
+    return { ref, travelling: false };
+  };
+  let lordTravelling = false;
+  if (house.lord) {
+    const { ref, travelling } = await resolveRef(house.lord);
+    lordTravelling = travelling;
+    if (ref !== house.lord) await deps.houses.setLord(house.id, ref);
+  }
+  if (house.senior) {
+    const { ref } = await resolveRef(house.senior);
+    if (ref !== house.senior) await deps.houses.setSenior(house.id, ref);
+  }
+  return { lordTravelling };
 }
