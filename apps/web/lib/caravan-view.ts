@@ -11,6 +11,7 @@ import {
   isLivestockGood,
   ironTripLine,
   neighbourOf,
+  purchaseRoute,
   newcomerProfiles,
   purchaseLine,
   type CraftPurchase,
@@ -77,9 +78,13 @@ function tradeCaravans(state: VillageState): SceneExpedition[] {
     const trip = Math.min(trips - 1, Math.floor(whole * trips));
     const local = whole >= 1 ? 1 : whole * trips - trip;
     const tripDays = e.days / trips;
+    // zásilka do vsi jiného hráče (vassalage.md – Doprava a cílová ves): bez stezky rovně ke kraji
+    // mapy ve směru první mapy cesty, zpátky jdou nosiči bez nákladu; lidé a dobytek jen tam
+    const shipment = e.kind === 'shipment';
     return {
       id: e.id,
-      trailId: e.trailId,
+      trailId: shipment ? null : e.trailId,
+      ...(shipment ? { line: purchaseLine(state, purchaseRoute(state, e.direction, null)) } : {}),
       porters: e.porters,
       carts: [...(e.carts ?? [])],
       cartCrew: CARTS.tradeCrew,
@@ -89,7 +94,7 @@ function tradeCaravans(state: VillageState): SceneExpedition[] {
         p.members.map((m) => ({ sex: m.sex, age: m.ageYears })),
       ),
       carriesOut: carries(e.give),
-      carriesBack: carries(e.get),
+      carriesBack: shipment ? false : carries(e.get),
       // dobytek jde po svých – prodaný tam, koupený zpátky (trade.md – Dobytek ve třech druzích)
       ...(Object.keys({ ...e.give, ...e.get }).some(isCattleGood)
         ? { cattle: { out: herdOf(e.give), back: herdOf(e.get) } }
@@ -100,7 +105,9 @@ function tradeCaravans(state: VillageState): SceneExpedition[] {
       // začátek běžící jízdy – jízdy vozu jdou za sebou po dnech výpravy
       startDay: e.startedDay + Math.round(trip * tripDays),
       onMap: tripDays > 0 ? Math.max(0.2, (tripDays - TRADE.beyondEdgeDays) / tripDays) : 1,
-      trip: { kind: 'trade', to: neighbourOf(state.seed, e.direction).name },
+      ...(shipment
+        ? {}
+        : { trip: { kind: 'trade', to: neighbourOf(state.seed, e.direction).name } }),
     };
   });
 }

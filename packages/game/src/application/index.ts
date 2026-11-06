@@ -63,3 +63,4 @@ export * from './activity';
 export * from './succession-credits';
 export * from './renounce';
 export * from './house-spare';
+export * from './shipments';

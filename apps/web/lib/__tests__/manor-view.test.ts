@@ -241,6 +241,37 @@ describe('výprava pro karavanu ve scéně (trade.md – Ve scéně)', () => {
   });
 });
 
+describe('zásilka do vsi jiného hráče ve scéně (vassalage.md – Doprava a cílová ves)', () => {
+  it('karavana jde po čáře ke kraji mapy ve směru první mapy cesty, bez stezky a jména souseda', () => {
+    const s = village();
+    s.lastDay = DAY;
+    s.trade!.expeditions = [
+      {
+        id: 7,
+        kind: 'shipment',
+        destination: { cells: 3, firstStep: 'E' },
+        direction: 'E',
+        trailId: -1,
+        startedDay: DAY - 1,
+        give: { grain: 500, cows: 2 },
+        get: {},
+        porters: 20,
+        days: 12,
+        cost: 240,
+        done: 60,
+      },
+    ];
+    s.labor = { day: DAY, shares: [] };
+    const [e] = sceneExpeditions(s);
+    expect(e).toMatchObject({ id: 7, trailId: null, carriesOut: true, carriesBack: false });
+    expect(e!.line).toHaveLength(2);
+    // čára míří na východ: kraj mapy je napravo od vsi
+    expect(e!.line![1]!.x).toBeGreaterThan(e!.line![0]!.x);
+    expect(e!.trip).toBeUndefined();
+    expect(e!.cattle).toEqual({ out: { cows: 2, oxen: 0 }, back: { cows: 0, oxen: 0 } });
+  });
+});
+
 describe('rodina ve dvorci (lord.md – Co hráč vidí)', () => {
   it('obyvatelé dvorce od nejstaršího; cvičící muži mají dovednosti, ženy ne', () => {
     const s = village();

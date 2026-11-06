@@ -6,6 +6,7 @@ export {
   createPlayerLock,
   createActivityRepository,
   createHouseRepository,
+  createShipmentRepository,
   createSuccessionCreditRepository,
   createNegotiationRepository,
   createVassalageRepository,

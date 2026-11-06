@@ -64,6 +64,63 @@ z 20 běhů (12,6–21,4 ms), `transportLimit` 0,005 ms. Výhled: obilí 0 (4 34
 ročními potřebami), seno 699 kg, dobytek a koně 0, klády 3 653, 1 muž, robota 2 551 čd; doprava na
 1 políčko 1 300 kg / 26 klád, na 5 políček 250 kg / 5 klád (bez vozů).
 
+## Zásilky mezi vsemi hráčů (`shipment.ts`, `application/shipments.ts`, úloha 4.3)
+
+Jediná cesta, jak zboží a lidé přejdou z vsi jednoho hráče do vsi druhého (dávky, dary, půjčky,
+odměny – dialogy a jednání ji jen volají). Návrh: `docs/design/vassalage.md` – Doprava a cílová ves.
+
+- **`dispatchShipment(state, day, { bundle, cells, firstStep, … })`** (čistá, stav nemění): zkontroluje,
+  že ves svazek má (`Ves tolik obilí nemá.` apod. – dobytek a koně jen co smí do prodeje, lidé
+  `emigrantGroups` bez mužů rodu), a vrátí `{ ok: true, state, body, arrivesDay }`. Obilí, seno,
+  klády, dobytek, koně a lidé ze vsi zmizí hned (lidé zůstanou v rodokmenu jako odešlí ve směru
+  cesty); ves dostane `TradeExpedition { kind: 'shipment', destination: { cells, firstStep },
+trailId: -1, give, porters, days = 4 × cells, cost = porters × days }` – nosiči, honáci a vozkové
+  jdou ze společné práce vsi zdarma (`expeditionLaborToday`), po návratu výprava bez zápisu zmizí
+  (`finishExpeditions`). Do podílů práce po stezkách (`workExpeditions`) zásilka nepatří, soused
+  v témže směru ji nevidí (`expeditionTo`) a vojvodův doprovod ji nevybere (`lord.ts`). Robota
+  (`laborDays`) zásilkou nejde. **Mez dopravy (`transportLimit`) funkce nehlídá** – hlídá ji dialog
+  a výhled (`houseSpare`), jinak by test s chudou vsí odmítal i malou zásilku.
+- **Doba cesty** (`shipmentDays`): příjezd za `2 × cells` dní (`VASSALAGE.travelDaysPerCell`), uvnitř
+  políčka polovina nejkratší cesty k sousedovi (aspoň den), nosiči se vrátí za dvojnásobek.
+- **`receiveShipment(state, day, body)`** (mutuje, volá ji `applyInboxDay` pro tělo
+  `{ kind: 'shipment', shipment }`): zásoby, seno (`hay.kg`), klády (`addLogs`), dobytek
+  (`addCattle` – do ohrad, kdo se nevejde, jde volně), koně (`addHorses`; bez ohrady koní je ves
+  poráží – jako v obchodě), lidé `settleNewcomers` s novými místními id (los věku a pohlaví podle
+  `body.key`, `origin` = směr odesílatele). Kronika: `shipment-sent` (u odesílatele) a
+  `shipment-received` (`returned: true` u vrácené).
+- **Bilance** (testy `shipment.test.ts`): odesílatel + příjemce = konstanta pro obilí, seno, klády,
+  krávy, voly, koně i počet lidí. Dvě odchylky podle pravidel obchodu: voli přijdou s výcvikem
+  `boughtOxTrainedDay` (ne s původním), koně dostanou nová id; věk a pohlaví lidí se na druhé straně
+  losují znovu (počty sedí).
+- **`sendShipment(deps, { fromVillageId, toVillageId, bundle, purpose, refId, today })`** – pod
+  zámkem držitele odesílatele (`PlayerLock.run`). Pořadí kroků a odolnost proti pádu:
+  1. řádek `shipment` (`reserve`, `ref_id` jedinečný = idempotence odeslání),
+  2. uložení odesílající vsi (verzovaně) se zásilkou na cestě – výprava nese `shipmentId`,
+  3. událost `shipment` do schránky cílové vsi (`ref` = `ship:<id>`, den `today + 2 × cells`)
+     a `posted_at`.
+     Ves se dopočítá volající (stav v den `today`). Cíl, který už zanikl (`extinctDay`,
+     `abandonedDay`), odeslání odmítne.
+- **`reconcileShipments(deps, today)`** (`runWorldTasks`, worker 1× za minutu, pod `tryRun`
+  zámkem držitele odesílatele): řádek bez `posted_at` – odesílající ves nese `shipmentId` → událost
+  se dopíše (druhý zápis téhož `ref` se zahodí, doručí se právě jednou), jinak se ves neuložila a
+  rezervace se zruší (zboží zůstalo doma); zapsané a nevyřízené řádky – událost je ve schránce cíle
+  nespotřebovaná a cíl zanikl → zásilka se **vrátí odesílateli**, jinak se po spotřebování řádek
+  vyřídí (`settled_at`). `ShipmentRepository.onTheWay(toVillageId)` = seznam „na cestě“ pro panel.
+- **Příjezd do zaniklé vsi** (rozhodnutí návrhu Clauda): schránka spící vsi se nikdy nepoužije, takže
+  zboží a lidé by beze stopy zmizeli a porušila by se bilance. Proto se vracejí odesílateli
+  zpáteční událostí `ref = ship-back:<id>` v den `today + doba cesty`, v kronice odesílatele
+  „Zásilka se vrátila z vsi …“ (`returned`). Je-li zaniklý i odesílatel, nemá komu a zásilka
+  zanikne s ním.
+- **Po konci vazalství** zásilka dojde: nezávisí na stavu vazalství, jen na řádku a události.
+- **Tabulka** `shipment` (migrace `0023_shipment`): `id`, `from_village_id`, `to_village_id`,
+  `bundle` (= `ShipmentBody`), `purpose`, `ref_id` (unique), `sent_day`, `arrives_day`, `posted_at`,
+  `settled_at` (sloupec navíc oproti plánu – bez něj nejde poznat vyřízenou zásilku). Řádek mizí
+  s kteroukoli vsí (`ON DELETE CASCADE`). `SettlementRepository.find(id)` přibyl pro polohu vsí.
+- **Scéna**: `sceneExpeditions` (`apps/web/lib/caravan-view.ts`) vykreslí zásilku jako karavanu bez
+  stezky po čáře od vsi ke kraji mapy ve směru `destination.firstStep` (`purchaseRoute`,
+  `purchaseLine`); lidé a dobytek jdou jen tam, zpět nosiči bez nákladu, bez `trip` (jméno cílové vsi
+  scéna nezná).
+
 ## Podmínky dohody (`terms.ts`, úloha 4.2)
 
 `VassalTerms { tribute?; service?: { men, days }; targetVillageId?; reward? }` – uložené v

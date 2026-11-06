@@ -3,6 +3,7 @@ import {
   createLockPool,
   createPlayerLock,
   createActivityRepository,
+  createShipmentRepository,
   createSuccessionCreditRepository,
   createNegotiationRepository,
   createVassalageRepository,
@@ -18,6 +19,7 @@ import {
 } from '@bohemia/db';
 import type {
   ActivityRepository,
+  ShipmentRepository,
   SuccessionCreditRepository,
   NegotiationRepository,
   VassalageRepository,
@@ -91,6 +93,8 @@ export interface GameDeps {
   activity: ActivityRepository;
   /** Kredity nástupnictví bez losu za pozvané. */
   successionCredits: SuccessionCreditRepository;
+  /** Zásilky mezi vsemi hráčů na cestě (`docs/code/vassalage.md`). */
+  shipments: ShipmentRepository;
   /** Kryptografická náhoda pro kódy pozvánek. */
   random: RandomSource;
   /** Adresář rodů – veřejný rodokmen cizích rodů (`housesNear`). */
@@ -126,6 +130,7 @@ export function createGameDeps(
     negotiations: createNegotiationRepository(db),
     activity: createActivityRepository(db),
     successionCredits: createSuccessionCreditRepository(db),
+    shipments: createShipmentRepository(db),
     random: cryptoRandom(),
     worldDirectory: createWorldDirectory(db),
     now: () => new Date(),
