@@ -167,10 +167,12 @@ import {
   dwellingGround,
   milirGround,
   milirSite,
+  pitMaterial,
   ruinMaterial,
   stakingLine,
 } from './village-renderer-meshes';
 import type { MeshHost } from './village-renderer-meshes';
+import { FortificationRenderer } from './fortification-renderer';
 export type { DraftRenderState } from './village-renderer-shared';
 
 /**
@@ -204,6 +206,8 @@ export class VillageRenderer {
   private readonly plots: HomesteadRenderer;
   /** Pletené ploty pozemků a hřbitovů (woven-fence-renderer.ts). */
   private readonly fences: WovenFenceRenderer;
+  /** Opevnění (fortifications.md – Ve scéně): palisáda, plot, val s příkopem a brány. */
+  private readonly fortifications: FortificationRenderer;
   private readonly materials = new Map<string, Material>();
   private loading: Promise<void> | null = null;
   private builtKey = '';
@@ -288,6 +292,15 @@ export class VillageRenderer {
       addShadowCaster: (mesh) => context.addShadowCaster(mesh),
       onAsyncChange: () => context.onAsyncChange(),
       prepareMaterial: prepareDwellingMaterial,
+    });
+    this.fortifications = new FortificationRenderer(scene, {
+      decalHeight: context.decalHeight,
+      addShadowCaster: (mesh) => context.addShadowCaster(mesh),
+      onAsyncChange: () => context.onAsyncChange(),
+      prepareMaterial: prepareDwellingMaterial,
+      fences: this.fences,
+      pitCuts: context.pitCuts,
+      earthMaterial: () => pitMaterial(this.meshHost),
     });
     this.cemeteries = new CemeteryRenderer(scene, {
       decalHeight: context.decalHeight,
@@ -408,6 +421,7 @@ export class VillageRenderer {
       buildingClearings(village.dwellings),
     );
     const plots = this.plots.update(plotViews(village.dwellings));
+    const forts = this.fortifications.update(village.forts ?? []);
     const sacred = this.sacred.update(village.sacred);
     const pens = this.updatePens(village);
     const training = this.training.update(trainingGroundOf(village));
@@ -425,6 +439,7 @@ export class VillageRenderer {
       grainPits ||
       orchards ||
       plots ||
+      forts ||
       sacred ||
       pens ||
       training ||
@@ -962,6 +977,7 @@ export class VillageRenderer {
     this.weddings.dispose();
     this.slaughter.dispose();
     this.cemeteries.dispose();
+    this.fortifications.dispose();
     this.ores.dispose();
     this.grainPits.dispose();
     this.threshing.dispose();

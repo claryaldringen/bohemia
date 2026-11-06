@@ -818,3 +818,64 @@ Data `SceneVillage.tornado` (den, síla, stopa, prvních pár dní vývraty) –
   (`collapseDwellings` – zbytek jámy v `ruins`); scéna je kreslí jako rozpad
   (`dwelling-decay.ts`, `structure-decay.ts`) a zbytek po zániku – bez vlastní cesty. Změna
   staveb nastaví `village` → stínová mapa se překreslí jednou.
+
+## Opevnění ve scéně (fortifications.md – Ve scéně; Ú5.7)
+
+- **Data:** `sceneFortifications(state, landscape, day)` (`lib/fort-view.ts`) dává ke každému
+  opevnění i tvar úseků z jádra (`shapes` – rovná část a oblouk rohu, `fortSegments`), vzhled
+  úseků (`looks` – stáří v letech, stáří nástavby, podíl práce úseku ve stavbě podle
+  `fortSegmentProgress` – práce jde napřed do kácení, pak úsek po úseku), co se staví (`work`),
+  výšku valu a `gatesClosed` (zatím jen ukázka – nájezd přinese F6). Vše, co scéna kreslí, se
+  z toho odvozuje pevně podle id opevnění a pořadí kůlu (`hash01`), bez náhody.
+- **Rozmístění** (`lib/scene/fortification-layout.ts`, bez Babylonu, testy
+  `fortification-layout.test.ts`): `perimeterSamples` vzorkuje vnější okraj (rovné části po
+  krocích, oblouky po osminách) s normálou dovnitř a „dosahem“ – u vnějšího oblouku je to
+  poloměr bez rezervy a po rovné části plynule roste, takže síť pásu (val 10 m, roh 8 m) se
+  u rohu nepřehne (`insetDepth` stlačí jen násep, příkop drží 4 m). `insetLine` dá čáru uvnitř
+  pásu po stejných krocích – palisáda 0,75 m (polovina pásu 1,5 m), plot 0,5 m, koruna valu 7 m.
+  Brány: mezera 4 m kolem `offsetM` úseku.
+  - **Palisáda** (`palisadeLayout`): kůl po 0,25 m (4 na metr) i po obloucích, varianta (3),
+    výška 0,95–1,03 × 3,5 m, natočení a drobný náklon pevně z id a pořadí; stáří – dřevo šedne
+    (`woodTint` – barva instance), posledních 30 % životnosti se kůly naklánějí, za životností
+    řídnou podle stavu úseku (mezery); průlom – 4 m uprostřed úseku vyvrácené kůly ven.
+  - **Plot** (`fortFenceStage`): `FenceStage` pro sdílený `WovenFenceRenderer` (tentýž pletený
+    plot jako u pozemků – vlastník `fort-<id>`), kůly po 1 m, 7 výšek větví, kůly u brány vyšší;
+    stáří – kůly nakřivo, pahýly, vypadané větve; na valu kůl zvednutý (`sink` záporný).
+  - **Brány** (`fortGateInstances`): palisáda – dvě křídla z prken, kůly brány a trám; plot –
+    dvě proutěná křídla; val bez nástavby – závora. Otevřené křídlo míří dovnitř, zavřené
+    napříč; průlom brány – křídla vyvrácená. Brána valu stojí v průchodu bez náspu a příkopu.
+  - **Staveniště po úsecích** (`fortSitePhase` v `village-construction.ts`): plot – kůly
+    (první polovina práce úseku), pak větve; palisáda – žlab (30 %), pak kůly; obojí od začátku
+    úseku po směru hodin, tedy od brány (`fortWorkOrder`); val – příkop a násep rostou spolu.
+    Vylepšení plotu staví palisádu vedle stojícího plotu, nástavba valu staví na koruně.
+- **Val** (`lib/scene/rampart-mesh.ts`): průřez po 1,5 m obvodu – okraj o 0,3 m přes terén,
+  příkop 0–4 m (dno 1,5 m pod terénem), násep 4–10 m (koruna 2 m, `rampartProfile`); úseky na
+  sebe plynule navazují (přechod 3 m), v bráně průchod. Starý val (`rampartHeight` pod 1) je
+  nižší a zaoblený. Hlína a tráva jsou dvě sítě (hlína – materiál jam obydlí, tráva – textura
+  trávy terénu se sezónou): čtverec sítě je tráva podle podílu zarostení úseku – od 0,3 do 2,7
+  roku po dokončení (`RAMPART_GRASS_YEARS`), dno příkopu zaroste poslední.
+- **Prořez příkopu** (`pit-cut.ts`, `ditchCuts`, `packDitchCuts`): terén a obtisky na něm se
+  v příkopu zahodí ve fragment shaderu podle **vzdálenosti od úseček osy příkopu** (pole
+  uniform – vec4 na úsečku, nejvýš `MAX_DITCH_CUTS` = 48; víc – ty nejblíž středu obvodu).
+  Maska by byla 16. sampler terénu (má jich 15, WebGL 2 zaručuje jen 16) a musela by se
+  překreslovat se stavbou; úseček je málo – změřeno: čtvercový val 350 m 20 úseček, s branou 21,
+  se dvěma 22 (rovné kusy sloučené, oblouky po čtvrtinách), mimo obdélník všech úseček stojí
+  test jedno porovnání. Úsečky
+  jen tam, kde je příkop hlubší než 8 cm, konce souvislého kusu zkrácené o půl šířky (prořez
+  kolem úsečky je zakulacený a nesmí do průchodu brány).
+- **Renderer** (`lib/scene/fortification-renderer.ts`): díly
+  `models/fortifications/fortifications.glb` (`tools/blender/fortifications.py`, CC0 –
+  3 varianty kůlu, kůl a trám brány, křídla z prken a z proutí, závora; bez UV, jen barva
+  materiálu – pozice, normála, 4 sloupce matice a barva instance = 7 vertex bufferů) jako
+  nehybné instance `fort-…` (`CULLED_MESHES` – ořez po čtvercích, stínová mapa kreslí všechny).
+  Změna se pozná podle otisku opevnění (`JSON.stringify`) – jen tehdy se přestaví instance,
+  plot, sítě valu a prořez; `VillageRenderer.update` pak vrátí true (kreslí se jen při změně).
+- **Ukázka:** `/dev/buildings` – tlačítko **Opevnění** (`fortification-showcase.ts`): plot,
+  palisáda, val (zarostlý), val s palisádou, staveniště palisády (žlab a kůly od brány),
+  stará palisáda (šedá, nakřivo, mezery), průlom (zavřená rozsekaná brána) a rozestavěný val.
+- **Výkon** (`measure-scenery-culling.ts`, Vlkov 1138310652): palisáda 355 m (6 × 6 čtverců,
+  2 brány) = 1376 instancí v 6 dílech, 39,9 k trojúhelníků a 6 draw callů kamery (+ 6 do stínové
+  mapy); s ořezem 16 × 16 je opevnění kolem vsi v záběru celé (odstup 60, 120 i 400 m – 100 %),
+  ořez pomůže, až je ves mimo záběr. Val stejného obvodu 8,3 k trojúhelníků ve 2 sítích, plot
+  nepřidá žádný draw call (sdílené instance pleteného plotu). Les a dekorace krajiny pro
+  srovnání: 0,1–1,5 M trojúhelníků a 41–86 draw callů podle odstupu.

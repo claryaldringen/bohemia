@@ -406,6 +406,45 @@ export function ramp(p: number, from: number, to: number): number {
   return Math.min(1, Math.max(0, (p - from) / (to - from)));
 }
 
+/**
+ * Vrstva opevnění, která na úseku stojí nebo se staví (fortifications.md – Ve scéně): pletený
+ * plot, palisáda, nebo hliněný val s příkopem (nástavba valu je plot či palisáda na koruně).
+ */
+export type FortLayer = 'fence' | 'palisade' | 'rampart';
+
+/**
+ * Staveniště úseku opevnění (fortifications.md – Ve scéně, Stavba po úsecích): co z úseku stojí,
+ * jako podíly jeho délky od začátku úseku – stavba jde po směru hodin od brány (`fortWorkOrder`),
+ * takže kůly přibývají od brány.
+ */
+export interface FortSitePhase {
+  /** Kůly plotu nebo palisády – podíl délky úseku. */
+  posts: number;
+  /** Plot: podíl výšek proplétaných větví (až stojí všechny kůly úseku). */
+  rails: number;
+  /** Palisáda: vykopaný žlab – podíl délky úseku. */
+  trench: number;
+  /** Val: hloubka příkopu a výška náspu – podíl plné (příkop se prohlubuje a val roste). */
+  earth: number;
+}
+
+/** Hotový úsek – všechno stojí, žlab je pod kůly zasypaný. */
+export const FORT_SITE_DONE: FortSitePhase = { posts: 1, rails: 1, trench: 0, earth: 1 };
+
+/**
+ * Fáze úseku opevnění podle průběhu jeho práce 0–1: plot – kůly (první polovina), pak větve
+ * zdola nahoru; palisáda – žlab (první 30 %), pak kůly; val – příkop a násep rostou spolu.
+ */
+export function fortSitePhase(layer: FortLayer, progress: number): FortSitePhase {
+  if (progress >= 1) return FORT_SITE_DONE;
+  const p = Math.max(0, progress);
+  if (layer === 'fence')
+    return { posts: ramp(p, 0, 0.5), rails: ramp(p, 0.5, 1), trench: 0, earth: 0 };
+  if (layer === 'palisade')
+    return { posts: ramp(p, 0.3, 1), rails: 0, trench: ramp(p, 0, 0.3), earth: 0 };
+  return { posts: 0, rails: 0, trench: 0, earth: p };
+}
+
 /** Fáze stavby podle průběhu (poslední fáze zahrnuje i 1). */
 export function constructionPhase(kind: ConstructionKind, progress: number): ConstructionPhase {
   const phases = CONSTRUCTION_PHASES[kind];
