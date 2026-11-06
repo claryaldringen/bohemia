@@ -94,6 +94,16 @@ export function createLoanRepository(db: Executor): LoanRepository {
         .returning({ id: loan.id });
       return rows.length > 0;
     },
+    async moveCredits(fromHouseId, debtorHouseId, toHouseId): Promise<string[]> {
+      const rows = await db
+        .update(loan)
+        .set({ creditorHouseId: toHouseId })
+        .where(
+          and(eq(loan.creditorHouseId, fromHouseId), eq(loan.debtorHouseId, debtorHouseId), active),
+        )
+        .returning({ id: loan.id });
+      return rows.map((r) => r.id);
+    },
     async cancelOfDebtor(houseId, at): Promise<string[]> {
       const rows = await db
         .update(loan)

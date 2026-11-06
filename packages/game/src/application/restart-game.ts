@@ -6,6 +6,13 @@ import {
   isVillageDormant,
   lineEndDay,
 } from '../domain/village';
+import {
+  endExtinctNobles,
+  endHouse,
+  endNegotiationsOf,
+  livingLords,
+  type EndHouseDeps,
+} from './escheat';
 import type { HouseRepository } from './houses';
 import type { NegotiationRepository } from './negotiations';
 import type { NoticeRepository } from './notices';
@@ -44,6 +51,19 @@ export interface DynastyDeps {
   successionCredits?: Pick<SuccessionCreditRepository, 'unused' | 'consumeOne'>;
   /** Jednání mezi rody – konec rodu ukončí jeho otevřená jednání (stav `ended`). */
   negotiations?: NegotiationRepository;
+  /**
+   * Konec rodu přes `endHouse` (vassalage.md – Vymření rodu – odúmrť): rod s pánem nechá vsi pánovi
+   * (nezaniknou), vazalové a dluhy podle pravidel, konec NPC rodů ve vsích. Bez něj jako dřív – vsi
+   * zaniknou a rod skončí až restartem.
+   */
+  ending?: Omit<
+    EndHouseDeps,
+    'settlements' | 'villages' | 'landscapes' | 'negotiations' | 'houses'
+  > & {
+    houses: EndHouseDeps['houses'] & Pick<HouseRepository, 'activeOf'>;
+    negotiations: NegotiationRepository;
+    now: () => Date;
+  };
 }
 
 export interface DynastyInput {
@@ -146,9 +166,37 @@ export async function closeDynastyDay(
 ): Promise<DynastyStatus> {
   const { settlements, today } = input;
   const villages = [...input.villages];
+  const ending = endingOf(deps);
+  if (ending) {
+    // povýšený vesničan bez mužů – jeho NPC rod skončí a ves se vrátí pod rod hráče
+    const changed = await endExtinctNobles(ending, {
+      villages,
+      settlements,
+      day: today,
+      now: ending.now(),
+    });
+    for (const record of changed) {
+      const i = villages.findIndex((v) => v.id === record.id);
+      if (i >= 0) villages[i] = record;
+    }
+  }
   const states = villages.map((v) => v.state);
   const endDay = isLineExtinct(states) ? lineEndDay(states) : undefined;
-  if (endDay !== undefined) {
+  // rod a jeho pány se ptá jen při konci hry (ne v každém dopočtu)
+  const over = isGameOver(states);
+  const playerId = settlements[0]?.ownerId;
+  const house = over && ending && playerId ? await ending.houses.activeOf(playerId) : null;
+  // rod s pánem: vsi nezaniknou – připadnou pánovi jako odúmrť (`endHouse`)
+  const hasLord =
+    house !== null &&
+    ending !== null &&
+    (
+      await livingLords(
+        ending,
+        (await ending.vassalages.activeOf(house.id)).filter((v) => v.vassalHouseId === house.id),
+      )
+    ).length > 0;
+  if (endDay !== undefined && !hasLord) {
     const landscapes = new Map<string, Landscape>();
     for (const settlement of settlements) {
       landscapes.set(settlement.id, settlementLandscape(settlement, deps.landscapes));
@@ -167,7 +215,22 @@ export async function closeDynastyDay(
       if (result.ok) villages[i] = result.village;
     }
   }
-  return { settlements, villages, gameOver: isGameOver(villages.map((v) => v.state)) };
+  const gameOver = isGameOver(villages.map((v) => v.state));
+  if (house && ending) {
+    await endHouse(ending, { houseId: house.id, day: endDay ?? today, now: ending.now() });
+  }
+  return { settlements, villages, gameOver };
+}
+
+/** Závislosti `endHouse` z rodu, jsou-li (jinak null – konec rodu jako dřív). */
+function endingOf(deps: DynastyDeps): (EndHouseDeps & NonNullable<DynastyDeps['ending']>) | null {
+  if (!deps.ending) return null;
+  return {
+    ...deps.ending,
+    settlements: deps.settlements,
+    villages: deps.villages,
+    ...(deps.landscapes ? { landscapes: deps.landscapes } : {}),
+  };
 }
 
 /** Rod ještě žije – hráč má živou ves, hra nekončí. */
@@ -202,30 +265,21 @@ export async function restartGame(
   // bez abandon sem dojde jen hráč, pro kterého hra skončila (vsi vymřely nebo rod vymřel), nebo
   // hráč bez vsi
   if (status.villages.length > 0) {
-    for (const settlement of status.settlements) await deps.settlements.archive(settlement.id);
+    // jen sídla, která hráč ještě drží – vsi odúmrti už patří pánovi
+    for (const settlement of await deps.settlements.listActive(input.playerId)) {
+      await deps.settlements.archive(settlement.id);
+    }
     // rod skončil – `enterGame` níže založí nový (staré dohody zanikly vymřením)
     const house = await deps.houses.activeOf(input.playerId);
     if (house) {
       const at = deps.now();
-      if (await deps.houses.end(house.id, at, input.today)) {
+      const ending = endingOf(deps);
+      if (ending) await endHouse(ending, { houseId: house.id, day: input.today, now: at });
+      else if (await deps.houses.end(house.id, at, input.today)) {
         await endNegotiationsOf(deps.negotiations, house.id, at);
       }
     }
   }
   const { settlement, landscape } = await enterGame(deps, input.playerId);
   return { ok: true, settlement, landscape };
-}
-
-/** Ukončí otevřená jednání zaniklého rodu (`ended`) – vazalství už by neměl kdo uzavřít. */
-async function endNegotiationsOf(
-  negotiations: NegotiationRepository | undefined,
-  houseId: string,
-  at: Date,
-): Promise<void> {
-  if (!negotiations) return;
-  await negotiations.transaction(async (tx) => {
-    for (const open of await tx.openOf(houseId)) {
-      await tx.setStatus(open.id, 'ended', open.version, at);
-    }
-  });
 }

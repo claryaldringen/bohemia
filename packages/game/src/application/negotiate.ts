@@ -13,6 +13,8 @@ import {
   checkTradeItems,
   isTradeLine,
   isStewardshipLine,
+  isVillageGiftLine,
+  type VillageGiftLine,
   checkStewardshipItems,
   STEWARDSHIP_REASONS,
   TRADE_REASONS,
@@ -56,6 +58,16 @@ export interface NegotiateDeps extends NegotiationVillages {
   dialogs?: Pick<DialogRepository, 'openOnce'>;
   houses: Pick<HouseRepository, 'activeOf' | 'byId'>;
   negotiations: NegotiationRepository;
+  /**
+   * Převod věnovaného dílu odúmrti po přijetí (`giveEscheatPart`); bez něj věnování přijmout nejde.
+   */
+  escheatGift?: (input: {
+    line: VillageGiftLine;
+    fromHouseId: string;
+    toHouseId: string;
+    now: Date;
+    today: number;
+  }) => Promise<void>;
   /** Čte se z něj, které vsi rod vlastní (cílová ves musí patřit pánovi). */
   worldDirectory: Pick<WorldDirectory, 'entriesOf'>;
 }
@@ -431,6 +443,7 @@ export async function acceptNegotiation(
     toVillageId: string | null;
   } | null = null;
   let trading: { sendings: TradeSending[]; today: number } | null = null;
+  let gift: { line: VillageGiftLine; fromHouseId: string; toHouseId: string } | null = null;
   const result = await deps.negotiations
     .transaction(async (tx): Promise<NegotiateResult> => {
       const loaded = await loadForResponse(deps, tx, input.playerId, input.negotiationId);
@@ -463,6 +476,8 @@ export async function acceptNegotiation(
       if (badVillage) return fail(badVillage);
       const sides = stewardSides(oathItem, existing);
       const stewardLine = items.find(isStewardshipLine);
+      const giftLine = items.find(isVillageGiftLine);
+      if (giftLine && !deps.escheatGift) return fail(NO_AGREEMENT);
       const badSteward = await checkStewardRound(deps, tx, items, sides);
       if (badSteward) return fail(badSteward);
       for (const item of items) {
@@ -495,7 +510,7 @@ export async function acceptNegotiation(
         !aidLine &&
         !tradeLine &&
         // správa bez řádků podmínek stávající podmínky dohody nemění
-        !(stewardLine && termLinesOf(items).length === 0) &&
+        !((stewardLine || giftLine) && termLinesOf(items).length === 0) &&
         !(await tx.vassalages.updateTerms(existing.id, terms, existing.version))
       ) {
         return fail(NO_AGREEMENT);
@@ -548,6 +563,9 @@ export async function acceptNegotiation(
       }
       actors = { actor: loaded.actor, other: loaded.other };
       oath = oathItem;
+      // dárce = autor posledního kola (druhá strana), obdarovaný přijímá
+      if (giftLine)
+        gift = { line: giftLine, fromHouseId: loaded.other.id, toHouseId: loaded.actor.id };
       if (aidLine && aidLine.kind !== 'aid-request')
         aid = { line: aidLine, toVillageId: aidTarget };
       return {
@@ -571,6 +589,10 @@ export async function acceptNegotiation(
       now: input.now,
     });
     if (failed) return fail(failed);
+  }
+  const giving = gift as { line: VillageGiftLine; fromHouseId: string; toHouseId: string } | null;
+  if (result.ok && giving && deps.escheatGift) {
+    await deps.escheatGift({ ...giving, now: input.now, today: input.today });
   }
   const opening = trading as { sendings: TradeSending[]; today: number } | null;
   if (result.ok && opening && deps.dialogs) {

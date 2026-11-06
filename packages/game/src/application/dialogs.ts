@@ -51,4 +51,6 @@ export interface DialogRepository {
   answer(id: string, expectedStatus: DialogStatus): Promise<boolean>;
   /** Otevřené dialogy k `refId` zmizí (stav `dropped`). */
   dropFor(refId: string): Promise<void>;
+  /** Všechny otevřené dialogy hráče zmizí (jeho rod skončil). */
+  dropOpenOf(playerId: string): Promise<void>;
 }

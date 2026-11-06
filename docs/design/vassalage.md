@@ -444,6 +444,12 @@ tím, že nabídku vazala odsouhlasí, nebo dá protinabídku – bez jeho souhl
   a půjčkami jako při smrti vojvody – nebo je věnuje svým vazalům (Martin); vypovědět smějí
   kdykoli. Pohledávky vymřelého jdou s vazaly, jeho dluhy zaniknou (návrh Clauda).
 - **Do rozhodnutí** vsi odúmrti spravuje pán sám (řídí je NPC jeho jménem) – návrh Clauda.
+- **Provedení (návrh Clauda, 6. 11. 2026):** díl odúmrti jsou celé vsi a vazalové; vsi jedné mapy
+  připadnou témuž (držitel se počítá po mapách – „po celých panstvích“). S víc pány je do rozhodnutí
+  technickým držitelem pán s nejstarší dohodou, každý pán navrhuje dělení v dialogu Odúmrť a platí
+  po souhlasu všech. Věnovaný vazal přejde na obdarovaného i s pohledávkami dárce vůči němu. Vazalové
+  vymřelého zůstávají do rozhodnutí na staré dohodě (podmínky a půjčky se neztratí). Pohledávky rodu
+  bez pána zatím zůstávají (pravidlo říká jen „dluhy zaniknou“).
 
 ### Začít znovu
 

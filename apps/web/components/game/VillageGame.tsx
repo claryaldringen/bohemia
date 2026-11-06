@@ -65,6 +65,9 @@ import {
   renounceVassalage,
   dismissSteward,
   levyDialogs,
+  escheatDialogs,
+  proposeEscheat,
+  consentEscheat,
   answerLevy,
 } from '@/app/game/actions';
 import { PanelOptionsContext, type PanelOptionsSource } from '@/hooks/use-panel-options';
@@ -133,13 +136,14 @@ import { JourneyBanner, PlayerDeparturePanel } from './hud/RelocationControls';
 import { GameMenu } from './hud/GameMenu';
 import { HousePanel } from './hud/HousePanel';
 import { LevyDialog } from './hud/LevyDialog';
+import { EscheatDialog } from './hud/EscheatDialog';
 import { RightsProvider, rightDeniedReason } from './hud/rights';
 import { Minimap } from './hud/Minimap';
 import { LineNamePanel } from './hud/LineNamePanel';
 import { NoticeLines, type NoticeLine } from './hud/NoticeLines';
 import { SelectionPanel } from './hud/SelectionPanel';
 import type { HouseView } from '@/lib/house-view';
-import type { LevyDialogView } from '@bohemia/game';
+import type { EscheatView, LevyDialogView } from '@bohemia/game';
 import { TopBar, type DevDisasterChoice } from './hud/TopBar';
 
 /** Stav vsi ze serveru: pohled na ves, ještě nezaložená (null), nebo chyba (svět neběží…). */
@@ -389,12 +393,24 @@ export function VillageGame({
   useEffect(() => {
     void refreshHouse();
   }, [refreshHouse]);
+  // Dialog Odúmrť (úloha 4.10): s panelem rodu se zeptá, jestli hráč jako pán o nějaké odúmrti
+  // rozhoduje – jen tehdy se ukáže (počítá se na vyžádání, ne v každém dotazu na ves)
+  const [escheats, setEscheats] = useState<EscheatView[] | null>(null);
+  const refreshEscheats = useCallback(async (): Promise<void> => {
+    try {
+      const result = await escheatDialogs();
+      setEscheats('error' in result || result.escheats.length === 0 ? null : result.escheats);
+    } catch {
+      setEscheats(null);
+    }
+  }, []);
   const openHouse = useCallback((): void => {
     setMenuOpen(false);
     setHouseError(null);
     setHouseOpen(true);
     void refreshHouse();
-  }, [refreshHouse]);
+    void refreshEscheats();
+  }, [refreshHouse, refreshEscheats]);
   const closeHouse = useCallback((): void => setHouseOpen(false), []);
   // Dialog Odvody (úloha 4.4): rozdělení po vsích se počítá až při otevření
   const [levyOpen, setLevyOpen] = useState(false);
@@ -1584,6 +1600,28 @@ export function VillageGame({
               const target = view?.villages.find((v) => v.id === villageId);
               if (target) switchVillage(target);
             }}
+          />
+        )}
+        {escheats && !menuShown && (
+          <EscheatDialog
+            escheats={escheats}
+            onPropose={async (input) => {
+              const result = await proposeEscheat(input);
+              if ('ok' in result) {
+                void refreshHouse();
+                void refreshEscheats();
+              }
+              return result;
+            }}
+            onConsent={async (input) => {
+              const result = await consentEscheat(input);
+              if ('ok' in result) {
+                void refreshHouse();
+                void refreshEscheats();
+              }
+              return result;
+            }}
+            onClose={() => setEscheats(null)}
           />
         )}
         {levyOpen && !menuShown && (

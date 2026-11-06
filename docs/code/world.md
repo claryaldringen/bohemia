@@ -21,6 +21,8 @@ začátku svého dne, zápis zvedá verzi vsi) – `docs/code/village-core.md`, 
   `village-people.md` – „Hráčův muž a vlastní ves“. Senior rodu (`house.senior`, sloupce `senior_*`)
   a práva ve vsích rodu: `village-people.md` – „Seniorát a práva ve vsích rodu“. Nástupnictví hráče po smrti jeho muže (los, kredit,
   `house.succession_day`, upozornění `'player-succession'`): `village-people.md` – „Nástupnictví hráče“.
+  Konec rodu (hráčova i NPC) jde jediným místem `endHouse` (`application/escheat.ts`) – rod s pánem
+  nechá vsi a vazaly pánovi jako odúmrť: `vassalage.md` – „Vymření rodu a odúmrť“.
 
 ## Adresář rodů
 

@@ -69,4 +69,20 @@ export class InMemoryLoans implements LoanRepository {
     }
     return out;
   }
+
+  async moveCredits(
+    fromHouseId: string,
+    debtorHouseId: string,
+    toHouseId: string,
+  ): Promise<string[]> {
+    await Promise.resolve();
+    const out: string[] = [];
+    for (const loan of this.loans) {
+      if (loan.status !== 'active' || loan.creditorHouseId !== fromHouseId) continue;
+      if (loan.debtorHouseId !== debtorHouseId) continue;
+      loan.creditorHouseId = toHouseId;
+      out.push(loan.id);
+    }
+    return out;
+  }
 }

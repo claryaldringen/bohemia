@@ -39,6 +39,9 @@ export const settlement = pgTable(
     archivedAt: timestamp('archived_at', { withTimezone: true }),
     gridX: integer('grid_x'),
     gridY: integer('grid_y'),
+    // čekající držitel (odúmrť – 1. krok převodu `transferHolder`): sídlo nepočítá starý ani nový,
+    // dokud ho nový pod svým zámkem nepřevezme (`acceptTransfers`)
+    pendingOwnerId: text('pending_owner_id').references(() => user.id, { onDelete: 'cascade' }),
   },
   (table) => [
     // Každý hráč má nejvýš jedno sídelní sídlo – hlídá databáze, i při souběžných požadavcích.

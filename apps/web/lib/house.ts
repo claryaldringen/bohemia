@@ -1,3 +1,4 @@
+import { escheatGift } from './escheats';
 import {
   acceptNegotiation,
   blockPlayer,
@@ -89,7 +90,9 @@ export async function answerNegotiationForPlayer(
   const deps = gameDeps();
   switch (input.answer) {
     case 'accept':
-      return outcome(await acceptNegotiation({ ...deps, aid: aidDeps() }, base));
+      return outcome(
+        await acceptNegotiation({ ...deps, aid: aidDeps(), escheatGift: escheatGift() }, base),
+      );
     case 'reject':
       return outcome(await rejectNegotiation(deps, base));
     case 'withdraw':

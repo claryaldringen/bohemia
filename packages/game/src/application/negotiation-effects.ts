@@ -1,4 +1,9 @@
-import { checkStewardshipItems, checkTradeLine, type TermItem } from '../domain/negotiation';
+import {
+  checkStewardshipItems,
+  checkTradeLine,
+  checkVillageGiftItems,
+  type TermItem,
+} from '../domain/negotiation';
 import { AID_REASONS, checkAidLine, type AidLine } from '../domain/vassalage/loan';
 import { checkTermLine, type TermLine, type VassalTerms } from '../domain/vassalage/terms';
 import { STEWARD_TAKEN } from './stewardships';
@@ -107,6 +112,11 @@ export const NEGOTIATION_EFFECTS: { [K in TermItem['kind']]: NegotiationEffect<K
       });
       if (!started) throw new StewardshipTaken();
     },
+  },
+  // věnování dílu odúmrti: v transakci nic, vsi a vazaly převede `acceptNegotiation` po ní (zámky)
+  'village-gift': {
+    check: (_tx, item) => Promise.resolve(checkVillageGiftItems([item])),
+    apply: () => Promise.resolve(),
   },
   // půjčka je samostatná dohoda: řádek se zapíše v transakci přijetí, zboží pošle use-case po ní
   loan: {

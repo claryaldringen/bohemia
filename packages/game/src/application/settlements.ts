@@ -69,6 +69,18 @@ export interface SettlementRepository {
    * které polohu už má, nemění. Vrátí sídlo s polohou, neznámé nebo archivované null.
    */
   assignWorldCell(settlementId: string, cell: WorldCell): Promise<Settlement | null>;
+  /**
+   * 1. krok převodu držitele (odúmrť – vassalage.md): pod zámkem **starého** držitele `fromOwnerId`
+   * sídlo dostane čekajícího držitele `toOwnerId` – od té chvíle ho nemá nikdo (`listActive` ho
+   * nevrátí starému ani novému, worker ho počítá až u nového). Podmíněně: jen když sídlo drží
+   * `fromOwnerId` a nic nečeká; true při změně.
+   */
+  transferHolder(settlementId: string, fromOwnerId: string, toOwnerId: string): Promise<boolean>;
+  /**
+   * 2. krok převodu: pod zámkem **nového** držitele převezme všechna sídla, která na něj čekají
+   * (`owner_id` = on, sídelní nejsou). Idempotentní; vrací převzatá sídla.
+   */
+  acceptTransfers(ownerId: string): Promise<Settlement[]>;
 }
 
 /** Port: zdroj nových seedů krajiny – náhoda přichází zvenku, doména je deterministická. */

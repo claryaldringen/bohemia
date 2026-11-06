@@ -18,14 +18,15 @@ export function createWorldQueue(db: Database): WorldQueue {
       const result = await db.execute<{ playerId: string; today: number; oldestDay: number }>(sql`
         SELECT "playerId", today, "oldestDay"
         FROM (
-          SELECT s.owner_id AS "playerId",
+          SELECT coalesce(s.pending_owner_id, s.owner_id) AS "playerId",
                  ${today} AS today,
                  min(coalesce(v.last_day, 0)) AS "oldestDay"
           FROM village v
           JOIN settlement s ON s.id = v.settlement_id AND s.archived_at IS NULL
-          LEFT JOIN player_time_offset o ON o.player_id = s.owner_id
+          LEFT JOIN player_time_offset o
+            ON o.player_id = coalesce(s.pending_owner_id, s.owner_id)
           WHERE NOT v.asleep
-          GROUP BY s.owner_id, o.offset_days
+          GROUP BY coalesce(s.pending_owner_id, s.owner_id), o.offset_days
         ) players
         WHERE "oldestDay" < today
         ORDER BY today - "oldestDay" DESC, "playerId" COLLATE "C"
