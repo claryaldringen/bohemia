@@ -188,6 +188,22 @@ describe('steward-extras – hřbitov', () => {
     extraSteps(apart, ctxOf(done.lastDay + 1));
     expect(cemeteries(apart)).toBe(0);
   });
+
+  it('plán sestavený až po hřbitově dává sloty u jeho čtverců – plné hřbitovy se rozšíří', () => {
+    let s = planned(withBuiltFirstDwelling(village(SEPT)));
+    extraSteps(s, ctxOf(SEPT));
+    for (let to = SEPT + 80; to <= SEPT + 240 && s.cemeteries?.[0]?.builtDay == null; to += 20) {
+      s = advanceVillage(s, to, obstacles, landscape);
+    }
+    const full = structuredClone(s);
+    full.cemeteries![0]!.graves = full.cemeteries![0]!.squares.length * 56;
+    // nový plán (přepočet po letech) – semeno hřbitova se v něm hledá znovu
+    delete full.steward!.plan;
+    const replanned = planned(full);
+    extraSteps(replanned, ctxOf(replanned.lastDay + 1));
+    expect(replanned.constructions.filter((c) => c.kind === 'cemetery')).toHaveLength(1);
+    expect(replanned.cemeteries).toHaveLength(1);
+  });
 });
 
 describe('steward-extras – humno, ohrady, posvátná místa a cesty', () => {

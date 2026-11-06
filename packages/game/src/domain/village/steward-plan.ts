@@ -7,6 +7,7 @@
 
 import { dateOfDayIndex } from '../calendar';
 import { SURFACE_CODES, tileCenterWorld, type Landscape, type ObstacleLayer } from '../landscape';
+import { villageCemeteries } from './cemetery';
 import { craftCoverage } from './crafts';
 import { netYieldPerHa, ROTATION, ROTATION_FACTOR } from './field-capacity';
 import { fieldFoodShare, yearlyFoodNeed } from './field-food';
@@ -134,9 +135,10 @@ function isCurrentPlan(plan: StewardPlan | undefined): plan is StewardPlan {
 
 /**
  * Verze pravidel rozvrhu: 2 = blok domácnosti podle toho, co oseje (steward.md – Pole blízko a podle
- * práce). Plán starší verze platí, dokud se vedle něj nespočítá nový.
+ * práce); 3 = sloty hřbitova u čtverců stávajícího hřbitova (plné hřbitovy se rozšíří). Plán starší
+ * verze platí, dokud se vedle něj nespočítá nový.
  */
-export const STEWARD_PLAN_VERSION = 2;
+export const STEWARD_PLAN_VERSION = 3;
 
 /** Plán dnešního tvaru i dnešních pravidel rozvrhu (rozpracovaný přepočet starší verze se zahodí). */
 function isFreshPlan(plan: StewardPlan | undefined): plan is StewardPlan {
@@ -1007,9 +1009,25 @@ function rankSlots(
     }
     return true;
   };
+  // stávající hřbitov (mimo natočený) se rozšiřuje jen čtvercem sousedícím stranou – semeno i další
+  // sloty proto leží u jeho čtverců, ne u středu vsi; jinak by plán dával sloty jinam a plné
+  // hřbitovy by správce nikdy nerozšířil (steward.md – Hřbitov)
+  const anchors: number[] = [];
+  for (const c of villageCemeteries(state)) {
+    if (c.grid) continue;
+    for (const { cell } of c.squares) anchors.push(cell.y * size + cell.x);
+  }
+  const nearAnchors = (i: number): number =>
+    anchors.reduce((best, a) => Math.min(best, dist(a, i)), Infinity);
   let used = 0;
   let seed: number | undefined;
-  const seeds = order(cemeteryOk, (i) => fertility(i) + dist(i, centreTile));
+  const seeds =
+    anchors.length > 0
+      ? order(
+          (i) => cemeteryOk(i) && nearAnchors(i) === 1,
+          (i) => fertility(i) + dist(i, centreTile),
+        )
+      : order(cemeteryOk, (i) => fertility(i) + dist(i, centreTile));
   for (const i of seeds.slice(0, STEWARD.slotCandidates)) {
     if (used >= budget) break;
     used++;
@@ -1024,7 +1042,9 @@ function rankSlots(
     [
       'cemetery',
       cemeteryOk,
-      (i) => (seed === undefined ? 0 : dist(i, seed) * 100) + fertility(i),
+      (i) =>
+        (anchors.length > 0 ? nearAnchors(i) * 100 : seed === undefined ? 0 : dist(i, seed) * 100) +
+        fertility(i),
       seed === undefined ? 0 : STEWARD.extraSlots - 1,
     ],
     // humno mezi poli a dvorcem na suchu a rovině
