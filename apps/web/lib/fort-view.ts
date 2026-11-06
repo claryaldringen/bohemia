@@ -58,6 +58,8 @@ export interface SceneFortification extends Pick<
   band: FortPoint[][];
   /** Tvar úseků v pořadí obvodu (jádro – `fortSegments`): rovná část a oblouk rohu. */
   shapes: Pick<FortSegmentShape, 'index' | 'line' | 'arc' | 'lengthM'>[];
+  /** Poloměry rohů obvodu (jádro – `FortOutline.corners`): vnější a vnitřní roh, zmenšené. */
+  corners: FortOutline['corners'];
   /** Stáří a stavba úseků ve scéně – stejné pořadí jako `shapes` (fortification-layout.ts). */
   looks: SceneFortSegment[];
   /** Co stavba na opevnění dělá (`Construction.fortWork`); chybí – nic se nestaví. */
@@ -191,6 +193,7 @@ export function sceneFortification(
     ...(fort.rampartHeight !== undefined ? { rampartHeight: fort.rampartHeight } : {}),
     ...fortShape(outline),
     shapes: shapes.map(({ index, line, arc, lengthM }) => ({ index, line, arc, lengthM })),
+    corners: outline.corners,
     looks,
     ...extra,
   };

@@ -42,10 +42,6 @@ export const FORT_FENCE = {
   gateWidth: FORT_GATE_M,
 } as const;
 
-/** Rezerva poloměru vnějšího oblouku, za kterou síť dovnitř nesahá (bez přehybu). */
-const REACH_MARGIN_M = 0.3;
-/** Jak rychle za obloukem roste dosah dovnitř (m na m rovné části). */
-const REACH_SLOPE = 1.5;
 /** Kolik bodů má čtvrtkruh rohu při vzorkování obvodu. */
 const ARC_STEPS = 8;
 
@@ -77,7 +73,10 @@ export interface FortInstance {
   color: readonly [number, number, number];
 }
 
-/** Bod vnějšího okraje: poloha, normála dovnitř, vzdálenost po obvodu, úsek a dosah dovnitř. */
+/**
+ * Bod vnějšího okraje: poloha, normála dovnitř, vzdálenost po obvodu, úsek a protější bod
+ * vnitřního okraje pásu na stejném průřezu (`insetPoint`).
+ */
 export interface PerimeterSample {
   x: number;
   z: number;
@@ -86,8 +85,21 @@ export interface PerimeterSample {
   /** Vzdálenost po vnějším okraji od začátku prvního úseku (m). */
   s: number;
   segment: number;
-  /** Jak hluboko dovnitř smí síť sahat bez přehybu (vnější oblouk – poloměr bez rezervy). */
-  reach: number;
+  /** Bod vnitřního okraje pásu na průřezu tohoto bodu. */
+  ix: number;
+  iz: number;
+}
+
+/** Opevnění pro průřezy pásu: tvar obvodu, poloměry rohů a druh (šířka pásu). */
+export type FortEdges = Pick<SceneFortification, 'shapes' | 'corners' | 'kind'>;
+
+/**
+ * Pás pro posun dovnitř: šířka `full` a vnější část `rigid` (příkop valu), která drží pevnou
+ * vzdálenost od vnějšího okraje; zbytek pásu vede poměrně až k vnitřnímu okraji.
+ */
+export interface FortBand {
+  rigid: number;
+  full: number;
 }
 
 /** Bod čáry uvnitř pásu (kůly, koruna valu, osa příkopu) – nese polohu na vnějším okraji `s`. */
@@ -141,42 +153,143 @@ function convexArc(shape: Shape, sign: number): boolean {
 }
 
 /**
+ * Oblouk rohu u vnitřního okraje pásu (fortifications.md – Obvod): u vnějšího rohu má vnitřní
+ * okraj poloměr vnitřního rohu obvodu (u valu 4 m, u palisády 1,5 m, u plotu 0,5 m), nejméně
+ * soustředný; jeho střed leží na ose rohu o `shift` dál dovnitř a vnitřní okraj se tak napojí
+ * na rovné části `shift` m před obloukem a za ním. U vnitřního rohu (tvar L) je soustředný.
+ */
+interface InnerCorner {
+  shift: number;
+  x: number;
+  z: number;
+  r: number;
+}
+
+/** Rovné kusy obvodu – úseky od úseku za obloukem po úsek s obloukem (indexy po obvodu). */
+function straightRuns(shapes: readonly Shape[]): number[][] {
+  const n = shapes.length;
+  const first = shapes.findIndex((_, k) => shapes[(k + n - 1) % n]!.arc);
+  if (first < 0) return n > 0 ? [shapes.map((_, k) => k)] : [];
+  const runs: number[][] = [];
+  let k = first;
+  for (let done = 0; done < n;) {
+    const run: number[] = [];
+    for (let j = k; ; j = (j + 1) % n) {
+      run.push(j);
+      if (shapes[j]!.arc) break;
+    }
+    runs.push(run);
+    done += run.length;
+    k = (run[run.length - 1]! + 1) % n;
+  }
+  return runs;
+}
+
+/** Délka rovného kusu (m). */
+function runLength(shapes: readonly Shape[], run: readonly number[]): number {
+  return run.reduce((sum, k) => sum + shapes[k]!.line.length, 0);
+}
+
+/**
+ * Oblouky vnitřního okraje pro rohy úseků (null – úsek bez oblouku). Posun napojení se u kusu
+ * kratšího než oba posuny zmenší (val na pruhu širokém jeden čtverec – pás se tam stejně slije).
+ */
+function innerCorners(fort: FortEdges, sign: number, band: number): (InnerCorner | null)[] {
+  const { shapes } = fort;
+  const n = shapes.length;
+  const shifts = shapes.map((s) =>
+    convexArc(s, sign) ? Math.max(0, band + fort.corners.inner - s.arc!.r) : 0,
+  );
+  for (const run of straightRuns(shapes)) {
+    const start = (run[0]! + n - 1) % n;
+    const end = run[run.length - 1]!;
+    const length = runLength(shapes, run);
+    const need = (shapes[start]!.arc ? shifts[start]! : 0) + (shapes[end]!.arc ? shifts[end]! : 0);
+    if (need <= length) continue;
+    const scale = need > 0 ? length / need : 0;
+    shifts[start] = shifts[start]! * scale;
+    shifts[end] = shifts[end]! * scale;
+  }
+  return shapes.map((s, k) => {
+    const a = s.arc;
+    if (!a) return null;
+    const shift = shifts[k]!;
+    const convex = convexArc(s, sign);
+    return {
+      shift,
+      x: a.x - shift * (a.ux + a.vx),
+      z: a.z - shift * (a.uz + a.vz),
+      r: convex ? Math.max(0, a.r - band + shift) : a.r + band,
+    };
+  });
+}
+
+/**
  * Body vnějšího okraje po obvodu: rovné části nejvýš po `step` m, oblouky po osminách čtvrtkruhu
- * (uzavřená čára – poslední bod nenavazuje sám na sebe). Dosah dovnitř je u vnějšího oblouku jeho
- * poloměr bez rezervy a po rovné části od něj plynule roste – síť pásu se pak u rohů nepřehne.
+ * (uzavřená čára – poslední bod nenavazuje sám na sebe). Každý bod nese protější bod vnitřního
+ * okraje pásu: na rovné části kolmo o šířku pásu, u rohu na oblouku vnitřního okraje – kus
+ * vnějšího okraje od napojení před obloukem po napojení za ním se rozloží po celém vnitřním
+ * oblouku (průřezy se v rohu rozevřou, nesbíhají se).
  */
 export function perimeterSamples(
-  shapes: readonly Shape[],
+  fort: FortEdges,
   step: number,
   arcSteps = ARC_STEPS,
 ): PerimeterSample[] {
+  const { shapes } = fort;
   const sign = orientation(shapes);
   const { starts } = segmentStarts(shapes);
   const n = shapes.length;
+  const band = fortBand(fort).full;
+  const corners = innerCorners(fort, sign, band);
+  // poloha úseku na rovném kusu: začátek a délka kusu (m)
+  const place = new Map<number, { at: number; length: number; first: number; last: number }>();
+  for (const run of straightRuns(shapes)) {
+    const length = runLength(shapes, run);
+    const first = (run[0]! + n - 1) % n;
+    const last = run[run.length - 1]!;
+    let at = 0;
+    for (const k of run) {
+      place.set(k, { at, length, first, last });
+      at += shapes[k]!.line.length;
+    }
+  }
+  // bod vnitřního oblouku rohu `k` ve vzdálenosti `zeta` od napojení před obloukem
+  const innerAt = (k: number, zeta: number): [number, number] => {
+    const c = corners[k]!;
+    const a = shapes[k]!.arc!;
+    const zone = 2 * c.shift + a.r * (Math.PI / 2);
+    const th = zone > 0 ? (Math.min(Math.max(zeta, 0), zone) / zone) * (Math.PI / 2) : 0;
+    const cos = Math.cos(th);
+    const sin = Math.sin(th);
+    return [c.x + c.r * (a.ux * cos + a.vx * sin), c.z + c.r * (a.uz * cos + a.vz * sin)];
+  };
   const out: PerimeterSample[] = [];
   const normal = (dx: number, dz: number): [number, number] => (sign > 0 ? [-dz, dx] : [dz, -dx]);
   shapes.forEach((shape, k) => {
-    const prev = shapes[(k + n - 1) % n]!;
-    const reachStart = convexArc(prev, sign) ? prev.arc!.r - REACH_MARGIN_M : Infinity;
-    const reachEnd = convexArc(shape, sign) ? shape.arc!.r - REACH_MARGIN_M : Infinity;
     const { x, z, dx, dz, length } = shape.line;
     const [nx, nz] = normal(dx, dz);
+    const run = place.get(k)!;
+    const before = corners[run.first]?.shift ?? 0;
+    const after = corners[run.last]?.shift ?? 0;
     const count = Math.max(1, Math.ceil(length / step - 1e-9));
     for (let i = 0; i < count; i++) {
       const t = (i / count) * length;
-      out.push({
-        x: x + dx * t,
-        z: z + dz * t,
-        nx,
-        nz,
-        s: starts[k]! + t,
-        segment: k,
-        reach: Math.min(reachStart + t * REACH_SLOPE, reachEnd + (length - t) * REACH_SLOPE),
-      });
+      const u = run.at + t;
+      const px = x + dx * t;
+      const pz = z + dz * t;
+      let [ix, iz] = [px + nx * band, pz + nz * band];
+      if (u < before) {
+        const prev = shapes[run.first]!.arc!;
+        [ix, iz] = innerAt(run.first, before + prev.r * (Math.PI / 2) + u);
+      } else if (u > run.length - after) {
+        [ix, iz] = innerAt(run.last, u - (run.length - after));
+      }
+      out.push({ x: px, z: pz, nx, nz, s: starts[k]! + t, segment: k, ix, iz });
     }
     const a = shape.arc;
     if (!a) return;
-    const convex = reachEnd !== Infinity;
+    const shift = corners[k]!.shift;
     for (let j = 0; j < arcSteps; j++) {
       const th = (j / arcSteps) * (Math.PI / 2);
       const cos = Math.cos(th);
@@ -184,6 +297,7 @@ export function perimeterSamples(
       const tx = -a.ux * sin + a.vx * cos;
       const tz = -a.uz * sin + a.vz * cos;
       const [ax, az] = normal(tx, tz);
+      const [ix, iz] = innerAt(k, shift + a.r * th);
       out.push({
         x: a.x + a.r * (a.ux * cos + a.vx * sin),
         z: a.z + a.r * (a.uz * cos + a.vz * sin),
@@ -191,7 +305,8 @@ export function perimeterSamples(
         nz: az,
         s: starts[k]! + length + a.r * th,
         segment: k,
-        reach: convex ? reachEnd : Infinity,
+        ix,
+        iz,
       });
     }
   });
@@ -199,43 +314,32 @@ export function perimeterSamples(
 }
 
 /**
- * Hloubka dovnitř pro bod s dosahem `reach`: pás do `rigid` m (příkop) se nemění, zbytek do
- * `full` se u vnějších oblouků stlačí, aby se vešel do dosahu.
+ * Bod průřezu `d` m od vnějšího okraje dovnitř: do `rigid` m (příkop valu, u plotu a palisády
+ * celý pás) v pevné vzdálenosti od vnějšího okraje, zbytek pásu poměrně mezi koncem této části
+ * a vnitřním okrajem (v rohu valu je násep širší), za pásem dál po normále.
  */
-export function insetDepth(d: number, reach: number, rigid: number, full: number): number {
-  if (reach >= full) return d;
-  if (reach <= rigid) return (d * Math.max(0, reach)) / full;
-  if (d <= rigid) return d;
-  return rigid + ((d - rigid) * (reach - rigid)) / (full - rigid);
-}
-
-/** Bod vnějšího okraje posunutý o `d` m dovnitř (`insetDepth`). */
-export function insetPoint(
-  p: PerimeterSample,
-  d: number,
-  rigid: number,
-  full: number,
-): [number, number] {
-  const depth = insetDepth(d, p.reach, rigid, full);
-  return [p.x + p.nx * depth, p.z + p.nz * depth];
+export function insetPoint(p: PerimeterSample, d: number, band: FortBand): [number, number] {
+  if (d <= band.rigid) return [p.x + p.nx * d, p.z + p.nz * d];
+  if (d >= band.full) return [p.ix + p.nx * (d - band.full), p.iz + p.nz * (d - band.full)];
+  const ex = p.x + p.nx * band.rigid;
+  const ez = p.z + p.nz * band.rigid;
+  const f = (d - band.rigid) / (band.full - band.rigid);
+  return [ex + (p.ix - ex) * f, ez + (p.iz - ez) * f];
 }
 
 /**
- * Uzavřená čára `d` m uvnitř pásu znovu rozdělená po stejných krocích `step` m (kůly 4 na metr
- * i po obloucích). Body nesou polohu na vnějším okraji (`s`) a úsek – podle nich se ví, kde je
- * brána a jak úsek vypadá.
+ * Uzavřená čára `d` m uvnitř pásu (`insetPoint`) znovu rozdělená po stejných krocích `step` m
+ * (kůly 4 na metr i po obloucích). Body nesou polohu na vnějším okraji (`s`) a úsek – podle nich
+ * se ví, kde je brána a jak úsek vypadá.
  */
-export function insetLine(
-  shapes: readonly Shape[],
-  d: number,
-  step: number,
-  band: { rigid: number; full: number },
-): LinePoint[] {
-  const samples = perimeterSamples(shapes, Math.min(1, step * 4));
+export function insetLine(fort: FortEdges, d: number, step: number): LinePoint[] {
+  const { shapes } = fort;
+  const samples = perimeterSamples(fort, Math.min(1, step * 4));
   if (samples.length < 2) return [];
   const { starts, length: total } = segmentStarts(shapes);
+  const band = fortBand(fort);
   const pts = samples.map((p) => {
-    const [x, z] = insetPoint(p, d, band.rigid, band.full);
+    const [x, z] = insetPoint(p, d, band);
     return { x, z, s: p.s, nx: p.nx, nz: p.nz };
   });
   const cumulative: number[] = [0];
@@ -413,8 +517,8 @@ function layerLine(fort: SceneFortification, layer: 'fence' | 'palisade'): numbe
   return FORTIFICATIONS.bandM[layer] / 2;
 }
 
-/** Pás pro posun dovnitř (`insetLine`): u valu se nemění příkop, jinak celý pás. */
-function bandOf(fort: SceneFortification): { rigid: number; full: number } {
+/** Pás pro posun dovnitř (`insetPoint`): u valu drží vzdálenost příkop, jinak celý pás. */
+export function fortBand(fort: Pick<SceneFortification, 'kind'>): FortBand {
   return fort.kind === 'rampart'
     ? { rigid: RAMPART.ditchM, full: RAMPART_BAND_M }
     : { rigid: FORTIFICATIONS.bandM[fort.kind], full: FORTIFICATIONS.bandM[fort.kind] };
@@ -433,7 +537,7 @@ export interface PalisadeLayout {
  * (od brány), stáří – šednutí, náklon a za životností mezery, průlom – vyvrácené kůly.
  */
 export function palisadeLayout(fort: SceneFortification, crown: CrownLift): PalisadeLayout {
-  const line = insetLine(fort.shapes, layerLine(fort, 'palisade'), 1 / STAKES_PER_M, bandOf(fort));
+  const line = insetLine(fort, layerLine(fort, 'palisade'), 1 / STAKES_PER_M);
   const { starts, length } = segmentStarts(fort.shapes);
   const gates = gatePositions(fort);
   const builds = fort.shapes.map((s) => segmentBuild(fort, s.index));
@@ -470,7 +574,7 @@ export function palisadeLayout(fort: SceneFortification, crown: CrownLift): Pali
  * větve, průlom bez větví a s vyvrácenými kůly. Na valu stojí plot na koruně (kůl je zvednutý).
  */
 export function fortFenceStage(fort: SceneFortification, crown: CrownLift): FenceStage {
-  const line = insetLine(fort.shapes, layerLine(fort, 'fence'), FORT_FENCE.postStep, bandOf(fort));
+  const line = insetLine(fort, layerLine(fort, 'fence'), FORT_FENCE.postStep);
   const { starts, length } = segmentStarts(fort.shapes);
   const gates = gatePositions(fort);
   const builds = fort.shapes.map((s) => segmentBuild(fort, s.index));
@@ -562,7 +666,7 @@ export function fortFenceStage(fort: SceneFortification, crown: CrownLift): Fenc
 export function fortGateInstances(fort: SceneFortification): FortInstance[] {
   const { starts, length } = segmentStarts(fort.shapes);
   const out: FortInstance[] = [];
-  const samples = perimeterSamples(fort.shapes, 0.5);
+  const samples = perimeterSamples(fort, 0.5);
   fort.gates.forEach((g, gi) => {
     const shape = fort.shapes[g.segment];
     if (!shape) return;
@@ -582,7 +686,7 @@ export function fortGateInstances(fort: SceneFortification): FortInstance[] {
       loopDistance(p.s, s, length) < loopDistance(best.s, s, length) ? p : best,
     );
     const inset = layer === 'rampart' ? RAMPART_CROWN_M : layerLine(fort, layer);
-    const [cx, cz] = insetPoint(sample, inset, bandOf(fort).rigid, bandOf(fort).full);
+    const [cx, cz] = insetPoint(sample, inset, fortBand(fort));
     const tx = shape.line.dx;
     const tz = shape.line.dz;
     const nx = sample.nx;
@@ -764,13 +868,13 @@ const CUT_MIN_DEPTH_M = 0.08;
 export function ditchCuts(fort: SceneFortification): DitchCut[] {
   if (fort.kind !== 'rampart') return [];
   const looks = rampartLooks(fort);
-  const band = bandOf(fort);
+  const band = fortBand(fort);
   // oblouky po čtvrtinách – osa příkopu (poloměr ≈ 6 m) se od tětiv odchýlí nejvýš o ≈ 0,1 m
-  const samples = perimeterSamples(fort.shapes, 0.5, 4);
+  const samples = perimeterSamples(fort, 0.5, 4);
   const deep = samples.map(
     (p) => -rampartProfile(DITCH_AXIS_M, rampartAt(fort, looks, p.s)) > CUT_MIN_DEPTH_M,
   );
-  const points = samples.map((p) => insetPoint(p, DITCH_AXIS_M, band.rigid, band.full));
+  const points = samples.map((p) => insetPoint(p, DITCH_AXIS_M, band));
   const n = samples.length;
   if (n === 0 || !deep.some(Boolean)) return [];
   const full = deep.every(Boolean);

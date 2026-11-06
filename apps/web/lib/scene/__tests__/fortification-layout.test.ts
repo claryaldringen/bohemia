@@ -5,8 +5,12 @@ import {
   crownLift,
   ditchCuts,
   fortFenceStage,
+  fortBand,
   fortGateInstances,
   insetLine,
+  insetPoint,
+  perimeterSamples,
+  segmentStarts,
   insideDitchCut,
   packDitchCuts,
   palisadeLayout,
@@ -16,7 +20,7 @@ import {
   MAX_DITCH_CUTS,
 } from '../fortification-layout';
 import { demoFortification, type DemoFort, SHOWCASE_FORT_GEO } from '../fortification-showcase';
-import { rampartMeshData } from '../rampart-mesh';
+import { RAMPART_COLUMNS, RAMPART_RING_STEP_M, rampartMeshData } from '../rampart-mesh';
 import { fortSitePhase } from '../village-construction';
 
 // Opevnění ve scéně (fortifications.md – Ve scéně): kůly, plot, brány, val a prořez příkopu.
@@ -36,7 +40,7 @@ const lineLength = (pts: { x: number; z: number }[]): number =>
 describe('palisáda', () => {
   it('kůly ≈ 4 na metr po celé čáře palisády i po obloucích, pevně stejně', () => {
     const f = fort();
-    const line = insetLine(f.shapes, 0.75, 0.25, { rigid: 1.5, full: 1.5 });
+    const line = insetLine(f, 0.75, 0.25);
     const { stakes } = palisadeLayout(f, () => 0);
     expect(stakes.length / lineLength(line)).toBeCloseTo(STAKES_PER_M, 1);
     // obvod 6 × 6 čtverců (90 m) – palisáda ≈ 350 m
@@ -186,5 +190,106 @@ describe('val s příkopem', () => {
       false,
     );
     expect(ditchCuts(fort())).toEqual([]);
+  });
+});
+
+describe('rohy pásu (fortifications.md – Obvod)', () => {
+  type Fort = ReturnType<typeof fort>;
+  type Sample = ReturnType<typeof perimeterSamples>[number];
+  const val = (top?: 'palisade'): Fort =>
+    fort({ id: 5, kind: 'rampart', cells: { x: 8, y: 8, w: 3, h: 3 }, ...(top ? { top } : {}) });
+  /** Body oblouku rohu úseku `k` (poloha `s` za rovnou částí úseku). */
+  const onArc = <T extends { s: number; segment: number }>(f: Fort, pts: T[], k: number): T[] => {
+    const { starts } = segmentStarts(f.shapes);
+    return pts.filter(
+      (p) => p.segment === k && p.s - starts[k]! >= f.shapes[k]!.line.length - 1e-9,
+    );
+  };
+  const corners = (f: Fort): number[] => f.shapes.flatMap((s, k) => (s.arc ? [k] : []));
+  /** Prostřední úsek strany – bez oblouku na obou koncích. */
+  const middle = (f: Fort): number =>
+    f.shapes.findIndex(
+      (s, k) => !s.arc && !f.shapes[(k + f.shapes.length - 1) % f.shapes.length]!.arc,
+    );
+  const dist = (a: readonly [number, number], b: readonly [number, number]): number =>
+    Math.hypot(b[0] - a[0], b[1] - a[1]);
+
+  it('val: vnitřní okraj 10 m od rovných částí, v rohu na oblouku r = 4 m; příkop drží 4 m', () => {
+    const f = val();
+    const samples = perimeterSamples(f, RAMPART_RING_STEP_M);
+    const band = fortBand(f);
+    for (const p of samples.filter((q) => q.segment === middle(f))) {
+      expect(dist([p.ix, p.iz], [p.x + p.nx * 10, p.z + p.nz * 10])).toBeLessThan(1e-9);
+    }
+    expect(corners(f)).toHaveLength(4);
+    for (const k of corners(f)) {
+      const a = f.shapes[k]!.arc!;
+      // střed vnitřního oblouku na ose rohu: posun 10 + 4 − 8 = 6 m po každé straně
+      const c2: [number, number] = [a.x - 6 * (a.ux + a.vx), a.z - 6 * (a.uz + a.vz)];
+      const arc = onArc(f, samples, k);
+      expect(arc).toHaveLength(8);
+      for (const p of arc) {
+        expect(dist([p.ix, p.iz], c2)).toBeCloseTo(4, 6);
+        expect(dist(insetPoint(p, band.rigid, band), [a.x, a.z])).toBeCloseTo(8 - 4, 6);
+      }
+      // vnitřní pata v rohu je oblouk, ne bod (dřív kužel s poloměrem 0,3 m)
+      expect(dist([arc[0]!.ix, arc[0]!.iz], [arc[7]!.ix, arc[7]!.iz])).toBeGreaterThan(2);
+    }
+  });
+
+  it('val: průřez v rohu se nesbíhá a násep v rohu není vyšší než na rovné části', () => {
+    const f = val();
+    const samples = perimeterSamples(f, RAMPART_RING_STEP_M);
+    const band = fortBand(f);
+    const gaps = (p: Sample): number[] =>
+      RAMPART_COLUMNS.slice(1).map((d, c) =>
+        dist(insetPoint(p, RAMPART_COLUMNS[c]!, band), insetPoint(p, d, band)),
+      );
+    const straight = gaps(samples.find((p) => p.segment === middle(f))!);
+    const mesh = rampartMeshData(f, flat).earth.positions;
+    const cols = RAMPART_COLUMNS.length;
+    const top = (i: number): number =>
+      Math.max(...RAMPART_COLUMNS.map((_, c) => mesh[(i * cols + c) * 3 + 1]!));
+    const flatTop = top(samples.findIndex((p) => p.segment === middle(f)));
+    for (const k of corners(f)) {
+      for (const p of onArc(f, samples, k)) {
+        gaps(p).forEach((g, c) => expect(g).toBeGreaterThanOrEqual(straight[c]! - 1e-9));
+        expect(top(samples.indexOf(p))).toBeLessThanOrEqual(flatTop + 1e-9);
+      }
+    }
+  });
+
+  it('val s palisádou: koruna v rohu je plynulý oblouk, kůly v rohu nesbíhají', () => {
+    const f = val('palisade');
+    const crown = insetLine(f, RAMPART_CROWN_M, 0.25);
+    for (const k of corners(f)) {
+      const arc = onArc(f, crown, k);
+      const [a, b, c] = [arc[0]!, arc[Math.floor(arc.length / 2)]!, arc[arc.length - 1]!];
+      // poloměr kružnice třemi body koruny v rohu (dřív ≈ 2 m, kůly se sbíhaly)
+      const ab = dist([a.x, a.z], [b.x, b.z]);
+      const bc = dist([b.x, b.z], [c.x, c.z]);
+      const ca = dist([c.x, c.z], [a.x, a.z]);
+      const area = Math.abs((b.x - a.x) * (c.z - a.z) - (c.x - a.x) * (b.z - a.z)) / 2;
+      expect((ab * bc * ca) / (4 * area)).toBeGreaterThan(3);
+    }
+    const { stakes } = palisadeLayout(f, () => 0);
+    expect(stakes.length / lineLength(crown)).toBeCloseTo(STAKES_PER_M, 1);
+  });
+
+  it('palisáda a plot: čára v rohu soustředná s vnějším obloukem, nic se nestlačí', () => {
+    for (const [kind, d] of [
+      ['palisade', 0.75],
+      ['fence', 0.5],
+    ] as const) {
+      const f = fort({ kind });
+      const line = insetLine(f, d, 0.25);
+      // tolerance – tětivy oblouku po osminách (plot dřív stlačený o 0,025 m)
+      for (const k of corners(f)) {
+        const a = f.shapes[k]!.arc!;
+        for (const p of onArc(f, line, k)) {
+          expect(Math.abs(dist([p.x, p.z], [a.x, a.z]) - (a.r - d))).toBeLessThan(0.015);
+        }
+      }
+    }
   });
 });

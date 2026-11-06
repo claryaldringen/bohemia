@@ -829,10 +829,18 @@ Data `SceneVillage.tornado` (den, síla, stopa, prvních pár dní vývraty) –
   z toho odvozuje pevně podle id opevnění a pořadí kůlu (`hash01`), bez náhody.
 - **Rozmístění** (`lib/scene/fortification-layout.ts`, bez Babylonu, testy
   `fortification-layout.test.ts`): `perimeterSamples` vzorkuje vnější okraj (rovné části po
-  krocích, oblouky po osminách) s normálou dovnitř a „dosahem“ – u vnějšího oblouku je to
-  poloměr bez rezervy a po rovné části plynule roste, takže síť pásu (val 10 m, roh 8 m) se
-  u rohu nepřehne (`insetDepth` stlačí jen násep, příkop drží 4 m). `insetLine` dá čáru uvnitř
-  pásu po stejných krocích – palisáda 0,75 m (polovina pásu 1,5 m), plot 0,5 m, koruna valu 7 m.
+  krocích, oblouky po osminách) s normálou dovnitř a protějším bodem vnitřního okraje pásu
+  (`ix`, `iz`). **Rohy valu bez věží:** vnitřní okraj vnějšího rohu má poloměr vnitřního rohu
+  obvodu (`SceneFortification.corners` z jádra – val 4 m, palisáda 1,5 m, plot 0,5 m; nejméně
+  soustředný) se středem posunutým po ose rohu (val: 10 + 4 − 8 = 6 m), vnitřní roh (tvar L)
+  soustředně (+ pás). Kus vnějšího okraje od napojení před obloukem po napojení za ním se
+  rozloží po celém vnitřním oblouku; na rovné části je průřez kolmý (průchod brány rovně).
+  `insetPoint(p, d, fortBand(fort))`: příkop (prvních 4 m, u plotu a palisády celý pás) drží
+  vzdálenost od vnějšího okraje, násep vede poměrně mezi koncem příkopu a vnitřním okrajem –
+  v rohu je širší (po ose ≈ 8,5 m místo 6 m), výška podle poměrné polohy, nic se nesbíhá do
+  kuželu. Dřív se pás u vnějšího oblouku stlačoval do jeho poloměru a násep se v rohu smrštil do
+  „věže“ (Martin 6. 11. 2026). `insetLine` dá čáru uvnitř pásu po stejných krocích – palisáda
+  0,75 m (polovina pásu 1,5 m), plot 0,5 m, koruna valu 7 m (v rohu oblouk r ≈ 4 m).
   Brány: mezera 4 m kolem `offsetM` úseku.
   - **Palisáda** (`palisadeLayout`): kůl po 0,25 m (4 na metr) i po obloucích, varianta (3),
     výška 0,95–1,03 × 3,5 m, natočení a drobný náklon pevně z id a pořadí; stáří – dřevo šedne

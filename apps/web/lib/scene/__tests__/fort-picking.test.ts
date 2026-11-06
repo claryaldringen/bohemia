@@ -25,6 +25,7 @@ const village: SceneVillage = {
       gates: [],
       building: false,
       shapes: [],
+      corners: { outer: 3, inner: 1.5 },
       looks: [],
       outline: OUTLINE,
       // pás u jižní strany: 1,5 m dovnitř plochy
