@@ -718,7 +718,7 @@ Návrh: [fortifications.md – Rozhraní](../design/fortifications.md); jádro a
   `build/opevneni.png`) je rozcestník druhů `FORT_VARIANTS` (plot, palisáda, val – ikony
   `resources/fort-*.png`) jako ohrady. `BuildKind` v jádru **zůstává beze změny** (cena opevnění
   není pevná, počítá se podle délky – `fortificationCost`), proto má web vlastní `WebBuildKind =
-  BuildKind | 'fortification'`; nabídka (`options`) má pro opevnění `null` (bez ceny v popisku).
+BuildKind | 'fortification'`; nabídka (`options`) má pro opevnění `null` (bez ceny v popisku).
   `VillageGame.tsx`: `SUBMIT_SQUARES.fortification` → `placeFortification` (druh z `fortVariantKind`).
 - **Kreslení** = malování po čtvercích jako pole (`FieldPainter`, natáčení `[` `]`). Kontrola
   `fortificationPlacement(landscape, village, cells, grid, kind, woodSupply)` volá
@@ -740,7 +740,7 @@ Návrh: [fortifications.md – Rozhraní](../design/fortifications.md); jádro a
   životností), brány, násobek obrany (štít), útočiště (lidé, dobytek), průběh stavby (zrušení přes
   `cancelConstructionId`). Příkazy: „Vylepšit na palisádu“ (plot), „Postavit na valu plot“ /
   „… palisádu“ (val) – zašedlé s důvodem v popisku (`Chybí N klád.`, `Stavba už běží.`, `Na valu se
-  staví až na hotovém.`, `Val už nástavbu má.`), ikona brány (`aria-pressed`) zapne režim klikání na
+staví až na hotovém.`, `Val už nástavbu má.`), ikona brány (`aria-pressed`) zapne režim klikání na
   obvod (`LandscapeScene.setGatePick`: další levé kliknutí pošle bod terénu do `addFortificationGate`,
   pravé a Esc zruší, změna výběru režim vypne). Akce jdou přes `upgradeFortification`
   a `addFortificationGate`.
