@@ -7,6 +7,7 @@ import type { SceneFortification } from '../fort-view';
 import {
   RAMPART,
   RAMPART_BAND_M,
+  fortBand,
   hash01,
   insetPoint,
   perimeterSamples,
@@ -33,7 +34,8 @@ export interface RampartMeshData {
 
 /**
  * Hloubky průřezu (m od vnějšího okraje dovnitř): okraj přesahuje o 0,3 m na obě strany přes
- * terén (prořez končí přesně na okraji příkopu), příkop 0–4 m, násep 4–10 m.
+ * terén (prořez končí přesně na okraji příkopu), příkop 0–4 m, násep 4–10 m – v rohu se násep
+ * roztáhne až k vnitřnímu okraji pásu (`insetPoint`), profil podle poměrné polohy.
  */
 export const RAMPART_COLUMNS: readonly number[] = [
   -0.3, 0, 0.45, 1.2, 2, 2.8, 3.55, 4, 4.6, 5.2, 5.8, 6.4, 7, 7.6, 8.2, 8.8, 9.4, 10, 10.3,
@@ -64,7 +66,8 @@ export function rampartMeshData(fort: SceneFortification, rim: HeightFn): Rampar
   const data: RampartMeshData = { earth: emptyArrays(), grass: emptyArrays() };
   if (fort.kind !== 'rampart') return data;
   const looks = rampartLooks(fort);
-  const samples = perimeterSamples(fort.shapes, RAMPART_RING_STEP_M);
+  const samples = perimeterSamples(fort, RAMPART_RING_STEP_M);
+  const band = fortBand(fort);
   const n = samples.length;
   if (n < 3) return data;
   const cols = RAMPART_COLUMNS.length;
@@ -76,7 +79,7 @@ export function rampartMeshData(fort: SceneFortification, rim: HeightFn): Rampar
     );
     for (const target of [data.earth, data.grass]) {
       RAMPART_COLUMNS.forEach((d, c) => {
-        const [x, z] = insetPoint(p, d, RAMPART.ditchM, RAMPART_BAND_M);
+        const [x, z] = insetPoint(p, d, band);
         const y = rim(x, z) + RIM_LIFT_M + heights[c]!;
         target.positions.push(x, y, z);
         const color =
