@@ -13,3 +13,4 @@ export * from './negotiation';
 export * from './shipment';
 export * from './dialog';
 export * from './loan';
+export * from './stewardship';

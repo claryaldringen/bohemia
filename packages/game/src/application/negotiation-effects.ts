@@ -1,7 +1,15 @@
-import { checkTradeLine, type TermItem } from '../domain/negotiation';
+import { checkStewardshipItems, checkTradeLine, type TermItem } from '../domain/negotiation';
 import { AID_REASONS, checkAidLine, type AidLine } from '../domain/vassalage/loan';
 import { checkTermLine, type TermLine, type VassalTerms } from '../domain/vassalage/terms';
+import { STEWARD_TAKEN } from './stewardships';
 import type { NegotiationTx } from './negotiations';
+
+/** Ves dostala správce souběžně jinou cestou – přijetí se vrací (transakce se zruší). */
+export class StewardshipTaken extends Error {
+  constructor() {
+    super(STEWARD_TAKEN);
+  }
+}
 
 /** Kdy a v jakém herním dni se dohoda uzavřela. */
 export interface EffectContext {
@@ -15,6 +23,8 @@ export interface EffectContext {
   agreement: { lordHouseId: string; vassalHouseId: string } | null;
   /** Kam zásilka z pomoci dojde (ves příjemce); null – příjemce nemá kam. */
   aidTargetVillageId: string | null;
+  /** Pán a vazal dohody, na které správa vsi stojí (řádek `stewardship`); jinak null. */
+  stewardship: { lordHouseId: string; stewardHouseId: string } | null;
 }
 
 /**
@@ -78,6 +88,25 @@ export const NEGOTIATION_EFFECTS: { [K in TermItem['kind']]: NegotiationEffect<K
   trade: {
     check: (_tx, item) => Promise.resolve(checkTradeLine(item)),
     apply: () => Promise.resolve(),
+  },
+  // správa cizí vsi: stojí na živé dohodě pána a správce (přísaha už proběhla), ves smí mít jednu
+  stewardship: {
+    check: (_tx, item) => Promise.resolve(checkStewardshipItems([item])),
+    apply: async (tx, item, ctx) => {
+      if (!ctx.stewardship) return;
+      const agreement = (await tx.vassalages.activeOf(ctx.stewardship.stewardHouseId)).find(
+        (v) => v.lordHouseId === ctx.stewardship?.lordHouseId,
+      );
+      const started = await tx.stewardships.start({
+        villageId: item.villageId,
+        stewardHouseId: ctx.stewardship.stewardHouseId,
+        holderHouseId: ctx.stewardship.lordHouseId,
+        kind: 'player',
+        vassalageId: agreement?.id ?? null,
+        since: ctx.now,
+      });
+      if (!started) throw new StewardshipTaken();
+    },
   },
   // půjčka je samostatná dohoda: řádek se zapíše v transakci přijetí, zboží pošle use-case po ní
   loan: {

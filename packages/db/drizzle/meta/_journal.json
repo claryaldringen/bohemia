@@ -183,6 +183,13 @@
       "when": 1793956619896,
       "tag": "0025_loan",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1793964127125,
+      "tag": "0026_stewardship",
+      "breakpoints": true
     }
   ]
 }

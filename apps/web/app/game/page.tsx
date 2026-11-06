@@ -17,7 +17,7 @@ export default async function GamePage(): Promise<ReactElement> {
     gameEntryForPlayer(session.user.id, preferred),
     playerToday(session.user.id),
   ]);
-  const village = await villageViewForEntry(entry, today);
+  const village = await villageViewForEntry(entry, today, session.user.id);
 
   return (
     <main className="h-screen overflow-hidden select-none">

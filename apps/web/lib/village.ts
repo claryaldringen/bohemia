@@ -72,8 +72,10 @@ import {
   gameDeps,
   landscapeOfSettlement,
   playerToday,
+  lockOwnerOf,
   playerVillage,
   requireVillageRight,
+  stewardedVillagesOf,
   villageAccessForPlayer,
   skipTimeForPlayer,
   type GameEntry,
@@ -83,7 +85,7 @@ import { ownMapsAround } from './departure-view';
 import type { LeaveVillageInput } from './village-input';
 import { lineEndView } from './line-end-view';
 import { panelOptionsOf, type PanelAsk, type PanelOptions } from './panel-options';
-import { villageListItem } from './village-list';
+import { villageListItem, type VillageListItem } from './village-list';
 import { buildVillageView, type VillageView } from './village-view';
 
 // Composition root vsi: dnešní herní den hráče (světové hodiny + jeho posun času), Drizzle
@@ -96,11 +98,16 @@ export type { PartStage, SceneVillage, VillageView } from './village-view';
 export type VillageActionResult = VillageView | { error: string };
 
 type Failure = { ok: false; error: string };
-/** Ves hráče (ověřená), krajina jejího sídla a dnešní den hráče. */
+/**
+ * Ves hráče (ověřená), krajina jejího sídla a dnešní den. `playerId` je **držitel vsi** (vlastník
+ * sídla) – za něj běží use-casy, dopočet i zámek; `actorId` je hráč, který jedná (u vlastní vsi
+ * tentýž, u spravované cizí vsi správce). Den je den držitele (jeho posun času).
+ */
 type Context =
   | {
       ok: true;
       playerId: string;
+      actorId: string;
       villageId: string;
       settlementId: string;
       landscape: Landscape;
@@ -114,23 +121,28 @@ function villages(): VillageRepository {
 
 /** Ves `villageId` hráče s krajinou jejího sídla a jeho dnešní den – společný začátek akcí. */
 async function context(
-  playerId: string,
+  actorId: string,
   villageId: string,
   /** Právo, které akce vyžaduje (rights.ts); bez něj jen pohled na ves – dívat se smí každý hráč rodu. */
   right?: VillageRight,
+  /** Držitel vsi, pokud ho volající už zjistil (`lockOwnerOf`); jinak se zjistí tady. */
+  holderId?: string,
 ): Promise<Context> {
-  const today = await playerToday(playerId);
+  const holder = holderId ?? (await lockOwnerOf(actorId, villageId));
+  const today = await playerToday(holder);
   if (!today.ok) return today;
   const found =
     right === undefined
-      ? await playerVillage(playerId, villageId)
-      : await requireVillageRight(playerId, villageId, right, today.day);
-  if (found === null || typeof found === 'string') {
-    return { ok: false, error: found ?? NOT_PLAYER_VILLAGE };
+      ? await playerVillage(actorId, villageId)
+      : await requireVillageRight(actorId, villageId, right, today.day);
+  // správa mezitím skončila / ves změnila držitele: den a zámek patřily jinému hráči
+  if (found === null || typeof found === 'string' || found.settlement.ownerId !== holder) {
+    return { ok: false, error: typeof found === 'string' ? found : NOT_PLAYER_VILLAGE };
   }
   return {
     ok: true,
-    playerId,
+    playerId: holder,
+    actorId,
     villageId: found.village.id,
     settlementId: found.settlement.id,
     landscape: landscapeOfSettlement(found.settlement),
@@ -156,20 +168,28 @@ async function guardedAction<T>(
   | { ok: true; ctx: Extract<Context, { ok: true }>; value: T }
   | { ok: false; result: VillageActionResult }
 > {
+  // zámek vsi je zámek jejího držitele: správce cizí vsi jede pod zámkem držitele, ne pod vlastním
+  // (jeden zámek, nikdy vnořený); den a práva se čtou až uvnitř
+  const holderId = await lockOwnerOf(playerId, villageId);
   const inside = await exclusivePlayer(
     getPlayerLock(),
-    playerId,
+    holderId,
     async (): Promise<
       | { kind: 'done'; ctx: Extract<Context, { ok: true }>; value: T }
       | { kind: 'error'; error: string }
       | { kind: 'over'; ctx: Extract<Context, { ok: true }> }
     > => {
-      const ctx = await context(playerId, villageId, ACTION_RIGHTS[action]);
+      const ctx = await context(playerId, villageId, ACTION_RIGHTS[action], holderId);
       if (!ctx.ok) return { kind: 'error', error: ctx.error };
       // zámek už držíme (fronta i DB) – dopočet bez vnořeného zámku; zobrazená ves do dneška,
       // ostatní jen víc než WORKER_LAG_DAYS pozadu (akce sama dopočte každou ves, které se dotkne)
-      const status = await dynastyOfPlayerLocked(playerId, ctx.day, ctx.villageId);
-      if (status.gameOver) return { kind: 'over', ctx };
+      const status = await dynastyOfPlayerLocked(ctx.playerId, ctx.day, ctx.villageId);
+      if (status.gameOver) {
+        // konec rodu držitele správci nic neprozradí
+        return ctx.actorId === ctx.playerId
+          ? { kind: 'over', ctx }
+          : { kind: 'error', error: NOT_PLAYER_VILLAGE };
+      }
       return { kind: 'done', ctx, value: await run(ctx) };
     },
   );
@@ -187,33 +207,67 @@ async function viewOf(
   ctx: Extract<Context, { ok: true }>,
   record?: VillageRecord,
 ): Promise<VillageActionResult> {
+  const stewarding = ctx.actorId !== ctx.playerId;
   const status = await dynastyOfPlayer(ctx.playerId, ctx.day, ctx.villageId);
-  // práva v zobrazené vsi a ves seniora (stolec) – rozhoduje jádro, web jen posílá
-  const access = await villageAccessForPlayer(ctx.playerId, ctx.villageId, ctx.day);
+  // práva hráče, který jedná (u spravované cizí vsi správce), v zobrazené vsi a ves seniora (stolec)
+  // – rozhoduje jádro, web jen posílá
+  const access = await villageAccessForPlayer(ctx.actorId, ctx.villageId, ctx.day);
   // zobrazená ves je celá, vsi jiných map jen souhrnem (`dynastyForVillage`)
   const full = (status.villages as readonly DynastyVillage[]).filter(isFullVillage);
   const listed = full.find((v) => v.id === ctx.villageId);
   const current = listed ?? record;
   if (!current) return { error: NO_VILLAGE };
   const from = status.settlements.find((s) => s.id === current.settlementId);
+  // správce vidí jen zobrazenou ves: konec rodu, mapy a ostatní vsi držitele mu nepatří
   const view = buildVillageView(current, ctx.landscape, ctx.day, {
-    gameOver: status.gameOver,
-    lineEnded: status.gameOver ? lineEndView(status.villages) : null,
-    villages: status.villages.map((v) =>
-      villageListItem(v, ctx.day, status.playerLord?.villageId, access?.senior?.villageId),
-    ),
+    gameOver: stewarding ? false : status.gameOver,
+    lineEnded: !stewarding && status.gameOver ? lineEndView(status.villages) : null,
+    villages: await switcherItems(ctx, status, access?.senior?.villageId),
     ...(access
       ? { rights: { allowed: [...access.rights.allowed], reason: access.rights.reason } }
       : {}),
     ...(access?.pendingDeparture ? { pendingDeparture: access.pendingDeparture } : {}),
-    ownMaps: ownMapsAround(status.settlements, status.villages, current.settlementId),
-    mapsBlocked: from && from.worldCell === null && !from.isSeat ? NO_WORLD_CELL : null,
+    ownMaps: stewarding
+      ? {}
+      : ownMapsAround(status.settlements, status.villages, current.settlementId),
+    mapsBlocked:
+      !stewarding && from && from.worldCell === null && !from.isSeat ? NO_WORLD_CELL : null,
   });
   // otisk z vsí hráče, jak je pohled vidí – stejný spočítá levný dotaz (currentViewStampOfPlayer),
-  // když by pohled nic nepočítal
-  return listed
+  // když by pohled nic nepočítal (u spravované vsi ho levný dotaz nezná, otisk se neposílá)
+  return listed && !stewarding
     ? { ...view, stamp: villageViewStamp(ctx.villageId, ctx.day, status.villages) }
     : view;
+}
+
+/**
+ * Přepínač vsí hráče, který jedná: jeho vlastní vsi (u správce cizí vsi z pohledu jeho rodu, ne
+ * držitelova) a vsi cizích držitelů, které spravuje (ikona klíče). Řádky držitele se správci nikdy
+ * nedostanou – ani jména jeho ostatních vsí.
+ */
+async function switcherItems(
+  ctx: Extract<Context, { ok: true }>,
+  status: Awaited<ReturnType<typeof dynastyOfPlayer>>,
+  seniorVillageId: string | undefined,
+): Promise<VillageListItem[]> {
+  let own: VillageListItem[] = [];
+  if (ctx.actorId === ctx.playerId) {
+    own = status.villages.map((v) =>
+      villageListItem(v, ctx.day, status.playerLord?.villageId, seniorVillageId),
+    );
+  } else {
+    const first = await firstVillageOfPlayer(ctx.actorId);
+    const today = first ? await playerToday(ctx.actorId) : null;
+    if (first && today?.ok) {
+      const mine = await dynastyOfPlayer(ctx.actorId, today.day, first.village.id);
+      own = mine.villages.map((v) => villageListItem(v, today.day, mine.playerLord?.villageId));
+    }
+  }
+  const stewarded = (await stewardedVillagesOf(ctx.actorId)).map((record): VillageListItem => ({
+    ...villageListItem(record, ctx.day),
+    stewarded: true,
+  }));
+  return [...own, ...stewarded];
 }
 
 /**
@@ -309,15 +363,24 @@ export async function villageViewIfChanged(
  */
 export async function villageViewForEntry(
   entry: GameEntry,
-  today: PlayerToday,
+  todayOfActor: PlayerToday,
+  /** Hráč, který hru otevřel (u spravované cizí vsi jiný než držitel sídla). */
+  actorId: string = entry.settlement.ownerId,
 ): Promise<VillageView | null | { error: string }> {
-  if (!today.ok) return { error: today.error };
+  if (!todayOfActor.ok) return { error: todayOfActor.error };
   const villageId = entry.villageId;
   if (villageId === null) return null;
+  // ves cizího držitele jde podle dne držitele (jeho posun času), ne správcova
+  const today =
+    actorId === entry.settlement.ownerId
+      ? todayOfActor
+      : await playerToday(entry.settlement.ownerId);
+  if (!today.ok) return { error: today.error };
   return withVillageCache(() =>
     viewOf({
       ok: true,
       playerId: entry.settlement.ownerId,
+      actorId,
       villageId,
       settlementId: entry.settlement.id,
       landscape: entry.landscape,
@@ -370,6 +433,7 @@ export async function foundVillageForPlayer(
     {
       ok: true,
       playerId,
+      actorId: playerId,
       villageId: result.village.id,
       settlementId: settlement.id,
       landscape,
@@ -526,7 +590,13 @@ export function setStewardForPlayer(
   return actOn(playerId, villageId, 'setSteward', (ctx) =>
     setSteward(
       { villages: villages() },
-      { playerId, villageId: ctx.villageId, today: ctx.day, landscape: ctx.landscape, ...input },
+      {
+        playerId: ctx.playerId,
+        villageId: ctx.villageId,
+        today: ctx.day,
+        landscape: ctx.landscape,
+        ...input,
+      },
     ),
   );
 }
@@ -760,7 +830,7 @@ export function sendExpeditionForPlayer(
         ...(input.getPeople ? { getPeople: input.getPeople } : {}),
         // tím směrem, kde leží vlastní ves, soused bez simulace není (migration.md)
         ownDirections: Object.keys(
-          await ownMapsOfPlayer(playerId, ctx.settlementId),
+          await ownMapsOfPlayer(ctx.playerId, ctx.settlementId),
         ) as Direction8[],
       },
     ),
@@ -783,7 +853,7 @@ export async function leaveVillageForPlayer(
     'sonId' in input ? 'leaveWithSon' : 'leaveHouseholds',
     (ctx) =>
       leaveVillage(gameDeps(), {
-        playerId,
+        playerId: ctx.playerId,
         villageId,
         today: ctx.day,
         ...('sonId' in input ? { sonId: input.sonId } : { dwellingIds: input.dwellingIds }),
@@ -807,7 +877,7 @@ export async function choosePlayerDepartureForPlayer(
 ): Promise<VillageActionResult> {
   const done = await guardedAction(playerId, villageId, 'choosePlayerDeparture', (ctx) =>
     choosePlayerDeparture(gameDeps(), {
-      playerId,
+      playerId: ctx.playerId,
       villageId: ctx.villageId,
       direction: input.direction,
       ...(input.sonName === undefined ? {} : { sonName: input.sonName }),
@@ -828,7 +898,7 @@ export async function settleJourneyForPlayer(
 ): Promise<VillageActionResult> {
   return actOn(playerId, villageId, 'settleJourney', (ctx) =>
     settleJourney(gameDeps(), {
-      playerId,
+      playerId: ctx.playerId,
       villageId,
       today: ctx.day,
       dwelling: input.dwelling,

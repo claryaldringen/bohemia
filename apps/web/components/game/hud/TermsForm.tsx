@@ -274,6 +274,43 @@ function TargetVillageRow({ item, label, onChange, context }: TermRowProps): Rea
   );
 }
 
+/**
+ * Svěření správy vsi (vassalage.md – Hráč jako správce cizí vsi): ves s klíčem; pán ji vybírá ze
+ * svých vsí, druhá strana ji jen vidí. Ve správě se k ní přidává odměna (řádek „Roční odměna“).
+ */
+function StewardshipRow({ item, label, onChange, context }: TermRowProps): ReactElement {
+  if (item.kind !== 'stewardship') return <span />;
+  const name = context?.villages.find((v) => v.id === item.villageId)?.name ?? null;
+  const text = name ? `${label}: ${name}` : label;
+  const editable = onChange && context?.lordIsOwn && context.villages.length > 0;
+  return (
+    <div data-testid="term-row-stewardship" className="flex items-center gap-1">
+      <Tooltip content={text}>
+        <span tabIndex={0} aria-label={text} className="inline-flex">
+          <HouseIcon name="village-key" size={20} />
+        </span>
+      </Tooltip>
+      {editable ? (
+        <select
+          aria-label="Ves"
+          data-testid="term-stewardship-select"
+          value={item.villageId}
+          onChange={(event) => onChange({ ...item, villageId: event.target.value })}
+          className="rounded-sm border border-[#5c4526] bg-[#15100b] px-1 text-xs"
+        >
+          {context.villages.map((v) => (
+            <option key={v.id} value={v.id}>
+              {v.name}
+            </option>
+          ))}
+        </select>
+      ) : (
+        name && <span className="text-xs">{name}</span>
+      )}
+    </div>
+  );
+}
+
 /** Zboží bez lidí a roboty z řádku svazku (splátka nese jen makrokomodity). */
 function goodsOf(bundle: MacroBundle): MacroGoods {
   return {
@@ -546,6 +583,7 @@ export const TERM_ROWS: Record<TermItem['kind'], TermRowComponent> = {
   gift: AidRow,
   loan: AidRow,
   trade: TradeRow,
+  stewardship: StewardshipRow,
 };
 
 /** Řádky podmínek (formulář i karta jednání); `onRemove` přidá křížek u řádků bez přísahy. */
@@ -595,21 +633,23 @@ export function TermRows({
   );
 }
 
-const ADDABLE: { kind: TermLine['kind']; icon: string; label: string }[] = [
+const ADDABLE: { kind: TermLine['kind'] | 'stewardship'; icon: string; label: string }[] = [
   { kind: 'tribute', icon: 'grain', label: 'Přidat roční dávku' },
   { kind: 'service', icon: 'sword', label: 'Přidat vojenskou službu' },
   { kind: 'target-village', icon: 'village-key', label: 'Přidat správu vsi' },
   { kind: 'reward', icon: 'log', label: 'Přidat roční odměnu' },
+  { kind: 'stewardship', icon: 'village-key', label: 'Svěřit správu vsi' },
 ];
 
 /** Nový řádek podmínky s rozumnou výchozí hodnotou, nebo null, když ho nejde přidat. */
-function newRow(kind: TermLine['kind'], context?: TermsContext): TermItem | null {
+function newRow(kind: TermLine['kind'] | 'stewardship', context?: TermsContext): TermItem | null {
   switch (kind) {
     case 'tribute':
     case 'reward':
       return { kind, goods: { ...emptyBundle(), grainKg: 100 } };
     case 'service':
       return { kind, men: 1, days: 30 };
+    case 'stewardship':
     case 'target-village': {
       const first = context?.villages[0];
       return context?.lordIsOwn && first ? { kind, villageId: first.id } : null;

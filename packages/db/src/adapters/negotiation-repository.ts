@@ -9,6 +9,7 @@ import type {
 import type { Database, Executor } from '../client';
 import { negotiation, negotiationReject, negotiationRound, playerBlock } from '../schema';
 import { createLoanRepository } from './loan-repository';
+import { createStewardshipRepository } from './stewardship-repository';
 import { createNoticeRepository } from './notice-repository';
 import { createVassalageRepository } from './vassalage-repository';
 
@@ -184,6 +185,7 @@ function createTx(db: Executor): NegotiationTx {
     vassalages: createVassalageRepository(db),
     notices: createNoticeRepository(db),
     loans: createLoanRepository(db),
+    stewardships: createStewardshipRepository(db),
   };
 }
 

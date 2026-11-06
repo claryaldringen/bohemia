@@ -55,6 +55,7 @@ describe('negotiationView', () => {
   it('panel řadí jednání na tahu první a počítá je do čekajících věcí', () => {
     const data: HousePanelData = {
       hasHouse: true,
+      stewardships: [],
       agreements: [],
       tree: [],
       status: {},

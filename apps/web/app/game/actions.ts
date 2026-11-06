@@ -13,6 +13,7 @@ import {
   housePanelForPlayer,
   houseSpareForPlayer,
   renounceVassalageForPlayer,
+  dismissStewardForPlayer,
   issueInviteForPlayer,
   openNegotiationForPlayer,
   revokeInviteForPlayer,
@@ -27,6 +28,7 @@ import {
   parseNegotiationAnswerInput,
   parseOpenNegotiationInput,
   parseRenounceInput,
+  parseDismissStewardInput,
   parseRevokeInviteInput,
   parseSpareInput,
 } from '@/lib/house-input';
@@ -595,6 +597,15 @@ export async function renounceVassalage(input: unknown): Promise<NegotiationActi
   const parsed = parseRenounceInput(input);
   if (parsed === null) return { error: INVALID_INPUT };
   return renounceVassalageForPlayer(id, parsed);
+}
+
+/** Odvolá správce vsi: `{ villageId }`; smí jen držitel vsi, platí hned. */
+export async function dismissSteward(input: unknown): Promise<NegotiationActionResult> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const parsed = parseDismissStewardInput(input);
+  if (parsed === null) return { error: INVALID_INPUT };
+  return dismissStewardForPlayer(id, parsed.villageId);
 }
 
 /** Otevřené dialogy Odvody hráče s předvyplněným rozdělením po vsích (počítá se na vyžádání). */

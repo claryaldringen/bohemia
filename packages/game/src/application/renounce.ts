@@ -5,6 +5,7 @@ import type { DialogRepository } from './dialogs';
 import type { HouseRepository, House } from './houses';
 import { chronicleHouses, houseName, type NegotiationVillages } from './negotiation-chronicle';
 import type { NoticeRepository } from './notices';
+import type { StewardshipRepository } from './stewardships';
 import type { VassalageRepository } from './vassalages';
 
 // Formální vypovězení věrnosti (vassalage.md – Konec vazalství): smí kterákoli strana, platí hned,
@@ -16,6 +17,8 @@ export interface RenounceDeps extends NegotiationVillages {
   notices: Pick<NoticeRepository, 'post'>;
   /** Dialogy dohody (roční Odvody) po vypovězení zmizí. */
   dialogs?: Pick<DialogRepository, 'dropFor'>;
+  /** Správa cizí vsi stojí na dohodě – s vypovězením končí (vassalage.md – Odvolání). */
+  stewardships?: Pick<StewardshipRepository, 'endByVassalage'>;
 }
 
 export type RenounceResult = { ok: true } | { ok: false; reason: string };
@@ -41,7 +44,7 @@ type EndedHook = (event: VassalageEnded) => Promise<void> | void;
 const hooks: EndedHook[] = [];
 
 /**
- * Háček po ukončení dohody: dialogy pro ni zmizí (úloha 4.4), správa vsi skončí (4.8). Registr je
+ * Háček po ukončení dohody: dialogy pro ni zmizí (úloha 4.4), správa vsi končí přímo v `renounceVassalage` (4.8, `stewardships`). Registr je
  * zatím prázdný; kdo ho naplní, volá `onVassalageEnded` při startu. Háčky běží po ukončení dohody,
  * jejich selhání vypovězení nevrací zpět (dohoda už neplatí).
  */
@@ -138,6 +141,7 @@ export async function renounceVassalage(
   });
 
   await deps.dialogs?.dropFor(agreement.id);
+  await deps.stewardships?.endByVassalage(agreement.id, 'vassalage-ended', input.now);
   await runVassalageEnded({
     vassalageId: agreement.id,
     lordHouseId: agreement.lordHouseId,

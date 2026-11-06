@@ -1,6 +1,7 @@
 import {
   acceptNegotiation,
   blockPlayer,
+  dismissSteward,
   counterNegotiation,
   housePanel,
   houseSpareOutlook,
@@ -16,6 +17,8 @@ import {
   type IssueInviteResult,
 } from '@bohemia/game';
 import { gameDeps, playerToday } from './game';
+import { exclusivePlayer } from './exclusive';
+import { getPlayerLock } from './db';
 import { aidDeps } from './levies';
 import type { NegotiationAnswer } from './house-input';
 import { houseView, type HouseView } from './house-view';
@@ -132,4 +135,18 @@ export async function renounceVassalageForPlayer(
   return outcome(
     await renounceVassalage(gameDeps(), { playerId, ...input, now: new Date(), today: today.day }),
   );
+}
+
+/**
+ * Držitel odvolá správce své vsi (kdykoli). Běží pod zámkem držitele – tentýž zámek, pod kterým
+ * jedná správce, takže souběžná akce správce buď doběhne před odvoláním, nebo je po něm odmítnuta.
+ */
+export async function dismissStewardForPlayer(
+  playerId: string,
+  villageId: string,
+): Promise<NegotiationActionResult> {
+  const result = await exclusivePlayer(getPlayerLock(), playerId, () =>
+    dismissSteward(gameDeps(), { playerId, villageId }),
+  );
+  return outcome(result);
 }

@@ -571,6 +571,7 @@ export function HousePanel({
   villages = [],
   onSpare,
   onRenounce,
+  onDismissSteward,
   onOpenLevy,
   gameYear,
 }: {
@@ -595,6 +596,8 @@ export function HousePanel({
   onSpare?: (toHouseId: string, targetVillageId: string | null) => Promise<MacroSpare | null>;
   /** Vypoví dohodu `vassalageId` (platí hned) se vzkazem. */
   onRenounce?: (vassalageId: string, message: string | null) => Promise<unknown>;
+  /** Odvolá správce vsi `villageId` (platí hned, vazalství trvá). */
+  onDismissSteward?: (villageId: string) => Promise<unknown>;
   /** Otevře dialog Odvody. */
   onOpenLevy?: () => void;
   /** Herní rok (výchozí rok první splátky půjčky). */
@@ -733,6 +736,30 @@ export function HousePanel({
               })
             )}
           </Row>
+          {view.stewardships.length > 0 && (
+            <Row label="Správci vsí" testId="house-stewards" marker={<Icon name="village-key" />}>
+              {view.stewardships.map((st) => (
+                <div
+                  key={st.villageId}
+                  data-testid="house-steward"
+                  className="flex items-center gap-1.5"
+                >
+                  <span className="text-xs">
+                    {st.villageName}
+                    {st.steward?.lordName ? ` – ${st.steward.lordName}` : ''}
+                  </span>
+                  <PlayerAction
+                    label="Odvolat"
+                    icon="chain-broken"
+                    testId={`steward-dismiss-${st.villageId}`}
+                    reason={null}
+                    busy={busy}
+                    onClick={() => run(() => onDismissSteward?.(st.villageId) ?? Promise.resolve())}
+                  />
+                </div>
+              ))}
+            </Row>
+          )}
           {view.vassals.length > 0 && (
             <Row label="Vazalové" testId="house-vassals" marker={<Icon name="shield" />}>
               {(view.tree.length > 0 ? orderTree(view.tree, view.ownHouseId) : []).map((node) => {

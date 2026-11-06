@@ -25,11 +25,13 @@ vi.mock('@bohemia/game', async (importOriginal) => ({
   },
 }));
 vi.mock('../game', () => ({
+  // vlastní ves: zámek bere hráč sám
+  lockOwnerOf: (actor: string): Promise<string> => Promise.resolve(actor),
   playerToday: (): Promise<unknown> => Promise.resolve({ ok: true, day: state.day, offsetDays: 0 }),
   playerVillage: (): Promise<unknown> =>
-    Promise.resolve({ village: { id: 'v1' }, settlement: { id: 's1' } }),
+    Promise.resolve({ village: { id: 'v1' }, settlement: { id: 's1', ownerId: 'hrac' } }),
   requireVillageRight: (): Promise<unknown> =>
-    Promise.resolve({ village: { id: 'v1' }, settlement: { id: 's1' } }),
+    Promise.resolve({ village: { id: 'v1' }, settlement: { id: 's1', ownerId: 'hrac' } }),
   landscapeOfSettlement: (): object => ({}),
   dynastyOfPlayerLocked: (): Promise<unknown> => Promise.resolve({ gameOver: false }),
   gameDeps: (): object => ({}),

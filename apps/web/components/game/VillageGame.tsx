@@ -62,6 +62,7 @@ import {
   blockHouse,
   houseSpare,
   renounceVassalage,
+  dismissSteward,
   levyDialogs,
   answerLevy,
 } from '@/app/game/actions';
@@ -1546,7 +1547,9 @@ export function VillageGame({
               negotiate(() => answerNegotiation({ negotiationId, ...reply }))
             }
             onBlock={(target) => negotiate(() => blockHouse({ target }))}
-            villages={(view?.villages ?? []).map((v) => ({ id: v.id, name: v.name }))}
+            villages={(view?.villages ?? [])
+              .filter((v) => !v.stewarded)
+              .map((v) => ({ id: v.id, name: v.name }))}
             gameYear={view ? dateOfDayIndex(view.dayIndex).year : undefined}
             onSpare={async (toHouseId, targetVillageId) => {
               try {
@@ -1562,6 +1565,7 @@ export function VillageGame({
             onRenounce={(vassalageId, message) =>
               negotiate(() => renounceVassalage({ vassalageId, message }))
             }
+            onDismissSteward={(villageId) => negotiate(() => dismissSteward({ villageId }))}
             onOpenLevy={() => void openLevy()}
             onClose={closeHouse}
             onSelectVillage={(villageId) => {

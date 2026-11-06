@@ -30,7 +30,8 @@ function oathOf(items: readonly TermItem[]): Oath | undefined {
 /** Řádky podmínek bez přísahy. */
 export function termLinesOf(items: readonly TermItem[]): TermLine[] {
   return items.filter(
-    (i): i is TermLine => i.kind !== 'oath' && i.kind !== 'trade' && !isAidLine(i),
+    (i): i is TermLine =>
+      i.kind !== 'oath' && i.kind !== 'trade' && i.kind !== 'stewardship' && !isAidLine(i),
   );
 }
 
