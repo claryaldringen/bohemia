@@ -160,6 +160,11 @@ export type DayClock = (nowMs: number) => number;
 export class LandscapeScene {
   private readonly listeners = new Set<HoverListener>();
   private readonly selectListeners = new Set<SelectListener>();
+  /**
+   * Brána opevnění (fortifications.md – Rozhraní): dokud je nastavená, levé kliknutí do krajiny
+   * ohlásí bod terénu (místo výběru) a pravé zruší; null = běžný výběr.
+   */
+  private gatePick: ((point: { x: number; z: number } | null) => void) | null = null;
   private readonly viewListeners = new Set<ViewListener>();
   private readonly clearedListeners = new Set<ClearedListener>();
   private readonly personListeners = new Set<PersonListener>();
@@ -1130,6 +1135,15 @@ export class LandscapeScene {
   }
 
   /**
+   * Zapne přidávání brány opevnění: levé kliknutí do krajiny pošle bod terénu `handler`, pravé
+   * `null` (zrušení); `null` vrací běžný výběr.
+   */
+  setGatePick(handler: ((point: { x: number; z: number } | null) => void) | null): void {
+    this.gatePick = handler;
+    this.canvas.style.cursor = handler ? 'crosshair' : '';
+  }
+
+  /**
    * Zvýrazní vybrané obydlí / pole / hřbitov rámečkem na zemi, vybranou postavu žlutým kroužkem
    * pod nohama (null = nic).
    */
@@ -1418,6 +1432,13 @@ export class LandscapeScene {
     // dvojklik jen ze dvou levých kliknutí po sobě – tah, pravé tlačítko i umisťování řadu přeruší
     if (!clicked || event.button !== 0) this.lastClick = null;
     if (!clicked) return;
+    if (this.gatePick) {
+      if (event.button === 0) {
+        const ground = this.pickGround(at.x, at.y);
+        this.gatePick(ground ? { x: ground[0], z: ground[1] } : null);
+      } else if (event.button === 2) this.gatePick(null);
+      return;
+    }
     if (event.button === 0) {
       this.lastClick = nextClick(this.lastClick, { ...at, at: event.timeStamp });
       const additive = event.ctrlKey || event.metaKey || event.shiftKey;

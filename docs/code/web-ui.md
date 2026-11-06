@@ -708,3 +708,44 @@ accept | reject | withdraw | counter, items?, message? })`, `blockHouse({ target
 - Server action `choosePlayerDeparture` (`app/game/actions.ts` → `choosePlayerDepartureForPlayer` v
   `lib/village.ts`, vstup `{ villageId, direction, sonName? }` parsuje `parseChoosePlayerDepartureInput`).
   e2e: `village.spec.ts` „mladší syn po pohřbu zvolí směr“ (stav po smrti otce zapsaný přímo do DB).
+
+## Opevnění v rozhraní (úloha 5.6, `lib/fort-view.ts`, `hud/selection/fortification.tsx`)
+
+Návrh: [fortifications.md – Rozhraní](../design/fortifications.md); jádro a server actions:
+[village-fortifications.md](village-fortifications.md).
+
+- **Katalog staveb** (`lib/build-items.ts`): záznam `fortification` (zkratka **P**, ikona
+  `build/opevneni.png`) je rozcestník druhů `FORT_VARIANTS` (plot, palisáda, val – ikony
+  `resources/fort-*.png`) jako ohrady. `BuildKind` v jádru **zůstává beze změny** (cena opevnění
+  není pevná, počítá se podle délky – `fortificationCost`), proto má web vlastní `WebBuildKind =
+  BuildKind | 'fortification'`; nabídka (`options`) má pro opevnění `null` (bez ceny v popisku).
+  `VillageGame.tsx`: `SUBMIT_SQUARES.fortification` → `placeFortification` (druh z `fortVariantKind`).
+- **Kreslení** = malování po čtvercích jako pole (`FieldPainter`, natáčení `[` `]`). Kontrola
+  `fortificationPlacement(landscape, village, cells, grid, kind, woodSupply)` volá
+  `checkFortificationPlacement` z jádra (stejně jako server), cena u kurzoru je práce a klády
+  (`fortificationCost` podle `outline.lengthM`) a útočiště (lidé – `refugePlaces`); chybí-li dřevo
+  (`VillageView.woodSupply` = klády + stromy ke kácení, `villageStock`), místo ceny červeně „Chybí N
+  klád.“. Nesouvislá nebo malá plocha je jen „ještě ne“ (žlutě), ostatní důvody červeně.
+  `SquaresPreview.outline` / `.gates` kreslí `FieldPainter` čarou nad čtverci (obrys se
+  zakulacenými rohy, obdélníky pásu, brány z `autoGates` podle `PlacementVillage.walkRoads`).
+  `PlacementCost.logs` a `.refuge` ukazuje `CursorReason`.
+- **Data pro scénu** (`SceneVillage.forts`, `SceneFortification` – jádro `Fortification` + `building`,
+  uzavřený `outline` a `band` po úsecích, počítá `sceneFortifications`): minimapa (`drawMinimapVillage`,
+  obvod čarou v barvě druhu `FORT_COLORS`), výběr (`pickVillageTarget` – pás nebo do `FORT_PICK_M`
+  od okraje), zvýraznění výběru (`selection-highlight.ts`) a kontrola umístění (`PlacementVillage`
+  `fortifications` a `constructions` s `fortificationId` – jinak by prohlížeč neznal dotyk s jiným
+  opevněním ani zabraný pás).
+- **Panel** (`SelectionDetails` druh `fortification` = `VillageFortification` z
+  `fortificationViews`): ikona druhu, délka, stav nejslabšího úseku (oranžově, má-li úseky za
+  životností), brány, násobek obrany (štít), útočiště (lidé, dobytek), průběh stavby (zrušení přes
+  `cancelConstructionId`). Příkazy: „Vylepšit na palisádu“ (plot), „Postavit na valu plot“ /
+  „… palisádu“ (val) – zašedlé s důvodem v popisku (`Chybí N klád.`, `Stavba už běží.`, `Na valu se
+  staví až na hotovém.`, `Val už nástavbu má.`), ikona brány (`aria-pressed`) zapne režim klikání na
+  obvod (`LandscapeScene.setGatePick`: další levé kliknutí pošle bod terénu do `addFortificationGate`,
+  pravé a Esc zruší, změna výběru režim vypne). Akce jdou přes `upgradeFortification`
+  a `addFortificationGate`.
+- Testy: `lib/__tests__/build-items-fortification.test.ts` (cena roste s plochou, důvody),
+  `components/game/hud/__tests__/FortificationPanel.test.tsx`, `lib/scene/__tests__/fort-picking.test.ts`;
+  e2e `e2e/fortification.spec.ts` (nakreslit palisádu 3 × 3 přes pevnou cestu → brány na cestě,
+  cena u kurzoru, Enter, panel; snímek do `FORT_UI_SHOT`).
+- Modely opevnění ve scéně jsou úloha 5.7.

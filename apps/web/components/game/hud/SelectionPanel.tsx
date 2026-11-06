@@ -1,5 +1,5 @@
 import { type ReactElement } from 'react';
-import { CART_NAMES, RoadUpgrade, WagonRoadPlan } from '@bohemia/game';
+import { CART_NAMES, RoadUpgrade, WagonRoadPlan, type FortTop } from '@bohemia/game';
 import { useOverflowScroll } from '@/hooks/use-overflow-scroll';
 import { VillageTarget } from '@/lib/scene/village-picking';
 import { fieldPartName, orchardSquareName, type SelectionDetails } from '@/lib/selection-details';
@@ -33,6 +33,7 @@ import {
   FieldsBody,
 } from './selection/fields';
 import { WildlifeBody } from './selection/wildlife';
+import { FORT_ICONS, FORT_NAMES, FortificationBody } from './selection/fortification';
 import { WILDLIFE_LABELS } from '@/lib/wildlife-view';
 import { Oaks, OakAge, SACRED_ICONS, SacredBody } from './selection/sacred';
 import {
@@ -78,8 +79,17 @@ export function SelectionPanel({
   onDeclareHunt,
   onSendExpedition,
   onSetSteward,
+  onFortWork,
+  gateFort = null,
+  onGateMode,
 }: {
   details: SelectionDetails | null;
+  /** Zadá vylepšení opevnění (server action) – hotovo, až se vrátí. */
+  onFortWork?: (fortificationId: number, work: 'upgrade' | 'top', top?: FortTop) => Promise<void>;
+  /** Opevnění, kterému se právě přidává brána kliknutím na obvod; null = nic. */
+  gateFort?: number | null;
+  /** Zapne / vypne přidávání brány kliknutím na obvod (null = vypnout). */
+  onGateMode?: (fortificationId: number | null) => void;
   /** Zapne / vypne správce vsi (server action) – přepínač v panelu dvorce. */
   onSetSteward?: (on: boolean) => Promise<unknown>;
   /** Vybere jiný cíl ve vsi – dům hospodářství z panelu dílu pole. */
@@ -138,6 +148,23 @@ export function SelectionPanel({
   } else if (details.kind === 'threshing-floor') {
     portrait = <Portrait icon="humno" name="Humno" />;
     body = <ThreshingFloorBody details={details} />;
+  } else if (details.kind === 'fortification') {
+    portrait = (
+      <Portrait
+        icon={FORT_ICONS[details.fortKind]}
+        name={FORT_NAMES[details.fortKind]}
+        dir="resources"
+      />
+    );
+    body = (
+      <FortificationBody
+        key={details.id}
+        details={details}
+        gateMode={gateFort === details.id}
+        onWork={onFortWork}
+        onGateMode={onGateMode}
+      />
+    );
   } else if (details.kind === 'grain-pit') {
     portrait = <Portrait icon="obilna-jama" name="Obilná jáma" />;
     body = <GrainPitBody details={details} />;

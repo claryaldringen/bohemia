@@ -6,7 +6,7 @@ import {
   shiftWorldClock,
   suggestVillageName,
   type Direction8,
-  type BuildKind,
+  type FortTop,
   type Craft,
   type DwellingPlot,
   type BuildableDwellingType,
@@ -36,6 +36,9 @@ import {
   placeField,
   placeOrchard,
   placePen,
+  placeFortification,
+  upgradeFortification,
+  addFortificationGate,
   placeSacred,
   placeThreshingFloor,
   placeWorkshop,
@@ -64,7 +67,13 @@ import type { PanelAsk, PanelOptions } from '@/lib/panel-options';
 import { usePlacement } from '@/hooks/use-placement';
 import { usePolling } from '@/hooks/use-polling';
 import { authClient } from '@/lib/auth-client';
-import { buildItem, buildItemForKey, penVariantSpecies } from '@/lib/build-items';
+import {
+  buildItem,
+  buildItemForKey,
+  fortVariantKind,
+  penVariantSpecies,
+  type WebBuildKind,
+} from '@/lib/build-items';
 import { setE2EHook } from '@/lib/e2e-hooks';
 import { keepSceneData, knownSceneData, lostSceneData } from '@/lib/scene-routes';
 import { cartRoutesRequest, withCartRouteResult, withCartRoutes } from '@/lib/cart-routes';
@@ -143,7 +152,7 @@ type ActionResult = VillageView | { error: string };
  */
 const SUBMIT_SQUARES: Partial<
   Record<
-    BuildKind,
+    WebBuildKind,
     (
       villageId: string,
       cells: TileCell[],
@@ -166,6 +175,14 @@ const SUBMIT_SQUARES: Partial<
       species: penVariantSpecies(variant),
       ...(grid ? { grid } : {}),
     }),
+  // opevnění podle druhu (fortifications.md – Rozhraní): plot, palisáda, val z rozcestníku
+  fortification: (villageId, cells, grid, variant) =>
+    placeFortification({
+      villageId,
+      cells,
+      kind: fortVariantKind(variant),
+      ...(grid ? { grid } : {}),
+    }),
 };
 
 /**
@@ -174,7 +191,7 @@ const SUBMIT_SQUARES: Partial<
  */
 function squareStructures(
   scene: SceneVillage | null,
-  kind: BuildKind,
+  kind: WebBuildKind,
   variant?: string,
 ): { id: number; grid?: SquareGrid; squares: readonly CellSquare[] }[] {
   if (!scene) return [];
@@ -343,9 +360,9 @@ export function VillageGame({
   );
   const [pending, setPending] = useState<PendingSite[]>([]);
   const [selected, setSelected] = useState<VillageTarget | null>(null);
-  const [placingItem, setPlacingItem] = useState<BuildKind | null>(null);
+  const [placingItem, setPlacingItem] = useState<WebBuildKind | null>(null);
   // otevřený rozcestník mřížky staveb – stavba s druhy (ohrada – oxen.md, Ohrady podle druhu)
-  const [buildGroup, setBuildGroup] = useState<BuildKind | null>(null);
+  const [buildGroup, setBuildGroup] = useState<WebBuildKind | null>(null);
   const [notices, setNotices] = useState<NoticeLine[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
   // Panel „Rod a vazalové“: pohled se načte po otevření hry (počet vazalů v liště) a obnoví po
@@ -562,6 +579,14 @@ export function VillageGame({
     [scene],
   );
   const current = useMemo(() => presentTarget(sceneVillage, selected), [sceneVillage, selected]);
+  // Brána opevnění (fortifications.md – Rozhraní): tlačítko v panelu zapne klikání na obvod – další
+  // levé kliknutí do krajiny přidá bránu, pravé a Esc zruší; změna výběru režim vypne.
+  const [gateFort, setGateFort] = useState<number | null>(null);
+  useEffect(() => {
+    if (gateFort !== null && !(selected?.kind === 'fortification' && selected.id === gateFort)) {
+      setGateFort(null);
+    }
+  }, [gateFort, selected]);
   // co dělá vybraný člověk – hlásí scéna při změně (villagers.md – Výběr postavy)
   const [personState, setPersonState] = useState<PersonFigureState | null>(null);
   useEffect(
@@ -713,6 +738,20 @@ export function VillageGame({
     [runAction, pushNotice],
   );
 
+  useEffect(() => {
+    if (!scene || gateFort === null) return;
+    scene.setGatePick((point) => {
+      setGateFort(null);
+      const villageId = viewRef.current?.id;
+      if (point && villageId) {
+        void runBuildAction(() =>
+          addFortificationGate({ villageId, fortificationId: gateFort, position: point }),
+        );
+      }
+    });
+    return () => scene.setGatePick(null);
+  }, [scene, gateFort, runBuildAction]);
+
   /** Ves pro kontrolu umístění v prohlížeči – i s obydlími, která ještě čekají na server. */
   const placementVillage = useCallback(() => {
     const scene = withPending(viewRef.current?.scene ?? EMPTY_SCENE, pendingRef.current);
@@ -821,14 +860,15 @@ export function VillageGame({
 
   // vymřelá a opuštěná ves nic nestaví – nabídka staveb je prázdná (i zkratky); lidé na cestě
   // po příjezdu umisťují první zemnici (migration.md – fáze 4)
-  const options: Partial<Record<BuildKind, BuildOption | null>> = view
+  const options: Partial<Record<WebBuildKind, BuildOption | null>> = view
     ? view.extinct || view.abandoned
       ? {}
       : view.journey
         ? view.journey.arrived
           ? { zemnice: null }
           : {}
-        : view.build
+        : // opevnění nemá pevnou cenu – cena je u kurzoru podle délky obvodu
+          { ...view.build, fortification: null }
     : villageError === null
       ? { zemnice: null }
       : {};
@@ -952,7 +992,7 @@ export function VillageGame({
     );
   }
 
-  const startBuild = (kind: BuildKind, variant?: string): void => {
+  const startBuild = (kind: WebBuildKind, variant?: string): void => {
     // dokud se nepojmenuje vojvoda, ves se nezakládá – ani zkratkou, ani klikem mimo panel jména
     if (!scene || foundingName || !(kind in options)) return;
     // seniorát: stavět v cizí vsi rodu smí jen senior (zkratka nesmí obejít zašedlé tlačítko)
@@ -983,7 +1023,9 @@ export function VillageGame({
         {
           kind: 'squares',
           preview: (cells, grid, kindVariant) => ({
-            ...item.check(decoded, placementVillage(), cells, grid, kindVariant),
+            ...item.check(decoded, placementVillage(), cells, grid, kindVariant, {
+              woodSupply: viewRef.current?.woodSupply ?? 0,
+            }),
             label: '',
           }),
           ...(item.variants ? { variants: item.variants, ...(variant ? { variant } : {}) } : {}),
@@ -1102,6 +1144,7 @@ export function VillageGame({
       if (event.code === 'Escape' && placingRef.current === null) {
         setSelected(null);
         setBuildGroup(null);
+        setGateFort(null);
         return;
       }
       // Ctrl + A – všechna obydlí vsi (migration.md); při umisťování ne (malování po čtvercích)
@@ -1338,6 +1381,21 @@ export function VillageGame({
             const villageId = viewRef.current?.id;
             return villageId
               ? runBuildAction(() => cancelConstruction({ villageId, constructionId }))
+              : Promise.resolve();
+          }}
+          gateFort={gateFort}
+          onGateMode={setGateFort}
+          onFortWork={(fortificationId, work, top?: FortTop) => {
+            const villageId = viewRef.current?.id;
+            return villageId
+              ? runBuildAction(() =>
+                  upgradeFortification({
+                    villageId,
+                    fortificationId,
+                    work,
+                    ...(top ? { top } : {}),
+                  }),
+                )
               : Promise.resolve();
           }}
           onUpgradeRoad={(roadId, upgrade) => {

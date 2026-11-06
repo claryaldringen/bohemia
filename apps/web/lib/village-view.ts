@@ -18,6 +18,7 @@ import {
   monthInWindow,
   ORCHARD_PLANTING_WINDOWS,
   obstaclesOf,
+  type ObstacleLayer,
   cartWorldOf,
   isAbandoned,
   structureCondition,
@@ -75,6 +76,7 @@ import {
   threshingOf,
   threshingFloorsOf,
 } from './village-view-buildings';
+import { fortificationViews, fortWoodSupply } from './fort-view';
 import { fieldViews, orchardSquareView } from './village-view-fields';
 import {
   householdRelocation,
@@ -332,6 +334,18 @@ function fieldCapacityView(
   );
 }
 
+/** Opevnění pro panel a dřevo vsi pro cenu u kurzoru (fortifications.md – Rozhraní). */
+function fortificationsOf(
+  state: VillageState,
+  landscape: Landscape,
+  day: number,
+  obstacles: ObstacleLayer,
+): Pick<VillageView, 'fortifications' | 'woodSupply'> {
+  const woodSupply = fortWoodSupply(state, obstacles);
+  const fortifications = fortificationViews(state, landscape, day, woodSupply);
+  return { woodSupply, ...(fortifications.length > 0 ? { fortifications } : {}) };
+}
+
 export function buildVillageView(
   record: VillageRecord,
   landscape: Landscape,
@@ -494,6 +508,7 @@ export function buildVillageView(
     ...threshingOf(state, day),
     ...threshingFloorsOf(state, summary.constructions),
     roads: roadViews(state, landscape, day, summary),
+    ...fortificationsOf(state, landscape, day, obstacles),
     scene: {
       ...sceneWithCartWorld(sceneVillage(state, landscape, day, summary), state, landscape, day),
       trails: sceneTrails(state),

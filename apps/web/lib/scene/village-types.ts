@@ -44,6 +44,10 @@ export interface PlacementCost {
   oaks?: number;
   /** Pole: kolik čtverců lesa se vyklučí po fázích a vypálí (forest.md – Klučení lesa pro pole). */
   burn?: number;
+  /** Opevnění: klády celé stavby (fortifications.md – Cena a stavba). */
+  logs?: number;
+  /** Opevnění: kolik lidí se vejde do útočiště (fortifications.md – Útočiště). */
+  refuge?: number;
 }
 
 /**
@@ -59,6 +63,12 @@ export interface SquaresPreview {
   blockedCells: readonly TileCell[];
   /** Čtverce, kterých se týká varování (`check.warning`) – scéna je zbarví oranžově. */
   warningCells?: readonly TileCell[];
+  /**
+   * Náhled obrysu (opevnění – fortifications.md, Rozhraní): uzavřené čáry vnějšího okraje a pásu
+   * a krátké úsečky bran, které scéna kreslí čarou nad čtverci.
+   */
+  outline?: readonly (readonly (readonly [number, number])[])[];
+  gates?: readonly (readonly (readonly [number, number])[])[];
 }
 
 /**

@@ -82,6 +82,18 @@ export function CursorReason({
                   {formatInteger(cost.burn ?? 0)}
                 </span>
               )}
+              {(cost.logs ?? 0) > 0 && (
+                <span data-cost="logs" className="flex items-center gap-1">
+                  <img src="/icons/resources/wood.png" alt="Klády" width={16} height={16} />
+                  {formatInteger(cost.logs ?? 0)}
+                </span>
+              )}
+              {(cost.refuge ?? 0) > 0 && (
+                <span data-cost="refuge" className="flex items-center gap-1">
+                  <img src="/icons/resources/people.png" alt="Útočiště" width={16} height={16} />
+                  {formatInteger(cost.refuge ?? 0)}
+                </span>
+              )}
               {(cost.oaks ?? 0) > 0 && (
                 <span data-cost="oaks" className="flex items-center gap-1">
                   <img src="/icons/build/dub.png" alt="Duby" width={16} height={16} />

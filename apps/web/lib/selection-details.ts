@@ -37,6 +37,7 @@ import type { VillageDugSite } from './ore-site-view';
 import type { VillageKiln } from './kiln-view';
 import type { VillageGrainPit } from './grain-pit-view';
 import type { VillageJunction } from './junction-view';
+import type { VillageFortification } from './fort-view';
 import type {
   DepartingSon,
   FieldOutlookView,
@@ -614,6 +615,13 @@ type SelectionKinds =
     } & VillageThreshingFloor)
   | ({
       /**
+       * Opevnění (fortifications.md – Rozhraní): druh, délka, stav, brány, útočiště, násobek
+       * obrany, průběh stavby a vylepšení.
+       */
+      kind: 'fortification';
+    } & VillageFortification)
+  | ({
+      /**
        * Divoké zvíře (wildlife.md – Co hráč vidí; Martin 24. 10. 2026 nechal na Claudovi): druh
        * s hrubým stavem (tři stupně plnosti, plno), co kraj uživí, loňská škoda a strhnutý dobytek –
        * bez přesných kusů.
@@ -817,6 +825,10 @@ function cancellableConstruction(
       return details.building !== null ? among((c) => c.id === details.id) : undefined;
     case 'threshing-floor':
       return details.built ? undefined : among((c) => c.id === details.id);
+    case 'fortification':
+      return details.constructionId === undefined
+        ? undefined
+        : among((c) => c.id === details.constructionId);
     case 'field':
       return among((c) => c.kind === 'field' && c.fieldId === details.id);
     case 'cemetery':
@@ -993,6 +1005,11 @@ function selectionKinds(
     if (!scene.threshingFloors?.some((f) => f.id === target.id)) return null;
     const floor = view?.threshingFloors?.find((f) => f.id === target.id);
     return floor ? { kind: 'threshing-floor', ...floor } : null;
+  }
+  if (target.kind === 'fortification') {
+    if (!scene.forts?.some((f) => f.id === target.id)) return null;
+    const fort = view?.fortifications?.find((f) => f.id === target.id);
+    return fort ? { kind: 'fortification', ...fort } : null;
   }
   if (target.kind === 'grain-pit') {
     // jen otevřená jáma, která ve scéně je (zapečetěné nejsou vidět)
