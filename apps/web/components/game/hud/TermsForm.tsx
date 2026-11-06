@@ -9,6 +9,7 @@ import {
   type MacroSpare,
   type TermItem,
   type TermLine,
+  type TradeLine,
 } from '@bohemia/game';
 import { termRowLabel, type TermRowView } from '@/lib/negotiation-view';
 import {
@@ -21,6 +22,7 @@ import {
   formatAmount,
   lineChips,
   serviceLabel,
+  tradeChips,
   withBundleValue,
   type TermChip,
   type TermIcon,
@@ -35,6 +37,12 @@ import { Tooltip } from './Tooltip';
 const ICON = '/icons/house';
 
 export function HouseIcon({ name, size = 20 }: { name: string; size?: number }): ReactElement {
+  // vůz (obchod) je ikona zdroje, ne kresba rodu
+  if (name === 'cart') {
+    return (
+      <img src="/icons/resources/cart.png" alt="" width={size} height={size} draggable={false} />
+    );
+  }
   return <img src={`${ICON}/${name}.svg`} alt="" width={size} height={size} draggable={false} />;
 }
 
@@ -67,6 +75,8 @@ export function Chip({ chip, size = 18 }: { chip: TermChip; size?: number }): Re
 export interface TermsContext {
   /** Hráčův rod je pánem dohody (jemu patří cílová ves, odměnu platí on). */
   lordIsOwn: boolean;
+  /** Hráčův rod (u obchodu klíč jeho vsi odeslání v `fromVillage`). */
+  ownHouseId?: string;
   /** Vsi hráče (cílová ves pána). */
   villages: readonly { id: string; name: string }[];
   /** Herní rok (výchozí rok první splátky půjčky). */
@@ -464,6 +474,67 @@ function AidRow({ item, label, onChange, context }: TermRowProps): ReactElement 
   );
 }
 
+/**
+ * Obchod mezi hráči (vassalage.md – Hospodářství mezi hráči): dvě skupiny zboží s hlavičkami
+ * „Dáš“ a „Dostaneš“ (výjimka z pravidla bez popisků – hlavičky v obchodu smí být slovy), ve
+ * formuláři políčka zboží a výběr vsi, ze které hráč pošle; jinak ikony s čísly. Jen makrokomodity.
+ */
+function TradeRow({ item, label, onChange, context }: TermRowProps): ReactElement {
+  if (item.kind !== 'trade') return <span />;
+  const trade: TradeLine = item;
+  const chips = tradeChips(trade);
+  if (!onChange) {
+    return (
+      <div data-testid="term-row-trade" aria-label={label} className="flex flex-col gap-1">
+        {(
+          [
+            ['give', 'Dáš'],
+            ['get', 'Dostaneš'],
+          ] as const
+        ).map(([side, title]) => (
+          <div key={side} className="flex flex-wrap items-center gap-1.5">
+            <span className="w-16 text-xs opacity-70">{title}</span>
+            {chips[side].map((chip) => (
+              <Chip key={chip.key} chip={chip} />
+            ))}
+          </div>
+        ))}
+      </div>
+    );
+  }
+  const own = context?.ownHouseId;
+  const villages = context?.villages ?? [];
+  return (
+    <div data-testid="term-row-trade" className="flex flex-col gap-1">
+      {(
+        [
+          ['give', 'Dáš'],
+          ['get', 'Dostaneš'],
+        ] as const
+      ).map(([side, title]) => (
+        <div key={side} className="flex flex-wrap items-center gap-1.5">
+          <span className="w-16 text-xs">{title}</span>
+          <GoodsInputs
+            goods={goodsOf(trade[side])}
+            testPrefix={`term-trade-${side}`}
+            onChange={(goods) => onChange({ ...trade, [side]: { ...trade[side], ...goods } })}
+          />
+          {side === 'give' && own !== undefined && villages.length > 0 && (
+            <VillageSelect
+              value={trade.fromVillage[own] ?? villages[0]?.id}
+              villages={villages}
+              testId="term-trade-village"
+              onChange={(id) =>
+                onChange({ ...trade, fromVillage: { ...trade.fromVillage, [own]: id } })
+              }
+            />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /** Registr řádků podle druhu podmínky. */
 export const TERM_ROWS: Record<TermItem['kind'], TermRowComponent> = {
   oath: OathRow,
@@ -474,6 +545,7 @@ export const TERM_ROWS: Record<TermItem['kind'], TermRowComponent> = {
   'aid-request': AidRow,
   gift: AidRow,
   loan: AidRow,
+  trade: TradeRow,
 };
 
 /** Řádky podmínek (formulář i karta jednání); `onRemove` přidá křížek u řádků bez přísahy. */
@@ -605,6 +677,7 @@ export function TermsForm({
   }, [loadSpare, paysSomething, targetId]);
   const present = new Set(rows.map((r) => r.kind));
   const aidMode = rows.some((r) => isAid(r.item));
+  const tradeMode = rows.some((r) => r.kind === 'trade');
   return (
     <div data-testid="terms-form" className="flex w-full flex-col gap-1.5">
       <TermRows
@@ -615,7 +688,7 @@ export function TermsForm({
           setRows((current) => current.map((r, i) => (i === index ? { ...r, item } : r)))
         }
         onRemove={
-          aidMode
+          aidMode || tradeMode
             ? undefined
             : (index) => setRows((current) => current.filter((_, i) => i !== index))
         }
@@ -646,7 +719,7 @@ export function TermsForm({
         </div>
       )}
       <div className="flex items-center gap-1.5">
-        {(aidMode ? [] : ADDABLE)
+        {(aidMode || tradeMode ? [] : ADDABLE)
           .filter((a) => !present.has(a.kind) && newRow(a.kind, context) !== null)
           .map((a) => (
             <Tooltip key={a.kind} content={a.label}>

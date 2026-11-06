@@ -1,4 +1,4 @@
-import type { TermItem } from '../domain/negotiation';
+import { checkTradeLine, type TermItem } from '../domain/negotiation';
 import { AID_REASONS, checkAidLine, type AidLine } from '../domain/vassalage/loan';
 import { checkTermLine, type TermLine, type VassalTerms } from '../domain/vassalage/terms';
 import type { NegotiationTx } from './negotiations';
@@ -74,6 +74,11 @@ export const NEGOTIATION_EFFECTS: { [K in TermItem['kind']]: NegotiationEffect<K
     apply: () => Promise.resolve(),
   },
   gift: aidEffect<'gift'>(),
+  // obchod mezi hráči: nic se nezapisuje, dialogy odeslání otevře `acceptNegotiation` po transakci
+  trade: {
+    check: (_tx, item) => Promise.resolve(checkTradeLine(item)),
+    apply: () => Promise.resolve(),
+  },
   // půjčka je samostatná dohoda: řádek se zapíše v transakci přijetí, zboží pošle use-case po ní
   loan: {
     check: (_tx, item) => Promise.resolve(checkAidLine(item)),

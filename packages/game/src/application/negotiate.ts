@@ -1,3 +1,4 @@
+import { dateOfDayIndex } from '../domain/calendar';
 import {
   acceptRound,
   canOpen,
@@ -9,12 +10,17 @@ import {
   type Negotiation,
   type NegotiationResult,
   termLinesOf,
+  checkTradeItems,
+  isTradeLine,
+  TRADE_REASONS,
   type TermItem,
+  type TradeLine,
 } from '../domain/negotiation';
 import { AID_REASONS, checkAidItems, isAidLine, type AidLine } from '../domain/vassalage/loan';
 import { TERM_REASONS, termsOfLines } from '../domain/vassalage/terms';
 import { wouldBeMutual } from '../domain/vassalage/tree';
 import type { ChronicleEvent } from '../domain/village';
+import type { DialogRepository } from './dialogs';
 import type { HouseRepository, House } from './houses';
 import { applyItem, checkItem } from './negotiation-effects';
 import {
@@ -43,6 +49,8 @@ export interface AidDeps {
 export interface NegotiateDeps extends NegotiationVillages {
   /** Bez něj nejde přijmout dar ani půjčku (nemá kdo poslat zásilku). */
   aid?: AidDeps;
+  /** Bez něj nejde přijmout obchod (nemá se kde otevřít dialog odeslání). */
+  dialogs?: Pick<DialogRepository, 'openOnce'>;
   houses: Pick<HouseRepository, 'activeOf' | 'byId'>;
   negotiations: NegotiationRepository;
   /** Čte se z něj, které vsi rod vlastní (cílová ves musí patřit pánovi). */
@@ -157,7 +165,15 @@ async function chronicleStep(
   deps: NegotiateDeps,
   { actor, other }: Actors,
   record: NegotiationRecord,
-  step: 'offer' | 'counter' | 'rejected' | 'withdrawn' | 'terms-accepted' | 'aid-gift' | 'aid-loan',
+  step:
+    | 'offer'
+    | 'counter'
+    | 'rejected'
+    | 'withdrawn'
+    | 'terms-accepted'
+    | 'aid-gift'
+    | 'aid-loan'
+    | 'trade-accepted',
   today: number,
 ): Promise<void> {
   const event: ChronicleEvent = {
@@ -249,8 +265,11 @@ export async function openNegotiation(
     if (reason) return fail(reason);
     // změna podmínek: dohoda mezi rody musí trvat, cílová ves patří jejímu pánovi
     const oath = oathOf(input.items);
-    const existing = oath ? null : await agreementBetween(tx, from.id, input.to);
-    if (!oath && !existing) return fail(NO_AGREEMENT);
+    const trade = input.items.some(isTradeLine);
+    const existing = oath || trade ? null : await agreementBetween(tx, from.id, input.to);
+    if (!oath && !existing && !trade) return fail(NO_AGREEMENT);
+    const badTrade = await checkTradeRound(deps, input.items, [from.id, input.to]);
+    if (badTrade) return fail(badTrade);
     const lordId = oath?.lord ?? existing?.lordHouseId ?? '';
     const badVillage = await checkTargetVillage(deps, input.items, lordId);
     if (badVillage) return fail(badVillage);
@@ -309,8 +328,14 @@ export async function counterNegotiation(
     );
     if (!next.ok) return next;
     const first = oathOf(loaded.record.rounds[0]?.items ?? []);
-    const existing = first ? null : await agreementBetween(tx, loaded.actor.id, loaded.other.id);
-    if (!first && !existing) return fail(NO_AGREEMENT);
+    const trade = (loaded.record.rounds[0]?.items ?? []).some(isTradeLine);
+    // obchod zůstává obchodem a ostatní jednání obchodem nebude
+    if (input.items.some(isTradeLine) !== trade) return fail(TRADE_REASONS.onlyTrade);
+    const existing =
+      first || trade ? null : await agreementBetween(tx, loaded.actor.id, loaded.other.id);
+    if (!first && !existing && !trade) return fail(NO_AGREEMENT);
+    const badTrade = await checkTradeRound(deps, input.items, [loaded.actor.id, loaded.other.id]);
+    if (badTrade) return fail(badTrade);
     const badVillage = await checkTargetVillage(
       deps,
       input.items,
@@ -360,6 +385,7 @@ export async function acceptNegotiation(
     line: Extract<AidLine, { kind: 'gift' | 'loan' }>;
     toVillageId: string | null;
   } | null = null;
+  let trading: { sendings: TradeSending[]; today: number } | null = null;
   const result = await deps.negotiations.transaction(async (tx): Promise<NegotiateResult> => {
     const loaded = await loadForResponse(deps, tx, input.playerId, input.negotiationId);
     if (!loaded.ok) return loaded;
@@ -369,8 +395,20 @@ export async function acceptNegotiation(
     const terms = termsOfLines(termLinesOf(items));
     const oathItem = oathOf(items);
     // bez přísahy jde o změnu podmínek existující dohody
-    const existing = oathItem ? null : await agreementBetween(tx, loaded.actor.id, loaded.other.id);
-    if (!oathItem && !existing) return fail(NO_AGREEMENT);
+    const tradeLine = items.find(isTradeLine);
+    const existing =
+      oathItem || tradeLine ? null : await agreementBetween(tx, loaded.actor.id, loaded.other.id);
+    if (!oathItem && !existing && !tradeLine) return fail(NO_AGREEMENT);
+    // obchod: ověří vsi (znovu, mezitím se mohly změnit) a připraví dva dialogy odeslání
+    let sendings: TradeSending[] = [];
+    if (tradeLine) {
+      if (!deps.dialogs) return fail(TRADE_REASONS.noDialogs);
+      const badTrade = await checkTradeRound(deps, items, [loaded.actor.id, loaded.other.id]);
+      if (badTrade) return fail(badTrade);
+      // autor posledního kola (druhá strana než ten, kdo přijímá) pošle `give`, přijímající `get`
+      sendings = tradeSendings(tradeLine, loaded.other, loaded.actor);
+      if (sendings.some((x) => x.toVillageId === null)) return fail(TRADE_REASONS.noTarget);
+    }
     const badVillage = await checkTargetVillage(
       deps,
       items,
@@ -405,6 +443,7 @@ export async function acceptNegotiation(
     if (
       existing &&
       !aidLine &&
+      !tradeLine &&
       !(await tx.vassalages.updateTerms(existing.id, terms, existing.version))
     ) {
       return fail(NO_AGREEMENT);
@@ -435,6 +474,20 @@ export async function acceptNegotiation(
       },
       input.today,
     );
+    if (tradeLine) {
+      // obě strany se dozvědí, že čeká odeslání zboží (dialog Odvody, řádek obchodu)
+      for (const side of [loaded.actor, loaded.other]) {
+        const partner = side === loaded.actor ? loaded.other : loaded.actor;
+        await noticeHouse(
+          tx,
+          side,
+          'levy-pending',
+          { lordName: await houseName(deps, partner), years: 1, trade: true },
+          input.today,
+        );
+      }
+      trading = { sendings, today: input.today };
+    }
     actors = { actor: loaded.actor, other: loaded.other };
     oath = oathItem;
     if (aidLine && aidLine.kind !== 'aid-request') aid = { line: aidLine, toVillageId: aidTarget };
@@ -454,6 +507,10 @@ export async function acceptNegotiation(
       now: input.now,
     });
     if (failed) return fail(failed);
+  }
+  const opening = trading as { sendings: TradeSending[]; today: number } | null;
+  if (result.ok && opening && deps.dialogs) {
+    await openTradeDialogs(deps.dialogs, result.negotiation.id, opening.sendings, input.today);
   }
   if (result.ok && actors) {
     const { actor, other } = actors as Actors;
@@ -477,7 +534,13 @@ export async function acceptNegotiation(
         deps,
         actors as Actors,
         result.negotiation,
-        sending ? (sending.line.kind === 'gift' ? 'aid-gift' : 'aid-loan') : 'terms-accepted',
+        sending
+          ? sending.line.kind === 'gift'
+            ? 'aid-gift'
+            : 'aid-loan'
+          : opening
+            ? 'trade-accepted'
+            : 'terms-accepted',
         input.today,
       );
     }
@@ -585,3 +648,71 @@ export async function withdrawNegotiation(
 }
 
 export type { NegotiationResult };
+
+/** Co a komu posílá jedna strana obchodu (dialog `trade-send`). */
+interface TradeSending {
+  fromHouse: House;
+  toHouse: House;
+  goods: TradeLine['give'];
+  /** Ves příjemce, kam zásilka dojde (domluvená, jinak ves hlavy rodu); null – nemá kam. */
+  toVillageId: string | null;
+}
+
+/** Obě strany obchodu: `author` pošle `give`, `accepter` pošle `get`. */
+function tradeSendings(line: TradeLine, author: House, accepter: House): TradeSending[] {
+  const target = (house: House): string | null =>
+    line.fromVillage[house.id] ?? house.lord?.villageId ?? null;
+  return [
+    { fromHouse: author, toHouse: accepter, goods: line.give, toVillageId: target(accepter) },
+    { fromHouse: accepter, toHouse: author, goods: line.get, toVillageId: target(author) },
+  ];
+}
+
+/**
+ * Kontrola kola jednání o obchodu (vassalage.md – Hospodářství mezi hráči): jediný řádek obchodu,
+ * čísla v mezích a ves, kterou strana uvádí, jí patří. Kolo bez řádku obchodu je v pořádku.
+ */
+async function checkTradeRound(
+  deps: NegotiateDeps,
+  items: readonly TermItem[],
+  parties: readonly [string, string],
+): Promise<string | null> {
+  const line = items.find(isTradeLine);
+  if (!line) return null;
+  const bad = checkTradeItems(items);
+  if (bad) return bad;
+  for (const [houseId, villageId] of Object.entries(line.fromVillage)) {
+    if (!parties.includes(houseId) || !(await ownsVillage(deps, houseId, villageId))) {
+      return TRADE_REASONS.badVillage;
+    }
+  }
+  return null;
+}
+
+/**
+ * Otevře každé straně dialog odeslání (jedinečný klíč `trade:<jednání>:<rod>` – opakování nic
+ * nezdvojí). Dialog drží dohodnuté zboží a cílovou ves; hráč pošle celé, míň, nebo nic.
+ */
+async function openTradeDialogs(
+  dialogs: Pick<DialogRepository, 'openOnce'>,
+  negotiationId: string,
+  sendings: readonly TradeSending[],
+  today: number,
+): Promise<void> {
+  for (const s of sendings) {
+    if (s.fromHouse.playerId === null || s.toVillageId === null) continue;
+    await dialogs.openOnce(`trade:${negotiationId}:${s.fromHouse.id}`, {
+      playerId: s.fromHouse.playerId,
+      kind: 'trade-send',
+      refId: negotiationId,
+      year: dateOfDayIndex(today).year,
+      body: {
+        negotiationId,
+        fromHouseId: s.fromHouse.id,
+        toHouseId: s.toHouse.id,
+        toVillageId: s.toVillageId,
+        goods: s.goods,
+      },
+    });
+  }
+}

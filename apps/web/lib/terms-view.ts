@@ -9,6 +9,7 @@ import type {
   MacroGoods,
   TermItem,
   TermLine,
+  TradeLine,
   VassalTerms,
 } from '@bohemia/game';
 import { plural } from './village-format';
@@ -231,6 +232,19 @@ export function aidChips(line: AidLine): TermChip[] {
     }
   }
   return chips;
+}
+
+/** Řádek obchodu jako ikony s čísly: co hráč dá a co dostane (`give` / `get` v jeho pohledu). */
+export function tradeChips(line: TradeLine): { give: TermChip[]; get: TermChip[] } {
+  return {
+    give: goodsChips('trade-give', 'Dáš', line.give),
+    get: goodsChips('trade-get', 'Dostaneš', line.get),
+  };
+}
+
+/** Obchod z pohledu druhé strany: co dává autor kola, to druhá strana dostává (a naopak). */
+export function tradeFlipped(line: TradeLine): TradeLine {
+  return { ...line, give: line.get, get: line.give };
 }
 
 /** Ikony s čísly všech podmínek dohody (panel pánů a vazalů). */

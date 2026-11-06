@@ -92,6 +92,7 @@ function textOf(n: PlayerNotice): string {
       const lord = stringOf(n.payload.lordName) ?? 'pánovi';
       const years = typeof n.payload.years === 'number' ? n.payload.years : 1;
       if (n.payload.loan === true) return `Čas splátky – ${lord} čeká splátku půjčky.`;
+      if (n.payload.trade === true) return `Obchod s ${lord} – čeká odeslání zboží.`;
       return years > 1
         ? `Odvody pánu ${lord} čekají už ${years} roky.`
         : `Čas odvodů – pán ${lord} čeká dávku.`;
@@ -103,9 +104,16 @@ function textOf(n: PlayerNotice): string {
       const day = typeof n.payload.arrivesDay === 'number' ? n.payload.arrivesDay : null;
       const when = day === null ? '' : ` Dorazí ${formatGameDate(dateOfDayIndex(day))}.`;
       const message = stringOf(n.payload.message);
-      const noun = n.payload.loan === true ? 'splátku půjčky' : 'odvod';
+      const noun =
+        n.payload.trade === true
+          ? 'zboží z obchodu'
+          : n.payload.loan === true
+            ? 'splátku půjčky'
+            : 'odvod';
+      const short =
+        n.payload.trade === true && n.payload.short === true ? ' Míň, než bylo domluveno.' : '';
       return (
-        `${vassal} ti posílá ${noun}${what === '' ? ' – tentokrát nic' : `: ${what}`}.${when}` +
+        `${vassal} ti posílá ${noun}${what === '' ? ' – tentokrát nic' : `: ${what}`}.${when}${short}` +
         (message === null ? '' : ` Vzkaz: „${message}“`)
       );
     }

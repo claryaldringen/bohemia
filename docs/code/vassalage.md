@@ -268,3 +268,26 @@ splátkami, nebo odmítne. Půjčka je samostatná dohoda – trvá i po vypově
   jeho živé půjčky se zruší a dialogy splátek zmizí; rod s pánem dluh nechává (řeší nástupnictví a odúmrť v 4.10).
 - **Testy:** `domain/vassalage/__tests__/loan.test.ts`, `application/__tests__/aid-loans.test.ts` (in-memory
   `in-memory-loans.ts`), db `loan-repository.db.test.ts` (souběžné přijetí → jedna půjčka), e2e `multiplayer.spec.ts`.
+
+## Obchod mezi hráči (`domain/negotiation/trade.ts`, `negotiate.ts`, `annual-levies.ts`, úloha 4.7)
+
+Pravidla: [vassalage.md – Hospodářství mezi hráči](../design/vassalage.md). Obchod je samostatné jednání mezi dvěma rody
+(vazalství nevyžaduje), kolo za kolem jako ostatní; po přijetí si každá strana pošle svoje, nic se nevynucuje.
+
+- **Řádek** `TradeLine` v `types.ts` (součást `TermItem`): `trade { give, get, fromVillage }`; `give` posílá autor kola,
+  `get` druhá strana, `fromVillage` = rod → jeho ves odeslání (bez záznamu ves hlavy rodu; počítá se i jako cíl příjemce).
+  `checkTradeLine` / `checkTradeItems` (`trade.ts`): jen makrokomodity (obilí, seno, dobytek, koně, klády – lidé a robota
+  ne, `checkAidBundle`), obě strany neprázdné, jediný řádek v kole. Mikrokomoditu (hrnce, železo…) odmítá už parser
+  `parseTermItems` (neznámý klíč ve svazku). `termLinesOf` obchod vynechává.
+- **`negotiate.ts`:** `openNegotiation` / `counterNegotiation` obchod nepodmiňují dohodou ani přísahou; `checkTradeRound`
+  hlídá, že ves z `fromVillage` patří uvedenému rodu, a protinávrh nesmí změnit druh jednání (obchod × ostatní).
+  `acceptNegotiation` otevře **dva dialogy `trade-send`** (`openTradeDialogs`, klíč `trade:<jednání>:<rod>`, tělo
+  `{ fromHouseId, toHouseId, toVillageId, goods }`; potřebuje `deps.dialogs`, po transakci) a oběma pošle upozornění
+  `levy-pending` s `trade: true` (v transakci). Kronika: krok `trade-accepted`.
+- **Odeslání:** `answerLevy` rozpozná `trade-send` (`answerTrade`): zásilka z každé vsi rodu `purpose: 'trade'`, klíč
+  `trade:<dialog>:<ves>` (doveze ten, kdo posílá); celé, míň, nebo nic; lidé a robota odmítnuti. Druhé straně jde upozornění
+  `levy-sent` s `trade: true`, `parts` (odeslané řádky), `arrivesDay` a `short` (poslal míň, než bylo domluveno). Neposlaná
+  část se nevymáhá ani nezapisuje jako neplnění. `levyDialogs` dává pohled `kind: 'trade-send'` (`agreed` = co poslat,
+  `lordName` = druhá strana).
+- **Testy:** `application/__tests__/player-trade.test.ts` (dialogy, celé / míň / nic, bilance, makrokomodity, protinávrh),
+  `apps/web/lib/__tests__/house-input.test.ts`, e2e `multiplayer.spec.ts` – „obchod mezi hráči“.
