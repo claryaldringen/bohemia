@@ -3,6 +3,7 @@
 export * from './terrain';
 export * from './network';
 export * from './walking';
+export * from './walk-walls';
 export * from './village';
 export * from './roads';
 export * from './entrances';

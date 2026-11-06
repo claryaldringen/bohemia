@@ -74,6 +74,7 @@ import {
   walkMemoOf,
   waterWalkDistance,
   withFieldWalk,
+  withFortWalk,
   type Walk,
 } from './walking';
 import { lineRoads } from './road-lining';
@@ -936,7 +937,11 @@ export function walkDistancesTo(
   // pěšiny jsou uložené trasy (`villageRouteLines`) – síť pěšin se kvůli nim nepočítá: byla by
   // null právě bez místa vsi a její krok mřížky je krok terénu pěšin krajiny (týž jako u půdy chůze)
   if (!villagePathBounds(village, landscape)) return null;
-  const ground = withFieldWalk(walkGroundOf(landscape), village.fields);
+  // stěny opevnění – chodec jimi jde jen branou (fortifications.md – Brány)
+  const ground = withFortWalk(
+    withFieldWalk(walkGroundOf(landscape), village.fields),
+    village.fortifications,
+  );
   const lines = villageRouteLines(state, ground.terrain.cellM);
   const graph = walkGraph(lines, { roads: state.roads?.roads ?? [], ground });
   // délky rovně z paměti krajiny – tytéž (Trasy v paměti)
@@ -1135,7 +1140,11 @@ export function* refreshWalkDistancesSteps(
     }
     return;
   }
-  const ground = withFieldWalk(walkGroundOf(landscape), village.fields);
+  // stěny opevnění – chodec jimi jde jen branou (fortifications.md – Brány)
+  const ground = withFortWalk(
+    withFieldWalk(walkGroundOf(landscape), village.fields),
+    village.fortifications,
+  );
   // pěšiny ze stálých tras se silou z vyšlapanosti – tentýž zdroj jako scéna (paths.md – Pěšiny
   // a práce, Stálé trasy, pravidlo 5)
   const lines = villageRouteLines(state, network.traffic.cellM);

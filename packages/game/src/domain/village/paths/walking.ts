@@ -2,6 +2,15 @@ import { length2, type Landscape } from '../../landscape';
 import { PATH_WALK, ROAD_WALK } from '../rules';
 import type { RoadGrade, RoadGround, RoadLining } from '../types';
 import { roadBridged } from '../types-roads';
+import type { FortWalls } from '../fortification/walls';
+import {
+  cutsWall,
+  GATE_SLACK_M,
+  gateDetour,
+  walkWallsOf,
+  WALL_CLIMB_M,
+  type WalkWalls,
+} from './walk-walls';
 import { PathHeap, type PathLine, type PathPoint, type PathVillage } from './network';
 import { fieldCellsOf } from './network-grid';
 import {
@@ -72,6 +81,11 @@ export interface WalkGround {
    * 0,5, strniště 0,8; jinde 1) a díly v osevu, které pěšina dne nezrychlí. Bez údaje bez polí.
    */
   fields?: { speed: Float32Array; crop: Uint8Array };
+  /**
+   * Stěny opevnění vsi (`withFortWalk`): chodec jimi jde jen branou – úsečky rovně i úseky os
+   * pěšin a cest (`walkGraph`). Bez údaje bez opevnění.
+   */
+  walls?: WalkWalls;
 }
 
 /** Okno půdy pro chůzi: tolik metrů od středu místa vsi na každou stranu. */
@@ -117,6 +131,25 @@ export function withFieldWalk(ground: WalkGround, fields: PathVillage['fields'])
     }
   }
   return { terrain: t, fields: { speed, crop } };
+}
+
+/**
+ * Půda pro chůzi se stěnami opevnění vsi (`PathVillage.fortifications` – fortifications.md, Brány):
+ * úsečka chůze přes stěnu mimo bránu jde branou nebo s přirážkou (`walk-walls.ts`). Bez stěn
+ * půda beze změny (týž objekt – ves bez opevnění počítá bit po bitu stejně).
+ */
+export function withFortWalk(
+  ground: WalkGround,
+  fortifications: readonly FortWalls[] | undefined,
+): WalkGround {
+  const walls = walkWallsOf(fortifications);
+  return walls ? { ...ground, walls } : ground;
+}
+
+/** Přirážka za úsečku a → b přes stěnu opevnění mimo bránu (WALL_CLIMB_M); bez stěn 0. */
+function wallExtra(ground: WalkGround | null | undefined, a: PathPoint, b: PathPoint): number {
+  const walls = ground?.walls;
+  return walls && cutsWall(walls, a, b) ? WALL_CLIMB_M : 0;
 }
 
 /**
@@ -702,20 +735,57 @@ export function walkGraph(
     graph.links[a]!.push({ to: b, length, cost });
     graph.links[b]!.push({ to: a, length, cost });
   };
+  const walls = options.ground?.walls ?? null;
+  /**
+   * Úsek osy z uzlu `prev` do nového uzlu bodu `p` s cenou `cost` (`part` – cena kusu úseku).
+   * Přes stěnu opevnění mimo bránu (`cutsWall`) jde úsek branou, je-li blízko (`gateDetour` – bod
+   * brány v řetězu), jinak s přirážkou WALL_CLIMB_M; bez stěn jako dřív.
+   */
+  const step = (
+    chain: number[],
+    prev: number,
+    p: PathPoint,
+    end: boolean,
+    cost: (length: number) => number,
+    part: (from: PathPoint, to: PathPoint, length: number) => number,
+    slack: number,
+  ): number => {
+    const a = prev >= 0 ? { x: graph.x[prev]!, z: graph.z[prev]! } : null;
+    const cut = a !== null && walls !== null && cutsWall(walls, a, p, slack);
+    const gate = cut ? gateDetour(walls!, a!, p, slack) : null;
+    const g = gate ? node(gate, false) : -1;
+    if (g >= 0) chain.push(g);
+    const id = node(p, end);
+    chain.push(id);
+    if (!a || prev === id) return id;
+    const length = length2(p.x - a.x, p.z - a.z);
+    if (gate) {
+      const l1 = length2(gate.x - a.x, gate.z - a.z);
+      const l2 = length2(p.x - gate.x, p.z - gate.z);
+      link(prev, g, l1, part(a, gate, l1));
+      link(g, id, l2, part(gate, p, l2));
+    } else {
+      link(prev, id, length, cut ? cost(length) + WALL_CLIMB_M : cost(length));
+    }
+    return id;
+  };
   for (const line of lines) {
     let prev = -1;
     const chain: number[] = [];
     graph.chains.push(chain);
     line.points.forEach((p, k) => {
-      const id = node(p, k === 0 || k === line.points.length - 1);
-      chain.push(id);
-      if (prev >= 0 && prev !== id) {
-        const a = { x: graph.x[prev]!, z: graph.z[prev]! };
-        const length = length2(p.x - a.x, p.z - a.z);
-        const strength = (line.strength[k - 1]! + line.strength[k]!) / 2;
-        link(prev, id, length, groundWalkLength(options.ground, a, p, strength));
-      }
-      prev = id;
+      const strength = k > 0 ? (line.strength[k - 1]! + line.strength[k]!) / 2 : 0;
+      const a = prev >= 0 ? { x: graph.x[prev]!, z: graph.z[prev]! } : p;
+      prev = step(
+        chain,
+        prev,
+        p,
+        k === 0 || k === line.points.length - 1,
+        () => groundWalkLength(options.ground, a, p, strength),
+        (from, to) => groundWalkLength(options.ground, from, to, strength),
+        // osa stálé trasy jde buňkami brány – kousek vedle otvoru je průchod branou
+        GATE_SLACK_M,
+      );
     });
   }
   for (const road of options.roads ?? []) {
@@ -724,14 +794,20 @@ export function walkGraph(
     const chain: number[] = [];
     graph.chains.push(chain);
     road.points.forEach((p, k) => {
-      const id = node(p, k === 0 || k === road.points.length - 1);
-      chain.push(id);
-      if (prev >= 0) {
-        const length = length2(p.x - graph.x[prev]!, p.z - graph.z[prev]!);
-        if (prev !== id) link(prev, id, length, roadPieceCost(road, along, along + length));
-        along += length;
-      }
-      prev = id;
+      const from = along;
+      const length = prev >= 0 ? length2(p.x - graph.x[prev]!, p.z - graph.z[prev]!) : 0;
+      prev = step(
+        chain,
+        prev,
+        p,
+        k === 0 || k === road.points.length - 1,
+        () => roadPieceCost(road, from, from + length),
+        // branou: cena kusu úměrně délce (mokřina a brody úseku rozložené po délce)
+        (_a, _b, piece) =>
+          length > 0 ? (roadPieceCost(road, from, from + length) * piece) / length : piece,
+        0,
+      );
+      along += length;
     });
   }
   return graph;
@@ -779,12 +855,16 @@ export function* walkingDistancesSteps(
   const dist = new Float64Array(n).fill(Infinity);
   const heap = new PathHeap();
   if (ground && memo) syncWalkMemo(memo, ground);
-  const straight = (a: PathPoint, x: number, z: number): number =>
-    ground
+  // přes stěnu opevnění mimo bránu s přirážkou (`withFortWalk`) – mimo paměť délek rovně
+  const walls = ground?.walls ?? null;
+  const straight = (a: PathPoint, x: number, z: number): number => {
+    const value = ground
       ? memo
         ? memoWalkLength(memo, ground, a, { x, z })
         : groundWalkLength(ground, a, { x, z })
       : length2(x - a.x, z - a.z);
+    return walls ? value + wallExtra(ground, a, { x, z }) : value;
+  };
   const bound = new Float64Array(Math.max(n, origins.length));
   /**
    * Nejmenší z `start` a `exact(k)` – rovně je vždy aspoň délka úsečky (rychlosti nejvýš louka),
@@ -934,12 +1014,16 @@ export function walkingRoute(
   memo: WalkMemo | null = null,
 ): WalkingRoute {
   if (ground && memo) syncWalkMemo(memo, ground);
-  const straight = (a: PathPoint, x: number, z: number): number =>
-    ground
+  // přes stěnu opevnění mimo bránu s přirážkou (`withFortWalk`) – mimo paměť délek rovně
+  const walls = ground?.walls ?? null;
+  const straight = (a: PathPoint, x: number, z: number): number => {
+    const value = ground
       ? memo
         ? memoWalkLength(memo, ground, a, { x, z })
         : groundWalkLength(ground, a, { x, z })
       : length2(x - a.x, z - a.z);
+    return walls ? value + wallExtra(ground, a, { x, z }) : value;
+  };
   const direct = straight(from, to.x, to.z);
   const n = graph.x.length;
   const dist = new Float64Array(n).fill(Infinity);

@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { DWELLING_PATH_BOX_M, PATH_WALK, type StoredRoute } from '@bohemia/game';
+import {
+  DWELLING_PATH_BOX_M,
+  PATH_WALK,
+  walkWallsOf,
+  type PathTerrain,
+  type StoredRoute,
+  type WalkGround,
+} from '@bohemia/game';
 import { routeWalker } from '../path-router';
 import { createVillagerPose, route, shuttle } from '../villager-motion';
 import { houseBox } from '../villager-plan';
@@ -121,5 +128,40 @@ describe('obdélník domu pro pěšiny sedí s postavami ve scéně', () => {
         { x: 200, z: 0 },
       ),
     ).toBe(along);
+  });
+});
+
+describe('routeWalker – stěnou opevnění jen branou (fortifications.md – Brány)', () => {
+  /** Půda se stěnou (obdélník x × z) – `route` z půdy čte jen stěny, terén nepotřebuje. */
+  const walled = (x0: number, x1: number, z0: number, z1: number): (() => WalkGround) => {
+    const walls = walkWallsOf([
+      {
+        walls: [
+          [
+            [x0, z0],
+            [x1, z0],
+            [x1, z1],
+            [x0, z1],
+          ],
+        ],
+        gates: [],
+      },
+    ])!;
+    return () => ({ terrain: {} as PathTerrain, walls });
+  };
+
+  it('uložená trasa přes stěnu ani odbočka z ní přes stěnu se nevezme', () => {
+    const routes = [east('d:1', 'water', 0, 20)];
+    const target = { x: 102, z: 20 };
+    expect(routeWalker(routes, CELL_M).route({ x: 0, z: 0 }, target)).not.toBeNull();
+    // stěna přes osu trasy
+    const across = routeWalker(routes, CELL_M, { ground: walled(49, 51, -10, 10) });
+    expect(across.route({ x: 0, z: 0 }, target)).toBeNull();
+    // stěna mezi koncem trasy a cílem
+    const leg = routeWalker(routes, CELL_M, { ground: walled(90, 115, 9, 11) });
+    expect(leg.route({ x: 0, z: 0 }, target)).toBeNull();
+    // stěna stranou – trasa platí
+    const aside = routeWalker(routes, CELL_M, { ground: walled(40, 60, 30, 32) });
+    expect(aside.route({ x: 0, z: 0 }, target)).not.toBeNull();
   });
 });

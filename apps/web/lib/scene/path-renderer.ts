@@ -21,6 +21,7 @@ import {
   villagePathBounds,
   walkGroundOf,
   withFieldWalk,
+  withFortWalk,
   withObstacles,
   type Landscape,
   type ObstacleLayer,
@@ -272,7 +273,8 @@ export class VillagePaths {
   }
 
   /**
-   * Půda chůze rovně pro postavy (path-router.ts): terén krajiny a pole vsi (`withFieldWalk` –
+   * Půda chůze rovně pro postavy (path-router.ts): terén krajiny, stěny opevnění (`withFortWalk` –
+   * jen branou, jako v simulaci) a pole vsi (`withFieldWalk` –
    * stálá cena polí jako v simulaci). Pole se přepočítají jen při změně dílů nebo jejich ceny
    * chůze – nový chodec po měsíční vyšlapanosti je znovu nepočítá.
    */
@@ -285,8 +287,13 @@ export class VillagePaths {
           .join(';'),
       )
       .join('|');
-    if (this.fieldWalk?.key !== key) {
-      this.fieldWalk = { key, ground: withFieldWalk(walkGroundOf(this.env.landscape), fields) };
+    const forts = village.fortifications;
+    const fullKey = forts && forts.length > 0 ? `${key}#${JSON.stringify(forts)}` : key;
+    if (this.fieldWalk?.key !== fullKey) {
+      this.fieldWalk = {
+        key: fullKey,
+        ground: withFortWalk(withFieldWalk(walkGroundOf(this.env.landscape), fields), forts),
+      };
     }
     return this.fieldWalk.ground;
   }
