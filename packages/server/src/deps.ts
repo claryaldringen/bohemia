@@ -4,6 +4,7 @@ import {
   createPlayerLock,
   createActivityRepository,
   createShipmentRepository,
+  createDialogRepository,
   createSuccessionCreditRepository,
   createNegotiationRepository,
   createVassalageRepository,
@@ -20,6 +21,7 @@ import {
 import type {
   ActivityRepository,
   ShipmentRepository,
+  DialogRepository,
   SuccessionCreditRepository,
   NegotiationRepository,
   VassalageRepository,
@@ -95,6 +97,8 @@ export interface GameDeps {
   successionCredits: SuccessionCreditRepository;
   /** Zásilky mezi vsemi hráčů na cestě (`docs/code/vassalage.md`). */
   shipments: ShipmentRepository;
+  /** Dialogy hráče – roční Odvody (`docs/code/vassalage.md`). */
+  dialogs: DialogRepository;
   /** Kryptografická náhoda pro kódy pozvánek. */
   random: RandomSource;
   /** Adresář rodů – veřejný rodokmen cizích rodů (`housesNear`). */
@@ -131,6 +135,7 @@ export function createGameDeps(
     activity: createActivityRepository(db),
     successionCredits: createSuccessionCreditRepository(db),
     shipments: createShipmentRepository(db),
+    dialogs: createDialogRepository(db),
     random: cryptoRandom(),
     worldDirectory: createWorldDirectory(db),
     now: () => new Date(),

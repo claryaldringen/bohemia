@@ -1,4 +1,11 @@
-import { NEGOTIATION, type MacroBundle, type TermItem } from '@bohemia/game';
+import {
+  LEVY_GOODS,
+  NEGOTIATION,
+  type LevyAnswerLine,
+  type LevyGood,
+  type MacroBundle,
+  type TermItem,
+} from '@bohemia/game';
 
 // Vstup server actions panelu „Rod a vazalové“ – jen tvar, kód ověří až use-case.
 
@@ -183,4 +190,50 @@ export function parseSpareInput(
   if (raw.targetVillageId === undefined || raw.targetVillageId === null) return { toHouseId };
   const targetVillageId = idOf(raw.targetVillageId);
   return targetVillageId === null ? null : { toHouseId, targetVillageId };
+}
+
+/** Nejvýš tolik vsí v odpovědi na Odvody (mezí je počet vsí rodu, tohle chrání jen tvar). */
+const LEVY_SPLIT_MAX = 64;
+
+/**
+ * `{ dialogId, lines: [{ good, amount }], split: { <villageId>: MacroBundle }, message? }` –
+ * odpověď na dialog Odvody. Obsah čísel a vlastnictví vsí ověřuje use-case.
+ */
+export function parseAnswerLevyInput(input: unknown): {
+  dialogId: string;
+  lines: LevyAnswerLine[];
+  split: Record<string, MacroBundle>;
+  message: string | null;
+} | null {
+  if (typeof input !== 'object' || input === null) return null;
+  const raw = input as Record<string, unknown>;
+  const dialogId = idOf(raw.dialogId);
+  const message = parseMessage(raw.message);
+  if (dialogId === null || message === undefined) return null;
+  if (!Array.isArray(raw.lines) || raw.lines.length > LEVY_GOODS.length) return null;
+  const lines: LevyAnswerLine[] = [];
+  for (const line of raw.lines as unknown[]) {
+    if (typeof line !== 'object' || line === null) return null;
+    const { good, amount } = line as { good?: unknown; amount?: unknown };
+    const n = num(amount);
+    if (
+      typeof good !== 'string' ||
+      !(LEVY_GOODS as readonly string[]).includes(good) ||
+      n === null
+    ) {
+      return null;
+    }
+    lines.push({ good: good as LevyGood, amount: n });
+  }
+  if (typeof raw.split !== 'object' || raw.split === null || Array.isArray(raw.split)) return null;
+  const entries = Object.entries(raw.split as Record<string, unknown>);
+  if (entries.length > LEVY_SPLIT_MAX) return null;
+  const split: Record<string, MacroBundle> = {};
+  for (const [villageId, bundle] of entries) {
+    const id = idOf(villageId);
+    const parsed = parseBundle(bundle);
+    if (id === null || parsed === null) return null;
+    split[id] = parsed;
+  }
+  return { dialogId, lines, split, message };
 }

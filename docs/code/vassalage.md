@@ -171,3 +171,32 @@ pánům. Akce serveru: `houseSpare`, `renounceVassalage` (`apps/web/app/game/act
 `lib/house.ts`, vstupy `lib/house-input.ts`).
 
 Rozhraní podmínek (ikony, formulář s výhledem, Nové podmínky, Vypovědět): [web-ui.md](web-ui.md) – „Podmínky vazalství v panelu“.
+
+## Roční Odvody (`application/annual-levies.ts`, `dialogs.ts`, `domain/vassalage/levy.ts`, úloha 4.4)
+
+Pravidla: [vassalage.md](../design/vassalage.md) – „Roční dialog 1. 11.“.
+
+- **Dialogy** (`dialog`, migrace `0024_dialog`): `key` jedinečný (`levy:<vazalství>:<rok>`), `ref_id` = vazalství,
+  `year` (rok 1. 11., při čekání se posune), `years` (za kolik let), `status` `open` / `answered` / `dropped`.
+  Port `DialogRepository` (`openOnce`, `openFor`, `bumpYears(key, toYear)`, `listOpen`, `byId`, `answer(id, expected)`,
+  `dropFor(refId)`), adaptér `db/adapters/dialog-repository.ts`, in-memory `__tests__/in-memory-dialogs.ts`.
+  Odchylky od plánu: sloupec `ref_id`, `bumpYears` bere cílový rok (podmíněně, opakování nic nepřičte).
+- **Otevření:** `openAnnualDialogs(deps, { today })` v `runWorldTasks` (`deps.levies` ve workeru, 1× za minutu). Rok =
+  poslední 1. 11. do dne `today` (doběhne po výpadku); vazalství s `tribute` a `sinceDay` před tím 1. 11. Čekající dialog
+  z minulého roku → `bumpYears` + `addBreach(id, 'levy', 1. 11. zmeškaného roku)` za každý zmeškaný rok, nový nevzniká.
+  Vazal dostane upozornění `levy-pending`.
+- **Odpověď:** `answerLevy(deps, { playerId, dialogId, lines, split, message, today })`. `split` = svazek po vsích rodu
+  (cizí a spravované vsi se odmítnou – `settlements.listActive(hráč)`), `lines` = totéž po řádcích (`LEVY_GOODS`) a musí
+  sedět se součtem. Po vsích zvlášť: `prepareVillage` (dopočet do dneška) → `sendShipment` s `refId`
+  `levy:<dialog>:<ves>` (zámky po sobě; opakování po pádu nic nezdvojí). Až potom `dialogs.answer(id, 'open')` – vítěz
+  zapíše kroniku obou rodů (`ChronicleEvent` `levy`: „Ctibor odvedl pánu Bořivoj: 100 z 150 kg obilí.“), upozornění
+  pánovi `levy-sent` (`vassalName`, `parts`, `arrivesDay`, `years`, `message?`; bez id účtů) a méně než domluveno =
+  `addBreach`. Domluveno = roční dávka × `years`. Posílat víc smí. Cíl = `terms.targetVillageId`, jinak sídelní ves pána.
+- **Vypovězení:** `renounceVassalage` volá `deps.dialogs?.dropFor(vazalství)` – dialog zmizí. (Háček `onVassalageEnded` je
+  globální registr, ale `gameDeps()` vzniká na každý požadavek, proto se čistí přímo v use-casu.)
+- **Data pro rozhraní:** server action `levyDialogs()` → `{ dialogs: LevyDialogView[] }` (`dialogId`, `vassalageId`,
+  `lordHouseId`, `lordName`, `years`, `agreed: MacroBundle`, `villages: { villageId, name, suggested: MacroBundle }[]`);
+  předvyplnění `suggestSplit` podle přebytku (menší z přebytku a dopravy, `houseSpare`), počítá se jen na vyžádání.
+  `answerLevy({ dialogId, lines: [{ good, amount }], split: { <villageId>: MacroBundle }, message? })` →
+  `{ ok: true, arrivesDay } | { error }`. Kód: `apps/web/lib/levies.ts`, vstup `lib/house-input.ts`
+  (`parseAnswerLevyInput`), texty `lib/levy-labels.ts`, `lib/player-notices.ts`.

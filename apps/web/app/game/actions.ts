@@ -18,9 +18,11 @@ import {
   revokeInviteForPlayer,
   type NegotiationActionResult,
 } from '@/lib/house';
+import { answerLevyForPlayer, levyDialogsForPlayer } from '@/lib/levies';
 import type { HouseView } from '@/lib/house-view';
-import type { MacroSpare } from '@bohemia/game';
+import type { LevyDialogView, MacroSpare } from '@bohemia/game';
 import {
+  parseAnswerLevyInput,
   parseBlockInput,
   parseNegotiationAnswerInput,
   parseOpenNegotiationInput,
@@ -593,4 +595,25 @@ export async function renounceVassalage(input: unknown): Promise<NegotiationActi
   const parsed = parseRenounceInput(input);
   if (parsed === null) return { error: INVALID_INPUT };
   return renounceVassalageForPlayer(id, parsed);
+}
+
+/** Otevřené dialogy Odvody hráče s předvyplněným rozdělením po vsích (počítá se na vyžádání). */
+export async function levyDialogs(): Promise<{ dialogs: LevyDialogView[] } | { error: string }> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  return levyDialogsForPlayer(id);
+}
+
+/**
+ * Odpoví na dialog Odvody: `{ dialogId, lines: [{ good, amount }], split: { <villageId>: svazek },
+ * message? }`; pošle zásilky z vsí rodu a upozorní pána.
+ */
+export async function answerLevy(
+  input: unknown,
+): Promise<{ ok: true; arrivesDay: number | null } | { error: string }> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const parsed = parseAnswerLevyInput(input);
+  if (parsed === null) return { error: INVALID_INPUT };
+  return answerLevyForPlayer(id, parsed);
 }

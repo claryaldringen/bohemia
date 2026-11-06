@@ -169,6 +169,13 @@
       "when": 1793948091905,
       "tag": "0023_shipment",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1793950776286,
+      "tag": "0024_dialog",
+      "breakpoints": true
     }
   ]
 }

@@ -1,4 +1,11 @@
-import type { PlayerNotice, PlayerNoticeKind } from '@bohemia/game';
+import {
+  dateOfDayIndex,
+  type LevyPart,
+  type PlayerNotice,
+  type PlayerNoticeKind,
+} from '@bohemia/game';
+import { formatGameDate } from './game-date';
+import { LEVY_UNITS } from './levy-labels';
 import type { NoticeLine } from '@/components/game/hud/NoticeLines';
 
 // Upozornění mezi hráči (`docs/code/world.md` – Upozornění mezi hráči): server je drží v tabulce
@@ -23,6 +30,8 @@ export function noticePanel(kind: PlayerNoticeKind): NoticePanel | null {
     case 'negotiation-withdrawn':
     case 'blocked':
     case 'vassalage-renounced':
+    case 'levy-sent':
+    case 'levy-pending':
       return 'house';
     case 'player-succession':
       return null;
@@ -77,6 +86,25 @@ function textOf(n: PlayerNotice): string {
       const lord = stringOf(n.payload.lordName) ?? 'Pán';
       const vassal = stringOf(n.payload.vassalName) ?? 'Vazal';
       return `Vazalství mezi ${lord} (pán) a ${vassal} (vazal) skončilo vypovězením.`;
+    }
+    case 'levy-pending': {
+      const lord = stringOf(n.payload.lordName) ?? 'pánovi';
+      const years = typeof n.payload.years === 'number' ? n.payload.years : 1;
+      return years > 1
+        ? `Odvody pánu ${lord} čekají už ${years} roky.`
+        : `Čas odvodů – pán ${lord} čeká dávku.`;
+    }
+    case 'levy-sent': {
+      const vassal = stringOf(n.payload.vassalName) ?? 'Vazal';
+      const parts = Array.isArray(n.payload.parts) ? (n.payload.parts as LevyPart[]) : [];
+      const what = parts.map((p) => `${p.sent} ${LEVY_UNITS[p.good] ?? p.good}`).join(', ');
+      const day = typeof n.payload.arrivesDay === 'number' ? n.payload.arrivesDay : null;
+      const when = day === null ? '' : ` Dorazí ${formatGameDate(dateOfDayIndex(day))}.`;
+      const message = stringOf(n.payload.message);
+      return (
+        `${vassal} ti posílá odvod${what === '' ? ' – tentokrát nic' : `: ${what}`}.${when}` +
+        (message === null ? '' : ` Vzkaz: „${message}“`)
+      );
     }
     case 'player-succession': {
       const dead = stringOf(n.payload.deadName) ?? 'Tvůj muž';

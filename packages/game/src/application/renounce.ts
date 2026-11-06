@@ -1,6 +1,7 @@
 import { NEGOTIATION } from '../domain/negotiation';
 import { VASSALAGE } from '../domain/vassalage/rules-vassalage';
 import { treeAround, type VassalEdge } from '../domain/vassalage/tree';
+import type { DialogRepository } from './dialogs';
 import type { HouseRepository, House } from './houses';
 import { chronicleHouses, houseName, type NegotiationVillages } from './negotiation-chronicle';
 import type { NoticeRepository } from './notices';
@@ -13,6 +14,8 @@ export interface RenounceDeps extends NegotiationVillages {
   houses: Pick<HouseRepository, 'activeOf' | 'byId'>;
   vassalages: Pick<VassalageRepository, 'byId' | 'end' | 'edgesNear'>;
   notices: Pick<NoticeRepository, 'post'>;
+  /** Dialogy dohody (roční Odvody) po vypovězení zmizí. */
+  dialogs?: Pick<DialogRepository, 'dropFor'>;
 }
 
 export type RenounceResult = { ok: true } | { ok: false; reason: string };
@@ -134,6 +137,7 @@ export async function renounceVassalage(
     vassal: vassalName,
   });
 
+  await deps.dialogs?.dropFor(agreement.id);
   await runVassalageEnded({
     vassalageId: agreement.id,
     lordHouseId: agreement.lordHouseId,

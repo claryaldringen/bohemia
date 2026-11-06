@@ -7,6 +7,7 @@ export {
   createActivityRepository,
   createHouseRepository,
   createShipmentRepository,
+  createDialogRepository,
   createSuccessionCreditRepository,
   createNegotiationRepository,
   createVassalageRepository,
