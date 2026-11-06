@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { applyInboxDay, type VillageEvent } from '../../village/inbox';
 import { advanceVillage } from '../../village/simulate';
-import type { VillageState } from '../../village/types';
+import type { Person, VillageState } from '../../village/types';
 import { dispatchShipment, receiveShipment, shipmentDays } from '../shipment';
 import { DAY, bundle, receiver, sender, stock } from './shipment-fixtures';
 
@@ -39,6 +39,55 @@ describe('zásilka (dispatchShipment, receiveShipment)', () => {
     const arrived = received.people.filter((p) => p.id >= 2_000);
     expect(arrived).toHaveLength(6);
     expect(arrived.every((p) => p.origin === 'W')).toBe(true);
+  });
+
+  it('lidé dorazí tytéž: pohlaví, den narození a rodinné vazby, jen s novými id', () => {
+    const from = sender();
+    const to = receiver();
+    const sent = dispatchShipment(from, DAY, { bundle: FULL, cells: 3, firstStep: 'E' });
+    if (!sent.ok) throw new Error('čekalo se odeslání');
+    const left = from.people.filter((p) => !sent.state.people.some((q) => q.id === p.id));
+    expect(left).toHaveLength(6);
+    const received = structuredClone(to);
+    receiveShipment(received, DAY + 6, sent.body);
+    const arrived = received.people.filter((p) => p.id >= 2_000);
+    // bilance lidí podle pohlaví a věku: co odesílateli ubylo, to příjemci přibylo
+    expect(sig(arrived)).toEqual(sig(left));
+    expect(sig(sent.state.people)).toEqual(sig(from.people.filter((p) => !left.includes(p))));
+    // vazby uvnitř zásilky zůstaly (nová id), vazby na ty, kdo zůstali doma, se přerušily
+    const oldOf = new Map(
+      arrived.map((a) => [a.id, left.find((l) => l.bornDay === a.bornDay && l.sex === a.sex)!]),
+    );
+    const newOf = (oldId: number | undefined): number | undefined =>
+      [...oldOf].find(([, o]) => o.id === oldId)?.[0];
+    const stays = new Set(sent.state.people.map((p) => p.id));
+    for (const a of arrived) {
+      const o = oldOf.get(a.id)!;
+      expect(a.spouseId).toBe(newOf(o.spouseId));
+      expect(a.motherId).toBe(newOf(o.motherId));
+      expect(a.fatherId).toBe(newOf(o.fatherId));
+      expect(
+        [a.spouseId, a.motherId, a.fatherId].some((id) => id !== undefined && stays.has(id)),
+      ).toBe(false);
+    }
+    // rodina má manžele a děti svázané mezi sebou
+    expect(arrived.filter((p) => p.spouseId !== undefined)).toHaveLength(2);
+    expect(
+      arrived.filter((p) => p.motherId !== undefined && p.fatherId !== undefined),
+    ).toHaveLength(2);
+  });
+
+  it('zásilka nad mez dopravy se odmítne a ves zůstane', () => {
+    const from = sender();
+    from.commonLaborYearly = 0.5;
+    const copy = structuredClone(from);
+    const result = dispatchShipment(from, DAY, {
+      bundle: bundle({ grainKg: 1_200 }),
+      cells: 3,
+      firstStep: 'E',
+    });
+    expect(result).toEqual({ ok: false, reason: 'Obilí je víc, než ves unese.' });
+    expect(from).toEqual(copy);
   });
 
   it('příjezd za 2 × vzdálenost dní, nosiči se vrátí za 4 ×', () => {
@@ -134,3 +183,8 @@ describe('zásilka (dispatchShipment, receiveShipment)', () => {
     expect(s.storesKg).toBe(1_050);
   });
 });
+
+/** Pohlaví a den narození, seřazené (porovnání lidí bez ohledu na id). */
+function sig(people: readonly Person[]): string[] {
+  return people.map((p) => `${p.sex}:${p.bornDay}`).sort();
+}

@@ -35,9 +35,7 @@ const body = (key: string): ShipmentBody => ({
   logs: 3,
   cattle: { cows: 1, youngOxen: 0, trainedOxen: 0 },
   horses: [{ bornDay: DAY - 2000, sex: 'female', training: 0 }],
-  families: [2],
-  men: 1,
-  women: 0,
+  groups: [{ kind: 'man', people: [{ id: 7, bornDay: DAY - 9000, dwellingId: 1, sex: 'male' }] }],
 });
 
 const input = (refId: string): Parameters<typeof shipments.reserve>[0] => ({

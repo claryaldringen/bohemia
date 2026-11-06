@@ -2,7 +2,7 @@
 // Rozcestník je `types.ts`; tento soubor jen drží část typů.
 
 import type { TradedHorse } from './types-livestock';
-import type { Sex } from './types-people';
+import type { Person, Sex } from './types-people';
 import type { Direction8 } from './types-state';
 
 /**
@@ -231,9 +231,9 @@ export interface ShipmentManifest {
 /**
  * Tělo události schránky `shipment` (vassalage.md – Doprava a cílová ves; plán – rozhodnutí 10):
  * zboží a lidé, kteří dojdou do cílové vsi. Koně putují jako kusy s věkem a výcvikem, lidé jako
- * rodiny (počet dětí v každé) a svobodní – v cílové vsi dostanou nová místní id (`settleNewcomers`).
- * `key` (id zásilky) určuje los věku a pohlaví nově příchozích, `direction` odkud přišli (odkud je
- * odesílatel, vzhledem k cílové vsi).
+ * skuteční lidé ve skupinách (rodina, svobodný muž či žena) – stejní, jen s novými místními id
+ * (`rehomePeople`). `key` je id zásilky, `direction` odkud přišli (odkud je odesílatel, vzhledem
+ * k cílové vsi).
  */
 export interface ShipmentBody {
   key: string;
@@ -249,7 +249,12 @@ export interface ShipmentBody {
   logs: number;
   cattle: Record<CattleGood, number>;
   horses: TradedHorse[];
-  families: number[];
-  men: number;
-  women: number;
+  /** Skupiny lidí s původními údaji (id patří vsi odesílatele). */
+  groups: ShipmentGroup[];
+}
+
+/** Skupina lidí v zásilce – rodina, nebo svobodný muž či žena. */
+export interface ShipmentGroup {
+  kind: NewcomerGroup;
+  people: Person[];
 }

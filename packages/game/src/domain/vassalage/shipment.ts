@@ -5,12 +5,8 @@ import { addHorses, horsesForSale, horsesToSell, removeHorses } from '../village
 import { removePeople } from '../village/kinship';
 import { ensureLivestock } from '../village/livestock';
 import { CATTLE_GOODS, HORSE_GOODS } from '../village/neighbours';
-import {
-  emigrantGroups,
-  emigrantList,
-  peopleCount,
-  settleNewcomers,
-} from '../village/people-trade';
+import { emigrantGroups, emigrantList, newcomerHome, peopleCount } from '../village/people-trade';
+import { rehomePeople } from '../village/transfer-people';
 import type {
   CattleGood,
   ChronicleEvent,
@@ -25,6 +21,7 @@ import { addLogs, takeLogs, woodLogs } from '../village/wood';
 import { OPPOSITE } from '../village/world-grid';
 import type { MacroBundle } from './macro';
 import { VASSALAGE } from './rules-vassalage';
+import { transportLimit } from './transport';
 
 // Zásilky mezi vsemi různých hráčů (vassalage.md – Doprava a cílová ves, Lidé a robota; plán
 // 2026-11-03 – rozhodnutí 10). Odesílatel: zboží a lidé ze vsi zmizí hned a ves pošle výpravu
@@ -69,9 +66,9 @@ function manifestOfBody(body: ShipmentBody): ShipmentManifest {
     cattle: { ...body.cattle },
     horses: body.horses.length,
     people: {
-      families: body.families.length,
-      men: body.men,
-      women: body.women,
+      families: body.groups.filter((g) => g.kind === 'family').length,
+      men: body.groups.filter((g) => g.kind === 'man').length,
+      women: body.groups.filter((g) => g.kind === 'woman').length,
     },
   };
 }
@@ -137,13 +134,36 @@ function shortage(state: VillageState, day: number, bundle: MacroBundle): string
 }
 
 /**
+ * Kontrola meze dopravy (`transportLimit` podle společné práce vsi, dne a vzdálenosti): zásilka
+ * nad ni se nepošle. Lidé a robota jdou po svých, mez nemají. Server je jediná autorita – dialog
+ * mez jen ukazuje.
+ */
+function overTransport(
+  state: VillageState,
+  day: number,
+  cells: number,
+  bundle: MacroBundle,
+): string | null {
+  const limit = transportLimit(state, day, cells);
+  if (bundle.grainKg > limit.grainKg + EPSILON) return 'Obilí je víc, než ves unese.';
+  if (bundle.hayKg > limit.hayKg + EPSILON) return 'Sena je víc, než ves unese.';
+  if (bundle.logs > limit.logs) return 'Klád je víc, než ves odveze.';
+  if (CATTLE_GOODS.some((g) => bundle.cattle[g] > limit.cattle[g])) {
+    return 'Dobytka je víc, než ves dožene.';
+  }
+  if (bundle.horses > limit.horses) return 'Koní je víc, než ves dožene.';
+  return null;
+}
+
+/**
  * Zásilka vyrazí (vassalage.md – Doprava a cílová ves; stav vstupu nemění): obilí, seno, klády,
  * dobytek a koně (kdo smí do prodeje – `horsesToSell`, hřebec a chovné klisny zůstanou) a lidé
- * (`emigrantGroups` – rodiny, muži, ženy; muži rodu ne) ze vsi zmizí. Výprava nosičů odejde ke
+ * (`emigrantGroups` – rodiny, muži, ženy; muže rodu a jejich ženy ves nedá – `keptByLine`) ze vsi
+ * zmizí a putují jako tytéž osoby. Výprava nosičů odejde ke
  * kraji mapy ve směru `firstStep` a vrátí se za `4 × cells` dní bez zboží (práce zdarma ze
  * společné práce vsi). `body` je to, co dojde do schránky cílové vsi v den `day + 2 × cells`
  * (`ShipmentBody`), `state` ves po odeslání. Robota (`laborDays`) se tu neposílá. Nedostatek →
- * `{ ok: false, reason }`; mez dopravy (`transportLimit`) hlídá volající (dialog, výhled).
+ * `{ ok: false, reason }`; zásilka nad mez dopravy (`transportLimit`) se odmítne.
  */
 export function dispatchShipment(
   state: VillageState,
@@ -162,7 +182,7 @@ export function dispatchShipment(
   | { ok: true; state: VillageState; body: ShipmentBody; arrivesDay: number }
   | { ok: false; reason: string } {
   const { bundle } = input;
-  const reason = shortage(state, day, bundle);
+  const reason = shortage(state, day, bundle) ?? overTransport(state, day, input.cells, bundle);
   if (reason !== null) return { ok: false, reason };
   const next = cloneState(state);
   const trade = (next.trade ??= { neighbours: [], expeditions: [], nextId: 1 });
@@ -192,9 +212,6 @@ export function dispatchShipment(
   const members = groups.flatMap((g) =>
     g.people.map((p) => ({ sex: p.sex ?? 'male', bornDay: p.bornDay, group: g.kind })),
   );
-  const families = groups
-    .filter((g) => g.kind === 'family')
-    .map((g) => Math.max(0, g.people.length - 2));
   removePeople(
     next,
     new Set(groups.flatMap((g) => g.people.map((p) => p.id))),
@@ -243,9 +260,7 @@ export function dispatchShipment(
     logs: bundle.logs,
     cattle: { ...bundle.cattle },
     horses,
-    families,
-    men: bundle.people.men,
-    women: bundle.people.women,
+    groups: groups.map((g) => ({ kind: g.kind, people: structuredClone(g.people) })),
   };
   return { ok: true, state: next, body, arrivesDay: day + arrive };
 }
@@ -253,7 +268,8 @@ export function dispatchShipment(
 /**
  * Zásilka dorazila do vsi (mutuje stav – událost schránky): obilí a seno do zásob, klády na
  * hromadu, dobytek do stáda a ohrad (volně, kdo se nevejde – jako koupený), koně do ohrad koní
- * (bez ohrady je ves porazí), lidé jako noví vesničané s novými místními id (`settleNewcomers`).
+ * (bez ohrady je ves porazí), tytéž osoby s novými místními id (`rehomePeople`; vazby uvnitř skupiny zůstanou, ostatní se
+ * přeruší) a jako noví vesničané v domě podle `newcomerHome`.
  * Vrací zápis do kroniky.
  */
 export function receiveShipment(
@@ -271,13 +287,15 @@ export function receiveShipment(
   for (const good of CATTLE_GOODS) addCattle(state, good, body.cattle[good], day);
   addHorses(state, body.horses, day);
   const events: ChronicleEvent[] = [];
-  const people: { families: number[]; men: number; women: number } = {
-    families: body.families,
-    men: body.men,
-    women: body.women,
-  };
-  if (people.families.length + people.men + people.women > 0) {
-    settleNewcomers(state, day, body.direction, people, body.key);
+  for (const group of body.groups) {
+    const home = newcomerHome(state, group.kind === 'family');
+    if (home === undefined) continue;
+    const { arrivals } = rehomePeople(state, group.people);
+    for (const p of arrivals) {
+      p.dwellingId = home;
+      p.origin = body.direction;
+    }
+    state.people.push(...arrivals);
   }
   events.push({
     day,

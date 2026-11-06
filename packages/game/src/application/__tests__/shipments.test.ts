@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
 import { advanceVillage } from '../../domain/village/simulate';
 import { applyInboxDay } from '../../domain/village/inbox';
-import type { VillageState } from '../../domain/village';
+import type { Person, VillageState } from '../../domain/village';
 import {
   DAY,
   bundle,
@@ -289,10 +289,17 @@ describe('sendShipment', () => {
   });
 });
 
+/** Pohlaví a den narození všech lidí, seřazené (porovnání bez ohledu na id). */
+function sexAndBirth(people: readonly Person[]): string[] {
+  return people.map((p) => `${p.sex}:${p.bornDay}`).sort();
+}
+
 describe('zásilka do zaniklé vsi', () => {
   it('cíl zanikl před příjezdem: zboží se vrátí odesílateli (bilance zůstane)', async () => {
     const w = await world();
-    const before = stock((await w.villages.find(w.fromId))!.state);
+    const fromBefore = (await w.villages.find(w.fromId))!.state;
+    const before = stock(fromBefore);
+    const kinBefore = sexAndBirth(fromBefore.people);
     await sendShipment(w.deps, {
       fromVillageId: w.fromId,
       toVillageId: w.toId,
@@ -313,6 +320,8 @@ describe('zásilka do zaniklé vsi', () => {
     expect(back[0]!.day).toBe(DAY + 2 + 6);
     const from = await deliver(w, w.fromId, DAY + 20);
     expect(stock(from)).toEqual({ ...before, people: before.people! });
+    // vrátili se tytéž lidé (pohlaví a den narození), ne nově vylosovaní
+    expect(sexAndBirth(from.people)).toEqual(kinBefore);
     expect(from.chronicle.some((e) => e.kind === 'shipment-received' && e.returned)).toBe(true);
     expect(w.shipments.rows[0]!.settledAt).not.toBeNull();
   });

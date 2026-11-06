@@ -59,6 +59,8 @@ export function sender(): VillageState {
   s.hay = { kg: 3_000, mowing: null };
   s.woodLogs = 40;
   s.storesKg = 5_000;
+  // společná práce vsi nese dopravu (`transportLimit`): 40 člověkodní denně
+  s.commonLaborYearly = 40;
   return s;
 }
 

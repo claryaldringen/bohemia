@@ -349,7 +349,7 @@ export function newcomerProfiles(
  * v dílně) a rodina do dvorce vojvody jen, když jinam nemůže – v domě bez ženatého syna zůstává
  * nejstarší ženatý muž, takže by se z dvorce mohla odstěhovat vojvodova rodina místo přišlých.
  */
-function newcomerHome(state: VillageState, family: boolean): number | undefined {
+export function newcomerHome(state: VillageState, family: boolean): number | undefined {
   const occupied = new Set(state.people.map((p) => p.dwellingId));
   const byId = [...state.dwellings].sort((a, b) => a.id - b.id);
   if (family) {
