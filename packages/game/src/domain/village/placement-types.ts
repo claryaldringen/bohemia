@@ -28,6 +28,19 @@ export interface PlacementCheck {
    * obydlí nebo vody, obydlí blízko hřbitova). Bez varování chybí.
    */
   warning?: string;
+  /** Místo problému u neprošlého umístění – rozhraní ho ukáže červeně (jen některé kontroly). */
+  where?: PlacementWhere;
+}
+
+/**
+ * Kde přesně je problém neprošlého umístění (návrh Clauda: místo problému se při kreslení ukáže
+ * červeně): `points` – body (brány zatarasených obydlí), `footprints` – obrysy (stavba v cestě,
+ * úsek jiného opevnění, políčka vody), `cells` – čtverce plochy.
+ */
+export interface PlacementWhere {
+  points?: { x: number; z: number }[];
+  footprints?: (readonly (readonly [number, number])[])[];
+  cells?: TileCell[];
 }
 
 /** Co z vsi potřebuje kontrola překryvu – VillageState ji splňuje, klient ji složí ze scény. */
@@ -301,8 +314,8 @@ export const OK: PlacementCheck = { ok: true, reason: null };
 /** Skalní výchozy smí zabrat nejvýš tolik z čtverce pole – díl má vždy nějakou plochu. */
 export const MAX_OUTCROP_SHARE = 0.9;
 
-export function fail(reason: string): PlacementCheck {
-  return { ok: false, reason };
+export function fail(reason: string, where?: PlacementWhere): PlacementCheck {
+  return where ? { ok: false, reason, where } : { ok: false, reason };
 }
 
 /** Číslo s desetinnou čárkou. */

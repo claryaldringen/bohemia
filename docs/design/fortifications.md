@@ -74,6 +74,9 @@ v Obraně.
   **vnějším okraji nakreslené plochy**; **rohy jsou zakulacené** jako všude ve hře.
 - **Plocha** musí být souvislá stranou; díry v ní se zaplní – opevnění má jen vnější obvod
   (návrh Clauda). Nejméně 2 × 2 čtverce (návrh Clauda).
+- **Místo problému:** návrh Clauda: místo problému se při kreslení ukáže červeně – kroužek kolem
+  zatarasené branky, obrys obydlí v pásu, políčka vody a čtverce jiného opevnění; pravidla se
+  nemění, hráč jen vidí, co přesně je špatně.
 - **Pás opevnění** leží uvnitř nakreslené plochy podél okraje (návrh Clauda), takže mimo ni se
   nic nemění:
 

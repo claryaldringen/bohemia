@@ -9,6 +9,7 @@ export type {
   OrchardPreview,
   PlacementCheck,
   PlacementVillage,
+  PlacementWhere,
   SacredPlacementCheck,
 } from './placement-types';
 export {

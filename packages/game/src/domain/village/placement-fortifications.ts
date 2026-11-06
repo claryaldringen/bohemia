@@ -4,6 +4,7 @@
 // s pozemkem, dvorec, dílnu, hřbitov, ohradu, humno, modlu, svatyni, posvátný dub a háj ani vodu.
 
 import { type Landscape, type ObstacleLayer, surfaceAt } from '../landscape';
+import { normalizeGrid, squareCorners } from './square-grid';
 import {
   fortBandPolygons,
   fortificationArea,
@@ -28,7 +29,6 @@ import { withWarning } from './placement-fields';
 import { type PlacementCheck, type PlacementVillage, fail } from './placement-types';
 import { type Point, polygonsOverlap } from './polygon';
 import { sacredSitesOf } from './sacred';
-import { normalizeGrid } from './square-grid';
 import { tilesUnder } from './squares';
 import type { FortKind, SquareGrid, TileCell } from './types';
 
@@ -77,20 +77,22 @@ function areaPolygons(landscape: Landscape, area: FortArea, margin = 0): Point[]
   });
 }
 
-/** Dotkne se plocha `area` (nebo leží uvnitř, či kolem) jiného opevnění vsi? */
-function touchesOther(
+/**
+ * Čtverce jiného opevnění vsi, kterých se plocha `area` dotkne (nebo leží uvnitř, či kolem) –
+ * prázdné, když se nedotkne ničeho.
+ */
+function touchedOther(
   landscape: Landscape,
   village: PlacementVillage | null,
   area: FortArea,
-): boolean {
+): Point[][] {
   const others = village?.fortifications ?? [];
-  if (others.length === 0) return false;
+  if (others.length === 0) return [];
   const mine = areaPolygons(landscape, area, TOUCH_MARGIN_M);
-  return others.some((f) => {
+  return others.flatMap((f) => {
     const other = fortificationArea(f.cells, f.grid, landscape);
-    if ('error' in other) return false;
-    const theirs = areaPolygons(landscape, other);
-    return mine.some((a) => theirs.some((b) => polygonsOverlap(a, b)));
+    if ('error' in other) return [];
+    return areaPolygons(landscape, other).filter((b) => mine.some((a) => polygonsOverlap(a, b)));
   });
 }
 
@@ -134,21 +136,39 @@ export function checkFortificationPlacement(
   const band = fortBandPolygons(outline);
   const shaped = { ...NONE, area, outline };
   if (!bandInside(landscape, band)) return { ...fail(FORT_OUTSIDE), ...shaped };
-  if (touchesOther(landscape, village, area)) return { ...fail(FORT_TOUCHES), ...shaped };
+  const touched = touchedOther(landscape, village, area);
+  if (touched.length > 0) {
+    return { ...fail(FORT_TOUCHES, { footprints: touched }), ...shaped };
+  }
+  // políčka vody pod pásem (obdélníky pásu se v rozích překrývají – políčko jednou)
+  const waterTiles = new Set<number>();
   for (const polygon of band) {
-    const water = tilesUnder(landscape, polygon).some(
-      (t) => surfaceAt(landscape, t % landscape.size, Math.floor(t / landscape.size)) === 'water',
-    );
-    if (water) {
-      return { ...fail(FORT_OVER_WATER), ...shaped };
+    for (const t of tilesUnder(landscape, polygon)) {
+      if (surfaceAt(landscape, t % landscape.size, Math.floor(t / landscape.size)) === 'water') {
+        waterTiles.add(t);
+      }
     }
+  }
+  if (waterTiles.size > 0) {
+    const footprints = [...waterTiles]
+      .sort((a, b) => a - b)
+      .map((t) =>
+        squareCorners(landscape, undefined, {
+          x: t % landscape.size,
+          y: Math.floor(t / landscape.size),
+        }),
+      );
+    return { ...fail(FORT_OVER_WATER, { footprints }), ...shaped };
   }
   const shapes = band.map(freeShape);
   const free = checkFootprintFree(landscape, village, shapes, DWELLING_LAND);
   if (!free.ok) {
     const overDwelling =
       free.reason === OVERLAPS_DWELLING || free.reason === OVERLAPS_DWELLING_SITE;
-    return { ...(overDwelling ? fail(FORT_OVER_BUILDING) : free), ...shaped };
+    return {
+      ...(overDwelling ? fail(FORT_OVER_BUILDING, free.where) : free),
+      ...shaped,
+    };
   }
   const status = obstacleStatus(village?.obstacleChanges);
   if (band.some((polygon) => outcropUnder(obstacles, status, polygon))) {

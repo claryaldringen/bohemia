@@ -735,6 +735,10 @@ action `levyDialogs()` (rozdělení po vsích se počítá až tehdy, ne s dotaz
 Návrh: [fortifications.md – Rozhraní](../design/fortifications.md); jádro a server actions:
 [village-fortifications.md](village-fortifications.md).
 
+- **Místo problému:** `checkFortificationPlacement` (a `checkFootprintFree`, `blockedGates`)
+  vrací u neprošlé kontroly `where` (`PlacementWhere` – body bran, obrysy, čtverce); `fortificationPlacement`
+  z něj složí čáry (`lib/problem-marks.ts`, čistá funkce) do `SquaresPreview.problem` a `field-painting.ts`
+  je kreslí červeně (kroužky kolem bran, obrysy staveb, vody a cizího opevnění). E2E háček `paintProblems`.
 - **Katalog staveb** (`lib/build-items.ts`): záznam `fortification` (zkratka **P**, ikona
   `build/opevneni.png`) je rozcestník druhů `FORT_VARIANTS` (plot, palisáda, val – ikony
   `resources/fort-*.png`) jako ohrady. `BuildKind` v jádru **zůstává beze změny** (cena opevnění

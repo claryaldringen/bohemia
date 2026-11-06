@@ -173,3 +173,86 @@ test('hráč nakreslí palisádu přes pevnou cestu – cena u kurzoru, Enter po
     await page.screenshot({ path: shot });
   }
 });
+
+test('palisáda, která zatarasí branku zemnice – důvod u kurzoru a červená značka ve scéně', async ({
+  page,
+}) => {
+  const { seat: s } = await newPlayer(page, 'opevneni-branka');
+  const spots = villageSpots(s.landscape);
+  await found(page, spots.dwelling);
+  const state = withBuiltFirstDwelling(await villageState(s.settlementId));
+  state.woodLogs = 600;
+  const village = placementVillageOf(state, state.lastDay);
+  const home = tileOfWorldPoint(
+    s.landscape,
+    state.dwellings[0]!.position.x,
+    state.dwellings[0]!.position.z,
+  )!;
+  // blok čtverců, jehož pás zatarasí branku (kontrola z jádra vrátí bod branky)
+  let cells: TileCell[] | null = null;
+  for (let size = 2; size <= 5 && !cells; size++) {
+    for (let dy = -7; dy <= 7 && !cells; dy++) {
+      for (let dx = -7; dx <= 7 && !cells; dx++) {
+        const candidate = block(home.x + dx, home.y + dy, size, size);
+        const check = checkFortificationPlacement(
+          s.landscape,
+          village,
+          obstaclesOf(s.landscape),
+          candidate,
+          null,
+          'palisade',
+        );
+        if (!check.ok && (check.where?.points?.length ?? 0) > 0) cells = candidate;
+      }
+    }
+  }
+  if (!cells) throw new Error('V krajině není blok, který by zatarasil branku.');
+  await writeVillageState(s.settlementId, state);
+  await pollVillage(page);
+  await page.keyboard.press('r');
+  await page.mouse.move(640, 360);
+  for (let i = 0; i < 4; i++) await page.mouse.wheel(0, 400);
+  await page.waitForTimeout(800);
+
+  const grid = page.getByTestId('build-grid');
+  await page.keyboard.press('p');
+  await grid.getByRole('button', { name: 'Palisáda' }).click();
+  const at = async (c: TileCell): Promise<{ x: number; y: number }> => {
+    const w = tileCenterWorld(s.landscape, c.x, c.y);
+    const point = await page.evaluate((q) => window.__bohemiaE2E!.projectToScreen!(q.x, q.z), w);
+    expect(point).not.toBeNull();
+    return point!;
+  };
+  const from = await at(cells[0]!);
+  const to = await at(cells[cells.length - 1]!);
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move((from.x + to.x) / 2, (from.y + to.y) / 2, { steps: 5 });
+  await page.mouse.move(to.x, to.y, { steps: 5 });
+  await page.mouse.up();
+  await expect(page.getByRole('status').filter({ hasText: /Zatarasí/ })).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect
+    .poll(() => page.evaluate(() => window.__bohemiaE2E!.paintProblems?.() ?? 0))
+    .toBeGreaterThan(0);
+
+  const shot = process.env.FORT_HINT_SHOT;
+  if (shot) {
+    const gate = checkFortificationPlacement(
+      s.landscape,
+      village,
+      obstaclesOf(s.landscape),
+      cells,
+      null,
+      'palisade',
+    ).where!.points![0]!;
+    await page.evaluate((p) => window.__bohemiaE2E!.moveCameraTo!(p.x, p.z), gate);
+    for (let i = 0; i < 6; i++) {
+      await page.mouse.wheel(0, -300);
+      await page.waitForTimeout(150);
+    }
+    await page.waitForTimeout(1500);
+    await page.screenshot({ path: shot });
+  }
+});
