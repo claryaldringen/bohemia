@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import {
   checkFortificationPlacement,
+  dwellingGatePoint,
   obstaclesOf,
   placementVillageOf,
   tileCenterWorld,
@@ -25,6 +26,9 @@ import {
 // Opevnění v rozhraní (fortifications.md – Rozhraní): hráč v mřížce staveb otevře rozcestník,
 // vybere palisádu a nakreslí obvod 3 × 3 čtverce přes pevnou cestu – u kurzoru je cena a útočiště,
 // Enter postaví, brána vznikne na cestě a panel ukáže délku a bránu.
+
+/** Důvod u kurzoru (`BLOCKS_GATE` v jádře). */
+const BLOCKS_GATE_REASON = 'Zatarasí sousedům branku.';
 
 test.beforeEach(async ({ context, page }) => {
   await useUniqueClientIp(context);
@@ -182,31 +186,54 @@ test('palisáda, která zatarasí branku zemnice – důvod u kurzoru a červen�
   await found(page, spots.dwelling);
   const state = withBuiltFirstDwelling(await villageState(s.settlementId));
   state.woodLogs = 600;
-  const village = placementVillageOf(state, state.lastDay);
-  const home = tileOfWorldPoint(
-    s.landscape,
-    state.dwellings[0]!.position.x,
-    state.dwellings[0]!.position.z,
-  )!;
-  // blok čtverců, jehož pás zatarasí branku (kontrola z jádra vrátí bod branky)
+  // Pás palisády je úzký (okraj plochy do 1,5 m dovnitř) a branka stojí 1 m před zemnicí, proto
+  // zemnici (v uloženém stavu) natočíme k ose a posuneme tak, aby branka padla do pásu plochy
+  // 2 × 2 nebo 3 × 3 čtverce před domem; pás přitom nesmí ležet přes obrys zemnice ani pozemek.
+  // Kontrola z jádra musí vrátit BLOCKS_GATE s body branky.
+  const original = state.dwellings[0]!;
+  const reasons = new Map<string, number>();
   let cells: TileCell[] | null = null;
-  for (let size = 2; size <= 5 && !cells; size++) {
-    for (let dy = -7; dy <= 7 && !cells; dy++) {
-      for (let dx = -7; dx <= 7 && !cells; dx++) {
-        const candidate = block(home.x + dx, home.y + dy, size, size);
-        const check = checkFortificationPlacement(
-          s.landscape,
-          village,
-          obstaclesOf(s.landscape),
-          candidate,
-          null,
-          'palisade',
-        );
-        if (!check.ok && (check.where?.points?.length ?? 0) > 0) cells = candidate;
+  let village = placementVillageOf(state, state.lastDay);
+  const shifts: number[] = [];
+  for (let k = 0; k <= 64; k++) shifts.push(k * 0.25, -k * 0.25);
+  const moves = [...shifts.map((d) => [d, 0] as const), ...shifts.map((d) => [0, d] as const)];
+  for (const [mx, mz] of moves) {
+    if (cells) break;
+    state.dwellings[0] = {
+      ...original,
+      position: { x: original.position.x + mx, z: original.position.z + mz, rotation: 0 },
+    };
+    village = placementVillageOf(state, state.lastDay);
+    const gate = dwellingGatePoint(s.landscape, state.dwellings[0]);
+    const gateTile = tileOfWorldPoint(s.landscape, gate.x, gate.z);
+    if (!gateTile) continue;
+    for (let size = 2; size <= 3 && !cells; size++) {
+      for (let dy = -size; dy <= 1 && !cells; dy++) {
+        for (let dx = -size; dx <= 1 && !cells; dx++) {
+          const candidate = block(gateTile.x + dx, gateTile.y + dy, size, size);
+          const check = checkFortificationPlacement(
+            s.landscape,
+            village,
+            obstaclesOf(s.landscape),
+            candidate,
+            null,
+            'palisade',
+          );
+          if (check.ok) continue;
+          const why = check.reason ?? '?';
+          reasons.set(why, (reasons.get(why) ?? 0) + 1);
+          if (check.reason === BLOCKS_GATE_REASON && (check.where?.points?.length ?? 0) > 0) {
+            cells = candidate;
+          }
+        }
       }
     }
   }
-  if (!cells) throw new Error('V krajině není blok, který by zatarasil branku.');
+  if (!cells) {
+    throw new Error(
+      `Kolem branky zemnice není plocha, která ji zatarasí. Důvody: ${JSON.stringify([...reasons])}`,
+    );
+  }
   await writeVillageState(s.settlementId, state);
   await pollVillage(page);
   await page.keyboard.press('r');
