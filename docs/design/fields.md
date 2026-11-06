@@ -1489,7 +1489,8 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
       Poměrný díl se počítá ze zásob **bez rezervy osiva** mateřské vsi (ta zůstane jí).
     - **Ves si osivo koupí u sousedů** ([obchod](trade.md) – Nákup osiva): **1. 9.** (před setím
       ozimu) a **1. 3.** (před setím jaře) spočítá osivo nutných dílů plánu, které čeká na setí
-      (bez dílů nad potřebu; chybějící luštěniny za obilí), a odečte osivo, které smí do země.
+      (bez dílů nad potřebu; chybějící luštěniny za obilí), a odečte osivo, které smí do země, i zrno
+      a luštěniny v nevymlácených snopech (výmlat je dá – oprava, návrh Clauda 6. 11. 2026).
       Chybí-li aspoň 5 kg, koupí **jen chybějící osivo** – nejvýš kolik obilí sousedé letos ještě
       mají (po zlém roce kraje méně) – a zaplatí, **čím může bez ohrožení: hřivnami, pak kravami
       nad ty, které ves drží na mléko a voly** – jako porážka: chovné krávy (kráva na 2 domácnosti,

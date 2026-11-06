@@ -30,15 +30,24 @@ function isOn(day: number, target: { month: number; day: number }): boolean {
 /**
  * Kolik osiva nutným dílům plánu chybí (kg obilí, stav nemění): osivo nutných dílů, které čeká na
  * setí (`seedAheadKg` bez prací nad potřebu; chybějící luštěniny za obilí), bez osiva, které smí
- * do země (`sowableSeedKg` – i osivo, které ves má jen na setí).
+ * do země (`sowableSeedKg` – i osivo, které ves má jen na setí) a bez zrna a luštěnin ve
+ * nevymlácených snopech (`VillageState.sheaves`).
  */
 export function seedShortKg(state: VillageState, day: number): number {
   if (!state.season) return 0;
   const ahead = seedAheadKg(state, true);
-  const legumesShort = Math.max(0, ahead.legumes - Math.max(0, state.legumesKg ?? 0));
+  // nevymlácené snopy dají osivo výmlatem stejně jako v `seedPrepShares` – ves je nekupuje
+  const sheaves = state.sheaves;
+  const legumesShort = Math.max(
+    0,
+    ahead.legumes - Math.max(0, state.legumesKg ?? 0) - Math.max(0, sheaves?.legumesKg ?? 0),
+  );
   const need = ahead.grain + legumesShort;
   if (need <= EPSILON) return 0;
-  return Math.max(0, need - sowableSeedKg(state, 'grain', foodUntilHarvestKg(state, day)));
+  const grainSowable =
+    sowableSeedKg(state, 'grain', foodUntilHarvestKg(state, day)) +
+    Math.max(0, sheaves?.grainKg ?? 0);
+  return Math.max(0, need - grainSowable);
 }
 
 /** Platba za osivo: hřivny (kg) a krávy (kusy) a kolik obilí za ně soused dá. */
