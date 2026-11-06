@@ -332,3 +332,32 @@ villageId })` (vlastní ves → hráč sám, spravovaná cizí → `settlement.o
 - **Testy:** `application/__tests__/stewardships.test.ts` (práva, odvolání, zámek, nabídka jednáním, souběh,
   vypovězení), `db/adapters/__tests__/stewardship-repository.db.test.ts` (souběh `start`), e2e
   `multiplayer.spec.ts` „správa cizí vsi“.
+
+## Povýšení vesničana a NPC rod (vassalage.md – Povýšení vesničana; úloha 4.9)
+
+- **Kdo smí:** právo `ennoble` (akce `ennobleVillager` v `ACTION_RIGHTS`) – **držitel ve vlastní vsi**, odkud
+  muž jde; senior v cizí vsi rodu ani správce cizí vsi ne (`STEWARD_RIGHTS`, `SENIOR_RIGHTS` ho nemají).
+- **Pravidlo muže:** `checkEnnoble(state, personId, day)` / `ennobleBlock(person, day)`
+  (`domain/vassalage/ennoble.ts`) – muž od `VASSALAGE.ennoble.fromAge` (16) let, ne muž rodu vojvody
+  (`line`), ne už povýšený (`Person.noble`). Scéna dostává `ScenePerson.ennobleable` → v panelu muže klíč
+  (`village-key.svg`, `selection-person-ennoble`) pro každou ves hráče bez vojvody (`VillageListItem.awaitingLord`,
+  z `VillageDigest.awaitingLord` – verze souhrnu 3).
+- **Use-case** `ennobleVillager(deps, { playerId, fromVillageId, personId, targetVillageId, today, at })`
+  (`application/ennoble.ts`, pod zámkem hráče): cíl = vlastní ves s `awaitingLord` bez vyslance a bez správce;
+  **nejvýš 1 za herní rok rodu** (`ennobleYear = floor(den / 365,25)`, sloupec `house.last_ennoble_year`,
+  podmíněný `HouseRepository.claimEnnoble` – migrace `0027_ennoble.sql`). Pořadí: ověření → zápis roku →
+  `awaitingLord.appointee` v cílové vsi (appointLords další vojvodu nepošle) → NPC rod (`kind: 'npc'`,
+  `playerId` null) + vazalství `origin: 'ennoble'` s holou přísahou + správa `kind: 'npc'` (`vassalageId`) →
+  muž s rodinou (`departAppointee`) odejde ze své vsi a družina putuje schránkou cílové vsi
+  (`noble-arrives`, `ref ennoble:<ves>:<sinceDay>`, příjezd za `APPOINT_LORD.daysPerMapStep` × vzdálenost).
+- **Příjezd** (`settleNoble` v `applyEvent`): `settleAppointee` (nová místní id, dvorec, jídlo, muž je vojvodou vsi)
+  - `Person.noble = { houseId }` všem z družiny, `line` muži a jeho synům (cvičí jako synové vojvody –
+    `trainingFamily`) + `VillageState.nobles = { houseId, headId }`. Ves s `nobles` nedává rodu hráče muže
+    (`appointCandidate`, `dynastySenior`) a nepatří do `publicLineMen`; `settleAppointee` hráčova vojvody `nobles` maže.
+- **NPC rod** nevede jednání: `setNpcTerms(deps, { playerId, vassalageId, terms })` mění podmínky přímo
+  (`updateTerms`, NPC vždy přijme a plní přesně); roční Odvody NPC přeskočí (`playerId === null`), takže nic
+  nevypovídá ani neposílá míň. `dismissSteward` ukončí jen správu – vazalství trvá (NPC rod je vazal bez vsi).
+  `onNpcHouseEnded(deps, houseId, at)` (háček po vzoru `onHouseEnded`) vrátí správy držiteli a ukončí dohodu.
+- **Testy:** `domain/vassalage/__tests__/ennoble.test.ts` (pravidlo, příjezd po 1 / 3 / 10 dnech = vcelku, výcvik
+  synů), `application/__tests__/ennoble.test.ts` (rok, NPC termíny, odvolání, vymření), db `claimEnnoble`, e2e
+  `multiplayer.spec.ts` „povýšení vesničana“.

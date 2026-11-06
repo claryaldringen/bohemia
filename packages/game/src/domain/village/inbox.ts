@@ -4,6 +4,7 @@
 // dopočítá – události dne patří k tomu dni, ne k dopočtu.
 
 import { settleAppointee, type AppointeeParty } from './appoint-lord';
+import { settleNoble } from '../vassalage/ennoble';
 import { hostGuests } from '../vassalage/guests';
 import { receiveShipment } from '../vassalage/shipment';
 import { pruneThreats } from './fortification/threat';
@@ -21,6 +22,11 @@ export type VillageEventBody =
    * `settleAppointee`). Ves, která mezitím vojvodu má, družinu přijme jako ostatní muže rodu.
    */
   | { kind: 'lord-arrives'; party: AppointeeParty; fromVillageId: string }
+  /**
+   * Povýšený vesničan z jiné vsi rodu dorazil s rodinou do vsi bez vojvody (vassalage.md –
+   * Povýšení vesničana; `settleNoble`) – ves řídí NPC rod `houseId`.
+   */
+  | { kind: 'noble-arrives'; party: AppointeeParty; houseId: string; fromVillageId: string }
   /**
    * Zásilka od jiného hráče dorazila (vassalage.md – Doprava a cílová ves; `receiveShipment`) –
    * zboží, dobytek a lidé z jiné vsi, v cílové dostanou nová místní id.
@@ -78,6 +84,8 @@ function applyEvent(state: VillageState, day: number, body: VillageEventBody): C
       return [{ ...structuredClone(body.event), day }];
     case 'lord-arrives':
       return settleAppointee(state, day, structuredClone(body.party));
+    case 'noble-arrives':
+      return settleNoble(state, day, structuredClone(body.party), body.houseId);
     case 'shipment':
       return receiveShipment(state, day, structuredClone(body.shipment));
     case 'threat-signal':

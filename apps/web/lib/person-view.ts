@@ -4,6 +4,7 @@
 import {
   AGE,
   ageYears,
+  ennobleBlock,
   villageManorId,
   type Craft,
   type Sex,
@@ -54,6 +55,8 @@ export interface ScenePerson {
   name?: string;
   arms?: ArmsView;
   horse?: true;
+  /** Smí ho hráč povýšit do šlechtického stavu (vassalage.md): muž od 16 let mimo rod vojvody. */
+  ennobleable?: true;
 }
 
 /**
@@ -91,6 +94,9 @@ export function scenePersons(
   const arms = new Map(
     state.people.flatMap((p) => (p.arms ? [[p.id, armsView(p.arms)] as const] : [])),
   );
+  const ennobleable = new Set(
+    state.people.flatMap((p) => (ennobleBlock(p, day) === null ? [p.id] : [])),
+  );
   const names = new Map(
     state.people.flatMap((p) => (p.name !== undefined ? [[p.id, p.name] as const] : [])),
   );
@@ -104,6 +110,7 @@ export function scenePersons(
       ...(names.has(p.id) ? { name: names.get(p.id)! } : {}),
       ...(arms.has(p.id) ? { arms: arms.get(p.id)! } : {}),
       ...(riders.has(p.id) ? { horse: true as const } : {}),
+      ...(ennobleable.has(p.id) ? { ennobleable: true as const } : {}),
     }))
     .sort((a, b) => a.id - b.id);
 }

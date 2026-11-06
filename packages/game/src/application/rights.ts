@@ -88,6 +88,8 @@ export const ACTION_RIGHTS = {
   // má všechna práva (`dependsOnDynasty`); jde o odchod syna, proto stejné právo jako leaveWithSon
   choosePlayerDeparture: 'sendSons',
   nameLineMan: 'nameSons',
+  // povýšení vesničana (vassalage.md) – jen držitel vlastní vsi; správce ani senior ne
+  ennobleVillager: 'ennoble',
   setSteward: 'steward',
   // řízení vsi, které senior v cizí vsi nemá: lov, jméno vsi, vývojové pohromy
   declareHunt: 'steward',

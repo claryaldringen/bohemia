@@ -86,6 +86,18 @@ export function VillageList({
                   />
                 </Tooltip>
               )}
+              {village.npcSteward && (
+                <Tooltip content="Ves řídí povýšený šlechtic" placement="below">
+                  <img
+                    src="/icons/house/village-key.svg"
+                    alt="Ves řídí povýšený šlechtic"
+                    data-testid="npc-steward-key"
+                    width={16}
+                    height={16}
+                    className="h-4 w-4 shrink-0"
+                  />
+                </Tooltip>
+              )}
               {village.senior && (
                 <Tooltip content="Senior rodu" placement="below">
                   <img

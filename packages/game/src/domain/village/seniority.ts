@@ -23,7 +23,7 @@ export function dynastySenior(
 ): SeniorRef | null {
   let best: { ref: SeniorRef; bornDay: number } | null = null;
   for (const { villageId, state } of villages) {
-    if (isVillageExtinct(state) || isVillageAbandoned(state)) continue;
+    if (isVillageExtinct(state) || isVillageAbandoned(state) || state.nobles) continue;
     for (const man of state.people) {
       if (!isLineMan(man) || man.bornDay > day) continue;
       const better =

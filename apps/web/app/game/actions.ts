@@ -58,6 +58,7 @@ import {
   plantRoadApplesForPlayer,
   declareHuntForPlayer,
   nameLineManForPlayer,
+  ennobleVillagerForPlayer,
   setStewardForPlayer,
   renameVillageForPlayer,
   skipTimeForPlayerView,
@@ -94,6 +95,7 @@ import {
   parsePlantRoadApplesInput,
   parseDeclareHuntInput,
   parseNameLineManInput,
+  parseEnnobleInput,
   parseSetStewardInput,
   parseRenameVillageInput,
   parseRestartGameInput,
@@ -464,6 +466,11 @@ export async function placeWorkshop(input: unknown): Promise<VillageActionResult
  * Jméno vojvody nebo jeho syna (lord.md – Jména): `{ villageId, personId, name }`. Jestli jméno
  * smí být, ověří use-case.
  */
+/** Povýšení vesničana do šlechtického stavu pro ves bez vojvody (vassalage.md). */
+export async function ennobleVillager(input: unknown): Promise<VillageActionResult> {
+  return villageAction(input, parseEnnobleInput, ennobleVillagerForPlayer);
+}
+
 export async function nameLineMan(input: unknown): Promise<VillageActionResult> {
   return villageAction(input, parseNameLineManInput, nameLineManForPlayer);
 }

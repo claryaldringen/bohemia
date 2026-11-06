@@ -24,6 +24,7 @@ export function toHouse(row: HouseRow): House {
         : { villageId: row.seniorVillageId, personId: row.seniorPersonId },
     successionDay: row.successionDay,
     pendingDeparture: row.pendingDeparture,
+    lastEnnobleYear: row.lastEnnobleYear,
   };
 }
 
@@ -97,6 +98,20 @@ export function createHouseRepository(db: Database): HouseRepository {
           and(
             eq(house.id, houseId),
             or(isNull(house.successionDay), lt(house.successionDay, input.deathDay)),
+          ),
+        )
+        .returning({ id: house.id });
+      return rows.length > 0;
+    },
+    async claimEnnoble(houseId, year): Promise<boolean> {
+      // Podmíněný UPDATE: povýšení letos zapíše jen jedno ze souběžných volání.
+      const rows = await db
+        .update(house)
+        .set({ lastEnnobleYear: year })
+        .where(
+          and(
+            eq(house.id, houseId),
+            or(isNull(house.lastEnnobleYear), lt(house.lastEnnobleYear, year)),
           ),
         )
         .returning({ id: house.id });

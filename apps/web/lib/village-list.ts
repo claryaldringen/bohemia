@@ -42,6 +42,10 @@ export interface VillageListItem {
   disasters?: OtherVillageDisasters;
   /** Správce vsi je zapnutý (steward.md – Co hráč vidí); vypnutý bez údaje. */
   steward?: true;
+  /** Ves řídí povýšený šlechtic (NPC rod – vassalage.md) – ikona klíče; jinak bez údaje. */
+  npcSteward?: true;
+  /** Ves čeká na vojvodu a nikdo k ní nejde – cíl povýšení vesničana (vassalage.md); jinak bez údaje. */
+  awaitingLord?: true;
   /** Ves cizího držitele, kterou hráč spravuje (vassalage.md) – ikona klíče; jinak bez údaje. */
   stewarded?: true;
   /** Je tu hráčův muž – vlastní ves hráče (seniorate.md – Hráčův muž a vlastní ves); jinak bez údaje. */
@@ -104,6 +108,7 @@ function listItemOf(
     ...(!dormant && digest.threshingEmergency ? { threshing: { emergency: true as const } } : {}),
     ...(disasters ? { disasters } : {}),
     ...(digest.steward ? { steward: true as const } : {}),
+    ...(!dormant && digest.awaitingLord ? { awaitingLord: true as const } : {}),
   };
 }
 

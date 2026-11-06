@@ -31,6 +31,7 @@ import {
   leaveVillage,
   choosePlayerDeparture,
   nameLineMan,
+  ennobleVillager,
   settleJourney,
   placeCemetery,
   placeDwelling,
@@ -1331,6 +1332,13 @@ export function VillageGame({
     });
   };
 
+  /** Hráč povýší vesničana pro ves bez vojvody (server ověří právo, rok a cíl). */
+  const ennoble = (personId: number, targetVillageId: string): Promise<string | null> => {
+    const villageId = viewRef.current?.id;
+    if (!villageId) return Promise.resolve(CONNECTION_FAILED);
+    return runAction(() => ennobleVillager({ villageId, personId, targetVillageId }));
+  };
+
   /** Zavře panel jména – vojvoda bez jména se sám znovu nenabídne, čeká upozornění. */
   const closeLineName = (): void => {
     setNamingId(null);
@@ -1396,6 +1404,10 @@ export function VillageGame({
         <Minimap landscape={decoded} scene={scene} village={sceneVillage} />
         <SelectionPanel
           details={selectionDetails(view, sceneVillage, current, personState, draftState)}
+          ennoble={{
+            targets: (view?.villages ?? []).filter((v) => v.awaitingLord && v.id !== view?.id),
+            onEnnoble: ennoble,
+          }}
           onSelectTarget={setSelected}
           onSetSteward={(on) => {
             const villageId = viewRef.current?.id;

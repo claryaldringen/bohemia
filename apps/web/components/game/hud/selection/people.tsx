@@ -1,10 +1,11 @@
 /** Panel výběru postavy, spřežení a vozu. */
-import { type ReactElement } from 'react';
+import { useState, type ReactElement } from 'react';
 import { VillageTarget } from '@/lib/scene/village-picking';
 import { HERD_LABELS, type SelectionDetails } from '@/lib/selection-details';
 import { formatDecimal, formatInteger, formatPercent, plural } from '@/lib/village-format';
 import type { ArmsView } from '@/lib/person-view';
 import { CartGoal } from '@/lib/draft-activity';
+import { useRightDenied } from '../rights';
 import { Tooltip } from '../Tooltip';
 import { TargetButton, Stat, ROW, Flag } from './parts';
 
@@ -130,6 +131,12 @@ function PersonMount({
   );
 }
 
+/** Povýšení vesničana (vassalage.md): vsi bez vojvody, kam smí jít, a akce (vrací důvod odmítnutí). */
+export interface EnnobleActions {
+  targets: readonly { id: string; name: string }[];
+  onEnnoble: (personId: number, targetVillageId: string) => Promise<string | null>;
+}
+
 /**
  * Člověk vsi (villagers.md – Výběr postavy): co právě dělá (jediný řádek slov), věk, dům (tlačítko
  * ho vybere) a u pasáka zvíře stáda.
@@ -137,11 +144,16 @@ function PersonMount({
 export function PersonBody({
   details,
   onSelectTarget,
+  ennoble,
 }: {
   details: Extract<SelectionDetails, { kind: 'person' }>;
   onSelectTarget?: ((target: VillageTarget) => void) | undefined;
+  ennoble?: EnnobleActions | undefined;
 }): ReactElement {
   const home = details.home;
+  const denied = useRightDenied('ennoble');
+  const [refusal, setRefusal] = useState<string | null>(null);
+  const targets = details.ennobleable ? (ennoble?.targets ?? []) : [];
   return (
     <div className="flex min-w-0 flex-col justify-center gap-1.5">
       <p
@@ -188,6 +200,33 @@ export function PersonBody({
             />
           </Tooltip>
         )}
+        {targets.map((target) => (
+          <Tooltip
+            key={target.id}
+            content={denied ?? refusal ?? `Povýšit pro ${target.name}`}
+            placement="above"
+          >
+            <button
+              type="button"
+              data-testid="selection-person-ennoble"
+              aria-label={`Povýšit pro ${target.name}`}
+              aria-disabled={denied !== null}
+              className="hud-icon-button h-7 w-7"
+              onClick={() => {
+                if (denied !== null) return;
+                void ennoble?.onEnnoble(details.id, target.id).then(setRefusal);
+              }}
+            >
+              <img
+                src="/icons/house/village-key.svg"
+                alt=""
+                width={128}
+                height={128}
+                className="h-full w-full"
+              />
+            </button>
+          </Tooltip>
+        ))}
         {details.draft && (
           <TargetButton
             src={`/icons/resources/${details.draft.kind === 'cart' ? 'cart' : 'ox'}.png`}

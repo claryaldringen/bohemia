@@ -429,6 +429,18 @@ export function parseNameLineManInput(value: unknown): { personId: number; name:
   return personId !== null && name !== null ? { personId, name } : null;
 }
 
+/** Vstup povýšení vesničana `{ personId, targetVillageId }` (vassalage.md), jinak null. */
+export function parseEnnobleInput(
+  value: unknown,
+): { personId: number; targetVillageId: string } | null {
+  if (!isRecord(value)) return null;
+  const personId = parsePositiveInt(value.personId);
+  const target = value.targetVillageId;
+  return personId !== null && typeof target === 'string' && target.length > 0 && target.length <= 64
+    ? { personId, targetVillageId: target }
+    : null;
+}
+
 /** Vstup přepínače správce `{ on }` (steward.md), jinak null. */
 export function parseSetStewardInput(value: unknown): { on: boolean } | null {
   if (!isRecord(value)) return null;

@@ -83,7 +83,8 @@ export function appointCandidate(
 ): PersonKey | null {
   let best: { key: PersonKey; bornDay: number } | null = null;
   for (const { villageId, state } of villages) {
-    if (villageId === targetVillageId || !isLiving(state)) continue;
+    // ves povýšeného vesničana (NPC rod) rodu hráče mužů nedává
+    if (villageId === targetVillageId || !isLiving(state) || state.nobles) continue;
     const lord = currentLord(state);
     // bez vojvody není nástupce, kterého by si ves držela – čeká sama
     if (!lord) continue;
@@ -200,6 +201,7 @@ export function settleAppointee(
   const dynasty = state.dynasty;
   delete state.awaitingLord;
   if (!dynasty || !lacksLord(state)) return [{ day, kind: 'line-arrived', ...name }];
+  delete state.nobles; // ves se vrací pod rod hráče
   dynasty.lordId = man.id;
   delete dynasty.endedDay;
   dynasty.lords.push({ id: man.id, ...name, fromDay: day });

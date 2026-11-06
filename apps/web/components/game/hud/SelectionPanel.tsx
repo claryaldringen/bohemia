@@ -18,7 +18,13 @@ import {
   WoodToFell,
   HappinessGain,
 } from './selection/parts';
-import { PersonPortrait, PersonBody, TeamBody, CartBody } from './selection/people';
+import {
+  PersonPortrait,
+  PersonBody,
+  TeamBody,
+  CartBody,
+  type EnnobleActions,
+} from './selection/people';
 import { DUG_SITE_TEXTS, DugSiteBody, KilnBody } from './selection/crafts';
 import { RelocationActions, ManorActions, DwellingBody, DwellingsBody } from './selection/dwelling';
 import {
@@ -82,8 +88,11 @@ export function SelectionPanel({
   onFortWork,
   gateFort = null,
   onGateMode,
+  ennoble,
 }: {
   details: SelectionDetails | null;
+  /** Povýšení vesničana (vassalage.md): cílové vsi bez vojvody a akce – klíč v panelu muže. */
+  ennoble?: EnnobleActions;
   /** Zadá vylepšení opevnění (server action) – hotovo, až se vrátí. */
   onFortWork?: (fortificationId: number, work: 'upgrade' | 'top', top?: FortTop) => Promise<void>;
   /** Opevnění, kterému se právě přidává brána kliknutím na obvod; null = nic. */
@@ -129,7 +138,14 @@ export function SelectionPanel({
         personName={details.name ?? null}
       />
     );
-    body = <PersonBody key={details.id} details={details} onSelectTarget={onSelectTarget} />;
+    body = (
+      <PersonBody
+        key={details.id}
+        details={details}
+        onSelectTarget={onSelectTarget}
+        ennoble={ennoble}
+      />
+    );
   } else if (details.kind === 'plough-team') {
     portrait = <PersonPortrait icon="ox" name="Spřežení" testId="selection-team-portrait" />;
     body = <TeamBody details={details} onSelectTarget={onSelectTarget} />;
