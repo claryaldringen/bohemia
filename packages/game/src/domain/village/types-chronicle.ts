@@ -119,6 +119,11 @@ export type ChronicleEvent = { day: number } & (
       actor: string;
       other: string;
     }
+  /**
+   * Tažení (war.md – Velení a příprava tažení): vojsko vůdce `leader` vyrazilo ze shromaždiště
+   * (`set-out`), nebo se vrátilo domů (`returned`) – věcně, bez hodnocení.
+   */
+  | { kind: 'campaign'; step: 'set-out' | 'returned'; leader: string }
   /** Dohoda z jednání: rod `vassal` přísahal rodu `lord` (jména hlav rodů). */
   | { kind: 'negotiation-accepted'; lord: string; vassal: string }
   /** Vazalství skončilo formálním vypovězením (jména hlav rodů; text je neutrální, bez viníka). */

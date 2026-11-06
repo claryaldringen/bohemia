@@ -74,4 +74,9 @@ export const WAR = {
   lastLineManMinHealth: 10,
   /** war.md – Čísla: doslech rozkazu (m). */
   orderHearingMeters: 30,
+  /**
+   * war.md – Pro implementaci, plán 2026-11-03 – rozhodnutí 12: tažení po taktech – 4 takty za
+   * sekundu, záměr hráče platí od taktu teď + 2 (≈ 0,5 s), kontrolní bod každých 40 taktů (10 s).
+   */
+  campaign: { ticksPerSecond: 4, intentLeadTicks: 2, checkpointTicks: 40 },
 } as const;

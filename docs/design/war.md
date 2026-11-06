@@ -554,6 +554,7 @@ Martin 2. 11. 2026 – „ok“ (doplňky návrh Clauda):
 | Tempo vojska                   | ≈ 3–4 m/s skutečného času, 1 km ≈ 4–5 min ≈ 3 herní dny (Martin)          |
 | Terén a náklad                 | les 1/4, cesta a stezka × 1,5, jezdci × 1,5, stádo × 0,5, ranění × 0,75   |
 | Mřížka pochodu                 | buňka 10 m; hustý les = les se 3 stromy v okolí 30 × 30 m; brod = mělčina |
+| Takty tažení                   | 4 za sekundu; záměr hráče platí od taktu teď + 2; kontrolní bod po 40     |
 | Zima (1. 12. – konec února)    | sníh × 0,75; venku −3 zdraví a −2 % síly za den, ve vsi +10 a +5 %        |
 | Píce v zimě                    | 6 kg sena na koně denně (horses.md)                                       |
 | Jídlo                          | ≈ 1 kg obilí na muže a den                                                |

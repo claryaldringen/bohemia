@@ -76,3 +76,5 @@ export * from './declare-war';
 export * from './war-chronicle';
 export * from './cell-landscape';
 export * from './cede-village';
+export * from './campaigns';
+export * from './step-campaigns';

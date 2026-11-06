@@ -2,12 +2,19 @@
 // Composition root jako web – spojí adaptéry s use-casem `advanceWorldStep`; žádná herní logika.
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { createDatabase } from '@bohemia/db';
-import { advanceWorldStep, runWorldTasks } from '@bohemia/game';
+import {
+  createCampaignLock,
+  createCampaignRepository,
+  createDatabase,
+  createLockPool,
+  createVillageRepository,
+} from '@bohemia/db';
+import { advanceWorldStep, runWorldTasks, stepCampaigns } from '@bohemia/game';
 import {
   WORKER_LOCK_POOL_SIZE,
   cachedLandscapes,
   computePause,
+  createCampaignCells,
   createGameDeps,
   createPlayerLocks,
   currentWorld,
@@ -15,8 +22,12 @@ import {
 } from '@bohemia/server';
 import { readConfig, redactedUrl } from './config';
 import { createLogger } from './log';
+import { runCampaignLoop, type CampaignLoopDeps } from './campaign-loop';
 import { abortableSleep, runLoop, type LoopDeps } from './loop';
 import { signalHandler } from './signals';
+
+/** Spojení v poolu zámků tažení – smyčka tažení počítá tažení po jednom. */
+const CAMPAIGN_LOCK_POOL_SIZE = 2;
 
 /** Svět a databáze musí být stejné jako ve webu – proměnné z prostředí mají přednost. */
 function loadWebEnv(): void {
@@ -93,6 +104,28 @@ async function main(): Promise<void> {
     log,
   };
 
+  // tažení: vlastní zámek (dva workery – tažení počítá jen jeden) a vsi bez paměti dávky
+  const campaignLockPool = createLockPool(config.databaseUrl, CAMPAIGN_LOCK_POOL_SIZE);
+  const campaignVillages = createVillageRepository(db);
+  const campaignDeps = {
+    campaigns: createCampaignRepository(db),
+    campaignLock: createCampaignLock(campaignLockPool),
+    cells: createCampaignCells({
+      settlements: gameDeps.settlements,
+      villages: campaignVillages,
+      landscapes: gameDeps.landscapes,
+      worldSeed: gameDeps.worldSeed,
+    }),
+    villages: campaignVillages,
+    notices: gameDeps.notices,
+  };
+  const campaignLoop: CampaignLoopDeps = {
+    step: (input) => stepCampaigns({ ...campaignDeps, world: currentWorld() }, input),
+    now: () => Date.now(),
+    sleep: abortableSleep,
+    log,
+  };
+
   const stop = new AbortController();
   const onSignal = signalHandler({
     now: () => Date.now(),
@@ -112,9 +145,13 @@ async function main(): Promise<void> {
   );
 
   try {
-    await runLoop(loop, config, stop.signal);
+    await Promise.all([
+      runLoop(loop, config, stop.signal),
+      runCampaignLoop(campaignLoop, config, stop.signal),
+    ]);
   } finally {
     await closeLocks();
+    await campaignLockPool.end();
     await db.$client.end();
     log.info('worker skončil');
   }

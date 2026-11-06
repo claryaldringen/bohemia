@@ -12,8 +12,8 @@ vstupní bod (composition root) jako web – žádná herní logika, jen plánov
 - Konfigurace z prostředí, vzor `apps/worker/.env.example`. `DATABASE_URL`, `WORLD_START`,
   `WORLD_END` se čtou i z `apps/web/.env.local` (proměnné z prostředí mají přednost) – web a worker
   musí mít stejnou databázi i stejný „dnešek“. `WORKER_STEP_DAYS` (10), `WORKER_LIMIT` (50),
-  `WORKER_IDLE_MS` (5000), `WORKER_PAUSE_MS` (20), `WORKER_LANDSCAPES` (128), `WORKER_LOG`
-  (`info` / `debug`).
+  `WORKER_IDLE_MS` (5000), `WORKER_PAUSE_MS` (20), `WORKER_LANDSCAPES` (128),
+  `WORKER_CAMPAIGN_MS` (1000 – perioda smyčky tažení), `WORKER_LOG` (`info` / `debug`).
 - Produkce (PM2 vedle Next, bez Caddy) se řeší až s `docs/deployment.md`.
 
 ## Soubory
@@ -25,6 +25,14 @@ vstupní bod (composition root) jako web – žádná herní logika, jen plánov
   hráče smyčku nezastaví. Hodiny, spánek i krok se v testech nahrazují (`LoopDeps`). Mezi koly pouští
   `runWorldTasks` (kredity nástupnictví, `world.md`) nejvýš jednou za minutu (`WORLD_TASKS_MS`, podle
   hodin `deps.now`); jejich chyba kolo nezastaví.
+- `src/campaign-loop.ts` – `runCampaignLoop(deps, { campaignMs }, signal)`: **smyčka tažení**
+  vedle smyčky vsí (`main.ts` je pouští spolu přes `Promise.all`, signál ukončí obě). Kolo
+  `stepCampaigns` (`docs/code/war.md` – Tažení po taktech) každých `campaignMs` od začátku kola;
+  chyba jednoho tažení (`failed` ve výsledku) ani celého kola (např. chybějící tabulka před
+  migrací) smyčku nezastaví, stejná chyba se do logu opakuje nejvýš jednou za minutu. Bez tažení je
+  kolo jeden dotaz (`active()`). Zámek tažení má vlastní pool (`CAMPAIGN_LOCK_POOL_SIZE` = 2), vsi
+  tažení jdou úložištěm bez paměti dávky (`createVillageRepository`), mapy políček
+  `createCampaignCells` (`packages/server`).
 - `src/wake.ts` – `nextWakeMs` (do 1 s po začátku dalšího herního dne, nejvýš `idleMs`) a
   `SkipTable` (odklady: zámek ve webu 2 s, chyba 1 min zdvojováním do 15 min; use-case dostane
   množinu `skip`).
@@ -54,7 +62,8 @@ po chvíli zabije („Force killing…“) – ověřeno 1. 11. 2026, worker sti
 ## Testy
 
 - `apps/worker/src/__tests__` – konfigurace, `nextWakeMs` / `SkipTable`, smyčka s falešnými
-  hodinami, `signalHandler`.
+  hodinami, `signalHandler`, smyčka tažení (`campaign-loop.test.ts` – perioda, chyba tažení i kola
+  smyčku nezastaví, opakovaná chyba jednou).
 - **Souběh web × worker** (`packages/server/src/__tests__/web-worker-race.db.test.ts`, `test:db`
   – kořenový `test:db` pouští `@bohemia/db` a pak `@bohemia/server`): dva „procesy“ s vlastními
   pooly (hlavní i zámků – advisory zámek patří spojení) nad `bohemia_test`, 3 hráči / 4 vsi, každá

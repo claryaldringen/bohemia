@@ -61,6 +61,9 @@ describe('playerNoticeLine', () => {
     expect(noticePanel('war-declared')).toBe('war');
     const ending = notice({ kind: 'protection-ending', payload: {} });
     expect(playerNoticeLine(ending).text).toBe('Ochrana končí za 1 den.');
+    const back = notice({ kind: 'campaign-returned', payload: { reason: 'supplies' } });
+    expect(playerNoticeLine(back).text).toBe('Vojsko se vrátilo – došlo jídlo.');
+    expect(noticePanel('campaign-returned')).toBe('war');
   });
 
   it('každý druh míří na panel (zatím jen Rod a vazalové)', () => {
