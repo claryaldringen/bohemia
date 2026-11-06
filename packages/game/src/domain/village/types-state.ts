@@ -438,6 +438,8 @@ export interface VillageState {
    * před rodem, končí jen vymřením).
    */
   dynasty?: DynastyState;
+  /** Dovednosti nad stropem lovu (70) už jednou stažené na 70 (war.md – Síla; `withArmsCaps`). */
+  armsCapped?: true;
   /**
    * Ves zůstala bez muže rodu a čeká na vojvodu z jiné vsi rodu (seniorate.md – Ves bez muže rodu –
    * dosazení vojvody): `sinceDay` = den, od kterého je bez vojvody; `appointee` = muž, který už

@@ -118,6 +118,7 @@ název). Pravidla a rozhodnutí jsou v `docs/design/`.
 | `docs/code/village-wildlife.md`       | divoká zvěř – stav, stropy z krajiny, roční přepočet, škody na polích, šelmy, psi a lov rodu, hlídky polí, ryby a oka, převod, Vlkov |
 | `docs/code/village-disasters.md`      | počasí kraje – seed počasí mapy, roční los, shlukování, povodeň kraje, odhalení, ochrana nové vsi                                    |
 | `docs/code/village-fortifications.md` | opevnění – plocha a obvod, zakulacené rohy, pás a útočiště, úseky, brány na cestách, cena podle délky                                |
+| `docs/code/war.md`                    | válka – stropy výcviku, převod starých vsí, síla vojska (muž rodu, vesničan, kůň, výzbroj)                                           |
 | `docs/code/worker.md`                 | worker – smyčka, odklady, spánek do dalšího dne, konfigurace, spuštění a ukončení                                                    |
 | `docs/code/world.md`                  | svět pro víc hráčů – mřížka a umístění, rod hráče, adresář rodů (co je veřejné), změřený dotaz, schránka vsi                         |
 | `docs/code/vassalage.md`              | vazalství – makrokomodity, výhled přebytku vsi a rodu, doprava dávek do cílové vsi, podmínky, vypovězení, neplnění                   |

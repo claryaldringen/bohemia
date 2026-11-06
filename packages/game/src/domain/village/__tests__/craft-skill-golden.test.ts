@@ -120,6 +120,7 @@ describe('ves bez dílen beze změny (crafts.md – Učení řemesla)', () => {
       // bez klíčů `plan` a `season` zůstal 46b42f4f
       // osivo ze zásob při setí (fields.md – Úroda, Osivo ze zásob, 27. 10. 2026) – zlatá ves má
       // zásoby nad pojistkou, setí osivo neomezí a bez nových klíčů vyšel stav stejně (8498535)
+      'armsCapped', // příznak převodu stropů výcviku (war.md – Síla), do stavu nic nemění
       'seedKg',
       'seedWaitingKg',
       'seedFloorKg',
