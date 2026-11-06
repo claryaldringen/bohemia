@@ -69,6 +69,8 @@ export interface SquaresPreview {
    */
   outline?: readonly (readonly (readonly [number, number])[])[];
   gates?: readonly (readonly (readonly [number, number])[])[];
+  /** Místo problému (zatarasená branka, stavba, voda) – scéna kreslí červenou čarou. */
+  problem?: readonly (readonly (readonly [number, number])[])[];
 }
 
 /**

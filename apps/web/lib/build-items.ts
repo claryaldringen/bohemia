@@ -1,3 +1,4 @@
+import { problemMarks } from './problem-marks';
 import {
   CRAFT_BASE,
   autoGates,
@@ -85,6 +86,8 @@ export interface SquaresCheck {
    */
   outline?: readonly (readonly FortPoint[])[];
   gates?: readonly (readonly FortPoint[])[];
+  /** Místo problému neprošlého opevnění – čáry, které scéna nakreslí červeně (`problemMarks`). */
+  problem?: readonly (readonly FortPoint[])[];
 }
 
 /** Co kontrola stavby po čtvercích ví o vsi navíc – dřevo vsi (klády a stromy ke kácení). */
@@ -572,11 +575,16 @@ export function fortificationPlacement(
   if (!check.ok || !outline) {
     // neúplné kreslení (nesouvislá nebo malá plocha) je jen „ještě ne“, ostatní důvody červeně
     const incomplete = check.reason !== null && /souvislá|2 × 2/.test(check.reason);
+    const problem = problemMarks(check.where);
     return {
       check,
-      blockedCells: check.ok || incomplete || check.area === null ? [] : cells,
+      // známé místo problému svítí červeně samo – plocha zůstane v barvě kreslení, ať značka
+      // nezanikne v červené ploše
+      blockedCells:
+        check.ok || incomplete || check.area === null || problem.length > 0 ? [] : cells,
       cost: null,
       ...preview,
+      problem,
     };
   }
   const cost = fortificationCost(kind, outline.lengthM, 'new');

@@ -1,3 +1,4 @@
+import { setE2EHook } from '../e2e-hooks';
 import { Constants } from '@babylonjs/core/Engines/constants';
 import { RawTexture } from '@babylonjs/core/Materials/Textures/rawTexture';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
@@ -270,6 +271,7 @@ export class FieldPainter {
   dispose(): void {
     if (this.done) return;
     this.done = true;
+    setE2EHook('paintProblems', undefined);
     const canvas = this.context.canvas;
     canvas.removeEventListener('pointerdown', this.onPointerDown);
     canvas.removeEventListener('pointerup', this.onPointerUp);
@@ -555,6 +557,18 @@ export class FieldPainter {
         if (gates.length > 0) {
           this.selectionMeshes.push(this.lineMesh('field-paint-gates', gates, 'erase', 1.6));
         }
+      }
+      // místo problému (zatarasená branka, stavba, voda) – červeně, i skrz terén
+      const problem = (this.preview?.problem ?? []).map((line) =>
+        line.map(([x, z]): Point => [x, z]),
+      );
+      setE2EHook('paintProblems', () => problem.length);
+      if (problem.length > 0) {
+        this.selectionMeshes.push(this.lineMesh('field-paint-problem', problem, 'bad', 0.7));
+        const xray = this.lineMesh('field-paint-problem-xray', problem, 'bad', 0.7);
+        xray.material = this.xrayMaterials.bad;
+        xray.alphaIndex = 12;
+        this.selectionMeshes.push(xray);
       }
     }
     if (stroke && (stroke.dragged || !sameCell(stroke.start, stroke.end))) {

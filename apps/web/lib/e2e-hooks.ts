@@ -16,6 +16,8 @@ export interface E2EHooks {
   confirmPlacement?: (result: PlacementResult) => void;
   /** Bod krajiny (x, z) na obrazovce v CSS px, nebo null mimo záběr – kam kliknout myší. */
   projectToScreen?: (x: number, z: number) => { x: number; y: number } | null;
+  /** Kolik čar místa problému (červená značka zatarasené branky, vody…) teď kreslí náhled opevnění. */
+  paintProblems?: () => number;
   /** Meshe porážky ve scéně (`slaughter-*`) a jestli jsou připravené ke kreslení. */
   slaughterMeshes?: () => { name: string; ready: boolean }[];
   /** Meshe divoké zvěře (`wild-*`) a kusy, které jsou teď vidět (druh, poloha) – kam kliknout. */

@@ -26,6 +26,9 @@ import {
   checkFortificationPlacement,
 } from '../placement';
 import { placementVillageOf } from '../placement-village';
+import { blockedGates, checkFootprintFree, BLOCKS_GATE } from '../placement-land';
+import { freeShape } from '../placement-geometry';
+import { dwellingGatePoint } from '../paths/network';
 import { advanceVillage } from '../simulate';
 import type { FortKind, VillageState } from '../types';
 import { block, makeLandscape } from './placement-fixtures';
@@ -117,6 +120,68 @@ describe('kontrola umístění opevnění', () => {
     expect(check(s, block(12, 8, 2, 2)).reason).toBe(FORT_TOUCHES);
     expect(check(s, block(9, 9, 2, 2)).reason).toBe(FORT_TOUCHES);
     expect(check(s, block(13, 8, 2, 2)).ok).toBe(true);
+  });
+});
+
+describe('místo problému neprošlé kontroly', () => {
+  const s = village();
+  const pv = placementVillageOf(s, s.lastDay);
+
+  it('zatarasená branka: bod branky a důvod, ostatní stavby beze změny', () => {
+    const gate = dwellingGatePoint(landscape, s.dwellings[0]!);
+    const square = [
+      [gate.x - 1, gate.z - 1],
+      [gate.x + 1, gate.z - 1],
+      [gate.x + 1, gate.z + 1],
+      [gate.x - 1, gate.z + 1],
+    ] as const;
+    expect(blockedGates(landscape, pv, [[...square]])).toEqual([{ x: gate.x, z: gate.z }]);
+    expect(
+      blockedGates(landscape, pv, [
+        [
+          [50, 50],
+          [51, 50],
+          [51, 51],
+        ],
+      ]),
+    ).toEqual([]);
+    const free = checkFootprintFree(landscape, pv, [freeShape([...square])]);
+    if (free.reason === BLOCKS_GATE) expect(free.where?.points).toEqual([{ x: gate.x, z: gate.z }]);
+    else expect(free.where?.footprints?.length).toBeGreaterThan(0);
+  });
+
+  it('obydlí v pásu: obrys; voda: políčka; dotyk: čtverce cizího opevnění', () => {
+    const house = checkFortificationPlacement(
+      landscape,
+      pv,
+      EMPTY,
+      block(2, 2, 3, 3),
+      null,
+      'fence',
+    );
+    expect(house.reason).toBe(FORT_OVER_BUILDING);
+    expect(house.where?.footprints?.length).toBeGreaterThan(0);
+    const wet = checkFortificationPlacement(
+      makeLandscape({ surface: (x, y) => (x === 9 && y === 8 ? 'water' : 'meadow') }),
+      pv,
+      EMPTY,
+      AREA,
+      null,
+      'fence',
+    );
+    expect(wet.reason).toBe(FORT_OVER_WATER);
+    expect(wet.where?.footprints?.length).toBeGreaterThan(0);
+    const built = placementVillageOf(start(village(), 'fence'), s.lastDay);
+    const touch = checkFortificationPlacement(
+      landscape,
+      built,
+      EMPTY,
+      block(12, 8, 2, 2),
+      null,
+      'fence',
+    );
+    expect(touch.reason).toBe(FORT_TOUCHES);
+    expect(touch.where?.footprints?.length).toBeGreaterThan(0);
   });
 });
 

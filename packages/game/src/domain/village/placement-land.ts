@@ -171,6 +171,27 @@ export function blocksGate(
 }
 
 /**
+ * Branky (`dwellingGatePoint`) hotových i rozestavěných obydlí, které stavba (mnohoúhelníky
+ * `polygons`) zatarasí – totéž co `blocksGate`, ale s místy (rozhraní je ukáže červeně).
+ */
+export function blockedGates(
+  landscape: Landscape,
+  village: PlacementVillage | null,
+  polygons: readonly (readonly Point[])[],
+): { x: number; z: number }[] {
+  if (village === null) return [];
+  const found: { x: number; z: number }[] = [];
+  for (const d of gateOwners(village)) {
+    const gate = dwellingGatePoint(landscape, d);
+    const probe = gateProbe(gate);
+    if (polygons.some((polygon) => polygonsOverlap(probe, polygon))) {
+      found.push({ x: gate.x, z: gate.z });
+    }
+  }
+  return found;
+}
+
+/**
  * Co smí stavba zabrat: `fields` – čtverce polí (fields.md – Pole jako krajina: na pole smí
  * cokoli kromě pole), `orchards` – čtverce sadu (jen obydlí – population.md, Obydlí na poli
  * a v sadu), `woods` – čtverce lesa vsi (fields.md – Les vsi: les osadníci vyklučí jako les
@@ -207,10 +228,13 @@ export function checkFootprintFree(
   if (village === null) return OK;
   const overlaps = (other: readonly Point[][]): boolean =>
     shapes.some((a) => other.some((b) => polygonsOverlap(a.corners, b)));
+  /** Obrysy z `other`, které se překrývají se stavbou – místo problému. */
+  const hitting = (other: readonly Point[][]): { footprints: Point[][] } => ({
+    footprints: other.filter((b) => shapes.some((a) => polygonsOverlap(a.corners, b))),
+  });
   for (const d of village.dwellings) {
-    if (overlaps(dwellingPlot(landscape, placedDwelling(d)))) {
-      return fail(OVERLAPS_DWELLING);
-    }
+    const plot = dwellingPlot(landscape, placedDwelling(d));
+    if (overlaps(plot)) return fail(OVERLAPS_DWELLING, hitting(plot));
   }
   for (const c of village.constructions) {
     if (c.dwellingType === null || c.position === null) continue;
@@ -221,9 +245,8 @@ export function checkFootprintFree(
       ...(c.craft ? { craft: c.craft } : {}),
       ...(c.plainShape ? { plainShape: true } : {}),
     };
-    if (overlaps(dwellingPlot(landscape, site))) {
-      return fail(OVERLAPS_DWELLING_SITE);
-    }
+    const plot = dwellingPlot(landscape, site);
+    if (overlaps(plot)) return fail(OVERLAPS_DWELLING_SITE, hitting(plot));
   }
   for (const b of village.sacredBuildings ?? []) {
     if (overlaps([sacredFootprint(b.kind, b.position)])) {
@@ -244,15 +267,12 @@ export function checkFootprintFree(
     if (overlaps([kilnCircle(k, MILIR.clearingRadiusM)])) return fail('Stojí tu milíř.');
   }
   // místo před brankou sousedního obydlí (population.md – Umístění obydlí)
-  if (
-    blocksGate(
-      landscape,
-      village,
-      shapes.map((shape) => shape.corners),
-    )
-  ) {
-    return fail(BLOCKS_GATE);
-  }
+  const gates = blockedGates(
+    landscape,
+    village,
+    shapes.map((shape) => shape.corners),
+  );
+  if (gates.length > 0) return fail(BLOCKS_GATE, { points: gates });
   const under = new Set(
     shapes.flatMap((shape) => squaresUnder(landscape, village, shape)).map((q) => q.kind),
   );
