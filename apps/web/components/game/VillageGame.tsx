@@ -1587,6 +1587,14 @@ export function VillageGame({
             view={house}
             error={houseError}
             onClose={closeWar}
+            ownVillages={(view?.villages ?? [])
+              .filter((v) => !v.stewarded)
+              .map((v) => ({
+                id: v.id,
+                name: v.name,
+                settlementId: v.settlementId,
+                asleep: v.extinct || v.abandoned,
+              }))}
             onOfferPeace={(to, items, message) =>
               negotiate(() => openNegotiation({ to, items, message }))
             }

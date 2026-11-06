@@ -815,6 +815,10 @@ test('mír: A a C jsou ve válce, C nabídne mír s poplatkem, A přijme → vá
   await expect(c.getByTestId('war-count')).toHaveAttribute('data-wars', '1', { timeout: 30_000 });
   await c.getByTestId('war-toggle').click();
   await c.getByTestId('war-offer-peace').click();
+  // jedinou vsi rodu postoupit nejde (poslední mapa) – volba je zašedlá
+  await c.getByTestId('peace-cede-side').selectOption('own');
+  await expect(c.getByTestId('peace-cede-village')).toBeDisabled();
+  await c.getByTestId('peace-cede-side').selectOption('none');
   await c.getByTestId('peace-fee').fill('4');
   await c.getByTestId('peace-send').click();
 
