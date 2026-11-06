@@ -8,8 +8,17 @@ export const WAR = {
   newVillageProtectionYears: 5,
   /** war.md – Čísla: válka utichne po tolika letech bez střetu. */
   quietYears: 3,
-  /** war.md – Čísla: tempo vojska (m/s skutečného času, Martin: 3–4) a terén. */
-  pace: { metersPerSecond: 3.5, forest: 1 / 4, road: 1.5, riders: 1.5, herd: 0.5 },
+  /**
+   * war.md – Čísla: tempo vojska (m/s skutečného času, Martin: 3–4), terén (hustý les, pevná cesta
+   * a zemská stezka) a skupina (jen jezdci, se stádem, s pěšími raněnými – Pohyb, Ztráty).
+   */
+  pace: { metersPerSecond: 3.5, forest: 1 / 4, road: 1.5, riders: 1.5, herd: 0.5, wounded: 0.75 },
+  /**
+   * war.md – Čísla: mřížka pochodu (strana buňky v m) a hustý les – les krajiny, kde v okolí
+   * 3 × 3 buněk stojí aspoň tolik stromů (návrh Clauda; vykácená paseka vsi lesem není); brod je
+   * mělčina potoka – místo osy aspoň z tolika mělké (`StreamPoint.shallow`, jako brod chodců).
+   */
+  march: { cellM: 10, denseForestTrees: 3, fordShallow: 0.55 },
   /** war.md – Zima (Martin 3. 11.; čísla návrh Clauda): sníh zpomalí pochod. */
   snowPace: 0.75,
   /**

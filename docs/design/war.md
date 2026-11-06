@@ -145,8 +145,9 @@ přítomný hráč velí obraně sám; mřížka map s přechodem okrajem.
     snažilo přenocovat v nějaké vesnici. Jen si to nedokážu představit z hlediska herní mechaniky,
     když neuznáváme noc“; čísla návrh Clauda): vojsko, které je v zimě venku, ztrácí každý herní
     den **3 zdraví a 2 % síly**; zastávka ve vsi (vlastní, neutrální, která ho pustí, nebo dobytá)
-    mráz zastaví a muži se zotaví – **+10 zdraví a +5 % síly za den**. Tažení tak vede od vsi
-    ke vsi; zimní ležení ve třetině dne odpadá, tempo v zimě je jen sníh × 0,75;
+    mráz zastaví a muži se zotaví – **+10 zdraví a +5 % síly za den** (i po zimě, dokud únavu
+    nedohoní – návrh Clauda). Tažení tak vede od vsi ke vsi; zimní ležení ve třetině dne odpadá,
+    tempo v zimě je jen sníh × 0,75;
   - **píce:** koně na tažení dostávají seno, kdykoli by ho dostávali doma (listopad–březen,
     **6 kg denně**, kůň bez obilí 7 kg – [koně](horses.md)); tažení ho veze s sebou.
 
@@ -545,35 +546,36 @@ Martin 2. 11. 2026 – „ok“ (doplňky návrh Clauda):
 
 ## Čísla (návrh Clauda – do `rules-war.ts`, kde není uvedeno jinak)
 
-| Co                             | Číslo                                                              |
-| ------------------------------ | ------------------------------------------------------------------ |
-| Ochrana nového rodu            | 7 skutečných dní, končí vlastním útokem nebo opovědí (Martin)      |
-| Ochrana nové vsi               | 5 herních let                                                      |
-| Válka utichne                  | 3 herní roky bez střetu                                            |
-| Tempo vojska                   | ≈ 3–4 m/s skutečného času, 1 km ≈ 4–5 min ≈ 3 herní dny (Martin)   |
-| Terén a náklad                 | les 1/4, cesta a stezka × 1,5, jezdci × 1,5, stádo × 0,5           |
-| Zima (1. 12. – konec února)    | sníh × 0,75; venku −3 zdraví a −2 % síly za den, ve vsi +10 a +5 % |
-| Píce v zimě                    | 6 kg sena na koně denně (horses.md)                                |
-| Jídlo                          | ≈ 1 kg obilí na muže a den                                         |
-| Nosnost                        | muž 25 kg, kůň bez jezdce 80 kg, dvoukolák 400 kg                  |
-| Hráč mimo tažení               | 1 herní den, pak zástupce, nebo rozpad                             |
-| Stropy dovedností              | výcvik doma 50, lov 70, válka 100 (Martin)                         |
-| Válka jako výcvik              | den tažení 2 h, den se soubojem 6 h; lov rodu se stropem 70        |
-| Síla vesničana                 | 0,4, nucený × 0,5, štěstí × 0,8–1,1 (Martin 3. 11.)                |
-| Síla muže rodu                 | 1 + 2 × (boj + luk) ÷ 200 (Martin; průměr návrh Clauda)            |
-| Kůň                            | × (1 + 0,5 × jízda na koni ÷ 100), až × 1,5 (Martin)               |
-| Zdraví a zásah                 | 100; 10 × síla ÷ násobek obrany; luk polovina                      |
-| Násobek obrany                 | u domu 1,5; za opevněním 1,5 × násobek opevnění (`FORTIFICATIONS`) |
-| Rány                           | zblízka ≈ 2 s, luk ≈ 4 s na 20–60 m                                |
-| Na nule zdraví                 | padlý / raněný 1 : 1, muž rodu raněný 2 : 3                        |
-| Bod zlomu                      | 30 % v útoku, 45 % v obraně, po skupinách; padlí a ranění ÷ muži   |
-| Vzdát se při přesile           | útočníků víc než 1,5× obránců (Martin), jezdec za dva              |
-| Muž rodu v bezvýchodné situaci | vzdá se s pravděpodobností 80 %                                    |
-| Včasný útěk                    | dospělý 25 kg (Martin), dítě 7–15 let 10 kg, dobytek celý          |
-| Nalezení jámy                  | 30 % za jámu po 1 herním dni ve skupině domů                       |
-| Ranění                         | 60 dní bez práce, 1 z 5 zemře (Martin)                             |
-| Poslední muž rodu doma         | neklesne pod 10 zdraví, vždy uteče (Martin)                        |
-| Doslech rozkazu                | 30 m                                                               |
+| Co                             | Číslo                                                                     |
+| ------------------------------ | ------------------------------------------------------------------------- |
+| Ochrana nového rodu            | 7 skutečných dní, končí vlastním útokem nebo opovědí (Martin)             |
+| Ochrana nové vsi               | 5 herních let                                                             |
+| Válka utichne                  | 3 herní roky bez střetu                                                   |
+| Tempo vojska                   | ≈ 3–4 m/s skutečného času, 1 km ≈ 4–5 min ≈ 3 herní dny (Martin)          |
+| Terén a náklad                 | les 1/4, cesta a stezka × 1,5, jezdci × 1,5, stádo × 0,5, ranění × 0,75   |
+| Mřížka pochodu                 | buňka 10 m; hustý les = les se 3 stromy v okolí 30 × 30 m; brod = mělčina |
+| Zima (1. 12. – konec února)    | sníh × 0,75; venku −3 zdraví a −2 % síly za den, ve vsi +10 a +5 %        |
+| Píce v zimě                    | 6 kg sena na koně denně (horses.md)                                       |
+| Jídlo                          | ≈ 1 kg obilí na muže a den                                                |
+| Nosnost                        | muž 25 kg, kůň bez jezdce 80 kg, dvoukolák 400 kg                         |
+| Hráč mimo tažení               | 1 herní den, pak zástupce, nebo rozpad                                    |
+| Stropy dovedností              | výcvik doma 50, lov 70, válka 100 (Martin)                                |
+| Válka jako výcvik              | den tažení 2 h, den se soubojem 6 h; lov rodu se stropem 70               |
+| Síla vesničana                 | 0,4, nucený × 0,5, štěstí × 0,8–1,1 (Martin 3. 11.)                       |
+| Síla muže rodu                 | 1 + 2 × (boj + luk) ÷ 200 (Martin; průměr návrh Clauda)                   |
+| Kůň                            | × (1 + 0,5 × jízda na koni ÷ 100), až × 1,5 (Martin)                      |
+| Zdraví a zásah                 | 100; 10 × síla ÷ násobek obrany; luk polovina                             |
+| Násobek obrany                 | u domu 1,5; za opevněním 1,5 × násobek opevnění (`FORTIFICATIONS`)        |
+| Rány                           | zblízka ≈ 2 s, luk ≈ 4 s na 20–60 m                                       |
+| Na nule zdraví                 | padlý / raněný 1 : 1, muž rodu raněný 2 : 3                               |
+| Bod zlomu                      | 30 % v útoku, 45 % v obraně, po skupinách; padlí a ranění ÷ muži          |
+| Vzdát se při přesile           | útočníků víc než 1,5× obránců (Martin), jezdec za dva                     |
+| Muž rodu v bezvýchodné situaci | vzdá se s pravděpodobností 80 %                                           |
+| Včasný útěk                    | dospělý 25 kg (Martin), dítě 7–15 let 10 kg, dobytek celý                 |
+| Nalezení jámy                  | 30 % za jámu po 1 herním dni ve skupině domů                              |
+| Ranění                         | 60 dní bez práce, 1 z 5 zemře (Martin)                                    |
+| Poslední muž rodu doma         | neklesne pod 10 zdraví, vždy uteče (Martin)                               |
+| Doslech rozkazu                | 30 m                                                                      |
 
 Z 18. 10. beze změny: skupina domů 40 m, dohled 150 m, nosnost 25 kg, ochota a dezerce, kovárna
 × 1,5, obrana u domu × 1,5, nucený × 0,5 / 0,3, štěstí × 0,8–1,1.
