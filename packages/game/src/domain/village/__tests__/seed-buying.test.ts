@@ -306,6 +306,24 @@ describe('osivo pro ves bez zásob (fields.md – Osivo pro ves bez zásob)', ()
     expect(s.reservedSeedKg).toBeUndefined();
   });
 
+  it('nevymlácené snopy kryjí osivo – ves je nekupuje, jako je počítá příprava jaře (oprava, návrh Clauda)', () => {
+    const s = advanceVillage(village(20, 0, TRADE.keepCows), at(600, 9, 1), null);
+    s.chronicle = [];
+    const day = at(601, 3, 1);
+    s.lastDay = day - 1;
+    const short = seedShortKg(s, day);
+    expect(short).toBeGreaterThan(SEED_BUYING.minKg);
+    // snopy s obilím na celé osivo: nedostatek zmizí a nákup neproběhne
+    s.sheaves = { grainKg: short * 2, legumesKg: 0 };
+    s.crafts = { charcoalKg: 0, potteryKg: 0, ironBarsKg: 1000 };
+    expect(seedShortKg(s, day)).toBe(0);
+    expect(seedBuyingDay(s, day)).toEqual([]);
+    expect(s.crafts.ironBarsKg).toBe(1000);
+    // snopy na polovinu osiva: kupuje se jen zbytek
+    s.sheaves = { grainKg: short / 2, legumesKg: 0 };
+    expect(seedShortKg(s, day)).toBeCloseTo(short / 2, 6);
+  });
+
   it('po kouscích přes den nákupu stejně jako jedním voláním', () => {
     const start = village(20, 0, 6);
     const end = at(600, 10, 31);
