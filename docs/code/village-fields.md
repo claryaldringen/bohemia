@@ -217,20 +217,25 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`fieldTasks` v `simulate-work.ts`) omezí setí na `seedSowCap` (zasetý podíl ≤ (vzaté +
   `sowableSeedKg`) / osivo plánu); po práci `takeSeed` vezme osivo zasetého podílu (obilí ze
   `storesKg` + `drawGrainPits`, luštěniny z `legumesKg`, chybějící luštěniny za obilí). Obilí nad
-  potřebu (`surplus-fields.ts`) jen nad příděl `keepRation`. `sowableSeedKg`: osivo do roční
-  potřeby (`FarmSeason.seedFloorKg` – `seasonDay`/`recordSeedPlan`: `energyFloorKg` × osivo na kg
-  čisté úrody dílů plánu) ze zrna nad příděl `SEED_STORES.floorRation` potřeby do sklizně
-  (`foodUntilHarvestKg`), ostatní nad `keepRation`. Čekající osivo (`seedAheadKg` – nezasetý podíl
+  potřebu (`surplus-fields.ts`, `sowableSeedKg(…, false)`) jen z osiva, na které nutné díly
+  nečekají (`seedAheadKg(state, true)`). **Osev má přednost** (6. 11. 2026): `sowableSeedKg(state,
+store, keepKg)` = osivo jen na setí + všechno zrno nad přežívací zásobu `keepKg` = `seedKeepKg`
+  (0,9 × denní potřeba z pole × (dny do žní − `slack`), `slack` = nejnižší
+  `STARVATION.threshold` skupin ve vsi – s `reservedSeedKg` nejvýš
+  `SEED_BUYING.eatFromStarvationDays` – − `SEED_STORES.marginDays` − `starvationDays`; denní
+  potřeba a dny z `fieldNeedUntilHarvest` jako `foodUntilHarvestKg`); bez stropu podle potřeby
+  jídla. `FarmSeason.seedFloorKg` (`recordSeedPlan`: `energyFloorKg` × osivo na kg čisté úrody
+  dílů plánu) už osev neomezuje – čte ho jen `foundersSeedKeepKg`. Čekající osivo (`seedAheadKg` – nezasetý podíl
   plánů + `FarmSeason.seedWaitingKg` vybraných dílů mimo čelo) ves nejí (`seedReserve` v
   `dayMealInput`, `eat` ho vrátí do zásob) a `fieldSowingTargets` ho odečte od zásob k sklizni
   (`sowingTargets(…, seedAheadKg)`). `expectedWinterKg` odečte jen osivo, které zásoby ještě
   vezmou. Nová ves: `START_SEED_YEARS` osiva navíc.
 - **Osivo pro ves bez zásob** (fields.md – Osivo ze zásob, Osivo pro ves bez zásob; Martin 27. 10. 2026): `VillageState.reservedSeedKg` = osivo ve `storesKg` jen na setí (osadníků –
   `Settlers.seedKg`, village-people.md; koupené). `reservedSeedKg()` ho omezí zásobami;
-  `sowableSeedKg` ho přičte vždy a prahy přídělu počítá ze zbytku zásob (obilí nad potřebu ho
-  nedostane); `seedReserve` ho nesní nikdy; `takeSeed(…, foodKg)` u nutných dílů bere napřed
-  běžné zrno nad `SEED_STORES.keepRation × foodKg` (`foodUntilHarvestKg` – `work()` jednou za den
-  `sowFoodKg`), pak rezervu, pak zrno pod příděl (oprava 2. 11. 2026, dřív rezervu napřed).
+  `sowableSeedKg` ho přičte vždy a přežívací zásobu počítá ze zbytku zásob (obilí nad potřebu ho
+  nedostane); `seedReserve` ho nesní nikdy; `takeSeed(…, keepKg)` u nutných dílů bere napřed
+  běžné zrno nad přežívací zásobu (`seedKeepKg` – `work()` jednou za den `sowKeepKg`), pak
+  rezervu, pak zbytek zásob (oprava 2. 11. 2026, dřív rezervu napřed).
   `seed-buying.ts` (`seedBuyingDay` v `simulateDay` po `startPurchases`): 1. 6.
   (`SEED_BUYING.releaseDay`) ho smaže; 1. 9. a 1. 3. (`SEED_BUYING.days`) `seedShortKg` = osivo
   nutných dílů (`seedAheadKg(state, true)` – bez `surplus`, chybějící luštěniny za obilí) −

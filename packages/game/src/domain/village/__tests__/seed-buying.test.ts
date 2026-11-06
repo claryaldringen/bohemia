@@ -295,7 +295,7 @@ describe('osivo pro ves bez zásob (fields.md – Osivo pro ves bez zásob)', ()
     ]);
     expect(s.crafts.ironBarsKg).toBe(1000 - bars);
     expect(reservedSeedKg(s)).toBeCloseTo(short, 6);
-    // osivo už nechybí a smí do země i pod prahy přídělu
+    // osivo už nechybí a smí do země i pod přežívací zásobou
     expect(seedShortKg(s, day)).toBeCloseTo(0, 6);
     expect(sowableSeedKg(s, 'grain', foodUntilHarvestKg(s, day))).toBeGreaterThanOrEqual(
       short - 1e-6,

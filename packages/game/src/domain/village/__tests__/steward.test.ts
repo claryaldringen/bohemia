@@ -490,7 +490,8 @@ describe('den správce – dlouhý běh na skutečné krajině', () => {
     () => {
       advanceChunked(SEPT + 25 * YEAR);
       expect(hunger).toBe(0);
-      // osivo se nejí (SEED_STORES.floorRation 0,5 – Martin 31. 10. 2026, fields.md): ves zakladatelů
+      // osivo se nejí (SEED_STORES.floorRation 0,5 – Martin 31. 10. 2026, od 6. 11. 2026 přežívací
+      // zásoba do žní – osev má přednost, fields.md): ves zakladatelů
       // na krajině 1 už do pasti osiva (hlad na stropu hájení) nespadne – dřív tu `trapModes`
       // sbíraly režimy správce v pasti (Obnova místo Nouze). Kdyby do ní přece spadla, hlad na
       // stropu nesmí správce držet v Nouzi (kouřový test S5 – osm let žádná stavba mimo pole); od

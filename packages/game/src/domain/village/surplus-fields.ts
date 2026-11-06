@@ -28,7 +28,7 @@ import {
   type CropTask,
 } from './year-plan';
 import { springSowingExtended, springSowingHeld } from './weather-effects';
-import { foodUntilHarvestKg, seedSowCap, sowableSeedKg, takeSeed } from './seed';
+import { seedKeepKg, seedSowCap, sowableSeedKg, takeSeed } from './seed';
 
 // Díly nad potřebu (fields.md – Osevní postup po dílech a setí do konce okna, bod 3; Martin
 // 25. 10. 2026: „stavby mají pořád přednost, ale vesničané neví dopředu že budou něco stavět,
@@ -188,19 +188,19 @@ export function surplusFieldDay(
   if (!season || input.labor <= EPSILON) return { fieldWork, labor: 0 };
   let left = input.labor;
   let teams = input.teamDays;
-  // obilí nad potřebu seje jen z osiva nad jídlo (fields.md – Úroda, Osivo ze zásob)
+  // obilí nad potřebu seje ze zrna nad přežívací zásobu (fields.md – Úroda, Osivo ze zásob)
   let partsById: Map<number, FieldPart> | null = null;
-  let food: number | null = null;
+  let keep: number | null = null;
   const put = (work: SeasonCrop, task: CropTask): void => {
     if (left <= EPSILON) return;
     let wanted = Math.min(left, cropTaskRemaining(work, task));
     if (task === 'sow' && work.seedKg !== undefined) {
       partsById ??= new Map(state.parts.map((p) => [p.id, p]));
-      food ??= foodUntilHarvestKg(state, day);
-      // obilí nad potřebu – jen zrno nad příděl bez hladu (osivo do roční potřeby má přednost)
+      keep ??= seedKeepKg(state, day);
+      // obilí nad potřebu – jen osivo, na které nutné díly nečekají (nutné mají přednost)
       const sowable = {
-        grain: sowableSeedKg(state, 'grain', food, false),
-        legumes: sowableSeedKg(state, 'legumes', food, false),
+        grain: sowableSeedKg(state, 'grain', keep, false),
+        legumes: sowableSeedKg(state, 'legumes', keep, false),
       };
       wanted = Math.min(wanted, seedSowCap(work, work.crop, partsById, sowable));
     }
@@ -215,7 +215,7 @@ export function surplusFieldDay(
     addCropTaskWork(work, task, wanted);
     const after = cropTaskDone(work, task);
     if (after - before <= EPSILON) return;
-    if (task === 'sow' && partsById) takeSeed(state, work, work.crop, partsById, food ?? 0);
+    if (task === 'sow' && partsById) takeSeed(state, work, work.crop, partsById, keep ?? 0);
     fieldWork.push({ task, work, before, after, amount: after - before });
     left -= after - before;
     if (task === 'plough') teams -= (after - before) / factor;

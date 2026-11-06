@@ -398,7 +398,7 @@ pohledu, `currentVillageViewStamp` spící vsi s `lastDay < dnes` ignoruje.
 
 ## Deník vsí (`village_year`)
 
-Martin 1. 11. 2026: „na tohle asi ser, podle mě bude stačit logovat hru“ (místo velkého měření správce). Za každou ves a dokončený herní rok jeden řádek – `villageYearRow(stav)` v `domain/village/year-log.ts` (čistá funkce nad stavem na konci roku: lidé dospělí/děti, narození a úmrtí z kroniky roku, z toho hladem, sklizeň, zásoby, dny hladu, pole a oseto, stáda, správce zapnutý, dostavěné stavby podle druhu, odchody synů, pohromy).
+Martin 1. 11. 2026: „na tohle asi ser, podle mě bude stačit logovat hru“ (místo velkého měření správce). Za každou ves a dokončený herní rok jeden řádek – `villageYearRow(stav)` v `domain/village/year-log.ts` (čistá funkce nad stavem na konci roku: lidé dospělí/děti, narození a úmrtí z kroniky roku, z toho hladem, sklizeň, zásoby, dny hladu, pole a oseto (skutečně zasetý podíl prací hospodářského roku – `sownShare` × výměra dílů práce; od 6. 11. 2026, dřív díly ve stavu `sown` už od výběru do plánu), stáda, správce zapnutý, dostavěné stavby podle druhu, odchody synů, pohromy).
 
 - `updateVillage` dopočítává po kouscích končících na přelomu roku (`nextYearEnd`; stav je týž jako bez dělení) a řádky předá `VillageRepository.save(…, yearRows)`; adaptér je zapíše v téže transakci jako stav (`ON CONFLICT (village_id, year) DO UPDATE` – opakovaný zápis řádek přepíše). Worker i web jdou stejnou cestou. Cena zápisu: jeden upsert za ves a rok, v měření v řádu jednotek ms na save (v šumu).
 - Počty událostí se čtou z kroniky (max. 500 událostí) – při přetečení je `chronicleFull` a počty jsou dolní odhad. Nejnižší zásoby za rok se nesledují (stav na konci roku jen).

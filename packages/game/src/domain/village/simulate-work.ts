@@ -114,7 +114,7 @@ import type {
   VillageState,
 } from './types';
 import {
-  foodUntilHarvestKg,
+  seedKeepKg,
   seedPrepShares,
   seedSowCap,
   seedUseKg,
@@ -186,12 +186,12 @@ export function fieldTasks(
   const seedCap = (crop: Crop, work: CropWork, wanted: number): number => {
     if (work.seedKg === undefined) return wanted;
     if (!seed) {
-      const food = foodUntilHarvestKg(state, day);
+      const keep = seedKeepKg(state, day);
       seed = {
         byId: partsByIdOf(state.parts),
         sowable: {
-          grain: sowableSeedKg(state, 'grain', food),
-          legumes: sowableSeedKg(state, 'legumes', food),
+          grain: sowableSeedKg(state, 'grain', keep),
+          legumes: sowableSeedKg(state, 'legumes', keep),
         },
       };
     }
@@ -340,7 +340,7 @@ export function work(
   const partsById = partsByIdOf(state.parts);
   // potřeba do sklizně pro příděl, nad kterým nutné díly sejí z běžného zrna (`takeSeed`) – jednou
   // za den, před prvním osivem dne
-  let sowFoodKg: number | null = null;
+  let sowKeepKg: number | null = null;
   const teamsCap = ploughCapacityPerDay(state, coverage.tools, day);
   const ploughCap = teamsCap * teamsHomeShare(state, day);
   // spřežení na poli od rána (oxen.md – Spřežení zůstane na poli) – cesta dne jednou za den
@@ -748,8 +748,8 @@ export function work(
       const after = cropTaskDone(task.field.work, task.field.name);
       // osivo zaseté části ze zásob v den setí (fields.md – Úroda, Osivo ze zásob)
       if (task.field.name === 'sow' && after > before) {
-        sowFoodKg ??= foodUntilHarvestKg(state, day);
-        takeSeed(state, task.field.work, task.field.crop, partsById, sowFoodKg);
+        sowKeepKg ??= seedKeepKg(state, day);
+        takeSeed(state, task.field.work, task.field.crop, partsById, sowKeepKg);
       }
       fieldWork.push({
         task: task.field.name,

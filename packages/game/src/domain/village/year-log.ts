@@ -3,6 +3,7 @@ import { ageGroup } from './people';
 import type { ConstructionKind } from './types-construction';
 import type { HerdSpecies } from './types-livestock';
 import type { VillageState } from './types-state';
+import { seasonCrops, sownShare } from './year-plan';
 
 // Deník vsí (Martin 1. 11. 2026: „na tohle asi ser, podle mě bude stačit logovat hru“): za každý
 // dokončený herní rok jeden řádek – čistá funkce nad stavem na konci roku. Počty událostí roku
@@ -26,7 +27,11 @@ export interface VillageYearRow {
   storesKg: number;
   /** Dny roku, kdy ves hladověla (mezi `hunger-began` a `hunger-ended`). */
   hungryDays: number;
-  /** Výměra polí a z toho oseto (m²). */
+  /**
+   * Výměra polí a z toho oseto (m²) – skutečně zasetý podíl prací hospodářského roku na konci roku
+   * (ozim, jař připravená na podzim jen se zasetou částí); díly vybrané do plánu, na kterých setí
+   * ještě nezačalo, se nepočítají (oprava 6. 11. 2026 – dřív díly ve stavu `sown` už od výběru).
+   */
   fieldM2: number;
   sownM2: number;
   herds: Record<HerdSpecies, number>;
@@ -128,10 +133,18 @@ export function villageYearRow(end: VillageState): VillageYearRow {
   }
   if (hungrySince !== null) hungryDays += day - hungrySince + 1;
   let fieldM2 = 0;
-  let sownM2 = 0;
+  const areaById = new Map<number, number>();
   for (const part of end.parts) {
     fieldM2 += part.areaM2;
-    if (part.state === 'sown') sownM2 += part.areaM2;
+    areaById.set(part.id, part.areaM2);
+  }
+  let sownM2 = 0;
+  if (end.season) {
+    for (const { work } of seasonCrops(end.season)) {
+      let m2 = 0;
+      for (const id of work.partIds) m2 += areaById.get(id) ?? 0;
+      sownM2 += sownShare(work) * m2;
+    }
   }
   const livestock = end.livestock?.herds;
   return {

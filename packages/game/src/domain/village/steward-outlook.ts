@@ -4,8 +4,8 @@ import { distanceFactor, fallowStage, partWalkDistance, reclaimCostPerHa } from 
 import { ableTeams } from './oxen';
 import { ploughWorkPerHa } from './plough';
 import { fieldWorkPerHa } from './productivity';
-import { SEED_KG_PER_HA, SEED_STORES, WINDOWS } from './rules-fields';
-import { foodUntilHarvestKg, grainSeedTakenKg, reservedSeedKg, sowableSeedKg } from './seed';
+import { SEED_KG_PER_HA, WINDOWS } from './rules-fields';
+import { grainSeedTakenKg, reservedSeedKg, seedKeepKg, sowableSeedKg } from './seed';
 import { sowingCapacity } from './simulate-plan';
 import type { CraftCoverage, FieldPart, VillageState } from './types';
 
@@ -132,7 +132,7 @@ export function stewardOutlook(
   const sowing = month >= 9 || month <= LAST_SOWING_MONTH;
   const seedKg = sowing
     ? grainSeedTakenKg(state) +
-      sowableSeedKg(state, 'grain', foodUntilHarvestKg(state, day)) +
+      sowableSeedKg(state, 'grain', seedKeepKg(state, day)) +
       (state.legumesKg ?? 0)
     : Infinity;
   const seedHa = seedKg / SEED_KG_PER_HA;
@@ -174,13 +174,13 @@ export function stewardSoil(state: VillageState, day: number): StewardSoil | nul
 
 /**
  * Osivo na příští osev (kg) i mimo okna setí: osivo jen na setí (`reservedSeedKg`), zrno zásob
- * a nevymlácených snopů nad příděl SEED_STORES.floorRation potřeby do žní (pod ním by ho ves
- * snědla – fields.md, Osivo ze zásob) a luštěniny.
+ * a nevymlácených snopů nad přežívací zásobu do žní (`seedKeepKg` – tu ves sní, fields.md, Osivo
+ * ze zásob) a luštěniny.
  */
 function nextSowingSeedKg(state: VillageState, day: number): number {
   const reserved = reservedSeedKg(state);
   const grain = Math.max(0, state.storesKg) + (state.sheaves?.grainKg ?? 0) - reserved;
-  const free = Math.max(0, grain - SEED_STORES.floorRation * foodUntilHarvestKg(state, day));
+  const free = Math.max(0, grain - seedKeepKg(state, day));
   return reserved + free + Math.max(0, state.legumesKg ?? 0) + (state.sheaves?.legumesKg ?? 0);
 }
 

@@ -36,7 +36,7 @@ import {
 } from './livestock';
 import { villageApplesKg } from './orchard';
 import { EMERGENCY_SLAUGHTER } from './rules';
-import { foodUntilHarvestKg, seedReserve } from './seed';
+import { seedKeepKg, seedReserve } from './seed';
 import { sheavesOutlook } from './threshing';
 import type { ChronicleEvent, HerdSpecies, VillageState } from './types';
 import { woolSheep } from './wool';
@@ -94,9 +94,9 @@ export function dayMealInput(
   );
   // snopy, které ves vymlátí, jsou ve výhledu jako zrno (production-chains.md – Humno)
   const sheaves = sheavesOutlook(state, day);
-  // osivo, které na setí čeká, ves nejí – jen když by příděl do žní klesl pod práh hladu
+  // osivo, které na setí čeká, ves nejí – jí přežívací zásobu do žní a to, co na setí nečeká
   // (fields.md – Úroda, Osivo ze zásob)
-  const seed = seedReserve(state, foodUntilHarvestKg(state, day));
+  const seed = seedReserve(state, seedKeepKg(state, day));
   return {
     grainKg: state.storesKg - seed.grain,
     // zapečetěné obilné jámy ztrácí méně (production-chains.md – Obilné jámy)

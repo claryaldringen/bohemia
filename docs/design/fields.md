@@ -1445,20 +1445,42 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
   - Setí bere osivo ze zásob **v den setí dílu** – obilí (ozim, jař, obilí nad potřebu) ze zásob
     obilí, luštěniny ze zásob luštěnin; luštěnin, které chybí, ves vymění u sousedů za obilí.
     Sklizeň osivo neodečítá. Ves zaseje jen tolik dílů, na kolik má osivo.
-  - **Kolik si ves nechá na jídlo:** osivo na díly **do roční potřeby z pole** má přednost před
-    jídlem – ves ho dá do země, i když pak šetří, dokud jí do žní zbude zrno na **příděl 0,5**
-    potřeby z pole (raději šetří, než by příští rok neměla co sklidit – ale pod polovinou
-    přídělu raději jí). Číslo: 0,6 → 0,75 (kalibrace Vlkova 27. 10. 2026, návrh Clauda, viz
-    [pohromy](disasters.md) – Kalibrace) → **0,5** (Martin 31. 10. 2026: „2 – osivo se nejí“ –
-    „Osivo do roční potřeby ves sní až pod přísnějším prahem přídělu (např. 0,5 místo 0,75) –
-    víc hladu krátce, plný osev“). Důvod: **past osiva** – ves po krutém roce s prahem 0,75
-    snědla část osiva, zasela míň a uvízla v chronickém hladu i s dost poli (měření správce 30. 10. 2026, [správce](steward.md) – Hranice, past osiva). Osivo **nad roční
-    potřebu** (doplnění pojistky, obilí nad potřebu) jen ze zrna, které ves do žní nesní (příděl
-    **1**). Potřeba z pole podle většího z dlouhodobého podílu pole ve stravě a včerejší stravy (po
-    úbytku stád jí ves obilí víc).
-  - **Osivo se šetří, v hladu se sní:** osivo dílů v plánu, které na setí čeká (i vybraných dílů,
-    které na čelo práce teprve přijdou), ves nejí – jen dokud by příděl do žní neklesl pod tytéž
-    prahy (0,5 do roční potřeby, 1 nad ni); pod nimi ho sní.
+  - **Osev má přednost – kolik si ves nechá na jídlo** (6. 11. 2026). Martin: „Pojďme se podívat
+    na ten osev – to se přece nemusí plánovat: ves vezme z obilí tolik osiva, aby jí to vystačilo
+    do žní, a pak se oře a zasívá, dokud trvá časové okno pro orbu a zasetí, nebo dokud se
+    neobhospodaří plocha, co se má obhospodařit, nebo dokud nedojde osivo – podle toho, která
+    z těch tří možností nastane první. Případný zbytek osiva se vrátí do zásob.“ – „Musí zasít –
+    jinak by si prožrala budoucnost. Za cenu žádného hladu letos by přišel hladomor příští rok.
+    Dokonce by se měla pokusit zasít co nejvíc i za cenu toho, že bude mít hlad – aby došlo
+    k rostoucímu trendu.“ Schválený návrh Clauda: **ves oseje co nejvíc a sama si nechá jen tolik
+    zrna, aby do žní hladověla, ale nikdo hlady neumřel**; strop osevu podle jídla zmizí (Martin 6. 11. 2026: „Ok, ověřovat měřením nemusíš, efekt uvidíme na logu Vlkova.“).
+    - **Přežívací zásoba do žní** (vzorec návrh Clauda): zrno na příděl potřeby z pole do sklizně,
+      při kterém nahromaděný hlad do žní nedosáhne **prahu úmrtí nejcitlivější skupiny ve vsi**
+      ([populace](population.md) – Hlad a vymření: děti a starší 12, dospělí 20 dní) bez **rezervy
+      1 dne** (SEED_STORES.marginDays, jako v hájení); s hladem, který ves už nahromadila. Pod 90 %
+      přibude za den (0,9 − příděl) / 0,9 dne hladu, ves tedy unese `slack` = práh − 1 − hlad dní
+      a nechá si **0,9 × denní potřeba z pole × (dny do žní − slack)** (nejméně 0; s hladem nad
+      prahem 0,9 celé potřeby do žní). Má-li ves osivo jen na setí (níže), počítá místo prahu úmrtí
+      s 5 dny, od kterých by ho snědla (SEED_BUYING.eatFromStarvationDays) – osivo jen na setí tak
+      nesní. Ves ji jí vždy; na podzim (≈ 300 dní do žní) je to ≈ 87 % potřeby z pole, na jaře
+      ≈ 82 %. Přídělem počítá, jako by jedla jen z pole – mléko, maso a ovoce jsou rezerva navíc.
+    - **Ostatní zrno je osivo:** smí do země bez stropu podle potřeby jídla – ves oře a seje díly
+      v plánu (nutné i nad potřebu podle osevního postupu; úhor zůstává úhorem), dokud trvá okno,
+      dokud díly nejsou oseté, nebo dokud osivo nedojde. Osivo bere setí v den setí dílu, takže co
+      ves nezaseje, v zásobách prostě zůstane. Díly nad potřebu (jen po stavbách) sejí jen z osiva,
+      na které nutné díly v plánu nečekají (návrh Clauda – nutné mají na osivo přednost). Dřív si
+      ves nechávala zrno na příděl 0,5 jen pro osivo do roční potřeby z pole odhadnuté z úrody bez
+      ztrát (`seedFloorKg`) a ostatní osivo jen nad celý příděl do žní (1); skutečná úroda je
+      o 15–25 % nižší (sucho, zvěř, ztráty skladováním), takže ves pojistku nikdy nedoplnila
+      a z pasti osiva vyšla jen vymíráním (Vlkov, 6. 11. 2026). Potřeba z pole podle většího
+      z dlouhodobého podílu pole ve stravě a včerejší stravy (po úbytku stád jí ves obilí víc).
+    - **Odhad osiva do roční potřeby** (`seedFloorKg`) zůstává jen pro osivo zakladatelů – kolik si
+      ho ves nechá, když v lhůtě šetří přídělem (níže); osev neomezuje.
+  - **Osivo se šetří:** osivo dílů v plánu, které na setí čeká (i vybraných dílů, které na čelo
+    práce teprve přijdou), ves nejí – nejvýš zrno nad přežívací zásobu; tu jí vždy. Ves tedy do
+    žní hladoví nejvýš do prahu přežívací zásoby a nikdo hlady neumře. Rezervu osiva jen na setí
+    sní dál při skutečném hladu (5 dnů bez jídla – níže); s přežívací zásobou počítanou k tomuto
+    prahu k tomu nedojde, leda by sklizeň přišla později nebo menší, než ves čekala (pohroma).
   - **Příprava jaře jen na díly s osivem** (oprava, návrh Clauda 2. 11. 2026 – přesnost modelu:
     vesničané nedělají práci, která k ničemu nevede): v jarním okně setí (březen–duben, nákup
     osiva 1. 3. už proběhl) ves kope, orá a vrací z přílohu pod jař, luštěniny a len jen díly, na
@@ -1476,7 +1498,7 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
     dvakrát a ≈ 2 roky šetřila (Vlkov: 333 a 281 dní, nejnižší příděl 0,67).
   - **Osivo pro ves bez zásob** (Martin 27. 10. 2026 k návrhu Clauda, že si osadníci osivo
     přinesou a ves ho koupí u sousedů: „**ok, jak navrhuješ**“; pravidla a čísla návrh Clauda) –
-    ves bez zásob by jinak už nikdy nezasela (pod prahy přídělu nesmí osivo do země, bez setí
+    ves bez zásob by jinak už nikdy nezasela (pod přežívací zásobou nesmí osivo do země, bez setí
     nepřijde sklizeň); osivo na půl roku měla jen nová ves hráče, ne dceřiná ves z odchodu ani
     ves, které požár nebo jiná pohroma vzala zásoby po žních:
     - **Osadníci si osivo přinesou** ([migrace](migration.md) – Odchod do nové vsi): na první osev
@@ -1503,9 +1525,9 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
       v kronice: **platba**, když za ni ves dostane méně obilí, než sousedé mají, jinak **zásoba
       sousedů** (oprava 2. 11. 2026 – dřív „sousedé nemají“, kdykoli neměli celé chybějící
       množství, i když ves neměla čím zaplatit ani to, co měli).
-    - **Osivo osadníků a koupené ves nesní** – je jen na setí, do země smí i pod prahy přídělu;
-      koně a obilné jámy ho nesahají. Nutné díly sejí **napřed z běžného zrna nad příděl 1**
-      (zrno, které ves do žní nesní), pak z této rezervy a teprve pak ze zrna pod příděl (oprava,
+    - **Osivo osadníků a koupené ves nesní** – je jen na setí, do země smí i pod přežívací zásobou;
+      koně a obilné jámy ho nesahají. Nutné díly sejí **napřed z běžného zrna nad přežívací zásobu**
+      (od 6. 11. 2026, dřív nad příděl 1), pak z této rezervy a teprve pak ze zrna pod příděl (oprava,
       návrh Clauda 2. 11. 2026 – dřív rezervu braly napřed, takže osivo zakladatelů se vyselo
       v prvních třech letech; stejně pro osivo osadníků a koupené – rezerva zůstane jako pojistka
       a 1. 6. / 1. 12. se uvolní jako dřív, ves zaseje stejně). Co do **1. 6.** (po setí jaře
@@ -1516,7 +1538,8 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
       rezerva, jen se **do lhůty (15 let od založení) neuvolní 1. 6. ani 1. 12.** a cíle osevu ho
       nepočítají za jídlo (ves kvůli němu neoseje méně) – slouží na víc osevů. Při skutečném hladu
       ho ves sní jako každou rezervu (návrh Clauda). Setí na něj sáhne, až když běžné zrno nad
-      příděl 1 nestačí (oprava, návrh Clauda 2. 11. 2026 – viz výš). **Když ves v lhůtě šetří
+      přežívací zásobu nestačí (oprava, návrh Clauda 2. 11. 2026 – viz výš; od 6. 11. 2026, dřív
+      nad příděl 1). **Když ves v lhůtě šetří
       přídělem**, sní rezervu nad osivo příštího osevu (roční osivo do potřeby z pole podle cílů
       osevu, nejméně osivo nutných dílů, které na setí čeká) – ne až po 5 dnech úplně bez jídla
       (návrh Clauda 2. 11. 2026 podle záměru Martina: velká zásoba má vsi pomoct, ne způsobit hlad).
@@ -1579,7 +1602,7 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
     - **Oprava, návrh Clauda 2. 11. 2026** (záměr Martina – zásoba má vsi pomoct přečkat roky
       s pěti dospělými): setí bralo do nutných dílů osivo zakladatelů napřed, takže 1 800 kg
       zmizelo do jara roku 4 (1 784 → 1 227 → 693 → 293 → 0), i když ves měla 2,7–4,7 t běžného
-      obilí, a lhůta 15 let nechránila nic. Teď nutné díly sejí napřed z běžného zrna nad příděl 1
+      obilí, a lhůta 15 let nechránila nic. Teď nutné díly sejí napřed z běžného zrna nad příděl 1 (od 6. 11. 2026 nad přežívací zásobu)
       a osivo zakladatelů jen doplní, co z něj nejde (Osivo ze zásob – Osivo pro ves bez zásob).
       Rychlé měření správce (6 vsí × 25 let): hladové dny rodu 285 → 124, lidé rodu za 25 let
       40,0 → 40,2, pojistka 0,73 → 0,72, využití oběhu 0,91 → 0,90; ves seedu 13 drží osivo
@@ -2378,3 +2401,4 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Osivo ze zásob v den setí, sklizeň ho neodečítá; osivo do roční potřeby od přídělu 0,50, nad ni od 1; osivo v plánu se nejí (v hladu ano); luštěniny chybějící na osivo za obilí; start + osivo na půl roční potřeby; převod starých prací – osivo zaseté části odpuštěné | Martin (27. 10. 2026), pravidla a čísla návrh Clauda |
 | Osivo pro ves bez zásob: osadníci nesou osivo na první osev (půl roční potřeby, 20 kg na nosiče, zbytek na voze); ves 1. 9. a 1. 3. koupí chybějící osivo za hřivny a krávy nad chovné (nejvýš jedna za nákup); to ves nesní (do 1. 6., při hladu ano)                    | Martin (27. 10. 2026), pravidla a čísla návrh Clauda |
 | Zakladatelé první vsi: jídlo na 3 roky a osivo na 2 roky potřeby; osivo jen na setí, 15 let se neuvolní a cíle osevu ho nepočítají za jídlo                                                                                                                               | Martin (2. 11. 2026), čísla návrh Clauda             |
+| Osev má přednost (Martin 6. 11. 2026): ves si do žní nechá jen přežívací zásobu (hlad do žní pod prahem úmrtí nejcitlivější skupiny bez 1 dne), ostatní zrno je osivo bez stropu podle jídla; co nezaseje, zůstane v zásobách                                             |

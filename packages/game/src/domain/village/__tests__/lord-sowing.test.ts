@@ -37,9 +37,11 @@ const OUTSIDE = 500;
 /**
  * Zásoby, se kterými ves potřebný osev bez rodiny nestihne – i se žňovými rukama ve výmlatu
  * (fields.md – Žně všemi rukama). Od osiva ze zásob při setí (fields.md – Úroda, Osivo ze zásob)
- * víc – dřív 1 500 kg, s osivem by ves v září šetřila a ženy rodu šly na pole.
+ * víc – dřív 1 500 kg, s osivem by ves v září šetřila a ženy rodu šly na pole. Od přednosti osevu
+ * (6. 11. 2026 – ves si nechá přežívací zásobu do žní, dřív jen půl přídělu) 3 500 kg – s 2 500 kg
+ * by osivo stačilo jen na osev, který ves stihne sama.
  */
-const SHORT_STORES = 2500;
+const SHORT_STORES = 3500;
 
 const person = (
   id: number,

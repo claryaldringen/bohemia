@@ -5,9 +5,9 @@ import { moveParts } from '../land-taken';
 import { foundVillage, type PartInput } from '../actions';
 import { grossYieldPerHa } from '../fields';
 import { NO_CRAFTS } from '../productivity';
-import { SEED_KG_PER_HA, SEED_STORES } from '../rules';
+import { SEED_KG_PER_HA } from '../rules';
 import {
-  foodUntilHarvestKg,
+  seedKeepKg,
   seedAheadKg,
   seedSowCap,
   sowableSeedKg,
@@ -106,11 +106,11 @@ describe('osivo ze zásob při setí (fields.md – Úroda, Osivo ze zásob)', (
       work.required.sow / 4,
       9,
     );
-    // zásoby pod přídělem do žní – osivo do země nesmí
-    const food = foodUntilHarvestKg(s, at(600, 9, 15));
-    expect(food).toBeGreaterThan(0);
-    s.storesKg = SEED_STORES.floorRation * food;
-    expect(sowableSeedKg(s, 'grain', food)).toBe(0);
+    // zásoby jen na přežití do žní – osivo do země nesmí
+    const keep = seedKeepKg(s, at(600, 9, 15));
+    expect(keep).toBeGreaterThan(0);
+    s.storesKg = keep;
+    expect(sowableSeedKg(s, 'grain', keep)).toBe(0);
     // ves bez zásob k 1. 9. ozim nezaseje
     const hungry = advanceVillage(village(20, 0), at(600, 10, 31), null);
     const winter = hungry.season ? seasonCrop(hungry.season, 'winter') : undefined;
@@ -210,32 +210,33 @@ describe('osivo ze zásob při setí (fields.md – Úroda, Osivo ze zásob)', (
 describe('osivo jen na setí až po běžném obilí (fields.md – Osivo ze zásob; oprava, návrh Clauda 2. 11. 2026)', () => {
   const DAY = at(600, 9, 15);
   const TOTAL = 4 * PART_HA * SEED_KG_PER_HA;
-  /** Ozim celý zasetý (osivo se vezme jedním `takeSeed`), rezerva `reserved` a běžné obilí nad příděl `above`. */
+  /** Ozim celý zasetý (osivo se vezme jedním `takeSeed`), rezerva `reserved` a běžné obilí nad přežívací zásobu `above`. */
   function sown(
     reserved: number,
     above: number,
   ): { s: VillageState; work: SeasonCrop; food: number } {
     const { s, work } = withWinter(4, 0);
-    const food = foodUntilHarvestKg(s, DAY);
-    s.storesKg = reserved + SEED_STORES.keepRation * food + above;
+    s.storesKg = reserved;
     s.reservedSeedKg = reserved;
+    const food = seedKeepKg(s, DAY);
+    s.storesKg = reserved + food + above;
     work.done.sow = work.required.sow;
     return { s, work, food };
   }
 
-  it('nutné díly sejí napřed z běžného obilí nad příděl keepRation – rezerva zůstane', () => {
+  it('nutné díly sejí napřed z běžného obilí nad přežívací zásobu – rezerva zůstane', () => {
     const { s, work, food } = sown(500, TOTAL + 100);
     expect(takeSeed(s, work, 'winter', byId(s), food)).toBeCloseTo(TOTAL, 9);
     expect(s.reservedSeedKg).toBeCloseTo(500, 9);
   });
 
-  it('běžné obilí nad příděl nestačí – zbytek z rezervy', () => {
+  it('běžné obilí nad přežívací zásobu nestačí – zbytek z rezervy', () => {
     const { s, work, food } = sown(500, 10);
     expect(takeSeed(s, work, 'winter', byId(s), food)).toBeCloseTo(TOTAL, 9);
     expect(s.reservedSeedKg).toBeCloseTo(500 - (TOTAL - 10), 9);
   });
 
-  it('pod příděl keepRation běžné obilí nesáhne, dokud je rezerva', () => {
+  it('pod přežívací zásobu běžné obilí nesáhne, dokud je rezerva', () => {
     const { s, work, food } = sown(500, -200);
     const ordinary = s.storesKg - 500;
     expect(takeSeed(s, work, 'winter', byId(s), food)).toBeCloseTo(TOTAL, 9);
@@ -267,8 +268,7 @@ describe('příprava jaře jen na díly s osivem (fields.md – Osivo ze zásob;
 
   it('osivo na polovinu plánu – kopou polovinu, zrno ve snopech se počítá', () => {
     const { s, work } = withSpring(0);
-    const food = foodUntilHarvestKg(s, MARCH);
-    s.storesKg = SEED_STORES.keepRation * food + TOTAL / 2;
+    s.storesKg = seedKeepKg(s, MARCH) + TOTAL / 2;
     expect(digOf(s, MARCH)).toBeCloseTo(work.required.dig / 2, 6);
     s.sheaves = { grainKg: TOTAL / 2, legumesKg: 0 };
     expect(digOf(s, MARCH)).toBeCloseTo(work.required.dig, 6);
@@ -295,8 +295,7 @@ describe('osivo – nálezy recenze', () => {
 
   it('osivo nad potřebu neubere nárok nutných dílů pod prahem', () => {
     const { s, work } = withWinter(4, 100_000);
-    const food = foodUntilHarvestKg(s, at(600, 9, 15));
-    s.season!.seedFloorKg = 50;
+    const food = seedKeepKg(s, at(600, 9, 15));
     const before = sowableSeedKg(s, 'grain', food);
     s.season!.crops.push({
       crop: 'winter',

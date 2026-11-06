@@ -72,15 +72,14 @@ export const YIELD_BASE_KG_PER_HA = 760; // × (0,4 + 0,6 × úrodnost / 100)
 export const SEED_KG_PER_HA = 175;
 // fields.md – Úroda, Osivo ze zásob (Martin 27. 10. 2026: „Osivo ze zásob při setí“; čísla návrh
 // Clauda): osivo bere setí ze zásob v den setí dílu (obilí ze zásob obilí, luštěniny z luštěnin).
-// Osivo na díly do roční potřeby z pole (`energyFloorKg`) má přednost před jídlem – ves ho dá do
-// země, i když pak šetří, dokud jí do žní zbude zrno na příděl `floorRation` potřeby z pole; osivo
-// nad roční potřebu (doplnění pojistky, obilí nad potřebu) jen ze zrna nad příděl `keepRation`
-// (pod ním by hladověla – STARVATION.fedFrom). Osivo, které na setí čeká, ves nejí, dokud by
-// příděl do žní neklesl pod tytéž prahy – pak ho sní (osivo se šetřilo, v hladu se snědlo).
-// floorRation 0,5 (Martin 31. 10. 2026: „2 – osivo se nejí“; dřív 0,75, před tím 0,6 – kalibrace
-// Vlkova 27. 10. 2026): osivo do roční potřeby ves sní až pod polovinou přídělu – víc hladu
-// krátce, plný osev (past osiva – steward.md, Hranice; fields.md – Osivo ze zásob).
-export const SEED_STORES = { keepRation: 1, floorRation: 0.5 } as const;
+// Osev má přednost (Martin 6. 11. 2026: „Musí zasít – jinak by si prožrala budoucnost.“; vzorec
+// návrh Clauda): ves si do žní nechá jen přežívací zásobu – zrno na příděl potřeby z pole, při
+// kterém nahromaděný hlad do žní (STARVATION – pod fedFrom přibývá) nedosáhne prahu úmrtí
+// nejcitlivější skupiny ve vsi (STARVATION.threshold) bez `marginDays`, s osivem jen na setí ani
+// prahu, od kterého ho ves sní (SEED_BUYING.eatFromStarvationDays); ostatní zrno je osivo. Osivo,
+// které na setí čeká, ves nejí – přežívací zásobu nikdy nezaseje (dřív prahy přídělu 0,5 do roční
+// potřeby z pole a 1 nad ni).
+export const SEED_STORES = { marginDays: 1 } as const;
 // fields.md – Osivo ze zásob, Osivo pro ves bez zásob (Martin 27. 10. 2026: „ok, jak navrhuješ“;
 // čísla návrh Clauda): ves, které na setí nutných dílů v plánu chybí osivo, ho koupí u sousedů
 // v den `days` – 1. 9. před setím ozimu, 1. 3. před setím jaře –, nejméně `minKg`. Koupené osivo
