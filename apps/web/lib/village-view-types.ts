@@ -2,6 +2,7 @@
 
 import type { VillageRight } from '@bohemia/game';
 import type { ViewPieces } from './view-pieces';
+import type { VillageFortification } from './fort-view';
 import type { DwellingResident } from './person-view';
 import { SceneVillage } from './village-view-scene-types';
 import {
@@ -477,6 +478,10 @@ export interface VillageView {
   threshingFloors?: VillageThreshingFloor[];
   /** Pevné cesty (roads.md) – úseky pro panel výběru: stupeň, délka, stáří, stromy, vylepšení. */
   roads: VillageRoad[];
+  /** Opevnění pro panel výběru (fortifications.md – Rozhraní); ves bez opevnění bez údaje. */
+  fortifications?: VillageFortification[];
+  /** Dřevo vsi pro cenu u kurzoru – klády a stromy ke kácení (`villageStock`); bez údaje 0. */
+  woodSupply?: number;
   /** Všechny klády vsi v kusech – u vsi i na hromadách u lesa (forest.md). */
   woodLogs: number;
   /** Z toho klády na hromadách u lesa; bez hromady u lesa bez údaje. */

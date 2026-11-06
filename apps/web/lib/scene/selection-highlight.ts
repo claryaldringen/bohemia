@@ -56,6 +56,8 @@ const SEE_THROUGH: ReadonlySet<VillageTarget['kind']> = new Set([
   'kiln',
   // hrdlo obilné jámy je nízko u země za valem
   'grain-pit',
+  // obvod opevnění prosvítá přes stromy v pásu
+  'fortification',
 ]);
 /** Poloměr obrysu milíře a milířiště (m) – kousek za kupou (MILIR_SHAPE_M.radius 2,3 m). */
 const KILN_RING_M = 3.6;
@@ -222,6 +224,11 @@ export function targetOutline(village: SceneVillage, target: VillageTarget): Poi
     if (!floor) return [];
     const corners = threshingFloorFootprint(floor.position).map(([x, z]): Point => [x, z]);
     return [[...corners, corners[0]!]];
+  }
+  if (target.kind === 'fortification') {
+    // obvod opevnění (fortifications.md – Rozhraní) – vnější okraj se zakulacenými rohy
+    const fort = village.forts?.find((f) => f.id === target.id);
+    return fort ? [fort.outline.map(([x, z]): Point => [x, z])] : [];
   }
   if (target.kind === 'grain-pit') {
     // otevřená obilná jáma (production-chains.md – Obilné jámy) – kruh kolem hrdla a hrud pečeti

@@ -98,6 +98,7 @@ import { sceneWeddings } from './wedding-view';
 import { sceneWildlife } from './wildlife-view';
 import { sceneFlood, sceneHail, sceneTornado, sceneWeather } from './weather-view';
 import { sceneFire } from './fire-view';
+import { sceneFortifications } from './fort-view';
 
 export function sceneVillage(
   state: VillageState,
@@ -255,6 +256,7 @@ export function sceneVillage(
   const pens = scenePens(state, landscape, day, summary);
   const earthworks = sceneEarthworks(state, day);
   const fortifications = pathFortificationsOf(state, landscape);
+  const forts = sceneFortifications(state, landscape);
   const home = wagonHome(state);
   const carts = sceneCarts(state, day, landscape, fields);
   const ploughLegs = scenePloughLegs(state, fields);
@@ -323,6 +325,7 @@ export function sceneVillage(
     ...(ploughLegs ? { ploughLegs } : {}),
     ...(earthworks.length > 0 ? { earthworks } : {}),
     ...(fortifications.length > 0 ? { fortifications } : {}),
+    ...(forts.length > 0 ? { forts } : {}),
     ...(state.routes
       ? { routes: { key: sceneRoutesKey(state.routes), list: state.routes.list } }
       : {}),
@@ -638,7 +641,22 @@ function scenePlacementVillage(scene: SceneVillage): PlacementVillage {
       ...(d.craft ? { workshop: { craft: d.craft } } : {}),
       ...(d.plainShape ? { plainShape: true } : {}),
     })),
-    constructions: [],
+    // stavba opevnění zabírá celý obvod (`fortificationBand`) – ostatní stavby ji neznají
+    constructions: (scene.forts ?? [])
+      .filter((f) => f.building)
+      .map((f) => ({ dwellingType: null, position: null, fortificationId: f.id })),
+    // opevnění vsi – pás zabírá místo jiným stavbám a opevnění se nesmí dotknout jiného
+    ...(scene.forts
+      ? {
+          fortifications: scene.forts.map((f) => ({
+            id: f.id,
+            grid: f.grid,
+            cells: f.cells,
+            kind: f.kind,
+            segments: f.segments,
+          })),
+        }
+      : {}),
     // natočená pole (fields.md – Natočené stavby) – díly jsou čtverce v jejich mřížce
     fields: scene.fields.map((f) => ({ id: f.id, ...(f.grid ? { grid: f.grid } : {}) })),
     // pole a plocha dílu (políčko) pro navazující pole – rozšíření a sloučení (fields.md)

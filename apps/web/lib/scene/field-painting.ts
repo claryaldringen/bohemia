@@ -544,6 +544,18 @@ export class FieldPainter {
       xray.material = this.xrayMaterials[look];
       xray.alphaIndex = 12;
       this.selectionMeshes.push(xray);
+      // opevnění (fortifications.md – Rozhraní): obrys se zakulacenými rohy a pás, brány na cestách
+      const fort = this.preview?.outline;
+      if (fort && fort.length > 0) {
+        const lines = fort.map((line) => line.map(([x, z]): Point => [x, z]));
+        this.selectionMeshes.push(this.lineMesh('field-paint-fort', lines, look, 0.5));
+        const gates = (this.preview?.gates ?? []).map((line) =>
+          line.map(([x, z]): Point => [x, z]),
+        );
+        if (gates.length > 0) {
+          this.selectionMeshes.push(this.lineMesh('field-paint-gates', gates, 'erase', 1.6));
+        }
+      }
     }
     if (stroke && (stroke.dragged || !sameCell(stroke.start, stroke.end))) {
       const look: Look = stroke.mode === 'remove' ? 'bad' : 'erase';

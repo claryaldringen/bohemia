@@ -13,7 +13,8 @@ ani `**`): tvar počítá server i prohlížeč (u kurzoru) ze stejných funkcí
 `FortKind` (`fence` | `palisade` | `rampart`) a `FortTop` v `types-fortifications.ts`. Stav vsi
 a stavba po úsecích (Ú5.2) – níž; stěny a brány v síti cest (Ú5.3) –
 [village-roads.md – Brány opevnění v síti](village-roads.md#brány-opevnění-v-síti-ú53-6-11-2026);
-rozhraní a scéna opevnění zatím nejsou.
+rozhraní opevnění (katalog, kreslení, panel, minimapa) je v
+[web-ui.md – Opevnění v rozhraní](web-ui.md), modely ve scéně zatím nejsou.
 
 ## Plocha a obvod (`outline.ts`)
 

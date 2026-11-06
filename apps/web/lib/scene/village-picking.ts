@@ -69,6 +69,8 @@ export type VillageTarget =
    * a vybrat nejdou.
    */
   | { kind: 'grain-pit'; id: number }
+  /** Opevnění (id opevnění – fortifications.md, Rozhraní): klik na jeho pás kolem plochy. */
+  | { kind: 'fortification'; id: number }
   /** Humno (id humna = id stavby – production-chains.md, Humno): klik na mlatovou plochu. */
   | { kind: 'threshing-floor'; id: number }
   /**
@@ -105,6 +107,8 @@ const DWELLING_PICK_MARGIN_M = 1;
 const SACRED_PICK_HEIGHT_M = { idol: 3, shrine: 4.5 } as const;
 /** Úsek pevné cesty: zásah do tolika metrů od osy (pás cesty a kousek vedle). */
 export const ROAD_PICK_M = 2.5;
+/** Opevnění: zásah do tolika metrů od vnějšího okraje obvodu (pás je úzký – plot 1 m). */
+export const FORT_PICK_M = 2;
 /** Křižovatka: zásah do tolika metrů od středu (vchody jsou od středu 2,85–5,25 m). */
 export const JUNCTION_PICK_M = 3;
 /** Rudiště: krok výšky paprsku přes hromadu rudy (m). */
@@ -267,6 +271,22 @@ export function pickVillageTarget(
     ),
   );
   if (floor) return { kind: 'threshing-floor', id: floor.id };
+  // opevnění – pás kolem plochy (hotový i rozestavěný obvod) a kousek podél okraje (pás je úzký)
+  const fort = (village.forts ?? []).find(
+    (f) =>
+      f.band.some((piece) =>
+        pointInPolygon(
+          piece.map(([x, z]): Point => [x, z]),
+          ground.x,
+          ground.z,
+        ),
+      ) ||
+      distanceToPolyline(
+        ground,
+        f.outline.map(([x, z]) => ({ x, z })),
+      ) <= FORT_PICK_M,
+  );
+  if (fort) return { kind: 'fortification', id: fort.id };
   const cell = options.cellOf(ground.x, ground.z);
   if (!cell) return null;
   // čtverec v mřížce krajiny podle políčka, natočený čtverec (fields.md – Natočené stavby)
@@ -412,6 +432,9 @@ export function targetExists(village: SceneVillage, target: VillageTarget): bool
   }
   if (target.kind === 'threshing-floor') {
     return (village.threshingFloors ?? []).some((f) => f.id === target.id);
+  }
+  if (target.kind === 'fortification') {
+    return (village.forts ?? []).some((f) => f.id === target.id);
   }
   if (target.kind === 'grain-pit') {
     return (village.grainPits ?? []).some((p) => p.id === target.id);

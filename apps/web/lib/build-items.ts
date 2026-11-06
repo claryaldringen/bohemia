@@ -1,5 +1,12 @@
 import {
   CRAFT_BASE,
+  autoGates,
+  checkFortificationPlacement,
+  fortSegments,
+  fortificationCost,
+  logsFromClearedTrees,
+  type FortKind,
+  type FortPlacementCheck,
   PLOT_TYPES,
   cemeteryPartsFromCells,
   checkDwellingPlacement,
@@ -48,6 +55,7 @@ import {
   penSpecies,
 } from '@bohemia/game';
 import type { PlacementCost, SquaresVariant } from './scene/village-types';
+import { fortShape, missingLogsText, refugePlaces, type FortPoint } from './fort-view';
 
 // Katalog staveb pro mřížku staveb (jako v 0 A.D.): název, ikona, klávesová zkratka, způsob
 // umístění a kontrola, jestli stavba smí kam. Čistý modul (kontroly z herního jádra běží
@@ -71,6 +79,17 @@ export interface SquaresCheck {
   warningCells?: readonly TileCell[];
   /** Cena prošlé stavby, jinak null. */
   cost: PlacementCost | null;
+  /**
+   * Náhled obrysu (opevnění): uzavřené lomené čáry vnějšího okraje a obdélníky pásu, které se
+   * kreslí čarou, a brány (krátké úsečky na okraji).
+   */
+  outline?: readonly (readonly FortPoint[])[];
+  gates?: readonly (readonly FortPoint[])[];
+}
+
+/** Co kontrola stavby po čtvercích ví o vsi navíc – dřevo vsi (klády a stromy ke kácení). */
+export interface SquaresContext {
+  woodSupply: number;
 }
 
 /** Kontrola obydlí: projde? a u prošlého umístění cena (práce a stromy ke kácení). */
@@ -78,8 +97,15 @@ export type FootprintCheck = PlacementCheck & { cost: PlacementCost | null };
 /** Kontrola obydlí na pozemku – navíc poloha domu na něm (null = pozemek neprošel). */
 export type PlotCheck = FootprintCheck & { position: Position | null };
 
+/**
+ * Druh stavby v katalogu staveb webu – stavby jádra (`BuildKind`, cena v `BUILD_COSTS`) a opevnění,
+ * které cenu nemá pevnou: počítá se podle délky obvodu (`fortificationCost`), proto `BuildKind`
+ * v jádru zůstává beze změny (Ú5.6) a opevnění je jen záznam katalogu s vlastní kontrolou.
+ */
+export type WebBuildKind = BuildKind | 'fortification';
+
 interface BuildItemBase {
-  kind: BuildKind;
+  kind: WebBuildKind;
   name: string;
   /** Soubor v `public/icons/build/` bez přípony. */
   icon: string;
@@ -136,6 +162,7 @@ export type BuildItem =
         cells: TileCell[],
         grid?: SquareGrid,
         variant?: string,
+        context?: SquaresContext,
       ): SquaresCheck;
     })
   | (BuildItemBase & {
@@ -473,12 +500,121 @@ export function penVariant(species: PenSpecies): SquaresVariant {
  */
 export function buildVariantName(item: BuildItem, variant: SquaresVariant): string {
   if (item.kind === 'pen') return PEN_NAMES[penVariantSpecies(variant.id)];
+  if (item.kind === 'fortification') return variant.name;
   return `${item.name} – ${variant.name}`;
 }
 
 /** Druh ohrady z id druhu stavby (bez údaje nebo neznámý první – ovce). */
 export function penVariantSpecies(variant: string | undefined): PenSpecies {
   return PEN_VARIANTS.find((v) => v.id === variant)?.id ?? PEN_VARIANTS[0]!.id;
+}
+
+/**
+ * Druhy opevnění v pořadí rozcestníku mřížky staveb (fortifications.md – Rozhraní): plot,
+ * palisáda, val – ikony `public/icons/resources/fort-*.png`.
+ */
+export const FORT_VARIANTS: readonly (SquaresVariant & { id: FortKind })[] = [
+  { id: 'fence', icon: 'fort-fence', name: 'Polský plot' },
+  { id: 'palisade', icon: 'fort-palisade', name: 'Palisáda' },
+  { id: 'rampart', icon: 'fort-rampart', name: 'Val s příkopem' },
+];
+
+/** Druh opevnění z id druhu stavby (bez údaje nebo neznámý – plot). */
+export function fortVariantKind(variant: string | undefined): FortKind {
+  return FORT_VARIANTS.find((v) => v.id === variant)?.id ?? FORT_VARIANTS[0]!.id;
+}
+
+/** Délka brány v náhledu (m) – úsečka na okraji obvodu. */
+const GATE_MARK_M = 4;
+
+/** Kotva vsi pro bránu bez cesty – dvorec, jinak průměr poloh obydlí (jako `villageAnchor`). */
+function villageAnchorOf(village: PlacementVillage): Position | { x: number; z: number } {
+  const manor = village.dwellings.find((d) => d.type === 'dvorec');
+  const list = manor ? [manor] : village.dwellings;
+  if (list.length === 0) return { x: 0, z: 0 };
+  return {
+    x: list.reduce((sum, d) => sum + d.position.x, 0) / list.length,
+    z: list.reduce((sum, d) => sum + d.position.z, 0) / list.length,
+  };
+}
+
+/**
+ * Kontrola opevnění u kurzoru (fortifications.md – Obvod, Cena a stavba): umístění jako na serveru
+ * (`checkFortificationPlacement`), u prošlého cena podle délky obvodu – člověkodny a klády,
+ * útočiště (lidé a dobytek) a když ves nemá dost dřeva (klády a stromy ke kácení), důvod „Chybí N
+ * klád.“. Do náhledu patří obrys, pás a brány na cestách (`autoGates`).
+ */
+export function fortificationPlacement(
+  landscape: Landscape,
+  village: PlacementVillage,
+  cells: TileCell[],
+  grid: SquareGrid | undefined,
+  kind: FortKind,
+  woodSupply: number,
+): SquaresCheck {
+  const check: FortPlacementCheck = checkFortificationPlacement(
+    landscape,
+    village,
+    obstaclesOf(landscape),
+    cells,
+    grid ?? null,
+    kind,
+  );
+  const outline = check.outline;
+  const shape = outline ? fortShape(outline) : null;
+  const preview = {
+    ...(shape
+      ? {
+          outline: [shape.outline, ...shape.band.map((piece) => [...piece, piece[0]!])],
+        }
+      : {}),
+  };
+  if (!check.ok || !outline) {
+    // neúplné kreslení (nesouvislá nebo malá plocha) je jen „ještě ne“, ostatní důvody červeně
+    const incomplete = check.reason !== null && /souvislá|2 × 2/.test(check.reason);
+    return {
+      check,
+      blockedCells: check.ok || incomplete || check.area === null ? [] : cells,
+      cost: null,
+      ...preview,
+    };
+  }
+  const cost = fortificationCost(kind, outline.lengthM, 'new');
+  const logs = Math.max(0, Math.ceil((cost.upfront.wood ?? 0) - 1e-9));
+  const missing = logs - woodSupply - logsFromClearedTrees(check.clearedTrees);
+  const roads = (village.walkRoads ?? []).map((r) => r.points);
+  const gates = autoGates(outline, roads, villageAnchorOf(village)).map((g) => {
+    const line = fortSegments(outline)[g.segment]!.line;
+    const half = GATE_MARK_M / 2;
+    return [
+      [g.x - line.dx * half, g.z - line.dz * half],
+      [g.x + line.dx * half, g.z + line.dz * half],
+    ] as const;
+  });
+  return {
+    check:
+      missing > 0
+        ? { ok: false, reason: missingLogsText(missing) }
+        : check.warning
+          ? { ok: true, reason: null, warning: check.warning }
+          : { ok: true, reason: null },
+    blockedCells: [],
+    // rozdělané čtverce pod valem oranžově – jen v mřížce opevnění
+    warningCells: check.takenLand
+      .filter((t) => sameGrid(t.grid, outline.area.grid ?? undefined))
+      .map((t) => t.cell),
+    cost:
+      missing > 0
+        ? null
+        : {
+            laborManDays: cost.laborManDays,
+            trees: 0,
+            logs,
+            refuge: refugePlaces(outline.innerAreaM2).people,
+          },
+    ...preview,
+    gates,
+  };
 }
 
 export const BUILD_ITEMS: readonly BuildItem[] = [
@@ -599,6 +735,27 @@ export const BUILD_ITEMS: readonly BuildItem[] = [
       };
     },
   },
+  {
+    // fortifications.md – Rozhraní: obvod se kreslí jako pole, tlačítko je rozcestník druhů
+    kind: 'fortification',
+    name: 'Opevnění',
+    icon: 'opevneni',
+    hotkey: 'KeyP',
+    hotkeyLabel: 'P',
+    placement: 'squares',
+    // natočená plocha (fields.md – Natočené stavby) jako pole
+    rotatable: true,
+    variants: FORT_VARIANTS,
+    check: (landscape, village, cells, grid, variant, context) =>
+      fortificationPlacement(
+        landscape,
+        village,
+        cells,
+        grid,
+        fortVariantKind(variant),
+        context?.woodSupply ?? 0,
+      ),
+  },
   THRESHING_FLOOR,
 ];
 
@@ -643,7 +800,7 @@ export function penPlacementCost(
 }
 
 /** Stavba podle druhu. */
-export function buildItem(kind: BuildKind): BuildItem {
+export function buildItem(kind: WebBuildKind): BuildItem {
   const item = BUILD_ITEMS.find((i) => i.kind === kind);
   if (!item) throw new Error(`Stavba ${kind} není v katalogu staveb.`);
   return item;

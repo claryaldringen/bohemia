@@ -3,6 +3,7 @@
 import { Landscape } from '@bohemia/game';
 import type { CartWorld } from '@bohemia/game';
 import type { PathFortification } from '@bohemia/game';
+import type { SceneFortification } from './fort-view';
 import type { CartGoal } from './cart-routes';
 import { GraveMound } from '@bohemia/game';
 import { DwellingPlot } from '@bohemia/game';
@@ -377,6 +378,11 @@ export interface SceneVillage {
    * ve scéně projedou jen branou. Bez údaje žádné.
    */
   fortifications?: PathFortification[];
+  /**
+   * Opevnění vsi – plocha, druh, úseky a brány s obrysem a pásem (fortifications.md – Rozhraní):
+   * minimapa, výběr kliknutím, zvýraznění a kontrola umístění dalšího opevnění. Bez údaje žádné.
+   */
+  forts?: SceneFortification[];
   /**
    * Trasy lidí (paths.md – Trasy) – pěšiny ve scéně vedou po nich. `list` je při dotazu na ves
    * `null`, když klient už má trasy téhož `key` (klient drží poslední – `keepSceneData`).
