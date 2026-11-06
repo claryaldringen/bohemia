@@ -4,6 +4,7 @@ import {
   accusativeOf,
   mergeNoticeLines,
   noticePanel,
+  isVillageNone,
   wantsPlayerNotices,
   playerNoticeLine,
 } from '../player-notices';
@@ -87,5 +88,14 @@ describe('wantsPlayerNotices', () => {
     expect(wantsPlayerNotices({ villageId: 'v1', withNotices: 'true' })).toBe(false);
     expect(wantsPlayerNotices({ villageId: 'v1', playerId: 'cizi' })).toBe(false);
     expect(wantsPlayerNotices(null)).toBe(false);
+  });
+});
+
+describe('isVillageNone', () => {
+  it('pozná odpověď hráče bez vsi s upozorněními, ostatní výsledky ne', () => {
+    expect(isVillageNone({ noVillage: true, playerNotices: [] })).toBe(true);
+    expect(isVillageNone(null)).toBe(false);
+    expect(isVillageNone({ unchanged: true })).toBe(false);
+    expect(isVillageNone({ error: 'x' })).toBe(false);
   });
 });

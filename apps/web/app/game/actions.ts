@@ -2,7 +2,12 @@
 
 import { NOT_PLAYER_VILLAGE } from '@bohemia/game';
 import { gameDeps, restartGameForPlayer } from '@/lib/game';
-import { NOTICE_BATCH, wantsPlayerNotices, type WithPlayerNotices } from '@/lib/player-notices';
+import {
+  NOTICE_BATCH,
+  wantsPlayerNotices,
+  type VillageNone,
+  type WithPlayerNotices,
+} from '@/lib/player-notices';
 import { getSession } from '@/lib/session';
 import { trimKnownSceneData, type KnownSceneData } from '@/lib/scene-routes';
 import { packViewPieces } from '@/lib/view-pieces';
@@ -153,11 +158,17 @@ async function villageAction<T>(
  */
 export async function getVillageView(
   input: unknown,
-): Promise<WithPlayerNotices<VillageView | VillageUnchanged> | null | { error: string }> {
+): Promise<
+  WithPlayerNotices<VillageView | VillageUnchanged | VillageNone> | null | { error: string }
+> {
   const result = await withVillageCache(() => villageViewOf(input));
-  if (result === null || 'error' in result || !wantsPlayerNotices(input)) return result;
+  if ((result !== null && 'error' in result) || !wantsPlayerNotices(input)) return result;
   const id = await playerId();
   if (id === null) return { error: NOT_SIGNED_IN };
+  // Hráč bez vsi (jen sídlo): upozornění mu dojdou i tak, bez pohledu na ves.
+  if (result === null) {
+    return { noVillage: true, playerNotices: await gameDeps().notices.takeUnread(id, NOTICE_BATCH) };
+  }
   // Doručení = vyzvednutí a označení za přečtená naráz. Výsledek se kopíruje – objekt z dopočtu
   // se nikdy nedoplňuje (mohl by být sdílený).
   const playerNotices = await gameDeps().notices.takeUnread(id, NOTICE_BATCH);

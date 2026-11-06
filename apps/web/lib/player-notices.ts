@@ -166,5 +166,18 @@ export function wantsPlayerNotices(input: unknown): boolean {
     : false;
 }
 
+/**
+ * Odpověď hráči, který ještě nemá ves (jen sídlo), když žádá upozornění: místo `null` nese jen
+ * doručená upozornění, aby mu nepropadla, dokud ves nezaloží.
+ */
+export interface VillageNone {
+  noVillage: true;
+}
+
+/** Je výsledek dotazu odpovědí „hráč nemá ves“ s upozorněními? */
+export function isVillageNone(result: unknown): result is WithPlayerNotices<VillageNone> {
+  return typeof result === 'object' && result !== null && 'noVillage' in result;
+}
+
 /** Výsledek dotazu na ves s doručenými upozorněními (jen když o ně klient požádal). */
 export type WithPlayerNotices<T> = T & { playerNotices?: PlayerNotice[] };

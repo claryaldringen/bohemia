@@ -112,6 +112,7 @@ import { rememberVillage } from '@/lib/village-choice';
 import { keepShownVillage, type VillageListItem } from '@/lib/village-list';
 import { lineNameNotice, newNotices } from '@/lib/village-notices';
 import {
+  isVillageNone,
   mergeNoticeLines,
   noticePanel,
   playerNoticeLine,
@@ -726,6 +727,11 @@ export function VillageGame({
     if (result !== null && 'playerNotices' in result) showPlayerNotices(result.playerNotices);
     if (busyRef.current || seq < appliedSeq.current) return;
     appliedSeq.current = seq;
+    // Hráč ještě nemá ves – dorazila jen upozornění; ves, kterou jsme měli, zmizela (jako null).
+    if (isVillageNone(result)) {
+      if (viewRef.current !== null) window.location.reload();
+      return;
+    }
     // Od pohledu, který máme, se nic nezměnilo (stejný den i verze vsí) – server nic neposlal.
     if (result !== null && 'unchanged' in result) return;
     // Ves zmizela nebo leží na jiné mapě (restart hry v jiném panelu) – načíst znovu i s krajinou.
@@ -745,8 +751,9 @@ export function VillageGame({
     (): number => nextPollDelayMs(viewRef.current?.dayIndex ?? null, clock, Date.now()),
     [clock],
   );
-  // Dokud ves není, není co obnovovat (založení vrátí pohled samo); po konci hry se nic nemění.
-  const pollNow = usePolling(poll, pollDelay, village !== null && !gameOver);
+  // Bez vsi se ptáme jen kvůli upozorněním mezi hráči (založení vrátí pohled samo); po konci hry
+  // se nic nemění.
+  const pollNow = usePolling(poll, pollDelay, !gameOver);
   // Testovací háček: zeptat se na ves hned (test změnil uloženou ves přímo v databázi).
   useEffect(() => {
     setE2EHook('pollVillage', pollNow);

@@ -87,7 +87,7 @@ test('pozvánka: pozvaný je vazal, pozvatel má vazala a upozornění, cizí hr
   await expect(panelA2.getByTestId('house-invite-used')).toHaveCount(1);
 
   // C bez kódu: nezávislý, v seznamu hráčů vidí A i B
-  await registerAndEnterGame(c, 'cizinec');
+  const emailC = await registerAndEnterGame(c, 'cizinec');
   const panelC = await openHousePanel(c);
   await expect(panelC.getByTestId('house-independent')).toBeVisible();
   await expect(panelC.getByTestId('house-other')).toHaveCount(2);
@@ -98,6 +98,14 @@ test('pozvánka: pozvaný je vazal, pozvatel má vazala a upozornění, cizí hr
   await expect(panelA3.getByTestId('house-other')).toHaveCount(1);
   await a.mouse.move(0, 400);
   if (SCREENSHOT) await a.screenshot({ path: SCREENSHOT });
+
+  // C ještě nemá ves, přesto mu dojde upozornění od A (dotaz na ves vrací upozornění i bez vsi)
+  const idC = await houseIdOf(emailC);
+  await pickPlayer(panelA3, idC);
+  await panelA3.getByTestId('house-block').click();
+  await expect(c.getByTestId('village-notice').filter({ hasText: 'tě zablokoval' })).toBeVisible({
+    timeout: 60_000,
+  });
 
   await Promise.all([ctxA.close(), ctxB.close(), ctxC.close()]);
 });
