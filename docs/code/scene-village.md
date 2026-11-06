@@ -856,6 +856,13 @@ Data `SceneVillage.tornado` (den, síla, stopa, prvních pár dní vývraty) –
     (první polovina práce úseku), pak větve; palisáda – žlab (30 %), pak kůly; obojí od začátku
     úseku po směru hodin, tedy od brány (`fortWorkOrder`); val – příkop a násep rostou spolu.
     Vylepšení plotu staví palisádu vedle stojícího plotu, nástavba valu staví na koruně.
+  - **Vytyčení od 0 %** (`fortStakingLines`; Martin 6. 11. 2026): při stavbě a vylepšení
+    kolíky a provázek (`staking.ts` – tentýž jako u obydlí, hřbitova a sadu) po čáře plotu či
+    palisády nehotových úseků (vylepšení – čára palisády), u valu po vnějším okraji příkopu
+    a patě valu; body po `PEG_SPACING_M` (3 m), mezery bran volné, kde práce úseku začala (kůly,
+    žlab, hlína), vytyčení ustoupí. Renderer z čar udělá provázek (síť opevnění), pod ním světlou čáru na zemi 0,2 m (vyšlapaná
+    tráva jako u hřbitova – obvod je vidět i z dálky) a kolíky do vlastního `StakingPegs`. Klik na pás vybere opevnění i na 0 % (`pickVillageTarget` průběh
+    nezná – výběr šel i dřív, jen nebylo vidět kam kliknout).
 - **Val** (`lib/scene/rampart-mesh.ts`): průřez po 1,5 m obvodu – okraj o 0,3 m přes terén,
   příkop 0–4 m (dno 1,5 m pod terénem), násep 4–10 m (koruna 2 m, `rampartProfile`); úseky na
   sebe plynule navazují (přechod 3 m), v bráně průchod. Starý val (`rampartHeight` pod 1) je
