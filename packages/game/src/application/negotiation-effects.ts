@@ -1,4 +1,5 @@
 import type { TermItem } from '../domain/negotiation';
+import { AID_REASONS, checkAidLine, type AidLine } from '../domain/vassalage/loan';
 import { checkTermLine, type TermLine, type VassalTerms } from '../domain/vassalage/terms';
 import type { NegotiationTx } from './negotiations';
 
@@ -8,6 +9,12 @@ export interface EffectContext {
   day: number;
   /** Podmínky z celého přijatého kola (bez přísahy) – nová dohoda je dostane při založení. */
   terms: VassalTerms;
+  /** Jednání, které se přijímá (půjčka z něj vzejde nejvýš jednou). */
+  negotiationId: string;
+  /** Dohoda, o jejíž pomoci se jedná (pán = věřitel, vazal = dlužník); u jiných řádků nevyužito. */
+  agreement: { lordHouseId: string; vassalHouseId: string } | null;
+  /** Kam zásilka z pomoci dojde (ves příjemce); null – příjemce nemá kam. */
+  aidTargetVillageId: string | null;
 }
 
 /**
@@ -26,6 +33,15 @@ export interface NegotiationEffect<K extends TermItem['kind'] = TermItem['kind']
  */
 const termLineEffect = <K extends TermLine['kind']>(): NegotiationEffect<K> => ({
   check: (_tx, item) => Promise.resolve(checkTermLine(item as TermLine)),
+  apply: () => Promise.resolve(),
+});
+
+/**
+ * Řádek pomoci (vassalage.md – Pomoc na žádost): `check` hlídá čísla (doména). Dar sám nic
+ * nezapisuje – zásilku pošle `acceptNegotiation` po transakci (pod zámkem držitele věřitelovy vsi).
+ */
+const aidEffect = <K extends AidLine['kind']>(): NegotiationEffect<K> => ({
+  check: (_tx, item) => Promise.resolve(checkAidLine(item as AidLine)),
   apply: () => Promise.resolve(),
 });
 
@@ -52,6 +68,36 @@ export const NEGOTIATION_EFFECTS: { [K in TermItem['kind']]: NegotiationEffect<K
   service: termLineEffect<'service'>(),
   'target-village': termLineEffect<'target-village'>(),
   reward: termLineEffect<'reward'>(),
+  // žádost sama přijmout nejde – pán na ni odpovídá darem nebo půjčkou
+  'aid-request': {
+    check: () => Promise.resolve(AID_REASONS.answerNeeded),
+    apply: () => Promise.resolve(),
+  },
+  gift: aidEffect<'gift'>(),
+  // půjčka je samostatná dohoda: řádek se zapíše v transakci přijetí, zboží pošle use-case po ní
+  loan: {
+    check: (_tx, item) => Promise.resolve(checkAidLine(item)),
+    apply: async (tx, item, ctx) => {
+      if (!ctx.agreement) return;
+      await tx.loans.create({
+        negotiationId: ctx.negotiationId,
+        creditorHouseId: ctx.agreement.lordHouseId,
+        debtorHouseId: ctx.agreement.vassalHouseId,
+        creditorVillageId: item.fromVillageId,
+        debtorVillageId: ctx.aidTargetVillageId,
+        principal: {
+          grainKg: item.bundle.grainKg,
+          hayKg: item.bundle.hayKg,
+          cattle: { ...item.bundle.cattle },
+          horses: item.bundle.horses,
+          logs: item.bundle.logs,
+        },
+        schedule: item.schedule,
+        sinceAt: ctx.now,
+        sinceDay: ctx.day,
+      });
+    },
+  },
 };
 
 /** Kontrola řádku podle jeho druhu (registr je typově rozepsaný po druzích, volání je sjednocené). */

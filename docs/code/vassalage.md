@@ -203,3 +203,38 @@ Pravidla: [vassalage.md](../design/vassalage.md) – „Roční dialog 1. 11.“
 - **Rozhraní:** dialog `hud/LevyDialog.tsx`, popis v [web-ui.md](web-ui.md) – Dialog Odvody. `housePanel` nese u každé
   dohody `PanelAgreement.levyYears` (otevřený dialog Odvody k vazalství – `dialogs.openFor(vazalství, 'levy')`; null =
   nečeká), z toho přesýpací hodiny u vazala v panelu pána a pečeť v liště.
+
+## Pomoc a půjčky (`domain/vassalage/loan.ts`, `application/loans.ts`, `negotiate.ts`, `annual-levies.ts`, úloha 4.6)
+
+Pravidla: [vassalage.md – Pomoc na žádost](../design/vassalage.md). Vazal musí o pomoc požádat; pán dá dar, nabídne půjčku se
+splátkami, nebo odmítne. Půjčka je samostatná dohoda – trvá i po vypovězení vazalství.
+
+- **Řádky jednání** (`AidLine` v `loan.ts`, součást `TermItem`): `aid-request { bundle, villageId }` (vazal, kam),
+  `gift { bundle, fromVillageId, toVillageId? }`, `loan { …, schedule: LoanInstallment[] }` (`{ year, goods: MacroGoods }`).
+  `toVillageId` je **odchylka od plánu** (volitelné; bez něj ves hlavy rodu příjemce). Jednání o pomoci nemíchá jiné řádky
+  (`termLinesOf` aid řádky vynechává – přijetí **nesahá** na podmínky vazalství, `updateTerms` se neruší). První kolo je
+  vždy žádost vazala; žádost samu přijmout nejde (`NEGOTIATION_EFFECTS['aid-request'].check`), pán odpovídá protinávrhem
+  (dar / půjčka), vazal půjčku přijme / odmítne / dá protinávrh (jiný kalendář). Dohoda mezi rody musí trvat při každém kole
+  (`checkAidRound` v `negotiate.ts`: vsi z řádků patří těm, kdo je uvádějí).
+- **Hodnota** (`installmentValue`): kg obilí z `TRADE_GOOD_VALUES`; seno `VASSALAGE.loan.hayValueKg` = 0,25, kůň
+  `horseValueKg` = cena klisny (návrh Clauda). `dueValue(schedule, rok)` je kumulativní dluh splatný do roku, `overdueDebt`
+  zbývá po zaplacení, `remainingDebt` celkově.
+- **Přijetí:** v transakci jednání se jen zapíše půjčka (`tx.loans.create`, jedinečné `negotiation_id` → jedna půjčka při
+  souběhu). **Po transakci** `sendAid` pošle `sendShipment` z `fromVillageId` (pod zámkem držitele té vsi; `refId` =
+  `aid:<jednání>` → jediná zásilka; doveze, kdo posílá). Nepodaří-li se zásilka, půjčka se zruší
+  (`cancelOfNegotiation`) a přijetí vrátí důvod. Kronika: `negotiation` kroky `aid-gift` / `aid-loan`. Bez `NegotiateDeps.aid`
+  dar ani půjčku přijmout nejde (web ho dodává `aidDeps()` v `lib/levies.ts`).
+- **DB:** `schema/loan.ts` (`loan`: věřitel a dlužník – rody, ves věřitele a dlužníka, `principal`, `schedule`, `paid_kg`,
+  `breaches`, `status`), migrace `0025_loan.sql`, adaptér `loan-repository.ts` (`pay` přičítá v jednom UPDATE a při dosažení
+  celku splatí), `GameDeps.loans`.
+- **Splátky v Odvodech:** `openAnnualDialogs` (s `deps.loans`) 1. 11. otevře dlužníkovi dialog `repay` (klíč
+  `repay:<půjčka>:<rok>`, `refId` = id půjčky; jen půjčka starší než 1. 11., s dluhem po splatnosti); čekající dialog naroste
+  a každý zmeškaný rok zapíše neplnění (`repayBreach`). `levyDialogs` vrací `LevyDialogView.kind = 'repay'` (`owedKg`,
+  `loanId`), `answerLevy` odpověď předá `answerRepay`: zásilky do vsi věřitele (`purpose: 'repay'`), zaplacená hodnota
+  `installmentValue(odesláno)` → `loans.pay` (jiné zboží platí podle hodnoty), míň než dluh = `repayBreach`
+  (`loans.addBreach` + `addBreach(id, 'repay', den)` u vazalství, **jen pokud mezi rody trvá**). Upozornění pánu = `levy-sent`
+  s `loan: true` (kronika splátky se nepíše – odchylka). Vstup hráče do dialogu je upozornění `levy-pending` (`loan: true`).
+- **Vymření dlužníka** (háček pro 4.10): `onHouseEnded(deps, houseId, at)` v `loan-house-ended.ts` – rod **bez pána** →
+  jeho živé půjčky se zruší a dialogy splátek zmizí; rod s pánem dluh nechává (řeší nástupnictví a odúmrť v 4.10).
+- **Testy:** `domain/vassalage/__tests__/loan.test.ts`, `application/__tests__/aid-loans.test.ts` (in-memory
+  `in-memory-loans.ts`), db `loan-repository.db.test.ts` (souběžné přijetí → jedna půjčka), e2e `multiplayer.spec.ts`.

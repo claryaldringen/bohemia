@@ -16,6 +16,7 @@ import {
   type IssueInviteResult,
 } from '@bohemia/game';
 import { gameDeps, playerToday } from './game';
+import { aidDeps } from './levies';
 import type { NegotiationAnswer } from './house-input';
 import { houseView, type HouseView } from './house-view';
 import type { TermItem } from '@bohemia/game';
@@ -85,7 +86,7 @@ export async function answerNegotiationForPlayer(
   const deps = gameDeps();
   switch (input.answer) {
     case 'accept':
-      return outcome(await acceptNegotiation(deps, base));
+      return outcome(await acceptNegotiation({ ...deps, aid: aidDeps() }, base));
     case 'reject':
       return outcome(await rejectNegotiation(deps, base));
     case 'withdraw':

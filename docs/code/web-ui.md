@@ -770,3 +770,14 @@ staví až na hotovém.`, `Val už nástavbu má.`), ikona brány (`aria-pressed
   e2e `e2e/fortification.spec.ts` (nakreslit palisádu 3 × 3 přes pevnou cestu → brány na cestě,
   cena u kurzoru, Enter, panel; snímek do `FORT_UI_SHOT`).
 - Modely opevnění ve scéně jsou úloha 5.7.
+
+## Pomoc a půjčky v rozhraní (úloha 4.6)
+
+- `TermsForm.tsx`: `TERM_ROWS` má řádky `aid-request`, `gift`, `loan` (`AidRow`) – ikony `house/aid.svg`, `gift.svg`,
+  `loan.svg` (vlastní CC0, `public/icons/LICENSES.md`), políčka zboží (`GOODS_SLOTS`), výběr vsi, u půjčky splátkový
+  kalendář (rok + zboží, přidat / odebrat splátku). V „aid“ režimu formuláře není přidávání ani odebírání řádků; pán přepíná
+  odpověď tlačítky **Dát zdarma** / **Půjčit se splátkami** (`terms-aid-gift`, `terms-aid-loan`).
+- `HousePanel.tsx`: u pána tlačítko **Požádat o pomoc** (`agreement-request-aid`, ikona `aid`) otevře formulář s řádkem
+  žádosti; `gameYear` (z `view.dayIndex`) dává výchozí rok první splátky.
+- `lib/house-input.ts`: `parseTermItems` rozumí aid řádkům (`parseSchedule`); `lib/terms-view.ts`: `aidChips`, `AID_ICONS`.
+- `LevyDialog.tsx`: řádek `kind: 'repay'` (ikona půjčky, nabízí všechno zboží – splátka jiným zbožím platí podle hodnoty).

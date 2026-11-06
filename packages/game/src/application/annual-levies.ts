@@ -4,20 +4,26 @@ import {
   LEVY_GOODS,
   bundleOfAmounts,
   checkBundle,
+  dueGoods,
   flattenBundle,
+  installmentValue,
+  overdueDebt,
   houseSpare,
   isEmptyBundle,
   noMacroGoods,
   scaleBundle,
   suggestSplit,
   sumBundles,
+  type LevyAmounts,
   type LevyAnswerLine,
   type LevyPart,
   type MacroBundle,
+  type MacroGoods,
 } from '../domain/vassalage';
 import type { Dialog, DialogRepository } from './dialogs';
 import type { HouseRepository } from './houses';
 import { chronicleHouses, houseName, type NegotiationVillages } from './negotiation-chronicle';
+import type { Loan, LoanRepository } from './loans';
 import type { NoticeRepository } from './notices';
 import { sendShipment, type ShipmentDeps } from './shipments';
 import type { Vassalage, VassalageRepository } from './vassalages';
@@ -29,6 +35,9 @@ import type { Vassalage, VassalageRepository } from './vassalages';
 
 /** Herní měsíc a den ročního dialogu. */
 const LEVY_MONTH = 11;
+
+/** Zaokrouhlovací mez porovnání hodnot splátek (kg obilí). */
+const REPAY_EPSILON = 1e-6;
 
 export const NOT_YOUR_DIALOG = 'Tenhle dialog nemáš.';
 export const DIALOG_CLOSED = 'Na tenhle dialog už je odpovězeno.';
@@ -44,11 +53,19 @@ export interface LevyBody extends Record<string, unknown> {
   lordHouseId: string;
 }
 
+/** Body dialogu splátky: odkaz na půjčku. */
+interface RepayBody extends Record<string, unknown> {
+  loanId: string;
+  lordHouseId: string;
+}
+
 export interface AnnualLevyDeps extends NegotiationVillages {
   dialogs: DialogRepository;
-  vassalages: Pick<VassalageRepository, 'allActive' | 'byId' | 'addBreach'>;
+  vassalages: Pick<VassalageRepository, 'allActive' | 'activeOf' | 'byId' | 'addBreach'>;
   houses: Pick<HouseRepository, 'activeOf' | 'byId'>;
   notices: Pick<NoticeRepository, 'post'>;
+  /** Půjčky: splátky přijdou v Odvodech jako řádek (bez nich Odvody splátky nenabízejí). */
+  loans?: Pick<LoanRepository, 'allActive' | 'byId' | 'pay' | 'addBreach'>;
 }
 
 /** Závislosti odpovědi: zásilky + dopočet vsi do dneška (composition root: `loadVillage`). */
@@ -112,6 +129,59 @@ export async function openAnnualDialogs(
       gameDay: input.today,
     });
   }
+  if (deps.loans) opened += await openRepayDialogs(deps, { year, nov1, today: input.today });
+  return opened;
+}
+
+/** Neplnění splátky: půjčka a – trvá-li mezi věřitelem a dlužníkem vazalství – i vazalství. */
+async function repayBreach(deps: AnnualLevyDeps, loan: Loan, day: number): Promise<void> {
+  await deps.loans?.addBreach(loan.id);
+  const list = await deps.vassalages.activeOf(loan.debtorHouseId);
+  const v = list.find(
+    (x) => x.lordHouseId === loan.creditorHouseId && x.vassalHouseId === loan.debtorHouseId,
+  );
+  if (v) await deps.vassalages.addBreach(v.id, 'repay', day);
+}
+
+/**
+ * Splátky půjček v Odvodech (vassalage.md – Pomoc na žádost: „Splátky jako dávky“): dlužníkovi
+ * s dluhem po splatnosti se 1. 11. otevře dialog `repay` (půjčka je samostatná dohoda – nezávisí
+ * na vazalství); čekající dialog naroste a každý zmeškaný rok je neplnění. Vrací počet nových.
+ */
+async function openRepayDialogs(
+  deps: AnnualLevyDeps,
+  at: { year: number; nov1: number; today: number },
+): Promise<number> {
+  let opened = 0;
+  for (const loan of (await deps.loans?.allActive()) ?? []) {
+    if (loan.sinceDay >= at.nov1) continue;
+    const debtor = await deps.houses.byId(loan.debtorHouseId);
+    if (!debtor || debtor.playerId === null || debtor.endedAt !== null) continue;
+    const waiting = await deps.dialogs.openFor(loan.id, 'repay');
+    if (waiting) {
+      if (waiting.year >= at.year) continue;
+      const added = await deps.dialogs.bumpYears(waiting.key, at.year);
+      for (let i = 0; i < added; i++) await repayBreach(deps, loan, levyDay(waiting.year + 1 + i));
+      continue;
+    }
+    if (overdueDebt(loan.schedule, loan.paidKg, at.year) <= REPAY_EPSILON) continue;
+    const created = await deps.dialogs.openOnce(`repay:${loan.id}:${at.year}`, {
+      playerId: debtor.playerId,
+      kind: 'repay',
+      refId: loan.id,
+      year: at.year,
+      body: { loanId: loan.id, lordHouseId: loan.creditorHouseId } satisfies RepayBody,
+    });
+    if (!created) continue;
+    opened++;
+    const creditor = await deps.houses.byId(loan.creditorHouseId);
+    await deps.notices.post({
+      playerId: debtor.playerId,
+      kind: 'levy-pending',
+      payload: { lordName: creditor ? await houseName(deps, creditor) : '', years: 1, loan: true },
+      gameDay: at.today,
+    });
+  }
   return opened;
 }
 
@@ -142,7 +212,13 @@ function targetOf(v: Vassalage, lordVillageId: string | undefined): string | nul
 /** Otevřený dialog Odvody pro rozhraní. */
 export interface LevyDialogView {
   dialogId: string;
+  /** `levy` – roční dávka vazalství, `repay` – řádek splátky půjčky (samostatná dohoda). */
+  kind: 'levy' | 'repay';
+  /** U `repay` prázdné (půjčka nezávisí na vazalství) – místo něj `loanId`. */
   vassalageId: string;
+  loanId?: string;
+  /** U `repay` dluh po splatnosti v kg obilí (zaplatit smí i jiným zbožím podle hodnoty). */
+  owedKg?: number;
   lordHouseId: string;
   lordName: string;
   /** Za kolik let dialog čeká (2 = nepřišla odpověď na minulý 1. 11.). */
@@ -164,6 +240,11 @@ export async function levyDialogs(
   const out: LevyDialogView[] = [];
   const own = await houseVillages(deps.shipments, input.playerId);
   for (const dialog of await deps.dialogs.listOpen(input.playerId)) {
+    if (dialog.kind === 'repay') {
+      const view = await repayView(deps, dialog, own);
+      if (view) out.push(view);
+      continue;
+    }
     if (dialog.kind !== 'levy') continue;
     const v = await deps.vassalages.byId(dialog.refId);
     if (!v || v.endedAt !== null || !v.terms.tribute) continue;
@@ -182,6 +263,7 @@ export async function levyDialogs(
     const split = suggestSplit(agreed, spares);
     out.push({
       dialogId: dialog.id,
+      kind: 'levy',
       vassalageId: v.id,
       lordHouseId: v.lordHouseId,
       lordName: lord ? await houseName(deps, lord) : '',
@@ -195,6 +277,55 @@ export async function levyDialogs(
     });
   }
   return out;
+}
+
+/** Řádek splátky půjčky: dluh po splatnosti a rozdělení po vsích předvyplněné podle přebytku. */
+async function repayView(
+  deps: LevyDeps,
+  dialog: Dialog,
+  own: Awaited<ReturnType<typeof houseVillages>>,
+): Promise<LevyDialogView | null> {
+  const loan = await deps.loans?.byId(dialog.refId);
+  if (!loan || loan.status !== 'active') return null;
+  const owedKg = overdueDebt(loan.schedule, loan.paidKg, dialog.year);
+  const creditor = await deps.houses.byId(loan.creditorHouseId);
+  const targetCell = await cellOfVillage(deps.shipments, loan.creditorVillageId);
+  // domluvené zboží splátek; po částečné splátce jen dluh přepočtený na obilí
+  const agreed = bundleOfGoods(
+    loan.paidKg === 0
+      ? dueGoods(loan.schedule, dialog.year)
+      : { ...noMacroGoods(), grainKg: owedKg },
+  );
+  const spares = own.map((village) => ({
+    id: village.id,
+    spare: houseSpare(
+      [{ state: village.state as never, cell: village.cell }],
+      targetCell ?? village.cell,
+      noMacroGoods(),
+    ),
+  }));
+  const split = suggestSplit(agreed, spares);
+  return {
+    dialogId: dialog.id,
+    kind: 'repay',
+    vassalageId: '',
+    loanId: loan.id,
+    owedKg,
+    lordHouseId: loan.creditorHouseId,
+    lordName: creditor ? await houseName(deps, creditor) : '',
+    years: dialog.years,
+    agreed,
+    villages: own.map((village) => ({
+      villageId: village.id,
+      name: village.name,
+      suggested: split[village.id] ?? bundleOfAmounts(sumBundles([])),
+    })),
+  };
+}
+
+/** Zboží bez lidí a roboty jako svazek. */
+function bundleOfGoods(goods: MacroGoods): MacroBundle {
+  return { ...goods, people: { families: 0, men: 0, women: 0 }, laborDays: 0 };
 }
 
 async function cellOfVillage(
@@ -229,37 +360,27 @@ export async function answerLevy(
   },
 ): Promise<AnswerLevyResult> {
   const dialog = await deps.dialogs.byId(input.dialogId);
-  if (!dialog || dialog.playerId !== input.playerId || dialog.kind !== 'levy') {
+  if (
+    !dialog ||
+    dialog.playerId !== input.playerId ||
+    (dialog.kind !== 'levy' && dialog.kind !== 'repay')
+  ) {
     return { ok: false, reason: NOT_YOUR_DIALOG };
   }
   if (dialog.status !== 'open') return { ok: false, reason: DIALOG_CLOSED };
   if (input.message !== null && input.message.length > NEGOTIATION.messageMaxChars) {
     return { ok: false, reason: LEVY_MESSAGE_TOO_LONG };
   }
+  if (dialog.kind === 'repay') return answerRepay(deps, dialog, input);
   const v = await deps.vassalages.byId(dialog.refId);
   if (!v || v.endedAt !== null || !v.terms.tribute) return { ok: false, reason: LEVY_ENDED };
   const vassal = await deps.houses.activeOf(input.playerId);
   if (!vassal || vassal.id !== v.vassalHouseId) return { ok: false, reason: NOT_YOUR_DIALOG };
   const lord = await deps.houses.byId(v.lordHouseId);
 
-  // jen vsi rodu vazala (ne spravované cizí) a smysluplná čísla
-  const own = new Set((await houseVillages(deps.shipments, input.playerId)).map((x) => x.id));
-  const shipping: [string, MacroBundle][] = [];
-  for (const [villageId, bundle] of Object.entries(input.split)) {
-    if (isEmptyBundle(bundle)) continue;
-    if (!own.has(villageId)) return { ok: false, reason: LEVY_NOT_YOUR_VILLAGE };
-    const bad = checkBundle(bundle);
-    if (bad) return { ok: false, reason: bad };
-    shipping.push([villageId, bundle]);
-  }
-  const sent = sumBundles(shipping.map(([, b]) => b));
-  const stated: Record<string, number> = {};
-  for (const line of input.lines) stated[line.good] = (stated[line.good] ?? 0) + line.amount;
-  for (const good of LEVY_GOODS) {
-    if (Math.abs((stated[good] ?? 0) - sent[good]) > 1e-6) {
-      return { ok: false, reason: LEVY_BAD_ANSWER };
-    }
-  }
+  const checked = await checkAnswer(deps, input);
+  if (!checked.ok) return checked;
+  const { shipping, sent } = checked;
 
   let arrivesDay: number | null = null;
   if (shipping.length > 0) {
@@ -321,4 +442,118 @@ export async function answerLevy(
     });
   }
   return { ok: true, arrivesDay, dialog: { ...dialog, status: 'answered' } };
+}
+
+/** Společná kontrola odpovědi: jen vsi rodu, čísla v mezích, řádky souhlasí se součtem po vsích. */
+async function checkAnswer(
+  deps: LevyDeps,
+  input: {
+    playerId: string;
+    lines: LevyAnswerLine[];
+    split: Record<string, MacroBundle>;
+  },
+): Promise<
+  { ok: true; shipping: [string, MacroBundle][]; sent: LevyAmounts } | { ok: false; reason: string }
+> {
+  // jen vsi rodu vazala (ne spravované cizí) a smysluplná čísla
+  const own = new Set((await houseVillages(deps.shipments, input.playerId)).map((x) => x.id));
+  const shipping: [string, MacroBundle][] = [];
+  for (const [villageId, bundle] of Object.entries(input.split)) {
+    if (isEmptyBundle(bundle)) continue;
+    if (!own.has(villageId)) return { ok: false, reason: LEVY_NOT_YOUR_VILLAGE };
+    const bad = checkBundle(bundle);
+    if (bad) return { ok: false, reason: bad };
+    shipping.push([villageId, bundle]);
+  }
+  const sent = sumBundles(shipping.map(([, b]) => b));
+  const stated: Record<string, number> = {};
+  for (const line of input.lines) stated[line.good] = (stated[line.good] ?? 0) + line.amount;
+  for (const good of LEVY_GOODS) {
+    if (Math.abs((stated[good] ?? 0) - sent[good]) > 1e-6) {
+      return { ok: false, reason: LEVY_BAD_ANSWER };
+    }
+  }
+  return { ok: true, shipping, sent };
+}
+
+/**
+ * Odpověď na řádek splátky půjčky: pošle zboží z vsí rodu dlužníka do věřitelovy vsi (klíč
+ * `repay:<dialog>:<ves>`), zapíše zaplacenou hodnotu (jiné zboží platí podle hodnoty –
+ * `installmentValue`) a míň než dluh po splatnosti je neplnění (půjčka i vazalství, pokud trvá).
+ * Půjčka je samostatná dohoda: odpovědět lze i po vypovězení vazalství.
+ */
+async function answerRepay(
+  deps: LevyDeps,
+  dialog: Dialog,
+  input: {
+    playerId: string;
+    lines: LevyAnswerLine[];
+    split: Record<string, MacroBundle>;
+    message: string | null;
+    today: number;
+  },
+): Promise<AnswerLevyResult> {
+  const loan = await deps.loans?.byId(dialog.refId);
+  if (!loan || loan.status !== 'active') return { ok: false, reason: LEVY_ENDED };
+  const debtor = await deps.houses.activeOf(input.playerId);
+  if (!debtor || debtor.id !== loan.debtorHouseId) return { ok: false, reason: NOT_YOUR_DIALOG };
+  const checked = await checkAnswer(deps, input);
+  if (!checked.ok) return checked;
+  const { shipping, sent } = checked;
+  const owedKg = overdueDebt(loan.schedule, loan.paidKg, dialog.year);
+
+  let arrivesDay: number | null = null;
+  for (const [villageId, bundle] of shipping) {
+    await deps.prepareVillage(villageId, input.today);
+    const result = await sendShipment(deps.shipments, {
+      fromVillageId: villageId,
+      toVillageId: loan.creditorVillageId,
+      bundle,
+      purpose: 'repay',
+      refId: `repay:${dialog.id}:${villageId}`,
+      today: input.today,
+    });
+    if (!result.ok) return { ok: false, reason: result.reason };
+    arrivesDay = Math.max(arrivesDay ?? 0, result.arrivesDay);
+  }
+  if (!(await deps.dialogs.answer(dialog.id, 'open'))) {
+    return { ok: false, reason: DIALOG_CLOSED };
+  }
+
+  const paidKg = installmentValue(bundleOfGoods(sentGoods(sent)));
+  await deps.loans?.pay(loan.id, paidKg, deps.shipments.now());
+  if (paidKg + REPAY_EPSILON < owedKg) await repayBreach(deps, loan, input.today);
+  const creditor = await deps.houses.byId(loan.creditorHouseId);
+  if (creditor?.playerId) {
+    const parts: LevyPart[] = LEVY_GOODS.filter((g) => sent[g] > 0).map((good) => ({
+      good,
+      sent: sent[good],
+      agreed: 0,
+    }));
+    await deps.notices.post({
+      playerId: creditor.playerId,
+      kind: 'levy-sent',
+      payload: {
+        vassalName: await houseName(deps, debtor),
+        years: dialog.years,
+        parts,
+        arrivesDay,
+        loan: true,
+        ...(input.message ? { message: input.message } : {}),
+      },
+      gameDay: input.today,
+    });
+  }
+  return { ok: true, arrivesDay, dialog: { ...dialog, status: 'answered' } };
+}
+
+/** Odvedené řádky jako zboží (lidé a robota u splátek nejsou). */
+function sentGoods(sent: LevyAmounts): MacroGoods {
+  return {
+    grainKg: sent.grainKg,
+    hayKg: sent.hayKg,
+    cattle: { cows: sent.cows, youngOxen: sent.youngOxen, trainedOxen: sent.trainedOxen },
+    horses: sent.horses,
+    logs: sent.logs,
+  };
 }

@@ -18,5 +18,6 @@ export { createVassalageRepository } from './vassalage-repository';
 export { createNegotiationRepository } from './negotiation-repository';
 export { createShipmentRepository } from './shipment-repository';
 export { createDialogRepository } from './dialog-repository';
+export { createLoanRepository } from './loan-repository';
 export { createWorldDirectory } from './world-directory';
 export { createWorldQueue } from './world-queue';

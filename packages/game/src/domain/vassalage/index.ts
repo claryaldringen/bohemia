@@ -6,3 +6,4 @@ export * from './tree';
 export * from './terms';
 export * from './shipment';
 export * from './levy';
+export * from './loan';

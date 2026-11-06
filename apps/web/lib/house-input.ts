@@ -1,9 +1,12 @@
 import {
   LEVY_GOODS,
   NEGOTIATION,
+  VASSALAGE,
   type LevyAnswerLine,
   type LevyGood,
+  type LoanInstallment,
   type MacroBundle,
+  type MacroGoods,
   type TermItem,
 } from '@bohemia/game';
 
@@ -107,11 +110,75 @@ export function parseTermItems(input: unknown): TermItem[] | null {
         items.push({ kind: 'target-village', villageId });
         break;
       }
+      case 'aid-request': {
+        const bundle = parseBundle(row.bundle);
+        const villageId = idOf(row.villageId);
+        if (bundle === null || villageId === null) return null;
+        items.push({ kind: 'aid-request', bundle, villageId });
+        break;
+      }
+      case 'gift':
+      case 'loan': {
+        const bundle = parseBundle(row.bundle);
+        const fromVillageId = idOf(row.fromVillageId);
+        const toVillageId = row.toVillageId === undefined ? undefined : idOf(row.toVillageId);
+        if (bundle === null || fromVillageId === null || toVillageId === null) return null;
+        const target = toVillageId === undefined ? {} : { toVillageId };
+        if (row.kind === 'gift') {
+          items.push({ kind: 'gift', bundle, fromVillageId, ...target });
+          break;
+        }
+        const schedule = parseSchedule(row.schedule);
+        if (schedule === null) return null;
+        items.push({ kind: 'loan', bundle, fromVillageId, ...target, schedule });
+        break;
+      }
       default:
         return null;
     }
   }
   return items;
+}
+
+/** Zboží splátky (makrokomodity bez lidí a roboty): všechna pole čísla, jinak null. */
+function parseGoods(input: unknown): MacroGoods | null {
+  if (typeof input !== 'object' || input === null) return null;
+  const raw = input as Record<string, unknown>;
+  const cattle = raw.cattle as Record<string, unknown> | null | undefined;
+  if (!cattle) return null;
+  const fields = [
+    num(raw.grainKg),
+    num(raw.hayKg),
+    num(cattle.cows),
+    num(cattle.youngOxen),
+    num(cattle.trainedOxen),
+    num(raw.horses),
+    num(raw.logs),
+  ];
+  if (fields.some((f) => f === null)) return null;
+  const [grainKg, hayKg, cows, youngOxen, trainedOxen, horses, logs] = fields as number[];
+  return {
+    grainKg: grainKg!,
+    hayKg: hayKg!,
+    cattle: { cows: cows!, youngOxen: youngOxen!, trainedOxen: trainedOxen! },
+    horses: horses!,
+    logs: logs!,
+  };
+}
+
+/** Splátkový kalendář z klienta: roky a zboží (svazek bez lidí a roboty); mezemi se zabývá doména. */
+function parseSchedule(input: unknown): LoanInstallment[] | null {
+  if (!Array.isArray(input) || input.length > VASSALAGE.loan.maxInstallments) return null;
+  const schedule: LoanInstallment[] = [];
+  for (const raw of input as unknown[]) {
+    if (typeof raw !== 'object' || raw === null) return null;
+    const { year, goods } = raw as { year?: unknown; goods?: unknown };
+    const y = num(year);
+    const parsed = parseGoods(goods);
+    if (y === null || parsed === null) return null;
+    schedule.push({ year: y, goods: parsed });
+  }
+  return schedule;
 }
 
 /** Vzkaz: chybí / prázdný = žádný; text delší než mez (`NEGOTIATION.messageMaxChars`) = chyba. */

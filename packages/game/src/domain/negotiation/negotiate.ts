@@ -1,4 +1,5 @@
 import type { VassalEdge } from '../vassalage/tree';
+import { isAidLine } from '../vassalage/loan';
 import { checkTermLines, type TermLine } from '../vassalage/terms';
 import { wouldBeMutual } from '../vassalage/tree';
 import { NEGOTIATION, NEGOTIATION_REASONS as R } from './rules-negotiation';
@@ -28,7 +29,7 @@ function oathOf(items: readonly TermItem[]): Oath | undefined {
 
 /** Řádky podmínek bez přísahy. */
 export function termLinesOf(items: readonly TermItem[]): TermLine[] {
-  return items.filter((i): i is TermLine => i.kind !== 'oath');
+  return items.filter((i): i is TermLine => i.kind !== 'oath' && !isAidLine(i));
 }
 
 /**

@@ -50,6 +50,12 @@ export function termRowLabel(
       return 'Správa vsi pána';
     case 'reward':
       return 'Roční odměna';
+    case 'aid-request':
+      return 'Žádost o pomoc';
+    case 'gift':
+      return 'Dar';
+    case 'loan':
+      return 'Půjčka se splátkovým kalendářem';
   }
 }
 

@@ -66,3 +66,5 @@ export * from './house-spare';
 export * from './shipments';
 export * from './dialogs';
 export * from './annual-levies';
+export * from './loans';
+export * from './loan-house-ended';

@@ -48,6 +48,17 @@ export const VASSALAGE = {
     maxServiceMen: 100,
     maxServiceDays: 365,
   },
+  /**
+   * Půjčka (Pomoc na žádost – dar nebo půjčka; návrh Clauda): splátky se počítají v kg obilí podle
+   * `TRADE_GOOD_VALUES`; seno má cenu čtvrtiny obilí (krmivo, ne jídlo), kůň (jednoho druhu pro
+   * účty splátek) cenu chovné klisny. Nejvýš 40 splátek v kalendáři, rok splátky v rozumných mezích.
+   */
+  loan: {
+    hayValueKg: 0.25,
+    horseValueKg: TRADE_GOOD_VALUES.mares.valueKg,
+    maxInstallments: 40,
+    maxYear: 100_000,
+  },
   /** Do jaké hloubky sítě (kroků od obou stran) upozornění na vypovězení dojde (návrh Clauda). */
   noticeDepth: 12,
   /** Kolik pater vazalů pod hráčem panel ukáže (Přehled pána – strom pod sebou; návrh Clauda). */

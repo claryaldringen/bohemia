@@ -1,10 +1,21 @@
 'use client';
 
 import { useEffect, useState, type ReactElement } from 'react';
-import { NEGOTIATION, type MacroBundle, type MacroSpare, type TermItem } from '@bohemia/game';
+import {
+  NEGOTIATION,
+  type AidLine,
+  type MacroBundle,
+  type MacroGoods,
+  type MacroSpare,
+  type TermItem,
+  type TermLine,
+} from '@bohemia/game';
 import { termRowLabel, type TermRowView } from '@/lib/negotiation-view';
 import {
+  AID_ICONS,
   BUNDLE_SLOTS,
+  GOODS_SLOTS,
+  aidChips,
   bundleValue,
   emptyBundle,
   formatAmount,
@@ -58,6 +69,8 @@ export interface TermsContext {
   lordIsOwn: boolean;
   /** Vsi hráče (cílová ves pána). */
   villages: readonly { id: string; name: string }[];
+  /** Herní rok (výchozí rok první splátky půjčky). */
+  gameYear?: number;
   /** Výhled „kolik můžu postrádat“ (jen na vyžádání); null = nedostupný. */
   loadSpare?: (targetVillageId: string | null) => Promise<MacroSpare | null>;
 }
@@ -251,6 +264,206 @@ function TargetVillageRow({ item, label, onChange, context }: TermRowProps): Rea
   );
 }
 
+/** Zboží bez lidí a roboty z řádku svazku (splátka nese jen makrokomodity). */
+function goodsOf(bundle: MacroBundle): MacroGoods {
+  return {
+    grainKg: bundle.grainKg,
+    hayKg: bundle.hayKg,
+    cattle: { ...bundle.cattle },
+    horses: bundle.horses,
+    logs: bundle.logs,
+  };
+}
+
+/** Políčka zboží (obilí, seno, dobytek, koně, klády) s ikonami; `testPrefix` do testid. */
+function GoodsInputs({
+  goods,
+  testPrefix,
+  onChange,
+}: {
+  goods: MacroGoods;
+  testPrefix: string;
+  onChange: (goods: MacroGoods) => void;
+}): ReactElement {
+  const bundle: MacroBundle = {
+    ...goods,
+    people: { families: 0, men: 0, women: 0 },
+    laborDays: 0,
+  };
+  return (
+    <>
+      {GOODS_SLOTS.map((slot) => (
+        <Tooltip key={slot.key} content={slot.label}>
+          <span className="inline-flex items-center gap-0.5">
+            <TermIconImg icon={slot.icon} size={18} />
+            <NumberInput
+              value={bundleValue(bundle, slot.key)}
+              label={slot.label}
+              testId={`${testPrefix}-${slot.key}`}
+              onChange={(v) => onChange(goodsOf(withBundleValue(bundle, slot.key, v)))}
+            />
+          </span>
+        </Tooltip>
+      ))}
+    </>
+  );
+}
+
+/** Výběr vsi hráče (odkud / kam pomoc jde). */
+function VillageSelect({
+  value,
+  villages,
+  testId,
+  onChange,
+}: {
+  value: string | undefined;
+  villages: readonly { id: string; name: string }[];
+  testId: string;
+  onChange: (id: string) => void;
+}): ReactElement {
+  return (
+    <select
+      aria-label="Ves"
+      data-testid={testId}
+      value={value ?? ''}
+      onChange={(event) => onChange(event.target.value)}
+      className="rounded-sm border border-[#5c4526] bg-[#15100b] px-1 text-xs"
+    >
+      {villages.map((v) => (
+        <option key={v.id} value={v.id}>
+          {v.name}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+/**
+ * Pomoc na žádost (vassalage.md – Pomoc na žádost): žádost vazala, dar a půjčka pána. Ve formuláři
+ * políčka zboží a výběr vsi (vazal: kam, pán: odkud), u půjčky splátkový kalendář (rok + zboží);
+ * jinak ikony s čísly.
+ */
+function AidRow({ item, label, onChange, context }: TermRowProps): ReactElement {
+  if (item.kind !== 'aid-request' && item.kind !== 'gift' && item.kind !== 'loan') return <span />;
+  const aid: AidLine = item;
+  if (!onChange) {
+    return (
+      <span
+        data-testid={`term-row-${aid.kind}`}
+        className="inline-flex flex-wrap items-center gap-1.5"
+        aria-label={label}
+      >
+        <Tooltip content={label}>
+          <span tabIndex={0} aria-label={label} className="inline-flex">
+            <TermIconImg icon={AID_ICONS[aid.kind]} size={22} />
+          </span>
+        </Tooltip>
+        {aidChips(aid).map((chip) => (
+          <Chip key={chip.key} chip={chip} />
+        ))}
+      </span>
+    );
+  }
+  const villages = context?.villages ?? [];
+  const update = (patch: Partial<AidLine>): void => onChange({ ...aid, ...patch } as AidLine);
+  return (
+    <div data-testid={`term-row-${aid.kind}`} className="flex flex-col gap-1">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Tooltip content={label}>
+          <span tabIndex={0} aria-label={label} className="inline-flex">
+            <TermIconImg icon={AID_ICONS[aid.kind]} size={22} />
+          </span>
+        </Tooltip>
+        <GoodsInputs
+          goods={goodsOf(aid.bundle)}
+          testPrefix={`term-${aid.kind}`}
+          onChange={(goods) =>
+            update({ bundle: { ...aid.bundle, ...goods, cattle: goods.cattle } })
+          }
+        />
+        {villages.length > 0 && (
+          <VillageSelect
+            value={aid.kind === 'aid-request' ? aid.villageId : aid.fromVillageId}
+            villages={villages}
+            testId={`term-${aid.kind}-village`}
+            onChange={(id) =>
+              update(aid.kind === 'aid-request' ? { villageId: id } : { fromVillageId: id })
+            }
+          />
+        )}
+      </div>
+      {aid.kind === 'loan' && (
+        <div data-testid="term-loan-schedule" className="flex flex-col gap-1 pl-6">
+          {aid.schedule.map((installment, i) => (
+            <div key={i} className="flex flex-wrap items-center gap-1.5">
+              <Tooltip content="Rok splátky">
+                <span className="inline-flex items-center gap-0.5">
+                  <HouseIcon name="hourglass" size={16} />
+                  <input
+                    type="number"
+                    aria-label="Rok splátky"
+                    data-testid={`term-loan-year-${i}`}
+                    value={installment.year}
+                    onChange={(event) =>
+                      update({
+                        schedule: aid.schedule.map((x, j) =>
+                          j === i ? { ...x, year: countOf(event.target.value) } : x,
+                        ),
+                      })
+                    }
+                    className="w-16 rounded-sm border border-[#5c4526] bg-[#15100b] px-1 text-xs tabular-nums"
+                  />
+                </span>
+              </Tooltip>
+              <GoodsInputs
+                goods={installment.goods}
+                testPrefix={`term-loan-${i}`}
+                onChange={(goods) =>
+                  update({
+                    schedule: aid.schedule.map((x, j) => (j === i ? { ...x, goods } : x)),
+                  })
+                }
+              />
+              <Tooltip content="Odebrat splátku">
+                <button
+                  type="button"
+                  aria-label="Odebrat splátku"
+                  data-testid={`term-loan-remove-${i}`}
+                  className="hud-icon-button flex h-5 w-5 items-center justify-center"
+                  onClick={() => update({ schedule: aid.schedule.filter((_, j) => j !== i) })}
+                >
+                  <HouseIcon name="cross" size={12} />
+                </button>
+              </Tooltip>
+            </div>
+          ))}
+          <Tooltip content="Přidat splátku">
+            <button
+              type="button"
+              aria-label="Přidat splátku"
+              data-testid="term-loan-add"
+              className="hud-icon-button flex h-6 w-9 items-center justify-center"
+              onClick={() =>
+                update({
+                  schedule: [
+                    ...aid.schedule,
+                    {
+                      year: (aid.schedule.at(-1)?.year ?? context?.gameYear ?? 0) + 1,
+                      goods: { ...goodsOf(emptyBundle()), grainKg: 100 },
+                    },
+                  ],
+                })
+              }
+            >
+              <TermIconImg icon={AID_ICONS.loan} size={16} />
+            </button>
+          </Tooltip>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Registr řádků podle druhu podmínky. */
 export const TERM_ROWS: Record<TermItem['kind'], TermRowComponent> = {
   oath: OathRow,
@@ -258,6 +471,9 @@ export const TERM_ROWS: Record<TermItem['kind'], TermRowComponent> = {
   service: ServiceRow,
   'target-village': TargetVillageRow,
   reward: BundleRow,
+  'aid-request': AidRow,
+  gift: AidRow,
+  loan: AidRow,
 };
 
 /** Řádky podmínek (formulář i karta jednání); `onRemove` přidá křížek u řádků bez přísahy. */
@@ -307,7 +523,7 @@ export function TermRows({
   );
 }
 
-const ADDABLE: { kind: Exclude<TermItem['kind'], 'oath'>; icon: string; label: string }[] = [
+const ADDABLE: { kind: TermLine['kind']; icon: string; label: string }[] = [
   { kind: 'tribute', icon: 'grain', label: 'Přidat roční dávku' },
   { kind: 'service', icon: 'sword', label: 'Přidat vojenskou službu' },
   { kind: 'target-village', icon: 'village-key', label: 'Přidat správu vsi' },
@@ -315,7 +531,7 @@ const ADDABLE: { kind: Exclude<TermItem['kind'], 'oath'>; icon: string; label: s
 ];
 
 /** Nový řádek podmínky s rozumnou výchozí hodnotou, nebo null, když ho nejde přidat. */
-function newRow(kind: Exclude<TermItem['kind'], 'oath'>, context?: TermsContext): TermItem | null {
+function newRow(kind: TermLine['kind'], context?: TermsContext): TermItem | null {
   switch (kind) {
     case 'tribute':
     case 'reward':
@@ -327,6 +543,23 @@ function newRow(kind: Exclude<TermItem['kind'], 'oath'>, context?: TermsContext)
       return context?.lordIsOwn && first ? { kind, villageId: first.id } : null;
     }
   }
+}
+
+const isAid = (item: TermItem): item is AidLine =>
+  item.kind === 'aid-request' || item.kind === 'gift' || item.kind === 'loan';
+
+/** Odpověď pána na žádost (nebo přepnutí daru a půjčky): stejné zboží, kam žádal vazal. */
+function asAnswer(kind: 'gift' | 'loan', from: AidLine, context?: TermsContext): AidLine {
+  const fromVillageId =
+    from.kind === 'aid-request' ? (context?.villages[0]?.id ?? '') : from.fromVillageId;
+  const toVillageId = from.kind === 'aid-request' ? from.villageId : from.toVillageId;
+  const target = toVillageId ? { toVillageId } : {};
+  if (kind === 'gift') return { kind, bundle: from.bundle, fromVillageId, ...target };
+  const schedule =
+    from.kind === 'loan'
+      ? from.schedule
+      : [{ year: (context?.gameYear ?? 0) + 1, goods: goodsOf(from.bundle) }];
+  return { kind, bundle: from.bundle, fromVillageId, ...target, schedule };
 }
 
 /**
@@ -371,6 +604,7 @@ export function TermsForm({
     };
   }, [loadSpare, paysSomething, targetId]);
   const present = new Set(rows.map((r) => r.kind));
+  const aidMode = rows.some((r) => isAid(r.item));
   return (
     <div data-testid="terms-form" className="flex w-full flex-col gap-1.5">
       <TermRows
@@ -380,11 +614,41 @@ export function TermsForm({
         onChange={(index, item) =>
           setRows((current) => current.map((r, i) => (i === index ? { ...r, item } : r)))
         }
-        onRemove={(index) => setRows((current) => current.filter((_, i) => i !== index))}
+        onRemove={
+          aidMode
+            ? undefined
+            : (index) => setRows((current) => current.filter((_, i) => i !== index))
+        }
       />
+      {aidMode && lordIsOwn && (
+        <div className="flex items-center gap-1.5">
+          {(['gift', 'loan'] as const).map((kind) => (
+            <Tooltip key={kind} content={kind === 'gift' ? 'Dát zdarma' : 'Půjčit se splátkami'}>
+              <button
+                type="button"
+                aria-label={kind === 'gift' ? 'Dát zdarma' : 'Půjčit se splátkami'}
+                data-testid={`terms-aid-${kind}`}
+                data-active={rows[0]?.kind === kind}
+                className="hud-icon-button flex h-7 w-9 items-center justify-center"
+                onClick={() =>
+                  setRows((current) => {
+                    const first = current[0];
+                    if (!first || !isAid(first.item)) return current;
+                    const item = asAnswer(kind, first.item, context);
+                    return [{ kind, item, label: termRowLabel(item, '', { lordName: null }) }];
+                  })
+                }
+              >
+                <TermIconImg icon={AID_ICONS[kind]} size={20} />
+              </button>
+            </Tooltip>
+          ))}
+        </div>
+      )}
       <div className="flex items-center gap-1.5">
-        {ADDABLE.filter((a) => !present.has(a.kind) && newRow(a.kind, context) !== null).map(
-          (a) => (
+        {(aidMode ? [] : ADDABLE)
+          .filter((a) => !present.has(a.kind) && newRow(a.kind, context) !== null)
+          .map((a) => (
             <Tooltip key={a.kind} content={a.label}>
               <button
                 type="button"
@@ -403,8 +667,7 @@ export function TermsForm({
                 <HouseIcon name={a.icon} size={20} />
               </button>
             </Tooltip>
-          ),
-        )}
+          ))}
       </div>
       <textarea
         aria-label="Vzkaz"

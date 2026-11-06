@@ -91,6 +91,7 @@ function textOf(n: PlayerNotice): string {
     case 'levy-pending': {
       const lord = stringOf(n.payload.lordName) ?? 'pánovi';
       const years = typeof n.payload.years === 'number' ? n.payload.years : 1;
+      if (n.payload.loan === true) return `Čas splátky – ${lord} čeká splátku půjčky.`;
       return years > 1
         ? `Odvody pánu ${lord} čekají už ${years} roky.`
         : `Čas odvodů – pán ${lord} čeká dávku.`;
@@ -102,8 +103,9 @@ function textOf(n: PlayerNotice): string {
       const day = typeof n.payload.arrivesDay === 'number' ? n.payload.arrivesDay : null;
       const when = day === null ? '' : ` Dorazí ${formatGameDate(dateOfDayIndex(day))}.`;
       const message = stringOf(n.payload.message);
+      const noun = n.payload.loan === true ? 'splátku půjčky' : 'odvod';
       return (
-        `${vassal} ti posílá odvod${what === '' ? ' – tentokrát nic' : `: ${what}`}.${when}` +
+        `${vassal} ti posílá ${noun}${what === '' ? ' – tentokrát nic' : `: ${what}`}.${when}` +
         (message === null ? '' : ` Vzkaz: „${message}“`)
       );
     }

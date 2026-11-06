@@ -2,7 +2,15 @@
 // odměny, služby a cílové vsi složí řádky „ikona + číslo + popisek“ pro panel i jednání. Čistý
 // modul – smí do prohlížeče.
 import { linesOfTerms } from '@bohemia/game';
-import type { HungerLevel, MacroBundle, TermItem, TermLine, VassalTerms } from '@bohemia/game';
+import type {
+  AidLine,
+  HungerLevel,
+  MacroBundle,
+  MacroGoods,
+  TermItem,
+  TermLine,
+  VassalTerms,
+} from '@bohemia/game';
 import { plural } from './village-format';
 
 /** Ikona: vlastní kresba rodu (`house/…svg`) nebo ikona zdroje (`resources/….png`). */
@@ -169,6 +177,60 @@ export function lineChips(line: TermLine, villageName?: string | null): TermChip
         },
       ];
   }
+}
+
+/** Políčka pomoci a splátek: jen zboží (lidé a robota se nepůjčují). */
+export const GOODS_SLOTS: readonly BundleSlot[] = BUNDLE_SLOTS.filter(
+  (slot) => !['men', 'women', 'families', 'laborDays'].includes(slot.key),
+);
+
+/** Ikona druhu pomoci (vlastní kresby rodu). */
+export const AID_ICONS: Record<AidLine['kind'], TermIcon> = {
+  'aid-request': { set: 'house', name: 'aid' },
+  gift: { set: 'house', name: 'gift' },
+  loan: { set: 'house', name: 'loan' },
+};
+
+const AID_TITLES: Record<AidLine['kind'], string> = {
+  'aid-request': 'Žádost o pomoc',
+  gift: 'Dar',
+  loan: 'Půjčka',
+};
+
+/** Svazek zboží (bez lidí a roboty) jako ikony s čísly: `key` předpona, `title` do popisku. */
+function goodsChips(key: string, title: string, goods: MacroGoods): TermChip[] {
+  return GOODS_SLOTS.map((slot) => ({
+    slot,
+    value: bundleValue(
+      { ...goods, people: { families: 0, men: 0, women: 0 }, laborDays: 0 },
+      slot.key,
+    ),
+  }))
+    .filter((e) => e.value > 0)
+    .map(({ slot, value }) => ({
+      key: `${key}-${slot.key}`,
+      icon: slot.icon,
+      text: formatAmount(value),
+      label: `${title}: ${slot.label.toLowerCase()} ${formatAmount(value)}${slot.unit ? ` ${slot.unit}` : ''}`,
+    }));
+}
+
+/** Ikony s čísly řádku pomoci; půjčka za svazkem ukáže splátky (rok a zboží). */
+export function aidChips(line: AidLine): TermChip[] {
+  const chips: TermChip[] = [...goodsChips(line.kind, AID_TITLES[line.kind], line.bundle)];
+  if (line.kind === 'loan') {
+    for (const [i, installment] of line.schedule.entries()) {
+      chips.push({
+        key: `loan-year-${i}`,
+        icon: { set: 'house', name: 'hourglass' },
+        text: String(installment.year),
+        label: `Splátka v roce ${installment.year}`,
+        reward: true,
+      });
+      chips.push(...goodsChips(`loan-${i}`, `Splátka ${installment.year}`, installment.goods));
+    }
+  }
+  return chips;
 }
 
 /** Ikony s čísly všech podmínek dohody (panel pánů a vazalů). */

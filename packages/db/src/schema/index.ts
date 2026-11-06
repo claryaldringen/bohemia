@@ -12,3 +12,4 @@ export * from './succession-credit';
 export * from './negotiation';
 export * from './shipment';
 export * from './dialog';
+export * from './loan';

@@ -10,7 +10,7 @@ import {
   type InviteView,
   type PortraitView,
 } from '@/lib/house-view';
-import { breachLabel, hungerLabel, termChips, termItemsOf } from '@/lib/terms-view';
+import { breachLabel, emptyBundle, hungerLabel, termChips, termItemsOf } from '@/lib/terms-view';
 import type { HungerLevel } from '@bohemia/game';
 import { openingTerms, termRows, type NegotiationView } from '@/lib/negotiation-view';
 import { NegotiationCard, type NegotiationReply } from './NegotiationCard';
@@ -343,7 +343,7 @@ function AgreementActions({
   onNewTerms: (items: TermItem[], message: string | null) => void;
   onRenounce: (message: string | null) => void;
 }): ReactElement {
-  const [mode, setMode] = useState<'terms' | 'renounce' | null>(null);
+  const [mode, setMode] = useState<'terms' | 'renounce' | 'aid' | null>(null);
   const [message, setMessage] = useState('');
   return (
     <div data-testid="agreement-actions" className="flex w-full flex-col gap-1.5 pb-1">
@@ -356,6 +356,16 @@ function AgreementActions({
           busy={busy}
           onClick={() => setMode(mode === 'terms' ? null : 'terms')}
         />
+        {!context.lordIsOwn && (
+          <PlayerAction
+            label="Požádat o pomoc"
+            icon="aid"
+            testId="agreement-request-aid"
+            reason={null}
+            busy={busy}
+            onClick={() => setMode(mode === 'aid' ? null : 'aid')}
+          />
+        )}
         <PlayerAction
           label="Vypovědět"
           icon="chain-broken"
@@ -370,6 +380,30 @@ function AgreementActions({
           rows={termRows(termItemsOf(agreement.terms), ownHouseId, house)}
           submitLabel="Nové podmínky"
           submitIcon="seal-pen"
+          busy={busy}
+          context={context}
+          onCancel={() => setMode(null)}
+          onSubmit={(items, text) => {
+            setMode(null);
+            onNewTerms(items, text);
+          }}
+        />
+      )}
+      {mode === 'aid' && (
+        <TermsForm
+          rows={termRows(
+            [
+              {
+                kind: 'aid-request',
+                bundle: { ...emptyBundle(), grainKg: 100 },
+                villageId: context.villages[0]?.id ?? '',
+              },
+            ],
+            ownHouseId,
+            house,
+          )}
+          submitLabel="Požádat o pomoc"
+          submitIcon="aid"
           busy={busy}
           context={context}
           onCancel={() => setMode(null)}
@@ -532,6 +566,7 @@ export function HousePanel({
   onSpare,
   onRenounce,
   onOpenLevy,
+  gameYear,
 }: {
   view: HouseView | null;
   error: string | null;
@@ -556,6 +591,8 @@ export function HousePanel({
   onRenounce?: (vassalageId: string, message: string | null) => Promise<unknown>;
   /** Otevře dialog Odvody. */
   onOpenLevy?: () => void;
+  /** Herní rok (výchozí rok první splátky půjčky). */
+  gameYear?: number;
 }): ReactElement {
   const ref = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
@@ -569,6 +606,7 @@ export function HousePanel({
   const contextFor = (houseId: string, lordIsOwn: boolean): TermsContext => ({
     lordIsOwn,
     villages,
+    ...(gameYear !== undefined ? { gameYear } : {}),
     ...(onSpare ? { loadSpare: (target) => onSpare(houseId, target) } : {}),
   });
   useEffect(() => {

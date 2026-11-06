@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import {
   CRAFT_BASE,
+  dateOfDayIndex,
   shiftWorldClock,
   suggestVillageName,
   type Direction8,
@@ -1546,6 +1547,7 @@ export function VillageGame({
             }
             onBlock={(target) => negotiate(() => blockHouse({ target }))}
             villages={(view?.villages ?? []).map((v) => ({ id: v.id, name: v.name }))}
+            gameYear={view ? dateOfDayIndex(view.dayIndex).year : undefined}
             onSpare={async (toHouseId, targetVillageId) => {
               try {
                 const result = await houseSpare({

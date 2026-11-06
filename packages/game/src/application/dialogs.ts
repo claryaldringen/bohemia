@@ -1,8 +1,9 @@
 // Dialogy hráče (vassalage.md – Roční dialog 1. 11.): otázky, na které hráč odpovídá, když se mu
-// to hodí – roční Odvody, později poplatky, odúmrť, svolání a rozsudek. Dialog drží server, ne
+// to hodí – roční Odvody a jejich řádek splátek půjčky (`repay`), později poplatky, odúmrť, svolání a rozsudek. Dialog drží server, ne
 // prohlížeč; odpověď je podmíněná (`answer`), takže ze souběžných odpovědí uspěje jedna.
 
-export type DialogKind = 'levy' | 'trade-send' | 'fee-send' | 'escheat' | 'summons' | 'judgment';
+export type DialogKind =
+  'levy' | 'repay' | 'trade-send' | 'fee-send' | 'escheat' | 'summons' | 'judgment';
 
 /** `open` – čeká na odpověď, `answered` – hráč odpověděl, `dropped` – zmizel (dohoda skončila). */
 export type DialogStatus = 'open' | 'answered' | 'dropped';

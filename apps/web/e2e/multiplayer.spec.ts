@@ -349,3 +349,94 @@ test('Odvody 1. 11.: vazal ubere obilí a odešle, pán dostane upozornění a p
 
   await Promise.all(ctxs.map((ctx) => ctx.close()));
 });
+
+test('pomoc na žádost: B požádá A o obilí, A dá půjčku, B přijme → zásilka a řádek splátky v Odvodech', async ({
+  browser,
+}) => {
+  test.setTimeout(240_000);
+  await query(`UPDATE house SET ended_at = now() WHERE ended_at IS NULL`, []);
+  const ctxs = await Promise.all([browser.newContext(), browser.newContext()]);
+  for (const ctx of ctxs) await useUniqueClientIp(ctx);
+  const [a, b] = (await Promise.all(ctxs.map((ctx) => ctx.newPage()))) as [Page, Page];
+  for (const page of [a, b]) await page.setViewportSize({ width: 1280, height: 720 });
+  const { seat: seatA } = await newPlayer(a, 'pomoca');
+  await found(a, villageSpots(seatA.landscape).dwelling);
+  const { email: emailB, seat: seatB } = await newPlayer(b, 'pomocb');
+  await found(b, villageSpots(seatB.landscape).dwelling, 'Ctibor');
+  const idB = await houseIdOf(emailB);
+
+  // A přijme B za vazala (holá přísaha)
+  const panelA = await openHousePanel(a);
+  const bar = await pickPlayer(panelA, idB);
+  await bar.getByTestId('house-offer').click();
+  await panelA.getByTestId('terms-submit').click();
+  const panelB = await reopenHousePanel(b);
+  await panelB.getByTestId('negotiation-accept').click();
+  await expect(panelB.getByTestId('house-lord')).toHaveCount(1);
+
+  // čerstvá ves nemá společnou práci, z níž se platí doprava – dopřejeme ji věřiteli
+  await query(
+    `UPDATE village SET state = jsonb_set(state, '{commonLaborYearly}', '30'),
+            version = version + 1, digest_version = version + 1
+      WHERE settlement_id = $1`,
+    [seatA.settlementId],
+  );
+
+  // B požádá pána o pomoc: 6 kg obilí
+  await panelB.getByTestId('house-lord').click();
+  await panelB.getByTestId('agreement-request-aid').click();
+  await panelB.getByTestId('term-aid-request-grainKg').fill('6');
+  await panelB.getByTestId('terms-message').fill('Neúroda');
+  await panelB.getByTestId('terms-submit').click();
+
+  // A odpoví půjčkou se splátkou
+  const panelA2 = await reopenHousePanel(a);
+  await expect(panelA2.getByTestId('house-negotiation')).toHaveAttribute('data-my-turn', 'true');
+  await panelA2.getByTestId('negotiation-counter').click();
+  await panelA2.getByTestId('terms-aid-loan').click();
+  await expect(panelA2.getByTestId('term-loan-year-0')).toBeVisible();
+  await panelA2.getByTestId('terms-submit').click();
+
+  // B půjčku přijme
+  const panelB2 = await reopenHousePanel(b);
+  await expect(panelB2.getByTestId('house-negotiation')).toHaveAttribute('data-my-turn', 'true');
+  await expect(panelB2.getByTestId('term-row-loan')).toBeVisible();
+  await panelB2.getByTestId('negotiation-accept').click();
+  await expect(panelB2.getByTestId('house-negotiation')).toHaveCount(0);
+
+  // vznikla půjčka a zásilka z věřitelovy vsi, se dnem příjezdu
+  const [loan] = await query<{ id: string; year: number }>(
+    `SELECT id, (schedule->0->>'year')::int AS year FROM loan WHERE debtor_house_id = $1`,
+    [idB],
+  );
+  expect(loan).toBeDefined();
+  const shipments = await query<{ arrives_day: number }>(
+    `SELECT s.arrives_day FROM shipment s JOIN village v ON v.id = s.from_village_id
+      WHERE v.settlement_id = $1`,
+    [seatA.settlementId],
+  );
+  expect(shipments).toHaveLength(1);
+  expect(shipments[0]!.arrives_day).toBeGreaterThan(0);
+
+  // další Odvody: worker otevře dialog splátky (zde zápisem) a B ho vidí jako řádek splátky
+  const [owner] = await query<{ player_id: string }>(`SELECT player_id FROM house WHERE id = $1`, [
+    idB,
+  ]);
+  await query(
+    `INSERT INTO dialog (player_id, kind, key, ref_id, year, body)
+     VALUES ($1, 'repay', $2, $3, $4, '{}'::jsonb)`,
+    [owner!.player_id, `repay:${loan!.id}:${loan!.year}`, loan!.id, loan!.year],
+  );
+  await query(
+    `INSERT INTO player_notice (player_id, kind, payload, game_day)
+     VALUES ($1, 'levy-pending', '{"lordName":"Pán","years":1,"loan":true}'::jsonb, 0)`,
+    [owner!.player_id],
+  );
+  await pollVillage(b);
+  await b.getByTestId('village-notice').filter({ hasText: 'splátky' }).click();
+  const dialog = b.getByRole('dialog', { name: 'Odvody' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator('[data-testid$="-kind"]')).toBeVisible();
+
+  await Promise.all(ctxs.map((ctx) => ctx.close()));
+});
