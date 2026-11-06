@@ -792,3 +792,15 @@ staví až na hotovém.`, `Val už nástavbu má.`), ikona brány (`aria-pressed
   žádosti; `gameYear` (z `view.dayIndex`) dává výchozí rok první splátky.
 - `lib/house-input.ts`: `parseTermItems` rozumí aid řádkům (`parseSchedule`); `lib/terms-view.ts`: `aidChips`, `AID_ICONS`.
 - `LevyDialog.tsx`: řádek `kind: 'repay'` (ikona půjčky, nabízí všechno zboží – splátka jiným zbožím platí podle hodnoty).
+
+## Správa cizí vsi v rozhraní (úloha 4.8)
+
+- **Přepínač vsí** (`hud/VillageSwitcher.tsx`): ves cizího držitele, kterou hráč spravuje, má ikonu klíče
+  (`village-key.svg`, `data-testid="steward-key"`); položka má `VillageListItem.stewarded`. Přepnutí jede přes
+  cookie vybrané vsi stejně jako u vlastních vsí na jiné mapě.
+- **Panel „Rod a vazalové“** (`hud/HousePanel.tsx`): řádek „Správci vsí“ (`house-stewards`) s tlačítkem Odvolat
+  (`steward-dismiss-<villageId>`) pro držitele; `HouseView.stewardships`.
+- **Nabídka** (`hud/TermsForm.tsx`): u nabídky vazalství přidá pán tlačítkem klíče (`terms-add-stewardship`)
+  řádek „Svěřit správu vsi“ s výběrem své vsi (`term-stewardship-select`); `lib/house-input.ts` ho parsuje.
+- Server: akce správce jdou stejnými server actions jako vlastní (`actOn` → `guardedAction`); právo i zámek
+  řeší `lib/village.ts`, viz [vassalage.md](vassalage.md) – Správa cizí vsi.

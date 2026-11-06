@@ -8,6 +8,7 @@ import {
 import type { HouseRepository, PendingDeparture, PersonRef } from './houses';
 import { findPlayerVillage, NOT_PLAYER_VILLAGE, type PlayerVillage } from './player-villages';
 import type { SettlementRepository } from './settlements';
+import type { StewardshipRepository } from './stewardships';
 import type { VillageRepository } from './villages';
 
 // Práva hráče ve vsích rodu (seniorate.md – Hráčův muž a vlastní ves, Seniorát; Martin 2. 11. 2026
@@ -43,6 +44,17 @@ export const ALL_RIGHTS: readonly VillageRight[] = [
 
 /** Práva seniora rodu v cizí vsi rodu (seniorate.md – Práva seniora): stavět, veto, vystěhovat. */
 const SENIOR_RIGHTS: readonly VillageRight[] = ['build', 'veto', 'evacuate'];
+
+/**
+ * Práva správce cizí vsi (vassalage.md – Hráč jako správce cizí vsi; Martin 2. 11. 2026: „Ano“):
+ * běžné řízení – stavby, veto, zapnutí správce, obchod; **ne** vystěhování vsi, posílání synů
+ * držitele, povyšování ani válka (návrh Clauda – válka není běžné řízení). Pojmenování synů rodu
+ * a odvolání správce patří držiteli.
+ */
+const STEWARD_RIGHTS: readonly VillageRight[] = ['build', 'veto', 'steward', 'trade'];
+
+/** Důvod u správce: proč ostatní práva chybí. */
+export const STEWARD_ONLY = 'Ves jen spravuješ.';
 
 /**
  * Právo každé akce hráče nad vsí (klíč = jméno akce ve vstupním bodě). **Nová akce nad vsí se
@@ -105,6 +117,8 @@ export interface RightsContext {
   playerLord: PersonRef | null;
   /** Dnešní herní den. */
   day: number;
+  /** Hráč ves jen spravuje (živá správa jeho rodu) – dostane `STEWARD_RIGHTS`. */
+  stewarding?: boolean;
 }
 
 export interface VillageRights {
@@ -138,6 +152,7 @@ export function dependsOnDynasty(ctx: {
  * v cizí vsi rodu – nic. Před převodem rozehrané hry (bez hráčova muže) vše jako dřív.
  */
 export function villageRights(ctx: RightsContext): VillageRights {
+  if (ctx.stewarding) return { allowed: new Set(STEWARD_RIGHTS), reason: STEWARD_ONLY };
   const all: VillageRights = { allowed: new Set(ALL_RIGHTS), reason: null };
   const target = ctx.villages.find((v) => v.villageId === ctx.villageId);
   if (!target || !dependsOnDynasty({ ...ctx, state: target.state })) return all;
@@ -155,6 +170,8 @@ export interface RightsDeps {
   settlements: SettlementRepository;
   villages: VillageRepository;
   houses: Pick<HouseRepository, 'activeOf'>;
+  /** Správy cizích vsí; bez nich hráč jedná jen ve vlastních vsích. */
+  stewardships?: Pick<StewardshipRepository, 'of'>;
 }
 
 /** Ves hráče s právy, která v ní má, a naposledy zapsaný senior rodu (pro stolec v přepínači). */
@@ -167,6 +184,31 @@ export interface VillageAccess {
 }
 
 /**
+ * Přístup správce ke vsi, kterou drží jiný hráč: jen při živé správě jeho rodu. Jinak null – stejně
+ * jako u cizí vsi, nic o vsi se neprozradí (po odvolání správce přístup zmizí hned).
+ */
+async function stewardAccess(
+  deps: RightsDeps,
+  houseId: string | null,
+  input: { villageId: string; today: number },
+): Promise<VillageAccess | null> {
+  if (!houseId || !deps.stewardships) return null;
+  const steward = await deps.stewardships.of(input.villageId);
+  if (!steward || steward.stewardHouseId !== houseId || steward.kind !== 'player') return null;
+  const village = await deps.villages.find(input.villageId);
+  const settlement = village ? await deps.settlements.find(village.settlementId) : null;
+  if (!village || !settlement) return null;
+  const rights = villageRights({
+    villageId: village.id,
+    villages: [],
+    playerLord: null,
+    day: input.today,
+    stewarding: true,
+  });
+  return { found: { settlement, village }, rights, senior: null, pendingDeparture: null };
+}
+
+/**
  * Práva hráče ve vsi `villageId` ke dni `today` (`villageRights` nad skutečnými repozitáři); ves
  * hráči nepatří – null. Stavy ostatních vsí rodu se načtou, jen když na nich záleží (cizí ves
  * s vojvodou).
@@ -176,8 +218,8 @@ export async function villageAccess(
   input: { playerId: string; villageId: string; today: number },
 ): Promise<VillageAccess | null> {
   const found = await findPlayerVillage(deps, input);
-  if (!found) return null;
   const house = await deps.houses.activeOf(input.playerId);
+  if (!found) return stewardAccess(deps, house?.id ?? null, input);
   const playerLord = house?.lord ?? null;
   const self = { villageId: found.village.id, state: found.village.state };
   let villages = [self];

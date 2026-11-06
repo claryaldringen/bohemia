@@ -147,6 +147,12 @@ export function parseTermItems(input: unknown): TermItem[] | null {
         items.push({ kind: 'target-village', villageId });
         break;
       }
+      case 'stewardship': {
+        const villageId = idOf(row.villageId);
+        if (villageId === null) return null;
+        items.push({ kind: 'stewardship', villageId });
+        break;
+      }
       case 'trade': {
         const give = parseTradeSide(row.give);
         const get = parseTradeSide(row.get);
@@ -289,6 +295,13 @@ export function parseRenounceInput(
   const vassalageId = idOf(raw.vassalageId);
   const message = parseMessage(raw.message);
   return vassalageId !== null && message !== undefined ? { vassalageId, message } : null;
+}
+
+/** `{ villageId }` – odvolání správce vsi. */
+export function parseDismissStewardInput(input: unknown): { villageId: string } | null {
+  if (typeof input !== 'object' || input === null) return null;
+  const villageId = idOf((input as { villageId?: unknown }).villageId);
+  return villageId === null ? null : { villageId };
 }
 
 /** `{ toHouseId, targetVillageId? }` – výhled pro dávku rodu `toHouseId`. */

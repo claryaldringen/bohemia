@@ -291,3 +291,44 @@ Pravidla: [vassalage.md – Hospodářství mezi hráči](../design/vassalage.md
   `lordName` = druhá strana).
 - **Testy:** `application/__tests__/player-trade.test.ts` (dialogy, celé / míň / nic, bilance, makrokomodity, protinávrh),
   `apps/web/lib/__tests__/house-input.test.ts`, e2e `multiplayer.spec.ts` – „obchod mezi hráči“.
+
+## Správa cizí vsi a tři role (`application/stewardships.ts`, `rights.ts`, úloha 4.8)
+
+Pravidla: [vassalage.md](../design/vassalage.md) – Správce a tři role ve vsi, Hráč jako správce cizí vsi.
+
+- **Tabulka `stewardship`** (migrace `0026_stewardship`): `village_id`, `steward_house_id`, `holder_house_id`,
+  `kind` (`player` / `npc` – NPC až úloha 4.9), `vassalage_id` (dohoda, na které správa stojí), `ended_at`,
+  `end_reason`. Jedinečný částečný index `WHERE ended_at IS NULL` = nejvýš jedna živá správa na ves (souběh
+  dvou přijetí: druhé `start` vrátí `null`). Port `StewardshipRepository` (`of`, `start`, `listByStewardHouse`,
+  `listByHolderHouse`, `end`, `endByVassalage`), adaptér `db/adapters/stewardship-repository.ts`.
+- **Nabídka jednáním:** řádek `TermItem` `{ kind: 'stewardship', villageId }` (`domain/negotiation/stewardship.ts`),
+  smí být s přísahou (nový vazal) i bez ní (stávající dohoda) a s řádky podmínek (odměna). `negotiate.ts`
+  (`checkStewardRound`): jediný řádek, ves patří pánovi (`ownsVillage`), vazal je živý hráč, ves nemá správce.
+  Účinek v registru `NEGOTIATION_EFFECTS.stewardship` zavolá `tx.stewardships.start` po přísaze (řádky se
+  aplikují se správou naposledy), navázané na živou dohodu; souběh = `StewardshipTaken` → přijetí se vrátí.
+  Řádek správy sám stávající podmínky dohody nemění (`updateTerms` se přeskočí, když nejsou řádky podmínek).
+- **Držitel** vsi = `settlement.owner_id` (`holderOf(deps, villageId)`). **Odvolání:** `dismissSteward(deps,
+{ playerId, villageId })` smí jen držitel, kdykoli; vazalství trvá. Vypovězení vazalství správu ukončí:
+  `renounceVassalage` volá `stewardships.endByVassalage` (přímo, ne přes registr `onVassalageEnded` – ten
+  nemá kde se při startu naplnit).
+- **Práva správce** (`rights.ts`): `STEWARD_RIGHTS` = `build`, `veto`, `steward`, `trade` – ne `evacuate`,
+  `sendSons`, `ennoble`, `war`, `nameSons`, `dismissSteward`. `RightsDeps.stewardships` → `villageAccess`
+  najde správu (`stewardAccess`), jinak `null` = `NOT_PLAYER_VILLAGE` (odvolaný správce se o vsi nedozví nic,
+  chyba je táž jako u cizí vsi). `villageRights({ stewarding })` vrací `STEWARD_ONLY` jako důvod.
+- **Zámek:** akce ve vsi jede pod zámkem **držitele**, ne jednajícího – `lockOwnerOf(deps, { playerId,
+villageId })` (vlastní ves → hráč sám, spravovaná cizí → `settlement.owner_id`, jinak hráč sám a práva
+  akci odmítnou). Web: `apps/web/lib/game.ts` `lockOwnerOf`, `lib/village.ts` `guardedAction` zjistí držitele,
+  vezme **jeden** zámek (`exclusivePlayer(…, holderId)`) a uvnitř `context()` čte právo jednajícího
+  (`requireVillageRight(actorId, …)`) a den držitele. `Context.playerId` = držitel (za něj běží use-casy,
+  dopočet i `dynastyOfPlayerLocked`), `Context.actorId` = jednající. Odvolání (`dismissStewardForPlayer`) bere
+  zámek držitele, takže akce správce buď doběhne před ním, nebo ji po něm kontrola práv odmítne. Worker
+  dopočítává ves dál podle vlastníka sídla (u držitele).
+- **Pohled správce** (`viewOf`): dopočet a ves jsou držitelovy, ale přepínač (`switcherItems`) je správcův –
+  jeho vlastní vsi + spravované cizí (`stewardedVillagesOf`, položka `stewarded: true`); `gameOver`, `ownMaps`,
+  `mapsBlocked` a otisk se pro správce nesestavují (nic o ostatních vsích držitele). `gameEntryForPlayer`
+  přijme jako zapamatovanou ves i spravovanou cizí.
+- **Panel:** `HousePanelData.stewardships` (ves + správce, jen pro držitele) → řádek „Správci vsí“ s tlačítkem
+  Odvolat (`dismissSteward` server action).
+- **Testy:** `application/__tests__/stewardships.test.ts` (práva, odvolání, zámek, nabídka jednáním, souběh,
+  vypovězení), `db/adapters/__tests__/stewardship-repository.db.test.ts` (souběh `start`), e2e
+  `multiplayer.spec.ts` „správa cizí vsi“.

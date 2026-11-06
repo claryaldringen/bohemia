@@ -9,7 +9,7 @@ import type { TermLine } from '../vassalage/terms';
  * žádost). Strany jsou **rody** (`house.id`), ne hráči (technické rozhodnutí 2 plánu).
  */
 export type TermItem =
-  { kind: 'oath'; lord: string; vassal: string } | TermLine | AidLine | TradeLine;
+  { kind: 'oath'; lord: string; vassal: string } | TermLine | AidLine | TradeLine | StewardshipLine;
 
 /**
  * Obchod mezi hráči (vassalage.md – Hospodářství mezi hráči): autor kola `give` pošle, `get`
@@ -22,6 +22,16 @@ export interface TradeLine {
   give: MacroBundle;
   get: MacroBundle;
   fromVillage: Record<string, string>;
+}
+
+/**
+ * Správa cizí vsi (vassalage.md – Hráč jako správce cizí vsi): pán (držitel) nabídne svému vazalovi
+ * (i novému – spolu s přísahou) běžné řízení vsi `villageId`. Může být spolu s řádky podmínek
+ * (odměna); přijetí = vznik správy.
+ */
+export interface StewardshipLine {
+  kind: 'stewardship';
+  villageId: string;
 }
 
 /** Jedno kolo jednání: podmínky jedné strany a volitelný vzkaz. */

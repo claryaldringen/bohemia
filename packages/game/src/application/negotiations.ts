@@ -1,6 +1,7 @@
 import type { Negotiation, NegotiationRound } from '../domain/negotiation';
 import type { NoticeRepository } from './notices';
 import type { LoanTx } from './loans';
+import type { StewardshipTx } from './stewardships';
 import type { VassalageRepository } from './vassalages';
 
 /** Stav jednání v úložišti: doménové stavy a `ended` (rod vymřel, vazalství už nelze uzavřít). */
@@ -63,6 +64,7 @@ export interface NegotiationTx {
   vassalages: VassalageTx;
   notices: NoticeTx;
   loans: LoanTx;
+  stewardships: StewardshipTx;
 }
 
 /** Port repozitáře jednání: vše běží v transakci, účinky přijetí ve stejné. */

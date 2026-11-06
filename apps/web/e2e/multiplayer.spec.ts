@@ -1,7 +1,16 @@
 import { test, expect, type Page } from '@playwright/test';
 import { registerAndEnterGame, uniqueEmail, useUniqueClientIp } from './helpers';
 import { linkFromLastMail } from './mail';
-import { found, newPlayer, pollVillage, query, villageSpots } from './village-helpers';
+import {
+  confirmPlacement,
+  found,
+  newPlayer,
+  pollVillage,
+  query,
+  readyScene,
+  villageSpots,
+  villageState,
+} from './village-helpers';
 
 // Víc hráčů ve světě (vassalage.md): pozvánka → pozvaný je vazal pozvatele, pozvatel dostane
 // upozornění a vazala v panelu „Rod a vazalové“; cizí hráč bez pozvánky vidí oba v seznamu hráčů.
@@ -535,6 +544,86 @@ test('obchod mezi hráči: A nabídne C obilí za klády, C přijme → oba maj�
     a.getByTestId('village-notice').filter({ hasText: 'Míň, než bylo domluveno' }),
   ).toBeVisible({ timeout: 60_000 });
   expect(idA).not.toBe(idC);
+
+  await Promise.all(ctxs.map((ctx) => ctx.close()));
+});
+
+test('správa cizí vsi: A svěří B ves, B v ní postaví pole, A ho odvolá → ves zmizí z přepínače B', async ({
+  browser,
+}) => {
+  test.setTimeout(240_000);
+  await query(`UPDATE house SET ended_at = now() WHERE ended_at IS NULL`, []);
+  const ctxs = await Promise.all([browser.newContext(), browser.newContext()]);
+  for (const ctx of ctxs) await useUniqueClientIp(ctx);
+  const [a, b] = (await Promise.all(ctxs.map((ctx) => ctx.newPage()))) as [Page, Page];
+  for (const page of [a, b]) await page.setViewportSize({ width: 1280, height: 720 });
+  const { seat: seatA } = await newPlayer(a, 'spravaa');
+  const spotsA = villageSpots(seatA.landscape);
+  await found(a, spotsA.dwelling, 'Bořivoj');
+  const { email: emailB, seat: seatB } = await newPlayer(b, 'spravab');
+  await found(b, villageSpots(seatB.landscape).dwelling, 'Dalibor');
+  const idB = await houseIdOf(emailB);
+  const [villageA] = await query<{ id: string; name: string }>(
+    `SELECT id, name FROM village WHERE settlement_id = $1`,
+    [seatA.settlementId],
+  );
+  const [villageB] = await query<{ id: string; name: string }>(
+    `SELECT id, name FROM village WHERE settlement_id = $1`,
+    [seatB.settlementId],
+  );
+
+  // A nabídne B vazalství i správu své vsi
+  const panelA = await openHousePanel(a);
+  const bar = await pickPlayer(panelA, idB);
+  await bar.getByTestId('house-offer').click();
+  await panelA.getByTestId('terms-add-stewardship').click();
+  await expect(panelA.getByTestId('term-stewardship-select')).toHaveValue(villageA!.id);
+  await panelA.getByTestId('terms-submit').click();
+
+  // B přijme → správa vsi A je živá
+  const panelB = await reopenHousePanel(b);
+  await expect(panelB.getByTestId('house-negotiation')).toHaveAttribute('data-my-turn', 'true');
+  await expect(panelB.getByTestId('term-row-stewardship')).toBeVisible();
+  await panelB.getByTestId('negotiation-accept').click();
+  await expect(panelB.getByTestId('house-negotiation')).toHaveCount(0);
+  const live = await query<{ village_id: string }>(
+    `SELECT village_id FROM stewardship WHERE ended_at IS NULL`,
+    [],
+  );
+  expect(live.map((s) => s.village_id)).toEqual([villageA!.id]);
+
+  // B ves A v přepínači s klíčem; přepne na ni a postaví pole (pod zámkem držitele)
+  await b.reload();
+  const name = b.getByTestId('village-name');
+  await expect(name).toHaveText(villageB!.name, { timeout: 30_000 });
+  await name.click();
+  const list = b.getByTestId('village-list');
+  const entry = list.locator(`[data-village="${villageA!.id}"]`);
+  await expect(entry.getByTestId('steward-key')).toBeVisible();
+  await entry.getByTestId('village-select').click();
+  await expect(readyScene(b)).toBeVisible({ timeout: 60_000 });
+  await expect(name).toHaveText(villageA!.name, { timeout: 30_000 });
+  await b.keyboard.press('c');
+  await confirmPlacement(b, { kind: 'squares', cells: spotsA.cells });
+  await expect.poll(async () => (await villageState(seatA.settlementId)).fields.length).toBe(1);
+
+  // A odvolá B: správa skončí, vazalství trvá
+  const panelA2 = await reopenHousePanel(a);
+  await panelA2.getByTestId(`steward-dismiss-${villageA!.id}`).click();
+  await expect
+    .poll(async () => (await query(`SELECT 1 FROM stewardship WHERE ended_at IS NULL`, [])).length)
+    .toBe(0);
+  const agreements = await query(`SELECT 1 FROM vassalage WHERE ended_at IS NULL`, []);
+  expect(agreements).toHaveLength(1);
+
+  // B už ves A v přepínači nemá a otevře zase svou vlastní
+  await b.reload();
+  await expect(name).toHaveText(villageB!.name, { timeout: 30_000 });
+  await name.click();
+  await expect(list.locator(`[data-village="${villageA!.id}"]`)).toHaveCount(0);
+  await expect(list.getByRole('option')).toHaveCount(1);
+  // pole zůstalo, další akce B ve vsi A už nejsou
+  expect((await villageState(seatA.settlementId)).fields).toHaveLength(1);
 
   await Promise.all(ctxs.map((ctx) => ctx.close()));
 });

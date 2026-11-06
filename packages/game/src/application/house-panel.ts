@@ -11,7 +11,9 @@ import type { InviteRepository } from './invites';
 import type { NegotiationRepository } from './negotiations';
 import type { SuccessionCreditRepository } from './succession-credits';
 import type { SettlementRepository } from './settlements';
+import type { StewardshipRepository } from './stewardships';
 import type { VassalageRepository } from './vassalages';
+import type { VillageRepository } from './villages';
 import {
   publicHouseOf,
   type DirectoryEntry,
@@ -107,6 +109,14 @@ export interface PanelPlayerActions {
   blockedByMe: boolean;
 }
 
+/** Ves hráčova rodu, kterou spravuje jiný rod (tlačítko Odvolat; vassalage.md – Odvolání). */
+export interface PanelStewardship {
+  villageId: string;
+  villageName: string;
+  /** Rod správce (odkaz do pánů / vazalů panelu). */
+  stewardHouseId: string;
+}
+
 /** Data panelu; web z nich složí `HouseView`. */
 export interface HousePanelData {
   /** Hráč má živý rod (bez něj je panel prázdný). */
@@ -141,6 +151,8 @@ export interface HousePanelData {
   negotiations: PanelNegotiation[];
   /** Akce vůči rodům v `others` podle id rodu. */
   actions: Record<string, PanelPlayerActions>;
+  /** Vsi hráčova rodu ve správě jiných rodů. */
+  stewardships: PanelStewardship[];
 }
 
 export interface HousePanelDeps {
@@ -153,6 +165,9 @@ export interface HousePanelDeps {
   successionCredits: SuccessionCreditRepository;
   activity: ActivityRepository;
   dialogs: DialogRepository;
+  /** Správy cizích vsí a jména vsí k nim; bez nich panel správy nenese. */
+  stewardships?: Pick<StewardshipRepository, 'listByHolderHouse'>;
+  villages?: Pick<VillageRepository, 'find'>;
   now: () => Date;
 }
 
@@ -169,6 +184,7 @@ const EMPTY: HousePanelData = {
   freeInviteSlots: 0,
   negotiations: [],
   actions: {},
+  stewardships: [],
 };
 
 /** Rod, kterého adresář nezná (bez sídelního sídla) – jen id. */
@@ -400,5 +416,21 @@ export async function housePanel(
     freeInviteSlots: Math.max(0, INVITES.maxUnused - openCount),
     negotiations,
     actions,
+    stewardships: await stewardshipsOf(deps, own.id),
   };
+}
+
+/** Vsi rodu, které právě spravuje jiný rod, se jmény vsí. */
+async function stewardshipsOf(deps: HousePanelDeps, houseId: string): Promise<PanelStewardship[]> {
+  if (!deps.stewardships || !deps.villages) return [];
+  const out: PanelStewardship[] = [];
+  for (const s of await deps.stewardships.listByHolderHouse(houseId)) {
+    const village = await deps.villages.find(s.villageId);
+    out.push({
+      villageId: s.villageId,
+      villageName: village?.name ?? '',
+      stewardHouseId: s.stewardHouseId,
+    });
+  }
+  return out;
 }

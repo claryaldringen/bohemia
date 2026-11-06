@@ -74,6 +74,18 @@ export function VillageList({
                   />
                 </Tooltip>
               )}
+              {village.stewarded && (
+                <Tooltip content="Spravuješ pro jiný rod" placement="below">
+                  <img
+                    src="/icons/house/village-key.svg"
+                    alt="Spravuješ pro jiný rod"
+                    data-testid="steward-key"
+                    width={16}
+                    height={16}
+                    className="h-4 w-4 shrink-0"
+                  />
+                </Tooltip>
+              )}
               {village.senior && (
                 <Tooltip content="Senior rodu" placement="below">
                   <img

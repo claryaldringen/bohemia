@@ -70,6 +70,14 @@ export interface InviteView {
   label: string;
 }
 
+/** Ves ve správě jiného rodu v panelu (tlačítko Odvolat). */
+export interface StewardshipView {
+  villageId: string;
+  villageName: string;
+  /** Správce vsi (vazal rodu), nebo null, když ho panel nezná. */
+  steward: HouseLinkView | null;
+}
+
 export interface HouseView {
   /** Hráč má živý rod. */
   hasHouse: boolean;
@@ -91,6 +99,8 @@ export interface HouseView {
   tree: PanelTreeNode[];
   /** Hlad a štít (muži schopní služby) hráčova rodu a jeho přímých pánů a vazalů podle id rodu. */
   status: Record<string, { hunger: HungerLevel | null; shield: number }>;
+  /** Vsi rodu ve správě jiných rodů (Odvolat): ves a jméno správce. */
+  stewardships: StewardshipView[];
   /** Čekající věci (jednání, kde je hráč na tahu, a Odvody pánům) – pečeť v liště. */
   waiting: number;
 }
@@ -223,6 +233,14 @@ export function houseView(data: HousePanelData, nowMs: number): HouseView {
       };
     }),
     freeInviteSlots: data.freeInviteSlots,
+    stewardships: data.stewardships.map((st) => {
+      const house = data.vassals.find((h) => h.houseId === st.stewardHouseId);
+      return {
+        villageId: st.villageId,
+        villageName: st.villageName,
+        steward: house ? houseLinkOf(house) : null,
+      };
+    }),
     negotiations,
     waiting:
       negotiations.filter((n) => n.myTurn).length +

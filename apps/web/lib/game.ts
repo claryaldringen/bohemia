@@ -6,6 +6,7 @@ import {
   createNoticeRepository,
   createVassalageRepository,
   createSettlementRepository,
+  createStewardshipRepository,
   createTimeOffsetRepository,
   createVillageRepository,
 } from '@bohemia/db';
@@ -27,6 +28,7 @@ import {
   enterGame,
   findPlayerVillage,
   firstPlayerVillage,
+  lockOwnerOf as lockOwnerOfVillage,
   recordActiveDay,
   requireRight,
   restartGame,
@@ -41,6 +43,7 @@ import {
   type TimeOffsetRepository,
   type TimeSkip,
   type VillageAccess,
+  type VillageRecord,
   type VillageRight,
   villageAccess,
 } from '@bohemia/game';
@@ -111,7 +114,9 @@ export async function gameEntryForPlayer(
   const preferred =
     preferredVillageId === null
       ? null
-      : await findPlayerVillage(deps, { playerId, villageId: preferredVillageId });
+      : ((await findPlayerVillage(deps, { playerId, villageId: preferredVillageId })) ??
+        // ves cizího držitele, kterou hráč spravuje (vassalage.md – Hráč jako správce cizí vsi)
+        (await stewardedVillage(playerId, preferredVillageId)));
   const chosen = preferred ?? (await firstPlayerVillage(deps, playerId));
   if (chosen === null) return { ...seat, villageId: null };
   return {
@@ -132,9 +137,60 @@ function playerVillagesDeps(): Parameters<typeof findPlayerVillage>[0] {
   };
 }
 
-/** Ves `villageId`, když patří hráči (její sídlo je mezi jeho aktivními sídly); jinak null. */
-export function playerVillage(playerId: string, villageId: string): Promise<PlayerVillage | null> {
-  return findPlayerVillage(playerVillagesDeps(), { playerId, villageId });
+/**
+ * Ves `villageId`, když patří hráči (její sídlo je mezi jeho aktivními sídly), nebo ji spravuje
+ * (živá správa jeho rodu); jinak null – i pro odvolaného správce, nic se neprozradí.
+ */
+export async function playerVillage(
+  playerId: string,
+  villageId: string,
+): Promise<PlayerVillage | null> {
+  return (
+    (await findPlayerVillage(playerVillagesDeps(), { playerId, villageId })) ??
+    (await stewardedVillage(playerId, villageId))
+  );
+}
+
+/** Ves cizího držitele, kterou hráč spravuje (živá správa jeho rodu); jinak null. */
+export async function stewardedVillage(
+  playerId: string,
+  villageId: string,
+): Promise<PlayerVillage | null> {
+  const access = await villageAccessForPlayer(playerId, villageId, 0);
+  return access && access.found.settlement.ownerId !== playerId ? access.found : null;
+}
+
+/**
+ * Hráč, jehož zámek platí pro akci hráče `actorId` ve vsi `villageId` (use-case `lockOwnerOf`):
+ * u vlastní vsi on sám, u spravované cizí vsi její držitel.
+ */
+export function lockOwnerOf(actorId: string, villageId: string): Promise<string> {
+  return lockOwnerOfVillage(
+    {
+      ...playerVillagesDeps(),
+      houses: createHouseRepository(getDatabase()),
+      stewardships: stewardships(),
+    },
+    { playerId: actorId, villageId },
+  );
+}
+
+/** Správy cizích vsí (repozitář nad databází). */
+export function stewardships(): ReturnType<typeof createStewardshipRepository> {
+  return createStewardshipRepository(getDatabase());
+}
+
+/** Vsi cizích držitelů, které hráč právě spravuje (do přepínače vsí); bez rodu nic. */
+export async function stewardedVillagesOf(playerId: string): Promise<VillageRecord[]> {
+  const house = await createHouseRepository(getDatabase()).activeOf(playerId);
+  if (!house) return [];
+  const records: VillageRecord[] = [];
+  for (const s of await stewardships().listByStewardHouse(house.id)) {
+    if (s.kind !== 'player') continue;
+    const record = await playerVillagesDeps().villages.find(s.villageId);
+    if (record) records.push(record);
+  }
+  return records;
 }
 
 /**
@@ -149,7 +205,7 @@ export function requireVillageRight(
 ): Promise<PlayerVillage | string> {
   const db = getDatabase();
   return requireRight(
-    { ...playerVillagesDeps(), houses: createHouseRepository(db) },
+    { ...playerVillagesDeps(), houses: createHouseRepository(db), stewardships: stewardships() },
     { playerId, villageId, right, today },
   );
 }
@@ -162,7 +218,7 @@ export function villageAccessForPlayer(
 ): Promise<VillageAccess | null> {
   const db = getDatabase();
   return villageAccess(
-    { ...playerVillagesDeps(), houses: createHouseRepository(db) },
+    { ...playerVillagesDeps(), houses: createHouseRepository(db), stewardships: stewardships() },
     { playerId, villageId, today },
   );
 }

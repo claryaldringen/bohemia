@@ -58,6 +58,8 @@ export function termRowLabel(
       return 'Půjčka se splátkovým kalendářem';
     case 'trade':
       return 'Obchod';
+    case 'stewardship':
+      return item.villageId.length > 0 ? 'Správa vsi svěřena tobě' : 'Správa vsi';
   }
 }
 

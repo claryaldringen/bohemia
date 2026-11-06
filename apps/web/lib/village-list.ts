@@ -42,6 +42,8 @@ export interface VillageListItem {
   disasters?: OtherVillageDisasters;
   /** Správce vsi je zapnutý (steward.md – Co hráč vidí); vypnutý bez údaje. */
   steward?: true;
+  /** Ves cizího držitele, kterou hráč spravuje (vassalage.md) – ikona klíče; jinak bez údaje. */
+  stewarded?: true;
   /** Je tu hráčův muž – vlastní ves hráče (seniorate.md – Hráčův muž a vlastní ves); jinak bez údaje. */
   playerLord?: true;
   /** Je tu senior rodu – stolec (seniorate.md – Seniorát); jinak bez údaje. */
