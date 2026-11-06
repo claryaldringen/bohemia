@@ -153,6 +153,26 @@ export function houseLinkOf(house: PublicHouse, actions?: PanelPlayerActions): H
   };
 }
 
+/**
+ * Strom vazalů do pořadí k zobrazení: každý rod hned pod svým pánem (do hloubky), sourozenci podle
+ * pořadí v datech. Uzly, jejichž pán ve stromu chybí, jdou na konec.
+ */
+export function orderTree(tree: readonly PanelTreeNode[], rootHouseId: string): PanelTreeNode[] {
+  const out: PanelTreeNode[] = [];
+  const seen = new Set<PanelTreeNode>();
+  const walk = (parentId: string): void => {
+    for (const node of tree) {
+      if (node.parentHouseId !== parentId || seen.has(node)) continue;
+      seen.add(node);
+      out.push(node);
+      walk(node.house.houseId);
+    }
+  };
+  walk(rootHouseId);
+  for (const node of tree) if (!seen.has(node)) out.push(node);
+  return out;
+}
+
 /** Pohled na panel; `nowMs` je skutečný čas serveru (dny do konce platnosti pozvánek). */
 export function houseView(data: HousePanelData, nowMs: number): HouseView {
   const negotiations = data.negotiations

@@ -1,11 +1,20 @@
 'use client';
 
-import { useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
-import type { TermItem } from '@bohemia/game';
-import type { HouseLinkView, HouseView, InviteView, PortraitView } from '@/lib/house-view';
-import { openingTerms, termRows } from '@/lib/negotiation-view';
+import { Fragment, useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
+import { NEGOTIATION, type MacroSpare, type PanelAgreement, type TermItem } from '@bohemia/game';
+import {
+  houseLinkOf,
+  orderTree,
+  type HouseLinkView,
+  type HouseView,
+  type InviteView,
+  type PortraitView,
+} from '@/lib/house-view';
+import { breachLabel, hungerLabel, termChips, termItemsOf } from '@/lib/terms-view';
+import type { HungerLevel } from '@bohemia/game';
+import { openingTerms, termRows, type NegotiationView } from '@/lib/negotiation-view';
 import { NegotiationCard, type NegotiationReply } from './NegotiationCard';
-import { TermsForm } from './TermsForm';
+import { Chip, TermsForm, type TermsContext } from './TermsForm';
 import { Tooltip } from './Tooltip';
 
 // Panel „Rod a vazalové“ – první verze (vassalage.md – Co hráč vidí): rod, páni, vazalové, hráči
@@ -192,6 +201,193 @@ function PlayerAction({
   );
 }
 
+/** Zlomená pečeť s počtem neplnění a ikona hladu (jen když je co ukázat). */
+function StatusMarks({
+  breaches,
+  hunger,
+}: {
+  breaches: number;
+  hunger: HungerLevel | null;
+}): ReactElement {
+  const breach = breachLabel(breaches);
+  const hungry = hungerLabel(hunger);
+  return (
+    <>
+      {breach && (
+        <Tooltip content={breach}>
+          <span
+            tabIndex={0}
+            aria-label={breach}
+            data-testid="house-breaches"
+            className="inline-flex items-center gap-0.5"
+          >
+            <Icon name="seal-broken" size={18} />
+            <span className="text-xs tabular-nums">{breaches}</span>
+          </span>
+        </Tooltip>
+      )}
+      {hungry && (
+        <Tooltip content={hungry}>
+          <span
+            tabIndex={0}
+            aria-label={hungry}
+            data-testid="house-hunger"
+            data-level={hunger ?? undefined}
+            className="inline-flex"
+          >
+            <Icon name="hunger" size={18} />
+          </span>
+        </Tooltip>
+      )}
+    </>
+  );
+}
+
+/** Pán nebo vazal s dohodou: portrét, ikony podmínek, neplnění a hlad; odsazení podle hloubky. */
+function AgreementEntry({
+  house,
+  testId,
+  depth = 0,
+  terms,
+  breaches,
+  hunger,
+  villageName,
+  selected,
+  onClick,
+}: {
+  house: HouseLinkView;
+  testId: string;
+  depth?: number;
+  terms: PanelAgreement['terms'] | null;
+  breaches: number;
+  hunger: HungerLevel | null;
+  villageName: (id: string) => string | null;
+  selected: boolean;
+  onClick?: () => void;
+}): ReactElement {
+  return (
+    <div
+      data-testid={`${testId}-entry`}
+      data-depth={depth}
+      className="flex w-full items-center gap-2"
+      style={{ paddingLeft: depth > 1 ? (depth - 1) * 16 : 0 }}
+    >
+      <HouseLink house={house} testId={testId} selected={selected} onClick={onClick} />
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+        {terms && termChips(terms, villageName).map((c) => <Chip key={c.key} chip={c} />)}
+        <StatusMarks breaches={breaches} hunger={hunger} />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Akce nad dohodou po kliku na pána nebo vazala: Nové podmínky (pečeť s perem – formulář nad
+ * dohodou, do přijetí platí staré) a Vypovědět (rozetnutý řetěz – vzkaz a potvrzení druhým
+ * tlačítkem, ne dialogem prohlížeče).
+ */
+function AgreementActions({
+  agreement,
+  house,
+  ownHouseId,
+  busy,
+  context,
+  onNewTerms,
+  onRenounce,
+}: {
+  agreement: PanelAgreement;
+  house: HouseLinkView;
+  ownHouseId: string;
+  busy: boolean;
+  context: TermsContext;
+  onNewTerms: (items: TermItem[], message: string | null) => void;
+  onRenounce: (message: string | null) => void;
+}): ReactElement {
+  const [mode, setMode] = useState<'terms' | 'renounce' | null>(null);
+  const [message, setMessage] = useState('');
+  return (
+    <div data-testid="agreement-actions" className="flex w-full flex-col gap-1.5 pb-1">
+      <div className="flex items-center gap-1.5">
+        <PlayerAction
+          label="Nové podmínky"
+          icon="seal-pen"
+          testId="agreement-new-terms"
+          reason={null}
+          busy={busy}
+          onClick={() => setMode(mode === 'terms' ? null : 'terms')}
+        />
+        <PlayerAction
+          label="Vypovědět"
+          icon="chain-broken"
+          testId="agreement-renounce"
+          reason={null}
+          busy={busy}
+          onClick={() => setMode(mode === 'renounce' ? null : 'renounce')}
+        />
+      </div>
+      {mode === 'terms' && (
+        <TermsForm
+          rows={termRows(termItemsOf(agreement.terms), ownHouseId, house)}
+          submitLabel="Nové podmínky"
+          submitIcon="seal-pen"
+          busy={busy}
+          context={context}
+          onCancel={() => setMode(null)}
+          onSubmit={(items, text) => {
+            setMode(null);
+            onNewTerms(items, text);
+          }}
+        />
+      )}
+      {mode === 'renounce' && (
+        <div data-testid="renounce-form" className="flex flex-col gap-1.5">
+          <textarea
+            aria-label="Vzkaz"
+            data-testid="renounce-message"
+            value={message}
+            rows={2}
+            maxLength={NEGOTIATION.messageMaxChars}
+            onChange={(event) => setMessage(event.target.value)}
+            className="w-full resize-none rounded-sm border border-[#5c4526] bg-[#15100b] p-1 text-xs"
+          />
+          <div className="flex items-center gap-1.5">
+            <PlayerAction
+              label="Potvrdit vypovězení"
+              icon="chain-broken"
+              testId="renounce-confirm"
+              reason={null}
+              busy={busy}
+              onClick={() => {
+                setMode(null);
+                onRenounce(message.trim() === '' ? null : message);
+              }}
+            />
+            <PlayerAction
+              label="Zrušit"
+              icon="cross"
+              testId="renounce-cancel"
+              reason={null}
+              busy={false}
+              onClick={() => setMode(null)}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Je v jednání hráčův rod pánem? Z přísahy v podmínkách; změna podmínek existující dohody přísahu
+ * nemá, tam rozhoduje dohoda s druhou stranou.
+ */
+function lordIsOwnIn(n: NegotiationView, view: HouseView): boolean {
+  for (const row of n.rows) {
+    if (row.item.kind === 'oath') return row.item.lord === view.ownHouseId;
+  }
+  return view.agreements.some((a) => a.otherHouseId === n.other.houseId && a.other === 'vassal');
+}
+
 /** Rozpracovaná nabídka: komu a v které roli je hráč (pán / vazal). */
 interface Draft {
   house: HouseLinkView;
@@ -292,6 +488,9 @@ export function HousePanel({
   onOpenNegotiation,
   onReply,
   onBlock,
+  villages = [],
+  onSpare,
+  onRenounce,
 }: {
   view: HouseView | null;
   error: string | null;
@@ -308,12 +507,27 @@ export function HousePanel({
   onReply?: (negotiationId: string, reply: NegotiationReply) => Promise<unknown>;
   /** Zablokuje rod. */
   onBlock?: (houseId: string) => Promise<unknown>;
+  /** Vsi hráče (výběr cílové vsi v podmínkách). */
+  villages?: readonly { id: string; name: string }[];
+  /** Výhled „kolik můžu postrádat“ pro rod `toHouseId` (jen na vyžádání, při otevření formuláře). */
+  onSpare?: (toHouseId: string, targetVillageId: string | null) => Promise<MacroSpare | null>;
+  /** Vypoví dohodu `vassalageId` (platí hned) se vzkazem. */
+  onRenounce?: (vassalageId: string, message: string | null) => Promise<unknown>;
 }): ReactElement {
   const ref = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
   // vybraný cizí hráč (tlačítka akcí) a rozpracovaná nabídka (formulář podmínek)
   const [pickedId, setPickedId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
+  // vybraná dohoda (pán nebo přímý vazal) – akce Nové podmínky a Vypovědět
+  const [pickedAgreement, setPickedAgreement] = useState<string | null>(null);
+  const villageName = (id: string): string | null =>
+    villages.find((v) => v.id === id)?.name ?? null;
+  const contextFor = (houseId: string, lordIsOwn: boolean): TermsContext => ({
+    lordIsOwn,
+    villages,
+    ...(onSpare ? { loadSpare: (target) => onSpare(houseId, target) } : {}),
+  });
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
       if (event.code === 'Escape') onClose();
@@ -373,14 +587,115 @@ export function HousePanel({
                 </span>
               </Tooltip>
             ) : (
-              view.lords.map((h) => <HouseLink key={h.houseId} house={h} testId="house-lord" />)
+              view.lords.map((h) => {
+                const agreement = view.agreements.find((x) => x.otherHouseId === h.houseId);
+                return (
+                  <Fragment key={h.houseId}>
+                    <AgreementEntry
+                      house={h}
+                      testId="house-lord"
+                      terms={agreement?.terms ?? null}
+                      breaches={0}
+                      hunger={null}
+                      villageName={villageName}
+                      selected={
+                        agreement !== undefined && pickedAgreement === agreement.vassalageId
+                      }
+                      onClick={
+                        agreement
+                          ? () =>
+                              setPickedAgreement(
+                                pickedAgreement === agreement.vassalageId
+                                  ? null
+                                  : agreement.vassalageId,
+                              )
+                          : undefined
+                      }
+                    />
+                    {agreement && pickedAgreement === agreement.vassalageId && (
+                      <AgreementActions
+                        key={agreement.vassalageId}
+                        agreement={agreement}
+                        house={h}
+                        ownHouseId={view.ownHouseId}
+                        busy={busy}
+                        context={contextFor(h.houseId, false)}
+                        onNewTerms={(items, message) => {
+                          setPickedAgreement(null);
+                          run(
+                            () =>
+                              onOpenNegotiation?.(h.houseId, items, message) ?? Promise.resolve(),
+                          );
+                        }}
+                        onRenounce={(message) => {
+                          setPickedAgreement(null);
+                          run(
+                            () => onRenounce?.(agreement.vassalageId, message) ?? Promise.resolve(),
+                          );
+                        }}
+                      />
+                    )}
+                  </Fragment>
+                );
+              })
             )}
           </Row>
           {view.vassals.length > 0 && (
             <Row label="Vazalové" testId="house-vassals" marker={<Icon name="shield" />}>
-              {view.vassals.map((h) => (
-                <HouseLink key={h.houseId} house={h} testId="house-vassal" />
-              ))}
+              {(view.tree.length > 0 ? orderTree(view.tree, view.ownHouseId) : []).map((node) => {
+                const h = houseLinkOf(node.house);
+                const agreement =
+                  node.depth === 1
+                    ? view.agreements.find((x) => x.vassalageId === node.vassalageId)
+                    : undefined;
+                return (
+                  <Fragment key={node.vassalageId}>
+                    <AgreementEntry
+                      house={h}
+                      testId={node.depth === 1 ? 'house-vassal' : 'house-subvassal'}
+                      depth={node.depth}
+                      terms={node.terms}
+                      breaches={node.breaches}
+                      hunger={node.hunger}
+                      villageName={villageName}
+                      selected={agreement !== undefined && pickedAgreement === node.vassalageId}
+                      onClick={
+                        agreement
+                          ? () =>
+                              setPickedAgreement(
+                                pickedAgreement === node.vassalageId ? null : node.vassalageId,
+                              )
+                          : undefined
+                      }
+                    />
+                    {agreement && pickedAgreement === node.vassalageId && (
+                      <AgreementActions
+                        key={node.vassalageId}
+                        agreement={agreement}
+                        house={h}
+                        ownHouseId={view.ownHouseId}
+                        busy={busy}
+                        context={contextFor(h.houseId, true)}
+                        onNewTerms={(items, message) => {
+                          setPickedAgreement(null);
+                          run(
+                            () =>
+                              onOpenNegotiation?.(h.houseId, items, message) ?? Promise.resolve(),
+                          );
+                        }}
+                        onRenounce={(message) => {
+                          setPickedAgreement(null);
+                          run(() => onRenounce?.(node.vassalageId, message) ?? Promise.resolve());
+                        }}
+                      />
+                    )}
+                  </Fragment>
+                );
+              })}
+              {view.tree.length === 0 &&
+                view.vassals.map((h) => (
+                  <HouseLink key={h.houseId} house={h} testId="house-vassal" />
+                ))}
             </Row>
           )}
           {view.negotiations.length > 0 && (
@@ -391,6 +706,7 @@ export function HousePanel({
                     key={n.id}
                     negotiation={n}
                     busy={busy}
+                    context={contextFor(n.other.houseId, lordIsOwnIn(n, view))}
                     portrait={<HouseLink house={n.other} testId="house-negotiation-other" />}
                     onReply={(id, reply) => run(() => onReply?.(id, reply) ?? Promise.resolve())}
                   />
@@ -466,6 +782,7 @@ export function HousePanel({
                         }
                         submitIcon={draft.direction === 'offer' ? 'seal' : 'hands'}
                         busy={busy}
+                        context={contextFor(h.houseId, draft.direction === 'offer')}
                         onCancel={() => setDraft(null)}
                         onSubmit={(items, message) => {
                           setDraft(null);

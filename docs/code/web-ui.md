@@ -651,6 +651,25 @@ accept | reject | withdraw | counter, items?, message? })`, `blockHouse({ target
   nabídne → B protinávrh → A přijme; C odmítne a A vidí „Odmítl – zkus zítra.“; C zablokuje A a A
   vidí „Zablokoval tě.“).
 
+## Podmínky vazalství v panelu (úloha 4.2, `hud/TermsForm.tsx`, `hud/HousePanel.tsx`, `lib/terms-view.ts`)
+
+- `lib/terms-view.ts` (čistý modul): `BUNDLE_SLOTS` (11 políček svazku – obilí, seno, krávy, voli,
+  koně, klády, muži, ženy, rodiny, robota; ikona a jednotka), `termChips` / `lineChips` (ikona
+  s číslem a popiskem: klas s kg, kláda s počtem, meč s muži × dny, ves s klíčem; odměna je slabší),
+  `hungerLabel` (sytý rod ikonu nemá), `breachLabel`.
+- `TermsForm.tsx`: registr `TERM_ROWS` – `BundleRow` (dávka, odměna), `ServiceRow`, `TargetVillageRow`
+  (výběr ze svých vsí jen pro pána). `TermsContext` nese `lordIsOwn`, vsi hráče a `loadSpare`; výhled
+  „kolik můžu postrádat“ (server action `houseSpare`) se načte při otevření formuláře s dávkou, kterou
+  platí hráč (vazal dávku, pán odměnu), a ukáže se **šedým číslem** pod políčkem. Řádky se přidávají
+  ikonami `terms-add-*`, odebírají křížkem (přísaha ne).
+- `HousePanel.tsx`: páni a vazalové jako `AgreementEntry` (portrét + ikony podmínek + zlomená pečeť
+  s počtem neplnění + ikona hladu); strom pod hráčem v pořadí `orderTree`, hloubka ≥ 2 odsazená
+  (`house-subvassal`, bez akcí). Klik na pána / přímého vazala → `AgreementActions`: **Nové podmínky**
+  (formulář nad podmínkami dohody bez přísahy → `openNegotiation`; do přijetí platí staré) a
+  **Vypovědět** (vzkaz + potvrzení druhým tlačítkem `renounce-confirm` → `renounceVassalage`).
+- Testy: `lib/__tests__/terms-view.test.ts`, `hud/__tests__/TermsForm.behavior.test.tsx`,
+  `HousePanel.behavior.test.tsx`; e2e `multiplayer.spec.ts` (podmínky, nové podmínky, vypovězení).
+
 ## Seniorát v rozhraní (úloha 2.3, `hud/rights.tsx`)
 
 - **Práva z jádra:** `VillageView.rights = { allowed, reason }` (`VillageRightsView`) skládá `viewOf`

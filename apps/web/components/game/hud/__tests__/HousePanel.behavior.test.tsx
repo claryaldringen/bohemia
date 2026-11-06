@@ -3,7 +3,9 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { PanelAgreement, PanelTreeNode, PublicHouse, VassalTerms } from '@bohemia/game';
 import type { HouseLinkView, HouseView } from '@/lib/house-view';
+import { emptyBundle, withBundleValue } from '@/lib/terms-view';
 import { HousePanel, inviteLink } from '../HousePanel';
 import { TopBar } from '../TopBar';
 
@@ -177,5 +179,123 @@ describe('prapor v liště', () => {
     expect(bar(0)).toContain('data-testid="house-vassal-count"');
     expect(bar(0)).not.toContain('house-waiting');
     expect(bar(3)).toContain('data-testid="house-waiting"');
+  });
+});
+
+describe('podmínky vazalství v panelu', () => {
+  const house = (houseId: string, name: string): PublicHouse =>
+    ({
+      houseId,
+      lordName: name,
+      men: [{ name, age: 30 }],
+      distance: 2,
+    }) as unknown as PublicHouse;
+  const terms: VassalTerms = {
+    tribute: withBundleValue(emptyBundle(), 'grainKg', 500),
+    service: { men: 3, days: 30 },
+    targetVillageId: 'v-own',
+  };
+  const agreement = (id: string, other: string, side: 'lord' | 'vassal'): PanelAgreement => ({
+    vassalageId: id,
+    lordHouseId: side === 'vassal' ? 'h-me' : other,
+    vassalHouseId: side === 'vassal' ? other : 'h-me',
+    otherHouseId: other,
+    other: side,
+    terms,
+    breaches: 0,
+    sinceDay: 1,
+  });
+  const node = (id: string, h: string, parent: string, depth: number): PanelTreeNode => ({
+    house: house(h, h),
+    depth,
+    parentHouseId: parent,
+    vassalageId: id,
+    terms: depth === 1 ? terms : {},
+    breaches: depth === 1 ? 2 : 0,
+    hunger: depth === 1 ? 'hungry' : 'fed',
+    shield: 1,
+  });
+  const WITH_TREE: HouseView = {
+    ...VIEW,
+    agreements: [agreement('va-1', 'h-v', 'vassal')],
+    tree: [node('va-2', 'h-w', 'h-v', 2), node('va-1', 'h-v', 'h-me', 1)],
+  };
+  const click = (id: string): void => {
+    act(() => host.querySelector<HTMLElement>(`[data-testid="${id}"]`)!.click());
+  };
+
+  it('vazal má ikony podmínek, zlomenou pečeť s počtem a hlad; vazal vazala je odsazen pod ním', () => {
+    render({ view: WITH_TREE, villages: [{ id: 'v-own', name: 'Dub' }] });
+    const entries = [...host.querySelectorAll('[data-depth]')];
+    expect(entries.map((e) => e.getAttribute('data-depth'))).toEqual(['1', '2']);
+    const first = entries[0]!;
+    const chips = [...first.querySelectorAll('[data-chip]')].map((c) =>
+      c.getAttribute('data-chip'),
+    );
+    expect(chips).toEqual(['tribute-grainKg', 'service', 'target-village']);
+    expect(first.querySelector('[data-testid="house-breaches"]')?.textContent).toBe('2');
+    expect(first.querySelector('[data-testid="house-hunger"]')).not.toBeNull();
+    expect(first.querySelector('[aria-label="Správa vsi Dub"]')).not.toBeNull();
+    // sytý vazal vazala nemá ikonu hladu ani pečeť
+    expect(entries[1]!.querySelector('[data-testid="house-hunger"]')).toBeNull();
+    expect(entries[1]!.querySelector('[data-testid="house-breaches"]')).toBeNull();
+    expect(host.querySelectorAll('[data-testid="house-vassal"]')).toHaveLength(1);
+    expect(host.querySelectorAll('[data-testid="house-subvassal"]')).toHaveLength(1);
+  });
+
+  it('klik na vazala ukáže Nové podmínky a Vypovědět; vazal vazala akce nemá', () => {
+    render({ view: WITH_TREE });
+    expect(host.querySelector('[data-testid="agreement-actions"]')).toBeNull();
+    click('house-subvassal');
+    expect(host.querySelector('[data-testid="agreement-actions"]')).toBeNull();
+    click('house-vassal');
+    expect(host.querySelector('[data-testid="agreement-new-terms"]')).not.toBeNull();
+    expect(host.querySelector('[data-testid="agreement-renounce"]')).not.toBeNull();
+  });
+
+  it('Nové podmínky otevřou formulář s podmínkami dohody bez přísahy a pošlou je jako jednání', () => {
+    const onOpenNegotiation = vi.fn(async () => undefined);
+    render({ view: WITH_TREE, onOpenNegotiation });
+    click('house-vassal');
+    click('agreement-new-terms');
+    expect(host.querySelector('[data-testid="term-row-oath"]')).toBeNull();
+    expect(host.querySelector('[data-testid="term-row-tribute"]')).not.toBeNull();
+    click('terms-submit');
+    const [to, items, message] = onOpenNegotiation.mock.calls[0] as unknown as [
+      string,
+      { kind: string }[],
+      null,
+    ];
+    expect(to).toBe('h-v');
+    expect(items.map((i) => i.kind)).toEqual(['tribute', 'service', 'target-village']);
+    expect(message).toBeNull();
+  });
+
+  it('Vypovědět vyžaduje druhé tlačítko, vzkaz se pošle, pán se vypovídá stejně', async () => {
+    const onRenounce = vi.fn(async () => undefined);
+    render({
+      view: {
+        ...WITH_TREE,
+        lords: [link('h-l')],
+        agreements: [...WITH_TREE.agreements, agreement('va-3', 'h-l', 'lord')],
+      },
+      onRenounce,
+    });
+    click('house-vassal');
+    click('agreement-renounce');
+    expect(onRenounce).not.toHaveBeenCalled();
+    const area = host.querySelector<HTMLTextAreaElement>('[data-testid="renounce-message"]')!;
+    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!;
+    act(() => {
+      setter.call(area, 'Nesplnil jsi dávku');
+      area.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    click('renounce-confirm');
+    await act(async () => {});
+    expect(onRenounce).toHaveBeenCalledWith('va-1', 'Nesplnil jsi dávku');
+    click('house-lord');
+    click('agreement-renounce');
+    click('renounce-confirm');
+    expect(onRenounce).toHaveBeenLastCalledWith('va-3', null);
   });
 });
