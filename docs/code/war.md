@@ -1,7 +1,8 @@
 # Válka – kód
 
 Pravidla: [docs/design/war.md](../design/war.md). Hotová je síla vojska a stropy výcviku
-(Ú6.1) a válka mezi rody s ochranou nováčka a opovědí (Ú6.2); tažení, boj a dohra přibývají v dalších úlohách.
+(Ú6.1), válka mezi rody s ochranou nováčka a opovědí (Ú6.2), mírové jednání (Ú6.3) a pohyb
+vojska mapu po mapě (Ú6.4); tažení po taktech, boj a dohra přibývají v dalších úlohách.
 
 ## Stropy výcviku
 
@@ -83,3 +84,49 @@ Pravidla: [docs/design/war.md](../design/war.md). Hotová je síla vojska a stro
 - **Web:** `WarPanel.tsx` – u každé války pečeť **Nabídnout mír** (`war-offer-peace`) a mini-formulář
   (`peace-form`: poplatek, tribut, vazalství; `peace-send`); řádek `term-row-peace` (`TermsForm.tsx`)
   v kartě jednání; `parsePeace` v `lib/house-input.ts`. Dialogy poplatku a tributu zobrazuje `LevyDialog`.
+
+## Pohyb vojska (Ú6.4)
+
+Čistá doména, jen det-math (`domain/war/**` v `eslint.config.mjs`); čísla ve `WAR.pace`,
+`WAR.march`, `WAR.snowPace`, `WAR.frost` a `FORTIFICATIONS.rampartAssaultPace`.
+
+- **Mřížka** – `domain/war/march-grid.ts`: `marchGrid(landscape, obstacles, village, { day,
+closedGates })` → `MarchGrid` (buňky 10 m přes celou mapu 1 920 m, 192 × 192; `pace` = násobek
+  tempa, 0 neprůchodná; `flags` `MARCH_*`). Terén krajiny (`marchTerrain`, mezipaměť `WeakMap`
+  podle krajiny): buňka do půl úhlopříčky (≈ 7 m) od vody je voda – krok mezi středy ji
+  nepřeskočí; brod = mělčina potoka (`StreamSample.shallow ≥ WAR.march.fordShallow`; úzký brod
+  chodců `FORD` v `paths/terrain.ts` v krajinách nevychází, proto jen mělčina); sráz nad
+  `PATH_SLOPE_MAX`. Hustý les (× ¼) = pole lesa > 0 a v okolí 3 × 3 buněk aspoň
+  `denseForestTrees` stojících stromů vrstvy překážek podle změn vsi (`obstacleChangesAt` –
+  paseka vsi lesem není); bez vrstvy (testy) celý les krajiny. Ves: osy pevných cest (i zemské
+  stezky – její úseky jsou mezi `roads.roads`) × 1,5 i lesem a přes vodu (brod, lávka);
+  opevnění (`fortCells`): hotový plot, palisáda a val se stojící nástavbou neprůchodné, val bez
+  nástavby `rampartAssaultPace`, průchozí otevřené brány (zavřené v `closedGates`) a mezery
+  (`segmentIsGap` – nedostavěný, shnilý, prolomený úsek celým pásem). Buňky přes `fortWalls`
+  a `fortWallCells` (pěšiny); buňka, které se dotkne průchod, stěnou není. Domy, ploty ohrad
+  a pole vojsko neblokují.
+- **Trasa** – `domain/war/march.ts`: `marchPath(grid, from, to)` (A* s oktilovým odhadem,
+  úhlopříčně jen kolem průchodných rohů, ceny kroků po kvantech `quantizedStep`, remíza – vyšší
+  index předchůdce; start průchodný vždy; nedosažitelný cíl `null`), `marchPathToEdge(grid,
+from, direction)` (k nejlevnější buňce okraje, úhlopříčně do rohu). `MarchPath` = body (start
+  a cíl přesně, mezi nimi středy buněk), buňky, `meadowM` (metry louky od startu – délka ÷
+  násobek tempa) a `lengthM`; `marchSeconds(path, speed)`, `marchProgress(path, meadow)` (poloha
+  po ušlých metrech louky).
+- **Tempo** – `marchSpeed(group: GroupPace, day)` (m/s skutečného času): 3,5 m/s, nejpomalejší
+  z jezdců × 1,5, pěších × 1, pěších raněných × 0,75 a stáda × 0,5; v zimě sníh × 0,75. 1 km po
+  louce ≈ 286 s ≈ 4,8 min ≈ 3,3 herního dne, hustým lesem čtyřikrát déle (≈ 19 min ≈ 13 dní).
+- **Zima** – `domain/war/season.ts`: `isMarchWinter(day)` (prosinec–únor), `frostDay(member,
+outside, day)` → `MemberDelta` (`health`, `vigor` = podíl plné síly): v zimě venku −3 a −0,02,
+  ve vsi kdykoli +10 a +0,05 až do plných, jinak 0.
+- **Mapu po mapě** – `domain/war/world-route.ts`: `worldRoute(from, to, avoid)` (8 směrů, přímý
+  krok 5, úhlopříčný 7, uhne nejvýš 8 políček za obdélník startu a cíle; start a cíl se nezakazují;
+  nedosažitelný `[]`), `edgeCrossing(cellFrom, cellTo, pos)` – osa pohybu se převrátí na opačný
+  okraj (± 955 m, střed okrajové buňky), druhá zůstane.
+- **Krajina políčka** – `application/cell-landscape.ts`: `emptyCellLandscape(worldSeed, cell)`
+  (`generateAcceptedLandscape(cellLandscapeSeed(...))` – tatáž krajina, jakou by dostala nová ves,
+  i s `obstaclesOf`), `settledCellLandscape(seed, versions)` (políčko se vsí – uložený seed),
+  `emptyCellMarchGrid`.
+- **Testy** – `domain/war/__tests__/march.test.ts` (tempo, les, brod, opevnění, cesta, zima,
+  zlatá cesta na seedech 1–3 – otisk počtu brodů a trasy přes mapu, determinismus, paseka, okraj),
+  `world-route.test.ts`, `application/__tests__/cell-landscape.test.ts`. Změna mřížky nebo A*
+  změní zlatý otisk – zapsat nový jen se záměrem.
