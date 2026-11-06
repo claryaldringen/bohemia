@@ -70,6 +70,7 @@ import { getDatabase, getPlayerLock } from './db';
 import { exclusivePlayer } from './exclusive';
 import { cachedVillages, withVillageCache } from '@bohemia/server';
 import {
+  currentStewardViewStampOfPlayer,
   currentViewStampOfPlayer,
   dynastyOfPlayer,
   dynastyOfPlayerLocked,
@@ -242,10 +243,12 @@ async function viewOf(
       !stewarding && from && from.worldCell === null && !from.isSeat ? NO_WORLD_CELL : null,
   });
   // otisk z vsí hráče, jak je pohled vidí – stejný spočítá levný dotaz (currentViewStampOfPlayer),
-  // když by pohled nic nepočítal (u spravované vsi ho levný dotaz nezná, otisk se neposílá)
-  return listed && !stewarding
-    ? { ...view, stamp: villageViewStamp(ctx.villageId, ctx.day, status.villages) }
-    : view;
+  // když by pohled nic nepočítal; u spravované vsi otisk správce (jen to, co správce vidí)
+  if (!listed) return view;
+  if (!stewarding)
+    return { ...view, stamp: villageViewStamp(ctx.villageId, ctx.day, status.villages) };
+  const stamp = await currentStewardViewStampOfPlayer(ctx.actorId, ctx.villageId);
+  return stamp === null ? view : { ...view, stamp };
 }
 
 /**
@@ -368,8 +371,12 @@ export async function villageViewIfChanged(
   known: string,
 ): Promise<VillageView | VillageUnchanged | null | { error: string }> {
   const today = await playerToday(playerId);
-  if (today.ok && (await currentViewStampOfPlayer(playerId, villageId, today.day)) === known) {
-    return { unchanged: true };
+  if (today.ok) {
+    // vlastní ves podle otisku držitele, spravovaná cizí ves podle otisku správce
+    const stamp =
+      (await currentViewStampOfPlayer(playerId, villageId, today.day)) ??
+      (await currentStewardViewStampOfPlayer(playerId, villageId));
+    if (stamp === known) return { unchanged: true };
   }
   return villageViewForPlayer(playerId, villageId);
 }

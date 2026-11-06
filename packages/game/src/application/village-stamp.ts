@@ -64,3 +64,48 @@ export async function currentVillageViewStamp(
   }
   return villageViewStamp(input.villageId, input.today, stamps);
 }
+
+export interface StewardViewStampInput {
+  /** Správce, který se dívá. */
+  actorId: string;
+  /** Držitel vsi (vlastník sídla). */
+  holderId: string;
+  /** Spravovaná ves, na kterou se správce dívá. */
+  villageId: string;
+  /** Dnešní herní den držitele (podle něj jde zobrazená ves) a správce (jeho přepínač vsí). */
+  holderToday: number;
+  actorToday: number;
+  /** Všechny cizí vsi, které správce spravuje (včetně zobrazené) – řádky jeho přepínače. */
+  stewardedVillageIds: readonly string[];
+}
+
+/**
+ * Otisk pohledu správce na spravovanou cizí ves, jaký by teď vrátil dotaz – bez načtení stavů vsí
+ * (stejně jako `currentVillageViewStamp` u držitele). Skládá se jen z toho, co správce v pohledu
+ * vidí: zobrazená ves (verze, jméno, den držitele), jeho vlastní vsi a vsi, které spravuje
+ * (přepínač), a jeho den. Ostatní vsi držitele, konec jeho rodu ani jeho mapy do otisku nejdou.
+ * Null, když by dotaz musel něco dopočítat (zobrazená ves nebo vlastní ves správce pozadu) nebo
+ * některá spravovaná ves nemá souhrn – pak se pošle celý pohled.
+ */
+export async function currentStewardViewStamp(
+  deps: { settlements: SettlementRepository; villages: VillageRepository },
+  input: StewardViewStampInput,
+): Promise<string | null> {
+  const holderMaps = await deps.settlements.listActive(input.holderId);
+  const held = await deps.villages.stampsOf(holderMaps.map((s) => s.id));
+  const shown = held.find((v) => v.id === input.villageId);
+  if (!shown || (!shown.asleep && shown.lastDay < input.holderToday)) return null;
+  const ownMaps = await deps.settlements.listActive(input.actorId);
+  const own = await deps.villages.stampsOf(ownMaps.map((s) => s.id));
+  if (own.some((v) => !v.asleep && mustAdvanceNow(v, undefined, input.actorToday))) return null;
+  const stewardedIds = [...new Set(input.stewardedVillageIds)];
+  const digests = stewardedIds.length > 0 ? await deps.villages.digestsOf(stewardedIds) : [];
+  if (digests.length < stewardedIds.length) return null;
+  const rows = new Map<string, { id: string; name: string; version: number }>();
+  for (const v of [...digests, ...own, shown]) {
+    rows.set(v.id, { id: v.id, name: v.name, version: v.version });
+  }
+  // den správce a on sám patří do otisku jako zvláštní řádek
+  rows.set('~actor', { id: '~actor', name: `${input.actorId}:${input.actorToday}`, version: 0 });
+  return villageViewStamp(input.villageId, input.holderToday, [...rows.values()]);
+}

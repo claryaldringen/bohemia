@@ -7,7 +7,11 @@ import { renameVillage } from '../rename-village';
 import { dynastyForVillage, WORKER_LAG_DAYS } from '../dynasty-for-village';
 import { dynastyStatus } from '../restart-game';
 import type { LandscapeSource } from '../settlements';
-import { currentVillageViewStamp, villageViewStamp } from '../village-stamp';
+import {
+  currentStewardViewStamp,
+  currentVillageViewStamp,
+  villageViewStamp,
+} from '../village-stamp';
 import { isFullVillage } from '../villages';
 import { InMemorySettlements } from './in-memory-settlements';
 import { InMemoryVillages } from './in-memory-villages';
@@ -174,5 +178,45 @@ describe('currentVillageViewStamp – ostatní vsi drží worker', () => {
     deps.villages.edit(otherId, (s) => (s.lastDay = TODAY));
     deps.villages.edit(villageId, (s) => (s.lastDay = TODAY - 1));
     expect(await currentVillageViewStamp(deps, input)).toBeNull();
+  });
+});
+
+describe('currentStewardViewStamp', () => {
+  it('správce dostane stálý otisk bez načtení stavů; změna vsi, jména i dne ho změní', async () => {
+    const { deps, villageId } = await player();
+    await dynastyStatus(deps, { playerId: PLAYER, today: TODAY });
+    const input = {
+      actorId: 'spravce',
+      holderId: PLAYER,
+      villageId,
+      holderToday: TODAY,
+      actorToday: TODAY,
+      stewardedVillageIds: [villageId],
+    };
+    const finds = deps.villages.finds;
+    const stamp = await currentStewardViewStamp(deps, input);
+    expect(stamp).toMatch(/^[0-9a-f]{16}$/);
+    expect(await currentStewardViewStamp(deps, input)).toBe(stamp);
+    expect(deps.villages.finds).toBe(finds);
+    // otisk správce se liší od otisku držitele (neprozrazuje ani nepřebírá jeho pohled)
+    expect(stamp).not.toBe(villageViewStamp(villageId, TODAY, []));
+    expect(await currentStewardViewStamp(deps, { ...input, actorToday: TODAY + 1 })).not.toBe(
+      stamp,
+    );
+    await renameVillage(deps, { villageId, today: TODAY, name: 'Kouřim', landscape });
+    expect(await currentStewardViewStamp(deps, input)).not.toBe(stamp);
+  });
+
+  it('zobrazená ves zaostalá za dnem držitele otisk nemá', async () => {
+    const { deps, villageId } = await player();
+    const input = {
+      actorId: 'spravce',
+      holderId: PLAYER,
+      villageId,
+      holderToday: TODAY,
+      actorToday: TODAY,
+      stewardedVillageIds: [villageId],
+    };
+    expect(await currentStewardViewStamp(deps, input)).toBeNull();
   });
 });
