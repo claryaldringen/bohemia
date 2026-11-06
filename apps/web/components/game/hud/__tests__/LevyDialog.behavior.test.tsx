@@ -20,8 +20,8 @@ const DIALOG: LevyDialogView = {
   years: 1,
   agreed: grain(150),
   villages: [
-    { villageId: 'v-a', name: 'Dub', suggested: grain(100) },
-    { villageId: 'v-b', name: 'Lípa', suggested: grain(50) },
+    { villageId: 'v-a', name: 'Dub', suggested: grain(100), corveeHands: 4 },
+    { villageId: 'v-b', name: 'Lípa', suggested: grain(50), corveeHands: 0 },
   ],
 };
 
@@ -56,9 +56,12 @@ type Answer = (
 ) => Promise<{ ok: true; arrivesDay: number | null } | { error: string }>;
 type AnswerInput = Parameters<Parameters<typeof LevyDialog>[0]['onAnswer']>[0];
 
-const render = (onAnswer: Answer = async () => ({ ok: true, arrivesDay: 40 })) => {
+const render = (
+  onAnswer: Answer = async () => ({ ok: true, arrivesDay: 40 }),
+  dialog: LevyDialogView = DIALOG,
+) => {
   const spy = vi.fn(onAnswer);
-  act(() => root.render(<LevyDialog dialogs={[DIALOG]} onAnswer={spy} onClose={() => {}} />));
+  act(() => root.render(<LevyDialog dialogs={[dialog]} onAnswer={spy} onClose={() => {}} />));
   return spy;
 };
 
@@ -98,6 +101,28 @@ describe('LevyDialog', () => {
     expect(call.split['v-a']!.grainKg + call.split['v-b']!.grainKg).toBe(100);
     expect(host.querySelector('[data-testid="levy-d-1-sent"]')).not.toBeNull();
     expect(host.querySelector('[data-testid="levy-d-1-send"]')).toBeNull();
+  });
+
+  it('robota: řádek dní a u vsi lidé × nejvýš dní, ves bez lidí varuje; Odeslat pošle robotu', async () => {
+    const labor = (n: number) => withBundleValue(emptyBundle(), 'laborDays', n);
+    const onAnswer = render(undefined, {
+      ...DIALOG,
+      agreed: labor(70),
+      villages: [
+        { ...DIALOG.villages[0]!, suggested: labor(70) },
+        { ...DIALOG.villages[1]!, suggested: labor(0) },
+      ],
+    });
+    expect(el('levy-d-1-total-laborDays').textContent).toContain('70');
+    // 70 člověkodní po nejvýš 30 dnech = 3 lidé (24, 23, 23 dní)
+    expect(el('levy-d-1-corvee-v-a').textContent).toBe('3 × 24');
+    expect(host.querySelector('[data-testid="levy-d-1-corvee-v-b"]')).toBeNull();
+    setValue(el<HTMLInputElement>('levy-d-1-laborDays-v-b'), '10');
+    expect(el('levy-d-1-corvee-v-b').getAttribute('aria-label')).toContain('nemá tolik lidí');
+    await act(async () => el('levy-d-1-send').click());
+    const call = onAnswer.mock.calls[0]![0];
+    expect(call.lines).toEqual([{ good: 'laborDays', amount: 80 }]);
+    expect(call.split['v-a']!.laborDays).toBe(70);
   });
 
   it('chybu serveru ukáže a dialog nechá otevřený', async () => {

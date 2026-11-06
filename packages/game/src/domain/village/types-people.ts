@@ -90,6 +90,42 @@ export interface Person {
    * ani neloví. Chybí – zdráv.
    */
   injuredUntilDay?: number;
+  /**
+   * Pryč jen na čas (plán 2026-11-03 – rozhodnutí 11; vassalage.md – Lidé a robota): robota,
+   * služba, tažení, zajetí, ochrana. Zůstává ve stavu domovské vsi, ale doma nepracuje ani nejí
+   * (`isAway`); vrátí se v den `untilDay` (`returnHome`). Chybí – doma.
+   */
+  away?: PersonAway;
+}
+
+/** Proč je člověk pryč jen na čas (rozhodnutí 11). */
+export type AwayKind = 'labor' | 'service' | 'campaign' | 'captive' | 'protection';
+
+/** Nepřítomnost na čas: druh, den návratu domů, hostitelská ves a odkaz na důvod (dialog…). */
+export interface PersonAway {
+  kind: AwayKind;
+  /** Den, na jehož začátku je člověk zase doma (chybí – návrat určí jiná mechanika). */
+  untilDay?: number;
+  hostVillageId?: string;
+  refId?: string;
+}
+
+/** Odkaz na osobu napříč vsemi: ves a číslo osoby v jejím stavu (stejný tvar jako u rodů). */
+export interface PersonRef {
+  villageId: string;
+  personId: number;
+}
+
+/**
+ * Host ve vsi (rozhodnutí 11): člověk z jiné vsi tu jen na čas – jí ze zásob hostitele a pracuje
+ * mu (robota napřed do opevnění – `guestLaborToday`). Ve stavu hostitele je jen odkaz; osoba
+ * zůstává ve stavu domovské vsi. Odejde na začátku dne `untilDay`.
+ */
+export interface Guest {
+  ref: PersonRef;
+  kind: AwayKind;
+  untilDay: number;
+  adult: true;
 }
 /** Luk, boj a jízda 0–100; `best` je nejvyšší dosažená hodnota (spodní hranice úbytku). */
 export interface ArmsSkills {

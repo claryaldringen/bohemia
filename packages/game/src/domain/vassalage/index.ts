@@ -7,3 +7,4 @@ export * from './terms';
 export * from './shipment';
 export * from './levy';
 export * from './loan';
+export * from './guests';

@@ -13,6 +13,7 @@ import {
   CRAFT_NAMES,
   dateOfDayIndex,
   type AbandonedStructure,
+  type AwayKind,
   type ChronicleEvent,
   type LandTaker,
   type ConstructionKind,
@@ -304,6 +305,29 @@ function tradeTripText(
   return `${lead} – ${carry} ${goodsText(goods)}; ${withThem} ${who}.`;
 }
 
+/** Kam lidé odešli na čas (robota, služba…) – za slovesem. */
+const AWAY_TEXTS: Record<AwayKind, string> = {
+  labor: 'na robotu',
+  service: 'do služby',
+  campaign: 'na tažení',
+  captive: 'do zajetí',
+  protection: 'pod ochranu',
+};
+
+/** Odkud se lidé vrátili. */
+const AWAY_BACK_TEXTS: Record<AwayKind, string> = {
+  labor: 'z roboty',
+  service: 'ze služby',
+  campaign: 'z tažení',
+  captive: 'ze zajetí',
+  protection: 'z ochrany',
+};
+
+/** „1 člověk“, „3 lidé“, „5 lidí“. */
+function peopleCountText(people: number): string {
+  return `${formatInteger(people)} ${plural(people, 'člověk', 'lidé', 'lidí')}`;
+}
+
 /** Co zásilka veze: „150 kg obilí, 3 krávy a 1 rodina“ (vassalage.md – Doprava a cílová ves). */
 function shipmentText(goods: ShipmentManifest): string {
   const cattle = goods.cattle.cows + goods.cattle.youngOxen + goods.cattle.trainedOxen;
@@ -391,6 +415,12 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return event.returned
         ? `Zásilka se vrátila z vsi ${event.villageName} – ${shipmentText(event.goods)}.`
         : `Zásilka ${event.villageName === '' ? '' : `z vsi ${event.villageName} `}dorazila – ${shipmentText(event.goods)}.`;
+    case 'people-away':
+      return `${peopleCountText(event.people)} ${plural(event.people, 'odešel', 'odešli', 'odešlo')} ${AWAY_TEXTS[event.away]} do vsi ${event.villageName} – doma ${plural(event.people, 'bude', 'budou', 'bude')} nejpozději ${formatGameDate(dateOfDayIndex(event.untilDay))}.`;
+    case 'people-back':
+      return `${peopleCountText(event.people)} se ${plural(event.people, 'vrátil', 'vrátili', 'vrátilo')} domů ${AWAY_BACK_TEXTS[event.away]}.`;
+    case 'guests-came':
+      return `Z vsi ${event.villageName} ${plural(event.people, 'přišel', 'přišli', 'přišlo')} ${peopleCountText(event.people).toLowerCase()} ${AWAY_TEXTS[event.away]}.`;
     case 'line-arrived':
       return event.name === undefined
         ? 'Z jiné vsi rodu přišel muž s rodinou.'

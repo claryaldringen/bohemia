@@ -1,4 +1,11 @@
-import { dispatchShipment, type MacroBundle } from '../domain/vassalage';
+import {
+  corveeGuests,
+  dispatchCorvee,
+  dispatchShipment,
+  shipmentDays,
+  type CorveeInput,
+  type MacroBundle,
+} from '../domain/vassalage';
 import { isVillageAbandoned, isVillageExtinct, type ShipmentBody } from '../domain/village';
 import type { Direction8 } from '../domain/village';
 import { GRID_STEPS, OPPOSITE } from '../domain/village/world-grid';
@@ -314,3 +321,92 @@ async function underLock(
   const result = await deps.locks.tryRun(place.ownerId, run);
   return result.ran ? result.value : 0;
 }
+
+/**
+ * Pošle lidi z vsi `fromVillageId` na robotu do vsi `toVillageId` (vassalage.md – Lidé a robota;
+ * plán 2026-11-03 – rozhodnutí 11): `laborDays` člověkodní v pánově vsi, cesta se nepočítá. Lidé
+ * zůstanou ve stavu domovské vsi s `away` (`dispatchCorvee`), hostitel dostane událost schránky
+ * `guests-arrive` v den příchodu (`ref` = `guests:<refId>`, druhý zápis se zahodí). Ves odesílatele
+ * se napřed dopočítá volající (stav v den `today`). Pod zámkem držitele odesílatele; opakování se
+ * stejným `refId` (po pádu mezi uložením vsi a zápisem do schránky, dvojklik) lidi znovu nepošle,
+ * jen dopíše událost. Vrací den příchodu do pánovy vsi.
+ */
+export async function sendCorvee(
+  deps: ShipmentDeps,
+  input: {
+    fromVillageId: string;
+    toVillageId: string;
+    laborDays: number;
+    refId: string;
+    today: number;
+  },
+): Promise<SendCorveeResult> {
+  const from = await deps.villages.find(input.fromVillageId);
+  if (!from) return { ok: false, reason: 'Odesílající ves neexistuje.' };
+  const fromPlace = await placeOf(deps, from);
+  if (!fromPlace) return { ok: false, reason: 'Odesílající ves nemá sídlo.' };
+  return deps.locks.run(fromPlace.ownerId, () => sendCorveeLocked(deps, input));
+}
+
+export type SendCorveeResult = { ok: true; arrivesDay: number } | { ok: false; reason: string };
+
+async function sendCorveeLocked(
+  deps: ShipmentDeps,
+  input: Parameters<typeof sendCorvee>[1],
+): Promise<SendCorveeResult> {
+  if (input.fromVillageId === input.toVillageId) {
+    return { ok: false, reason: 'Robota nemůže jít do téže vsi.' };
+  }
+  const to = await deps.villages.find(input.toVillageId);
+  if (sleeps(to)) return { ok: false, reason: 'Cílová ves zanikla.' };
+  const toPlace = await placeOf(deps, to!);
+  if (!toPlace) return { ok: false, reason: 'Cílová ves nemá sídlo.' };
+  for (let attempt = 0; attempt < SAVE_ATTEMPTS; attempt++) {
+    const from = await deps.villages.find(input.fromVillageId);
+    if (sleeps(from)) return { ok: false, reason: 'Odesílající ves nevysílá.' };
+    const fromPlace = await placeOf(deps, from!);
+    if (!fromPlace) return { ok: false, reason: 'Odesílající ves nemá sídlo.' };
+    const travelDays = shipmentDays(cellDistance(fromPlace.cell, toPlace.cell)).arrive;
+    const corvee: CorveeInput = {
+      laborDays: input.laborDays,
+      travelDays,
+      homeVillageId: from!.id,
+      hostVillageId: to!.id,
+      hostName: to!.name,
+      refId: input.refId,
+    };
+    const arrivesDay = input.today + travelDays;
+    // už odeslaná robota (opakování) – jen dopsat událost hostiteli
+    const already = corveeGuests(from!.state, corvee);
+    if (already.length > 0) {
+      await postGuests(deps, to!.id, arrivesDay, from!, input.refId, already);
+      return { ok: true, arrivesDay };
+    }
+    const sent = dispatchCorvee(from!.state, input.today, corvee);
+    if (!sent.ok) return sent;
+    if (sent.guests.length === 0) return { ok: true, arrivesDay };
+    if (!(await deps.villages.save(from!.id, sent.state, from!.version))) continue;
+    await postGuests(deps, to!.id, arrivesDay, from!, input.refId, sent.guests);
+    return { ok: true, arrivesDay };
+  }
+  return { ok: false, reason: 'Ves se mezitím změnila, zkus to znovu.' };
+}
+
+/** Událost `guests-arrive` do schránky hostitele (druhý zápis téhož `ref` se zahodí). */
+async function postGuests(
+  deps: ShipmentDeps,
+  hostVillageId: string,
+  day: number,
+  from: VillageRecord,
+  refId: string,
+  guests: CorveeGuests,
+): Promise<void> {
+  await deps.villages.inbox.post({
+    villageId: hostVillageId,
+    day,
+    ref: `guests:${refId}`,
+    body: { kind: 'guests-arrive', fromVillageId: from.id, fromName: from.name, guests },
+  });
+}
+
+type CorveeGuests = ReturnType<typeof corveeGuests>;

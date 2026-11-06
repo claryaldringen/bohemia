@@ -1,8 +1,17 @@
 'use client';
 
 import { useEffect, useRef, useState, type ReactElement } from 'react';
-import { dateOfDayIndex, NEGOTIATION, type LevyDialogView, type MacroBundle } from '@bohemia/game';
+import {
+  CORVEE_NO_HANDS,
+  VASSALAGE,
+  corveeStints,
+  dateOfDayIndex,
+  NEGOTIATION,
+  type LevyDialogView,
+  type MacroBundle,
+} from '@bohemia/game';
 import { formatGameDate } from '@/lib/game-date';
+import { plural } from '@/lib/village-format';
 import {
   BUNDLE_SLOTS,
   GOODS_SLOTS,
@@ -74,6 +83,49 @@ export function redistribute(split: Split, suggested: Split, key: BundleKey, tot
     out[id] = withBundleValue(split[id]!, key, parts[i] ?? 0);
   });
   return out;
+}
+
+/**
+ * Robota po vsích (vassalage.md – Lidé a robota): kolik lidí půjde a nejvýš na kolik dní
+ * (`corveeStints` – stejné rozdělení jako server), bez ves s nulou. Ves, která tolik lidí nemá,
+ * dostane varování v popisku.
+ */
+function CorveePlan({
+  testId,
+  dialog,
+  split,
+}: {
+  testId: string;
+  dialog: LevyDialogView;
+  split: Split;
+}): ReactElement {
+  return (
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 pl-7">
+      {dialog.villages.map((village) => {
+        const days = bundleValue(split[village.villageId] ?? emptyBundle(), 'laborDays');
+        if (days <= 0) return null;
+        const stints = corveeStints(days, village.corveeHands);
+        const longest = stints[0] ?? 0;
+        const ok = stints.length > 0 && longest <= VASSALAGE.corvee.maxDaysPerPerson;
+        const tip = ok
+          ? `${village.name} – ${stints.length} ${plural(stints.length, 'člověk', 'lidé', 'lidí')} na robotě, nejvýš ${longest} ${plural(longest, 'den', 'dny', 'dní')}`
+          : `${village.name} – ${CORVEE_NO_HANDS}`;
+        return (
+          <Tooltip key={village.villageId} content={tip}>
+            <span
+              tabIndex={0}
+              aria-label={tip}
+              data-testid={`${testId}-corvee-${village.villageId}`}
+              className={`inline-flex items-center gap-0.5 text-xs tabular-nums ${ok ? '' : 'text-[#e07a5f]'}`}
+            >
+              <TermIconImg icon={{ set: 'resources', name: 'man' }} size={18} />
+              {ok ? `${stints.length} × ${longest}` : '!'}
+            </span>
+          </Tooltip>
+        );
+      })}
+    </div>
+  );
 }
 
 /** Jeden pán: posuvníky zboží, rozdělení po vsích, vzkaz a Odeslat. */
@@ -204,6 +256,9 @@ function LevyRow({
                     </span>
                   </label>
                 </Tooltip>
+                {slot.key === 'laborDays' && (
+                  <CorveePlan testId={testId} dialog={dialog} split={split} />
+                )}
                 {dialog.villages.length > 1 && (
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 pl-7">
                     {dialog.villages.map((village) => (

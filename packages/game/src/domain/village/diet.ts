@@ -18,7 +18,7 @@ import {
   legumeStorageLossPerYear,
   villageLegumesKg,
 } from './legumes';
-import { ageGroup, foodNeedPerDay } from './people';
+import { ageGroup, foodNeedPerDay, guestFoodNeedPerDay } from './people';
 import { NO_CRAFTS, storageLossPerYear } from './productivity';
 import { APPLE_FOOD_VALUE, LEGUMES } from './rules';
 import type { ChronicleEvent, DietDay, Person, VillageState } from './types';
@@ -586,9 +586,16 @@ export function spoilMeat(state: VillageState, day: number): ChronicleEvent | nu
   return kg >= 1 ? { day, kind: 'meat-spoiled', kg: Math.round(kg) } : null;
 }
 
-/** Potřeba energie vsi za den (kg obilí). */
-export function villageFoodNeed(state: Pick<VillageState, 'people'>, day: number): number {
-  return state.people.reduce((sum, p) => sum + foodNeedPerDay(p, day), 0);
+/**
+ * Potřeba energie vsi za den (kg obilí): lidé doma (kdo je pryč na čas, jí jinde) a hosté, kteří
+ * jedí ze zásob vsi (rozhodnutí 11; vassalage.md – Lidé a robota: „jídlo jim dává pánova ves“).
+ */
+export function villageFoodNeed(
+  state: Pick<VillageState, 'people' | 'guests'>,
+  day: number,
+): number {
+  const home = state.people.reduce((sum, p) => sum + foodNeedPerDay(p, day), 0);
+  return state.guests === undefined ? home : home + guestFoodNeedPerDay(state, day);
 }
 
 /** Potřeba bílkovin vsi za den (kg). */

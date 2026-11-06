@@ -288,6 +288,13 @@ tím, že nabídku vazala odsouhlasí, nebo dá protinabídku – bez jeho souhl
   (předvyplněno – dospělí od 16 let, které ves nejméně postrádá, ne muži rodu). V pánově vsi se
   zapojí do práce jako ostatní vesničané, **jídlo jim dává pánova ves**, po odpracování se vrátí.
   Cesta se do odpracovaných dní nepočítá (návrh Clauda).
+  - Návrh Clauda (Ú4.5): jeden člověk odpracuje **nejvýš 30 dní** – víc člověkodní znamená víc
+    lidí; ves, která tolik lidí nemá, je pošle déle, ale nejvýš na rok. Muži rodu ani jejich ženy
+    na robotu nejdou, z domu jde po jednom a dům si nechá aspoň jednoho pracujícího dospělého.
+    Dokud jsou pryč, doma nepracují ani nejí; v pánově vsi jde jejich práce napřed do rozestavěného
+    opevnění ([opevnění](fortifications.md) – Robota vazalů), zbytek do společné práce (ostatní
+    stavby, opravy, údržba); polní práce nedělají. V dialogu se u roboty ukáže, kolik lidí na kolik
+    dní půjde.
 
 ## Služby (Martin 2. 11. 2026; podrobnosti návrh Clauda)
 

@@ -13,7 +13,8 @@ import {
   type LevyDeps,
 } from '../annual-levies';
 import { renounceVassalage } from '../renounce';
-import type { MacroBundle } from '../../domain/vassalage';
+import { sendCorvee } from '../shipments';
+import { dispatchCorvee, type MacroBundle } from '../../domain/vassalage';
 import { InMemoryDialogs } from './in-memory-dialogs';
 import { InMemoryHouses } from './in-memory-houses';
 import { InMemoryPlayerLock } from './in-memory-locks';
@@ -227,6 +228,72 @@ describe('roční dialog Odvody', () => {
     });
     expect(w.shipments.rows).toHaveLength(1);
     expect(w.notices.notices.filter((n) => n.kind === 'levy-sent')).toHaveLength(1);
+  });
+
+  it('robota: lidé odejdou na čas (bez zásilky), pán dostane hosty; dvojklik nic nezdvojí', async () => {
+    const w = await world();
+    await openAnnualDialogs(w.deps, { today: NOV_1 });
+    const dialog = w.dialogs.rows[0]!;
+    const input: Parameters<typeof answerLevy>[1] = {
+      playerId: VASSAL,
+      dialogId: dialog.id,
+      lines: [{ good: 'laborDays', amount: 30 }],
+      split: { [w.vassalVillage]: bundle({ laborDays: 30 }) as MacroBundle },
+      message: null,
+      today: DAY,
+    };
+    // vzdálenost 3 políčka = 6 dní cesty
+    expect(await answerLevy(w.deps, input)).toMatchObject({ ok: true, arrivesDay: DAY + 6 });
+    expect(w.shipments.rows).toHaveLength(0);
+    const home = (await w.villages.find(w.vassalVillage))!.state;
+    const away = home.people.filter((p) => p.away);
+    expect(away).toHaveLength(1);
+    expect(away[0]!.away).toMatchObject({
+      kind: 'labor',
+      untilDay: DAY + 6 + 30 + 6,
+      hostVillageId: w.lordVillage,
+    });
+    const arrive = w.villages.inbox.events.filter((e) => e.body.kind === 'guests-arrive');
+    expect(arrive).toHaveLength(1);
+    expect(arrive[0]).toMatchObject({ villageId: w.lordVillage, day: DAY + 6 });
+    expect(arrive[0]!.body).toMatchObject({
+      fromVillageId: w.vassalVillage,
+      guests: [{ kind: 'labor', untilDay: DAY + 6 + 30, adult: true }],
+    });
+    expect(await answerLevy(w.deps, input)).toEqual({ ok: false, reason: DIALOG_CLOSED });
+    const again = (await w.villages.find(w.vassalVillage))!.state;
+    expect(again.people.filter((p) => p.away)).toHaveLength(1);
+    expect(w.villages.inbox.events.filter((e) => e.body.kind === 'guests-arrive')).toHaveLength(1);
+  });
+
+  it('sendCorvee se stejným refId (po pádu před zápisem do schránky) lidi znovu nepošle', async () => {
+    const w = await world();
+    const input = {
+      fromVillageId: w.vassalVillage,
+      toVillageId: w.lordVillage,
+      laborDays: 45,
+      refId: 'levy:x:corvee',
+      today: DAY,
+    };
+    // pád mezi uložením vsi a zápisem do schránky: lidé jsou pryč, hostitel o nich neví
+    const record = (await w.villages.find(w.vassalVillage))!;
+    const crashed = dispatchCorvee(record.state, DAY, {
+      laborDays: 45,
+      travelDays: 6,
+      homeVillageId: w.vassalVillage,
+      hostVillageId: w.lordVillage,
+      hostName: 'Lhota',
+      refId: input.refId,
+    });
+    if (!crashed.ok) throw new Error(crashed.reason);
+    await w.villages.save(w.vassalVillage, crashed.state, record.version);
+    expect(await sendCorvee(w.deps.shipments, input)).toEqual({ ok: true, arrivesDay: DAY + 6 });
+    expect(await sendCorvee(w.deps.shipments, input)).toEqual({ ok: true, arrivesDay: DAY + 6 });
+    const home = (await w.villages.find(w.vassalVillage))!.state;
+    expect(home.people.filter((p) => p.away)).toHaveLength(2);
+    const arrive = w.villages.inbox.events.filter((e) => e.body.kind === 'guests-arrive');
+    expect(arrive).toHaveLength(1);
+    expect(arrive[0]!.body.kind === 'guests-arrive' && arrive[0]!.body.guests).toHaveLength(2);
   });
 
   it('odvádějí jen vsi rodu vazala, ne cizí; součet musí sedět', async () => {

@@ -4,9 +4,10 @@
 // dopočítá – události dne patří k tomu dni, ne k dopočtu.
 
 import { settleAppointee, type AppointeeParty } from './appoint-lord';
+import { hostGuests } from '../vassalage/guests';
 import { receiveShipment } from '../vassalage/shipment';
 import { pruneThreats } from './fortification/threat';
-import type { ChronicleEvent, ShipmentBody, ThreatSignal, VillageState } from './types';
+import type { ChronicleEvent, Guest, ShipmentBody, ThreatSignal, VillageState } from './types';
 
 /**
  * Tělo události schránky – diskriminovaná unie podle `kind`. Další druhy přidají pozdější
@@ -30,7 +31,13 @@ export type VillageEventBody =
    * Ves ho zapíše do `VillageState.threats` a zapomene po 50 letech; stejný signál dvakrát se
    * nezapisuje. Konec války (`endDay`) doplní signál `war` téže války (shodný `day`).
    */
-  | { kind: 'threat-signal'; signal: ThreatSignal };
+  | { kind: 'threat-signal'; signal: ThreatSignal }
+  /**
+   * Hosté z jiné vsi přišli na čas (plán 2026-11-03 – rozhodnutí 11; vassalage.md – Lidé a robota):
+   * ves je zapíše do `VillageState.guests` (`hostGuests`) – jedí z jejích zásob a pracují jí, odejdou
+   * v pevný den (`returnHome`). Osoby zůstávají ve stavu domovské vsi `fromVillageId`.
+   */
+  | { kind: 'guests-arrive'; fromVillageId: string; fromName: string; guests: Guest[] };
 
 /**
  * Událost ve schránce vsi `villageId`. `day` = herní den, na jehož začátku se použije (nikdy ne
@@ -76,9 +83,30 @@ function applyEvent(state: VillageState, day: number, body: VillageEventBody): C
     case 'threat-signal':
       recordThreat(state, day, body.signal);
       return [];
+    case 'guests-arrive':
+      return arriveGuests(state, day, body);
     default:
       return unknownBody(body);
   }
+}
+
+/** Hosté přišli: zapíše je a do kroniky, kolik jich přišlo (po druzích; nikdo nový – nic). */
+function arriveGuests(
+  state: VillageState,
+  day: number,
+  body: Extract<VillageEventBody, { kind: 'guests-arrive' }>,
+): ChronicleEvent[] {
+  const before = state.guests?.length ?? 0;
+  hostGuests(state, day, body.guests);
+  const added = (state.guests ?? []).slice(before);
+  const kinds = [...new Set(added.map((g) => g.kind))];
+  return kinds.map((kind) => ({
+    day,
+    kind: 'guests-came' as const,
+    away: kind,
+    people: added.filter((g) => g.kind === kind).length,
+    villageName: body.fromName,
+  }));
 }
 
 /** Zapíše signál hrozby (mutuje stav): válka téhož `day` se doplní o konec, ostatní se přidají. */
