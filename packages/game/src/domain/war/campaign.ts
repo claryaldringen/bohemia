@@ -25,6 +25,8 @@ import {
   type BattleState,
 } from './battle';
 import { defenderRoster } from './defenders';
+import { stanceOf } from './flight';
+import { planDefense } from './stance';
 import { marchGrid, type MarchGrid } from './march-grid';
 import { marchPath, marchPathToEdge, marchProgress, marchSpeed, type GroupPace } from './march';
 import { WAR } from './rules-war';
@@ -211,7 +213,7 @@ function campaignTick(
       }
       break;
     case 'raiding':
-      raidTick(s, tick, ctx);
+      raidTick(s, tick, ctx, out);
       break;
     case 'returning':
     case 'disbanded':
@@ -300,9 +302,26 @@ function turnBack(s: CampaignState, reason: CampaignReturnReason): void {
  * a vzdaných (Ú6.11), pak domů; útočníci poraženi → domů (rozpad po hloučcích, prchající domů
  * a rozhodnutí NPC velitele – Ú6.12; raněné na bojišti zajme obránce – Ú6.11).
  */
-function raidTick(s: CampaignState, tick: number, ctx: TickContext): void {
+function raidTick(s: CampaignState, tick: number, ctx: TickContext, out: TickOut): void {
+  // vlastní vojska a vojska pána a vazalů jsou neškodná – nikdo neútočí ani neutíká
+  if (!s.battle && ctx.world.harmless?.(s.target.villageId, s.playerId)) {
+    turnBack(s, 'arrived');
+    return;
+  }
   const field = battleFieldOf(s, ctx);
-  if (!s.battle) s.battle = campaignBattle(s, ctx);
+  if (!s.battle) {
+    s.battle = campaignBattle(s, ctx, field);
+    // přítomný hráč se dozví, že u vsi stojí cizí vojsko (war.md – Obránci: Přítomný hráč)
+    const watcher = ctx.world.watcherOf?.(s.target.villageId);
+    if (watcher && watcher.playerId !== s.playerId) {
+      out.notices.push({
+        playerId: watcher.playerId,
+        kind: 'foreign-army',
+        payload: { villageId: s.target.villageId, name: watcher.name },
+        gameDay: s.day,
+      });
+    }
+  }
   battleTick(s.battle, field, tickRandom(s.seed, tick, 'battle'));
   syncMembers(s, s.battle);
   // Ú6.10: padlí a ranění obránci a škody jdou do vsi jako vnější události (rozhodnutí 13)
@@ -343,7 +362,7 @@ function battleFieldOf(s: CampaignState, ctx: TickContext): BattleField {
 }
 
 /** Výchozí boj: muži tažení na mapě cíle, kteří stojí na nohou, a obránci vsi. */
-function campaignBattle(s: CampaignState, ctx: TickContext): BattleState {
+function campaignBattle(s: CampaignState, ctx: TickContext, field: BattleField): BattleState {
   // ves na mapě cíle už není (zanikla, odešla) – nikdo nebrání
   const onMap = ctx.world.landscapeOf(s.target.cell)?.villageIds.includes(s.target.villageId);
   const village = onMap ? ctx.world.villageAt(s.target.villageId, s.day) : null;
@@ -356,22 +375,35 @@ function campaignBattle(s: CampaignState, ctx: TickContext): BattleState {
   });
   // šik po skupinách – pět v řadě po 2 m, ať muži nestojí v jednom bodě
   const rank = new Map<number, number>();
+  const fighters = attackers.map(({ member, group, m, g }) => {
+    const k = rank.get(group) ?? 0;
+    rank.set(group, k + 1);
+    return {
+      member,
+      group,
+      line: m.line,
+      mounted: m.mounted,
+      strength: m.strength * m.vigor,
+      health: m.health,
+      pos: { x: g.pos.x + ((k % 5) - 2) * 2, z: g.pos.z + Math.floor(k / 5) * 2 },
+    };
+  });
+  // Ú6.10 / aplikace: muži rodu v jiných vsích hráče (`lineMenElsewhere`) – zatím jen tato ves.
+  // Ves se podle postoje rozdělí dřív, než dojde na boj (útěk, útočiště, vzdání – Ú6.9).
+  const plan = village
+    ? planDefense({
+        state: village,
+        day: s.day,
+        stance: stanceOf(village),
+        defenders: defenderRoster(village, s.day),
+        attackers: fighters.map((a) => ({ pos: a.pos, mounted: a.mounted })),
+        field,
+      })
+    : null;
   return openBattle({
-    attackers: attackers.map(({ member, group, m, g }) => {
-      const k = rank.get(group) ?? 0;
-      rank.set(group, k + 1);
-      return {
-        member,
-        group,
-        line: m.line,
-        mounted: m.mounted,
-        strength: m.strength * m.vigor,
-        health: m.health,
-        pos: { x: g.pos.x + ((k % 5) - 2) * 2, z: g.pos.z + Math.floor(k / 5) * 2 },
-      };
-    }),
-    // Ú6.10 / aplikace: muži rodu v jiných vsích hráče (`lineMenElsewhere`) – zatím jen tato ves
-    defenders: village ? defenderRoster(village, s.day) : [],
+    attackers: fighters,
+    ...(plan ? { shelter: plan.shelter } : {}),
+    defenders: plan ? plan.fighters : [],
     groups: s.groups.map((g) => ({ id: g.id, order: g.order, holdAt: g.holdAt ?? null })),
     commander: indexOf(s, s.commander),
     deputy: s.deputy ? indexOf(s, s.deputy) : null,

@@ -17,14 +17,8 @@ import { FORTIFICATIONS } from '../village/rules-fortifications';
 import type { GridGeometry } from '../village/square-grid';
 import type { GroupOrder } from './campaign-types';
 import { defenderPlan, type Defender } from './defenders';
-import {
-  MARCH_FOREST,
-  MARCH_WALL,
-  marchCellAt,
-  marchCellCenter,
-  type MarchGrid,
-  type Pos,
-} from './march-grid';
+import { nearestForest } from './flight';
+import { MARCH_FOREST, MARCH_WALL, marchCellAt, type MarchGrid, type Pos } from './march-grid';
 import {
   attackerPlan,
   battleLeader,
@@ -36,6 +30,7 @@ import {
   type PlanContext,
 } from './orders';
 import { WAR } from './rules-war';
+import type { ShelterReport } from './stance';
 import { TICKS_PER_SECOND } from './ticks';
 
 // Boj muž po muži (war.md – Boj; fortifications.md – Obrana, Prolomení): po taktech ve skutečném
@@ -131,6 +126,8 @@ export interface BattleState {
   outcome: BattleOutcome;
   /** Spočtené takty boje. */
   ticks: number;
+  /** Kdo ze vsi odešel před bojem: útočiště, les, vzdaní, odnesené zásoby (Ú6.10 je použije). */
+  shelter?: ShelterReport;
 }
 
 /** Opevnění na bojišti s tvarem úseků (pořadí jako ve vsi). */
@@ -171,6 +168,8 @@ export interface NewBattle {
   deputy: number | null;
   /** Velitele řídí hráč živě. */
   liveCommand: boolean;
+  /** Kdo ze vsi odešel před bojem (`planDefense`) – zásoby a dobytek, které útočník nedostane. */
+  shelter?: ShelterReport;
 }
 
 /** Zásah `10 × síla ÷ násobek obrany`, luk polovina (war.md – Boj – Souboj mužů). */
@@ -282,6 +281,7 @@ export function openBattle(input: NewBattle): BattleState {
     breaches: [],
     outcome: 'ongoing',
     ticks: 0,
+    ...(input.shelter ? { shelter: input.shelter } : {}),
   };
 }
 
@@ -496,22 +496,6 @@ function stepToward(
   if (q.x === f.pos.x && q.z === f.pos.z) return false;
   f.pos = q;
   return true;
-}
-
-/** Nejbližší hustý les (střed buňky) – kam prchají obránci; bez lesa null. */
-function nearestForest(grid: MarchGrid, from: Pos): Pos | null {
-  let best: Pos | null = null;
-  let bestD = Infinity;
-  for (let c = 0; c < grid.flags.length; c++) {
-    if ((grid.flags[c]! & MARCH_FOREST) === 0) continue;
-    const p = marchCellCenter(grid, c);
-    const d = dist2(p, from);
-    if (d < bestD) {
-      bestD = d;
-      best = p;
-    }
-  }
-  return best;
 }
 
 /** Útěk (war.md – Bod zlomu): útočník domů – kudy přišel (rozpad po hloučcích Ú6.12), obránce do lesa. */

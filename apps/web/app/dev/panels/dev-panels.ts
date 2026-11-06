@@ -188,6 +188,7 @@ const residentsOf = (ages: number[]): DwellingResident[] =>
 
 const manor: VillageManor = {
   dwellingId: 3,
+  stance: 'flee',
   huntDenied: null,
   // lov a psi dvorce (wildlife.md – Co hráč vidí)
   hunt: {

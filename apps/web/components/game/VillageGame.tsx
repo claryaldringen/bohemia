@@ -24,6 +24,7 @@ import {
 import {
   buildTrail,
   declareHunt,
+  setDefenseStance,
   cancelConstruction,
   forceDevDisaster,
   foundVillage,
@@ -1512,6 +1513,15 @@ export function VillageGame({
             // důvod odepření se ukáže řádkem nahoře (u kurzoru) a tlačítko ho má v popisku
             return villageId
               ? runAction(() => declareHunt({ villageId })).then((failure) => {
+                  if (failure !== null) pushNotice({ kind: 'error', tone: 'error', text: failure });
+                  return failure;
+                })
+              : Promise.resolve(null);
+          }}
+          onSetStance={(stance) => {
+            const villageId = viewRef.current?.id;
+            return villageId
+              ? runAction(() => setDefenseStance({ villageId, stance })).then((failure) => {
                   if (failure !== null) pushNotice({ kind: 'error', tone: 'error', text: failure });
                   return failure;
                 })

@@ -87,6 +87,7 @@ describe('vylepšení vsi ve dvorci', () => {
       <ManorUpgrades
         manor={{
           dwellingId: 1,
+          stance: 'flee',
           huntDenied: null,
           trailBuilt: false,
           neighbours: [],
@@ -101,6 +102,7 @@ describe('vylepšení vsi ve dvorci', () => {
       <ManorUpgrades
         manor={{
           dwellingId: 1,
+          stance: 'flee',
           huntDenied: null,
           trailBuilt: trails.some((t) => t.status === 'built'),
           neighbours: [],

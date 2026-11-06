@@ -83,6 +83,7 @@ export function SelectionPanel({
   wagonPlan,
   onBuildTrail,
   onDeclareHunt,
+  onSetStance,
   onSendExpedition,
   onSetSteward,
   onFortWork,
@@ -296,6 +297,7 @@ export function SelectionPanel({
         onPreviewSon={onPreviewSon}
         onBuildTrail={onBuildTrail}
         onDeclareHunt={onDeclareHunt}
+        onSetStance={onSetStance}
         onSendExpedition={onSendExpedition}
         steward={details.steward}
         onSetSteward={onSetSteward}

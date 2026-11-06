@@ -1,5 +1,5 @@
 import { useRef, useState, type ReactElement, type ReactNode } from 'react';
-import type { Direction8, TrailOption } from '@bohemia/game';
+import type { DefenseStance, Direction8, TrailOption } from '@bohemia/game';
 import { usePanelOptions } from '@/hooks/use-panel-options';
 import { useDismiss } from '@/hooks/use-dismiss';
 import type { VillageManor } from '@/lib/manor-view';
@@ -17,6 +17,33 @@ const COMPASS: readonly (Direction8 | null)[] = ['NW', 'N', 'NE', 'W', null, 'E'
 
 const iconButton = (busy: boolean): string =>
   `hud-inset h-10 w-10 overflow-hidden rounded ${busy ? 'disabled:cursor-wait disabled:opacity-60' : 'disabled:cursor-not-allowed disabled:opacity-45 disabled:grayscale'}`;
+
+/** Postoje vsi před cizím vojskem (war.md – Obránci): ikona, název a krátký popis v bublině. */
+const STANCES: readonly {
+  stance: DefenseStance;
+  icon: string;
+  label: string;
+  hint: string;
+}[] = [
+  {
+    stance: 'defend',
+    icon: '/icons/war/shield-wall.svg',
+    label: 'Bránit se',
+    hint: 'Lidé se seběhnou do skupin domů a brání se do bodu zlomu.',
+  },
+  {
+    stance: 'surrender',
+    icon: '/icons/war/white-flag.svg',
+    label: 'Vzdát se při přesile',
+    hint: 'Skupina se vzdá, je-li útočníků víc než 1,5× obránců; jinak se brání.',
+  },
+  {
+    stance: 'flee',
+    icon: '/icons/war/forest.svg',
+    label: 'Raději utéct',
+    hint: 'Lidé s dobytkem a zásobami odejdou do nejbližšího lesa (výchozí).',
+  },
+];
 
 /** Ikona s číslem v popisku (práce, dřevo, dny cesty). */
 function Cost({ icon, children }: { icon: string; children: ReactNode }): ReactElement {
@@ -157,16 +184,19 @@ export function ManorUpgrades({
   manor,
   onBuildTrail,
   onDeclareHunt,
+  onSetStance,
   trade,
 }: {
   manor: VillageManor;
   onBuildTrail?: (direction: Direction8) => Promise<void>;
   onDeclareHunt?: () => Promise<string | null | void>;
+  onSetStance?: (stance: DefenseStance) => Promise<string | null | void>;
   trade?: (close: () => void) => ReactNode;
 }): ReactElement {
   const [open, setOpen] = useState<'trail' | 'trade' | null>(null);
   const [busy, setBusy] = useState(false);
   const huntDenied = useRightDenied('steward');
+  const warDenied = useRightDenied('war');
   const rootRef = useRef<HTMLDivElement>(null);
   useDismiss(open !== null, rootRef, () => setOpen(null));
   const build = (direction: Direction8): void => {
@@ -265,6 +295,43 @@ export function ManorUpgrades({
           />
         </button>
       </Tooltip>
+      <div data-testid="manor-stance" className="ml-1 flex items-center gap-1.5">
+        {STANCES.map((st) => (
+          <Tooltip
+            key={st.stance}
+            placement="above"
+            denied={warDenied}
+            content={
+              <span className="flex flex-col gap-0.5">
+                <span>{st.label}</span>
+                <span className="text-[#cdbf9f]">{st.hint}</span>
+              </span>
+            }
+          >
+            <button
+              type="button"
+              data-testid={`stance-${st.stance}`}
+              aria-label={st.label}
+              aria-pressed={manor.stance === st.stance}
+              disabled={!onSetStance || busy || warDenied !== null}
+              onClick={() => {
+                if (!onSetStance || busy || manor.stance === st.stance) return;
+                setBusy(true);
+                void onSetStance(st.stance).finally(() => setBusy(false));
+              }}
+              className={`${iconButton(busy)} ${manor.stance === st.stance ? 'ring-2 ring-[#c9a14a]' : ''}`}
+            >
+              <img
+                src={st.icon}
+                alt=""
+                width={40}
+                height={40}
+                className="h-full w-full object-contain p-1"
+              />
+            </button>
+          </Tooltip>
+        ))}
+      </div>
       {open === 'trail' && (
         <div className="hud-panel hud-popup p-2" data-hud-block>
           {trails && <TrailCompass trails={trails} busy={busy} onBuild={build} />}
