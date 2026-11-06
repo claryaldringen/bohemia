@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { NEGOTIATION, NEGOTIATION_REASONS as R, type TermItem } from '../../domain/negotiation';
-import type { NewVillageEvent } from '../../domain/village';
+import { NEGOTIATION, NEGOTIATION_REASONS as R } from '../../domain/negotiation';
 import { blockPlayer, unblockPlayer } from '../blocks';
 import {
   acceptNegotiation,
@@ -8,87 +7,8 @@ import {
   openNegotiation,
   rejectNegotiation,
   withdrawNegotiation,
-  type NegotiateDeps,
 } from '../negotiate';
-import type { VillageRecord } from '../villages';
-import { InMemoryHouses } from './in-memory-houses';
-import { InMemoryNegotiations } from './in-memory-negotiations';
-import { InMemoryNotices } from './in-memory-notices';
-import { InMemoryVassalages } from './in-memory-vassalages';
-
-const NOW = new Date('2026-11-05T12:00:00Z');
-const DAY_MS = 86_400_000;
-const NAMES: Record<string, string> = { a: 'Bořivoj', b: 'Ctibor', c: 'Dalibor' };
-
-async function setup(): Promise<{
-  deps: NegotiateDeps;
-  houses: InMemoryHouses;
-  vassalages: InMemoryVassalages;
-  notices: InMemoryNotices;
-  negotiations: InMemoryNegotiations;
-  posts: NewVillageEvent[];
-  ids: Record<string, string>;
-}> {
-  const houses = new InMemoryHouses();
-  const vassalages = new InMemoryVassalages();
-  const notices = new InMemoryNotices();
-  const negotiations = new InMemoryNegotiations(vassalages, notices, () => NOW);
-  const posts: NewVillageEvent[] = [];
-  const refs = new Set<string>();
-  const ids: Record<string, string> = {};
-  for (const key of Object.keys(NAMES)) {
-    const house = await houses.create({
-      playerId: `player-${key}`,
-      kind: 'player',
-      createdAt: NOW,
-    });
-    await houses.setLord(house.id, { villageId: `village-${key}`, personId: 1 });
-    ids[key] = house.id;
-  }
-  const villages: NegotiateDeps['villages'] = {
-    find: (villageId) =>
-      Promise.resolve({
-        id: villageId,
-        state: { people: [{ id: 1, name: NAMES[villageId.slice(-1)] }] },
-      } as unknown as VillageRecord),
-    inbox: {
-      post: (event) => {
-        if (refs.has(event.ref)) return Promise.resolve(null);
-        refs.add(event.ref);
-        posts.push(event);
-        return Promise.resolve(null);
-      },
-      pending: () => Promise.resolve([]),
-    },
-  };
-  return {
-    deps: { houses, negotiations, villages },
-    houses,
-    vassalages,
-    notices,
-    negotiations,
-    posts,
-    ids,
-  };
-}
-
-type Setup = Awaited<ReturnType<typeof setup>>;
-
-const oath = (lord: string, vassal: string): TermItem[] => [{ kind: 'oath', lord, vassal }];
-
-async function open(s: Setup, from = 'a', to = 'b', lordKey = 'a', at = NOW): Promise<string> {
-  const vassalKey = lordKey === from ? to : from;
-  const r = await openNegotiation(s.deps, {
-    playerId: `player-${from}`,
-    to: s.ids[to]!,
-    items: oath(s.ids[lordKey]!, s.ids[vassalKey]!),
-    message: null,
-    now: at,
-    today: 10,
-  });
-  if (!r.ok) throw new Error(r.reason);
-  return r.negotiation.id;
-}
+import { DAY_MS, NOW, oath, open, setup, type Setup } from './negotiation-fixture';
 
 const chronicleTexts = (s: Setup): string[] =>
   s.posts.map((p) => (p.body.kind === 'chronicle' ? JSON.stringify(p.body.event) : ''));

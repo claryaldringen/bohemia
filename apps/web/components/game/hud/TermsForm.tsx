@@ -39,9 +39,22 @@ function OathRow({ label }: TermRowProps): ReactElement {
   );
 }
 
+/** Zatím jen text řádku (dávka, služba, cílová ves, odměna); ikony a čísla přijdou s rozhraním. */
+function PlainRow({ item, label }: TermRowProps): ReactElement {
+  return (
+    <span tabIndex={0} data-testid={`term-row-${item.kind}`} className="text-xs">
+      {label}
+    </span>
+  );
+}
+
 /** Registr řádků podle druhu podmínky – rozšiřuje se v dalších fázích. */
 export const TERM_ROWS: Record<TermItem['kind'], TermRowComponent> = {
   oath: OathRow,
+  tribute: PlainRow,
+  service: PlainRow,
+  'target-village': PlainRow,
+  reward: PlainRow,
 };
 
 /** Řádky podmínek (formulář i karta jednání). */

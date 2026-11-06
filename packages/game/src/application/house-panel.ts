@@ -1,4 +1,8 @@
 import { canOpen, respondingHouse, type TermItem } from '../domain/negotiation';
+import { treeBelowDepths } from '../domain/vassalage/tree';
+import { VASSALAGE } from '../domain/vassalage/rules-vassalage';
+import type { VassalTerms } from '../domain/vassalage/terms';
+import type { HungerLevel } from '../domain/village';
 import { INVITES, isInviteUnused } from '../domain/world';
 import type { ActivityRepository } from './activity';
 import type { HouseRepository, PersonRef } from './houses';
@@ -7,7 +11,12 @@ import type { NegotiationRepository } from './negotiations';
 import type { SuccessionCreditRepository } from './succession-credits';
 import type { SettlementRepository } from './settlements';
 import type { VassalageRepository } from './vassalages';
-import { publicHouseOf, type PublicHouse, type WorldDirectory } from './world-directory';
+import {
+  publicHouseOf,
+  type DirectoryEntry,
+  type PublicHouse,
+  type WorldDirectory,
+} from './world-directory';
 
 // Panel „Rod a vazalové“ – první verze (vassalage.md – Co hráč vidí): data pro rozhraní. Nese jen
 // to, co je o cizím rodu veřejné (jako adresář rodů) – žádná id účtů, zásoby ani výzbroj.
@@ -54,6 +63,37 @@ export interface PanelNegotiation {
   rounds: number;
 }
 
+/** Dohoda hráčova rodu s pánem nebo vazalem: podmínky a počet neplnění (zlomená pečeť). */
+export interface PanelAgreement {
+  vassalageId: string;
+  lordHouseId: string;
+  vassalHouseId: string;
+  /** Druhá strana dohody (ne hráčův rod). */
+  otherHouseId: string;
+  /** Kým je druhá strana pro hráče. */
+  other: 'lord' | 'vassal';
+  terms: VassalTerms;
+  /** Zapsaná neplnění vazala (`addBreach`); pán je vidí u vazala. */
+  breaches: number;
+  sinceDay: number;
+}
+
+/** Rod ve stromu pod hráčem: kdo je vazalem koho, podmínky té dohody a ikony stavu. */
+export interface PanelTreeNode {
+  house: PublicHouse;
+  /** 1 = přímý vazal hráče, 2 = vazal vazala… */
+  depth: number;
+  /** Pán, od kterého k rodu vede dohoda. */
+  parentHouseId: string;
+  vassalageId: string;
+  terms: VassalTerms;
+  breaches: number;
+  /** Nejhorší hlad ve vsích rodu (souhrn vsi), null = rod nemá aktivní ves. */
+  hunger: HungerLevel | null;
+  /** Muži rodu schopní služby. */
+  shield: number;
+}
+
 /** Co smí hráč vůči cizímu rodu: důvod zašednutí (null = smí) u obou druhů nabídky a blokování. */
 export interface PanelPlayerActions {
   /** Nabídnout vazalství (hráč pánem). */
@@ -77,7 +117,17 @@ export interface HousePanelData {
     lord: PersonRef | null;
     /** Nevyužitá nástupnictví bez losu (pečeť s počtem). */
     successionCredits: number;
+    /** Nejhorší hlad ve vsích rodu (souhrn vsi), null = žádná aktivní ves. */
+    hunger: HungerLevel | null;
+    /** Štít: muži rodu schopní služby (viz `serviceMen`). */
+    shield: number;
   } | null;
+  /** Dohody hráčova rodu s pány a vazaly, i s podmínkami a neplněním. */
+  agreements: PanelAgreement[];
+  /** Strom vazalů pod hráčem do `VASSALAGE.panelTreeDepth` pater, po patrech. */
+  tree: PanelTreeNode[];
+  /** Ikony stavu přímých pánů a vazalů podle id rodu (hlad, štít). */
+  status: Record<string, { hunger: HungerLevel | null; shield: number }>;
   lords: PublicHouse[];
   vassals: PublicHouse[];
   /** Cizí hráči podle vzdálenosti; pány a vazaly neopakují. */
@@ -108,6 +158,9 @@ const EMPTY: HousePanelData = {
   lords: [],
   vassals: [],
   others: [],
+  agreements: [],
+  tree: [],
+  status: {},
   invites: [],
   freeInviteSlots: 0,
   negotiations: [],
@@ -123,6 +176,25 @@ const unknownHouse = (houseId: string): PublicHouse => ({
   men: [],
   villages: 0,
 });
+
+const HUNGER_ORDER: readonly HungerLevel[] = ['fed', 'rationing', 'hungry', 'starving'];
+
+/** Nejhorší hlad ve vsích rodu; rod bez aktivní vsi nemá žádný. */
+function worstHunger(entry: DirectoryEntry | undefined): HungerLevel | null {
+  let worst: HungerLevel | null = null;
+  for (const d of entry?.digests ?? []) {
+    if (d.digest.extinctDay !== undefined || d.digest.abandonedDay !== undefined) continue;
+    const level = d.digest.hunger;
+    if (worst === null || HUNGER_ORDER.indexOf(level) > HUNGER_ORDER.indexOf(worst)) worst = level;
+  }
+  return worst;
+}
+
+/**
+ * Muži rodu schopní služby: veřejný rodokmen od 16 let (`PublicHouse.men`). Raněné a muže, kteří
+ * už slouží ve válce, z počtu odečte F6 (válka) – rodokmen je zatím nezná.
+ */
+export const serviceMen = (house: PublicHouse): number => house.men.length;
 
 /** Data panelu hráče ke dni `today`. */
 export async function housePanel(
@@ -140,6 +212,24 @@ export async function housePanel(
 
   const open = await deps.negotiations.transaction((tx) => tx.openOf(own.id));
 
+  // strom pod hráčem: struktura z hran sítě, podmínky z dohod pánů v něm
+  const edges = await deps.vassalages.edgesNear(own.id, VASSALAGE.panelTreeDepth);
+  const treeNodes = treeBelowDepths(edges, own.id, VASSALAGE.panelTreeDepth);
+  const recordsOf = new Map<string, Awaited<ReturnType<VassalageRepository['activeOf']>>>();
+  recordsOf.set(own.id, vassalages);
+  const treeRecords = new Map<string, (typeof vassalages)[number]>();
+  for (const node of treeNodes) {
+    let list = recordsOf.get(node.parentHouseId);
+    if (!list) {
+      list = await deps.vassalages.activeOf(node.parentHouseId);
+      recordsOf.set(node.parentHouseId, list);
+    }
+    const record = list.find(
+      (v) => v.lordHouseId === node.parentHouseId && v.vassalHouseId === node.houseId,
+    );
+    if (record) treeRecords.set(node.houseId, record);
+  }
+
   const allInvites = await deps.invites.listOf(input.playerId);
   const usedHouseIds = new Map<string, string | null>();
   const used = allInvites
@@ -154,6 +244,7 @@ export async function housePanel(
       own.id,
       ...lordIds,
       ...vassalIds,
+      ...treeNodes.map((n) => n.houseId),
       ...open.map((n) => (n.initiatorHouseId === own.id ? n.recipientHouseId : n.initiatorHouseId)),
       ...[...usedHouseIds.values()].flatMap((id) => (id ? [id] : [])),
     ]),
@@ -179,6 +270,43 @@ export async function housePanel(
         .slice(0, PANEL_OTHERS_LIMIT)
     : [];
 
+  const statusOf = (houseId: string): { hunger: HungerLevel | null; shield: number } => ({
+    hunger: worstHunger(entries.find((e) => e.house.id === houseId)),
+    shield: serviceMen(publicOf(houseId)),
+  });
+  const status: HousePanelData['status'] = {};
+  for (const id of [...lordIds, ...vassalIds]) status[id] = statusOf(id);
+
+  const agreements = vassalages.map((v): PanelAgreement => {
+    const mine = v.lordHouseId === own.id;
+    return {
+      vassalageId: v.id,
+      lordHouseId: v.lordHouseId,
+      vassalHouseId: v.vassalHouseId,
+      otherHouseId: mine ? v.vassalHouseId : v.lordHouseId,
+      other: mine ? 'vassal' : 'lord',
+      terms: v.terms,
+      breaches: v.breaches,
+      sinceDay: v.sinceDay,
+    };
+  });
+
+  const tree = treeNodes.flatMap((node): PanelTreeNode[] => {
+    const record = treeRecords.get(node.houseId);
+    if (!record) return [];
+    return [
+      {
+        house: publicOf(node.houseId),
+        depth: node.depth,
+        parentHouseId: node.parentHouseId,
+        vassalageId: record.id,
+        terms: record.terms,
+        breaches: record.breaches,
+        ...statusOf(node.houseId),
+      },
+    ];
+  });
+
   const negotiations = open.map((n): PanelNegotiation => {
     const otherId = n.initiatorHouseId === own.id ? n.recipientHouseId : n.initiatorHouseId;
     const last = n.rounds[n.rounds.length - 1];
@@ -195,7 +323,7 @@ export async function housePanel(
   // důvody zašednutí tlačítek u cizích hráčů – pravidla `canOpen`, web je jen zobrazí
   const actions: Record<string, PanelPlayerActions> = {};
   await deps.negotiations.transaction(async (tx): Promise<void> => {
-    const edges = await tx.vassalages.edgesNear(own.id, 1);
+    const nearEdges = await tx.vassalages.edgesNear(own.id, 1);
     for (const other of nearby) {
       const base = {
         now,
@@ -204,7 +332,7 @@ export async function housePanel(
         blockedByTarget: await tx.blocks(other.houseId, own.id),
         negotiationOpen: (await tx.openBetween(own.id, other.houseId)) !== null,
         rejectedByTargetAt: await tx.lastReject(own.id, other.houseId),
-        edges,
+        edges: nearEdges,
       };
       actions[other.houseId] = {
         offer: canOpen({
@@ -248,7 +376,11 @@ export async function housePanel(
       senior: own.senior,
       lord: own.lord,
       successionCredits: await deps.successionCredits.unused(input.playerId),
+      ...statusOf(own.id),
     },
+    agreements,
+    tree,
+    status,
     lords: lordIds.map(publicOf),
     vassals: vassalIds.map(publicOf),
     others: nearby,

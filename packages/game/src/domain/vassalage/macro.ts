@@ -24,6 +24,12 @@ export interface MacroSpare extends MacroGoods {
   laborDays: number;
 }
 
+/**
+ * Svazek makrokomodit v řádku podmínek (dávka, odměna): makrokomodity, lidé a robota – tvar jako
+ * výhled (`MacroSpare`), jen jako dohodnuté číslo, ne jako to, co ves postrádá.
+ */
+export type MacroBundle = MacroSpare;
+
 /** Nic – nové prázdné makrokomodity (každé volání nový objekt). */
 export function noMacroGoods(): MacroGoods {
   return {

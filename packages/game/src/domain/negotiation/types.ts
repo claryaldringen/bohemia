@@ -1,8 +1,11 @@
+import type { TermLine } from '../vassalage/terms';
+
 /**
- * Řádek podmínek. Zatím jen přísaha; dávky, služba a další řádky přibudou v úloze 4.2.
- * Strany jsou **rody** (`house.id`), ne hráči (technické rozhodnutí 2 plánu).
+ * Řádek podmínek: přísaha (povinná u nové dohody; u změny podmínek existující dohody chybí)
+ * a volitelné řádky – dávka, služba, cílová ves a odměna (`TermLine`, vassalage.md – Podmínky
+ * dohody). Strany jsou **rody** (`house.id`), ne hráči (technické rozhodnutí 2 plánu).
  */
-export type TermItem = { kind: 'oath'; lord: string; vassal: string };
+export type TermItem = { kind: 'oath'; lord: string; vassal: string } | TermLine;
 
 /** Jedno kolo jednání: podmínky jedné strany a volitelný vzkaz. */
 export interface NegotiationRound {

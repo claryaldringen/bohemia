@@ -21,7 +21,10 @@ export interface OpenNegotiationInput {
 }
 
 /** Vazalství uvnitř transakce jednání (podmnožina portu, běží nad toutéž transakcí). */
-export type VassalageTx = Pick<VassalageRepository, 'activeOf' | 'create' | 'end' | 'edgesNear'>;
+export type VassalageTx = Pick<
+  VassalageRepository,
+  'activeOf' | 'create' | 'end' | 'edgesNear' | 'updateTerms'
+>;
 /** Upozornění uvnitř transakce jednání. */
 export type NoticeTx = Pick<NoticeRepository, 'post'>;
 

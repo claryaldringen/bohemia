@@ -112,6 +112,48 @@ describe('housePanel', () => {
     expect(JSON.stringify(data)).not.toContain('"playerId"');
   });
 
+  it('strom pod hráčem s hloubkou, podmínky, neplnění, hlad a štít', async () => {
+    const { deps, make, vassalages } = await setup();
+    const me = await make('me', 0, 0, [30, 20, 12]);
+    const child = await make('child', 2, 0, [40]);
+    const grandchild = await make('grandchild', 3, 0, [18, 50]);
+    const terms = { service: { men: 2, days: 30 } };
+    const link = async (l: string, v: string, t: object): Promise<string> =>
+      (
+        await vassalages.create({
+          lordHouseId: l,
+          vassalHouseId: v,
+          terms: t,
+          origin: 'negotiation',
+          sinceAt: NOW,
+          sinceDay: TODAY,
+        })
+      ).id;
+    const first = await link(me.id, child.id, terms);
+    await link(child.id, grandchild.id, {});
+    await vassalages.addBreach(first, 'levy', TODAY);
+    const hungry = deps.worldDirectory as unknown as InMemoryWorldDirectory;
+    for (const e of hungry.entries) {
+      if (e.house.id === grandchild.id) {
+        (e.digests[0]!.digest as { hunger: string }).hunger = 'starving';
+      }
+    }
+
+    const data = await housePanel(deps, { playerId: 'me', today: TODAY });
+    expect(data.tree.map((n) => [n.house.houseId, n.depth, n.parentHouseId])).toEqual([
+      [child.id, 1, me.id],
+      [grandchild.id, 2, child.id],
+    ]);
+    expect(data.tree[0]).toMatchObject({ terms, breaches: 1, shield: 1 });
+    expect(data.tree[1]).toMatchObject({ hunger: 'starving', shield: 2 });
+    expect(data.agreements).toEqual([
+      expect.objectContaining({ vassalageId: first, other: 'vassal', terms, breaches: 1 }),
+    ]);
+    // štít vlastního rodu: muži od 16 let
+    expect(data.own?.shield).toBe(2);
+    expect(data.status[child.id]).toMatchObject({ shield: 1 });
+  });
+
   it('pozvánky: volná místa, využitá s rozehraným pozvaným', async () => {
     const { deps, make, invites, activity } = await setup();
     await make('me', 0, 0, [30]);

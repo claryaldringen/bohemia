@@ -1,7 +1,14 @@
+import type { VassalTerms } from '../domain/vassalage/terms';
 import type { VassalEdge } from '../domain/vassalage/tree';
 
-/** Podmínky vazalství (zatím žádné – rozšíří úloha 4.2: dávky, vojenská služba). */
-export type VassalTerms = Record<string, never>;
+export type { VassalTerms };
+
+/**
+ * Druh neplnění (vassalage.md – Neformální výpověď): méně než domluveno při odvodu (`levy`),
+ * nesplacená půjčka (`repay`), nepřišel na svolání do války (`summons`), neposlechl pána
+ * (`judgment` – rozsudek).
+ */
+export type BreachKind = 'levy' | 'repay' | 'summons' | 'judgment';
 
 /** Jak vazalství vzniklo (vassalage.md). */
 export type VassalageOrigin = 'invite' | 'negotiation' | 'escheat' | 'ennoble' | 'peace';
@@ -17,7 +24,7 @@ export interface Vassalage {
   /** Herní den vzniku. */
   sinceDay: number;
   endedAt: Date | null;
-  /** Porušení podmínek – zatím vždy 0 (rozšíří úloha 4.2). */
+  /** Počet zapsaných neplnění (`addBreach`); dohodu neukončí, jen ji pán vidí u vazala. */
   breaches: number;
   version: number;
 }
@@ -37,6 +44,18 @@ export interface VassalageRepository {
   create(input: NewVassalage): Promise<Vassalage>;
   /** Ukončí živé vazalství; true jen při změně (z více souběžných volání uspěje jedno). */
   end(id: string, reason: string, at: Date): Promise<boolean>;
+  /** Vazalství podle id (živé i ukončené), nebo null. */
+  byId(id: string): Promise<Vassalage | null>;
+  /**
+   * Přepíše podmínky živé dohody a zvýší verzi; false, pokud se verze mezitím změnila nebo dohoda
+   * skončila (do přijetí nových podmínek platí staré).
+   */
+  updateTerms(id: string, terms: VassalTerms, expectedVersion: number): Promise<boolean>;
+  /**
+   * Zapíše neplnění ve dni `day` a zvýší počet; false, pokud dohoda už neběží. Dohodu
+   * neukončí (neformální výpověď není odchod).
+   */
+  addBreach(id: string, kind: BreachKind, day: number): Promise<boolean>;
   /** Živé hrany sítě do hloubky `depth` kroků (pán i vazal) od rodu. */
   edgesNear(houseId: string, depth: number): Promise<VassalEdge[]>;
 }

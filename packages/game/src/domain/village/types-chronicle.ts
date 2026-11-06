@@ -73,12 +73,14 @@ export type ChronicleEvent = { day: number } & (
    */
   | {
       kind: 'negotiation';
-      step: 'offer' | 'counter' | 'rejected' | 'withdrawn';
+      step: 'offer' | 'counter' | 'rejected' | 'withdrawn' | 'terms-accepted';
       actor: string;
       other: string;
     }
   /** Dohoda z jednání: rod `vassal` přísahal rodu `lord` (jména hlav rodů). */
   | { kind: 'negotiation-accepted'; lord: string; vassal: string }
+  /** Vazalství skončilo formálním vypovězením (jména hlav rodů; text je neutrální, bez viníka). */
+  | { kind: 'vassalage-renounced'; lord: string; vassal: string }
   /** Rod `blocker` zablokoval rod `blocked` (vassalage.md – Meze); zapisuje se do kronik obou. */
   | { kind: 'blocked'; blocker: string; blocked: string }
   /** Vedlejší manželka odešla z přeplněného dvorce do vlastního domu (lord.md – Manželky). */

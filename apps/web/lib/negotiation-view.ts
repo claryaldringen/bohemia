@@ -41,6 +41,15 @@ export function termRowLabel(
       return item.lord === ownId
         ? `${houseNameOf(other)} se stane tvým vazalem`
         : `Staneš se vazalem rodu ${houseNameOf(other)}`;
+    // ikony a čísla těchto řádků dělá rozhraní podmínek (úloha 4.2 – web); zatím jen název
+    case 'tribute':
+      return 'Roční dávka';
+    case 'service':
+      return `Vojenská služba – ${item.men} mužů na ${item.days} dní`;
+    case 'target-village':
+      return 'Cílová ves';
+    case 'reward':
+      return 'Roční odměna';
   }
 }
 

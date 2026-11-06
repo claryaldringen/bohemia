@@ -3,12 +3,15 @@ import {
   blockPlayer,
   counterNegotiation,
   housePanel,
+  houseSpareOutlook,
   issueInvite,
   openNegotiation,
   rejectNegotiation,
+  renounceVassalage,
   revokeInvite,
   withdrawNegotiation,
   type HousePanelData,
+  type MacroSpare,
   type NegotiateResult,
   type IssueInviteResult,
 } from '@bohemia/game';
@@ -103,5 +106,29 @@ export async function blockHouseForPlayer(
   if (!today.ok) return { error: today.error };
   return outcome(
     await blockPlayer(gameDeps(), { playerId, target, now: new Date(), today: today.day }),
+  );
+}
+
+/**
+ * Výhled „kolik můžu postrádat“ pro dávku rodu `toHouseId` (a jeho cílovou ves). Počítá se jen na
+ * vyžádání – načítá stavy všech vsí hráčova rodu, proto není součástí panelu.
+ */
+export async function houseSpareForPlayer(
+  playerId: string,
+  input: { toHouseId: string; targetVillageId?: string },
+): Promise<{ spare: MacroSpare } | { error: string }> {
+  const result = await houseSpareOutlook(gameDeps(), { playerId, ...input });
+  return result.ok ? { spare: result.spare } : { error: result.reason };
+}
+
+/** Hráč za svůj rod vypoví dohodu (jako pán i jako vazal); platí hned. */
+export async function renounceVassalageForPlayer(
+  playerId: string,
+  input: { vassalageId: string; message: string | null },
+): Promise<NegotiationActionResult> {
+  const today = await playerToday(playerId);
+  if (!today.ok) return { error: today.error };
+  return outcome(
+    await renounceVassalage(gameDeps(), { playerId, ...input, now: new Date(), today: today.day }),
   );
 }
