@@ -3,7 +3,14 @@
 // prohlížeč; odpověď je podmíněná (`answer`), takže ze souběžných odpovědí uspěje jedna.
 
 export type DialogKind =
-  'levy' | 'repay' | 'trade-send' | 'fee-send' | 'escheat' | 'summons' | 'judgment';
+  | 'levy'
+  | 'repay'
+  | 'trade-send'
+  | 'fee-send'
+  | 'tribute-send'
+  | 'escheat'
+  | 'summons'
+  | 'judgment';
 
 /** `open` – čeká na odpověď, `answered` – hráč odpověděl, `dropped` – zmizel (dohoda skončila). */
 export type DialogStatus = 'open' | 'answered' | 'dropped';

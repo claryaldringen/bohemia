@@ -1,6 +1,6 @@
 import type { AidLine } from '../vassalage/loan';
 import type { MacroBundle } from '../vassalage/macro';
-import type { TermLine } from '../vassalage/terms';
+import type { TermLine, VassalTerms } from '../vassalage/terms';
 
 /**
  * Řádek podmínek: přísaha (povinná u nové dohody; u změny podmínek existující dohody chybí)
@@ -15,7 +15,8 @@ export type TermItem =
   | TradeLine
   | StewardshipLine
   | VillageGiftLine
-  | WarDemandLine;
+  | WarDemandLine
+  | PeaceLine;
 
 /**
  * Obchod mezi hráči (vassalage.md – Hospodářství mezi hráči): autor kola `give` pošle, `get`
@@ -60,6 +61,24 @@ export interface VillageGiftLine {
 export interface WarDemandLine {
   kind: 'war-demand';
   items: TermItem[];
+}
+
+/**
+ * Podmínky míru (war.md – Konec války – mírové jednání): mírové jednání mezi stranami aktivní
+ * války, jediný řádek kola; všechny podmínky jsou volitelné (mír smí být bez podmínek). `fee` =
+ * jednorázový poplatek, který pošle `payer` (dialog `fee-send`); `vassalage` = vazalství z míru
+ * (`lord` / `vassal` jsou strany jednání) s podmínkami; `tribute` = opakovaná platba bez vazalství
+ * (chodí v Odvodech 1. 11.); `cede` = vsi, které strana s jejich vlastnictvím postupuje druhé
+ * (ves přejde celá); `releasePrisoners` = zajatci k propuštění (zajetí přijde s úlohou 6.11).
+ */
+export interface PeaceLine {
+  kind: 'peace';
+  fee?: MacroBundle;
+  payer?: string;
+  vassalage?: { lord: string; vassal: string; terms: VassalTerms };
+  tribute?: { goods: MacroBundle; payer: string };
+  cede?: string[];
+  releasePrisoners?: string[];
 }
 
 /** Jedno kolo jednání: podmínky jedné strany a volitelný vzkaz. */

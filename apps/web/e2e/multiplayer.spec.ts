@@ -770,3 +770,60 @@ test('válka: nový rod je pod ochranou, po jejím vypršení A opoví válku C 
   await expect(c.getByTestId('war-count')).toHaveAttribute('data-wars', '1');
   await Promise.all(ctxs.map((ctx) => ctx.close()));
 });
+
+test('mír: A a C jsou ve válce, C nabídne mír s poplatkem, A přijme → válka skončila mírem a C má dialog poplatku', async ({
+  browser,
+}) => {
+  test.setTimeout(240_000);
+  await query(`UPDATE house SET ended_at = now() WHERE ended_at IS NULL`, []);
+  const ctxs = await Promise.all([browser.newContext(), browser.newContext()]);
+  for (const ctx of ctxs) await useUniqueClientIp(ctx);
+  const [a, c] = (await Promise.all(ctxs.map((ctx) => ctx.newPage()))) as [Page, Page];
+  for (const page of [a, c]) await page.setViewportSize({ width: 1280, height: 720 });
+  const { seat: seatA } = await newPlayer(a, 'mira');
+  await found(a, villageSpots(seatA.landscape).dwelling, 'Bořivoj');
+  const { email: emailC, seat: seatC } = await newPlayer(c, 'mirc');
+  await found(c, villageSpots(seatC.landscape).dwelling, 'Dalibor');
+  const idC = await houseIdOf(emailC);
+
+  // ochrana vyprší a A opoví válku C
+  await query(
+    `UPDATE house SET created_at = now() - interval '30 days' WHERE ended_at IS NULL`,
+    [],
+  );
+  const panelA = await openHousePanel(a);
+  const bar = await pickPlayer(panelA, idC);
+  await bar.getByTestId('house-war').click();
+  await panelA.getByTestId('terms-submit').click();
+  await expect(a.getByTestId('war-count')).toHaveAttribute('data-wars', '1', { timeout: 30_000 });
+
+  // C nabídne mír s poplatkem 4 kg obilí, který zaplatí sám
+  await pollVillage(c);
+  await expect(c.getByTestId('war-count')).toHaveAttribute('data-wars', '1', { timeout: 30_000 });
+  await c.getByTestId('war-toggle').click();
+  await c.getByTestId('war-offer-peace').click();
+  await c.getByTestId('peace-fee').fill('4');
+  await c.getByTestId('peace-send').click();
+
+  // A vidí mírové jednání a přijme
+  const panelA2 = await reopenHousePanel(a);
+  const card = panelA2.getByTestId('house-negotiation');
+  await expect(card).toHaveAttribute('data-my-turn', 'true');
+  await expect(card.getByTestId('term-row-peace')).toBeVisible();
+  await panelA2.getByTestId('negotiation-accept').click();
+  await expect(panelA2.getByTestId('house-negotiation')).toHaveCount(0);
+
+  // válka skončila mírem, C má otevřený dialog poplatku
+  const wars = await query<{ status: string }>(`SELECT status FROM war`, []);
+  expect(wars).toEqual([{ status: 'peace' }]);
+  const dialogs = await query<{ kind: string }>(
+    `SELECT kind FROM dialog WHERE status = 'open' AND player_id = (SELECT player_id FROM house WHERE id = $1)`,
+    [idC],
+  );
+  expect(dialogs).toEqual([{ kind: 'fee-send' }]);
+  await pollVillage(c);
+  await expect(c.getByTestId('village-notice').filter({ hasText: 'Mír s' })).toBeVisible({
+    timeout: 60_000,
+  });
+  await Promise.all(ctxs.map((ctx) => ctx.close()));
+});

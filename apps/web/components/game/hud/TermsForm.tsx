@@ -618,6 +618,26 @@ function WarDemandRow({ item, label, context }: TermRowProps): ReactElement {
   );
 }
 
+/** Podmínky míru (jen ke čtení): pečeť a vnořené řádky poplatku, tributu, vazalství, postoupení. */
+function PeaceRow({ item, label }: TermRowProps): ReactElement {
+  if (item.kind !== 'peace') return <span />;
+  const parts: string[] = [];
+  if (item.fee) parts.push(`poplatek ${Math.round(item.fee.grainKg)} kg obilí`);
+  if (item.tribute) parts.push(`tribut ${Math.round(item.tribute.goods.grainKg)} kg obilí ročně`);
+  if (item.vassalage) parts.push('vazalství');
+  if (item.cede?.length) parts.push(`postoupení vsí: ${item.cede.length}`);
+  return (
+    <div data-testid="term-row-peace" className="flex items-center gap-1">
+      <Tooltip content={label}>
+        <span tabIndex={0} aria-label={label} className="inline-flex items-center gap-1">
+          <HouseIcon name="seal" size={20} />
+        </span>
+      </Tooltip>
+      <span className="text-xs">{parts.length > 0 ? parts.join(', ') : 'mír bez podmínek'}</span>
+    </div>
+  );
+}
+
 /** Registr řádků podle druhu podmínky. */
 export const TERM_ROWS: Record<TermItem['kind'], TermRowComponent> = {
   oath: OathRow,
@@ -632,6 +652,7 @@ export const TERM_ROWS: Record<TermItem['kind'], TermRowComponent> = {
   stewardship: StewardshipRow,
   'village-gift': VillageGiftRow,
   'war-demand': WarDemandRow,
+  peace: PeaceRow,
 };
 
 /** Řádky podmínek (formulář i karta jednání); `onRemove` přidá křížek u řádků bez přísahy. */

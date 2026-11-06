@@ -100,6 +100,7 @@ function textOf(n: PlayerNotice): string {
       const years = typeof n.payload.years === 'number' ? n.payload.years : 1;
       if (n.payload.loan === true) return `Čas splátky – ${lord} čeká splátku půjčky.`;
       if (n.payload.trade === true) return `Obchod s ${lord} – čeká odeslání zboží.`;
+      if (n.payload.peace === true) return `Mír s ${lord} – čeká odeslání zboží.`;
       return years > 1
         ? `Odvody pánu ${lord} čekají už ${years} roky.`
         : `Čas odvodů – pán ${lord} čeká dávku.`;

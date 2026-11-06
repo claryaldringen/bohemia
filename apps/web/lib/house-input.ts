@@ -8,6 +8,7 @@ import {
   type MacroBundle,
   type MacroGoods,
   type TermItem,
+  type VassalTerms,
 } from '@bohemia/game';
 
 // Vstup server actions panelu „Rod a vazalové“ – jen tvar, kód ověří až use-case.
@@ -184,11 +185,87 @@ export function parseTermItems(input: unknown): TermItem[] | null {
         items.push({ kind: 'loan', bundle, fromVillageId, ...target, schedule });
         break;
       }
+      case 'peace': {
+        const line = parsePeace(row);
+        if (line === null) return null;
+        items.push(line);
+        break;
+      }
       default:
         return null;
     }
   }
   return items;
+}
+
+/** Id rodu z `payer` – chybí = undefined, špatný tvar = null. */
+function optionalId(input: unknown): string | undefined | null {
+  return input === undefined ? undefined : idOf(input);
+}
+
+/** Podmínky míru z klienta (tvar; meze a vlastnictví vsí ověřuje server v doméně a use-casu). */
+function parsePeace(row: Record<string, unknown>): TermItem | null {
+  const line: Extract<TermItem, { kind: 'peace' }> = { kind: 'peace' };
+  if (row.fee !== undefined) {
+    const fee = parseBundle(row.fee);
+    const payer = optionalId(row.payer);
+    if (fee === null || !payer) return null;
+    line.fee = fee;
+    line.payer = payer;
+  }
+  if (row.tribute !== undefined) {
+    const t = row.tribute as { goods?: unknown; payer?: unknown } | null;
+    const goods = t ? parseBundle(t.goods) : null;
+    const payer = t ? idOf(t.payer) : null;
+    if (goods === null || payer === null) return null;
+    line.tribute = { goods, payer };
+  }
+  if (row.vassalage !== undefined) {
+    const v = row.vassalage as { lord?: unknown; vassal?: unknown; terms?: unknown } | null;
+    const lord = v ? idOf(v.lord) : null;
+    const vassal = v ? idOf(v.vassal) : null;
+    const terms = v ? parseTerms(v.terms) : null;
+    if (lord === null || vassal === null || terms === null) return null;
+    line.vassalage = { lord, vassal, terms };
+  }
+  if (row.cede !== undefined) {
+    if (!Array.isArray(row.cede) || row.cede.length > 16) return null;
+    const ids = (row.cede as unknown[]).map(idOf);
+    if (ids.some((i) => i === null)) return null;
+    line.cede = ids as string[];
+  }
+  if (row.releasePrisoners !== undefined) {
+    if (!Array.isArray(row.releasePrisoners) || row.releasePrisoners.length > 64) return null;
+    const ids = (row.releasePrisoners as unknown[]).map(idOf);
+    if (ids.some((i) => i === null)) return null;
+    line.releasePrisoners = ids as string[];
+  }
+  return line;
+}
+
+/** Podmínky vazalství v míru: jen dávka a odměna (svazky), služba; ostatní řádky se zahodí. */
+function parseTerms(input: unknown): VassalTerms | null {
+  if (typeof input !== 'object' || input === null) return null;
+  const raw = input as Record<string, unknown>;
+  const terms: VassalTerms = {};
+  if (raw.tribute !== undefined) {
+    const b = parseBundle(raw.tribute);
+    if (b === null) return null;
+    terms.tribute = b;
+  }
+  if (raw.reward !== undefined) {
+    const b = parseBundle(raw.reward);
+    if (b === null) return null;
+    terms.reward = b;
+  }
+  if (raw.service !== undefined) {
+    const sv = raw.service as { men?: unknown; days?: unknown } | null;
+    const men = sv ? num(sv.men) : null;
+    const days = sv ? num(sv.days) : null;
+    if (men === null || days === null) return null;
+    terms.service = { men, days };
+  }
+  return terms;
 }
 
 /** Zboží splátky (makrokomodity bez lidí a roboty): všechna pole čísla, jinak null. */

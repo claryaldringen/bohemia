@@ -1581,7 +1581,16 @@ export function VillageGame({
             onSignOut={signOut}
           />
         )}
-        {warOpen && !menuShown && <WarPanel view={house} onClose={closeWar} />}
+        {warOpen && !menuShown && (
+          <WarPanel
+            view={house}
+            error={houseError}
+            onClose={closeWar}
+            onOfferPeace={(to, items, message) =>
+              negotiate(() => openNegotiation({ to, items, message }))
+            }
+          />
+        )}
         {houseOpen && !menuShown && (
           <HousePanel
             view={house}

@@ -188,11 +188,17 @@ function LevyRow({
               ? 'Splátka půjčky'
               : dialog.kind === 'trade-send'
                 ? 'Obchod'
-                : 'Roční dávka'
+                : dialog.kind === 'fee-send'
+                  ? 'Poplatek z míru'
+                  : dialog.kind === 'tribute-send'
+                    ? 'Tribut z míru'
+                    : 'Roční dávka'
           }
         >
           <span tabIndex={0} data-testid={`${testId}-kind`} className="inline-flex">
-            {dialog.kind === 'trade-send' ? (
+            {dialog.kind === 'trade-send' ||
+            dialog.kind === 'fee-send' ||
+            dialog.kind === 'tribute-send' ? (
               <img src="/icons/resources/cart.png" alt="" width={22} height={22} />
             ) : (
               <HouseIcon name={dialog.kind === 'repay' ? 'loan' : 'banner'} size={22} />

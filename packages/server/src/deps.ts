@@ -22,6 +22,7 @@ import {
   type Database,
   type PlayerLockOptions,
 } from '@bohemia/db';
+import { cedeVillages, checkCede, type CedeHooks } from '@bohemia/game';
 import type {
   ActivityRepository,
   ShipmentRepository,
@@ -118,6 +119,8 @@ export interface GameDeps {
   wars: WarRepository;
   /** Konec rodu přes `endHouse` (odúmrť) – dopočet rodu ho použije při konci hry. */
   ending: NonNullable<DynastyDeps['ending']>;
+  /** Postoupení vsí v míru (`docs/code/war.md` – Mírové jednání). */
+  cede: CedeHooks;
   /** Kryptografická náhoda pro kódy pozvánek. */
   random: RandomSource;
   /** Adresář rodů – veřejný rodokmen cizích rodů (`housesNear`). */
@@ -153,8 +156,11 @@ export function createGameDeps(
   const escheats = createEscheatRepository(db);
   const wars = createWarRepository(db);
   const now = (): Date => new Date();
+  const settlements = createSettlementRepository(db);
+  const villages = cachedVillages(createVillageRepository(db));
+  const cedeDeps = { houses, settlements, villages, locks: options.locks };
   return {
-    settlements: createSettlementRepository(db),
+    settlements,
     houses,
     notices: createNoticeRepository(db),
     invites: createInviteRepository(db),
@@ -179,10 +185,14 @@ export function createGameDeps(
       wars,
       now,
     },
+    cede: {
+      check: (parties, villageIds) => checkCede(cedeDeps, parties, villageIds),
+      apply: (input) => cedeVillages(cedeDeps, input),
+    },
     random: cryptoRandom(),
     worldDirectory: createWorldDirectory(db),
     now,
-    villages: cachedVillages(createVillageRepository(db)),
+    villages,
     landscapes: options.landscapes,
     pause: options.pause,
     seeds: seeds(),
