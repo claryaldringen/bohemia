@@ -408,14 +408,15 @@ function walkOf(r: Route): number {
 
 /**
  * Trasa z `a` do `b` rovně po suchu, která obchází domy: když úsečka protne dům, vloží se bod
- * stranou od domu (až třikrát). Když trasa vede vodou, hrobem nebo domem, null.
+ * stranou od domu (až třikrát). Stěnou opevnění mimo bránu nejde – objížďkou přes bránu
+ * (`VillagerPaths.gates`). Když trasa vede vodou, hrobem nebo domem, null.
  */
 export function straightRoute(
-  ctx: Pick<Context, 'houses' | 'ground' | 'graves'>,
+  ctx: Pick<Context, 'houses' | 'ground' | 'graves'> & { paths?: VillagerPaths | null },
   a: Point,
   b: Point,
 ): Route | null {
-  let points: Point[] = [a, b];
+  let points: Point[] = [a, ...(ctx.paths?.gates?.(a, b) ?? []), b];
   for (let pass = 0; pass < 4; pass++) {
     const next: Point[] = [points[0]!];
     let changed = false;

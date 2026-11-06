@@ -15,6 +15,7 @@ import type { PathPoint, PathVillage } from '../network-types';
 import { routePaths } from '../route-paths';
 import { storedRoutes } from '../routes';
 import { pathFortificationsOf } from '../village';
+import { WALL_CLIMB_M } from '../walk-walls';
 import {
   walkGraph,
   walkingDistances,
@@ -168,5 +169,35 @@ describe('chodci a opevnění – jen branou (fortifications.md – Brány)', ()
     const plain = walkGraph(lines, { roads: [road], ground: PLAIN_GROUND });
     const before = walkingRoute(plain, { x: 20, z: -12 }, { x: 20, z: -68 }, PLAIN_GROUND);
     expect(before.cost).toBeLessThan(route.cost);
+  });
+
+  it('bez pěšiny na straně cíle – rovně objížďkou přes bránu, ne přes zeď', () => {
+    const graph = walkGraph([], { ground: GROUND });
+    for (const [from, to] of [
+      [HOME, FIELD],
+      [FIELD, HOME],
+      [
+        { x: 20, z: 20 },
+        { x: 20, z: 45 },
+      ],
+    ] as const) {
+      const route = walkingRoute(graph, from, to, GROUND);
+      expect(wallHits(route.points, WALLS.walls)).toEqual([]);
+      expect(wallHits(route.points, WALLS.gates).length).toBeGreaterThan(0);
+      expect(route.cost).toBeLessThan(WALL_CLIMB_M);
+      expect(route.costs.reduce((a, b) => a + b, 0)).toBeCloseTo(route.cost, 6);
+      expect(walkingDistances(graph, [from], [to], GROUND)[0]).toBe(route.cost);
+    }
+  });
+
+  it('opevnění bez brány – přes zeď jen jako poslední záchrana (s přirážkou)', () => {
+    const closed = withFortWalk(
+      PLAIN_GROUND,
+      pathFortificationsOf({ fortifications: [fort([])], constructions: [] }, LANDSCAPE),
+    );
+    const graph = walkGraph([], { ground: closed });
+    const route = walkingRoute(graph, HOME, FIELD, closed);
+    expect(route.cost).toBeGreaterThanOrEqual(WALL_CLIMB_M);
+    expect(walkingDistances(graph, [HOME], [FIELD], closed)[0]).toBe(route.cost);
   });
 });
