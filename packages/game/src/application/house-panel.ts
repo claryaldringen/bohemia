@@ -275,7 +275,9 @@ export async function housePanel(
     shield: serviceMen(publicOf(houseId)),
   });
   const status: HousePanelData['status'] = {};
-  for (const id of [...lordIds, ...vassalIds]) status[id] = statusOf(id);
+  // hlad vidí jen pán u svých vazalů (vassalage.md – Co hráč vidí); u pánů jen štít
+  for (const id of lordIds) status[id] = { ...statusOf(id), hunger: null };
+  for (const id of vassalIds) status[id] = statusOf(id);
 
   const agreements = vassalages.map((v): PanelAgreement => {
     const mine = v.lordHouseId === own.id;

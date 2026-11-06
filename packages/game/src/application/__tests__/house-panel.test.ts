@@ -152,6 +152,13 @@ describe('housePanel', () => {
     // štít vlastního rodu: muži od 16 let
     expect(data.own?.shield).toBe(2);
     expect(data.status[child.id]).toMatchObject({ shield: 1 });
+
+    // vazal nevidí hlad svého pána – jen štít
+    for (const e of hungry.entries) {
+      if (e.house.id === me.id) (e.digests[0]!.digest as { hunger: string }).hunger = 'starving';
+    }
+    const childView = await housePanel(deps, { playerId: 'child', today: TODAY });
+    expect(childView.status[me.id]).toEqual({ hunger: null, shield: 2 });
   });
 
   it('pozvánky: volná místa, využitá s rozehraným pozvaným', async () => {
