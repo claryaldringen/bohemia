@@ -698,6 +698,188 @@ def icon_ohrada():
     camera(pts + [Vector((-1.0, -0.2, 2.9))], az=20, el=40, margin=1.05, shift=(0, 0.01))
 
 
+# ---------------------------------------------------------------- opevnění ----
+
+FORT = os.path.join(ROOT, "apps/web/public/models/fortifications")
+RAMPART_DITCH, RAMPART_FOOT, RAMPART_DEPTH, RAMPART_HEIGHT = 4.0, 6.0, 1.5, 2.0  # rampart-mesh.ts, rules
+
+
+def fort_parts():
+    """Díly opevnění z `fortifications.glb` podle jména (originály se skryjí, kopie dělá `inst`)."""
+    parts = {}
+    for o in place_model("fortifications", folder=FORT):
+        parts[o.name.split(".")[0]] = o
+        o.hide_render = True
+    return parts
+
+
+def inst(src, loc, rot=0.0, scale=1.0, tilt=(0.0, 0.0)):
+    o = src.copy()
+    bpy.context.collection.objects.link(o)
+    o.parent = None
+    o.hide_render = False
+    o.matrix_world = (
+        Matrix.Translation(loc)
+        @ Euler((tilt[0], tilt[1], rot)).to_matrix().to_4x4()
+        @ Matrix.Scale(scale, 4)
+        @ src.matrix_world
+    )
+    return o
+
+
+def palisade_run(parts, path, rng, gap=None, sink=0.0):
+    """Kůly palisády hustě vedle sebe podél lomené čáry; `gap(x, y)` vynechá průchod."""
+    stakes = [parts["stake-a"], parts["stake-b"], parts["stake-c"]]
+    n = 0
+    for i, (x, y) in enumerate(path):
+        if gap and gap(x, y):
+            continue
+        j = min(i + 1, len(path) - 1)
+        k = max(i - 1, 0)
+        rot_dir = math.atan2(path[j][1] - path[k][1], path[j][0] - path[k][0])
+        inst(stakes[rng.randrange(3)], (x, y, sink), rot=rot_dir + rng.uniform(-0.3, 0.3), scale=rng.uniform(0.9, 1.08),
+             tilt=(rng.uniform(-0.03, 0.03), rng.uniform(-0.03, 0.03)))
+        n += 1
+    return n
+
+
+def front_corner_path(x0, x1, y0, y1, r, step):
+    """Čelní stěna, zakulacený roh a pravá stěna z obvodu obdélníku (jen úsek, jako výřez z opevnění)."""
+    pts = rounded_path(x0, y0, x1, y1, r, step)
+    keep = [p for p in pts if p[0] >= x0 + r - 0.01 and p[1] <= y1 - r + 0.01]
+    # pořadí od levého konce čelní stěny přes roh nahoru
+    return sorted(keep, key=lambda p: (0 if p[1] <= y0 + r else 1, p[0] if p[1] <= y0 + r and p[0] < x1 - r else 0, p[1]))
+
+
+def earth_ground(radius, hfn, tint=(0.8, 0.82, 0.62)):
+    """Zem s výškovým polem (příkop a násep): ground() dá materiál s mizejícím okrajem, síť je hustá."""
+    o = ground(radius, mat("g", tex=f"{TEX}/grass-dirt.jpg", scale=0.22, tint=tint), z=0.0, fade=0.62)
+    bm = bmesh.new()
+    n = 150
+    vs = []
+    for iy in range(n + 1):
+        row = []
+        for ix in range(n + 1):
+            x = -radius + 2 * radius * ix / n
+            y = -radius + 2 * radius * iy / n
+            row.append(bm.verts.new((x, y, hfn(x, y))))
+        vs.append(row)
+    for iy in range(n):
+        for ix in range(n):
+            bm.faces.new((vs[iy][ix], vs[iy][ix + 1], vs[iy + 1][ix + 1], vs[iy + 1][ix]))
+    bm.to_mesh(o.data)
+    bm.free()
+    for p in o.data.polygons:
+        p.use_smooth = True
+    return o
+
+
+def rampart_profile(d):
+    """Výška země ve vzdálenosti `d` od vnějšího okraje: příkop (do -1,5 m), pak násep (2 m)."""
+    if d < 0 or d > RAMPART_DITCH + RAMPART_FOOT:
+        return 0.0
+    if d < RAMPART_DITCH:
+        return -RAMPART_DEPTH * math.sin(math.pi * d / RAMPART_DITCH) ** 1.4 * 0.95
+    t = (d - RAMPART_DITCH) / RAMPART_FOOT
+    return RAMPART_HEIGHT * math.sin(math.pi * t) ** 1.2
+
+
+def icon_opevneni():
+    """Opevnění (fortifications.md): úsek palisády se zakulaceným rohem a bránou z prken na vyšlapané zemi."""
+    rng = random.Random(11)
+    parts = fort_parts()
+    x0, x1, y0, y1, r = -4.6, 4.4, -2.8, 4.6, 2.4
+    earth_ground(8.6, lambda x, y: 0.0)
+    path = front_corner_path(x0, x1, y0, y1, r, 0.27)
+    gx = -0.4
+
+    def gap(x, y):
+        return abs(y - y0) < 0.05 and abs(x - gx) < 1.95
+
+    palisade_run(parts, path, rng, gap)
+    for s in (-1, 1):
+        inst(parts["gate-post"], (gx + s * 2.05, y0, 0))
+    inst(parts["gate-beam"], (gx, y0, 0))
+    inst(parts["gate-planks"], (gx, y0, 0))
+    inst(parts["gate-planks"], (gx, y0, 0), rot=math.pi)
+    sun(az=-55, el=44)
+    pts = [Vector((-4.8, -3.4, 0)), Vector((4.8, 5.0, 0)), Vector((-4.8, 5.0, 0)), Vector((4.8, -3.4, 0)), Vector((gx, y0, 4.0))]
+    camera(pts, az=22, el=40, margin=0.98, shift=(0, 0.0))
+
+
+def icon_fort_palisade():
+    """Druh opevnění palisáda: lehce zakřivená řada špičatých kůlů."""
+    rng = random.Random(4)
+    parts = fort_parts()
+    path = [(math.cos(a) * 7.0 - 3.5, math.sin(a) * 7.0 - 3.0) for a in [math.radians(t) for t in range(-52, -4, 1)]]
+    # hustota: kůl na ~0.27 m
+    out, acc = [path[0]], 0.0
+    for a, b in zip(path, path[1:]):
+        acc += math.hypot(b[0] - a[0], b[1] - a[1])
+        if acc >= 0.27:
+            out.append(b)
+            acc = 0.0
+    palisade_run(parts, out, rng)
+    sun(az=-45, el=40, strength=4.2)
+    camera([Vector((-1.5, -7.5, 0)), Vector((3.0, -1.5, 3.8)), Vector((3.0, -7.5, 0)), Vector((-1.5, -1.5, 0))], az=0, el=30, margin=1.04)
+    return True
+
+
+def icon_fort_fence():
+    """Druh opevnění pletený plot: kůly s proplétanými pruty v mírném oblouku."""
+    posts, rods = bmesh.new(), bmesh.new()
+    path = [(math.cos(a) * 6.0 - 3.0, math.sin(a) * 6.0 - 3.0) for a in [math.radians(t) for t in range(-52, -8, 2)]]
+    for i, (x, y) in enumerate(path):
+        if i % 2 == 0:
+            cyl(posts, (x, y, -0.05), (x, y, 1.55), 0.09, 0.065, 6)
+    for lv in range(10):
+        z = 0.14 + lv * 0.14
+        run = []
+        for i, (x, y) in enumerate(path):
+            j = min(i + 1, len(path) - 1)
+            k = max(i - 1, 0)
+            dx, dy = path[j][0] - path[k][0], path[j][1] - path[k][1]
+            ln = math.hypot(dx, dy) or 1
+            off = 0.07 * math.sin((i / 2.0) * math.pi + (lv % 2) * math.pi)
+            run.append((x - dy / ln * off, y + dx / ln * off, z))
+        for a, b in zip(run, run[1:]):
+            cyl(rods, a, b, 0.06, 0.06, 5)
+    to_obj(posts, "posts", mat("wood", (0.42, 0.29, 0.17), 0.9, noise=25, bump=0.3))
+    to_obj(rods, "rods", mat("wicker", (0.55, 0.4, 0.22), 0.9, noise=60, bump=0.5))
+    sun(az=-45, el=40, strength=4.2)
+    camera([Vector((-1.0, -6.4, 0)), Vector((3.0, -2.0, 1.7)), Vector((3.0, -6.4, 0)), Vector((-1.0, -2.0, 0))], az=0, el=30, margin=1.04)
+    return True
+
+
+def icon_fort_rampart():
+    """Druh opevnění val: výsek země s příkopem a náspem, řez vpředu (profil 4 m / 1,5 m a 6 m / 2 m)."""
+    L, X0, X1 = 3.2, -2.5, 6.5
+    bm = bmesh.new()
+    xs = [X0 + i * 0.1 for i in range(int((X1 - X0) / 0.1) + 1)]
+    prof = [(x, rampart_profile(x)) for x in xs]
+    base = -0.9
+    ymin, ymax = -L / 2, L / 2
+    top0 = [bm.verts.new((x, ymin, h)) for x, h in prof]
+    top1 = [bm.verts.new((x, ymax, h)) for x, h in prof]
+    for i in range(len(xs) - 1):
+        bm.faces.new((top0[i], top0[i + 1], top1[i + 1], top1[i]))
+    bl0, br0 = bm.verts.new((X0, ymin, base)), bm.verts.new((X1, ymin, base))
+    bl1, br1 = bm.verts.new((X0, ymax, base)), bm.verts.new((X1, ymax, base))
+    bm.faces.new([bl0, br0] + top0[::-1])  # čelní řez
+    bm.faces.new([bl1] + top1 + [br1])  # zadní stěna
+    bm.faces.new((bl0, bl1, top1[0], top0[0]))
+    bm.faces.new((br0, top0[-1], top1[-1], br1))
+    bm.faces.new((bl0, bl1, br1, br0))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    o = to_obj(bm, "rampart", mat("earth", tex=f"{TEX}/mud.jpg", scale=0.3, tint=(0.95, 0.78, 0.6)), smooth=False)
+    o.data.materials.append(mat("turf", tex=f"{TEX}/grass-lush.jpg", scale=0.3, tint=(0.8, 0.85, 0.6)))
+    for poly in o.data.polygons:  # horní plocha je drn, řez a stěny holá hlína
+        poly.material_index = 1 if poly.normal.z > 0.3 and abs(poly.normal.y) < 0.9 else 0
+    sun(az=-45, el=40, strength=4.2)
+    camera([Vector((X0, -L / 2, base)), Vector((X1, L / 2, 2.2)), Vector((X0, L / 2, base)), Vector((X1, -L / 2, base))], az=-18, el=30, margin=1.0)
+    return True
+
+
 # --------------------------------------------------------------- suroviny ----
 
 
@@ -2673,6 +2855,7 @@ BUILD = {
     "sous": icon_sous,
     "haj": icon_haj,
     "ohrada": icon_ohrada,
+    "opevneni": icon_opevneni,
     "cesta": lambda: icon_road("cesta"),
     "cesta-vyjezdena": lambda: icon_road("cesta-vyjezdena"),
     "cesta-vozova": lambda: icon_road("cesta-vozova"),
@@ -3110,6 +3293,9 @@ def icon_dearth():
 
 
 RESOURCES = {
+    "fort-fence": icon_fort_fence,
+    "fort-palisade": icon_fort_palisade,
+    "fort-rampart": icon_fort_rampart,
     "food": icon_food,
     "skill": icon_skill,
     "wood": icon_wood,
