@@ -670,6 +670,27 @@ accept | reject | withdraw | counter, items?, message? })`, `blockHouse({ target
 - Testy: `lib/__tests__/terms-view.test.ts`, `hud/__tests__/TermsForm.behavior.test.tsx`,
   `HousePanel.behavior.test.tsx`; e2e `multiplayer.spec.ts` (podmínky, nové podmínky, vypovězení).
 
+## Dialog Odvody (úloha 4.4, `hud/LevyDialog.tsx`, `lib/levies.ts`)
+
+Panel vpravo nahoře (`role="dialog"`, název „Odvody“, `data-testid="levy-dialog"`), jádro v [vassalage.md](vassalage.md) –
+Roční Odvody. Otevírá se z upozornění `levy-pending` (`noticePanel` → `'levy'`, ostatní upozornění z jednání dál `'house'`)
+a pečetí `house-levy-open` v panelu „Rod a vazalové“ (u pána s čekajícím dialogem). `VillageGame` při otevření zavolá server
+action `levyDialogs()` (rozdělení po vsích se počítá až tehdy, ne s dotazem na ves), odeslání jde přes `answerLevy`.
+
+- **Řádek na pána** (`levy-<dialogId>`): prapor, jméno pána, u dialogu starého víc let přesýpací hodiny. Zboží s domluveným
+  číslem má ikonu, **posuvník** (0 až dvojnásobek domluveného – víc smí) a číslo „odvádím / domluveno“; součet je vždy
+  součet přes vsi. Posuvník přerozdělí součet mezi vsi podle dosavadních dílů (`redistribute` – celá čísla, zbytek po
+  největších zlomcích; samé nuly → návrh serveru, pak rovným dílem). Při víc než jedné vsi rodu je pod posuvníkem číselné
+  políčko na ves (předvyplněné `suggested`); úprava vsi změní součet.
+- **Vzkaz** je textové pole (`NEGOTIATION.messageMaxChars`), **Odeslat** je vůz (`resources/cart.png`, popisek v `Tooltip`).
+  Pošle `lines` (součet po zboží) a `split` – shodu hlídá server i konstrukce klienta. Po odeslání se tlačítko nahradí
+  vozem s dnem příjezdu v popisku; chyba serveru (např. nad mez dopravy) se ukáže v řádku a dialog zůstane otevřený.
+- **Pán:** `PanelAgreement.levyYears` (jádro `housePanel`, port `dialogs`) → u vazala v panelu přesýpací hodiny
+  (`house-levy-wait`); `HouseView.waiting` (pečeť v liště) počítá i vlastní čekající Odvody.
+- Testy: `hud/__tests__/LevyDialog.behavior.test.tsx` (posuvník, součet, Odeslat), `HousePanel.behavior.test.tsx`
+  (hodiny a pečeť), `house-panel.test.ts` (`levyYears`); e2e `e2e/multiplayer.spec.ts` – „Odvody 1. 11.“ (dialog se zapíše
+  přímo do `bohemia_test`, vsi se dopřeje `commonLaborYearly`, snímek do `LEVY_SCREENSHOT`).
+
 ## Seniorát v rozhraní (úloha 2.3, `hud/rights.tsx`)
 
 - **Práva z jádra:** `VillageView.rights = { allowed, reason }` (`VillageRightsView`) skládá `viewOf`

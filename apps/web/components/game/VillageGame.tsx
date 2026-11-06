@@ -61,6 +61,8 @@ import {
   blockHouse,
   houseSpare,
   renounceVassalage,
+  levyDialogs,
+  answerLevy,
 } from '@/app/game/actions';
 import { PanelOptionsContext, type PanelOptionsSource } from '@/hooks/use-panel-options';
 import type { PanelAsk, PanelOptions } from '@/lib/panel-options';
@@ -127,12 +129,14 @@ import { DefeatScreen } from './hud/DefeatScreen';
 import { JourneyBanner, PlayerDeparturePanel } from './hud/RelocationControls';
 import { GameMenu } from './hud/GameMenu';
 import { HousePanel } from './hud/HousePanel';
+import { LevyDialog } from './hud/LevyDialog';
 import { RightsProvider, rightDeniedReason } from './hud/rights';
 import { Minimap } from './hud/Minimap';
 import { LineNamePanel } from './hud/LineNamePanel';
 import { NoticeLines, type NoticeLine } from './hud/NoticeLines';
 import { SelectionPanel } from './hud/SelectionPanel';
 import type { HouseView } from '@/lib/house-view';
+import type { LevyDialogView } from '@bohemia/game';
 import { TopBar, type DevDisasterChoice } from './hud/TopBar';
 
 /** Stav vsi ze serveru: pohled na ves, ještě nezaložená (null), nebo chyba (svět neběží…). */
@@ -389,6 +393,27 @@ export function VillageGame({
     void refreshHouse();
   }, [refreshHouse]);
   const closeHouse = useCallback((): void => setHouseOpen(false), []);
+  // Dialog Odvody (úloha 4.4): rozdělení po vsích se počítá až při otevření
+  const [levyOpen, setLevyOpen] = useState(false);
+  const [levy, setLevy] = useState<LevyDialogView[] | null>(null);
+  const [levyError, setLevyError] = useState<string | null>(null);
+  const openLevy = useCallback(async (): Promise<void> => {
+    setMenuOpen(false);
+    setLevyError(null);
+    setLevyOpen(true);
+    try {
+      const result = await levyDialogs();
+      if ('error' in result) setLevyError(result.error);
+      else setLevy(result.dialogs);
+    } catch {
+      setLevyError(CONNECTION_FAILED);
+    }
+  }, []);
+  const closeLevy = useCallback((): void => {
+    setLevyOpen(false);
+    setLevy(null);
+    void refreshHouse();
+  }, [refreshHouse]);
   const issueHouseInvite = useCallback(async (): Promise<void> => {
     try {
       const result = await issueInvite();
@@ -476,8 +501,9 @@ export function VillageGame({
   const openNoticePanel = useCallback(
     (panel: NoticePanel): void => {
       if (panel === 'house') openHouse();
+      else void openLevy();
     },
-    [openHouse],
+    [openHouse, openLevy],
   );
   const showPlayerNotices = useCallback(
     (received: readonly PlayerNotice[] | undefined): void => {
@@ -1534,11 +1560,24 @@ export function VillageGame({
             onRenounce={(vassalageId, message) =>
               negotiate(() => renounceVassalage({ vassalageId, message }))
             }
+            onOpenLevy={() => void openLevy()}
             onClose={closeHouse}
             onSelectVillage={(villageId) => {
               const target = view?.villages.find((v) => v.id === villageId);
               if (target) switchVillage(target);
             }}
+          />
+        )}
+        {levyOpen && !menuShown && (
+          <LevyDialog
+            dialogs={levy}
+            error={levyError}
+            onAnswer={async (input) => {
+              const result = await answerLevy(input);
+              if ('ok' in result) void refreshHouse();
+              return result;
+            }}
+            onClose={closeLevy}
           />
         )}
         {view?.journey && <JourneyBanner journey={view.journey} />}

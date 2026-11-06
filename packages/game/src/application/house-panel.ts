@@ -5,6 +5,7 @@ import type { VassalTerms } from '../domain/vassalage/terms';
 import type { HungerLevel } from '../domain/village';
 import { INVITES, isInviteUnused } from '../domain/world';
 import type { ActivityRepository } from './activity';
+import type { DialogRepository } from './dialogs';
 import type { HouseRepository, PersonRef } from './houses';
 import type { InviteRepository } from './invites';
 import type { NegotiationRepository } from './negotiations';
@@ -76,6 +77,8 @@ export interface PanelAgreement {
   /** Zapsaná neplnění vazala (`addBreach`); pán je vidí u vazala. */
   breaches: number;
   sinceDay: number;
+  /** Čeká dialog Odvody k téhle dohodě (vazal ještě neodpověděl): za kolik let; jinak null. */
+  levyYears: number | null;
 }
 
 /** Rod ve stromu pod hráčem: kdo je vazalem koho, podmínky té dohody a ikony stavu. */
@@ -149,6 +152,7 @@ export interface HousePanelDeps {
   negotiations: NegotiationRepository;
   successionCredits: SuccessionCreditRepository;
   activity: ActivityRepository;
+  dialogs: DialogRepository;
   now: () => Date;
 }
 
@@ -279,6 +283,11 @@ export async function housePanel(
   for (const id of lordIds) status[id] = { ...statusOf(id), hunger: null };
   for (const id of vassalIds) status[id] = statusOf(id);
 
+  const levyYearsOf = new Map<string, number>();
+  for (const v of vassalages) {
+    const dialog = await deps.dialogs.openFor(v.id, 'levy');
+    if (dialog) levyYearsOf.set(v.id, dialog.years);
+  }
   const agreements = vassalages.map((v): PanelAgreement => {
     const mine = v.lordHouseId === own.id;
     return {
@@ -290,6 +299,7 @@ export async function housePanel(
       terms: v.terms,
       breaches: v.breaches,
       sinceDay: v.sinceDay,
+      levyYears: levyYearsOf.get(v.id) ?? null,
     };
   });
 

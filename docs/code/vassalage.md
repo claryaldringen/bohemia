@@ -200,3 +200,6 @@ Pravidla: [vassalage.md](../design/vassalage.md) – „Roční dialog 1. 11.“
   `answerLevy({ dialogId, lines: [{ good, amount }], split: { <villageId>: MacroBundle }, message? })` →
   `{ ok: true, arrivesDay } | { error }`. Kód: `apps/web/lib/levies.ts`, vstup `lib/house-input.ts`
   (`parseAnswerLevyInput`), texty `lib/levy-labels.ts`, `lib/player-notices.ts`.
+- **Rozhraní:** dialog `hud/LevyDialog.tsx`, popis v [web-ui.md](web-ui.md) – Dialog Odvody. `housePanel` nese u každé
+  dohody `PanelAgreement.levyYears` (otevřený dialog Odvody k vazalství – `dialogs.openFor(vazalství, 'levy')`; null =
+  nečeká), z toho přesýpací hodiny u vazala v panelu pána a pečeť v liště.
