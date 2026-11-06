@@ -57,6 +57,13 @@ async function main(): Promise<void> {
           credits: gameDeps.successionCredits,
           notices: gameDeps.notices,
           houses: gameDeps.houses,
+          levies: {
+            dialogs: gameDeps.dialogs,
+            vassalages: gameDeps.vassalages,
+            houses: gameDeps.houses,
+            notices: gameDeps.notices,
+            villages: gameDeps.villages,
+          },
           shipments: {
             shipments: gameDeps.shipments,
             villages: gameDeps.villages,

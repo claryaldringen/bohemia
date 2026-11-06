@@ -38,6 +38,8 @@ export type NewVassalage = Pick<
 
 /** Port repozitáře vazalství. */
 export interface VassalageRepository {
+  /** Všechna živá vazalství (roční Odvody 1. 11.). */
+  allActive(): Promise<Vassalage[]>;
   /** Živá vazalství rodu – jako pána i jako vazala. */
   activeOf(houseId: string): Promise<Vassalage[]>;
   /** Založí vazalství; mezi stejnými rody smí být živé jen jedno (druhé volání vrátí to první). */

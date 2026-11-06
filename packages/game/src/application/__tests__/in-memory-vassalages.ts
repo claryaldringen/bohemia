@@ -14,6 +14,10 @@ export class InMemoryVassalages implements VassalageRepository {
   readonly breachLog: { id: string; kind: BreachKind; day: number }[] = [];
   private nextId = 1;
 
+  async allActive(): Promise<Vassalage[]> {
+    return this.vassalages.filter((v) => v.endedAt === null);
+  }
+
   async activeOf(houseId: string): Promise<Vassalage[]> {
     return this.vassalages.filter(
       (v) => v.endedAt === null && (v.lordHouseId === houseId || v.vassalHouseId === houseId),

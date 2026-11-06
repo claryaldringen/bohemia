@@ -21,6 +21,13 @@ export type PlayerNoticeKind =
    * `message` (vzkaz vypovídajícího).
    */
   | 'vassalage-renounced'
+  /**
+   * Roční Odvody (úloha 4.4): pánovi dorazí odvod – payload `{ vassalName, parts, arrivesDay,
+   * years, message? }` (`parts` = `LevyPart[]`, jen odeslané řádky).
+   */
+  | 'levy-sent'
+  /** Vazalovi se otevřel dialog Odvody – payload `{ lordName, years }`. */
+  | 'levy-pending'
   /** Druhý rod tě zablokoval – payload `{ houseId, name }`. */
   | 'blocked';
 

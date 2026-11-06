@@ -1,4 +1,5 @@
 import { INVITES } from '../domain/world';
+import { openAnnualDialogs, type AnnualLevyDeps } from './annual-levies';
 import type { ActivityRepository } from './activity';
 import type { HouseRepository } from './houses';
 import type { InviteRepository } from './invites';
@@ -52,7 +53,10 @@ export async function grantSuccessionCredits(
 }
 
 /** Závislosti úloh světa; `shipments` jen tam, kde se zásilky obnovují (worker). */
-export type WorldTaskDeps = SuccessionCreditDeps & { shipments?: ShipmentDeps };
+export type WorldTaskDeps = SuccessionCreditDeps & {
+  shipments?: ShipmentDeps;
+  levies?: AnnualLevyDeps;
+};
 
 /**
  * Úlohy světa, které worker pouští jednou za minutu mezi koly: kredity nástupnictví a obnova
@@ -64,4 +68,5 @@ export async function runWorldTasks(
 ): Promise<void> {
   await grantSuccessionCredits(deps, input);
   if (deps.shipments) await reconcileShipments(deps.shipments, input.today);
+  if (deps.levies) await openAnnualDialogs(deps.levies, { today: input.today });
 }

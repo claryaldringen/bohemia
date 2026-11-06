@@ -24,6 +24,10 @@ function toVassalage(row: Row): Vassalage {
 export function createVassalageRepository(db: Executor): VassalageRepository {
   const alive = isNull(vassalage.endedAt);
   return {
+    async allActive(): Promise<Vassalage[]> {
+      const rows = await db.select().from(vassalage).where(alive);
+      return rows.map(toVassalage);
+    },
     async activeOf(houseId): Promise<Vassalage[]> {
       const rows = await db
         .select()

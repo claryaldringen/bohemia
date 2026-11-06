@@ -3,6 +3,7 @@
 import { boughtProducts, productList } from './village-view-types';
 import { Crop } from '@bohemia/game';
 import { accusativeOf } from './player-notices';
+import { LEVY_UNITS } from './levy-labels';
 import {
   paymentValueKg,
   type FloodLevel,
@@ -411,6 +412,8 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return `${event.vassal} se stal vazalem ${genitiveOf(event.lord)}.`;
     case 'vassalage-renounced':
       return `Vazalství mezi ${event.lord} (pán) a ${event.vassal} (vazal) skončilo vypovězením.`;
+    case 'levy':
+      return levyLine(event);
     case 'blocked':
       return `${event.blocker} zablokoval ${accusativeOf(event.blocked)}.`;
     case 'senior':
@@ -754,3 +757,13 @@ export const HARVEST_GOODS: Record<Crop | 'any', string> = {
   flax: 'lnu',
   any: 'obilí',
 };
+
+/** Věta kroniky o ročních Odvodech: „Ctibor odvedl pánu Bořivoji 100 z 150 kg obilí.“ */
+function levyLine(event: Extract<ChronicleEvent, { kind: 'levy' }>): string {
+  const parts = event.parts
+    .filter((p) => p.agreed > 0 || p.sent > 0)
+    .map((p) => `${p.sent} z ${p.agreed} ${LEVY_UNITS[p.good] ?? p.good}`);
+  const what = parts.length === 0 ? 'nic' : parts.join(', ');
+  const years = event.years > 1 ? ` (za ${event.years} roky)` : '';
+  return `${event.vassal} odvedl pánu ${event.lord}${years}: ${what}.`;
+}

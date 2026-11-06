@@ -95,6 +95,17 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'negotiation-accepted'; lord: string; vassal: string }
   /** Vazalství skončilo formálním vypovězením (jména hlav rodů; text je neutrální, bez viníka). */
   | { kind: 'vassalage-renounced'; lord: string; vassal: string }
+  /**
+   * Roční Odvody (vassalage.md – Roční dialog 1. 11.): vazal `vassal` odvedl pánovi `lord` řádky
+   * `parts` (odvedeno z domluveného; `good` je řádek Odvodů – `LevyGood`, `years` – za kolik let).
+   */
+  | {
+      kind: 'levy';
+      lord: string;
+      vassal: string;
+      years: number;
+      parts: { good: string; sent: number; agreed: number }[];
+    }
   /** Rod `blocker` zablokoval rod `blocked` (vassalage.md – Meze); zapisuje se do kronik obou. */
   | { kind: 'blocked'; blocker: string; blocked: string }
   /** Vedlejší manželka odešla z přeplněného dvorce do vlastního domu (lord.md – Manželky). */
