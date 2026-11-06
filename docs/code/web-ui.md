@@ -804,3 +804,21 @@ staví až na hotovém.`, `Val už nástavbu má.`), ikona brány (`aria-pressed
   řádek „Svěřit správu vsi“ s výběrem své vsi (`term-stewardship-select`); `lib/house-input.ts` ho parsuje.
 - Server: akce správce jdou stejnými server actions jako vlastní (`actOn` → `guardedAction`); právo i zámek
   řeší `lib/village.ts`, viz [vassalage.md](vassalage.md) – Správa cizí vsi.
+
+## Panel Vojsko (úloha 6.6, `hud/ArmyPanel.tsx`, `lib/army.ts`, `lib/army-view.ts`, `lib/army-input.ts`)
+
+Textový panel bez mapy (Martin 2. 11. 2026 – výjimka z „bez popisků“). Vstup: tlačítko **Vojsko**
+(`manor-army`, ikona boje) v `ManorUpgrades` (`ManorPanel.tsx`) vedle stezky, lovu a obchodu; zašedlé
+bez práva `war` (`useRightDenied`) – ves bere z `VillageIdProvider` (`hud/rights.tsx`, nastavuje
+`VillageGame`). Volání serveru dostává panel z `ArmyActionsContext` (`hooks/use-army.ts`), takže
+se vykreslí i v testech bez serveru.
+
+- Server actions `getArmyPanel`, `planArmyCampaign`, `launchArmyCampaign` (`app/game/actions.ts`,
+  vstup `lib/army-input.ts`); data panelu `armyPanelForPlayer` (`lib/army.ts`): vsi rodu (muži rodu
+  způsobilí tažení, počet způsobilých vesničanů; s vybraným cílem dobrovolníci a ochotní / neochotní),
+  cíle = vsi rodů ve válce, hráčův muž.
+- Panel: cíl, velitel (výchozí hráčův muž), zástupce, shromaždiště, u každé vsi muži rodu zaškrtávátkem
+  a počty dobrovolníků a nucených, skupiny, rozkaz ke vzdaným, jídlo; odhad síly a cesty se po
+  každé změně ptá serveru (`planCampaign`, odpověď nebo důvod červeně), **Vyslat** je zašedlé bez
+  odhadu. Ověření a pravidla jsou na serveru – panel posílá jen plán (`war.md` kód – Ú6.6).
+- Testy: e2e `multiplayer.spec.ts` (vojsko); serverové `action-rights.test.ts` hlídá klíče práv.

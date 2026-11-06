@@ -96,6 +96,9 @@ export const ACTION_RIGHTS = {
   renameVillage: 'steward',
   forceDevDisaster: 'steward',
   sendExpedition: 'trade',
+  // vojsko a tažení (war.md) – jen držitel vlastní vsi; správce cizí vsi válčit nesmí
+  planCampaign: 'war',
+  launchCampaign: 'war',
 } as const satisfies Record<string, VillageRight>;
 
 /** Jméno akce nad vsí. */

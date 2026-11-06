@@ -40,6 +40,8 @@ export interface CampaignMember {
   vigor: number;
   /** Pěší raněný – zpomalí skupinu (war.md – Ztráty); nastaví boj (Ú6.8). */
   wounded: boolean;
+  /** Má v cílové vsi blízké příbuzné – dezertuje častěji a cíl varuje (war.md – Vojsko). */
+  kin?: true;
   /** Id skupiny (`CampaignGroup.id`). */
   group: number;
   status: CampaignMemberStatus;
@@ -89,6 +91,9 @@ export interface CampaignSupplies {
   foodKg: number;
 }
 
+/** Rozkaz ke vzdaným (war.md – Velení, bod 8): pobít / odvést / nechat; zapojí Ú6.11. */
+export type SurrenderOrder = 'kill' | 'lead' | 'leave';
+
 /** Kořist (war.md – Kořist; plní Ú6.10). Stádo zpomalí skupinu (`marchSpeed`). */
 export interface CampaignLoot {
   foodKg: number;
@@ -122,6 +127,8 @@ export interface CampaignState {
   loot: CampaignLoot;
   /** Odvedení a zajatí (Ú6.10, Ú6.11). */
   captives: PersonRef[];
+  /** Co se vzdanými (u tažení vedeného NPC rozkaz, u živého vedení výchozí volba). */
+  surrendered?: SurrenderOrder;
   /** Velí hráčův muž – hráč vede živě (war.md – Velení). */
   liveCommand: boolean;
   /** Objevené stavby cílové vsi (Ú6.14 – mlha války). */

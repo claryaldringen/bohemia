@@ -36,6 +36,22 @@ export const WAR = {
   /** war.md – Čísla: jídlo (kg obilí na muže a den) a nosnost (kg). */
   foodKgPerManDay: 1,
   carryKg: { man: 25, horse: 80, cart: 400, child: 10 },
+  /**
+   * war.md – Vojsko: kdo smí na tažení (muži od 16 let; vesničané 16–44 let), kdo se přihlásí
+   * (≈ 30 % + 0,5 % za bod štěstí nad 50, hladová ves víc – kořist, čerstvě vdovská domácnost méně)
+   * a dezerce nucených (≈ 5 % denně, s příbuznými v cíli ≈ 15 %). Nařídit muži útok na jeho
+   * příbuzné sníží štěstí vsi o 5 na rok za každého (Martin 18. 10. 2026; čísla návrh Clauda).
+   */
+  army: { minAge: 16, villagerMaxAge: 44, kinHappinessPoints: 5 },
+  muster: {
+    baseShare: 0.3,
+    perHappinessPoint: 0.005,
+    happinessBase: 50,
+    hungryBonus: 0.15,
+    widowFactor: 0.5,
+    maxShare: 0.95,
+  },
+  desertion: { perDay: 0.05, withKinPerDay: 0.15 },
   /** war.md – Čísla: hráč mimo tažení vydrží 1 herní den, pak zástupce, nebo rozpad. */
   absentLeaderDays: 1,
   /** war.md – Síla: válka jako výcvik – hodiny luku a boje za herní den (stropy: `ARMS_CAPS.war`). */
