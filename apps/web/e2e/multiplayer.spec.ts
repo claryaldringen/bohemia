@@ -8,6 +8,7 @@ import { found, newPlayer, pollVillage, query, villageSpots } from './village-he
 
 const SCREENSHOT = process.env.HOUSE_PANEL_SCREENSHOT;
 const NEGOTIATION_SCREENSHOT = process.env.NEGOTIATION_SCREENSHOT;
+const LEVY_SCREENSHOT = process.env.LEVY_SCREENSHOT;
 
 async function openHousePanel(page: Page): Promise<ReturnType<Page['getByRole']>> {
   const panel = page.getByRole('dialog', { name: 'Rod a vazalové' });
@@ -271,6 +272,80 @@ test('podmínky vazalství: ikony v panelu, nové podmínky odmítnuty, vypověz
   });
   const panelA4 = await reopenHousePanel(a);
   await expect(panelA4.getByTestId('house-vassal')).toHaveCount(0);
+
+  await Promise.all(ctxs.map((ctx) => ctx.close()));
+});
+
+test('Odvody 1. 11.: vazal ubere obilí a odešle, pán dostane upozornění a přesýpací hodiny zmizí', async ({
+  browser,
+}) => {
+  test.setTimeout(240_000);
+  await query(`UPDATE house SET ended_at = now() WHERE ended_at IS NULL`, []);
+  const ctxs = await Promise.all([browser.newContext(), browser.newContext()]);
+  for (const ctx of ctxs) await useUniqueClientIp(ctx);
+  const [a, b] = (await Promise.all(ctxs.map((ctx) => ctx.newPage()))) as [Page, Page];
+  for (const page of [a, b]) await page.setViewportSize({ width: 1280, height: 720 });
+  const { seat: seatA } = await newPlayer(a, 'odvoda');
+  await found(a, villageSpots(seatA.landscape).dwelling);
+  const { email: emailB, seat: seatB } = await newPlayer(b, 'odvodb');
+  await found(b, villageSpots(seatB.landscape).dwelling, 'Ctibor');
+  const idB = await houseIdOf(emailB);
+
+  // A nabídne B vazalství s dávkou obilí, B přijme
+  const panelA = await openHousePanel(a);
+  const bar = await pickPlayer(panelA, idB);
+  await bar.getByTestId('house-offer').click();
+  await panelA.getByTestId('terms-add-tribute').click();
+  await panelA.getByTestId('term-tribute-grainKg').fill('6');
+  await panelA.getByTestId('terms-submit').click();
+  const panelB = await reopenHousePanel(b);
+  await panelB.getByTestId('negotiation-accept').click();
+  await expect(panelB.getByTestId('house-lord')).toHaveCount(1);
+
+  // 1. 11.: dialog Odvody zapíšeme přímo do databáze (otevírá ho worker, viz testy jádra)
+  const [row] = await query<{ id: string; player_id: string }>(
+    `SELECT v.id, h.player_id FROM vassalage v JOIN house h ON h.id = v.vassal_house_id
+      WHERE v.vassal_house_id = $1 AND v.ended_at IS NULL`,
+    [idB],
+  );
+  if (!row) throw new Error('Dohoda chybí.');
+  await query(
+    `INSERT INTO dialog (player_id, kind, key, ref_id, year, body)
+     VALUES ($1, 'levy', $2, $3, 500, '{}'::jsonb)`,
+    [row.player_id, `levy:${row.id}:500`, row.id],
+  );
+
+  // čerstvá ves nemá společnou práci, z níž se platí doprava dávky – dopřejeme jí ji zápisem
+  await query(
+    `UPDATE village SET state = jsonb_set(state, '{commonLaborYearly}', '30'), version = version + 1
+      WHERE settlement_id = $1`,
+    [seatB.settlementId],
+  );
+
+  // pán vidí u vazala přesýpací hodiny
+  const panelA2 = await reopenHousePanel(a);
+  await expect(panelA2.getByTestId('house-levy-wait')).toBeVisible();
+
+  // vazal otevře dialog z pečeti, ubere obilí na 2 kg a odešle
+  const panelB2 = await reopenHousePanel(b);
+  await panelB2.getByTestId('house-levy-open').click();
+  const dialog = b.getByRole('dialog', { name: 'Odvody' });
+  await expect(dialog).toBeVisible();
+  await dialog.locator('input[type="range"]').fill('2');
+  await dialog.locator('textarea').fill('Tuhá zima');
+  await b.mouse.move(0, 400);
+  if (LEVY_SCREENSHOT) await b.screenshot({ path: LEVY_SCREENSHOT });
+  await dialog.getByRole('button', { name: 'Odeslat' }).click();
+  await expect(dialog.locator('[data-testid$="-sent"]')).toBeVisible({ timeout: 30_000 });
+
+  // pán dostane upozornění se vzkazem a hodiny zmizí
+  await pollVillage(a);
+  await expect(a.getByTestId('village-notice').filter({ hasText: 'posílá odvod' })).toContainText(
+    'Tuhá zima',
+    { timeout: 60_000 },
+  );
+  const panelA3 = await reopenHousePanel(a);
+  await expect(panelA3.getByTestId('house-levy-wait')).toHaveCount(0);
 
   await Promise.all(ctxs.map((ctx) => ctx.close()));
 });

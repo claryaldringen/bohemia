@@ -16,7 +16,7 @@ import type { NoticeLine } from '@/components/game/hud/NoticeLines';
 export const NOTICE_BATCH = 20;
 
 /** Panel, který upozornění otevírá. „Rod a vazalové“ vznikne v úloze 1.10; dál přibudou další. */
-export type NoticePanel = 'house';
+export type NoticePanel = 'house' | 'levy';
 
 /** Panel podle druhu upozornění. Zatím se nic neotevírá (panel neexistuje), mapování je hotové. */
 export function noticePanel(kind: PlayerNoticeKind): NoticePanel | null {
@@ -31,8 +31,9 @@ export function noticePanel(kind: PlayerNoticeKind): NoticePanel | null {
     case 'blocked':
     case 'vassalage-renounced':
     case 'levy-sent':
-    case 'levy-pending':
       return 'house';
+    case 'levy-pending':
+      return 'levy';
     case 'player-succession':
       return null;
   }

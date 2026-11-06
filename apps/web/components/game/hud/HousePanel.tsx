@@ -253,6 +253,7 @@ function AgreementEntry({
   hunger,
   villageName,
   selected,
+  levy = null,
   onClick,
 }: {
   house: HouseLinkView;
@@ -263,6 +264,8 @@ function AgreementEntry({
   hunger: HungerLevel | null;
   villageName: (id: string) => string | null;
   selected: boolean;
+  /** Čeká dialog Odvody: pán vidí přesýpací hodiny, vazal pečeť, která dialog otevře. */
+  levy?: { role: 'lord' | 'vassal'; years: number; onOpen?: () => void } | null;
   onClick?: () => void;
 }): ReactElement {
   return (
@@ -276,8 +279,45 @@ function AgreementEntry({
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
         {terms && termChips(terms, villageName).map((c) => <Chip key={c.key} chip={c} />)}
         <StatusMarks breaches={breaches} hunger={hunger} />
+        {levy && <LevyMark levy={levy} />}
       </div>
     </div>
+  );
+}
+
+/** Čekající Odvody u dohody: pánovi přesýpací hodiny u vazala, vazalovi pečeť otevírající dialog. */
+function LevyMark({
+  levy,
+}: {
+  levy: { role: 'lord' | 'vassal'; years: number; onOpen?: () => void };
+}): ReactElement {
+  const label =
+    levy.role === 'lord'
+      ? 'Vazal ještě neodvedl'
+      : levy.years > 1
+        ? `Odvody čekají už ${levy.years} roky`
+        : 'Odvody čekají';
+  if (levy.role === 'lord') {
+    return (
+      <Tooltip content={label}>
+        <span tabIndex={0} aria-label={label} data-testid="house-levy-wait" className="inline-flex">
+          <Icon name="hourglass" size={18} />
+        </span>
+      </Tooltip>
+    );
+  }
+  return (
+    <Tooltip content={label}>
+      <button
+        type="button"
+        aria-label={label}
+        data-testid="house-levy-open"
+        onClick={levy.onOpen}
+        className="hud-icon-button inline-flex h-7 w-7 items-center justify-center"
+      >
+        <Icon name="seal" size={20} />
+      </button>
+    </Tooltip>
   );
 }
 
@@ -491,6 +531,7 @@ export function HousePanel({
   villages = [],
   onSpare,
   onRenounce,
+  onOpenLevy,
 }: {
   view: HouseView | null;
   error: string | null;
@@ -513,6 +554,8 @@ export function HousePanel({
   onSpare?: (toHouseId: string, targetVillageId: string | null) => Promise<MacroSpare | null>;
   /** Vypoví dohodu `vassalageId` (platí hned) se vzkazem. */
   onRenounce?: (vassalageId: string, message: string | null) => Promise<unknown>;
+  /** Otevře dialog Odvody. */
+  onOpenLevy?: () => void;
 }): ReactElement {
   const ref = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
@@ -598,6 +641,11 @@ export function HousePanel({
                       breaches={0}
                       hunger={null}
                       villageName={villageName}
+                      levy={
+                        agreement && agreement.levyYears !== null
+                          ? { role: 'vassal', years: agreement.levyYears, onOpen: onOpenLevy }
+                          : null
+                      }
                       selected={
                         agreement !== undefined && pickedAgreement === agreement.vassalageId
                       }
@@ -658,6 +706,11 @@ export function HousePanel({
                       breaches={node.breaches}
                       hunger={node.hunger}
                       villageName={villageName}
+                      levy={
+                        agreement && agreement.levyYears !== null
+                          ? { role: 'lord', years: agreement.levyYears }
+                          : null
+                      }
                       selected={agreement !== undefined && pickedAgreement === node.vassalageId}
                       onClick={
                         agreement

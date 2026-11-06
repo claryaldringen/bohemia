@@ -3,6 +3,7 @@ import type { VillageDigest } from '../../domain/village';
 import { INVITES } from '../../domain/world';
 import { housePanel, type HousePanelDeps } from '../house-panel';
 import type { VillageDigestRecord } from '../villages';
+import { InMemoryDialogs } from './in-memory-dialogs';
 import { InMemoryCredits } from './in-memory-credits';
 import { InMemoryActivity } from './in-memory-activity';
 import { InMemoryHouses } from './in-memory-houses';
@@ -41,6 +42,7 @@ async function setup() {
   const vassalages = new InMemoryVassalages();
   const invites = new InMemoryInvites();
   const activity = new InMemoryActivity();
+  const dialogs = new InMemoryDialogs();
   const negotiations = new InMemoryNegotiations(vassalages, new InMemoryNotices(), () => NOW);
   const deps: HousePanelDeps = {
     negotiations,
@@ -51,6 +53,7 @@ async function setup() {
     invites,
     successionCredits: new InMemoryCredits(),
     activity,
+    dialogs,
     now: () => NOW,
   };
   const make = async (playerId: string, x: number, y: number, men: number[]) => {
@@ -73,7 +76,7 @@ async function setup() {
     });
     return house;
   };
-  return { deps, make, vassalages, invites, activity, negotiations };
+  return { deps, make, vassalages, invites, activity, negotiations, dialogs };
 }
 
 describe('housePanel', () => {
@@ -113,7 +116,7 @@ describe('housePanel', () => {
   });
 
   it('strom pod hráčem s hloubkou, podmínky, neplnění, hlad a štít', async () => {
-    const { deps, make, vassalages } = await setup();
+    const { deps, make, vassalages, dialogs } = await setup();
     const me = await make('me', 0, 0, [30, 20, 12]);
     const child = await make('child', 2, 0, [40]);
     const grandchild = await make('grandchild', 3, 0, [18, 50]);
@@ -147,8 +150,24 @@ describe('housePanel', () => {
     expect(data.tree[0]).toMatchObject({ terms, breaches: 1, shield: 1 });
     expect(data.tree[1]).toMatchObject({ hunger: 'starving', shield: 2 });
     expect(data.agreements).toEqual([
-      expect.objectContaining({ vassalageId: first, other: 'vassal', terms, breaches: 1 }),
+      expect.objectContaining({
+        vassalageId: first,
+        other: 'vassal',
+        terms,
+        breaches: 1,
+        levyYears: null,
+      }),
     ]);
+    // čekající dialog Odvody vazala (přesýpací hodiny u pána)
+    await dialogs.openOnce(`levy:${first}:500`, {
+      playerId: 'child',
+      kind: 'levy',
+      refId: first,
+      year: 500,
+      body: {},
+    });
+    const waiting = await housePanel(deps, { playerId: 'me', today: TODAY });
+    expect(waiting.agreements[0]?.levyYears).toBe(1);
     // štít vlastního rodu: muži od 16 let
     expect(data.own?.shield).toBe(2);
     expect(data.status[child.id]).toMatchObject({ shield: 1 });

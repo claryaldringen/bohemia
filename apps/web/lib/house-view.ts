@@ -91,7 +91,7 @@ export interface HouseView {
   tree: PanelTreeNode[];
   /** Hlad a štít (muži schopní služby) hráčova rodu a jeho přímých pánů a vazalů podle id rodu. */
   status: Record<string, { hunger: HungerLevel | null; shield: number }>;
-  /** Čekající věci (jednání, kde je hráč na tahu) – pečeť v liště. */
+  /** Čekající věci (jednání, kde je hráč na tahu, a Odvody pánům) – pečeť v liště. */
   waiting: number;
 }
 
@@ -224,6 +224,8 @@ export function houseView(data: HousePanelData, nowMs: number): HouseView {
     }),
     freeInviteSlots: data.freeInviteSlots,
     negotiations,
-    waiting: negotiations.filter((n) => n.myTurn).length,
+    waiting:
+      negotiations.filter((n) => n.myTurn).length +
+      data.agreements.filter((a) => a.other === 'lord' && a.levyYears !== null).length,
   };
 }

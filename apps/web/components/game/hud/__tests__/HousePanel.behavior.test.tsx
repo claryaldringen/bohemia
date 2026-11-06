@@ -204,6 +204,7 @@ describe('podmínky vazalství v panelu', () => {
     terms,
     breaches: 0,
     sinceDay: 1,
+    levyYears: null,
   });
   const node = (id: string, h: string, parent: string, depth: number): PanelTreeNode => ({
     house: house(h, h),
@@ -241,6 +242,28 @@ describe('podmínky vazalství v panelu', () => {
     expect(entries[1]!.querySelector('[data-testid="house-breaches"]')).toBeNull();
     expect(host.querySelectorAll('[data-testid="house-vassal"]')).toHaveLength(1);
     expect(host.querySelectorAll('[data-testid="house-subvassal"]')).toHaveLength(1);
+  });
+
+  it('čekající Odvody: pán vidí přesýpací hodiny u vazala, vazal pečeť, která otevře dialog', () => {
+    render({
+      view: {
+        ...WITH_TREE,
+        agreements: [{ ...agreement('va-1', 'h-v', 'vassal'), levyYears: 1 }],
+      },
+    });
+    expect(host.querySelector('[data-testid="house-levy-wait"]')).not.toBeNull();
+    expect(host.querySelector('[data-testid="house-levy-open"]')).toBeNull();
+    const onOpenLevy = vi.fn();
+    render({
+      view: {
+        ...VIEW,
+        lords: [link('h-l')],
+        agreements: [{ ...agreement('va-3', 'h-l', 'lord'), levyYears: 2 }],
+      },
+      onOpenLevy,
+    });
+    click('house-levy-open');
+    expect(onOpenLevy).toHaveBeenCalledTimes(1);
   });
 
   it('klik na vazala ukáže Nové podmínky a Vypovědět; vazal vazala akce nemá', () => {
