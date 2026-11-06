@@ -466,6 +466,13 @@ test('obchod mezi hráči: A nabídne C obilí za klády, C přijme → oba maj�
       [settlementId],
     );
   }
+  // C má co poslat za obilí: čerstvá ves nemá žádné klády
+  await query(
+    `UPDATE village SET state = jsonb_set(state, '{woodLogs}', '10'),
+            version = version + 1, digest_version = version + 1
+      WHERE settlement_id = $1`,
+    [seatC.settlementId],
+  );
 
   // A nabídne C obchod bez vazalství: dá 6 kg obilí, dostane 4 klády
   const panelA = await openHousePanel(a);
