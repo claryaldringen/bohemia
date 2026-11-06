@@ -187,8 +187,8 @@ export interface HousePanelDeps {
   activity: ActivityRepository;
   dialogs: DialogRepository;
   /** Správy cizích vsí a jména vsí k nim; bez nich panel správy nenese. */
-  stewardships?: Pick<StewardshipRepository, 'listByHolderHouse'>;
-  villages?: Pick<VillageRepository, 'find'>;
+  stewardships?: Pick<StewardshipRepository, 'listByHolderHouse' | 'listByStewardHouse'>;
+  villages?: Pick<VillageRepository, 'find' | 'digestsOf'>;
   /** Války a ochrana nováčka; bez nich panel válku nenese. */
   wars?: Pick<WarRepository, 'activeOf' | 'activeBetween' | 'ownAttackAt'>;
   now: () => Date;
@@ -221,6 +221,24 @@ const unknownHouse = (houseId: string): PublicHouse => ({
   men: [],
   villages: 0,
 });
+
+/** Jména hlav NPC rodů (`VillageDigest.nobleHead`) ze souhrnů vsí, které rody spravují. */
+export async function npcHeadNames(
+  deps: Pick<HousePanelDeps, 'stewardships' | 'villages'>,
+  houseIds: readonly string[],
+): Promise<Map<string, string>> {
+  const names = new Map<string, string>();
+  if (!deps.stewardships || !deps.villages || houseIds.length === 0) return names;
+  for (const houseId of houseIds) {
+    const ids = (await deps.stewardships.listByStewardHouse(houseId)).map((s) => s.villageId);
+    if (ids.length === 0) continue;
+    for (const d of await deps.villages.digestsOf(ids)) {
+      const head = d.digest.nobleHead;
+      if (head?.houseId === houseId && head.name !== undefined) names.set(houseId, head.name);
+    }
+  }
+  return names;
+}
 
 const HUNGER_ORDER: readonly HungerLevel[] = ['fed', 'rationing', 'hungry', 'starving'];
 
@@ -298,9 +316,15 @@ export async function housePanel(
   ];
   const entries = await deps.worldDirectory.entriesOf(wanted);
   const center = seat ?? { x: 0, y: 0 };
+  // NPC rody (povýšení) adresář nezná – jméno hlavy je ve souhrnu vsi, kterou NPC rod spravuje
+  const npcNames = await npcHeadNames(
+    deps,
+    wanted.filter((id) => !entries.some((e) => e.house.id === id)),
+  );
   const publicOf = (houseId: string): PublicHouse => {
     const entry = entries.find((e) => e.house.id === houseId);
-    return entry ? publicHouseOf(entry, center, input.today) : unknownHouse(houseId);
+    if (entry) return publicHouseOf(entry, center, input.today);
+    return { ...unknownHouse(houseId), lordName: npcNames.get(houseId) ?? null };
   };
 
   const usedHouseOf = (houseId: string | null): PublicHouse | null =>

@@ -76,6 +76,11 @@ export interface VillageDigest extends LineFacts {
   disasters?: WeatherDisasters;
   /** Žijící muži rodu po meči s jménem a dnem narození (adresář rodů, `housesNear`). */
   publicLineMen: PublicLineMan[];
+  /**
+   * Hlava NPC rodu povýšeného ve vsi (`VillageState.nobles`) – jen jméno, aby panel rodu ukázal
+   * NPC vazala jako hráčské rody (vassalage.md – Povýšení vesničana).
+   */
+  nobleHead?: { houseId: string; name?: string };
   /** Poslední místní pohroma v kronice (`LOCAL_DISASTER_KINDS`). */
   lastLocalDisaster?: ChronicleEvent;
 }
@@ -89,6 +94,22 @@ export function lastLocalDisaster(
     if (event && LOCAL_DISASTER_KINDS.has(event.kind)) return event;
   }
   return undefined;
+}
+
+/** Hlava NPC rodu ze stavu; bez povýšení nebo bez osoby – nic. */
+function nobleHeadOf(
+  state: VillageState,
+): { nobleHead: { houseId: string; name?: string } } | null {
+  const nobles = state.nobles;
+  if (nobles === undefined) return null;
+  const head = state.people.find((p) => p.id === nobles.headId);
+  if (head === undefined) return null;
+  return {
+    nobleHead: {
+      houseId: nobles.houseId,
+      ...(head.name !== undefined ? { name: head.name } : {}),
+    },
+  };
 }
 
 /** Souhrn vsi ze stavu – jen čte stav. */
@@ -112,6 +133,7 @@ export function villageDigest(state: VillageState): VillageDigest {
         ...(p.name !== undefined ? { name: p.name } : {}),
         bornDay: p.bornDay,
       })),
+    ...nobleHeadOf(state),
     ...(state.weatherSeed !== undefined ? { weatherSeed: state.weatherSeed } : {}),
     ...(disasters ? { disasters } : {}),
     ...(last ? { lastLocalDisaster: last } : {}),

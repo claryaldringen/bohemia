@@ -115,6 +115,36 @@ describe('housePanel', () => {
     expect(JSON.stringify(data)).not.toContain('"playerId"');
   });
 
+  it('NPC rod z povýšení nese jméno své hlavy ze souhrnu vsi, kterou spravuje', async () => {
+    const { deps, make, vassalages } = await setup();
+    const me = await make('me', 0, 0, [30]);
+    const npc = await deps.houses.create({ playerId: null, kind: 'npc', createdAt: NOW });
+    await vassalages.create({
+      lordHouseId: me.id,
+      vassalHouseId: npc.id,
+      terms: {},
+      origin: 'invite',
+      sinceAt: NOW,
+      sinceDay: TODAY,
+    });
+    const record = digest('v-npc', []);
+    record.digest.nobleHead = { houseId: npc.id, name: 'Radim' };
+    const withNpc: HousePanelDeps = {
+      ...deps,
+      stewardships: {
+        listByHolderHouse: async () => [],
+        listByStewardHouse: async (houseId) =>
+          houseId === npc.id ? ([{ villageId: 'v-npc' }] as never) : [],
+      },
+      villages: { find: async () => null, digestsOf: async () => [record] },
+    };
+    const named = await housePanel(withNpc, { playerId: 'me', today: TODAY });
+    expect(named.vassals.map((h) => h.lordName)).toEqual(['Radim']);
+    // bez souhrnu zůstane rod bez jména
+    const unnamed = await housePanel(deps, { playerId: 'me', today: TODAY });
+    expect(unnamed.vassals.map((h) => h.lordName)).toEqual([null]);
+  });
+
   it('strom pod hráčem s hloubkou, podmínky, neplnění, hlad a štít', async () => {
     const { deps, make, vassalages, dialogs } = await setup();
     const me = await make('me', 0, 0, [30, 20, 12]);
