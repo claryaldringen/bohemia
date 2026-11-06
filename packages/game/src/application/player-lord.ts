@@ -1,3 +1,4 @@
+import { TOTAL_GAME_DAYS } from '../domain/calendar';
 import { cloneState } from '../domain/village/clone';
 import {
   currentLord,
@@ -153,12 +154,7 @@ export async function followLineMoves(
         continue;
       }
       for (const village of villages) {
-        const events =
-          (await deps.villages.inbox?.pending(
-            village.id,
-            Number.MIN_SAFE_INTEGER,
-            Number.MAX_SAFE_INTEGER,
-          )) ?? [];
+        const events = (await deps.villages.inbox?.pending(village.id, -1, TOTAL_GAME_DAYS)) ?? [];
         const coming = events.some(
           (e) =>
             e.body.kind === 'lord-arrives' &&
