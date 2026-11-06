@@ -46,6 +46,27 @@ export function createVassalageRepository(db: Executor): VassalageRepository {
         .returning({ id: vassalage.id });
       return rows.length > 0;
     },
+    async byId(id): Promise<Vassalage | null> {
+      const [row] = await db.select().from(vassalage).where(eq(vassalage.id, id));
+      return row ? toVassalage(row) : null;
+    },
+    async updateTerms(id, terms, expectedVersion): Promise<boolean> {
+      const rows = await db
+        .update(vassalage)
+        .set({ terms, version: sql`${vassalage.version} + 1` })
+        .where(and(eq(vassalage.id, id), eq(vassalage.version, expectedVersion), alive))
+        .returning({ id: vassalage.id });
+      return rows.length > 0;
+    },
+    // Druh a den neplnění zatím do tabulky nejdou (ukazuje se jen počet) – parametry drží port.
+    async addBreach(id): Promise<boolean> {
+      const rows = await db
+        .update(vassalage)
+        .set({ breaches: sql`${vassalage.breaches} + 1` })
+        .where(and(eq(vassalage.id, id), alive))
+        .returning({ id: vassalage.id });
+      return rows.length > 0;
+    },
     async edgesNear(houseId, depth): Promise<VassalEdge[]> {
       // Rekurzivní průchod živými hranami v obou směrech; UNION zabrání cyklení.
       const result = await db.execute<{ lord_house_id: string; vassal_house_id: string }>(sql`

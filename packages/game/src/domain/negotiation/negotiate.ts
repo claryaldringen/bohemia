@@ -1,7 +1,10 @@
 import type { VassalEdge } from '../vassalage/tree';
+import { checkTermLines, type TermLine } from '../vassalage/terms';
 import { wouldBeMutual } from '../vassalage/tree';
 import { NEGOTIATION, NEGOTIATION_REASONS as R } from './rules-negotiation';
 import type { Negotiation, NegotiationResult, TermItem } from './types';
+
+type Oath = Extract<TermItem, { kind: 'oath' }>;
 
 const fail = (reason: string): { ok: false; reason: string } => ({ ok: false, reason });
 
@@ -19,11 +22,20 @@ function checkMessage(message: string | null): string | null {
 }
 
 /** Přísaha z podmínek (nejvýš jedna). */
-function oathOf(items: readonly TermItem[]): TermItem | undefined {
-  return items.find((i) => i.kind === 'oath');
+function oathOf(items: readonly TermItem[]): Oath | undefined {
+  return items.find((i): i is Oath => i.kind === 'oath');
 }
 
-/** Zahájí jednání prvním kolem; přísaha musí být mezi `from` a `to` (kdokoli z nich je pán). */
+/** Řádky podmínek bez přísahy. */
+export function termLinesOf(items: readonly TermItem[]): TermLine[] {
+  return items.filter((i): i is TermLine => i.kind !== 'oath');
+}
+
+/**
+ * Zahájí jednání prvním kolem; přísaha musí být mezi `from` a `to` (kdokoli z nich je pán).
+ * `withoutOath` = změna podmínek **existující** dohody (vassalage.md – Změna podmínek): přísaha
+ * v prvním kole chybí a nesmí být přidána; že dohoda mezi rody trvá, ověří use-case.
+ */
 export function openRound(input: {
   id: string;
   from: string;
@@ -31,13 +43,18 @@ export function openRound(input: {
   items: TermItem[];
   message: string | null;
   at: Date;
+  withoutOath?: boolean;
 }): NegotiationResult {
   if (input.from === input.to) return fail(R.yourselfOnly);
   const tooLong = checkMessage(input.message);
   if (tooLong) return fail(tooLong);
+  const badLines = checkTermLines(termLinesOf(input.items));
+  if (badLines) return fail(badLines);
   const oath = oathOf(input.items);
   const pair = [input.from, input.to];
-  if (
+  if (input.withoutOath) {
+    if (oath) return fail(R.badOath);
+  } else if (
     !oath ||
     !pair.includes(oath.lord) ||
     !pair.includes(oath.vassal) ||
@@ -80,9 +97,11 @@ export function counterRound(
   if (lastRound(n)?.authorHouseId === actor) return fail(R.notYourTurn);
   const tooLong = checkMessage(message);
   if (tooLong) return fail(tooLong);
+  const badLines = checkTermLines(termLinesOf(items));
+  if (badLines) return fail(badLines);
   const first = oathOf(n.rounds[0]?.items ?? []);
   const oath = oathOf(items);
-  if (first && (!oath || oath.lord !== first.lord || oath.vassal !== first.vassal)) {
+  if (first ? !oath || oath.lord !== first.lord || oath.vassal !== first.vassal : oath) {
     return fail(R.oathChanged);
   }
   return {

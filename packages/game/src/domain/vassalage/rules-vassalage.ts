@@ -36,6 +36,22 @@ export const VASSALAGE = {
   serviceFromAge: 16,
   /** Povýšení vesničana: muž od 16 let, nejvýš 1 za herní rok (Martin). */
   ennoble: { fromAge: 16, perYear: 1 },
+  /**
+   * Meze řádků podmínek (Podmínky dohody; návrh Clauda – jen proti překlepům a nesmyslům, skutečný
+   * strop dává výhled vsi): největší dohodnutá dávka nebo odměna za rok a služba.
+   */
+  termLimits: {
+    maxKg: 10_000_000,
+    maxHeads: 10_000,
+    maxPeople: 10_000,
+    maxLaborDays: 1_000_000,
+    maxServiceMen: 100,
+    maxServiceDays: 365,
+  },
+  /** Do jaké hloubky sítě (kroků od obou stran) upozornění na vypovězení dojde (návrh Clauda). */
+  noticeDepth: 12,
+  /** Kolik pater vazalů pod hráčem panel ukáže (Přehled pána – strom pod sebou; návrh Clauda). */
+  panelTreeDepth: 6,
   /** Rozsudek bez vyjádření: po 1 skutečném dni (ms). */
   verdictAfterMs: 86_400_000,
 } as const;

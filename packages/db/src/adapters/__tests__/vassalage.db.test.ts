@@ -99,6 +99,29 @@ describe('SuccessionCreditRepository (Drizzle)', () => {
     expect(await credits.consumeOne('a', 323)).toBe(false);
   });
 
+  it('updateTerms přepíše podmínky jen při shodě verze a jen u živé dohody', async () => {
+    const v = await vassalages.create(edge(0, 1));
+    const terms = { service: { men: 3, days: 20 }, targetVillageId: 'ves-1' };
+    expect(await vassalages.updateTerms(v.id, terms, 1)).toBe(true);
+    // stará verze už neprojde (souběžná změna)
+    expect(await vassalages.updateTerms(v.id, {}, 1)).toBe(false);
+    expect(await vassalages.byId(v.id)).toMatchObject({ terms, version: 2 });
+    await vassalages.end(v.id, 'renounced', LATER);
+    expect(await vassalages.updateTerms(v.id, {}, 2)).toBe(false);
+    expect((await vassalages.byId(v.id))?.terms).toEqual(terms);
+  });
+
+  it('addBreach zvedne počet a dohodu neukončí; skončenou nezapíše', async () => {
+    const v = await vassalages.create(edge(0, 1));
+    expect(await vassalages.addBreach(v.id, 'levy', 40)).toBe(true);
+    expect(await vassalages.addBreach(v.id, 'summons', 41)).toBe(true);
+    expect(await vassalages.byId(v.id)).toMatchObject({ breaches: 2, endedAt: null });
+    expect(await vassalages.activeOf(ids[0]!)).toHaveLength(1);
+    await vassalages.end(v.id, 'renounced', LATER);
+    expect(await vassalages.addBreach(v.id, 'repay', 42)).toBe(false);
+    expect(await vassalages.byId('00000000-0000-0000-0000-000000000000')).toBeNull();
+  });
+
   it('souběžné consumeOne nespotřebují jeden kredit dvakrát', async () => {
     await credits.grantOnce('a', 'b', NOW);
     const results = await Promise.all([credits.consumeOne('a', 1), credits.consumeOne('a', 2)]);

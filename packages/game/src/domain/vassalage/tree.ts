@@ -81,3 +81,44 @@ export function treeAround(edges: readonly VassalEdge[], houseIds: readonly stri
   }
   return result;
 }
+
+/** Rod ve stromu pod rodem: hloubka (1 = přímý vazal) a pán, od kterého k němu vede dohoda. */
+export interface TreeNode {
+  houseId: string;
+  depth: number;
+  parentHouseId: string;
+}
+
+/**
+ * Strom pod rodem s hloubkou (jako `treeBelow`, ale po patrech a s pánem, přes kterého se k rodu
+ * došlo – panel ho odsadí), nejvýš do `maxDepth` pater. Rod, který je pod rodem víckrát, je
+ * u nejbližšího pána.
+ */
+export function treeBelowDepths(
+  edges: readonly VassalEdge[],
+  houseId: string,
+  maxDepth: number,
+): TreeNode[] {
+  const vassalsOf = new Map<string, string[]>();
+  for (const e of edges) {
+    const list = vassalsOf.get(e.lordHouseId);
+    if (list) list.push(e.vassalHouseId);
+    else vassalsOf.set(e.lordHouseId, [e.vassalHouseId]);
+  }
+  const seen = new Set<string>([houseId]);
+  const result: TreeNode[] = [];
+  let frontier: string[] = [houseId];
+  for (let depth = 1; depth <= maxDepth && frontier.length > 0; depth++) {
+    const next: string[] = [];
+    for (const parent of frontier) {
+      for (const v of vassalsOf.get(parent) ?? []) {
+        if (seen.has(v)) continue;
+        seen.add(v);
+        result.push({ houseId: v, depth, parentHouseId: parent });
+        next.push(v);
+      }
+    }
+    frontier = next;
+  }
+  return result;
+}

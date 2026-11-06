@@ -566,6 +566,8 @@ Ves bez vojvody držitelova rodu (ponechaná odúmrť, ves bez muže rodu) potř
 | Služba                            | muž rodu od 16 let (Martin), dny za herní rok podle dohody |
 | Povýšení vesničana                | muž od 16 let, nejvýš 1 za herní rok (Martin)              |
 | Rozsudek bez vyjádření            | po 1 skutečném dni                                         |
+| Meze řádků podmínek               | jen proti překlepům (`termLimits`), strop dává výhled      |
+| Upozornění na vypovězení          | celý strom do 12 pater od obou stran                       |
 
 ## Pro implementaci (poznámky, ne kód)
 

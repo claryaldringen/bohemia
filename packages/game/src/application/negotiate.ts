@@ -8,12 +8,14 @@ import {
   withdrawRound,
   type Negotiation,
   type NegotiationResult,
+  termLinesOf,
   type TermItem,
 } from '../domain/negotiation';
+import { TERM_REASONS, termsOfLines } from '../domain/vassalage/terms';
 import { wouldBeMutual } from '../domain/vassalage/tree';
 import type { ChronicleEvent } from '../domain/village';
 import type { HouseRepository, House } from './houses';
-import { NEGOTIATION_EFFECTS } from './negotiation-effects';
+import { applyItem, checkItem } from './negotiation-effects';
 import {
   chronicleHouses,
   houseName,
@@ -21,6 +23,8 @@ import {
   type NegotiationVillages,
 } from './negotiation-chronicle';
 import type { NegotiationRecord, NegotiationRepository, NegotiationTx } from './negotiations';
+import type { Vassalage } from './vassalages';
+import type { WorldDirectory } from './world-directory';
 
 // Use-casy jednání mezi hráči (vassalage.md – Vznik a jednání, Meze). Strany jsou rody; hráč jedná
 // za svůj živý rod. Vše mění stav v jedné transakci nad vlastními tabulkami (bez zámku hráče),
@@ -29,6 +33,8 @@ import type { NegotiationRecord, NegotiationRepository, NegotiationTx } from './
 export interface NegotiateDeps extends NegotiationVillages {
   houses: Pick<HouseRepository, 'activeOf' | 'byId'>;
   negotiations: NegotiationRepository;
+  /** Čte se z něj, které vsi rod vlastní (cílová ves musí patřit pánovi). */
+  worldDirectory: Pick<WorldDirectory, 'entriesOf'>;
 }
 
 export type NegotiateResult =
@@ -36,6 +42,7 @@ export type NegotiateResult =
 
 export const NO_HOUSE = 'Nemáš živý rod.';
 export const NO_NEGOTIATION = 'Jednání neexistuje.';
+export const NO_AGREEMENT = 'Dohoda mezi rody neexistuje.';
 
 const fail = (reason: string): { ok: false; reason: string } => ({ ok: false, reason });
 
@@ -48,8 +55,35 @@ function domainOf(record: NegotiationRecord): Negotiation | null {
 }
 
 function oathOf(items: readonly TermItem[]): { lord: string; vassal: string } | null {
-  const oath = items.find((i) => i.kind === 'oath');
-  return oath ? { lord: oath.lord, vassal: oath.vassal } : null;
+  for (const i of items) if (i.kind === 'oath') return { lord: i.lord, vassal: i.vassal };
+  return null;
+}
+
+/** Živá dohoda mezi dvěma rody (v libovolném směru), nebo null. */
+async function agreementBetween(
+  tx: NegotiationTx,
+  a: string,
+  b: string,
+): Promise<Vassalage | null> {
+  const list = await tx.vassalages.activeOf(a);
+  return list.find((v) => v.lordHouseId === b || v.vassalHouseId === b) ?? null;
+}
+
+/** Cílová ves z řádků musí patřit pánovi (`lordId`); bez řádku nic neověřuje. */
+async function checkTargetVillage(
+  deps: NegotiateDeps,
+  items: readonly TermItem[],
+  lordId: string,
+): Promise<string | null> {
+  for (const item of items) {
+    if (item.kind !== 'target-village') continue;
+    const entries = await deps.worldDirectory.entriesOf([lordId]);
+    const owns = entries.some(
+      (e) => e.house.id === lordId && e.digests.some((d) => d.id === item.villageId),
+    );
+    return owns ? null : TERM_REASONS.badVillage;
+  }
+  return null;
 }
 
 /** Zapsané jednání (po kole / přechodu) – záznam z přechodu domény nese stav a poslední kolo. */
@@ -67,7 +101,7 @@ async function chronicleStep(
   deps: NegotiateDeps,
   { actor, other }: Actors,
   record: NegotiationRecord,
-  step: 'offer' | 'counter' | 'rejected' | 'withdrawn',
+  step: 'offer' | 'counter' | 'rejected' | 'withdrawn' | 'terms-accepted',
   today: number,
 ): Promise<void> {
   const event: ChronicleEvent = {
@@ -138,6 +172,7 @@ export async function openNegotiation(
     items: input.items,
     message: input.message,
     at: input.now,
+    withoutOath: oathOf(input.items) === null,
   });
   if (!opened.ok) return opened;
   const round = opened.negotiation.rounds[0];
@@ -156,6 +191,13 @@ export async function openNegotiation(
       edges: await tx.vassalages.edgesNear(from.id, 1),
     });
     if (reason) return fail(reason);
+    // změna podmínek: dohoda mezi rody musí trvat, cílová ves patří jejímu pánovi
+    const oath = oathOf(input.items);
+    const existing = oath ? null : await agreementBetween(tx, from.id, input.to);
+    if (!oath && !existing) return fail(NO_AGREEMENT);
+    const lordId = oath?.lord ?? existing?.lordHouseId ?? '';
+    const badVillage = await checkTargetVillage(deps, input.items, lordId);
+    if (badVillage) return fail(badVillage);
     const record = await tx.open({
       initiatorHouseId: from.id,
       recipientHouseId: input.to,
@@ -203,6 +245,15 @@ export async function counterNegotiation(
       input.now,
     );
     if (!next.ok) return next;
+    const first = oathOf(loaded.record.rounds[0]?.items ?? []);
+    const existing = first ? null : await agreementBetween(tx, loaded.actor.id, loaded.other.id);
+    if (!first && !existing) return fail(NO_AGREEMENT);
+    const badVillage = await checkTargetVillage(
+      deps,
+      input.items,
+      first?.lord ?? existing?.lordHouseId ?? '',
+    );
+    if (badVillage) return fail(badVillage);
     const round = next.negotiation.rounds[next.negotiation.rounds.length - 1];
     if (!round) return fail(R.finished);
     await tx.addRound(loaded.record.id, round);
@@ -241,6 +292,17 @@ export async function acceptNegotiation(
     const done = acceptRound(loaded.negotiation, loaded.actor.id, input.now);
     if (!done.ok) return done;
     const items = loaded.negotiation.rounds[loaded.negotiation.rounds.length - 1]?.items ?? [];
+    const terms = termsOfLines(termLinesOf(items));
+    const oathItem = oathOf(items);
+    // bez přísahy jde o změnu podmínek existující dohody
+    const existing = oathItem ? null : await agreementBetween(tx, loaded.actor.id, loaded.other.id);
+    if (!oathItem && !existing) return fail(NO_AGREEMENT);
+    const badVillage = await checkTargetVillage(
+      deps,
+      items,
+      oathItem?.lord ?? existing?.lordHouseId ?? '',
+    );
+    if (badVillage) return fail(badVillage);
     for (const item of items) {
       if (
         item.kind === 'oath' &&
@@ -248,14 +310,22 @@ export async function acceptNegotiation(
       ) {
         return fail(R.isYourLord);
       }
-      const reason = await NEGOTIATION_EFFECTS[item.kind].check(tx, item);
+      const reason = await checkItem(tx, item);
       if (reason) return fail(reason);
+    }
+    // staré podmínky platí do této chvíle; selhání (dohoda mezitím skončila) nezapíše nic
+    if (existing && !(await tx.vassalages.updateTerms(existing.id, terms, existing.version))) {
+      return fail(NO_AGREEMENT);
     }
     if (!(await tx.setStatus(loaded.record.id, 'accepted', loaded.record.version, input.now))) {
       return fail(R.finished);
     }
     for (const item of items) {
-      await NEGOTIATION_EFFECTS[item.kind].apply(tx, item, { now: input.now, day: input.today });
+      await applyItem(tx, item, {
+        now: input.now,
+        day: input.today,
+        terms,
+      });
     }
     await noticeHouse(
       tx,
@@ -269,7 +339,7 @@ export async function acceptNegotiation(
       input.today,
     );
     actors = { actor: loaded.actor, other: loaded.other };
-    oath = oathOf(items);
+    oath = oathItem;
     return {
       ok: true,
       negotiation: { ...loaded.record, status: 'accepted', resolvedAt: input.now },
@@ -291,6 +361,14 @@ export async function acceptNegotiation(
           lord: await houseName(deps, lord),
           vassal: await houseName(deps, vassal),
         },
+      );
+    } else {
+      await chronicleStep(
+        deps,
+        actors as Actors,
+        result.negotiation,
+        'terms-accepted',
+        input.today,
       );
     }
   }

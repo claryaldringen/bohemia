@@ -22,6 +22,7 @@ export function noticePanel(kind: PlayerNoticeKind): NoticePanel | null {
     case 'negotiation-rejected':
     case 'negotiation-withdrawn':
     case 'blocked':
+    case 'vassalage-renounced':
       return 'house';
     case 'player-succession':
       return null;
@@ -72,6 +73,11 @@ function textOf(n: PlayerNotice): string {
       return `${otherName(n.payload)} stáhl svůj návrh.`;
     case 'blocked':
       return `${otherName(n.payload)} tě zablokoval.`;
+    case 'vassalage-renounced': {
+      const lord = stringOf(n.payload.lordName) ?? 'Pán';
+      const vassal = stringOf(n.payload.vassalName) ?? 'Vazal';
+      return `Vazalství mezi ${lord} (pán) a ${vassal} (vazal) skončilo vypovězením.`;
+    }
     case 'player-succession': {
       const dead = stringOf(n.payload.deadName) ?? 'Tvůj muž';
       const next = stringOf(n.payload.newName);

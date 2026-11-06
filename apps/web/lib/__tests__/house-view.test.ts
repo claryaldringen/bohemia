@@ -25,6 +25,9 @@ describe('houseView', () => {
       hasHouse: true,
       negotiations: [],
       actions: {},
+      agreements: [],
+      tree: [],
+      status: {},
       own: {
         houseId: 'h0',
         men: [
@@ -34,6 +37,8 @@ describe('houseView', () => {
         senior: { villageId: 'v-2', personId: 2 },
         lord: { villageId: 'v-1', personId: 1 },
         successionCredits: 3,
+        hunger: null,
+        shield: 2,
       },
       lords: [house('h1', 'Boleslav', [40, 17])],
       vassals: [],
@@ -73,6 +78,9 @@ describe('houseView', () => {
         hasHouse: true,
         negotiations: [],
         actions: {},
+        agreements: [],
+        tree: [],
+        status: {},
         own: null,
         lords: [],
         vassals: [],

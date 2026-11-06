@@ -1,9 +1,17 @@
-import type { NewVassalage, VassalEdge, Vassalage, VassalageRepository } from '../vassalages';
+import type {
+  BreachKind,
+  NewVassalage,
+  VassalEdge,
+  Vassalage,
+  VassalageRepository,
+  VassalTerms,
+} from '../vassalages';
 
 /** Repozitář vazalství v paměti; `create` a `end` jsou atomické jako v databázi. */
 export class InMemoryVassalages implements VassalageRepository {
   readonly vassalages: Vassalage[] = [];
   readonly reasons = new Map<string, string>();
+  readonly breachLog: { id: string; kind: BreachKind; day: number }[] = [];
   private nextId = 1;
 
   async activeOf(houseId: string): Promise<Vassalage[]> {
@@ -38,6 +46,28 @@ export class InMemoryVassalages implements VassalageRepository {
     if (!vassalage || vassalage.endedAt !== null) return false;
     vassalage.endedAt = at;
     this.reasons.set(id, reason);
+    return true;
+  }
+
+  async byId(id: string): Promise<Vassalage | null> {
+    return this.vassalages.find((v) => v.id === id) ?? null;
+  }
+
+  async updateTerms(id: string, terms: VassalTerms, expectedVersion: number): Promise<boolean> {
+    await Promise.resolve();
+    const v = this.vassalages.find((x) => x.id === id);
+    if (!v || v.endedAt !== null || v.version !== expectedVersion) return false;
+    v.terms = terms;
+    v.version += 1;
+    return true;
+  }
+
+  async addBreach(id: string, kind: BreachKind, day: number): Promise<boolean> {
+    await Promise.resolve();
+    const v = this.vassalages.find((x) => x.id === id);
+    if (!v || v.endedAt !== null) return false;
+    v.breaches += 1;
+    this.breachLog.push({ id, kind, day });
     return true;
   }
 

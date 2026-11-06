@@ -11,17 +11,22 @@ import {
   answerNegotiationForPlayer,
   blockHouseForPlayer,
   housePanelForPlayer,
+  houseSpareForPlayer,
+  renounceVassalageForPlayer,
   issueInviteForPlayer,
   openNegotiationForPlayer,
   revokeInviteForPlayer,
   type NegotiationActionResult,
 } from '@/lib/house';
 import type { HouseView } from '@/lib/house-view';
+import type { MacroSpare } from '@bohemia/game';
 import {
   parseBlockInput,
   parseNegotiationAnswerInput,
   parseOpenNegotiationInput,
+  parseRenounceInput,
   parseRevokeInviteInput,
+  parseSpareInput,
 } from '@/lib/house-input';
 import { parsePanelAsk, type PanelOptions } from '@/lib/panel-options';
 import {
@@ -565,4 +570,27 @@ export async function blockHouse(input: unknown): Promise<NegotiationActionResul
   const parsed = parseBlockInput(input);
   if (parsed === null) return { error: INVALID_INPUT };
   return blockHouseForPlayer(id, parsed.target);
+}
+
+/**
+ * Výhled „kolik můžu postrádat“ pro formulář podmínek: `{ toHouseId, targetVillageId? }` →
+ * `{ spare }` (makrokomodity, lidé a robota). Počítá se jen na vyžádání.
+ */
+export async function houseSpare(
+  input: unknown,
+): Promise<{ spare: MacroSpare } | { error: string }> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const parsed = parseSpareInput(input);
+  if (parsed === null) return { error: INVALID_INPUT };
+  return houseSpareForPlayer(id, parsed);
+}
+
+/** Vypoví dohodu: `{ vassalageId, message? }`; platí hned, upozorní celý strom. */
+export async function renounceVassalage(input: unknown): Promise<NegotiationActionResult> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const parsed = parseRenounceInput(input);
+  if (parsed === null) return { error: INVALID_INPUT };
+  return renounceVassalageForPlayer(id, parsed);
 }

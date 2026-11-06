@@ -1,10 +1,11 @@
 import { sql } from 'drizzle-orm';
 import { index, integer, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import type { VassalTerms } from '@bohemia/game';
 import { house } from './house';
 
 /**
  * Vazalství (vassalage.md) – dvoustranná dohoda mezi pánovým a vazalovým rodem. `terms` = podmínky
- * (zatím prázdné), `origin` = jak vzniklo, `since_day` = herní den vzniku, `ended_at`/`end_reason`
+ * (dávka, služba, cílová ves, odměna – `VassalTerms`), `origin` = jak vzniklo, `since_day` = herní den vzniku, `ended_at`/`end_reason`
  * = konec (vypovězení, vymření…). Živé je vazalství s `ended_at IS NULL`.
  */
 export const vassalage = pgTable(
@@ -17,7 +18,7 @@ export const vassalage = pgTable(
     vassalHouseId: uuid('vassal_house_id')
       .notNull()
       .references(() => house.id, { onDelete: 'cascade' }),
-    terms: jsonb('terms').$type<Record<string, never>>().notNull().default({}),
+    terms: jsonb('terms').$type<VassalTerms>().notNull().default({}),
     origin: text('origin')
       .$type<'invite' | 'negotiation' | 'escheat' | 'ennoble' | 'peace'>()
       .notNull(),

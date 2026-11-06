@@ -4,6 +4,9 @@
 import {
   formatInviteCode,
   type HousePanelData,
+  type HungerLevel,
+  type PanelAgreement,
+  type PanelTreeNode,
   type PanelPlayerActions,
   type PersonRef,
   type PublicHouse,
@@ -82,6 +85,12 @@ export interface HouseView {
   freeInviteSlots: number;
   /** Otevřená jednání hráčova rodu, na tahu jsou první. */
   negotiations: NegotiationView[];
+  /** Dohody hráčova rodu: podmínky, neplnění (zlomená pečeť) a id pro vypovězení. */
+  agreements: PanelAgreement[];
+  /** Strom vazalů pod hráčem po patrech (hloubka, pán, podmínky, hlad, štít). */
+  tree: PanelTreeNode[];
+  /** Hlad a štít (muži schopní služby) hráčova rodu a jeho přímých pánů a vazalů podle id rodu. */
+  status: Record<string, { hunger: HungerLevel | null; shield: number }>;
   /** Čekající věci (jednání, kde je hráč na tahu) – pečeť v liště. */
   waiting: number;
 }
@@ -159,6 +168,14 @@ export function houseView(data: HousePanelData, nowMs: number): HouseView {
         portraitOf(m, { senior: data.own?.senior ?? null, lord: data.own?.lord ?? null }),
       ),
     successionCredits: data.own?.successionCredits ?? 0,
+    agreements: data.agreements,
+    tree: data.tree,
+    status: {
+      ...data.status,
+      ...(data.own
+        ? { [data.own.houseId]: { hunger: data.own.hunger, shield: data.own.shield } }
+        : {}),
+    },
     lords: data.lords.map((h) => houseLinkOf(h)),
     vassals: data.vassals.map((h) => houseLinkOf(h)),
     others: data.others.map((h) => houseLinkOf(h, data.actions[h.houseId])),

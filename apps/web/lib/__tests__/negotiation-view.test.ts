@@ -55,12 +55,17 @@ describe('negotiationView', () => {
   it('panel řadí jednání na tahu první a počítá je do čekajících věcí', () => {
     const data: HousePanelData = {
       hasHouse: true,
+      agreements: [],
+      tree: [],
+      status: {},
       own: {
         houseId: 'h-a',
         men: [],
         senior: null,
         lord: null,
         successionCredits: 0,
+        hunger: null,
+        shield: 0,
       },
       lords: [],
       vassals: [],
@@ -90,7 +95,31 @@ describe('vstup jednání', () => {
       items: [item],
       message: 'ahoj',
     });
-    expect(parseOpenNegotiationInput({ to: 'b', items: [], message: null })).toBeNull();
+    // prázdné podmínky = změna existující dohody na holou přísahu (use-case ověří, že dohoda je)
+    expect(parseOpenNegotiationInput({ to: 'b', items: [], message: null })).toEqual({
+      to: 'b',
+      items: [],
+      message: null,
+    });
+    const goods = {
+      grainKg: 100,
+      hayKg: 0,
+      cattle: { cows: 0, youngOxen: 0, trainedOxen: 0 },
+      horses: 0,
+      logs: 0,
+      people: { families: 0, men: 0, women: 0 },
+      laborDays: 0,
+    };
+    const lines = [
+      { kind: 'tribute', goods },
+      { kind: 'service', men: 4, days: 30 },
+      { kind: 'target-village', villageId: 'v1' },
+      { kind: 'reward', goods },
+    ];
+    expect(parseOpenNegotiationInput({ to: 'b', items: lines })?.items).toEqual(lines);
+    expect(
+      parseOpenNegotiationInput({ to: 'b', items: [{ kind: 'tribute', goods: { grainKg: 1 } }] }),
+    ).toBeNull();
     expect(parseOpenNegotiationInput({ to: 'b', items: [{ kind: 'x' }] })).toBeNull();
     expect(
       parseOpenNegotiationInput({ to: 'b', items: [item], message: 'x'.repeat(501) }),

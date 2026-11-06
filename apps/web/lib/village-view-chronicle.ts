@@ -378,9 +378,13 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
           return `Dohoda odmítnuta – ${event.actor} a ${event.other}.`;
         case 'withdrawn':
           return `Návrh dohody stažen – ${event.actor} a ${event.other}.`;
+        case 'terms-accepted':
+          return `Nové podmínky dohody přijaty – ${event.actor} a ${event.other}.`;
       }
     case 'negotiation-accepted':
       return `${event.vassal} se stal vazalem ${genitiveOf(event.lord)}.`;
+    case 'vassalage-renounced':
+      return `Vazalství mezi ${event.lord} (pán) a ${event.vassal} (vazal) skončilo vypovězením.`;
     case 'blocked':
       return `${event.blocker} zablokoval ${accusativeOf(event.blocked)}.`;
     case 'senior':

@@ -15,6 +15,12 @@ export type PlayerNoticeKind =
   | 'negotiation-accepted'
   | 'negotiation-rejected'
   | 'negotiation-withdrawn'
+  /**
+   * Vazalství vypovězeno (úloha 4.2) – dostane ho celý strom kolem obou stran. Payload jen veřejné:
+   * `{ lordHouseId, vassalHouseId, lordName, vassalName, byHouseId }`; druhá strana má navíc
+   * `message` (vzkaz vypovídajícího).
+   */
+  | 'vassalage-renounced'
   /** Druhý rod tě zablokoval – payload `{ houseId, name }`. */
   | 'blocked';
 

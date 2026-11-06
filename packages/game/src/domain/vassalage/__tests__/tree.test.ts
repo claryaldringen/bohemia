@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { treeAround, treeBelow, wouldBeMutual, type VassalEdge } from '../tree';
+import { treeAround, treeBelow, treeBelowDepths, wouldBeMutual, type VassalEdge } from '../tree';
 
 const e = (lordHouseId: string, vassalHouseId: string): VassalEdge => ({
   lordHouseId,
@@ -44,5 +44,17 @@ describe('treeAround', () => {
   });
   it('osamělý rod je sám', () => {
     expect(treeAround([], ['Q'])).toEqual(['Q']);
+  });
+});
+
+describe('treeBelowDepths', () => {
+  it('patra s pánem, kruh se ukáže jednou, hloubka je omezená', () => {
+    const edges = [e('A', 'B'), e('A', 'C'), e('B', 'D'), e('D', 'A'), e('C', 'D')];
+    expect(treeBelowDepths(edges, 'A', 5)).toEqual([
+      { houseId: 'B', depth: 1, parentHouseId: 'A' },
+      { houseId: 'C', depth: 1, parentHouseId: 'A' },
+      { houseId: 'D', depth: 2, parentHouseId: 'B' },
+    ]);
+    expect(treeBelowDepths(edges, 'A', 1).map((n) => n.houseId)).toEqual(['B', 'C']);
   });
 });
