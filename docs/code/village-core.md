@@ -19,6 +19,13 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `sacredRuins?`, `SacredBuilding.wear?`, `Cemetery.fenceWear?`, `Pen.wear?`) – vsi
   uložené dřív se načtou a beze sadů či dílen se jejich stav nemění.
 
+- **Opevnění v pořadí dne** (fortifications.md – Životnost a oprava; podrobnosti
+  [village-fortifications.md](village-fortifications.md#stáří-přestavba-a-údržba-valu-ú54)):
+  `decideFortRebuilds` běží v `simulate.ts` hned za `decideRebuilds` (přestavby obydlí) a před
+  `occupyEmptyDwellings`; údržba valu (`rampartMaintenance`) v `work()` hned za opravami obydlí –
+  bere ze zbytku společné práce (`afterBuild.left`), co zbude, jde dál (díly nad potřebu, seč).
+  Ves bez opevnění nebo bez krajiny: žádný krok nic nemění.
+
 - **Pořadí práce dne** (population.md a fields.md – Práce; Martin 19. 10. 2026: „pokud se něco
   staví, tak čas věnují primárně té stavbě – zemědělství jenom natolik, aby vesnice neměla
   hlad“): pracovní síla vsi = dospělí (`laborPerDay`); starší kryjí jen denní minimum své

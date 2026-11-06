@@ -8,6 +8,7 @@ import {
   fortificationOutline,
   fortSegments,
   roadGates,
+  segmentStands,
   type FortGate,
   type FortOutline,
   type FortSegmentShape,
@@ -107,9 +108,7 @@ export function gateRoadCrossings(
   if (axes.length === 0) return;
   for (const fort of forts) {
     const standing = new Set(
-      fort.segments
-        .filter((s) => s.builtDay !== null && s.breachedDay === undefined)
-        .map((s) => s.index),
+      fort.segments.filter((s) => segmentStands(fort, s)).map((s) => s.index),
     );
     // každý stojící úsek už bránu má – není co přidat
     for (const g of fort.gates) standing.delete(g.segment);
@@ -122,7 +121,7 @@ export function gateRoadCrossings(
 }
 
 /** Kotva vsi – dvorec, bez něj střed obydlí (fortifications.md – Brány); bez obydlí střed mapy. */
-function villageAnchor(state: VillageState): RoadPoint {
+export function villageAnchor(state: VillageState): RoadPoint {
   const manorId = villageManorId(state);
   const manor = manorId === null ? undefined : state.dwellings.find((d) => d.id === manorId);
   if (manor) return { x: manor.position.x, z: manor.position.z };
@@ -160,7 +159,7 @@ export function fortWorkOrder(
 }
 
 /** Plán práce úseků `indices` (v pořadí) a dřevo celé stavby (klády, i necelé). */
-function segmentPlan(
+export function segmentPlan(
   shapes: readonly FortSegmentShape[],
   indices: readonly number[],
   kind: FortKind,
@@ -176,7 +175,7 @@ function segmentPlan(
 }
 
 /** Těžiště čtverců plochy – odtud se hledají nejbližší stromy ke kácení. */
-function outlineCenter(outline: FortOutline): RoadPoint {
+export function outlineCenter(outline: FortOutline): RoadPoint {
   const squares = outline.area.squares;
   let x = 0;
   let z = 0;
@@ -187,7 +186,7 @@ function outlineCenter(outline: FortOutline): RoadPoint {
   return { x: x / squares.length, z: z / squares.length };
 }
 
-interface FortWorkInput {
+export interface FortWorkInput {
   fortificationId: number;
   work: FortBuildWork;
   plan: { segments: FortSegmentWork[]; wood: number };
@@ -200,7 +199,7 @@ interface FortWorkInput {
  * Založí stavbu na opevnění (mutuje `next` – klon): klády z hromady (i z pokácených stromů pásu),
  * zbytek vyhradí ke kácení mezi nejbližšími dospělými stromy. False, když dřevo nestačí.
  */
-function pushWork(
+export function pushWork(
   next: VillageState,
   day: number,
   obstacles: ObstacleLayer | null,
@@ -449,10 +448,17 @@ export function addGateToFortification(
 function segmentDone(
   fort: Fortification,
   s: FortSegment,
-  work: FortBuildWork | undefined,
+  c: Pick<Construction, 'fortWork' | 'startedDay'>,
 ): boolean {
-  if (work === 'upgrade') return segmentKind(fort, s) === 'palisade';
-  if (work === 'top') return s.topBuiltDay !== undefined && s.topBuiltDay !== null;
+  if (c.fortWork === 'upgrade') return segmentKind(fort, s) === 'palisade';
+  if (c.fortWork === 'top') return s.topBuiltDay !== undefined && s.topBuiltDay !== null;
+  // přestavba: úsek (nebo nástavba valu) dostavěný po založení stavby
+  if (c.fortWork === 'rebuild') {
+    return (
+      (s.builtDay !== null && s.builtDay > c.startedDay) ||
+      (s.topBuiltDay !== undefined && s.topBuiltDay !== null && s.topBuiltDay > c.startedDay)
+    );
+  }
   return s.builtDay !== null;
 }
 
@@ -469,14 +475,23 @@ export function workFortification(state: VillageState, c: Construction, day: num
   for (const w of c.fortSegments) {
     reached += w.cost;
     if (c.done + EPSILON < reached) return;
+    // obnova valu nemá úseky k dokončení – výška se vrátí s koncem stavby (`finishFortification`)
+    if (c.fortWork === 'restore') continue;
     const s = fort.segments.find((x) => x.index === w.index);
-    if (!s || segmentDone(fort, s, c.fortWork)) continue;
+    if (!s || segmentDone(fort, s, c)) continue;
     if (c.fortWork === 'top') {
       s.topBuiltDay = day;
       continue;
     }
+    if (c.fortWork === 'rebuild' && fort.kind === 'rampart' && s.breachedDay === undefined) {
+      // přestavba shnilé nástavby valu – val sám stojí dál
+      s.topBuiltDay = day;
+      s.state = 1;
+      continue;
+    }
     s.builtDay = day;
     s.state = 1;
+    delete s.breachedDay;
     if (c.fortWork === 'upgrade') s.kind = 'palisade';
   }
 }
@@ -488,7 +503,12 @@ export function workFortification(state: VillageState, c: Construction, day: num
 export function finishFortification(state: VillageState, c: Construction, day: number): void {
   workFortification(state, c, day);
   const fort = villageFortifications(state).find((f) => f.id === c.fortificationId);
-  if (!fort || c.fortWork !== 'upgrade') return;
+  if (!fort) return;
+  if (c.fortWork === 'restore') {
+    delete fort.rampartHeight;
+    return;
+  }
+  if (c.fortWork !== 'upgrade') return;
   if (fort.segments.every((s) => segmentKind(fort, s) === 'palisade')) {
     fort.kind = 'palisade';
     for (const s of fort.segments) delete s.kind;

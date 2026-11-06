@@ -4,11 +4,12 @@ import type { GridGeometry } from '../square-grid';
 import type { FortKind, SquareGrid, TileCell } from '../types';
 import { fortBandPieces } from './band';
 import type { FortGate } from './gates';
+import { segmentStands } from './life';
 import { fortificationArea, fortificationOutline, type FortOutline } from './outline';
 
 // Stěny opevnění pro síť cest (fortifications.md – Brány, Pro implementaci – Chůze a cesty): pás
 // stojících úseků jako obdélníky (`fortBandPieces`) bez otvorů bran – chodec, vůz ani stádo pásem
-// neprojde, jen branou. Rozestavěný úsek (staveniště), mezera po zrušené stavbě a průlom stojící
+// neprojde, jen branou. Rozestavěný úsek (staveniště), mezera po zrušené stavbě, shnilý úsek na nule a průlom stojící
 // nejsou – jsou průchozí. Server i prohlížeč počítají stěny touto funkcí (jen sčítání a násobení).
 
 /** Stěny a brány opevnění ve světě – podklad mřížek chodců a vozů (`PathVillage.fortifications`). */
@@ -28,6 +29,7 @@ export interface WallFortification {
     readonly index: number;
     readonly builtDay: number | null;
     readonly breachedDay?: number;
+    readonly state?: number;
     readonly kind?: FortKind;
   }[];
   readonly gates: readonly FortGate[];
@@ -47,7 +49,7 @@ function lerp(a: Point, b: Point, t: number): [number, number] {
 export function fortWalls(geo: GridGeometry, fort: WallFortification): FortWalls {
   const area = fortificationArea(fort.cells, fort.grid, geo);
   if ('error' in area) return { walls: [], gates: [] };
-  const standing = fort.segments.filter((s) => s.builtDay !== null && s.breachedDay === undefined);
+  const standing = fort.segments.filter((s) => segmentStands(fort, s));
   if (standing.length === 0) return { walls: [], gates: [] };
   // tvar podle druhu opevnění – poloha bran (`offsetM`) se měří od začátku jeho rovné části
   const outline = fortificationOutline(area, fort.kind);

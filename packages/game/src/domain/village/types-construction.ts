@@ -152,9 +152,9 @@ export interface Construction {
   extends?: true;
   /** Opevnění (fortifications.md), které stavba `fortification` staví; u ostatních chybí. */
   fortificationId?: number;
-  /** Co stavba opevnění dělá – stavba, vylepšení, nástavba (přestavba a obnova později). */
+  /** Co stavba opevnění dělá – stavba, vylepšení, nástavba, přestavba, obnova valu. */
   fortWork?: FortBuildWork;
-  /** Přestavba jednoho úseku (`rebuild` – další úlohy F5); jinak chybí. */
+  /** Nepoužité (přestavba je jedna stavba pro všechny dožilé úseky opevnění). */
   segmentIndex?: number;
   /**
    * Úseky stavby opevnění v pořadí práce (od brány nejblíž dvorci po směru hodin) a práce každého
