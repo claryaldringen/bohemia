@@ -52,7 +52,21 @@ export const FORTIFICATIONS = {
    * Útočiště (Obrana – Útočiště; návrh Clauda): 10 m² na člověka, 20 m² na kus dobytka (kráva,
    * vůl, kůň); ovce, koza a prase jsou čtvrt kusu.
    */
-  refuge: { m2PerPerson: 10, m2PerHead: 20, smallStockHead: 0.25 },
+  refuge: {
+    m2PerPerson: 10,
+    m2PerHead: 20,
+    smallStockHead: 0.25,
+    /** Zásoby, které přinese do útočiště člověk zvenku: dospělý 25 kg, dítě 7–15 let 10 kg (návrh Clauda). */
+    carryKgAdult: 25,
+    carryKgChild: 10,
+  },
+  /**
+   * Přínos výšky valu (Obrana – Násobek podle stavu; návrh Clauda): násobek holého valu
+   * `1 + 0,5 × výška` (plná výška 1 = 1,5, bez údržby nejníž 0,5 = 1,25).
+   */
+  rampartHeightBonus: 0.5,
+  /** Přesila, při které se skupina za opevněním vzdá: 1,5 × obránci × násobek (Postoje; návrh Clauda). */
+  surrenderOddsPerDefender: 1.5,
   /** Šířka pásu uvnitř plochy podél okraje (Obvod; návrh Clauda) – m. */
   bandM: { fence: 1, palisade: 1.5, rampart: 10 } satisfies Record<FortKind, number>,
   /** Pás valu (Obvod; návrh Clauda): příkop 4 m vně, val 6 m u paty (m). */

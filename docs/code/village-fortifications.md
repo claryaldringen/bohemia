@@ -183,6 +183,32 @@ squares }`, nebo `{ error: 'empty' | 'disconnected' | 'too-small' }`. Opakované
   k válce (Ú5.5); opuštěná ves je mimo simulaci, takže val v ní výšku neztrácí (rozdíl proti
   abandonment.md řeší až probuzení vsi).
 
+## Obrana, útočiště a prolomení (Ú5.5)
+
+Čistá doména pro válku (F6), nic ji zatím nevolá; soubory `fortification/{defense,refuge,breach}.ts`,
+testy `__tests__/defense.test.ts`. Funkce berou `geo` (`GridGeometry`) jako ostatní.
+
+- **`defense.ts`** – `segmentMultiplier(fort, seg, day)`: plot / palisáda `1 + (m − 1) × stav`, val
+  `v × (1 + (m ÷ 1,5 − 1) × stav nástavby)`, `v = 1 + 0,5 × rampartHeight`; nástavba, která na
+  úseku ještě nestojí (`topBuiltDay` chybí), se nepočítá. Mezera (`segmentIsGap`: nedostavěný,
+  prolomený, plot / palisáda shnilé na 0) = 1. `defenderMultiplier(geo, forts, defender, attacker,
+day)`: obránce uvnitř plochy → `1,5 × násobek` nejbližšího úseku (u mezery slabší ze sousedů),
+  jinak 1,5; útočník v ploše dál než šířka pásu od nejbližšího úseku = uvnitř, opevnění nepočítá
+  (v pásu je „v bráně / průlomu / na valu“, tedy násobek platí). `fortGaps(geo, fort, day,
+closedGates)` – otevřené brány (`closedGates` = indexy úseků se zavřenou bránou), `gap` a `breach`
+  (4 m).
+- **`refuge.ts`** – `refugeCapacity(geo, fort)` = `innerAreaM2`; `refugeAdmit(capacityM2, arrivals,
+gateCloseTick)` (bere plochu místo opevnění): příchozí po zavření brány venku; ostatní podle
+  přednosti lidé → koně a voli → skot → drobný dobytek (uvnitř skupiny podle taktu příchodu);
+  `homeInside` lidé nic nenesou, zvenku 25 / 10 kg (`carriedKg`).
+- **`breach.ts`** – `breachWork(fort, seg, 'gate' | 'wall')` (0 / 2 / 12 / 96; val podle nástavby,
+  holý val 0), `breachPace` (val `rampartAssaultPace` = 0,25), `breachStart`, `breachStep(progress,
+men, hours)` (nejvýš 4 muži), `surrenderThreshold(defenders, fortMultiplier)` (útočníků musí být
+  _víc_ než výsledek: 20 obránců za palisádou → 60, vzdání při 61).
+- **Odchylky od plánu:** funkce navíc berou `geo`; `refugeAdmit` bere kapacitu, ne opevnění;
+  `closedGates` je množina indexů úseků; pozice jsou `{ x, z }`. Čísla navíc v `FORTIFICATIONS`:
+  `refuge.carryKgAdult/Child`, `rampartHeightBonus`, `surrenderOddsPerDefender`.
+
 ## Akce
 
 - Use-casy `application/place-fortification.ts` (`placeFortification`),

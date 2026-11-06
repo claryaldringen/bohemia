@@ -95,7 +95,7 @@ function crossings(segment: FortSegmentShape, p: RoadPoint, q: RoadPoint): [numb
 }
 
 /** Vzdálenost bodu od úseku – rovné části a oblouku (m). */
-function distanceTo(segment: FortSegmentShape, x: number, z: number): number {
+export function distanceTo(segment: FortSegmentShape, x: number, z: number): number {
   const { line, arc } = segment;
   const a = Math.min(line.length, Math.max(0, along(segment, x, z)));
   let best = length2(x - (line.x + line.dx * a), z - (line.z + line.dz * a));
