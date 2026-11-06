@@ -181,7 +181,7 @@ function hungryVillage(): VillageState {
   });
   s.constructions = [];
   s.lastDay = at(600, 8, 31);
-  // hladová ves, ale s osivem – osivo ze zásob při setí nad příděl SEED_STORES.floorRation (fields.md
+  // hladová ves, ale s osivem – osivo ze zásob při setí nad přežívací zásobu do žní (fields.md
   // – Úroda, Osivo ze zásob)
   s.storesKg = 800;
   s.parts.forEach((p, i) => {

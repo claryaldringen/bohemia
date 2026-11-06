@@ -188,7 +188,12 @@ describe('len napřed – výběr s kapacitou (do Úlohy 5 pro páry k rádlům)
     // 0,5 už plán osevu k 1. 9. nemění oproti stavu s prahem 0,6 – otisk je zpět na 165:82576eb1
     // 163:1fa9eda1 (2. 11. 2026, příprava jaře jen na díly s osivem – fields.md, Osivo ze zásob):
     // nová ves založená 1. 3. nekope jař, na kterou nemá osivo – výběr dílů se mění; dřív 165:82576eb1
-    expect(fingerprint(plans)).toBe('163:1fa9eda1');
+    // 158:fbeb05f6 (6. 11. 2026, osev má přednost – fields.md, Osivo ze zásob): ves si nechá jen
+    // přežívací zásobu do žní a ostatní zrno je osivo – jiné zásoby a osev; dřív 163:1fa9eda1
+    // 162:a9a20af5 (6. 11. 2026, přežívací zásoba podle celé stravy, nezaseté osivo po okně zpět do
+    // zásob, díly nad potřebu v okně setí před stavbami – fields.md, Osivo ze zásob a bod 3): jiné
+    // zásoby k 1. 9. a jiný výběr dílů; dřív 158:fbeb05f6
+    expect(fingerprint(plans)).toBe('162:a9a20af5');
   });
 });
 

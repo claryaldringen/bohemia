@@ -9,7 +9,7 @@ import {
 } from './rotation';
 import { ploughLayout } from './plough-blocks';
 import { CROP_ORDER } from './rules';
-import type { CropWork, FieldPart, SeasonCrop, SurplusCrop, VillageState } from './types';
+import type { Crop, CropWork, FieldPart, SeasonCrop, SurplusCrop, VillageState } from './types';
 import {
   TASK_ORDER,
   activeTasks,
@@ -28,14 +28,16 @@ import {
   type CropTask,
 } from './year-plan';
 import { springSowingExtended, springSowingHeld } from './weather-effects';
-import { foodUntilHarvestKg, seedSowCap, sowableSeedKg, takeSeed } from './seed';
+import { seedKeepKg, seedSowCap, sowableSeedKg, takeSeed } from './seed';
 
 // Díly nad potřebu (fields.md – Osevní postup po dílech a setí do konce okna, bod 3; Martin
 // 25. 10. 2026: „stavby mají pořád přednost, ale vesničané neví dopředu že budou něco stavět,
 // takže ve chvíli, kdy stavba přijde, prostě vesnice o část úrody přijde.“). Nutné díly (potřeba
-// úrody proti hladu) jsou sezónní úlohy dne a jdou před stavbami; ostatní díly na řadě – jen obilí
-// – dostanou práci, která zbude po stavbách a opravách obydlí: příprava půdy, setí, pletí, žně
-// a odnos. Výmlat na humně je společný (humno nerozlišuje, odkud snopy jsou).
+// úrody proti hladu) jsou sezónní úlohy dne a jdou před stavbami; ostatní díly na řadě – jen obilí.
+// V okně setí plodiny ves oře a seje všechny díly v plánu (Martin 6. 11. 2026: „dokud trvá okno“) –
+// příprava půdy a setí dílů nad potřebu jde hned za nutnými úlohami, před stavbami (`phase`
+// `sowing`); pletí, žně, odnos a příprava půdy mimo okno setí dostanou práci, která zbude po
+// stavbách a opravách obydlí. Výmlat na humně je společný (humno nerozlišuje, odkud snopy jsou).
 
 /** Tolerance porovnání práce (člověkodny). */
 const EPSILON = 1e-9;
@@ -61,6 +63,14 @@ export interface SurplusFieldInput {
    * nezačne: díly nad potřebu berou práci až za čelem nutných dílů.
    */
   neededWaiting: boolean;
+  /**
+   * Která část práce dílů nad potřebu dnes přijde na řadu (fields.md – Osevní postup po dílech,
+   * bod 3; Martin 6. 11. 2026: ves oře a seje, dokud trvá okno): `sowing` – příprava půdy a setí
+   * plodin, jejichž okno setí dnes běží (`sowingOpenToday`), i nové díly těch plodin – jde před
+   * stavbami; `rest` – ostatní práce (pletí, žně, odnos, příprava půdy mimo okno setí) – po stavbách.
+   * Bez údaje všechno najednou.
+   */
+  phase?: 'sowing' | 'rest';
 }
 
 /** Polní práce dne na obilí nad potřebu: úloha plodiny a kolik z ní bylo hotové před a po. */
@@ -111,6 +121,11 @@ function surplusTasks(state: VillageState, day: number): SurplusTask[] {
     }
   }
   return tasks.sort((a, b) => a.end - b.end || a.rank - b.rank);
+}
+
+/** Okno setí plodiny dnes běží – i dosévání jařin po dlouhé zimě (`springSowingExtended`). */
+function sowingOpenToday(state: VillageState, crop: Crop, day: number): boolean {
+  return windowOpen(crop, 'sow', day) || springSowingExtended(state, day, crop);
 }
 
 /** Zbývající příprava půdy plodiny – díl na ní je rozpracovaný. */
@@ -182,25 +197,31 @@ export function surplusFieldDay(
   state: VillageState,
   day: number,
   input: SurplusFieldInput,
-): { fieldWork: SurplusFieldWork[]; labor: number } {
+): { fieldWork: SurplusFieldWork[]; labor: number; teamDays: number } {
   const fieldWork: SurplusFieldWork[] = [];
   const season = state.season;
-  if (!season || input.labor <= EPSILON) return { fieldWork, labor: 0 };
+  if (!season || input.labor <= EPSILON) return { fieldWork, labor: 0, teamDays: input.teamDays };
   let left = input.labor;
   let teams = input.teamDays;
-  // obilí nad potřebu seje jen z osiva nad jídlo (fields.md – Úroda, Osivo ze zásob)
+  // před stavbami jen příprava půdy a setí plodin v okně setí, po stavbách ostatní (`phase`)
+  const phase = input.phase;
+  const sowingNow = (crop: Crop): boolean => sowingOpenToday(state, crop, day);
+  const inPhase = (crop: Crop, task: CropTask): boolean =>
+    phase === undefined ||
+    (phase === 'sowing') === (sowingNow(crop) && (task === 'sow' || PREP_TASKS.includes(task)));
+  // obilí nad potřebu seje ze zrna nad přežívací zásobu (fields.md – Úroda, Osivo ze zásob)
   let partsById: Map<number, FieldPart> | null = null;
-  let food: number | null = null;
+  let keep: number | null = null;
   const put = (work: SeasonCrop, task: CropTask): void => {
-    if (left <= EPSILON) return;
+    if (left <= EPSILON || !inPhase(work.crop, task)) return;
     let wanted = Math.min(left, cropTaskRemaining(work, task));
     if (task === 'sow' && work.seedKg !== undefined) {
       partsById ??= new Map(state.parts.map((p) => [p.id, p]));
-      food ??= foodUntilHarvestKg(state, day);
-      // obilí nad potřebu – jen zrno nad příděl bez hladu (osivo do roční potřeby má přednost)
+      keep ??= seedKeepKg(state, day);
+      // obilí nad potřebu – jen osivo, na které nutné díly nečekají (nutné mají přednost)
       const sowable = {
-        grain: sowableSeedKg(state, 'grain', food, false),
-        legumes: sowableSeedKg(state, 'legumes', food, false),
+        grain: sowableSeedKg(state, 'grain', keep, false, day),
+        legumes: sowableSeedKg(state, 'legumes', keep, false, day),
       };
       wanted = Math.min(wanted, seedSowCap(work, work.crop, partsById, sowable));
     }
@@ -215,7 +236,7 @@ export function surplusFieldDay(
     addCropTaskWork(work, task, wanted);
     const after = cropTaskDone(work, task);
     if (after - before <= EPSILON) return;
-    if (task === 'sow' && partsById) takeSeed(state, work, work.crop, partsById, food ?? 0);
+    if (task === 'sow' && partsById) takeSeed(state, work, work.crop, partsById, keep ?? 0);
     fieldWork.push({ task, work, before, after, amount: after - before });
     left -= after - before;
     if (task === 'plough') teams -= (after - before) / factor;
@@ -224,13 +245,15 @@ export function surplusFieldDay(
 
   // nové díly nad potřebu – až za čelem nutných dílů, v oknech přípravy půdy a setí
   if (input.neededWaiting || left <= EPSILON || sowingCropToday('first', day) === null) {
-    return { fieldWork, labor: input.labor - left };
+    return { fieldWork, labor: input.labor - left, teamDays: teams };
   }
   // ves se spřežením orá všechno (oxen.md – Jen rádlo): plodina se buď celá orá, nebo celá kope
   const plough = springCrop(season).plough !== undefined;
   const used = new Set(seasonPartIds(season));
   let order: FieldPart[] | null = null;
   for (const crop of SURPLUS_CROPS) {
+    // nový díl plodiny v okně setí před stavbami, jinak po nich
+    if (phase !== undefined && (phase === 'sowing') !== sowingNow(crop)) continue;
     while (left > EPSILON && (!plough || teams > EPSILON)) {
       const existing = surplusCrop(season, crop);
       if (existing && prepLeft(existing) > EPSILON) break;
@@ -255,5 +278,5 @@ export function surplusFieldDay(
       for (const task of PREP_TASKS) put(work, task);
     }
   }
-  return { fieldWork, labor: input.labor - left };
+  return { fieldWork, labor: input.labor - left, teamDays: teams };
 }

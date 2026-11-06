@@ -380,9 +380,11 @@ export interface FarmSeason {
    */
   seedWaitingKg?: SeedKg;
   /**
-   * Osivo obilí na díly do roční potřeby z pole (kg – fields.md, Úroda, Osivo ze zásob): má
-   * přednost před jídlem do příděl SEED_STORES.floorRation. Přepočte se každý den, kdy smí začít
-   * díl (`seasonDay` – roční potřeba × osivo na kg čisté úrody dílů plánu). Chybí = 0.
+   * Osivo obilí na díly do roční potřeby z pole (kg – fields.md, Úroda, Osivo ze zásob): odhad
+   * osiva příštího osevu, které si ves z osiva zakladatelů nechá, i když šetří přídělem
+   * (`foundersSeedKeepKg`); kolik osiva smí do země, už neomezuje (osev má přednost – 6. 11. 2026).
+   * Přepočte se každý den, kdy smí začít díl (`seasonDay` – roční potřeba × osivo na kg čisté úrody
+   * dílů plánu). Chybí = 0.
    */
   seedFloorKg?: number;
   /**

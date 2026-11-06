@@ -200,6 +200,14 @@ describe('steward-extras – humno, ohrady, posvátná místa a cesty', () => {
       landscape,
     );
     grown = planned(grown);
+    // posvátná místa, která ves za tři roky má (dub, háj, modla), testy návratnosti nepočítají –
+    // přínos stavby se měří proti vsi bez nich
+    delete grown.sacredOaks;
+    delete grown.groves;
+    delete grown.sacredBuildings;
+    grown.constructions = grown.constructions.filter(
+      (c) => c.kind !== 'idol' && c.kind !== 'shrine',
+    );
   }, 120_000);
 
   /** Příští den správce v daném kalendářním měsíci po stavu `grown`. */

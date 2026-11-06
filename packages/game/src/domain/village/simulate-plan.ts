@@ -418,7 +418,8 @@ export function seasonDay(state: VillageState, day: number, coverage: CraftCover
  * Osivo plánu (fields.md – Úroda, Osivo ze zásob; mutuje `season`): osivo vybraných dílů, které
  * na čelo ještě nepřišly (`seedWaitingKg` – ves ho nejí a počítá s ním ve výhledu zásob), a osivo
  * obilí do roční potřeby z pole (`seedFloorKg` = `floorKg` × osivo na kg čisté úrody dílů obilí
- * plánu a čekajících) – v den, kdy díl nesmí začít, se čekající smaže a osivo do potřeby zůstane.
+ * plánu a čekajících – jen pro osivo zakladatelů, `foundersSeedKeepKg`; osev neomezuje) – v den,
+ * kdy díl nesmí začít, se čekající smaže a osivo do potřeby zůstane.
  */
 function recordSeedPlan(
   state: VillageState,
@@ -611,7 +612,7 @@ export function fieldSowingTargets(
   coverage: CraftCoverage,
   reserveSeed = true,
 ): SowingTargets {
-  const seed = reserveSeed ? seedAheadKg(state) : null;
+  const seed = reserveSeed ? seedAheadKg(state, false, day) : null;
   // osivo zakladatelů na víc osevů (FOUNDERS_STORES) jídlem není, ani když ho plán ještě nevzal
   const kept = seed ? keptSeedKg(state, day) : 0;
   return sowingTargets(

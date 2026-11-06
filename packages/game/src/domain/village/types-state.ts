@@ -83,8 +83,8 @@ export interface VillageState {
   storesKg: number;
   /**
    * Osivo ve `storesKg`, které ves má jen na setí a nesní ho (fields.md – Osivo ze zásob, Osivo pro
-   * ves bez zásob): přinesené osadníky dceřiné vsi a koupené u sousedů. Do země smí i pod prahy
-   * přídělu, setí ho bere napřed; co do 1. 6. nezaseje, je obyčejné zrno. Chybí = žádné.
+   * ves bez zásob): přinesené osadníky dceřiné vsi a koupené u sousedů. Do země smí i pod přežívací
+   * zásobou (setí ho bere až po běžném zrnu nad ní); co do 1. 6. nezaseje, je obyčejné zrno. Chybí = žádné.
    */
   reservedSeedKg?: number;
   /**

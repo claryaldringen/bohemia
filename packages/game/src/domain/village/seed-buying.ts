@@ -2,13 +2,13 @@ import { dateOfDayIndex } from '../calendar';
 import { surplusCows } from './husbandry';
 import { neighbourStock } from './neighbours';
 import { NEIGHBOR_DIRECTIONS, SEED_BUYING } from './rules';
-import { foodUntilHarvestKg, reservedSeedKg, seedAheadKg, sowableSeedKg } from './seed';
+import { reservedSeedKg, seedAheadKg, seedKeepKg, sowableSeedKg } from './seed';
 import { addGood, buyPrice, goodWorth, sellPrice, storeStock } from './trade';
 import type { ChronicleEvent, NeighbourStock, VillageState } from './types';
 
 // Osivo pro ves bez zásob (fields.md – Osivo ze zásob, Osivo pro ves bez zásob; Martin 27. 10.
 // 2026: „ok, jak navrhuješ“; pravidla návrh Clauda). Ves, které na setí nutných dílů v plánu
-// chybí osivo (zásoby pod prahy přídělu – po požáru, krutém roce, dceřiná ves), ho sama koupí
+// chybí osivo (zásoby pod přežívací zásobou – po požáru, krutém roce, dceřiná ves), ho sama koupí
 // u sousedů (princip „vesničané sami používají, co jim ulehčí práci“ – hráč nic nezadává):
 // v den SEED_BUYING.days (1. 9. před setím ozimu, 1. 3. před setím jaře) jen tolik obilí, kolik
 // na osivo chybí, kolik ho sousedé letos ještě mají (`neighbourStock` – po zlém roce méně) a kolik
@@ -35,7 +35,7 @@ function isOn(day: number, target: { month: number; day: number }): boolean {
  */
 export function seedShortKg(state: VillageState, day: number): number {
   if (!state.season) return 0;
-  const ahead = seedAheadKg(state, true);
+  const ahead = seedAheadKg(state, true, day);
   // nevymlácené snopy dají osivo výmlatem stejně jako v `seedPrepShares` – ves je nekupuje
   const sheaves = state.sheaves;
   const legumesShort = Math.max(
@@ -45,8 +45,7 @@ export function seedShortKg(state: VillageState, day: number): number {
   const need = ahead.grain + legumesShort;
   if (need <= EPSILON) return 0;
   const grainSowable =
-    sowableSeedKg(state, 'grain', foodUntilHarvestKg(state, day)) +
-    Math.max(0, sheaves?.grainKg ?? 0);
+    sowableSeedKg(state, 'grain', seedKeepKg(state, day)) + Math.max(0, sheaves?.grainKg ?? 0);
   return Math.max(0, need - grainSowable);
 }
 

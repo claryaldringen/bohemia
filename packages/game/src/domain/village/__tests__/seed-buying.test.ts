@@ -278,6 +278,10 @@ describe('osivo pro ves bez zásob (fields.md – Osivo pro ves bez zásob)', ()
     s.chronicle = [];
     const day = at(601, 3, 1);
     s.lastDay = day - 1;
+    // 10 kg osiva jen na setí ves už má – chybí tolik, že celé hřivny dají přeplatek (bez něj
+    // vyjde osivo jaře na celé hřivny – ozim po říjnu osivo nečeká, fields.md – Osivo ze zásob)
+    s.storesKg = 10;
+    s.reservedSeedKg = 10;
     const short = seedShortKg(s, day);
     expect(short).toBeGreaterThan(SEED_BUYING.minKg);
     s.crafts = { charcoalKg: 0, potteryKg: 0, ironBarsKg: 1000 };
@@ -294,8 +298,8 @@ describe('osivo pro ves bez zásob (fields.md – Osivo pro ves bez zásob)', ()
       },
     ]);
     expect(s.crafts.ironBarsKg).toBe(1000 - bars);
-    expect(reservedSeedKg(s)).toBeCloseTo(short, 6);
-    // osivo už nechybí a smí do země i pod prahy přídělu
+    expect(reservedSeedKg(s)).toBeCloseTo(10 + short, 6);
+    // osivo už nechybí a smí do země i pod přežívací zásobou
     expect(seedShortKg(s, day)).toBeCloseTo(0, 6);
     expect(sowableSeedKg(s, 'grain', foodUntilHarvestKg(s, day))).toBeGreaterThanOrEqual(
       short - 1e-6,

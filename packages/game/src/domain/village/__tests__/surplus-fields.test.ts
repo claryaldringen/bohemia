@@ -155,7 +155,7 @@ describe('díly nad potřebu po stavbách', () => {
     expect(busy.constructions[0]!.done).toBe(0);
   }, 60_000);
 
-  it('stavba uprostřed okna: nutné díly se dodělají, díly nad potřebu zůstanou nezaseté', () => {
+  it('stavba uprostřed okna: v okně setí se zasejí nutné díly i díly nad potřebu před stavbou', () => {
     const october = advanceVillage(readyVillage(30, 225, 3_800), at(600, 10, 12), null);
     const free = advanceVillage(october, at(600, 10, 31), null);
     const building = structuredClone(october);
@@ -165,22 +165,14 @@ describe('díly nad potřebu po stavbách', () => {
     const needed = seasonCrop(busy.season!, 'winter')!;
     expect(sowSplit(busy, needed).unsown).toEqual([]);
     expect(neededDone(busy)).toEqual(neededDone(free));
-    // nad potřebu ves o část úrody přišla – méně zasetých dílů, zbytek rozdělaný nebo na řadě
+    // v okně setí ves oře a seje všechny díly v plánu před stavbou (fields.md – Osevní postup po
+    // dílech, bod 3; Martin 6. 11. 2026) – nad potřebu zaseto jako bez stavby
     const surplusSown = (s: VillageState): number => {
       const w = surplusCrop(s.season!, 'winter');
       return w ? sowSplit(s, w).sown.length : 0;
     };
-    expect(surplusSown(busy)).toBeLessThan(surplusSown(free));
-    expect(busy.constructions[0]!.done).toBeGreaterThan(0);
-    // 1. 11.: nezasetý ozim nad potřebu jde do jaře nad potřebu i s rozdělanou prací
-    const winterBusy = surplusCrop(busy.season!, 'winter');
-    const late = winterBusy ? sowSplit(busy, winterBusy).unsown : [];
-    expect(late.length).toBeGreaterThan(0);
-    const november = advanceVillage(busy, at(600, 11, 1), null);
-    for (const id of late) {
-      expect(surplusCrop(november.season!, 'spring')!.partIds).toContain(id);
-      expect(november.parts.find((p) => p.id === id)!.crop).toBe('spring');
-    }
+    expect(surplusSown(free)).toBeGreaterThan(0);
+    expect(surplusSown(busy)).toBe(surplusSown(free));
   }, 60_000);
 
   it('vše nad potřebu zaseto, pak stavba vezme všechnu volnou práci – ves nehladoví', () => {
