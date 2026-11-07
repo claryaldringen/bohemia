@@ -133,9 +133,12 @@ export function NewcomerPanel({
   status,
   onRequest,
   onStartFree,
+  error = null,
   now = Date.now,
 }: {
   status: NewcomerStatusView;
+  /** Důvod, proč server žádost nebo volbu odmítl (česky); null – bez chyby. */
+  error?: string | null;
   /** Pošle žádosti vybraným rodům (nejvýš 5). */
   onRequest: (houseIds: string[]) => void;
   /** Začne svobodný (i „Stáhnout žádosti“). */
@@ -159,6 +162,11 @@ export function NewcomerPanel({
       className="hud-panel fixed top-1/2 left-1/2 z-30 flex max-w-[90vw] -translate-x-1/2 -translate-y-1/2 flex-col gap-2 p-3"
     >
       {children}
+      {error !== null && (
+        <span role="alert" data-testid="newcomer-error" className="text-xs text-red-400">
+          {error}
+        </span>
+      )}
     </div>
   );
 

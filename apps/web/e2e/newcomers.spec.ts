@@ -101,7 +101,8 @@ test('nováček vybere pána, staví v odříznuté krajině, pán přijme; svob
   await expect(rowA.getByTestId('language-icon-cs')).toBeVisible();
   await rowA.click();
   await offer.getByTestId('newcomer-send').click();
-  await expect(offer).toHaveCount(0);
+  await expect(b.getByTestId('newcomer-error')).toHaveCount(0);
+  await expect(offer).toHaveCount(0, { timeout: 30_000 });
 
   // B čeká v odříznuté krajině: staví ves, na mapě světa není, pozvánku nevydá
   await expect(readyScene(b)).toBeVisible({ timeout: 60_000 });
@@ -154,7 +155,7 @@ test('nováček vybere pána, staví v odříznuté krajině, pán přijme; svob
   const choiceC = c.getByTestId('newcomer-choice');
   await expect(choiceC).toBeVisible({ timeout: 60_000 });
   await choiceC.getByTestId('newcomer-free').click();
-  await expect(choiceC).toHaveCount(0);
+  await expect(choiceC).toHaveCount(0, { timeout: 30_000 });
   await expect(c.getByTestId('line-name-panel')).toBeVisible({ timeout: 30_000 });
   expect((await houseOf(emailC)).placed).toBe(true);
   expect(await worldCellOf(emailC)).not.toBeNull();

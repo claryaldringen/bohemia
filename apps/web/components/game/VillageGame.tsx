@@ -1746,6 +1746,7 @@ export function VillageGame({
             {newcomer && newcomerChoice && (
               <NewcomerPanel
                 status={newcomer}
+                error={houseError}
                 onRequest={(houseIds) => void negotiate(() => requestLordsAction(houseIds))}
                 onStartFree={() => void negotiate(() => startFreeAction())}
               />

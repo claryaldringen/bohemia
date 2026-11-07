@@ -674,7 +674,8 @@ Pravidla a use-casy: [world.md](world.md) – Vstup nováčka. Web jen zobrazuje
 - **`VillageGame`:** `refreshHouse` načte panel rodu a u odříznutého rodu (`HouseView.isolated`) i stav
   nováčka. Odříznutý bez rozhodnutí vidí `NewcomerPanel` (ikony „Vybrat pána“ / „Svobodný“, nabídka
   s ikonou jazyka, nejvýš 5) **místo** `LineNamePanel`; jméno vojvody přijde po volbě. Panel jména
-  při zakládání čeká na načtený stav nováčka (při chybě se nečeká). Po umístění panel zmizí.
+  při zakládání čeká na načtený stav nováčka (při chybě se nečeká). Důvod odmítnutí ze serveru je
+  řádek `newcomer-error`. Po umístění panel zmizí.
 - **Čekání** je v panelu Rod a vazalové (`NewcomerWaiting` z `NewcomerPanel.tsx`, řádek
   `house-newcomer`): odpočet do konce týdne, žádosti se stavem ikonou (přesýpací hodiny / křížek),
   „Stáhnout žádosti“ = `startFreeAction`. Vlastní žádosti nováčka se mezi kartami jednání neopakují.

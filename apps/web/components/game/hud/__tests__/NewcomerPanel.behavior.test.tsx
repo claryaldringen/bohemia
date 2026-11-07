@@ -113,6 +113,20 @@ describe('NewcomerPanel', () => {
     expect(onStartFree).toHaveBeenCalledTimes(1);
   });
 
+  it('důvod odmítnutí ze serveru je vidět', () => {
+    act(() =>
+      root.render(
+        <NewcomerPanel
+          status={offer(1)}
+          error="Ten rod se teď za pána nenabízí."
+          onRequest={vi.fn()}
+          onStartFree={vi.fn()}
+        />,
+      ),
+    );
+    expect(q('newcomer-error')!.textContent).toBe('Ten rod se teď za pána nenabízí.');
+  });
+
   it('umístěný nováček nemá panel', () => {
     act(() =>
       root.render(
