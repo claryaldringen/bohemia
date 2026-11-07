@@ -9,7 +9,13 @@ import {
   createLockPool,
   createVillageRepository,
 } from '@bohemia/db';
-import { advanceWorldStep, runWorldTasks, stepCampaigns, villageWatchers } from '@bohemia/game';
+import {
+  advanceWorldStep,
+  newCampaignMemory,
+  runWorldTasks,
+  stepCampaigns,
+  villageWatchers,
+} from '@bohemia/game';
 import {
   WORKER_LOCK_POOL_SIZE,
   cachedLandscapes,
@@ -135,6 +141,8 @@ async function main(): Promise<void> {
       vassalages: gameDeps.vassalages,
       passages: gameDeps.passages,
     }),
+    // poslední spočtený stav tažení napříč koly (docs/code/worker.md – Výkon – Tažení)
+    memory: newCampaignMemory(),
   };
   const campaignLoop: CampaignLoopDeps = {
     step: (input) => stepCampaigns({ ...campaignDeps, world: currentWorld() }, input),

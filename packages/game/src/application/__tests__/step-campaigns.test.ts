@@ -11,7 +11,12 @@ import {
   worldOf,
 } from '../../domain/war/__tests__/campaign-fixtures';
 import { queueCampaignIntent, type CampaignCells } from '../campaigns';
-import { stepCampaigns, type StepCampaignsDeps } from '../step-campaigns';
+import {
+  newCampaignMemory,
+  stepCampaigns,
+  type CampaignMemory,
+  type StepCampaignsDeps,
+} from '../step-campaigns';
 import { InMemoryCampaignLock, InMemoryCampaigns } from './in-memory-campaigns';
 import { InMemoryNotices } from './in-memory-notices';
 import { InMemoryVillages } from './in-memory-villages';
@@ -53,14 +58,15 @@ function setup(): {
   return { deps, campaigns, villages, notices, lock, loads };
 }
 
-/** Kola smyčky po 1 s (4 takty) od taktu `from` do `to`. */
+/** Kola smyčky po 1 s (4 takty, nebo `every`) od taktu `from` do `to`. */
 async function rounds(
   deps: StepCampaignsDeps,
   from: number,
   to: number,
+  every = 4,
 ): Promise<{ outcomes: string[] }> {
   const outcomes: string[] = [];
-  for (let tick = from; tick <= to; tick += 4) {
+  for (let tick = from; tick <= to; tick += every) {
     for (const r of await stepCampaigns(deps, { nowMs: msOfTick(tick, world) })) {
       outcomes.push(r.outcome);
     }
@@ -191,5 +197,117 @@ describe('stepCampaigns', () => {
       ['good', 'saved'],
     ]);
     expect((await stored(campaigns, 'good')).tick).toBe(LAUNCH + 41);
+  });
+
+  describe('paměť workeru (poslední spočtený stav)', () => {
+    /** Uložené kontrolní body (JSON) v pořadí uložení. */
+    function recordSaves(campaigns: InMemoryCampaigns): string[] {
+      const saved: string[] = [];
+      const realSave = campaigns.saveCheckpoint.bind(campaigns);
+      campaigns.saveCheckpoint = async (id, input): ReturnType<typeof realSave> => {
+        const result = await realSave(id, input);
+        if (result === 'saved') saved.push(JSON.stringify(input.state));
+        return result;
+      };
+      return saved;
+    }
+
+    it.each([1, 3, 7, 13])(
+      'kola po %i taktech: s pamětí tytéž body i konec jako bez ní (= vcelku)',
+      async (every) => {
+        const plain = setup();
+        await plain.campaigns.create(campaign({ liveCommand: false }));
+        const plainSaves = recordSaves(plain.campaigns);
+        const remembering = setup();
+        await remembering.campaigns.create(campaign({ liveCommand: false }));
+        const memorySaves = recordSaves(remembering.campaigns);
+        for (const { campaigns } of [plain, remembering]) {
+          await campaigns.addIntent('c1', {
+            tick: LAUNCH + 2,
+            byPlayer: 'p1',
+            body: { kind: 'set-out' },
+          });
+        }
+        const memory = newCampaignMemory();
+        await rounds(plain.deps, LAUNCH + 1, END + 40, every);
+        const outcomes = (
+          await rounds({ ...remembering.deps, memory }, LAUNCH + 1, END + 40, every)
+        ).outcomes;
+        expect(outcomes).toContain('computed');
+        expect(memorySaves).toEqual(plainSaves);
+        expect(JSON.stringify(await stored(remembering.campaigns))).toBe(
+          JSON.stringify(whole.state),
+        );
+        expect(remembering.villages.inbox.events.map((e) => e.body)).toEqual(
+          whole.villageEvents.map((e) => e.body),
+        );
+        // skončené tažení z paměti zmizí
+        expect(memory.states.size).toBe(0);
+      },
+    );
+
+    /** Tažení ve shromaždišti s pamětí po kole do LAUNCH + 20 (bez uložení bodu). */
+    async function remembered(): Promise<{
+      deps: StepCampaignsDeps;
+      campaigns: InMemoryCampaigns;
+      memory: CampaignMemory;
+    }> {
+      const { deps, campaigns } = setup();
+      await campaigns.create(campaign({ liveCommand: false }));
+      const memory = newCampaignMemory();
+      const withMemory = { ...deps, memory };
+      expect((await rounds(withMemory, LAUNCH + 20, LAUNCH + 20)).outcomes).toEqual(['computed']);
+      expect(memory.states.get('c1')?.state.tick).toBe(LAUNCH + 20);
+      return { deps: withMemory, campaigns, memory };
+    }
+
+    it('pokračuje od zapamatovaného stavu, dokud stojí bod a záměry', async () => {
+      const { deps, memory } = await remembered();
+      // značka v zapamatovaném stavu – další kolo ji převezme, tedy nepočítá od bodu
+      const memo = memory.states.get('c1')!;
+      memory.states.set('c1', {
+        ...memo,
+        state: { ...memo.state, supplies: { ...memo.state.supplies, foodKg: 123 } },
+      });
+      expect((await rounds(deps, LAUNCH + 24, LAUNCH + 24)).outcomes).toEqual(['computed']);
+      expect(memory.states.get('c1')?.state.supplies.foodKg).toBe(123);
+      expect(memory.states.get('c1')?.state.tick).toBe(LAUNCH + 24);
+    });
+
+    it('záměr do spočtených taktů paměť zahodí – počítá se od bodu i se záměrem', async () => {
+      const { deps, campaigns } = await remembered();
+      // zpožděný záměr webu na takt, který paměť už spočítala (bod je pořád starší)
+      const late = await campaigns.addIntent('c1', {
+        tick: LAUNCH + 10,
+        byPlayer: 'p1',
+        body: { kind: 'set-out' },
+      });
+      expect(late).not.toBeNull();
+      expect((await rounds(deps, LAUNCH + 41, LAUNCH + 41)).outcomes).toEqual(['saved']);
+      const expected = stepCampaign(
+        campaign({ liveCommand: false }),
+        LAUNCH + 41,
+        [late!],
+        worldOf(),
+      );
+      expect(JSON.stringify(await stored(campaigns))).toBe(JSON.stringify(expected.state));
+      expect((await stored(campaigns)).phase).toBe('marching');
+    });
+
+    it('jiný kontrolní bod (týž takt, jiný stav) paměť zahodí', async () => {
+      const { deps, campaigns, memory } = await remembered();
+      const row = campaigns.rows.get('c1')!;
+      const changed = { ...campaign({ liveCommand: false }), supplies: { foodKg: 7 } };
+      row.state = JSON.stringify(changed);
+      expect((await rounds(deps, LAUNCH + 24, LAUNCH + 24)).outcomes).toEqual(['computed']);
+      const expected = stepCampaign(changed, LAUNCH + 24, [], worldOf());
+      expect(JSON.stringify(memory.states.get('c1')?.state)).toBe(JSON.stringify(expected.state));
+    });
+
+    it('stav paměti za teď (hodiny zpět) se nepoužije', async () => {
+      const { deps, memory } = await remembered();
+      expect((await rounds(deps, LAUNCH + 12, LAUNCH + 12)).outcomes).toEqual(['computed']);
+      expect(memory.states.get('c1')?.state.tick).toBe(LAUNCH + 12);
+    });
   });
 });

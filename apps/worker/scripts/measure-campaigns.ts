@@ -1,45 +1,53 @@
+import { createHash } from 'node:crypto';
 import { Session } from 'node:inspector/promises';
 import { parseArgs } from 'node:util';
 import {
   circlePoints,
   dayIndexOf,
+  EMPTY_INBOX,
   emptyCellLandscape,
   fortificationOutline,
   fortSegments,
   foundVillage,
+  msOfTick,
   newCampaign,
+  newCampaignMemory,
   OFFICIAL_WORLD,
   realTimeOf,
-  stepCampaign,
+  stepCampaigns,
   type CampaignIntent,
   type CampaignMap,
   type CampaignMember,
+  type CampaignOutbox,
+  type CampaignRepository,
   type CampaignState,
   type CampaignWorld,
+  type StepCampaignsDeps,
   type GridCell,
   type VillageState,
 } from '@bohemia/game';
 
 // Měření tažení (plán 2026-11-03 – Úloha 6.17; docs/code/worker.md – Výkon): 1 / 5 / 20 tažení
 // × 60 mužů na pochodu přes skutečné krajiny prázdných políček a 5 tažení u opevněných vsí
-// (prolamování, útočiště). Všechno v paměti – žádná databáze. Smyčka napodobí worker
-// (`stepCampaigns` každých 250 ms): každé kolo načte kontrolní bod (JSON jako jsonb), dopočítá
-// tažení do teď a bod uloží, až přibude ≥ 40 taktů nebo vznikne událost – mezi uloženími se tedy
-// takty počítají znovu od bodu. „Takty/s“ = spočtené takty tažení za sekundu času procesoru
-// jednoho jádra; „jádro“ = čas procesoru ÷ skutečný čas, který kola představují.
+// (prolamování, útočiště). Všechno v paměti – žádná databáze. Smyčka je worker: `stepCampaigns`
+// každých 250 ms nad porty v paměti (kontrolní bod jako JSON – jsonb) s pamětí workeru
+// (`newCampaignMemory` – pokračuje od posledního spočteného stavu); `--no-memory` = bez ní, každé
+// kolo znovu od bodu (bod se ukládá po ≥ 40 taktech nebo s událostí). „Takty/s“ = takty tažení za
+// sekundu času procesoru jednoho jádra; „jádro“ = čas procesoru ÷ skutečný čas, který kola
+// představují.
 //
-//   npx tsx apps/worker/scripts/measure-campaigns.ts [--ticks 480] [--profile]
+//   npx tsx apps/worker/scripts/measure-campaigns.ts [--ticks 480] [--profile] [--no-memory]
 
 const { values: args } = parseArgs({
   options: {
     ticks: { type: 'string', default: '480' },
     profile: { type: 'boolean', default: false },
+    'no-memory': { type: 'boolean', default: false },
   },
 });
 const TICKS = Number(args.ticks);
 const MEN = 60;
 const WORLD_SEED = 1;
-const SAVE_EVERY = 40;
 const TICK_S = 0.25;
 const PATH_FUNCTIONS = new Set(['marchPath', 'marchPathToEdge', 'worldRoute']);
 const GRID_FUNCTIONS = new Set(['marchGrid']);
@@ -81,6 +89,8 @@ function fortifiedVillage(cell: GridCell, id: string): void {
   }
   const state: VillageState = {
     ...founded,
+    // spočtený den napřed – bariéra (Ú6.7) měření nezastaví (ves se v něm nedopočítává)
+    lastDay: DAY + 10,
     constructions: founded.constructions.filter((c) => c !== site),
     dwellings: [
       ...founded.dwellings,
@@ -200,43 +210,106 @@ const SET_OUT: CampaignIntent[] = [
 
 interface Result {
   campaigns: number;
-  ticks: number;
   cpuS: number;
   realS: number;
+  saves: number;
   phases: string;
+  /** Otisk uložených bodů – s pamětí i bez ní musí být tentýž. */
+  digest: string;
 }
 
-/** Kola jako worker: bod z JSON, dopočet do teď, uložení po ≥ 40 taktech nebo s událostí. */
-function run(starts: readonly CampaignState[]): Result {
-  const points = starts.map((s) => ({ json: JSON.stringify(s), tick: s.tick, last: s }));
-  let ticks = 0;
+interface Row {
+  state: string;
+  tick: number;
+  outbox: string | null;
+  done: boolean;
+}
+
+/** Úložiště tažení v paměti – stav jako JSON (jako jsonb), záměr vyrazit pro každé tažení. */
+function memoryRepository(rows: Map<string, Row>, saves: { n: number }): CampaignRepository {
+  const none = (): never => {
+    throw new Error('v měření se nepoužívá');
+  };
+  return {
+    create: none,
+    activeOf: none,
+    addIntent: none,
+    active: () =>
+      Promise.resolve([...rows].filter(([, r]) => !r.done || r.outbox).map(([id]) => id)),
+    checkpoint: (id) => {
+      const row = rows.get(id)!;
+      return Promise.resolve({
+        state: JSON.parse(row.state) as CampaignState,
+        outbox: row.outbox === null ? null : (JSON.parse(row.outbox) as CampaignOutbox),
+      });
+    },
+    intentsAfter: (_id, tick) => Promise.resolve(SET_OUT.filter((i) => i.tick > tick)),
+    saveCheckpoint: (id, input) => {
+      const row = rows.get(id)!;
+      if (row.tick !== input.fromTick) return Promise.resolve('stale');
+      saves.n++;
+      row.tick = input.state.tick;
+      row.state = JSON.stringify(input.state);
+      row.outbox = input.outbox ? JSON.stringify(input.outbox) : null;
+      row.done = input.state.phase === 'done';
+      return Promise.resolve('saved');
+    },
+    clearOutbox: (id, tick) => {
+      const row = rows.get(id)!;
+      if (row.tick === tick) row.outbox = null;
+      return Promise.resolve();
+    },
+  };
+}
+
+/**
+ * Kola jako worker: `stepCampaigns` nad porty v paměti každých 250 ms (bod z JSON, dopočet do
+ * teď, uložení po ≥ 40 taktech nebo s událostí); s pamětí workeru, nebo bez ní (`--no-memory`).
+ */
+async function run(starts: readonly CampaignState[]): Promise<Result> {
+  const rows = new Map<string, Row>(
+    starts.map((s) => [
+      s.id,
+      { state: JSON.stringify(s), tick: s.tick, outbox: null, done: false },
+    ]),
+  );
+  const saves = { n: 0 };
+  const deps: StepCampaignsDeps = {
+    campaigns: memoryRepository(rows, saves),
+    campaignLock: { tryRun: async (_id, task) => ({ ran: true, value: await task() }) },
+    cells: { mapOf: (cell) => Promise.resolve(campaignWorld.landscapeOf(cell)!) },
+    villages: {
+      find: (id) => {
+        const state = villages.get(id);
+        return Promise.resolve(
+          state ? { id, settlementId: `s-${id}`, name: id, state, version: 1 } : null,
+        );
+      },
+      inbox: EMPTY_INBOX,
+    },
+    notices: { post: () => Promise.resolve() },
+    world,
+    ...(args['no-memory'] ? {} : { memory: newCampaignMemory() }),
+  };
   const before = process.cpuUsage();
   for (let round = 1; round <= TICKS; round++) {
-    const now = START_TICK + round;
-    for (const point of points) {
-      const state = JSON.parse(point.json) as CampaignState;
-      if (state.phase === 'done') continue;
-      const step = stepCampaign(state, now, SET_OUT, campaignWorld);
-      ticks += step.state.tick - state.tick;
-      point.last = step.state;
-      const events = step.villageEvents.length + step.notices.length > 0;
-      if (step.state.tick - point.tick >= SAVE_EVERY || events || step.state.phase === 'done') {
-        point.json = JSON.stringify(step.state);
-        point.tick = step.state.tick;
-      }
-    }
+    await stepCampaigns(deps, { nowMs: msOfTick(START_TICK + round, world) });
   }
   const used = process.cpuUsage(before);
   const phases = new Map<string, number>();
-  for (const { last: s } of points) {
+  const hash = createHash('sha1');
+  for (const row of rows.values()) {
+    hash.update(row.state);
+    const s = JSON.parse(row.state) as CampaignState;
     const label = s.battle ? `${s.phase}/${s.battle.breaches.length} průlomů` : s.phase;
     phases.set(label, (phases.get(label) ?? 0) + 1);
   }
   return {
     campaigns: starts.length,
-    ticks,
     cpuS: (used.user + used.system) / 1e6,
     realS: TICKS * TICK_S,
+    saves: saves.n,
+    digest: hash.digest('hex').slice(0, 8),
     phases: [...phases].map(([k, n]) => `${n}× ${k}`).join(', '),
   };
 }
@@ -255,7 +328,7 @@ async function profiled(starts: readonly CampaignState[]): Promise<string> {
   await session.post('Profiler.enable');
   await session.post('Profiler.setSamplingInterval', { interval: 200 });
   await session.post('Profiler.start');
-  run(starts);
+  await run(starts);
   const { profile } = (await session.post('Profiler.stop')) as {
     profile: { nodes: ProfileNode[] };
   };
@@ -307,13 +380,13 @@ async function main(): Promise<void> {
       campaignWorld.landscapeOf(s.target.cell);
       campaignWorld.landscapeOf({ x: 1, y: s.target.cell.y });
     }
-    const r = run(starts);
-    // bez opakování od bodu by každé kolo spočetlo jen nový takt každého tažení
-    const once = (r.cpuS / r.ticks) * r.campaigns * TICKS;
+    const r = await run(starts);
+    // takty tažení za sekundu procesoru (každé tažení posune každé kolo o jeden takt)
+    const ticks = r.campaigns * TICKS;
     const line =
-      `${name.padEnd(11)} takty/s ${(r.ticks / r.cpuS).toFixed(0).padStart(6)}, ` +
+      `${name.padEnd(11)} takty/s ${(ticks / r.cpuS).toFixed(0).padStart(6)}, ` +
       `jádro ${((100 * r.cpuS) / r.realS).toFixed(1).padStart(5)} % (${r.cpuS.toFixed(1)} s), ` +
-      `takt jednou ${((100 * once) / r.realS).toFixed(1)} % – ${r.phases}`;
+      `bodů ${r.saves}, otisk ${r.digest} – ${r.phases}`;
     console.log(line);
     if (args.profile) console.log(`            profil: ${await profiled(starts)}`);
   }
