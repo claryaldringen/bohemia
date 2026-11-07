@@ -97,6 +97,7 @@ import { addTrees } from './trees';
 import { FieldPainter } from './field-painting';
 import { PlacementOutlines } from './placement-outlines-view';
 import { HoldingsOverlay, type HoldingsOverlaySector } from './holdings-overlay';
+import { ArmyRenderer, type SceneWar } from './army-renderer';
 import { SelectionHighlight } from './selection-highlight';
 import type { PersonFigureState } from '../person-activity';
 import { sameDraftState, type DraftFigureState } from '../draft-activity';
@@ -273,6 +274,9 @@ export class LandscapeScene {
   private storm: StormRenderer | null = null;
   /** Trychtýř smrště (tornado-funnel.ts) – ztmavení smrště jde se silou bouřky (`stormNow`). */
   private tornadoFunnel: TornadoFunnel | null = null;
+  /** Vojsko, boj a mlha války (war.md – Ve scéně; army-renderer.ts). */
+  private army: ArmyRenderer | null = null;
+  private war: SceneWar | null = null;
   private stormNow = 0;
   private flashNow = 0;
   private disasterKey = '';
@@ -489,6 +493,22 @@ export class LandscapeScene {
       groundHeight: (x, z) => terrainMeshHeight(surface, x, z),
     });
     if (this.daylight) this.storm.setSky(this.daylight.waterSky);
+    this.army?.dispose();
+    this.army = new ArmyRenderer(this.scene, {
+      groundHeight: (x, z) => terrainMeshHeight(surface, x, z),
+      forestAt: (x, z) => {
+        const half = (landscape.size * landscape.cellSizeM) / 2;
+        const tx = Math.floor((x + half) / landscape.cellSizeM);
+        const ty = Math.floor((z + half) / landscape.cellSizeM);
+        if (tx < 0 || ty < 0 || tx >= landscape.size || ty >= landscape.size) return false;
+        return surfaceAt(landscape, tx, ty) === 'forest';
+      },
+      extentM: landscape.size * landscape.cellSizeM,
+      onLoaded: () => {
+        this.needsRender = true;
+      },
+    });
+    if (this.war) this.army.set(this.war, Date.now(), !!this.reducedMotion?.matches, null);
     this.tornadoFunnel?.dispose();
     this.tornadoFunnel = new TornadoFunnel(this.scene, {
       groundHeight: (x, z) => terrainMeshHeight(surface, x, z),
@@ -816,6 +836,24 @@ export class LandscapeScene {
   }
 
   /** Vývojové vynucení dne světa pro krupobití a povodeň (null = podle hodin světa). */
+  /**
+   * Válka ve scéně (war.md – Ve scéně): poslední snímek boje po taktu, pochod, útěk vsi, odehnané
+   * stádo a mlha války; null – nic. Mezi takty se muži posouvají plynule v `animate()`.
+   */
+  setWar(war: SceneWar | null): void {
+    this.war = war;
+    if (
+      this.army?.set(war, Date.now(), !!this.reducedMotion?.matches, this.rtsCamera?.camera ?? null)
+    ) {
+      this.needsRender = true;
+    }
+  }
+
+  /** Meshe vojska, které se kreslí, a počty instancí (e2e, měření). */
+  armyStats(): { name: string; count: number }[] {
+    return this.army?.stats() ?? [];
+  }
+
   setDisasterDay(day: number | null): void {
     this.disasterDayOverride = day;
     this.updateDisasters();
@@ -1377,6 +1415,7 @@ export class LandscapeScene {
     this.rain?.dispose();
     this.storm?.dispose();
     this.tornadoFunnel?.dispose();
+    this.army?.dispose();
     this.rtsCamera?.dispose();
     this.perf?.dispose();
     if (this.loopHandle !== 0) cancelAnimationFrame(this.loopHandle);
@@ -1836,6 +1875,8 @@ export class LandscapeScene {
     }
     // lidé ve vsi – skutečný čas jako zvířata
     if (this.villagers?.animate(epochMs, camera)) animated = true;
+    // vojsko a boj – mezi takty plynule, šípy a prach (army-renderer.ts)
+    if (this.army?.animate(epochMs, camera)) animated = true;
     // divoká zvěř – skutečný čas; po lidech, před kterými utíká
     if (this.wildlife?.animate(epochMs, camera)) animated = true;
     // voli a krávy v ohradách a spřežení na poli (oxen.md) – skutečný čas jako zvířata

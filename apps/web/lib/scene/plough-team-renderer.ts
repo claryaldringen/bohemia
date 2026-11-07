@@ -681,7 +681,10 @@ export function createBakedFigure(scene: Scene, name: string, model: BakedFigure
     false,
     false,
     Texture.NEAREST_NEAREST,
-    Constants.TEXTURETYPE_FLOAT,
+    // VAT je half-float, kde ho engine umí (loadBakedModel) – typ textury musí sedět s daty
+    model.vat instanceof Uint16Array
+      ? Constants.TEXTURETYPE_HALF_FLOAT
+      : Constants.TEXTURETYPE_FLOAT,
   );
   vat.name = `${name}-vat`;
   const manager = new BakedVertexAnimationManager(scene);

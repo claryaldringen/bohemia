@@ -28,6 +28,7 @@ import {
   palisadeLayout,
   type FortInstance,
 } from '../lib/scene/fortification-layout';
+import { armyDrawCalls } from '../lib/scene/army';
 import { fortInstanceMatrix } from '../lib/scene/fortification-renderer';
 import { demoFortification } from '../lib/scene/fortification-showcase';
 import { rampartMeshData } from '../lib/scene/rampart-mesh';
@@ -305,6 +306,29 @@ for (const count of [8, 16, 32]) {
     );
     camera.dispose();
   }
+}
+// Vojsko ukázky Bitva (war.md – Ve scéně; army.ts, army-renderer.ts): draw call na druh postavy
+// a zvířete, stíny, šípy, prach, rozkaz a závoj mlhy – bez ořezu (thin instances, vždy v záběru).
+{
+  const man = glbInfo('models/people/man.glb');
+  const horse = glbInfo('models/fauna/horse.glb');
+  const men = 22;
+  const horses = 2;
+  const draws = armyDrawCalls({
+    figures: Array.from({ length: men }, () => ({ kind: 'man' as const })),
+    animals: Array.from({ length: horses }, () => ({ species: 'horse' as const })),
+    icons: [{ order: 'attack-all' }, { order: 'hold-place' }],
+    arrows: 2,
+    dust: 1,
+    fog: true,
+  });
+  const veil = 160 * 160 * 2;
+  const tris = men * man.tris + horses * horse.tris + (men + horses) * 2 + veil;
+  console.log(
+    `vojsko ukázky Bitva: ${men} mužů (${horses} na koních), 2 rozkazy, šípy, prach a mlha – ` +
+      `${draws} draw callů, ${(tris / 1e3).toFixed(1)} k trojúhelníků (muž ${man.tris}, kůň ${horse.tris}, ` +
+      `závoj mlhy ${(veil / 1e3).toFixed(1)} k)`,
+  );
 }
 scene.dispose();
 engine.dispose();

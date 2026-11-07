@@ -136,6 +136,17 @@ import {
   withShoeingDemo,
   type ShoeingDemoStage,
 } from './dev-shoeing';
+import {
+  BATTLE_DEMO_STAGES,
+  battleDemoWar,
+  createBattleDemo,
+  nextBattleDemo,
+  stepBattleDemo,
+  withBattleDemo,
+  type BattleDemo,
+  type BattleDemoStage,
+} from './dev-battle';
+import { TICK_MS } from '@bohemia/game';
 import { devSelectionView } from './dev-selection';
 import { DayTimeControls } from './DayTimeControls';
 import type { CartKind } from '@bohemia/game';
@@ -262,6 +273,11 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   const [threshingDemo, setThreshingDemo] = useState<ThreshingDemo | null>(null);
   // ukázka kování koní (horses.md – Kování, Ve scéně; dev-shoeing.ts) – vlastní, nebo cizí kovář
   const [shoeingDemo, setShoeingDemo] = useState<ShoeingDemoStage | null>(null);
+  // ukázka Bitva (war.md – Ve scéně, dev-battle.ts) – boj u brány taktem jádra, pak útěk vsi
+  const [battleStage, setBattleStage] = useState<BattleDemoStage | null>(null);
+  const battleDemo = useRef<BattleDemo | null>(null);
+  // brány a průlomy palisády ukázky – ves se přepočítá jen při jejich změně
+  const [battleFortKey, setBattleFortKey] = useState('');
   // stupeň vylepšení ukázkových cest (dev-road.ts – DEMO_ROAD_STAGES) a stadium jabloní u cesty
   const [roadStage, setRoadStage] = useState(0);
   const [appleStage, setAppleStage] = useState(0);
@@ -514,10 +530,48 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
       ),
     [demoVillage, shoeingDemo, decoded, seasonDay, devWeather],
   );
+  const battleDay = Math.floor(seasonDay ?? REFERENCE_DAY);
+  const shownVillage = useMemo(
+    () => withBattleDemo(village, battleFortKey ? battleDemo.current : null, battleDay),
+    [village, battleFortKey, battleDay],
+  );
 
   useEffect(() => {
-    scene?.setVillage(village);
-  }, [scene, village]);
+    if (!scene || !battleStage) return;
+    const demo = createBattleDemo(battleStage, decoded, demoVillage, battleDay, Date.now());
+    battleDemo.current = demo;
+    if (!demo) {
+      console.warn('Palisáda ukázky Bitva se do krajiny nevešla.');
+      return;
+    }
+    scene.moveCameraTo(demo.gate.x, demo.gate.z - 45);
+    const fortKey = (): string => {
+      const b = demo.battle;
+      if (!b) return `${demo.stage}`;
+      return `${demo.stage}|${b.closedGates.join(',')}|${b.breaches
+        .filter((x) => x.progress.breached)
+        .map((x) => x.key)
+        .join(',')}`;
+    };
+    setBattleFortKey(fortKey());
+    scene.setWar(battleDemoWar(demo, Date.now()));
+    const timer = setInterval(() => {
+      const now = Date.now();
+      if (demo.stage === 'fight' && !stepBattleDemo(demo, now)) return;
+      scene.setWar(battleDemoWar(demo, now));
+      setBattleFortKey(fortKey());
+    }, TICK_MS);
+    return () => {
+      clearInterval(timer);
+      battleDemo.current = null;
+      setBattleFortKey('');
+      scene.setWar(null);
+    };
+  }, [scene, battleStage, decoded, demoVillage, battleDay]);
+
+  useEffect(() => {
+    scene?.setVillage(shownVillage);
+  }, [scene, shownVillage]);
 
   // výběr jako ve hře: klik na pole vybere díl, dvojklik celé pole (fields.md – Co hráč vidí);
   // čísla panelu odhaduje dev-selection.ts
@@ -2073,6 +2127,15 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
           data-testid="dev-shoeing"
         >
           {shoeingDemo ? `Kování: ${SHOEING_DEMO_STAGES[shoeingDemo]}` : 'Kování'}
+        </button>
+        <button
+          className={buttonClass}
+          disabled={!scene}
+          onClick={() => setBattleStage((stage) => nextBattleDemo(stage))}
+          title="Bitva – palisáda s branou kolem vsi; boj taktem jádra: jezdci rodu a pěší útočí na bránu, ta se zavře a prolomí, lučištníci drží místo; padlí leží, ranění sedí u domů; mlha války z pohledu útočníka. Pak útěk vsi k lesu a odehnané stádo"
+          data-testid="dev-battle"
+        >
+          {battleStage ? `Bitva: ${BATTLE_DEMO_STAGES[battleStage]}` : 'Bitva'}
         </button>
         <button
           className={buttonClass}
