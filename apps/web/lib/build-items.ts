@@ -1,9 +1,11 @@
+import type { FortEditPoint } from './fort-points';
 import { problemMarks } from './problem-marks';
 import {
   CRAFT_BASE,
   autoGates,
   checkFortificationPlacement,
   fortSegments,
+  proposeFortificationIn,
   fortificationCost,
   logsFromClearedTrees,
   type FortKind,
@@ -90,6 +92,9 @@ export interface SquaresCheck {
   problem?: readonly (readonly FortPoint[])[];
 }
 
+/** Kontrola obvodu opevnění z bodů – jako u stavby po čtvercích, jen bez čtverců. */
+export type FortPointsCheck = Omit<SquaresCheck, 'blockedCells' | 'warningCells'>;
+
 /** Co kontrola stavby po čtvercích ví o vsi navíc – dřevo vsi (klády a stromy ke kácení). */
 export interface SquaresContext {
   woodSupply: number;
@@ -167,6 +172,29 @@ export type BuildItem =
         variant?: string,
         context?: SquaresContext,
       ): SquaresCheck;
+    })
+  | (BuildItemBase & {
+      /**
+       * Obvod z bodů (opevnění – fortifications.md, Obvod): hra obvod navrhne (`propose`), hráč
+       * body táhne, přidává a ubírá; tlačítko je rozcestník druhů (`variants`).
+       */
+      placement: 'fort-points';
+      variants: readonly SquaresVariant[];
+      /** Návrh obvodu druhu `variant` – kolem jádra vsi, bez jádra kruh u bodu `at` (kurzor). */
+      propose(
+        landscape: Landscape,
+        village: PlacementVillage,
+        at: { x: number; z: number },
+        variant?: string,
+        grainPits?: readonly { x: number; z: number }[],
+      ): FortEditPoint[];
+      check(
+        landscape: Landscape,
+        village: PlacementVillage,
+        points: readonly FortEditPoint[],
+        variant?: string,
+        context?: SquaresContext,
+      ): FortPointsCheck;
     })
   | (BuildItemBase & {
       /** Modla nebo svatyně – čtvercový půdorys u kurzoru (otáčí se jako obydlí). */
@@ -527,6 +555,11 @@ export function fortVariantKind(variant: string | undefined): FortKind {
   return FORT_VARIANTS.find((v) => v.id === variant)?.id ?? FORT_VARIANTS[0]!.id;
 }
 
+/** Uzavřená lomená čára – první bod ještě jednou na konci. */
+function closeLoop(points: readonly FortPoint[]): FortPoint[] {
+  return points.length > 0 ? [...points, points[0]!] : [];
+}
+
 /** Délka brány v náhledu (m) – úsečka na okraji obvodu. */
 const GATE_MARK_M = 4;
 
@@ -542,25 +575,23 @@ function villageAnchorOf(village: PlacementVillage): Position | { x: number; z: 
 }
 
 /**
- * Kontrola opevnění u kurzoru (fortifications.md – Obvod, Cena a stavba): umístění jako na serveru
- * (`checkFortificationPlacement`), u prošlého cena podle délky obvodu – člověkodny a klády,
- * útočiště (lidé a dobytek) a když ves nemá dost dřeva (klády a stromy ke kácení), důvod „Chybí N
- * klád.“. Do náhledu patří obrys, pás a brány na cestách (`autoGates`).
+ * Kontrola obvodu opevnění z bodů `points` (fortifications.md – Obvod, Cena a stavba): umístění
+ * jako na serveru (`checkFortificationPlacement`), u prošlého cena podle délky obvodu – člověkodny
+ * a klády, útočiště (lidé) a když ves nemá dost dřeva (klády a stromy ke kácení), důvod „Chybí N
+ * klád.“. Do náhledu patří obrys, pás, brány na cestách (`autoGates`) a místo problému.
  */
-export function fortificationPlacement(
+export function fortPointsPlacement(
   landscape: Landscape,
   village: PlacementVillage,
-  cells: TileCell[],
-  grid: SquareGrid | undefined,
+  points: readonly FortEditPoint[],
   kind: FortKind,
   woodSupply: number,
-): SquaresCheck {
+): FortPointsCheck {
   const check: FortPlacementCheck = checkFortificationPlacement(
     landscape,
     village,
     obstaclesOf(landscape),
-    cells,
-    grid ?? null,
+    points.map(([x, z]): [number, number] => [x, z]),
     kind,
   );
   const outline = check.outline;
@@ -568,24 +599,13 @@ export function fortificationPlacement(
   const preview = {
     ...(shape
       ? {
-          outline: [shape.outline, ...shape.band.map((piece) => [...piece, piece[0]!])],
+          // vnější okraj a vnitřní okraj pásu (poslední roh každého kusu pásu – `fortBandPieces`)
+          outline: [shape.outline, closeLoop(shape.band.map((piece) => piece[piece.length - 1]!))],
         }
       : {}),
   };
   if (!check.ok || !outline) {
-    // neúplné kreslení (nesouvislá nebo malá plocha) je jen „ještě ne“, ostatní důvody červeně
-    const incomplete = check.reason !== null && /souvislá|2 × 2/.test(check.reason);
-    const problem = problemMarks(check.where);
-    return {
-      check,
-      // známé místo problému svítí červeně samo – plocha zůstane v barvě kreslení, ať značka
-      // nezanikne v červené ploše
-      blockedCells:
-        check.ok || incomplete || check.area === null || problem.length > 0 ? [] : cells,
-      cost: null,
-      ...preview,
-      problem,
-    };
+    return { check, cost: null, ...preview, problem: problemMarks(check.where) };
   }
   const cost = fortificationCost(kind, outline.lengthM, 'new');
   const logs = Math.max(0, Math.ceil((cost.upfront.wood ?? 0) - 1e-9));
@@ -606,11 +626,6 @@ export function fortificationPlacement(
         : check.warning
           ? { ok: true, reason: null, warning: check.warning }
           : { ok: true, reason: null },
-    blockedCells: [],
-    // rozdělané čtverce pod valem oranžově – jen v mřížce opevnění
-    warningCells: check.takenLand
-      .filter((t) => sameGrid(t.grid, outline.area.grid ?? undefined))
-      .map((t) => t.cell),
     cost:
       missing > 0
         ? null
@@ -744,22 +759,27 @@ export const BUILD_ITEMS: readonly BuildItem[] = [
     },
   },
   {
-    // fortifications.md – Rozhraní: obvod se kreslí jako pole, tlačítko je rozcestník druhů
+    // fortifications.md – Rozhraní: hra obvod navrhne, hráč body upraví; tlačítko je rozcestník
     kind: 'fortification',
     name: 'Opevnění',
     icon: 'opevneni',
     hotkey: 'KeyP',
     hotkeyLabel: 'P',
-    placement: 'squares',
-    // natočená plocha (fields.md – Natočené stavby) jako pole
-    rotatable: true,
+    placement: 'fort-points',
     variants: FORT_VARIANTS,
-    check: (landscape, village, cells, grid, variant, context) =>
-      fortificationPlacement(
+    propose: (landscape, village, at, variant, grainPits) =>
+      proposeFortificationIn(
+        landscape,
+        { ...village, ...(grainPits ? { grainPits } : {}) },
+        obstaclesOf(landscape),
+        fortVariantKind(variant),
+        at,
+      ).points,
+    check: (landscape, village, points, variant, context) =>
+      fortPointsPlacement(
         landscape,
         village,
-        cells,
-        grid,
+        points,
         fortVariantKind(variant),
         context?.woodSupply ?? 0,
       ),

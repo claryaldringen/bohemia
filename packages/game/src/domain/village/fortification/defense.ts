@@ -1,12 +1,13 @@
 import { FORTIFICATIONS } from '../rules-fortifications';
-import { squareCorners, type GridGeometry } from '../square-grid';
+import { pointInPolygon } from '../polygon';
+import type { GridGeometry } from '../square-grid';
 import type { FortKind, RoadPoint } from '../types';
 import { distanceTo, type FortGate } from './gates';
 import { segmentState } from './life';
-import { fortificationArea, fortificationOutline, type FortArea } from './outline';
+import { fortOutlineOf } from './convert';
+import type { FortOutline } from './outline';
 import { fortSegments } from './segments';
 import type { Fortification, FortSegment } from './types';
-import { insideQuad } from './walls';
 
 // Obrana opevnění (fortifications.md – Obrana): násobek síly obránců podle stavu úseku, jeho
 // kombinace se „zná místo“ a mezery v obvodu. Čistá doména pro válku – žádná simulace.
@@ -73,21 +74,20 @@ export function fortGaps(
   day: number,
   closedGates: ReadonlySet<number> = new Set(),
 ): Gap[] {
-  const area = fortificationArea(fort.cells, fort.grid, geo);
-  if ('error' in area) return [];
-  const shapes = fortSegments(fortificationOutline(area, fort.kind));
+  const outline = fortOutlineOf(geo, fort);
+  if (!outline) return [];
+  const shapes = fortSegments(outline);
   const gaps: Gap[] = [];
   for (const seg of fort.segments) {
     const shape = shapes[seg.index];
     if (!shape) continue;
     if (segmentIsGap(fort, seg, day)) {
-      const half = shape.line.length / 2;
       const breached = seg.breachedDay !== undefined;
       gaps.push({
         kind: breached ? 'breach' : 'gap',
         segment: seg.index,
-        x: shape.line.x + shape.line.dx * half,
-        z: shape.line.z + shape.line.dz * half,
+        x: shape.mid[0],
+        z: shape.mid[1],
         widthM: breached ? FORTIFICATIONS.breach.widthM : shape.line.length,
       });
       continue;
@@ -106,10 +106,9 @@ export function fortGaps(
   return gaps;
 }
 
-/** Leží bod uvnitř plochy opevnění (čtverce po zaplnění děr)? */
-function insideArea(geo: GridGeometry, area: FortArea, p: RoadPoint): boolean {
-  const grid = area.grid ?? undefined;
-  return area.cells.some((cell) => insideQuad(squareCorners(geo, grid, cell), p.x, p.z));
+/** Leží bod uvnitř obvodu opevnění (uvnitř křivky)? */
+function insideArea(outline: FortOutline, p: RoadPoint): boolean {
+  return pointInPolygon([p.x, p.z], outline.polyline);
 }
 
 /**
@@ -127,9 +126,8 @@ export function defenderMultiplier(
 ): number {
   const home = FORTIFICATIONS.defenderKnowsPlace;
   for (const fort of forts) {
-    const area = fortificationArea(fort.cells, fort.grid, geo);
-    if ('error' in area || !insideArea(geo, area, defender)) continue;
-    const outline = fortificationOutline(area, fort.kind);
+    const outline = fortOutlineOf(geo, fort);
+    if (!outline || !insideArea(outline, defender)) continue;
     const shapes = fortSegments(outline);
     const nearest = (p: RoadPoint): number => {
       let best = 0;
@@ -143,7 +141,7 @@ export function defenderMultiplier(
       }
       return best;
     };
-    if (insideArea(geo, area, attacker)) {
+    if (insideArea(outline, attacker)) {
       // útočník v ploše: za pásem už mu opevnění nepřekáží
       const shape = shapes[nearest(attacker)];
       if (shape && distanceTo(shape, attacker.x, attacker.z) > outline.bandM) return home;

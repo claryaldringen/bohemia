@@ -438,8 +438,10 @@ Změna čísla = i text v tomto návrhu (`CLAUDE.md`).
   (žádné `Math.sin/cos/atan2`) – křivku navzorkovat do lomené čáry s krokem ≈ 1 m a z ní počítat
   délku, plochu, pás, úseky, brány, blokování pro chůzi a scénu. Opevnění nakreslená po
   čtvercích se při načtení převedou jednou a idempotentně – body z jejich okraje se
-  zakulacenými rohy, tvar zůstane (návrh Clauda). Další odrážka popisuje původní verzi
-  po čtvercích.
+  zakulacenými rohy, tvar zůstane (návrh Clauda). Ohyb se měří v měřítku nejmenšího poloměru
+  druhu (kružnice přes body o ten poloměr po obvodu před a za místem) – hladká křivka přes body
+  na přechodu z rovného kusu do oblouku krátce zakolísá a to se za ostrý ohyb nepočítá (návrh
+  Clauda). Další odrážka popisuje původní verzi po čtvercích.
 - **Jádro – tvar obvodu je deterministická geometrie** (počítá ho server i prohlížeč ze stejné
   funkce): nové `packages/game/src/domain/village/fortification/` – obvod z čtverců v mřížce
   (`SquareGrid`, `square-grid.ts`; sjednocení, zaplnění děr, souvislost), rovné úseky a oblouky

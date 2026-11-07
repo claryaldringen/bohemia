@@ -18,6 +18,8 @@ export interface E2EHooks {
   projectToScreen?: (x: number, z: number) => { x: number; y: number } | null;
   /** Kolik čar místa problému (červená značka zatarasené branky, vody…) teď kreslí náhled opevnění. */
   paintProblems?: () => number;
+  /** Body návrhu obvodu opevnění, který hráč právě upravuje (fortifications.md – Obvod). */
+  fortPoints?: () => (readonly [number, number])[];
   /** Meshe porážky ve scéně (`slaughter-*`) a jestli jsou připravené ke kreslení. */
   slaughterMeshes?: () => { name: string; ready: boolean }[];
   /** Meshe divoké zvěře (`wild-*`) a kusy, které jsou teď vidět (druh, poloha) – kam kliknout. */

@@ -80,10 +80,42 @@ export const FORTIFICATIONS = {
     palisade: { outer: 3, inner: 1.5 },
     rampart: { outer: 8, inner: 4 },
   } satisfies Record<FortKind, FenceCorners>,
-  /** Úsek = strana okrajového čtverce (Obvod – Úseky; návrh Clauda). */
+  /** Úsek = strana okrajového čtverce (Obvod – Úseky; návrh Clauda) – jen převod starých opevnění. */
   segmentSquareSides: 1,
-  /** Plocha souvislá stranou, nejméně 2 × 2 čtverce (Obvod; návrh Clauda). */
+  /** Plocha souvislá stranou, nejméně 2 × 2 čtverce (Obvod; návrh Clauda) – jen převod starých opevnění. */
   minAreaSquares: 2,
+  /**
+   * Nejmenší poloměr ohybu na vnějším okraji v obou směrech (Obvod – tabulka pásu; návrh Clauda):
+   * plot 1,25 m (jako pozemek), palisáda 3 m, val 8 m.
+   */
+  minBendM: { fence: 1.25, palisade: 3, rampart: 8 } satisfies Record<FortKind, number>,
+  /**
+   * Obvod z bodů (Obvod, Pro implementaci – Obvod z bodů; návrh Clauda): body nejvýš ≈ 15 m od sebe,
+   * nejméně 4 (strop bodů hlídá server); křivka navzorkovaná krokem ≈ 1,5 m; úseky stejně dlouhé
+   * ≈ 15 m (délka ÷ zaokrouhlený počet); plocha uvnitř obvodu nejméně 900 m².
+   */
+  outline: {
+    pointGapM: 15,
+    minPoints: 4,
+    maxPoints: 400,
+    /** Bližší body se sloučí (m). */
+    minPointGapM: 0.1,
+    sampleStepM: 1.5,
+    segmentM: 15,
+    minAreaM2: 900,
+  },
+  /**
+   * Návrh obvodu (Obvod, Správce – Obvod správce; návrh Clauda): odstup od jádra = šířka pásu
+   * + 3 m; neprojde-li kontrolou, odstup po 1 m víc (nejvýš o 20 m); správce po 5 m, dokud se
+   * nevejde útočiště. Bez jádra kruh o poloměru 20 m.
+   */
+  proposal: {
+    clearanceM: 3,
+    growStepM: 1,
+    maxGrowM: 20,
+    stewardGrowStepM: 5,
+    circleRadiusM: 20,
+  },
   /** Brána 4 m – projde vůz se spřežením, nic navíc nestojí, nejvýš 1 na úsek (Brány; návrh Clauda). */
   gate: { widthM: 4, perSegment: 1 },
   /** Brány se zavřou, když je první útočník do 30 m od brány (Obrana; návrh Clauda). */

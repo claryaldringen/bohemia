@@ -1,10 +1,7 @@
 import { tileOfWorldPoint, type Landscape, type ObstacleLayer } from '../landscape';
-import {
-  fortificationArea,
-  fortificationCost,
-  fortificationOutline,
-  type FortArea,
-} from './fortification';
+import { fortificationCost } from './fortification';
+import { stewardFortificationProposal } from './fortification-proposal';
+import type { Point } from './polygon';
 import { outlineOf, villageFortifications } from './fortifications';
 import { laborPerDay } from './people';
 import { FELLING_MAN_DAYS_PER_TREE } from './rules-buildings';
@@ -13,7 +10,7 @@ import { TRADE_GOOD_VALUES } from './rules-trade';
 import { STEWARD } from './rules-steward';
 import { fieldCells, fieldCellValue, planCentre } from './steward-land';
 import type { StewardMode } from './steward';
-import type { FortKind, FortTop, TileCell, VillageState } from './types';
+import type { FortKind, FortTop, VillageState } from './types';
 import { woodLogs, wholeLogs } from './wood';
 
 // Opevnění podle hrozby (fortifications.md – Správce, Hrozba; steward.md – Rozhodovací pořadí,
@@ -179,101 +176,6 @@ export function fortHorizonYears(plan: FortPlan, mode: StewardMode): number {
 
 // --- obvod ------------------------------------------------------------------------------
 
-function tileKey(x: number, y: number): number {
-  return y * 65536 + x;
-}
-
-/** Políčka, která musí obvod obsáhnout: obydlí s pozemky (i dvorec a dílny), humna, jámy, ohrady. */
-function mustCoverTiles(state: VillageState, landscape: Landscape): Map<number, TileCell> {
-  const out = new Map<number, TileCell>();
-  const put = (x: number, z: number): void => {
-    const t = tileOfWorldPoint(landscape, x, z);
-    if (!t) return;
-    out.set(tileKey(t.x, t.y), { x: t.x, y: t.y });
-  };
-  for (const d of state.dwellings) {
-    put(d.position.x, d.position.z);
-    if (d.plot && !d.plot.square) {
-      out.set(tileKey(d.plot.cell.x, d.plot.cell.y), { x: d.plot.cell.x, y: d.plot.cell.y });
-    }
-    if (d.plot?.square) put(d.plot.square.x, d.plot.square.z);
-  }
-  for (const f of state.threshingFloors ?? []) put(f.position.x, f.position.z);
-  for (const p of state.grainPits ?? []) put(p.x, p.z);
-  for (const pen of state.pens ?? []) {
-    put(pen.x, pen.z);
-    for (const s of pen.extraSquares ?? []) put(s.x, s.z);
-  }
-  return out;
-}
-
-/** Spojí `from` s `to` vodorovně a pak svisle (čtyřokolí souvislost). */
-function connect(set: Set<number>, from: TileCell, to: TileCell): void {
-  let x = from.x;
-  let y = from.y;
-  set.add(tileKey(x, y));
-  while (x !== to.x) {
-    x += x < to.x ? 1 : -1;
-    set.add(tileKey(x, y));
-  }
-  while (y !== to.y) {
-    y += y < to.y ? 1 : -1;
-    set.add(tileKey(x, y));
-  }
-}
-
-/**
- * Políčka obvodu správce (fortifications.md – Obvod správce): nejmenší souvislá plocha, která
- * obsahuje obydlí s pozemky, dvorec, dílny, humna, obilné jámy a ohrady; kolem každého políčka
- * pás navíc (opevnění leží uvnitř plochy), pole a sady se nepočítají. `rings` – prstence navíc.
- * Ves bez staveb nemá obvod (null).
- */
-export function stewardFortificationCells(
-  state: VillageState,
-  landscape: Landscape,
-  rings = 0,
-): TileCell[] | null {
-  const must = mustCoverTiles(state, landscape);
-  if (must.size === 0) return null;
-  const size = landscape.size;
-  const keys = [...must.values()].sort((a, b) => a.y - b.y || a.x - b.x);
-  const first = keys[0]!;
-  const set = new Set<number>();
-  for (const c of keys) connect(set, first, c);
-  // pás navíc kolem každého políčka a prstence podle potřeby útočiště
-  let grown = set;
-  for (let r = 0; r < 1 + rings; r++) {
-    const next = new Set(grown);
-    for (const k of grown) {
-      const x = k % 65536;
-      const y = (k - x) / 65536;
-      for (let dy = -1; dy <= 1; dy++) {
-        for (let dx = -1; dx <= 1; dx++) {
-          const nx = x + dx;
-          const ny = y + dy;
-          if (nx >= 0 && ny >= 0 && nx < size && ny < size) next.add(tileKey(nx, ny));
-        }
-      }
-    }
-    grown = next;
-  }
-  return [...grown]
-    .map((k) => ({ x: k % 65536, y: Math.floor(k / 65536) }))
-    .sort((a, b) => a.y - b.y || a.x - b.x);
-}
-
-/** Obvod správce jako plocha opevnění (`fortificationArea`), nebo null (bez staveb, neplatná plocha). */
-export function stewardFortificationArea(
-  state: VillageState,
-  landscape: Landscape,
-  rings = 0,
-): FortArea | null {
-  const cells = stewardFortificationCells(state, landscape, rings);
-  if (!cells) return null;
-  const area = fortificationArea(cells, null, landscape);
-  return 'error' in area ? null : area;
-}
-
 /** Plocha útočiště, kterou ves potřebuje: lidé a dobytek + 20 % (Správce – Obvod). */
 export function refugeNeedM2(state: VillageState): number {
   const r = FORTIFICATIONS.refuge;
@@ -293,24 +195,26 @@ export function refugeNeedM2(state: VillageState): number {
 }
 
 /**
- * Obvod správce pro druh `kind` s útočištěm pro lidi a dobytek + 20 % (jinak se plocha rozšíří
- * o prstenec políček, nejvýš `STEWARD.fortMaxRings`): buňky a délka obvodu (m), nebo null.
+ * Obvod správce pro druh `kind` (fortifications.md – Správce – Obvod správce): návrh kolem jádra
+ * vsi (`stewardFortificationProposal`) s útočištěm pro lidi a dobytek + 20 % – jinak odstup po
+ * 5 m víc, nejvýš `STEWARD.fortMaxRings` kroků: body a délka obvodu (m), nebo null.
  */
 export function stewardFortificationFor(
   state: VillageState,
   landscape: Landscape,
+  obstacles: ObstacleLayer,
+  day: number,
   kind: FortKind,
-): { cells: TileCell[]; lengthM: number } | null {
-  const need = refugeNeedM2(state);
-  for (let rings = 0; rings <= STEWARD.fortMaxRings; rings++) {
-    const cells = stewardFortificationCells(state, landscape, rings);
-    if (!cells) return null;
-    const area = fortificationArea(cells, null, landscape);
-    if ('error' in area) return null;
-    const outline = fortificationOutline(area, kind);
-    if (outline.innerAreaM2 >= need) return { cells, lengthM: outline.lengthM };
-  }
-  return null;
+): { points: Point[]; lengthM: number } | null {
+  return stewardFortificationProposal(
+    state,
+    day,
+    landscape,
+    obstacles,
+    kind,
+    refugeNeedM2(state),
+    STEWARD.fortMaxRings,
+  );
 }
 
 /** Délka obvodu stojícího opevnění `fort` jako druhu `kind` (m), nebo null. */

@@ -6,7 +6,7 @@ import {
   autoGates,
   fortificationArea,
   fortificationCost,
-  fortificationOutline,
+  areaOutline,
   type FortGate,
   type FortOutline,
 } from '..';
@@ -21,7 +21,7 @@ function square4(kind: 'fence' | 'palisade' | 'rampart' = 'fence'): FortOutline 
   for (let y = 62; y < 66; y++) for (let x = 62; x < 66; x++) cells.push({ x, y });
   const area = fortificationArea(cells, null, GEO);
   if ('error' in area) throw new Error(area.error);
-  return fortificationOutline(area, kind);
+  return areaOutline(area, kind);
 }
 
 const line = (...points: [number, number][]): RoadPoint[] => points.map(([x, z]) => ({ x, z }));
@@ -38,11 +38,14 @@ describe('brány opevnění', () => {
     expect(short.map((g) => g.segment)).toEqual([5]);
     const crossing = autoGates(square4(), [line([-7, 100], [-7, 10])], { x: 0, z: 0 });
     expect(crossing).toHaveLength(1);
-    // sever: úseky 0–3 od západu, x −15…0 je úsek 1 (bez rohů – rovná část od x = −15)
+    // sever: 16 stejných úseků od tečny rohu (x = −30 + r) po směru hodin – x = −7 je v úseku 1
+    const o = square4();
+    const each = o.lengthM / 16;
+    const r = FORTIFICATIONS.cornerM.fence.outer;
     expect(crossing[0]).toMatchObject({ segment: 1 });
-    expect(crossing[0]!.offsetM).toBeCloseTo(8, 9);
-    expect(crossing[0]!.x).toBeCloseTo(-7, 9);
-    expect(crossing[0]!.z).toBeCloseTo(30, 9);
+    expect(crossing[0]!.offsetM).toBeCloseTo(-7 + 30 - r - each, 1);
+    expect(crossing[0]!.x).toBeCloseTo(-7, 6);
+    expect(crossing[0]!.z).toBeCloseTo(30, 6);
   });
 
   it('dvě cesty v jednom úseku → jedna brána; cesta skrz → dvě', () => {
@@ -52,27 +55,31 @@ describe('brány opevnění', () => {
     });
     expect(two).toHaveLength(1);
     expect(two[0]).toMatchObject({ segment: 1 });
-    expect(two[0]!.x).toBeCloseTo(-12, 9);
+    // průsečík x = −12 je u začátku úseku – brána posunutá, ať je celá v úseku
+    expect(two[0]!.x).toBeCloseTo(-12, 0);
     const through = autoGates(square4(), [line([5, 100], [5, -100])], { x: 0, z: 0 });
     // sever x 0…15 = úsek 2, jih (od východu k západu, úseky 8–11) x 0…15 = úsek 9
     expect(through.map((g) => g.segment)).toEqual([2, 9]);
   });
 
-  it('brána u rohu zůstane celá na rovné části úseku', () => {
-    const g = autoGates(square4(), [line([29.5, 100], [29.5, 0])], { x: 0, z: 0 });
-    const r = FORTIFICATIONS.cornerM.fence.outer;
+  it('brána u konce úseku zůstane celá v úseku', () => {
+    const o = square4();
+    const g = autoGates(o, [line([29.5, 100], [29.5, 0])], { x: 0, z: 0 });
     const half = FORTIFICATIONS.gate.widthM / 2;
     expect(g).toHaveLength(1);
-    // průsečík leží na oblouku rohu – brána na konci rovné části úseku 3 (x 15 … 30 − r)
+    // průsečík leží v rohu na konci úseku 3 – brána končí s úsekem
     expect(g[0]).toMatchObject({ segment: 3 });
-    expect(g[0]!.offsetM).toBeCloseTo(15 - r - half, 9);
-    expect(g[0]!.x).toBeCloseTo(30 - r - half, 9);
+    expect(g[0]!.offsetM).toBeCloseTo(o.lengthM / 16 - half, 9);
   });
 
   it('bez cesty jedna brána v úseku nejblíž kotvě (dvorec, jinak střed obydlí)', () => {
     const g = autoGates(square4(), [], { x: 100, z: 5 });
-    // východ: úseky 4–7 od severu k jihu, z 0…15 je úsek 5 – brána uprostřed
-    expect(g).toEqual([{ segment: 5, offsetM: 7.5, x: 30, z: 7.5 }]);
+    // východ: úseky 4–7 od severu k jihu, úsek 5 nejblíž kotvě – brána uprostřed
+    const o = square4();
+    expect(g).toHaveLength(1);
+    expect(g[0]).toMatchObject({ segment: 5 });
+    expect(g[0]!.offsetM).toBeCloseTo(o.lengthM / 32, 9);
+    expect(g[0]!.x).toBeCloseTo(30, 6);
   });
 
   it('hráč přidá bránu kliknutím, nejvýš jedna na úsek', () => {
@@ -80,8 +87,8 @@ describe('brány opevnění', () => {
     const first = gates(addGate(o, [], { x: 30.5, z: -7 }));
     expect(first).toHaveLength(1);
     expect(first[0]).toMatchObject({ segment: 6 });
-    expect(first[0]!.x).toBeCloseTo(30, 9);
-    expect(first[0]!.z).toBeCloseTo(-7, 9);
+    expect(first[0]!.x).toBeCloseTo(30, 6);
+    expect(first[0]!.z).toBeCloseTo(-7, 6);
     expect(addGate(o, first, { x: 29, z: -10 })).toEqual({ error: 'segment-taken' });
     expect(addGate(o, first, { x: 50, z: 0 })).toEqual({ error: 'off-outline' });
     const second = gates(addGate(o, first, { x: -7, z: 30 }));
@@ -120,7 +127,7 @@ describe('cena opevnění', () => {
     const o = square4('fence');
     const cost = fortificationCost('fence', o.lengthM, 'new');
     expect(cost.laborManDays).toBeCloseTo(47.57, 2);
-    expect(cost.upfront.wood).toBeCloseTo(35.68, 2);
+    expect(cost.upfront.wood).toBeCloseTo(35.67, 2);
   });
 
   it('vylepšit jde jen na palisádu, nástavba jen plot nebo palisáda', () => {

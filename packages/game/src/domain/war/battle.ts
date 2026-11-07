@@ -4,8 +4,7 @@ import {
   breachStep,
   breachWork,
   defenderMultiplier,
-  fortificationArea,
-  fortificationOutline,
+  fortOutlineOf,
   fortSegments,
   segmentIsGap,
   type BreachProgress,
@@ -186,14 +185,14 @@ export function hitDamage(strength: number, multiplier: number, bow: boolean): n
 /** Opevnění vsi s tvarem úseků pro bojiště. */
 export function battleForts(geo: GridGeometry, forts: readonly Fortification[]): BattleFort[] {
   return forts.map((fort) => {
-    const area = fortificationArea(fort.cells, fort.grid, geo);
-    if ('error' in area) return { fort, shapes: [], center: { x: 0, z: 0 } };
-    const shapes = fortSegments(fortificationOutline(area, fort.kind));
+    const outline = fortOutlineOf(geo, fort);
+    if (!outline) return { fort, shapes: [], center: { x: 0, z: 0 } };
+    const shapes = fortSegments(outline);
     let x = 0;
     let z = 0;
     for (const s of shapes) {
-      x += s.line.x + (s.line.dx * s.line.length) / 2;
-      z += s.line.z + (s.line.dz * s.line.length) / 2;
+      x += s.mid[0];
+      z += s.mid[1];
     }
     const n = Math.max(1, shapes.length);
     return { fort, shapes, center: { x: x / n, z: z / n } };

@@ -745,15 +745,14 @@ export function placePenForPlayer(
 }
 
 /**
- * Stavba opevnění (fortifications.md – Obvod, Cena a stavba): čtverce plochy (i natočené – `grid`)
- * a druh. Server umístění ověří znovu (`checkFortificationPlacement`).
+ * Stavba opevnění (fortifications.md – Obvod, Cena a stavba): body obvodu a druh. Server tvar
+ * a umístění spočítá a ověří znovu (`checkFortificationPlacement`).
  */
 export function placeFortificationForPlayer(
   playerId: string,
   villageId: string,
-  input: { cells: TileCell[]; kind: FortKind; grid?: SquareGrid },
+  input: { points: [number, number][]; kind: FortKind },
 ): Promise<VillageActionResult> {
-  const grid = input.grid;
   return actOn(playerId, villageId, 'placeFortification', (ctx) =>
     placeFortification(
       { villages: villages() },
@@ -761,9 +760,8 @@ export function placeFortificationForPlayer(
         villageId: ctx.villageId,
         landscape: ctx.landscape,
         today: ctx.day,
-        cells: input.cells,
+        points: input.points,
         kind: input.kind,
-        ...(grid ? { grid } : {}),
       },
     ),
   );

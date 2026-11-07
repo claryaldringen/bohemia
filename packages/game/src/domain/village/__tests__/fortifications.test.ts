@@ -5,12 +5,15 @@ import { foundVillage } from '../actions';
 import { applyBuildIntent } from '../build-intent';
 import { cancelConstruction } from '../cancel-construction';
 import {
+  circlePoints,
   fortBlockingSegments,
-  fortificationArea,
   fortificationOutline,
   fortRunningWork,
   fortSegments,
+  squarePoints,
 } from '../fortification';
+import type { Point } from '../polygon';
+import type { TileCell } from '../types';
 import {
   FORT_BUSY,
   FORT_GATE_OFF,
@@ -24,7 +27,7 @@ import {
   type FortificationResult,
 } from '../fortifications';
 import {
-  FORT_NOT_CONNECTED,
+  FORT_CROSSING,
   FORT_OVER_BUILDING,
   FORT_OVER_WATER,
   FORT_TOO_SMALL,
@@ -50,6 +53,13 @@ const FAR = { x: -90, z: -90, rotation: 0 };
 const landscape = makeLandscape();
 const AREA = block(8, 8, 4, 4);
 
+/** Body obvodu z čtverců (jako převod starého opevnění) – obvod se zakulacenými rohy. */
+function sq(cells: readonly TileCell[], kind: FortKind): Point[] {
+  const points = squarePoints(cells, null, landscape, kind);
+  if (!points) throw new Error('plocha bez obvodu');
+  return points;
+}
+
 function village(logs = 200): VillageState {
   const s = withBuiltFirstDwelling(foundVillage({ seed: 5, day: DAY, dwellingPosition: FAR }));
   s.woodLogs = logs;
@@ -61,9 +71,15 @@ function ok(result: FortificationResult): VillageState {
   return result.state;
 }
 
-function start(state: VillageState, kind: FortKind, cells = AREA): VillageState {
+/** Opevnění druhu `kind` na čtvercích `cells` – obvod se zakulacením druhu `shape`. */
+function start(
+  state: VillageState,
+  kind: FortKind,
+  cells = AREA,
+  shape: FortKind = kind,
+): VillageState {
   return ok(
-    startFortification(state, state.lastDay, landscape, EMPTY, { cells, grid: null, kind }),
+    startFortification(state, state.lastDay, landscape, EMPTY, { points: sq(cells, shape), kind }),
   );
 }
 
@@ -92,16 +108,31 @@ describe('kontrola umístění opevnění', () => {
         : landscape,
       placementVillageOf(s, s.lastDay),
       EMPTY,
-      cells,
-      null,
+      sq(cells, kind),
       kind,
     );
 
-  it('plocha 4 × 4 na louce projde, menší než 2 × 2 a nesouvislá ne', () => {
+  it('obvod kolem 4 × 4 na louce projde, malá plocha a křížení ne', () => {
     const s = village();
     expect(check(s).ok).toBe(true);
-    expect(check(s, block(8, 8, 3, 1)).reason).toBe(FORT_TOO_SMALL);
-    expect(check(s, [...block(2, 2, 2, 2), ...block(8, 8, 2, 2)]).reason).toBe(FORT_NOT_CONNECTED);
+    const at = (points: Point[]): string | null =>
+      checkFortificationPlacement(
+        landscape,
+        placementVillageOf(s, s.lastDay),
+        EMPTY,
+        points,
+        'fence',
+      ).reason;
+    expect(at(circlePoints([30, 30], 15))).toBe(FORT_TOO_SMALL);
+    const eight: Point[] = [
+      [0, 0],
+      [40, 40],
+      [80, 0],
+      [80, 40],
+      [40, 0],
+      [0, 40],
+    ];
+    expect(at(eight)).toBe(FORT_CROSSING);
   });
 
   it('pás nesmí přes vodu ani přes obydlí; voda uvnitř plochy mimo pás nevadí', () => {
@@ -115,8 +146,7 @@ describe('kontrola umístění opevnění', () => {
       inner,
       placementVillageOf(s, s.lastDay),
       EMPTY,
-      AREA,
-      null,
+      sq(AREA, 'palisade'),
       'palisade',
     );
     expect(result.ok).toBe(true);
@@ -162,8 +192,7 @@ describe('místo problému neprošlé kontroly', () => {
       landscape,
       pv,
       EMPTY,
-      block(2, 2, 3, 3),
-      null,
+      sq(block(2, 2, 3, 3), 'fence'),
       'fence',
     );
     expect(house.reason).toBe(FORT_OVER_BUILDING);
@@ -172,8 +201,7 @@ describe('místo problému neprošlé kontroly', () => {
       makeLandscape({ surface: (x, y) => (x === 9 && y === 8 ? 'water' : 'meadow') }),
       pv,
       EMPTY,
-      AREA,
-      null,
+      sq(AREA, 'fence'),
       'fence',
     );
     expect(wet.reason).toBe(FORT_OVER_WATER);
@@ -183,8 +211,7 @@ describe('místo problému neprošlé kontroly', () => {
       landscape,
       built,
       EMPTY,
-      block(12, 8, 2, 2),
-      null,
+      sq(block(12, 8, 2, 2), 'fence'),
       'fence',
     );
     expect(touch.reason).toBe(FORT_TOUCHES);
@@ -196,10 +223,10 @@ describe('cena předem a zahájení', () => {
   it('klády na hromadě pokryjí celou stavbu – práce se nečeká', () => {
     const s = start(village(100), 'fence');
     const c = s.constructions.find((x) => x.kind === 'fortification')!;
-    // 237,854 m plotu → 35,68 klády → 36 z hromady, 20 čd na 100 m
+    // 237,829 m plotu (body z čtverců) → 35,67 klády → 36 z hromady, 20 čd na 100 m
     expect(c.wood).toMatchObject({ trees: 36, fromPile: 36, fell: [] });
     expect(s.woodLogs).toBe(64);
-    expect(c.cost).toBeCloseTo((20 * 237.854) / 100, 2);
+    expect(c.cost).toBeCloseTo((20 * 237.829) / 100, 2);
     expect(s.fortifications?.[0]?.segments).toHaveLength(16);
     expect(s.fortifications?.[0]?.gates).toHaveLength(1);
   });
@@ -207,8 +234,7 @@ describe('cena předem a zahájení', () => {
   it('bez klád a bez stromů k mání palisáda nejde; val dřevo nechce', () => {
     const s = village(0);
     const r = startFortification(s, s.lastDay, landscape, EMPTY, {
-      cells: AREA,
-      grid: null,
+      points: sq(AREA, 'palisade'),
       kind: 'palisade',
     });
     expect(r).toEqual({ ok: false, reason: FORT_NO_WOOD });
@@ -225,8 +251,7 @@ describe('cena předem a zahájení', () => {
     const s = village(10);
     const next = ok(
       startFortification(s, s.lastDay, landscape, layer, {
-        cells: AREA,
-        grid: null,
+        points: sq(AREA, 'fence'),
         kind: 'fence',
       }),
     );
@@ -293,7 +318,8 @@ describe('stavba po úsecích', () => {
 
 describe('vylepšení, nástavba a zrušení', () => {
   it('plot na palisádu – plot úseku stojí, dokud palisáda není hotová, nic nevrací', () => {
-    const built = finish(start(village(400), 'fence'));
+    // ohyby pro palisádu (3 m) – plot s ostřejšími ohyby by na palisádu vylepšit nešel
+    const built = finish(start(village(400), 'fence', AREA, 'palisade'));
     const logs = built.woodLogs ?? 0;
     const up = ok(
       startFortificationUpgrade(built, built.lastDay, landscape, EMPTY, {
@@ -393,7 +419,8 @@ describe('celý obvod blokuje od zahájení stavby (Martin 6. 11. 2026)', () => 
   });
 
   it('vylepšení plotu blokuje od zahájení pásem palisády', () => {
-    const built = finish(start(village(400), 'fence'));
+    // ohyby pro palisádu (3 m) – plot s ostřejšími ohyby by na palisádu vylepšit nešel
+    const built = finish(start(village(400), 'fence', AREA, 'palisade'));
     expect(new Set(blocking(built).map((b) => b.kind))).toEqual(new Set(['fence']));
     const up = ok(
       startFortificationUpgrade(built, built.lastDay, landscape, EMPTY, {
@@ -413,15 +440,10 @@ describe('brány', () => {
   it('hráč přidá bránu na obvod, nejvýš jednu na úsek', () => {
     const s = start(village(), 'fence');
     const fort = s.fortifications![0]!;
-    const area = fortificationArea(fort.cells, null, landscape);
-    if ('error' in area) throw new Error(area.error);
-    const free = fortSegments(fortificationOutline(area, 'fence')).find(
+    const free = fortSegments(fortificationOutline(fort.points!, 'fence')!).find(
       (x) => !fort.gates.some((g) => g.segment === x.index),
     )!;
-    const mid = {
-      x: free.line.x + (free.line.dx * free.line.length) / 2,
-      z: free.line.z + (free.line.dz * free.line.length) / 2,
-    };
+    const mid = { x: free.mid[0], z: free.mid[1] };
     const next = ok(addGateToFortification(s, landscape, fort.id, mid));
     expect(next.fortifications![0]!.gates).toHaveLength(2);
     expect(addGateToFortification(next, landscape, fort.id, mid)).toEqual({

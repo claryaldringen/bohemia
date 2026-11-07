@@ -3,7 +3,7 @@
 // z jádra (obvod, úseky a brány z plochy po čtvercích), jen stáří a stavba jsou dané ukázkou.
 import {
   fortificationArea,
-  fortificationOutline,
+  areaOutline,
   fortSegments,
   type FortBuildWork,
   type FortKind,
@@ -51,7 +51,7 @@ export function demoFortification(demo: DemoFort, geo: GridGeometry): SceneForti
     for (let y = 0; y < demo.cells.h; y++) cells.push({ x: demo.cells.x + x, y: demo.cells.y + y });
   const area = fortificationArea(cells, null, geo);
   if ('error' in area) throw new Error(`Plocha ukázky opevnění ${demo.id}: ${area.error}`);
-  const outline = fortificationOutline(area, demo.kind);
+  const outline = areaOutline(area, demo.kind);
   const shapes = fortSegments(outline);
   const age = demo.age ?? ((): number => 1);
   const fort: Fortification = {

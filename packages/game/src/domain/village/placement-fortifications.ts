@@ -1,15 +1,10 @@
-// Kontrola umístění opevnění (fortifications.md – Obvod): plocha po čtvercích jako pole, pás
-// uvnitř podél okraje. Pás smí přes louku, křoviny a les (stromy a keře se pokácí), plot
-// a palisáda po okraji polí a sadu (díl zůstane), val díl pole a sadu vezme. Nesmí přes obydlí
-// s pozemkem, dvorec, dílnu, hřbitov, ohradu, humno, modlu, svatyni, posvátný dub a háj ani vodu.
-
 import { type Landscape, type ObstacleLayer, surfaceAt } from '../landscape';
-import { normalizeGrid, squareCorners } from './square-grid';
+import { squareCorners } from './square-grid';
 import {
   fortBandPolygons,
-  fortificationArea,
   fortificationOutline,
-  type FortArea,
+  fortOutlineOf,
+  fortShapeError,
   type FortOutline,
 } from './fortification';
 import { type TakenLand } from './land-taken';
@@ -24,27 +19,28 @@ import {
   takenLandUnder,
   takenLandWarning,
 } from './placement-land';
-import { gridSquare } from './placement-squares';
 import { withWarning } from './placement-fields';
 import { type PlacementCheck, type PlacementVillage, fail } from './placement-types';
 import { type Point, polygonsOverlap } from './polygon';
+import { FORTIFICATIONS } from './rules-fortifications';
 import { sacredSitesOf } from './sacred';
 import { tilesUnder } from './squares';
-import type { FortKind, SquareGrid, TileCell } from './types';
+import type { FortKind } from './types';
 
 /** Důvody u kurzoru (fortifications.md – Obvod). */
 export const FORT_OVER_BUILDING = 'Opevnění nevede přes obydlí.';
 export const FORT_OVER_WATER = 'Opevnění nevede přes vodu.';
-export const FORT_NOT_CONNECTED = 'Plocha musí být souvislá.';
 export const FORT_TOUCHES = 'Opevnění se nesmí dotknout jiného.';
-export const FORT_TOO_SMALL = 'Opevnění chce plochu aspoň 2 × 2 čtverce.';
+export const FORT_TOO_SMALL = 'Opevnění chce plochu aspoň 900 m².';
 export const FORT_OUTSIDE = 'Opevnění musí ležet uvnitř krajiny sídla.';
-export const FORT_BAD_GRID = 'Neplatné natočení opevnění.';
+export const FORT_BAD_POINTS = 'Neplatné body opevnění.';
+export const FORT_TOO_FEW = 'Obvod chce aspoň 4 body.';
+export const FORT_SHARP = 'Tady je ohyb moc ostrý.';
+export const FORT_CROSSING = 'Obvod se nesmí křížit.';
 
 /** Kontrola opevnění – tvar a co se v pásu stane (prošlá kontrola; neprošlá s prázdnými údaji). */
 export interface FortPlacementCheck extends PlacementCheck {
-  /** Plocha a obvod (u neprošlé plochy null). */
-  area: FortArea | null;
+  /** Obvod (u neplatných bodů null). */
   outline: FortOutline | null;
   /** Překážky v pásu – osadníci je odstraní hned, dospělé stromy dají klády (forest.md). */
   obstacleIds: number[];
@@ -55,44 +51,50 @@ export interface FortPlacementCheck extends PlacementCheck {
 }
 
 const NONE = {
-  area: null,
   outline: null,
   obstacleIds: [],
   clearedTrees: 0,
   takenLand: [],
 };
 
-/** O kolik se čtverec plochy při kontrole dotyku zvětší (m) – dotyk hranou i rohem se počítá. */
+/** Do jaké vzdálenosti se obvody dotýkají (m) – dotyk se počítá. */
 const TOUCH_MARGIN_M = 0.05;
 
-/** Čtverce plochy ve světě, o `margin` zvětšené od středu. */
-function areaPolygons(landscape: Landscape, area: FortArea, margin = 0): Point[][] {
-  const grid = area.grid ?? undefined;
-  return area.cells.map((cell) => {
-    const square = gridSquare(landscape, grid, cell);
-    const half = landscape.cellSizeM / 2;
-    const k = (half + margin) / half;
-    const { x, z } = square.center;
-    return square.corners.map(([px, pz]) => [x + (px - x) * k, z + (pz - z) * k] as const);
-  });
+/** Nejmenší vzdálenost dvou uzavřených lomených čar (m) – stačí vědět, jestli je pod `limit`. */
+function closerThan(a: readonly Point[], b: readonly Point[], limit: number): boolean {
+  const near = (p: Point, q0: Point, q1: Point): number => {
+    const ex = q1[0] - q0[0];
+    const ez = q1[1] - q0[1];
+    const len2 = ex * ex + ez * ez;
+    const t =
+      len2 > 0 ? Math.min(1, Math.max(0, ((p[0] - q0[0]) * ex + (p[1] - q0[1]) * ez) / len2)) : 0;
+    const dx = q0[0] + ex * t - p[0];
+    const dz = q0[1] + ez * t - p[1];
+    return dx * dx + dz * dz;
+  };
+  const l2 = limit * limit;
+  const test = (from: readonly Point[], to: readonly Point[]): boolean =>
+    from.some((p) => to.some((q, k) => near(p, q, to[(k + 1) % to.length]!) <= l2));
+  return test(a, b) || test(b, a);
 }
 
 /**
- * Čtverce jiného opevnění vsi, kterých se plocha `area` dotkne (nebo leží uvnitř, či kolem) –
+ * Obvody jiných opevnění vsi, kterých se obvod `outline` dotkne (nebo leží uvnitř, či kolem) –
  * prázdné, když se nedotkne ničeho.
  */
 function touchedOther(
   landscape: Landscape,
   village: PlacementVillage | null,
-  area: FortArea,
+  outline: FortOutline,
 ): Point[][] {
   const others = village?.fortifications ?? [];
-  if (others.length === 0) return [];
-  const mine = areaPolygons(landscape, area, TOUCH_MARGIN_M);
   return others.flatMap((f) => {
-    const other = fortificationArea(f.cells, f.grid, landscape);
-    if ('error' in other) return [];
-    return areaPolygons(landscape, other).filter((b) => mine.some((a) => polygonsOverlap(a, b)));
+    const other = fortOutlineOf(landscape, f);
+    if (!other) return [];
+    const touches =
+      polygonsOverlap(outline.polyline, other.polyline) ||
+      closerThan(outline.polyline, other.polyline, TOUCH_MARGIN_M);
+    return touches ? [other.polyline] : [];
   });
 }
 
@@ -105,42 +107,55 @@ function bandInside(landscape: Landscape, band: readonly Point[][]): boolean {
   );
 }
 
+/** Body ze vstupu – konečná čísla, nejvýš `FORTIFICATIONS.outline.maxPoints`; jinak null. */
+function validPoints(points: readonly Point[]): boolean {
+  return (
+    Array.isArray(points) &&
+    points.length <= FORTIFICATIONS.outline.maxPoints &&
+    points.every(
+      (p) => Array.isArray(p) && p.length === 2 && Number.isFinite(p[0]) && Number.isFinite(p[1]),
+    )
+  );
+}
+
 /**
- * Smí na čtvercích `cells` (mřížka `grid`, bez ní krajina) stát opevnění druhu `kind`? Plocha
- * souvislá, nejméně 2 × 2, nedotýká se jiného opevnění; pás uvnitř krajiny, ne přes vodu, stavby
- * (`checkFootprintFree` – pole, sad a les vsi smí), skalní výchoz ani posvátný dub a háj. Překážky
- * v pásu osadníci odstraní (díly polí a sadu pod plotem a palisádou nechají poli), val vezme kusy
- * polí a sadů pod pásem (`takenLand`, varování „Pole se zmenší“). Stav nemění.
+ * Smí obvod přes body `points` nést opevnění druhu `kind`? Tvar (nejméně 4 body, ohyb ne ostřejší
+ * než nejmenší poloměr druhu, nekříží se, plocha aspoň 900 m²), nedotýká se jiného opevnění; pás
+ * uvnitř krajiny, ne přes vodu, stavby (`checkFootprintFree` – pole, sad a les vsi smí), skalní
+ * výchoz ani posvátný dub a háj. Překážky v pásu osadníci odstraní (díly polí a sadu pod plotem
+ * a palisádou nechají poli), val vezme kusy polí a sadů pod pásem (`takenLand`, varování „Pole se
+ * zmenší“). Stav nemění.
  */
 export function checkFortificationPlacement(
   landscape: Landscape,
   village: PlacementVillage | null,
   obstacles: ObstacleLayer,
-  cells: readonly TileCell[],
-  gridInput: SquareGrid | null,
+  points: readonly Point[],
   kind: FortKind,
 ): FortPlacementCheck {
-  if (cells.some((c) => !Number.isInteger(c.x) || !Number.isInteger(c.y))) {
-    return { ...fail('Neplatné čtverce opevnění.'), ...NONE };
+  if (!validPoints(points)) return { ...fail(FORT_BAD_POINTS), ...NONE };
+  const outline = fortificationOutline(points, kind);
+  const shaped = { ...NONE, outline };
+  const shape = fortShapeError(outline);
+  if (shape) {
+    const where = shape.at ? { points: [{ x: shape.at[0], z: shape.at[1] }] } : undefined;
+    const reason =
+      shape.error === 'too-few'
+        ? FORT_TOO_FEW
+        : shape.error === 'sharp'
+          ? FORT_SHARP
+          : shape.error === 'crossing'
+            ? FORT_CROSSING
+            : FORT_TOO_SMALL;
+    return { ...fail(reason, where), ...shaped };
   }
-  const grid = gridInput === null ? null : normalizeGrid(gridInput);
-  if (gridInput !== null && !grid) return { ...fail(FORT_BAD_GRID), ...NONE };
-  const area = fortificationArea(cells, grid, landscape);
-  if ('error' in area) {
-    return {
-      ...fail(area.error === 'disconnected' ? FORT_NOT_CONNECTED : FORT_TOO_SMALL),
-      ...NONE,
-    };
-  }
-  const outline = fortificationOutline(area, kind);
+  if (!outline) return { ...fail(FORT_TOO_FEW), ...NONE };
   const band = fortBandPolygons(outline);
-  const shaped = { ...NONE, area, outline };
   if (!bandInside(landscape, band)) return { ...fail(FORT_OUTSIDE), ...shaped };
-  const touched = touchedOther(landscape, village, area);
+  const touched = touchedOther(landscape, village, outline);
   if (touched.length > 0) {
     return { ...fail(FORT_TOUCHES, { footprints: touched }), ...shaped };
   }
-  // políčka vody pod pásem (obdélníky pásu se v rozích překrývají – políčko jednou)
   const waterTiles = new Set<number>();
   for (const polygon of band) {
     for (const t of tilesUnder(landscape, polygon)) {
@@ -200,7 +215,6 @@ export function checkFortificationPlacement(
   }
   return {
     ...withWarning(takenLandWarning(landscape, village, takenLand)),
-    area,
     outline,
     obstacleIds: [...ids].sort((a, b) => a - b),
     clearedTrees: unreservedTrees(village, [...treeIds]),

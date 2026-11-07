@@ -30,6 +30,7 @@ import { checkSacredBuildingPlacement, checkThreshingFloorPlacement } from './pl
 import { forestEdgeDistanceM, waterDistanceM } from './placement-squares';
 import type { DwellingPlacementCheck } from './placement-types';
 import { placementVillageOf, villageDwellingPositions } from './placement-village';
+import type { Point } from './polygon';
 import { relocationAffordability, relocationBlock, type RelocationBlock } from './relocation';
 import { NO_ROAD, roadApplesOption, startRoadApples } from './road-apples';
 import {
@@ -129,12 +130,10 @@ export interface SacredIntent {
   position: Position;
 }
 
-/** Nové opevnění z nakreslených čtverců (fortifications.md – Obvod); správce kreslí obvod sám. */
+/** Nové opevnění přes body obvodu (fortifications.md – Obvod); správce bere návrh hry. */
 export interface FortificationIntent {
   kind: 'fortification';
-  cells: TileCell[];
-  /** Mřížka čtverců; null = mřížka krajiny. */
-  grid: SquareGrid | null;
+  points: Point[];
   fortKind: FortKind;
 }
 
@@ -257,7 +256,7 @@ export function applyBuildIntent(
         day,
         landscape,
         obstacles,
-        { cells: intent.cells, grid: intent.grid, kind: intent.fortKind },
+        { points: intent.points, kind: intent.fortKind },
         villageRoadWalk(state, landscape),
       );
       return r.ok ? r : { ok: false, reason: r.reason };

@@ -43,6 +43,8 @@ export interface WalkWalls {
   readonly gates: readonly WallQuad[];
   /** Středy otvorů bran (v pořadí `gates`). */
   readonly centers: readonly PathPoint[];
+  /** Body objížďky vně hladkých obvodů (`FortWalls.detour`). */
+  readonly detour: readonly PathPoint[];
   /** Obal všech stěn. */
   readonly minX: number;
   readonly maxX: number;
@@ -73,7 +75,9 @@ function quadOf(pts: readonly Point[]): WallQuad | null {
 export function walkWallsOf(forts: readonly FortWalls[] | undefined): WalkWalls | null {
   const walls: WallQuad[] = [];
   const gates: WallQuad[] = [];
+  const detour: PathPoint[] = [];
   for (const f of forts ?? []) {
+    for (const [x, z] of f.detour ?? []) detour.push({ x, z });
     for (const w of f.walls) {
       const q = quadOf(w);
       if (q) walls.push(q);
@@ -103,7 +107,7 @@ export function walkWallsOf(forts: readonly FortWalls[] | undefined): WalkWalls 
     minZ = Math.min(minZ, w.minZ);
     maxZ = Math.max(maxZ, w.maxZ);
   }
-  return { walls, gates, centers, minX, maxX, minZ, maxZ };
+  return { walls, gates, centers, detour, minX, maxX, minZ, maxZ };
 }
 
 /**
@@ -210,15 +214,20 @@ interface DetourGraph {
 const detourGraphs = new WeakMap<WalkWalls, DetourGraph>();
 
 /**
- * Graf objížďky: středy otvorů bran a vypouklé rohy pásu stěn odsazené o DETOUR_CORNER_M ven
+ * Graf objížďky: středy otvorů bran, body vně hladkých obvodů (`detour`) a vypouklé rohy pásu stěn
+ * odsazené o DETOUR_CORNER_M ven
  * (podél obou vnějších normál hran v rohu); úsečky mezi nimi bez stěny; nejkratší cesty mezi všemi
  * dvojicemi (Floydův–Warshallův algoritmus, při shodě dřívější).
  */
 function detourGraphOf(walls: WalkWalls): DetourGraph {
   const known = detourGraphs.get(walls);
   if (known) return known;
-  const pts: PathPoint[] = [...walls.centers];
   const clear = DETOUR_CORNER_M * DETOUR_CORNER_M * 0.25;
+  const pts: PathPoint[] = [...walls.centers];
+  // body vně hladkého obvodu (mimo stěny) – kolem křivky se objížďka láme po kouscích
+  for (const p of walls.detour) {
+    if (!walls.walls.some((w) => squaredDistance(w, p.x, p.z) < clear)) pts.push(p);
+  }
   for (const q of walls.walls) {
     const n = q.pts.length;
     for (let i = 0; i < n; i++) {

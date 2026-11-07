@@ -3,10 +3,9 @@ import { cloneState } from './clone';
 import {
   addGate,
   autoGates,
-  fortificationArea,
   fortificationCost,
   fortBlockingSegments,
-  fortificationOutline,
+  fortOutlineOf,
   fortRunningWork,
   fortSegments,
   roadGates,
@@ -15,6 +14,7 @@ import {
   type FortSegmentShape,
   type FortWork,
 } from './fortification';
+import type { Point } from './polygon';
 import { giveWayToBuilding } from './land-taken';
 import { villageManorId } from './manor';
 import { obstacleChangesAt, recordClearedObstacles } from './obstacles';
@@ -30,8 +30,6 @@ import type {
   FortTop,
   Fortification,
   RoadPoint,
-  SquareGrid,
-  TileCell,
   VillageState,
 } from './types';
 import { claimedObstacles, planWoodFrom, takeWood, woodFellingCost, woodLogs } from './wood';
@@ -72,14 +70,13 @@ export function segmentKind(fort: Fortification, segment: FortSegment): FortKind
   return segment.kind ?? fort.kind;
 }
 
-/** Obvod opevnění druhu `kind` (bez údaje druh opevnění) – tvar z uložené plochy. */
+/** Obvod opevnění druhu `kind` (bez údaje druh opevnění) – tvar z uložených bodů. */
 export function outlineOf(
   geo: Pick<Landscape, 'size' | 'cellSizeM'>,
   fort: Fortification,
   kind: FortKind = fort.kind,
 ): FortOutline | null {
-  const area = fortificationArea(fort.cells, fort.grid, geo);
-  return 'error' in area ? null : fortificationOutline(area, kind);
+  return fortOutlineOf(geo, fort, kind);
 }
 
 /** Stavba, která na opevnění právě pracuje (nejvýš jedna). */
@@ -176,16 +173,16 @@ export function segmentPlan(
   return { segments, wood };
 }
 
-/** Těžiště čtverců plochy – odtud se hledají nejbližší stromy ke kácení. */
+/** Průměr bodů lomené čáry obvodu – odtud se hledají nejbližší stromy ke kácení. */
 export function outlineCenter(outline: FortOutline): RoadPoint {
-  const squares = outline.area.squares;
+  const line = outline.polyline;
   let x = 0;
   let z = 0;
-  for (const q of squares) {
-    x += q.x;
-    z += q.z;
+  for (const [px, pz] of line) {
+    x += px;
+    z += pz;
   }
-  return { x: x / squares.length, z: z / squares.length };
+  return { x: x / line.length, z: z / line.length };
 }
 
 export interface FortWorkInput {
@@ -246,10 +243,9 @@ export function pushWork(
   return true;
 }
 
-/** Vstup stavby nového opevnění – nakreslené čtverce, mřížka (null = krajina) a druh. */
+/** Vstup stavby nového opevnění – body obvodu (návrh hry, upravený hráčem) a druh. */
 export interface FortificationInput {
-  cells: readonly TileCell[];
-  grid: SquareGrid | null;
+  points: readonly Point[];
   kind: FortKind;
 }
 
@@ -271,8 +267,7 @@ export function startFortification(
     landscape,
     placementVillageOf(state, day),
     obstacles,
-    input.cells,
-    input.grid,
+    input.points,
     input.kind,
   );
   if (!check.ok || !check.outline) {
@@ -303,8 +298,7 @@ export function startFortification(
   if (!ok) return { ok: false, reason: FORT_NO_WOOD };
   (next.fortifications ??= []).push({
     id,
-    grid: outline.area.grid ? { ...outline.area.grid } : null,
-    cells: outline.area.cells.map((c) => ({ x: c.x, y: c.y })),
+    points: outline.points.map((p): Point => [p[0], p[1]]),
     kind: input.kind,
     segments: shapes.map((s) => ({ index: s.index, builtDay: null, state: 1 })),
     gates,
@@ -352,8 +346,7 @@ export function startFortificationUpgrade(
       landscape,
       { ...village, fortifications: villageFortifications(state).filter((f) => f.id !== fort.id) },
       obstacles,
-      fort.cells,
-      fort.grid,
+      outlineOf(landscape, fort)?.points ?? [],
       'palisade',
     );
     if (!check.ok || !check.outline) {
