@@ -157,30 +157,27 @@ function search(
   const ti = toward >= 0 ? toward % w : 0;
   const tj = toward >= 0 ? (toward - ti) / w : 0;
   const weight = toward >= 0 ? A_STAR_WEIGHT * grid.cellM : 0;
-  const estimate = (c: number): number => {
-    const ci = c % w;
-    return length2(ci - ti, (c - ci) / w - tj) * weight;
-  };
+  // odhad k cíli (A*) přímo z indexů buňky – týž výpočet jako dřív přes index (jen zrychlení)
+  const astar = weight > 0;
   for (const s of sources) {
     if (stamp[s] === run) continue;
     stamp[s] = run;
     dist[s] = 0;
     parent[s] = -1;
-    heap.push(s, weight > 0 ? estimate(s) : 0);
+    const si = s % w;
+    heap.push(s, astar ? length2(si - ti, (s - si) / w - tj) * weight : 0);
   }
   while (heap.size > 0) {
     const c = heap.pop();
-    const d = weight > 0 ? dist[c]! : heap.topKey;
-    if (weight > 0 ? heap.topKey > d + estimate(c) + 1e-9 : d > dist[c]!) continue;
-    if (d > maxCost || done(c)) break;
     const i = c % w;
     const j = (c - i) / w;
+    const d = astar ? dist[c]! : heap.topKey;
+    if (astar ? heap.topKey > d + length2(i - ti, j - tj) * weight + 1e-9 : d > dist[c]!) continue;
+    if (d > maxCost || done(c)) break;
     const own = cost[c]!;
     for (let k = 0; k < 8; k++) {
-      const di = DI[k]!;
-      const dj = DJ[k]!;
-      const ii = i + di;
-      const jj = j + dj;
+      const ii = i + DI[k]!;
+      const jj = j + DJ[k]!;
       if (ii < 0 || jj < 0 || ii >= w || jj >= h) continue;
       const n = jj * w + ii;
       const next = cost[n]!;
@@ -192,7 +189,7 @@ function search(
         stamp[n] = run;
         dist[n] = nd;
         parent[n] = c;
-        heap.push(n, weight > 0 ? nd + estimate(n) : nd);
+        heap.push(n, astar ? nd + length2(ii - ti, jj - tj) * weight : nd);
       } else if (nd === dist[n]! && c > parent[n]!) {
         // remíza – vyhraje předchůdce s vyšším indexem (viz `search`)
         parent[n] = c;

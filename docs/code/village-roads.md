@@ -1280,6 +1280,9 @@ a cesty); opevnění samo: [village-fortifications.md](village-fortifications.md
   půdu se stěnami staví `path-renderer.ts` (`walkGround` – `SceneVillage.fortifications`). Vlkov
   po opravě: 0 z 38 048 tras jde stěnou mimo bránu (jen osy pěšin do 1 m u otvoru), ve scéně 0
   z 532 uložených tras; graf objížďky 64 bodů, `walkingDistances` všech dílů 0,32 → 0,47 s.
+  Opevnění z bodů má stovky kusů pásu – stěny hledá mřížka obalů (`wall-grid.ts`: `cutsWall`,
+  obrys stěn `wallOutline` s `FenceOutline.near`), stejné stěny jsou tentýž objekt (`walkWallsOf`)
+  a graf objížďky si pamatuje i viditelnost cíle (village-core.md – Kolo 2 výkonu dopočtu).
   Ves bez opevnění: `withFortWalk` vrátí tutéž půdu,
   graf i ceny bit po bitu stejné – `WALK_VERSION` zůstává (scéna počítá trasy za běhu, uložené
   vzdálenosti dílů vsi s opevněním se srovnají při dalším přepočtu tras).
