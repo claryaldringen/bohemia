@@ -34,8 +34,10 @@ kolem 40 generací – dědictví, sňatky a nástupnictví jsou hlavní mechani
 - Registrace a přihlášení jsou povinné.
 - Nový hráč **s pozvánkou** (unikátní kód od stávajícího hráče) začíná jako vazal toho, kdo ho
   pozval.
-- Nový hráč **bez pozvánky** je **úplně nezávislý** – svou nezávislost uhájí, nebo ho jiný hráč
-  donutí stát se vazalem (Martin 2. 11. 2026).
+- Nový hráč **bez pozvánky** začne v odříznuté krajině a vybere si pána z nejmenších rodů nad
+  sebou (první, kdo potvrdí, je pánem; po týdnu los), nebo začne **úplně nezávislý** u své
+  jazykové skupiny – svou nezávislost uhájí, nebo ho jiný hráč donutí stát se vazalem (Martin
+  2. a 7. 11. 2026, [docs/design/newcomers.md](docs/design/newcomers.md)).
 - **Na vrcholu nestojí nikdo** – hráči jsou si na začátku rovni; kdo chce výš, musí si ostatní
   podrobit (Martin 2. 11. 2026: „V tom ta hra vlastně spočívá“). Vazalem se hráč stane
   pozvánkou nebo dohodou s podmínkami (nabídka i žádost, jednání do shody); vazalství je síť
@@ -68,8 +70,7 @@ do gitu (po smazání by ho vytvořil znovu).
 
 **Plánováno (zatím neexistuje):**
 
-- Vazalství z pozvánkových kódů (kódy a jejich rezervace při registraci už jsou), odesílání
-  skutečných e-mailů
+- Odesílání skutečných e-mailů
 
 ## Struktura repa
 
