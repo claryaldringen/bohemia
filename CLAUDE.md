@@ -36,8 +36,7 @@ kolem 40 generací – dědictví, sňatky a nástupnictví jsou hlavní mechani
   pozval.
 - Nový hráč **bez pozvánky** začne v odříznuté krajině a vybere si pána z nejmenších rodů nad
   sebou (první, kdo potvrdí, je pánem; po týdnu los), nebo začne **úplně nezávislý** u své
-  jazykové skupiny – svou nezávislost uhájí, nebo ho jiný hráč donutí stát se vazalem (Martin
-  2. a 7. 11. 2026, [docs/design/newcomers.md](docs/design/newcomers.md)).
+  jazykové skupiny – svou nezávislost uhájí, nebo ho jiný hráč donutí stát se vazalem (Martin 2. a 7. 11. 2026, [docs/design/newcomers.md](docs/design/newcomers.md)).
 - **Na vrcholu nestojí nikdo** – hráči jsou si na začátku rovni; kdo chce výš, musí si ostatní
   podrobit (Martin 2. 11. 2026: „V tom ta hra vlastně spočívá“). Vazalem se hráč stane
   pozvánkou nebo dohodou s podmínkami (nabídka i žádost, jednání do shody); vazalství je síť
@@ -121,7 +120,7 @@ název). Pravidla a rozhodnutí jsou v `docs/design/`.
 | `docs/code/village-fortifications.md` | opevnění – plocha a obvod, zakulacené rohy, pás a útočiště, úseky, brány na cestách, cena podle délky                                |
 | `docs/code/war.md`                    | válka – stropy výcviku, převod starých vsí, síla vojska (muž rodu, vesničan, kůň, výzbroj)                                           |
 | `docs/code/worker.md`                 | worker – smyčka, odklady, spánek do dalšího dne, konfigurace, spuštění a ukončení                                                    |
-| `docs/code/world.md`                  | svět pro víc hráčů – mřížka a umístění, rod hráče, adresář rodů (co je veřejné), změřený dotaz, schránka vsi                         |
+| `docs/code/world.md`                  | svět pro víc hráčů – mřížka a umístění, rod hráče, adresář rodů (co je veřejné), schránka vsi, vstup nováčka                         |
 | `docs/code/vassalage.md`              | vazalství – makrokomodity, výhled přebytku vsi a rodu, doprava dávek do cílové vsi, podmínky, vypovězení, neplnění                   |
 | `docs/code/web-ui.md`                 | server actions, dotazování na ves, rozhraní jako 0 A.D., katalog staveb, ovládání, e2e                                               |
 
