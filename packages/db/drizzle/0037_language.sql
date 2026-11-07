@@ -1,0 +1,1 @@
+ALTER TABLE "house" ADD COLUMN "language" text DEFAULT 'cs' NOT NULL;

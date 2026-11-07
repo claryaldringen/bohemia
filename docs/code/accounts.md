@@ -25,6 +25,18 @@ Auth vzniká líně přes `getAuth()` – `next build` stránky jen importuje a 
   Google), neplatný dá „Pozvánka neplatí.“ a registrace jde dál bez něj. Po vytvoření uživatele
   (`databaseHooks.user.create.after` v `lib/auth.ts`) se kód z cookie jen **zarezervuje**
   (`reserveInvite`); vazalem se pozvaný stane až při vstupu do hry. Podrobnosti: `world.md`.
+- **Jazyková skupina** (návrh: `docs/design/newcomers.md` – Jazyková skupina): `cs`, `en`, `de`,
+  `pl`, `it`, `fr`, `es` (`domain/world/languages.ts` – `LANGUAGE_GROUPS`, `isLanguageGroup`).
+  Registrační formulář má nativní `select` „Jazyk“ (výchozí čeština, názvy v
+  `lib/language-names.ts`); `language` je vstupní pole uživatele v Better Auth (`input: true`),
+  `databaseHooks.user.create.before` neznámou hodnotu odmítne („Neznámý jazyk.“), klient pole zná
+  přes `inferAdditionalFields` (`lib/auth-client.ts`). Dosavadní účty mají `cs`. `enterGame`
+  čte jazyk účtu přes volitelný `EnterGameDeps.accountLanguage` (adaptér
+  `createAccountLanguages` nad `user.language`; v `GameDeps` je povinný, aby i rod po restartu hry
+  zdědil jazyk účtu) a předá ho `houses.create`. Účty přes Google volí jazyk use-casem
+  `chooseLanguage` (`application/languages.ts`, server action `chooseLanguageAction`) – jen dokud
+  hráč nemá sídlo, jinak „Jazyk se volí jen na začátku.“; uloží jazyk účtu i živého rodu
+  (`HouseRepository.setLanguage`). Rozhraní zůstává česky, jazyk je zatím jen příznak.
 - **E-maily** se zatím jen vypisují do terminálu dev serveru (ověřovací odkaz se zkopíruje
   odtamtud). V produkci bez nastaveného odesílání `sendMail` záměrně spadne.
 - **Vývojový účet** bez registrace: `npm run db:seed-dev` založí (nebo obnoví) ověřený účet

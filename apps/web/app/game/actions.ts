@@ -1,7 +1,7 @@
 'use server';
 
 import { NOT_PLAYER_VILLAGE } from '@bohemia/game';
-import { gameDeps, restartGameForPlayer } from '@/lib/game';
+import { chooseLanguageForPlayer, gameDeps, restartGameForPlayer } from '@/lib/game';
 import {
   NOTICE_BATCH,
   wantsPlayerNotices,
@@ -167,6 +167,16 @@ const INVALID_INPUT = 'Neplatný požadavek.';
 async function playerId(): Promise<string | null> {
   const session = await getSession();
   return session?.user.id ?? null;
+}
+
+/** Volba jazyka skupiny před založením vsi (účty přes Google – newcomers.md); chyba česky. */
+export async function chooseLanguageAction(
+  language: unknown,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const id = await playerId();
+  if (id === null) return { ok: false, error: NOT_SIGNED_IN };
+  const result = await chooseLanguageForPlayer(id, language);
+  return result.ok ? result : { ok: false, error: result.reason };
 }
 
 /**

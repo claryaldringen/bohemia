@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
-import type { PendingDeparture } from '@bohemia/game';
+import type { LanguageGroup, PendingDeparture } from '@bohemia/game';
 import { user } from './auth';
 
 /**
@@ -29,6 +29,8 @@ export const house = pgTable(
     successionDay: integer('succession_day'),
     lastEnnobleYear: integer('last_ennoble_year'),
     pendingDeparture: jsonb('pending_departure').$type<PendingDeparture>(),
+    // Jazyková skupina rodu – kopie z účtu při založení (newcomers.md – Jazyková skupina).
+    language: text('language').$type<LanguageGroup>().default('cs').notNull(),
   },
   (table) => [
     // Hráč má nejvýš jeden živý rod – hlídá databáze, i při souběžných požadavcích.

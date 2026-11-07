@@ -16,6 +16,7 @@ import {
   createSuccessionCreditRepository,
   createNegotiationRepository,
   createVassalageRepository,
+  createAccountLanguages,
   createHouseRepository,
   createInviteRepository,
   createNoticeRepository,
@@ -26,7 +27,7 @@ import {
   type Database,
   type PlayerLockOptions,
 } from '@bohemia/db';
-import { cedeVillages, checkCede, type CedeHooks } from '@bohemia/game';
+import { cedeVillages, checkCede, type CedeHooks, type LanguageGroup } from '@bohemia/game';
 import type {
   ActivityRepository,
   ShipmentRepository,
@@ -143,6 +144,8 @@ export interface GameDeps {
   worldDirectory: WorldDirectory;
   /** Skutečný čas (založení a konec rodu). */
   now: () => Date;
+  /** Jazyk účtu hráče – rod ho dostane při založení (`enterGame`). */
+  accountLanguage: (playerId: string) => Promise<LanguageGroup>;
   villages: VillageRepository;
   landscapes: LandscapeSource;
   pause: Pause;
@@ -164,6 +167,7 @@ export function createGameDeps(
   options: { landscapes: LandscapeSource; pause: Pause; locks: PlayerLock },
 ): GameDeps {
   const houses = createHouseRepository(db);
+  const accounts = createAccountLanguages(db);
   const vassalages = createVassalageRepository(db);
   const negotiations = createNegotiationRepository(db);
   const dialogs = createDialogRepository(db);
@@ -212,6 +216,7 @@ export function createGameDeps(
     random: cryptoRandom(),
     worldDirectory: createWorldDirectory(db),
     now,
+    accountLanguage: (playerId) => accounts.languageOf(playerId),
     villages,
     landscapes: options.landscapes,
     pause: options.pause,

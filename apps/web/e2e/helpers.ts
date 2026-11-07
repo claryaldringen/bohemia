@@ -13,12 +13,18 @@ export async function useUniqueClientIp(context: BrowserContext): Promise<void> 
   });
 }
 
-export async function register(page: Page, email: string, password: string): Promise<void> {
+export async function register(
+  page: Page,
+  email: string,
+  password: string,
+  language?: string,
+): Promise<void> {
   await page.goto('/');
   await page.getByRole('link', { name: 'Registrace' }).click();
   await expect(page.getByRole('heading', { name: 'Registrace' })).toBeVisible();
   await page.getByLabel('E-mail').fill(email);
   await page.getByLabel('Heslo').fill(password);
+  if (language) await page.getByLabel('Jazyk').selectOption(language);
   await page.getByRole('button', { name: 'Zaregistrovat se' }).click();
   await expect(page.getByText('Zkontroluj e-mail')).toBeVisible();
 }

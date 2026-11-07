@@ -1,4 +1,4 @@
-import { cellDistance } from '../domain/world';
+import { cellDistance, type LanguageGroup } from '../domain/world';
 import { ageYears, type GridCell } from '../domain/village';
 import type { House, HouseRepository } from './houses';
 import type { SettlementRepository } from './settlements';
@@ -49,6 +49,8 @@ export interface PublicHouse {
   }[];
   /** Počet aktivních vsí rodu. */
   villages: number;
+  /** Jazyková skupina rodu (veřejná) – ikona v adresáři, pořadí nabídky pánů. */
+  language: LanguageGroup;
 }
 
 /** Veřejný pohled na rod z jeho záznamu v adresáři; vzdálenost se měří od `center`. */
@@ -80,6 +82,7 @@ export function publicHouseOf(entry: DirectoryEntry, center: GridCell, today: nu
         .filter((m) => m.age >= PUBLIC_MAN_MIN_AGE),
     ),
     villages: awake.length,
+    language: entry.house.language,
   };
 }
 

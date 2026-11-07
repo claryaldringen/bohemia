@@ -260,6 +260,7 @@ const unknownHouse = (houseId: string): PublicHouse => ({
   distance: 0,
   men: [],
   villages: 0,
+  language: 'cs',
 });
 
 /** Jména hlav NPC rodů (`VillageDigest.nobleHead`) ze souhrnů vsí, které rody spravují. */

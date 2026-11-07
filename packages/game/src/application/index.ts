@@ -9,6 +9,7 @@ export * from './negotiation-effects';
 export * from './negotiation-chronicle';
 export * from './blocks';
 export * from './enter-game';
+export * from './languages';
 export * from './villages';
 export * from './inbox';
 export {

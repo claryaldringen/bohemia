@@ -1,3 +1,4 @@
+import type { LanguageGroup } from '../../domain/world';
 import type { House, HouseRepository, PendingDeparture, PersonRef } from '../houses';
 
 /** Repozitář rodů v paměti – `create` a `end` se chovají atomicky jako databáze (unikátní index). */
@@ -17,6 +18,7 @@ export class InMemoryHouses implements HouseRepository {
     playerId: string | null;
     kind: House['kind'];
     createdAt: Date;
+    language?: LanguageGroup;
   }): Promise<House> {
     await Promise.resolve();
     if (input.kind === 'player' && input.playerId !== null) {
@@ -35,6 +37,7 @@ export class InMemoryHouses implements HouseRepository {
       successionDay: null,
       pendingDeparture: null,
       lastEnnobleYear: null,
+      language: input.language ?? 'cs',
     };
     this.houses.push(house);
     return house;
@@ -78,6 +81,12 @@ export class InMemoryHouses implements HouseRepository {
     house.lord = input.lord;
     house.pendingDeparture = input.pendingDeparture;
     return true;
+  }
+
+  async setLanguage(houseId: string, language: LanguageGroup): Promise<void> {
+    await Promise.resolve();
+    const house = this.houses.find((h) => h.id === houseId);
+    if (house) house.language = language;
   }
 
   async clearPendingDeparture(houseId: string, sonId: number): Promise<boolean> {
