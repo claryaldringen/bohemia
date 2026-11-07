@@ -27,7 +27,10 @@ afterAll(async () => {
 /** Hráč s rodem, sídelním sídlem na políčku (x, y) a vsí se souhrnem. */
 async function player(id: string, x: number, y: number, extra = true): Promise<string> {
   await db.insert(schema.user).values({ id, name: '', email: `${id}@example.com` });
-  const [h] = await db.insert(schema.house).values({ playerId: id, kind: 'player' }).returning();
+  const [h] = await db
+    .insert(schema.house)
+    .values({ playerId: id, kind: 'player', placedAt: new Date() })
+    .returning();
   const [s] = await db
     .insert(schema.settlement)
     .values({
@@ -91,6 +94,25 @@ describe('WorldDirectory (Drizzle)', () => {
     expect(entries.find((e) => e.house.id === other)?.seat).toEqual({ x: 4, y: 1 });
     expect(entries.find((e) => e.house.id === other)?.digests).toHaveLength(1);
     expect(await directory.entriesOf([])).toEqual([]);
+  });
+
+  it('odříznutý rod (sídlo jen v místní mřížce, bez umístění) v adresáři není', async () => {
+    const mine = await player('me', 0, 0);
+    await db.insert(schema.user).values({ id: 'iso', name: '', email: 'iso@example.com' });
+    const [h] = await db
+      .insert(schema.house)
+      .values({ playerId: 'iso', kind: 'player', placedAt: null })
+      .returning();
+    await db.insert(schema.settlement).values({
+      ownerId: 'iso',
+      isSeat: true,
+      landscapeSeed: 1,
+      layerVersions: CURRENT_LAYER_VERSIONS,
+      localX: 0,
+      localY: 0,
+    });
+    expect(await directory.nearestHouses({ x: 0, y: 0 }, 10, mine)).toEqual([]);
+    expect(await directory.entriesOf([h!.id])).toEqual([]);
   });
 
   it('skončený rod a archivované sídlo v adresáři nejsou', async () => {

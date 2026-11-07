@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
 import {
   isCurrentDigest,
   type DirectoryEntry,
@@ -34,6 +34,8 @@ export function createWorldDirectory(db: Database): WorldDirectory {
           and(
             eq(house.kind, 'player'),
             isNull(house.endedAt),
+            // odříznutý nováček (newcomers.md) na mapě světa není – nikdo ho nevidí
+            isNotNull(house.placedAt),
             sql`${house.id} <> ${excludeHouseId}`,
             sql`${settlement.gridX} IS NOT NULL AND ${settlement.gridY} IS NOT NULL`,
           ),

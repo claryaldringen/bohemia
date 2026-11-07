@@ -39,6 +39,10 @@ export const settlement = pgTable(
     archivedAt: timestamp('archived_at', { withTimezone: true }),
     gridX: integer('grid_x'),
     gridY: integer('grid_y'),
+    // Místní poloha sídla odříznutého rodu (newcomers.md – Odříznutá krajina): rod čeká na pána
+    // mimo mapu světa (`grid_*` null) a jeho vsi tvoří vlastní malou mřížku; umístění ji smaže.
+    localX: integer('local_x'),
+    localY: integer('local_y'),
     // čekající držitel (odúmrť – 1. krok převodu `transferHolder`): sídlo nepočítá starý ani nový,
     // dokud ho nový pod svým zámkem nepřevezme (`acceptTransfers`)
     pendingOwnerId: text('pending_owner_id').references(() => user.id, { onDelete: 'cascade' }),
@@ -52,6 +56,10 @@ export const settlement = pgTable(
     // (war.md – Svět); nového hráče rozmístí `placeNewPlayer`, souběh rozhodne tento index.
     uniqueIndex('settlement_grid_idx')
       .on(table.gridX, table.gridY)
+      .where(sql`${table.archivedAt} IS NULL`),
+    // V místní mřížce odříznutého rodu leží na políčku nejvýš jedna aktivní mapa hráče.
+    uniqueIndex('settlement_local_idx')
+      .on(table.ownerId, table.localX, table.localY)
       .where(sql`${table.archivedAt} IS NULL`),
   ],
 );

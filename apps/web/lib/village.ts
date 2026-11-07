@@ -242,7 +242,9 @@ async function viewOf(
       ? {}
       : ownMapsAround(status.settlements, status.villages, current.settlementId),
     mapsBlocked:
-      !stewarding && from && from.worldCell === null && !from.isSeat ? NO_WORLD_CELL : null,
+      !stewarding && from && from.worldCell === null && !from.isSeat && !from.localCell
+        ? NO_WORLD_CELL
+        : null,
   });
   // rod zajatců (výkupné jen rodu protistrany): ves původu → majitel → jeho živý rod
   const prisoners = view.manor?.prisoners;
