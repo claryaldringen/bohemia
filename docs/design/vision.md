@@ -117,6 +117,8 @@ Mechaniky probereme postupně. Zatím nerozhodnuto:
    ([válka](war.md)); obchod mezi hráči jednáním rozhodnut 2. 11. 2026, sňatky v další verzi
    (Martin – [vazalství](vassalage.md)).
 9. **Mapa** – historické Čechy? Jak velká a jak podrobná?
-10. **Pozdní příchozí** – jak se zapojí hráč, který přijde třeba v roce 1200?
+10. ~~**Pozdní příchozí**~~ – rozhodnuto 7. 11. 2026 (Martin): začíná stavbou vsi; s pozvánkou
+    vazal, jinak si vybere pána z nejmenších rodů nad sebou, nebo začne svobodný u své jazykové
+    skupiny ([vstup do světa](newcomers.md)).
 11. **Konec světa** – co nastane v roce 1500: vyhodnocení, nový svět?
 12. **Historická věrnost vs. hratelnost** – v roce 500 v Čechách ještě feudální struktury nejsou.
