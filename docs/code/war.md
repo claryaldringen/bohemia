@@ -564,6 +564,17 @@ today })` – jen muži rodu schopní služby z vlastních vsí, podmíněné `a
   svolání – `forDialogId`) = `addBreach('summons')`; `summons-sent` pánovi. `lapseSummons` (úloha
   světa ve `runWorldTasks.summons`, worker) – otevřené svolání po konci války `lapse` → neplnění,
   kronika obou rodů `no-show` „Ctibor nepřišel do války.“, `summons-lapsed`.
+- **Ochrana pánem** – `application/protection.ts`: `requestProtection(deps, { playerId,
+  vassalageId, villageId, message, today })` (vazal, vlastní ves – upozornění
+  `protection-requested` pánovi), `sendProtection(deps, { playerId, vassalageId, villageId, men,
+  today })` (pán, jen muži rodu schopní služby z vlastních vsí, do vsi vazala – `sendMen` druhu
+  `protection` do odvolání: doma `away` bez `untilDay`, host do konce světa; `protection-sent`),
+  `recallProtection(deps, { playerId, vassalageId, villageId, today })` – schránka chráněné vsi
+  `guests-leave` (dnes, `dismissGuests`), domovské vsi `away-ends` (`endAway` – návrat za 2 dny na
+  políčko); `protection-recalled`. Odkaz `protectionRef` = `protection:<dohoda>:<ves>`.
+  **Nedodělek:** hosté zatím v boji nebojují – `defenderRoster` zná jen lidi vsi (osoba hosta je ve
+  stavu domovské vsi, výsledky boje by musely do ní); web pro ochranu (žádost v panelu rodu,
+  výběr mužů, odvolání) zatím chybí.
 - **Port dialogů** – nové `listFor(refId, kind)`, `openOfKind(kind)`, `lapse(id)`, `answer(id,
 expected, reply?)` (odpověď se přidá do `body` – `body || reply`).
 - **Web** – `lib/summons.ts` (composition root; `summonVassalsForPlayer` přes

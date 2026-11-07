@@ -5,7 +5,7 @@
 
 import { settleAppointee, type AppointeeParty } from './appoint-lord';
 import { settleNoble } from '../vassalage/ennoble';
-import { hostGuests } from '../vassalage/guests';
+import { dismissGuests, endAway, hostGuests } from '../vassalage/guests';
 import { receiveShipment } from '../vassalage/shipment';
 import { pruneThreats } from './fortification/threat';
 import {
@@ -17,7 +17,15 @@ import {
   type RaidResult,
 } from '../war/raid-apply';
 import { applyCaptiveReturns, type CaptiveReturns } from '../war/captives';
-import type { ChronicleEvent, Guest, ShipmentBody, ThreatSignal, VillageState } from './types';
+import type {
+  AwayKind,
+  ChronicleEvent,
+  Guest,
+  PersonRef,
+  ShipmentBody,
+  ThreatSignal,
+  VillageState,
+} from './types';
 
 /**
  * Tělo události schránky – diskriminovaná unie podle `kind`. Další druhy přidají pozdější
@@ -53,6 +61,16 @@ export type VillageEventBody =
    * v pevný den (`returnHome`). Osoby zůstávají ve stavu domovské vsi `fromVillageId`.
    */
   | { kind: 'guests-arrive'; fromVillageId: string; fromName: string; guests: Guest[] }
+  /**
+   * Ochrana odvolána (vassalage.md – Ochrana vojskem): hosté `guests` druhu `away` ves opustí
+   * na začátku dne (`dismissGuests`).
+   */
+  | { kind: 'guests-leave'; away: AwayKind; guests: PersonRef[] }
+  /**
+   * Muži pryč do odvolání (ochrana) mají den návratu (`endAway`): lidé s `away.refId` = `refId`
+   * bez dne návratu se vrátí na začátku dne `untilDay` (`returnHome`).
+   */
+  | { kind: 'away-ends'; refId: string; untilDay: number }
   /**
    * Den nájezdu (war.md – Ves během nájezdu nepracuje; plán 2026-11-03 – Úloha 6.7): cizí vojsko je
    * dnes na mapě vsi – lidé se skrývají a ves dnes nepracuje (`VillageState.raidDay`). Tažení ho
@@ -133,6 +151,12 @@ function applyEvent(state: VillageState, day: number, body: VillageEventBody): C
       return [];
     case 'guests-arrive':
       return arriveGuests(state, day, body);
+    case 'guests-leave':
+      dismissGuests(state, body.away, body.guests);
+      return [];
+    case 'away-ends':
+      endAway(state, body.refId, Math.max(day, body.untilDay));
+      return [];
     case 'raid-day':
       state.raidDay = day;
       return [];
