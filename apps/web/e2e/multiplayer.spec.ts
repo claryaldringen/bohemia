@@ -1185,6 +1185,8 @@ test('ochrana: vazal požádá pána o ochranu, pán pošle muže rodu, vazal je
   const warB = b.getByTestId('war-panel');
   await expect(warB.getByTestId('war-guards')).toHaveText('0', { timeout: 30_000 });
   await warB.getByTestId('war-request-protection').click();
+  // tlačítko zašedne, až server žádost přijme (upozornění pánovi už je zapsané)
+  await expect(warB.getByTestId('war-request-protection')).toBeDisabled({ timeout: 30_000 });
   await expect(warB.getByTestId('war-protection-error')).toHaveCount(0);
 
   // A dostane „Ctibor žádá o ochranu.“, v panelu války pošle k vsi vazala jednoho muže rodu

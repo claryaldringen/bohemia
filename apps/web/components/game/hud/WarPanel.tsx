@@ -336,8 +336,12 @@ function ProtectionRows({
 }): ReactElement {
   const [men, setMen] = useState<Record<string, number>>({});
   const [status, setStatus] = useState<string | null>(null);
-  const run = (action: Promise<ActionResult>): void => {
-    void action.then((result) => setStatus('error' in result ? result.error : null));
+  const [requested, setRequested] = useState<readonly string[]>([]);
+  const run = (action: Promise<ActionResult>, onOk?: () => void): void => {
+    void action.then((result) => {
+      setStatus('error' in result ? result.error : null);
+      if (!('error' in result)) onOk?.();
+    });
   };
   return (
     <div
@@ -352,14 +356,26 @@ function ProtectionRows({
           </span>
         </Tooltip>
         {protection.lords.map((lord) => (
-          <Tooltip key={lord.vassalageId} content={`Požádat o ochranu – ${lord.name}`}>
+          <Tooltip
+            key={lord.vassalageId}
+            content={
+              requested.includes(lord.vassalageId)
+                ? `Požádáno – ${lord.name}`
+                : `Požádat o ochranu – ${lord.name}`
+            }
+          >
             <button
               type="button"
               aria-label="Požádat o ochranu"
               data-testid="war-request-protection"
               data-vassalage-id={lord.vassalageId}
+              disabled={requested.includes(lord.vassalageId)}
               className={iconButton}
-              onClick={() => run(onRequest(lord.vassalageId))}
+              onClick={() =>
+                run(onRequest(lord.vassalageId), () =>
+                  setRequested((r) => [...r, lord.vassalageId]),
+                )
+              }
             >
               <Icon src={`${ICON}/hands.svg`} />
             </button>
