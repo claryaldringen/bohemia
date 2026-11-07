@@ -9,6 +9,9 @@ import type {
   SurrenderOrder,
 } from '@/lib/army-view';
 import { formatDecimal, formatInteger } from '@/lib/village-format';
+import type { CampaignSummary } from '@/lib/campaign-view';
+import { CampaignMap } from './CampaignMap';
+import { Tooltip } from './Tooltip';
 
 // Panel Vojsko ve dvorci (war.md – Co hráč vidí; Martin 2. 11. 2026: „Tohle by mělo být textové,
 // bez mapy“ – výjimka z pravidla „bez popisků“): cíl, velitel a zástupce, muži rodu a vesničané po
@@ -58,6 +61,23 @@ export function ArmyPanel({
   const [busy, setBusy] = useState(false);
   const asked = useRef(0);
   const actions = useArmyActions();
+  const [campaigns, setCampaigns] = useState<CampaignSummary[]>([]);
+  const [openCampaign, setOpenCampaign] = useState<string | null>(null);
+
+  // běžící tažení hráče – klik otevře mapu tažení (živé vedení, Ú6.14)
+  useEffect(() => {
+    const load = actions?.campaigns;
+    if (!load) return;
+    let live = true;
+    void load()
+      .then((result) => {
+        if (live && Array.isArray(result)) setCampaigns(result);
+      })
+      .catch((error: unknown) => console.error('Tažení se nepodařilo načíst.', error));
+    return () => {
+      live = false;
+    };
+  }, [actions]);
 
   useEffect(() => {
     if (!actions) return;
@@ -193,6 +213,33 @@ export function ArmyPanel({
       return next;
     });
 
+  if (openCampaign !== null && actions?.campaign) {
+    return (
+      <CampaignMap
+        campaignId={openCampaign}
+        actions={actions.campaign}
+        onClose={() => setOpenCampaign(null)}
+      />
+    );
+  }
+  const campaignRow =
+    campaigns.length > 0 && actions?.campaign ? (
+      <div className="flex flex-wrap gap-1">
+        {campaigns.map((c) => (
+          <Tooltip key={c.id} content={c.targetName ?? '…'}>
+            <button
+              type="button"
+              data-testid="army-campaign"
+              aria-label={c.targetName ?? 'Tažení'}
+              onClick={() => setOpenCampaign(c.id)}
+              className="hud-inset rounded px-1.5"
+            >
+              ⚔
+            </button>
+          </Tooltip>
+        ))}
+      </div>
+    ) : null;
   if (loadError) {
     return (
       <div
@@ -221,6 +268,7 @@ export function ArmyPanel({
       className="hud-panel hud-popup flex max-h-[70vh] w-[22rem] flex-col gap-2 overflow-y-auto p-2 text-xs"
       data-hud-block
     >
+      {campaignRow}
       <label className="flex items-center justify-between gap-2">
         Cíl
         <select

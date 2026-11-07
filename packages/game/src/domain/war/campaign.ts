@@ -47,6 +47,7 @@ import {
 import { marchGrid, type MarchGrid } from './march-grid';
 import { marchPath, marchPathToEdge, marchProgress, marchSpeed, type GroupPace } from './march';
 import { WAR } from './rules-war';
+import { discoverBuildings } from './sight';
 import { frostDay } from './season';
 import { npcIntents, npcLeader } from './npc-commander';
 import { setGroupOrder } from './orders';
@@ -583,6 +584,7 @@ function raidTick(s: CampaignState, tick: number, ctx: TickContext, out: TickOut
   }
   syncControl(s);
   battleTick(s.battle, field, tickRandom(s.seed, tick, 'battle'));
+  discover(s, s.battle, field, ctx);
   const fallenBefore = new Set(s.members.flatMap((m, i) => (m.status === 'fallen' ? [i] : [])));
   syncMembers(s, s.battle);
   // padlý muž rodu – smrt a nástupnictví ve vsi hned (war.md – Ztráty), ne až po návratu
@@ -599,6 +601,25 @@ function raidTick(s: CampaignState, tick: number, ctx: TickContext, out: TickOut
   // `reportRaid` na konci taktu)
   if (s.battle.outcome === 'attackers') turnBack(s, 'arrived');
   else if (s.battle.outcome === 'defenders') turnBack(s, 'routed');
+}
+
+/**
+ * Mlha války (war.md – Mlha války; Ú6.14): stavby cílové vsi, na které dohlédl kterýkoli muž
+ * tažení na nohou, zůstanou objevené (`discovered`). Ves, která už na mapě není, nemá co objevit.
+ */
+function discover(
+  s: CampaignState,
+  battle: BattleState,
+  field: BattleField,
+  ctx: TickContext,
+): void {
+  if (!ctx.world.landscapeOf(s.target.cell)?.villageIds.includes(s.target.villageId)) return;
+  const village = ctx.world.villageAt(s.target.villageId, s.day);
+  if (village === null) throw new MissingData([], [s.target.villageId]);
+  const eyes = battle.fighters
+    .filter((f) => f.side === 'attack' && (f.state === 'fight' || f.state === 'breach'))
+    .map((f) => f.pos);
+  s.discovered = discoverBuildings(s.discovered, village.dwellings, eyes, field.grid);
 }
 
 /** Id bojovníka velitele tažení (pokyny hráče v boji). */

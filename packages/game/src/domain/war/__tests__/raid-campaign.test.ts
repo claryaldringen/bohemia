@@ -56,6 +56,8 @@ const bodies = (villageId: string, kind: VillageEventBody['kind']): VillageEvent
 describe('nájezd na vzdanou ves', () => {
   it('výsledek do napadené vsi: odvedení, kořist do nosnosti (3 muži × 25 kg − vlastní jídlo)', () => {
     expect(whole.state.phase).toBe('done');
+    // mlha války (Ú6.14): dům, ke kterému vojsko došlo, zůstane objevený
+    expect(whole.state.discovered).toEqual([knezice().dwellings[0]!.id]);
     const [body] = bodies('knezice', 'raid-result');
     if (body?.kind !== 'raid-result') throw new Error('chybí výsledek nájezdu');
     const r = body.result;

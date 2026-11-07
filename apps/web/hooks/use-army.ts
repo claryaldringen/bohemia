@@ -2,6 +2,8 @@
 
 import { createContext, useContext } from 'react';
 import type { ArmyPanelData, CampaignEstimate, CampaignPlan } from '@/lib/army-view';
+import type { CampaignSummary } from '@/lib/campaign-view';
+import type { CampaignActions } from '@/components/game/hud/CampaignMap';
 
 /**
  * Volání serveru pro panel Vojsko (server actions) – panel je dostane z kontextu, aby šel
@@ -14,6 +16,10 @@ export interface ArmyActions {
   }) => Promise<ArmyPanelData | { error: string }>;
   plan: (plan: CampaignPlan) => Promise<CampaignEstimate | { error: string }>;
   launch: (plan: CampaignPlan) => Promise<{ ok: true } | { error: string }>;
+  /** Běžící tažení hráče (pohled na tažení – Ú6.14); chybí = panel je neukazuje. */
+  campaigns?: () => Promise<CampaignSummary[] | { error: string }>;
+  /** Živé vedení otevřeného tažení. */
+  campaign?: CampaignActions;
 }
 
 export const ArmyActionsContext = createContext<ArmyActions | null>(null);

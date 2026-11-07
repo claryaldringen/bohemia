@@ -1,4 +1,9 @@
+import { spawn } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
+import path from 'node:path';
 import { test, expect, type Page } from '@playwright/test';
+import { newCampaign, resolveWorldClock, tickOfMs, type CampaignMember } from '@bohemia/game';
+import { E2E_ENV } from '../playwright.config';
 import { registerAndEnterGame, uniqueEmail, useUniqueClientIp } from './helpers';
 import { linkFromLastMail } from './mail';
 import {
@@ -1217,4 +1222,195 @@ test('ochrana: vazal požádá pána o ochranu, pán pošle muže rodu, vazal je
     timeout: 60_000,
   });
   await Promise.all(ctxs.map((ctx) => ctx.close()));
+});
+
+test('živé vedení: hráčův muž vede tažení, hráč klikne cíl na mapě tažení a muž jde', async ({
+  browser,
+}) => {
+  test.setTimeout(240_000);
+  await query(`UPDATE house SET ended_at = now() WHERE ended_at IS NULL`, []);
+  const ctx = await browser.newContext();
+  await useUniqueClientIp(ctx);
+  const a = await ctx.newPage();
+  await a.setViewportSize({ width: 1280, height: 720 });
+  const { email: emailA, seat: seatA } = await newPlayer(a, 'velenia');
+  const spotsA = villageSpots(seatA.landscape);
+  await found(a, spotsA.dwelling, 'Bořivoj');
+  // cíl tažení: ves druhého hráče (jen v DB – hraje se z pohledu A)
+  const ctxC = await browser.newContext();
+  await useUniqueClientIp(ctxC);
+  const c = await ctxC.newPage();
+  await c.setViewportSize({ width: 1280, height: 720 });
+  const { email: emailC, seat: seatC } = await newPlayer(c, 'velenic');
+  await found(c, villageSpots(seatC.landscape).dwelling, 'Dalibor');
+  await ctxC.close();
+  const [idA, idC] = [await houseIdOf(emailA), await houseIdOf(emailC)];
+
+  // válka A × C a tažení A připravené přímým zápisem: velí hráčův muž, vojsko stojí ve vsi A
+  const [war] = await query<{ id: string }>(
+    `INSERT INTO war (house_low, house_high, how, started_at, started_day, last_clash_day)
+     VALUES (LEAST($1::uuid, $2::uuid), GREATEST($1::uuid, $2::uuid), 'declared', now(), 0, 0)
+     RETURNING id`,
+    [idA, idC],
+  );
+  const placeOf = async (
+    settlementId: string,
+  ): Promise<{ villageId: string; cell: { x: number; y: number } }> => {
+    const [row] = await query<{ id: string; grid_x: number | null; grid_y: number | null }>(
+      `SELECT v.id, s.grid_x, s.grid_y FROM village v JOIN settlement s ON s.id = v.settlement_id
+        WHERE s.id = $1`,
+      [settlementId],
+    );
+    return { villageId: row!.id, cell: { x: row!.grid_x ?? 0, y: row!.grid_y ?? 0 } };
+  };
+  const [placeA, placeC] = [await placeOf(seatA.settlementId), await placeOf(seatC.settlementId)];
+  const [player] = await query<{ id: string }>(`SELECT id FROM "user" WHERE email = $1`, [emailA]);
+  const stateA = withBuiltFirstDwelling(await villageState(seatA.settlementId));
+  Object.assign(stateA, { storesKg: 4000 });
+  await writeVillageState(seatA.settlementId, stateA);
+  const lord = stateA.people[0]!;
+  const world = resolveWorldClock(E2E_ENV);
+  const tick = tickOfMs(Date.now(), world);
+  const man = (personId: number, line: boolean): CampaignMember => ({
+    ref: { villageId: placeA.villageId, personId },
+    playerId: player!.id,
+    line,
+    mounted: false,
+    forced: false,
+    strength: line ? 2 : 0.4,
+    health: 100,
+    vigor: 1,
+    wounded: false,
+    group: 0,
+    status: 'active',
+  });
+  const start = { x: spotsA.dwelling.x, z: spotsA.dwelling.z };
+  const campaignId = randomUUID();
+  const state = {
+    ...newCampaign(
+      {
+        id: campaignId,
+        warId: war!.id,
+        seed: 7,
+        tick,
+        playerId: player!.id,
+        leaderName: 'Bořivoj',
+        commander: { villageId: placeA.villageId, personId: lord.id },
+        deputy: null,
+        assembly: { villageId: placeA.villageId, cell: placeA.cell, pos: start },
+        target: {
+          villageId: placeC.villageId,
+          cell: placeC.cell,
+          pos: { x: 0, z: 0 },
+          name: 'Cíl',
+        },
+        members: [man(lord.id, true), man(lord.id + 100_000, false)],
+        foodKg: 50,
+        liveCommand: true,
+      },
+      world,
+    ),
+    phase: 'marching' as const,
+    presenceTick: tick,
+  };
+  await query(
+    `INSERT INTO campaign (id, war_id, player_id, status, created_at)
+     VALUES ($1, $2, $3, 'active', now())`,
+    [campaignId, war!.id, player!.id],
+  );
+  await query(
+    `INSERT INTO campaign_checkpoint (campaign_id, tick, state) VALUES ($1, $2, $3::jsonb)`,
+    [campaignId, tick, JSON.stringify(state)],
+  );
+
+  // worker počítá tažení po taktech; smyčku vsí utlumí a tažení starších testů ukončí (jen tažení
+  // tohoto testu – cizí tažení by worker počítal napřed a krajiny prázdných políček jsou drahé)
+  await query(`UPDATE campaign SET status = 'done' WHERE id <> $1 AND status = 'active'`, [
+    campaignId,
+  ]);
+  const worker = spawn(process.execPath, ['--import', 'tsx', 'src/main.ts'], {
+    cwd: path.join(import.meta.dirname, '../../worker'),
+    env: {
+      ...process.env,
+      ...E2E_ENV,
+      WORKER_LIMIT: '1',
+      WORKER_STEP_DAYS: '1',
+      WORKER_PAUSE_MS: '600000',
+      WORKER_IDLE_MS: '600000',
+      WORKER_CAMPAIGN_MS: '250',
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let output = '';
+  const exited = new Promise<void>((resolve) => worker.once('exit', () => resolve()));
+  worker.stdout.on('data', (chunk: Buffer) => (output += chunk.toString()));
+  worker.stderr.on('data', (chunk: Buffer) => (output += chunk.toString()));
+  try {
+    await expect.poll(() => output, { timeout: 30_000 }).toContain('start –');
+
+    // dvorec → panel Vojsko → běžící tažení → mapa tažení
+    await pollVillage(a);
+    await a.keyboard.press('r');
+    const panel = a.getByTestId('selection-panel');
+    await expect
+      .poll(
+        async () => {
+          const point = await a.evaluate(
+            (p) => window.__bohemiaE2E!.projectToScreen!(p.x, p.z),
+            spotsA.dwelling,
+          );
+          if (!point) return null;
+          await a.mouse.move(point.x - 3, point.y);
+          await a.mouse.click(point.x, point.y);
+          return panel.getByTestId('manor-upgrades').count();
+        },
+        { timeout: 30_000 },
+      )
+      .toBe(1);
+    await panel.getByTestId('manor-army').click();
+    await a.getByTestId('army-campaign').click();
+    const map = a.getByTestId('campaign-map');
+    await expect(map).toHaveAttribute('data-live', '1', { timeout: 20_000 });
+    const commander = map.getByTestId('campaign-commander');
+    await expect(commander).toBeVisible();
+    const at = async (): Promise<{ x: number; z: number }> => ({
+      x: Number(await commander.getAttribute('data-x')),
+      z: Number(await commander.getAttribute('data-z')),
+    });
+    const from = await at();
+
+    // klik 150 m ke středu mapy – velitel jde
+    const goal = {
+      x: from.x - Math.sign(from.x || 1) * 150,
+      z: from.z,
+    };
+    const box = (await map.getByTestId('campaign-svg').boundingBox())!;
+    await a.mouse.click(
+      box.x + ((goal.x + 960) / 1920) * box.width,
+      box.y + ((goal.z + 960) / 1920) * box.height,
+    );
+    await expect(map.getByTestId('campaign-goal')).toBeVisible();
+    await expect(map.getByTestId('campaign-reason')).toHaveCount(0);
+    const gap = (p: { x: number; z: number }): number => Math.hypot(p.x - goal.x, p.z - goal.z);
+    const before = gap(from);
+    await expect
+      .poll(async () => before - gap(await at()), { timeout: 60_000, message: output })
+      .toBeGreaterThan(10);
+    // záměry v DB: pohyb velitele a přítomnost otevřeného tažení
+    const kinds = await query<{ kind: string }>(
+      `SELECT body->>'kind' AS kind FROM campaign_intent WHERE campaign_id = $1`,
+      [campaignId],
+    );
+    expect(kinds.map((k) => k.kind)).toEqual(expect.arrayContaining(['march', 'presence']));
+  } finally {
+    // worker skončí dřív, než začne další test (tažení se pak už nepočítá)
+    worker.kill('SIGTERM');
+    const quit = await Promise.race([
+      exited.then(() => true),
+      new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 30_000)),
+    ]);
+    if (!quit) worker.kill('SIGKILL');
+    await query(`UPDATE campaign SET status = 'done' WHERE id = $1`, [campaignId]);
+    await ctx.close();
+  }
 });

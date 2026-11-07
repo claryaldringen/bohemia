@@ -18,7 +18,7 @@ import type { GridGeometry } from '../village/square-grid';
 import type { GroupOrder } from './campaign-types';
 import { defenderPlan, type Defender } from './defenders';
 import { nearestForest } from './flight';
-import { MARCH_FOREST, MARCH_WALL, marchCellAt, type MarchGrid, type Pos } from './march-grid';
+import { MARCH_WALL, marchCellAt, type MarchGrid, type Pos } from './march-grid';
 import {
   attackerPlan,
   battleLeader,
@@ -30,6 +30,7 @@ import {
   type PlanContext,
 } from './orders';
 import { WAR } from './rules-war';
+import { inSight } from './sight';
 import type { ShelterReport } from './stance';
 import { TICKS_PER_SECOND } from './ticks';
 
@@ -753,13 +754,7 @@ export function battleTick(b: BattleState, field: BattleField, rng: Random): voi
     fighters: b.fighters,
     byId,
     leader: battleLeader(b, byId),
-    sees: (p, q) => {
-      const forest =
-        (field.grid.flags[marchCellAt(field.grid, p)]! & MARCH_FOREST) !== 0 ||
-        (field.grid.flags[marchCellAt(field.grid, q)]! & MARCH_FOREST) !== 0;
-      const r = forest ? WAR.sight.forestM : WAR.sight.openM;
-      return dist2(p, q) <= r * r;
-    },
+    sees: (p, q) => inSight(field.grid, p, q),
     houses: (g) => houses.get(g) ?? [],
   };
   for (const f of b.fighters) {

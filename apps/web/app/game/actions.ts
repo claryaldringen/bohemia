@@ -56,7 +56,7 @@ import {
 } from '@/lib/escheats';
 import { parseConsentEscheatInput, parseProposeEscheatInput } from '@/lib/escheat-input';
 import type { HouseView } from '@/lib/house-view';
-import type { EscheatView, LevyDialogView, MacroSpare } from '@bohemia/game';
+import type { CampaignCommand, EscheatView, LevyDialogView, MacroSpare } from '@bohemia/game';
 import {
   parseAnswerLevyInput,
   parseBlockInput,
@@ -115,6 +115,14 @@ import {
 import { armyPanelForPlayer, launchCampaignForPlayer, planCampaignForPlayer } from '@/lib/army';
 import type { ArmyPanelData, CampaignEstimate } from '@/lib/army-view';
 import { parseArmyPanelInput, parseCampaignPlanInput } from '@/lib/army-input';
+import { campaignsOfPlayer, commandCampaignForPlayer } from '@/lib/campaign';
+import type { CampaignSummary } from '@/lib/campaign-view';
+import {
+  parseGroupOrderInput,
+  parseLeaderInput,
+  parsePresenceInput,
+  parseSurrenderedInput,
+} from '@/lib/campaign-input';
 import {
   parseBuildTrailInput,
   parseCancelConstructionInput,
@@ -524,6 +532,52 @@ export async function launchArmyCampaign(
   const parsed = parseCampaignPlanInput(input);
   if (parsed === null) return { error: INVALID_INPUT };
   return withVillageCache(() => launchCampaignForPlayer(id, parsed.plan));
+}
+
+/** Běžící tažení, která hráč vede (panel Vojsko – pohled na tažení). */
+export async function getMyCampaigns(): Promise<CampaignSummary[] | { error: string }> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  return campaignsOfPlayer(id);
+}
+
+/** Odmítnutý pokyn do tažení – jedna odpověď pro každý důvod (nic se neprozradí). */
+const COMMAND_REFUSED = 'Rozkaz nelze dát.';
+
+async function campaignCommand(
+  input: unknown,
+  parse: (value: unknown) => { campaignId: string; command: CampaignCommand } | null,
+): Promise<{ ok: true } | { error: string }> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const parsed = parse(input);
+  if (parsed === null) return { error: INVALID_INPUT };
+  const queued = await commandCampaignForPlayer(id, parsed.campaignId, parsed.command);
+  return queued ? { ok: true } : { error: COMMAND_REFUSED };
+}
+
+/**
+ * Živé vedení (war.md – Velení): `{ campaignId, target }` – velitel jde na místo, k objevené
+ * stavbě, napadne muže v dohledu, nebo obrátí domů. Záměr na takt teď + 2; jen vlastní živý
+ * nezajatý velitel a cíl, který hráč zná.
+ */
+export async function commandLeader(input: unknown): Promise<{ ok: true } | { error: string }> {
+  return campaignCommand(input, parseLeaderInput);
+}
+
+/** Rozkaz skupině `{ campaignId, group, order, at? }` (war.md – Boj – Změna rozkazu). */
+export async function setGroupOrder(input: unknown): Promise<{ ok: true } | { error: string }> {
+  return campaignCommand(input, parseGroupOrderInput);
+}
+
+/** Volba ke vzdaným `{ campaignId, group, choice }` – pobít / odvést / nechat (war.md – Velení). */
+export async function chooseSurrendered(input: unknown): Promise<{ ok: true } | { error: string }> {
+  return campaignCommand(input, parseSurrenderedInput);
+}
+
+/** Hráč je u tažení `{ campaignId }` – posílá jen otevřené tažení (bez ní po 1 dni zástupce). */
+export async function presence(input: unknown): Promise<{ ok: true } | { error: string }> {
+  return campaignCommand(input, parsePresenceInput);
 }
 
 /**
