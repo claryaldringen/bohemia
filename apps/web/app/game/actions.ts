@@ -23,6 +23,8 @@ import {
   issueInviteForPlayer,
   openNegotiationForPlayer,
   declareWarForPlayer,
+  requestLordsForPlayer,
+  startFreeForPlayer,
   fileComplaintForPlayer,
   answerComplaintForPlayer,
   judgeDisputeForPlayer,
@@ -731,6 +733,23 @@ export async function declareWarOnHouse(input: unknown): Promise<NegotiationActi
   const parsed = parseDeclareWarInput(input);
   if (parsed === null) return { error: INVALID_INPUT };
   return declareWarForPlayer(id, parsed);
+}
+
+/** Odříznutý nováček začne svobodný – umístí se na mapu světa (newcomers.md). */
+export async function startFreeAction(): Promise<NegotiationActionResult> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  return startFreeForPlayer(id);
+}
+
+/** Nováček žádá rody z nabídky o přijetí za vazala: pole id rodů (1–5). */
+export async function requestLordsAction(input: unknown): Promise<NegotiationActionResult> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  if (!Array.isArray(input) || !input.every((h): h is string => typeof h === 'string')) {
+    return { error: INVALID_INPUT };
+  }
+  return requestLordsForPlayer(id, input);
 }
 
 /** Žaloba na spoluvazala před společným pánem: `{ against, message }`. */

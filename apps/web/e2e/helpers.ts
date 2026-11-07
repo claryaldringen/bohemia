@@ -1,5 +1,6 @@
 import { expect, type BrowserContext, type Page } from '@playwright/test';
 import { linkFromLastMail } from './mail';
+import { placeIsolatedPlayer } from './placement';
 
 export const uniqueEmail = (prefix: string): string => `${prefix}-${Date.now()}@example.com`;
 
@@ -57,5 +58,7 @@ export async function registerAndEnterGame(page: Page, prefix: string): Promise<
   await register(page, email, 'krajina-heslo-1');
   await page.goto(await linkFromLastMail(email, /potvrď svůj e-mail/));
   await expect(page).toHaveURL(/\/game$/);
+  // bez pozvánky odříznutý nováček – testy počítají s hráčem na mapě světa (placement.ts)
+  if (await placeIsolatedPlayer(email)) await page.reload();
   return email;
 }

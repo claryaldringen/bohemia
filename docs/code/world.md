@@ -23,6 +23,41 @@ začátku svého dne, zápis zvedá verzi vsi) – `docs/code/village-core.md`, 
   jen živé rody hráčů s nejmenším počtem vsí ≥ 2; stejný jazyk první, uvnitř skupiny pořadí
   z `deriveSeed(seed, houseId)`; prázdná nabídka = `[]` (newcomers.md – Nabídka pánů).
 
+## Vstup nováčka (odříznutá krajina, výběr pána)
+
+Pravidla: `docs/design/newcomers.md`. Use-casy v `application/newcomers.ts`.
+
+- **Odříznutý rod:** `enterGame` bez pozvánky založí sídlo jen v místní mřížce rodu
+  (`settlement.local_x/local_y` = (0, 0), `grid_*` null, krajina `isolatedLandscapeSeed(worldSeed,
+hráč)`) a rod s `house.placed_at` null. Pozvaný je na mapě hned (`placed_at` = založení).
+  `Settlement.localCell`, `isIsolated(settlement)`; `House.placedAt`, `House.newcomerSince`.
+  Migrace `0038_newcomers` (dosavadní rody `placed_at = created_at`, výchozí `now()`).
+- **Vsi syna** v odříznuté krajině: `targetSettlement` → `isolatedTarget` – soused v místní mřížce,
+  seed `isolated:<rod>:x,y`, unikátní index `settlement_local_idx` (hráč + místní poloha).
+- **Nikdo ho nevidí:** adresář (`nearestHouses`, `entriesOf` – jen `placed_at IS NOT NULL` a sídlo
+  s `grid_*`), `openNegotiation` (odříznutý jen žádá o pána – `newcomer: true`; na odříznutý cíl
+  `NEWCOMER_REASONS.isolatedTarget`), `declareWar` (cíl i útočník), zásilky mezi hráči
+  (`crossesIsolation` v `shipments.ts`), `issueInvite` (`INVITE_NEEDS_PLACEMENT`). Ochrana nováčka
+  běží od `placedAt` (`houseProtectedUntil`, `playerHousesSince`).
+- **Žádosti:** `requestLords` – 1–5 rodů z `newcomerStatus().offer` (`WorldDirectory.offerCandidates`
+  → `lordOffer`, bez už žádaných), jednání `negotiation.newcomer` s holou přísahou; první úspěšná
+  žádost zapíše `newcomer_since` (`markNewcomerSince`). Pán jen přijme / odmítne
+  (`counterNegotiation` → `onlyAccept`); odmítnutí všemi → upozornění `newcomer-rejected-all`.
+- **Umístění** `placeNewcomer(deps, tx, …)` v transakci jednání (`NegotiationTx.placement`, adaptér
+  `adapters/newcomer-placement.ts`): advisory zámek umisťování → podmíněné `placed_at IS NULL`
+  (prohra = „Nováček už má pána.“) → `placeCluster` celého shluku (vazal u sídla pána, svobodný
+  u map rodů svého jazyka) → `moveIsolated` jedním UPDATE → vazalství `origin` `newcomer` /
+  `newcomer-lot`. `acceptNegotiation` ho volá **před** změnou stavu jednání; ostatní žádosti zavře
+  `closeNewcomerRequests` až po transakci (jiné řádky jednání se v ní nezamykají – bez uváznutí;
+  zaniklé `ended` → pozdější přijetí „Nováček už má pána.“, pánům `newcomer-taken`).
+- **Svobodný:** `startFree` stáhne žádosti (`withdrawn`) a umístí bez pána. **Týden:**
+  `expireNewcomerWaits` v `runWorldTasks` (worker) – po `NEWCOMERS.waitDays` los
+  `deriveSeed(accountSeed, 'lot')` mezi živými neodmítnutými (seřazenými podle id), jinak svobodný.
+- Web: server actions `startFreeAction`, `requestLordsAction` (`lib/house.ts`); rozhraní volby dělá
+  úloha 4. e2e: hráči bez pozvánky se umístí zápisem do `bohemia_test` (`e2e/placement.ts`).
+- Testy: `__tests__/newcomers.test.ts`, db `newcomer-placement.db.test.ts` (souběh dvou pánů),
+  `world-directory.db.test.ts` (odříznutý rod v adresáři není).
+
 ## Rod
 
 - Tabulka `house` (`packages/db/src/schema/house.ts`), port `HouseRepository`
