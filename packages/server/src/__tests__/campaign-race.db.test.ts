@@ -293,7 +293,8 @@ async function snapshot(ids: Map<Label, string>): Promise<{
   return {
     villages: out,
     states,
-    campaign: canonical(checkpoint?.state),
+    // id války se v každém běhu liší (náhodné uuid)
+    campaign: canonical({ ...checkpoint?.state, warId: 'war' }),
     inbox: rows.rows.map((r) => ({ label: labelOf.get(r.village_id)!, day: r.day, kind: r.kind })),
   };
 }
@@ -352,9 +353,12 @@ describe('souběh vsí a tažení – bariéra (Úloha 6.7)', () => {
     await Promise.all([worker.close(), campaignProcess.close(), web.close()]);
 
     expect(seconds).toBeLessThan(60);
-    expect(raced.campaign).toBe(reference.campaign);
-    for (const place of PLACES)
-      expect(raced.villages[place.label]).toBe(reference.villages[place.label]);
+    expect(JSON.parse(raced.campaign)).toEqual(JSON.parse(reference.campaign));
+    for (const place of PLACES) {
+      expect({ [place.label]: JSON.parse(raced.villages[place.label]) as unknown }).toEqual({
+        [place.label]: JSON.parse(reference.villages[place.label]) as unknown,
+      });
+    }
     expect(raced.inbox).toEqual(reference.inbox);
 
     // tažení doběhlo do konce hodin; vsi u něj stojí na jeho mezi, ves daleko na dnešku
