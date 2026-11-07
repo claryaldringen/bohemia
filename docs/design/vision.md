@@ -112,7 +112,7 @@ Mechaniky probereme postupně. Zatím nerozhodnuto:
    [populace](population.md).)
 6. **Hospodářství a stavby** – suroviny, obyvatelstvo, postup vesnice → hradiště → tvrz → hrad
    → město.
-7. **Prestiž** – jak vzniká a k čemu slouží.
+7. ~~**Prestiž**~~ – rozhodnuto 7. 11. 2026 (Martin): „Prestiž nebude herní veličina.“
 8. **Válka, diplomacie a sňatky** mezi rody hráčů – válka je návrh ke schválení
    ([válka](war.md)); obchod mezi hráči jednáním rozhodnut 2. 11. 2026, sňatky v další verzi
    (Martin – [vazalství](vassalage.md)).
