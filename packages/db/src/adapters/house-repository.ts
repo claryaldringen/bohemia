@@ -1,4 +1,4 @@
-import { and, eq, gt, isNull, lt, or, sql } from 'drizzle-orm';
+import { and, eq, gt, isNotNull, isNull, lt, or, sql } from 'drizzle-orm';
 import type { House, HouseRepository } from '@bohemia/game';
 import type { Database } from '../client';
 import { house } from '../schema';
@@ -26,6 +26,8 @@ export function toHouse(row: HouseRow): House {
     pendingDeparture: row.pendingDeparture,
     lastEnnobleYear: row.lastEnnobleYear,
     language: row.language,
+    placedAt: row.placedAt,
+    newcomerSince: row.newcomerSince,
   };
 }
 
@@ -55,6 +57,7 @@ export function createHouseRepository(db: Database): HouseRepository {
           kind: input.kind,
           createdAt: input.createdAt,
           language: input.language ?? 'cs',
+          placedAt: input.placedAt === undefined ? input.createdAt : input.placedAt,
         })
         .onConflictDoNothing()
         .returning();
@@ -130,7 +133,40 @@ export function createHouseRepository(db: Database): HouseRepository {
       const rows = await db
         .select()
         .from(house)
-        .where(and(eq(house.kind, 'player'), isNull(house.endedAt), gt(house.createdAt, since)));
+        .where(
+          and(
+            eq(house.kind, 'player'),
+            isNull(house.endedAt),
+            // ochrana běží od umístění na mapu světa – odříznutý rod ji ještě nemá
+            gt(sql`coalesce(${house.placedAt}, ${house.createdAt})`, since),
+          ),
+        );
+      return rows.map(toHouse);
+    },
+    async markNewcomerSince(houseId, at): Promise<Date | null> {
+      // Podmíněný UPDATE: týden začne první žádostí, další žádosti ho neposunou.
+      await db
+        .update(house)
+        .set({ newcomerSince: at })
+        .where(and(eq(house.id, houseId), isNull(house.placedAt), isNull(house.newcomerSince)));
+      const [row] = await db
+        .select({ since: house.newcomerSince, placedAt: house.placedAt })
+        .from(house)
+        .where(eq(house.id, houseId));
+      return row && row.placedAt === null ? row.since : null;
+    },
+    async waitingNewcomers(): Promise<House[]> {
+      const rows = await db
+        .select()
+        .from(house)
+        .where(
+          and(
+            eq(house.kind, 'player'),
+            isNull(house.endedAt),
+            isNull(house.placedAt),
+            isNotNull(house.newcomerSince),
+          ),
+        );
       return rows.map(toHouse);
     },
     async clearPendingDeparture(houseId, sonId): Promise<boolean> {

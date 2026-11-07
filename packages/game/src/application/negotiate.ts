@@ -53,6 +53,12 @@ import { chronicleWar } from './war-chronicle';
 import { sendShipment, type ShipmentDeps } from './shipments';
 import type { Vassalage } from './vassalages';
 import type { WorldDirectory } from './world-directory';
+import {
+  NEWCOMER_REASONS,
+  closeNewcomerRequests,
+  newcomerDeadline,
+  placeNewcomer,
+} from './newcomers';
 
 // Use-casy jednání mezi hráči (vassalage.md – Vznik a jednání, Meze). Strany jsou rody; hráč jedná
 // za svůj živý rod. Vše mění stav v jedné transakci nad vlastními tabulkami (bez zámku hráče),
@@ -351,6 +357,10 @@ async function loadForResponse(
   const record = await tx.getForUpdate(negotiationId);
   if (!record) return fail(NO_NEGOTIATION);
   const negotiation = domainOf(record);
+  // žádost nováčka zanikla, protože ho umístil jiný pán nebo los (closeNewcomerRequests)
+  if (!negotiation && record.newcomer && record.status === 'ended') {
+    return fail(NEWCOMER_REASONS.taken);
+  }
   if (!negotiation) return fail(R.finished);
   if (actor.id !== record.initiatorHouseId && actor.id !== record.recipientHouseId) {
     return fail(R.notParty);
@@ -377,11 +387,19 @@ export async function openNegotiation(
     message: string | null;
     now: Date;
     today: number;
+    /** Žádost odříznutého nováčka o pána (`requestLords`, newcomers.md). */
+    newcomer?: boolean;
   },
 ): Promise<NegotiateResult> {
   const from = await deps.houses.activeOf(input.playerId);
   if (!from) return fail(NO_HOUSE);
   const to = await deps.houses.byId(input.to);
+  // odříznutý rod (newcomers.md) s nikým nejedná – jen nováček žádá umístěný rod o přijetí
+  const newcomer = input.newcomer === true;
+  if ((from.placedAt === null) !== newcomer) {
+    return fail(newcomer ? NEWCOMER_REASONS.placed : NEWCOMER_REASONS.notPlaced);
+  }
+  if (to && to.placedAt === null) return fail(NEWCOMER_REASONS.isolatedTarget);
   const opened = openRound({
     id: '',
     from: from.id,
@@ -439,13 +457,14 @@ export async function openNegotiation(
       initiatorHouseId: from.id,
       recipientHouseId: input.to,
       round,
+      newcomer,
     });
     if (!record) return fail(R.negotiating);
     if (to) {
       await noticeHouse(
         tx,
         to,
-        'negotiation-offer',
+        newcomer ? 'newcomer-request' : 'negotiation-offer',
         { negotiationId: record.id, houseId: from.id, name: await houseName(deps, from) },
         input.today,
       );
@@ -474,6 +493,8 @@ export async function counterNegotiation(
   const result = await deps.negotiations.transaction(async (tx): Promise<NegotiateResult> => {
     const loaded = await loadForResponse(deps, tx, input.playerId, input.negotiationId);
     if (!loaded.ok) return loaded;
+    // žádost nováčka pán jen přijme nebo odmítne (newcomers.md – Nabídka pánů)
+    if (loaded.record.newcomer) return fail(NEWCOMER_REASONS.onlyAccept);
     const next = counterRound(
       loaded.negotiation,
       loaded.actor.id,
@@ -565,6 +586,7 @@ export async function acceptNegotiation(
   let gift: { line: VillageGiftLine; fromHouseId: string; toHouseId: string } | null = null;
   let peace: WarDemandLine | PeaceLine | null = null;
   let ransoming: { line: RansomLine; captorHouseId: string; payerHouseId: string } | null = null;
+  let newcomerHouseId: string | null = null;
   let peaceLater: {
     line: PeaceLine;
     sendings: { fromHouse: House; toHouse: House; toVillageId: string }[];
@@ -698,6 +720,21 @@ export async function acceptNegotiation(
       ) {
         return fail(NO_AGREEMENT);
       }
+      // žádost nováčka: první přijetí vyhraje – podmíněné umístění shluku vsí (`placed_at IS
+      // NULL`) před změnou stavu; prohra nezapíše nic
+      const newcomer = loaded.record.newcomer;
+      if (newcomer) {
+        if (loaded.actor.id !== loaded.record.recipientHouseId) return fail(R.notParty);
+        const placed = await placeNewcomer(deps, tx, {
+          houseId: loaded.other.id,
+          lordHouseId: loaded.actor.id,
+          origin: 'newcomer',
+          now: input.now,
+          today: input.today,
+        });
+        if (!placed.ok) return placed;
+        newcomerHouseId = loaded.other.id;
+      }
       if (!(await tx.setStatus(loaded.record.id, 'accepted', loaded.record.version, input.now))) {
         return fail(R.finished);
       }
@@ -707,6 +744,8 @@ export async function acceptNegotiation(
         ...items.filter(isStewardshipLine),
       ];
       for (const item of ordered) {
+        // vazalství nováčka založilo umístění (`placeNewcomer`, origin `newcomer`)
+        if (newcomer && item.kind === 'oath') continue;
         await applyItem(tx, item, {
           now: input.now,
           day: input.today,
@@ -720,17 +759,20 @@ export async function acceptNegotiation(
           parties: [loaded.actor.id, loaded.other.id],
         });
       }
-      await noticeHouse(
-        tx,
-        loaded.other,
-        'negotiation-accepted',
-        {
-          negotiationId: loaded.record.id,
-          houseId: loaded.actor.id,
-          name: await houseName(deps, loaded.actor),
-        },
-        input.today,
-      );
+      // nováček dostal `newcomer-accepted` už při umístění
+      if (!newcomer) {
+        await noticeHouse(
+          tx,
+          loaded.other,
+          'negotiation-accepted',
+          {
+            negotiationId: loaded.record.id,
+            houseId: loaded.actor.id,
+            name: await houseName(deps, loaded.actor),
+          },
+          input.today,
+        );
+      }
       for (const s of later?.sendings ?? []) {
         await noticeHouse(
           tx,
@@ -779,6 +821,17 @@ export async function acceptNegotiation(
       if (error instanceof StewardshipTaken) return fail(error.message);
       throw error;
     });
+  const placedNewcomer = newcomerHouseId as string | null;
+  if (result.ok && placedNewcomer) {
+    // ostatní žádosti nováčka zaniknou (jejich páni se to dozvědí)
+    await closeNewcomerRequests(deps, {
+      houseId: placedNewcomer,
+      status: 'ended',
+      notify: true,
+      now: input.now,
+      today: input.today,
+    });
+  }
   const sending = aid as {
     line: Extract<AidLine, { kind: 'gift' | 'loan' }>;
     toVillageId: string | null;
@@ -942,6 +995,22 @@ export async function rejectNegotiation(
     }
     // navrhovatelem je autor posledního kola; pauza platí pro něj vůči odmítajícímu
     await tx.recordReject(lastAuthor(loaded.record) ?? loaded.other.id, loaded.actor.id, input.now);
+    // nováčka odmítli všichni vybraní – smí do konce týdne vybrat znovu (newcomers.md)
+    if (
+      loaded.record.newcomer &&
+      !(await tx.openOf(loaded.other.id)).some(
+        (r) => r.newcomer && r.id !== loaded.record.id && r.initiatorHouseId === loaded.other.id,
+      )
+    ) {
+      const deadline = newcomerDeadline(loaded.other);
+      await noticeHouse(
+        tx,
+        loaded.other,
+        'newcomer-rejected-all',
+        { deadline: deadline?.toISOString() ?? null },
+        input.today,
+      );
+    }
     await noticeHouse(
       tx,
       loaded.other,

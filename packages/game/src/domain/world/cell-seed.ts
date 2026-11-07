@@ -13,3 +13,13 @@ const ATTEMPT_HEADROOM = 1024;
 export function cellLandscapeSeed(worldSeed: number, cell: GridCell): number {
   return deriveSeed(worldSeed, `cell:${cell.x},${cell.y}`) % (2 ** 31 - ATTEMPT_HEADROOM);
 }
+
+/**
+ * Seed krajiny odříznutého sídla (newcomers.md – Odříznutá krajina): z hlavního seedu světa
+ * a klíče sídla (`hráč` u sídelního, `rod:x,y` u vsi syna v místní mřížce), ne z políčka světa –
+ * umístění na mapu světa krajinu nezmění (uložené sídlo nese seed). Stejné zúžení jako
+ * `cellLandscapeSeed`.
+ */
+export function isolatedLandscapeSeed(worldSeed: number, key: string): number {
+  return deriveSeed(worldSeed, `isolated:${key}`) % (2 ** 31 - ATTEMPT_HEADROOM);
+}

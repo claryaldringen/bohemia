@@ -19,6 +19,7 @@ export class InMemoryHouses implements HouseRepository {
     kind: House['kind'];
     createdAt: Date;
     language?: LanguageGroup;
+    placedAt?: Date | null;
   }): Promise<House> {
     await Promise.resolve();
     if (input.kind === 'player' && input.playerId !== null) {
@@ -38,14 +39,34 @@ export class InMemoryHouses implements HouseRepository {
       pendingDeparture: null,
       lastEnnobleYear: null,
       language: input.language ?? 'cs',
+      placedAt: input.placedAt === undefined ? input.createdAt : input.placedAt,
+      newcomerSince: null,
     };
     this.houses.push(house);
     return house;
   }
 
+  async markNewcomerSince(houseId: string, at: Date): Promise<Date | null> {
+    await Promise.resolve();
+    const house = this.houses.find((h) => h.id === houseId);
+    if (!house || house.placedAt !== null) return null;
+    if (house.newcomerSince === null) house.newcomerSince = at;
+    return house.newcomerSince;
+  }
+
+  async waitingNewcomers(): Promise<House[]> {
+    return this.houses.filter(
+      (h) =>
+        h.kind === 'player' && this.alive(h) && h.placedAt === null && h.newcomerSince !== null,
+    );
+  }
+
   async playerHousesSince(since: Date): Promise<House[]> {
     return this.houses.filter(
-      (h) => h.kind === 'player' && this.alive(h) && h.createdAt.getTime() > since.getTime(),
+      (h) =>
+        h.kind === 'player' &&
+        this.alive(h) &&
+        (h.placedAt ?? h.createdAt).getTime() > since.getTime(),
     );
   }
 

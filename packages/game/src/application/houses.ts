@@ -26,6 +26,13 @@ export interface House {
   lastEnnobleYear: number | null;
   /** Jazyková skupina rodu – z účtu při založení, nemění se (newcomers.md – Jazyková skupina). */
   language: LanguageGroup;
+  /**
+   * Kdy rod dostal místo na mapě světa (newcomers.md – Odříznutá krajina); null – odříznutý
+   * nováček čeká na pána, nikdo ho nevidí. Ochrana nováčka běží od umístění.
+   */
+  placedAt: Date | null;
+  /** Kdy odříznutý nováček poprvé požádal o pána (začátek týdne na odpověď); null – dosud ne. */
+  newcomerSince: Date | null;
 }
 
 /**
@@ -55,6 +62,8 @@ export interface HouseRepository {
     createdAt: Date;
     /** Jazyk rodu; bez něj čeština. */
     language?: LanguageGroup;
+    /** Umístění na mapu světa; bez něj `createdAt`, null – odříznutý nováček (newcomers.md). */
+    placedAt?: Date | null;
   }): Promise<House>;
   /** Ukončí rod; true jen když rod byl živý (z více souběžných volání uspěje jedno). */
   end(houseId: string, at: Date, day: number): Promise<boolean>;
@@ -86,4 +95,11 @@ export interface HouseRepository {
   claimEnnoble(houseId: string, year: number): Promise<boolean>;
   /** Živé hráčovy rody založené po `since` (ochrana nováčka – upozornění na konec). */
   playerHousesSince(since: Date): Promise<House[]>;
+  /**
+   * Zapíše první žádost nováčka o pána (podmíněně – jen když ještě žádná nebyla a rod není
+   * umístěný); vrací platný začátek týdne (zapsaný, nebo dřívější), null – rod je umístěný.
+   */
+  markNewcomerSince(houseId: string, at: Date): Promise<Date | null>;
+  /** Živé odříznuté rody hráčů, které už požádaly o pána (`newcomerSince` není null). */
+  waitingNewcomers(): Promise<House[]>;
 }

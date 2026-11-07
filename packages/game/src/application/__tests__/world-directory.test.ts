@@ -69,6 +69,8 @@ async function setup(): Promise<{
         lastEnnobleYear: null,
         pendingDeparture: null,
         language: 'cs',
+        placedAt: new Date(0),
+        newcomerSince: null,
       },
       seat: { x, y },
       digests,

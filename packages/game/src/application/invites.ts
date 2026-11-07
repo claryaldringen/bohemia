@@ -66,9 +66,16 @@ export interface InviteDeps {
 
 export type IssueInviteResult = { ok: true; invite: Invite } | { ok: false; error: string };
 
+/** Odříznutý rod ještě není na mapě světa (newcomers.md – Odříznutá krajina). */
+export const INVITE_NEEDS_PLACEMENT = 'Nejdřív musíš být na mapě světa.';
+
 /** Vydá nový kód. Smí jen hráč s živým rodem; nevyužitých kódů je nejvýš `INVITES.maxUnused`. */
+
 export async function issueInvite(deps: InviteDeps, playerId: string): Promise<IssueInviteResult> {
-  if (!(await deps.houses.activeOf(playerId))) return { ok: false, error: INVITE_NEEDS_HOUSE };
+  const house = await deps.houses.activeOf(playerId);
+  if (!house) return { ok: false, error: INVITE_NEEDS_HOUSE };
+  // odříznutý rod (newcomers.md) pozvat nesmí – pozvaný by neměl kde začít
+  if (house.placedAt === null) return { ok: false, error: INVITE_NEEDS_PLACEMENT };
   const now = deps.now();
   const unused = (await deps.invites.listOf(playerId)).filter((i) => isInviteUnused(i, now));
   if (unused.length >= INVITES.maxUnused) return { ok: false, error: INVITE_LIMIT };

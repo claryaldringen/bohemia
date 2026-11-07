@@ -111,6 +111,8 @@ interface PlacedSettlement {
   id: string;
   isSeat: boolean;
   worldCell: { x: number; y: number } | null;
+  /** Poloha v místní mřížce odříznutého rodu (newcomers.md); chybí – sídlo není odříznuté. */
+  localCell?: { x: number; y: number } | null;
 }
 
 /**
@@ -123,12 +125,17 @@ export function ownMapsAround(
   settlementId: string,
 ): Partial<Record<Direction8, string>> {
   const from = settlements.find((s) => s.id === settlementId);
-  const cell = from?.worldCell ?? (from?.isSeat ? { x: 0, y: 0 } : null);
+  // odříznutý rod má vsi jen v místní mřížce – sousedy hledá v ní
+  const local = from?.worldCell === null && from.localCell ? from.localCell : null;
+  const cellOf = (s: PlacedSettlement): { x: number; y: number } | null =>
+    local ? (s.localCell ?? null) : s.worldCell;
+  const cell = local ?? from?.worldCell ?? (from?.isSeat ? { x: 0, y: 0 } : null);
   if (!cell) return {};
   const around: Partial<Record<Direction8, string>> = {};
   for (const s of settlements) {
-    if (s.id === settlementId || s.worldCell === null) continue;
-    const direction = directionBetween(cell, s.worldCell);
+    const other = cellOf(s);
+    if (s.id === settlementId || other === null) continue;
+    const direction = directionBetween(cell, other);
     if (direction === null) continue;
     const village = villages.find((v) => v.settlementId === s.id);
     if (village) around[direction] = village.name;

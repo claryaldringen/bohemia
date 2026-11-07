@@ -260,6 +260,13 @@
       "when": 1794079565930,
       "tag": "0037_language",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1794080405713,
+      "tag": "0038_newcomers",
+      "breakpoints": true
     }
   ]
 }

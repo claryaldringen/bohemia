@@ -1,5 +1,11 @@
 import { and, asc, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
-import type { OccupiedCell, Settlement, SettlementRepository } from '@bohemia/game';
+import type {
+  LayerVersions,
+  OccupiedCell,
+  Settlement,
+  SettlementPlace,
+  SettlementRepository,
+} from '@bohemia/game';
 import type { Database } from '../client';
 import { settlement } from '../schema';
 
@@ -13,8 +19,23 @@ function toSettlement(row: SettlementRow): Settlement {
     landscapeSeed: row.landscapeSeed,
     layerVersions: row.layerVersions,
     worldCell: row.gridX === null || row.gridY === null ? null : { x: row.gridX, y: row.gridY },
+    localCell: row.localX === null || row.localY === null ? null : { x: row.localX, y: row.localY },
     createdAt: row.createdAt,
   };
+}
+
+/** Sloupce nového sídla – poloha na mapě světa, nebo v místní mřížce odříznutého rodu. */
+function placeValues(
+  input: { ownerId: string; landscapeSeed: number; layerVersions: LayerVersions } & SettlementPlace,
+): typeof settlement.$inferInsert {
+  const base = {
+    ownerId: input.ownerId,
+    landscapeSeed: input.landscapeSeed,
+    layerVersions: input.layerVersions,
+  };
+  return 'worldCell' in input
+    ? { ...base, gridX: input.worldCell.x, gridY: input.worldCell.y }
+    : { ...base, localX: input.localCell.x, localY: input.localCell.y };
 }
 
 /** Drizzle adaptér portu SettlementRepository – archivovaná sídla (`archived_at`) nevrací. */
@@ -80,25 +101,26 @@ export function createSettlementRepository(db: Database): SettlementRepository {
         .returning({ id: settlement.id });
       return rows.length > 0;
     },
-    async createSeat({ worldCell, ...input }): Promise<Settlement | null> {
+    async createSeat(input): Promise<Settlement | null> {
       const existing = await findSeat(input.ownerId);
       if (existing) return existing;
       // Atomicky: při souběhu vyhraje jeden INSERT, ostatní narazí na unikátní index (sídelní
       // sídlo hráče, nebo obsazené políčko světa) a nic nezmění.
       const [created] = await db
         .insert(settlement)
-        .values({ ...input, isSeat: true, gridX: worldCell.x, gridY: worldCell.y })
+        .values({ ...placeValues(input), isSeat: true })
         .onConflictDoNothing()
         .returning();
       if (created) return toSettlement(created);
       // souběžný požadavek téhož hráče mezitím sídlo založil; jinak je políčko cizí
       return findSeat(input.ownerId);
     },
-    async create({ worldCell, ...input }): Promise<Settlement | null> {
-      // Atomicky: obsazené políčko světa hlídá unikátní index – druhý INSERT nic nezmění.
+    async create(input): Promise<Settlement | null> {
+      // Atomicky: obsazené políčko světa (nebo místní mřížky rodu) hlídá unikátní index – druhý
+      // INSERT nic nezmění.
       const [created] = await db
         .insert(settlement)
-        .values({ ...input, isSeat: false, gridX: worldCell.x, gridY: worldCell.y })
+        .values({ ...placeValues(input), isSeat: false })
         .onConflictDoNothing()
         .returning();
       return created ? toSettlement(created) : null;

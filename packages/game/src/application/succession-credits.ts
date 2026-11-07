@@ -1,4 +1,5 @@
 import { INVITES } from '../domain/world';
+import { expireNewcomerWaits, type NewcomerDeps } from './newcomers';
 import { openAnnualDialogs, type AnnualLevyDeps } from './annual-levies';
 import type { ActivityRepository } from './activity';
 import type { HouseRepository } from './houses';
@@ -67,11 +68,13 @@ export type WorldTaskDeps = SuccessionCreditDeps & {
   wars?: QuietWarsDeps & ProtectionNoticeDeps;
   /** Svolání bez odpovědi propadne s koncem války (vassalage.md – Svolání). */
   summons?: Parameters<typeof lapseSummons>[0];
+  /** Nováček po týdnu čekání dostane pána losem, nebo začne svobodný (newcomers.md). */
+  newcomers?: NewcomerDeps;
 };
 
 /**
- * Úlohy světa, které worker pouští jednou za minutu mezi koly: kredity nástupnictví a obnova
- * zásilek po pádu (`reconcileShipments`).
+ * Úlohy světa, které worker pouští jednou za minutu mezi koly: kredity nástupnictví, obnova
+ * zásilek po pádu (`reconcileShipments`) a konec týdne čekání nováčků (`expireNewcomerWaits`).
  */
 export async function runWorldTasks(
   deps: WorldTaskDeps,
@@ -85,4 +88,5 @@ export async function runWorldTasks(
     await notifyProtectionEnding(deps.wars, input);
   }
   if (deps.summons) await lapseSummons(deps.summons, input);
+  if (deps.newcomers) await expireNewcomerWaits(deps.newcomers, input);
 }

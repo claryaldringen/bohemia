@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../domain/calendar';
-import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
+import { CURRENT_LAYER_VERSIONS, generateAcceptedLandscape } from '../../domain/landscape';
+import { isolatedLandscapeSeed } from '../../domain/world';
 import {
   SUCCESSOR_STAYS,
   isVillageTravelling,
@@ -47,7 +48,7 @@ const seeds = (): SeedSource => {
  * Ves zakladatelů rodu – vojvoda s manželkami, dostavěná zemnice (lord.md – Zakladatelé) – a rodina
  * syna v druhé zemnici – 7 lidí.
  */
-async function player(): Promise<{
+async function player(isolated = false): Promise<{
   deps: {
     settlements: InMemorySettlements;
     villages: InMemoryVillages;
@@ -61,11 +62,10 @@ async function player(): Promise<{
 }> {
   const settlements = new InMemorySettlements();
   const villages = new InMemoryVillages();
-  const seat = await settlements.seatAtOrigin({
-    ownerId: PLAYER,
-    landscapeSeed: 11,
-    layerVersions: CURRENT_LAYER_VERSIONS,
-  });
+  const seatInput = { ownerId: PLAYER, landscapeSeed: 11, layerVersions: CURRENT_LAYER_VERSIONS };
+  const seat = isolated
+    ? (await settlements.createSeat({ ...seatInput, localCell: { x: 0, y: 0 } }))!
+    : await settlements.seatAtOrigin(seatInput);
   const founded = await foundVillageForSettlement(
     { villages, seeds: seeds() },
     { settlementId: seat.id, landscape, today: TODAY, name: 'Libice', dwelling: at(-200, -200) },
@@ -222,6 +222,39 @@ describe('leaveVillage – na novou mapu', () => {
       landscape,
     });
     expect(later!.state.lastDay).toBe(journey.arrivalDay + 30);
+  });
+
+  it('odříznutý rod: odchod na východ založí odříznuté sídlo (1, 0) v místní mřížce s vlastní krajinou', async () => {
+    const { deps, villageId, sonHome } = await player(true);
+    const result = await leaveVillage(deps, {
+      playerId: PLAYER,
+      villageId,
+      today: TODAY + 1,
+      dwellingIds: [sonHome],
+      destination: { kind: 'map', direction: 'E' },
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.settlement).toMatchObject({
+      isSeat: false,
+      worldCell: null,
+      localCell: { x: 1, y: 0 },
+    });
+    const accepted = generateAcceptedLandscape(
+      isolatedLandscapeSeed(deps.worldSeed, `${PLAYER}:1,0`),
+    );
+    expect(result.settlement.landscapeSeed).toBe(accepted.seed);
+    // mapa světa zůstane prázdná – nikdo odříznutý rod nevidí
+    expect(await deps.settlements.occupiedCells()).toEqual([]);
+    // tímtéž směrem znovu: vlastní ves už tam stojí
+    const again = await leaveVillage(deps, {
+      playerId: PLAYER,
+      villageId,
+      today: TODAY + 1,
+      dwellingIds: [],
+      destination: { kind: 'map', direction: 'E' },
+    });
+    expect(again).toEqual({ ok: false, reason: OWN_MAP_THERE });
   });
 
   it('tím směrem už vlastní ves – odmítne; jiným směrem nové sídlo', async () => {

@@ -7,6 +7,7 @@ import {
 import {
   DEFAULT_LANGUAGE,
   cellLandscapeSeed,
+  isolatedLandscapeSeed,
   placeNewPlayer,
   type LanguageGroup,
   type PlacementRequest,
@@ -16,7 +17,12 @@ import type { House, HouseRepository } from './houses';
 import type { InviteRepository } from './invites';
 import type { NoticeRepository } from './notices';
 import type { VassalageRepository } from './vassalages';
-import type { LandscapeSource, Settlement, SettlementRepository } from './settlements';
+import {
+  isIsolated,
+  type LandscapeSource,
+  type Settlement,
+  type SettlementRepository,
+} from './settlements';
 
 /**
  * Pozvánky při vstupu nového hráče: rezervovaný kód udělá z nováčka vazala pozvatele (vassalage.md –
@@ -50,35 +56,45 @@ export interface EnterGameResult {
   landscape: Landscape;
 }
 
-/** Vstup hráče do hry: najde jeho sídelní sídlo, nebo ho založí, a vrátí sídlo s krajinou. */
+/**
+ * Vstup hráče do hry: najde jeho sídelní sídlo, nebo ho založí, a vrátí sídlo s krajinou.
+ * Pozvaný dostane místo na mapě světa u pána; nováček bez pozvánky začne v odříznuté krajině
+ * (newcomers.md) – sídlo jen v místní mřížce rodu, rod bez umístění, dokud si nevybere pána
+ * nebo nezačne svobodný (`newcomers.ts`).
+ */
 export async function enterGame(deps: EnterGameDeps, playerId: string): Promise<EnterGameResult> {
   const existing = await deps.settlements.findSeat(playerId);
   const landscapeOf = (settlement: Settlement): Landscape =>
     settlementLandscape(settlement, deps.landscapes);
   if (existing) {
-    await ensureHouse(deps, playerId);
+    await ensureHouse(deps, playerId, isIsolated(existing) ? null : undefined);
     return { settlement: existing, landscape: landscapeOf(existing) };
   }
 
-  // Pozvaný dostane místo blízko pána; kód se využije, i když pán už nežije (pak je nezávislý).
+  // Pozvaný dostane místo blízko pána; kód se využije, i když pán už nežije (pak je odříznutý).
   const lord = await consumeInvitation(deps, playerId);
-  const request: PlacementRequest = lord
-    ? { kind: 'invited', lordSeat: lord.seat }
-    : { kind: 'independent' };
+  const request: PlacementRequest | null = lord ? { kind: 'invited', lordSeat: lord.seat } : null;
 
-  // Nováček dostane nejbližší volné políčko společné mřížky; souběh dvou nováčků na témže
-  // políčku rozhodne unikátní index – poražený zkusí znovu s čerstvou mapou obsazení.
+  // Pozvaný dostane nejbližší volné políčko společné mřížky; souběh dvou nováčků na témže
+  // políčku rozhodne unikátní index – poražený zkusí znovu s čerstvou mapou obsazení. Nováček bez
+  // pozvánky začne v odříznuté krajině (newcomers.md): sídlo jen v místní mřížce rodu (0, 0),
+  // krajina z vlastního seedu hráče, rod bez umístění na mapu světa.
   for (let attempt = 0; attempt < PLACEMENT_ATTEMPTS; attempt++) {
-    const cell = placeNewPlayer(await deps.settlements.occupiedCells(), request);
-    const accepted = generateAcceptedLandscape(cellLandscapeSeed(deps.worldSeed, cell));
+    const occupied = await deps.settlements.occupiedCells();
+    const cell = request ? placeNewPlayer(occupied, request) : null;
+    const accepted = generateAcceptedLandscape(
+      cell
+        ? cellLandscapeSeed(deps.worldSeed, cell)
+        : isolatedLandscapeSeed(deps.worldSeed, playerId),
+    );
     const settlement = await deps.settlements.createSeat({
       ownerId: playerId,
       landscapeSeed: accepted.seed,
       layerVersions: CURRENT_LAYER_VERSIONS,
-      worldCell: cell,
+      ...(cell ? { worldCell: cell } : { localCell: { x: 0, y: 0 } }),
     });
     if (!settlement) continue;
-    const house = await ensureHouse(deps, playerId);
+    const house = await ensureHouse(deps, playerId, isIsolated(settlement) ? null : undefined);
     if (lord) await becomeVassal(deps, lord.house, house);
     // Při souběhu mohl sídlo založit jiný požadavek téhož hráče – platí uložené.
     const landscape =
@@ -88,12 +104,26 @@ export async function enterGame(deps: EnterGameDeps, playerId: string): Promise<
   throw new Error(`Hráči ${playerId} se nepodařilo najít volné místo ve světě.`);
 }
 
-/** Hráč má vždy živý rod – chybějící (nový hráč, po restartu) se založí; souběh dá jeden. */
-async function ensureHouse(deps: EnterGameDeps, playerId: string): Promise<House> {
+/**
+ * Hráč má vždy živý rod – chybějící (nový hráč, po restartu) se založí; souběh dá jeden.
+ * `placedAt` null = odříznutý rod (bez umístění), bez něj je rod na mapě od založení.
+ */
+async function ensureHouse(
+  deps: EnterGameDeps,
+  playerId: string,
+  placedAt?: Date | null,
+): Promise<House> {
   const existing = await deps.houses.activeOf(playerId);
   if (existing) return existing;
   const language = deps.accountLanguage ? await deps.accountLanguage(playerId) : DEFAULT_LANGUAGE;
-  return deps.houses.create({ playerId, kind: 'player', createdAt: deps.now(), language });
+  const createdAt = deps.now();
+  return deps.houses.create({
+    playerId,
+    kind: 'player',
+    createdAt,
+    language,
+    placedAt: placedAt === undefined ? createdAt : placedAt,
+  });
 }
 
 interface InvitingLord {
