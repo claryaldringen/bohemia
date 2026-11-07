@@ -9,6 +9,14 @@ export const WORLD = {
   travelDaysPerCell: 2,
 } as const;
 
+/** Nabídka pánů nováčkovi (newcomers.md – Nabídka pánů). */
+export const NEWCOMERS = {
+  /** Kolik rodů smí nováček vybrat. */
+  maxChoices: 5,
+  /** Týden na odpověď: skutečné dny od první žádosti. */
+  waitDays: 7,
+} as const;
+
 /** Pozvánkové kódy (vassalage.md – Čísla). */
 export const INVITES = {
   /** Nevyužité kódy najednou: nezrušené, nevyužité a ještě platné. */
