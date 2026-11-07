@@ -74,12 +74,74 @@ function quadOf(pts: readonly Point[]): WallQuad | null {
   return { pts, minX, maxX, minZ, maxZ, sign: area > 0 ? 1 : -1 };
 }
 
-/** Stěny opevnění vsi (`PathFortification` – `fortWalls`) pro chůzi; bez stěn null. */
+/** Kolik naposled použitých stěn si chůze pamatuje (`walkWallsOf`). */
+const WALLS_MEMO = 8;
+const knownWalls: { forts: readonly FortWalls[]; walls: WalkWalls | null }[] = [];
+
+/** Stejné body (seznamy čtyřúhelníků nebo bodů) – po číslech. */
+function samePoints(
+  a: readonly (readonly number[])[] | undefined,
+  b: readonly (readonly number[])[] | undefined,
+): boolean {
+  if (a === b) return true;
+  if (!a || !b || a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const p = a[i]!;
+    const q = b[i]!;
+    if (p.length !== q.length) return false;
+    for (let k = 0; k < p.length; k++) if (p[k] !== q[k]) return false;
+  }
+  return true;
+}
+
+function sameQuads(a: readonly Point[][], b: readonly Point[][]): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (!samePoints(a[i], b[i])) return false;
+  return true;
+}
+
+function sameForts(a: readonly FortWalls[], b: readonly FortWalls[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const x = a[i]!;
+    const y = b[i]!;
+    if (!sameQuads(x.walls, y.walls) || !sameQuads(x.gates, y.gates)) return false;
+    if (!samePoints(x.detour ?? [], y.detour ?? [])) return false;
+  }
+  return true;
+}
+
+/**
+ * Stěny opevnění vsi (`PathFortification` – `fortWalls`) pro chůzi; bez stěn null. Pro tytéž stěny
+ * (po číslech) vrátí tentýž objekt – graf objížďky a jeho paměť dosahu (`detourGraphOf`) tak
+ * přežijí přepočty tras i dny (jen zrychlení, výsledek týž).
+ */
 export function walkWallsOf(forts: readonly FortWalls[] | undefined): WalkWalls | null {
+  const list = forts ?? [];
+  if (list.length === 0) return null;
+  const known = knownWalls.findIndex((k) => sameForts(k.forts, list));
+  if (known >= 0) return knownWalls[known]!.walls;
+  const walls = buildWalkWalls(list);
+  if (knownWalls.length >= WALLS_MEMO) knownWalls.shift();
+  // kopie bodů – volající je smí později změnit, paměť porovnává s tím, z čeho stěny vznikly
+  const copy = (pts: readonly Point[]): Point[] => pts.map((p) => [p[0], p[1]]);
+  knownWalls.push({
+    forts: list.map((f) => ({
+      walls: f.walls.map(copy),
+      gates: f.gates.map(copy),
+      detour: copy(f.detour ?? []),
+    })),
+    walls,
+  });
+  return walls;
+}
+
+function buildWalkWalls(forts: readonly FortWalls[]): WalkWalls | null {
   const walls: WallQuad[] = [];
   const gates: WallQuad[] = [];
   const detour: PathPoint[] = [];
-  for (const f of forts ?? []) {
+  for (const f of forts) {
     for (const [x, z] of f.detour ?? []) detour.push({ x, z });
     for (const w of f.walls) {
       const q = quadOf(w);
@@ -219,7 +281,7 @@ interface DetourGraph {
   readonly dist: Float64Array;
   readonly next: Int32Array;
   /** Dosah bodů do bodů objížďky (`reachOf`). */
-  readonly reach: Map<string, { cost: Float64Array; via: Int32Array }>;
+  readonly reach: Map<string, Reach>;
   /**
    * Viditelnost cíle z bodů objížďky (`wallDetour`): podle cíle a rezervy u bodu 1 = úsečka bod →
    * cíl jde stěnou (`cutsWall`), 2 = nejde, 0 = ještě nezkoušeno.
@@ -308,6 +370,12 @@ function detourGraphOf(walls: WalkWalls): DetourGraph {
   return graph;
 }
 
+/** Dosah bodu do bodů objížďky (`reachOf`). */
+interface Reach {
+  readonly cost: Float64Array;
+  readonly via: Int32Array;
+}
+
 /** Kolik bodů si graf objížďky pamatuje dosah (`DetourGraph.reach`), pak začne znovu. */
 const DETOUR_MEMO = 4096;
 
@@ -315,12 +383,7 @@ const DETOUR_MEMO = 4096;
  * Dosah bodu `a` do bodů objížďky: nejkratší cesta a → (rovně bez stěny) bod i → po grafu bod j
  * (`cost[j]`, první bod `via[j]`); v paměti grafu podle bodu a rezervy.
  */
-function reachOf(
-  walls: WalkWalls,
-  g: DetourGraph,
-  a: PathPoint,
-  slack: number,
-): { cost: Float64Array; via: Int32Array } {
+function reachOf(walls: WalkWalls, g: DetourGraph, a: PathPoint, slack: number): Reach {
   const key = `${a.x}|${a.z}|${slack}`;
   const known = g.reach.get(key);
   if (known) return known;
@@ -375,6 +438,8 @@ export function wallDetour(
   const w = g.pts.length;
   const from = reachOf(walls, g, a, slack);
   const sees = seesOf(g, b, slack);
+  // konec objížďky v pořadí dolní meze (dosah + vzdušnou čarou k cíli) – první, od kterého se
+  // k cíli jde bez stěny, je nejkratší
   // konec objížďky v pořadí dolní meze (dosah + vzdušnou čarou k cíli) – první, od kterého se
   // k cíli jde bez stěny, je nejkratší
   const bound = new Float64Array(w);
