@@ -262,6 +262,8 @@ test('podmínky vazalství: ikony v panelu, nové podmínky odmítnuty, vypověz
   await panelA.getByTestId('term-service-men').fill('2');
   await panelA.getByTestId('term-service-days').fill('20');
   await panelA.getByTestId('terms-submit').click();
+  // nabídka je uložená – jinak by B panel otevřel dřív a jednání v něm nebylo
+  await expect(panelA.getByTestId('house-negotiation')).toHaveAttribute('data-my-turn', 'false');
 
   // B vidí řádky jako ikony a přijme
   const panelB = await reopenHousePanel(b);
