@@ -50,6 +50,216 @@
       "when": 1792355719946,
       "tag": "0006_grid_per_player",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793084699341,
+      "tag": "0007_weather_seed",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793402449666,
+      "tag": "0008_square_the_hand",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793475270522,
+      "tag": "0009_village_day_asleep",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793533562394,
+      "tag": "0010_village_digest",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793554027562,
+      "tag": "0011_funny_night_thrasher",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793556521391,
+      "tag": "0012_village_year",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793866448440,
+      "tag": "0013_shared_world_grid",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793868582041,
+      "tag": "0014_house",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1793871358721,
+      "tag": "0015_player_notice",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1793878384889,
+      "tag": "0016_village_inbox",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1793881191056,
+      "tag": "0017_invite",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793882589401,
+      "tag": "0018_vassalage",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793890775533,
+      "tag": "0019_house_senior",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1793896891244,
+      "tag": "0020_house_succession",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1793915216546,
+      "tag": "0021_house_pending_departure",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1793918891802,
+      "tag": "0022_negotiation",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1793948091905,
+      "tag": "0023_shipment",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1793950776286,
+      "tag": "0024_dialog",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1793956619896,
+      "tag": "0025_loan",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1793964127125,
+      "tag": "0026_stewardship",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1793966710063,
+      "tag": "0027_ennoble",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1793969901741,
+      "tag": "0028_escheat",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1793974023837,
+      "tag": "0029_war",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1793997807462,
+      "tag": "0030_campaign",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1794029443458,
+      "tag": "0031_campaign_tick_bigint",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1794030728975,
+      "tag": "0033_dispute",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1794035416905,
+      "tag": "0034_prisoner",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1794048290838,
+      "tag": "0035_passage",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1794056390923,
+      "tag": "0036_passage_campaign",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1794079565930,
+      "tag": "0037_language",
+      "breakpoints": true
     }
   ]
 }

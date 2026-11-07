@@ -26,21 +26,24 @@ import {
 } from '../oxen';
 import { oxTrainedDay } from '../pens';
 import { DRAFT_OXEN, OXEN, PEN_PLACES_PER_SQUARE } from '../rules';
+import { laborPerDay } from '../people';
 import { PLOUGH_HA_PER_DAY, PLOUGH_SOD_FACTOR, hasSod, ploughWorkPerHa } from '../plough';
 import { NO_CRAFTS } from '../productivity';
 import { cloneState } from '../clone';
 import { advanceVillage } from '../simulate';
-import { chooseCrops, orchardOnlyLoad } from '../sowing';
+import { ploughPairsForRotation } from '../simulate-plan';
 import type { ChronicleEvent, FieldPart, VillageState } from '../types';
 import {
   createCropWork,
   createPlan,
   partWeight,
   partWork,
-  planCrops,
-  planPartIds,
+  seasonCrops,
+  seasonPartIds,
   ploughToHoe,
   tilledShare,
+  seasonCrop,
+  springCrop,
 } from '../year-plan';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
@@ -170,16 +173,17 @@ describe('ohrada', () => {
     expect(oxenTraining(s, day, goal(2, 1), null)).toMatch(/staví/);
     s.livestock!.herds.cow = 3;
     const built = advanceVillage(s, day + 60, null);
-    // telata chybí – krávy nemají přírůstek nad chovné stádo (3 krávy + kráva na 4 voly), ohrada čeká
-    expect(breedingCows(built)).toBeCloseTo(3.5, 9);
+    // telata chybí – krávy nemají přírůstek nad chovné stádo (půl krávy na mléko + 3 krávy + půl
+    // krávy na vola), ohrada čeká
+    expect(breedingCows(built)).toBeCloseTo(4.5, 9);
     expect(built.pens![0]!.builtDay).not.toBeNull();
     expect(built.pens![0]!.oxen).toEqual([]);
-    expect(oxenTraining(built, built.lastDay, goal(2, 1, 3.5), null)).toMatch(/telata/);
-    built.livestock!.herds.cow = 5.6;
+    expect(oxenTraining(built, built.lastDay, goal(2, 1, 4.5), null)).toMatch(/telata/);
+    built.livestock!.herds.cow = 6.6;
     const training = advanceVillage(built, built.lastDay + 1, null);
     // bez hráče: pár telat do výcviku (ves chce pár k rádlu), rádlo staví ves (kláda z hromady);
     // krávy pod chovné stádo neklesnou
-    expect(training.livestock!.herds.cow).toBeCloseTo(3.6, 2);
+    expect(training.livestock!.herds.cow).toBeCloseTo(4.6, 2);
     const ready = oxTrainedDay(built.lastDay + 1);
     expect(training.pens![0]!.oxen).toEqual([{ trainedDay: ready }, { trainedDay: ready }]);
     const ard = training.constructions.find((c) => c.kind === 'ard')!;
@@ -194,8 +198,9 @@ describe('ohrada', () => {
     const day = at(600, 5, 1);
     const s = withTeam(day);
     s.pens![0]!.team = null;
-    // chovné stádo 3,5 krávy (3 + kráva na 4 voly) – 3,6 krávy přírůstek na tele nemají
-    s.livestock!.herds.cow = 3.6;
+    // chovné stádo 4,5 krávy (půl krávy na mléko + 3 + půl krávy na vola) – 4,6 krávy přírůstek
+    // na tele nemají
+    s.livestock!.herds.cow = 4.6;
     const march = advanceWithHay(s, at(601, 3, 31), 20_000);
     expect(march.pens![0]!.oxen).toEqual([]);
     expect(march.livestock!.herds.cow).toBeGreaterThan(3);
@@ -206,12 +211,27 @@ describe('ohrada', () => {
     // přímo: z 5,5 krávy při cíli 4 jen jedno tele, ze 4,6 žádné
     const t = withOxen(withTeam(day));
     t.pens![0]!.oxen = [];
+    // bez rádla – náhrada posledního páru neplatí (oxen.md – Co nejvíc sena a co největší stáda)
+    t.ards = 0;
     t.livestock!.herds.cow = 5.5;
     expect(oxenTraining(t, day, goal(2, 1, 4), null)).toEqual({ calves: 1, ards: 0 });
     trainTeamsWhenReady(t, day, null, goal(2, 1, 4));
     expect(t.livestock!.herds.cow).toBeCloseTo(4.5, 9);
     t.livestock!.herds.cow = 4.6;
     expect(oxenTraining(t, day, goal(4, 1, 4), null)).toMatch(/přírůstek/);
+  });
+
+  it('náhrada volů i po rozpadu páru – ves má rádlo, pár nemá ani necvičí (24. 10. 2026)', () => {
+    const day = at(600, 5, 1);
+    const t = withOxen(withTeam(day));
+    t.pens![0]!.oxen = [];
+    t.ards = 1;
+    // 4,6 krávy pod chovným stádem 4 + přírůstek – dřív by výcvik čekal (pár už nesloužil)
+    t.livestock!.herds.cow = 4.6;
+    expect(oxenTraining(t, day, goal(4, 1, 4), null)).toEqual({ calves: 2, ards: 0 });
+    // chovný pár krav zůstane – z 3,5 krávy jen jedno tele
+    t.livestock!.herds.cow = 3.5;
+    expect(oxenTraining(t, day, goal(4, 1, 4), null)).toEqual({ calves: 1, ards: 0 });
   });
 
   it('náhrada posledního páru k orbě má přednost před cílem krav – dokud zůstane chovný pár', () => {
@@ -423,7 +443,7 @@ describe('náhrada volů (Martin 18. 10. 2026)', () => {
     expect(oxenTraining(s, day, goal(2, 1), null)).toEqual({ calves: 2, ards: 0 });
   });
 
-  it('náhrada posledního páru i pod cílem krav: ves neorá motykou ani den (koordinátor 20. 10. 2026)', () => {
+  it('náhrada posledního páru i pod cílem krav: ves neorá motykou ani den (návrh Clauda 20. 10. 2026)', () => {
     const day = at(600, 5, 1);
     const s = withTeam(day);
     // chovné stádo 3,5 krávy, ve stádu jen 4,1 – přírůstek na pár nemá, chovný pár ale zůstane
@@ -533,30 +553,60 @@ describe('orba rádlem', () => {
     expect(createCropWork([part(1), sod], day, 0, false).plough).toBeUndefined();
   });
 
-  it('plán osevu nevybere víc, než spřežení v oknech orby stihnou zorat', () => {
+  it('páry k rádlům zorají v oknech orby všechny díly na řadě – nejvýš OXEN.maxPairs', () => {
+    // fields.md – Osevní postup po dílech, Páry k rádlům: nutné i nad potřebu (návrh Clauda)
     const day = at(600, 9, 1);
-    const parts = Array.from({ length: 30 }, (_, i) => part(i + 1, { distanceM: 100 + i }));
-    const people = 1e9;
-    const crops = chooseCrops(parts, {
-      targetKg: 1e9,
-      startKg: 0,
-      capacity: {
-        autumnWinter: people,
-        autumn: people,
-        spring: people,
-        july: people,
-        august: people,
-        plough: { autumnWinter: 25, autumn: 45, spring: 30 },
-      },
-      load: orchardOnlyLoad(0),
-      allowWinter: true,
-      day,
-      toolCoverage: 0,
-      plough: true,
-    });
-    // 10 čd orby na díl: ozim do 25 (2 díly), jař na podzim zbytek do 45 a na jaře 30 (5 dílů)
-    expect(crops.winter).toHaveLength(2);
-    expect(crops.spring).toHaveLength(5);
+    const s = withOxen(withTeam(day));
+    // dost lidí na všechny páry – jinak by počet párů omezila obsluha (test níž)
+    s.people = Array.from({ length: OXEN.maxPairs * OXEN.crewPerPair }, (_, i) => ({
+      ...s.people[0]!,
+      id: 1000 + i,
+    }));
+    const parts = (from: number, n: number, over: Partial<FieldPart> = {}): FieldPart[] =>
+      Array.from({ length: n }, (_, i) =>
+        part(from + i, { distanceM: 100 + i, state: 'ready', sownYears: 0, ...over }),
+      );
+    const pairs = (list: FieldPart[]): number => {
+      s.parts = list;
+      return ploughPairsForRotation(s, day, 0, null);
+    };
+    // pár zorá na podzim ≈ 0,3 ha × výkon brázdy 100 m za den – pět hektarů ozimu stihne sám
+    expect(pairs(parts(1, 5))).toBe(1);
+    const autumn = pairs(parts(1, 40));
+    expect(autumn).toBeGreaterThan(1);
+    expect(pairs(parts(1, 80))).toBeGreaterThanOrEqual(autumn);
+    expect(pairs(parts(1, 5000))).toBe(OXEN.maxPairs);
+    // úhor, který odpočívá, se neorá; jař po ozimu se orá i na jaře – na hektar méně párů než ozim
+    const resting = { state: 'fallow' as const, fallowSinceDay: day - 100, fertilityShare: 0.3 };
+    expect(pairs([...parts(1, 5), ...parts(100, 500, resting)])).toBe(1);
+    const spring = pairs([...parts(1, 5), ...parts(100, 70, { next: 'spring' })]);
+    expect(spring).toBeGreaterThan(1);
+    expect(spring).toBeLessThanOrEqual(autumn);
+    // pod pojistkou zásob i nutné díly mimo postup – nouzové přílohy (oxen.md – Kolik volů ves
+    // chce, Pod pojistkou; Martin 27. 10. 2026)
+    const fallows = parts(100, 500, resting);
+    s.parts = [...parts(1, 5), ...fallows];
+    const needed = fallows.map((p) => ({ id: p.id, crop: 'winter' as const }));
+    expect(ploughPairsForRotation(s, day, 0, null, needed)).toBeGreaterThan(1);
+    // díl na řadě se podruhé nepočítá
+    const twice = [...needed, { id: 1, crop: 'winter' as const }];
+    expect(ploughPairsForRotation(s, day, 0, null, twice)).toBe(
+      ploughPairsForRotation(s, day, 0, null, needed),
+    );
+  });
+
+  it('páry k rádlům nepřesáhnou to, co ves s lidmi obslouží', () => {
+    // oxen.md – Páry k rádlům: oráč + setí na pár (OXEN.crewPerPair), návrh Clauda
+    const day = at(600, 9, 1);
+    const s = withOxen(withTeam(day));
+    s.parts = Array.from({ length: 5000 }, (_, i) =>
+      part(i + 1, { distanceM: 100 + (i % 7), state: 'ready', sownYears: 0 }),
+    );
+    const adults = s.people.filter((p) => laborPerDay(p, day) >= 1);
+    expect(adults.length).toBeGreaterThan(0);
+    const staffed = Math.max(1, Math.floor(adults.length / OXEN.crewPerPair));
+    expect(ploughPairsForRotation(s, day, 0, null)).toBeLessThanOrEqual(staffed);
+    expect(ploughPairsForRotation(s, day, 0, null)).toBeLessThan(OXEN.maxPairs);
   });
 
   it('slabí voli po zimě orají na jaře jen podílem; na podzim zase plnou silou', () => {
@@ -583,13 +633,13 @@ describe('orba rádlem', () => {
     s.storesKg = 300;
     // 1. 9. – plán osevu a první den orby (setí jde za zoranou částí od dalšího dne)
     const sept = advanceVillage(s, at(600, 9, 1), null);
-    const plan = sept.plan!;
+    const plan = sept.season!;
     expect(plan.ard).toBe(true);
-    for (const { work } of planCrops(plan)) {
+    for (const { work } of seasonCrops(plan)) {
       expect(work.plough!.partIds).toEqual(work.partIds);
       expect(work.required.dig).toBe(0);
     }
-    expect(planPartIds(plan).length).toBeGreaterThan(0);
+    expect(seasonPartIds(plan).length).toBeGreaterThan(0);
     const ploughShares = sept.labor!.shares.filter((share) => share.activity === 'plough');
     expect(ploughShares.length).toBeGreaterThan(0);
     expect(sept.labor!.shares.some((share) => share.activity === 'dig')).toBe(false);
@@ -678,15 +728,21 @@ describe('orba rádlem', () => {
     s.parts = Array.from({ length: 4 }, (_, i) =>
       part(i + 1, { areaM2: 2250, distanceM: 100 + i, cell: { x: i, y: 0 } }),
     );
-    s.plan = createPlan(s.parts, at(600, 9, 1), 0, true);
+    s.season = createPlan(s.parts, at(600, 9, 1), 0, true);
+    // bez zásob – nezačaté díly ves potřebuje a neuvolní je (fields.md – Osevní postup po dílech)
+    s.storesKg = 0;
+    // osivo jař koupí 1. 3. za hřivny, jídlo do 6. 3. maso – bez osiva by jař nekopali (fields.md –
+    // Osivo ze zásob, Příprava jaře jen na díly s osivem)
+    s.crafts = { charcoalKg: 0, potteryKg: 0, ironBarsKg: 1000 };
+    s.meatKg = 200;
     s.hay = { kg: 0, mowing: null, winter: { oxenNeedKg: 2400, oxenEatenKg: 0 } };
     const spring = advanceVillage(s, at(601, 3, 1), null);
     expect(spring.pens![0]!.oxen).toEqual([]);
     expect(spring.chronicle.some((e) => e.kind === 'ox-died')).toBe(true);
     // jaro kopou motyky – plán orbu nemá, ves letos ale orala (kulaté rohy zůstanou)
-    expect(spring.plan!.plough).toBeUndefined();
-    expect(spring.plan!.required.dig).toBeGreaterThan(0);
-    expect(spring.plan!.ard).toBe(true);
+    expect(springCrop(spring.season!).plough).toBeUndefined();
+    expect(springCrop(spring.season!).required.dig).toBeGreaterThan(0);
+    expect(spring.season!.ard).toBe(true);
     // uhynulí voli na maso nejdou (voli po kusech – oxen.md); na jaře kopou
     const later = advanceVillage(spring, at(601, 3, 6), null);
     expect(later.labor!.shares.some((share) => share.activity === 'dig')).toBe(true);
@@ -748,10 +804,10 @@ describe('dopočet a staré vsi', () => {
     expect(retired.day).toBeGreaterThan(at(600, 9, 1));
     // letošní plán po odchodu spřežení kopala motyka, další plán už orbu nemá
     const october = advanceVillage(s, retired.day, null);
-    expect(october.plan!.ard).toBe(true);
-    expect(planCrops(october.plan!).some(({ work }) => work.plough)).toBe(false);
-    expect(whole.plan!.ard).toBeUndefined();
-    expect(planCrops(whole.plan!).some(({ work }) => work.plough)).toBe(false);
+    expect(october.season!.ard).toBe(true);
+    expect(seasonCrops(october.season!).some(({ work }) => work.plough)).toBe(false);
+    expect(whole.season!.ard).toBeUndefined();
+    expect(seasonCrops(whole.season!).some(({ work }) => work.plough)).toBe(false);
   });
 
   it('ves s plánem z doby, kdy rádlo nebralo drn: plán doběhne, od 1. 9. orá všechno', () => {
@@ -764,10 +820,10 @@ describe('dopočet a staré vsi', () => {
     // starý plán: spřežení oralo první čtyři díly, poslední dva kopala motyka (jeden vrácený)
     const plan = createPlan(s.parts, at(600, 9, 1), 0, false);
     const ploughed = createCropWork(s.parts.slice(0, 4), at(600, 9, 1), 0, true).plough!;
-    plan.plough = { ...ploughed, digWeight: 2 * partWeight(s.parts[4]!) };
-    plan.required.dig = 2 * 100 * partWeight(s.parts[4]!);
-    (plan.plough as { returned?: number[] }).returned = [6];
-    s.plan = JSON.parse(JSON.stringify(plan)) as typeof plan;
+    springCrop(plan).plough = { ...ploughed, digWeight: 2 * partWeight(s.parts[4]!) };
+    springCrop(plan).required.dig = 2 * 100 * partWeight(s.parts[4]!);
+    (springCrop(plan).plough as { returned?: number[] }).returned = [6];
+    s.season = JSON.parse(JSON.stringify(plan)) as typeof plan;
     s.storesKg = 300;
     // seno na zimu – voli přežijí a orají dál
     s.hay = { kg: 20_000, mowing: null };
@@ -779,10 +835,13 @@ describe('dopočet a staré vsi', () => {
     expect(chunked).toEqual(whole);
     // jaro: kopání starého plánu doběhlo
     const spring = advanceVillage(s, at(601, 5, 1), null);
-    expect(spring.plan!.done.dig).toBeCloseTo(spring.plan!.required.dig, 6);
+    expect(springCrop(spring.season!).done.dig).toBeCloseTo(
+      springCrop(spring.season!).required.dig,
+      6,
+    );
     // nový plán orá všechno
-    expect(whole.plan!.ard).toBe(true);
-    for (const { work } of planCrops(whole.plan!)) {
+    expect(whole.season!.ard).toBe(true);
+    for (const { work } of seasonCrops(whole.season!)) {
       expect(work.plough!.partIds).toEqual(work.partIds);
       expect(work.required.dig).toBe(0);
     }
@@ -793,14 +852,17 @@ describe('dopočet a staré vsi', () => {
     const s = village(day);
     s.fields = [{ id: 1 }];
     s.parts = [part(1, { areaM2: 2250, cell: { x: 0, y: 0 } })];
-    s.plan = { plannedDay: at(600, 9, 1), ...createCropWork(s.parts, at(600, 9, 1), 0) };
+    s.season = {
+      startDay: at(600, 9, 1),
+      crops: [{ crop: 'spring', ...createCropWork(s.parts, at(600, 9, 1), 0) }],
+    };
     delete s.livestock;
     delete s.meatKg;
     delete s.hay;
     delete s.pens;
     delete s.diet;
     const json = JSON.parse(JSON.stringify(s)) as VillageState;
-    expect(json.plan!.plough).toBeUndefined();
+    expect(springCrop(json.season!).plough).toBeUndefined();
     const next = advanceVillage(json, at(601, 9, 2), null);
     expect(next.livestock).toBeDefined();
     expect(next.diet).toBeDefined();
@@ -829,7 +891,7 @@ describe('kopie stavu', () => {
     s.cheeseKg = 20;
     const state = advanceVillage(s, at(600, 11, 20), null);
     // orba s drnem, zimní seno a porážka – všechna nová pole stavu jsou vyplněná
-    const work = state.plan!.winter ?? state.plan!;
+    const work = seasonCrop(state.season!, 'winter') ?? springCrop(state.season!);
     work.plough ??= { partIds: [1], required: 1, done: 0, weight: 0.1 };
     work.plough.sodIds = [2];
     expect(state.livestock?.slaughterWork).toBeDefined();
@@ -846,6 +908,8 @@ describe('kopie stavu', () => {
     expect(state.livestock!.herds.sheep).not.toBe(999);
     expect(state.pens![0]!.oxen![0]!.trainedDay).not.toBe(-1);
     expect(state.hay!.winter!.oxenEatenKg).not.toBe(-1);
-    expect((copy.plan!.winter ?? copy.plan!).plough!.sodIds).toEqual([2]);
+    expect((seasonCrop(copy.season!, 'winter') ?? springCrop(copy.season!)).plough!.sodIds).toEqual(
+      [2],
+    );
   });
 });

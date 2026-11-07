@@ -91,7 +91,8 @@ describe('nejbližší díl přes přihrádky (nearestPartFinder)', () => {
 describe('síť pěšin na skutečné krajině – zlatý otisk', () => {
   // Síť počítá server (vzdálenost chůze dílů – simulace) i prohlížeč (vzhled). Zrychlení výpočtu
   // ji nesmí změnit ani o bit; otisk je z doby před indexem nejbližšího dílu (18. 10. 2026).
-  // Spadne-li po záměrné změně pravidel sítě, otisk se vědomě přepíše.
+  // Spadne-li po záměrné změně pravidel sítě, otisk se vědomě přepíše. Přepsán 26. 10. 2026:
+  // stálá cena pole 0,6 v každém stadiu (paths.md – Stálé trasy) – jiné ceny buněk dílů.
   it('ves s polem 12 × 9 dílů v různých stadiích a prací na poli', () => {
     const landscape = generateLandscape(42, INITIAL_LAYER_VERSIONS);
     const layer = obstaclesOf(landscape);
@@ -149,6 +150,14 @@ describe('síť pěšin na skutečné krajině – zlatý otisk', () => {
     // za 130 m chůze úměrně méně často a nejvýš 450 m) – provoz pochůzek pro vodu je vyšší.
     // 20. 10. 2026 počtvrté: varianty rozměrů domů (population.md – Varianty rozměrů) – obdélníky
     // domů (neprůchodné buňky a brány) jsou podle tvaru domu, ne jednoho pro všechny
-    expect(networkFingerprint(network)).toBe('74902:8362b6f6');
+    // 24. 10. 2026: zvyk (ROUTE_HABIT 25 % mimo vyšlapané) a ploty ohrad, hřbitovů a příkop svatyně
+    // neprůchodné (Úloha 2 nového systému cest) – trasy se drží pěšin a obcházejí ploty
+    // 26. 10. 2026: pevné remízy (paths.md – Stálé trasy, pravidlo 3) – ceny kroků po 1/1024 m,
+    // síla pěšiny po setinách, ze stejně drahých předchůdců vyšší index; trasy se liší jen tam, kde
+    // byly dvě stejně drahé (dřív rozhodlo pořadí haldy)
+    // 26. 10. 2026 (Martin „A“): stálá cena chůze přes pole 1,67 → 8 / 7 ≈ 1,14 – časový průměr
+    // přes skutečný osevní postup (paths.md – Stálé trasy, pravidlo 1); celý blok 12 × 9 dílů je
+    // pole, pěšiny přes něj vedou rovněji
+    expect(networkFingerprint(network)).toBe('75041:39bc110a');
   }, 30_000);
 });

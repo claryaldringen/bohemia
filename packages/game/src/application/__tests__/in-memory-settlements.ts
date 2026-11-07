@@ -1,5 +1,6 @@
 import type { Settlement, SettlementRepository, WorldCell } from '../settlements';
 import type { LayerVersions } from '../../domain/landscape';
+import type { OccupiedCell } from '../../domain/world';
 
 /**
  * Repozitář sídel v paměti – createSeat a archive se chovají atomicky jako databáze (unikátní
@@ -14,9 +15,42 @@ export class InMemorySettlements implements SettlementRepository {
     return this.settlements.find((s) => s.ownerId === ownerId && s.isSeat) ?? null;
   }
 
+  /** Sídlo → čekající držitel (1. krok převodu – `transferHolder`). */
+  readonly pending = new Map<string, string>();
+
+  async transferHolder(
+    settlementId: string,
+    fromOwnerId: string,
+    toOwnerId: string,
+  ): Promise<boolean> {
+    await Promise.resolve();
+    const s = this.settlements.find((x) => x.id === settlementId);
+    if (!s || s.ownerId !== fromOwnerId || this.pending.has(settlementId)) return false;
+    if (this.archived.has(settlementId)) return false;
+    this.pending.set(settlementId, toOwnerId);
+    // sídlo přestane být sídelní (vymřelý hráč dostane při novém začátku nové)
+    this.settlements[this.settlements.indexOf(s)] = { ...s, isSeat: false };
+    return true;
+  }
+
+  async acceptTransfers(ownerId: string): Promise<Settlement[]> {
+    await Promise.resolve();
+    const out: Settlement[] = [];
+    for (const [id, to] of [...this.pending]) {
+      if (to !== ownerId) continue;
+      const index = this.settlements.findIndex((s) => s.id === id);
+      const s = this.settlements[index];
+      this.pending.delete(id);
+      if (!s) continue;
+      this.settlements[index] = { ...s, ownerId, isSeat: false };
+      out.push(this.settlements[index]);
+    }
+    return out;
+  }
+
   async listActive(ownerId: string): Promise<Settlement[]> {
     return this.settlements
-      .filter((s) => s.ownerId === ownerId && !this.archived.has(s.id))
+      .filter((s) => s.ownerId === ownerId && !this.archived.has(s.id) && !this.pending.has(s.id))
       .sort((a, b) => Number(b.isSeat) - Number(a.isSeat));
   }
 
@@ -35,16 +69,17 @@ export class InMemorySettlements implements SettlementRepository {
     ownerId: string;
     landscapeSeed: number;
     layerVersions: LayerVersions;
-  }): Promise<Settlement> {
+    worldCell: WorldCell;
+  }): Promise<Settlement | null> {
     // Mezera mezi „přečtu“ a „zapíšu“ jako u skutečné databáze – souběžné volání ji odhalí.
     await Promise.resolve();
     // Kontrola a zápis bez dalšího await – atomicky jako unikátní index v databázi.
     const existing = this.settlements.find((s) => s.ownerId === input.ownerId && s.isSeat);
     if (existing) return existing;
+    if (this.cellTaken(input.worldCell)) return null;
     const settlement: Settlement = {
       id: `settlement-${this.nextId++}`,
       isSeat: true,
-      worldCell: null,
       createdAt: new Date(0),
       ...input,
     };
@@ -59,15 +94,8 @@ export class InMemorySettlements implements SettlementRepository {
     worldCell: WorldCell;
   }): Promise<Settlement | null> {
     await Promise.resolve();
-    // políčko mřížky je jedno na hráče (jako unikátní index v databázi)
-    const taken = this.settlements.some(
-      (s) =>
-        !this.archived.has(s.id) &&
-        s.ownerId === input.ownerId &&
-        s.worldCell?.x === input.worldCell.x &&
-        s.worldCell.y === input.worldCell.y,
-    );
-    if (taken) return null;
+    // políčko mřížky je jedno na celý svět (jako unikátní index v databázi)
+    if (this.cellTaken(input.worldCell)) return null;
     const settlement: Settlement = {
       id: `settlement-${this.nextId++}`,
       isSeat: false,
@@ -76,6 +104,37 @@ export class InMemorySettlements implements SettlementRepository {
     };
     this.settlements.push(settlement);
     return settlement;
+  }
+
+  /** Testovací zkratka: sídelní sídlo hráče na políčku (0, 0) – zakládá se vždy. */
+  async seatAtOrigin(input: {
+    ownerId: string;
+    landscapeSeed: number;
+    layerVersions: LayerVersions;
+  }): Promise<Settlement> {
+    const seat = await this.createSeat({ ...input, worldCell: { x: 0, y: 0 } });
+    if (!seat) throw new Error('Políčko (0, 0) je obsazené.');
+    return seat;
+  }
+
+  async occupiedCells(): Promise<OccupiedCell[]> {
+    return this.settlements.flatMap((s) =>
+      s.worldCell && !this.archived.has(s.id)
+        ? [{ ownerId: s.ownerId, cell: { x: s.worldCell.x, y: s.worldCell.y } }]
+        : [],
+    );
+  }
+
+  private cellTaken(cell: WorldCell): boolean {
+    return this.settlements.some(
+      (s) => !this.archived.has(s.id) && s.worldCell?.x === cell.x && s.worldCell.y === cell.y,
+    );
+  }
+
+  async find(settlementId: string): Promise<Settlement | null> {
+    await Promise.resolve();
+    const found = this.settlements.find((s) => s.id === settlementId);
+    return found && !this.archived.has(settlementId) ? found : null;
   }
 
   async assignWorldCell(settlementId: string, cell: WorldCell): Promise<Settlement | null> {

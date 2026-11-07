@@ -2,6 +2,24 @@ import { length2, type Landscape, type ObstacleLayer } from '../landscape';
 import { buildingLocalToWorld, fellTrees, obstacleChangesAt } from './obstacles';
 import { adultDailyMin, waterFetchingLabor } from './labor';
 import { ageGroup, laborPerDay } from './people';
+import {
+  barsReserveKg,
+  bloomKg,
+  forgeStep,
+  ironBarsKg,
+  ironDeficit,
+  ironDeficitCharcoalKg,
+  ironWorkManDays,
+  refineStep,
+  smeltRate,
+  smeltStep,
+  smithBellows,
+  toolEquipmentKg,
+  toolNeedKg,
+  type BellowsHelper,
+  type IronDeficit,
+} from './iron';
+import { FORGE, REFINE, SMELT, smeltOreKg } from './iron-rates';
 import { workshopSkill } from './craft-skill';
 import { isPlainShape, shapedFootprint, type DwellingShape } from './dwelling-shape';
 import { rectangleCorners, type Point } from './polygon';
@@ -16,7 +34,10 @@ import {
   CRAFT_BASE,
   CRAFT_NEEDS,
   CRAFT_PRODUCTION,
+  DWELLINGS,
   DWELLING_FOOTPRINT_M,
+  HORSES,
+  HORSE_SHOEING,
   SMITH_SUPPLY,
   WOOD_TOOLS,
   WORKSHOP_PORCH_M,
@@ -34,8 +55,10 @@ import type {
   WorkshopActivity,
   WorkshopFelling,
 } from './types';
+import { harvestHandsDay } from './harvest-hands';
 import {
   basketManDaysPerKg,
+  craftHands,
   migratePotter,
   migrateSmith,
   potteryClayKg,
@@ -85,6 +108,8 @@ import {
 // ve společné práci) a jí ze společných zásob. Výroba se nezastaví, dokud jsou vstupy – co ves
 // nespotřebuje, zůstane v zásobě; bez vstupu dílna stojí. Výrobky ve vsi se opotřebují a jejich
 // zásoba proti potřebě dává pokrytí 0–1, které posouvá meze produktivity (productivity.ts).
+// Kovář taví z rudy a uhlí železnou houbu, překove ji na hřivny a z hřiven kove nástroje do
+// vybavení domácností (production-chains.md – Kovář, iron.ts).
 // Kroky simulace mutují stav – volat na klonu; den po dni, na kouscích nezávisí.
 
 /** Tolerance proti chybám desetinných čísel (práce, palivo). */
@@ -94,8 +119,8 @@ const MAX_STEPS = 64;
 const DAYS_PER_YEAR = 365;
 /**
  * Opotřebení a rozbití za den – podíl věcí v užívání. Ves, která potřebu drží pokrytou, ročně
- * nahradí právě 30 % nástrojů a 40 % nádob (crafts.md – Pro představu: 40 pracujících ≈ 36 kg
- * nástrojů ročně).
+ * nahradí právě 30 % nástrojů ve vybavení a 40 % nádob (crafts.md – Pro představu: 40 pracujících
+ * ≈ 36 kg nástrojů ročně).
  */
 const TOOL_WEAR_PER_DAY = CRAFT_NEEDS.toolWearPerYear / DAYS_PER_YEAR;
 const POTTERY_BREAKAGE_PER_DAY = CRAFT_NEEDS.potteryBreakagePerYear / DAYS_PER_YEAR;
@@ -103,7 +128,7 @@ const POTTERY_BREAKAGE_PER_DAY = CRAFT_NEEDS.potteryBreakagePerYear / DAYS_PER_Y
 const WOOD_TOOLS_WEAR_PER_DAY = WOOD_TOOLS.wearPerYear / DAYS_PER_YEAR;
 
 /** Zásoby vsi bez řemesel. */
-export const NO_STOCKS: CraftStocks = { charcoalKg: 0, toolsKg: 0, potteryKg: 0 };
+export const NO_STOCKS: CraftStocks = { charcoalKg: 0, potteryKg: 0 };
 
 /** Názvy řemesel a dílen pro hráče (1. pád). */
 export const CRAFT_NAMES: Readonly<Record<Craft, string>> = {
@@ -118,7 +143,7 @@ export function craftStocks(state: Pick<VillageState, 'crafts'>): CraftStocks {
   return state.crafts ?? NO_STOCKS;
 }
 
-/** Potřeba výrobků řemeslníků (kg): nástroje, nádoby a dřevěné nářadí. */
+/** Potřeba výrobků řemeslníků (kg): nástroje ve vybavení, nádoby a dřevěné nářadí. */
 export interface CraftNeeds {
   toolsKg: number;
   potteryKg: number;
@@ -132,7 +157,7 @@ export interface CraftNeeds {
 export function craftNeeds(state: Pick<VillageState, 'people'>, day: number): CraftNeeds {
   const workers = state.people.filter((p) => ageGroup(p, day) !== 'child').length;
   return {
-    toolsKg: CRAFT_NEEDS.toolsKgPerWorker * workers,
+    toolsKg: toolNeedKg(state, day),
     potteryKg: CRAFT_NEEDS.potteryKgPerPerson * state.people.length,
     woodToolsKg: WOOD_TOOLS.kgPerWorker * workers,
   };
@@ -145,39 +170,46 @@ function coverageOf(stockKg: number, needKg: number): number {
 }
 
 /**
- * Pokrytí potřeby výrobků řemeslníků v den `day` (crafts.md – Meze produktivity): zásoba
- * nástrojů ÷ potřeba pracujících a zásoba keramiky ÷ potřeba všech lidí, nejvýš 1; dřevěné
- * nářadí od tesaře ÷ potřeba pracujících (wagons.md – jen když nějaké je, jinak chybí = 0). Ves
- * bez zásob (i uložená před řemesly) má pokrytí 0 – platí nejhorší meze.
+ * Pokrytí potřeby výrobků řemeslníků v den `day` (crafts.md – Meze produktivity): nástroje ve
+ * vybavení domácností ÷ potřeba pracujících (production-chains.md – Nástroje jako vybavení
+ * domácností) a zásoba keramiky ÷ potřeba všech lidí, nejvýš 1; dřevěné nářadí od tesaře ÷ potřeba
+ * pracujících (wagons.md – jen když nějaké je, jinak chybí = 0). Ves bez nástrojů a zásob (i uložená
+ * před řemesly) má pokrytí 0 – platí nejhorší meze. Hřivny pokrytí nedávají – nástroje z nich
+ * teprve kove kovář.
  */
 export function craftCoverage(
-  state: Pick<VillageState, 'people' | 'crafts'>,
+  state: Pick<VillageState, 'people' | 'crafts' | 'toolEquipmentKg'>,
   day: number,
 ): CraftCoverage {
   const stocks = state.crafts;
+  const equipment = toolEquipmentKg(state);
+  const pottery = stocks?.potteryKg ?? 0;
   const woodTools = stocks?.woodToolsKg ?? 0;
-  if (!stocks || (stocks.toolsKg <= 0 && stocks.potteryKg <= 0 && woodTools <= 0)) {
-    return NO_CRAFTS;
-  }
+  if (equipment <= 0 && pottery <= 0 && woodTools <= 0) return NO_CRAFTS;
   const needs = craftNeeds(state, day);
   return {
-    tools: coverageOf(stocks.toolsKg, needs.toolsKg),
-    pottery: coverageOf(stocks.potteryKg, needs.potteryKg),
+    tools: coverageOf(equipment, needs.toolsKg),
+    pottery: coverageOf(pottery, needs.potteryKg),
     ...(woodTools > 0 ? { woodTools: coverageOf(woodTools, needs.woodToolsKg) } : {}),
   };
 }
 
 /**
- * Jeden den opotřebení (mutuje stav): z nástrojů v užívání ubyde 30 % / 365 denně, z nádob
- * 40 % / 365. V užívání je nejvýš tolik, kolik ves potřebuje – přebytek v zásobě leží
- * (crafts.md).
+ * Jeden den opotřebení (mutuje stav): z nástrojů ve vybavení domácností v užívání ubyde 30 % / 365
+ * denně, z nádob 40 % / 365. V užívání je nejvýš tolik, kolik ves potřebuje – přebytek leží
+ * (crafts.md). Hřivny a houba se neopotřebují.
  */
 export function wearCraftStocks(state: VillageState, day: number): void {
   const stocks = state.crafts;
+  const equipment = toolEquipmentKg(state);
+  const pottery = stocks?.potteryKg ?? 0;
   const woodTools = stocks?.woodToolsKg ?? 0;
-  if (!stocks || (stocks.toolsKg <= 0 && stocks.potteryKg <= 0 && woodTools <= 0)) return;
+  if (equipment <= 0 && pottery <= 0 && woodTools <= 0) return;
   const needs = craftNeeds(state, day);
-  stocks.toolsKg -= Math.min(stocks.toolsKg, needs.toolsKg) * TOOL_WEAR_PER_DAY;
+  if (equipment > 0) {
+    state.toolEquipmentKg = equipment - Math.min(equipment, needs.toolsKg) * TOOL_WEAR_PER_DAY;
+  }
+  if (!stocks) return;
   stocks.potteryKg -= Math.min(stocks.potteryKg, needs.potteryKg) * POTTERY_BREAKAGE_PER_DAY;
   // dřevěné nářadí od tesaře (wagons.md) – jen vsi, které nějaké mají
   if (woodTools > 0) {
@@ -213,11 +245,58 @@ export function craftHouseholds(
 ): Set<number> {
   const households = new Set<number>();
   if (!state.dwellings.some((d) => d.workshop)) return households;
-  const occupied = new Set(state.people.map((p) => p.dwellingId));
+  const counts = new Map<number, number>();
+  for (const p of state.people) counts.set(p.dwellingId, (counts.get(p.dwellingId) ?? 0) + 1);
   for (const d of state.dwellings) {
-    if (d.workshop && occupied.has(d.id) && !resting.has(d.id)) households.add(d.id);
+    const count = counts.get(d.id) ?? 0;
+    // Dílna přeplněná přistěhovanými (evakuace bez jiného domu) nemá řemeslnickou domácnost –
+    // lidé pracují vsí (návrh Clauda).
+    if (d.workshop && count > 0 && count <= DWELLINGS[d.type].capacity && !resting.has(d.id)) {
+      households.add(d.id);
+    }
   }
   return households;
+}
+
+/**
+ * Lehčí práce žen domácností dílen, které dnes pracují v dílně (`households` – `craftHouseholds`):
+ * zbytek jejich práce po denním minimu jde do práce vsi (crafts.md – Kdo dělá řemeslo; Martin
+ * 22. 10. 2026: „Ženy řemeslníků se starají o domácnost a k tomu dělají lehčí polní práce se
+ * vsí“). Vrací člověkodny před štěstím (jako kapacita vsi v `allocateDay`).
+ */
+export function craftLightLabor(
+  state: VillageState,
+  day: number,
+  households: ReadonlySet<number>,
+  potteryCoverage: number,
+  productivity: number,
+): number {
+  if (households.size === 0 || productivity <= 0) return 0;
+  let light = 0;
+  for (const id of households) {
+    light += workshopLabor(state, day, id, potteryCoverage, productivity).light;
+  }
+  return light / productivity;
+}
+
+/**
+ * Žňové ruce dílen (fields.md – Žně všemi rukama): práce řemeslníků a synů domácností dílen,
+ * které dnes pracují (`households`), ve žňový den (`WorkshopLabor.harvest`). Člověkodny před
+ * štěstím (jako `craftLightLabor`).
+ */
+export function craftHarvestLabor(
+  state: VillageState,
+  day: number,
+  households: ReadonlySet<number>,
+  potteryCoverage: number,
+  productivity: number,
+): number {
+  if (households.size === 0 || productivity <= 0 || !harvestHandsDay(state, day)) return 0;
+  let hands = 0;
+  for (const id of households) {
+    hands += workshopLabor(state, day, id, potteryCoverage, productivity).harvest;
+  }
+  return hands / productivity;
 }
 
 /** Obývané dílny řemesla `craft` v pořadí id. */
@@ -231,7 +310,9 @@ export function occupiedWorkshops(state: VillageState, craft: Craft): Dwelling[]
 /**
  * Zásoba, do které řemeslníci vyrábějí (kg, crafts.md – Podle potřeby, návrh Clauda): potřeba vsi
  * a k ní opotřebení za CRAFT_NEEDS.reserveYears – nástroje potřeba × 1,3, keramika × 1,4. Ves
- * s takovou zásobou má potřebu pokrytou i za rok, kdy se část opotřebí.
+ * s takovou zásobou má potřebu pokrytou i za rok, kdy se část opotřebí. Nástroje do vybavení takto
+ * kupuje ves bez kováře u sousedů (crafts.md – Nákup u sousedů); kovář drží vybavení na potřebě
+ * a zásobu na rok obnovy v hřivnách (`smithBarsTargetKg` – production-chains.md, Kovář).
  */
 export function craftTargets(state: Pick<VillageState, 'people'>, day: number): CraftNeeds {
   const needs = craftNeeds(state, day);
@@ -252,26 +333,91 @@ export function cartAwaitingIron(workshop: Pick<Workshop, 'cart'>): boolean {
   return !!cart && cart.done + EPSILON >= CARPENTRY.cartManDays[cart.kind];
 }
 
+/** Hřivny na kování k vozu druhu `kind` (kg – wagons.md, Kování vozů; production-chains.md). */
+export function cartIronBarsKg(kind: keyof typeof CART_IRON.kg): number {
+  return CART_IRON.kg[kind] * FORGE.barsKgPerKg;
+}
+
 /**
- * Zakázka kování pro vlastního kováře (kg – wagons.md, Kování vozů): vozy, které čekají na kování
- * a pro které nikdo nejde jinam (`ironTrip`). Kovář ho vyrobí přednostně – kove, dokud zásoba
- * nástrojů nepokryje zásobu do potřeby vsi i zakázku (`smithToolsTarget`).
+ * Zakázka kování pro vlastního kováře (kg hřiven – wagons.md, Kování vozů; production-chains.md –
+ * Kovář): vozy, které čekají na kování a pro které nikdo nejde jinam (`ironTrip`). Kovář na ně
+ * taví a překovává přednostně – hřivny drží i na zakázku (`smithBarsTargetKg`).
  */
-export function ironOrderKg(state: Pick<VillageState, 'dwellings'>): number {
+export function ironOrderBarsKg(state: Pick<VillageState, 'dwellings'>): number {
   let kg = 0;
   for (const d of state.dwellings) {
     const workshop = d.workshop;
     if (workshop?.craft !== 'carpenter' || workshop.ironTrip || !cartAwaitingIron(workshop)) {
       continue;
     }
-    kg += CART_IRON.kg[workshop.cart!.kind];
+    kg += cartIronBarsKg(workshop.cart!.kind);
   }
   return kg;
 }
 
-/** Do jaké zásoby nástrojů kováři kovou (kg): zásoba do potřeby vsi a zakázka kování k vozům. */
-export function smithToolsTarget(state: VillageState, day: number): number {
-  return craftTargets(state, day).toolsKg + ironOrderKg(state);
+/**
+ * Hřivny na příští kování jezdeckých koní (kg – horses.md, Kování): jezdecké koně (samci od 3 let)
+ * × hřivny na koně. Bez importu `horses.ts` (cyklus modulů), proto vlastní počítání z ohrad.
+ */
+export function shoeingBarsKg(state: Pick<VillageState, 'pens'>, day: number): number {
+  let horses = 0;
+  for (const pen of state.pens ?? []) {
+    if (pen.species !== 'horse') continue;
+    for (const horse of pen.horses ?? []) {
+      const ageYears = (day - horse.bornDay) / 365.25;
+      if (horse.sex === 'male' && ageYears >= HORSES.foalUntilYears) horses++;
+    }
+  }
+  return horses * HORSE_SHOEING.ironBarsKg;
+}
+
+/**
+ * Zásoba hřiven, kterou kováři drží (kg – production-chains.md, Kovář): na rok obnovy vybavení
+ * (`barsReserveKg`) a zakázka kování k vozům.
+ */
+export function smithBarsTargetKg(state: VillageState, day: number): number {
+  return barsReserveKg(state, day) + ironOrderBarsKg(state) + shoeingBarsKg(state, day);
+}
+
+/**
+ * Co kovárnám vsi chybí (production-chains.md – Kovář): nástroje do potřeby vybavení domácností,
+ * hřivny do zásoby a na ty nástroje, houba na hřivny – přebytky se netaví.
+ */
+export function smithIronDeficit(state: VillageState, day: number): IronDeficit {
+  return ironDeficit({
+    equipmentKg: toolEquipmentKg(state),
+    needKg: toolNeedKg(state, day),
+    barsKg: ironBarsKg(state),
+    bloomKg: bloomKg(state),
+    barsTargetKg: smithBarsTargetKg(state, day),
+  });
+}
+
+/**
+ * Nemá kovář dnes v dílně práci aspoň na celý den (návrh Clauda – production-chains.md, Kovář)?
+ * Kovárna jde do práce, až chybějící nástroje, hřivny a houba dají práci na celý den dílny
+ * (`ironWorkManDays` – s měchařem, sám kovář taví pomaleji); do té doby domácnost pracuje se vsí.
+ * Vybavení tak klesne nejvýš o den práce kovárny, práce dílny nepropadá.
+ */
+function smithRests(
+  state: VillageState,
+  day: number,
+  smithId: number,
+  labor: Pick<WorkshopLabor, 'craft' | 'skill'>,
+  deficit: IronDeficit,
+): boolean {
+  const work = ironWorkManDays(deficit, labor.skill, smeltRate(smithBellows(state, smithId, day)));
+  return work <= EPSILON || work + EPSILON < labor.craft;
+}
+
+/**
+ * Musí kovárna k dnešní práci tavit (production-chains.md – Kovář) – chybějící nástroje ani hřivny
+ * nepokryje hřivnami a houbou, které má?
+ */
+function onlySmelting(state: VillageState, deficit: IronDeficit): boolean {
+  const canForge = deficit.forgeKg > EPSILON && ironBarsKg(state) > EPSILON;
+  const canRefine = deficit.barsKg > EPSILON && bloomKg(state) > EPSILON;
+  return deficit.bloomKg > EPSILON && !canForge && !canRefine;
 }
 
 /** Kdo je dnes na cestě pro kování (id lidí – wagons.md, Kování vozů). */
@@ -286,9 +432,9 @@ export function ironTravellers(state: Pick<VillageState, 'dwellings'>): Set<numb
 
 /**
  * Kolik uhlí ročně kováři vsi spálí (kg) – odhad spotřeby, dokud se nenasbírá rok měření (crafts.md
- * – Rovnováha uhlíř – kovář): nástroje, které ves za rok opotřebí, a co chybí do zásoby
- * (`craftTargets`), po 50 kg uhlí na kg – nejvýš kolik kováři při dnešní práci vykovají za rok na
- * plný úvazek. Bez kováře 0.
+ * – Rovnováha uhlíř – kovář): nástroje, které ves za rok opotřebí, po 50 kg uhlí na kg celým
+ * řetězem, a uhlí na to, co kovárnám chybí (nástroje, hřivny a houba – production-chains.md,
+ * Kovář) – nejvýš kolik kováři při dnešní práci spálí za rok na plný úvazek. Bez kováře 0.
  */
 export function smithsCharcoalPerYear(
   state: VillageState,
@@ -304,17 +450,17 @@ export function smithsCharcoalPerYear(
         labor: forgeLabor(workshopLabor(state, day, d.id, coverage.pottery, productivity)),
       })),
     ) * DAYS_PER_YEAR;
-  const needs = craftNeeds(state, day);
-  const missing = Math.max(0, smithToolsTarget(state, day) - craftStocks(state).toolsKg);
-  const toolsPerYear = needs.toolsKg * CRAFT_NEEDS.toolWearPerYear + missing;
-  return Math.min(fullTime, toolsPerYear * CRAFT_PRODUCTION.toolCharcoalKgPerKg);
+  const wearPerYear =
+    toolNeedKg(state, day) * CRAFT_NEEDS.toolWearPerYear * CRAFT_PRODUCTION.toolCharcoalKgPerKg;
+  const missing = ironDeficitCharcoalKg(smithIronDeficit(state, day));
+  return Math.min(fullTime, wearPerYear + missing);
 }
 
 /**
  * Kolik uhlí kováři vsi dnes spálí (kg) – podle toho uhlíř vytahá uhlí z vypáleného milíře
- * (crafts.md – Milíř stojí vždy): kováři, kteří dnes kovou (zásoba nástrojů je pod `craftTargets`),
- * na plný úvazek při dnešní práci, po 50 kg uhlí na kg nástrojů. Bez kováře, nebo s plnou zásobou
- * nástrojů 0.
+ * (crafts.md – Milíř stojí vždy): kováři, kteří dnes mají v dílně práci na celý den (`smithRests`
+ * – production-chains.md, Kovář), na plný úvazek při dnešní práci, po 50 kg uhlí na kg nástrojů
+ * celým řetězem. Bez kováře, nebo když kováři dnes pracují se vsí, 0.
  */
 export function smithsForgeCharcoalKg(
   state: VillageState,
@@ -324,21 +470,22 @@ export function smithsForgeCharcoalKg(
 ): number {
   const smiths = occupiedWorkshops(state, 'smith');
   if (smiths.length === 0) return 0;
-  if (craftStocks(state).toolsKg >= smithToolsTarget(state, day)) return 0;
-  return smithForgeCharcoalKg(
-    smiths.map((d) => ({
-      labor: forgeLabor(workshopLabor(state, day, d.id, coverage.pottery, productivity)),
-    })),
-  );
+  const deficit = smithIronDeficit(state, day);
+  const working = smiths.flatMap((d) => {
+    const labor = workshopLabor(state, day, d.id, coverage.pottery, productivity);
+    return smithRests(state, day, d.id, labor, deficit) ? [] : [{ labor: forgeLabor(labor) }];
+  });
+  return working.length > 0 ? smithForgeCharcoalKg(working) : 0;
 }
 
 /**
  * Řemeslníci, kteří dnes nemají v dílně co dělat, a jejich domácnost proto pracuje se vsí jako
  * ostatní (id obydlí; crafts.md – Podle potřeby, Martin 18. 10. 2026: „pokud uhlíř a kovář budou
  * mít volný čas, ať pracují na poli jako zbytek vesnice“):
- * - kovář, když zásoba nástrojů dosáhla `craftTargets`, nebo nemá uhlí (ani dnes nikdo nevytahá
- *   uhlí z vypáleného milíře), nebo nemá rudu a není kde ji kopat (`no-ore` – crafts.md, Uhlí
- *   a ruda kováře),
+ * - kovář, když nemá v dílně práci na celý den – nástroje ve vybavení, hřivny na rok obnovy
+ *   i houba stačí (`smithRests` – production-chains.md, Kovář), nebo nemá uhlí (ani dnes nikdo
+ *   nevytahá uhlí z vypáleného milíře), nebo musí tavit a nemá rudu ani kde ji kopat (`no-ore` –
+ *   crafts.md, Uhlí a ruda kováře),
  * - hrnčíř, když zásoba keramiky dosáhla `craftTargets`, nebo nemá palivo ani z čeho kácet,
  * - uhlíř (crafts.md – Rovnováha uhlíř – kovář), když nemá rozdělaný milíř, další ještě nezačíná
  *   (uhlí ve vsi stačí na dobu cyklu a rezervu), dnes nevytahá uhlí pro kováře (`burnerPlans`)
@@ -361,16 +508,22 @@ export function restingCrafters(
   if (!state.dwellings.some((d) => d.workshop)) return resting;
   const stocks = craftStocks(state);
   const targets = craftTargets(state, day);
-  // kování k vozům kovář vyrobí přednostně jako zakázku (wagons.md – Kování vozů)
-  const toolsTarget = targets.toolsKg + ironOrderKg(state);
   // uhlíři napřed – kolik uhlí dnes kovářům vytahají z vypálených milířů
   const loose = restingBurners(state, day, obstacles, plans, resting);
-  for (const d of occupiedWorkshops(state, 'smith')) {
+  const smiths = occupiedWorkshops(state, 'smith');
+  // co kovárnám chybí – i hřivny na zakázku kování k vozům (wagons.md – Kování vozů)
+  const deficit = smiths.length > 0 ? smithIronDeficit(state, day) : null;
+  for (const d of smiths) {
     const workshop = d.workshop!;
-    if (stocks.toolsKg >= toolsTarget) resting.set(d.id, 'resting');
+    const labor = workshopLabor(state, day, d.id, coverage.pottery, productivity);
+    if (smithRests(state, day, d.id, labor, deficit!)) resting.set(d.id, 'resting');
     else if (loose <= 0) resting.set(d.id, 'no-charcoal');
-    // bez rudy a bez místa, kde ji kopat (crafts.md – Uhlí a ruda kováře)
-    else if (workshop.oreSite === null && (workshop.oreKg ?? 1) <= 0) {
+    // musí tavit, a nemá rudu ani kde ji kopat (crafts.md – Uhlí a ruda kováře)
+    else if (
+      onlySmelting(state, deficit!) &&
+      workshop.oreSite === null &&
+      (workshop.oreKg ?? 1) <= 0
+    ) {
       resting.set(d.id, 'no-ore');
     }
   }
@@ -572,6 +725,16 @@ export interface WorkshopLabor {
   capacity: number;
   dailyMin: number;
   craft: number;
+  /**
+   * Práce žen domácnosti, která po denním minimu zbyla (čd po štěstí) – lehčí polní práce se vsí
+   * (crafts.md – Kdo dělá řemeslo); `workCrafts` ji nepoužije, do práce vsi ji přidá krok práce.
+   */
+  light: number;
+  /**
+   * Práce řemeslníka a synů ve žňový den (fields.md – Žně všemi rukama, `harvestHandsDay`; čd po
+   * štěstí) – jde na žeň a výmlat se vsí (`craftHarvestLabor`), řemeslo (`craft`) ten den stojí.
+   */
+  harvest: number;
   skill: number;
 }
 
@@ -613,7 +776,21 @@ export function workshopLabor(
   const water = waterFetchingLabor(members.length, dwelling?.waterWalkM);
   const minimum = dailyMinPerHousehold(potteryCoverage) + water;
   const dailyMin = take(adultDailyMin(minimum, elders, productivity));
-  return { capacity, dailyMin, craft: left, skill: workshopSkill(state, dwellingId, day, away) };
+  // řemeslo dělá jen řemeslník a jeho synové; zbytek práce žen jde do lehčích prací se vsí
+  const handsCapacity =
+    craftHands(members, day).reduce((sum, p) => sum + laborPerDay(p, day), 0) * productivity;
+  const hands = Math.min(left, handsCapacity);
+  // ve žňový den jde řemeslník se syny na pole (fields.md – Žně všemi rukama; Martin 24. 10. 2026:
+  // „Dílny i vojvodova rodina“), ženy dál domácnost a lehčí práce
+  const harvest = harvestHandsDay(state, day);
+  return {
+    capacity,
+    dailyMin,
+    craft: harvest ? 0 : hands,
+    light: left - hands,
+    harvest: harvest ? hands : 0,
+    skill: workshopSkill(state, dwellingId, day, away),
+  };
 }
 
 /** Kam práce dílny dnes šla – rozdělení práce dne pro postavy (labor-report.ts). */
@@ -647,6 +824,13 @@ export interface WorkshopDay {
   ore?: { manDays: number; ages: number[]; x: number; z: number };
   /** Hrnčíř: kopání hlíny na hliništi (čd), kdo kope (věky) a místo (m – crafts.md, Hlína). */
   clay?: { manDays: number; ages: number[]; x: number; z: number };
+  /**
+   * Kovář (production-chains.md – Kovář): tavba v redukční peci – práce (čd, v `making`), kolik
+   * houby vytavil (kg) a kdo šlapal měch (null – kovář sám, polovičním tempem); bez tavby chybí.
+   */
+  smelt?: { manDays: number; bloomKg: number; bellows: BellowsHelper | null };
+  /** Kovář: překování houby na hřivny – práce (čd, v `making`) a hřivny (kg); jinak chybí. */
+  refine?: { manDays: number; barsKg: number };
 }
 
 /**
@@ -752,6 +936,8 @@ function workWithWood(
 interface SmithOutput extends WorkshopOutput {
   fetch: NonNullable<WorkshopDay['fetch']>;
   ore?: WorkshopDay['ore'];
+  smelt?: WorkshopDay['smelt'];
+  refine?: WorkshopDay['refine'];
   /**
    * Kolik uhlí by kovář dnes spálil, kdyby ho měl dost (kg – podle práce a rudy; crafts.md –
    * Rovnováha uhlíř – kovář: měří se poptávka, ne jen to, co uhlíř stihl dodat).
@@ -887,16 +1073,78 @@ export interface SmithSupply {
    * s nošením a vozem); bez údaje se spočítá v `workCrafts`.
    */
   burners?: ReadonlyMap<number, BurnerPlan>;
+  /**
+   * Měchař u tavby po kovárnách (production-chains.md – Kovář; `smithBellowsToday` – syn, který
+   * šlape měch, ten den nepase); null = kovář sám. Bez údaje se měchař vybere v kovárně
+   * (`smithBellows`).
+   */
+  bellows?: ReadonlyMap<number, BellowsHelper | null>;
+}
+
+/**
+ * Řetěz kovárny pro panel (production-chains.md – Kovář): houba a hřivny u kovárny (kg), zásoba
+ * hřiven, kterou kovář drží (na rok obnovy vybavení a zakázky kování k vozům), nástroje ve
+ * vybavení domácností a jejich potřeba (kg) a kdo u tavby šlape měch (null – kovář sám, taví
+ * polovičním tempem).
+ */
+export interface SmithIronSummary {
+  bloomKg: number;
+  barsKg: number;
+  barsTargetKg: number;
+  equipmentKg: number;
+  needKg: number;
+  bellows: BellowsHelper | null;
+}
+
+/** Řetěz kovárny `smith` v den `day` pro panel (nemění stav). */
+export function smithIronSummary(
+  state: VillageState,
+  smith: Pick<Dwelling, 'id'>,
+  day: number,
+): SmithIronSummary {
+  return {
+    bloomKg: bloomKg(state),
+    barsKg: ironBarsKg(state),
+    barsTargetKg: smithBarsTargetKg(state, day),
+    equipmentKg: toolEquipmentKg(state),
+    needKg: toolNeedKg(state, day),
+    bellows: smithBellows(state, smith.id, day),
+  };
+}
+
+/**
+ * Měchaři u tavby dnes (production-chains.md – Kovář): kovárny, které dnes pracují v dílně (ne
+ * `resting`) a mají co tavit (chybí houba – `smithIronDeficit`), dostanou měchaře (`smithBellows`)
+ * – syna 10–13 jen toho, který dnes nenosí uhlí (`busy`); null = kovář sám. Syna volající přidá
+ * k výrostkům, kteří ten den nepasou (`herdingDay`).
+ */
+export function smithBellowsToday(
+  state: VillageState,
+  day: number,
+  resting: ReadonlyMap<number, WorkshopActivity>,
+  busy: ReadonlySet<number>,
+): Map<number, BellowsHelper | null> {
+  const out = new Map<number, BellowsHelper | null>();
+  const smiths = occupiedWorkshops(state, 'smith').filter((d) => !resting.has(d.id));
+  if (smiths.length === 0 || smithIronDeficit(state, day).bloomKg <= EPSILON) return out;
+  for (const d of smiths) out.set(d.id, smithBellows(state, d.id, day, busy));
+  return out;
 }
 
 /** Bez plánu kováren – synové nenosí, vůz nejede, ruda pěšky. */
 export const NO_SMITH_SUPPLY: SmithSupply = { fetch: new Map(), oreCarts: new Map() };
 
 /**
- * Den kováře (mutuje stav; crafts.md – Výroba, Uhlí a ruda kováře): z práce dílny `labor` napřed
- * donese uhlí, které dnes nenosí synové 10–13 ani vůz (`plan.household`), pak ruda (`workOre` –
- * jízda s vozem, kopání a nošení), zbytek kuje – dokud má práci, uhlí a rudu (8 kg na kg nástrojů).
- * Bez uhlí nebo rudy stojí.
+ * Den kováře (mutuje stav; crafts.md – Výroba, Uhlí a ruda kováře; production-chains.md – Kovář):
+ * z práce dílny `labor` napřed donese uhlí, které dnes nenosí synové 10–13 ani vůz
+ * (`plan.household`), pak řetěz kovárny – co chybí (`smithIronDeficit`):
+ * 1. kove nástroje z hřiven do vybavení domácností (do potřeby vsi),
+ * 2. překove houbu na hřivny (do zásoby na rok obnovy, zakázky kování k vozům a na nástroje),
+ * 3. ruda (`workOre` – jízda s vozem, kopání a nošení) – novou dávku jen, když bude tavit,
+ * 4. taví v redukční peci houbu z rudy a uhlí – s měchařem (`supply.bellows`, jinak
+ *    `smithBellows`), sám kovář polovičním tempem.
+ * Bez praxe všechno pomaleji (crafts.md – Učení řemesla), kopání a nošení ne. Bez uhlí nebo rudy
+ * stojí.
  */
 function workSmith(
   state: VillageState,
@@ -914,49 +1162,100 @@ function workSmith(
   const plan = supply.fetch.get(dwelling.id);
   const fetch = plan ? charcoalFetchEntries(state, dwelling.id, day, plan) : [];
   let left = Math.max(0, labor - (plan?.household ?? 0));
+  const bellows = supply.bellows?.has(dwelling.id)
+    ? (supply.bellows.get(dwelling.id) ?? null)
+    : smithBellows(state, dwelling.id, day);
+  const rate = smeltRate(bellows);
+  const deficit = smithIronDeficit(state, day);
+  // poptávka uhlí (crafts.md – Rovnováha uhlíř – kovář): totéž bez meze uhlí
+  const want = { forge: 0, refine: 0, smelt: 0 };
+  let wantLeft = left;
+  // 1. nástroje z hřiven do vybavení
+  const barsBefore = stocks.ironBarsKg ?? 0;
+  // hřivny na příští kování koní se na nástroje nekují (horses.md – Kování: rezerva hřiven)
+  const forgeBars = Math.max(0, barsBefore - shoeingBarsKg(state, day));
+  const forgeInput = { labor: left, skill, wantedKg: deficit.forgeKg, barsKg: forgeBars };
+  const forge = forgeStep({ ...forgeInput, charcoalKg: stocks.charcoalKg });
+  const forgeWant = forgeStep({ ...forgeInput, charcoalKg: Infinity });
+  want.forge = forgeWant.charcoalKg;
+  wantLeft -= forgeWant.labor;
+  if (forge.kg > EPSILON) {
+    state.toolEquipmentKg = toolEquipmentKg(state) + forge.kg;
+    stocks.ironBarsKg = Math.max(0, barsBefore - forge.kg * FORGE.barsKgPerKg);
+    stocks.charcoalKg = Math.max(0, stocks.charcoalKg - forge.charcoalKg);
+    left -= forge.labor;
+  }
+  // 2. houba na hřivny
+  const bloomBefore = stocks.bloomKg ?? 0;
+  const refineInput = { skill, wantedKg: deficit.barsKg, bloomKg: bloomBefore };
+  const refine = refineStep({ ...refineInput, labor: left, charcoalKg: stocks.charcoalKg });
+  const refineWant = refineStep({ ...refineInput, labor: wantLeft, charcoalKg: Infinity });
+  want.refine = refineWant.charcoalKg;
+  wantLeft -= refineWant.labor;
+  if (refine.kg > EPSILON) {
+    stocks.ironBarsKg = (stocks.ironBarsKg ?? 0) + refine.kg;
+    stocks.bloomKg = Math.max(0, bloomBefore - refine.kg * REFINE.bloomKgPerKg);
+    stocks.charcoalKg = Math.max(0, stocks.charcoalKg - refine.charcoalKg);
+    left -= refine.labor;
+  }
+  // 3. ruda – novou dávku jen, když kovárna bude tavit
+  const smelting = deficit.bloomKg > EPSILON;
   const cartBatch = supply.cartBatch;
   const oreCart = supply.oreCarts.get(dwelling.id);
   const ore = workOre(state, dwelling, left, day, {
     landscape,
     obstacles,
     batchDays: SMITH_SUPPLY.oreBatchDays,
+    needKg: smelting ? (l) => smeltOreKg(l) * rate : () => 0,
     ...(oreCart ? { cart: oreCart } : {}),
     ...(cartBatch ? { cartBatch: (site: OreSite) => cartBatch(dwelling, site, 'ore') } : {}),
   });
+  const oreLabor = left - ore.left;
   left = ore.left;
+  wantLeft = Math.max(0, wantLeft - oreLabor);
   const site = ore.site;
   fetch.push(...dugFetchEntries(state, dwelling.id, day, 'ore', ore));
-  // kovář bez praxe kove pomaleji (crafts.md – Učení řemesla); nošení a kopání rudy ne
-  const manDaysPerKg = CRAFT_PRODUCTION.toolManDaysPerKg / skill;
+  // 4. tavba v redukční peci
   const oreKg = workshop.oreKg ?? 0;
-  const wanted = Math.max(0, Math.min(left / manDaysPerKg, oreKg / SMITH_SUPPLY.oreKgPerToolKg));
-  const kg = Math.max(
-    0,
-    Math.min(wanted, stocks.charcoalKg / CRAFT_PRODUCTION.toolCharcoalKgPerKg),
-  );
-  stocks.toolsKg += kg;
-  stocks.charcoalKg = Math.max(0, stocks.charcoalKg - kg * CRAFT_PRODUCTION.toolCharcoalKgPerKg);
-  workshop.oreKg = Math.max(0, oreKg - kg * SMITH_SUPPLY.oreKgPerToolKg);
+  const smeltInput = { skill, wantedKg: deficit.bloomKg, oreKg, rate };
+  const smelt = smeltStep({ ...smeltInput, labor: left, charcoalKg: stocks.charcoalKg });
+  want.smelt = smeltStep({ ...smeltInput, labor: wantLeft, charcoalKg: Infinity }).charcoalKg;
+  if (smelt.kg > EPSILON) {
+    stocks.bloomKg = (stocks.bloomKg ?? 0) + smelt.kg;
+    stocks.charcoalKg = Math.max(0, stocks.charcoalKg - smelt.charcoalKg);
+    workshop.oreKg = Math.max(0, oreKg - smelt.kg * SMELT.oreKgPerKg);
+  }
+  const making = forge.labor + refine.labor + smelt.labor;
+  // činnost dne – krok, na který šlo nejvíc práce (napřed kování)
+  const steps: [WorkshopActivity, number][] = [
+    ['producing', forge.labor],
+    ['refining', refine.labor],
+    ['smelting', smelt.labor],
+    ['digging', oreLabor],
+  ];
+  const top = steps.reduce((best, step) => (step[1] > best[1] + EPSILON ? step : best));
   const activity: WorkshopActivity =
-    kg > EPSILON
-      ? 'producing'
-      : ore.dig > EPSILON || ore.carry > EPSILON || ore.ride > EPSILON
-        ? 'digging'
-        : labor <= EPSILON
-          ? 'idle'
-          : stocks.charcoalKg <= EPSILON
-            ? 'no-charcoal'
-            : workshop.oreSite === null
-              ? 'no-ore'
-              : 'idle';
+    top[1] > EPSILON
+      ? top[0]
+      : labor <= EPSILON
+        ? 'idle'
+        : stocks.charcoalKg <= EPSILON
+          ? 'no-charcoal'
+          : smelting && workshop.oreSite === null
+            ? 'no-ore'
+            : 'idle';
   return {
     felling: 0,
     fellingTrees: [],
-    making: kg * manDaysPerKg,
-    producedKg: kg,
+    making,
+    producedKg: forge.kg,
     activity,
     fetch,
-    charcoalDemandKg: wanted * CRAFT_PRODUCTION.toolCharcoalKgPerKg,
+    charcoalDemandKg: want.forge + want.refine + want.smelt,
+    ...(smelt.labor > EPSILON
+      ? { smelt: { manDays: smelt.labor, bloomKg: smelt.kg, bellows } }
+      : {}),
+    ...(refine.labor > EPSILON ? { refine: { manDays: refine.labor, barsKg: refine.kg } } : {}),
     ...(site && ore.dig > 0
       ? {
           ore: {
@@ -1154,6 +1453,8 @@ export function workCrafts(
       ...(smith && smith.fetch.length > 0 ? { fetch: smith.fetch } : {}),
       ...(smith?.ore ? { ore: smith.ore } : {}),
       ...(smith?.clay ? { clay: smith.clay } : {}),
+      ...(smith?.smelt ? { smelt: smith.smelt } : {}),
+      ...(smith?.refine ? { refine: smith.refine } : {}),
     });
   }
   // spotřeba uhlí kovářů (poptávka – i co kovář nekoval pro nedostatek uhlí) – klouzavě jen ve vsi

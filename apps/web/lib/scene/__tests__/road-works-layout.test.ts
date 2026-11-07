@@ -19,9 +19,11 @@ import {
   roadBands,
   roadWorksKey,
   stakingLines,
-  SLOPE_GRASS_YEARS,
+  SLOPE_LOOK,
+  earthworkEdges,
   WAGON_STAKING_OFFSET_M,
   earthworkSlopeGrid,
+  nearestAxis,
   wagonStakingLines,
 } from '../road-works-layout';
 import { nearestRoad, pickVillageTarget } from '../village-picking';
@@ -164,15 +166,17 @@ describe('vylepšené cesty ve scéně (road-works-layout)', () => {
     expect(meshes('trodden', { grade: 'improved', progress: 0.4 }).sort()).toEqual(
       ['roads-earth', 'roads-improved-earth', 'roads-improved-worn', 'roads-worn'].sort(),
     );
-    // mimo mokřinu a brod žádné díly (kameny ani strouha nejsou)
-    expect(logPieces([road({ grade: 'improved' })])).toEqual([]);
-    expect(bridgePieces([road({ grade: 'improved' })])).toEqual([]);
+    // bez hatě a lávky (`unbridged`) žádné díly (kameny ani strouha nejsou)
+    expect(logPieces([road({ grade: 'improved', unbridged: true })])).toEqual([]);
+    expect(bridgePieces([road({ grade: 'improved', unbridged: true })])).toEqual([]);
     engine.dispose();
   });
 
   it('hať: kmeny napříč po mokřině na šířku upravené cesty, rozestavěná po podílu průběhu', () => {
-    expect(logPieces([road({ grade: 'improved' })])).toEqual([]);
-    const full = logPieces([road({ grade: 'causeway' })]);
+    // upravená bez hatě (starší cesta) žádnou nemá
+    expect(logPieces([road({ grade: 'improved', unbridged: true })])).toEqual([]);
+    expect(logPieces([road({ grade: 'trodden' })])).toEqual([]);
+    const full = logPieces([road({ grade: 'improved' })]);
     expect(full.length).toBeCloseTo(20 / (LOG_SPACING_M * LOG_SCALE), -1);
     for (const log of full) {
       // kmen dlouhý jako upravená cesta široká (±4 %) – hať navazuje bez zúžení
@@ -183,7 +187,7 @@ describe('vylepšené cesty ve scéně (road-works-layout)', () => {
       expect(Math.abs(Math.abs(log.rotationY) - Math.PI / 2)).toBeLessThan(0.1);
     }
     const half = logPieces([
-      road({ grade: 'improved', upgrade: { grade: 'causeway', progress: 0.5 } }),
+      road({ grade: 'trodden', upgrade: { grade: 'improved', progress: 0.5 } }),
     ]);
     expect(half.length).toBeCloseTo(full.length / 2, -1);
     expect(Math.max(...half.map((l) => l.x))).toBeLessThan(51);
@@ -191,13 +195,13 @@ describe('vylepšené cesty ve scéně (road-works-layout)', () => {
 
   it('lávka přes brod: nejdřív kůly a prahy, pak celá; podél osy', () => {
     expect(
-      bridgePieces([road({ grade: 'improved', upgrade: { grade: 'causeway', progress: 0.1 } })]),
+      bridgePieces([road({ grade: 'trodden', upgrade: { grade: 'improved', progress: 0.1 } })]),
     ).toEqual([]);
     const posts = bridgePieces([
-      road({ grade: 'improved', upgrade: { grade: 'causeway', progress: 0.5 } }),
+      road({ grade: 'trodden', upgrade: { grade: 'improved', progress: 0.5 } }),
     ]);
     expect(posts.map((b) => b.stage)).toEqual(['posts']);
-    const done = bridgePieces([road({ grade: 'causeway' })]);
+    const done = bridgePieces([road({ grade: 'improved' })]);
     expect(done).toHaveLength(1);
     expect(done[0]!).toMatchObject({ x: 70, z: 0, stage: 'deck' });
     expect(done[0]!.ends[1][0] - done[0]!.ends[0][0]).toBeCloseTo(BRIDGE_LENGTH_M, 9);
@@ -209,7 +213,7 @@ describe('vylepšené cesty ve scéně (road-works-layout)', () => {
     expect(improve).toHaveLength(2);
     expect(improve[0]![0]![0]).toBeCloseTo(0, 9);
     const causeway = stakingLines([
-      road({ grade: 'improved', upgrade: { grade: 'causeway', progress: 0.2 } }),
+      road({ grade: 'improved', unbridged: true, upgrade: { grade: 'improved', progress: 0.2 } }),
     ]);
     expect(causeway).toHaveLength(4);
     // provázek po okrajích širší upravené cesty
@@ -272,7 +276,7 @@ describe('výběr úseku cesty kliknutím', () => {
       groundHeight: () => 0,
       cellOf: () => ({ x: 0, y: 0 }),
     };
-    expect(pickVillageTarget(village, ray, options)).toEqual({ kind: 'road', id: 3 });
+    expect(pickVillageTarget(village, ray, options)).toEqual({ kind: 'road', id: 3, segment: 3 });
     expect(pickVillageTarget(village, ray, { ...options, ground: { x: 20, z: 6 } })).toBeNull();
   });
 
@@ -297,10 +301,11 @@ describe('výběr úseku cesty kliknutím', () => {
       groundHeight: () => 0,
       cellOf: () => ({ x: 0, y: 0 }),
     };
-    expect(pickVillageTarget(chain, ray, options)).toEqual({ kind: 'road', id: 2 });
+    expect(pickVillageTarget(chain, ray, options)).toEqual({ kind: 'road', id: 2, segment: 9 });
     expect(pickVillageTarget(chain, ray, { ...options, ground: { x: 130, z: 1 } })).toEqual({
       kind: 'road',
       id: 2,
+      segment: 2,
     });
   });
 });
@@ -326,20 +331,185 @@ describe('vozová cesta ve scéně (roads.md – Vozová cesta)', () => {
   it('hlína na svazích podle úpravy terénu, s věkem zaroste trávou', () => {
     const fresh = earthworkSlopeGrid([earthwork()], (x) => height(x), base, 1)!;
     const old = earthworkSlopeGrid(
-      [earthwork({ pieces: [{ toM: 40, ageYears: SLOPE_GRASS_YEARS }] })],
+      [earthwork({ pieces: [{ toM: 40, ageYears: SLOPE_LOOK.grassYears }] })],
       (x) => height(x),
       base,
       1,
     )!;
     const max = (a: Float32Array): number => Math.max(...a);
     expect(max(fresh.alphas)).toBeGreaterThan(0.9);
-    expect(max(old.alphas)).toBeLessThan(0.2);
+    // po 15 letech jen řídká tráva – hlína pořád prosvítá, nikdy plná tráva (Martin 22. 10. 2026)
+    expect(max(old.alphas)).toBeLessThan(0.55);
+    expect(max(old.alphas)).toBeGreaterThan(0.3);
     // kde se terén nezměnil, hlína není
     const lanes = fresh.positions.length / 2 / profile.length;
     expect(fresh.alphas[0]).toBe(0);
     expect(fresh.alphas[lanes - 1]).toBe(0);
     // nehotová část osy svahy nemá
     expect(earthworkSlopeGrid([earthwork({ shownM: 0 })], (x) => height(x), base, 1)).toBeNull();
+  });
+
+  it('zemní práce bez cesty (přestavba sítě) zaroste i s lemem; kde vede živá, kreslí jen ta', () => {
+    const sum = (g: ReturnType<typeof earthworkSlopeGrid>): number =>
+      g ? g.alphas.reduce((a, b) => a + b, 0) : 0;
+    const grid = (list: SceneEarthwork[]): ReturnType<typeof earthworkSlopeGrid> =>
+      earthworkSlopeGrid(list, (x) => height(x), base, 1);
+    const live = sum(grid([earthwork()]));
+    // hned po přestavbě vypadá stejně, za pár let řidší, za `wildYears` let zarostlá úplně
+    expect(sum(grid([earthwork({ abandonedYears: 0 })]))).toBeCloseTo(live, 3);
+    const later = sum(grid([earthwork({ abandonedYears: 2 })]));
+    expect(later).toBeGreaterThan(0);
+    expect(later).toBeLessThan(live * 0.9);
+    expect(grid([earthwork({ abandonedYears: SLOPE_LOOK.wildYears })])).toBeNull();
+    const edges = earthworkEdges(
+      [earthwork({ abandonedYears: SLOPE_LOOK.wildYears })],
+      (x) => height(x),
+      base,
+      1,
+    );
+    expect(edges.cut).toBeNull();
+    expect(edges.fill).toBeNull();
+    // nová osa 1 m vedle staré: svahy kreslí jen nová – stejně jako sama, stará nic
+    const shifted = earthwork({ id: 2, profile: profile.map((p) => ({ ...p, x: p.x + 1 })) });
+    const alone = grid([shifted])!;
+    const both = grid([earthwork({ abandonedYears: 0 }), shifted])!;
+    const n = alone.alphas.length;
+    expect(Math.max(...both.alphas.slice(0, both.alphas.length - n))).toBe(0);
+    expect([...both.alphas.slice(both.alphas.length - n)]).toEqual([...alone.alphas]);
+  });
+
+  it('hlína jen na strmém svahu, okraje sítě měkké, překryv os se nesčítá (Martin 24. 10. 2026)', () => {
+    // hustý profil (po 1 m), ať jsou vidět konce osy
+    const dense = Array.from({ length: 41 }, (_, k) => ({ x: 0, z: k, y: 1 }));
+    const long = earthwork({ profile: dense });
+    // mírné dorovnání: pláň o 5 cm níž po celé šířce řezu – žádná šmouha, nic vidět
+    const gentle = earthworkSlopeGrid([long], (x) => (Math.abs(x) < 9 ? 2.95 : 3), base, 1);
+    expect(gentle === null || Math.max(...gentle.alphas) < 0.1).toBe(true);
+    // úvoz 1 : 1 – hlína plně, ale první a poslední řez osy bez krytí (žádná rovná hrana)
+    const grid = earthworkSlopeGrid([long], (x) => height(x), base, 1)!;
+    const lanes = grid.positions.length / 2 / dense.length;
+    const section = (k: number): number[] =>
+      Array.from(grid.alphas.slice(k * lanes, (k + 1) * lanes));
+    expect(Math.max(...section(20))).toBeGreaterThan(0.9);
+    expect(Math.max(...section(0))).toBe(0);
+    expect(Math.max(...section(dense.length - 1))).toBe(0);
+    // kraje řezu bez krytí, i když úprava terénu sahá až k nim
+    const wide = earthworkSlopeGrid([long], (x) => 3 - Math.abs(x) * 0.5, base, 1)!;
+    expect(wide.alphas[20 * lanes]).toBe(0);
+    expect(wide.alphas[21 * lanes - 1]).toBe(0);
+    // druhá osa kolmo přes konec první: řezy první osy blíž druhé ose se vytrácejí
+    const across = earthwork({
+      id: 2,
+      profile: Array.from({ length: 41 }, (_, k) => ({ x: k - 20, z: 40, y: 1 })),
+    });
+    const both = earthworkSlopeGrid([long, across], (x) => height(x), base, 1)!;
+    const near = Array.from({ length: lanes }, (_, l) => l).filter((l) => {
+      const v = (38 * lanes + l) * 2;
+      return Math.abs(both.positions[v]!) > 4;
+    });
+    for (const l of near) expect(both.alphas[38 * lanes + l]).toBe(0);
+  });
+
+  it('lem: hrana úvozu světlý, pata náspu tmavý, jen u okraje svahu', () => {
+    // mírnější svah (1 : 2), ať okraj leží ve více řezech
+    const soft = (x: number): number => Math.min(3, 1 + Math.max(0, Math.abs(x) - 2.75) * 0.5);
+    const edges = earthworkEdges([earthwork()], (x) => soft(x), base, 1);
+    // terén je o 2 m výš než pláň = úvoz; násep tu není
+    expect(edges.cut).not.toBeNull();
+    expect(edges.fill).toBeNull();
+    const lanes = edges.cut!.positions.length / 2 / profile.length;
+    const x = (l: number): number => edges.cut!.positions[l * 2]!;
+    for (let l = 0; l < lanes; l++) {
+      // střed pláně (bez změny nad prahem) a daleko od osy lem nemá
+      if (Math.abs(x(l)) < 1 || Math.abs(x(l)) > 8) expect(edges.cut!.alphas[l]).toBe(0);
+    }
+    expect(Math.max(...edges.cut!.alphas)).toBeGreaterThan(0.5);
+    const raised = earthworkEdges(
+      [earthwork()],
+      (x) => 4 - soft(x),
+      () => 1,
+      1,
+    );
+    expect(raised.fill).not.toBeNull();
+    expect(raised.cut).toBeNull();
+  });
+
+  // úvoz 0,8 m a násep 1 m (roads.md, pravidlo 6) musí být plně vidět na rovině i na bočním svahu
+  // terénu 50 %; pláň vodorovná ve výšce osy (3,5 m), svah 1 : 1 k původnímu terénu
+  for (const side of [0, 0.5]) {
+    const cases: [string, number][] = [
+      ['úvoz 0,8 m', 0.8],
+      ['násep 1 m', -1],
+    ];
+    for (const [name, depth] of cases) {
+      it(`${name} plně vidět při bočním sklonu terénu ${side * 100} %`, () => {
+        const floor = 10;
+        const ground = (x: number): number => floor + depth + side * x;
+        const surface = (x: number): number =>
+          floor + Math.sign(depth) * Math.max(0, Math.abs(x) - 1.75);
+        const height = (x: number): number =>
+          depth > 0 ? Math.min(ground(x), surface(x)) : Math.max(ground(x), surface(x));
+        const grid = earthworkSlopeGrid([earthwork()], height, ground, 1)!;
+        expect(grid).not.toBeNull();
+        const lanes = grid.positions.length / 2 / profile.length;
+        // řez uprostřed osy: v pásmu svahu je krytí hlíny plné
+        let best = 0;
+        for (let l = 0; l < lanes; l++) {
+          const x = grid.positions[(lanes + l) * 2]!;
+          if (Math.abs(x) > 2 && Math.abs(x) < 2.6) best = Math.max(best, grid.alphas[lanes + l]!);
+        }
+        expect(best).toBeGreaterThan(0.9);
+        // dorovnání o 5 cm po celé šířce – neviditelné
+        const levelled = earthworkSlopeGrid([earthwork()], (x) => ground(x) - 0.05, ground, 1);
+        expect(levelled === null || Math.max(...levelled.alphas) < 0.05).toBe(true);
+      });
+    }
+  }
+
+  it('konec osy, na který navazuje další zemní práce, se nevytrácí; volný konec ano', () => {
+    const line = (z0: number, z1: number): { x: number; z: number; y: number }[] =>
+      Array.from({ length: z1 - z0 + 1 }, (_, k) => ({ x: 0, z: z0 + k, y: 1 }));
+    const a = earthwork({ id: 1, profile: line(0, 40) });
+    const b = earthwork({ id: 2, profile: line(40, 80) });
+    const grid = earthworkSlopeGrid([a, b], (x) => height(x), base, 1)!;
+    const lanes = grid.positions.length / 2 / 82;
+    const rowMax = (k: number): number =>
+      Math.max(...Array.from(grid.alphas.slice(k * lanes, (k + 1) * lanes)));
+    // společný bod: poslední řez A a první řez B plné, volné konce (0 a 80) bez krytí
+    expect(rowMax(40)).toBeGreaterThan(0.9);
+    expect(rowMax(41)).toBeGreaterThan(0.9);
+    expect(rowMax(0)).toBe(0);
+    expect(rowMax(81)).toBe(0);
+  });
+
+  it('nejbližší osa: vzdálenost k úsečce i k nejbližší z více os', () => {
+    const distance = nearestAxis([
+      [
+        { x: 0, z: 0 },
+        { x: 10, z: 0 },
+      ],
+      [
+        { x: 0, z: 8 },
+        { x: 10, z: 8 },
+      ],
+    ]);
+    expect(distance(5, 3)).toBeCloseTo(3, 6);
+    expect(distance(5, 6)).toBeCloseTo(2, 6);
+    expect(distance(15, 0)).toBeCloseTo(5, 6);
+    expect(distance(5, 0)).toBe(0);
+  });
+
+  it('lem úvozu leží vně strmého svahu i na bočním svahu terénu', () => {
+    const ground = (x: number): number => 10.8 + 0.5 * x;
+    const surface = (x: number): number => 10 + Math.max(0, Math.abs(x) - 1.75);
+    const edges = earthworkEdges([earthwork()], (x) => Math.min(ground(x), surface(x)), ground, 1);
+    expect(edges.cut).not.toBeNull();
+    const lanes = edges.cut!.positions.length / 2 / profile.length;
+    for (let l = 0; l < lanes; l++) {
+      // v pláni (|x| < 1,2) lem není
+      if (Math.abs(edges.cut!.positions[l * 2]!) < 1.2) expect(edges.cut!.alphas[l]).toBe(0);
+    }
+    expect(Math.max(...edges.cut!.alphas)).toBeGreaterThan(0.5);
   });
 
   it('vytyčení: nehotová část stavby a náhled trasy po obou okrajích vozovky', () => {

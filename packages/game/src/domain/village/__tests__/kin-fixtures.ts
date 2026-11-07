@@ -58,8 +58,8 @@ export function village(
     fields: [],
     parts: [],
     constructions: [],
-    plan: null,
-    threshingFromPlan: null,
+    season: null,
+    threshingSeason: null,
     storesKg: 0,
     domesticBacklog: 0,
     hungry: false,
@@ -78,4 +78,28 @@ export function couple(
     { ...husband, sex: 'male', spouse: wife.id },
     { ...wife, sex: 'female', spouse: husband.id },
   ];
+}
+
+/** Vojvoda sledované vsi (`trackedVillage`). */
+export const LINE_LORD_ID = 10;
+
+/** Sledovaná ves – vojvoda LINE_LORD_ID v dvorci (1); příznak rodu má on a jeho synové. */
+export function trackedVillage(
+  specs: KinSpec[],
+  dwellings = [dwelling(1), dwelling(2), dwelling(3)],
+  extra: Partial<VillageState> = {},
+): VillageState {
+  const s = village(
+    specs.map((k) => kin(k)),
+    dwellings,
+    {
+      manorId: 1,
+      dynasty: { lordId: LINE_LORD_ID, lords: [{ id: LINE_LORD_ID, fromDay: DAY }] },
+      ...extra,
+    },
+  );
+  for (const p of s.people) {
+    if (p.sex === 'male' && (p.id === LINE_LORD_ID || p.fatherId === LINE_LORD_ID)) p.line = true;
+  }
+  return s;
 }

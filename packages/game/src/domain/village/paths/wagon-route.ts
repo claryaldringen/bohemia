@@ -3,7 +3,10 @@ import { obstacleStatus, type ObstacleChanges } from '../obstacles';
 import {
   CART_ROUTES,
   CART_SPEED,
+  CEMETERY_FENCE_INSET_M,
+  FENCE_CLEARANCE,
   OBSTACLE_COST,
+  PEN_FENCE_INSET_M,
   ROAD_SWATH,
   SACRED_BUILDINGS,
   TEAM_TRAVEL,
@@ -12,12 +15,22 @@ import {
 import { sacredSitesOf } from '../sacred';
 import type { RoadGrade, RoadGround, RoadLining, RoadProfilePoint } from '../types';
 import { isWoodTreeId } from '../woods';
-import { CART_HEADINGS, CART_HEADING_LENGTHS, CART_HEADING_VIA, cartRoadSpeed } from './cart';
+import {
+  CART_HEADINGS,
+  CART_HEADING_LENGTHS,
+  CART_HEADING_VIA,
+  cartRoadSpeed,
+  roadBandCells,
+} from './cart';
 import { editedHeight, terrainEditsFrom, type TerrainEdits } from './earthworks';
+import { type FenceOutline } from './entrances';
+import { fenceClearance } from './fences';
+import { fenceBand, gridFences } from './network-grid';
 import {
   PathHeap,
   buildingBounds,
   cellsIn,
+  fencedCells,
   inBuilding,
   penPathSquares,
   simplifyPathLine,
@@ -110,10 +123,22 @@ export interface WagonGrid extends GridWindow {
   blocked: Uint8Array;
   /** 1 = u posvátného stromu – nikdy tudy (ani u konce cesty). */
   sacred: Uint8Array;
+  /**
+   * `blocked` bez okrajů staveb (domy, pozemky… s půl vozovkou) – po staré cestě se stavby měří
+   * přesně v bodech osy (`wagonAxisBlocked`), ne po buňkách.
+   */
+  barred: Uint8Array;
   /** Nejvýš o kolik metrů se tu terén smí upravit (úvoz i násep) – u staveb a vody méně. */
   limit: Float32Array;
   /** Kácení průseku (čd na metr cesty buňkou) – stromy a podrost v lese. */
   clearing: Float32Array;
+  /**
+   * 1 = pruh u plotu hřbitova či ohrady (do `FENCE_CLEARANCE.nearM`) – trasa tu stojí `nearCost`
+   * krát víc (paths.md – Odstup od plotu); buňky blíž než `axisM` jsou v `blocked`.
+   */
+  nearFence: Uint8Array;
+  /** Ploty hřbitovů a ohrad v okně – osa k nim přesně nesmí blíž než `FENCE_CLEARANCE.axisM`. */
+  fences: readonly FenceOutline[];
   /** Sklon terénu po buňkách (m/m ve směru x a z). */
   gx: Float32Array;
   gz: Float32Array;
@@ -136,21 +161,16 @@ function cellAt(grid: GridWindow, x: number, z: number): number {
   return j * grid.width + i;
 }
 
-/** Buňky pod osami pevných cest (body osy po třetině buňky – jako vozová síť). */
+/**
+ * Buňky pod pevnými cestami – pás `roadBandCells` jako vozová síť (vůz pevnou cestu projede i šikmo
+ * lesem nebo polem).
+ */
 function roadCells(grid: GridWindow, roads: PathVillage['roads']): Uint8Array {
   const out = new Uint8Array(grid.width * grid.height);
-  const step = grid.cellM / 3;
   for (const road of roads ?? []) {
-    const pts = road.points;
-    for (let k = 1; k < pts.length; k++) {
-      const a = pts[k - 1]!;
-      const b = pts[k]!;
-      const n = Math.max(1, Math.ceil(length2(b.x - a.x, b.z - a.z) / step));
-      for (let q = 0; q <= n; q++) {
-        const c = cellAt(grid, a.x + ((b.x - a.x) * q) / n, a.z + ((b.z - a.z) * q) / n);
-        if (c >= 0) out[c] = 1;
-      }
-    }
+    roadBandCells(grid, road.points, (c) => {
+      out[c] = 1;
+    });
   }
   return out;
 }
@@ -197,7 +217,8 @@ function seedDistance(grid: GridWindow, seed: Uint8Array, cap: number): Float32A
 /**
  * Mřížka pro trasu vozové cesty (roads.md – Vozová cesta): zakázané jako u vozové sítě – voda
  * jen brodem, sráz, balvany a výchozy, osetý díl (a křoviny, mladý les – kromě dílů pod pevnou
- * cestou), sad, hřbitov, ohrada (i jejich okraj), okrsek svatyně, domy, pozemky, staveniště,
+ * cestou), sad (i okraj), hřbitov a ohrada uvnitř plotu (ulička 3 m mezi nimi průjezdná – jako
+ * `cart.ts`), okrsek svatyně, domy, pozemky, staveniště,
  * milíř a modla s půl vozovkou, posvátné duby a háje (i s pláni kolem – průsek by je vykácel)
  * a samotné stromy a keře mimo les (cesta je objede). Les ano – stromy a podrost se vykácí jako
  * průsek (`clearing` – čd na metr podle tabulky překážek). Kolik se smí terén upravit: úvoz
@@ -217,8 +238,11 @@ export function wagonRoadGrid(input: WagonGridInput): WagonGrid {
     flags: t.flags,
     blocked: new Uint8Array(all),
     sacred: new Uint8Array(all),
+    barred: new Uint8Array(all),
     limit: new Float32Array(all),
     clearing: new Float32Array(all),
+    nearFence: new Uint8Array(all),
+    fences: [],
     gx: new Float32Array(all),
     gz: new Float32Array(all),
   };
@@ -239,19 +263,23 @@ export function wagonRoadGrid(input: WagonGridInput): WagonGrid {
       for (const c of squareCells(grid, [part]).inside) if (!onRoad[c]) blocked[c] = 1;
     }
   }
-  // sad, hřbitov, ohrada – i jejich okraj (plot, stromy); okrsek svatyně
-  const fenced = [
-    ...(v.orchards ?? []).map((o) => o.squares),
-    ...(v.cemeteries ?? []).map((c) => c.squares),
-    ...(v.pens ?? []).map((p) => penPathSquares(p)),
-  ];
-  for (const squares of fenced) {
-    if (squares.length === 0) continue;
-    const { inside, edge } = squareCells(grid, squares);
-    for (const c of [...inside, ...edge]) {
-      blocked[c] = 1;
-      seed[c] = 1;
-    }
+  // sad – i jeho okraj (stromy v řadách); hřbitov a ohrada jako vozová síť jen uvnitř plotu 1,5 m
+  // od okraje čtverců – uličkou 3 m mezi dvěma sousedními vede i vozová cesta (roads.md – Vozová
+  // cesta po staré cestě; Martin 23. 10. 2026 – oxen.md, Plot ohrady podle délky); okrsek svatyně
+  const block = (c: number): void => {
+    blocked[c] = 1;
+    seed[c] = 1;
+  };
+  for (const o of v.orchards ?? []) {
+    if (o.squares.length === 0) continue;
+    const { inside, edge } = squareCells(grid, o.squares);
+    for (const c of [...inside, ...edge]) block(c);
+  }
+  for (const cemetery of v.cemeteries ?? []) {
+    for (const c of fencedCells(grid, cemetery.squares, CEMETERY_FENCE_INSET_M)) block(c);
+  }
+  for (const pen of v.pens ?? []) {
+    for (const c of fencedCells(grid, penPathSquares(pen), PEN_FENCE_INSET_M)) block(c);
   }
   for (const b of v.sacred?.buildings ?? []) {
     if (b.kind !== 'shrine') continue;
@@ -268,12 +296,13 @@ export function wagonRoadGrid(input: WagonGridInput): WagonGrid {
       },
     );
   }
-  // domy, pozemky, staveniště, milíř a modla – s půl vozovkou
+  // domy, pozemky, staveniště, milíř a modla – s půl vozovkou (do `blocked` až po překážkách)
   const margin = HOUSE_MARGIN_M + WAGON_ROAD.bedHalfM;
+  const houses = new Uint8Array(all);
   for (const b of villageBuildings(v).all) {
     const [x0, z0, x1, z1] = buildingBounds(b, margin);
     cellsIn(grid, x0, z0, x1, z1, (c, x, z) => {
-      if (inBuilding(b, x, z, margin)) blocked[c] = 1;
+      if (inBuilding(b, x, z, margin)) houses[c] = 1;
       if (inBuilding(b, x, z, 0)) seed[c] = 1;
     });
   }
@@ -284,9 +313,12 @@ export function wagonRoadGrid(input: WagonGridInput): WagonGrid {
   const maxZ = t.originZ + (t.height - 1) * t.cellM;
   const cutSum = new Float32Array(all);
   const bedSum = new Float32Array(all);
+  // samotný strom, keř či kmen na pevné cestě ji nezavře (vůz po ní jede – stavba ho vykácí),
+  // posvátný strom ano
   const markBlocked = (x: number, z: number, radius: number, sacred = false): void => {
     const reach = Math.max(radius, t.cellM / 2);
     cellsIn(grid, x - reach, z - reach, x + reach, z + reach, (c, cx, cz) => {
+      if (!sacred && onRoad[c]) return;
       if (radius <= t.cellM / 2 || length2(cx - x, cz - z) <= radius) {
         blocked[c] = 1;
         if (sacred) grid.sacred[c] = 1;
@@ -332,6 +364,25 @@ export function wagonRoadGrid(input: WagonGridInput): WagonGrid {
     if (isWoodTreeId(o.id)) take(o.kind, o.x, o.z, true, 0);
     else markBlocked(o.x, o.z, 0);
   }
+  grid.barred.set(blocked);
+  for (let c = 0; c < all; c++) if (houses[c]) blocked[c] = 1;
+  // odstup od plotu jako u chodců (paths.md – Odstup od plotu, `fenceBand`): pruh u plotu
+  // neprůchodný (branka a ulička mezi ploty ne), kus dál dražší – až po stavbách, aby pruh poznal
+  // úzký průchod; osa se k plotu přesně nepřiblíží (`wagonFenceAt`)
+  const fences = gridFences(grid, v);
+  const band = fenceBand(grid, fences, (c) => blocked[c] === 0);
+  for (const c of band.near) if (!onRoad[c]) grid.nearFence[c] = 1;
+  for (const c of band.blocked) blocked[c] = 1;
+  const reachM = FENCE_CLEARANCE.axisM;
+  grid.fences = fences
+    .map((f) => f.outline)
+    .filter(
+      (f) =>
+        f.maxX + reachM >= t.originX &&
+        f.minX - reachM <= maxX &&
+        f.maxZ + reachM >= t.originZ &&
+        f.minZ - reachM <= maxZ,
+    );
   const area = t.cellM * t.cellM;
   for (let c = 0; c < all; c++) {
     grid.clearing[c] =
@@ -465,14 +516,18 @@ function endCells(grid: WagonGrid, p: PathPoint, radius: number): number[] {
  * pláně a příčného sklonu) + čas jízdy (`wagonTimeRate`, rychlost vozové cesty, sklon) + změna
  * směru; rozsah výšek pláně se po kroku rozšíří o L × sklon a omezí terénem ± `limit` – prázdný
  * rozsah = krok nejde (příliš strmě i s úvozem a náspem). Konce cesty mají pláň v terénu. Bez
- * trasy null.
+ * trasy (nebo po `maxLabels` štítcích – mez paměti a času) null. Se `budget` je mez nejvýš
+ * `budget.left` štítků a hledání z něj spotřebované štítky odečte (společný rozpočet víc hledání).
  */
 export function findWagonRoute(
   grid: WagonGrid,
   from: PathPoint,
   to: PathPoint,
   tripsPerDay: number,
+  maxLabelsOwn = MAX_LABELS,
+  budget?: { left: number },
 ): WagonRouteCells | null {
+  const maxLabels = budget ? Math.min(maxLabelsOwn, budget.left) : maxLabelsOwn;
   const { width: w, height: h, cellM, heights, blocked, limit, clearing, gx, gz } = grid;
   const timeRate = wagonTimeRate(tripsPerDay) / CART_SPEED.road.wagon;
   const pave = WAGON_ROAD.pavingPerM;
@@ -583,7 +638,10 @@ export function findWagonRoute(
       found = id;
       break;
     }
-    if (labels.size > MAX_LABELS) return null;
+    if (labels.size > maxLabels) {
+      if (budget) budget.left -= labels.size;
+      return null;
+    }
     const cost = labels.cost[id]!;
     const lo = labels.lo[id]!;
     const hi = labels.hi[id]!;
@@ -628,7 +686,7 @@ export function findWagonRoute(
       const cross = Math.abs(-gx[n]! * uz + gz[n]! * ux);
       const natural = Math.min(Math.abs(hb - heights[c]!) / length, WAGON_ROAD.maxGrade);
       const ford = (grid.flags[n]! & PATH_FORD) !== 0 ? fordFactor : 1;
-      const step =
+      const plain =
         length *
           (pave +
             direct +
@@ -636,11 +694,14 @@ export function findWagonRoute(
             sectionArea(offset, Math.min(cross, 0.9)) * EARTH_RATE) +
         length * timeRate * gradeFactor(natural) * ford +
         TURN_COST * Math.abs(turn);
+      // pruh u plotu dražší (paths.md – Odstup od plotu)
+      const step = grid.nearFence[n] ? plain * FENCE_CLEARANCE.nearCost : plain;
       const nextCost = cost + step;
       const nid = insert(n * HEADINGS + k, nextCost, nlo, Math.max(nlo, nhi), ny, id);
       if (nid >= 0) heap.push(nid, nextCost + heuristic(n));
     }
   }
+  if (budget) budget.left -= labels.size;
   if (found < 0) return null;
   const cells: number[] = [];
   for (let id = labels.parent[found]!; id >= 0; id = labels.parent[id]!) {
@@ -727,6 +788,11 @@ function rangeAlong(
   const n = Math.max(1, Math.ceil(length / STRAIGHT_STEP_M));
   const step = length / n;
   const g = SEARCH_GRADE * step;
+  // pruh u plotu je pro trasu dražší (`nearFence`) – přímý úsek do něj nově nevjede, jen kde už
+  // trasa vede pruhem (oba konce úseku v něm); paths.md – Odstup od plotu
+  const { nearM } = FENCE_CLEARANCE;
+  const inBand = (p: PathPoint): boolean => fenceClearance(grid.fences, p.x, p.z, nearM) < nearM;
+  const keepBand = check && grid.fences.length > 0 && !(inBand(a) && inBand(b));
   let lo = start.lo;
   let hi = start.hi;
   for (let q = 1; q <= n; q++) {
@@ -737,6 +803,15 @@ function rangeAlong(
       check &&
       p.blocked &&
       (p.sacred || !ends.some((e) => length2(e.x - x, e.z - z) <= END_REACH_FAR_M))
+    ) {
+      return null;
+    }
+    // ani roh plotu neusekne (paths.md – Odstup od plotu)
+    if (check && nearFence(grid, x, z, ends)) return null;
+    if (
+      keepBand &&
+      fenceClearance(grid.fences, x, z, nearM) < nearM &&
+      !ends.some((e) => length2(e.x - x, e.z - z) < FENCE_CLEARANCE.gateM)
     ) {
       return null;
     }
@@ -868,105 +943,280 @@ function profileAxis(
   return out;
 }
 
+/** Meze výšek pláně v bodech osy (mm): konce v terénu, jinak terén ± mez úprav (dolů na mm). */
+function heightBounds(
+  natural: readonly number[],
+  limits: readonly number[],
+): { lo: number[]; hi: number[] } {
+  const n = natural.length;
+  const lo: number[] = [];
+  const hi: number[] = [];
+  for (let i = 0; i < n; i++) {
+    const hc = natural[i]! * 1000;
+    if (i === 0 || i === n - 1) {
+      lo.push(Math.round(hc));
+      hi.push(Math.round(hc));
+      continue;
+    }
+    const lim = Math.floor(limits[i]! * 1000);
+    lo.push(Math.ceil(hc - lim));
+    hi.push(Math.floor(hc + lim));
+  }
+  return { lo, hi };
+}
+
+/** Nejvyšší změna výšky pláně (mm) na kroku délky `d` m – dolů, sklon nikdy nepřekročí mez. */
+function stepMm(d: number): number {
+  // dolů, ne zaokrouhlit: sklon nikdy nepřekročí mez (zaokrouhlení nahoru dávalo 6,3–8 %)
+  return Math.floor(WAGON_ROAD.maxGrade * d * 1000 + 1e-9);
+}
+
 /**
- * Navržené výšky pláně na ose (na cm): nejmenší zemní práce (plocha průřezu × délka) při sklonu
+ * Navržené výšky pláně na ose (na mm): nejmenší zemní práce (plocha průřezu × délka) při sklonu
  * nejvýš WAGON_ROAD.maxGrade mezi každými dvěma body a posunu od terénu nejvýš `limit` buňky
- * (úvoz i násep); konce v terénu. Dynamické programování po bodech přes výšky po centimetrech
- * (klouzavé minimum). Nejde-li to, null.
+ * (úvoz i násep); konce v terénu. Dynamické programování po bodech přes výšky po milimetrech
+ * (klouzavé minimum); ceny jen dvou řádků, rodiče po řádcích jako Int16 (rozsah řádku je nejvýš
+ * 2 × 3 m = 6 001 mm) – paměť ≈ 12 kB na bod osy (dřív ≈ 72 kB). Nejde-li to, null.
  */
-function profileHeights(
+export function profileHeights(
   axis: readonly PathPoint[],
   natural: readonly number[],
   limits: readonly number[],
 ): { heights: number[]; cost: number } | null {
   const n = axis.length;
   if (n < 2) return null;
-  const lo: number[] = [];
-  const hi: number[] = [];
-  for (let i = 0; i < n; i++) {
-    const hc = natural[i]! * 100;
-    if (i === 0 || i === n - 1) {
-      lo.push(Math.round(hc));
-      hi.push(Math.round(hc));
-      continue;
-    }
-    const lim = Math.floor(limits[i]! * 100);
-    lo.push(Math.ceil(hc - lim));
-    hi.push(Math.floor(hc + lim));
-  }
+  const bounds = heightBounds(natural, limits);
   const ds: number[] = [];
   for (let i = 1; i < n; i++) {
     ds.push(length2(axis[i]!.x - axis[i - 1]!.x, axis[i]!.z - axis[i - 1]!.z));
   }
-  const weight = (i: number): number => ((ds[i - 1] ?? 0) + (ds[i] ?? 0)) / 2;
-  const rows: { cost: Float64Array; parent: Int32Array }[] = [];
-  const first = new Float64Array(hi[0]! - lo[0]! + 1);
-  rows.push({ cost: first, parent: new Int32Array(first.length).fill(-1) });
+  // jen výšky dosažitelné od začátku i ke konci – jiné na nejlevnější profil nikdy nepatří (výsledek
+  // je týž jako přes celé meze), DP je kratší a nemožný profil skončí hned
+  const lo = [...bounds.lo];
+  const hi = [...bounds.hi];
   for (let i = 1; i < n; i++) {
-    const prev = rows[i - 1]!;
+    const m = stepMm(ds[i - 1]!);
+    lo[i] = Math.max(lo[i]!, lo[i - 1]! - m);
+    hi[i] = Math.min(hi[i]!, hi[i - 1]! + m);
+    if (lo[i]! > hi[i]!) return null;
+  }
+  for (let i = n - 2; i >= 0; i--) {
+    const m = stepMm(ds[i]!);
+    lo[i] = Math.max(lo[i]!, lo[i + 1]! - m);
+    hi[i] = Math.min(hi[i]!, hi[i + 1]! + m);
+    if (lo[i]! > hi[i]!) return null;
+  }
+  const weight = (i: number): number => ((ds[i - 1] ?? 0) + (ds[i] ?? 0)) / 2;
+  const widest = Math.max(...hi.map((h, i) => h - lo[i]! + 1), 1);
+  // rodič je index v předchozím řádku – Int16 stačí pro meze úprav do 16 m
+  const Parent = widest > 32_767 ? Int32Array : Int16Array;
+  const parents: (Int16Array | Int32Array)[] = [new Parent(hi[0]! - lo[0]! + 1).fill(-1)];
+  // dva řádky cen na střídačku – bez nového pole na každý bod osy
+  let prev = new Float64Array(widest);
+  let cost = new Float64Array(widest);
+  let prevLen = hi[0]! - lo[0]! + 1;
+  const deque = new Int32Array(widest);
+  for (let i = 1; i < n; i++) {
     const plo = lo[i - 1]!;
-    const size = hi[i]! - lo[i]! + 1;
-    const cost = new Float64Array(Math.max(0, size)).fill(Infinity);
-    const parent = new Int32Array(Math.max(0, size)).fill(-1);
-    const m = Math.floor(WAGON_ROAD.maxGrade * ds[i - 1]! * 100 + 1e-9);
+    const size = Math.max(0, hi[i]! - lo[i]! + 1);
+    cost.fill(Infinity, 0, size);
+    const parent = new Parent(size).fill(-1);
+    const m = stepMm(ds[i - 1]!);
     // klouzavé minimum přes okno [y − m, y + m] předchozího řádku
-    const deque: number[] = [];
     let head = 0;
+    let tail = 0;
     let next = 0;
     const w = weight(i);
     for (let k = 0; k < size; k++) {
       const y = lo[i]! + k;
-      const right = Math.min(prev.cost.length - 1, y + m - plo);
+      const right = Math.min(prevLen - 1, y + m - plo);
       while (next <= right) {
-        if (Number.isFinite(prev.cost[next]!)) {
-          while (deque.length > head && prev.cost[deque[deque.length - 1]!]! >= prev.cost[next]!) {
-            deque.pop();
-          }
-          deque.push(next);
+        if (Number.isFinite(prev[next]!)) {
+          while (tail > head && prev[deque[tail - 1]!]! >= prev[next]!) tail--;
+          deque[tail++] = next;
         }
         next++;
       }
       const left = y - m - plo;
-      while (deque.length > head && deque[head]! < left) head++;
-      if (deque.length === head) continue;
+      while (tail > head && deque[head]! < left) head++;
+      if (tail === head) continue;
       const best = deque[head]!;
-      const offset = (y - natural[i]! * 100) / 100;
-      cost[k] = prev.cost[best]! + sectionArea(offset, 0) * w;
+      const offset = (y - natural[i]! * 1000) / 100;
+      cost[k] = prev[best]! + sectionArea(offset, 0) * w;
       parent[k] = best;
     }
-    rows.push({ cost, parent });
+    parents.push(parent);
+    [prev, cost] = [cost, prev];
+    prevLen = size;
   }
-  const last = rows[n - 1]!;
-  if (last.cost.length === 0 || !Number.isFinite(last.cost[0]!)) return null;
+  if (prevLen === 0 || !Number.isFinite(prev[0]!)) return null;
   const out = new Array<number>(n);
   let k = 0;
   for (let i = n - 1; i >= 0; i--) {
-    out[i] = (lo[i]! + k) / 100;
-    k = rows[i]!.parent[k]!;
+    out[i] = (lo[i]! + k) / 1000;
+    k = parents[i]![k]!;
   }
-  return { heights: out, cost: last.cost[0]! };
+  return { heights: out, cost: prev[0]! };
+}
+
+/**
+ * Kde profil po ose nevyjde (roads.md – Postupná úprava a serpentiny): index prvního bodu, kde se
+ * dopředný rozsah výšek pláně (meze a krok jako `profileHeights`) vyprázdní; −1, když vyjde.
+ * Celočíselně na mm – stejně na serveru i v prohlížeči.
+ */
+export function profileFailure(
+  axis: readonly PathPoint[],
+  natural: readonly number[],
+  limits: readonly number[],
+): number {
+  const n = axis.length;
+  if (n < 2) return 0;
+  const { lo, hi } = heightBounds(natural, limits);
+  let a = lo[0]!;
+  let b = hi[0]!;
+  for (let i = 1; i < n; i++) {
+    const m = stepMm(length2(axis[i]!.x - axis[i - 1]!.x, axis[i]!.z - axis[i - 1]!.z));
+    a = Math.max(a - m, lo[i]!);
+    b = Math.min(b + m, hi[i]!);
+    if (a > b) return i;
+  }
+  return -1;
+}
+
+/** Osa jak je – bez vyhlazení (vozová cesta po staré cestě – její osa už je hladká). */
+const AS_IS: readonly { simplifyM: number; passes: number }[] = [{ simplifyM: 0, passes: 0 }];
+
+/** Leží bod do `radiusM` m od buňky u posvátného stromu (`sacred`)? */
+export function wagonNearSacred(grid: WagonGrid, p: PathPoint, radiusM: number): boolean {
+  let near = false;
+  cellsIn(grid, p.x - radiusM, p.z - radiusM, p.x + radiusM, p.z + radiusM, (c, x, z) => {
+    if (grid.sacred[c] === 1 && length2(x - p.x, z - p.z) <= radiusM) near = true;
+  });
+  return near;
+}
+
+/** Krok kontroly odstupu osy od plotu (m) – jako u osy trasy chodců (`routeLine`). */
+const FENCE_CHECK_M = 0.5;
+
+/**
+ * Je bod osy blíž plotu hřbitova či ohrady než `FENCE_CLEARANCE.axisM` (i uvnitř plotu; paths.md –
+ * Odstup od plotu)? Do `gateM` od konců cesty `ends` ne – konec u branky, jako osa trasy chodců.
+ */
+function nearFence(grid: WagonGrid, x: number, z: number, ends: readonly PathPoint[]): boolean {
+  if (grid.fences.length === 0) return false;
+  const { axisM, gateM } = FENCE_CLEARANCE;
+  if (fenceClearance(grid.fences, x, z, axisM) >= axisM) return false;
+  return !ends.some((e) => length2(e.x - x, e.z - z) < gateM);
+}
+
+/**
+ * Index prvního bodu osy `axis`, k němuž úsek od předchozího bodu (vzorky po FENCE_CHECK_M) vede
+ * blíž plotu (`nearFence` – osa neusekne roh plotu); −1, když osa drží odstup všude.
+ */
+function fenceAtAlong(
+  grid: WagonGrid,
+  axis: readonly PathPoint[],
+  ends: readonly PathPoint[],
+): number {
+  if (grid.fences.length === 0 || axis.length === 0) return -1;
+  if (nearFence(grid, axis[0]!.x, axis[0]!.z, ends)) return 0;
+  for (let k = 1; k < axis.length; k++) {
+    const a = axis[k - 1]!;
+    const b = axis[k]!;
+    const n = Math.max(1, Math.ceil(length2(b.x - a.x, b.z - a.z) / FENCE_CHECK_M));
+    for (let i = 1; i <= n; i++) {
+      if (nearFence(grid, a.x + ((b.x - a.x) * i) / n, a.z + ((b.z - a.z) * i) / n, ends)) {
+        return k;
+      }
+    }
+  }
+  return -1;
+}
+
+/**
+ * Kde osa `points` jak je přijde k plotu hřbitova či ohrady blíž než `FENCE_CLEARANCE.axisM`
+ * (paths.md – Odstup od plotu): index bodu ve `wagonAxisPoints(points)`; −1, když nikde. Do
+ * `gateM` od konců cesty se odstup nehlídá (branka).
+ */
+export function wagonAxisFenceAt(grid: WagonGrid, points: readonly PathPoint[]): number {
+  if (points.length < 2) return -1;
+  const ends = [points[0]!, points[points.length - 1]!];
+  return fenceAtAlong(grid, profileAxis(points, AS_IS[0]!), ends);
+}
+
+/** Body osy `points` po nejvýš WAGON_ROAD.profileStepM (na cm) – body profilu `wagonProfile(…, true)`. */
+export function wagonAxisPoints(points: readonly PathPoint[]): PathPoint[] {
+  return profileAxis(points, AS_IS[0]!);
+}
+
+/**
+ * Kde profil po ose `points` jak je (`wagonProfile(…, true)`) nevyjde: index bodu v
+ * `wagonAxisPoints(points)` (`profileFailure`); −1, když vyjde.
+ */
+export function wagonProfileFailure(grid: WagonGrid, points: readonly PathPoint[]): number {
+  const axis = wagonAxisPoints(points);
+  const at = axis.map((p) => axisPoint(grid, p.x, p.z));
+  return profileFailure(
+    axis,
+    at.map((p) => p.natural),
+    at.map((p) => p.limit),
+  );
+}
+
+/**
+ * Neprojede vůz osou `points` (stará cesta – roads.md, Vozová cesta po staré cestě)? Body osy po
+ * WAGON_ROAD.profileStepM mimo okolí konců (konec cesty bývá u vchodu stavby): zakázaná buňka
+ * (plot, voda mimo brod, sráz, balvan – `barred`) nebo bod u stavby blíž než vozová síť pustí vůz
+ * (půl šířky vozu – stará cesta tam vede a vůz po ní jezdí). Strom či keř na pevné cestě ji
+ * nezavře (`wagonRoadGrid`), posvátný strom hlídá přesně kácení (`wagonClearing`). S `fences`
+ * i osa blíž plotu než `FENCE_CLEARANCE.axisM` (`wagonAxisFenceAt`).
+ */
+export function wagonAxisBlocked(
+  grid: WagonGrid,
+  village: PathVillage,
+  points: readonly PathPoint[],
+  fences = true,
+): boolean {
+  if (points.length < 2) return true;
+  const ends = [points[0]!, points[points.length - 1]!];
+  const buildings = villageBuildings(village).all;
+  const margin = HOUSE_MARGIN_M + CART_ROUTES.widthM / 2;
+  for (const p of profileAxis(points, AS_IS[0]!)) {
+    if (ends.some((e) => length2(e.x - p.x, e.z - p.z) <= END_REACH_FAR_M)) continue;
+    const c = cellAt(grid, p.x, p.z);
+    if (c < 0 || (grid.barred[c] === 1 && grid.sacred[c] !== 1)) return true;
+    if (buildings.some((b) => inBuilding(b, p.x, p.z, margin))) return true;
+  }
+  return fences && wagonAxisFenceAt(grid, points) >= 0;
 }
 
 /**
  * Profil vozové cesty na trase `points` (konce cesty a středy buněk): osa vyhlazená (kde to nejde
  * se sklonem, jak ji našlo hledání), body po WAGON_ROAD.profileStepM, navržené výšky
- * (`profileHeights`). Bez profilu null.
+ * (`profileHeights`). `asIs` – osa staré cesty bez vyhlazení (vozová cesta vede po ní, průjezd
+ * hlídá `wagonAxisBlocked`). Bez profilu null.
  */
-export function wagonProfile(grid: WagonGrid, points: readonly PathPoint[]): WagonProfile | null {
+export function wagonProfile(
+  grid: WagonGrid,
+  points: readonly PathPoint[],
+  asIs = false,
+): WagonProfile | null {
   let best: { profile: WagonProfile; cost: number } | null = null;
-  for (const smooth of SMOOTHING) {
+  for (const smooth of asIs ? AS_IS : SMOOTHING) {
     const axis = profileAxis(points, smooth);
     if (axis.length < 2) return null;
     const at = axis.map((p) => axisPoint(grid, p.x, p.z));
-    // vyhlazená osa nesmí do zakázané buňky (kromě okolí konců cesty)
+    // vyhlazená osa nesmí do zakázané buňky (kromě okolí konců cesty) ani k plotu – neusekne jeho
+    // roh, roh trasy zůstane (paths.md – Odstup od plotu)
     const ends = [points[0]!, points[points.length - 1]!];
     if (
       smooth.passes > 0 &&
-      axis.some(
+      (axis.some(
         (p, i) =>
           at[i]!.blocked &&
           (at[i]!.sacred || !ends.some((e) => length2(e.x - p.x, e.z - p.z) <= END_REACH_FAR_M)),
-      )
+      ) ||
+        fenceAtAlong(grid, axis, ends) >= 0)
     ) {
       continue;
     }
@@ -1135,6 +1385,7 @@ export function balanceEarth(cut: Float64Array, fill: Float64Array): WagonEarthw
 export interface WagonTimeRoad {
   points: readonly PathPoint[];
   grade?: RoadGrade;
+  unbridged?: boolean | undefined;
   cart?: boolean;
   ground?: RoadGround;
   lined?: RoadLining;
@@ -1181,6 +1432,7 @@ export function roadsCartMinutes(grid: WagonGrid, roads: readonly WagonTimeRoad[
           road.cart === true,
           wet,
           roadTreeSpeed(road.lined),
+          road.unbridged === true,
         );
         const ford = flags & PATH_FORD ? CART_ROUTES.fordCost : 1;
         cost += (piece / speed) * gradeFactor(grade) * ford;

@@ -1,7 +1,7 @@
 // Dým z obydlí bez Babylonu: kdy se v obydlí topí (deterministicky podle herního dne a obydlí)
 // a kde je který obláček kouře. Herní den trvá ≈ 86 s, takže ranní a večerní vaření se střídá
 // s přestávkami – dým „občas“ stoupá a zase přestane.
-import { TOTAL_GAME_DAYS, type WorldClock } from '@bohemia/game';
+import { FOREST_CLEARING, TOTAL_GAME_DAYS, type WorldClock } from '@bohemia/game';
 
 /** Herní den jako spojité číslo (celá část = den od začátku světa, zbytek = denní doba). */
 export function gameDayAt(nowMs: number, world: WorldClock): number {
@@ -67,9 +67,10 @@ export function smokeStrength(seed: number, gameDay: number): number {
  * Odkud dým stoupá: dýmník obydlí (topí se podle rozvrhu ohně – vaření ráno a večer), pec nebo
  * výheň pracující dílny (topí se přes pracovní den), milíř (doutná dnem i nocí – crafts.md)
  * a pohřební hranice (cemetery.md – Pohřeb ve scéně: hustší a vyšší sloupec – PYRE_PLUME; sílu
- * neurčuje rozvrh ohně, ale obřad – funeral-plan.ts, `pyreState`).
+ * neurčuje rozvrh ohně, ale obřad – funeral-plan.ts, `pyreState`) a pálení paseky (forest.md –
+ * Klučení lesa pro pole – postup: SLASH_PLUME, sílu určuje pálení dílu – `clearingFireState`).
  */
-export type SmokeKind = 'hearth' | 'craft' | 'milir' | 'pyre';
+export type SmokeKind = 'hearth' | 'craft' | 'milir' | 'pyre' | 'slash' | 'house-fire';
 
 /** Pracovní den dílny jako denní doba 0–1 – pec a výheň hoří od rána do večera. */
 const CRAFT_FIRE = { from: 0.26, to: 0.78 } as const;
@@ -81,8 +82,9 @@ const CRAFT_FIRE = { from: 0.26, to: 0.78 } as const;
  */
 export function ventSmokeStrength(kind: SmokeKind, seed: number, gameDay: number): number {
   if (kind === 'hearth') return smokeStrength(seed, gameDay);
-  // hranice hoří podle obřadu (funeral-plan.ts) – mimo něj se nekouří
-  if (kind === 'pyre') return 0;
+  // hranice hoří podle obřadu (funeral-plan.ts), paseka podle pálení (clearingFireState)
+  // hořící dům podle požáru (houseFireState)
+  if (kind === 'pyre' || kind === 'slash' || kind === 'house-fire') return 0;
   const day = Math.floor(gameDay);
   if (kind === 'milir') return 0.5 + 0.15 * hash01(seed, day, 21);
   const time = gameDay - day;
@@ -145,9 +147,108 @@ export const PYRE_PLUME: PlumeShape = {
   size: { start: 1.1, end: 7 },
 };
 
+/**
+ * Pálení paseky – hustší sloupec než z dýmníku (hoří zelené chvojí) a vyšší než z hranice: paseku
+ * v hustém lese z herní kamery zakryjí koruny stromů před ní (forest.md – Ověření klučení), dým
+ * proto vystoupá vysoko nad koruny (≈ 20–25 m) a rozvalí se – pálení je vidět i zpoza lesa.
+ */
+export const SLASH_PLUME: PlumeShape = {
+  puffs: 28,
+  lifeS: 18,
+  riseM: 34,
+  driftM: 13,
+  size: { start: 1.2, end: 9 },
+};
+
+/**
+ * Hořící dům (disasters.md – Požár, Ve scéně) – hustý tmavý sloupec, vyšší a širší než z pálení
+ * paseky: hoří doškovou střechou a trámy, požár vsi je vidět zdaleka.
+ */
+export const HOUSE_FIRE_PLUME: PlumeShape = {
+  puffs: 34,
+  lifeS: 20,
+  riseM: 40,
+  driftM: 16,
+  size: { start: 2, end: 12 },
+};
+
 /** Tvar sloupce dýmu podle druhu zdroje. */
 export function plumeShape(kind: SmokeKind): PlumeShape {
-  return kind === 'pyre' ? PYRE_PLUME : HEARTH_PLUME;
+  if (kind === 'house-fire') return HOUSE_FIRE_PLUME;
+  return kind === 'pyre' ? PYRE_PLUME : kind === 'slash' ? SLASH_PLUME : HEARTH_PLUME;
+}
+
+// --- Pálení paseky ---
+
+/**
+ * Pálení dílu paseky (forest.md – Klučení lesa pro pole – postup): `burnedDay` = den, kdy díl
+ * dohořel – ten den hoří, pak doutná do `burnedDay + smolderDays` (`isSmoldering` v jádru). Bez
+ * údaje se díl teprve pálí – hoří každý den, dokud nedohoří (rozpracované pálení).
+ */
+export interface ClearingBurn {
+  burnedDay?: number;
+  /** Hořící dům (požár – `houseFireState`): pořadí stavby v šíření 0–1 (0 = tady chytlo). */
+  order?: number;
+}
+
+/** Oheň, záře uhlíků a dým pálení v jednom okamžiku (0–1). */
+export interface ClearingFireState {
+  fire: number;
+  glow: number;
+  smoke: number;
+}
+
+/** Jak dlouho hoří jedna hromada větví (podíl dne ≈ 19 s) – hromady se zapalují postupně. */
+export const HEAP_BURN_DAY = 0.22;
+/** Dým doutnajících pařezů a popela (po dohoření hromad, přes noc a v dnech doutnání). */
+export const SMOLDER_SMOKE = 0.35;
+/** Jak rychle dým po dohoření slábne k doutnání a jak dlouho doutnání na konci mizí (podíl dne). */
+const SMOKE_SETTLE_DAY = 0.12;
+const SMOLDER_FADE_DAY = 0.1;
+
+/**
+ * Oheň, záře a dým pálení paseky v herní okamžik `gameDay` (gameDayAt). Pálí se přes pracovní
+ * den jako pec (CRAFT_FIRE): hromada s pořadím `order` (0–1 – kde leží v postupu práce na
+ * čtverci) vzplane v `CRAFT_FIRE.from + order × (délka dne práce − HEAP_BURN_DAY)` a hoří
+ * HEAP_BURN_DAY; pak žhnou uhlíky do konce dne (večer, záře slábne). Dým čtverce (na pořadí
+ * nezávisí) stoupá od zapálení první hromady, hustý do konce práce, pak slábne k doutnání –
+ * přes noc a v dnech doutnání `SMOLDER_SMOKE`, na konci doutnání zmizí.
+ */
+export function clearingFireState(
+  burn: ClearingBurn,
+  gameDay: number,
+  order = 0,
+): ClearingFireState {
+  const day = Math.floor(gameDay);
+  const time = gameDay - day;
+  const off = { fire: 0, glow: 0, smoke: 0 };
+  const burned = burn.burnedDay;
+  if (burned !== undefined) {
+    if (day < burned) return off;
+    const until = burned + FOREST_CLEARING.smolderDays;
+    if (day >= until) return off;
+    if (day > burned) {
+      // doutná – na konci posledního dne dým zmizí
+      const fade = Math.min(1, Math.max(0, (until - gameDay) / SMOLDER_FADE_DAY));
+      return { fire: 0, glow: 0, smoke: SMOLDER_SMOKE * fade };
+    }
+  }
+  const span = CRAFT_FIRE.to - CRAFT_FIRE.from - HEAP_BURN_DAY;
+  const lit = CRAFT_FIRE.from + Math.min(1, Math.max(0, order)) * span;
+  const out = lit + HEAP_BURN_DAY;
+  const rise = Math.min(1, Math.max(0, (time - lit) / FIRE_EDGE_DAY));
+  const fall = Math.min(1, Math.max(0, (out - time) / (HEAP_BURN_DAY * 0.45)));
+  const fire = Math.min(rise, fall);
+  // uhlíky žhnou, jak plameny slábnou, a do půlnoci vychladnou na třetinu
+  const glow =
+    time < lit ? 0 : time < out ? rise * (1 - fall) : 1 - (0.65 * (time - out)) / (1 - out);
+  // dým čtverce: od zapálení první hromady, po konci práce slábne k doutnání
+  const start = Math.min(1, Math.max(0, (time - CRAFT_FIRE.from) / FIRE_EDGE_DAY));
+  const settle = Math.min(1, Math.max(0, (time - CRAFT_FIRE.to) / SMOKE_SETTLE_DAY));
+  const evening = 1 - (1 - SMOLDER_SMOKE) * settle;
+  // rozpracované pálení: přes noc a ráno před prací doutná včerejší spálenina
+  const morning = burned === undefined && time < CRAFT_FIRE.from ? SMOLDER_SMOKE : 0;
+  return { fire, glow: Math.max(0, glow), smoke: Math.max(morning, start * evening) };
 }
 
 /**
@@ -202,3 +303,33 @@ export function plumeReach(shape: PlumeShape): { up: number; side: number } {
 
 /** Nejvzdálenější dosah obláčků od dýmníku (m) – pro kontrolu, jestli je dým v záběru. */
 export const PLUME_REACH_M = plumeReach(HEARTH_PLUME);
+
+// --- Požár domu ---
+
+/**
+ * Požár domu přes herní den požáru (podíl dne, návrh Clauda): požár je událost celého dne – stavba
+ * chytne hned po půlnoci (`lit`, přeskok na sousední stavby o kus později podle pořadí), hoří
+ * naplno, od `fadeFrom` slábne, v `outAt` zbudou jen žhavé uhlíky a dým doutnání do konce dne.
+ */
+export const HOUSE_FIRE = { lit: 0.02, spread: 0.08, rise: 0.04, fadeFrom: 0.55, outAt: 0.8 };
+
+/**
+ * Oheň, záře a dým hořící stavby v herní okamžik `gameDay` (gameDayAt): jen v den požáru `fireDay`
+ * (jinak vše 0). `order` 0–1 – kde je stavba v šíření (0 = tady chytlo).
+ */
+export function houseFireState(fireDay: number, gameDay: number, order = 0): ClearingFireState {
+  const t = gameDay - fireDay;
+  if (t < 0 || t >= 1) return { fire: 0, glow: 0, smoke: 0 };
+  const lit = HOUSE_FIRE.lit + Math.min(1, Math.max(0, order)) * HOUSE_FIRE.spread;
+  if (t < lit) return { fire: 0, glow: 0, smoke: 0 };
+  const rise = Math.min(1, (t - lit) / HOUSE_FIRE.rise);
+  const fall = Math.min(
+    1,
+    Math.max(0, (HOUSE_FIRE.outAt - t) / (HOUSE_FIRE.outAt - HOUSE_FIRE.fadeFrom)),
+  );
+  const fire = Math.min(rise, fall);
+  // uhlíky žhnou, jak plameny slábnou, do konce dne vychladnou na dvě pětiny
+  const embers =
+    t < HOUSE_FIRE.outAt ? 1 - fall : 1 - (0.6 * (t - HOUSE_FIRE.outAt)) / (1 - HOUSE_FIRE.outAt);
+  return { fire, glow: rise * embers, smoke: rise * (SMOLDER_SMOKE + (1 - SMOLDER_SMOKE) * fall) };
+}

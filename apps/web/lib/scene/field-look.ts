@@ -5,7 +5,11 @@
 // stejný rozpracovaný čtverec.
 import { rotationCosSin } from '@bohemia/game';
 import type { FieldLook, LaborActivity, SceneFieldPart, SceneVillage } from '../village-view';
+import type { Rgb } from './field-crops';
 import { aftermathGrazing, hayPhase } from './hay-meadows';
+import { track, weatherAmounts, type Track } from './season-look';
+import { hailWeight } from './storm';
+import { tornadoCropWeight } from './tornado-track';
 
 export type { FieldLook };
 
@@ -47,6 +51,8 @@ export const FIELD_LOOK_LABELS: Record<FieldLook, string> = {
   haystacks: 'úhor – stohy sena',
   shrubs: 'nepasený příloh – křoviny',
   'young-forest': 'nepasený příloh – mladý les',
+  slash: 'klučení – paseka s větvemi',
+  burnt: 'klučení – spálenina',
 };
 
 /**
@@ -69,6 +75,28 @@ export interface PartView {
    * mají seno shrabané v kupkách. Bez údaje ne.
    */
   swaths?: boolean;
+  /**
+   * Násobek barvy dílu v suchu podle ochrany dílu (`droughtPartTint`) a na vymrzlém ozimu; bez
+   * údaje beze změny.
+   */
+  tint?: Rgb;
+  /** Obilí podle počasí roku (`partWeather`); bez údaje beze změny. */
+  weather?: PartWeather;
+}
+
+/**
+ * Obilí osetého dílu podle počasí roku (disasters.md – Ve scéně): v suchu nižší a řidší, v
+ * deštivém létě před žněmi polehlé, po holomrazu řídký ozim s prosvítající hlínou.
+ */
+export interface PartWeather {
+  /** Násobek výšky trsů (a porostu shora) 0–1. */
+  height: number;
+  /** Násobek hustoty trsů 0–1. */
+  density: number;
+  /** Podíl polehlého zralého obilí 0–1 (ve skvrnách). */
+  lodged: number;
+  /** Vymrzlá místa 0–1 – trsy chybí ve skvrnách a prosvítá hlína. */
+  bare: number;
 }
 
 /** Kolik řádků (pruhů napříč dílem) se zobrazí jako hotových – po krocích sítě obtisku. */
@@ -205,7 +233,8 @@ export function workOrder(
  */
 export interface LookContext {
   dayOfYear: number;
-  village: Pick<SceneVillage, 'dwellings'> & Partial<Pick<SceneVillage, 'labor'>>;
+  village: Pick<SceneVillage, 'dwellings'> &
+    Partial<Pick<SceneVillage, 'labor' | 'weather' | 'hail' | 'tornado'>>;
 }
 
 /**
@@ -222,14 +251,23 @@ export function fieldPartViews(
     cached &&
     cached.dwellings === context.village.dwellings &&
     cached.labor === context.village.labor &&
+    cached.weather === context.village.weather &&
+    cached.hail === context.village.hail &&
+    cached.tornado === context.village.tornado &&
     cached.day === context.dayOfYear
   ) {
     return cached.views;
   }
-  const views = computePartViews(field, context);
+  const views = withTornado(
+    withHail(withWeather(computePartViews(field, context), context), context),
+    context,
+  );
   viewsCache.set(field.parts, {
     dwellings: context.village.dwellings,
     labor: context.village.labor,
+    weather: context.village.weather,
+    hail: context.village.hail,
+    tornado: context.village.tornado,
     day: context.dayOfYear,
     views,
   });
@@ -242,10 +280,187 @@ const viewsCache = new WeakMap<
   {
     dwellings: LookContext['village']['dwellings'];
     labor: LookContext['village']['labor'];
+    weather: LookContext['village']['weather'];
+    hail: LookContext['village']['hail'];
+    tornado: LookContext['village']['tornado'];
     day: number;
     views: PartView[];
   }
 >();
+
+/** Barva dílu v plném suchu bez ochrany – žloutne a hnědne (disasters.md – Ve scéně, Sucho). */
+const DRY_PART: Rgb = [1.12, 0.94, 0.66];
+/** Barva dílu s plnou ochranou (za stromy) v plném suchu – zelenější. */
+const SHELTERED_PART: Rgb = [0.97, 1.04, 0.95];
+/** Sucho po čtvrtinách – díly se kvůli náběhu sucha přestaví nejvýš čtyřikrát. */
+const DROUGHT_STEPS = 4;
+
+/**
+ * Násobek barvy dílu v suchu (disasters.md – Ve scéně, Sucho: „chráněné díly za stromy zůstávají
+ * zelenější“): `drought` 0–1 (`SeasonLook.drought`, po čtvrtinách), `level` ochrana dílu 0–4
+ * (`SceneWeather.parts`). Bez sucha null – barva beze změny.
+ */
+export function droughtPartTint(drought: number, level: number): Rgb | null {
+  const stage = Math.round(Math.min(1, Math.max(0, drought)) * DROUGHT_STEPS) / DROUGHT_STEPS;
+  if (stage === 0) return null;
+  const sheltered = Math.min(4, Math.max(0, level)) / 4;
+  const dry = stage * (1 - sheltered);
+  const green = stage * sheltered;
+  const channel = (i: 0 | 1 | 2): number =>
+    (1 + (DRY_PART[i] - 1) * dry) * (1 + (SHELTERED_PART[i] - 1) * green);
+  return [channel(0), channel(1), channel(2)];
+}
+
+/** Ve plném suchu bez ochrany: obilí o 35 % nižší a o 40 % řidší; plná ochrana z toho ubere 70 %. */
+const DROUGHT_HEIGHT = 0.35;
+const DROUGHT_DENSITY = 0.4;
+const SHELTER_EFFECT = 0.7;
+/** Polehlé obilí v plném mokru na nejhorším dílu (niva); ochrana 4 (svah) z toho ubere 60 %. */
+const WET_LODGED = 0.6;
+const WET_SHELTER_EFFECT = 0.6;
+/** Holomráz: vymrzne třetina ozimu (disasters.md – Holomráz, ozim × 0,65). */
+const FROST_LOSS = 0.35;
+/** Vymrzlý ozim žloutne (místy – barva celého dílu jen trochu). */
+const FROST_PART: Rgb = [1.06, 1, 0.84];
+/**
+ * Vymrzlý ozim: od 1. 2. (holomráz je vidět) za 5 dní, drží do žní; osev ozimu na podzim je už
+ * nový ozim (díly v září bez stopy).
+ */
+const FROST_THIN: Track = [
+  [32, 0],
+  [37, 1],
+  [240, 1],
+  [244, 0],
+];
+
+/** Hodnota 0–1 po čtvrtinách – díly se kvůli náběhu počasí přestaví nejvýš čtyřikrát. */
+function stepped(amount: number): number {
+  return Math.round(Math.min(1, Math.max(0, amount)) * DROUGHT_STEPS) / DROUGHT_STEPS;
+}
+
+/**
+ * Obilí osetého dílu podle počasí v den roku: `drought` a `wet` (`weatherAmounts`), `frost`
+ * vymrzlý ozim 0–1, `level` ochrana dílu 0–4 proti odhalenému létu. Bez počasí null.
+ */
+export function partWeather(
+  amounts: { drought: number; wet: number; frost: number },
+  level: number,
+  grain: boolean,
+): PartWeather | null {
+  const sheltered = Math.min(4, Math.max(0, level)) / 4;
+  const dry = stepped(amounts.drought) * (1 - SHELTER_EFFECT * sheltered);
+  const wet = grain ? stepped(amounts.wet) * WET_LODGED * (1 - WET_SHELTER_EFFECT * sheltered) : 0;
+  const frost = stepped(amounts.frost) * FROST_LOSS;
+  if (dry === 0 && wet === 0 && frost === 0) return null;
+  return {
+    height: 1 - DROUGHT_HEIGHT * dry,
+    density: (1 - DROUGHT_DENSITY * dry) * (1 - frost),
+    lodged: wet,
+    bare: frost / FROST_LOSS,
+  };
+}
+
+/** Násobek barvy vymrzlého ozimu (`bare` 0–1); bez vymrzání null. */
+function frostTint(bare: number): Rgb | null {
+  if (bare === 0) return null;
+  return [
+    1 + (FROST_PART[0] - 1) * bare,
+    1 + (FROST_PART[1] - 1) * bare,
+    1 + (FROST_PART[2] - 1) * bare,
+  ];
+}
+
+/**
+ * Díly podle počasí roku (disasters.md – Ve scéně): v suchu barva podle síly sucha a ochrany
+ * dílu – díl za stromy zůstane zelenější; obilí osetých dílů nižší a řidší, v deštivém létě
+ * polehlé, po holomrazu řídký žloutnoucí ozim. Bez počasí díly beze změny.
+ */
+function withWeather(views: PartView[], context: LookContext): PartView[] {
+  const weather = context.village.weather;
+  if (!weather) return views;
+  const amounts = weatherAmounts(context.dayOfYear, weather);
+  const frozen = weather.winter === 'blackFrost' ? track(FROST_THIN, context.dayOfYear) : 0;
+  if (amounts.drought === 0 && amounts.wet === 0 && frozen === 0) return views;
+  return views.map((view) => {
+    const id = view.part.id;
+    const level = id === undefined ? 0 : (weather.parts?.[String(id)] ?? 0);
+    const dryTint = amounts.drought > 0 ? droughtPartTint(amounts.drought, level) : null;
+    const sown = view.part.stage === 'sown';
+    const frost = sown && view.part.winter ? frozen : 0;
+    const crops = sown
+      ? partWeather({ ...amounts, frost }, level, view.part.crop === undefined)
+      : null;
+    const tint = mergeTint(dryTint, crops ? frostTint(crops.bare) : null);
+    if (!tint && !crops) return view;
+    return { ...view, ...(tint ? { tint } : {}), ...(crops ? { weather: crops } : {}) };
+  });
+}
+
+/**
+ * Potlučené obilí v pruhu krupobití (disasters.md – Kroupy, Ve scéně) při plné síle (vnitřek
+ * pruhu; okraj polovina): nižší a řidší, zralé obilí polehlé, otlučené listy hnědnou. Platí do
+ * žní – sklizený díl už osetý není.
+ */
+const HAIL_CROPS = { height: 0.45, density: 0.5, tint: [0.86, 0.8, 0.66] as Rgb };
+
+function withHail(views: PartView[], context: LookContext): PartView[] {
+  const hail = context.village.hail;
+  if (!hail) return views;
+  return views.map((view) => {
+    if (view.part.stage !== 'sown') return view;
+    const w = hailWeight(hail.strip, view.part.x, view.part.z);
+    if (w === 0) return view;
+    const base = view.weather ?? { height: 1, density: 1, lodged: 0, bare: 0 };
+    const grain = view.part.crop === undefined;
+    const weather: PartWeather = {
+      height: base.height * (1 - HAIL_CROPS.height * w),
+      density: base.density * (1 - HAIL_CROPS.density * w),
+      lodged: grain ? Math.max(base.lodged, w) : base.lodged,
+      bare: base.bare,
+    };
+    const battered: Rgb = [
+      1 + (HAIL_CROPS.tint[0] - 1) * w,
+      1 + (HAIL_CROPS.tint[1] - 1) * w,
+      1 + (HAIL_CROPS.tint[2] - 1) * w,
+    ];
+    return { ...view, weather, tint: mergeTint(view.tint ?? null, battered)! };
+  });
+}
+
+/**
+ * Polehlá úroda ve stopě smrště (disasters.md – Smršť, Ve scéně): podle ztráty úrody síly (F0 0,2
+ * … F3 1) nižší a řidší, obilí polehlé, pomačkané listy hnědnou. Platí do žní jako kroupy.
+ */
+const TORNADO_CROPS = { height: 0.6, density: 0.45, tint: [0.84, 0.78, 0.64] as Rgb };
+
+function withTornado(views: PartView[], context: LookContext): PartView[] {
+  const tornado = context.village.tornado;
+  if (!tornado) return views;
+  return views.map((view) => {
+    if (view.part.stage !== 'sown') return view;
+    const w = tornadoCropWeight(tornado, view.part.x, view.part.z);
+    if (w === 0) return view;
+    const base = view.weather ?? { height: 1, density: 1, lodged: 0, bare: 0 };
+    const weather: PartWeather = {
+      height: base.height * (1 - TORNADO_CROPS.height * w),
+      density: base.density * (1 - TORNADO_CROPS.density * w),
+      // smršť položí i luštěniny a len, ne jen obilí
+      lodged: Math.max(base.lodged, Math.min(1, 0.4 + w)),
+      bare: base.bare,
+    };
+    const flattened: Rgb = [
+      1 + (TORNADO_CROPS.tint[0] - 1) * w,
+      1 + (TORNADO_CROPS.tint[1] - 1) * w,
+      1 + (TORNADO_CROPS.tint[2] - 1) * w,
+    ];
+    return { ...view, weather, tint: mergeTint(view.tint ?? null, flattened)! };
+  });
+}
+
+function mergeTint(a: Rgb | null, b: Rgb | null): Rgb | null {
+  if (!a || !b) return a ?? b;
+  return [a[0] * b[0], a[1] * b[1], a[2] * b[2]];
+}
 
 /**
  * Díly dnešní seče z rozdělení práce (`mow` – díly polí podle id, přirozené louky podle políčka):

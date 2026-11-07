@@ -12,11 +12,14 @@ import {
   ROAD_WIDTH_M,
   ROAD_WORN_LAYER,
   pathRibbons,
+  dayPathRibbons,
+  dayPathTrack,
   ribbonJunctions,
   roadFade,
   type RibbonLayer,
 } from '../path-ribbon';
-import { roadBands, roadJunctions } from '../road-works-layout';
+import { junctionRibbons } from '../junction-shape';
+import { roadBands } from '../road-works-layout';
 
 const line = (strength: number, open = true): PathLine => ({
   points: [
@@ -119,39 +122,28 @@ describe('vzhled pěšin a cest (Martin, 19. 10. 2026)', () => {
     expect(ROAD_WIDTH_M.improved).toBeGreaterThanOrEqual(ROAD_WIDTH_M.trodden * 1.5);
   });
 
-  it('rozcestí pěšin dne jen jemně – menší a slabší plácek než u pevné cesty', () => {
-    const arms = (s: number): PathLine[] =>
-      [
-        [20, 0],
-        [-20, 0],
-        [0, 20],
-      ].map(([x, z]) => ({
-        points: [
-          { x: 0, z: 0 },
-          { x: x!, z: z! },
-        ],
-        strength: [s, s],
-        years: [5, 5],
-        openStart: false,
-        openEnd: true,
-      }));
-    /** Krytí a největší poloměr plácku v počátku. */
-    const plaza = (layer: RibbonLayer, lines: PathLine[]): { alpha: number; radius: number } => {
-      const grid = pathRibbons(lines, layer);
-      const first = pathRibbons(lines, layer, undefined, undefined, []).alphas.length;
-      let radius = 0;
-      for (let v = first + 1; v < grid.alphas.length; v += 2) {
-        radius = Math.max(radius, Math.hypot(grid.positions[v * 2]!, grid.positions[v * 2 + 1]!));
-      }
-      return { alpha: grid.alphas[first]!, radius };
-    };
-    const day = plaza(PATH_WORN_LAYER, arms(1));
-    const road = plaza(ROAD_WORN_LAYER, arms(1));
-    expect(day.alpha).toBeLessThan(PATH_WORN_LAYER.alpha(1));
-    expect(day.alpha).toBeLessThan(road.alpha / 2);
-    expect(day.radius).toBeLessThan(road.radius / 1.5);
-    // plácek je pořád aspoň tak široký jako pěšina – pásy do něj vbíhají bez zúžení
-    expect(2 * day.radius).toBeGreaterThan(PATH_WORN_LAYER.width.strong);
+  it('pěšiny dne nemají kruhové plácky – rozcestí jen ze sbíhajících se pásů', () => {
+    const arms: PathLine[] = [
+      [20, 0],
+      [-20, 0],
+      [0, 20],
+    ].map(([x, z]) => ({
+      points: [
+        { x: 0, z: 0 },
+        { x: x!, z: z! },
+      ],
+      strength: [1, 1],
+      years: [5, 5],
+      openStart: false,
+      openEnd: true,
+    }));
+    const bare = pathRibbons(arms, PATH_WORN_LAYER, undefined, undefined, []);
+    const day = dayPathRibbons(arms, PATH_WORN_LAYER);
+    expect(day.alphas.length).toBe(bare.alphas.length);
+    expect(day.indices.length).toBe(bare.indices.length);
+    // s plácky by byl pás větší
+    expect(pathRibbons(arms, PATH_WORN_LAYER).alphas.length).toBeGreaterThan(day.alphas.length);
+    expect(dayPathTrack(arms, PATH_WORN_LAYER).discs).toEqual([]);
   });
 });
 
@@ -169,6 +161,18 @@ describe('pevné cesty z dat (roads.md)', () => {
     { x: 40, z: 0 },
     { x: 40, z: 30 },
   ]);
+
+  it('zarůstající cesta bledne: bledý kus má slabší krytí, plný kus 1 (paths.md – Zarůstání)', () => {
+    const fading = {
+      ...a,
+      fade: [{ x: 30, z: 0, strength: 0.4 }],
+    };
+    const [line] = roadBands([fading]).trodden;
+    const first = line!.strength[0]!;
+    const last = line!.strength[line!.strength.length - 1]!;
+    expect(first).toBe(1);
+    expect(last).toBeCloseTo(0.4, 5);
+  });
 
   it('cesta je plně vyšlapaná pěšina, volný konec se vytrácí, v rozcestí ne', () => {
     const [first, second] = roadBands([a, b]).trodden;
@@ -274,34 +278,59 @@ describe('rozcestí – udusaný plácek (Martin: „rozcestí by mělo být nej
     );
   });
 
-  it('pevné cesty: rozcestí tří úseků, u upravené cesty v pásu upravené', () => {
-    const road = (id: number, x: number, z: number, grade: 'trodden' | 'improved' = 'trodden') => ({
+  it('pevné cesty: křižovatka tří úseků – vrstva podle nejširší cesty, ne podle počtu konců', () => {
+    const road = (
+      id: number,
+      x: number,
+      z: number,
+      grade: 'trodden' | 'improved' | 'wagon' = 'trodden',
+    ) => ({
       id,
       points: [
-        { x: 0, z: 0 },
         { x, z },
+        { x: 0, z: 0 },
       ],
       grade,
     });
-    expect(roadJunctions([road(1, 30, 0), road(2, -30, 0)])).toEqual({
+    const j = {
+      id: 9,
+      x: 0,
+      z: 0,
+      shape: 'y' as const,
+      rotation: 0,
+      spread: Math.PI / 3,
+      arms: [1, 2, 3],
+      landmark: { kind: 'tree' as const, x: 5, z: 5, turn: 0, look: 1 },
+      bornDay: 0,
+    };
+    // bez křižovatky nic – tři konce v jednom bodě už nejsou kruhový plácek
+    expect(junctionRibbons([], [road(1, 30, 0), road(2, -30, 0), road(3, 0, 30)])).toEqual({
       trodden: [],
       improved: [],
       cart: [],
     });
-    expect(roadJunctions([road(1, 30, 0), road(2, -30, 0), road(3, 0, 30)]).trodden).toEqual([
-      { x: 0, z: 0, strength: 1 },
-    ]);
-    const mixed = roadJunctions([road(1, 30, 0, 'improved'), road(2, -30, 0), road(3, 0, 30)]);
+    expect(
+      junctionRibbons([j], [road(1, 30, 0), road(2, -30, 0), road(3, 0, 30)]).trodden,
+    ).toHaveLength(1);
+    const mixed = junctionRibbons(
+      [j],
+      [road(1, 30, 0, 'improved'), road(2, -30, 0), road(3, 0, 30)],
+    );
     expect(mixed.improved).toHaveLength(1);
     expect(mixed.trodden).toEqual([]);
     // vozová cesta (wagons.md) – plácek na šířku vozové cesty
-    const carts = roadJunctions([
-      { ...road(1, 30, 0), cart: true as const },
-      road(2, -30, 0),
-      road(3, 0, 30),
-    ]);
+    const carts = junctionRibbons(
+      [j],
+      [{ ...road(1, 30, 0), cart: true as const }, road(2, -30, 0), road(3, 0, 30)],
+    );
     expect(carts.cart).toHaveLength(1);
     expect(carts.trodden).toEqual([]);
+    // vozová cesta pro vozy – maska polí jako u upravené (obtisk kreslí junction-patch.ts)
+    const wagons = junctionRibbons(
+      [j],
+      [road(1, 30, 0, 'wagon'), road(2, -30, 0, 'improved'), road(3, 0, 30)],
+    );
+    expect(wagons.improved).toHaveLength(1);
   });
 
   it('vozová cesta: širší pás bez holé hlíny a dvě koleje po 0,65 m od osy (wagons.md)', () => {

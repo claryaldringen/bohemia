@@ -14,8 +14,10 @@ import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import { Scene } from '@babylonjs/core/scene';
 import {
+  MANOR_AT,
   SHOWCASE_BUILDINGS,
   SHOWCASE_CARTS,
+  SHOWCASE_CRAFT_YARDS,
   SHOWCASE_DECAY,
   SHOWCASE_ROADS,
   SHOWCASE_DECOR,
@@ -25,6 +27,7 @@ import {
   SHOWCASE_VARIANTS,
   showcaseCartGround,
   showcaseCarts,
+  showcaseCraftYards,
   showcaseDecay,
   showcaseKiln,
   showcaseRoads,
@@ -43,6 +46,8 @@ import { createEngine, type RendererName } from './create-engine';
 import type { PitCut } from './dwelling-pit';
 import { eaveTufts, type TuftModel } from './dwelling-decor';
 import { HomesteadRenderer, type PlotView } from './homestead';
+import { TrainingGroundRenderer } from './training-ground';
+import { manorTrainingGround } from './training-ground-layout';
 import { applyGammaFog } from './gamma-fog';
 import {
   addInstancedModel,
@@ -63,6 +68,8 @@ import {
   applySeasonSnow,
   setSeasonShaderState,
 } from './season-materials';
+import type { DitchCut } from './fortification-layout';
+import { SHOWCASE_FORTS, showcaseFortifications } from './fortification-showcase';
 import { ShowcaseSites } from './showcase-sites';
 import { addSunShadows, type SunShadows } from './sun-shadows';
 import { prepareTreeMaterial } from './trees';
@@ -134,6 +141,22 @@ class PitCutsPart extends PitCuts {
   get list(): readonly PitCut[] {
     return this.cuts;
   }
+
+  /** Příkopy valů (ukázka Opevnění) – louka je prořízne také. */
+  override setDitches(
+    cuts: readonly DitchCut[],
+    focus: { x: number; z: number } | null = null,
+  ): void {
+    super.setDitches(cuts, focus);
+    this.ditchCuts = cuts;
+    this.onChange();
+  }
+
+  get ditchList(): readonly DitchCut[] {
+    return this.ditchCuts;
+  }
+
+  private ditchCuts: readonly DitchCut[] = [];
 }
 
 /** Pata modelu: obydlí a dílny o kousek zapuštěné, posvátná místa leží na terénu (mají vlastní zem). */
@@ -194,6 +217,8 @@ export class BuildingShowcase {
   private variants: VillageRenderer | null = null;
   /** Pozemky polozemnic – plot a záhony po fázích jako ve vsi (homestead.ts). */
   private plots: HomesteadRenderer | null = null;
+  /** Cvičiště na dvorku dvorce (lord.md – training-ground.ts). */
+  private training: TrainingGroundRenderer | null = null;
   private fences: WovenFenceRenderer | null = null;
   private shadows: SunShadows | null = null;
   /** Vrhače stínu přidané dřív, než vznikne stínová mapa. */
@@ -203,6 +228,8 @@ export class BuildingShowcase {
   private readonly tufts: Mesh[] = [];
   /** Spřežení volů s rádlem (ukázka „Orání“). */
   private ploughDemo: VillageRenderer | null = null;
+  /** Ukázka opevnění (fortification-showcase.ts). */
+  private fortDemo: VillageRenderer | null = null;
   /** Den ukázky orby (showcasePloughDay) – po něm se posune čelo orby a spřežení dojde dál. */
   private ploughDay = showcasePloughDay(Date.now());
   /** Vozy se spřežením na pahorku (ukázka „Vozy“ – wagons.md). */
@@ -317,6 +344,8 @@ export class BuildingShowcase {
       SHOWCASE_CARTS,
       SHOWCASE_KILN,
       SHOWCASE_VARIANTS,
+      SHOWCASE_CRAFT_YARDS,
+      SHOWCASE_FORTS,
     ].find((b) => b.id === id);
     if (!target) return;
     this.setView(target.focus);
@@ -430,8 +459,10 @@ export class BuildingShowcase {
     this.kilnDemo?.dispose();
     this.variants?.dispose();
     this.plots?.dispose();
+    this.training?.dispose();
     this.fences?.dispose();
     this.ploughDemo?.dispose();
+    this.fortDemo?.dispose();
     this.carts?.dispose();
     this.pens?.dispose();
     this.penAnimals?.dispose();
@@ -492,9 +523,12 @@ export class BuildingShowcase {
     const models = SHOWCASE_BUILDINGS.flatMap((b) => b.models);
     // louka se prořízne jámami stavenišť i rozpadlých obydlí a zbytků jam
     const pitCuts = new PitCuts();
-    const mergeCuts = (): void =>
+    const mergeCuts = (): void => {
       pitCuts.set([...siteCuts.list, ...decayCuts.list, ...kilnCuts.list, ...variantCuts.list]);
+      pitCuts.setDitches(fortCuts.ditchList);
+    };
     const siteCuts = new PitCutsPart(mergeCuts);
+    const fortCuts = new PitCutsPart(mergeCuts);
     const decayCuts = new PitCutsPart(mergeCuts);
     const kilnCuts = new PitCutsPart(mergeCuts);
     const variantCuts = new PitCutsPart(mergeCuts);
@@ -686,7 +720,12 @@ export class BuildingShowcase {
       pitCuts: variantCuts,
       sunDirection: SUN_DIRECTION,
     });
-    this.variants.update(showcaseVariants());
+    // varianty i dvory kovárny a hrnčíře (houba, hřivny, pec, jáma s hlínou) – jeden renderer vsi
+    const variants = showcaseVariants();
+    this.variants.update({
+      ...variants,
+      dwellings: [...variants.dwellings, ...showcaseCraftYards()],
+    });
     this.grounds.setHayMeadows(showcaseHayMeadows());
     this.grounds.setSeason(showcaseMeadowDay(this.progress), this.snow());
     this.grounds.update(showcaseGrounds(this.progress).village);
@@ -707,6 +746,23 @@ export class BuildingShowcase {
       sunDirection: SUN_DIRECTION,
       animated: () => !this.reducedMotion?.matches,
     });
+    // ukázka „Opevnění“ – plot, palisáda, val, val s palisádou, staveniště, stáří a průlom
+    this.fortDemo = new VillageRenderer(scene, {
+      groundHeight: () => 0,
+      decalHeight: () => 0,
+      addShadowCaster: (mesh) => {
+        if (this.shadows) this.shadows.addCaster(mesh);
+        else casters.push(mesh);
+      },
+      onAsyncChange: () => {
+        this.shadows?.refresh();
+        this.burst(600);
+      },
+      requestRender: () => this.burst(300),
+      pitCuts: fortCuts,
+      sunDirection: SUN_DIRECTION,
+    });
+    this.fortDemo.update({ dwellings: [], fields: [], forts: showcaseFortifications() });
     this.ploughDemo.setPloughClock(showcasePloughWindow);
     this.ploughDemo.update(showcasePlough(this.ploughDay));
     const pathMaterial = createDecalMaterial(scene, 'showcase-plot-path', {
@@ -738,6 +794,20 @@ export class BuildingShowcase {
       prepareWeedMaterial: prepareTuftMaterial,
       fences: this.fences,
     });
+    this.training = new TrainingGroundRenderer(scene, {
+      groundHeight: () => 0,
+      addShadowCaster: addCaster,
+      onAsyncChange,
+      prepareMaterial: prepareModelMaterial,
+    });
+    this.training.update(
+      manorTrainingGround({
+        x: MANOR_AT.x,
+        z: MANOR_AT.z,
+        size: 15,
+        yard: { x: MANOR_AT.x, z: MANOR_AT.z - 15 },
+      }),
+    );
     this.carts = new CartRenderer(scene, {
       baseUrl: '/models/',
       groundHeight: showcaseCartGround,

@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { dayIndexOf } from '../../domain/calendar';
 import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
-import type { Position, VillageState } from '../../domain/village';
+import { isLineMan, type Position, type VillageState } from '../../domain/village';
+import { removePeople } from '../../domain/village/kinship';
 import { block, makeLandscape } from '../../domain/village/__tests__/placement-fixtures';
 import { foundVillageForSettlement } from '../found-village';
 import { loadVillage } from '../load-village';
@@ -13,10 +14,15 @@ import { renameVillage } from '../rename-village';
 import { DYNASTY_ALIVE, dynastyStatus, restartGame } from '../restart-game';
 import type { LandscapeSource, SeedSource } from '../settlements';
 import { VILLAGE_EXTINCT } from '../update-village';
+import { InMemoryHouses } from './in-memory-houses';
+import { InMemoryNegotiations } from './in-memory-negotiations';
+import { InMemoryNotices } from './in-memory-notices';
+import { InMemoryVassalages } from './in-memory-vassalages';
 import { InMemorySettlements } from './in-memory-settlements';
 import { InMemoryVillages } from './in-memory-villages';
 
 const TODAY = dayIndexOf({ year: 540, month: 4, day: 12 });
+const NOW = new Date('2026-11-05T12:00:00Z');
 const PLAYER = 'hrac-1';
 const landscape = makeLandscape({ surface: (x) => (x === 15 ? 'water' : 'meadow') });
 /** Ruční krajina testů pro každé sídlo – generátor by se jen zdržoval. */
@@ -38,7 +44,7 @@ async function playerWithVillage(kill: boolean): Promise<{
 }> {
   const settlements = new InMemorySettlements();
   const villages = new InMemoryVillages();
-  const seat = await settlements.createSeat({
+  const seat = await settlements.seatAtOrigin({
     ownerId: PLAYER,
     landscapeSeed: 11,
     layerVersions: CURRENT_LAYER_VERSIONS,
@@ -59,6 +65,11 @@ async function playerWithVillage(kill: boolean): Promise<{
   return { settlements, villages, settlementId: seat.id, villageId: founded.village.id };
 }
 
+/** Zemřou všichni muži rodu (lord.md – Konec rodu) – rod vymře příští dopočítaný den. */
+function lineDiesOut(state: VillageState): void {
+  removePeople(state, new Set(state.people.filter(isLineMan).map((p) => p.id)));
+}
+
 /** Všichni zemřou – ves vymře příští dopočítaný den (jako ves uložená bez lidí). */
 function dieOut(state: VillageState): void {
   state.people = [];
@@ -77,6 +88,20 @@ describe('dynastyStatus', () => {
     expect(villages.records.get(villageId)?.state.extinctDay).toBe(TODAY - 39);
   });
 
+  it('stav každé vsi načte jednou – seznam vsí jen z otisků (bez stavu)', async () => {
+    const living = await playerWithVillage(false);
+    const list = vi.spyOn(living.villages, 'listBySettlement');
+    const find = vi.spyOn(living.villages, 'find');
+    const status = await dynastyStatus(
+      { ...living, landscapes },
+      { playerId: PLAYER, today: TODAY },
+    );
+    expect(status.villages.map((v) => v.id)).toEqual([living.villageId]);
+    // dřív i celé vsi sídla se stavem (listBySettlement) – jen kvůli id
+    expect(list).not.toHaveBeenCalled();
+    expect(find.mock.calls.every(([id]) => id === living.villageId)).toBe(true);
+  });
+
   it('se živou vsí ani bez vsi hra nekončí', async () => {
     const living = await playerWithVillage(false);
     const alive = await dynastyStatus(
@@ -92,11 +117,93 @@ describe('dynastyStatus', () => {
   });
 });
 
+describe('spící vsi se kvůli dni neukládají', () => {
+  it('vymřelá ves: pozdější dopočet nic neuloží a konec hry zůstane', async () => {
+    const { settlements, villages, villageId } = await playerWithVillage(true);
+    const deps = { settlements, villages, landscapes };
+    const first = await dynastyStatus(deps, { playerId: PLAYER, today: TODAY });
+    expect(first.gameOver).toBe(true);
+    const saved = villages.records.get(villageId);
+    const saves = villages.saves;
+    const later = await dynastyStatus(deps, { playerId: PLAYER, today: TODAY + 30 });
+    expect(later.gameOver).toBe(true);
+    expect(villages.saves).toBe(saves);
+    expect(villages.records.get(villageId)?.version).toBe(saved?.version);
+    expect(villages.records.get(villageId)?.state.lastDay).toBe(saved?.state.lastDay);
+    expect(later.villages[0]?.state).toEqual(saved?.state);
+  }, 30_000);
+
+  it('načtení spící vsi verzi nemění', async () => {
+    const { settlements, villages, villageId } = await playerWithVillage(true);
+    await dynastyStatus({ settlements, villages, landscapes }, { playerId: PLAYER, today: TODAY });
+    const version = villages.records.get(villageId)?.version;
+    const loaded = await loadVillage({ villages }, { villageId, today: TODAY + 100, landscape });
+    expect(loaded?.version).toBe(version);
+    expect(villages.records.get(villageId)?.version).toBe(version);
+  }, 30_000);
+});
+
+describe('konec rodu (lord.md – Konec rodu)', () => {
+  it('rod vymřel – hra končí, ves s lidmi je opuštěná ode dne konce rodu a uložená', async () => {
+    const { settlements, villages, villageId } = await playerWithVillage(false);
+    villages.edit(villageId, lineDiesOut);
+    const status = await dynastyStatus(
+      { settlements, villages, landscapes },
+      { playerId: PLAYER, today: TODAY },
+    );
+    expect(status.gameOver).toBe(true);
+    const saved = villages.records.get(villageId)?.state;
+    expect(saved?.dynasty?.endedDay).toBe(TODAY - 39);
+    expect(saved?.abandonedDay).toBe(TODAY - 39);
+    expect(saved?.extinctDay).toBeUndefined();
+    expect(saved?.people.length).toBeGreaterThan(0);
+    expect(saved?.chronicle.filter((e) => e.kind === 'village-abandoned')).toEqual([
+      { day: TODAY - 39, kind: 'village-abandoned', reason: 'line-ended' },
+    ]);
+    expect(status.villages[0]?.state).toEqual(saved);
+    // další dopočet nic nemění – ves se nedopočítává
+    const version = villages.records.get(villageId)?.version;
+    const again = await dynastyStatus(
+      { settlements, villages, landscapes },
+      { playerId: PLAYER, today: TODAY + 20 },
+    );
+    expect(again.gameOver).toBe(true);
+    expect(villages.records.get(villageId)?.state.people).toEqual(saved?.people);
+    expect(villages.records.get(villageId)?.state.chronicle).toEqual(saved?.chronicle);
+    // spící ves se kvůli dni neukládá (worker.md – Úloha 4)
+    expect(villages.records.get(villageId)?.version).toBe(version);
+  }, 30_000);
+
+  it('restart bez abandon je po konci rodu povolen; se živým rodem odmítne', async () => {
+    const alive = await playerWithVillage(false);
+    expect(
+      await restartGame(
+        { ...alive, landscapes, worldSeed: 4242, houses: new InMemoryHouses(), now: () => NOW },
+        { playerId: PLAYER, today: TODAY },
+      ),
+    ).toEqual({ ok: false, reason: DYNASTY_ALIVE });
+    alive.villages.edit(alive.villageId, lineDiesOut);
+    const result = await restartGame(
+      { ...alive, landscapes, worldSeed: 4242, houses: new InMemoryHouses(), now: () => NOW },
+      { playerId: PLAYER, today: TODAY },
+    );
+    expect(result.ok).toBe(true);
+    expect(alive.settlements.archived.has(alive.settlementId)).toBe(true);
+  }, 30_000);
+});
+
 describe('restartGame', () => {
   it('po vymření archivuje sídlo a založí nové s novým seedem – bez vsi', async () => {
     const { settlements, villages, settlementId, villageId } = await playerWithVillage(true);
     const result = await restartGame(
-      { settlements, villages, landscapes, seeds: seedsFrom(777) },
+      {
+        settlements,
+        villages,
+        landscapes,
+        worldSeed: 4242,
+        houses: new InMemoryHouses(),
+        now: () => NOW,
+      },
       { playerId: PLAYER, today: TODAY },
     );
     expect(result.ok).toBe(true);
@@ -131,7 +238,14 @@ describe('restartGame', () => {
   it('se živou vsí restart odmítne a nic nezmění', async () => {
     const { settlements, villages, settlementId } = await playerWithVillage(false);
     const result = await restartGame(
-      { settlements, villages, landscapes, seeds: seedsFrom(777) },
+      {
+        settlements,
+        villages,
+        landscapes,
+        worldSeed: 4242,
+        houses: new InMemoryHouses(),
+        now: () => NOW,
+      },
       { playerId: PLAYER, today: TODAY },
     );
     expect(result).toEqual({ ok: false, reason: DYNASTY_ALIVE });
@@ -141,7 +255,14 @@ describe('restartGame', () => {
 
   it('bez vsi vrátí sídlo beze změny (druhý restart po prvním)', async () => {
     const { settlements, villages } = await playerWithVillage(true);
-    const deps = { settlements, villages, landscapes, seeds: seedsFrom(777, 888) };
+    const deps = {
+      settlements,
+      villages,
+      landscapes,
+      worldSeed: 4242,
+      houses: new InMemoryHouses(),
+      now: () => NOW,
+    };
     const first = await restartGame(deps, { playerId: PLAYER, today: TODAY });
     const second = await restartGame(deps, { playerId: PLAYER, today: TODAY });
     expect(first.ok && second.ok).toBe(true);
@@ -152,7 +273,14 @@ describe('restartGame', () => {
 
   it('souběžné restarty založí jediné nové sídlo', async () => {
     const { settlements, villages } = await playerWithVillage(true);
-    const deps = { settlements, villages, landscapes, seeds: seedsFrom(777, 888, 999) };
+    const deps = {
+      settlements,
+      villages,
+      landscapes,
+      worldSeed: 4242,
+      houses: new InMemoryHouses(),
+      now: () => NOW,
+    };
     const results = await Promise.all(
       [1, 2, 3].map(() => restartGame(deps, { playerId: PLAYER, today: TODAY })),
     );
@@ -163,11 +291,35 @@ describe('restartGame', () => {
   }, 60_000);
 });
 
+describe('restartGame a rod', () => {
+  it('ukončí živý rod s herním dnem konce a další vstup založí nový', async () => {
+    const { settlements, villages } = await playerWithVillage(true);
+    const houses = new InMemoryHouses();
+    const deps = { settlements, villages, landscapes, worldSeed: 4242, houses, now: () => NOW };
+    const first = await houses.create({ playerId: PLAYER, kind: 'player', createdAt: NOW });
+    const result = await restartGame(deps, { playerId: PLAYER, today: TODAY });
+    expect(result.ok).toBe(true);
+    expect(houses.houses).toHaveLength(2);
+    expect(houses.houses[0]).toMatchObject({ id: first.id, endedAt: NOW, endedDay: TODAY });
+    expect((await houses.activeOf(PLAYER))?.id).not.toBe(first.id);
+    // druhý restart bez vsí rod nechá být
+    await restartGame(deps, { playerId: PLAYER, today: TODAY });
+    expect(houses.houses).toHaveLength(2);
+  }, 30_000);
+});
+
 describe('restartGame s abandon (nabídka hry)', () => {
   it('se živou vsí archivuje sídlo i se vsí a založí nové s novým seedem', async () => {
     const { settlements, villages, settlementId, villageId } = await playerWithVillage(false);
     const result = await restartGame(
-      { settlements, villages, landscapes, seeds: seedsFrom(777) },
+      {
+        settlements,
+        villages,
+        landscapes,
+        worldSeed: 4242,
+        houses: new InMemoryHouses(),
+        now: () => NOW,
+      },
       { playerId: PLAYER, today: TODAY, abandon: true },
     );
     expect(result.ok).toBe(true);
@@ -192,7 +344,14 @@ describe('restartGame s abandon (nabídka hry)', () => {
   it('bez abandon (i s abandon: false) se živou vsí dál odmítne', async () => {
     const { settlements, villages, settlementId } = await playerWithVillage(false);
     const result = await restartGame(
-      { settlements, villages, landscapes, seeds: seedsFrom(777) },
+      {
+        settlements,
+        villages,
+        landscapes,
+        worldSeed: 4242,
+        houses: new InMemoryHouses(),
+        now: () => NOW,
+      },
       { playerId: PLAYER, today: TODAY, abandon: false },
     );
     expect(result).toEqual({ ok: false, reason: DYNASTY_ALIVE });
@@ -203,7 +362,14 @@ describe('restartGame s abandon (nabídka hry)', () => {
   it('po vymření funguje jako restart z obrazovky porážky', async () => {
     const { settlements, villages, settlementId } = await playerWithVillage(true);
     const result = await restartGame(
-      { settlements, villages, landscapes, seeds: seedsFrom(777) },
+      {
+        settlements,
+        villages,
+        landscapes,
+        worldSeed: 4242,
+        houses: new InMemoryHouses(),
+        now: () => NOW,
+      },
       { playerId: PLAYER, today: TODAY, abandon: true },
     );
     expect(result.ok && result.settlement.id !== settlementId).toBe(true);
@@ -212,7 +378,14 @@ describe('restartGame s abandon (nabídka hry)', () => {
 
   it('bez vsi vrátí sídlo beze změny – opakované potvrzení nezaloží další krajinu', async () => {
     const { settlements, villages } = await playerWithVillage(false);
-    const deps = { settlements, villages, landscapes, seeds: seedsFrom(777, 888) };
+    const deps = {
+      settlements,
+      villages,
+      landscapes,
+      worldSeed: 4242,
+      houses: new InMemoryHouses(),
+      now: () => NOW,
+    };
     const first = await restartGame(deps, { playerId: PLAYER, today: TODAY, abandon: true });
     const second = await restartGame(deps, { playerId: PLAYER, today: TODAY, abandon: true });
     expect(first.ok && second.ok).toBe(true);
@@ -224,7 +397,14 @@ describe('restartGame s abandon (nabídka hry)', () => {
 
   it('souběžné restarty se živou vsí založí jediné nové sídlo', async () => {
     const { settlements, villages } = await playerWithVillage(false);
-    const deps = { settlements, villages, landscapes, seeds: seedsFrom(777, 888, 999) };
+    const deps = {
+      settlements,
+      villages,
+      landscapes,
+      worldSeed: 4242,
+      houses: new InMemoryHouses(),
+      now: () => NOW,
+    };
     const results = await Promise.all(
       [1, 2, 3].map(() => restartGame(deps, { playerId: PLAYER, today: TODAY, abandon: true })),
     );
@@ -267,4 +447,36 @@ describe('akce ve vymřelé vsi', () => {
     const loaded = await loadVillage(deps, base);
     expect(loaded?.state.extinctDay).toBe(TODAY - 39);
   });
+});
+
+describe('restartGame a jednání', () => {
+  it('konec rodu ukončí jeho otevřená jednání', async () => {
+    const { settlements, villages } = await playerWithVillage(true);
+    const houses = new InMemoryHouses();
+    const negotiations = new InMemoryNegotiations(
+      new InMemoryVassalages(),
+      new InMemoryNotices(),
+      () => NOW,
+    );
+    const mine = await houses.create({ playerId: PLAYER, kind: 'player', createdAt: NOW });
+    const other = await houses.create({ playerId: 'jiny', kind: 'player', createdAt: NOW });
+    await negotiations.transaction(async (tx) => {
+      await tx.open({
+        initiatorHouseId: other.id,
+        recipientHouseId: mine.id,
+        round: { authorHouseId: other.id, items: [], message: null, at: NOW },
+      });
+    });
+    const deps = {
+      settlements,
+      villages,
+      landscapes,
+      worldSeed: 4242,
+      houses,
+      negotiations,
+      now: () => NOW,
+    };
+    expect((await restartGame(deps, { playerId: PLAYER, today: TODAY })).ok).toBe(true);
+    expect(negotiations.records.map((r) => r.status)).toEqual(['ended']);
+  }, 30_000);
 });

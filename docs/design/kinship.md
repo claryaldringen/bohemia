@@ -34,8 +34,11 @@ dědictví, sňatky a nástupnictví potřebují vědět, kdo je čí. Postavy v
   seedu vsi a dne (návrh Clauda).
 - **Rodit může jen žena 16–44 let, která má manžela** (porody dnes po „párech“ – teď po
   manželských párech; četnost porodů beze změny). Muž je plodný od 16 let bez horní meze
-  (návrh Clauda).
-- Zakladatelé vsi: dva páry – muž a žena v každém (návrh Clauda; dnes 4 lidé).
+  (návrh Clauda). Návrh issue #9: **vedlejší manželka muže rodu** rodí, i když s mužem nebydlí –
+  muž ji navštěvuje (Martin, 24. 10. 2026 – [vojvodova rodina](lord.md), Manželky).
+- Zakladatelé vsi: dva páry – muž a žena v každém (návrh Clauda; dnes 4 lidé). **Návrh issue #9
+  fáze 1** (Martin, 24. 10. 2026): vojvoda se 4 manželkami – hlavní a 3 vedlejšími, bez
+  konkubín (Martin je týž den zrušil) – [vojvodova rodina](lord.md) – Rod vojvody, Zakladatelé.
 - **Starší vsi** (lidé bez pohlaví): pohlaví se jednou doplní deterministicky (střídavě podle
   věku tak, aby dvojice v domě byly muž a žena, kde to jde); rodiče neznámí = nepříbuzní;
   manželé se doplní z dnešních párů v domě (nejstarší muž s nejstarší ženou…) – návrh Clauda.
@@ -69,8 +72,27 @@ dědictví, sňatky a nástupnictví potřebují vědět, kdo je čí. Postavy v
   s ≈ 20 % ročně **vdá pryč** (dřív jen pryč, 30 % ročně). Ves tak lidi z okolí bere i dává
   (návrh Clauda). Až budou okolní vsi (NPC vojvodové, další hráči – [válka](war.md),
   [stěhování](migration.md)), sňatky půjdou přes ně.
+- **Muži rodu vojvody** (návrh issue #9, Martin 24. 10. 2026) smějí mít až 4 manželky; první je
+  hlavní a podle pravidel výš, další (vedlejší) jen z okolí. Vedlejší manželka bydlí s mužem,
+  dokud jeho dům není přeplněný, pak se svými dětmi ve vlastním obydlí – [vojvodova
+  rodina](lord.md), Manželky. Ostatní muži mají jednu manželku.
 - **Vdovy a vdovci** se znovu žení a vdávají co nejdřív – žádná čekací doba; dítě s novým mužem
   nejdřív za 9 měsíců (population.md – rozestup porodů).
+- **Sňatky čekají na zásoby (27. 10. 2026)** – návrh Clauda po recenzi pohrom (P3), **Martin 27. 10. 2026: „Ano“**: ves rostla až k mezi jídla (sňatky brzdil jen hlad), takže pojistku zásob
+  nikdy neměla a po jednom krutém roce hladověla. Teď **nový sňatek jen tehdy, když výhled zásob
+  z pole k příští sklizni** (jako v plánu osevu – [pole](fields.md), Osev podle zásob) **dosáhne
+  pojistky** (0,5 roční potřeby, v paměti hladu po krutém roce 0,75 – [pohromy](disasters.md),
+  Zásoby a pojistka). Pod pojistkou svatba **jen čeká, nikdy se nezruší**: navíc průměrně
+  **3 roky × (1 − naplnění pojistky)** (`MARRIAGE_STORES.waitYears`; los dne – při prázdných
+  zásobách ≈ 3 roky, v půli pojistky ≈ 1,5 roku), takže ves, která pojistku nikdy nemá, roste
+  pomaleji, ale nevymře. Snoubenci, kteří čekají, se mezitím nevezmou s nikým jiným. Platí pro
+  svatbu ve vsi, nevěstu i ženicha z okolí a další manželku muže rodu (šance z okolí se zmenší
+  o tentýž odklad); **muži rodu vojvody stejně** (návrh Clauda – dvorec jí ze zásob vsi). Vdát se
+  pryč jde dál (ubývá úst); novou hlavní manželkou z vlastních manželek (lord.md) se nikdo nebere.
+  **V hájení** (prvních 30 let vsi – [populace](population.md), Hájení) sňatky nečekají: hladem
+  v něm nikdo nezemře a nová ves má růst (návrh Clauda).
+  Historicky: v raném novověku se sňatky v drahotě odkládaly o 1–3 roky a po ní dohnaly
+  (Malthusova preventivní brzda, evropský sňatkový vzorec – Hajnal 1965).
 
 ### Svatba ve scéně
 
@@ -158,7 +180,9 @@ rodiny (návrh Clauda – Martin uvidí):
   a jen dokud dům zůstával plný – pravidlo bylo kvůli stěhování tam a zpět, které po zavedení
   příbuzenství odpadlo (hlídá test).
 - **Dědic:** nejstarší ženatý syn zůstává s rodiči (dnešní dědic u neplodných rodičů platí
-  obecně – dům dědí nejstarší syn).
+  obecně – dům dědí nejstarší syn). **Výjimka – dvorec vojvody** (Martin, 24. 10. 2026, issue #9
+  fáze 1): po sňatku odcházejí všichni synové včetně nejstaršího; svobodní synové sami
+  neodcházejí (návrh Clauda) – [vojvodova rodina](lord.md) – Rod vojvody.
 - **Nejstarší dítě smí odejít samo** (Martin): z plného i přeplněného domu (Martin, 18. 10. 2026:
   „ať prázdný dům obsadí i plná domácnost“) smí do prázdného nebo nového domu odejít i
   **svobodný** nejstarší syn (od 16 let) – a oženit se tam (sňatkem ve vsi nebo z okolí). **Dál
@@ -319,6 +343,7 @@ odchodu svobodného syna z plného domu):
 | Ženatý pár, který dům nedrží, smí odejít do nového nebo prázdného domu kdykoli            | Martin (19. 10. 2026), návrh Clauda       |
 | Svobodný syn smí odejít sám dál jen z plného domu                                         | návrh Clauda (19. 10. 2026)               |
 | Starší vsi: pohlaví a manželé se doplní jednou deterministicky, rodiče neznámí            | návrh Clauda                              |
+| Sňatky čekají na pojistku zásob – odklad průměrně 3 roky × (1 − naplnění), nikdy zákaz    | Martin (27. 10. 2026), návrh Clauda       |
 | Nevěsta z okolí si pamatuje směr vsi, vdaná pryč zůstane v rodokmenu se směrem (válka)    | návrh Clauda                              |
 | Domácnost drží člověk 16–44; rozpad k příbuzným; ~~vdova s dětmi do 14 se nevdává~~       | návrh Clauda                              |
 | ~~Svatba nepřeplní dům víc než o jednoho~~; v hladu nevěsta z okolí nepřijde              | návrh Clauda                              |

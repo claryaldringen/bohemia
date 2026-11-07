@@ -69,9 +69,14 @@ const WOODLAND_M = -6;
  */
 const WETLAND = { cells: 3, slope: 0.04 } as const;
 /** U okraje krajiny se nechodí (m). */
-const EDGE_MARGIN_M = 10;
-/** Okno terénu v mezipaměti je o tolik (m) větší než potřebné – ves roste a nepočítá se znovu. */
-const CACHE_MARGIN_M = 300;
+export const EDGE_MARGIN_M = 10;
+/**
+ * Okno terénu v mezipaměti je o tolik (m) větší než potřebné – ves roste a nepočítá se znovu.
+ * Síť pěšin vsi a půda chůze (`walkGroundOf`) chtějí okna posunutá proti sobě; s rezervou 600 m
+ * je u sídla skutečné krajiny první terén celá krajina a druhý se nestaví (jen zrychlení – výřez
+ * je vždy přesně potřebné okno).
+ */
+const CACHE_MARGIN_M = 600;
 
 /**
  * Překážky krajiny pro pěšiny: poloměr (m na jednotku velikosti, 0 = jen buňka kmene) a cena
@@ -121,13 +126,18 @@ export interface PathTerrain {
 }
 
 /** Mřížka celé krajiny: bodů na stranu, bod (0, 0) ve světě a krok (m). */
+/** Strana buňky mřížky pěšin krajiny (m) – v ní jsou uložené trasy (`VillageState.routes`). */
+export function pathCellM(l: Landscape): number {
+  return l.cellSizeM / PATH_GRID_PER_TILE;
+}
+
 function gridOf(l: Landscape): { n: number; originX: number; originZ: number; step: number } {
   const half = (l.size * l.cellSizeM) / 2;
   return {
     n: (l.size - 1) * PATH_GRID_PER_TILE + 1,
     originX: -half + l.cellSizeM / 2,
     originZ: -half + l.cellSizeM / 2,
-    step: l.cellSizeM / PATH_GRID_PER_TILE,
+    step: pathCellM(l),
   };
 }
 

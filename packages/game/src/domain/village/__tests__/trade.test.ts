@@ -25,6 +25,7 @@ import {
 } from '../trade';
 import { finishTrail, startTrail, trailTripDays } from '../trail';
 import type { Direction8, NeighbourStock, TradeGood, TradeGoods, VillageState } from '../types';
+import { CARTS } from '../rules-crafts';
 import { LANDSCAPE } from './paths-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
@@ -48,7 +49,7 @@ function trading(direction: Direction8 = 'S'): VillageState {
   next.cheeseKg = 200;
   next.legumesKg = 300;
   next.woodLogs = 20;
-  next.crafts = { charcoalKg: 500, toolsKg: 30, potteryKg: 80 };
+  next.crafts = { charcoalKg: 500, potteryKg: 80, ironBarsKg: 30 };
   next.livestock!.herds.cow = 6;
   return next;
 }
@@ -70,8 +71,10 @@ function fairOffer(
 describe('ceny výměny', () => {
   it('sháněné zboží soused bere za hodnotu, nabízené prodá za 0,96 hodnoty', () => {
     expect(sellPrice('cheese')).toBeCloseTo(4);
-    expect(buyPrice('tools')).toBeCloseTo(60 * 1.2 * 0.8);
-    expect(buyPrice('cattle')).toBeCloseTo(600 * 0.96);
+    expect(buyPrice('ironBars')).toBeCloseTo(45 * 1.2 * 0.8);
+    expect(buyPrice('cows')).toBeCloseTo(600 * 0.96);
+    expect(buyPrice('youngOxen')).toBeCloseTo(350 * 0.96);
+    expect(buyPrice('trainedOxen')).toBeCloseTo(1200 * 0.96);
     expect(TRADE.markup).toBe(0.2);
   });
 });
@@ -154,6 +157,30 @@ describe('výprava s vozem (wagons.md – Obchod)', () => {
     expect(next.trade!.expeditions[0]!.carts).toEqual([1]);
     expect(tradeQuote(next, { direction: 'S', give: {}, get: {} }, DAY).carts).toEqual([]);
   });
+
+  it('vůz jede víckrát a výprava trvá déle (wagons.md – Opakované jízdy vozu)', () => {
+    const s = trading();
+    s.pens = [
+      {
+        id: 900,
+        cell: { x: 3, y: 4 },
+        x: 50,
+        z: 60,
+        builtDay: DAY - 800,
+        team: { readyDay: DAY - 10 },
+        training: null,
+      },
+    ];
+    s.carts = [{ id: 1, kind: 'two-wheel', builtDay: DAY - 10 }];
+    const offer = { direction: 'S' as const, give: { grain: 900 }, get: {} };
+    const quote = tradeQuote(s, offer, DAY);
+    const tripDays = trailTripDays(s.trails![0]!.lengthM);
+    // 900 kg na dvoukolák (400 kg): 2 plné jízdy, zbylých 100 kg = 4 nosiči, 2 při každé jízdě
+    expect(quote.trips).toBe(2);
+    expect(quote.porters).toBe(CARTS.tradeCrew + 2);
+    expect(quote.days).toBe(2 * tripDays);
+    expect(quote.manDays).toBe(quote.porters * quote.days);
+  });
 });
 
 describe('výprava', () => {
@@ -209,9 +236,10 @@ describe('výprava', () => {
   });
 
   it('nosiči mají vlastní podíl práce – výprava trvá jen dny cesty i bez volné práce', () => {
-    // ves se dvanácti dospělými navíc; domácí výroba s velkým nedodělkem sní všechnu volnou práci
+    // ves se čtrnácti dospělými navíc (vojvoda se ženou nenosí – lord.md, Den rodiny); domácí
+    // výroba s velkým nedodělkem sní všechnu volnou práci
     const base = trading();
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 14; i++) {
       base.people.push({
         id: 700 + i,
         bornDay: DAY - Math.ceil((25 + i) * 365.25),
@@ -350,7 +378,7 @@ describe('starší vsi bez zboží zvenku (trade.md – Jen společné suroviny)
       parts = advanceVillage(parts, DAY + step, null, LANDSCAPE);
     expect(parts).toEqual(whole);
     // zboží se vrátilo (obilí, maso a sýr se mezitím jedí – jen krávy, klády a výrobky drží)
-    if (good === 'cattle' || good === 'logs' || good === 'tools' || good === 'pottery') {
+    if (good === 'cows' || good === 'logs' || good === 'ironBars' || good === 'pottery') {
       expect(villageGoodStock(whole, good)).toBeGreaterThanOrEqual(before - 1);
     }
   });

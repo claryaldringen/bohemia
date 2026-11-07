@@ -1,3 +1,5 @@
+import type { DwellingResident } from '@/lib/person-view';
+import type { PanelOptionsSource } from '@/hooks/use-panel-options';
 import { DIRECTIONS, type TrailOption } from '@bohemia/game';
 import type { VillageManor, VillageNeighbour } from '@/lib/manor-view';
 import type { SelectionDetails, SelectionLeave } from '@/lib/selection-details';
@@ -6,7 +8,7 @@ import type { BuildOption } from '@/lib/village-view';
 
 // Ukázková data panelu výběru pro vývojovou stránku /dev/panels – nejbohatší objekty (dvorec
 // s vylepšeními a obchodem, obydlí s rodinami a přestavbou, víc obydlí, dílny, ohrada, pole a díly
-// pole, sad a čtverec sadu, cesta, rudiště kováře)
+// pole, sad a čtverec sadu, cesta, rudiště kováře, otevřená obilná jáma)
 // i malé (posvátný dub, staveniště) vedle sebe, ať jde rozvržení panelu zkontrolovat bez hry.
 
 const option = (affordable: boolean, wood: number, missing = 0): BuildOption => ({
@@ -57,13 +59,39 @@ const NOBODY = { families: 0, men: 0, women: 0 };
 
 const neighbours: VillageNeighbour[] = [
   {
+    // pastevci – krávy, mladí voli do výcviku a vycvičení voli (trade.md – Dobytek ve třech
+    // druzích); do ohrady volů se vejdou ještě 3 voli
+    direction: 'N',
+    name: 'Lhota',
+    lengthM: 640,
+    tripDays: 4,
+    offers: [
+      { good: 'meat', price: 2.88, left: 420 },
+      { good: 'cows', price: 576, left: 2 },
+      { good: 'youngOxen', price: 336, left: 3 },
+      { good: 'trainedOxen', price: 1152, left: 1 },
+    ],
+    demands: [
+      { good: 'grain', price: 1, left: 1700, have: 12400 },
+      { good: 'legumes', price: 1, left: 900, have: 640 },
+    ],
+    people: {
+      offers: { families: [], men: 0, women: 0, adultPrice: 345.6 },
+      takes: NOBODY,
+      have: { families: [], men: 0, women: 0, adultCredit: 360 },
+    },
+    expedition: null,
+    carts: [],
+    room: { cows: 38, oxen: 3, horses: 0 },
+  },
+  {
     direction: 'E',
     name: 'Stará Boleslav',
     lengthM: 820,
     tripDays: 5,
     offers: [
       { good: 'pottery', price: 2.88, left: 400 },
-      { good: 'tools', price: 57.6, left: 20 },
+      { good: 'ironBars', price: 43.2, left: 25 },
     ],
     demands: [
       { good: 'grain', price: 1, left: 1500, have: 12400 },
@@ -80,15 +108,19 @@ const neighbours: VillageNeighbour[] = [
     expedition: null,
     // ves má čtyřkolák a spřežení doma – náklad jde na vůz (wagons.md – Obchod)
     carts: ['four-wheel'],
+    room: { cows: 38, oxen: 4, horses: 0 },
   },
   {
     direction: 'S',
     name: 'Kouřim',
     lengthM: 1200,
     tripDays: 7,
+    // pastevci – krávy, mladí a vycvičení voli (trade.md – Dobytek ve třech druzích)
     offers: [
-      { good: 'cattle', price: 576, left: 2 },
       { good: 'meat', price: 2.88, left: 350 },
+      { good: 'cows', price: 576, left: 2 },
+      { good: 'youngOxen', price: 336, left: 3 },
+      { good: 'trainedOxen', price: 1152, left: 1 },
     ],
     demands: [{ good: 'grain', price: 1, left: 1800, have: 12400 }],
     // soused lidi shání – ves by dala rodinu ze tří a svobodnou ženu
@@ -112,13 +144,14 @@ const neighbours: VillageNeighbour[] = [
       today: 0,
     },
     carts: [],
+    room: { cows: 38, oxen: 4, horses: 0 },
   },
   {
     direction: 'W',
     name: 'Mokrá',
     lengthM: 960,
     tripDays: 6,
-    offers: [{ good: 'tools', price: 57.6, left: 20 }],
+    offers: [{ good: 'ironBars', price: 43.2, left: 25 }],
     demands: [{ good: 'grain', price: 1, left: 1200, have: 12400 }],
     people: {
       offers: { families: [], men: 0, women: 0, adultPrice: 345.6 },
@@ -128,7 +161,7 @@ const neighbours: VillageNeighbour[] = [
     // výprava s vozem jde pomaleji – volné práce je míň, než je lidí výpravy
     expedition: {
       give: { grain: 900 },
-      get: { tools: 15 },
+      get: { ironBars: 15 },
       givePeople: { families: 1, men: 0, women: 0 },
       getPeople: NOBODY,
       porters: 4,
@@ -140,10 +173,66 @@ const neighbours: VillageNeighbour[] = [
       today: 2.6,
     },
     carts: [],
+    room: { cows: 38, oxen: 3, horses: 0 },
   },
 ];
 
-const manor: VillageManor = { dwellingId: 3, trails, neighbours };
+/** Obyvatelé z věků (ukázka a testy) – portrét podle věku, role z věku. */
+const residentsOf = (ages: number[]): DwellingResident[] =>
+  ages.map((age, i) => ({
+    id: i + 1,
+    portrait: age >= 60 ? 'elder' : age < 15 ? 'child' : i % 2 === 0 ? 'man' : 'woman',
+    role: age < 15 ? 'Dítě' : 'Rolník',
+    age,
+  }));
+
+const manor: VillageManor = {
+  dwellingId: 3,
+  stance: 'flee',
+  huntDenied: null,
+  // lov a psi dvorce (wildlife.md – Co hráč vidí)
+  hunt: {
+    catches: [
+      { icon: 'boar', name: 'Divoká prasata', count: 3 },
+      { icon: 'deer', name: 'Jelení zvěř', count: 2 },
+      { icon: 'wolf', name: 'Vlci', count: 1 },
+      { icon: 'hare', name: 'Zajíci', count: 4 },
+      { icon: 'fish', name: 'Ryby (kg)', count: 38 },
+    ],
+    meatKg: 410,
+    dogs: { count: 6, wanted: 7, grainKgPerDay: 1.8, fed: true },
+  },
+  trailBuilt: trails.some((t) => t.status === 'built'),
+  neighbours,
+  family: [
+    {
+      id: 1,
+      portrait: 'man',
+      role: 'Vojvoda',
+      age: 42,
+      arms: { bow: 64, combat: 51, riding: 38 },
+      horse: true,
+    },
+    { id: 2, portrait: 'woman', role: 'Vojvodova žena', age: 39, arms: null, horse: false },
+    {
+      id: 3,
+      portrait: 'man',
+      role: 'Syn vojvody',
+      age: 21,
+      arms: { bow: 40, combat: 33, riding: 12 },
+      horse: true,
+    },
+    { id: 4, portrait: 'woman', role: 'Snacha vojvody', age: 19, arms: null, horse: false },
+    {
+      id: 5,
+      portrait: 'child',
+      role: 'Syn vojvody',
+      age: 11,
+      arms: { bow: 8, combat: 0, riding: 0 },
+      horse: false,
+    },
+  ],
+};
 
 const dwelling = (
   over: Partial<Extract<SelectionDetails, { kind: 'dwelling' }>> = {},
@@ -155,6 +244,7 @@ const dwelling = (
   family: { men: 2, women: 3, boys: 1, girls: 1, elderMen: 0, elderWomen: 1, couples: 2 },
   capacity: 8,
   ages: [61, 34, 31, 27, 24, 11, 6, 2],
+  residents: residentsOf([61, 34, 31, 27, 24, 11, 6, 2]),
   condition: 0.72,
   ageYears: 23,
   full: true,
@@ -193,11 +283,7 @@ const pen = (over: Partial<Extract<SelectionDetails, { kind: 'pen' }>> = {}): Se
     cartTargets: { 'two-wheel': 4, 'four-wheel': 1 },
   },
   cows: 11,
-  herds: { sheep: 128, goat: 37, pig: 64, cow: 22 },
-  chickens: 146,
-  pastureHa: 141.5,
-  grazingHa: 98.4,
-  milkLPerDay: 186,
+  herd: { species: 'sheep', count: 128 },
   team: { ageYears: 8, yearsLeft: 2 },
   training: { progress: 0.35, daysLeft: 438 },
   hayKg: 41_200,
@@ -220,6 +306,7 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       overcrowded: true,
       family: { men: 3, women: 4, boys: 2, girls: 2, elderMen: 1, elderWomen: 0, couples: 3 },
       ages: [63, 41, 38, 35, 33, 29, 26, 14, 11, 8, 5, 1],
+      residents: residentsOf([63, 41, 38, 35, 33, 29, 26, 14, 11, 8, 5, 1]),
       rebuild: { progress: 0.3, type: 'dvorec', treesToFell: 7 },
       manor,
       // nákup u sousedů (crafts.md): nástroje a keramika u souseda, dřevěné nářadí od vlastního
@@ -280,6 +367,7 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       full: false,
       family: { men: 1, women: 1, boys: 2, girls: 0, elderMen: 1, elderWomen: 0, couples: 1 },
       ages: [58, 32, 29, 7, 3],
+      residents: residentsOf([58, 32, 29, 7, 3]),
       workshop: {
         craft: 'burner',
         activity: 'felling',
@@ -344,6 +432,7 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       full: false,
       family: { men: 1, women: 1, boys: 1, girls: 1, elderMen: 0, elderWomen: 0, couples: 1 },
       ages: [34, 31, 9, 6],
+      residents: residentsOf([34, 31, 9, 6]),
       workshop: {
         craft: 'burner',
         activity: 'resting',
@@ -392,19 +481,28 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
     details: dwelling({
       workshop: {
         craft: 'smith',
-        activity: 'no-charcoal',
-        laborPerDay: 0,
-        outputPerDayKg: 0.8,
-        stockKg: 312,
-        coverage: 0.64,
+        activity: 'smelting',
+        laborPerDay: 1.5,
+        outputPerDayKg: 0.15,
+        stockKg: 21.4,
+        // kovář má v zásobě hřivny – pokrytí nástroji ukáže řádek vybavení (production-chains.md)
+        coverage: null,
+        // řetěz kovárny: houba, hřivny, vybavení domácností a syn u měchu (production-chains.md)
+        iron: {
+          bloomKg: 3.2,
+          barsKg: 21.4,
+          barsTargetKg: 25.9,
+          equipmentKg: 61,
+          needKg: 72,
+          coverage: 0.85,
+          bellows: { personId: 41, age: 11, sex: 'male', kind: 'son' },
+        },
         kiln: null,
         kilns: [],
         toPlant: 0,
         // kovář vychovává nástupce – syn 11 let se učí (crafts.md – Učení řemesla)
         skill: { share: 1, years: 5, apprentices: [{ age: 11, years: 1.4 }] },
         carpenter: null,
-        // kovář nemá uhlí – vesničané dokupují nástroje u souseda (crafts.md)
-        buying: { direction: 'N', days: 6 },
       },
     }),
   },
@@ -474,6 +572,91 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       home: 2,
       homeIcon: 'zemnice',
       herd: 'sheep',
+    },
+  },
+  {
+    // oxen.md – Výběr spřežení: spřežení orá díl pole, tlačítka dílu, ohrady, oráče a honáka
+    key: 'sprezeni',
+    label: 'Spřežení s rádlem',
+    details: {
+      kind: 'plough-team',
+      team: 0,
+      activity: 'orá díl pole',
+      part: { fieldId: 7, cell: { x: 4, y: 2 } },
+      oxen: 2,
+      pen: 12,
+      ploughman: { id: 201, portrait: 'man' },
+      leader: { id: 203, portrait: 'child' },
+    },
+  },
+  {
+    // villagers.md – Výběr postavy: oráč u spřežení (tlačítko vybere spřežení)
+    key: 'postava-orac',
+    label: 'Postava – oráč',
+    details: {
+      kind: 'person',
+      id: 201,
+      portrait: 'man',
+      role: 'Rolník',
+      activity: 'orá',
+      age: 31,
+      home: 2,
+      homeIcon: 'zemnice',
+      herd: null,
+      draft: { kind: 'plough-team', team: 0 },
+    },
+  },
+  {
+    // wagons.md – Výběr vozu: dvoukolák veze uhlí ke kováři, vozka a ohrada
+    key: 'vuz',
+    label: 'Vůz – veze uhlí',
+    details: {
+      kind: 'cart',
+      id: 3,
+      cartKind: 'two-wheel',
+      activity: 'veze uhlí ke kováři',
+      cargo: 'charcoal',
+      capacityKg: 400,
+      loadKg: null,
+      condition: 0.8,
+      oxen: 1,
+      pen: 12,
+      drover: { id: 301, portrait: 'man' },
+    },
+  },
+  {
+    // vůz bez jízdy stojí u ohrady (voli v ohradě, vozka doma)
+    key: 'vuz-stoji',
+    label: 'Vůz – stojí u ohrady',
+    details: {
+      kind: 'cart',
+      id: 4,
+      cartKind: 'four-wheel',
+      activity: 'stojí u ohrady',
+      cargo: null,
+      capacityKg: 800,
+      loadKg: null,
+      condition: 0.4,
+      oxen: 0,
+      pen: 12,
+      drover: null,
+    },
+  },
+  {
+    // vozka u vozu (tlačítko vybere vůz)
+    key: 'postava-vozka',
+    label: 'Postava – vozka',
+    details: {
+      kind: 'person',
+      id: 301,
+      portrait: 'man',
+      role: 'Rolník',
+      activity: 'veze uhlí ke kováři',
+      age: 40,
+      home: 3,
+      homeIcon: 'polozemnice',
+      herd: null,
+      draft: { kind: 'cart', id: 3 },
     },
   },
   {
@@ -562,6 +745,12 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       cart: false,
       burnerHere: false,
     },
+  },
+  {
+    // otevřená obilná jáma – zrno v jámě (production-chains.md – Obilné jámy)
+    key: 'jama',
+    label: 'Obilná jáma',
+    details: { kind: 'grain-pit', id: 820, grainKg: 864, capacityKg: 1500, ageYears: 3 },
   },
   {
     // rudiště s vozem – hromada u jámy, sedlák s vozem a kovář s ním odváží rudu
@@ -770,7 +959,6 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       cows: 0,
       team: null,
       training: null,
-      milkLPerDay: 0,
       condition: 0.31,
       abandoned: true,
     }),
@@ -802,10 +990,25 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
         { crop: 'spring', count: 158 },
         { crop: 'legume', count: 56 },
       ],
+      turn: [
+        { crop: 'winter', count: 22, surplus: 6 },
+        { crop: 'spring', count: 12, surplus: 3 },
+      ],
+      resting: 327,
       ashParts: 24,
       ashBonus: 40,
       overgrowingM2: 13_050,
+      // očekávaná úroda a chybějící práce (fields.md – Co hráč vidí)
+      outlook: {
+        crops: [
+          { crop: 'winter', kg: 41_200 },
+          { crop: 'spring', kg: 28_900 },
+          { crop: 'legume', kg: 4_300 },
+        ],
+        short: [{ steps: ['harvest'], endMonth: 7, manDays: 64 }],
+      },
       founding: 0.42,
+      clearing: { fell: 3, dry: 5, burn: 4 },
     },
   },
   {
@@ -834,6 +1037,51 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       grazed: null,
       crop: { crop: 'winter', prep: { task: 'plough', share: 1 }, sow: 1, harvest: 0.45 },
       mow: null,
+      next: 'fallow',
+      rest: { share: 0.81, years: 8 },
+      surplus: true,
+      founding: null,
+      // škoda zvěře letos, díl se hlídá (wildlife.md – Co hráč vidí)
+      damage: { percent: 12, kg: 41, edgeM: 80, watched: true },
+      outlook: {
+        crop: 'winter',
+        kg: 33,
+        fullKg: 41,
+        wildlife: 12,
+        weather: 8,
+        short: [{ steps: ['harvest'], endMonth: 7, manDays: 64 }],
+      },
+    },
+  },
+  {
+    key: 'pole-dil-na-rade',
+    label: 'Díl pole – na řadě',
+    details: {
+      kind: 'field-part',
+      id: 5,
+      cell: { x: 3, y: 7 },
+      look: 'stubble',
+      stage: 'ready',
+      legume: false,
+      flax: false,
+      bloom: false,
+      ploughed: false,
+      areaM2: 225,
+      fertility: 78,
+      naturalFertility: 70,
+      ashBonus: 0,
+      surface: 'meadow',
+      walkM: 160,
+      holding: { dwellingId: 3, type: 'zemnice' },
+      sownYears: null,
+      fallowYears: null,
+      overgrowthYears: 0,
+      grazed: null,
+      crop: null,
+      mow: null,
+      next: 'spring',
+      rest: null,
+      surplus: false,
       founding: null,
     },
   },
@@ -863,6 +1111,9 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       grazed: true,
       crop: null,
       mow: 0.6,
+      next: 'fallow',
+      rest: { share: 0.91, years: 2 },
+      surplus: false,
       founding: null,
     },
   },
@@ -892,7 +1143,133 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       grazed: null,
       crop: null,
       mow: null,
+      next: null,
+      rest: null,
+      surplus: false,
       founding: { progress: 0.35, laborLeft: 12.6, trees: 4 },
+    },
+  },
+  {
+    key: 'pole-dil-kaceni',
+    label: 'Díl pole – kácí se les',
+    details: {
+      kind: 'field-part',
+      id: 5,
+      cell: { x: 6, y: 7 },
+      look: 'bare',
+      stage: 'founding',
+      legume: false,
+      flax: false,
+      bloom: false,
+      ploughed: false,
+      areaM2: 225,
+      fertility: 70,
+      naturalFertility: 70,
+      ashBonus: 0,
+      surface: 'forest',
+      walkM: 140,
+      holding: { dwellingId: 3, type: 'zemnice' },
+      sownYears: null,
+      fallowYears: null,
+      overgrowthYears: 0,
+      grazed: null,
+      crop: null,
+      mow: null,
+      next: null,
+      rest: null,
+      surplus: false,
+      founding: {
+        progress: 0.2,
+        laborLeft: 5.4,
+        trees: 0,
+        clearing: { stage: 'fell', treesLeft: 7 },
+      },
+    },
+  },
+  {
+    key: 'pole-dil-schne',
+    label: 'Díl pole – větve schnou',
+    details: {
+      kind: 'field-part',
+      id: 5,
+      cell: { x: 6, y: 7 },
+      look: 'slash',
+      stage: 'founding',
+      legume: false,
+      flax: false,
+      bloom: false,
+      ploughed: false,
+      areaM2: 225,
+      fertility: 70,
+      naturalFertility: 70,
+      ashBonus: 0,
+      surface: 'forest',
+      walkM: 140,
+      holding: { dwellingId: 3, type: 'zemnice' },
+      sownYears: null,
+      fallowYears: null,
+      overgrowthYears: 0,
+      grazed: null,
+      crop: null,
+      mow: null,
+      next: null,
+      rest: null,
+      surplus: false,
+      founding: {
+        progress: 0.6,
+        laborLeft: 2.3,
+        trees: 0,
+        clearing: { stage: 'dry', treesLeft: 0, burnFrom: 60 },
+      },
+    },
+  },
+  {
+    key: 'pole-dil-pali',
+    label: 'Díl pole – pálí se',
+    details: {
+      kind: 'field-part',
+      id: 5,
+      cell: { x: 6, y: 7 },
+      look: 'slash',
+      stage: 'founding',
+      legume: false,
+      flax: false,
+      bloom: false,
+      ploughed: false,
+      areaM2: 225,
+      fertility: 70,
+      naturalFertility: 70,
+      ashBonus: 0,
+      surface: 'forest',
+      walkM: 140,
+      holding: { dwellingId: 3, type: 'zemnice' },
+      sownYears: null,
+      fallowYears: null,
+      overgrowthYears: 0,
+      grazed: null,
+      crop: null,
+      mow: null,
+      next: null,
+      rest: null,
+      surplus: false,
+      founding: {
+        progress: 0.85,
+        laborLeft: 0.9,
+        trees: 0,
+        clearing: { stage: 'burn', treesLeft: 0, burnFrom: 60 },
+      },
+    },
+  },
+  {
+    key: 'krizovatka',
+    label: 'Křižovatka',
+    details: {
+      kind: 'junction',
+      id: 12,
+      shape: 'cross',
+      roads: 4,
+      landmark: 'stone',
+      ageYears: 37,
     },
   },
   {
@@ -902,6 +1279,25 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       kind: 'road',
       id: 4,
       segments: [4, 9, 12],
+      ends: [
+        {
+          kind: 'place',
+          name: 'Obydlí – polozemnice',
+          icon: '/icons/build/polozemnice.png',
+          arrow: null,
+          target: { kind: 'dwelling', id: 1 },
+          log: 'dwelling 1',
+        },
+        {
+          kind: 'none',
+          alert: true,
+          name: 'Cesta tu nikam nevede.',
+          icon: null,
+          arrow: null,
+          target: null,
+          log: 'nikam',
+        },
+      ],
       roadKind: 'improved',
       lengthM: 1240,
       kinds: [
@@ -914,14 +1310,20 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       treeSpeed: 0.035,
       wetM: 180,
       fords: 2,
-      building: { grade: 'causeway', progress: 0.55, treesToFell: 9 },
+      building: { grade: 'improved', progress: 0.55, treesToFell: 9 },
+      cancelId: null,
       upgrades: [
         {
-          upgrade: 'causeway',
+          upgrade: 'improved',
           laborManDays: 233,
           trees: 26,
           treesToFell: 11,
           swathTrees: 0,
+          parts: {
+            improved: { manDays: 100, trees: 0 },
+            causeway: { manDays: 90, trees: 18 },
+            footbridge: { manDays: 30, trees: 8 },
+          },
           blocked: 'Vylepšení cesty se už staví.',
         },
       ],
@@ -930,12 +1332,6 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
         trees: 64,
         bearing: 41,
         planting: { trees: 22, progress: 0.3, waits: true },
-        option: {
-          trees: 18,
-          laborManDays: 9.8,
-          blocked: null,
-          warning: 'Pole se zmenší',
-        },
       },
     },
   },
@@ -1045,6 +1441,45 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       relocates: 3,
     },
   },
+  {
+    key: 'zver-prase',
+    label: 'Zvěř – prasata (středně, loni škoda)',
+    details: {
+      kind: 'wildlife',
+      species: 'boar',
+      level: 2,
+      full: false,
+      capacity: 10,
+      lastYearDamageKg: 640,
+      killedHeads: null,
+    },
+  },
+  {
+    key: 'zver-vlci',
+    label: 'Zvěř – vlci (plno, dobytek)',
+    details: {
+      kind: 'wildlife',
+      species: 'wolf',
+      level: 3,
+      full: true,
+      capacity: 5,
+      lastYearDamageKg: null,
+      killedHeads: 4,
+    },
+  },
+  {
+    key: 'zver-medved',
+    label: 'Zvěř – medvěd (málo)',
+    details: {
+      kind: 'wildlife',
+      species: 'bear',
+      level: 1,
+      full: false,
+      capacity: 1,
+      lastYearDamageKg: null,
+      killedHeads: null,
+    },
+  },
 ];
 
 const village = (over: Partial<VillageListItem>): VillageListItem => ({
@@ -1066,3 +1501,17 @@ export const DEV_VILLAGES: readonly VillageListItem[] = [
   village({ id: 'v-3', name: 'Budeč', people: 34, travelling: true }),
   village({ id: 'v-4', settlementId: 's-2', name: 'Levý Hradec', people: 0, abandoned: true }),
 ];
+
+/** Nabídky panelů ukázek (panel-options.ts) – hned, bez serveru. */
+export const DEV_PANEL_OPTIONS: PanelOptionsSource = {
+  key: 'dev',
+  load: (ask) => Promise.resolve(DEV_PANEL_OPTIONS.peek!(ask)),
+  peek: (ask) =>
+    ask.panel === 'trails'
+      ? { panel: 'trails', trails }
+      : {
+          panel: 'road-apples',
+          roadId: ask.roadId,
+          option: { trees: 18, laborManDays: 9.8, blocked: null, warning: 'Pole se zmenší' },
+        },
+};

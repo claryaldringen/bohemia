@@ -289,7 +289,8 @@ describe('hřbitov – překážky na čtvercích jako u pole', () => {
     expect(preview.obstacleCost).toBe(
       OBSTACLE_COST.tree + OBSTACLE_COST.stone + OBSTACLE_COST.shrub,
     );
-    expect(preview.foundingCost).toBe(2 * 10 + preview.obstacleCost);
+    // 2 × 10 čd, plot jen po 6 vnějších stranách z 8 (cemetery.md – Plot hřbitova podle délky)
+    expect(preview.foundingCost).toBeCloseTo(18.5 + preview.obstacleCost, 9);
     expect(preview.obstacleCounts).toEqual({ tree: 1, stone: 1, shrub: 1 });
 
     const rock = cemeteryPartsFromCells(
@@ -451,6 +452,20 @@ describe('kácení a obnova lesa (forest.md)', () => {
       stumps: [],
       saplings: [],
     });
+  });
+
+  it('paměť odstraněných překážek – po prodloužení seznamu platí nová id', () => {
+    const cleared = [{ id: 300, day: DAY }];
+    const s = { ...state(), clearedObstacles: cleared };
+    const first = obstacleChangesAt(s, DAY + 1);
+    expect(first.removed).toEqual([300]);
+    // seznam z paměti je zmrazený – úprava by ji nepozorovaně změnila
+    expect(Object.isFrozen(first.removed)).toBe(true);
+    expect(obstacleChangesAt(s, DAY + 1).removed).toBe(first.removed);
+    // seznam se prodlužuje na místě (recordClearedObstacles)
+    cleared.push({ id: 200, day: DAY + 1 });
+    expect(obstacleChangesAt(s, DAY + 2).removed).toEqual([200, 300]);
+    expect(obstacleChangesAt(s, DAY + 3).removed).toEqual([200, 300]);
   });
 
   it('nejbližší stojící dospělé stromy – bez pařezů, odstraněných a mladých stromků', () => {

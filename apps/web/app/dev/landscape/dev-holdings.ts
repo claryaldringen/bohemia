@@ -206,8 +206,8 @@ export function simulateHoldings(
     fields: [{ id: 1 }],
     parts,
     constructions: [],
-    plan: null,
-    threshingFromPlan: null,
+    season: null,
+    threshingSeason: null,
     storesKg: 500 * built.length,
     hungry: false,
     commonLaborHistory: [],
@@ -216,6 +216,11 @@ export function simulateHoldings(
     felledTrees: [],
     woodLogs: 100,
     plotsMigrated: true,
+    // ves mlátí na humně hned po žni (production-chains.md – Humno) – humno stranou, bez pěšin
+    sheaves: { grainKg: 0, legumesKg: 0 },
+    threshingFloors: [
+      { id: 999_999, position: { x: -5000, z: -5000, rotation: 0 }, builtDay: START - 1 },
+    ],
   };
   const end = dayIndexOf({ year: 600 + years, ...SHOW });
   while (state.lastDay < end) {

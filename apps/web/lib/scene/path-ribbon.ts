@@ -189,6 +189,31 @@ export interface RibbonJunction {
   x: number;
   z: number;
   strength: number;
+  /**
+   * Obrys křižovatky pevných cest (junction-shape.ts) – jen pro masku polí (`ribbonTrack` – kruh
+   * o průměrném poloměru obrysu); obtisk plácku kreslí junction-patch.ts. `widthM` je šířka ramen,
+   * podle ní se obrys pro užší vrstvu zmenší.
+   */
+  outline?: readonly { x: number; z: number }[];
+  widthM?: number;
+}
+
+/** Poměr, kterým vrstva zmenší obrys křižovatky: šířka vrstvy ku šířce ramen (nejvýš 1,2). */
+function outlineScale(junction: RibbonJunction, layer: RibbonLayer): number {
+  const width = layer.width.strong * layer.widthFactor;
+  return Math.min(1.2, width / Math.max(0.1, junction.widthM ?? width));
+}
+
+/** Obrys křižovatky vrstvy: zmenšený (zvětšený) od středu. */
+function layerOutline(
+  junction: RibbonJunction,
+  layer: RibbonLayer,
+): readonly { x: number; z: number }[] {
+  const s = outlineScale(junction, layer);
+  return (junction.outline ?? []).map((p) => ({
+    x: junction.x + (p.x - junction.x) * s,
+    z: junction.z + (p.z - junction.z) * s,
+  }));
 }
 
 /**
@@ -340,12 +365,13 @@ export function ribbonSections(
         ? 1
         : line.narrowEnd + (1 - line.narrowEnd) * smoothstep(0, NARROW_M, length - d),
     );
+    // u konců bez kolísání šířky – navazující pás i plácek křižovatky mají na spoji stejnou šířku
     const half =
       (width / 2) *
       layer.widthFactor *
       narrow *
       widthAt(cx, cz) *
-      (1 + (noise1(seed + 17, d / (WOBBLE_WAVE_M * 0.6)) - 0.5) * 2 * WIDTH_JITTER);
+      (1 + (noise1(seed + 17, d / (WOBBLE_WAVE_M * 0.6)) - 0.5) * 2 * WIDTH_JITTER * ends);
     sections.push({
       cx,
       cz,
@@ -391,6 +417,26 @@ function addRibbon(
   }
 }
 
+/** Pás pěšin dne (z tras) – bez kruhových plácků v rozcestí (roads-v2 plán, Úloha 4a). */
+export function dayPathRibbons(
+  lines: readonly RibbonLine[],
+  layer: RibbonLayer,
+  widthAt?: (x: number, z: number) => number,
+  alphaAt?: (x: number, z: number) => number,
+): DecalGrid {
+  return pathRibbons(lines, layer, widthAt, alphaAt, []);
+}
+
+/** Maska polí pod pěšinami dne – bez plácků (viz `dayPathRibbons`). */
+export function dayPathTrack(
+  lines: readonly RibbonLine[],
+  layer: RibbonLayer,
+  widthAt?: (x: number, z: number) => number,
+  alphaAt?: (x: number, z: number) => number,
+): Track {
+  return ribbonTrack(lines, layer, widthAt, alphaAt, []);
+}
+
 /**
  * Pás pěšin či cest pro masku polí (fields.md – Co hráč vidí, Martin 19. 10. 2026: „Tam, kde je
  * cesta, prostě obilí neroste.“): úsečky mezi průřezy pásu (`ribbonSections` – stejné vlnění
@@ -428,6 +474,13 @@ export function ribbonTrack(
   });
   const discs = junctions.flatMap((junction, k): TrackDisc[] => {
     const { x, z, strength } = junction;
+    if (junction.outline && junction.outline.length > 0) {
+      // maska polí je kruh o poloměru obrysu (průměr vzdáleností rohů od středu)
+      const ring = layerOutline(junction, layer);
+      const radius = ring.reduce((sum, p) => sum + Math.hypot(p.x - x, p.z - z), 0) / ring.length;
+      const depth = layer.alpha(strength) > 0 ? alphaAt(x, z) : 0;
+      return radius > 0 && depth > 0 ? [{ line: lines.length + k, x, z, radius, depth }] : [];
+    }
     const width = layer.width.weak + (layer.width.strong - layer.width.weak) * strength;
     const radius =
       width * layer.widthFactor * widthAt(x, z) * (layer.junction?.scale ?? JUNCTION.scale);
@@ -458,6 +511,8 @@ function addJunction(
     width * layer.widthFactor * widthAt(x, z) * (layer.junction?.scale ?? JUNCTION.scale);
   const alpha = layer.alpha(strength) * (layer.junction?.alpha ?? 1) * alphaAt(x, z);
   if (radius <= 0 || alpha <= 0) return;
+  // plácek křižovatky pevných cest kreslí junction-patch.ts
+  if (junction.outline && junction.outline.length > 0) return;
   const seed = (Math.round(x * 2) * 73856093) ^ (Math.round(z * 2) * 19349663);
   const center = positions.length / 2;
   positions.push(x, z);

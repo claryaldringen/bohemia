@@ -2,6 +2,7 @@ import type { AbandonedStructure, HerdSpecies, HungerLevel, NewcomerGroup } from
 import { DIRECTION_NAMES, NEWCOMER_TEXTS } from './trade-names';
 import { formatAnimals, formatInteger } from './village-format';
 import { ironTripWho, productList, type VillageView } from './village-view';
+import { disasterNotices, weatherNotices, type DisasterNoticeKind } from './disasters-view';
 
 // Upozornění vsi (population.md – Co hráč vidí): rodina čeká na dům, ves šetří jídlem, hladoví,
 // lidé umírají hlady – vždy jen nejvyšší stupeň (Hlad a vymření), stavby stojí, hřbitov je plný (cemetery.md), vesničané ušetřili posvátný dub
@@ -13,9 +14,12 @@ import { ironTripWho, productList, type VillageView } from './village-view';
 // Obnova sadu), posvátný dub uschl a posvátná souš padla (happiness.md), nevěsta a ženich z okolí
 // a dcera vdaná pryč (kinship.md – Sňatky z okolí), lidé od souseda – rodina, muž, žena (trade.md – Výměna
 // lidí), opuštěná modla padla, svatyně, plot hřbitova či ohrada
-// se rozpadly a vesničané je opravili (abandonment.md – Oprava) – nové události kroniky. Vymřelá
-// ves žádná nemá. Odvozují se z pohledu na ves a ukážou se jednou, když nově vzniknou – jako
-// krátký mizející řádek nahoře uprostřed (jako oznámení v 0 A.D.). Jen fakt, žádná rada.
+// se rozpadly a vesničané je opravili (abandonment.md – Oprava) – nové události kroniky; před žněmi
+// ves bez humna, snopy čekají na humno, nouzový výmlat a humno nestačí (production-chains.md –
+// Humno). Vymřelá ves žádná nemá. Odvozují se z pohledu na ves a ukážou se jednou, když nově
+// vzniknou – jako krátký mizející řádek nahoře uprostřed (jako oznámení v 0 A.D.). Jen fakt, žádná
+// rada – kromě humna („Před žněmi postav humno“): bez něj ves nemlátí a nesmí zahynout hladem jen
+// proto, že hráč o humnu nevěděl (production-chains.md – anti-cíl).
 
 export type NoticeKind =
   | 'full-household'
@@ -23,6 +27,12 @@ export type NoticeKind =
   | 'pen-short'
   /** Ves chce víc volů, než se vejde do ohrad volů (oxen.md – Kolik volů ves chce). */
   | 'oxen-short'
+  /**
+   * Výmlat (production-chains.md – Humno): měsíc před žní ves bez humna, snopy čekají na humno,
+   * starší ves mlátí nouzově na udusané zemi, humno nestačí.
+   */
+  | 'emergency-threshing'
+  | 'threshing-floor-short'
   /** Stupně hladu (population.md – Co hráč vidí): šetří jídlem, hladoví, umírají hlady. */
   | 'rationing'
   | 'hungry'
@@ -44,6 +54,8 @@ export type NoticeKind =
   | 'iron-brought'
   /** Vesničané koupili výrobky řemeslníků u souseda (crafts.md – Nákup u sousedů). */
   | 'crafts-bought'
+  /** Ves nemá osivo na setí nutných dílů a koupit ho nemohla (fields.md – Osivo pro ves bez zásob). */
+  | 'seed-short'
   | 'sacred-oak'
   | 'sacred-grove'
   | 'sacred-oak-died'
@@ -56,11 +68,25 @@ export type NoticeKind =
   /** Lnu na oděv všech je málo (fields.md – Len, diet.md – Oděv). */
   | 'linen-short'
   | 'herd-starved'
+  | 'hay-slaughter'
   /** Ovcí je málo na vlnu pro oděv všech (diet.md – Oděv). */
   | 'wool-short'
   | 'team-ready'
   | 'team-retired'
   | 'ox-died'
+  /** Koně (horses.md – Co hráč vidí): bez obilí, nevejdou se do ohrady, hříbě, vycvičení, dosloužili, uhynuli. */
+  | 'horses-ungrained'
+  | 'horses-short'
+  | 'foal-born'
+  | 'horses-arrived'
+  | 'horse-trained'
+  | 'horses-unshod'
+  | 'horse-retired'
+  /** Divoká zvěř (wildlife.md – Co hráč vidí): prasata ničí úrodu, vlci strhávají dobytek, psi bez obilí. */
+  | 'boar-damage'
+  | 'wolves-killing'
+  | 'dogs-ungrained'
+  | 'horse-starved'
   | 'orchard-renewal'
   | 'orchard-gone'
   | 'bride-from-outside'
@@ -90,7 +116,14 @@ export type NoticeKind =
   | 'other-rationing'
   | 'other-hungry'
   | 'other-starving'
-  | 'other-extinct';
+  | 'other-extinct'
+  /** Humno z jiné vsi hráče (production-chains.md – Humno). */
+  | 'other-emergency-threshing'
+  /**
+   * Počasí a pohromy (disasters.md – Co hráč vidí): sucho, mokré žně, holomráz, kroupy, povodeň,
+   * hoří, vyhořel dům, smršť – i z jiné vsi hráče s jejím jménem.
+   */
+  | DisasterNoticeKind;
 
 export interface VillageNotice {
   kind: NoticeKind;
@@ -141,6 +174,9 @@ function oxenText(oxen: number | undefined, legacy: string, one: string, many: s
   return oxen === 1 ? one : many;
 }
 
+/** Škoda zvěře letos nad tímto podílem úrody polí u lesa je upozornění (wildlife.md – Co hráč vidí). */
+const WILDLIFE_DAMAGE_NOTICE_SHARE = 0.05;
+
 /** Upozornění, která pro ves právě platí (pořadí: problémy, pak zprávy). */
 export function villageNotices(view: VillageView): VillageNotice[] {
   const notices: VillageNotice[] = [];
@@ -174,7 +210,10 @@ export function villageNotices(view: VillageView): VillageNotice[] {
   // rodina, která smí odejít, nemá kam (dřív „Domácnost je plná“ – od 19. 10. 2026 smí ženatý pár
   // odejít i z neplného domu, kinship.md – Lidé k osídlení)
   if (view.fullHousehold) {
-    notices.push({ kind: 'full-household', tone: 'info', text: 'Rodina čeká na dům' });
+    // ženatí synové rodu v dvorci čekají na dům jménem (lord.md – Kde se jméno ukazuje)
+    const sons = view.dynasty?.waitingHome ?? [];
+    const text = sons.length > 0 ? `Rodina čeká na dům – ${sons.join(', ')}` : 'Rodina čeká na dům';
+    notices.push({ kind: 'full-household', tone: 'info', text });
   }
   // stádo se nevejde do ohrad – nadbytek půjde při porážce na maso (oxen.md – Ohrady podle druhu)
   const short = view.penShort ?? [];
@@ -190,22 +229,81 @@ export function villageNotices(view: VillageView): VillageNotice[] {
   if (view.oxen?.overRoom) {
     notices.push({ kind: 'oxen-short', tone: 'warn', text: 'Voli se nevejdou do ohrady' });
   }
+  // koně (horses.md – Co hráč vidí): ves chce víc koní, než se vejde do ohrad koní; jezdečtí koně
+  // bez obilí (výcvik se zpomalil)
+  if (view.horses?.overRoom) {
+    notices.push({ kind: 'horses-short', tone: 'warn', text: 'Koně se nevejdou do ohrady' });
+  }
+  if (view.horses?.shoeing?.unshod) {
+    notices.push({ kind: 'horses-unshod', tone: 'warn', text: 'Jezdecký kůň není podkutý' });
+  }
+  if (view.horses && !view.horses.fed && view.horses.grainKgPerDay > 0) {
+    notices.push({ kind: 'horses-ungrained', tone: 'warn', text: 'Koně jsou bez obilí' });
+  }
+  // divoká zvěř (wildlife.md – Co hráč vidí)
+  const wild = view.wildlife;
+  if (wild && wild.damageShare > WILDLIFE_DAMAGE_NOTICE_SHARE) {
+    notices.push({ kind: 'boar-damage', tone: 'warn', text: 'Divoká prasata ničí úrodu' });
+  }
+  if (wild?.wolvesTroubling) {
+    notices.push({ kind: 'wolves-killing', tone: 'warn', text: 'Vlci strhávají dobytek' });
+  }
+  if (wild?.dogsUnfed) {
+    notices.push({ kind: 'dogs-ungrained', tone: 'warn', text: 'Psi jsou bez obilí' });
+  }
+  // výmlat (production-chains.md – Humno): bez humna ves nemlátí – upozornění s předstihem, aby
+  // ves nezahynula hladem jen proto, že hráč o humnu nevěděl (anti-cíl)
+  const threshing = view.threshing;
+  if (threshing?.emergency) {
+    notices.push({
+      kind: 'emergency-threshing',
+      tone: 'info',
+      text: 'Mlátí se na udusané zemi – postav humno',
+    });
+  }
+  if (threshing?.floorShort) {
+    notices.push({
+      kind: 'threshing-floor-short',
+      tone: 'info',
+      text: 'Humno nestačí – část se mlátí nouzově',
+    });
+  }
+  // počasí roku, které se právě ukázalo (disasters.md – Co hráč vidí)
+  if (!view.extinct) notices.push(...weatherNotices(view.weather));
   return notices;
 }
 
 /**
+ * Upozornění, která se ohlásí i při prvním pohledu na ves – po načtení i přepnutí vsi
+ * (production-chains.md – Humno, anti-cíl „vždy jasné upozornění“): bez humna ves nemlátí a hráč
+ * se to nesmí dozvědět pozdě.
+ */
+const FIRST_LOOK_NOTICES: ReadonlySet<NoticeKind> = new Set(['emergency-threshing']);
+
+/**
  * Upozornění, která mezi dvěma pohledy na ves nově vznikla (dřív neplatila). Bez předchozího
- * pohledu (první načtení) žádná; po přepnutí na jinou ves (jiné id) také žádná – porovnává se ves
- * sama se sebou. Přidá i upozornění z ostatních vsí hráče (`otherVillageNotices`).
+ * pohledu (první načtení) a po přepnutí na jinou ves (jiné id) jen humno a čekající snopy
+ * (`FIRST_LOOK_NOTICES`) – jinak se porovnává ves sama se sebou. Přidá i upozornění z ostatních
+ * vsí hráče (`otherVillageNotices`).
  */
 export function newNotices(previous: VillageView | null, next: VillageView): VillageNotice[] {
-  if (previous === null || previous.id !== next.id) return [];
+  if (previous === null || previous.id !== next.id) {
+    return villageNotices(next).filter((n) => FIRST_LOOK_NOTICES.has(n.kind));
+  }
   return [...ownNotices(previous, next), ...otherVillageNotices(previous, next)];
 }
 
+/** Humno z jiné vsi – krátký řádek se jménem vsi (production-chains.md – Humno). */
+const OTHER_THRESHING_NOTICE = {
+  kind: 'other-emergency-threshing',
+  tone: 'info',
+  text: 'mlátí se na udusané zemi – postav humno',
+} as const satisfies VillageNotice;
+
 /**
- * Upozornění z jiných vsí hráče (migration.md – návrh Clauda): hlad, vymírání hladem a vymření –
- * krátký řádek se jménem vsi, jen když u té vsi nově vzniklo.
+ * Upozornění z jiných vsí hráče (migration.md – návrh Clauda): hlad, vymírání hladem a vymření,
+ * humno před žněmi a čekající snopy (production-chains.md – Humno) – krátký řádek se jménem vsi,
+ * jen když u té vsi nově vzniklo.
  */
 export function otherVillageNotices(previous: VillageView, next: VillageView): VillageNotice[] {
   const notices: VillageNotice[] = [];
@@ -219,6 +317,23 @@ export function otherVillageNotices(previous: VillageView, next: VillageView): V
       // jen když se hlad v té vsi zhoršil – zlepšení se neohlašuje
       const notice = OTHER_HUNGER_NOTICES[village.hunger];
       notices.push({ ...notice, text: `${village.name}: ${notice.text}` });
+    }
+    // humno – když nově vznikne (production-chains.md – Humno)
+    if (village.threshing?.emergency && !before.threshing?.emergency) {
+      notices.push({
+        ...OTHER_THRESHING_NOTICE,
+        text: `${village.name}: ${OTHER_THRESHING_NOTICE.text}`,
+      });
+    }
+    // počasí a pohromy (disasters.md – Co hráč vidí) – když nově vzniknou
+    const had = new Set(before.disasters?.weather?.map((n) => n.kind));
+    for (const notice of village.disasters?.weather ?? []) {
+      if (!had.has(notice.kind))
+        notices.push({ ...notice, text: `${village.name}: ${notice.text}` });
+    }
+    const last = village.disasters?.last;
+    if (last && last.day > (before.disasters?.last?.day ?? -Infinity)) {
+      notices.push({ ...last.notice, text: `${village.name}: ${last.notice.text}` });
     }
   }
   return notices;
@@ -252,6 +367,9 @@ function ownNotices(previous: VillageView, next: VillageView): VillageNotice[] {
     notices.push({ kind: 'marriage', tone: 'info', text: 'Svatba' });
   }
   notices.push(...chronicleNotices(previous, next));
+  // pohromy z kroniky – kroupy, povodeň, požár (hoří / vyhořel dům), smršť (disasters.md)
+  if (!next.extinct)
+    notices.push(...disasterNotices(next.chronicle, previous.dayIndex, next.dayIndex));
   return notices;
 }
 
@@ -303,6 +421,16 @@ const CHRONICLE_NOTICES: Partial<
     tone: 'warn',
     text: 'Dobytek hynul – chybělo seno',
   }),
+  // seno do jara nevystačí – ves porazila kusy, na které nezbude (oxen.md – Co nejvíc sena a co
+  // největší stáda)
+  'hay-slaughter': (entry) => {
+    const animals = entry.animals ? formatAnimals(entry.animals) : '';
+    return {
+      kind: 'hay-slaughter',
+      tone: 'warn',
+      text: animals !== '' ? `Chybí seno – porazili ${animals}` : 'Chybí seno – porazili dobytek',
+    };
+  },
   // ovcí přes zimu méně, než je třeba na vlnu pro oděv všech (diet.md – Oděv)
   'wool-short': () => ({ kind: 'wool-short', tone: 'warn', text: 'Chybí vlna na oděv' }),
   // voli po kusech (oxen.md); kronika uložená dřív – spřežení
@@ -331,6 +459,30 @@ const CHRONICLE_NOTICES: Partial<
     kind: 'ox-died',
     tone: 'warn',
     text: `${oxenText(entry.oxen, 'Vůl uhynul', 'Vůl uhynul', 'Voli uhynuli')} – chybělo seno`,
+  }),
+  // koně po kusech (horses.md – Chov, Krmení, Výcvik koně)
+  'foal-born': (entry) => ({
+    kind: 'foal-born',
+    tone: 'info',
+    text: entry.horses === 1 ? 'Narodilo se hříbě' : 'Narodila se hříbata',
+  }),
+  'horses-arrived': () => ({
+    kind: 'horses-arrived',
+    tone: 'info',
+    text: 'Do ohrady koní přivedli hřebce a dvě klisny',
+  }),
+  // kování (horses.md – Kování) se neohlašuje – děje se samo, kovář dojde k ohradě ve scéně
+  // (Martin 27. 10. 2026); zůstává jen v kronice
+  'horse-trained': () => ({ kind: 'horse-trained', tone: 'info', text: 'Kůň je vycvičený' }),
+  'horse-retired': (entry) => ({
+    kind: 'horse-retired',
+    tone: 'info',
+    text: entry.horses === 1 ? 'Kůň dosloužil' : 'Koně dosloužili',
+  }),
+  'horse-starved': (entry) => ({
+    kind: 'horse-starved',
+    tone: 'warn',
+    text: `${entry.horses === 1 ? 'Kůň uhynul' : 'Koně uhynuli'} – chybělo seno`,
   }),
   'orchard-renewal-started': () => ({
     kind: 'orchard-renewal',
@@ -366,6 +518,8 @@ const CHRONICLE_NOTICES: Partial<
       entry.direction ? ` (${DIRECTION_NAMES[entry.direction].name})` : ''
     }`,
   }),
+  // osivo chybí a koupit nešlo (fields.md – Osivo pro ves bez zásob) – díly bez osiva ves nezaseje
+  'seed-short': () => ({ kind: 'seed-short', tone: 'warn', text: 'Chybí osivo na setí' }),
   // lidé od souseda (trade.md – Výměna lidí) – fakt, odkud přišli
   newcomer: (entry) => newcomerNotice(entry.group ?? 'family', entry),
   // nepasený příloh zarostl lesem a vypadl z pole (fields.md – Zarůstání)
@@ -439,4 +593,33 @@ function chronicleNotices(previous: VillageView, next: VillageView): VillageNoti
     notices.push(notice);
   }
   return notices;
+}
+
+/**
+ * Trvalé upozornění „Syn vojvody čeká na jméno“ (lord.md – Kde se jméno zadává; Martin 24. 10. 2026:
+ * „Hráči se vypíše upozornění a bude se čekat na jeho reakci.“) – nemizí jako ostatní, dokud hráč
+ * muže nepojmenuje. Text podle prvního ve frontě (vojvoda, jinak nejstarší syn), číslo je počet
+ * všech čekajících; klik otevře panel jména na `personId`.
+ */
+export interface LineNameNotice {
+  kind: 'line-name';
+  tone: 'warn';
+  text: string;
+  count: number;
+  personId: number;
+}
+
+/** Upozornění na muže rodu bez jména; nikdo nečeká (nebo ves vymřela) – null. */
+export function lineNameNotice(view: VillageView | null): LineNameNotice | null {
+  if (!view || view.extinct) return null;
+  const unnamed = view.dynasty?.unnamed ?? [];
+  const first = unnamed[0];
+  if (!first) return null;
+  return {
+    kind: 'line-name',
+    tone: 'warn',
+    text: first.lord ? 'Vojvoda čeká na jméno' : 'Syn vojvody čeká na jméno',
+    count: unnamed.length,
+    personId: first.id,
+  };
 }

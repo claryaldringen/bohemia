@@ -10,6 +10,8 @@
 //                        syntetická krajina z doby krajin verze 1 (35 ha louky – starší měření)
 //   --variant base|meadow-burn   pálení drnu (jen kalibrace, ne pravidlo hry): založení louky
 //                        50 místo 100 člověkodní na hektar a první sezóna s úrodností o 20 nižší
+//   --founders dynasty|pairs   zakladatelé vsi: vojvoda s manželkami (výchozí, lord.md – Zakladatelé)
+//                        nebo dva páry bez rodu (základ pro srovnání se starším během)
 //   --out soubor.jsonl   kontrolní bod – každá hotová ves (úloha) se připíše na řádek; stejný
 //                        příkaz běh po přerušení (Ctrl+C) dokončí, hotové vsi přeskočí a tabulku
 //                        spočítá ze souboru (po doběhnutí ji vypíše hned)
@@ -86,7 +88,6 @@ import {
   PLANNING_DAY,
   PLOUGH_HA_PER_DAY,
   SEED_KG_PER_HA,
-  THRESH_END_DAY,
   WINTER_HARVEST_DAY,
   advanceVillage,
   bufferKg,
@@ -125,14 +126,17 @@ import {
   grossYieldPerHa,
   isCemeteryBuilding,
   laborPerDay,
-  planCrops,
-  planPartIds,
+  seasonCrop,
+  seasonCrops,
+  springCrop,
+  seasonPartIds,
   ploughWorkPerHa,
   bandLengthM,
   furrowEfficiency,
   repairNeedPerDay,
   startNewDwelling,
-  threshLossKg,
+  sheavesOutlook,
+  villageSheaves,
   waitingHouseholds,
 } from '../src/domain/village';
 import type {
@@ -160,6 +164,7 @@ import {
   type Variant,
 } from './lib/calibration-land';
 import { appendCheckpoint, openCheckpoint, readCheckpoint } from './lib/checkpoint';
+import { addLordStep, lordColumns, type LordYear } from './lib/lord-columns';
 import { ROTATION, ROTATION_FACTOR } from './lib/steady-state';
 
 interface Config {
@@ -167,6 +172,7 @@ interface Config {
   years: number;
   land: LandKind;
   variant: Variant;
+  founders: Founders;
   out: string | null;
   workers: number;
   foreground: boolean;
@@ -176,7 +182,9 @@ interface Config {
 
 const QUICK_VILLAGES = 50;
 const FLAGS_WITHOUT_VALUE = ['quick', 'foreground', 'eco', 'report-only'];
-const FLAGS_WITH_VALUE = ['land', 'variant', 'out', 'workers'];
+const FLAGS_WITH_VALUE = ['land', 'variant', 'founders', 'out', 'workers'];
+const FOUNDERS = ['dynasty', 'pairs'] as const;
+type Founders = (typeof FOUNDERS)[number];
 
 function parseConfig(argv: readonly string[]): Config {
   const positional: string[] = [];
@@ -207,11 +215,14 @@ function parseConfig(argv: readonly string[]): Config {
   if (!LAND_KINDS.includes(land)) throw new Error(`--land je ${LAND_KINDS.join(' nebo ')}.`);
   const variant = (flags.get('variant') ?? 'base') as Variant;
   if (!VARIANTS.includes(variant)) throw new Error(`--variant je ${VARIANTS.join(' nebo ')}.`);
+  const founders = (flags.get('founders') ?? 'dynasty') as Founders;
+  if (!FOUNDERS.includes(founders)) throw new Error(`--founders je ${FOUNDERS.join(' nebo ')}.`);
   return {
     villages: count(positional[0], flags.has('quick') ? QUICK_VILLAGES : 200, 'Počet vsí'),
     years: count(positional[1], 60, 'Roky'),
     land,
     variant,
+    founders,
     out: flags.get('out') ?? null,
     workers: count(flags.get('workers'), defaultWorkers(), '--workers'),
     foreground: flags.has('foreground'),
@@ -306,6 +317,8 @@ function occupiedCount(state: VillageState): number {
 /** Lidé v pevném složení – věk vztažený k začátku kroku. */
 /** Ohrada sondy se spřežením (id mimo id vsi). */
 const TEAM_PEN_ID = 2_000_000;
+/** Humno kalibrační vsi (id mimo id vsi). */
+const THRESHING_FLOOR_ID = 2_000_001;
 /** Seno, které sonda se spřežením drží v zásobě – voli nezeslábnou ani neuhynou. */
 const TEAM_HAY_KG = 10_000;
 
@@ -388,6 +401,8 @@ interface Reserves {
 const NO_RESERVES: Reserves = { autumn: NaN, spring: NaN, weed: NaN, summer: NaN };
 
 interface LaborYear {
+  /** Rodina a koně (lib/lord-columns.ts) – chybí ve starších kontrolních bodech. */
+  lord?: LordYear;
   capacity: number;
   common: number;
   repairs: number;
@@ -657,21 +672,23 @@ function satiationOf(state: VillageState): number {
   return state.diet?.energy ?? 1;
 }
 
+/** Začátek jarních prací – den před ním se měří, kolik kopání jaře stihl podzim. */
+const SPRING_START = { month: 3, day: 1 } as const;
+
 /**
  * Další konec kroku: nejvýš `stepDays` dní; sklizeň ozimu 31. 7., jaře 31. 8., plán 1. 9.
- * a 1. 3. (ztráta nevymláceného, jako samostatný den) jsou vždy konce kroků – změny zásob po
- * jídle tak padnou jen na konec kroku. Den před 1. 3. je konec kroku i kvůli kopání jaře,
- * které stihl podzim (rezervy práce na jaře).
+ * a 1. 3. jsou vždy konce kroků – změny zásob po jídle tak padnou jen na konec kroku. Den před
+ * 1. 3. je konec kroku kvůli kopání jaře, které stihl podzim (rezervy práce na jaře).
  */
 function nextStop(lastDay: number, endDay: number, stepDays: number): number {
   let stop = Math.min(lastDay + stepDays, endDay);
   const { year } = dateOfDayIndex(lastDay + 1);
   for (const y of [year, year + 1]) {
     if (y > LAST_YEAR) continue;
-    const threshEnd = dayIndexOf({ year: y, ...THRESH_END_DAY });
+    const spring = dayIndexOf({ year: y, ...SPRING_START });
     const anchors = [
-      threshEnd - 1,
-      threshEnd,
+      spring - 1,
+      spring,
       dayIndexOf({ year: y, ...WINTER_HARVEST_DAY }),
       dayIndexOf({ year: y, ...HARVEST_DAY }),
       dayIndexOf({ year: y, ...PLANNING_DAY }),
@@ -699,6 +716,11 @@ function foodTrack(
   // každý den, porážka) taky ne
   if ((before.applesKg ?? 0) > 0 || (after.applesKg ?? 0) > 0 || after.orchardWork) return null;
   if ((before.meatKg ?? 0) > 0 || (after.meatKg ?? 0) > 0) return null;
+  // výmlat převádí snopy do zásob během kroku (production-chains.md – Humno) – bez simulace práce
+  // přehrát nejde
+  const sheaves = (s: VillageState): number =>
+    villageSheaves(s).grainKg + villageSheaves(s).legumesKg;
+  if (sheaves(before) > 0 || sheaves(after) > 0) return null;
   const deathDay = new Map<number, number>();
   for (const e of events) {
     if (e.kind !== 'death') continue;
@@ -715,25 +737,19 @@ function foodTrack(
     const need = people.reduce((sum, p) => sum + foodNeedPerDay(p, d), 0);
     // výhled sklizně podle plánu na začátku kroku – když se během kroku změní (setí, pletí
     // ozimu), zásoby na konci nesedí a krok se přepočítá den po dni
-    const days = daysUntilFoodHarvest(before.plan, before.parts, d, need * fieldFoodShare(before));
+    const days = daysUntilFoodHarvest(
+      before.season,
+      before.parts,
+      d,
+      need * fieldFoodShare(before),
+    );
     const eaten = eatDay(stores, need, days, NO_CRAFTS.pottery);
     satiation.push(eaten.satiation);
     stores = eaten.storesKg;
     people = people.filter((p) => deathDay.get(p.id) !== d);
     for (const p of born) if (p.bornDay === d) people.push(p);
   }
-  // sklizně 31. 7. a 31. 8. a ztráta nevymláceného 1. 3. přišly až po jídle posledního dne
-  const end = dateOfDayIndex(after.lastDay);
-  if (isOn(end, WINTER_HARVEST_DAY)) stores += after.plan?.winter?.harvestedKg ?? 0;
-  if (isOn(end, HARVEST_DAY)) stores += after.threshingFromPlan?.harvestedKg ?? 0;
-  if (isOn(end, THRESH_END_DAY) && before.threshingFromPlan) {
-    if (before.lastDay + 1 !== after.lastDay) return null;
-    const loss = planCrops(before.threshingFromPlan).reduce(
-      (sum, { work }) => sum + threshLossKg(work, work.harvestedKg ?? 0),
-      0,
-    );
-    stores = Math.max(0, stores - loss);
-  }
+  // sklizně 31. 7. a 31. 8. jdou do snopů (production-chains.md – Humno) – zásoby nemění
   const tolerance = 1e-6 * Math.max(1, after.storesKg);
   return Math.abs(stores - after.storesKg) <= tolerance ? satiation : null;
 }
@@ -864,6 +880,7 @@ function addLabor(result: RunResult, after: VillageState, days: number): void {
       .filter((d) => occupied.has(d.id))
       .reduce((sum, d) => sum + repairNeedPerDay(d, day), 0) * days;
   labor.households += occupied.size * days;
+  labor.lord = addLordStep(labor.lord, after, days);
   result.labor.set(year, labor);
 }
 
@@ -876,19 +893,21 @@ function recordHarvest(
   const day = after.lastDay;
   const { year } = dateOfDayIndex(day);
   const need = annualNeed(after.people, day + 1);
-  if (need > 0) result.grainStoresRatio.set(year, after.storesKg / need);
+  // sklizeň je ve snopech (production-chains.md – Humno) – zásoba obilí i s těmi, které ves vymlátí
+  const grain = after.storesKg + sheavesOutlook(after, day + 1).grainKg;
+  if (need > 0) result.grainStoresRatio.set(year, grain / need);
   // potřeba z pole, se kterou ves zítra (1. 9.) plánuje – podíl z právě skončeného roku
   const planning = { ...after };
   closeFieldFoodYear(planning);
   const fieldNeed = yearlyFieldNeed(planning, day + 1);
-  if (fieldNeed > 0) result.storesRatio.set(year, fieldStoresKg(after) / fieldNeed);
+  if (fieldNeed > 0) result.storesRatio.set(year, fieldStoresKg(after, day + 1) / fieldNeed);
   const buffer = bufferKg(need);
   const target =
     steadyHarvestKg(fieldNeed, buffer, NO_CRAFTS.pottery) + storesTargetKg(fieldNeed, buffer);
-  if (target > 0) result.storesToTarget.set(year, fieldStoresKg(after) / target);
-  const plan = after.threshingFromPlan;
+  if (target > 0) result.storesToTarget.set(year, fieldStoresKg(after, day + 1) / target);
+  const plan = after.threshingSeason;
   if (plan && after.people.length > 0) {
-    const work = planCrops(plan).reduce(
+    const work = seasonCrops(plan).reduce(
       (sum, { work: w }) =>
         sum + Object.values(w.required).reduce((a, b) => a + b, 0) + (w.plough?.required ?? 0),
       0,
@@ -896,7 +915,7 @@ function recordHarvest(
     result.fieldWork.set(year, work / after.people.length);
     if (plan.flaxNeedKg !== undefined) {
       const byId = new Map(after.parts.map((p) => [p.id, p]));
-      const m2 = (plan.flax?.partIds ?? []).reduce(
+      const m2 = (seasonCrop(plan, 'flax')?.partIds ?? []).reduce(
         (sum, id) => sum + (byId.get(id)?.areaM2 ?? 0),
         0,
       );
@@ -913,8 +932,8 @@ function recordHarvest(
   const free = capacity - dailyMinPerHousehold(NO_CRAFTS.pottery);
   const windowDays = (from: number, to: number, y = year): number =>
     dayIndexOf({ year: y, month: to + 1, day: 1 }) - dayIndexOf({ year: y, month: from, day: 1 });
-  const spring = plan.required;
-  const winter = plan.winter?.required;
+  const spring = springCrop(plan).required;
+  const winter = seasonCrop(plan, 'winter')?.required;
   const springDig = Math.max(0, spring.dig - (result.autumnDig.get(year) ?? 0));
   record.reserves = {
     autumn:
@@ -922,21 +941,22 @@ function recordHarvest(
       ((winter?.reclaim ?? 0) + (winter?.dig ?? 0) + (winter?.sow ?? 0)) /
         (free * windowDays(9, 10, year - 1)),
     spring: 1 - (springDig + spring.sow) / (free * windowDays(3, 4)),
-    weed: 1 - (spring.weed + (winter?.weed ?? 0)) / (free * windowDays(5, 6)),
+    // ozim se neplete, jař jednou v květnu (fields.md – Pletí jednou a rychle)
+    weed: 1 - spring.weed / (free * windowDays(5, 5)),
     summer: 1 - Math.max(winter?.harvest ?? 0, spring.harvest) / (free * windowDays(7, 7)),
   };
-  record.finished = planCrops(plan).every(({ work }) =>
+  record.finished = seasonCrops(plan).every(({ work }) =>
     (['sow', 'weed', 'harvest'] as const).every((t) => work.done[t] >= work.required[t] - 1e-6),
   );
 }
 
 /** Průměrná délka brázdy pásů orby plánu (m, váhou plochy dílů pásu); bez orby 0. */
 function planFurrowM(state: VillageState): number {
-  if (!state.plan) return 0;
+  if (!state.season) return 0;
   const byId = new Map(state.parts.map((p) => [p.id, p]));
   let area = 0;
   let sum = 0;
-  for (const { work } of planCrops(state.plan)) {
+  for (const { work } of seasonCrops(state.season)) {
     for (const band of work.plough?.bands ?? []) {
       const a = band.partIds.reduce((acc, id) => acc + (byId.get(id)?.areaM2 ?? 0), 0);
       area += a;
@@ -949,8 +969,8 @@ function planFurrowM(state: VillageState): number {
 /** 1. 9. po plánu osevu: osev, velikost pole a stav dílů (u sond). */
 function recordPlan(result: RunResult, after: VillageState, pinned: boolean): void {
   const day = after.lastDay;
-  const sown = new Set(after.plan ? planPartIds(after.plan) : []);
-  const winter = new Set(after.plan?.winter?.partIds ?? []);
+  const sown = new Set(after.season ? seasonPartIds(after.season) : []);
+  const winter = new Set(seasonCrop(after.season, 'winter')?.partIds ?? []);
   const area = (keep: (p: VillageState['parts'][number]) => boolean): number =>
     after.parts.filter(keep).reduce((sum, p) => sum + p.areaM2, 0) / M2_PER_HA;
   const year = dateOfDayIndex(day).year + 1;
@@ -966,8 +986,8 @@ function recordPlan(result: RunResult, after: VillageState, pinned: boolean): vo
     fieldHa: area(() => true),
     reserves: NO_RESERVES,
     finished: false,
-    plough: after.plan
-      ? planCrops(after.plan).reduce((sum, { work }) => sum + (work.plough?.required ?? 0), 0)
+    plough: after.season
+      ? seasonCrops(after.season).reduce((sum, { work }) => sum + (work.plough?.required ?? 0), 0)
       : 0,
     furrowM: planFurrowM(after),
   });
@@ -1155,8 +1175,8 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
     }
 
     // poslední den února: kolik kopání jaře stihl podzim (zbytek jde na jaro)
-    if (isOn(dateOfDayIndex(day + 1), THRESH_END_DAY) && after.plan) {
-      result.autumnDig.set(date.year, after.plan.done.dig);
+    if (isOn(dateOfDayIndex(day + 1), SPRING_START) && after.season) {
+      result.autumnDig.set(date.year, springCrop(after.season).done.dig);
     }
     if (isOn(date, HARVEST_DAY)) recordHarvest(result, after, opts.pinned);
     if (isOn(date, PLANNING_DAY)) {
@@ -1349,8 +1369,18 @@ function foundOn(
     },
     obstacles: land.obstacles,
     forestDistanceM: land.site.forestDistanceM,
+    ...(config.founders === 'dynasty' ? { lord: {} } : {}),
   });
   applyVariantToNewParts(state, 0, config.variant);
+  // hráč postaví humno hned (production-chains.md – Humno – bez humna nová ves nemlátí): hotové
+  // humno kus od vsi zdarma, ať kalibrace měří výmlat hned po žni, ne zapomenuté humno
+  state.threshingFloors = [
+    {
+      id: THRESHING_FLOOR_ID,
+      position: { x: land.position.x - 25, z: land.position.z - 25, rotation: 0 },
+      builtDay: day,
+    },
+  ];
   // pastva a žaludy výchozího stáda (diet.md): louka a les do 600 m od vsi – skutečná krajina,
   // nebo syntetická (louka celá, les rovnoměrně 50–800 m)
   state.livestock!.land = land.landscape
@@ -2114,6 +2144,26 @@ function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummar
     )}`,
     'info',
   );
+  // vojvodova rodina a koně (lord.md – Dopad na pracovní sílu, horses.md) – od 3. roku vsi
+  const lordYears = villages.flatMap(({ builder, foundDay, endDay }) =>
+    fullYears(builder, foundDay, endDay)
+      .filter((y) => y - harvestYear(foundDay) >= 3)
+      .flatMap((y) => {
+        const l = builder.labor.get(y);
+        return l?.lord ? [{ lord: l.lord, capacity: l.capacity }] : [];
+      }),
+  );
+  if (lordYears.length > 0) {
+    row(
+      'Vojvodova rodina a koně, hráč staví',
+      'informace – podíl práce rodiny ≈ 25–30 %, ves nehladoví víc než před změnou',
+      lordColumns(
+        lordYears.map((x) => x.lord),
+        lordYears.reduce((sum, x) => sum + x.capacity, 0),
+      ),
+      'info',
+    );
+  }
   // len na oděv (fields.md – Len) – od 3. roku vsi
   const linenYears = villages.flatMap(({ builder, foundDay, endDay }) =>
     fullYears(builder, foundDay, endDay)
@@ -2467,6 +2517,7 @@ function checkpointConfig(): Record<string, unknown> {
     years: config.years,
     land: config.land,
     variant: config.variant,
+    founders: config.founders,
   };
 }
 

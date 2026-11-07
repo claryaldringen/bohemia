@@ -123,11 +123,17 @@ export function createTerrainMaterial(
  * tráva (tráva, bujná, kvetoucí, suchá a napůl vyšlapaná) na jaře zesvětlí a zezelená, na
  * podzim usychá ve skvrnách do slámově hnědé; sníh podle šumu, ne na strmých svazích a na dně
  * potoka (štěrk, písek a bahno jsou většinou pod vodou – prosvítaly by bíle); pod stromy místy
- * prosvítá zem. Stín pod holými korunami je v zimě slabší.
+ * prosvítá zem. Stín pod holými korunami je v zimě slabší. Za deště (`seasonC.w`) kaluže na
+ * vyšlapané trávě a v nivě.
  */
-const SEASON_GROUND_GLSL = `if (seasonA.y > 0.0 || seasonA.z > 0.0) {
+const SEASON_GROUND_GLSL = `if (seasonA.y > 0.0 || seasonA.z > 0.0 || seasonC.x > 0.0 || seasonC.y > 0.0 || seasonC.z > 0.0) {
   float seasonVeg = clamp((wA.r + wA.g + 0.6 * wA.b + wB.a + wC.b) / terrainTotal, 0.0, 1.0);
-  groundColor = seasonGrass(groundColor, seasonVeg, terrainXz, seasonA);
+  groundColor = seasonGrass(groundColor, seasonVeg, terrainXz, seasonA, seasonC);
+}
+if (seasonC.w > 0.0) {
+  // kaluže na vyšlapané trávě, břehu a bahně v nivě (dno potoka je pod vodou)
+  float seasonMud = clamp((0.8 * wA.b + wB.r + wB.g) / terrainTotal, 0.0, 1.0);
+  groundColor = seasonPuddle(groundColor, terrainXz, seasonMud, seasonC.w);
 }
 if (seasonA.x > 0.0) {
   float seasonBed = clamp((wC.r + wC.g + wB.g) / terrainTotal, 0.0, 1.0);
@@ -137,9 +143,13 @@ if (seasonA.x > 0.0) {
   groundColor = mix(groundColor, seasonSnowColor(groundColor), seasonCover);
 }`;
 
-const SEASON_GROUND_WGSL = `if (uniforms.seasonA.y > 0.0 || uniforms.seasonA.z > 0.0) {
+const SEASON_GROUND_WGSL = `if (uniforms.seasonA.y > 0.0 || uniforms.seasonA.z > 0.0 || uniforms.seasonC.x > 0.0 || uniforms.seasonC.y > 0.0 || uniforms.seasonC.z > 0.0) {
   let seasonVeg = clamp((wA.r + wA.g + 0.6 * wA.b + wB.a + wC.b) / terrainTotal, 0.0, 1.0);
-  groundColor = seasonGrass(groundColor, seasonVeg, terrainXz, uniforms.seasonA);
+  groundColor = seasonGrass(groundColor, seasonVeg, terrainXz, uniforms.seasonA, uniforms.seasonC);
+}
+if (uniforms.seasonC.w > 0.0) {
+  let seasonMud = clamp((0.8 * wA.b + wB.r + wB.g) / terrainTotal, 0.0, 1.0);
+  groundColor = seasonPuddle(groundColor, terrainXz, seasonMud, uniforms.seasonC.w);
 }
 if (uniforms.seasonA.x > 0.0) {
   let seasonBed = clamp((wC.r + wC.g + wB.g) / terrainTotal, 0.0, 1.0);
@@ -230,6 +240,7 @@ uniform layerRepeatB: vec4f;
 uniform layerRepeatC: vec4f;
 uniform seasonA: vec4f;
 uniform seasonB: vec4f;
+uniform seasonC: vec4f;
 #endif`
           : `#ifdef TERRAIN_SPLAT
 uniform float terrainExtent;
@@ -238,6 +249,7 @@ uniform vec4 layerRepeatB;
 uniform vec4 layerRepeatC;
 uniform vec4 seasonA;
 uniform vec4 seasonB;
+uniform vec4 seasonC;
 #endif`,
     };
   }

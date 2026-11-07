@@ -83,8 +83,20 @@ const DETERMINISTIC_LAYER_FILES = [
   'packages/game/src/domain/village/paths/**/*.ts',
   // natočené stavby – mřížky čtverců (fields.md – Natočené stavby) jdou do sítě pěšin
   'packages/game/src/domain/village/square-grid.ts',
+  // obvod opevnění (fortifications.md – Obvod) – tvar, úseky a brány u kurzoru i na serveru
+  'packages/game/src/domain/village/fortification/**/*.ts',
+  // síla vojska a pravidla války (war.md) – tažení počítá server i prohlížeč
+  'packages/game/src/domain/war/**/*.ts',
   // varianty rozměrů obydlí (population.md – Varianty rozměrů) – tvar staveb u kurzoru i na serveru
   'packages/game/src/domain/village/dwelling-shape.ts',
+  // plán sídla správce (steward.md – Mapa hodnot krajiny) – ukládá se do stavu, dopočet po kouscích
+  // ho musí zopakovat
+  'packages/game/src/domain/village/steward-land.ts',
+  'packages/game/src/domain/village/steward-plan.ts',
+  // den správce (steward.md – Rozhodovací pořadí) – stavby správce jsou ve stavu vsi
+  'packages/game/src/domain/village/steward.ts',
+  'packages/game/src/domain/village/steward-extras.ts',
+  'packages/game/src/domain/village/steward-rebuild.ts',
 ];
 
 export default defineConfig(
@@ -121,6 +133,36 @@ export default defineConfig(
       'no-restricted-imports': ['error', { patterns: [infrastructureRule] }],
       'no-restricted-properties': ['error', ...determinismProperties],
       'no-restricted-syntax': ['error', ...determinismSyntax],
+    },
+  },
+  {
+    // Knihovna pro composition rooty (web, worker): smí node:*, @bohemia/db a @bohemia/game,
+    // ale ne rámce jednotlivých vstupních bodů.
+    files: ['packages/server/src/**/*.ts'],
+    ignores: ['**/__tests__/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: [
+                'next',
+                'next/*',
+                'react',
+                'react/*',
+                'react-dom',
+                'react-dom/*',
+                'better-auth',
+                'better-auth/*',
+                'server-only',
+              ],
+              message:
+                '@bohemia/server je sdílený vstupními body – žádný Next, React ani Better Auth.',
+            },
+          ],
+        },
+      ],
     },
   },
   {

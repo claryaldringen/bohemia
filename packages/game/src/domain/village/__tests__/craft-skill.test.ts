@@ -155,14 +155,15 @@ describe('praxe roste jen při práci (crafts.md – Učení řemesla)', () => {
     expect(practice(s, FATHER, 'potter')).toBe(0);
     gainPractice(s, DAY + 1, new Set([WORKSHOP_ID]));
     expect(practice(s, FATHER, 'potter')).toBeCloseTo(1 / 365, 12);
-    expect(practice(s, MOTHER, 'potter')).toBeCloseTo(1 / 365, 12);
+    // žena řemeslo nedělá, praxi nezískává (crafts.md – Kdo dělá řemeslo)
+    expect(practice(s, MOTHER, 'potter')).toBe(0);
     // ve vsi mimo dílnu praxi nikdo nezíská
     expect(s.people.filter((p) => p.dwellingId === 1).every((p) => !p.practice)).toBe(true);
   });
 
   it('v simulaci: hrnčíř s plnou zásobou keramiky odpočívá a praxe nepřibývá', () => {
     const s = withWorkshop(fullVillage(), 'potter');
-    s.crafts = { charcoalKg: 0, toolsKg: 0, potteryKg: 10_000 };
+    s.crafts = { charcoalKg: 0, potteryKg: 10_000 };
     const after = advanceVillage(s, DAY + 30, null);
     expect(after.dwellings.find((d) => d.id === WORKSHOP_ID)!.workshop!.activity).toBe('resting');
     expect(practice(after, FATHER, 'potter')).toBe(0);

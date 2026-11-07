@@ -1,11 +1,82 @@
-import { and, asc, eq, inArray, sql } from 'drizzle-orm';
-import type { VillageRecord, VillageRepository, VillageStamp } from '@bohemia/game';
+import { and, asc, eq, inArray, sql, type SQL } from 'drizzle-orm';
+import {
+  isCurrentDigest,
+  villageDigest,
+  type VillageDigest,
+  type VillageDigestRecord,
+  type VillageRecord,
+  type VillageRepository,
+  type VillageStamp,
+  type VillageYearRow,
+} from '@bohemia/game';
 import type { Database } from '../client';
-import { settlement, village } from '../schema';
+import { createInboxRepository } from './inbox-repository';
+import { createVillageHolds } from './village-holds';
+import { settlement, village, villageYear } from '../schema';
 
 type VillageRow = typeof village.$inferSelect;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Řádek vsi pro zápis stavu – souhrn se odvodí ze stavu (zdroj pravdy je stav) a nese verzi,
+ * kterou zápis vsi dá (`digestVersion` = nová `version`).
+ */
+function written(
+  state: VillageRecord['state'],
+  digestVersion: number | SQL,
+): { state: VillageRecord['state']; digest: VillageDigest; digestVersion: number | SQL } {
+  return { state, digest: villageDigest(state), digestVersion };
+}
+
+type SavedRow = Pick<VillageRow, 'id' | 'settlementId' | 'name' | 'version'>;
+
+/** Řádek deníku vsi pro zápis. */
+function yearValues(villageId: string, r: VillageYearRow): typeof villageYear.$inferInsert {
+  const { year, day, adults, children, births, deaths, deathsHunger } = r;
+  return {
+    villageId,
+    year,
+    day,
+    adults,
+    children,
+    births,
+    deaths,
+    deathsHunger,
+    harvestKg: r.harvestKg,
+    storesKg: r.storesKg,
+    hungryDays: r.hungryDays,
+    fieldM2: r.fieldM2,
+    sownM2: r.sownM2,
+    data: {
+      herds: r.herds,
+      stewardOn: r.stewardOn,
+      built: r.built,
+      sonsLeft: r.sonsLeft,
+      disasters: r.disasters,
+      chronicleFull: r.chronicleFull,
+    },
+  };
+}
+
+/** Přepis řádku deníku při shodě (ves + rok): všechny sloupce z nové hodnoty. */
+function yearConflictSet(): Record<string, SQL> {
+  return {
+    day: sql`excluded.day`,
+    adults: sql`excluded.adults`,
+    children: sql`excluded.children`,
+    births: sql`excluded.births`,
+    deaths: sql`excluded.deaths`,
+    deathsHunger: sql`excluded.deaths_hunger`,
+    harvestKg: sql`excluded.harvest_kg`,
+    storesKg: sql`excluded.stores_kg`,
+    hungryDays: sql`excluded.hungry_days`,
+    fieldM2: sql`excluded.field_m2`,
+    sownM2: sql`excluded.sown_m2`,
+    data: sql`excluded.data`,
+    writtenAt: sql`now()`,
+  };
+}
 
 function toRecord(row: VillageRow): VillageRecord {
   return {
@@ -18,16 +89,59 @@ function toRecord(row: VillageRow): VillageRecord {
 }
 
 /**
+ * Sloupce otisku vsi – den dopočtu a spánek jsou uložené sloupce (generované ze stavu při zápisu),
+ * stav se nepřenáší ani neparsuje v Node.
+ */
+const STAMP_COLUMNS = {
+  id: village.id,
+  settlementId: village.settlementId,
+  name: village.name,
+  version: village.version,
+  lastDay: village.lastDay,
+  asleep: village.asleep,
+};
+
+/** lastDay je ve stavu vždy; null by znamenalo poškozený JSON – ves je pak „nejvíc pozadu“. */
+function toStamp(row: Omit<VillageStamp, 'lastDay'> & { lastDay: number | null }): VillageStamp {
+  return { ...row, lastDay: row.lastDay ?? 0 };
+}
+
+/**
  * Drizzle adaptér portu VillageRepository – optimistické zamykání přes sloupec version. Sídlo
  * může mít víc vsí; první ves sídla zakládá `create` atomicky (zámek řádku sídla).
  */
 export function createVillageRepository(db: Database): VillageRepository {
+  // Hledání podle klíče založení jde přes unikátní index `village_origin_uq`.
+  const byOrigin = async (origin: string): Promise<VillageRecord | null> => {
+    const [row] = await db
+      .select()
+      .from(village)
+      .where(sql`${village.state}->>'origin' = ${origin}`)
+      .orderBy(asc(village.createdAt))
+      .limit(1);
+    return row ? toRecord(row) : null;
+  };
   return {
+    // schránka vsí nad tabulkou `village_inbox` (docs/code/world.md – Schránka vsi)
+    inbox: createInboxRepository(db),
+    // bariéra ves × tažení (village-holds.ts) – dopočet vsi nepředběhne tažení u ní
+    holds: createVillageHolds(db),
+
     async find(villageId): Promise<VillageRecord | null> {
       // id vsi přichází i zvenku (cookie, vstup akce) – jiný řetězec než UUID by dotaz shodil
       if (!UUID.test(villageId)) return null;
       const [row] = await db.select().from(village).where(eq(village.id, villageId)).limit(1);
       return row ? toRecord(row) : null;
+    },
+
+    async weatherSeedOf(settlementId): Promise<number | null> {
+      if (!UUID.test(settlementId)) return null;
+      const [row] = await db
+        .select({ weatherSeed: settlement.weatherSeed })
+        .from(settlement)
+        .where(eq(settlement.id, settlementId))
+        .limit(1);
+      return row?.weatherSeed ?? null;
     },
 
     async listBySettlement(settlementId): Promise<VillageRecord[]> {
@@ -57,35 +171,90 @@ export function createVillageRepository(db: Database): VillageRepository {
         if (existing) return null;
         const [row] = await tx
           .insert(village)
-          .values({ settlementId, name, state, version: 1 })
+          .values({ settlementId, name, ...written(state, 1), version: 1 })
           .returning();
         return row ? toRecord(row) : null;
       });
     },
 
-    async add(settlementId, name, state): Promise<VillageRecord> {
-      const [row] = await db
-        .insert(village)
-        .values({ settlementId, name, state, version: 1 })
-        .returning();
-      if (!row) throw new Error(`Ves sídla ${settlementId} nešlo založit.`);
-      return toRecord(row);
+    findByOrigin: byOrigin,
+
+    async addOnce(settlementId, name, state): Promise<VillageRecord | null> {
+      const origin = state.origin;
+      if (origin === undefined) throw new Error('Ves bez klíče založení (origin).');
+      if (!UUID.test(settlementId)) return null;
+      // Atomicky: souběžná vybavení téže schránky se seřadí na zámku řádku sídla – druhé už ves
+      // s klíčem uvidí a vrátí ji.
+      try {
+        return await db.transaction(async (tx) => {
+          const [owner] = await tx
+            .select({ id: settlement.id })
+            .from(settlement)
+            .where(eq(settlement.id, settlementId))
+            .for('update');
+          if (!owner) return null;
+          const [existing] = await tx
+            .select()
+            .from(village)
+            .where(sql`${village.state}->>'origin' = ${origin}`)
+            .limit(1);
+          if (existing) return toRecord(existing);
+          // jedna ves, jedna mapa – sídlo s jinou vsí nic nezaloží
+          const [other] = await tx
+            .select({ id: village.id })
+            .from(village)
+            .where(eq(village.settlementId, settlementId))
+            .limit(1);
+          if (other) return null;
+          const [row] = await tx
+            .insert(village)
+            .values({ settlementId, name, ...written(state, 1), version: 1 })
+            .returning();
+          return row ? toRecord(row) : null;
+        });
+      } catch (error) {
+        // souběh na různých sídlech: unikátní index `village_origin_uq` pustil jen jednu ves (index
+        // `village_settlement_uq` – jinou ves sídla – zámek řádku sídla nepustí, `byOrigin` pak null)
+        if (!isUniqueViolation(error)) throw error;
+        return byOrigin(origin);
+      }
     },
 
-    async save(villageId, state, expectedVersion): Promise<VillageRecord | null> {
+    async save(villageId, state, expectedVersion, yearRows = []): Promise<VillageRecord | null> {
       // Zpět jen identitu, jméno a verzi – stav (u velké vsi přes 1 MB JSON) má volající v ruce,
       // databáze by ho jinak celý serializovala a posílala zpátky.
-      const [row] = await db
-        .update(village)
-        .set({ state, version: sql`${village.version} + 1`, updatedAt: sql`now()` })
-        .where(and(eq(village.id, villageId), eq(village.version, expectedVersion)))
-        .returning({
-          id: village.id,
-          settlementId: village.settlementId,
-          name: village.name,
-          version: village.version,
-        });
-      return row ? { ...row, state } : null;
+      const update = (tx: Pick<Database, 'update'>): Promise<SavedRow[]> =>
+        tx
+          .update(village)
+          .set({
+            ...written(state, sql`${village.version} + 1`),
+            version: sql`${village.version} + 1`,
+            updatedAt: sql`now()`,
+          })
+          .where(and(eq(village.id, villageId), eq(village.version, expectedVersion)))
+          .returning({
+            id: village.id,
+            settlementId: village.settlementId,
+            name: village.name,
+            version: village.version,
+          });
+      if (yearRows.length === 0) {
+        const [row] = await update(db);
+        return row ? { ...row, state } : null;
+      }
+      // řádky deníku jen s úspěšným zápisem stavu, v téže transakci (idempotentně: ves + rok)
+      return db.transaction(async (tx) => {
+        const [row] = await update(tx);
+        if (!row) return null;
+        await tx
+          .insert(villageYear)
+          .values(yearRows.map((r) => yearValues(villageId, r)))
+          .onConflictDoUpdate({
+            target: [villageYear.villageId, villageYear.year],
+            set: yearConflictSet(),
+          });
+        return { ...row, state };
+      });
     },
 
     async rename(villageId, name): Promise<boolean> {
@@ -98,19 +267,51 @@ export function createVillageRepository(db: Database): VillageRepository {
       return rows.length > 0;
     },
 
-    async stampsOf(settlementIds): Promise<VillageStamp[]> {
-      if (settlementIds.length === 0) return [];
-      // Den dopočtu čte Postgres ze stavu sám – stav se nepřenáší ani neparsuje v Node.
-      return db
+    async digestsOf(villageIds): Promise<VillageDigestRecord[]> {
+      const ids = villageIds.filter((id) => UUID.test(id));
+      if (ids.length === 0) return [];
+      // jen malý souhrn (pár KB) – stav vsi se nepřenáší ani neparsuje
+      const rows = await db
         .select({
           id: village.id,
           settlementId: village.settlementId,
           name: village.name,
           version: village.version,
-          lastDay: sql<number>`(${village.state}->>'lastDay')::int`,
+          digest: village.digest,
         })
         .from(village)
-        .where(inArray(village.settlementId, [...settlementIds]));
+        // souhrn jen k uložené verzi stavu (zápis mimo adaptér ho zneplatní)
+        .where(and(inArray(village.id, ids), eq(village.digestVersion, village.version)));
+      return rows.flatMap(({ digest, ...row }) =>
+        isCurrentDigest(digest) ? [{ ...row, digest }] : [],
+      );
+    },
+
+    async stampsOf(settlementIds): Promise<VillageStamp[]> {
+      if (settlementIds.length === 0) return [];
+      const rows = await db
+        .select(STAMP_COLUMNS)
+        .from(village)
+        .where(inArray(village.settlementId, [...settlementIds]))
+        .orderBy(asc(village.createdAt), asc(village.id));
+      return rows.map(toStamp);
+    },
+
+    async stampsOfVillages(villageIds): Promise<VillageStamp[]> {
+      const ids = villageIds.filter((id) => UUID.test(id));
+      if (ids.length === 0) return [];
+      const rows = await db.select(STAMP_COLUMNS).from(village).where(inArray(village.id, ids));
+      return rows.map(toStamp);
     },
   };
+}
+
+/** Porušení unikátního indexu (PostgreSQL 23505) – Drizzle chybu někdy obalí (`cause`). */
+function isUniqueViolation(error: unknown): boolean {
+  for (let e: unknown = error, depth = 0; e && depth < 3; depth++) {
+    const code = (e as { code?: unknown }).code;
+    if (code === '23505') return true;
+    e = (e as { cause?: unknown }).cause;
+  }
+  return false;
 }

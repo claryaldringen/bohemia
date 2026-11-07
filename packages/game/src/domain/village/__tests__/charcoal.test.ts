@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { SMELT } from '../iron-rates';
 import { dayIndexOf } from '../../calendar';
 import {
   obstacleIndex,
@@ -550,7 +551,7 @@ describe('rovnováha uhlíř – kovář (crafts.md – Rovnováha uhlíř – k
     const need = 5 * (80 + CHARCOAL_BALANCE.reserveDays);
     // zásoba nad potřebou – další milíř ještě ne
     workshop.kilns = [{ ...burntKiln(), charcoalKg: need + 100 }];
-    s.crafts = { charcoalKg: 200, toolsKg: 0, potteryKg: 0 };
+    s.crafts = { charcoalKg: 200, potteryKg: 0 };
     expect(burnerPlans(s, day, NO_CRAFTS).get(BURNER)!.start).toBe(false);
     expect(startsNextKiln(workshop, need + 300, 5, 80)).toBe(false);
     // uhlí ve vsi stačí jen na cyklus a rezervu – začne další, i když vypálený milíř ještě stojí
@@ -574,7 +575,7 @@ describe('rovnováha uhlíř – kovář (crafts.md – Rovnováha uhlíř – k
     burnerOf(s).kilns = [burntKiln()];
     burnerOf(s).kilnCycles = [90];
     measuredUse(s, 1, day);
-    s.crafts = { charcoalKg: 100, toolsKg: 0, potteryKg: 0 };
+    s.crafts = { charcoalKg: 100, potteryKg: 0 };
     expect(burnerPlans(s, day, NO_CRAFTS).get(BURNER)).toEqual({
       draws: [],
       orderKg: 0,
@@ -592,7 +593,7 @@ describe('rovnováha uhlíř – kovář (crafts.md – Rovnováha uhlíř – k
       { ...burntKiln(90), charcoalKg: 50 },
       { ...burntKiln(91), site: { x: 90, z: 30 } },
     ];
-    s.crafts = { charcoalKg: 0, toolsKg: 0, potteryKg: 0 };
+    s.crafts = { charcoalKg: 0, potteryKg: 0 };
     const plan = burnerPlans(s, day, NO_CRAFTS).get(BURNER)!;
     // dávka na 60 dní (300 kg): 50 kg ze staršího, zbytek z mladšího – kolik dnes stihne
     const want = Math.max(5 * CHARCOAL_BALANCE.fetchDays, smithsForgeCharcoalKg(s, day, NO_CRAFTS));
@@ -640,34 +641,35 @@ describe('rovnováha uhlíř – kovář (crafts.md – Rovnováha uhlíř – k
 
   it('kovář bez uhlí u sebe nečeká, když mu uhlíř dnes donese z vypáleného milíře', () => {
     const s = village(NEAR_FOREST, true, at(601, 1, 10));
-    s.crafts = { charcoalKg: 0, toolsKg: 0, potteryKg: 0 };
+    s.crafts = { charcoalKg: 0, potteryKg: 0 };
     expect(restingCrafters(s, s.lastDay + 1, NO_CRAFTS).get(SMITH)).toBe('no-charcoal');
     burnerOf(s).kilns = [burntKiln()];
     expect(restingCrafters(s, s.lastDay + 1, NO_CRAFTS).has(SMITH)).toBe(false);
     const [burner, smith] = workCrafts(s, s.lastDay + 1, forest, NO_CRAFTS, 1);
     expect(burner!.producedKg).toBeGreaterThan(0);
-    expect(smith!.producedKg).toBeGreaterThan(0);
+    // kovář bez hřiven taví houbu (production-chains.md – Kovář)
+    expect(smith!.smelt?.bloomKg).toBeGreaterThan(0);
   });
 
   it('rozdělaný milíř dodělá, i když uhlí přibylo', () => {
     const s = village();
     burnerDays(s, 1, forest);
     expect(firstKiln(s)).toBeTruthy();
-    s.crafts = { charcoalKg: 10_000, toolsKg: 0, potteryKg: 0 };
+    s.crafts = { charcoalKg: 10_000, potteryKg: 0 };
     expect(restingCrafters(s, DAY + 2, NO_CRAFTS).has(BURNER)).toBe(false);
   });
 
   it('kovář v rovnováze nečeká – uhlíř začne další milíř včas', () => {
     let s = village();
-    s.crafts = { charcoalKg: 0, toolsKg: 0, potteryKg: 0 };
+    s.crafts = { charcoalKg: 0, potteryKg: 0 };
     const waiting: number[] = [];
     let twoKilns = 0;
     let firstDraw: number | null = null;
     const end = DAY + 4 * 365;
     for (let d = DAY + 1; d <= end; d++) {
       s = advanceVillage(s, d, forest);
-      // ves nástroje hned rozdá a opotřebí – kovář kove dál celý den
-      s.crafts!.toolsKg = 0;
+      // ves nástroje hned rozdá a opotřebí – kovář pracuje dál celým řetězem (production-chains.md)
+      s.toolEquipmentKg = 0;
       if (s.dwellings.find((x) => x.id === SMITH)!.workshop!.activity === 'no-charcoal') {
         waiting.push(d - DAY);
       }
@@ -686,7 +688,7 @@ describe('rovnováha uhlíř – kovář (crafts.md – Rovnováha uhlíř – k
   it('prodané uhlí se bere napřed u kováře, pak z vypálených milířů – rozebraný zmizí', () => {
     const s = village();
     burnerOf(s).kilns = [burntKiln()];
-    s.crafts = { charcoalKg: 100, toolsKg: 0, potteryKg: 0 };
+    s.crafts = { charcoalKg: 100, potteryKg: 0 };
     expect(takeCharcoal(s, 300, DAY)).toBe(300);
     expect(craftStocks(s).charcoalKg).toBe(0);
     expect(kilnCharcoalKg(firstKiln(s))).toBe(1800 - 200);
@@ -786,7 +788,7 @@ describe('uhlíř – simulace a převod starších vsí', () => {
     }
     expect(chunked).toEqual(whole);
     // uhlí vzniklo, kovář z něj kuje a další milíře stojí u dalších dávek
-    expect(whole.crafts!.toolsKg).toBeGreaterThan(0);
+    expect(whole.toolEquipmentKg).toBeGreaterThan(0);
     expect((whole.felledTrees ?? []).length).toBeGreaterThan(CHARCOAL_KILN.trees);
     expect((whole.felledTrees ?? []).some((f) => f.planted !== undefined)).toBe(true);
   });
@@ -807,9 +809,9 @@ describe('uhlíř – simulace a převod starších vsí', () => {
     const migrated = burnerOf(after);
     expect(migrated.felling).toBeNull();
     expect(migrated.fuelKg).toBe(0);
-    // 50 kg uhlí z paliva – kovář si část hned vzal
-    // (nástroje se ten den trochu opotřebí)
-    expect(craftStocks(after).charcoalKg + craftStocks(after).toolsKg * 50).toBeCloseTo(50, 1);
+    // 50 kg uhlí z paliva – kovář si část hned vzal na tavbu houby (production-chains.md – Kovář)
+    const bloom = craftStocks(after).bloomKg ?? 0;
+    expect(craftStocks(after).charcoalKg + bloom * SMELT.charcoalKgPerKg).toBeCloseTo(50, 1);
   });
 
   it('milíř u zemnice ze starší vsi se dodělá a rozebere na svém místě, další stojí u dávky', () => {
@@ -848,7 +850,7 @@ describe('uhlíř – simulace a převod starších vsí', () => {
     delete old.id;
     old.done = 17;
     burnerOf(s).kiln = old;
-    s.crafts = { charcoalKg: 400, toolsKg: 0, potteryKg: 0 };
+    s.crafts = { charcoalKg: 400, potteryKg: 0 };
     // před převodem se počítá stejně – celá dávka v milíři, uhlí v zásobě je u kováře
     expect(charcoalStockKg(s)).toBe(1800 + 400);
     const after = advanceVillage(s, s.lastDay + 1, forest);
@@ -874,5 +876,27 @@ describe('uhlíř – simulace a převod starších vsí', () => {
     const estimate = smithsCharcoalPerYear(s, day, NO_CRAFTS) / 365;
     expect(estimate).toBeGreaterThan(0);
     expect(charcoalUsePerDay(s.charcoalUse, day, estimate)).toBe(estimate);
+  });
+
+  it('v den požáru uhlíř hasí: pálící milíř stojí o den a nic se nezkazí', () => {
+    const s = village();
+    for (let i = 1; i <= 400 && firstKiln(s)?.stage !== 'burn'; i++) {
+      workCrafts(s, DAY + i, forest, NO_CRAFTS, 1);
+      s.lastDay = DAY + i;
+    }
+    const kiln = firstKiln(s)!;
+    expect(kiln.stage).toBe('burn');
+    const done = kiln.done;
+    const fireAt = s.lastDay + 1;
+    s.weatherSeed = 1;
+    s.disasters = { override: { fire: { [fireAt]: 1 } } };
+    const burned = advanceVillage(s, fireAt, forest, makeLandscape({ size: 128 }));
+    expect(burned.disasters?.fireFight?.day).toBe(fireAt);
+    const stood = burned.dwellings.find((d) => d.id === BURNER)!.workshop!.kilns![0]!;
+    expect(stood.stage).toBe('burn');
+    expect(stood.done).toBe(done);
+    // další den milíř dohoří dál
+    const next = advanceVillage(burned, fireAt + 1, forest, makeLandscape({ size: 128 }));
+    expect(next.dwellings.find((d) => d.id === BURNER)!.workshop!.kilns![0]!.done).toBe(done + 1);
   });
 });

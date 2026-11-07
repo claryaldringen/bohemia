@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { BUILD_ITEMS, type BuildItem } from '@/lib/build-items';
 import { BuildGrid } from '../BuildGrid';
+import { isBuildAffordable, type BuildOption } from '@/lib/village-view';
 
 // Mřížka staveb: ohrada je jen rozcestník druhů (oxen.md – Ohrady podle druhu).
 
@@ -24,7 +25,7 @@ describe('BuildGrid – rozcestník ohrady', () => {
     expect(html).not.toContain('data-group');
   });
 
-  it('otevřená ohrada: ohrada (zpět) a pět druhů, druhy bez zkratky', () => {
+  it('otevřená ohrada: ohrada (zpět) a šest druhů, druhy bez zkratky', () => {
     const html = renderToStaticMarkup(
       <BuildGrid
         options={OPTIONS}
@@ -41,9 +42,11 @@ describe('BuildGrid – rozcestník ohrady', () => {
       'Ohrada prasat',
       'Ohrada skotu',
       'Ohrada volů',
+      'Ohrada koní',
     ]);
     expect(html).toContain('data-group="pen"');
     expect(html).toContain('/icons/resources/sheep.png');
+    expect(html).toContain('/icons/resources/horse.png');
     // zkratku má jen stavba, ne druhy
     expect(html.match(/aria-keyshortcuts=/g)).toHaveLength(1);
   });
@@ -63,5 +66,48 @@ describe('BuildGrid – rozcestník ohrady', () => {
     );
     expect(labels(html)).toContain('Zemnice');
     expect(labels(html)).not.toContain('Ohrada');
+  });
+});
+
+describe('BuildGrid – rozšíření ohrady koní', () => {
+  // ves nemá přebytek na koně (affordable false), na rozšíření ale stačí suroviny
+  const horsePen: BuildOption = {
+    laborManDays: 40,
+    perHa: false,
+    perSquare: false,
+    upfront: [],
+    blocked: null,
+    affordable: true,
+    variants: {
+      horse: {
+        laborManDays: 50,
+        upfront: [],
+        affordable: false,
+        blocked: 'Na koně nestačí přebytek hřiven, zvířat ani obilí.',
+        payment: [],
+        extendAffordable: true,
+      },
+    },
+  };
+  const horseButton = (html: string): string =>
+    html.match(/<button[^>]*aria-label="Ohrada koní"[^>]*>/)![0];
+
+  it('nová ohrada koní bez přebytku je zašedlá, rozšíření vybrané ohrady ne', () => {
+    const render = (extendingVariant: string | null): string =>
+      renderToStaticMarkup(
+        <BuildGrid
+          options={{ ...OPTIONS, pen: horsePen }}
+          active={null}
+          disabled={false}
+          group="pen"
+          extendingVariant={extendingVariant}
+          onBuild={() => undefined}
+        />,
+      );
+    expect(horseButton(render(null))).toContain('disabled');
+    expect(horseButton(render('horse'))).not.toContain('disabled');
+    expect(isBuildAffordable(horsePen, 'horse')).toBe(false);
+    expect(isBuildAffordable(horsePen, 'horse', true)).toBe(true);
+    expect(isBuildAffordable(horsePen, 'sheep')).toBe(true);
   });
 });

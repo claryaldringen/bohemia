@@ -1,7 +1,9 @@
-import type { SceneVillage } from '../village-view';
+import { roadChainIds } from '@bohemia/game';
+import type { SceneVillage, VillageRoad } from '../village-view';
 import {
   personExists,
   selectedFieldPart,
+  targetExists,
   selectedOrchardSquare,
   wholeTarget,
   type VillageTarget,
@@ -66,6 +68,14 @@ export function presentTarget(
 ): VillageTarget | null {
   if (target === null) return null;
   if (target.kind !== 'dwellings') {
+    // zaniklá pole z výběru všech polí vypadnou, jedno zbylé je pole
+    if (target.kind === 'fields') {
+      const ids = target.ids.filter((id) => village.fields.some((f) => f.id === id));
+      if (ids.length === target.ids.length) return target;
+      const [only] = ids;
+      if (only === undefined) return null;
+      return ids.length === 1 ? { kind: 'field', id: only } : { kind: 'fields', ids };
+    }
     if (target.kind === 'dwelling') {
       return village.dwellings.some((d) => d.id === target.id) ? target : null;
     }
@@ -77,6 +87,10 @@ export function presentTarget(
     }
     // zemřelý člověk (villagers.md – Výběr postavy)
     if (target.kind === 'person') return personExists(village, target.id) ? target : null;
+    // spřežení, když se dnes neorá; vůz, který ves už nemá (doslouží)
+    if (target.kind === 'plough-team' || target.kind === 'cart') {
+      return targetExists(village, target) ? target : null;
+    }
     return target;
   }
   const ids = target.ids.filter((id) => village.dwellings.some((d) => d.id === id));
@@ -94,4 +108,26 @@ export function selectsAllDwellings(event: {
   return (
     event.code === 'KeyA' && (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey
   );
+}
+
+/**
+ * Výpis výběru do konzole prohlížeče – typ a id objektu, ať Martin může říct, který objekt zlobí
+ * (Martin 24. 10. 2026). U cesty všechny úseky řetězu, úsek pod kurzorem a oba konce cesty
+ * z pohledu na ves (`VillageRoad.ends` – Martin 25. 10. 2026), např. `… – od dwelling 12 do
+ * junction 565`.
+ */
+export function describeTarget(
+  target: VillageTarget,
+  village: Pick<SceneVillage, 'roads'>,
+  views: readonly Pick<VillageRoad, 'segments' | 'ends'>[] = [],
+): string {
+  if (target.kind === 'road') {
+    const chain = roadChainIds(village.roads ?? [], target.segment ?? target.id);
+    const clicked = target.segment === undefined ? '' : `, kliknutý úsek ${target.segment}`;
+    const view = views.find((v) => v.segments.includes(target.segment ?? target.id));
+    const ends = view ? ` – od ${view.ends[0].log} do ${view.ends[1].log}` : '';
+    return `road ${target.id} – úseky ${chain.join(', ')}${clicked}${ends}`;
+  }
+  const { kind, ...rest } = target;
+  return `${kind} ${JSON.stringify(rest)}`;
 }

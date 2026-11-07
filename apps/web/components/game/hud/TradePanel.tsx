@@ -17,7 +17,9 @@ import {
   type PreviewPeople,
   type TradeSelection,
 } from '@/lib/trade-quote';
+import { dearthLabel } from '@/lib/disasters-view';
 import { formatInteger } from '@/lib/village-format';
+import { useRightDenied } from './rights';
 import { Tooltip } from './Tooltip';
 
 // Panel obchodu ve dvorci (trade.md – Obchod, Rozhraní): soused (jméno, směr) a bilance hodnoty
@@ -32,7 +34,10 @@ import { Tooltip } from './Tooltip';
 // zašedlé s důvodem jádra ještě před odesláním (`tradePreview`), chyba serveru zůstane v panelu
 // červeně, dokud hráč něco nezmění, a po odeslání panel ukáže výpravu na cestě – kam, co nese,
 // koho vede, průběh a za kolik dní se vrátí. Lidé na výpravě mají vlastní podíl práce (Martin
-// 19. 10. 2026) – zdrží se jen ves, která nemá dost dospělých po denním minimu.
+// 19. 10. 2026) – zdrží se jen ves, která nemá dost dospělých po denním minimu. Dobytek ve třech
+// druzích (trade.md – Dobytek ve třech druzích; Martin 20. 10. 2026): řádky krav, mladých volů
+// (menší ikona vola – musí se vycvičit) a vycvičených volů; popisek řekne, kolik se jich vejde do
+// ohrady.
 
 /** Ikona zboží s množstvím (kg nebo kusy) a názvem v popisku. */
 function Good({ good, amount }: { good: TradeGood; amount: number }): ReactElement {
@@ -89,6 +94,7 @@ function TradeRow({
   value,
   max,
   onChange,
+  note,
 }: {
   side: Side;
   /** Druh zboží nebo lidí – `data-testid` řádku je `trade-<side>-<id>`. */
@@ -102,6 +108,8 @@ function TradeRow({
   value: number;
   max: number;
   onChange: (value: number) => void;
+  /** Řádek popisku navíc (u dobytka – kolik se vejde do ohrady). */
+  note?: string;
 }): ReactElement {
   return (
     <Tooltip
@@ -114,6 +122,7 @@ function TradeRow({
             {side === 'give' ? 'Soused shání – vezme ještě ' : 'Soused nabízí – má ještě '}
             {left}
           </span>
+          {note && <span data-testid={`trade-${side}-${id}-note`}>{note}</span>}
           <span className="flex items-center gap-1 tabular-nums">
             <img src="/icons/resources/food.png" alt="" width={16} height={16} />
             {price}
@@ -127,7 +136,7 @@ function TradeRow({
           alt=""
           width={24}
           height={24}
-          className="shrink-0"
+          className="h-6 w-6 shrink-0"
         />
         <input
           type="range"
@@ -155,6 +164,23 @@ function priceText(price: number, unit: string, digits = 2): string {
   return `${formatInteger(Number(whole))}${decimals ? `,${decimals}` : ''} / ${unit}`;
 }
 
+/**
+ * Kolik koupeného dobytka se vejde do ohrady (popisek řádku – trade.md, Dobytek ve třech
+ * druzích); jiné zboží null.
+ */
+function roomNote(neighbour: VillageNeighbour, good: TradeGood): string | null {
+  if (good === 'cows') {
+    return `Do ohrady skotu se vejde ještě ${tradeAmountText(neighbour.room.cows, 'ks')}`;
+  }
+  if (good === 'youngOxen' || good === 'trainedOxen') {
+    return `Do ohrady volů se vejde ještě ${tradeAmountText(neighbour.room.oxen, 'ks')} (mladí i vycvičení)`;
+  }
+  if (good === 'foals' || good === 'mares' || good === 'ridingHorses') {
+    return `Do ohrady koní se vejde ještě ${tradeAmountText(neighbour.room.horses, 'ks')} (hříbata do roku místo nezabírají)`;
+  }
+  return null;
+}
+
 /** Řádek zboží (`TradeRow`). */
 function GoodRow({
   side,
@@ -164,6 +190,7 @@ function GoodRow({
   value,
   max,
   onChange,
+  note,
 }: {
   side: Side;
   good: TradeGood;
@@ -172,6 +199,7 @@ function GoodRow({
   value: number;
   max: number;
   onChange: (value: number) => void;
+  note?: string | null;
 }): ReactElement {
   const { name, unit, icon } = TRADE_GOOD_NAMES[good];
   return (
@@ -185,6 +213,7 @@ function GoodRow({
       value={value}
       max={max}
       onChange={onChange}
+      {...(note ? { note } : {})}
     />
   );
 }
@@ -265,11 +294,21 @@ function ColumnHeading({ side }: { side: Side }): ReactElement {
 /** Soused nahoře v panelu – jméno vsi a směr. */
 function NeighbourName({ neighbour }: { neighbour: VillageNeighbour }): ReactElement {
   return (
-    <span data-testid="trade-neighbour" className="font-semibold">
-      {neighbour.name}{' '}
-      <span className="font-normal text-[#bfa77a]">
-        ({DIRECTION_NAMES[neighbour.direction].name})
+    <span className="flex items-center gap-1.5">
+      <span data-testid="trade-neighbour" className="font-semibold">
+        {neighbour.name}{' '}
+        <span className="font-normal text-[#bfa77a]">
+          ({DIRECTION_NAMES[neighbour.direction].name})
+        </span>
       </span>
+      {/* kraj po zlém roce – obilí zdražilo (disasters.md – Co hráč vidí) */}
+      {neighbour.dearth && (
+        <Tooltip content={dearthLabel(neighbour.dearth)} placement="above">
+          <span data-testid="trade-dearth" data-dearth={neighbour.dearth} tabIndex={0}>
+            <img src="/icons/resources/dearth.png" alt="" width={20} height={20} />
+          </span>
+        </Tooltip>
+      )}
     </span>
   );
 }
@@ -450,6 +489,7 @@ export function NeighbourTrade({
   /** Počáteční výběr (testy). */
   initial?: { give: TradeGoods; get: TradeGoods; people?: PreviewPeople };
 }): ReactElement {
+  const sendDenied = useRightDenied('trade');
   const [selection, setSelection] = useState<TradeSelection>(() =>
     initial
       ? clampSelection(neighbour, {
@@ -560,6 +600,7 @@ export function NeighbourTrade({
               value={get[row.good] ?? 0}
               max={limits.get[row.good] ?? 0}
               onChange={(v) => setGood('get', row.good, v)}
+              note={roomNote(neighbour, row.good)}
             />
           ))}
           {PEOPLE_KINDS.filter((k) => offered[k] > 0).map((kind) => (
@@ -581,11 +622,23 @@ export function NeighbourTrade({
           {preview.porters}
         </Figure>
         {preview.carts > 0 && (
-          <Figure testId="trade-carts" icon="cart" name="Vozy – náklad místo nosičů">
+          <Figure
+            testId="trade-carts"
+            icon="cart"
+            name={
+              preview.trips > 1
+                ? `Vozy – náklad místo nosičů, pojedou ${preview.trips}× tam a zpět`
+                : 'Vozy – náklad místo nosičů'
+            }
+          >
             {preview.carts}
           </Figure>
         )}
-        <Figure testId="trade-days" icon="date" name="Dny cesty tam a zpět">
+        <Figure
+          testId="trade-days"
+          icon="date"
+          name={preview.trips > 1 ? 'Dny cesty – všechny jízdy vozů' : 'Dny cesty tam a zpět'}
+        >
           {preview.days}
         </Figure>
         <Figure
@@ -607,6 +660,7 @@ export function NeighbourTrade({
         <span className="ml-auto">
           <Tooltip
             placement="above-left"
+            denied={sendDenied}
             content={
               <span className="flex flex-col gap-0.5">
                 <span>Vyslat výpravu</span>
@@ -622,7 +676,7 @@ export function NeighbourTrade({
               type="button"
               data-testid="trade-send"
               aria-label="Vyslat výpravu"
-              disabled={preview.blocked !== null || busy || !onSend}
+              disabled={preview.blocked !== null || busy || !onSend || sendDenied !== null}
               aria-busy={busy}
               onClick={() => onSend?.(give, get, people)}
               className="hud-inset h-9 w-9 overflow-hidden rounded disabled:cursor-not-allowed disabled:opacity-45 disabled:grayscale"

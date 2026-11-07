@@ -9,6 +9,7 @@
 // rozpadla; odejdou hned s výpravou. Lidé od souseda přijdou s návratem výpravy
 // (`settleNewcomers`). Čisté funkce bez I/O, náhoda ze seedu vsi.
 import { createRandom, deriveSeed, type Random } from '../landscape/random';
+import { isDynastyTracked, lineMen } from './dynasty';
 import { familiesOf, unmarriedHeir } from './households';
 import { villageManorId } from './manor';
 import { isSingle } from './marriage';
@@ -177,10 +178,24 @@ function without(state: VillageState, people: readonly Person[]): VillageState {
   return { ...state, people: state.people.filter((p) => !ids.has(p.id)) };
 }
 
-/** První rodina, kterou ves smí dát (`familiesOf` – dědic a jeho rodiče zůstávají). */
+/**
+ * Koho ves sousedovi nedá – muže rodu ani manželku muže rodu (lord.md – Rod vojvody, Manželky;
+ * návrh Clauda: rod se nesmí dát sousedovi). Ves bez rodu dá kohokoli.
+ */
+function keptByLine(state: VillageState): (p: Person) => boolean {
+  if (!isDynastyTracked(state)) return () => false;
+  const line = new Set(lineMen(state).map((p) => p.id));
+  return (p) => line.has(p.id) || (p.spouseId !== undefined && line.has(p.spouseId));
+}
+
+/**
+ * První rodina, kterou ves smí dát (`familiesOf` – dědic a jeho rodiče zůstávají) – bez mužů rodu
+ * a jejich žen (`keptByLine`).
+ */
 function nextFamily(state: VillageState, day: number): EmigrantGroup | undefined {
+  const kept = keptByLine(state);
   for (const dwelling of givingDwellings(state)) {
-    const family = familiesOf(state, dwelling, day)[0];
+    const family = familiesOf(state, dwelling, day).find((f) => !f.people.some(kept));
     if (family) return group('family', dwelling.id, family.people, day);
   }
   return undefined;
@@ -189,14 +204,18 @@ function nextFamily(state: VillageState, day: number): EmigrantGroup | undefined
 /**
  * První svobodný muž (`sex` male) nebo žena 16–44 let, které ves smí dát: ne dědic domu
  * (`unmarriedHeir`), ne vdova s malými dětmi (`isSingle`), a jen když v domě zůstane někdo, kdo
- * domácnost udrží. V domě od nejstaršího.
+ * domácnost udrží. Muž rodu ne (`keptByLine`). V domě od nejstaršího.
  */
 function nextSingle(state: VillageState, day: number, sex: Sex): EmigrantGroup | undefined {
+  const kept = keptByLine(state);
   for (const dwelling of givingDwellings(state)) {
     const members = occupants(state, dwelling.id);
     const heir = unmarriedHeir(members, day);
     const singles = members
-      .filter((p) => p !== heir && p.sex === sex && isFertile(p, day) && isSingle(state, p, day))
+      .filter(
+        (p) =>
+          p !== heir && p.sex === sex && !kept(p) && isFertile(p, day) && isSingle(state, p, day),
+      )
       .sort(byAge);
     for (const p of singles) {
       const staying = members.filter((m) => m !== p);
@@ -330,7 +349,7 @@ export function newcomerProfiles(
  * v dílně) a rodina do dvorce vojvody jen, když jinam nemůže – v domě bez ženatého syna zůstává
  * nejstarší ženatý muž, takže by se z dvorce mohla odstěhovat vojvodova rodina místo přišlých.
  */
-function newcomerHome(state: VillageState, family: boolean): number | undefined {
+export function newcomerHome(state: VillageState, family: boolean): number | undefined {
   const occupied = new Set(state.people.map((p) => p.dwellingId));
   const byId = [...state.dwellings].sort((a, b) => a.id - b.id);
   if (family) {

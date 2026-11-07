@@ -89,7 +89,7 @@ describe('ohrada – rozmístění', () => {
   it('branka leží na straně plotu ke vsi; kůly u ní jsou krajní a vyšší', () => {
     for (const facing of FACINGS) {
       const layout = penLayout(square, facing);
-      const half = square.size / 2 - 0.5;
+      const half = square.size / 2 - 1.5;
       // strana podle převažující osy směru
       expect(dot(rel(layout, layout.gate), layout.front)).toBeCloseTo(half, 6);
       expect(dot(layout.front, facing)).toBeGreaterThan(0);
@@ -115,14 +115,14 @@ describe('ohrada – rozmístění', () => {
         // ven ze středu ohrady
         expect(Math.hypot(core.outX, core.outZ)).toBeCloseTo(1, 9);
         expect(dot({ x: core.outX, z: core.outZ }, rel(layout, core))).toBeCloseTo(
-          sq.size / 2 - 0.5,
+          sq.size / 2 - 1.5,
           6,
         );
       }
     }
     // dřív: branka nejblíž k bodu půl strany plotu + 1 m od středu ve směru `facing`
     for (const facing of FACINGS) {
-      const half = square.size / 2 - 0.5;
+      const half = square.size / 2 - 1.5;
       const length = Math.hypot(facing.x, facing.z);
       const toward = {
         x: square.x + (facing.x / length) * (half + 1),
@@ -451,8 +451,8 @@ describe('ohrada o víc čtvercích (oxen.md – Ohrady podle druhu)', () => {
   it('plot obejme oba čtverce, uvnitř je celá plocha bez švu, vytyčení po obrysu', () => {
     const layout = penLayout(first, penFacing(first, toward), [right]);
     expect(layout.squares).toHaveLength(2);
-    // obrys plotu odsazený o 0,5 m dovnitř – obdélník 29 × 14 m
-    expect(layout.fenceRect).toEqual({ minX: 30.5, maxX: 59.5, minZ: -29.5, maxZ: -15.5 });
+    // obrys plotu odsazený o 1,5 m dovnitř – obdélník 27 × 12 m
+    expect(layout.fenceRect).toEqual({ minX: 31.5, maxX: 58.5, minZ: -28.5, maxZ: -16.5 });
     expect(layout.outline).toHaveLength(4);
     for (const p of [
       { x: 38, z: -22 },
@@ -470,7 +470,7 @@ describe('ohrada o víc čtvercích (oxen.md – Ohrady podle druhu)', () => {
     // branka v plotu (z jádra – stejně jako vchod sítě pěšin)
     const posts = fencePosts(layout.fence).filter((p) => p.gate);
     expect(posts).toHaveLength(2);
-    expect(Math.min(...posts.map((p) => p.z))).toBeCloseTo(-29.5, 6);
+    expect(Math.min(...posts.map((p) => p.z))).toBeCloseTo(-28.5, 6);
   });
 
   it('tvar L: plot po obrysu se šesti rohy, přístřešek zády a bokem k vnějšímu plotu', () => {
@@ -503,5 +503,83 @@ describe('ohrada o víc čtvercích (oxen.md – Ohrady podle druhu)', () => {
     const animals = penAnimalsFor(layout, { oxen: 0, trainees: 0, cows: 0, sheep: 5 });
     expect(animals.map((a) => a.kind)).toEqual(['sheep', 'sheep', 'sheep', 'sheep', 'sheep']);
     expect(layout.spots.length).toBeGreaterThan(12);
+  });
+});
+
+describe('koně nad kapacitu míst (horses.md – Ohrada koní)', () => {
+  it('vykreslí se nejvýš tolik koní, kolik je míst; hříbata jen u vykreslených', () => {
+    const layout = penLayout(square, { x: 0, z: -1 }, [], 'horse');
+    const horses = [...Array.from({ length: 6 }, () => 'riding' as const), 'foal' as const];
+    const animals = penAnimalsFor(layout, { oxen: 0, trainees: 0, cows: 0, horses });
+    expect(animals.filter((a) => a.kind === 'horse')).toHaveLength(layout.spots.length);
+    expect(animals.filter((a) => a.kind === 'foal').length).toBeLessThanOrEqual(1);
+  });
+});
+
+describe('ohrada koní (horses.md – Ohrada koní, Ve scéně)', () => {
+  const facing = { x: 0, z: -1 };
+  const horsePen = (extra: { x: number; z: number }[] = []): PenLayout =>
+    penLayout(square, facing, extra, 'horse');
+  const top = (l: PenLayout): number => Math.max(...l.fenceStyle.rails);
+
+  it('plot je vyšší než plot ostatních ohrad (≈ 1,4 m), jinak stejný styl', () => {
+    expect(top(penLayout(square, facing))).toBeCloseTo(0.94, 6);
+    expect(top(horsePen())).toBeGreaterThanOrEqual(1.3);
+    expect(top(horsePen())).toBeLessThanOrEqual(1.4);
+    expect(horsePen().fenceStyle.gateWidth).toBe(PEN_FENCE.gateWidth);
+  });
+
+  it('4 místa na čtverec, rozestoupená aspoň 2,5 m', () => {
+    expect(horsePen().spots).toHaveLength(4);
+    const two = horsePen([{ x: square.x + 15, z: square.z }]);
+    expect(two.spots).toHaveLength(8);
+    for (const l of [horsePen(), two]) {
+      for (const a of l.spots) {
+        for (const b of l.spots) {
+          if (a !== b) expect(Math.hypot(a.x - b.x, a.z - b.z)).toBeGreaterThan(2.5);
+        }
+      }
+    }
+    // ostatní druhy beze změny
+    expect(penLayout(square, facing).spots).toHaveLength(12);
+  });
+
+  it('hříbě stojí u klisny bez vlastního místa; koně nad místa se nevejdou', () => {
+    const layout = horsePen();
+    const animals = penAnimalsFor(layout, {
+      oxen: 0,
+      trainees: 0,
+      cows: 0,
+      horses: ['mare', 'foal', 'riding'],
+    });
+    expect(animals.map((a) => a.kind)).toEqual(['horse', 'horse', 'foal']);
+    const mare = animals[0]!;
+    const foal = animals[2]!;
+    expect(Math.hypot(foal.x - mare.x, foal.z - mare.z)).toBeLessThan(2.2);
+    expect(foal.scale).toBeUndefined();
+    const full = penAnimalsFor(layout, {
+      oxen: 0,
+      trainees: 0,
+      cows: 0,
+      horses: ['mare', 'mare', 'mare', 'mare', 'riding', 'foal', 'foal'],
+    });
+    expect(full.filter((a) => a.kind === 'horse')).toHaveLength(4);
+    expect(full.filter((a) => a.kind === 'foal')).toHaveLength(2);
+  });
+
+  it('koně se nemíchají s jinými zvířaty ohrady', () => {
+    const animals = penAnimalsFor(horsePen(), {
+      oxen: 2,
+      trainees: 0,
+      cows: 1,
+      horses: ['mare'],
+    });
+    expect(animals.map((a) => a.kind)).toEqual(['horse']);
+  });
+
+  it('plot staveniště nese styl ohrady (kůly a větve do výšky plotu)', () => {
+    const layout = horsePen();
+    const stage = penFenceStage(layout, penStage(1));
+    expect(stage).toBeDefined();
   });
 });

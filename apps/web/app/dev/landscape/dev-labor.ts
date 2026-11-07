@@ -85,6 +85,9 @@ export function demoLabor(
       add({ activity: 'cemetery', target: { kind: 'cemetery', id: cemetery.id }, manDays: 2 });
     }
   }
+  // listopad = porážka (diet.md – Porážka): ukázkové kusy dne pro stanoviště porážky ve scéně
+  const slaughter = month === 11 ? { pig: 1.4, sheep: 0.8, goat: 0.3, cow: 0.4 } : null;
+  if (slaughter) add({ activity: 'slaughter', target: atVillage, manDays: 4 });
   add({ activity: 'idle', target: atVillage, manDays: 1.5 });
   // pasáci (diet.md – Pasáci): dítě z každé domácnosti – stáda bez pasáka stojí u domů
   return {
@@ -93,8 +96,58 @@ export function demoLabor(
     people,
     shares,
     herders: { children: homes },
+    ...(slaughter ? { slaughter } : {}),
     homes: built.map((d) => ({ id: d.id, people: PEOPLE_PER_HOME })),
     persons: demoPersons(built),
+  };
+}
+
+/**
+ * Ves ukázky s rozdělením práce bez lidí (orba přes cestu, vozy, karavana) – doplní ukázkové lidi
+ * hotových obydlí (`demoPersons`) a s ohradou koní jezdce (`demoRiders`); s lidmi bez jezdců nebo bez
+ * práce dne beze změny (tentýž objekt).
+ */
+export function withDemoPersons(village: SceneVillage): SceneVillage {
+  const labor = village.labor;
+  if (!labor) return village;
+  const built = village.dwellings.filter((d) => d.built);
+  const riders = labor.lord ? null : demoRiders(village, built);
+  if (labor.persons && !riders) return village;
+  return {
+    ...village,
+    labor: {
+      ...labor,
+      persons: labor.persons ?? demoPersons(built),
+      ...(riders ? { lord: riders } : {}),
+    },
+  };
+}
+
+/**
+ * Ukázka jezdců (horses.md – Ve scéně): s ohradou koní a jezdeckými koňmi jezdí muž a dítě prvního
+ * domu (`demoPersons`) na prvních dvou jezdeckých koních z dvorce s dvorkem; žena u dvorce.
+ */
+function demoRiders(
+  village: SceneVillage,
+  built: readonly SceneVillage['dwellings'][number][],
+): SceneLabor['lord'] | null {
+  // dvorec s dvorkem (cvičiště a kůl u brány – training-ground-layout), jinak první dům
+  const home = built.find((d) => d.plot?.yard) ?? built[0];
+  const horses = (village.pens ?? [])
+    .flatMap((p) => p.horses ?? [])
+    .filter((h) => h.kind === 'riding');
+  if (!home || horses.length === 0) return null;
+  const riders = [1000, 1002].slice(0, horses.length).map((id, i) => ({
+    id,
+    horseId: horses[i]!.id,
+    training: 50,
+    hours: 2,
+  }));
+  return {
+    home: home.id,
+    trainees: riders.map((r) => ({ id: r.id, bow: 2, combat: 2, riding: 2 })),
+    household: [1001],
+    riders,
   };
 }
 

@@ -5,6 +5,10 @@
 // (bakedVertexAnimationSettingsInstanced), barvu oděvu a vlasů (villagerLook). Pod každou
 // postavou měkký kruhový stín (thin instances, třetí draw call). Kdo kde je, plánuje
 // villager-plan.ts z rozdělení práce dne, pohyb je čistá funkce času (villager-motion.ts).
+import { dogPlansKey, type DogPlan } from './dogs';
+import { FishingLines, fishingLine } from './fishing-lines';
+import { isRiding, rideArea, ridePlansKey, type RidePlan } from './riders';
+import type { HuntSpotFn } from './villager-plan-lord';
 import '@babylonjs/core/Meshes/thinInstanceMesh';
 import '@babylonjs/loaders/glTF';
 import { BakedVertexAnimationManager } from '@babylonjs/core/BakedVertexAnimation/bakedVertexAnimationManager';
@@ -23,6 +27,7 @@ import { ShaderLanguage } from '@babylonjs/core/Materials/shaderLanguage';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import type { BaseTexture } from '@babylonjs/core/Materials/Textures/baseTexture';
 import { RawTexture } from '@babylonjs/core/Materials/Textures/rawTexture';
+import { ToHalfFloat } from '@babylonjs/core/Misc/halfFloat';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
@@ -31,34 +36,60 @@ import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import type { Scene } from '@babylonjs/core/scene';
 import { obstacleIndex, obstacleStatus, obstaclesNear, type ObstacleLayer } from '@bohemia/game';
+import { squareObstacles } from './clearing-slash-layout';
 import type { SceneVillage } from '../village-view';
 import { caravanPoints } from './caravan';
 import type { FuneralPlan } from './funeral-plan';
+import type { SlaughterPlan } from './slaughter-plan';
 import type { WeddingPlan } from './wedding-plan';
 import {
   createVillagerPose,
   villagerSeconds,
   walkSpeed,
-  walkThen,
+  isWalkClip,
   type HerdView,
+  type PoseFn,
   type VillagerKind,
+  type VillagerPose,
   type VillagerStage,
 } from './villager-motion';
+import { LIVESTOCK_EPOCH_MS } from './livestock-motion';
+import { carryErrands } from './villager-errands';
+import { personFigure } from './villager-plan-cast';
+import { phaseWalking, type PhaseName } from './villager-phases';
+import { activityStage } from './villager-schedule';
+import { dayExtent, scheduledState, Timetable } from './villager-timetable';
+import type { ScenePerson } from '../person-view';
 import { samePersonState, type PersonFigureState } from '../person-activity';
-import { pickPerson, selectedFigure, type Project } from './villager-pick';
+import { RING_SIZE_M, SelectionRing } from './selection-ring';
+import { pickPersonHit, selectedFigure, type Project } from './villager-pick';
 import {
   planFunerals,
-  planVillagers,
+  planVillagersWithCrew,
   planWeddings,
+  type DraftCrew,
+  type DraftCrews,
+  FIGURE_SCALE,
   type HairLook,
   type PlannedVillager,
   type VillagerGround,
   type VillagerPaths,
+  type WalkRouteFn,
 } from './villager-plan';
+import type { PersonJob } from './villager-roster';
 
 const KINDS: readonly VillagerKind[] = ['woman', 'man'];
+
+/**
+ * Tempo chůze ode dveří k práci (m/s – délky z odhadu sítě pěšin, `Timetable.setEstimate`):
+ * dospělá žena krokem; jiná velikost postavy jde stejně rychle, nohy jdou tempem podle velikosti.
+ */
+const SCHEDULE_WALK_M_S = walkSpeed('woman', 'walk', FIGURE_SCALE);
+
 /** Snímků za sekundu zapečené animace (klíče animací 0 A.D.). */
 const BAKE_FPS = 24;
+/** Jak dlouho (ms) smí jeden kousek pečení VAT držet hlavní vlákno, než ho pustí (`idle`). */
+const BAKE_SLICE_MS = 8;
 /** Dál od kamery (m) se lidé nehýbou – jsou pár pixelů a pohyb by jen zbytečně kreslil. */
 const ANIMATE_RANGE_M = 700;
 /** Výška obalu postav nad terénem (m). */
@@ -71,18 +102,6 @@ const SHADOW_SIZE_M = 1.15;
 const SHADOW_OPACITY = 0.5;
 const SHADOW_LIFT_M = 0.04;
 /**
- * Žlutý kroužek pod vybranou postavou (villagers.md – Výběr postavy): průměr (m při měřítku 1),
- * barva, výška nad terénem.
- */
-const RING_SIZE_M = 1.6;
-const RING_COLOR: readonly [number, number, number] = [1, 0.85, 0.25];
-const RING_LIFT_M = 0.05;
-/**
- * Po přeplánování dojde postava na nové místo pěšky, když je od starého dál než `from` a blíž
- * než `to` (m) – další čtverec pole, další strom; dál (jiná práce jinde ve vsi) se objeví hned.
- */
-const WALK_OVER_M = { from: 2.5, to: 90 };
-/**
  * Svatební věnec nevěsty (kinship.md – Svatba ve scéně): vlasy po buňkách textury – kolik buněk
  * na šířku textury (kvítek nebo lístek na buňku, GLSL i WGSL číslo s tečkou).
  */
@@ -91,6 +110,8 @@ const WREATH_CELLS = '90.0';
 const HAIR_CODE: Record<HairLook, number> = { natural: 0, grey: 1, linen: 2, madder: 3, wreath: 4 };
 
 export interface VillagersEnvironment {
+  /** Okraj lesa u zvěře pro lov dne (VillageWildlife.huntSpot); bez údaje nejbližší okraj lesa. */
+  huntSpot?: HuntSpotFn;
   /** Vrstva překážek krajiny – stromy ke kácení. */
   layer: ObstacleLayer;
   /** Schůdná země (přes celou krajinu, počítaná líně – livestock-placement.ts), bez obydlí null. */
@@ -103,6 +124,11 @@ export interface VillagersEnvironment {
   herds(nowMs: number): readonly HerdView[];
   /** Dočetly se modely a lidé se objevili – překreslit. */
   onLoaded(): void;
+  /**
+   * Je bod v okamžik `nowMs` pod vodou povodně (storm-renderer.ts – `floodedAt`)? Lidé na rozlitou
+   * vodu nechodí a kdo tam je, jde domů (villagers.md – Události). Bez údaje sucho.
+   */
+  flooded?(x: number, z: number, nowMs: number): boolean;
   /** Okno herního dne (skutečný čas) – karavany výprav (caravan.ts); bez hodin null. */
   dayWindow?(day: number): { startMs: number; endMs: number } | null;
   /**
@@ -116,10 +142,20 @@ export interface VillagersEnvironment {
    */
   onWeddings?(plans: readonly WeddingPlan[]): void;
   /**
+   * Nový plán porážky (slaughter-plan.ts – stanoviště, kozlina, mršina, kýty): kreslí ho
+   * slaughter-renderer; bez porážky (nebo bez modelů postav) null. Volá se jen při změně.
+   */
+  onSlaughter?(plan: SlaughterPlan | null): void;
+  /**
    * Vybraný člověk (villagers.md – Výběr postavy): co jeho postava dělá, kde v pochůzce je a jestli
    * je vidět – volá se jen při změně (výběr, nový plán dne, postava vejde domů nebo vyjde).
    */
   onPersonState?(state: PersonFigureState | null): void;
+  /**
+   * Noví lidé u spřežení a vozů (`crew` – oráč, honák, vozka) – volá se jen při změně; scéna podle
+   * nich přesune výběr člověka u spřežení či vozu (jejich postavy kreslí spřežení a vůz).
+   */
+  onCrew?(): void;
 }
 
 /** Zapečený model: geometrie, textura matic kostí a rozsahy snímků klipů v ní. */
@@ -128,7 +164,11 @@ interface BakedModel {
   matricesIndices: Float32Array;
   matricesWeights: Float32Array;
   boneCount: number;
-  vat: Float32Array;
+  /**
+   * Matice kostí po snímcích (RGBA): half-float (bity v Uint16Array), kde ho engine neumí,
+   * float32. Babylon si stejné pole drží pro obnovu po ztrátě kontextu – jiná kopie není.
+   */
+  vat: Uint16Array | Float32Array;
   frames: number;
   clips: Map<string, { start: number; end: number }>;
   texture: BaseTexture | null;
@@ -156,12 +196,16 @@ export class VillageVillagers {
   /** Obdélník zemských stezek s karavanami (caravan.ts) – patří do obalu postav. */
   private extent: { minX: number; maxX: number; minZ: number; maxZ: number } | null = null;
   private people: PlannedVillager[] = [];
+  /** Vlasce rybářů u tůní (fishing-lines.ts) – rybář stojí, čáry se mění jen s postavami. */
+  private lines: FishingLines | null = null;
   /** Pohřby (cemetery.md – Pohřeb ve scéně) – průvod a kruh kolem hranice. */
   private funerals: FuneralPlan[] = [];
   private funeralsKey = '';
   /** Svatby (kinship.md – Svatba ve scéně) – průvod, pár a podkova svatebčanů. */
   private weddings: WeddingPlan[] = [];
   private weddingsKey = '';
+  /** Porážka dne (diet.md – Porážka ve scéně) – kreslí ji slaughter-renderer. */
+  private slaughterKey = '';
   private readonly kinds = new Map<VillagerKind, Kind>();
   private shadow: { mesh: Mesh; matrices: Float32Array } | null = null;
   private models: Map<VillagerKind, BakedModel> | null = null;
@@ -179,10 +223,36 @@ export class VillageVillagers {
   private spots = new Float32Array(0);
   /** Vybraný člověk (id) a jeho kroužek pod nohama (jedna instance – villagers.md). */
   private selected: number | null = null;
-  private ring: { mesh: Mesh; matrices: Float32Array } | null = null;
+  private ring: SelectionRing | null = null;
   private personState: PersonFigureState | null = null;
+  /** Spřežení a vozy dne, které kreslí ves (village-renderer.ts – `draftCrews`). */
+  private draft: DraftCrews = { teams: 0, carts: [] };
+  /** Lidé u spřežení a vozů (oráč, honák, vozka) a co dělají – id člověka → úloha. */
+  private crew: DraftCrew = { teams: [], carts: [] };
+  private crewJobs = new Map<number, PersonJob>();
+  private crewKey = '';
   /** Úsek pochůzky postav vybraného člověka z posledního zápisu (index postavy → úsek). */
   private readonly stages = new Map<number, VillagerStage | null>();
+  /**
+   * Rozvrhy lidí vsi (villager-timetable.ts – Činnosti od začátku do konce): postava člověka je
+   * jeho rozvrh napříč dny. Bez lidí ve scéně (ukázky bez `persons`) null – postavy dne jako dřív.
+   */
+  private timetable: Timetable | null = null;
+  /** Lidé s postavou podle rozvrhu (id). */
+  private scheduled = new Set<number>();
+  /** Postavy dne bez rozvrhu: cizí (`STRANGER`) a ukázky bez lidí ve scéně. */
+  private dayFigures: PlannedVillager[] = [];
+  /**
+   * Jezdci s trasou (riders.ts): v bloku jízdy sedí na koni vždy – kůň nejede bez jezdce, i kdyby
+   * jezdec z rozvrhu ke koni ještě nedošel (villagers.md – Události).
+   */
+  private mounted = new Map<number, { ride: RidePlan; pose: PoseFn }>();
+  /** Vojvoda (role `voivode`) – výběr se mu při vstupu do domu nezruší. */
+  private lords = new Set<number>();
+  /** Vybraný člověk byl od výběru venku – až zajde do domu, výběr se zruší (kromě vojvody). */
+  private selectedOut = false;
+  /** Postavy, které právě rybaří (vlasce – `setFishingLines`), jako otisk. */
+  private fishingKey = '';
 
   constructor(
     private readonly scene: Scene,
@@ -191,15 +261,18 @@ export class VillageVillagers {
 
   /**
    * Lidé podle vsi – plán se přepočítá, jen když se změnilo, co ho určuje (práce dne, obydlí,
-   * pole, sady, hřbitovy, překážky). Vrátí true, když je co překreslit.
+   * pole, sady, hřbitovy, překážky, spřežení a vozy dne `draft` – village-renderer.ts,
+   * `draftCrews`; bez údaje ty minulé). Vrátí true, když je co překreslit.
    */
-  update(village: SceneVillage, nowMs: number): boolean {
+  update(village: SceneVillage, nowMs: number, draft: DraftCrews = this.draft): boolean {
     if (this.disposed) return false;
     this.village = village;
-    const key = villageKey(village);
+    this.draft = draft;
+    const key = villageKey(village, draft);
     if (key === this.key) return false;
     this.key = key;
-    if (village.labor && village.labor.shares.length > 0) void this.load();
+    // v den požáru hasí všichni dospělí – práce vsi může být prázdná, postavy řetězu ne
+    if (village.labor && (village.labor.shares.length > 0 || village.fire?.chain)) void this.load();
     return this.rebuild(nowMs);
   }
 
@@ -210,6 +283,8 @@ export class VillageVillagers {
   clockChanged(nowMs: number): boolean {
     if (this.disposed || !this.village) return false;
     this.key = '';
+    // okna dnů se posunula – obsazení dnů a činnosti z nich neplatí
+    this.timetable?.reset();
     return this.update(this.village, nowMs);
   }
 
@@ -253,7 +328,48 @@ export class VillageVillagers {
    * bod světa na plátno (null = za kamerou). Jen při kliknutí, O(postav). Nic – null.
    */
   pick(x: number, y: number, project: Project): number | null {
-    return pickPerson(this.people, this.spots, x, y, project);
+    return this.pickHit(x, y, project)?.person ?? null;
+  }
+
+  /**
+   * Poslední polohy postav (x, y, z po postavách; NaN = není vidět) – divoká zvěř před nimi
+   * utíká (wildlife.ts). Jen ke čtení.
+   */
+  figureSpots(): Float32Array {
+    return this.spots;
+  }
+
+  /** Jako `pick`, i se vzdáleností průmětu od kurzoru (px) – porovná se se spřežením a vozem. */
+  pickHit(x: number, y: number, project: Project): { person: number; distance: number } | null {
+    return pickPersonHit(this.people, this.spots, x, y, project);
+  }
+
+  /**
+   * Co dělá člověk u spřežení nebo vozu (oráč, honák, vozka – villagers.md, Výběr postavy), nebo
+   * null – jeho postavu kreslí spřežení či vůz.
+   */
+  crewJob(id: number): PersonJob | null {
+    return this.crewJobs.get(id) ?? null;
+  }
+
+  /** Oráč a honák spřežení `team` (id lidí; nikdo – null). */
+  teamCrew(team: number): { ploughman: number | null; leader: number | null } | null {
+    return this.crew.teams[team] ?? null;
+  }
+
+  /** Vozka vozu (id člověka), nebo null. */
+  cartDrover(cart: number): number | null {
+    return this.crew.carts.find((c) => c.cart === cart)?.drover ?? null;
+  }
+
+  /** Jízdy dne vojvodovy rodiny (riders.ts) – koně jezdců kreslí livestock.ts. */
+  rides(): readonly RidePlan[] {
+    return this.crew.rides ?? [];
+  }
+
+  /** Psi dvorce dne (dogs.ts – z plánu postav) – kreslí je livestock.ts. */
+  dogs(): readonly DogPlan[] {
+    return this.crew.dogs ?? [];
   }
 
   /** Kde naposledy stála vidět postava člověka (id) – testovací háček; jinak null. */
@@ -273,12 +389,14 @@ export class VillageVillagers {
   select(id: number | null): boolean {
     if (id === this.selected) return false;
     this.selected = id;
+    this.selectedOut = false;
     this.updateSelection();
     return true;
   }
 
   dispose(): void {
     this.disposed = true;
+    this.lines?.dispose();
     for (const kind of this.kinds.values()) {
       kind.mesh.material?.dispose();
       kind.manager.texture?.dispose();
@@ -288,8 +406,7 @@ export class VillageVillagers {
     this.shadow?.mesh.material?.dispose(true, true);
     this.shadow?.mesh.dispose();
     this.shadow = null;
-    this.ring?.mesh.material?.dispose(true, true);
-    this.ring?.mesh.dispose();
+    this.ring?.dispose();
     this.ring = null;
   }
 
@@ -310,6 +427,7 @@ export class VillageVillagers {
     const selected = this.selected;
     const stages = this.stages;
     stages.clear();
+    let fishing = '';
     this.people.forEach((person, index) => {
       const kind = this.kinds.get(person.kind);
       if (!kind) return;
@@ -317,6 +435,7 @@ export class VillageVillagers {
       slots.set(person.kind, slot + 1);
       this.pose.hidden = false;
       this.pose.stage = undefined;
+      this.pose.lift = undefined;
       const pose = person.pose(t, herds, this.pose);
       const y = height(pose.x, pose.z);
       const at = index * 3;
@@ -326,7 +445,9 @@ export class VillageVillagers {
       if (selected !== null && person.person === selected) stages.set(index, pose.stage ?? null);
       // karavana výpravy za krajem mapy (caravan.ts) – nulové měřítko, postava ani stín se nekreslí
       const scale = pose.hidden ? 0 : person.scale;
-      writeFigure(kind.matrices, slot, pose.x, y, pose.z, pose.headingX, pose.headingZ, scale);
+      // jezdec sedí na koni – matice o výšku sedla výš (riders.ts), výběr a stín zůstanou u země
+      const lifted = y + (pose.lift ?? 0);
+      writeFigure(kind.matrices, slot, pose.x, lifted, pose.z, pose.headingX, pose.headingZ, scale);
       const clip = kind.model.clips.get(pose.clip) ?? kind.model.clips.get('idle')!;
       const length = clip.end - clip.start + 1;
       const o = slot * 4;
@@ -336,12 +457,13 @@ export class VillageVillagers {
       kind.settings[o + 3] = BAKE_FPS * pose.pace;
       if (this.shadow) this.writeShadow(index, pose.x, y, pose.z, scale);
       if (pose.hidden) return;
+      if (pose.clip === 'fish') fishing += `${index},`;
       minX = Math.min(minX, pose.x);
       maxX = Math.max(maxX, pose.x);
       minZ = Math.min(minZ, pose.z);
       maxZ = Math.max(maxZ, pose.z);
       low = Math.min(low, y);
-      high = Math.max(high, y);
+      high = Math.max(high, lifted);
     });
     const time = (t % 3600) + 3600;
     for (const kind of this.kinds.values()) {
@@ -370,14 +492,16 @@ export class VillageVillagers {
         new Vector3(maxX + 2, high + HEAD_ROOM_M, maxZ + 2),
       );
     }
-    if (selected !== null) this.showSelected(herds);
+    // rybář s rozvrhem přijde k vodě a odejde – vlasce se překreslí, jen když se změní, kdo rybaří
+    if (fishing !== this.fishingKey) this.setFishingLines(t);
+    if (selected !== null) this.showSelected(t, herds);
   }
 
   /** Kroužek a stav vybraného člověka podle posledních poloh postav (bez nového pohybu). */
   private updateSelection(): void {
     const selected = this.selected;
     if (selected === null) {
-      this.ring?.mesh.setEnabled(false);
+      this.ring?.hide();
       this.emitPerson(null);
       return;
     }
@@ -397,24 +521,53 @@ export class VillageVillagers {
       this.spots[o + 2] = pose.z;
       this.stages.set(index, pose.stage ?? null);
     });
-    this.showSelected(herds);
+    this.showSelected(t, herds);
   }
 
-  /** Kroužek pod postavou vybraného člověka a ohlášení jeho stavu (jen při změně). */
-  private showSelected(herds: readonly HerdView[]): void {
+  /**
+   * Kroužek pod postavou vybraného člověka a ohlášení jeho stavu (jen při změně). Člověk s rozvrhem
+   * (villagers.md – Výběr postavy): úloha a cesta z rozběhnuté činnosti, i přes přelom dne; když
+   * zajde do domu, ohlásí `indoors` – výběr se zruší (kromě vojvody).
+   */
+  private showSelected(t: number, herds: readonly HerdView[]): void {
     const id = this.selected;
     if (id === null) return;
+    // oráč, honák a vozka – postavu i kroužek kreslí spřežení a vůz (village-renderer.ts)
+    const crewJob = this.crewJobs.get(id);
+    if (crewJob) {
+      this.ring?.hide();
+      this.emitPerson({ id, job: crewJob, stage: null, hidden: false, herd: null });
+      return;
+    }
     const shown = selectedFigure(this.people, id, (i) => Number.isNaN(this.spots[i * 3] ?? NaN));
     const figure = shown ? this.people[shown.index] : undefined;
-    const ring = figure && !shown!.hidden ? (this.ring ??= this.createRing()) : this.ring;
-    if (ring) {
-      if (figure && shown && !shown.hidden) {
-        const o = shown.index * 3;
-        this.writeRing(ring, this.spots[o]!, this.spots[o + 1]!, this.spots[o + 2]!, figure.scale);
-        ring.mesh.setEnabled(true);
-      } else ring.mesh.setEnabled(false);
+    if (figure && shown && !shown.hidden) {
+      const o = shown.index * 3;
+      const ring = (this.ring ??= new SelectionRing(this.scene, 'villagers-ring'));
+      ring.show(
+        this.env.groundHeight,
+        this.spots[o]!,
+        this.spots[o + 1]!,
+        this.spots[o + 2]!,
+        RING_SIZE_M * figure.scale,
+      );
+    } else this.ring?.hide();
+    let job = figure?.job ?? null;
+    let leg: 'out' | 'back' | null = null;
+    let indoors = false;
+    let phase: PhaseName | null = null;
+    const timetable = this.timetable;
+    if (timetable && this.scheduled.has(id) && !this.mountedAt(id, t)) {
+      const state = scheduledState(
+        timetable.activity(id, t),
+        t,
+        this.selectedOut,
+        this.lords.has(id),
+        timetable.phase(id, t),
+      );
+      if (!state.home) this.selectedOut = true;
+      ({ job, leg, indoors, phase } = state);
     }
-    const job = figure?.job ?? null;
     const herd = job?.kind === 'herd' ? (herds[job.herd]?.species ?? null) : null;
     this.emitPerson({
       id,
@@ -422,6 +575,9 @@ export class VillageVillagers {
       stage: shown ? (this.stages.get(shown.index) ?? null) : null,
       hidden: shown?.hidden ?? true,
       herd,
+      leg,
+      ...(phase ? { phase } : {}),
+      ...(indoors ? { indoors: true as const } : {}),
     });
   }
 
@@ -429,19 +585,6 @@ export class VillageVillagers {
     if (samePersonState(state, this.personState)) return;
     this.personState = state;
     this.env.onPersonState?.(state);
-  }
-
-  /** Kroužek položený na terén pod postavou (nakloněný podle svahu jako stín). */
-  private writeRing(
-    ring: { mesh: Mesh; matrices: Float32Array },
-    x: number,
-    y: number,
-    z: number,
-    scale: number,
-  ): void {
-    surfaceMatrix(this.env.groundHeight, x, y + RING_LIFT_M, z, RING_SIZE_M * scale, this.matrix);
-    this.matrix.copyToArray(ring.matrices, 0);
-    ring.mesh.thinInstanceBufferUpdated('matrix');
   }
 
   /** Stín položený na terén (nakloněný podle svahu pod postavou). */
@@ -491,52 +634,63 @@ export class VillageVillagers {
     );
     if (!village || !this.models || !ground) {
       this.people = [];
+      this.dayFigures = [];
+      this.scheduled.clear();
+      this.setCrew({ teams: [], carts: [] });
+      this.setSlaughter(null);
       for (const kind of this.kinds.values()) kind.mesh.setEnabled(false);
       this.shadow?.mesh.setEnabled(false);
       return had;
     }
-    // kdo už ve vsi je, na nové místo práce dojde (rozpracovaný čtverec je hotový – další)
     const t = villagerSeconds(nowMs);
-    const probe = createVillagerPose();
-    const before = new Map(
-      this.people.map((p) => {
-        probe.hidden = false;
-        const pose = p.pose(t, herds, probe);
-        return [p.key, { x: pose.x, z: pose.z }] as const;
-      }),
-    );
-    this.people = planVillagers(village, ground, {
+    const plan = planVillagersWithCrew(village, ground, {
       seed: villageSeed(village),
+      nowMs,
       // pasák jen u stád na pastvě – ta jsou v plánu napřed (livestock-placement.ts)
       herds: herds.filter((h) => h.tended !== false).length,
+      herdPlaces: herds,
       paths: this.paths,
       dayWindow: (day) => this.env.dayWindow?.(day) ?? null,
       funerals: this.funerals,
       weddings: this.weddings,
-    })
-      .filter((p) => this.models?.has(p.kind))
-      .map((p) => {
-        const from = before.get(p.key);
-        if (!from) return p;
-        probe.hidden = false;
-        const to = p.pose(t, herds, probe);
-        // karavana (caravan.ts) jde podle výpravy a pohřeb podle obřadu – nepřecházejí pěšky
-        if (
-          p.key.startsWith('caravan:') ||
-          p.key.startsWith('funeral:') ||
-          p.key.startsWith('wedding:')
-        ) {
-          return p;
-        }
-        const distance = Math.hypot(to.x - from.x, to.z - from.z);
-        if (distance < WALK_OVER_M.from || distance > WALK_OVER_M.to) return p;
-        return {
-          ...p,
-          pose: walkThen(from.x, from.z, p.pose, t, walkSpeed(p.kind, 'walk', p.scale)),
-        };
-      });
+      draft: this.draft,
+      ...(this.env.huntSpot ? { huntSpot: this.env.huntSpot } : {}),
+    });
+    this.setCrew(plan.crew);
+    this.setSlaughter(plan.slaughter);
+    const persons = village.labor?.persons;
+    const living = persons ? new Set(persons.map((person) => person.id)) : undefined;
+    const timetable = persons && village.labor ? this.scheduleDay(village, persons, plan, t) : null;
+    // lidé vsi jdou z rozvrhu i na události (villagers.md – Události přerušují); postavy dne jen
+    // cizí (`STRANGER`) a ukázky bez lidí
+    const day = plan.people.filter(
+      (p) => this.models?.has(p.kind) && (!timetable || p.person === undefined),
+    );
+    this.mounted = new Map();
+    if (timetable) {
+      const poses = new Map(plan.people.map((p) => [p.person, p.pose]));
+      for (const ride of plan.crew.rides ?? []) {
+        const pose = poses.get(ride.riderId);
+        if (ride.route && pose) this.mounted.set(ride.riderId, { ride, pose });
+      }
+    }
+    // pochůzka postavy dne je celý cyklus (villagers.md – Pochůzka se dokončí): cizí na cestě dojde
+    this.dayFigures = carryErrands(this.dayFigures, day, t, living);
+    const scheduled = timetable && persons ? this.personFigures(persons, timetable) : [];
+    this.scheduled = new Set(scheduled.map((p) => p.person!));
+    this.people = [...scheduled, ...this.dayFigures];
+    this.setFishingLines(t);
+    // obal i z dveří lidí s rozvrhem, míst úloh dne a tras jízd (pevné za den) – kdo vyjde z domu
+    // mimo poslední pózy, hýbe se hned, ne až s dalším přeplánováním
     this.extent = unionExtent(
       caravanExtent(village),
+      timetable && persons
+        ? dayExtent(
+            plan.tasks,
+            persons.map((p) => plan.doors.get(p.home) ?? null),
+          )
+        : null,
+      ...[...this.mounted.values()].map((m) => rideArea(m.ride)),
       ...this.funerals.map((f) => f.extent),
       ...this.weddings.map((w) => w.extent),
     );
@@ -575,6 +729,131 @@ export class VillageVillagers {
     return had || this.people.length > 0;
   }
 
+  /**
+   * Obsazení dne do rozvrhů (villager-timetable.ts): den práce vsi od začátku jeho okna (bez hodin
+   * od teď), dveře domů lidí a vojvoda. Jiná ves (seed) – nové rozvrhy.
+   */
+  private scheduleDay(
+    village: SceneVillage,
+    persons: readonly ScenePerson[],
+    plan: {
+      tasks: Parameters<Timetable['setDay']>[2];
+      doors: ReadonlyMap<number, { x: number; z: number }>;
+      walk: WalkRouteFn;
+      length: (a: { x: number; z: number }, b: { x: number; z: number }) => number;
+    },
+    t: number,
+  ): Timetable {
+    const seed = villageSeed(village);
+    if (this.timetable?.seed !== seed) this.timetable = new Timetable(seed, SCHEDULE_WALK_M_S);
+    const timetable = this.timetable;
+    timetable.setDoors(new Map(persons.map((p) => [p.id, plan.doors.get(p.home) ?? null])));
+    // délky chůze z odhadu po síti pěšin, přesná trasa jen pro kreslenou pózu (villagers.md –
+    // Cesty postav; úloha 6)
+    // – kolem domů nejméně schůdná trasa (`scheduledLength`; roh domu – villagers.md, Bez časosběru)
+    timetable.setEstimate(plan.length);
+    const homes = new Map(persons.map((p) => [p.id, p.home]));
+    timetable.setRouter((id, from, to) => plan.walk(from, to, homes.get(id)));
+    // povodeň – na rozlitou vodu se nechodí (villagers.md – Události)
+    const flooded = this.env.flooded;
+    timetable.setWet(flooded ? (x, z, at) => flooded(x, z, at * 1000 + LIVESTOCK_EPOCH_MS) : null);
+    const day = village.labor!.day;
+    const window = this.env.dayWindow?.(day) ?? null;
+    timetable.setDay(day, window ? villagerSeconds(window.startMs) : t, plan.tasks);
+    timetable.retain(new Set(persons.map((p) => p.id)));
+    this.lords = new Set(persons.filter((p) => p.role === 'voivode').map((p) => p.id));
+    return timetable;
+  }
+
+  /**
+   * Postava každého člověka vsi podle jeho rozvrhu: vzhled podle člověka, póza z činnosti. Skrytá,
+   * když ho dnes kreslí postava dne (událost, jízda) nebo spřežení a vůz (oráč, honák, vozka).
+   * Rozvrh se počítá, jen když se póza kreslí (ves v záběru) nebo je člověk vybraný.
+   */
+  private personFigures(persons: readonly ScenePerson[], timetable: Timetable): PlannedVillager[] {
+    const out: PlannedVillager[] = [];
+    for (const person of persons) {
+      const id = person.id;
+      let kind: VillagerKind = 'man';
+      let scale = 1;
+      const figure = personFigure(timetable.seed, person, (t, herds, pose): VillagerPose => {
+        timetable.pose(id, t, herds, pose);
+        // chůze rovně ode dveří jde tempem `SCHEDULE_WALK_M_S` – nohy podle velikosti postavy
+        const a = timetable.activity(id, t);
+        if (a.kind !== 'errand' || a.retreat) {
+          // tempo po trase (poměr délky a času – activityPose) × nohy podle velikosti a klipu
+          // (cesta ode dveří, domů a ke kroku jinde – villager-phases.ts; s košem, s úlovkem)
+          const stage = activityStage(a, t);
+          const walking =
+            stage === 'out' || stage === 'back'
+              ? isWalkClip(pose.clip) || stage === 'back'
+              : stage === 'work' && phaseWalking(timetable.phase(id, t));
+          if (walking) pose.pace *= SCHEDULE_WALK_M_S / walkSpeed(kind, pose.clip, scale);
+        }
+        // v bloku jízdy na koni (kůň nejede bez jezdce)
+        const mount = this.mountedAt(id, t);
+        if (mount) mount.pose(t, herds, pose);
+        else if (this.crewJobs.has(id)) pose.hidden = true;
+        return pose;
+      });
+      kind = figure.kind;
+      scale = figure.scale;
+      if (this.models?.has(figure.kind)) out.push(figure);
+    }
+    return out;
+  }
+
+  /** Jízda jezdce `id`, když je v okamžik `t` v bloku jízdy (riders.ts – `isRiding`). */
+  private mountedAt(id: number, t: number): { ride: RidePlan; pose: PoseFn } | null {
+    const mount = this.mounted.get(id);
+    return mount && isRiding(mount.ride, t) ? mount : null;
+  }
+
+  /** Vlasce rybářů (klip `fish`) – rybář stojí, poloha z pózy v čase `t`. */
+  private setFishingLines(t: number): void {
+    const lines: number[][] = [];
+    let key = '';
+    for (const [index, person] of this.people.entries()) {
+      this.pose.hidden = false;
+      this.pose.stage = undefined;
+      this.pose.lift = undefined;
+      const pose = person.pose(t, [], this.pose);
+      if (pose.clip !== 'fish' || pose.hidden) continue;
+      key += `${index},`;
+      lines.push(
+        fishingLine(pose, person.kind, person.scale, (x, z) => this.env.groundHeight(x, z)),
+      );
+    }
+    this.fishingKey = key;
+    if (lines.length === 0 && !this.lines) return;
+    this.lines ??= new FishingLines(this.scene);
+    this.lines.set(lines);
+  }
+
+  /**
+   * Noví lidé u spřežení a vozů – úlohy oráče, honáka a vozky (stálé objekty, dokud se lidé
+   * nezmění); scéně to ohlásí (`onCrew`), jen když se změnili.
+   */
+  private setCrew(crew: DraftCrew): void {
+    const key = `${JSON.stringify({ teams: crew.teams, carts: crew.carts })}#${ridePlansKey(crew.rides ?? [])}#${dogPlansKey(crew.dogs ?? [])}`;
+    if (key === this.crewKey) return;
+    this.crewKey = key;
+    this.crew = crew;
+    const jobs = new Map<number, PersonJob>();
+    crew.teams.forEach((team, k) => {
+      if (team.ploughman !== null) {
+        jobs.set(team.ploughman, { kind: 'plough', team: k, role: 'ploughman' });
+      }
+      if (team.leader !== null) jobs.set(team.leader, { kind: 'plough', team: k, role: 'leader' });
+    });
+    for (const { cart, drover } of crew.carts) {
+      if (drover !== null) jobs.set(drover, { kind: 'cart', cart });
+    }
+    this.crewJobs = jobs;
+    if (this.selected !== null) this.updateSelection();
+    this.env.onCrew?.();
+  }
+
   /** Nové plány pohřbů – ohlásí je scéně (`onFunerals`), jen když se změnily. */
   private setFunerals(plans: FuneralPlan[]): void {
     this.funerals = plans;
@@ -605,18 +884,42 @@ export class VillageVillagers {
     this.env.onWeddings?.(plans);
   }
 
+  /** Nový plán porážky – ohlásí ho scéně (`onSlaughter`), jen když se změnil. */
+  private setSlaughter(plan: SlaughterPlan | null): void {
+    const key = plan
+      ? `${plan.day}:${plan.window.startMs}:${plan.window.endMs}:` +
+        plan.stations
+          .map((st) => `${st.key}:${st.x.toFixed(2)},${st.z.toFixed(2)}:${st.crew.join(',')}`)
+          .join('|')
+      : '';
+    if (key === this.slaughterKey) return;
+    this.slaughterKey = key;
+    this.env.onSlaughter?.(plan);
+  }
+
+  private treesToken?: { layer: ObstacleLayer; key: string; token: object };
+
   /** Terén pro plán: schůdná země z rastru zvířat, stromy z vrstvy překážek. */
   private groundFor(village: SceneVillage): VillagerGround | null {
     const grid = this.env.ground(village);
     if (!grid) return null;
     const layer = this.env.layer;
     const status = obstacleStatus(village.obstacles);
+    // stromy se mění jen s vrstvou překážek a pokácením / pařezy / sazenicemi – skupinky stromů
+    // pro dřevo (villager-plan-traffic.ts) se mezi přeplánováními nepočítají znovu
+    const o = village.obstacles;
+    const key = o ? `${o.removed.length},${o.stumps.length},${o.saplings.length}` : '';
+    if (this.treesToken?.layer !== layer || this.treesToken.key !== key) {
+      this.treesToken = { layer, key, token: {} };
+    }
     return {
+      treesToken: this.treesToken.token,
       walkable: (x, z) => grid.walkable(x, z),
       tree: (id) => {
         const i = obstacleIndex(layer, id);
         return i >= 0 ? { x: layer.x[i]!, z: layer.z[i]! } : null;
       },
+      squareObstacles: (part) => squareObstacles(layer, part),
       treesIn: (x, z, half, max) => {
         const found: { x: number; z: number }[] = [];
         for (const i of obstaclesNear(layer, x - half, z - half, x + half, z + half)) {
@@ -672,7 +975,9 @@ export class VillageVillagers {
       false,
       false,
       Texture.NEAREST_NEAREST,
-      Constants.TEXTURETYPE_FLOAT,
+      model.vat instanceof Uint16Array
+        ? Constants.TEXTURETYPE_HALF_FLOAT
+        : Constants.TEXTURETYPE_FLOAT,
     );
     vat.name = `villagers-${name}-vat`;
     const manager = new BakedVertexAnimationManager(this.scene);
@@ -700,58 +1005,6 @@ export class VillageVillagers {
   }
 
   /** Měkký kruhový stín – čtverec s průhledným kruhem, jedna instance na postavu. */
-  /** Žlutý kroužek pod vybranou postavou – jedna instance, po obtiscích a stínech postav. */
-  private createRing(): { mesh: Mesh; matrices: Float32Array } {
-    const mesh = new Mesh('villagers-ring', this.scene);
-    const data = new VertexData();
-    data.positions = [-0.5, 0, -0.5, 0.5, 0, -0.5, 0.5, 0, 0.5, -0.5, 0, 0.5];
-    data.normals = [0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0];
-    data.uvs = [0, 0, 1, 0, 1, 1, 0, 1];
-    data.indices = [0, 2, 1, 0, 3, 2];
-    data.applyToMesh(mesh);
-    mesh.isPickable = false;
-    mesh.alwaysSelectAsActiveMesh = true;
-    mesh.alphaIndex = 6;
-    const size = 64;
-    const pixels = new Uint8Array(size * size * 4);
-    for (let j = 0; j < size; j++) {
-      for (let i = 0; i < size; i++) {
-        const r = Math.hypot((i + 0.5) / size - 0.5, (j + 0.5) / size - 0.5) * 2;
-        // mezikruží 0,72–0,95 s měkkými okraji
-        const a = Math.max(0, Math.min(1, (r - 0.68) / 0.06, (0.97 - r) / 0.04));
-        const o = (j * size + i) * 4;
-        pixels[o] = Math.round(255 * RING_COLOR[0]);
-        pixels[o + 1] = Math.round(255 * RING_COLOR[1]);
-        pixels[o + 2] = Math.round(255 * RING_COLOR[2]);
-        pixels[o + 3] = Math.round(255 * 0.95 * a);
-      }
-    }
-    const texture = RawTexture.CreateRGBATexture(
-      pixels,
-      size,
-      size,
-      this.scene,
-      false,
-      false,
-      Texture.BILINEAR_SAMPLINGMODE,
-    );
-    texture.hasAlpha = true;
-    texture.name = 'villagers-ring';
-    const material = new StandardMaterial('villagers-ring-material', this.scene);
-    material.diffuseColor = Color3.Black();
-    material.specularColor = Color3.Black();
-    material.emissiveColor = new Color3(...RING_COLOR);
-    material.disableLighting = true;
-    material.opacityTexture = texture;
-    material.disableDepthWrite = true;
-    material.backFaceCulling = false;
-    material.zOffset = -3;
-    mesh.material = material;
-    const matrices = new Float32Array(16);
-    mesh.thinInstanceSetBuffer('matrix', matrices, 16, false);
-    return { mesh, matrices };
-  }
-
   private createShadow(): { mesh: Mesh; matrices: Float32Array } {
     const mesh = new Mesh('villagers-shadow', this.scene);
     const data = new VertexData();
@@ -877,7 +1130,7 @@ function writeFigure(
  * Co z vsi rozhoduje o lidech: rozdělení práce dne, obydlí (i průběh staveniště – kopání
  * jámy), stadia polí, výsadba sadů, hřbitovy a odstraněné stromy.
  */
-function villageKey(village: SceneVillage): string {
+function villageKey(village: SceneVillage, draft: DraftCrews): string {
   const dwellings = village.dwellings.map(
     (d) =>
       `${d.id}:${d.type}:${d.built ? 1 : 0}:${d.inhabited === false ? 0 : 1}:${d.progress < 0.25 ? 0 : 1}:` +
@@ -905,15 +1158,30 @@ function villageKey(village: SceneVillage): string {
     : '';
   return JSON.stringify([
     village.labor ?? null,
+    draft,
+    // vozka jde k podílu svozu svého vozu (villager-plan.ts – `draftStaff`)
+    (village.carts ?? []).map((c) => [c.id, c.job, c.route?.length ?? 0]),
     village.expeditions ?? null,
     village.funerals ?? null,
     village.weddings ?? null,
     (village.trails ?? []).map((t) => [t.id, t.points.length]),
+    // lov, psi, hlídka, děti s řehtačkou a rybáři dne (wildlife.md – Ve scéně)
+    village.wildlife
+      ? [
+          village.wildlife.hunt ?? null,
+          village.wildlife.dogs ?? 0,
+          village.wildlife.patrol ?? false,
+          village.wildlife.watchParts ?? null,
+          village.wildlife.pools ?? null,
+        ]
+      : null,
     dwellings,
     fields,
     orchards,
     cemeteries,
     obstacles,
+    // řetěz s vědry v den požáru (disasters.md – Hašení)
+    village.fire?.chain ?? null,
   ]);
 }
 
@@ -959,16 +1227,29 @@ function villageSeed(village: SceneVillage): number {
   return first ? (Math.round(first.x * 13) * 31 + Math.round(first.z * 7)) | 0 : 1;
 }
 
+/** Počká, až má prohlížeč volno (nejdéle 50 ms); bez `requestIdleCallback` (Safari) další úloha. */
+function idle(): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof requestIdleCallback === 'function')
+      requestIdleCallback(() => resolve(), { timeout: 50 });
+    else setTimeout(resolve, 0);
+  });
+}
+
 /**
  * Načte GLB postavy a zapeče všechny její animace do pole matic kostí (VAT): pro každý klip
  * snímky po 1/24 s včetně posledního (= prvního, smyčka navazuje). Matice i vrcholy se převedou
- * do souřadnic scény (převod os glTF – zrcadlení – se zapeče, mesh pak nemá rodiče).
+ * do souřadnic scény (převod os glTF – zrcadlení – se zapeče, mesh pak nemá rodiče). VAT je
+ * half-float (polovina paměti; posuny kostí do ±3 m na ≈ 2 mm), peče se po kouscích
+ * `BAKE_SLICE_MS` mezi volnými chvílemi hlavního vlákna.
  */
 export async function loadBakedModel(scene: Scene, url: string): Promise<BakedModel | null> {
   const container = await LoadAssetContainerAsync(url, scene);
   if (scene.isDisposed) return null;
   container.addAllToScene();
   for (const group of container.animationGroups) group.stop();
+  // pečení jde po kouscích a scéna mezitím kreslí – zdrojový model nesmí být vidět
+  for (const mesh of container.meshes) mesh.setEnabled(false);
   const source = container.meshes.find(
     (mesh): mesh is Mesh => mesh instanceof Mesh && mesh.getTotalVertices() > 0 && !!mesh.skeleton,
   );
@@ -994,21 +1275,29 @@ export async function loadBakedModel(scene: Scene, url: string): Promise<BakedMo
 
   const boneCount = skeleton.bones.length;
   const floatsPerFrame = (boneCount + 1) * 16;
-  const chunks: Float32Array[] = [];
+  const groups = container.animationGroups.map((group) => {
+    const fps = group.targetedAnimations[0]?.animation.framePerSecond ?? 60;
+    const durationS = (group.to - group.from) / fps;
+    return { group, fps, durationS, count: Math.max(1, Math.round(durationS * BAKE_FPS)) + 1 };
+  });
+  const frames = groups.reduce((sum, g) => sum + g.count, 0);
+  // jedno pole rovnou ve formátu textury – žádné kusy po klipech ani jejich spojování
+  const half = scene.getEngine().getCaps().textureHalfFloat;
+  const vat = half
+    ? new Uint16Array(floatsPerFrame * frames)
+    : new Float32Array(floatsPerFrame * frames);
+  const row = new Float32Array(floatsPerFrame);
   const clips = new Map<string, { start: number; end: number }>();
   let frame = 0;
   const m = new Matrix();
   const tmp = new Matrix();
-  for (const group of container.animationGroups) {
+  let slice = performance.now();
+  for (const { group, fps, durationS, count } of groups) {
     for (const r of rest) {
       r.node.position.copyFrom(r.position);
       if (r.rotation) (r.node.rotationQuaternion ??= new Quaternion()).copyFrom(r.rotation);
       r.node.scaling.copyFrom(r.scaling);
     }
-    const fps = group.targetedAnimations[0]?.animation.framePerSecond ?? 60;
-    const durationS = (group.to - group.from) / fps;
-    const count = Math.max(1, Math.round(durationS * BAKE_FPS)) + 1;
-    const data = new Float32Array(floatsPerFrame * count);
     for (let k = 0; k < count; k++) {
       const at = group.from + Math.min(durationS, k / BAKE_FPS) * fps;
       for (const { animation, target } of group.targetedAnimations) {
@@ -1028,18 +1317,26 @@ export async function loadBakedModel(scene: Scene, url: string): Promise<BakedMo
         // matice v souřadnicích meshe -> ve scéně: W⁻¹ · M · W (řádkové vektory Babylonu)
         inverse.multiplyToRef(m, tmp);
         tmp.multiplyToRef(world, m);
-        m.copyToArray(data, k * floatsPerFrame + b * 16);
+        m.copyToArray(row, b * 16);
+      }
+      const o = (frame + k) * floatsPerFrame;
+      if (vat instanceof Uint16Array) {
+        for (let i = 0; i < floatsPerFrame; i++) vat[o + i] = ToHalfFloat(row[i]!);
+      } else {
+        vat.set(row, o);
+      }
+      // pečení po kouscích – hlavní vlákno mezi nimi kreslí a reaguje (žádná dlouhá úloha)
+      if (performance.now() - slice > BAKE_SLICE_MS) {
+        await idle();
+        if (scene.isDisposed) {
+          container.dispose();
+          return null;
+        }
+        slice = performance.now();
       }
     }
     clips.set(group.name, { start: frame, end: frame + count - 1 });
-    chunks.push(data);
     frame += count;
-  }
-  const vat = new Float32Array(floatsPerFrame * frame);
-  let offset = 0;
-  for (const chunk of chunks) {
-    vat.set(chunk, offset);
-    offset += chunk.length;
   }
 
   const positions = source.getVerticesData(VertexBuffer.PositionKind)!;
@@ -1095,7 +1392,7 @@ export async function loadBakedModel(scene: Scene, url: string): Promise<BakedMo
     matricesWeights,
     boneCount,
     vat,
-    frames: frame,
+    frames,
     clips,
     texture,
     mask,

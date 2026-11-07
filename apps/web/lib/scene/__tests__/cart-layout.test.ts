@@ -13,6 +13,7 @@ import {
   parkedCartPose,
   routeAt,
   shuttleAt,
+  shuttleLeg,
   shuttleRoute,
   type CartKind,
   type CartPose,
@@ -334,7 +335,7 @@ describe('jízda tam a zpět (svoz – fáze 3)', () => {
   ];
   const shuttle = shuttleRoute(AXIS, 'two-wheel');
   const WINDOW = { startMs: 1_000_000, endMs: 1_086_000 };
-  const schedule = { window: WINDOW, maxTrips: 8, phase: 0 };
+  const schedule = { phase: 0 };
   const at = (ms: number): ShuttleState =>
     shuttleAt(shuttle, schedule, ms, { s: 0, speed: 0, loaded: false });
 
@@ -354,13 +355,8 @@ describe('jízda tam a zpět (svoz – fáze 3)', () => {
     expect(Math.hypot(far.x - 30, far.z - 70)).toBeLessThan(15);
   });
 
-  it('za herní den několik jízd: prázdný tam, u cíle nakládá, plný zpátky; den začíná i končí u ohrady', () => {
-    const home = (x: ShuttleState): boolean =>
-      x.speed === 0 && !x.loaded && (x.s === 0 || x.s === shuttle.route.length);
-    expect(home(at(WINDOW.startMs - 500))).toBe(true);
-    expect(home(at(WINDOW.endMs - 500))).toBe(true);
-    expect(at(WINDOW.startMs + 200).speed).toBeGreaterThan(0);
-    const samples = Array.from({ length: 860 }, (_, i) => at(WINDOW.startMs + i * 100));
+  it('dokola tempem volů: prázdný tam, u cíle nakládá, plný zpátky, u ohrady skládá', () => {
+    const samples = Array.from({ length: 4000 }, (_, i) => at(WINDOW.startMs + i * 100));
     // jede tam prázdný, zpátky plný, mezi tím stojí
     const out = samples.filter((x) => x.speed > 0 && x.s < shuttle.farM);
     const back = samples.filter((x) => x.speed > 0 && x.s > shuttle.farM);
@@ -369,14 +365,8 @@ describe('jízda tam a zpět (svoz – fáze 3)', () => {
     expect(back.length).toBeGreaterThan(0);
     expect(back.every((x) => x.loaded)).toBe(true);
     expect(samples.some((x) => x.speed === 0 && x.s === shuttle.farM)).toBe(true);
-    // počet obratů u cíle = počet jízd (aspoň 1, nejvýš 8), rychlost aspoň tempem volů
-    let trips = 0;
-    for (let i = 1; i < samples.length; i++) {
-      if (samples[i - 1]!.s < shuttle.farM && samples[i]!.s >= shuttle.farM) trips++;
-    }
-    expect(trips).toBeGreaterThanOrEqual(1);
-    expect(trips).toBeLessThanOrEqual(8);
-    expect(Math.max(...samples.map((x) => x.speed))).toBeGreaterThanOrEqual(CART_SPEED_M_S);
+    // voli jdou svým tempem (žádný časosběr – villagers.md, Činnosti od začátku do konce)
+    expect(Math.max(...samples.map((x) => x.speed))).toBe(CART_SPEED_M_S);
     // spojitě – vůz neskáče
     for (let i = 1; i < samples.length; i++) {
       const a = samples[i - 1]!.s;
@@ -386,8 +376,8 @@ describe('jízda tam a zpět (svoz – fáze 3)', () => {
     }
   });
 
-  it('bez okna dne jezdí dokola tempem volů; stejný okamžik = stejné místo', () => {
-    const real = { window: null, maxTrips: 8, phase: 0.3 };
+  it('stejný okamžik = stejné místo', () => {
+    const real = { phase: 0.3 };
     const a = shuttleAt(shuttle, real, 5_000_000, { s: 0, speed: 0, loaded: false });
     const b = shuttleAt(shuttle, real, 5_000_000, { s: 0, speed: 0, loaded: false });
     expect(a).toEqual(b);
@@ -426,5 +416,88 @@ describe('jízda tam a zpět (svoz – fáze 3)', () => {
     expect(four.body.uy).toBeGreaterThan(0.999);
     expect(four.pole.by).toBeLessThan(0.15);
     expect(four.pole.bx).toBeGreaterThan(four.pole.ax);
+  });
+});
+
+describe('svoz snopů na humno (villagers.md – Fáze činností)', () => {
+  const AXIS = [
+    { x: 0, z: 0 },
+    { x: 0, z: 60 },
+  ];
+  // z pole k humnu stranou a odtud zpět k ohradě
+  const VIA = [
+    { x: 0, z: 60 },
+    { x: 40, z: 40 },
+    { x: 40, z: 10 },
+    { x: 0, z: 0 },
+  ];
+  const shuttle = shuttleRoute(AXIS, 'two-wheel', undefined, { points: VIA, drop: VIA[1]! });
+  const WINDOW = { startMs: 1_000_000, endMs: 1_086_000 };
+  const schedule = { phase: 0 };
+  const at = (ms: number): ShuttleState =>
+    shuttleAt(shuttle, schedule, ms, { s: 0, speed: 0, loaded: false });
+
+  it('prázdný k poli, nakládá, plný k humnu, skládá, prázdný k ohradě', () => {
+    const drop = shuttle.dropM!;
+    expect(drop).toBeGreaterThan(shuttle.farM);
+    expect(drop).toBeLessThan(shuttle.route.length);
+    // humno – kde vůz skládá (40, 40)
+    const p = routeAt(shuttle.route, drop, point());
+    expect(Math.hypot(p.x - 40, p.z - 40)).toBeLessThan(6);
+    const samples = Array.from({ length: 4000 }, (_, i) => at(WINDOW.startMs + i * 100));
+    const moving = samples.filter((x) => x.speed > 0);
+    expect(moving.filter((x) => x.s < shuttle.farM).every((x) => !x.loaded)).toBe(true);
+    const full = moving.filter((x) => x.s > shuttle.farM && x.s < drop);
+    expect(full.length).toBeGreaterThan(0);
+    expect(full.every((x) => x.loaded)).toBe(true);
+    const empty = moving.filter((x) => x.s > drop);
+    expect(empty.length).toBeGreaterThan(0);
+    expect(empty.every((x) => !x.loaded)).toBe(true);
+    expect(samples.some((x) => x.speed === 0 && x.s === drop)).toBe(true);
+    // úseky pro panel vozky: veze snopy na humno, skládá, vrací se k ohradě
+    expect(shuttleLeg(shuttle, full[0]!)).toBe('back');
+    expect(shuttleLeg(shuttle, { s: drop, speed: 0 })).toBe('unload');
+    expect(shuttleLeg(shuttle, empty[0]!)).toBe('return');
+    expect(shuttleLeg(shuttle, { s: shuttle.farM, speed: 0 })).toBe('load');
+    // spojitě – vůz neskáče
+    for (let i = 1; i < samples.length; i++) {
+      const a = samples[i - 1]!.s;
+      const b = samples[i]!.s;
+      expect(Math.min(Math.abs(b - a), shuttle.route.length - Math.abs(b - a))).toBeLessThan(2);
+    }
+  });
+});
+
+describe('obratiště vozu u vody', () => {
+  const AXIS = [
+    { x: 0, z: 0 },
+    { x: 0, z: 40 },
+  ];
+  // potok napříč za koncem osy: voda od z = 44 dál
+  const dry = (_x: number, z: number): boolean => z < 44;
+
+  it('obratiště u břehu leží celé na souši', () => {
+    const wet = shuttleRoute(AXIS, 'two-wheel');
+    const sh = shuttleRoute(AXIS, 'two-wheel', dry);
+    const at: RoutePoint = { x: 0, z: 0, hx: 0, hz: 1, heading: 0 };
+    let maxZ = -Infinity;
+    for (let s = 0; s < sh.route.length; s += 0.25) {
+      routeAt(sh.route, s, at);
+      maxZ = Math.max(maxZ, at.z);
+    }
+    expect(maxZ).toBeLessThan(44);
+    let wetMax = -Infinity;
+    for (let s = 0; s < wet.route.length; s += 0.25) {
+      routeAt(wet.route, s, at);
+      wetMax = Math.max(wetMax, at.z);
+    }
+    expect(wetMax).toBeGreaterThan(44);
+  });
+
+  it('na souši (nebo bez testu) je trasa beze změny', () => {
+    const base = shuttleRoute(AXIS, 'four-wheel');
+    const land = shuttleRoute(AXIS, 'four-wheel', () => true);
+    expect(land.route.length).toBe(base.route.length);
+    expect(land.farM).toBe(base.farM);
   });
 });

@@ -2,8 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Landscape } from '../../landscape';
 import { capsuleRange, roadCapsules, roadFreeRuns, roadLandWidthM } from '../paths/road-land';
 import { bandLengthM } from '../plough-blocks';
-import { bandFurrowM } from '../plough-trip';
-import { ROAD_LAND } from '../rules';
+import { bandFurrowM, plannedFurrowEfficiency, sowingFurrowEfficiency } from '../plough-trip';
 import type { FieldPart, PloughBand, Road, VillageState } from '../types';
 
 // Brázdy končí na cestě (oxen.md – Co nejdelší brázda; Martin, 19. 10. 2026: „pokud oráč
@@ -71,7 +70,7 @@ describe('řádek orby přes pás cesty', () => {
     ]);
     expect(roadFreeRuns(ends, 0, 0, 1, 0, 0, 40)).toHaveLength(2);
     expect(roadFreeRuns(ends, 0, -2, 1, 0, 0, 40)).toEqual([{ from: 0, to: 40 }]);
-    // rozcestí tří úseků – plácek širší než pás
+    // křižovatka tří úseků – obrys z pásů ramen a středu mezi nimi, žádný kruh
     const junction = roadCapsules([
       road([
         [20, 0],
@@ -86,8 +85,14 @@ describe('řádek orby přes pás cesty', () => {
         [-10, -20],
       ]),
     ]);
-    const disc = junction.find((c) => c.ax === c.bx && c.az === c.bz)!;
-    expect(disc.r).toBeCloseTo(1.9 * ROAD_LAND.junctionScale, 9);
+    expect(junction.some((c) => c.ax === c.bx && c.az === c.bz)).toBe(false);
+    // spojnice sousedních ramen (mezery 90°, 124° a 146° – všechny pod 180°) 1,9 m od středu
+    const fills = junction.filter(
+      (c) =>
+        Math.abs(Math.hypot(c.ax - 20, c.az) - 1.9) < 1e-9 &&
+        Math.abs(Math.hypot(c.bx - 20, c.bz) - 1.9) < 1e-9,
+    );
+    expect(fills).toHaveLength(3);
     const runs = roadFreeRuns(junction, 0, 2, 1, 0, -10, 15, 2);
     expect(runs.every((r) => r.to - r.from >= 2)).toBe(true);
   });
@@ -160,5 +165,30 @@ describe('délka brázdy pásu přes cestu', () => {
         geo,
       ),
     ).toBe(90);
+  });
+
+  it('výkon orby plánu osevu z paměti – týž jako bez ní, se změnou dílů nebo cest se přepočte', () => {
+    const land = { size: 64, cellSizeM: 15 } as Landscape;
+    const across = state([
+      road([
+        [30, -50],
+        [30, 50],
+      ]),
+    ]);
+    const plain = plannedFurrowEfficiency(parts, across, land);
+    expect(sowingFurrowEfficiency(parts, across, land)).toBe(plain);
+    expect(sowingFurrowEfficiency(parts, across, land)).toBe(plain);
+    // bez cesty delší brázda
+    expect(sowingFurrowEfficiency(parts, state([]), land)).toBe(
+      plannedFurrowEfficiency(parts, state([]), land),
+    );
+    expect(sowingFurrowEfficiency(parts, state([]), land)).toBeGreaterThan(plain);
+    // jiná plocha jednoho dílu – jiná délka brázdy, ne paměť
+    const open = sowingFurrowEfficiency(parts, state([]), land);
+    const larger = parts.map((p) => (p.id === 1 ? { ...p, areaM2: 400 } : p));
+    expect(sowingFurrowEfficiency(larger, state([]), land)).toBe(
+      plannedFurrowEfficiency(larger, state([]), land),
+    );
+    expect(sowingFurrowEfficiency(larger, state([]), land)).not.toBe(open);
   });
 });

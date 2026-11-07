@@ -17,6 +17,7 @@ import {
   FLAX,
   LEGUMES,
   SEED_KG_PER_HA,
+  LEGACY_WEEDING_WORST_PER_HA,
   UNWEEDED_YIELD,
   YIELD_BASE_KG_PER_HA,
   type WindowSegment,
@@ -28,7 +29,9 @@ import type {
   FieldTask,
   TaskName,
   VillageState,
-  YearPlan,
+  FarmSeason,
+  SeasonCrop,
+  SurplusCrop,
 } from './types';
 
 const M2_PER_HA = 10_000;
@@ -187,6 +190,7 @@ export function createCropWork(
     required,
     done: emptyTaskRecord(),
     harvestedKg: null,
+    seedKg: 0,
     ...(plough
       ? {
           plough: {
@@ -202,9 +206,20 @@ export function createCropWork(
   };
 }
 
+/** Práce plodiny `crop` jako položka hospodářského roku. */
+function newSeasonCrop(
+  crop: Crop,
+  parts: FieldPart[],
+  day: number,
+  toolCoverage: number,
+  plough: boolean,
+  order: WorkOrder,
+): SeasonCrop {
+  return { crop, ...createCropWork(parts, day, toolCoverage, plough, order, crop) };
+}
+
 /**
- * Plán prací na rok jen s jaří (tvar plánu z doby před ozimem); s `plough` ves letos orá rádlem
- * (`ard`).
+ * Hospodářský rok jen s jaří (tvar z doby před ozimem); s `plough` ves letos orá rádlem (`ard`).
  */
 export function createPlan(
   selected: FieldPart[],
@@ -212,36 +227,39 @@ export function createPlan(
   toolCoverage: number,
   plough = false,
   order: WorkOrder = nearestFirst,
-): YearPlan {
+): FarmSeason {
   return {
-    plannedDay: day,
+    startDay: day,
     ...(plough ? { ard: true as const } : {}),
-    ...createCropWork(selected, day, toolCoverage, plough, order, 'spring'),
+    crops: [newSeasonCrop('spring', selected, day, toolCoverage, plough, order)],
   };
 }
 
 /**
- * Roční plán s ozimem, jaří, luštěninami a lnem (fields.md – Ozim a jař, Luštěniny, Len); bez
- * ozimu bez `winter`, bez luštěnin bez `legume`, bez lnu bez `flax`.
+ * Hospodářský rok s ozimem, jaří, luštěninami a lnem (fields.md – Ozim a jař, Luštěniny, Len);
+ * plodiny v pořadí ozim, luštěniny, len, jař – bez ozimu, luštěnin a lnu bez jejich položky.
  */
-export function createYearPlan(
+export function createSeason(
   crops: { winter: FieldPart[]; spring: FieldPart[]; legume?: FieldPart[]; flax?: FieldPart[] },
   day: number,
   toolCoverage: number,
   plough = false,
   order: WorkOrder = nearestFirst,
-): YearPlan {
-  const plan = createPlan(crops.spring, day, toolCoverage, plough, order);
-  if (crops.winter.length > 0) {
-    plan.winter = createCropWork(crops.winter, day, toolCoverage, plough, order, 'winter');
+): FarmSeason {
+  const season = createPlan(crops.spring, day, toolCoverage, plough, order);
+  const before: SeasonCrop[] = [];
+  const lists: [Crop, FieldPart[] | undefined][] = [
+    ['winter', crops.winter],
+    ['legume', crops.legume],
+    ['flax', crops.flax],
+  ];
+  for (const [crop, parts] of lists) {
+    if (parts && parts.length > 0) {
+      before.push(newSeasonCrop(crop, parts, day, toolCoverage, plough, order));
+    }
   }
-  if (crops.legume && crops.legume.length > 0) {
-    plan.legume = createCropWork(crops.legume, day, toolCoverage, plough, order, 'legume');
-  }
-  if (crops.flax && crops.flax.length > 0) {
-    plan.flax = createCropWork(crops.flax, day, toolCoverage, plough, order, 'flax');
-  }
-  return plan;
+  season.crops.unshift(...before);
+  return season;
 }
 
 /**
@@ -275,17 +293,58 @@ export function addToCropWork(
   }
 }
 
+/** Nutná plodina hospodářského roku; chybí = ves ji letos nemá. */
+export function seasonCrop(
+  season: FarmSeason | null | undefined,
+  crop: Crop,
+): SeasonCrop | undefined {
+  return season?.crops.find((c) => c.crop === crop && !c.surplus);
+}
+
+/** Obilí nad potřebu hospodářského roku (fields.md – Osevní postup po dílech, bod 3); chybí = nic. */
+export function surplusCrop(
+  season: FarmSeason | null | undefined,
+  crop: SurplusCrop,
+): SeasonCrop | undefined {
+  return season?.crops.find((c) => c.crop === crop && c.surplus === true);
+}
+
+/** Jařní plodina hospodářského roku – je v něm vždy. */
+export function springCrop(season: FarmSeason): SeasonCrop {
+  const spring = seasonCrop(season, 'spring');
+  if (!spring) throw new Error('Hospodářský rok bez jaří.');
+  return spring;
+}
+
+const CROP_ORDER: readonly Crop[] = ['winter', 'legume', 'flax', 'spring'];
+
+/** Pořadí plodiny v hospodářském roce – nutné v pořadí `CROP_ORDER`, obilí nad potřebu za nimi. */
+function cropRank(work: SeasonCrop): number {
+  return (work.surplus ? CROP_ORDER.length : 0) + CROP_ORDER.indexOf(work.crop);
+}
+
 /**
- * Práce plánu po plodinách v pořadí ozim, luštěniny, len, jař (ozim, luštěniny a len jen, když je
- * plán má).
+ * Vloží plodinu na její místo v pořadí ozim, luštěniny, len, jař, pak ozim a jař nad potřebu
+ * (nahradí stejnou plodinu – nutnou, nebo nad potřebu).
  */
-export function planCrops(plan: YearPlan): { crop: Crop; work: CropWork }[] {
-  const crops: { crop: Crop; work: CropWork }[] = [];
-  if (plan.winter) crops.push({ crop: 'winter', work: plan.winter });
-  if (plan.legume) crops.push({ crop: 'legume', work: plan.legume });
-  if (plan.flax) crops.push({ crop: 'flax', work: plan.flax });
-  crops.push({ crop: 'spring', work: plan });
-  return crops;
+export function putSeasonCrop(season: FarmSeason, work: SeasonCrop): void {
+  const rank = cropRank(work);
+  season.crops = season.crops.filter((c) => cropRank(c) !== rank);
+  const at = season.crops.findIndex((c) => cropRank(c) > rank);
+  season.crops.splice(at < 0 ? season.crops.length : at, 0, work);
+}
+
+/** Odebere plodinu z hospodářského roku – nutnou, nebo nad potřebu (`surplus`); jař se neodebírá. */
+export function dropSeasonCrop(season: FarmSeason, crop: Crop, surplus = false): void {
+  season.crops = season.crops.filter((c) => c.crop !== crop || (c.surplus === true) !== surplus);
+}
+
+/**
+ * Práce hospodářského roku po plodinách v pořadí ozim, luštěniny, len, jař (jen plodiny, které
+ * ves má; jař je vždy), za nimi obilí nad potřebu (`SeasonCrop.surplus`).
+ */
+export function seasonCrops(season: FarmSeason): { crop: Crop; work: SeasonCrop }[] {
+  return season.crops.map((work) => ({ crop: work.crop, work }));
 }
 
 /**
@@ -293,25 +352,25 @@ export function planCrops(plan: YearPlan): { crop: Crop; work: CropWork }[] {
  * vznikl se spřežením – i když ho po ztrátě spřežení dokončila motyka; plán starší vsi, když
  * v něm spřežení oralo. Ve scéně má pak celé pole kulaté rohy.
  */
-export function ploughsThisYear(state: Pick<VillageState, 'plan' | 'threshingFromPlan'>): boolean {
-  const plan = state.plan ?? state.threshingFromPlan;
+export function ploughsThisYear(state: Pick<VillageState, 'season' | 'threshingSeason'>): boolean {
+  const plan = state.season ?? state.threshingSeason;
   if (!plan) return false;
-  return plan.ard === true || planCrops(plan).some(({ work }) => work.plough !== undefined);
+  return plan.ard === true || seasonCrops(plan).some(({ work }) => work.plough !== undefined);
 }
 
-/** Všechny díly plánu – ozim, luštěniny, len i jař. */
-export function planPartIds(plan: YearPlan): number[] {
-  return [
-    ...(plan.winter?.partIds ?? []),
-    ...(plan.legume?.partIds ?? []),
-    ...(plan.flax?.partIds ?? []),
-    ...plan.partIds,
-  ];
+/** Všechny díly hospodářského roku – ozim, luštěniny, len i jař, nutné i nad potřebu. */
+export function seasonPartIds(season: FarmSeason): number[] {
+  return season.crops.flatMap((work) => work.partIds);
 }
 
 /** Hotový podíl úlohy vůči celé práci plodiny (0–1); úloha bez práce = 1. */
 function planShare(work: CropWork, task: TaskName): number {
   return work.required[task] > 0 ? Math.min(1, work.done[task] / work.required[task]) : 1;
+}
+
+/** Zasetý podíl plánu plodiny (0–1). */
+export function sownShare(work: CropWork): number {
+  return planShare(work, 'sow');
 }
 
 /** Hotový podíl orby (0–1); plodina bez orby 1. */
@@ -371,13 +430,11 @@ export function cropTaskRemaining(work: CropWork, task: CropTask): number {
 }
 
 /**
- * Zbývající potřebná práce úlohy nebo orby – bez přípravy půdy dílů osevu navíc, která čeká na
- * volnou práci po stavbách (`CropWork.extraLeft`, fields.md – Osev navíc).
+ * Zbývající nutná práce úlohy nebo orby (fields.md – Osevní postup po dílech, bod 3): obilí nad
+ * potřebu (`SeasonCrop.surplus`) nutnou práci nemá – všechna jeho práce jde až po stavbách.
  */
-export function neededTaskRemaining(work: CropWork, task: CropTask): number {
-  const remaining = cropTaskRemaining(work, task);
-  if (task !== 'reclaim' && task !== 'dig' && task !== 'plough') return remaining;
-  return Math.max(0, remaining - (work.extraLeft?.[task] ?? 0));
+export function neededTaskRemaining(work: CropWork & { surplus?: true }, task: CropTask): number {
+  return work.surplus ? 0 : cropTaskRemaining(work, task);
 }
 
 /** Odvedená práce úlohy nebo orby (člověkodny). */
@@ -400,7 +457,7 @@ export function cropTaskWindows(crop: Crop, task: CropTask): readonly WindowSegm
 }
 
 /** Hotový podíl úlohy vůči práci, která se letos dělá (0–1); bez takové práce 1. */
-function workedShare(work: CropWork, task: TaskName): number {
+export function workedShare(work: CropWork, task: TaskName): number {
   const workable = workableRequired(work, task);
   return workable > 0 ? Math.min(1, work.done[task] / workable) : 1;
 }
@@ -426,12 +483,18 @@ export function windowEndOf(segments: readonly WindowSegment[], month: number): 
 }
 
 /** Úlohy plodiny s nedodělkem, jejichž okno dnes běží; nejbližší konec okna první. */
-export function activeTasks(work: CropWork, day: number, crop: Crop = 'spring'): TaskName[] {
+export function activeTasks(
+  work: CropWork,
+  day: number,
+  crop: Crop = 'spring',
+  sowExtended = false,
+): TaskName[] {
   const { month } = dateOfDayIndex(day);
   const result: { task: TaskName; end: number }[] = [];
   for (const task of TASK_ORDER) {
     if (taskRemaining(work, task) <= 0) continue;
-    const end = taskWindowEnd(task, month, crop);
+    // dohra setí jařin v dlouhé zimě 1.–14. 5. (`springSowingExtended`)
+    const end = taskWindowEnd(task, month, crop) ?? (sowExtended && task === 'sow' ? month : null);
     if (end !== null) result.push({ task, end });
   }
   // Array.sort je stabilní – při shodě zůstává pořadí z TASK_ORDER.
@@ -439,7 +502,8 @@ export function activeTasks(work: CropWork, day: number, crop: Crop = 'spring'):
 }
 
 /**
- * Čistá úroda v kg (po odečtení osiva) z dílů práce plodiny. Pletí a sklizeň se měří jen
+ * Úroda v kg z dílů práce plodiny – osivo vzaly zásoby při setí, sklizeň ho neodečítá (ani
+ * práce z doby před tím – převod `withSeedForgiven`). Pletí a sklizeň se měří jen
  * vůči zaseté části (Ruling 17) – částečné setí se tak nepromítne do úrody dvakrát. Díl
  * v první sezóně po vymýcení lesa pletí nepotřebuje, nedodělané pletí ostatních ho nesráží.
  */
@@ -448,8 +512,18 @@ export function harvestKg(
   parts: FieldPart[],
   day: number,
   crop: Crop = 'spring',
+  losses?: PartLosses,
 ): number {
-  return cropYieldKg(work, parts, day, planShare(work, 'sow'), workedShare(work, 'harvest'), crop);
+  // osivo vzala ze zásob už setí
+  return cropYieldKg(
+    work,
+    parts,
+    day,
+    planShare(work, 'sow'),
+    workedShare(work, 'harvest'),
+    crop,
+    losses,
+  );
 }
 
 /**
@@ -463,19 +537,82 @@ export function cropGrossPerHa(crop: Crop, fertility: number): number {
   return grain;
 }
 
-/** Osivo plodiny na hektar (kg) – len seje semeno z vlastní úrody, zásoby neubírá (FLAX). */
+/**
+ * Osivo plodiny na hektar (kg) – len seje semeno z vlastní úrody, zásoby neubírá (FLAX). Ozim
+ * a obilí nad potřebu jako jař.
+ */
 export function cropSeedPerHa(crop: Crop): number {
   if (crop === 'legume') return LEGUMES.seedKgPerHa;
   if (crop === 'flax') return 0;
   return SEED_KG_PER_HA;
 }
 
-/** Podíl úrody neopletého dílu plodiny (luštěniny a len plevel snášejí hůř). */
-function unweededYield(crop: Crop): number {
+/**
+ * Ozim se neplete (fields.md – Pletí jednou a rychle; Martin 25. 10. 2026: „Ozim se plít asi
+ * nemusí – v dubnu už je tak velký, že plevel udusí.“): starší hospodářský rok s pletím ozimu ho
+ * ztratí (požadované i hotové pletí 0). Idempotentní – bez pletí ozimu vrací týž rok.
+ */
+export function withoutWinterWeeding(season: FarmSeason): FarmSeason {
+  const winter = seasonCrop(season, 'winter');
+  if (!winter || (winter.required.weed === 0 && winter.done.weed === 0)) return season;
+  return {
+    ...season,
+    crops: season.crops.map((c) =>
+      c === winter
+        ? {
+            ...winter,
+            required: { ...winter.required, weed: 0 },
+            done: { ...winter.done, weed: 0 },
+          }
+        : c,
+    ),
+  };
+}
+
+/**
+ * Pletí jednou a rychle (fields.md): práce jaře, luštěnin a lnu ze starších sazeb (30 / 15 a 40 /
+ * 20 čd/ha v květnu–červnu) by se v jediném květnovém okně nestihla – úroda by klesla. Požadované
+ * i hotové pletí se přepočte na nové sazby (× nová ÷ stará nejhorší mez, hotový podíl zůstane).
+ * Starší práce se pozná podle pletí na setí: víc, než dá nová nejhorší mez (setí 10 čd/ha je
+ * stejné). Idempotentní – rok s novými sazbami vrací týž.
+ */
+export function withOnceWeedingRates(season: FarmSeason): FarmSeason {
+  const rescale = (work: SeasonCrop): SeasonCrop => {
+    const crop = work.crop;
+    if (crop === 'winter') return work;
+    const newWorst = fieldWorkPerHa('weed', 0, crop);
+    const limit = (work.required.sow * newWorst) / fieldWorkPerHa('sow', 0, crop);
+    if (work.required.weed <= limit * (1 + 1e-9)) return work;
+    const k =
+      newWorst /
+      (crop === 'spring' ? LEGACY_WEEDING_WORST_PER_HA.grain : LEGACY_WEEDING_WORST_PER_HA.lowCrop);
+    return {
+      ...work,
+      required: { ...work.required, weed: work.required.weed * k },
+      done: { ...work.done, weed: work.done.weed * k },
+    };
+  };
+  const crops = season.crops.map(rescale);
+  if (crops.every((c, i) => c === season.crops[i])) return season;
+  return { ...season, crops };
+}
+
+/**
+ * Podíl úrody neopletého dílu plodiny (luštěniny a len plevel snášejí hůř). Ozim se neplete
+ * (fields.md – Pletí jednou a rychle) – plná úroda, i když starší plán pletí ozimu měl.
+ */
+export function unweededYield(crop: Crop): number {
+  if (crop === 'winter') return 1;
   if (crop === 'legume') return LEGUMES.unweededYield;
   if (crop === 'flax') return FLAX.unweededYield;
   return UNWEEDED_YIELD;
 }
+
+/**
+ * Ztráty dílů zvěří (wildlife.md – Škody; `FieldDamage.parts`): podíl hrubé úrody po id dílu.
+ * Úroda dílu = bez škody × (1 − share); díl bez záznamu se neztrácí.
+ */
+export type PartLosses = Readonly<Record<string, { share: number }>>;
 
 function cropYieldKg(
   work: CropWork,
@@ -484,6 +621,8 @@ function cropYieldKg(
   sowFrac: number,
   harvestFrac: number,
   crop: Crop = 'spring',
+  losses?: PartLosses,
+  seedFrac = 0,
 ): number {
   const weedFrac = workedShare(work, 'weed');
   // díly plánu podle id najednou – hledat každý v celém poli by bylo kvadratické
@@ -502,18 +641,36 @@ function cropYieldKg(
       sowFrac *
       (unweeded + (1 - unweeded) * weeded) *
       harvestFrac;
-    total += Math.max(0, ha * gross - ha * cropSeedPerHa(crop) * sowFrac);
+    const kept = 1 - (losses?.[id]?.share ?? 0);
+    total += Math.max(0, ha * gross * kept - ha * cropSeedPerHa(crop) * seedFrac);
   }
   return total;
 }
 
 /**
- * Odhad čisté úrody ozimu pro příděl: sklizeň celá, pletí jen kolik je hotové (před pletím
+ * Odhad, o kolik ozim zvětší zásoby (příděl): bez osiva, které zásoby ještě vezmou; sklizeň celá, pletí jen kolik je hotové (před pletím
  * neopletá úroda – opatrně) a setí do konce okna setí celé, potom jen zasetá část.
  */
-export function expectedWinterKg(work: CropWork, parts: FieldPart[], day: number): number {
+export function expectedWinterKg(
+  work: CropWork,
+  parts: FieldPart[],
+  day: number,
+  losses?: PartLosses,
+): number {
   const sowing = taskWindowEnd('sow', dateOfDayIndex(day).month, 'winter') !== null;
-  return cropYieldKg(work, parts, day, sowing ? 1 : planShare(work, 'sow'), 1);
+  const sown = planShare(work, 'sow');
+  // osivo zaseté části vzaly zásoby už při setí (u práce z doby před tím je odpuštěné –
+  // `withSeedForgiven`), nezaseté teprve vezmou
+  return cropYieldKg(
+    work,
+    parts,
+    day,
+    sowing ? 1 : sown,
+    1,
+    'spring',
+    losses,
+    sowing ? 1 - sown : 0,
+  );
 }
 
 /**
@@ -523,20 +680,73 @@ export function expectedWinterKg(work: CropWork, parts: FieldPart[], day: number
  * pokrýt – simulace dává potřebu z pole (potřeba × `fieldFoodShare`), na kterou ves osévala.
  */
 export function daysUntilFoodHarvest(
-  plan: YearPlan | null,
+  plan: FarmSeason | null,
   parts: FieldPart[],
   day: number,
   needPerDayKg: number,
+  losses?: PartLosses,
 ): number {
   const late = daysUntilHarvest(day);
-  const winter = plan?.winter;
+  const winter = plan ? seasonCrop(plan, 'winter') : undefined;
   if (!winter || winter.harvestedKg !== null || winter.partIds.length === 0) return late;
   const early = daysUntilWinterHarvest(day);
   if (early >= late) return late;
-  return expectedWinterKg(winter, parts, day) >= needPerDayKg * (late - early) ? early : late;
+  return expectedWinterKg(winter, parts, day, losses) >= needPerDayKg * (late - early)
+    ? early
+    : late;
 }
 
-/** Ztráta nevymlácené části úrody (výmlat se měří vůči sklizené části). */
-export function threshLossKg(work: CropWork, harvestedKg: number): number {
-  return harvestedKg * (1 - workedShare(work, 'thresh'));
+/** Roční plán uložený před hospodářským rokem (jař na nejvyšší úrovni, ozim, luštěniny, len zvlášť). */
+type LegacyPlan = CropWork & {
+  plannedDay: number;
+  ard?: true;
+  winter?: CropWork;
+  legume?: CropWork;
+  flax?: CropWork;
+  flaxNeedKg?: number;
+  /**
+   * Osev navíc ročního plánu (díly s `sownYears`) – zůstane v hospodářském roce jako starý klíč,
+   * převede ho hned potom `withSowingRotation` (fields.md – Osevní postup po dílech, bod 7); stejně
+   * čekající přípravu dílů osevu navíc v plodinách.
+   */
+  extra?: unknown;
+  lordHelp?: FarmSeason['lordHelp'];
+};
+
+function seasonOfPlan(plan: LegacyPlan): FarmSeason {
+  const { plannedDay, ard, winter, legume, flax, flaxNeedKg, extra, lordHelp, ...spring } = plan;
+  const season: FarmSeason & { extra?: unknown } = {
+    startDay: plannedDay,
+    ...(ard ? { ard } : {}),
+    crops: [],
+    ...(flaxNeedKg !== undefined ? { flaxNeedKg } : {}),
+    ...(extra ? { extra } : {}),
+    ...(lordHelp ? { lordHelp } : {}),
+  };
+  if (winter) season.crops.push({ crop: 'winter', ...winter });
+  if (legume) season.crops.push({ crop: 'legume', ...legume });
+  if (flax) season.crops.push({ crop: 'flax', ...flax });
+  season.crops.push({ crop: 'spring', ...spring });
+  return season;
+}
+
+/**
+ * Ves uložená s ročním plánem (`plan`, `threshingFromPlan`) dostane hospodářský rok (`season`,
+ * `threshingSeason`) – jen přejmenování tvaru, práce zůstává. Jednou, idempotentně: stav bez
+ * starých klíčů se nemění.
+ */
+export function withSeason(state: VillageState): VillageState {
+  const old = state as VillageState & {
+    plan?: LegacyPlan | null;
+    threshingFromPlan?: LegacyPlan | null;
+  };
+  if (old.plan === undefined && old.threshingFromPlan === undefined) return state;
+  const { plan, threshingFromPlan, ...rest } = old;
+  return {
+    ...rest,
+    season: plan ? seasonOfPlan(plan) : (rest.season ?? null),
+    threshingSeason: threshingFromPlan
+      ? seasonOfPlan(threshingFromPlan)
+      : (rest.threshingSeason ?? null),
+  };
 }

@@ -41,8 +41,9 @@ nějaké meze. Bez řemeslníků ber tu nejhorší hranici, s řemeslníky tu ne
   plně pokrytá potřeba výrobků řemeslníků). Řemeslníci **zvyšují produktivitu, tedy snižují
   pracnost** od nejhorší meze k nejlepší **lineárně podle pokrytí** 0–1. Kde literatura dává
   jedno číslo, platí obojí (seznam mezí: [pole a jídlo](fields.md) – Meze produktivity).
-- **Pokrytí nástroji** = zásoba nástrojů ÷ potřeba vsi (nejvýš 1), **pokrytí nádobami** totéž
-  pro keramiku (potřeby viz Účinek).
+- **Pokrytí nástroji** = nástroje ve vybavení domácností ÷ potřeba vsi (nejvýš 1 – od 20. 10.
+  2026 nástroje nejsou zásoba, ale vybavení, [výrobní řetězy](production-chains.md) – Kovář),
+  **pokrytí nádobami** = zásoba keramiky ÷ potřeba (potřeby viz Účinek).
 - Bez řemesel (dnes) platí všude nejhorší mez.
 
 ## Budovy
@@ -77,10 +78,26 @@ Vzhled podle Martina (modely se připravují v `tools/blender/`):
 
 ## Práce a jídlo
 
-- **Řemeslník pracuje v dílně na plný úvazek, dokud je co dělat** (Martin): dospělí domácnosti
-  dílny dávají řemeslu všechnu svou práci po denním minimu (domácí výroba jde bokem – population.md,
-  Práce). Jedí ze společných
-  zásob jako všichni.
+- **Řemeslník pracuje v dílně na plný úvazek, dokud je co dělat** (Martin): dospělí **muži**
+  domácnosti dílny dávají řemeslu všechnu svou práci po denním minimu (domácí výroba jde bokem –
+  population.md, Práce). Jedí ze společných zásob jako všichni.
+- **Kdo dělá řemeslo** (Martin 22. 10. 2026: „Ženy řemeslníků pracují v domácnosti, tj. starají se
+  o ni. Nedělají řemeslo. To dělají jen synové. Nelze mít u kovářovy ženy, že kuje, nebo u uhlířovy
+  ženy, že kácí buky.“ A upřesnění: „Řemeslo dělá jen řemeslník a jeho synové. Ženy řemeslníků se
+  starají o domácnost a k tomu dělají lehčí polní práce se vsí – setí, žně, mlácení zrna,
+  v případě potřeby i okopávání motykou. Nekovou, nekácí, neorou, nestaví.“): řemeslo (kování,
+  tavba, měch, milíř, kácení pro uhlí, hrnčířství, tesařina) dělá jen řemeslník a jeho synové
+  (`craftHands`); měch šlape syn nebo muž z domácnosti, jinak kovář sám pomaleji. Ženy kryjí
+  denní minimum domácnosti a **zbytek své práce dávají vsi** (`WorkshopLabor.light`, do kapacity
+  vsi v kroku práce) – návrh Clauda: samostatný zásobník lehké práce, který pokryje jen setí,
+  okopávání, žně a výmlat (orbu, kácení ani stavby nikdy), ve scéně ho zastanou ženy u těchto prací; praxi v řemesle ženy nezískávají a výkon dílny podle ní neurčují. Domácnost
+  bez muže schopného práce (vdova s dětmi) drží dílnu celá, ať nestojí.
+- **Řemeslníci na žních** (Martin 24. 10. 2026: „Dílny i vojvodova rodina“): ve **žňový den**
+  ([pole](fields.md) – Žně všemi rukama: okna žní a výmlatu červenec–září, dokud je co sklízet
+  nebo mlátit) jde řemeslník se syny na žeň a výmlat – jejich práce po denním minimu domácnosti
+  (`WorkshopLabor.harvest`) pokryje jen žeň a výmlat, před prací vsi; řemeslo ten den stojí
+  (pálící milíř dohoří sám). Co žně nespotřebují, propadne (návrh Clauda). Ženy řemeslníků dál
+  domácnost a lehčí práce jako jindy. Mimo žňové dny řemeslo.
 - **Volný čas pracují pro ves** (Martin 18. 10. 2026: „Ano, pokud uhlíř a kovář budou mít volný
   čas, ať pracují na poli jako zbytek vesnice.“): když řemeslník nemá v dílně co dělat, jeho
   domácnost ten den pracuje jako ostatní domácnosti – pole, stavby, společná práce vsi (část
@@ -106,8 +123,10 @@ Vzhled podle Martina (modely se připravují v `tools/blender/`):
 - **Kovář:** sbírá bahenní rudu v mokřadech u potoka, taví ji v jednoduché peci a kuje
   (Martin: železo si taví sám, žádný horník ani obchod; koupené železo od sousedů – trade.md –
   bylo krátce ve hře a 19. 10. 2026 ho Martin zrušil: „Nech jen společné suroviny, nezaváděj
-  nové.“ – se sousedem jde vyměnit hotové nástroje, ne železo). **1 kg nástrojů = 10 člověkodní
-  a 50 kg uhlí** (oprava podle rešerše, dřív 4 člověkodny a 30 kg: Crew 1991 – ≈ 25 člověkodní
+  nové.“ – se sousedem jde vyměnit hotové nástroje, ne železo; od 20. 10. 2026 vlastní hřivny –
+  [výrobní řetězy](production-chains.md) – Kovář). **1 kg nástrojů = 10 člověkodní
+  a 50 kg uhlí** celým řetězem – tavba v redukční peci, překování houby na hřivny a kování
+  nástrojů (rozdělení v [Kovář – houba, hřivny a vybavení](#kovář--houba-hřivny-a-vybavení)) (oprava podle rešerše, dřív 4 člověkodny a 30 kg: Crew 1991 – ≈ 25 člověkodní
   a ≈ 100 kg uhlí na 1 kg tyčového železa v malé pravěké peci, Salter ≈ 60 kg uhlí; raně
   středověké pece byly výkonnější). Rudu kope na rudišti v mokřině u potoka – **8 kg rudy na kg
   nástrojů**, uhlí a rudu nosí jeho synové ([Uhlí a ruda kováře](#uhlí-a-ruda-kováře), od 20. 10. 2026; dřívější přirážka +1 % za 10 m nad 100 m od dílny k potoku u kováře zmizela –
@@ -249,7 +268,7 @@ návrh Clauda (čísla `KILN_SITE` v `rules.ts`).
 - **Milíř je samostatná stavba** na místě dávky: uhlíř vybere dávku 15 buků (první buk nejblíž své
   zemnici, dávka = buky nejblíž k němu) a milíř postaví na **rovném volném místě uprostřed nich** –
   od středu dávky po kružnicích po 2 m do 40 m. Místo není na poli, v sadu, na hřbitově, v ohradě,
-  na pozemku, na modle ani svatyni, před brankou ani na půdě jiné vsi, aspoň 20 m od domů,
+  na pozemku, na modle ani svatyni, před brankou, aspoň 20 m od domů,
   12 m od jiného milíře, kruh milíře (+ 1 m) ne na pevné cestě (2 m od osy), ne na skalním
   výchozu, pod posvátným dubem ani na háji, ne ve vodě a ne na svahu (rozdíl výšek pod milířem
   jako u obydlí). Když volné místo není, stojí milíř uprostřed dávky (rozhodnutí Clauda).
@@ -607,6 +626,60 @@ zásobu (≈ 270 kg) za ≈ 9 měsíců, pak hrnčíř odpočíval a pomáhal vs
 | Hlína jen dvoukolákem, v pořadí jízd po rudě                                                   | rozhodnutí Clauda                                 |
 | Hliniště jde vybrat jako rudiště – stejný panel s hlínou a dílnou hrnčíře                      | návrh Clauda                                      |
 
+## Kovář – houba, hřivny a vybavení
+
+Martin (20. 10. 2026): „Kovař si donese/doveze dřevěné uhlí a železnou rudu. Pak vytaví železnou
+houbu v redukční peci za pomocí ručního měchadla, houbu překove v železnou hřivnu/hřivny, ze
+kterých může vyrábět nástroje nebo mohou jít na obchod.“ – „V liště jenom hřivny“. Celý návrh je
+ve [výrobních řetězech](production-chains.md) – Kovář; tady jak to ve vsi běží (čísla `IRON`
+v `rules.ts`, rešerše [2026-10-20-production-chains.md](research/2026-10-20-production-chains.md)
+– Kovář).
+
+- **Řetěz kovárny** (dnešní cena 10 čd a 50 kg uhlí na kg nástrojů rozdělená – návrh Clauda):
+  - **tavba** v redukční peci – 60 % práce a 80 % uhlí: na kg železné houby **3 čd, 20 kg uhlí
+    a 4 kg rudy** (výtěžek 25 % rudy),
+  - **překování houby na hřivny** – 25 % práce a 15 % uhlí: na kg hřiven **2,08 čd, 6,25 kg uhlí
+    a 1,67 kg houby** (0,6 kg hřiven z kg houby),
+  - **kování nástrojů z hřiven** – 15 % práce a 5 % uhlí: na kg nástrojů **1,5 čd, 2,5 kg uhlí
+    a 1,2 kg hřiven**.
+    Celkem jako dřív **8 kg rudy, 10 čd a 50 kg uhlí na kg nástrojů**.
+- **Pořadí dne:** kovář napřed kove nástroje z hřiven do vybavení domácností (do potřeby), pak
+  překove houbu na hřivny, pak ruda (kopání a nošení – novou dávku jen, když bude tavit) a zbytek
+  práce taví. Houba z tavby se překove až další den („tavba trvá den“).
+- **Měch:** u tavby šlape měch druhý člověk – **dospělý z domácnosti kováře** (napřed nejmladší;
+  jeho práce je v práci dílny), jinak **syn 10–13 let**, který ten den nenosí uhlí – **ten den
+  nepase** a v rozdělení práce stojí u kovárny. **Kovář sám taví polovičním tempem** (návrh
+  Clauda) – nezastaví se, proto žádné „čeká na měchaře“.
+- **Kolik:** vybavení domácností do **potřeby vsi** (3 kg na pracujícího), **hřivny na rok obnovy
+  vybavení** (potřeba × 30 % × 1,2 kg) a k nim zakázky kování k vozům (Kování vozů ve
+  [vozech](wagons.md)); houba jen na hřivny, které chybí – **přebytky netaví**. Kovárna jde do
+  dílny, až chybějící nástroje, hřivny a houba dají **práci aspoň na celý den** dílny – jinak
+  domácnost pracuje se vsí (návrh Clauda – vybavení klesne nejvýš o den práce, práce dílny
+  nepropadá).
+- **Nástroje jsou vybavení domácností** (`toolEquipmentKg`): opotřebí se v užívání 30 % ročně
+  jako dřív, pokrytí nástroji = vybavení ÷ potřeba; hřivny pokrytí nedávají. Nákup nástrojů
+  u sousedů je přidá do vybavení. Kování vozu bere hřivny – 1,2 kg na kg kování.
+- **Stojí bez uhlí nebo rudy:** „Čeká na uhlí“ (`no-charcoal`), a když musí tavit a nemá rudu ani
+  kde ji kopat, „Nemá rudu“ (`no-ore`) – s upozorněním jako dřív. S hřivnami nebo houbou kove
+  a překovává i bez rudy.
+- **Činnost dne** v panelu: krok, na který šlo nejvíc práce – taví (`smelting`), překovává
+  (`refining`), kove nástroje (`producing`), kope rudu (`digging`).
+- **Rovnováha s uhlířem:** odhad spotřeby kovářů zůstal (5 kg uhlí na čd – průměr řetězu), měří
+  se skutečná poptávka (tavba spálí 6,7 kg na čd, kování 1,7 kg).
+- **Starší vsi** (návrh Clauda): zásoba nástrojů se při načtení rozdělí do vybavení do potřeby
+  vsi, přebytek nad ni na hřivny (kg ÷ 1,2); kovárny pracují dál. Ves bez kováře se nemění (zlaté
+  otisky `smith-golden`, `craft-skill-golden` vyšly bit po bitu).
+- **Co hráč vidí:** v liště hřivny (ikona sekerovitých hřiven), v panelu kovárny hřivny
+  v zásobě, železná houba, hřivny, které kovář drží (rok obnovy a zakázky), nástroje ve vybavení
+  domácností s pokrytím potřeby a kdo šlape měch (syn a věk, člen domácnosti, nebo „kovář taví
+  sám – polovičním tempem“).
+- **Ve scéně** (návrh Clauda): před kovárnou stojí redukční pec – nízká hliněná šachta s ručním
+  měchem u paty. Při tavbě z ní šlehá žár a jiskry a stoupá dým, kovář sype rudu a uhlí z koše do
+  hrdla a měchař klečí u měchu (sám kovář jen u pece); při překování a kování kove u kovadliny
+  a kouří výheň. Vedle pece leží hroudy houby, pod přístřeškem hromádka hřiven – obojí po pár
+  stupních podle zásoby. U hrnčíře je před dílnou mělká jáma s hlínou (hladina podle zásoby)
+  a kdo vyrábí, hlínu v ní šlape.
+
 ## Učení řemesla
 
 Martin (20. 10. 2026): „Každý řemeslník vychovává svého nástupce - syna. Pokud je řemeslník úplně
@@ -615,13 +688,13 @@ nový, trvá mu, než se řemeslo naučí“
 Platí pro všechna řemesla – hrnčíře, kováře, uhlíře i tesaře. Podrobnosti jsou návrh Clauda
 (čísla `CRAFT_SKILL` v `rules.ts`).
 
-- **Praxe** je u člověka v letech (`Person.practice` – po řemeslech, nejvýš 5 let). Dospělý
+- **Praxe** je u člověka v letech (`Person.practice` – po řemeslech, nejvýš 5 let). Dospělý muž
   z domácnosti dílny (14–44 let), který v dílně pracuje, ji získává **za dny, kdy dílna pracuje** –
   ne ve dnech, kdy řemeslník odpočívá a pracuje se vsí (plná zásoba, chybí vstup).
 - **Syn řemeslníka** (otec nebo matka v domácnosti dílny – jako synové kováře) se učí **od 10 let**,
   dokud v domácnosti žije: ve dny, kdy dílna pracuje, a u kováře i ve dny, kdy nosí uhlí od milíře,
-  i když kovář sám ten den pracuje se vsí. Dcery se řemeslu neučí (ženy z domácnosti dílny praxi
-  získávají jako dospělé, když v dílně pracují).
+  i když kovář sám ten den pracuje se vsí. Dcery se řemeslu neučí a ženy z domácnosti dílny praxi nezískávají (od 22. 10. 2026 řemeslo
+  dělají jen muži – Kdo dělá řemeslo).
 - **Výkon dílny** jde podle **nejzkušenějšího dospělého** z domácnosti, který je doma: **50 %** bez
   praxe, lineárně do **100 % po 5 letech** praxe. Násobí jen práci řemesla, vedle meze nástrojů:
   - kovář – kování (práce na kg nástrojů ÷ výkon), nošení uhlí a kopání rudy ne,
@@ -678,7 +751,9 @@ zbytek vesnice. Až budeme mít víc vesnic, tak může vyrábět i pro ně – 
 vesnici. A časem, až bude finanční systém, bude přebytky prodávat.“
 
 - **Kovář a hrnčíř vyrábějí do zásoby na rok** (návrh Clauda): zásoba = potřeba vsi a k ní
-  opotřebení za rok – nástroje **potřeba × 1,3**, keramika **potřeba × 1,4**. S takovou zásobou
+  opotřebení za rok – nástroje **potřeba × 1,3** (od 20. 10. 2026 jen pro nákup u sousedů – kovář
+  drží vybavení na potřebě a rok obnovy v hřivnách, [Kovář – houba, hřivny a
+  vybavení](#kovář--houba-hřivny-a-vybavení)), keramika **potřeba × 1,4**. S takovou zásobou
   má ves potřebu pokrytou i po roce opotřebení. Když zásoba dosáhne hranice, řemeslník přestane
   a jeho domácnost pracuje pro ves; jakmile se zásoba opotřebením nebo růstem vsi sníží, vyrábí
   dál. Rozhoduje se na začátku dne ze včerejších zásob.
@@ -799,7 +874,8 @@ návrh Clauda; čísla v `rules.ts` (`CRAFT_BUYING`), rešerše
   s platbou tam a s výrobky zpátky, po hotové stezce, jinak rovně krajinou od dvorce ke kraji mapy;
   jde-li vícekrát, karavana jde každou cestu zvlášť.
 - **Námět (zatím ne):** nákup u hráčovy vlastní vsi v sousední mapě, když tam řemeslník je –
-  simulace jedné vsi o jiných mapách neví (jen o vsích na téže mapě – `neighbourSnapshot`); šlo
+  simulace jedné vsi o jiných mapách neví (vsi na téže mapě od 1. 11. 2026 nejsou – jedna ves,
+  jedna mapa); šlo
   by přidat podobný snímek sousedních map v `updateVillage`. Do té doby simulace počítá i ve směru
   vlastní vsi se sousedem bez simulace.
 
@@ -813,7 +889,10 @@ zatím neřešit – letopočet začátku hry se může posunout.
 
 - V panelu staveb ikony hrnčíře, kováře a uhlíře (tooltip: název a cena); tlačítko je zašedlé
   jen podle surovin (dřevo – [les](forest.md)).
-- V horní liště zásoby **uhlí, nástrojů a keramiky** (ikona + číslo).
+- V horní liště zásoba **hřiven** (ikona + číslo; nástroje jsou vybavení domácností – ukáže je
+  panel kovárny; Martin 20. 10. 2026: „V liště jenom hřivny“). Martin 24. 10. 2026: „Z lišty
+  odeber uhlí – zobrazuj u uhlíře, keramiku a dřevěné nástroje nemusíš zobrazovat nikde, to si
+  řeší každá domácnost sama.“ Uhlí je v panelu uhlíře, keramika a nářadí nikde.
 - U vybrané dílny: domácnost, co právě dělá (vyrábí / čeká na uhlí), zásoba výrobku; uhlíř:
   kácí a připravuje buky (kolik z dávky), staví milíř, pálí (průběh), rozebírá milíř a třídí
   uhlí pro kováře (kolik uhlí v milířích zbývá), sází mladé buky, má vypálený milíř a pomáhá vsi;
@@ -861,8 +940,8 @@ Rozhodnutí kontroléru při implementaci (18. 10. 2026) – kde návrh necháva
   dnešního pokrytí nastal.
 - **Přestavba dílny** zachová řemeslo i typ obydlí (uhlíř se nepřestaví na polozemnici) a stojí
   jako nová dílna (+ 30 %, uhlíř jako zemnice).
-- **Rozhraní:** v nabídce staveb hrnčíř [F], kovář [G], uhlíř [H]; v horní liště uhlí, nástroje
-  a keramika v kg (jen ves s dílnou nebo zásobou), v popisku pokrytí potřeby. Panel výběru dílny:
+- **Rozhraní:** v nabídce staveb hrnčíř [F], kovář [G], uhlíř [H]; v horní liště jen hřivny v kg
+  (jen ves s dílnou nebo zásobou). Panel výběru dílny:
   co dělá (vyrábí, kácí, čeká na uhlí, čeká na dřevo, nemá kdo, prázdná), práce za den, zásoba
   výrobku a pokrytí. Upozornění „Kovář nemá uhlí“ a „Dílna nemá co kácet“. Ve scéně model dílny
   po fázích stavby, dým z pece, výhně a milíře, když dílna vyrábí, uhlíř kácí u svého stromu.
@@ -907,3 +986,8 @@ Rozhodnutí kontroléru při implementaci (18. 10. 2026) – kde návrh necháva
 | ~~Uhlí z milíře ke kováři vozem – odnos (pětina vytahání) nahradí jízdy, posádka z domácnosti uhlíře~~   | návrh Clauda (19. 10. 2026)                  |
 | Uhlí a ruda kováře – synové, rudiště, vůz se sedlákem (podrobně v části Uhlí a ruda kováře)              | Martin (20. 10. 2026)                        |
 | Milíř u skácených buků a rovnováha uhlíř – kovář (podrobně v částech Milíř u skácených buků, Rovnováha)  | Martin (20. 10. 2026)                        |
+| Kovář taví houbu, překove na hřivny, kove nástroje do vybavení; v liště hřivny                           | Martin (20. 10. 2026)                        |
+| Rozdělení ceny kování na tavbu, překování a kování, výtěžky 25 % a 60 %, 1,2 kg hřiven na kg nástrojů    | návrh Clauda (20. 10. 2026)                  |
+| Měchař – dospělý z domácnosti nebo syn 10–13 (nepase), sám kovář polovičním tempem                       | návrh Clauda (20. 10. 2026)                  |
+| Vybavení do potřeby, hřivny na rok obnovy, kovárna jde do dílny až s prací na celý den                   | návrh Clauda (20. 10. 2026)                  |
+| Starší vsi: zásoba nástrojů do vybavení do potřeby, přebytek na hřivny (÷ 1,2)                           | návrh Clauda (20. 10. 2026)                  |

@@ -396,6 +396,59 @@ describe('výběr milíře a milířiště (crafts.md – Milíř u skácených 
   });
 });
 
+describe('výběr otevřené obilné jámy (production-chains.md – Obilné jámy)', () => {
+  const withPit: SceneVillage = {
+    ...village,
+    grainPits: [{ id: 820, x: 60, z: 40, fill: 0.6 }],
+  };
+  const pick = (x: number, z: number): VillageTarget | null =>
+    pickVillageTarget(withPit, rayTo(x, z), { ground: { x, z }, groundHeight: flat, cellOf });
+
+  it('klik na hrdlo nebo hroudy vedle vybere jámu podle id; zapečetěná ve scéně není', () => {
+    expect(pick(60, 40)).toEqual({ kind: 'grain-pit', id: 820 });
+    expect(pick(61.4, 40)).toEqual({ kind: 'grain-pit', id: 820 });
+    expect(pick(63, 40)).toBeNull();
+    expect(targetExists(withPit, { kind: 'grain-pit', id: 820 })).toBe(true);
+    expect(targetExists(village, { kind: 'grain-pit', id: 820 })).toBe(false);
+  });
+
+  it('obrys – uzavřený kruh kolem hrdla', () => {
+    const [ring, ...rest] = targetOutline(withPit, { kind: 'grain-pit', id: 820 });
+    expect(rest).toEqual([]);
+    expect(ring![0]).toEqual(ring![ring!.length - 1]);
+    for (const [x, z] of ring!) expect(Math.hypot(x - 60, z - 40)).toBeCloseTo(1.9, 6);
+    expect(targetOutline(village, { kind: 'grain-pit', id: 820 })).toEqual([]);
+  });
+});
+
+describe('výběr humna (production-chains.md – Humno)', () => {
+  // humno 8 × 10 m ve středu (80, 30), nenatočené
+  const withFloor: SceneVillage = {
+    ...village,
+    threshingFloors: [
+      { id: 2609, position: { x: 80, z: 30, rotation: 0 }, built: true, progress: 1 },
+    ],
+  };
+  const pick = (x: number, z: number): VillageTarget | null =>
+    pickVillageTarget(withFloor, rayTo(x, z), { ground: { x, z }, groundHeight: flat, cellOf });
+
+  it('klik na plochu humna ho vybere podle id, mimo plochu ne', () => {
+    expect(pick(80, 30)).toEqual({ kind: 'threshing-floor', id: 2609 });
+    expect(pick(83.5, 34)).toEqual({ kind: 'threshing-floor', id: 2609 });
+    expect(pick(86, 30)).toBeNull();
+    expect(targetExists(withFloor, { kind: 'threshing-floor', id: 2609 })).toBe(true);
+    expect(targetExists(village, { kind: 'threshing-floor', id: 2609 })).toBe(false);
+  });
+
+  it('obrys – uzavřený obdélník půdorysu', () => {
+    const [ring, ...rest] = targetOutline(withFloor, { kind: 'threshing-floor', id: 2609 });
+    expect(rest).toEqual([]);
+    expect(ring).toHaveLength(5);
+    expect(ring![0]).toEqual(ring![4]);
+    expect(targetOutline(village, { kind: 'threshing-floor', id: 2609 })).toEqual([]);
+  });
+});
+
 describe('výběr hliniště (crafts.md – Hlína hrnčíře)', () => {
   // rudiště kovárny 12 a hliniště dílny hrnčíře 14 kus od sebe
   const withClay: SceneVillage = {

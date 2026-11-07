@@ -3,7 +3,7 @@ import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
 import type { PartInput } from '../actions';
 import { DIET, PROTEIN, eatDiet, meatHappiness, proteinNeedPerDay } from '../diet';
-import { endOfSeason, expectedNetKg } from '../fields';
+import { endOfSeason } from '../fields';
 import {
   daysUntilLegumeHarvest,
   expectedLegumeKg,
@@ -15,9 +15,11 @@ import { ageGroup } from '../people';
 import { NO_CRAFTS } from '../productivity';
 import { FERTILITY, FOOD_NEED_KG_PER_YEAR, LEGUMES } from '../rules';
 import { advanceVillage } from '../simulate';
-import { chooseCrops, orchardOnlyLoad, type CropChoiceInput } from '../sowing';
+import { villageSheaves } from '../threshing';
+import { withThreshingFloor } from './village-fixtures';
+
 import type { ChronicleEvent, FieldPart, VillageState } from '../types';
-import { cropGrossPerHa, harvestKg, partWork, planCrops } from '../year-plan';
+import { cropGrossPerHa, harvestKg, partWork, seasonCrops, seasonCrop } from '../year-plan';
 
 // Luštěniny (diet.md a fields.md – Luštěniny; Martin 18. 10. 2026): plodina na poli podle
 // bílkovin, které chybí po obilí, mléku a vejcích; obilí má přednost; zásoba se jí celý rok;
@@ -42,21 +44,6 @@ function part(id: number, over: Partial<FieldPart> = {}): FieldPart {
     foundingCost: 0,
     foundingDone: 0,
     surface: 'meadow',
-    ...over,
-  };
-}
-const parts = (count: number): FieldPart[] => Array.from({ length: count }, (_, i) => part(i + 1));
-
-const BIG = 1e6;
-function input(over: Partial<CropChoiceInput>): CropChoiceInput {
-  return {
-    targetKg: BIG,
-    startKg: 0,
-    capacity: { autumnWinter: BIG, autumn: BIG, spring: BIG, july: BIG, august: BIG },
-    load: orchardOnlyLoad(0),
-    allowWinter: true,
-    day: DAY,
-    toolCoverage: NO_CRAFTS.tools,
     ...over,
   };
 }
@@ -135,48 +122,9 @@ describe('výnos a práce luštěnin', () => {
     const legume = partWork(p, DAY, NO_CRAFTS.tools, false, 'legume');
     expect(legume.dig).toBeCloseTo(grain.dig, 9);
     expect(legume.sow).toBeCloseTo(grain.sow, 9);
-    expect(legume.weed).toBeCloseTo(40 * 0.0225, 9);
+    expect(legume.weed).toBeCloseTo(10 * 0.0225, 9);
     expect(legume.harvest).toBeCloseTo(55 * 0.0225, 9);
     expect(legume.thresh).toBeCloseTo(10 * 0.0225, 9);
-  });
-});
-
-describe('plán osevu s luštěninami (chooseCrops)', () => {
-  it('luštěniny dostanou díly od domu, obilí doplní energii – cíl obilí zůstane pokrytý', () => {
-    const candidates = parts(200);
-    const grainOnly = chooseCrops(candidates, input({ targetKg: 600 }));
-    const target = 60;
-    const both = chooseCrops(candidates, input({ targetKg: 600, legumeTargetKg: target }));
-    expect(grainOnly.legume).toEqual([]);
-    // luštěniny na prvních dílech v pořadí (od domu)
-    expect(both.legume.map((p) => p.id)).toEqual(
-      candidates.slice(0, both.legume.length).map((p) => p.id),
-    );
-    const legumeKg = both.legume.reduce((sum, p) => sum + expectedLegumeKg(p, DAY), 0);
-    expect(legumeKg).toBeGreaterThanOrEqual(target - 1e-9);
-    const grainKg = [...both.winter, ...both.spring].reduce(
-      (sum, p) => sum + expectedNetKg(p, DAY),
-      0,
-    );
-    expect(grainKg + legumeEnergy(legumeKg)).toBeGreaterThanOrEqual(600 - 1e-9);
-    // každý díl jen jednou
-    const ids = [...both.winter, ...both.spring, ...both.legume].map((p) => p.id);
-    expect(new Set(ids).size).toBe(ids.length);
-  });
-
-  it('obilí má přednost – když půda na doplnění obilí nestačí, luštěnin je méně (nebo žádné)', () => {
-    const candidates = parts(40);
-    const all = candidates.reduce((sum, p) => sum + expectedNetKg(p, DAY), 0);
-    const tight = chooseCrops(candidates, input({ targetKg: all, legumeTargetKg: 100 }));
-    expect(tight.legume).toEqual([]);
-    expect(tight.winter.length + tight.spring.length).toBe(40);
-  });
-
-  it('bez cíle luštěnin stejný výběr jako dřív', () => {
-    const candidates = parts(120);
-    const a = chooseCrops(candidates, input({ targetKg: 500 }));
-    const b = chooseCrops(candidates, input({ targetKg: 500, legumeTargetKg: 0 }));
-    expect(b).toEqual(a);
   });
 });
 
@@ -225,28 +173,32 @@ const bigField = (count = 180): PartInput[] =>
     obstacleCost: 0,
   }));
 
+// ves s humnem – mlátí hned po žni (production-chains.md – Humno)
 const found = (day: number): VillageState =>
-  foundVillage({
-    seed: 7,
-    day,
-    dwellingPosition: { x: 0, z: 0, rotation: 0 },
-    firstField: {
-      outline: [
-        [0, 0],
-        [10, 0],
-        [10, 10],
-      ],
-      parts: bigField(),
-    },
-  });
+  withThreshingFloor(
+    foundVillage({
+      seed: 7,
+      day,
+      dwellingPosition: { x: 0, z: 0, rotation: 0 },
+      firstField: {
+        outline: [
+          [0, 0],
+          [10, 0],
+          [10, 10],
+        ],
+        parts: bigField(),
+      },
+    }),
+  );
 
 type HarvestEvent = Extract<ChronicleEvent, { kind: 'harvest' }>;
 
 describe('luštěniny v simulaci', () => {
-  it('ves je k 1. 9. zaseje, 31. 7. sklidí do zásoby luštěnin a jí je celý rok', () => {
-    // první rok jde všechna založená půda na obilí (obilí má přednost), luštěniny od druhého
-    const planned = advanceVillage(found(at(600, 3, 1)), at(601, 9, 2), null);
-    const legume = planned.plan?.legume;
+  it('ves je k 1. 9. zaseje, 31. 7. sklidí do snopů, po žni vymlátí do zásoby a jí je celý rok', () => {
+    // první rok jde všechna založená půda na obilí (obilí má přednost), luštěniny od druhého – po
+    // obilí do roční potřeby, jak se čelo práce posouvá (fields.md – Postup práce po dílech)
+    const planned = advanceVillage(found(at(600, 3, 1)), at(601, 11, 30), null);
+    const legume = seasonCrop(planned.season, 'legume');
     expect(legume).toBeDefined();
     expect(legume!.partIds.length).toBeGreaterThan(0);
     const byId = new Map(planned.parts.map((p) => [p.id, p]));
@@ -257,17 +209,22 @@ describe('luštěniny v simulaci', () => {
     );
     expect(events.filter((e) => e.day > planned.lastDay)).toHaveLength(1);
     expect(events[0]!.kg).toBeGreaterThan(0);
-    expect(harvested.legumesKg).toBeGreaterThan(0);
+    // sklizeň jde do snopů, mlátí se v srpnu na humně (production-chains.md – Humno)
+    expect(villageSheaves(harvested).legumesKg).toBeGreaterThan(0);
     // luštěniny i obilí z plánu, ozim i jař dál
-    expect(planCrops(harvested.plan!).map((c) => c.crop)).toContain('spring');
-    const later = advanceVillage(harvested, at(602, 12, 1), null);
+    expect(seasonCrops(harvested.season!).map((c) => c.crop)).toContain('spring');
+    // v srpnu má přednost žeň jaře – co výmlat v srpnu nestihne, vymlátí v září
+    const threshed = advanceVillage(harvested, at(602, 9, 30), null);
+    expect(villageSheaves(threshed).legumesKg).toBe(0);
+    expect(threshed.legumesKg).toBeGreaterThan(0);
+    const later = advanceVillage(threshed, at(602, 12, 1), null);
     expect(later.diet!.shares.legumes).toBeGreaterThan(0);
-    expect(later.legumesKg!).toBeLessThan(harvested.legumesKg!);
+    expect(later.legumesKg!).toBeLessThan(threshed.legumesKg!);
   });
 
   it('úroda luštěnin podle jejich výnosu a osiva (harvestKg s plodinou)', () => {
     const s = advanceVillage(found(at(600, 3, 1)), at(602, 7, 30), null);
-    const work = s.plan!.legume!;
+    const work = seasonCrop(s.season!, 'legume')!;
     const kg = harvestKg(work, s.parts, s.lastDay, 'legume');
     const asGrain = harvestKg(work, s.parts, s.lastDay, 'spring');
     expect(kg).toBeGreaterThan(0);

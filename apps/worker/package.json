@@ -1,0 +1,29 @@
+{
+  "name": "@bohemia/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "tsx src/main.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format:check": "prettier --check . --ignore-path ../../.gitignore",
+    "format": "prettier --write . --ignore-path ../../.gitignore",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@bohemia/db": "*",
+    "@bohemia/game": "*",
+    "@bohemia/server": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "eslint": "^10.12.0",
+    "prettier": "^3.9.10",
+    "tsx": "^4.21.0",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.71.2",
+    "vitest": "^5.0.5"
+  }
+}

@@ -3,10 +3,12 @@ import type { StandardMaterial } from '@babylonjs/core/Materials/standardMateria
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
-import { SACRED_BUILDINGS, roadChain } from '@bohemia/game';
+import { SACRED_BUILDINGS, roadChain, threshingFloorFootprint } from '@bohemia/game';
 import { scenePenSquares, type SceneVillage } from '../village-view';
 import { cellsBoundary, type CellSquare } from './field-cells';
+import { junctionShape } from './junction-shape';
 import { oreSiteDiscs, oreSiteOutline } from './ore-site-layout';
+import { GRAIN_PIT_RING_M } from './grain-pit-layout';
 import {
   footprintCorners,
   footprintRect,
@@ -29,6 +31,8 @@ const DWELLING_RING_MARGIN_M = 1.2;
 /** Kroužek kolem posvátného dubu – kolem kruhu kamenů obětin (m). */
 const OAK_RING_RADIUS_M = 2.6;
 /** Čáry výběru úseku cesty od osy (m) – kousek za okrajem pásu vyšlapané a upravené cesty. */
+/** Obrys označené křižovatky leží tolik metrů za okrajem plácku. */
+const JUNCTION_RING_M = 0.35;
 const ROAD_RING_M = { trodden: 1.6, improved: 2.2 } as const;
 /**
  * Obrys čtverců (díl pole, pole, čtverec sadu, sad, hřbitov, háj, ohrada) prosvítá přes obilí,
@@ -39,6 +43,7 @@ const XRAY_ALPHA = 0.55;
 const SEE_THROUGH: ReadonlySet<VillageTarget['kind']> = new Set([
   'field',
   'field-part',
+  'fields',
   'orchard',
   'orchard-square',
   'cemetery',
@@ -49,6 +54,10 @@ const SEE_THROUGH: ReadonlySet<VillageTarget['kind']> = new Set([
   'clay-site',
   // milířiště zarůstá trávou, kupu milíře zakrývají stromy kolem
   'kiln',
+  // hrdlo obilné jámy je nízko u země za valem
+  'grain-pit',
+  // obvod opevnění prosvítá přes stromy v pásu
+  'fortification',
 ]);
 /** Poloměr obrysu milíře a milířiště (m) – kousek za kupou (MILIR_SHAPE_M.radius 2,3 m). */
 const KILN_RING_M = 3.6;
@@ -126,8 +135,11 @@ export class SelectionHighlight {
  * (i natočený); rudiště kováře a hliniště hrnčíře obrys kolem jam a hromady (`oreSiteOutline`).
  */
 export function targetOutline(village: SceneVillage, target: VillageTarget): Point[][] {
-  // vybraná postava má žlutý kroužek pod nohama (villagers.ts) – rámeček na zemi ne
-  if (target.kind === 'person') return [];
+  // vybraná postava, spřežení a vůz mají žlutý kroužek, který je sleduje (villagers.ts,
+  // plough-team-renderer.ts, cart-renderer.ts) – rámeček na zemi ne
+  if (target.kind === 'person' || target.kind === 'plough-team' || target.kind === 'cart') {
+    return [];
+  }
   if (target.kind === 'field-part') {
     const part = selectedFieldPart(village, target);
     return part ? cellsBoundary([cellSquare(part)]) : [];
@@ -155,6 +167,10 @@ export function targetOutline(village: SceneVillage, target: VillageTarget): Poi
   if (target.kind === 'grove') {
     const grove = village.sacred?.groves.find((g) => g.id === target.id);
     return grove ? cellsBoundary(grove.squares) : [];
+  }
+  if (target.kind === 'fields') {
+    // všechna pole najednou – mez kolem každého
+    return target.ids.flatMap((id) => targetOutline(village, { kind: 'field', id }));
   }
   if (target.kind === 'dwellings') {
     // víc vybraných obydlí – rámeček kolem každého (migration.md)
@@ -202,6 +218,42 @@ export function targetOutline(village: SceneVillage, target: VillageTarget): Poi
     });
     return [ring];
   }
+  if (target.kind === 'threshing-floor') {
+    // půdorys humna (production-chains.md – Humno) – obdélník mlatu
+    const floor = village.threshingFloors?.find((f) => f.id === target.id);
+    if (!floor) return [];
+    const corners = threshingFloorFootprint(floor.position).map(([x, z]): Point => [x, z]);
+    return [[...corners, corners[0]!]];
+  }
+  if (target.kind === 'fortification') {
+    // obvod opevnění (fortifications.md – Rozhraní) – vnější okraj se zakulacenými rohy
+    const fort = village.forts?.find((f) => f.id === target.id);
+    return fort ? [fort.outline.map(([x, z]): Point => [x, z])] : [];
+  }
+  if (target.kind === 'grain-pit') {
+    // otevřená obilná jáma (production-chains.md – Obilné jámy) – kruh kolem hrdla a hrud pečeti
+    const pit = village.grainPits?.find((p) => p.id === target.id);
+    if (!pit) return [];
+    const n = 24;
+    const ring: Point[] = Array.from({ length: n + 1 }, (_, i) => {
+      const a = (2 * Math.PI * (i % n)) / n;
+      return [pit.x + GRAIN_PIT_RING_M * Math.cos(a), pit.z + GRAIN_PIT_RING_M * Math.sin(a)];
+    });
+    return [ring];
+  }
+  if (target.kind === 'junction') {
+    // obrys křižovatky (kříž nebo Y) kousek za okrajem plácku
+    const junction = village.junctions?.find((j) => j.id === target.id);
+    const shape = junction ? junctionShape(junction, village.roads ?? []) : null;
+    if (!junction || !shape) return [];
+    const ring: Point[] = shape.outline.map((p): Point => {
+      const dx = p.x - junction.x;
+      const dz = p.z - junction.z;
+      const len = Math.max(1e-6, Math.hypot(dx, dz));
+      return [p.x + (dx / len) * JUNCTION_RING_M, p.z + (dz / len) * JUNCTION_RING_M];
+    });
+    return [[...ring, ring[0]!]];
+  }
   if (target.kind === 'road') {
     // celá cesta hráče (roads.md – Cesta pro hráče): čáry po obou stranách pásu přes všechny
     // úseky řetězu za sebou, na šířku nejširšího
@@ -217,6 +269,8 @@ export function targetOutline(village: SceneVillage, target: VillageTarget): Poi
       : ROAD_RING_M.trodden;
     return [offsetLine(line, half), offsetLine(line, -half)];
   }
+  // zvíře nemá obrys (zvýrazní ho scéna ve W10)
+  if (target.kind === 'wildlife') return [];
   const field = village.fields.find((f) => f.id === target.id);
   if (!field || field.parts.length === 0) return [];
   return cellsBoundary(field.parts.map(cellSquare));

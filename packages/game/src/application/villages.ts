@@ -1,4 +1,6 @@
-import type { VillageState } from '../domain/village';
+import type { VillageHolds } from './village-holds';
+import type { VillageDigest, VillageState, VillageYearRow } from '../domain/village';
+import type { VillageInbox } from './inbox';
 
 /** Uložená ves – stav simulace s verzí pro optimistické zamykání. */
 export interface VillageRecord {
@@ -14,7 +16,7 @@ export interface VillageRecord {
 
 /**
  * Co se o vsi dá zjistit bez načtení stavu: id, sídlo, jméno, verze a do kterého dne je
- * dopočítaná (`state.lastDay`) – dotazování na ves podle toho pozná, že se nic nezměnilo.
+ * dopočítaná (`state.lastDay`) a jestli spí – dotazování na ves podle toho pozná, že se nic nezměnilo.
  */
 export interface VillageStamp {
   id: string;
@@ -22,42 +24,120 @@ export interface VillageStamp {
   name: string;
   version: number;
   lastDay: number;
+  /**
+   * Ves spí – vymřela, nebo ji lidé opustili (`extinctDay` / `abandonedDay`): dál se nedopočítává
+   * a worker ji přeskakuje. Pravidlo jako `isVillageExtinct` / `isVillageAbandoned`.
+   */
+  asleep: boolean;
 }
 
-/** Port: úložiště vsí. Sídlo (mapa) může mít víc vsí, každá má vlastní id. */
+/**
+ * Ves jen se souhrnem (`VillageDigest`), bez stavu – ostatní vsi hráče pro přepínač vsí a konec
+ * hry (`dynastyForVillage`). Souhrn je odvozený ze stavu uložené verze `version`.
+ */
+export interface VillageDigestRecord {
+  id: string;
+  settlementId: string;
+  name: string;
+  version: number;
+  digest: VillageDigest;
+}
+
+/** Ves v pohledu rodu – celá (se stavem), nebo jen souhrn. */
+export type DynastyVillage = VillageRecord | VillageDigestRecord;
+
+/** Ves v pohledu rodu je celá (se stavem). */
+export function isFullVillage(village: DynastyVillage): village is VillageRecord {
+  return 'state' in village;
+}
+
+/**
+ * Port: úložiště vsí. Sídlo (mapa) má nejvýš jednu ves – jedna ves, jedna mapa (Martin 1. 11.
+ * 2026); ves má vlastní id.
+ */
 export interface VillageRepository {
   find(villageId: string): Promise<VillageRecord | null>;
-  /** Vsi sídla v pořadí založení. */
+  /** Ves sídla – nejvýš jedna (prázdný seznam = sídlo bez vsi). */
   listBySettlement(settlementId: string): Promise<VillageRecord[]>;
   /**
-   * Atomicky založí první ves sídla (verze 1); když už sídlo nějakou ves má, vrátí null a nic
-   * nezmění (souběžná založení první zemnice).
+   * Atomicky založí ves sídla (verze 1); když už sídlo ves má, vrátí null a nic nezmění (jedna
+   * ves, jedna mapa – i souběžná založení první zemnice).
    */
   create(settlementId: string, name: string, state: VillageState): Promise<VillageRecord | null>;
-  /** Založí další ves sídla (víc vsí na téže mapě – migration.md). */
-  add(settlementId: string, name: string, state: VillageState): Promise<VillageRecord>;
+  /**
+   * Ves s klíčem založení `origin` (`VillageState.origin` – schránka odchodu syna) v kterémkoli
+   * sídle; žádná – null.
+   */
+  findByOrigin(origin: string): Promise<VillageRecord | null>;
+  /**
+   * Atomicky založí ves sídla se stavem nesoucím klíč `state.origin` (povinný): když ves s tímto
+   * klíčem už existuje, vrátí ji a nic nezaloží (opakované i souběžné vybavení schránky se seřadí
+   * na zámku řádku sídla). Neznámé sídlo, nebo sídlo, které už jinou ves má – null.
+   */
+  addOnce(settlementId: string, name: string, state: VillageState): Promise<VillageRecord | null>;
   /**
    * Uloží nový stav, jen když je uložená verze `expectedVersion` (jinak ji mezitím změnil
    * jiný požadavek) – pak vrátí null a nic nezmění. Vrácený záznam nese předaný stav (ne kopii
-   * z úložiště) s novou verzí.
+   * z úložiště) s novou verzí. `yearRows` = řádky deníku vsí za roky dokončené při dopočtu –
+   * zapíšou se v témže uložení (jedna ves a rok = jeden řádek, opakovaný zápis ho přepíše).
    */
   save(
     villageId: string,
     state: VillageState,
     expectedVersion: number,
+    yearRows?: readonly VillageYearRow[],
   ): Promise<VillageRecord | null>;
   /** Přejmenuje ves (stav ani verzi nemění); false = ves neexistuje. */
   rename(villageId: string, name: string): Promise<boolean>;
-  /** Otisky všech vsí sídel `settlementIds` – bez načtení stavu (levný dotaz). */
+  /** Otisky všech vsí sídel `settlementIds` v pořadí založení – bez načtení stavu (levný dotaz). */
   stampsOf(settlementIds: readonly string[]): Promise<VillageStamp[]>;
+  /**
+   * Otisky vsí `villageIds` – bez načtení stavu (levný dotaz). Neznámá ves ve výsledku chybí,
+   * pořadí výsledku nehraje roli. Smyčka tažení podle verze pozná, že ves v paměti je aktuální.
+   */
+  stampsOfVillages(villageIds: readonly string[]): Promise<VillageStamp[]>;
+  /**
+   * Souhrny vsí `villageIds` bez stavu (levný dotaz – souhrn ukládá každé uložení vsi). Ves, která
+   * souhrn současné verze nemá (uložená před ním, `isCurrentDigest`), ve výsledku chybí – volající
+   * ji načte celou. Pořadí výsledku nehraje roli.
+   */
+  digestsOf(villageIds: readonly string[]): Promise<VillageDigestRecord[]>;
+  /**
+   * Seed počasí kraje – mapy (sídla), na které ves stojí (disasters.md – Kraj a ochrana nové vsi);
+   * neznámé sídlo nebo úložiště bez počasí (testy, kalibrace) → null. Klientovi se nikdy neposílá.
+   */
+  weatherSeedOf(settlementId: string): Promise<number | null>;
+  /**
+   * Schránka vsí (inbox.ts) – patří k úložišti vsí, protože zápis do ní zvedá verzi vsi a dopočet
+   * (`updateVillage`) z ní musí číst vždy; každý dopočet přes úložiště ji tak má.
+   */
+  readonly inbox: VillageInbox;
+  /**
+   * Bariéra ves × tažení (village-holds.ts) – dopočet (`updateVillage`) se ptá, do kterého dne smí
+   * ves počítat, když u ní stojí tažení. Chybí (testy, kalibrace) – žádná tažení, žádná mez.
+   */
+  readonly holds?: VillageHolds;
 }
 
 /**
- * Port: přestávka v dlouhém dopočtu vsi. Use-case se po každém odsimulovaném dni zeptá – slib =
- * počkat (server mezi tím obslouží jiné požadavky, běží v jednom vlákně), null = hned dál.
- * Výsledek dopočtu na přestávkách nezávisí.
+ * Port: přestávka v dlouhém dopočtu vsi. Use-case se po každém odsimulovaném dni zeptá (`day` =
+ * index toho dne; u přestávek mimo dny, např. při přestavbě sítě cest, chybí) – slib = počkat
+ * (server mezi tím obslouží jiné požadavky, běží v jednom vlákně), null = hned dál. Výsledek
+ * dopočtu na přestávkách nezávisí.
  */
-export type Pause = () => Promise<void> | null;
+export type Pause = (day?: number) => Promise<void> | null;
+
+/** Průběh dopočtu vsí rodu – dopočítané dny všech vsí dohromady z dnů, které jim chyběly. */
+export interface ComputeProgress {
+  doneDays: number;
+  totalDays: number;
+}
+
+/**
+ * Port: hlášení průběhu dlouhého dopočtu vsí (přeskok času – accounts.md, Vývojový režim). Jen
+ * čte – výsledek dopočtu na hlášení nezávisí.
+ */
+export type ProgressReport = (progress: ComputeProgress) => void;
 
 /** Výsledek herní akce nad vsí – ves po akci, nebo důvod odmítnutí česky pro hráče. */
 export type VillageResult = { ok: true; village: VillageRecord } | { ok: false; reason: string };

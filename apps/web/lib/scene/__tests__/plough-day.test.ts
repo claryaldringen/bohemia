@@ -250,14 +250,17 @@ describe('pás orby přes víc dílů (oxen.md – Co nejdelší brázda)', () =
     for (const p of start.fields[0]!.parts) expect(p.work).toBe(0.25);
   });
 
-  it('s cestou z ohrady: spřežení vyjde z ohrady, dojede po cestě a večer se vrátí', () => {
+  it('v den výjezdu a návratu: spřežení vyjde z ohrady, dojede po cestě a večer se vrátí', () => {
     const stints = dayStints(band());
     const approach = [
       { x: -40, z: -30 },
       { x: -20, z: -30 },
       { x: -5, z: 0 },
     ];
-    const route = ploughRoute(stints, { x: -40, z: -31 }, TURN_RADIUS_M, approach);
+    const route = ploughRoute(stints, { x: -40, z: -31 }, TURN_RADIUS_M, {
+      out: approach,
+      home: [...approach].reverse(),
+    });
     const track: RouteTrack = { route, startMs: 0, endMs: 1000 };
     const pose = createTeamPose();
     routePose(track, 0, pose, () => 0);

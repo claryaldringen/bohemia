@@ -2,12 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
 import { PROTEIN } from '../diet';
-import { winterHayAvailable } from '../hay';
+import { hayLeftAvailable, hayWinterDaysLeft, winterHayAvailable } from '../hay';
+import { mergeHaySlaughter } from '../husbandry';
 import { youngsterHerders } from '../herding';
+import { predationDay } from '../predators';
 import { HERD_BREEDING } from '../rules';
+import { WILDLIFE_LAND } from '../rules-wildlife';
 import {
-  BALANCE,
-  BREEDING_ORDER,
   LIVESTOCK,
   goatBrowseHa,
   grazingDemandHa,
@@ -22,7 +23,7 @@ import {
   retiringHeads,
   sizeHerdsToNeed,
   slaughter,
-  starveHerds,
+  hayShortSlaughter,
   startingHerds,
   villageChickens,
   winterTargets,
@@ -30,7 +31,8 @@ import {
   yearlyMeatPerHead,
 } from '../livestock';
 import { advanceVillage } from '../simulate';
-import type { FieldPart, HerdSpecies, VillageState } from '../types';
+import { freshWildlife } from '../wildlife';
+import type { ChronicleEvent, FieldPart, HerdSpecies, VillageState } from '../types';
 import { withBuiltFirstDwelling, withRoomyPens } from './village-fixtures';
 
 // Dobytek (diet.md – Dobytek): výchozí stádo, růst, ztráty, nosnost, chovné stádo podle potřeby,
@@ -112,6 +114,9 @@ describe('výchozí stádo', () => {
     const s = village();
     delete s.livestock;
     delete s.meatKg;
+    // bez medvěda (bere prasata absolutně, wildlife.md – Vlci na dobytku): test hlídá výchozí stádo
+    s.wildlife = freshWildlife({ ...WILDLIFE_LAND.defaultLand }, 2);
+    s.wildlife.bear = { present: false, backDay: null };
     const json = JSON.parse(JSON.stringify(s)) as VillageState;
     const next = advanceVillage(json, s.lastDay + 1, null);
     // po prvním dni ztrát (diet.md – Roční ztráty stáda)
@@ -180,38 +185,42 @@ describe('růst a nosnost', () => {
     expect(grazingDemandHa(herds({ sheep: 5, goat: 5, cow: 2 }), 2)).toBeCloseTo(6, 9);
   });
 
-  it('přes zimu: pastva a seno podle přednosti – voli, krávy na mléko a voly, ovce, kozy, krávy', () => {
+  it('přes zimu pastva, seno i pasáci podle přednosti – voli, krávy, ovce, kozy, prasata (24. 10. 2026)', () => {
     const s = village();
     s.livestock!.land = { meadowHa: 6, forestHa: 3 };
     s.livestock!.herds = herds({ sheep: 20, goat: 10, pig: 10, cow: 6 });
     const keep = winterTargets(s, s.lastDay, { oxen: 0, hayKg: Infinity });
     // prasata podle lesa (celý rok v lese)
     expect(keep.pig).toBeCloseTo(3, 9);
-    // pastva 6 ha: ovce napřed (20 × 0,2 = 4 ha), kozy zbytek (10 × 0,2 = 2 ha), krávám nic
-    expect(keep.sheep).toBeCloseTo(20, 9);
-    expect(keep.goat).toBeCloseTo(10, 9);
-    expect(keep.cow).toBeCloseTo(LIVESTOCK.breedingMin, 9);
-    // krávy na mléko a voly mají přednost i před ovcemi
-    const cows = winterTargets(s, s.lastDay, { oxen: 0, hayKg: Infinity, minCows: 4 });
-    expect(cows.cow).toBeCloseTo(4, 9);
-    expect(cows.sheep).toBeCloseTo(10, 9);
-    expect(cows.goat).toBeCloseTo(LIVESTOCK.breedingMin, 9);
+    // pastva 6 ha: krávy napřed (6 × 1 ha), ovcím a kozám nic – chovný pár zůstane
+    expect(keep.cow).toBeCloseTo(6, 9);
+    expect(keep.sheep).toBeCloseTo(LIVESTOCK.breedingMin, 9);
+    expect(keep.goat).toBeCloseTo(LIVESTOCK.breedingMin, 9);
     // voli mají přednost na pastvě
-    expect(winterTargets(s, s.lastDay, { oxen: 4, hayKg: Infinity }).sheep).toBeCloseTo(10, 9);
-    // seno na zimu jen pro 10 ovcí (po ztrátách ve stohu) – kozy a krávy jen chovný pár
-    const hayFor10 = (10 * 151) / winterHayAvailable(1);
-    const hay = winterTargets(s, s.lastDay, { oxen: 0, hayKg: hayFor10 });
-    expect(hay.sheep).toBeCloseTo(10, 9);
+    expect(winterTargets(s, s.lastDay, { oxen: 4, hayKg: Infinity }).cow).toBeCloseTo(2, 9);
+    // víc pastvy: ovce před kozami
+    s.livestock!.land = { meadowHa: 9, forestHa: 3 };
+    const more = winterTargets(s, s.lastDay, { oxen: 0, hayKg: Infinity });
+    expect(more).toEqual(herds({ sheep: 15, goat: LIVESTOCK.breedingMin, pig: 3, cow: 6 }));
+    // seno na zimu jen pro 3 krávy (po ztrátách ve stohu) – ovce a kozy jen chovný pár
+    const hayFor3 = (3 * 5 * 151) / winterHayAvailable(1);
+    const hay = winterTargets(s, s.lastDay, { oxen: 0, hayKg: hayFor3 });
+    expect(hay.cow).toBeCloseTo(3, 9);
+    expect(hay.sheep).toBeCloseTo(LIVESTOCK.breedingMin, 9);
     expect(hay.goat).toBeCloseTo(LIVESTOCK.breedingMin, 9);
-    expect(hay.cow).toBeCloseTo(LIVESTOCK.breedingMin, 9);
     // bez sena zůstane chovný pár
     expect(winterTargets(s, s.lastDay, { oxen: 0, hayKg: 0 }).cow).toBeCloseTo(
       LIVESTOCK.breedingMin,
       9,
     );
-    // pasáci uhlídali polovinu – zbytek jde na maso (krávám zbude pastva na 3)
+    // pasáci uhlídali polovinu potřeby (0,65 pasáka): krávy napřed (0,15), ovce 0,175 z 0,2,
+    // kozám a prasatům nic – chovný pár zůstane
+    s.livestock!.land = { meadowHa: 100, forestHa: 100 };
     const half = winterTargets(s, s.lastDay, { oxen: 0, hayKg: Infinity, herding: 0.5 });
-    expect(half).toEqual(herds({ sheep: 10, goat: 5, pig: 3, cow: 3 }));
+    expect(half.cow).toBeCloseTo(6, 9);
+    expect(half.sheep).toBeCloseTo(17.5, 9);
+    expect(half.goat).toBeCloseTo(LIVESTOCK.breedingMin, 9);
+    expect(half.pig).toBeCloseTo(LIVESTOCK.breedingMin, 9);
   });
 
   it('kozy spasou i zarůstající příloh – křoviny a mladý les, kam ovce ani krávy nejdou', () => {
@@ -234,7 +243,11 @@ describe('růst a nosnost', () => {
     const s = village();
     s.livestock!.herds = herds({ sheep: 100, goat: 100, pig: 100, cow: 100 });
     s.livestock!.young = herds({ sheep: 10 });
-    for (let i = 0; i < 365; i++) herdLosses(s);
+    // základ + vlčí díl při plné smečce (ves bez zvěře má 5 vlků); rok od 1. 1.
+    for (let i = 0; i < 365; i++) {
+      herdLosses(s);
+      predationDay(s, at(600, 1, 1) + i);
+    }
     expect(s.livestock!.herds.sheep).toBeCloseTo(88, 6);
     expect(s.livestock!.herds.goat).toBeCloseTo(90, 6);
     expect(s.livestock!.herds.pig).toBeCloseTo(88, 6);
@@ -249,32 +262,22 @@ describe('růst a nosnost', () => {
 });
 
 describe('chovné stádo podle potřeby (Martin 19. 10. 2026)', () => {
-  it('zmenší se na potřebu bílkovin a co práci šetří – nad nosnost nic', () => {
+  it('celé stádo v nosnosti zůstane – cena jídla ho nezmenšuje, plán dává jen luštěniny (24. 10. 2026)', () => {
     const s = village(at(600, 11, 1));
     const day = at(600, 11, 1);
     const keep = herds({ sheep: 60, goat: 6, pig: 60, cow: 8 });
     const sized = sizeHerdsToNeed(s, day, keep);
-    expect(BREEDING_ORDER).toEqual(['sheep', 'goat', 'cow', 'pig']);
-    expect(sized.coverage).toBeGreaterThanOrEqual(BALANCE.minProteinCoverage - 1e-9);
-    // ves potřebu pokryje s menším stádem, než unese
-    for (const sp of BREEDING_ORDER) expect(sized.keep[sp]).toBeLessThanOrEqual(keep[sp]);
-    expect(sized.keep.sheep + sized.keep.goat + sized.keep.cow).toBeLessThan(74);
+    expect(sized.keep).toEqual(keep);
+    expect(sized.legumeKg).toBe(0);
+    expect(sized.coverage).toBeGreaterThan(0);
     expect(herdProteinNeed(s, day)).toBeGreaterThan(0);
-  });
-
-  it('krávy na mléko a voly zůstanou, i když potřebu pokryjí ovce', () => {
-    const s = village(at(600, 11, 1));
-    const day = at(600, 11, 1);
-    const sized = sizeHerdsToNeed(s, day, herds({ sheep: 500, goat: 9, pig: 9, cow: 6 }), {
-      minCows: 4,
-    });
-    expect(sized.keep.cow).toBeGreaterThanOrEqual(4 - 1e-9);
-    expect(sized.keep.goat).toBeGreaterThanOrEqual(LIVESTOCK.breedingMin - 1e-9);
-    expect(sized.keep.sheep).toBeLessThan(500);
-    // stádo pod potřebou se nezvětší nad nosnost
+    // stádo pod potřebou se nezvětší nad nosnost – bílkoviny dorovnají luštěniny plánu
     const small = sizeHerdsToNeed(s, day, herds({ sheep: 3, pig: 1 }));
     expect(small.sufficient).toBe(false);
     expect(small.keep).toEqual(herds({ sheep: 3, pig: 1 }));
+    const legumes = sizeHerdsToNeed(s, day, herds({ sheep: 3, pig: 1 }), { planLegumes: true });
+    expect(legumes.keep).toEqual(herds({ sheep: 3, pig: 1 }));
+    expect(legumes.legumeKg).toBeGreaterThan(0);
   });
 });
 
@@ -316,7 +319,7 @@ describe('porážka (1. 11.)', () => {
     expect(s.livestock!.culling).toEqual(herds({ pig: 1, sheep: 1 }));
   });
 
-  it('chovné stádo nad potřebu jde na maso jen tolik, kolik ves do zkažení sní (diet.md)', () => {
+  it('stádo v nosnosti zůstane celé – na maso jen staré kusy (24. 10. 2026)', () => {
     const s = village(at(600, 11, 1));
     const day = at(600, 11, 1);
     // výrostků dost – stádo neomezí místo pro mláďata
@@ -325,23 +328,10 @@ describe('porážka (1. 11.)', () => {
     s.livestock!.herds = herds({ pig: 40, sheep: 6, cow: 3 });
     s.livestock!.young = herds({ pig: 20, sheep: 2, cow: 0.5 });
     s.meatKg = 0;
-    // porážka plánuje jako osev – i s luštěninami (Rovnovážné hospodaření)
-    const plan = sizeHerdsToNeed(s, day, herds({ pig: 40, sheep: 6, cow: 3 }), {
-      planLegumes: true,
-    }).keep;
-    // plán by porazil i dospělá prasata – víc masa, než ves do 31. 8. sní
-    const planned = (40 - plan.pig) * LIVESTOCK.meatKg.pig;
-    const eatable = meatEatableKg(s, day);
-    expect(planned).toBeGreaterThan(eatable);
-    // staré kusy jdou na maso vždy (prasnice, ovce, krávy)
     const old = retiringHeads(s.livestock!.herds, s.livestock!.young);
     const event = slaughter(s, day, { oxen: 0, hayKg: Infinity });
-    // na maso jen, co ves sní – napřed prasata; zbytek v nosnosti žije
     expect(event).toMatchObject({ kind: 'slaughter' });
-    expect(event && 'kg' in event ? event.kg : 0).toBeLessThanOrEqual(Math.round(eatable) + 1);
-    const oldOther = old.sheep * LIVESTOCK.meatKg.sheep + old.cow * LIVESTOCK.meatKg.cow;
-    expect(kept(s).pig).toBeCloseTo(40 - (eatable - oldOther) / LIVESTOCK.meatKg.pig, 6);
-    expect(kept(s).pig).toBeGreaterThan(plan.pig);
+    expect(kept(s).pig).toBeCloseTo(40 - old.pig, 9);
     expect(kept(s).sheep).toBeCloseTo(6 - old.sheep, 9);
     expect(kept(s).cow).toBeCloseTo(3 - old.cow, 9);
   });
@@ -391,19 +381,66 @@ describe('porážka (1. 11.)', () => {
   });
 });
 
-describe('zimní úhyn (1. 3.)', () => {
-  it('pod polovinou sena se stádo zmenší na tolik, kolik by polovinu mělo – chovný pár přežije', () => {
-    const s = village(at(601, 3, 1));
+describe('porážka při nedostatku sena (24. 10. 2026)', () => {
+  it('seno do jara nevystačí – ves hned porazí kusy, na které nezbude (kozy, ovce, krávy); chovný pár zůstane', () => {
+    const day = at(601, 2, 1);
+    const s = village(day);
     s.livestock!.herds = herds({ sheep: 20, goat: 3, pig: 8, cow: 6 });
-    expect(starveHerds(s, at(601, 3, 1), 0.6)).toBeNull();
-    const event = starveHerds(s, at(601, 3, 1), 0.25);
-    // čtvrtina sena = polovina kusů přežije; prasata seno nežerou
-    expect(s.livestock!.herds).toEqual(herds({ sheep: 10, goat: 2, pig: 8, cow: 3 }));
+    const days = hayWinterDaysLeft(day);
+    expect(days).toBe(59);
+    // seno dost – nic
+    s.hay = { kg: 10_000, mowing: null };
+    expect(hayShortSlaughter(s, day, 0)).toBeNull();
+    // seno na 4,5 krávy do konce března: krávy napřed (celé kusy – 1 navíc), ovcím a kozám nic
+    s.hay.kg = (4.5 * 5 * days) / hayLeftAvailable(1, days);
+    const event = hayShortSlaughter(s, day, 0);
+    expect(s.livestock!.herds).toEqual(herds({ sheep: 2, goat: 2, pig: 8, cow: 5 }));
     expect(event).toEqual({
-      day: at(601, 3, 1),
-      kind: 'herd-starved',
-      animals: { sheep: 10, goat: 1, cow: 3 },
+      day,
+      kind: 'hay-slaughter',
+      kg: 120 + 18 * 15 + 12,
+      animals: { cow: 1, sheep: 18, goat: 1 },
     });
+    expect(s.meatKg).toBeCloseTo(402, 9);
+    // voli jedí napřed – bez sena na krávy zůstane chovný pár
+    expect(hayShortSlaughter(s, day, 5)).toMatchObject({ animals: { cow: 3 } });
+    expect(s.livestock!.herds.cow).toBe(2);
+  });
+});
+
+describe('zlé roky – bez úniku budoucnosti (disasters.md – Kdy je vidět)', () => {
+  it('v lednu dlouhé zimy se poráží stejně jako v normální (dlouhá zima ještě není vidět)', () => {
+    const day = at(601, 1, 10);
+    const run = (winter: 'normal' | 'long'): Record<HerdSpecies, number> => {
+      const s = village(day);
+      s.disasters = { override: { weather: { 601: { winter } } } };
+      s.livestock!.herds = herds({ sheep: 20, goat: 3, pig: 8, cow: 6 });
+      s.hay = { kg: 3_000, mowing: null };
+      hayShortSlaughter(s, day, 0);
+      return s.livestock!.herds;
+    };
+    expect(run('long')).toEqual(run('normal'));
+    // od 1. 3. už se počítá s krmením do konce dubna – poráží se víc
+    const march = at(601, 3, 5);
+    const cut = (winter: 'normal' | 'long'): number => {
+      const s = village(march);
+      s.disasters = { override: { weather: { 601: { winter } } } };
+      s.livestock!.herds = herds({ sheep: 20, goat: 3, pig: 8, cow: 6 });
+      s.hay = { kg: 1_500, mowing: null };
+      hayShortSlaughter(s, march, 0);
+      const h = s.livestock!.herds;
+      return h.sheep + h.goat + h.cow;
+    };
+    expect(cut('long')).toBeLessThan(cut('normal'));
+  });
+
+  it('pastva od 1. 9. nepočítá s právě minulým létem (sucho minulého léta ji 1. 11. nesráží)', () => {
+    const s = village(at(601, 8, 20));
+    s.livestock!.land = { meadowHa: 20, forestHa: 10 };
+    s.disasters = { override: { weather: { 601: { summer: 'drought' } } } };
+    expect(pastureHa(s, at(601, 8, 20))).toBeLessThan(20);
+    expect(pastureHa(s, at(601, 9, 1))).toBeCloseTo(20, 9);
+    expect(pastureHa(s, at(601, 11, 1))).toBeCloseTo(20, 9);
   });
 });
 
@@ -431,5 +468,30 @@ describe('simulace – stáda za rok', () => {
     expect(chunked.hay).toEqual(whole.hay);
     expect(chunked.chronicle).toEqual(whole.chronicle);
     expect(chunked.diet).toEqual(whole.diet);
+  });
+});
+
+describe('kronika porážky pro nedostatek sena', () => {
+  it('další porážky téže zimy se sečtou do posledního zápisu', () => {
+    const s = { chronicle: [] as ChronicleEvent[] } as VillageState;
+    const events: ChronicleEvent[] = [];
+    mergeHaySlaughter(s, { day: 100, kind: 'hay-slaughter', kg: 120, animals: { cow: 1 } }, events);
+    s.chronicle.push(...events.splice(0));
+    mergeHaySlaughter(
+      s,
+      { day: 101, kind: 'hay-slaughter', kg: 240, animals: { cow: 2, goat: 1 } },
+      events,
+    );
+    expect(events).toEqual([]);
+    expect(s.chronicle).toEqual([
+      { day: 100, kind: 'hay-slaughter', kg: 360, animals: { cow: 3, goat: 1 } },
+    ]);
+    // jiná zima = nový zápis
+    mergeHaySlaughter(
+      s,
+      { day: 100 + 365, kind: 'hay-slaughter', kg: 10, animals: { cow: 1 } },
+      events,
+    );
+    expect(events).toHaveLength(1);
   });
 });

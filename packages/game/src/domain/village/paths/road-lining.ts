@@ -1,19 +1,16 @@
 import { length2 } from '../../landscape';
-import { obstacleChangesAt } from '../obstacles';
-import { roadAppleStage, roadTreeLook } from '../road-trees';
 import { ROAD_TREE_SPEED } from '../rules';
-import type { Road, RoadApple, RoadLining, RoadPoint, RoadTree, VillageState } from '../types';
+import type { Road, RoadApple, RoadLining, RoadPoint, VillageState } from '../types';
 
 // Stromy u cesty zrychlí chůzi (roads.md; Martin 20. 10. 2026: „Stromy u cesty musí přídat něco
 // málo k rychlosti jak chodců tak vozů. šlo by přidat třeba 0.03? A pokud to budou jabloně,
-// přidalo by se 0.05.“): kolik délky úseku pevné cesty lemují stojící stromy u cesty a živé
-// jabloně. Místo na strom (`Road.spots`, u jabloní jabloně úseku) lemuje osu kolem svého průmětu
-// na osu – k polovině vzdálenosti k sousednímu místu, nejvýš ROAD_TREE_SPEED.reachM na každou
-// stranu, krajní místo až ke konci osy (do ROAD_TREE_SPEED.endM). Lemuje jen, když na něm stojí
-// strom (ne keř, souš ani pařez – `roadTreeLook`), u jabloní živá vysazená jabloň (ne souš –
-// `roadAppleStage`). Jabloně platí, kde jsou, jinde ostatní stromy. Podíly po desetinách se
-// ukládají do `Road.lined` 1. dne v měsíci (`lineRoads`) – chůze se tak kvůli každému stromu
-// nepřepočítává. Čisté deterministické funkce (jen přesná aritmetika – soubor hlídá ESLint jako
+// přidalo by se 0.05.“): kolik délky úseku pevné cesty lemuje alej. Martin 31. 10. 2026: „Stromy
+// jsou součást cesty. Kvůli stromům u cesty se přece nemusí měnit přepočet“ – lemuje každé místo
+// na strom (`Road.spots`) a jabloň úseku, jak je alej naplánovaná, ne co na nich zrovna roste.
+// Místo lemuje osu kolem svého průmětu na osu – k polovině vzdálenosti k sousednímu místu, nejvýš
+// ROAD_TREE_SPEED.reachM na každou stranu, krajní místo až ke konci osy (do ROAD_TREE_SPEED.endM).
+// Jabloně platí, kde jsou, jinde ostatní stromy. Podíly po desetinách se ukládají do `Road.lined`
+// s postavením nebo vylepšením cesty (`lineRoads`, `relineRoad`). Čisté deterministické funkce (jen přesná aritmetika – soubor hlídá ESLint jako
 // síť pěšin), stejně na serveru i v prohlížeči (prohlížeč dostane uložené olemování s cestou).
 
 /** Kus osy [od, do] v metrech od začátku osy. */
@@ -118,33 +115,27 @@ function steps(share: number): number {
 }
 
 /**
- * Olemování úseku `road` v den `day` (roads.md – Stromy u cesty zrychlí chůzi): stromy u cesty na
- * místech úseku (`trees` – podle místa) a jabloně úseku (`apples`), odstraněné stavbou
- * (`removed`) se nepočítají. Podíly délky po desetinách – nejdřív celkem, z toho jabloně, zbytek
- * stromy (dohromady nejvýš 1).
+ * Olemování úseku `road` (roads.md – Stromy u cesty zrychlí chůzi; Martin 31. 10. 2026: „Stromy
+ * jsou součást cesty.“): alej, jak je naplánovaná – každé místo na strom úseku (`Road.spots`)
+ * a každá jabloň úseku (`apples` – i čekající na výsadbu nebo souš), ne to, co na nich zrovna
+ * roste. Podíly délky po desetinách – nejdřív celkem, z toho jabloně, zbytek stromy (dohromady
+ * nejvýš 1).
  */
 export function roadLining(
   road: Pick<Road, 'points' | 'spots'>,
-  trees: ReadonlyMap<number, RoadTree>,
-  apples: readonly RoadApple[],
-  day: number,
-  removed: ReadonlySet<number> = new Set(),
+  apples: readonly Pick<RoadApple, 'x' | 'z'>[],
 ): RoadLining {
   const at = lengthsAlong(road.points);
   const length = at[at.length - 1] ?? 0;
   if (length <= 0) return { trees: 0, apples: 0 };
-  const treeSlots = road.spots.map((spot): Slot => {
-    const tree = trees.get(spot.id);
-    const standing =
-      tree !== undefined && !removed.has(tree.id) && roadTreeLook(tree, day)?.stage === 'tree';
-    return { at: alongAxis(road.points, at, spot.x, spot.z), standing };
-  });
-  const appleSlots = apples.flatMap((apple): Slot[] => {
-    if (removed.has(apple.id)) return [];
-    const stage = roadAppleStage(apple, day);
-    if (stage === null) return [];
-    return [{ at: alongAxis(road.points, at, apple.x, apple.z), standing: stage === 'tree' }];
-  });
+  const treeSlots = road.spots.map((spot): Slot => ({
+    at: alongAxis(road.points, at, spot.x, spot.z),
+    standing: true,
+  }));
+  const appleSlots = apples.map((apple): Slot => ({
+    at: alongAxis(road.points, at, apple.x, apple.z),
+    standing: true,
+  }));
   const { reachM, endM } = ROAD_TREE_SPEED;
   const bySpots = linedPieces(treeSlots, length, reachM.trees, endM.trees);
   const byApples = linedPieces(appleSlots, length, reachM.apples, endM.apples);
@@ -159,25 +150,57 @@ export function roadLining(
 }
 
 /**
- * Určí olemování úseků pevných cest (mutuje stav – roads.md, Stromy u cesty zrychlí chůzi): `all`
- * – všech úseků (1. dne v měsíci, jako stadia dílů pro chůzi), jinak jen úseků bez olemování (nový
- * úsek, starší ves). Stromy podle místa (`RoadTree.spot` v `Road.spots`), jabloně podle úseku
- * (`RoadApple.roadId`), stromy a jabloně odstraněné stavbou se nepočítají.
+ * Určí olemování úseků bez něj (mutuje stav – roads.md, Stromy u cesty zrychlí chůzi): nový nebo
+ * přestavěný úsek a úsek po vylepšení (`relineRoad`). Jabloně podle úseku (`RoadApple.roadId`).
+ * Sázení, růst ani uschnutí stromů a jabloní olemování nemění (Martin 31. 10. 2026).
  */
-export function lineRoads(state: VillageState, day: number, all: boolean): void {
+export function lineRoads(state: VillageState): void {
   const roads = state.roads;
   if (!roads || roads.roads.length === 0) return;
-  const todo = all ? roads.roads : roads.roads.filter((r) => r.lined === undefined);
+  const todo = roads.roads.filter((r) => r.lined === undefined);
   if (todo.length === 0) return;
-  const removed = new Set(obstacleChangesAt(state, day).removed);
-  const bySpot = new Map(roads.trees.map((t) => [t.spot, t] as const));
-  const applesByRoad = new Map<number, RoadApple[]>();
-  for (const apple of roads.apples ?? []) {
-    const list = applesByRoad.get(apple.roadId);
+  const applesByRoad = applesOf(roads.apples ?? []);
+  for (const road of todo) road.lined = roadLining(road, applesByRoad.get(road.id) ?? []);
+}
+
+/** Jabloně po úsecích. */
+function applesOf(apples: readonly RoadApple[]): Map<number, RoadApple[]> {
+  const byRoad = new Map<number, RoadApple[]>();
+  for (const apple of apples) {
+    const list = byRoad.get(apple.roadId);
     if (list) list.push(apple);
-    else applesByRoad.set(apple.roadId, [apple]);
+    else byRoad.set(apple.roadId, [apple]);
   }
-  for (const road of todo) {
-    road.lined = roadLining(road, bySpot, applesByRoad.get(road.id) ?? [], day, removed);
-  }
+  return byRoad;
+}
+
+/**
+ * Vylepšená cesta dostane olemování znovu (mutuje úsek): olemování se určí s postavením nebo
+ * vylepšením cesty (`lineRoads` – další přepočet chůze, se kterým se mapa tras mění i kvůli
+ * stupni).
+ */
+export function relineRoad(road: Road): void {
+  delete road.lined;
+}
+
+/**
+ * Převod starší vsi (roads.md – Stromy u cesty, Kdy): olemování všech úseků podle míst na stromy
+ * a jabloně místo toho, co rostlo 1. dne v měsíci – jednou (`VillageRoads.liningPlanned`),
+ * idempotentně; ves bez cest beze změny.
+ */
+export function withPlannedLining(state: VillageState): VillageState {
+  const roads = state.roads;
+  if (!roads || roads.liningPlanned || roads.roads.length === 0) return state;
+  const applesByRoad = applesOf(roads.apples ?? []);
+  return {
+    ...state,
+    roads: {
+      ...roads,
+      liningPlanned: true,
+      roads: roads.roads.map((r) => ({
+        ...r,
+        lined: roadLining(r, applesByRoad.get(r.id) ?? []),
+      })),
+    },
+  };
 }

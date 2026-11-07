@@ -66,6 +66,14 @@ export function roadTreeObstacleKind(
   return age < ROAD_TREES.logFromYears ? 'youngTree' : 'tree';
 }
 
+/**
+ * Id překážky znamení křižovatky – kámen nebo kůl (paths.md – Křižovatky): v rozsahu stromů u cest,
+ * id křižovatky je z téhož čítače (`VillageRoads.nextId`), takže se s žádným stromem nepotká.
+ */
+export function junctionLandmarkId(junctionId: number): number {
+  return ROAD_TREE_ID_BASE + junctionId;
+}
+
 /** Je to id stromu u cesty (ne překážky z vrstvy ani stromu lesa vsi)? */
 export function isRoadTreeId(id: number): boolean {
   return id >= ROAD_TREE_ID_BASE && id < WOOD_TREE_ID_BASE;

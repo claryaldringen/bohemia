@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import type { LaborShare, SceneLaborShare, SceneVillage } from '../../village-view';
+import type { LaborShare, SceneCraftYard, SceneLaborShare, SceneVillage } from '../../village-view';
 import { chickenBox } from '../livestock-placement';
 import { localToWorld, sceneFrame } from '../village-layout';
 import { worldToLocal } from '../dwelling-pit';
-import { MILIR_SHAPE_M, milirPlace } from '../workshop-layout';
+import { MILIR_SHAPE_M, craftSpots, milirPlace } from '../workshop-layout';
+import { CLAY_PIT, bloomeryTop, smeltSpots, treadingLine } from '../craft-yard-layout';
 import {
   createVillagerPose,
   villagerSeconds,
@@ -33,6 +34,8 @@ import {
   type VillagerPaths,
 } from '../villager-plan';
 import { orePitRadius } from '../ore-site-layout';
+import { context } from '../villager-plan-cast';
+import { WOMEN } from '../villager-plan-types';
 
 /** Potok v pásu z ∈ (60, 70) – jinak všude suchá schůdná louka; strom 501 a 502 v lese. */
 const GROUND: VillagerGround = {
@@ -414,6 +417,73 @@ describe('planVillagers – kdo kde je', () => {
     expect(d).toBeLessThan(11);
   });
 
+  it('koňák je ráno a večer u plotu ohrady koní (horses.md – Péče)', () => {
+    const shares: LaborShare[] = [
+      { activity: 'horse-care', target: { kind: 'pen', id: 61 }, manDays: 1 },
+    ];
+    const v: SceneVillage = {
+      ...village(shares),
+      pens: [
+        {
+          id: 61,
+          species: 'horse',
+          cell: { x: -4, y: 1 },
+          x: -52.5,
+          z: 22.5,
+          size: 15,
+          built: true,
+          progress: 1,
+          oxen: 0,
+          trainees: 0,
+          cows: 0,
+        },
+      ],
+    };
+    const carers = planVillagers(v, GROUND, { seed: 3, herds: 0 }).filter((p) =>
+      p.key.startsWith('horse-care:'),
+    );
+    expect(carers.length).toBe(1);
+    const pose = at(carers[0]!, 10);
+    const d = Math.max(Math.abs(pose.x + 52.5), Math.abs(pose.z - 22.5));
+    expect(d).toBeGreaterThan(7.5);
+    expect(d).toBeLessThan(11);
+  });
+
+  it('koně kuje muž (kovář s dospělým synem), ne žena z vsi (horses.md – Kování)', () => {
+    const pen = {
+      id: 61,
+      species: 'horse' as const,
+      cell: { x: -4, y: 1 },
+      x: -52.5,
+      z: 22.5,
+      size: 15,
+      built: true,
+      progress: 1,
+      oxen: 0,
+      trainees: 0,
+      cows: 0,
+    };
+    const base = village([
+      { activity: 'horse-shoeing', target: { kind: 'pen', id: 61 }, manDays: 2 },
+    ]);
+    const v: SceneVillage = {
+      ...base,
+      pens: [pen],
+      dwellings: [
+        ...base.dwellings,
+        { ...house(31, 40, -20, 0, true, 'polozemnice'), craft: 'smith' as const },
+      ],
+    };
+    for (const seed of [1, 2, 3, 4, 5, 6]) {
+      const smiths = planVillagers(v, GROUND, { seed, herds: 0 }).filter((p) =>
+        p.key.startsWith('horse-shoeing:'),
+      );
+      expect(smiths.length).toBeGreaterThan(0);
+      expect(smiths.every((p) => p.kind === 'man')).toBe(true);
+    }
+    expect(WOMEN['horse-shoeing']).toBe(0);
+  });
+
   it('pasáček jde za svým stádem; vdané ženy mají šátek, starší šediny', () => {
     const herder = of('herder:')[0]!;
     const pose = at(herder, 50);
@@ -625,6 +695,35 @@ describe('walkRoute – trasa kolem domů', () => {
 
   it('přes vodu cesta nevede', () => {
     expect(walkRoute(ctx, { x: 100, z: 50 }, { x: 100, z: 80 })).toBeNull();
+  });
+});
+
+describe('walkRoute – ploty ohrad (paths.md – Ploty jsou neprůchodné)', () => {
+  const pen = (id: number, x: number): NonNullable<SceneVillage['pens']>[number] => ({
+    id,
+    cell: { x: id, y: 0 },
+    x,
+    z: 0,
+    size: 15,
+    built: true,
+    progress: 1,
+    oxen: 0,
+    trainees: 0,
+    cows: 0,
+  });
+  // dvě ohrady vedle sebe, mezi nimi ulička 3 m (plot stojí 1,5 m uvnitř čtverce)
+  const ctx = context({ ...village([]), pens: [pen(1, 100), pen(2, 118)] }, GROUND, 5, 10, null);
+
+  it('krátký pohyb neprotne plot ohrady, obejde ho', () => {
+    const r = walkRoute(ctx, { x: 100, z: -20 }, { x: 100, z: 20 })!;
+    expect(r).not.toBeNull();
+    expect(r.points.length).toBeGreaterThan(2);
+  });
+
+  it('uličkou mezi ohradami projde rovně', () => {
+    const r = walkRoute(ctx, { x: 109, z: -20 }, { x: 109, z: 20 })!;
+    expect(r).not.toBeNull();
+    expect(r.points).toHaveLength(2);
   });
 });
 
@@ -1085,6 +1184,111 @@ describe('řemeslníci – práce v dílně (crafts.md)', () => {
   });
 });
 
+describe('kovárna a hrnčíř – tavba, měchař, překování, šlapání hlíny (production-chains.md – Kovář)', () => {
+  const SMITH = { x: 40, z: -20, rotation: 0.3 };
+  const POTTER = { x: 30, z: -34, rotation: 0 };
+  function yardVillage(
+    shares: LaborShare[],
+    smith: SceneCraftYard,
+    potter: SceneCraftYard = {},
+  ): SceneVillage {
+    const base = village(shares);
+    return {
+      ...base,
+      dwellings: [
+        ...base.dwellings,
+        {
+          ...house(31, SMITH.x, SMITH.z, SMITH.rotation, true, 'polozemnice'),
+          craft: 'smith' as const,
+          yard: smith,
+        },
+        {
+          ...house(20, POTTER.x, POTTER.z, POTTER.rotation, true, 'polozemnice'),
+          craft: 'potter' as const,
+          yard: potter,
+        },
+      ],
+    };
+  }
+  const smithView = { id: 31, craft: 'smith' as const, position: SMITH };
+  const crafting = (id: number, manDays: number, ages?: number[]): LaborShare => ({
+    activity: 'craft',
+    target: { kind: 'dwelling', id },
+    manDays,
+    ...(ages ? { ages } : {}),
+  });
+  const near = (pose: VillagerPose, x: number, z: number): number =>
+    Math.hypot(pose.x - x, pose.z - z);
+
+  it('tavba s měchařem – kovář sype do pece, druhý klečí u měchu', () => {
+    const v = yardVillage([crafting(31, 2)], { task: 'smelt', bellows: true });
+    const smiths = planVillagers(v, GROUND, { seed: 3, herds: 0 }).filter((p) =>
+      p.key.startsWith('craft:dwelling-31:'),
+    );
+    expect(smiths.length).toBe(2);
+    const [charge, pump] = smeltSpots(smithView);
+    const poses = smiths.map((p) => at(p, 5));
+    const charger = poses.find((p) => near(p, charge!.x, charge!.z) < 0.3);
+    const bellows = poses.find((p) => near(p, pump!.x, pump!.z) < 0.3);
+    expect(charger?.clip).toBe('seed');
+    expect(bellows?.clip).toBe('weed');
+    const furnace = bloomeryTop(smithView);
+    // kovář hledí do pece
+    expect(
+      charger!.headingX * (furnace.x - charger!.x) + charger!.headingZ * (furnace.z - charger!.z),
+    ).toBeGreaterThan(0);
+  });
+
+  it('syn u měchu má vlastní podíl s věkem – stojí u měchu, kovář u pece', () => {
+    const v = yardVillage([crafting(31, 1), crafting(31, 1, [11])], {
+      task: 'smelt',
+      bellows: true,
+    });
+    const people = planVillagers(v, GROUND, { seed: 4, herds: 0 }).filter((p) =>
+      p.key.startsWith('craft:dwelling-31:'),
+    );
+    const [charge, pump] = smeltSpots(smithView);
+    const poses = people.map((p) => at(p, 5));
+    expect(poses.some((p) => near(p, charge!.x, charge!.z) < 0.3 && p.clip === 'seed')).toBe(true);
+    expect(poses.some((p) => near(p, pump!.x, pump!.z) < 0.3 && p.clip === 'weed')).toBe(true);
+  });
+
+  it('překování – kovář kove u kovadliny, ne u pece', () => {
+    const v = yardVillage([crafting(31, 1)], { task: 'refine', bloom: 2, bars: 1 });
+    const smith = planVillagers(v, GROUND, { seed: 3, herds: 0 }).find((p) =>
+      p.key.startsWith('craft:dwelling-31:'),
+    );
+    const anvil = craftSpots('smith', SMITH)[0]!;
+    const pose = at(smith!, 5);
+    expect(near(pose, anvil.x, anvil.z)).toBeLessThan(0.3);
+    expect(pose.clip).toBe('build');
+  });
+
+  it('hrnčíř šlape hlínu v jámě – chodí tam a zpět a z jámy nevyjde', () => {
+    const shares = [crafting(20, 2)];
+    const v = yardVillage(shares, {}, { clay: 3, treading: true });
+    const plan = (): PlannedVillager[] =>
+      planVillagers(v, GROUND, { seed: 6, herds: 0 }).filter((p) =>
+        p.key.startsWith('craft:dwelling-20:'),
+      );
+    const [a, b] = treadingLine({ id: 20, craft: 'potter', position: POTTER });
+    const cx = (a[0] + b[0]) / 2;
+    const cz = (a[1] + b[1]) / 2;
+    const treader = plan().find((p) => near(at(p, 0), cx, cz) < CLAY_PIT.radius);
+    expect(treader).toBeDefined();
+    const xs = new Set<number>();
+    for (let t = 0; t < 12; t += 0.7) {
+      const pose = at(treader!, t);
+      expect(near(pose, cx, cz)).toBeLessThan(CLAY_PIT.radius);
+      xs.add(Math.round(pose.x * 10));
+    }
+    expect(xs.size).toBeGreaterThan(2);
+    // deterministicky – stejný plán dvakrát
+    const again = plan().map((p) => at(p, 3));
+    expect(plan().map((p) => at(p, 3))).toEqual(again);
+  });
+});
+
 // Postavy podle skutečného pohlaví lidí vsi (kinship.md – Co hráč vidí).
 describe('pohlaví postav podle vsi', () => {
   it('podíl činnosti se posune podle podílu žen ve vsi – půl na půl beze změny', () => {
@@ -1436,29 +1640,39 @@ describe('provoz na cestách – pro vodu, k lesu a na pole (villagers.md)', () 
     expect(atWater).toBeGreaterThan(0);
   });
 
-  it('na pole a zpět chodí od domu ke dílu dnešní práce, nikdy přes dům', () => {
+  it('na pole se proudem nechodí – cesta ode dveří je součást práce (villagers.md, úloha 4)', () => {
     const shares: LaborShare[] = [
       { activity: 'harvest', target: { kind: 'field', id: 7 }, manDays: 12 },
     ];
     const v = peopled(5, undefined, shares);
-    const walkers = traffic(plan(v), 'traffic:field:');
-    expect(walkers.length).toBeGreaterThan(0);
-    const field = v.fields[0]!.parts;
-    let nearField = 0;
-    let nearHome = 0;
-    for (const p of walkers) {
-      for (let t = 0; t < 600; t += 2) {
-        const pose = at(p, t);
-        if (pose.hidden) continue;
-        expect(inHouse(v, pose.x, pose.z)).toBe(false);
-        if (field.some((q) => Math.abs(pose.x - q.x) < 9 && Math.abs(pose.z - q.z) < 9)) {
-          nearField++;
-        }
-        if (Math.hypot(pose.x, pose.z) < 20) nearHome++;
-      }
-    }
-    expect(nearField).toBeGreaterThan(0);
-    expect(nearHome).toBeGreaterThan(0);
+    const people = plan(v);
+    expect(traffic(people, 'traffic:field:')).toEqual([]);
+    // pro vodu chodí dál stejně jako bez polní práce
+    expect(traffic(people).length).toBe(traffic(plan(peopled(5))).length);
+  });
+});
+
+describe('porážka – parta o 2 postavy nebere lidi jiným činnostem (diet.md – Porážka ve scéně)', () => {
+  const START = LIVESTOCK_EPOCH_MS + 5_000_000;
+  const dayWindow = (day: number): { startMs: number; endMs: number } => ({
+    startMs: START + (day - 1000) * 86_000,
+    endMs: START + (day - 1000 + 1) * 86_000,
+  });
+  it('počet postav celkem se oproti dni bez porážky nezmění', () => {
+    const shares: LaborShare[] = [
+      { activity: 'slaughter', target: { kind: 'village' }, manDays: 0.4 },
+      { activity: 'idle', target: { kind: 'village' }, manDays: 5 },
+      { activity: 'milking', target: { kind: 'village' }, manDays: 1 },
+    ];
+    const base = village(shares, 11, { children: 2, adults: 3, elders: 0 });
+    const plain = planVillagers(base, GROUND, { seed: 3, herds: 0, dayWindow });
+    const withHeads: SceneVillage = {
+      ...base,
+      labor: { ...base.labor!, slaughter: { pig: 1 } },
+    };
+    const people = planVillagers(withHeads, GROUND, { seed: 3, herds: 0, dayWindow });
+    expect(people.some((p) => p.key.startsWith('slaughter-crew:'))).toBe(true);
+    expect(people.length).toBe(plain.length);
   });
 });
 
@@ -1613,6 +1827,67 @@ describe('vchody domů podle varianty rozměrů (population.md – Varianty rozm
   });
 });
 
+describe('svatba – průvod nepřejde plot ohrady (paths.md – Ploty jsou neprůchodné)', () => {
+  const DAY = 1000;
+  const START = LIVESTOCK_EPOCH_MS + 5_000_000;
+  const dayWindow = (day: number): { startMs: number; endMs: number } => ({
+    startMs: START + (day - DAY) * 86_000,
+    endMs: START + (day - DAY + 1) * 86_000,
+  });
+  const base: SceneVillage = {
+    ...village([]),
+    sacred: { oaks: [{ id: 77, x: 10, z: 60 }], groves: [], buildings: [] },
+    weddings: [
+      {
+        key: `${DAY}:0`,
+        day: DAY,
+        bride: { id: 50, age: 19, from: 2 },
+        groom: { id: 51, age: 23, from: 2 },
+        home: 2,
+        guests: [],
+      },
+    ],
+  };
+
+  it('úsek bez uložené trasy vede kolem plotu, ne skrz něj', () => {
+    const free = planWeddings(base, GROUND, { seed: 3, dayWindow })[0]!.village.path.points;
+    const a = free[0]!;
+    const b = free[free.length - 1]!;
+    // ohrada napříč cestou, o kus vpravo: obejít ji jde jen z té strany (vlevo stojí domy)
+    const mid = { x: (a[0] + b[0]) / 2 + 4, z: (a[1] + b[1]) / 2 };
+    const penned: SceneVillage = {
+      ...base,
+      pens: [
+        {
+          id: 1,
+          cell: { x: 1, y: 0 },
+          x: mid.x,
+          z: mid.z,
+          size: 15,
+          built: true,
+          progress: 1,
+          oxen: 0,
+          trainees: 0,
+          cows: 0,
+        },
+      ],
+    };
+    const points = planWeddings(penned, GROUND, { seed: 3, dayWindow })[0]!.village.path.points;
+    // plot stojí 1,5 m uvnitř čtverce 15 m; žádný bod úseku nesmí ležet na plotu
+    const half = 6;
+    for (let i = 1; i < points.length; i++) {
+      const [px, pz] = points[i - 1]!;
+      const [qx, qz] = points[i]!;
+      for (let s = 0; s <= 40; s++) {
+        const x = px + ((qx - px) * s) / 40;
+        const z = pz + ((qz - pz) * s) / 40;
+        const inside = Math.abs(x - mid.x) < half - 0.3 && Math.abs(z - mid.z) < half - 0.3;
+        expect(inside).toBe(false);
+      }
+    }
+  });
+});
+
 describe('svatba – průvod mimo rozpočet pracujících (kinship.md – Svatba ve scéně)', () => {
   const DAY = 1000;
   const START = LIVESTOCK_EPOCH_MS + 5_000_000;
@@ -1711,5 +1986,299 @@ describe('svatba – průvod mimo rozpočet pracujících (kinship.md – Svatba
       );
       expect(both[i]!.look).toEqual(alone[i]!.look);
     }
+  });
+});
+
+describe('výmlat na humně (production-chains.md – Humno; issue #3)', () => {
+  const FLOOR = { x: 60, z: -50 };
+  const withFloor = (target: SceneLaborShare['target']): SceneVillage => ({
+    ...village([{ activity: 'thresh', target, manDays: 3 }]),
+    threshingFloors: [{ id: 40, position: { ...FLOOR, rotation: 0 }, built: true, progress: 1 }],
+  });
+  const threshers = (v: SceneVillage): PlannedVillager[] =>
+    planVillagers(v, GROUND, { seed: 3, herds: 0 }).filter((p) => p.key.startsWith('thresh:'));
+
+  it('podíl na hotovém humnu mlátí lidé na humně, ne jinde u vsi', () => {
+    const people = threshers(withFloor({ kind: 'threshing-floor', id: 40 }));
+    expect(people.length).toBe(3);
+    for (const p of people) {
+      for (const t of [5, 20, 60]) {
+        const pose = at(p, t);
+        expect(Math.hypot(pose.x - FLOOR.x, pose.z - FLOOR.z)).toBeLessThan(5);
+      }
+    }
+  });
+
+  it('nouzový výmlat (cíl ves) zůstává u vsi', () => {
+    const people = threshers(withFloor({ kind: 'village' }));
+    expect(people.length).toBe(3);
+    const pose = at(people[0]!, 20);
+    expect(Math.hypot(pose.x - FLOOR.x, pose.z - FLOOR.z)).toBeGreaterThan(20);
+  });
+
+  const clipsOf = (people: readonly PlannedVillager[], t = 20): string[] =>
+    people.map((p) => at(p, t).clip);
+
+  it('na humně páry mlatců s holemi naproti sobě, prohazovači s lopatou a nosič slámy', () => {
+    const v: SceneVillage = {
+      ...withFloor({ kind: 'threshing-floor', id: 40 }),
+      labor: {
+        ...withFloor({ kind: 'threshing-floor', id: 40 }).labor!,
+        shares: [{ activity: 'thresh', target: { kind: 'threshing-floor', id: 40 }, manDays: 12 }],
+      },
+    };
+    const people = threshers(v);
+    expect(people.length).toBeGreaterThanOrEqual(10);
+    const clips = clipsOf(people);
+    expect(clips.filter((c) => c === 'thresh').length).toBe(8);
+    expect(clips.filter((c) => c === 'winnow').length).toBe(3);
+    // páry čelem k sobě přes pás klasů
+    const [a, b] = people.filter((p) => at(p, 20).clip === 'thresh').map((p) => at(p, 20));
+    expect(a!.headingX * b!.headingX + a!.headingZ * b!.headingZ).toBeLessThan(-0.9);
+    // nosič slámy chodí mezi klasy a stohem po humně
+    const carrier = people.find(
+      (p) => clipsOf([p], 0)[0] !== 'thresh' && clipsOf([p], 0)[0] !== 'winnow',
+    );
+    expect(carrier).toBeDefined();
+    const seen = new Set<string>();
+    for (let t = 0; t < 60; t += 0.5) {
+      const pose = at(carrier!, t);
+      seen.add(pose.clip);
+      expect(Math.hypot(pose.x - FLOOR.x, pose.z - FLOOR.z)).toBeLessThan(6);
+    }
+    expect(seen).toContain('carry');
+    // deterministické
+    const again = threshers(v);
+    expect(again.map((p) => at(p, 33))).toEqual(people.map((p) => at(p, 33)));
+  });
+
+  it('mlatci jen v párech – čtyři lidé: pár mlatců, prohazovač a nosič slámy', () => {
+    const v: SceneVillage = {
+      ...withFloor({ kind: 'threshing-floor', id: 40 }),
+      labor: {
+        ...withFloor({ kind: 'threshing-floor', id: 40 }).labor!,
+        shares: [{ activity: 'thresh', target: { kind: 'threshing-floor', id: 40 }, manDays: 4 }],
+      },
+    };
+    const people = threshers(v);
+    expect(people.length).toBe(4);
+    const clips = clipsOf(people);
+    expect(clips.filter((c) => c === 'thresh').length).toBe(2);
+    expect(clips.filter((c) => c === 'winnow').length).toBe(1);
+  });
+
+  it('nouzový výmlat: mlatci s holemi a prohazovači s lopatou', () => {
+    const v = village([{ activity: 'thresh', target: { kind: 'village' }, manDays: 6 }]);
+    const clips = clipsOf(threshers(v));
+    expect(clips.filter((c) => c === 'thresh').length).toBe(4);
+    expect(clips.filter((c) => c === 'winnow').length).toBe(2);
+  });
+
+  it('stavba humna po fázích: kolíky paličkou, drn motykou, dusání holí, mazání v podřepu', () => {
+    const site = (progress: number): string[] => {
+      const v: SceneVillage = {
+        ...village([{ activity: 'build', target: { kind: 'site', id: 40 }, manDays: 4 }]),
+        threshingFloors: [
+          { id: 40, position: { ...FLOOR, rotation: 0.3 }, built: false, progress },
+        ],
+      };
+      const people = planVillagers(v, GROUND, { seed: 3, herds: 0 }).filter((p) =>
+        p.key.startsWith('build:'),
+      );
+      expect(people.length).toBe(4);
+      for (const p of people) {
+        const pose = at(p, 10);
+        expect(Math.hypot(pose.x - FLOOR.x, pose.z - FLOOR.z)).toBeLessThan(8);
+      }
+      return clipsOf(people, 10);
+    };
+    expect(new Set(site(0.02))).toEqual(new Set(['build']));
+    expect(new Set(site(0.2))).toEqual(new Set(['hoe']));
+    expect(new Set(site(0.7))).toEqual(new Set(['thresh']));
+    expect(new Set(site(0.95))).toEqual(new Set(['weed']));
+  });
+
+  it('snopy z pole nosí na hotové humno, bez humna domů', () => {
+    const carry = (floor: boolean): PlannedVillager[] => {
+      const base = village([{ activity: 'carry', target: { kind: 'field', id: 7 }, manDays: 2 }]);
+      const v: SceneVillage = floor
+        ? {
+            ...base,
+            threshingFloors: [
+              { id: 40, position: { x: 30, z: 40, rotation: 0 }, built: true, progress: 1 },
+            ],
+          }
+        : base;
+      return planVillagers(v, GROUND, { seed: 3, herds: 0 }).filter((p) =>
+        p.key.startsWith('carry:'),
+      );
+    };
+    // vstup humna je před předkem mlatu (+z): (30, 46)
+    const near = (people: PlannedVillager[]): number => {
+      let best = Infinity;
+      for (const p of people) {
+        for (let t = 0; t < 240; t += 1) {
+          const pose = at(p, t);
+          best = Math.min(best, Math.hypot(pose.x - 30, pose.z - 46));
+        }
+      }
+      return best;
+    };
+    expect(near(carry(true))).toBeLessThan(3);
+    expect(near(carry(false))).toBeGreaterThan(10);
+  });
+
+  it('zrno z humna nosí do jámy, kopáči zůstanou u hrdla', () => {
+    const v: SceneVillage = {
+      ...village([
+        { activity: 'grain-pit', target: { kind: 'grain-pit', id: 5, x: 40, z: 60 }, manDays: 4 },
+      ]),
+      threshingFloors: [
+        { id: 40, position: { x: 30, z: 40, rotation: 0 }, built: true, progress: 1, grainKg: 300 },
+      ],
+    };
+    const people = planVillagers(v, GROUND, { seed: 3, herds: 0 }).filter((p) =>
+      p.key.startsWith('grain-pit:'),
+    );
+    expect(people.length).toBe(4);
+    const moving = people.filter((p) => {
+      const clips = new Set<string>();
+      for (let t = 0; t < 120; t += 1) clips.add(at(p, t).clip);
+      return clips.has('carry');
+    });
+    expect(moving.length).toBe(2);
+    const without = planVillagers({ ...v, threshingFloors: [] }, GROUND, { seed: 3, herds: 0 });
+    expect(new Set(clipsOf(without.filter((p) => p.key.startsWith('grain-pit:'))))).toEqual(
+      new Set(['hoe']),
+    );
+  });
+});
+
+describe('lidé při práci na cestě (roads.md – Lidé při práci na cestě)', () => {
+  const line = (z: number, from: number, to: number): { x: number; z: number }[] => {
+    const out = [];
+    for (let x = from; x <= to; x += 10) out.push({ x, z });
+    return out;
+  };
+
+  it('úprava víc úseků: postavy stojí u čela na úseku, kde se pracuje', () => {
+    const base = village([{ activity: 'build', target: { kind: 'road', id: 2 }, manDays: 4 }]);
+    const v: SceneVillage = {
+      ...base,
+      roads: [
+        { id: 1, points: line(100, -100, 0), grade: 'improved' },
+        {
+          id: 2,
+          points: line(100, 0, 100),
+          grade: 'trodden',
+          upgrade: { grade: 'improved', progress: 0.5 },
+        },
+        { id: 3, points: line(100, 100, 200), grade: 'trodden' },
+      ],
+    };
+    const people = planVillagers(v, GROUND, { seed: 3, herds: 0 }).filter((p) =>
+      p.key.startsWith('build:'),
+    );
+    expect(people.length).toBeGreaterThan(0);
+    for (const p of people) {
+      const { x, z } = at(p, 5);
+      expect(Math.abs(x - 50)).toBeLessThan(25);
+      expect(Math.abs(z - 100)).toBeLessThan(4);
+    }
+  });
+
+  it('vozová cesta ve stavbě: kopáči v úvozu u čela a nosiči, kteří chodí s koši', () => {
+    const base = village([
+      { activity: 'build', target: { kind: 'wagon', id: 5, x: 60, z: 100 }, manDays: 8 },
+    ]);
+    const v: SceneVillage = {
+      ...base,
+      earthworks: [
+        {
+          id: 1,
+          profile: line(100, 0, 120).map((p) => ({ ...p, y: 0 })),
+          reachedM: 60,
+          shownM: 60,
+          pieces: [{ toM: 120, ageYears: null }],
+          building: true,
+          constructionId: 5,
+        },
+      ],
+    };
+    const people = planVillagers(v, GROUND, { seed: 3, herds: 0 }).filter((p) =>
+      p.key.startsWith('build:'),
+    );
+    expect(people.length).toBeGreaterThanOrEqual(3);
+    const clips = new Set<string>();
+    for (const p of people) {
+      for (let t = 0; t < 120; t += 3) {
+        const pose = at(p, t);
+        clips.add(pose.clip);
+        expect(Math.hypot(pose.x - 60, pose.z - 100)).toBeLessThan(14);
+      }
+    }
+    expect(clips.has('hoe')).toBe(true);
+    expect(clips.has('carry')).toBe(true);
+  });
+
+  it('víc vozových cest: dělníci se natočí podle osy své stavby, ne první v seznamu', () => {
+    const base = village([
+      { activity: 'build', target: { kind: 'wagon', id: 7, x: 60, z: 100 }, manDays: 8 },
+    ]);
+    const prof = (pts: { x: number; z: number }[]): SceneVillage['earthworks'] => [
+      {
+        id: 1,
+        profile: pts.map((p) => ({ ...p, y: 0 })),
+        reachedM: 60,
+        shownM: 60,
+        pieces: [{ toM: 120, ageYears: null }],
+        building: true,
+        constructionId: 9,
+      },
+    ];
+    const other = prof(line(100, 0, 120))![0]!;
+    // vlastní osa stavby 7 vede ve směru z (kolmo k cizí)
+    const own = {
+      ...other,
+      id: 2,
+      constructionId: 7,
+      profile: Array.from({ length: 13 }, (_, k) => ({ x: 60, z: 40 + k * 10, y: 0 })),
+    };
+    const v: SceneVillage = { ...base, earthworks: [other, own] };
+    const people = planVillagers(v, GROUND, { seed: 3, herds: 0 }).filter((p) =>
+      p.key.startsWith('build:'),
+    );
+    // stojící kopáči (nosiči chodí) hledí po ose své stavby (z), ne cizí (x)
+    const diggers = people
+      .filter((p) => at(p, 0).clip === 'hoe' && at(p, 40).x === at(p, 0).x)
+      .map((p) => at(p, 0));
+    expect(diggers.length).toBeGreaterThan(0);
+    for (const d of diggers) expect(Math.abs(d.headingX)).toBeLessThan(0.2);
+  });
+});
+
+describe('pletí hlavně ženy a děti, seč hlavně muži (fields.md – Pletí jednou a rychle)', () => {
+  it('pletí dospělých podle podílu žen z jádra – ženy vsi plejí napřed', () => {
+    let weeders = 0;
+    let weedWomen = 0;
+    for (let seed = 1; seed <= 12; seed++) {
+      const people = planVillagers(
+        village([{ activity: 'weed', target: { kind: 'field', id: 7 }, manDays: 4, women: 1 }], 5),
+        GROUND,
+        { seed, herds: 0 },
+      );
+      for (const p of people) {
+        if (!p.key.startsWith('weed:')) continue;
+        weeders++;
+        if (p.kind === 'woman') weedWomen++;
+      }
+    }
+    expect(weeders).toBeGreaterThan(0);
+    expect(weedWomen).toBe(weeders);
+  });
+
+  it('bez údaje jádra: pletí hlavně ženy, seč hlavně muži (podíl činnosti)', () => {
+    expect(WOMEN.weed).toBeGreaterThanOrEqual(0.85);
+    expect(WOMEN.mow).toBeLessThanOrEqual(0.15);
   });
 });

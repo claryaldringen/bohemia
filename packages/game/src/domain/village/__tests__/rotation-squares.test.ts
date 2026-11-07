@@ -3,7 +3,6 @@ import { dayIndexOf } from '../../calendar';
 import { packObstacles, type ObstaclePlacement } from '../../landscape';
 import { foundCemetery, foundField, foundPen, foundVillage } from '../actions';
 import { cemeteryDwellingDistance, cemeteryHygiene, distanceToSquare } from '../cemetery';
-import { neighbourSnapshot } from '../neighbourhood';
 import { pathVillageOf } from '../paths/village';
 import {
   cellCorners,
@@ -309,16 +308,13 @@ describe('natočený hřbitov a ohrada v simulaci, pěšinách a u sousedů', ()
     );
   }
 
-  it('pěšiny dostanou natočené čtverce hřbitova a ohrady, přehled sousedů je nese s mřížkou', () => {
+  it('pěšiny dostanou natočené čtverce hřbitova a ohrady', () => {
     const s = turnedVillage();
     const paths = pathVillageOf(s, s.lastDay, landscape);
     for (const square of paths.cemeteries![0]!.squares) {
       expect(square.rotation).toBe(4 * ROTATION_STEP);
     }
     expect(paths.pens![0]!.rotation).toBe(ROTATION_STEP);
-    const snapshot = neighbourSnapshot([s], s.lastDay)!;
-    expect(snapshot.squares).toHaveLength(3);
-    expect(snapshot.squares!.every((q) => q.grid.rotation > 0)).toBe(true);
   });
 
   it('ves s natočeným hřbitovem a ohradou se dopočítá po kouscích stejně jako vcelku', () => {

@@ -70,6 +70,256 @@
           "band": [0.75, 0.78, 0.95, 0.85],
           "rope": [0.06, 0.72, 0.14, 0.84]
         }
+      },
+      {
+        "name": "knife",
+        "dae": "meshes/props/weapons/dagger_01.dae",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds"
+      },
+      {
+        "name": "meat",
+        "dae": "meshes/props/special/brontoburger.dae",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/shuttle_meat.png",
+        "scale": 0.55
+      },
+      {
+        "name": "bowl",
+        "procedural": "bowl",
+        "point": "prop-weapon_L",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "rotate_deg": [-90, 0, 0],
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58],
+          "liquid": [0.06, 0.72, 0.14, 0.84]
+        }
+      },
+      {
+        "name": "fishing-rod",
+        "procedural": "rod",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58]
+        },
+        "rotate_deg": [-6, 15, 0]
+      },
+      {
+        "name": "thresh-stick",
+        "procedural": "stick",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58]
+        }
+      },
+      {
+        "name": "shovel",
+        "procedural": "shovel",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58]
+        }
+      },
+      {
+        "name": "rattle",
+        "procedural": "rattle",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58]
+        },
+        "rotate_deg": [18, -115, 0]
+      },
+      {
+        "name": "stump",
+        "procedural": "stump",
+        "point": "seat",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58]
+        }
+      },
+      {
+        "name": "sheaf",
+        "procedural": "sheaf",
+        "point": "seat",
+        "texture": "textures/skins/props/basket_iber_1.dds",
+        "uv": {
+          "straw": [0.05, 0.1, 0.95, 0.6],
+          "band": [0.05, 0.7, 0.95, 0.8]
+        }
+      },
+      {
+        "name": "rake",
+        "procedural": "rake",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58]
+        }
+      },
+      {
+        "name": "pitchfork",
+        "dae": "meshes/props/tool_pitchfork.dae",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_tools.dds",
+        "scale": 0.75
+      },
+      {
+        "name": "hammer",
+        "dae": "meshes/props/tool_hammer.dae",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "scale": 0.65
+      },
+      {
+        "name": "tongs",
+        "dae": "meshes/props/tool_tongs_01.dae",
+        "point": "prop-weapon_L",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "scale": 0.8
+      },
+      {
+        "name": "split-axe",
+        "dae": "meshes/props/tool_axe.dae",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds"
+      },
+      {
+        "name": "block",
+        "procedural": "block",
+        "point": "seat",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58]
+        }
+      },
+      {
+        "name": "sieve",
+        "procedural": "sieve",
+        "point": "seat",
+        "texture": "textures/skins/props/basket_iber_1.dds",
+        "uv": {
+          "wicker": [0.05, 0.05, 0.95, 0.95]
+        }
+      },
+      {
+        "name": "pots",
+        "procedural": "pots",
+        "point": "seat",
+        "texture": "textures/skins/props/vase_rome_1.dds",
+        "uv": {
+          "clay": [0.45, 0.1, 0.75, 0.5]
+        }
+      },
+      {
+        "name": "tools-load",
+        "procedural": "tools-load",
+        "point": "prop-back",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58],
+          "metal": [0.75, 0.78, 0.95, 0.86]
+        }
+      },
+      {
+        "name": "pots-load",
+        "procedural": "pots-load",
+        "point": "prop-back",
+        "texture": "textures/skins/props/vase_rome_1.dds",
+        "uv": {
+          "clay": [0.45, 0.1, 0.75, 0.5]
+        }
+      },
+      {
+        "name": "fish-load",
+        "procedural": "fish-load",
+        "point": "prop-back",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "scales": [0.75, 0.78, 0.95, 0.86]
+        }
+      },
+      {
+        "name": "snare",
+        "procedural": "snare",
+        "point": "seat",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58],
+          "rope": [0.06, 0.72, 0.14, 0.84]
+        }
+      },
+      {
+        "name": "ladle",
+        "procedural": "ladle",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58]
+        }
+      },
+      {
+        "name": "cookpot",
+        "procedural": "cookpot",
+        "point": "seat",
+        "texture": "textures/skins/props/vase_rome_1.dds",
+        "uv": {
+          "clay": [0.45, 0.1, 0.75, 0.5],
+          "soot": [0.6, 0.86, 0.75, 0.94]
+        }
+      },
+      {
+        "name": "pail",
+        "procedural": "pail",
+        "point": "seat",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58],
+          "band": [0.75, 0.78, 0.95, 0.86]
+        }
+      },
+      {
+        "name": "distaff",
+        "procedural": "distaff",
+        "point": "seat",
+        "texture": "textures/skins/props/prop_tools.dds",
+        "uv": {
+          "wood": [0.65, 0.1, 0.95, 0.9],
+          "wool": [0.1, 0.2, 0.45, 0.8]
+        }
+      },
+      {
+        "name": "loom",
+        "procedural": "loom",
+        "point": "seat",
+        "texture": "textures/skins/props/prop_tools.dds",
+        "uv": {
+          "wood": [0.65, 0.1, 0.95, 0.9],
+          "warp": [0.1, 0.2, 0.45, 0.8]
+        }
+      },
+      {
+        "name": "pipe",
+        "procedural": "pipe",
+        "point": "seat",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58]
+        }
+      },
+      {
+        "name": "drum",
+        "procedural": "drum",
+        "point": "seat",
+        "texture": "textures/skins/props/prop_tools.dds",
+        "uv": {
+          "body": [0.65, 0.1, 0.95, 0.9],
+          "hide": [0.1, 0.2, 0.45, 0.8]
+        }
       }
     ],
     "clips": [
@@ -150,6 +400,565 @@
             "R": [-0.47, 0.04, 0.98]
           }
         }
+      },
+      {
+        "name": "butcher",
+        "animation": "animation/biped/gatherer/gather_meat.dae",
+        "props": ["head", "knife"]
+      },
+      {
+        "name": "bleed",
+        "animation": "animation/biped/gatherer/gather_berries.dae",
+        "props": ["head", "bowl"]
+      },
+      {
+        "name": "gut",
+        "animation": "animation/biped/gatherer/slaughter.dae",
+        "props": ["head", "knife"]
+      },
+      {
+        "name": "carry-meat",
+        "animation": "animation/biped/gatherer/carry_meat_f.dae",
+        "props": ["head", "meat"]
+      },
+      {
+        "name": "fish",
+        "animation": "animation/biped/citizen/idle_relax_f.dae",
+        "props": ["head", "fishing-rod"],
+        "report_tip": {
+          "prop": "fishing-rod",
+          "tip": [0, 0, 6.0],
+          "aim": [2.33, 0.72, -1.11]
+        }
+      },
+      {
+        "name": "walk-rattle",
+        "animation": "animation/biped/citizen/walk_relax_f.dae",
+        "props": ["head", "rattle"],
+        "pose": {
+          "reach": {
+            "R": [-0.3, 0.25, 1.5]
+          }
+        },
+        "report_tip": {
+          "prop": "rattle",
+          "tip": [0, 0, 0.85],
+          "aim": [0.2, 1, 0]
+        }
+      },
+      {
+        "name": "idle-rattle",
+        "animation": "animation/biped/citizen/idle_relax_f.dae",
+        "props": ["head", "rattle"],
+        "pose": {
+          "reach": {
+            "R": [-0.3, 0.25, 1.5]
+          }
+        },
+        "report_tip": {
+          "prop": "rattle",
+          "tip": [0, 0, 0.85],
+          "aim": [0.2, 1, 0]
+        }
+      },
+      {
+        "name": "thresh",
+        "animation": "animation/biped/gatherer/gather_mine.dae",
+        "props": ["head", "thresh-stick"]
+      },
+      {
+        "name": "winnow",
+        "animation": "animation/biped/gatherer/farming.dae",
+        "props": ["head", "shovel"]
+      },
+      {
+        "name": "pray",
+        "animation": "animation/biped/citizen/pray.dae",
+        "props": ["head"]
+      },
+      {
+        "name": "walk-hoe",
+        "animation": "animation/biped/gatherer/walk_hoe.dae",
+        "props": ["head", "hoe"]
+      },
+      {
+        "name": "walk-axe",
+        "animation": "animation/biped/gatherer/walk_axe.dae",
+        "props": ["head", "axe"]
+      },
+      {
+        "name": "rest-a",
+        "animation": "animation/biped/citizen/idle_relax_f_short.dae",
+        "props": ["head"]
+      },
+      {
+        "name": "rest-b",
+        "animation": "animation/biped/citizen/idle_relax_f_long.dae",
+        "props": ["head"]
+      },
+      {
+        "name": "milk",
+        "keys": {
+          "base": "animation/biped/citizen/idle_relax_f.dae",
+          "duration_s": 1.0,
+          "poses": [
+            {
+              "t": 0,
+              "hip": [0, -0.3, -0.44],
+              "feet": {
+                "L": [0.2, 0.16, 0.03],
+                "R": [-0.2, 0.16, 0.03]
+              },
+              "turn": {
+                "spine": [22, 0, 0],
+                "chest": [12, 0, 0],
+                "head": [-10, 0, 0]
+              },
+              "hands": {
+                "L": [0.07, 0.2, 0.52],
+                "R": [-0.07, 0.2, 0.42]
+              }
+            },
+            {
+              "t": 0.5,
+              "hip": [0, -0.3, -0.44],
+              "turn": {
+                "spine": [22, 0, 0],
+                "chest": [12, 0, 0],
+                "head": [-10, 0, 0]
+              },
+              "hands": {
+                "L": [0.07, 0.2, 0.42],
+                "R": [-0.07, 0.2, 0.52]
+              }
+            }
+          ]
+        },
+        "props": ["head", "stump", "pail"]
+      },
+      {
+        "name": "spin",
+        "keys": {
+          "base": "animation/biped/citizen/idle_relax_f.dae",
+          "duration_s": 2.4,
+          "poses": [
+            {
+              "t": 0,
+              "turn": {
+                "head": [12, 0, -5]
+              },
+              "hands": {
+                "L": [0.17, 0.16, 1.32],
+                "R": [0.0, 0.26, 1.17]
+              }
+            },
+            {
+              "t": 0.7,
+              "turn": {
+                "head": [16, 0, -8]
+              },
+              "hands": {
+                "L": [0.16, 0.16, 1.3],
+                "R": [-0.1, 0.27, 1.0]
+              }
+            },
+            {
+              "t": 1.2,
+              "turn": {
+                "head": [18, 0, -10]
+              },
+              "hands": {
+                "L": [0.16, 0.17, 1.3],
+                "R": [-0.2, 0.2, 0.86]
+              }
+            },
+            {
+              "t": 1.7,
+              "turn": {
+                "head": [14, 0, -6]
+              },
+              "hands": {
+                "L": [0.17, 0.16, 1.32],
+                "R": [-0.12, 0.25, 1.04]
+              }
+            }
+          ]
+        },
+        "props": ["head", "distaff"]
+      },
+      {
+        "name": "weave",
+        "keys": {
+          "base": "animation/biped/citizen/idle_relax_f.dae",
+          "duration_s": 3.0,
+          "poses": [
+            {
+              "t": 0,
+              "turn": {
+                "chest": [4, 0, 8],
+                "head": [-4, 0, 6]
+              },
+              "hands": {
+                "L": [0.36, 0.3, 1.12],
+                "R": [-0.06, 0.32, 1.12]
+              }
+            },
+            {
+              "t": 0.9,
+              "turn": {
+                "chest": [4, 0, -8],
+                "head": [-4, 0, -6]
+              },
+              "hands": {
+                "L": [0.06, 0.32, 1.12],
+                "R": [-0.36, 0.3, 1.12]
+              }
+            },
+            {
+              "t": 1.5,
+              "turn": {
+                "chest": [-3, 0, 0],
+                "head": [-8, 0, 0]
+              },
+              "hands": {
+                "L": [0.16, 0.34, 1.36],
+                "R": [-0.16, 0.34, 1.36]
+              }
+            },
+            {
+              "t": 2.1,
+              "turn": {
+                "chest": [4, 0, 0]
+              },
+              "hands": {
+                "L": [0.22, 0.3, 1.1],
+                "R": [-0.22, 0.3, 1.1]
+              }
+            }
+          ]
+        },
+        "props": ["head", "loom"]
+      },
+      {
+        "name": "sit",
+        "keys": {
+          "base": "animation/biped/citizen/idle_relax_f.dae",
+          "duration_s": 7.0,
+          "poses": [
+            {
+              "t": 0,
+              "hip": [0, -0.3, -0.44],
+              "feet": {
+                "L": [0.15, 0.12, 0.03],
+                "R": [-0.15, 0.12, 0.03]
+              },
+              "turn": {
+                "spine": [4, 0, 0],
+                "head": [6, 0, 0]
+              },
+              "hands": {
+                "L": [0.16, 0.1, 0.5],
+                "R": [-0.16, 0.1, 0.5]
+              }
+            },
+            {
+              "t": 2.0,
+              "hip": [0, -0.3, -0.44],
+              "turn": {
+                "spine": [4, 0, 0],
+                "head": [2, 0, 25]
+              },
+              "hands": {
+                "L": [0.16, 0.1, 0.5],
+                "R": [-0.16, 0.1, 0.5]
+              }
+            },
+            {
+              "t": 3.2,
+              "hip": [0, -0.3, -0.44],
+              "turn": {
+                "spine": [-3, 0, 0],
+                "head": [-4, 0, 10]
+              },
+              "hands": {
+                "L": [0.17, 0.06, 0.52],
+                "R": [-0.16, 0.1, 0.5]
+              }
+            },
+            {
+              "t": 4.6,
+              "hip": [0, -0.3, -0.44],
+              "turn": {
+                "spine": [6, 0, 0],
+                "head": [14, 0, -18]
+              },
+              "hands": {
+                "L": [0.16, 0.1, 0.5],
+                "R": [-0.16, 0.1, 0.5]
+              }
+            },
+            {
+              "t": 5.6,
+              "hip": [0, -0.3, -0.44],
+              "turn": {
+                "spine": [6, 0, 0],
+                "head": [4, 0, -6]
+              },
+              "hands": {
+                "L": [0.16, 0.1, 0.5],
+                "R": [-0.16, 0.1, 0.5]
+              }
+            }
+          ]
+        },
+        "props": ["head", "stump"]
+      },
+      {
+        "name": "wheel",
+        "keys": {
+          "base": "animation/biped/citizen/idle_relax_f.dae",
+          "duration_s": 2.0,
+          "poses": [
+            {
+              "t": 0,
+              "hip": [0, -0.2, -0.44],
+              "feet": {
+                "L": [0.2, 0.18, 0.03],
+                "R": [-0.2, 0.3, 0.06]
+              },
+              "turn": {
+                "spine": [24, 0, 0],
+                "chest": [10, 0, 0],
+                "head": [-8, 0, 0]
+              },
+              "hands": {
+                "L": [0.09, 0.44, 0.64],
+                "R": [-0.09, 0.44, 0.64]
+              }
+            },
+            {
+              "t": 0.5,
+              "hip": [0, -0.2, -0.44],
+              "turn": {
+                "spine": [26, 0, 0],
+                "chest": [10, 0, 0],
+                "head": [-8, 0, 0]
+              },
+              "feet": {
+                "R": [-0.2, 0.12, 0.03]
+              },
+              "hands": {
+                "L": [0.08, 0.45, 0.68],
+                "R": [-0.08, 0.45, 0.66]
+              }
+            },
+            {
+              "t": 1.0,
+              "hip": [0, -0.2, -0.44],
+              "turn": {
+                "spine": [24, 0, 0],
+                "chest": [10, 0, 0],
+                "head": [-8, 0, 0]
+              },
+              "feet": {
+                "R": [-0.2, 0.3, 0.06]
+              },
+              "hands": {
+                "L": [0.09, 0.44, 0.72],
+                "R": [-0.09, 0.44, 0.7]
+              }
+            },
+            {
+              "t": 1.5,
+              "hip": [0, -0.2, -0.44],
+              "turn": {
+                "spine": [26, 0, 0],
+                "chest": [10, 0, 0],
+                "head": [-8, 0, 0]
+              },
+              "feet": {
+                "R": [-0.2, 0.12, 0.03]
+              },
+              "hands": {
+                "L": [0.08, 0.45, 0.68],
+                "R": [-0.08, 0.45, 0.66]
+              }
+            }
+          ]
+        },
+        "props": ["head", "stump"]
+      },
+      {
+        "name": "pipe",
+        "keys": {
+          "base": "animation/biped/citizen/idle_relax_f.dae",
+          "duration_s": 2.0,
+          "poses": [
+            {
+              "t": 0,
+              "hip": [0.015, 0, 0],
+              "turn": {
+                "spine": [0, 3, 0],
+                "head": [4, 0, 0]
+              },
+              "hands": {
+                "L": [0.03, 0.2, 1.4],
+                "R": [-0.03, 0.25, 1.27]
+              }
+            },
+            {
+              "t": 0.5,
+              "hip": [0, 0, -0.015],
+              "turn": {
+                "spine": [3, 0, 0],
+                "head": [7, 0, 0]
+              },
+              "hands": {
+                "L": [0.03, 0.21, 1.39],
+                "R": [-0.03, 0.26, 1.26]
+              }
+            },
+            {
+              "t": 1.0,
+              "hip": [-0.015, 0, 0],
+              "turn": {
+                "spine": [0, -3, 0],
+                "head": [4, 0, 0]
+              },
+              "hands": {
+                "L": [0.03, 0.2, 1.4],
+                "R": [-0.03, 0.25, 1.27]
+              }
+            },
+            {
+              "t": 1.5,
+              "hip": [0, 0, -0.015],
+              "turn": {
+                "spine": [3, 0, 0],
+                "head": [7, 0, 0]
+              },
+              "hands": {
+                "L": [0.03, 0.21, 1.39],
+                "R": [-0.03, 0.26, 1.26]
+              }
+            }
+          ]
+        },
+        "props": ["head", "pipe"]
+      },
+      {
+        "name": "drum",
+        "keys": {
+          "base": "animation/biped/citizen/idle_relax_f.dae",
+          "duration_s": 1.0,
+          "poses": [
+            {
+              "t": 0,
+              "turn": {
+                "head": [8, 0, 10],
+                "spine": [0, 0, 6]
+              },
+              "hands": {
+                "L": [0.2, 0.2, 0.98],
+                "R": [-0.02, 0.3, 1.12]
+              }
+            },
+            {
+              "t": 0.25,
+              "turn": {
+                "head": [12, 0, 10],
+                "spine": [2, 0, 6]
+              },
+              "hands": {
+                "L": [0.2, 0.2, 0.97],
+                "R": [0.05, 0.24, 0.98]
+              }
+            },
+            {
+              "t": 0.5,
+              "turn": {
+                "head": [8, 0, 10],
+                "spine": [0, 0, 6]
+              },
+              "hands": {
+                "L": [0.2, 0.2, 0.98],
+                "R": [-0.02, 0.3, 1.12]
+              }
+            },
+            {
+              "t": 0.75,
+              "turn": {
+                "head": [12, 0, 10],
+                "spine": [2, 0, 6]
+              },
+              "hands": {
+                "L": [0.2, 0.2, 0.97],
+                "R": [0.05, 0.24, 0.98]
+              }
+            }
+          ]
+        },
+        "props": ["head", "drum"]
+      },
+      {
+        "name": "bind",
+        "animation": "animation/biped/gatherer/gather_berries.dae",
+        "props": ["head", "sheaf"]
+      },
+      {
+        "name": "rake",
+        "animation": "animation/biped/gatherer/farming.dae",
+        "props": ["head", "rake"]
+      },
+      {
+        "name": "pitch",
+        "animation": "animation/biped/gatherer/farming.dae",
+        "props": ["head", "pitchfork"]
+      },
+      {
+        "name": "forge",
+        "animation": "animation/biped/citizen/build.dae",
+        "props": ["head", "hammer", "tongs"]
+      },
+      {
+        "name": "split",
+        "animation": "animation/biped/gatherer/gather_mine.dae",
+        "props": ["head", "split-axe", "block"]
+      },
+      {
+        "name": "sieve",
+        "animation": "animation/biped/gatherer/gather_berries.dae",
+        "props": ["head", "sieve"]
+      },
+      {
+        "name": "pots",
+        "animation": "animation/biped/gatherer/gather_berries.dae",
+        "props": ["head", "pots"]
+      },
+      {
+        "name": "carry-tools",
+        "animation": "animation/biped/gatherer/carry_grain_f.dae",
+        "props": ["head", "basket", "tools-load"]
+      },
+      {
+        "name": "carry-pots",
+        "animation": "animation/biped/gatherer/carry_grain_f.dae",
+        "props": ["head", "basket", "pots-load"]
+      },
+      {
+        "name": "carry-fish",
+        "animation": "animation/biped/gatherer/carry_grain_f.dae",
+        "props": ["head", "basket", "fish-load"]
+      },
+      {
+        "name": "snare",
+        "animation": "animation/biped/gatherer/gather_berries.dae",
+        "props": ["head", "snare"]
+      },
+      {
+        "name": "cook",
+        "animation": "animation/biped/gatherer/gather_berries.dae",
+        "props": ["head", "ladle", "cookpot"]
       }
     ]
   },
@@ -224,6 +1033,286 @@
           "band": [0.75, 0.78, 0.95, 0.85],
           "rope": [0.06, 0.72, 0.14, 0.84]
         }
+      },
+      {
+        "name": "bow",
+        "dae": "meshes/props/bow_long_indian_a.dae",
+        "point": "prop-weapon_bow",
+        "texture": "textures/skins/props/wood_e.png"
+      },
+      {
+        "name": "training-sword",
+        "dae": "meshes/props/broadsword_celt.dae",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/wood_e.png"
+      },
+      {
+        "name": "wicker-shield",
+        "dae": "meshes/props/shield/round_noboss_f.dae",
+        "point": "prop-shield",
+        "texture": "textures/skins/props/basket_iber_1.dds"
+      },
+      {
+        "name": "spear",
+        "dae": "meshes/props/weap_shaft_wood_a.dae",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/wood_e.png"
+      },
+      {
+        "name": "knife",
+        "dae": "meshes/props/weapons/dagger_01.dae",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds"
+      },
+      {
+        "name": "meat",
+        "dae": "meshes/props/special/brontoburger.dae",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/shuttle_meat.png",
+        "scale": 0.55,
+        "offset_m": [0.277, 0.113, 0.02]
+      },
+      {
+        "name": "bowl",
+        "procedural": "bowl",
+        "point": "prop-weapon_L",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "rotate_deg": [-90, 0, 0],
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58],
+          "liquid": [0.06, 0.72, 0.14, 0.84]
+        }
+      },
+      {
+        "name": "fishing-rod",
+        "procedural": "rod",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58]
+        },
+        "rotate_deg": [-60, 0, 0]
+      },
+      {
+        "name": "thresh-stick",
+        "procedural": "stick",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58]
+        }
+      },
+      {
+        "name": "shovel",
+        "procedural": "shovel",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58]
+        }
+      },
+      {
+        "name": "rattle",
+        "procedural": "rattle",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58]
+        },
+        "rotate_deg": [4, -72, 0]
+      },
+      {
+        "name": "stump",
+        "procedural": "stump",
+        "point": "seat",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58]
+        }
+      },
+      {
+        "name": "sheaf",
+        "procedural": "sheaf",
+        "point": "seat",
+        "texture": "textures/skins/props/basket_iber_1.dds",
+        "uv": {
+          "straw": [0.05, 0.1, 0.95, 0.6],
+          "band": [0.05, 0.7, 0.95, 0.8]
+        }
+      },
+      {
+        "name": "rake",
+        "procedural": "rake",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58]
+        }
+      },
+      {
+        "name": "pitchfork",
+        "dae": "meshes/props/tool_pitchfork.dae",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_tools.dds",
+        "scale": 0.75
+      },
+      {
+        "name": "hammer",
+        "dae": "meshes/props/tool_hammer.dae",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "scale": 0.65
+      },
+      {
+        "name": "tongs",
+        "dae": "meshes/props/tool_tongs_01.dae",
+        "point": "prop-weapon_L",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "scale": 0.8
+      },
+      {
+        "name": "split-axe",
+        "dae": "meshes/props/tool_axe.dae",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds"
+      },
+      {
+        "name": "block",
+        "procedural": "block",
+        "point": "seat",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58]
+        }
+      },
+      {
+        "name": "sieve",
+        "procedural": "sieve",
+        "point": "seat",
+        "texture": "textures/skins/props/basket_iber_1.dds",
+        "uv": {
+          "wicker": [0.05, 0.05, 0.95, 0.95]
+        }
+      },
+      {
+        "name": "pots",
+        "procedural": "pots",
+        "point": "seat",
+        "texture": "textures/skins/props/vase_rome_1.dds",
+        "uv": {
+          "clay": [0.45, 0.1, 0.75, 0.5]
+        }
+      },
+      {
+        "name": "tools-load",
+        "procedural": "tools-load",
+        "point": "prop-back",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58],
+          "metal": [0.75, 0.78, 0.95, 0.86]
+        }
+      },
+      {
+        "name": "pots-load",
+        "procedural": "pots-load",
+        "point": "prop-back",
+        "texture": "textures/skins/props/vase_rome_1.dds",
+        "uv": {
+          "clay": [0.45, 0.1, 0.75, 0.5]
+        }
+      },
+      {
+        "name": "fish-load",
+        "procedural": "fish-load",
+        "point": "prop-back",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "scales": [0.75, 0.78, 0.95, 0.86]
+        }
+      },
+      {
+        "name": "snare",
+        "procedural": "snare",
+        "point": "seat",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58],
+          "rope": [0.06, 0.72, 0.14, 0.84]
+        }
+      },
+      {
+        "name": "ladle",
+        "procedural": "ladle",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58]
+        }
+      },
+      {
+        "name": "cookpot",
+        "procedural": "cookpot",
+        "point": "seat",
+        "texture": "textures/skins/props/vase_rome_1.dds",
+        "uv": {
+          "clay": [0.45, 0.1, 0.75, 0.5],
+          "soot": [0.6, 0.86, 0.75, 0.94]
+        }
+      },
+      {
+        "name": "pail",
+        "procedural": "pail",
+        "point": "seat",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58],
+          "band": [0.75, 0.78, 0.95, 0.86]
+        },
+        "scale": 1.075
+      },
+      {
+        "name": "distaff",
+        "procedural": "distaff",
+        "point": "seat",
+        "texture": "textures/skins/props/prop_tools.dds",
+        "uv": {
+          "wood": [0.65, 0.1, 0.95, 0.9],
+          "wool": [0.1, 0.2, 0.45, 0.8]
+        },
+        "scale": 1.075
+      },
+      {
+        "name": "loom",
+        "procedural": "loom",
+        "point": "seat",
+        "texture": "textures/skins/props/prop_tools.dds",
+        "uv": {
+          "wood": [0.65, 0.1, 0.95, 0.9],
+          "warp": [0.1, 0.2, 0.45, 0.8]
+        },
+        "scale": 1.075
+      },
+      {
+        "name": "pipe",
+        "procedural": "pipe",
+        "point": "seat",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58]
+        },
+        "scale": 1.075
+      },
+      {
+        "name": "drum",
+        "procedural": "drum",
+        "point": "seat",
+        "texture": "textures/skins/props/prop_tools.dds",
+        "uv": {
+          "body": [0.65, 0.1, 0.95, 0.9],
+          "hide": [0.1, 0.2, 0.45, 0.8]
+        },
+        "scale": 1.075
       }
     ],
     "clips": [
@@ -304,6 +1393,645 @@
             "R": [-0.47, 0.04, 0.98]
           }
         }
+      },
+      {
+        "name": "ride",
+        "animation": "animation/biped/rider/cavalry/crossbowman/pace_relax.dae",
+        "props": ["head"]
+      },
+      {
+        "name": "ride-trot",
+        "animation": "animation/biped/rider/cavalry/crossbowman/trot_relax.dae",
+        "props": ["head"]
+      },
+      {
+        "name": "ride-idle",
+        "animation": "animation/biped/rider/cavalry/crossbowman/idle_relax_01.dae",
+        "props": ["head"]
+      },
+      {
+        "name": "bow-draw",
+        "animation": "animation/biped/infantry/archer/idle_ready.dae",
+        "props": ["head", "bow"]
+      },
+      {
+        "name": "bow-release",
+        "animation": "animation/biped/infantry/archer/attack_ranged.dae",
+        "props": ["head", "bow"]
+      },
+      {
+        "name": "spear-thrust",
+        "animation": "animation/biped/infantry/spearman/attack_melee_01.dae",
+        "props": ["head", "spear"]
+      },
+      {
+        "name": "walk-spear",
+        "animation": "animation/biped/infantry/spearman/walk_relax.dae",
+        "props": ["head", "spear"]
+      },
+      {
+        "name": "sword-strike",
+        "animation": "animation/biped/infantry/swordsman/attack_melee_shield_01.dae",
+        "props": ["head", "training-sword", "wicker-shield"]
+      },
+      {
+        "name": "shield-block",
+        "animation": "animation/biped/infantry/swordsman/idle_ready_shield_01.dae",
+        "props": ["head", "training-sword", "wicker-shield"]
+      },
+      {
+        "name": "butcher",
+        "animation": "animation/biped/gatherer/gather_meat.dae",
+        "props": ["head", "knife"]
+      },
+      {
+        "name": "bleed",
+        "animation": "animation/biped/gatherer/gather_berries.dae",
+        "props": ["head", "bowl"]
+      },
+      {
+        "name": "gut",
+        "animation": "animation/biped/gatherer/slaughter.dae",
+        "props": ["head", "knife"]
+      },
+      {
+        "name": "carry-meat",
+        "animation": "animation/biped/gatherer/carry_meat_m.dae",
+        "props": ["head", "meat"]
+      },
+      {
+        "name": "fish",
+        "animation": "animation/biped/citizen/idle_relax_m_a.dae",
+        "props": ["head", "fishing-rod"],
+        "report_tip": {
+          "prop": "fishing-rod",
+          "tip": [0, 0, 6.0],
+          "aim": [2.33, 0.72, -1.11]
+        }
+      },
+      {
+        "name": "walk-rattle",
+        "animation": "animation/biped/citizen/walk_relax_m.dae",
+        "props": ["head", "rattle"],
+        "pose": {
+          "reach": {
+            "R": [-0.3, 0.25, 1.5]
+          }
+        },
+        "report_tip": {
+          "prop": "rattle",
+          "tip": [0, 0, 0.85],
+          "aim": [0.2, 1, 0]
+        }
+      },
+      {
+        "name": "idle-rattle",
+        "animation": "animation/biped/citizen/idle_relax_m_a.dae",
+        "props": ["head", "rattle"],
+        "pose": {
+          "reach": {
+            "R": [-0.3, 0.25, 1.5]
+          }
+        },
+        "report_tip": {
+          "prop": "rattle",
+          "tip": [0, 0, 0.85],
+          "aim": [0.2, 1, 0]
+        }
+      },
+      {
+        "name": "thresh",
+        "animation": "animation/biped/gatherer/gather_mine.dae",
+        "props": ["head", "thresh-stick"]
+      },
+      {
+        "name": "winnow",
+        "animation": "animation/biped/gatherer/farming.dae",
+        "props": ["head", "shovel"]
+      },
+      {
+        "name": "pray",
+        "animation": "animation/biped/citizen/pray.dae",
+        "props": ["head"]
+      },
+      {
+        "name": "walk-hoe",
+        "animation": "animation/biped/gatherer/walk_hoe.dae",
+        "props": ["head", "hoe"]
+      },
+      {
+        "name": "walk-axe",
+        "animation": "animation/biped/gatherer/walk_axe.dae",
+        "props": ["head", "axe"]
+      },
+      {
+        "name": "rest-a",
+        "animation": "animation/biped/citizen/idle_relax_m_b.dae",
+        "props": ["head"]
+      },
+      {
+        "name": "rest-b",
+        "animation": "animation/biped/citizen/idle_relax_m_d.dae",
+        "props": ["head"]
+      },
+      {
+        "name": "rest-c",
+        "animation": "animation/biped/citizen/idle_relax_m_f.dae",
+        "props": ["head"]
+      },
+      {
+        "name": "rest-d",
+        "animation": "animation/biped/citizen/idle_relax_m_h.dae",
+        "props": ["head"]
+      },
+      {
+        "name": "rest-e",
+        "animation": "animation/biped/citizen/idle_relax_m_j.dae",
+        "props": ["head"]
+      },
+      {
+        "name": "lord-idle-a",
+        "animation": "animation/biped/citizen/idle_minister_01.dae",
+        "props": ["head"]
+      },
+      {
+        "name": "lord-idle-b",
+        "animation": "animation/biped/citizen/idle_minister_02.dae",
+        "props": ["head"]
+      },
+      {
+        "name": "lord-idle-c",
+        "animation": "animation/biped/citizen/idle_minister_03.dae",
+        "props": ["head"]
+      },
+      {
+        "name": "walk-lord",
+        "animation": "animation/biped/citizen/walk_relax_minister.dae",
+        "props": ["head"]
+      },
+      {
+        "name": "milk",
+        "keys": {
+          "base": "animation/biped/citizen/idle_relax_m_a.dae",
+          "duration_s": 1.0,
+          "poses": [
+            {
+              "t": 0,
+              "hip": [0, -0.3, -0.44],
+              "feet": {
+                "L": [0.2, 0.16, 0.03],
+                "R": [-0.2, 0.16, 0.03]
+              },
+              "turn": {
+                "spine": [22, 0, 0],
+                "chest": [12, 0, 0],
+                "head": [-10, 0, 0]
+              },
+              "hands": {
+                "L": [0.07, 0.2, 0.52],
+                "R": [-0.07, 0.2, 0.42]
+              }
+            },
+            {
+              "t": 0.5,
+              "hip": [0, -0.3, -0.44],
+              "turn": {
+                "spine": [22, 0, 0],
+                "chest": [12, 0, 0],
+                "head": [-10, 0, 0]
+              },
+              "hands": {
+                "L": [0.07, 0.2, 0.42],
+                "R": [-0.07, 0.2, 0.52]
+              }
+            }
+          ]
+        },
+        "props": ["head", "stump", "pail"]
+      },
+      {
+        "name": "spin",
+        "keys": {
+          "base": "animation/biped/citizen/idle_relax_m_a.dae",
+          "duration_s": 2.4,
+          "poses": [
+            {
+              "t": 0,
+              "turn": {
+                "head": [12, 0, -5]
+              },
+              "hands": {
+                "L": [0.17, 0.16, 1.32],
+                "R": [0.0, 0.26, 1.17]
+              }
+            },
+            {
+              "t": 0.7,
+              "turn": {
+                "head": [16, 0, -8]
+              },
+              "hands": {
+                "L": [0.16, 0.16, 1.3],
+                "R": [-0.1, 0.27, 1.0]
+              }
+            },
+            {
+              "t": 1.2,
+              "turn": {
+                "head": [18, 0, -10]
+              },
+              "hands": {
+                "L": [0.16, 0.17, 1.3],
+                "R": [-0.2, 0.2, 0.86]
+              }
+            },
+            {
+              "t": 1.7,
+              "turn": {
+                "head": [14, 0, -6]
+              },
+              "hands": {
+                "L": [0.17, 0.16, 1.32],
+                "R": [-0.12, 0.25, 1.04]
+              }
+            }
+          ]
+        },
+        "props": ["head", "distaff"]
+      },
+      {
+        "name": "weave",
+        "keys": {
+          "base": "animation/biped/citizen/idle_relax_m_a.dae",
+          "duration_s": 3.0,
+          "poses": [
+            {
+              "t": 0,
+              "turn": {
+                "chest": [4, 0, 8],
+                "head": [-4, 0, 6]
+              },
+              "hands": {
+                "L": [0.36, 0.3, 1.12],
+                "R": [-0.06, 0.32, 1.12]
+              }
+            },
+            {
+              "t": 0.9,
+              "turn": {
+                "chest": [4, 0, -8],
+                "head": [-4, 0, -6]
+              },
+              "hands": {
+                "L": [0.06, 0.32, 1.12],
+                "R": [-0.36, 0.3, 1.12]
+              }
+            },
+            {
+              "t": 1.5,
+              "turn": {
+                "chest": [-3, 0, 0],
+                "head": [-8, 0, 0]
+              },
+              "hands": {
+                "L": [0.16, 0.34, 1.36],
+                "R": [-0.16, 0.34, 1.36]
+              }
+            },
+            {
+              "t": 2.1,
+              "turn": {
+                "chest": [4, 0, 0]
+              },
+              "hands": {
+                "L": [0.22, 0.3, 1.1],
+                "R": [-0.22, 0.3, 1.1]
+              }
+            }
+          ]
+        },
+        "props": ["head", "loom"]
+      },
+      {
+        "name": "sit",
+        "keys": {
+          "base": "animation/biped/citizen/idle_relax_m_a.dae",
+          "duration_s": 7.0,
+          "poses": [
+            {
+              "t": 0,
+              "hip": [0, -0.3, -0.44],
+              "feet": {
+                "L": [0.15, 0.12, 0.03],
+                "R": [-0.15, 0.12, 0.03]
+              },
+              "turn": {
+                "spine": [4, 0, 0],
+                "head": [6, 0, 0]
+              },
+              "hands": {
+                "L": [0.16, 0.1, 0.5],
+                "R": [-0.16, 0.1, 0.5]
+              }
+            },
+            {
+              "t": 2.0,
+              "hip": [0, -0.3, -0.44],
+              "turn": {
+                "spine": [4, 0, 0],
+                "head": [2, 0, 25]
+              },
+              "hands": {
+                "L": [0.16, 0.1, 0.5],
+                "R": [-0.16, 0.1, 0.5]
+              }
+            },
+            {
+              "t": 3.2,
+              "hip": [0, -0.3, -0.44],
+              "turn": {
+                "spine": [-3, 0, 0],
+                "head": [-4, 0, 10]
+              },
+              "hands": {
+                "L": [0.17, 0.06, 0.52],
+                "R": [-0.16, 0.1, 0.5]
+              }
+            },
+            {
+              "t": 4.6,
+              "hip": [0, -0.3, -0.44],
+              "turn": {
+                "spine": [6, 0, 0],
+                "head": [14, 0, -18]
+              },
+              "hands": {
+                "L": [0.16, 0.1, 0.5],
+                "R": [-0.16, 0.1, 0.5]
+              }
+            },
+            {
+              "t": 5.6,
+              "hip": [0, -0.3, -0.44],
+              "turn": {
+                "spine": [6, 0, 0],
+                "head": [4, 0, -6]
+              },
+              "hands": {
+                "L": [0.16, 0.1, 0.5],
+                "R": [-0.16, 0.1, 0.5]
+              }
+            }
+          ]
+        },
+        "props": ["head", "stump"]
+      },
+      {
+        "name": "wheel",
+        "keys": {
+          "base": "animation/biped/citizen/idle_relax_m_a.dae",
+          "duration_s": 2.0,
+          "poses": [
+            {
+              "t": 0,
+              "hip": [0, -0.2, -0.44],
+              "feet": {
+                "L": [0.2, 0.18, 0.03],
+                "R": [-0.2, 0.3, 0.06]
+              },
+              "turn": {
+                "spine": [24, 0, 0],
+                "chest": [10, 0, 0],
+                "head": [-8, 0, 0]
+              },
+              "hands": {
+                "L": [0.09, 0.44, 0.64],
+                "R": [-0.09, 0.44, 0.64]
+              }
+            },
+            {
+              "t": 0.5,
+              "hip": [0, -0.2, -0.44],
+              "turn": {
+                "spine": [26, 0, 0],
+                "chest": [10, 0, 0],
+                "head": [-8, 0, 0]
+              },
+              "feet": {
+                "R": [-0.2, 0.12, 0.03]
+              },
+              "hands": {
+                "L": [0.08, 0.45, 0.68],
+                "R": [-0.08, 0.45, 0.66]
+              }
+            },
+            {
+              "t": 1.0,
+              "hip": [0, -0.2, -0.44],
+              "turn": {
+                "spine": [24, 0, 0],
+                "chest": [10, 0, 0],
+                "head": [-8, 0, 0]
+              },
+              "feet": {
+                "R": [-0.2, 0.3, 0.06]
+              },
+              "hands": {
+                "L": [0.09, 0.44, 0.72],
+                "R": [-0.09, 0.44, 0.7]
+              }
+            },
+            {
+              "t": 1.5,
+              "hip": [0, -0.2, -0.44],
+              "turn": {
+                "spine": [26, 0, 0],
+                "chest": [10, 0, 0],
+                "head": [-8, 0, 0]
+              },
+              "feet": {
+                "R": [-0.2, 0.12, 0.03]
+              },
+              "hands": {
+                "L": [0.08, 0.45, 0.68],
+                "R": [-0.08, 0.45, 0.66]
+              }
+            }
+          ]
+        },
+        "props": ["head", "stump"]
+      },
+      {
+        "name": "pipe",
+        "keys": {
+          "base": "animation/biped/citizen/idle_relax_m_a.dae",
+          "duration_s": 2.0,
+          "poses": [
+            {
+              "t": 0,
+              "hip": [0.015, 0, 0],
+              "turn": {
+                "spine": [0, 3, 0],
+                "head": [4, 0, 0]
+              },
+              "hands": {
+                "L": [0.03, 0.2, 1.4],
+                "R": [-0.03, 0.25, 1.27]
+              }
+            },
+            {
+              "t": 0.5,
+              "hip": [0, 0, -0.015],
+              "turn": {
+                "spine": [3, 0, 0],
+                "head": [7, 0, 0]
+              },
+              "hands": {
+                "L": [0.03, 0.21, 1.39],
+                "R": [-0.03, 0.26, 1.26]
+              }
+            },
+            {
+              "t": 1.0,
+              "hip": [-0.015, 0, 0],
+              "turn": {
+                "spine": [0, -3, 0],
+                "head": [4, 0, 0]
+              },
+              "hands": {
+                "L": [0.03, 0.2, 1.4],
+                "R": [-0.03, 0.25, 1.27]
+              }
+            },
+            {
+              "t": 1.5,
+              "hip": [0, 0, -0.015],
+              "turn": {
+                "spine": [3, 0, 0],
+                "head": [7, 0, 0]
+              },
+              "hands": {
+                "L": [0.03, 0.21, 1.39],
+                "R": [-0.03, 0.26, 1.26]
+              }
+            }
+          ]
+        },
+        "props": ["head", "pipe"]
+      },
+      {
+        "name": "drum",
+        "keys": {
+          "base": "animation/biped/citizen/idle_relax_m_a.dae",
+          "duration_s": 1.0,
+          "poses": [
+            {
+              "t": 0,
+              "turn": {
+                "head": [8, 0, 10],
+                "spine": [0, 0, 6]
+              },
+              "hands": {
+                "L": [0.2, 0.2, 0.98],
+                "R": [-0.02, 0.3, 1.12]
+              }
+            },
+            {
+              "t": 0.25,
+              "turn": {
+                "head": [12, 0, 10],
+                "spine": [2, 0, 6]
+              },
+              "hands": {
+                "L": [0.2, 0.2, 0.97],
+                "R": [0.05, 0.24, 0.98]
+              }
+            },
+            {
+              "t": 0.5,
+              "turn": {
+                "head": [8, 0, 10],
+                "spine": [0, 0, 6]
+              },
+              "hands": {
+                "L": [0.2, 0.2, 0.98],
+                "R": [-0.02, 0.3, 1.12]
+              }
+            },
+            {
+              "t": 0.75,
+              "turn": {
+                "head": [12, 0, 10],
+                "spine": [2, 0, 6]
+              },
+              "hands": {
+                "L": [0.2, 0.2, 0.97],
+                "R": [0.05, 0.24, 0.98]
+              }
+            }
+          ]
+        },
+        "props": ["head", "drum"]
+      },
+      {
+        "name": "bind",
+        "animation": "animation/biped/gatherer/gather_berries.dae",
+        "props": ["head", "sheaf"]
+      },
+      {
+        "name": "rake",
+        "animation": "animation/biped/gatherer/farming.dae",
+        "props": ["head", "rake"]
+      },
+      {
+        "name": "pitch",
+        "animation": "animation/biped/gatherer/farming.dae",
+        "props": ["head", "pitchfork"]
+      },
+      {
+        "name": "forge",
+        "animation": "animation/biped/citizen/build.dae",
+        "props": ["head", "hammer", "tongs"]
+      },
+      {
+        "name": "split",
+        "animation": "animation/biped/gatherer/gather_mine.dae",
+        "props": ["head", "split-axe", "block"]
+      },
+      {
+        "name": "sieve",
+        "animation": "animation/biped/gatherer/gather_berries.dae",
+        "props": ["head", "sieve"]
+      },
+      {
+        "name": "pots",
+        "animation": "animation/biped/gatherer/gather_berries.dae",
+        "props": ["head", "pots"]
+      },
+      {
+        "name": "carry-tools",
+        "animation": "animation/biped/gatherer/carry_grain_m.dae",
+        "props": ["head", "basket", "tools-load"]
+      },
+      {
+        "name": "carry-pots",
+        "animation": "animation/biped/gatherer/carry_grain_m.dae",
+        "props": ["head", "basket", "pots-load"]
+      },
+      {
+        "name": "carry-fish",
+        "animation": "animation/biped/gatherer/carry_grain_m.dae",
+        "props": ["head", "basket", "fish-load"]
+      },
+      {
+        "name": "snare",
+        "animation": "animation/biped/gatherer/gather_berries.dae",
+        "props": ["head", "snare"]
+      },
+      {
+        "name": "cook",
+        "animation": "animation/biped/gatherer/gather_berries.dae",
+        "props": ["head", "ladle", "cookpot"]
       }
     ]
   }

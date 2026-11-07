@@ -1,10 +1,21 @@
+import type { FortEditPoint } from './fort-points';
+import { problemMarks } from './problem-marks';
 import {
   CRAFT_BASE,
+  autoGates,
+  checkFortificationPlacement,
+  fortSegments,
+  proposeFortificationIn,
+  fortificationCost,
+  logsFromClearedTrees,
+  type FortKind,
+  type FortPlacementCheck,
   PLOT_TYPES,
   cemeteryPartsFromCells,
   checkDwellingPlacement,
   checkPlotPlacement,
   checkSacredBuildingPlacement,
+  checkThreshingFloorPlacement,
   checkWorkshopPlacement,
   dwellingLaborManDays,
   workshopLaborManDays,
@@ -13,15 +24,18 @@ import {
   NO_OBSTACLE_CHANGES,
   obstaclesOf,
   orchardPartsFromCells,
+  newFenceSides,
   penLaborManDays,
+  penTrees,
   penSquaresFromCells,
   planDwellingWoodFrom,
   planSacredWood,
+  planThreshingFloorWoodFrom,
   planWoodFrom,
   placementWalk,
-  PEN,
   sacredLaborManDays,
   sameGrid,
+  threshingFloorLaborManDays,
   type BuildKind,
   type Craft,
   type DwellingPlacementCheck,
@@ -38,10 +52,13 @@ import {
   type SacredBuildingKind,
   type SacredPlacementCheck,
   type SquareGrid,
+  type ThreshingFloorPlacementCheck,
   type TileCell,
   type Walk,
+  penSpecies,
 } from '@bohemia/game';
 import type { PlacementCost, SquaresVariant } from './scene/village-types';
+import { fortShape, missingLogsText, refugePlaces, type FortPoint } from './fort-view';
 
 // Katalog staveb pro mřížku staveb (jako v 0 A.D.): název, ikona, klávesová zkratka, způsob
 // umístění a kontrola, jestli stavba smí kam. Čistý modul (kontroly z herního jádra běží
@@ -51,7 +68,8 @@ import type { PlacementCost, SquaresVariant } from './scene/village-types';
 // Zkratky jsou spodní řada levé ruky jako fronta výroby v 0 A.D. (Z X C V B N M) – WASD, Q/E
 // a R patří kameře. Sad [B] staví se jako pole (orchard.md), modla [N] a svatyně [M] půdorysem
 // u kurzoru jako obydlí (happiness.md). Řemeslné dílny (crafts.md) na volných klávesách
-// prostřední řady – hrnčíř [F], kovář [G], uhlíř [H] – volně u kurzoru jako zemnice.
+// prostřední řady – hrnčíř [F], kovář [G], uhlíř [H] – volně u kurzoru jako zemnice. Humno [K]
+// (production-chains.md – Humno) půdorysem u kurzoru jako dílna.
 
 /**
  * Kontrola stavby po čtvercích: projde? a které čtverce jsou zakázané (červeně); u prošlé
@@ -64,6 +82,22 @@ export interface SquaresCheck {
   warningCells?: readonly TileCell[];
   /** Cena prošlé stavby, jinak null. */
   cost: PlacementCost | null;
+  /**
+   * Náhled obrysu (opevnění): uzavřené lomené čáry vnějšího okraje a obdélníky pásu, které se
+   * kreslí čarou, a brány (krátké úsečky na okraji).
+   */
+  outline?: readonly (readonly FortPoint[])[];
+  gates?: readonly (readonly FortPoint[])[];
+  /** Místo problému neprošlého opevnění – čáry, které scéna nakreslí červeně (`problemMarks`). */
+  problem?: readonly (readonly FortPoint[])[];
+}
+
+/** Kontrola obvodu opevnění z bodů – jako u stavby po čtvercích, jen bez čtverců. */
+export type FortPointsCheck = Omit<SquaresCheck, 'blockedCells' | 'warningCells'>;
+
+/** Co kontrola stavby po čtvercích ví o vsi navíc – dřevo vsi (klády a stromy ke kácení). */
+export interface SquaresContext {
+  woodSupply: number;
 }
 
 /** Kontrola obydlí: projde? a u prošlého umístění cena (práce a stromy ke kácení). */
@@ -71,8 +105,15 @@ export type FootprintCheck = PlacementCheck & { cost: PlacementCost | null };
 /** Kontrola obydlí na pozemku – navíc poloha domu na něm (null = pozemek neprošel). */
 export type PlotCheck = FootprintCheck & { position: Position | null };
 
+/**
+ * Druh stavby v katalogu staveb webu – stavby jádra (`BuildKind`, cena v `BUILD_COSTS`) a opevnění,
+ * které cenu nemá pevnou: počítá se podle délky obvodu (`fortificationCost`), proto `BuildKind`
+ * v jádru zůstává beze změny (Ú5.6) a opevnění je jen záznam katalogu s vlastní kontrolou.
+ */
+export type WebBuildKind = BuildKind | 'fortification';
+
 interface BuildItemBase {
-  kind: BuildKind;
+  kind: WebBuildKind;
   name: string;
   /** Soubor v `public/icons/build/` bez přípony. */
   icon: string;
@@ -129,7 +170,31 @@ export type BuildItem =
         cells: TileCell[],
         grid?: SquareGrid,
         variant?: string,
+        context?: SquaresContext,
       ): SquaresCheck;
+    })
+  | (BuildItemBase & {
+      /**
+       * Obvod z bodů (opevnění – fortifications.md, Obvod): hra obvod navrhne (`propose`), hráč
+       * body táhne, přidává a ubírá; tlačítko je rozcestník druhů (`variants`).
+       */
+      placement: 'fort-points';
+      variants: readonly SquaresVariant[];
+      /** Návrh obvodu druhu `variant` – kolem jádra vsi, bez jádra kruh u bodu `at` (kurzor). */
+      propose(
+        landscape: Landscape,
+        village: PlacementVillage,
+        at: { x: number; z: number },
+        variant?: string,
+        grainPits?: readonly { x: number; z: number }[],
+      ): FortEditPoint[];
+      check(
+        landscape: Landscape,
+        village: PlacementVillage,
+        points: readonly FortEditPoint[],
+        variant?: string,
+        context?: SquaresContext,
+      ): FortPointsCheck;
     })
   | (BuildItemBase & {
       /** Modla nebo svatyně – čtvercový půdorys u kurzoru (otáčí se jako obydlí). */
@@ -143,6 +208,19 @@ export type BuildItem =
       craft: Craft;
       /** Obydlí, na kterém dílna stojí (půdorys, jáma). */
       dwellingType: DwellingType;
+      check(
+        landscape: Landscape,
+        village: PlacementVillage,
+        position: Position,
+        woodLogs: number,
+      ): FootprintCheck;
+    })
+  | (BuildItemBase & {
+      /**
+       * Humno (production-chains.md – Humno) – obdélníkový půdorys u kurzoru (otáčí se jako
+       * obydlí), volně jako dílna.
+       */
+      placement: 'threshing-floor';
       check(
         landscape: Landscape,
         village: PlacementVillage,
@@ -189,6 +267,17 @@ const dwelling = (kind: BuildableDwellingType, name: string, hotkeyLabel: string
 /** Cena prošlé stavby po čtvercích – jen práce (pole, sad ani hřbitov nechtějí dřevo). */
 const squaresCost = (check: PlacementCheck, laborManDays: number): PlacementCost | null =>
   check.ok ? { laborManDays, trees: 0 } : null;
+
+/** Cena pole u kurzoru: práce a čtverce lesa, které se kácí, suší a pálí (díl se `standing`, jako v `createField`). */
+const fieldCost = (
+  check: PlacementCheck,
+  laborManDays: number,
+  parts: readonly { surface: string; standing?: unknown }[],
+): PlacementCost | null => {
+  const cost = squaresCost(check, laborManDays);
+  const burn = parts.filter((p) => p.surface === 'forest' && p.standing !== undefined).length;
+  return cost && burn > 0 ? { ...cost, burn } : cost;
+};
 
 /**
  * Cena obydlí u kurzoru: práce celkem jako při zahájení stavby (`dwellingLaborManDays` –
@@ -353,8 +442,63 @@ const sacred = (
 });
 
 /**
+ * Cena humna u kurzoru: práce celkem jako při zahájení stavby (`threshingFloorLaborManDays` –
+ * stavba, překážky a les pod půdorysem a kácení) a kolik stromů se skácí, když klády na hromadě
+ * nestačí – nejbližší dospělé stromy jako na serveru (`planThreshingFloorWoodFrom`; stromy
+ * jiných staveb zná jen server – jako u obydlí).
+ */
+export function threshingFloorPlacementCost(
+  landscape: Landscape,
+  village: PlacementVillage,
+  position: Position,
+  check: Pick<ThreshingFloorPlacementCheck, 'obstacleCost' | 'obstacleIds' | 'clearedTrees'>,
+  woodLogs: number,
+  obstacles: ObstacleLayer = obstaclesOf(landscape),
+): PlacementCost {
+  const plan = planThreshingFloorWoodFrom(
+    position,
+    {
+      logs: woodLogs,
+      changes: () => village.obstacleChanges ?? NO_OBSTACLE_CHANGES,
+      claimed: () => new Set(village.reservedTrees ?? []),
+    },
+    {
+      obstacles,
+      clearedTrees: check.clearedTrees,
+      clearedIds: check.obstacleIds,
+      walk: placementWalk(landscape, village),
+    },
+  );
+  return {
+    laborManDays: threshingFloorLaborManDays(check.obstacleCost, plan),
+    trees: plan.fell.length,
+  };
+}
+
+/** Humno (production-chains.md – Humno) – půdorys u kurzoru, zkratka K. */
+const THRESHING_FLOOR: BuildItem & { placement: 'threshing-floor' } = {
+  kind: 'threshing-floor',
+  name: 'Humno',
+  icon: 'humno',
+  hotkey: 'KeyK',
+  hotkeyLabel: 'K',
+  placement: 'threshing-floor',
+  check: (landscape, village, position, woodLogs) => {
+    const obstacles = obstaclesOf(landscape);
+    const check = checkThreshingFloorPlacement(landscape, village, position, obstacles);
+    return {
+      ...check,
+      cost: check.ok
+        ? threshingFloorPlacementCost(landscape, village, position, check, woodLogs, obstacles)
+        : null,
+    };
+  },
+};
+
+/**
  * Druhy ohrady v pořadí rozcestníku mřížky staveb (oxen.md – Ohrady podle druhu): ovce, kozy, prasata,
- * skot, voli (ohrada volů – oxen.md, Ohrada volů; v kódu druh `team`) – ikony zvířat
+ * skot, voli (ohrada volů – oxen.md, Ohrada volů; v kódu druh `team`), koně (ohrada koní – horses.md) –
+ * ikony zvířat
  * (`public/icons/resources/`).
  */
 export const PEN_VARIANTS: readonly (SquaresVariant & { id: PenSpecies })[] = [
@@ -363,6 +507,7 @@ export const PEN_VARIANTS: readonly (SquaresVariant & { id: PenSpecies })[] = [
   { id: 'pig', icon: 'pig', name: 'Prasata' },
   { id: 'cattle', icon: 'cow', name: 'Skot' },
   { id: 'team', icon: 'ox', name: 'Voli' },
+  { id: 'horse', icon: 'horse', name: 'Koně' },
 ];
 
 /** Název ohrady podle druhu – portrét panelu (oxen.md – Ohrady podle druhu). */
@@ -372,6 +517,7 @@ export const PEN_NAMES: Record<PenSpecies, string> = {
   pig: 'Ohrada prasat',
   cattle: 'Ohrada skotu',
   team: 'Ohrada volů',
+  horse: 'Ohrada koní',
 };
 
 /** Ikona a název zvířat ohrady podle druhu (ikony `public/icons/resources/`). */
@@ -385,12 +531,113 @@ export function penVariant(species: PenSpecies): SquaresVariant {
  */
 export function buildVariantName(item: BuildItem, variant: SquaresVariant): string {
   if (item.kind === 'pen') return PEN_NAMES[penVariantSpecies(variant.id)];
+  if (item.kind === 'fortification') return variant.name;
   return `${item.name} – ${variant.name}`;
 }
 
 /** Druh ohrady z id druhu stavby (bez údaje nebo neznámý první – ovce). */
 export function penVariantSpecies(variant: string | undefined): PenSpecies {
   return PEN_VARIANTS.find((v) => v.id === variant)?.id ?? PEN_VARIANTS[0]!.id;
+}
+
+/**
+ * Druhy opevnění v pořadí rozcestníku mřížky staveb (fortifications.md – Rozhraní): plot,
+ * palisáda, val – ikony `public/icons/resources/fort-*.png`.
+ */
+export const FORT_VARIANTS: readonly (SquaresVariant & { id: FortKind })[] = [
+  { id: 'fence', icon: 'fort-fence', name: 'Polský plot' },
+  { id: 'palisade', icon: 'fort-palisade', name: 'Palisáda' },
+  { id: 'rampart', icon: 'fort-rampart', name: 'Val s příkopem' },
+];
+
+/** Druh opevnění z id druhu stavby (bez údaje nebo neznámý – plot). */
+export function fortVariantKind(variant: string | undefined): FortKind {
+  return FORT_VARIANTS.find((v) => v.id === variant)?.id ?? FORT_VARIANTS[0]!.id;
+}
+
+/** Uzavřená lomená čára – první bod ještě jednou na konci. */
+function closeLoop(points: readonly FortPoint[]): FortPoint[] {
+  return points.length > 0 ? [...points, points[0]!] : [];
+}
+
+/** Délka brány v náhledu (m) – úsečka na okraji obvodu. */
+const GATE_MARK_M = 4;
+
+/** Kotva vsi pro bránu bez cesty – dvorec, jinak průměr poloh obydlí (jako `villageAnchor`). */
+function villageAnchorOf(village: PlacementVillage): Position | { x: number; z: number } {
+  const manor = village.dwellings.find((d) => d.type === 'dvorec');
+  const list = manor ? [manor] : village.dwellings;
+  if (list.length === 0) return { x: 0, z: 0 };
+  return {
+    x: list.reduce((sum, d) => sum + d.position.x, 0) / list.length,
+    z: list.reduce((sum, d) => sum + d.position.z, 0) / list.length,
+  };
+}
+
+/**
+ * Kontrola obvodu opevnění z bodů `points` (fortifications.md – Obvod, Cena a stavba): umístění
+ * jako na serveru (`checkFortificationPlacement`), u prošlého cena podle délky obvodu – člověkodny
+ * a klády, útočiště (lidé) a když ves nemá dost dřeva (klády a stromy ke kácení), důvod „Chybí N
+ * klád.“. Do náhledu patří obrys, pás, brány na cestách (`autoGates`) a místo problému.
+ */
+export function fortPointsPlacement(
+  landscape: Landscape,
+  village: PlacementVillage,
+  points: readonly FortEditPoint[],
+  kind: FortKind,
+  woodSupply: number,
+): FortPointsCheck {
+  const check: FortPlacementCheck = checkFortificationPlacement(
+    landscape,
+    village,
+    obstaclesOf(landscape),
+    points.map(([x, z]): [number, number] => [x, z]),
+    kind,
+  );
+  const outline = check.outline;
+  const shape = outline ? fortShape(outline) : null;
+  const preview = {
+    ...(shape
+      ? {
+          // vnější okraj a vnitřní okraj pásu (poslední roh každého kusu pásu – `fortBandPieces`)
+          outline: [shape.outline, closeLoop(shape.band.map((piece) => piece[piece.length - 1]!))],
+        }
+      : {}),
+  };
+  if (!check.ok || !outline) {
+    return { check, cost: null, ...preview, problem: problemMarks(check.where) };
+  }
+  const cost = fortificationCost(kind, outline.lengthM, 'new');
+  const logs = Math.max(0, Math.ceil((cost.upfront.wood ?? 0) - 1e-9));
+  const missing = logs - woodSupply - logsFromClearedTrees(check.clearedTrees);
+  const roads = (village.walkRoads ?? []).map((r) => r.points);
+  const gates = autoGates(outline, roads, villageAnchorOf(village)).map((g) => {
+    const line = fortSegments(outline)[g.segment]!.line;
+    const half = GATE_MARK_M / 2;
+    return [
+      [g.x - line.dx * half, g.z - line.dz * half],
+      [g.x + line.dx * half, g.z + line.dz * half],
+    ] as const;
+  });
+  return {
+    check:
+      missing > 0
+        ? { ok: false, reason: missingLogsText(missing) }
+        : check.warning
+          ? { ok: true, reason: null, warning: check.warning }
+          : { ok: true, reason: null },
+    cost:
+      missing > 0
+        ? null
+        : {
+            laborManDays: cost.laborManDays,
+            trees: 0,
+            logs,
+            refuge: refugePlaces(outline.innerAreaM2).people,
+          },
+    ...preview,
+    gates,
+  };
 }
 
 export const BUILD_ITEMS: readonly BuildItem[] = [
@@ -416,7 +663,7 @@ export const BUILD_ITEMS: readonly BuildItem[] = [
       return {
         check: result.check,
         blockedCells: result.blockedCells,
-        cost: squaresCost(result.check, result.foundingCost),
+        cost: fieldCost(result.check, result.foundingCost, result.parts),
       };
     },
   },
@@ -507,10 +754,37 @@ export const BUILD_ITEMS: readonly BuildItem[] = [
         warningCells: result.takenLand
           .filter((t) => sameGrid(t.grid, result.grid))
           .map((t) => t.cell),
-        cost: result.check.ok ? penPlacementCost(village, result) : null,
+        cost: result.check.ok ? penPlacementCost(village, result, species) : null,
       };
     },
   },
+  {
+    // fortifications.md – Rozhraní: hra obvod navrhne, hráč body upraví; tlačítko je rozcestník
+    kind: 'fortification',
+    name: 'Opevnění',
+    icon: 'opevneni',
+    hotkey: 'KeyP',
+    hotkeyLabel: 'P',
+    placement: 'fort-points',
+    variants: FORT_VARIANTS,
+    propose: (landscape, village, at, variant, grainPits) =>
+      proposeFortificationIn(
+        landscape,
+        { ...village, ...(grainPits ? { grainPits } : {}) },
+        obstaclesOf(landscape),
+        fortVariantKind(variant),
+        at,
+      ).points,
+    check: (landscape, village, points, variant, context) =>
+      fortPointsPlacement(
+        landscape,
+        village,
+        points,
+        fortVariantKind(variant),
+        context?.woodSupply ?? 0,
+      ),
+  },
+  THRESHING_FLOOR,
 ];
 
 /**
@@ -519,13 +793,23 @@ export const BUILD_ITEMS: readonly BuildItem[] = [
  * počítá, jako by se kácelo u ohrady všech 6 stromů na čtverec bez klád; stromy ke kácení ukáže 0
  * (cena dřeva je v nabídce staveb).
  */
-function penPlacementCost(
+export function penPlacementCost(
   village: PlacementVillage,
-  check: Pick<PenSquaresCheck, 'squares' | 'obstacleCost'>,
+  check: Pick<PenSquaresCheck, 'squares' | 'obstacleCost' | 'extendsPen'>,
+  species?: PenSpecies,
 ): PlacementCost {
   const n = Math.max(1, check.squares.length);
+  // plot jen na nových vnějších stranách (oxen.md – Plot podle délky): rozšíření ušetří strany
+  // sousedící s ohradou
+  const extended = village.pens?.find((p) => p.id !== undefined && p.id === check.extendsPen);
+  // rozšíření bere druh cílové ohrady (jako startPen), jinak druh z umisťování
+  const penKind = extended ? penSpecies(extended) : species;
+  const sides = newFenceSides(
+    check.squares.map((q) => q.cell),
+    extended ? [extended.cell, ...(extended.extraSquares ?? []).map((q) => q.cell)] : [],
+  );
   const plan = planWoodFrom(
-    PEN.trees * n,
+    penTrees(n, sides, penKind),
     {
       x: check.squares.reduce((sum, q) => sum + q.x, 0) / n,
       z: check.squares.reduce((sum, q) => sum + q.z, 0) / n,
@@ -540,11 +824,11 @@ function penPlacementCost(
       clearedTrees: check.squares.reduce((sum, q) => sum + q.clearedTrees, 0),
     },
   );
-  return { laborManDays: penLaborManDays(check.obstacleCost, plan, n), trees: 0 };
+  return { laborManDays: penLaborManDays(check.obstacleCost, plan, n, sides, penKind), trees: 0 };
 }
 
 /** Stavba podle druhu. */
-export function buildItem(kind: BuildKind): BuildItem {
+export function buildItem(kind: WebBuildKind): BuildItem {
   const item = BUILD_ITEMS.find((i) => i.kind === kind);
   if (!item) throw new Error(`Stavba ${kind} není v katalogu staveb.`);
   return item;

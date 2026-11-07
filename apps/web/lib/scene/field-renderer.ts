@@ -14,7 +14,14 @@ import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import type { Scene } from '@babylonjs/core/scene';
 import { dateOfDayIndex, roadsKey, type Landscape, type ObstacleLayer } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
-import { clearingMask, clearingsKey, clearingsNear, fieldClearings } from './building-clearings';
+import {
+  clearingMask,
+  clearingsKey,
+  clearingsNear,
+  fieldClearings,
+  hayBlockers,
+  hayBlockersKey,
+} from './building-clearings';
 import { cellsBounds, rowDirection, squaresContain, touchingSquares } from './field-cells';
 import {
   CROP_KINDS,
@@ -61,11 +68,13 @@ import {
   type HayPhase,
 } from './hay-meadows';
 import { loadMergedModel, loadModelParts } from './instanced-model';
+import { scatterStacks } from './tornado-track';
 import { PLOUGH_CORNER_M, type FurrowBand } from './plough-team';
 import { applyPitCut, type PitCuts } from './pit-cut';
 import { instancesBounds, sameItems, sortByRank } from './plant-order';
 import { sameContent } from './same-content';
 import { roadCutKey, roadCutMask } from './road-cut-mask';
+import { junctionsKey } from './junction-shape';
 import { roadTrack, roadWorksKey } from './road-works-layout';
 import { applySeasonGround, applySeasonModel, applySeasonSnow } from './season-materials';
 import { trackMask, type Track, type TrackBounds, type TrackMask } from './track-mask';
@@ -214,6 +223,9 @@ interface MeshSlot {
   mesh: Mesh;
 }
 
+/** Seno se drží aspoň tolik (m) od staveb, ohrad a dalších ploch bez sena (poloměr kupky). */
+const HAY_CLEAR_M = 1.2;
+
 interface FieldView {
   key: string;
   meshes: Mesh[];
@@ -335,6 +347,7 @@ export class FieldRenderer {
    */
   private roads: { key: string; track: Track } | null = null;
   private paths: Track | null = null;
+  private pathsVersion = 0;
   private tracks: TrackMask | null = null;
   private tracksStale = true;
   /** Výšky a normály sítí obtisků (`drapedGrid`) – podle sítě, dokud žije. */
@@ -368,6 +381,7 @@ export class FieldRenderer {
   setPaths(track: Track | null): boolean {
     if (track === this.paths) return false;
     this.paths = track;
+    this.pathsVersion++;
     this.tracksStale = true;
     return this.rebuild();
   }
@@ -577,17 +591,32 @@ export class FieldRenderer {
   private rebuild(): boolean {
     const fields = this.updateFields();
     const meadows = this.updateMeadows();
-    if (!fields.main && !fields.hay && !meadows) return false;
-    this.updatePlants(fields.main, fields.hay || meadows);
+    // smršť změní stohy bez nového dne (náhled) – seno znovu
+    const tornadoKey = JSON.stringify(this.village.tornado ?? null);
+    const tornado = tornadoKey !== this.tornadoKey;
+    this.tornadoKey = tornadoKey;
+    if (!fields.main && !fields.hay && !meadows && !tornado) return false;
+    this.updatePlants(fields.main, fields.hay || meadows || tornado);
     return true;
+  }
+
+  /** Klíč smrště vsi (stohy ve stopě rozmetané). */
+  private tornadoKey = 'null';
+
+  /** Maska ploch, kam seno nesmí (bez cest) – přestaví se jen při změně klíče. */
+  private hayMask: { key: string; mask: ReturnType<typeof clearingMask> } | null = null;
+
+  /** Podpis pásů cest a pěšin (mění se s nimi) – klíč sena, které cesty nesmí zakrývat. */
+  private trackStamp(): string {
+    return `${this.roads?.key ?? ''}|${this.pathsVersion}`;
   }
 
   /** Maska pásů cest a pěšin – sestaví se znovu jen při změně cest nebo sítě pěšin. */
   private trackMask(): TrackMask | null {
     const roads = this.village.roads ?? [];
-    const key = `${roadsKey(roads)}|${roadWorksKey(roads)}`;
+    const key = `${roadsKey(roads)}|${roadWorksKey(roads)}|${junctionsKey(this.village.junctions)}`;
     if (this.roads?.key !== key) {
-      this.roads = { key, track: roadTrack(roads) };
+      this.roads = { key, track: roadTrack(roads, this.village.junctions ?? []) };
       this.tracksStale = true;
     }
     if (this.tracksStale) {
@@ -616,6 +645,22 @@ export class FieldRenderer {
     // přirozené louky letošní seče (oxen.md – Seno) se kreslí jako díly pole se vzhledem od
     // jádra – se zápornými id, bez skrývání překážek (stromy a kameny na louce zůstanou)
     const meadows = hayMeadowFields(this.village.hayMeadows ?? []);
+    // kam seno nesmí (cesty, stavby, ohrady, humno…) – plochy se staví líně, jen když nějaké seno
+    // je a změnil se podpis ploch (`hayBlockersKey`); v rámci jednoho průchodu se počítá jednou
+    let hayBlock: { key: string; blocked: (x: number, z: number) => boolean } | null = null;
+    const hayBlocking = (): NonNullable<typeof hayBlock> => {
+      if (hayBlock) return hayBlock;
+      const key = `${hayBlockersKey(this.village)}#${this.trackStamp()}`;
+      if (this.hayMask?.key !== key) {
+        this.hayMask = { key, mask: clearingMask(hayBlockers(this.village), HAY_CLEAR_M) };
+      }
+      const { mask } = this.hayMask;
+      hayBlock = {
+        key,
+        blocked: (x, z) => mask(x, z) < 1 || (tracks !== null && tracks.at(x, z) < 0.5),
+      };
+      return hayBlock;
+    };
     for (const field of [...this.village.fields, ...meadows]) {
       seen.add(field.id);
       // obydlí na poli – pod jeho vyklízenou plochou pole není
@@ -636,7 +681,7 @@ export class FieldRenderer {
       const hayKey =
         hayViews.length === 0
           ? ''
-          : `${day}|${hayViews.map((v) => `${v.part.cell.x},${v.part.cell.y}:${v.look}`).join(';')}`;
+          : `${day}|${hayBlocking().key}|${hayViews.map((v) => `${v.part.cell.x},${v.part.cell.y}:${v.look}`).join(';')}`;
       const center = villageCenter(this.village, field.parts);
       // Co ovlivní každý blok: krytí okraje (vykreslené díly, sousední pole, obydlí na poli),
       // směr řádků a střed (podle všech dílů), den sena. Bloky dílů (field-blocks.ts) mají
@@ -672,12 +717,11 @@ export class FieldRenderer {
       const hayOf = (): FieldView['hay'] => {
         if (hayViews.length === 0) return { key: hayKey, plants: [] };
         const hay = fieldHay(spaced(views), day);
-        return {
-          key: hayKey,
-          plants: space
-            ? space.plants({ crops: emptyCrops(), stooks: [], heaps: [], weeds: [], hay }).hay
-            : hay,
-        };
+        const placed = space
+          ? space.plants({ crops: emptyCrops(), stooks: [], heaps: [], weeds: [], hay }).hay
+          : hay;
+        const { blocked } = hayBlocking();
+        return { key: hayKey, plants: placed.filter((p) => !blocked(p.x, p.z)) };
       };
       if (current?.key === key) {
         if (current.hay.key !== hayKey) {
@@ -1174,7 +1218,12 @@ export class FieldRenderer {
       for (const view of this.fields.values()) appendAll(stacks, view.hay.plants);
       for (const view of this.meadowViews.values()) appendAll(stacks, view.hay);
       if (stacks.length > 0) void this.loadModels();
-      this.setPlants(this.haystacks, stacks);
+      // stohy ve stopě smrště rozmetané (disasters.md – Smršť) – jen ty, které v její den stály
+      const tornado = this.village.tornado;
+      const stood = tornado
+        ? hayPhase(dateOfDayIndex(tornado.day).dayOfYear)?.hay === 'stacks'
+        : false;
+      this.setPlants(this.haystacks, scatterStacks(stacks, tornado, stood));
     }
     this.applyCounts();
   }
@@ -1617,20 +1666,32 @@ function plantBuffers(
     // sloupce matice Babylonu (řádkový zápis: x, y, z osy a posun)
     matrices[o] = c * p.width;
     matrices[o + 2] = -s * p.width;
-    matrices[o + 5] = p.height;
+    if (p.lean) {
+      // polehlé stéblo: osa trsu nakloněná (zkosení – pata zůstane na místě, délka stejná)
+      const [lx, lz] = p.lean;
+      matrices[o + 4] = lx * p.height;
+      matrices[o + 5] = Math.sqrt(Math.max(0, 1 - lx * lx - lz * lz)) * p.height;
+      matrices[o + 6] = lz * p.height;
+    } else {
+      matrices[o + 5] = p.height;
+    }
     matrices[o + 8] = s * p.width;
     matrices[o + 10] = c * p.width;
     matrices[o + 12] = p.x;
     matrices[o + 13] = height(p.x, p.z) - sink;
     matrices[o + 14] = p.z;
     matrices[o + 15] = 1;
-    colors[i * 4] = p.shade * tint[0];
-    colors[i * 4 + 1] = p.shade * tint[1];
-    colors[i * 4 + 2] = p.shade * tint[2];
+    const own = p.tint ?? WHITE_TINT;
+    colors[i * 4] = p.shade * tint[0] * own[0];
+    colors[i * 4 + 1] = p.shade * tint[1] * own[1];
+    colors[i * 4 + 2] = p.shade * tint[2] * own[2];
     colors[i * 4 + 3] = 1;
   });
   return { matrices, colors };
 }
+
+/** Trs bez vlastního násobku barvy. */
+const WHITE_TINT = [1, 1, 1] as const;
 
 function preparePropMaterial(material: Material, tint: Color3): void {
   if (!(material instanceof PBRMaterial)) return;

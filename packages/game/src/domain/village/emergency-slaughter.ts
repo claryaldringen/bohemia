@@ -1,48 +1,29 @@
 import { dateOfDayIndex } from '../calendar';
-import {
-  dailyMilk,
-  dairyDams,
-  daysUntilMilking,
-  milkEnergyBetween,
-  villageCheeseKg,
-} from './dairy';
-import {
-  DIET,
-  daysUntilMeatEnd,
-  eatDiet,
-  meatEnergy,
-  villageFoodNeed,
-  villageMeatKg,
-  villageProteinNeed,
-  type DietInput,
-  type DietResult,
-} from './diet';
-import { fieldFoodShare } from './field-food';
-import { daysUntilAppleRot } from './food';
+import { dailyMilk, dairyDams, milkEnergyBetween } from './dairy';
+import { DIET, eatDiet, meatEnergy, type DietInput, type DietResult } from './diet';
 import { breedingCows } from './husbandry';
-import { daysUntilLegumeHarvest, villageLegumesKg } from './legumes';
 import {
   HERD_SPECIES,
   LIVESTOCK,
   butcher,
-  dailyEggsKg,
-  freshMeatAheadEnergy,
+  noteSlaughtered,
   isSlaughterSeason,
   pigForestHa,
   villageDams,
   villageHerds,
 } from './livestock';
-import { villageApplesKg } from './orchard';
 import { EMERGENCY_SLAUGHTER } from './rules';
+import { baseMealInput } from './meal-input';
+import { seedKeepKg, seedReserve } from './seed';
 import type { ChronicleEvent, HerdSpecies, VillageState } from './types';
 import { woolSheep } from './wool';
-import { daysUntilFoodHarvest } from './year-plan';
 
 // Nouzová porážka (diet.md – Nouzová porážka; Martin 19. 10. 2026: „Ano, udělej to všechno“,
 // podrobnosti návrh Clauda). Ves, které výhled jídla do sklizně nevychází, nejdřív porazí
 // zvířata navíc a teprve potom, když maso nestačí, ubírá z přídělu. Prasata první (žerou les,
 // ne seno) nad chovné prasnice (polovina toho, kolik prasat uživí les – Martin 19. 10. 2026), pak
-// kozy, krávy nad chovné (mléko a voly) a ovce nad ovce na vlnu; chovný pár každého druhu zůstává,
+// kozy, ovce nad ovce na vlnu a krávy nad chovné (mléko a voly – přednost stád, oxen.md); chovný
+// pár každého druhu zůstává,
 // spřežení a telata ve výcviku jsou v ohradách mimo stáda. Letošní mláďata ne – kromě selat od 1. 9.
 // (Martin 19. 10. 2026: „Ano ke všem návrhům“ – maso se 1. 9. kazí a do podzimní porážky ves
 // hladoví; nad chovnými prasnicemi jsou v září skoro jen selata). Maso jde do zásoby jako z podzimní
@@ -72,44 +53,39 @@ export function dayMealInput(
   milked: number,
   dams: Record<HerdSpecies, number> = villageDams(state),
 ): DietInput {
-  const need = villageFoodNeed(state, day);
-  const milk = dailyMilk(dams, day);
-  // ozim uživí srpen, když pokryje potřebu z pole, na kterou ves osévala (fields.md – Ozim a jař)
-  const daysToHarvest = daysUntilFoodHarvest(
-    state.plan,
-    state.parts,
-    day,
-    need * fieldFoodShare(state),
-  );
+  const base = baseMealInput(state, day, potteryCoverage, milked, dams);
+  // osivo, které na setí čeká, ves nejí – jí přežívací zásobu do žní (z téže stravy) a to, co na
+  // setí nečeká (fields.md – Úroda, Osivo ze zásob)
+  const seed = seedReserve(state, seedKeepKg(state, day, base), day);
   return {
-    grainKg: state.storesKg,
-    meatKg: villageMeatKg(state),
-    // čerstvé maso zimní porážky – dnešní a do konce zimy (diet.md – Porážka v zimě)
-    freshMeatKg: state.freshMeatKg ?? 0,
-    freshAheadEnergy: freshMeatAheadEnergy(state, day),
-    fruitKg: villageApplesKg(state),
-    cheeseKg: villageCheeseKg(state),
+    ...base,
+    grainKg: base.grainKg - seed.grain,
+    legumesKg: (base.legumesKg ?? 0) - seed.legumes,
+  };
+}
+
+/**
+ * Vstup jídla dne `input` s jinými dojnými samicemi `dams` – přepočte jen mléko dne a mléko do
+ * sklizně; ostatní na samicích nezávisí. Totéž jako `dayMealInput(…, dams)` nad týmž stavem.
+ */
+function withMealDams(
+  input: DietInput,
+  dams: Record<HerdSpecies, number>,
+  day: number,
+  milked: number,
+): DietInput {
+  const milk = dailyMilk(dams, day);
+  return {
+    ...input,
     milkL: milk.liters * milked,
     milkProteinKg: milk.proteinKg * milked,
     milkEnergy: milk.energy * milked,
-    eggsKg: dailyEggsKg(state),
-    legumesKg: villageLegumesKg(state),
-    daysToLegumeHarvest: daysUntilLegumeHarvest(day),
-    needPerDay: need,
-    proteinNeedPerDay: villageProteinNeed(state, day),
-    daysToMilking: daysUntilMilking(day),
-    // výhled do sklizně počítá s mlékem stád (fields.md – Osev podle stravy)
     milkAheadEnergy: milkEnergyBetween(
       dams,
       day + 1,
-      day + daysToHarvest - 1,
-      DIET.caps.dairy * need,
+      day + input.daysToHarvest - 1,
+      DIET.caps.dairy * input.needPerDay,
     ),
-    daysToHarvest,
-    // jablka v nádobách od hrnčíře vydrží déle (crafts.md)
-    daysToRot: daysUntilAppleRot(day, potteryCoverage),
-    daysToMeatEnd: daysUntilMeatEnd(day),
-    potteryCoverage,
   };
 }
 
@@ -194,9 +170,12 @@ export function emergencySlaughterPlan(
   day: number,
   potteryCoverage: number,
   milked: number,
+  todayInput?: DietInput,
 ): EmergencyPlan | null {
   if (!state.livestock || state.people.length === 0) return null;
-  const today = eatDiet(dayMealInput(state, day, potteryCoverage, milked));
+  // vstup jídla dne bez porážky – jídlo dne ho předá, ať se nepočítá dvakrát
+  const base = todayInput ?? dayMealInput(state, day, potteryCoverage, milked);
+  const today = eatDiet(base);
   if (today.outlook >= 1 - EPSILON) return null;
   const spare = emergencySpare(state, day);
   const maxKg = HERD_SPECIES.reduce((sum, s) => sum + spare[s] * LIVESTOCK.meatKg[s], 0);
@@ -212,7 +191,7 @@ export function emergencySlaughterPlan(
       youngAfter[s] = herds[s] > 0 ? (young[s] * after[s]) / herds[s] : 0;
     }
     // zabitím dojnic ubude mléka – mláďata ubudou poměrně jako při porážce
-    const input = dayMealInput(state, day, potteryCoverage, milked, dairyDams(after, youngAfter));
+    const input = withMealDams(base, dairyDams(after, youngAfter), day, milked);
     const reserveKg = reserve * input.needPerDay * input.daysToHarvest;
     return eatDiet({
       ...input,
@@ -245,15 +224,17 @@ export function emergencySlaughterPlan(
  * sklizně nevychází, porazí zvířata navíc (`emergencySlaughterPlan`). Maso do zásoby a práce
  * porážky a uzení (1 člověkoden na LIVESTOCK.slaughterKgPerManDay kg) jako při podzimní porážce –
  * mimo listopad jako nouzová práce (`slaughterWork.emergency`), nedodělek listopadové porážky
- * propadá. Mláďata ubudou poměrně. Vrátí událost kroniky, nebo null.
+ * propadá. Mláďata ubudou poměrně, jen selata (od 1. 9.) jdou napřed. Vrátí událost kroniky, nebo null.
+ * `todayInput` – vstup jídla dne ze stavu před porážkou (`dayMealInput`), bez údaje se spočte.
  */
 export function emergencySlaughter(
   state: VillageState,
   day: number,
   potteryCoverage: number,
   milked: number,
+  todayInput?: DietInput,
 ): ChronicleEvent | null {
-  const plan = emergencySlaughterPlan(state, day, potteryCoverage, milked);
+  const plan = emergencySlaughterPlan(state, day, potteryCoverage, milked, todayInput);
   const livestock = state.livestock;
   if (!plan || !livestock) return null;
   const animals: Partial<Record<HerdSpecies, number>> = {};
@@ -262,13 +243,20 @@ export function emergencySlaughter(
     if (killed <= 0) continue;
     const herd = livestock.herds[species];
     const left = Math.max(0, herd - killed);
-    livestock.young[species] *= herd > 0 ? left / herd : 0;
+    if (species === 'pig' && !pigletsSpared(day)) {
+      // selata první (Martin 31. 10. 2026) – od 1. 9. jdou napřed letošní selata, teprve zbytek
+      // porážky ubere dospělým prasatům
+      livestock.young.pig = Math.max(0, livestock.young.pig - killed);
+    } else {
+      livestock.young[species] *= herd > 0 ? left / herd : 0;
+    }
     // kusy čekající na zimní porážku jdou první (diet.md – Porážka v zimě)
     if (livestock.culling) {
       livestock.culling[species] = Math.max(0, livestock.culling[species] - killed);
     }
     livestock.herds[species] = left;
     animals[species] = Math.round(killed * 100) / 100;
+    noteSlaughtered(state, day, species, herd - left);
   }
   if (!isSlaughterSeason(day) && !livestock.slaughterWork?.emergency) {
     livestock.slaughterWork = { required: 0, done: 0, emergency: true };

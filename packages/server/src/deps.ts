@@ -1,0 +1,228 @@
+import { randomInt } from 'node:crypto';
+import {
+  createLockPool,
+  createPlayerLock,
+  createActivityRepository,
+  createShipmentRepository,
+  createDialogRepository,
+  createDisputeRepository,
+  createPrisonerRepository,
+  createPassageRepository,
+  createLoanRepository,
+  createStewardshipRepository,
+  createEscheatRepository,
+  createWarRepository,
+  createCampaignRepository,
+  createSuccessionCreditRepository,
+  createNegotiationRepository,
+  createVassalageRepository,
+  createAccountLanguages,
+  createHouseRepository,
+  createInviteRepository,
+  createNoticeRepository,
+  createWorldDirectory,
+  createSettlementRepository,
+  createVillageRepository,
+  createWorldQueue,
+  type Database,
+  type PlayerLockOptions,
+} from '@bohemia/db';
+import { cedeVillages, checkCede, type CedeHooks, type LanguageGroup } from '@bohemia/game';
+import type {
+  ActivityRepository,
+  ShipmentRepository,
+  DialogRepository,
+  DisputeRepository,
+  PrisonerRepository,
+  PassageRepository,
+  LoanRepository,
+  StewardshipRepository,
+  EscheatRepository,
+  WarRepository,
+  CampaignRepository,
+  DynastyDeps,
+  SuccessionCreditRepository,
+  NegotiationRepository,
+  VassalageRepository,
+  LandscapeSource,
+  Pause,
+  PlayerLock,
+  HouseRepository,
+  InviteRepository,
+  NoticeRepository,
+  RandomSource,
+  WorldDirectory,
+  SettlementRepository,
+  VillageRepository,
+  WorldQueue,
+} from '@bohemia/game';
+import { cachedVillages } from './village-cache';
+import { worldSeed } from './world';
+
+/**
+ * Kolik krajin sídel držet v paměti serveru. Krajina sama má ≈ 0,1 MB, s vrstvou překážek
+ * (generuje se až pro stavby) ještě 1,8–2,0 MB – změřeno na 20 krajinách; plná mezipaměť
+ * tak drží nejvýš ≈ 65 MB.
+ */
+export const LANDSCAPE_CACHE_SIZE = 32;
+
+/** Kryptografická náhoda z [0, 1) pro pozvánkové kódy (26 náhodných bitů na znak stačí na 31 znaků abecedy). */
+export function cryptoRandom(): RandomSource {
+  return { random: () => randomInt(0, 2 ** 26) / 2 ** 26 };
+}
+
+/** Kryptografické seedy pro nová sídla a vsi. */
+export function seeds(): { nextSeed: () => number } {
+  return { nextSeed: () => randomInt(0, 2 ** 31) };
+}
+
+/**
+ * Spojení v poolu zámků hráčů (plán workeru – Souběh web × worker): web drží zámek po dobu dotazu
+ * nebo akce hráče (jeden na hráče – fronta v procesu), worker jednu dávku jedné vsi.
+ */
+export const WEB_LOCK_POOL_SIZE = 20;
+export const WORKER_LOCK_POOL_SIZE = 2;
+/**
+ * Nejdéle čeká web na zámek hráče v DB (ms) – drží ho nejvýš jedna dávka workeru; zaseknutý nebo
+ * pozastavený worker tak požadavek hráče nezablokuje natrvalo (chyba „zkus znovu“).
+ */
+export const WEB_LOCK_WAIT_MS = 45_000;
+
+/** Zámek hráče v Postgresu s vlastním malým poolem spojení; `close` pool zavře (konec procesu). */
+export function createPlayerLocks(
+  url: string,
+  max: number,
+  options: PlayerLockOptions = {},
+): { locks: PlayerLock; close: () => Promise<void> } {
+  const pool = createLockPool(url, max);
+  return { locks: createPlayerLock(pool, options), close: () => pool.end() };
+}
+
+/** Závislosti use-casů nad vsemi hráče: sídla, vsi, mezipaměť krajin, přestávky, seedy a zámek. */
+export interface GameDeps {
+  settlements: SettlementRepository;
+  houses: HouseRepository;
+  /** Upozornění mezi hráči (doručují se dotazováním – `docs/code/world.md`). */
+  notices: NoticeRepository;
+  /** Pozvánkové kódy (vydání, rezervace při registraci – `docs/code/world.md`). */
+  invites: InviteRepository;
+  /** Vazalství mezi rody (pozvaný je vazal pozvatele – `docs/code/world.md`). */
+  vassalages: VassalageRepository;
+  /** Jednání mezi rody, blokování a pauza po odmítnutí (`docs/code/world.md`). */
+  negotiations: NegotiationRepository;
+  /** Aktivní dny hráčů (datum v Europe/Prague). */
+  activity: ActivityRepository;
+  /** Kredity nástupnictví bez losu za pozvané. */
+  successionCredits: SuccessionCreditRepository;
+  /** Zásilky mezi vsemi hráčů na cestě (`docs/code/vassalage.md`). */
+  shipments: ShipmentRepository;
+  /** Dialogy hráče – roční Odvody (`docs/code/vassalage.md`). */
+  dialogs: DialogRepository;
+  /** Půjčky mezi rody – splátky v Odvodech (`docs/code/vassalage.md`). */
+  loans: LoanRepository;
+  /** Správy cizích vsí (`docs/code/vassalage.md`). */
+  stewardships: StewardshipRepository;
+  /** Odúmrti vymřelých rodů (`docs/code/vassalage.md` – Odúmrť). */
+  escheats: EscheatRepository;
+  /** Spory a rozsudky pána (`docs/code/vassalage.md` – Spory a rozsudek). */
+  disputes: DisputeRepository;
+  /** Rozhodnutí o zajatcích (`docs/code/war.md` – Zajetí a výkupné). */
+  prisoners: PrisonerRepository;
+  /** Ohlášené průchody (`docs/code/war.md` – Průchod, svolání, ochrana). */
+  passages: PassageRepository;
+  /** Války mezi rody a ochrana nováčka (`docs/code/war.md`). */
+  wars: WarRepository;
+  /** Tažení (vyslání z panelu Vojsko – `docs/code/war.md`). */
+  campaigns: CampaignRepository;
+  /** Konec rodu přes `endHouse` (odúmrť) – dopočet rodu ho použije při konci hry. */
+  ending: NonNullable<DynastyDeps['ending']>;
+  /** Postoupení vsí v míru (`docs/code/war.md` – Mírové jednání). */
+  cede: CedeHooks;
+  /** Kryptografická náhoda pro kódy pozvánek. */
+  random: RandomSource;
+  /** Adresář rodů – veřejný rodokmen cizích rodů (`housesNear`). */
+  worldDirectory: WorldDirectory;
+  /** Skutečný čas (založení a konec rodu). */
+  now: () => Date;
+  /** Jazyk účtu hráče – rod ho dostane při založení (`enterGame`). */
+  accountLanguage: (playerId: string) => Promise<LanguageGroup>;
+  villages: VillageRepository;
+  landscapes: LandscapeSource;
+  pause: Pause;
+  seeds: { nextSeed: () => number };
+  /** Seed světa – krajina každého políčka mřížky se z něj odvozuje. */
+  worldSeed: number;
+  locks: PlayerLock;
+  /** Fronta vsí pozadu – používá worker (`advanceWorldStep`), web ji nepotřebuje. */
+  queue: WorldQueue;
+}
+
+/**
+ * Skládání závislostí pro oba vstupní body (web, worker): Drizzle repozitáře, paměť vsí na
+ * jeden požadavek (`cachedVillages`), sdílená mezipaměť krajin, přestávky dlouhého dopočtu
+ * (`pause` – každý vstupní bod má své) a zámek hráče (`createPlayerLocks` – jeden na proces).
+ */
+export function createGameDeps(
+  db: Database,
+  options: { landscapes: LandscapeSource; pause: Pause; locks: PlayerLock },
+): GameDeps {
+  const houses = createHouseRepository(db);
+  const accounts = createAccountLanguages(db);
+  const vassalages = createVassalageRepository(db);
+  const negotiations = createNegotiationRepository(db);
+  const dialogs = createDialogRepository(db);
+  const loans = createLoanRepository(db);
+  const stewardships = createStewardshipRepository(db);
+  const escheats = createEscheatRepository(db);
+  const wars = createWarRepository(db);
+  const now = (): Date => new Date();
+  const settlements = createSettlementRepository(db);
+  const villages = cachedVillages(createVillageRepository(db));
+  const cedeDeps = { houses, settlements, villages, locks: options.locks };
+  return {
+    settlements,
+    houses,
+    notices: createNoticeRepository(db),
+    invites: createInviteRepository(db),
+    vassalages,
+    negotiations,
+    activity: createActivityRepository(db),
+    successionCredits: createSuccessionCreditRepository(db),
+    shipments: createShipmentRepository(db),
+    dialogs,
+    loans,
+    stewardships,
+    escheats,
+    wars,
+    prisoners: createPrisonerRepository(db),
+    passages: createPassageRepository(db),
+    disputes: createDisputeRepository(db),
+    campaigns: createCampaignRepository(db),
+    ending: {
+      houses,
+      vassalages,
+      negotiations,
+      dialogs,
+      loans,
+      stewardships,
+      escheats,
+      wars,
+      now,
+    },
+    cede: {
+      check: (parties, villageIds) => checkCede(cedeDeps, parties, villageIds),
+      apply: (input) => cedeVillages(cedeDeps, input),
+    },
+    random: cryptoRandom(),
+    worldDirectory: createWorldDirectory(db),
+    now,
+    accountLanguage: (playerId) => accounts.languageOf(playerId),
+    villages,
+    landscapes: options.landscapes,
+    pause: options.pause,
+    seeds: seeds(),
+    worldSeed: worldSeed(),
+    locks: options.locks,
+    queue: createWorldQueue(db),
+  };
+}

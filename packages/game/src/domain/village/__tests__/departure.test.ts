@@ -7,13 +7,14 @@ import {
   edgeDistanceM,
   isVillageDormant,
   leavingFood,
+  leavingSeedKg,
   settlersOf,
   travelDays,
   travellingVillage,
 } from '../departure';
 import { isGameOver } from '../extinction';
-import { occupants } from '../people';
-import { CARTS, DWELLINGS, LEAVING } from '../rules';
+import { ageGroup, ageYears, occupants } from '../people';
+import { CARTS, DWELLINGS, FOOD_NEED_KG_PER_YEAR, LEAVING } from '../rules';
 import { advanceVillage } from '../simulate';
 import type { CartKind, Person, VillageState } from '../types';
 import { directionBetween, neighbourCell, OPPOSITE, SEAT_CELL } from '../world-grid';
@@ -98,9 +99,12 @@ describe('departVillage', () => {
     const food = settlers.food;
     const carried = food.grainKg + food.meatKg + food.legumesKg + food.cheeseKg + food.applesKg;
     expect(carried).toBeCloseTo(2 * LEAVING.carryKgPerPerson, 6);
-    // ze všech zásob stejný podíl
-    expect(food.grainKg / food.meatKg).toBeCloseTo(2000 / 300, 6);
-    expect(state.storesKg).toBeCloseTo(2000 - food.grainKg, 6);
+    // osivo navíc k jídlu – dva nosiči po 20 kg (potřeba na první osev 230 kg je víc)
+    const seed = settlers.seedKg ?? 0;
+    expect(seed).toBeCloseTo(2 * LEAVING.seedKgPerCarrier, 6);
+    // ze všech zásob stejný podíl – obilí bez osiva, které mají napřed
+    expect(food.grainKg / food.meatKg).toBeCloseTo(((2000 * 3) / 7 - seed) / ((300 * 3) / 7), 6);
+    expect(state.storesKg).toBeCloseTo(2000 - food.grainKg - seed, 6);
     expect(state.meatKg).toBeCloseTo(300 - food.meatKg, 6);
     // stáda: 3/7
     expect(settlers.herds.sheep).toBeCloseTo((herdsBefore.sheep * 3) / 7, 6);
@@ -120,13 +124,40 @@ describe('departVillage', () => {
     expect(s.people).toHaveLength(7);
   });
 
-  it('malé zásoby si vezmou jen poměrný díl', () => {
+  it('malé zásoby si vezmou jen poměrný díl – napřed osivo', () => {
     const s = twoHouseholds();
     s.storesKg = 70;
     s.meatKg = 0;
     s.legumesKg = 0;
     const leavers = s.people.filter((p) => p.dwellingId === sonHome(s));
-    expect(leavingFood(s, leavers, DAY).grainKg).toBeCloseTo(30, 6);
+    // díl 3/7 = 30 kg – celý jako osivo (na první osev chtějí 230 kg, unesou 2 × 20 kg)
+    expect(leavingSeedKg(s, leavers, DAY)).toBeCloseTo(30, 6);
+    expect(leavingFood(s, leavers, DAY).grainKg).toBeCloseTo(0, 6);
+    // osivo, které má mateřská ves jen na setí, mezi jejich díl nepatří
+    s.reservedSeedKg = 35;
+    expect(leavingSeedKg(s, leavers, DAY)).toBeCloseTo(15, 6);
+  });
+
+  it('snopy, které ves smí vymlátit, se dělí jako zásoby – bez humna zůstanou ve vsi', () => {
+    const s = twoHouseholds();
+    s.storesKg = 35;
+    s.meatKg = 0;
+    s.legumesKg = 0;
+    s.sheaves = { grainKg: 35, legumesKg: 0, work: { spring: 10 } };
+    s.threshingFloors = [{ id: 900, position: { x: 200, z: 0, rotation: 0 }, builtDay: DAY - 30 }];
+    // 3 ze 7 lidí: (35 + 35) × 3/7 = 30 kg – unesou (2 × 25 kg); napřed osivo 35 × 3/7 = 15 kg
+    // z vymláceného zrna, zbytek jako jídlo
+    const { state, settlers } = departVillage(s, DAY, [sonHome(s)]);
+    expect(settlers.seedKg).toBeCloseTo(15, 6);
+    expect(settlers.food.grainKg).toBeCloseTo(15, 6);
+    expect(state.storesKg).toBeCloseTo(20, 6);
+    expect(state.sheaves!.grainKg).toBeCloseTo(20, 6);
+    expect(state.sheaves!.work!.spring).toBeCloseTo((10 * 4) / 7, 6);
+    // bez humna se mlátí nouzově – snopy jsou jídlem o 10 % zrna méně: (35 × 0,9 + 35) × 3/7
+    const bare = structuredClone(s);
+    delete bare.threshingFloors;
+    const left = departVillage(bare, DAY, [sonHome(bare)]);
+    expect(left.settlers.food.grainKg).toBeCloseTo(28.5 - 15, 6);
   });
 
   it('na novou mapu: ve staré vsi zůstanou jako odešlí ve směru (war.md)', () => {
@@ -189,7 +220,10 @@ describe('nová ves z osadníků', () => {
       dwellingType: 'zemnice',
     });
     expect(fresh.manorId).toBe(household);
-    expect(fresh.storesKg).toBeCloseTo(settlers.food.grainKg, 6);
+    // osivo osadníků je v zásobách, ves ho má jen na setí (fields.md – Osivo pro ves bez zásob)
+    expect(settlers.seedKg).toBeGreaterThan(0);
+    expect(fresh.storesKg).toBeCloseTo(settlers.food.grainKg + settlers.seedKg!, 6);
+    expect(fresh.reservedSeedKg).toBeCloseTo(settlers.seedKg!, 6);
     expect(fresh.livestock!.herds).toEqual(settlers.herds);
     expect(fresh.ancestors).toEqual(settlers.ancestors);
     // ves se dopočítává jako každá jiná
@@ -247,8 +281,39 @@ describe('vůz s voly při odchodu (migration.md – Vůz při odchodu)', () => 
     // jídlo: dva nosiči a dvoukolák (díl zásob 3/7 je víc)
     const food = settlers.food;
     const carried = food.grainKg + food.meatKg + food.legumesKg + food.cheeseKg + food.applesKg;
-    expect(carried).toBeCloseTo(2 * LEAVING.carryKgPerPerson + CARTS.loadKg['two-wheel'], 6);
+    // osivo na první osev (230 kg): 2 × 20 kg nosiči, zbytek na voze místo jídla
+    expect(settlers.seedKg).toBeCloseTo(230, 6);
+    expect(carried + settlers.seedKg!).toBeCloseTo(
+      2 * (LEAVING.carryKgPerPerson + LEAVING.seedKgPerCarrier) + CARTS.loadKg['two-wheel'],
+      6,
+    );
     expect(leavingFood(s, [], DAY, 'four-wheel').grainKg).toBe(0);
+  });
+
+  it('vůz veze napřed jídlo na LEAVING.cartSeedFoodDays dní, osivo jen z toho, co zbude', () => {
+    const s = withDraft(twoHouseholds(), 3, ['four-wheel']);
+    const leavers = s.people.filter((p) => p.dwellingId === sonHome(s));
+    const need = leavers.reduce((sum, p) => sum + FOOD_NEED_KG_PER_YEAR[ageGroup(p, DAY)], 0);
+    const food = leavingFood(s, leavers, DAY, 'four-wheel');
+    const foodKg = food.grainKg + food.meatKg + food.legumesKg + food.cheeseKg + food.applesKg;
+    expect(foodKg).toBeGreaterThanOrEqual((need * LEAVING.cartSeedFoodDays) / YEAR - 1e-6);
+    // nosnost se neprekročí: jídlo + osivo nad osivo pěšky ≤ nosnost
+    const seed = leavingSeedKg(s, leavers, DAY, 'four-wheel');
+    const carriers = leavers.filter((p) => ageYears(p.bornDay, DAY) >= LEAVING.carryFromAge).length;
+    const foot = carriers * LEAVING.seedKgPerCarrier;
+    expect(foodKg + Math.max(0, seed - foot)).toBeLessThanOrEqual(
+      carriers * LEAVING.carryKgPerPerson + CARTS.loadKg['four-wheel'] + 1e-6,
+    );
+  });
+
+  it('poměrný díl se počítá ze zásob bez rezervy osiva mateřské vsi – ta zůstane jí', () => {
+    const s = twoHouseholds();
+    s.reservedSeedKg = 700;
+    const { state, settlers } = departVillage(s, DAY, [sonHome(s)]);
+    const taken = settlers.food.grainKg + (settlers.seedKg ?? 0);
+    expect(taken).toBeLessThanOrEqual(((2000 - 700) * 3) / 7 + 1e-6);
+    expect(state.storesKg).toBeCloseTo(2000 - taken, 6);
+    expect(state.storesKg).toBeGreaterThanOrEqual(700);
   });
 
   it('bez volných volů vůz zůstane; odchází-li celá ves, vezme si čtyřkolák i s páry', () => {

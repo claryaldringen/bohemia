@@ -16,7 +16,7 @@ export interface TimeOffsetRepository {
 }
 
 /** Poslední herní den světa (31. 12. 1499) – dál posun nesahá. */
-const LAST_DAY = TOTAL_GAME_DAYS - 1;
+export const LAST_WORLD_DAY = TOTAL_GAME_DAYS - 1;
 
 /** Přeskoky času v dev módu: měsíc (30 herních dní), rok (365 dní) a 10 let (3 650 dní). */
 export const TIME_SKIP_DAYS = { month: 30, year: 365, decade: 3650 } as const;
@@ -27,7 +27,7 @@ export const WORLD_END_REACHED = 'Dál čas posunout nejde – svět končí rok
 
 /** Dnešní den hráče: den světa + posun, nejvýš poslední den světa. */
 export function playerDay(worldDay: number, offsetDays: number): number {
-  return Math.min(worldDay + offsetDays, LAST_DAY);
+  return Math.min(worldDay + offsetDays, LAST_WORLD_DAY);
 }
 
 export interface PlayerTimeInput {
@@ -63,7 +63,7 @@ export async function skipTime(
   input: SkipTimeInput,
 ): Promise<SkipTimeResult> {
   if (!input.devMode) return { ok: false, reason: DEV_MODE_ONLY };
-  const maxOffset = LAST_DAY - input.worldDay;
+  const maxOffset = LAST_WORLD_DAY - input.worldDay;
   const current = await deps.offsets.offsetOf(input.playerId);
   if (current >= maxOffset) return { ok: false, reason: WORLD_END_REACHED };
   const offsetDays = await deps.offsets.extend(

@@ -119,7 +119,6 @@ function withRoad(s: VillageState, road: Road = forestRoad()): VillageState {
     nextId: 50,
     roads: [road],
     trees: [],
-    candidates: [],
     labor: { from: DAY, days: 0, shares: [] },
   };
   return s;

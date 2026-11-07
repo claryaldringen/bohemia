@@ -26,12 +26,14 @@ import {
   type TileCell,
 } from '@bohemia/game';
 import type {
+  SceneCraftYard,
   FieldLook,
   SceneFieldPart,
   SceneGraveMound,
   SceneKilnState,
   SceneLabor,
   SceneRoad,
+  SceneThreshingFloor,
   SceneVillage,
 } from '../village-view';
 import {
@@ -48,6 +50,7 @@ import { STRUCTURE_STAGE_LABELS } from './structure-decay';
 import { plotHouse } from './homestead-layout';
 import { TREE_GROWTH_YEARS, treeGrowth } from './orchard-layout';
 import { penFacing, type Direction, type PenSquare } from './pen-layout';
+import { FLOOR_PHASES, floorPhase } from './threshing-floor-layout';
 import type { ConstructionKind } from './village-construction';
 
 /**
@@ -162,7 +165,7 @@ function manorModel(x: number, z: number): ShowcaseModel {
     plot,
   };
 }
-const MANOR_AT = { x: -82, z: -4 };
+export const MANOR_AT = { x: -82, z: -4 };
 
 const UHLIR_X = 26;
 /** Dílna tesaře – vlevo od pahorku s vozy (SHOWCASE_CARTS), vchodem ke kameře. */
@@ -349,7 +352,7 @@ const SQUARE_M = 15;
 const GROUND_ORIGIN = { x: -55, z: 18 };
 
 export type ShowcaseGroundId =
-  'field' | 'cemetery' | 'orchard' | 'meadow' | 'plowing' | 'legumes' | 'flax';
+  'field' | 'cemetery' | 'orchard' | 'meadow' | 'plowing' | 'legumes' | 'flax' | 'threshing';
 
 export interface ShowcaseGround {
   id: ShowcaseGroundId;
@@ -400,7 +403,47 @@ export const SHOWCASE_GROUNDS: readonly ShowcaseGround[] = [
   ground('legumes', 'Luštěniny', 0, 3, 3, 2),
   // vedle luštěnin ob sloupec – len (fields.md – Len)
   ground('flax', 'Len', 4, 3, 2, 2),
+  // vedle lnu ob sloupec – humno (production-chains.md – Humno): mlat 8 × 10 m ve čtverci
+  ground('threshing', 'Humno', 7, 3, 1, 1),
 ];
+
+/** Posuvník humna: do poloviny stavba, pak výmlat (stoh roste), na konci plný stoh. */
+const THRESHING_BUILD_TO = 0.5;
+const THRESHING_THRESH_TO = 0.85;
+
+/** Humno ukázky v průběhu `p` posuvníku a popisek fáze (stavba – výmlat – po výmlatu). */
+export function showcaseThreshingFloor(
+  square: { x: number; z: number },
+  p: number,
+): { floor: SceneThreshingFloor; label: string } {
+  const position = { x: square.x, z: square.z, rotation: 0 };
+  if (p < THRESHING_BUILD_TO) {
+    const progress = p / THRESHING_BUILD_TO;
+    const floor = { id: 9601, position, built: false, progress };
+    const phase = floorPhase(floor);
+    const label = FLOOR_PHASES.find((f) => f.phase === phase)?.label ?? '';
+    return { floor, label: `stavba – ${label}` };
+  }
+  if (p < THRESHING_THRESH_TO) {
+    const t = (p - THRESHING_BUILD_TO) / (THRESHING_THRESH_TO - THRESHING_BUILD_TO);
+    return {
+      floor: {
+        id: 9601,
+        position,
+        built: true,
+        progress: 1,
+        straw: Math.round((0.3 + 0.7 * t) * 20) / 20,
+        threshing: true,
+        grainKg: Math.round((100 + 500 * t) / 10) * 10,
+      },
+      label: 'výmlat – mlácení holemi na klasech, prohazování zrna, stoh slámy roste',
+    };
+  }
+  return {
+    floor: { id: 9601, position, built: true, progress: 1, straw: 1 },
+    label: 'po výmlatu – plný stoh slámy, zrno odnesené do jam',
+  };
+}
 
 /** Den ukázky orby (s skutečného času) – ve hře je herní den ≈ 86 s, tady kratší. */
 export const SHOWCASE_PLOUGH_DAY_S = 40;
@@ -797,6 +840,7 @@ export function showcaseGrounds(progress: number): {
         ? 'seno v kupkách'
         : `seč – řádky sena (${Math.round(hay.mown * 100)} %)`;
 
+  const threshing = showcaseThreshingFloor(of('threshing').squares[0]!, p);
   const cemetery = of('cemetery').squares;
   const capacity = cemetery.length * CEMETERY.gravesPerSquare;
   const founding = ramp(p, 0, CEMETERY_FOUNDED_AT);
@@ -856,6 +900,7 @@ export function showcaseGrounds(progress: number): {
   return {
     village: {
       dwellings: [],
+      threshingFloors: [threshing.floor],
       fields: [
         { id: 1, parts },
         { id: 3, parts: legumes },
@@ -891,6 +936,7 @@ export function showcaseGrounds(progress: number): {
       plowing: PLOWING_LABEL,
       legumes: phaseAt(LEGUME_SHOWCASE_PHASES, p).label,
       flax: phaseAt(FLAX_SHOWCASE_PHASES, p).label,
+      threshing: threshing.label,
     },
   };
 }
@@ -1353,23 +1399,23 @@ export function showcaseRoads(progress: number): SceneRoad[] {
     { x: 0, z: z + 1.5 },
     { x: 20, z },
   ];
-  const building = (grade: 'improved' | 'causeway'): Partial<SceneRoad> =>
-    p < 1 ? { upgrade: { grade, progress: p } } : {};
+  const building = (): Partial<SceneRoad> =>
+    p < 1 ? { upgrade: { grade: 'improved', progress: p } } : {};
   return [
     { id: 1, points: axis(ROADS_Z), grade: 'trodden', ground: { wet: [], fords: [] } },
     {
       id: 2,
       points: axis(ROADS_Z - ROADS_STEP_Z),
       grade: p < 1 ? 'trodden' : 'improved',
-      ground: { wet: [[14, 24]], fords: [] },
-      ...building('improved'),
+      ground: { wet: [], fords: [] },
+      ...building(),
     },
     {
       id: 3,
       points: axis(ROADS_Z - 2 * ROADS_STEP_Z),
-      grade: p < 1 ? 'improved' : 'causeway',
+      grade: p < 1 ? 'trodden' : 'improved',
       ground: { wet: [[6, 20]], fords: [30] },
-      ...building('causeway'),
+      ...building(),
     },
   ];
 }
@@ -1517,4 +1563,45 @@ export function showcaseVariants(): SceneVillage {
     }
   });
   return { dwellings, fields: [] };
+}
+
+// --- Kovárna a hrnčíř (production-chains.md – Kovář; crafts.md – Hlína hrnčíře) ---
+
+export const SHOWCASE_CRAFT_YARDS = {
+  id: 'dvory-dilen',
+  label: 'Kovárna a hrnčíř',
+  focus: { x: 66, z: -129, radius: 40 },
+} as const;
+
+/** Řada ukázky dvorů dílen (z) – za cestami, pod cyklem milíře. */
+const CRAFT_YARDS_Z = -128;
+
+/**
+ * Kovárny a hrnčíři ukázky (x, řemeslo, dvůr dne): tavba v redukční peci s žárem a dýmem (houba
+ * přibývá), překování houby na hřivny (dým výhně), kování nástrojů (hromádka hřiven), hrnčíř
+ * s plnou jámou hlíny, kterou šlape, a s jámou skoro prázdnou. Postavy ukázka nemá – měchaře,
+ * kováře u pece a šlapání hlíny ukazuje ves (villager-plan-crafts.ts – `craftsmen`).
+ */
+export const CRAFT_YARD_ROWS: readonly { x: number; craft: Craft; yard: SceneCraftYard }[] = [
+  { x: 34, craft: 'smith', yard: { task: 'smelt', bellows: true, bloom: 1, bars: 1 } },
+  { x: 48, craft: 'smith', yard: { task: 'refine', bloom: 3, bars: 2 } },
+  { x: 62, craft: 'smith', yard: { task: 'forge', bloom: 0, bars: 3 } },
+  { x: 80, craft: 'potter', yard: { clay: 3, treading: true } },
+  { x: 94, craft: 'potter', yard: { clay: 1 } },
+];
+
+/** Obydlené dílny ukázky dvorů – kreslí herní renderer vsi (s variantami rozměrů). */
+export function showcaseCraftYards(): SceneVillage['dwellings'] {
+  return CRAFT_YARD_ROWS.map((row, k) => ({
+    id: 9700 + k,
+    type: 'polozemnice',
+    position: { x: row.x, z: CRAFT_YARDS_Z, rotation: FACING },
+    built: true,
+    progress: 1,
+    inhabited: true,
+    craft: row.craft,
+    working: row.craft === 'smith' || !!row.yard.treading,
+    yard: row.yard,
+    plainShape: true,
+  }));
 }

@@ -1,6 +1,7 @@
 // Ohrada s přístřeškem bez Babylonu (docs/design/oxen.md – staví ji hráč, ve vsi i na ukázce
 // /dev/buildings): čtverec 15 × 15 m (i víc – níž) obehnaný pleteným plotem se zakulacenými rohy
-// (woven-fence.ts – týž plot jako pozemek polozemnice a hřbitov), branka ze žerdí na straně ke
+// (woven-fence.ts – týž plot jako pozemek polozemnice a hřbitov) 1,5 m uvnitř čtverce (mezi dvěma
+// ohradami ulička 3 m pro vůz – rules-buildings.ts), branka ze žerdí na straně ke
 // vsi, v zadním rohu přístřešek na sloupech otevřený do ohrady, pod ním jesle se senem, vedle
 // žlab a stoh sena. Všechno deterministicky z čtverce a směru ke vsi. Souřadnice světa scény
 // v metrech (x, z); natočení jako `Position.rotation` (+z modelu míří do (sin r, cos r)).
@@ -9,9 +10,17 @@
 // Ohrada o víc čtvercích (oxen.md – Ohrady podle druhu, nejvýš 4): plot po obrysu všech čtverců
 // odsazený dovnitř (zakulacené rohy, vnitřní roh tvaru L), branka z jádra (`penSquaresEntrance`),
 // přístřešek, jesle, žlab a stoh v prvním čtverci u vnějšího plotu, místa pro zvířata ve všech.
-import { PEN_GATE, penSquaresEntrance, rotationCosSin, type Position } from '@bohemia/game';
+import {
+  PEN_FENCE_INSET_M,
+  PEN_GATE,
+  penSquaresEntrance,
+  rotationCosSin,
+  type HorseKind,
+  type PenSpecies,
+  type Position,
+} from '@bohemia/game';
 import { isRotatedSquare } from './field-cells';
-import { FENCE_INSET_M, type PlotSquare } from './homestead-layout';
+import type { PlotSquare } from './homestead-layout';
 import { valueNoise } from './livestock-motion';
 import { hash01 } from './smoke-schedule';
 import { smoothstep, type Point } from './village-layout';
@@ -44,6 +53,20 @@ export const PEN_FENCE: FenceStyle = {
 };
 
 /**
+ * Plot ohrady koní (horses.md – Ohrada koní): týž pletenec, ale vyšší (≈ 1,4 m) – nízký plot kůň
+ * přeskočí. Větve po 0,10 m nad plotem ohrad (do 1,34 m).
+ */
+export const PEN_FENCE_HORSE: FenceStyle = {
+  ...PEN_FENCE,
+  rails: [...PEN_FENCE.rails, 1.04, 1.14, 1.24, 1.34],
+};
+
+/** Styl plotu ohrady podle druhu (koně vyšší, ostatní beze změny). */
+export function penFenceStyle(species?: PenSpecies): FenceStyle {
+  return species === 'horse' ? PEN_FENCE_HORSE : PEN_FENCE;
+}
+
+/**
  * Přístřešek v souřadnicích modelu (tools/blender/pen.py): střecha od středu do stran
  * `halfLength`, dopředu (otevřená strana, +z) `front`, dozadu `back` (m).
  */
@@ -61,7 +84,7 @@ export const PEN_HAYSTACK_SCALE = 0.5;
  * Druh zvířete v ohradě: vůl ze spřežení (models/plough/ox.glb), kráva ze stáda vsi; ovce, koza
  * a prase na noc v ohradě svého druhu (oxen.md – Na noc v ohradě – kreslí je den a noc).
  */
-export type PenAnimalKind = 'ox' | 'cow' | 'sheep' | 'goat' | 'pig';
+export type PenAnimalKind = 'ox' | 'cow' | 'sheep' | 'goat' | 'pig' | 'horse' | 'foal';
 
 export interface PenAnimal {
   kind: PenAnimalKind;
@@ -90,6 +113,12 @@ export interface PenHerd {
   sheep?: number;
   goats?: number;
   pigs?: number;
+  /**
+   * Koně ohrady koní (horses.md – Ohrada koní): klisny a jezdečtí koně mají každý své místo
+   * (4 na čtverec), hříbě stojí u klisny bez vlastního místa. Ohrada koní se s jinými zvířaty
+   * nemíchá – s koňmi se ostatní údaje ignorují.
+   */
+  horses?: readonly HorseKind[];
 }
 
 /** Tele ve výcviku je menší než vůl (návrh – jen vzhled). */
@@ -106,6 +135,8 @@ export interface PenLayout {
   /** Na kterou stranu (jednotkový vektor kolmo k `front`) stojí přístřešek a žlab. */
   side: Direction;
   fence: WovenFence;
+  /** Styl plotu – ohrada koní má vyšší (`penFenceStyle`). */
+  fenceStyle: FenceStyle;
   /** Střed mezery branky a natočení dílu `gate` (žerdě podél osy x modelu). */
   gate: Position;
   shelter: Position;
@@ -171,6 +202,7 @@ export function penLayout(
   square: PenSquare,
   facing: Direction,
   extra: readonly { x: number; z: number }[] = [],
+  species?: PenSpecies,
 ): PenLayout {
   const squares: PenSquare[] = [
     square,
@@ -187,7 +219,7 @@ export function penLayout(
   );
   if (square.rotation === undefined || !isRotatedSquare(square)) {
     return {
-      ...flatPenLayout(square, facing, { x: gate.x, z: gate.z }, squares.slice(1)),
+      ...flatPenLayout(square, facing, { x: gate.x, z: gate.z }, squares.slice(1), species),
       squares,
     };
   }
@@ -198,6 +230,7 @@ export function penLayout(
     turn.toFlatDir(facing),
     turn.toFlat(gate.x, gate.z),
     squares.slice(1).map((q) => ({ ...turn.toFlat(q.x, q.z), size: q.size })),
+    species,
   );
   return { ...turnedLayout(flat, square, square.rotation, turn), squares };
 }
@@ -317,9 +350,10 @@ function flatPenLayout(
   facing: Direction,
   gateAt: { x: number; z: number },
   extras: readonly { x: number; z: number; size: number }[] = [],
+  species?: PenSpecies,
 ): PenLayout {
   const c = { x: square.x, z: square.z };
-  const half = square.size / 2 - FENCE_INSET_M;
+  const half = square.size / 2 - PEN_FENCE_INSET_M;
   const f0 = unit(facing);
   const axisFront: Direction =
     Math.abs(f0.x) >= Math.abs(f0.z)
@@ -352,15 +386,16 @@ function flatPenLayout(
           [c.x + half, c.z + half],
           [c.x - half, c.z + half],
         ] as Point[])
-      : insetOutline(all, FENCE_INSET_M);
+      : insetOutline(all, PEN_FENCE_INSET_M);
   const fenceRect = {
     minX: Math.min(...outline.map((p) => p[0])),
     maxX: Math.max(...outline.map((p) => p[0])),
     minZ: Math.min(...outline.map((p) => p[1])),
     maxZ: Math.max(...outline.map((p) => p[1])),
   };
-  const fenceRects = extras.length === 0 ? [fenceRect] : innerRects(all, FENCE_INSET_M);
-  const fence = wovenFence([{ points: outline, closed: true }], PEN_FENCE, { toward: gateAt });
+  const fenceRects = extras.length === 0 ? [fenceRect] : innerRects(all, PEN_FENCE_INSET_M);
+  const fenceStyle = penFenceStyle(species);
+  const fence = wovenFence([{ points: outline, closed: true }], fenceStyle, { toward: gateAt });
   const run = fence.runs[0]!.posts;
   const a = run[0]!;
   const b = run[run.length - 1]!;
@@ -389,7 +424,7 @@ function flatPenLayout(
   const props: Record<PenProp, Position> = {
     timber: { ...at(-0.5, -1.5), rotation: facingRotation + Math.PI / 2 },
     rods: { ...at(1.6, 1.4), rotation: facingRotation + 0.2 },
-    straw: { ...at(-1.6, 2.0), rotation: facingRotation - 0.3 },
+    straw: { ...at(0.3, -0.3), rotation: facingRotation - 0.3 },
   };
 
   const seed = Math.round(square.x * 7 + square.z * 13);
@@ -397,7 +432,7 @@ function flatPenLayout(
   const drink = at(troughAhead + 0.3, troughAside - 1.5);
   const hay = at(-shelterBack + 0.9, shelterAside - RACK_OFFSET_M.inward);
   const graze = at(1.2, -2.6);
-  const spots: PenSpot[] = [
+  const allSpots: PenSpot[] = [
     { ...drink, heading: headingOf(side), activity: 'drink', seed: seed + 1 },
     { ...hay, heading: headingOf({ x: -front.x, z: -front.z }), activity: 'hay', seed: seed + 2 },
     {
@@ -419,7 +454,7 @@ function flatPenLayout(
     const qSeed = Math.round(q.x * 7 + q.z * 13);
     for (let i = 0; i < EXTRA_SQUARE_SPOTS.length; i++) {
       const [ox, oz] = EXTRA_SQUARE_SPOTS[i]!;
-      spots.push({
+      allSpots.push({
         x: q.x + ox + (hash01(qSeed, i, 46) - 0.5) * 1.6,
         z: q.z + oz + (hash01(qSeed, i, 48) - 0.5) * 1.6,
         heading: hash01(qSeed, i + 10, 45) * Math.PI * 2,
@@ -428,7 +463,13 @@ function flatPenLayout(
       });
     }
   });
-  const animals = penAnimalsFor({ spots }, { oxen: 2, trainees: 0, cows: 1 });
+  const spots = species === 'horse' ? allSpots.filter(horseSpotKept) : allSpots;
+  const animals = penAnimalsFor(
+    { spots },
+    species === 'horse'
+      ? { oxen: 0, trainees: 0, cows: 0, horses: ['mare', 'foal'] }
+      : { oxen: 2, trainees: 0, cows: 1 },
+  );
   return {
     square,
     squares: [square],
@@ -437,6 +478,7 @@ function flatPenLayout(
     front,
     side,
     fence,
+    fenceStyle,
     gate,
     shelter,
     hayRack,
@@ -447,6 +489,18 @@ function flatPenLayout(
     spots,
     fenceRect,
   };
+}
+
+/**
+ * Místa ohrady koní: 4 na čtverec (horses.md – 4 koně na hotový čtverec). V prvním čtverci
+ * u žlabu, u jeslí, na pastvě a jedno v otevřené části; v dalších čtvercích ve čtyřech rozích
+ * mřížky 3 × 3.
+ */
+const HORSE_SQUARE_SPOTS = new Set([0, 2, 6, 8]);
+function horseSpotKept(_: PenSpot, index: number): boolean {
+  if (index < 4) return true;
+  if (index < 3 + EXTRA_SPOTS.length) return false;
+  return HORSE_SQUARE_SPOTS.has((index - 3 - EXTRA_SPOTS.length) % EXTRA_SQUARE_SPOTS.length);
 }
 
 /** Místa pro zvířata v dalších čtvercích ohrady (m od středu čtverce, po 4 m). */
@@ -603,7 +657,7 @@ const EXTRA_SPOTS: readonly (readonly [number, number])[] = [
   [3.2, -0.8],
   [-3.4, -1.2],
   [3.6, -4.4],
-  [0.4, -5.4],
+  [0.4, -4.7],
   [-4.6, -4.2],
   [4.6, 2.2],
   [1.6, 2.6],
@@ -616,6 +670,7 @@ const EXTRA_SPOTS: readonly (readonly [number, number])[] = [
  * noc v ohradě) – kolik se jich vejde na místa ohrady (ve všech jejích čtvercích).
  */
 export function penAnimalsFor(layout: Pick<PenLayout, 'spots'>, herd: PenHerd): PenAnimal[] {
+  if (herd.horses) return horseAnimalsFor(layout.spots, herd.horses);
   const many = (n: number | undefined, kind: PenAnimalKind): { kind: PenAnimalKind }[] =>
     Array.from({ length: Math.max(0, Math.floor(n ?? 0)) }, () => ({ kind }));
   const kinds: { kind: PenAnimalKind; scale?: number }[] = [
@@ -635,6 +690,43 @@ export function penAnimalsFor(layout: Pick<PenLayout, 'spots'>, herd: PenHerd): 
     kind: animal.kind,
     ...(animal.scale === undefined ? {} : { scale: animal.scale }),
   }));
+}
+
+/** Odstup hříběte od klisny (m) – stojí vedle ní, ne uvnitř. */
+const FOAL_OFFSET_M = 1.35;
+
+/**
+ * Koně ohrady koní na její místa: klisny a jezdečtí koně po jednom na místo (v pořadí místa:
+ * žlab, jesle, pastva…), hříbata bez vlastního místa vedle klisen (po jednom na klisnu, další
+ * střídavě; bez dospělého koně vedle prvního místa). Víc koní než míst se nevejde.
+ */
+function horseAnimalsFor(spots: readonly PenSpot[], horses: readonly HorseKind[]): PenAnimal[] {
+  const adults = horses
+    .filter((h) => h !== 'foal')
+    .slice(0, spots.length)
+    .map((_, i) => ({ ...spots[i]!, kind: 'horse' as const }));
+  const foalCount = horses.filter((h) => h === 'foal').length;
+  // klisny napřed – hříbata patří k nim; bez klisny ke kterémukoli koni
+  const mares = horses.filter((h) => h !== 'foal').flatMap((h, i) => (h === 'mare' ? [i] : []));
+  const hosts = (mares.length > 0 ? mares : adults.map((_, i) => i)).filter(
+    (i) => i < adults.length,
+  );
+  const foals: PenAnimal[] = [];
+  for (let f = 0; f < foalCount; f++) {
+    const host = hosts.length > 0 ? adults[hosts[f % hosts.length]!]! : null;
+    const base = host ?? spots[0];
+    if (!base) break;
+    const side = f >= hosts.length && hosts.length > 0 ? -1 : 1;
+    foals.push({
+      ...base,
+      kind: 'foal',
+      x: base.x + Math.cos(base.heading) * FOAL_OFFSET_M * side,
+      z: base.z - Math.sin(base.heading) * FOAL_OFFSET_M * side,
+      heading: base.heading + 0.4 * side,
+      seed: base.seed + 500 + f,
+    });
+  }
+  return [...adults, ...foals];
 }
 
 /** Hotové díly v pen.glb (tools/blender/pen.py). */
@@ -838,6 +930,18 @@ export interface PenStage {
   mud: number;
 }
 
+/**
+ * Velikost stohu podle stupně zásoby sena 0–3 (`PenView.hay` – podíl plného stohu; návrh Clauda):
+ * po svozu roste, přes zimu ubývá, bez sena stoh není.
+ */
+export const HAYSTACK_SIZES = [0, 0.5, 0.75, 1] as const;
+
+/** Podíl plného stohu ohrady pro stupeň zásoby sena (bez údaje plný). */
+export function haystackSize(hay: number | undefined): number {
+  if (hay === undefined) return 1;
+  return HAYSTACK_SIZES[Math.max(0, Math.min(3, Math.round(hay)))]!;
+}
+
 /** Ohrada při průběhu stavby `progress` (0–1). */
 export function penStage(progress: number): PenStage {
   const p = Math.min(1, Math.max(0, progress));
@@ -872,7 +976,7 @@ export function penStage(progress: number): PenStage {
 
 /** Plot ohrady při průběhu stavby (kůly, pak větve zdola nahoru). */
 export function penFenceStage(layout: PenLayout, stage: PenStage): FenceStage {
-  return fenceStage(layout.fence, PEN_FENCE, stage.fence);
+  return fenceStage(layout.fence, layout.fenceStyle, stage.fence);
 }
 
 // --- Zvířata (jen ozdoba) ------------------------------------------------------------------

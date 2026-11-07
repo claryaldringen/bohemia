@@ -34,10 +34,10 @@ describe('withinBounds – meze produktivity', () => {
 });
 
 describe('meze z rešerše 17. 10. 2026', () => {
-  it('polní práce na osetý hektar: bez řemesel 205, s plným pokrytím nástroji 120', () => {
-    // součet dolních mezí: kopání 50 + setí 10 + pletí 15 + sklizeň 15 + odnos 20 + výmlat 10
-    expect(totalFieldWork(NO_CRAFTS.tools)).toBeCloseTo(205, 9);
-    expect(totalFieldWork(1)).toBeCloseTo(120, 9);
+  it('polní práce na osetý hektar: bez řemesel 163, s plným pokrytím nástroji 100 (žeň od 24. 10. 2026, pletí od 25. 10. 2026)', () => {
+    // součet dolních mezí: kopání 50 + setí 10 + pletí 15 + sklizeň 15 + odnos 10 + výmlat 10
+    expect(totalFieldWork(NO_CRAFTS.tools)).toBeCloseTo(163, 9);
+    expect(totalFieldWork(1)).toBeCloseTo(100, 9);
     expect(fieldWorkPerHa('dig', NO_CRAFTS.tools)).toBe(100);
     expect(fieldWorkPerHa('dig', 1)).toBe(50);
   });

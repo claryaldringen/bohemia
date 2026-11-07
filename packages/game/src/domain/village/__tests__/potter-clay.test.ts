@@ -62,7 +62,7 @@ function village(day: number): VillageState {
   s.storesKg = 5_000;
   s.lastDay = day;
   s.nextId = 1000;
-  s.crafts = { charcoalKg: 0, toolsKg: 0, potteryKg: 0 };
+  s.crafts = { charcoalKg: 0, potteryKg: 0 };
   return s;
 }
 

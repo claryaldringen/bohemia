@@ -38,6 +38,11 @@ krajina si pamatuje, kudy ves žila, a hráč vidí, co opustil.
   místu druhu** ([paths.md](paths.md), Martin), takže vzdálená modla, kterou má každý dům dál než
   jinou, žádný provoz nemá. Do ohrady se chodí krmit dobytek – **ohrada bez zvířat** provoz nemá
   (jen když v ní ten rok někdo pracoval – stavba rádla).
+- **Hřbitov – návštěva z pohřbů:** pohřeb je cesta ke hřbitovu, ale jen k tomu, **kam se
+  pohřbívá** (nejbližší otevřený k obydlím). Návštěvu za pohřby dostane jen hřbitov s mohylou
+  s dnem pohřbu v posledním roce, ne všechny hřbitovy vsi. Martin (24. 10. 2026): „Jaktože má
+  starý hřbitov nový plot? Myslel jsem, že už je opuštěný.“ Starý hřbitov, kam se už nepohřbívá
+  a nikdo nechodí, tak chátrá dál (návrh Clauda). Když je jediný otevřený, pohřby ho drží.
 - **Ohrada se zvířaty** (spřežení, telata ve výcviku nebo krávy, které v ní přes zimu stojí)
   opuštěná není nikdy (Martin); když se do chátrající ohrady vrátí zvířata, chátrání se zastaví
   hned, ne až při další kontrole (návrh Clauda – se zvířaty nesmí spadnout).

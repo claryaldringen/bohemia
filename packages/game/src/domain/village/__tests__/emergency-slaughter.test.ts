@@ -12,6 +12,7 @@ import {
 } from '../emergency-slaughter';
 import { breedingCows } from '../husbandry';
 import { LIVESTOCK, pigForestHa, slaughterRemaining } from '../livestock';
+import { villageOxen } from '../oxen';
 import { EMERGENCY_SLAUGHTER } from '../rules';
 import { advanceVillage } from '../simulate';
 import type { HerdSpecies, Pen, Person, VillageState } from '../types';
@@ -127,7 +128,7 @@ describe('nouzová porážka', () => {
     expect(s.fieldFood.fieldKg).toBeCloseTo(600 + meatEnergy(s.meatKg!), 9);
   });
 
-  it('pořadí prasata, kozy, krávy, ovce – chovný pár, krávy na mléko a voly a ovce na vlnu zůstanou', () => {
+  it('pořadí prasata, kozy, ovce, krávy – chovný pár, krávy na mléko a voly a ovce na vlnu zůstanou', () => {
     // les jen pro chovný pár – prasnice nad něj nejdou
     const s = withForest(village(day), 1);
     s.livestock!.herds = herds({ pig: 5, goat: 6, cow: 9, sheep: 40 });
@@ -144,6 +145,19 @@ describe('nouzová porážka', () => {
     expect(s.livestock!.herds.cow).toBeGreaterThanOrEqual(cows - 1e-6);
     expect(s.livestock!.herds.sheep).toBeGreaterThanOrEqual(wool - 1e-6);
     expect(outlook(s, day)).toBeLessThan(1);
+  });
+
+  it('ovce jdou před kravami (oxen.md – Co nejvíc sena a co největší stáda) – voli nikdy', () => {
+    expect(EMERGENCY_SLAUGHTER.order).toEqual(['pig', 'goat', 'sheep', 'cow']);
+    const s = withForest(village(day), 1);
+    s.livestock!.herds = herds({ pig: 2, goat: 2, cow: 9, sheep: 400 });
+    s.storesKg = 0;
+    const oxen = villageOxen(s);
+    emergencySlaughter(s, day, 0, 1);
+    // ovcí navíc je dost – krávy zůstanou celé
+    expect(s.livestock!.herds.sheep).toBeLessThan(400);
+    expect(s.livestock!.herds.cow).toBe(9);
+    expect(villageOxen(s)).toBe(oxen);
   });
 
   it('letošní mláďata na nouzovou porážku nejdou – dorůstají v příští stádo', () => {
@@ -213,6 +227,22 @@ describe('nouzová porážka', () => {
     expect(a.livestock!.herds.pig).toBe(10);
     expect(a.livestock!.young.pig).toBe(8);
     if (augEvent?.kind === 'emergency-slaughter') expect(augEvent.animals.pig).toBeUndefined();
+  });
+
+  it('selata první: od 1. 9. porážka ubere napřed selata, dospělá prasata zůstanou (Martin 31. 10. 2026)', () => {
+    const sep = at(601, 9, 10);
+    const s = withForest(village(sep), 4);
+    s.livestock!.herds = herds({ pig: 20, sheep: 30, goat: 6 });
+    s.livestock!.young = herds({ pig: 8, sheep: 8, goat: 2 });
+    const input = dayMealInput(s, sep, 0, 1);
+    s.storesKg = 0.75 * input.needPerDay * input.daysToHarvest;
+    const event = emergencySlaughter(s, sep, 0, 1);
+    if (event?.kind !== 'emergency-slaughter') throw new Error('bez porážky');
+    const pigs = event.animals.pig ?? 0;
+    expect(pigs).toBeGreaterThan(0);
+    // selata ubyla kus za kus (ne poměrem 8 × 12 / 20), dokud jich bylo
+    expect(s.livestock!.young.pig).toBeCloseTo(Math.max(0, 8 - pigs), 1);
+    expect(s.livestock!.herds.pig).toBeCloseTo(20 - pigs, 1);
   });
 
   it('chovné prasnice: prasata jen nad polovinou toho, kolik jich uživí les', () => {
@@ -313,7 +343,11 @@ describe('nouzová porážka', () => {
     const whole = advanceVillage(start, end, null);
     const events = whole.chronicle.filter((e) => e.kind === 'emergency-slaughter');
     expect(events.length).toBeGreaterThanOrEqual(1);
-    expect(events[0]!.day).toBe(at(600, 11, 10));
+    // ves bez sena napřed porazí ovce a krávy, na které seno nezbude (oxen.md – Co nejvíc sena
+    // a co největší stáda, 24. 10. 2026) – jejich maso oddálí nouzovou porážku o dva dny
+    const hay = whole.chronicle.filter((e) => e.kind === 'hay-slaughter');
+    expect(hay.map((e) => e.day)).toEqual([at(600, 11, 10)]);
+    expect(events[0]!.day).toBe(at(600, 11, 12));
     expect(whole.chronicle.some((e) => e.kind === 'hunger-began')).toBe(false);
     expect(whole.hungry).toBe(false);
     expect(whole.ration).toBeUndefined();

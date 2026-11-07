@@ -1,6 +1,9 @@
+import { cloneState } from './clone';
 import { TOTAL_GAME_DAYS } from '../calendar';
+import { newSteward } from './steward-state';
 import type { ObstacleLayer } from '../landscape';
 import { cemeteryFoundingCost, touchingCemeteries, villageCemeteries } from './cemetery';
+import { newFenceSides } from './fence-cost';
 import {
   buildAffordability,
   dwellingLaborManDays,
@@ -10,6 +13,7 @@ import {
   type BuildKind,
 } from './costs';
 import { craftCoverage } from './crafts';
+import { HORSE_PEN_NO_SURPLUS, horsePenPayment, payHorsePen } from './horse-pen-payment';
 import { isVillageExtinct } from './extinction';
 import { winterHayKg } from './hay';
 import { foundingLivestock } from './livestock';
@@ -22,6 +26,7 @@ import {
   penSquares,
   touchingPens,
 } from './pens';
+import { clearingBurnCost } from './forest-clearing';
 import { fieldsTouching, mergeFields, partFoundingCost } from './fields';
 import { normalizeGrid, rotationTurn, squareKey } from './square-grid';
 import { fieldGrids } from './squares';
@@ -32,7 +37,9 @@ import { copyPlot } from './plots';
 import type { Walk } from './paths/walking';
 import { ageGroup } from './people';
 import { settlersMaxId, type Settlers } from './departure';
-import { relocationAffordability, relocationBlock, returnConstructionWood } from './relocation';
+import { isLineMan } from './dynasty';
+import { checkPersonName, normalizePersonName } from './dynasty-names';
+import { relocationAffordability, relocationBlock } from './relocation';
 import {
   CRAFTS,
   CRAFT_BASE,
@@ -42,16 +49,21 @@ import {
   START_AGES,
   START_SEXES,
   BIRTH_SPACING,
+  LORD,
+  START_SEED_YEARS,
   START_STORES_MONTHS,
+  FOUNDERS_STORES,
   dwellingBuildLabor,
   workshopTrees,
 } from './rules';
 import { hasShrine, recordSpared, validateSpared, type SparedSacred } from './sacred';
+import { planThreshingFloorWood, threshingFloorLaborManDays } from './threshing-floors';
 import type {
   CemeterySquare,
   Craft,
   BuildableDwellingType,
   DwellingPlot,
+  DynastyState,
   FieldSurface,
   OrchardSquare,
   Person,
@@ -85,6 +97,11 @@ export type PartInput = {
   obstacleIds?: number[];
   /** Dospělé stromy mezi překážkami – po založení dílu dají klády na hromadu (forest.md). */
   trees?: number;
+  /**
+   * Stojící stromy čtverce v lese v pořadí kácení (bez vyhrazených jinou stavbou) – díl pak
+   * dostane `clearing` místo `trees` (forest.md – Klučení lesa pro pole – postup).
+   */
+  standing?: { id: number; log: boolean }[];
 };
 
 export type FieldInput = {
@@ -162,7 +179,7 @@ function validateDay(day: number): void {
  * Akce hráče nesmí do minulosti vsi – před den, do kterého je už dopočítaná – ani do vymřelé vsi;
  * jinak RangeError.
  */
-function validateActionDay(state: VillageState, day: number): void {
+export function validateActionDay(state: VillageState, day: number): void {
   if (isVillageExtinct(state)) throw new RangeError('Ves vymřela – nikdo v ní nežije.');
   validateDay(day);
   if (day < state.lastDay) {
@@ -311,7 +328,17 @@ function addField(state: VillageState, day: number, field: FieldInput): void {
       surface: input.surface,
       ...(input.cell ? { cell: { ...input.cell } } : {}),
       ...(input.obstacleIds?.length ? { obstacles: [...input.obstacleIds] } : {}),
-      ...(input.trees ? { trees: input.trees } : {}),
+      ...(input.surface === 'forest' && input.standing
+        ? {
+            clearing: {
+              fell: input.standing.map((s) => ({ ...s })),
+              felled: 0,
+              burnCost: clearingBurnCost(input.areaM2, tools),
+            },
+          }
+        : input.trees
+          ? { trees: input.trees }
+          : {}),
       ...(ard && input.surface === 'meadow' ? { sod: true as const } : {}),
     });
   }
@@ -330,12 +357,75 @@ function addField(state: VillageState, day: number, field: FieldInput): void {
     position: null,
     dwellingId: null,
     fieldId,
+    ...(extended === undefined ? {} : { extends: true as const }),
   });
   if (field.sacred) recordSpared(state, field.sacred, day);
 }
 
 /**
- * Založí ves: 4 lidé podle START_AGES, zásoby na START_STORES_MONTHS a stavba první zemnice
+ * Zakladatelé rodu (lord.md – Zakladatelé; Martin 24. 10. 2026: „Vesnici zakládá vojvoda a jeho
+ * rodina.“): vojvoda a jeho manželky podle `LORD.founders` od id `lordId` – vojvoda, hlavní
+ * manželka, vedlejší od nejstarší. Rodiče neznámí, bez dětí; všechny manželky porodí nejdřív za
+ * 9 měsíců jako po svatbě. Vojvoda má příznak rodu a jméno, je-li zadané.
+ */
+function dynastyFounders(
+  lordId: number,
+  dwellingId: number,
+  day: number,
+  name: string | undefined,
+): { people: Person[]; dynasty: DynastyState } {
+  const { lordAge, wifeAges } = LORD.founders;
+  const bornDay = (age: number): number => day - Math.ceil(age * DAYS_PER_YEAR);
+  const lord: Person = {
+    id: lordId,
+    bornDay: bornDay(lordAge),
+    dwellingId,
+    sex: 'male',
+    spouseId: lordId + 1,
+    line: true,
+    ...(name === undefined ? {} : { name }),
+  };
+  const wives = wifeAges.map((age, i): Person => ({
+    id: lordId + 1 + i,
+    bornDay: bornDay(age),
+    dwellingId,
+    sex: 'female',
+    spouseId: lordId,
+    // první dítě nejdřív za 9 měsíců jako po svatbě (population.md – rozestup porodů)
+    nextBirthFrom: day + BIRTH_SPACING.afterWeddingDays,
+  }));
+  return {
+    people: [lord, ...wives],
+    dynasty: {
+      lordId,
+      lords: [{ id: lordId, ...(name === undefined ? {} : { name }), fromDay: day }],
+    },
+  };
+}
+
+/**
+ * Rod vsi osadníků (návrh Clauda – rod ve víc vsích řeší fáze 2–4): vojvodou je vůdce odchodu
+ * `leaderId` – syn vojvody s dílem vsi, nebo vojvoda, který odešel (lord.md – Dělení vsi, Nová
+ * ves) –, je-li mezi nimi jako muž rodu; jinak nejstarší muž rodu mezi nimi, bez něj je nová ves
+ * bez rodu.
+ */
+function settlersLord(people: readonly Person[], leaderId?: number): Person | undefined {
+  const leader = people.find((p) => p.id === leaderId && isLineMan(p));
+  return leader ?? people.filter(isLineMan).sort((a, b) => a.bornDay - b.bornDay || a.id - b.id)[0];
+}
+
+/** Rod vsi osadníků s vojvodou `lord` (`settlersLord`), bez něj ves bez rodu. */
+function settlersDynasty(lord: Person | undefined, day: number): DynastyState {
+  // nový objekt – stav vsi se nesmí dělit o `NO_DYNASTY`
+  if (!lord) return { lordId: null, lords: [] };
+  const name = lord.name === undefined ? {} : { name: lord.name };
+  return { lordId: lord.id, lords: [{ id: lord.id, ...name, fromDay: day }] };
+}
+
+/**
+ * Založí ves: s vojvodou (`lord`) jeho rodina podle LORD.founders (lord.md – Zakladatelé), bez něj
+ * ves bez rodu se 4 lidmi podle START_AGES; zásoby zakladatelů podle FOUNDERS_STORES (ves bez rodu
+ * na START_STORES_MONTHS) a stavba první zemnice
  * (population.md – Založení vsi). Zemnici si zakladatelé postaví vlastní prací jako každou
  * stavbu – do dostavění bydlí na staveništi a pak se do ní nastěhují (jejich domácnost má id
  * budoucí zemnice, stavba ho nese v `dwellingId`). První pole je volitelné (hráč staví, kdy
@@ -377,6 +467,13 @@ export function foundVillage(input: {
    * staveništi první zemnice, dokud ji nepostaví.
    */
   settlers?: Settlers;
+  /**
+   * Ves zakládá vojvoda s manželkami (lord.md – Zakladatelé) – `name` jméno vojvody (jen písmena,
+   * `checkPersonName`); bez jména na ně vojvoda čeká. Bez `lord` ves bez rodu se dvěma páry (testy,
+   * starší varianty kalibrace). S osadníky se nepoužije – zakladatele nemění (vojvodou je nejstarší
+   * muž rodu mezi nimi, s vůdcem odchodu `settlers.lordId` on).
+   */
+  lord?: { name?: string };
 }): VillageState {
   const { seed, day, dwellingPosition, firstField } = input;
   const dwellingObstacleIds = input.dwellingObstacleIds ?? [];
@@ -392,18 +489,35 @@ export function foundVillage(input: {
   if (input.dwellingSpared) validateSpared(input.dwellingSpared);
   const { settlers } = input;
   if (settlers && settlers.people.length === 0) throw new RangeError('Osadníci chybí.');
+  const lordName = input.lord?.name;
+  if (lordName !== undefined) {
+    const check = checkPersonName(lordName);
+    if (!check.ok) throw new RangeError(check.reason ?? 'Neplatné jméno vojvody.');
+  }
+
   // osadníci si nesou id ze staré vsi – nová ves čísluje za nimi
   const householdId = settlers ? settlersMaxId(settlers) + 1 : 1;
+  const founders =
+    !settlers && input.lord
+      ? dynastyFounders(
+          householdId + 1,
+          householdId,
+          day,
+          lordName === undefined ? undefined : normalizePersonName(lordName),
+        )
+      : null;
   // zakladatelé jsou dva páry (kinship.md – Pohlaví): manželé 25 let a chlapec s dívkou, kteří
   // nejsou příbuzní (rodiče neznámí) – vezmou se, až dorostou
   const people: Person[] = settlers
     ? settlers.people.map((p) => ({ ...p, dwellingId: householdId }))
-    : START_AGES.map((age, i) => ({
-        id: householdId + 1 + i,
-        bornDay: day - Math.ceil(age * DAYS_PER_YEAR),
-        dwellingId: householdId,
-        sex: START_SEXES[i] ?? 'male',
-      }));
+    : founders
+      ? founders.people
+      : START_AGES.map((age, i) => ({
+          id: householdId + 1 + i,
+          bornDay: day - Math.ceil(age * DAYS_PER_YEAR),
+          dwellingId: householdId,
+          sex: START_SEXES[i] ?? 'male',
+        }));
   const livestock = {
     ...(settlers
       ? { herds: { ...settlers.herds }, young: { ...settlers.young } }
@@ -412,7 +526,7 @@ export function foundVillage(input: {
     pensFromDay: penGraceEnd(day),
   };
   const [husband, wife] = people;
-  if (!settlers && husband && wife) {
+  if (!settlers && !founders && husband && wife) {
     husband.spouseId = wife.id;
     wife.spouseId = husband.id;
     // první dítě nejdřív za 9 měsíců jako po svatbě (population.md – rozestup porodů)
@@ -421,12 +535,21 @@ export function foundVillage(input: {
   const constructionId = settlers ? householdId + 1 : householdId + 1 + people.length;
   const annualNeed = people.reduce((sum, p) => sum + FOOD_NEED_KG_PER_YEAR[ageGroup(p, day)], 0);
   const food = settlers?.food;
+  // zakladatelé první vsi (vojvoda s manželkami) nesou velkou zásobu jídla a osiva jen na setí
+  // (fields.md – Zásoby a nasycení, Start; FOUNDERS_STORES – jako praotec Čech)
+  const foundersSeedKg = founders ? annualNeed * FOUNDERS_STORES.seedYears : 0;
   const state: VillageState = {
     seed,
     foundedDay: day,
     lastDay: day - 1,
     nextId: constructionId + 1,
     people,
+    // ves bez rodu (bez vojvody) se chová jako před rodem (lord.md – Zakladatelé)
+    dynasty: settlers
+      ? settlersDynasty(settlersLord(people, settlers.lordId), day)
+      : (founders?.dynasty ?? { lordId: null, lords: [] }),
+    // ves syna (`departWithSon`) řídí správce od založení, první ves hráče ne (steward.md)
+    steward: newSteward(day, settlers?.stewarded === true),
     dwellings: [],
     fields: [],
     parts: [],
@@ -444,9 +567,29 @@ export function foundVillage(input: {
         ...(input.forestDistanceM === undefined ? {} : { forestDistanceM: input.forestDistanceM }),
       },
     ],
-    plan: null,
-    threshingFromPlan: null,
-    storesKg: food ? food.grainKg : (annualNeed * START_STORES_MONTHS) / MONTHS_PER_YEAR,
+    season: null,
+    threshingSeason: null,
+    // nová ves rovnou s osevním postupem po dílech (fields.md – Osevní postup po dílech, bod 7)
+    sowingRotation: true,
+    storesKg: food
+      ? food.grainKg + (settlers?.seedKg ?? 0)
+      : founders
+        ? annualNeed * FOUNDERS_STORES.foodYears + foundersSeedKg
+        : (annualNeed * START_STORES_MONTHS) / MONTHS_PER_YEAR + annualNeed * START_SEED_YEARS,
+    // osivo, které osadníci přinesli, ves nesní (fields.md – Osivo pro ves bez zásob)
+    ...(settlers?.seedKg ? { reservedSeedKg: settlers.seedKg } : {}),
+    // osivo zakladatelů na víc osevů – neuvolní se do FOUNDERS_STORES.seedKeepYears let
+    ...(foundersSeedKg > 0
+      ? {
+          reservedSeedKg: foundersSeedKg,
+          reservedSeedUntilDay: day + Math.ceil(FOUNDERS_STORES.seedKeepYears * DAYS_PER_YEAR),
+        }
+      : {}),
+    // nová ves mlátí až na humně, které postaví hráč – bez odkladu (production-chains.md – Humno)
+    sheaves: { grainKg: 0, legumesKg: 0 },
+    // zásoby osadníků jsou doma; jámy vesničané vykopou po prvním výmlatu (production-chains.md –
+    // Obilné jámy)
+    grainPits: [],
     hungry: false,
     commonLaborHistory: [],
     chronicle: [{ day, kind: 'village-founded' }],
@@ -477,6 +620,17 @@ export function foundVillage(input: {
   if (settlers?.oxen && settlers.oxen.length > 0) {
     state.looseOxen = settlers.oxen.map((ox) => ({ ...ox }));
   }
+  // kůň vůdce čeká bez ohrady (lord.md – Dělení vsi, Kůň syna) – nové id ve vsi
+  if (settlers?.horse) state.looseHorses = [{ ...settlers.horse, id: state.nextId++ }];
+  // kronika nové vsi vedené synem vojvody: „Vojvodou je Bořivoj“ (lord.md – Dělení vsi, Nová ves)
+  if (settlers?.lordId !== undefined && state.dynasty?.lordId === settlers.lordId) {
+    const lord = people.find((p) => p.id === settlers.lordId);
+    state.chronicle.push({
+      day,
+      kind: 'lord',
+      ...(lord?.name === undefined ? {} : { name: lord.name }),
+    });
+  }
   // pole napřed – stromy na jeho dílech patří poli (klády po založení), zemnice je nekácí
   if (firstField) addField(state, day, firstField);
   const plan = planDwellingWood(state, 'zemnice', dwellingPosition, day, {
@@ -485,7 +639,7 @@ export function foundVillage(input: {
     clearedIds: dwellingObstacleIds,
   });
   const zemnice = state.constructions[0]!;
-  zemnice.wood = takeWood(state, plan);
+  zemnice.wood = takeWood(state, plan, dwellingPosition);
   zemnice.cost = dwellingLaborManDays('zemnice', dwellingObstacleCost, plan);
   if (input.dwellingSpared) recordSpared(state, input.dwellingSpared, day);
   return state;
@@ -595,29 +749,6 @@ export function startRelocation(
   return next;
 }
 
-/**
- * Hráč zruší rozestavěné přestěhování (stavba `constructionId`, migration.md): stavba zmizí,
- * klády, které vzala z hromady, i už skácené stromy se vrátí na hromadu, vyhrazené stromy se
- * uvolní. Odvedená práce a odstraněné překážky staveniště zůstanou. RangeError, když taková
- * stavba není (dostavěná, jiná stavba), nebo pro den do minulosti vsi.
- */
-export function cancelRelocation(
-  state: VillageState,
-  day: number,
-  constructionId: number,
-): VillageState {
-  validateActionDay(state, day);
-  const c = state.constructions.find((x) => x.id === constructionId);
-  if (!c || c.relocates === undefined) {
-    throw new RangeError(`Stavba ${constructionId} není rozestavěné přestěhování.`);
-  }
-  const next = structuredClone(state);
-  returnConstructionWood(next, c);
-  next.constructions = next.constructions.filter((x) => x.id !== constructionId);
-  next.chronicle.push({ day, kind: 'relocation-cancelled', dwellingId: c.relocates });
-  return next;
-}
-
 /** Ověří vstup staveniště obydlí (den, poloha, překážky, pozemek…); jinak RangeError. */
 function validateDwellingSite(
   state: VillageState,
@@ -660,10 +791,10 @@ function addDwellingSite(
     ...(site.walk ? { walk: site.walk } : {}),
   });
   if (plan.missing > 0) throw new RangeError('Na stavbu ves nemá dřevo – není z čeho kácet.');
-  const next = structuredClone(state);
+  const next = cloneState(state);
   payUpfront(next, type);
   recordClearedObstacles(next, obstacleIds, day);
-  const wood = takeWood(next, plan);
+  const wood = takeWood(next, plan, position);
   next.constructions.push({
     id: next.nextId++,
     kind: 'dwelling',
@@ -736,10 +867,10 @@ export function startWorkshop(
     ...(site.walk ? { walk: site.walk } : {}),
   });
   if (plan.missing > 0) throw new RangeError('Na stavbu ves nemá dřevo – není z čeho kácet.');
-  const next = structuredClone(state);
+  const next = cloneState(state);
   payUpfront(next, craft);
   recordClearedObstacles(next, obstacleIds, day);
-  const wood = takeWood(next, plan);
+  const wood = takeWood(next, plan, position);
   next.constructions.push({
     id: next.nextId++,
     kind: 'dwelling',
@@ -784,7 +915,7 @@ export function foundField(state: VillageState, day: number, field: FieldInput):
     state.parts.filter((p) => joined.has(p.fieldId)).reduce((sum, p) => sum + p.areaM2, 0),
   );
   requireAffordable(state, 'field');
-  const next = structuredClone(state);
+  const next = cloneState(state);
   payUpfront(next, 'field');
   addField(next, day, field);
   return next;
@@ -852,7 +983,7 @@ export function foundCemetery(
     throw new RangeError('Rozšíření musí mít stejně velké čtverce jako hřbitov.');
   }
   requireAffordable(state, 'cemetery');
-  const next = structuredClone(state);
+  const next = cloneState(state);
   payUpfront(next, 'cemetery');
   // čtverce polí pod hřbitovem z pole zmizí (fields.md – Pole jako krajina)
   giveWayToBuilding(next, day, input.takenLand ?? [], 'cemetery');
@@ -893,13 +1024,20 @@ export function foundCemetery(
     id: constructionId,
     kind: 'cemetery',
     startedDay: day,
-    cost: cemeteryFoundingCost(input.squares),
+    cost: cemeteryFoundingCost(
+      input.squares,
+      newFenceSides(
+        input.squares.map((s) => s.cell),
+        (extended?.squares ?? []).map((s) => s.cell),
+      ),
+    ),
     done: 0,
     dwellingType: null,
     position: null,
     dwellingId: null,
     fieldId: null,
     cemeteryId,
+    ...(target ? { extends: true as const } : {}),
   });
   if (input.sacred) recordSpared(next, input.sacred, day);
   return next;
@@ -954,7 +1092,7 @@ export function foundOrchard(state: VillageState, day: number, input: OrchardInp
     throw new RangeError('Čtverec už patří sadu.');
   }
   requireAffordable(state, 'orchard');
-  const next = structuredClone(state);
+  const next = cloneState(state);
   payUpfront(next, 'orchard');
   // čtverce polí pod sadem z pole zmizí (fields.md – Pole jako krajina)
   giveWayToBuilding(next, day, input.takenLand ?? [], 'orchard');
@@ -1045,7 +1183,7 @@ export function startSacredBuilding(
     },
   );
   if (plan.missing > 0) throw new RangeError('Na stavbu ves nemá dospělé duby ke kácení.');
-  const next = structuredClone(state);
+  const next = cloneState(state);
   payUpfront(next, kind);
   recordClearedObstacles(next, obstacleIds, day);
   addLogs(next, logsFromClearedTrees(site.clearedTrees ?? 0));
@@ -1059,10 +1197,87 @@ export function startSacredBuilding(
     position: { ...position },
     dwellingId: null,
     fieldId: null,
-    wood: takeWood(next, plan),
+    wood: takeWood(next, plan, position),
   });
   // díly polí pod půdorysem se zmenší (fields.md – Pole jako krajina) – po plánu dřeva
   giveWayToBuilding(next, day, site.takenLand ?? [], kind);
+  return next;
+}
+
+/** Staveniště humna – překážky a les pod půdorysem, pole pod ním a chůze ke stromům. */
+export interface ThreshingFloorSiteOptions {
+  /** Práce navíc za překážky a les pod půdorysem (`checkThreshingFloorPlacement`); bez údaje 0. */
+  obstacleCost?: number;
+  /** Překážky na půdorysu – osadníci je odstraní hned při zahájení stavby. */
+  obstacleIds?: readonly number[];
+  /** Dospělé stromy mezi `obstacleIds` – osadníci je skácí na hromadu klád. */
+  clearedTrees?: number;
+  /**
+   * Kusy dílů polí pod půdorysem (`takenLand` z kontroly) – díly se zmenší, pod prahem zmizí
+   * (fields.md – Pole jako krajina).
+   */
+  takenLand?: readonly TakenLand[];
+  /** Chůze ke stromům ke kácení po pevných cestách (roads.md); bez ní vzdušná vzdálenost. */
+  walk?: Walk;
+}
+
+/**
+ * Zahájí stavbu humna (production-chains.md – Humno) – stavba ze společné práce vsi, osadníci
+ * nejsou potřeba. Dřevo (HUMNO.trees) jako u ostatních staveb: celé klády z hromady, zbytek
+ * vyhradí mezi nejbližšími dospělými stromy a skácí je jako první část práce. Překážky na půdorysu
+ * (`site.obstacleIds`, cena v `site.obstacleCost`) osadníci odstraní hned, dospělé stromy z nich
+ * dají klády. Humno vznikne hned (`VillageState.threshingFloors`, id = id stavby, `builtDay`
+ * null) a zabírá půdorys; po dostavění dostane den. Díly polí pod půdorysem se zmenší
+ * (`site.takenLand`) – až po plánu dřeva, ať cena sedí s cenou u kurzoru. `obstacles` = vrstva
+ * překážek krajiny (null jen v testech – kácení bez polohy). RangeError, když ves nemá dřevo nebo
+ * je vstup neplatný.
+ *
+ * Konvence dne (jako u `startNewDwelling`): akce se volá na ves dopočítanou do dne `day` a patří
+ * na konec toho dne. Den před `state.lastDay` → RangeError.
+ */
+export function startThreshingFloor(
+  state: VillageState,
+  day: number,
+  position: Position,
+  obstacles: ObstacleLayer | null,
+  site: ThreshingFloorSiteOptions = {},
+): VillageState {
+  validateActionDay(state, day);
+  validatePosition(position);
+  const obstacleCost = site.obstacleCost ?? 0;
+  const obstacleIds = site.obstacleIds ?? [];
+  validateObstacleCost(obstacleCost);
+  validateObstacleIds(obstacleIds);
+  validateTrees(site.clearedTrees ?? 0);
+  validateTakenLand(site.takenLand ?? []);
+  requireAffordable(state, 'threshing-floor', obstacles ?? undefined);
+  const plan = planThreshingFloorWood(state, position, day, {
+    obstacles,
+    clearedTrees: site.clearedTrees ?? 0,
+    clearedIds: obstacleIds,
+    ...(site.walk ? { walk: site.walk } : {}),
+  });
+  if (plan.missing > 0) throw new RangeError('Na humno ves nemá dřevo – není z čeho kácet.');
+  const next = cloneState(state);
+  payUpfront(next, 'threshing-floor');
+  recordClearedObstacles(next, obstacleIds, day);
+  const wood = takeWood(next, plan, position);
+  const id = next.nextId++;
+  next.constructions.push({
+    id,
+    kind: 'threshing-floor',
+    startedDay: day,
+    cost: threshingFloorLaborManDays(obstacleCost, plan),
+    done: 0,
+    dwellingType: null,
+    position: { ...position },
+    dwellingId: null,
+    fieldId: null,
+    wood,
+  });
+  (next.threshingFloors ??= []).push({ id, position: { ...position }, builtDay: null });
+  // díly polí pod půdorysem se zmenší (fields.md – Pole jako krajina) – po plánu dřeva
+  giveWayToBuilding(next, day, site.takenLand ?? [], 'threshing-floor');
   return next;
 }
 
@@ -1116,6 +1331,15 @@ export function foundPen(
   }
   if (!connectedCells(all)) throw new RangeError('Čtverce ohrady musí navazovat stranou.');
   requireAffordable(state, 'pen', obstacles ?? undefined);
+  // koně nové ohrady koní jsou součást stavby – platí se předem z přebytku vsi (horses.md – Koně se
+  // stavbou ohrady); rozšíření koně nepřiveze
+  const payment =
+    input.species === 'horse' && !extended
+      ? horsePenPayment(state, day, craftCoverage(state, day))
+      : null;
+  if (input.species === 'horse' && !extended && !payment) {
+    throw new RangeError(HORSE_PEN_NO_SURPLUS);
+  }
   const next = startPen(
     state,
     day,
@@ -1124,6 +1348,10 @@ export function foundPen(
     walk,
     extended?.id,
   );
+  if (payment) {
+    payHorsePen(next, payment, day);
+    next.constructions[next.constructions.length - 1]!.horsePenPaid = payment;
+  }
   // čtverce pole pod ohradou z pole zmizí (fields.md – Pole jako krajina)
   giveWayToBuilding(next, day, input.takenLand ?? [], 'pen');
   return next;

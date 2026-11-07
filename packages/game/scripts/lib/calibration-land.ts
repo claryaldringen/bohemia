@@ -26,22 +26,16 @@ import {
   type ObstaclePlacement,
 } from '../../src/domain/landscape';
 import {
-  FERTILITY,
   FIELD_LIMITS,
-  FOREST_BONUS,
   MAX_FIELD_CELLS,
   NO_CRAFTS,
-  SEED_KG_PER_HA,
-  distanceFactor,
   fieldPartsFromCells,
-  fieldWorkPerHa,
   forestEdgeDistanceM,
   foundingCostPerHa,
-  grossYieldPerHa,
   placementVillageOf,
+  squareValue,
   type CemeterySquareInput,
   type FieldPart,
-  type FieldTask,
   type OrchardSquareInput,
   type PartInput,
   type Position,
@@ -49,7 +43,6 @@ import {
   type TileCell,
   type VillageState,
 } from '../../src/domain/village';
-import { ROTATION } from './steady-state';
 
 export type LandKind = 'real' | 'v1';
 export const LAND_KINDS: readonly LandKind[] = ['real', 'v1'];
@@ -60,7 +53,6 @@ export const MEADOW_BURN = { foundingPerHa: 50, firstSeasonFertility: -20 } as c
 
 const M2_PER_HA = 10_000;
 const PART_M2 = 225;
-const FIELD_TASKS: readonly FieldTask[] = ['dig', 'sow', 'weed', 'harvest', 'thresh'];
 // hřbitov: čtverce za sebou v ose x, první 200 m od obydlí, 150 m od vody; sad 22 čtverců
 // (≈ 0,5 ha) 120 m od obydlí – mimo půdu pro pole (políčka mimo mřížku krajiny)
 const CEMETERY_FIRST_CELL = 13;
@@ -216,28 +208,6 @@ export const V1_LIVESTOCK_LAND = {
 } as const;
 
 // --- skutečná krajina -------------------------------------------------------------------
-
-/**
- * Jak hráč čtverec cení (pravidla hry): čistá úroda let osevu (kg) na člověkoden založení a polní
- * práce těch let (vzdálenost, popel z mýcení lesa a první sezóna bez pletí).
- */
-export function squareValue(part: PartInput): number {
-  const ha = part.areaM2 / M2_PER_HA;
-  const forest = part.surface === 'forest';
-  const workPerHa = FIELD_TASKS.reduce((sum, t) => sum + fieldWorkPerHa(t, NO_CRAFTS.tools), 0);
-  let kg = 0;
-  let labor = foundingCostPerHa(part.surface, NO_CRAFTS.tools) * ha + part.obstacleCost;
-  for (let season = 0; season < ROTATION.sown; season++) {
-    let fertility = part.naturalFertility * (1 - FERTILITY.sowDepletion * season);
-    if (forest) fertility += FOREST_BONUS.bySeason[season] ?? 0;
-    fertility = Math.min(100, fertility);
-    kg += (grossYieldPerHa(fertility) - SEED_KG_PER_HA) * ha;
-    const weedFree = forest && season === 0;
-    const work = workPerHa - (weedFree ? fieldWorkPerHa('weed', NO_CRAFTS.tools) : 0);
-    labor += work * ha * distanceFactor(part.distanceM);
-  }
-  return kg / labor;
-}
 
 /**
  * Skutečná krajina sídla ze seedu (pásmo srovnatelnosti jako nové sídlo). Pořadí čtverců hráče

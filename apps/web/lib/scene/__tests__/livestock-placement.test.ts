@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { buildForestField, buildRelief, generateLandscape } from '@bohemia/game';
+import {
+  HAY_WINTER_MONTHS,
+  buildForestField,
+  buildRelief,
+  dateOfDayIndex,
+  generateLandscape,
+} from '@bohemia/game';
 import {
   chickenBox,
   chickenPoint,
@@ -8,6 +14,7 @@ import {
   householdCount,
   herderCount,
   livestockGround,
+  grazingHorses,
   planLivestock,
   tendedHerds,
   type Herd,
@@ -461,5 +468,73 @@ describe('livestockGround na skutečné krajině', () => {
         expect(relief.slopeAt(spot.x, spot.z)).toBeLessThan(0.17);
       }
     }
+  });
+
+  it('pás zvěře (verge) leží na louce před lesem, ne pod korunami', () => {
+    let count = 0;
+    for (let dz = -300; dz <= 300; dz += 3) {
+      for (let dx = -300; dx <= 300; dx += 3) {
+        const x = site.worldX + dx;
+        const z = site.worldZ + dz;
+        if (!ground.verge?.(x, z)) continue;
+        count++;
+        // střed buňky rastru (4 m) je aspoň 8 m před lesem, bod v buňce nejvýš o 2,9 m blíž
+        expect(field.distanceAt(x, z)).toBeLessThan(-4);
+        expect(field.distanceAt(x, z)).toBeGreaterThan(-24);
+      }
+    }
+    expect(count).toBeGreaterThan(0);
+  });
+});
+
+describe('planLivestock – koně na pastvě (horses.md – Krmení, Ve scéně)', () => {
+  const days = Array.from({ length: 365 }, (_, d) => d);
+  const summer = days.find((d) => !HAY_WINTER_MONTHS.includes(dateOfDayIndex(d).month))!;
+  const winter = days.find((d) => HAY_WINTER_MONTHS.includes(dateOfDayIndex(d).month))!;
+  const horses = [
+    { id: 1, kind: 'mare' as const },
+    { id: 2, kind: 'foal' as const },
+    { id: 3, kind: 'riding' as const, riderId: 7 },
+    { id: 4, kind: 'riding' as const },
+  ];
+  const stocked = (day: number, herders = 4): LivestockVillage => ({
+    ...VILLAGE,
+    labor: { day, herders: { children: herders } },
+    livestock: { sheep: 6, goat: 2, pig: 4, cow: 4 },
+    pens: [{ x: -40, z: 40, size: 15, horses }],
+  });
+  const horseHerds = (plan: ReturnType<typeof planLivestock>): Herd[] =>
+    plan.herds.filter((h) => h.animals.some((a) => a.species === 'horse' || a.species === 'foal'));
+
+  it('v létě s pasákem se pasou koně bez jezdce; kůň pod jezdcem zůstane stranou', () => {
+    expect(grazingHorses(stocked(summer)).map((h) => h.id)).toEqual([1, 2, 4]);
+    const herds = horseHerds(planLivestock(stocked(summer), GROUND, 11));
+    expect(herds).toHaveLength(1);
+    expect(herds[0]!.animals.map((a) => a.species).sort()).toEqual(['foal', 'horse', 'horse']);
+  });
+
+  it('v zimě a bez pasáka stojí koně v ohradě', () => {
+    expect(grazingHorses(stocked(winter))).toEqual([]);
+    expect(grazingHorses(stocked(summer, 0))).toEqual([]);
+    expect(horseHerds(planLivestock(stocked(winter), GROUND, 11))).toHaveLength(0);
+  });
+
+  it('stádo nikdy samo: koně jdou na pastvu poslední, jen s pasákem navíc', () => {
+    // ovce s kozami, krávy a prasata mají tři pasáky; čtvrtý patří koním
+    for (const herders of [1, 2, 3]) {
+      expect(grazingHorses(stocked(summer, herders))).toEqual([]);
+      expect(horseHerds(planLivestock(stocked(summer, herders), GROUND, 11))).toHaveLength(0);
+    }
+    // ostatní stáda se pasou stejně s koňmi i bez nich (koně je neodeberou)
+    const few = planLivestock(stocked(summer, 3), GROUND, 11);
+    const bare = planLivestock({ ...stocked(summer, 3), pens: [] }, GROUND, 11);
+    expect(JSON.stringify(few.herds)).toBe(JSON.stringify(bare.herds));
+  });
+
+  it('ostatní stáda se koňmi nemění (rozmístění stejné jako bez koní)', () => {
+    const withHorses = planLivestock(stocked(summer), GROUND, 11);
+    const without = planLivestock({ ...stocked(summer), pens: [] }, GROUND, 11);
+    const others = withHorses.herds.filter((h) => !horseHerds(withHorses).includes(h));
+    expect(JSON.stringify(others)).toBe(JSON.stringify(without.herds));
   });
 });

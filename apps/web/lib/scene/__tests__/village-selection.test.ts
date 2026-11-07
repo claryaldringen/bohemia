@@ -1,6 +1,9 @@
+import type { VillageRoadEnd } from '../../road-end-view';
 import { describe, expect, it } from 'vitest';
 import type { SceneVillage } from '../../village-view';
+import type { VillageTarget } from '../village-picking';
 import {
+  describeTarget,
   allDwellingsTarget,
   dwellingsTarget,
   nextSelection,
@@ -42,6 +45,32 @@ const village: SceneVillage = {
 };
 const part = { kind: 'field-part', id: 5, cell: { x: 2, y: 0 } } as const;
 const square = { kind: 'orchard-square', id: 6, cell: { x: 4, y: 4 } } as const;
+
+describe('výběr všech polí (Martin 24. 10. 2026)', () => {
+  const many: SceneVillage = {
+    ...village,
+    fields: [
+      { id: 5, parts: [] },
+      { id: 7, parts: [] },
+    ],
+  };
+
+  it('zaniklá pole z výběru vypadnou, jedno zbylé je pole, žádné nic', () => {
+    const all: VillageTarget = { kind: 'fields', ids: [5, 7] };
+    expect(presentTarget(many, all)).toBe(all);
+    expect(presentTarget(many, { kind: 'fields', ids: [5, 9] })).toEqual({ kind: 'field', id: 5 });
+    expect(presentTarget(many, { kind: 'fields', ids: [8, 9] })).toBeNull();
+  });
+
+  it('jiný klik výběr všech polí nahradí, s Ctrl na prázdno ho nechá', () => {
+    const all: VillageTarget = { kind: 'fields', ids: [5, 7] };
+    expect(nextSelection(all, { kind: 'dwelling', id: 1 }, false)).toEqual({
+      kind: 'dwelling',
+      id: 1,
+    });
+    expect(nextSelection(all, null, true)).toBe(all);
+  });
+});
 
 describe('nextSelection', () => {
   it('bez modifikátoru vybere, co je pod kurzorem; prázdná zem výběr zruší', () => {
@@ -181,5 +210,50 @@ describe('selectsAllDwellings', () => {
     expect(selectsAllDwellings(key('KeyA', { ctrlKey: true, shiftKey: true }))).toBe(false);
     expect(selectsAllDwellings(key('KeyA', { ctrlKey: true, altKey: true }))).toBe(false);
     expect(selectsAllDwellings(key('KeyZ', { ctrlKey: true }))).toBe(false);
+  });
+});
+
+describe('výpis výběru do konzole (Martin 24. 10. 2026)', () => {
+  const roads = [
+    {
+      id: 9,
+      points: [
+        { x: 0, z: 0 },
+        { x: 50, z: 0 },
+      ],
+      grade: 'trodden' as const,
+    },
+    {
+      id: 2,
+      points: [
+        { x: 50, z: 0 },
+        { x: 100, z: 0 },
+      ],
+      grade: 'improved' as const,
+    },
+  ];
+  it('cesta – úseky řetězu a úsek pod kurzorem', () => {
+    const text = describeTarget({ kind: 'road', id: 2, segment: 9 }, { roads });
+    expect(text).toMatch(/^road 2 – úseky /);
+    expect(text).toContain('9');
+    expect(text).toContain('kliknutý úsek 9');
+  });
+  it('cesta – oba konce z pohledu na ves (Martin 25. 10. 2026)', () => {
+    const end = (log: string): VillageRoadEnd => ({
+      kind: 'place',
+      name: '',
+      icon: null,
+      arrow: null,
+      target: null,
+      log,
+    });
+    const text = describeTarget({ kind: 'road', id: 2, segment: 2 }, { roads }, [
+      { segments: [2], ends: [end('dwelling 12'), end('junction 565')] },
+    ]);
+    expect(text).toMatch(/ – od dwelling 12 do junction 565$/);
+  });
+  it('ostatní – typ a id', () => {
+    expect(describeTarget({ kind: 'dwelling', id: 5 }, { roads })).toBe('dwelling {"id":5}');
+    expect(describeTarget({ kind: 'cart', id: 3 }, { roads })).toBe('cart {"id":3}');
   });
 });

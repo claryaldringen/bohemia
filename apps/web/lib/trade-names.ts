@@ -30,10 +30,32 @@ export const TRADE_GOOD_NAMES: Record<
   meat: { name: 'Maso', genitive: 'masa', unit: 'kg', icon: 'meat' },
   cheese: { name: 'Sýr', genitive: 'sýra', unit: 'kg', icon: 'cheese' },
   legumes: { name: 'Luštěniny', genitive: 'luštěnin', unit: 'kg', icon: 'legumes' },
-  cattle: { name: 'Dobytek', genitive: 'krav', unit: 'ks', icon: 'cow' },
+  // dobytek ve třech druzích (trade.md – Dobytek ve třech druzích)
+  cows: { name: 'Krávy', genitive: 'krav', unit: 'ks', icon: 'cow' },
+  youngOxen: {
+    name: 'Mladí voli – do výcviku (2 roky)',
+    genitive: 'mladých volů',
+    unit: 'ks',
+    icon: 'young-ox',
+  },
+  trainedOxen: {
+    name: 'Vycvičení voli – táhnou hned',
+    genitive: 'vycvičených volů',
+    unit: 'ks',
+    icon: 'ox',
+  },
+  // koně ve třech druzích (horses.md – Nákup a prodej); řádky v panelu a ikony přidá úloha 13
+  foals: { name: 'Hříbata', genitive: 'hříbat', unit: 'ks', icon: 'foal' },
+  mares: { name: 'Klisny', genitive: 'klisen', unit: 'ks', icon: 'mare' },
+  ridingHorses: {
+    name: 'Jezdečtí koně',
+    genitive: 'jezdeckých koní',
+    unit: 'ks',
+    icon: 'horse',
+  },
   logs: { name: 'Klády', genitive: 'klád', unit: 'ks', icon: 'wood' },
   pottery: { name: 'Keramika', genitive: 'keramiky', unit: 'kg', icon: 'pottery' },
-  tools: { name: 'Nástroje', genitive: 'nástrojů', unit: 'kg', icon: 'tools' },
+  ironBars: { name: 'Hřivny', genitive: 'hřiven', unit: 'kg', icon: 'iron-bars' },
   charcoal: { name: 'Uhlí', genitive: 'uhlí', unit: 'kg', icon: 'charcoal' },
 };
 

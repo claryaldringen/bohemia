@@ -1,5 +1,6 @@
 import {
   DWELLING_FOOTPRINT_M,
+  HUMNO,
   HAY_WINTER_MONTHS,
   PLAIN_FRAME,
   SURFACE_CODES,
@@ -10,6 +11,7 @@ import {
   type DwellingType,
   type ShapeFrame,
   type ForestField,
+  type HorseKind,
   type Landscape,
   type Position,
   type Relief,
@@ -34,7 +36,16 @@ import { localToWorld, sceneFrame } from './village-layout';
 // (v zimě ovce, kozy a krávy bez ohrady vždy). Stáda se drží mimo jídlo pro lidi – osetý díl,
 // louku před sečí, sad a záhony pozemků.
 
-export type LivestockSpecies = 'sheep' | 'goat' | 'cow' | 'pig' | 'chicken';
+export type LivestockSpecies =
+  | 'sheep'
+  | 'goat'
+  | 'cow'
+  | 'pig'
+  | 'chicken'
+  | 'horse'
+  | 'foal'
+  // pes dvorce (wildlife.md – Psi; dogs.ts) – ve stádech není
+  | 'dog';
 
 /** Co z vsi pro scénu (SceneVillage) zvířata potřebují – pohřebiště jen tam, kde už jsou. */
 export interface LivestockVillage {
@@ -74,6 +85,8 @@ export interface LivestockVillage {
   orchards?: readonly {
     squares: readonly { x: number; z: number; size: number; rotation?: number }[];
   }[];
+  /** Humna (production-chains.md – Humno) – mlat stáda a slepice obcházejí jako ohradu. */
+  threshingFloors?: readonly { position: Position }[];
   /** Ohrady (oxen.md) – oplocené čtverce, stáda ani slepice do nich nechodí. */
   pens?: readonly {
     x: number;
@@ -82,6 +95,8 @@ export interface LivestockVillage {
     rotation?: number;
     /** Další čtverce ohrady (oxen.md – Ohrady podle druhu). */
     extraSquares?: readonly { x: number; z: number }[];
+    /** Koně ohrady koní (horses.md) – v létě se pasou se stády (`grazingHorses`). */
+    horses?: readonly { id: number; kind: HorseKind; riderId?: number }[];
   }[];
   /**
    * Rozdělení práce dne: herní den (na louce na seno se pase jen po seči; bez něj se tam nepase)
@@ -166,8 +181,12 @@ export interface LivestockGround {
   pasture(x: number, z: number): boolean;
   /** Okraj lesa pod krajními stromy – tam prasata rozrývají půdu (hlouběji by je zakryly koruny). */
   forestEdge(x: number, z: number): boolean;
+  /** Louka před okrajem lesa, kde jelení zvěř koruny nezakryjí (bez ní se bere `pasture`). */
+  verge?(x: number, z: number): boolean;
   /** Kudy smí slepice – ne voda, skála a prudký svah. */
   walkable(x: number, z: number): boolean;
+  /** Jak hluboko v lese (m od hranice lesa, záporné v louce) – kudy vzácná zvěř odchází do lesa. */
+  forestDepth?(x: number, z: number): number;
 }
 
 /**
@@ -278,8 +297,11 @@ const SCALE: Record<LivestockSpecies, { from: number; to: number }> = {
   sheep: { from: 1.12, to: 1.3 },
   goat: { from: 1.12, to: 1.3 },
   cow: { from: 1.08, to: 1.2 },
+  horse: { from: 1.0, to: 1.12 },
+  foal: { from: 1.0, to: 1.15 },
   pig: { from: 1.1, to: 1.3 },
   chicken: { from: 1.35, to: 1.6 },
+  dog: { from: 1.1, to: 1.1 },
 };
 
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
@@ -289,7 +311,7 @@ function between(range: { from: number; to: number }, t: number): number {
 }
 
 /** Počet domácností – hotová obydlí, ve kterých někdo bydlí (bez údaje = obývané). */
-export function householdCount(village: LivestockVillage): number {
+export function householdCount(village: Pick<LivestockVillage, 'dwellings'>): number {
   return village.dwellings.filter((d) => d.built && d.inhabited !== false).length;
 }
 
@@ -363,7 +385,14 @@ function obstacles(village: LivestockVillage): Obstacles {
   const uncut = meadows.filter((m) => !grazedMeadow(m, day));
   // ohrada je oplocená jako pole – stáda kolem ní, ne skrz (oxen.md)
   const penSquares = (village.pens ?? []).flatMap(penSquaresOf);
-  const squares = [...sown, ...uncut, ...graves, ...orchards, ...penSquares];
+  const squares = [
+    ...sown,
+    ...uncut,
+    ...graves,
+    ...orchards,
+    ...penSquares,
+    ...threshingSquaresOf(village),
+  ];
   // záhony pozemků (zelí, řepa) jsou jídlo pro lidi – pozemek je oplocený
   const plots = village.dwellings.flatMap((d) => (d.plot ? [d.plot] : []));
   const houses = village.dwellings.map((d) => ({
@@ -396,6 +425,19 @@ function obstacles(village: LivestockVillage): Obstacles {
         (d) => d.id !== exceptId && d.plot !== undefined && insidePlot(d.plot, x, z, -margin),
       ) || penSquares.some((pen) => inSquare(pen, x, z, margin)),
   };
+}
+
+/** Humna jako čtverce (strana = delší strana půdorysu) – dobytek mlat obchází. */
+export function threshingSquaresOf(village: {
+  threshingFloors?: readonly { position: Position }[];
+}): { x: number; z: number; size: number; rotation?: number }[] {
+  const size = Math.max(HUMNO.sizeM.x, HUMNO.sizeM.z);
+  return (village.threshingFloors ?? []).map((f) => ({
+    x: f.position.x,
+    z: f.position.z,
+    size,
+    ...(f.position.rotation ? { rotation: f.position.rotation } : {}),
+  }));
 }
 
 /** Čtverce ohrady – první a další (oxen.md – Ohrady podle druhu), se stranou a natočením. */
@@ -501,9 +543,38 @@ export function squareLookup(
   };
 }
 
+/** Pořadí stáda koní v semínku náhody (stáda krav a ovcí mají 0, 1, …). */
+const HORSE_HERD_INDEX = 100;
+
+/**
+ * Koně, kteří se dnes pasou (horses.md – Krmení, Ve scéně): v létě (mimo zimní měsíce), když je
+ * pasák, všichni koně ohrad koní bez jezdce; kůň s jezdcem (`riderId`) je u něj, ne na pastvě.
+ * V zimě, bez pasáka a bez herního dne stojí koně v ohradě.
+ */
+export function grazingHorses(
+  village: Pick<LivestockVillage, 'pens' | 'labor'> &
+    Partial<Pick<LivestockVillage, 'dwellings' | 'livestock'>>,
+): { id: number; kind: HorseKind }[] {
+  const day = village.labor?.day;
+  if (day === undefined || HAY_WINTER_MONTHS.includes(dateOfDayIndex(day).month)) return [];
+  // Martin: stádo nikdy samo – koně jdou na pastvu poslední, jen s pasákem navíc: každé ze stád
+  // ovcí, krav a prasat má vlastního pasáka a jeden zbývá (to samé rozhodnutí použije
+  // `planLivestock`, `penHerds` i `villageKey`; bez koní se ostatní stáda nemění)
+  const counts = herdCounts({ dwellings: village.dwellings ?? [], livestock: village.livestock });
+  const others =
+    Math.ceil((counts.sheep + counts.goat) / FLOCK_SIZE) +
+    Math.ceil(counts.cow / COWS_PER_HERD) +
+    Math.ceil(counts.pig / PIGS_PER_HERD);
+  if (herderCount(village.labor) < others + 1) return [];
+  return (village.pens ?? [])
+    .flatMap((pen) => pen.horses ?? [])
+    .filter((h) => h.riderId === undefined)
+    .map((h) => ({ id: h.id, kind: h.kind }));
+}
+
 /** Kolik zvířat kterého druhu se pase: od herního jádra, jinak z domácností (starší data). */
 export function herdCounts(
-  village: LivestockVillage,
+  village: Pick<LivestockVillage, 'dwellings' | 'livestock'>,
 ): Readonly<Record<'sheep' | 'goat' | 'pig' | 'cow', number>> {
   if (village.livestock) {
     const { sheep, goat, pig, cow } = village.livestock;
@@ -616,6 +687,23 @@ export function planLivestock(
         break;
       }
     }
+  }
+  // Koně ohrady koní se pasou se stády (horses.md – Krmení, Ve scéně): vlastní stádo s pasákem,
+  // spočítané až po ostatních, aby jejich rozmístění zůstalo beze změny.
+  const grazing = grazingHorses(village);
+  if (grazing.length > 0) {
+    const horseHerd = buildHerd(
+      'cattle',
+      grazing.map((h) => (h.kind === 'foal' ? 'foal' : 'horse')),
+      center,
+      meadow,
+      PASTURE_REACH_M,
+      starts,
+      seed,
+      HORSE_HERD_INDEX,
+      fallow,
+    );
+    if (horseHerd) herds.push(horseHerd);
   }
   // Stáda bez pasáka se nepasou – stojí u domů (Martin: „nesmí se potulovat sama“).
   const home = (x: number, z: number, margin: number): boolean =>
@@ -980,6 +1068,11 @@ const PASTURE_LIMITS = { forestM: -6, bankM: 3, slope: 0.12, rock: 0.25 };
  * okrajem lesa z druhé strany je po otočení kamery taky nemusí být vidět – to nevadí.
  */
 const FOREST_EDGE_M = { from: -7, to: 5 };
+/**
+ * Zvěř: pás na louce před lesem (m od hranice lesa, záporné v louce) – mimo koruny krajních
+ * stromů a pás prasat (`FOREST_EDGE_M`), stále u krytu.
+ */
+const VERGE_M = { from: -20, to: -8 };
 const FOREST_LIMITS = { bankM: 3, slope: 0.16, rock: 0.35 };
 /** Slepice: od vody (m), sklon a skalnatost. */
 const WALK_LIMITS = { bankM: 1, slope: 0.2, rock: 0.5 };
@@ -989,6 +1082,7 @@ const EDGE_MARGIN_M = 12;
 const PASTURE = 1;
 const FOREST_EDGE = 2;
 const WALKABLE = 4;
+const VERGE = 8;
 
 /**
  * Terén pro zvířata jako rastr kolem středu vsi (po 4 m, do GROUND_REACH_M) – dotazy na potok
@@ -1039,6 +1133,16 @@ export function livestockGround(
       ) {
         f |= FOREST_EDGE;
       }
+      if (
+        surface === SURFACE_CODES.meadow &&
+        forest >= VERGE_M.from &&
+        forest <= VERGE_M.to &&
+        bank > FOREST_LIMITS.bankM &&
+        slope < FOREST_LIMITS.slope &&
+        rock < FOREST_LIMITS.rock
+      ) {
+        f |= VERGE;
+      }
       flags[j * n + i] = f;
     }
   }
@@ -1051,7 +1155,9 @@ export function livestockGround(
   return {
     pasture: (x, z) => at(x, z, PASTURE),
     forestEdge: (x, z) => at(x, z, FOREST_EDGE),
+    verge: (x, z) => at(x, z, VERGE),
     walkable: (x, z) => at(x, z, WALKABLE),
+    forestDepth: (x, z) => env.field.distanceAt(x, z),
   };
 }
 

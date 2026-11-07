@@ -33,7 +33,7 @@ async function player(): Promise<{
 }> {
   const settlements = new InMemorySettlements();
   const villages = new InMemoryVillages();
-  const seat = await settlements.createSeat({
+  const seat = await settlements.seatAtOrigin({
     ownerId: PLAYER,
     landscapeSeed: 11,
     layerVersions: CURRENT_LAYER_VERSIONS,
@@ -188,5 +188,79 @@ describe('skipTime', () => {
       today: WORLD_DAY + 365,
       offsetDays: 365,
     });
+  });
+});
+
+describe('skipTime – průběh přepočtu (onProgress)', () => {
+  /** Hráč se dvěma vsemi na dvou sídlech (druhá je kopie první) – volitelně druhá vymřelá. */
+  async function twoVillages(
+    options: { secondExtinct?: boolean } = {},
+  ): Promise<Awaited<ReturnType<typeof player>> & { secondId: string }> {
+    const first = await player();
+    const other = await first.settlements.create({
+      ownerId: PLAYER,
+      landscapeSeed: 12,
+      layerVersions: CURRENT_LAYER_VERSIONS,
+      worldCell: { x: 1, y: 0 },
+    });
+    if (!other) throw new Error('Druhé sídlo nevzniklo.');
+    const state = structuredClone(first.villages.records.get(first.villageId)!.state);
+    if (options.secondExtinct) state.extinctDay = WORLD_DAY - 1;
+    const second = await first.villages.add(other.id, 'Lhota', state);
+    return { ...first, secondId: second.id };
+  }
+
+  it('hlásí dny všech vsí rodu dohromady – od nuly po dnech až do celku', async () => {
+    const { settlements, villages, offsets } = await twoVillages();
+    const reports: { doneDays: number; totalDays: number }[] = [];
+    const result = await skipTime(
+      { settlements, villages, offsets, landscapes, onProgress: (p) => reports.push(p) },
+      skip(),
+    );
+    expect(result.ok).toBe(true);
+    expect(reports[0]).toEqual({ doneDays: 0, totalDays: 60 });
+    expect(reports.at(-1)).toEqual({ doneDays: 60, totalDays: 60 });
+    // po každém dni jedno hlášení, hotovo jen roste a celek se nemění
+    expect(reports).toHaveLength(61);
+    for (const [i, report] of reports.entries()) {
+      expect(report).toEqual({ doneDays: i, totalDays: 60 });
+    }
+  });
+
+  it('spící (vymřelá) ves se nedopočítává – do celku se nepočítá', async () => {
+    const { settlements, villages, offsets } = await twoVillages({ secondExtinct: true });
+    const reports: { doneDays: number; totalDays: number }[] = [];
+    await skipTime(
+      { settlements, villages, offsets, landscapes, onProgress: (p) => reports.push(p) },
+      skip(),
+    );
+    expect(reports[0]).toEqual({ doneDays: 0, totalDays: 30 });
+    expect(reports.at(-1)).toEqual({ doneDays: 30, totalDays: 30 });
+  });
+
+  it('výsledek nezávisí na hlášení ani na přestávkách – vsi jsou stejné', async () => {
+    const plain = await twoVillages();
+    const reported = await twoVillages();
+    await skipTime({ ...plain, landscapes }, skip({ skip: 'year' }));
+    let reports = 0;
+    let pauses = 0;
+    await skipTime(
+      {
+        ...reported,
+        landscapes,
+        // přestávka po každém desátém dni – kousky dopočtu jiné než vcelku
+        pause: (day) =>
+          day !== undefined && day % 10 === 0 ? (pauses++, Promise.resolve()) : null,
+        onProgress: () => reports++,
+      },
+      skip({ skip: 'year' }),
+    );
+    expect(reports).toBe(2 * 365 + 1);
+    expect(pauses).toBeGreaterThan(0);
+    for (const id of [plain.villageId, plain.secondId]) {
+      expect(reported.villages.records.get(id)?.state).toEqual(
+        plain.villages.records.get(id)?.state,
+      );
+    }
   });
 });

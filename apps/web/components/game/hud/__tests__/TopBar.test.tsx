@@ -2,14 +2,19 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { VillageView } from '@/lib/village-view';
 import {
+  FieldCapacityTooltip,
+  LaborTooltip,
   SatiationTooltip,
-  cartsLabel,
+  fieldCapacityShort,
+  peopleLabel,
+  TopBar,
   dairyName,
   satiationState,
+  sheavesName,
   showsDairy,
   showsHay,
   showsLegumes,
-  showsWoodTools,
+  woodName,
 } from '../TopBar';
 
 // Horní lišta (diet.md, oxen.md): barva nasycení podle energie, podíly stravy v tooltipu, seno,
@@ -56,6 +61,21 @@ describe('SatiationTooltip', () => {
   });
 });
 
+describe('LaborTooltip – vojvodova rodina', () => {
+  it('řádek s ikonou dvorce: cvičí, při hladu na poli; bez rodiny jen název', () => {
+    const train = renderToStaticMarkup(
+      <LaborTooltip lord={{ training: 5, field: 0, household: 3 }} />,
+    );
+    expect(train).toContain('manor.png');
+    expect(train).toContain('Vojvodova rodina: 5 cvičí');
+    const field = renderToStaticMarkup(
+      <LaborTooltip lord={{ training: 0, field: 5, household: 3 }} />,
+    );
+    expect(field).toContain('Vojvodova rodina: 5 na poli');
+    expect(renderToStaticMarkup(<LaborTooltip lord={null} />)).not.toContain('village-labor-lord');
+  });
+});
+
 describe('SatiationTooltip – jídlo uložené před luštěninami', () => {
   it('podíl luštěnin chybí → 0 %', () => {
     const old = diet(1);
@@ -77,6 +97,7 @@ describe('luštěniny v liště', () => {
     stages: {},
     surfaces: {},
     crops: legume > 0 ? { spring: 3, legume } : { spring: 3 },
+    turn: { winter: 0, spring: 0, resting: 0, surplus: { winter: 0, spring: 0 } },
     ashParts: 0,
     ashBonus: 0,
     overgrowingM2: 0,
@@ -138,32 +159,125 @@ describe('mléko a sýr v liště', () => {
   });
 });
 
-describe('vozy a dřevěné nářadí v liště (wagons.md)', () => {
-  const crafts = (over: Partial<VillageView['crafts']> = {}): VillageView['crafts'] => ({
-    present: true,
-    stocks: { charcoalKg: 0, toolsKg: 0, potteryKg: 0 },
-    needs: { toolsKg: 6, potteryKg: 20, woodToolsKg: 8 },
-    coverage: { tools: 0, pottery: 0 },
-    workshops: [],
-    carts: [],
-    cartTargets: { 'two-wheel': 0, 'four-wheel': 0 },
-    ...over,
+describe('snopy v liště (production-chains.md – Humno)', () => {
+  it('popisek: nevymláceno (i bez humna se mlátí nouzově)', () => {
+    expect(sheavesName()).toBe('Snopy – nevymláceno (kg zrna)');
+  });
+});
+
+describe('Pole uživí (fields.md – Co hráč vidí)', () => {
+  const field = (people: number, capacity: number): VillageView =>
+    ({
+      people: { children: 0, adults: people, elders: 0 },
+      fieldCapacity: { people: capacity, rotationHa: 47.9, fertility: 52, soil: 0.77 },
+    }) as VillageView;
+
+  it('lidí je víc, než pole uživí: červeně', () => {
+    expect(fieldCapacityShort(field(31, 21.9))).toBe(true);
+    const html = renderToStaticMarkup(<FieldCapacityTooltip view={field(31, 21.9)} />);
+    expect(html).toContain('Pole uživí ≈ 22 lidí');
+    expect(html).toMatch(/data-testid="field-capacity-people"[^>]*text-red-400/);
+    expect(html).toContain('people.png');
+    expect(html).toContain('47,9 ha');
+    expect(html).toMatch(/data-testid="field-capacity-soil"[^>]*>.*fields\.png.*77 %/);
   });
 
-  it('dřevěné nářadí jen s tesařem nebo zásobou', () => {
-    expect(showsWoodTools(crafts())).toBe(false);
-    expect(showsWoodTools(crafts({ stocks: { ...crafts().stocks, woodToolsKg: 5 } }))).toBe(true);
+  it('pole stačí: bez červené', () => {
+    expect(fieldCapacityShort(field(20, 21.9))).toBe(false);
+    expect(fieldCapacityShort(field(22, 21.9))).toBe(false);
+    const html = renderToStaticMarkup(<FieldCapacityTooltip view={field(20, 21.9)} />);
+    expect(html).not.toContain('text-red-400');
   });
 
-  it('popisek vozů – druhy a kolik je na cestě', () => {
-    expect(cartsLabel([{ id: 1, kind: 'two-wheel', condition: 1, away: false }])).toBe(
-      'Vozy – dvoukoláky 1',
-    );
+  it('bez pole nic nehlásí', () => {
     expect(
-      cartsLabel([
-        { id: 1, kind: 'two-wheel', condition: 1, away: false },
-        { id: 2, kind: 'four-wheel', condition: 1, away: true },
-      ]),
-    ).toBe('Vozy – dvoukoláky 1, čtyřkoláky 1 (na cestě 1)');
+      fieldCapacityShort({ people: { children: 1, adults: 2, elders: 0 }, fieldCapacity: null }),
+    ).toBe(false);
+  });
+});
+
+describe('Lidé a kolik jich pole uživí v jedné ikoně (Martin 24. 10. 2026)', () => {
+  const people = { children: 5, adults: 24, elders: 2 };
+
+  it('popisek „lidí / ≈ N“, bez polí jen počet lidí', () => {
+    expect(
+      peopleLabel({
+        people,
+        fieldCapacity: { people: 21.9, rotationHa: 1, fertility: 50, soil: 1 },
+      }),
+    ).toBe('31 / ≈ 22');
+    expect(peopleLabel({ people, fieldCapacity: null })).toBe('31');
+  });
+
+  it('lišta má jednu ikonu lidí a nemá rozlohu polí, uhlí, keramiku, nářadí ani vozy', () => {
+    const view = {
+      id: 1,
+      name: 'Ves',
+      villages: [],
+      people,
+      fieldCapacity: { people: 21.9, rotationHa: 47.9, fertility: 52, soil: 1 },
+      fields: [{ id: 1, areaM2: 50000, crops: {} }],
+      orchards: [],
+      pens: [],
+      storesKg: 10,
+      legumesKg: 0,
+      meatKg: 0,
+      cheeseKg: 0,
+      milkLPerDay: 0,
+      applesKg: 0,
+      hayKg: 0,
+      woodLogs: 0,
+      commonLaborPerDay: 1,
+      lord: null,
+      satiation: 1,
+      diet: diet(1),
+      happiness: { value: 50 },
+      steward: { on: false, built: [] },
+      crafts: {
+        present: true,
+        stocks: { charcoalKg: 7, potteryKg: 8, woodToolsKg: 9, ironBarsKg: 3 },
+        coverage: { tools: 0, pottery: 0 },
+        carts: [{ id: 1, kind: 'two-wheel', condition: 1, away: false }],
+      },
+    } as unknown as VillageView;
+    const html = renderToStaticMarkup(
+      <TopBar
+        view={view}
+        world={{ startMs: 0, endMs: 1e12 }}
+        initialNowMs={1}
+        soundOn
+        onToggleSound={() => {}}
+        menuOpen={false}
+        onToggleMenu={() => {}}
+        onRename={async () => null}
+        devTime={null}
+      />,
+    );
+    expect(html).toContain('data-testid="village-people"');
+    expect(html).toContain('31 / ≈ 22');
+    for (const id of [
+      'village-fields',
+      'village-field-capacity',
+      'village-charcoal',
+      'village-pottery',
+      'village-wood-tools',
+      'village-carts',
+    ]) {
+      expect(html).not.toContain(`data-testid="${id}"`);
+    }
+    expect(html).toContain('data-testid="village-iron-bars"');
+  });
+});
+
+describe('woodName', () => {
+  it('bez hromady u lesa jen klády na hromadě, jinak u vsi a u lesa zvlášť', () => {
+    expect(woodName({ woodLogs: 12 })).toBe('Klády na hromadě');
+    expect(woodName({ woodLogs: 12, woodLogsForest: 0 })).toBe('Klády na hromadě');
+    expect(woodName({ woodLogs: 12, woodLogsForest: 5 })).toBe('Klády – u vsi 7, u lesa 5');
+    expect(woodName({ woodLogs: 3, woodLogsForest: 5 })).toBe('Klády – u vsi 0, u lesa 3');
+    // u vsi podle hromady samotné, ne podle rozdílu zaokrouhlených čísel
+    expect(woodName({ woodLogs: 10, woodLogsForest: 5, woodLogsPile: 4 })).toBe(
+      'Klády – u vsi 4, u lesa 5',
+    );
   });
 });

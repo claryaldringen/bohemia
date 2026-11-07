@@ -14,6 +14,7 @@ import {
   checkSacredBuildingPlacement,
   checkWorkshopPlacement,
   DWELLING_TREES,
+  THRESHING,
   dwellingBuildLabor,
   fellingCost,
   isOak,
@@ -41,6 +42,7 @@ import { placeField } from '../place-field';
 import { placeOrchard } from '../place-orchard';
 import { UNKNOWN_CRAFT, placeWorkshop } from '../place-workshop';
 import { placeSacredBuilding, SHRINE_EXISTS } from '../place-sacred';
+import { placeThreshingFloor } from '../place-threshing-floor';
 import { renameVillage } from '../rename-village';
 import type { SeedSource } from '../settlements';
 import { InMemoryVillages } from './in-memory-villages';
@@ -189,10 +191,12 @@ describe('loadVillage', () => {
     const paused = await foundedVillages();
     const later = TODAY + 200;
     let pauses = 0;
+    let dayPauses = 0;
     let waits = 0;
-    const pause = (): Promise<void> | null => {
+    const pause = (day?: number): Promise<void> | null => {
       pauses++;
-      // každý třetí den opravdu počká (jako server po kousku práce)
+      if (day !== undefined) dayPauses++;
+      // každá třetí přestávka opravdu počká (jako server po kousku práce) – i ty uvnitř dne
       if (pauses % 3 !== 0) return null;
       waits++;
       return new Promise((resolve) => setTimeout(resolve, 0));
@@ -202,8 +206,10 @@ describe('loadVillage', () => {
       { villages: paused, pause },
       { villageId: VID, today: later, landscape },
     );
-    expect(pauses).toBe(200);
-    expect(waits).toBe(66);
+    // jedna přestávka po každém dni a k tomu zastavení uvnitř dne (cesty, trasy – bez indexu dne)
+    expect(dayPauses).toBe(200);
+    expect(pauses).toBeGreaterThan(200);
+    expect(waits).toBe(Math.floor(pauses / 3));
     expect(b).toEqual(a);
     expect(JSON.stringify(b!.state)).toBe(
       JSON.stringify(
@@ -222,6 +228,35 @@ describe('loadVillage', () => {
     const record = await loadVillage({ villages }, { villageId: VID, today: TODAY, landscape });
     expect(record?.version).toBe(1);
     expect(villages.saves).toBe(0);
+  });
+
+  it('ves bez tras dostane trasy při načtení týž den – jednou (withRoutes)', async () => {
+    const villages = await foundedVillages();
+    villages.edit(VID, (s) => {
+      // obydlí stojí dlouho – pěšiny jsou vyšlapané (PATH_AGE_FULL_YEARS)
+      Object.assign(s, withBuiltFirstDwelling(s));
+      s.dwellings[0]!.builtDay = TODAY - 20 * 365;
+    });
+    const later = TODAY + 5;
+    const advanced = await loadVillage({ villages }, { villageId: VID, today: later, landscape });
+    const routes = advanced!.state.routes!;
+    expect(routes.key).toBe(advanced!.state.walkLayoutKey);
+    expect(routes.list.length).toBeGreaterThan(0);
+    // ves uložená před trasami – týž den se nedopočítává, trasy se spočítají jen při načtení
+    villages.edit(VID, (s) => {
+      delete s.routes;
+    });
+    const before = villages.records.get(VID)!.version;
+    const loaded = await loadVillage({ villages }, { villageId: VID, today: later, landscape });
+    expect(loaded!.state.lastDay).toBe(later);
+    expect(loaded!.state.routes!.key).toBe(routes.key);
+    expect(loaded!.state.routes!.list.length).toBeGreaterThan(0);
+    expect(loaded!.version).toBe(before + 1);
+    // druhé načtení je nepočítá znovu – nic se neuloží
+    const saves = villages.saves;
+    const again = await loadVillage({ villages }, { villageId: VID, today: later, landscape });
+    expect(villages.saves).toBe(saves);
+    expect(again!.state.routes).toEqual(loaded!.state.routes);
   });
 
   it('starší polozemnice bez pozemku dostane při načtení pozemek – před dopočtem, jednou', async () => {
@@ -262,6 +297,47 @@ describe('loadVillage', () => {
     expect(record!.state.fields.map((f) => f.id)).toEqual([older]);
     expect(record!.state.parts.every((p) => p.fieldId === older)).toBe(true);
     expect(villages.records.get(VID)!.state.fields).toHaveLength(1);
+  });
+
+  it('ves uložená před snopy dostane rok odkladu mlácení od dneška a uloží se; nová ves ne', async () => {
+    const villages = await foundedVillages();
+    // nová ves (production-chains.md – Humno) – prázdné snopy bez odkladu
+    expect(villages.records.get(VID)!.state.sheaves).toEqual({ grainKg: 0, legumesKg: 0 });
+    expect(villages.records.get(VID)!.state.threshingGraceUntil).toBeUndefined();
+    villages.edit(VID, (s) => {
+      delete s.sheaves;
+    });
+    const today = TODAY + 3;
+    const record = await loadVillage({ villages }, { villageId: VID, today, landscape });
+    expect(record!.state.sheaves).toEqual({ grainKg: 0, legumesKg: 0 });
+    expect(record!.state.threshingGraceUntil).toBe(today + THRESHING.graceDays);
+    expect(villages.records.get(VID)!.state.threshingGraceUntil).toBe(today + THRESHING.graceDays);
+    // jednou – další načtení odklad neposune
+    const again = await loadVillage({ villages }, { villageId: VID, today: today + 30, landscape });
+    expect(again!.state.threshingGraceUntil).toBe(today + THRESHING.graceDays);
+  });
+
+  it('ves uložená před obilnými jámami uloží zásoby do jam a uloží se – zásoby beze změny, jednou', async () => {
+    const villages = await foundedVillages();
+    // nová ves (production-chains.md – Obilné jámy) – bez jam, zásoby doma
+    expect(villages.records.get(VID)!.state.grainPits).toEqual([]);
+    villages.edit(VID, (s) => {
+      delete s.grainPits;
+      s.storesKg = 4000;
+    });
+    const today = villages.records.get(VID)!.state.lastDay;
+    const record = await loadVillage({ villages }, { villageId: VID, today, landscape });
+    const pits = record!.state.grainPits!;
+    expect(pits.map((p) => [p.state, p.grainKg])).toEqual([
+      ['sealed', 1500],
+      ['sealed', 1500],
+      ['open', 1000],
+    ]);
+    expect(record!.state.storesKg).toBe(4000);
+    expect(villages.records.get(VID)!.state.grainPits).toEqual(pits);
+    // jednou – další načtení jámy nemění
+    const again = await loadVillage({ villages }, { villageId: VID, today, landscape });
+    expect(again!.state.grainPits).toEqual(pits);
   });
 
   it('při souběžném uložení to zkusí znovu nad čerstvou vsí', async () => {
@@ -490,6 +566,39 @@ describe('placeWorkshop', () => {
   });
 });
 
+describe('placeThreshingFloor', () => {
+  it('humno: bez dřeva, server ověří místo, díly pole pod ním se zmenší', async () => {
+    const villages = await foundedVillages();
+    const deps = { villages };
+    const base = { villageId: VID, landscape, today: TODAY + 1 };
+    // humno je jen mlat – dřevo nepotřebuje, hromada klád zůstane nedotčená
+    villages.edit(VID, (s) => {
+      s.woodLogs = 20;
+    });
+    expect(await placeThreshingFloor(deps, { ...base, position: at(112, 0) })).toEqual({
+      ok: false,
+      reason: 'Humno nemůže stát ve vodě.',
+    });
+    // na prvním poli (−30 … 30 m): humno x −4 … 4, z 2,5 … 12,5 – po 40 m² ze dvou dílů
+    const position = at(0, 7.5);
+    const result = await placeThreshingFloor(deps, { ...base, position });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const state = result.village.state;
+    const c = state.constructions.at(-1)!;
+    expect(c).toMatchObject({ kind: 'threshing-floor', position });
+    expect(c.wood).toMatchObject({ trees: 0, fromPile: 0, fell: [] });
+    expect(state.threshingFloors).toEqual([{ id: c.id, position, builtDay: null }]);
+    expect(state.woodLogs).toBeGreaterThan(19.9);
+    expect(state.parts.reduce((sum, p) => sum + p.areaM2, 0)).toBeCloseTo(16 * 225 - 80, 6);
+    // druhé humno přes první nejde
+    expect(await placeThreshingFloor(deps, { ...base, position: at(2, 9) })).toEqual({
+      ok: false,
+      reason: 'Překrývá se s humnem.',
+    });
+  });
+});
+
 describe('placeField', () => {
   it('založí další pole – díly se měří od obydlí, stavba začne dnes', async () => {
     const villages = await foundedVillages();
@@ -583,7 +692,8 @@ describe('placeCemetery', () => {
       kind: 'cemetery',
       cemeteryId: cemetery.id,
       startedDay: today,
-      cost: 40,
+      // 4 × 10 čd, plot jen po 8 vnějších stranách z 16
+      cost: 34,
     });
   });
 
@@ -632,7 +742,11 @@ describe('placeCemetery', () => {
     const cemetery = state.cemeteries![0]!;
     expect(cemetery.squares).toHaveLength(6);
     const extension = state.constructions.at(-1);
-    expect(extension).toMatchObject({ kind: 'cemetery', cemeteryId: cemetery.id, cost: 20 });
+    expect(extension).toMatchObject({
+      kind: 'cemetery',
+      cemeteryId: cemetery.id,
+      cost: 17, // 2 × 10 čd, plot jen na 4 nových vnějších stranách z 8
+    });
     expect(cemetery.squares.slice(4).every((s) => s.constructionId === extension?.id)).toBe(true);
   });
 

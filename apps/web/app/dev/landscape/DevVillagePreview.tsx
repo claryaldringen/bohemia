@@ -16,6 +16,7 @@ import {
   fieldPartsFromCells,
   matureTreesByDistance,
   obstaclesOf,
+  OFFICIAL_WORLD,
   orchardPartsFromCells,
   ROTATION_STEP,
   sameGrid,
@@ -57,6 +58,7 @@ import { tileAt, tileCenter } from '@/lib/scene/tile-at';
 import type { VillageTarget } from '@/lib/scene/village-picking';
 import { nextSelection, presentTarget } from '@/lib/scene/village-selection';
 import { selectionDetails } from '@/lib/selection-details';
+import type { DraftFigureState } from '@/lib/draft-activity';
 import type { PersonFigureState } from '@/lib/person-activity';
 import { CONSTRUCTION_PHASES, constructionPhase } from '@/lib/scene/village-construction';
 import { SACRED_SITE_KIND } from '@/lib/scene/sacred-layout';
@@ -78,11 +80,20 @@ import {
   simulateHoldings,
   type SimulatedPart,
 } from './dev-holdings';
-import { demoLabor } from './dev-labor';
+import { demoLabor, withDemoPersons } from './dev-labor';
+import {
+  DEV_WEATHER_LABELS,
+  devDisasterDay,
+  devRain,
+  withDevWeather,
+  type DevWeather,
+} from './dev-weather';
 import { promontoryFocus, promontoryOverlay } from './dev-promontory';
 import { premiumOverlay } from './dev-premium';
 import { premiumFocus } from '@/lib/scene/premium-sites-layout';
 import { demoOvergrowth, type OvergrowthDemo } from './dev-overgrowth';
+import { demoClearing, type ClearingDemo } from './dev-clearing';
+import { gameDayAt } from '@/lib/scene/smoke-schedule';
 import {
   DEMO_APPLE_STAGES,
   DEMO_ROAD_STAGES,
@@ -93,6 +104,7 @@ import {
   demoRoadStage,
   withRoadCuts,
 } from './dev-road';
+import { junctionsDemo, type JunctionsDemo } from './dev-junctions';
 import { FOREST_TRAIL_STAGES, forestTrailDemo, type ForestTrailDemo } from './dev-forest-trail';
 import { demoCartSlope, type CartDemo } from './dev-cart';
 import {
@@ -113,6 +125,31 @@ import {
 } from './dev-wedding';
 import { WeddingControls } from './WeddingControls';
 import { ORE_DEMO_STAGES, demoOre, type OreDemo } from './dev-ore';
+import {
+  THRESHING_DEMO_STAGES,
+  demoThreshing,
+  nextThreshingDemo,
+  withThreshingDemo,
+  withoutThreshingDemo,
+  type ThreshingDemo,
+} from './dev-threshing';
+import {
+  nextShoeingDemo,
+  SHOEING_DEMO_STAGES,
+  withShoeingDemo,
+  type ShoeingDemoStage,
+} from './dev-shoeing';
+import {
+  BATTLE_DEMO_STAGES,
+  battleDemoWar,
+  createBattleDemo,
+  nextBattleDemo,
+  stepBattleDemo,
+  withBattleDemo,
+  type BattleDemo,
+  type BattleDemoStage,
+} from './dev-battle';
+import { TICK_MS } from '@bohemia/game';
 import { devSelectionView } from './dev-selection';
 import { DayTimeControls } from './DayTimeControls';
 import type { CartKind } from '@bohemia/game';
@@ -205,6 +242,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   const [obstacles, setObstacles] = useState<ObstacleChanges>(NO_OBSTACLE_CHANGES);
   // roční období: den v roce (null = podle herního data) a přehrávání roku
   const [seasonDay, setSeasonDay] = useState<number | null>(null);
+  const [devWeather, setDevWeather] = useState<DevWeather>('normal');
   const [playingYear, setPlayingYear] = useState(false);
   // lidé ve vsi – ukázkové rozdělení práce podle měsíce (dev-labor.ts)
   const [people, setPeople] = useState(false);
@@ -224,6 +262,8 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   const [wagonDemo, setWagonDemo] = useState<WagonDemo | null>(null);
   // ukázka zemské stezky lesem s průsekem (roads.md – Průsek lesem, dev-forest-trail.ts)
   const [forestTrail, setForestTrail] = useState<ForestTrailDemo | null>(null);
+  // ukázka křižovatek – kříž, Y se znameními (paths.md – Křižovatky, dev-junctions.ts)
+  const [junctionDemo, setJunctionDemo] = useState<JunctionsDemo | null>(null);
   // ukázka karavany výpravy k sousedovi (trade.md – Ve scéně, dev-caravan.ts) – nosiči, pak vůz
   const [caravanDemo, setCaravanDemo] = useState<CaravanDemo | null>(null);
   // ukázka pohřbu (cemetery.md – Pohřeb ve scéně, dev-funeral.ts) – hlava rodiny, pak vojvoda
@@ -232,6 +272,15 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   const [weddingDemo, setWeddingDemo] = useState<WeddingDemo | null>(null);
   // ukázka rudiště kováře (crafts.md – Uhlí a ruda kováře, dev-ore.ts) – pěšky, pak s vozem
   const [oreDemo, setOreDemo] = useState<OreDemo | null>(null);
+  // ukázka humna (production-chains.md – Humno, dev-threshing.ts) – žně, výmlat, zrno do jam
+  const [threshingDemo, setThreshingDemo] = useState<ThreshingDemo | null>(null);
+  // ukázka kování koní (horses.md – Kování, Ve scéně; dev-shoeing.ts) – vlastní, nebo cizí kovář
+  const [shoeingDemo, setShoeingDemo] = useState<ShoeingDemoStage | null>(null);
+  // ukázka Bitva (war.md – Ve scéně, dev-battle.ts) – boj u brány taktem jádra, pak útěk vsi
+  const [battleStage, setBattleStage] = useState<BattleDemoStage | null>(null);
+  const battleDemo = useRef<BattleDemo | null>(null);
+  // brány a průlomy palisády ukázky – ves se přepočítá jen při jejich změně
+  const [battleFortKey, setBattleFortKey] = useState('');
   // stupeň vylepšení ukázkových cest (dev-road.ts – DEMO_ROAD_STAGES) a stadium jabloní u cesty
   const [roadStage, setRoadStage] = useState(0);
   const [appleStage, setAppleStage] = useState(0);
@@ -241,6 +290,8 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   const [roadPlough, setRoadPlough] = useState(false);
   // ukázka zarůstání přílohu a lesa vsi (fields.md – Zarůstání, dev-overgrowth.ts)
   const [overgrowth, setOvergrowth] = useState<OvergrowthDemo | null>(null);
+  // ukázka klučení lesa pro pole – kácení, schnutí, pálení, doutnání (forest.md, dev-clearing.ts)
+  const [clearing, setClearing] = useState<ClearingDemo | null>(null);
   // hospodaření podle polohy domů (fields.md): obrysy úseků a vzorec polí ze simulace jádra
   const [holdingsOn, setHoldingsOn] = useState(false);
   const [promontoryOn, setPromontoryOn] = useState(false);
@@ -251,7 +302,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   const [demo, setDemo] = useState(0);
   const nextId = useRef(1);
 
-  const village = useMemo<SceneVillage>(() => {
+  const demoVillage = useMemo<SceneVillage>(() => {
     const base: SceneVillage = {
       dwellings,
       fields: [
@@ -296,6 +347,23 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         ? { sacred: { oaks: sacredOaks, groves, buildings: sacredBuildings } }
         : {}),
     };
+    if (clearing) {
+      const o = base.obstacles ?? obstacles;
+      const merge = (a: readonly number[], b: readonly number[]): number[] =>
+        [...new Set([...a, ...b])].sort((x, y) => x - y);
+      base.fields = [...base.fields, clearing.field];
+      base.obstacles = {
+        ...o,
+        stumps: merge(o.stumps, clearing.stumps),
+        removed: merge(o.removed, clearing.removed),
+      };
+      base.logStacks = [...(base.logStacks ?? []), ...clearing.logStacks];
+    }
+    if (junctionDemo) {
+      base.roads = [...(base.roads ?? []), ...junctionDemo.roads];
+      base.junctions = junctionDemo.junctions;
+      base.roadTrees = [...(base.roadTrees ?? []), ...junctionDemo.roadTrees];
+    }
     // stezka lesem – osa a vykácený průsek z jádra (roads.md – Průsek lesem)
     if (forestTrail) {
       const changes = base.obstacles ?? NO_OBSTACLE_CHANGES;
@@ -336,6 +404,10 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         weddings: [weddingDemo.wedding],
         labor: weddingDemo.labor,
       };
+    }
+    if (threshingDemo) {
+      // humno: snopy z pole, mlatci a prohazovači, nosiči zrna do jámy (v prázdné vsi i domy a pole)
+      return withThreshingDemo(base, threshingDemo);
     }
     if (oreDemo) {
       // rudiště: kovárna, uhlíř s milířem, jámy v různém stáří, kopáči a nosiči (a vůz)
@@ -432,23 +504,80 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     pathAge,
     road,
     forestTrail,
+    junctionDemo,
     roadStage,
     appleStage,
     gapClosed,
     simulated,
     overgrowth,
+    clearing,
     cartDemo,
     wagonDemo,
     caravanDemo,
     funeralDemo,
     weddingDemo,
     oreDemo,
+    threshingDemo,
     roadPlough,
   ]);
+  // ukázky s prací dne bez lidí (orba přes cestu, vozy, karavana) – lidé po domech, ať jdou
+  // oráč, honák a vozka vybrat jako ostatní (villagers.md – Výběr postavy)
+  const village = useMemo(
+    () =>
+      withDevWeather(
+        withShoeingDemo(
+          withDemoPersons(demoVillage),
+          shoeingDemo,
+          decoded,
+          Math.floor(seasonDay ?? REFERENCE_DAY),
+        ),
+        devWeather,
+        decoded,
+      ),
+    [demoVillage, shoeingDemo, decoded, seasonDay, devWeather],
+  );
+  const battleDay = Math.floor(seasonDay ?? REFERENCE_DAY);
+  const shownVillage = useMemo(
+    () => withBattleDemo(village, battleFortKey ? battleDemo.current : null, battleDay),
+    [village, battleFortKey, battleDay],
+  );
 
   useEffect(() => {
-    scene?.setVillage(village);
-  }, [scene, village]);
+    if (!scene || !battleStage) return;
+    const demo = createBattleDemo(battleStage, decoded, demoVillage, battleDay, Date.now());
+    battleDemo.current = demo;
+    if (!demo) {
+      console.warn('Palisáda ukázky Bitva se do krajiny nevešla.');
+      return;
+    }
+    scene.moveCameraTo(demo.gate.x, demo.gate.z - 45);
+    const fortKey = (): string => {
+      const b = demo.battle;
+      if (!b) return `${demo.stage}`;
+      return `${demo.stage}|${b.closedGates.join(',')}|${b.breaches
+        .filter((x) => x.progress.breached)
+        .map((x) => x.key)
+        .join(',')}`;
+    };
+    setBattleFortKey(fortKey());
+    scene.setWar(battleDemoWar(demo, Date.now()));
+    const timer = setInterval(() => {
+      const now = Date.now();
+      if (demo.stage === 'fight' && !stepBattleDemo(demo, now)) return;
+      scene.setWar(battleDemoWar(demo, now));
+      setBattleFortKey(fortKey());
+    }, TICK_MS);
+    return () => {
+      clearInterval(timer);
+      battleDemo.current = null;
+      setBattleFortKey('');
+      scene.setWar(null);
+    };
+  }, [scene, battleStage, decoded, demoVillage, battleDay]);
+
+  useEffect(() => {
+    scene?.setVillage(shownVillage);
+  }, [scene, shownVillage]);
 
   // výběr jako ve hře: klik na pole vybere díl, dvojklik celé pole (fields.md – Co hráč vidí);
   // čísla panelu odhaduje dev-selection.ts
@@ -465,10 +594,29 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     scene?.setSelection(current);
   }, [scene, current]);
   const [personState, setPersonState] = useState<PersonFigureState | null>(null);
-  useEffect(() => scene?.onPersonState(setPersonState), [scene]);
+  useEffect(
+    () =>
+      scene?.onPersonState((state) => {
+        setPersonState(state);
+        // vybraná postava zašla do domu – výběr se zruší (villagers.md – Výběr postavy; vojvoda ne)
+        if (state?.indoors) {
+          setSelected((prev) => (prev?.kind === 'person' && prev.id === state.id ? null : prev));
+        }
+      }),
+    [scene],
+  );
+  const [draftState, setDraftState] = useState<DraftFigureState | null>(null);
+  useEffect(() => scene?.onDraftState(setDraftState), [scene]);
   const selection = useMemo(
-    () => selectionDetails(devSelectionView(village, decoded), village, current, personState),
-    [village, decoded, current, personState],
+    () =>
+      selectionDetails(
+        devSelectionView(village, decoded),
+        village,
+        current,
+        personState,
+        draftState,
+      ),
+    [village, decoded, current, personState, draftState],
   );
 
   useEffect(() => {
@@ -520,6 +668,11 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   }, [scene, seasonDay]);
 
   useEffect(() => {
+    scene?.setRainOverride(devRain(devWeather));
+    scene?.setDisasterDay(devDisasterDay(devWeather));
+  }, [scene, devWeather]);
+
+  useEffect(() => {
     if (!playingYear) return;
     let frame = 0;
     let last = performance.now();
@@ -561,7 +714,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   /**
    * Natočené stavby (Martin 18. 10. 2026 – fields.md, Natočené stavby): u místa vsi natočený
    * pozemek polozemnice (15°, dům vzadu vlevo), pole v mřížce natočené o 30°, sad o 45°, hřbitov
-   * o 60° s hroby a ohrada o 15° se zvířaty – v polích, sadech a hřbitovech se pak dá malovat
+   * o 60° s hroby a ohrada o 15° se zvířaty a vedle ní ohrada koní – v polích, sadech a hřbitovech se pak dá malovat
    * dál (malování se chytí jejich mřížky) a pozemky natáčet klávesami [ a ].
    */
   const showRotated = (): void => {
@@ -636,6 +789,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
       },
     ]);
     const penGrid: SquareGrid = { ...at(3, -3), rotation: ROTATION_STEP };
+    const horseGrid: SquareGrid = { ...at(6, -3), rotation: ROTATION_STEP };
     setPens([
       {
         id: nextId.current++,
@@ -650,6 +804,28 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         oxen: 2,
         trainees: 0,
         cows: 1,
+      },
+      {
+        // ohrada koní (horses.md): vyšší plot, klisna s hříbětem, hřebec a dva jezdečtí koně
+        id: nextId.current++,
+        species: 'horse',
+        cell: { x: 0, y: 0 },
+        grid: horseGrid,
+        x: horseGrid.x,
+        z: horseGrid.z,
+        size: decoded.cellSizeM,
+        rotation: horseGrid.rotation,
+        built: true,
+        progress: 1,
+        oxen: 0,
+        trainees: 0,
+        cows: 0,
+        horses: [
+          { id: 1, kind: 'mare' },
+          { id: 2, kind: 'foal' },
+          { id: 3, kind: 'riding' },
+          { id: 4, kind: 'riding' },
+        ],
       },
     ]);
   };
@@ -1463,6 +1639,23 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
    * Ukázka zarůstání: díly nepaseného přílohu v každé fázi (louka, křoviny, mladý les) a les vsi
    * v různém stáří – kamera k nim.
    */
+  /**
+   * Ukázka klučení lesa pro pole (forest.md – Klučení lesa pro pole – postup): řada čtverců
+   * v lese u vsi – kácení, schnutí, pálení, dohořelo dnes, doutnání; den pálení podle hodin
+   * scény (oheň hoří přes pracovní den – ≈ 45 s z 86 s herního dne). Kamera k nim.
+   */
+  const toggleClearing = (): void => {
+    if (clearing) {
+      setClearing(null);
+      return;
+    }
+    const today = Math.floor(gameDayAt(Date.now(), OFFICIAL_WORLD));
+    const sample = demoClearing(decoded, obstaclesOf(decoded), obstacles, nextId.current++, today);
+    if (!sample) return;
+    setClearing(sample);
+    scene?.moveCameraTo(sample.center.x, sample.center.z);
+  };
+
   const toggleOvergrowth = (): void => {
     if (overgrowth) {
       setOvergrowth(null);
@@ -1487,6 +1680,17 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     const demo = forestTrailDemo(decoded, obstaclesOf(decoded), next);
     setForestTrail(demo);
     if (next === 0) scene?.moveCameraTo(demo.focus.x, demo.focus.z);
+  };
+
+  /** Křižovatky: kříž s kamenem, Y s kůlem, Y se stromem → nic (kamera ke střední). */
+  const toggleJunctions = (): void => {
+    if (junctionDemo) {
+      setJunctionDemo(null);
+      return;
+    }
+    const demo = junctionsDemo(decoded);
+    setJunctionDemo(demo);
+    scene?.moveCameraTo(demo.focus.x, demo.focus.z);
   };
 
   const toggleWagonRoad = (): void => {
@@ -1566,6 +1770,27 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     scene?.setWorkDayClock(weddingWindowAt(Date.now(), 0));
     setWeddingDemo(sample);
     scene?.moveCameraTo(sample.focus.x, sample.focus.z);
+  };
+
+  /**
+   * Ukázka humna (production-chains.md – Humno, Obilné jámy): vypnuto → žně (snopy na humno) →
+   * výmlat (mlatci s holemi, prohazovači) → zrno do jam → vypnuto; kamera na humno.
+   */
+  const toggleThreshing = (): void => {
+    const next = nextThreshingDemo(threshingDemo?.stage ?? null);
+    if (!next) {
+      setThreshingDemo(null);
+      return;
+    }
+    const own = withoutThreshingDemo(demoVillage, threshingDemo);
+    const sample = demoThreshing(decoded, own, next, {
+      floor: 9_300_001,
+      pit: 9_300_002,
+      field: 9_300_003,
+      dwelling: 9_300_010,
+    });
+    setThreshingDemo(sample);
+    if (sample) scene?.moveCameraTo(sample.focus.x, sample.focus.z);
   };
 
   /**
@@ -1854,6 +2079,15 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         <button
           className={buttonClass}
           disabled={!scene}
+          onClick={toggleJunctions}
+          title="Křižovatky – kříž se stojícím kamenem, Y s dřevěným kůlem a Y se stromem (jdou označit)"
+          data-testid="dev-junctions"
+        >
+          {junctionDemo ? 'Křižovatky ✓' : 'Křižovatky'}
+        </button>
+        <button
+          className={buttonClass}
+          disabled={!scene}
           onClick={toggleCaravan}
           title="Karavana výpravy k sousedovi – zboží a lidé tam a zpět, nejdřív nosiči, pak vůz (výprava trvá 90 s)"
           data-testid="dev-caravan"
@@ -1888,6 +2122,33 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
           data-testid="dev-ore"
         >
           {oreDemo ? `Rudiště: ${ORE_DEMO_STAGES[oreDemo.stage]}` : 'Rudiště'}
+        </button>
+        <button
+          className={buttonClass}
+          disabled={!scene}
+          onClick={toggleThreshing}
+          title="Humno – žně a snopy na humno, mlácení holemi a prohazování lopatou, zrno do jam"
+          data-testid="dev-threshing"
+        >
+          {threshingDemo ? `Humno: ${THRESHING_DEMO_STAGES[threshingDemo.stage]}` : 'Humno'}
+        </button>
+        <button
+          className={buttonClass}
+          disabled={!scene}
+          onClick={() => setShoeingDemo((stage) => nextShoeingDemo(stage))}
+          title="Kování – kovář dojde k ohradě koní a u kůlu kuje jezdecké koně; vlastní od kovárny, cizí z kraje mapy (den ukázky 86 s, kuje se kolem poledne)"
+          data-testid="dev-shoeing"
+        >
+          {shoeingDemo ? `Kování: ${SHOEING_DEMO_STAGES[shoeingDemo]}` : 'Kování'}
+        </button>
+        <button
+          className={buttonClass}
+          disabled={!scene}
+          onClick={() => setBattleStage((stage) => nextBattleDemo(stage))}
+          title="Bitva – palisáda s branou kolem vsi; boj taktem jádra: jezdci rodu a pěší útočí na bránu, ta se zavře a prolomí, lučištníci drží místo; padlí leží, ranění sedí u domů; mlha války z pohledu útočníka. Pak útěk vsi k lesu a odehnané stádo"
+          data-testid="dev-battle"
+        >
+          {battleStage ? `Bitva: ${BATTLE_DEMO_STAGES[battleStage]}` : 'Bitva'}
         </button>
         <button
           className={buttonClass}
@@ -1956,6 +2217,15 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
           data-testid="dev-overgrowth"
         >
           {overgrowth ? 'Zarůstání ✓' : 'Zarůstání'}
+        </button>
+        <button
+          className={buttonClass}
+          disabled={!scene}
+          onClick={toggleClearing}
+          title="Klučení lesa pro pole: kácení, schnutí, pálení, dohořelo dnes, doutnání (oheň přes pracovní den, s lidmi i postavy u ohňů)"
+          data-testid="dev-clearing"
+        >
+          {clearing ? 'Klučení ✓' : 'Klučení'}
         </button>
         <button
           className={buttonClass}
@@ -2117,6 +2387,27 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         >
           Období podle data
         </button>
+        <label className="flex items-center gap-1" title="Vynucené počasí roku (disasters.md)">
+          Počasí
+          <select
+            value={devWeather}
+            data-testid="dev-weather"
+            onChange={(e) => {
+              const weather = e.target.value as DevWeather;
+              setDevWeather(weather);
+              // počasí platí jen s vývojovým dnem – bez něj ukázat léto (zima pro zlé zimy)
+              if (seasonDay === null && weather !== 'normal') {
+                setSeasonDay(weather === 'blackFrost' || weather === 'long' ? 75 : REFERENCE_DAY);
+              }
+            }}
+          >
+            {(Object.keys(DEV_WEATHER_LABELS) as DevWeather[]).map((w) => (
+              <option key={w} value={w}>
+                {DEV_WEATHER_LABELS[w]}
+              </option>
+            ))}
+          </select>
+        </label>
         <DayTimeControls scene={scene} seasonDay={seasonDay} buttonClass={buttonClass} />
         <button
           className={buttonClass}

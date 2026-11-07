@@ -42,6 +42,12 @@ export interface PlacementCost {
   trees: number;
   /** Modla a svatyně: kolik dospělých dubů se pro stavbu skácí (happiness.md). */
   oaks?: number;
+  /** Pole: kolik čtverců lesa se vyklučí po fázích a vypálí (forest.md – Klučení lesa pro pole). */
+  burn?: number;
+  /** Opevnění: klády celé stavby (fortifications.md – Cena a stavba). */
+  logs?: number;
+  /** Opevnění: kolik lidí se vejde do útočiště (fortifications.md – Útočiště). */
+  refuge?: number;
 }
 
 /**
@@ -57,7 +63,21 @@ export interface SquaresPreview {
   blockedCells: readonly TileCell[];
   /** Čtverce, kterých se týká varování (`check.warning`) – scéna je zbarví oranžově. */
   warningCells?: readonly TileCell[];
+  /**
+   * Náhled obrysu (opevnění – fortifications.md, Rozhraní): uzavřené čáry vnějšího okraje a pásu
+   * a krátké úsečky bran, které scéna kreslí čarou nad čtverci.
+   */
+  outline?: readonly (readonly (readonly [number, number])[])[];
+  gates?: readonly (readonly (readonly [number, number])[])[];
+  /** Místo problému (zatarasená branka, stavba, voda) – scéna kreslí červenou čarou. */
+  problem?: readonly (readonly (readonly [number, number])[])[];
 }
+
+/**
+ * Náhled obvodu opevnění z bodů (fortifications.md – Obvod, Rozhraní): kontrola, cena a čáry –
+ * obrys pásu, brány na cestách a místo problému (červeně).
+ */
+export type FortPointsPreview = Omit<SquaresPreview, 'blockedCells' | 'warningCells'>;
 
 /**
  * Druh stavby po čtvercích, který hráč vybere v rozcestníku mřížky staveb (ohrada – druh zvířat,
@@ -122,6 +142,19 @@ export type PlacementMode =
       grid?: SquareGrid;
     }
   | {
+      /**
+       * Obvod opevnění z bodů (fortifications.md – Obvod): hra obvod navrhne u prvního bodu
+       * kurzoru (`propose`), hráč body táhne, klik na obvod přidá bod, Ctrl + klik ubere.
+       */
+      kind: 'fort-points';
+      /** Druh opevnění z rozcestníku (plot, palisáda, val). */
+      variant: SquaresVariant;
+      /** Šířka pásu druhu (m) – klik do ní od vnějšího okraje přidá bod. */
+      bandM: number;
+      propose(at: readonly [number, number]): readonly (readonly [number, number])[];
+      preview(points: readonly (readonly [number, number])[]): FortPointsPreview;
+    }
+  | {
       /** Modla nebo svatyně (happiness.md) – čtvercový půdorys u kurzoru jako obydlí. */
       kind: 'sacred';
       type: SacredBuildingKind;
@@ -136,6 +169,14 @@ export type PlacementMode =
       craft: Craft;
       type: DwellingType;
       check(position: Position): PlacementCheck & { cost?: PlacementCost | null };
+    }
+  | {
+      /**
+       * Humno (production-chains.md – Humno) – obdélníkový půdorys u kurzoru jako dílna ([ a ]
+       * otáčejí); duch je zatím jen obrys půdorysu.
+       */
+      kind: 'threshing-floor';
+      check(position: Position): PlacementCheck & { cost?: PlacementCost | null };
     };
 
 /**
@@ -146,7 +187,9 @@ export type PlacementResult =
   | { kind: 'dwelling'; type: DwellingType; position: Position; plot?: DwellingPlot }
   | { kind: 'squares'; cells: TileCell[]; grid?: SquareGrid; variant?: string }
   | { kind: 'sacred'; type: SacredBuildingKind; position: Position }
-  | { kind: 'workshop'; craft: Craft; position: Position };
+  | { kind: 'fort-points'; points: [number, number][]; variant: string }
+  | { kind: 'workshop'; craft: Craft; position: Position }
+  | { kind: 'threshing-floor'; position: Position };
 
 /**
  * Průběžný stav umisťování pro rozhraní: kontrola, popisek (u pole výměra a cena z `preview`,

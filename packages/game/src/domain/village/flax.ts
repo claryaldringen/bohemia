@@ -1,8 +1,9 @@
+import { dayPartLosses } from './disasters';
 import { effectiveFertility } from './fields';
 import { ageGroup } from './people';
 import { FLAX } from './rules';
 import type { ChronicleEvent, FieldPart, VillageState } from './types';
-import { cropGrossPerHa, harvestKg } from './year-plan';
+import { cropGrossPerHa, harvestKg, seasonCrop } from './year-plan';
 
 // Len (fields.md – Len, diet.md – Oděv; Martin 19. 10. 2026: „A to mi připomíná, že na částech
 // pole musí být zasetý len.“). Ves oseje len na části pole – tolik, kolik potřebuje na plátno pro
@@ -45,13 +46,20 @@ export function linenUnhappiness(state: Pick<VillageState, 'linen'>): number {
  * událost kroniky `linen-short`.
  */
 export function harvestFlax(state: VillageState, day: number): ChronicleEvent | null {
-  const plan = state.plan;
+  const plan = state.season;
   if (!plan || plan.flaxNeedKg === undefined) return null;
-  const flax = plan.flax;
+  const flax = seasonCrop(plan, 'flax');
   let kg = 0;
   if (flax) {
     if (flax.harvestedKg !== null) return null;
-    kg = harvestKg(flax, state.parts, day, 'flax');
+    // len je jařina – počasí roku jako jař (disasters.md – Léto)
+    kg = harvestKg(
+      flax,
+      state.parts,
+      day,
+      'flax',
+      dayPartLosses(state, day, 'flax', flax.partIds, undefined),
+    );
     flax.harvestedKg = kg;
   }
   const need = plan.flaxNeedKg;

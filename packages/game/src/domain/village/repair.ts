@@ -1,8 +1,9 @@
 import { readySquares, villageCemeteries } from './cemetery';
 import { sacredBuildLabor } from './costs';
-import { builtPenSquares } from './pens';
+import { builtPenSquares, penSpecies } from './pens';
+import { fencedSquareEquivalents, outerFenceSides, SQUARE_SIDES } from './fence-cost';
 import { penBuildLabor, villagePens } from './oxen';
-import { CEMETERY, STRUCTURE_REPAIR } from './rules';
+import { CEMETERY, PEN_FENCE, STRUCTURE_REPAIR } from './rules';
 import type {
   AbandonedStructure,
   ChronicleEvent,
@@ -69,12 +70,26 @@ export function fullRepairManDays(state: VillageState, ref: StructureRef): numbe
   const share = STRUCTURE_REPAIR.share[ref.structure];
   if (ref.structure === 'cemetery-fence') {
     const c = villageCemeteries(state).find((x) => x.id === ref.id);
-    return c ? share * CEMETERY.costPerSquare * readySquares(c.squares).length : 0;
+    // plot jen po vnějších stranách obrysu (cemetery.md – Plot hřbitova podle délky)
+    return c
+      ? (share *
+          CEMETERY.costPerSquare *
+          outerFenceSides(readySquares(c.squares).map((q) => q.cell))) /
+          SQUARE_SIDES
+      : 0;
   }
   if (ref.structure === 'pen') {
     // plot a přístřešek po hotových čtvercích (oxen.md – Ohrady podle druhu)
     const pen = villagePens(state).find((p) => p.id === ref.id);
-    return pen ? share * penBuildLabor() * Math.max(1, builtPenSquares(pen).length) : 0;
+    if (!pen) return 0;
+    const cells = builtPenSquares(pen).map((q) => q.cell);
+    return (
+      share *
+      penBuildLabor(penSpecies(pen)) *
+      (cells.length === 0
+        ? 1
+        : fencedSquareEquivalents(cells.length, outerFenceSides(cells), PEN_FENCE.share))
+    );
   }
   const kind = ref.structure;
   const stands = (state.sacredBuildings ?? []).some((b) => b.id === ref.id && b.kind === kind);

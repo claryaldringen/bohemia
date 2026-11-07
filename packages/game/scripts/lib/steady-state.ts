@@ -10,13 +10,16 @@ import {
   DWELLINGS,
   DWELLING_TREES,
   FELLING_MAN_DAYS_PER_TREE,
-  FERTILITY,
+  ROTATION,
+  ROTATION_FACTOR,
+  averageSownShare,
+  netYieldPerHa,
+  rotationYears,
   FOOD_NEED_KG_PER_YEAR,
   LABOR_PER_DAY,
   NO_CRAFTS,
   ORCHARD,
   ORCHARD_WINDOWS,
-  SEED_KG_PER_HA,
   TASK_ORDER,
   YOUNG_FALLOW_YEARS,
   adultDailyMin,
@@ -25,7 +28,6 @@ import {
   distanceFactor,
   dwellingBuildLabor,
   fieldWorkPerHa,
-  grossYieldPerHa,
   reclaimCostPerHa,
   steadyHarvestKg,
   storageLossPerYear,
@@ -35,6 +37,9 @@ import {
   type TaskName,
   type WindowSegment,
 } from '../../src/domain/village';
+
+// Oběh a čistá úroda jsou v jádru (field-capacity.ts) – tady jen pro kalkulačku a kalibraci.
+export { ROTATION, ROTATION_FACTOR, averageSownShare, netYieldPerHa, rotationYears };
 
 const EPSILON = 1e-9;
 /** Hospodářský rok od září (plán osevu 1. 9.) – měsíc a počet dní v běžném roce. */
@@ -52,41 +57,6 @@ export const SEASON_MONTHS: readonly { month: number; days: number }[] = [
   { month: 7, days: 31 },
   { month: 8, days: 31 },
 ];
-
-/** Oběh dílu podle pravidel (fields.md – Přílohová soustava): roky osevu a přílohu do 95 %. */
-export function rotationYears(): { sown: number; fallow: number } {
-  let share = 1;
-  let sown = 0;
-  while (share >= FERTILITY.sowableMin - EPSILON) {
-    share -= FERTILITY.sowDepletion;
-    sown++;
-  }
-  let fallow = 0;
-  while (share < FERTILITY.fallowReady - EPSILON) {
-    share = Math.min(1, share + FERTILITY.fallowRecovery);
-    fallow++;
-  }
-  return { sown, fallow };
-}
-
-export const ROTATION = rotationYears();
-/** Pole na celý oběh ÷ osev (dnes 16 / 3 ≈ 5,3). */
-export const ROTATION_FACTOR = (ROTATION.sown + ROTATION.fallow) / ROTATION.sown;
-
-/**
- * Průměrný podíl přirozené úrodnosti za roky osevu (1; 0,88; 0,76 → 0,88). Úroda je lineární
- * v úrodnosti, takže úroda při průměrném podílu = průměr úrod.
- */
-export function averageSownShare(): number {
-  let sum = 0;
-  for (let year = 0; year < ROTATION.sown; year++) sum += 1 - FERTILITY.sowDepletion * year;
-  return sum / ROTATION.sown;
-}
-
-/** Čistá úroda hektaru (kg) v průměru let osevu při plné a včasné práci. */
-export function netYieldPerHa(fertility: number): number {
-  return grossYieldPerHa(fertility * averageSownShare()) - SEED_KG_PER_HA;
-}
 
 export interface Household {
   adults: number;
@@ -241,9 +211,11 @@ function lastSeasonIndex(segments: readonly WindowSegment[]): number {
 }
 
 /**
- * Ozim jako ve `chooseCrops`: díly, které se osévají dál (bez vrácení přílohu), první, pak
- * vrácené z přílohu – každý do ozimu, dokud ho stihne podzimní práce (září–říjen, poslední den
- * setí ne) a červencová sklizeň. Spojitě po hektarech.
+ * Ozim v ustáleném osevním postupu (fields.md – Osevní postup po dílech): polovina osevu je
+ * v ozimu a polovina v jaři (první osev ozim → druhý jař, nebo naopak). Kapacita jen omezuje,
+ * kolik ozimu ves stihne – díly, které se osévají dál (bez vrácení přílohu), první, pak vrácené
+ * z přílohu; podzimní práce (září–říjen, poslední den setí ne) a červencová sklizeň. Co ozim
+ * nestihne, jde na jaro jako jař. Spojitě po hektarech.
  */
 function winterHectares(
   sown: number,
@@ -257,15 +229,27 @@ function winterHectares(
   const autumnPerHa = (fieldWorkPerHa('dig', 0) + fieldWorkPerHa('sow', 0)) * factor;
   const harvestPerHa = fieldWorkPerHa('harvest', NO_CRAFTS.tools) * factor;
   const continuing = (sown * (ROTATION.sown - 1)) / ROTATION.sown;
-  const reclaimed = sown - continuing;
   const byJuly = julyCapacity / harvestPerHa;
-  const onContinuing = Math.min(continuing, autumnCapacity / autumnPerHa);
-  const left = autumnCapacity - onContinuing * autumnPerHa;
-  const onReclaimed =
-    onContinuing < continuing - EPSILON
-      ? 0
-      : Math.min(reclaimed, left / (autumnPerHa + reclaimPerHa * factor));
-  return Math.min(byJuly, onContinuing + onReclaimed);
+  // jař se mlátí hned po žni v září – ta práce ubírá z podzimní kapacity ozimu, takže ozim
+  // se hledá půlením (Martin 21. 10. 2026 – jař dál kope i na jaře, ozim má na podzim přednost)
+  const threshPerHa = fieldWorkPerHa('thresh', NO_CRAFTS.tools) * factor;
+  const fitsAutumn = (w: number): boolean => {
+    const need =
+      w * autumnPerHa +
+      Math.max(0, w - continuing) * reclaimPerHa * factor +
+      Math.max(0, sown - w) * threshPerHa;
+    return need <= autumnCapacity + EPSILON;
+  };
+  const upper = Math.min(sown / 2, byJuly);
+  if (fitsAutumn(upper)) return upper;
+  let low = 0;
+  let high = upper;
+  for (let i = 0; i < 60; i++) {
+    const mid = (low + high) / 2;
+    if (fitsAutumn(mid)) low = mid;
+    else high = mid;
+  }
+  return low;
 }
 
 /** Ustálený stav vsi z `households` stejných domácností. */
@@ -311,7 +295,7 @@ export function steadyState(input: SteadyInput): SteadyResult {
       const amount =
         name === 'reclaim'
           ? reclaimHa * reclaimPerHa * factor
-          : ha * fieldWorkPerHa(name, NO_CRAFTS.tools) * factor;
+          : ha * fieldWorkPerHa(name, NO_CRAFTS.tools, crop) * factor;
       fieldWork[name] += amount;
       const segments = CROP_WINDOWS[crop][name];
       items.push({
@@ -394,13 +378,8 @@ export function steadyState(input: SteadyInput): SteadyResult {
     (fieldWorkPerHa('dig', 0) + fieldWorkPerHa('sow', 0)) * winter * factor +
     reclaimedWinter * reclaimPerHa * factor;
   const springDig = fieldWorkPerHa('dig', 0) * (sown - winter) * factor;
-  const springAutumnLeft = Math.max(
-    0,
-    free * window(9, 11) -
-      winterAutumn -
-      orchardAutumn -
-      (reclaimedHa - reclaimedWinter) * reclaimPerHa * factor,
-  );
+  const springAutumnLeft = Math.max(0, free * window(9, 11) - winterAutumn - orchardAutumn);
+  const springReclaim = (reclaimedHa - reclaimedWinter) * reclaimPerHa * factor;
   const peaks: PeakReserve[] = [
     {
       name: 'podzim (září–říjen, ozim a jablka)',
@@ -411,13 +390,14 @@ export function steadyState(input: SteadyInput): SteadyResult {
       name: 'jaro (březen–duben, setí a zbytek kopání)',
       need:
         fieldWorkPerHa('sow', 0) * (sown - winter) * factor +
-        Math.max(0, springDig - springAutumnLeft),
+        Math.max(0, springReclaim + springDig - springAutumnLeft),
       free: free * window(3, 4),
     },
     {
-      name: 'pletí (květen–červen)',
-      need: fieldWorkPerHa('weed', 0) * sown * factor,
-      free: free * window(5, 6),
+      // ozim se neplete, jař jednou v květnu (fields.md – Pletí jednou a rychle)
+      name: 'pletí (květen, jař)',
+      need: fieldWorkPerHa('weed', 0) * (sown - winter) * factor,
+      free: free * window(5, 5),
     },
     {
       name: 'léto (horší z července a srpna)',
@@ -465,8 +445,8 @@ export function steadyState(input: SteadyInput): SteadyResult {
 
 /**
  * Nejvyšší osev (ha), jehož polní práci ves v ustáleném oběhu stihne (bez nedodělku) – půlením.
- * Odpovídá stropu osevu podle práce ve špičkách (`chooseCrops`) jen přibližně: plán osevu
- * stropuje po dílech, tady se počítá spojitě po měsících.
+ * Odpovídá tomu, co ves stihne v osevním postupu, jen přibližně: postup osévá po dílech a po
+ * dávkách (1. 9., 1. 11.), tady se počítá spojitě po měsících.
  */
 export function maxSownHa(input: SteadyInput): number {
   let low = 0;

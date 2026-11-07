@@ -54,6 +54,20 @@ describe('trasa stezky ke kraji mapy', () => {
     expect(trailRoutes(LANDSCAPE, null, { x: 0, z: -6 }, [])).toBe(routes);
   });
 
+  it('humno stezka obejde – v mezipaměti zvlášť (production-chains.md – Humno)', () => {
+    const free = trailRoutes(LANDSCAPE, null, { x: 0, z: -6 }, []).S!;
+    // humno přes osu stezky na jih
+    const at = free.find((p) => p.z < -40)!;
+    const floor = { x: at.x, z: at.z, rotation: 0 };
+    const around = trailRoutes(LANDSCAPE, null, { x: 0, z: -6 }, [], [floor]).S!;
+    expect(around).not.toBe(free);
+    const inside = (points: readonly { x: number; z: number }[]): boolean =>
+      points.some((p) => Math.abs(p.x - floor.x) < 4 && Math.abs(p.z - floor.z) < 5);
+    expect(inside(free)).toBe(true);
+    expect(inside(around)).toBe(false);
+    expect(trailRoutes(LANDSCAPE, null, { x: 0, z: -6 }, [], [floor]).S).toBe(around);
+  });
+
   it('dny cesty nosičů: 2–6 dní podle délky stezky + 1 den za krajem mapy', () => {
     expect(trailTripDays(150)).toBe(3);
     expect(trailTripDays(400)).toBe(3);

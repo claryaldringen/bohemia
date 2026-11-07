@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { VILLAGE_NAME_MAX_LENGTH, checkVillageName } from '@bohemia/game';
 import type { VillageListItem } from '@/lib/village-list';
+import { StewardBadge, StewardToggle } from './StewardToggle';
+import { useRightDenied } from './rights';
 import { Tooltip } from './Tooltip';
 
 // Jméno vsi v horní liště je přepínač vsí (migration.md – Víc vsí jednoho hráče): klik otevře
@@ -26,10 +28,13 @@ export function VillageList({
   villages,
   currentId,
   onSelect,
+  onSetSteward,
 }: {
   villages: readonly VillageListItem[];
   currentId: string;
   onSelect: (village: VillageListItem) => void;
+  /** Zapne / vypne správce vsi (server action); bez něj se přepínače neukážou. */
+  onSetSteward?: (villageId: string, on: boolean) => Promise<unknown>;
 }): ReactElement {
   return (
     <ul
@@ -52,10 +57,59 @@ export function VillageList({
           >
             <button
               type="button"
+              data-testid="village-select"
               onClick={() => onSelect(village)}
               className={`flex flex-1 items-center justify-between gap-3 rounded px-2 py-1 text-left hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-[#f3cf86] ${current ? 'bg-white/10 text-[#ffe9b8]' : 'text-[#f3dfb0]'} ${village.extinct || village.abandoned ? 'opacity-50' : ''}`}
             >
               <span className="truncate font-serif text-base">{village.name}</span>
+              {village.playerLord && (
+                <Tooltip content="Tvůj muž" placement="below">
+                  <img
+                    src="/icons/house/banner.svg"
+                    alt="Tvůj muž"
+                    data-testid="player-lord-banner"
+                    width={16}
+                    height={16}
+                    className="h-4 w-4 shrink-0"
+                  />
+                </Tooltip>
+              )}
+              {village.stewarded && (
+                <Tooltip content="Spravuješ pro jiný rod" placement="below">
+                  <img
+                    src="/icons/house/village-key.svg"
+                    alt="Spravuješ pro jiný rod"
+                    data-testid="steward-key"
+                    width={16}
+                    height={16}
+                    className="h-4 w-4 shrink-0"
+                  />
+                </Tooltip>
+              )}
+              {village.npcSteward && (
+                <Tooltip content="Ves řídí povýšený šlechtic" placement="below">
+                  <img
+                    src="/icons/house/village-key.svg"
+                    alt="Ves řídí povýšený šlechtic"
+                    data-testid="npc-steward-key"
+                    width={16}
+                    height={16}
+                    className="h-4 w-4 shrink-0"
+                  />
+                </Tooltip>
+              )}
+              {village.senior && (
+                <Tooltip content="Senior rodu" placement="below">
+                  <img
+                    src="/icons/house/throne.svg"
+                    alt="Senior rodu"
+                    data-testid="senior-throne"
+                    width={16}
+                    height={16}
+                    className="h-4 w-4 shrink-0"
+                  />
+                </Tooltip>
+              )}
               {village.travelling && (
                 <span className="text-xs text-[#bfa77a] italic">na cestě</span>
               )}
@@ -65,6 +119,14 @@ export function VillageList({
                 <span data-testid="village-list-people">{village.people}</span>
               </span>
             </button>
+            {onSetSteward && !village.extinct && !village.abandoned && (
+              <StewardToggle
+                on={village.steward === true}
+                onToggle={(on) => onSetSteward(village.id, on)}
+                testId="village-steward-toggle"
+                gated={current}
+              />
+            )}
           </li>
         );
       })}
@@ -136,6 +198,8 @@ export function VillageSwitcher({
   villages,
   onSelect,
   onRename,
+  steward = false,
+  onSetSteward,
 }: {
   name: string;
   currentId: string;
@@ -143,10 +207,14 @@ export function VillageSwitcher({
   /** Přepne na jinou ves hráče. */
   onSelect: (village: VillageListItem) => void;
   onRename: (name: string) => Promise<string | null>;
+  /** Správce vybrané vsi je zapnutý – ikona vedle jména. */
+  steward?: boolean;
+  onSetSteward?: (villageId: string, on: boolean) => Promise<unknown>;
 }): ReactElement {
   const [open, setOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const root = useRef<HTMLDivElement>(null);
+  const renameDenied = useRightDenied('steward');
 
   // klik mimo přepínač a Esc seznam zavřou
   useEffect(() => {
@@ -181,7 +249,7 @@ export function VillageSwitcher({
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
-        onDoubleClick={startRename}
+        onDoubleClick={renameDenied === null ? startRename : undefined}
         className="flex max-w-56 items-center gap-1 rounded px-2 py-0.5 font-serif text-lg text-[#f3dfb0] hover:text-[#ffe9b8] focus-visible:outline-2 focus-visible:outline-[#f3cf86] aria-expanded:text-[#ffe9b8]"
       >
         <span className="truncate">{name}</span>
@@ -194,11 +262,13 @@ export function VillageSwitcher({
           <path d="M6 9l6 6 6-6z" />
         </svg>
       </button>
-      <Tooltip content="Přejmenovat" placement="below">
+      {steward && <StewardBadge />}
+      <Tooltip content="Přejmenovat" denied={renameDenied} placement="below">
         <button
           type="button"
           data-testid="village-rename"
           aria-label="Přejmenovat ves"
+          disabled={renameDenied !== null}
           onClick={startRename}
           className="flex h-7 w-7 items-center justify-center rounded text-[#bfa77a] hover:bg-white/5 hover:text-[#ffe9b8] focus-visible:outline-2 focus-visible:outline-[#f3cf86]"
         >
@@ -221,6 +291,7 @@ export function VillageSwitcher({
         <VillageList
           villages={villages}
           currentId={currentId}
+          onSetSteward={onSetSteward}
           onSelect={(village) => {
             setOpen(false);
             onSelect(village);

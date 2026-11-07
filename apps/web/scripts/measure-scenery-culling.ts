@@ -23,6 +23,15 @@ import {
   obstaclesOf,
 } from '@bohemia/game';
 import { HEIGHT_SCALE } from '../lib/scene/constants';
+import {
+  fortGateInstances,
+  palisadeLayout,
+  type FortInstance,
+} from '../lib/scene/fortification-layout';
+import { armyDrawCalls } from '../lib/scene/army';
+import { fortInstanceMatrix } from '../lib/scene/fortification-renderer';
+import { demoFortification } from '../lib/scene/fortification-showcase';
+import { rampartMeshData } from '../lib/scene/rampart-mesh';
 import { decorPlacements } from '../lib/scene/decor-placement';
 import { IMPOSTOR_ATLAS } from '../lib/scene/impostor-atlas';
 import { obstacleScenery } from '../lib/scene/obstacle-scenery';
@@ -206,6 +215,120 @@ for (const count of [8, 16, 32]) {
     );
     camera.dispose();
   }
+}
+// Palisáda ≈ 350 m kolem vsi (fortifications.md – Ve scéně): kůly a brány v instancích dílů
+// fortifications.glb s ořezem po čtvercích (16 × 16 jako les), val 350 m jako síť.
+{
+  /** Trojúhelníky dílu podle jména uzlu v GLB. */
+  const partTris = (file: string): Map<string, number> => {
+    const buffer = readFileSync(`${PUBLIC}${file}`);
+    const json = JSON.parse(buffer.subarray(20, 20 + buffer.readUInt32LE(12)).toString('utf8')) as {
+      nodes: { name: string; mesh?: number }[];
+      meshes: { primitives: { attributes: { POSITION: number }; indices?: number }[] }[];
+      accessors: { count: number }[];
+    };
+    const out = new Map<string, number>();
+    for (const node of json.nodes) {
+      if (node.mesh === undefined) continue;
+      let tris = 0;
+      for (const p of json.meshes[node.mesh]!.primitives) {
+        const a = json.accessors[p.indices ?? p.attributes.POSITION]!;
+        tris += a.count / 3;
+      }
+      out.set(node.name, tris);
+    }
+    return out;
+  };
+  const tris = partTris('models/fortifications/fortifications.glb');
+  const geo = { size: landscape.size, cellSizeM: landscape.cellSizeM };
+  const cells = { x: landscape.villageSite.x - 3, y: landscape.villageSite.y - 3, w: 6, h: 6 };
+  const fort = demoFortification(
+    { id: 1, kind: 'palisade', cells, gates: [{ segment: 1 }, { segment: 10 }] },
+    geo,
+  );
+  const length = fort.shapes.reduce((sum, x) => sum + x.lengthM, 0);
+  const instances: FortInstance[] = [
+    ...palisadeLayout(fort, () => 0).stakes,
+    ...fortGateInstances(fort),
+  ];
+  const matrix = new Matrix();
+  const fortGroups = [...new Set(instances.map((i) => i.part))].map((part) => {
+    const list = instances.filter((i) => i.part === part);
+    const matrices = new Float32Array(list.length * 16);
+    list.forEach((inst, i) => {
+      fortInstanceMatrix(inst, height(inst.x, inst.z), matrix);
+      matrix.copyToArray(matrices, i * 16);
+    });
+    const half = part === 'gate-beam' ? 2.6 : 2.1;
+    const local: LocalBounds = [-half, -0.5, -half, half, 4.6, half];
+    return { part, tris: tris.get(part) ?? 0, matrices, local };
+  });
+  const allFortTris = fortGroups.reduce((sum, g) => sum + (g.tris * g.matrices.length) / 16, 0);
+  const rampart = rampartMeshData(
+    demoFortification({ id: 2, kind: 'rampart', cells, gates: [{ segment: 1 }] }, geo),
+    height,
+  );
+  console.log(
+    `palisáda ${length.toFixed(0)} m: ${instances.length} instancí (${fortGroups.length} dílů), ` +
+      `${(allFortTris / 1e3).toFixed(1)} k trojúhelníků, ${fortGroups.length} draw callů bez ořezu; ` +
+      `val stejného obvodu ${((rampart.earth.indices.length + rampart.grass.indices.length) / 3 / 1e3).toFixed(1)} k trojúhelníků (2 sítě)`,
+  );
+  const grid = chunkGrid(extent, 16);
+  const prepared = fortGroups.map((g) => {
+    const chunk = chunkOrder(g.matrices, grid);
+    return { g, chunk, bounds: chunkBounds(g.matrices, chunk, g.local) };
+  });
+  for (const radius of [60, 120, 400]) {
+    const target = new Vector3(site.worldX, height(site.worldX, site.worldZ), site.worldZ);
+    const camera = new ArcRotateCamera('camera', -Math.PI / 2, 0.85, radius, target, scene);
+    camera.fov = Math.PI / 4;
+    camera.minZ = 1;
+    camera.maxZ = 6000;
+    const planes = Frustum.GetPlanes(
+      camera.getViewMatrix(true).multiply(camera.getProjectionMatrix(true)),
+    );
+    const data = Float64Array.from(
+      planes.flatMap((p) => [p.normal.x, p.normal.y, p.normal.z, p.d]),
+    );
+    let drawnTris = 0;
+    let draws = 0;
+    for (const { g, chunk, bounds } of prepared) {
+      const drawn = [...Array(16 * 16).keys()]
+        .filter((c) => boxInFrustum(bounds, c, data))
+        .reduce((sum, c) => sum + chunk.offsets[c + 1]! - chunk.offsets[c]!, 0);
+      if (drawn === 0) continue;
+      draws++;
+      drawnTris += drawn * g.tris;
+    }
+    console.log(
+      `palisáda s ořezem 16×16, odstup ${radius} m: ${(drawnTris / 1e3).toFixed(1)} k trojúhelníků ` +
+        `(${((100 * drawnTris) / allFortTris).toFixed(0)} %), ${draws} draw callů`,
+    );
+    camera.dispose();
+  }
+}
+// Vojsko ukázky Bitva (war.md – Ve scéně; army.ts, army-renderer.ts): draw call na druh postavy
+// a zvířete, stíny, šípy, prach, rozkaz a závoj mlhy – bez ořezu (thin instances, vždy v záběru).
+{
+  const man = glbInfo('models/people/man.glb');
+  const horse = glbInfo('models/fauna/horse.glb');
+  const men = 22;
+  const horses = 2;
+  const draws = armyDrawCalls({
+    figures: Array.from({ length: men }, () => ({ kind: 'man' as const })),
+    animals: Array.from({ length: horses }, () => ({ species: 'horse' as const })),
+    icons: [{ order: 'attack-all' }, { order: 'hold-place' }],
+    arrows: 2,
+    dust: 1,
+    fog: true,
+  });
+  const veil = 160 * 160 * 2;
+  const tris = men * man.tris + horses * horse.tris + (men + horses) * 2 + veil;
+  console.log(
+    `vojsko ukázky Bitva: ${men} mužů (${horses} na koních), 2 rozkazy, šípy, prach a mlha – ` +
+      `${draws} draw callů, ${(tris / 1e3).toFixed(1)} k trojúhelníků (muž ${man.tris}, kůň ${horse.tris}, ` +
+      `závoj mlhy ${(veil / 1e3).toFixed(1)} k)`,
+  );
 }
 scene.dispose();
 engine.dispose();

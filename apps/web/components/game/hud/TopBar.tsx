@@ -1,10 +1,28 @@
 'use client';
 
-import { useEffect, useState, type ReactElement, type ReactNode } from 'react';
-import { getWorldState, type TimeSkip, type WorldClock } from '@bohemia/game';
+import { useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
+import {
+  BAD_YEAR_KINDS,
+  FORCED_DISASTER_KINDS,
+  getWorldState,
+  type BadYearKind,
+  type ComputeProgress,
+  type ForcedDisasterKind,
+  type TimeSkip,
+  type WorldClock,
+} from '@bohemia/game';
+import {
+  floodLabel,
+  summerLabel,
+  WEATHER_ICONS,
+  winterLabel,
+  type WeatherView,
+} from '@/lib/disasters-view';
+import { useDismiss } from '@/hooks/use-dismiss';
+import { useSkipProgress } from '@/hooks/use-skip-progress';
 import { dateRefreshDelay, formatWorldState } from '@/lib/game-date';
 import { MENU_HOTKEY } from '@/lib/game-menu';
-import { formatDecimal, formatHa, formatInteger, formatPercent } from '@/lib/village-format';
+import { formatDecimal, formatInteger, formatPercent, plural } from '@/lib/village-format';
 import type { VillageListItem } from '@/lib/village-list';
 import type { VillageView } from '@/lib/village-view';
 import { Tooltip } from './Tooltip';
@@ -28,6 +46,11 @@ const SATIATION_GLOW: Record<ReturnType<typeof satiationState>, string> = {
   hungry: 'drop-shadow(0 0 3px rgb(240 180 60 / 0.95))',
   starving: 'drop-shadow(0 0 4px rgb(235 70 50 / 1)) saturate(0.6)',
 };
+
+/** Popisek snopů v liště (production-chains.md – Humno): nevymlácené zrno. */
+export function sheavesName(): string {
+  return 'Snopy – nevymláceno (kg zrna)';
+}
 
 function Resource({
   icon,
@@ -64,6 +87,64 @@ function Resource({
   );
 }
 
+/** Lidí ve vsi – děti, dospělí a starší. */
+function villagePeople(view: Pick<VillageView, 'people'>): number {
+  return view.people.children + view.people.adults + view.people.elders;
+}
+
+/** Je ve vsi víc lidí, než kolik uživí pole (fields.md – Co hráč vidí, Pole uživí)? */
+export function fieldCapacityShort(view: Pick<VillageView, 'people' | 'fieldCapacity'>): boolean {
+  const capacity = view.fieldCapacity;
+  return !!capacity && villagePeople(view) > Math.round(capacity.people);
+}
+
+/**
+ * Lidé v liště: „31“ a u vsi s poli „31 / ≈ 22“ – kolik lidí je a kolik jich uživí pole
+ * (Martin 24. 10. 2026: počet lidí a kolik ves uživí v jedné ikoně).
+ */
+export function peopleLabel(view: Pick<VillageView, 'people' | 'fieldCapacity'>): string {
+  const people = formatInteger(villagePeople(view));
+  return view.fieldCapacity ? `${people} / ≈ ${formatInteger(view.fieldCapacity.people)}` : people;
+}
+
+/** Tooltip lidí: kolik jich je a kolik jich uživí pole (podrobnosti viz `FieldCapacityTooltip`). */
+export function PeopleTooltip({ view }: { view: VillageView }): ReactElement {
+  if (!view.fieldCapacity) return <span>Lidé</span>;
+  return <FieldCapacityTooltip view={view} />;
+}
+
+/**
+ * Tooltip pole uživí (fields.md – Co hráč vidí): kolik lidí uživí pole v ustáleném oběhu a kolik
+ * jich ve vsi je (červeně, když je lidí víc), pod tím pole v oběhu a úrodnost.
+ */
+export function FieldCapacityTooltip({ view }: { view: VillageView }): ReactElement {
+  const capacity = view.fieldCapacity;
+  if (!capacity) return <span>Pole</span>;
+  return (
+    <span className="block" data-testid="field-capacity-tooltip">
+      <span className="font-semibold">Pole uživí ≈ {formatInteger(capacity.people)} lidí</span>
+      <span
+        data-testid="field-capacity-people"
+        className={`mt-0.5 flex items-center gap-1 tabular-nums ${fieldCapacityShort(view) ? 'font-semibold text-red-400' : 'text-[#bfa77a]'}`}
+      >
+        <img src="/icons/resources/people.png" alt="Lidé" width={16} height={16} />
+        {villagePeople(view)}
+      </span>
+      <span className="mt-0.5 block text-[#bfa77a] tabular-nums">
+        pole v oběhu {formatDecimal(capacity.rotationHa, 1)} ha · úrodnost{' '}
+        {formatInteger(capacity.fertility)}
+      </span>
+      <span
+        data-testid="field-capacity-soil"
+        className="mt-0.5 flex items-center gap-1 text-[#bfa77a] tabular-nums"
+      >
+        <img src="/icons/resources/fields.png" alt="Půda" width={16} height={16} />
+        {Math.floor(capacity.soil * 100)} %
+      </span>
+    </span>
+  );
+}
+
 /** Zdroje stravy v tooltipu nasycení – ikona, název a podíl na energii (diet.md). */
 const DIET_SOURCES: readonly {
   key: keyof VillageView['diet']['shares'];
@@ -77,6 +158,35 @@ const DIET_SOURCES: readonly {
   { key: 'eggs', icon: 'eggs', name: 'Vejce' },
   { key: 'fruit', icon: 'apples', name: 'Ovoce' },
 ];
+
+/**
+ * Popisek volné práce (lord.md – Co hráč vidí): u cvičící vojvodovy rodiny řádek s ikonou dvorce
+ * a číslem – kolik jich cvičí, při hladu a osevu kolik je jich na poli.
+ */
+export function LaborTooltip({
+  lord,
+}: {
+  lord: { training: number; field: number; household: number } | null | undefined;
+}): ReactElement {
+  const family = lord && lord.training + lord.field + lord.household > 0;
+  return (
+    <span className="flex flex-col gap-0.5">
+      <span>Volná práce</span>
+      {family && (
+        <span data-testid="village-labor-lord" className="flex items-center gap-1 tabular-nums">
+          <img src="/icons/resources/manor.png" alt="" width={16} height={16} />
+          Vojvodova rodina:{' '}
+          {[
+            lord.training > 0 ? `${lord.training} cvičí` : null,
+            lord.field > 0 ? `${lord.field} na poli` : null,
+          ]
+            .filter((t) => t !== null)
+            .join(', ') || `${lord.household} vede domácnost`}
+        </span>
+      )}
+    </span>
+  );
+}
 
 /**
  * Tooltip nasycení (diet.md – Co hráč vidí): nasycení, pokrytí energie a bílkovin a podíly obilí,
@@ -125,67 +235,77 @@ export function dairyName(view: Pick<VillageView, 'milkLPerDay'>): string {
   return milk > 0 ? `Sýr (kg) – mléko ${formatInteger(milk)} l/den` : 'Sýr (kg)';
 }
 
+/** Popisek klád: u vsi i u lesa, pokud leží hromada u lesa (forest.md – Klády u lesa). */
+export function woodName(
+  view: Pick<VillageView, 'woodLogs' | 'woodLogsForest' | 'woodLogsPile'>,
+): string {
+  const forest = Math.min(view.woodLogsForest ?? 0, view.woodLogs);
+  if (forest <= 0) return 'Klády na hromadě';
+  // u vsi z hromady samotné, ne z rozdílu zaokrouhlených čísel (ten by se mohl rozejít o kus)
+  const pile = Math.min(view.woodLogsPile ?? view.woodLogs - forest, view.woodLogs);
+  return `Klády – u vsi ${formatInteger(pile)}, u lesa ${formatInteger(forest)}`;
+}
+
 /** Seno v horní liště – když ves má hotovou ohradu nebo seno v zásobě (oxen.md). */
 export function showsHay(view: Pick<VillageView, 'hayKg' | 'pens'>): boolean {
   return Math.round(view.hayKg) > 0 || view.pens.some((pen) => pen.built);
 }
 
-/** Dřevěné nářadí v horní liště – ves s tesařem nebo s nářadím v zásobě (wagons.md – Tesař). */
-export function showsWoodTools(crafts: VillageView['crafts']): boolean {
+/**
+ * Zásoba výrobků řemeslníků v liště – jen hřivny v kg (crafts.md; Martin 20. 10. 2026: „V liště
+ * jenom hřivny“). Uhlí ukazuje panel uhlíře, vozy ohrada s voly a tesař, nástroje panel kovárny;
+ * keramiku a dřevěné nářadí si řeší každá domácnost sama a nikde se neukazují (Martin
+ * 24. 10. 2026).
+ */
+function CraftStocks({ crafts }: { crafts: VillageView['crafts'] }): ReactElement {
   return (
-    Math.round(crafts.stocks.woodToolsKg ?? 0) > 0 ||
-    crafts.workshops.some((w) => w.craft === 'carpenter')
+    <Resource icon="iron-bars" name="Hřivny (kg)" testId="village-iron-bars">
+      {formatInteger(crafts.stocks.ironBarsKg ?? 0)}
+    </Resource>
   );
 }
 
-/** Popisek vozů v horní liště: kolik dvoukoláků a čtyřkoláků, kolik na cestě (wagons.md). */
-export function cartsLabel(carts: VillageView['crafts']['carts']): string {
-  const two = carts.filter((c) => c.kind === 'two-wheel').length;
-  const four = carts.length - two;
-  const away = carts.filter((c) => c.away).length;
-  const parts = [`dvoukoláky ${two}`, ...(four > 0 ? [`čtyřkoláky ${four}`] : [])];
-  return `Vozy – ${parts.join(', ')}${away > 0 ? ` (na cestě ${away})` : ''}`;
-}
-
 /**
- * Zásoby výrobků řemeslníků (crafts.md) – uhlí, nástroje a keramika v kg; v popisku nástrojů
- * a keramiky i pokrytí potřeby vsi (meze produktivity). Dřevěné nářadí a vozy od tesaře
- * (wagons.md) – jen když ves tesaře nebo vozy má.
+ * Počasí roku v liště (disasters.md – Co hráč vidí): ikona zimy, léta a povodně, jen když nejsou
+ * obyčejné a už jsou vidět; slova jen v popisku.
  */
-function CraftStocks({ crafts }: { crafts: VillageView['crafts'] }): ReactElement {
-  const { stocks, coverage } = crafts;
+export function WeatherIcons({ weather }: { weather: WeatherView }): ReactElement {
   return (
     <>
-      <Resource icon="charcoal" name="Uhlí (kg)" testId="village-charcoal">
-        {formatInteger(stocks.charcoalKg)}
-      </Resource>
-      <Resource
-        icon="tools"
-        name={`Nástroje (kg) – pokrytí potřeby ${formatPercent(coverage.tools)}`}
-        testId="village-tools"
-      >
-        {formatInteger(stocks.toolsKg)}
-      </Resource>
-      <Resource
-        icon="pottery"
-        name={`Keramika (kg) – pokrytí potřeby ${formatPercent(coverage.pottery)}`}
-        testId="village-pottery"
-      >
-        {formatInteger(stocks.potteryKg)}
-      </Resource>
-      {showsWoodTools(crafts) && (
-        <Resource
-          icon="wood-tools"
-          name={`Dřevěné nářadí (kg) – pokrytí potřeby ${formatPercent(coverage.woodTools ?? 0)}`}
-          testId="village-wood-tools"
+      {weather.winter && (
+        <span
+          data-testid="village-weather-winter"
+          data-weather={weather.winter}
+          className="contents"
         >
-          {formatInteger(stocks.woodToolsKg ?? 0)}
-        </Resource>
+          <Resource
+            icon={WEATHER_ICONS[weather.winter]}
+            name={winterLabel(weather.winter)}
+            testId="village-weather-winter-value"
+          />
+        </span>
       )}
-      {crafts.carts.length > 0 && (
-        <Resource icon="cart" name={cartsLabel(crafts.carts)} testId="village-carts">
-          {crafts.carts.length}
-        </Resource>
+      {weather.summer && (
+        <span
+          data-testid="village-weather-summer"
+          data-weather={weather.summer}
+          className="contents"
+        >
+          <Resource
+            icon={WEATHER_ICONS[weather.summer]}
+            name={summerLabel(weather.summer)}
+            testId="village-weather-summer-value"
+          />
+        </span>
+      )}
+      {weather.flood && (
+        <span data-testid="village-flood" data-level={weather.flood.level} className="contents">
+          <Resource
+            icon={WEATHER_ICONS.flood}
+            name={floodLabel(weather.flood)}
+            testId="village-flood-value"
+          />
+        </span>
       )}
     </>
   );
@@ -217,7 +337,9 @@ function IconButton({
   children: ReactNode;
 }): ReactElement {
   return (
-    <Tooltip content={tooltip} placement="below-left">
+    // otevřená nabídka leží pod tlačítkem – popisek (zůstává i po kliknutí, dokud má tlačítko
+    // fokus) by ji zakryl
+    <Tooltip content={tooltip} placement="below-left" off={expanded === true}>
       <button
         type="button"
         data-hud-block
@@ -245,9 +367,31 @@ const TIME_SKIP_BUTTONS: readonly { skip: TimeSkip; label: string; icon: string 
   { skip: 'decade', label: '+10 let', icon: 'M2.5 6v12l7.5-6zM10 6v12l7.5-6zM18.5 6h2.5v12h-2.5z' },
 ];
 
+/** Popisek tlačítek skoku během přepočtu – procenta a dny všech vsí rodu (před první odpovědí 0 %). */
+function SkipProgressTip({ progress }: { progress: ComputeProgress | null }): ReactElement {
+  return (
+    <span className="block whitespace-nowrap">
+      Přepočet {skipPercent(progress)} %
+      {progress !== null && progress.totalDays > 0 && (
+        <span className="block opacity-75">
+          {formatInteger(progress.doneDays)} / {formatInteger(progress.totalDays)}{' '}
+          {plural(progress.totalDays, 'den', 'dny', 'dní')}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** Kolik procent přepočtu je hotovo – dolů na celá, 100 % až po posledním dni. */
+function skipPercent(progress: ComputeProgress | null): number {
+  if (progress === null || progress.totalDays <= 0) return 0;
+  return Math.floor((progress.doneDays / progress.totalDays) * 100);
+}
+
 /**
  * Vývojový režim: tři šipky vedle data – ▶ přeskočí měsíc (30 herních dní), ⏩ rok, ⏭ 10 let.
- * Dokud server přeskočení nedokončí (`pending`), všechna tlačítka čekají.
+ * Dokud server přeskočení nedokončí (`pending`), všechna tlačítka čekají a pod nimi běží tenký
+ * ukazatel přepočtu (průběh se čte z `/api/dev/skip-progress`, procenta a dny v popisku tlačítek).
  */
 export function DevTimeButtons({
   pending,
@@ -257,13 +401,21 @@ export function DevTimeButtons({
   pending: TimeSkip | null;
   onSkip: (skip: TimeSkip) => void;
 }): ReactElement {
+  const progress = useSkipProgress(pending !== null);
+  const percent = skipPercent(progress);
   return (
-    <span data-testid="dev-time" className="flex items-center">
+    <span data-testid="dev-time" className="relative flex items-center">
       {TIME_SKIP_BUTTONS.map(({ skip, label, icon }) => (
         <IconButton
           key={skip}
           label={label}
-          tooltip={<span className="whitespace-nowrap">{label}</span>}
+          tooltip={
+            pending === null ? (
+              <span className="whitespace-nowrap">{label}</span>
+            ) : (
+              <SkipProgressTip progress={progress} />
+            )
+          }
           testId={`dev-skip-${skip}`}
           disabled={pending !== null}
           busy={pending === skip}
@@ -274,34 +426,123 @@ export function DevTimeButtons({
           </svg>
         </IconButton>
       ))}
+      {pending !== null && (
+        <span
+          role="progressbar"
+          aria-label="Přepočet"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={percent}
+          data-testid="dev-skip-progress"
+          className="pointer-events-none absolute inset-x-1 bottom-0 h-[3px] overflow-hidden rounded-full bg-black/45"
+        >
+          <span
+            className="block h-full bg-[#f3cf86] transition-[width] duration-300 ease-linear"
+            style={{ width: `${percent}%` }}
+          />
+        </span>
+      )}
     </span>
   );
 }
 
+/** Vynutit zlý rok – ikona a popisek druhu (vývojový režim). */
+const BAD_YEAR_LOOKS: Record<BadYearKind, { icon: string; label: string }> = {
+  dry: { icon: 'drought', label: 'Suché léto' },
+  drought: { icon: 'drought', label: 'Kruté sucho' },
+  wet: { icon: 'rain', label: 'Deštivé léto' },
+  wetHarvest: { icon: 'rain', label: 'Mokré žně' },
+  blackFrost: { icon: 'frost', label: 'Holomráz' },
+  long: { icon: 'frost', label: 'Dlouhá sněžná zima' },
+};
+
+/** Vynutit pohromu na zítřek – ikona a popisek druhu (vývojový režim). */
+const DISASTER_LOOKS: Record<ForcedDisasterKind, { icon: string; label: string }> = {
+  hail: { icon: 'hail', label: 'Kroupy' },
+  flood: { icon: 'flood', label: 'Stoletá voda' },
+  fire: { icon: 'fire', label: 'Požár' },
+  tornado: { icon: 'tornado', label: 'Smršť' },
+};
+
+/** Vynucení pohrom ve vývojovém režimu – co čeká na server, nebo null. */
+export type DevDisasterChoice =
+  { kind: 'year'; value: BadYearKind } | { kind: 'disaster'; value: ForcedDisasterKind };
+
 /**
- * Vývojový režim: druhá ves na téže mapě (jen pro vyzkoušení přepínače vsí – migration.md).
- * Dokud server ves zakládá, tlačítko čeká.
+ * Vývojový režim (disasters.md – plán P10): „Vynutit zlý rok“ (letošní léto či zima – ukáže se,
+ * až bude vidět) a „Vynutit pohromu“ (zítra) – každé otevře řadu ikon druhů pod lištou.
  */
-export function DevVillageButton({
+export function DevDisasterButtons({
   pending,
-  onFound,
+  onForce,
 }: {
   pending: boolean;
-  onFound: () => void;
+  onForce: (choice: DevDisasterChoice) => void;
 }): ReactElement {
+  const [open, setOpen] = useState<'year' | 'disaster' | null>(null);
+  const ref = useRef<HTMLSpanElement>(null);
+  useDismiss(open !== null, ref, () => setOpen(null));
+  const choices: { key: string; icon: string; label: string; choice: DevDisasterChoice }[] =
+    open === 'year'
+      ? BAD_YEAR_KINDS.map((value) => ({
+          key: value,
+          ...BAD_YEAR_LOOKS[value],
+          choice: { kind: 'year', value },
+        }))
+      : open === 'disaster'
+        ? FORCED_DISASTER_KINDS.map((value) => ({
+            key: value,
+            ...DISASTER_LOOKS[value],
+            choice: { kind: 'disaster', value },
+          }))
+        : [];
   return (
-    <IconButton
-      label="Druhá ves na téže mapě"
-      tooltip={<span className="whitespace-nowrap">Druhá ves na téže mapě</span>}
-      testId="dev-second-village"
-      disabled={pending}
-      busy={pending}
-      onClick={onFound}
-    >
-      <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
-        <path d="M3 11l7-6 7 6v8H3zM17 3h2v3h3v2h-3v3h-2V8h-3V6h3z" />
-      </svg>
-    </IconButton>
+    <span ref={ref} data-testid="dev-disasters" className="relative flex items-center">
+      <IconButton
+        label="Vynutit zlý rok"
+        tooltip={<span className="whitespace-nowrap">Vynutit zlý rok</span>}
+        testId="dev-bad-year"
+        expanded={open === 'year'}
+        disabled={pending}
+        busy={pending}
+        onClick={() => setOpen(open === 'year' ? null : 'year')}
+      >
+        <img src="/icons/resources/drought.png" alt="" width={20} height={20} />
+      </IconButton>
+      <IconButton
+        label="Vynutit pohromu"
+        tooltip={<span className="whitespace-nowrap">Vynutit pohromu</span>}
+        testId="dev-disaster"
+        expanded={open === 'disaster'}
+        disabled={pending}
+        busy={pending}
+        onClick={() => setOpen(open === 'disaster' ? null : 'disaster')}
+      >
+        <img src="/icons/resources/tornado.png" alt="" width={20} height={20} />
+      </IconButton>
+      {choices.length > 0 && (
+        <span
+          data-hud-block
+          data-testid="dev-disaster-choices"
+          className="hud-panel absolute top-10 right-0 z-50 flex gap-1 p-1"
+        >
+          {choices.map(({ key, icon, label, choice }) => (
+            <IconButton
+              key={key}
+              label={label}
+              tooltip={<span className="whitespace-nowrap">{label}</span>}
+              testId={`dev-force-${key}`}
+              onClick={() => {
+                setOpen(null);
+                onForce(choice);
+              }}
+            >
+              <img src={`/icons/resources/${icon}.png`} alt="" width={22} height={22} />
+            </IconButton>
+          ))}
+        </span>
+      )}
+    </span>
   );
 }
 
@@ -324,8 +565,11 @@ export function TopBar({
   onToggleMenu,
   onRename,
   onSelectVillage,
+  onSetSteward,
   devTime,
-  devVillage = null,
+  devDisasters = null,
+  house = null,
+  war = null,
 }: {
   view: VillageView | null;
   /** Hodiny světa hráče – ve vývojovém režimu posunuté o jeho posun času. */
@@ -339,10 +583,21 @@ export function TopBar({
   onRename: (name: string) => Promise<string | null>;
   /** Přepne na jinou ves hráče (přepínač vsí). */
   onSelectVillage?: (village: VillageListItem) => void;
+  /** Zapne / vypne správce vsi (přepínač v seznamu vsí). */
+  onSetSteward?: (villageId: string, on: boolean) => Promise<unknown>;
   /** Vývojový režim – šipky přeskočení času vedle data; bez něj null. */
   devTime: { pending: TimeSkip | null; onSkip: (skip: TimeSkip) => void } | null;
-  /** Vývojový režim – druhá ves na téže mapě; bez něj (nebo bez vsi) null. */
-  devVillage?: { pending: boolean; onFound: () => void } | null;
+  /** Vývojový režim – vynutit zlý rok a pohromu; bez něj (nebo bez vsi) null. */
+  devDisasters?: { pending: boolean; onForce: (choice: DevDisasterChoice) => void } | null;
+  /** Prapor panelu „Rod a vazalové“: počet vazalů, čekající věci (pečeť) a otevření panelu. */
+  house?: { vassals: number; waiting: number; open: boolean; onToggle: () => void } | null;
+  /** Zkřížené oštěpy (počet válek) a štít s hodinami (ochrana nového rodu, zbývající dny). */
+  war?: {
+    wars: number;
+    protectionDaysLeft: number | null;
+    open: boolean;
+    onToggle: () => void;
+  } | null;
 }): ReactElement {
   const [nowMs, setNowMs] = useState(initialNowMs);
   // Datum se obnoví na začátku dalšího herního dne (ostrý svět ≈ 86 s), ne každou sekundu –
@@ -359,7 +614,6 @@ export function TopBar({
     return () => clearTimeout(timer);
   }, [startMs, endMs]);
 
-  const people = view ? view.people.children + view.people.adults + view.people.elders : 0;
   const satiation = view ? satiationState(view) : 'fed';
 
   return (
@@ -374,12 +628,16 @@ export function TopBar({
           villages={view.villages}
           onSelect={(village) => onSelectVillage?.(village)}
           onRename={onRename}
+          steward={view.steward.on}
+          onSetSteward={onSetSteward}
         />
       )}
       {view && (
         <div className="ml-2 flex items-center gap-1 border-l border-[#5c4526] pl-2">
-          <Resource icon="people" name="Lidé" testId="village-people">
-            {people}
+          <Resource icon="people" name={<PeopleTooltip view={view} />} testId="village-people">
+            <span className={fieldCapacityShort(view) ? 'text-red-400' : undefined}>
+              {peopleLabel(view)}
+            </span>
           </Resource>
           <Resource icon="food" name="Obilí" testId="village-stores">
             {formatInteger(view.storesKg)}
@@ -387,6 +645,11 @@ export function TopBar({
           {showsLegumes(view) && (
             <Resource icon="legumes" name="Luštěniny (kg)" testId="village-legumes">
               {formatInteger(view.legumesKg)}
+            </Resource>
+          )}
+          {view.threshing?.sheavesKg !== undefined && (
+            <Resource icon="sheaves" name={sheavesName()} testId="village-sheaves">
+              {formatInteger(view.threshing.sheavesKg)}
             </Resource>
           )}
           <Resource icon="meat" name="Maso" testId="village-meat">
@@ -407,14 +670,11 @@ export function TopBar({
               {formatInteger(view.hayKg)}
             </Resource>
           )}
-          <Resource icon="fields" name="Pole – celková rozloha" testId="village-fields">
-            {formatHa(view.fields.reduce((sum, f) => sum + f.areaM2, 0))}
-          </Resource>
-          <Resource icon="wood" name="Klády na hromadě" testId="village-wood">
+          <Resource icon="wood" name={woodName(view)} testId="village-wood">
             {formatInteger(view.woodLogs)}
           </Resource>
           {view.crafts.present && <CraftStocks crafts={view.crafts} />}
-          <Resource icon="labor" name="Volná práce" testId="village-labor">
+          <Resource icon="labor" name={<LaborTooltip lord={view.lord} />} testId="village-labor">
             {formatDecimal(Math.max(0, view.commonLaborPerDay), 1)}
           </Resource>
           <span data-testid="village-satiation" data-state={satiation} className="contents">
@@ -428,6 +688,7 @@ export function TopBar({
           <Resource icon="happiness" name="Štěstí" testId="village-happiness">
             {Math.round(view.happiness.value)}
           </Resource>
+          {view.weather && <WeatherIcons weather={view.weather} />}
         </div>
       )}
       <div className="ml-auto flex items-center gap-1">
@@ -437,10 +698,89 @@ export function TopBar({
           </span>
         </Resource>
         {devTime && <DevTimeButtons pending={devTime.pending} onSkip={devTime.onSkip} />}
-        {devVillage && (
-          <DevVillageButton pending={devVillage.pending} onFound={devVillage.onFound} />
+        {devDisasters && (
+          <DevDisasterButtons pending={devDisasters.pending} onForce={devDisasters.onForce} />
         )}
         <span className="mx-1 h-6 border-l border-[#5c4526]" aria-hidden />
+        {house && (
+          <IconButton
+            label="Rod a vazalové"
+            tooltip="Rod a vazalové"
+            testId="house-toggle"
+            expanded={house.open}
+            onClick={house.onToggle}
+          >
+            <span className="relative flex h-6 items-center gap-0.5">
+              <img
+                src="/icons/house/banner.svg"
+                alt=""
+                width={22}
+                height={22}
+                className="h-[22px] w-[22px]"
+              />
+              <span data-testid="house-vassal-count" className="text-xs font-semibold tabular-nums">
+                {house.vassals}
+              </span>
+              {house.waiting > 0 && (
+                <span
+                  data-testid="house-waiting"
+                  className="absolute -top-2 -right-3 flex items-center"
+                >
+                  <img src="/icons/house/seal.svg" alt="" width={14} height={14} />
+                  <span className="text-[10px] font-bold tabular-nums">{house.waiting}</span>
+                </span>
+              )}
+            </span>
+          </IconButton>
+        )}
+        {war && (
+          <IconButton
+            label="Válka"
+            tooltip="Válka"
+            testId="war-toggle"
+            expanded={war.open}
+            onClick={war.onToggle}
+          >
+            <span
+              data-testid="war-count"
+              data-wars={war.wars}
+              className={`relative flex h-6 items-center gap-0.5 ${war.wars === 0 ? 'opacity-40' : ''}`}
+            >
+              <img
+                src="/icons/house/spears.svg"
+                alt=""
+                width={22}
+                height={22}
+                className="h-[22px] w-[22px]"
+              />
+              <span className="text-xs font-semibold tabular-nums">{war.wars}</span>
+            </span>
+          </IconButton>
+        )}
+        {war && war.protectionDaysLeft !== null && (
+          <Tooltip
+            content={`Ochrana nového rodu – ještě ${war.protectionDaysLeft} ${
+              war.protectionDaysLeft === 1 ? 'den' : war.protectionDaysLeft < 5 ? 'dny' : 'dní'
+            }`}
+          >
+            <span
+              tabIndex={0}
+              data-testid="protection-shield"
+              data-days={war.protectionDaysLeft}
+              aria-label={`Ochrana nového rodu – ještě ${war.protectionDaysLeft} dní`}
+              className="flex h-6 items-center gap-0.5"
+            >
+              <img
+                src="/icons/house/shield-hourglass.svg"
+                alt=""
+                width={22}
+                height={22}
+                className="h-[22px] w-[22px]"
+              />
+              <span className="text-xs font-semibold tabular-nums">{war.protectionDaysLeft}</span>
+            </span>
+          </Tooltip>
+        )}
         <IconButton
           label="Zvuky krajiny"
           tooltip={soundOn ? 'Zvuk' : 'Bez zvuku'}

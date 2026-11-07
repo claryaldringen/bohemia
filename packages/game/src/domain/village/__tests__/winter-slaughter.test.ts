@@ -3,7 +3,9 @@ import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
 import { DIET, villageFoodNeed } from '../diet';
 import { winterHayKg } from '../hay';
-import { herdingDemand, youngsterHerders } from '../herding';
+import { WILDLIFE_LAND } from '../rules-wildlife';
+import { freshWildlife } from '../wildlife';
+import { HERDING, herdingDemand, youngsterHerders } from '../herding';
 import { winterHayNeedKg } from '../husbandry';
 import {
   LIVESTOCK,
@@ -120,7 +122,7 @@ describe('porážka 1. 11. – co ves nechá přes zimu', () => {
     }
   });
 
-  it('chovné minimum zůstává, i když výrostci nebudou žádní', () => {
+  it('chovné minimum zůstává, i když výrostci nebudou žádní – nad ně pase dospělý', () => {
     const s = village(day);
     s.people = s.people.slice(0, 2);
     s.livestock!.herds = herds({ pig: 30, sheep: 30, goat: 6, cow: 8 });
@@ -128,8 +130,14 @@ describe('porážka 1. 11. – co ves nechá přes zimu', () => {
     slaughter(s, day, input);
     const floor = herds({ pig: 2, sheep: 6, goat: 2, cow: 3 });
     for (const species of ['pig', 'sheep', 'goat', 'cow'] as const) {
-      expect(kept(s)[species]).toBeCloseTo(floor[species], 9);
+      expect(kept(s)[species]).toBeGreaterThanOrEqual(floor[species] - 1e-9);
     }
+    // bez výrostků pase dospělý za jednoho výrostka (diet.md – Pasáci, Dospělý pasák; Martin
+    // 2. 11. 2026) – krávy napřed, nad chovné jen kolik uhlídá
+    const summer = nextSummerDay(day);
+    expect(herdingDemand(grown(kept(s)), 0, summer)).toBeCloseTo(HERDING.adultShare, 9);
+    expect(kept(s).cow).toBeGreaterThan(floor.cow);
+    expect(kept(s).pig).toBeCloseTo(floor.pig, 9);
   });
 
   it('staré kusy jdou na maso – i když ves maso nestihne sníst', () => {
@@ -162,9 +170,9 @@ describe('zimní porážka po dnech', () => {
   it('kusy na maso počkají, kolik ves přes zimu sní čerstvého – přebytek se hned udí', () => {
     const s = village(day);
     s.people = s.people.slice(0, 2);
-    // velké stádo prasat, výrostci žádní – na zimu zbyde chovný pár
+    // velké stádo prasat, přes rok ho nikdo nepásl – na zimu zbyde chovný pár
     s.livestock!.herds = herds({ pig: 60 });
-    const event = slaughter(s, day, { oxen: 0, hayKg: Infinity });
+    const event = slaughter(s, day, { oxen: 0, hayKg: Infinity, herding: 0 });
     const freshKg = freshMeatPerDayKg(s, day) * 151;
     const totalKg = 58 * LIVESTOCK.meatKg.pig;
     expect(freshKg).toBeLessThan(totalKg);
@@ -178,6 +186,9 @@ describe('zimní porážka po dnech', () => {
     const s = village(day - 1);
     s.people = s.people.slice(0, 2);
     s.livestock!.herds = herds({ pig: 8 });
+    // bez medvěda (bere prasata absolutně, 2 za sezónu – wildlife.md): test hlídá jen porážku
+    s.wildlife = freshWildlife({ ...WILDLIFE_LAND.defaultLand }, 8);
+    s.wildlife.bear = { present: false, backDay: null };
     const nov = advanceVillage(s, day, null);
     const waiting = cullingMeatKg(nov);
     expect(waiting).toBeGreaterThan(0);

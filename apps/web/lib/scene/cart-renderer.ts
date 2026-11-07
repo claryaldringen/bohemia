@@ -20,17 +20,22 @@ import {
   CART_PARTS,
   CART_PREFIX,
   CART_SCALE,
+  buildingCartParts,
   cartLength,
   cartPlanPose,
   cartPlanRoute,
   cartWheelCount,
   createCartPose,
   routeAt,
+  type CartLeg,
   type CartPlan,
   type CartPose,
   type RoutePoint,
 } from './cart-layout';
+import { pickCart, type CartFigure, type CartPart, type DraftHit } from './draft-pick';
 import { loadModelParts } from './instanced-model';
+import { RING_SIZE_M, SelectionRing } from './selection-ring';
+import type { Project } from './villager-pick';
 import { writePartMatrix, writeSegmentMatrix, type FigurePose, type GroundFn } from './plough-team';
 import {
   OX_LOOKS,
@@ -67,6 +72,19 @@ const SHADOW_OPACITY = 0.5;
 const SHADOW_LIFT_M = 0.04;
 /** Stínů na vůz: dva voli, honák a vůz. */
 const SHADOWS_PER_CART = 4;
+/**
+ * Kroužek pod vybraným vozem (villagers.md – Výběr postavy): před hlavami volů (m od jha při
+ * měřítku 1), přídavek k délce a nejmenší šířka elipsy (m při CART_SCALE 1).
+ */
+const CART_RING = { ahead: 1.3, pad: 1.4, width: 3 } as const;
+
+/** Vybraný vůz v okamžiku: kde v jízdě je, jestli veze náklad a jestli je vidět. */
+export interface CartSelectedState {
+  cart: number;
+  leg: CartLeg;
+  loaded: boolean;
+  hidden: boolean;
+}
 
 export interface CartRendererEnvironment {
   /** Adresa modelů (`/models/` – plough/ox.glb, plough/plowman.glb, plough/ard.glb, wagons/wagons.glb). */
@@ -77,6 +95,8 @@ export interface CartRendererEnvironment {
   prepareMaterial?: (material: Material) => void;
   /** Modely se načetly a vozy se objevily – překreslit. */
   onLoaded(): void;
+  /** Vybraný vůz (`select`) – kde v jízdě je; volá se jen při změně (null = vůz není). */
+  onSelected?(state: CartSelectedState | null): void;
 }
 
 /** Díl vozu v instancích a kam která instance patří (vůz, a u kol i které kolo). */
@@ -103,6 +123,11 @@ export class CartRenderer {
   private readonly poses: CartPose[] = [];
   private readonly bounds = new BoundingInfo(Vector3.Zero(), Vector3.Zero());
   private disposed = false;
+  /** Vybraný vůz nebo vozka (id vozu – villagers.md, Výběr postavy) a kroužek pod ním. */
+  private selected: { cart: number; figure: CartFigure } | null = null;
+  private ring: SelectionRing | null = null;
+  private selectedState: CartSelectedState | null = null;
+  private readonly probe = createCartPose();
 
   constructor(
     private readonly scene: Scene,
@@ -118,6 +143,33 @@ export class CartRenderer {
     this.allocate();
     this.updateBounds();
     if (this.count > 0) this.write(nowMs, false);
+    this.updateSelected(nowMs, false);
+  }
+
+  /**
+   * Vůz pod kurzorem (x, y – CSS px plátna): korba, voli a vozka v posledních zapsaných pózách;
+   * jen vozy vsi (s id). Jen při kliknutí. Nic – null.
+   */
+  pick(x: number, y: number, project: Project): (DraftHit<CartPart> & { cart: number }) | null {
+    if (this.count === 0) return null;
+    const carts = this.plans.flatMap((plan, i) =>
+      plan.id === undefined ? [] : [{ kind: plan.kind, pose: this.poses[i]!, id: plan.id }],
+    );
+    const hit = pickCart(carts, x, y, project);
+    return hit ? { ...hit, cart: carts[hit.index]!.id } : null;
+  }
+
+  /**
+   * Vybere vůz (id) – celý (kroužek kolem volů a vozu), nebo vozku (kroužek pod ním); null výběr
+   * zruší. Kroužek pak sleduje pohyb, stav hlásí `onSelected`.
+   */
+  select(selection: { cart: number; figure: CartFigure } | null, nowMs = Date.now()): void {
+    const before = this.selected;
+    if (before?.cart === selection?.cart && before?.figure === selection?.figure) return;
+    this.selected = selection;
+    if (this.count > 0) this.writeRing();
+    else this.ring?.hide();
+    this.updateSelected(nowMs, false);
   }
 
   /** Počet vozů s načtenými modely (pro testy a měření). */
@@ -138,6 +190,8 @@ export class CartRenderer {
    * vždy. `frozen` = omezený pohyb: stálá póza, nohy a kola stojí.
    */
   animate(nowMs: number, camera: Camera | null, frozen = false): boolean {
+    // kde je vybraný vůz – i mimo záběr (panel výběru)
+    if (this.selected) this.updateSelected(nowMs, frozen);
     if (this.count === 0) return false;
     if (camera) {
       if (!camera.isInFrustum(this.bounds)) return false;
@@ -164,6 +218,83 @@ export class CartRenderer {
     this.shadow?.mesh.material?.dispose(true, true);
     this.shadow?.mesh.dispose();
     this.shadow = null;
+    this.ring?.dispose();
+    this.ring = null;
+  }
+
+  /** Kde je vybraný vůz v okamžiku `nowMs` – ohlásí jen změnu (`onSelected`). */
+  private updateSelected(nowMs: number, frozen: boolean): void {
+    const id = this.selected?.cart;
+    const plan = id === undefined ? undefined : this.plans.find((p) => p.id === id);
+    let state: CartSelectedState | null = null;
+    if (id !== undefined && plan) {
+      const pose = cartPlanPose(plan, nowMs, this.probe, this.env.groundHeight, frozen);
+      state = {
+        cart: id,
+        leg: pose.leg ?? 'loop',
+        loaded: pose.loaded,
+        hidden: pose.hidden === true,
+      };
+    }
+    const before = this.selectedState;
+    const same =
+      before === null || state === null
+        ? before === state
+        : before.cart === state.cart &&
+          before.leg === state.leg &&
+          before.loaded === state.loaded &&
+          before.hidden === state.hidden;
+    if (same) return;
+    this.selectedState = state;
+    this.env.onSelected?.(state);
+  }
+
+  /**
+   * Kroužek pod vybraným vozem podle posledních póz: zapřažený vůz elipsou od hlav volů po zadek
+   * korby, stojící vůz kolem korby, vozka kroužkem pod nohama; vůz za krajem mapy bez kroužku.
+   */
+  private writeRing(): void {
+    const selected = this.selected;
+    const index = selected ? this.plans.findIndex((p) => p.id === selected.cart) : -1;
+    const pose = index >= 0 ? this.poses[index] : undefined;
+    const plan = index >= 0 ? this.plans[index] : undefined;
+    if (
+      !selected ||
+      !pose ||
+      !plan ||
+      pose.hidden ||
+      (selected.figure === 'drover' && !pose.hitched)
+    ) {
+      this.ring?.hide();
+      return;
+    }
+    const ring = (this.ring ??= new SelectionRing(this.scene, 'cart-ring'));
+    const ground = this.env.groundHeight;
+    if (selected.figure === 'drover') {
+      const f = pose.boy;
+      ring.show(ground, f.x, f.y, f.z, RING_SIZE_M * CART_SCALE * CART_PARTS.drover.scale);
+      return;
+    }
+    const kind = CART_PARTS[plan.kind];
+    const body = pose.body;
+    const len = Math.hypot(body.fx, body.fz) || 1;
+    const fx = body.fx / len;
+    const fz = body.fz / len;
+    const bx = body.x - fx * kind.back * CART_SCALE;
+    const bz = body.z - fz * kind.back * CART_SCALE;
+    let ax = body.x + fx * kind.front * CART_SCALE;
+    let az = body.z + fz * kind.front * CART_SCALE;
+    if (pose.hitched) {
+      const yoke = pose.yoke;
+      const yl = Math.hypot(yoke.fx, yoke.fz) || 1;
+      ax = yoke.x + (yoke.fx / yl) * CART_RING.ahead * CART_SCALE;
+      az = yoke.z + (yoke.fz / yl) * CART_RING.ahead * CART_SCALE;
+    }
+    const x = (ax + bx) / 2;
+    const z = (az + bz) / 2;
+    const length = Math.hypot(ax - bx, az - bz) + CART_RING.pad * CART_SCALE;
+    const width = Math.max(CART_RING.width, kind.halfWidth * 2 + 1.5) * CART_SCALE;
+    ring.show(ground, x, ground(x, z), z, length, width, ax - bx, az - bz);
   }
 
   /** Obal všech vozů na celých trasách i stojících (stálý, dokud se plány nezmění). */
@@ -220,11 +351,13 @@ export class CartRenderer {
     this.plans.forEach((plan, cart) => {
       const prefix = CART_PREFIX[plan.kind];
       add(`${prefix}-body`, cart);
-      if (plan.kind === 'four-wheel') {
-        add('wagon4-front', cart);
-        add('wagon4-pole', cart);
+      // rozdělaný vůz u tesaře – díly podle fáze stavby (korba, kola a předek, oj)
+      const parts = buildingCartParts(plan.kind, 'parked' in plan ? plan.build : undefined);
+      if (parts.front) add('wagon4-front', cart);
+      if (parts.pole) add('wagon4-pole', cart);
+      if (parts.wheels) {
+        for (let w = 0; w < cartWheelCount(plan.kind); w++) add('wagon-wheel', cart, w);
       }
-      for (let w = 0; w < cartWheelCount(plan.kind); w++) add('wagon-wheel', cart, w);
       if ('parked' in plan) return;
       if (plan.cargo !== 'empty') add(`${prefix}-${plan.cargo}`, cart);
       add(YOKE_PART[plan.kind], cart);
@@ -392,6 +525,7 @@ export class CartRenderer {
       kind.manager.time = time;
     }
     this.shadow?.mesh.thinInstanceBufferUpdated('matrix');
+    if (this.selected) this.writeRing();
   }
 
   /** Stín: elipsa natočená ve směru pohledu (délka a šířka v m při CART_SCALE 1). */

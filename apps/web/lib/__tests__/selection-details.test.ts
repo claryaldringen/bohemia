@@ -63,9 +63,10 @@ const view = {
   extinct: null,
   abandoned: null,
   journey: null,
+  pendingDeparture: null,
   crafts: {
     present: true,
-    stocks: { charcoalKg: 40, toolsKg: 6, potteryKg: 12.4 },
+    stocks: { charcoalKg: 40, potteryKg: 12.4, ironBarsKg: 6 },
     needs: { toolsKg: 12, potteryKg: 30 },
     coverage: { tools: 0.5, pottery: 0.41 },
     workshops: [
@@ -91,6 +92,7 @@ const view = {
       overcrowded: false,
       condition: 0.8,
       ages: [27, 26, 15, 3],
+      residents: [],
       ageYears: 2,
       relocation: null,
       relocationBlock: null,
@@ -105,6 +107,7 @@ const view = {
       overcrowded: false,
       condition: 1,
       ages: [24, 22],
+      residents: [],
       ageYears: 1,
       // kovářova domácnost si staví nový dům (stavba 9 – migration.md)
       relocation: { constructionId: 9, type: 'polozemnice', progress: 0.4, treesToFell: 5 },
@@ -145,6 +148,7 @@ const view = {
       stages: { sown: 6, founding: 4 },
       surfaces: { meadow: 10 },
       crops: { spring: 1, legume: 1, winter: 4 },
+      turn: { winter: 2, spring: 0, resting: 3, surplus: { winter: 1, spring: 0 } },
       ashParts: 0,
       ashBonus: 0,
     },
@@ -155,6 +159,7 @@ const view = {
       stages: { ready: 6 },
       surfaces: { forest: 4, meadow: 1, shrub: 1 },
       crops: {},
+      turn: { winter: 0, spring: 0, resting: 0, surplus: { winter: 0, spring: 0 } },
       ashParts: 4,
       ashBonus: 40,
     },
@@ -255,6 +260,7 @@ const view = {
   pens: [
     {
       id: 90,
+      species: 'cattle',
       built: true,
       progress: 1,
       team: { ageYears: 3, yearsLeft: 7 },
@@ -278,6 +284,7 @@ const view = {
       repair: null,
     },
   ],
+  steward: { on: false, built: [] },
 } as unknown as VillageView;
 
 describe('selectionDetails', () => {
@@ -295,6 +302,7 @@ describe('selectionDetails', () => {
       occupants: 4,
       capacity: 6,
       ages: [27, 26, 15, 3],
+      residents: [],
       condition: 0.8,
       ageYears: 2,
       full: false,
@@ -304,6 +312,7 @@ describe('selectionDetails', () => {
       relocation: null,
       relocate: view.relocation,
       manor: null,
+      lordWifeHome: null,
       // odejít smí: 4 lidé, unesou 3 od 7 let (75 kg), díl zásob 4/6 by byl víc
       leave: { households: [1], people: 4, foodKg: 75, cart: null, directions: LEAVE_DIRECTIONS },
     });
@@ -361,7 +370,7 @@ describe('selectionDetails', () => {
         kilns: [],
         toPlant: 0,
         stockKg: 6,
-        coverage: 0.5,
+        coverage: null,
       },
     });
   });
@@ -405,10 +414,25 @@ describe('selectionDetails', () => {
         { crop: 'spring', count: 1 },
         { crop: 'legume', count: 1 },
       ],
+      // na řadě jen nenulové; nad potřebu v popisku (fields.md – Osevní postup po dílech)
+      turn: [{ crop: 'winter', count: 2, surplus: 1 }],
+      resting: 3,
       ashParts: 0,
       ashBonus: 0,
       founding: 0.25,
+      fieldIds: view.fields.map((f) => f.id),
     });
+  });
+
+  it('všechna pole najednou: počet a součet výměry jen existujících polí', () => {
+    const ids = view.fields.map((f) => f.id);
+    const total = view.fields.reduce((sum, f) => sum + f.areaM2, 0);
+    expect(selectionDetails(view, scene, { kind: 'fields', ids: [...ids, 777] })).toEqual({
+      kind: 'fields',
+      ids,
+      areaM2: total,
+    });
+    expect(selectionDetails(view, scene, { kind: 'fields', ids: [777] })).toBeNull();
   });
 
   it('pole z vymýceného lesa: díly podle povrchu v pořadí louka, křoviny, les a popel', () => {
@@ -496,9 +520,21 @@ describe('selectionDetails – díl pole a čtverec sadu (klik – fields.md, Co
                 sow: 1,
                 harvest: 0.4,
               },
+              surplus: true,
             },
+            next: 'fallow',
+            rest: { share: 0.81, years: 8 },
           },
-          { id: 52, areaM2: 180, fertility: 70, walkM: 120, fallowYears: 6, work: { mow: 0.25 } },
+          {
+            id: 52,
+            areaM2: 180,
+            fertility: 70,
+            walkM: 120,
+            fallowYears: 6,
+            work: { mow: 0.25 },
+            next: 'fallow',
+            rest: { share: 0.77, years: 7 },
+          },
         ],
       },
     ],
@@ -519,6 +555,7 @@ describe('selectionDetails – díl pole a čtverec sadu (klik – fields.md, Co
         ],
       },
     ],
+    steward: { on: false, built: [] },
   } as unknown as VillageView;
 
   it('osetý díl: co je vidět ze scény, čísla dílu z pohledu, dům hospodářství', () => {
@@ -551,7 +588,11 @@ describe('selectionDetails – díl pole a čtverec sadu (klik – fields.md, Co
       grazed: null,
       crop: { crop: 'legume', prep: { task: 'plough', share: 1 }, sow: 1, harvest: 0.4 },
       mow: null,
+      next: 'fallow',
+      rest: { share: 0.81, years: 8 },
+      surplus: true,
       founding: null,
+      fieldIds: [5],
     });
     expect(fieldPartName(details as Extract<typeof details, { kind: 'field-part' }>)).toBe(
       'Zralé luštěniny',
@@ -573,6 +614,9 @@ describe('selectionDetails – díl pole a čtverec sadu (klik – fields.md, Co
       grazed: true,
       crop: null,
       mow: 0.25,
+      next: 'fallow',
+      rest: { share: 0.77, years: 7 },
+      surplus: false,
     });
   });
 
@@ -744,27 +788,55 @@ describe('selectionDetails – posvátná místa', () => {
     expect(selectionDetails(view, scene, { kind: 'sacred', id: 99 })).toBeNull();
   });
 
-  it('ohrada: zvířata, seno, stáda vsi s pastvou, voli a důvod, proč výcvik nejde', () => {
+  it('ohrada: zvířata, seno, stádo jen druhu ohrady, voli a důvod, proč výcvik nejde', () => {
     expect(selectionDetails(view, scene, { kind: 'pen', id: 90 })).toEqual({
       kind: 'pen',
       id: 90,
+      species: 'cattle',
       built: true,
       progress: 1,
       oxen: 2,
       oxenVillage: null,
       cows: 4,
-      herds: { sheep: 9, goat: 3, pig: 7, cow: 4 },
-      chickens: 6,
-      pastureHa: 41.5,
-      grazingHa: 8.4,
-      milkLPerDay: 14.2,
+      // jen stádo druhu ohrady (skot = krávy); slepice, pastva a mléko vsi v panelu nejsou
+      herd: { species: 'cow', count: 4 },
       team: { ageYears: 3, yearsLeft: 7 },
       training: null,
       hayKg: 3200,
+      horses: null,
       condition: 0.7,
       abandoned: false,
       repair: 0.25,
     });
+    // ohrada koní nese koně vsi (horses.md – Co hráč vidí); jezdec nese svého koně
+    const horses = {
+      count: 1,
+      kinds: { riding: 1, mares: 0, foals: 0 },
+      places: 4,
+      wanted: { riding: 1, mares: 1, foals: 0 },
+      overRoom: false,
+      fed: false,
+      grainKgPerDay: 1.5,
+      hayWinterKg: 1057,
+      horses: [
+        {
+          id: 7,
+          kind: 'riding' as const,
+          ageYears: 5,
+          training: 0.2,
+          stallion: true,
+          penId: 90,
+          riderId: 10,
+        },
+      ],
+    };
+    const stud = {
+      ...view,
+      horses,
+      pens: view.pens.map((p) => (p.id === 90 ? { ...p, species: 'horse' as const } : p)),
+    };
+    expect(selectionDetails(stud, scene, { kind: 'pen', id: 90 })).toMatchObject({ horses });
+    expect(selectionDetails(view, scene, { kind: 'pen', id: 90 })).toMatchObject({ horses: null });
     expect(selectionDetails(view, scene, { kind: 'pen', id: 91 })).toMatchObject({
       kind: 'pen',
       built: false,
@@ -823,5 +895,29 @@ describe('selectionDetails – rudiště (crafts.md – Uhlí a ruda kováře)',
     expect(selectionDetails(view, withClay, { kind: 'ore-site', id: 3 })).toBeNull();
     expect(selectionDetails(view, withClay, { kind: 'clay-site', id: 2 })).toBeNull();
     expect(selectionDetails(view, withOre, { kind: 'clay-site', id: 3 })).toBeNull();
+  });
+});
+
+describe('selectionDetails – správce (steward.md – Co hráč vidí)', () => {
+  it('stavba s id ve view.steward.built nese značku, ostatní ne', () => {
+    const stewarded = { ...view, steward: { on: true, built: [2] } } as VillageView;
+    expect(selectionDetails(stewarded, scene, { kind: 'dwelling', id: 2 })?.stewardBuilt).toBe(
+      true,
+    );
+    expect(selectionDetails(stewarded, scene, { kind: 'dwelling', id: 1 })?.stewardBuilt).toBe(
+      undefined,
+    );
+    expect(selectionDetails(view, scene, { kind: 'dwelling', id: 2 })?.stewardBuilt).toBe(
+      undefined,
+    );
+  });
+
+  it('značku nese i posvátná stavba a humno', () => {
+    const stewarded = { ...view, steward: { on: true, built: [40] } } as VillageView;
+    expect(selectionDetails(stewarded, scene, { kind: 'sacred', id: 40 })?.stewardBuilt).toBe(true);
+  });
+
+  it('přepínač správce jen u dvorce vojvody, ne u běžného obydlí', () => {
+    expect(selectionDetails(view, scene, { kind: 'dwelling', id: 1 })?.steward).toBeUndefined();
   });
 });

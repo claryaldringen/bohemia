@@ -1,17 +1,49 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import type { WagonRoadPlan } from '@bohemia/game';
+import type { RoadApplesOption, WagonRoadPlan } from '@bohemia/game';
+import { PanelOptionsContext, type PanelOptionsSource } from '@/hooks/use-panel-options';
 import type { SelectionDetails } from '@/lib/selection-details';
 import { SelectionPanel } from '../SelectionPanel';
 
 // Panel pevné cesty (roads.md – Co hráč vidí): druh, délka, stáří, stromy, vylepšení a jabloně.
 
-const road = (
-  over: Partial<Extract<SelectionDetails, { kind: 'road' }>> = {},
-): SelectionDetails => ({
+const PARTS = {
+  improved: { manDays: 15, trees: 0 },
+  causeway: { manDays: 18, trees: 9 },
+  footbridge: { manDays: 15, trees: 4 },
+};
+
+const ENDS: Extract<SelectionDetails, { kind: 'road' }>['ends'] = [
+  {
+    kind: 'place',
+    name: 'Obydlí – polozemnice',
+    icon: '/icons/build/polozemnice.png',
+    arrow: null,
+    target: { kind: 'dwelling', id: 12 },
+    log: 'dwelling 12',
+  },
+  {
+    kind: 'junction',
+    name: 'Křižovatka',
+    icon: '/icons/build/krizovatka-kriz.png',
+    arrow: null,
+    target: { kind: 'junction', id: 565 },
+    log: 'junction 565',
+  },
+];
+
+type RoadDetails = Extract<SelectionDetails, { kind: 'road' }>;
+
+/** Údaje cesty a nabídka „Vysadit jabloně“, kterou server pošle až na vyžádání panelu. */
+type RoadFixture = Omit<RoadDetails, 'apples'> & {
+  apples: RoadDetails['apples'] & { option?: RoadApplesOption };
+};
+
+const road = (over: Partial<Omit<RoadFixture, 'kind'>> = {}): RoadFixture => ({
   kind: 'road',
   id: 4,
   segments: [4],
+  ends: ENDS,
   roadKind: 'trodden',
   lengthM: 120,
   kinds: [{ kind: 'trodden', lengthM: 120 }],
@@ -21,22 +53,16 @@ const road = (
   wetM: 18,
   fords: 1,
   building: null,
+  cancelId: null,
   upgrades: [
     {
       upgrade: 'improved',
-      laborManDays: 18,
-      trees: 0,
-      treesToFell: 0,
-      swathTrees: 0,
-      blocked: null,
-    },
-    {
-      upgrade: 'causeway',
-      laborManDays: 33,
+      laborManDays: 51,
       trees: 13,
       treesToFell: 5,
       swathTrees: 0,
-      blocked: 'Nejdřív je potřeba cestu upravit.',
+      parts: PARTS,
+      blocked: null,
     },
   ],
   wagon: { status: 'none', progress: 0, blocked: null },
@@ -49,14 +75,27 @@ const road = (
   ...over,
 });
 
-const render = (details: SelectionDetails): string =>
-  renderToStaticMarkup(
-    <SelectionPanel
-      details={details}
-      onUpgradeRoad={() => Promise.resolve()}
-      onPlantRoadApples={() => Promise.resolve()}
-    />,
+/** Panel cesty; nabídka jabloní z fixture jako odpověď serveru (`usePanelOptions`). */
+const render = (details: SelectionDetails | RoadFixture): string => {
+  const option = details.kind === 'road' ? (details as RoadFixture).apples.option : undefined;
+  const source: PanelOptionsSource = {
+    key: 'test',
+    load: () => Promise.resolve(null),
+    peek: (ask) =>
+      option && ask.panel === 'road-apples'
+        ? { panel: 'road-apples', roadId: ask.roadId, option }
+        : null,
+  };
+  return renderToStaticMarkup(
+    <PanelOptionsContext.Provider value={source}>
+      <SelectionPanel
+        details={details}
+        onUpgradeRoad={() => Promise.resolve()}
+        onPlantRoadApples={() => Promise.resolve()}
+      />
+    </PanelOptionsContext.Provider>,
   );
+};
 
 const button = (html: string, upgrade: string): string | undefined =>
   new RegExp(`<button[^>]*data-testid="road-upgrade-${upgrade}"[^>]*>`).exec(html)?.[0];
@@ -64,6 +103,45 @@ const plantButton = (html: string): string | undefined =>
   /<button[^>]*data-testid="road-plant-apples"[^>]*>/.exec(html)?.[0];
 
 describe('SelectionPanel – pevná cesta', () => {
+  it('oba konce cesty: ikona stavby a křižovatky, názvy jen v popiscích (Martin 25. 10. 2026)', () => {
+    const html = render(road());
+    expect(html).toContain('data-testid="selection-road-end-0"');
+    expect(html).toContain('aria-label="Obydlí – polozemnice"');
+    expect(html).toContain('/icons/build/polozemnice.png');
+    expect(html).toContain('aria-label="Křižovatka"');
+    expect(html).toContain('/icons/build/krizovatka-kriz.png');
+  });
+
+  it('kraj mapy se šipkou směru, konec nikam červeně s varováním', () => {
+    const html = render(
+      road({
+        ends: [
+          {
+            kind: 'edge',
+            name: 'Kraj mapy – sever',
+            icon: null,
+            arrow: '↑',
+            target: null,
+            log: 'edge N',
+          },
+          {
+            kind: 'none',
+            alert: true,
+            name: 'Cesta tu nikam nevede.',
+            icon: null,
+            arrow: null,
+            target: null,
+            log: 'nikam',
+          },
+        ],
+      }),
+    );
+    expect(html).toContain('aria-label="Kraj mapy – sever"');
+    expect(html).toContain('↑');
+    expect(html).toMatch(/data-end-kind="none"[^>]*data-alert="true"/);
+    expect(html).toContain('aria-label="Cesta tu nikam nevede."');
+  });
+
   it('vyježděná cesta je vlastní druh – portrét a název, ne vyšlapaná s ikonou vozu', () => {
     const html = render(road({ roadKind: 'cart', kinds: [{ kind: 'cart', lengthM: 120 }] }));
     expect(html).toContain('Vyježděná cesta');
@@ -111,11 +189,66 @@ describe('SelectionPanel – pevná cesta', () => {
     expect(html).toContain('Vyježděná cesta');
   });
 
-  it('tlačítka vylepšení s ikonou – nedostupné zašedlé s důvodem', () => {
+  it('jedno tlačítko „Upravit cestu“ (hať a lávka jsou jeho součástí) s cenou i dřevem', () => {
     const html = render(road());
     expect(button(html, 'improved')).not.toContain('disabled=""');
-    expect(button(html, 'causeway')).toContain('disabled=""');
-    expect(html).toContain('/icons/build/hat.png');
+    expect(html).not.toContain('road-upgrade-causeway');
+    const blocked = render(
+      road({
+        upgrades: [
+          {
+            upgrade: 'improved',
+            laborManDays: 51,
+            trees: 13,
+            treesToFell: 5,
+            swathTrees: 0,
+            parts: PARTS,
+            blocked: 'Na hať a lávku chybí dřevo.',
+          },
+        ],
+      }),
+    );
+    expect(button(blocked, 'improved')).toContain('disabled=""');
+  });
+
+  it('popisek „Upravit cestu“ ukáže rozpad ceny: úprava, hať, lávka', () => {
+    const html = render(road());
+    expect(html).toMatch(/data-testid="road-upgrade-part-improved"[^>]*>.*Úprava.*15/);
+    expect(html).toMatch(/data-testid="road-upgrade-part-causeway"[^>]*>.*Hať.*18.*9/);
+    expect(html).toMatch(/data-testid="road-upgrade-part-footbridge"[^>]*>.*Lávka.*15.*4/);
+    // suchá cesta bez mokřiny a brodu: jediná část, rozpad se nezobrazí
+    const dry = render(
+      road({
+        upgrades: [
+          {
+            upgrade: 'improved',
+            laborManDays: 15,
+            trees: 0,
+            treesToFell: 0,
+            swathTrees: 0,
+            parts: {
+              improved: { manDays: 15, trees: 0 },
+              causeway: { manDays: 0, trees: 0 },
+              footbridge: { manDays: 0, trees: 0 },
+            },
+            blocked: null,
+          },
+        ],
+      }),
+    );
+    expect(dry).not.toContain('road-upgrade-parts');
+  });
+
+  it('rozdělanou úpravu nebo vozovou cestu jde zrušit – tlačítko Zrušit stavbu (Úloha 10b)', () => {
+    const details = {
+      ...road({
+        building: { grade: 'improved', progress: 0.4, treesToFell: 0 },
+        cancelId: 12,
+      }),
+      cancelConstructionId: 12,
+    } as SelectionDetails;
+    expect(render(details)).toContain('data-testid="cancel-construction"');
+    expect(render(road())).not.toContain('data-testid="cancel-construction"');
   });
 
   it('rozestavěné vylepšení ukáže průběh, hotová hať žádné tlačítko', () => {
@@ -221,6 +354,9 @@ describe('SelectionPanel – vozová cesta (roads.md – Vozová cesta)', () => 
     pieces: [],
     lengthM: 412.4,
     oldLengthM: 300.2,
+    bypassed: [],
+    footbridgeTrees: 0,
+    missingWood: 0,
     maxGrade: 0.06,
     oldMaxGrade: 0.142,
     maxCutM: 2.4,
@@ -255,6 +391,12 @@ describe('SelectionPanel – vozová cesta (roads.md – Vozová cesta)', () => 
     expect(html).toMatch(/data-testid="wagon-grade"[^>]*>sklon 14,2 % → 6 %</);
     expect(html).toMatch(/data-testid="wagon-earthworks"[^>]*>úvoz 2,4 m · násep 1,1 m</);
     expect(html).toContain('neprojede → 7,4 min');
+  });
+
+  it('chybí dřevo na lávku: tlačítko zašedlé s důvodem', () => {
+    const html = renderWith(road(), { ...plan, footbridgeTrees: 4, missingWood: 2 });
+    expect(wagonButton(html)).toContain('disabled=""');
+    expect(html).toContain('Na lávku chybí dřevo.');
   });
 
   it('než se trasa najde, tlačítko čeká; trasa nejde – důvod červeně', () => {

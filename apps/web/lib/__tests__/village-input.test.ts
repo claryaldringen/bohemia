@@ -5,12 +5,14 @@ import {
   parsePlaceDwellingInput,
   parsePlaceFieldInput,
   parsePlaceSacredInput,
+  parsePlaceThreshingFloorInput,
   parsePlaceWorkshopInput,
   parseRenameVillageInput,
   parseRestartGameInput,
   parsePosition,
   parseSkipTimeInput,
-  parseCancelRelocationInput,
+  parseCancelConstructionInput,
+  parseNameLineManInput,
   parseRelocateHouseholdInput,
   parseVillageId,
   villageIdOf,
@@ -70,6 +72,17 @@ describe('ověření vstupu server actions vsi', () => {
       dwelling,
       fieldCells: [],
     });
+    // jméno vojvody (lord.md – Zakladatelé) – jen tvar, písmena ověří use-case; bez něj čeká
+    expect(parseFoundVillageInput({ name: 'Libice', dwelling, lordName: 'Bořivoj' })).toEqual({
+      name: 'Libice',
+      dwelling,
+      fieldCells: [],
+      lordName: 'Bořivoj',
+    });
+    expect(parseFoundVillageInput({ name: 'Libice', dwelling, lordName: 7 })).toBeNull();
+    expect(
+      parseFoundVillageInput({ name: 'Libice', dwelling, lordName: 'x'.repeat(201) }),
+    ).toBeNull();
     expect(parseRenameVillageInput({ name: 'Lhota' })).toEqual({ name: 'Lhota' });
     expect(parseRenameVillageInput({ name: 'x'.repeat(201) })).toBeNull();
     expect(parseRenameVillageInput('Lhota')).toBeNull();
@@ -137,6 +150,18 @@ describe('vstup stavby modly a svatyně', () => {
   });
 });
 
+describe('vstup stavby humna', () => {
+  it('poloha s konečnými čísly (přebytečné klíče zahodí), jinak null', () => {
+    const position = { x: 1, z: 2, rotation: 0.5 };
+    expect(parsePlaceThreshingFloorInput({ position, kind: 'idol' })).toEqual({ position });
+    expect(
+      parsePlaceThreshingFloorInput({ position: { x: 1, z: 2, rotation: Infinity } }),
+    ).toBeNull();
+    expect(parsePlaceThreshingFloorInput({})).toBeNull();
+    expect(parsePlaceThreshingFloorInput('humno')).toBeNull();
+  });
+});
+
 describe('vstup stavby řemeslné dílny', () => {
   it('řemeslo potter / smith / burner a poloha s konečnými čísly, jinak null', () => {
     const position = { x: 1, z: 2, rotation: 0.5 };
@@ -193,20 +218,32 @@ describe('vstupy víc vsí a přestěhování (migration.md)', () => {
   });
 
   it('zrušení přestěhování: kladné celé id stavby', () => {
-    expect(parseCancelRelocationInput({ constructionId: 12 })).toEqual({ constructionId: 12 });
-    expect(parseCancelRelocationInput({ constructionId: -1 })).toBeNull();
-    expect(parseCancelRelocationInput({ constructionId: '12' })).toBeNull();
-    expect(parseCancelRelocationInput(undefined)).toBeNull();
+    expect(parseCancelConstructionInput({ constructionId: 12 })).toEqual({ constructionId: 12 });
+    expect(parseCancelConstructionInput({ constructionId: -1 })).toBeNull();
+    expect(parseCancelConstructionInput({ constructionId: '12' })).toBeNull();
+    expect(parseCancelConstructionInput(undefined)).toBeNull();
+  });
+
+  it('pojmenování muže rodu – kladné id člověka a jméno (písmena ověří use-case)', () => {
+    expect(parseNameLineManInput({ personId: 12, name: 'Mrdomír' })).toEqual({
+      personId: 12,
+      name: 'Mrdomír',
+    });
+    expect(parseNameLineManInput({ personId: 0, name: 'Mrdomír' })).toBeNull();
+    expect(parseNameLineManInput({ personId: '12', name: 'Mrdomír' })).toBeNull();
+    expect(parseNameLineManInput({ personId: 12, name: 5 })).toBeNull();
+    expect(parseNameLineManInput({ personId: 12, name: 'x'.repeat(201) })).toBeNull();
+    expect(parseNameLineManInput(null)).toBeNull();
   });
 });
 
 describe('parseUpgradeRoadInput', () => {
-  it('úsek a vylepšení – jen upravená cesta nebo hať a lávka', () => {
+  it('úsek a vylepšení – jen úprava cesty (hať a lávka jsou její součástí)', () => {
     expect(parseUpgradeRoadInput({ roadId: 4, upgrade: 'improved' })).toEqual({
       roadId: 4,
       upgrade: 'improved',
     });
-    expect(parseUpgradeRoadInput({ roadId: 4, upgrade: 'causeway' })?.upgrade).toBe('causeway');
+    expect(parseUpgradeRoadInput({ roadId: 4, upgrade: 'causeway' })).toBeNull();
     expect(parseUpgradeRoadInput({ roadId: 4, upgrade: 'trodden' })).toBeNull();
     expect(parseUpgradeRoadInput({ roadId: 0, upgrade: 'improved' })).toBeNull();
     expect(parseUpgradeRoadInput({ roadId: 1.5, upgrade: 'improved' })).toBeNull();
@@ -239,9 +276,9 @@ describe('vstup stezky a obchodu (trade.md)', () => {
       parseSendExpeditionInput({
         direction: 'N',
         give: { grain: 100, logs: 0 },
-        get: { tools: 2 },
+        get: { ironBars: 2 },
       }),
-    ).toEqual({ direction: 'N', give: { grain: 100 }, get: { tools: 2 } });
+    ).toEqual({ direction: 'N', give: { grain: 100 }, get: { ironBars: 2 } });
     expect(parseSendExpeditionInput({ direction: 'N', give: { gold: 1 }, get: {} })).toBeNull();
     // lidé (trade.md – Výměna lidí): rodiny, muži a ženy zvlášť celými nezápornými čísly,
     // chybějící druh 0, chybí celé = nikdo
@@ -281,21 +318,45 @@ describe('vstup stezky a obchodu (trade.md)', () => {
 describe('vstupy odchodu do nové vsi (migration.md – fáze 3 a 4)', () => {
   const dwelling = { x: 1, z: 2, rotation: 0 };
 
-  it('odchod na téže mapě i na novou mapu', () => {
+  it('odchod jen na novou mapu – na téže mapě (`here`) null (jedna ves, jedna mapa)', () => {
     expect(
       parseLeaveVillageInput({ dwellingIds: [3, 5], destination: { kind: 'here', dwelling } }),
-    ).toEqual({ dwellingIds: [3, 5], destination: { kind: 'here', dwelling } });
+    ).toBeNull();
     expect(
       parseLeaveVillageInput({ dwellingIds: [3], destination: { kind: 'map', direction: 'SW' } }),
     ).toEqual({ dwellingIds: [3], destination: { kind: 'map', direction: 'SW' } });
   });
 
-  it('bez obydlí, se špatným id, směrem nebo cílem null', () => {
+  it('odchod syna vojvody: sonId místo obydlí, ne obojí', () => {
     expect(
-      parseLeaveVillageInput({ dwellingIds: [], destination: { kind: 'here', dwelling } }),
+      parseLeaveVillageInput({ sonId: 7, destination: { kind: 'map', direction: 'N' } }),
+    ).toEqual({ sonId: 7, destination: { kind: 'map', direction: 'N' } });
+    expect(
+      parseLeaveVillageInput({ sonId: 7, destination: { kind: 'here', dwelling } }),
     ).toBeNull();
     expect(
-      parseLeaveVillageInput({ dwellingIds: [0], destination: { kind: 'here', dwelling } }),
+      parseLeaveVillageInput({ sonId: 0, destination: { kind: 'map', direction: 'N' } }),
+    ).toBeNull();
+    expect(
+      parseLeaveVillageInput({
+        sonId: 7,
+        dwellingIds: [1],
+        destination: { kind: 'map', direction: 'N' },
+      }),
+    ).toBeNull();
+    expect(parseLeaveVillageInput({ sonId: 7 })).toBeNull();
+    // null / nečíslo / prázdná obydlí vedle sonId nesmí projít
+    const map = { kind: 'map', direction: 'N' };
+    expect(parseLeaveVillageInput({ sonId: null, destination: map })).toBeNull();
+    expect(parseLeaveVillageInput({ sonId: 7, dwellingIds: [], destination: map })).toBeNull();
+  });
+
+  it('bez obydlí, se špatným id, směrem nebo cílem null', () => {
+    expect(
+      parseLeaveVillageInput({ dwellingIds: [], destination: { kind: 'map', direction: 'N' } }),
+    ).toBeNull();
+    expect(
+      parseLeaveVillageInput({ dwellingIds: [0], destination: { kind: 'map', direction: 'N' } }),
     ).toBeNull();
     expect(
       parseLeaveVillageInput({ dwellingIds: [1], destination: { kind: 'map', direction: 'UP' } }),

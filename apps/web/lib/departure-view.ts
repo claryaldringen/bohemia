@@ -5,18 +5,19 @@ import {
   dateOfDayIndex,
   directionBetween,
   edgeDistanceM,
+  lineMen,
+  sonDeparturePreview,
   travelDays,
   villageCentre,
   type CartKind,
   type Direction8,
   type Landscape,
+  type PendingDeparture,
   type VillageState,
 } from '@bohemia/game';
-import type { SceneSacred, SceneVillage } from './village-view';
 
 // Odchod do nové vsi v pohledu na ves (migration.md – fáze 3 a 4): cesta na novou mapu po
-// směrech, vlastní vsi na sousedních mapách, lidé na cestě, opuštěná ves a stavby jiných vsí
-// téže mapy pro scénu. Čistý modul – smí i do prohlížeče (typy).
+// směrech, vlastní vsi na sousedních mapách, lidé na cestě, opuštěná ves. Čistý modul – smí i do prohlížeče (typy).
 
 /** Odchod na novou mapu ve směru – dny cesty, nebo proč tím směrem nejde. */
 export interface LeaveDirection {
@@ -38,6 +39,56 @@ export interface VillageLeave {
   allCart: CartKind | null;
 }
 
+/**
+ * Odchod mladšího syna po pohřbu (seniorate.md, bod 4): kolik dní zbývá na volbu směru, kdo a co
+ * odejde (díl jako u odchodu syna – počty, obrys obydlí), směry a jména rodu pro panel jména.
+ */
+export interface PendingDepartureView {
+  sonId: number;
+  /** Kolik herních dní zbývá na volbu; potom vyrazí výprava sama. */
+  daysLeft: number;
+  /** Syn nemá jméno – panel jména před volbou směru. */
+  needsName: boolean;
+  /** Jména žijících mužů rodu (kostka nabízí jiná). */
+  taken: string[];
+  /** Obydlí k obrysu ve scéně. */
+  dwellingIds: number[];
+  people: number;
+  foodKg: number;
+  cart: CartKind | null;
+  horse: boolean;
+  directions: LeaveDirection[];
+}
+
+/**
+ * Čekající odchod `pending` ve vsi `state` v den `day`; null, když syn ve vsi není nebo lhůta
+ * uplynula (výprava vyráží sama). Díl počítá stejná funkce jako odchod (`sonDeparturePreview` s otcem).
+ */
+export function pendingDepartureView(
+  state: VillageState,
+  pending: PendingDeparture,
+  day: number,
+  leave: VillageLeave,
+): PendingDepartureView | null {
+  const daysLeft = pending.deadlineDay - day;
+  const son = state.people.find((p) => p.id === pending.sonId);
+  if (daysLeft <= 0 || !son || son.fatherId === undefined) return null;
+  const preview = sonDeparturePreview(state, son.id, day, son.fatherId);
+  if (!preview) return null;
+  return {
+    sonId: son.id,
+    daysLeft,
+    needsName: son.name === undefined,
+    taken: lineMen(state).flatMap((p) => (p.name === undefined ? [] : [p.name])),
+    dwellingIds: preview.outlineDwellingIds,
+    people: preview.people,
+    foodKg: preview.foodKg,
+    cart: preview.cart,
+    horse: preview.horse,
+    directions: leave.directions,
+  };
+}
+
 /** Lidé na cestě na novou mapu – směr, den příjezdu a jestli už dorazili. */
 export interface VillageJourneyView {
   direction: Direction8;
@@ -53,29 +104,6 @@ export interface VillageAbandonment {
   foundedYear: number;
   abandonedYear: number;
   years: number;
-}
-
-/**
- * Stavby jiné vsi na téže mapě pro scénu (migration.md – Vsi na téže mapě): jen pohled – obydlí,
- * díly polí, hřbitovy, sady, ohrady, zbytky jam a modly se svatyněmi; v prohlížeči se jiná ves
- * nesimuluje.
- */
-export type SceneNeighbour = Pick<SceneVillage, 'dwellings' | 'fields'> &
-  Partial<Pick<SceneVillage, 'cemeteries' | 'orchards' | 'pens' | 'ruins'>> & {
-    sacredBuildings?: SceneSacred['buildings'];
-  };
-
-/** Stavby jiné vsi ze scény té vsi – bez lidí, zvířat, práce a cest. */
-export function neighbourScene(scene: SceneVillage): SceneNeighbour {
-  return {
-    dwellings: scene.dwellings,
-    fields: scene.fields,
-    ...(scene.cemeteries ? { cemeteries: scene.cemeteries } : {}),
-    ...(scene.orchards ? { orchards: scene.orchards } : {}),
-    ...(scene.pens ? { pens: scene.pens } : {}),
-    ...(scene.ruins ? { ruins: scene.ruins } : {}),
-    ...(scene.sacred?.buildings.length ? { sacredBuildings: scene.sacred.buildings } : {}),
-  };
 }
 
 /** Políčko mřížky sídla (null = sídlo bez polohy). */

@@ -46,6 +46,10 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
 - **Anti-cíl:** ves, která se bez hráče rozpadne nebo vymře jen proto, že hráč pár dní nebyl
   online. Nestavění zpomalí růst, ale neruinuje ves. Pole obdělávají osadníci sami – ves, která
   má dost polí, bez hráče nehladoví. Hlad ji zabít může (Martin, 18. 10. 2026 – Hlad a vymření).
+- **Cíl:** ves s dostatkem polí roste sama (Martin 24. 10. 2026: „Teď žije vesnice v ideální
+  krajině … vesnice populačně roste i bez zásahu hráče, za předpokladu, že má dostatečnou rozlohu
+  polí.“) – dost polí ≈ 2,0–2,6 ha na člověka při úrodnosti 56 (diagnóza 24. 10. 2026, návrh
+  Clauda); úzkým hrdlem byly žně ([pole](fields.md) – Žně všemi rukama).
 - **Anti-cíl:** čísla typu „4,37 člověka“ – lidé jsou celí.
 
 ## Pojmy
@@ -84,6 +88,10 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
   Clauda, aby první nová domácnost mohla vzniknout do pár let; zůstávají i s porody od 16 let –
   Martin). Jsou to **dva páry** ([kinship.md](kinship.md)): manželé 25 let a chlapec 13 a dívka
   12 let, kteří nejsou příbuzní (rodiče neznámí) a vezmou se, až dorostou. Ves dostane navržené staročeské jméno, které hráč může kdykoli změnit.
+  **Návrh issue #9 fáze 1** (Martin, 24. 10. 2026 – zatím neimplementováno): ves založí **vojvoda
+  se 4 manželkami** (5 lidí bez dětí, všichni v první zemnici); vedlejší manželky odcházejí do
+  vlastních obydlí, až když se dvorec přeplní – [vojvodova rodina](lord.md), Rod vojvody –
+  Zakladatelé, Manželky.
 - **První zemnici si osadníci postaví sami** (Martin, 17. 10. 2026: „první zemnice byla
   postavena hrozně rychle – nebyl vidět průběh stavby“): je to stavba jako každá jiná – roste
   ze společné práce vsi a hráč vidí její fáze. Startovní domácnosti zbývá ≈ 1,2 člověkodne
@@ -305,7 +313,9 @@ bude ve vsi málo vhodných dětí na pasení, tak to omezí i velikost stád.�
 o zvířata – to obvykle dělají ženy. Starší lidé se zase starají o malé děti, a uvolňují práci
 zbytku rodiny.“
 
-- **Pracovní síla vsi** (pole, stavby, opravy) za den: **dospělý 1 člověkoden**, nikdo jiný.
+- **Pracovní síla vsi** (pole, stavby, opravy) za den: **dospělý 1 člověkoden**, nikdo jiný –
+  jen ve žňový den dají výrostci od 10 let a starší po 0,5 člověkodne na žeň a výmlat
+  ([pole](fields.md) – Žně všemi rukama, Martin 24. 10. 2026).
   - **Starší** dají 0,5 člověkodne, ale jen na **denní minimum své domácnosti** – hlídání malých
     dětí, oheň, vaření (návrh Clauda). Dospělí domácnosti dají na denní minimum jen zbytek:
     max(0, minimum domácnosti − 0,5 × starší v domácnosti). Co starším nad minimum zbude, do
@@ -328,6 +338,10 @@ zbytku rodiny.“
 - **Bokem – mimo práci vsi:** dojení a péče o zvířata (ženy), pasení (výrostci) a domácí výroba
   (z většiny ženy – i zpracování vlny a lnu na oděv a palivo, forest.md – Palivo). Práci vsi
   neberou; ve scéně jsou ženy dál u domů a dojí, výrostci u stád (jen zobrazení).
+- **Pletí – hlavně ženy a děti** (Martin 25. 10. 2026: „Ve středověku se plelo jednou, rychle
+  a dělaly to hlavně ženy a děti“): pletí bere práci napřed z dětí 7–13 let, které nepasou, pak
+  z žen – jejich podíl na práci vsi –, muži doplejí jen zbytek po ostatních úlohách dne (seč) –
+  [fields.md](fields.md), Pletí jednou a rychle.
 - Pole jsou společná, a proto se práce počítá **za celou ves** – dospělí všech domácností
   pracují pro ves. Pořadí práce dne (denní minimum domácností, lidé na výpravách k sousedům,
   potřebné sezónní úlohy, **společná práce vsi** do staveb, opravy obydlí, zbytek) popisuje
@@ -350,7 +364,9 @@ zbytku rodiny.“
   (ve 20–24 letech ≈ 31 měsíců – intervaly mezi porody 24–39 měsíců, Macfarlane 2002). Vsi uložené
   dřív se počítají od nejmladšího žijícího dítěte. Porody od 16 let jsou oprava podle rešerše (dřív
   od 14 – plodnost od 14 je optimistická); pro práci, odemčení nového obydlí a rozpad domácnosti
-  je dospělý dál od 14. Hlad porody tlumí až zastaví, přeplněnost je výrazně sníží (beze změny).
+  je dospělý dál od 14. Porody tlumí až zastaví jen opravdový hlad – **energie** (podíl kalorií proti potřebě) pod 95 %,
+  při 50 % a méně se nerodí; jednotvárná strava je nebrzdí (Martin, 25. 10. 2026: „Ok, ať porody
+  brzdí jen opravdový hlad.“ – návrh Clauda, schválený). Přeplněnost je výrazně sníží (beze změny).
 - **Úmrtí:** zhruba 40 % dětí se nedožije 14 let (v polozemnici méně než v zemnici; Lahovice:
   41 % do 20 let – Zazvonilová a kol. 2020); dospělí umírají asi **2 % ročně** (oprava podle
   rešerše, dřív 1,5 % – v Lahovicích umírali muži v průměru ve 43–47 a ženy ve 39–43 letech),
@@ -418,8 +434,8 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
 
 - **Hladem se umírá z energie, ne z pestrosti** ([strava](diet.md), od 18. 10. 2026): nahromaděný
   hlad i přirážka úmrtnosti za dnešní hlad počítají s pokrytím energie; nasycení se stravou
-  (energie × pestrost) řídí porody a štěstí. Ves jen s obilím (80 %) se množí pomaleji, ale
-  hladem neumírá.
+  (energie × pestrost) řídí štěstí; porody od 25. 10. 2026 řídí jen energie (viz Porody). Ves jen
+  s obilím (80 %) hladem neumírá a množí se naplno, je jen méně šťastná.
 - **Nahromaděný hlad** vsi se měří ve **dnech bez jídla**: každý den přibude
   max(0, 0,9 − energie) / 0,9 – den bez jídla je celý den, den o polovičním přídělu ≈ 0,44
   a při 80 % ≈ 0,11 (mírný nedostatek tělo snese – návrh Clauda, upraveno 18. 10. 2026). Když
@@ -433,7 +449,7 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
   každé úmrtí zvedne příděl ostatním. Při polovičním přídělu začnou děti a starší umírat po
   ≈ 5–6 týdnech, ves se během dalších ≈ 6 týdnů zmenší na ≈ 45–50 % lidí a zbylí jsou sytí. Mírný
   nedostatek (80 % přídělu) začne zabíjet děti a starší až po ≈ 4–5 měsících a za rok stojí
-  ≈ 15 % lidí. Porody se zastaví už při nasycení 0,5 (Růst populace).
+  ≈ 15 % lidí. Porody se zastaví už při energii 0,5 (Růst populace).
 - **Napřed nouzová porážka:** ves, které výhled do sklizně nevychází, nejdřív porazí zvířata
   navíc a teprve pak ubírá z přídělu ([strava](diet.md) – Nouzová porážka, Martin 19. 10. 2026).
 - **Stupně upozornění** (Martin, 19. 10. 2026; příděl = rovný díl zásob do sklizně podle výhledu):
@@ -456,6 +472,9 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
   vsi, roky jejího života a jediné tlačítko **Začít znovu**. To staré sídlo i s vymřelou vsí
   odloží do archivu a hráč dostane **nové sídelní sídlo s novou krajinou** – zakládá ves od
   první zemnice jako nový hráč (návrh Clauda; vazalství a rod se vyřeší s jejich mechanikami).
+  **Návrh issue #9 fáze 1** (Martin, 24. 10. 2026): hra končí i tehdy, když **vymře rod vojvody po
+  meči** (zemře poslední muž rodu, i dítě) – obrazovka „Rod vymřel“, vsi se přestanou dopočítávat
+  a zaniknou jako opuštěné, Začít znovu beze změny ([vojvodova rodina](lord.md) – Konec rodu).
 - **Začít znovu z nabídky** (Martin, 18. 10. 2026: „Měl bych mít k dispozici menu, ve kterém
   bych mohl restartovat hru.“): nabídka hry jako v 0 A.D. (tlačítko vpravo v horní liště, F10)
   má **Začít znovu**, **Odhlásit** a **Zpět do hry**. Začít znovu jde i se živou vsí – po
@@ -471,6 +490,19 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
   v každé RTS.“) – kdy začne, rozhoduje hráč; brání mu jen to, co stavba potřebuje předem
   (suroviny, lidé k osídlení – viz níže). Rozestavěné stavby se dělí o společnou práci vsi
   rovným dílem, takže víc staveb najednou roste pomaleji.
+- **Zrušení rozestavěné stavby** (Martin, 23. 10. 2026: „Potřebuju mít možnost stavbu
+  zrušit.“): jde zrušit jen **rozestavěná** stavba, kterou začal hráč – nové obydlí a dílna,
+  pole, hřbitov, sad, modla, svatyně, ohrada a humno, i rozestavěné rozšíření (další čtverec
+  hřbitova či ohrady). Hotové stavby se nebourají. Vytýčení zmizí (nehotové díly pole, čtverce
+  sadu, hřbitova a ohrady, humno) a práce na stavbě skončí. **Nespotřebované suroviny se vrátí**
+  do zásob (Martin: „suroviny, které se ještě nezabudovaly, se vrátí“): klády vzaté z hromady
+  a už skácené stromy se vrátí na hromadu, bez té části, která se podle odvedené práce už
+  zabudovala (dřevo stavby × odvedená práce / cena práce, dolů). Odvedená práce, zabudovaný
+  materiál, odstraněné překážky a pole či sady, které stavba zmenšila, propadnou. Zrušení
+  nehotového hřbitova nebo ohrady zruší i rozšíření, které na něj navazovalo. Návrh Claude:
+  nezrušitelná je první zemnice zakladatelů, přestavby, obnova sadu, opravy a rádla (dělají
+  vesničané sami) a zatím i stavby cest (vylepšení, vozová cesta, stezka, jabloně). V rozhraní
+  je to tlačítko s křížkem v panelu výběru rozestavěné stavby, slova jen v popisce.
 - **Odemčení surovinami** (Martin, 17. 10. 2026: „Odemykání bude samozřejmě také – pokud nebudu
   mít suroviny na postavení stavby, bude její tlačítko v panelu disabled.“): stavba může mít
   kromě práce i **cenu předem** v surovinách ze zásob vsi; když je ves nemá, tlačítko stavby je
@@ -683,6 +715,23 @@ před → po:
   (starší pár se stěhoval do prázdného domu, rozpadl se a vrátil); po změně to dělalo 5 vsí,
   oprava – rodina i svobodný muž odejdou, jen když nový dům udrží (někdo 16–44) – po ní nejvýš
   5 rozpadů na ves.
+
+**Žně všemi rukama a osev navíc v oběhu (24. 10. 2026,** [pole](fields.md) **– Žně všemi rukama,
+Osev navíc; návrh Clauda, Martin schválil):** zralý Vlkov (47,9 ha, 31 lidí) za 10 let 31 → 5
+lidí → 31 → 11, sklizeň za 10 let 17,5 → 24,8 t, osetá plocha průměrně 6,3 → 9,8 ha; úmrtí hladem
+dál ≈ 25 (přílohy už pod 70 %, osev navíc v oběhu vyčerpanou ves nezachrání – brání jen dalšímu
+vyčerpání). Čerstvé vsi `measure-village.ts 8 30` beze změny: 8/8 roste, lidí po 20 letech medián
+13, po 30 letech 20,5, hladem 0.
+
+Ověření na noc (dlouhá kalibrace jen v noci):
+
+```bash
+npx tsx packages/game/scripts/measure-village.ts 100 100 --out night-100x100.jsonl
+npx tsx packages/game/scripts/measure-village.ts 100 100 --out night-100x100.jsonl --report-only
+```
+
+Sledovat: kolik vsí roste bez zásahu hráče, lidé po 20, 30, 60 a 100 letech, úmrtí hladem a vlny
+hladu po ≈ 6 letech, osetá plocha ÷ pole a zásoby ÷ potřeba po 20. roce.
 
 ## Co hráč vidí
 

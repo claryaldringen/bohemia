@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { ageYears, occupants } from '../people';
-import { arrangeMarriages, holdsHome, isWidowed, singles, weddingHome } from '../marriage';
-import { NEIGHBOR_DIRECTIONS } from '../rules';
+import {
+  arrangeMarriages,
+  holdsHome,
+  isWidowed,
+  singles,
+  weddingChancePerDay,
+  weddingHome,
+} from '../marriage';
+import { MARRIAGE, MARRIAGE_STORES, NEIGHBOR_DIRECTIONS } from '../rules';
 import type { ChronicleEvent, VillageState } from '../types';
 import { DAY, couple, dwelling, kin, village } from './kin-fixtures';
 
@@ -450,5 +457,76 @@ describe('sňatky s okolím', () => {
     const b = bachelor(7);
     expect(firstYear(a)).toBe(firstYear(b));
     expect(a).toEqual(b);
+  });
+});
+
+describe('sňatky čekají na zásoby (kinship.md; Martin 27. 10. 2026)', () => {
+  /** Svobodný muž 22 a svobodná žena 19 ze dvou domů – vezmou se hned, když ves má pojistku. */
+  const pair = (seed: number): VillageState => {
+    const s = village(
+      [
+        ...couple({ id: 1, age: 50, home: 1 }, { id: 2, age: 46, home: 1 }).map((k) => kin(k)),
+        kin({ id: 3, age: 22, sex: 'male', home: 1, father: 1, mother: 2 }),
+        ...couple({ id: 4, age: 48, home: 2 }, { id: 5, age: 45, home: 2 }).map((k) => kin(k)),
+        kin({ id: 6, age: 19, sex: 'female', home: 2, father: 4, mother: 5 }),
+      ],
+      [dwelling(1), dwelling(2)],
+    );
+    s.seed = seed;
+    return s;
+  };
+  /** Den první svatby ve vsi od DAY při naplnění pojistky `fill` (nejvýš 20 let), nebo null. */
+  const weddingDay = (s: VillageState, fill: number): number | null => {
+    for (let day = DAY; day < DAY + 20 * 365; day++) {
+      if (arrangeMarriages(s, day, () => fill).some((e) => e.kind === 'marriage')) return day;
+    }
+    return null;
+  };
+
+  it('odklad průměrně waitYears × (1 − naplnění) let; nad pojistkou beze změny', () => {
+    expect(weddingChancePerDay(null, 1)).toBe(1);
+    expect(weddingChancePerDay(0.3, 1.2)).toBeCloseTo(1 - 0.7 ** (1 / 365), 12);
+    // prázdné zásoby: střední čekání waitYears let
+    const empty = weddingChancePerDay(null, 0);
+    expect(1 / (empty * 365)).toBeCloseTo(MARRIAGE_STORES.waitYears, 1);
+    // v půli pojistky polovina
+    const half = weddingChancePerDay(null, 0.5);
+    expect(1 / (half * 365)).toBeCloseTo(MARRIAGE_STORES.waitYears / 2, 1);
+    // svatba z okolí čeká navíc – šance menší než bez odkladu, ale nikdy 0
+    const outside = weddingChancePerDay(MARRIAGE.outside.bridePerYear, 0);
+    expect(outside).toBeGreaterThan(0);
+    expect(outside).toBeLessThan(weddingChancePerDay(MARRIAGE.outside.bridePerYear, 1));
+  });
+
+  it('pod pojistkou se svatba odloží, nad ní proběhne hned', () => {
+    let waited = 0;
+    for (let seed = 1; seed <= 50; seed++) {
+      const s = pair(seed);
+      if (arrangeMarriages(s, DAY, () => 0.2).length === 0) waited++;
+      expect(person(s, 3).spouseId).toBeUndefined();
+      // zásoby dorostly k pojistce – svatba týž den
+      expect(arrangeMarriages(s, DAY, () => 1).map((e) => e.kind)).toEqual(['marriage']);
+      expect(person(s, 3).spouseId).toBe(6);
+    }
+    expect(waited).toBe(50);
+  });
+
+  it('když pojistka nikdy nedoroste, sňatky se jen zpomalí – nezastaví', () => {
+    const waits: number[] = [];
+    for (let seed = 1; seed <= 120; seed++) {
+      const day = weddingDay(pair(seed), 0.5);
+      expect(day).not.toBeNull();
+      waits.push((day! - DAY) / 365);
+    }
+    const mean = waits.reduce((a, b) => a + b, 0) / waits.length;
+    // v půli pojistky ≈ 1,5 roku (exponenciálně – průměr ze 120 losů ± 0,4 roku)
+    expect(mean).toBeGreaterThan(MARRIAGE_STORES.waitYears / 2 - 0.4);
+    expect(mean).toBeLessThan(MARRIAGE_STORES.waitYears / 2 + 0.4);
+  });
+
+  it('snoubenci, kteří čekají, si nevezmou nikoho jiného ani z okolí', () => {
+    const s = pair(7);
+    s.people.push(kin({ id: 8, age: 21, sex: 'female', home: 2 }));
+    expect(arrangeMarriages(s, DAY, () => 0).filter((e) => e.kind !== 'married-away')).toEqual([]);
   });
 });

@@ -70,4 +70,16 @@ describe('VillageList', () => {
       ]),
     );
   });
+
+  it('praporec je jen u vsi, kde je hráčův muž', () => {
+    const html = renderToStaticMarkup(
+      <VillageList
+        villages={[village({ playerLord: true }), village({ id: 'v-2', name: 'Budeč' })]}
+        currentId="v-1"
+        onSelect={() => undefined}
+      />,
+    );
+    expect(html.match(/data-testid="player-lord-banner"/g)).toHaveLength(1);
+    expect(html).toMatch(/Libice[\s\S]*player-lord-banner[\s\S]*Budeč/);
+  });
 });

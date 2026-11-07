@@ -1,6 +1,7 @@
-import { dateOfDayIndex, dayIndexOf, isLeapYear } from '../calendar';
+import { cloneState } from './clone';
+import { dateOfDayIndex } from '../calendar';
 import type { ObstacleLayer } from '../landscape';
-import { HAY, isHayWinter, oxenHayCoverage, villageHayKg } from './hay';
+import { HAY, hayWinterDaysLeft, oxenHayCoverage, villageHayKg } from './hay';
 import { butcher, ensureLivestock, LIVESTOCK } from './livestock';
 import { obstacleChangesAt, recordClearedObstacles } from './obstacles';
 import { PLOUGH_HA_PER_DAY, ploughWorkPerHa } from './plough';
@@ -8,10 +9,13 @@ import {
   DRAFT_OXEN,
   FELLING_MAN_DAYS_PER_TREE,
   OXEN,
+  PEN_FENCE,
   PEN_PLACES_PER_SQUARE,
   PLANNING_DAY,
 } from './rules';
+import { giveHorsePenStock } from './horse-stock';
 import { builtPenSquares, oxenOf, oxTrainedDay, penSpecies } from './pens';
+import { fencedSquareEquivalents, newFenceSides, SQUARE_SIDES } from './fence-cost';
 import { copyGrid } from './square-grid';
 import type {
   ChronicleEvent,
@@ -25,7 +29,8 @@ import type {
 } from './types';
 import type { Walk } from './paths/walking';
 import { claimedObstacles, planWoodFrom, takeWood, woodLogs, type WoodPlan } from './wood';
-import { planCrops, ploughToHoe } from './year-plan';
+import { seasonCrops, ploughToHoe } from './year-plan';
+import { isLongWinterRevealed } from './weather-effects';
 
 // Ohrada volů a orba rádlem (oxen.md, schváleno 18. 10. 2026; voli po kusech – Martin 20. 10. 2026:
 // „Ať to funguje jako se stády - ohrada pro voly udrží určitý počet spřežení a když bude vesnice
@@ -38,10 +43,27 @@ import { planCrops, ploughToHoe } from './year-plan';
 // voli se sdílí – orba a svoz se nepřekrývají. Kolik volů ves chce, rozhoduje draft.ts; výcvik
 // začne sám, když jich ves chce víc, než má, a je pro ně místo. Přes zimu voli žerou seno – když
 // chybí přes polovinu, část uhyne; když chybí méně, slabí voli orají na jaře pomaleji. Ves, která
-// orá, nekope (oxen.md – Jen rádlo); přijde-li o poslední pár s rádlem, letošní plán dokončí motyka.
+// orá, nekope (oxen.md – Jen rádlo); přijde-li o poslední pár s rádlem, letošní práci plodin dokončí motyka.
 
-/** oxen.md – Ohrada: 40 člověkodní a 6 stromů (kůly, přístřešek) na čtverec ohrady. */
+/**
+ * oxen.md – Ohrada: 40 člověkodní a 6 stromů (kůly, přístřešek) na čtverec ohrady. Plot podle
+ * délky (oxen.md – Plot podle délky; návrh Clauda): polovina práce a 4 stromy z 6 je plot, tedy
+ * strana čtverce stojí osminu práce a strom; zbytek (přístřešek, žlab, jesle, úprava země) platí
+ * každý čtverec a plot jen strany, které nesousedí s ohradou ani s dalším novým čtvercem.
+ */
 export const PEN = { laborManDays: 40, trees: 6 } as const;
+/**
+ * horses.md – Ohrada koní (návrh Clauda): čtverec 50 člověkodní a 8 stromů (vyšší, pevnější plot);
+ * plot podle délky beze změny (`PEN_FENCE`). Ostatní ohrady `PEN`.
+ */
+export const PEN_BY_SPECIES = {
+  default: PEN,
+  horse: { laborManDays: 50, trees: 8 },
+} as const;
+
+function penCost(species?: PenSpecies): { readonly laborManDays: number; readonly trees: number } {
+  return species === 'horse' ? PEN_BY_SPECIES.horse : PEN_BY_SPECIES.default;
+}
 /** oxen.md – Spřežení: rádlo z 1 stromu za 5 člověkodní. */
 export const ARD = { laborManDays: 5, trees: 1 } as const;
 
@@ -67,6 +89,19 @@ export function penOxen(pen: Pen): number {
 /** Voli vsi (vycvičení i ve výcviku) – žerou seno a spásají pastvu jako krávy. */
 export function villageOxen(state: Pick<VillageState, 'pens'>): number {
   return villagePens(state).reduce((sum, pen) => sum + penOxen(pen), 0);
+}
+
+/**
+ * Voli, které ves koupila u sousedů a výprava je teprve přivede (trade.md – Dobytek ve třech
+ * druzích) – mladí i vycvičení; počítají se do volů, se kterými ves při výcviku počítá, a do míst
+ * ohrad volů.
+ */
+export function oxenComing(state: { trade?: VillageState['trade'] }): number {
+  let n = 0;
+  for (const e of state.trade?.expeditions ?? []) {
+    n += (e.get.youngOxen ?? 0) + (e.get.trainedOxen ?? 0);
+  }
+  return n;
 }
 
 /** Je vůl v den `day` vycvičený? */
@@ -211,12 +246,13 @@ export function oxAgeYears(ox: Pick<Ox, 'trainedDay'>, day: number): number | nu
 }
 
 /**
- * Letošní plán, který oraly páry volů, dokončí motyka – ves už žádný pár s rádlem nemá (mutuje
- * stav; oxen.md – Jen rádlo). Jen letos: plán k 1. 9. už vznikne bez orby.
+ * Letošní práci plodin, které oraly páry volů – nutných i nad potřebu –, dokončí motyka: ves už
+ * žádný pár s rádlem nemá (mutuje stav; oxen.md – Jen rádlo). Díly, které přibudou potom, kope
+ * motyka (plodina bez orby).
  */
-function finishPlanByHoe(state: VillageState, day: number, toolCoverage: number): void {
-  if (!state.plan || ableTeams(state, day) > 0) return;
-  const crops = planCrops(state.plan);
+function finishSeasonByHoe(state: VillageState, day: number, toolCoverage: number): void {
+  if (!state.season || ableTeams(state, day) > 0) return;
+  const crops = seasonCrops(state.season);
   if (!crops.some(({ work }) => work.plough)) return;
   const partsById = new Map(state.parts.map((p) => [p.id, p]));
   for (const { crop, work } of crops) ploughToHoe(work, partsById, toolCoverage, crop);
@@ -307,7 +343,7 @@ export function looseOxenDay(state: VillageState, day: number): ChronicleEvent[]
  * 1. 3. (konec zimy) rozhodne pokrytí sena: pod polovinu část volů uhyne – tolik, aby ostatní měli
  * polovinu přídělu, nejdřív nejmladší (`ox-died`); přeživší i voli při pokrytí do 1 orají na jaře
  * jen podílem kapacity podle pokrytí (`Ox.weak`). Když ves přijde o poslední pár s rádlem, letošní
- * plán dokončí motyka (`finishPlanByHoe`). Vrátí události kroniky.
+ * práci plodin dokončí motyka (`finishSeasonByHoe`). Vrátí události kroniky.
  */
 export function penDay(
   state: VillageState,
@@ -317,7 +353,7 @@ export function penDay(
 ): ChronicleEvent[] {
   const pens = oxPens(state);
   if (pens.length === 0 || villageOxen(state) === 0) {
-    finishPlanByHoe(state, day, toolCoverage);
+    finishSeasonByHoe(state, day, toolCoverage);
     return [];
   }
   const events: ChronicleEvent[] = [];
@@ -333,7 +369,7 @@ export function penDay(
     const ready = oxen.filter((ox) => ox.trainedDay === day).length;
     if (ready > 0) events.push({ day, kind: 'team-ready', penId: pen.id, oxen: ready });
   }
-  finishPlanByHoe(state, day, toolCoverage);
+  finishSeasonByHoe(state, day, toolCoverage);
   return events;
 }
 
@@ -420,11 +456,15 @@ function penWood(
 /**
  * Voli, se kterými ves při výcviku počítá (oxen.md – Spřežení, Martin 18. 10. 2026): telata ve
  * výcviku a vycvičení voli mimo posledních OXEN.trainingYears let služby – náhrada se začne cvičit
- * až v nich, aby byla hotová, když starý vůl doslouží.
+ * až v nich, aby byla hotová, když starý vůl doslouží. I voli koupení u sousedů, které výprava
+ * teprve přivede (`oxenComing` – mladí, nebo vycvičení se 7 lety služby před sebou).
  */
-export function lastingOxen(state: Pick<VillageState, 'pens'>, day: number): number {
+export function lastingOxen(
+  state: Pick<VillageState, 'pens'> & { trade?: VillageState['trade'] },
+  day: number,
+): number {
   const replaceFrom = (OXEN.serviceYears - OXEN.trainingYears) * DAYS_PER_YEAR - EPSILON;
-  let n = 0;
+  let n = oxenComing(state);
   for (const pen of villagePens(state)) {
     for (const ox of oxenOf(pen)) {
       if (!isTrained(ox, day) || day - ox.trainedDay < replaceFrom) n++;
@@ -433,20 +473,29 @@ export function lastingOxen(state: Pick<VillageState, 'pens'>, day: number): num
   return n;
 }
 
-/** Dní zimního krmení od dneška do konce března včetně dneška (mimo zimu 0). */
-function hayWinterDaysLeft(day: number): number {
-  if (!isHayWinter(day)) return 0;
-  const { year, month } = dateOfDayIndex(day);
-  if (month <= 3) return dayIndexOf({ year, month: 4, day: 1 }) - day;
-  // listopad a prosinec – do Silvestra a pak leden až březen příštího roku (bez dayIndexOf za
-  // koncem světa)
-  const newYear = dayIndexOf({ year, month: 12, day: 31 }) + 1;
-  return newYear - day + 31 + (isLeapYear(year + 1) ? 29 : 28) + 31;
-}
-
 /** Rádla, která se právě vyrábějí (stavby `ard`). */
 function pendingArds(state: Pick<VillageState, 'constructions'>): number {
   return state.constructions.filter((c) => c.kind === 'ard').length;
+}
+
+/** Voli bez ohrady (migration.md – Vůz při odchodu, trade.md – koupení voli bez místa). */
+function looseOxenCount(state: Pick<VillageState, 'looseOxen'>): number {
+  return state.looseOxen?.length ?? 0;
+}
+
+/**
+ * Kolik rádel ves vyrobí bez výcviku (oxen.md – Voli po kusech, trade.md – Dobytek ve třech
+ * druzích): voli, které ves má (i koupení vycvičení), tvoří páry k orbě (`goal.ploughPairs`), na
+ * které rádlo chybí – ani se nevyrábí. Rádlo vzniká jinak s výcvikem (`oxenTraining`); bez toho by
+ * pár koupený u souseda nikdy neoral.
+ */
+export function ardsWithoutTraining(
+  state: VillageState,
+  goal: Pick<OxenGoal, 'ploughPairs'>,
+): number {
+  if (!oxPens(state).some((pen) => pen.builtDay !== null)) return 0;
+  const pairs = Math.min(goal.ploughPairs, Math.floor(villageOxen(state) / DRAFT_OXEN.ard));
+  return Math.max(0, pairs - villageArds(state) - pendingArds(state));
 }
 
 /** Co dnes výcvik začne: kolik telat jde do výcviku a kolik rádel ves vyrobí. */
@@ -474,8 +523,9 @@ export interface OxenGoal {
  * tolik telat, kolik chybí, kolik se jich vejde do hotových ohrad volů, kolik jich je ve stádu krav
  * nad chovnými kravami (`goal.breedingCows` – telata jen z přírůstku, stádo pod cíl neklesne; jinak
  * výcvik počká na mláďata 1. 4.) a v zimě kolik jich seno uživí do konce března. Výjimka: náhrada
- * posledního páru k orbě (ves orá, pár dosluhuje a jiný nemá ani necvičí) vezme telata, dokud zůstane
- * chovný pár krav (LIVESTOCK.breedingMin) – ať ves po dosloužení páru neorá motykou. Rádlo se vyrobí,
+ * posledního páru k orbě (ves orá nebo má rádlo, pár dosluhuje či už se rozpadl a jiný nemá ani
+ * necvičí) vezme telata, dokud zůstane chovný pár krav (LIVESTOCK.breedingMin) – ať ves po
+ * dosloužení páru neorá motykou (oxen.md – Co nejvíc sena a co největší stáda, bod 5). Rádlo se vyrobí,
  * jen když s novými voly vznikne pár k orbě, na který rádlo chybí (`goal.ploughPairs`); na rádlo
  * musí být dřevo.
  */
@@ -486,27 +536,10 @@ export function oxenTraining(
   obstacles: ObstacleLayer | null,
 ): OxTraining | string {
   const built = oxPens(state).filter((pen) => pen.builtDay !== null);
-  if (built.length === 0) {
-    return oxPens(state).length > 0 ? 'Ohrada volů se ještě staví.' : 'Ves nemá ohradu volů.';
-  }
-  const missing = goal.oxen - lastingOxen(state, day);
-  if (missing <= 0) return 'Ves má dost volů.';
-  const room = oxPlaces(state) - villageOxen(state);
-  if (room <= 0) return 'Ohrada volů je plná.';
-  const cows = state.livestock?.herds.cow ?? 0;
-  // telata jen z přírůstku nad chovnými kravami; náhrada posledního páru k orbě (pár dosluhuje,
-  // jiný ves nemá ani necvičí) má přednost – telata se pro ni vezmou, dokud zůstane chovný pár
-  // krav (koordinátor za Martina 20. 10. 2026 – ať ves neorá motykou)
-  const lasting = lastingOxen(state, day);
-  const lastPair = goal.ploughPairs > 0 && ableTeams(state, day) > 0 && lasting < DRAFT_OXEN.ard;
-  const spare = Math.floor(cows - goal.breedingCows + EPSILON);
-  const urgent = lastPair
-    ? Math.min(DRAFT_OXEN.ard - lasting, Math.floor(cows - LIVESTOCK.breedingMin + EPSILON))
-    : 0;
-  const calves = Math.max(spare, urgent);
-  if (calves <= 0) return 'Na výcvik chybí telata – krávy nemají přírůstek nad chovné stádo.';
-  let n = Math.min(missing, room, calves);
-  const winterDays = hayWinterDaysLeft(day);
+  const calves = calvesForTraining(state, day, goal);
+  if (typeof calves === 'string') return calves;
+  let n = calves;
+  const winterDays = hayWinterDaysLeft(day, isLongWinterRevealed(state, day));
   if (winterDays > 0) {
     const fed = Math.floor(villageHayKg(state) / (HAY.dailyKg.ox * winterDays) + EPSILON);
     n = Math.min(n, fed - villageOxen(state));
@@ -521,6 +554,47 @@ export function oxenTraining(
     }
   }
   return { calves: n, ards };
+}
+
+/**
+ * Telata, která výcvik dnes opravdu dostane (oxen.md – Voli po kusech, Seno): kolik volů chybí,
+ * kolik se jich vejde do hotových ohrad volů a kolik telat je nad chovnými kravami (s výjimkou
+ * náhrady posledního páru) – bez sena a dřeva na rádlo. Podle toho ves seče seno na voly
+ * (husbandry.ts – `hayOxen`). Bez telat 0.
+ */
+export function trainableCalves(state: VillageState, day: number, goal: OxenGoal): number {
+  const calves = calvesForTraining(state, day, goal);
+  return typeof calves === 'string' ? 0 : calves;
+}
+
+/** Telata do výcviku bez sena a dřeva (`oxenTraining`), nebo česky důvod, proč žádná. */
+function calvesForTraining(state: VillageState, day: number, goal: OxenGoal): number | string {
+  const built = oxPens(state).filter((pen) => pen.builtDay !== null);
+  if (built.length === 0) {
+    return oxPens(state).length > 0 ? 'Ohrada volů se ještě staví.' : 'Ves nemá ohradu volů.';
+  }
+  const missing = goal.oxen - lastingOxen(state, day);
+  if (missing <= 0) return 'Ves má dost volů.';
+  // místa i pro voly od sousedů na cestě a voly bez ohrady (trade.md, migration.md)
+  const room = oxPlaces(state) - villageOxen(state) - oxenComing(state) - looseOxenCount(state);
+  if (room <= 0) return 'Ohrada volů je plná.';
+  const cows = state.livestock?.herds.cow ?? 0;
+  // telata jen z přírůstku nad chovnými kravami; náhrada posledního páru k orbě (pár dosluhuje,
+  // jiný ves nemá ani necvičí) má přednost – telata se pro ni vezmou, dokud zůstane chovný pár
+  // krav (návrh Clauda 20. 10. 2026 – ať ves neorá motykou); i po rozpadu páru, když ves má rádlo
+  // (návrh Clauda, schválený Martinem 24. 10. 2026)
+  const lasting = lastingOxen(state, day);
+  const lastPair =
+    goal.ploughPairs > 0 &&
+    (ableTeams(state, day) > 0 || villageArds(state) > 0) &&
+    lasting < DRAFT_OXEN.ard;
+  const spare = Math.floor(cows - goal.breedingCows + EPSILON);
+  const urgent = lastPair
+    ? Math.min(DRAFT_OXEN.ard - lasting, Math.floor(cows - LIVESTOCK.breedingMin + EPSILON))
+    : 0;
+  const calves = Math.max(spare, urgent);
+  if (calves <= 0) return 'Na výcvik chybí telata – krávy nemají přírůstek nad chovné stádo.';
+  return Math.min(missing, room, calves);
 }
 
 /**
@@ -539,8 +613,18 @@ export function trainTeamsWhenReady(
   walk?: () => Walk,
 ): void {
   const plan = oxenTraining(state, day, goal, obstacles);
-  if (typeof plan === 'string') return;
-  startTraining(state, day, plan, obstacles, plan.ards > 0 ? walk?.() : undefined);
+  if (typeof plan !== 'string') {
+    startTraining(state, day, plan, obstacles, plan.ards > 0 ? walk?.() : undefined);
+    return;
+  }
+  // pár bez rádla (voli koupení u souseda) – rádlo bez výcviku, když je na něj dřevo
+  const ards = ardsWithoutTraining(state, goal);
+  if (ards <= 0) return;
+  const pen = oxPens(state)
+    .filter((p) => p.builtDay !== null)
+    .sort((a, b) => a.id - b.id)[0]!;
+  if (penWood(state, ARD.trees * ards, pen, day, obstacles).missing > 0) return;
+  startArds(state, day, ards, obstacles, walk?.());
 }
 
 /** Zahájí výcvik – telata do ohrad volů s místem, stavby rádel (mutuje stav). */
@@ -562,8 +646,25 @@ function startTraining(
     const free = builtPenSquares(pen).length * PEN_PLACES_PER_SQUARE.team - oxen.length;
     for (let k = 0; k < free && left > 0; k++, left--) oxen.push({ trainedDay: oxTrainedDay(day) });
   }
-  const pen = built[0]!;
-  for (let k = 0; k < plan.ards; k++) {
+  startArds(next, day, plan.ards, obstacles, walk);
+}
+
+/**
+ * Vesničané vyrobí `ards` rádel – stavby ze společné práce u první hotové ohrady volů se dřevem
+ * (kláda z hromady, nebo strom ke kácení u ohrady; mutuje stav).
+ */
+function startArds(
+  next: VillageState,
+  day: number,
+  ards: number,
+  obstacles: ObstacleLayer | null,
+  walk?: Walk,
+): void {
+  const pen = oxPens(next)
+    .filter((p) => p.builtDay !== null)
+    .sort((a, b) => a.id - b.id)[0];
+  if (!pen) return;
+  for (let k = 0; k < ards; k++) {
     const wood = takeWood(next, penWood(next, ARD.trees, pen, day, obstacles, [], 0, walk));
     next.constructions.push({
       id: next.nextId++,
@@ -624,8 +725,9 @@ export interface PenInput {
 }
 
 /** Práce na čtverci ohrady bez dřeva – cena čtverce minus kácení jeho stromů u blízkého lesa. */
-export function penBuildLabor(): number {
-  return PEN.laborManDays - PEN.trees * FELLING_MAN_DAYS_PER_TREE;
+export function penBuildLabor(species?: PenSpecies): number {
+  const cost = penCost(species);
+  return cost.laborManDays - cost.trees * FELLING_MAN_DAYS_PER_TREE;
 }
 
 /**
@@ -636,8 +738,27 @@ export function penLaborManDays(
   obstacleCost: number,
   wood: Pick<WoodPlan, 'fell'>,
   squares = 1,
+  fenceSides = squares * SQUARE_SIDES,
+  species?: PenSpecies,
 ): number {
-  return penBuildLabor() * squares + obstacleCost + wood.fell.reduce((sum, t) => sum + t.cost, 0);
+  return (
+    penBuildLabor(species) * fencedSquareEquivalents(squares, fenceSides, PEN_FENCE.share) +
+    obstacleCost +
+    wood.fell.reduce((sum, t) => sum + t.cost, 0)
+  );
+}
+
+/** Stromy na ohradu: zbytek za každý čtverec a strom na každou novou stranu plotu. */
+export function penTrees(squares: number, fenceSides: number, species?: PenSpecies): number {
+  return (
+    (penCost(species).trees - PEN_FENCE.trees) * squares +
+    (PEN_FENCE.trees * fenceSides) / SQUARE_SIDES
+  );
+}
+
+/** Políčka ohrady (hotová i rozestavěné), na které nové čtverce navazují. */
+function penCells(pen: Pen): TileCell[] {
+  return [pen.cell, ...(pen.extraSquares ?? []).map((q) => q.cell)];
 }
 
 /** Střed čtverců (m) – odtud se hledají stromy ke kácení. */
@@ -655,14 +776,22 @@ function squaresCenter(squares: readonly { x: number; z: number }[]): { x: numbe
  */
 export function planPenWood(
   state: VillageState,
-  squares: readonly Pick<PenSquareInput, 'x' | 'z' | 'obstacleIds' | 'clearedTrees'>[],
+  squares: readonly Pick<PenSquareInput, 'cell' | 'x' | 'z' | 'obstacleIds' | 'clearedTrees'>[],
   day: number,
   obstacles: ObstacleLayer | null,
   walk?: Walk,
+  extendId?: number,
+  species?: PenSpecies,
 ): WoodPlan {
+  const target =
+    extendId === undefined ? undefined : villagePens(state).find((p) => p.id === extendId);
+  const sides = newFenceSides(
+    squares.map((q) => q.cell),
+    target ? penCells(target) : [],
+  );
   return penWood(
     state,
-    PEN.trees * squares.length,
+    penTrees(squares.length, sides, target ? penSpecies(target) : species),
     squaresCenter(squares),
     day,
     obstacles,
@@ -689,9 +818,9 @@ export function startPen(
   walk?: Walk,
   extendId?: number,
 ): VillageState {
-  const plan = planPenWood(state, input.squares, day, obstacles, walk);
+  const plan = planPenWood(state, input.squares, day, obstacles, walk, extendId, input.species);
   if (plan.missing > 0) throw new RangeError('Na ohradu chybí dřevo – klády ani stromy nestačí.');
-  const next = structuredClone(state);
+  const next = cloneState(state);
   recordClearedObstacles(
     next,
     input.squares.flatMap((q) => q.obstacleIds),
@@ -700,6 +829,10 @@ export function startPen(
   const wood = takeWood(next, plan);
   const pens = (next.pens ??= []);
   const target = extendId === undefined ? undefined : pens.find((p) => p.id === extendId);
+  const fenceSides = newFenceSides(
+    input.squares.map((q) => q.cell),
+    target ? penCells(target) : [],
+  );
   const constructionId = target ? next.nextId++ : undefined;
   const square = (q: PenSquareInput, building?: number): PenSquare => ({
     cell: { x: q.cell.x, y: q.cell.y },
@@ -735,6 +868,8 @@ export function startPen(
       input.squares.reduce((sum, q) => sum + q.obstacleCost, 0),
       plan,
       input.squares.length,
+      fenceSides,
+      target ? penSpecies(target) : input.species,
     ),
     done: 0,
     dwellingType: null,
@@ -743,6 +878,7 @@ export function startPen(
     fieldId: null,
     penId,
     wood,
+    ...(target ? { extends: true as const } : {}),
   });
   return next;
 }
@@ -764,6 +900,8 @@ export function finishPen(
   );
   if (extension.length === 0) {
     pen.builtDay = day;
+    // koně jsou součást stavby (horses.md – Koně se stavbou ohrady)
+    if (penSpecies(pen) === 'horse') giveHorsePenStock(state, pen, day);
     return;
   }
   for (const q of extension) delete q.constructionId;

@@ -7,7 +7,7 @@ import { laborPerDay } from '../people';
 import { HARVEST_WORK_PER_HA } from '../rules';
 import { advanceVillage } from '../simulate';
 import type { Construction, LaborShare, VillageState } from '../types';
-import { withBuiltFirstDwelling } from './village-fixtures';
+import { withBuiltFirstDwelling, withThreshingFloor, withoutSmallGame } from './village-fixtures';
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
 const POSITION = { x: 0, z: 0, rotation: 0 };
@@ -46,9 +46,9 @@ function bare(day: number): VillageState {
   s.parts = [];
   s.fields = [];
   s.constructions = [];
-  s.plan = null;
+  s.season = null;
   s.storesKg = 5000;
-  return s;
+  return withoutSmallGame(s);
 }
 
 function dwellingSite(day: number, wood: Construction['wood'], done = 0): Construction {
@@ -105,9 +105,9 @@ describe('laborReport – rozdělení práce dne', () => {
     expect(of(labor.shares, 'found-field')[0]!.manDays).toBeCloseTo(total(atSite), 2);
   });
 
-  it('v létě se na poli plánu žne a odnáší podle sazeb, výmlat jde ke vsi', () => {
+  it('v létě se na poli plánu žne a odnáší podle sazeb, výmlat jde na humno', () => {
     // ves založená po 1. 9. seje jen jař – sklízí v srpnu
-    const s = advanceVillage(found(at(600, 10, 1)), at(601, 8, 20), null);
+    const s = advanceVillage(found(at(600, 10, 1)), at(601, 8, 5), null);
     const labor = laborReport(s)!;
     const fieldId = s.fields[0]!.id;
     const reap = of(labor.shares, 'harvest');
@@ -121,15 +121,28 @@ describe('laborReport – rozdělení práce dne', () => {
       HARVEST_WORK_PER_HA.reap.worst / HARVEST_WORK_PER_HA.carry.worst,
       2,
     );
-    // výmlat po sklizni (první den, kdy na něj zbude práce) jde ke vsi
-    let day = s;
-    let thresh: LaborShare[] = [];
-    for (let d = at(601, 9, 1); d <= at(602, 2, 28) && thresh.length === 0; d += 5) {
-      day = advanceVillage(day, d, null);
-      thresh = of(laborReport(day)!.shares, 'thresh');
-    }
-    expect(thresh).toEqual([expect.objectContaining({ target: { kind: 'village' } })]);
-    expect(of(laborReport(day)!.shares, 'harvest')).toEqual([]);
+    // výmlat po sklizni (první den, kdy na něj zbude práce) jde na humno (production-chains.md –
+    // Humno); ves bez humna v roce odkladu mlátí nouzově na udusané zemi u vsi
+    const firstThresh = (start: VillageState): { day: VillageState; thresh: LaborShare[] } => {
+      let day = start;
+      let thresh: LaborShare[] = [];
+      for (let d = at(601, 9, 1); d <= at(601, 12, 31) && thresh.length === 0; d += 5) {
+        day = advanceVillage(day, d, null);
+        thresh = of(laborReport(day)!.shares, 'thresh');
+      }
+      return { day, thresh };
+    };
+    const floor = firstThresh(withThreshingFloor(structuredClone(s)));
+    expect(floor.thresh).toEqual([
+      expect.objectContaining({ target: { kind: 'threshing-floor', id: 60_000 } }),
+    ]);
+    expect(of(laborReport(floor.day)!.shares, 'harvest')).toEqual([]);
+    const ground = firstThresh({ ...structuredClone(s), threshingGraceUntil: at(602, 1, 1) });
+    expect(ground.thresh).toEqual([expect.objectContaining({ target: { kind: 'village' } })]);
+    // ves bez humna mlátí vždy nouzově (i bez odkladu)
+    expect(firstThresh(structuredClone(s)).thresh).toEqual([
+      expect.objectContaining({ target: { kind: 'village' } }),
+    ]);
   });
 
   it('stavba obydlí nejdřív kácí – u stromů, které ještě stojí, v pořadí kácení', () => {
@@ -202,5 +215,61 @@ describe('laborReport – rozdělení práce dne', () => {
       chunked = advanceVillage(chunked, Math.min(end, chunked.lastDay + days), null);
     }
     expect(laborReport(chunked)).toEqual(laborReport(whole));
+  });
+
+  it('péče o koně je podíl horse-care u ohrady koní a součet podílů sedí (horses.md – Péče)', () => {
+    const day = at(600, 7, 1);
+    const s0 = bare(day);
+    s0.pens = [
+      {
+        id: 90,
+        species: 'horse',
+        cell: { x: 4, y: 4 },
+        x: 0,
+        z: 0,
+        builtDay: day - 400,
+        team: null,
+        training: null,
+        horses: [1, 2, 3].map((id) => ({ id, bornDay: day - 6 * 365, sex: 'male', training: 0 })),
+      },
+      {
+        id: 91,
+        cell: { x: 8, y: 4 },
+        x: 30,
+        z: 0,
+        builtDay: day - 400,
+        team: null,
+        training: null,
+        oxen: 0,
+        trainees: 0,
+        cows: 2,
+      },
+    ] as unknown as VillageState['pens'];
+    const s = advanceVillage(s0, day + 1, null);
+    const report = laborReport(s)!;
+    const care = of(report.shares, 'horse-care');
+    expect(care).toHaveLength(1);
+    expect(care[0]!.target).toEqual({ kind: 'pen', id: 90 });
+    expect(care[0]!.manDays).toBeCloseTo(0.3, 2);
+    // péče se nepočítá dvakrát: součet podílů je kapacita vsi
+    expect(total(report.shares)).toBeCloseTo(capacity(s), 1);
+    // práce bokem (péče o krávy) nemíří k ohradě koní
+    for (const share of report.aside ?? []) {
+      expect(share.target).not.toEqual({ kind: 'pen', id: 90 });
+    }
+  });
+});
+
+describe('laborReport – pletí (fields.md – Pletí jednou a rychle)', () => {
+  it('v květnu plejí napřed ženy – muži jen, co by ženy do konce okna nestihly', () => {
+    let s = found(at(500, 9, 2));
+    let weed: LaborShare[] = [];
+    for (let day = at(501, 5, 1); day <= at(501, 5, 31) && weed.length === 0; day += 2) {
+      s = advanceVillage(s, day, null);
+      weed = of(s.labor!.shares, 'weed').filter((x) => !x.ages);
+    }
+    expect(weed.length).toBeGreaterThan(0);
+    // zakladatelé – muž a žena; na začátku okna stihne pletí žena, muž nepleje
+    for (const share of weed) expect(share.women).toBe(1);
   });
 });

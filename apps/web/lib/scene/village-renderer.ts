@@ -1,26 +1,26 @@
 import type { Camera } from '@babylonjs/core/Cameras/camera';
 import { Material } from '@babylonjs/core/Materials/material';
 import { MultiMaterial } from '@babylonjs/core/Materials/multiMaterial';
-import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
-import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
-import { Texture } from '@babylonjs/core/Materials/Textures/texture';
-import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
+import { WovenFenceRenderer } from './woven-fence-renderer';
 import type { Scene } from '@babylonjs/core/scene';
 import {
-  PLAIN_FRAME,
   dateOfDayIndex,
   DRAFT_OXEN,
+  OFFICIAL_WORLD,
   realTimeOf,
-  rotationCosSin,
-  type DwellingType,
-  type Landscape,
+  threshingFloorFootprint,
   type ObstacleLayer,
   type SacredBuildingKind,
   type WorldClock,
 } from '@bohemia/game';
-import type { SceneKiln, SceneKilnRemnant, SceneKilnState, SceneVillage } from '../village-view';
+import type {
+  SceneKiln,
+  SceneKilnRemnant,
+  SceneThreshingFloor,
+  SceneVillage,
+} from '../village-view';
 import { buildingClearings } from './building-clearings';
 import { CemeteryRenderer } from './cemetery-renderer';
 import { withoutHiddenMounds, type FuneralPlan } from './funeral-plan';
@@ -28,45 +28,35 @@ import { FuneralRenderer } from './funeral-renderer';
 import type { WeddingPlan } from './wedding-plan';
 import { WeddingRenderer } from './wedding-renderer';
 import { OreSiteRenderer } from './ore-sites';
+import { GrainPitRenderer } from './grain-pits';
+import { ThreshingFloorRenderer } from './threshing-floor-renderer';
+import { CraftYardRenderer } from './craft-yard-renderer';
+import { smeltVents, type CraftYardView } from './craft-yard-layout';
+import { floorSiteLook } from './threshing-floor-layout';
 import {
   DECAY_LOOKS,
   decayModelParts,
   decayModelType,
   decayNettles,
-  dwellingDecayStage,
   ruinHollowData,
   ruinHollowY,
   ruinLook,
   ruinPitShape,
-  type DecayStage,
 } from './dwelling-decay';
-import { EARTH_LAYERS, earthPatch, eaveTufts, smokeVent, type TuftModel } from './dwelling-decor';
-import {
-  PIT_SHAPES,
-  pitMeshData,
-  pitOutline,
-  pitShapeOf,
-  spoilHeapData,
-  worldToLocal,
-  type PitCut,
-} from './dwelling-pit';
+import { eaveTufts, smokeVent, type TuftModel } from './dwelling-decor';
+import { pitShapeOf, type PitCut } from './dwelling-pit';
 import { FieldRenderer } from './field-renderer';
 import type { Track } from './track-mask';
 import type { HayMeadow } from './hay-meadows';
-import { applyGammaFog } from './gamma-fog';
-import { HomesteadRenderer, type PlotView } from './homestead';
-import { plotInward, plotStakingLine } from './homestead-layout';
-import {
-  instanceMatrices,
-  loadMergedModel,
-  loadModelParts,
-  type ModelInstance,
-} from './instanced-model';
-import { makeShapeable, setShapeFrames } from './shaped-model';
+import { HomesteadRenderer } from './homestead';
+import { plotInward } from './homestead-layout';
+import { loadMergedModel, loadModelParts, type ModelInstance } from './instanced-model';
 import { OrchardRenderer } from './orchard-renderer';
 import { PenAnimals } from './pen-animals';
 import { penAnimalsFor } from './pen-layout';
 import { PenRenderer } from './pen-renderer';
+import { TrainingGroundRenderer } from './training-ground';
+import { trainingGroundOf } from './training-ground-layout';
 import {
   PLOUGH_DAY_DEBUG,
   dayStints,
@@ -78,57 +68,43 @@ import { ploughFront, ploughTeamCount } from './plough-front';
 import { ploughPath } from './plough-team';
 import { PloughTeams } from './plough-team-renderer';
 import { CartRenderer } from './cart-renderer';
-import { draftTeamsToday, villageCartPlans } from './village-carts';
+import type { DraftPick, DraftSelection } from './draft-pick';
+import type { Project } from './villager-pick';
+import type { DraftCrews } from './villager-plan';
+import { buildingCartPlans, draftTeamsToday, villageCartPlans } from './village-carts';
 import { penHerds, scenePenViews } from './village-pens';
 import { SACRED_SITE_KIND, sacredBuildingKey } from './sacred-layout';
 import { SacredRenderer } from './sacred-renderer';
-import { applyPitCut, type PitCuts } from './pit-cut';
+import type { SlaughterPlan } from './slaughter-plan';
+import { SlaughterRenderer } from './slaughter-renderer';
+import { ROUND_SITE_M, constructionState, sitePropPlace } from './village-construction';
 import {
-  CONSTRUCTION_BASE,
-  PLOT_BUILT,
-  ROUND_SITE_M,
-  constructionState,
-  sitePropPlace,
-  type ConstructionKind as SiteKind,
-  type ConstructionState,
-  type SiteProp,
-} from './village-construction';
-import {
-  clearanceRect,
   decalGrid,
   dwellingHideShape,
   footprintRect,
-  houseArea,
   localToWorld,
-  pointInPolygon,
   polygonBounds,
   rectCorners,
   sceneFrame,
   shapedToWorld,
-  smoothstep,
   softCoverage,
-  stripSegments,
   type HideShape,
   type Point,
   type ShapedSceneDwelling,
 } from './village-layout';
-import {
-  createDecalMaterial,
-  createDecalMesh,
-  createStripMesh,
-  type HeightFn,
-} from './village-meshes';
-import { StakingPegs, createStringMaterial, createStringMesh, pegInstances } from './staking';
+import { createDecalMesh } from './village-meshes';
+import { StakingPegs, pegInstances } from './staking';
 import { closedLine } from './staking-layout';
-import { applySeasonGround, applySeasonModel, applySeasonSnow } from './season-materials';
 import { WildGrowthRenderer } from './wild-growth-renderer';
 import type { Rgb } from './season-look';
 import { VillageSmoke, type SmokeSource } from './village-smoke';
+import { burningSquares, slashPlumes } from './clearing-fire';
+import { houseFirePlumes } from './house-fire';
+import { gameDayAt } from './smoke-schedule';
 import type { SceneDwelling, SceneRuin } from './village-types';
 import {
   CRAFT_MODEL,
   forestKilnAnchor,
-  hasPorch,
   kilnLook,
   milirCircle,
   milirFootPoints,
@@ -137,101 +113,67 @@ import {
   milirPlace,
   workshopVents,
   type KilnLook,
-  type WorkshopModel,
 } from './workshop-layout';
-import { WovenFenceRenderer } from './woven-fence-renderer';
-
-const MODEL_BASE_URL = '/models/dwellings/';
-/** Modely a díly staveniště řemeslných dílen a milíře (tools/blender/crafts.py). */
-const CRAFT_MODEL_BASE_URL = '/models/crafts/';
-const CRAFT_SITE_FILES = ['construction.glb', 'construction-moss.glb'] as const;
-const SMOKE_TEXTURE_URL = '/textures/particles/smoke.png';
-const DWELLING_TYPES: readonly DwellingType[] = ['zemnice', 'polozemnice'];
-/** Dvorec vojvody (trade.md – tools/blender/dwellings.py „dvorec“): model a díly staveniště. */
-const MANOR_MODEL_URL = `${MODEL_BASE_URL}dvorec.glb`;
-const MANOR_SITE_URL = `${MODEL_BASE_URL}dvorec-construction.glb`;
-/** Hotový model ve vsi: obydlí, řemeslná dílna (crafts.md), nebo milíř uhlíře. */
-type ModelKey = DwellingType | WorkshopModel | 'milir';
-const CRAFT_MODEL_KEYS: readonly (WorkshopModel | 'milir')[] = [
-  'hrncir',
-  'kovar',
-  'tesar',
-  'uhlir',
-  'milir',
-];
-/** Přístřešek hrnčíře a kováře sahá o tolik dál před obydlí (m) – ušlapaná tráva i před ním. */
-const PORCH_EXTRA_M = 2.6;
-/** Rozvrh dýmu pece, výhně a milíře se liší od dýmníku obydlí (seed = id obydlí × 4 + druh). */
-const CRAFT_SMOKE_SEED = 1_000_000;
-const TUFT_MODELS: readonly TuftModel[] = ['grass-tuft-1', 'grass-tuft-2'];
-const AMBIENT = new Color3(0.38, 0.38, 0.36);
-/** Rostliny jako dekorace krajiny (decorations.ts) – trsy u okapu jsou sytější a zelenější. */
-const PLANT_AMBIENT = new Color3(0.45, 0.48, 0.45);
-const TUFT_TINT = new Color3(0.56, 0.86, 0.4);
-/** Obydlí je o kousek zapuštěné – na mírném svahu tak žádný roh nevisí nad terénem (m). */
-const DWELLING_SINK_M = 0.05;
-/** Sníh na obtiscích vsi (cesty, vyšlapaná hlína) – část jejich barvy zimou prosvítá. */
-const VILLAGE_SNOW = 0.85;
-/** Výška obtisků nad terénem (m) – navzájem v pořadí, aby se nepraly o hloubku. */
-const LIFT = { outline: 0.06, worn: 0.03, earth: 0.04, turf: 0.045 };
-/** Sejmutý drn přesahuje jámu o tolik (m) – po vykopání zůstane kolem okraje tmavá hlína. */
-const TURF_MARGIN_M = 0.35;
-/** Ušlapaná tráva kolem staveniště: o kolik menší než místo pro stavbu a jak měkký okraj (m). */
-const TRAMPLED_INSET_M = 0.6;
-const TRAMPLED_SOFT_M = 2.2;
-/** Krytí vyšlapané hlíny u opuštěného obydlí – zarůstá trávou (vymřelá ves, prázdné obydlí). */
-const ABANDONED_EARTH_ALPHA = 0.4;
-/** Hromada hlíny z jámy v plné velikosti (m) – většina hlíny jde nakonec na valy. */
-const SPOIL_HEAP_M = { rx: 1.7, rz: 1.2, height: 0.72 };
-/** Díly rozpadu obydlí, zbytku jámy a kopřivy (tools/blender/dwellings.py – rozpad obydlí). */
-const DECAY_MODEL_URL = `${MODEL_BASE_URL}decay.glb`;
-/** Kopřivy usychají a přes zimu stojí jako trsy trávy (season-foliage.ts). */
-const NETTLE_MATERIAL = 'decay-nettle';
-
-interface DwellingView {
-  key: string;
-  dwelling: SceneDwelling;
-  meshes: Mesh[];
-  /** Kde se skryjí stromy a kameny krajiny – obydlí, u uhlíře i kruh milíře. */
-  shapes: HideShape[];
-  /** Vyhloubená jáma (terén se v ní prořízne), nebo null, dokud se nekope. */
-  cut: PitCut | null;
-  /** Kolíky vytyčení (staking.ts), dokud se nezačne kopat. */
-  pegs: ModelInstance[];
-}
-
-/** Zbytek jámy po zaniklém obydlí: zarostlá prohlubeň (síť) a řez terénu. */
-interface RuinView {
-  key: string;
-  ruin: SceneRuin;
-  meshes: Mesh[];
-  cut: PitCut;
-  shape: HideShape;
-}
-
-interface VillageContext {
-  /** Hladký terén (bilineárně, s převýšením) – paty modelů, trsů a sloupů. */
-  groundHeight: HeightFn;
-  /** Přesná výška vykresleného terénu – obtisky. */
-  decalHeight: HeightFn;
-  /** Nový mesh, který má vrhat stín od slunce. */
-  addShadowCaster(mesh: Mesh): void;
-  /** Ve vsi se něco změnilo až později (dočtený model) – překreslit a obnovit stíny. */
-  onAsyncChange(): void;
-  /** Dočetla se textura obtisku – překreslit. */
-  requestRender(): void;
-  /** Jámy prořezávané do terénu a obtisků (sdílí je materiál terénu). */
-  pitCuts: PitCuts;
-  /** Směr slunečních paprsků – stín okraje jámy. */
-  sunDirection: { x: number; y: number; z: number };
-  /** Krajina sídla – louky na seno se vybírají na louce (bez ní žádné). */
-  landscape?: Landscape;
-  /**
-   * Smí se scéna hýbat (bez omezeného pohybu)? Orba za herní den (ladicí) jen s animací – při
-   * omezeném pohybu pole ukáže stav na konci dne a spřežení stojí na čele. Bez údaje ano.
-   */
-  animated?(): boolean;
-}
+import {
+  CRAFT_MODEL_BASE_URL,
+  CRAFT_MODEL_KEYS,
+  CRAFT_SITE_FILES,
+  CRAFT_SMOKE_SEED,
+  SLASH_SMOKE_SEED,
+  HOUSE_FIRE_SMOKE_SEED,
+  DECAY_MODEL_URL,
+  DWELLING_SINK_M,
+  DWELLING_TYPES,
+  DraftRenderState,
+  DwellingView,
+  KILN_DRAW_PROPS,
+  KILN_REMNANT_ALPHA,
+  KILN_REMNANT_COLOR,
+  KILN_REMNANT_RADIUS_M,
+  LIFT,
+  MANOR_MODEL_URL,
+  MANOR_SITE_URL,
+  MODEL_BASE_URL,
+  ModelKey,
+  RuinView,
+  SMOKE_TEXTURE_URL,
+  THRESHING_FLOOR_ALPHA,
+  THRESHING_FLOOR_ALPHA_INDEX,
+  THRESHING_FLOOR_Z_OFFSET,
+  THRESHING_FLOOR_COLOR,
+  THRESHING_FLOOR_SOFT_M,
+  TRAMPLED_SOFT_M,
+  TUFT_MODELS,
+  VillageContext,
+  dwellingDecay,
+  dwellingKey,
+  houseHideShape,
+  isCraftModel,
+  kilnDwelling,
+  kilnKey,
+  plotViews,
+  prepareDecayMaterial,
+  prepareDwellingMaterial,
+  prepareTuftMaterial,
+  ruinId,
+  ruinKey,
+  setInstances,
+  shapeableAs,
+  siteKind,
+} from './village-renderer-shared';
+import {
+  constructionSite,
+  decalMaterial,
+  dwellingGround,
+  milirGround,
+  milirSite,
+  pitMaterial,
+  ruinMaterial,
+  stakingLine,
+} from './village-renderer-meshes';
+import type { MeshHost } from './village-renderer-meshes';
+import { FortificationRenderer } from './fortification-renderer';
+export type { DraftRenderState } from './village-renderer-shared';
 
 /**
  * Ves ve scéně: hotová obydlí jako modely (thin instances, jeden mesh na typ) nad vyhloubenou
@@ -250,6 +192,8 @@ export class VillageRenderer {
   >();
   /** Milířiště po rozebraných milířích – černá uhlíkatá zem, která zarůstá (crafts.md). */
   private readonly kilnRemnants = new Map<number, { key: string; mesh: Mesh }>();
+  /** Obtisky mlatu humen (`updateThreshingFloors`); zbytek humna kreslí `threshing`. */
+  private readonly threshingFloors = new Map<number, { key: string; mesh: Mesh }>();
   private readonly models = new Map<ModelKey, Mesh | null>();
   private readonly ghosts = new Map<ModelKey, Mesh>();
   /** Modely dílen a milíře se načítají, až jsou potřeba (dílna ve vsi, duch při umisťování). */
@@ -262,6 +206,8 @@ export class VillageRenderer {
   private readonly plots: HomesteadRenderer;
   /** Pletené ploty pozemků a hřbitovů (woven-fence-renderer.ts). */
   private readonly fences: WovenFenceRenderer;
+  /** Opevnění (fortifications.md – Ve scéně): palisáda, plot, val s příkopem a brány. */
+  private readonly fortifications: FortificationRenderer;
   private readonly materials = new Map<string, Material>();
   private loading: Promise<void> | null = null;
   private builtKey = '';
@@ -281,10 +227,17 @@ export class VillageRenderer {
   private readonly funerals: FuneralRenderer;
   /** Svatby – oheň obřadu a věnec na posvátném dubu (kinship.md – Svatba ve scéně). */
   private readonly weddings: WeddingRenderer;
+  private readonly slaughter: SlaughterRenderer;
   /** Mohyly, které hranice ještě nenechala nasypat (klíč pro změnu). */
   private hiddenMoundsKey = '';
   /** Rudiště kovářů – jámy a hromady rudy (crafts.md – Uhlí a ruda kováře). */
   private readonly ores: OreSiteRenderer;
+  /** Otevřené obilné jámy (production-chains.md – Obilné jámy). */
+  private readonly grainPits: GrainPitRenderer;
+  /** Humna kromě obtisku mlatu – vytyčení, hromady, klasy, zrno a stoh slámy. */
+  private readonly threshing: ThreshingFloorRenderer;
+  /** Dvory kovárny a hrnčíře – redukční pec, houba, hřivny, jáma s hlínou (craft-yard-renderer.ts). */
+  private readonly craftYards: CraftYardRenderer;
   private readonly pegs: StakingPegs;
   private readonly orchards: OrchardRenderer;
   private readonly sacred: SacredRenderer;
@@ -293,12 +246,24 @@ export class VillageRenderer {
   private readonly wild: WildGrowthRenderer;
   /** Ohrady s přístřeškem, zvířata v nich a spřežení na poli (oxen.md – village-pens.ts). */
   private readonly pens: PenRenderer;
+  /** Cvičiště vojvodovy rodiny na dvorku dvorce (lord.md – training-ground.ts). */
+  private readonly training: TrainingGroundRenderer;
   private readonly penAnimals: PenAnimals;
+  private penInput: { village: SceneVillage; oxenOut: number } | null = null;
+  private ridingHorses: ReadonlySet<number> = new Set();
+  private ridingKey = '';
   private readonly teams: PloughTeams;
   private teamsKey = '';
   /** Vozy se spřežením – svoz a výprava, vůz bez jízdy u ohrady (wagons.md – village-carts.ts). */
   private readonly carts: CartRenderer;
   private cartsKey = '';
+  /** Zapřažené vozy dne (id) – mají vozku (villager-plan.ts – `draftStaff`). */
+  private cartCrews: number[] = [];
+  /** Vybrané spřežení / vůz a jejich poslední stav (villagers.md – Výběr postavy). */
+  private draftSelection: DraftSelection | null = null;
+  private teamState: DraftRenderState | null = null;
+  private cartState: DraftRenderState | null = null;
+  private draftState: DraftRenderState | null = null;
   /** Hodiny světa – kdy herní den rozdělení práce začíná a končí (orba za herní den). */
   private worldClock: WorldClock | null = null;
   /** Vlastní okno herního dne (vývojová ukázka „Orání“ – den ukázky), jinak z hodin světa. */
@@ -306,6 +271,7 @@ export class VillageRenderer {
   /** Dnešní orba projížděná za herní den (ladicí – oxen.md, Orba za herní den), nebo null. */
   private ploughDay: { stints: DayStint[]; window: { startMs: number; endMs: number } } | null =
     null;
+  private readonly meshHost: MeshHost;
   private village: SceneVillage = { dwellings: [], fields: [] };
   private disposed = false;
 
@@ -313,6 +279,12 @@ export class VillageRenderer {
     private readonly scene: Scene,
     private readonly context: VillageContext,
   ) {
+    this.meshHost = {
+      scene,
+      context,
+      materials: this.materials,
+      baseHeight: (d) => this.baseHeight(d),
+    };
     this.smoke = new VillageSmoke(scene, SMOKE_TEXTURE_URL);
     this.pegs = new StakingPegs(scene, (mesh) => context.addShadowCaster(mesh));
     this.fences = new WovenFenceRenderer(scene, {
@@ -320,6 +292,15 @@ export class VillageRenderer {
       addShadowCaster: (mesh) => context.addShadowCaster(mesh),
       onAsyncChange: () => context.onAsyncChange(),
       prepareMaterial: prepareDwellingMaterial,
+    });
+    this.fortifications = new FortificationRenderer(scene, {
+      decalHeight: context.decalHeight,
+      addShadowCaster: (mesh) => context.addShadowCaster(mesh),
+      onAsyncChange: () => context.onAsyncChange(),
+      prepareMaterial: prepareDwellingMaterial,
+      fences: this.fences,
+      pitCuts: context.pitCuts,
+      earthMaterial: () => pitMaterial(this.meshHost),
     });
     this.cemeteries = new CemeteryRenderer(scene, {
       decalHeight: context.decalHeight,
@@ -333,17 +314,30 @@ export class VillageRenderer {
       onLoaded: () => context.requestRender(),
     });
     this.weddings = new WeddingRenderer(scene, { groundHeight: context.groundHeight });
+    this.slaughter = new SlaughterRenderer(scene, {
+      groundHeight: context.groundHeight,
+      onLoaded: () => context.requestRender(),
+    });
     this.ores = new OreSiteRenderer(scene, {
       decalHeight: context.decalHeight,
       addShadowCaster: (mesh) => context.addShadowCaster(mesh),
     });
+    this.grainPits = new GrainPitRenderer(scene, { decalHeight: context.decalHeight });
+    this.threshing = new ThreshingFloorRenderer(scene, {
+      groundHeight: context.groundHeight,
+      decalHeight: context.decalHeight,
+      addShadowCaster: (mesh) => context.addShadowCaster(mesh),
+      onAsyncChange: () => context.onAsyncChange(),
+      prepareMaterial: prepareDwellingMaterial,
+    });
+    this.craftYards = new CraftYardRenderer(scene, { decalHeight: context.decalHeight });
     this.orchards = new OrchardRenderer(scene, context);
     this.plots = new HomesteadRenderer(scene, {
       groundHeight: context.groundHeight,
       decalHeight: context.decalHeight,
       addShadowCaster: (mesh) => context.addShadowCaster(mesh),
       onAsyncChange: () => context.onAsyncChange(),
-      pathMaterial: () => this.decalMaterial('grass-dirt'),
+      pathMaterial: () => decalMaterial(this.meshHost, 'grass-dirt'),
       prepareMaterial: prepareDwellingMaterial,
       prepareWeedMaterial: prepareTuftMaterial,
       fences: this.fences,
@@ -365,8 +359,14 @@ export class VillageRenderer {
       addShadowCaster: (mesh) => context.addShadowCaster(mesh),
       onAsyncChange: () => context.onAsyncChange(),
       prepareMaterial: prepareDwellingMaterial,
-      mudMaterial: () => this.decalMaterial('mud'),
+      mudMaterial: () => decalMaterial(this.meshHost, 'mud'),
       fences: this.fences,
+    });
+    this.training = new TrainingGroundRenderer(scene, {
+      groundHeight: context.groundHeight,
+      addShadowCaster: (mesh) => context.addShadowCaster(mesh),
+      onAsyncChange: () => context.onAsyncChange(),
+      prepareMaterial: prepareDwellingMaterial,
     });
     this.penAnimals = new PenAnimals(scene, {
       groundHeight: context.groundHeight,
@@ -377,12 +377,20 @@ export class VillageRenderer {
       groundHeight: context.groundHeight,
       prepareMaterial: prepareDwellingMaterial,
       onLoaded: () => context.requestRender(),
+      onSelected: (state) => {
+        this.teamState = state ? { kind: 'team', ...state } : null;
+        this.emitDraftState();
+      },
     });
     this.carts = new CartRenderer(scene, {
       baseUrl: '/models/',
       groundHeight: context.groundHeight,
       prepareMaterial: prepareDwellingMaterial,
       onLoaded: () => context.requestRender(),
+      onSelected: (state) => {
+        this.cartState = state ? { kind: 'cart', ...state } : null;
+        this.emitDraftState();
+      },
     });
   }
 
@@ -393,7 +401,11 @@ export class VillageRenderer {
     const dwellings = this.updateDwellings(village.dwellings);
     const kilns = this.updateKilns(village.kilns ?? []);
     const remnants = this.updateKilnRemnants(village.kilnRemnants ?? []);
+    // obě části humna se překreslí vždy (ne zkráceným „||“)
+    const floorDecals = this.updateThreshingFloors(village.threshingFloors ?? []);
+    const floors = this.threshing.update(village.threshingFloors ?? []) || floorDecals;
     const ruins = this.updateRuins(village.ruins ?? []);
+    const yards = this.craftYards.update(craftYardViews(village.dwellings));
     if (dwellings || ruins) this.updatePitCuts();
     // ladicí orba za herní den: dnešní díly orby na začátku dne, zbytek přibývá brázdou za rádlem
     this.ploughDay = this.ploughDayOf(village);
@@ -403,13 +415,16 @@ export class VillageRenderer {
     const wild = this.wild.update(village);
     const cemeteries = this.cemeteries.update(this.shownCemeteries(Date.now()), village.dwellings);
     const ores = this.ores.update(village.oreSites, village.orePits);
+    const grainPits = this.grainPits.update(village.grainPits);
     const orchards = this.orchards.update(
       village.orchards ?? [],
       buildingClearings(village.dwellings),
     );
     const plots = this.plots.update(plotViews(village.dwellings));
+    const forts = this.fortifications.update(village.forts ?? []);
     const sacred = this.sacred.update(village.sacred);
     const pens = this.updatePens(village);
+    const training = this.training.update(trainingGroundOf(village));
     const models = this.updateModels();
     const sites = this.updateConstruction();
     const decay = this.updateDecay();
@@ -421,17 +436,46 @@ export class VillageRenderer {
       wild ||
       cemeteries ||
       ores ||
+      grainPits ||
       orchards ||
       plots ||
+      forts ||
       sacred ||
       pens ||
+      training ||
       models ||
       sites ||
       decay ||
       smoke ||
       kilns ||
-      remnants
+      remnants ||
+      floors ||
+      yards
     );
+  }
+
+  /** Zvířata v ohradách podle poslední vsi a koní na jízdě (`setRidingHorses`). */
+  private applyPenHerds(): boolean {
+    if (!this.penInput) return false;
+    const herds = penHerds(this.penInput.village, this.penInput.oxenOut, this.ridingHorses);
+    return this.penAnimals.set(
+      this.pens.builtPens().flatMap(({ id, layout }) => {
+        const herd = herds.get(id);
+        return herd ? penAnimalsFor(layout, herd) : [];
+      }),
+    );
+  }
+
+  /**
+   * Koně, kteří jsou teď na jízdě (riders.ts) – nestojí v ohradě (village-pens.ts). Vrátí true,
+   * když se ohrady změnily.
+   */
+  setRidingHorses(ids: ReadonlySet<number>): boolean {
+    const key = [...ids].sort((a, b) => a - b).join(',');
+    if (key === this.ridingKey) return false;
+    this.ridingKey = key;
+    this.ridingHorses = ids;
+    return this.applyPenHerds();
   }
 
   /**
@@ -444,16 +488,16 @@ export class VillageRenderer {
     const day = this.ploughDay;
     // vůl táhne buď vůz, nebo rádlo (oxen.md – Voli se sdílí) – orba jen s páry, které nevozí
     const draft = draftTeamsToday(village, ploughTeamCount(village));
-    const routes = day ? splitStints(day.stints, draft.plough) : null;
+    const routes = day
+      ? day.stints.length > 0
+        ? splitStints(day.stints, draft.plough)
+        : Array.from({ length: draft.plough }, (): DayStint[] => [])
+      : null;
     const front = routes ? [] : ploughFront(village).slice(0, draft.plough);
     const pairs = routes ? routes.length : front.length;
-    const herds = penHerds(village, pairs * DRAFT_OXEN.ard + draft.cartOxen);
-    const animals = this.penAnimals.set(
-      this.pens.builtPens().flatMap(({ id, layout }) => {
-        const herd = herds.get(id);
-        return herd ? penAnimalsFor(layout, herd) : [];
-      }),
-    );
+    const oxenOut = pairs * DRAFT_OXEN.ard + draft.cartOxen;
+    this.penInput = { village, oxenOut };
+    const animals = this.applyPenHerds();
     let teams = false;
     if (day && routes) {
       // celá dnešní orba za herní den (ladicí): trasy po dílech dne, brázda za rádlem
@@ -461,10 +505,11 @@ export class VillageRenderer {
         'day',
         day.window,
         routes.map((r) => r.map((s) => [s.partId, s.from, s.to])),
+        village.ploughLegs ?? null,
       ]);
       if (key !== this.teamsKey) {
         this.teamsKey = key;
-        this.teams.setRoutes(routes, day.window, Date.now(), village.ploughApproach ?? null);
+        this.teams.setRoutes(routes, day.window, Date.now(), village.ploughLegs ?? null);
         teams = true;
       }
       if (this.fields.setFurrows(this.teams.furrows(Date.now()))) teams = true;
@@ -476,6 +521,7 @@ export class VillageRenderer {
         this.teams.setPaths(
           front.map((a) => ploughPath(a.field)),
           Date.now(),
+          front.map((a) => ({ fieldId: a.fieldId, partId: a.partId })),
         );
         teams = true;
       }
@@ -486,28 +532,84 @@ export class VillageRenderer {
   }
 
   /**
-   * Vozy (wagons.md – fáze 3): svoz tam a zpět po trase dne (ladicí – jízdy dne za herní den jako
-   * orba, PLOUGH_DAY_DEBUG), výprava po stezce, vůz bez jízdy u ohrady. Vrátí true při změně.
+   * Vozy (wagons.md – fáze 3): svoz tam a zpět po trase dne tempem volů ve skutečném čase, výprava
+   * po stezce, vůz bez jízdy u ohrady. Vrátí true při změně.
    */
   private updateCarts(village: SceneVillage): boolean {
-    const window = PLOUGH_DAY_DEBUG && village.labor ? this.dayWindow(village.labor.day) : null;
     const pens = this.pens.builtPens();
     // vozy výprav jedou v karavaně podle postupu výpravy v herním čase (caravan.ts)
     const caravans = (village.expeditions ?? []).filter((e) => e.carts.length > 0);
+    // rozdělané vozy u tesařů (fáze stavby – craft-yard-layout.ts)
+    const building = buildingCartPlans(carpenterYardViews(village.dwellings));
     const key = JSON.stringify([
       village.carts ?? [],
-      window,
+      building,
       pens.map((p) => [p.id, p.layout.square, p.layout.front, p.layout.side]),
       caravans,
-      caravans.map((e) => this.dayWindow(e.day)),
+      caravans.map((e) => this.dayWindow(e.startDay ?? e.day)),
     ]);
     if (key === this.cartsKey) return false;
     this.cartsKey = key;
-    this.carts.setCarts(
-      villageCartPlans(village, pens, window, (day) => this.dayWindow(day)),
-      Date.now(),
+    const plans = villageCartPlans(
+      village,
+      pens,
+      (day) => this.dayWindow(day),
+      this.context.walkable,
     );
+    // vůz se spřežením má vozku (jede, nebo v karavaně), stojící u ohrady ne
+    this.cartCrews = plans.flatMap((p) => (!('parked' in p) && p.id !== undefined ? [p.id] : []));
+    this.carts.setCarts([...plans, ...building], Date.now());
     return true;
+  }
+
+  /**
+   * Spřežení a vozy, které ves dnes kreslí (po `update`): kolik spřežení s rádlem a id
+   * zapřažených vozů – lidé u nich (oráč, honák, vozka) jsou lidé vsi (villager-plan.ts).
+   */
+  draftCrews(): DraftCrews {
+    return { teams: this.teams.teams, carts: this.cartCrews };
+  }
+
+  /**
+   * Spřežení nebo vůz pod kurzorem (x, y – CSS px): bližší z obou (vůl, rádlo, korba, oráč,
+   * honák, vozka). Jen při kliknutí. Nic – null.
+   */
+  pickDraft(x: number, y: number, project: Project): DraftPick | null {
+    const team = this.teams.pick(x, y, project);
+    const cart = this.carts.pick(x, y, project);
+    if (cart && (!team || cart.distance < team.distance)) {
+      return { kind: 'cart', cart: cart.cart, part: cart.part, distance: cart.distance };
+    }
+    return team
+      ? { kind: 'team', team: team.index, part: team.part, distance: team.distance }
+      : null;
+  }
+
+  /**
+   * Vybere spřežení nebo vůz (celé, nebo člověka u nich) – kroužek sleduje pohyb, co dělá hlásí
+   * `onDraftState`; null výběr zruší.
+   */
+  selectDraft(selection: DraftSelection | null): void {
+    this.draftSelection = selection;
+    const nowMs = Date.now();
+    this.teams.select(
+      selection?.kind === 'team' ? { team: selection.team, figure: selection.figure } : null,
+      nowMs,
+    );
+    this.carts.select(
+      selection?.kind === 'cart' ? { cart: selection.cart, figure: selection.figure } : null,
+      nowMs,
+    );
+    this.emitDraftState();
+  }
+
+  /** Stav vybraného spřežení / vozu – jen při změně. */
+  private emitDraftState(): void {
+    const kind = this.draftSelection?.kind;
+    const state = kind === 'team' ? this.teamState : kind === 'cart' ? this.cartState : null;
+    if (state === this.draftState) return;
+    this.draftState = state;
+    this.context.onDraftState?.(state);
   }
 
   /**
@@ -524,7 +626,9 @@ export class VillageRenderer {
     const window = this.dayWindow(village.labor.day);
     if (!window) return null;
     const stints = dayStints(village);
-    return stints.length > 0 ? { stints, window } : null;
+    if (stints.length > 0) return { stints, window };
+    // spřežení na poli v den bez orby stojí u čela orby (oxen.md – Spřežení zůstane na poli)
+    return village.ploughLegs?.stand ? { stints, window } : null;
   }
 
   /**
@@ -593,7 +697,9 @@ export class VillageRenderer {
     const mounds = this.refreshMounds(nowMs);
     // svatby: oheň obřadu, věnec na dubu
     const weddings = this.weddings.animate(nowMs, camera);
-    return smoke || funerals || mounds || weddings;
+    // kovárna: žár a jiskry z redukční pece při tavbě
+    const furnaces = this.craftYards.animate(nowMs, camera);
+    return smoke || funerals || mounds || weddings || furnaces;
   }
 
   /**
@@ -619,6 +725,27 @@ export class VillageRenderer {
     return funerals || mounds;
   }
 
+  /**
+   * Porážka (diet.md – Porážka ve scéně): plán dne z villagers.ts – kozlina, necky, špalek,
+   * miska, mršina a kýty (slaughter-renderer.ts). Vrátí true, když je co překreslit.
+   */
+  setSlaughter(plan: SlaughterPlan | null, nowMs: number): boolean {
+    return this.slaughter.set(plan, nowMs);
+  }
+
+  /**
+   * Posune mršinu, kýty a misku porážky na okamžik `nowMs` – true jen při změně stavu (pád
+   * a zvednutí na háky plynule, jinak skokově) a jen v záběru kamery.
+   */
+  animateSlaughter(nowMs: number, camera: Camera | null): boolean {
+    return this.slaughter.animate(nowMs, camera);
+  }
+
+  /** Kam namířit kameru na porážku – kozlina prvního stanoviště (vývojová ukázka). */
+  slaughterFocus(): { x: number; z: number } | null {
+    return this.slaughter.focus();
+  }
+
   /** Kam namířit kameru na pohřeb – máry v průvodu, jinak hranice (vývojová ukázka). */
   funeralFocus(nowMs: number): ReturnType<FuneralRenderer['focus']> {
     return this.funerals.focus(nowMs);
@@ -641,6 +768,11 @@ export class VillageRenderer {
   /** Vývojová volba: dým ze všech hotových obydlí pořád. */
   setSmokeAlways(enabled: boolean): void {
     this.smoke.setAlways(enabled);
+  }
+
+  /** Vývojově vynucený den světa pro dým hořícího domu (null = podle hodin světa). */
+  setDisasterDay(day: number | null): void {
+    this.smoke.setDisasterDay(day);
   }
 
   /** Den a noc: tón materiálů bez světla (dým) – day-light.ts. */
@@ -843,11 +975,17 @@ export class VillageRenderer {
     this.smoke.dispose();
     this.funerals.dispose();
     this.weddings.dispose();
+    this.slaughter.dispose();
     this.cemeteries.dispose();
+    this.fortifications.dispose();
     this.ores.dispose();
+    this.grainPits.dispose();
+    this.threshing.dispose();
+    this.craftYards.dispose();
     this.plots.dispose();
     // ohrady uvolní své ploty – před sdílenými ploty
     this.pens.dispose();
+    this.training.dispose();
     this.fences.dispose();
     this.orchards.dispose();
     this.sacred.dispose();
@@ -863,6 +1001,8 @@ export class VillageRenderer {
     this.kilns.clear();
     for (const view of this.kilnRemnants.values()) view.mesh.dispose();
     this.kilnRemnants.clear();
+    for (const view of this.threshingFloors.values()) view.mesh.dispose();
+    this.threshingFloors.clear();
     for (const view of this.ruins.values()) for (const mesh of view.meshes) mesh.dispose();
     this.ruins.clear();
   }
@@ -885,7 +1025,9 @@ export class VillageRenderer {
       const pseudo = kilnDwelling(kiln);
       const site = kilnLook(kiln).site;
       const state = site !== null ? constructionState('milir', site) : null;
-      const meshes = state ? this.milirSite(pseudo, state) : [this.milirGround(pseudo)];
+      const meshes = state
+        ? milirSite(this.meshHost, pseudo, state)
+        : [milirGround(this.meshHost, pseudo)];
       const lines =
         state && state.outline > 0
           ? [closedLine(milirCircle(pseudo.position, ROUND_SITE_M.milir.outline))]
@@ -944,7 +1086,7 @@ export class VillageRenderer {
           uv: 20,
         },
       );
-      mesh.material = this.decalMaterial('mud');
+      mesh.material = decalMaterial(this.meshHost, 'mud');
       mesh.alphaIndex = 1;
       this.kilnRemnants.set(r.id, { key, mesh });
     }
@@ -952,6 +1094,60 @@ export class VillageRenderer {
       if (seen.has(id)) continue;
       view.mesh.dispose();
       this.kilnRemnants.delete(id);
+      changed = true;
+    }
+    return changed;
+  }
+
+  /**
+   * Humna (production-chains.md – Humno) – obtisk udusané mlatové plochy přes půdorys, staveniště
+   * slaběji podle fáze stavby (`floorSiteLook` – při vytyčení žádný). Stoh, hromady a klasy kreslí
+   * `ThreshingFloorRenderer`. Vrátí true při změně.
+   */
+  private updateThreshingFloors(floors: readonly SceneThreshingFloor[]): boolean {
+    let changed = false;
+    const seen = new Set<number>();
+    for (const f of floors) {
+      seen.add(f.id);
+      const cover = floorSiteLook(f).decal;
+      const { x, z, rotation } = f.position;
+      const key = [x, z, rotation, cover].join('|');
+      const current = this.threshingFloors.get(f.id);
+      if (current?.key === key) continue;
+      changed = true;
+      current?.mesh.dispose();
+      if (cover <= 0) {
+        this.threshingFloors.delete(f.id);
+        continue;
+      }
+      const area = threshingFloorFootprint(f.position).map(([px, pz]): Point => [px, pz]);
+      const b = polygonBounds(area);
+      const pad = THRESHING_FLOOR_SOFT_M;
+      const mesh = createDecalMesh(
+        this.scene,
+        `village-threshing-floor-${f.id}`,
+        decalGrid(
+          { minX: b.minX - pad, maxX: b.maxX + pad, minZ: b.minZ - pad, maxZ: b.maxZ + pad },
+          0.5,
+          softCoverage(area, THRESHING_FLOOR_SOFT_M),
+        ),
+        {
+          height: this.context.decalHeight,
+          smoothHeight: this.context.groundHeight,
+          lift: LIFT.turf,
+          color: THRESHING_FLOOR_COLOR,
+          alpha: THRESHING_FLOOR_ALPHA * cover,
+          uv: 20,
+        },
+      );
+      mesh.material = decalMaterial(this.meshHost, 'mud', THRESHING_FLOOR_Z_OFFSET);
+      mesh.alphaIndex = THRESHING_FLOOR_ALPHA_INDEX;
+      this.threshingFloors.set(f.id, { key, mesh });
+    }
+    for (const [id, view] of this.threshingFloors) {
+      if (seen.has(id)) continue;
+      view.mesh.dispose();
+      this.threshingFloors.delete(id);
       changed = true;
     }
     return changed;
@@ -1043,9 +1239,11 @@ export class VillageRenderer {
       const dug = !state || state.pitDepth > 0;
       // dílna uhlíře je jen zemnice – milíř je samostatná stavba u skácených buků (crafts.md –
       // Milíř u skácených buků, `updateKilns`)
-      const meshes = state ? this.constructionSite(dwelling, state) : this.dwellingGround(dwelling);
+      const meshes = state
+        ? constructionSite(this.meshHost, dwelling, state)
+        : dwellingGround(this.meshHost, dwelling);
       const lines: Point[][] = [];
-      if (state && state.outline > 0) lines.push(this.stakingLine(dwelling));
+      if (state && state.outline > 0) lines.push(stakingLine(this.meshHost, dwelling));
       this.dwellings.set(dwelling.id, {
         key,
         dwelling,
@@ -1116,6 +1314,7 @@ export class VillageRenderer {
         depth: look.depth,
         rim: this.context.decalHeight,
         overgrowth: ruin.overgrowth,
+        ...(ruin.charred ? { charred: true } : {}),
       },
       sceneFrame(ruin),
     );
@@ -1129,7 +1328,7 @@ export class VillageRenderer {
     vertexData.normals = normals;
     const mesh = new Mesh(`village-ruin-${ruinId(ruin)}`, this.scene);
     vertexData.applyToMesh(mesh);
-    mesh.material = this.ruinMaterial();
+    mesh.material = ruinMaterial(this.meshHost);
     mesh.isPickable = false;
     mesh.receiveShadows = true;
     return mesh;
@@ -1254,7 +1453,10 @@ export class VillageRenderer {
     return this.decayLoading;
   }
 
-  /** Dýmníky hotových obývaných obydlí, pece, výhně a milíře pracujících dílen pro dým. */
+  /**
+   * Dýmníky hotových obývaných obydlí, pece, výhně a milíře pracujících dílen, ohniště svatyní
+   * a pálení paseky (nejvýš MAX_SLASH_PLUMES čtverců) pro dým.
+   */
   private updateSmokeSources(): boolean {
     const sources: SmokeSource[] = this.village.dwellings
       .filter((d) => d.built && d.inhabited !== false)
@@ -1267,7 +1469,12 @@ export class VillageRenderer {
     // dílna, která dnes vyrábí – pec nebo výheň (uhlíř topí jen v milíři – níž)
     for (const d of this.village.dwellings) {
       if (!d.built || !d.craft || !d.working) continue;
-      for (const vent of workshopVents(d.craft, d.position, sceneFrame(d))) {
+      // kovář při tavbě topí v redukční peci před kovárnou, ne ve výhni (craft-yard-layout.ts)
+      const vents =
+        d.craft === 'smith' && d.yard?.task === 'smelt'
+          ? smeltVents({ id: d.id, craft: d.craft, position: d.position, frame: sceneFrame(d) })
+          : workshopVents(d.craft, d.position, sceneFrame(d));
+      for (const vent of vents) {
         const milir = vent.kind === 'milir';
         sources.push({
           seed: CRAFT_SMOKE_SEED + d.id * 4 + (milir ? 2 : 1),
@@ -1294,6 +1501,29 @@ export class VillageRenderer {
     }
     // ohniště hotových svatyní – občas dým jako z obydlí (happiness.md)
     sources.push(...this.sacred.smokeSources());
+    // pálení paseky a doutnající spálenina (forest.md – Klučení lesa pro pole – postup)
+    const today = Math.floor(gameDayAt(Date.now(), this.worldClock ?? OFFICIAL_WORLD));
+    for (const plume of slashPlumes(burningSquares(this.village, today))) {
+      sources.push({
+        seed: SLASH_SMOKE_SEED + plume.seed,
+        x: plume.x,
+        y: this.context.groundHeight(plume.x, plume.z) + 0.4,
+        z: plume.z,
+        kind: 'slash',
+        burn: plume.burn,
+      });
+    }
+    // hořící domy v den požáru – hustý dým nad stavbou (disasters.md – Požár, Ve scéně)
+    for (const plume of houseFirePlumes(this.village.fire)) {
+      sources.push({
+        seed: HOUSE_FIRE_SMOKE_SEED + plume.id,
+        x: plume.x,
+        y: this.context.groundHeight(plume.x, plume.z) + 2.5,
+        z: plume.z,
+        kind: 'house-fire',
+        burn: { burnedDay: plume.day, order: plume.order },
+      });
+    }
     return this.smoke.setSources(sources);
   }
 
@@ -1551,543 +1781,30 @@ export class VillageRenderer {
     const mean = corners.reduce((sum, [x, z]) => sum + h(x, z), 0) / corners.length;
     return Math.min(h(d.position.x, d.position.z), mean) - DWELLING_SINK_M;
   }
-
-  /** Vyšlapaná hlína před vchodem: širší prošlapaná tráva, uvnitř holá udusaná hlína. */
-  private dwellingGround(d: SceneDwelling): Mesh[] {
-    // opuštěné obydlí (nikdo v něm nebydlí – vymřelá ves, prázdné obydlí) zarůstá trávou:
-    // vyšlapaná a udusaná hlína se nikdo neobnovuje; s rozpadem domu zarůstá dál
-    const look = DECAY_LOOKS[dwellingDecay(d)];
-    const alpha = (d.inhabited === false ? ABANDONED_EARTH_ALPHA : 1) * look.earth;
-    const worn = createDecalMesh(
-      this.scene,
-      `village-worn-${d.id}`,
-      earthPatch(d.type, d.position, d.id, EARTH_LAYERS.worn, sceneFrame(d)),
-      {
-        height: this.context.decalHeight,
-        smoothHeight: this.context.groundHeight,
-        lift: LIFT.worn,
-        color: [1, 0.96, 0.88],
-        alpha,
-        uv: 20,
-      },
-    );
-    worn.material = this.decalMaterial('grass-dirt');
-    worn.alphaIndex = 1;
-    const earth = createDecalMesh(
-      this.scene,
-      `village-earth-${d.id}`,
-      earthPatch(d.type, d.position, d.id, EARTH_LAYERS.earth, sceneFrame(d)),
-      {
-        height: this.context.decalHeight,
-        smoothHeight: this.context.groundHeight,
-        lift: LIFT.earth,
-        // šedavá hlína z terénu do teplejší hnědé (udusaná hlína u dveří)
-        color: [1.05, 0.9, 0.74],
-        alpha,
-        uv: 14,
-      },
-    );
-    earth.material = this.decalMaterial('mud', -3);
-    earth.alphaIndex = 2;
-    const { depth } = PIT_SHAPES[d.type];
-    // děravou a zřícenou střechou do jámy svítí slunce
-    return [worn, earth, this.pitMesh(d, depth, look.roofCover, false)];
-  }
-
-  /** Jáma se šíjí a schody (stěny po okraj terénu, dno, stupně) – terén v ní prořízne pit-cut. */
-  private pitMesh(d: SceneDwelling, depth: number, roofCover: number, fresh: boolean): Mesh {
-    const data = pitMeshData(pitShapeOf(d), d.position, {
-      depth,
-      base: this.baseHeight(d),
-      rim: this.context.decalHeight,
-      roofCover,
-      fresh,
-      sun: this.context.sunDirection,
-    });
-    const vertexData = new VertexData();
-    vertexData.positions = data.positions;
-    vertexData.normals = data.normals;
-    vertexData.uvs = data.uvs;
-    vertexData.colors = data.colors;
-    vertexData.indices = data.indices;
-    const mesh = new Mesh(`village-pit-${d.id}`, this.scene);
-    vertexData.applyToMesh(mesh);
-    mesh.material = this.pitMaterial();
-    mesh.isPickable = false;
-    mesh.receiveShadows = true;
-    return mesh;
-  }
-
-  /**
-   * Čára vytyčení s kolíky a provázkem: kolem celého pozemku (po budoucím plotu), u volného
-   * obydlí kolem jámy se šíjí.
-   */
-  private stakingLine(d: SceneDwelling): Point[] {
-    return d.plot ? plotStakingLine(d.plot) : closedLine(this.pitOutlineWorld(d, 0));
-  }
-
-  /** Obvod jámy se šíjí ve světě (rozšířený o `margin`). */
-  private pitOutlineWorld(d: SceneDwelling, margin: number): Point[] {
-    return pitOutline(pitShapeOf(d), margin).map(([x, z]) => localToWorld(d.position, x, z));
-  }
-
-  /**
-   * Staveniště podle fáze (village-construction.ts): ušlapaná tráva kolem, světlá čára
-   * vytyčení, sejmutý drn (tmavá hlína od zadní stěny k šíji), od kopání jáma, která se
-   * prohlubuje. Díly konstrukce a rekvizity kreslí `updateConstruction` v instancích.
-   */
-  private constructionSite(d: SceneDwelling, state: ConstructionState): Mesh[] {
-    const meshes: Mesh[] = [];
-    if (state.trampled > 0) {
-      const area = trampledArea(d);
-      const b = polygonBounds(area);
-      const pad = TRAMPLED_SOFT_M;
-      const trampled = createDecalMesh(
-        this.scene,
-        `village-trampled-${d.id}`,
-        decalGrid(
-          { minX: b.minX - pad, maxX: b.maxX + pad, minZ: b.minZ - pad, maxZ: b.maxZ + pad },
-          0.6,
-          softCoverage(area, TRAMPLED_SOFT_M),
-        ),
-        {
-          height: this.context.decalHeight,
-          smoothHeight: this.context.groundHeight,
-          lift: LIFT.worn,
-          color: [1, 0.95, 0.86],
-          alpha: state.trampled,
-          uv: 20,
-        },
-      );
-      trampled.material = this.decalMaterial('grass-dirt');
-      trampled.alphaIndex = 1;
-      meshes.push(trampled);
-    }
-    if (state.turf > 0) {
-      // drn se snímá od zadní stěny (−z) k šíji
-      const shape = pitShapeOf(d);
-      const outline = this.pitOutlineWorld(d, TURF_MARGIN_M);
-      const b = polygonBounds(outline);
-      const coverage = softCoverage(outline, 0.35);
-      const start = -shape.halfZ - TURF_MARGIN_M;
-      const front = start + state.turf * (shape.rampEndZ + TURF_MARGIN_M - start + 0.3);
-      const turf = createDecalMesh(
-        this.scene,
-        `village-turf-${d.id}`,
-        decalGrid(
-          { minX: b.minX - 0.5, maxX: b.maxX + 0.5, minZ: b.minZ - 0.5, maxZ: b.maxZ + 0.5 },
-          0.3,
-          (x, z) =>
-            coverage(x, z) *
-            (1 - smoothstep(front - 0.4, front, worldToLocal(d.position, x, z)[1])),
-        ),
-        {
-          height: this.context.decalHeight,
-          smoothHeight: this.context.groundHeight,
-          lift: LIFT.turf,
-          color: [0.72, 0.58, 0.46],
-          uv: 10,
-        },
-      );
-      turf.material = this.decalMaterial('mud', -3);
-      turf.alphaIndex = 2;
-      meshes.push(turf);
-    }
-    if (state.outline > 0) {
-      const line = createStripMesh(
-        this.scene,
-        `village-layout-${d.id}`,
-        stripSegments(this.pitOutlineWorld(d, 0), true, 0.09, 0.5),
-        this.context.decalHeight,
-        LIFT.outline,
-      );
-      line.material = this.layoutMaterial();
-      meshes.push(line);
-      // kolíky v rozích a po obvodu a mezi nimi napnutý provázek – vidět hned po zadání stavby
-      let string = this.materials.get('string');
-      if (!string) {
-        string = createStringMaterial(this.scene);
-        this.materials.set('string', string);
-      }
-      meshes.push(
-        createStringMesh(
-          this.scene,
-          `village-string-${d.id}`,
-          [this.stakingLine(d)],
-          this.context.groundHeight,
-          string,
-        ),
-      );
-    }
-    if (state.pitDepth > 0) meshes.push(this.pitMesh(d, state.pitDepth, state.roofCover, true));
-    const spoil = state.props.find((p) => p.prop === 'spoil');
-    if (spoil) meshes.push(this.spoilHeap(d, spoil.scale));
-    return meshes;
-  }
-
-  /** Hromada vykopané hlíny vedle jámy – roste s kopáním, ubývá na valy. */
-  private spoilHeap(d: SceneDwelling, scale: number): Mesh {
-    const place = sitePropPlace(d.type, 'spoil', d.plot ? plotInward(d.plot.variant) : undefined);
-    const [x, z] = shapedToWorld(d.position, sceneFrame(d), place.x, place.z);
-    const data = spoilHeapData({
-      seed: d.id,
-      x,
-      z,
-      rotation: d.position.rotation + place.rotation,
-      rx: SPOIL_HEAP_M.rx * Math.sqrt(scale),
-      rz: SPOIL_HEAP_M.rz * Math.sqrt(scale),
-      height: SPOIL_HEAP_M.height * scale,
-      ground: this.context.decalHeight,
-    });
-    const vertexData = new VertexData();
-    vertexData.positions = data.positions;
-    vertexData.uvs = data.uvs;
-    vertexData.colors = data.colors;
-    vertexData.indices = data.indices;
-    const normals = new Float32Array(data.positions.length);
-    VertexData.ComputeNormals(data.positions, data.indices, normals);
-    vertexData.normals = normals;
-    const mesh = new Mesh(`village-spoil-${d.id}`, this.scene);
-    vertexData.applyToMesh(mesh);
-    mesh.material = this.pitMaterial();
-    mesh.isPickable = false;
-    mesh.receiveShadows = true;
-    this.context.addShadowCaster(mesh);
-    return mesh;
-  }
-
-  /**
-   * Staveniště milíře (kruhové, bez jámy – village-construction.ts): ušlapaná tráva kolem
-   * a světlá čára vytyčeného kruhu, dokud se neskládá věnec polen. Díly a rekvizity kreslí
-   * `updateConstruction` v instancích.
-   */
-  private milirSite(d: SceneDwelling, state: ConstructionState): Mesh[] {
-    const meshes: Mesh[] = [];
-    const site = ROUND_SITE_M.milir;
-    if (state.trampled > 0) {
-      meshes.push(this.milirTrampled(d, site.trampled - TRAMPLED_SOFT_M / 2, state.trampled));
-    }
-    if (state.outline > 0) meshes.push(this.milirOutline(d));
-    return meshes;
-  }
-
-  /** Provázek vytyčení kruhu milíře (nový milíř na milířišti i v lese). */
-  private milirOutline(d: SceneDwelling): Mesh {
-    const line = createStripMesh(
-      this.scene,
-      `village-milir-layout-${d.id}`,
-      stripSegments(milirCircle(d.position, ROUND_SITE_M.milir.outline), true, 0.09, 0.5),
-      this.context.decalHeight,
-      LIFT.outline,
-    );
-    line.material = this.layoutMaterial();
-    return line;
-  }
-
-  /** Hotový milíř: kolem vyšlapaná zem (uhlíř u něj pracuje), u opuštěného zarůstá. */
-  private milirGround(d: SceneDwelling): Mesh {
-    const alpha = d.inhabited === false ? ABANDONED_EARTH_ALPHA : 0.85;
-    return this.milirTrampled(d, ROUND_SITE_M.milir.trampled - TRAMPLED_SOFT_M / 2, alpha);
-  }
-
-  /** Ušlapaná tráva v kruhu kolem milíře (poloměr `radius`, měkký okraj). */
-  private milirTrampled(d: SceneDwelling, radius: number, alpha: number): Mesh {
-    const area = milirCircle(d.position, radius);
-    const b = polygonBounds(area);
-    const pad = TRAMPLED_SOFT_M;
-    const mesh = createDecalMesh(
-      this.scene,
-      `village-milir-trampled-${d.id}`,
-      decalGrid(
-        { minX: b.minX - pad, maxX: b.maxX + pad, minZ: b.minZ - pad, maxZ: b.maxZ + pad },
-        0.6,
-        softCoverage(area, TRAMPLED_SOFT_M),
-      ),
-      {
-        height: this.context.decalHeight,
-        smoothHeight: this.context.groundHeight,
-        lift: LIFT.worn,
-        color: [0.95, 0.88, 0.78],
-        alpha,
-        uv: 20,
-      },
-    );
-    mesh.material = this.decalMaterial('grass-dirt');
-    mesh.alphaIndex = 1;
-    return mesh;
-  }
-
-  private decalMaterial(texture: 'grass-dirt' | 'mud', zOffset = -2): Material {
-    const key = `decal-${texture}-${zOffset}`;
-    let material = this.materials.get(key);
-    if (!material) {
-      const decal = createDecalMaterial(this.scene, `village-${key}`, { texture, zOffset });
-      // obtisky (vyšlapaná hlína, sejmutý drn) nesmí viset nad jámou
-      applyPitCut(decal, this.context.pitCuts);
-      // tráva v nich usychá jako na terénu, v zimě je zasype sníh – pole a cesty jen prosvítají
-      applySeasonGround(decal, VILLAGE_SNOW);
-      const loaded = decal.diffuseTexture;
-      if (loaded instanceof Texture && !loaded.isReady()) {
-        loaded.onLoadObservable.addOnce(() => this.context.requestRender());
-      }
-      material = decal;
-      this.materials.set(key, material);
-    }
-    return material;
-  }
-
-  /** Hlína jámy: textura bahna z terénu, barvy (ornice, podloží, stín) nesou vrcholy. */
-  private pitMaterial(): Material {
-    let material = this.materials.get('pit');
-    if (!material) {
-      const standard = new StandardMaterial('village-pit', this.scene);
-      standard.specularColor = Color3.Black();
-      // stěnu vidět zevnitř i tam, kde na svahu okraj klesne pod dno
-      standard.backFaceCulling = false;
-      standard.twoSidedLighting = true;
-      const texture = new Texture('/textures/terrain/mud.jpg', this.scene);
-      texture.anisotropicFilteringLevel = 8;
-      if (!texture.isReady()) texture.onLoadObservable.addOnce(() => this.context.requestRender());
-      standard.diffuseTexture = texture;
-      material = standard;
-      this.materials.set('pit', material);
-    }
-    return material;
-  }
-
-  /**
-   * Tráva zarostlé prohlubně: textura trávy z terénu, barvy nesou vrcholy; usychá a v zimě ji
-   * zasype sníh jako terén. Leží v řezu terénu – sama se neprořezává.
-   */
-  private ruinMaterial(): Material {
-    let material = this.materials.get('ruin');
-    if (!material) {
-      const standard = new StandardMaterial('village-ruin', this.scene);
-      standard.specularColor = Color3.Black();
-      const texture = new Texture('/textures/terrain/grass.jpg', this.scene);
-      texture.anisotropicFilteringLevel = 8;
-      if (!texture.isReady()) texture.onLoadObservable.addOnce(() => this.context.requestRender());
-      standard.diffuseTexture = texture;
-      applySeasonGround(standard);
-      material = standard;
-      this.materials.set('ruin', material);
-    }
-    return material;
-  }
-
-  /** Světlá čára vytyčení (vápno / naražená tráva po provázku). */
-  private layoutMaterial(): Material {
-    let material = this.materials.get('layout');
-    if (!material) {
-      const standard = new StandardMaterial('village-layout', this.scene);
-      standard.diffuseColor = new Color3(0.8, 0.76, 0.64);
-      standard.specularColor = Color3.Black();
-      standard.zOffset = -4;
-      standard.backFaceCulling = false;
-      material = standard;
-      this.materials.set('layout', material);
-    }
-    return material;
-  }
 }
 
-/** Id meshů milíře v lese – mimo id obydlí a staveb (jména meshů a dým). */
-const FOREST_KILN_MESH_ID = 3_000_000;
-/** Milířiště (crafts.md – Milíř u skácených buků): poloměr černé země, krytí a barva (tón bahna). */
-const KILN_REMNANT_RADIUS_M = 3.4;
-const KILN_REMNANT_ALPHA = 0.75;
-const KILN_REMNANT_COLOR: [number, number, number] = [0.5, 0.42, 0.35];
-
-/** Rekvizity u rozebíraného milíře – koše na uhlí a rýč (hrabice). */
-const KILN_DRAW_PROPS: readonly SiteProp[] = ['basket', 'spade'];
-
-/** Klíč fáze milíře – přestaví se při změně fáze, průběhu nebo uhlí (po 2 %). */
-function kilnPhaseKey(kiln: SceneKilnState | undefined): string {
-  return kiln ? [kiln.stage, kiln.progress, kiln.charcoal ?? ''].join('|') : '';
-}
-
-/** Klíč milíře v lese – přestaví se při změně místa, fáze, průběhu nebo uhlí. */
-function kilnKey(kiln: SceneKiln): string {
-  return [kiln.id, kiln.x, kiln.z, kilnPhaseKey(kiln)].join('|');
-}
-
-/** Milíř v lese jako „dílna uhlíře“ s polohou kotvy – funkce milíře u dílny ho kreslí stejně. */
-function kilnDwelling(kiln: SceneKiln): SceneDwelling {
-  return {
-    id: FOREST_KILN_MESH_ID + kiln.id,
-    type: 'zemnice',
-    position: forestKilnAnchor(kiln),
-    built: true,
-    progress: 1,
-    craft: 'burner',
-  };
-}
-
-/** Pozemky obydlí pro scénu: hotové celé, staveniště podle fáze plotu a záhonů. */
-function plotViews(dwellings: readonly SceneDwelling[]): PlotView[] {
-  return dwellings.flatMap((d) => {
-    if (!d.plot) return [];
-    const progress = d.built ? PLOT_BUILT : constructionState(d.type, d.progress).plot;
-    // pozemek rozpadajícího se obydlí: plot padá, záhony zarůstají (dwelling-decay.ts)
-    const look = DECAY_LOOKS[d.built ? dwellingDecay(d) : 0];
-    const decay =
-      look.fence > 0 || look.beds > 0
-        ? { decay: { fence: look.fence, beds: look.beds, seed: d.id } }
-        : {};
-    return [
-      {
-        id: d.id,
-        square: d.plot,
-        variant: d.plot.variant,
-        progress,
-        house: d.position,
-        ...decay,
-        ...(d.plainShape ? { plainShape: true } : {}),
-      },
-    ];
-  });
-}
-
-/** Stupeň rozpadu hotového obydlí – jen prázdné se rozpadá (dwelling-decay.ts). */
-function dwellingDecay(
-  d: Pick<SceneDwelling, 'condition' | 'craft' | 'inhabited' | 'type'>,
-): DecayStage {
-  return dwellingDecayStage(d);
-}
-
-/** Zbytek jámy ve scéně: id zaniklého obydlí a den zániku (obydlí se může přestěhovat znovu). */
-function ruinId(r: SceneRuin): string {
-  return `${r.id}@${r.since}`;
-}
-
-/** Klíč vzhledu zbytku jámy – mění se jen po krocích zarůstání (RUIN_LOOK_STEPS). */
-function ruinKey(r: SceneRuin): string {
-  const p = r.position;
-  const shape = `${r.plot?.variant ?? ''}${r.plainShape ? '/plain' : ''}`;
-  return [ruinId(r), r.type, p.x, p.z, p.rotation, Math.round(r.overgrowth * 20), shape].join('|');
-}
-
-/** Místo domu zbytku jámy (bez pozemku – zbytek pozemek nemá) podle varianty rozměrů. */
-function houseHideShape(r: SceneRuin): HideShape {
-  const corners = houseArea(r);
-  return { bounds: polygonBounds(corners), contains: (x, z) => pointInPolygon(corners, x, z) };
-}
-
-/** Druh staveniště (fáze, díly): obydlí, nebo model řemeslné dílny. */
-function siteKind(d: Pick<SceneDwelling, 'type' | 'craft'>): SiteKind {
-  return d.craft ? CRAFT_MODEL[d.craft] : d.type;
-}
-
-/**
- * Díl modelu obydlí nebo dílny (hotový model, staveniště „<druh>-…“, rozpad „<typ>-…“) dostane
- * kosti oblastí variant rozměrů (population.md – Varianty rozměrů, shaped-model.ts); dvorec,
- * milíř, modla, svatyně a rekvizity („site-…“, kopřivy) variantu nemají.
- */
-function shapeableAs(mesh: Mesh, name: string): void {
-  const kind = name.split('-')[0]!;
-  const base = (CONSTRUCTION_BASE as Partial<Record<string, DwellingType | null>>)[kind];
-  if (base && base !== 'dvorec') makeShapeable(mesh, base);
-}
-
-/** Je model dílnou nebo milířem (public/models/crafts)? */
-function isCraftModel(key: ModelKey): key is WorkshopModel | 'milir' {
-  return (CRAFT_MODEL_KEYS as readonly string[]).includes(key);
-}
-
-/** Ušlapaná tráva staveniště: pozemek, nebo místo kolem modelu (bez kusu před vchodem). */
-function trampledArea(d: SceneDwelling): Point[] {
-  const inset = TRAMPLED_INSET_M + TRAMPLED_SOFT_M / 2;
-  if (d.plot) {
-    const h = d.plot.size / 2 - inset;
-    const { x, z } = d.plot;
-    // natočený pozemek (fields.md – Natočené stavby) – rohy v jeho osách
-    const [c, s] = d.plot.rotation !== undefined ? rotationCosSin(d.plot.rotation) : [1, 0];
-    return (
-      [
-        [-h, -h],
-        [h, -h],
-        [h, h],
-        [-h, h],
-      ] as const
-    ).map(([lx, lz]): Point => [x + lx * c + lz * s, z - lx * s + lz * c]);
-  }
-  // staveniště podle varianty rozměrů domu (population.md)
-  const c = clearanceRect(d);
-  // dílny s přístřeškem (hrnčíř, kovář, tesař): ušlapáno i pod ním před domem
-  const porch = d.craft && hasPorch(CRAFT_MODEL[d.craft]) ? PORCH_EXTRA_M : 0;
-  return [
-    localToWorld(d.position, c.minX + inset, c.minZ + inset),
-    localToWorld(d.position, c.maxX - inset, c.minZ + inset),
-    localToWorld(d.position, c.maxX - inset, c.maxZ - inset - 2 + porch),
-    localToWorld(d.position, c.minX + inset, c.maxZ - inset - 2 + porch),
-  ];
-}
-
-function dwellingKey(d: SceneDwelling): string {
-  const p = d.position;
-  // Průběh stavby po 2 % – sloupy nerostou plynule, ale ani se nepřestavují při každém dotazu.
-  // Hotové obydlí se přestaví, když se vylidní nebo zase zabydlí (hlína u vchodu zarůstá).
-  // Rozpad po stupních (dwelling-decay.ts) – dům se přestaví jen při změně stupně.
-  const look = d.built
-    ? `${d.inhabited === false ? 'empty' : ''}${dwellingDecay(d)}`
-    : Math.round(d.progress * 50);
-  // tvar (varianta rozměrů) je čistá funkce polohy, varianty pozemku a příznaku dnešního tvaru
-  const shape = `${d.plot?.variant ?? ''}${d.plainShape ? '/plain' : ''}`;
-  return [d.type, d.craft ?? '', p.x, p.z, p.rotation, d.built, look, shape].join('|');
-}
-
-/** Nastaví instance meshe; bez instancí ho vypne (jinak by se vykreslil samotný model v počátku). */
-function setInstances(mesh: Mesh, instances: readonly ModelInstance[]): void {
-  if (instances.length === 0) {
-    mesh.setEnabled(false);
-    return;
-  }
-  mesh.thinInstanceSetBuffer('matrix', instanceMatrices(instances), 16, true);
-  // varianty rozměrů domů (shaped-model.ts) – mesh bez kostí oblastí to nechá být
-  setShapeFrames(
-    mesh,
-    instances.map((instance) => instance.shape ?? PLAIN_FRAME),
+/** Hotové kovárny a hrnčíři pro dvory dílen (craft-yard-layout.ts). */
+/** Hotové dílny tesařů s rozdělaným vozem (`SceneCraftYard.cart`). */
+function carpenterYardViews(dwellings: SceneVillage['dwellings']): CraftYardView[] {
+  return dwellings.flatMap((d): CraftYardView[] =>
+    d.built && d.craft === 'carpenter' && d.yard?.cart
+      ? [{ id: d.id, craft: d.craft, position: d.position, frame: sceneFrame(d), yard: d.yard }]
+      : [],
   );
-  mesh.setEnabled(true);
 }
 
-function prepareDwellingMaterial(material: Material): void {
-  if (!(material instanceof PBRMaterial)) return;
-  applyGammaFog(material);
-  material.roughness = 1;
-  material.metallic = 0;
-  material.ambientColor = AMBIENT;
-  if (material.albedoTexture) material.albedoTexture.anisotropicFilteringLevel = 8;
-  // v zimě sníh na střechách (plochy obrácené nahoru)
-  applySeasonSnow(material);
-}
-
-/** Materiály decay.glb: obydlí (sníh na střechách), kopřivy jako trsy trávy (usychají). */
-function prepareDecayMaterial(material: Material): void {
-  if (material.name !== NETTLE_MATERIAL) {
-    prepareDwellingMaterial(material);
-    return;
-  }
-  if (!(material instanceof PBRMaterial)) return;
-  applyGammaFog(material);
-  material.roughness = 1;
-  material.metallic = 0;
-  material.ambientColor = PLANT_AMBIENT;
-  material.directIntensity = 0.8;
-  if (material.albedoTexture) material.albedoTexture.anisotropicFilteringLevel = 8;
-  applySeasonModel(material, 'nettle');
-}
-
-function prepareTuftMaterial(material: Material): void {
-  if (!(material instanceof PBRMaterial)) return;
-  applyGammaFog(material);
-  material.roughness = 1;
-  material.metallic = 0;
-  material.alphaCutOff = 0.3;
-  material.ambientColor = PLANT_AMBIENT;
-  material.directIntensity = 0.75;
-  material.albedoColor = TUFT_TINT;
-  if (material.albedoTexture) material.albedoTexture.anisotropicFilteringLevel = 8;
-  // trsy na podzim usychají a přes zimu stojí suché
-  applySeasonModel(material, 'grass-tuft');
+function craftYardViews(dwellings: SceneVillage['dwellings']): CraftYardView[] {
+  return dwellings.flatMap((d): CraftYardView[] =>
+    d.built && (d.craft === 'smith' || d.craft === 'potter')
+      ? [
+          {
+            id: d.id,
+            craft: d.craft,
+            position: d.position,
+            frame: sceneFrame(d),
+            ...(d.yard ? { yard: d.yard } : {}),
+          },
+        ]
+      : [],
+  );
 }

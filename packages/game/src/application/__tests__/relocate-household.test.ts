@@ -1,18 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../domain/calendar';
 import { occupants, type Position, type VillageState } from '../../domain/village';
-import { block, makeLandscape } from '../../domain/village/__tests__/placement-fixtures';
+import { makeLandscape } from '../../domain/village/__tests__/placement-fixtures';
 import { withBuiltFirstDwelling } from '../../domain/village/__tests__/village-fixtures';
 import { foundVillageForSettlement } from '../found-village';
 import { loadVillage } from '../load-village';
 import { NO_PLOT, NO_SETTLERS, placeDwelling } from '../place-dwelling';
-import { placeField } from '../place-field';
-import {
-  NO_RELOCATION,
-  RELOCATION_BLOCKED,
-  cancelHouseholdRelocation,
-  relocateHousehold,
-} from '../relocate-household';
+import { RELOCATION_BLOCKED, relocateHousehold } from '../relocate-household';
 import { VILLAGE_EXTINCT } from '../update-village';
 import { InMemoryVillages } from './in-memory-villages';
 
@@ -164,50 +158,5 @@ describe('relocateHousehold', () => {
       },
     );
     expect(result).toEqual({ ok: false, reason: VILLAGE_EXTINCT });
-  });
-});
-
-describe('cancelHouseholdRelocation', () => {
-  it('zruší rozestavěné přestěhování a vrátí klády na hromadu', async () => {
-    const { villages, villageId } = await settled();
-    const id = homeId((await villages.find(villageId))!.state);
-    const base = { villageId, landscape, today: TODAY + 1 };
-    const started = await relocateHousehold(
-      { villages },
-      { ...base, dwellingId: id, type: 'zemnice', position: NEW_HOME },
-    );
-    if (!started.ok) throw new Error(started.reason);
-    const site = started.village.state.constructions.find((c) => c.relocates === id)!;
-    const logs = started.village.state.woodLogs ?? 0;
-    const cancelled = await cancelHouseholdRelocation(
-      { villages },
-      { ...base, constructionId: site.id },
-    );
-    expect(cancelled.ok).toBe(true);
-    if (!cancelled.ok) return;
-    expect(cancelled.village.state.constructions.some((c) => c.id === site.id)).toBe(false);
-    expect(cancelled.village.state.woodLogs).toBeGreaterThanOrEqual(
-      logs + (site.wood?.fromPile ?? 0) - 1e-9,
-    );
-    // podruhé už není co rušit
-    expect(
-      await cancelHouseholdRelocation({ villages }, { ...base, constructionId: site.id }),
-    ).toEqual({ ok: false, reason: NO_RELOCATION });
-  });
-
-  it('jinou stavbu nezruší', async () => {
-    const { villages, villageId } = await settled();
-    const fieldVillage = await placeField(
-      { villages },
-      { villageId, landscape, today: TODAY + 1, cells: block(8, 8, 3, 2) },
-    );
-    if (!fieldVillage.ok) throw new Error(fieldVillage.reason);
-    const founding = fieldVillage.village.state.constructions.find((c) => c.kind === 'field')!;
-    expect(
-      await cancelHouseholdRelocation(
-        { villages },
-        { villageId, landscape, today: TODAY + 1, constructionId: founding.id },
-      ),
-    ).toEqual({ ok: false, reason: NO_RELOCATION });
   });
 });

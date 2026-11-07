@@ -7,19 +7,24 @@ import { SpriteManager } from '@babylonjs/core/Sprites/spriteManager';
 import { OFFICIAL_WORLD, type WorldClock } from '@bohemia/game';
 import type { Rgb } from './season-look';
 import {
-  PLUME_REACH_M,
   PUFFS_PER_PLUME,
+  clearingFireState,
   gameDayAt,
   gameDaySeconds,
+  houseFireState,
   plumePuffs,
+  plumeReach,
+  plumeShape,
   ventSmokeStrength,
+  type ClearingBurn,
   type Puff,
   type SmokeKind,
 } from './smoke-schedule';
 
 /**
  * Zdroj dýmu ve světě scény; `seed` = vlastní rozvrh ohně (dýmník obydlí – id obydlí). `kind`
- * = dýmník obydlí (bez údaje), pec nebo výheň dílny, nebo milíř (smoke-schedule.ts).
+ * = dýmník obydlí (bez údaje), pec nebo výheň dílny, milíř, nebo pálení paseky (`slash` – síla
+ * podle pálení dílu `burn`, clearingFireState; smoke-schedule.ts).
  */
 export interface SmokeSource {
   seed: number;
@@ -27,6 +32,7 @@ export interface SmokeSource {
   y: number;
   z: number;
   kind?: SmokeKind;
+  burn?: ClearingBurn;
 }
 
 /**
@@ -61,6 +67,8 @@ export class VillageSmoke {
   private plumes: Plume[] = [];
   private always = false;
   private world: WorldClock = OFFICIAL_WORLD;
+  /** Vývojově vynucený den světa pro požár (`setDisasterDay`); null = podle hodin světa. */
+  private disasterDay: number | null = null;
   /** Den a noc: dým je bez světla – v soumraku a v noci se přibarví (day-light.ts, tón). */
   private tone: Rgb = [1, 1, 1];
 
@@ -71,7 +79,8 @@ export class VillageSmoke {
 
   /** Dýmníky hotových obydlí; vrátí true, když se změnily. */
   setSources(sources: readonly SmokeSource[]): boolean {
-    const key = (s: SmokeSource): string => `${s.seed}|${s.x}|${s.y}|${s.z}|${s.kind ?? ''}`;
+    const key = (s: SmokeSource): string =>
+      `${s.seed}|${s.x}|${s.y}|${s.z}|${s.kind ?? ''}|${s.burn ? (s.burn.burnedDay ?? 'b') : ''}`;
     if (
       sources.length === this.plumes.length &&
       sources.every((s, i) => key(s) === key(this.plumes[i]!.source))
@@ -81,14 +90,16 @@ export class VillageSmoke {
     for (const plume of this.plumes) for (const sprite of plume.sprites) sprite.dispose();
     this.plumes = [];
     if (sources.length === 0) return true;
-    const manager = this.ensureManager(sources.length * PUFFS_PER_PLUME);
-    this.plumes = sources.map((source) => {
-      const sprites = Array.from({ length: PUFFS_PER_PLUME }, () => {
+    const shapes = sources.map((s) => plumeShape(s.kind ?? 'hearth'));
+    const manager = this.ensureManager(shapes.reduce((sum, shape) => sum + shape.puffs, 0));
+    this.plumes = sources.map((source, i) => {
+      const shape = shapes[i]!;
+      const sprites = Array.from({ length: shape.puffs }, () => {
         const sprite = new Sprite('village-smoke-puff', manager);
         sprite.isVisible = false;
         return sprite;
       });
-      const { up, side } = PLUME_REACH_M;
+      const { up, side } = plumeReach(shape);
       return {
         source,
         bounds: new BoundingInfo(
@@ -110,6 +121,11 @@ export class VillageSmoke {
 
   setWorldClock(world: WorldClock): void {
     this.world = world;
+  }
+
+  /** Vývojové vynucení dne světa pro dým hořícího domu (null = podle hodin světa). */
+  setDisasterDay(day: number | null): void {
+    this.disasterDay = day;
   }
 
   /** Tón denní doby (bílá = přes den) – obláčky se přebarví při dalším posunu dýmu. */
@@ -134,12 +150,21 @@ export class VillageSmoke {
         const center = plume.bounds.boundingSphere.centerWorld;
         if (Vector3.Distance(camera.globalPosition, center) > ANIMATE_RANGE_M) continue;
       }
-      const { seed, x, y, z } = plume.source;
+      const { seed, x, y, z, burn } = plume.source;
       const kind = plume.source.kind ?? 'hearth';
-      const strengthAt = this.always
-        ? (): number => 1
-        : (ageS: number): number => ventSmokeStrength(kind, seed, day - ageS / daySeconds);
-      plumePuffs(seed, timeS, strengthAt, plume.puffs);
+      // hořící dům (požár – disasters.md): síla podle dne požáru `burn.burnedDay`
+      const fireDay = kind === 'house-fire' ? burn?.burnedDay : undefined;
+      const fireNow = this.disasterDay ?? day;
+      const strengthAt =
+        fireDay !== undefined
+          ? (ageS: number): number =>
+              houseFireState(fireDay, fireNow - ageS / daySeconds, burn?.order).smoke
+          : this.always
+            ? (): number => 1
+            : burn
+              ? (ageS: number): number => clearingFireState(burn, day - ageS / daySeconds).smoke
+              : (ageS: number): number => ventSmokeStrength(kind, seed, day - ageS / daySeconds);
+      plumePuffs(seed, timeS, strengthAt, plume.puffs, plumeShape(kind));
       let visible = false;
       plume.puffs.forEach((puff, i) => {
         const sprite = plume.sprites[i]!;
@@ -151,8 +176,9 @@ export class VillageSmoke {
         sprite.width = puff.size;
         sprite.height = puff.size;
         sprite.angle = puff.angle;
-        // šedomodrý dým ze dřeva, výš světlejší
-        const shade = puff.shade + 0.08 * Math.min(1, puff.dy / 8);
+        // šedomodrý dým ze dřeva, výš světlejší; hořící dům – hustý tmavý dým (doškys a trámy)
+        const shade =
+          (puff.shade + 0.08 * Math.min(1, puff.dy / 8)) * (fireDay !== undefined ? 0.5 : 1);
         const [r, g, b] = this.tone;
         sprite.color.set(shade * 0.96 * r, shade * 0.97 * g, shade * b, alpha);
       });

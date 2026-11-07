@@ -66,7 +66,7 @@ describe('partStage', () => {
 });
 
 describe('summarizeVillage', () => {
-  it('čerstvá ves: 2 dospělí a 2 děti staví zemnici, zásoby na 18 měsíců', () => {
+  it('čerstvá ves: 2 dospělí a 2 děti staví zemnici, zásoby na 18 měsíců a osivo (24 měsíců)', () => {
     const s = advanceVillage(found(), DAY, null);
     const summary = summarizeVillage(s, DAY);
     expect(summary.people).toEqual({ children: 2, adults: 2, elders: 0 });
@@ -76,7 +76,8 @@ describe('summarizeVillage', () => {
     expect(zemnice).toMatchObject({ dwellingType: 'zemnice', dwellingId: 1, areaM2: null });
     expect(zemnice!.progress).toBeGreaterThan(0);
     expect(zemnice!.progress).toBeLessThan(1);
-    expect(summary.storesMonths).toBeCloseTo(18, 0);
+    // 18 měsíců jídla a osivo na první osev – půl roční potřeby (START_SEED_YEARS)
+    expect(summary.storesMonths).toBeCloseTo(24, 0);
     // obilí je dost, bílkoviny z obilí, vajec a mléka výchozího stáda – nasycení přes 0,8
     expect(summary.diet.energy).toBeCloseTo(1, 9);
     expect(summary.satiation).toBeGreaterThan(0.78);

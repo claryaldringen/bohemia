@@ -29,9 +29,9 @@ export const SHADOW_ONLY_LAYER = 0x10000000;
 export const VIEW_PREFIX = 'view-';
 /**
  * Meshe s nehybnými instancemi, které se ořezávají: stromy, dekorace a impostory krajiny, les
- * a keře vsi (zarůstání), pařezy a nálet, stromy u cest.
+ * a keře vsi (zarůstání), pařezy a nálet, stromy u cest, kůly a brány opevnění.
  */
-export const CULLED_MESHES = /^(trees|decor|impostors|felled|pathside)-/;
+export const CULLED_MESHES = /^(trees|decor|impostors|felled|pathside|fort)-/;
 
 interface Entry {
   /** Původní mesh se všemi instancemi – vrhá stín (stínová mapa přes celou krajinu). */

@@ -150,16 +150,17 @@ describe('fenceLayout', () => {
     const first = posts[0]!;
     const last = posts[posts.length - 1]!;
     expect(first.gate && last.gate).toBe(true);
-    expect(first.z).toBeCloseTo(-7.5, 9);
-    expect(last.z).toBeCloseTo(-7.5, 9);
+    // plot stojí 1,5 m uvnitř čtverců (cemetery.md – ulička 3 m mezi stavbami)
+    expect(first.z).toBeCloseTo(-6, 9);
+    expect(last.z).toBeCloseTo(-6, 9);
     expect(first.x - last.x).toBeCloseTo(CEMETERY_FENCE.gateWidth, 9);
     expect((first.x + last.x) / 2).toBeCloseTo(7.5, 9);
     // rohy zakulacené – kůl uprostřed oblouku, žádný v ostrém rohu
     for (const [cx, cz] of [
-      [-7.5, -7.5],
-      [22.5, -7.5],
-      [22.5, 7.5],
-      [-7.5, 7.5],
+      [-6, -6],
+      [21, -6],
+      [21, 6],
+      [-6, 6],
     ] as const) {
       const nearest = Math.min(...posts.map((p) => Math.hypot(p.x - cx, p.z - cz)));
       expect(nearest).toBeCloseTo((Math.SQRT2 - 1) * WOVEN_CORNER_RADIUS_M, 6);
@@ -190,22 +191,22 @@ describe('fenceLayout', () => {
       fenced: ready,
     });
     // vytyčení obepne celý nový čtverec
-    expect(outline.flat()).toContainEqual([7.5, -7.5]);
+    expect(outline.flat()).toContainEqual([9, -6]);
     expect(fence.runs).toHaveLength(1);
     const { posts, closed } = fence.runs[0]!;
     expect(closed).toBe(false);
-    // společná strana x = 7,5 bez plotu (kromě koncových kůlů na rozích)
-    const onShared = posts.filter((p) => Math.abs(p.x - 7.5) < 1e-6);
-    expect(onShared).toHaveLength(2);
+    // společná strana x = 7,5 bez plotu, jen dva konce zasahují zpět na přímé úseky starého plotu
+    // (kus před jeho zakulaceným rohem)
+    expect(posts.filter((p) => Math.abs(p.x - 7.5) < 1 && Math.abs(p.z) < 5.5)).toHaveLength(0);
     const ends = [posts[0]!, posts[posts.length - 1]!].map((p) => `${p.x},${p.z}`).sort();
-    expect(ends).toEqual(['7.5,-7.5', '7.5,7.5']);
+    expect(ends).toEqual(['4.75,-6', '4.75,6']);
   });
 
   it('plot kolem tvaru L: vnější rohy zakulacené, vnitřní roh malým obloukem', () => {
     const ell = [square(0, 0), square(1, 0), square(0, 1)];
     const posts = fencePosts(fenceLayout(ell, null).fence);
-    // vnitřní roh (7,5; 7,5) – plot ho objede, kůl přímo v něm nestojí
-    const inner = Math.min(...posts.map((p) => Math.hypot(p.x - 7.5, p.z - 7.5)));
+    // vnitřní roh plotu (6; 6) (odsazený o 1,5 m od rohu čtverců) – plot ho objede malým obloukem
+    const inner = Math.min(...posts.map((p) => Math.hypot(p.x - 6, p.z - 6)));
     expect(inner).toBeGreaterThan(0.3);
     expect(inner).toBeLessThan(0.8);
     const keys = new Set(posts.map((p) => `${p.x.toFixed(3)},${p.z.toFixed(3)}`));
@@ -272,7 +273,8 @@ describe('branka hřbitova = vchod z jádra (paths.md – Vchody)', () => {
           );
         }
         // ven z hřbitova: kus za brankou žádný čtverec není
-        const out = { x: core[0] + entrance!.outX, z: core[1] + entrance!.outZ };
+        // (branka stojí 1,5 m uvnitř čtverce, proto 2,5 m ven)
+        const out = { x: core[0] + entrance!.outX * 2.5, z: core[1] + entrance!.outZ * 2.5 };
         const inSquare = squares.some((q) => {
           const [c, s] = rotationCosSin(q.rotation ?? 0);
           const dx = out.x - q.x;

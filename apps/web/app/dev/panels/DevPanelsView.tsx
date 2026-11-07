@@ -11,7 +11,8 @@ import { SelectionPanel } from '@/components/game/hud/SelectionPanel';
 import { VillageList } from '@/components/game/hud/VillageSwitcher';
 import type { GameMenuStep } from '@/lib/game-menu';
 import { BUILD_ITEMS, type BuildItem } from '@/lib/build-items';
-import { DEV_PANELS, DEV_VILLAGES } from './dev-panels';
+import { PanelOptionsContext } from '@/hooks/use-panel-options';
+import { DEV_PANELS, DEV_PANEL_OPTIONS, DEV_VILLAGES } from './dev-panels';
 
 /** Stavby v mřížce bez ceny – mřížka má jen ukázat, kolik místa zabírá. */
 const BUILD_OPTIONS: Partial<Record<BuildItem['kind'], null>> = Object.fromEntries(
@@ -41,7 +42,7 @@ export function DevPanelsView({ initial }: { initial: string | null }): ReactEle
     window.history.replaceState(null, '', `?panel=${next.key}`);
   };
   return (
-    <>
+    <PanelOptionsContext.Provider value={DEV_PANEL_OPTIONS}>
       <div className="fixed inset-0 bg-[linear-gradient(180deg,#a1bfd9_0%,#c9d8c0_35%,#7d9a5a_36%,#5f7d43_100%)]" />
       <header className="hud-panel fixed inset-x-0 top-0 z-20 flex h-11 items-center gap-2 rounded-none border-x-0 border-t-0 px-2 text-sm">
         <button type="button" className="hud-button px-2" onClick={() => go(-1)}>
@@ -114,7 +115,7 @@ export function DevPanelsView({ initial }: { initial: string | null }): ReactEle
         details={sample.details}
         onSelectTarget={() => undefined}
         onRelocate={() => undefined}
-        onCancelRelocation={wait}
+        onCancelConstruction={wait}
         onLeave={() => undefined}
         onUpgradeRoad={wait}
         onPlantRoadApples={wait}
@@ -132,6 +133,6 @@ export function DevPanelsView({ initial }: { initial: string | null }): ReactEle
           setBuildGroup(hub && variant === undefined && buildGroup !== kind ? kind : null);
         }}
       />
-    </>
+    </PanelOptionsContext.Provider>
   );
 }

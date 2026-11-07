@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { obstaclesOf } from '../../landscape';
 import { foundVillage } from '../actions';
-import { mergeRoadChains, roadPieces, updateRoads, withMergedRoads } from '../paths/roads';
+import {
+  mergeRoadChains,
+  roadPieces,
+  roadsMonth,
+  updateRoads,
+  withMergedRoads,
+} from '../paths/roads';
 import { finishRoadUpgrade } from '../road-upgrades';
 import { advanceVillage } from '../simulate';
 import type {
@@ -51,7 +57,6 @@ function roadsOf(list: Road[], extra: Partial<VillageRoads> = {}): VillageRoads 
     nextId: 100,
     roads: list,
     trees: [],
-    candidates: [],
     labor: { from: Y1, days: 0, shares: [] },
     ...extra,
   };
@@ -272,6 +277,70 @@ describe('slučování úseků v uzlu bez odbočky', () => {
     expect(withMergedRoads(migrated)).toBe(migrated);
   });
 
+  it('stezka po spojení úseků vede po ponechaném úseku, součet práce, bez duplicit', () => {
+    const roads = roadsOf([
+      road(1, [
+        [0, 0],
+        [30, 0],
+      ]),
+      road(2, [
+        [30, 0],
+        [70, 0],
+      ]),
+      road(3, [
+        [70, 0],
+        [100, 0],
+      ]),
+    ]);
+    const trails = [
+      {
+        pieces: [
+          { roadId: 1, grade: 'trodden', manDays: 2 },
+          { roadId: 2, grade: 'trodden', manDays: 3 },
+          { roadId: 3, grade: 'trodden', manDays: 4 },
+        ],
+      },
+    ] as unknown as VillageState['trails'];
+    expect(mergeRoadChains(roads, [], trails)).toBe(true);
+    expect(roads.roads).toHaveLength(1);
+    expect(trails![0]!.pieces).toEqual([{ roadId: 1, grade: 'trodden', manDays: 9 }]);
+  });
+
+  it('starší ves: stezka s neexistujícím úsekem se při načtení opraví jednou', () => {
+    const s = foundVillage({
+      seed: 5,
+      day: Y1 - 400,
+      dwellingPosition: { x: 0, z: 0, rotation: 0 },
+    });
+    s.roads = roadsOf([
+      road(1, [
+        [0, 0],
+        [30, 0],
+      ]),
+      road(5, [
+        [30, 0],
+        [30, 40],
+      ]),
+      road(6, [
+        [30, 0],
+        [60, 0],
+      ]),
+    ]);
+    s.trails = [
+      {
+        pieces: [
+          { roadId: 1, grade: 'trodden', manDays: 1 },
+          { roadId: 99, grade: 'trodden', manDays: 1 },
+          { roadId: 6, grade: 'trodden', manDays: 1 },
+        ],
+      },
+    ] as unknown as VillageState['trails'];
+    const migrated = withMergedRoads(s);
+    expect(migrated.trails![0]!.pieces.map((p) => p.roadId)).toEqual([1, 6]);
+    expect(s.trails![0]!.pieces).toHaveLength(3);
+    expect(withMergedRoads(migrated)).toBe(migrated);
+  });
+
   it('Vlkov: falešná rozcestí zmizí, zůstanou jen hranice stupňů a skutečná rozcestí', () => {
     const roads = roadsOf(
       vlkov.roads.map((r): Road => ({
@@ -382,11 +451,11 @@ function withBranch(s: VillageState): void {
       {
         bornDay: Y1 - 8 * 365,
         traffic: [0, 0, 0, 0],
-        // kusy čtyři roky tiché – letos pátý (roads.md – Zarůstá jen nepoužívaný kus)
-        quiet: roadPieces([
+        // kusy skoro bez stavu – do měsíce zarostou (paths.md – Zarůstání)
+        condition: roadPieces([
           { x: 0, z: -120 },
           { x: 0, z: -200 },
-        ]).map((p) => ({ x: p.x, z: p.z, years: 4 })),
+        ]).map((p) => ({ x: p.x, z: p.z, c: 1 })),
       },
     ),
   );
@@ -396,8 +465,9 @@ describe('slučování v roční kontrole', () => {
   it('po zarostnutí odbočky se úsek sloučí', () => {
     const s = village(Y1 - 30);
     withBranch(s);
-    const events = updateRoads(s, NOV1(601), LANDSCAPE, null);
-    expect(events).toContainEqual({ day: NOV1(601), kind: 'road-overgrown', roadId: 502 });
+    s.roads!.wear ??= { day: Y1, cells: '', labor: [] };
+    roadsMonth(s, NOV1(601), LANDSCAPE, null);
+    expect(s.chronicle).toContainEqual({ day: NOV1(601), kind: 'road-overgrown', roadId: 502 });
     const side = s.roads!.roads.filter((r) => r.points.every((p) => p.z === -120));
     expect(side.map((r) => r.id)).toEqual([500]);
     expect(side[0]!.points.map((p) => p.x)).toEqual([-60, 0, 130]);

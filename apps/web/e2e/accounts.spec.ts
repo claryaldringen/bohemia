@@ -1,4 +1,6 @@
 import { test, expect } from '@playwright/test';
+import { Client } from 'pg';
+import { TEST_DATABASE_URL } from '../playwright.config';
 import { login, openGameMenu, register, signOut, uniqueEmail, useUniqueClientIp } from './helpers';
 import { linkFromLastMail } from './mail';
 
@@ -39,6 +41,29 @@ test('registrace → ověření e-mailu → herní plocha → odhlášení → p
 
   await login(page, email, 'tajne-heslo-123');
   await expect(page).toHaveURL(/\/game$/);
+});
+
+test('jazyk z registrace dostane účet i rod', async ({ page }) => {
+  const email = uniqueEmail('jazyk');
+  await register(page, email, 'tajne-heslo-123', 'de');
+  await page.goto(await linkFromLastMail(email, /potvrď svůj e-mail/));
+  await expect(page).toHaveURL(/\/game$/);
+  const client = new Client({ connectionString: TEST_DATABASE_URL });
+  await client.connect();
+  try {
+    await expect
+      .poll(async () => {
+        const { rows } = await client.query(
+          `SELECT u.language AS account, h.language AS house FROM "user" u
+           LEFT JOIN house h ON h.player_id = u.id AND h.ended_at IS NULL WHERE u.email = $1`,
+          [email],
+        );
+        return rows[0] as { account: string; house: string | null } | undefined;
+      })
+      .toEqual({ account: 'de', house: 'de' });
+  } finally {
+    await client.end();
+  }
 });
 
 test('špatné heslo nepřihlásí', async ({ page }) => {
@@ -90,4 +115,59 @@ test('registrace už existujícího e-mailu neprozradí, že účet existuje', a
   // Původní heslo platí dál, pokus o „přeregistrování“ nic nezměnil.
   await login(page, email, 'prvni-heslo-1');
   await expect(page).toHaveURL(/\/game$/);
+});
+
+/** Vydavatel a jeden jeho platný kód přímo v testovací DB (vydávání patří do hry, tady jde o registraci). */
+async function seedInvite(code: string): Promise<void> {
+  const client = new Client({ connectionString: TEST_DATABASE_URL });
+  await client.connect();
+  const issuer = `issuer-${code}`;
+  await client.query(
+    `INSERT INTO "user" (id, name, email) VALUES ($1, '', $2) ON CONFLICT DO NOTHING`,
+    [issuer, `${issuer}@example.com`],
+  );
+  await client.query(
+    `INSERT INTO invite_code (code, issuer_id, created_at, valid_until)
+     VALUES ($1, $2, now(), now() + interval '14 days')`,
+    [code, issuer],
+  );
+  await client.end();
+}
+
+async function reservedBy(code: string): Promise<string | null> {
+  const client = new Client({ connectionString: TEST_DATABASE_URL });
+  await client.connect();
+  const { rows } = await client.query(
+    `SELECT u.email FROM invite_code i LEFT JOIN "user" u ON u.id = i.reserved_by WHERE i.code = $1`,
+    [code],
+  );
+  await client.end();
+  return (rows[0]?.email as string | null | undefined) ?? null;
+}
+
+test('registrace s platnou pozvánkou ji zarezervuje (kód z odkazu se předvyplní)', async ({
+  page,
+}) => {
+  const code = 'E2ETEST2';
+  await seedInvite(code);
+  const email = uniqueEmail('pozvany');
+  await page.goto(`/register?pozvanka=${code}`);
+  await expect(page.getByLabel('Pozvánka')).toHaveValue(code);
+  await page.getByLabel('E-mail').fill(email);
+  await page.getByLabel('Heslo').fill('pozvany-heslo-1');
+  await page.getByRole('button', { name: 'Zaregistrovat se' }).click();
+  await expect(page.getByText('Zkontroluj e-mail')).toBeVisible();
+  expect(await reservedBy(code)).toBe(email);
+});
+
+test('registrace s neplatnou pozvánkou ohlásí chybu u pole a projde bez ní', async ({ page }) => {
+  const email = uniqueEmail('neplatna');
+  await page.goto('/register');
+  await page.getByLabel('Pozvánka').fill('ZZZZ-ZZZZ');
+  await page.getByLabel('E-mail').fill(email);
+  await page.getByLabel('Heslo').fill('neplatna-heslo-1');
+  await page.getByRole('button', { name: 'Zaregistrovat se' }).click();
+  // Registrace jde dál (potvrzení e-mailu) a hláška o pozvánce zůstane vidět.
+  await expect(page.getByText('Zkontroluj e-mail')).toBeVisible();
+  await expect(page.getByText('Pozvánka neplatí.')).toBeVisible();
 });

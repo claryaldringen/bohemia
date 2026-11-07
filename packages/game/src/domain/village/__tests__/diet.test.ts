@@ -19,7 +19,7 @@ import {
 import { NO_CRAFTS, storageLossPerYear } from '../productivity';
 import { advanceVillage } from '../simulate';
 import type { VillageState } from '../types';
-import { withBuiltFirstDwelling } from './village-fixtures';
+import { withBuiltFirstDwelling, withoutSmallGame } from './village-fixtures';
 
 // Strava (diet.md): energie × kvalita z bílkovin a ovoce, stropy, ovoce, mléko a sýr, hlad jen
 // z energie.
@@ -287,6 +287,7 @@ describe('simulace – hlad jen z energie', () => {
       foundVillage({ seed: 1, day: at(600, 9, 2), dwellingPosition: { x: 0, z: 0, rotation: 0 } }),
     );
     s.storesKg = 50_000;
+    withoutSmallGame(s);
     s.livestock = {
       herds: { sheep: 0, goat: 0, pig: 0, cow: 0 },
       young: { sheep: 0, goat: 0, pig: 0, cow: 0 },

@@ -225,5 +225,488 @@
       }
     },
     "opaque": true
+  },
+  {
+    "name": "horse",
+    "dae": "meshes/skeletal/horse_breed.dae",
+    "texture": "textures/skins/skeletal/horse_brown.png",
+    "forward": "-y",
+    "size": {
+      "axis": "y",
+      "m": 2.2
+    },
+    "pose": {
+      "animation": "animation/quadraped/horse_breed_idle_01.dae",
+      "time": 0
+    },
+    "keys": {
+      "stride_a": {
+        "animation": "animation/quadraped/horse_breed_walk.dae",
+        "time": 0
+      },
+      "stride_b": {
+        "animation": "animation/quadraped/horse_breed_walk.dae",
+        "time": 0.5
+      },
+      "graze": {
+        "bend": {
+          "deg": 85,
+          "pivot": [0.7, 0.62],
+          "along": [0.58, 0.85],
+          "above": [0.42, 0.62]
+        }
+      }
+    },
+    "opaque": true,
+    "texture_px": 512
+  },
+  {
+    "name": "foal",
+    "dae": "meshes/skeletal/horse_breed.dae",
+    "texture": "textures/skins/skeletal/horse_brown.png",
+    "forward": "-y",
+    "size": {
+      "axis": "y",
+      "m": 1.3
+    },
+    "pose": {
+      "animation": "animation/quadraped/horse_breed_idle_01.dae",
+      "time": 0
+    },
+    "keys": {
+      "stride_a": {
+        "animation": "animation/quadraped/horse_breed_walk.dae",
+        "time": 0
+      },
+      "stride_b": {
+        "animation": "animation/quadraped/horse_breed_walk.dae",
+        "time": 0.8333
+      },
+      "graze": {
+        "bend": {
+          "deg": 85,
+          "pivot": [0.7, 0.62],
+          "along": [0.58, 0.85],
+          "above": [0.42, 0.62]
+        }
+      }
+    },
+    "opaque": true,
+    "texture_px": 256
+  },
+  {
+    "name": "carcass-cow",
+    "dae": "meshes/skeletal/cattle_female_a.dae",
+    "texture": "textures/skins/skeletal/animal_cattle_beige.png",
+    "forward": "-y",
+    "size": {
+      "axis": "y",
+      "m": 2.1
+    },
+    "size_from": "stands",
+    "pose": {
+      "animation": "animation/quadraped/bovidae_death_a.dae",
+      "time": 999
+    },
+    "keys": {
+      "stands": {
+        "animation": "animation/quadraped/bovidae_idle_a.dae",
+        "time": 0
+      },
+      "hangs": {
+        "hang": {
+          "from": "stands",
+          "deg": -90,
+          "leg_deg": -90,
+          "pivot": [0.2, 0.5],
+          "legs": {
+            "along": [0.2, 0.32],
+            "below": [0.45, 0.6]
+          }
+        }
+      }
+    },
+    "opaque": true,
+    "texture_px": 256
+  },
+  {
+    "name": "carcass-pig",
+    "dae": "meshes/skeletal/pig.dae",
+    "texture": "textures/skins/skeletal/animal_pig_d.png",
+    "forward": "-y",
+    "size": {
+      "axis": "y",
+      "m": 1.25
+    },
+    "size_from": "stands",
+    "pose": {
+      "animation": "animation/quadraped/animal_pig_death_01.dae",
+      "time": 999
+    },
+    "keys": {
+      "stands": {
+        "animation": "animation/quadraped/animal_pig_idle_01.dae",
+        "time": 0
+      },
+      "hangs": {
+        "hang": {
+          "from": "stands",
+          "deg": -90,
+          "leg_deg": -90,
+          "pivot": [0.2, 0.5],
+          "legs": {
+            "along": [0.2, 0.32],
+            "below": [0.45, 0.6]
+          }
+        }
+      }
+    },
+    "opaque": true,
+    "texture_px": 256
+  },
+  {
+    "name": "carcass-sheep",
+    "dae": "meshes/skeletal/sheep.dae",
+    "texture": "textures/skins/skeletal/animal_sheep_no_player_color_a.dds",
+    "forward": "-y",
+    "size": {
+      "axis": "y",
+      "m": 1.25
+    },
+    "size_from": "stands",
+    "pose": {
+      "animation": "animation/quadraped/sheep_death.dae",
+      "time": 999
+    },
+    "keys": {
+      "stands": {
+        "animation": "animation/quadraped/sheep_idle_01.dae",
+        "time": 0
+      },
+      "hangs": {
+        "hang": {
+          "from": "stands",
+          "deg": -90,
+          "leg_deg": -90,
+          "pivot": [0.2, 0.5],
+          "legs": {
+            "along": [0.2, 0.32],
+            "below": [0.45, 0.6]
+          }
+        }
+      }
+    },
+    "opaque": true,
+    "texture_px": 256
+  },
+  {
+    "name": "carcass-goat",
+    "dae": "meshes/skeletal/goat.dae",
+    "texture": "textures/skins/skeletal/animal_goat.png",
+    "forward": "-y",
+    "size": {
+      "axis": "y",
+      "m": 1.2
+    },
+    "size_from": "stands",
+    "pose": {
+      "animation": "animation/quadraped/goat_death.dae",
+      "time": 999
+    },
+    "keys": {
+      "stands": {
+        "animation": "animation/quadraped/goat_idle_02.dae",
+        "time": 0
+      },
+      "hangs": {
+        "hang": {
+          "from": "stands",
+          "deg": -90,
+          "leg_deg": -90,
+          "pivot": [0.2, 0.5],
+          "legs": {
+            "along": [0.2, 0.32],
+            "below": [0.45, 0.6]
+          }
+        }
+      }
+    },
+    "opaque": true,
+    "texture_px": 256
+  },
+  {
+    "name": "wild-boar",
+    "dae": "meshes/skeletal/animal_boar.dae",
+    "texture": "textures/skins/skeletal/animal_boar_01.png",
+    "forward": "-y",
+    "size": {
+      "axis": "y",
+      "m": 1.5
+    },
+    "pose": {
+      "animation": "animation/quadraped/animal_boar_idle_01.dae",
+      "time": 0
+    },
+    "keys": {
+      "stride_a": {
+        "animation": "animation/quadraped/animal_boar_walk_01.dae",
+        "time": 0
+      },
+      "stride_b": {
+        "animation": "animation/quadraped/animal_boar_walk_01.dae",
+        "time": 0.19
+      },
+      "graze": {
+        "bend": {
+          "deg": 85,
+          "pivot": [0.7, 0.6],
+          "along": [0.55, 0.85],
+          "above": [0.4, 0.62]
+        }
+      }
+    },
+    "opaque": true,
+    "texture_px": 512
+  },
+  {
+    "name": "wild-stag",
+    "dae": "meshes/skeletal/deer_mesh.dae",
+    "texture": "textures/skins/skeletal/animal_deer_02.png",
+    "forward": "-y",
+    "size": {
+      "axis": "y",
+      "m": 2.1
+    },
+    "pose": {
+      "animation": "animation/quadraped/deer_idle_01.dae",
+      "time": 0
+    },
+    "keys": {
+      "stride_a": {
+        "animation": "animation/quadraped/deer_walk_01.dae",
+        "time": 0
+      },
+      "stride_b": {
+        "animation": "animation/quadraped/deer_walk_01.dae",
+        "time": 0.52
+      },
+      "graze": {
+        "bend": {
+          "deg": 75,
+          "pivot": [0.7, 0.6],
+          "along": [0.55, 0.85],
+          "above": [0.4, 0.62]
+        }
+      }
+    },
+    "opaque": true,
+    "texture_px": 512,
+    "props": [
+      {
+        "dae": "meshes/props/deer_antlers.dae",
+        "bone": "prop-antler-node",
+        "anchor": "antler01"
+      }
+    ]
+  },
+  {
+    "name": "wild-hind",
+    "dae": "meshes/skeletal/deer_mesh.dae",
+    "texture": "textures/skins/skeletal/animal_deer_01.png",
+    "forward": "-y",
+    "size": {
+      "axis": "y",
+      "m": 1.9
+    },
+    "pose": {
+      "animation": "animation/quadraped/deer_idle_01.dae",
+      "time": 0
+    },
+    "keys": {
+      "stride_a": {
+        "animation": "animation/quadraped/deer_walk_01.dae",
+        "time": 0
+      },
+      "stride_b": {
+        "animation": "animation/quadraped/deer_walk_01.dae",
+        "time": 0.52
+      },
+      "graze": {
+        "bend": {
+          "deg": 75,
+          "pivot": [0.7, 0.6],
+          "along": [0.55, 0.85],
+          "above": [0.4, 0.62]
+        }
+      }
+    },
+    "opaque": true,
+    "texture_px": 512
+  },
+  {
+    "name": "wild-wolf",
+    "dae": "meshes/skeletal/wolf.dae",
+    "texture": "textures/skins/skeletal/animal_wolf.png",
+    "forward": "-y",
+    "size": {
+      "axis": "y",
+      "m": 1.3
+    },
+    "pose": {
+      "animation": "animation/quadraped/wolf_idle_01.dae",
+      "time": 0
+    },
+    "keys": {
+      "stride_a": {
+        "animation": "animation/quadraped/wolf_walk.dae",
+        "time": 0
+      },
+      "stride_b": {
+        "animation": "animation/quadraped/wolf_walk.dae",
+        "time": 0.98
+      },
+      "graze": {
+        "bend": {
+          "deg": 60,
+          "pivot": [0.7, 0.6],
+          "along": [0.55, 0.85],
+          "above": [0.4, 0.62]
+        }
+      }
+    },
+    "opaque": true,
+    "texture_px": 512
+  },
+  {
+    "name": "wild-bear",
+    "dae": "meshes/skeletal/bear.dae",
+    "texture": "textures/skins/skeletal/animal_bear_brown.png",
+    "forward": "-y",
+    "size": {
+      "axis": "y",
+      "m": 2.0
+    },
+    "pose": {
+      "animation": "animation/quadraped/bear_idle_01.dae",
+      "time": 0
+    },
+    "keys": {
+      "stride_a": {
+        "animation": "animation/quadraped/bear_walk.dae",
+        "time": 0
+      },
+      "stride_b": {
+        "animation": "animation/quadraped/bear_walk.dae",
+        "time": 0.67
+      },
+      "graze": {
+        "bend": {
+          "deg": 60,
+          "pivot": [0.7, 0.6],
+          "along": [0.55, 0.85],
+          "above": [0.4, 0.62]
+        }
+      }
+    },
+    "opaque": true,
+    "texture_px": 256
+  },
+  {
+    "name": "wild-fox",
+    "dae": "meshes/skeletal/fox.dae",
+    "texture": "textures/skins/skeletal/animal_fox_red.png",
+    "forward": "-y",
+    "size": {
+      "axis": "y",
+      "m": 1.0
+    },
+    "pose": {
+      "animation": "animation/quadraped/fox_idle.dae",
+      "time": 0
+    },
+    "keys": {
+      "stride_a": {
+        "animation": "animation/quadraped/fox_walk.dae",
+        "time": 0
+      },
+      "stride_b": {
+        "animation": "animation/quadraped/fox_walk.dae",
+        "time": 0.42
+      },
+      "graze": {
+        "bend": {
+          "deg": 70,
+          "pivot": [0.7, 0.6],
+          "along": [0.55, 0.85],
+          "above": [0.4, 0.62]
+        }
+      }
+    },
+    "opaque": true,
+    "texture_px": 512
+  },
+  {
+    "name": "wild-hare",
+    "dae": "meshes/skeletal/rabbit_01.dae",
+    "texture": "textures/skins/skeletal/animal_rabbit_01.png",
+    "forward": "-y",
+    "size": {
+      "axis": "y",
+      "m": 0.6
+    },
+    "pose": {
+      "animation": "animation/quadraped/rabbit_idle_01.dae",
+      "time": 0
+    },
+    "keys": {
+      "stride_a": {
+        "animation": "animation/quadraped/rabbit_walk.dae",
+        "time": 0
+      },
+      "stride_b": {
+        "animation": "animation/quadraped/rabbit_walk.dae",
+        "time": 1.668
+      },
+      "graze": {
+        "bend": {
+          "deg": 70,
+          "pivot": [0.7, 0.6],
+          "along": [0.55, 0.85],
+          "above": [0.4, 0.62]
+        }
+      }
+    },
+    "opaque": true,
+    "texture_px": 512
+  },
+  {
+    "name": "dog",
+    "dae": "meshes/skeletal/mastiff_no_spikes.dae",
+    "texture": "textures/skins/skeletal/brit/mastiff_a_01.png",
+    "forward": "-y",
+    "size": {
+      "axis": "y",
+      "m": 1.1
+    },
+    "pose": {
+      "animation": "animation/quadraped/mastiff_idle.dae",
+      "time": 0
+    },
+    "keys": {
+      "stride_a": {
+        "animation": "animation/quadraped/mastiff_run.dae",
+        "time": 0.958
+      },
+      "stride_b": {
+        "animation": "animation/quadraped/mastiff_run.dae",
+        "time": 1.458
+      },
+      "lie": {
+        "animation": "animation/quadraped/mastiff_idle_long.dae",
+        "time": 9
+      }
+    },
+    "opaque": true,
+    "texture_px": 512
   }
 ]

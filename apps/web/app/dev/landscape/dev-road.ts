@@ -229,8 +229,7 @@ export const DEMO_ROAD_STAGES: readonly {
   { label: 'vyšlapaná', grade: 'trodden' },
   { label: 'úprava 40 %', grade: 'trodden', upgrade: { grade: 'improved', progress: 0.4 } },
   { label: 'upravená', grade: 'improved' },
-  { label: 'hať 50 %', grade: 'improved', upgrade: { grade: 'causeway', progress: 0.5 } },
-  { label: 'hať a lávka', grade: 'causeway' },
+  { label: 'úprava 80 % (hať)', grade: 'trodden', upgrade: { grade: 'improved', progress: 0.8 } },
   { label: 'přechod stupňů', grade: 'trodden', mixed: true },
 ];
 

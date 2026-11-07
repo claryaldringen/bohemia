@@ -9,8 +9,9 @@ import { pointsBounds, squareCenter, squareCorners } from './square-grid';
 import { fieldGrids } from './squares';
 import { polygonsOverlap, type Point } from './polygon';
 import { cancelRepair, startRepair, type StructureRef } from './repair';
-import { ABANDONMENT, SACRED_BUILDINGS } from './rules';
+import { ABANDONMENT, HUMNO, SACRED_BUILDINGS } from './rules';
 import { sacredBuildingPlots, sacredFootprint } from './sacred';
+import { threshingFloorFootprint, villageThreshingFloors } from './threshing-floors';
 import type {
   AbandonedStructure,
   ChronicleEvent,
@@ -27,8 +28,8 @@ import type {
 
 // Opuštěné stavby chátrají (docs/design/abandonment.md – Martin 18. 10. 2026: „Jo ty stavby, kam
 // nikdo nechodí, budou postupně chátrat a rozpadnou se“). Opuštěná je stavba, ke které podle
-// roční sítě cest (roads.md – 1. 11., stejný výpočet jako pevné cesty) za celý uplynulý rok
-// nevedla žádná cesta – provoz ke stavbě dává síť pěšin (`PathNetwork.visits`). Opuštěná stavba
+// uložených tras (roads.md – 1. 11.) za celý uplynulý rok nevedla žádná cesta – provoz ke stavbě
+// se sčítá z tras (`VillageRoads.visits`, `accrueVisits`). Opuštěná stavba
 // ztrácí stav rovnoměrně a za ABANDONMENT.fallYears let od plného stavu spadne; když se k ní lidé
 // znovu začnou chodit, chátrání se zastaví a vesničané ji opraví ze společné práce (abandonment.md
 // – Oprava, Martin 19. 10. 2026 – repair.ts). Modla a svatyně dávají štěstí, dokud stojí; padlá
@@ -42,7 +43,7 @@ const DWELLING_REACH_M = 6;
 /** Ohrada, do které se vrátila zvířata, má stav aspoň tolik – se zvířaty nespadne. */
 const MIN_STOCKED_CONDITION = 0.01;
 
-/** Klíč stavby v provozu roční sítě (`PathNetwork.visits` – network.ts). */
+/** Klíč stavby v provozu z tras (`StoredRoute.visit`, `VillageRoads.visits`). */
 export function visitKey(kind: SacredBuildingKind | 'cemetery' | 'pen', id: number): string {
   return `${kind}:${id}`;
 }
@@ -146,8 +147,8 @@ function keepRepaired(
 }
 
 /**
- * Roční kontrola opuštěných staveb (1. 11. – volá simulace s provozem roční sítě cest; mutuje
- * stav): stavba, ke které za rok nevedla žádná cesta (`visits` – network.ts), začne chátrat,
+ * Roční kontrola opuštěných staveb (1. 11. – volá simulace s provozem ke stavbám z tras; mutuje
+ * stav): stavba, ke které za rok nevedla žádná cesta (`visits` – součet z tras), začne chátrat,
  * navštěvovaná přestane a vesničané ji opraví (repair.ts). Stavba dokončená za poslední rok
  * (ABANDONMENT.graceDays) opuštěná není – lidé k ní chodili stavět; ohrada se zvířaty taky ne.
  * Práce opravy vede k stavbě cesty – oprava ji tak drží navštěvovanou.
@@ -266,7 +267,7 @@ function updateSacredRuins(state: VillageState, day: number, landscape: Landscap
 }
 
 /**
- * Zbytky, přes které nestojí ani se nestaví jiná stavba (obydlí, modla, svatyně; s krajinou
+ * Zbytky, přes které nestojí ani se nestaví jiná stavba (obydlí, modla, svatyně, humno; s krajinou
  * i čtverce polí, hřbitovů, sadů, ohrad a pozemky) – na místo zbytku jde stavět a stavba ho
  * odstraní (jako zbytek jámy obydlí – ruins.ts).
  */
@@ -303,6 +304,13 @@ function withoutBuiltOver(
   for (const b of sacredBuildingPlots(state)) {
     const half = (SACRED_BUILDINGS[b.kind].footprintM * Math.SQRT2) / 2;
     if (near(b.position.x, b.position.z, half)) shapes.push(sacredFootprint(b.kind, b.position));
+  }
+  // humno (production-chains.md – Humno) – poloviční úhlopříčka půdorysu
+  const floorReach = Math.hypot(HUMNO.sizeM.x, HUMNO.sizeM.z) / 2;
+  for (const f of villageThreshingFloors(state)) {
+    if (near(f.position.x, f.position.z, floorReach)) {
+      shapes.push(threshingFloorFootprint(f.position));
+    }
   }
   if (landscape) {
     const reach = (landscape.cellSizeM * Math.SQRT2) / 2;

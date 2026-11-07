@@ -7,13 +7,19 @@ import { penGateToward } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
 import type { PenHerd } from './pen-layout';
 import type { PenView } from './pen-renderer';
+import { grazingHorses } from './livestock-placement';
 import { ploughingToday } from './plough-front';
 
 /**
  * Ohrady ke kreslení: čtverec, branka k nejbližšímu obydlí (bez obydlí dolů, −z), průběh stavby
  * (hotová 1) a stav opuštěné ohrady (abandonment.md – rozpad).
  */
-export function scenePenViews(village: Pick<SceneVillage, 'pens' | 'dwellings'>): PenView[] {
+export function scenePenViews(
+  village: Pick<SceneVillage, 'pens' | 'dwellings'> & Partial<Pick<SceneVillage, 'tornado'>>,
+): PenView[] {
+  const tornado = village.tornado
+    ? { strength: village.tornado.strength, track: village.tornado.track }
+    : null;
   return (village.pens ?? []).map((pen) => {
     // natočená ohrada (fields.md – Natočené stavby) – natočení kolem středu čtverce
     const turned = pen.rotation !== undefined ? { rotation: pen.rotation } : {};
@@ -27,10 +33,13 @@ export function scenePenViews(village: Pick<SceneVillage, 'pens' | 'dwellings'>)
     const toward = penGateToward([square, ...fenced], village.dwellings);
     return {
       id: pen.id,
+      ...(pen.species === undefined ? {} : { species: pen.species }),
       square,
       facing: { x: toward.x - pen.x, z: toward.z - pen.z },
       progress: pen.built ? 1 : Math.min(0.999, Math.max(0, pen.progress)),
       ...(pen.condition === undefined ? {} : { condition: pen.condition }),
+      ...(pen.hay === undefined ? {} : { hay: pen.hay }),
+      ...(tornado ? { tornado } : {}),
       ...(fenced.length > 0 ? { extra: fenced.map((q) => ({ x: q.x, z: q.z })) } : {}),
       ...(pending.length > 0
         ? {
@@ -51,11 +60,17 @@ export function scenePenViews(village: Pick<SceneVillage, 'pens' | 'dwellings'>)
  * Zvířata ohrad podle id: vycvičení voli (u rádla a vozů jsou venku), telata ve výcviku a krávy
  * stáda (v zimě – oxen.md). Nedostavěná ohrada žádná. `oxenOut` = kolik volů je dnes venku – páry
  * u rádel (plough-front.ts – `ploughFront`) a voli vozů (`draftTeamsToday`): odcházejí z ohrad
- * v pořadí id, ostatní zůstanou v ohradě; bez údaje jsou v den orby na poli všichni.
+ * v pořadí id, ostatní zůstanou v ohradě; bez údaje jsou v den orby na poli všichni. Koně ohrady
+ * koní: v létě s pasákem jsou na pastvě se stády (`grazingHorses`), v ohradě zůstanou jen koně pod
+ * jezdcem; v zimě a bez pasáka stojí všichni v ohradě (horses.md – Ve scéně). Kůň jezdce je
+ * mimo ohradu jen v bloku jízdy (`ridingNow` – id koní na cestě, riders.ts `isRiding`), jinak
+ * stojí v ohradě v noci i v zimě a v létě podle `grazingHorses`.
  */
 export function penHerds(
-  village: Pick<SceneVillage, 'pens' | 'labor'>,
+  village: Pick<SceneVillage, 'pens' | 'labor'> &
+    Partial<Pick<SceneVillage, 'dwellings' | 'livestock'>>,
   oxenOut = ploughingToday(village) ? Infinity : 0,
+  ridingNow: ReadonlySet<number> = new Set(),
 ): Map<number, PenHerd> {
   const pens = village.pens ?? [];
   // voli venku patří ohradám v pořadí id (jako páry v plough-front.ts)
@@ -67,11 +82,18 @@ export function penHerds(
     away.set(pen.id, n);
     out -= n;
   }
+  const grazing = new Set(grazingHorses(village).map((h) => h.id));
+  // kůň na jízdě je mimo ohradu (jeho kůň jede s jezdcem – riders.ts), jinak v ohradě
+  for (const id of ridingNow) grazing.add(id);
   const herds = new Map<number, PenHerd>();
   for (const pen of pens) {
     if (!pen.built) continue;
     const oxen = pen.oxen - (away.get(pen.id) ?? 0);
-    herds.set(pen.id, { oxen, trainees: pen.trainees, cows: pen.cows });
+    const herd: PenHerd = { oxen, trainees: pen.trainees, cows: pen.cows };
+    if (pen.species === 'horse') {
+      herd.horses = (pen.horses ?? []).filter((h) => !grazing.has(h.id)).map((h) => h.kind);
+    }
+    herds.set(pen.id, herd);
   }
   return herds;
 }

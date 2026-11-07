@@ -46,6 +46,14 @@ const FLOW_SPEED_MPS: readonly [number, number] = [0.12, 1.6];
 const MIN_ALPHA: readonly [number, number] = [0.12, 0.6];
 const FLOWING_SPEED: readonly [number, number] = [0.2, 0.6];
 /** Barvy (podle 0 A.D. temperate, ale méně kalné – Martin chce průzračnou vodu). */
+/**
+ * Sucho (disasters.md – Ve scéně): hladina klesne o až DROUGHT_DROP_M × sucho – mělká voda u
+ * břehů a na brodech zmizí (potok užší, tůně menší) bez nové geometrie (hloubka ve vrcholech je
+ * v jednotkách výšky – / HEIGHT_SCALE); okraj se rozplyne na
+ * DROUGHT_EDGE_M hloubky.
+ */
+const DROUGHT_DROP_M = 0.35;
+const DROUGHT_EDGE_M = 0.1;
 const MURKY_COLOR = new Color3(0.2, 0.21, 0.12);
 const CLEAR_COLOR = new Color3(0.13, 0.24, 0.23);
 const SKY_REFLECTION = new Color3(0.55, 0.66, 0.78);
@@ -215,7 +223,7 @@ export function createWaterMesh(scene: Scene, surface: RenderSurface): WaterSurf
  * Dlaždicová normálová mapa vlnek ze součtu vln s celočíselnými frekvencemi (navazuje na
  * okrajích) – deterministicky, bez souboru.
  */
-function createRippleNormalMap(scene: Scene): RawTexture {
+export function createRippleNormalMap(scene: Scene): RawTexture {
   const n = RIPPLE_SIZE;
   const waves: { kx: number; ky: number; amplitude: number; phase: number }[] = [];
   let state = 0x7a7e5;
@@ -367,6 +375,7 @@ uniform waterClear: vec3f;
 uniform waterSky: vec3f;
 uniform seasonA: vec4f;
 uniform seasonB: vec4f;
+uniform seasonC: vec4f;
 #endif`
           : `#ifdef WATER
 uniform float waterTime;
@@ -378,6 +387,7 @@ uniform vec3 waterClear;
 uniform vec3 waterSky;
 uniform vec4 seasonA;
 uniform vec4 seasonB;
+uniform vec4 seasonC;
 #endif`,
     };
   }
@@ -466,7 +476,13 @@ waterIceColor = mix(waterIceColor, mix(seasonSnowColor(waterIceColor), waterIceC
 waterIceAlpha = mix(0.8, 0.97, waterIceThick) * (1.0 - smoothstep(0.0, 0.8, fragmentInputs.vWaterInfo.w));
 }
 baseColor = vec4f(mix(mix(uniforms.waterMurky, uniforms.waterClear, waterClarity), waterIceColor, waterIce), baseColor.a);
-alpha = mix(fragmentInputs.vWaterInfo.y * clamp(1.0 - exp(-fragmentInputs.vWaterInfo.x / waterVisibilityM), fragmentInputs.vWaterInfo.z, 1.0), waterIceAlpha, waterIce);`,
+alpha = mix(fragmentInputs.vWaterInfo.y * clamp(1.0 - exp(-fragmentInputs.vWaterInfo.x / waterVisibilityM), fragmentInputs.vWaterInfo.z, 1.0), waterIceAlpha, waterIce);
+var waterDry = 1.0;
+if (uniforms.seasonC.x > 0.0) {
+  let waterLow = uniforms.seasonC.x * ${float(DROUGHT_DROP_M / HEIGHT_SCALE)};
+  waterDry = smoothstep(waterLow, waterLow + ${float(DROUGHT_EDGE_M / HEIGHT_SCALE)}, fragmentInputs.vWaterInfo.x);
+}
+alpha *= waterDry;`,
         CUSTOM_FRAGMENT_BEFORE_LIGHTS: `{
   let waterDir = fragmentInputs.vWaterFlow.xy;
   let waterRate = mix(uniforms.waterSpeed.x, uniforms.waterSpeed.y, fragmentInputs.vWaterFlow.z);
@@ -479,7 +495,7 @@ alpha = mix(fragmentInputs.vWaterInfo.y * clamp(1.0 - exp(-fragmentInputs.vWater
         CUSTOM_FRAGMENT_BEFORE_FOG: `{
   color = vec4f(max(color.rgb - finalSpecular * (0.7 * waterIce), vec3f(0.0)), color.a);
   let fresnel = min(0.04 + 0.96 * pow(1.0 - max(dot(normalW, viewDirectionW), 0.0), 3.0), 0.8) * (1.0 - 0.8 * waterIce);
-  color = vec4f(mix(color.rgb, uniforms.waterSky, fresnel), max(color.a, fresnel * fragmentInputs.vWaterInfo.y));
+  color = vec4f(mix(color.rgb, uniforms.waterSky, fresnel), max(color.a, fresnel * fragmentInputs.vWaterInfo.y * waterDry));
 }`,
       };
     }
@@ -514,7 +530,13 @@ waterIceColor = mix(waterIceColor, mix(seasonSnowColor(waterIceColor), waterIceC
 waterIceAlpha = mix(0.8, 0.97, waterIceThick) * (1.0 - smoothstep(0.0, 0.8, vWaterInfo.w));
 }
 baseColor.rgb = mix(mix(waterMurky, waterClear, waterClarity), waterIceColor, waterIce);
-alpha = mix(vWaterInfo.y * clamp(1.0 - exp(-vWaterInfo.x / waterVisibilityM), vWaterInfo.z, 1.0), waterIceAlpha, waterIce);`,
+alpha = mix(vWaterInfo.y * clamp(1.0 - exp(-vWaterInfo.x / waterVisibilityM), vWaterInfo.z, 1.0), waterIceAlpha, waterIce);
+float waterDry = 1.0;
+if (seasonC.x > 0.0) {
+  float waterLow = seasonC.x * ${float(DROUGHT_DROP_M / HEIGHT_SCALE)};
+  waterDry = smoothstep(waterLow, waterLow + ${float(DROUGHT_EDGE_M / HEIGHT_SCALE)}, vWaterInfo.x);
+}
+alpha *= waterDry;`,
       CUSTOM_FRAGMENT_BEFORE_LIGHTS: `{
   vec2 waterDir = vWaterFlow.xy;
   float waterRate = mix(waterSpeed.x, waterSpeed.y, vWaterFlow.z);
@@ -527,7 +549,7 @@ alpha = mix(vWaterInfo.y * clamp(1.0 - exp(-vWaterInfo.x / waterVisibilityM), vW
   color.rgb = max(color.rgb - finalSpecular * (0.7 * waterIce), 0.0);
   float fresnel = min(0.04 + 0.96 * pow(1.0 - max(dot(normalW, viewDirectionW), 0.0), 3.0), 0.8) * (1.0 - 0.8 * waterIce);
   color.rgb = mix(color.rgb, waterSky, fresnel);
-  color.a = max(color.a, fresnel * vWaterInfo.y);
+  color.a = max(color.a, fresnel * vWaterInfo.y * waterDry);
 }`,
     };
   }

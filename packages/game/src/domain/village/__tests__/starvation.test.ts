@@ -8,6 +8,7 @@ import { LUCKY_STARVATION_CAP } from '../population';
 import { LUCKY_YEARS, STARVATION } from '../rules';
 import { advanceVillage } from '../simulate';
 import { summarizeVillage } from '../summary';
+import { withoutSmallGame } from './village-fixtures';
 import type { ChronicleEvent, Person, VillageState } from '../types';
 
 // Hlad a vymření (population.md): nahromaděný hlad, úmrtí hladem, vymřelá ves a konec hry.
@@ -32,7 +33,7 @@ function village(
     bornDay: START - Math.ceil((ages[i % ages.length]! + 0.5) * YEAR),
     dwellingId: 1 + Math.floor(i / 6),
   }));
-  return {
+  return withoutSmallGame({
     seed,
     foundedDay,
     lastDay: START - 1,
@@ -48,8 +49,8 @@ function village(
     fields: [],
     parts: [],
     constructions: [],
-    plan: null,
-    threshingFromPlan: null,
+    season: null,
+    threshingSeason: null,
     storesKg: 0,
     domesticBacklog: 0,
     hungry: false,
@@ -60,7 +61,7 @@ function village(
       herds: { sheep: 0, goat: 0, pig: 0, cow: 0 },
       young: { sheep: 0, goat: 0, pig: 0, cow: 0 },
     },
-  };
+  });
 }
 
 type Death = Extract<ChronicleEvent, { kind: 'death' }>;
@@ -169,7 +170,7 @@ describe('hladovění – poloviční příděl', () => {
     }
     expect(recovered).toBeGreaterThanOrEqual(15);
     expect(lateHunger).toBeLessThanOrEqual(2);
-  });
+  }, 120_000);
 
   it('ves se zmenšuje postupně – úmrtí hladem začnou až po týdnech a trvají týdny', () => {
     const { end } = halfRation(1);

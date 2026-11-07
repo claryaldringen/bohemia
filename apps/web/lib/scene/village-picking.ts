@@ -3,12 +3,16 @@ import {
   MILIR,
   SACRED_BUILDINGS,
   WORKSHOP_PORCH_M,
+  threshingFloorFootprint,
   type TileCell,
 } from '@bohemia/game';
 import { isRotatedSquare, squareContains, type CellSquare } from './field-cells';
 import { insideOreSite, oreHeapRadius, oreSiteDiscs } from './ore-site-layout';
+import { insideGrainPit } from './grain-pit-layout';
 import { scenePenSquares, type SceneVillage } from '../village-view';
-import { footprintRect } from './village-layout';
+import { nearestJunction } from './junction-shape';
+import type { WildlifeSpecies } from '../wildlife-view';
+import { footprintRect, pointInPolygon, type Point } from './village-layout';
 
 // Výběr obydlí, polí, sadů a hřbitovů kliknutím do scény – čisté funkce bez Babylonu (paprsek
 // z kamery dodá scéna jako čísla).
@@ -20,13 +24,18 @@ import { footprintRect } from './village-layout';
  * dubový háj (id středového dubu), modla či svatyně (id stavby – hotová i rozestavěná,
  * happiness.md), ohrada (id ohrady – oxen.md), rudiště kováře (id kovárny – crafts.md, Uhlí
  * a ruda kováře), hliniště hrnčíře (id dílny – crafts.md, Hlína hrnčíře), nebo milíř či milířiště
- * uhlíře (id milíře – crafts.md, Milíř u skácených buků).
+ * uhlíře (id milíře – crafts.md, Milíř u skácených buků), nebo otevřená obilná jáma (id jámy –
+ * production-chains.md, Obilné jámy).
  */
 export type VillageTarget =
   | { kind: 'dwelling'; id: number }
+  /** Divoké zvíře – klik vybere druh (wildlife.md – Co hráč vidí; panel druhu s hrubým stavem). */
+  | { kind: 'wildlife'; species: WildlifeSpecies }
   /** Víc obydlí najednou – id ze scény vsi v pořadí výběru (aspoň dvě). */
   | { kind: 'dwellings'; ids: readonly number[] }
   | { kind: 'field'; id: number }
+  /** Všechna pole najednou, i nesousedící (tlačítko v panelu pole – Martin 24. 10. 2026). */
+  | { kind: 'fields'; ids: readonly number[] }
   /** Díl pole – id pole a čtverec dílu (v mřížce pole – natočené pole má vlastní). */
   | { kind: 'field-part'; id: number; cell: TileCell }
   | { kind: 'cemetery'; id: number }
@@ -40,9 +49,15 @@ export type VillageTarget =
   | { kind: 'pen'; id: number }
   /**
    * Pevná cesta – cesta hráče (roads.md – Cesta pro hráče): řetěz úseků, id = jeho první úsek
-   * (`roadChainIds`), ať se klikne na kterýkoli.
+   * (`roadChainIds`), ať se klikne na kterýkoli; `segment` – úsek pod kurzorem (výpis výběru do
+   * konzole – Martin 24. 10. 2026).
    */
-  | { kind: 'road'; id: number }
+  | { kind: 'road'; id: number; segment?: number }
+  /**
+   * Křižovatka cest (paths.md – Křižovatky; Martin, #6: „samostatný objekt, který jde označit“):
+   * id křižovatky; klik do `JUNCTION_PICK_M` od středu.
+   */
+  | { kind: 'junction'; id: number }
   /** Rudiště kováře – jámy a hromada rudy (id kovárny – crafts.md, Uhlí a ruda kováře). */
   | { kind: 'ore-site'; id: number }
   /** Hliniště hrnčíře – jámy a hromada hlíny (id dílny hrnčíře – crafts.md, Hlína hrnčíře). */
@@ -50,10 +65,26 @@ export type VillageTarget =
   /** Milíř nebo milířiště uhlíře (id milíře – crafts.md, Milíř u skácených buků). */
   | { kind: 'kiln'; id: number }
   /**
+   * Otevřená obilná jáma (id jámy – production-chains.md, Obilné jámy); zapečetěné nejsou vidět
+   * a vybrat nejdou.
+   */
+  | { kind: 'grain-pit'; id: number }
+  /** Opevnění (id opevnění – fortifications.md, Rozhraní): klik na jeho pás kolem plochy. */
+  | { kind: 'fortification'; id: number }
+  /** Humno (id humna = id stavby – production-chains.md, Humno): klik na mlatovou plochu. */
+  | { kind: 'threshing-floor'; id: number }
+  /**
    * Člověk vsi (id – villagers.md, Výběr postavy): klik na jeho postavu; výběr zůstane, i když
    * postava zmizí (vejde domů, za kraj mapy).
    */
-  | { kind: 'person'; id: number };
+  | { kind: 'person'; id: number }
+  /**
+   * Spřežení volů s rádlem na poli (oxen.md – Výběr spřežení): pořadí spřežení dne
+   * (plough-team-renderer.ts) – klik na voly nebo rádlo.
+   */
+  | { kind: 'plough-team'; team: number }
+  /** Vůz vsi (id vozu – wagons.md, Výběr vozu): klik na vůz nebo jeho voly. */
+  | { kind: 'cart'; id: number };
 
 export interface Vec3 {
   x: number;
@@ -76,6 +107,10 @@ const DWELLING_PICK_MARGIN_M = 1;
 const SACRED_PICK_HEIGHT_M = { idol: 3, shrine: 4.5 } as const;
 /** Úsek pevné cesty: zásah do tolika metrů od osy (pás cesty a kousek vedle). */
 export const ROAD_PICK_M = 2.5;
+/** Opevnění: zásah do tolika metrů od vnějšího okraje obvodu (pás je úzký – plot 1 m). */
+export const FORT_PICK_M = 2;
+/** Křižovatka: zásah do tolika metrů od středu (vchody jsou od středu 2,85–5,25 m). */
+export const JUNCTION_PICK_M = 3;
 /** Rudiště: krok výšky paprsku přes hromadu rudy (m). */
 const ORE_SITE_PICK_STEP_M = 0.25;
 /** Milíř: zásah do poloměru kupy s kouskem kolem, od země do výšky kupy (m). */
@@ -224,6 +259,34 @@ export function pickVillageTarget(
       return { kind: 'kiln', id: r.id };
     }
   }
+  // otevřená obilná jáma na zemi (production-chains.md – Obilné jámy) – zapečetěné scéna nemá
+  const pit = (village.grainPits ?? []).find((p) => insideGrainPit(ground, p));
+  if (pit) return { kind: 'grain-pit', id: pit.id };
+  // humno – klik na udusanou plochu mlatu (hotové i staveniště)
+  const floor = (village.threshingFloors ?? []).find((f) =>
+    pointInPolygon(
+      threshingFloorFootprint(f.position).map(([x, z]): Point => [x, z]),
+      ground.x,
+      ground.z,
+    ),
+  );
+  if (floor) return { kind: 'threshing-floor', id: floor.id };
+  // opevnění – pás kolem plochy (hotový i rozestavěný obvod) a kousek podél okraje (pás je úzký)
+  const fort = (village.forts ?? []).find(
+    (f) =>
+      f.band.some((piece) =>
+        pointInPolygon(
+          piece.map(([x, z]): Point => [x, z]),
+          ground.x,
+          ground.z,
+        ),
+      ) ||
+      distanceToPolyline(
+        ground,
+        f.outline.map(([x, z]) => ({ x, z })),
+      ) <= FORT_PICK_M,
+  );
+  if (fort) return { kind: 'fortification', id: fort.id };
   const cell = options.cellOf(ground.x, ground.z);
   if (!cell) return null;
   // čtverec v mřížce krajiny podle políčka, natočený čtverec (fields.md – Natočené stavby)
@@ -242,10 +305,13 @@ export function pickVillageTarget(
   // ohrada o víc čtvercích (oxen.md – Ohrady podle druhu) – kterýkoli její čtverec
   const pen = (village.pens ?? []).find((p) => scenePenSquares(p).some(hit));
   if (pen) return { kind: 'pen', id: pen.id };
+  // křižovatka přebíjí cesty, které do ní vbíhají (je to samostatný objekt)
+  const junction = nearestJunction(village.junctions, ground, JUNCTION_PICK_M);
+  if (junction !== null) return { kind: 'junction', id: junction };
   const road = nearestRoad(village, ground, ROAD_PICK_M);
   // celá cesta hráče – navazující úseky různého stupně jsou jedna cesta (Martin)
   if (road !== null)
-    return { kind: 'road', id: roadChainIds(village.roads ?? [], road)[0] ?? road };
+    return { kind: 'road', id: roadChainIds(village.roads ?? [], road)[0] ?? road, segment: road };
   for (const field of village.fields) {
     const part = field.parts.find(hit);
     if (part) return { kind: 'field-part', id: field.id, cell: copyCell(part.cell) };
@@ -321,6 +387,8 @@ export function nearestRoad(
 ): number | null {
   let best: { id: number; d: number } | null = null;
   for (const road of village.roads ?? []) {
+    // opuštěný kus pod stavbou nejde vybrat (paths.md – Stavba přes cestu)
+    if (road.abandoned) continue;
     const d = distanceToPolyline(point, road.points);
     if (d <= reach && (best === null || d < best.d)) best = { id: road.id, d };
   }
@@ -332,6 +400,9 @@ export function targetExists(village: SceneVillage, target: VillageTarget): bool
   if (target.kind === 'dwelling') return village.dwellings.some((d) => d.id === target.id);
   if (target.kind === 'dwellings') {
     return target.ids.some((id) => village.dwellings.some((d) => d.id === id));
+  }
+  if (target.kind === 'fields') {
+    return target.ids.some((id) => village.fields.some((f) => f.id === id));
   }
   if (target.kind === 'cemetery') {
     return (village.cemeteries ?? []).some((c) => c.id === target.id);
@@ -349,6 +420,7 @@ export function targetExists(village: SceneVillage, target: VillageTarget): bool
   }
   if (target.kind === 'pen') return (village.pens ?? []).some((p) => p.id === target.id);
   if (target.kind === 'road') return (village.roads ?? []).some((r) => r.id === target.id);
+  if (target.kind === 'junction') return (village.junctions ?? []).some((j) => j.id === target.id);
   if (target.kind === 'ore-site' || target.kind === 'clay-site') {
     return dugSiteOf(village, target) !== undefined;
   }
@@ -358,8 +430,26 @@ export function targetExists(village: SceneVillage, target: VillageTarget): bool
       (village.kilnRemnants ?? []).some((r) => r.id === target.id)
     );
   }
+  if (target.kind === 'threshing-floor') {
+    return (village.threshingFloors ?? []).some((f) => f.id === target.id);
+  }
+  if (target.kind === 'fortification') {
+    return (village.forts ?? []).some((f) => f.id === target.id);
+  }
+  if (target.kind === 'grain-pit') {
+    return (village.grainPits ?? []).some((p) => p.id === target.id);
+  }
   if (target.kind === 'person') return personExists(village, target.id);
+  if (target.kind === 'plough-team') return ploughsToday(village);
+  if (target.kind === 'cart') return (village.carts ?? []).some((c) => c.id === target.id);
+  // zvíře ve scéně hlídá jeho vlastní výběr (W10); druh zvěře existuje, dokud ves má zvěř
+  if (target.kind === 'wildlife') return true;
   return village.fields.some((f) => f.id === target.id);
+}
+
+/** Spřežení dnes orá (rozdělení práce dne má orbu – jako `ploughingToday` v plough-front.ts)? */
+function ploughsToday(village: Pick<SceneVillage, 'labor'>): boolean {
+  return (village.labor?.shares ?? []).some((s) => s.activity === 'plough' && s.manDays > 0);
 }
 
 /** Žije člověk ve vsi (`labor.persons`)? Bez lidí ve scéně ano – nejde to poznat. */

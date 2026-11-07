@@ -3,8 +3,15 @@ import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
 import type { PathLine } from '@bohemia/game';
-import type { SceneEarthwork, SceneRoad, SceneRoadApple } from '../village-view';
+import type { SceneEarthwork, SceneJunction, SceneRoad, SceneRoadApple } from '../village-view';
 import { applyGammaFog } from './gamma-fog';
+import {
+  JUNCTION_MODELS,
+  junctionLandmarkPieces,
+  junctionCuts,
+  junctionsKey,
+  type JunctionModel,
+} from './junction-shape';
 import { instanceMatrices, loadMergedModel, type ModelInstance } from './instanced-model';
 import {
   CART_RUT_LAYER,
@@ -16,18 +23,16 @@ import {
   IMPROVED_WORN_LAYER,
   ROAD_EARTH_LAYER,
   ROAD_WORN_LAYER,
-  ROAD_WIDTH_M,
   pathRibbons,
-  type RibbonJunction,
   type RibbonLayer,
 } from './path-ribbon';
 import {
   appleStaking,
   appleStakingKey,
   bridgePieces,
+  junctionPatchGrid,
   logPieces,
   roadBands,
-  roadJunctions,
   roadWorksKey,
   stakingLines,
   wagonStakingKey,
@@ -36,6 +41,7 @@ import {
 } from './road-works-layout';
 import { applySeasonSnow } from './season-materials';
 import { StakingPegs, createStringMaterial, createStringMesh, pegInstances } from './staking';
+import type { DecalGrid } from './village-layout';
 import { createDecalMesh, type HeightFn } from './village-meshes';
 
 // Díly vylepšených pevných cest ve scéně (docs/design/roads.md): kmeny hatě, lávky přes brody
@@ -44,13 +50,23 @@ import { createDecalMesh, type HeightFn } from './village-meshes';
 // 19. 10. 2026 – strouha a kameny zrušené). Kde co leží, počítá road-works-layout.ts z dat vsi;
 // přestaví se jen při změně dat.
 
-type RoadModel = 'road-log' | 'road-bridge' | 'road-bridge-posts';
-const MODELS: readonly RoadModel[] = ['road-log', 'road-bridge', 'road-bridge-posts'];
+type RoadModel = 'road-log' | 'road-bridge' | 'road-bridge-posts' | JunctionModel;
+const MODELS: readonly RoadModel[] = [
+  'road-log',
+  'road-bridge',
+  'road-bridge-posts',
+  ...JUNCTION_MODELS,
+];
 /** Kmeny kousek zapuštěné do bláta, lávka do břehů (m). */
 const SINK_M = {
   'road-log': 0.06,
   'road-bridge': 0.05,
   'road-bridge-posts': 0.05,
+  // vztyčený kámen a kůl jsou do země zapuštěné v modelu (junction-*.glb) – stojí na terénu
+  'junction-stone-1': 0,
+  'junction-stone-2': 0,
+  'junction-post-1': 0,
+  'junction-post-2': 0,
 };
 
 export interface RoadWorksEnvironment {
@@ -92,8 +108,9 @@ export class RoadWorks {
       earthworks: [],
       preview: [],
     },
+    junctions: readonly SceneJunction[] = [],
   ): void {
-    const key = `${roadWorksKey(roads)}|${appleStakingKey(apples)}|${wagonStakingKey(wagon.earthworks, wagon.preview)}`;
+    const key = `${roadWorksKey(roads)}|${junctionsKey(junctions)}|${appleStakingKey(apples)}|${wagonStakingKey(wagon.earthworks, wagon.preview)}`;
     if (key === this.key) return;
     this.key = key;
     const h = this.env.groundHeight;
@@ -108,7 +125,11 @@ export class RoadWorks {
     // lávka leží na vyšším z obou břehů – ne na dně potoka
     const bridgeY = (b: (typeof bridges)[number]): number =>
       Math.max(h(b.ends[0][0], b.ends[0][1]), h(b.ends[1][0], b.ends[1][1]));
+    const landmarks = junctionLandmarkPieces(junctions);
+    const landmarkOf = (model: JunctionModel): ModelInstance[] =>
+      landmarks.filter((p) => p.model === model).map((p) => at(model, { ...p, scale: 1 }));
     this.instances = new Map<RoadModel, ModelInstance[]>([
+      ...JUNCTION_MODELS.map((m): [RoadModel, ModelInstance[]] => [m, landmarkOf(m)]),
       ['road-log', logPieces(roads).map((p) => at('road-log', p))],
       [
         'road-bridge',
@@ -241,50 +262,40 @@ export function roadRibbonMeshes(
   scene: Scene,
   roads: readonly SceneRoad[],
   o: RoadRibbonOptions,
+  junctionList: readonly SceneJunction[] = [],
 ): Mesh[] {
-  const bands = roadBands(roads);
-  // rozcestí – udusaný plácek v pásu cesty, která do něj vbíhá nejširší
-  const junctions = roadJunctions(roads);
-  const ribbons: [
-    string,
-    readonly PathLine[],
-    RoadDecalKind,
-    RibbonLayer,
-    [number, number, number],
-    readonly RibbonJunction[],
-  ][] = [
-    ['roads-worn', bands.trodden, 'worn', ROAD_WORN_LAYER, WORN_COLOR, junctions.trodden],
-    ['roads-earth', bands.trodden, 'earth', ROAD_EARTH_LAYER, EARTH_COLOR, junctions.trodden],
-    [
-      'roads-improved-worn',
-      bands.improved,
-      'worn',
-      IMPROVED_WORN_LAYER,
-      WORN_COLOR,
-      junctions.improved,
-    ],
-    [
-      'roads-improved-earth',
-      bands.improved,
-      'earth',
-      IMPROVED_EARTH_LAYER,
-      EARTH_COLOR,
-      junctions.improved,
-    ],
-    // vozová cesta (wagons.md – Vyjeté cesty): širší pás, tráva mezi dvěma kolejemi; rozcestí
-    // udusaný plácek
-    ['roads-cart-worn', bands.cart, 'worn', CART_WORN_LAYER, WORN_COLOR, junctions.cart],
-    ['roads-cart-hub', [], 'earth', CART_HUB_LAYER, EARTH_COLOR, junctions.cart],
-    ['roads-cart-ruts', bands.ruts, 'earth', CART_RUT_LAYER, EARTH_COLOR, []],
+  // křižovatky: pásy cest končí kousek za vchody, ramena a střed kreslí plácek se stejnými
+  // měkkými okraji (junction-patch.ts) – oblouk ve vnitřních rozích, bez řezu na konci ramen
+  const cuts = junctionCuts(junctionList, roads);
+  const bands = roadBands(roads, cuts);
+  const ribbons: [string, readonly PathLine[], RoadDecalKind, RibbonLayer, Rgb][] = [
+    ['roads-worn', bands.trodden, 'worn', ROAD_WORN_LAYER, WORN_COLOR],
+    ['roads-earth', bands.trodden, 'earth', ROAD_EARTH_LAYER, EARTH_COLOR],
+    ['roads-improved-worn', bands.improved, 'worn', IMPROVED_WORN_LAYER, WORN_COLOR],
+    ['roads-improved-earth', bands.improved, 'earth', IMPROVED_EARTH_LAYER, EARTH_COLOR],
+    // vozová cesta (wagons.md – Vyjeté cesty): širší pás, tráva mezi dvěma kolejemi
+    ['roads-cart-worn', bands.cart, 'worn', CART_WORN_LAYER, WORN_COLOR],
+    ['roads-cart-ruts', bands.ruts, 'earth', CART_RUT_LAYER, EARTH_COLOR],
     // vozová cesta (roads.md – Vozová cesta): pás 3,5 m a zpevněné koleje se štěrkem a kameny
-    ['roads-wagon-worn', bands.wagon, 'worn', WAGON_WORN_LAYER, WORN_COLOR, []],
-    ['roads-wagon-earth', bands.wagon, 'earth', WAGON_EARTH_LAYER, EARTH_COLOR, []],
-    ['roads-wagon-gravel', bands.gravel, 'gravel', WAGON_GRAVEL_LAYER, GRAVEL_COLOR, []],
+    ['roads-wagon-worn', bands.wagon, 'worn', WAGON_WORN_LAYER, WORN_COLOR],
+    ['roads-wagon-earth', bands.wagon, 'earth', WAGON_EARTH_LAYER, EARTH_COLOR],
+    ['roads-wagon-gravel', bands.gravel, 'gravel', WAGON_GRAVEL_LAYER, GRAVEL_COLOR],
   ];
+  const grids: [string, DecalGrid, RoadDecalKind, Rgb][] = ribbons.map(
+    ([name, lines, kind, layer, color]) => [
+      name,
+      pathRibbons(lines, layer, undefined, undefined, []),
+      kind,
+      color,
+    ],
+  );
+  // plácky křižovatek – prošlapaná tráva a hlína jako navazující pásy (žádný štěrk navíc)
+  grids.push(
+    ['roads-junction-worn', junctionPatchGrid(bands.arms, cuts, 'worn'), 'worn', WORN_COLOR],
+    ['roads-junction-earth', junctionPatchGrid(bands.arms, cuts, 'earth'), 'earth', EARTH_COLOR],
+  );
   const meshes: Mesh[] = [];
-  for (const [name, lines, kind, layer, color, nodes] of ribbons) {
-    if (lines.length === 0 && nodes.length === 0) continue;
-    const grid = pathRibbons(lines, layer, undefined, undefined, nodes);
+  for (const [name, grid, kind, color] of grids) {
     if (grid.indices.length === 0) continue;
     const mesh = createDecalMesh(scene, name, grid, {
       height: o.height,
@@ -300,17 +311,13 @@ export function roadRibbonMeshes(
   return meshes;
 }
 
-/** Plácek rozcestí vozové cesty – udusaná hlína jako u vyšlapané, na šířku vozové cesty. */
-const CART_HUB_LAYER: RibbonLayer = {
-  ...ROAD_EARTH_LAYER,
-  width: { weak: ROAD_WIDTH_M.cart, strong: ROAD_WIDTH_M.cart },
-};
+type Rgb = [number, number, number];
 
 /** Prošlapaná tráva do hněda, holá udusaná hlína tmavší a teplejší (jako pěšiny). */
-const WORN_COLOR: [number, number, number] = [0.92, 0.84, 0.7];
-const EARTH_COLOR: [number, number, number] = [0.9, 0.74, 0.58];
+const WORN_COLOR: Rgb = [0.92, 0.84, 0.7];
+const EARTH_COLOR: Rgb = [0.9, 0.74, 0.58];
 /** Štěrk v kolejích vozové cesty – světlejší, šedavý. */
-const GRAVEL_COLOR: [number, number, number] = [0.95, 0.92, 0.86];
+const GRAVEL_COLOR: Rgb = [0.95, 0.92, 0.86];
 
 /** Materiál dílů cesty – dřevo a kámen tlumeně jako dekorace, v zimě sníh navrchu. */
 function prepareRoadMaterial(material: Material): void {

@@ -1,4 +1,5 @@
 import type { ReactElement } from 'react';
+import { Tooltip } from './Tooltip';
 import { formatInteger } from '@/lib/village-format';
 import type { PlacementPreview } from '@/lib/scene/village-types';
 
@@ -66,6 +67,31 @@ export function CursorReason({
                 <span data-cost="trees" className="flex items-center gap-1">
                   <img src="/icons/resources/wood.png" alt="Stromy" width={16} height={16} />
                   {formatInteger(cost.trees)}
+                </span>
+              )}
+              {(cost.burn ?? 0) > 0 && (
+                <span data-cost="burn" className="flex items-center gap-1">
+                  <Tooltip content="Les se vykácí, větve se vysuší a v březnu až říjnu vypálí">
+                    <img
+                      src="/icons/resources/fire.png"
+                      alt="Les se vykácí a vypálí"
+                      width={16}
+                      height={16}
+                    />
+                  </Tooltip>
+                  {formatInteger(cost.burn ?? 0)}
+                </span>
+              )}
+              {(cost.logs ?? 0) > 0 && (
+                <span data-cost="logs" className="flex items-center gap-1">
+                  <img src="/icons/resources/wood.png" alt="Klády" width={16} height={16} />
+                  {formatInteger(cost.logs ?? 0)}
+                </span>
+              )}
+              {(cost.refuge ?? 0) > 0 && (
+                <span data-cost="refuge" className="flex items-center gap-1">
+                  <img src="/icons/resources/people.png" alt="Útočiště" width={16} height={16} />
+                  {formatInteger(cost.refuge ?? 0)}
                 </span>
               )}
               {(cost.oaks ?? 0) > 0 && (

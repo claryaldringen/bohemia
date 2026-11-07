@@ -6,12 +6,14 @@ import { LIVESTOCK_EPOCH_MS } from '../livestock-motion';
 import { SHRINE_RING_M } from '../sacred-layout';
 import { createVillagerPose, villagerSeconds } from '../villager-motion';
 import {
+  WEDDING_MUSIC,
   WEDDING_SITE_RADIUS_M,
   WEDDING_TIMING,
   oakGarland,
   pickWeddingSite,
   weddingActiveIn,
   weddingFire,
+  weddingMusicians,
   weddingPhase,
   weddingPlan,
   weddingPose,
@@ -231,6 +233,29 @@ describe('plán svatby u posvátného dubu (weddingPlan)', () => {
       const toCouple = Math.atan2(p.site.couple.z - m.ring.z, p.site.couple.x - m.ring.x);
       expect(Math.atan2(at.headingZ, at.headingX)).toBeCloseTo(toCouple, 6);
     }
+  });
+
+  it('hudebníci: dva dospělí svatebčané hrají v podkově na píšťalu a buben (úloha 12)', () => {
+    const players = p.members.filter((m) => m.music !== undefined);
+    expect(players.map((m) => m.music).sort()).toEqual([...WEDDING_MUSIC].sort());
+    for (const m of players) {
+      expect(m.role).toBe('guest');
+      expect(m.child || m.elder).toBe(false);
+      const index = p.members.indexOf(m);
+      // u obřadu hraje na svém místě, v průvodu jde
+      expect(poseAt(p, index, p.timeline.ritesMs + 1000).clip).toBe(m.music);
+      expect(poseAt(p, index, m.leaveMs + 1000).clip).toBe('walk');
+    }
+    // ostatní svatebčané stojí; výběr je los podle svatby – stejný ze stejných dat
+    const others = p.members.filter((m) => m.role === 'guest' && m.music === undefined);
+    expect(poseAt(p, p.members.indexOf(others[0]!), p.timeline.ritesMs + 1000).clip).toBe('idle');
+    expect([...weddingMusicians(p.key, p.members)].sort((a, b) => a[0] - b[0])).toEqual(
+      players.map((m) => [p.members.indexOf(m), m.music]),
+    );
+    // bez dospělých svatebčanů nikdo nehraje
+    expect(
+      weddingMusicians('x', [{ key: 'a', role: 'guest', child: true, elder: false }]).size,
+    ).toBe(0);
   });
 
   it('po obřadu jde pár do nového domova a zmizí, svatebčané k vlastním domům', () => {

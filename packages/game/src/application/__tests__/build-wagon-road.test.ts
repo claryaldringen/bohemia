@@ -37,7 +37,7 @@ async function settled(): Promise<{ villages: InMemoryVillages; villageId: strin
             { x: 0, z: -120 },
           ],
           bornDay: TODAY - 800,
-          grade: 'trodden',
+          grade: 'improved',
           traffic: [],
           spots: [],
         },
@@ -50,14 +50,15 @@ async function settled(): Promise<{ villages: InMemoryVillages; villageId: strin
             { x: 60, z: 0 },
           ],
           bornDay: TODAY - 800,
-          grade: 'trodden',
+          grade: 'improved',
           traffic: [],
           spots: [],
         },
       ],
       trees: [],
-      candidates: [],
       labor: { from: TODAY - 100, days: 0, shares: [] },
+      // ručně položené cesty – jednorázová přestavba sítě by je zahodila (paths.md)
+      rebuilt: 2,
     };
   });
   return { villages, villageId: founded.village.id };
@@ -80,13 +81,15 @@ describe('buildWagonRoad', () => {
     expect(c.kind).toBe('road');
     expect(c.cost).toBeGreaterThan(0);
     // stará cesta zůstává
-    expect(state.roads!.roads.find((r) => r.id === 1)?.grade).toBe('trodden');
-    // přímější než klikatá stará cesta
+    expect(state.roads!.roads.find((r) => r.id === 1)?.grade).toBe('improved');
+    // po staré cestě i s jejím ohybem (Martin 22. 10. 2026, #6: „vznikne ze staré pěší cesty
+    // a vede po ní“) – ohyb (40, −60) je bodem osy
     const profile = state.roads!.earthworks![0]!.profile;
     const length = profile
       .slice(1)
       .reduce((sum, p, k) => sum + Math.hypot(p.x - profile[k]!.x, p.z - profile[k]!.z), 0);
-    expect(length).toBeLessThan(125);
+    expect(length).toBeCloseTo(Math.hypot(40, 50) + Math.hypot(40, 60), 1);
+    expect(profile).toContainEqual(expect.objectContaining({ x: 40, z: -60 }));
     // podruhé: stavba už běží
     expect(await buildWagonRoad({ villages }, { ...base, roadId: 1 })).toEqual({
       ok: false,

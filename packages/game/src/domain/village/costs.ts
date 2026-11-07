@@ -8,6 +8,7 @@ import {
   DWELLINGS,
   dwellingBuildLabor,
   FELLING_MAN_DAYS_PER_TREE,
+  HUMNO,
   ORCHARD,
   SACRED_BUILDINGS,
   workshopBuildLabor,
@@ -32,10 +33,18 @@ import { oakSupply, woodSupply, type WoodPlan } from './wood';
 
 /**
  * Co hráč staví z nabídky staveb – obydlí, řemeslné dílny (crafts.md), pole a další stavby,
- * ohrada s přístřeškem (oxen.md – jeden čtverec louky, dřevo předem, osadníci ne).
+ * ohrada s přístřeškem (oxen.md – jeden čtverec louky, dřevo předem, osadníci ne) a humno
+ * (production-chains.md – Humno: půdorys u kurzoru, dřevo předem, osadníci ne).
  */
 export type BuildKind =
-  BuildableDwellingType | Craft | 'field' | 'cemetery' | 'orchard' | SacredBuildingKind | 'pen';
+  | BuildableDwellingType
+  | Craft
+  | 'field'
+  | 'cemetery'
+  | 'orchard'
+  | SacredBuildingKind
+  | 'pen'
+  | 'threshing-floor';
 
 /**
  * Co stavba potřebuje předem: obilí ze zásob, dřevo (stromy – klády z hromady, nebo dospělé
@@ -107,6 +116,12 @@ export const BUILD_COSTS: Record<BuildKind, BuildCost> = {
   },
   // oxen.md – Ohrada: 40 člověkodní (i s kácením blízkého lesa) a 6 stromů
   pen: { laborManDays: PEN.laborManDays, perHa: false, upfront: { wood: PEN.trees } },
+  // production-chains.md – Humno: jen mlat, 20 člověkodní a žádné dřevo
+  'threshing-floor': {
+    laborManDays: HUMNO.laborManDays,
+    perHa: false,
+    upfront: { wood: HUMNO.trees },
+  },
 };
 
 /**

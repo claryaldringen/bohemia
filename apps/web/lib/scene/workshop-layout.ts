@@ -205,7 +205,8 @@ export interface CraftSpot {
   /** Směr pohledu (jednotkový, svět). */
   hx: number;
   hz: number;
-  clip: 'build' | 'weed' | 'idle';
+  /** `seed` – kovář sype rudu a uhlí z koše do redukční pece (craft-yard-layout.ts). */
+  clip: 'build' | 'weed' | 'idle' | 'seed' | 'wheel';
 }
 
 /**
@@ -217,7 +218,7 @@ const PORCH_SPOTS: Record<
   readonly (readonly [number, number, number, number, CraftSpot['clip']])[]
 > = {
   hrncir: [
-    [0.55, 5.05, 0, -1, 'weed'], // u hrnčířského kruhu (0,55; 4,45)
+    [0.55, 5.05, 0, -1, 'wheel'], // na špalku u hrnčířského kruhu (0,55; 4,45) – klip `wheel`
     [-0.72, 5.95, 0, -1, 'build'], // u topeniště pece
     [1.85, 4.3, -1, 0, 'idle'], // u police se sušícími se hrnci
     [-1.9, 5.3, 1, 0, 'build'],

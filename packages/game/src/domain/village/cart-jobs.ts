@@ -2,11 +2,12 @@ import { length2, type Landscape, type ObstacleLayer } from '../landscape';
 import { cartLoadRatio, cartOrigin } from './carts';
 import type { HouseholdWater } from './labor';
 import type { CartTarget } from './paths/cart';
-import { villageCartRoutes } from './paths/roads';
+import { villageCartEstimates } from './paths/cart-estimate';
+import { addRoadCartTrips } from './paths/roads';
 import { PATH_WATER_SPOT } from './paths/terrain';
 import { groundSpots, walkGroundOf } from './paths/walking';
 import { CARTS, CART_JOBS, TEAM_TRAVEL, WATER_FETCHING } from './rules';
-import type { CartDrive, CartKind, OreSite, VillageState } from './types';
+import type { CartDrive, CartKind, CartTripLog, OreSite, VillageState } from './types';
 
 // Co vozy vozí mimo svoz (wagons.md – Co vozy vozí; Martin 19. 10. 2026: „Pokud budou mít
 // k dispozici vůz, ať na pole, pro vodu nebo pro dřevěné uhlí jede vůz.“; 20. 10. 2026: „Pokud
@@ -24,10 +25,14 @@ const DAY_S = WATER_FETCHING.dayHours * 3600;
 /** Břehy pro vodu vozem nejméně tak daleko od sebe (m) – hledá se podél vody, ne v jednom místě. */
 const WATER_SPOT_SPACING_M = 15;
 
-/** Jízdy vozu od ohrady se spřežením k cílům: kam a za kolik dojede (null = nedojede). */
+/**
+ * Jízdy vozu od ohrady se spřežením k cílům: kam a za kolik dojede (null = nedojede). S `nearest`
+ * stačí nejlevnější cíl (odhad – `villageCartEstimates` – spočítá každý cíl, výsledek týž).
+ */
 export type CartDrives = (
   state: VillageState,
   targets: readonly CartTarget[],
+  nearest?: boolean,
 ) => (CartDrive | null)[];
 
 /** Na centimetry. */
@@ -36,8 +41,8 @@ function cm(value: number): number {
 }
 
 /**
- * Jízdy vozů vsi (wagons.md – Co vozy vozí): s krajinou trasy vozu druhu `kind` vozovou sítí
- * (`villageCartRoutes` – cena v m po louce, konec trasy; čtyřkolák po louce a strništi, na zoraný díl ne), bez
+ * Jízdy vozů vsi (wagons.md – Co vozy vozí): s krajinou odhad jízdy vozu druhu `kind`
+ * (`villageCartEstimates` – cena v m po louce, kde jízda končí; paths.md – Odhad vzdáleností), bez
  * krajiny (testy, kalibrace) dvoukolák vzdušnou čarou od ohrady ke kraji cíle a čtyřkolák nikam. Bez ohrady se spřežením null.
  */
 export function villageCartDrives(
@@ -63,14 +68,15 @@ export function villageCartDrives(
       );
     };
   }
+  // odhad bez hledání tras – cena každého cíle zvlášť, `nearest` nic nemění
+  void obstacles;
   return (s, targets) => {
     if (targets.length === 0) return [];
-    const routes = villageCartRoutes(s, day, landscape, obstacles, kind, targets);
-    return targets.map((t, k) => {
+    const routes = villageCartEstimates(s, day, landscape, kind, targets);
+    return targets.map((_t, k) => {
       const route = routes?.[k];
       if (!route?.reached) return null;
-      const end = route.points[route.points.length - 1] ?? t;
-      return { costM: cm(route.cost), x: cm(end.x), z: cm(end.z) };
+      return { costM: cm(route.cost), x: cm(route.end.x), z: cm(route.end.z) };
     });
   };
 }
@@ -215,9 +221,11 @@ export function waterCartDrive(
     if (picked.some((q) => length2(q.x - p.x, q.z - p.z) < WATER_SPOT_SPACING_M)) continue;
     picked.push(p);
   }
+  // stačí nejlevnější břeh
   const found = drives(
     state,
     picked.map((p) => ({ x: p.x, z: p.z, reachM: CART_JOBS.water.reachM })),
+    true,
   );
   let best: CartDrive | null = null;
   for (const drive of found) {
@@ -225,6 +233,17 @@ export function waterCartDrive(
   }
   state[field] = { key, drive: best };
   return best;
+}
+
+/**
+ * Uložená jízda vozu `kind` k vodě (`waterCartDrive` – `VillageState.waterCart`, čtyřkolák
+ * `waterCart4`) bez přepočtu – pro scénu, ať ukáže týž plán jako simulace. Bez uložené null.
+ */
+export function storedWaterCartDrive(
+  state: Pick<VillageState, 'waterCart' | 'waterCart4'>,
+  kind: CartKind,
+): CartDrive | null {
+  return (kind === 'four-wheel' ? state.waterCart4 : state.waterCart)?.drive ?? null;
 }
 
 /** Voda vozem na jeden den (`waterCartPlan`). */
@@ -241,11 +260,45 @@ export interface WaterCartPlan {
   /** Kolik vody vůz přivezl (l) a za kolik jízd (podíl na náklad – jako svoz). */
   litres: number;
   trips: number;
+  /**
+   * Kolik dní vozu se spřežením jízdy zaberou (jízdy ÷ jízdy vozu za den – `cartTripsPerDay`) –
+   * podíl dne páru, který ráno sveze vodu od rádla (wagons.md – Voda ráno ve dny orby).
+   */
+  cartDays: number;
   /** Kolik vozů jelo a jakých. */
   carts: number;
   kind: CartKind;
   /** Kam vůz jezdí – konec trasy u břehu (m). */
   spot: { x: number; z: number };
+}
+
+/**
+ * Starší ves s pošlapanou plochou dílů (`trampledM2` – vůz přes zaseté pole) ji ztratí: vůz úrodu
+ * nepošlape (paths.md – Stálé trasy; Martin 25. 10. 2026: „Pokud vůz pojede přes pole, tak žádnou
+ * úrodu nepošlape – je to přiměřené herní zjednodušení.“). Jednou a idempotentně – bez pošlapání
+ * týž objekt.
+ */
+export function withoutTrampledParts(state: VillageState): VillageState {
+  if (!state.parts.some((p) => 'trampledM2' in p)) return state;
+  return {
+    ...state,
+    parts: state.parts.map((p) => {
+      if (!('trampledM2' in p)) return p;
+      const rest: Partial<Record<'trampledM2', unknown>> & Omit<typeof p, 'trampledM2'> = { ...p };
+      delete rest.trampledM2;
+      return rest;
+    }),
+  };
+}
+
+/**
+ * Jízdy vozů za den na jednom místě (wagons.md – Vyjeté cesty; mutuje): všechny jízdy z deníku
+ * `log` (svoz, voda, uhlí, ruda, klády, osivo) přičte do ročního provozu cest. Pevné pořadí jízd =
+ * pořadí zápisu.
+ */
+export function flushCartTrips(state: VillageState, log: CartTripLog): void {
+  if (log.length === 0) return;
+  if (state.roads) addRoadCartTrips(state.roads, log);
 }
 
 /**
@@ -293,6 +346,7 @@ export function waterCartPlan(
     saved,
     litres,
     trips,
+    cartDays: trips / tripsPerCart,
     carts: Math.min(carts, Math.max(1, Math.ceil(trips / tripsPerCart - EPSILON))),
     kind,
     spot: { x: drive.x, z: drive.z },

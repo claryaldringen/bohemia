@@ -23,7 +23,7 @@ import { fourWheelSavings } from '../trade';
 import { HAY, HAY_WINTER_DAYS } from '../hay';
 import { OXEN } from '../rules';
 import type { CartYear, FieldPart, Pen, VillageState } from '../types';
-import { withBuiltFirstDwelling } from './village-fixtures';
+import { withBuiltFirstDwelling, withRoomyPens } from './village-fixtures';
 
 // Kolik volů a vozů ves chce (oxen.md – Kolik volů ves chce, wagons.md – Kolik vozů ves chce).
 
@@ -119,12 +119,15 @@ describe('ves bez ohrady volů (beze změny)', () => {
 });
 
 describe('krávy na obměnu volů (diet.md)', () => {
-  it('3 krávy a kráva navíc na 4 voly, které ves cvičí a krmí', () => {
+  it('krávy na mléko a k nim 3 krávy a půl krávy na každého vola, kterého ves chce (cíl krav podle volů)', () => {
     const s = withOxPen(village());
+    expect(OXEN.cowsPerOx).toBe(0.5);
     expect(oxenTrainingTarget(s)).toBe(2);
     expect(oxenCows(s)).toBeCloseTo(OXEN.minCows + 2 * OXEN.cowsPerOx, 9);
-    expect(breedingCows(s)).toBeCloseTo(3.5, 9);
-    // vozy chtějí 6 volů → 4,5 krávy
+    // jedna domácnost – půl krávy na mléko, k ní krávy na voly (Martin 20. 10. 2026: „Dejme
+    // možnost 1.“ – dřív víc z obojího)
+    expect(breedingCows(s)).toBeCloseTo(0.5 + 4, 9);
+    // vozy chtějí 6 volů → 0,5 + 3 + 3 krávy
     s.draft = {
       lastYear: {
         from: DAY - 365,
@@ -135,7 +138,49 @@ describe('krávy na obměnu volů (diet.md)', () => {
       },
     };
     expect(oxenTrainingTarget(s)).toBe(6);
-    expect(breedingCows(s)).toBeCloseTo(4.5, 9);
+    expect(breedingCows(s)).toBeCloseTo(6.5, 9);
+  });
+
+  it('ves, která chce víc volů, si při porážce nechá víc krav (Martin 20. 10. 2026: „Dejme možnost 1.“)', () => {
+    const autumn = at(600, 10, 25);
+    /** Krávy, které ves po porážce 1. 11. nechá přes zimu (bez kusů na zimní porážku). */
+    const kept = (wantsCarts: boolean): { kept: number; target: number } => {
+      const s = withRoomyPens(village(autumn));
+      s.pens = [...s.pens!, oxPen(autumn, 2)];
+      s.ards = 1;
+      // výrostci pasou (diet.md – Pasáci); stádo mezi oběma cíli – staré krávy (desetina) jdou na
+      // maso, jen dokud stádo neklesne pod cíl krav
+      s.people.push(person(7, 10, 1, autumn), person(8, 11, 1, autumn));
+      s.livestock!.herds.cow = 5;
+      s.livestock!.young.cow = 0;
+      s.hay = { kg: 60_000, mowing: null };
+      if (wantsCarts) {
+        // loňský provoz – vyplatí se 4 dvoukoláky (ves chce 4 voly – voli se sdílí s rádlem)
+        s.draft = {
+          lastYear: {
+            from: autumn - 365,
+            'two-wheel': [90, 80, 70, 60],
+            'four-wheel': [],
+            plough: [],
+            oxCost: 10,
+          },
+        };
+      }
+      expect(oxenTrainingTarget(s)).toBe(wantsCarts ? 4 : 2);
+      const after = advanceVillage(s, at(600, 11, 2), null);
+      const herd = after.livestock!;
+      return { kept: herd.herds.cow - (herd.culling?.cow ?? 0), target: breedingCows(after) };
+    };
+    const plough = kept(false);
+    const carts = kept(true);
+    // půl krávy na mléko + 3 + půl krávy na vola: 4,5 a 5,5 krávy
+    expect(plough.target).toBeCloseTo(4.5, 9);
+    expect(carts.target).toBeCloseTo(5.5, 9);
+    // ves s párem k rádlu porazí staré krávy až k cíli, ves, která chce i voly na vozy, si nechá
+    // všech 5 (pod cílem – krávy i na telata do výcviku)
+    expect(plough.kept).toBeCloseTo(4.5, 1);
+    expect(carts.kept).toBeGreaterThan(4.95);
+    expect(carts.kept).toBeGreaterThan(plough.kept + 0.4);
   });
 
   it('telata na voly: ves si přes zimu nechá krávy navíc na telata, která do výcviku potřebuje', () => {
@@ -161,7 +206,8 @@ describe('páry k rádlům podle plánu osevu (1. 9.)', () => {
 
     const big = withOxPen(village());
     big.people = Array.from({ length: 80 }, (_, i) => person(10 + i, 20 + (i % 20), 1, DAY));
-    big.storesKg = 0;
+    // zásoby nad pojistkou
+    big.storesKg = 1e6;
     big.fields = [{ id: 1 }];
     // přílohy ve fázi louky s drnem – orba 2,5× déle
     big.parts = Array.from({ length: 60 }, (_, i) =>
@@ -173,28 +219,29 @@ describe('páry k rádlům podle plánu osevu (1. 9.)', () => {
       }),
     );
     const plannedBig = advanceVillage(big, at(600, 9, 2), null);
-    // potřeba víc párů – ale jen letos: ves zatím drží jeden (hystereze)
+    // potřeba víc párů – orba nestačí, ves páry zvýší hned (Martin 27. 10. 2026)
     expect(plannedBig.draft!.ploughNeed).toBeGreaterThan(1);
-    expect(plannedBig.draft!.ploughPairs).toBe(1);
-    expect(wantedOxen(plannedBig)).toBe(2);
+    expect(plannedBig.draft!.ploughPairs).toBe(plannedBig.draft!.ploughNeed);
+    // pod pojistkou zásob ves páry zvýší hned (oxen.md – Kolik volů ves chce, Pod pojistkou)
+    const hungry = advanceVillage({ ...big, storesKg: 0 }, at(600, 9, 2), null);
+    expect(hungry.draft!.ploughPairs).toBe(hungry.draft!.ploughNeed);
+    expect(hungry.draft!.ploughPairs).toBeGreaterThan(1);
   });
 
-  it('páry se mění, jen když potřeba trvá dva plány po sobě (hystereze)', () => {
+  it('páry zvýší hned, když orba nestačí; sníží až po dvou plánech níž (Martin 27. 10. 2026)', () => {
+    // oxen.md – Kolik volů ves chce: „Nejen že smí, ale dokonce by měla“
     const s = withOxPen(village());
-    // bez předchozího plánu: loňská potřeba = dnešní páry (1)
-    expect(nextPloughPairs(s, 3)).toEqual({ ploughPairs: 1, ploughNeed: 3 });
-    s.draft = { ploughPairs: 1, ploughNeed: 3 };
-    // druhý rok nad – zvýší na menší z obou potřeb
-    expect(nextPloughPairs(s, 2)).toEqual({ ploughPairs: 2, ploughNeed: 2 });
+    // bez předchozího plánu: loňská potřeba = dnešní páry (1); orba nestačí – hned na potřebu
+    expect(nextPloughPairs(s, 3)).toEqual({ ploughPairs: 3, ploughNeed: 3 });
     // jednoletý výkyv dolů páry nezmění
-    s.draft = { ploughPairs: 2, ploughNeed: 2 };
-    expect(nextPloughPairs(s, 1)).toEqual({ ploughPairs: 2, ploughNeed: 1 });
+    s.draft = { ploughPairs: 3, ploughNeed: 3 };
+    expect(nextPloughPairs(s, 1)).toEqual({ ploughPairs: 3, ploughNeed: 1 });
     // druhý rok dolů – sníží na větší z obou
-    s.draft = { ploughPairs: 2, ploughNeed: 1 };
-    expect(nextPloughPairs(s, 1)).toEqual({ ploughPairs: 1, ploughNeed: 1 });
-    // střídání nahoru a dolů páry drží
-    s.draft = { ploughPairs: 2, ploughNeed: 3 };
+    s.draft = { ploughPairs: 3, ploughNeed: 2 };
     expect(nextPloughPairs(s, 1)).toEqual({ ploughPairs: 2, ploughNeed: 1 });
+    // potřeba, kterou páry stačí, je drží
+    s.draft = { ploughPairs: 2, ploughNeed: 1 };
+    expect(nextPloughPairs(s, 2)).toEqual({ ploughPairs: 2, ploughNeed: 2 });
   });
 });
 
@@ -285,8 +332,8 @@ describe('rok vozů (wagons.md – Kolik vozů ves chce)', () => {
   });
 
   it('výprava zapíše, co by ušetřily čtyřkoláky – nosiči krát dny cesty', () => {
-    // 1 600 kg obilí = 64 nosičů; čtyřkolák vezme 800 kg a jdou s ním 2 lidé
-    expect(fourWheelSavings({ grain: 1600 }, {}, 4)).toEqual([(64 - 34) * 4, (34 - 4) * 4]);
+    // 1 600 kg obilí = 64 nosičů; čtyřkolák jede dvakrát (2 lidé × 2 jízdy), druhý nic neušetří
+    expect(fourWheelSavings({ grain: 1600 }, {}, 4)).toEqual([(64 - 4) * 4]);
     expect(fourWheelSavings({ grain: 20 }, {}, 4)).toEqual([]);
   });
 });

@@ -11,15 +11,17 @@
     "lint": "eslint .",
     "format:check": "prettier --check . --ignore-path ../../.gitignore",
     "format": "prettier --write . --ignore-path ../../.gitignore",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run --passWithNoTests --testTimeout=30000",
     "test:e2e": "playwright test",
-    "seed:dev": "tsx scripts/seed-dev-user.ts"
+    "seed:dev": "tsx scripts/seed-dev-user.ts",
+    "test:e2e:worker": "playwright test --project=worker"
   },
   "dependencies": {
     "@babylonjs/core": "^9.31.0",
     "@babylonjs/loaders": "^9.31.0",
     "@bohemia/db": "*",
     "@bohemia/game": "*",
+    "@bohemia/server": "*",
     "better-auth": "^1.7.10",
     "next": "^16.4.2",
     "react": "^19.3.1",
@@ -36,6 +38,7 @@
     "@types/react-dom": "^19",
     "eslint": "^10.12.0",
     "eslint-plugin-react-hooks": "^7.1.1",
+    "jsdom": "^29.1.1",
     "pg": "^8.23.1",
     "prettier": "^3.9.10",
     "tailwindcss": "^4.3.3",

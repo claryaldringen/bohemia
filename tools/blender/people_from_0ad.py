@@ -4,9 +4,11 @@ blender -b --factory-startup --python tools/blender/people_from_0ad.py -- \
     tools/blender/people.json <0ad>/binaries/data/mods/public/art apps/web/public/models/people
 
 people.json: [{"name", "height_m" | "length_m", "body": {"dae", "texture", "tint", "pattern"?,
-"flatten"?, "multiply"?, "coat"?}, "props": [{"name", "dae" | "procedural" (sickle | yoke), "point", "texture",
-"tint"?, "uv"?}], "clips": [{"name", "animation", "props": [jména propů viditelných v klipu],
-"pose"?, "report"?}]}]
+"flatten"?, "multiply"?, "coat"?}, "props": [{"name", "dae" | "procedural" (sickle | rod | yoke | bowl | stick | shovel | rattle | stump | sheaf | rake | block | sieve |
+pots | tools-load | pots-load | fish-load | snare | ladle | cookpot | pail | distaff | loom | pipe | drum), "point", "texture",
+"tint"?, "uv"?, "scale"? (měřítko kolem bodu, výchozí 1), "rotate_deg"? ([x, y, z] natočení v osách bodu),
+"offset_m"? ([x, y, z] posun v osách bodu, v metrech)}], "clips": [{"name", "animation", "props": [jména propů viditelných v klipu],
+"pose"?, "report"?, "report_tip"?}]}]
 
 Totéž umí i zvířata s kostrou (voli spřežení – tools/blender/plough-team.json): bez propů,
 měřítko podle délky těla („length_m“ – rozsah podél osy pohledu), „multiply“ přebarví texturu
@@ -18,8 +20,18 @@ předklon podstromu kosti kolem její osy napříč tělem (kladný úhel = dop�
 (rameno – loket – zápěstí, loket ven a dozadu) v každém snímku natáhnou k pevnému bodu
 (rukojeti rádla), nohy dál kráčí. „report“ = jména uzlů, jejichž polohu v klipu (m, souřadnice
 scény: x vlevo postavy, y nahoru, z dopředu) skript vypíše – podle nich sedí rádlo a jho
-k rukám a šíjím (apps/web/lib/scene/plough-team.ts). U každého klipu „walk“ vypíše i rychlost
-chůze při přehrání rychlostí 1 (podle chodidla na zemi).
+k rukám a šíjím (apps/web/lib/scene/plough-team.ts). U každého klipu „walk“ / „walk-…“ vypíše
+i rychlost chůze při přehrání rychlostí 1 (podle chodidla na zemi). „report_tip“ = {"prop",
+"tip" ([x, y, z] bod v osách propu před „rotate_deg“), "aim"? ([vpřed, vzhůru, vpravo])} vypíše
+v prvním snímku klipu držadlo a špičku propu (m, vpřed / vzhůru / vpravo od paty postavy – prut
+a vlasec, apps/web/lib/scene/fishing-lines.ts) a s „aim“ i „rotate_deg“, který by prop natočil
+podél „aim“.
+
+Klip bez animace 0 A.D. („keys“ místo „animation“ – dojení, předení, sezení…): vlastní smyčka
+z klíčových póz nad jedním snímkem klipu 0 A.D. (keyed_frames – posun pánve, natočení kostí, ruce
+a nohy dvoukloubovou IK; rozměry pro postavu 1,6 m). Prop, jehož „point“ v kostře není (sedátko
+„seat“), je volný – stojí v počátku postavy (špalek pod sedící postavou) v klíčovém klipu i v klipu
+0 A.D. (štípací špalek, síto, snop, stav, buben – rekvizity fází činností).
 
 Na rozdíl od fauna_from_0ad.py se kostra i animace převádějí: GLB má skin (48 kostí bipeda
 0 A.D. + body propů jako další klouby) a každá animace 0 A.D. je jedna animace glTF (klíče
@@ -120,7 +132,11 @@ def triangles(root, geom_id):
     pos_src = mesh_el.find("c:vertices/c:input[@semantic='POSITION']", NS).get("source")[1:]
     positions = [Vector(v[:3]) for v in source_data(root, pos_src)]
     normals, uvs, tris = [], [], []
-    prims = mesh_el.findall("c:triangles", NS) + mesh_el.findall("c:polylist", NS)
+    prims = (
+        mesh_el.findall("c:triangles", NS)
+        + mesh_el.findall("c:polylist", NS)
+        + mesh_el.findall("c:polygons", NS)
+    )
     for prim in prims:
         inputs = prim.findall("c:input", NS)
         stride = max(int(i.get("offset")) for i in inputs) + 1
@@ -132,9 +148,15 @@ def triangles(root, geom_id):
             normals += [Vector(n[:3]) for n in source_data(root, n_in.get("source")[1:])]
         if t_in is not None:
             uvs += [t[:2] for t in source_data(root, t_in.get("source")[1:])]
-        p = ints(prim.find("c:p", NS))
-        vcount_el = prim.find("c:vcount", NS)
-        counts = ints(vcount_el) if vcount_el is not None else [3] * (len(p) // (stride * 3))
+        if prim.tag.endswith("polygons"):
+            # <polygons>: každý <p> je jeden mnohoúhelník (meče, luky, štíty z 0 A.D.)
+            polys = [ints(el) for el in prim.findall("c:p", NS)]
+            p = [i for poly in polys for i in poly]
+            counts = [len(poly) // stride for poly in polys]
+        else:
+            p = ints(prim.find("c:p", NS))
+            vcount_el = prim.find("c:vcount", NS)
+            counts = ints(vcount_el) if vcount_el is not None else [3] * (len(p) // (stride * 3))
         k = 0
         for count in counts:
             corners = []
@@ -255,6 +277,34 @@ def procedural_sickle(uv_blade, uv_handle):
     return {"matrix": Matrix.Identity(4), "positions": positions, "normals": normals, "uvs": uvs, "tris": tris}
 
 
+def procedural_rod(uv_wood):
+    """Prut (CC0, procedurálně): kuželovitý šestiboký válec podél osy z bodu propu, od držadla
+    za rukou (z = −0,6) po špičku ≈ 3 m od ruky (z = 6,0; postava ≈ 3,9 jednotky = 1,75 m).
+    Vlasec se kreslí až ve scéně."""
+    positions, normals, uvs, tris = [], [], [], []
+    sides, z0, z1, r0, r1 = 6, -0.6, 6.0, 0.05, 0.012
+    u0, v0, u1, v1 = uv_wood
+    for k in range(sides):
+        a0, a1 = 2 * math.pi * k / sides, 2 * math.pi * (k + 1) / sides
+        am = (a0 + a1) / 2
+        n = Vector((math.cos(am), math.sin(am), 0.0))
+        base = len(positions)
+        positions.extend(
+            [
+                Vector((math.cos(a0) * r0, math.sin(a0) * r0, z0)),
+                Vector((math.cos(a1) * r0, math.sin(a1) * r0, z0)),
+                Vector((math.cos(a1) * r1, math.sin(a1) * r1, z1)),
+                Vector((math.cos(a0) * r1, math.sin(a0) * r1, z1)),
+            ]
+        )
+        normals.extend([n] * 4)
+        uvs.extend([[u0, v0], [u1, v0], [u1, v1], [u0, v1]])
+        i = len(normals) - 4
+        tris.append(((base, i, base), (base + 1, i + 1, base + 1), (base + 2, i + 2, base + 2)))
+        tris.append(((base, i, base), (base + 2, i + 2, base + 2), (base + 3, i + 3, base + 3)))
+    return {"matrix": Matrix.Identity(4), "positions": positions, "normals": normals, "uvs": uvs, "tris": tris}
+
+
 def procedural_yoke(uv_wood, uv_band, uv_rope):
     """Vahadlo se dvěma vědry (provaz pro vodu – docs/design/villagers.md, Provoz na cestách;
     0 A.D. ho nemá): prohnutá tyč přes ramena za krkem, z konců provazy a na nich dřevěná vědra
@@ -352,9 +402,461 @@ def procedural_yoke(uv_wood, uv_band, uv_rope):
     return {"matrix": Matrix.Identity(4), "positions": positions, "normals": normals, "uvs": uvs, "tris": tris}
 
 
+def procedural_bowl(uv_wood, uv_liquid):
+    """Miska na krev pro jelita (porážka ve scéně – docs/design/diet.md – Porážka ve scéně; 0 A.D. ji nemá):
+    mělká komolá miska otevřená nahoru (osa z bodu propu, dno v bodě), uvnitř tmavá hladina.
+    Bod propu „weapon_L“ má svislici v ose Y, proto je miska v people.json natočená o −90° kolem X."""
+    positions, normals, uvs, tris = [], [], [], []
+
+    def quad(a, b, c, d, na, nb, nc, nd, uv_rect, u0, u1, v0, v1):
+        base = len(positions)
+        positions.extend([Vector(a), Vector(b), Vector(c), Vector(d)])
+        normals.extend([Vector(na), Vector(nb), Vector(nc), Vector(nd)])
+        x0, y0, x1, y1 = uv_rect
+        uvs.extend([[x0 + (x1 - x0) * u0, y0 + (y1 - y0) * v0], [x0 + (x1 - x0) * u1, y0 + (y1 - y0) * v0], [x0 + (x1 - x0) * u1, y0 + (y1 - y0) * v1], [x0 + (x1 - x0) * u0, y0 + (y1 - y0) * v1]])
+        i = len(normals) - 4
+        tris.append(((base, i, base), (base + 1, i + 1, base + 1), (base + 2, i + 2, base + 2)))
+        tris.append(((base, i, base), (base + 2, i + 2, base + 2), (base + 3, i + 3, base + 3)))
+
+    sides, r_top, r_bottom, top, bottom = 10, 0.30, 0.17, 0.17, 0.0
+    slope = (r_top - r_bottom) / (top - bottom)
+    level = top - 0.05  # hladina kousek pod okrajem
+    r_level = r_bottom + (level - bottom) * slope
+    for j in range(sides):
+        a0, a1 = 2 * math.pi * j / sides, 2 * math.pi * (j + 1) / sides
+        c0, s0, c1, s1 = math.cos(a0), math.sin(a0), math.cos(a1), math.sin(a1)
+        n0 = Vector((c0, s0, -slope)).normalized()
+        n1 = Vector((c1, s1, -slope)).normalized()
+        lo0, lo1 = (c0 * r_bottom, s0 * r_bottom, bottom), (c1 * r_bottom, s1 * r_bottom, bottom)
+        hi0, hi1 = (c0 * r_top, s0 * r_top, top), (c1 * r_top, s1 * r_top, top)
+        quad(lo0, lo1, hi1, hi0, n0, n1, n1, n0, uv_wood, j / sides, (j + 1) / sides, 0.0, 1.0)
+        quad(hi0, hi1, lo1, lo0, -n0, -n1, -n1, -n0, uv_wood, j / sides, (j + 1) / sides, 0.0, 0.5)
+        # hladina: trojúhelník od středu
+        base = len(positions)
+        positions.extend([Vector((0, 0, level)), Vector((c1 * r_level, s1 * r_level, level)), Vector((c0 * r_level, s0 * r_level, level))])
+        normals.extend([Vector((0, 0, 1))] * 3)
+        x0, y0, x1, y1 = uv_liquid
+        uvs.extend([[(x0 + x1) / 2, (y0 + y1) / 2], [x0, y0], [x1, y0]])
+        i = len(normals) - 3
+        tris.append(((base, i, base), (base + 1, i + 1, base + 1), (base + 2, i + 2, base + 2)))
+    return {"matrix": Matrix.Identity(4), "positions": positions, "normals": normals, "uvs": uvs, "tris": tris}
+
+
+def _tapered_rod(out, sides, z0, z1, r0, r1, uv_wood):
+    """Kuželovitý mnohoboký válec podél osy z (do `out` – positions, normals, uvs, tris)."""
+    positions, normals, uvs, tris = out
+    u0, v0, u1, v1 = uv_wood
+    for k in range(sides):
+        a0, a1 = 2 * math.pi * k / sides, 2 * math.pi * (k + 1) / sides
+        am = (a0 + a1) / 2
+        n = Vector((math.cos(am), math.sin(am), 0.0))
+        base = len(positions)
+        positions.extend(
+            [
+                Vector((math.cos(a0) * r0, math.sin(a0) * r0, z0)),
+                Vector((math.cos(a1) * r0, math.sin(a1) * r0, z0)),
+                Vector((math.cos(a1) * r1, math.sin(a1) * r1, z1)),
+                Vector((math.cos(a0) * r1, math.sin(a0) * r1, z1)),
+            ]
+        )
+        normals.extend([n] * 4)
+        uvs.extend([[u0, v0], [u1, v0], [u1, v1], [u0, v1]])
+        i = len(normals) - 4
+        tris.append(((base, i, base), (base + 1, i + 1, base + 1), (base + 2, i + 2, base + 2)))
+        tris.append(((base, i, base), (base + 2, i + 2, base + 2), (base + 3, i + 3, base + 3)))
+
+
+def procedural_stick(uv_wood):
+    """Mlatcí hůl (production-chains.md – Humno: mlátí se holemi, cepy až později – Martin
+    21. 10. 2026; CC0, procedurálně): rovná šestiboká hůl ≈ 1,2 m podél osy z bodu propu, drží se
+    u konce (z = −0,25 … 2,45; postava ≈ 3,9 jednotky = 1,75 m), k úderovému konci mírně silnější."""
+    out = ([], [], [], [])
+    _tapered_rod(out, 6, -0.25, 2.45, 0.045, 0.06, uv_wood)
+    positions, normals, uvs, tris = out
+    return {"matrix": Matrix.Identity(4), "positions": positions, "normals": normals, "uvs": uvs, "tris": tris}
+
+
+def procedural_shovel(uv_wood):
+    """Dřevěná lopata na prohazování zrna proti větru (production-chains.md – Humno; CC0,
+    procedurálně): násada podél osy z bodu propu (z = −0,25 … 1,9) a plochý list z jednoho kusu
+    dřeva (z = 1,9 … 2,75, šířka 0,5, tloušťka 0,05 jednotky – ≈ 38 × 22 cm)."""
+    out = ([], [], [], [])
+    _tapered_rod(out, 6, -0.25, 1.95, 0.045, 0.04, uv_wood)
+    positions, normals, uvs, tris = out
+    u0, v0, u1, v1 = uv_wood
+    hx, hy, z0, z1 = 0.25, 0.025, 1.9, 2.75
+
+    def quad(a, b, c, d, n):
+        base = len(positions)
+        positions.extend([Vector(a), Vector(b), Vector(c), Vector(d)])
+        normals.extend([Vector(n)] * 4)
+        uvs.extend([[u0, v0], [u1, v0], [u1, v1], [u0, v1]])
+        i = len(normals) - 4
+        tris.append(((base, i, base), (base + 1, i + 1, base + 1), (base + 2, i + 2, base + 2)))
+        tris.append(((base, i, base), (base + 2, i + 2, base + 2), (base + 3, i + 3, base + 3)))
+
+    # list: kvádr se zúženým krčkem u násady (spodní hrana užší)
+    nx0 = 0.12
+    quad((-nx0, -hy, z0), (nx0, -hy, z0), (hx, -hy, z1), (-hx, -hy, z1), (0, -1, 0))
+    quad((nx0, hy, z0), (-nx0, hy, z0), (-hx, hy, z1), (hx, hy, z1), (0, 1, 0))
+    quad((hx, -hy, z1), (hx, hy, z1), (-hx, hy, z1), (-hx, -hy, z1), (0, 0, 1))
+    quad((-nx0, hy, z0), (-nx0, -hy, z0), (-hx, -hy, z1), (-hx, hy, z1), (-1, 0, 0))
+    quad((nx0, -hy, z0), (nx0, hy, z0), (hx, hy, z1), (hx, -hy, z1), (1, 0, 0))
+    return {"matrix": Matrix.Identity(4), "positions": positions, "normals": normals, "uvs": uvs, "tris": tris}
+
+
+def _box(out, x0, x1, y0, y1, z0, z1, uv_rect):
+    """Kvádr (do `out` – positions, normals, uvs, tris), každá stěna celý obdélník `uv_rect`."""
+    positions, normals, uvs, tris = out
+    u0, v0, u1, v1 = uv_rect
+    faces = [
+        ((x0, y0, z0), (x1, y0, z0), (x1, y0, z1), (x0, y0, z1), (0, -1, 0)),
+        ((x1, y1, z0), (x0, y1, z0), (x0, y1, z1), (x1, y1, z1), (0, 1, 0)),
+        ((x0, y1, z0), (x0, y0, z0), (x0, y0, z1), (x0, y1, z1), (-1, 0, 0)),
+        ((x1, y0, z0), (x1, y1, z0), (x1, y1, z1), (x1, y0, z1), (1, 0, 0)),
+        ((x0, y0, z1), (x1, y0, z1), (x1, y1, z1), (x0, y1, z1), (0, 0, 1)),
+        ((x0, y1, z0), (x1, y1, z0), (x1, y0, z0), (x0, y0, z0), (0, 0, -1)),
+    ]
+    for a, b, c, d, n in faces:
+        base = len(positions)
+        positions.extend([Vector(a), Vector(b), Vector(c), Vector(d)])
+        normals.extend([Vector(n)] * 4)
+        uvs.extend([[u0, v0], [u1, v0], [u1, v1], [u0, v1]])
+        i = len(normals) - 4
+        tris.append(((base, i, base), (base + 1, i + 1, base + 1), (base + 2, i + 2, base + 2)))
+        tris.append(((base, i, base), (base + 2, i + 2, base + 2), (base + 3, i + 3, base + 3)))
+
+
+def procedural_rattle(uv_wood):
+    """Dřevěná řehtačka hlídacích dětí (wildlife.md – Ve scéně; CC0, procedurálně): držadlo podél
+    osy z bodu propu (z = −0,2 … 0,85), na něm ozubené kolečko (silnější váleček) a rámeček
+    s jazýčkem, který se točí kolem držadla (kvádr stranou, ≈ 30 × 13 × 6 cm; postava ≈ 3,9
+    jednotky = 1,75 m)."""
+    out = ([], [], [], [])
+    _tapered_rod(out, 6, -0.2, 0.85, 0.045, 0.04, uv_wood)
+    _tapered_rod(out, 8, 0.45, 0.6, 0.11, 0.11, uv_wood)
+    _box(out, 0.04, 0.7, -0.065, 0.065, 0.5, 0.8, uv_wood)
+    positions, normals, uvs, tris = out
+    return {"matrix": Matrix.Identity(4), "positions": positions, "normals": normals, "uvs": uvs, "tris": tris}
+
+
+def procedural_stump(uv_wood):
+    """Špalek k sezení (sedátko klíčových klipů – sezení starších, hrnčířský kruh; CC0,
+    procedurálně): osmiboký kmínek v prostoru postavy (volný prop – bod „seat“ v počátku
+    postavy), střed 0,3 m za patou, výška 0,42 m, poloměr 0,16 m (postava 1,6 m ≈ 3,55 jednotky)."""
+    out = ([], [], [], [])
+    u = 3.55 / 1.6
+    _tapered_rod(out, 8, 0.0, 0.42 * u, 0.17 * u, 0.15 * u, uv_wood)
+    # víko: plochý kvádr navrch
+    _box(out, -0.11 * u, 0.11 * u, -0.11 * u, 0.11 * u, 0.4 * u, 0.42 * u, uv_wood)
+    positions, normals, uvs, tris = out
+    return {"matrix": Matrix.Translation((0.0, 0.3 * u, 0.0)), "positions": positions, "normals": normals, "uvs": uvs, "tris": tris}
+
+
+# --- Rekvizity fází činností (villagers.md – Fáze činností, úloha 9; CC0, procedurálně) --------
+# Rozměry v metrech, převod na jednotky 0 A.D. (postava 1,6 m ≈ 3,55 jednotky). Volné propy
+# (bod „seat“) stojí v prostoru postavy: x vlevo, y dozadu (postava hledí na −Y), z nahoru – tedy
+# „vpřed“ = −y. Nástroje v ruce leží podél osy z bodu propu (jako motyka 0 A.D.).
+
+UNITS_PER_M = 3.55 / 1.6
+
+
+def _mesh(out, matrix=None):
+    positions, normals, uvs, tris = out
+    m = (matrix or Matrix.Identity(4)) @ Matrix.Scale(UNITS_PER_M, 4)
+    return {"matrix": m, "positions": positions, "normals": normals, "uvs": uvs, "tris": tris}
+
+
+def _placed(out, build, matrix):
+    """Postaví část funkcí `build(out)` a její nové vrcholy přenese maticí `matrix`."""
+    positions, normals = out[0], out[1]
+    p0, n0 = len(positions), len(normals)
+    build(out)
+    rot = matrix.to_3x3()
+    for i in range(p0, len(positions)):
+        positions[i] = matrix @ positions[i]
+    for i in range(n0, len(normals)):
+        normals[i] = (rot @ normals[i]).normalized()
+
+
+def _rod_between(out, a, b, r0, r1, sides, uv):
+    """Kuželovitý válec z bodu `a` do bodu `b` (m)."""
+    a, b = Vector(a), Vector(b)
+    d = b - a
+    rot = Vector((0.0, 0.0, 1.0)).rotation_difference(d.normalized()).to_matrix().to_4x4()
+    _placed(out, lambda o: _tapered_rod(o, sides, 0.0, d.length, r0, r1, uv), Matrix.Translation(a) @ rot)
+
+
+def _disc(out, z, r, sides, uv, up=True):
+    """Kruhové víko ve výšce `z` (vějíř trojúhelníků), normála nahoru či dolů."""
+    positions, normals, uvs, tris = out
+    u0, v0, u1, v1 = uv
+    base = len(positions)
+    n = Vector((0.0, 0.0, 1.0 if up else -1.0))
+    positions.append(Vector((0.0, 0.0, z)))
+    uvs.append([(u0 + u1) / 2, (v0 + v1) / 2])
+    for k in range(sides):
+        a = 2 * math.pi * k / sides
+        positions.append(Vector((math.cos(a) * r, math.sin(a) * r, z)))
+        uvs.append([u0 + (u1 - u0) * (0.5 + 0.5 * math.cos(a)), v0 + (v1 - v0) * (0.5 + 0.5 * math.sin(a))])
+    ni = len(normals)
+    normals.append(n)
+    for k in range(sides):
+        i, j = base + 1 + k, base + 1 + (k + 1) % sides
+        tri = ((base, ni, base), (i, ni, i), (j, ni, j)) if up else ((base, ni, base), (j, ni, j), (i, ni, i))
+        tris.append(tri)
+
+
+def _lathe(out, profile, sides, uv, bottom=False):
+    """Rotační nádoba z profilu [(poloměr, výška)…] zdola nahoru; dno jen na přání (stojí-li
+    na zemi, není vidět – materiál postav kreslí obě strany ploch)."""
+    for (ra, za), (rb, zb) in zip(profile, profile[1:]):
+        _tapered_rod(out, sides, za, zb, ra, rb, uv)
+    if bottom:
+        _disc(out, profile[0][1], profile[0][0], sides, uv, up=False)
+
+
+def _pot(out, x, y, h, uv, sides=6):
+    """Hliněný hrnec výšky `h` (m) stojící v bodě (x, y)."""
+    profile = [(0.32 * h, 0.0), (0.5 * h, 0.45 * h), (0.3 * h, h)]
+    _placed(out, lambda o: _lathe(o, profile, sides, uv), Matrix.Translation((x, y, 0.0)))
+
+
+def procedural_sheaf(uv_straw, uv_band):
+    """Snop s povříslem (vázání snopů): svazek stébel ležící napříč 0,38 m před postavou, klasy
+    vlevo, uprostřed povříslo (silnější kroužek)."""
+    out = ([], [], [], [])
+    lay = Matrix.Translation((0.0, -0.38, 0.09)) @ Matrix.Rotation(math.radians(90), 4, "Y")
+    _placed(out, lambda o: _tapered_rod(o, 6, -0.4, 0.4, 0.07, 0.11, uv_straw), lay)
+    _placed(out, lambda o: _tapered_rod(o, 6, -0.04, 0.04, 0.097, 0.099, uv_band), lay)
+    _placed(out, lambda o: _disc(o, 0.4, 0.11, 6, uv_straw), lay)
+    _placed(out, lambda o: _disc(o, -0.4, 0.07, 6, uv_straw, up=False), lay)
+    return _mesh(out)
+
+
+def procedural_rake(uv_wood):
+    """Dřevěné hrábě: násada podél osy z bodu propu (z = −0,1 … 1,25 m), napříč hlavička
+    (± 0,2 m) a pod ní zuby jako hřeben (jedna tenká deska kolmo k násadě)."""
+    out = ([], [], [], [])
+    _tapered_rod(out, 5, -0.1, 1.25, 0.018, 0.016, uv_wood)
+    _box(out, -0.2, 0.2, -0.025, 0.025, 1.22, 1.27, uv_wood)
+    _box(out, -0.18, 0.18, -0.12, -0.025, 1.24, 1.25, uv_wood)
+    return _mesh(out)
+
+
+def procedural_block(uv_wood):
+    """Štípací špalek 0,8 m před postavou (poloměr 0,2, výška 0,32 m) s polenem navrchu – sekera
+    klipu `split` (úder krumpáče 0 A.D. shora) dopadá ≈ 0,8–1 m před patu."""
+    out = ([], [], [], [])
+    at = Matrix.Translation((0.0, -0.8, 0.0))
+    _placed(out, lambda o: _tapered_rod(o, 8, 0.0, 0.32, 0.21, 0.19, uv_wood), at)
+    _placed(out, lambda o: _disc(o, 0.32, 0.19, 8, uv_wood), at)
+    _placed(out, lambda o: _box(o, -0.05, 0.05, -0.05, 0.05, 0.32, 0.55, uv_wood), at)
+    return _mesh(out)
+
+
+def procedural_sieve(uv_wicker):
+    """Pletené síto na praní rudy, položené 0,42 m před postavou (průměr 0,46, výška 0,09 m)."""
+    out = ([], [], [], [])
+    at = Matrix.Translation((0.0, -0.42, 0.0))
+    _placed(out, lambda o: _tapered_rod(o, 10, 0.0, 0.09, 0.21, 0.23, uv_wicker), at)
+    _placed(out, lambda o: _disc(o, 0.02, 0.21, 10, uv_wicker), at)
+    return _mesh(out)
+
+
+def procedural_pots(uv_clay):
+    """Tři čerstvé nádoby na zemi 0,45 m před postavou (sušení, vsazování do pece)."""
+    out = ([], [], [], [])
+    _pot(out, 0.2, -0.45, 0.22, uv_clay)
+    _pot(out, -0.02, -0.5, 0.3, uv_clay)
+    _pot(out, -0.22, -0.42, 0.18, uv_clay)
+    return _mesh(out)
+
+
+def _back_load(out, build, z=0.22):
+    """Náklad nad okrajem nůše (bod prop-back: nůše sahá do y ≈ 0,35 m za záda, výška okraje ≈ 0,26 m)."""
+    _placed(out, build, Matrix.Translation((0.0, 0.17, z)))
+
+
+def procedural_tools_load(uv_wood, uv_metal):
+    """Nové nástroje v nůši (odnos z kovárny): tři násady trčí nad okraj, dvě železné hlavy."""
+    out = ([], [], [], [])
+
+    def build(o):
+        _rod_between(o, (-0.08, 0.0, 0.0), (-0.16, -0.02, 0.42), 0.015, 0.014, 4, uv_wood)
+        _rod_between(o, (0.0, 0.04, 0.0), (0.03, 0.08, 0.5), 0.015, 0.014, 4, uv_wood)
+        _rod_between(o, (0.08, -0.02, 0.0), (0.17, 0.0, 0.36), 0.015, 0.014, 4, uv_wood)
+        _box(o, -0.2, -0.12, -0.035, 0.0, 0.38, 0.44, uv_metal)
+        _box(o, 0.15, 0.2, -0.02, 0.03, 0.3, 0.38, uv_metal)
+
+    _back_load(out, build)
+    return _mesh(out)
+
+
+def procedural_pots_load(uv_clay):
+    """Nádoby v nůši (odnos z hrnčířské dílny): hrdla tří hrnců nad okrajem."""
+    out = ([], [], [], [])
+
+    def build(o):
+        _pot(o, -0.12, 0.0, 0.2, uv_clay)
+        _pot(o, 0.1, 0.03, 0.24, uv_clay)
+        _pot(o, -0.01, -0.06, 0.16, uv_clay)
+
+    _back_load(out, build, z=0.12)
+    return _mesh(out)
+
+
+def procedural_fish_load(uv_scales):
+    """Ryby v nůši (úlovek z tůně): čtyři ryby hlavou dolů, ocasy nad okrajem."""
+    out = ([], [], [], [])
+
+    def fish(o):
+        # kosočtverec těla (délka 0,3, výška 0,08) a ocas – plochý, z obou stran
+        positions, normals, uvs, tris = o
+        u0, v0, u1, v1 = uv_scales
+        pts = [(0.0, 0.0, 0.0), (0.0, 0.04, 0.14), (0.0, 0.0, 0.3), (0.0, -0.04, 0.14), (0.0, 0.05, 0.36), (0.0, -0.05, 0.36)]
+        faces = [(0, 1, 2), (0, 2, 3), (2, 4, 5)]
+        # jen jedna strana – materiál postav kreslí obě (backFaceCulling vypnutý)
+        base = len(positions)
+        positions.extend(Vector(p) for p in pts)
+        uvs.extend([[u0 + (u1 - u0) * (p[1] + 0.05) / 0.1, v0 + (v1 - v0) * p[2] / 0.36] for p in pts])
+        ni = len(normals)
+        normals.append(Vector((1.0, 0.0, 0.0)))
+        for f in faces:
+            tris.append(tuple((base + i, ni, base + i) for i in f))
+
+    def build(o):
+        for x, y, turn, lean in ((-0.12, 0.0, 20, -8), (-0.03, 0.05, -35, 4), (0.06, -0.03, 60, -5), (0.14, 0.04, 5, 10)):
+            m = Matrix.Translation((x, y, 0.0)) @ Matrix.Rotation(math.radians(turn), 4, "Z") @ Matrix.Rotation(math.radians(lean), 4, "Y")
+            _placed(o, fish, m)
+
+    _back_load(out, build, z=0.12)
+    return _mesh(out)
+
+
+def procedural_snare(uv_wood, uv_rope):
+    """Oko na zajíce 0,45 m před postavou: kolík a smyčka z provázku napříč stezkou."""
+    out = ([], [], [], [])
+    _rod_between(out, (0.12, -0.45, 0.0), (0.12, -0.45, 0.3), 0.015, 0.01, 5, uv_wood)
+    # smyčka: plochý prstenec napříč stezkou (šířka 1,2 cm) z osmi čtyřúhelníků
+    positions, normals, uvs, tris = out
+    u0, v0, u1, v1 = uv_rope
+    ni = len(normals)
+    normals.append(Vector((0.0, -1.0, 0.0)))
+    for k in range(8):
+        a0, a1 = 2 * math.pi * k / 8, 2 * math.pi * (k + 1) / 8
+        base = len(positions)
+        for a, r in ((a0, 0.074), (a1, 0.074), (a1, 0.086), (a0, 0.086)):
+            positions.append(Vector((r * math.cos(a), -0.45, 0.14 + r * math.sin(a))))
+        uvs.extend([[u0, v0], [u1, v0], [u1, v1], [u0, v1]])
+        tris.append(((base, ni, base), (base + 1, ni, base + 1), (base + 2, ni, base + 2)))
+        tris.append(((base, ni, base), (base + 2, ni, base + 2), (base + 3, ni, base + 3)))
+    _rod_between(out, (0.06, -0.45, 0.2), (0.12, -0.45, 0.26), 0.005, 0.005, 3, uv_rope)
+    return _mesh(out)
+
+
+def procedural_ladle(uv_wood):
+    """Vařečka v ruce: násada podél osy z bodu propu (z = −0,08 … 0,42 m) a mělká lžíce."""
+    out = ([], [], [], [])
+    _tapered_rod(out, 5, -0.08, 0.42, 0.012, 0.01, uv_wood)
+    _box(out, -0.035, 0.035, -0.02, 0.02, 0.42, 0.5, uv_wood)
+    return _mesh(out)
+
+
+def procedural_cookpot(uv_clay, uv_soot):
+    """Hrnec na ohništi 0,5 m před postavou: tři polínka do hvězdy a na nich hrnec."""
+    out = ([], [], [], [])
+    for k in range(3):
+        a = 2 * math.pi * k / 3 + 0.4
+        _rod_between(out, (0.3 * math.cos(a), -0.5 + 0.3 * math.sin(a), 0.03), (0.03 * math.cos(a), -0.5 + 0.03 * math.sin(a), 0.07), 0.03, 0.025, 4, uv_soot)
+    _placed(out, lambda o: _lathe(o, [(0.1, 0.0), (0.16, 0.1), (0.13, 0.23)], 7, uv_clay), Matrix.Translation((0.0, -0.5, 0.08)))
+    return _mesh(out)
+
+
+def procedural_pail(uv_wood, uv_band):
+    """Dřevěný džber na mléko 0,24 m před sedící postavou (výška 0,26, horní poloměr 0,13 m)."""
+    out = ([], [], [], [])
+    at = Matrix.Translation((0.0, -0.24, 0.0))
+    _placed(out, lambda o: _lathe(o, [(0.11, 0.0), (0.13, 0.26)], 8, uv_wood), at)
+    _placed(out, lambda o: _tapered_rod(o, 8, 0.18, 0.21, 0.126, 0.127, uv_band), at)
+    _placed(out, lambda o: _disc(o, 0.21, 0.125, 8, uv_band), at)
+    return _mesh(out)
+
+
+def procedural_distaff(uv_wood, uv_wool):
+    """Přeslice v levé ruce předoucí ženy (klip `spin` – levá ruka 0,17 m vlevo, 0,16 m vpřed,
+    1,32 m vysoko): hůl šikmo vzhůru a na ní chomáč vlny."""
+    out = ([], [], [], [])
+    _rod_between(out, (0.16, -0.17, 1.0), (0.2, -0.12, 1.72), 0.014, 0.011, 5, uv_wood)
+    _rod_between(out, (0.186, -0.138, 1.45), (0.198, -0.124, 1.7), 0.06, 0.035, 6, uv_wool)
+    return _mesh(out)
+
+
+def procedural_loom(uv_wood, uv_warp):
+    """Stav (vertikální se závažími) 0,4 m před tkající postavou: dva stojany, vratidlo nahoře,
+    osnova jako svislá plocha a pod ní řada hliněných závaží."""
+    out = ([], [], [], [])
+    y0, y1 = -0.36, -0.5  # osnova dole blíž, nahoře dál (stav se opírá dozadu)
+    for x in (-0.55, 0.55):
+        _rod_between(out, (x, y0 + 0.05, 0.0), (x, y1 - 0.02, 1.95), 0.035, 0.03, 5, uv_wood)
+    _rod_between(out, (-0.62, y1, 1.82), (0.62, y1, 1.82), 0.045, 0.045, 6, uv_wood)
+    _rod_between(out, (-0.55, -0.43, 1.12), (0.55, -0.43, 1.12), 0.02, 0.02, 5, uv_wood)
+    positions, normals, uvs, tris = out
+    u0, v0, u1, v1 = uv_warp
+    base = len(positions)
+    positions.extend([Vector((-0.45, y0, 0.45)), Vector((0.45, y0, 0.45)), Vector((0.45, y1, 1.8)), Vector((-0.45, y1, 1.8))])
+    uvs.extend([[u0, v0], [u1, v0], [u1, v1], [u0, v1]])
+    ni = len(normals)
+    normals.append(Vector((0.0, -0.995, 0.1)).normalized())
+    tris.append(((base, ni, base), (base + 1, ni, base + 1), (base + 2, ni, base + 2)))
+    tris.append(((base, ni, base), (base + 2, ni, base + 2), (base + 3, ni, base + 3)))
+    # řada závaží pod osnovou – z dálky jedna lišta
+    _box(out, -0.42, 0.42, y0 - 0.03, y0 + 0.03, 0.3, 0.42, uv_wood)
+    return _mesh(out)
+
+
+def procedural_pipe(uv_wood):
+    """Píšťala pištce (klip `pipe`): od úst šikmo dolů a vpřed přes obě ruce."""
+    out = ([], [], [], [])
+    _rod_between(out, (0.0, -0.12, 1.45), (-0.045, -0.31, 1.18), 0.012, 0.016, 5, uv_wood)
+    return _mesh(out)
+
+
+def procedural_drum(uv_body, uv_hide):
+    """Buben u boku bubeníka (klip `drum` – pravá ruka bije shora, levá drží okraj): válec
+    (poloměr 0,15, výška 0,2 m) s blánou navrchu ve výšce 0,92 m."""
+    out = ([], [], [], [])
+    at = Matrix.Translation((0.09, -0.24, 0.0))
+    _placed(out, lambda o: _tapered_rod(o, 8, 0.72, 0.92, 0.15, 0.15, uv_body), at)
+    _placed(out, lambda o: _disc(o, 0.92, 0.15, 8, uv_hide), at)
+    return _mesh(out)
+
+
 PROCEDURAL = {
+    "sheaf": lambda r: procedural_sheaf(r["straw"], r["band"]),
+    "rake": lambda r: procedural_rake(r["wood"]),
+    "block": lambda r: procedural_block(r["wood"]),
+    "sieve": lambda r: procedural_sieve(r["wicker"]),
+    "pots": lambda r: procedural_pots(r["clay"]),
+    "tools-load": lambda r: procedural_tools_load(r["wood"], r["metal"]),
+    "pots-load": lambda r: procedural_pots_load(r["clay"]),
+    "fish-load": lambda r: procedural_fish_load(r["scales"]),
+    "snare": lambda r: procedural_snare(r["wood"], r["rope"]),
+    "ladle": lambda r: procedural_ladle(r["wood"]),
+    "cookpot": lambda r: procedural_cookpot(r["clay"], r["soot"]),
+    "pail": lambda r: procedural_pail(r["wood"], r["band"]),
+    "distaff": lambda r: procedural_distaff(r["wood"], r["wool"]),
+    "loom": lambda r: procedural_loom(r["wood"], r["warp"]),
+    "pipe": lambda r: procedural_pipe(r["wood"]),
+    "drum": lambda r: procedural_drum(r["body"], r["hide"]),
+    "stump": lambda r: procedural_stump(r["wood"]),
     "sickle": lambda r: procedural_sickle(r["blade"], r["handle"]),
+    "rod": lambda r: procedural_rod(r["wood"]),
     "yoke": lambda r: procedural_yoke(r["wood"], r["band"], r["rope"]),
+    "bowl": lambda r: procedural_bowl(r["wood"], r["liquid"]),
+    "stick": lambda r: procedural_stick(r["wood"]),
+    "shovel": lambda r: procedural_shovel(r["wood"]),
+    "rattle": lambda r: procedural_rattle(r["wood"]),
 }
 
 
@@ -615,6 +1117,94 @@ def apply_pose(frames, children, pose, unit_m):
             two_bone_ik(worlds, children, f"arm_{side}", f"forearm_{side}", f"hand_{side}", target, pole)
 
 
+KEY_ORDER = ["hip", "spine", "spine1", "chest", "neck", "head", "shoulder_L", "shoulder_R", "hand_L", "hand_R"]
+
+
+def _blend_pose(poses, t, duration):
+    """Póza klíčového klipu v čase t: mezi sousedními klíči hladce (kosinus), za posledním zpět
+    k prvnímu (smyčka). Chybějící hodnota v jednom z klíčů = hodnota druhého (ruce, nohy)."""
+    ts = [p["t"] for p in poses]
+    k = max(i for i, s in enumerate(ts) if s <= t + 1e-9)
+    a, b = poses[k], poses[(k + 1) % len(poses)]
+    t1 = ts[k + 1] if k + 1 < len(poses) else duration
+    u = 0.0 if t1 <= ts[k] else (t - ts[k]) / (t1 - ts[k])
+    u = 0.5 - 0.5 * math.cos(math.pi * u)
+
+    def mix(x, y):
+        if x is None:
+            return y
+        if y is None:
+            return x
+        return [p + (q - p) * u for p, q in zip(x, y)]
+
+    out = {"hip": mix(a.get("hip"), b.get("hip")), "turn": {}, "hands": {}, "feet": {}, "elbow": {}}
+    for key in ("turn", "hands", "feet", "elbow"):
+        for name in set(a.get(key, {})) | set(b.get(key, {})):
+            zero = [0.0, 0.0, 0.0] if key == "turn" else None
+            out[key][name] = mix(a.get(key, {}).get(name, zero), b.get(key, {}).get(name, zero))
+    return out
+
+
+def keyed_frames(path, keys, unit_m, size):
+    """Vlastní klip z klíčových póz (vlastní práce, CC0) na kostře bipeda 0 A.D.: výchozí snímek
+    klipu 0 A.D. (`base`, `base_frame`) a v `poses` po čase `t` (s, smyčka délky `duration_s`):
+    „hip“ = posun pánve [vlevo, vpřed, nahoru] (m – sed, klek), „turn“ = {kost: [předklon, úklon
+    vlevo, otočení vlevo]} (stupně kolem os postavy, pivot v kosti – podstrom s ní), „hands“ /
+    „feet“ = {"L"/"R": [vlevo, vpřed, výška]} (m od paty, dvoukloubová IK; nohy bez údaje drží
+    chodidlo, kde bylo, a chodidla zůstávají naplocho), „elbow“ = {"L"/"R": [ven, vpřed, nahoru]}
+    směr lokte. Rozměry jsou pro postavu 1,6 m (`size` = výška postavy / 1,6). Uzel „seat“
+    (sedátko – volný prop) stojí v počátku postavy."""
+    _, base_frames, children = animation_frames(path)
+    base = base_frames[keys.get("base_frame", 0)]
+    duration = keys["duration_s"]
+    poses = sorted(keys["poses"], key=lambda p: p["t"])
+    n = max(2, round(duration * 24))
+    times = [k * duration / n for k in range(n + 1)]
+    m = size / unit_m
+
+    def figure(v):
+        return Vector((v[0], -v[1], v[2])) * m
+
+    frames = []
+    for t in times:
+        pose = _blend_pose(poses, t % duration, duration)
+        worlds = {k: v.copy() for k, v in base.items()}
+        feet = {s: worlds[f"foot_{s}"].copy() for s in "LR"}
+        if pose["hip"]:
+            shift = Matrix.Translation(figure(pose["hip"]))
+            for name in subtree(children, "hip"):
+                if name in worlds:
+                    worlds[name] = shift @ worlds[name]
+        for bone in KEY_ORDER + sorted(set(pose["turn"]) - set(KEY_ORDER)):
+            deg = pose["turn"].get(bone)
+            if not deg or bone not in worlds:
+                continue
+            # postava hledí na −Y, X vlevo: předklon kolem +X, úklon vlevo kolem −Y, otočení kolem +Z
+            rotation = (
+                Matrix.Rotation(math.radians(deg[2]), 3, "Z")
+                @ Matrix.Rotation(math.radians(-deg[1]), 3, "Y")
+                @ Matrix.Rotation(math.radians(deg[0]), 3, "X")
+            )
+            rotate_subtree(worlds, children, bone, rotation, worlds[bone].to_translation())
+        for side in "LR":
+            sign = 1 if side == "L" else -1
+            target = pose["feet"].get(side)
+            goal = figure(target) if target else feet[side].to_translation()
+            # koleno vpřed a trochu ven
+            two_bone_ik(worlds, children, f"thigh_{side}", f"leg_{side}", f"foot_{side}", goal, Vector((sign * 0.25, -1.0, 0.0)))
+            now = worlds[f"foot_{side}"]
+            flat = feet[side].to_3x3() @ now.to_3x3().inverted()
+            rotate_subtree(worlds, children, f"foot_{side}", flat, now.to_translation())
+        for side, target in pose["hands"].items():
+            sign = 1 if side == "L" else -1
+            e = pose["elbow"].get(side)
+            pole = Vector((sign * e[0], -e[1], e[2])) if e else Vector((sign * 0.8, 1.0, -0.4))
+            two_bone_ik(worlds, children, f"arm_{side}", f"forearm_{side}", f"hand_{side}", figure(target), pole)
+        worlds["seat"] = Matrix.Identity(4)
+        frames.append(worlds)
+    return times, frames, children
+
+
 def report_points(clip, frames, names, unit_m):
     """Poloha uzlů v klipu v metrech – souřadnice scény (x vlevo postavy, y nahoru, z vpřed)."""
     for name in names:
@@ -715,6 +1305,31 @@ def trs(m):
     return [loc.x, loc.y, loc.z], [rot.x, rot.y, rot.z, rot.w], [scale.x, scale.y, scale.z]
 
 
+def prop_local(part, unit_m):
+    """Natočení, měřítko a posun propu v osách jeho bodu („rotate_deg“, „scale“, „offset_m“)."""
+    rx, ry, rz = (math.radians(a) for a in part.get("rotate_deg", [0, 0, 0]))
+    local = Matrix.Rotation(rz, 4, "Z") @ Matrix.Rotation(ry, 4, "Y") @ Matrix.Rotation(rx, 4, "X") @ Matrix.Scale(part.get("scale", 1), 4)
+    return Matrix.Translation(Vector(part.get("offset_m", [0, 0, 0])) / unit_m) @ local
+
+
+def report_tip(clip, world, part, tip, aim, unit_m):
+    """Držadlo a špička propu v prvním snímku klipu (m – vpřed, vzhůru, vpravo od paty postavy;
+    0 A.D.: x vlevo, y vzad, z nahoru). S `aim` i natočení „rotate_deg“ podél `aim`."""
+
+    def scene(p):
+        return f"vpřed {-p.y * unit_m:+.2f} vzhůru {p.z * unit_m:.2f} vpravo {-p.x * unit_m:+.2f}"
+
+    grip = world @ prop_local(part, unit_m) @ Vector((0.0, 0.0, 0.0))
+    end = world @ prop_local(part, unit_m) @ Vector(tip)
+    print(f"    {clip}: {part['name']} držadlo {scene(grip)}, špička {scene(end)}")
+    if aim:
+        # směr v osách bodu, z = Ry(b) · Rx(a) · (0, 0, 1) = (cos a · sin b, −sin a, cos a · cos b)
+        forward, up, right = aim
+        d = (world.to_3x3().inverted() @ Vector((-right, -forward, up))).normalized()
+        a, b = -math.asin(max(-1.0, min(1.0, d.y))), math.atan2(d.x, d.z)
+        print(f"    {clip}: {part['name']} podél {aim}: rotate_deg [{math.degrees(a):.0f}, {math.degrees(b):.0f}, 0]")
+
+
 def convert(spec, art, out_dir):
     body = load_body(os.path.join(art, spec["body"]["dae"]))
     names = body["names"]
@@ -727,14 +1342,20 @@ def convert(spec, art, out_dir):
     props = []
     for prop in spec.get("props", []):
         point = prop["point"]
-        parent = parents[point]
-        while parent not in rest_world:
-            parent = parents[parent]
-        local = worlds[parent].inverted() @ worlds[point]
         # Každý prop vlastní kloub (srp a motyka sdílejí bod weapon_R, ale skrývají se zvlášť).
         joint = f"prop_{prop['name']}"
-        rest_world[joint] = rest_world[parent] @ local
-        props.append(dict(prop, parent=parent, local=local, kind="prop", joint=joint))
+        if point not in worlds:
+            # volný prop (sedátko „seat“): v klidu v počátku postavy, klíčový klip ho drží tam
+            parent = names[0]
+            local = rest_world[parent].inverted()
+            rest_world[joint] = Matrix.Identity(4)
+        else:
+            parent = parents[point]
+            while parent not in rest_world:
+                parent = parents[parent]
+            local = worlds[parent].inverted() @ worlds[point]
+            rest_world[joint] = rest_world[parent] @ local
+        props.append(dict(prop, parent=parent, local=local, kind="prop", joint=joint, free=point not in worlds))
         parts.append(props[-1])
     atlas, atlas_h, mask = build_atlas(parts, art)
 
@@ -772,6 +1393,10 @@ def convert(spec, art, out_dir):
         else:
             geo = load_static(os.path.join(art, part["dae"]))
             matrix = rest_world[part["joint"]] @ geo["matrix"]
+        if part["kind"] == "prop" and (part.get("scale", 1) != 1 or part.get("rotate_deg") or part.get("offset_m")):
+            # měřítko a natočení propu v souřadnicích jeho bodu (ruka, rameno) – vrcholy v klidové póze
+            local = prop_local(part, scale)
+            matrix = rest_world[part["joint"]] @ local @ (rest_world[part["joint"]].inverted() @ matrix)
         normal_matrix = matrix.to_3x3().inverted().transposed()
         sx, sy, sw, sh = part["slot"]
         lookup = {}
@@ -803,6 +1428,10 @@ def convert(spec, art, out_dir):
                     jnt.append(js)
                     wgt.append(ws)
                 idx.append(lookup[key])
+        if part["kind"] == "prop":
+            pp = [matrix @ q for q in geo["positions"]]
+            ext = [(max(c[i] for c in pp) - min(c[i] for c in pp)) * scale for i in range(3)]
+            print(f"  {part['name']}: rozměry (m) {ext[0]:.2f} x {ext[1]:.2f} x {ext[2]:.2f}")
         print(f"  {part.get('name', 'body')}: uv u[{uvs_seen[0]:.2f},{uvs_seen[1]:.2f}] v[{uvs_seen[2]:.2f},{uvs_seen[3]:.2f}]")
 
     pos = np.array(pos, np.float32)
@@ -855,13 +1484,17 @@ def convert(spec, art, out_dir):
     animations = []
     prop_points = {p["joint"]: p for p in props}
     for clip in spec["clips"]:
-        times, frames, children = animation_frames(os.path.join(art, clip["animation"]))
+        if clip.get("keys"):
+            size = spec.get("height_m", 1.6) / 1.6
+            times, frames, children = keyed_frames(os.path.join(art, clip["keys"]["base"]), clip["keys"], scale, size)
+        else:
+            times, frames, children = animation_frames(os.path.join(art, clip["animation"]))
         if clip.get("pose"):
             apply_pose(frames, children, clip["pose"], scale)
         if clip.get("report"):
             report_points(clip["name"], frames, clip["report"], scale)
-        if clip["name"] == "walk":
-            print(f"    walk: rychlost chůze při přehrání 1× ≈ {walk_speed(frames, times, scale):.2f} m/s")
+        if clip["name"] == "walk" or clip["name"].startswith("walk-"):
+            print(f"    {clip['name']}: rychlost chůze při přehrání 1× ≈ {walk_speed(frames, times, scale):.2f} m/s")
         visible = set(clip.get("props", []))
         samples = {n: [] for n in joints}
         for worlds_t in frames:
@@ -874,7 +1507,10 @@ def convert(spec, art, out_dir):
                     p = prop_points[name]
                     # bod propu má v animaci vlastní kanál (nástroj se v ruce natáčí)
                     w = worlds_t.get(p["point"])
-                    if w is None:
+                    if w is None and p["free"]:
+                        # volný prop i v klipu 0 A.D. stojí na zemi v počátku postavy (špalek, síto)
+                        w = Matrix.Identity(4)
+                    elif w is None:
                         w = world_at(p["parent"]) @ p["local"]
                 elif name in worlds_t:
                     w = worlds_t[name]
@@ -886,10 +1522,16 @@ def convert(spec, art, out_dir):
                 return w
 
             for name in joints:
-                t, r, s = trs(local_of(name, world_at))
                 if name in prop_points and prop_points[name]["name"] not in visible:
-                    s = [0.0, 0.0, 0.0]
+                    # skrytý prop: poloha je jedno – klidová, kanály posunu a natočení odpadnou
+                    t, r, s = rest_trs[name][0], rest_trs[name][1], [0.0, 0.0, 0.0]
+                else:
+                    t, r, s = trs(local_of(name, world_at))
                 samples[name].append((t, r, s))
+            tip = clip.get("report_tip")
+            if tip and worlds_t is frames[0]:
+                part = next(p for p in props if p["name"] == tip["prop"])
+                report_tip(clip["name"], world_at(part["joint"]), part, tip["tip"], tip.get("aim"), scale)
         t0 = times[0]
         input_acc = g.accessor(np.array([t - t0 for t in times], np.float32), "SCALAR", 5126, minmax=True, shared=True)
         # stálá hodnota celého klipu (měřítko propu, posun kloubu) – dva klíče se skokem

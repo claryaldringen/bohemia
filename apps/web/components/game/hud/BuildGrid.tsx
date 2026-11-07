@@ -3,8 +3,10 @@
 import type { ReactElement } from 'react';
 import { BUILD_ITEMS, buildVariantName, type BuildItem } from '@/lib/build-items';
 import { formatInteger, formatManDays } from '@/lib/village-format';
+import { TRADE_GOOD_NAMES } from '@/lib/trade-names';
 import type { SquaresVariant } from '@/lib/scene/village-types';
-import type { BuildOption, StockResource } from '@/lib/village-view';
+import { isBuildAffordable, type BuildOption, type StockResource } from '@/lib/village-view';
+import { useRightDenied } from './rights';
 import { Tooltip } from './Tooltip';
 
 /** Kolik slotů má mřížka staveb (jako příkazový panel 0 A.D.) – prázdné jsou prohlubně. */
@@ -25,14 +27,21 @@ export const RESOURCE_ICONS: Record<StockResource, { src: string; unit: string; 
  */
 function BuildTooltip({
   item,
-  option,
+  option: baseOption,
   variant,
+  extending = false,
 }: {
   item: BuildItem;
   option: BuildOption | null;
   /** Druh v rozcestníku (ohrada ovcí…) – bez zkratky, klávesové zkratky mají jen stavby. */
   variant?: SquaresVariant;
+  /** Vybraná ohrada tohoto druhu se rozšiřuje – koně se neplatí, platba ani blokace se nezobrazí. */
+  extending?: boolean;
 }): ReactElement {
+  // druh s vlastní cenou (ohrada koní – obilí předem za koně)
+  const own = variant ? baseOption?.variants?.[variant.id] : undefined;
+  const option = baseOption && own ? { ...baseOption, ...own } : baseOption;
+  const payment = extending ? [] : (own?.payment ?? []);
   return (
     <span className="block">
       <span className="font-serif text-sm font-semibold text-[#f3dfb0]">
@@ -68,9 +77,20 @@ function BuildTooltip({
               {RESOURCE_ICONS[cost.resource].unit && ` ${RESOURCE_ICONS[cost.resource].unit}`}
             </span>
           ))}
+          {payment.map((pay) => (
+            <span key={pay.good} data-payment={pay.good} className="flex items-center gap-1">
+              <img
+                src={`/icons/resources/${TRADE_GOOD_NAMES[pay.good].icon}.png`}
+                alt={TRADE_GOOD_NAMES[pay.good].name}
+                width={16}
+                height={16}
+              />
+              {formatInteger(pay.amount)}
+            </span>
+          ))}
         </span>
       )}
-      {option?.blocked && (
+      {option?.blocked && !(extending && own) && (
         <span data-testid="build-blocked" className="mt-0.5 block font-semibold text-red-400">
           {option.blocked}
         </span>
@@ -98,15 +118,17 @@ function GridButton({
   hotkey?: string;
   onClick: () => void;
 }): ReactElement {
+  // seniorát: v cizí vsi rodu stavět smí jen senior (rights.ts) – jinak zašedlé s důvodem
+  const denied = useRightDenied('build');
   return (
     <li>
-      <Tooltip content={tooltip} placement="above-left">
+      <Tooltip content={tooltip} denied={denied} placement="above-left">
         <button
           type="button"
           aria-label={label}
           aria-pressed={pressed}
           {...(hotkey ? { 'aria-keyshortcuts': hotkey } : {})}
-          disabled={disabled}
+          disabled={disabled || denied !== null}
           onClick={onClick}
           className="hud-icon-button h-14 w-14"
         >
@@ -136,6 +158,7 @@ export function BuildGrid({
   active,
   disabled,
   group = null,
+  extendingVariant = null,
   onBuild,
 }: {
   /** Nabízené stavby; null = bez ceny (první zemnice zakládá ves – osídlí ji zakladatelé). */
@@ -146,6 +169,8 @@ export function BuildGrid({
   disabled: boolean;
   /** Otevřený rozcestník (stavba s druhy), null = všechny stavby. */
   group?: BuildItem['kind'] | null;
+  /** Druh ohrady, jejíž existující ohrada je vybraná (rozšíření bez platby za koně). */
+  extendingVariant?: string | null;
   /**
    * Kliknutí na stavbu (u stavby s druhy otevře či zavře rozcestník – to řeší volající), nebo na
    * druh v rozcestníku (`variant`).
@@ -154,7 +179,9 @@ export function BuildGrid({
 }): ReactElement {
   const hub = group === null ? null : (BUILD_ITEMS.find((item) => item.kind === group) ?? null);
   const hubVariants =
-    hub?.placement === 'squares' && hub.kind in options ? hub.variants : undefined;
+    (hub?.placement === 'squares' || hub?.placement === 'fort-points') && hub.kind in options
+      ? hub.variants
+      : undefined;
   const items = BUILD_ITEMS.filter((item) => item.kind in options);
   const slots = hub && hubVariants ? 1 + hubVariants.length : items.length;
   const empty = Math.max(0, GRID_SLOTS - slots);
@@ -181,14 +208,23 @@ export function BuildGrid({
               />,
               ...hubVariants.map((variant) => {
                 const option = options[hub.kind] ?? null;
+                const extending = extendingVariant === variant.id;
+                const affordable = isBuildAffordable(option, variant.id, extending);
                 return (
                   <GridButton
                     key={variant.id}
                     label={buildVariantName(hub, variant)}
                     icon={`/icons/resources/${variant.icon}.png`}
-                    tooltip={<BuildTooltip item={hub} option={option} variant={variant} />}
+                    tooltip={
+                      <BuildTooltip
+                        item={hub}
+                        option={option}
+                        variant={variant}
+                        extending={extending}
+                      />
+                    }
                     pressed={false}
-                    disabled={disabled || (option !== null && !option.affordable)}
+                    disabled={disabled || !affordable}
                     onClick={() => onBuild(hub.kind, variant.id)}
                   />
                 );

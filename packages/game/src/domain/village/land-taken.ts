@@ -1,7 +1,8 @@
 import { tileOfWorldPoint, type Landscape } from '../landscape';
 import { PART_TASKS, taskPosition, taskSpans, type PartTask } from './field-progress';
-import { HAY, mowingPosition, mowingSpans } from './hay';
+import { mowingPosition, mowingSpans, mowingYieldPerHa } from './hay';
 import { recordClearedObstacles } from './obstacles';
+import { partsSeedKg } from './seed';
 import { normalizeGrid, squareKey } from './square-grid';
 import { PolygonIndex, villageLandSquares, type LandSquare, type SquaresVillage } from './squares';
 import { squareCareWork, squareHarvestWork, squareYieldKg } from './orchard';
@@ -15,10 +16,12 @@ import type {
   SquareGrid,
   TileCell,
   VillageState,
-  YearPlan,
+  FarmSeason,
+  SeasonCrop,
 } from './types';
 import { addLogs, logsFromClearedTrees } from './wood';
-import { partWeight, planCrops } from './year-plan';
+import { TASK_ORDER, createCropWork, partWeight, seasonCrops } from './year-plan';
+import { partsByIdOf } from './parts-by-id';
 
 // Pole a sad ustupují stavbám (population.md – Obydlí na poli a v sadu; Martin, 18. 10. 2026:
 // „domy by měly jít stavět na polích a v sadech. Pole a sad se prostě zmenší o plochu domu“ –
@@ -210,8 +213,10 @@ export function giveWayToBuilding(
   if (taken.length === 0) return;
   const byCell = new Map(taken.map((t) => [takenKey(t), t]));
   const fieldLoss = shrinkParts(state, day, byCell);
-  // sad ustupuje jen obydlí (population.md) – ostatní stavby na sad nesmí
-  const orchardLoss = by === 'dwelling' ? shrinkOrchards(state, day, byCell) : new Map();
+  // sad ustupuje jen obydlí (population.md) a valu (fortifications.md – Obvod) – ostatní stavby
+  // na sad nesmí
+  const orchardLoss =
+    by === 'dwelling' || by === 'fortification' ? shrinkOrchards(state, day, byCell) : new Map();
   const events: ChronicleEvent[] = [];
   for (const [id, areaM2] of [...fieldLoss].sort((a, b) => a[0] - b[0])) {
     const gone = !state.parts.some((p) => p.fieldId === id);
@@ -305,7 +310,7 @@ function resizeParts(
     if (Math.abs(lost) <= EPSILON) continue;
     const share = left > 0 ? lost / part.areaM2 : 1;
     // plán, seč a založení podle plochy před zmenšením (váha dílu v pořadí práce)
-    if (state.plan) shrinkInPlan(state, state.plan, part, share, day);
+    if (state.season) shrinkInPlan(state, state.season, part, share, day);
     shrinkInMowing(state, part, share);
     shrinkFounding(state, part, share);
     loss.set(part.fieldId, (loss.get(part.fieldId) ?? 0) + lost);
@@ -315,12 +320,23 @@ function resizeParts(
     }
     // z pořadí práce hned – další díly se počítají už bez něj
     removed.add(part.id);
-    for (const plan of [state.plan, state.threshingFromPlan]) {
+    for (const plan of [state.season, state.threshingSeason]) {
       if (!plan) continue;
-      for (const { work } of planCrops(plan)) dropFromWork(work, new Set([part.id]));
+      for (const { work } of seasonCrops(plan)) dropFromWork(work, new Set([part.id]));
     }
     dropFromMowing(state, part.id);
     handOverObstacles(state, part, day);
+    // díl v lese s fázemi: dospělé stromy, které ještě nepadly, dají klády na hromadu u vsi jako
+    // dřív `trees` (forest.md – Klučení lesa pro pole – postup)
+    if (part.clearing) {
+      const standing = part.clearing.fell.slice(part.clearing.felled).filter((t) => t.log);
+      addLogs(state, logsFromClearedTrees(standing.length));
+      // pařezy padlých stromů odklidila stavba – záznamy kácení zmizí (odstranění má přednost)
+      if (state.felledTrees) {
+        const gone = new Set([...(part.obstacles ?? []), ...part.clearing.fell.map((t) => t.id)]);
+        state.felledTrees = state.felledTrees.filter((f) => !gone.has(f.id));
+      }
+    }
   }
   if (removed.size === 0) return loss;
   state.parts = state.parts.filter((p) => !removed.has(p.id));
@@ -365,13 +381,13 @@ function setTaskWork(work: CropWork, task: PartTask, required: number, done: num
  */
 export function shrinkInPlan(
   state: VillageState,
-  plan: YearPlan,
+  plan: FarmSeason,
   part: FieldPart,
   share: number,
   day: number,
 ): void {
-  const partsById = new Map(state.parts.map((p) => [p.id, p]));
-  for (const { work } of planCrops(plan)) {
+  const partsById = partsByIdOf(state.parts);
+  for (const { work } of seasonCrops(plan)) {
     if (work.harvestedKg !== null || !work.partIds.includes(part.id)) continue;
     for (const task of PART_TASKS) {
       const span = taskSpans(work, partsById, task, day).find((s) => s.id === part.id);
@@ -427,6 +443,91 @@ export function dropFromWork(work: CropWork, removed: ReadonlySet<number>): void
   else delete work.reclaimIds;
 }
 
+/** Úlohy, jejichž práci si díl při přesunu mezi plodinami nese (příprava půdy je stejná). */
+const CARRIED_TASKS: ReadonlySet<PartTask> = new Set(['reclaim', 'plough', 'dig']);
+
+/**
+ * Přesune díly `ids` z práce plodiny `from` do práce plodiny `to` (mutuje hospodářský rok) – ozim,
+ * na kterém do konce okna nezačalo setí, jde do jaře (fields.md – Osevní postup po dílech, bod 2).
+ * Díl si nese potřebnou i hotovou přípravu půdy (vrácení přílohu, orba, kopání – podle úseků
+ * `taskSpans`, ne podle sazeb dne: zasetý díl by vrácení přílohu už neměl); setí a další práce
+ * podle sazeb nové plodiny – v téže plodině (díl nad potřebu se stane nutným) si nese i je. Přesunuté díly jdou na začátek pořadí `to` (obdělávaly se napřed) –
+ * součet hotové práce přes plodiny se nezmění. Plodiny s různým způsobem přípravy (orba proti
+ * motyce) si přípravu nenesou.
+ */
+export function moveParts(
+  state: VillageState,
+  season: FarmSeason,
+  from: SeasonCrop,
+  to: SeasonCrop,
+  ids: readonly number[],
+  day: number,
+  toolCoverage: number,
+): void {
+  const moved = new Set(ids);
+  const partsById = partsByIdOf(state.parts);
+  const parts = from.partIds
+    .filter((id) => moved.has(id))
+    .map((id) => partsById.get(id))
+    .filter((p): p is FieldPart => p !== undefined);
+  if (parts.length === 0) return;
+  const plough = to.plough !== undefined;
+  const carry = (from.plough !== undefined) === plough;
+  const carried = new Map<PartTask, { required: number; done: number }>();
+  for (const task of PART_TASKS) {
+    if (!carry || (!CARRIED_TASKS.has(task) && from.crop !== to.crop)) continue;
+    const { required } = taskWork(from, task);
+    const position = taskPosition(from, task);
+    const sum = { required: 0, done: 0 };
+    for (const span of taskSpans(from, partsById, task, day)) {
+      if (!moved.has(span.id)) continue;
+      const own = span.share ?? 1;
+      sum.required += (span.end - span.start) * required * own;
+      sum.done +=
+        (Math.min(span.end, Math.max(span.start, position)) - span.start) * required * own;
+    }
+    carried.set(task, sum);
+  }
+  const reclaimIds = carry ? (from.reclaimIds ?? []).filter((id) => moved.has(id)) : [];
+  const sodIds = carry ? (from.plough?.sodIds ?? []).filter((id) => moved.has(id)) : [];
+  // díl po dílu – úseky dalšího dílu se počítají už bez předchozího
+  for (const part of parts) {
+    shrinkInPlan(state, season, part, 1, day);
+    dropFromWork(from, new Set([part.id]));
+  }
+  // osivo zasetého podílu přesunutých dílů jde s nimi – nutná práce by ho jinak vzala podruhé
+  const sown = carried.get('sow');
+  if (sown && sown.required > 0 && from.seedKg !== undefined && to.seedKg !== undefined) {
+    const seedKg = Math.min(from.seedKg, (sown.done / sown.required) * partsSeedKg(parts, to.crop));
+    from.seedKg -= seedKg;
+    to.seedKg += seedKg;
+  }
+  const fresh = createCropWork(parts, day, toolCoverage, plough, (ps) => [...ps], to.crop);
+  for (const task of TASK_ORDER) {
+    const own = carried.get(task as PartTask);
+    to.required[task] += own ? own.required : fresh.required[task];
+    if (own) to.done[task] += own.done;
+  }
+  to.partIds = [...fresh.partIds, ...to.partIds];
+  const reclaim = carry ? reclaimIds : (fresh.reclaimIds ?? []);
+  if (reclaim.length > 0) to.reclaimIds = [...reclaim, ...(to.reclaimIds ?? [])];
+  if (!to.plough || !fresh.plough) return;
+  const own = carried.get('plough');
+  to.plough.partIds = [...fresh.plough.partIds, ...to.plough.partIds];
+  to.plough.required += own ? own.required : fresh.plough.required;
+  to.plough.done += own?.done ?? 0;
+  to.plough.weight += fresh.plough.weight;
+  const sod = carry ? sodIds : (fresh.plough.sodIds ?? []);
+  if (sod.length > 0) to.plough.sodIds = [...sod, ...(to.plough.sodIds ?? [])];
+  if (to.plough.bands && fresh.plough.bands) {
+    const shift = fresh.plough.bands.reduce((max, b) => Math.max(max, b.block + 1), 0);
+    to.plough.bands = [
+      ...fresh.plough.bands,
+      ...to.plough.bands.map((b) => ({ ...b, block: b.block + shift })),
+    ];
+  }
+}
+
 /**
  * Díl úhoru v letošní seči sena (oxen.md – Seno) ubere podíl `share`: potřebná práce podle jeho
  * váhy, hotová, kolik jí na něm bylo (čelo seče zůstane), a seno při plné seči podle plochy.
@@ -446,7 +547,10 @@ function shrinkInMowing(state: VillageState, part: FieldPart, share: number): vo
     mowing.required - share * (span.end - span.start) * mowing.required,
   );
   mowing.done = Math.max(0, Math.min(mowing.required, mowing.done - share * doneOnPart));
-  mowing.yieldKg = Math.max(0, mowing.yieldKg - (share * part.areaM2 * HAY.yieldKgPerHa) / 10_000);
+  mowing.yieldKg = Math.max(
+    0,
+    mowing.yieldKg - (share * part.areaM2 * mowingYieldPerHa(mowing)) / 10_000,
+  );
   // louka v pořadí seče (s přirozenými loukami) nese plochu z plánu – ubude jí stejný podíl
   for (const square of mowing.squares ?? []) {
     if (square.partId === part.id) square.areaM2 *= 1 - share;
@@ -458,6 +562,8 @@ function dropFromMowing(state: VillageState, partId: number): void {
   const hay = state.hay;
   if (!hay?.mowing) return;
   hay.mowing.partIds = hay.mowing.partIds.filter((id) => id !== partId);
+  const firstCut = hay.mowing.firstCut;
+  if (firstCut) firstCut.partIds = firstCut.partIds.filter((id) => id !== partId);
   if (hay.mowing.squares) {
     hay.mowing.squares = hay.mowing.squares.filter((sq) => sq.partId !== partId);
   }
@@ -474,6 +580,17 @@ function shrinkFounding(state: VillageState, part: FieldPart, share: number): vo
   const done = part.foundingDone * share;
   part.foundingCost -= cost;
   part.foundingDone -= done;
+  // díl v lese s fázemi: pálení se zmenší stejně, ať podíl kácení a pálení zůstane
+  if (part.clearing) {
+    part.clearing.burnCost -= part.clearing.burnCost * share;
+    // stromy zmizelé části dílu nepadnou (a nedají klády): stojících zůstane úměrně zbytku plochy,
+    // padlé zůstávají padlé
+    // (zmizelý díl, share = 1, si stojící stromy nechá – klády z nich spočítá `resizeParts`)
+    const clearing = part.clearing;
+    const standing = clearing.fell.length - clearing.felled;
+    const keep = Math.round(standing * (1 - share));
+    if (share < 1) clearing.fell = clearing.fell.slice(0, clearing.felled + keep);
+  }
   const c = state.constructions.find((x) => x.kind === 'field' && x.fieldId === part.fieldId);
   if (!c) return;
   c.cost = Math.max(0, c.cost - cost);

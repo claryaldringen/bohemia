@@ -1,13 +1,17 @@
+import { seasonHayYieldKg } from './hay';
 import { dateOfDayIndex } from '../calendar';
 import type { Landscape } from '../landscape';
 import { createRandom, deriveSeed } from '../landscape/random';
 import { CELL_SIZE_M, LANDSCAPE_SIZE } from '../landscape/types';
 import { craftNeeds, craftStocks, craftTargets, occupiedWorkshops } from './crafts';
+import { toolEquipmentKg } from './iron';
 import { sowingTargets } from './field-food';
 import { expectedNetKg } from './fields';
 import { villageLaborFactor } from './happiness';
+import { lordApartIds } from './lord';
 import { villageFoodCosts } from './husbandry';
-import { villageLegumesKg } from './legumes';
+import { legumeEnergy, villageLegumesKg } from './legumes';
+import { seedAheadKg } from './seed';
 import { legumeNeedPerYear } from './livestock';
 import { villageManor } from './manor';
 import { neighbourKind } from './neighbours';
@@ -22,7 +26,7 @@ import {
   TRADE_GOOD_VALUES,
   WOOD_TOOLS,
 } from './rules';
-import { buyValue, sellPrice } from './trade';
+import { buyValue, goodWorth, sellPrice } from './trade';
 import { DIRECTION_VECTORS, builtTrail, trailTripDays } from './trail';
 import type {
   ChronicleEvent,
@@ -88,10 +92,30 @@ export function neighbourCrafts(seed: number, direction: Direction8): Craft[] {
   return NEIGHBOUR_CRAFT_ORDER.filter((craft) => rnd.next() < odds[craft]);
 }
 
-/** Kolik kg obilí soused chce za kg výrobku (nabízené zboží – hodnota × 0,96, trade.md). */
-export function productPrice(product: CraftProduct): number {
-  if (product === 'woodToolsKg') return buyValue(CRAFT_BUYING.woodToolsValueKg);
-  return buyValue(TRADE_GOOD_VALUES[product === 'toolsKg' ? 'tools' : 'pottery'].valueKg);
+/**
+ * Kolik kg obilí soused chce za kg výrobku (nabízené zboží – hodnota × 0,96, trade.md); nástroje
+ * nejsou zboží obchodu (na obchod jdou hřivny – production-chains.md, Kovář), kovář souseda je
+ * prodá za CRAFT_BUYING.toolsValueKg.
+ */
+export function productPrice(
+  product: CraftProduct,
+  state?: Pick<VillageState, 'weatherSeed' | 'disasters'>,
+  day?: number,
+): number {
+  // po zlém roce kraje soused dá výrobek za méně obilí (`goodWorth`, disasters.md – Obchod)
+  const worth = state && day !== undefined ? goodWorth(state, 'pottery', day) : 1;
+  if (product === 'woodToolsKg') return worth * buyValue(CRAFT_BUYING.woodToolsValueKg);
+  if (product === 'toolsKg') return worth * buyValue(CRAFT_BUYING.toolsValueKg);
+  return worth * buyValue(TRADE_GOOD_VALUES.pottery.valueKg);
+}
+
+/**
+ * Kolik výrobku ves má (kg): nástroje ve vybavení domácností (production-chains.md – Nástroje jako
+ * vybavení domácností), keramika a dřevěné nářadí v zásobě.
+ */
+function productStock(state: VillageState, product: CraftProduct): number {
+  if (product === 'toolsKg') return toolEquipmentKg(state);
+  return craftStocks(state)[product] ?? 0;
 }
 
 /** Cesta k sousedovi – po hotové zemské stezce, nebo krajinou ke kraji mapy. */
@@ -141,7 +165,7 @@ export function purchaseRoute(
 }
 
 /** Nejbližší soused s řemeslníkem `craft` (nejméně dní cesty, při shodě v pořadí směrů). */
-function nearestCraftsman(
+export function nearestCraftsman(
   state: VillageState,
   craft: Craft,
   landscape: Landscape | null,
@@ -186,7 +210,13 @@ export function craftSources(state: VillageState, landscape: Landscape | null): 
 export function ownCraftsmanWorks(state: VillageState, craft: Craft): boolean {
   return occupiedWorkshops(state, craft).some((d) => {
     const activity = d.workshop!.activity;
-    return activity !== 'no-charcoal' && activity !== 'no-wood' && activity !== 'empty';
+    return (
+      activity !== 'no-charcoal' &&
+      activity !== 'no-wood' &&
+      activity !== 'no-ore' &&
+      activity !== 'no-clay' &&
+      activity !== 'empty'
+    );
   });
 }
 
@@ -251,18 +281,35 @@ function withToolCoverage(state: VillageState, ctx: BuyingContext, tools: number
 }
 
 /** Čím ves může platit – přebytek obilí a luštěnin nad pojistkou zásob (kg) a cena v práci. */
-interface PaymentPool {
+export interface PaymentPool {
   /** Přebytek energie nad pojistkou k příští sklizni (kg obilí). */
   energyKg: number;
   grainKg: number;
   legumesKg: number;
 }
 
-/** Přebytek obilí a luštěnin nad pojistkou zásob (field-food.ts – `sowingTargets`). */
-function paymentPool(state: VillageState, day: number, coverage: CraftCoverage): PaymentPool {
-  const targets = sowingTargets(state, day, legumeNeedPerYear(state, day), coverage.pottery);
+/**
+ * Přebytek obilí a luštěnin nad pojistkou zásob (field-food.ts – `sowingTargets`). S `intoBuffer`
+ * smí platba sáhnout i do pojistky – ne pod nulu zásob k příští sklizni (nutný malý výdaj, např.
+ * kování koní – horses.md, Kování).
+ */
+export function paymentPool(
+  state: VillageState,
+  day: number,
+  coverage: CraftCoverage,
+  intoBuffer = false,
+): PaymentPool {
+  // osivo, které čeká na setí, ves nezaplatí (jako `fieldSowingTargets`)
+  const seed = seedAheadKg(state, false, day);
+  const targets = sowingTargets(
+    state,
+    day,
+    legumeNeedPerYear(state, day),
+    coverage.pottery,
+    seed.grain + legumeEnergy(seed.legumes),
+  );
   return {
-    energyKg: Math.max(0, targets.leftKg - targets.bufferKg),
+    energyKg: Math.max(0, targets.leftKg - (intoBuffer ? 0 : targets.bufferKg)),
     grainKg: Math.max(0, state.storesKg),
     legumesKg: villageLegumesKg(state),
   };
@@ -274,6 +321,7 @@ function paymentPool(state: VillageState, day: number, coverage: CraftCoverage):
  * Vrátí platbu a práci za ni (čd) – nebo méně, když přebytek nestačí.
  */
 function pay(
+  state: VillageState,
   ctx: BuyingContext,
   pool: PaymentPool,
   valueKg: number,
@@ -289,7 +337,7 @@ function pay(
     },
     {
       key: 'legumesKg' as const,
-      value: sellPrice('legumes'),
+      value: sellPrice('legumes') * goodWorth(state, 'legumes', ctx.day),
       labor: ctx.legumePerKg + carry,
       energy: LEGUMES.energy,
     },
@@ -367,21 +415,22 @@ export function planPurchases(
   coverage: CraftCoverage,
   landscape: Landscape | null,
 ): PurchasePlan[] {
-  const stocks = craftStocks(state);
   const targets = craftTargets(state, day);
   const needs = craftNeeds(state, day);
   const costs = villageFoodCosts(state, day, coverage.tools);
   const sown = state.parts.filter((p) => p.state === 'sown' || p.state === 'ready');
+  // cvičící vojvodova rodina práci vsi nedává (lord.md – Den rodiny)
+  const apart = lordApartIds(state, day);
   const ctx: BuyingContext = {
     day,
     coverage,
     needs,
     grainKg: sown.reduce((sum, p) => sum + Math.max(0, expectedNetKg(p, day)), 0),
-    hayKg: state.hay?.mowing?.yieldKg ?? 0,
+    hayKg: seasonHayYieldKg(state.hay?.mowing),
     storedKg: Math.max(0, state.storesKg) + villageLegumesKg(state),
     households: new Set(state.people.map((p) => p.dwellingId)).size,
     yearlyLabor:
-      state.people.reduce((sum, p) => sum + laborPerDay(p, day), 0) *
+      state.people.reduce((sum, p) => sum + (apart.has(p.id) ? 0 : laborPerDay(p, day)), 0) *
       DAYS_PER_YEAR *
       villageLaborFactor(state),
     grainPerKg: costs.grainPerKg,
@@ -396,12 +445,12 @@ export function planPurchases(
   ): { plan: PurchasePlan; trial: PaymentPool } | null => {
     const craft = PRODUCT_CRAFT[product];
     if (ownCraftsmanWorks(state, craft)) return null;
-    const stock = stocks[product] ?? 0;
+    const stock = productStock(state, product);
     const wanted = targets[product] - stock;
     if (wanted < CRAFT_BUYING.minKg) return null;
     const route = nearestCraftsman(state, craft, landscape);
     if (!route) return null;
-    const price = productPrice(product);
+    const price = productPrice(product, state, day);
     const need = needs[product];
     // obilí na platbu ves vypěstuje znovu – u nástrojů už s nimi (cena jídla v práci při pokrytí
     // po nákupu), u ostatních výrobků při dnešním pokrytí nástroji
@@ -411,7 +460,7 @@ export function planPurchases(
     const carryKg =
       cap * Math.max(1, Math.floor(CRAFT_BUYING.maxDays / route.days)) * TRADE.porterKg;
     const trial = { ...from };
-    const paid = pay(payCtx, trial, Math.min(wanted * price, carryKg), route.days);
+    const paid = pay(state, payCtx, trial, Math.min(wanted * price, carryKg), route.days);
     const kg = paid.paidKg / price;
     if (kg < CRAFT_BUYING.minKg) return null;
     const trip = tripOf(Math.max(paid.weightKg, kg), route.days, cap);
@@ -550,8 +599,9 @@ export function walkPurchases(state: VillageState): { target: LaborTarget; manDa
 }
 
 /**
- * Vrácené nákupy (mutuje stav): výrobky do zásob řemesel, kronika `crafts-bought` (jen fakt –
- * „Vesničané koupili nástroje u souseda (sever)“).
+ * Vrácené nákupy (mutuje stav): nástroje do vybavení domácností (production-chains.md – Nástroje
+ * jako vybavení domácností), keramika a dřevěné nářadí do zásob řemesel, kronika `crafts-bought`
+ * (jen fakt – „Vesničané koupili nástroje u souseda (sever)“).
  */
 export function finishPurchases(state: VillageState, day: number): ChronicleEvent[] {
   const purchases = state.purchases;
@@ -559,8 +609,10 @@ export function finishPurchases(state: VillageState, day: number): ChronicleEven
   const events: ChronicleEvent[] = [];
   state.purchases = purchases.filter((purchase) => {
     if (purchase.done < purchase.days) return true;
-    const stocks = (state.crafts ??= { charcoalKg: 0, toolsKg: 0, potteryKg: 0 });
-    stocks.toolsKg += purchase.get.toolsKg ?? 0;
+    const stocks = (state.crafts ??= { charcoalKg: 0, potteryKg: 0 });
+    if (purchase.get.toolsKg) {
+      state.toolEquipmentKg = toolEquipmentKg(state) + purchase.get.toolsKg;
+    }
     stocks.potteryKg += purchase.get.potteryKg ?? 0;
     if (purchase.get.woodToolsKg) {
       stocks.woodToolsKg = (stocks.woodToolsKg ?? 0) + purchase.get.woodToolsKg;

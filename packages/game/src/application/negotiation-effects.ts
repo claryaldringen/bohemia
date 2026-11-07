@@ -1,0 +1,242 @@
+import {
+  checkStewardshipItems,
+  NEGOTIATION_REASONS,
+  checkTradeLine,
+  checkVillageGiftItems,
+  checkWarDemandItems,
+  PEACE_REASONS,
+  RANSOM_REASONS,
+  checkRansomItems,
+  termLinesOf,
+  type TermItem,
+} from '../domain/negotiation';
+import { AID_REASONS, checkAidLine, type AidLine } from '../domain/vassalage/loan';
+import {
+  checkTermLine,
+  termsOfLines,
+  type TermLine,
+  type VassalTerms,
+} from '../domain/vassalage/terms';
+import { wouldBeMutual } from '../domain/vassalage/tree';
+import { STEWARD_TAKEN } from './stewardships';
+import type { NegotiationTx } from './negotiations';
+
+/** Ves dostala správce souběžně jinou cestou – přijetí se vrací (transakce se zruší). */
+export class StewardshipTaken extends Error {
+  constructor() {
+    super(STEWARD_TAKEN);
+  }
+}
+
+/** Kdy a v jakém herním dni se dohoda uzavřela. */
+export interface EffectContext {
+  now: Date;
+  day: number;
+  /** Podmínky z celého přijatého kola (bez přísahy) – nová dohoda je dostane při založení. */
+  terms: VassalTerms;
+  /** Jednání, které se přijímá (půjčka z něj vzejde nejvýš jednou). */
+  negotiationId: string;
+  /** Dohoda, o jejíž pomoci se jedná (pán = věřitel, vazal = dlužník); u jiných řádků nevyužito. */
+  agreement: { lordHouseId: string; vassalHouseId: string } | null;
+  /** Kam zásilka z pomoci dojde (ves příjemce); null – příjemce nemá kam. */
+  aidTargetVillageId: string | null;
+  /** Pán a vazal dohody, na které správa vsi stojí (řádek `stewardship`); jinak null. */
+  stewardship: { lordHouseId: string; stewardHouseId: string } | null;
+  /** Dvojice rodů jednání (autor posledního kola a ten, kdo přijímá) – válka mezi nimi končí mírem. */
+  parties: readonly [string, string];
+}
+
+/**
+ * Účinek jednoho druhu řádku podmínek při přijetí jednání (vassalage.md – Vznik a jednání).
+ * `check` neměnící nic vrací důvod odmítnutí, `apply` zapisuje; oba běží v transakci přijetí.
+ */
+export interface NegotiationEffect<K extends TermItem['kind'] = TermItem['kind']> {
+  check(tx: NegotiationTx, item: Extract<TermItem, { kind: K }>): Promise<string | null>;
+  apply(tx: NegotiationTx, item: Extract<TermItem, { kind: K }>, ctx: EffectContext): Promise<void>;
+}
+
+/**
+ * Řádek podmínek (dávka, služba, cílová ves, odměna): `check` hlídá čísla (doména), vlastní zápis
+ * dělá přísaha při založení dohody, nebo `updateTerms` nad existující dohodou (`acceptNegotiation`) –
+ * zapisují se podmínky celého kola najednou, ne po řádcích.
+ */
+const termLineEffect = <K extends TermLine['kind']>(): NegotiationEffect<K> => ({
+  check: (_tx, item) => Promise.resolve(checkTermLine(item as TermLine)),
+  apply: () => Promise.resolve(),
+});
+
+/**
+ * Řádek pomoci (vassalage.md – Pomoc na žádost): `check` hlídá čísla (doména). Dar sám nic
+ * nezapisuje – zásilku pošle `acceptNegotiation` po transakci (pod zámkem držitele věřitelovy vsi).
+ */
+const aidEffect = <K extends AidLine['kind']>(): NegotiationEffect<K> => ({
+  check: (_tx, item) => Promise.resolve(checkAidLine(item as AidLine)),
+  apply: () => Promise.resolve(),
+});
+
+/**
+ * Registr účinků podle druhu řádku. Nový druh řádku bez účinku nepřeloží (`Record` přes unii).
+ * Holá přísaha: vazalství `origin: 'negotiation'` bez podmínek; druhý pán přibude vedle
+ * stávajících, stejná dvojice už svázaná – `create` vrátí živé vazalství a nic nepřidá.
+ */
+export const NEGOTIATION_EFFECTS: { [K in TermItem['kind']]: NegotiationEffect<K> } = {
+  oath: {
+    check: () => Promise.resolve(null),
+    apply: async (tx, item, ctx) => {
+      await tx.vassalages.create({
+        lordHouseId: item.lord,
+        vassalHouseId: item.vassal,
+        terms: ctx.terms,
+        origin: 'negotiation',
+        sinceAt: ctx.now,
+        sinceDay: ctx.day,
+      });
+    },
+  },
+  tribute: termLineEffect<'tribute'>(),
+  service: termLineEffect<'service'>(),
+  'target-village': termLineEffect<'target-village'>(),
+  reward: termLineEffect<'reward'>(),
+  // žádost sama přijmout nejde – pán na ni odpovídá darem nebo půjčkou
+  'aid-request': {
+    check: () => Promise.resolve(AID_REASONS.answerNeeded),
+    apply: () => Promise.resolve(),
+  },
+  gift: aidEffect<'gift'>(),
+  // obchod mezi hráči: nic se nezapisuje, dialogy odeslání otevře `acceptNegotiation` po transakci
+  trade: {
+    check: (_tx, item) => Promise.resolve(checkTradeLine(item)),
+    apply: () => Promise.resolve(),
+  },
+  // správa cizí vsi: stojí na živé dohodě pána a správce (přísaha už proběhla), ves smí mít jednu
+  stewardship: {
+    check: (_tx, item) => Promise.resolve(checkStewardshipItems([item])),
+    apply: async (tx, item, ctx) => {
+      if (!ctx.stewardship) return;
+      const agreement = (await tx.vassalages.activeOf(ctx.stewardship.stewardHouseId)).find(
+        (v) => v.lordHouseId === ctx.stewardship?.lordHouseId,
+      );
+      const started = await tx.stewardships.start({
+        villageId: item.villageId,
+        stewardHouseId: ctx.stewardship.stewardHouseId,
+        holderHouseId: ctx.stewardship.lordHouseId,
+        kind: 'player',
+        vassalageId: agreement?.id ?? null,
+        since: ctx.now,
+      });
+      if (!started) throw new StewardshipTaken();
+    },
+  },
+  // požadavek při opovědi (war.md – Začátek války): přijetí = válka končí mírem s podmínkami
+  // požadavku; přísaha a řádky se zapíšou stejnými účinky jako u běžného jednání
+  'war-demand': {
+    check: async (tx, item) => {
+      const bad = checkWarDemandItems([item]);
+      if (bad) return bad;
+      for (const inner of item.items) {
+        if (
+          inner.kind === 'oath' &&
+          wouldBeMutual(await tx.vassalages.edgesNear(inner.lord, 1), inner.lord, inner.vassal)
+        ) {
+          return NEGOTIATION_REASONS.isYourLord;
+        }
+        const reason = await checkItem(tx, inner);
+        if (reason) return reason;
+      }
+      return null;
+    },
+    apply: async (tx, item, ctx) => {
+      const war = await tx.wars.activeBetween(ctx.parties[0], ctx.parties[1]);
+      if (war) await tx.wars.end(war.id, 'peace', ctx.now);
+      const terms = termsOfLines(termLinesOf(item.items));
+      for (const inner of item.items) await applyItem(tx, inner, { ...ctx, terms });
+    },
+  },
+  // mír (war.md – Konec války): v transakci válka končí a vznikne vazalství z míru; poplatek,
+  // postoupení vsí a tribut dělá `acceptNegotiation` po ní (zásilky a převody jedou pod zámky)
+  peace: {
+    check: async (tx, item) => {
+      const v = item.vassalage;
+      if (v && wouldBeMutual(await tx.vassalages.edgesNear(v.lord, 1), v.lord, v.vassal)) {
+        return PEACE_REASONS.isYourLord;
+      }
+      return null;
+    },
+    apply: async (tx, item, ctx) => {
+      const war = await tx.wars.activeBetween(ctx.parties[0], ctx.parties[1]);
+      if (war) await tx.wars.end(war.id, 'peace', ctx.now);
+      const v = item.vassalage;
+      if (!v) return;
+      await tx.vassalages.create({
+        lordHouseId: v.lord,
+        vassalHouseId: v.vassal,
+        terms: v.terms,
+        origin: 'peace',
+        sinceAt: ctx.now,
+        sinceDay: ctx.day,
+      });
+    },
+  },
+  // výkupné: v transakci vznikne jen vazalství z výkupného; zaplacení a propuštění dělá
+  // `acceptNegotiation` po ní (zásilka jede pod zámkem, propuštění ve schránkách)
+  ransom: {
+    check: async (tx, item) => {
+      const v = item.vassalage;
+      if (v && wouldBeMutual(await tx.vassalages.edgesNear(v.lord, 1), v.lord, v.vassal)) {
+        return RANSOM_REASONS.isYourLord;
+      }
+      return checkRansomItems([item], v ? [v.lord, v.vassal] : []);
+    },
+    apply: async (tx, item, ctx) => {
+      const v = item.vassalage;
+      if (!v) return;
+      await tx.vassalages.create({
+        lordHouseId: v.lord,
+        vassalHouseId: v.vassal,
+        terms: v.terms,
+        origin: 'negotiation',
+        sinceAt: ctx.now,
+        sinceDay: ctx.day,
+      });
+    },
+  },
+  // věnování dílu odúmrti: v transakci nic, vsi a vazaly převede `acceptNegotiation` po ní (zámky)
+  'village-gift': {
+    check: (_tx, item) => Promise.resolve(checkVillageGiftItems([item])),
+    apply: () => Promise.resolve(),
+  },
+  // půjčka je samostatná dohoda: řádek se zapíše v transakci přijetí, zboží pošle use-case po ní
+  loan: {
+    check: (_tx, item) => Promise.resolve(checkAidLine(item)),
+    apply: async (tx, item, ctx) => {
+      if (!ctx.agreement) return;
+      await tx.loans.create({
+        negotiationId: ctx.negotiationId,
+        creditorHouseId: ctx.agreement.lordHouseId,
+        debtorHouseId: ctx.agreement.vassalHouseId,
+        creditorVillageId: item.fromVillageId,
+        debtorVillageId: ctx.aidTargetVillageId,
+        principal: {
+          grainKg: item.bundle.grainKg,
+          hayKg: item.bundle.hayKg,
+          cattle: { ...item.bundle.cattle },
+          horses: item.bundle.horses,
+          logs: item.bundle.logs,
+        },
+        schedule: item.schedule,
+        sinceAt: ctx.now,
+        sinceDay: ctx.day,
+      });
+    },
+  },
+};
+
+/** Kontrola řádku podle jeho druhu (registr je typově rozepsaný po druzích, volání je sjednocené). */
+export function checkItem(tx: NegotiationTx, item: TermItem): Promise<string | null> {
+  return (NEGOTIATION_EFFECTS[item.kind] as NegotiationEffect).check(tx, item);
+}
+
+/** Účinek řádku podle jeho druhu. */
+export function applyItem(tx: NegotiationTx, item: TermItem, ctx: EffectContext): Promise<void> {
+  return (NEGOTIATION_EFFECTS[item.kind] as NegotiationEffect).apply(tx, item, ctx);
+}

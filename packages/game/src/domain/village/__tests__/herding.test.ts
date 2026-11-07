@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
-import { HERDING, herdingCoverage, herdingDay, herdingDemand, recordHerding } from '../herding';
+import {
+  adultHerding,
+  HERDING,
+  herderCapacity,
+  herdingCoverage,
+  herdingDay,
+  herdingDemand,
+  isYoungster,
+  recordHerding,
+  youngsterHerders,
+} from '../herding';
 import { HAY, HAY_WINTER_DAYS } from '../hay';
 import {
   LIVESTOCK,
@@ -15,8 +25,9 @@ import { advanceVillage } from '../simulate';
 import type { HerdSpecies, Person, VillageState } from '../types';
 import { withBuiltFirstDwelling, withRoomyPens } from './village-fixtures';
 
-// Pasáci (diet.md – Pasáci; Martin 19. 10. 2026): jeden pasák uhlídá jen omezené stádo, pasou jen
-// výrostci 7–13 let (bez práce vsi), dospělí ani starší ne; co nikdo neuhlídá, jde na maso.
+// Pasáci (diet.md – Pasáci; Martin 19. 10. 2026): jeden pasák uhlídá jen omezené stádo, pasou
+// výrostci 7–13 let (bez práce vsi), starší ne; dospělý jen ve vsi bez výrostků, z práce vsi
+// (Dospělý pasák, Martin 2. 11. 2026); co nikdo neuhlídá, jde na maso.
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
 const herds = (over: Partial<Record<HerdSpecies, number>>): Record<HerdSpecies, number> => ({
@@ -60,6 +71,23 @@ describe('kolik pasáků stáda potřebují', () => {
     );
   });
 
+  it('vojvodovi synové nepasou, když rodina cvičí (lord.md – Den rodiny)', () => {
+    const day = at(600, 6, 1);
+    const s = village(day);
+    const lord = person(s, 1, 30, day);
+    s.people = [
+      lord,
+      { ...person(s, 2, 9, day), fatherId: 1 },
+      { ...person(s, 3, 10, day), dwellingId: 999 },
+    ];
+    s.livestock!.herds = herds({ cow: 80 });
+    expect(herdingDay(s, day, 0).freeHerders).toEqual({ children: 2 });
+    expect(youngsterHerders(s, day)).toBeCloseTo(0.8, 9);
+    s.lord = { trains: true };
+    expect(herdingDay(s, day, 0).freeHerders).toEqual({ children: 1 });
+    expect(youngsterHerders(s, day)).toBeCloseTo(0.4, 9);
+  });
+
   it('pasou jen výrostci 7–13 let – jen kolik jich stáda potřebují; starší ani dospělí ne', () => {
     const day = at(600, 6, 1);
     const s = village(day);
@@ -79,9 +107,42 @@ describe('kolik pasáků stáda potřebují', () => {
     expect(big.demand).toBeCloseTo(2, 9);
     expect(big.free).toBeCloseTo(0.8, 9);
     expect(big.freeHerders).toEqual({ children: 2 });
-    // bez výrostků stáda nikdo nepase
+    // bez výrostků výrostci nic – pase dospělý z práce vsi (`adultHerding`)
     s.people = [person(s, 1, 30, day), person(s, 5, 50, day)];
     expect(herdingDay(s, day, 0).free).toBe(0);
+  });
+
+  it('bez výrostků pase dospělý za jednoho výrostka – za práci vsi, kolik pase', () => {
+    // Martin 2. 11. 2026 – dospělý pasák, když nejsou děti (návrh Clauda)
+    const day = at(600, 6, 1);
+    const s = village(day);
+    s.people = [person(s, 1, 30, day), person(s, 4, 5, day), person(s, 5, 50, day)];
+    // 3 krávy a 10 ovcí = 0,175 pasáka – dospělý je uhlídá celé za 0,175 člověkodne
+    s.livestock!.herds = herds({ cow: 3, sheep: 10 });
+    expect(adultHerding(s, day, 0)).toBeCloseTo(3 / 40 + 10 / 100, 9);
+    // velké stádo – nejvýš co uhlídá jeden výrostek (HERDING.adultShare = childShare)
+    s.livestock!.herds = herds({ cow: 80 });
+    expect(HERDING.adultShare).toBeCloseTo(HERDING.childShare, 9);
+    expect(adultHerding(s, day, 0)).toBeCloseTo(HERDING.adultShare, 9);
+    // místo pro mláďata počítá s dospělým, když výrostci nebudou
+    expect(herderCapacity(s, day)).toBeCloseTo(HERDING.adultShare, 9);
+    // s výrostkem dospělý nepase – výrostek stačí (Martin 19. 10.: málo dětí omezí stáda)
+    s.people.push(person(s, 2, 9, day));
+    expect(adultHerding(s, day, 0)).toBe(0);
+    expect(herderCapacity(s, day)).toBeCloseTo(HERDING.childShare, 9);
+    // bez stád nic
+    s.people.pop();
+    s.livestock!.herds = herds({});
+    expect(adultHerding(s, day, 0)).toBe(0);
+  });
+
+  it('co pase dospělý, se přičte k uhlídanému', () => {
+    const day = at(600, 6, 1);
+    const s = village(day);
+    recordHerding(s, { demand: 0.2, free: 0, freeHerders: { children: 0 } }, 0.15);
+    expect(herdingCoverage(s)).toBeCloseTo(0.15 / 0.2, 9);
+    recordHerding(s, { demand: 0.2, free: 0, freeHerders: { children: 0 } }, 0.5);
+    expect(herdingCoverage(s)).toBeCloseTo(0.35 / 0.4, 9);
   });
 
   it('co pasáci uhlídali, se sčítá od porážky do porážky', () => {
@@ -118,7 +179,8 @@ describe('rovnovážné hospodaření – pasáci (diet.md)', () => {
     const half = winterTargets(s, day, { oxen: 0, hayKg: Infinity, herding: 0.5 });
     // co výrostci neuhlídali, jde na maso (winterTargets – herdingCoverage)
     expect(half.pig).toBeLessThan(watched.pig);
-    expect(half.sheep).toBeLessThan(watched.sheep);
+    // pasáci hlídají v pořadí přednosti – krávy, ovce a kozy napřed (24. 10. 2026)
+    expect(half.sheep).toBeCloseTo(watched.sheep, 9);
     // plán (rovnovážné hospodaření) pasáky nepočítá – ovce napřed nezaberou místo prasatům
     const plan = sizeHerdsToNeed(s, day, watched).keep;
     expect(plan.sheep).toBeGreaterThan(LIVESTOCK.breedingMin);
@@ -139,6 +201,27 @@ describe('simulace – pasáci', () => {
     expect(year.needDays).toBeGreaterThan(0);
     // zakladatelé mají jednoho výrostka (13 let) – 30 krav a 60 ovcí neuhlídá
     expect(year.watchedDays).toBeLessThan(year.needDays);
+  });
+
+  it('ves bez výrostků pase dospělým z práce vsi – na kouscích dopočtu nezávisí', () => {
+    const day = at(600, 5, 1);
+    const s = village(day);
+    s.people = s.people.filter((p) => !isYoungster(p, day) && !isYoungster(p, day + 30));
+    s.livestock!.herds = herds({ cow: 3, sheep: 10 });
+    const next = advanceVillage(s, day + 1, null);
+    expect(next.labor!.herders!.children).toBe(0);
+    const adult = next.labor!.shares.filter((share) => share.activity === 'herding');
+    const manDays = adult.reduce((sum, share) => sum + share.manDays, 0);
+    expect(manDays).toBeGreaterThan(0);
+    expect(manDays).toBeLessThanOrEqual(HERDING.adultShare + 1e-9);
+    const year = next.livestock!.herding!;
+    expect(year.needDays).toBeGreaterThan(0);
+    expect(year.watchedDays).toBeCloseTo(year.needDays, 6);
+    // po kouscích stejně jako jedním voláním
+    const whole = advanceVillage(s, day + 20, null);
+    const pieces = advanceVillage(advanceVillage(s, day + 7, null), day + 20, null);
+    expect(pieces.livestock!.herding).toEqual(whole.livestock!.herding);
+    expect(pieces.livestock!.herds).toEqual(whole.livestock!.herds);
   });
 
   it('po porážce začíná nový rok pasení', () => {

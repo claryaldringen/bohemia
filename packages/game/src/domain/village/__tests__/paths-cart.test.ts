@@ -15,7 +15,8 @@ import {
 } from '../paths/cart';
 import { computePathNetwork, type PathVillage } from '../paths/network';
 import { addRoadCartTrips, roadLengthM, updateRoads, villageCartRoutes } from '../paths/roads';
-import { CART_ROUTES, CART_SPEED } from '../rules';
+import { CART_ROUTES, CART_SPEED, WEAR } from '../rules';
+import { wearAt, wearMap } from '../paths/wear';
 import { advanceVillage } from '../simulate';
 import type { CartKind, Dwelling, Person, Road, VillageState } from '../types';
 import { PATH_WETLAND, type PathTerrain } from '../paths/terrain';
@@ -165,7 +166,31 @@ describe('kudy vůz projede', () => {
     expect(route({ roads: [{ id: 1, points: edge, grade: 'trodden' }] }, into).reached).toBe(false);
   });
 
-  it('čtyřkolák po louce a strništi kamkoli, na zoraný díl ne (wagons.md – Co se vozí a na čem)', () => {
+  it('lesem i po šikmé cestě a jejím ohybu (pás cesty, úhlopříčka po cestě přes roh)', () => {
+    // Vlkov 23. 10. 2026: šikmá cesta lesem byla na mřížce řetěz buněk spojených rohy – vůz
+    // úhlopříčkou přes roh lesa nejel a k vodě po vozové cestě nedojel
+    const bends = [
+      [
+        { x: 0, z: 0 },
+        { x: -95, z: 0 },
+        { x: -135, z: -40 },
+      ],
+      [
+        { x: 0, z: 0 },
+        { x: -95, z: 0 },
+        { x: -112, z: -30 },
+        { x: -138, z: -42 },
+      ],
+    ];
+    for (const axis of bends) {
+      const end = axis[axis.length - 1]!;
+      expect(route({}, end).reached).toBe(false);
+      const road = { id: 1, points: axis, grade: 'trodden' as const };
+      expect(route({ roads: [road] }, end).reached).toBe(true);
+    }
+  });
+
+  it('čtyřkolák po louce a poli kamkoli, pole jako dvoukolák (paths.md – Stálé trasy)', () => {
     const four = (extra: Partial<PathVillage>, target: { x: number; z: number }): CartRoute =>
       cartRoutes({
         village: village(extra),
@@ -173,13 +198,13 @@ describe('kudy vůz projede', () => {
         kind: 'four-wheel',
         depots: [{ x: 0, z: 0 }],
         targets: [{ ...target, reachM: 4 }],
-        fourWheel: true,
       }).routes[0]!;
     // Martin: „Po strništích a loukách může libovolně“ – daleko od ohrady i bez cesty
     const far = { x: 60, z: 40 };
     expect(route({}, far).reached).toBe(true);
     expect(four({}, far).reached).toBe(true);
-    // přes strniště (připravený díl) rovně, zoraný (zakládaný) díl objede – dvoukolák přes něj
+    // stadium dílu nerozhoduje – přes strniště i zakládaný díl táž trasa (Martin 25. 10. 2026:
+    // „Ať je stejná cena jako u dvoukoláku.“)
     const fields = (stage: 'ready' | 'founding'): PathVillage['fields'] => [
       { id: 2, parts: [-15, 0, 15].map((x) => part(x, 52.5, stage)) },
     ];
@@ -187,8 +212,8 @@ describe('kudy vůz projede', () => {
     const stubble = four({ fields: fields('ready') }, behind);
     const ploughed = four({ fields: fields('founding') }, behind);
     expect(stubble.reached && ploughed.reached).toBe(true);
-    expect(ploughed.lengthM).toBeGreaterThan(stubble.lengthM + 10);
-    expect(route({ fields: fields('founding') }, behind).lengthM).toBeLessThan(ploughed.lengthM);
+    expect(ploughed.cells).toEqual(stubble.cells);
+    expect(ploughed.cost).toBe(stubble.cost);
   });
 
   it('přes vodu bez brodu ani po cestě s lávkou (lávka je jen pro pěší)', () => {
@@ -198,20 +223,59 @@ describe('kudy vůz projede', () => {
       { x: 0, z: 0 },
       { x: 0, z: 115 },
     ];
-    expect(route({ roads: [{ id: 1, points: bridge, grade: 'causeway' }] }, across).reached).toBe(
+    expect(route({ roads: [{ id: 1, points: bridge, grade: 'improved' }] }, across).reached).toBe(
       false,
     );
   });
 
-  it('přes osetý díl ne – objede ho; přes úhor rovně', () => {
+  it('osetý díl i úhor stejně – stálá cena pole (paths.md – Stálé trasy)', () => {
     const fields = (stage: 'sown' | 'young-fallow'): PathVillage['fields'] => [
-      { id: 2, parts: [-15, 0, 15].map((x) => part(x - 7.5 + 7.5, 52.5, stage)) },
+      { id: 2, parts: [-15, 0, 15].map((x) => part(x, 52.5, stage)) },
     ];
     const target = { x: 0, z: 70 };
     const sown = route({ fields: fields('sown') }, target);
     const fallow = route({ fields: fields('young-fallow') }, target);
     expect(sown.reached && fallow.reached).toBe(true);
-    expect(sown.lengthM).toBeGreaterThan(fallow.lengthM + 10);
+    expect(sown.cells).toEqual(fallow.cells);
+    expect(sown.cost).toBe(fallow.cost);
+  });
+
+  it('vůz bez jiné cesty projede pole – metr jako 4 m louky (Martin 25. 10. 2026)', () => {
+    // pás dílů přes celou šířku krajiny – objížďka není
+    const wall: PathVillage['fields'] = [
+      {
+        id: 2,
+        parts: Array.from({ length: 42 }, (_, k) =>
+          part(-150 + (k % 21) * 15, 37.5 + Math.floor(k / 21) * 15, 'sown'),
+        ),
+      },
+    ];
+    const target = { x: 0, z: 70 };
+    const across = route({ fields: wall }, target);
+    expect(across.reached).toBe(true);
+    // přes ≈ 30 m pole – každý metr o 3 dráž než louka
+    expect(across.cost).toBeGreaterThan(route({}, target).cost + 60);
+  });
+
+  it('humno vůz objede jako stavbu (production-chains.md – Humno)', () => {
+    // humno 8 × 10 m přes přímou trasu na sever
+    const floor = { id: 5, position: { x: 0, z: 30, rotation: 0 }, built: true };
+    const target = { x: 0, z: 60 };
+    const straight = route({}, target);
+    const around = route({ threshingFloors: [floor] }, target);
+    expect(straight.reached && around.reached).toBe(true);
+    // body trasy po metru (osa má body jen v lomech)
+    const onFloor = (r: CartRoute): boolean =>
+      r.points.slice(1).some((b, k) => {
+        const a = r.points[k]!;
+        const n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z)));
+        return Array.from({ length: n + 1 }, (_, i) => ({
+          x: a.x + ((b.x - a.x) * i) / n,
+          z: a.z + ((b.z - a.z) * i) / n,
+        })).some((p) => Math.abs(p.x) < 4 && Math.abs(p.z - 30) < 5);
+      });
+    expect(onFloor(straight)).toBe(true);
+    expect(onFloor(around)).toBe(false);
   });
 
   it('mezi domy jen kudy se vůz vejde (≈ 2,5 m)', () => {
@@ -250,11 +314,17 @@ describe('rychlost vozu podle povrchu a cesty (wagons.md – Vozová síť, rych
       { id: 1, points: axis(-120), grade: 'trodden' },
       { id: 2, points: axis(-105), grade: 'trodden', cart: true },
       { id: 3, points: axis(-90), grade: 'improved' },
-      { id: 4, points: axis(-75), grade: 'causeway' },
+      { id: 4, points: axis(-75), grade: 'improved' },
       // přes mokřinu (ground.wet 90–120 m od začátku osy = x ∈ [30, 60])
       { id: 5, points: axis(-45), grade: 'trodden', ground: { wet: [[90, 120]], fords: [] } },
-      { id: 6, points: axis(-30), grade: 'causeway', ground: { wet: [[90, 120]], fords: [] } },
-      { id: 7, points: axis(-15), grade: 'improved', ground: { wet: [[90, 120]], fords: [] } },
+      { id: 6, points: axis(-30), grade: 'improved', ground: { wet: [[90, 120]], fords: [] } },
+      {
+        id: 7,
+        points: axis(-15),
+        grade: 'improved',
+        unbridged: true,
+        ground: { wet: [[90, 120]], fords: [] },
+      },
       // vyšlapaná přes zakládaný díl (x = 97,5, z = 7,5) – cesta přebije díl
       { id: 8, points: axis(7.5), grade: 'trodden' },
     ];
@@ -279,21 +349,21 @@ describe('rychlost vozu podle povrchu a cesty (wagons.md – Vozová síť, rych
     close(at(grid, 0, -120), CART_SPEED.road.trodden);
     close(at(grid, 0, -105), CART_SPEED.road.cart);
     close(at(grid, 0, -90), CART_SPEED.road.improved);
-    close(at(grid, 0, -75), CART_SPEED.road.causeway);
+    close(at(grid, 0, -75), CART_SPEED.road.improved);
     // cesta přes mokřinu: vyšlapaná a upravená bahnem jako bez cesty, hať rychle
     close(at(grid, 45, -45), CART_SPEED.wet);
     close(at(grid, 45, -15), CART_SPEED.wet);
-    close(at(grid, 45, -30), CART_SPEED.road.causeway);
+    close(at(grid, 45, -30), CART_SPEED.road.improved);
     // táž cesta mimo mokřinu na ose
     close(at(grid, 0, -45), CART_SPEED.road.trodden);
-    // díly polí
-    close(at(grid, -37.5, 37.5), CART_SPEED.ploughed);
-    close(at(grid, -37.5, 52.5), CART_SPEED.stubble);
-    close(at(grid, -22.5, 37.5), 1);
-    close(at(grid, -22.5, 52.5), 1);
-    expect(at(grid, -7.5, 37.5)).toBe(Infinity);
-    // zoraný díl v mokřině – nejpomalejší z obou
-    close(at(grid, 45, 37.5), Math.min(CART_SPEED.wet, CART_SPEED.ploughed));
+    // díly polí – stálá cena v každém stadiu (paths.md – Stálé trasy)
+    close(at(grid, -37.5, 37.5), CART_SPEED.field);
+    close(at(grid, -37.5, 52.5), CART_SPEED.field);
+    close(at(grid, -22.5, 37.5), CART_SPEED.field);
+    close(at(grid, -22.5, 52.5), CART_SPEED.field);
+    close(at(grid, -7.5, 37.5), CART_SPEED.field);
+    // okraj dílu (úvrať) v mokřině – jako louka v mokřině
+    close(at(grid, 45, 37.5), CART_SPEED.wet);
     // cesta přes zakládaný díl – rychlost cesty
     close(at(grid, 97.5, 7.5), CART_SPEED.road.trodden);
     // pořadí rychlostí (CART_SPEED)
@@ -304,9 +374,11 @@ describe('rychlost vozu podle povrchu a cesty (wagons.md – Vozová síť, rych
       cartRoadSpeed('trodden', true, false),
     );
     expect(cartRoadSpeed('improved', true, false)).toBe(CART_SPEED.road.improved);
-    expect(cartRoadSpeed('causeway', false, true)).toBe(CART_SPEED.road.causeway);
+    expect(cartRoadSpeed('improved', false, true)).toBe(CART_SPEED.road.improved);
+    // upravená bez hatě (`unbridged`) v mokřině jako vyšlapaná – bahno
+    expect(cartRoadSpeed('improved', false, true, 0, true)).toBe(CART_SPEED.wet);
     expect(cartRoadSpeed('trodden', true, true)).toBe(CART_SPEED.wet);
-    expect(cartPartSpeed('sown')).toBe(0);
+    expect(cartPartSpeed('sown')).toBe(CART_SPEED.field);
     expect(cartPartSpeed('shrubs')).toBe(0);
     expect(cartPartSpeed('young-forest')).toBe(0);
   });
@@ -343,7 +415,7 @@ describe('rychlost vozu podle povrchu a cesty (wagons.md – Vozová síť, rych
     const ground = { wet: [[50, 80]] as [number, number][], fords: [] };
     const dry = along({ id: 1, points: line, grade: 'trodden' }, wetTerrain);
     const muddy = along({ id: 1, points: line, grade: 'trodden', ground }, wetTerrain);
-    const causeway = along({ id: 1, points: line, grade: 'causeway', ground }, wetTerrain);
+    const causeway = along({ id: 1, points: line, grade: 'improved', ground }, wetTerrain);
     const none = along(null, wetTerrain);
     expect(causeway.cost).toBeLessThan(muddy.cost);
     expect(muddy.cost).toBeGreaterThan(dry.cost);
@@ -436,21 +508,25 @@ function withCarts(day = NOV1(600) - 30): VillageState {
 }
 
 describe('vyjeté vozové cesty (roční kontrola)', () => {
-  it('kudy vozy dva roky jezdí, vznikne vozová cesta; bez vozů nic', () => {
+  it('jízdy vozů vyšlapou pěšinu (cesta pak vznikne z vyšlapanosti); bez vozů nic', () => {
     const s = withCarts();
     updateRoads(s, NOV1(600), pathLandscape(), null);
+    s.roads!.wear = { day: NOV1(600), cells: '', labor: [] };
     const run = (year: number): void => {
       s.roads!.labor.days = 365;
       addRoadCartTrips(s.roads!, [{ x: 100, z: -110, kind: 'two-wheel', trips: 200 }]);
       updateRoads(s, NOV1(year), pathLandscape(), null);
     };
     run(601);
+    // roční síť vozů už nové cesty nezakládá – jízdy jdou do vyšlapanosti (× WEAR.cartWeight)
     expect(s.roads!.roads.some((r) => r.cart)).toBe(false);
     expect(s.roads!.cartCandidates?.length).toBeGreaterThan(0);
+    const worn = [...wearMap(s.roads!.wear!).values()];
+    expect(worn.length).toBeGreaterThan(0);
+    expect(Math.max(...worn)).toBeGreaterThan(WEAR.visibleFrom);
     run(602);
-    const carts = s.roads!.roads.filter((r) => r.cart);
-    expect(carts.length).toBeGreaterThan(0);
-    expect(carts.every((r) => (r.cartTraffic?.at(-1) ?? 0) > 0)).toBe(true);
+    expect(Math.max(...wearMap(s.roads!.wear!).values())).toBeGreaterThan(WEAR.extendFrom);
+    expect(s.roads!.roads.some((r) => r.cart)).toBe(false);
     // bez vozů (ani ohrady se spřežením) žádná vozová cesta ani stopa ve stavu
     const none = withCarts();
     none.pens = [];
@@ -514,7 +590,6 @@ describe('vyjeté vozové cesty (roční kontrola)', () => {
       nextId: 1,
       roads: [],
       trees: [],
-      candidates: [],
       labor: {
         from: NOV1(600),
         days: 353,
@@ -616,6 +691,7 @@ function cartYears(
   setup(s);
   const landscape = pathLandscape();
   updateRoads(s, NOV1(600), landscape, null);
+  s.roads!.wear = { day: NOV1(600), cells: '', labor: [] };
   s.roads!.roads.push({
     id: 50,
     points,
@@ -636,11 +712,19 @@ function cartYears(
   return { state: s, route };
 }
 
-/** Body trasy vozů, které nevedou po cestě, kterou vozy mají (do 5 m, nebo souběžně do 12 m). */
+/**
+ * Body trasy vozů, které nevedou po žádné cestě (do 12 m) ani po vyšlapané ploše – vozy cesty
+ * nezakládají, jejich jízdy tedy musí aspoň vyšlapat pěšinu nebo vést po cestě.
+ */
 function lostRoute(state: VillageState, route: CartRoute, from: number, to: number): number {
-  const carts = state.roads!.roads.filter((r) => r.cart || r.grade !== 'trodden');
+  const roads = state.roads!.roads;
+  const worn = wearMap(state.roads!.wear!);
   return axisSamples(route).filter(
-    (p) => p.x >= from && p.x <= to && carts.every((r) => axisGap(r, p) > 12),
+    (p) =>
+      p.x >= from &&
+      p.x <= to &&
+      roads.every((r) => axisGap(r, p) > 12) &&
+      wearAt(worn, p.x, p.z) <= 0,
   ).length;
 }
 
@@ -672,7 +756,7 @@ describe('vyježděná cesta – vůz přebije vyšlapanou', () => {
     expect(longestParallel(roads)).toBeLessThan(25);
   }, 60_000);
 
-  it('vozy objíždějí sad kus vedle vyšlapané cesty – osa vozu převezme, souběžná nezůstane', () => {
+  it('vozy objíždějí sad kus vedle vyšlapané cesty – cesty nepřebírají, pěšina se vyšlape po ose vozu', () => {
     // vyšlapaná cesta vede sadem (5 čtverců), vůz sadem neprojede – objede ho souběžně kus vedle
     const { state, route } = cartYears(
       [
@@ -701,18 +785,20 @@ describe('vyježděná cesta – vůz přebije vyšlapanou', () => {
     const beside = axisSamples(route).filter((p) => p.x > 55 && p.x < 100);
     expect(beside.length).toBeGreaterThan(5);
     expect(beside.every((p) => Math.abs(p.z + 22.5) > 5 && Math.abs(p.z + 22.5) <= 12)).toBe(true);
+    // vozy novou cestu nezakládají (vznikne z vyšlapanosti), cestu sadem nepřebírají – souběžný
+    // kus je dlouhý; jízdy kus vedle cesty vyšlapou pěšinu po ose vozů
     const roads = state.roads!.roads;
-    // vyježděná cesta vede kudy vůz, vyšlapaná sadem zmizela, souběžná dvojice nezůstala
-    expect(lostRoute(state, route, -5, 120)).toBe(0);
+    expect(roads.some((r) => r.cart)).toBe(false);
+    expect(roads.map((r) => r.id)).toContain(50);
+    const mid = beside[Math.floor(beside.length / 2)]!;
+    expect(wearAt(wearMap(state.roads!.wear!), mid.x, mid.z)).toBeGreaterThan(0);
+    // trasa vozů nezůstala bez cesty: každý její bod leží u cesty (do 12 m) nebo na vyšlapané ploše
+    expect(lostRoute(state, route, 55, 100)).toBe(0);
+    // vozy nezaložily souběžnou dvojici cest
     expect(longestParallel(roads)).toBeLessThan(25);
-    expect(
-      roads.some((r) =>
-        axisSamples(r).some((p) => p.x > 60 && p.x < 95 && Math.abs(p.z + 22.5) < 1),
-      ),
-    ).toBe(false);
   }, 60_000);
 
-  it('ve svahu vede pěšina rovně a vozy serpentinou – zůstanou obě cesty', () => {
+  it('ve svahu vede pěšina rovně a vozy serpentinou – vozová cesta nevznikne hned, pěšina zůstane', () => {
     const s = withCarts();
     const landscape = SLOPE;
     updateRoads(s, NOV1(600), landscape, null);
@@ -738,6 +824,117 @@ describe('vyježděná cesta – vůz přebije vyšlapanou', () => {
       (r) => !r.cart && r.points.every((p) => Math.abs(p.x + 10) < 0.01),
     );
     expect(straight.reduce((sum, r) => sum + roadLengthM(r), 0)).toBeGreaterThan(40);
-    expect(roads.some((r) => r.cart)).toBe(true);
+    expect(roads.some((r) => r.cart)).toBe(false);
   }, 60_000);
+});
+
+describe('ulička mezi ohradami a hřbitovem (oxen.md – plot je menší než čtverec)', () => {
+  // dvě ohrady vedle sebe: políčka x = 8 a 9 (středy −22,5 a −7,5), hranice na x = −15
+  const penAt = (x: number, id: number): NonNullable<PathVillage['pens']>[number] => ({
+    ...part(x, -7.5),
+    id,
+    built: true,
+  });
+  const costAt = (grid: CartGrid, x: number, z: number): number => {
+    const i = Math.round((x - grid.originX) / grid.cellM);
+    const j = Math.round((z - grid.originZ) / grid.cellM);
+    return grid.cost[j * grid.width + i]!;
+  };
+
+  it('řada buněk na hranici mezi dvěma ohradami je sjízdná, buňky pod plotem ne', () => {
+    const grid = cartGrid({
+      village: village({ pens: [penAt(-22.5, 1), penAt(-7.5, 2)] }),
+      terrain: flatTerrain,
+    });
+    // uvnitř ohrad (plot 1,5 m od okraje) vůz nejede
+    expect(costAt(grid, -22.5, -7.5)).toBe(Infinity);
+    expect(costAt(grid, -7.5, -7.5)).toBe(Infinity);
+    expect(costAt(grid, -18.75, -7.5)).toBe(Infinity);
+    expect(costAt(grid, -11.25, -7.5)).toBe(Infinity);
+    // ulička 3 m na hranici políček: celou délkou ohrad (z −15 … 0) sjízdná
+    for (const z of [-15, -11.25, -7.5, -3.75, 0]) {
+      expect(Number.isFinite(costAt(grid, -15, z)), `z = ${z}`).toBe(true);
+    }
+  });
+
+  it('hřbitov a ohrada vedle sebe mají také uličku; sama ohrada se objíždí jako dřív', () => {
+    const grid = cartGrid({
+      village: village({
+        cemeteries: [{ id: 3, built: true, squares: [part(-22.5, -7.5)] }],
+        pens: [penAt(-7.5, 2)],
+      }),
+      terrain: flatTerrain,
+    });
+    expect(costAt(grid, -22.5, -7.5)).toBe(Infinity);
+    expect(Number.isFinite(costAt(grid, -15, -7.5))).toBe(true);
+    // za vnější stranou plotu je volno (jen 1,5 m pruh u plotu)
+    expect(Number.isFinite(costAt(grid, -30, -7.5))).toBe(true);
+  });
+
+  it('natočené ohrady (30°) mají souvislou uličku, i když mřížka vozů nesedí na hranici', () => {
+    const turn = Math.PI / 6;
+    const c = Math.cos(turn);
+    const sn = Math.sin(turn);
+    // dva hřbitovy vedle sebe v natočené mřížce; několik posunů, aby střed buňky nepadl vždy stejně
+    for (const shift of [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7]) {
+      const x0 = -22.5 + shift;
+      const z0 = -7.5 + shift / 2;
+      const sq = (k: number): ReturnType<typeof part> => ({
+        ...part(x0 + 15 * k * c, z0 - 15 * k * sn),
+        cell: { x: 8 + k, y: 9 },
+        rotation: turn,
+      });
+      const grid = cartGrid({
+        village: village({
+          cemeteries: [
+            { id: 1, built: true, squares: [sq(0)] },
+            { id: 2, built: true, squares: [sq(1)] },
+          ],
+        }),
+        terrain: flatTerrain,
+      });
+      // hranice: bod mezi středy a směr podél ní
+      const mx = x0 + 7.5 * c;
+      const mz = z0 - 7.5 * sn;
+      const near = new Set<number>();
+      for (let j = 0; j < grid.height; j++) {
+        for (let i = 0; i < grid.width; i++) {
+          const x = grid.originX + i * grid.cellM;
+          const z = grid.originZ + j * grid.cellM;
+          const across = Math.abs((x - mx) * c - (z - mz) * sn);
+          const along = (x - mx) * sn + (z - mz) * c;
+          if (
+            across <= 2.7 &&
+            Math.abs(along) <= 7 &&
+            Number.isFinite(grid.cost[j * grid.width + i]!)
+          )
+            near.add(j * grid.width + i);
+        }
+      }
+      // průchod 8 sousedů z jednoho konce uličky na druhý
+      const ends = [...near].sort((a, b) => {
+        const f = (q: number): number =>
+          (grid.originX + (q % grid.width) * grid.cellM - mx) * sn +
+          (grid.originZ + Math.floor(q / grid.width) * grid.cellM - mz) * c;
+        return f(a) - f(b);
+      });
+      const start = ends[0]!;
+      const goal = ends[ends.length - 1]!;
+      const seen = new Set([start]);
+      const queue = [start];
+      while (queue.length > 0) {
+        const q = queue.pop()!;
+        for (const dj of [-1, 0, 1]) {
+          for (const di of [-1, 0, 1]) {
+            const n = q + dj * grid.width + di;
+            if (near.has(n) && !seen.has(n)) {
+              seen.add(n);
+              queue.push(n);
+            }
+          }
+        }
+      }
+      expect(seen.has(goal), `posun ${shift}`).toBe(true);
+    }
+  });
 });

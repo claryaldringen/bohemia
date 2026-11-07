@@ -1,3 +1,15 @@
+import {
+  createRideState,
+  RIDE_HORSE_SCALE,
+  rideArea,
+  rideHorsePose,
+  isAway,
+  isLed,
+  isRiding,
+  ridePlansKey,
+  type RidePlan,
+} from './riders';
+import { createDogState, DOG_SCALE, dogArea, dogPlansKey, dogPose, type DogPlan } from './dogs';
 import '@babylonjs/core/Meshes/thinInstanceMesh';
 import type { Camera } from '@babylonjs/core/Cameras/camera';
 import { BoundingInfo } from '@babylonjs/core/Culling/boundingInfo';
@@ -18,6 +30,13 @@ import {
   type Landscape,
   type Relief,
 } from '@bohemia/game';
+import {
+  CARAVAN_OX_SCALE,
+  caravanAnimalPose,
+  caravanHerds,
+  caravanHerdsKey,
+  type CaravanHerd,
+} from './caravan-cattle';
 import { loadGeometry, writeInstanceMatrix, type FaunaGeometry } from './fauna';
 import {
   chickenArea,
@@ -39,6 +58,7 @@ import {
   grazedMeadow,
   grazedPart,
   grazingDay,
+  grazingHorses,
   herdCounts,
   herderCount,
   lazyWalkable,
@@ -49,10 +69,22 @@ import {
   type LivestockSpecies,
   type LivestockVillage,
   penSquaresOf,
+  threshingSquaresOf,
 } from './livestock-placement';
 import type { StreamCenterline } from './stream-geometry';
 
-const SPECIES: readonly LivestockSpecies[] = ['sheep', 'goat', 'cow', 'pig', 'chicken'];
+const SPECIES: readonly LivestockSpecies[] = [
+  'sheep',
+  'goat',
+  'cow',
+  'pig',
+  'chicken',
+  'horse',
+  'foal',
+  'dog',
+];
+/** Dobytek načtený se vsí; psa (`dog.glb`) až ve vsi se psy (`loadDog`). */
+const HERD_SPECIES = SPECIES.filter((s) => s !== 'dog');
 /** Dál od kamery (m) se zvířata nehýbou – jsou pár pixelů a pohyb by jen zbytečně kreslil. */
 const ANIMATE_RANGE_M = 900;
 /** Po takovém posunu středu vsi (m) se rastr terénu pro zvířata spočítá znovu. */
@@ -75,7 +107,15 @@ export interface LivestockEnvironment {
   baseUrl: string;
   /** Dočetly se modely a zvířata se objevila – překreslit. */
   onLoaded(): void;
+  /**
+   * Okno herního dne (skutečný čas) – dobytek karavan výprav jde v herním čase jako lidé
+   * (caravan.ts); bez hodin null, bez funkce stojí na postupu dne dat.
+   */
+  dayWindow?(day: number): { startMs: number; endMs: number } | null;
 }
+
+/** Co ze scény potřebuje dobytek karavan výprav (trade.md – Dobytek ve třech druzích). */
+type CaravanVillage = Parameters<typeof caravanHerds>[0];
 
 /** Jeden druh: mesh s instancemi, matice a stav pózy (krok, hlava) instancí. */
 interface Kind {
@@ -92,6 +132,18 @@ interface Group {
   /** Připraví čas (stav stáda) a vrátí, kde zvířata právě jsou. */
   prepare(clock: LivestockClock): Area;
   pose(index: number, clock: LivestockClock, out: LivestockPose): LivestockPose;
+  /**
+   * Zvíře teď není vidět (dobytek karavany za krajem mapy nebo na cestě druhým směrem) – zapíše
+   * se s nulovým měřítkem. Bez funkce vidět vždy.
+   */
+  hidden?(index: number, clock: LivestockClock): boolean;
+  /**
+   * Skupina teď stojí (jezdecký kůň u kůlu – riders.ts): jednou se zapíše a dál se nepřekresluje.
+   * Bez funkce se hýbe vždy.
+   */
+  still?(clock: LivestockClock): boolean;
+  /** Stojící skupina je zapsaná (`still`). */
+  settled?: boolean;
   /** Kde byla zvířata naposled zapsaná – i odtud je musí kamera „pustit“. */
   written: BoundingInfo | null;
   current: BoundingInfo;
@@ -111,12 +163,26 @@ export class VillageLivestock {
   private walk: ((x: number, z: number) => boolean) | null = null;
   private village: LivestockVillage | null = null;
   private key = '';
+  /** Dobytek karavan výprav a jeho klíč (trade.md – Dobytek ve třech druzích). */
+  private caravans: CaravanHerd[] = [];
+  private caravansKey = '';
+  /** Jízdy dne (riders.ts – z plánu postav) a jejich klíč. */
+  private rides: readonly RidePlan[] = [];
+  private ridesKey = '';
+  /** Psi dvorce dne (dogs.ts – z plánu postav) a jejich klíč. */
+  private dogs: readonly DogPlan[] = [];
+  private dogsKey = '';
+  /** Poslední rozmístění kuřat a stád – dobytek karavan ho nepřeplánuje. */
+  private plan: { chickens: ReturnType<typeof planLivestock>['chickens']; herds: Herd[] } | null =
+    null;
   private groups: Group[] = [];
   /** Stáda posledního rozmístění – nová stáda po přepočtu zůstanou na své pastvině. */
   private herds: Herd[] = [];
   private readonly kinds = new Map<LivestockSpecies, Kind>();
   private geometries: Map<LivestockSpecies, FaunaGeometry> | null = null;
   private loading: Promise<void> | null = null;
+  private dogLoading: Promise<void> | null = null;
+  private dogGeometry: FaunaGeometry | null = null;
   private readonly pose = createLivestockPose();
   private disposed = false;
 
@@ -129,14 +195,50 @@ export class VillageLivestock {
    * Zvířata podle vsi – rozmístění se přepočítá, jen když se změnila obydlí, pole nebo
    * hřbitovy. Vrátí true, když se ve scéně něco změnilo (je co překreslit).
    */
-  update(village: LivestockVillage, nowMs: number): boolean {
+  update(village: LivestockVillage & CaravanVillage, nowMs: number): boolean {
     if (this.disposed) return false;
     const key = villageKey(village);
-    if (key === this.key) return false;
+    // dobytek karavan výprav (trade.md – Dobytek ve třech druzích) – jen přidá skupiny
+    const caravans = caravanHerds(village);
+    const caravansKey = caravanHerdsKey(caravans);
+    if (key === this.key && caravansKey === this.caravansKey) return false;
+    const replan = key !== this.key;
     this.key = key;
+    this.caravansKey = caravansKey;
+    this.caravans = caravans;
     this.village = village;
-    if (village.dwellings.some((d) => d.built)) void this.load();
-    return this.rebuild(nowMs);
+    if (village.dwellings.some((d) => d.built) || caravans.length > 0) void this.load();
+    return this.rebuild(nowMs, replan);
+  }
+
+  /**
+   * Jezdečtí koně dne (riders.ts – plány jízd z plánu postav, villagers.ts `rides`). Vrátí true,
+   * když se ve scéně něco změnilo.
+   */
+  setRides(rides: readonly RidePlan[], nowMs: number): boolean {
+    if (this.disposed) return false;
+    const key = ridePlansKey(rides);
+    if (key === this.ridesKey) return false;
+    this.ridesKey = key;
+    this.rides = rides;
+    return this.rebuild(nowMs, false);
+  }
+
+  /**
+   * Psi dvorce dne (dogs.ts – plány psů z plánu postav, villagers.ts `dogs`). Vrátí true, když se
+   * ve scéně něco změnilo.
+   */
+  setDogs(dogs: readonly DogPlan[], nowMs: number): boolean {
+    if (this.disposed) return false;
+    const key = dogPlansKey(dogs);
+    if (key === this.dogsKey) return false;
+    this.dogsKey = key;
+    this.dogs = dogs;
+    if (dogs.length > 0) {
+      void this.load();
+      void this.loadDog();
+    }
+    return this.rebuild(nowMs, false);
   }
 
   /**
@@ -148,6 +250,9 @@ export class VillageLivestock {
     const clock = this.clock(nowMs);
     let moved = false;
     for (const group of this.groups) {
+      // stojící jezdecký kůň se zapíše jednou – nastaví překreslení jen jedoucí
+      const still = group.still?.(clock) ?? false;
+      if (still && group.settled) continue;
       const area = group.prepare(clock);
       this.setBounds(group.current, area);
       if (camera) {
@@ -159,6 +264,7 @@ export class VillageLivestock {
         if (Vector3.Distance(camera.globalPosition, center) > ANIMATE_RANGE_M) continue;
       }
       this.writeGroup(group, clock);
+      group.settled = still;
       moved = true;
     }
     for (const kind of this.kinds.values()) {
@@ -198,6 +304,12 @@ export class VillageLivestock {
     return { walkable: walk };
   }
 
+  /** Je bod na schůdné souši (ne voda, ne strmý svah)? Bez obydlí nezávisle na vsi. */
+  isWalkable(x: number, z: number): boolean {
+    this.walk ??= lazyWalkable(this.env.landscape, this.env);
+    return this.walk(x, z);
+  }
+
   /**
    * Terén kolem vsi (rastr schůdné země, luk a okraje lesa pro zvířata). Bez obydlí null.
    */
@@ -222,8 +334,11 @@ export class VillageLivestock {
     return livestockClock(nowMs);
   }
 
-  /** Nové rozmístění podle poslední vsi (po změně vsi a po načtení modelů). */
-  private rebuild(nowMs: number): boolean {
+  /**
+   * Nové rozmístění podle poslední vsi (po změně vsi a po načtení modelů); `replan` false –
+   * změnil se jen dobytek karavan, kuřata a stáda zůstanou, jak byla rozmístěná.
+   */
+  private rebuild(nowMs: number, replan = true): boolean {
     const village = this.village;
     if (!village || !this.geometries) {
       const had = this.groups.length > 0;
@@ -231,22 +346,26 @@ export class VillageLivestock {
       for (const kind of this.kinds.values()) kind.mesh.setEnabled(false);
       return had;
     }
-    const built = village.dwellings.filter((d) => d.built);
-    const planned =
-      built.length > 0
-        ? planLivestock(village, this.groundAround(built), villageSeed(this.env.landscape))
-        : { chickens: [], herds: [] };
-    // Stádo stejného druhu a pořadí zůstane na pastvině, kde právě je (když ji nová trasa má).
     const clock = this.clock(nowMs);
-    const plan = {
-      ...planned,
-      herds: planned.herds.map((herd) => {
-        const same = (h: Herd): boolean => h.kind === herd.kind && h.tended === herd.tended;
-        const sameKind = planned.herds.filter(same);
-        const previous = this.herds.filter(same)[sameKind.indexOf(herd)];
-        return previous ? keepRouteSpot(previous, herd, clock) : herd;
-      }),
-    };
+    let plan = this.plan;
+    if (replan || !plan) {
+      const built = village.dwellings.filter((d) => d.built);
+      const planned =
+        built.length > 0
+          ? planLivestock(village, this.groundAround(built), villageSeed(this.env.landscape))
+          : { chickens: [], herds: [] };
+      // Stádo stejného druhu a pořadí zůstane na pastvině, kde právě je (když ji nová trasa má).
+      plan = {
+        chickens: planned.chickens,
+        herds: planned.herds.map((herd) => {
+          const same = (h: Herd): boolean => h.kind === herd.kind && h.tended === herd.tended;
+          const sameKind = planned.herds.filter(same);
+          const previous = this.herds.filter(same)[sameKind.indexOf(herd)];
+          return previous ? keepRouteSpot(previous, herd, clock) : herd;
+        }),
+      };
+      this.plan = plan;
+    }
     this.herds = plan.herds;
 
     const counts = new Map<LivestockSpecies, number>();
@@ -289,6 +408,69 @@ export class VillageLivestock {
         })),
         prepare: (clock) => herdArea(herd, herdState(herd, clock, state)),
         pose: (index, clock, out) => herdAnimalPose(herd, index, clock, state, out),
+        written: null,
+        current: new BoundingInfo(Vector3.Zero(), Vector3.Zero()),
+      });
+    }
+    // dobytek karavan výprav – krávy i voli modelem krávy (vůl o kus větší) po zemské stezce
+    for (const herd of this.caravans) {
+      const area = herd.area;
+      addArea('cow', area);
+      const shown = herd.animals.map(() => true);
+      const window = this.env.dayWindow?.(herd.expedition.startDay ?? herd.expedition.day) ?? null;
+      groups.push({
+        members: herd.animals.map((a) => ({
+          species: 'cow',
+          slot: slot('cow'),
+          scale: a.animal.kind === 'ox' ? CARAVAN_OX_SCALE : 1,
+        })),
+        prepare: () => area,
+        pose: (index, clock, out) => {
+          shown[index] = caravanAnimalPose(herd, index, window, clock, out);
+          return out;
+        },
+        hidden: (index) => !shown[index],
+        written: null,
+        current: new BoundingInfo(Vector3.Zero(), Vector3.Zero()),
+      });
+    }
+
+    // jezdečtí koně dne (horses.md – Ve scéně; riders.ts) – na trase objížďky, u kůlu, cestou z ohrady
+    // ke kůlu a zpět (`RidePlan.lead`)
+    for (const plan of this.rides) {
+      const area = rideArea(plan);
+      addArea('horse', area);
+      const state = createRideState();
+      // uvázaný kůň (kování u branky – shoeing-plan.ts) stojí, ale když přijde ke kůlu nebo
+      // odejde do ohrady, zapíše se znovu (`written` – zapsaný stav)
+      let written: boolean | null = null;
+      groups.push({
+        members: [{ species: 'horse', slot: slot('horse'), scale: RIDE_HORSE_SCALE }],
+        prepare: () => area,
+        pose: (_index, clock, out) => {
+          written = isAway(plan, clock.seconds);
+          return rideHorsePose(plan, clock.seconds, state, out);
+        },
+        // mimo blok jízdy a mimo kůl je kůň v ohradě (village-pens.ts) – tady se nekreslí
+        still: (clock) =>
+          !isRiding(plan, clock.seconds) &&
+          !isLed(plan, clock.seconds) &&
+          isAway(plan, clock.seconds) === written,
+        hidden: (_index, clock) => !isAway(plan, clock.seconds),
+        written: null,
+        current: new BoundingInfo(Vector3.Zero(), Vector3.Zero()),
+      });
+    }
+
+    // psi dvorce (wildlife.md – Psi; dogs.ts) – u dvorce, s lovci, s hlídkou
+    for (const plan of this.dogs) {
+      const area = dogArea(plan);
+      addArea('dog', area);
+      const state = createDogState();
+      groups.push({
+        members: [{ species: 'dog', slot: slot('dog'), scale: DOG_SCALE }],
+        prepare: () => area,
+        pose: (_index, clock, out) => dogPose(plan, clock.seconds, state, out),
         written: null,
         current: new BoundingInfo(Vector3.Zero(), Vector3.Zero()),
       });
@@ -343,53 +525,45 @@ export class VillageLivestock {
   private load(): Promise<void> {
     this.loading ??= (async (): Promise<void> => {
       const results = await Promise.allSettled(
-        SPECIES.map((species) => loadGeometry(this.scene, `${this.env.baseUrl}${species}.glb`)),
+        HERD_SPECIES.map((species) =>
+          loadGeometry(this.scene, `${this.env.baseUrl}${species}.glb`),
+        ),
       );
       const geometries = new Map<LivestockSpecies, FaunaGeometry>();
       results.forEach((result, i) => {
         if (result.status === 'fulfilled' && result.value) {
-          geometries.set(SPECIES[i]!, standOnGround(result.value));
+          geometries.set(HERD_SPECIES[i]!, standOnGround(result.value));
         } else if (result.status === 'rejected') {
-          console.warn(`Model zvířete ${SPECIES[i]} se nepodařilo načíst.`, result.reason);
+          console.warn(`Model zvířete ${HERD_SPECIES[i]} se nepodařilo načíst.`, result.reason);
         }
       });
       if (this.disposed) return;
+      if (this.dogGeometry) geometries.set('dog', this.dogGeometry);
       this.geometries = geometries;
       if (this.rebuild(Date.now())) this.env.onLoaded();
     })();
     return this.loading;
   }
 
-  private createKind(species: LivestockSpecies, geometry: FaunaGeometry): Kind {
-    // Jméno mimo předpony vrhačů stínů (trees-, impostors-, decor-) – stínová mapa je statická.
-    const mesh = new Mesh(`livestock-${species}`, this.scene);
-    geometry.vertexData.applyToMesh(mesh);
-    mesh.setVerticesData('livestockKeyA', geometry.keyA, false, 3);
-    mesh.setVerticesData('livestockKeyB', geometry.keyB, false, 3);
-    mesh.setVerticesData(
-      'livestockKeyC',
-      geometry.keyC ?? new Float32Array(geometry.keyA.length),
-      false,
-      3,
-    );
-    mesh.isPickable = false;
-    mesh.doNotSyncBoundingInfo = true;
-    mesh.freezeWorldMatrix();
+  /** Model psa – líně, až když má ves psy (wildlife.md – Psi). */
+  private loadDog(): Promise<void> {
+    this.dogLoading ??= (async (): Promise<void> => {
+      try {
+        const geometry = await loadGeometry(this.scene, `${this.env.baseUrl}dog.glb`);
+        if (geometry) this.dogGeometry = standOnGround(geometry);
+      } catch (error) {
+        console.warn('Model zvířete dog se nepodařilo načíst.', error);
+      }
+      if (this.disposed || !this.dogGeometry || !this.geometries) return;
+      this.geometries.set('dog', this.dogGeometry);
+      if (this.rebuild(Date.now())) this.env.onLoaded();
+    })();
+    return this.dogLoading;
+  }
 
-    const material = new StandardMaterial(`livestock-${species}-material`, this.scene);
-    // Bez mipmap jako u ryb a ptáků: ostrůvky textury leží na černém pozadí, nejmenší mipmapa
-    // by zvíře z dálky ztmavila.
-    geometry.texture?.updateSamplingMode(Constants.TEXTURE_BILINEAR_SAMPLINGMODE);
-    material.diffuseTexture = geometry.texture;
-    material.specularColor = Color3.Black();
-    // Uši, ocasy a hřebínky jsou jednoduché plochy – kreslí se z obou stran.
-    material.backFaceCulling = false;
-    material.twoSidedLighting = true;
-    // Textura se čte v barvách obrazovky (`loadGeometry`) – StandardMaterial ji bere tak, jak je.
-    new LivestockPlugin(material);
-    mesh.material = material;
+  private createKind(species: LivestockSpecies, geometry: FaunaGeometry): Kind {
     return {
-      mesh,
+      mesh: createAnimalMesh(this.scene, `livestock-${species}`, geometry),
       matrices: new Float32Array(0),
       states: new Float32Array(0),
       count: 0,
@@ -404,34 +578,8 @@ export class VillageLivestock {
       const kind = this.kinds.get(member.species);
       if (!kind) return;
       const pose = group.pose(index, clock, this.pose);
-      const { x, z } = pose;
-      const e = SLOPE_STEP_M;
-      const gx = (height(x + e, z) - height(x - e, z)) / (2 * e);
-      const gz = (height(x, z + e) - height(x, z - e)) / (2 * e);
-      // Dopředu podél svahu (hlava do kopce výš), do strany jen částečně.
-      const fy = gx * pose.forwardX + gz * pose.forwardZ;
-      const length = Math.hypot(pose.forwardX, fy, pose.forwardZ);
-      const nx = -gx;
-      const nz = -gz;
-      const nLength = Math.hypot(nx, 1, nz);
-      writeInstanceMatrix(
-        kind.matrices,
-        member.slot,
-        {
-          x,
-          y: height(x, z),
-          z,
-          forwardX: pose.forwardX / length,
-          forwardY: fy / length,
-          forwardZ: pose.forwardZ / length,
-          tiltX: (nx / nLength) * SIDE_TILT,
-          tiltZ: (nz / nLength) * SIDE_TILT,
-        },
-        member.scale,
-      );
-      kind.states[member.slot * 2] = pose.stride;
-      kind.states[member.slot * 2 + 1] = pose.head;
-      kind.dirty = true;
+      const scale = group.hidden?.(index, clock) ? 0 : member.scale;
+      writeAnimalPose(kind, member.slot, pose, scale, height);
     });
     const written = group.written ?? new BoundingInfo(Vector3.Zero(), Vector3.Zero());
     written.reConstruct(group.current.minimum, group.current.maximum);
@@ -457,6 +605,82 @@ export class VillageLivestock {
       new Vector3(area.maxX, high + HEAD_ROOM_M, area.maxZ),
     );
   }
+}
+
+/**
+ * Mesh zvířete s klíčovými pózami jako vertex atributy (krok, krok, hlava dolů) a materiálem
+ * s `LivestockPlugin` – dobytek i divoká zvěř (wildlife.ts). Instance a stav přidá volající.
+ */
+export function createAnimalMesh(scene: Scene, name: string, geometry: FaunaGeometry): Mesh {
+  // Jméno mimo předpony vrhačů stínů (trees-, impostors-, decor-) – stínová mapa je statická.
+  const mesh = new Mesh(name, scene);
+  geometry.vertexData.applyToMesh(mesh);
+  mesh.setVerticesData('livestockKeyA', geometry.keyA, false, 3);
+  mesh.setVerticesData('livestockKeyB', geometry.keyB, false, 3);
+  mesh.setVerticesData(
+    'livestockKeyC',
+    geometry.keyC ?? new Float32Array(geometry.keyA.length),
+    false,
+    3,
+  );
+  mesh.isPickable = false;
+  mesh.doNotSyncBoundingInfo = true;
+  mesh.freezeWorldMatrix();
+
+  const material = new StandardMaterial(`${name}-material`, scene);
+  // Bez mipmap jako u ryb a ptáků: ostrůvky textury leží na černém pozadí, nejmenší mipmapa
+  // by zvíře z dálky ztmavila.
+  geometry.texture?.updateSamplingMode(Constants.TEXTURE_BILINEAR_SAMPLINGMODE);
+  material.diffuseTexture = geometry.texture;
+  material.specularColor = Color3.Black();
+  // Uši, ocasy a hřebínky jsou jednoduché plochy – kreslí se z obou stran.
+  material.backFaceCulling = false;
+  material.twoSidedLighting = true;
+  // Textura se čte v barvách obrazovky (`loadGeometry`) – StandardMaterial ji bere tak, jak je.
+  new LivestockPlugin(material);
+  mesh.material = material;
+  return mesh;
+}
+
+/**
+ * Zapíše pózu zvířete do instancí (matice a stav kroku a hlavy) – výška a náklon podle terénu
+ * pod ním (`height`). Nulové měřítko = zvíře není vidět.
+ */
+export function writeAnimalPose(
+  kind: { matrices: Float32Array; states: Float32Array; dirty: boolean },
+  slot: number,
+  pose: LivestockPose,
+  scale: number,
+  height: (x: number, z: number) => number,
+): void {
+  const { x, z } = pose;
+  const e = SLOPE_STEP_M;
+  const gx = (height(x + e, z) - height(x - e, z)) / (2 * e);
+  const gz = (height(x, z + e) - height(x, z - e)) / (2 * e);
+  // Dopředu podél svahu (hlava do kopce výš), do strany jen částečně.
+  const fy = gx * pose.forwardX + gz * pose.forwardZ;
+  const length = Math.hypot(pose.forwardX, fy, pose.forwardZ);
+  const nx = -gx;
+  const nz = -gz;
+  const nLength = Math.hypot(nx, 1, nz);
+  writeInstanceMatrix(
+    kind.matrices,
+    slot,
+    {
+      x,
+      y: height(x, z),
+      z,
+      forwardX: pose.forwardX / length,
+      forwardY: fy / length,
+      forwardZ: pose.forwardZ / length,
+      tiltX: (nx / nLength) * SIDE_TILT,
+      tiltZ: (nz / nLength) * SIDE_TILT,
+    },
+    scale,
+  );
+  kind.states[slot * 2] = pose.stride;
+  kind.states[slot * 2 + 1] = pose.head;
+  kind.dirty = true;
 }
 
 /**
@@ -488,12 +712,14 @@ function villageKey(village: LivestockVillage): string {
     ...(village.cemeteries ?? []).flatMap((c) => c.squares),
     ...(village.orchards ?? []).flatMap((o) => o.squares),
     ...(village.pens ?? []).flatMap(penSquaresOf),
+    ...threshingSquaresOf(village),
   ].map(
     (s) => `${s.x.toFixed(1)},${s.z.toFixed(1)}${s.rotation ? `@${s.rotation.toFixed(3)}` : ''}`,
   );
   // skutečné počty stád (diet.md) – narození, porážka a krávy v ohradě přeplánují stáda
   const counts = herdCounts(village);
-  const herds = `${counts.sheep},${counts.goat},${counts.pig},${counts.cow}`;
+  const horses = grazingHorses(village).map((h) => `${h.id}${h.kind[0]}`);
+  const herds = `${counts.sheep},${counts.goat},${counts.pig},${counts.cow},${horses.join('.')}`;
   return `${dwellings.join(';')}|${parts.join(';')}|${meadows.join(';')}|${squares.join(';')}|${herds}|${herders}`;
 }
 

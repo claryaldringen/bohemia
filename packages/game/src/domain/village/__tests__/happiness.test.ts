@@ -15,8 +15,9 @@ import {
   villageHappiness,
   villageLaborFactor,
   windowEndDay,
+  deathPointsFor,
 } from '../happiness';
-import { WINDOWS } from '../rules';
+import { ORCHARD_WINDOWS, WINDOWS } from '../rules';
 import { advanceVillage } from '../simulate';
 import { summarizeVillage } from '../summary';
 import type { VillageState } from '../types';
@@ -100,11 +101,12 @@ describe('štěstí – čísla z návrhu', () => {
     expect(isToilDay([], 0, DAY)).toBe(false);
   });
 
-  it('konec okna: kopání v říjnu do 30. 11., výmlat v prosinci do konce února, mimo okno null', () => {
+  it('konec okna: kopání v říjnu do 30. 11., péče o sad v prosinci do konce února, mimo okno null', () => {
     expect(windowEndDay(WINDOWS.dig, at(600, 10, 5))).toBe(at(600, 11, 30));
     expect(windowEndDay(WINDOWS.dig, at(601, 3, 5))).toBe(at(601, 4, 30));
-    expect(windowEndDay(WINDOWS.thresh, at(600, 12, 5))).toBe(at(601, 2, 28));
-    expect(windowEndDay(WINDOWS.thresh, at(601, 1, 5))).toBe(at(601, 2, 28));
+    expect(windowEndDay(ORCHARD_WINDOWS.care, at(600, 12, 5))).toBe(at(601, 2, 28));
+    expect(windowEndDay(ORCHARD_WINDOWS.care, at(601, 1, 5))).toBe(at(601, 2, 28));
+    expect(windowEndDay(WINDOWS.thresh, at(600, 9, 5))).toBe(at(600, 9, 30));
     expect(windowEndDay(WINDOWS.sow, at(600, 10, 5))).toBeNull();
   });
 });
@@ -150,6 +152,28 @@ describe('štěstí ve vsi', () => {
     expect(s.happiness!.deaths).toEqual([]);
     expect(s.happiness!.toil).toHaveLength(60);
     expect(toilPenalty(s.happiness!.toil)).toBe(0);
+  });
+
+  it('body za úmrtí klesají s věkem, bez věku podle skupiny, součet nejvýš 20', () => {
+    const at = (age: number): number => deathPointsFor({ group: 'adult', age });
+    expect(at(0)).toBe(5);
+    expect(at(30)).toBeCloseTo(3.2, 9);
+    expect(at(75)).toBe(0.5);
+    expect(at(90)).toBe(0.5);
+    expect(deathPointsFor({ group: 'child' })).toBe(5);
+    expect(deathPointsFor({ group: 'elder' })).toBe(3);
+    const s = village();
+    updateHappiness(s, DAY, {
+      satiation: 1,
+      events: Array.from({ length: 10 }, () => ({
+        day: DAY,
+        kind: 'death' as const,
+        group: 'child' as const,
+        age: 0,
+      })),
+      toil: false,
+    });
+    expect(happinessFactors(s, DAY, 1).deaths).toBe(20);
   });
 
   it('přeplněnost: podíl lidí v přeplněných obydlích × 15', () => {

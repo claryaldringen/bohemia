@@ -1,7 +1,9 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { DIRECTIONS, type TrailOption } from '@bohemia/game';
+import type { ManorMember } from '@/lib/manor-view';
 import { ManorUpgrades, TrailCompass } from '../ManorPanel';
+import { DwellingResidents } from '../selection/dwelling';
 
 // Dvorec vojvody v panelu výběru (trade.md – Co hráč vidí): vylepšení vsi ikonami, růžice stezek
 // do 8 směrů s cenou v popisku a zašedlé s důvodem.
@@ -81,16 +83,74 @@ describe('růžice zemských stezek', () => {
 
 describe('vylepšení vsi ve dvorci', () => {
   it('stezka a obchod; obchod bez hotové stezky zašedlý s důvodem', () => {
-    const none = trails.map((t) => ({ ...t, status: 'none' as const }));
     const html = renderToStaticMarkup(
-      <ManorUpgrades manor={{ dwellingId: 1, trails: none, neighbours: [] }} trade={() => null} />,
+      <ManorUpgrades
+        manor={{
+          dwellingId: 1,
+          stance: 'flee',
+          huntDenied: null,
+          trailBuilt: false,
+          neighbours: [],
+        }}
+        trade={() => null}
+      />,
     );
     expect(html).toContain('data-testid="manor-trail"');
     expect(button(html, 'manor-trade')).toContain('disabled=""');
     expect(html).toContain('Nejdřív je potřeba postavit zemskou stezku.');
     const built = renderToStaticMarkup(
-      <ManorUpgrades manor={{ dwellingId: 1, trails, neighbours: [] }} trade={() => null} />,
+      <ManorUpgrades
+        manor={{
+          dwellingId: 1,
+          stance: 'flee',
+          huntDenied: null,
+          trailBuilt: trails.some((t) => t.status === 'built'),
+          neighbours: [],
+        }}
+        trade={() => null}
+      />,
     );
     expect(button(built, 'manor-trade')).not.toContain('disabled=""');
+  });
+});
+
+describe('rodina ve dvorci (lord.md – Co hráč vidí)', () => {
+  const member = (over: Partial<ManorMember>): ManorMember => ({
+    id: 1,
+    portrait: 'man',
+    role: 'Vojvoda',
+    age: 42,
+    arms: { bow: 64, combat: 51, riding: 38 },
+    horse: true,
+    ...over,
+  });
+  const html = renderToStaticMarkup(
+    <DwellingResidents
+      residents={[
+        member({}),
+        member({
+          id: 2,
+          portrait: 'woman',
+          role: 'Vojvodova žena',
+          age: 39,
+          arms: null,
+          horse: false,
+        }),
+        member({
+          id: 3,
+          role: 'Syn vojvody',
+          age: 16,
+          arms: { bow: 20, combat: 5, riding: 0 },
+          horse: false,
+        }),
+      ]}
+    />,
+  );
+
+  it('panel dvorce dovednosti neukazuje – ty jsou v panelu vybrané osoby', () => {
+    expect(html).toContain('data-testid="resident-1"');
+    expect(html).toContain('data-testid="resident-2"');
+    expect(html).not.toContain('manor-arms-');
+    expect(html).not.toContain('Lukostřelba');
   });
 });

@@ -78,6 +78,12 @@ serpentiny.“ Vozy vyrábí nový řemeslník **tesař** (Martin).
   hromadu a ke stavbám, **zboží obchodní výpravy** po stezce. Vůz ušetří práci nošení jen tam,
   kam **dojede vozová cesta**; jinam se nosí jako dnes. Bez vozu (nebo bez spřežení) vše jako
   dnes.
+  **Ve scéně jede vůz se snopy s hotovým humnem z pole k humnu**
+  (návrh Clauda, Martin 31. 10. 2026 „do návrhu scény“; ve hře od 1. 11. 2026): prázdný k poli,
+  nakládá, plný k humnu (zastaví do 9 m od středu mlatu), skládá a prázdný zpět k ohradě – tempem
+  volů 0,85 m/s ve skutečném čase jako ostatní jízdy ([villagers.md](villagers.md) – Fáze
+  činností, Bez časosběru). Bez humna plný zpět k ohradě. Jen scéna – počty a čas svozu řídí
+  simulace.
 - **Obchod:** výprava s vozem potřebuje méně lidí (honák a pomocník na vůz místo nosičů po 25 kg)
   – jen po stezce, která je pro vozy sjízdná (sklon, brody, hať).
 
@@ -123,20 +129,58 @@ níž je návrh Clauda, čísla v `CART_JOBS` (`rules.ts`).
 - **Spřežení doma:** jako svoz – dvoukolák se spřežením, které neorá ani nejede s výpravou;
   čtyřkolák jezdí jen s výpravami. Za den nejvýš 8 jízd (CARTS.loadsPerCartDay) a co se vejde do
   10hodinového dne – voli jdou s vozem ≈ 0,8 m/s po louce, po cestě rychleji (vozová síť).
+- **Voda ráno ve dny orby (24. 10. 2026):** Martin 24. 10. 2026 („Rozhodne ekonomika“) – ve
+  dny orby si ves spočítá, co se víc vyplatí: orat celý den, nebo ráno svézt vodu vozem a orat
+  o tolik méně. Pravidlo (návrh Clauda, čísla `MORNING_WATER`):
+  1. **Kdy:** ráno dne, z plánu dne (deterministicky) – jen když dnes vodu neveze vůz se zbylými
+     voly a doma je vůz a pár u rádla. **Od 24. 10. 2026 jen pár doma** (návrh Clauda podle
+     Martina – [oxen.md](oxen.md), Spřežení zůstane na poli): spřežení zůstává na poli, dokud
+     nezorá, co okno potřebuje, takže ráno doma je pár jen v den výjezdu z ohrady; pár na poli
+     vodu nesveze a voda se ty dny nosí (nebo ji veze vůz se zbylými voly). „Rozhodne ekonomika“
+     platí dál pro dny, kdy pár doma je. Osev navíc (fields.md) bere spřežení až po vodě – jako
+     práci, která zbude, dostane jen zbytek dne rádel.
+  2. **Jízda:** jeden pár od rádla zapřáhne vůz (čtyřkolák pár, dvoukolák jednoho vola – druhý
+     bez páru neorá) a sveze vodu jako jindy (`waterCartPlan`, levnější vůz). Jízdy zaberou
+     **podíl dne páru** = jízdy ÷ jízdy vozu za den; nejvýš **čtvrtina dne** – víc už není ráno.
+  3. **Přínos:** ušetřená chůze s vědry − práce posádky (čd lidí dnes).
+  4. **Odložená orba:** o kolik méně rádla dnes zorají (čd) – orba, kterou ves dnes opravdu
+     naplánovala (po rozdělení práce, ne podle toho, že úloha orby existuje), plus podíl dne páru
+     u vody nad dnešní kapacitu rádel. Dny bez orby (lidé mají přednější úlohy) nebo s malým
+     kouskem orby voda nic nestojí – voli by stáli.
+  5. **Cena a porovnání:** odložená orba se neztratí, dorovná se v dalších dnech okna – stojí jen
+     riziko, že se osev nestihne. Cena = odložená orba (čd) × `riziko`. Riziko se měří proti
+     **skutečnému tempu orby** (nejmenší z kapacity rádel a dnes naplánované orby – omezují ji
+     rádla i lidé; pomoc rodiny jen u setí se nepočítá): `r` = zbytek orby okna (po dnešní orbě,
+     napřed plodina s dřívějším koncem okna, součtem) ÷ orba, kterou ves do konce okna tímto
+     tempem zvládne. Do **polovičního** `r` (rezerva) je riziko 0, nad tím roste
+     (r − 0,5) ÷ (1 − r) a při `r ≥ 1` je nekonečné – osev by se nestihl, **orba má přednost**.
+     **Voda vyhraje, když přínos > cena.** Nejhorší okno rozhoduje; když se osev nestihne ani bez
+     zkrácení orby a rádla jedou naplno, plán vody se ani nepočítá.
+  6. Ostatní jízdy (svoz, osivo, uhlí, ruda, klády) ve dny orby dál jen se zbylými voly.
+  7. **Vlkov** (2 voli = jeden pár, čtyřkolák, 10 domácností 300–540 m od vody; rok od 20. 3.):
+     pár u vody ≈ 3 % dne, přínos ≈ 0,12 čd denně (chůze 0,17 − posádka 0,05). Voda vozem
+     **239 → 256 dní z 365**: nově 1.–4. 9. a 1.–4. 3. (orba 0 – voli stáli) a jarní orba
+     5.–10. 3. (okno do konce dubna má rezervu, cena 0 – rádla zorají ≈ 1,79 místo 1,85 čd denně).
+     Podzimní orba 5. 9. – listopad zůstává celá u rádel: okno ozimu nemá rezervu a cena odložené orby převýší přínos (ani dřív se
+     orba ozimu do 31. 10. nestihla celá). Orba a setí po měsících i nedodělky na konci oken
+     stejné jako dřív.
 - **Dosah:** vůz jede jen tam, kam ho pustí vozová síť – k milíři do 12 m (milíř u skácených buků v lese jen po
   pevné cestě), k rudišti do 12 m, na suchý břeh u vody (z 40 břehů nejblíž ohradě ten, kam sjede nejlevněji),
   k dílům s osivem jako ke snopům. Kam nedojede, nosí se jako dřív.
 - **Jen když ušetří práci** – vůz pro uhlí a rudu, když je jízda levnější než nošení v koších
   kovářovou domácností, pro vodu
   domácnostem, kterým je jízda levnější než chůze s vědry (anti-cíl: vůz, který práci neušetří).
-- **Vyjeté cesty:** jízdy pro uhlí, rudu, s osivem i pro vodu se počítají do ročního provozu cest
-  jako svoz – k vodě, k milíři a k rudišti mohou vzniknout vyježděné cesty.
+- **Vyjeté cesty (nové pravidlo, Martin, 22. 10. 2026 (zadání #6): „Cesty zakládají jen lidé tím, kudy chodí“):** vozy cesty
+  nezakládají. Jízdy pro uhlí, rudu, s osivem i pro vodu se 1. 11. přičtou do vyšlapanosti
+  (`addCartWear`, jízda váží `WEAR.cartWeight` cesty) a cesta pak vznikne měsíčně z vyšlapanosti
+  jako každá jiná; vozy jen převezmou už vyšlapanou cestu (`takeOverCartRoads`). Starší text
+  o „ročním provozu cest jako svoz“ a vyježděných cestách k vodě, milíři a rudišti je nahrazený.
 - **Ve scéně:** vůz jede tam a zpět (`shuttleRoute`) – uhlí veze zpátky (zboží), rudu zpátky
   (hromada rezavých hrud – díly `wagon2-ore` a `wagon4-ore`), osivo tam (zboží,
   zpátky prázdný), voda v sudech tam i zpět (prázdné sudy k vodě, plné domů – díly `wagon2-water`
   a `wagon4-water`: stojící sudy po ≈ 150 l s víkem a čepem, převázané provazem; dvoukolák dva,
-  čtyřkolák čtyři). Na rozdíl od svozu úrody (ladicí – jízdy dne v okně herního dne) jezdí vozy
-  s vodou, uhlím, rudou a osivem tempem volů ve skutečném čase (`steadyJob` v `village-carts.ts`) – do
+  čtyřkolák čtyři). Vozy s vodou, uhlím, rudou a osivem – a od 1. 11. 2026 i svoz úrody
+  (villagers.md – Činnosti od začátku do konce) – jezdí tempem volů ve skutečném čase – do
   86 s herního dne by se jízda k vodě vešla jen čtyřicetikilometrovou rychlostí; jsou tak součástí
   provozu na cestách (villagers.md). Ve dny, kdy vůz vodu veze, chodí pro ni pěšky jen tolik
   lidí, kolik vůz nepřivezl. Rozdělení práce dne má podíl `haul`
@@ -196,7 +240,8 @@ a potah, Kolik volů ves chce; podrobnosti níž jsou návrh Clauda.
   a jednoduché jho), čtyřkolák **pár**. Dva dvoukoláky = stejně volů jako jeden čtyřkolák, ale
   dvě posádky.
 - **Voli se sdílí:** ve dny orby jdou páry napřed k rádlům, vozy táhne zbytek volů (dřív vozy ve
-  dny orby nejezdily vůbec); výprava vezme vozy, na které jsou doma voli.
+  dny orby nejezdily vůbec); výprava vezme vozy, na které jsou doma voli. Vodu může ráno svézt
+  pár od rádla (Co vozy vozí – Voda ráno ve dny orby).
 
 ### Co se vozí a na čem (20. 10. 2026)
 
@@ -222,7 +267,7 @@ Návrh Clauda, Martin schválil („Ano, udělej to jak říkáš“) včetně v
   vozová síť čtyřkoláku (`cartGrid` s `fourWheel`) jede jako dvoukolák – louka, úhor, strniště
   i připravený díl, svah do 10 % a stoupání stejně, zatáčí širším obloukem (o jeden z 16 směrů na
   krok – `CART_ROUTES.turnSteps`) –, jen **zakládaný (zoraný) díl objede** (dvoukolák po něm jede
-  pomalu); osetý díl, křoviny, sad, hřbitov, ohrada, les mimo pevnou cestu a mokřina jako
+  pomalu); osetý díl (jen bez jiné cesty – Vůz přes zaseté pole), křoviny, sad, hřbitov, ohrada, les mimo pevnou cestu a mokřina jako
   u dvoukoláku (návrh Clauda). Uložené dosahy a jízdy čtyřkoláku (`cartReach4`, `cart4`,
   `waterCart4`) se ve vsi z doby „jen po pevných cestách“ jednou zahodí a spočítají znovu
   (`withFourWheelReach`, `DraftState.fourWheelOffRoad`); rok vozů se tím přepočítá sám. Zemská
@@ -273,7 +318,7 @@ Podrobnosti jsou návrh Clauda (čísla `CART_IRON` v `rules.ts`, modul `cart-ir
   kovárna, která má kde kopat rudu a odkud brát uhlí (bez uhlí jen s uhlířem ve vsi).
 - **Ves bez kováře:** syn tesaře **od 14 let** (nejstarší), jinak tesař sám, dojde do **nejbližší
   vsi s kovářem** a přinese kování:
-  - **druhá ves hráče na téže mapě** – obývané kovárny jiných vsí mapy jsou v přehledu sousedních
+  - ~~**druhá ves hráče na téže mapě**~~ (od 1. 11. 2026 není – jedna ves, jedna mapa) – obývané kovárny jiných vsí mapy jsou v přehledu sousedních
     vsí (`NeighbourSnapshot.smithies`, se jménem vsi); jde se krajinou rovně ke kovárně, celou cestu
     je vidět. Dny tam a zpět jako nákup u sousedů krajinou (vzdálenost × 1,5, dny jako výprava) bez
     dne za krajem mapy (2–6 dní),
@@ -281,7 +326,7 @@ Podrobnosti jsou návrh Clauda (čísla `CART_IRON` v `rules.ts`, modul `cart-ir
     zemské stezce, nebo krajinou ke kraji mapy od dílny tesaře (`purchaseRoute`).
 
   **Cíl a dopravu ves volí podle nejmenší práce vsi celkem** (`ironOptions`, `ironPlan`): ze všech
-  vsí s kovářem (sousedé, jiná ves na téže mapě) a obou způsobů – vozem po stezce sjízdné pro vozy
+  vsí s kovářem (sousedé; jiná ves na téže mapě od 1. 11. 2026 není) a obou způsobů – vozem po stezce sjízdné pro vozy
   (tesař a sedlák × dny cesty), nebo pěšky s nosiči (tesař a nosiči × dny, víc cest u malé vsi) –
   ta s nejmenšími člověkodny; při shodě kratší cesta. Vozem jen s volným vozem. Proto může ves jet
   vozem k dalšímu kováři místo s nosiči k nejbližšímu. **Platba obilím** jako nákup nástrojů
@@ -297,7 +342,7 @@ Podrobnosti jsou návrh Clauda (čísla `CART_IRON` v `rules.ts`, modul `cart-ir
     sjízdné pro vozy** (jako vozy výprav – `trailCartPassable`). Dvoukolák napřed (jeden vůl),
     platbu unese každý vůz (400 / 800 kg). Jede s ním **sedlák z vsi** (`CART_IRON.cartCrew`)
     a tesař nebo syn; vůz i vůl jsou celou cestu pryč (`cartsAway`, `oxenAway` – vozit ani orat
-    nemohou). Krajinou ke kraji mapy a do jiné vsi na téže mapě vůz nejede.
+    nemohou). Krajinou ke kraji mapy vůz nejede.
   - **jinak nosiči** – skupina jako nákup u sousedů (`tripOf`): tolik lidí, kolik je nákladů po
     25 kg (TRADE.porterKg), tesař nebo syn nese taky – **173 kg = tesař a 6 nosičů** (7 lidí),
     346 kg za čtyřkolák = 14 nákladů. Skupina je nejvýš malá skupina vsi (`groupCap` – polovina
@@ -311,7 +356,7 @@ Podrobnosti jsou návrh Clauda (čísla `CART_IRON` v `rules.ts`, modul `cart-ir
     zrovna nebyl, ať si ves spočítá, že další vůz se vyplatí. Jen ves s ohradou volů.
 
 - **Kronika a upozornění:** „Tesař šel se 6 nosiči pro kování k vozu do vsi Lhota (sever)“, „Tesař
-  jel s vozem pro kování…“ (u syna „Syn tesaře šel…“, u vsi na téže mapě bez směru), po návratu
+  jel s vozem pro kování…“ (u syna „Syn tesaře šel…“), po návratu
   „Tesař přinesl kování“ – a vůz je hotový.
 - **Ve scéně skupina, nebo vůz** (místo jedné postavy – Martin, sonda Vlkov) jako karavana nákupu
   u sousedů: pěšky tesař nebo syn (pohlaví a věk z jádra) a nosiči, tam s obilím, zpátky bez
@@ -366,6 +411,15 @@ Sondy bez kováře (kovárna zrušená) na čerstvém stavu z 31. 1. 801, kdy ve
 
 ## Vozová síť a vyjeté cesty
 
+**Od 31. 10. 2026 simulace jen odhaduje** (Martin 31. 10. 2026: „simulace bude počítat jen
+s odhadem vzdáleností a přesné trasy zůstanou prohlížeči – udělej to rovnou“ –
+[paths.md – Odhad vzdáleností](paths.md#odhad-vzdáleností-31-10-2026)): cena jízd vozu (svoz, voda
+vozem, uhlí, ruda, osivo, dosah svozu) a cesty spřežení k orbě je odhad bez mřížky vozu – rovně po
+povrchu (louka, mokřina, pole stálou cenou 4, les a zarostlý díl neprojede, potok objížďkou přes
+nejbližší brod, svah levně – serpentiny) nebo po pevných cestách rychlostí vozu. Pravidla níž
+(sklon ve směru jízdy, šířka vozu, zatáčení) platí pro přesnou trasu, kterou ukazuje scéna, a pro
+roční síť vozů 1. 11.
+
 - **Vlastní cena terénu pro vůz** (Martin): vůz nevyjede prudký svah. Rozhoduje **sklon ve
   směru jízdy**, ne sklon terénu – nad mezí (návrh ≈ 10–12 % – rešerše) vůz nejede, pod ní je
   stoupání dražší. Proto nejlevnější cesta do svahu vede šikmo a **serpentiny vzniknou samy**.
@@ -373,9 +427,31 @@ Sondy bez kováře (kovárna zrušená) na čerstvém stavu z 31. 1. 801, kdy ve
 - **Les** jen po vykácené cestě (pevné cestě), **křoviny a mladý les** ne, **voda** jen mělkým
   brodem nebo po hati (Martin: most zatím ne – stačí brod a hať); **lávka** je jen pro pěší. Ploty, domy a pozemky jako u pěšin, mezi domy jen
   kudy se vůz vejde (šířka ≈ 2,5 m).
-- **Přes louku, úhor a strniště** jezdí (pomaleji), **přes osetý díl** ne – jako lidé.
+- **Přes louku, úhor a strniště** jezdí (pomaleji), **přes osetý díl** jen když jiná cesta není (viz
+  Vůz přes zaseté pole níž) – lidé přes osev chodí také.
+- **Vůz přes zaseté pole** (Martin, 23. 10. 2026: „Vůz smí přes zaseté pole“ – ve Vlkově stál
+  oplocený pozemek polozemnice přes cestu od ohrady volů a objížďka vedla přes ozim, takže vůz pro
+  vodu nejel; čísla návrh Clauda). Osetý díl je pro vůz **průjezdný, ale metr stojí jako 8 m
+  louky** (`CART_SPEED.sown` 0,125) – vůz ho vezme, jen když by objížďka byla víc než 8× delší;
+  s pevnou cestou, strništěm či loukou kolem jede jimi. Okraj dílu (úvrať, buňky na vnější hraně
+  pole) není osetý a jede se tam jako po louce, takže vůz po okraji jede sám, kde to jde. ~~Přejetá
+  úroda se pošlape (`CART_TRAMPLE`, `FieldPart.trampledM2`)~~ – **od 25. 10. 2026 vůz přes pole úrodu
+  nepošlape** (Martin 25. 10. 2026: „Pokud vůz pojede přes pole, tak žádnou úrodu nepošlape – je to
+  přiměřené herní zjednodušení.“); `CART_TRAMPLE`, `trampledM2` i související upozornění zmizí.
+  Čtyřkolák platí stejně jako dvoukolák.
+- **Stálé trasy vozů (Martin 25. 10. 2026 – [paths.md – Stálé trasy](paths.md#stálé-trasy-25-10-2026)):**
+  vozová síť nezná stadium dílu – **celé pole stojí vozu stálou průměrnou cenu 4** (Martin 25. 10. 2026: „Ať je stejná cena jako u dvoukoláku. 4 je asi dobrý průměr.“; rychlost
+  0,25 – časový průměr trojpolí: osetý díl 8, strniště 1,25, úhor 1) od chvíle, kdy ho hráč
+  umístí; úvrať jako louka, zarostlý díl neprůjezdný jako dosud. Trasa vozu k témuž cíli je tak
+  celý rok stejná a mřížka i trasy se drží v paměti podle mapy tras. Přes pole vůz jede, když je
+  objížďka víc než 4× delší; **úrodu nepošlape** (Martin 25. 10. 2026, herní zjednodušení).
+  Nahrazuje ceny dílů podle stadia v tabulce Rychlosti (osetý, zoraný, strniště, připravený díl)
+  i „zoraný díl čtyřkolák objede“ (čtyřkolák má stejnou cenu jako dvoukolák – Martin 25. 10. 2026).
 - **Vyježděné cesty** (Martin, 19. 10. 2026: „Cesty – pokud nějakou cestu vyjezdí vůz, bude to
   vyježděná cesta. Pokud vůz takhle vyjezdí vyšlapanou cestu, tak to vozová cesta přebije.“):
+  **Nahrazeno (Martin, 22. 10. 2026 (zadání #6): „Cesty zakládají jen lidé tím, kudy chodí“):** vozy nové cesty nezakládají –
+  jízdy roku jdou 1. 11. do vyšlapanosti (`addCartWear`, `WEAR.cartWeight`), roční síť pěšin se
+  nepočítá. Platí jen převzetí vyšlapané cesty (`takeOverCartRoads`). Původní znění (už neplatí):
   provoz vozů se sčítá jako provoz lidí (roční síť 1. 11., roads.md). Kudy vozy vyjezdí trasu
   mimo cesty, vznikne **vyježděná cesta** – širší (dvě koleje), sjízdná pro vozy. Kudy vozy
   vyjezdí vyšlapanou cestu (po ní, nebo souběžně kus vedle), vyšlapaná se v tom kusu stane
@@ -403,9 +479,15 @@ Sondy bez kováře (kovárna zrušená) na čerstvém stavu z 31. 1. 801, kdy ve
 - V mřížce staveb **Tesař** (dílna), v panelu dílny zásoba vozů a nářadí, pokrytí staveb,
   kování k vozu (čeká, nebo kdo pro ně jde a kdy se vrátí – Kování vozů) a zkušenost tesaře
   (crafts.md – Učení řemesla).
-- V horní liště ikona **vozů** s počtem (jen když jsou) a dřevěného nářadí (jako nástroje).
+- Vozy ani dřevěné nářadí v horní liště nejsou (Martin 24. 10. 2026: vozy v ohradě s voly,
+  nářadí si řeší domácnosti); vozy ukáže panel ohrady spřežení a panel tesaře.
 - Ve scéně vozy s voly a honákem jezdí po vozových cestách – svoz sena, snopů, klád, výprava
   k sousedovi; prázdný vůz stojí u ohrady. Vyjeté cesty mají koleje.
+- **Výběr vozu** (Martin 20. 10. 2026 – villagers.md, Výběr spřežení a vozu; podrobnosti návrh
+  Clauda): klik na vůz nebo jeho voly vybere vůz – kroužek ho sleduje, panel ukáže druh, co dělá
+  („jede pro uhlí k milíři“, „nakládá uhlí“, „veze uhlí ke kováři“, „skládá uhlí“, „stojí
+  u ohrady“…), stav, voly, co právě veze a tlačítka ohrady a vozky. Vozka je člověk vsi (dospělý,
+  přednostně muž) – klik na něj vybere člověka s tlačítkem vozu.
 - Panel cesty: vyšlapaná cesta s vozy je **Vyježděná cesta** – vlastní druh s portrétem (pás
   prošlapané trávy se dvěma kolejemi) a v rozpisu celé cesty zvlášť od vyšlapané (Vyšlapaná,
   Vyježděná, Upravená, Hať – délka po druzích).
@@ -475,7 +557,22 @@ Návrh Clauda (19. 10. 2026) – detaily, které návrh výš nechal otevřené;
   (sklizeň a seč podle konce okna), zbytek vozí klády. Klády z mýcení na hromadu se nenosí zvlášť
   (jsou v ceně založení) – vůz je nezkrátí.
 - **Obchodní výprava** vezme vozy, které jsou doma se spřežením (čtyřkoláky napřed): náklad na voze
-  (400 / 800 kg), s vozem 2 lidé místo nosičů po 25 kg; vozů jede tolik, aby lidí bylo nejméně.
+  (400 / 800 kg), s vozem 2 lidé místo nosičů po 25 kg; vozů jede tolik, aby práce (lidé × jízdy)
+  byla nejmenší, při shodě méně vozů.
+  **Opakované jízdy vozu a klády** (Martin 22. 10. 2026: „Pokud udělám obchodní výpravu s kládami,
+  ať se klády vždy vezou na voze – člověk by je neutáhl.“ a „Teď jede vůz a za ním jde třeba 12
+  lidí. To je plýtvání. Ať jede vůz klidně několikrát a lidi ať jsou jen na doplnění – ať je
+  každá cesta co nejvíc optimální.“ – podrobnosti návrh Clauda): vozy jedou **tolikrát, kolikrát
+  se naplní celé** (větší z cest tam a zpět; aspoň jednou, i s menším nákladem). **Zbytek aspoň
+  půl vozu = vůz jede ještě jednou** s neplným nákladem (Martin 23. 10. 2026, volba „Zbytek ≥ půl
+  vozu“; práh `TRADE.restTripShare`). Menší zbytek (a dobytek) nesou a ženou lidé **přesně
+  rozdělení mezi jízdy** (floor + zbytek po jednom na první jízdy) – např. vůz uveze 45 % zboží:
+  jede dvakrát a zbylých 10 % (≈ 22 % vozu) nese 5 lidí, při jízdách 3 + 2. 790 kg na dvoukolák
+  (400 kg) = 2 jízdy. Výprava trvá `jízdy × dny cesty`, práce je součet lidí přes jízdy × dny.
+  Klády s vozem jedou
+  vždy na voze (jízd je tolik, aby se vešly), bez vozu je nese **dva lidé na kládu** (dřív čtyři).
+  Nosnost vozu a kolik nákladu veze při výpravě vidí hráč v panelu výběru vozu (ikona vozu,
+  „náklad / nosnost“ v kg, popisek v tooltipu).
   Vozy a jejich spřežení jsou do návratu pryč – doma nevozí a spřežení neorá. Stezka je pro vozy
   zatím sjízdná vždy (je upravená cesta).
 - **Dosah vozu je rozhraní** (`CartAccess` – „dojede vůz k cílům a za kolik metrů“, cíle
@@ -494,8 +591,10 @@ Návrh Clauda (19. 10. 2026) – detaily, které návrh výš nechal otevřené;
     doprostřed velkého osetého pole by nedojel. Snopy se ale svážejí z požatých dílů, kde stojí
     v panácích, a žeň jde od domu ven (fields.md – Postup práce po čtvercích) – díly sklízené
     plodiny se pro vůz postupně otevírají. Dosah žně proto síť počítá s díly sklízené plodiny jako
-    se strništěm (`harvestReachState` – stadium připraveného dílu, jede se jako po strništi 0,8); ostatní osetá pole
-    (jař a luštěniny při žni ozimu) vůz nepustí – snopy za nimi nosí lidé jako dřív. Proti
+    se strništěm ~~(`harvestReachState` – stadium připraveného dílu, jede se jako po strništi 0,8); ostatní osetá pole
+    (jař a luštěniny při žni ozimu) vůz nepustí – snopy za nimi nosí lidé jako dřív.~~ Od 25. 10. 2026
+    má pole pro vůz stálou cenu v každém stadiu a `harvestReachState` zmizel ([paths.md](paths.md) –
+    Stálé trasy, pravidlo 1). Proti
     variantě „jen k dílům na kraji osetého bloku“ by vůz ve velkém poli nevozil skoro nic, ač
     po strništi za žní jezdil; proti „všude“ zůstává překážkou cizí osetí, voda a les.
   - **Jízdy do ročního provozu cest:** vůz za den udělá 8 jízd (`CARTS.loadsPerCartDay`) – podle
@@ -507,7 +606,7 @@ Návrh Clauda (19. 10. 2026) – detaily, které návrh výš nechal otevřené;
     provozu nesčítají (pár za rok – pod prahem vyjeté cesty).
 - **Rozhraní:** panel dílny tesaře – co dělá (vyrábí vůz s průběhem, nářadí, pomáhá stavbám,
   kácí), vozy proti potřebě po druzích (kolik na cestě), dřevěné nářadí s pokrytím, pokrytí
-  dřevěné práce staveb. Horní lišta – dřevěné nářadí (s tesařem) a vozy (jen když jsou).
+  dřevěné práce staveb. Horní lišta – nic (vozy v ohradě volů a u tesaře).
   Upozornění „Tesař vyrobil vůz“, „Vůz dosloužil“, „Tesař nemá klády“. Panel obchodu ukáže vozy
   výpravy. `/dev/panels` – Tesař, Tesař pomáhá stavbám.
 - **Scéna (data pro fázi 3):** `SceneVillage.carts` – vůz, kde stojí (u ohrady), stav a cíl dne
@@ -582,11 +681,12 @@ v `paths/roads.ts`, čísla `CART_ROUTES` a `CART_ROADS` v `rules.ts`.
   - **Na poli platí nejpomalejší** z povrchu (mokřina) a dílu, ne součin – jako u chůze (dřív
     zoraný díl v mokřině 1,8 × 1,6). Pod pevnou cestou jen cesta (strniště, zoraný díl i mokřina –
     mokřinu tam pozná osa cesty).
-  - **Připravený díl je strniště** (rozhodnutí Clauda): vozová síť zná díl jen podle stadia
+  - ~~**Připravený díl je strniště**~~ (zrušeno 25. 10. 2026 – pole stálou cenou, [paths.md](paths.md) –
+    Stálé trasy, pravidlo 1) ~~(rozhodnutí Clauda): vozová síť zná díl jen podle stadia
     a dosah žně (`harvestReachState`) vidí sklízené díly jako připravené – vůz po nich jede
     po strništi. Skutečně připravený díl (založený, čeká na osev) do osevu sesedne – jede se po
     něm stejně; zakládaný díl (drn se právě rozrývá) jako zoraný. Díl plánu po orbě je osetý –
-    vůz po něm nejede (beze změny).
+    vůz po něm nejede (beze změny).~~
   - **Co se změní samo:** vše, co bere cenu vozové sítě – cesta spřežení k orbě (`tripCost`
     v `plough-trip.ts`, `TEAM_TRAVEL`), dosah svozu (mez hledání `maxCost`), trasy vozů dne ve
     scéně a roční síť vozů (vyjeté cesty). Vlkov (stav 27. 4. 796): cesta spřežení k bloku jaře
@@ -694,7 +794,7 @@ zblízka**, **Sledovat vůz**) – herní logika vozů ani tesaře v jádru nen�
 
 Návrh Clauda (19. 10. 2026) – jen zobrazení, simulace se nemění.
 
-- **Trasa dne ze serveru:** `SceneVillage.carts` (`sceneCarts` ve `village-view.ts`) nese u vozu,
+- **Trasa dne ze serveru:** `SceneVillage.carts` (`sceneCarts` ve `village-view-crafts.ts`) nese u vozu,
   který dnes jede, náklad (`job.load` – snopy při žni, seno při seči, klády ke stavbě, zboží
   výpravy) a trasu (`route`): osa vozové sítě (`villageCartRoutes` – stejná funkce jako dosah
   svozu, žeň po strništi sklízené plodiny) od ohrady k místu dnešní práce – díl na čele žně nebo
@@ -728,55 +828,59 @@ Návrh Clauda (19. 10. 2026) – jen zobrazení, simulace se nemění.
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                                                                                                                                                                                                                                                                     | Kdo                                                                |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| Vozy vozí seno, snopy, klády a zboží obchodu místo nosičů                                                                                                                                                                                                                                                                                      | Martin (19. 10. 2026)                                              |
-| Vozy mají vlastní síť – nevyjedou prudký svah, vyjezdí serpentiny a vlastní cesty                                                                                                                                                                                                                                                              | Martin                                                             |
-| Tesař vyrábí vozy, dřevěné nářadí (mírně celá ves) a výrazně zrychlí dřevěné části staveb                                                                                                                                                                                                                                                      | Martin                                                             |
-| Tesař nestaví specializované stavby – jen pomáhá ostatním                                                                                                                                                                                                                                                                                      | Martin                                                             |
-| Dílna tesaře jako ostatní dílny; klády, nástroje od kováře; podle potřeby a volný čas                                                                                                                                                                                                                                                          | návrh Clauda                                                       |
-| Účinek jako meze produktivity – pokrytí tesařem u staveb, pokrytí nářadím u prací                                                                                                                                                                                                                                                              | návrh Clauda                                                       |
-| Vůz = zásoba vsi u ohrady, táhnou ho voli ze spřežení (ve dny orby orají)                                                                                                                                                                                                                                                                      | návrh Clauda                                                       |
-| Sklon ve směru jízdy s mezí (serpentiny vzniknou samy); les jen po cestě; lávka jen pěší                                                                                                                                                                                                                                                       | návrh Clauda                                                       |
-| Vyjetá cesta = pevná cesta s příznakem vozová z ročního provozu vozů                                                                                                                                                                                                                                                                           | návrh Clauda                                                       |
-| Most zatím ne – vůz přejede potok brodem nebo po hati                                                                                                                                                                                                                                                                                          | Martin (19. 10. 2026)                                              |
-| Jeden vůz na spřežení                                                                                                                                                                                                                                                                                                                          | návrh Clauda                                                       |
-| Dva vozy z 0 A.D. – dvoukolák (základní) a čtyřkolák (víc nákladu, obchod)                                                                                                                                                                                                                                                                     | Martin (19. 10. 2026)                                              |
-| Fáze 1: čísla podle rešerše, pořadí práce tesaře, pokrytí tesařem z vedení party                                                                                                                                                                                                                                                               | návrh Clauda                                                       |
-| Čtyřkolák navíc k dvoukolákům, jen s hotovou stezkou; vůz slouží 10 let                                                                                                                                                                                                                                                                        | návrh Clauda                                                       |
-| Vůz za den = 8 nosičů se 2 lidmi; odnos snopů, čtvrtina seče, polovina dovozu klád                                                                                                                                                                                                                                                             | návrh Clauda                                                       |
-| Dosah vozu jako rozhraní; fáze 1 zástupně rovně po louce, bez lesa a vody, sklon do 12 %                                                                                                                                                                                                                                                       | návrh Clauda                                                       |
-| Svoz po vozové síti, dosah jednou za úlohu; žeň po strništi sklízené plodiny                                                                                                                                                                                                                                                                   | návrh Clauda                                                       |
-| Fáze 2: 16 směrů na mřížce pěšin, směr jízdy ve stavu hledání, mez sklonu 10 %                                                                                                                                                                                                                                                                 | návrh Clauda                                                       |
-| Pevná cesta pro vůz sjízdná vždy; vůz vyjede kdekoli u ohrady se spřežením                                                                                                                                                                                                                                                                     | návrh Clauda                                                       |
-| Vyjetá cesta 0,25 jízdy denně 2 roky; jedna zemská stezka, sjízdnost `axisCartCheck`                                                                                                                                                                                                                                                           | návrh Clauda                                                       |
-| „Pokud nějakou cestu vyjezdí vůz, bude to vyježděná cesta.“                                                                                                                                                                                                                                                                                    | Martin (19. 10. 2026)                                              |
-| „Pokud vůz takhle vyjezdí vyšlapanou cestu, tak to vozová cesta přebije.“                                                                                                                                                                                                                                                                      | Martin (19. 10. 2026)                                              |
-| Vyježděná = vyšlapaná s příznakem vozová, pro hráče vlastní druh; upravená a hať zůstanou                                                                                                                                                                                                                                                      | návrh Clauda                                                       |
-| Vozy po vyšlapané převezmou kus (rozdělí úsek); souběžně vedle od 25 m převezme osa vozu                                                                                                                                                                                                                                                       | návrh Clauda                                                       |
-| Kola vozů točí matice instance podle ujeté dráhy (ne VAT); vlastní oj ke jhu volů                                                                                                                                                                                                                                                              | návrh Clauda                                                       |
-| Fáze 3: trasa dne ze serveru, tam a zpět se smyčkami obratišť, svoz zrychleně s orbou                                                                                                                                                                                                                                                          | návrh Clauda                                                       |
-| Rychlosti vozu odstupňované podle druhu cesty, jako u chůze                                                                                                                                                                                                                                                                                    | Martin (19. 10. 2026)                                              |
-| Čísla rychlostí vozu (vyšlapaná 1,3, vyježděná 1,6, upravená a hať 1,8, mokřina 0,55…)                                                                                                                                                                                                                                                         | návrh Clauda                                                       |
-| Vozová cesta pro vůz 2,2, pěšky 1,7, v mokřině jako hať, brod zůstává (roads.md)                                                                                                                                                                                                                                                               | Martin: „bude vozu dávat ještě větší rychlost“; čísla návrh Clauda |
-| Mokřina na cestě z `Road.ground` jako chůze; na poli nejpomalejší; připravený = strniště                                                                                                                                                                                                                                                       | návrh Clauda                                                       |
-| „Pokud budou mít k dispozici vůz, ať na pole, pro vodu nebo pro dřevěné uhlí jede vůz.“                                                                                                                                                                                                                                                        | Martin (19. 10. 2026)                                              |
-| Mimo svoz a klády v pořadí uhlí – osivo – voda; voli neorají ani orbu navíc                                                                                                                                                                                                                                                                    | návrh Clauda                                                       |
-| ~~Uhlí: vůz nahradí odnos (pětina vytahání), jízdy z práce uhlíře~~, 300 kg na jízdu                                                                                                                                                                                                                                                           | návrh Clauda                                                       |
-| „kováři přiveze uhlí sedlák s vozem (a odečte se jeho práce). To samé u těžení rudy.“                                                                                                                                                                                                                                                          | Martin (20. 10. 2026)                                              |
-| Uhlí a ruda: sedlák z práce vsi před úlohami dne, jen když ušetří proti nošení kovárny                                                                                                                                                                                                                                                         | návrh Clauda                                                       |
-| Ruda: dávka na celý vůz (400 kg) čeká na hromadě, kovář jede se sedlákem                                                                                                                                                                                                                                                                       | rozhodnutí Clauda                                                  |
-| Pořadí mimo svoz: uhlí – ruda – osivo – voda                                                                                                                                                                                                                                                                                                   | návrh Clauda                                                       |
-| Osivo: desetina setí, jako odnos snopů (8 nosičů se 2 lidmi)                                                                                                                                                                                                                                                                                   | návrh Clauda                                                       |
-| Voda: 10 l na člověka, sudy 300 l, jen domácnostem, kterým jízda ušetří práci                                                                                                                                                                                                                                                                  | návrh Clauda                                                       |
-| Voda vozem – posádka v denním minimu; břeh nejblíž ohradě, kam vůz sjede                                                                                                                                                                                                                                                                       | návrh Clauda                                                       |
-| Ve scéně sudy na voze tam i zpět; voda, uhlí a osivo tempem volů ve skutečném čase                                                                                                                                                                                                                                                             | návrh Clauda                                                       |
-| „Vesnice určitě potřebuje více vozů. Ať to funguje jako se stády - ohrada pro voly udrží určitý počet spřežení a když bude vesnice potřebovat víc vozů, ohrada se musí zvětšit. Zaároveň to udělej tak, že rádlo táhnou 2 voli, 4kolový vůz také dva voli a dvoukolový vůz jeden vůl. Napiš návrh, co všechno se dá vozit na vozech a jakých.“ | Martin (20. 10. 2026)                                              |
-| Další vůz, když ušetří víc práce za rok, než stojí (tesař na 10 let, seno a výcvik volů navíc); tabulka nákladů                                                                                                                                                                                                                                | návrh Clauda, Martin („Ano, udělej to jak říkáš“)                  |
-| Úspora z loňského provozu: dnešní nošení, jízdy pro uhlí a vodu, nosiči výprav; rok vozů od 1. 11., aspoň 300 dní                                                                                                                                                                                                                              | rozhodnutí Clauda                                                  |
-| Dvoukolák s oplením a jednoduchým jhem pro jednoho vola                                                                                                                                                                                                                                                                                        | rozhodnutí Clauda                                                  |
-| ~~Čtyřkolák jen po pevných cestách a 40 m kolem ohrady volů~~; flotila dne – čtyřkoláky napřed podél cest                                                                                                                                                                                                                                      | návrh Clauda, Martin („Ano, udělej to jak říkáš“)                  |
-| „Po strništích a loukách může libovolně“ – čtyřkolák mimo pevné cesty kamkoli, zoraný díl ne                                                                                                                                                                                                                                                   | Martin                                                             |
-| Uhlí a vodu veze levnější vůz (práce na kg); ruda, hlína a osivo dvoukolák                                                                                                                                                                                                                                                                     | návrh Clauda, Martin („Ano, udělej to jak říkáš“)                  |
-| Rok vozů po dnech (nošení podél cest a jinam, jízdy, den orby), 1. 11. tabulka úspor podle počtu vozů a volů                                                                                                                                                                                                                                   | rozhodnutí Clauda                                                  |
-| Čtyřkolák v odhadu jen za nošení podél cest a výpravy, ne za jízdy pro uhlí a vodu                                                                                                                                                                                                                                                             | rozhodnutí Clauda                                                  |
+| Rozhodnutí                                                                                                                                                                                                                                                                                                                                     | Kdo                                                                  |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| Voda ráno ve dny orby: pár od rádla sveze vodu, když orba dne nechá páru volnou chvíli nebo okno orby má rezervu (zbytek orby do poloviny kapacity zbývajících dnů); jinak orba přednost; od 24. 10. jen pár doma (v den výjezdu), pár na poli vodu nesveze                                                                                    | Martin 24. 10. 2026 („Rozhodne ekonomika“); čísla návrh Clauda       |
+| Vůz jede tolikrát, kolikrát se naplní, zbytek nesou lidé rovnoměrně mezi jízdy; klády s vozem vždy na voze, bez něj dva lidé na kládu; v panelu vozu nosnost a náklad                                                                                                                                                                          | Martin (22. 10. 2026)                                                |
+| Vozy vozí seno, snopy, klády a zboží obchodu místo nosičů                                                                                                                                                                                                                                                                                      | Martin (19. 10. 2026)                                                |
+| Vůz smí přes zaseté pole, když jiná cesta není (metr jako 8 m louky); ~~úroda na pojeté stopě se pošlape~~ (od 25. 10. 2026 se nepošlape)                                                                                                                                                                                                      | Martin 23. 10. 2026 („Vůz smí přes zaseté pole“); čísla návrh Clauda |
+| Vozy mají vlastní síť – nevyjedou prudký svah, vyjezdí serpentiny a vlastní cesty                                                                                                                                                                                                                                                              | Martin                                                               |
+| Tesař vyrábí vozy, dřevěné nářadí (mírně celá ves) a výrazně zrychlí dřevěné části staveb                                                                                                                                                                                                                                                      | Martin                                                               |
+| Tesař nestaví specializované stavby – jen pomáhá ostatním                                                                                                                                                                                                                                                                                      | Martin                                                               |
+| Dílna tesaře jako ostatní dílny; klády, nástroje od kováře; podle potřeby a volný čas                                                                                                                                                                                                                                                          | návrh Clauda                                                         |
+| Účinek jako meze produktivity – pokrytí tesařem u staveb, pokrytí nářadím u prací                                                                                                                                                                                                                                                              | návrh Clauda                                                         |
+| Vůz = zásoba vsi u ohrady, táhnou ho voli ze spřežení (ve dny orby orají)                                                                                                                                                                                                                                                                      | návrh Clauda                                                         |
+| Sklon ve směru jízdy s mezí (serpentiny vzniknou samy); les jen po cestě; lávka jen pěší                                                                                                                                                                                                                                                       | návrh Clauda                                                         |
+| Vyjetá cesta = pevná cesta s příznakem vozová z ročního provozu vozů                                                                                                                                                                                                                                                                           | návrh Clauda                                                         |
+| Most zatím ne – vůz přejede potok brodem nebo po hati                                                                                                                                                                                                                                                                                          | Martin (19. 10. 2026)                                                |
+| Jeden vůz na spřežení                                                                                                                                                                                                                                                                                                                          | návrh Clauda                                                         |
+| Dva vozy z 0 A.D. – dvoukolák (základní) a čtyřkolák (víc nákladu, obchod)                                                                                                                                                                                                                                                                     | Martin (19. 10. 2026)                                                |
+| Fáze 1: čísla podle rešerše, pořadí práce tesaře, pokrytí tesařem z vedení party                                                                                                                                                                                                                                                               | návrh Clauda                                                         |
+| Čtyřkolák navíc k dvoukolákům, jen s hotovou stezkou; vůz slouží 10 let                                                                                                                                                                                                                                                                        | návrh Clauda                                                         |
+| Vůz za den = 8 nosičů se 2 lidmi; odnos snopů, čtvrtina seče, polovina dovozu klád                                                                                                                                                                                                                                                             | návrh Clauda                                                         |
+| Dosah vozu jako rozhraní; fáze 1 zástupně rovně po louce, bez lesa a vody, sklon do 12 %                                                                                                                                                                                                                                                       | návrh Clauda                                                         |
+| Svoz po vozové síti, dosah jednou za úlohu; žeň po strništi sklízené plodiny                                                                                                                                                                                                                                                                   | návrh Clauda                                                         |
+| Fáze 2: 16 směrů na mřížce pěšin, směr jízdy ve stavu hledání, mez sklonu 10 %                                                                                                                                                                                                                                                                 | návrh Clauda                                                         |
+| Pevná cesta pro vůz sjízdná vždy; vůz vyjede kdekoli u ohrady se spřežením                                                                                                                                                                                                                                                                     | návrh Clauda                                                         |
+| Vyjetá cesta 0,25 jízdy denně 2 roky; jedna zemská stezka, sjízdnost `axisCartCheck`                                                                                                                                                                                                                                                           | návrh Clauda                                                         |
+| „Pokud nějakou cestu vyjezdí vůz, bude to vyježděná cesta.“                                                                                                                                                                                                                                                                                    | Martin (19. 10. 2026)                                                |
+| „Pokud vůz takhle vyjezdí vyšlapanou cestu, tak to vozová cesta přebije.“                                                                                                                                                                                                                                                                      | Martin (19. 10. 2026)                                                |
+| Vyježděná = vyšlapaná s příznakem vozová, pro hráče vlastní druh; upravená a hať zůstanou                                                                                                                                                                                                                                                      | návrh Clauda                                                         |
+| Vozy po vyšlapané převezmou kus (rozdělí úsek); souběžně vedle od 25 m převezme osa vozu                                                                                                                                                                                                                                                       | návrh Clauda                                                         |
+| Kola vozů točí matice instance podle ujeté dráhy (ne VAT); vlastní oj ke jhu volů                                                                                                                                                                                                                                                              | návrh Clauda                                                         |
+| Fáze 3: trasa dne ze serveru, tam a zpět se smyčkami obratišť, svoz zrychleně s orbou                                                                                                                                                                                                                                                          | návrh Clauda                                                         |
+| Rychlosti vozu odstupňované podle druhu cesty, jako u chůze                                                                                                                                                                                                                                                                                    | Martin (19. 10. 2026)                                                |
+| Čísla rychlostí vozu (vyšlapaná 1,3, vyježděná 1,6, upravená a hať 1,8, mokřina 0,55…)                                                                                                                                                                                                                                                         | návrh Clauda                                                         |
+| Vozová cesta pro vůz 2,2, pěšky 1,7, v mokřině jako hať, brod zůstává (roads.md)                                                                                                                                                                                                                                                               | Martin: „bude vozu dávat ještě větší rychlost“; čísla návrh Clauda   |
+| Mokřina na cestě z `Road.ground` jako chůze; na poli nejpomalejší; připravený = strniště                                                                                                                                                                                                                                                       | návrh Clauda                                                         |
+| „Pokud budou mít k dispozici vůz, ať na pole, pro vodu nebo pro dřevěné uhlí jede vůz.“                                                                                                                                                                                                                                                        | Martin (19. 10. 2026)                                                |
+| Mimo svoz a klády v pořadí uhlí – osivo – voda; voli neorají ani orbu navíc                                                                                                                                                                                                                                                                    | návrh Clauda                                                         |
+| ~~Uhlí: vůz nahradí odnos (pětina vytahání), jízdy z práce uhlíře~~, 300 kg na jízdu                                                                                                                                                                                                                                                           | návrh Clauda                                                         |
+| „kováři přiveze uhlí sedlák s vozem (a odečte se jeho práce). To samé u těžení rudy.“                                                                                                                                                                                                                                                          | Martin (20. 10. 2026)                                                |
+| Uhlí a ruda: sedlák z práce vsi před úlohami dne, jen když ušetří proti nošení kovárny                                                                                                                                                                                                                                                         | návrh Clauda                                                         |
+| Ruda: dávka na celý vůz (400 kg) čeká na hromadě, kovář jede se sedlákem                                                                                                                                                                                                                                                                       | rozhodnutí Clauda                                                    |
+| Pořadí mimo svoz: uhlí – ruda – osivo – voda                                                                                                                                                                                                                                                                                                   | návrh Clauda                                                         |
+| Osivo: desetina setí, jako odnos snopů (8 nosičů se 2 lidmi)                                                                                                                                                                                                                                                                                   | návrh Clauda                                                         |
+| Voda: 10 l na člověka, sudy 300 l, jen domácnostem, kterým jízda ušetří práci                                                                                                                                                                                                                                                                  | návrh Clauda                                                         |
+| Voda vozem – posádka v denním minimu; břeh nejblíž ohradě, kam vůz sjede                                                                                                                                                                                                                                                                       | návrh Clauda                                                         |
+| Ve scéně sudy na voze tam i zpět; voda, uhlí a osivo tempem volů ve skutečném čase                                                                                                                                                                                                                                                             | návrh Clauda                                                         |
+| „Vesnice určitě potřebuje více vozů. Ať to funguje jako se stády - ohrada pro voly udrží určitý počet spřežení a když bude vesnice potřebovat víc vozů, ohrada se musí zvětšit. Zaároveň to udělej tak, že rádlo táhnou 2 voli, 4kolový vůz také dva voli a dvoukolový vůz jeden vůl. Napiš návrh, co všechno se dá vozit na vozech a jakých.“ | Martin (20. 10. 2026)                                                |
+| Další vůz, když ušetří víc práce za rok, než stojí (tesař na 10 let, seno a výcvik volů navíc); tabulka nákladů                                                                                                                                                                                                                                | návrh Clauda, Martin („Ano, udělej to jak říkáš“)                    |
+| Úspora z loňského provozu: dnešní nošení, jízdy pro uhlí a vodu, nosiči výprav; rok vozů od 1. 11., aspoň 300 dní                                                                                                                                                                                                                              | rozhodnutí Clauda                                                    |
+| Dvoukolák s oplením a jednoduchým jhem pro jednoho vola                                                                                                                                                                                                                                                                                        | rozhodnutí Clauda                                                    |
+| ~~Čtyřkolák jen po pevných cestách a 40 m kolem ohrady volů~~; flotila dne – čtyřkoláky napřed podél cest                                                                                                                                                                                                                                      | návrh Clauda, Martin („Ano, udělej to jak říkáš“)                    |
+| „Po strništích a loukách může libovolně“ – čtyřkolák mimo pevné cesty kamkoli, zoraný díl ne                                                                                                                                                                                                                                                   | Martin                                                               |
+| Uhlí a vodu veze levnější vůz (práce na kg); ruda, hlína a osivo dvoukolák                                                                                                                                                                                                                                                                     | návrh Clauda, Martin („Ano, udělej to jak říkáš“)                    |
+| Rok vozů po dnech (nošení podél cest a jinam, jízdy, den orby), 1. 11. tabulka úspor podle počtu vozů a volů                                                                                                                                                                                                                                   | rozhodnutí Clauda                                                    |
+| Čtyřkolák v odhadu jen za nošení podél cest a výpravy, ne za jízdy pro uhlí a vodu                                                                                                                                                                                                                                                             | rozhodnutí Clauda                                                    |
+| Vůz jede, kolikrát se naplní celý; zbytek aspoň půl vozu = jízda navíc, menší zbytek nesou lidé přesně rozdělení mezi jízdy (`TRADE.restTripShare`)                                                                                                                                                                                            | Martin 23. 10. 2026 (volba „Zbytek ≥ půl vozu“)                      |

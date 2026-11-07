@@ -1,10 +1,12 @@
 import { dateOfDayIndex } from '../calendar';
+import { springSowingExtended } from './weather-effects';
 import { distanceFactor, fallowStage, isOvergrown, isWeedFree, partWalkDistance } from './fields';
+import { clearingFellCost, clearingStage } from './forest-clearing';
 import { isHayMeadow, mowingPosition, mowingSpans } from './hay';
 import { PLOUGH_SOD_FACTOR } from './plough';
 import { partStage } from './summary';
 import type { Crop, CropWork, FieldPart, PloughBand, TileCell, VillageState } from './types';
-import { cropTaskRemaining, cropTaskWindows, planCrops } from './year-plan';
+import { cropTaskRemaining, cropTaskWindows, seasonCrops } from './year-plan';
 
 // Postup práce po čtvercích (fields.md – Postup práce po čtvercích; Martin, 18. 10. 2026): plán
 // vede práci za celou plodinu, díl po dílu ji odvozuje odsud – díly plodiny v pořadí `partIds`
@@ -33,7 +35,9 @@ export const PART_TASKS: readonly PartTask[] = [
  * louky, který se seče na seno (oxen.md – Seno): `meadow` – vysoká tráva, `mown` – posečeno,
  * řádky a kupky sena, `haystacks` – stohy na otavě (do jara se zkrmí). Nepasený a nesečený
  * příloh zarůstá (fields.md – Zarůstání): `shrubs` – křoviny, `young-forest` – mladý les (obtisk
- * pole zmizí, tráva louky zůstane, rostou keře a stromky).
+ * pole zmizí, tráva louky zůstane, rostou keře a stromky). Klučení lesa (forest.md – Klučení
+ * lesa pro pole – postup): `slash` – paseka s pařezy a hromadami větví (kácení, schnutí),
+ * `burnt` – spálenina s popelem (pálení a připravený díl po dohoření do první práce).
  */
 export type FieldPartLook =
   | 'bare'
@@ -50,7 +54,9 @@ export type FieldPartLook =
   | 'mown'
   | 'haystacks'
   | 'shrubs'
-  | 'young-forest';
+  | 'young-forest'
+  | 'slash'
+  | 'burnt';
 
 /**
  * Vzhled dílu: `look`, u rozpracovaného dílu (čelo práce) i `work` – kolik práce dnešní úlohy je
@@ -196,7 +202,7 @@ export function taskPosition(work: CropWork, task: PartTask, done?: number): num
 
 /**
  * Díly plodiny, na kterých už začala práce – některá úloha (i orba) přešla začátek jejich úseku
- * (fields.md – Osev podle zásob, Osev navíc). Úseky dílů se spočítají jednou za úlohu.
+ * (fields.md – Osevní postup po dílech). Úseky dílů se spočítají jednou za úlohu.
  */
 export function startedPartIds(
   work: CropWork,
@@ -205,6 +211,9 @@ export function startedPartIds(
 ): Set<number> {
   const started = new Set<number>();
   for (const task of PART_TASKS) {
+    // úloha bez práce (ozim se neplete, bez přílohu se nevrací) díl nezačala
+    const required = task === 'plough' ? (work.plough?.required ?? 0) : work.required[task];
+    if (required <= 0) continue;
     const position = taskPosition(work, task);
     for (const span of taskSpans(work, partsById, task, day)) {
       if (position > span.start + EPSILON) started.add(span.id);
@@ -267,12 +276,14 @@ export function frontierPart(
  */
 export function fieldFrontiers(state: VillageState, day: number): Map<number, PartTask[]> {
   const frontiers = new Map<number, PartTask[]>();
-  if (state.plan === null) return frontiers;
+  if (state.season === null) return frontiers;
   const partsById = new Map(state.parts.map((p) => [p.id, p]));
   const month = dateOfDayIndex(day).month;
-  for (const { crop, work } of planCrops(state.plan)) {
+  for (const { crop, work } of seasonCrops(state.season)) {
     for (const task of PART_TASKS) {
-      const open = cropTaskWindows(crop, task).some(([from, to]) => month >= from && month <= to);
+      const open =
+        cropTaskWindows(crop, task).some(([from, to]) => month >= from && month <= to) ||
+        (task === 'sow' && springSowingExtended(state, day, crop));
       if (!open || cropTaskRemaining(work, task) <= 0) continue;
       const id = frontierPart(work, partsById, task, day);
       if (id === null) continue;
@@ -411,7 +422,9 @@ function cropLooks(
       ? 'pasture'
       : part.sownYears > 0
         ? 'stubble'
-        : 'bare';
+        : isFreshBurn(part)
+          ? 'burnt'
+          : 'bare';
     const harvest = share('harvest', id) ?? 0;
     const sow = share('sow', id) ?? 0;
     // plodina, kterou orá spřežení po pásech: zoraná zem jen tam, kam došla orba (klučení křovin
@@ -523,8 +536,10 @@ export interface PartYearWork {
     harvest: number;
   };
   mow?: number;
-  /** Díl osevu navíc čeká na volnou práci (fields.md – Osev navíc) – práce na něm ještě nezačala. */
-  extra?: true;
+  /**
+   * Díl nad potřebu (fields.md – Osevní postup po dílech, bod 3) – jeho práce jde až po stavbách.
+   */
+  surplus?: true;
 }
 
 /**
@@ -534,8 +549,8 @@ export interface PartYearWork {
 export function partYearWork(state: VillageState, day: number): Map<number, PartYearWork> {
   const result = new Map<number, PartYearWork>();
   const partsById = new Map(state.parts.map((p) => [p.id, p]));
-  const plan = state.plan ?? state.threshingFromPlan;
-  for (const { crop, work } of plan ? planCrops(plan) : []) {
+  const plan = state.season ?? state.threshingSeason;
+  for (const { crop, work } of plan ? seasonCrops(plan) : []) {
     const tasks = ['reclaim', 'plough', 'dig', 'sow', 'harvest'] as const;
     const spans = new Map(
       tasks.map((task) => [
@@ -565,17 +580,45 @@ export function partYearWork(state: VillageState, day: number): Map<number, Part
           sow: harvested ? 1 : (share('sow', id) ?? 0),
           harvest: harvested ? 1 : (share('harvest', id) ?? 0),
         },
+        ...(work.surplus ? { surplus: true as const } : {}),
       });
     }
   }
   for (const [id, mown] of mownShares(state, partsById)) {
     result.set(id, { ...result.get(id), mow: mown });
   }
-  for (const { id } of state.plan?.extra ?? []) {
-    if (partsById.has(id) && !result.get(id)?.crop)
-      result.set(id, { ...result.get(id), extra: true });
-  }
   return result;
+}
+
+/**
+ * Spálenina po klučení lesa (forest.md – Klučení lesa pro pole – postup, bod 4): díl po dohoření
+ * do první práce – první oběh osevu (bonus popela běží, ještě nesklizeno).
+ */
+function isFreshBurn(part: FieldPart): boolean {
+  return (
+    part.burnedDay !== undefined && part.sownYears === 0 && part.bonusUntilDay !== null && !part.sod
+  );
+}
+
+/**
+ * Vzhled zakládaného dílu v lese po fázích (forest.md – Klučení lesa pro pole – postup): kácení
+ * – paseka (`slash`) po padlých stromech (čtverec bez stromů podle práce kácení), schnutí –
+ * paseka, pálení – spálenina podle práce pálení, zbytek paseka. Díl bez fází null.
+ */
+function clearingLook(part: FieldPart, day: number): PartView | null {
+  const clearing = part.clearing;
+  const stage = clearingStage(part, day);
+  if (!clearing || stage === null) return null;
+  const fellCost = clearingFellCost(part);
+  if (stage === 'fell') {
+    const n = clearing.fell.length;
+    const work = n > 0 ? clearing.felled / n : fellCost > 0 ? part.foundingDone / fellCost : 0;
+    return { look: 'slash', work: Math.min(1, Math.max(0, work)) };
+  }
+  if (stage === 'dry' && part.foundingDone <= fellCost + EPSILON) return { look: 'slash' };
+  // pálení (i přerušené koncem okna – rozpálená část zůstane spálenina)
+  const burn = clearing.burnCost > 0 ? (part.foundingDone - fellCost) / clearing.burnCost : 1;
+  return { look: 'burnt', work: Math.min(1, Math.max(0, burn)), before: 'slash' };
 }
 
 /**
@@ -586,22 +629,34 @@ export function partYearWork(state: VillageState, day: number): Map<number, Part
  * příloh, zarůstající příloh (křoviny, mladý les) a louka na seno podle seče.
  * Podíl práce je po dvacetinách (začatá práce aspoň jedna dvacetina).
  */
-export function fieldPartLooks(state: VillageState, day: number): Map<number, PartView> {
+export function fieldPartLooks(
+  state: VillageState,
+  day: number,
+  sceneOnly = false,
+): Map<number, PartView> {
   const views = new Map<number, PartView>();
   const partsById = new Map(state.parts.map((p) => [p.id, p]));
   const mown = mownShares(state, partsById);
-  const plan = state.plan ?? state.threshingFromPlan;
-  for (const { crop, work } of plan ? planCrops(plan) : []) {
+  const plan = state.season ?? state.threshingSeason;
+  for (const { crop, work } of plan ? seasonCrops(plan) : []) {
     cropLooks(crop, work, partsById, day, views);
   }
   for (const part of state.parts) {
     if (views.has(part.id)) continue;
-    if (part.state === 'founding') {
+    const clearing = part.state === 'founding' ? clearingLook(part, day) : null;
+    if (clearing) {
+      views.set(part.id, clearing);
+    } else if (part.state === 'founding') {
       const work = part.foundingCost > 0 ? part.foundingDone / part.foundingCost : 0;
       // louku zakládanou rádlem jen vyklízí od překážek – drn zůstane do orby (oxen.md – Jen rádlo)
       views.set(part.id, { look: part.sod ? 'pasture' : 'bare', work: Math.min(1, work) });
+    } else if (sceneOnly && part.state === 'ready' && part.next !== undefined && !part.sod) {
+      // jen pro scénu (`sceneOnly`): díl po prvním osevu oběhu čeká na řadě – strniště do podzimní
+      // práce (fields.md – Osevní postup po dílech, bod 6); chůze, vozy a pastva (simulace) berou
+      // skutečný stav dílu, takže vzhled strniště je nemění
+      views.set(part.id, { look: 'stubble' });
     } else if (part.state === 'ready' || part.state === 'sown') {
-      views.set(part.id, { look: part.sod ? 'pasture' : 'bare' });
+      views.set(part.id, { look: part.sod ? 'pasture' : isFreshBurn(part) ? 'burnt' : 'bare' });
     } else if (isOvergrown(part)) {
       // zarůstající příloh (fields.md – Zarůstání) – křoviny a mladý les
       views.set(part.id, { look: fallowStage(part, day) === 'shrubs' ? 'shrubs' : 'young-forest' });

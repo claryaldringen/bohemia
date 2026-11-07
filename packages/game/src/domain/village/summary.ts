@@ -14,9 +14,12 @@ import {
   craftCoverage,
   craftNeeds,
   craftStocks,
+  smithIronSummary,
   workshopLabor,
   type CraftNeeds,
+  type SmithIronSummary,
 } from './crafts';
+import { toolEquipmentKg } from './iron';
 import { ironTripDaysLeft } from './cart-iron';
 import {
   charcoalStockKg,
@@ -47,6 +50,7 @@ import {
 import { dailyMilk, dairyDams, villageCheeseKg, yearlyMilk } from './dairy';
 import { villageMeal, villageMeatKg } from './diet';
 import { villageHayKg } from './hay';
+import { horsesInPlaces, villageHorses } from './horses';
 import { villageLegumesKg } from './legumes';
 import {
   dailyEggsKg,
@@ -131,7 +135,7 @@ import type {
   RoadGrade,
 } from './types';
 import { copyGrid } from './square-grid';
-import { treesToFell, woodFellingCost, woodLogs } from './wood';
+import { pileLogs, treesToFell, woodFellingCost, woodLogs } from './wood';
 
 // Souhrn vsi pro panel hráče a scénu – jen čte stav, nic nemění.
 
@@ -261,6 +265,11 @@ export interface WorkshopSummary {
    * ostatní dílny null.
    */
   ore: SmithOreSummary | null;
+  /**
+   * Kovář (production-chains.md – Kovář): houba, hřivny a jejich zásoba, nástroje ve vybavení
+   * domácností a měchař u tavby; ostatní dílny null.
+   */
+  iron: SmithIronSummary | null;
   /** Hrnčíř (crafts.md – Hlína hrnčíře): zásoba hlíny, hliniště a hromada u jámy; jinak null. */
   clay: PotterClaySummary | null;
   /**
@@ -282,8 +291,8 @@ export interface WorkshopSummary {
     woodworkCoverage: number;
     /**
      * Kování k vozu (wagons.md – Kování vozů): vůz s hotovou dřevěnou prací čeká na kování (kg),
-     * nebo pro něj tesař či jeho syn (věk) jde do vsi `to` (jméno, soused ve směru, nebo ves na
-     * téže mapě) s nosiči (`porters`), nebo s vozem a sedlákem (`cart` – druh vozu), a vrátí se za
+     * nebo pro něj tesař či jeho syn (věk) jde do vsi `to` (jméno, soused ve směru)
+     * s nosiči (`porters`), nebo s vozem a sedlákem (`cart` – druh vozu), a vrátí se za
      * `daysLeft` dní; jinak null.
      */
     iron: {
@@ -312,6 +321,11 @@ export interface CartSummary {
 /** Řemesla vsi – zásoby, potřeba, pokrytí (meze produktivity) a dílny. */
 export interface CraftsSummary {
   stocks: CraftStocks;
+  /**
+   * Nástroje ve vybavení domácností (kg – production-chains.md, Nástroje jako vybavení
+   * domácností); pokrytí potřeby `coverage.tools`.
+   */
+  equipmentKg: number;
   needs: CraftNeeds;
   coverage: CraftCoverage;
   workshops: WorkshopSummary[];
@@ -431,8 +445,12 @@ export interface VillageSummary {
   storesKg: number;
   /** Zásoby jablek (kg) – jí se před obilím, 1. 3. shnijí. */
   applesKg: number;
-  /** Klády na hromadě u vsi (forest.md). */
+  /** Klády v zásobě vsi celkem (forest.md) – u vsi i u lesa. */
   woodLogs: number;
+  /** Z toho klády na hromadách u lesa (zbytek leží u vsi). */
+  forestLogs: number;
+  /** Klády na hromadě u vsi (kusy, bez hromad u lesa). */
+  pileLogs: number;
   /** Na kolik měsíců zásoby obilí vystačí při dnešní potřebě (bez lidí 0). */
   storesMonths: number;
   /** Nasycení příštího dne 0–1 podle přídělového systému (energie × pestrost – diet.md). */
@@ -680,7 +698,7 @@ function livestockSummary(state: VillageState, day: number): LivestockSummary {
     chickens: villageChickens(state),
     oxen,
     pastureHa: pastureHa(state, day),
-    grazingHa: grazingDemandHa(herds, oxen),
+    grazingHa: grazingDemandHa(herds, oxen, horsesInPlaces(villageHorses(state), day)),
     pigForestHa: pigForestHa(state),
     meatNeedKg: meatNeedPerYear(state, day),
     legumeNeedKg: legumeNeedPerYear(state, day),
@@ -810,6 +828,8 @@ export function summarizeVillage(
     storesKg: state.storesKg,
     applesKg: villageApplesKg(state),
     woodLogs: woodLogs(state),
+    forestLogs: Math.max(0, woodLogs(state) - pileLogs(state)),
+    pileLogs: pileLogs(state),
     storesMonths:
       needPerDay > 0 ? state.storesKg / ((needPerDay * DAYS_PER_YEAR) / MONTHS_PER_YEAR) : 0,
     satiation: diet.satiation,
@@ -855,6 +875,7 @@ function craftsSummary(state: VillageState, day: number): CraftsSummary {
   return {
     // uhlí u kováře i ve vypálených milířích (crafts.md – Milíř stojí vždy)
     stocks: { ...craftStocks(state), charcoalKg: charcoalStockKg(state) },
+    equipmentKg: toolEquipmentKg(state),
     needs: craftNeeds(state, day),
     coverage,
     workshops: state.dwellings.flatMap((d) => {
@@ -881,6 +902,7 @@ function craftsSummary(state: VillageState, day: number): CraftsSummary {
             workshop.craft === 'smith'
               ? smithOreSummary(state, d, day, haulCartsToday(state, day, false) > 0)
               : null,
+          iron: workshop.craft === 'smith' ? smithIronSummary(state, d, day) : null,
           clay:
             workshop.craft === 'potter'
               ? potterClaySummary(d, haulCartsToday(state, day, false) > 0)

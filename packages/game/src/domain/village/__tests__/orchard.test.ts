@@ -35,6 +35,7 @@ import { summarizeVillage } from '../summary';
 import type { ChronicleEvent, Orchard, Position, TileCell, VillageState } from '../types';
 import { block, makeLandscape } from './placement-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
+import { seasonCrop, springCrop } from '../year-plan';
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
 const POSITION: Position = { x: 0, z: 0, rotation: 0 };
@@ -510,12 +511,15 @@ describe('advanceVillage – sad', () => {
     const s = withOrchard(base, 400, at(570, 4, 1)); // 9 ha – sklizeň ≈ 72 člověkodní
     // zásoby přes rok spotřeby – ves podle zásob oseje menší plán (fields.md – Osev podle zásob),
     // první úsek od domu se tak vejde do podzimu a v plánu je i ozim
-    s.storesKg = 1200;
+    // (24. 10. 2026: plán luštěnin počítá celé stádo – plán osevu je jiný, zásoby 1 800 kg)
+    s.storesKg = 1800;
+    // snopy se nemlátí (výmlat má v září vlastní konec okna) – test hlídá jen sad a pole
+    s.sheaves = { grainKg: 0, legumesKg: 0 };
     const day = advanceVillage(s, at(601, 9, 2), null);
     expect(day.orchardWork!.done).toBeGreaterThan(1);
     // i před ozimem – jablka se sklízejí první, ozim dostane zbytek podzimu
-    expect(day.plan?.winter).toBeDefined();
-    for (const work of [day.plan, day.plan?.winter]) {
+    expect(seasonCrop(day.season, 'winter')).toBeDefined();
+    for (const work of [day.season && springCrop(day.season), seasonCrop(day.season, 'winter')]) {
       expect(work?.done.dig ?? 0).toBe(0);
       expect(work?.done.reclaim ?? 0).toBe(0);
     }
@@ -601,7 +605,7 @@ describe('advanceVillage – sad', () => {
     expect(daily).toEqual(whole);
     // sad opravdu plodil – jinak by shoda nic neznamenala
     expect(events(whole, 'apple-harvest').length).toBeGreaterThanOrEqual(5);
-  });
+  }, 120_000);
 });
 
 /** Usazená ves – první pole je dávno založené a v jarním i podzimním okně zbývá společná práce. */

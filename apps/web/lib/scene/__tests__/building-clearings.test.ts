@@ -13,7 +13,9 @@ import {
   clearingsKey,
   clearingsNear,
   fieldClearings,
+  hayBlockers,
 } from '../building-clearings';
+import type { SceneVillage } from '../../village-view';
 
 // Obydlí na poli a v sadu (population.md): pod vyklízenou plochou obydlí bez pozemku scéna
 // nekreslí obilí, obtisk pole ani jabloně – stejná plocha, jakou herní jádro z dílu odečte.
@@ -136,5 +138,48 @@ describe('maska ploch s rejstříkem (mnoho ploch pod velkým polem)', () => {
       if (value > 0 && value < 1) partial++;
     }
     expect(partial).toBeGreaterThan(50);
+  });
+});
+
+describe('kam seno nesmí (hayBlockers, issue #3)', () => {
+  const empty = { dwellings: [], fields: [] } as unknown as SceneVillage;
+  const blockedAt = (village: Partial<SceneVillage>, x: number, z: number): boolean =>
+    clearingMask(hayBlockers({ ...empty, ...village }), 1.2)(x, z) < 1;
+
+  it('ohrada blokuje celý čtverec, i kus od plotu', () => {
+    const pen = { id: 1, cell: { x: 5, y: 5 }, x: 82.5, z: 82.5, size: 15 };
+    const village = { pens: [pen] } as unknown as Partial<SceneVillage>;
+    expect(blockedAt(village, 82.5, 82.5)).toBe(true);
+    expect(blockedAt(village, 76, 89)).toBe(true);
+    expect(blockedAt(village, 100, 82.5)).toBe(false);
+  });
+
+  it('humno, pozemek i dvorek polozemnice, jáma a hřbitov', () => {
+    const village = {
+      dwellings: [
+        dwelling(0, 0, {
+          type: 'polozemnice',
+          plot: {
+            cell: { x: 0, y: 0 },
+            x: 0,
+            z: 0,
+            size: 15,
+            variant: 'center',
+            yard: { cell: { x: 1, y: 0 }, x: 15, z: 0 },
+          },
+        }),
+      ],
+      threshingFloors: [
+        { id: 1, position: { x: 100, z: 0, rotation: 0 }, built: true, progress: 1 },
+      ],
+      grainPits: [{ id: 1, x: 200, z: 0, fill: 0.5 }],
+      cemeteries: [{ squares: [{ cell: { x: 3, y: 3 }, x: 300, z: 0, size: 15 }] }],
+    } as unknown as Partial<SceneVillage>;
+    expect(blockedAt(village, 6, 6)).toBe(true); // zahrádka (pozemek)
+    expect(blockedAt(village, 20, 0)).toBe(true); // dvorek
+    expect(blockedAt(village, 100, 3)).toBe(true); // humno
+    expect(blockedAt(village, 200, 1)).toBe(true); // jáma
+    expect(blockedAt(village, 305, 5)).toBe(true); // hřbitov
+    expect(blockedAt(village, 150, 50)).toBe(false); // louka
   });
 });

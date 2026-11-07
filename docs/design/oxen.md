@@ -121,6 +121,33 @@ Clauda, čísla podle [rešerše](research/2026-10-19-pens.md).
   ohrada je oplocená jako hřbitov, branka (vchod) na obrysu nejblíž k nejbližšímu obydlí, krmení
   jako cíl; rozšíření ve stavbě je jen vytyčené (plot a branka kolem hotových čtverců).
 
+## Plot ohrady podle délky a ulička mezi stavbami (23. 10. 2026)
+
+Martin, 23. 10. 2026: „**Ohrady by měly být fyzicky menší než plocha, kterou zabírají. Když například
+vedle sebe budu mít ohradu s kozami a ohradu s ovcemi, musí mezi nimi být taková mezera, aby tam mohl
+projet vůz.**“ A issue #3, 22. 10. 2026: „**Pokud rozšiřuju nějakou ohradu nebo hřbitov (tj. postavím
+nové políčko vedle starého políčka), tak se plot na jedné či více stranách stavět nemusí a mělo by se
+ušetřit poměrně dřeva a času.**“ Volby Martina téhož dne: kapacita na čtverec zůstane
+(`PEN_PLACES_PER_SQUARE` se nemění) a pravidlo platí i pro hřbitov (cemetery.md).
+
+- **Odsazení plotu (návrh Clauda):** plot stojí `PEN_FENCE_INSET_M` = 1,5 m uvnitř čtverce
+  (15 × 15 m), tedy čtverec bez plotu má 12 × 12 m. Dvě sousední ohrady (nebo ohrada a hřbitov) mají
+  mezi ploty uličku 3 m, kterou vůz i chodec projede; 1,5 m = polovina uličky pro vůz s nákladem
+  s rezervou. Mezi čtverci téže ohrady plot není. Pozemek polozemnice zůstává 0,5 m od okraje.
+- **Cena plotu podle délky (návrh Clauda):** cena čtverce (40 čd, 6 stromů) se dělí na **plot**
+  (`PEN_FENCE.share` 0,5 práce a `PEN_FENCE.trees` 4 stromy, tedy osmina práce a strom na stranu
+  čtverce) a **zbytek** (přístřešek, žlab, jesle, úprava země – platí každý čtverec). Plot se platí
+  jen za **nové vnější strany** (`newFenceSides`, `fence-cost.ts`): strana, za kterou leží jiný
+  nový čtverec nebo čtverec téže ohrady, plot nechce. Samostatný čtverec stojí jako dřív (40 čd,
+  6 stromů), rozšíření o čtverec po jedné straně 35 čd a 5 stromů, dva nové čtverce vedle sebe
+  70 čd a 10 stromů. Starý plot na straně, která se stane vnitřní, se nevrací ani se neúčtuje (stojí ve stavbě do
+  dokončení rozšíření). Oprava plotu (abandonment.md) počítá s vnějším obrysem
+  stejně.
+- **Průjezdnost:** vozová síť blokuje jen buňky uvnitř plotu (`fencedCells`), takže řada buněk na
+  hranici sousedních čtverců je sjízdná (mřížka vozů 3,75 m, hranice čtverců leží na jejích řadách; u ohrad natočených o jiný násobek než 90° řady na hranici nesedí, proto se buňka blokuje, jen když leží celá uvnitř plotu – `fencedCells`).
+  Pěšiny ohradou už dřív procházely. Plánování vozové cesty (`wagonRoadGrid`) drží odstup od celého
+  čtverce, ulička je tedy pro vozy jen na stávající síti – řeší nový systém cest (#6).
+
 ## Ohrada volů, voli po kusech a potah (20. 10. 2026)
 
 Martin, 20. 10. 2026: „**Vesnice určitě potřebuje více vozů. Ať to funguje jako se stády - ohrada pro voly udrží určitý počet spřežení a když bude vesnice potřebovat víc vozů, ohrada se musí zvětšit. Zaároveň to udělej tak, že rádlo táhnou 2 voli, 4kolový vůz také dva voli a dvoukolový vůz jeden vůl. Napiš návrh, co všechno se dá vozit na vozech a jakých.**“ Na návrh odpověděl: „**Ano, udělej to jak říkáš**“ – platí celý
@@ -173,20 +200,40 @@ Co níž není výslovně Martinovo, je návrh Clauda.
 Jako se stády (Martin výš): ves si sama spočítá, kolik volů chce, a strop jsou místa v ohradách
 volů (`draft.ts`).
 
-- **Páry k rádlům:** tolik, aby voli zorali celý osev v oknech orby. K 1. 9. plán osevu zkusí 1,
+- **Páry k rádlům:** tolik, aby voli zorali celý osev v oknech orby (od 25. 10. 2026 osev
+  osevního postupu – [pole](fields.md), Osevní postup po dílech; ~~roční plán osevu~~ se ruší).
+  K 1. 9. ves zkusí 1,
   2, … párů (kapacita páru jako dřív spřežení – 0,3 ha za den, délka brázdy a cesta k bloku)
   a nejméně párů, se kterými vybere totéž jako bez meze orby, je **potřeba** toho roku
   (`DraftState.ploughNeed`, nejvýš 8). Do prvního plánu pár na každou ohradu volů. Co páry
-  nezorají, se dál nezaseje.
-- **Páry se nemění rok od roku** (návrh Clauda 20. 10. 2026: pár, který ves vycvičila,
-  drží do konce služby, nový pár a rádlo jen když potřeba trvá; hystereze – rozhodnutí Clauda,
-  `nextPloughPairs`): ves páry k rádlům (`DraftState.ploughPairs`) změní, jen když potřeba leží
-  **dva plány po sobě** na téže straně – zvýší je na menší z obou potřeb, sníží na větší z nich;
-  jinak drží, kolik má. Proč dva roky a ne „nejvyšší potřeba za 2 roky“: maximum by pár drželo
-  déle, ale jednoletý výkyv nahoru by výcvik a rádlo stejně spustil (Vlkov: potřeba 2 v roce 800,
-  1 v roce 801). Výcvik trvá 2 roky a pár slouží 10 – vyplatí se jen trvalá potřeba; slabší rok
-  zase nezastaví náhradu páru, který ves potřebuje. Pár, který už ves má, slouží do konce služby
-  vždy (voli se nikdy neporážejí dřív).
+  nezorají, se dál nezaseje. **Od osevního postupu po dílech** ([fields.md](fields.md) – Osevní
+  postup po dílech, Páry k rádlům; návrh Clauda 25. 10. 2026) ves plán nemá: potřeba je nejméně
+  párů, které v oknech orby zorají **všechny díly na řadě** v hospodářském roce – nutné i nad
+  potřebu (ozim v září–říjnu, jař na podzim i na jaře, bez posledního dne okna; výkon páru
+  0,3 ha za den × délka brázdy dílů). Ves tak chce víc volů a sena než dřív – měří Úloha 9.
+  **Strop podle lidí** (návrh Clauda 25. 10. 2026, recenze Úlohy 5): nejvýš tolik párů, kolik ves
+  obslouží – pár chce oráče a setí za zoranou částí (0,3 ha za den × 10 člověkodnů na hektar ≈ 3),
+  tedy `OXEN.crewPerPair` = 4 dospělí na pár (nejméně 1 pár). Jinak by malá ves s velkým polem
+  chtěla až 8 párů a seno na ně, které by stejně nezorala ani nezasela.
+- **Nahoru hned, dolů po dvou plánech** (od 27. 10. 2026 – na otázku, zda si ves smí sama
+  vycvičit víc párů volů a vyrobit víc rádel, **Martin 27. 10. 2026: „Nejen že smí, ale dokonce by
+  měla“**; dřív hystereze i nahoru – návrh Clauda 20. 10. 2026, `nextPloughPairs`): když orba na
+  plán setí nestačí (potřeba párů nad páry, které ves má), ves páry k rádlům
+  (`DraftState.ploughPairs`) **zvýší hned** na dnešní potřebu – volné páry osadí rádly, další
+  vycvičí z telat (vesničané sami používají, co jim ulehčí práci). Sníží je, jen když potřeba
+  leží **dva plány po sobě** níž – na větší z obou potřeb; slabší rok tak nezastaví náhradu páru,
+  který ves potřebuje (výcvik trvá 2 roky, pár slouží 10). Pár, který už ves má, slouží do konce
+  služby vždy (voli se nikdy neporážejí dřív). Ves, které orba stačí, se nemění.
+- **Pod pojistkou** (27. 10. 2026 – Martin schválil „Pod pojistkou mají v oknech setí přednost
+  pole“, **Martin 27. 10. 2026: „Ano“**; provedení návrh Clauda): když výhled zásob z pole
+  k příští sklizni k 1. 9. nedosáhne pojistky ([pole](fields.md) – Osev podle zásob), potřeba párů
+  počítá **i nutné díly mimo postup** – výběr nutných dílů k 1. 9. včetně nouzových příloh
+  (`neededSelection`); páry zvýší hned jako vždy, když orba nestačí. Proč orba a ne lidé: Vlkov (rok 822, 1 rádlo, 7 vycvičených volů) měl v oknech
+  setí 3–5 člověkodnů denně volných a stavby nutné polní práci už ustupují (pořadí práce dne –
+  [pole](fields.md), Práce; Martin 25. 10. 2026) – úzkým hrdlem bylo jediné rádlo, které zorá
+  ≈ 18 ha za podzim, kdežto ves potřebovala ≈ 45 ha ozimu. Volné páry volů ves osadí rádly sama
+  (Rádlo k páru bez výcviku výš), další páry vycvičí z telat – vesničané sami používají, co jim
+  ulehčí práci. Motyka dál nekope (Jen rádlo).
 - **Voli vozů:** vozy, které se ves rozhodla mít ([vozy](wagons.md) – Kolik vozů ves chce),
   naráz – dvoukolák 1, čtyřkolák 2 voli.
 - **Voli se sdílí:** orba (podzim, jaro) a svoz (léto) se nepřekrývají – ves chce **víc z toho**
@@ -197,11 +244,31 @@ volů (`draft.ts`).
   **„Voli se nevejdou do ohrady“** (jako „Stáda se nevejdou do ohrad“) a ves má méně vozů (vybere
   ty, které se v místech vyplatí nejvíc) nebo méně párů (orá pomaleji). Cvičí a krmí jen tolik
   volů, kolik se vejde (`oxenTrainingTarget`).
-- **Krávy na obměnu volů** ([strava](diet.md) – Krávy na obměnu volů): 3 krávy a kráva navíc na
-  každé 4 voly, které ves cvičí a krmí; telata na voly jen z přírůstku nad nimi. Když ves telata do
+- **Krávy na obměnu volů** ([strava](diet.md) – Krávy na obměnu volů): ~~3 krávy a kráva navíc na
+  každé 4 voly, které ves cvičí a krmí~~ **cíl krav podle volů** (Martin, 20. 10. 2026: „Dejme
+  možnost 1.“ – podrobnosti návrh Clauda): ke kravám na mléko 3 krávy a **půl krávy na každého
+  vola**, kterého ves chce na rádla i vozy (voli jsou býčci – polovina telat; vůl slouží 10 let),
+  ves si je nechá při porážce; telata na voly jen z přírůstku nad nimi. Když ves telata do
   výcviku potřebuje (`oxenCalvesWanted` – voli, kteří jí chybí do cíle), nechá si při porážce
   1. 11. tolik krav navíc nad chovné stádo, aby na jaře z přírůstku byla.
-- **Seno:** seč 1. 6. počítá s voly, které ves cvičí a krmí, aspoň s těmi, které má.
+- **Dobytek od sousedů** ([obchod](trade.md) – Dobytek ve třech druzích; Martin, 20. 10. 2026:
+  „s dobytkem by také mělo jít obchodovat. Představuju si tři kategorie - krávy, mladé voly (musí
+  se vycvičit) a vycvičené voly“): mladí voli jdou do ohrady volů na výcvik (vycvičí se 2 roky od
+  příchodu), vycvičení voli táhnou hned a mají za sebou 3 roky služby; oba potřebují místo
+  v ohradě volů. Voli na cestě se počítají do volů, se kterými ves při výcviku počítá, a do míst
+  – výcvik pro ně telata nebere. **Rádlo k páru bez výcviku** (návrh Clauda): když ves má pár
+  k orbě, na který rádlo chybí (koupený vycvičený vůl k vlastnímu), vyrobí ho bez výcviku. Ves
+  prodá voly ve výcviku a vycvičené voly mimo posledních 2 let služby.
+- **Seno:** seč (25. 5. a otava 1. 8.) počítá s voly, které ves cvičí a krmí, aspoň s těmi, které má.
+  **Změna (2. 11. 2026) – seno jen na skutečné voly** (návrh Clauda, Martin: „3. ok“): seč počítá
+  s voly, které ves má (i telata ve výcviku), které výprava teprve přivede, s voly bez ohrady
+  a s telaty, která výcvik opravdu dostane (voli chybí do cíle, místo v ohradách volů a telata nad
+  chovnými kravami – bez sena a dřeva na rádlo); rezerva seče (`HAY_CUTS.reserve`) beze změny. Dřív
+  aspoň s voly, které ves chce (`oxenTrainingTarget`) – i bez telat, takže ves s ohradou volů
+  a 2–3 kravami sekla na 2–6 volů, kteří nepřišli (seed krajiny 13: seno 4 → 26 t, ≈ 150–250
+  člověkodní ročně, otava v září proti setí ozimu). Telata jdou do výcviku hned, jak je přírůstek
+  nad chovné krávy (po mláďatech 1. 4.) – do letní seče jsou voly v ohradě, takže ves, která voly
+  chystá, seno dostane včas.
 - **Panel ohrady volů:** voli v ohradě, místa / kolik volů ves chce (červeně, když chybí;
   v popisku vycvičení a ve výcviku – jako `herdPlaces` u stád), páry s rádlem / páry k orbě
   (ikona rádla `resources/ard.png`), vozy má / chce po druzích, nejstarší vůl (stáří, kolik let
@@ -292,6 +359,135 @@ Původní pravidla (18. 10. 2026; dávka a práce výš nahrazeny):
   motykou~~ – od 19. 10. 2026 orají pomaleji, viz Jen rádlo); když sena chybí přes polovinu, jeden
   vůl uhyne a spřežení se rozpadne (návrh Clauda).
 
+## Co nejvíc sena a co největší stáda (24. 10. 2026)
+
+Martin, 24. 10. 2026: „**Nemohla by se ves snažit posekat co nejvíc sena (to je přece omezeno
+rozlohou luk) a chovat co největší stáda? Krávy a hlavně voli jsou životně důležití, pak jsou
+ovce, kozy a prasata jsou důležitá nejméně. Když se v zimě zjistí, že pro krávy není krmení, tak
+se dají prodat nebo porazit.**“ Na návrh Clauda níž Martin, 24. 10. 2026: „**Ano souhlasím**“.
+Pravidla jsou návrh Clauda, schválený Martinem 24. 10. 2026 (nahrazují „jen tolik, kolik je
+potřeba“ v Senu výš – ve Vlkově se tak na 9 krav nikdy nesekalo a stádo krav se každý rok
+vracelo na chovný pár):
+
+1. **Seč co nejvíc.** 1. 6. ves naplánuje seč **všech luk na dosah** – úhor ve fázi louky
+   a přirozené louky do 600 m od obydlí, od nejbližší. Seno na zimní stádo, které ves má, a na
+   voly ohrad (dřívější potřeba) se seče jako dřív – podle konce okna seče mezi polními pracemi.
+   **Zbytek luk jen z volné práce:** za všemi úlohami dne (pletí, žně, orba, výmlat), před
+   stavbami; co volná práce do konce července nestihne, zůstane neposečené. Odvoz sena stejně
+   (vozem, na zádech).
+2. **Co největší stáda podle přednosti:** **voli → krávy → ovce → kozy → prasata**. V tomto
+   pořadí jde seno na zimu, pastva i pasáci (dřív ovce na vlnu před kravami nad chovné stádo).
+   Stáda drží tolik, kolik uživí seno, pastva, les, pasáci a místa v ohradách – **ne podle ceny
+   jídla v práci** (rovnovážné hospodaření stádo už nezmenšuje – diet.md).
+3. **Zima.** 1. 11. ves spočítá, kolik zvířat seno uživí, a v pořadí přednosti si je nechá; zbytek
+   jde na maso (prasata → kozy → ovce → krávy). Když seno během zimy nevystačí do konce března,
+   ves **hned porazí** tolik kusů (kozy → ovce → krávy), aby ostatní měli celou dávku – zvířata
+   nehladoví (dřív zimní úhyn 1. 3.). Chovný pár zůstane vždy (přežije o větvích a slámě).
+4. **Prodej jen hráč** (obchod se sousedy, trade.md) – ves sama zvířata neprodává ani nekupuje
+   (Martin 24. 10. 2026 odmítl, aby ves kupovala voly sama).
+5. **Náhrada volů i po rozpadu páru.** Náhrada posledního páru k orbě (telata z přírůstku nad
+   chovným párem krav) platí i tehdy, když už ves pár nemá, pokud má rádlo a pár nemá ani necvičí
+   (dřív jen dokud pár ještě sloužil – Vlkov zůstal s jedním volem).
+
+Staré vsi se nepřevádějí – pravidla platí od dalšího dne (seč od 1. 6., porážka od 1. 11.).
+
+**Naměřeno (24. 10. 2026):** Vlkov 8 let dopředu ze stavu 16. 4. 814 – seč 19–59 t sena ročně (dřív 8–21 t jen na stádo), volná práce v červnu klesla z 3–10 na ≈ 0,2 čd/den (seč ji vezme celou); krávy 2,6 → 8,2 (dřív 2,6 → 6,4), ovce 15 → 78 (dřív vrchol 66, pak 31), voli: výcvik od 1. 4. 815 a 1. 4. 816, pár zase od 1. 5. 818 (dřív výcvik až 1. 4. 820); hlad 1× ročně v letech 818–820 bez úmrtí hladem (dřív 18 úmrtí v letech 820–821); porážka pro nedostatek sena ani jednou. Čtyři čerstvé vsi × 15 let (hráč staví): krávy na 10 lidí 2,9 → 6,1, kozy 12,6 → 18,3, ovce a prasata beze změny, nasycení 100 % let; seč 3,4 → 18 čd na člověka a rok, volná práce 56,5 → 40 čd (29 → 21 %). ~~**Otevřené:** seno v listopadu Vlkovu zbývá ≈ 40 t nad potřebu (stádo roste jen o mláďata a ohrady) – omezit seč na seno pro stádo s jarním přírůstkem, nebo seč z volné práce dát až za stavby?~~ Rozhodnuto 25. 10. 2026 – obojí (Seno – dvě seče podle stád níž).
+
+## Seno – dvě seče podle stád (25. 10. 2026)
+
+Martin, 25. 10. 2026: „**Tak ony jsou v roce 2 senoseče: 1. konec května – konec června 2. srpen
+– září. Takže mi hoď tabulku s vytížením vesnice a zkusíme tam někam ty senoseče nacpat tak aby to
+neohrozilo ostatní polní práce.**“ Po tabulce vytížení Vlkova (květen 100 % – pletí 366 čd; volné:
+červen 175 čd, srpen 157, září 126) a návrhu Clauda: „**Pletí se často účastnily děti. To by mohlo
+uvolnit ruce dospělým. Jinak tu senoseč dej tak jak navrhuješ.**“ Pravidla jsou návrh Clauda,
+schválený Martinem 25. 10. 2026 (nahrazují seč 1. 6. – 31. 7. a „seč co nejvíc“ z oddílu výš):
+
+1. **Dvě seče.** 1. seč v okně **25. 5. – 30. 6.** (plán 25. 5. – zbytek loňského sena se zkazí),
+   **otava** v okně **1. 8. – 30. 9.** (plán 1. 8.) jen na loukách posečených letos v 1. seči
+   (u rozpracované louky jen posečená část). Otava dá **≈ 40 %** sena 1. seče a stojí **60 %
+   práce** na hektar – kosí se celá plocha (≈ 2,5 čd/ha), obracení, hrabání a svoz jen podle
+   hmoty a otava v kratších a rosnějších dnech schne pomaleji (návrh Clauda). Tuna sena z otavy
+   tak stojí ≈ 1,5× víc práce – napřed se seče 1. seč, otava jen dorovná, co ve stohu chybí.
+2. **Kolik.** Seče se tolik, kolik stáda sní: **strop** = seno na zimu pro stáda v cílové velikosti
+   (co dovolí pastva, les, pasáci a místa v ohradách – pořadí voli → krávy → ovce → kozy →
+   prasata, i s letošními mláďaty), voly ohrad a koně **a 20 % rezervy**, bez zásoby ve stohu.
+   Louky od nejbližší, dokud úroda strop nepokryje – ne všechny louky (Vlkov by jinak sekl přes
+   35 t a seno by shnilo).
+3. **Čí práce.** Seno **nutné** – na dnešní stádo i s letošními mláďaty (nejvýš zimní stádo, které
+   si ves chce nechat; zbytek půjde na maso), voly, koně a kusy čekající na zimní porážku – jde
+   **po všech polních pracích dne, před stavbami**. **Seč navíc** (do stropu, pro růst stád) jen
+   z práce, která zbude **po stavbách, opravách a osevu navíc** (Martin 19. 10. 2026: „pokud se
+   něco staví, tak čas věnují primárně té stavbě – zemědělství jenom natolik, aby vesnice neměla
+   hlad“), pěšky bez vozů. Seč **nikdy nebere práci polním úlohám** (pletí, žně, odnos, výmlat,
+   orba, setí, kopání) – co volná práce do konce okna nestihne, zůstane neposečené.
+4. **Děti při pletí** uvolní ruce dospělým – [fields.md](fields.md), Pletí – děti. Od 25. 10. 2026
+   se pleje jednou v květnu, hlavně ženy a děti – muži sekají ([fields.md](fields.md), Pletí
+   jednou a rychle); seč tak před pletím mužů přednost má.
+
+Seč uložená dřív platí jako 1. seč (po 30. 6. se už neseče); nové vsi založené po 25. 5. letos
+nesečou – seno na první zimu si přivedou osadníci.
+
+**Naměřeno (25. 10. 2026):** Vlkov ze stavu 16. 4. 814 (před → po). Vytížení: květen beze změny
+(pletí 366 čd, 100 %; oba výrostci pasou, děti při pletí 0); červen seč 208 → 73 čd, volné 7 →
+161 čd (využití 98 → 51 %); červenec seč 120 → 0, volné 0 → 117 čd; srpen a září beze změny (volné
+157 a 126 čd, otava v 816 není potřeba). 8 let: seč 21–60 t → 8–26 t 1. seč a od 820 otava
+4–6 t; seno 1. 11. 20–60 t → 11–27 t; krávy 2,6 → 13,7 / 2,6 → 11,5, ovce do 819 víc (76 proti
+59), voli 4 → 3, pár celou dobu, úmrtí hladem 0 v obou. Od 821 sekla ves méně (11 t 1. seče
+a otava) a v 823 ovce klesly na 2 (dřív 63) – příčina a oprava v oddílu níž.
+
+## Stáda podle práce na seč (25. 10. 2026)
+
+Martin, 25. 10. 2026: seče vložit tak, „**aby to neohrozilo ostatní polní práce**“ – polní práce
+mají přednost. Recenze dvou sečí ve Vlkově: pole přibývají, pletí v červnu sní všechnu práci
+a nutná seč (seno na dnešní stádo) práci nedostane – 821 jen 120 z 269 čd, seno chybí, zima
+poráží a krávy (přednost) vytlačí ovce: 104 → 27 (821), 58 → 2 (823). Pravidla jsou **návrh
+Clauda**:
+
+1. **Stáda jen na seno, které ves stihne posekat.** Ves si každý den v oknech seče zapíše práci,
+   která **po polních pracích** zbyla (nutná seč, stavby, opravy, osev a seč navíc i nevyužitá),
+   převedenou na seno podle dnešní seče (kg na člověkoden plánu i s chůzí na louky; bez plánu
+   podle práce na hektar). Po otavě (1. 10.) z ní ves ví **strop sena**: 1. seč a otava nejvýš
+   40 % 1. seče (otava jen na jejích loukách). Cílová velikost stád – plán seče (25. 5., 1. 8.)
+   i porážka 1. 11. – se do toho sena po ztrátách ve stohu vejde v pořadí přednosti: voli a koně
+   první, pak krávy → ovce → kozy (prasata seno nežerou). Krávy tak nevytlačí ovce kvůli senu,
+   které stejně nikdo neposeče, a nutná seč se vejde do práce, kterou ves po polních pracích má.
+   **Proč loňská práce:** je to přímé měření všeho, co ves opravdu dělá (pletí, žně, pasení,
+   péče), deterministické (zápis ve stavu den po dni – nezávisí na tom, po jakých kouscích se ves
+   dopočítá) a bez nového modelu práce po měsících. Rostou-li pole, strop se srovná o sezónu
+   později – tlumí to rezerva 20 % a otava. Ves bez zápisu (nová ves, převod, seč rozjetá před 25. 10. 2026) stáda stropem nemezí až do první celé sezóny.
+2. **Místa v ohradách před senem.** Kusy, které se i s jarními mláďaty nevejdou do ohrad svého
+   druhu a k domům, si pastvu ani seno neberou (dřív si je vzaly a stádo se srazilo na místa až
+   na konci – ovcím chybělo).
+3. **Koupený dobytek.** Krávy a voli, které výprava teprve vede, se počítají do seče (nutné seno
+   i strop) i do zimy (místo, pastva a seno mají první z krav, voli s voly). Otava má v seči
+   všechny louky posečené v 1. seči a seče do stropu; přibude-li dobytek během okna otavy
+   (koupený i na cestě), strop otavy se zvedne. Obchod nekoupí víc krav, než kolik se **i s
+   jarními telaty** vejde do ohrady skotu a k domům – stejné pravidlo jako porážka 1. 11. kvůli
+   místům (dřív se až 29 % koupených krav 1. 11. porazilo, i když seno bylo); důvod u kurzoru
+   „Tolik krav se do ohrady skotu nevejde.“
+4. **Nouzová porážka** (hlad – [diet.md](diet.md), Nouzová porážka) v pořadí přednosti: prasata →
+   kozy → ovce → krávy, voli nikdy; chovný pár, krávy na mléko a voly a ovce na vlnu zůstanou.
+   Dřív krávy před ovcemi.
+
+Práce na seč se počítá postupem seče – s vozy (svoz) posekne ves víc, než na seč dá práce; jinak
+by strop vyšel podhodnocený (Vlkov 821: 10,9 t místo 19,1 t, ovce by klesly na 2).
+
+**Naměřeno (25. 10. 2026):** Vlkov ze stavu 16. 4. 814, 8 let (před → po). Nutná seč splněná
+816–820 (80 až 228 čd) i 822 (201 z 212 čd); **821 jen 147 z 270 a 823 138 z 277 čd** – pole
+se rozšířila do června (pletí 81 → 179 a 113 → 156 čd), strop z loňské práce je o rok pozadu.
+Ovce 1. 11.: 821 27 → 50, 822 40 → 58, 823 2 → 24; krávy 2,6 → 11,3 (dřív 11,5), voli 4 → 3,
+pár celou dobu, úmrtí hladem 0; dní hladu v 823 5 → 22 (nouzová porážka 1. 9.). Oprava stropu
+podle letošního pletí (25. 5.) skoro nic nezměnila (ovce 823 24 → 22) – zavržena.
+~~**Otevřené (otázka na Martina):** plán osevu (1. 9.) bere celý červen pro pletí, takže pole
+každý rok sní práci, kterou loni dostala seč, a stáda se zmenšují o rok pozdě. Má plán osevu
+nechat v červnu práci na seno pro chovné minimum (voli, krávy na mléko a voly, ovce na vlnu)?~~
+**Rozhodnuto 25. 10. 2026 – lehkým pletím** (Martin: „Ve středověku se plelo jednou, rychle
+a dělaly to hlavně ženy a děti, takže z práce dospělých to moc neubírá.“ a „Ozim se plít asi
+nemusí – v dubnu už je tak velký, že plevel udusí.“): pleje se jednou, jen jař, luštěniny a len
+v květnu (8 / 5 a 10 / 6 čd/ha), ozim vůbec; plejí děti → ženy, muži jen zbytek po ostatních
+úlohách dne – v červnu se neplete a nutná seč dostane práci mužů i v posledním květnovém týdnu
+([fields.md](fields.md) – Pletí jednou a rychle). Plán osevu se nemění.
+
 ## Účinek na práci
 
 - **Zpracování půdy na dílech v oběhu** (zkopaný díl po sklizni, mladý úhor 1–2 roky): místo kopání
@@ -364,7 +560,7 @@ nezvládne“ a vracení orby motyce (Účinek na práci, Implementace výš). P
 Clauda**:
 
 - **Ves se spřežením orá všechno:** plán osevu k 1. 9. vznikne, když ves má vycvičené spřežení,
-  s orbou celé plodiny – ozim, jař i luštěniny (`YearPlan.ard`, `CropWork.plough` se všemi díly,
+  s orbou celé plodiny – ozim, jař i luštěniny (`FarmSeason.ard`, `CropWork.plough` se všemi díly,
   kopání 0); díly přidané během roku k plánu, který orá, orá taky. Plodina se tak buď celá orá,
   nebo celá kope – nic se nepamatuje po dílech.
 - **Drn orbou křížem, 2,5× práce:** příloh ve fázi louky a louka založená rádlem se orají
@@ -379,7 +575,7 @@ Clauda**:
   (bez překážek je díl připravený hned) a díl nese drn (`FieldPart.sod`) do první orby. Křoviny
   a les se zakládají jako dřív. Když ves spřežení do plánu ztratí, drn rozruší motyka jako vrácení
   louky. Cena u kurzoru podle `PlacementVillage.ploughTeam` (v prohlížeči `SceneVillage.ploughTeam`).
-- **Kapacita:** plán osevu (`chooseCrops`, `sowingCapacity`) hlídá i orbu spřežení v jejích
+- **Kapacita:** osevní postup (`neededSelection`, `sowingCapacity` – pomoc rodiny) hlídá i orbu spřežení v jejích
   oknech – ozim v září–říjnu (bez posledního dne, ať se zaseje i poslední zoraný pruh), jař
   a luštěniny na podzim, kolik po ozimu zbude, a zbytek v březnu–dubnu. Co spřežení nestihnou,
   ves nezaseje (motyka nepomůže); víc ohrad se spřežením = víc kapacity. Orbu dál dělají lidé
@@ -438,19 +634,29 @@ Clauda**:
   0,3 ha za den platí pro brázdu 100 m; jeden díl (15 m) ≈ 44 %, pás 45 m ≈ 80 %, 200 m a víc
   nejvýš +15 % (`FURROW` v `rules.ts`, `furrowEfficiency`). Denní orba spřežení je
   0,3 ha × výkon pásu, na kterém spřežení právě orá.
-- **Cesta na místo:** spřežení jde ráno z ohrady k bloku a večer zpět **vozovou sítí jako
+- **Cesta na místo:** ~~spřežení jde ráno z ohrady k bloku a večer zpět~~ (od 24. 10. 2026
+  zůstává na poli – Spřežení zůstane na poli níž) **vozovou sítí jako
   dvoukolák bez nákladu** (`villageCartRoutes`): nejrychlejší trasa – pevná cesta (cena 0,6),
   napříč přes neosetá pole (louka, úhor, strniště 1, zoraný a zakládaný díl 1,6), osetým dílem
   nikdy. Cestu ubírá orbě dne poměrným dílem (≈ 0,8 m/s, orá se ≈ 6 h denně, nejvýš polovina dne –
-  `TEAM_TRAVEL`); po cestě 500 m ≈ 6 %. Cena cesty se spočítá, když spřežení začne nový blok
+  `TEAM_TRAVEL`); ~~po cestě 500 m ≈ 6 %~~ (tam a zpět; od 24. 10. jen tam – po cestě 500 m
+  ≈ 3 % v den výjezdu). ~~Cena cesty se spočítá, když spřežení začne nový blok~~
   (`PloughWork.trip`); bez krajiny (kalibrace) chůze k dílu.
+- **Díly po dávkách** (osevní postup po dílech – fields.md; návrh Clauda 25. 10. 2026): nutné
+  díly přibývají den po dni, jak se vejdou do čela práce, díly nad potřebu po jednom – každá
+  dávka s vlastními bloky by brázdu zkrátila (ozim ≈ 0,6 výkonu proti 1,0 najednou). Proto díl
+  přibude **s celým svým pásem** (pás z rozvržení dílů, které ves ten den pro plodinu vybrala;
+  u dílů nad potřebu z dílů na řadě) a pásy, na kterých ještě nezačala žádná práce, se s novou
+  dávkou rozvrhnou znovu. Rozpracovaný pás ani hotová práce se nemění; brázda vyjde jako u všech
+  dílů najednou, jen díly, o které potřeba během podzimu vzroste, se k zoraným pásům nepřipojí.
 - **Plán osevu** počítá s výkonem podle tvaru polí, na která může ves zasít (průměr výkonu jejich
   pásů – `plannedFurrowEfficiency`), cestu neodhaduje (je malá).
 - **Ve scéně:** herní jádro posílá u dílů orby osu brázd a směr orby (`SceneFieldPart.furrow`) –
   podle nich vede obtisk zorané části i čára práce; spřežení jede pruhem přes celý pás
   (`bandCandidates`, pruh `PloughField.length`), při ladicí orbě za den (Orba za herní den níž)
-  vyjde z ohrady po cestě (`SceneVillage.ploughApproach`), zorá dnešní pruhy pásů za sebou
-  a večer se po cestě vrátí.
+  ~~vyjde z ohrady po cestě (`SceneVillage.ploughApproach`), zorá dnešní pruhy pásů za sebou
+  a večer se po cestě vrátí~~ – od 24. 10. 2026 jen v den výjezdu a návratu (Spřežení zůstane na
+  poli níž).
 - **Kalibrace se nemění** – hráč skriptu ohrady nestaví; sonda „plná domácnost se spřežením“
   ukazuje průměrnou délku brázdy a její výkon.
 
@@ -574,6 +780,48 @@ a nechávalo za sebou brázdu. Tak budu moci určit, jak se to chová.“ – **
 - **Při omezeném pohybu** (a bez hodin herního dne) se orba za den nepřehrává – pole ukáže
   konec dne a spřežení stojí na čele jako dřív.
 
+## Spřežení zůstane na poli (24. 10. 2026)
+
+Stav: **Martin, 24. 10. 2026:** „Ve hře teď dny nemáme. Ať spřežení orá, dokud nebude všechno,
+co je potřeba, zorané. Tím ušetříme každodenní cesty na pole a návraty domů a poměrně k tomu
+můžeme spřežení zpomalit, takže se na něj bude lépe koukat.“ – **ruší denní cestu z ohrady
+a zpět** (Co nejdelší brázda – Cesta na místo výš). Podrobnosti **návrh Clauda**:
+
+- **Výjezd:** spřežení plodiny vyjede z ohrady k prvnímu bloku v den, kdy začne orat (první den
+  orby v okně, kdy orba opravdu proběhne – den, kdy lidé neorají, spřežení zůstává doma).
+- **Na poli:** zůstává u bloku, i ve dny, kdy se neorá (lidé mají přednější práci) – voli jsou
+  u rádla, vozy je ten den nemají (Voli se sdílí). Po zorání bloku se přesune k dalšímu bloku
+  (od konce posledního pásu bloku vozovou sítí jako dřív).
+- **Návrat:** večer dne, kdy je zoráno všechno, co okno potřebuje (orba bez osevu navíc), kdy
+  okno orby zítra už neběží, nebo když ves páry s rádlem nemá – zpět do ohrady. Nutné díly
+  přibývají po dávkách (čelo práce – fields.md, Osevní postup po dílech): má-li plodina zoráno,
+  ale její nutné díly čekají, až lidé dosejí, spřežení na poli počká (návrh Clauda 25. 10. 2026).
+- **Cesta ubírá orbě jen při výjezdu a přesunu** (cesta jen tam, stejná čísla `TEAM_TRAVEL`);
+  návrat jde po poslední brázdě – zbytek orby posledního dne je menší než den, takže ho
+  nezkrátí. Ostatní dny orá spřežení celý den. Na cestě 500 m to dělá ≈ 6 % dne navíc oproti
+  denní cestě tam a zpět.
+- **Stav:** `PloughWork.trip` – blok, u kterého spřežení je, den a odkud přijelo (`arrived`)
+  a den návratu (`home`). Zapíše se večer (`settlePloughTeams`), výkon dne počítá
+  `ploughDayFactor` ze stavu ráno. Starší ves se záznamem bez příjezdu má spřežení u bloku, kde
+  naposled oralo (na poli); po zorání se večer vrátí.
+- **Voda ráno ve dny orby** ([wagons.md](wagons.md)) jen pro pár doma – v den výjezdu; pár na
+  poli vodu nesveze.
+- **Ve scéně:** spřežení na poli orá dnešní pruhy celý herní den (bez ranní cesty z ohrady
+  a večerního návratu), takže jede pomaleji; cesta z ohrady jen v den výjezdu, přesun mezi bloky
+  v den přesunu, návrat do ohrady v den návratu; mezi dny bez orby stojí u čela orby. Polohu bere
+  scéna z dat jádra (`trip` → `SceneVillage.ploughLegs`).
+
+## Orba má přednost (24. 10. 2026)
+
+Stav: **Martin, 24. 10. 2026:** „Co může být přednějšího než orba?“ Podrobnosti **návrh
+Clauda**: v rozdělení práce dne dostane orba rádlem přednost před sezónními úlohami, s nimiž
+se její okno překrývá – osevem (osev jde stejně za pluhem a dostane zbytek rukou), výmlatem jaře
+v září a sklizní jablek (září – říjen) –, hned po denním minimu domácností, péči o koně,
+výpravách a vozech pro kováře (`dayTaskOrder`). Žeň a výmlat ozimu se s orbou nepřekrývají.
+Spřežení potřebuje jen oráče (a honáka), jinak voli stojí; dřív se úlohy řadily jen podle
+nejbližšího konce okna, takže výmlat jaře v září nebo jablka braly lidi před orbou.
+Kapacita rádel (`ploughCap`) se nemění.
+
 ## Co hráč vidí
 
 - V nabídce staveb **ohrada** (název a cena v tooltipu).
@@ -591,6 +839,12 @@ a nechávalo za sebou brázdu. Tak budu moci určit, jak se to chová.“ – **
 - Ve scéně: ohrada s přístřeškem, v zimě voli a krávy v ohradě, stohy sena, na jaře a na podzim
   spřežení orá pole čtverec po čtverci – na čele orby u čáry, kde se zem mění na zoranou, a každý
   den dojde dál.
+- **Výběr spřežení** (Martin 20. 10. 2026: „nešlo mi kliknout na volské spřežení ani na člověka,
+  co jej vedl“; podrobnosti návrh Clauda – villagers.md, Výběr spřežení a vozu): klik na voly
+  nebo rádlo vybere spřežení – kroužek ho sleduje, panel ukáže, co dělá („orá díl pole“, „jde na
+  pole“, „vrací se do ohrady“), voly a tlačítka dílu pole, ohrady volů, oráče a honáka. Oráč
+  a honák jsou lidé vsi (honák výrostek nejblíž 12 letům) – klik na ně vybere člověka („orá“,
+  „vede spřežení“) s tlačítkem spřežení.
 
 ## Rozhodnutí
 
@@ -609,6 +863,8 @@ a nechávalo za sebou brázdu. Tak budu moci určit, jak se to chová.“ – **
 | Přirozené louky do 600 m od obydlí; louky na seno ve scéně z dat                                                                                                                                                                                                                                                                               | návrh Clauda                                               |
 | Ohrada smí na pole – čtverec pole pod ní z pole zmizí                                                                                                                                                                                                                                                                                          | Martin (18. 10. 2026)                                      |
 | Spřežení postupuje s orbou po čtvercích                                                                                                                                                                                                                                                                                                        | Martin (19. 10. 2026)                                      |
+| Seč všech luk na dosah – potřeba stáda podle okna, zbytek jen z volné práce; stáda co největší (voli → krávy → ovce → kozy → prasata)                                                                                                                                                                                                          | Martin (24. 10. 2026), pravidla návrh Clauda               |
+| Porážka 1. 11. podle sena v pořadí přednosti, v zimě hned při nedostatku sena (místo úhynu); náhrada volů i po rozpadu páru                                                                                                                                                                                                                    | návrh Clauda, schválil Martin (24. 10. 2026)               |
 | Kulaté rohy zorané plochy podle obratu spřežení                                                                                                                                                                                                                                                                                                | Martin (19. 10. 2026)                                      |
 | Roh 5 m, jen vnější rohy oraných dílů, úrodu neubírá                                                                                                                                                                                                                                                                                           | návrh Clauda                                               |
 | Ladění: spřežení projede celou dnešní orbu za herní den a nechává brázdu                                                                                                                                                                                                                                                                       | Martin (19. 10. 2026)                                      |
@@ -649,6 +905,12 @@ a nechávalo za sebou brázdu. Tak budu moci určit, jak se to chová.“ – **
 | Zima bez sena: uhyne tolik volů, aby zbylí měli polovinu, nejdřív telata; uhynulí na maso nejdou                                                                                                                                                                                                                                               | rozhodnutí Clauda                                          |
 | 6 m² na vola (≈ 400 kg) s jeslemi a přístřeškem; vůl navíc na vůz ve dny orby, když se vyplatí                                                                                                                                                                                                                                                 | rozhodnutí Clauda                                          |
 | Telata na voly jen z přírůstku nad chovnými kravami (stádo pod cíl neklesne, výcvik počká na jaro)                                                                                                                                                                                                                                             | návrh Clauda (20. 10. 2026)                                |
-| Páry k rádlům s hysterezí – mění se, jen když potřeba trvá dva plány po sobě                                                                                                                                                                                                                                                                   | návrh Clauda, hystereze rozhodnutí Clauda                  |
+| ~~Páry k rádlům s hysterezí – mění se, jen když potřeba trvá dva plány po sobě~~ (nahoru hned od 27. 10. 2026)                                                                                                                                                                                                                                 | návrh Clauda, hystereze rozhodnutí Clauda                  |
 | Krávy navíc přes zimu na telata, která ves do výcviku potřebuje                                                                                                                                                                                                                                                                                | rozhodnutí Clauda                                          |
 | Náhrada posledního páru k orbě bere telata i pod cílem krav, dokud zůstane chovný pár; krávy na telata rok předem                                                                                                                                                                                                                              | návrh Clauda (20. 10. 2026), rok předem rozhodnutí Clauda  |
+| „Ať spřežení orá, dokud nebude všechno, co je potřeba, zorané.“ – spřežení zůstane na poli, cesta jen při výjezdu, přesunu (a návratu)                                                                                                                                                                                                         | Martin (24. 10. 2026)                                      |
+| Výjezd v den, kdy orba proběhne; návrat večer po zorání okna, na konci okna nebo bez párů; návrat orbu nekrátí; pár na poli vodu nesveze                                                                                                                                                                                                       | návrh Clauda                                               |
+| „Co může být přednějšího než orba?“ – orba rádlem první ze sezónních úloh, hned po minimu, koních, výpravách a vozech pro kováře                                                                                                                                                                                                               | Martin (24. 10. 2026), pořadí návrh Clauda                 |
+| Pod pojistkou zásob páry k rádlům i na nutné díly mimo postup (nouzové přílohy) a nahoru hned – úzkým hrdlem osevu Vlkova bylo jediné rádlo, ne lidé                                                                                                                                                                                           | Martin (27. 10. 2026), návrh Clauda                        |
+| Páry k rádlům a rádla nahoru hned, když orba nestačí na plán setí („Nejen že smí, ale dokonce by měla“), dolů po dvou plánech                                                                                                                                                                                                                  | Martin (27. 10. 2026), provedení návrh Clauda              |
+| Seno jen na skutečné voly – voli ves má nebo přicházejí a telata, která výcvik opravdu dostane                                                                                                                                                                                                                                                 | Martin (2. 11. 2026), návrh Clauda                         |

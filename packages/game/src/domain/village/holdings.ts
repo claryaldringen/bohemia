@@ -4,6 +4,7 @@ import { gridKey, squareCenter } from './square-grid';
 import { fieldGrids } from './squares';
 import type { FieldPart, SquareGrid, TileCell, VillageState } from './types';
 import { nearestFirst, type WorkOrder } from './year-plan';
+import { partsByIdOf } from './parts-by-id';
 
 // Hospodaření podle polohy domů (fields.md – Hospodaření podle polohy domů; Martin, 18. 10. 2026:
 // „Spíš ať to vesničané odvodí od polohy domů.“). Jen organizace práce – jídlo zůstává společné.
@@ -99,10 +100,34 @@ export function holdingHouses(
 
 /**
  * Hospodářství podle pole dílů vsi – simulace se ptá každý den (hotové díly během roku), geometrie
- * se přitom mění jen s novými díly (pole dílů v simulaci jen roste) a s domy. Klíč: počet dílů
- * a domy; nové pole dílů (akce hráče, nový stav) = nový výpočet.
+ * se přitom mění jen s novými díly (pole dílů v simulaci jen roste) a s domy. Napřed paměť podle
+ * totožného pole dílů (klíč: počet dílů a domy), pak podle obsahu (`holdingsContentKey`) – ta
+ * přežije kopii stavu na začátku každého dopočtu (`cloneState`), jinak by se při dopočtu po dnech
+ * geometrie počítala každý den znovu. Výsledek na paměti nezávisí.
  */
 const holdingsCache = new WeakMap<readonly FieldPart[], { key: string; holdings: FieldHoldings }>();
+/** Paměť podle obsahu – posledních pár vsí (worker dopočítává víc vsí za sebou). */
+const holdingsByContent = new Map<string, FieldHoldings>();
+const HOLDINGS_BY_CONTENT_MAX = 8;
+
+/**
+ * Klíč obsahu všeho, co `fieldHoldings` čte: domy (id, poloha), díly v pořadí (id, políčko, jinak
+ * vzdálenost) a přesná mřížka pole dílu (natočená pole).
+ */
+function holdingsContentKey(
+  houses: readonly HoldingHouse[],
+  parts: readonly FieldPart[],
+  grids: ReadonlyMap<number, SquareGrid>,
+): string {
+  const gridText = new Map<number, string>();
+  for (const [id, g] of grids) gridText.set(id, `${g.x}:${g.z}:${g.rotation}`);
+  const out = [houses.map((h) => `${h.id}:${h.position.x}:${h.position.z}`).join(',')];
+  for (const p of parts) {
+    const where = p.cell ? `${p.cell.x},${p.cell.y}` : `d${p.distanceM}`;
+    out.push(`${p.id}:${where}:${gridText.get(p.fieldId) ?? ''}`);
+  }
+  return out.join(';');
+}
 
 /** Hospodářství a úseky vsi (viz hlavička souboru). */
 export function villageHoldings(state: VillageState): FieldHoldings {
@@ -112,14 +137,24 @@ export function villageHoldings(state: VillageState): FieldHoldings {
   if (cached?.key === key) return cached.holdings;
   // díly natočených polí nesou mřížku pole (fields.md – Natočené stavby)
   const grids = fieldGrids(state);
-  const parts =
-    grids.size === 0
-      ? state.parts
-      : state.parts.map((p) => {
-          const grid = grids.get(p.fieldId);
-          return grid ? { ...p, grid } : p;
-        });
-  const holdings = fieldHoldings(houses, parts);
+  const content = holdingsContentKey(houses, state.parts, grids);
+  let holdings = holdingsByContent.get(content);
+  if (!holdings) {
+    const parts =
+      grids.size === 0
+        ? state.parts
+        : state.parts.map((p) => {
+            const grid = grids.get(p.fieldId);
+            return grid ? { ...p, grid } : p;
+          });
+    holdings = fieldHoldings(houses, parts);
+    if (holdingsByContent.size >= HOLDINGS_BY_CONTENT_MAX) {
+      holdingsByContent.delete(holdingsByContent.keys().next().value!);
+    }
+  } else {
+    holdingsByContent.delete(content);
+  }
+  holdingsByContent.set(content, holdings);
   holdingsCache.set(state.parts, { key, holdings });
   return holdings;
 }
@@ -387,7 +422,7 @@ export function sowingBlocks(
   // nouzový osev jen na vyžádání – běžné pořadí bere skupiny 1–4
   const groups: readonly BlockGroup[] =
     onlyGroup === EMERGENCY_GROUP ? [EMERGENCY_GROUP] : [1, 2, 3, 4];
-  const byId = new Map(parts.map((p) => [p.id, p]));
+  const byId = partsByIdOf(parts);
   const area = new Map<number | null, number>();
   const blocks: SowingBlock[] = [];
   for (const sector of holdings.sectors) {
@@ -398,17 +433,20 @@ export function sowingBlocks(
     const holding = sector.dwellingId;
     area.set(holding, (area.get(holding) ?? 0) + list.reduce((sum, p) => sum + p.areaM2, 0));
     const inUse = list.some((p) => sowingGroup(p) === 1);
-    const distance = new Map(sector.partIds.map((id, i) => [id, sector.distances[i]!]));
+    // skupina každého dílu jednou (ne pro každou skupinu znovu) – tytéž bloky
+    const groupOf = list.map(blockGroup);
     for (const group of groups) {
-      const first = list.findIndex((p) => blockGroup(p) === group);
+      const first = groupOf.indexOf(group);
       if (first < 0) continue;
-      const members = list.filter((p) => blockGroup(p) === group);
+      const members = list.filter((_, i) => groupOf[i] === group);
       // před blokem v úseku neleží příloh – sedlák k němu nemusí přes úhor
       const clear = list.slice(0, first).every((p) => p.state !== 'fallow') ? 0 : 1;
       const share =
         Math.round(Math.min(...members.map((p) => p.fertilityShare)) * SHARE_PRECISION) /
         SHARE_PRECISION;
-      const start = distance.get(members[0]!.id) ?? 0;
+      // vzdálenost od domu z úseku – jako mapa id → vzdálenost (při dvojím id platí poslední)
+      const at = sector.partIds.lastIndexOf(members[0]!.id);
+      const start = (at >= 0 ? sector.distances[at] : undefined) ?? 0;
       const using = inUse ? 0 : 1;
       const key =
         group === 1

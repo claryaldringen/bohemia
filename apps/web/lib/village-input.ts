@@ -1,4 +1,8 @@
 import {
+  BAD_YEAR_KINDS,
+  FORCED_DISASTER_KINDS,
+  type BadYearKind,
+  type ForcedDisasterKind,
   CRAFTS,
   DIRECTIONS,
   PEN_SPECIES,
@@ -6,6 +10,8 @@ import {
   TRADE_GOOD_VALUES,
   type Craft,
   type Direction8,
+  type FortKind,
+  type FortTop,
   type TradeGood,
   type TradeGoods,
   type TradePeople,
@@ -67,17 +73,22 @@ export function parseName(value: unknown): string | null {
   return typeof value === 'string' && value.length <= MAX_RAW_NAME_LENGTH ? value : null;
 }
 
-/** Vstup založení vsi `{ name, dwelling, fieldCells? }` (bez čtverců = bez pole), jinak null. */
+/**
+ * Vstup založení vsi `{ name, dwelling, fieldCells?, lordName? }` (bez čtverců = bez pole, bez
+ * `lordName` vojvoda na jméno čeká – lord.md, Zakladatelé), jinak null.
+ */
 export function parseFoundVillageInput(
   value: unknown,
-): { name: string; dwelling: Position; fieldCells: TileCell[] } | null {
+): { name: string; dwelling: Position; fieldCells: TileCell[]; lordName?: string } | null {
   if (!isRecord(value)) return null;
   const name = parseName(value.name);
   const dwelling = parsePosition(value.dwelling);
   const fieldCells = value.fieldCells === undefined ? [] : parseCells(value.fieldCells);
-  return name !== null && dwelling !== null && fieldCells !== null
+  const lordName = value.lordName === undefined ? undefined : parseName(value.lordName);
+  if (name === null || dwelling === null || fieldCells === null || lordName === null) return null;
+  return lordName === undefined
     ? { name, dwelling, fieldCells }
-    : null;
+    : { name, dwelling, fieldCells, lordName };
 }
 
 /** Vstup přejmenování vsi `{ name }`, jinak null. */
@@ -167,14 +178,71 @@ export function parsePlacePenInput(
   return known ? { ...input, species: known } : null;
 }
 
+const FORT_KINDS: readonly FortKind[] = ['fence', 'palisade', 'rampart'];
+const FORT_TOPS: readonly FortTop[] = ['fence', 'palisade'];
+
+/** Nejvíc bodů obvodu ve vstupu (fortifications.md – Čísla, Body obvodu – strop hlídá server). */
+const MAX_FORT_POINTS = 400;
+
+/**
+ * Vstup stavby opevnění `{ points, kind }` – body obvodu ve světě `[x, z]` (fortifications.md –
+ * Obvod) a druh (Druhy), jinak null. Tvar (ohyb, křížení, plocha) odmítne až kontrola umístění
+ * s důvodem pro hráče.
+ */
+export function parsePlaceFortificationInput(
+  value: unknown,
+): { points: [number, number][]; kind: FortKind } | null {
+  if (!isRecord(value) || !Array.isArray(value.points)) return null;
+  const raw: unknown[] = value.points;
+  if (raw.length === 0 || raw.length > MAX_FORT_POINTS) return null;
+  const points: [number, number][] = [];
+  for (const p of raw) {
+    if (!Array.isArray(p) || p.length !== 2) return null;
+    const [x, z]: unknown[] = p;
+    if (typeof x !== 'number' || typeof z !== 'number') return null;
+    if (!Number.isFinite(x) || !Number.isFinite(z)) return null;
+    points.push([x, z]);
+  }
+  const kind = FORT_KINDS.find((k) => k === value.kind);
+  return kind ? { points, kind } : null;
+}
+
+/**
+ * Vstup vylepšení opevnění `{ fortificationId, work, top? }` – plot na palisádu (`upgrade`), nebo
+ * plot či palisáda na val (`top`), jinak null.
+ */
+export function parseUpgradeFortificationInput(
+  value: unknown,
+): { fortificationId: number; work: 'upgrade' | 'top'; top?: FortTop } | null {
+  if (!isRecord(value)) return null;
+  const fortificationId = parsePositiveInt(value.fortificationId);
+  if (fortificationId === null) return null;
+  if (value.work === 'upgrade') return { fortificationId, work: 'upgrade' };
+  if (value.work !== 'top') return null;
+  if (value.top === undefined) return { fortificationId, work: 'top' };
+  const top = FORT_TOPS.find((t) => t === value.top);
+  return top ? { fortificationId, work: 'top', top } : null;
+}
+
+/** Vstup brány opevnění `{ fortificationId, position }` – klik na obvod ve světě, jinak null. */
+export function parseAddFortificationGateInput(
+  value: unknown,
+): { fortificationId: number; position: { x: number; z: number } } | null {
+  if (!isRecord(value) || !isRecord(value.position)) return null;
+  const fortificationId = parsePositiveInt(value.fortificationId);
+  const { x, z } = value.position;
+  if (fortificationId === null || !isFiniteNumber(x) || !isFiniteNumber(z)) return null;
+  return { fortificationId, position: { x, z } };
+}
+
 /** Vstup vylepšení pevné cesty `{ roadId, upgrade }` (roads.md), jinak null. */
 export function parseUpgradeRoadInput(
   value: unknown,
-): { roadId: number; upgrade: 'improved' | 'causeway' } | null {
+): { roadId: number; upgrade: 'improved' } | null {
   if (!isRecord(value)) return null;
   const { roadId, upgrade } = value;
   if (!Number.isInteger(roadId) || (roadId as number) <= 0) return null;
-  if (upgrade !== 'improved' && upgrade !== 'causeway') return null;
+  if (upgrade !== 'improved') return null;
   return { roadId: roadId as number, upgrade };
 }
 
@@ -272,6 +340,13 @@ export function parsePlaceSacredInput(
   return kind !== null && position !== null ? { kind, position } : null;
 }
 
+/** Vstup stavby humna `{ position }` (production-chains.md – Humno), jinak null. */
+export function parsePlaceThreshingFloorInput(value: unknown): { position: Position } | null {
+  if (!isRecord(value)) return null;
+  const position = parsePosition(value.position);
+  return position !== null ? { position } : null;
+}
+
 /** Vstup stavby řemeslné dílny `{ craft, position }`, jinak null. */
 export function parsePlaceWorkshopInput(
   value: unknown,
@@ -298,6 +373,25 @@ export function parseSkipTimeInput(value: unknown): { skip: TimeSkip } | null {
   if (!isRecord(value)) return null;
   const skip = TIME_SKIPS.find((s) => s === value.skip);
   return skip === undefined ? null : { skip };
+}
+
+/**
+ * Vstup vynucení pohromy (vývojový režim – disasters.md, plán P10): `{ kind: 'year', value: druh
+ * zlého roku }` nebo `{ kind: 'disaster', value: 'hail' | 'flood' | 'fire' | 'tornado' }`, jinak null.
+ */
+export function parseDevDisasterInput(
+  value: unknown,
+): { kind: 'year'; value: BadYearKind } | { kind: 'disaster'; value: ForcedDisasterKind } | null {
+  if (!isRecord(value)) return null;
+  if (value.kind === 'year') {
+    const year = BAD_YEAR_KINDS.find((k) => k === value.value);
+    return year === undefined ? null : { kind: 'year', value: year };
+  }
+  if (value.kind === 'disaster') {
+    const disaster = FORCED_DISASTER_KINDS.find((k) => k === value.value);
+    return disaster === undefined ? null : { kind: 'disaster', value: disaster };
+  }
+  return null;
 }
 
 /** Id vsi – UUID z databáze (jiný řetězec do dotazu vůbec nepustíme), jinak null. */
@@ -336,8 +430,51 @@ export function parseRelocateHouseholdInput(value: unknown): {
   return dwellingId !== null && dwelling !== null ? { dwellingId, ...dwelling } : null;
 }
 
-/** Vstup zrušení přestěhování `{ constructionId }`, jinak null. */
-export function parseCancelRelocationInput(value: unknown): { constructionId: number } | null {
+/**
+ * Vstup pojmenování muže rodu `{ personId, name }` (lord.md – Jména; jestli jméno smí být, ověří
+ * use-case), jinak null.
+ */
+export function parseNameLineManInput(value: unknown): { personId: number; name: string } | null {
+  if (!isRecord(value)) return null;
+  const personId = parsePositiveInt(value.personId);
+  const name = parseName(value.name);
+  return personId !== null && name !== null ? { personId, name } : null;
+}
+
+/** Vstup povýšení vesničana `{ personId, targetVillageId }` (vassalage.md), jinak null. */
+export function parseEnnobleInput(
+  value: unknown,
+): { personId: number; targetVillageId: string } | null {
+  if (!isRecord(value)) return null;
+  const personId = parsePositiveInt(value.personId);
+  const target = value.targetVillageId;
+  return personId !== null && typeof target === 'string' && target.length > 0 && target.length <= 64
+    ? { personId, targetVillageId: target }
+    : null;
+}
+
+/** Vstup přepínače správce `{ on }` (steward.md), jinak null. */
+export function parseSetStewardInput(value: unknown): { on: boolean } | null {
+  if (!isRecord(value)) return null;
+  return typeof value.on === 'boolean' ? { on: value.on } : null;
+}
+
+/** Vstup vyhlášení lovu navíc `{}` (jen `villageId`, který čte `villageAction`), jinak null. */
+export function parseDeclareHuntInput(value: unknown): Record<string, never> | null {
+  return isRecord(value) ? {} : null;
+}
+
+/** Vstup nastavení postoje vsi `{ stance }` (war.md – Obránci), jinak null. */
+export function parseSetDefenseStanceInput(
+  value: unknown,
+): { stance: 'defend' | 'surrender' | 'flee' } | null {
+  if (!isRecord(value)) return null;
+  const { stance } = value;
+  return stance === 'defend' || stance === 'surrender' || stance === 'flee' ? { stance } : null;
+}
+
+/** Vstup zrušení rozestavěné stavby `{ constructionId }`, jinak null. */
+export function parseCancelConstructionInput(value: unknown): { constructionId: number } | null {
   if (!isRecord(value)) return null;
   const constructionId = parsePositiveInt(value.constructionId);
   return constructionId !== null ? { constructionId } : null;
@@ -346,15 +483,39 @@ export function parseCancelRelocationInput(value: unknown): { constructionId: nu
 /** Nejvíc obydlí v jednom odchodu, které server vůbec přijme. */
 const MAX_LEAVING_DWELLINGS = 200;
 
+/** Cíl odchodu: dvoje použití – vybraná obydlí a syn vojvody. */
+export type LeaveVillageInput =
+  | { dwellingIds: number[]; destination: LeaveDestination }
+  | { sonId: number; destination: LeaveDestination };
+
 /**
- * Vstup odchodu do nové vsi (migration.md) `{ dwellingIds, destination }` – `destination` je
- * `{ kind: 'here', dwelling: { x, z, rotation } }` (první zemnice na téže mapě), nebo
+ * Cíl odchodu `{ kind: 'map', direction }`; jinak null – i dřívější `{ kind: 'here' }` (jedna ves,
+ * jedna mapa – migration.md).
+ */
+function parseLeaveDestination(destination: unknown): LeaveDestination | null {
+  if (!isRecord(destination)) return null;
+  if (destination.kind === 'map') {
+    const direction = parseDirection(destination.direction);
+    return direction ? { kind: 'map', direction } : null;
+  }
+  return null;
+}
+
+/**
+ * Vstup odchodu do nové vsi (migration.md) `{ dwellingIds, destination }`, nebo odchodu syna
+ * vojvody s poměrnou částí vsi (lord.md – Dělení vsi) `{ sonId, destination }` – `destination` je
  * `{ kind: 'map', direction }` (nová mapa ve směru); jinak null.
  */
-export function parseLeaveVillageInput(
-  value: unknown,
-): { dwellingIds: number[]; destination: LeaveDestination } | null {
-  if (!isRecord(value) || !Array.isArray(value.dwellingIds)) return null;
+export function parseLeaveVillageInput(value: unknown): LeaveVillageInput | null {
+  if (!isRecord(value)) return null;
+  const destination = parseLeaveDestination(value.destination);
+  if (destination === null) return null;
+  if (value.sonId !== undefined) {
+    if (value.dwellingIds !== undefined) return null;
+    const sonId = parsePositiveInt(value.sonId);
+    return sonId === null ? null : { sonId, destination };
+  }
+  if (!Array.isArray(value.dwellingIds)) return null;
   if (value.dwellingIds.length === 0 || value.dwellingIds.length > MAX_LEAVING_DWELLINGS) {
     return null;
   }
@@ -364,17 +525,19 @@ export function parseLeaveVillageInput(
     if (parsed === null) return null;
     dwellingIds.push(parsed);
   }
-  const destination = value.destination;
-  if (!isRecord(destination)) return null;
-  if (destination.kind === 'here') {
-    const dwelling = parsePosition(destination.dwelling);
-    return dwelling ? { dwellingIds, destination: { kind: 'here', dwelling } } : null;
-  }
-  if (destination.kind === 'map') {
-    const direction = parseDirection(destination.direction);
-    return direction ? { dwellingIds, destination: { kind: 'map', direction } } : null;
-  }
-  return null;
+  return { dwellingIds, destination };
+}
+
+/** Vstup volby odchodu mladšího syna po pohřbu `{ direction, sonName? }` (seniorate.md), jinak null. */
+export function parseChoosePlayerDepartureInput(
+  value: unknown,
+): { direction: Direction8; sonName?: string } | null {
+  if (!isRecord(value)) return null;
+  const direction = parseDirection(value.direction);
+  if (direction === null) return null;
+  if (value.sonName === undefined) return { direction };
+  const sonName = parseName(value.sonName);
+  return sonName === null ? null : { direction, sonName };
 }
 
 /** Vstup založení vsi po příjezdu na novou mapu `{ dwelling: { x, z, rotation } }`, jinak null. */

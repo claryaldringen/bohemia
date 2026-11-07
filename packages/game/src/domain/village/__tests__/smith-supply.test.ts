@@ -13,13 +13,13 @@ import {
   chooseDugSite,
   chooseOreSite,
   footOreBatchKg,
-  forgeOreKg,
   openOrePit,
   orePitOvergrowth,
   smithSons,
   updateOrePits,
   workOre,
 } from '../smith-supply';
+import { smeltOreKg } from '../iron-rates';
 import type { Craft, Dwelling, LaborShare, Person, Position, VillageState } from '../types';
 import { LANDSCAPE } from './paths-fixtures';
 import { makeLandscape } from './placement-fixtures';
@@ -73,7 +73,7 @@ function village(day: number): VillageState {
   s.storesKg = 5_000;
   s.lastDay = day;
   s.nextId = 1000;
-  s.crafts = { charcoalKg: 0, toolsKg: 0, potteryKg: 0 };
+  s.crafts = { charcoalKg: 0, potteryKg: 0 };
   return s;
 }
 
@@ -267,18 +267,19 @@ describe('ruda a rudiště (crafts.md – Uhlí a ruda kováře)', () => {
   it('kovář bez rudy nekove – bez místa ke kopání odpočívá (no-ore)', () => {
     const s = village(WINTER - 1);
     withSmith(s);
-    s.crafts = { charcoalKg: 1_000, toolsKg: 0, potteryKg: 0 };
+    s.crafts = { charcoalKg: 1_000, potteryKg: 0 };
     smithWorkshop(s).oreKg = 0;
     smithWorkshop(s).oreSite = null;
     const next = advanceVillage(s, WINTER + 3, null);
-    expect(next.crafts!.toolsKg).toBe(0);
+    expect(next.crafts!.bloomKg ?? 0).toBe(0);
+    expect(next.toolEquipmentKg ?? 0).toBe(0);
     expect(smithWorkshop(next).activity).toBe('no-ore');
   });
 
-  it('dávka rudy pěšky na 30 dní kování: kope, nosí v koších a kove z ní', () => {
+  it('dávka rudy pěšky na 30 dní tavby: kope, nosí v koších a taví z ní', () => {
     const s = village(WINTER - 1);
     withSmith(s, [], 300);
-    s.crafts = { charcoalKg: 1_000, toolsKg: 0, potteryKg: 0 };
+    s.crafts = { charcoalKg: 1_000, potteryKg: 0 };
     smithWorkshop(s).oreKg = 0;
     const next = advanceVillage(s, WINTER, null);
     const workshop = smithWorkshop(next);
@@ -292,7 +293,8 @@ describe('ruda a rudiště (crafts.md – Uhlí a ruda kováře)', () => {
     const dug = workshop.oreSite!.minedKg;
     expect(ore.manDays).toBeCloseTo((dug / 60) * 1.2, 2);
     expect(carry.manDays).toBeCloseTo(dug * basketManDaysPerKg(300, 25), 2);
-    expect(next.crafts!.toolsKg).toBeGreaterThan(0);
+    // ze zbytku práce taví houbu (production-chains.md – Kovář)
+    expect(next.crafts!.bloomKg).toBeGreaterThan(0);
     // jáma u rudiště
     expect(next.orePits).toHaveLength(1);
     expect(next.orePits![0]!.kg).toBeCloseTo(dug, 6);
@@ -390,7 +392,7 @@ describe('vůz se sedlákem pro rudu (crafts.md – Uhlí a ruda kováře, wagon
   it('s vozem kope na celý vůz – sedlák a kovář pak dovezou hromadu od jámy', () => {
     let s = withCart(village(WINTER - 1));
     withSmith(s, [], 300);
-    s.crafts = { charcoalKg: 5_000, toolsKg: 0, potteryKg: 0 };
+    s.crafts = { charcoalKg: 5_000, potteryKg: 0 };
     smithWorkshop(s).oreKg = 0;
     let haul: LaborShare | undefined;
     let ride: LaborShare | undefined;
@@ -413,7 +415,7 @@ describe('vůz se sedlákem pro rudu (crafts.md – Uhlí a ruda kováře, wagon
       const s = village(WINTER);
       const smith = withSmith(s, [], 300);
       smith.workshop!.oreSite = { x: 340, z: 40, minedKg: 0, day: WINTER, walkM: 300 };
-      const need = forgeOreKg(1.5);
+      const need = smeltOreKg(1.5);
       smith.workshop!.oreKg = need * 10;
       return { s, smith, need };
     };
@@ -447,16 +449,16 @@ describe('vůz se sedlákem pro rudu (crafts.md – Uhlí a ruda kováře, wagon
 });
 
 describe('převod a ves bez kováře (crafts.md – Uhlí a ruda kováře, Starší vsi)', () => {
-  it('kovárna z doby před rudou dostane zásobu na dávku – kove hned, rudiště až při kopání', () => {
+  it('kovárna z doby před rudou dostane zásobu na dávku – taví hned, rudiště až při kopání', () => {
     const s = village(WINTER - 1);
     withSmith(s);
-    s.crafts = { charcoalKg: 1_000, toolsKg: 0, potteryKg: 0 };
+    s.crafts = { charcoalKg: 1_000, potteryKg: 0 };
     expect(smithWorkshop(s).oreKg).toBeUndefined();
     const next = advanceVillage(s, WINTER, null);
     const workshop = smithWorkshop(next);
     expect(workshop.oreKg).toBeGreaterThan(0);
     expect(workshop.oreSite).toBeUndefined();
-    expect(next.crafts!.toolsKg).toBeGreaterThan(0);
+    expect(next.crafts!.bloomKg).toBeGreaterThan(0);
     expect(shares(next).some((share) => share.activity === 'ore')).toBe(false);
   });
 });

@@ -57,7 +57,6 @@ const state = {
       ]),
     ],
     trees: [],
-    candidates: [],
     labor: { from: 0, days: 0, shares: [] },
   },
   trails: [

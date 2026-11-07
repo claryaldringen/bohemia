@@ -17,11 +17,15 @@ upravená širší, hať a lávka z `apps/web/public/models/roads/`, vozová ces
 kolejemi v úvozu)
 a jablone (jabloně s jablky střídavě podél cesty – tlačítko „Vysadit jabloně“), stezka (zemská
 stezka od brány dvorce – trade.md), obchod (pytle obilí, hrnce, klády a sýr) a rudiste (jámy
-s vodou a valem, hromádka bahenní rudy a motyka – crafts.md, Uhlí a ruda kováře), hliniste (jámy
+s vodou a valem, hromádka bahenní rudy a motyka – crafts.md, Uhlí a ruda kováře), humno (mlat pod
+širým nebem bez přístřešku, stoh slámy a cepy – production-chains.md, Humno), hliniste (jámy
 se šedookrovou stěnou jílu, hromádka hlíny a rýč – crafts.md, Hlína hrnčíře) a milir (kouřící milíř
-mezi pařezy skácených buků – crafts.md, Milíř u skácených buků) – portréty do panelu výběru;
+mezi pařezy skácených buků – crafts.md, Milíř u skácených buků) a krizovatka-kriz a krizovatka-y (kříž a Y cest se znamením – paths.md, Křižovatky) a obilna-jama (otevřená obilná
+jáma se zrnem, hroudami pečeti a lopatou – production-chains.md, Obilné jámy) – portréty do panelu
+výběru;
 (64 × 64 PNG) – `resources/` people, food, wood, labor, satiation, date, apples, happiness
-(štěstí – plamen ohniště nad zkříženými poleny v kruhu kamenů), hay (seno – kupka sena
+(štěstí – plamen ohniště nad zkříženými poleny v kruhu kamenů), fire (pálí se – hořící hromada
+větví, klučení lesa), hay (seno – kupka sena
 z `apps/web/public/models/fields/haystack.glb`), meat (maso – uzená kýta s kostí a provázkem),
 cheese (mléko a sýr – bochník sýra s vykrojeným klínem a hrouda tvarohu), eggs (vejce v hnízdě
 ze slámy), legumes (luštěniny – hromádka suchého hrachu a čočky, otevřený lusk s hrášky),
@@ -29,10 +33,12 @@ hourglass (přesýpací hodiny – kolik zbývá: služba spřežení, výcvik),
 bilance obchodu se sousedem, trade.md),
 ozim (osení pod sněhem), jar (klasy jarního ječmene), flax (len – hrst stonků s modrými květy
 a tobolkami, fields.md – Len), charcoal (hromádka dřevěného uhlí), tools
-(kovaná sekera zkřížená se srpem) a pottery (dva hrnce pražského typu, větší s vlnovkou) –
+(kovaná sekera zkřížená se srpem), iron-bars (tři sekerovité hřivny) a bloom (železná houba –
+production-chains.md, Kovář) a pottery (dva hrnce pražského typu, větší s vlnovkou) –
 suroviny řemesel (crafts.md) –, ore (hromádka rezavých hrud bahenní rudy – crafts.md, Uhlí a ruda
 kováře), clay (hromádka hladkých hrud vlhké hlíny seříznutých rýčem – crafts.md, Hlína hrnčíře), harvest (sklizeň – srp zkřížený s uříznutou hrstí zralých klasů,
-panel dílu pole – fields.md), walk (cesta z domu – dvě šlépěje bosých nohou ve vyšlapané hlíně, chůze
+panel dílu pole – fields.md), sheaves (dva svázané snopy – nevymlácené zrno v horní liště,
+production-chains.md – Humno), walk (cesta z domu – dvě šlépěje bosých nohou ve vyšlapané hlíně, chůze
 po pěšinách – paths.md), cart (dvoukolák s loukoťovými koly) a wood-tools (hrábě zkřížené
 s dřevěnými vidlemi) – vozy a dřevěné nářadí od tesaře (wagons.md) –, skill (zkušenost
 řemeslníka – dřevěná palička zkřížená s dlátem, crafts.md – Učení řemesla), overgrowth (zarůstání – keře
@@ -40,12 +46,19 @@ a mladá bříza z modelů krajiny
 `apps/web/public/models/decor/` a `trees/`, fields.md – Zarůstání), condition (stav stavby –
 zšedlý rozštípnutý kůl s prasklinou a mechem) a abandoned (opuštěná stavba – padlý kůl
 v kopřivách z `apps/web/public/models/dwellings/decay.glb`, abandonment.md) a zvířata stád do panelu
-ohrady – sheep, goat, pig, cow, chicken
-(modely `apps/web/public/models/fauna/`) a ox (vůl ze spřežení `apps/web/public/models/plough/ox.glb`),
+ohrady – sheep, goat, pig, cow, chicken, foal, mare, horse, divoká zvěř a pes – boar, deer (jelen
+s parožím), wolf, bear, hare, fox, fish, dog – spear (oštěp) a watch-fire (pochodeň hlídky)
+(modely `apps/web/public/models/fauna/`) a ox (vůl ze spřežení `apps/web/public/models/plough/ox.glb`;
+v obchodu vycvičený vůl) a young-ox (mladý vůl do výcviku – týž vůl světlejší a menší, stojí na
+stejné zemi; trade.md – Dobytek ve třech druzích),
 ard (rádlo z `apps/web/public/models/plough/ard.glb` – páry s rádlem v panelu ohrady volů)
 a rodiny do panelu obydlí (kinship.md) – man, woman, child (chlapec a dívka), elder (starší s holí
 a šedinami; vesničané z `apps/web/public/models/people/`) a ring (bronzový prsten – manželské
-páry) a family (muž, žena a dítě – výměna lidí se sousedem, trade.md).
+páry) a family (muž, žena a dítě – výměna lidí se sousedem, trade.md) a počasí a pohromy
+(disasters.md – Co hráč vidí) – drought (prasklá zem), rain (dešťový mrak), frost (sněhová vločka),
+good-summer (klasy se sluncem), flood (rozvodněná voda), hail (kroupy na stéblech), tornado (trychtýř
+smrště pod mrakem), protection (větvička s listy – ochrana dílu) a dearth (hromada zrna se šipkou
+vzhůru – zdražení u sousedů).
 Bez druhého argumentu vše, jinak čárkami oddělený výběr (např. `pole,hrbitov,food`).
 
 Postup: portréty staveb a ikony `food`, `wood`, `labor`, `satiation`, `date`, `apples` se vyrenderují v Cycles
@@ -685,6 +698,188 @@ def icon_ohrada():
     camera(pts + [Vector((-1.0, -0.2, 2.9))], az=20, el=40, margin=1.05, shift=(0, 0.01))
 
 
+# ---------------------------------------------------------------- opevnění ----
+
+FORT = os.path.join(ROOT, "apps/web/public/models/fortifications")
+RAMPART_DITCH, RAMPART_FOOT, RAMPART_DEPTH, RAMPART_HEIGHT = 4.0, 6.0, 1.5, 2.0  # rampart-mesh.ts, rules
+
+
+def fort_parts():
+    """Díly opevnění z `fortifications.glb` podle jména (originály se skryjí, kopie dělá `inst`)."""
+    parts = {}
+    for o in place_model("fortifications", folder=FORT):
+        parts[o.name.split(".")[0]] = o
+        o.hide_render = True
+    return parts
+
+
+def inst(src, loc, rot=0.0, scale=1.0, tilt=(0.0, 0.0)):
+    o = src.copy()
+    bpy.context.collection.objects.link(o)
+    o.parent = None
+    o.hide_render = False
+    o.matrix_world = (
+        Matrix.Translation(loc)
+        @ Euler((tilt[0], tilt[1], rot)).to_matrix().to_4x4()
+        @ Matrix.Scale(scale, 4)
+        @ src.matrix_world
+    )
+    return o
+
+
+def palisade_run(parts, path, rng, gap=None, sink=0.0):
+    """Kůly palisády hustě vedle sebe podél lomené čáry; `gap(x, y)` vynechá průchod."""
+    stakes = [parts["stake-a"], parts["stake-b"], parts["stake-c"]]
+    n = 0
+    for i, (x, y) in enumerate(path):
+        if gap and gap(x, y):
+            continue
+        j = min(i + 1, len(path) - 1)
+        k = max(i - 1, 0)
+        rot_dir = math.atan2(path[j][1] - path[k][1], path[j][0] - path[k][0])
+        inst(stakes[rng.randrange(3)], (x, y, sink), rot=rot_dir + rng.uniform(-0.3, 0.3), scale=rng.uniform(0.9, 1.08),
+             tilt=(rng.uniform(-0.03, 0.03), rng.uniform(-0.03, 0.03)))
+        n += 1
+    return n
+
+
+def front_corner_path(x0, x1, y0, y1, r, step):
+    """Čelní stěna, zakulacený roh a pravá stěna z obvodu obdélníku (jen úsek, jako výřez z opevnění)."""
+    pts = rounded_path(x0, y0, x1, y1, r, step)
+    keep = [p for p in pts if p[0] >= x0 + r - 0.01 and p[1] <= y1 - r + 0.01]
+    # pořadí od levého konce čelní stěny přes roh nahoru
+    return sorted(keep, key=lambda p: (0 if p[1] <= y0 + r else 1, p[0] if p[1] <= y0 + r and p[0] < x1 - r else 0, p[1]))
+
+
+def earth_ground(radius, hfn, tint=(0.8, 0.82, 0.62)):
+    """Zem s výškovým polem (příkop a násep): ground() dá materiál s mizejícím okrajem, síť je hustá."""
+    o = ground(radius, mat("g", tex=f"{TEX}/grass-dirt.jpg", scale=0.22, tint=tint), z=0.0, fade=0.62)
+    bm = bmesh.new()
+    n = 150
+    vs = []
+    for iy in range(n + 1):
+        row = []
+        for ix in range(n + 1):
+            x = -radius + 2 * radius * ix / n
+            y = -radius + 2 * radius * iy / n
+            row.append(bm.verts.new((x, y, hfn(x, y))))
+        vs.append(row)
+    for iy in range(n):
+        for ix in range(n):
+            bm.faces.new((vs[iy][ix], vs[iy][ix + 1], vs[iy + 1][ix + 1], vs[iy + 1][ix]))
+    bm.to_mesh(o.data)
+    bm.free()
+    for p in o.data.polygons:
+        p.use_smooth = True
+    return o
+
+
+def rampart_profile(d):
+    """Výška země ve vzdálenosti `d` od vnějšího okraje: příkop (do -1,5 m), pak násep (2 m)."""
+    if d < 0 or d > RAMPART_DITCH + RAMPART_FOOT:
+        return 0.0
+    if d < RAMPART_DITCH:
+        return -RAMPART_DEPTH * math.sin(math.pi * d / RAMPART_DITCH) ** 1.4 * 0.95
+    t = (d - RAMPART_DITCH) / RAMPART_FOOT
+    return RAMPART_HEIGHT * math.sin(math.pi * t) ** 1.2
+
+
+def icon_opevneni():
+    """Opevnění (fortifications.md): úsek palisády se zakulaceným rohem a bránou z prken na vyšlapané zemi."""
+    rng = random.Random(11)
+    parts = fort_parts()
+    x0, x1, y0, y1, r = -4.6, 4.4, -2.8, 4.6, 2.4
+    earth_ground(8.6, lambda x, y: 0.0)
+    path = front_corner_path(x0, x1, y0, y1, r, 0.27)
+    gx = -0.4
+
+    def gap(x, y):
+        return abs(y - y0) < 0.05 and abs(x - gx) < 1.95
+
+    palisade_run(parts, path, rng, gap)
+    for s in (-1, 1):
+        inst(parts["gate-post"], (gx + s * 2.05, y0, 0))
+    inst(parts["gate-beam"], (gx, y0, 0))
+    inst(parts["gate-planks"], (gx, y0, 0))
+    inst(parts["gate-planks"], (gx, y0, 0), rot=math.pi)
+    sun(az=-55, el=44)
+    pts = [Vector((-4.8, -3.4, 0)), Vector((4.8, 5.0, 0)), Vector((-4.8, 5.0, 0)), Vector((4.8, -3.4, 0)), Vector((gx, y0, 4.0))]
+    camera(pts, az=22, el=40, margin=0.98, shift=(0, 0.0))
+
+
+def icon_fort_palisade():
+    """Druh opevnění palisáda: lehce zakřivená řada špičatých kůlů."""
+    rng = random.Random(4)
+    parts = fort_parts()
+    path = [(math.cos(a) * 7.0 - 3.5, math.sin(a) * 7.0 - 3.0) for a in [math.radians(t) for t in range(-52, -4, 1)]]
+    # hustota: kůl na ~0.27 m
+    out, acc = [path[0]], 0.0
+    for a, b in zip(path, path[1:]):
+        acc += math.hypot(b[0] - a[0], b[1] - a[1])
+        if acc >= 0.27:
+            out.append(b)
+            acc = 0.0
+    palisade_run(parts, out, rng)
+    sun(az=-45, el=40, strength=4.2)
+    camera([Vector((-1.5, -7.5, 0)), Vector((3.0, -1.5, 3.8)), Vector((3.0, -7.5, 0)), Vector((-1.5, -1.5, 0))], az=0, el=30, margin=1.04)
+    return True
+
+
+def icon_fort_fence():
+    """Druh opevnění pletený plot: kůly s proplétanými pruty v mírném oblouku."""
+    posts, rods = bmesh.new(), bmesh.new()
+    path = [(math.cos(a) * 6.0 - 3.0, math.sin(a) * 6.0 - 3.0) for a in [math.radians(t) for t in range(-52, -8, 2)]]
+    for i, (x, y) in enumerate(path):
+        if i % 2 == 0:
+            cyl(posts, (x, y, -0.05), (x, y, 1.55), 0.09, 0.065, 6)
+    for lv in range(10):
+        z = 0.14 + lv * 0.14
+        run = []
+        for i, (x, y) in enumerate(path):
+            j = min(i + 1, len(path) - 1)
+            k = max(i - 1, 0)
+            dx, dy = path[j][0] - path[k][0], path[j][1] - path[k][1]
+            ln = math.hypot(dx, dy) or 1
+            off = 0.07 * math.sin((i / 2.0) * math.pi + (lv % 2) * math.pi)
+            run.append((x - dy / ln * off, y + dx / ln * off, z))
+        for a, b in zip(run, run[1:]):
+            cyl(rods, a, b, 0.06, 0.06, 5)
+    to_obj(posts, "posts", mat("wood", (0.42, 0.29, 0.17), 0.9, noise=25, bump=0.3))
+    to_obj(rods, "rods", mat("wicker", (0.55, 0.4, 0.22), 0.9, noise=60, bump=0.5))
+    sun(az=-45, el=40, strength=4.2)
+    camera([Vector((-1.0, -6.4, 0)), Vector((3.0, -2.0, 1.7)), Vector((3.0, -6.4, 0)), Vector((-1.0, -2.0, 0))], az=0, el=30, margin=1.04)
+    return True
+
+
+def icon_fort_rampart():
+    """Druh opevnění val: výsek země s příkopem a náspem, řez vpředu (profil 4 m / 1,5 m a 6 m / 2 m)."""
+    L, X0, X1 = 3.2, -2.5, 6.5
+    bm = bmesh.new()
+    xs = [X0 + i * 0.1 for i in range(int((X1 - X0) / 0.1) + 1)]
+    prof = [(x, rampart_profile(x)) for x in xs]
+    base = -0.9
+    ymin, ymax = -L / 2, L / 2
+    top0 = [bm.verts.new((x, ymin, h)) for x, h in prof]
+    top1 = [bm.verts.new((x, ymax, h)) for x, h in prof]
+    for i in range(len(xs) - 1):
+        bm.faces.new((top0[i], top0[i + 1], top1[i + 1], top1[i]))
+    bl0, br0 = bm.verts.new((X0, ymin, base)), bm.verts.new((X1, ymin, base))
+    bl1, br1 = bm.verts.new((X0, ymax, base)), bm.verts.new((X1, ymax, base))
+    bm.faces.new([bl0, br0] + top0[::-1])  # čelní řez
+    bm.faces.new([bl1] + top1 + [br1])  # zadní stěna
+    bm.faces.new((bl0, bl1, top1[0], top0[0]))
+    bm.faces.new((br0, top0[-1], top1[-1], br1))
+    bm.faces.new((bl0, bl1, br1, br0))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    o = to_obj(bm, "rampart", mat("earth", tex=f"{TEX}/mud.jpg", scale=0.3, tint=(0.95, 0.78, 0.6)), smooth=False)
+    o.data.materials.append(mat("turf", tex=f"{TEX}/grass-lush.jpg", scale=0.3, tint=(0.8, 0.85, 0.6)))
+    for poly in o.data.polygons:  # horní plocha je drn, řez a stěny holá hlína
+        poly.material_index = 1 if poly.normal.z > 0.3 and abs(poly.normal.y) < 0.9 else 0
+    sun(az=-45, el=40, strength=4.2)
+    camera([Vector((X0, -L / 2, base)), Vector((X1, L / 2, 2.2)), Vector((X0, L / 2, base)), Vector((X1, -L / 2, base))], az=-18, el=30, margin=1.0)
+    return True
+
+
 # --------------------------------------------------------------- suroviny ----
 
 
@@ -775,6 +970,35 @@ def icon_road(grade):
         place_root(objs, (math.sin(2.6 * 0.6) * 0.25, 2.6, -0.05), 0.0, 1.0)
     sun(az=-55, el=46)
     camera([Vector((-3.2, -4.6, 0)), Vector((3.2, 4.6, 1.4)), Vector((-3.2, 4.6, 0)), Vector((3.2, -4.6, 0))], az=24, el=42, margin=0.92)
+
+
+def icon_junction(shape):
+    """Portrét křižovatky (paths.md – Křižovatky): kříž ze dvou pásů, nebo Y ze tří, v mezeře
+    znamení – vztyčený kámen (kříž), dřevěný kůl (Y)."""
+    gr = ground(6.4, mat("g", tex=f"{TEX}/grass-dirt.jpg", scale=0.25, tint=(0.8, 0.82, 0.6)), z=-0.02, fade=0.72)
+    earth = mat("earth", tex=f"{TEX}/mud.jpg", scale=0.5, tint=(0.82, 0.66, 0.48))
+    if shape == "kriz":
+        angles = [0.0, math.pi / 2, math.pi, 3 * math.pi / 2]
+    else:
+        beta = math.radians(40)
+        angles = [0.0, math.pi - beta, math.pi + beta]
+    for k, a in enumerate(angles):
+        # pás ramene délky 5,5 m od středu (směr a od osy +Y proti směru hodin)
+        strip = road_strip(1.6, 5.5, earth, wobble=0.1, seed=3 + k)
+        strip.location = (-math.sin(a) * 2.75, math.cos(a) * 2.75, 0.0)
+        strip.rotation_euler = (0.0, 0.0, a)
+    # střed – plácek mezi rameny
+    bm = bmesh.new()
+    bmesh.ops.create_circle(bm, cap_ends=True, radius=1.5, segments=14)
+    to_obj(bm, "hub", earth, smooth=False).location.z = 0.006
+    if shape == "kriz":
+        objs = place_model("junction-stone-1", folder=ROADS)
+        place_root(objs, (2.9, 2.9, 0.0), 0.6, 1.0)
+    else:
+        objs = place_model("junction-post-2", folder=ROADS)
+        place_root(objs, (0.0, -3.4, 0.0), 0.5, 1.0)
+    sun(az=-55, el=46)
+    camera([Vector((-4.2, -4.2, 0)), Vector((4.2, 4.2, 1.8)), Vector((-4.2, 4.2, 0)), Vector((4.2, -4.2, 0))], az=24, el=42, margin=0.92)
 
 
 def icon_walk():
@@ -1184,6 +1408,25 @@ def icon_happiness():
     to_obj(inner, "core", glow_mat("core", (1.0, 0.78, 0.25), 3.5))
     sun(az=-40, el=50, strength=3.5)
     camera([Vector((-1.0, -1.0, 0)), Vector((1.0, 1.0, 1.35))], az=0, el=20, margin=1.04)
+    return True
+
+
+def icon_fire():
+    """Pálí se: hořící hromada větví a klestu na pasece – fáze pálení klučení (forest.md)."""
+    logs, outer, inner = bmesh.new(), bmesh.new(), bmesh.new()
+    for k in range(7):
+        a = 2 * math.pi * k / 7 + 0.2
+        d = Vector((math.cos(a), math.sin(a), 0))
+        cyl(logs, (d * 0.75 + Vector((0, 0, 0.08)))[:], (-d * 0.12 + Vector((0, 0, 0.5 + 0.05 * (k % 3))))[:], 0.09, 0.07, 8)
+    flame(outer, (0, 0, 0.25), 1.2, 0.4)
+    flame(outer, (0.22, 0.06, 0.2), 0.75, 0.22, tilt=(0.25, 0.05))
+    flame(outer, (-0.2, -0.07, 0.2), 0.8, 0.23, tilt=(-0.22, -0.05))
+    flame(inner, (0, -0.05, 0.25), 0.65, 0.2)
+    to_obj(logs, "branches", mat("branch", (0.2, 0.13, 0.07), 0.9, noise=26, bump=0.4))
+    to_obj(outer, "flame", glow_mat("flame", (1.0, 0.36, 0.04), 2.2))
+    to_obj(inner, "core", glow_mat("core", (1.0, 0.78, 0.25), 3.5))
+    sun(az=-40, el=50, strength=3.5)
+    camera([Vector((-0.9, -0.9, 0)), Vector((0.9, 0.9, 1.45))], az=0, el=20, margin=1.04)
     return True
 
 
@@ -1664,7 +1907,11 @@ def icon_ard():
     return True
 
 
-def icon_animal(name, folder=FAUNA, tint=None, turn=-115):
+MARE_FOAL_X, MARE_FOAL_Y = 1.6, -0.9  # hříbě u klisny (m, ladí se podle náhledu)
+RIDER_LIFT, RIDER_TURN = 1.18, -115.0  # sedlo nad zemí a natočení jezdce ke směru koně
+
+
+def stand_animal(name, folder=FAUNA, tint=None, turn=-115, loc=(0.0, 0.0), scale=1.0):
     """Zvíře stáda (model z `models/fauna/`, vůl ze spřežení `models/plough/`) z boku ve 3/4:
     morph targety pózy (krok, pastva) vypnuté – stojí; pomocná koule v GLB vola pryč."""
     objs = []
@@ -1697,10 +1944,38 @@ def icon_animal(name, folder=FAUNA, tint=None, turn=-115):
     for o in roots:
         o.location.z -= low
     bpy.context.view_layer.update()
+    if scale != 1.0 or loc != (0.0, 0.0):  # společník v ikoně (hříbě u klisny): menší a vedle
+        shift = Matrix.Translation(Vector((loc[0], loc[1], 0.0))) @ Matrix.Scale(scale, 4)
+        for o in roots:
+            o.matrix_world = shift @ o.matrix_world
+        bpy.context.view_layer.update()
     if tint:
         tint_imported(meshes, tint)
+    return meshes
+
+
+def icon_animal(name, folder=FAUNA, tint=None, turn=-115):
+    meshes = stand_animal(name, folder, tint, turn)
     sun(az=-50, el=48, strength=4.0)
     camera(world_points(meshes), az=0, el=16, margin=1.06)
+    return True
+
+
+def icon_mare():
+    """Klisna s hříbětem po boku (horses.md – Co hráč vidí): světlá klisna a vedle ní malé hříbě."""
+    mare = stand_animal("horse", tint=(1.7, 1.5, 1.2))
+    foal = stand_animal("foal", tint=(1.5, 1.35, 1.15), loc=(MARE_FOAL_X, MARE_FOAL_Y), scale=0.8)
+    sun(az=-50, el=48, strength=4.0)
+    camera(world_points(mare + foal), az=0, el=16, margin=1.06)
+    return True
+
+
+def icon_rider_horse():
+    """Jezdecký kůň s jezdcem v sedle (klip `ride` z man.glb jako ve scéně)."""
+    horse = stand_animal("horse")
+    man = place_person("man", loc=(0.0, 0.0, RIDER_LIFT), turn=RIDER_TURN, frame=12, clip="ride")
+    sun(az=-50, el=48, strength=4.0)
+    camera(world_points(horse + man), az=0, el=16, margin=1.06)
     return True
 
 
@@ -1907,6 +2182,43 @@ def icon_rudiste():
     camera([Vector((-2.3, -1.9, 0)), Vector((2.8, 2.2, 0)), Vector((0, 0, 1.0))], az=14, el=38, margin=0.84)
 
 
+def icon_humno():
+    """Humno (production-chains.md – Humno): mlat pod širým nebem bez přístřešku – plochá
+    udusaná světlá hlína 8 × 10 m s ostrým okrajem, na ní rozházená sláma a klasy a dva cepy,
+    na kraji malý stoh slámy (`models/fields/haystack.glb`) – portrét mřížky staveb."""
+    hay = place_model("haystack", folder=FIELDS)
+    place_root(hay, (3.7, -3.6, 0), scale=0.7)
+    tint_imported(hay, (1.08, 0.92, 0.55))
+    ground(7.6, mat("g", tex=f"{TEX}/grass-lush.jpg", scale=0.25, tint=(0.78, 0.84, 0.6)), z=0.0, fade=0.66)
+    # mlat: světlá udusaná hlína, ostrý okraj, jen o fous nad trávou
+    bm = bmesh.new()
+    bm.faces.new([bm.verts.new((x, y, 0.04)) for x, y in ((-4.0, -5.0), (4.0, -5.0), (4.0, 5.0), (-4.0, 5.0))])
+    to_obj(bm, "floor", mat("floor", tex=f"{TEX}/mud.jpg", scale=0.6, tint=(1.5, 1.28, 1.0)), smooth=False)
+    rng = random.Random(5)
+    # rozházená sláma a klasy
+    stalks, ears = bmesh.new(), bmesh.new()
+    for _ in range(26):
+        x, y = rng.uniform(-3.5, 3.3), rng.uniform(-4.5, 4.4)
+        a = rng.uniform(0, math.pi)
+        d = Vector((math.cos(a), math.sin(a), 0))
+        p = Vector((x, y, 0.07))
+        cyl(stalks, p - d * 0.45, p + d * 0.45, 0.028, 0.028, 6)
+        blob(ears, ((p + d * 0.5)[:], (0, math.pi / 2, a)), (0.1, 0.12, 0.2), 8, 5)
+    to_obj(stalks, "straw", mat("straw", (0.86, 0.66, 0.28), 0.8, noise=70, bump=0.4))
+    to_obj(ears, "ears", mat("ear", (0.9, 0.68, 0.22), 0.75, noise=45, bump=0.4))
+    # dva cepy: násada a bijec spojené řemenem, položené na mlatu
+    wood = bmesh.new()
+    cyl(wood, (-3.0, 2.6, 0.12), (-1.4, 1.1, 0.12), 0.075, 0.07, 10)
+    cyl(wood, (-1.35, 1.05, 0.12), (-0.65, 1.3, 0.14), 0.1, 0.1, 10)
+    cyl(wood, (-0.2, 3.6, 0.12), (1.6, 2.4, 0.12), 0.075, 0.07, 10)
+    cyl(wood, (1.65, 2.35, 0.12), (2.3, 2.75, 0.14), 0.1, 0.1, 10)
+    to_obj(wood, "flails", mat("wood", (0.44, 0.29, 0.15), 0.8, noise=50, bump=0.3))
+    sun(az=-50, el=44)
+    sun(az=150, el=25, strength=1.3, color=(0.8, 0.88, 1.0))
+    pts = [Vector((-4.2, -5.2, 0)), Vector((4.6, 5.2, 0)), Vector((-4.2, 5.2, 0)), Vector((4.6, -5.2, 0))]
+    camera(pts + [Vector((3.7, -3.6, 1.6))], az=24, el=40, margin=0.96)
+
+
 def icon_milir():
     """Milíř uhlíře (crafts.md – Milíř u skácených buků): kouřící milíř z `models/crafts/milir.glb`
     na černém milířišti mezi pařezy skácených buků, kus hráně polen – portrét panelu výběru."""
@@ -1984,6 +2296,73 @@ def icon_hliniste():
     camera([Vector((-2.3, -1.9, 0)), Vector((2.8, 2.2, 0)), Vector((0, 0, 1.0))], az=14, el=38, margin=0.84)
 
 
+def icon_obilna_jama():
+    """Otevřená obilná jáma (production-chains.md – Obilné jámy): hrdlo hruškovité jámy v drnu
+    s nízkým valem hlíny, uvnitř tmavá vypálená stěna a zrno, vedle hroudy hlíny z odkryté pečeti
+    a dřevěná lopata – portrét panelu výběru otevřené jámy."""
+    g = ground(3.4, mat("g", tex=f"{TEX}/grass-lush.jpg", scale=0.35, tint=(0.72, 0.8, 0.56)), z=0.0, fade=0.7)
+    # v drnu díra pro hrdlo – země jako mezikruží (kraj díry schová val)
+    ann = bmesh.new()
+    radii = [0.7] + [0.9 + 0.25 * k for k in range(11)]
+    rings_g = [
+        [ann.verts.new((math.cos(2 * math.pi * s_ / 96) * r, math.sin(2 * math.pi * s_ / 96) * r, 0.0)) for s_ in range(96)]
+        for r in radii
+    ]
+    for inner, outer in zip(rings_g, rings_g[1:]):
+        for s_ in range(96):
+            j = (s_ + 1) % 96
+            ann.faces.new((inner[s_], outer[s_], outer[j], inner[j]))
+    ann.to_mesh(g.data)
+    ann.free()
+    # stěna hrdla (tmavá, vypálená) a val z hlíny – prstence od zrna ven pod drn
+    profile = [(0.55, -0.3), (0.66, -0.12), (0.74, 0.04), (0.86, 0.15), (1.0, 0.17), (1.45, -0.04)]
+    seg = 48
+    rings = []
+    bm = bmesh.new()
+    for t, up in profile:
+        ring = []
+        for s_ in range(seg):
+            a = 2 * math.pi * s_ / seg
+            wob = 1 + (0.06 * math.sin(3 * a + 0.7) if t >= 0.86 else 0.0)
+            r = 1.0 * t * wob
+            x, y = math.cos(a) * r, math.sin(a) * r
+            lump = 0.025 * noise.noise(Vector((x * 3.3, y * 3.3, 1.7))) if t >= 0.86 else 0.0
+            ring.append(bm.verts.new((x, y, up + lump)))
+        rings.append(ring)
+    wall_faces, rim_faces = [], []
+    for k, (inner, outer) in enumerate(zip(rings, rings[1:])):
+        for s_ in range(seg):
+            j = (s_ + 1) % seg
+            f = bm.faces.new((inner[s_], outer[s_], outer[j], inner[j]))
+            (wall_faces if k < 2 else rim_faces).append(f)
+    wall = mat("wall", (0.12, 0.085, 0.055), 0.95, noise=30, bump=0.4)
+    clay = mat("rim", tex=f"{TEX}/mud.jpg", scale=0.9, tint=(0.7, 0.55, 0.36))
+    pit = to_obj(bm, "pit", clay)
+    pit.data.materials.append(wall)
+    for f in pit.data.polygons:
+        f.material_index = 1 if f.index < len(wall_faces) else 0
+    # zrno v jámě – hrbolatá hladina, ze hrdla prosvítá
+    grain = bmesh.new()
+    blob(grain, ((0.0, 0.0, -0.24), (0, 0, 0)), (0.6, 0.6, 0.1), 40, 12)
+    to_obj(grain, "grain", mat("grain", (0.78, 0.56, 0.22), 0.65, noise=160, bump=0.8))
+    # hroudy pečeti vedle hrdla
+    rng = random.Random(23)
+    lumps = bmesh.new()
+    for k in range(16):
+        a = rng.uniform(0, 2 * math.pi)
+        d = rng.uniform(0, 0.42)
+        size = rng.uniform(0.15, 0.24)
+        clay_lump(lumps, (1.6 + math.cos(a) * d, -0.5 + math.sin(a) * d, 0.1 + (0.42 - d) * 0.45), (size, size * 0.85, size * 0.62), rng)
+    to_obj(lumps, "seal", mat("seal", (0.36, 0.25, 0.14), 0.5, noise=12, bump=0.3), smooth=True)
+    # dřevěná lopata opřená o val
+    wood = bmesh.new()
+    cyl(wood, (-1.8, 1.25, 0.1), (-0.6, 0.55, 0.3), 0.05, 0.05, 10)
+    box(wood, (-0.47, 0.47, 0.29), (0.34, 0.27, 0.04), (0.0, -0.2, -0.52))
+    to_obj(wood, "shovel", mat("wood", (0.42, 0.28, 0.14), 0.8, noise=50, bump=0.3))
+    sun(az=-50, el=55)
+    sun(az=150, el=30, strength=1.5, color=(0.8, 0.88, 1.0))
+    camera([Vector((-1.7, -1.3, 0)), Vector((2.05, 1.3, 0)), Vector((0, 0, 0.4))], az=14, el=55, margin=0.84)
+
 def flat_plate(bm, pts, y, thickness):
     """Plochý díl (list sekery) z obrysu `pts` v rovině XZ, tloušťka ve směru Y."""
     front = [bm.verts.new((x, y - thickness / 2, z)) for x, z in pts]
@@ -2042,6 +2421,62 @@ def icon_tools():
     to_obj(edge, "edge", ed, smooth=False)
     sun(az=-35, el=45, strength=4.4)
     camera([Vector((-0.9, -0.3, -1.0)), Vector((0.9, 0.3, 1.25))], az=0, el=8, margin=1.02)
+    return True
+
+
+def lying_plate(bm, pts, z, thickness):
+    """Plochý díl ležící na zemi – obrys `pts` v rovině XY, tloušťka ve směru Z."""
+    bottom = [bm.verts.new((x, y, z)) for x, y in pts]
+    top = [bm.verts.new((x, y, z + thickness)) for x, y in pts]
+    bm.faces.new(bottom[::-1])
+    bm.faces.new(top)
+    n = len(pts)
+    for i in range(n):
+        j = (i + 1) % n
+        bm.faces.new((bottom[i], bottom[j], top[j], top[i]))
+
+
+def icon_iron_bars():
+    """Hřivny: tři sekerovité železné hřivny (dlouhý plochý prut, na konci rozšířený do listu
+    s ouškem) na sobě – zásoba železa u kovárny (production-chains.md – Kovář)."""
+    bars = bmesh.new()
+    # obrys hřivny podél osy x: úzký krček, list sekery na pravém konci, na levém zahnuté ouško
+    outline = [
+        (-0.95, -0.07), (-0.9, -0.12), (-0.78, -0.09), (0.35, -0.06), (0.62, -0.2),
+        (0.86, -0.27), (0.92, 0.0), (0.86, 0.27), (0.62, 0.2), (0.35, 0.06),
+        (-0.78, 0.09), (-0.9, 0.12), (-0.95, 0.07),
+    ]
+    for k, (dx, dy, ang) in enumerate([(0.0, -0.32, 0.06), (0.05, 0.3, -0.05), (-0.04, 0.0, 0.22)]):
+        c, si = math.cos(ang), math.sin(ang)
+        pts = [(dx + x * c - y * si, dy + x * si + y * c) for x, y in outline]
+        lying_plate(bars, pts, 0.11 * k + (0.02 if k == 2 else 0.0), 0.1)
+    bmesh.ops.recalc_face_normals(bars, faces=bars.faces)
+    m = mat("bars", (0.22, 0.2, 0.19), 0.55, noise=22, bump=0.6)
+    next(x for x in m.node_tree.nodes if x.type == "BSDF_PRINCIPLED").inputs["Metallic"].default_value = 0.55
+    to_obj(bars, "bars", m, smooth=False)
+    sun(az=-40, el=45, strength=4.4)
+    sun(az=150, el=25, strength=2.2, color=(0.8, 0.88, 1.0))
+    camera([Vector((-1.0, -0.65, 0)), Vector((1.0, 0.65, 0.35))], az=0, el=38, margin=1.04)
+    return True
+
+
+def icon_bloom():
+    """Železná houba: struskovitý pórovitý bochník železa z redukční pece – tmavý, se šedou kůrou
+    a rezavými skvrnami (production-chains.md – Kovář)."""
+    rng = random.Random(17)
+    bm = bmesh.new()
+    first = len(bm.verts)
+    bmesh.ops.create_icosphere(bm, subdivisions=4, radius=1.0)
+    bm.verts.ensure_lookup_table()
+    for v in list(bm.verts)[first:]:
+        k = 1.0 + 0.16 * noise.noise(v.co * 2.2) + 0.08 * noise.noise(v.co * 7.0) + rng.uniform(-0.03, 0.03)
+        flat = 0.62 if v.co.z > 0 else 0.42
+        v.co = Vector((v.co.x * 0.9 * k, v.co.y * 0.8 * k, v.co.z * flat * k))
+    m = mat("bloom", (0.13, 0.11, 0.1), 0.9, noise=46, bump=2.4, tint=(0.32, 0.14, 0.06))
+    to_obj(bm, "bloom", m, smooth=True)
+    sun(az=-45, el=42, strength=4.4, color=(1.0, 0.9, 0.75))
+    sun(az=150, el=25, strength=2.4, color=(0.8, 0.88, 1.0))
+    camera([Vector((-0.95, -0.85, -0.42)), Vector((0.95, 0.85, 0.62))], az=0, el=24, margin=1.04)
     return True
 
 
@@ -2106,6 +2541,53 @@ def icon_harvest():
     to_obj(edge, "edge", ed, smooth=False)
     sun(az=-35, el=45, strength=4.4)
     camera([Vector((-0.95, -0.3, -0.95)), Vector((0.95, 0.3, 1.15))], az=0, el=8, margin=1.02)
+    return True
+
+
+def icon_sheaves():
+    """Snopy (production-chains.md – Humno): dva svázané snopy zralého obilí stojící opřené
+    o sebe jako v panáku – stébla svázaná povříslem, nahoře hustý chochol klasů s osinami –
+    nevymlácené zrno v horní liště."""
+    rng = random.Random(41)
+    stems, ears, awns, ties = bmesh.new(), bmesh.new(), bmesh.new(), bmesh.new()
+
+    def sheaf(base, axis, length, radius):
+        """Snop od uříznutých stébel `base` ve směru `axis`: stébla, povříslo, chochol klasů."""
+        axis = Vector(axis).normalized()
+        side = axis.cross(Vector((0, 1, 0)))
+        if side.length < 1e-6:
+            side = Vector((1, 0, 0))
+        side.normalize()
+        up = side.cross(axis).normalized()
+        tie_at = 0.42
+        for k in range(48):
+            a = rng.uniform(0, 2 * math.pi)
+            r = radius * rng.uniform(0.15, 1.0) ** 0.5
+            off = side * math.cos(a) * r + up * math.sin(a) * r
+            # u povřísla stažené, k uříznutým koncům a ke klasům se rozevírají
+            b = Vector(base) + off * 1.15
+            m = Vector(base) + axis * length * tie_at + off * 0.55
+            t = Vector(base) + axis * length * rng.uniform(0.9, 1.0) + off * 1.9
+            cyl(stems, b, m, 0.016, 0.014, 4)
+            cyl(stems, m, t, 0.014, 0.012, 4)
+            d = (t - m).normalized()
+            for j in range(4):
+                c = t + d * (0.04 + 0.06 * j)
+                q = d.to_track_quat("Z", "Y").to_euler()
+                blob(ears, (c[:], tuple(q)), (0.055, 0.055, 0.085), 7, 4)
+            tip = t + d * 0.27
+            cyl(awns, tip, tip + d * 0.22 + off * 0.4, 0.008, 0.0, 3)
+        mid = Vector(base) + axis * length * tie_at
+        cyl(ties, mid - axis * 0.05, mid + axis * 0.05, radius * 0.62, radius * 0.62, 16)
+
+    sheaf((-0.42, 0.0, -0.95), (0.28, 0.0, 1.0), 1.45, 0.24)
+    sheaf((0.42, 0.12, -0.95), (-0.28, 0.0, 1.0), 1.45, 0.24)
+    to_obj(stems, "stems", mat("straw", (0.86, 0.66, 0.28), 0.8, noise=60, bump=0.35))
+    to_obj(ears, "ears", mat("ear", (0.95, 0.74, 0.27), 0.65, noise=30))
+    to_obj(awns, "awns", mat("awn", (0.92, 0.76, 0.4), 0.6))
+    to_obj(ties, "ties", mat("tie", (0.56, 0.41, 0.18), 0.85, noise=40))
+    sun(az=-35, el=45, strength=4.4)
+    camera([Vector((-1.0, -0.4, -1.0)), Vector((1.0, 0.4, 1.0))], az=0, el=8, margin=1.02)
     return True
 
 
@@ -2373,17 +2855,22 @@ BUILD = {
     "sous": icon_sous,
     "haj": icon_haj,
     "ohrada": icon_ohrada,
+    "opevneni": icon_opevneni,
     "cesta": lambda: icon_road("cesta"),
     "cesta-vyjezdena": lambda: icon_road("cesta-vyjezdena"),
     "cesta-vozova": lambda: icon_road("cesta-vozova"),
     "cesta-upravena": lambda: icon_road("cesta-upravena"),
     "hat": lambda: icon_road("hat"),
+    "krizovatka-kriz": lambda: icon_junction("kriz"),
+    "krizovatka-y": lambda: icon_junction("y"),
     "jablone": icon_jablone,
     "stezka": icon_stezka,
     "obchod": icon_obchod,
     "rudiste": icon_rudiste,
     "hliniste": icon_hliniste,
+    "humno": icon_humno,
     "milir": icon_milir,
+    "obilna-jama": icon_obilna_jama,
 }
 
 # ------------------------------------------------------------- rodiny ----
@@ -2392,8 +2879,8 @@ BUILD = {
 # ze snímku klipu `idle`.
 
 
-def place_person(name, loc=(0.0, 0.0, 0.0), scale=1.0, turn=-20.0, frame=12):
-    """Vesničan `man` / `woman` stojící v pozici `loc`: klip idle na snímku `frame`, natočený."""
+def place_person(name, loc=(0.0, 0.0, 0.0), scale=1.0, turn=-20.0, frame=12, clip="idle"):
+    """Vesničan `man` / `woman` v pozici `loc`: klip `clip` (idle, ride) na snímku `frame`, natočený."""
     before = set(bpy.data.objects)
     bpy.ops.import_scene.gltf(filepath=f"{PEOPLE}/{name}.glb")
     new = [o for o in bpy.data.objects if o not in before]
@@ -2402,7 +2889,7 @@ def place_person(name, loc=(0.0, 0.0, 0.0), scale=1.0, turn=-20.0, frame=12):
     for o in helpers:
         bpy.data.objects.remove(o, do_unlink=True)
     rig = next(o for o in new if o.type == "ARMATURE")
-    idle = next(a for a in bpy.data.actions if a.name.startswith("idle"))
+    idle = next(a for a in bpy.data.actions if a.name == clip or a.name.startswith(clip))
     if rig.animation_data is None:
         rig.animation_data_create()
     rig.animation_data.action = idle
@@ -2505,7 +2992,310 @@ def icon_ring():
     camera(world_points([ring]), az=0, el=20, margin=1.12)
 
 
+def icon_spear():
+    """Oštěp (lov – wildlife.md): dřevěná tyč šikmo a listovitá železná hrot s krátkou objímkou."""
+    wood, iron = bmesh.new(), bmesh.new()
+    h0, h1 = Vector((-0.8, 0.0, -0.95)), Vector((0.55, 0.0, 0.62))
+    cyl(wood, h0, h1, 0.09, 0.07, 10)
+    d = (h1 - h0).normalized()
+    n = Vector((d.z, 0, -d.x))
+    cyl(iron, h1 - d * 0.05, h1 + d * 0.16, 0.12, 0.1, 10)  # objímka
+    base = h1 + d * 0.14
+    blade = [(0.0, -0.1), (0.2, -0.2), (0.5, -0.17), (0.82, 0.0), (0.5, 0.17), (0.2, 0.2), (0.0, 0.1)]
+    pts = []
+    for u, v in blade:
+        q = base + d * u * 1.15 + n * v * 1.15
+        pts.append((q.x, q.z))
+    flat_plate(iron, pts, 0.0, 0.07)
+    to_obj(wood, "shaft", mat("wood", (0.46, 0.3, 0.15), 0.9, noise=22, bump=0.4))
+    to_obj(iron, "head", mat("iron", (0.52, 0.53, 0.56), 0.5, noise=14, bump=0.2))
+    sun(az=-50, el=48, strength=4.0)
+    camera([Vector((-1.0, -0.5, -1.0)), Vector((1.2, 0.5, 1.6))], az=0, el=20, margin=1.06)
+    return True
+
+
+def icon_watch_fire():
+    """Oheň hlídky (zvěř – wildlife.md): pochodeň v kolu a plamen nad uhlíky – hlídka u stáda v noci."""
+    wood, wrap, outer, inner = bmesh.new(), bmesh.new(), bmesh.new(), bmesh.new()
+    cyl(wood, (0.0, 0.0, -1.0), (0.0, 0.0, 0.55), 0.1, 0.085, 10)
+    cyl(wrap, (0.0, 0.0, 0.3), (0.0, 0.0, 0.72), 0.17, 0.2, 12)  # hadry s pryskyřicí
+    flame(outer, (0, 0, 0.62), 1.05, 0.3)
+    flame(outer, (0.16, 0.03, 0.6), 0.62, 0.17, tilt=(0.25, 0.05))
+    flame(outer, (-0.15, -0.04, 0.6), 0.7, 0.18, tilt=(-0.22, -0.05))
+    flame(inner, (0, -0.04, 0.64), 0.56, 0.17)
+    to_obj(wood, "pole", mat("wood", (0.4, 0.26, 0.13), 0.9, noise=22, bump=0.4))
+    to_obj(wrap, "wrap", mat("wrap", (0.14, 0.1, 0.07), 0.95, noise=18, bump=0.4))
+    to_obj(outer, "flame", glow_mat("flame", (1.0, 0.36, 0.04), 2.2))
+    to_obj(inner, "core", glow_mat("core", (1.0, 0.78, 0.25), 3.5))
+    sun(az=-40, el=50, strength=3.5)
+    camera([Vector((-0.9, -0.6, -1.0)), Vector((0.9, 0.6, 1.8))], az=0, el=20, margin=1.06)
+    return True
+
+
+# ------------------------------------------------- počasí a pohromy (disasters.md) ----
+
+
+def ear_on(bm, top, d, size=1.0):
+    """Klas na konci stébla `top` ve směru `d` (jako ve snopku `food`) s osinami."""
+    d = Vector(d).normalized()
+    ax = d.to_track_quat("Z", "Y").to_euler()
+    c = Vector(top) + d * 0.2 * size
+    blob(bm, (c[:], tuple(ax)), (0.11 * size, 0.11 * size, 0.3 * size), 8, 6)
+    side = d.cross(Vector((0, 1, 0))).normalized()
+    for k in range(1, 6):
+        cc = Vector(top) + d * (0.08 + 0.07 * k) * size
+        cyl(bm, cc[:], (cc + d * 0.26 * size + side * 0.07 * size)[:], 0.011, 0.0, 3)
+
+
+def icon_drought():
+    """Sucho: rozpraskaná vyprahlá zem (kry hlíny se spárami) a uschlé stéblo se svěšeným klasem."""
+    rng = random.Random(21)
+    clods, stalk = bmesh.new(), bmesh.new()
+    step = 0.52
+    for i in range(-3, 4):
+        for j in range(-3, 4):
+            cx = i * step + (j % 2) * step / 2 + rng.uniform(-0.06, 0.06)
+            cy = j * step * 0.87 + rng.uniform(-0.06, 0.06)
+            if cx * cx + cy * cy > 1.25:
+                continue
+            k = rng.randint(5, 7)
+            a0 = rng.uniform(0, 6.28)
+            pts = []
+            for m in range(k):
+                a = a0 + 2 * math.pi * m / k + rng.uniform(-0.25, 0.25)
+                rr = step * 0.5 * rng.uniform(0.84, 0.94)
+                pts.append((cx + math.cos(a) * rr, cy + math.sin(a) * rr))
+            h, tx, ty = rng.uniform(0.07, 0.1), rng.uniform(-0.1, 0.1), rng.uniform(-0.1, 0.1)
+            top = [clods.verts.new((x, y, h + tx * (x - cx) + ty * (y - cy))) for x, y in pts]
+            bot = [clods.verts.new((x, y, 0)) for x, y in pts]
+            clods.faces.new(top)
+            clods.faces.new(bot[::-1])
+            for m in range(k):
+                n = (m + 1) % k
+                clods.faces.new((bot[m], bot[n], top[n], top[m]))
+    bmesh.ops.recalc_face_normals(clods, faces=clods.faces)
+    knee = Vector((0.22, 0.05, 0.85))
+    cyl(stalk, (0.1, 0.05, 0.08), knee[:], 0.04, 0.032, 6)
+    tip = knee + Vector((0.32, 0, -0.12))
+    cyl(stalk, knee[:], tip[:], 0.032, 0.026, 6)
+    ear_on(stalk, tip, (0.45, 0, -1.0), 0.85)
+    ground(1.25, mat("crack", (0.08, 0.05, 0.03), 0.95), z=0.01)
+    to_obj(clods, "clods", mat("clay_dry", (0.8, 0.62, 0.38), 0.95, noise=9, bump=0.3), smooth=False)
+    to_obj(stalk, "stalk", mat("dry_straw", (0.62, 0.55, 0.38), 0.85))
+    sun(az=-45, el=48, strength=4.2)
+    camera([Vector((-1.2, -1.2, 0)), Vector((1.2, 1.2, 0.9))], az=0, el=55, margin=1.0)
+    return True
+
+
+def icon_rain():
+    """Deštivé léto: šedý dešťový mrak a šikmé kapky."""
+    rng = random.Random(5)
+    cloud, drops = bmesh.new(), bmesh.new()
+    for x, z, r in ((-0.55, 0.55, 0.38), (-0.1, 0.78, 0.5), (0.45, 0.64, 0.42), (0.15, 0.45, 0.4),
+                    (-0.35, 0.42, 0.34), (0.75, 0.45, 0.3)):
+        blob(cloud, ((x, 0, z), (0, 0, 0)), (r, r * 0.8, r * 0.85), 16, 10)
+    for k in range(8):
+        x = -0.7 + k * 0.2 + rng.uniform(-0.04, 0.04)
+        z = rng.uniform(-0.8, -0.05)
+        bot = Vector((x, -0.45, z))
+        cyl(drops, bot[:], (bot + Vector((0.1, 0, 0.32)))[:], 0.05, 0.01, 8)
+        blob(drops, (bot[:], (0, 0, 0)), (0.05, 0.05, 0.06), 8, 5)
+    to_obj(cloud, "cloud", mat("cloud", (0.56, 0.59, 0.66), 0.9))
+    to_obj(drops, "drops", mat("drop", (0.33, 0.6, 0.98), 0.2))
+    sun(az=-30, el=45, strength=4.0)
+    camera([Vector((-1.15, -0.5, -0.95)), Vector((1.15, 0.5, 1.3))], az=0, el=8, margin=1.04)
+    return True
+
+
+def icon_frost():
+    """Mráz: šestiramenná sněhová vločka z ledu – holomráz a dlouhá zima."""
+    flake = bmesh.new()
+    for k in range(6):
+        a = math.pi / 2 + 2 * math.pi * k / 6
+        d = Vector((math.cos(a), 0, math.sin(a)))
+        cyl(flake, (0, 0, 0), (d * 1.0)[:], 0.075, 0.05, 6)
+        for t, ln in ((0.45, 0.34), (0.72, 0.22)):
+            p = d * t
+            for s in (1, -1):
+                b = Vector((math.cos(a + s * 0.8), 0, math.sin(a + s * 0.8)))
+                cyl(flake, p[:], (p + b * ln)[:], 0.055, 0.035, 6)
+    blob(flake, ((0, 0, 0), (0, 0, 0)), (0.17, 0.09, 0.17), 12, 8)
+    to_obj(flake, "flake", glow_mat("ice", (0.72, 0.88, 1.0), 0.35))
+    sun(az=-35, el=40, strength=4.0, color=(0.9, 0.95, 1.0))
+    camera([Vector((-1.1, -0.2, -1.1)), Vector((1.1, 0.2, 1.1))], az=0, el=0, margin=1.04)
+    return True
+
+
+def icon_good_summer():
+    """Dobré léto: zralé klasy před zlatým sluncem."""
+    disc, rays, stems, ears = bmesh.new(), bmesh.new(), bmesh.new(), bmesh.new()
+    sc, sr = Vector((0.3, 0.6, 0.45)), 0.42
+    cyl(disc, (sc + Vector((0, 0.05, 0)))[:], (sc - Vector((0, 0.05, 0)))[:], sr, sr, 40)
+    for k in range(12):
+        a = 2 * math.pi * k / 12
+        d = Vector((math.cos(a), 0, math.sin(a)))
+        p0, p1 = sc + d * (sr + 0.08), sc + d * (sr + (0.34 if k % 2 == 0 else 0.22))
+        t = Vector((-d.z, 0, d.x))
+        vs = [rays.verts.new(v) for v in (p0 + t * 0.1, p0 - t * 0.1, p1)]
+        vb = [rays.verts.new(v + Vector((0, 0.06, 0))) for v in (p0 + t * 0.1, p0 - t * 0.1, p1)]
+        rays.faces.new(vs[::-1])
+        rays.faces.new(vb)
+        for i in range(3):
+            j = (i + 1) % 3
+            rays.faces.new((vs[i], vs[j], vb[j], vb[i]))
+    bmesh.ops.recalc_face_normals(rays, faces=rays.faces)
+    for base, top in (((-0.35, -0.3, -1.0), (-0.45, -0.3, 0.35)), ((-0.25, -0.3, -1.0), (0.05, -0.3, 0.2)),
+                      ((-0.3, -0.3, -1.0), (-0.75, -0.3, 0.1))):
+        cyl(stems, base, top, 0.035, 0.03, 6)
+        ear_on(ears, Vector(top), Vector(top) - Vector(base), 1.1)
+    to_obj(disc, "disc", mat("gold", (0.98, 0.72, 0.18), 0.35))
+    to_obj(rays, "rays", mat("gold2", (0.95, 0.6, 0.12), 0.4))
+    to_obj(stems, "stems", mat("stem", (0.8, 0.64, 0.3), 0.7))
+    to_obj(ears, "ears", mat("ear", (0.95, 0.74, 0.27), 0.65, noise=30))
+    sun(az=-30, el=40, strength=4.5)
+    camera([Vector((-1.1, -0.4, -1.0)), Vector((1.1, 0.7, 1.25))], az=0, el=0, margin=1.04)
+    return True
+
+
+def wave_plate(bm, z0, amp, phase, y, bottom=-0.95, n=48):
+    """Vlna vody: deska v rovině XZ, horní okraj sinusovka."""
+    pts = [(-1.15, bottom)]
+    for i in range(n + 1):
+        x = -1.15 + 2.3 * i / n
+        pts.append((x, z0 + amp * math.sin(phase + x * 3.6)))
+    pts.append((1.15, bottom))
+    flat_plate(bm, pts, y, 0.16)
+
+
+def icon_flood():
+    """Povodeň: rozvodněná voda ve třech vlnách s pěnou a kůl plotu zatopený po pás."""
+    post, foam = bmesh.new(), bmesh.new()
+    layers = ((0.35, 0.36, 0.11, 0.3, (0.5, 0.72, 0.88)), (0.0, 0.08, 0.12, 1.4, (0.27, 0.52, 0.78)),
+              (-0.35, -0.22, 0.13, 2.6, (0.15, 0.36, 0.62)))
+    for y, z0, amp, phase, color in layers:
+        bm = bmesh.new()
+        wave_plate(bm, z0, amp, phase, y)
+        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+        to_obj(bm, f"wave{y}", mat(f"water{y}", color, 0.15), smooth=False)
+        for i in range(-3, 4):
+            x = (math.pi / 2 - phase) / 3.6 + i * 2 * math.pi / 3.6
+            if -1.05 < x < 1.05:
+                blob(foam, ((x, y - 0.09, z0 + amp), (0, 0, 0)), (0.13, 0.05, 0.05), 10, 6)
+    cyl(post, (0.62, 0.17, -0.9), (0.66, 0.17, 0.85), 0.07, 0.06, 10)
+    cyl(post, (0.66, 0.17, 0.85), (0.66, 0.17, 0.95), 0.06, 0.0, 10)
+    to_obj(post, "post", mat("wood", (0.4, 0.26, 0.13), 0.9, noise=22, bump=0.4))
+    to_obj(foam, "foam", mat("foam", (0.92, 0.95, 0.98), 0.6))
+    sun(az=-35, el=45, strength=4.0)
+    camera([Vector((-1.15, -0.5, -0.95)), Vector((1.15, 0.5, 1.0))], az=0, el=10, margin=1.04)
+    return True
+
+
+def icon_hail():
+    """Kroupy: ledové kroupy padají na zlomená stébla obilí."""
+    rng = random.Random(9)
+    stones, stems, ears = bmesh.new(), bmesh.new(), bmesh.new()
+    for x, d in ((-0.4, (0.9, 0, -0.35)), (0.1, (-0.85, 0, -0.45)), (0.45, (0.7, 0, 0.25))):
+        base, knee = Vector((x, 0.15, -0.95)), Vector((x + 0.04, 0.15, -0.15))
+        cyl(stems, base[:], knee[:], 0.04, 0.035, 6)
+        top = knee + Vector(d).normalized() * 0.42
+        cyl(stems, knee[:], top[:], 0.035, 0.03, 6)
+        ear_on(ears, top, d, 1.0)
+    placed = []
+    while len(placed) < 9:
+        x, z, r = rng.uniform(-0.95, 0.95), rng.uniform(-0.1, 1.05), rng.uniform(0.1, 0.16)
+        if any((x - px) ** 2 + (z - pz) ** 2 < (r + pr + 0.05) ** 2 for px, pz, pr in placed):
+            continue
+        placed.append((x, z, r))
+        blob(stones, ((x, -0.3, z), (0, 0, 0)), (r, r, r), 14, 9)
+    for x in (-0.7, -0.15, 0.3, 0.8):
+        blob(stones, ((x, -0.1, -0.88), (0, 0, 0)), (0.1, 0.1, 0.08), 12, 8)
+    to_obj(stems, "stems", mat("stem", (0.62, 0.6, 0.32), 0.7))
+    to_obj(ears, "ears", mat("ear", (0.8, 0.7, 0.3), 0.65, noise=30))
+    to_obj(stones, "hail", glow_mat("hail", (0.82, 0.9, 1.0), 0.25))
+    sun(az=-35, el=45, strength=4.0)
+    camera([Vector((-1.1, -0.4, -1.0)), Vector((1.1, 0.4, 1.2))], az=0, el=8, margin=1.04)
+    return True
+
+
+def icon_tornado():
+    """Smršť: šedý trychtýř prohnutý ve větru a kotouč prachu a úlomků u země."""
+    rng = random.Random(13)
+    funnel, dust, debris = bmesh.new(), bmesh.new(), bmesh.new()
+    profile = [(-0.95 + 2.1 * t, 0.06 + 0.72 * t ** 1.6 + 0.03 * math.sin(t * 25)) for t in
+               [i / 24 for i in range(25)]]
+    revolve(funnel, profile, 40, cap_bottom=True, cap_top=True)
+    for v in funnel.verts:
+        t = (v.co.z + 0.95) / 2.1
+        a = math.atan2(v.co.y, v.co.x)
+        k = 1 + 0.16 * math.sin(3 * a + t * 16)
+        v.co.x, v.co.y = v.co.x * k, v.co.y * k
+        v.co.x += 0.7 * (t - 0.45) ** 2 - 0.15
+    bmesh.ops.recalc_face_normals(funnel, faces=funnel.faces)
+    for k in range(7):
+        a = 2 * math.pi * k / 7
+        blob(dust, ((math.cos(a) * 0.32, math.sin(a) * 0.2, -0.88), (0, 0, a)), (0.28, 0.2, 0.14), 12, 8)
+    for k in range(7):
+        a = rng.uniform(0, 6.28)
+        r = rng.uniform(0.35, 0.8)
+        blob(debris, ((math.cos(a) * r, math.sin(a) * r * 0.4 - 0.2, rng.uniform(-0.6, 0.3)),
+                      (rng.uniform(0, 3), rng.uniform(0, 3), 0)), (0.07, 0.025, 0.04), 6, 4)
+    storm = bmesh.new()
+    for x, r in ((-0.55, 0.42), (0.0, 0.55), (0.55, 0.45)):
+        blob(storm, ((x + 0.1, 0.1, 1.15), (0, 0, 0)), (r, r * 0.7, 0.22), 16, 8)
+    to_obj(storm, "storm", mat("storm", (0.25, 0.26, 0.3), 0.95, noise=5))
+    to_obj(funnel, "funnel", mat("funnel", (0.48, 0.48, 0.5), 0.95, noise=6, bump=0.8))
+    to_obj(dust, "dust", mat("dust", (0.5, 0.42, 0.32), 0.95, noise=10))
+    to_obj(debris, "debris", mat("debris", (0.32, 0.22, 0.12), 0.9))
+    sun(az=-40, el=40, strength=4.0)
+    camera([Vector((-1.1, -0.4, -1.05)), Vector((1.1, 0.4, 1.35))], az=0, el=6, margin=1.02)
+    return True
+
+
+def icon_protection():
+    """Ochrana dílu: větvička se čtyřmi listy – zeleň u pole chrání před suchem, mrazem a kroupami."""
+    stem, leaves = bmesh.new(), bmesh.new()
+    cyl(stem, (-0.2, 0, -1.0), (0.1, 0, 0.9), 0.05, 0.03, 8)
+    for t, side, ang in ((0.25, 1, 0.9), (0.45, -1, 0.85), (0.65, 1, 0.7), (0.85, -1, 0.6), (1.0, 0, 0.0)):
+        p = Vector((-0.2, 0, -1.0)).lerp(Vector((0.1, 0, 0.9)), t)
+        d = Vector((math.sin(ang) * side, 0, math.cos(ang))).normalized()
+        ax = d.to_track_quat("Z", "X").to_euler()
+        blob(leaves, ((p + d * 0.32)[:], tuple(ax)), (0.17, 0.035, 0.34), 14, 9)
+    to_obj(stem, "twig", mat("twig", (0.35, 0.24, 0.12), 0.9))
+    to_obj(leaves, "leaves", mat("leaf", (0.27, 0.55, 0.16), 0.6, noise=18))
+    sun(az=-40, el=45, strength=4.2)
+    camera([Vector((-0.95, -0.3, -1.05)), Vector((0.95, 0.3, 1.25))], az=0, el=6, margin=1.04)
+    return True
+
+
+def icon_dearth():
+    """Zdražení: hromada zrna a červená šipka vzhůru – kraj po zlém roce, obilí zdražilo."""
+    rng = random.Random(17)
+    heap, grain, arrow = bmesh.new(), bmesh.new(), bmesh.new()
+    revolve(heap, [(-0.85, 0.82), (-0.75, 0.78), (-0.45, 0.6), (-0.1, 0.36), (0.12, 0.14), (0.2, 0.0)], 40,
+            cap_bottom=True, cap_top=True)
+    for v in heap.verts:
+        v.co.x -= 0.3
+    for _ in range(70):
+        a, t = rng.uniform(0, 6.28), rng.uniform(0.05, 0.95)
+        z = -0.85 + t * 1.02
+        r = 0.8 * (1 - t) ** 0.9 + 0.02
+        blob(grain, ((-0.3 + math.cos(a) * r, math.sin(a) * r, z + 0.03), (rng.uniform(0, 3), rng.uniform(0, 3), a)),
+             (0.07, 0.045, 0.04), 6, 4)
+    flat_plate(arrow, [(0.48, -0.75), (0.48, 0.25), (0.3, 0.25), (0.62, 0.8), (0.94, 0.25), (0.76, 0.25),
+                       (0.76, -0.75)], -0.45, 0.12)
+    bmesh.ops.recalc_face_normals(arrow, faces=arrow.faces)
+    to_obj(heap, "heap", mat("heap", (0.86, 0.66, 0.3), 0.8, noise=60, bump=0.6))
+    to_obj(grain, "grain", mat("grain", (0.95, 0.74, 0.33), 0.55))
+    to_obj(arrow, "arrow", glow_mat("up", (0.85, 0.12, 0.06), 0.5), smooth=False)
+    sun(az=-40, el=45, strength=4.2)
+    camera([Vector((-1.0, -0.5, -0.9)), Vector((1.0, 0.5, 0.95))], az=0, el=10, margin=1.04)
+    return True
+
+
 RESOURCES = {
+    "fort-fence": icon_fort_fence,
+    "fort-palisade": icon_fort_palisade,
+    "fort-rampart": icon_fort_rampart,
     "food": icon_food,
     "skill": icon_skill,
     "wood": icon_wood,
@@ -2514,6 +3304,7 @@ RESOURCES = {
     "date": icon_date,
     "apples": icon_apples,
     "happiness": icon_happiness,
+    "fire": icon_fire,
     "hay": icon_hay,
     "meat": icon_meat,
     "cheese": icon_cheese,
@@ -2525,8 +3316,25 @@ RESOURCES = {
     "goat": lambda: icon_animal("goat"),
     "pig": lambda: icon_animal("pig"),
     "cow": lambda: icon_animal("cow"),
+    # divoká zvěř a pes (wildlife.md): modely 0 A.D. z `models/fauna/`, jelen s parožím
+    "boar": lambda: icon_animal("wild-boar"),
+    "deer": lambda: icon_animal("wild-stag"),
+    "wolf": lambda: icon_animal("wild-wolf"),
+    "bear": lambda: icon_animal("wild-bear"),
+    "hare": lambda: icon_animal("wild-hare"),
+    "fox": lambda: icon_animal("wild-fox"),
+    "fish": lambda: icon_animal("fish"),
+    "dog": lambda: icon_animal("dog"),
+    "spear": icon_spear,
+    "watch-fire": icon_watch_fire,
     "chicken": lambda: icon_animal("chicken"),
     "ox": lambda: icon_animal("ox", folder=PLOUGH),
+    # mladý vůl do výcviku (trade.md – Dobytek ve třech druzích): světlejší srst, v ikoně menší
+    "young-ox": lambda: icon_animal("ox", folder=PLOUGH, tint=(1.3, 1.18, 1.0)),
+    # koně (horses.md – Co hráč vidí): hříbě (světlejší, menší), klisna (světlejší srst) a jezdecký kůň z modelů 0 A.D.
+    "foal": lambda: icon_animal("foal", tint=(1.5, 1.35, 1.15)),
+    "mare": icon_mare,
+    "horse": icon_rider_horse,
     "ard": icon_ard,
     "ozim": icon_ozim,
     "jar": icon_jar,
@@ -2535,7 +3343,10 @@ RESOURCES = {
     "ore": icon_ore,
     "clay": icon_clay,
     "tools": icon_tools,
+    "iron-bars": icon_iron_bars,
+    "bloom": icon_bloom,
     "harvest": icon_harvest,
+    "sheaves": icon_sheaves,
     "walk": icon_walk,
     "pottery": icon_pottery,
     "cart": icon_cart,
@@ -2549,6 +3360,16 @@ RESOURCES = {
     "family": icon_family,
     "elder": icon_elder,
     "ring": icon_ring,
+    # počasí a pohromy (disasters.md – Co hráč vidí)
+    "drought": icon_drought,
+    "rain": icon_rain,
+    "frost": icon_frost,
+    "good-summer": icon_good_summer,
+    "flood": icon_flood,
+    "hail": icon_hail,
+    "tornado": icon_tornado,
+    "protection": icon_protection,
+    "dearth": icon_dearth,
 }
 
 
@@ -2569,9 +3390,20 @@ def backdrop(src, dst, size):
     os.remove(dst + ".bg.png")
 
 
-def small(src, dst, size):
-    subprocess.run(["magick", src, "-trim", "+repage", "-filter", "Lanczos", "-resize", f"{size - 6}x{size - 6}",
-                    "-background", "none", "-gravity", "center", "-extent", f"{size}x{size}", "PNG32:" + dst], check=True)
+# Ikony surovin vykreslené menší než ostatní (podíl velikosti) – stojí na stejné zemi jako plná ikona.
+SMALLER = {"young-ox": 0.72, "foal": 0.7}
+
+
+def small(src, dst, size, fit=1.0):
+    if fit >= 1.0:
+        subprocess.run(["magick", src, "-trim", "+repage", "-filter", "Lanczos", "-resize", f"{size - 6}x{size - 6}",
+                        "-background", "none", "-gravity", "center", "-extent", f"{size}x{size}", "PNG32:" + dst],
+                       check=True)
+        return
+    inner = round((size - 6) * fit)
+    subprocess.run(["magick", src, "-trim", "+repage", "-filter", "Lanczos", "-resize", f"{inner}x{inner}",
+                    "-background", "none", "-gravity", "south", "-extent", f"{size}x{size - 3}",
+                    "-gravity", "north", "-extent", f"{size}x{size}", "PNG32:" + dst], check=True)
 
 
 def want(k):
@@ -2597,7 +3429,7 @@ for key, fn in RESOURCES.items():
     fn()
     raw = f"{TMP}/{key}.png"
     render(raw)
-    small(raw, f"{OUT}/resources/{key}.png", 64)
+    small(raw, f"{OUT}/resources/{key}.png", 64, SMALLER.get(key, 1.0))
     print("hotovo", key)
 if want("people"):
     pop = f"{TMP}/population.png"

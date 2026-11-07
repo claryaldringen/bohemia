@@ -22,7 +22,7 @@ import {
 import { basketManDaysPerKg } from '../smith-supply';
 import { advanceVillage } from '../simulate';
 import type { Craft, FieldPart, LaborShare, Person, Position, VillageState } from '../types';
-import { createCropWork } from '../year-plan';
+import { createCropWork, springCrop } from '../year-plan';
 import { LANDSCAPE } from './paths-fixtures';
 import { makeLandscape } from './placement-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
@@ -94,7 +94,7 @@ function withCharcoal(s: VillageState): VillageState {
       charcoalKg: CHARCOAL_KILN.trees * 120,
     },
   ];
-  s.crafts = { charcoalKg: 0, toolsKg: 0, potteryKg: 0 };
+  s.crafts = { charcoalKg: 0, potteryKg: 0 };
   return s;
 }
 
@@ -122,7 +122,7 @@ function withSowing(s: VillageState): VillageState {
   const work = createCropWork(s.parts, at(600, 9, 1), 0);
   work.done.dig = work.required.dig;
   work.done.reclaim = work.required.reclaim;
-  s.plan = { plannedDay: at(600, 9, 1), ...work };
+  s.season = { startDay: at(600, 9, 1), crops: [{ crop: 'spring', ...work }] };
   return s;
 }
 
@@ -161,8 +161,9 @@ describe('uhlí z milíře ke kováři (wagons.md – Co vozy vozí, crafts.md �
     const fetch = shares(without).find((share) => share.activity === 'fetch')!;
     expect(fetch.target).toMatchObject({ kind: 'kiln', id: BURNER, from: SMITH });
     expect(fetch.manDays).toBeGreaterThan(haul.manDays);
-    // uhlí dorazí stejně (u kováře + spálené v nástrojích – bez opotřebení nástrojů dne)
-    const charcoal = (s: VillageState): number => s.crafts!.charcoalKg + s.crafts!.toolsKg * 50;
+    // uhlí dorazí stejně (u kováře + spálené v houbě – production-chains.md, Kovář)
+    const charcoal = (s: VillageState): number =>
+      s.crafts!.charcoalKg + (s.crafts!.bloomKg ?? 0) * 20;
     expect(charcoal(withCart)).toBeCloseTo(charcoal(without), 2);
     // uhlíř vytahá a vytřídí stejně – s vozem i bez něj (odnos dělá kovárna nebo vůz)
     const burner = (s: VillageState): number =>
@@ -258,19 +259,19 @@ describe('osivo na pole (wagons.md – Co vozy vozí)', () => {
   it('v den setí vůz převezme nošení osiva – setí postoupí víc', () => {
     const s = withSowing(village(SOW_DAY - 1));
     const next = advanceVillage(s, SOW_DAY, null);
-    expect(next.plan!.seedHauled).toBeGreaterThan(0);
-    expect(next.plan!.seedReach?.share).toBe(1);
+    expect(springCrop(next.season!).seedHauled).toBeGreaterThan(0);
+    expect(springCrop(next.season!).seedReach?.share).toBe(1);
     const haul = hauls(next).find((share) => share.job === 'seed');
     expect(haul?.target.kind).toBe('field');
     // bez vozu (vůz nejel – vůz bez spřežení) setí postoupí méně
     const noTeam = withSowing(village(SOW_DAY - 1));
     noTeam.pens![0]!.team = null;
     const slower = advanceVillage(noTeam, SOW_DAY, null);
-    expect(next.plan!.done.sow).toBeGreaterThan(slower.plan!.done.sow);
-    expect(slower.plan!.seedHauled).toBeUndefined();
+    expect(springCrop(next.season!).done.sow).toBeGreaterThan(springCrop(slower.season!).done.sow);
+    expect(springCrop(slower.season!).seedHauled).toBeUndefined();
     // nejvýš podíl setí
-    expect(next.plan!.seedHauled!).toBeLessThanOrEqual(
-      next.plan!.required.sow * CART_JOBS.seed.carryShare + 1e-9,
+    expect(springCrop(next.season!).seedHauled!).toBeLessThanOrEqual(
+      springCrop(next.season!).required.sow * CART_JOBS.seed.carryShare + 1e-9,
     );
   });
 });
@@ -291,7 +292,10 @@ describe('přednost a spřežení (wagons.md – Co vozy vozí)', () => {
     const s = withCharcoal(village(SOW_DAY - 1));
     s.fields = [{ id: 1 }];
     s.parts = [part(1, 2), part(2, 3)];
-    s.plan = { plannedDay: at(600, 9, 1), ...createCropWork(s.parts, at(600, 9, 1), 0, true) };
+    s.season = {
+      startDay: at(600, 9, 1),
+      crops: [{ crop: 'spring', ...createCropWork(s.parts, at(600, 9, 1), 0, true) }],
+    };
     const next = advanceVillage(s, SOW_DAY, null);
     expect(next.labor!.shares.some((share) => share.activity === 'plough')).toBe(true);
     expect(hauls(next)).toEqual([]);
@@ -407,7 +411,6 @@ describe('voda v sudech (wagons.md – Co vozy vozí, paths.md – Pochůzky pro
         },
       ],
       trees: [],
-      candidates: [],
       labor: { from: DAY - 30, days: 30, shares: [] },
     };
     const road = villageCartDrives(s, DAY, LANDSCAPE, null)!;

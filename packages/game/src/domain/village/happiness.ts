@@ -135,7 +135,7 @@ export function crowdedShare(state: VillageState, day: number): number {
 export function hasGoodStores(state: VillageState, day: number): boolean {
   const need =
     state.people.reduce((sum, p) => sum + foodNeedPerDay(p, day), 0) * fieldFoodShare(state);
-  return need > 0 && fieldStoresKg(state) > need * DAYS_PER_YEAR * HAPPINESS_BONUS.storesYears;
+  return need > 0 && fieldStoresKg(state, day) > need * DAYS_PER_YEAR * HAPPINESS_BONUS.storesYears;
 }
 
 /**
@@ -166,10 +166,22 @@ export function happinessFactors(
   };
 }
 
-/** Body za úmrtí v kronice dne (dítě 5, dospělý a starší 3). */
+/**
+ * Body za jedno úmrtí (happiness.md): max(0,5; 5 − 0,06 × věk v letech); událost bez věku
+ * (starší uložená ves) dítě 5, dospělý a starší 3.
+ */
+export function deathPointsFor(e: { group: 'child' | 'adult' | 'elder'; age?: number }): number {
+  if (e.age === undefined) return HAPPINESS_PENALTY.deathPoints[e.group];
+  return Math.max(
+    HAPPINESS_PENALTY.deathPointsMin,
+    HAPPINESS_PENALTY.deathPointsAtBirth - HAPPINESS_PENALTY.deathPointsPerYear * e.age,
+  );
+}
+
+/** Body za úmrtí v kronice dne. */
 function deathPoints(events: readonly ChronicleEvent[]): { day: number; points: number }[] {
   return events.flatMap((e) =>
-    e.kind === 'death' ? [{ day: e.day, points: HAPPINESS_PENALTY.deathPoints[e.group] }] : [],
+    e.kind === 'death' ? [{ day: e.day, points: deathPointsFor(e) }] : [],
   );
 }
 

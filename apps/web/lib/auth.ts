@@ -1,9 +1,12 @@
 import 'server-only';
 import { betterAuth } from 'better-auth';
+import { APIError } from 'better-auth/api';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { nextCookies } from 'better-auth/next-js';
-import { schema, type Database } from '@bohemia/db';
+import { createInviteRepository, schema, type Database } from '@bohemia/db';
+import { isLanguageGroup, reserveInvite } from '@bohemia/game';
 import { getDatabase } from './db';
+import { forgetInvite, rememberedInvite } from './invite-cookie';
 import { resetPasswordMail, sendMail, verificationMail } from './mail';
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
@@ -16,8 +19,8 @@ function createAuth(db: Database) {
     database: drizzleAdapter(db, { provider: 'pg', schema }),
     user: {
       additionalFields: {
-        // Zatím vždy čeština – výběr jazyka přijde s překlady.
-        language: { type: 'string', required: true, defaultValue: 'cs', input: false },
+        // Jazyková skupina z registrace (hodnotu ověřuje `databaseHooks.user.create.before`).
+        language: { type: 'string', required: true, defaultValue: 'cs', input: true },
         // Vývojový režim (přeskakování času) – nastavuje jen `npm run db:seed-dev`, klient nikdy.
         devMode: { type: 'boolean', required: false, defaultValue: false, input: false },
       },
@@ -40,6 +43,33 @@ function createAuth(db: Database) {
       googleClientId && googleClientSecret
         ? { google: { clientId: googleClientId, clientSecret: googleClientSecret } }
         : {},
+    databaseHooks: {
+      user: {
+        create: {
+          // Neznámý jazyk registraci zruší; bez hodnoty platí čeština (výchozí hodnota pole).
+          before: async (created) => {
+            const { language } = created as { language?: unknown };
+            if (language !== undefined && !isLanguageGroup(language)) {
+              throw new APIError('BAD_REQUEST', { message: 'Neznámý jazyk.' });
+            }
+            return { data: created };
+          },
+          // Pozvánka z cookie se k novému uživateli jen zarezervuje (vazalem se stane až při vstupu
+          // do hry); neplatný kód ani chyba registraci nezastaví.
+          after: async (created) => {
+            try {
+              const code = await rememberedInvite();
+              if (!code) return;
+              const invites = createInviteRepository(db);
+              await reserveInvite({ invites, now: () => new Date() }, created.id, code);
+              await forgetInvite();
+            } catch {
+              // Mimo požadavek (seed, skripty) cookie nejsou – nic se nerezervuje.
+            }
+          },
+        },
+      },
+    },
     plugins: [nextCookies()],
   });
 }

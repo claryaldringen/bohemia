@@ -149,7 +149,6 @@ describe('dílna tesaře (wagons.md – Tesař)', () => {
     const s = withCarpenter(village());
     s.crafts = {
       charcoalKg: 0,
-      toolsKg: 0,
       potteryKg: 0,
       woodToolsKg: craftTargets(s, DAY).woodToolsKg + 1,
     };
@@ -223,7 +222,6 @@ describe('pomoc stavbám – dřevěná část práce (wagons.md – Tesař, Ú�
     const s = withCarpenter(village());
     s.crafts = {
       charcoalKg: 0,
-      toolsKg: 0,
       potteryKg: 0,
       woodToolsKg: craftTargets(s, DAY).woodToolsKg + 1,
     };
@@ -416,18 +414,28 @@ describe('vozy (wagons.md – Vůz)', () => {
   });
 
   it('výprava s vozem – náklad na voze, dva lidé místo nosičů', () => {
-    expect(expeditionTransport({ grain: 400 }, {}, [])).toEqual({ porters: 16, carts: 0 });
-    expect(expeditionTransport({ grain: 400 }, {}, ['two-wheel'])).toEqual({
+    expect(expeditionTransport({ grain: 400 }, {}, [])).toMatchObject({
+      porters: 16,
+      carts: 0,
+      trips: 1,
+    });
+    expect(expeditionTransport({ grain: 400 }, {}, ['two-wheel'])).toMatchObject({
       porters: CARTS.tradeCrew,
       carts: 1,
+      trips: 1,
     });
     // čtyřkolák napřed, druhý vůz jen když ušetří lidi
-    expect(expeditionTransport({ grain: 1000 }, {}, ['four-wheel', 'two-wheel'])).toEqual({
+    expect(expeditionTransport({ grain: 1000 }, {}, ['four-wheel', 'two-wheel'])).toMatchObject({
       porters: 4,
       carts: 2,
+      trips: 1,
     });
     // malý náklad – vůz se nevyplatí
-    expect(expeditionTransport({ grain: 25 }, {}, ['two-wheel'])).toEqual({ porters: 1, carts: 0 });
+    expect(expeditionTransport({ grain: 25 }, {}, ['two-wheel'])).toMatchObject({
+      porters: 1,
+      carts: 0,
+      trips: 1,
+    });
   });
 });
 
@@ -480,21 +488,23 @@ describe('dosah vozu – vozová síť (wagons.md – fáze 2)', () => {
     expect(villageCartAccess(noTeam, DAY, LANDSCAPE, null)).toBeNull();
   });
 
-  it('žeň: vůz jede po strništi sklízené plodiny, jiné osetí ho nepustí', () => {
+  it('žeň: vůz jede po strništi sklízené plodiny, jiným osetím jen draze (Martin 23. 10. 2026)', () => {
     const s = onMap();
     s.fields = [{ id: 1 }, { id: 2 }];
-    // sklízené díly za pásem osetého pole jiné plodiny (pole 2 napříč krajinou)
+    // sklízené díly za pásem osetého pole jiné plodiny (pole 2 napříč krajinou mimo les – díl na
+    // pasece za nevymýceným lesem vůz odhadem nedosáhne, rovně ani po cestě – paths.md, Odhad
+    // vzdáleností)
     s.parts = [
       meadowPart(1, { x: 12, y: 3 }, 'sown'),
-      ...Array.from({ length: 20 }, (_, i) => ({
-        ...meadowPart(10 + i, { x: i, y: 5 }, 'sown'),
+      ...Array.from({ length: 16 }, (_, i) => ({
+        ...meadowPart(10 + i, { x: i + 4, y: 5 }, 'sown'),
         fieldId: 2,
       })),
     ];
     const work = { partIds: [1] } as Parameters<typeof cropCartReach>[1];
     const access = networkCartAccess(DAY, LANDSCAPE, null);
-    // pás osetého pole 2 vůz nepřejede – za ním díl nedosáhne
-    expect(cropCartReach(s, work, LANDSCAPE, access).share).toBe(0);
+    // pás osetého pole 2 vůz přejede (smí přes zaseté pole, metr dráž) – díl za ním dosáhne
+    expect(cropCartReach(s, work, LANDSCAPE, access).share).toBe(1);
     // sklízí se i pole 2 – po strništi dojede k obojímu
     const both = { partIds: [1, ...s.parts.slice(1).map((p) => p.id)] } as typeof work;
     const reach = cropCartReach(s, both, LANDSCAPE, access);
@@ -520,7 +530,6 @@ describe('dosah vozu – vozová síť (wagons.md – fáze 2)', () => {
       nextId: 3,
       roads: [road(1, 0, 60), road(2, 60, 120)],
       trees: [],
-      candidates: [],
       labor: { from: DAY, days: 0, shares: [] },
     };
     const piece = (roadId: number) => ({ roadId, grade: 'improved' as const, manDays: 0 });

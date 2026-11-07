@@ -1,22 +1,38 @@
 import { TOTAL_GAME_DAYS } from '../calendar';
+import { newSteward } from './steward-state';
 import type { Landscape } from '../landscape';
 import { cloneState } from './clone';
+import { currentLord } from './dynasty';
+import { villageHorses } from './horses';
 import { isVillageExtinct } from './extinction';
 import { removePeople } from './kinship';
 import { villageManor } from './manor';
-import { ageYears, occupants } from './people';
+import { ageGroup, ageYears, occupants } from './people';
 import { relocationBlock } from './relocation';
 import { leavingCart, takeLeavingCart } from './carts';
-import { CARTS, DWELLINGS, LEAVING, RUIN_YEARS } from './rules';
+import {
+  CARTS,
+  CHRONICLE_MAX_EVENTS,
+  DWELLINGS,
+  FOOD_NEED_KG_PER_YEAR,
+  LEAVING,
+  RUIN_YEARS,
+  START_SEED_YEARS,
+} from './rules';
+import { reservedSeedKg } from './seed';
+import { sheavesOutlook, takeSheaves } from './threshing';
 import { DIRECTION_VECTORS } from './trail';
 import type {
   Ancestor,
   Cart,
   CartKind,
+  ChronicleEvent,
   Direction8,
   DwellingRuin,
   Emigrant,
   HerdSpecies,
+  Horse,
+  LivestockState,
   NeighborDirection,
   Ox,
   Person,
@@ -50,6 +66,11 @@ export interface Settlers {
   ancestors: Ancestor[];
   emigrants: Emigrant[];
   food: LeavingFood;
+  /**
+   * Osivo na první osev (kg obilí navíc k `food.grainKg` – fields.md, Osivo pro ves bez zásob):
+   * nová ves ho má jen na setí (`VillageState.reservedSeedKg`). Chybí = žádné.
+   */
+  seedKg?: number;
   herds: Record<HerdSpecies, number>;
   young: Record<HerdSpecies, number>;
   /**
@@ -58,6 +79,21 @@ export interface Settlers {
    */
   cart?: Cart;
   oxen?: Ox[];
+  /**
+   * Vůdce odchodu (lord.md – Dělení vsi): syn vojvody s poměrnou částí vsi, nebo vojvoda, který
+   * odchází s domácnostmi – v nové vsi je vojvodou. Chybí = nejstarší muž rodu mezi osadníky.
+   */
+  lordId?: number;
+  /**
+   * Ves založí syn vojvody (`departWithSon`) – řídí ji správce od založení (steward.md – Stav
+   * správce). Odchod vojvody s obydlími či celé vsi je stěhování sídla hráče: příznak chybí.
+   */
+  stewarded?: true;
+  /**
+   * Jezdecký kůň vůdce (lord.md – Dělení vsi, Kůň syna) – v nové vsi čeká bez ohrady
+   * (`VillageState.looseHorses`). Bez koně chybí.
+   */
+  horse?: Horse;
 }
 
 /** Ves je opuštěná – odešli všichni (dál se nesimuluje). */
@@ -71,12 +107,36 @@ export function isVillageTravelling(state: Pick<VillageState, 'journey'>): boole
 }
 
 /**
+ * Ves spí: vymřelá nebo opuštěná. Nemění se (jen den by se posouval), takže se kvůli dni
+ * neukládá; shoduje se se sloupcem `asleep` v DB. Ves na cestě nespí – čeká na správce.
+ */
+export function isVillageAsleep(state: Pick<VillageState, 'extinctDay' | 'abandonedDay'>): boolean {
+  return isVillageExtinct(state) || isVillageAbandoned(state);
+}
+
+/**
  * Ves se nesimuluje: vymřelá, opuštěná, nebo na cestě. `advanceVillage` u ní jen posune den.
  */
 export function isVillageDormant(
   state: Pick<VillageState, 'extinctDay' | 'abandonedDay' | 'journey'>,
 ): boolean {
   return isVillageExtinct(state) || isVillageAbandoned(state) || isVillageTravelling(state);
+}
+
+/**
+ * Ves zanikne, protože rod vymřel (lord.md – Konec rodu; Martin: „ves zanikne“): od dne `day`
+ * je opuštěná (kronika „Ves opuštěna – rod vymřel“), dál se nedopočítává (`isVillageDormant`)
+ * a lidé v ní zůstanou jen jako záznam – pohled je nezobrazí (`abandonedVillageAt`). Vymřelá,
+ * opuštěná i putující ves zůstane beze změny (týž objekt). Vstup nemění.
+ */
+export function abandonForLineEnd(state: VillageState, day: number): VillageState {
+  if (isVillageDormant(state)) return state;
+  const event: ChronicleEvent = { day, kind: 'village-abandoned', reason: 'line-ended' };
+  return {
+    ...state,
+    abandonedDay: day,
+    chronicle: [...state.chronicle, event].slice(-CHRONICLE_MAX_EVENTS),
+  };
 }
 
 /** Žije ve vsi někdo (pro konec hry) – nevymřela a není opuštěná; ves na cestě žije. */
@@ -106,7 +166,10 @@ export function departureBlock(state: VillageState, dwellingIds: readonly number
  * Kolik jídla si lidé `leavers` vezmou (migration.md, návrh Clauda): unesou LEAVING.carryKgPerPerson
  * na člověka od LEAVING.carryFromAge let a s vozem (`cart` – migration.md, Vůz při odchodu) navíc
  * jeho náklad (CARTS.loadKg), nejvýš poměrný díl zásob vsi podle počtu lidí. Když neunesou celý
- * díl, berou z každé zásoby (obilí, maso, sýr, luštěniny, ovoce) stejný podíl.
+ * díl, berou z každé zásoby (obilí, maso, sýr, luštěniny, ovoce) stejný podíl. Snopy, které ves smí
+ * vymlátit, jsou zásobou jako zrno (production-chains.md – Humno – výhled se ztrátami): svůj díl si
+ * vymlátí a vezmou stejným podílem. Osivo (`leavingSeedKg`) mají napřed – obilí na jídlo je díl
+ * bez osiva a osivo na voze ubere místo jídlu.
  */
 export function leavingFood(
   state: VillageState,
@@ -114,24 +177,76 @@ export function leavingFood(
   day: number,
   cart: CartKind | null = null,
 ): LeavingFood {
+  return leavingShare(state, leavers, day, cart).food;
+}
+
+/**
+ * Osivo, které si lidé `leavers` ponesou (kg obilí – fields.md, Osivo pro ves bez zásob; návrh
+ * Clauda): na první osev půl roční potřeby odcházejících (START_SEED_YEARS, jako nová ves), jen
+ * z dílu zásob obilí vsi podle počtu lidí, který jim patří – mateřská ves tak nepřijde o víc než
+ * o poměrný díl zásob; nemá-li zrno, nesou méně, nebo nic. Osivo mají napřed: LEAVING.seedKgPerCarrier
+ * na nosiče navíc k jídlu, zbytek na voze místo jídla (vůz uveze víc).
+ */
+export function leavingSeedKg(
+  state: VillageState,
+  leavers: readonly Person[],
+  day: number,
+  cart: CartKind | null = null,
+): number {
+  return leavingShare(state, leavers, day, cart).seedKg;
+}
+
+/** Jídlo a osivo, které lidé `leavers` vezmou, a jaký podíl každé zásoby to je (`leavingFood`). */
+function leavingShare(
+  state: VillageState,
+  leavers: readonly Person[],
+  day: number,
+  cart: CartKind | null,
+): { food: LeavingFood; fraction: number; seedKg: number; seedStoresKg: number } {
   const share = state.people.length > 0 ? leavers.length / state.people.length : 0;
   const carriers = leavers.filter((p) => ageYears(p.bornDay, day) >= LEAVING.carryFromAge).length;
+  const sheaves = sheavesOutlook(state, day);
+  const cartKg = cart ? CARTS.loadKg[cart] : 0;
+  // osivo napřed ze dílu zásob obilí, který jim patří (osivo, které má mateřská ves jen na setí,
+  // mezi ně nepatří) – na nosiče navíc k jídlu, zbytek na voze místo jídla
+  const need = leavers.reduce((sum, p) => sum + FOOD_NEED_KG_PER_YEAR[ageGroup(p, day)], 0);
+  // zásoby bez rezervy osiva mateřské vsi – ta zůstává jí (poměrný díl se počítá z ostatních)
+  const ownStoresKg = Math.max(0, state.storesKg) - reservedSeedKg(state);
+  const grainShare = Math.max(0, ownStoresKg) * share;
+  const footSeedKg = carriers * LEAVING.seedKgPerCarrier;
   const shares: LeavingFood = {
-    grainKg: Math.max(0, state.storesKg) * share,
+    grainKg: (Math.max(0, ownStoresKg) + sheaves.grainKg) * share,
     meatKg: Math.max(0, state.meatKg ?? 0) * share,
     cheeseKg: Math.max(0, state.cheeseKg ?? 0) * share,
-    legumesKg: Math.max(0, state.legumesKg ?? 0) * share,
+    legumesKg: (Math.max(0, state.legumesKg ?? 0) + sheaves.legumesKg) * share,
     applesKg: Math.max(0, state.applesKg ?? 0) * share,
   };
-  const total = Object.values(shares).reduce((sum, kg) => sum + kg, 0);
-  const budget = carriers * LEAVING.carryKgPerPerson + (cart ? CARTS.loadKg[cart] : 0);
+  const rawTotal = Object.values(shares).reduce((sum, kg) => sum + kg, 0);
+  // jídlo má přednost: osivo na vůz (nad osivo pěšky) jen z místa, které zbude po jídle na
+  // LEAVING.cartSeedFoodDays dní (migration.md)
+  const capacityKg = carriers * LEAVING.carryKgPerPerson + cartKg;
+  const foodKeptKg = Math.min(rawTotal, (need * LEAVING.cartSeedFoodDays) / DAYS_PER_YEAR);
+  const cartSeedKg = Math.max(0, capacityKg - foodKeptKg);
+  const seedKg = Math.max(
+    0,
+    Math.min(need * START_SEED_YEARS, grainShare, footSeedKg + cartSeedKg),
+  );
+  shares.grainKg -= seedKg;
+  const total = rawTotal - seedKg;
+  const budget = capacityKg - Math.max(0, seedKg - footSeedKg);
   const scale = total > budget && total > 0 ? budget / total : 1;
   return {
-    grainKg: shares.grainKg * scale,
-    meatKg: shares.meatKg * scale,
-    cheeseKg: shares.cheeseKg * scale,
-    legumesKg: shares.legumesKg * scale,
-    applesKg: shares.applesKg * scale,
+    food: {
+      grainKg: shares.grainKg * scale,
+      meatKg: shares.meatKg * scale,
+      cheeseKg: shares.cheeseKg * scale,
+      legumesKg: shares.legumesKg * scale,
+      applesKg: shares.applesKg * scale,
+    },
+    fraction: share * scale,
+    seedKg,
+    // zásoby a snopy ubudou podílem `fraction`; osivo z něj – z jídla – vzala jen část `scale`
+    seedStoresKg: seedKg * (1 - scale),
   };
 }
 
@@ -185,7 +300,7 @@ function settlerKin(
 }
 
 /** Den akce: celé číslo ve světě, ne do minulosti vsi; jinak RangeError. */
-function validateDepartureDay(state: VillageState, day: number): void {
+export function validateDepartureDay(state: VillageState, day: number): void {
   if (!Number.isInteger(day) || day < 0 || day >= TOTAL_GAME_DAYS) {
     throw new RangeError(`Den ${day} neleží ve světě.`);
   }
@@ -200,7 +315,8 @@ function validateDepartureDay(state: VillageState, day: number): void {
  * `direction` zůstanou i jako odešlí ve směru – war.md), vezmou si jídlo (`leavingFood`)
  * a poměrný díl stád (ovce, kozy, prasata, krávy – voli a ohrady zůstávají). Jejich domy zůstanou
  * prázdné. Odejdou-li všichni, ves je opuštěná (`abandonedDay`, kronika `village-abandoned`).
- * Vrací novou starou ves (vstupní stav nemění) a osadníky. RangeError, když odejít nejde
+ * Odchází-li vojvoda, osadníci ho nesou jako vůdce (`Settlers.lordId`) – v nové vsi zůstává
+ * vojvodou. Vrací novou starou ves (vstupní stav nemění) a osadníky. RangeError, když odejít nejde
  * (`departureBlock`) nebo je den neplatný.
  */
 export function departVillage(
@@ -214,18 +330,68 @@ export function departVillage(
   if (block !== null) throw new RangeError(block);
   const households = new Set(dwellingIds);
   const leavers = state.people.filter((p) => households.has(p.dwellingId));
+  // odchází-li vojvoda, vede odchod a v nové vsi zůstává vojvodou (lord.md – Dělení vsi, Kdo může
+  // vést odchod: celá ves s vojvodou)
+  const lord = currentLord(state);
+  const lordLeaves = lord !== null && lord !== undefined && households.has(lord.dwellingId);
+  const lordHorse = lordLeaves
+    ? villageHorses(state).find((h) => h.riderId === lord.id)
+    : undefined;
+  return departLeavers(state, day, leavers, {
+    event: {
+      day,
+      kind: 'households-left',
+      households: households.size,
+      people: leavers.length,
+      ...(direction ? { direction } : {}),
+    },
+    ...(direction ? { direction } : {}),
+    ...(lordLeaves ? { lordId: lord.id } : {}),
+    ...(lordHorse ? { horseId: lordHorse.id } : {}),
+  });
+}
+
+/**
+ * Lidé `leavers` odejdou ze vsi (jádro `departVillage` a odchodu syna – `departWithSon`): jídlo,
+ * osivo, poměrný díl stád podle počtu lidí a volný vůz s voly (migration.md), s vůdcem `lordId`
+ * i jeho koněm `horseId` z ohrady koní (lord.md – Dělení vsi). Kronika `event`; odejdou-li všichni,
+ * ves je opuštěná. Den a lidi ověří volající. Vstupní stav nemění.
+ */
+export function departLeavers(
+  state: VillageState,
+  day: number,
+  leavers: readonly Person[],
+  options: {
+    event: ChronicleEvent;
+    direction?: Direction8;
+    lordId?: number;
+    horseId?: number;
+    stewarded?: true;
+  },
+): { state: VillageState; settlers: Settlers } {
+  const { direction } = options;
   const share = leavers.length / state.people.length;
   // volný vůz s voly (migration.md – Vůz při odchodu) – uveze víc jídla
   const cart = leavingCart(state, day, leavers.length === state.people.length);
-  const food = leavingFood(state, leavers, day, cart?.cart.kind ?? null);
+  const { food, fraction, seedKg, seedStoresKg } = leavingShare(
+    state,
+    leavers,
+    day,
+    cart?.cart.kind ?? null,
+  );
   const kin = settlerKin(state, leavers);
   const next = cloneState(state);
   if (cart) takeLeavingCart(next, cart);
-  next.storesKg -= food.grainKg;
+  // z každé zásoby stejný podíl – i ze snopů, které ves smí vymlátit (production-chains.md – Humno)
+  // poměrný díl ze zásob bez rezervy osiva mateřské vsi (ta zůstává jí)
+  const ownStoresKg = Math.max(0, Math.max(0, state.storesKg) - reservedSeedKg(state));
+  next.storesKg -= ownStoresKg * fraction + seedStoresKg;
   if (next.meatKg !== undefined) next.meatKg -= food.meatKg;
   if (next.cheeseKg !== undefined) next.cheeseKg -= food.cheeseKg;
-  if (next.legumesKg !== undefined) next.legumesKg -= food.legumesKg;
+  if (next.legumesKg !== undefined) next.legumesKg -= Math.max(0, state.legumesKg ?? 0) * fraction;
   if (next.applesKg !== undefined) next.applesKg -= food.applesKg;
+  const sheaves = sheavesOutlook(state, day);
+  takeSheaves(next, sheaves.grainKg > 0 ? fraction : 0, sheaves.legumesKg > 0 ? fraction : 0);
   const herds = Object.fromEntries(HERDS.map((s) => [s, 0])) as Record<HerdSpecies, number>;
   const young = Object.fromEntries(HERDS.map((s) => [s, 0])) as Record<HerdSpecies, number>;
   if (next.livestock) {
@@ -240,13 +406,8 @@ export function departVillage(
   const emigrated = new Map<number, NeighborDirection>();
   if (direction) for (const p of leavers) emigrated.set(p.id, direction);
   removePeople(next, leaving, emigrated);
-  next.chronicle.push({
-    day,
-    kind: 'households-left',
-    households: households.size,
-    people: leavers.length,
-    ...(direction ? { direction } : {}),
-  });
+  const horse = options.horseId === undefined ? undefined : takeHorse(next, options.horseId);
+  next.chronicle.push(options.event);
   if (next.people.length === 0) {
     next.abandonedDay = day;
     next.chronicle.push({ day, kind: 'village-abandoned' });
@@ -263,11 +424,28 @@ export function departVillage(
       people,
       ...kin,
       food,
+      ...(seedKg > 0 ? { seedKg } : {}),
       herds,
       young,
       ...(cart ? { cart: { ...cart.cart }, oxen: cart.oxen } : {}),
+      ...(options.lordId !== undefined && leaving.has(options.lordId)
+        ? { lordId: options.lordId }
+        : {}),
+      ...(options.stewarded ? { stewarded: true as const } : {}),
+      ...(horse ? { horse } : {}),
     },
   };
+}
+
+/** Odebere koně `horseId` z ohrady koní (mutuje stav) a vrátí ho; bez něj undefined. */
+function takeHorse(state: VillageState, horseId: number): Horse | undefined {
+  for (const pen of state.pens ?? []) {
+    const horse = pen.horses?.find((h) => h.id === horseId);
+    if (!horse || !pen.horses) continue;
+    pen.horses = pen.horses.filter((h) => h.id !== horseId);
+    return { ...horse };
+  }
+  return undefined;
 }
 
 /** Nejvyšší id mezi osadníky, předky a odešlými (nová ves čísluje dál). */
@@ -293,22 +471,36 @@ export function travellingVillage(
   seed: number,
   day: number,
   journey: VillageJourney,
+  /**
+   * Správce vsi na cestě: ze schránky správce zapnutý (ves se po příjezdu založí sama), u odchodu
+   * spuštěného hráčem vypnutý (čeká na hráče; steward.md – Odchod syna – upřesnění). Po založení
+   * řídí ves správce podle `settlers.stewarded`.
+   */
+  stewardOnTheWay: boolean = settlers.stewarded === true,
 ): VillageState {
   const householdId = settlersMaxId(settlers) + 1;
   const { food } = settlers;
+  // kůň vůdce čeká bez ohrady i na cestě – nové id za domácností (lord.md – Dělení vsi)
+  const horseId = settlers.horse ? householdId + 1 : null;
   return {
     seed,
     foundedDay: day,
     lastDay: day,
-    nextId: householdId + 1,
+    nextId: (horseId ?? householdId) + 1,
     people: settlers.people.map((p) => ({ ...p, dwellingId: householdId })),
+    // ves bez rodu jako nová ves z osadníků (`foundVillage`) – převod rodu ji nemá sledovat
+    dynasty: { lordId: null, lords: [] },
+    // ves s vůdcem odchodu (syn vojvody) řídí správce od založení (steward.md – Stav správce)
+    steward: newSteward(day, stewardOnTheWay),
     dwellings: [],
     fields: [],
     parts: [],
     constructions: [],
-    plan: null,
-    threshingFromPlan: null,
-    storesKg: food.grainKg,
+    season: null,
+    threshingSeason: null,
+    // osivo osadníků ves na cestě nesní (fields.md – Osivo pro ves bez zásob)
+    storesKg: food.grainKg + (settlers.seedKg ?? 0),
+    ...(settlers.seedKg ? { reservedSeedKg: settlers.seedKg } : {}),
     hungry: false,
     commonLaborHistory: [],
     chronicle: [
@@ -330,29 +522,47 @@ export function travellingVillage(
       : {}),
     ...(settlers.ancestors.length > 0 ? { ancestors: settlers.ancestors } : {}),
     ...(settlers.emigrants.length > 0 ? { emigrants: settlers.emigrants } : {}),
-    journey: { ...journey },
+    ...(settlers.horse && horseId !== null
+      ? { looseHorses: [{ ...settlers.horse, id: horseId }] }
+      : {}),
+    // vůdce odchodu ves na cestě drží až do založení (`settlersOf`)
+    journey: {
+      ...journey,
+      ...(settlers.lordId === undefined ? {} : { lordId: settlers.lordId }),
+      ...(settlers.stewarded ? { stewarded: true as const } : {}),
+    },
   };
 }
 
-/** Osadníci ze vsi na cestě – lidé, rodokmen, jídlo a stáda, se kterými ves založí. */
+/**
+ * Osadníci ze vsi na cestě – lidé, rodokmen, jídlo a stáda, se kterými ves založí; i vůdce odchodu
+ * (`journey.lordId`) a jeho kůň bez ohrady.
+ */
 export function settlersOf(state: VillageState): Settlers {
   return {
     people: state.people.map((p) => ({ ...p })),
     ancestors: (state.ancestors ?? []).map((a) => ({ ...a })),
     emigrants: (state.emigrants ?? []).map((e) => ({ ...e })),
     food: {
-      grainKg: Math.max(0, state.storesKg),
+      grainKg: Math.max(0, state.storesKg) - reservedSeedKg(state),
       meatKg: Math.max(0, state.meatKg ?? 0),
       cheeseKg: Math.max(0, state.cheeseKg ?? 0),
       legumesKg: Math.max(0, state.legumesKg ?? 0),
       applesKg: Math.max(0, state.applesKg ?? 0),
     },
+    ...(reservedSeedKg(state) > 0 ? { seedKg: reservedSeedKg(state) } : {}),
     herds: { ...(state.livestock?.herds ?? { sheep: 0, goat: 0, pig: 0, cow: 0 }) },
     young: { ...(state.livestock?.young ?? { sheep: 0, goat: 0, pig: 0, cow: 0 }) },
     ...(state.carts?.[0] ? { cart: { ...state.carts[0] } } : {}),
     ...(state.looseOxen && state.looseOxen.length > 0
       ? { oxen: state.looseOxen.map((ox) => ({ ...ox })) }
       : {}),
+    ...(state.journey?.lordId === undefined ? {} : { lordId: state.journey.lordId }),
+    // zdrojem pravdy je přepínač vsi na cestě (`steward.on`); `journey.stewarded` je jen počáteční
+    ...((state.steward ? state.steward.on : state.journey?.stewarded === true)
+      ? { stewarded: true as const }
+      : {}),
+    ...(state.looseHorses?.[0] ? { horse: { ...state.looseHorses[0] } } : {}),
   };
 }
 
@@ -393,9 +603,9 @@ export function travelDays(edgeM: number, trailBuilt: boolean): number {
 const RUIN_DAYS = RUIN_YEARS * DAYS_PER_YEAR;
 
 /**
- * Opuštěná ves v den `day` jen pro pohled (migration.md – opuštěná ves se nesimuluje): obydlí
- * chátrají ode dne odchodu pevným podílem prázdného obydlí (`emptyLifespanYears`), na nule se
- * zřítí a zůstane zbytek jámy, který RUIN_YEARS zarůstá; pole leží ladem od dne odchodu
+ * Opuštěná ves v den `day` jen pro pohled (migration.md – opuštěná ves se nesimuluje): nikdo
+ * v ní nežije, obydlí chátrají ode dne odchodu pevným podílem prázdného obydlí
+ * (`emptyLifespanYears`), na nule se zřítí a zůstane zbytek jámy, který RUIN_YEARS zarůstá; pole leží ladem od dne odchodu
  * a rozestavěné stavby zmizí. Žijící ves vrací beze změny (týž objekt).
  */
 export function abandonedVillageAt(state: VillageState, day: number): VillageState {
@@ -428,7 +638,28 @@ export function abandonedVillageAt(state: VillageState, day: number): VillageSta
     void crop; // ladem už nic neroste
     return { ...rest, state: 'fallow' as const, fallowSinceDay: since };
   });
-  return { ...state, dwellings, ruins, parts, constructions: [] };
+  // nikdo v ní nežije – ani lidé, kteří zůstali jako záznam po konci rodu (`abandonForLineEnd`),
+  // ani jejich dobytek (lord.md – Konec rodu: scéna bez lidí, dýmu a zvířat)
+  const { looseOxen, looseHorses, ...kept } = state;
+  void looseOxen;
+  void looseHorses;
+  return {
+    ...kept,
+    // pohled je jen projekce na den – spící ves se kvůli dni neukládá, její lastDay zaostává
+    lastDay: Math.max(state.lastDay, day),
+    people: [],
+    ...(state.livestock ? { livestock: withoutAnimals(state.livestock) } : {}),
+    dwellings,
+    ruins,
+    parts,
+    constructions: [],
+  };
+}
+
+/** Stáda opuštěné vsi – bez kusů. */
+function withoutAnimals(livestock: LivestockState): LivestockState {
+  const none = Object.fromEntries(HERDS.map((s) => [s, 0])) as Record<HerdSpecies, number>;
+  return { ...livestock, herds: { ...none }, young: { ...none } };
 }
 
 /** Lidé ve vsi (obydlí `dwellingId`) – kolik jich odejde s domácností. */

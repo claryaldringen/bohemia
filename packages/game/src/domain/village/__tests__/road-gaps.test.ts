@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { obstaclesOf } from '../../landscape';
 import { foundVillage } from '../actions';
-import { updateRoads, withJoinedRoads } from '../paths/roads';
+import { updateRoads } from '../paths/roads';
+import { withRoadsV2 } from '../paths/roads-v2';
+import { storedRoutes } from '../paths/routes';
+import { villagePathNetwork } from '../paths/village';
 import { advanceVillage } from '../simulate';
 import type { Dwelling, Person, Road, RoadGrade, VillageState } from '../types';
 import { LANDSCAPE } from './paths-fixtures';
@@ -57,16 +60,16 @@ function village(day: number): VillageState {
   return s;
 }
 
-/** Stranou vsi (z = −120) dva úseky s dírou 5 m mezi x = 0 a x = 5. */
+/** Stranou vsi (z = −100) dva úseky s dírou 5 m mezi x = 0 a x = 5 (mimo pás kraje mapy). */
 function withGap(s: VillageState): void {
   s.roads!.roads.push(
     road(500, [
-      [-60, -120],
-      [0, -120],
+      [-60, -100],
+      [0, -100],
     ]),
     road(501, [
-      [5, -120],
-      [130, -120],
+      [5, -100],
+      [100, -100],
     ]),
   );
 }
@@ -77,12 +80,11 @@ describe('díry mezi úseky pevných cest', () => {
     updateRoads(s, Y1, LANDSCAPE, null);
     withGap(s);
     updateRoads(s, NOV1(601), LANDSCAPE, null);
-    const side = s.roads!.roads.filter((r) => r.points.every((p) => p.z === -120));
+    const side = s.roads!.roads.filter((r) => r.points.every((p) => p.z === -100));
     expect(side.map((r) => r.id)).toEqual([500]);
-    expect(side[0]!.points.map((p) => p.x)).toEqual([-60, 0, 5, 130]);
+    expect(side[0]!.points.map((p) => p.x)).toEqual([-60, 0, 5, 100]);
     // konce v louce bez trasy – pás se tam nevytrácí jako u brány; stav je zkontrolovaný
     expect(side[0]!.openEnds).toEqual([false, false]);
-    expect(s.roads!.endsChecked).toBe(true);
   }, 60_000);
 
   it('napojení na osu jiného úseku ho v bodě rozdělí – vznikne rozcestí', () => {
@@ -123,10 +125,12 @@ describe('díry mezi úseky pevných cest', () => {
         ]),
       ],
       trees: [],
-      candidates: [],
       labor: { from: Y1 - 30, days: 30, shares: [] },
     };
-    const migrated = withJoinedRoads(s, LANDSCAPE, LAYER);
+    // konce cest určují kotvy z uložených tras (brána domu) – trasy vsi
+    const network = villagePathNetwork(s, Y1, LANDSCAPE, null);
+    s.routes = { day: Y1, key: 'test', list: network ? storedRoutes(network) : [] };
+    const migrated = withRoadsV2(s, LANDSCAPE, LAYER);
     const atGate = migrated.roads!.roads.find((r) => r.id === 500)!;
     expect(atGate.points[0]).toEqual({ x: 0, z: 5.2 });
     expect(atGate.openEnds![0]).toBe(true);
@@ -140,16 +144,15 @@ describe('díry mezi úseky pevných cest', () => {
       nextId: 600,
       roads: [],
       trees: [],
-      candidates: [],
       labor: { from: Y1 - 30, days: 30, shares: [] },
     };
     withGap(s);
-    const migrated = withJoinedRoads(s, LANDSCAPE, LAYER);
+    const migrated = withRoadsV2(s, LANDSCAPE, LAYER);
     expect(migrated).not.toBe(s);
     expect(s.roads.roads).toHaveLength(2);
     expect(migrated.roads!.roads.map((r) => r.id)).toEqual([500]);
-    expect(migrated.roads!.endsChecked).toBe(true);
-    expect(withJoinedRoads(migrated, LANDSCAPE, LAYER)).toBe(migrated);
+    expect(migrated.roads!.v2).toBe(true);
+    expect(withRoadsV2(migrated, LANDSCAPE, LAYER)).toBe(migrated);
   }, 60_000);
 
   it('výsledek nezávisí na kouscích dopočtu (i s JSON mezi kousky) přes 1. 11.', () => {

@@ -1,3 +1,4 @@
+import type { CartRoutesRequest, CartRoutesResult } from './cart-routes';
 import type { PlacementResult } from './scene/village-types';
 
 // Háčky pro Playwright testy (apps/web/e2e). Existují jen v buildu s NEXT_PUBLIC_E2E_HOOKS=1 –
@@ -15,8 +16,29 @@ export interface E2EHooks {
   confirmPlacement?: (result: PlacementResult) => void;
   /** Bod krajiny (x, z) na obrazovce v CSS px, nebo null mimo záběr – kam kliknout myší. */
   projectToScreen?: (x: number, z: number) => { x: number; y: number } | null;
+  /** Kolik čar místa problému (červená značka zatarasené branky, vody…) teď kreslí náhled opevnění. */
+  paintProblems?: () => number;
+  /** Body návrhu obvodu opevnění, který hráč právě upravuje (fortifications.md – Obvod). */
+  fortPoints?: () => (readonly [number, number])[];
+  /** Meshe porážky ve scéně (`slaughter-*`) a jestli jsou připravené ke kreslení. */
+  slaughterMeshes?: () => { name: string; ready: boolean }[];
+  /** Meshe divoké zvěře (`wild-*`) a kusy, které jsou teď vidět (druh, poloha) – kam kliknout. */
+  wildAnimals?: () => {
+    meshes: { name: string; ready: boolean }[];
+    animals: { species: string; model: string; x: number; z: number }[];
+    /** Naplánované skupiny (první stanoviště) – modely se načtou až se zvěří v záběru. */
+    groups: { species: string; x: number; z: number }[];
+  };
+  /** Posune kameru nad bod krajiny (x, z) – zvěř bývá u lesa mimo výchozí záběr. */
+  moveCameraTo?: (x: number, z: number) => void;
+  /** Pošle požadavek na trasy vozů tím samým routerem jako hra (Web Worker, jinak hlavní vlákno). */
+  cartRoutes?: (request: CartRoutesRequest) => Promise<CartRoutesResult>;
   /** Zeptá se na ves hned (dotazování jinak čeká na další herní den – v testech ≈ 86 s). */
   pollVillage?: () => void;
+  /** Vybere člověka vsi (id), jako by hráč klikl na jeho postavu – postavy ve scéně chodí. */
+  selectPerson?: (id: number) => void;
+  /** Vybere cestu hráče (id kteréhokoli úseku) – úzký pás cesty se v softwarovém kreslení špatně trefuje. */
+  selectRoad?: (id: number) => void;
 }
 
 declare global {

@@ -27,14 +27,21 @@ export const ROAD_KIND_ORDER: readonly RoadKind[] = [
 ];
 
 /** Druh úseku pro hráče: vyšlapaný s vozy je vyježděný, jinak podle stupně. */
-export function roadKind(road: Pick<Road, 'grade' | 'cart'>): RoadKind {
-  return road.grade === 'trodden' && road.cart ? 'cart' : road.grade;
+export function roadKind(road: Pick<Road, 'grade' | 'cart' | 'unbridged' | 'ground'>): RoadKind {
+  if (road.grade === 'trodden') return road.cart ? 'cart' : 'trodden';
+  // upravená cesta přes mokřinu nebo brod s hatí a lávkou (roads.md – Vylepšení cesty)
+  const wet = road.ground
+    ? road.ground.wet.some(([a, b]) => b > a) || road.ground.fords.length > 0
+    : false;
+  return road.grade === 'improved' && wet && !road.unbridged ? 'causeway' : road.grade;
 }
 
 /** Úsek, jak ho řetěz potřebuje – id a osa. */
 export interface ChainRoad {
   id: number;
   points: readonly RoadPoint[];
+  /** Opuštěný kus (pod stavbou) není součástí řetězu. */
+  abandoned?: true | undefined;
 }
 
 /** Úsek v řetězu a jestli jde proti směru své osy (`reversed`). */
@@ -57,7 +64,7 @@ export function roadChain<R extends ChainRoad>(
   roads: readonly R[],
   roadId: number,
 ): ChainLink<R>[] {
-  const valid = roads.filter((r) => r.points.length >= 2);
+  const valid = roads.filter((r) => r.points.length >= 2 && !r.abandoned);
   const start = valid.find((r) => r.id === roadId);
   if (!start) return [];
   const ends = new Map<string, R[]>();
@@ -128,7 +135,7 @@ export function roadChains<R extends ChainRoad>(roads: readonly R[]): ChainLink<
   const done = new Set<number>();
   const out: ChainLink<R>[][] = [];
   for (const road of roads) {
-    if (done.has(road.id) || road.points.length < 2) continue;
+    if (done.has(road.id) || road.points.length < 2 || road.abandoned) continue;
     const chain = roadChain(roads, road.id);
     for (const link of chain) done.add(link.road.id);
     out.push(chain);

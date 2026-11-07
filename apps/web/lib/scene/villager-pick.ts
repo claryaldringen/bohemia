@@ -23,6 +23,21 @@ export function pickPerson(
   project: Project,
   maxPx = PICK_PX,
 ): number | null {
+  return pickPersonHit(people, spots, x, y, project, maxPx)?.person ?? null;
+}
+
+/**
+ * Jako `pickPerson`, i se vzdáleností průmětu od kurzoru (px) – scéna ji porovná se spřežením
+ * a vozem pod kurzorem (draft-pick.ts), vybere se bližší.
+ */
+export function pickPersonHit(
+  people: readonly { person?: number; scale: number }[],
+  spots: Float32Array,
+  x: number,
+  y: number,
+  project: Project,
+  maxPx = PICK_PX,
+): { person: number; distance: number } | null {
   let best: number | null = null;
   let bestD = maxPx;
   people.forEach((p, i) => {
@@ -41,7 +56,7 @@ export function pickPerson(
       best = p.person;
     }
   });
-  return best;
+  return best === null ? null : { person: best, distance: bestD };
 }
 
 /**

@@ -1,6 +1,9 @@
+import type { DwellingResident } from '@/lib/person-view';
+import type { VillageFieldPart } from '@/lib/village-view-types';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { SelectionDetails, SelectionWorkshop } from '@/lib/selection-details';
+import type { VillageHorses } from '@/lib/horse-view';
 import type { BuildOption } from '@/lib/village-view';
 import { JourneyBanner, LeaveCompass } from '../RelocationControls';
 import { SelectionPanel } from '../SelectionPanel';
@@ -22,11 +25,7 @@ const pen = (over: Partial<Extract<SelectionDetails, { kind: 'pen' }>> = {}): Se
   oxen: 2,
   oxenVillage: null,
   cows: 4,
-  herds: { sheep: 9, goat: 3, pig: 7, cow: 4 },
-  chickens: 6,
-  pastureHa: 41.5,
-  grazingHa: 8.4,
-  milkLPerDay: 0,
+  herd: { species: 'cow', count: 4 },
   team: null,
   training: null,
   hayKg: 3200,
@@ -41,15 +40,75 @@ const render = (details: SelectionDetails): string =>
     <SelectionPanel
       details={details}
       onRelocate={() => undefined}
-      onCancelRelocation={() => Promise.resolve()}
+      onCancelConstruction={() => Promise.resolve()}
     />,
   );
 
 const text = (html: string, testId: string): string | undefined =>
   new RegExp(`data-testid="${testId}"[^>]*>([^<]*)<`).exec(html)?.[1];
 
+const HORSES: VillageHorses = {
+  count: 3,
+  kinds: { riding: 2, mares: 1, foals: 0 },
+  places: 8,
+  wanted: { riding: 3, mares: 2, foals: 1 },
+  overRoom: false,
+  fed: true,
+  grainKgPerDay: 3,
+  hayWinterKg: 2718,
+  horses: [
+    { id: 1, kind: 'riding', ageYears: 8, training: 0.5, stallion: true, penId: 90 },
+    { id: 2, kind: 'riding', ageYears: 12, training: 1, stallion: false, penId: 90 },
+    { id: 3, kind: 'mare', ageYears: 6, training: 0, stallion: false, penId: 90 },
+    { id: 4, kind: 'foal', ageYears: 0, training: 0, stallion: false, penId: 91 },
+  ],
+};
+
+describe('SelectionPanel – ohrada koní (horses.md – Co hráč vidí)', () => {
+  const horsePen = (horses: Partial<VillageHorses> = {}): string =>
+    render(
+      pen({
+        species: 'horse',
+        places: 8,
+        animals: 3,
+        herdPlaces: null,
+        herd: null,
+        horses: { ...HORSES, ...horses },
+      }),
+    );
+
+  it('koně / místa, kolik ves chce, obilí a seno na zimu, seznam koní jen z této ohrady', () => {
+    const html = horsePen();
+    expect(text(html, 'selection-pen-animals')).toBe('3/8');
+    expect(text(html, 'selection-horses-need')).toBe('8/6');
+    expect(html).not.toContain('data-alert');
+    expect(text(html, 'selection-horses-grain')).toBe('3');
+    expect(text(html, 'selection-horses-hay')).toBe('2,7 t');
+    expect(html).toContain('/icons/resources/horse.png');
+    expect(html).toContain('/icons/resources/mare.png');
+    // hříbě z jiné ohrady v seznamu není
+    expect(html).not.toContain('data-testid="selection-horse-4"');
+    expect(text(html, 'selection-horse-1')).toBe('8');
+    // výcvik jen pod 12 let (přesýpací hodiny s procenty), hřebec s podkovou
+    expect(text(html, 'selection-horse-1-training')).toBe('50 %');
+    expect(html).not.toContain('data-testid="selection-horse-2-training"');
+    expect(html).toContain('data-testid="selection-horse-1-stallion"');
+    expect(html).not.toContain('data-testid="selection-horse-2-stallion"');
+  });
+
+  it('červeně: ves chce víc koní, než je míst; koně bez obilí', () => {
+    const html = horsePen({ overRoom: true, fed: false, places: 4 });
+    expect(html).toMatch(
+      /data-testid="selection-horses-need"[^>]*data-alert|data-alert[^>]*selection-horses-need/,
+    );
+    expect(html).toMatch(
+      /data-testid="selection-horses-grain"[^>]*data-alert|data-alert[^>]*selection-horses-grain/,
+    );
+  });
+});
+
 describe('SelectionPanel – ohrada', () => {
-  it('hotová ohrada: zvířata svého druhu a místa, čtverce, seno v tunách, stáda vsi a pastva', () => {
+  it('hotová ohrada: zvířata svého druhu a místa, čtverce, seno v tunách, stádo jen druhu ohrady', () => {
     const html = render(pen());
     expect(html).toContain('data-kind="pen"');
     // ohrada skotu (oxen.md – Ohrady podle druhu): krávy v ohradě na noc / místa, čtverce
@@ -58,17 +117,25 @@ describe('SelectionPanel – ohrada', () => {
     expect(text(html, 'selection-pen-squares')).toBe('2/4');
     expect(text(html, 'selection-oxen')).toBeUndefined();
     // ohrada volů ukazuje voly
-    const team = render(pen({ species: 'team', places: 6, animals: 2, herdPlaces: null }));
+    const team = render(
+      pen({ species: 'team', places: 6, animals: 2, herdPlaces: null, herd: null }),
+    );
     expect(team).toContain('Ohrada volů');
     expect(text(team, 'selection-oxen')).toBe('2');
     expect(text(team, 'selection-pen-animals')).toBeUndefined();
     expect(text(html, 'selection-hay')).toBe('3,2 t');
-    expect(text(html, 'selection-herd-sheep')).toBe('9');
-    expect(text(html, 'selection-herd-chicken')).toBe('6');
-    expect(text(html, 'selection-pasture')).toBe('8,4/41,5 ha');
-    // mimo dobu dojení se mléko neukazuje
+    // jen stádo druhu ohrady (issue #3) – ostatní druhy, slepice, pastva ani mléko ne
+    expect(text(html, 'selection-herd-cow')).toBe('4');
+    for (const other of ['sheep', 'goat', 'pig', 'chicken']) {
+      expect(text(html, `selection-herd-${other}`)).toBeUndefined();
+    }
+    expect(text(html, 'selection-pasture')).toBeUndefined();
     expect(text(html, 'selection-milk')).toBeUndefined();
-    expect(text(render(pen({ milkLPerDay: 14.2 })), 'selection-milk')).toBe('14');
+    // ohrada ovcí ukáže ovce, ohrada volů žádné stádo
+    const sheep = render(pen({ species: 'sheep', herd: { species: 'sheep', count: 9 } }));
+    expect(text(sheep, 'selection-herd-sheep')).toBe('9');
+    expect(text(sheep, 'selection-herd-cow')).toBeUndefined();
+    expect(text(team, 'selection-herd-cow')).toBeUndefined();
   });
 
   it('ohrada volů: místa / kolik volů ves chce, páry s rádlem a vozy (Martin 20. 10. 2026)', () => {
@@ -185,34 +252,31 @@ describe('SelectionPanel – posvátný dub a háj', () => {
   });
 });
 
-// Panel obydlí (kinship.md – Co hráč vidí): muži, ženy, děti, starší a manželské páry.
-describe('SelectionPanel – rodiny v obydlí', () => {
-  it('muži, ženy, děti, starší a páry ikonami s čísly', () => {
-    const html = render({
-      kind: 'dwelling',
-      id: 1,
-      type: 'polozemnice',
-      occupants: 8,
-      family: { men: 2, women: 2, boys: 1, girls: 2, elderMen: 0, elderWomen: 1, couples: 2 },
-      capacity: 8,
-      ages: [52, 30, 27, 24, 22, 9, 6, 2],
-      condition: 1,
-      ageYears: 3,
-      full: true,
-      overcrowded: false,
-      rebuild: null,
-      workshop: null,
-      relocation: null,
-      relocate: null,
-      manor: null,
-      leave: null,
-    });
-    expect(text(html, 'selection-family-man')).toBe('2');
-    expect(text(html, 'selection-family-woman')).toBe('2');
-    expect(text(html, 'selection-family-child')).toBe('3');
-    expect(text(html, 'selection-family-elder')).toBe('1');
-    expect(text(html, 'selection-family-ring')).toBe('2');
-    expect(html).toContain('/icons/resources/ring.png');
+/** Obyvatelé z věků (ukázka a testy) – portrét podle věku, role z věku. */
+const residentsOf = (ages: number[]): DwellingResident[] =>
+  ages.map((age, i) => ({
+    id: i + 1,
+    portrait: age >= 60 ? 'elder' : age < 15 ? 'child' : i % 2 === 0 ? 'man' : 'woman',
+    role: age < 15 ? 'Dítě' : 'Rolník',
+    age,
+  }));
+
+// Panel obydlí: obyvatelé jednou, portrétem s věkem (Martin 25. 10. 2026).
+describe('SelectionPanel – obyvatelé obydlí', () => {
+  it('portréty s věkem místo řádku počtů rodiny', () => {
+    const html = render(
+      dwelling({
+        residents: [
+          { id: 5, portrait: 'elder', role: 'Starý muž', age: 63 },
+          { id: 6, portrait: 'child', role: 'Dítě', age: 6 },
+        ],
+      }),
+    );
+    expect(html).toContain('data-testid="selection-residents"');
+    expect(html).toContain('/icons/resources/elder.png');
+    expect(html).toContain('aria-label="Starý muž"');
+    expect(html).not.toContain('selection-family');
+    expect(html).not.toContain('/icons/resources/ring.png');
   });
 });
 
@@ -237,6 +301,7 @@ const dwelling = (
   family: { men: 1, women: 1, boys: 1, girls: 1, elderMen: 0, elderWomen: 0, couples: 1 },
   capacity: 6,
   ages: [30, 28, 6, 2],
+  residents: residentsOf([30, 28, 6, 2]),
   condition: 0.9,
   ageYears: 4,
   full: false,
@@ -274,22 +339,45 @@ describe('SelectionPanel – přestěhování domácnosti', () => {
     );
     expect(html).toContain('data-testid="selection-relocation"');
     expect(html).toMatch(/aria-label="Stěhování"[^>]*aria-valuenow="35"/);
-    expect(button(html, 'cancel-relocation')).toBeDefined();
+    expect(button(html, 'cancel-construction')).toBeDefined();
     expect(html).not.toContain('data-testid="relocate-zemnice"');
   });
 
-  it('staveniště nového domu stěhující se domácnosti jde zrušit, běžné staveniště ne', () => {
-    const site = (relocates: number | null): SelectionDetails => ({
+  it('rozestavěná stavba s cancelConstructionId má tlačítko jen s ikonou, bez něj ne', () => {
+    const site = (cancelConstructionId?: number): SelectionDetails => ({
       kind: 'site',
       id: 12,
       type: 'zemnice',
       craft: null,
       progress: 0.2,
       treesToFell: 0,
-      relocates,
+      relocates: null,
+      ...(cancelConstructionId === undefined ? {} : { cancelConstructionId }),
     });
-    expect(button(render(site(3)), 'cancel-relocation')).toBeDefined();
-    expect(button(render(site(null)), 'cancel-relocation')).toBeUndefined();
+    const html = render(site(12));
+    const cancel = button(html, 'cancel-construction');
+    expect(cancel).toBeDefined();
+    expect(cancel).toContain('aria-label="Zrušit stavbu"');
+    // bez textu na tlačítku – slovo jen v popisku a popisce
+    expect(html).not.toMatch(/data-testid="cancel-construction"[^>]*>[^<]*Zrušit/);
+    expect(button(render(site()), 'cancel-construction')).toBeUndefined();
+    const field = render({
+      kind: 'field',
+      id: 4,
+      areaM2: 2000,
+      fertility: 60,
+      stages: [],
+      surfaces: [],
+      crops: [],
+      turn: [],
+      resting: 0,
+      ashParts: 0,
+      ashBonus: 0,
+      overgrowingM2: 0,
+      founding: 0.3,
+      cancelConstructionId: 9,
+    });
+    expect(button(field, 'cancel-construction')).toBeDefined();
   });
 
   it('víc obydlí: počet domácností a lidí, Přestěhovat pro každou, Odejít zašedlé', () => {
@@ -327,6 +415,55 @@ describe('SelectionPanel – přestěhování domácnosti', () => {
   });
 });
 
+describe('panel pole – na řadě (fields.md – Osevní postup po dílech)', () => {
+  it('díly na řadě s ozimem a jaří, odpočívající příloh; nad potřebu v popisku', () => {
+    const html = render({
+      kind: 'field',
+      id: 5,
+      areaM2: 2250,
+      fertility: 70,
+      stages: [{ stage: 'sown', count: 6 }],
+      surfaces: [],
+      crops: [{ crop: 'winter', count: 3 }],
+      turn: [
+        { crop: 'winter', count: 4, surplus: 2 },
+        { crop: 'spring', count: 0, surplus: 1 },
+      ],
+      resting: 7,
+      ashParts: 0,
+      ashBonus: 0,
+      overgrowingM2: 0,
+      founding: null,
+    });
+    expect(html).toContain('aria-label="Na řadě"');
+    expect(html).toMatch(/ozim\.png.*data-testid="selection-turn-winter"[^>]*>4</);
+    expect(html).toContain('Na řadě – ozim; nad potřebu letos 2 díly');
+    expect(text(html, 'selection-turn-spring')).toBe('0');
+    expect(html).toContain('Na řadě – jař; nad potřebu letos 1 díl');
+    expect(text(html, 'selection-resting')).toBe('7');
+    expect(html).toContain('Odpočívá – příloh pod 95 %');
+  });
+
+  it('bez dílů na řadě a odpočívajících řádek chybí', () => {
+    const html = render({
+      kind: 'field',
+      id: 5,
+      areaM2: 2250,
+      fertility: 70,
+      stages: [],
+      surfaces: [],
+      crops: [],
+      turn: [],
+      resting: 0,
+      ashParts: 0,
+      ashBonus: 0,
+      overgrowingM2: 0,
+      founding: null,
+    });
+    expect(html).not.toContain('aria-label="Na řadě"');
+  });
+});
+
 describe('panel pole – plodiny (fields.md – Luštěniny)', () => {
   it('oseté díly luštěninami mají vlastní ikonu a počet vedle ozimu a jaře', () => {
     const html = render({
@@ -342,6 +479,8 @@ describe('panel pole – plodiny (fields.md – Luštěniny)', () => {
         { crop: 'legume', count: 2 },
         { crop: 'flax', count: 1 },
       ],
+      turn: [],
+      resting: 0,
       ashParts: 0,
       ashBonus: 0,
       overgrowingM2: 0,
@@ -381,6 +520,9 @@ describe('SelectionPanel – díl pole a čtverec sadu (klik – fields.md, Co h
     grazed: null,
     crop: { crop: 'winter', prep: { task: 'plough', share: 1 }, sow: 1, harvest: 0.4 },
     mow: null,
+    next: 'fallow',
+    rest: { share: 0.81, years: 8 },
+    surplus: false,
     founding: null,
     ...over,
   });
@@ -406,6 +548,35 @@ describe('SelectionPanel – díl pole a čtverec sadu (klik – fields.md, Co h
     // příloh ani zakládání se neukazují
     expect(html).not.toContain('selection-fallow-years');
     expect(html).not.toContain('selection-progress');
+  });
+
+  it('osevní postup: kolikátý osev oběhu, příště úhor s odpočinkem, díl nad potřebu', () => {
+    const html = render(part({ surplus: true }));
+    expect(text(html, 'selection-sown-years')).toBe('2.');
+    expect(html).toContain('2. osev oběhu');
+    // úhor ikonou přílohu, číslo = odpočinek k 95 %, slova jen v popisku
+    expect(text(html, 'selection-next')).toBe('81 %');
+    expect(html).toContain('Příště úhor – odpočinek k 95 %, osev za ≈ 8 let');
+    expect(html).toContain('data-testid="selection-surplus"');
+    expect(html).toContain('Jen z volné práce – stavby mají přednost');
+    expect(render(part())).not.toContain('selection-surplus');
+  });
+
+  it('díl na řadě po ozimu: příště jař ikonou plodiny, strniště, bez kolikátého osevu', () => {
+    const html = render(
+      part({
+        look: 'stubble',
+        stage: 'ready',
+        sownYears: null,
+        crop: null,
+        next: 'spring',
+        rest: null,
+      }),
+    );
+    expect(html).toMatch(/src="\/icons\/resources\/jar\.png"[^>]*data-testid="selection-next"/);
+    expect(html).toContain('Příště – jař');
+    expect(html).not.toContain('selection-sown-years');
+    expect(html).not.toContain('selection-surplus');
   });
 
   it('příloh: roky ladem, zarůstání, pastva a seč; bez hospodářství bez domu', () => {
@@ -447,6 +618,50 @@ describe('SelectionPanel – díl pole a čtverec sadu (klik – fields.md, Co h
     expect(text(html, 'selection-labor-left')).toBe('4,3');
     expect(text(html, 'selection-trees')).toBe('3');
     expect(html).toContain('data-surface="forest"');
+  });
+
+  it('díl v lese po fázích: kácení s počtem stromů, schnutí s datem pálení, pálení ohněm', () => {
+    const forestPart = (clearing: NonNullable<VillageFieldPart['founding']>['clearing']): string =>
+      render(
+        part({
+          look: 'slash',
+          stage: 'founding',
+          surface: 'forest',
+          sownYears: null,
+          crop: null,
+          founding: { progress: 0.3, laborLeft: 4.25, trees: 0, clearing },
+        }),
+      );
+    const fell = forestPart({ stage: 'fell', treesLeft: 6 });
+    expect(text(fell, 'selection-clearing')).toBe('6');
+    expect(fell).not.toContain('fire.png');
+    const dry = forestPart({ stage: 'dry', treesLeft: 0, burnFrom: 60 });
+    expect(dry).toContain('hourglass.png');
+    expect(dry).toContain('pálí se od 1. března 500');
+    const burn = forestPart({ stage: 'burn', treesLeft: 0, burnFrom: 60 });
+    expect(burn).toContain('resources/fire.png');
+  });
+
+  it('pole: počty čtverců v lese po fázích jen u fází, které běží', () => {
+    const html = render({
+      kind: 'field',
+      id: 5,
+      areaM2: 4500,
+      fertility: 50,
+      stages: [],
+      surfaces: [],
+      crops: [],
+      turn: [],
+      resting: 0,
+      ashParts: 0,
+      ashBonus: 0,
+      overgrowingM2: 0,
+      founding: 0.4,
+      clearing: { fell: 3, dry: 0, burn: 2 },
+    });
+    expect(text(html, 'selection-clearing-fell')).toBe('3');
+    expect(text(html, 'selection-clearing-burn')).toBe('2');
+    expect(html).not.toContain('selection-clearing-dry');
   });
 
   it('čtverec sadu: stáří, úroda čtverce, cesta; obnova čeká, výsadba s průběhem', () => {
@@ -588,9 +803,9 @@ describe('SelectionPanel – odchod do nové vsi', () => {
     expect(html).not.toContain('data-testid="leave-compass"');
   });
 
-  it('růžice: na téže mapě a na novou mapu, tam, kde leží vlastní ves, zašedlé s důvodem', () => {
+  it('růžice: jen na novou mapu (jedna ves, jedna mapa), tam, kde leží vlastní ves, zašedlé s důvodem', () => {
     const html = renderToStaticMarkup(<LeaveCompass leave={leave} onLeave={() => undefined} />);
-    expect(button(html, 'leave-here')).not.toContain(' disabled=""');
+    expect(html).not.toContain('data-testid="leave-here"');
     expect(button(html, 'leave-N')).not.toContain(' disabled=""');
     expect(button(html, 'leave-E')).toContain(' disabled=""');
     expect(html).toContain('Tím směrem leží tvoje ves Budeč.');
@@ -645,7 +860,16 @@ describe('SelectionPanel – rozvržení', () => {
 
   it('dlouhý název pod portrétem zůstane na jednom řádku', () => {
     const html = render(
-      dwelling({ type: 'dvorec', manor: { dwellingId: 3, trails: [], neighbours: [] } }),
+      dwelling({
+        type: 'dvorec',
+        manor: {
+          dwellingId: 3,
+          stance: 'flee',
+          huntDenied: null,
+          trailBuilt: false,
+          neighbours: [],
+        },
+      }),
     );
     expect(html).toMatch(/<h2 class="[^"]*whitespace-nowrap[^"]*">Dvorec vojvody<\/h2>/);
   });
@@ -654,7 +878,13 @@ describe('SelectionPanel – rozvržení', () => {
     const html = render(
       dwelling({
         type: 'dvorec',
-        manor: { dwellingId: 3, trails: [], neighbours: [] },
+        manor: {
+          dwellingId: 3,
+          stance: 'flee',
+          huntDenied: null,
+          trailBuilt: false,
+          neighbours: [],
+        },
         leave: { households: [3], people: 4, foodKg: 50, cart: null, directions: [] },
       }),
     );
@@ -663,7 +893,7 @@ describe('SelectionPanel – rozvržení', () => {
     expect(html).toContain('class="hud-commands"');
     // údaje před příkazy, tlačítka v nich
     expect(html.indexOf('selection-occupants')).toBeLessThan(commands);
-    expect(html.indexOf('selection-ages')).toBeLessThan(commands);
+    expect(html.indexOf('selection-residents')).toBeLessThan(commands);
     for (const id of ['manor-upgrades', 'relocate-zemnice', 'leave-village']) {
       expect(html.indexOf(`data-testid="${id}"`)).toBeGreaterThan(commands);
     }
@@ -675,11 +905,12 @@ describe('SelectionPanel – rozvržení', () => {
     expect(html).not.toContain('selection-commands');
   });
 
-  it('věk obyvatel nejvýš po 8 v řádku – další řádek pod nimi', () => {
-    const html = render(dwelling({ ages: [63, 41, 38, 35, 33, 29, 26, 14, 11, 8, 5, 1] }));
-    const list = /<ul data-testid="selection-ages"[^>]*class="([^"]*)"/.exec(html)?.[1] ?? '';
-    // 8 × 1,75rem + 7 mezer po 0,25rem
-    expect(list.split(' ')).toEqual(expect.arrayContaining(['flex-wrap', 'max-w-[15.75rem]']));
+  it('obyvatelé se při mnoha lidech zalomí', () => {
+    const html = render(
+      dwelling({ residents: residentsOf([63, 41, 38, 35, 33, 29, 26, 14, 11, 8]) }),
+    );
+    const list = /<ul data-testid="selection-residents"[^>]*class="([^"]*)"/.exec(html)?.[1] ?? '';
+    expect(list.split(' ')).toEqual(expect.arrayContaining(['flex-wrap', 'max-w-[26rem]']));
   });
 
   it('víc obydlí: počty vlevo, přestěhovat a odejít vpravo', () => {
@@ -706,6 +937,8 @@ describe('SelectionPanel – rozvržení', () => {
       stages: [{ stage: 'sown', count: 418 }],
       surfaces: [],
       crops: [{ crop: 'winter', count: 204 }],
+      turn: [],
+      resting: 0,
       ashParts: 0,
       ashBonus: 0,
       overgrowingM2: 13_050,
@@ -755,7 +988,8 @@ describe('SelectionPanel – dílna tesaře (wagons.md – Tesař)', () => {
     expect(html).toMatch(/data-testid="selection-workshop-carts-two-wheel"[^>]*>1\/2</);
     expect(html).not.toContain('selection-workshop-carts-four-wheel');
     expect(html).toMatch(/data-testid="selection-workshop-woodwork"[^>]*>45/);
-    expect(html).toMatch(/data-testid="selection-workshop-stock"[^>]*>46</);
+    // keramika a dřevěné nářadí se nikde neukazují (Martin 24. 10. 2026)
+    expect(html).not.toContain('selection-workshop-stock');
   });
 
   it('pomáhá se stavbami – pokrytí dřevěné práce', () => {
@@ -908,6 +1142,45 @@ describe('SelectionPanel – kovárna (crafts.md – Uhlí a ruda kováře)', ()
     expect(cart).toContain('data-activity="digging"');
     expect(cart).toContain('Kope rudu');
   });
+
+  it('řetěz kovárny – houba, hřivny, vybavení domácností a měchař (production-chains.md)', () => {
+    const iron = (bellows: NonNullable<SelectionWorkshop['iron']>['bellows']): SelectionDetails =>
+      dwelling({
+        type: 'polozemnice',
+        workshop: {
+          craft: 'smith',
+          activity: 'smelting',
+          laborPerDay: 1.7,
+          outputPerDayKg: 0.17,
+          stockKg: 42,
+          coverage: null,
+          kiln: null,
+          kilns: [],
+          toPlant: 0,
+          skill: { share: 1, years: 5, apprentices: [] },
+          carpenter: null,
+          iron: {
+            bloomKg: 3.2,
+            barsKg: 42,
+            barsTargetKg: 25.9,
+            equipmentKg: 61,
+            needKg: 72,
+            coverage: 0.85,
+            bellows,
+          },
+        },
+      });
+    const son = render(iron({ personId: 41, age: 11, sex: 'male', kind: 'son' }));
+    expect(son).toContain('data-activity="smelting"');
+    expect(son).toContain('Taví železnou houbu');
+    expect(son).toMatch(/data-testid="selection-workshop-bloom"[^>]*>3,2</);
+    expect(son).toMatch(/data-testid="selection-workshop-equipment"[^>]*>61</);
+    expect(son).toContain('pokrytí potřeby 85');
+    expect(son).toMatch(/data-testid="selection-workshop-bellows"[^>]*>11</);
+    expect(son).toContain('/icons/resources/iron-bars.png');
+    const alone = render(iron(null));
+    expect(alone).toContain('polovičním tempem');
+  });
 });
 
 describe('SelectionPanel – nákup u sousedů (crafts.md)', () => {
@@ -997,6 +1270,98 @@ describe('SelectionPanel – rudiště (crafts.md – Uhlí a ruda kováře)', (
     const html = render(ore({ workers: [], leftKg: 0 }));
     expect(html).not.toContain('selection-ore-today');
     expect(html).toMatch(/data-testid="selection-ore-deposit"[^>]*data-alert/);
+  });
+});
+
+describe('SelectionPanel – humno (production-chains.md – Humno)', () => {
+  it('hotové: portrét Humno, snopy v kg a značka, že se dnes mlátí', () => {
+    const html = render({
+      kind: 'threshing-floor',
+      id: 2609,
+      built: true,
+      progress: 1,
+      sheavesKg: 5200,
+      threshingToday: true,
+    });
+    expect(html).toContain('data-kind="threshing-floor"');
+    expect(html).toContain('src="/icons/build/humno.png"');
+    expect(html).toContain('>Humno</h2>');
+    expect(text(html, 'selection-threshing-sheaves')).toBe('5 200 kg');
+    expect(html).toContain('selection-threshing-today');
+    expect(html).not.toContain('selection-threshing-progress');
+  });
+
+  it('staveniště: průběh stavby, žádné snopy', () => {
+    const html = render({
+      kind: 'threshing-floor',
+      id: 2609,
+      built: false,
+      progress: 0.4,
+      sheavesKg: 0,
+      threshingToday: false,
+    });
+    expect(html).toContain('selection-threshing-progress');
+    expect(html).not.toContain('selection-threshing-sheaves');
+  });
+});
+
+describe('SelectionPanel – obilná jáma (production-chains.md – Obilné jámy)', () => {
+  it('portrét Obilná jáma, zrno v jámě v kg, stáří a plnost', () => {
+    const html = render({
+      kind: 'grain-pit',
+      id: 820,
+      grainKg: 1264,
+      capacityKg: 1500,
+      ageYears: 3,
+    });
+    expect(html).toContain('data-kind="grain-pit"');
+    expect(html).toContain('src="/icons/build/obilna-jama.png"');
+    expect(html).toContain('>Obilná jáma</h2>');
+    expect(text(html, 'selection-grain-pit-kg')).toBe('1 264 kg');
+    expect(text(html, 'selection-grain-pit-age')).toBe('3');
+    expect(html).toMatch(/data-testid="selection-grain-pit-fill"[^>]*/);
+    expect(html).toContain('aria-valuenow="84"');
+  });
+});
+
+describe('SelectionPanel – křižovatka (paths.md – Křižovatky)', () => {
+  it('kříž: portrét s ikonou, počet cest, znamení a stáří – jen ikony a čísla', () => {
+    const html = render({
+      kind: 'junction',
+      id: 12,
+      shape: 'cross',
+      roads: 4,
+      landmark: 'stone',
+      ageYears: 37,
+    });
+    expect(html).toContain('data-kind="junction"');
+    expect(html).toContain('src="/icons/build/krizovatka-kriz.png"');
+    expect(html).toContain('>Křižovatka</h2>');
+    expect(text(html, 'selection-junction-roads')).toBe('4');
+    expect(text(html, 'selection-junction-age')).toBe('37');
+    expect(html).toContain('Vztyčený kámen');
+  });
+
+  it('Y se stromem a kůlem má vlastní ikonu a znamení', () => {
+    const y = render({
+      kind: 'junction',
+      id: 1,
+      shape: 'y',
+      roads: 3,
+      landmark: 'post',
+      ageYears: 0,
+    });
+    expect(y).toContain('src="/icons/build/krizovatka-y.png"');
+    expect(y).toContain('Dřevěný kůl');
+    const tree = render({
+      kind: 'junction',
+      id: 1,
+      shape: 'y',
+      roads: 3,
+      landmark: 'tree',
+      ageYears: 5,
+    });
+    expect(tree).toContain('Strom u křižovatky');
   });
 });
 
@@ -1140,6 +1505,37 @@ describe('SelectionPanel – postava (villagers.md – Výběr postavy)', () => 
     expect(html).not.toContain('selection-person-herd');
   });
 
+  it('muž rodiny – dovednosti s čísly a jízda jen u toho, kdo má koně', () => {
+    const arms = { bow: 64, combat: 51, riding: 38 };
+    const html = render(person({ portrait: 'man', role: 'Syn vojvody', arms, horse: true }));
+    expect(text(html, 'selection-person-arms-bow')).toBe('64');
+    expect(text(html, 'selection-person-arms-combat')).toBe('51');
+    expect(text(html, 'selection-person-arms-riding')).toBe('38');
+    expect(html).toContain('Lukostřelba 64 / 100');
+    const foot = render(person({ arms: { bow: 5, combat: 0, riding: 0 }, horse: false }));
+    expect(foot).toContain('selection-person-arms-bow');
+    expect(foot).not.toContain('selection-person-arms-riding');
+    expect(render(person())).not.toContain('selection-person-arms');
+  });
+
+  it('jezdec – kůň pod ním: věk, výcvik do 12 let a obilí (červeně, když chybí)', () => {
+    const arms = { bow: 64, combat: 51, riding: 38 };
+    const mount = { ageYears: 8, training: 0.5, fed: true, grainKgPerDay: 1.5 };
+    const html = render(person({ arms, horse: true, mount }));
+    expect(text(html, 'selection-person-mount-age')).toBe('8');
+    expect(text(html, 'selection-person-mount-training')).toBe('50 %');
+    expect(text(html, 'selection-person-mount-grain')).toBe('1,5');
+    expect(html).not.toContain('data-alert');
+    const done = render(
+      person({ arms, horse: true, mount: { ...mount, training: 1, fed: false } }),
+    );
+    expect(done).not.toContain('selection-person-mount-training');
+    expect(done).toMatch(
+      /data-testid="selection-person-mount-grain"[^>]*data-alert|data-alert[^>]*selection-person-mount-grain/,
+    );
+    expect(render(person({ arms, horse: true }))).not.toContain('selection-person-mount');
+  });
+
   it('pasáček u stáda – ikona zvířete; bez domu ve scéně bez tlačítka', () => {
     const html = render(
       person({
@@ -1157,5 +1553,163 @@ describe('SelectionPanel – postava (villagers.md – Výběr postavy)', () => 
     expect(html).toContain('data-herd="sheep"');
     expect(html).toContain('src="/icons/resources/sheep.png"');
     expect(html).not.toContain('selection-person-home');
+  });
+});
+
+describe('SelectionPanel – spřežení, vůz a lidé u nich (oxen.md, wagons.md – Výběr)', () => {
+  const team = (
+    over: Partial<Extract<SelectionDetails, { kind: 'plough-team' }>> = {},
+  ): SelectionDetails => ({
+    kind: 'plough-team',
+    team: 0,
+    activity: 'orá díl pole',
+    part: { fieldId: 7, cell: { x: 4, y: 2 } },
+    oxen: 2,
+    pen: 12,
+    ploughman: { id: 201, portrait: 'man' },
+    leader: { id: 203, portrait: 'child' },
+    ...over,
+  });
+  const cart = (
+    over: Partial<Extract<SelectionDetails, { kind: 'cart' }>> = {},
+  ): SelectionDetails => ({
+    kind: 'cart',
+    id: 3,
+    cartKind: 'two-wheel',
+    activity: 'veze uhlí ke kováři',
+    cargo: 'charcoal',
+    capacityKg: 400,
+    loadKg: null,
+    condition: 0.8,
+    oxen: 1,
+    pen: 12,
+    drover: { id: 301, portrait: 'man' },
+    ...over,
+  });
+
+  it('spřežení: portrét vola, co dělá, voli a tlačítka dílu, ohrady, oráče a honáka', () => {
+    const html = render(team());
+    expect(html).toContain('data-kind="plough-team"');
+    expect(html).toContain('src="/icons/resources/ox.png"');
+    expect(html).toContain('>Spřežení</h2>');
+    expect(text(html, 'selection-team-activity')).toBe('orá díl pole');
+    expect(text(html, 'selection-team-oxen')).toBe('2');
+    expect(html).toMatch(
+      /data-testid="selection-team-part"[^>]*><img src="\/icons\/build\/pole\.png"/,
+    );
+    expect(html).toMatch(
+      /data-testid="selection-team-pen"[^>]*><img src="\/icons\/build\/ohrada\.png"/,
+    );
+    expect(html).toMatch(
+      /data-testid="selection-team-ploughman"[^>]*><img src="\/icons\/resources\/man\.png"/,
+    );
+    expect(html).toMatch(
+      /data-testid="selection-team-leader"[^>]*><img src="\/icons\/resources\/child\.png"/,
+    );
+  });
+
+  it('spřežení na cestě do ohrady bez lidí ve scéně – jen voli a ohrada', () => {
+    const html = render(
+      team({ activity: 'vrací se do ohrady', part: null, ploughman: null, leader: null }),
+    );
+    expect(text(html, 'selection-team-activity')).toBe('vrací se do ohrady');
+    expect(html).not.toContain('selection-team-part');
+    expect(html).not.toContain('selection-team-ploughman');
+    expect(html).not.toContain('selection-team-leader');
+    expect(html).toContain('data-testid="selection-team-pen"');
+  });
+
+  it('vůz: druh pod portrétem, co dělá, stav, voli, náklad, ohrada a vozka', () => {
+    const html = render(cart());
+    expect(html).toContain('data-kind="cart"');
+    expect(html).toContain('src="/icons/resources/cart.png"');
+    expect(html).toContain('>Dvoukolák</h2>');
+    expect(text(html, 'selection-cart-activity')).toBe('veze uhlí ke kováři');
+    expect(text(html, 'selection-cart-condition')).toBe('80 %');
+    // nosnost bez známého nákladu, s ním „náklad / nosnost“ (wagons.md – Výběr vozu)
+    expect(text(html, 'selection-cart-load')).toBe('400');
+    expect(text(render(cart({ loadKg: 250 })), 'selection-cart-load')).toBe('250 / 400');
+    expect(text(html, 'selection-cart-oxen')).toBe('1');
+    expect(html).toMatch(
+      /src="\/icons\/resources\/charcoal\.png"[^>]*data-testid="selection-cart-cargo"/,
+    );
+    expect(html).toContain('data-testid="selection-cart-pen"');
+    expect(html).toContain('data-testid="selection-cart-drover"');
+  });
+
+  it('vůz u ohrady: bez volů, nákladu a vozky', () => {
+    const html = render(
+      cart({
+        cartKind: 'four-wheel',
+        activity: 'stojí u ohrady',
+        cargo: null,
+        oxen: 0,
+        drover: null,
+      }),
+    );
+    expect(html).toContain('>Čtyřkolák</h2>');
+    expect(text(html, 'selection-cart-activity')).toBe('stojí u ohrady');
+    expect(html).not.toContain('selection-cart-oxen');
+    expect(html).not.toContain('selection-cart-cargo');
+    expect(html).not.toContain('selection-cart-drover');
+  });
+
+  it('oráč a vozka – tlačítko vybere spřežení či vůz; jiný člověk ho nemá', () => {
+    const base = {
+      kind: 'person' as const,
+      id: 201,
+      portrait: 'man' as const,
+      role: 'Rolník',
+      activity: 'orá',
+      age: 31,
+      home: 2,
+      homeIcon: 'zemnice',
+      herd: null,
+    };
+    const ploughman = render({ ...base, draft: { kind: 'plough-team', team: 0 } });
+    expect(text(ploughman, 'selection-person-activity')).toBe('orá');
+    expect(ploughman).toMatch(
+      /data-testid="selection-person-draft"[^>]*><img src="\/icons\/resources\/ox\.png"/,
+    );
+    const drover = render({ ...base, activity: 'veze seno', draft: { kind: 'cart', id: 3 } });
+    expect(drover).toMatch(
+      /data-testid="selection-person-draft"[^>]*><img src="\/icons\/resources\/cart\.png"/,
+    );
+    expect(render({ ...base, draft: null })).not.toContain('selection-person-draft');
+  });
+});
+
+describe('panel pole – označit všechna pole (Martin 24. 10. 2026)', () => {
+  const field = (fieldIds: readonly number[]): SelectionDetails => ({
+    kind: 'field',
+    id: 5,
+    areaM2: 22_500,
+    fertility: 60,
+    stages: [],
+    surfaces: [],
+    crops: [],
+    turn: [],
+    resting: 0,
+    ashParts: 0,
+    ashBonus: 0,
+    overgrowingM2: 0,
+    founding: null,
+    fieldIds,
+  });
+
+  it('tlačítko je jen ikona s popiskem, když má ves víc polí', () => {
+    const html = render(field([5, 6, 9]));
+    expect(html).toMatch(
+      /data-testid="selection-all-fields"[^>]*aria-label="Označit všechna pole"/,
+    );
+    expect(html).toContain('Označit všechna pole');
+    expect(render(field([5]))).not.toContain('selection-all-fields');
+    expect(render(field([]))).not.toContain('selection-all-fields');
+  });
+
+  it('označená všechna pole: součet výměry a počet polí', () => {
+    const html = render({ kind: 'fields', ids: [5, 6, 9], areaM2: 112_500 });
+    expect(text(html, 'selection-area')).toBe('11,25 ha');
+    expect(text(html, 'selection-fields-count')).toBe('3');
   });
 });

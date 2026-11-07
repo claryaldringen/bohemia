@@ -161,13 +161,21 @@ export function partFoundingCost(
 }
 
 /**
+ * Úrodnost po přírůstku (luštěniny, příloh) nejvýš přirozená – naplavenina povodně nad ní
+ * (disasters.md – Povodeň potoka, do 130 %) ale nepropadne, jen se nezvýší.
+ */
+function withinNatural(share: number, gain: number): number {
+  return Math.min(Math.max(1, share), share + gain);
+}
+
+/**
  * Konec hospodářského roku (1. 9.) pro jeden díl – mění ho na místě: osev vyčerpá úrodnost
  * (pod 70 % jde díl do přílohu; luštěniny ji naopak trochu vrátí – poutají dusík, fields.md –
  * Luštěniny; len ji vyčerpá víc než obilí – fields.md, Len), příloh ji obnoví.
  */
 export function endOfSeason(part: FieldPart, day: number): void {
   // příloh, ze kterého se díl loni vracel, už plán zkrátit nemůže (fields.md – Osev podle zásob)
-  delete part.fallowBeforePlan;
+  delete part.fallowBeforeSeason;
   if (part.state === 'sown') {
     // díl prošel orbou – drn louky založené rádlem je rozoraný (oxen.md – Jen rádlo)
     delete part.sod;
@@ -175,7 +183,7 @@ export function endOfSeason(part: FieldPart, day: number): void {
     // (pojistka – nouzově se seje jen od 40 %, takže klesne nejvýš na 28 %)
     part.fertilityShare =
       part.crop === 'legume'
-        ? Math.min(1, part.fertilityShare + LEGUMES.fertilityGain)
+        ? withinNatural(part.fertilityShare, LEGUMES.fertilityGain)
         : Math.max(
             0,
             part.fertilityShare -
@@ -193,20 +201,21 @@ export function endOfSeason(part: FieldPart, day: number): void {
   }
   if (part.state === 'fallow') {
     // v přílohu se vrací úrodnost; zarůstání počítá roční krok 1. 11. (overgrowth.ts)
-    part.fertilityShare = Math.min(1, part.fertilityShare + FERTILITY.fallowRecovery);
+    part.fertilityShare = withinNatural(part.fertilityShare, FERTILITY.fallowRecovery);
   }
 }
 
 /**
  * Skupina dílu v pořadí přílohové soustavy (fields.md – Přílohová soustava): 1 osévaný díl, který
- * smí dál (≥ 0,7), 2 čerstvě založený (připravený), 3 příloh zotavený aspoň na 0,95, 4 příloh
+ * smí dál (≥ 0,7) – i připravený díl po prvním osevu oběhu (`FieldPart.next`, fields.md – Osevní
+ * postup po dílech) –, 2 čerstvě založený (připravený), 3 příloh zotavený aspoň na 0,95, 4 příloh
  * 0,7–0,95; jiný díl (zakládaný, vyčerpaný příloh) null.
  */
 export type SowingGroup = 1 | 2 | 3 | 4;
 export function sowingGroup(p: FieldPart): SowingGroup | null {
   const sowable = isSowableFertility(p);
   if (p.state === 'sown') return sowable ? 1 : null;
-  if (p.state === 'ready') return 2;
+  if (p.state === 'ready') return p.next ? 1 : 2;
   if (p.state !== 'fallow' || !sowable) return null;
   return p.fertilityShare >= FERTILITY.fallowReady - EPSILON ? 3 : 4;
 }
@@ -339,15 +348,12 @@ export function mergeFields(state: VillageState, into: number, others: readonly 
     }
     state.constructions = state.constructions.filter((c) => !dropped.has(c.id));
   }
-  for (const event of state.chronicle) {
-    if (
-      event.kind === 'construction-finished' &&
-      event.fieldId !== null &&
-      merged.has(event.fieldId)
-    ) {
-      event.fieldId = into;
-    }
-  }
+  // nový zápis místo zápisu do starého – záznamy kroniky sdílí kopie stavu (clone.ts)
+  state.chronicle = state.chronicle.map((event) =>
+    event.kind === 'construction-finished' && event.fieldId !== null && merged.has(event.fieldId)
+      ? { ...event, fieldId: into }
+      : event,
+  );
   for (const share of state.labor?.shares ?? []) {
     if (share.target.kind === 'field' && merged.has(share.target.id)) share.target.id = into;
     if (kept && share.construction !== undefined && dropped.has(share.construction)) {

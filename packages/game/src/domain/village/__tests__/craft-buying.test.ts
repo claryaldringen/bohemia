@@ -172,7 +172,8 @@ describe('rozhodnutí vesničanů', () => {
 
   it('kupuje jen do zásoby – se zásobou na cíli nic', () => {
     const s = village();
-    s.crafts = { charcoalKg: 0, toolsKg: 1000, potteryKg: 1000, woodToolsKg: 1000 };
+    s.crafts = { charcoalKg: 0, potteryKg: 1000, woodToolsKg: 1000 };
+    s.toolEquipmentKg = 1000;
     expect(planPurchases(s, NOV15, craftCoverage(s, NOV15), null)).toEqual([]);
   });
 });
@@ -192,7 +193,8 @@ describe('výprava za nákupem', () => {
     expect(back.purchases).toBeUndefined();
     const bought = back.chronicle.filter((e) => e.kind === 'crafts-bought');
     expect(bought.length).toBe(day1.purchases!.length);
-    expect(back.crafts!.toolsKg).toBeGreaterThan(0);
+    // nástroje jdou do vybavení domácností (production-chains.md)
+    expect(back.toolEquipmentKg).toBeGreaterThan(0);
     expect(back.crafts!.potteryKg).toBeGreaterThan(0);
     expect(craftCoverage(back, NOV15 + 70).tools).toBeGreaterThan(0);
   });

@@ -8,7 +8,7 @@ import {
   type VillageState,
 } from '@bohemia/game';
 import { sceneExpeditions } from '../caravan-view';
-import { expeditionView, neighbourViews } from '../manor-view';
+import { expeditionView, manorFamily, neighbourViews } from '../manor-view';
 import { tradePreview } from '../trade-quote';
 
 // Sousedé po hotových stezkách pro panel obchodu (trade.md) – výměna lidí: koho soused dá a vezme
@@ -119,6 +119,33 @@ describe('výměna lidí v panelu obchodu (trade.md – Výměna lidí)', () => 
   });
 });
 
+describe('koně v panelu obchodu (horses.md – Nákup a prodej)', () => {
+  it('řádky koní se ukážou, jen když je soused nabízí (zásoba 0 se skryje); místo v ohradě', () => {
+    const s = village();
+    // pastevci na severu nabízejí koně všech tří druhů; jezdecké jen některý rok (zásoba 0)
+    const herders = neighbourOf(s.seed, 'N');
+    s.trails![0]!.direction = 'N';
+    s.trade!.neighbours = [
+      {
+        ...s.trade!.neighbours![0]!,
+        direction: 'N',
+        supply: { ...herders.supply, foals: 2, mares: 1, ridingHorses: 0 },
+        demand: { ...herders.demand },
+      },
+    ];
+    const [n] = neighbourViews(s, DAY);
+    expect(n!.offers.find((r) => r.good === 'foals')?.left).toBe(2);
+    expect(n!.offers.some((r) => r.good === 'mares')).toBe(true);
+    expect(n!.offers.some((r) => r.good === 'ridingHorses')).toBe(false);
+    // statkáři na jihu koně shánějí – řádek se ukáže
+    s.trails![0]!.direction = 'S';
+    s.trade!.neighbours = [{ ...s.trade!.neighbours![0]!, direction: 'S' }];
+    expect(neighbourViews(s, DAY)[0]!.demands.some((r) => r.good === 'foals')).toBe(true);
+    // ves bez ohrady koní koně nevezme
+    expect(n!.room.horses).toBe(0);
+  });
+});
+
 describe('výprava na cestě v panelu – tempo z práce dne (trade.md – Obchod)', () => {
   const sent = (today: number | null, done = 24): VillageState => {
     const s = village();
@@ -211,5 +238,59 @@ describe('výprava pro karavanu ve scéně (trade.md – Ve scéně)', () => {
     // výprava dnes nepostoupila – stojí
     s.labor = { day: DAY, shares: [] };
     expect(sceneExpeditions(s)[0]!.rate).toBe(0);
+  });
+});
+
+describe('zásilka do vsi jiného hráče ve scéně (vassalage.md – Doprava a cílová ves)', () => {
+  it('karavana jde po čáře ke kraji mapy ve směru první mapy cesty, bez stezky a jména souseda', () => {
+    const s = village();
+    s.lastDay = DAY;
+    s.trade!.expeditions = [
+      {
+        id: 7,
+        kind: 'shipment',
+        destination: { cells: 3, firstStep: 'E' },
+        direction: 'E',
+        trailId: -1,
+        startedDay: DAY - 1,
+        give: { grain: 500, cows: 2 },
+        get: {},
+        porters: 20,
+        days: 12,
+        cost: 240,
+        done: 60,
+      },
+    ];
+    s.labor = { day: DAY, shares: [] };
+    const [e] = sceneExpeditions(s);
+    expect(e).toMatchObject({ id: 7, trailId: null, carriesOut: true, carriesBack: false });
+    expect(e!.line).toHaveLength(2);
+    // čára míří na východ: kraj mapy je napravo od vsi
+    expect(e!.line![1]!.x).toBeGreaterThan(e!.line![0]!.x);
+    expect(e!.trip).toBeUndefined();
+    expect(e!.cattle).toEqual({ out: { cows: 2, oxen: 0 }, back: { cows: 0, oxen: 0 } });
+  });
+});
+
+describe('rodina ve dvorci (lord.md – Co hráč vidí)', () => {
+  it('obyvatelé dvorce od nejstaršího; cvičící muži mají dovednosti, ženy ne', () => {
+    const s = village();
+    const day = DAY;
+    const arms = { bow: 64.4, combat: 51, riding: 0 };
+    s.people.find((p) => p.id === 502)!.dwellingId = s.manorId!;
+    s.people.find((p) => p.id === 500)!.dwellingId = s.manorId!;
+    s.people.find((p) => p.id === 501)!.dwellingId = s.manorId!;
+    s.people.find((p) => p.id === 503)!.dwellingId = s.manorId!;
+    s.people.find((p) => p.id === 502)!.arms = arms;
+    const family = manorFamily(s, day);
+    const by = (id: number) => family.find((m) => m.id === id);
+    expect(by(500)?.role).toBe('Vojvoda');
+    expect(by(500)?.arms).toEqual({ bow: 0, combat: 0, riding: 0 });
+    expect(by(502)?.arms).toEqual({ bow: 64, combat: 51, riding: 0 });
+    expect(by(501)?.arms).toBeNull();
+    expect(by(503)?.arms).toBeNull();
+    expect(by(502)?.horse).toBe(false);
+    const ages = family.map((m) => m.age);
+    expect(ages).toEqual([...ages].sort((a, b) => b - a));
   });
 });

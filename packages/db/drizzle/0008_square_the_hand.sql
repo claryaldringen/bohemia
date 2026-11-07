@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "village_origin_uq" ON "village" USING btree (("state"->>'origin')) WHERE "village"."state"->>'origin' IS NOT NULL;

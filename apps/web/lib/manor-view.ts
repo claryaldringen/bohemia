@@ -8,32 +8,46 @@ import {
   PEOPLE_TRADE,
   adultBuyPrice,
   buyPrice,
+  cattleRoom,
   emigrantGroups,
   expeditionTo,
   familyBuyPrice,
+  horseTradeRoom,
+  isHorseGood,
+  canDeclareHunt,
+  HUNT_DENIED_TEXT,
+  lordFamily,
+  stanceOf,
   neighbourOf,
   neighbourStock,
-  obstaclesOf,
   sellPrice,
   sellValue,
   tradeCarts,
   trailCartPassable,
-  trailOptions,
   trailTripDays,
   villageGoodStock,
   villageManor,
-  villageRoadWalk,
   villageTrails,
   type CartKind,
+  type DefenseStance,
   type Direction8,
   type Landscape,
   type TradeGood,
   type TradeExpedition,
   type TradeGoods,
   type TradePeople,
-  type TrailOption,
   type VillageState,
 } from '@bohemia/game';
+import { tradeDearth } from './disasters-view';
+import {
+  armsView,
+  personPortrait,
+  type DwellingResident,
+  scenePersons,
+  type ArmsView,
+} from './person-view';
+import { ROLE_NAMES } from './person-roles';
+import { huntView, type HuntView } from './wildlife-view';
 
 /**
  * Výprava na cestě – co nesou, co přinesou, kdo s ní odešel a kdo přijde (rodiny, svobodní muži
@@ -111,16 +125,86 @@ export interface VillageNeighbour {
    * napřed) – náhled nosičů je počítá jako server (`expeditionTransport`).
    */
   carts: CartKind[];
+  /**
+   * Kolik koupeného dobytka se do vsi vejde (trade.md – Dobytek ve třech druzích; `cattleRoom`):
+   * krávy do ohrad skotu, voli (mladí i vycvičení dohromady) do ohrad volů – bez dobytka, který
+   * výpravy na cestě teprve přivedou; koně (hříbata, klisny i jezdečtí dohromady) do ohrad koní
+   * (`horseTradeRoom`).
+   */
+  room: { cows: number; oxen: number; horses: number };
+  /**
+   * Kraj po zlém (`bad`) nebo krutém (`cruel`) roce – obilí u sousedů zdražilo (disasters.md – Kraj
+   * kolem vsi, Co hráč vidí: ikona zdražení u obilí); obyčejný rok – chybí.
+   */
+  dearth?: 'bad' | 'cruel';
+}
+
+/**
+ * Obyvatel dvorce (lord.md – Co hráč vidí): portrét, role a věk; muži rodiny od 7 let (cvičí) nesou
+ * dovednosti `arms`, `horse` je u toho, kdo koně má (jezdí).
+ */
+export interface ManorMember extends DwellingResident {
+  arms: ArmsView | null;
+  horse: boolean;
+}
+
+/** Proč dnes nejde vyhlásit lov navíc (česky), nebo null. */
+function huntDeniedText(state: VillageState, day: number): string | null {
+  const denied = canDeclareHunt(state, day);
+  return denied === null ? null : HUNT_DENIED_TEXT[denied];
+}
+
+/** Zajatec ve dvorci (war.md – Vzdaní, zajetí a výkupné): klíč zajetí a jméno do portrétu. */
+export interface PrisonerView {
+  id: string;
+  name: string | null;
+  noble: boolean;
+  /** Ves, odkud zajatec pochází (war.md – výkupné); rod z ní doplní server (`houseId`). */
+  homeVillageId: string;
+  /** Rod zajatce (výkupné se nabízí jen zajatcům protistrany); chybí, nezná-li ho server. */
+  houseId?: string;
 }
 
 /** Dvorec vojvody pro panel výběru. */
 export interface VillageManor {
+  /** Zajatci držení ve vsi; bez zajatců chybí. */
+  prisoners?: PrisonerView[];
+  /** Postoj vsi před cizím vojskem (war.md – Obránci); bez nastavení `flee`. */
+  stance: DefenseStance;
+  /** Lov navíc na zítřek: důvod odepření česky, nebo null (lze vyhlásit; wildlife.md – Lov rodu). */
+  huntDenied: string | null;
+  /** Lov rodu letos a psi dvorce (wildlife.md – Co hráč vidí); bez psů a úlovku chybí. */
+  hunt?: HuntView;
   /** Obydlí (id domácnosti), které je dvorcem. */
   dwellingId: number;
-  /** Zemské stezky do 8 směrů – hotové, rozestavěné a nabídka nových (cena, délka, důvod). */
-  trails: TrailOption[];
+  /**
+   * Stojí aspoň jedna hotová zemská stezka. Stezky do 8 směrů (hotové, rozestavěné a nabídka
+   * nových – cena, délka, důvod) pošle server až na vyžádání panelu (`panelOptionsOf`).
+   */
+  trailBuilt: boolean;
   /** Sousedé po hotových stezkách (v pořadí směrů). */
   neighbours: VillageNeighbour[];
+  /** Obyvatelé dvorce od nejstaršího (lord.md – Co hráč vidí). */
+  family?: ManorMember[];
+}
+
+/** Obyvatelé dvorce s rolí a dovednostmi (muži rodiny od 7 let vždy, i s nulami). */
+export function manorFamily(state: VillageState, day: number): ManorMember[] {
+  const manor = villageManor(state);
+  if (!manor) return [];
+  const trainees = new Set(lordFamily(state, day).trainees.map((p) => p.id));
+  return scenePersons(state, day)
+    .filter((p) => p.home === manor.id)
+    .map((p): ManorMember => ({
+      id: p.id,
+      portrait: personPortrait(p),
+      role: ROLE_NAMES[p.role],
+      ...(p.name !== undefined ? { name: p.name } : {}),
+      age: p.age,
+      arms: p.arms ?? (trainees.has(p.id) ? armsView({ bow: 0, combat: 0, riding: 0 }) : null),
+      horse: p.horse === true,
+    }))
+    .sort((a, b) => b.age - a.age || a.id - b.id);
 }
 
 /**
@@ -133,6 +217,7 @@ export function neighbourViews(
   landscape: Landscape | null = null,
 ): VillageNeighbour[] {
   const carts = tradeCarts(state, day).map((c) => c.kind);
+  const dearth = tradeDearth(state, day);
   return villageTrails(state)
     .filter((t) => t.builtDay !== null)
     .map((trail): VillageNeighbour => {
@@ -157,16 +242,24 @@ export function neighbourViews(
         lengthM: Math.round(trail.lengthM),
         tripDays: trailTripDays(trail.lengthM),
         carts: trailCartPassable(state, trail, landscape) ? carts : [],
-        offers: neighbour.offers.map((good) => ({
-          good,
-          price: Math.round(buyPrice(good) * 100) / 100,
-          left: Math.max(0, stock.supply[good] ?? 0),
-        })),
+        room: {
+          cows: cattleRoom(state, 'cows'),
+          oxen: cattleRoom(state, 'youngOxen'),
+          horses: horseTradeRoom(state, day),
+        },
+        // pastevec v roce bez koní nabízí zásobu 0 – řádek se neukazuje (horses.md – Nákup a prodej)
+        offers: neighbour.offers
+          .map((good) => ({
+            good,
+            price: Math.round(buyPrice(good) * 100) / 100,
+            left: Math.max(0, stock.supply[good] ?? 0),
+          }))
+          .filter((row) => !isHorseGood(row.good) || row.left > 0),
         demands: neighbour.demands.map((good) => ({
           good,
           price: Math.round(sellPrice(good) * 100) / 100,
           left: Math.max(0, stock.demand[good] ?? 0),
-          have: villageGoodStock(state, good),
+          have: villageGoodStock(state, good, day),
         })),
         people: {
           offers: {
@@ -190,6 +283,7 @@ export function neighbourViews(
           },
         },
         expedition: expedition ? expeditionView(state, expedition) : null,
+        ...(dearth ? { dearth } : {}),
       };
     });
 }
@@ -265,6 +359,12 @@ export function expeditionView(state: VillageState, e: TradeExpedition): Village
   };
 }
 
+/** Lov a psi pro pohled na dvorec (`VillageManor.hunt`). */
+function huntField(state: VillageState, day: number): { hunt?: HuntView } {
+  const hunt = huntView(state, day);
+  return hunt ? { hunt } : {};
+}
+
 /** Dvorec vsi pro pohled na ves; dokud stojí jen staveniště první zemnice, null. */
 export function manorView(
   state: VillageState,
@@ -274,13 +374,26 @@ export function manorView(
 ): VillageManor | null {
   const manor = villageManor(state);
   if (!manor || state.extinctDay !== undefined) return null;
-  const obstacles = obstaclesOf(landscape);
   return {
     dwellingId: manor.id,
-    trails: trailOptions(state, day, landscape, obstacles, villageRoadWalk(state, landscape)),
+    ...(state.prisoners?.length
+      ? {
+          prisoners: state.prisoners.map((p) => ({
+            id: p.id,
+            name: p.name ?? null,
+            noble: p.noble === true,
+            homeVillageId: p.ref.villageId,
+          })),
+        }
+      : {}),
+    stance: stanceOf(state),
+    huntDenied: huntDeniedText(state, day),
+    ...huntField(state, day),
+    trailBuilt: villageTrails(state).some((t) => t.builtDay !== null),
     // tím směrem, kde leží vlastní ves, soused bez simulace není (migration.md)
     neighbours: neighbourViews(state, day, landscape).filter(
       (n) => ownMaps[n.direction] === undefined,
     ),
+    family: manorFamily(state, day),
   };
 }

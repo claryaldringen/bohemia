@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { newNotices, otherVillageNotices, villageNotices } from '../village-notices';
+import {
+  lineNameNotice,
+  newNotices,
+  otherVillageNotices,
+  villageNotices,
+} from '../village-notices';
 import type { VillageListItem } from '../village-list';
 import type { VillageView } from '../village-view';
 
@@ -14,12 +19,15 @@ const workshop = (laborManDays: number): VillageView['build']['potter'] => ({
 
 const view = (overrides: Partial<VillageView> = {}): VillageView => ({
   id: 'v-1',
+  steward: { on: false, built: [] },
   settlementId: 's-1',
   name: 'Libice',
   villages: [],
+  rights: { allowed: [], reason: null },
   relocation: { zemnice: workshop(60), polozemnice: workshop(220) },
   abandoned: null,
   journey: null,
+  pendingDeparture: null,
   leave: { directions: [], cart: null, allCart: null },
   manor: null,
   dayIndex: 1000,
@@ -55,7 +63,7 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
   woodLogs: 0,
   crafts: {
     present: false,
-    stocks: { charcoalKg: 0, toolsKg: 0, potteryKg: 0 },
+    stocks: { charcoalKg: 0, potteryKg: 0 },
     needs: { toolsKg: 6, potteryKg: 20, woodToolsKg: 8 },
     coverage: { tools: 0, pottery: 0 },
     workshops: [],
@@ -129,6 +137,14 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
     carpenter: workshop(286),
     pen: {
       laborManDays: 40,
+      perHa: false,
+      perSquare: false,
+      upfront: [{ resource: 'wood', amount: 6, missing: 0 }],
+      blocked: null,
+      affordable: true,
+    },
+    'threshing-floor': {
+      laborManDays: 75,
       perHa: false,
       perSquare: false,
       upfront: [{ resource: 'wood', amount: 6, missing: 0 }],
@@ -225,6 +241,31 @@ describe('villageNotices – hlad a vymření', () => {
     ]);
   });
 
+  it('výmlat (production-chains.md – Humno): nouzový výmlat bez humna, humno nestačí', () => {
+    expect(villageNotices(view({ threshing: { sheavesKg: 800, emergency: true } }))).toEqual([
+      {
+        kind: 'emergency-threshing',
+        tone: 'info',
+        text: 'Mlátí se na udusané zemi – postav humno',
+      },
+    ]);
+    expect(villageNotices(view({ threshing: { sheavesKg: 80, floorShort: true } }))).toEqual([
+      {
+        kind: 'threshing-floor-short',
+        tone: 'info',
+        text: 'Humno nestačí – část se mlátí nouzově',
+      },
+    ]);
+    // snopy samy upozornění nejsou
+    expect(villageNotices(view({ threshing: { sheavesKg: 800 } }))).toEqual([]);
+    // ohlásí se, když nově vznikne – při prvním výmlatu po žni
+    expect(
+      newNotices(view(), view({ threshing: { sheavesKg: 900, emergency: true } })).map(
+        (n) => n.text,
+      ),
+    ).toEqual(['Mlátí se na udusané zemi – postav humno']);
+  });
+
   it('vymřelá ves žádná upozornění nemá', () => {
     const extinct = { foundedYear: 512, extinctYear: 587, years: 74 };
     expect(
@@ -288,8 +329,14 @@ describe('newNotices', () => {
     expect(newNotices(calm, stalled)).toHaveLength(1);
   });
 
-  it('první pohled na ves nic neohlásí', () => {
+  it('první pohled na ves nic neohlásí – kromě nouzového výmlatu bez humna', () => {
     expect(newNotices(null, view({ hungry: true }))).toEqual([]);
+    // humno (production-chains.md – Humno): bez něj se mlátí nouzově – hráč se to dozví hned
+    expect(
+      newNotices(null, view({ threshing: { sheavesKg: 500, emergency: true } })).map((n) => n.kind),
+    ).toEqual(['emergency-threshing']);
+    // humno, které nestačí, až když nově vznikne
+    expect(newNotices(null, view({ threshing: { sheavesKg: 500, floorShort: true } }))).toEqual([]);
   });
 
   it('svatba mezi domy – krátký fakt, jen když od minulého pohledu přibude', () => {
@@ -392,6 +439,66 @@ describe('newNotices – porážka a spřežení (diet.md, oxen.md)', () => {
     expect(newNotices(null, after)).toEqual([]);
   });
 
+  it('koně (horses.md – Co hráč vidí): bez obilí, nevejdou se, hříbata, vycvičení, dosloužili, uhynuli; kování se neohlašuje', () => {
+    const horses = {
+      count: 4,
+      kinds: { riding: 2, mares: 2, foals: 0 },
+      places: 8,
+      wanted: { riding: 3, mares: 2, foals: 0 },
+      overRoom: false,
+      fed: true,
+      grainKgPerDay: 3,
+      hayWinterKg: 2000,
+      horses: [],
+    };
+    expect(villageNotices(view({ horses }))).toEqual([]);
+    expect(villageNotices(view({ horses: { ...horses, overRoom: true } }))).toEqual([
+      { kind: 'horses-short', tone: 'warn', text: 'Koně se nevejdou do ohrady' },
+    ]);
+    // bez obilí jen když nějaký kůň obilí jí
+    expect(villageNotices(view({ horses: { ...horses, fed: false } }))).toEqual([
+      { kind: 'horses-ungrained', tone: 'warn', text: 'Koně jsou bez obilí' },
+    ]);
+    expect(villageNotices(view({ horses: { ...horses, fed: false, grainKgPerDay: 0 } }))).toEqual(
+      [],
+    );
+    // nově vzniklé se ohlásí jednou
+    expect(
+      newNotices(view({ horses }), view({ horses: { ...horses, fed: false } })).map((n) => n.text),
+    ).toEqual(['Koně jsou bez obilí']);
+    const entry = (
+      day: number,
+      kind: VillageView['chronicle'][number]['kind'],
+      n?: number,
+    ): VillageView['chronicle'][number] => ({
+      day,
+      kind,
+      dateLabel: '',
+      text: '',
+      ...(n === undefined ? {} : { horses: n }),
+    });
+    expect(
+      newNotices(
+        view({ dayIndex: 3000 }),
+        view({
+          dayIndex: 3010,
+          chronicle: [
+            entry(3009, 'horse-starved', 2),
+            entry(3008, 'horse-retired', 1),
+            entry(3007, 'horse-trained'),
+            entry(3006, 'horses-shod', 2),
+            entry(3005, 'foal-born', 1),
+          ],
+        }),
+      ).map((n) => n.text),
+    ).toEqual([
+      'Narodilo se hříbě',
+      'Kůň je vycvičený',
+      'Kůň dosloužil',
+      'Koně uhynuli – chybělo seno',
+    ]);
+  });
+
   it('voli po kusech (oxen.md): vycvičení, dosloužilí a uhynulí podle počtu', () => {
     const before = view({ dayIndex: 2000 });
     const oxen = (
@@ -433,6 +540,25 @@ describe('newNotices – porážka a spřežení (diet.md, oxen.md)', () => {
     expect(newNotices(view({ dayIndex: 1000 }), after)).toEqual([
       { kind: 'meat-spoiled', tone: 'warn', text: 'Maso se zkazilo – 1 120 kg' },
       { kind: 'herd-starved', tone: 'warn', text: 'Dobytek hynul – chybělo seno' },
+    ]);
+  });
+
+  it('porážka pro nedostatek sena – varování, kolik kusů čeho (oxen.md)', () => {
+    const after = view({
+      dayIndex: 1001,
+      chronicle: [
+        {
+          day: 1001,
+          kind: 'hay-slaughter',
+          kg: 230,
+          animals: { sheep: 3 },
+          dateLabel: '',
+          text: '',
+        },
+      ],
+    });
+    expect(newNotices(view(), after)).toEqual([
+      { kind: 'hay-slaughter', tone: 'warn', text: 'Chybí seno – porazili 3 ovce' },
     ]);
   });
 
@@ -687,6 +813,94 @@ describe('upozornění z jiných vsí (migration.md)', () => {
       villages: [self, item()],
     });
     expect(newNotices(libice, budec)).toEqual([]);
+    // nouzový výmlat se ohlásí i po přepnutí (production-chains.md – Humno)
+    const waiting = { ...budec, threshing: { sheavesKg: 400, emergency: true as const } };
+    expect(newNotices(libice, waiting)).toEqual([
+      {
+        kind: 'emergency-threshing',
+        tone: 'info',
+        text: 'Mlátí se na udusané zemi – postav humno',
+      },
+    ]);
+  });
+
+  it('nouzový výmlat jiné vsi – jednou, se jménem vsi', () => {
+    const before = view({ villages: [self, item()] });
+    const needed = view({ villages: [self, item({ threshing: { emergency: true } })] });
+    expect(newNotices(before, needed)).toEqual([
+      {
+        kind: 'other-emergency-threshing',
+        tone: 'info',
+        text: 'Budeč: mlátí se na udusané zemi – postav humno',
+      },
+    ]);
+    expect(newNotices(needed, needed)).toEqual([]);
+    expect(otherVillageNotices(needed, before)).toEqual([]);
+  });
+});
+
+describe('počasí a pohromy (disasters.md – Co hráč vidí)', () => {
+  const item = (overrides: Partial<VillageListItem> = {}): VillageListItem => ({
+    id: 'v-2',
+    settlementId: 's-1',
+    name: 'Budeč',
+    people: 6,
+    extinct: false,
+    abandoned: false,
+    travelling: false,
+    hunger: 'fed',
+    ...overrides,
+  });
+  const drought = {
+    kind: 'drought',
+    tone: 'warn',
+    text: 'Sucho – nejvíc trpí pole bez stromů',
+  } as const;
+
+  it('sucho se ohlásí jednou, když se ukáže', () => {
+    const before = view();
+    const dry = view({ weather: { year: 503, summer: 'drought' } });
+    expect(newNotices(before, dry)).toEqual([drought]);
+    expect(newNotices(dry, dry)).toEqual([]);
+  });
+
+  it('požár z kroniky – v jeho den Hoří!, den po něm Vyhořel dům', () => {
+    const fire = {
+      day: 1001,
+      kind: 'fire' as const,
+      dwellings: 1,
+      dateLabel: '',
+      text: 'Požár – vyhořel jeden dům.',
+    };
+    const burning = view({ dayIndex: 1001, chronicle: [fire] });
+    expect(newNotices(view(), burning)).toEqual([{ kind: 'fire', tone: 'warn', text: 'Hoří!' }]);
+    expect(newNotices(burning, view({ dayIndex: 1002, chronicle: [fire] }))).toEqual([
+      { kind: 'fire-out', tone: 'warn', text: 'Vyhořel dům' },
+    ]);
+  });
+
+  it('z jiné vsi se jménem – sucho a poslední pohroma, jen když nově přibudou', () => {
+    const self = item({ id: 'v-1', name: 'Libice' });
+    const before = view({ villages: [self, item()] });
+    const after = view({
+      villages: [
+        self,
+        item({
+          disasters: {
+            weather: [drought],
+            last: {
+              day: 1000,
+              notice: { kind: 'hail', tone: 'warn', text: 'Kroupy potloukly obilí' },
+            },
+          },
+        }),
+      ],
+    });
+    expect(otherVillageNotices(before, after)).toEqual([
+      { ...drought, text: 'Budeč: Sucho – nejvíc trpí pole bez stromů' },
+      { kind: 'hail', tone: 'warn', text: 'Budeč: Kroupy potloukly obilí' },
+    ]);
+    expect(otherVillageNotices(after, after)).toEqual([]);
   });
 });
 
@@ -785,5 +999,84 @@ describe('nákup u sousedů (crafts.md)', () => {
         text: 'Vesničané koupili nástroje a keramiku u souseda (sever)',
       },
     ]);
+  });
+});
+
+describe('lineNameNotice – muži rodu bez jména (lord.md – Kde se jméno zadává)', () => {
+  const dynasty = (
+    unnamed: { id: number; age: number; lord: boolean }[],
+  ): VillageView['dynasty'] => ({
+    lordId: 1,
+    unnamed,
+    taken: [],
+    waitingHome: [],
+    sons: [],
+  });
+
+  it('bez čekajících (i bez rodu) nic', () => {
+    expect(lineNameNotice(null)).toBeNull();
+    expect(lineNameNotice(view())).toBeNull();
+    expect(lineNameNotice(view({ dynasty: dynasty([]) }))).toBeNull();
+  });
+
+  it('syn vojvody čeká – počet všech, panel na prvního ve frontě', () => {
+    const sons = dynasty([
+      { id: 7, age: 2, lord: false },
+      { id: 9, age: 0, lord: false },
+    ]);
+    expect(lineNameNotice(view({ dynasty: sons }))).toEqual({
+      kind: 'line-name',
+      tone: 'warn',
+      text: 'Syn vojvody čeká na jméno',
+      count: 2,
+      personId: 7,
+    });
+    const lord = dynasty([{ id: 1, age: 30, lord: true }]);
+    expect(lineNameNotice(view({ dynasty: lord }))).toMatchObject({
+      text: 'Vojvoda čeká na jméno',
+      count: 1,
+      personId: 1,
+    });
+  });
+
+  it('„Rodina čeká na dům“ jmenuje ženaté syny, kteří čekají v dvorci', () => {
+    const waiting = view({
+      fullHousehold: true,
+      dynasty: { ...dynasty([])!, waitingHome: ['Bořivoj', 'Ctibor'] },
+    });
+    expect(villageNotices(waiting).find((n) => n.kind === 'full-household')?.text).toBe(
+      'Rodina čeká na dům – Bořivoj, Ctibor',
+    );
+  });
+});
+
+describe('divoká zvěř (wildlife.md – Co hráč vidí)', () => {
+  const wildlife = (over: Partial<NonNullable<VillageView['wildlife']>> = {}) => ({
+    species: [],
+    damageShare: 0,
+    wolvesTroubling: false,
+    dogsUnfed: false,
+    ...over,
+  });
+
+  it('prasata ničí úrodu od 5 %, vlci strhávají dobytek, psi bez obilí', () => {
+    expect(villageNotices(view({ wildlife: wildlife({ damageShare: 0.05 }) }))).toEqual([]);
+    expect(
+      villageNotices(
+        view({
+          wildlife: wildlife({ damageShare: 0.06, wolvesTroubling: true, dogsUnfed: true }),
+        }),
+      ).map((n) => n.text),
+    ).toEqual(['Divoká prasata ničí úrodu', 'Vlci strhávají dobytek', 'Psi jsou bez obilí']);
+  });
+
+  it('ohlásí se jednou, když nově vzniknou', () => {
+    expect(
+      newNotices(view(), view({ wildlife: wildlife({ wolvesTroubling: true }) })).map(
+        (n) => n.text,
+      ),
+    ).toEqual(['Vlci strhávají dobytek']);
+    const same = view({ wildlife: wildlife({ wolvesTroubling: true }) });
+    expect(newNotices(same, same)).toEqual([]);
   });
 });

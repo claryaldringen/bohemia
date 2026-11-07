@@ -1,6 +1,8 @@
 import {
+  HORSES,
   AGE,
   CARTS,
+  DRAFT_OXEN,
   LEAVING,
   ORCHARD,
   PRODUCT_CRAFT,
@@ -15,8 +17,10 @@ import {
   type FieldSurface,
   type HerdPlaces,
   type HerdSpecies,
+  type ClearingStage,
   type PenSpecies,
   type PartStage,
+  type NextCrop,
   type PartYearWork,
   type RoadGrade,
   type RoadUpgradeOption,
@@ -26,11 +30,39 @@ import {
 } from '@bohemia/game';
 import type { LeaveDirection } from './departure-view';
 import type { VillageManor } from './manor-view';
+import type { FieldDamageView, WildlifeSpeciesView } from './wildlife-view';
+import { partLossRows, type PartLossRow, type PartProtectionView } from './disasters-view';
+import type { VillageHorses } from './horse-view';
 import type { VillageDugSite } from './ore-site-view';
 import type { VillageKiln } from './kiln-view';
+import type { VillageGrainPit } from './grain-pit-view';
+import type { VillageJunction } from './junction-view';
+import type { VillageFortification } from './fort-view';
+import type {
+  DepartingSon,
+  FieldOutlookView,
+  PartOutlookView,
+  VillageFieldPart,
+  VillageThreshingFloor,
+} from './village-view-types';
 import type { HouseholdRelocation } from './relocation-view';
 import { TREE_GROWTH_YEARS } from './orchard-look';
+import {
+  personPortrait,
+  type ArmsView,
+  type DwellingResident,
+  type PersonPortraitIcon,
+} from './person-view';
 import { personActivity, type PersonFigureState } from './person-activity';
+import {
+  cartActivityText,
+  cartGoal,
+  cartPen,
+  teamActivityText,
+  teamPen,
+  type CartGoal,
+  type DraftFigureState,
+} from './draft-activity';
 import { ROLE_NAMES, herdRole } from './person-roles';
 import {
   dugSiteOf,
@@ -102,6 +134,11 @@ export interface SelectionWorkshop {
   } | null;
   /** Kovář: ruda, rudiště a kdo nosí uhlí (crafts.md – Uhlí a ruda kováře); jinak chybí. */
   ore?: NonNullable<VillageView['crafts']['workshops'][number]['ore']>;
+  /**
+   * Kovář (production-chains.md – Kovář): houba, hřivny a jejich zásoba, nástroje ve vybavení
+   * domácností s pokrytím potřeby a měchař u tavby; jinak chybí.
+   */
+  iron?: NonNullable<VillageView['crafts']['workshops'][number]['iron']> & { coverage: number };
   /** Hrnčíř: hlína a hliniště (crafts.md – Hlína hrnčíře); jinak chybí. */
   clay?: NonNullable<VillageView['crafts']['workshops'][number]['clay']>;
 }
@@ -112,7 +149,7 @@ export interface SelectionBuying {
   purchases: VillagePurchase[];
 }
 
-export type SelectionDetails =
+type SelectionKinds =
   | {
       kind: 'dwelling';
       id: number;
@@ -123,6 +160,8 @@ export type SelectionDetails =
       capacity: number;
       /** Věk obyvatel v letech, od nejstaršího. */
       ages: number[];
+      /** Obyvatelé s portrétem, rolí a věkem, od nejstaršího. */
+      residents: DwellingResident[];
       condition: number;
       ageYears: number;
       full: boolean;
@@ -141,12 +180,19 @@ export type SelectionDetails =
       /** Dvorec vojvody (trade.md) – vylepšení vsi; obyčejné obydlí null. */
       manor: VillageManor | null;
       /**
+       * Popisek domu vedlejší manželky vojvody, který vojvodu jmenuje (lord.md – Kde se jméno
+       * ukazuje); jiný dům null.
+       */
+      lordWifeHome?: string | null;
+      /**
        * Dvorec: kde ves bere výrobky řemeslníků a nákupy u sousedů na cestě (crafts.md – Nákup
        * u sousedů); u ostatních obydlí chybí.
        */
       buying?: SelectionBuying;
       /** Odejít do nové vsi (migration.md); když domácnost odejít nemůže, null. */
       leave: SelectionLeave | null;
+      /** Dvorec: synové vojvody od 16 let pro odchod s poměrnou částí vsi (lord.md); jinak chybí. */
+      sons?: SelectionSon[];
     }
   | {
       /** Víc vybraných obydlí (Ctrl/Shift + klik, Ctrl + A – migration.md). */
@@ -193,14 +239,34 @@ export type SelectionDetails =
        * Luštěniny).
        */
       crops: { crop: Crop; count: number }[];
+      /**
+       * Na řadě (fields.md – Osevní postup po dílech, bod 6): díly mimo letošní práci, které čekají
+       * na ozim či jař (jen nenulové, i když jsou nad potřebu jen díly letošní práce), a kolik dílů
+       * letošní práce té plodiny je nad potřebu.
+       */
+      turn: { crop: 'winter' | 'spring'; count: number; surplus: number }[];
+      /** Odpočívající příloh (pod 95 %) – díly. */
+      resting: number;
       /** Díly s popelem z vymýceného lesa (fields.md – Úroda). */
       ashParts: number;
+      /** Zakládané díly v lese po fázích klučení; null bez nich. */
+      clearing?: Record<ClearingStage, number>;
       /** Nejvyšší letošní bonus úrodnosti z popela (+40 první sezónu, +20 druhou), jinak 0. */
       ashBonus: number;
       /** Kolik z pole zarůstá (m² – fields.md, Zarůstání); 0 = nic. */
       overgrowingM2: number;
+      /** Očekávaná úroda osetých dílů a jestli práce stačí (fields.md – Co hráč vidí); jinak chybí. */
+      outlook?: FieldOutlookView;
       /** Zakládání pole (průběh 0–1), hotové null. */
       founding: number | null;
+      /** Id všech polí vsi – tlačítko „Označit všechna pole“. */
+      fieldIds?: readonly number[];
+    }
+  | {
+      /** Všechna pole vsi najednou (i nesousedící): počet a součet výměry. */
+      kind: 'fields';
+      ids: readonly number[];
+      areaM2: number;
     }
   | {
       /**
@@ -243,8 +309,24 @@ export type SelectionDetails =
       crop: NonNullable<PartYearWork['crop']> | null;
       /** Letošní seč sena – kolik je posečeno 0–1; díl, který se neseče, null. */
       mow: number | null;
+      /** Co na dílu poroste příště (osevní postup); zakládaný díl null. */
+      next: NextCrop | null;
+      /** Úhor: odpočinek k 95 % (0–1) a roky do osevu (≈); jinak null. */
+      rest: { share: number; years: number } | null;
+      /** Díl letošní práce nad potřebu – jen z volné práce, stavby mají přednost. */
+      surplus: boolean;
       /** Zakládá se – průběh, zbývající práce (člověkodny) a stromy na klády; jinak null. */
-      founding: { progress: number; laborLeft: number; trees: number } | null;
+      founding: NonNullable<VillageFieldPart['founding']> | null;
+      /** Škoda zvěře letos (wildlife.md – Co hráč vidí); díl mimo ohrožení null. */
+      damage?: FieldDamageView | null;
+      /** Ochrana dílu před počasím (disasters.md – Ochrana dílu); ves bez počasí kraje chybí. */
+      protection?: PartProtectionView;
+      /** Řádky odhadu ztrát letos – počasí, kroupy, povodeň, smršť (disasters.md); žádné chybí. */
+      losses?: PartLossRow[];
+      /** Očekávaná úroda a jestli práce stačí (fields.md – Co hráč vidí); mimo osev chybí. */
+      outlook?: PartOutlookView;
+      /** Id všech polí vsi – tlačítko „Označit všechna pole“. */
+      fieldIds?: readonly number[];
     }
   | {
       kind: 'cemetery';
@@ -366,20 +448,23 @@ export type SelectionDetails =
       oxenVillage: VillageOxen | null;
       /** Krávy v ohradě (v zimě). */
       cows: number;
-      /** Stáda vsi (kusy) a slepice u obydlí. */
-      herds: Record<HerdSpecies, number>;
-      chickens: number;
-      /** Pastva vsi a kolik ji stáda spásají (ha). */
-      pastureHa: number;
-      grazingHa: number;
-      /** Mléko stád dnes (l, v době dojení – diet.md). */
-      milkLPerDay: number;
+      /**
+       * Stádo druhu ohrady v celé vsi (kusy) a jeho druh (issue #3, Martin 22. 10. 2026: „informace
+       * v boxu se musí týkat jen druhu zvířat v dané ohradě“); u ohrady volů null – voli jsou
+       * výše. Slepice se nikde neukazují.
+       */
+      herd: { species: HerdSpecies; count: number } | null;
       /** Nejstarší vycvičený vůl – stáří a kolik let ještě slouží; bez vycvičených volů null. */
       team: { ageYears: number; yearsLeft: number } | null;
       /** Výcvik volů – tele, které se vycvičí nejdřív: průběh 0–1 a zbývající dny; jinak null. */
       training: { progress: number; daysLeft: number } | null;
       /** Zásoba sena vsi (kg). */
       hayKg: number;
+      /**
+       * Koně vsi po kusech, kolik jich ves chce a obilí (horses.md – Co hráč vidí) – jen u ohrady
+       * koní; jinak null.
+       */
+      horses?: VillageHorses | null;
       /** Stav hotové ohrady 0–1 (abandonment.md). */
       condition: number;
       /** Opuštěná – bez zvířat a nikdo k ní nechodí, chátrá. */
@@ -392,6 +477,8 @@ export type SelectionDetails =
       id: number;
       /** Úseky cesty hráče (řetěz – roads.md, Cesta pro hráče). */
       segments: number[];
+      /** Oba konce cesty – co na nich je a co klik vybere (paths.md – pravidlo 11). */
+      ends: VillageRoad['ends'];
       /** Převládající druh cesty (vyšlapaná, vyježděná, upravená, hať) – portrét. */
       roadKind: VillageRoad['roadKind'];
       lengthM: number;
@@ -409,6 +496,8 @@ export type SelectionDetails =
       building: { grade: RoadGrade; progress: number; treesToFell: number } | null;
       /** Vylepšení, která úsek nabízí – cena a proč teď nejde. */
       upgrades: RoadUpgradeOption[];
+      /** Rozdělaná úprava nebo vozová cesta, kterou jde zrušit (id stavby); jinak null. */
+      cancelId: number | null;
       /** Vozová cesta (roads.md – Vozová cesta) – stav, průběh stavby a proč teď nejde. */
       wagon: VillageRoad['wagon'];
       /** Jabloně podél úseku a „Vysadit jabloně“ (roads.md – Vysazení jabloní). */
@@ -433,14 +522,67 @@ export type SelectionDetails =
        */
       kind: 'person';
       id: number;
-      portrait: 'man' | 'woman' | 'child' | 'elder';
+      portrait: PersonPortraitIcon;
       role: string;
+      /** Jméno muže rodu (lord.md – Kde se jméno ukazuje); ostatní lidé null. */
+      name?: string | null;
       activity: string;
       age: number;
       home: number | null;
       /** Ikona domu (`public/icons/build/` – typ obydlí nebo dílna). */
       homeIcon: string | null;
       herd: HerdSpecies | null;
+      /** Smí ho hráč povýšit do šlechtického stavu (vassalage.md – Povýšení vesničana). */
+      ennobleable?: boolean;
+      /** Dovednosti, když se člověk cvičil (lord.md – Dovednosti); jinak null. */
+      arms?: ArmsView | null;
+      /** Má koně (jezdec – horses.md). */
+      horse?: boolean;
+      /**
+       * Kůň, na kterém jezdec jezdí (horses.md – Co hráč vidí): věk, výcvik 0–1 a dostává-li obilí;
+       * bez koně null.
+       */
+      mount?: SelectionPersonMount | null;
+      /**
+       * Oráč a honák u spřežení, vozka u vozu (villagers.md – Výběr postavy): tlačítko vybere
+       * spřežení či vůz; ostatní null.
+       */
+      draft?: { kind: 'plough-team'; team: number } | { kind: 'cart'; id: number } | null;
+    }
+  | {
+      /**
+       * Spřežení volů s rádlem na poli (oxen.md – Výběr spřežení; Martin 20. 10. 2026: „nešlo mi
+       * kliknout na volské spřežení ani na člověka, co jej vedl“): co dělá, díl, který orá
+       * (tlačítko ho vybere – null, když díl ve scéně není), voli, ohrada, ze které jsou (tlačítko),
+       * a oráč a honák (tlačítka je vyberou; nikdo – null).
+       */
+      kind: 'plough-team';
+      team: number;
+      activity: string;
+      part: { fieldId: number; cell: TileCell } | null;
+      oxen: number;
+      pen: number | null;
+      ploughman: CrewMember | null;
+      leader: CrewMember | null;
+    }
+  | {
+      /**
+       * Vůz vsi (wagons.md – Výběr vozu): druh, co dělá (stojí u ohrady, jede pro náklad, veze
+       * ho…), co právě veze (`cargo` – jen naložený), stav, kolik volů ho táhne, ohrada (tlačítko)
+       * a vozka (tlačítko ho vybere; nikdo – null).
+       */
+      kind: 'cart';
+      id: number;
+      cartKind: CartKind;
+      activity: string;
+      cargo: CartGoal | null;
+      /** Nosnost vozu (kg) a kolik nákladu veze právě teď; neznámé množství – null. */
+      capacityKg: number;
+      loadKg: number | null;
+      condition: number;
+      oxen: number;
+      pen: number | null;
+      drover: CrewMember | null;
     }
   | ({
       /**
@@ -450,10 +592,52 @@ export type SelectionDetails =
        * vybere).
        */
       kind: 'kiln';
-    } & VillageKiln);
+    } & VillageKiln)
+  | ({
+      /**
+       * Otevřená obilná jáma (production-chains.md – Obilné jámy; Martin 20. 10. 2026: „Označit
+       * půjde jen otevřená jáma - zavřená nebude vidět - a v označení se ukáže kolik v ní je
+       * zrní.“): zrno v jámě a kolik se do ní vejde, stáří jámy.
+       */
+      kind: 'grain-pit';
+    } & VillageGrainPit)
+  | ({
+      /**
+       * Křižovatka cest (paths.md – Křižovatky; Martin, #6): kříž nebo Y, kolik cest do ní vede,
+       * znamení a stáří.
+       */
+      kind: 'junction';
+    } & VillageJunction)
+  | ({
+      /**
+       * Humno (production-chains.md – Humno): hotové nebo staveniště, nevymlácené snopy vsi
+       * a jestli se dnes mlátí.
+       */
+      kind: 'threshing-floor';
+    } & VillageThreshingFloor)
+  | ({
+      /**
+       * Opevnění (fortifications.md – Rozhraní): druh, délka, stav, brány, útočiště, násobek
+       * obrany, průběh stavby a vylepšení.
+       */
+      kind: 'fortification';
+    } & VillageFortification)
+  | ({
+      /**
+       * Divoké zvíře (wildlife.md – Co hráč vidí; Martin 24. 10. 2026 nechal na Claudovi): druh
+       * s hrubým stavem (tři stupně plnosti, plno), co kraj uživí, loňská škoda a strhnutý dobytek –
+       * bez přesných kusů.
+       */
+      kind: 'wildlife';
+    } & WildlifeSpeciesView);
 
-/** Pořadí stád v panelu ohrady (diet.md – Dobytek). */
-export const HERD_ORDER: readonly HerdSpecies[] = ['sheep', 'goat', 'pig', 'cow'];
+export type { PersonPortraitIcon };
+
+/** Člověk u spřežení či vozu v panelu – id (tlačítko ho vybere) a portrét. */
+export interface CrewMember {
+  id: number;
+  portrait: PersonPortraitIcon;
+}
 
 /** Ikony a názvy stád (`/icons/resources/<ikona>.png`). */
 export const HERD_LABELS: Record<HerdSpecies, { name: string; icon: string }> = {
@@ -527,6 +711,8 @@ const FIELD_LOOK_NAMES: Record<FieldLook, string> = {
   haystacks: 'Stohy sena',
   shrubs: 'Křoviny',
   'young-forest': 'Mladý les',
+  slash: 'Paseka',
+  burnt: 'Spálenina',
 };
 
 /** Název dílu pole pod portrétem – co na něm je (zakládaný a připravený díl podle stadia). */
@@ -569,16 +755,138 @@ export function orchardSquareName(
   return age < TREE_GROWTH_YEARS ? 'Mladé jabloně' : 'Jabloně';
 }
 
+/**
+ * Údaje o vybraném cíli plus rozestavěná stavba, kterou jde zrušit (`cancelConstructionId`,
+ * cancel-construction.ts) – tlačítko Zrušit stavbu v panelu.
+ */
+/** Kůň pod jezdcem v panelu člověka. */
+export interface SelectionPersonMount {
+  ageYears: number;
+  training: number;
+  fed: boolean;
+  /** Obilí koně za den (kg). */
+  grainKgPerDay: number;
+}
+
+export type SelectionDetails = SelectionKinds & {
+  cancelConstructionId?: number;
+  /** Stavbu postavil správce (steward.md – Co hráč vidí) – panel ukáže jeho ikonu. */
+  stewardBuilt?: true;
+  /** Přepínač správce v panelu dvorce vojvody; jiné cíle bez údaje. */
+  steward?: { on: boolean };
+};
+
+/** Cíle, jejichž id může nést značku „postavil správce“ (stavby, jejich celky a díly polí). */
+const STEWARD_MARKED_KINDS: ReadonlySet<string> = new Set([
+  'dwelling',
+  'site',
+  'field',
+  'field-part',
+  'cemetery',
+  'orchard',
+  'pen',
+  'road',
+  'sacred',
+  'threshing-floor',
+]);
+
+/** Doplní k údajům značku správce a jeho přepínač (jen dvorec). */
+function withSteward(view: VillageView | null, details: SelectionDetails): SelectionDetails {
+  if (!view) return details;
+  const marked =
+    STEWARD_MARKED_KINDS.has(details.kind) &&
+    'id' in details &&
+    view.steward.built.includes(details.id);
+  const toggle = details.kind === 'dwelling' && details.manor !== null;
+  if (!marked && !toggle) return details;
+  return {
+    ...details,
+    ...(marked ? { stewardBuilt: true as const } : {}),
+    ...(toggle ? { steward: { on: view.steward.on } } : {}),
+  };
+}
+
+/** Rozestavěná stavba vybraného cíle, kterou jde zrušit; jinak undefined. */
+function cancellableConstruction(
+  view: VillageView | null,
+  details: SelectionKinds,
+): number | undefined {
+  if (!view) return undefined;
+  // zkrácené pohledy v testech stavby nemají
+  const cancellable =
+    (view.constructions as VillageView['constructions'] | undefined)?.filter(
+      (c) => c.cancellable,
+    ) ?? [];
+  const newest = (ids: number[]): number | undefined => (ids.length ? Math.max(...ids) : undefined);
+  const among = (match: (c: (typeof cancellable)[number]) => boolean): number | undefined =>
+    newest(cancellable.filter(match).map((c) => c.id));
+  switch (details.kind) {
+    case 'site':
+      return among((c) => c.id === details.id);
+    case 'sacred':
+      return details.building !== null ? among((c) => c.id === details.id) : undefined;
+    case 'threshing-floor':
+      return details.built ? undefined : among((c) => c.id === details.id);
+    case 'fortification':
+      return details.constructionId === undefined
+        ? undefined
+        : among((c) => c.id === details.constructionId);
+    case 'field':
+      return among((c) => c.kind === 'field' && c.fieldId === details.id);
+    case 'cemetery':
+      return among((c) => c.kind === 'cemetery' && c.cemeteryId === details.id);
+    case 'orchard':
+      return among((c) => c.kind === 'orchard' && c.orchardId === details.id);
+    case 'pen':
+      return among((c) => c.kind === 'pen' && c.penId === details.id);
+    case 'road':
+      return details.cancelId ?? undefined;
+    default:
+      return undefined;
+  }
+}
+
 /** Údaje o vybraném cíli, nebo null (nic nevybráno, cíl zanikl, ves ještě není). */
 export function selectionDetails(
   view: VillageView | null,
   scene: SceneVillage,
   target: VillageTarget | null,
   person: PersonFigureState | null = null,
+  draft: DraftFigureState | null = null,
 ): SelectionDetails | null {
+  const details = selectionKinds(view, scene, target, person, draft);
+  if (!details) return null;
+  const cancelConstructionId = cancellableConstruction(view, details);
+  const withCancel =
+    cancelConstructionId === undefined ? details : { ...details, cancelConstructionId };
+  return withSteward(view, withCancel);
+}
+
+function selectionKinds(
+  view: VillageView | null,
+  scene: SceneVillage,
+  target: VillageTarget | null,
+  person: PersonFigureState | null = null,
+  draft: DraftFigureState | null = null,
+): SelectionKinds | null {
   if (!target) return null;
-  if (target.kind === 'person') return personDetails(scene, target.id, person);
+  if (target.kind === 'wildlife') {
+    const species = view?.wildlife?.species.find((s) => s.species === target.species);
+    return species ? { kind: 'wildlife', ...species } : null;
+  }
+  if (target.kind === 'person') return personDetails(view, scene, target.id, person, draft);
+  if (target.kind === 'plough-team') return teamDetails(scene, target.team, draft);
+  if (target.kind === 'cart') return cartDetails(scene, target.id, draft);
   if (target.kind === 'dwellings') return dwellingsDetails(view, scene, target.ids);
+  if (target.kind === 'fields') {
+    const fields = (view?.fields ?? []).filter((f) => target.ids.includes(f.id));
+    if (fields.length === 0) return null;
+    return {
+      kind: 'fields',
+      ids: fields.map((f) => f.id),
+      areaM2: fields.reduce((sum, f) => sum + f.areaM2, 0),
+    };
+  }
   if (target.kind === 'dwelling') {
     const dwelling = scene.dwellings.find((d) => d.id === target.id);
     if (!dwelling) return null;
@@ -608,6 +916,7 @@ export function selectionDetails(
       family: household.family,
       capacity: household.capacity,
       ages: household.ages,
+      residents: household.residents,
       condition: household.condition,
       ageYears: household.ageYears,
       full: household.full,
@@ -623,10 +932,14 @@ export function selectionDetails(
       relocation: household.relocation,
       relocate: view && household.relocationBlock === null ? view.relocation : null,
       manor: view?.manor?.dwellingId === household.dwellingId ? view.manor : null,
+      lordWifeHome: lordWifeHome(view, scene, household.dwellingId),
       ...(view?.manor?.dwellingId === household.dwellingId && view.crafts.sources
         ? { buying: { sources: view.crafts.sources, purchases: view.purchases ?? [] } }
         : {}),
       leave: view ? leaveDetails(view, [household.dwellingId]) : null,
+      ...(view?.manor?.dwellingId === household.dwellingId && view.dynasty
+        ? { sons: sonDetails(view) }
+        : {}),
     };
   }
   if (target.kind === 'cemetery') {
@@ -690,6 +1003,27 @@ export function selectionDetails(
     const kiln = view?.kilns?.find((k) => k.id === target.id);
     return kiln ? { kind: 'kiln', ...kiln } : null;
   }
+  if (target.kind === 'threshing-floor') {
+    if (!scene.threshingFloors?.some((f) => f.id === target.id)) return null;
+    const floor = view?.threshingFloors?.find((f) => f.id === target.id);
+    return floor ? { kind: 'threshing-floor', ...floor } : null;
+  }
+  if (target.kind === 'fortification') {
+    if (!scene.forts?.some((f) => f.id === target.id)) return null;
+    const fort = view?.fortifications?.find((f) => f.id === target.id);
+    return fort ? { kind: 'fortification', ...fort } : null;
+  }
+  if (target.kind === 'grain-pit') {
+    // jen otevřená jáma, která ve scéně je (zapečetěné nejsou vidět)
+    if (!scene.grainPits?.some((p) => p.id === target.id)) return null;
+    const pit = view?.grainPits?.find((p) => p.id === target.id);
+    return pit ? { kind: 'grain-pit', ...pit } : null;
+  }
+  if (target.kind === 'junction') {
+    if (!scene.junctions?.some((j) => j.id === target.id)) return null;
+    const junction = view?.junctions?.find((j) => j.id === target.id);
+    return junction ? { kind: 'junction', ...junction } : null;
+  }
   if (target.kind === 'ore-site' || target.kind === 'clay-site') {
     if (!dugSiteOf(scene, target)) return null;
     const sites = target.kind === 'clay-site' ? view?.claySites : view?.oreSites;
@@ -739,10 +1073,31 @@ export function selectionDetails(
       const count = field.crops[crop] ?? 0;
       return count > 0 ? [{ crop, count }] : [];
     }),
+    turn: (['winter', 'spring'] as const).flatMap((crop) => {
+      const count = field.turn[crop];
+      const surplus = field.turn.surplus[crop];
+      return count > 0 ? [{ crop, count, surplus }] : [];
+    }),
+    resting: field.turn.resting,
     ashParts: field.ashParts,
+    ...(field.clearing ? { clearing: field.clearing } : {}),
     ashBonus: field.ashBonus,
     overgrowingM2: field.overgrowingM2,
+    ...(field.outlook ? { outlook: field.outlook } : {}),
     founding: founding ? founding.progress : null,
+    fieldIds: view?.fields.map((f) => f.id) ?? [],
+  };
+}
+
+/** Kůň jezdce `riderId` z pohledu na ves (jede-li na koni); jinak null. */
+function mountOf(view: VillageView | null, riderId: number): SelectionPersonMount | null {
+  const horse = view?.horses?.horses.find((h) => h.riderId === riderId);
+  if (!view?.horses || !horse) return null;
+  return {
+    ageYears: horse.ageYears,
+    training: horse.training,
+    fed: view.horses.fed,
+    grainKgPerDay: HORSES.grainKgPerDay,
   };
 }
 
@@ -752,32 +1107,122 @@ export function selectionDetails(
  * dnes pase, je pasáček / pasačka.
  */
 function personDetails(
+  view: VillageView | null,
   scene: SceneVillage,
   id: number,
   state: PersonFigureState | null,
+  draft: DraftFigureState | null,
 ): SelectionDetails | null {
   const person = scene.labor?.persons?.find((p) => p.id === id);
   if (!person) return null;
   const figure = state?.id === id ? state : null;
   const herding = figure?.job?.kind === 'herd';
   const home = scene.dwellings.find((d) => d.id === person.home) ?? null;
+  const job = figure?.job ?? null;
   return {
     kind: 'person',
     id,
-    portrait:
-      person.age >= AGE.elder
-        ? 'elder'
-        : person.age < AGE.adult
-          ? 'child'
-          : person.sex === 'female'
-            ? 'woman'
-            : 'man',
+    portrait: personPortrait(person),
     role: ROLE_NAMES[herding && person.age < AGE.adult ? herdRole(person.sex) : person.role],
-    activity: personActivity(figure, scene),
+    name: person.name ?? null,
+    activity: personActivity(figure, scene, draft),
     age: person.age,
     home: home ? home.id : null,
     homeIcon: home ? (home.craft ? CRAFT_LOOKS[home.craft].icon : home.type) : null,
     herd: herding ? (figure?.herd ?? null) : null,
+    arms: person.arms ?? null,
+    ennobleable: person.ennobleable === true,
+    horse: person.horse === true,
+    mount: mountOf(view, id),
+    draft:
+      job?.kind === 'plough'
+        ? { kind: 'plough-team', team: job.team }
+        : job?.kind === 'cart'
+          ? { kind: 'cart', id: job.cart }
+          : null,
+  };
+}
+
+/**
+ * Dům vedlejší manželky vojvody mimo dvorec (lord.md – Manželky): popisek se jménem vojvody v 1. pádu
+ * (jméno se neskloňuje); jiný dům null.
+ */
+function lordWifeHome(
+  view: VillageView | null,
+  scene: SceneVillage,
+  dwellingId: number,
+): string | null {
+  if (view?.manor?.dwellingId === dwellingId) return null;
+  const wife = scene.labor?.persons?.some(
+    (p) => p.home === dwellingId && p.role === 'voivode-secondary-wife',
+  );
+  if (!wife) return null;
+  const lord = view?.dynasty?.lordName;
+  return lord === undefined ? 'Dům vedlejší ženy vojvody' : `Dům vedlejší ženy vojvody – ${lord}`;
+}
+
+/** Člověk u spřežení či vozu (id ze scény) – jen když ho ves ve scéně má. */
+function crewMember(scene: SceneVillage, id: number | null): CrewMember | null {
+  const person = id === null ? undefined : scene.labor?.persons?.find((p) => p.id === id);
+  return person ? { id: person.id, portrait: personPortrait(person) } : null;
+}
+
+/**
+ * Spřežení s rádlem (oxen.md – Výběr spřežení): co dělá ze stavu, který hlásí scéna (`draft` –
+ * jen toto spřežení; bez něj spřežení ve scéně není – null), díl, který orá, ohrada a lidé u něj.
+ */
+function teamDetails(
+  scene: SceneVillage,
+  team: number,
+  draft: DraftFigureState | null,
+): SelectionDetails | null {
+  if (draft?.kind !== 'team' || draft.team !== team) return null;
+  const ploughed = draft.activity.kind === 'plough' ? draft.activity.part : null;
+  const cell =
+    ploughed && ploughed.partId !== null
+      ? scene.fields
+          .find((f) => f.id === ploughed.fieldId)
+          ?.parts.find((p) => p.id === ploughed.partId)?.cell
+      : undefined;
+  return {
+    kind: 'plough-team',
+    team,
+    activity: teamActivityText(draft.activity),
+    part: ploughed && cell ? { fieldId: ploughed.fieldId, cell } : null,
+    oxen: DRAFT_OXEN.ard,
+    pen: teamPen(scene, team),
+    ploughman: crewMember(scene, draft.ploughman),
+    leader: crewMember(scene, draft.leader),
+  };
+}
+
+/**
+ * Vůz (wagons.md – Výběr vozu): druh a stav ze scény vsi, co dělá a co veze ze stavu, který hlásí
+ * scéna (`draft` – jen tento vůz; bez něj podle úlohy dne), ohrada a vozka.
+ */
+function cartDetails(
+  scene: SceneVillage,
+  id: number,
+  draft: DraftFigureState | null,
+): SelectionDetails | null {
+  const cart = scene.carts?.find((c) => c.id === id);
+  if (!cart) return null;
+  const own = draft?.kind === 'cart' && draft.cart === id ? draft : null;
+  const leg = own?.leg ?? (cart.job ? null : 'parked');
+  const hitched = cart.job !== null && leg !== 'parked';
+  return {
+    kind: 'cart',
+    id,
+    cartKind: cart.kind,
+    activity: cartActivityText(scene, id, leg),
+    cargo: cart.job && own?.loaded && !own.hidden ? cartGoal(cart.job) : null,
+    capacityKg: CARTS.loadKg[cart.kind],
+    loadKg:
+      cart.job?.loadKg === undefined ? null : own?.loaded && !own.hidden ? cart.job.loadKg : 0,
+    condition: cart.condition,
+    oxen: hitched ? DRAFT_OXEN[cart.kind] : 0,
+    pen: cartPen(scene, id),
+    drover: hitched ? crewMember(scene, own?.drover ?? null) : null,
   };
 }
 
@@ -814,13 +1259,21 @@ function fieldPartDetails(
     surface: part.surface ?? 'meadow',
     walkM: part.walkM,
     holding: house ? { dwellingId: house.id, type: house.type } : null,
+    ...(part.damage ? { damage: part.damage } : {}),
+    ...(part.protection ? { protection: part.protection } : {}),
+    ...(part.losses ? { losses: partLossRows(part.losses, view?.weather) } : {}),
     sownYears: part.sownYears ?? null,
     fallowYears: part.fallowYears ?? null,
     overgrowthYears: shown.overgrowth ?? 0,
     grazed: shown.grazed ?? null,
     crop: part.work?.crop ?? null,
     mow: part.work?.mow ?? null,
+    next: part.next ?? null,
+    rest: part.rest ?? null,
+    surplus: part.work?.surplus === true,
     founding: part.founding ?? null,
+    ...(part.outlook ? { outlook: part.outlook } : {}),
+    fieldIds: view?.fields.map((f) => f.id) ?? [],
   };
 }
 
@@ -867,6 +1320,33 @@ export interface SelectionLeave {
   cart: CartKind | null;
   /** Na novou mapu po směrech – dny cesty, nebo proč tím směrem nejde. */
   directions: readonly LeaveDirection[];
+  /** Odchází syn vojvody a bere si jezdeckého koně (lord.md – Dělení vsi). */
+  horse?: boolean;
+}
+
+/** Syn vojvody v řadě ikon dvorce a jeho odchod: díl vsi, vůz, kůň (lord.md – Dělení vsi). */
+export interface SelectionSon extends DepartingSon {
+  /** Odchod syna s dílem; když nesmí vést nebo ves nemůže odejít, null. */
+  leave: SelectionLeave | null;
+}
+
+/** Synové vojvody pro odchod – popisek z náhledu jádra (všichni odcházející, i díl jen z rodiny). */
+function sonDetails(view: VillageView): SelectionSon[] {
+  const blocked = view.extinct || view.abandoned || view.journey;
+  return (view.dynasty?.sons ?? []).map((son): SelectionSon => {
+    const leave: SelectionLeave | null =
+      son.reason === null && !blocked && son.people > 0
+        ? {
+            households: son.dwellingIds,
+            people: son.people,
+            foodKg: son.foodKg,
+            cart: son.cart,
+            directions: view.leave.directions,
+            ...(son.horse ? { horse: true } : {}),
+          }
+        : null;
+    return { ...son, leave };
+  });
 }
 
 /** Odchod domácností vybraných obydlí `ids`; když žádná odejít nemůže, null. */
@@ -904,14 +1384,13 @@ function workshopDetails(view: VillageView, dwellingId: number): SelectionWorksh
   const workshop = view.crafts.workshops.find((w) => w.dwellingId === dwellingId);
   if (!workshop) return null;
   const { stock } = CRAFT_LOOKS[workshop.craft].product;
+  // kovář má v zásobě hřivny – pokrytí nástroji ukáže řádek vybavení (production-chains.md)
   const coverage =
-    workshop.craft === 'smith'
-      ? view.crafts.coverage.tools
-      : workshop.craft === 'potter'
-        ? view.crafts.coverage.pottery
-        : workshop.craft === 'carpenter'
-          ? (view.crafts.coverage.woodTools ?? 0)
-          : null;
+    workshop.craft === 'potter'
+      ? view.crafts.coverage.pottery
+      : workshop.craft === 'carpenter'
+        ? (view.crafts.coverage.woodTools ?? 0)
+        : null;
   const carpenter = workshop.carpenter;
   // ves výrobek dílny dokupuje u souseda (vlastní řemeslník nemá vstupy – crafts.md)
   const source = view.crafts.sources?.find((s) => PRODUCT_CRAFT[s.product] === workshop.craft);
@@ -932,6 +1411,7 @@ function workshopDetails(view: VillageView, dwellingId: number): SelectionWorksh
     toPlant: workshop.toPlant,
     skill: workshop.skill,
     ...(workshop.ore ? { ore: workshop.ore } : {}),
+    ...(workshop.iron ? { iron: { ...workshop.iron, coverage: view.crafts.coverage.tools } } : {}),
     ...(workshop.clay ? { clay: workshop.clay } : {}),
     carpenter: carpenter
       ? {
@@ -983,6 +1463,16 @@ function sacredDetails(
   };
 }
 
+/** Stádo druhu ohrady (skot = krávy); ohrada volů žádné (voli mají vlastní údaje). */
+export function penHerd(
+  species: PenSpecies,
+  herds: Record<HerdSpecies, number>,
+): { species: HerdSpecies; count: number } | null {
+  if (species === 'team' || species === 'horse') return null;
+  const herd: HerdSpecies = species === 'cattle' ? 'cow' : species;
+  return { species: herd, count: herds[herd] };
+}
+
 /** Ohrada – z pohledu na ves (stáda, pastva a seno jsou celé vsi). */
 function penDetails(view: VillageView | null, id: number): SelectionDetails | null {
   const pen = view?.pens.find((p) => p.id === id);
@@ -1001,14 +1491,11 @@ function penDetails(view: VillageView | null, id: number): SelectionDetails | nu
     oxen: pen.oxen,
     oxenVillage: pen.species === 'team' ? (view.oxen ?? null) : null,
     cows: pen.cows,
-    herds: view.livestock.herds,
-    chickens: view.livestock.chickens,
-    pastureHa: view.livestock.pastureHa,
-    grazingHa: view.livestock.grazingHa,
-    milkLPerDay: view.livestock.milkLPerDay,
+    herd: penHerd(pen.species, view.livestock.herds),
     team: pen.team,
     training: pen.training,
     hayKg: view.hayKg,
+    horses: pen.species === 'horse' ? (view.horses ?? null) : null,
     condition: pen.condition,
     abandoned: pen.abandoned,
     repair: pen.repair,

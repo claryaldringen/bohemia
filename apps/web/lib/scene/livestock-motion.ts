@@ -86,6 +86,16 @@ interface Gait {
  * a cupitá o kousek častěji.
  */
 const GAIT: Record<LivestockSpecies, Gait> = {
+  // pes dvorce (dogs.ts) – ve stádech není, chůze jen pro úplnost
+  dog: {
+    slotS: { from: 14, to: 30 },
+    speed: 1.0,
+    strideM: 0.9,
+    turnS: 0.6,
+    headS: 0.6,
+    graze: 0.5,
+    wander: 0.3,
+  },
   sheep: {
     slotS: { from: 18, to: 40 },
     speed: 0.9,
@@ -112,6 +122,24 @@ const GAIT: Record<LivestockSpecies, Gait> = {
     headS: 1.3,
     graze: 0.8,
     wander: 0.22,
+  },
+  horse: {
+    slotS: { from: 25, to: 50 },
+    speed: 1.0,
+    strideM: 1.7,
+    turnS: 1.2,
+    headS: 1.1,
+    graze: 0.8,
+    wander: 0.22,
+  },
+  foal: {
+    slotS: { from: 18, to: 36 },
+    speed: 1.1,
+    strideM: 1.1,
+    turnS: 0.9,
+    headS: 0.9,
+    graze: 0.7,
+    wander: 0.3,
   },
   pig: {
     slotS: { from: 20, to: 40 },

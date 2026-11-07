@@ -64,6 +64,12 @@ export const ORCHARD_COLOR: Rgb = [78, 118, 52];
 
 /** Posvátná místa na minimapě – teplá okrová (obětiny, oheň), dobře odlišená od zeleně. */
 export const SACRED_COLOR: Rgb = [232, 164, 64];
+/** Obvod opevnění na minimapě podle druhu – plot světlý, palisáda hnědá, val tmavý (návrh Clauda). */
+export const FORT_COLORS: Record<'fence' | 'palisade' | 'rampart', Rgb> = {
+  fence: [226, 196, 140],
+  palisade: [166, 108, 52],
+  rampart: [96, 64, 36],
+};
 
 /** Značka posvátného místa na minimapě v px: čtverec háje, bod dubu, půdorys modly a svatyně. */
 export type SacredMark =
@@ -219,7 +225,7 @@ export function drawMinimapVillage(
   landscape: Landscape,
   village: Pick<
     SceneVillage,
-    'woods' | 'fields' | 'cemeteries' | 'orchards' | 'sacred' | 'dwellings'
+    'woods' | 'fields' | 'cemeteries' | 'orchards' | 'sacred' | 'dwellings' | 'forts'
   >,
   sizePx: number,
 ): void {
@@ -292,6 +298,19 @@ export function drawMinimapVillage(
         context.strokeRect(mark.x - half, mark.y - half, mark.size, mark.size);
       }
     }
+  }
+  // opevnění – obvod čarou v barvě druhu, rozestavěné průsvitně (fortifications.md – Rozhraní)
+  for (const fort of village.forts ?? []) {
+    const [r, g, b] = FORT_COLORS[fort.kind];
+    context.strokeStyle = `rgb(${r} ${g} ${b} / ${fort.building ? 0.6 : 1})`;
+    context.lineWidth = fort.kind === 'rampart' ? 2.5 : fort.kind === 'palisade' ? 2 : 1.5;
+    context.beginPath();
+    fort.outline.forEach(([x, z], i) => {
+      const p = at(x, z);
+      if (i === 0) context.moveTo(p.x, p.y);
+      else context.lineTo(p.x, p.y);
+    });
+    context.stroke();
   }
   // obydlí – světlé čtverečky (rozestavěná průsvitná), jako budovy hráče v 0 A.D.
   for (const dwelling of village.dwellings) {

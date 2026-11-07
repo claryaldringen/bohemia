@@ -3,7 +3,9 @@
 // (`SceneLabor.persons`) se rozdělí mezi postavy dne – každá postava je jeden skutečný člověk,
 // nikdo není ve dvou postavách naráz. Čistý modul bez Babylonu – villager-plan.ts se ptá při
 // rozmísťování postav (jednou za herní den, nikdy za snímek). Pořadí lidí je los ze seedu vsi
-// a dne – během dne stejné.
+// a id člověka, stejný napříč dny (villagers.md – Činnosti od začátku do konce: herec je člověk
+// napříč dny) – při podobném rozdělení práce dělá tentýž člověk totéž a dvě činnosti různých dnů
+// se na jednom místě nesejdou; mění se jen se změnou práce dne.
 import { AGE, type CartJob, type Sex } from '@bohemia/game';
 import type { ScenePerson } from '../person-view';
 import type { LaborActivity, LaborTarget, SceneExpedition } from '../village-view';
@@ -24,8 +26,27 @@ export type PersonJob =
   | { kind: 'elder' }
   | { kind: 'caravan'; trip: SceneExpedition['trip'] | null; porter: boolean }
   | { kind: 'funeral'; bearer: boolean }
-  /** Svatba (kinship.md – Svatba ve scéně): nevěsta, ženich, nebo svatebčan. */
-  | { kind: 'wedding'; role: 'bride' | 'groom' | 'guest' };
+  /**
+   * Svatba (kinship.md – Svatba ve scéně): nevěsta, ženich, nebo svatebčan – hudebník s píšťalou
+   * či bubnem (`music`, wedding-plan.ts).
+   */
+  | { kind: 'wedding'; role: 'bride' | 'groom' | 'guest'; music?: 'pipe' | 'drum' }
+  /**
+   * U spřežení s rádlem (oxen.md – Spřežení postupuje s orbou): oráč u rukojeti, nebo honák
+   * s provazem; `team` = pořadí spřežení dne (plough-team-renderer.ts). Postavu kreslí spřežení.
+   */
+  | { kind: 'plough'; team: number; role: 'ploughman' | 'leader' }
+  /** Vozka u vozu (wagons.md – Vozy se spřežením): `cart` = id vozu. Postavu kreslí vůz. */
+  | { kind: 'cart'; cart: number }
+  /**
+   * Vojvodova rodina (lord.md – Ve scéně): muž či chlapec na cvičišti (co právě cvičí, říká úsek
+   * pózy – `bow` / `combat`), nebo žena rodiny u dvorce (`household`).
+   */
+  | { kind: 'lord'; household: boolean }
+  /** Dítě s řehtačkou na hlídaném dílu (wildlife.md – Noční hlídka; jen zobrazení). */
+  | { kind: 'watch' }
+  /** Řetěz s vědry v den požáru (disasters.md – Hašení – řetěz s vědry). */
+  | { kind: 'fire' };
 
 /** Koho postava chce – věk, domácnost, pohlaví. */
 export interface PersonRequest {
@@ -42,6 +63,11 @@ export interface PersonRequest {
   onlySex?: Sex;
   /** Co nejbližší věk (nosiči kováře – `LaborShare.ages`). */
   age?: number;
+  /**
+   * Lehčí polní práce se vsí (setí, okopávání, žně, výmlat – `LIGHT_LABOR_TASKS`): smí ji dělat
+   * i žena z domácnosti dílny, která dnes pracuje v dílně (crafts.md – Kdo dělá řemeslo).
+   */
+  light?: boolean;
 }
 
 /** Dospělí 14–44 let (věkové skupiny jádra – AGE). */
@@ -66,10 +92,9 @@ export class DayRoster {
   constructor(
     persons: readonly ScenePerson[],
     seed: number,
-    day: number,
     private readonly busyHomes: ReadonlySet<number> = new Set(),
   ) {
-    const salt = (seed * 31 + day) | 0;
+    const salt = (seed * 31) | 0;
     this.order = persons
       .map((p) => ({ p, k: hash01(salt, p.id, 97) }))
       .sort((a, b) => a.k - b.k || a.p.id - b.p.id)
@@ -87,7 +112,7 @@ export class DayRoster {
 
   /**
    * Volný člověk podle požadavku: napřed z preferované domácnosti, nejbližší věk, preferované
-   * pohlaví, pak podle losu dne. Nikdo vhodný – null.
+   * pohlaví, pak podle losu. Nikdo vhodný – null.
    */
   take(request: PersonRequest): ScenePerson | null {
     let best: ScenePerson | null = null;
@@ -95,7 +120,14 @@ export class DayRoster {
     for (const p of this.order) {
       if (this.taken.has(p.id) || p.age < request.from || p.age >= request.to) continue;
       if (request.onlySex && p.sex !== request.onlySex) continue;
-      if (request.homes ? !request.homes.has(p.home) : this.busyHomes.has(p.home)) continue;
+      // ženy domácnosti, která dnes pracuje v dílně, dělají lehčí polní práce se vsí (crafts.md)
+      if (
+        request.homes
+          ? !request.homes.has(p.home)
+          : this.busyHomes.has(p.home) && !(request.light && p.sex === 'female')
+      ) {
+        continue;
+      }
       // skóre: domácnost (×1000), věk (×10), pohlaví (×1) – menší je lepší; při shodě los
       const score =
         (request.preferHome !== undefined && p.home !== request.preferHome ? 1000 : 0) +
@@ -109,6 +141,22 @@ export class DayRoster {
     }
     if (best) this.taken.add(best.id);
     return best;
+  }
+
+  /** Je v domácnosti `home` nějaký muž od 7 let (dnes volný i obsazený)? Kojenci nepočítají. */
+  hasMen(home: number): boolean {
+    for (const p of this.byId.values()) {
+      if (p.home === home && p.sex === 'male' && p.age >= AGE.olderChild) return true;
+    }
+    return false;
+  }
+
+  /** Má domácnost `home` malé dítě (pod 7 let – AGE.olderChild; i kojence)? */
+  hasSmallChild(home: number): boolean {
+    for (const p of this.byId.values()) {
+      if (p.home === home && p.age < AGE.olderChild) return true;
+    }
+    return false;
   }
 
   /** Člověk zase volný – jeho postava nakonec není (nevyšlo jí místo). */

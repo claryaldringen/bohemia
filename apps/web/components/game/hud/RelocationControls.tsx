@@ -1,15 +1,26 @@
 'use client';
 
-import { useRef, useState, type ReactElement } from 'react';
-import { CART_NAMES, type BuildableDwellingType, type Direction8 } from '@bohemia/game';
+import { useEffect, useRef, useState, type ReactElement } from 'react';
+import {
+  CART_NAMES,
+  type BuildableDwellingType,
+  type Direction8,
+  type VillageRight,
+} from '@bohemia/game';
 import { useDismiss } from '@/hooks/use-dismiss';
-import type { LeaveDirection, VillageJourneyView } from '@/lib/departure-view';
+import type {
+  LeaveDirection,
+  PendingDepartureView,
+  VillageJourneyView,
+} from '@/lib/departure-view';
 import { RELOCATION_TYPES } from '@/lib/relocation-view';
 import type { SelectionLeave } from '@/lib/selection-details';
 import { DIRECTION_NAMES } from '@/lib/trade-names';
 import { formatInteger, formatManDays, formatPercent, plural } from '@/lib/village-format';
 import { DWELLING_NAMES, type BuildOption } from '@/lib/village-view';
 import { RESOURCE_ICONS } from './BuildGrid';
+import { LineNamePanel } from './LineNamePanel';
+import { useRightDenied } from './rights';
 import { Tooltip } from './Tooltip';
 
 // Přestěhování a odchod v panelu výběru (migration.md): tlačítka Přestěhovat (nový dům – zemnice,
@@ -72,6 +83,7 @@ export function RelocateButtons({
   households: number;
   onRelocate?: (type: BuildableDwellingType) => void;
 }): ReactElement {
+  const denied = useRightDenied('evacuate');
   return (
     <div role="group" aria-label="Přestěhovat" className="flex items-center gap-1">
       {RELOCATION_TYPES.map((type) => {
@@ -79,6 +91,7 @@ export function RelocateButtons({
         return (
           <Tooltip
             key={type}
+            denied={denied}
             content={<RelocateTooltip type={type} option={option} households={households} />}
             placement="above"
           >
@@ -86,7 +99,7 @@ export function RelocateButtons({
               type="button"
               data-testid={`relocate-${type}`}
               aria-label={`Přestěhovat – ${DWELLING_NAMES[type].nominative.toLowerCase()}`}
-              disabled={!option.affordable || !onRelocate}
+              disabled={!option.affordable || !onRelocate || denied !== null}
               onClick={() => onRelocate?.(type)}
               className="hud-icon-button h-9 w-9"
             >
@@ -106,13 +119,16 @@ export function RelocateButtons({
   );
 }
 
-/** Rozložení růžice odchodu (3 × 3): uprostřed „na téže mapě“, kolem 8 směrů nové mapy. */
-const LEAVE_COMPASS: readonly ('here' | Direction8)[] = [
+/**
+ * Rozložení růžice odchodu (3 × 3): kolem 8 směrů nové mapy, uprostřed nic (null) – jedna ves,
+ * jedna mapa, na téže mapě se nová ves nezakládá.
+ */
+const LEAVE_COMPASS: readonly (Direction8 | null)[] = [
   'NW',
   'N',
   'NE',
   'W',
-  'here',
+  null,
   'E',
   'SW',
   'S',
@@ -125,12 +141,9 @@ function LeaveTooltip({
   target,
 }: {
   leave: SelectionLeave;
-  target: 'here' | LeaveDirection;
+  target: LeaveDirection;
 }): ReactElement {
-  const title =
-    target === 'here'
-      ? 'Odejít – nová ves na téže mapě'
-      : `Odejít na ${DIRECTION_NAMES[target.direction].name} – nová mapa`;
+  const title = `Odejít na ${DIRECTION_NAMES[target.direction].name} – nová mapa`;
   return (
     <span className="block">
       <span className="font-serif text-sm font-semibold text-[#f3dfb0]">{title}</span>
@@ -158,14 +171,17 @@ function LeaveTooltip({
             {CART_NAMES[leave.cart]}
           </span>
         )}
-        {target !== 'here' && (
-          <span className="flex items-center gap-1">
-            <img src="/icons/resources/date.png" alt="Dny cesty" width={16} height={16} />
-            {target.days} {plural(target.days, 'den', 'dny', 'dní')}
+        {leave.horse && (
+          <span className="flex items-center gap-1" data-testid="leave-horse">
+            <img src="/icons/resources/horse.png" alt="Kůň s sebou" width={16} height={16} />
           </span>
         )}
+        <span className="flex items-center gap-1">
+          <img src="/icons/resources/date.png" alt="Dny cesty" width={16} height={16} />
+          {target.days} {plural(target.days, 'den', 'dny', 'dní')}
+        </span>
       </span>
-      {target !== 'here' && target.blocked && (
+      {target.blocked && (
         <span data-testid="leave-blocked" className="mt-0.5 block font-semibold text-red-400">
           {target.blocked}
         </span>
@@ -175,17 +191,20 @@ function LeaveTooltip({
 }
 
 /**
- * Růžice odchodu (migration.md – fáze 3 a 4): uprostřed nová ves na téže mapě (hráč pak umístí
- * první zemnici), kolem šipky na novou mapu ve směru – tam, kde leží vlastní ves, zašedlé
- * s důvodem.
+ * Růžice odchodu (migration.md – fáze 3 a 4): šipky na novou mapu ve směru – tam, kde leží vlastní
+ * ves, zašedlé s důvodem. Jedna ves, jedna mapa – na téže mapě se neodchází.
  */
 export function LeaveCompass({
   leave,
   onLeave,
+  right = 'evacuate',
 }: {
   leave: SelectionLeave;
-  onLeave?: (target: 'here' | Direction8, households: readonly number[]) => void;
+  /** Právo, které odchod vyžaduje (vystěhování vsi, nebo odchod se synem – rights.ts). */
+  right?: VillageRight;
+  onLeave?: (direction: Direction8, households: readonly number[]) => void;
 }): ReactElement {
+  const denied = useRightDenied(right);
   return (
     <div
       data-testid="leave-compass"
@@ -194,33 +213,7 @@ export function LeaveCompass({
       className="grid grid-cols-3 gap-1"
     >
       {LEAVE_COMPASS.map((target) => {
-        if (target === 'here') {
-          return (
-            <Tooltip
-              key={target}
-              placement="above"
-              content={<LeaveTooltip leave={leave} target="here" />}
-            >
-              <button
-                type="button"
-                data-testid="leave-here"
-                aria-label="Odejít – nová ves na téže mapě"
-                disabled={!onLeave}
-                onClick={() => onLeave?.('here', leave.households)}
-                className="hud-icon-button h-9 w-9"
-              >
-                <img
-                  src="/icons/build/zemnice.png"
-                  alt=""
-                  width={128}
-                  height={128}
-                  draggable={false}
-                  className="h-full w-full object-cover"
-                />
-              </button>
-            </Tooltip>
-          );
-        }
+        if (target === null) return <span key="centre" />;
         const option = leave.directions.find((d) => d.direction === target);
         if (!option) return <span key={target} />;
         const { arrow, name } = DIRECTION_NAMES[target];
@@ -228,13 +221,14 @@ export function LeaveCompass({
           <Tooltip
             key={target}
             placement="above"
+            denied={denied}
             content={<LeaveTooltip leave={leave} target={option} />}
           >
             <button
               type="button"
               data-testid={`leave-${target}`}
               aria-label={`Odejít na ${name}`}
-              disabled={option.blocked !== null || !onLeave}
+              disabled={option.blocked !== null || !onLeave || denied !== null}
               onClick={() => onLeave?.(target, leave.households)}
               className="hud-icon-button h-9 w-9 text-lg font-bold text-[#ecdfc4]"
             >
@@ -257,7 +251,7 @@ export function LeaveControls({
   onLeave,
 }: {
   leave: SelectionLeave | null;
-  onLeave?: (target: 'here' | Direction8, households: readonly number[]) => void;
+  onLeave?: (direction: Direction8, households: readonly number[]) => void;
 }): ReactElement {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -329,10 +323,11 @@ export function JourneyBanner({ journey }: { journey: VillageJourneyView }): Rea
 }
 
 /**
- * Zrušit rozestavěné stěhování – stavba nového domu zmizí, dřevo se vrátí na hromadu. Dokud server
- * zrušení nepotvrdí, tlačítko čeká.
+ * Zrušit rozestavěnou stavbu (cancel-construction.ts) – vytýčení zmizí, nespotřebované dřevo se
+ * vrátí na hromadu. Jen ikona (křížek), slova jen v popisku. Dokud server zrušení nepotvrdí,
+ * tlačítko čeká.
  */
-export function CancelRelocationButton({
+export function CancelConstructionButton({
   constructionId,
   onCancel,
 }: {
@@ -340,21 +335,35 @@ export function CancelRelocationButton({
   onCancel?: (constructionId: number) => Promise<void>;
 }): ReactElement {
   const [busy, setBusy] = useState(false);
+  const denied = useRightDenied('build');
   return (
-    <Tooltip content="Zrušit stěhování – dřevo se vrátí na hromadu" placement="above">
+    <Tooltip
+      content="Zrušit stavbu – nespotřebované dřevo se vrátí"
+      denied={denied}
+      placement="above"
+    >
       <button
         type="button"
-        data-testid="cancel-relocation"
-        disabled={busy || !onCancel}
+        data-testid="cancel-construction"
+        aria-label="Zrušit stavbu"
+        disabled={busy || !onCancel || denied !== null}
         aria-busy={busy}
         onClick={() => {
           if (!onCancel || busy) return;
           setBusy(true);
           void onCancel(constructionId).finally(() => setBusy(false));
         }}
-        className="hud-button px-2 py-0.5 font-serif text-sm whitespace-nowrap disabled:cursor-wait disabled:opacity-60"
+        className="hud-button flex h-7 w-7 items-center justify-center p-0 disabled:cursor-wait disabled:opacity-60"
       >
-        Zrušit
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+          <path
+            d="M3 3 13 13M13 3 3 13"
+            stroke="#e8c9a0"
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            fill="none"
+          />
+        </svg>
       </button>
     </Tooltip>
   );
@@ -386,7 +395,83 @@ export function RelocationProgress({
           <span style={{ width: `${percent}%` }} />
         </span>
       </Tooltip>
-      <CancelRelocationButton constructionId={constructionId} onCancel={onCancel} />
+      <CancelConstructionButton constructionId={constructionId} onCancel={onCancel} />
+    </div>
+  );
+}
+
+/**
+ * Odchod mladšího syna po pohřbu (seniorate.md, bod 4): přesýpací hodiny se zbývajícími dny, obrys
+ * dílu ve scéně (`onPreview`), panel jména syna bez jména a růžice směrů. Zvolený směr pošle
+ * `onChoose` (výprava vyrazí hned, první zemnici umístí hráč); po lhůtě vyrazí sama.
+ */
+export function PlayerDeparturePanel({
+  departure,
+  onChoose,
+  onPreview,
+}: {
+  departure: PendingDepartureView;
+  /** Pošle směr (a jméno syna bez jména) na server – vrátí důvod odmítnutí, nebo null. */
+  onChoose: (direction: Direction8, sonName?: string) => Promise<string | null>;
+  /** Obrys obydlí dílu ve scéně; po zavření panelu null. */
+  onPreview?: ((dwellingIds: readonly number[] | null) => void) | undefined;
+}): ReactElement {
+  const [name, setName] = useState<string | null>(null);
+  const previewKey = JSON.stringify(departure.dwellingIds);
+  useEffect(() => {
+    if (!onPreview) return;
+    const ids = JSON.parse(previewKey) as number[];
+    onPreview(ids.length === 0 ? null : ids);
+    return () => onPreview(null);
+  }, [previewKey, onPreview]);
+  const days = departure.daysLeft;
+  const leave = {
+    households: departure.dwellingIds,
+    people: departure.people,
+    foodKg: departure.foodKg,
+    cart: departure.cart,
+    directions: departure.directions,
+    ...(departure.horse ? { horse: true } : {}),
+  };
+  const needsName = departure.needsName && name === null;
+  return (
+    <div
+      data-testid="player-departure"
+      data-hud-block
+      className="hud-panel pointer-events-auto fixed top-14 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 p-2"
+    >
+      <Tooltip
+        content={`Do odchodu zbývá ${days} ${plural(days, 'den', 'dny', 'dní')} – pak vyrazí výprava sama`}
+        placement="below"
+      >
+        <span
+          data-testid="player-departure-days"
+          tabIndex={0}
+          className="flex items-center gap-1 font-serif text-base text-[#f3dfb0] tabular-nums"
+        >
+          <img src="/icons/house/hourglass.svg" alt="Zbývající dny" width={28} height={28} />
+          {days}
+        </span>
+      </Tooltip>
+      {needsName ? (
+        <LineNamePanel
+          lord={false}
+          portrait="man"
+          taken={departure.taken}
+          onConfirm={(value) => {
+            setName(value);
+            return Promise.resolve(null);
+          }}
+        />
+      ) : (
+        <LeaveCompass
+          leave={leave}
+          right="sendSons"
+          onLeave={(direction) => {
+            void onChoose(direction, departure.needsName ? (name ?? undefined) : undefined);
+          }}
+        />
+      )}
     </div>
   );
 }
