@@ -281,6 +281,68 @@ describe('stepCampaigns', () => {
       },
     );
 
+    it('ves téže verze se znovu nenačítá (jen otisk); uložení i post do schránky ji načtou', async () => {
+      const { deps, campaigns, villages } = setup();
+      villages.records.set('knezice', {
+        id: 'knezice',
+        settlementId: 's-knezice',
+        name: 'Kněžice',
+        state: village([], [], { lastDay: SUMMER + 10 }),
+        version: 1,
+      });
+      const cells: CampaignCells = {
+        mapOf: (cell) =>
+          Promise.resolve(cell.x === 1 ? { ...MEADOW, villageIds: ['knezice'] } : MEADOW),
+      };
+      // vojsko stojí u cíle na mapě vsi – každé kolo ji potřebuje (nájezd)
+      const base = campaign({ liveCommand: false });
+      const at = { cell: { x: 1, y: 0 }, pos: { ...base.target.pos } };
+      await campaigns.create({
+        ...base,
+        phase: 'marching',
+        groups: base.groups.map((g) => ({ ...g, ...at, goal: at, arrived: true })),
+      });
+      const loaded: number[] = [];
+      const find = villages.find.bind(villages);
+      villages.find = async (id) => {
+        const record = await find(id);
+        if (id === 'knezice' && record) loaded.push(record.version);
+        return record;
+      };
+      const memory = newCampaignMemory();
+      const used = { ...deps, cells, memory };
+      let usedVersion: number | null = null;
+      const counts: number[] = [];
+      /** Jedno kolo: kolikrát se ves načetla celá; vždy se počítá s její aktuální verzí. */
+      const round = async (tick: number): Promise<number> => {
+        const before = loaded.length;
+        const version = villages.records.get('knezice')!.version;
+        await rounds(used, tick, tick);
+        const loads = loaded.length - before;
+        expect(loads).toBe(version === usedVersion ? 0 : 1);
+        expect(memory.villages.get('knezice')?.version).toBe(version);
+        usedVersion = version;
+        counts.push(loads);
+        return loads;
+      };
+      expect(await round(LAUNCH + 4)).toBe(1);
+      for (let tick = LAUNCH + 8; tick <= LAUNCH + 24; tick += 4) await round(tick);
+      const record = villages.records.get('knezice')!;
+      await villages.save('knezice', record.state, record.version);
+      expect(await round(LAUNCH + 28)).toBe(1);
+      await villages.inbox.post({
+        villageId: 'knezice',
+        day: SUMMER + 11,
+        ref: 'test:1',
+        body: { kind: 'shipment', goods: {} } as never,
+      });
+      expect(await round(LAUNCH + 32)).toBe(1);
+      await round(LAUNCH + 36);
+      // stejná verze bez načtení – jen otisky
+      expect(counts.filter((n) => n === 0).length).toBeGreaterThan(0);
+      expect(villages.stampQueries).toBeGreaterThan(0);
+    });
+
     /** Tažení ve shromaždišti s pamětí po kole do LAUNCH + 20 (bez uložení bodu). */
     async function remembered(): Promise<{
       deps: StepCampaignsDeps;

@@ -35,7 +35,8 @@ export interface StepCampaignsDeps {
   campaigns: CampaignRepository;
   campaignLock: CampaignLock;
   cells: CampaignCells;
-  villages: Pick<VillageRepository, 'find' | 'inbox'>;
+  /** Vsi tažení – s pamětí workeru se celý stav načte jen u vsí, jejichž otisk se změnil. */
+  villages: Pick<VillageRepository, 'find' | 'stampsOfVillages' | 'inbox'>;
   notices: Pick<NoticeRepository, 'post'>;
   world: WorldClock;
   /**
@@ -73,7 +74,8 @@ export interface CampaignMemory {
   grids: MarchGridMemo;
   /**
    * Vsi načtené v posledním kole: ves téže verze (a jména) dostane tentýž objekt stavu, takže
-   * její mřížky pochodu v `grids` platí dál (verze roste s každým uložením – stav je tentýž).
+   * její mřížky pochodu v `grids` platí dál (verze roste s každým uložením – stav je tentýž),
+   * a znovu se nenačítá – stačí otisk (`stampsOfVillages`, `loadVillages`).
    */
   villages: Map<string, VillageRecord>;
   /** Vsi načtené v tomto kole – ostatní se na konci kola zapomenou. */
@@ -96,6 +98,37 @@ function recallVillage(
   if (known && known.version === record.version && known.name === record.name) return known;
   memory.villages.set(record.id, record);
   return record;
+}
+
+/**
+ * Vsi `villageIds` z úložiště (neznámá – null): s pamětí workeru se nejdřív zeptá jen na otisky
+ * (verze a jméno bez stavu) a celý stav (u velké vsi přes 2 MB JSON) načte jen u vsí, které paměť
+ * nemá nebo jejichž verze či jméno se liší. Každý zápis stavu verzi zvedá (uložení, post do
+ * schránky), přejmenování mění jméno – výsledek je tedy tentýž jako `find` u každé vsi.
+ */
+async function loadVillages(
+  deps: Pick<StepCampaignsDeps, 'villages' | 'memory'>,
+  villageIds: readonly string[],
+): Promise<Map<string, VillageRecord | null>> {
+  const memory = deps.memory;
+  const known = memory ? villageIds.filter((id) => memory.villages.has(id)) : [];
+  const stamps =
+    known.length > 0
+      ? new Map((await deps.villages.stampsOfVillages(known)).map((s) => [s.id, s]))
+      : null;
+  const records = new Map<string, VillageRecord | null>();
+  for (const villageId of villageIds) {
+    if (records.has(villageId)) continue;
+    const record = memory?.villages.get(villageId);
+    const stamp = stamps?.get(villageId);
+    if (memory && record && stamp?.version === record.version && stamp.name === record.name) {
+      memory.seen.add(villageId);
+      records.set(villageId, record);
+      continue;
+    }
+    records.set(villageId, recallVillage(memory, await deps.villages.find(villageId)));
+  }
+  return records;
 }
 
 /** Konec kola: zapomene skončená tažení a vsi, které kolo nenačetlo. */
@@ -323,11 +356,12 @@ export async function computeCampaign(
       maps.set(key(cell), await deps.cells.mapOf(cell));
       loaded = true;
     }
+    // ves bez potřebného dne se načte znovu – mezitím ji mohl worker posunout (s pamětí jen otisk)
+    const records = await loadVillages(deps, step.waiting.villageIds);
     for (const villageId of step.waiting.villageIds) {
-      // ves bez potřebného dne se načte znovu – mezitím ji mohl worker posunout
       const firstTry = !tried.has(villageId);
       tried.add(villageId);
-      const record = recallVillage(deps.memory, await deps.villages.find(villageId));
+      const record = records.get(villageId) ?? null;
       if (!record) {
         if (firstTry) loaded = true;
         continue;
@@ -356,7 +390,8 @@ export async function computeCampaign(
  */
 async function deliver(deps: StepCampaignsDeps, outbox: CampaignOutbox): Promise<void> {
   for (const event of outbox.villageEvents) {
-    if (await deps.villages.find(event.villageId)) await deps.villages.inbox.post(event);
+    const [exists] = await deps.villages.stampsOfVillages([event.villageId]);
+    if (exists) await deps.villages.inbox.post(event);
   }
   for (const notice of outbox.notices) await deps.notices.post(notice);
 }
@@ -366,7 +401,8 @@ async function deliver(deps: StepCampaignsDeps, outbox: CampaignOutbox): Promise
  * je neškodné pro vlastního, pána i vazaly (`isHarmlessArmy` nad sítí vazalství do 8 kroků).
  */
 export function villageWatchers(deps: {
-  villages: Pick<VillageRepository, 'find'>;
+  /** Jen otisky – sídlo a jméno vsi bez načtení stavu. */
+  villages: Pick<VillageRepository, 'stampsOfVillages'>;
   settlements: Pick<SettlementRepository, 'find'>;
   houses: Pick<HouseRepository, 'activeOf'>;
   vassalages: Pick<VassalageRepository, 'edgesNear'>;
@@ -375,7 +411,7 @@ export function villageWatchers(deps: {
 }): VillageWatchers {
   return {
     watcherOf: async (villageId) => {
-      const village = await deps.villages.find(villageId);
+      const [village] = await deps.villages.stampsOfVillages([villageId]);
       const settlement = village ? await deps.settlements.find(village.settlementId) : null;
       return village && settlement ? { playerId: settlement.ownerId, name: village.name } : null;
     },
@@ -393,7 +429,7 @@ export function villageWatchers(deps: {
       if (!deps.passages) return false;
       const passages = await deps.passages.validBetween(army.id, owner.id);
       if (passages.length === 0) return false;
-      const village = await deps.villages.find(villageId);
+      const [village] = await deps.villages.stampsOfVillages([villageId]);
       const settlement = village ? await deps.settlements.find(village.settlementId) : null;
       const cell = settlement?.worldCell;
       return cell !== null && cell !== undefined && passageCovers(passages, cell, campaignId);

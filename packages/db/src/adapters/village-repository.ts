@@ -89,6 +89,24 @@ function toRecord(row: VillageRow): VillageRecord {
 }
 
 /**
+ * Sloupce otisku vsi – den dopočtu a spánek jsou uložené sloupce (generované ze stavu při zápisu),
+ * stav se nepřenáší ani neparsuje v Node.
+ */
+const STAMP_COLUMNS = {
+  id: village.id,
+  settlementId: village.settlementId,
+  name: village.name,
+  version: village.version,
+  lastDay: village.lastDay,
+  asleep: village.asleep,
+};
+
+/** lastDay je ve stavu vždy; null by znamenalo poškozený JSON – ves je pak „nejvíc pozadu“. */
+function toStamp(row: Omit<VillageStamp, 'lastDay'> & { lastDay: number | null }): VillageStamp {
+  return { ...row, lastDay: row.lastDay ?? 0 };
+}
+
+/**
  * Drizzle adaptér portu VillageRepository – optimistické zamykání přes sloupec version. Sídlo
  * může mít víc vsí; první ves sídla zakládá `create` atomicky (zámek řádku sídla).
  */
@@ -271,22 +289,19 @@ export function createVillageRepository(db: Database): VillageRepository {
 
     async stampsOf(settlementIds): Promise<VillageStamp[]> {
       if (settlementIds.length === 0) return [];
-      // Den dopočtu a spánek jsou uložené sloupce (generované ze stavu při zápisu) – stav se
-      // nepřenáší ani neparsuje v Node.
       const rows = await db
-        .select({
-          id: village.id,
-          settlementId: village.settlementId,
-          name: village.name,
-          version: village.version,
-          lastDay: village.lastDay,
-          asleep: village.asleep,
-        })
+        .select(STAMP_COLUMNS)
         .from(village)
         .where(inArray(village.settlementId, [...settlementIds]))
         .orderBy(asc(village.createdAt), asc(village.id));
-      // lastDay je ve stavu vždy; null by znamenalo poškozený JSON – ves je pak „nejvíc pozadu“
-      return rows.map((row) => ({ ...row, lastDay: row.lastDay ?? 0 }));
+      return rows.map(toStamp);
+    },
+
+    async stampsOfVillages(villageIds): Promise<VillageStamp[]> {
+      const ids = villageIds.filter((id) => UUID.test(id));
+      if (ids.length === 0) return [];
+      const rows = await db.select(STAMP_COLUMNS).from(village).where(inArray(village.id, ids));
+      return rows.map(toStamp);
     },
   };
 }

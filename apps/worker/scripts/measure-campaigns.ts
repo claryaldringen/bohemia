@@ -285,6 +285,15 @@ async function run(starts: readonly CampaignState[]): Promise<Result> {
           state ? { id, settlementId: `s-${id}`, name: id, state, version: 1 } : null,
         );
       },
+      stampsOfVillages: (ids) =>
+        Promise.resolve(
+          ids.flatMap((id) => {
+            const state = villages.get(id);
+            if (!state) return [];
+            const stamp = { id, settlementId: `s-${id}`, name: id, version: 1 };
+            return [{ ...stamp, lastDay: state.lastDay, asleep: false }];
+          }),
+        ),
       inbox: EMPTY_INBOX,
     },
     notices: { post: () => Promise.resolve() },
