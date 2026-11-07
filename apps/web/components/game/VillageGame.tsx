@@ -9,6 +9,7 @@ import {
   type Direction8,
   type FortTop,
   type Craft,
+  FORTIFICATIONS,
   type DwellingPlot,
   type BuildableDwellingType,
   type DwellingType,
@@ -153,6 +154,7 @@ import {
 } from '@/lib/village-view';
 import { GameView } from './GameView';
 import { BuildGrid } from './hud/BuildGrid';
+import { FortConfirm } from './hud/FortConfirm';
 import { CursorReason } from './hud/CursorReason';
 import { DefeatScreen } from './hud/DefeatScreen';
 import { JourneyBanner, PlayerDeparturePanel } from './hud/RelocationControls';
@@ -168,7 +170,6 @@ import { NoticeLines, type NoticeLine } from './hud/NoticeLines';
 import { SelectionPanel } from './hud/SelectionPanel';
 import type { HouseView } from '@/lib/house-view';
 import type { EscheatView, LevyDialogView } from '@bohemia/game';
-import { squarePoints } from '@bohemia/game';
 import { TopBar, type DevDisasterChoice } from './hud/TopBar';
 
 /** Stav vsi ze serveru: pohled na ves, ještě nezaložená (null), nebo chyba (svět neběží…). */
@@ -194,7 +195,6 @@ const SUBMIT_SQUARES: Partial<
       cells: TileCell[],
       grid?: SquareGrid,
       variant?: string,
-      geo?: { size: number; cellSizeM: number },
     ) => Promise<ActionResult>
   >
 > = {
@@ -212,17 +212,6 @@ const SUBMIT_SQUARES: Partial<
       species: penVariantSpecies(variant),
       ...(grid ? { grid } : {}),
     }),
-  // opevnění podle druhu (fortifications.md – Rozhraní): plot, palisáda, val z rozcestníku; server
-  // bere body obvodu – do UI bodů (další krok) z nakreslených čtverců (`squarePoints`)
-  fortification: (villageId, cells, grid, variant, geo) => {
-    const kind = fortVariantKind(variant);
-    const points = geo ? squarePoints(cells, grid ?? null, geo, kind) : null;
-    return placeFortification({
-      villageId,
-      points: (points ?? []).map(([x, z]) => [x, z]),
-      kind,
-    });
-  },
 };
 
 /**
@@ -1131,7 +1120,11 @@ export function VillageGame({
     if (rightDeniedReason(view?.rights, 'build') !== null) return;
     const item = buildItem(kind);
     // stavba s druhy je rozcestník: tlačítko i zkratka otevřou v mřížce druhy, znovu je zavřou
-    if (item.placement === 'squares' && item.variants && variant === undefined) {
+    if (
+      (item.placement === 'squares' || item.placement === 'fort-points') &&
+      item.variants &&
+      variant === undefined
+    ) {
       if (buildGroup !== kind) placement.cancel();
       setBuildGroup(buildGroup === kind ? null : kind);
       return;
@@ -1143,6 +1136,45 @@ export function VillageGame({
     if (!isBuildAffordable(option, variant, extendsSelectedPen(chosen, variant))) return;
     setSelected(null);
     setPlacingItem(kind);
+    if (item.placement === 'fort-points') {
+      // obvod z bodů (fortifications.md – Obvod): návrh hry u kurzoru, body upraví hráč
+      const fortVariant = item.variants.find((v) => v.id === variant) ?? item.variants[0]!;
+      const fortKind = fortVariantKind(fortVariant.id);
+      placement.start(
+        {
+          kind: 'fort-points',
+          variant: fortVariant,
+          bandM: FORTIFICATIONS.bandM[fortKind],
+          propose: ([x, z]) =>
+            item.propose(
+              decoded,
+              placementVillage(),
+              { x, z },
+              fortVariant.id,
+              sceneVillageRef.current?.grainPits,
+            ),
+          preview: (points) => ({
+            ...item.check(decoded, placementVillage(), points, fortVariant.id, {
+              woodSupply: viewRef.current?.woodSupply ?? 0,
+            }),
+            label: '',
+          }),
+        },
+        (result) => {
+          const villageId = viewRef.current?.id;
+          if (result.kind === 'fort-points' && villageId) {
+            void runBuildAction(() =>
+              placeFortification({
+                villageId,
+                points: result.points,
+                kind: fortVariantKind(result.variant),
+              }),
+            );
+          }
+        },
+      );
+      return;
+    }
     if (item.placement === 'squares') {
       const submit = SUBMIT_SQUARES[kind];
       if (!submit) throw new Error(`Stavba ${kind} nemá server action.`);
@@ -1177,9 +1209,7 @@ export function VillageGame({
         (result) => {
           const villageId = viewRef.current?.id;
           if (result.kind === 'squares' && villageId) {
-            void runBuildAction(() =>
-              submit(villageId, result.cells, result.grid, result.variant, decoded),
-            );
+            void runBuildAction(() => submit(villageId, result.cells, result.grid, result.variant));
           }
         },
       );
@@ -1681,6 +1711,16 @@ export function VillageGame({
               />
             )}
             <CursorReason preview={placement.active ? placement.preview : null} />
+            {placement.active === 'fort-points' ? (
+              <FortConfirm
+                reason={
+                  placement.preview?.check.ok
+                    ? null
+                    : (placement.preview?.check.reason ?? 'Obvod ještě nejde položit.')
+                }
+                onConfirm={placement.confirm}
+              />
+            ) : null}
             {menuShown && (
               <GameMenu
                 canRestart={view !== null}

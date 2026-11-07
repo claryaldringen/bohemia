@@ -11,7 +11,7 @@ import {
   battleForts,
   battleTick,
   fortificationArea,
-  fortificationOutline,
+  areaOutline,
   fortSegments,
   foundVillage,
   hoursPerTick,
@@ -25,6 +25,7 @@ import {
   type BattleField,
   type BattleState,
   type Defender,
+  type FortOutline,
   type Fortification,
   type Landscape,
   type Pos,
@@ -74,9 +75,7 @@ export interface BattleDemo {
 }
 
 /** Palisáda kolem místa vsi s branou na jižní straně (jádro – plocha, obvod a brány). */
-function palisade(
-  l: Landscape,
-): { fort: Fortification; gate: Pos; outline: ReturnType<typeof fortificationOutline> } | null {
+function palisade(l: Landscape): { fort: Fortification; gate: Pos; outline: FortOutline } | null {
   const site = l.villageSite;
   const cells = [];
   for (let y = site.y - HALF_CELLS; y < site.y + HALF_CELLS; y++) {
@@ -84,7 +83,8 @@ function palisade(
   }
   const area = fortificationArea(cells, null, l);
   if ('error' in area) return null;
-  const outline = fortificationOutline(area, 'palisade');
+  // obvod z bodů staré plochy (fortifications.md – Obvod)
+  const outline = areaOutline(area, 'palisade');
   const a = tileCenterWorld(l, site.x - HALF_CELLS, site.y - HALF_CELLS);
   const b = tileCenterWorld(l, site.x + HALF_CELLS - 1, site.y - HALF_CELLS);
   const gate = { x: (a.x + b.x) / 2, z: a.z - l.cellSizeM / 2 };
@@ -93,8 +93,7 @@ function palisade(
   return {
     fort: {
       id: FORT_ID,
-      grid: null,
-      cells,
+      points: outline.points,
       kind: 'palisade',
       segments: fortSegments(outline).map((s) => ({ index: s.index, builtDay: 0, state: 1 })),
       gates,

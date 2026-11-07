@@ -56,7 +56,8 @@ Dřívější obvod po čtvercích zůstal jen pro převod (`squares-outline.ts`
 - **`proposeFortification(state, day, landscape, obstacles, kind, at)`** – jádro bez staveb uvnitř
   jiného opevnění; odstup šířka pásu + 3 m, neprojde-li `checkFortificationPlacement`, po 1 m víc
   (nejvýš +20 m – `FORTIFICATIONS.proposal`); nic neprojde → návrh s výchozím odstupem a důvodem.
-  Bez jádra kruh 20 m kolem `at`. Rozhraní ho zatím nevolá – UI bodů je další krok.
+  Bez jádra kruh 20 m kolem `at`. `proposeFortificationIn(landscape, village, …)` – totéž nad
+  `PlacementVillage` (+ obilné jámy); volá ho prohlížeč (`build-items.ts` – web-ui.md, Opevnění).
 - **`stewardFortificationProposal`** – celé jádro, odstup po 5 m (nejvýš `STEWARD.fortMaxRings`
   kroků), dokud návrh neprojde kontrolou a útočiště nepojme `refugeNeedM2`.
 
@@ -250,8 +251,7 @@ men, hours)` (nejvýš 4 muži), `surrenderThreshold(defenders, fortMultiplier)`
   `domain/village/__tests__/fortifications.test.ts`, adaptér `village-repository.db.test.ts`.
 - Web: server actions `placeFortification` (vstup `{ points: [x, z][], kind }`),
   `upgradeFortification`, `addFortificationGate` (`apps/web/app/game/actions.ts`, vstupy
-  `parse…FortificationInput` v `village-input.ts`; kreslení po čtvercích v rozhraní zatím body
-  skládá `squarePoints` – UI bodů je další krok),
+  `parse…FortificationInput` v `village-input.ts`; body posílá editor návrhu – web-ui.md),
   `…ForPlayer` přes `actOn` s právem `build` (`ACTION_RIGHTS`). Tlačítka a kreslení – Ú5.6; cena
   v katalogu (`BUILD_COSTS`) také až s ním – opevnění nemá pevnou cenu, jen `fortificationCost`.
 

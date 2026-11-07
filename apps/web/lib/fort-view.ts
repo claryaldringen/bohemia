@@ -32,7 +32,6 @@ import {
 export type FortPoint = readonly [number, number];
 
 /** Kolik bodů má oblouk rohu v obrysu (čtvrtkruh). */
-const ARC_POINTS = 6;
 
 /** Důvody, proč se tlačítko panelu nedá použít (bez čísla). */
 export const FORT_BUSY_TEXT = 'Stavba už běží.';
@@ -124,21 +123,9 @@ export interface VillageFortification {
   tops?: { top: FortTop; option: FortWorkOption }[];
 }
 
-/** Uzavřený obrys vnějšího okraje – body rovných kusů a oblouků po směru hodin. */
-export function fortOutlinePolyline(shapes: readonly FortSegmentShape[]): FortPoint[] {
-  const points: FortPoint[] = [];
-  for (const s of shapes) {
-    points.push([s.line.x, s.line.z]);
-    points.push([s.line.x + s.line.dx * s.line.length, s.line.z + s.line.dz * s.line.length]);
-    const a = s.arc;
-    if (!a) continue;
-    for (let i = 1; i <= ARC_POINTS; i++) {
-      const t = (i / ARC_POINTS) * (Math.PI / 2);
-      const cos = Math.cos(t);
-      const sin = Math.sin(t);
-      points.push([a.x + a.r * (a.ux * cos + a.vx * sin), a.z + a.r * (a.uz * cos + a.vz * sin)]);
-    }
-  }
+/** Uzavřený obrys vnějšího okraje – lomená čára křivky po směru hodin, první bod i na konci. */
+export function fortOutlinePolyline(outline: FortOutline): FortPoint[] {
+  const points = outline.polyline.map(([x, z]): FortPoint => [x, z]);
   if (points.length > 0) points.push(points[0]!);
   return points;
 }
@@ -146,7 +133,7 @@ export function fortOutlinePolyline(shapes: readonly FortSegmentShape[]): FortPo
 /** Obrys a pás hotového tvaru `outline`. */
 export function fortShape(outline: FortOutline): Pick<SceneFortification, 'outline' | 'band'> {
   return {
-    outline: fortOutlinePolyline(fortSegments(outline)),
+    outline: fortOutlinePolyline(outline),
     band: fortBandPieces(outline).map((p) => p.corners.map(([x, z]): FortPoint => [x, z])),
   };
 }

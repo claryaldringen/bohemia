@@ -1,12 +1,18 @@
 import type { Landscape, ObstacleLayer } from '../landscape';
-import { circlePoints, fortOutlineOf, hullOffsetPoints } from './fortification';
+import {
+  circlePoints,
+  fortOutlineOf,
+  hullOffsetPoints,
+  type FortShapeSource,
+} from './fortification';
 import { checkFortificationPlacement, type FortPlacementCheck } from './placement-fortifications';
+import type { PlacementVillage } from './placement-types';
 import { placementVillageOf } from './placement-village';
 import { pointInPolygon, type Point } from './polygon';
 import { FORTIFICATIONS } from './rules-fortifications';
 import { rotatedSquareCorners, squareCorners, type GridGeometry } from './square-grid';
 import { threshingFloorFootprint } from './threshing-floors';
-import type { FortKind, RoadPoint, VillageState } from './types';
+import type { FortKind, Position, RoadPoint, VillageState } from './types';
 
 // Návrh obvodu opevnění (fortifications.md – Obvod, Správce – Obvod správce): jádro vsi = obrysy
 // obydlí s pozemky (i dvorce a dílny), hum, obilných jam a ohrad; pole a sady zůstanou venku.
@@ -26,11 +32,20 @@ export interface FortProposal {
   offsetM: number;
 }
 
+/**
+ * Stavby jádra vsi – stav vsi i ves pro kontrolu umístění v prohlížeči (`PlacementVillage`
+ * s obilnými jamami ze scény) mají tytéž údaje.
+ */
+export interface FortCoreSource {
+  readonly dwellings: PlacementVillage['dwellings'];
+  readonly threshingFloors?: readonly { readonly position: Position }[];
+  readonly grainPits?: readonly { readonly x: number; readonly z: number }[];
+  readonly pens?: PlacementVillage['pens'];
+  readonly fortifications?: readonly FortShapeSource[];
+}
+
 /** Obrysy staveb jádra vsi ve světě – v pevném pořadí stavu vsi. */
-export function fortificationCore(
-  state: Pick<VillageState, 'dwellings' | 'threshingFloors' | 'grainPits' | 'pens'>,
-  geo: GridGeometry,
-): Point[][] {
+export function fortificationCore(state: FortCoreSource, geo: GridGeometry): Point[][] {
   const out: Point[][] = [];
   for (const d of state.dwellings) {
     if (d.plot?.square) {
@@ -65,7 +80,7 @@ function centroid(polygon: readonly Point[]): Point {
 }
 
 /** Jádro bez staveb, které už leží uvnitř stojícího opevnění vsi. */
-function freeCore(state: VillageState, geo: GridGeometry): Point[][] {
+function freeCore(state: FortCoreSource, geo: GridGeometry): Point[][] {
   const lines = (state.fortifications ?? []).flatMap((f) => {
     const outline = fortOutlineOf(geo, f);
     return outline ? [outline.polyline] : [];
@@ -94,8 +109,21 @@ export function proposeFortification(
   kind: FortKind,
   at: RoadPoint,
 ): FortProposal {
-  const village = placementVillageOf(state, day);
-  const core = freeCore(state, landscape);
+  return proposeFortificationIn(landscape, placementVillageOf(state, day), obstacles, kind, at);
+}
+
+/**
+ * Návrh obvodu nad vsí pro kontrolu umístění (`PlacementVillage` + obilné jámy) – totéž co
+ * `proposeFortification`; prohlížeč tak návrh spočte sám ze stejné funkce jako server.
+ */
+export function proposeFortificationIn(
+  landscape: Landscape,
+  village: PlacementVillage & Pick<FortCoreSource, 'grainPits'>,
+  obstacles: ObstacleLayer,
+  kind: FortKind,
+  at: RoadPoint,
+): FortProposal {
+  const core = freeCore(village, landscape);
   const check = (points: Point[]): FortPlacementCheck =>
     checkFortificationPlacement(landscape, village, obstacles, points, kind);
   if (core.length === 0) {

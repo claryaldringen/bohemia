@@ -95,6 +95,7 @@ import { swathBands } from './swath-bands';
 import { tileAt, tileCenter } from './tile-at';
 import { addTrees } from './trees';
 import { FieldPainter } from './field-painting';
+import { FortPointsEditor } from './fort-points-editor';
 import { PlacementOutlines } from './placement-outlines-view';
 import { HoldingsOverlay, type HoldingsOverlaySector } from './holdings-overlay';
 import { ArmyRenderer, type SceneWar } from './army-renderer';
@@ -964,12 +965,11 @@ export class LandscapeScene {
       onPreview: handlers.onPreview ? (preview) => handlers.onPreview?.(preview) : undefined,
     };
     const controller: ActivePlacement =
-      mode.kind === 'squares'
-        ? new FieldPainter(
+      mode.kind === 'fort-points'
+        ? new FortPointsEditor(
             {
               scene: this.scene,
               canvas: this.canvas,
-              landscape,
               pickGround: (x, y) => this.pickGround(x, y),
               decalHeight: (x, z) => village.decalHeight(x, z),
               requestRender,
@@ -977,57 +977,73 @@ export class LandscapeScene {
             mode,
             controlled,
           )
-        : new PlacementController(
-            {
-              scene: this.scene,
-              canvas: this.canvas,
-              pickGround: (x, y) => this.pickGround(x, y),
-              decalHeight: (x, z) => village.decalHeight(x, z),
-              cameraAlpha: () => camera.camera.alpha,
-              cellAt: (x, z) => {
-                const cell = tileAt(landscape, x, z);
-                if (!cell) return null;
-                const center = tileCenter(landscape, cell.x, cell.y);
-                return { cell, x: center.worldX, z: center.worldZ, size: landscape.cellSizeM };
+        : mode.kind === 'squares'
+          ? new FieldPainter(
+              {
+                scene: this.scene,
+                canvas: this.canvas,
+                landscape,
+                pickGround: (x, y) => this.pickGround(x, y),
+                decalHeight: (x, z) => village.decalHeight(x, z),
+                requestRender,
               },
-              plotAt: (x, z, rotation, variant) => {
-                // natočený pozemek (fields.md – Natočené stavby): po 90° políčko pod kurzorem,
-                // jinak čtverec se středem pod kurzorem – v ukládané podobě jako na serveru
-                let cx = x;
-                let cz = z;
-                if ((rotationTurn(rotation) ?? 0) % GRID_TURNS === 0) {
+              mode,
+              controlled,
+            )
+          : new PlacementController(
+              {
+                scene: this.scene,
+                canvas: this.canvas,
+                pickGround: (x, y) => this.pickGround(x, y),
+                decalHeight: (x, z) => village.decalHeight(x, z),
+                cameraAlpha: () => camera.camera.alpha,
+                cellAt: (x, z) => {
                   const cell = tileAt(landscape, x, z);
                   if (!cell) return null;
                   const center = tileCenter(landscape, cell.x, cell.y);
-                  cx = center.worldX;
-                  cz = center.worldZ;
-                }
-                const plot = rotatedPlot(landscape, { x: cx, z: cz, rotation }, variant);
-                if (!plot) return null;
-                const size = landscape.cellSizeM;
-                if (plot.square) return { plot, square: { ...plot.square, size } };
-                const center = tileCenter(landscape, plot.cell.x, plot.cell.y);
-                return { plot, square: { x: center.worldX, z: center.worldZ, size } };
+                  return { cell, x: center.worldX, z: center.worldZ, size: landscape.cellSizeM };
+                },
+                plotAt: (x, z, rotation, variant) => {
+                  // natočený pozemek (fields.md – Natočené stavby): po 90° políčko pod kurzorem,
+                  // jinak čtverec se středem pod kurzorem – v ukládané podobě jako na serveru
+                  let cx = x;
+                  let cz = z;
+                  if ((rotationTurn(rotation) ?? 0) % GRID_TURNS === 0) {
+                    const cell = tileAt(landscape, x, z);
+                    if (!cell) return null;
+                    const center = tileCenter(landscape, cell.x, cell.y);
+                    cx = center.worldX;
+                    cz = center.worldZ;
+                  }
+                  const plot = rotatedPlot(landscape, { x: cx, z: cz, rotation }, variant);
+                  if (!plot) return null;
+                  const size = landscape.cellSizeM;
+                  if (plot.square) return { plot, square: { ...plot.square, size } };
+                  const center = tileCenter(landscape, plot.cell.x, plot.cell.y);
+                  return { plot, square: { x: center.worldX, z: center.worldZ, size } };
+                },
+                ghostModel: (type) => village.ghostModel(type),
+                baseHeight: (type, position) => {
+                  if (type === 'idol' || type === 'shrine') {
+                    return village.sacredBaseHeight(type, position);
+                  }
+                  // milíř uhlíře se měří u svého místa – `position` je poloha zemnice
+                  if (type === 'milir') return village.milirBaseHeight(position);
+                  const base = mode.kind === 'workshop' ? mode.type : null;
+                  return village.baseHeight({ type: base ?? (type as DwellingType), position });
+                },
+                requestRender,
               },
-              ghostModel: (type) => village.ghostModel(type),
-              baseHeight: (type, position) => {
-                if (type === 'idol' || type === 'shrine') {
-                  return village.sacredBaseHeight(type, position);
-                }
-                // milíř uhlíře se měří u svého místa – `position` je poloha zemnice
-                if (type === 'milir') return village.milirBaseHeight(position);
-                const base = mode.kind === 'workshop' ? mode.type : null;
-                return village.baseHeight({ type: base ?? (type as DwellingType), position });
-              },
-              requestRender,
-            },
-            mode,
-            controlled,
-          );
+              mode,
+              controlled,
+            );
     this.placement = controller;
-    if (mode.kind === 'squares') this.outlines?.show(this.villageState);
-    else this.outlines?.hide();
-    if (mode.kind !== 'squares') {
+    if (mode.kind === 'squares' || mode.kind === 'fort-points') {
+      this.outlines?.show(this.villageState);
+    } else {
+      this.outlines?.hide();
+    }
+    if (mode.kind !== 'squares' && mode.kind !== 'fort-points') {
       // Model ducha se načte (jednou) a pak naskočí pod kurzorem.
       const models =
         mode.kind === 'sacred'
