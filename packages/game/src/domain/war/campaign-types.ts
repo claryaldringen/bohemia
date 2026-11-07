@@ -120,9 +120,11 @@ export interface CampaignLoot {
 export type CampaignReturnReason = 'arrived' | 'supplies' | 'order' | 'routed';
 
 /** Tažení – celý stav, ze kterého se počítá další takt. */
-/** Host z ochrany v boji: záporné číslo bojovníka, domovská osoba a co potřebuje zajetí. */
+/** Host (z ochrany pánem nebo ze svolání) v boji: záporné číslo bojovníka, domovská osoba a co potřebuje zajetí. */
 export interface CampaignGuard {
   id: number;
+  /** Druh hosta; chybí = ochrana (starší stav tažení). */
+  kind?: 'service';
   ref: PersonRef;
   name?: string;
   noble?: true;

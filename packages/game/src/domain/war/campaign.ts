@@ -712,8 +712,8 @@ function campaignBattle(s: CampaignState, ctx: TickContext, field: BattleField):
 }
 
 /**
- * Hosté z ochrany v cílové vsi (`guests` druhu `protection`), kteří jsou opravdu tam: osoba ve
- * stavu domovské vsi (ke dni `s.day − 1` – jinak takt čeká) je pryč u této vsi a od 16 let.
+ * Hosté z ochrany i ze svolání v cílové vsi (`guests` druhu `protection` / `service`), kteří jsou
+ * opravdu tam: osoba ve stavu domovské vsi (ke dni `s.day − 1` – jinak takt čeká) je pryč u této vsi s týmž druhem a od 16 let.
  * Pořadí podle domovské vsi a osoby; čísla v boji −1, −2, …
  */
 function guardGuestsOf(
@@ -721,28 +721,33 @@ function guardGuestsOf(
   village: VillageState,
   ctx: TickContext,
 ): { guest: GuardGuest; guard: CampaignGuard }[] {
-  const refs = (village.guests ?? [])
-    .filter((g) => g.kind === 'protection')
-    .map((g) => g.ref)
+  const entries = (village.guests ?? [])
+    .filter((g) => g.kind === 'protection' || g.kind === 'service')
+    .map((g) => ({ ref: g.ref, kind: g.kind as 'protection' | 'service' }))
     .sort((a, b) =>
-      a.villageId === b.villageId ? a.personId - b.personId : a.villageId < b.villageId ? -1 : 1,
+      a.ref.villageId === b.ref.villageId
+        ? a.ref.personId - b.ref.personId
+        : a.ref.villageId < b.ref.villageId
+          ? -1
+          : 1,
     );
+  const refs = entries.map((e) => e.ref);
   const missing = [...new Set(refs.map((r) => r.villageId))].filter(
     (id) => ctx.world.villageAt(id, s.day) === null,
   );
   if (missing.length > 0) throw new MissingData([], missing);
   const out: { guest: GuardGuest; guard: CampaignGuard }[] = [];
-  for (const ref of refs) {
+  for (const { ref, kind } of entries) {
     const home = ctx.world.villageAt(ref.villageId, s.day)!;
     const p = home.people.find((x) => x.id === ref.personId);
-    if (!p || p.away?.kind !== 'protection' || p.away.hostVillageId !== s.target.villageId)
-      continue;
+    if (!p || p.away?.kind !== kind || p.away.hostVillageId !== s.target.villageId) continue;
     if (!isAway(p, s.day) || ageYears(p.bornDay, s.day) < WAR.army.minAge) continue;
     const id = -(out.length + 1);
     out.push({
       guest: { id, person: structuredClone(p) },
       guard: {
         id,
+        ...(kind === 'service' ? { kind } : {}),
         ref: { ...ref },
         ...(p.name === undefined ? {} : { name: p.name }),
         ...(p.noble ? { noble: true as const } : {}),
@@ -957,9 +962,13 @@ function reportGuards(
       captorVillageId: s.assembly.villageId,
     });
   }
-  const gone = [...fallen, ...captured].map((g) => ({ ...g.ref }));
-  if (gone.length > 0) {
-    post(s, out, s.target.villageId, { kind: 'guests-leave', away: 'protection', guests: gone });
+  for (const away of ['protection', 'service'] as const) {
+    const gone = [...fallen, ...captured]
+      .filter((g) => (g.kind ?? 'protection') === away)
+      .map((g) => ({ ...g.ref }));
+    if (gone.length > 0) {
+      post(s, out, s.target.villageId, { kind: 'guests-leave', away, guests: gone });
+    }
   }
   return captured;
 }

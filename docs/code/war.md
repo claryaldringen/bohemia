@@ -586,8 +586,9 @@ today })` (pán, jen muži rodu schopní služby z vlastních vsí, do vsi vazal
   `recallProtection(deps, { playerId, vassalageId, villageId, today })` – schránka chráněné vsi
   `guests-leave` (dnes, `dismissGuests`), domovské vsi `away-ends` (`endAway` – návrat za 2 dny na
   políčko); `protection-recalled`. Odkaz `protectionRef` = `protection:<dohoda>:<ves>`.
-- **Hosté z ochrany v boji** – `campaignBattle` → `guardGuestsOf`: hosté cílové vsi druhu
-  `protection`, jejichž osoba (stav domovské vsi ke dni `d − 1` přes `villageAt`, jinak
+- **Hosté z ochrany a ze svolání v boji** – `campaignBattle` → `guardGuestsOf`: hosté cílové vsi
+  druhu `protection` i `service` (svolání; `CampaignGuard.kind = 'service'`, `guests-leave` se pošle
+  zvlášť pro každý druh; muž, který odešel s tažením, má `away.kind = 'campaign'` a nebrání), jejichž osoba (stav domovské vsi ke dni `d − 1` přes `villageAt`, jinak
   `MissingData` – takt čeká) je pryč právě u cíle a má 16 let; čísla v boji −1, −2, … (pořadí ves,
   osoba), paměť `CampaignState.guards` (`CampaignGuard` – číslo, `ref`, jméno, šlechtic).
   `defenderRoster(state, day, { guests })` je přidá za lidi vsi (`GuardGuest`, `Defender.guest` –
