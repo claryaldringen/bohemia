@@ -1,4 +1,4 @@
-// Kolikrát pokus prémiové krajiny generuje vrstvy (úloha 4 – rozhodnutí: typ, který mění terén,
+// Kolikrát pokus prémiové krajiny generuje vrstvy (rozhodnutí: typ, který mění terén,
 // nepočítá průměrné vrstvy zbytečně). Uložené sídlo (`generateLandscapeAttempt`) potřebuje jen
 // prémiovou krajinu, přijetí nového sídla (`generateAcceptedLandscape`) i průměrnou krajinu
 // pokusu kvůli pásmu – terén se pak pro průchod jen zkopíruje, negeneruje znovu.

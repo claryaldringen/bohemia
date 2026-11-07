@@ -51,8 +51,21 @@ export interface ObstacleGroups {
 type Exhaustive<K, L extends readonly K[]> = [Exclude<K, L[number]>] extends [never] ? L : never;
 
 /**
- * Skupiny v pořadí vrstvy – zdroje překážek (a tedy id) rostou. Nová skupina v `ObstacleGroups`,
- * která tu chybí, je chyba typu (`Exhaustive`) – jinak by se jí nečistilo místo ani nepřidala.
+ * Skupiny prémiových typů – v krajině je nejvýš jedna neprázdná; kolem jejích překážek se
+ * uvolní místo ve všech ostatních skupinách, prémiové skupiny se navzájem nečistí.
+ */
+const PREMIUM_LIST = [
+  'beeTrees',
+  'springRocks',
+  'quarryRocks',
+  'oreRocks',
+] as const satisfies readonly (keyof ObstacleGroups)[];
+const PREMIUM_GROUPS: ReadonlySet<keyof ObstacleGroups> = new Set(PREMIUM_LIST);
+
+/**
+ * Skupiny v pořadí vrstvy – zdroje překážek (a tedy id) rostou, prémiové skupiny nakonec. Nová
+ * skupina v `ObstacleGroups`, která tu chybí, je chyba typu (`Exhaustive`) – jinak by se jí
+ * nečistilo místo ani nepřidala.
  */
 const GROUP_LIST = [
   'edge',
@@ -63,23 +76,9 @@ const GROUP_LIST = [
   'deadwood',
   'rocksAndShrubs',
   'cliffRocks',
-  'beeTrees',
-  'springRocks',
-  'quarryRocks',
-  'oreRocks',
+  ...PREMIUM_LIST,
 ] as const satisfies readonly (keyof ObstacleGroups)[];
 const GROUP_ORDER: Exhaustive<keyof ObstacleGroups, typeof GROUP_LIST> = GROUP_LIST;
-
-/**
- * Skupiny prémiových typů – v krajině je nejvýš jedna neprázdná; kolem jejích překážek se
- * uvolní místo ve všech ostatních skupinách, prémiové skupiny se navzájem nečistí.
- */
-const PREMIUM_GROUPS: ReadonlySet<keyof ObstacleGroups> = new Set([
-  'beeTrees',
-  'springRocks',
-  'quarryRocks',
-  'oreRocks',
-]);
 
 /** Skupiny po úpravě `clear` – prémiové skupiny zůstanou, jak jsou. */
 function mapGroups(

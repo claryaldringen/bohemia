@@ -463,6 +463,7 @@ describe('salt-spring a sacred-spring – prameny', () => {
         expect(surfaceAtWorld(premium, spring.x, spring.z)).not.toBe(SURFACE_CODES.water);
         const layer = obstaclesOf(premium);
         let rocks = 0;
+        let outcrops = 0;
         let others = 0;
         for (let i = 0; i < layer.count; i++) {
           const near = Math.hypot(layer.x[i]! - spring.x, layer.z[i]! - spring.z);
@@ -470,11 +471,12 @@ describe('salt-spring a sacred-spring – prameny', () => {
           const source = Math.floor(layer.id[i]! / 4_194_304);
           if (source === OBSTACLE_SOURCES.springRock) {
             rocks++;
-            if (obstacleKind(layer, i) === 'outcrop') rocks += 10;
+            if (obstacleKind(layer, i) === 'outcrop') outcrops++;
           } else if (near < SPRINGS.clearingM) others++;
         }
         // Skalka = výchoz a balvany kolem pramene; u pramene nic jiného.
-        expect(rocks).toBeGreaterThanOrEqual(12);
+        // Výchoz se počítá za deset balvanů (dohromady aspoň 12).
+        expect(rocks + 10 * outcrops).toBeGreaterThanOrEqual(12);
         expect(others).toBe(0);
       }
     },
@@ -482,7 +484,7 @@ describe('salt-spring a sacred-spring – prameny', () => {
   );
 
   it(
-    'průměrná krajina ani jiný typ skalku pramene nemají',
+    'průměrná krajina skalku pramene nemá',
     () => {
       const { average } = pairs('sacred-spring', 1)[0]!;
       const layer = obstaclesOf(average);

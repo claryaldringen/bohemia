@@ -53,21 +53,33 @@ describe('building-stone – lom ve skalní stěně', () => {
     () => {
       for (const { premium } of pairs('building-stone', SAMPLE)) {
         const quarry = onlySite(premium, 'quarry');
-        // Obrys: hrana stěny (rohy 0 a 3) a úpatí se sutí (rohy 1 a 2).
-        const [b0, f0, f1, b1] = quarry.outline! as [number, number][];
+        // Obrys je obdélník: dva rohy dál od vsi jsou hrana stěny, dva bližší úpatí se sutí
+        // (nezávisle na pořadí rohů). Rohy úpatí se seřadí podle protějších rohů hrany.
+        const c = village(premium);
+        const [back0, back1, foot0, foot1] = [...(quarry.outline! as [number, number][])].sort(
+          (p, q) => Math.hypot(q[0] - c.x, q[1] - c.z) - Math.hypot(p[0] - c.x, p[1] - c.z),
+        ) as [[number, number], [number, number], [number, number], [number, number]];
+        const b0 = back0;
+        const b1 = back1;
+        const straight =
+          Math.hypot(b0[0] - foot0[0], b0[1] - foot0[1]) +
+          Math.hypot(b1[0] - foot1[0], b1[1] - foot1[1]);
+        const crossed =
+          Math.hypot(b0[0] - foot1[0], b0[1] - foot1[1]) +
+          Math.hypot(b1[0] - foot0[0], b1[1] - foot0[1]);
+        const [f0, f1] = straight <= crossed ? [foot0, foot1] : [foot1, foot0];
         const drops: number[] = [];
         for (const t of [0.1, 0.3, 0.5, 0.7, 0.9]) {
-          const back = lerp(b0!, b1!, t);
-          const front = lerp(f0!, f1!, t);
+          const back = lerp(b0, b1, t);
+          const front = lerp(f0, f1, t);
           drops.push(heightAtWorld(premium, ...back) - heightAtWorld(premium, ...front));
         }
         const mean = drops.reduce((a, b) => a + b, 0) / drops.length;
         expect(mean).toBeGreaterThanOrEqual(10);
         expect(Math.min(...drops)).toBeGreaterThanOrEqual(6);
         // Čelo míří ke vsi – úpatí je vsi blíž než hrana.
-        const c = village(premium);
-        const middle = lerp(b0!, b1!, 0.5);
-        const foot = lerp(f0!, f1!, 0.5);
+        const middle = lerp(b0, b1, 0.5);
+        const foot = lerp(f0, f1, 0.5);
         expect(Math.hypot(foot[0] - c.x, foot[1] - c.z)).toBeLessThan(
           Math.hypot(middle[0] - c.x, middle[1] - c.z),
         );

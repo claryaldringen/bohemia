@@ -27,6 +27,7 @@ import {
   VILLAGE_ROUTE,
   villageBypass,
 } from './route';
+import { promontorySiteOf } from './relief';
 import type { PremiumSite } from './types';
 
 // Prémiové typy vody (premium-landscapes.md – Typy krajin): splavná řeka, vyvýšenina nad brodem
@@ -186,13 +187,7 @@ function portSite(l: Landscape): PremiumSite | null {
 function promontorySite(l: Landscape, kind: 'ford-hill' | 'confluence'): PremiumSite | null {
   const promontory = promontoriesOf(l).find((p) => p.kind === kind);
   if (!promontory) return null;
-  const h = half(l);
-  const world = (p: { x: number; y: number }): WorldPoint => [
-    -h + (p.x + 0.5) * l.cellSizeM,
-    -h + (p.y + 0.5) * l.cellSizeM,
-  ];
-  const [x, z] = world(promontory.center);
-  return { kind: 'promontory', x, z, outline: promontory.outline.map(world) };
+  return promontorySiteOf(l, promontory);
 }
 
 // ── Stezka přes brod ─────────────────────────────────────────────────────────────────────────

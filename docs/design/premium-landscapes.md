@@ -210,15 +210,16 @@ v práci teprve změří. **Louka do 600 m** = louka do 600 m od místa pro vesn
   prémiové krajině platí jen dolní meze pásma. Doubravy mají podíl lesa jako průměrná (medián
   62,5 %, rozdíl je ve složení lesa).
 - Nejčastěji opakuje pokus soutok (40 % na první pokus), průsmyk a jižní svahy (63 %) – stále
-  hluboko pod `MAX_ATTEMPTS`; úloha 2 plánu hlídá ≥ 95 % na 300 seedech.
+  hluboko pod `MAX_ATTEMPTS`; test pásma hlídá ≥ 95 % na 300 seedech.
 
 ## Generátor
 
 - **Verze:** prémiové krajiny jsou nové vrstvy nebo nové verze vrstev krajiny (landscape.md –
   verze vrstev). Průměrná krajina NPC = dnešní `CURRENT_LAYER_VERSIONS` beze změny. Uložená
   sídla se nemění.
-- **Pásmo:** prémiová krajina musí projít pásmem srovnatelnosti jako ostatní (`band.ts`) – louky
-  u vsi, les, voda – a navíc kontrolou svého typu (ložisko existuje, brod je přístupný ze vsi,
+- **Pásmo:** celé pásmo srovnatelnosti (`band.ts`) platí na průměrné krajině téhož pokusu;
+  prémiová krajina musí projít jen jeho dolními mezemi (louky u vsi, les, voda) – horní meze
+  na ní neplatí – a navíc kontrolou svého typu (ložisko existuje, brod je přístupný ze vsi,
   řeka vede od vstupu k výstupu…).
 - **Data:** krajina nese typ a jeho prvky (naleziště, brod, průsmyk, pramen, ostrožna – obrysy
   a body) jako čistou funkci krajiny, stejně v prohlížeči i na serveru (determinismus –
