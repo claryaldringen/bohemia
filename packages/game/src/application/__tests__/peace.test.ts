@@ -261,6 +261,18 @@ describe('mírové jednání', () => {
     });
   });
 
+  describe('lidé v poplatku (war.md – Konec války)', () => {
+    it('poplatek smí obsahovat lidi, robotu ne', async () => {
+      const w = await world();
+      const people = bundle({ grainKg: 0, people: { families: 0, men: 2, women: 0 } });
+      const ok = await agree(w, 'a', peace({ fee: people, payer: w.c }));
+      expect(ok.ok).toBe(true);
+      const w2 = await world();
+      const labor = await agree(w2, 'a', peace({ fee: bundle({ laborDays: 5 }), payer: w2.c }));
+      expect(labor).toMatchObject({ ok: false, reason: PEACE_REASONS.badFee });
+    });
+  });
+
   describe('tribut', () => {
     it('chodí v Odvodech 1. 11. jako dialog tribute-send plátci', async () => {
       const w = await world();

@@ -59,7 +59,7 @@ vojska mapu po mapě (Ú6.4); tažení po taktech, boj a dohra přibývají v da
   `{ fee?, payer?, vassalage?: { lord, vassal, terms }, tribute?: { goods, payer }, cede?, releasePrisoners? }`;
   všechno volitelné, mír bez podmínek smí. Otevře, protinávrhuje, přijímá a odmítá se jako běžné jednání
   (`openNegotiation` / `counterNegotiation` / `acceptNegotiation`; stejně jako `war-demand` nepotřebuje
-  přísahu ani dohodu). `checkPeaceItems` hlídá tvar (poplatek a tribut jen zboží bez lidí, plátce je strana,
+  přísahu ani dohodu). `checkPeaceItems` hlídá tvar (poplatek smí být zboží i lidé (ne robota; `answerTrade` je u `fee-send` povolí jako u rozsudku), tribut jen zboží bez lidí, plátce je strana,
   vazalství mezi stranami), `checkPeaceRound` v `negotiate.ts` navíc běžící válku a postoupení vsí.
   `termLinesOf` řádek míru nezahrnuje.
 - **Přijetí** (`PEACE` účinek v `negotiation-effects.ts`, v transakci): válka `peace` (`wars.end`, souběžné

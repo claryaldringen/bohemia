@@ -729,8 +729,10 @@ async function answerTrade(
   const sender = await deps.houses.activeOf(input.playerId);
   if (!sender || sender.id !== body.fromHouseId) return { ok: false, reason: NOT_YOUR_DIALOG };
   for (const bundle of Object.values(input.split)) {
-    // rozsudek smí ukládat i lidi (vrácení lidí); obchod, poplatek a tribut jen zboží
-    if (dialog.kind !== 'judgment' && !isEmptyBundle(bundle) && checkAidBundle(bundle) !== null) {
+    // rozsudek smí ukládat i lidi (vrácení lidí) a poplatek z míru také (war.md – Konec války);
+    // obchod a tribut jen zboží
+    const withPeople = dialog.kind === 'judgment' || dialog.kind === 'fee-send';
+    if (!withPeople && !isEmptyBundle(bundle) && checkAidBundle(bundle) !== null) {
       return { ok: false, reason: TRADE_REASONS.badGoods };
     }
   }
