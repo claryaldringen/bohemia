@@ -129,6 +129,18 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   Krajina bez typu (NPC, Vlkov, dnešní hráči) prémiovým průchodem neprojde – zlaté otisky všech
   verzí i vrstvy překážek beze změny. **Vrstvu překážek krajiny s typem** mění i průchod typu
   (`premium/`), `patches.ts` a rozmisťovače `obstacles/bee-trees.ts`, `spring-rocks.ts`
-  a `premium-rocks.ts` – po ostrém spuštění nová `PREMIUM_LAYER_VERSION`. Pravidla vsi a války
-  (`wildlife-land.ts`, `march-grid.ts`) zatím čtou jen osu potoka (`streamCenterline`), řeku ne –
-  účinky typů jsou až úloha 7 plánu.
+  a `premium-rocks.ts` – po ostrém spuštění nová `PREMIUM_LAYER_VERSION`. Pochod války
+  (`march-grid.ts`) čte osu všech vod (`watersCenterline`), loviště ryb vsi (`wildlife-land.ts`)
+  i bod řeky (`riverCenterline`). **Účinky typů „hned“** (premium-landscapes.md – Typy krajin,
+  sloupec „Hned“; čísla `PREMIUM_EFFECTS` v `rules-premium.ts`) jdou přes existující mechaniky
+  vsi – `village/premium-effects.ts` a `village/premium-route.ts`, krajina bez typu ves nemění
+  (zlaté otisky vsí): bohatá ruda a dobrá hlína (`premiumDugSpot`, `OreSite.rich` – rudiště
+  a hliniště na prvku typu, polovina suroviny na kg výrobku – `dugMaterialFactor`, ložisko se
+  nevyčerpá; village-crafts.md), sad na jižním svahu (`markSunnyOrchards` – krok dne,
+  `OrchardSquare.sunny`, úroda × 1,25), posvátná hora a pramen (`premiumSacredHappiness` – +10 jako
+  háj mezi háji, do stropů posvátných míst; `sacredHappiness`, `happinessFactors`,
+  `updateHappiness`, `summarizeVillage(…, landscape)`, `sacredLaborGainPerYear`), pramen
+  a slanisko jako voda pro pole, sad a hřbitov (`premiumSpringShapes` v `squareFlags`), stezka
+  kostry brodu a průsmyku (`withPremiumRoute` ve `foundedState` – osa `route` jako upravené pevné
+  cesty s průsekem lesem bez klád a hotová zemská stezka v obou směrech, kam vede; trade.md).
+  Úrodná krajina, doubravy a nivní louky působí samy přes krajinu.

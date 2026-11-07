@@ -1,7 +1,13 @@
 // Krajina zvěře do 1 km od středu vsi (wildlife.md – Kde zvěř žije a kolik jí je).
 // Počítá se jen při převodu a 1. 5. – jednou ročně, ne po dílech.
 
-import { streamCenterline, surfaceAt, tileCenterWorld, type Landscape } from '../landscape';
+import {
+  riverCenterline,
+  streamCenterline,
+  surfaceAt,
+  tileCenterWorld,
+  type Landscape,
+} from '../landscape';
 import { villageOrigin } from './placement-squares';
 import { villageLandSquares } from './squares';
 import type { VillageState, WildlifeLand } from './types';
@@ -349,17 +355,25 @@ function streamSpot(
   origin: { x: number; z: number },
   reach2: number,
 ): FishingPool | null {
-  if (landscape.stream.length < 2) return null;
-  const points = streamCenterline(landscape).points;
+  // potok i řeka prémiové krajiny (osa řeky tůně nemá – loviště jen bodem nejblíž vsi)
+  const river = riverCenterline(landscape);
+  const lines = [
+    ...(landscape.stream.length >= 2 ? [streamCenterline(landscape).points] : []),
+    ...(river ? [river.points] : []),
+  ];
+  let points = lines[0] ?? [];
   let best = -1;
   let bestD = reach2;
-  points.forEach((p, k) => {
-    const d = (p.x - origin.x) * (p.x - origin.x) + (p.z - origin.z) * (p.z - origin.z);
-    if (d <= bestD) {
-      bestD = d;
-      best = k;
-    }
-  });
+  for (const line of lines) {
+    line.forEach((p, k) => {
+      const d = (p.x - origin.x) * (p.x - origin.x) + (p.z - origin.z) * (p.z - origin.z);
+      if (d <= bestD) {
+        bestD = d;
+        best = k;
+        points = line;
+      }
+    });
+  }
   if (best < 0) return null;
   const point = points[best]!;
   const next = points[Math.min(points.length - 1, best + 1)]!;

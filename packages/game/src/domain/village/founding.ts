@@ -9,6 +9,7 @@ import { fieldPartsFromCells } from './placement-fields';
 import { forestEdgeDistanceM, withLivestockLand } from './placement-squares';
 import type { PlacementVillage } from './placement-types';
 import { withPlots } from './plots';
+import { withPremiumRoute } from './premium-route';
 import { withDwellingShapes } from './shape-migration';
 import type { Position, TileCell, VillageState } from './types';
 import { withWeatherSeed } from './weather';
@@ -88,13 +89,19 @@ export function foundedState(
   // nová ves nemá polozemnice bez pozemku – rovnou převedená (`withPlots` ji už nebude měnit),
   // první zemnice má svou variantu rozměrů od umístění (`withDwellingShapes` jen zapíše příznak);
   // louka a les do 600 m od první zemnice – pastva a žaludy výchozího stáda (diet.md)
-  const state = withLivestockLand(
-    withDwellingShapes(
-      withPlots(withWeatherSeed(founded, weatherSeed), input.landscape, obstacles),
+  // stezka kostry prémiové krajiny (brod, průsmyk) – hotová od založení (premium-landscapes.md)
+  const state = withPremiumRoute(
+    withLivestockLand(
+      withDwellingShapes(
+        withPlots(withWeatherSeed(founded, weatherSeed), input.landscape, obstacles),
+        input.landscape,
+        obstacles,
+      ),
       input.landscape,
-      obstacles,
     ),
     input.landscape,
+    obstacles,
+    input.today,
   );
   return { ok: true, state };
 }

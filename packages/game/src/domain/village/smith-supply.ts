@@ -16,6 +16,7 @@ import { PATH_FOREST, PATH_WATER_SPOT, PATH_WETLAND } from './paths/terrain';
 import { groundSpots, villageRoadWalk, walkGroundOf } from './paths/walking';
 import { kilnPoint, workshopKilns } from './charcoal';
 import { smeltOreKg } from './iron-rates';
+import { premiumDugSpot } from './premium-effects';
 import {
   CARTS,
   CART_JOBS,
@@ -511,6 +512,15 @@ export function chooseDugSite(
   const free = (p: { x: number; z: number }): boolean =>
     land.containing(p.x, p.z).length === 0 &&
     homes.every((h) => length2(h.x - p.x, h.z - p.z) >= ORE_SITE_HOME_M);
+  // bohaté naleziště prémiové krajiny (premium-landscapes.md – Bohatá železná ruda, Dobrá
+  // keramická hlína): dílna kope na prvku typu, dokud tam nekope jiná dílna a místo je volné
+  const rich = premiumDugSpot(landscape, material);
+  if (rich && awayFromUsed(rich, others) && free(rich)) {
+    const walkM = villageRoadWalk(state, landscape)(from, [rich])[0]!;
+    if (Number.isFinite(walkM)) {
+      return { ...rich, minedKg: 0, day, walkM: Math.round(walkM * 100) / 100, rich: true };
+    }
+  }
   const nearest = (
     flag: number,
     ok?: (p: { x: number; z: number }) => boolean,
@@ -751,7 +761,8 @@ export function workDug(
     const stock = workshop[spec.stock] ?? 0;
     let site = workshop[spec.site];
     if (site && depositLeftKg(site, material) <= EPSILON) {
-      (workshop[spec.used] ??= []).push({ x: site.x, z: site.z });
+      // bohaté naleziště se nevyčerpá – další ložisko na témž místě (OreSite.rich)
+      if (!site.rich) (workshop[spec.used] ??= []).push({ x: site.x, z: site.z });
       site = undefined;
       workshop[spec.site] = undefined;
     }

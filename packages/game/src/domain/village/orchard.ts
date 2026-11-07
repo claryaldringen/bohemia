@@ -9,6 +9,7 @@ import {
   ORCHARD_PLANTING_WINDOWS,
   ORCHARD_SEASON,
   ORCHARD_WINDOWS,
+  PREMIUM_EFFECTS,
   ROAD_APPLES,
   type WindowSegment,
 } from './rules';
@@ -119,7 +120,9 @@ export function squareYieldKg(square: OrchardSquare, day: number): number {
 function squareYieldKgInSeason(square: OrchardSquare, season: number): number {
   if (square.plantedDay === null) return 0;
   const share = orchardYieldShare(season - firstOrchardSeason(square.plantedDay) + 1);
-  return ORCHARD.fullYieldKgPerHa * (square.areaM2 / M2_PER_HA) * share;
+  const kg = ORCHARD.fullYieldKgPerHa * (square.areaM2 / M2_PER_HA) * share;
+  // teplý jižní svah prémiové krajiny (premium-landscapes.md – Teplé jižní svahy)
+  return square.sunny ? kg * PREMIUM_EFFECTS.southSlopeOrchard : kg;
 }
 
 /**

@@ -356,7 +356,7 @@ export function buildVillageView(
   // opuštěná ves jen jako pohled (migration.md)
   const state = abandonedVillageAt(record.state, day);
   const obstacles = obstaclesOf(landscape);
-  const summary = summarizeVillage(state, day, obstacles);
+  const summary = summarizeVillage(state, day, obstacles, landscape);
   const gameOver = context.gameOver ?? false;
   const leave = leaveOptions(state, landscape, context.ownMaps ?? {}, context.mapsBlocked ?? null);
   const persons = scenePersons(state, day);

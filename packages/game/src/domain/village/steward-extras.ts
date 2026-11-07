@@ -68,6 +68,7 @@ import { planTrail, villageTrails, DIRECTIONS } from './trail';
 import { DIRECTION_VECTORS } from './trail-axis';
 import { planWagonRoad, wagonPlanInputOf } from './wagon-road';
 import type { HerdSpecies, PenSpecies, Road, VillageState } from './types';
+import { premiumSacredHappiness } from './premium-effects';
 
 // Kroky 5 až 10 dne správce (steward.md – Rozhodovací pořadí v den správce, Ostatní stavby):
 // hřbitov, humno, ohrady, sad a jabloně u cest, posvátná místa, cesty. Každý krok začne nejvýš
@@ -422,15 +423,17 @@ export function roadApplesStep(state: VillageState, ctx: StewardContext): void {
  * návratnosti): štěstí stavby (`sacredBuildingHappiness`) nad dnešní posvátná místa jen do stropu
  * `HAPPINESS_BONUS.sacredMax` a dnešní štěstí jen do `HAPPINESS.max`; rozdíl násobku práce
  * (`happinessLaborFactor` – pod 50 dvakrát strmější) × roční práce lidí vsi (`laborPerDay` × 365
- * – štěstí násobí veškerou práci). `obstacles` – stáří posvátných dubů (bez vrstvy nejmladší).
+ * – štěstí násobí veškerou práci). `obstacles` – stáří posvátných dubů (bez vrstvy nejmladší),
+ * `premiumSacred` – posvátné místo prémiové krajiny (`premiumSacredHappiness`).
  */
 export function sacredLaborGainPerYear(
   state: VillageState,
   day: number,
   kind: 'idol' | 'shrine',
   obstacles: StewardContext['obstacles'] | null,
+  premiumSacred = 0,
 ): number {
-  const sacred = sacredHappiness(state, day, obstacles);
+  const sacred = sacredHappiness(state, day, obstacles, premiumSacred);
   const points =
     Math.min(HAPPINESS_BONUS.sacredMax, sacred + sacredBuildingHappiness(kind)) - sacred;
   if (points <= 0) return 0;
@@ -458,7 +461,8 @@ export function sacredStep(state: VillageState, ctx: StewardContext): void {
   if (!kind) return;
   const cost = SACRED_BUILDINGS[kind].laborManDays;
   const years = STEWARD.sacredPaybackYears[ctx.mode];
-  if (sacredLaborGainPerYear(state, ctx.day, kind, ctx.obstacles) * years < cost) return;
+  const premium = premiumSacredHappiness(ctx.landscape);
+  if (sacredLaborGainPerYear(state, ctx.day, kind, ctx.obstacles, premium) * years < cost) return;
   if (!fits(state, ctx, 'sacred', cost)) return;
   const centre = planCentre(state);
   if (!centre) return;

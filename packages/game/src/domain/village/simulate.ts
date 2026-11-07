@@ -87,6 +87,7 @@ import { famineMemoryDay } from './weather-effects';
 import { damageWindowStart, wildlifeDamageDay, wildlifeSeasonEnd } from './wildlife-damage';
 import { lordFieldMode, trainLordDay, updateLordTraining } from './lord';
 import { dynastyDay } from './succession';
+import { markSunnyOrchards, premiumSacredHappiness } from './premium-effects';
 
 /**
  * Dopočítá ves do dne `toDay` včetně – den po dni od `lastDay + 1`. Vstup nemění.
@@ -242,6 +243,9 @@ function* simulateDaySteps(
   state.chronicle.push(...weatherDay(state, day));
   // 1. 4.: ochrana dílů před počasím ze zeleně a vlhkosti (disasters.md – Ochrana dílu)
   partProtectionDay(state, day, landscape, obstacles);
+  // sady na teplém jižním svahu prémiové krajiny (premium-landscapes.md – Teplé jižní svahy) –
+  // i sad založený správcem včera
+  if (landscape) markSunnyOrchards(state, landscape);
   // psi dvorce 1. 5.: úbytek a štěňata (wildlife.md – Psi)
   dogsYear(state, day);
   // velký lov rodu: kdo dnes loví – pěší lovci jsou mimo práci vsi (wildlife.md – Lov rodu)
@@ -416,6 +420,7 @@ function* simulateDaySteps(
     fruit,
     obstacles,
     meatShare: meat,
+    premiumSacred: premiumSacredHappiness(landscape),
   });
   if (state.people.length === 0) {
     // zemřel poslední člověk – ves vymřela, dál se nesimuluje (ani sklizeň dne)

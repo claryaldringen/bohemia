@@ -1,5 +1,6 @@
 import { TOTAL_GAME_DAYS } from '../calendar';
-import { length2, type ObstacleLayer } from '../landscape';
+import { length2, type Landscape, type ObstacleLayer } from '../landscape';
+import { premiumSacredHappiness } from './premium-effects';
 import { moundPlaces, usedPlaces } from './burials';
 import {
   burialOrder,
@@ -810,11 +811,15 @@ function stalled(state: VillageState): boolean {
   );
 }
 
-/** Souhrn vsi v den `day` (stav má být dopočítaný do tohoto dne). */
+/**
+ * Souhrn vsi v den `day` (stav má být dopočítaný do tohoto dne); `landscape` – posvátné místo
+ * prémiové krajiny ve štěstí (bez krajiny se nepočítá).
+ */
 export function summarizeVillage(
   state: VillageState,
   day: number,
   obstacles: ObstacleLayer | null = null,
+  landscape: Landscape | null = null,
 ): VillageSummary {
   const needPerDay = state.people.reduce((sum, p) => sum + foodNeedPerDay(p, day), 0);
   const diet = nextDayDiet(state, day);
@@ -861,7 +866,7 @@ export function summarizeVillage(
       ageYears: orchardAgeYears(o, day),
       expectedYieldKg: orchardExpectedYieldKg(o, day),
     })),
-    happiness: happinessSummary(state, day, diet, obstacles),
+    happiness: happinessSummary(state, day, diet, obstacles, premiumSacredHappiness(landscape)),
     sacred: sacredSummary(state, day, obstacles),
     crafts: craftsSummary(state, day),
   };
@@ -1009,6 +1014,7 @@ function happinessSummary(
   day: number,
   diet: DietDay,
   obstacles: ObstacleLayer | null,
+  premiumSacred: number,
 ): HappinessSummary {
   const value = villageHappiness(state);
   const factors = happinessFactors(
@@ -1018,6 +1024,7 @@ function happinessSummary(
     diet.shares.fruit > 0,
     obstacles,
     diet.shares.meat,
+    premiumSacred,
   );
   return {
     value,
