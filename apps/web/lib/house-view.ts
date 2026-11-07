@@ -6,6 +6,8 @@ import {
   type HousePanelData,
   type HungerLevel,
   type PanelAgreement,
+  type PanelDispute,
+  type Verdict,
   type PanelTreeNode,
   type PanelPlayerActions,
   type PersonRef,
@@ -69,6 +71,31 @@ export interface WarView {
   otherVillages: { id: string; name: string; settlementId: string; asleep: boolean }[];
 }
 
+/** Spor hráčova rodu v panelu (vassalage.md – Mír a spory). */
+export interface DisputeView {
+  id: string;
+  role: PanelDispute['role'];
+  lord: HouseLinkView;
+  plaintiff: HouseLinkView;
+  defendant: HouseLinkView;
+  /** Jména hlav rodů do vět („Dalibor žaluje Ctibora“). */
+  lordName: string;
+  plaintiffName: string;
+  defendantName: string;
+  message: string;
+  statement: string | null;
+  status: 'filed' | 'judged';
+  verdict: Verdict | null;
+  canJudge: boolean;
+  canAnswer: boolean;
+}
+
+/** Spoluvazal, kterého hráč smí žalovat před společným pánem. */
+export interface FellowView {
+  house: HouseLinkView;
+  name: string;
+}
+
 /** Vydaná pozvánka k zobrazení. */
 export interface InviteView {
   /** Kód bez pomlčky (do odkazu). */
@@ -119,6 +146,10 @@ export interface HouseView {
   stewardships: StewardshipView[];
   /** Aktivní války rodu (zkřížené oštěpy v liště, panel války). */
   wars: WarView[];
+  /** Spory rodu (jako pán, žalobce, obžalovaný), nejnovější první. */
+  disputes: DisputeView[];
+  /** Spoluvazalové – tlačítko žaloby. */
+  fellows: FellowView[];
   /** Zbývající dny ochrany nového rodu (štít s hodinami); null – rod chráněn není. */
   protectionDaysLeft: number | null;
   /** Čekající věci (jednání, kde je hráč na tahu, a Odvody pánům) – pečeť v liště. */
@@ -277,12 +308,30 @@ export function houseView(data: HousePanelData, nowMs: number): HouseView {
         ].map(([id, name]) => ({ id, name, settlementId: id, asleep: false })),
       };
     }),
+    disputes: data.disputes.map((d): DisputeView => ({
+      id: d.id,
+      role: d.role,
+      lord: houseLinkOf(d.lord),
+      plaintiff: houseLinkOf(d.plaintiff),
+      defendant: houseLinkOf(d.defendant),
+      lordName: houseNameOf(d.lord),
+      plaintiffName: houseNameOf(d.plaintiff),
+      defendantName: houseNameOf(d.defendant),
+      message: d.message,
+      statement: d.statement,
+      status: d.status,
+      verdict: d.verdict,
+      canJudge: d.canJudge,
+      canAnswer: d.canAnswer,
+    })),
+    fellows: data.fellows.map((f) => ({ house: houseLinkOf(f.house), name: houseNameOf(f.house) })),
     protectionDaysLeft:
       data.protectedUntil === null
         ? null
         : Math.max(1, Math.ceil((data.protectedUntil.getTime() - nowMs) / DAY_MS)),
     waiting:
       negotiations.filter((n) => n.myTurn).length +
+      data.disputes.filter((d) => d.canJudge || d.canAnswer).length +
       data.agreements.filter((a) => a.other === 'lord' && a.levyYears !== null).length,
   };
 }

@@ -23,6 +23,9 @@ import {
   issueInviteForPlayer,
   openNegotiationForPlayer,
   declareWarForPlayer,
+  fileComplaintForPlayer,
+  answerComplaintForPlayer,
+  judgeDisputeForPlayer,
   revokeInviteForPlayer,
   type NegotiationActionResult,
 } from '@/lib/house';
@@ -38,6 +41,9 @@ import type { EscheatView, LevyDialogView, MacroSpare } from '@bohemia/game';
 import {
   parseAnswerLevyInput,
   parseBlockInput,
+  parseComplaintInput,
+  parseStatementInput,
+  parseJudgeInput,
   parseDeclareWarInput,
   parseNegotiationAnswerInput,
   parseOpenNegotiationInput,
@@ -641,6 +647,33 @@ export async function declareWarOnHouse(input: unknown): Promise<NegotiationActi
   const parsed = parseDeclareWarInput(input);
   if (parsed === null) return { error: INVALID_INPUT };
   return declareWarForPlayer(id, parsed);
+}
+
+/** Žaloba na spoluvazala před společným pánem: `{ against, message }`. */
+export async function fileComplaintAction(input: unknown): Promise<NegotiationActionResult> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const parsed = parseComplaintInput(input);
+  if (parsed === null) return { error: INVALID_INPUT };
+  return fileComplaintForPlayer(id, parsed);
+}
+
+/** Vyjádření obžalovaného: `{ disputeId, statement }`. */
+export async function answerComplaintAction(input: unknown): Promise<NegotiationActionResult> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const parsed = parseStatementInput(input);
+  if (parsed === null) return { error: INVALID_INPUT };
+  return answerComplaintForPlayer(id, parsed);
+}
+
+/** Rozsudek pána: `{ disputeId, verdict }`. */
+export async function judgeDisputeAction(input: unknown): Promise<NegotiationActionResult> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const parsed = parseJudgeInput(input);
+  if (parsed === null) return { error: INVALID_INPUT };
+  return judgeDisputeForPlayer(id, parsed);
 }
 
 /** Odpoví na jednání: `{ negotiationId, answer: accept | reject | withdraw | counter, ... }`. */

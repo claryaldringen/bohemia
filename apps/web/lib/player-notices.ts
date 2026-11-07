@@ -31,6 +31,9 @@ export function noticePanel(kind: PlayerNoticeKind): NoticePanel | null {
     case 'blocked':
     case 'vassalage-renounced':
     case 'levy-sent':
+    case 'complaint-filed':
+    case 'complaint-answered':
+    case 'judgment-given':
       return 'house';
     case 'war-declared':
     case 'protection-ending':
@@ -70,6 +73,26 @@ function stringOf(value: unknown): string | null {
   return typeof value === 'string' && value !== '' ? value : null;
 }
 
+/** Věta o rozsudku pána podle druhu a strany sporu (obžalovaný / žalobce). */
+function judgmentLine(payload: Record<string, unknown>): string {
+  const lord = stringOf(payload.lordName) ?? 'Pán';
+  const defendant = payload.asDefendant === true;
+  switch (payload.verdict) {
+    case 'compensation':
+      return defendant
+        ? `${lord} ti uložil náhradu zbožím – čeká odeslání.`
+        : `${lord} ti přiznal náhradu zbožím.`;
+    case 'return-people':
+      return defendant
+        ? `${lord} ti uložil vrátit lidi – čeká odeslání.`
+        : `${lord} ti přiznal vrácení lidí.`;
+    case 'peace':
+      return `${lord} rozsoudil mír mezi tebou a ${stringOf(payload.otherName) ?? 'druhým vazalem'}.`;
+    default:
+      return defendant ? `${lord} žalobu zamítl.` : `${lord} tvou žalobu zamítl.`;
+  }
+}
+
 function textOf(n: PlayerNotice): string {
   switch (n.kind) {
     case 'invite-accepted':
@@ -88,6 +111,12 @@ function textOf(n: PlayerNotice): string {
       return `${otherName(n.payload)} stáhl svůj návrh.`;
     case 'blocked':
       return `${otherName(n.payload)} tě zablokoval.`;
+    case 'complaint-filed':
+      return `${otherName(n.payload)} žaluje ${accusativeOf(stringOf(n.payload.otherName) ?? 'jiného vazala')}.`;
+    case 'complaint-answered':
+      return `${otherName(n.payload)} se vyjádřil ke sporu.`;
+    case 'judgment-given':
+      return judgmentLine(n.payload);
     case 'war-declared':
       return `${otherName(n.payload)} opověděl válku.`;
     case 'protection-ending':

@@ -192,7 +192,9 @@ function LevyRow({
                   ? 'Poplatek z míru'
                   : dialog.kind === 'tribute-send'
                     ? 'Tribut z míru'
-                    : 'Roční dávka'
+                    : dialog.kind === 'judgment'
+                      ? 'Rozsudek pána'
+                      : 'Roční dávka'
           }
         >
           <span tabIndex={0} data-testid={`${testId}-kind`} className="inline-flex">
@@ -201,7 +203,16 @@ function LevyRow({
             dialog.kind === 'tribute-send' ? (
               <img src="/icons/resources/cart.png" alt="" width={22} height={22} />
             ) : (
-              <HouseIcon name={dialog.kind === 'repay' ? 'loan' : 'banner'} size={22} />
+              <HouseIcon
+                name={
+                  dialog.kind === 'repay'
+                    ? 'loan'
+                    : dialog.kind === 'judgment'
+                      ? 'scales'
+                      : 'banner'
+                }
+                size={22}
+              />
             )}
           </span>
         </Tooltip>

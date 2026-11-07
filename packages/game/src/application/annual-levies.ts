@@ -24,7 +24,7 @@ import {
 } from '../domain/vassalage';
 import type { VillageState } from '../domain/village';
 import type { Dialog, DialogRepository } from './dialogs';
-import type { HouseRepository } from './houses';
+import type { House, HouseRepository } from './houses';
 import { chronicleHouses, houseName, type NegotiationVillages } from './negotiation-chronicle';
 import type { Loan, LoanRepository } from './loans';
 import type { NegotiationRepository } from './negotiations';
@@ -273,7 +273,7 @@ function targetOf(v: Vassalage, lordVillageId: string | undefined): string | nul
 export interface LevyDialogView {
   dialogId: string;
   /** `levy` – roční dávka vazalství, `repay` – řádek splátky půjčky (samostatná dohoda). */
-  kind: 'levy' | 'repay' | 'trade-send' | 'fee-send' | 'tribute-send';
+  kind: 'levy' | 'repay' | 'trade-send' | 'fee-send' | 'tribute-send' | 'judgment';
   /**
    * U `trade-send` (obchod mezi hráči, plán – úloha 4.7) je `lordHouseId` / `lordName` druhá strana
    * obchodu a `agreed` zboží, které má hráč poslat; `vassalageId` je prázdné.
@@ -409,12 +409,15 @@ interface TradeBody {
   toHouseId: string;
   toVillageId: string;
   goods: MacroBundle;
+  /** Jen u rozsudku (`judgment`): dohoda obžalovaného s pánem (zápis neplnění) a pán. */
+  vassalageId?: string;
+  lordHouseId?: string;
 }
 
 /** Dialogy odeslání zboží druhé straně: obchod, poplatek z míru a tribut z míru (stejná odpověď). */
-type SendKind = 'trade-send' | 'fee-send' | 'tribute-send';
+type SendKind = 'trade-send' | 'fee-send' | 'tribute-send' | 'judgment';
 const isSendKind = (kind: string): kind is SendKind =>
-  kind === 'trade-send' || kind === 'fee-send' || kind === 'tribute-send';
+  kind === 'trade-send' || kind === 'fee-send' || kind === 'tribute-send' || kind === 'judgment';
 
 const tradeBodyOf = (dialog: Dialog): TradeBody => dialog.body as unknown as TradeBody;
 
@@ -714,7 +717,8 @@ async function answerTrade(
   const sender = await deps.houses.activeOf(input.playerId);
   if (!sender || sender.id !== body.fromHouseId) return { ok: false, reason: NOT_YOUR_DIALOG };
   for (const bundle of Object.values(input.split)) {
-    if (!isEmptyBundle(bundle) && checkAidBundle(bundle) !== null) {
+    // rozsudek smí ukládat i lidi (vrácení lidí); obchod, poplatek a tribut jen zboží
+    if (dialog.kind !== 'judgment' && !isEmptyBundle(bundle) && checkAidBundle(bundle) !== null) {
       return { ok: false, reason: TRADE_REASONS.badGoods };
     }
   }
@@ -748,6 +752,9 @@ async function answerTrade(
     sent: sent[good],
     agreed: agreed[good],
   }));
+  const short = LEVY_GOODS.some((g) => sent[g] < agreed[g]);
+  if (dialog.kind === 'judgment' && short)
+    await judgmentBreach(deps, dialog, body, sender, input.today);
   const partner = await deps.houses.byId(body.toHouseId);
   if (partner?.playerId) {
     await deps.notices.post({
@@ -760,13 +767,34 @@ async function answerTrade(
         parts: parts.filter((p) => p.sent > 0),
         arrivesDay,
         trade: true,
-        short: LEVY_GOODS.some((g) => sent[g] < agreed[g]),
+        ...(dialog.kind === 'judgment' ? { judgment: true } : {}),
+        short,
         ...(input.message ? { message: input.message } : {}),
       },
       gameDay: input.today,
     });
   }
   return { ok: true, arrivesDay, dialog: { ...dialog, status: 'answered' } };
+}
+
+/**
+ * Rozsudek splněn míň než uloženo (nebo vůbec): neplnění vůči pánovi a zápis do kronik obžalovaného
+ * a pána – „Ctibor neposlechl pána“. Nic dalšího se nevynucuje (vassalage.md – Mír a spory).
+ */
+async function judgmentBreach(
+  deps: LevyDeps,
+  dialog: Dialog,
+  body: TradeBody,
+  defendant: House,
+  today: number,
+): Promise<void> {
+  if (body.vassalageId) await deps.vassalages.addBreach(body.vassalageId, 'judgment', today);
+  const lord = body.lordHouseId ? await deps.houses.byId(body.lordHouseId) : null;
+  await chronicleHouses(deps, [defendant, ...(lord ? [lord] : [])], `judgment:${dialog.id}`, {
+    day: today,
+    kind: 'disobeyed',
+    name: await houseName(deps, defendant),
+  });
 }
 
 /** Odvedené řádky jako zboží (lidé a robota u splátek nejsou). */

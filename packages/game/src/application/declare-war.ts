@@ -4,6 +4,7 @@ import type { HouseRepository, House } from './houses';
 import { NO_HOUSE, openNegotiation, type NegotiateDeps } from './negotiate';
 import { houseName, type NegotiationVillages } from './negotiation-chronicle';
 import type { NoticeRepository } from './notices';
+import { noteBrokenPeace, type BrokenPeaceDeps } from './judgment';
 import { chronicleWar } from './war-chronicle';
 import type { WarRepository } from './wars';
 
@@ -15,6 +16,12 @@ export interface WarDeps extends NegotiationVillages {
   houses: Pick<HouseRepository, 'activeOf' | 'byId'>;
   wars: WarRepository;
   notices: NoticeRepository;
+  /**
+   * Rozsudky pána (`disputes` + `vassalages`) (vassalage.md – Mír a spory): válka přes platný rozsudek „mír“ se zapíše jako
+   * neposlušnost; válku to nezakáže. Bez závislosti se nezapisuje nic.
+   */
+  disputes?: BrokenPeaceDeps['disputes'];
+  vassalages?: BrokenPeaceDeps['vassalages'];
 }
 
 export type WarResult = { ok: true; warId: string } | { ok: false; reason: string };
@@ -29,6 +36,25 @@ export const WAR_REASONS = {
 /** Průměrná délka herního roku ve dnech (přestupný každý čtvrtý rok – calendar.ts). */
 const DAYS_PER_YEAR = 365.25;
 const DAY_MS = 86_400_000;
+
+/** Válka přes rozsudek „mír“ (jen je-li zapojeno): zápis neposlušnosti agresora. */
+async function brokenPeace(
+  deps: WarDeps,
+  aggressorId: string,
+  otherId: string,
+  today: number,
+): Promise<void> {
+  if (!deps.disputes || !deps.vassalages) return;
+  await noteBrokenPeace(
+    {
+      villages: deps.villages,
+      houses: deps.houses,
+      disputes: deps.disputes,
+      vassalages: deps.vassalages,
+    },
+    { aggressorId, otherId, today },
+  );
+}
 
 const isAlive = (house: House | null): house is House => house !== null && house.endedAt === null;
 
@@ -93,6 +119,7 @@ export async function declareWar(
       });
     }
     await chronicleWar(deps, from, target, 'declared', `war-declared:${war.id}`, input.today);
+    await brokenPeace(deps, from.id, target.id, input.today);
   }
   return { ok: true, warId: war.id };
 }
@@ -127,6 +154,7 @@ export async function startWarByAttack(
   await deps.wars.markAttack(attacker.id, input.now);
   if (created) {
     await chronicleWar(deps, attacker, defender, 'ambush', `war-ambush:${war.id}`, input.today);
+    await brokenPeace(deps, attacker.id, defender.id, input.today);
   } else {
     await deps.wars.touchClash(war.id, input.today);
   }

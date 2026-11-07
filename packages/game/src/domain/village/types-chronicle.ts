@@ -139,6 +139,11 @@ export type ChronicleEvent = { day: number } & (
       years: number;
       parts: { good: string; sent: number; agreed: number }[];
     }
+  /**
+   * Rod `name` neposlechl pána: nesplnil rozsudek, nebo rozpoutal válku přes rozsudek „mír“
+   * (vassalage.md – Mír a spory); text je neutrální.
+   */
+  | { kind: 'disobeyed'; name: string }
   /** Rod `blocker` zablokoval rod `blocked` (vassalage.md – Meze); zapisuje se do kronik obou. */
   | { kind: 'blocked'; blocker: string; blocked: string }
   /** Vedlejší manželka odešla z přeplněného dvorce do vlastního domu (lord.md – Manželky). */
