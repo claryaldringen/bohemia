@@ -507,6 +507,18 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
     }),
   },
   {
+    // premium-landscapes.md – Co hráč vidí: prvek prémiové krajiny (hned i později)
+    key: 'premium-ruda',
+    label: 'Prémiová krajina – bohatá ruda',
+    details: { kind: 'premium-site', type: 'iron-ore', site: 'iron-ore' },
+  },
+  {
+    // prvek typu bez účinku hned – „hned“ zašedlé
+    key: 'premium-zlato',
+    label: 'Prémiová krajina – ložisko zlata',
+    details: { kind: 'premium-site', type: 'deep-gold', site: 'deposit' },
+  },
+  {
     // crafts.md – Uhlí a ruda kováře: rudiště pěšky – kovář se synem kopou, kovář nosí rudu
     key: 'rudiste',
     label: 'Rudiště',

@@ -39,6 +39,8 @@ import {
   FieldsBody,
 } from './selection/fields';
 import { WildlifeBody } from './selection/wildlife';
+import { PremiumSiteBody } from './selection/premium';
+import { PREMIUM_TEXTS } from '@/lib/premium-view';
 import { FORT_ICONS, FORT_NAMES, FortificationBody } from './selection/fortification';
 import { WILDLIFE_LABELS } from '@/lib/wildlife-view';
 import { Oaks, OakAge, SACRED_ICONS, SacredBody } from './selection/sacred';
@@ -123,6 +125,11 @@ export function SelectionPanel({
     const texts = DUG_SITE_TEXTS[details.kind];
     portrait = <Portrait icon={texts.portrait} name={texts.name} />;
     body = <DugSiteBody details={details} onSelectTarget={onSelectTarget} />;
+  } else if (details.kind === 'premium-site') {
+    portrait = (
+      <Portrait icon={details.type} name={PREMIUM_TEXTS[details.type].short} dir="premium" />
+    );
+    body = <PremiumSiteBody details={details} />;
   } else if (details.kind === 'wildlife') {
     portrait = (
       <Portrait

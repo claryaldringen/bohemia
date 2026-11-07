@@ -111,6 +111,7 @@ import type { SceneVillage, SceneWeather } from '../village-view';
 import type { PlacementHandlers, PlacementMode } from './village-types';
 import { createWaterMesh, type WaterSurface } from './water';
 import { PremiumSites } from './premium-sites';
+import { pickPremiumSite } from './premium-picking';
 import { premiumDecor, premiumRockTint } from './premium-sites-layout';
 import type { DecorPlacement } from './decor-placement';
 
@@ -1573,11 +1574,16 @@ export class LandscapeScene {
       direction: { x: pick.direction.x, y: pick.direction.y, z: pick.direction.z },
     };
     const ground = this.pickGround(x, y);
-    return pickVillageTarget(this.villageState, ray, {
-      ground: ground ? { x: ground[0], z: ground[1] } : null,
-      groundHeight,
-      cellOf: (wx, wz) => tileOfWorldPoint(landscape, wx, wz),
-    });
+    const at = ground ? { x: ground[0], z: ground[1] } : null;
+    return (
+      pickVillageTarget(this.villageState, ray, {
+        ground: at,
+        groundHeight,
+        cellOf: (wx, wz) => tileOfWorldPoint(landscape, wx, wz),
+      }) ??
+      // prvek prémiové krajiny – jen když tu není nic ze vsi (premium-picking.ts)
+      pickPremiumSite(landscape, premiumFeaturesOf(landscape), at)
+    );
   }
 
   /**

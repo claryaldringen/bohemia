@@ -183,6 +183,9 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
   sídla založená do 18. 10. 2026 mají vegetaci a úrodnost 1 (`INITIAL_LAYER_VERSIONS`) a jejich
   krajina se generuje dál stejně, nová sídla dostanou verze 2 (`CURRENT_LAYER_VERSIONS`) – víc
   kvalitní louky kolem vsi. Že se původní krajina nezměnila, hlídá zlatý otisk v testech.
+  Prémiový průchod má vlastní verzi **`premium: 1`** (`PREMIUM_LAYER_VERSION`; chybí = 1) – sídlo
+  lidského hráče s typem ji ukládá s ostatními verzemi (`settlement.premium_type`, úloha 8 plánu
+  prémiových krajin), krajina NPC a sídla bez typu ji nemají a generují se beze změny.
 - **Výška:** vrstvený šum (několik oktáv), zvlněná pahorkatina – výrazné vlny ve středních
   měřítkách (stovky metrů). Převýšení v rámci krajiny ≈ 10–40 m, žádné útesy: svahy strmější
   než 2,4 m na políčko se „sesypou“ (termální eroze).
@@ -245,7 +248,8 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
   prořezávají, svahy údolí stoupají nejvýš o 0,9 m na políčko. Rybník v1 negeneruje
   (volitelný prvek, zatím jen potok). Měření:
   `npx tsx packages/game/scripts/measure-landscapes.ts 500` (s argumentem `initial` měří
-  verze vrstev sídel založených do 18. 10. 2026).
+  verze vrstev sídel založených do 18. 10. 2026, s názvem typu – např. `iron-ore` – prémiovou
+  krajinu typu; výsledky v premium-landscapes.md – Kalibrace).
 
   **Naměřeno pro verzi 2 (500 seedů, 18. 10.):** 96,0 % krajin projde pásmem na první pokus,
   nejvýš 2 pokusy (důvody neúspěchu: úrodná louka u vsi nad 40 ha, úrodných políček v krajině

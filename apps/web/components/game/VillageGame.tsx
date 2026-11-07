@@ -138,6 +138,7 @@ import { useSoundPreference } from './SoundToggle';
 import { rememberVillage } from '@/lib/village-choice';
 import { keepShownVillage, type VillageListItem } from '@/lib/village-list';
 import { lineNameNotice, newNotices } from '@/lib/village-notices';
+import { premiumIntroNotice } from '@/lib/premium-view';
 import {
   isVillageNone,
   mergeNoticeLines,
@@ -619,6 +620,15 @@ export function VillageGame({
   const expireNotice = useCallback((id: number): void => {
     setNotices((list) => list.filter((n) => n.id !== id));
   }, []);
+  // představení prémiové krajiny při prvním vstupu do hry, až je scéna (premium-landscapes.md)
+  const introShown = useRef(false);
+  const hasVillage = view !== null;
+  useEffect(() => {
+    if (introShown.current || scene === null) return;
+    introShown.current = true;
+    const intro = premiumIntroNotice(decoded.premium, hasVillage);
+    if (intro) pushNotice(intro);
+  }, [scene, decoded, hasVillage, pushNotice]);
 
   // trasy vozů nových dní počítá Web Worker (cart-router.ts) – scéna mezitím nestojí
   const router = useMemo(() => cartRouter(landscape, decoded), [landscape, decoded]);

@@ -169,8 +169,48 @@ počítá víc“.
 - **Typy bez mechaniky:** hodnota se teď jen **naplánuje** – křivka „kolik za kolik let“ (např.
   rýžování od roku 1 málo, hornictví od 500. roku hodně) a velikost naleziště v krajině. Až
   mechanika přijde, nastaví se tak, aby křivku splnila, a ověří se kalibrací.
-- Tabulka typů s plánovanou křivkou a výsledkem měření bude v tomto dokumentu (doplní se při
-  kalibraci).
+- Tabulka typů s plánovanou křivkou a výsledkem kalibrace vsi bude v tomto dokumentu (doplní se
+  při kalibraci – krok 4 postupu).
+
+### Výsledky měření generátoru (7. 11. 2026)
+
+`npx tsx packages/game/scripts/measure-landscapes.ts 30 <typ>` – malý vzorek 30 seedů na typ
+(seedy 0–29, verze vrstev `CURRENT_LAYER_VERSIONS` + `premium: 1`), stroj pod zátěží jiných
+měření (časy jen orientačně). Kalibrace vsi (`measure-village`) zatím neproběhla – hodnotu výhody
+v práci teprve změří. **Louka do 600 m** = louka do 600 m od místa pro vesnici u přijaté krajiny,
+**úrodná** = z toho úrodnost ≥ 60 (mediány, ha). Pásmem projdou všechny typy na všech 30 seedech
+(nejvýš 8 pokusů – soutok; `MAX_ATTEMPTS` 16).
+
+| Typ                    | 1. pokus | ms / pokus | Louka do 600 m | Úrodná |
+| ---------------------- | -------: | ---------: | -------------: | -----: |
+| průměrná krajina (NPC) |     90 % |         51 |           60,6 |   33,8 |
+| deep-gold              |    100 % |         54 |           60,6 |   34,8 |
+| gold-stream            |    100 % |         51 |           60,6 |   34,7 |
+| navigable-river        |    100 % |         61 |           60,9 |   39,3 |
+| fertile                |    100 % |         50 |           60,6 |   45,0 |
+| ford-hill              |     97 % |         87 |           60,8 |   37,9 |
+| mountain-pass          |     63 % |         75 |           60,4 |   34,4 |
+| iron-ore               |     93 % |         57 |           60,6 |   34,7 |
+| fine-clay              |    100 % |         54 |           60,6 |   34,7 |
+| oak-beech              |    100 % |         53 |           60,6 |   34,7 |
+| floodplain             |    100 % |         55 |           78,8 |   37,9 |
+| south-slopes           |     63 % |         59 |           60,5 |   33,6 |
+| sacred-mountain        |     97 % |         55 |           60,5 |   35,4 |
+| sacred-spring          |    100 % |         55 |           60,6 |   34,7 |
+| confluence             |     40 % |         65 |           59,8 |   35,5 |
+| natural-fortress       |     87 % |         79 |           60,4 |   35,4 |
+| salt-spring            |    100 % |         55 |           60,6 |   34,7 |
+| wild-bees              |    100 % |         54 |           60,6 |   34,7 |
+| game-furs              |    100 % |         59 |           60,6 |   34,7 |
+| building-stone         |     97 % |         73 |           60,5 |   34,5 |
+
+- Louka u vsi je u většiny typů stejná jako u průměrné krajiny – výrazně víc dávají jen **nivní
+  louky** (+18 ha louky do 600 m) a **úrodná krajina** (+11 ha úrodné louky); řeka a brod mají
+  úrodnou nivu (+4–6 ha). Ostatní typy mají úrodné louky o ≈ 1 ha víc než průměrná, protože na
+  prémiové krajině platí jen dolní meze pásma. Doubravy mají podíl lesa jako průměrná (medián
+  62,5 %, rozdíl je ve složení lesa).
+- Nejčastěji opakuje pokus soutok (40 % na první pokus), průsmyk a jižní svahy (63 %) – stále
+  hluboko pod `MAX_ATTEMPTS`; úloha 2 plánu hlídá ≥ 95 % na 300 seedech.
 
 ## Generátor
 
@@ -197,6 +237,16 @@ počítá víc“.
   „bez průvodce“ – UI jako 0 A.D. – proto jen jedna věta s ikonou typu).
 - Prvky typu na mapě a minimapě (naleziště, brod, průsmyk, pramen), výběr kliknutím jako
   rudiště – panel s ikonou, co místo dává hned a co později.
+- **Jak je to hotové** (návrh Clauda, 7. 11. 2026): věta se ukáže jako mizející řádek upozornění
+  s ikonou typu, až je scéna připravená, jen u sídla s typem a **dokud ves není založená** (první
+  vstup do sídla) – např. „Krajina rodu: Bohatá železná ruda – kovář potřebuje méně rudy –
+  levnější nástroje.“; typ bez účinku hned řekne, co přijde později. Panel prvku: portrét typu
+  s krátkým názvem (Bohatá ruda, Brod se stezkou…), ikona **hned** (slunce) a **později**
+  (přesýpací hodiny) – texty jen v popiscích, co zatím nic nedává, je zašedlé. Klik vybere prvek jen tam, kde není nic ze vsi: uvnitř obrysu naleziště, brodu,
+  ostrožny…, u žíly do 8 m od osy, jinak do 12 m od bodu prvku. **Louky, les, svahy, honitba
+  a brtě jsou plochy kolem vsi – vybírají se jen u bodu prvku** (brtě u úlů), jinak by klik na
+  prázdnou zem nezrušil výběr; řeku a stezku vybírá voda a cesta vsi. Portréty 19 typů:
+  `tools/blender/icons.py` → `public/icons/premium/<typ>.png`.
 
 ## Postup (návrh Clauda)
 
@@ -238,6 +288,7 @@ algoritmus kostry světa, rozhraní dat – v mezích výše a determinismu kraj
 | Průměrná krajina NPC = terén se skalami u potoka, ostrožny malé a vzácné; prémiové typy jistá výrazná ostrožna                                 | návrh Clauda                                                |
 | Navazují jen řeky a stezky (kostra světa), zbytek terénu každá mapa vlastní                                                                    | návrh Clauda, Martin („Ano, takhle bychom to mohli udělat“) |
 | Všechny typy najednou jako krajina, využití později                                                                                            | Martin (20. 10. 2026)                                       |
+| Představení krajiny při prvním vstupu = dokud ves není založená; plochy typu (louky, les, svahy) se kliknutím vybírají jen u bodu prvku        | návrh Clauda (7. 11. 2026)                                  |
 | Účel: důvod rozvíjet se a postavit hradiště a města; NPC pasivní, drží rovnováhu                                                               | Martin (20. 10. 2026)                                       |
 | Další typy (železná ruda, hlína, doubravy, nivní louky, jižní svahy, posvátná hora, pramen, soutok, přirozená pevnost, sůl, brtě, zvěř, kámen) | návrh Clauda, Martin („všechny typy najednou“)              |
 | Společná míra čd za rok, váha času e^(−t/200 let), cíl +15 % práce prvních 100 let                                                             | návrh Clauda                                                |

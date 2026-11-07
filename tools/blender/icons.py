@@ -59,6 +59,12 @@ páry) a family (muž, žena a dítě – výměna lidí se sousedem, trade.md) 
 good-summer (klasy se sluncem), flood (rozvodněná voda), hail (kroupy na stéblech), tornado (trychtýř
 smrště pod mrakem), protection (větvička s listy – ochrana dílu) a dearth (hromada zrna se šipkou
 vzhůru – zdražení u sousedů).
+(128 × 128 PNG) – `premium/` portréty 19 typů prémiové krajiny (premium-landscapes.md – Co hráč
+vidí; klíč = typ, např. `iron-ore`): kruh krajiny s výškovým polem, na něm prvek typu – zlatá žíla
+ve skalnatém hřbetu, náplav se zlatem, řeka s molem a člunem, černozem s mandelemi, brod pod
+pahorkem, sedlo s mohylou, hromada krevelu, jámy v šedém jílu, dub a buk s prasetem, niva se
+senem, jižní svah s jabloněmi, vrch s kamenným kruhem, tůňka pod skalkou, soutok, ostrožna nad
+meandrem, slanisko, brť s úly, mokřad s jelenem a lom (modely z `apps/web/public/models/`).
 Bez druhého argumentu vše, jinak čárkami oddělený výběr (např. `pole,hrbitov,food`).
 
 Postup: portréty staveb a ikony `food`, `wood`, `labor`, `satiation`, `date`, `apples` se vyrenderují v Cycles
@@ -3373,6 +3379,431 @@ RESOURCES = {
 }
 
 
+# ------------------------------------------------------ prémiové krajiny ----
+# Portréty typů prémiové krajiny (premium-landscapes.md – Co hráč vidí): kruh krajiny s výškovým
+# polem a mizejícím okrajem, na něm prvek typu (žíla, náplav, řeka, brod, sedlo, pramen, lom…).
+
+PR = 5.0
+
+
+def sm(e0, e1, x):
+    """Plynulý přechod 0 → 1 mezi e0 a e1 (smoothstep)."""
+    t = max(0.0, min(1.0, (x - e0) / (e1 - e0)))
+    return t * t * (3 - 2 * t)
+
+
+def seg_dist(px, py, ax, ay, bx, by):
+    """Vzdálenost bodu od úsečky."""
+    dx, dy = bx - ax, by - ay
+    t = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)))
+    return math.hypot(px - ax - t * dx, py - ay - t * dy)
+
+
+def poly_dist(px, py, pts):
+    return min(seg_dist(px, py, *pts[i], *pts[i + 1]) for i in range(len(pts) - 1))
+
+
+def land(hfn, tex="grass-lush.jpg", tint=(0.74, 0.82, 0.56), scale=0.3, radius=PR, n=110):
+    """Kruh krajiny s výškovým polem `hfn(x, y)` a mizejícím okrajem (jako ground())."""
+    o = ground(radius, mat("land", tex=f"{TEX}/{tex}", scale=scale, tint=tint), z=0.0, fade=0.64)
+    bm = bmesh.new()
+    vs = [[bm.verts.new((-radius + 2 * radius * ix / n, -radius + 2 * radius * iy / n,
+                         hfn(-radius + 2 * radius * ix / n, -radius + 2 * radius * iy / n)))
+           for ix in range(n + 1)] for iy in range(n + 1)]
+    for iy in range(n):
+        for ix in range(n):
+            bm.faces.new((vs[iy][ix], vs[iy][ix + 1], vs[iy + 1][ix + 1], vs[iy + 1][ix]))
+    bm.to_mesh(o.data)
+    bm.free()
+    for p in o.data.polygons:
+        p.use_smooth = True
+    return o
+
+
+def water(z, color=(0.13, 0.27, 0.32), radius=PR):
+    """Hladina vody ve výšce z – vidět jen tam, kde je krajina níž (koryto, tůň)."""
+    m = mat("water", color, 0.06)
+    return ground(radius * 0.99, m, z=z, fade=0.64)
+
+
+def gold_mat():
+    m = mat("gold", (1.0, 0.74, 0.22), 0.28)
+    b = next(n for n in m.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
+    b.inputs["Metallic"].default_value = 1.0
+    return m
+
+
+def put(name, folder, loc, size, rot=0.0, tint=None):
+    """Model z repa: zmenší na největší rozměr `size` a postaví spodkem na `loc`."""
+    objs = place_model(name, folder=folder)
+    bpy.context.view_layer.update()
+    pts = world_points(objs)
+    lo = [min(p[i] for p in pts) for i in range(3)]
+    hi = [max(p[i] for p in pts) for i in range(3)]
+    k = size / max(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2])
+    place_root(objs, (loc[0], loc[1], loc[2] - lo[2] * k), rot, k)
+    if tint:
+        tint_imported(objs, tint)
+    return objs
+
+
+def ribbon(hfn, pts, width, material, lift=0.03, step=0.12):
+    """Pás (stezka, cesta) po terénu podél lomené čáry."""
+    bm = bmesh.new()
+    prev = None
+    for i in range(len(pts) - 1):
+        (ax, ay), (bx, by) = pts[i], pts[i + 1]
+        length = math.hypot(bx - ax, by - ay)
+        nx, ny = -(by - ay) / length, (bx - ax) / length
+        for k in range(int(length / step) + 1):
+            t = k * step / length
+            x, y = ax + (bx - ax) * t, ay + (by - ay) * t
+            w = width * (1 + 0.15 * math.sin(x * 3.1 + y * 2.3))
+            l = bm.verts.new((x + nx * w / 2, y + ny * w / 2, hfn(x + nx * w / 2, y + ny * w / 2) + lift))
+            r = bm.verts.new((x - nx * w / 2, y - ny * w / 2, hfn(x - nx * w / 2, y - ny * w / 2) + lift))
+            if prev:
+                bm.faces.new((prev[0], prev[1], r, l))
+            prev = (l, r)
+    return to_obj(bm, "ribbon", material)
+
+
+def stones(hfn, centres, rng, material, size=(0.14, 0.24)):
+    bm = bmesh.new()
+    for x, y in centres:
+        s = rng.uniform(*size)
+        blob(bm, ((x, y, hfn(x, y) + s * 0.3), (rng.uniform(0, 1), rng.uniform(0, 1), rng.uniform(0, 3))),
+             (s, s * 0.85, s * 0.6), 7, 5)
+    return to_obj(bm, "stones", material)
+
+
+def land_light_camera(top=2.0, az=18, el=40, margin=0.84):
+    sun(az=-50, el=44)
+    sun(az=150, el=25, strength=1.4, color=(0.8, 0.88, 1.0))
+    r = PR * 0.82
+    camera([Vector((-r, -r, 0)), Vector((r, r, 0)), Vector((0, 0, top))], az=az, el=el, margin=margin)
+
+
+def river_y(x, amp=0.7, f=0.45, off=0.0):
+    return off + amp * math.sin(x * f + 0.4)
+
+
+def channel(x, y, half, depth=0.45, bank=0.9, amp=0.7, f=0.45, off=0.0):
+    """Koryto podél vlnovky: dno −depth, břeh náběhem do `bank`."""
+    d = abs(y - river_y(x, amp, f, off))
+    return -depth * (1 - sm(half, half + bank, d))
+
+
+def icon_premium_deep_gold():
+    """Hluboká ložiska drahých kovů: skalnatý hřbet s výchozy a zlatou žilou."""
+    rng = random.Random(3)
+    h = lambda x, y: 1.5 * math.exp(-((y - 0.3) / 1.5) ** 2) + 0.12 * noise.noise(Vector((x, y, 0)) * 0.9)
+    land(h, "rocky.jpg", (0.8, 0.78, 0.7), 0.35)
+    for x, y, s, r in [(-1.8, 0.9, 2.8, 0.3), (0.6, 1.0, 3.2, 1.7), (2.4, 1.2, 2.4, 2.6)]:
+        put("rock-tower", DECOR, (x, y, h(x, y) - 0.3), s, r, (0.8, 0.78, 0.74))
+    vein = bmesh.new()
+    for k in range(13):
+        x = -2.4 + k * 0.4
+        y = -0.45 + 0.2 * math.sin(k * 0.9)
+        blob(vein, ((x, y, h(x, y) + 0.06), (0.2, 0.1, 0.15 * math.cos(k))), (0.3, 0.14, 0.1), 8, 5)
+    to_obj(vein, "vein", gold_mat())
+    stones(h, [(rng.uniform(-3, 3), rng.uniform(-2.6, -1.2)) for _ in range(9)], rng,
+           mat("rock", (0.52, 0.5, 0.46), 0.9, noise=30, bump=0.8))
+    land_light_camera(2.4)
+
+
+def icon_premium_gold_stream():
+    """Zlatonosný potok: potok s náplavem zlatonosného písku a valounky zlata."""
+    rng = random.Random(5)
+    h = lambda x, y: channel(x, y, 0.45, 0.35, 1.4) + 0.5 * sm(1.2, 4.5, abs(y - river_y(x)))
+    land(h)
+    water(-0.18)
+    sand = bmesh.new()
+    blob(sand, ((0.4, river_y(0.4) - 0.7, -0.12), (0, 0, 0.2)), (1.5, 0.55, 0.2), 16, 8)
+    to_obj(sand, "sand", mat("sand", tex=f"{TEX}/sand.jpg", scale=0.6, tint=(1.05, 0.88, 0.6)))
+    nug = bmesh.new()
+    for _ in range(14):
+        x = rng.uniform(-0.8, 1.6)
+        y = river_y(0.4) - 0.7 + rng.uniform(-0.3, 0.3)
+        s = rng.uniform(0.05, 0.1)
+        blob(nug, ((x, y, 0.06), (rng.uniform(0, 3), 0, 0)), (s, s * 0.8, s * 0.6), 6, 4)
+    to_obj(nug, "nuggets", gold_mat())
+    land_light_camera(1.0)
+
+
+def icon_premium_navigable_river():
+    """Splavná řeka: široká řeka, rovná niva, molo a člun."""
+    h = lambda x, y: channel(x, y, 1.3, 0.5, 0.5, 0.35, 0.3) + 0.15 * sm(2.5, 4.5, abs(y - river_y(x, 0.35, 0.3)))
+    land(h)
+    water(-0.25)
+    deck = bmesh.new()
+    y0 = river_y(-0.6, 0.35, 0.3) - 1.75
+    box(deck, (-0.6, y0 + 0.75, 0.12), (0.7, 1.9, 0.08))
+    for dx in (-0.28, 0.28):
+        for dy in (0.0, 0.8, 1.5):
+            cyl(deck, (-0.6 + dx, y0 + dy, -0.4), (-0.6 + dx, y0 + dy, 0.24), 0.06)
+    to_obj(deck, "pier", mat("wood", (0.4, 0.27, 0.15), 0.8, noise=60))
+    boat = bmesh.new()
+    blob(boat, ((0.6, y0 + 1.4, -0.16), (0, 0, 0.25)), (1.1, 0.26, 0.16), 14, 6)
+    to_obj(boat, "boat", mat("dugout", (0.33, 0.2, 0.1), 0.75, noise=40))
+    land_light_camera(0.8)
+
+
+def icon_premium_fertile():
+    """Velmi úrodná krajina: černozem v brázdách a mandele snopů."""
+    h = lambda x, y: 0.05 * math.sin(x * 7.0) + 0.05 * noise.noise(Vector((x, y, 0)) * 0.5)
+    land(h, "mud.jpg", (0.42, 0.33, 0.25), 0.5)
+    for x, y, r in [(-1.3, 0.8, 0.3), (1.0, -0.4, 1.2), (0.0, 2.0, 2.0)]:
+        put("stook", FIELDS, (x, y, 0), 1.6, r, (1.1, 0.95, 0.6))
+    land_light_camera(1.2)
+
+
+def icon_premium_ford_hill():
+    """Vyvýšenina nad brodem: řeka, světlý brod se stezkou a pahorek nad ním."""
+    rng = random.Random(9)
+    hill = lambda x, y: 1.9 * math.exp(-(((x - 1.6) / 1.6) ** 2 + ((y - 2.2) / 1.4) ** 2))
+    h = lambda x, y: channel(x, y, 0.75, 0.4, 0.6, 0.3, 0.25, -0.4) * (1 - 0.8 * math.exp(-((x + 0.4) / 0.6) ** 2)) + hill(x, y)
+    land(h)
+    water(-0.15)
+    path = [(-0.9, -4.5), (-0.5, -2.0), (-0.4, -0.4), (-0.2, 1.0), (-0.6, 3.0), (-1.4, 4.6)]
+    ribbon(h, path, 0.45, mat("path", tex=f"{TEX}/gravel.jpg", scale=0.8, tint=(0.95, 0.85, 0.7)), 0.02)
+    stones(h, [(-0.4 + rng.uniform(-0.3, 0.3), -0.4 + rng.uniform(-0.4, 0.4)) for _ in range(8)], rng,
+           mat("pebble", (0.6, 0.56, 0.5), 0.8), (0.06, 0.11))
+    land_light_camera(2.0)
+
+
+def icon_premium_mountain_pass():
+    """Horský průsmyk: hřbety po stranách, sedlo se stezkou a mohylou."""
+    rng = random.Random(4)
+    h = lambda x, y: 2.8 * sm(0.9, 3.6, abs(x)) * (0.75 + 0.25 * math.cos(y * 0.6)) + 0.15 * noise.noise(Vector((x, y, 0)))
+    land(h, "rocky.jpg", (0.82, 0.84, 0.74), 0.3)
+    ribbon(h, [(0.2, -5), (-0.1, -2), (0.1, 0.5), (-0.2, 3), (0.1, 5)], 0.4,
+           mat("path", tex=f"{TEX}/gravel.jpg", scale=0.8, tint=(0.95, 0.85, 0.7)), 0.02)
+    cairn = bmesh.new()
+    for k in range(10):
+        s = 0.22 - k * 0.014
+        blob(cairn, ((0.8 + rng.uniform(-0.06, 0.06), 0.4 + rng.uniform(-0.06, 0.06), 0.12 + k * 0.1 + h(0.8, 0.4)),
+                     (rng.uniform(0, 1), 0, rng.uniform(0, 3))), (s, s * 0.85, 0.09), 7, 5)
+    to_obj(cairn, "cairn", mat("stone", (0.6, 0.58, 0.54), 0.9, noise=25))
+    land_light_camera(2.6, az=0, el=30)
+
+
+def icon_premium_iron_ore():
+    """Bohatá železná ruda: rezavá zem a velká hromada krevelu."""
+    rng = random.Random(7)
+    h = lambda x, y: 0.1 * noise.noise(Vector((x, y, 0)) * 0.7)
+    land(h, "mud.jpg", (0.8, 0.5, 0.34), 0.5)
+    heap = bmesh.new()
+    for k in range(48):
+        a = rng.uniform(0, 2 * math.pi)
+        d = rng.uniform(0, 1.3)
+        s = rng.uniform(0.2, 0.32)
+        ore_nodule(heap, (math.cos(a) * d, math.sin(a) * d, 0.15 + (1.3 - d) * 0.75), (s, s * 0.9, s * 0.75), rng)
+    to_obj(heap, "ore", mat("ore", (0.36, 0.1, 0.05), 0.9, noise=38, bump=1.6), smooth=False)
+    put("stone-1", DECOR, (2.2, 1.6, 0), 1.2, 0.5, (1.1, 0.62, 0.45))
+    land_light_camera(1.4)
+
+
+def icon_premium_fine_clay():
+    """Dobrá keramická hlína: jámy v šedém jílu a hromada hladkých hrud."""
+    rng = random.Random(8)
+    land(lambda x, y: 0.0, "grass-lush.jpg", (0.72, 0.8, 0.56))
+    pits = bmesh.new()
+    for c, r, ph in [((-1.1, 0.5), 1.0, 0.4), ((1.0, 1.3), 0.8, 2.1)]:
+        ore_pit(pits, c, r, ph)
+    to_obj(pits, "pits", mat("clay-pit", tex=f"{TEX}/mud.jpg", scale=0.9, tint=(0.62, 0.62, 0.64)))
+    lumps = bmesh.new()
+    for _ in range(18):
+        a = rng.uniform(0, 2 * math.pi)
+        d = rng.uniform(0, 0.7)
+        s = rng.uniform(0.18, 0.26)
+        blob(lumps, ((1.0 + math.cos(a) * d, -1.0 + math.sin(a) * d, 0.12 + (0.7 - d) * 0.7), (0, 0, a)),
+             (s, s * 0.8, s * 0.6), 8, 5)
+    to_obj(lumps, "clay", mat("clay", (0.55, 0.56, 0.58), 0.5, noise=20, bump=0.3))
+    land_light_camera(1.4)
+
+
+def icon_premium_oak_beech():
+    """Doubravy a bučiny: dub, buk a prase na žíru."""
+    land(lambda x, y: 0.06 * noise.noise(Vector((x, y, 0))), "forest-floor.jpg", (0.85, 0.8, 0.62), 0.4)
+    put("oak-large-1", TREES, (-1.5, 1.0, 0), 5.0, 0.3)
+    put("beech-1", TREES, (1.7, 1.6, 0), 4.6, 1.2)
+    stand_animal("pig", loc=(0.4, -1.3), scale=1.3)
+    land_light_camera(4.0, margin=0.9)
+
+
+def icon_premium_floodplain():
+    """Rozsáhlé nivní louky: rovná niva s meandrem potoka a kupky sena."""
+    h = lambda x, y: channel(x, y, 0.3, 0.3, 0.4, 1.0, 0.8, -1.4)
+    land(h, "grass-flowers.jpg", (0.8, 0.95, 0.6), 0.3)
+    water(-0.14)
+    for x, y in [(-1.0, 1.2), (1.2, 1.8), (0.4, 0.2)]:
+        put("haystack", FIELDS, (x, y, 0), 1.2, x)
+    land_light_camera(0.9)
+
+
+def icon_premium_south_slopes():
+    """Teplé jižní svahy: prosluněný svah s jabloněmi a slunce."""
+    h = lambda x, y: 2.2 * sm(-4.0, 4.0, y)
+    land(h, "grass-dry.jpg", (0.95, 0.9, 0.62), 0.3)
+    for x, y in [(-1.4, 0.4), (1.0, -0.6), (0.2, 1.8)]:
+        put("apple-1", TREES, (x, y, h(x, y)), 2.2, x)
+    disc = bmesh.new()
+    blob(disc, ((2.4, 3.2, 4.6), (0, 0, 0)), (0.5, 0.5, 0.5), 16, 10)
+    to_obj(disc, "sun", glow_mat("sun", (1.0, 0.7, 0.18), 1.6))
+    sun(az=-10, el=40, strength=5.2)
+    camera([Vector((-4.1, -4.1, 0)), Vector((4.1, 4.1, 0)), Vector((2.4, 3.2, 5.4))], az=18, el=34, margin=0.84)
+
+
+def icon_premium_sacred_mountain():
+    """Posvátná hora: výrazný vrch s plošinou a kamenným kruhem."""
+    rng = random.Random(11)
+    h = lambda x, y: 2.6 * (1 - sm(1.0, 4.4, math.hypot(x, y * 1.15)))
+    land(h, "grass.jpg", (0.78, 0.84, 0.6), 0.3)
+    ring = [(0.85 * math.cos(a), 0.85 * math.sin(a)) for a in [k * 2 * math.pi / 9 for k in range(9)]]
+    bm = bmesh.new()
+    for x, y in ring:
+        box(bm, (x, y, h(x, y) + 0.3), (0.16, 0.12, 0.7), (rng.uniform(-0.1, 0.1), 0, math.atan2(y, x)))
+    to_obj(bm, "menhirs", mat("stone", (0.62, 0.6, 0.55), 0.9, noise=25, bump=0.6), smooth=False)
+    land_light_camera(3.4)
+
+
+def icon_premium_sacred_spring():
+    """Posvátný pramen: tůňka pod skalkou, stužky na kůlu a bříza."""
+    h = lambda x, y: -0.3 * (1 - sm(0.4, 1.1, math.hypot(x, y + 0.3))) + 0.5 * sm(0.5, 2.5, y)
+    land(h, "grass-lush.jpg", (0.72, 0.84, 0.56))
+    water(-0.12, (0.16, 0.34, 0.4))
+    put("rock-moss-1", DECOR, (0.0, 1.1, 0.3), 1.9, 0.4)
+    put("birch-1", TREES, (-1.9, 1.2, 0.3), 3.6, 0.7)
+    post = bmesh.new()
+    cyl(post, (1.2, -0.2, 0), (1.2, -0.2, 1.5), 0.06)
+    to_obj(post, "post", mat("wood", (0.4, 0.27, 0.15), 0.8))
+    rib = bmesh.new()
+    for k, c in enumerate([0.0, 0.5, 1.0]):
+        box(rib, (1.2 + 0.08, -0.2, 1.35 - k * 0.12), (0.02, 0.05, 0.36), (0.4, 0.2 * k, 0.6 * k))
+    to_obj(rib, "ribbons", mat("ribbon", (0.75, 0.12, 0.08), 0.7), smooth=False)
+    land_light_camera(2.6)
+
+
+def icon_premium_confluence():
+    """Soutok dvou toků: dvě koryta se slévají pod ostrožnou."""
+    a = [(-4.8, 4.0), (-1.4, 1.2), (0.0, -0.4)]
+    b = [(4.8, 3.6), (1.3, 1.0), (0.0, -0.4)]
+    c = [(0.0, -0.4), (0.4, -2.6), (-0.3, -5.0)]
+    def h(x, y):
+        d = min(poly_dist(x, y, a), poly_dist(x, y, b), poly_dist(x, y, c))
+        spur = 1.3 * math.exp(-((x / 1.3) ** 2 + ((y - 2.6) / 1.8) ** 2))
+        return -0.4 * (1 - sm(0.35, 0.9, d)) + spur * sm(0.6, 1.4, d)
+    land(h)
+    water(-0.2)
+    land_light_camera(1.6)
+
+
+def icon_premium_natural_fortress():
+    """Přirozená pevnost: vysoká ostrožna obtékaná zaříznutým meandrem."""
+    loop = [(-4.8, -2.6), (-1.8, -2.2), (-0.4, 0.6), (0.0, 2.0), (1.2, 2.2), (1.8, 0.4), (1.6, -2.4), (4.8, -3.0)]
+    def h(x, y):
+        d = poly_dist(x, y, loop)
+        inside = math.exp(-(((x - 0.6) / 1.5) ** 2 + ((y + 1.2) / 2.6) ** 2))
+        base = -0.6 * (1 - sm(0.3, 0.7, d)) + 0.9 * sm(0.7, 1.6, d)
+        return base + 1.5 * inside * sm(0.6, 1.0, d)
+    land(h, "grass.jpg", (0.76, 0.82, 0.58))
+    water(-0.4)
+    land_light_camera(2.4)
+
+
+def icon_premium_salt_spring():
+    """Solný pramen: slanisko s bílou krustou a krystaly kolem tůňky."""
+    rng = random.Random(13)
+    h = lambda x, y: -0.25 * (1 - sm(0.5, 1.3, math.hypot(x, y)))
+    land(h, "mud.jpg", (0.7, 0.6, 0.46), 0.5)
+    crust = bmesh.new()
+    for _ in range(40):
+        a = rng.uniform(0, 2 * math.pi)
+        d = rng.uniform(1.25, 2.3)
+        s = rng.uniform(0.25, 0.5)
+        blob(crust, ((math.cos(a) * d, math.sin(a) * d, h(math.cos(a) * d, math.sin(a) * d)), (0, 0, a)),
+             (s, s * 0.7, 0.03), 10, 4)
+    to_obj(crust, "crust", mat("salt", (0.86, 0.85, 0.8), 0.7, noise=40))
+    water(-0.08, (0.2, 0.36, 0.38))
+    cr = bmesh.new()
+    for _ in range(26):
+        a = rng.uniform(0, 2 * math.pi)
+        d = rng.uniform(1.3, 2.3)
+        s = rng.uniform(0.07, 0.15)
+        box(cr, (math.cos(a) * d, math.sin(a) * d, 0.05 + s / 2), (s, s, s), (rng.uniform(0, 1), rng.uniform(0, 1), a))
+    to_obj(cr, "crystals", mat("crystal", (0.9, 0.9, 0.88), 0.3), smooth=False)
+    land_light_camera(0.8)
+
+
+def icon_premium_wild_bees():
+    """Brtě a lesní včely: starý dub s dutinou a klátové úly."""
+    rng = random.Random(17)
+    land(lambda x, y: 0.05 * noise.noise(Vector((x, y, 0))), "forest-floor.jpg", (0.85, 0.8, 0.62), 0.4)
+    put("snag-oak", DECOR, (-1.0, 0.8, 0), 4.2, 0.6)
+    hives = bmesh.new()
+    for x, y in [(0.9, -0.4), (1.7, 0.4)]:
+        cyl(hives, (x, y, 0), (x, y, 1.1), 0.32, 0.3, 14)
+        box(hives, (x, y, 1.16), (0.42, 0.42, 0.06), (0, 0, 0.3))
+    to_obj(hives, "hives", mat("log", (0.38, 0.27, 0.16), 0.85, noise=50, bump=0.5))
+    bees = bmesh.new()
+    for _ in range(16):
+        blob(bees, ((rng.uniform(0.4, 2.2), rng.uniform(-1.0, 1.0), rng.uniform(0.9, 2.0)), (0, 0, 0)),
+             (0.05, 0.035, 0.035), 6, 4)
+    to_obj(bees, "bees", mat("bee", (0.95, 0.68, 0.12), 0.6))
+    land_light_camera(3.4)
+
+
+def icon_premium_game_furs():
+    """Hojná zvěř a kožešiny: mokřad s rákosím a jelen."""
+    h = lambda x, y: -0.25 * (1 - sm(0.2, 0.8, abs(noise.noise(Vector((x * 0.35, y * 0.35, 0.5)))) * 3)) + 0.05
+    land(h, "grass-lush.jpg", (0.62, 0.74, 0.48))
+    water(-0.1, (0.12, 0.22, 0.2))
+    for x, y in [(-1.8, 1.4), (1.6, 1.8), (-0.6, -1.8)]:
+        put("cattails", DECOR, (x, y, 0), 1.3, x)
+    put("wild-stag", FAUNA, (0.4, 0.2, 0.05), 2.4, 2.4)
+    land_light_camera(2.2)
+
+
+def icon_premium_building_stone():
+    """Stavební kámen a vápenec: lom se stupni světlé skály a vylámané kvádry."""
+    rng = random.Random(19)
+    h = lambda x, y: 0.05 * noise.noise(Vector((x, y, 0)))
+    land(h, "gravel.jpg", (0.8, 0.76, 0.68), 0.5)
+    lime = mat("limestone", (0.62, 0.58, 0.48), 0.95, noise=14, bump=1.2)
+    wall = bmesh.new()
+    for k, (y, z) in enumerate([(1.6, 0.5), (2.4, 1.3), (3.2, 2.1)]):
+        box(wall, (0, y, z / 2), (5.6 - k * 0.5, 0.8, z))
+    to_obj(wall, "wall", lime, smooth=False)
+    blocks = bmesh.new()
+    for x, y in [(-1.4, -0.4), (0.2, -1.2), (1.3, 0.1), (-0.3, 0.4)]:
+        box(blocks, (x, y, 0.22), (0.7, 0.45, 0.42), (0, 0, rng.uniform(-0.4, 0.4)))
+    to_obj(blocks, "blocks", lime, smooth=False)
+    land_light_camera(2.2)
+
+
+PREMIUM = {
+    "deep-gold": icon_premium_deep_gold,
+    "gold-stream": icon_premium_gold_stream,
+    "navigable-river": icon_premium_navigable_river,
+    "fertile": icon_premium_fertile,
+    "ford-hill": icon_premium_ford_hill,
+    "mountain-pass": icon_premium_mountain_pass,
+    "iron-ore": icon_premium_iron_ore,
+    "fine-clay": icon_premium_fine_clay,
+    "oak-beech": icon_premium_oak_beech,
+    "floodplain": icon_premium_floodplain,
+    "south-slopes": icon_premium_south_slopes,
+    "sacred-mountain": icon_premium_sacred_mountain,
+    "sacred-spring": icon_premium_sacred_spring,
+    "confluence": icon_premium_confluence,
+    "natural-fortress": icon_premium_natural_fortress,
+    "salt-spring": icon_premium_salt_spring,
+    "wild-bees": icon_premium_wild_bees,
+    "game-furs": icon_premium_game_furs,
+    "building-stone": icon_premium_building_stone,
+}
+
+
 def backdrop(src, dst, size):
     """Tmavě hnědé pozadí s vinětou a zaoblenými rohy (jako portréty 0 A.D.) + scéna přes ně."""
     r = max(6, size // 12)
@@ -3412,6 +3843,7 @@ def want(k):
 
 os.makedirs(f"{OUT}/build", exist_ok=True)
 os.makedirs(f"{OUT}/resources", exist_ok=True)
+os.makedirs(f"{OUT}/premium", exist_ok=True)
 random.seed(1)
 for key, fn in BUILD.items():
     if not want(key):
@@ -3430,6 +3862,16 @@ for key, fn in RESOURCES.items():
     raw = f"{TMP}/{key}.png"
     render(raw)
     small(raw, f"{OUT}/resources/{key}.png", 64, SMALLER.get(key, 1.0))
+    print("hotovo", key)
+for key, fn in PREMIUM.items():
+    # portréty typů prémiové krajiny (premium-landscapes.md – Co hráč vidí) – `premium/<typ>.png`
+    if not want(key):
+        continue
+    reset()
+    fn()
+    raw = f"{TMP}/premium-{key}.png"
+    render(raw)
+    backdrop(raw, f"{OUT}/premium/{key}.png", 128)
     print("hotovo", key)
 if want("people"):
     pop = f"{TMP}/population.png"

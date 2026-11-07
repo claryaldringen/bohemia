@@ -875,3 +875,21 @@ vlajka = vzdát se při přesile, stromy = raději utéct; vlastní SVG v `publi
 plní `manorView` (`stanceOf`), volba jde přes server action `setDefenseStance` → `setDefenseStanceForPlayer`
 (`lib/village.ts`, právo `war` – bez něj tlačítka zašednou s důvodem). Upozornění `foreign-army` →
 „Cizí vojsko u vsi Kněžice!“ (`lib/player-notices.ts`, panel války). Test: `ManorStance.behavior.test.tsx`.
+
+## Prémiová krajina v rozhraní
+
+Premium-landscapes.md – Co hráč vidí. Texty typů (krátký název, „hned“, „později“) a jediná věta
+jsou v `lib/premium-view.ts` (`PREMIUM_TEXTS`, `premiumIntroNotice`); portréty 19 typů
+`public/icons/premium/<typ>.png` z `tools/blender/icons.py` (`PREMIUM`).
+
+- **Představení:** `VillageGame` po připravení scény jednou za načtení pošle `premiumIntroNotice`
+  (sídlo s `landscape.premium`, ves ještě není) do `NoticeLines` – řádek `premium-intro` s ikonou
+  (`NoticeLine.icon`, `village-notice-icon`), mizí po `NOTICE_MS`.
+- **Výběr prvku:** cíl `{ kind: 'premium-site', type, site, index }` (`village-picking.ts`) z
+  `pickPremiumSite` (`lib/scene/premium-picking.ts` – obrys, osa žíly do `LINE_PICK_M`, bod do
+  `POINT_PICK_M`; plochy kolem vsi jen u bodu, brtě u úlů; řeka a stezka ne). `selectionDetails`
+  vrátí `premium-site` bez pohledu na ves; panel `PremiumSiteBody` (`hud/selection/premium.tsx`) –
+  `Portrait` ze složky `premium`, ikony `date` (hned) a `hourglass` (později), bez účinku zašedlé.
+- **Minimapa:** `premiumMinimapMarks` (scene.md – Prémiové krajiny ve scéně).
+- **Testy:** `premium-view.test.ts`, `premium-picking.test.ts`, `PremiumSitePanel.test.tsx`
+  (statický render panelu), `NoticeLines.behavior.test.tsx` (hláška při prvním vstupu).

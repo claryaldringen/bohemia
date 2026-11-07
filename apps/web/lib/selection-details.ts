@@ -8,6 +8,8 @@ import {
   PRODUCT_CRAFT,
   sacredBuildingHappiness,
   type CartKind,
+  type PremiumSiteKind,
+  type PremiumType,
   type Craft,
   type Crop,
   type Direction8,
@@ -515,6 +517,15 @@ type SelectionKinds =
   | ({ kind: 'clay-site' } & VillageDugSite)
   | {
       /**
+       * Prvek prémiové krajiny (premium-landscapes.md – Co hráč vidí): ikona typu, co místo dává
+       * hned a co později (`premium-view.ts`); `site` – druh prvku pod kurzorem.
+       */
+      kind: 'premium-site';
+      type: PremiumType;
+      site: PremiumSiteKind;
+    }
+  | {
+      /**
        * Člověk vsi (villagers.md – Výběr postavy; Martin 20. 10. 2026: „Stačí mi jenom vědět info
        * typu – žena rolníka, jde pro vodu.“): portrét podle pohlaví a věku, role pod portrétem,
        * co právě dělá, věk, dům (tlačítko ho vybere – null, když dům ve scéně není) a u výrostka,
@@ -873,6 +884,9 @@ function selectionKinds(
   if (target.kind === 'wildlife') {
     const species = view?.wildlife?.species.find((s) => s.species === target.species);
     return species ? { kind: 'wildlife', ...species } : null;
+  }
+  if (target.kind === 'premium-site') {
+    return { kind: 'premium-site', type: target.type, site: target.site };
   }
   if (target.kind === 'person') return personDetails(view, scene, target.id, person, draft);
   if (target.kind === 'plough-team') return teamDetails(scene, target.team, draft);

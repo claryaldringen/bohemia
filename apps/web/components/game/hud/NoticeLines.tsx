@@ -9,6 +9,8 @@ export interface NoticeLine {
   kind: string;
   tone: 'info' | 'warn' | 'error';
   text: string;
+  /** Ikona před textem (představení prémiové krajiny – ikona typu); bez ní jen text. */
+  icon?: string;
   /** Klik na řádek (upozornění mezi hráči otevře svůj panel); bez něj řádek klik nechytá. */
   onOpen?: () => void;
 }
@@ -40,6 +42,16 @@ function Line({
       className={`hud-notice font-serif text-base ${TONES[notice.tone]}`}
       style={{ '--hud-notice-ms': `${NOTICE_MS}ms` } as CSSProperties}
     >
+      {notice.icon && (
+        <img
+          data-testid="village-notice-icon"
+          src={notice.icon}
+          alt=""
+          width={28}
+          height={28}
+          className="mr-1.5 inline-block h-7 w-7 rounded align-middle"
+        />
+      )}
       {notice.onOpen ? (
         <button
           type="button"
