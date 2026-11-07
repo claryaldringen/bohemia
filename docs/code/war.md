@@ -84,7 +84,7 @@ vojska mapu po mapě (Ú6.4); tažení po taktech, boj a dohra přibývají v da
   idempotentní. Háčky `CedeHooks` (`check`, `apply`) skládá `createGameDeps` (`deps.cede`).
 - **Propuštění zajatců:** `releasePrisoners` se zatím jen nese (kontrola tvaru); zajetí přijde v Ú6.11.
 - **Web:** `WarPanel.tsx` – u každé války pečeť **Nabídnout mír** (`war-offer-peace`) a mini-formulář
-  (`peace-form`: poplatek, tribut, vazalství; `peace-send`); řádek `term-row-peace` (`TermsForm.tsx`)
+  (`peace-form`: poplatek (obilí a lidé – `peace-fee-men/women/families`), tribut, vazalství; `peace-send`); řádek `term-row-peace` (`TermsForm.tsx`)
   v kartě jednání; `parsePeace` v `lib/house-input.ts`. Dialogy poplatku a tributu zobrazuje `LevyDialog`.
 
 ## Pohyb vojska (Ú6.4)
@@ -488,7 +488,7 @@ today })` (`hold` / `release` / `execute`, zajatec se hledá ve vsích hráče, 
 - **Web**: `lib/prisoners.ts` (`decidePrisonerForPlayer`, `ransom()`), akce `decidePrisonerAction`,
   `VillageManor.prisoners` (`manor-view.ts`), `PrisonersPanel.tsx` (portrét s pouty, držet /
   propustit / popravit; poprava druhým stiskem), formulář výkupného: `TermsContext.captives` (zajatci vsi z
-  `VillageManor.prisoners`), v `TermsForm` řádek `RansomRow` (výběr zajatců, cena jako zboží) a v `HousePanel`
+  `VillageManor.prisoners`, jen rodu protistrany – `houseId` doplní `viewOf` ve `lib/village.ts` z vsi původu), v `TermsForm` řádek `RansomRow` (výběr zajatců, cena jako zboží) a v `HousePanel`
   tlačítko `house-ransom` (směr `ransom`; zda zajatec patří protistraně, ověří server), ikony `public/icons/war/{captive,hold,release,execute}.svg`.
 - Nevykonáno (později): zajetí **útočníků** obráncem (raněné na bojišti), zajatý hráčův muž nevede tažení díky `away` (`launch-campaign`).
 - Testy: `war/__tests__/surrender.test.ts`, `captives-campaign.test.ts` (zajetí přes `stepCampaign`),

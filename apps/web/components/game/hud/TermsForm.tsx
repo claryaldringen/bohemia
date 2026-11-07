@@ -89,7 +89,7 @@ export interface TermsContext {
    * Zajatci k výkupnému (war.md – Vzdaní, zajetí a výkupné): zajatci, které hráč drží – formulář
    * pak nabídne řádek výkupného. Zda patří rodu protistrany, ověří server (`ransom.check`).
    */
-  captives?: readonly { id: string; name: string | null; noble: boolean }[];
+  captives?: readonly { id: string; name: string | null; noble: boolean; houseId?: string }[];
 }
 
 /** Platí tuhle podmínku hráčův rod? (dávku vazal, odměnu pán) */

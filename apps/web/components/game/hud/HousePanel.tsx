@@ -727,7 +727,10 @@ export function HousePanel({
     lordIsOwn,
     ...(view ? { ownHouseId: view.ownHouseId } : {}),
     villages,
-    ...(captives.length > 0 ? { captives } : {}),
+    // výkupné jen za zajatce protistrany (rod zná server; bez údaje se nenabízí)
+    ...(captives.some((c) => c.houseId === houseId)
+      ? { captives: captives.filter((c) => c.houseId === houseId) }
+      : {}),
     ...(gameYear !== undefined ? { gameYear } : {}),
     ...(onSpare ? { loadSpare: (target) => onSpare(houseId, target) } : {}),
   });
@@ -1043,7 +1046,7 @@ export function HousePanel({
                         busy={busy}
                         onClick={() => setDraft({ house: h, direction: 'trade' })}
                       />
-                      {captives.length > 0 && (
+                      {captives.some((c) => c.houseId === h.houseId) && (
                         <PlayerAction
                           label="Výkupné zajatců"
                           icon="seal"
