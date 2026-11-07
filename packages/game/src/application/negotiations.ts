@@ -4,6 +4,7 @@ import type { LoanTx } from './loans';
 import type { StewardshipTx } from './stewardships';
 import type { VassalageRepository } from './vassalages';
 import type { WarTx } from './wars';
+import type { PlacementTx } from './newcomers';
 import type { MacroBundle } from '../domain/vassalage';
 
 /** Stav jednání v úložišti: doménové stavy a `ended` (rod vymřel, vazalství už nelze uzavřít). */
@@ -15,6 +16,8 @@ export interface NegotiationRecord extends Omit<Negotiation, 'status'> {
   /** Roste při každé změně stavu; `setStatus` uspěje jen při shodě. */
   version: number;
   createdAt: Date;
+  /** Žádost odříznutého nováčka o pána (newcomers.md) – pán jen přijme / odmítne. */
+  newcomer: boolean;
 }
 
 /** Založení jednání s prvním kolem; `recipientHouseId` je druhá strana. */
@@ -22,6 +25,8 @@ export interface OpenNegotiationInput {
   initiatorHouseId: string;
   recipientHouseId: string;
   round: NegotiationRound;
+  /** Žádost nováčka o pána (newcomers.md – Nabídka pánů); bez něj běžné jednání. */
+  newcomer?: boolean;
 }
 
 /** Vazalství uvnitř transakce jednání (podmnožina portu, běží nad toutéž transakcí). */
@@ -68,6 +73,8 @@ export interface NegotiationTx {
   loans: LoanTx;
   stewardships: StewardshipTx;
   wars: WarTx;
+  /** Umístění odříznutého nováčka na mapu světa (`placeNewcomer`). */
+  placement: PlacementTx;
 }
 
 /** Tribut z přijatého míru (war.md – Konec války): opakovaná platba bez vazalství, chodí 1. 11. */
@@ -84,6 +91,8 @@ export interface PeaceTribute {
 export interface NegotiationRepository {
   /** Přijatá mírová jednání s tributem (poslední kolo); výchozí zdroj ročních Odvodů tributu. */
   peaceTributes(): Promise<PeaceTribute[]>;
+  /** Všechny žádosti nováčka `houseId` o pána (jednání `newcomer`, v libovolném stavu). */
+  newcomerRequestsOf(houseId: string): Promise<NegotiationRecord[]>;
   transaction<T>(fn: (tx: NegotiationTx) => Promise<T>): Promise<T>;
 }
 

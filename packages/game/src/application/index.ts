@@ -5,6 +5,7 @@ export * from './house-panel';
 export * from './notices';
 export * from './negotiations';
 export * from './negotiate';
+export * from './newcomers';
 export * from './negotiation-effects';
 export * from './negotiation-chronicle';
 export * from './blocks';

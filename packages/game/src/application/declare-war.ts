@@ -1,4 +1,5 @@
 import { houseProtectedUntil, protectedReason, protectionDaysLeft, WAR } from '../domain/war';
+import { NEWCOMER_REASONS } from './newcomers';
 import type { TermItem } from '../domain/negotiation';
 import type { HouseRepository, House } from './houses';
 import { NO_HOUSE, openNegotiation, type NegotiateDeps } from './negotiate';
@@ -63,8 +64,10 @@ async function brokenPeace(
 
 const isAlive = (house: House | null): house is House => house !== null && house.endedAt === null;
 
-/** Důvod, proč rod `target` nesmí být napaden (ochrana nováčka), nebo null. */
+/** Důvod, proč rod `target` nesmí být napaden (ochrana nováčka, odříznutý rod), nebo null. */
 async function protectionReason(deps: WarDeps, target: House, now: Date): Promise<string | null> {
+  // odříznutý nováček (newcomers.md) na mapě světa není – nikdo ho nenapadne
+  if (target.placedAt === null) return NEWCOMER_REASONS.isolatedTarget;
   const until = houseProtectedUntil(target, await deps.wars.ownAttackAt(target.id));
   const left = protectionDaysLeft(until, now);
   return left > 0 ? protectedReason(await houseName(deps, target), left) : null;
@@ -88,6 +91,7 @@ export async function declareWar(
 ): Promise<WarResult> {
   const from = await deps.houses.activeOf(input.playerId);
   if (!from) return fail(NO_HOUSE);
+  if (from.placedAt === null) return fail(NEWCOMER_REASONS.notPlaced);
   const target = await deps.houses.byId(input.target);
   if (!isAlive(target)) return fail(WAR_REASONS.extinct);
   if (target.id === from.id) return fail(WAR_REASONS.extinct);

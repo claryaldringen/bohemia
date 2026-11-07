@@ -23,7 +23,23 @@ export interface Settlement {
    * sídelní sídla z doby před mřížkou ji nemají (null).
    */
   worldCell: WorldCell | null;
+  /**
+   * Poloha v místní mřížce odříznutého rodu (newcomers.md – Odříznutá krajina): sídelní (0, 0),
+   * vsi synů vedle. Odříznuté sídlo nemá `worldCell`; umístění na mapu světa místní polohu smaže.
+   * Chybí nebo null – sídlo není odříznuté.
+   */
+  localCell?: WorldCell | null;
   createdAt: Date;
+}
+
+/**
+ * Kde nové sídlo leží: na políčku mapy světa, nebo (odříznutý nováček) v místní mřížce rodu.
+ */
+export type SettlementPlace = { worldCell: WorldCell } | { localCell: WorldCell };
+
+/** Odříznuté sídlo – leží jen v místní mřížce rodu, mimo mapu světa. */
+export function isIsolated(settlement: Settlement): boolean {
+  return settlement.worldCell === null && (settlement.localCell ?? null) !== null;
 }
 
 /**
@@ -42,26 +58,30 @@ export interface SettlementRepository {
    */
   archive(settlementId: string): Promise<boolean>;
   /**
-   * Atomicky založí sídelní sídlo hráče na políčku `worldCell`; když už hráč sídelní sídlo má,
-   * vrátí ho beze změny. Políčko obsazené mapou jiného hráče → null (nováček zkusí jiné).
+   * Atomicky založí sídelní sídlo hráče na políčku `worldCell` (nebo odříznuté v místní mřížce);
+   * když už hráč sídelní sídlo má, vrátí ho beze změny. Políčko obsazené mapou jiného hráče → null
+   * (nováček zkusí jiné).
    */
-  createSeat(input: {
-    ownerId: string;
-    landscapeSeed: number;
-    layerVersions: LayerVersions;
-    worldCell: WorldCell;
-  }): Promise<Settlement | null>;
+  createSeat(
+    input: {
+      ownerId: string;
+      landscapeSeed: number;
+      layerVersions: LayerVersions;
+    } & SettlementPlace,
+  ): Promise<Settlement | null>;
   /**
    * Založí další (nesídelní) sídlo hráče – novou mapu na políčku mřížky světa (odchod na novou
    * mapu, migration.md). Mřížka je společná všem hráčům: políčko je nejvýš jedno aktivní
-   * sídlo kohokoli – obsazené → null.
+   * sídlo kohokoli – obsazené → null. Odříznutý rod zakládá v místní mřížce (`localCell`), tam je
+   * políčko nejvýš jedno aktivní sídlo hráče.
    */
-  create(input: {
-    ownerId: string;
-    landscapeSeed: number;
-    layerVersions: LayerVersions;
-    worldCell: WorldCell;
-  }): Promise<Settlement | null>;
+  create(
+    input: {
+      ownerId: string;
+      landscapeSeed: number;
+      layerVersions: LayerVersions;
+    } & SettlementPlace,
+  ): Promise<Settlement | null>;
   /** Aktivní mapy všech hráčů s polohou v mřížce světa – vstup umístění nového hráče. */
   occupiedCells(): Promise<OccupiedCell[]>;
   /**

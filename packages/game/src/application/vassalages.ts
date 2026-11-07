@@ -11,7 +11,9 @@ export type { VassalTerms };
 export type BreachKind = 'levy' | 'repay' | 'summons' | 'judgment';
 
 /** Jak vazalství vzniklo (vassalage.md). */
-export type VassalageOrigin = 'invite' | 'negotiation' | 'escheat' | 'ennoble' | 'peace';
+/** Jak vazalství vzniklo; `newcomer` – pán přijal žádost nováčka, `newcomer-lot` – los po týdnu. */
+export type VassalageOrigin =
+  'invite' | 'negotiation' | 'escheat' | 'ennoble' | 'peace' | 'newcomer' | 'newcomer-lot';
 
 /** Vazalství mezi dvěma rody; živé, dokud `endedAt` je null. */
 export interface Vassalage {

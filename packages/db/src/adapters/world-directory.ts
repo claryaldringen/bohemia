@@ -1,8 +1,10 @@
-import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
 import {
   isCurrentDigest,
   type DirectoryEntry,
+  VILLAGE_DIGEST_VERSION,
   type GridCell,
+  type OfferCandidate,
   type VillageDigestRecord,
   type WorldDirectory,
 } from '@bohemia/game';
@@ -34,6 +36,8 @@ export function createWorldDirectory(db: Database): WorldDirectory {
           and(
             eq(house.kind, 'player'),
             isNull(house.endedAt),
+            // odříznutý nováček (newcomers.md) na mapě světa není – nikdo ho nevidí
+            isNotNull(house.placedAt),
             sql`${house.id} <> ${excludeHouseId}`,
             sql`${settlement.gridX} IS NOT NULL AND ${settlement.gridY} IS NOT NULL`,
           ),
@@ -64,6 +68,35 @@ export function createWorldDirectory(db: Database): WorldDirectory {
           ),
         );
       return entriesFor(db, rows);
+    },
+    async offerCandidates(): Promise<OfferCandidate[]> {
+      // živé vsi = souhrn k uložené verzi stavu, současná verze souhrnu, ves nevymřelá ani
+      // opuštěná (jako `publicHouseOf`); odříznuté rody (bez `placed_at`) se nenabízejí
+      const awake = sql<number>`count(*) FILTER (WHERE ${village.digestVersion} = ${village.version}
+        AND (${village.digest}->>'v')::int = ${VILLAGE_DIGEST_VERSION}
+        AND ${village.digest}->>'extinctDay' IS NULL
+        AND ${village.digest}->>'abandonedDay' IS NULL)`.mapWith(Number);
+      const rows = await db
+        .select({ id: house.id, kind: house.kind, language: house.language, villages: awake })
+        .from(house)
+        .innerJoin(
+          settlement,
+          and(
+            eq(settlement.ownerId, house.playerId),
+            isNull(settlement.archivedAt),
+            isNull(settlement.pendingOwnerId),
+          ),
+        )
+        .innerJoin(village, eq(village.settlementId, settlement.id))
+        .where(and(eq(house.kind, 'player'), isNull(house.endedAt), isNotNull(house.placedAt)))
+        .groupBy(house.id);
+      return rows.map((r) => ({
+        houseId: r.id,
+        kind: r.kind,
+        alive: true,
+        villages: r.villages,
+        language: r.language,
+      }));
     },
   };
 }

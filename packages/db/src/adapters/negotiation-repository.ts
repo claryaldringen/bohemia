@@ -15,6 +15,7 @@ import { createWarRepository } from './war-repository';
 import { createStewardshipRepository } from './stewardship-repository';
 import { createNoticeRepository } from './notice-repository';
 import { createVassalageRepository } from './vassalage-repository';
+import { createPlacementTx } from './newcomer-placement';
 
 type Row = typeof negotiation.$inferSelect;
 type RoundRow = typeof negotiationRound.$inferSelect;
@@ -38,6 +39,7 @@ function toRecord(row: Row, rounds: RoundRow[]): NegotiationRecord {
     resolvedAt: row.closedAt,
     version: row.version,
     createdAt: row.createdAt,
+    newcomer: row.newcomer,
   };
 }
 
@@ -68,6 +70,7 @@ function createTx(db: Executor): NegotiationTx {
           partyHigh: high,
           opener: input.initiatorHouseId,
           createdAt: input.round.at,
+          newcomer: input.newcomer === true,
         })
         .onConflictDoNothing()
         .returning();
@@ -190,6 +193,7 @@ function createTx(db: Executor): NegotiationTx {
     loans: createLoanRepository(db),
     stewardships: createStewardshipRepository(db),
     wars: createWarRepository(db),
+    placement: createPlacementTx(db),
   };
 }
 
@@ -221,6 +225,14 @@ export function createNegotiationRepository(db: Database): NegotiationRepository
         if (tribute) out.push(tribute);
       }
       return out;
+    },
+    async newcomerRequestsOf(houseId): Promise<NegotiationRecord[]> {
+      const rows = await db
+        .select()
+        .from(negotiation)
+        .where(and(eq(negotiation.newcomer, true), eq(negotiation.opener, houseId)))
+        .orderBy(asc(negotiation.createdAt), asc(negotiation.id));
+      return Promise.all(rows.map((row) => load(db, row)));
     },
     transaction: <T>(fn: (tx: NegotiationTx) => Promise<T>): Promise<T> =>
       db.transaction((tx) => fn(createTx(tx))),

@@ -4,6 +4,8 @@ import { enterGame } from '../enter-game';
 import { chooseLanguage, type AccountLanguages } from '../languages';
 import { InMemoryHouses } from './in-memory-houses';
 import { InMemorySettlements } from './in-memory-settlements';
+import { InMemoryVillages } from './in-memory-villages';
+import { dwelling, village } from '../../domain/village/__tests__/kin-fixtures';
 
 const NOW = new Date('2026-11-07T12:00:00Z');
 
@@ -11,6 +13,7 @@ function setup(): {
   accounts: AccountLanguages & { stored: Map<string, LanguageGroup> };
   houses: InMemoryHouses;
   settlements: InMemorySettlements;
+  villages: InMemoryVillages;
 } {
   const stored = new Map<string, LanguageGroup>();
   return {
@@ -21,6 +24,7 @@ function setup(): {
     },
     houses: new InMemoryHouses(),
     settlements: new InMemorySettlements(),
+    villages: new InMemoryVillages(),
   };
 }
 
@@ -41,12 +45,26 @@ describe('chooseLanguage', () => {
     expect((await deps.houses.activeOf('p1'))?.language).toBe('fr');
   });
 
-  it('po založení vsi jazyk nezmění', async () => {
+  it('sídlo bez vsi jazyk ještě dovolí', async () => {
     const deps = setup();
     await enterGame(
       { settlements: deps.settlements, houses: deps.houses, worldSeed: 1, now: () => NOW },
       'p1',
     );
+    expect(await chooseLanguage(deps, { playerId: 'p1', language: 'de' })).toEqual({ ok: true });
+    expect(deps.accounts.stored.get('p1')).toBe('de');
+    expect((await deps.houses.activeOf('p1'))?.language).toBe('de');
+  });
+
+  it('po založení vsi jazyk nezmění', async () => {
+    const deps = setup();
+    const seat = (
+      await enterGame(
+        { settlements: deps.settlements, houses: deps.houses, worldSeed: 1, now: () => NOW },
+        'p1',
+      )
+    ).settlement;
+    await deps.villages.add(seat.id, 'Lhota', village([], [dwelling(1)]));
     expect(await chooseLanguage(deps, { playerId: 'p1', language: 'de' })).toEqual({
       ok: false,
       reason: 'Jazyk se volí jen na začátku.',

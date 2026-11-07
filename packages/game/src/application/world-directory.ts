@@ -1,4 +1,4 @@
-import { cellDistance, type LanguageGroup } from '../domain/world';
+import { cellDistance, type LanguageGroup, type OfferCandidate } from '../domain/world';
 import { ageYears, type GridCell } from '../domain/village';
 import type { House, HouseRepository } from './houses';
 import type { SettlementRepository } from './settlements';
@@ -29,6 +29,11 @@ export interface WorldDirectory {
   nearestHouses(center: GridCell, limit: number, excludeHouseId: string): Promise<DirectoryEntry[]>;
   /** Záznamy živých rodů hráčů s danými id (pořadí nezaručeno; rod bez sídelního sídla chybí). */
   entriesOf(houseIds: string[]): Promise<DirectoryEntry[]>;
+  /**
+   * Kandidáti nabídky pánů (newcomers.md): živé umístěné rody hráčů s počtem živých vsí (souhrn
+   * současné verze, ves nevymřelá ani opuštěná); odříznuté rody ne.
+   */
+  offerCandidates(): Promise<OfferCandidate[]>;
 }
 
 /** Cizí rod, jak ho vidí hráč. */

@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { index, integer, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
-import type { VassalTerms } from '@bohemia/game';
+import type { VassalTerms, VassalageOrigin } from '@bohemia/game';
 import { house } from './house';
 
 /**
@@ -19,9 +19,7 @@ export const vassalage = pgTable(
       .notNull()
       .references(() => house.id, { onDelete: 'cascade' }),
     terms: jsonb('terms').$type<VassalTerms>().notNull().default({}),
-    origin: text('origin')
-      .$type<'invite' | 'negotiation' | 'escheat' | 'ennoble' | 'peace'>()
-      .notNull(),
+    origin: text('origin').$type<VassalageOrigin>().notNull(),
     sinceAt: timestamp('since_at', { withTimezone: true }).notNull(),
     sinceDay: integer('since_day').notNull(),
     endedAt: timestamp('ended_at', { withTimezone: true }),

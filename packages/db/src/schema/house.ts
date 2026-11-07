@@ -31,6 +31,11 @@ export const house = pgTable(
     pendingDeparture: jsonb('pending_departure').$type<PendingDeparture>(),
     // Jazyková skupina rodu – kopie z účtu při založení (newcomers.md – Jazyková skupina).
     language: text('language').$type<LanguageGroup>().default('cs').notNull(),
+    // Kdy rod dostal místo na mapě světa (newcomers.md); null – odříznutý nováček čeká na pána.
+    // Dosavadní rody migrace umístí k `created_at`; výchozí now() – rod vložený mimo adaptér je na mapě.
+    placedAt: timestamp('placed_at', { withTimezone: true }).defaultNow(),
+    // Kdy odříznutý nováček poprvé požádal o pána – od té chvíle běží týden (newcomers.md).
+    newcomerSince: timestamp('newcomer_since', { withTimezone: true }),
   },
   (table) => [
     // Hráč má nejvýš jeden živý rod – hlídá databáze, i při souběžných požadavcích.

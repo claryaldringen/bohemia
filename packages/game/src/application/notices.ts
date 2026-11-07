@@ -7,6 +7,18 @@ import type { CampaignNoticeKind } from '../domain/war';
 export type PlayerNoticeKind =
   /** Pozvaný hráč přijal pozvánku a je vazalem pána (úloha 1.8). */
   | 'invite-accepted'
+  /**
+   * Nováček (newcomers.md): pánovi došla žádost o přijetí za vazala – `{ negotiationId, houseId,
+   * name }`; nováčka pán přijal – `{ houseId, name }`; všichni vybraní odmítli – `{ deadline }`;
+   * po týdnu ho los přidělil pánovi (oběma `{ houseId, name }`, pánovi navíc `asLord: true`,
+   * svobodnému `{ houseId: null }`);
+   * pánovi, jehož žádost zanikla, protože nováčka vzal jiný – `{ houseId, name }`.
+   */
+  | 'newcomer-request'
+  | 'newcomer-accepted'
+  | 'newcomer-rejected-all'
+  | 'newcomer-assigned'
+  | 'newcomer-taken'
   /** Pozvaný hráč se rozehrál – pán se dozví, že pozvánka nepřišla vniveč (úloha 1.9). */
   | 'invitee-played'
   /** Hráčův muž zemřel – hráč hraje za jiného (nástupnictví hráče, úloha 2.4). */

@@ -1,6 +1,12 @@
-import type { Settlement, SettlementRepository, WorldCell } from '../settlements';
+import type { Settlement, SettlementPlace, SettlementRepository, WorldCell } from '../settlements';
 import type { LayerVersions } from '../../domain/landscape';
 import type { OccupiedCell } from '../../domain/world';
+
+type NewSettlement = {
+  ownerId: string;
+  landscapeSeed: number;
+  layerVersions: LayerVersions;
+} & SettlementPlace;
 
 /**
  * Repozitář sídel v paměti – createSeat a archive se chovají atomicky jako databáze (unikátní
@@ -65,45 +71,75 @@ export class InMemorySettlements implements SettlementRepository {
     return true;
   }
 
-  async createSeat(input: {
-    ownerId: string;
-    landscapeSeed: number;
-    layerVersions: LayerVersions;
-    worldCell: WorldCell;
-  }): Promise<Settlement | null> {
+  async createSeat(input: NewSettlement): Promise<Settlement | null> {
     // Mezera mezi „přečtu“ a „zapíšu“ jako u skutečné databáze – souběžné volání ji odhalí.
     await Promise.resolve();
     // Kontrola a zápis bez dalšího await – atomicky jako unikátní index v databázi.
     const existing = this.settlements.find((s) => s.ownerId === input.ownerId && s.isSeat);
     if (existing) return existing;
-    if (this.cellTaken(input.worldCell)) return null;
+    return this.insert(input, true);
+  }
+
+  async create(input: NewSettlement): Promise<Settlement | null> {
+    await Promise.resolve();
+    return this.insert(input, false);
+  }
+
+  /** Vloží sídlo; obsazené políčko světa (nebo místní mřížky hráče) → null jako unikátní index. */
+  private insert(input: NewSettlement, isSeat: boolean): Settlement | null {
+    const worldCell = 'worldCell' in input ? input.worldCell : null;
+    const localCell = 'localCell' in input ? input.localCell : null;
+    if (worldCell && this.cellTaken(worldCell)) return null;
+    if (localCell && this.localTaken(input.ownerId, localCell)) return null;
     const settlement: Settlement = {
       id: `settlement-${this.nextId++}`,
-      isSeat: true,
+      ownerId: input.ownerId,
+      isSeat,
+      landscapeSeed: input.landscapeSeed,
+      layerVersions: input.layerVersions,
+      worldCell: worldCell ? { x: worldCell.x, y: worldCell.y } : null,
+      localCell: localCell ? { x: localCell.x, y: localCell.y } : null,
       createdAt: new Date(0),
-      ...input,
     };
     this.settlements.push(settlement);
     return settlement;
   }
 
-  async create(input: {
-    ownerId: string;
-    landscapeSeed: number;
-    layerVersions: LayerVersions;
-    worldCell: WorldCell;
-  }): Promise<Settlement | null> {
-    await Promise.resolve();
-    // políčko mřížky je jedno na celý svět (jako unikátní index v databázi)
-    if (this.cellTaken(input.worldCell)) return null;
-    const settlement: Settlement = {
-      id: `settlement-${this.nextId++}`,
-      isSeat: false,
-      createdAt: new Date(0),
-      ...input,
-    };
-    this.settlements.push(settlement);
-    return settlement;
+  private localTaken(ownerId: string, cell: WorldCell): boolean {
+    return this.settlements.some(
+      (s) =>
+        !this.archived.has(s.id) &&
+        s.ownerId === ownerId &&
+        s.localCell?.x === cell.x &&
+        s.localCell.y === cell.y,
+    );
+  }
+
+  /**
+   * Umístí odříznutá sídla hráče na mapu světa (posun `shift` k místní poloze) – jako podmíněný
+   * UPDATE; obsazené políčko → výjimka (unikátní index), nic se nezmění.
+   */
+  moveIsolated(ownerId: string, shift: WorldCell): number {
+    const moving = this.settlements.filter(
+      (s) => s.ownerId === ownerId && !this.archived.has(s.id) && s.localCell,
+    );
+    for (const s of moving) {
+      const local = s.localCell;
+      if (local && this.cellTaken({ x: local.x + shift.x, y: local.y + shift.y })) {
+        throw new Error('settlement_grid_idx');
+      }
+    }
+    for (const s of moving) {
+      const local = s.localCell;
+      if (!local) continue;
+      const index = this.settlements.indexOf(s);
+      this.settlements[index] = {
+        ...s,
+        worldCell: { x: local.x + shift.x, y: local.y + shift.y },
+        localCell: null,
+      };
+    }
+    return moving.length;
   }
 
   /** Testovací zkratka: sídelní sídlo hráče na políčku (0, 0) – zakládá se vždy. */

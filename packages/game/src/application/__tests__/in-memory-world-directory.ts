@@ -1,4 +1,4 @@
-import { cellDistance } from '../../domain/world';
+import { cellDistance, type OfferCandidate } from '../../domain/world';
 import type { GridCell } from '../../domain/village';
 import type { DirectoryEntry, WorldDirectory } from '../world-directory';
 
@@ -25,5 +25,20 @@ export class InMemoryWorldDirectory implements WorldDirectory {
   async entriesOf(houseIds: string[]): Promise<DirectoryEntry[]> {
     await Promise.resolve();
     return this.entries.filter((e) => houseIds.includes(e.house.id));
+  }
+
+  async offerCandidates(): Promise<OfferCandidate[]> {
+    await Promise.resolve();
+    return this.entries
+      .filter((e) => e.house.placedAt !== null)
+      .map((e) => ({
+        houseId: e.house.id,
+        kind: e.house.kind,
+        alive: e.house.endedAt === null,
+        villages: e.digests.filter(
+          (d) => d.digest.extinctDay === undefined && d.digest.abandonedDay === undefined,
+        ).length,
+        language: e.house.language,
+      }));
   }
 }

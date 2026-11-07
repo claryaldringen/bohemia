@@ -1,6 +1,7 @@
 import 'server-only';
 import {
   createAccountLanguages,
+  createAccountProviders,
   createActivityRepository,
   createHouseRepository,
   createInviteRepository,
@@ -99,9 +100,22 @@ export function chooseLanguageForPlayer(
       accounts: createAccountLanguages(db),
       houses: createHouseRepository(db),
       settlements: createSettlementRepository(db),
+      villages: createVillageRepository(db),
     },
     { playerId, language },
   );
+}
+
+/**
+ * Nabídnout hráči volbu jazyka v úvodu hry: účet přes Google (registrace jazyk nevolila) a ještě
+ * nezaložená ves (newcomers.md – Jazyková skupina).
+ */
+export async function languageChoiceForPlayer(
+  playerId: string,
+  founded: boolean,
+): Promise<boolean> {
+  if (founded) return false;
+  return createAccountProviders(getDatabase()).hasProvider(playerId, 'google');
 }
 
 /** Krajina sídla (mapy) z mezipaměti serveru. */

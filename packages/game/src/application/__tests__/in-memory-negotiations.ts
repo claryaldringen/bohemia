@@ -15,6 +15,8 @@ import type { StewardshipTx } from '../stewardships';
 import { InMemoryWars } from './in-memory-wars';
 import type { WarTx } from '../wars';
 import type { NegotiationRound } from '../../domain/negotiation';
+import type { PlacementTx } from '../newcomers';
+import { InMemoryPlacement } from './in-memory-placement';
 
 /**
  * Repozitář jednání v paměti. Transakce běží sériově (jedna po druhé, jako zámek řádku), verze
@@ -35,6 +37,16 @@ export class InMemoryNegotiations implements NegotiationRepository {
     private readonly stewardships: StewardshipTx = new InMemoryStewardships(),
     private readonly wars: WarTx = new InMemoryWars(),
   ) {}
+
+  /** Umístění nováčka – test ho nastaví nad svými in-memory rody a sídly. */
+  placement: PlacementTx = new InMemoryPlacement();
+
+  async newcomerRequestsOf(houseId: string): Promise<NegotiationRecord[]> {
+    await Promise.resolve();
+    return this.records
+      .filter((r) => r.newcomer && r.initiatorHouseId === houseId)
+      .map((r) => ({ ...r, rounds: [...r.rounds] }));
+  }
 
   async peaceTributes(): Promise<PeaceTribute[]> {
     return this.records.map(peaceTributeOf).filter((t): t is PeaceTribute => t !== null);
@@ -69,6 +81,7 @@ export class InMemoryNegotiations implements NegotiationRepository {
           resolvedAt: null,
           version: 1,
           createdAt: this.clock(),
+          newcomer: input.newcomer === true,
         };
         this.records.push(record);
         return copy(record);
@@ -121,6 +134,7 @@ export class InMemoryNegotiations implements NegotiationRepository {
       loans: this.loans,
       stewardships: this.stewardships,
       wars: this.wars,
+      placement: this.placement,
     };
   }
 }

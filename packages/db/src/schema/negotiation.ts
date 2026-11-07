@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
+  boolean,
   index,
   integer,
   jsonb,
@@ -38,6 +39,8 @@ export const negotiation = pgTable(
     version: integer('version').notNull().default(1),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
     closedAt: timestamp('closed_at', { withTimezone: true }),
+    // Žádost nováčka o pána (newcomers.md – Nabídka pánů): pán jen přijme / odmítne.
+    newcomer: boolean('newcomer').notNull().default(false),
   },
   (table) => [
     uniqueIndex('negotiation_open_pair_uq')

@@ -16,6 +16,8 @@ import {
   issueInvite,
   openNegotiation,
   rejectNegotiation,
+  requestLords,
+  startFree,
   renounceVassalage,
   revokeInvite,
   withdrawNegotiation,
@@ -99,6 +101,30 @@ export async function declareWarForPlayer(
   const result = await declareWar(gameDeps(), {
     playerId,
     ...input,
+    now: new Date(),
+    today: today.day,
+  });
+  return result.ok ? { ok: true } : { error: result.reason };
+}
+
+/** Nováček začne svobodný (newcomers.md) – stáhne žádosti a umístí se k rodům svého jazyka. */
+export async function startFreeForPlayer(playerId: string): Promise<NegotiationActionResult> {
+  const today = await playerToday(playerId);
+  if (!today.ok) return { error: today.error };
+  const result = await startFree(gameDeps(), { playerId, now: new Date(), today: today.day });
+  return result.ok ? { ok: true } : { error: result.reason };
+}
+
+/** Odříznutý nováček požádá 1–5 rodů z nabídky o přijetí za vazala (newcomers.md). */
+export async function requestLordsForPlayer(
+  playerId: string,
+  houseIds: string[],
+): Promise<NegotiationActionResult> {
+  const today = await playerToday(playerId);
+  if (!today.ok) return { error: today.error };
+  const result = await requestLords(gameDeps(), {
+    playerId,
+    houseIds,
     now: new Date(),
     today: today.day,
   });

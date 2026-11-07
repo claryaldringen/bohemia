@@ -88,6 +88,13 @@ async function main(): Promise<void> {
             notices: gameDeps.notices,
             villages: gameDeps.villages,
           },
+          newcomers: {
+            houses: gameDeps.houses,
+            negotiations: gameDeps.negotiations,
+            villages: gameDeps.villages,
+            worldDirectory: gameDeps.worldDirectory,
+            worldSeed: gameDeps.worldSeed,
+          },
           levies: {
             dialogs: gameDeps.dialogs,
             vassalages: gameDeps.vassalages,

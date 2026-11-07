@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { cellDistance, INVITES, WORLD } from '../../domain/world';
 import { enterGame, type EnterGameDeps } from '../enter-game';
+import { enterPlaced } from './placed-player';
 import { grantSuccessionCredits, runWorldTasks } from '../succession-credits';
 import { pragueDateOf, recordActiveDay } from '../activity';
 import { InMemoryActivity } from './in-memory-activity';
@@ -54,10 +55,12 @@ async function inviteFor(
 describe('enterGame s pozvánkou', () => {
   it('pozvaný začíná jako vazal blízko pána, pán dostane upozornění', async () => {
     const s = setup();
-    await enterGame(s.deps, 'pan');
-    await enterGame(s.deps, 'nezavisly');
+    await enterPlaced(s.deps, 'pan', { x: 0, y: 0 });
+    await enterPlaced(s.deps, 'nezavisly', { x: 3, y: 0 });
     await inviteFor(s, 'pan', 'host');
     const { settlement } = await enterGame(s.deps, 'host');
+    // pozvaný je na mapě světa hned – umístěný od vstupu
+    expect((await s.houses.activeOf('host'))?.placedAt).toEqual(NOW);
 
     const lordSeat = s.settlements.settlements.find((x) => x.ownerId === 'pan')!;
     const others = s.settlements.settlements.filter((x) => x.ownerId !== 'host');
@@ -97,7 +100,7 @@ describe('enterGame s pozvánkou', () => {
 
   it('kód je jednorázový a opakovaný vstup nic nezdvojí', async () => {
     const s = setup();
-    await enterGame(s.deps, 'pan');
+    await enterPlaced(s.deps, 'pan', { x: 0, y: 0 });
     await inviteFor(s, 'pan', 'host');
     await enterGame(s.deps, 'host');
     await enterGame(s.deps, 'host');
@@ -107,9 +110,9 @@ describe('enterGame s pozvánkou', () => {
     expect(await s.invites.consumeReservation('host', NOW)).toBeNull();
   });
 
-  it('vymřelý pán: pozvaný je nezávislý a kód je spotřebovaný', async () => {
+  it('vymřelý pán: pozvaný začne odříznutý (bez pána) a kód je spotřebovaný', async () => {
     const s = setup();
-    await enterGame(s.deps, 'pan');
+    await enterPlaced(s.deps, 'pan', { x: 0, y: 0 });
     await inviteFor(s, 'pan', 'host');
     const house = await s.houses.activeOf('pan');
     await s.houses.end(house!.id, NOW, 70);
@@ -117,14 +120,14 @@ describe('enterGame s pozvánkou', () => {
     expect(s.vassalages.vassalages).toHaveLength(0);
     expect(s.notices.notices).toHaveLength(0);
     expect(s.invites.invites[0]!.usedBy).toBe('host');
-    const cell = s.settlements.settlements.find((x) => x.ownerId === 'host')!.worldCell!;
-    const lordCell = s.settlements.settlements.find((x) => x.ownerId === 'pan')!.worldCell!;
-    expect(cellDistance(cell, lordCell)).toBeGreaterThanOrEqual(WORLD.independentGap);
+    const host = s.settlements.settlements.find((x) => x.ownerId === 'host')!;
+    expect(host).toMatchObject({ worldCell: null, localCell: { x: 0, y: 0 } });
+    expect((await s.houses.activeOf('host'))?.placedAt).toBeNull();
   });
 
   it('hráč s existujícím sídlem rezervaci nevyužije', async () => {
     const s = setup();
-    await enterGame(s.deps, 'pan');
+    await enterPlaced(s.deps, 'pan', { x: 0, y: 0 });
     await enterGame(s.deps, 'host');
     await inviteFor(s, 'pan', 'host');
     await enterGame(s.deps, 'host');
@@ -155,7 +158,7 @@ describe('grantSuccessionCredits', () => {
     deps: Parameters<typeof grantSuccessionCredits>[0];
   }> {
     const s = setup();
-    await enterGame(s.deps, 'pan');
+    await enterPlaced(s.deps, 'pan', { x: 0, y: 0 });
     await inviteFor(s, 'pan', 'host');
     await enterGame(s.deps, 'host');
     const activity = new InMemoryActivity();

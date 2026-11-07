@@ -7,6 +7,7 @@ import {
   type CorveeInput,
   type MacroBundle,
 } from '../domain/vassalage';
+import { NEWCOMER_REASONS } from './newcomers';
 import {
   isVillageAbandoned,
   isVillageExtinct,
@@ -21,7 +22,7 @@ import { GRID_STEPS, OPPOSITE } from '../domain/village/world-grid';
 import { TOTAL_GAME_DAYS } from '../domain/calendar';
 import { cellDistance } from '../domain/world/placement';
 import type { PlayerLock } from './locks';
-import type { SettlementRepository } from './settlements';
+import { isIsolated, type SettlementRepository } from './settlements';
 import type { VillageRecord, VillageRepository } from './villages';
 
 // Zásilky mezi vsemi různých hráčů (vassalage.md – Doprava a cílová ves; plán 2026-11-03 –
@@ -108,14 +109,33 @@ function stepToward(from: { x: number; y: number }, to: { x: number; y: number }
   return 'N';
 }
 
-/** Poloha vsi na mapě světa (sídlo z doby před mřížkou – počátek) a držitel. */
+/** Kde ves leží: políčko a držitel; `isolated` – v místní mřížce odříznutého rodu. */
+interface ShipmentPlace {
+  cell: { x: number; y: number };
+  ownerId: string;
+  isolated: boolean;
+}
+
+/**
+ * Poloha vsi na mapě světa (sídlo z doby před mřížkou – počátek) a držitel; odříznutý rod
+ * (newcomers.md) má polohu v místní mřížce.
+ */
 async function placeOf(
   deps: Pick<ShipmentDeps, 'settlements'>,
   village: VillageRecord,
-): Promise<{ cell: { x: number; y: number }; ownerId: string } | null> {
+): Promise<ShipmentPlace | null> {
   const settlement = await deps.settlements.find(village.settlementId);
   if (!settlement) return null;
-  return { cell: settlement.worldCell ?? { x: 0, y: 0 }, ownerId: settlement.ownerId };
+  return {
+    cell: settlement.worldCell ?? settlement.localCell ?? { x: 0, y: 0 },
+    ownerId: settlement.ownerId,
+    isolated: isIsolated(settlement),
+  };
+}
+
+/** Odříznutý rod posílá jen mezi vlastními vsemi – cizí ho nevidí a on je (newcomers.md). */
+function crossesIsolation(a: ShipmentPlace, b: ShipmentPlace): boolean {
+  return (a.isolated || b.isolated) && a.ownerId !== b.ownerId;
 }
 
 /**
@@ -167,6 +187,9 @@ async function sendLocked(
     if (sleeps(from)) return { ok: false, reason: 'Odesílající ves nevysílá.' };
     const fromPlace = await placeOf(deps, from!);
     if (!fromPlace) return { ok: false, reason: 'Odesílající ves nemá sídlo.' };
+    if (crossesIsolation(fromPlace, toPlace)) {
+      return { ok: false, reason: NEWCOMER_REASONS.isolatedTarget };
+    }
     const cells = cellDistance(fromPlace.cell, toPlace.cell);
     const sent = dispatchShipment(from!.state, input.today, {
       bundle: input.bundle,
@@ -376,6 +399,9 @@ async function sendCorveeLocked(
     if (sleeps(from)) return { ok: false, reason: 'Odesílající ves nevysílá.' };
     const fromPlace = await placeOf(deps, from!);
     if (!fromPlace) return { ok: false, reason: 'Odesílající ves nemá sídlo.' };
+    if (crossesIsolation(fromPlace, toPlace)) {
+      return { ok: false, reason: NEWCOMER_REASONS.isolatedTarget };
+    }
     const travelDays = shipmentDays(cellDistance(fromPlace.cell, toPlace.cell)).arrive;
     const corvee: CorveeInput = {
       laborDays: input.laborDays,
@@ -462,6 +488,9 @@ async function sendMenLocked(
     if (sleeps(from)) return { ok: false, reason: 'Odesílající ves nevysílá.' };
     const fromPlace = await placeOf(deps, from!);
     if (!fromPlace) return { ok: false, reason: 'Odesílající ves nemá sídlo.' };
+    if (crossesIsolation(fromPlace, toPlace)) {
+      return { ok: false, reason: NEWCOMER_REASONS.isolatedTarget };
+    }
     const travelDays = shipmentDays(cellDistance(fromPlace.cell, toPlace.cell)).arrive;
     const arrivesDay = input.today + travelDays;
     // ochrana trvá do odvolání – host do konce světa, doma bez dne návratu
