@@ -768,9 +768,11 @@ test('válka: nový rod je pod ochranou, po jejím vypršení A opoví válku C 
     /je pod ochranou ještě \d+ (den|dny|dní)\./,
   );
 
-  // ochrana vyprší (rody jsou „staré“ 30 dní) → opověď projde
+  // ochrana vyprší (rody jsou „staré“ 30 dní – založené i umístěné na mapu světa, ochrana nováčka
+  // běží od umístění, newcomers.md) → opověď projde
   await query(
-    `UPDATE house SET created_at = now() - interval '30 days' WHERE ended_at IS NULL`,
+    `UPDATE house SET created_at = now() - interval '30 days', placed_at = now() - interval '30 days'
+      WHERE ended_at IS NULL`,
     [],
   );
   const panelA2 = await reopenHousePanel(a);
@@ -815,9 +817,10 @@ test('mír: A a C jsou ve válce, C nabídne mír s poplatkem, A přijme → vá
   const idC = await houseIdOf(emailC);
   const idA = await houseIdOf(emailA);
 
-  // ochrana vyprší a A opoví válku C
+  // ochrana vyprší (i od umístění na mapu světa – newcomers.md) a A opoví válku C
   await query(
-    `UPDATE house SET created_at = now() - interval '30 days' WHERE ended_at IS NULL`,
+    `UPDATE house SET created_at = now() - interval '30 days', placed_at = now() - interval '30 days'
+      WHERE ended_at IS NULL`,
     [],
   );
   const panelA = await openHousePanel(a);
@@ -881,9 +884,10 @@ test('vojsko: A je ve válce s C, otevře panel Vojsko, naplánuje tažení na C
   const idC = await houseIdOf(emailC);
   const idA = await houseIdOf(emailA);
 
-  // ochrana vyprší a A opoví válku C
+  // ochrana vyprší (i od umístění na mapu světa – newcomers.md) a A opoví válku C
   await query(
-    `UPDATE house SET created_at = now() - interval '30 days' WHERE ended_at IS NULL`,
+    `UPDATE house SET created_at = now() - interval '30 days', placed_at = now() - interval '30 days'
+      WHERE ended_at IS NULL`,
     [],
   );
   const panelA = await openHousePanel(a);
