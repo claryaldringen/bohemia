@@ -66,6 +66,30 @@ describe('passage repository', () => {
     expect(await passages.voidBetween(a.id, b.id, NOW)).toBe(0);
   });
 
+  it('čekající ohlášení se naváže na tažení a s ním skončí', async () => {
+    const a = await newHouse('vojsko');
+    const b = await newHouse('soused');
+    const campaignId = '00000000-0000-4000-8000-000000000001';
+    const base = {
+      fromHouseId: a.id,
+      toHouseId: b.id,
+      cells: [{ x: 0, y: 0 }],
+      etaDay: 40,
+      message: '',
+      announcedAt: NOW,
+      announcedDay: 30,
+    };
+    const first = await passages.announce(base);
+    expect(first.campaignId).toBeNull();
+    expect(await passages.bindToCampaign(a.id, campaignId)).toBe(1);
+    expect(await passages.bindToCampaign(a.id, campaignId)).toBe(0);
+    expect((await passages.byId(first.id))?.campaignId).toBe(campaignId);
+    expect(await passages.voidOfCampaign(campaignId, NOW)).toBe(1);
+    expect(await passages.validBetween(a.id, b.id)).toEqual([]);
+    // další ohlášení čeká na další tažení
+    expect((await passages.announce(base)).campaignId).toBeNull();
+  });
+
   it('odpověď na dialog se přidá do těla jednou; propadnutí jen otevřeného', async () => {
     const opened = (await dialogs.openOnce('summons:v1:0', {
       playerId: 'soused',

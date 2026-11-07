@@ -9,6 +9,7 @@ export class InMemoryPassages implements PassageRepository {
     await Promise.resolve();
     const passage: Passage = {
       ...structuredClone(input),
+      campaignId: null,
       id: `passage-${this.nextId++}`,
       trust: null,
       reply: null,
@@ -49,6 +50,30 @@ export class InMemoryPassages implements PassageRepository {
         (p) => p.toHouseId === toHouseId && p.voidedAt === null && p.answeredAt === null,
       ),
     );
+  }
+
+  async bindToCampaign(fromHouseId: string, campaignId: string): Promise<number> {
+    await Promise.resolve();
+    let n = 0;
+    for (const p of this.rows) {
+      if (p.fromHouseId === fromHouseId && p.campaignId === null && p.voidedAt === null) {
+        p.campaignId = campaignId;
+        n++;
+      }
+    }
+    return n;
+  }
+
+  async voidOfCampaign(campaignId: string, at: Date): Promise<number> {
+    await Promise.resolve();
+    let n = 0;
+    for (const p of this.rows) {
+      if (p.campaignId === campaignId && p.voidedAt === null) {
+        p.voidedAt = at;
+        n++;
+      }
+    }
+    return n;
   }
 
   async voidBetween(a: string, b: string, at: Date): Promise<number> {

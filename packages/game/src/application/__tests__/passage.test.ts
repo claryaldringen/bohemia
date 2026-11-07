@@ -19,6 +19,7 @@ const ARMY = 'hrac-borivoj';
 const NEUTRAL = 'hrac-ctibor';
 const NOW = new Date('2026-11-05T12:00:00Z');
 /** Rody starší než ochrana nováčka (7 dní). */
+const CAMPAIGN = 'campaign-1';
 const OLD = new Date('2026-10-01T12:00:00Z');
 
 async function world(): Promise<{
@@ -112,15 +113,17 @@ describe('ohlášený průchod', () => {
 
   it('ohlášené vojsko je pro ves na ohlášené mapě neškodné – ves neutíká; jinde škodí', async () => {
     const w = await world();
-    expect(await w.watchers.harmless(ARMY, NEUTRAL, w.onRoute)).toBe(false);
+    expect(await w.watchers.harmless(ARMY, NEUTRAL, w.onRoute, CAMPAIGN)).toBe(false);
     await announce(w);
-    expect(await w.watchers.harmless(ARMY, NEUTRAL, w.onRoute)).toBe(true);
-    expect(await w.watchers.harmless(ARMY, NEUTRAL, w.offRoute)).toBe(false);
+    await w.passages.bindToCampaign(w.armyHouse, CAMPAIGN);
+    expect(await w.watchers.harmless(ARMY, NEUTRAL, w.onRoute, CAMPAIGN)).toBe(true);
+    expect(await w.watchers.harmless(ARMY, NEUTRAL, w.offRoute, CAMPAIGN)).toBe(false);
   });
 
   it('„Nevěřit“ – ves se zachová podle postoje; odpovědět jde jen jednou a jen oslovený rod', async () => {
     const w = await world();
     const done = await announce(w);
+    await w.passages.bindToCampaign(w.armyHouse, CAMPAIGN);
     const passageId = done.ok ? done.passage.id : '';
     const stranger = await answerPassage(w.deps, {
       playerId: ARMY,
@@ -138,7 +141,7 @@ describe('ohlášený průchod', () => {
       today: DAY,
     });
     expect(answered.ok).toBe(true);
-    expect(await w.watchers.harmless(ARMY, NEUTRAL, w.onRoute)).toBe(false);
+    expect(await w.watchers.harmless(ARMY, NEUTRAL, w.onRoute, CAMPAIGN)).toBe(false);
     const again = await answerPassage(w.deps, {
       playerId: NEUTRAL,
       passageId,
@@ -172,9 +175,28 @@ describe('ohlášený průchod', () => {
     });
     expect(war.ok).toBe(true);
     expect((await w.wars.activeOf(w.armyHouse))[0]?.how).toBe('ambush');
-    expect(await w.watchers.harmless(ARMY, NEUTRAL, w.onRoute)).toBe(false);
+    expect(await w.watchers.harmless(ARMY, NEUTRAL, w.onRoute, CAMPAIGN)).toBe(false);
     expect(w.passages.rows[0]?.voidedAt).toEqual(NOW);
     // ve válce průchod ohlásit nejde
     expect(await announce(w)).toEqual({ ok: false, reason: PASSAGE_REASONS.atWar });
+  });
+
+  it('ohlášení platí jen pro své tažení: po návratu domů ves zase jedná podle postoje', async () => {
+    const w = await world();
+    await announce(w);
+    // čekající ohlášení (tažení ještě nevyrazilo) nikoho neuklidní
+    expect(await w.watchers.harmless(ARMY, NEUTRAL, w.onRoute, CAMPAIGN)).toBe(false);
+    expect(await w.passages.bindToCampaign(w.armyHouse, CAMPAIGN)).toBe(1);
+    expect(await w.watchers.harmless(ARMY, NEUTRAL, w.onRoute, CAMPAIGN)).toBe(true);
+    // jiné tažení téhož rodu ohlášení nezdědí
+    expect(await w.watchers.harmless(ARMY, NEUTRAL, w.onRoute, 'campaign-2')).toBe(false);
+    // tažení skončilo (návrat / rozpad) – ohlášení přestalo platit
+    expect(await w.passages.voidOfCampaign(CAMPAIGN, NOW)).toBe(1);
+    expect(await w.watchers.harmless(ARMY, NEUTRAL, w.onRoute, CAMPAIGN)).toBe(false);
+    // na další průchod se musí ohlásit znovu a naváže se na další tažení
+    await announce(w);
+    expect(await w.passages.bindToCampaign(w.armyHouse, 'campaign-2')).toBe(1);
+    expect(await w.watchers.harmless(ARMY, NEUTRAL, w.onRoute, CAMPAIGN)).toBe(false);
+    expect(await w.watchers.harmless(ARMY, NEUTRAL, w.onRoute, 'campaign-2')).toBe(true);
   });
 });

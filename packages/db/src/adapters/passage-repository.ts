@@ -15,6 +15,7 @@ function toPassage(row: Row): Passage {
     message: row.message,
     announcedAt: row.announcedAt,
     announcedDay: row.announcedDay,
+    campaignId: row.campaignId,
     trust: row.trust,
     reply: row.reply,
     answeredAt: row.answeredAt,
@@ -69,6 +70,28 @@ export function createPassageRepository(db: Executor): PassageRepository {
         )
         .orderBy(asc(passage.announcedAt), asc(passage.id));
       return rows.map(toPassage);
+    },
+    async bindToCampaign(fromHouseId, campaignId): Promise<number> {
+      const updated = await db
+        .update(passage)
+        .set({ campaignId })
+        .where(
+          and(
+            eq(passage.fromHouseId, fromHouseId),
+            isNull(passage.campaignId),
+            isNull(passage.voidedAt),
+          ),
+        )
+        .returning({ id: passage.id });
+      return updated.length;
+    },
+    async voidOfCampaign(campaignId, at): Promise<number> {
+      const updated = await db
+        .update(passage)
+        .set({ voidedAt: at })
+        .where(and(eq(passage.campaignId, campaignId), isNull(passage.voidedAt)))
+        .returning({ id: passage.id });
+      return updated.length;
     },
     async voidBetween(a, b, at): Promise<number> {
       const updated = await db

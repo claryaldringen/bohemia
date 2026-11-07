@@ -15,6 +15,7 @@ import {
   type PreparedCampaign,
   type PreparedVillage,
 } from './plan-campaign';
+import type { PassageRepository } from './passages';
 import type { SeedSource } from './settlements';
 import type { VillageRepository } from './villages';
 import type { WarRepository } from './wars';
@@ -27,6 +28,8 @@ export interface LaunchDeps extends PlanDeps, WarDeps {
   wars: WarRepository;
   villages: VillageRepository;
   campaigns: CampaignRepository;
+  /** Čekající ohlášení průchodu rodu se naváže na vyslané tažení (war.md – Pohyb). */
+  passages?: Pick<PassageRepository, 'voidBetween' | 'bindToCampaign'>;
   seeds: SeedSource;
   /** Nové id tažení (uuid). */
   newId: () => string;
@@ -93,6 +96,7 @@ export async function launchCampaign(
   state.surrendered = input.plan.surrendered;
   try {
     await deps.campaigns.create(state, input.now);
+    await deps.passages?.bindToCampaign(prepared.house.id, campaignId);
     await queueCampaignIntent(deps, {
       campaignId,
       playerId: input.playerId,
