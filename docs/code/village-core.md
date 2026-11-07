@@ -309,6 +309,28 @@ afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Sc
   Nejvíc dál bere přepočet chůze se změnou mapy (≈ 2,0 s – síť pěšin inkrementálně bit po bitu
   nejde: kola hledání sčítají provoz všech tras, jedna stavba může změnit kteroukoli trasu),
   sezóna (`seasonSelection` 0,8 s), měsíc cest (0,95 s, rozprostřeno) a roční trasy vozů (0,6 s).
+  Kolo 2 výkonu dopočtu (7. 11. 2026, po opevnění z bodů – fortifications.md, křivka po 1,5 m):
+  palisáda Vlkova má stovky krátkých kusů pásu a vše, co procházelo všechny stěny, zdražilo – rok
+  Vlkova po dnech (stav z DB 7. 11., 33 lidí, palisáda se 7 branami) 33,9–42,3 s (CPU 38–42 s).
+  Jen zrychlení, výsledek bit po bitu týž (otisk roku `4491a922af16` po dnech, vcelku, po 10
+  i po 37 dnech; nová ves 20 let `e37105322688`, nová ves se správcem 15 let `248ba0483ad8`):
+  **mřížka obalů stěn** (`wall-grid.ts` – buňky 4 m, obal s rezervou 5 cm) – `cutsWall` zkouší jen
+  kusy z buněk sloupců, přes které úsečka vede, obrys stěn pro odstup osy trasy (`wallOutline` –
+  `fenceClearance` z `routeLine` / `fencePin`, dřív 13,7 s za rok) jen kusy a hrany u bodu
+  (`FenceOutline.near` – přesná vzdálenost jen pod dosahem, volající ji s ním jen porovnávají);
+  objížďka si pamatuje viditelnost cíle z bodů grafu (`DetourGraph.sees` – týž cíl ze všech
+  obydlí); `walkWallsOf` vrátí pro stěny se stejnými čísly tentýž objekt, takže graf objížďky
+  a paměť dosahu přežijí přepočty tras; průsečíky cest s úseky (`roadGates` – denně
+  `gateRoadCrossings`, 1,0 s) přeskočí úsečky mimo obal úseku; hledání sítě pěšin (`search`) bez
+  vnořené funkce odhadu. Rok Vlkova po dnech střídavě / souběžně před / po (zátěž 5–20):
+  33,9–42,3 s → 14,0–14,5 s (CPU 38,3–41,9 → 18,4–19,0 s, nejdražší den 7,7–9,7 → 2,3–2,5 s).
+  **Cíl < 10 s splněn není.** Zbytek (profil ≈ 15 s): tři přepočty mapy tras za rok po ≈ 2,1 s
+  (6,5 s – hledání sítě pěšin 3,0 s, chůze 2,4 s, z toho objížďky stěn 2,1 s), práce dne 1,6 s
+  (`surplusFieldDay` 0,9 s), sezóna 1,2 s, kopie stavu 1,0 s, odhady vozu při orbě 0,9 s, správce
+  0,6 s – zbylých 362 dní ≈ 7,9 s rozprostřeno po desítkách funkcí. Pod 10 s bez změny pravidel
+  nevidím: návrh Clauda – (a) hrubší body objížďky stěn (`DETOUR_STEP_M` 5 → 10 m, graf 210 →
+  ≈ 110 bodů – objížďky ±1–2 m, nová verze tras) nebo (b) přepočet mapy tras po změně stavby až
+  další den ráno jednou za týden (ne hned) – obojí mění výsledek, proto jen na pokyn.
   Souběžné požadavky téhož hráče dopočet nezdvojují: web je řadí do fronty (`apps/web/lib/exclusive.ts`,
   web-ui.md – Jeden dopočet vsí naráz), druhý jen dopočte zbytek do svého dne.
 

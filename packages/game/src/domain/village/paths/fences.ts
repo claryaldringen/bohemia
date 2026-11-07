@@ -22,6 +22,7 @@ import {
 } from './entrances';
 import { penPathSquares } from './network-keys';
 import type { PathVillage } from './network-types';
+import { boxesInWindow, boxGridOf, type Box } from './wall-grid';
 
 /**
  * Plot stavby vsi a jeho branka (pozemek obydlí – branka u brány domu, tady null). Opevnění nese
@@ -35,16 +36,24 @@ export interface VillageFence {
 
 /**
  * Obrys stěn opevnění pro odstup osy trasy (`fenceClearance`): hrany čtyřúhelníků stěn jako rovné
- * úseky, uvnitř = uvnitř některé stěny. Bez stěn null.
+ * úseky, uvnitř = uvnitř některé stěny. Bez stěn null. Opevnění z bodů má stovky krátkých kusů
+ * pásu – vnitřek i blízké hrany (`FenceOutline.near`) hledá mřížka obalů (`wall-grid.ts`) jen
+ * v buňkách u bodu (výsledek týž).
  */
 export function wallOutline(walls: readonly (readonly Point[])[]): FenceOutline | null {
   if (walls.length === 0) return null;
   const segments: FenceSegment[] = [];
+  const segmentBoxes: Box[] = [];
+  const quadBoxes: Box[] = [];
   let minX = Infinity;
   let minZ = Infinity;
   let maxX = -Infinity;
   let maxZ = -Infinity;
   for (const quad of walls) {
+    let qMinX = Infinity;
+    let qMinZ = Infinity;
+    let qMaxX = -Infinity;
+    let qMaxZ = -Infinity;
     for (let k = 0; k < quad.length; k++) {
       const [ax, az] = quad[k]!;
       const [bx, bz] = quad[(k + 1) % quad.length]!;
@@ -53,17 +62,67 @@ export function wallOutline(walls: readonly (readonly Point[])[]): FenceOutline 
       minZ = Math.min(minZ, az);
       maxX = Math.max(maxX, ax);
       maxZ = Math.max(maxZ, az);
+      qMinX = Math.min(qMinX, ax);
+      qMinZ = Math.min(qMinZ, az);
+      qMaxX = Math.max(qMaxX, ax);
+      qMaxZ = Math.max(qMaxZ, az);
       if (length > 0) {
         segments.push({ x: ax, z: az, dx: (bx - ax) / length, dz: (bz - az) / length, length });
+        segmentBoxes.push({
+          minX: Math.min(ax, bx),
+          maxX: Math.max(ax, bx),
+          minZ: Math.min(az, bz),
+          maxZ: Math.max(az, bz),
+        });
       }
     }
+    quadBoxes.push({ minX: qMinX, maxX: qMaxX, minZ: qMinZ, maxZ: qMaxZ });
   }
+  // kus bez plochy (všechny rohy na přímce) by `insideQuad` vzal i mimo svůj obal – zkouší se vždy
+  const quadGrid = boxGridOf(quadBoxes, (i) => quadArea(walls[i]!) === 0);
+  const segmentGrid = boxGridOf(segmentBoxes, () => false);
   const inside = (x: number, z: number): boolean => {
     if (x < minX || x > maxX || z < minZ || z > maxZ) return false;
-    return walls.some((quad) => insideQuad(quad, x, z));
+    for (const i of boxesInWindow(quadGrid, x, z, x, z, nearQuads)) {
+      if (insideQuad(walls[i]!, x, z)) return true;
+    }
+    return false;
   };
-  return { segments, arcs: [], minX, minZ, maxX, maxZ, inside };
+  // nejbližší hrana do `reach` – stejný výpočet jako `fenceDistance`, jen hrany z buněk u bodu
+  const near = (x: number, z: number, reach: number): number => {
+    let best = Infinity;
+    for (const i of boxesInWindow(
+      segmentGrid,
+      x - reach,
+      z - reach,
+      x + reach,
+      z + reach,
+      nearSegments,
+    )) {
+      const s = segments[i]!;
+      const t = Math.min(s.length, Math.max(0, (x - s.x) * s.dx + (z - s.z) * s.dz));
+      const d = length2(x - s.x - s.dx * t, z - s.z - s.dz * t);
+      if (d < best) best = d;
+    }
+    return best;
+  };
+  return { segments, arcs: [], minX, minZ, maxX, maxZ, inside, near };
 }
+
+/** Dvojnásobek plochy čtyřúhelníku (znaménko podle obíhání). */
+function quadArea(quad: readonly Point[]): number {
+  let area = 0;
+  for (let k = 0; k < quad.length; k++) {
+    const a = quad[k]!;
+    const b = quad[(k + 1) % quad.length]!;
+    area += a[0] * b[1] - b[0] * a[1];
+  }
+  return area;
+}
+
+/** Pracovní seznamy kandidátů `wallOutline` (dotazy se nevnořují). */
+const nearQuads: number[] = [];
+const nearSegments: number[] = [];
 
 /**
  * Ploty vsi: hotový hřbitov (bez rozšíření ve stavbě), hotová ohrada, stojící úseky opevnění
@@ -126,7 +185,11 @@ export function villageFences(
   return out;
 }
 
-/** Odstup bodu od nejbližšího plotu (m) – uvnitř plotu 0; bez plotu v dosahu `reach` Infinity. */
+/**
+ * Odstup bodu od nejbližšího plotu (m) – uvnitř plotu 0; bez plotu v dosahu `reach` Infinity.
+ * Přesný jen pod `reach` (plot s `near` – stěny opevnění – dál vrátí Infinity); volající ho
+ * porovnávají jen s `reach`.
+ */
 export function fenceClearance(
   fences: readonly FenceOutline[],
   x: number,
@@ -139,7 +202,7 @@ export function fenceClearance(
       continue;
     }
     if (f.inside(x, z)) return 0;
-    const d = fenceDistance(f, x, z);
+    const d = f.near ? f.near(x, z, reach) : fenceDistance(f, x, z);
     if (d < best) best = d;
   }
   return best;
