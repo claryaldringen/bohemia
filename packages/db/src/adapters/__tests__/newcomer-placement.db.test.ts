@@ -12,13 +12,14 @@ import {
   type NegotiateDeps,
 } from '@bohemia/game';
 import { createDatabase } from '../../client';
+import { testDatabaseUrl } from '../../test-database';
 import { schema } from '../../index';
 import { createHouseRepository } from '../house-repository';
 import { createNegotiationRepository } from '../negotiation-repository';
 import { createSettlementRepository } from '../settlement-repository';
 import { createWorldDirectory } from '../world-directory';
 
-const db = createDatabase('postgres://postgres@127.0.0.1:5432/bohemia_test');
+const db = createDatabase(testDatabaseUrl());
 const houses = createHouseRepository(db);
 const settlements = createSettlementRepository(db);
 const NOW = new Date('2026-11-07T12:00:00Z');
