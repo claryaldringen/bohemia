@@ -29,6 +29,7 @@ import {
   loadVillage,
   newCampaign,
   realTimeOf,
+  newCampaignMemory,
   stepCampaigns,
   tickOfMs,
   villageWatchers,
@@ -214,6 +215,8 @@ function processDeps(): {
       houses: createHouseRepository(db),
       vassalages: { edgesNear: async () => [] },
     }),
+    // jako worker: poslední spočtený stav a mřížky pochodu napříč koly (worker.md – Výkon)
+    memory: newCampaignMemory(),
   };
   return {
     world: deps,
