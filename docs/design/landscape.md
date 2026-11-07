@@ -356,6 +356,10 @@ ozdoby, ryby, povrch, minimapa i snímky obrazovky).
 - **Cena vody:** led se na hladině počítá jen v zimě (v létě je výsledek stejný) – voda je v létě
   o ≈ 45 % levnější a řeka v záběru stojí méně než dnešní potok (GPU, 3024 × 1800 px: potok dřív
   0,39–0,46 ms, řeka v záběru 0,26–0,31 ms; celá mapa s řekou 0,04–0,15 ms jako dřív 0,09–0,11).
+  Ověřeno znovu 7. 11. 2026 po sloučení s dnešním kódem (WebGPU, 1400 × 860 px, seed 42, stejná
+  kamera u přístaviště, 120 snímků): GPU s řekou 0,21–0,26 ms, průměrná krajina 0,21 ms
+  (v průměru +12 %, mez plánu 20 %), CPU snímku 1,4 ms proti 1,5 ms, nejdelší snímek 17,5–17,9 ms
+  v obou (takt obrazovky).
 - **Na terénu:** zlatonosný náplav – zlatavý písek na vnitřní straně oblouku; rudiště – rezavé
   bahno s loužemi; hliniště – šedookrový jíl; slanisko – bílá solná krusta a tůňka solanky; lom –
   světlá suť a vápenec ve stěně; žíla – okrová zvětralina (železný klobouk) a rezavé rudné
