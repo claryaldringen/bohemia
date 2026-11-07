@@ -835,6 +835,27 @@ se vykreslí i v testech bez serveru.
   odhadu. Ověření a pravidla jsou na serveru – panel posílá jen plán (`war.md` kód – Ú6.6).
 - Testy: e2e `multiplayer.spec.ts` (vojsko); serverové `action-rights.test.ts` hlídá klíče práv.
 
+## Dotazování na tažení a mapa tažení (úloha 6.14, `hooks/use-campaign.ts`, `hud/CampaignMap.tsx`)
+
+- **Route** `GET /api/campaign/<id>?since=<takt>` (`app/api/campaign/[id]/route.ts`, `no-store`,
+  session povinná) → `{ view: CampaignView }`; `?map=<x>,<y>` → `{ map: ForeignMap }` (krajina
+  políčka, `lib/foreign-map.ts`). Cizí i neexistující tažení = stejná 404. Route Handler, ne server
+  action – server actions jednoho klienta jdou za sebou a dotaz by čekal za pokynem.
+- **`useCampaign(id, presence)`**: dotaz 2× za sekundu (`CAMPAIGN_POLL_MS`, `usePolling` – ve
+  skrytém panelu prohlížeče stojí), polohy mezi dvěma stavy interpoluje `interpolateCampaign`
+  (`lib/campaign-view.ts` – typy z jádra pro scénu); `view` se překreslí po 100 ms, scéna si bere
+  `sample(performance.now())`. Vůdce otevřeného tažení posílá `presence` hned a pak po 20 s
+  (`PRESENCE_EVERY_MS`) jen při viditelném panelu – zavřená stránka = žádná přítomnost.
+- **Server actions** (`app/game/actions.ts`, vstup `lib/campaign-input.ts`, composition root
+  `lib/campaign.ts`): `getMyCampaigns`, `commandLeader` (`{ campaignId, target }`), `setGroupOrder`,
+  `chooseSurrendered`, `presence`; odmítnutí vždy „Rozkaz nelze dát.“ (nic neprozradí).
+- **Mapa tažení** (minimální, scénu vojska kreslí `lib/scene`): v panelu Vojsko řádek běžících
+  tažení (`army-campaign`, ikona s cílem v popisku) → `CampaignMap` – pohled shora na mapu velitele
+  (SVG v metrech mapy): velitel (`campaign-commander`, `data-x` / `data-z`), vlastní muži, spojenci,
+  cizí v dohledu (klik = napadni), objevené domy (klik = jdi k domu), cíl (`campaign-goal`); klik
+  na mapu = velitel jde. Ikony Domů, tři rozkazy skupiny velitele a v boji Pobít / Odvést / Nechat,
+  slova jen v `Tooltip`; nevede-li hráč živě, vše zašedlé („Velí jiný muž.“).
+
 ## Postoj vsi ve dvorci (úloha 6.9, `hud/ManorPanel.tsx`)
 
 `ManorUpgrades` má vedle stezky, lovu a obchodu tři ikony postoje (stěna štítů = bránit se, bílá

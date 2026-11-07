@@ -44,6 +44,15 @@ export function createCampaignRepository(db: Database): CampaignRepository {
       return rows.map((r) => r.id);
     },
 
+    async activeOf(playerId: string): Promise<string[]> {
+      const rows = await db
+        .select({ id: campaign.id })
+        .from(campaign)
+        .where(and(eq(campaign.playerId, playerId), eq(campaign.status, 'active')))
+        .orderBy(asc(campaign.createdAt), asc(campaign.id));
+      return rows.map((r) => r.id);
+    },
+
     async checkpoint(campaignId: string): Promise<CampaignCheckpoint | null> {
       const [row] = await db
         .select({ state: campaignCheckpoint.state, outbox: campaignCheckpoint.outbox })

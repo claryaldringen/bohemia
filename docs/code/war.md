@@ -634,3 +634,34 @@ expected, reply?)` (odpověď se přidá do `body` – `body || reply`).
   e2e `multiplayer.spec.ts` („svolání: …“, „ochrana: …“), `domain/war/__tests__/guard-campaign.test.ts`
   (hosté „bránit se“ / „vzdát se“, ztráty domů, po kouscích = vcelku, padlý host = nástupnictví),
   `summons.test.ts` (NPC vazal přesně), `launch-campaign.test.ts` (přepadení přes rozsudek).
+
+## Živé vedení a pohled na tažení (Ú6.14)
+
+- **Mlha války** (`domain/war/sight.ts`): `inSight(grid, z, na)` – dohled `WAR.sight` 150 m, stojí-li
+  kterýkoli z dvojice v lese (`MARCH_FOREST` mřížky pochodu) 50 m; bez mřížky lesní dohled (raději
+  skryje víc). Bere ho i boj (`battle.ts` – `sees`). `discoverBuildings` přidá k `discovered` domy
+  cílové vsi, na které dohlédne kterýkoli muž; `stepCampaign` ho volá v každém taktu nájezdu
+  (`raidTick` → `discover`, muži útoku ve stavu `fight` / `breach`) – objevené zůstane.
+- **Pohled** (`domain/war/view.ts` – `campaignView`, typy `CampaignView*`): vlastní muži celí (zdraví,
+  raněný, velitel, zástupce, stav v boji), muži vazalů ve službě jen poloha (`allies`), obránci jen
+  v dohledu vlastních mužů na nohou na mapě cíle (`foreign`), domy jen objevené (`discovered` – id,
+  druh, poloha); nic dalšího o cizí vsi. `fresh` = stav je novější než `sinceTick` dotazu.
+  `leadsLive` = hráč je vůdce, velí jeho muž a ten stojí na nohou (padlý, zajatý, dezertér = ne);
+  hráč bez vůdcovství i bez vlastního muže dostane null.
+- **Use-casy** (`application/campaign-view.ts`): `campaignViewFor(deps, { playerId, campaignId,
+sinceTick })` – kontrolní bod z úložiště, mřížka mapy cíle jen při boji (mezipaměť `grids`, klíč
+  `tažení@den`), domy cílové vsi jen s něčím objeveným. `commandCampaign` – pokyn
+  (`CampaignCommand`: `lead` s cílem `place` / `building` / `fighter` / `home`, `order`,
+  `surrendered`, `presence`) → záměr na takt teď + 2 (`queueCampaignIntent`). Odmítne (`false`, bez
+  důvodu): hráč, který živě nevede (vazal, cizí hráč, velí jiný muž, padlý či zajatý velitel), místo
+  mimo mapu nebo dál než sousední políčko velitele (kromě mapy cíle), neobjevený dům, cizí muž mimo
+  dohled nebo ležící, neznámá skupina. Přítomnost smí poslat jen vůdce živého tažení.
+- **Úložiště:** `CampaignRepository.activeOf(playerId)` – běžící tažení vůdce (panel Vojsko).
+- **Cizí mapa** (`apps/web/lib/foreign-map.ts`): krajina políčka (veřejná – prázdné z
+  `cellLandscapeSeed`, se vsí z uloženého seedu sídla přes `createCampaignCells`) jako
+  `LandscapeTransfer`; vrstvu překážek si prohlížeč vygeneruje ze seedu vrstvy. Jen pro účastníka
+  a jen mapu cíle, políčko vlastního muže a jeho sousedy; stavby nese jen `CampaignView.discovered`.
+- **Testy:** `application/__tests__/campaign-view.test.ts` (Review Focus 4 – cizí muž, mrtvý
+  a zajatý velitel, neobjevený dům, obránce skrytý v lese, cizí hráč = null),
+  `domain/war/__tests__/sight.test.ts`, `raid-campaign.test.ts` (objevený dům), e2e
+  `multiplayer.spec.ts` („živé vedení: …“ – tažení zapsané přímo do DB, worker vedle).
