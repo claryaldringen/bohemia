@@ -110,12 +110,8 @@
           "name": "account_user_id_user_id_fk",
           "tableFrom": "account",
           "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -202,12 +198,8 @@
           "name": "session_user_id_user_id_fk",
           "tableFrom": "session",
           "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -217,9 +209,7 @@
         "session_token_unique": {
           "name": "session_token_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "token"
-          ]
+          "columns": ["token"]
         }
       },
       "policies": {},
@@ -297,9 +287,7 @@
         "user_email_unique": {
           "name": "user_email_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
+          "columns": ["email"]
         }
       },
       "policies": {},
@@ -432,12 +420,8 @@
           "name": "campaign_war_id_war_id_fk",
           "tableFrom": "campaign",
           "tableTo": "war",
-          "columnsFrom": [
-            "war_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["war_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -445,12 +429,8 @@
           "name": "campaign_player_id_user_id_fk",
           "tableFrom": "campaign",
           "tableTo": "user",
-          "columnsFrom": [
-            "player_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["player_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -503,12 +483,8 @@
           "name": "campaign_checkpoint_campaign_id_campaign_id_fk",
           "tableFrom": "campaign_checkpoint",
           "tableTo": "campaign",
-          "columnsFrom": [
-            "campaign_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["campaign_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -595,12 +571,8 @@
           "name": "campaign_intent_campaign_id_campaign_id_fk",
           "tableFrom": "campaign_intent",
           "tableTo": "campaign",
-          "columnsFrom": [
-            "campaign_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["campaign_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -729,12 +701,8 @@
           "name": "dialog_player_id_user_id_fk",
           "tableFrom": "dialog",
           "tableTo": "user",
-          "columnsFrom": [
-            "player_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["player_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -744,9 +712,7 @@
         "dialog_key_unique": {
           "name": "dialog_key_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "key"
-          ]
+          "columns": ["key"]
         }
       },
       "policies": {},
@@ -844,12 +810,8 @@
           "name": "escheat_dead_house_id_house_id_fk",
           "tableFrom": "escheat",
           "tableTo": "house",
-          "columnsFrom": [
-            "dead_house_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["dead_house_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -859,9 +821,7 @@
         "escheat_dead_house_id_unique": {
           "name": "escheat_dead_house_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "dead_house_id"
-          ]
+          "columns": ["dead_house_id"]
         }
       },
       "policies": {},
@@ -976,12 +936,8 @@
           "name": "house_player_id_user_id_fk",
           "tableFrom": "house",
           "tableTo": "user",
-          "columnsFrom": [
-            "player_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["player_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1112,12 +1068,8 @@
           "name": "settlement_owner_id_user_id_fk",
           "tableFrom": "settlement",
           "tableTo": "user",
-          "columnsFrom": [
-            "owner_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["owner_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1125,12 +1077,8 @@
           "name": "settlement_pending_owner_id_user_id_fk",
           "tableFrom": "settlement",
           "tableTo": "user",
-          "columnsFrom": [
-            "pending_owner_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["pending_owner_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1284,12 +1232,8 @@
           "name": "village_settlement_id_settlement_id_fk",
           "tableFrom": "village",
           "tableTo": "settlement",
-          "columnsFrom": [
-            "settlement_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["settlement_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1402,12 +1346,8 @@
           "name": "village_year_village_id_village_id_fk",
           "tableFrom": "village_year",
           "tableTo": "village",
-          "columnsFrom": [
-            "village_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["village_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1415,10 +1355,7 @@
       "compositePrimaryKeys": {
         "village_year_village_id_year_pk": {
           "name": "village_year_village_id_year_pk",
-          "columns": [
-            "village_id",
-            "year"
-          ]
+          "columns": ["village_id", "year"]
         }
       },
       "uniqueConstraints": {},
@@ -1457,12 +1394,8 @@
           "name": "player_time_offset_player_id_user_id_fk",
           "tableFrom": "player_time_offset",
           "tableTo": "user",
-          "columnsFrom": [
-            "player_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["player_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1554,12 +1487,8 @@
           "name": "player_notice_player_id_user_id_fk",
           "tableFrom": "player_notice",
           "tableTo": "user",
-          "columnsFrom": [
-            "player_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["player_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1647,12 +1576,8 @@
           "name": "village_inbox_village_id_village_id_fk",
           "tableFrom": "village_inbox",
           "tableTo": "village",
-          "columnsFrom": [
-            "village_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["village_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1662,9 +1587,7 @@
         "village_inbox_ref_unique": {
           "name": "village_inbox_ref_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "ref"
-          ]
+          "columns": ["ref"]
         }
       },
       "policies": {},
@@ -1767,12 +1690,8 @@
           "name": "invite_code_issuer_id_user_id_fk",
           "tableFrom": "invite_code",
           "tableTo": "user",
-          "columnsFrom": [
-            "issuer_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["issuer_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1780,12 +1699,8 @@
           "name": "invite_code_reserved_by_user_id_fk",
           "tableFrom": "invite_code",
           "tableTo": "user",
-          "columnsFrom": [
-            "reserved_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["reserved_by"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -1793,12 +1708,8 @@
           "name": "invite_code_used_by_user_id_fk",
           "tableFrom": "invite_code",
           "tableTo": "user",
-          "columnsFrom": [
-            "used_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["used_by"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1923,12 +1834,8 @@
           "name": "vassalage_lord_house_id_house_id_fk",
           "tableFrom": "vassalage",
           "tableTo": "house",
-          "columnsFrom": [
-            "lord_house_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["lord_house_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1936,12 +1843,8 @@
           "name": "vassalage_vassal_house_id_house_id_fk",
           "tableFrom": "vassalage",
           "tableTo": "house",
-          "columnsFrom": [
-            "vassal_house_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["vassal_house_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1975,12 +1878,8 @@
           "name": "player_activity_player_id_user_id_fk",
           "tableFrom": "player_activity",
           "tableTo": "user",
-          "columnsFrom": [
-            "player_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["player_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1988,10 +1887,7 @@
       "compositePrimaryKeys": {
         "player_activity_player_id_prague_date_pk": {
           "name": "player_activity_player_id_prague_date_pk",
-          "columns": [
-            "player_id",
-            "prague_date"
-          ]
+          "columns": ["player_id", "prague_date"]
         }
       },
       "uniqueConstraints": {},
@@ -2057,12 +1953,8 @@
           "name": "succession_credit_player_id_user_id_fk",
           "tableFrom": "succession_credit",
           "tableTo": "user",
-          "columnsFrom": [
-            "player_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["player_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2070,12 +1962,8 @@
           "name": "succession_credit_invitee_id_user_id_fk",
           "tableFrom": "succession_credit",
           "tableTo": "user",
-          "columnsFrom": [
-            "invitee_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["invitee_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2085,9 +1973,7 @@
         "succession_credit_invitee_id_unique": {
           "name": "succession_credit_invitee_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "invitee_id"
-          ]
+          "columns": ["invitee_id"]
         }
       },
       "policies": {},
@@ -2209,12 +2095,8 @@
           "name": "negotiation_party_low_house_id_fk",
           "tableFrom": "negotiation",
           "tableTo": "house",
-          "columnsFrom": [
-            "party_low"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["party_low"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2222,12 +2104,8 @@
           "name": "negotiation_party_high_house_id_fk",
           "tableFrom": "negotiation",
           "tableTo": "house",
-          "columnsFrom": [
-            "party_high"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["party_high"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2235,12 +2113,8 @@
           "name": "negotiation_opener_house_id_fk",
           "tableFrom": "negotiation",
           "tableTo": "house",
-          "columnsFrom": [
-            "opener"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["opener"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2280,12 +2154,8 @@
           "name": "negotiation_reject_proposer_house_id_house_id_fk",
           "tableFrom": "negotiation_reject",
           "tableTo": "house",
-          "columnsFrom": [
-            "proposer_house_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["proposer_house_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2293,12 +2163,8 @@
           "name": "negotiation_reject_rejecter_house_id_house_id_fk",
           "tableFrom": "negotiation_reject",
           "tableTo": "house",
-          "columnsFrom": [
-            "rejecter_house_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["rejecter_house_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2306,10 +2172,7 @@
       "compositePrimaryKeys": {
         "negotiation_reject_proposer_house_id_rejecter_house_id_pk": {
           "name": "negotiation_reject_proposer_house_id_rejecter_house_id_pk",
-          "columns": [
-            "proposer_house_id",
-            "rejecter_house_id"
-          ]
+          "columns": ["proposer_house_id", "rejecter_house_id"]
         }
       },
       "uniqueConstraints": {},
@@ -2364,12 +2227,8 @@
           "name": "negotiation_round_negotiation_id_negotiation_id_fk",
           "tableFrom": "negotiation_round",
           "tableTo": "negotiation",
-          "columnsFrom": [
-            "negotiation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["negotiation_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2377,12 +2236,8 @@
           "name": "negotiation_round_author_house_id_house_id_fk",
           "tableFrom": "negotiation_round",
           "tableTo": "house",
-          "columnsFrom": [
-            "author_house_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["author_house_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2390,10 +2245,7 @@
       "compositePrimaryKeys": {
         "negotiation_round_negotiation_id_seq_pk": {
           "name": "negotiation_round_negotiation_id_seq_pk",
-          "columns": [
-            "negotiation_id",
-            "seq"
-          ]
+          "columns": ["negotiation_id", "seq"]
         }
       },
       "uniqueConstraints": {},
@@ -2430,12 +2282,8 @@
           "name": "player_block_blocker_house_id_house_id_fk",
           "tableFrom": "player_block",
           "tableTo": "house",
-          "columnsFrom": [
-            "blocker_house_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["blocker_house_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2443,12 +2291,8 @@
           "name": "player_block_blocked_house_id_house_id_fk",
           "tableFrom": "player_block",
           "tableTo": "house",
-          "columnsFrom": [
-            "blocked_house_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["blocked_house_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2456,10 +2300,7 @@
       "compositePrimaryKeys": {
         "player_block_blocker_house_id_blocked_house_id_pk": {
           "name": "player_block_blocker_house_id_blocked_house_id_pk",
-          "columns": [
-            "blocker_house_id",
-            "blocked_house_id"
-          ]
+          "columns": ["blocker_house_id", "blocked_house_id"]
         }
       },
       "uniqueConstraints": {},
@@ -2570,12 +2411,8 @@
           "name": "shipment_from_village_id_village_id_fk",
           "tableFrom": "shipment",
           "tableTo": "village",
-          "columnsFrom": [
-            "from_village_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["from_village_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2583,12 +2420,8 @@
           "name": "shipment_to_village_id_village_id_fk",
           "tableFrom": "shipment",
           "tableTo": "village",
-          "columnsFrom": [
-            "to_village_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["to_village_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2598,9 +2431,7 @@
         "shipment_ref_id_unique": {
           "name": "shipment_ref_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "ref_id"
-          ]
+          "columns": ["ref_id"]
         }
       },
       "policies": {},
@@ -2738,12 +2569,8 @@
           "name": "loan_negotiation_id_negotiation_id_fk",
           "tableFrom": "loan",
           "tableTo": "negotiation",
-          "columnsFrom": [
-            "negotiation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["negotiation_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2751,12 +2578,8 @@
           "name": "loan_creditor_house_id_house_id_fk",
           "tableFrom": "loan",
           "tableTo": "house",
-          "columnsFrom": [
-            "creditor_house_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["creditor_house_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2764,12 +2587,8 @@
           "name": "loan_debtor_house_id_house_id_fk",
           "tableFrom": "loan",
           "tableTo": "house",
-          "columnsFrom": [
-            "debtor_house_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["debtor_house_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2779,9 +2598,7 @@
         "loan_negotiation_id_unique": {
           "name": "loan_negotiation_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "negotiation_id"
-          ]
+          "columns": ["negotiation_id"]
         }
       },
       "policies": {},
@@ -2903,12 +2720,8 @@
           "name": "stewardship_steward_house_id_house_id_fk",
           "tableFrom": "stewardship",
           "tableTo": "house",
-          "columnsFrom": [
-            "steward_house_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["steward_house_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2916,12 +2729,8 @@
           "name": "stewardship_holder_house_id_house_id_fk",
           "tableFrom": "stewardship",
           "tableTo": "house",
-          "columnsFrom": [
-            "holder_house_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["holder_house_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2929,12 +2738,8 @@
           "name": "stewardship_vassalage_id_vassalage_id_fk",
           "tableFrom": "stewardship",
           "tableTo": "vassalage",
-          "columnsFrom": [
-            "vassalage_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["vassalage_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -3050,12 +2855,8 @@
           "name": "war_house_low_house_id_fk",
           "tableFrom": "war",
           "tableTo": "house",
-          "columnsFrom": [
-            "house_low"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["house_low"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -3063,12 +2864,8 @@
           "name": "war_house_high_house_id_fk",
           "tableFrom": "war",
           "tableTo": "house",
-          "columnsFrom": [
-            "house_high"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["house_high"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -3102,12 +2899,8 @@
           "name": "war_attack_house_id_house_id_fk",
           "tableFrom": "war_attack",
           "tableTo": "house",
-          "columnsFrom": [
-            "house_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["house_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -3141,12 +2934,8 @@
           "name": "war_protection_notice_house_id_house_id_fk",
           "tableFrom": "war_protection_notice",
           "tableTo": "house",
-          "columnsFrom": [
-            "house_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["house_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
