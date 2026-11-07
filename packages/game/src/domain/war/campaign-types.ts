@@ -1,7 +1,7 @@
 import type { WorldClock } from '../calendar';
 import type { Landscape, ObstacleLayer } from '../landscape';
 import type { NewVillageEvent } from '../village/inbox';
-import type { PersonRef, VillageState } from '../village/types';
+import type { Person, PersonRef, RaidLoot, VillageState } from '../village/types';
 import type { GridCell } from '../village/world-grid';
 import type { BattleState } from './battle';
 import type { Pos } from './march-grid';
@@ -41,6 +41,8 @@ export interface CampaignMember {
   vigor: number;
   /** Pěší raněný – zpomalí skupinu (war.md – Ztráty); nastaví boj (Ú6.8). */
   wounded: boolean;
+  /** Den, kdy byl raněn (60 dní bez práce a los smrti od něj – Ú6.10); u starších stavů chybí. */
+  woundedDay?: number;
   /** Má v cílové vsi blízké příbuzné – dezertuje častěji a cíl varuje (war.md – Vojsko). */
   kin?: true;
   /** Id skupiny (`CampaignGroup.id`). */
@@ -60,6 +62,8 @@ export interface CampaignPlace {
 /** Ves tažení (shromaždiště, cíl) – id vsi a její místo. */
 export interface CampaignVillage extends CampaignPlace {
   villageId: string;
+  /** Jméno vsi do kroniky nájezdu (Ú6.10); u starších stavů chybí. */
+  name?: string;
 }
 
 /** Úsek pochodu po jedné mapě (`MarchPath` bez buněk) a ušlé metry louky po něm. */
@@ -101,6 +105,13 @@ export type SurrenderOrder = 'kill' | 'lead' | 'leave';
 export interface CampaignLoot {
   foodKg: number;
   herd: number;
+  /** Rozpis kořisti po druzích (`foodKg` a `herd` jsou jeho součty); chybí – nic nevzali. */
+  detail?: RaidLoot;
+  /**
+   * Odvedení lidé – snímek ze stavu napadené vsi v den nájezdu (id patří jí); ve vsi útočníka
+   * přijdou jako noví vesničané s novými id (`campaign-return`). Chybí – nikdo.
+   */
+  people?: Person[];
 }
 
 /** Proč se tažení vrací; `routed` = útočníci v boji poraženi (war.md – Bod zlomu). */
@@ -134,6 +145,10 @@ export interface CampaignState {
   surrendered?: SurrenderOrder;
   /** Velí hráčův muž – hráč vede živě (war.md – Velení). */
   liveCommand: boolean;
+  /** Přepadení bez opovědi (kronika nájezdu); chybí – s opovědí, nebo neznámo (starší stav). */
+  ambush?: true;
+  /** Den, kdy tažení poslalo výsledek nájezdu do vsí (`raid-result`) – jen jednou; chybí – ještě ne. */
+  raidDay?: number;
   /** Objevené stavby cílové vsi (Ú6.14 – mlha války). */
   discovered: number[];
   /** Proč se vrací (od fáze `returning`). */

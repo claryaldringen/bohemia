@@ -438,6 +438,10 @@ Martin 2. 11. 2026 – „ok“ (podrobnosti návrh Clauda):
   ([fortifications.md](fortifications.md) – Útočiště).
 - **Odvedení lidé** a **zajatí šlechtici**.
 - Osivo, klády, nástroje a keramika zůstanou; **domy, pole a sady se zatím nepálí** (Později).
+- Podrobnosti výpočtu (návrh Clauda, Ú6.10): když se jídlo nevejde do nosnosti, berou ze všech
+  druhů ve stejném poměru; raněný kořist nenese; zapečetěné jámy jsou skryté při každém postoji;
+  útočiště je dobyté, když v něm někdo bojoval, nebo se vzdal; vzdané útočník bez rozkazu odvede.
+  Koně a voli se zatím neberou.
 
 ## Konec války – mírové jednání
 

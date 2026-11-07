@@ -121,8 +121,8 @@ export const WAR = {
     returnDays: 1,
     defaultStance: 'flee' as const,
   },
-  /** war.md – Ztráty: ranění 60 dní bez práce, 1 z 5 zemře (Martin 2. 11.). */
-  wounded: { days: 60, deathShare: 0.2 },
+  /** war.md – Ztráty: ranění 60 dní bez práce a výcviku, 1 z 5 do 30 dní zemře (Martin 2. 11.). */
+  wounded: { days: 60, deathShare: 0.2, deathWithinDays: 30 },
   /** war.md – Čísla: poslední muž rodu doma neklesne pod 10 zdraví. */
   lastLineManMinHealth: 10,
   /** war.md – Čísla: doslech rozkazu (m). */

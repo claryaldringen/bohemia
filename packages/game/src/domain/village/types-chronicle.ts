@@ -20,6 +20,18 @@ import type {
 } from './types-trade';
 
 /**
+ * Kořist nájezdu (war.md – Kořist): jídlo ze zásob po druzích (kg) a dobytek (kusy). Stejný tvar
+ * jde ve schránce (`raid-result`, `campaign-return`) i do kroniky.
+ */
+export interface RaidLoot {
+  grainKg: number;
+  legumesKg: number;
+  meatKg: number;
+  cheeseKg: number;
+  livestock: Record<HerdSpecies, number>;
+}
+
+/**
  * Kdo se vzal (id ženicha a nevěsty) – u událostí svatby v kronice (kinship.md – Svatba ve scéně:
  * svatebčané ve scéně); události zapsané dřív je nemají.
  */
@@ -124,6 +136,22 @@ export type ChronicleEvent = { day: number } & (
    * (`set-out`), nebo se vrátilo domů (`returned`) – věcně, bez hodnocení.
    */
   | { kind: 'campaign'; step: 'set-out' | 'returned'; leader: string }
+  /**
+   * Nájezd (war.md – Co hráč vidí: Kronika) – věcný zápis do kronik obou rodů: vůdce `leader` ze
+   * vsi `from` na ves `target`, bez opovědi (`declared` false), padlí, ranění a odvedení obránci
+   * a kořist. Jména vsí chybí, když je tažení nezná (starší stav).
+   */
+  | {
+      kind: 'raid';
+      leader: string;
+      from?: string;
+      target?: string;
+      declared: boolean;
+      fallen: number;
+      wounded: number;
+      led: number;
+      loot: RaidLoot;
+    }
   /** Dohoda z jednání: rod `vassal` přísahal rodu `lord` (jména hlav rodů). */
   | { kind: 'negotiation-accepted'; lord: string; vassal: string }
   /** Vazalství skončilo formálním vypovězením (jména hlav rodů; text je neutrální, bez viníka). */
@@ -158,7 +186,8 @@ export type ChronicleEvent = { day: number } & (
       kind: 'death';
       group: 'child' | 'adult' | 'elder';
       age?: number;
-      cause?: 'hunger' | 'hunt' | 'flood' | 'tornado';
+      /** `war` – padl v boji (war.md – Ztráty), `wounds` – zemřel na rány. */
+      cause?: 'hunger' | 'hunt' | 'flood' | 'tornado' | 'war' | 'wounds';
       /** Zvěř, na jejímž lovu muž zahynul (`cause: 'hunt'`). */
       prey?: 'boar' | 'bear';
       name?: string;

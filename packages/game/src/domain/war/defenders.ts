@@ -1,6 +1,6 @@
 import { isLineMan, lineMen } from '../village/dynasty';
 import { villageHappiness } from '../village/happiness';
-import { ageYears, isAway } from '../village/people';
+import { ageYears, isAway, isInjured } from '../village/people';
 import { AGE } from '../village/rules';
 import type { Dwelling, VillageState } from '../village/types';
 import type { Fighter } from './battle';
@@ -101,7 +101,7 @@ export function defenderRoster(
   for (const p of [...state.people].sort((a, b) => a.id - b.id)) {
     const age = ageYears(p.bornDay, day);
     if (age < boyFrom || isAway(p, day)) continue;
-    if (p.injuredUntilDay !== undefined && p.injuredUntilDay > day) continue;
+    if (isInjured(p, day)) continue;
     const home = homes.get(p.dwellingId) ?? fallback;
     const pos = home ? { x: home.position.x, z: home.position.z } : { x: 0, z: 0 };
     const houseGroup = home ? (groups.get(home.id) ?? 0) : 0;
