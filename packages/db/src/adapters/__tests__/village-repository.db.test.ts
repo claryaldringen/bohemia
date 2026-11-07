@@ -19,11 +19,12 @@ import {
   type VillageYearRow,
 } from '@bohemia/game';
 import { createDatabase } from '../../client';
+import { testDatabaseUrl } from '../../test-database';
 import { schema } from '../../index';
 import { createSettlementRepository } from '../settlement-repository';
 import { createVillageRepository } from '../village-repository';
 
-const db = createDatabase('postgres://postgres@127.0.0.1:5432/bohemia_test');
+const db = createDatabase(testDatabaseUrl());
 const villages = createVillageRepository(db);
 const DAY = dayIndexOf({ year: 503, month: 4, day: 12 });
 const UNKNOWN = '00000000-0000-0000-0000-000000000000';

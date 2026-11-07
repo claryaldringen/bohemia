@@ -3,13 +3,14 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { sql } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { createDatabase } from '../../client';
+import { testDatabaseUrl } from '../../test-database';
 import { schema } from '../../index';
 import { createDisputeRepository } from '../dispute-repository';
 import { createHouseRepository } from '../house-repository';
 
 // Spory a rozsudek pána (vassalage.md – Mír a spory): jedna žaloba na dvojici, podmíněné zápisy.
 
-const db = createDatabase('postgres://postgres@127.0.0.1:5432/bohemia_test');
+const db = createDatabase(testDatabaseUrl());
 const disputes = createDisputeRepository(db);
 const houses = createHouseRepository(db);
 const NOW = new Date('2026-11-06T12:00:00Z');

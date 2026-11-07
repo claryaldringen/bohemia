@@ -10,12 +10,13 @@ import {
   type VillageState,
 } from '@bohemia/game';
 import { createDatabase } from '../../client';
+import { testDatabaseUrl } from '../../test-database';
 import { schema } from '../../index';
 import { createSettlementRepository } from '../settlement-repository';
 import { createShipmentRepository } from '../shipment-repository';
 import { createVillageRepository } from '../village-repository';
 
-const db = createDatabase('postgres://postgres@127.0.0.1:5432/bohemia_test');
+const db = createDatabase(testDatabaseUrl());
 const shipments = createShipmentRepository(db);
 const villages = createVillageRepository(db);
 const DAY = dayIndexOf({ year: 503, month: 4, day: 12 });

@@ -4,10 +4,11 @@ import { sql } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { CURRENT_LAYER_VERSIONS, type Settlement } from '@bohemia/game';
 import { createDatabase } from '../../client';
+import { testDatabaseUrl } from '../../test-database';
 import { schema } from '../../index';
 import { createSettlementRepository } from '../settlement-repository';
 
-const db = createDatabase('postgres://postgres@127.0.0.1:5432/bohemia_test');
+const db = createDatabase(testDatabaseUrl());
 const repository = createSettlementRepository(db);
 
 const addPlayer = async (id: string): Promise<void> => {

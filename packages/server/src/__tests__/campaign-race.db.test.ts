@@ -21,6 +21,7 @@ import {
   createWorldQueue,
   schema,
 } from '@bohemia/db';
+import { testDatabaseUrl } from '@bohemia/db/test-database';
 import {
   CURRENT_LAYER_VERSIONS,
   advanceWorldStep,
@@ -48,7 +49,7 @@ import { createPlayerLocks } from '../deps';
 import { currentWorld, worldSeed } from '../world';
 import { cachedVillages } from '../village-cache';
 
-const URL = 'postgres://postgres@127.0.0.1:5432/bohemia_test';
+const URL = testDatabaseUrl();
 const world = currentWorld();
 const DATE = { year: 520, month: 6, day: 1 };
 /** První takt scénáře – kousek po začátku dne `D0`. */
