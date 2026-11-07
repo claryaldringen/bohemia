@@ -13,6 +13,16 @@ začátku svého dne, zápis zvedá verzi vsi) – `docs/code/village-core.md`, 
 - Každé sídlo má `grid_x` / `grid_y` v tabulce `settlement`; na políčku leží nejvýš jedna aktivní
   mapa (unikátní index `settlement_grid_idx`). Seed světa: `packages/server/src/world.ts`.
 
+- **Umístění shluku** (`domain/world/placement.ts` – `placeCluster`, `cluster-placement.ts`):
+  `placeCluster(occupied, cluster, request)` hledá po prstencích od cíle první posun, kde mají
+  všechny buňky shluku (místní souřadnice, první = sídlo) odstup ≥ gap od cizích; vzájemná poloha
+  se zachová. `PlacementRequest` `independent` nese volitelné `sameLanguage` (mapy rodů stejného
+  jazyka; prázdné/chybějící = střed světa, hledá se nejblíž kterékoli z nich). `placeNewPlayer` je
+  `placeCluster` s jednou buňkou. Čísla: `WORLD`, `NEWCOMERS` (`rules-world.ts`).
+- **Nabídka pánů** (`domain/world/lord-offer.ts`): `lordOffer(candidates, { language, seed })` –
+  jen živé rody hráčů s nejmenším počtem vsí ≥ 2; stejný jazyk první, uvnitř skupiny pořadí
+  z `deriveSeed(seed, houseId)`; prázdná nabídka = `[]` (newcomers.md – Nabídka pánů).
+
 ## Rod
 
 - Tabulka `house` (`packages/db/src/schema/house.ts`), port `HouseRepository`
