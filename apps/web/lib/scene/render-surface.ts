@@ -1,7 +1,10 @@
 import type { Landscape } from '@bohemia/game';
 import {
   BANK_REACH_M,
+  nearestWaterPair,
+  riverCenterline,
   streamCenterline,
+  watersCenterline,
   type StreamCenterline,
   type StreamSample,
 } from './stream-geometry';
@@ -11,6 +14,11 @@ import { tileCenter } from './tile-at';
 export const RENDER_SUBDIVISION = 4;
 /** Nejhlubší místo koryta pod hladinou (m): běžný úsek, tůň a mělčina (brod). */
 const CHANNEL_DEPTH_M = 1;
+/**
+ * Koryto řeky prémiových krajin (premium-landscapes.md – splavná řeka „širší, hlubší“): hlubší
+ * než potok – tmavší hladina uprostřed, brod zůstává mělký (SHALLOW_DEPTH_M).
+ */
+const RIVER_DEPTH_M = 2;
 const POOL_DEPTH_M = 2.2;
 const SHALLOW_DEPTH_M = 0.35;
 /**
@@ -57,9 +65,15 @@ export interface RenderSurface {
   resolution: number;
   /** Výška terénu v bodě (m, bez převýšení). */
   heights: Float32Array;
-  /** Hladina potoka v bodě (m), nebo −Infinity daleko od potoka. */
+  /** Hladina potoka (či řeky) v bodě (m), nebo −Infinity daleko od vody. */
   waterLevel: Float32Array;
+  /**
+   * Dotazy „co je tady za vodu“ – potok i řeka (`watersCenterline`), `points` jsou body osy
+   * potoka. Krajina bez řeky = osa potoka.
+   */
   stream: StreamCenterline;
+  /** Osa řeky prémiové krajiny (stanice podél řeky – rákos, ryby, zvuk), jinak null. */
+  river: StreamCenterline | null;
   /** Světové souřadnice bodu sítě. */
   position(v: number): { x: number; z: number };
   /** Výška terénu (m) kdekoli – bilineárně mezi body sítě. */
@@ -70,7 +84,8 @@ export function buildRenderSurface(l: Landscape): RenderSurface {
   const resolution = (l.size - 1) * RENDER_SUBDIVISION + 1;
   const step = l.cellSizeM / RENDER_SUBDIVISION;
   const origin = tileCenter(l, 0, 0);
-  const stream = streamCenterline(l);
+  const course = streamCenterline(l);
+  const river = riverCenterline(l);
   const heights = new Float32Array(resolution * resolution);
   const waterLevel = new Float32Array(resolution * resolution).fill(-Infinity);
 
@@ -80,15 +95,18 @@ export function buildRenderSurface(l: Landscape): RenderSurface {
       const base = bicubicHeight(l, i / RENDER_SUBDIVISION, j / RENDER_SUBDIVISION);
       const x = origin.worldX + i * step;
       const z = origin.worldZ + j * step;
-      const [near, other] = stream.nearestPair(x, z, BANK_REACH_M);
+      // potok i řeka (bez řeky přesně osa potoka); u řeky hlubší koryto
+      const { near, other, second } = nearestWaterPair(course, river, x, z, BANK_REACH_M);
       if (!Number.isFinite(near.distance)) {
         heights[v] = base;
         continue;
       }
       waterLevel[v] = near.level;
-      heights[v] = blendBanks(base, near, other);
+      heights[v] = blendBanks(base, near, other, second ? RIVER_DEPTH_M : CHANNEL_DEPTH_M);
     }
   }
+  fadeMountainEdges(l, heights, waterLevel, resolution);
+  const stream = watersCenterline(l);
 
   const position = (v: number): { x: number; z: number } => ({
     x: origin.worldX + (v % resolution) * step,
@@ -106,7 +124,7 @@ export function buildRenderSurface(l: Landscape): RenderSurface {
     const bottom = h(i0, j0 + 1) + (h(i0 + 1, j0 + 1) - h(i0, j0 + 1)) * ti;
     return top + (bottom - top) * tj;
   };
-  return { resolution, heights, waterLevel, stream, position, heightAt };
+  return { resolution, heights, waterLevel, stream, river, position, heightAt };
 }
 
 /**
@@ -115,12 +133,12 @@ export function buildRenderSurface(l: Landscape): RenderSurface {
  * terén mezi „sotva nad hladinou“ a „mírný svah“ – zasype schodovité zbytky koryta z mřížky
  * políček a nevytvoří útes.
  */
-function channelHeight(base: number, near: StreamSample): number {
+function channelHeight(base: number, near: StreamSample, channelDepth: number): number {
   const inner = Math.max(0, near.innerBend);
   const outer = Math.max(0, -near.innerBend);
   if (near.bankDistance < 0) {
     const t = Math.min(1, near.distance / Math.max(near.halfWidth, 0.5));
-    let depth = CHANNEL_DEPTH_M + (POOL_DEPTH_M - CHANNEL_DEPTH_M) * near.pool;
+    let depth = channelDepth + (POOL_DEPTH_M - channelDepth) * near.pool;
     depth += (SHALLOW_DEPTH_M - depth) * near.shallow;
     // Náplav: dno k vnitřnímu břehu stoupá dřív; nárazový břeh: hloubka drží až ke kraji.
     // Menší exponent = dno stoupá ke břehu dřív (mělčí), větší = koryto hluboké až ke kraji.
@@ -140,6 +158,53 @@ function channelHeight(base: number, near: StreamSample): number {
   const fade = smoothstep(BANK_FADE_M.from, BANK_FADE_M.to, beyond);
   const usual = bank + (base - bank) * fade;
   return near.bank > 0 ? cliffBank(usual, base, near) : usual;
+}
+
+/**
+ * Horský průsmyk (prémiová krajina – pohraniční hory podél okraje mapy, hřeben 105 m od okraje):
+ * generátor vnější svah hor u okraje mapy utne zhruba v 60 % výšky hřebene – za okrajem mapy
+ * nic není a hora by tam končila svislou stěnou. Ve scéně se proto u okraje, kde jsou hory
+ * (rozdíl výšek po okraji nad `riseM`), terén v posledních `fadeM` metrech stáhne k nejnižší
+ * výšce na tom okraji – vnější svah hor dobíhá k okraji mapy (hřeben zůstane). Jen vzhled
+ * (herní data krajiny se nemění), voda se nemění; ostatní krajiny beze změny.
+ */
+const MOUNTAIN_EDGE = { fadeM: 90, riseM: 25 } as const;
+
+function fadeMountainEdges(
+  l: Landscape,
+  heights: Float32Array,
+  waterLevel: Float32Array,
+  resolution: number,
+): void {
+  if (l.premium !== 'mountain-pass') return;
+  const n = l.size;
+  const sides: { along: (k: number) => number; distance: (i: number, j: number) => number }[] = [
+    { along: (k) => l.heights[k * n]!, distance: (i) => i },
+    { along: (k) => l.heights[k * n + n - 1]!, distance: (i) => resolution - 1 - i },
+    { along: (k) => l.heights[k]!, distance: (_i, j) => j },
+    { along: (k) => l.heights[(n - 1) * n + k]!, distance: (_i, j) => resolution - 1 - j },
+  ];
+  const step = l.cellSizeM / RENDER_SUBDIVISION;
+  for (const side of sides) {
+    let floor = Infinity;
+    let peak = -Infinity;
+    for (let k = 0; k < n; k++) {
+      floor = Math.min(floor, side.along(k));
+      peak = Math.max(peak, side.along(k));
+    }
+    if (peak - floor < MOUNTAIN_EDGE.riseM) continue;
+    const reach = Math.ceil(MOUNTAIN_EDGE.fadeM / step);
+    for (let j = 0; j < resolution; j++) {
+      for (let i = 0; i < resolution; i++) {
+        const d = side.distance(i, j);
+        if (d > reach) continue;
+        const v = j * resolution + i;
+        if (Number.isFinite(waterLevel[v]!) || heights[v]! <= floor) continue;
+        const w = 1 - smoothstep(0, MOUNTAIN_EDGE.fadeM, d * step);
+        heights[v] = heights[v]! - (heights[v]! - floor) * w;
+      }
+    }
+  }
 }
 
 /** Šířka čela stěny (m) od okraje vody podle její výšky – podle ní i textura skály. */
@@ -186,15 +251,22 @@ function smoothstep(edge0: number, edge1: number, x: number): number {
  * vzdálenosti od vody. Váha úseku plynule klesá tam, kde jeho úprava stejně dozní, takže
  * přepnutí „nejbližšího úseku“ nevytvoří schod. Ve vodě rozhoduje jen vlastní koryto.
  */
-function blendBanks(base: number, near: StreamSample, other: StreamSample): number {
-  const own = channelHeight(base, near);
+function blendBanks(
+  base: number,
+  near: StreamSample,
+  other: StreamSample,
+  channelDepth: number,
+): number {
+  const own = channelHeight(base, near, channelDepth);
   if (near.bankDistance < 0 || !Number.isFinite(other.distance)) return own;
   const weight = (sample: StreamSample): number =>
     (1 - smoothstep(BANK_FADE_M.from, BANK_FADE_M.to, sample.bankDistance)) /
     (Math.max(sample.bankDistance, 0) + 2) ** 2;
   const w1 = weight(near);
   const w2 = weight(other);
-  const banks = w1 + w2 > 0 ? (own * w1 + channelHeight(base, other) * w2) / (w1 + w2) : own;
+  // na břehu hloubka koryta nehraje roli – druhé místo stejnou hloubkou
+  const banks =
+    w1 + w2 > 0 ? (own * w1 + channelHeight(base, other, channelDepth) * w2) / (w1 + w2) : own;
   // Rampa přes šíji: od hladiny u jednoho okraje k hladině u druhého, kousek nad vodou.
   const d1 = Math.max(near.bankDistance, 0);
   const d2 = Math.max(other.bankDistance, 0);

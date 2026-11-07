@@ -1,3 +1,5 @@
+import type { PremiumType } from './premium/types';
+
 export const LANDSCAPE_SIZE = 128;
 export const CELL_SIZE_M = 15;
 
@@ -22,6 +24,11 @@ export interface LayerVersions {
    */
   /** 2 = navíc suť a skály na skalních stěnách u potoka (s terénem 2, 20. 10. 2026). */
   obstacles?: 1 | 2;
+  /**
+   * Prémiový průchod (premium-landscapes.md – Generátor) – platí jen pro krajinu s prémiovým
+   * typem, chybí = 1. Průměrná krajina (bez typu) ho nemá a nic se jí nemění.
+   */
+  premium?: 1;
 }
 /** Verze vrstev pro nová sídla. */
 export const CURRENT_LAYER_VERSIONS: LayerVersions = {
@@ -81,11 +88,11 @@ export interface StreamPoint {
  */
 export interface Promontory {
   /**
-   * Jak ostrožna vznikla: `meander` = jádro zaříznutého meandru (smyčka potoka). Další druhy
-   * (soutok dvou toků, vyvýšenina nad brodem) přibudou s dalšími toky – data jsou pro všechny
-   * stejná.
+   * Jak ostrožna vznikla: `meander` = jádro zaříznutého meandru (smyčka potoka, terén 2),
+   * `ford-hill` = vyvýšenina nad brodem přes řeku a `confluence` = ostrožna mezi řekou a potokem
+   * nad soutokem (prémiové krajiny – `premium/river.ts`). Data jsou pro všechny stejná.
    */
-  readonly kind: 'meander';
+  readonly kind: 'meander' | 'ford-hill' | 'confluence';
   /** Obrys plochy nahoře (políčka), uzavřený mnohoúhelník. */
   readonly outline: readonly { x: number; y: number }[];
   /** Šíje – konce nejužšího místa, kudy ostrožna souvisí s okolím (políčka). */
@@ -113,12 +120,25 @@ export interface Landscape {
   /** Osa potoka s šířkou břehů a hladinou (pro vykreslení koryta). */
   readonly stream: readonly StreamPoint[];
   /**
+   * Osa řeky (prémiové krajiny se splavnou řekou, brodem pod vyvýšeninou a soutokem –
+   * `premium/river.ts`) ve stejném tvaru jako osa potoka: od okraje k okraji po proudu, šířky
+   * břehů, hladina, brody (`shallow`) a výšky stěn. Chybí = krajina bez řeky. Vodní políčka řeky
+   * jsou vodou povrchu jako potok.
+   */
+  readonly river?: readonly StreamPoint[];
+  /**
    * Vrstva překážek se negeneruje s krajinou (stovky ms) – až když je potřeba, ze seedu a verze
    * (`obstaclesOf`). null = krajina bez překážek (ručně vyrobená krajina v testech).
    */
   readonly obstacleLayer: ObstacleLayerSeed | null;
   /** Ostrožny (terén 2, může být prázdné); chybí u krajin terénu 1. */
   readonly promontories?: readonly Promontory[];
+  /**
+   * Prémiový typ krajiny lidského hráče (premium-landscapes.md); chybí = průměrná krajina.
+   * Jde přenosem i do prohlížeče – prvky typu (`premiumFeaturesOf`) i vrstva překážek krajiny
+   * s typem tak vyjdou na obou stranách stejně.
+   */
+  readonly premium?: PremiumType;
 }
 
 /** Ostrožny krajiny – u krajin bez nich (terén 1) prázdný seznam. */

@@ -87,7 +87,21 @@ export const PROMONTORY = {
   uplandMargin: 1.5,
   uplandFade: 9,
   hillMinM: 8,
+  keepSpots: true,
 } as const;
+
+/**
+ * Rozměry a podmínky ostrožny – průměrná krajina `PROMONTORY`; prémiová krajina „Přirozená
+ * pevnost“ dá jinou velikost, výšku a nejmenší převýšení okolí (`premium/relief.ts`). Náhoda se
+ * losuje vždy stejně – jiné meze nepřelosují zbytek terénu.
+ */
+export interface PromontoryOptions {
+  readonly radius: readonly [number, number];
+  readonly heightM: readonly [number, number];
+  readonly hillMinM: number;
+  /** Tůně a mělčiny zůstanou – smyčka nenahradí úsek s nimi. */
+  readonly keepSpots: boolean;
+}
 
 /** Naplánovaná ostrožna – smyčka potoka a její geometrie (políčka). */
 export interface PromontoryPlan {
@@ -121,10 +135,11 @@ export function planPromontory(
   size: number,
   site: { x: number; y: number },
   random: Random,
+  options: PromontoryOptions = PROMONTORY,
 ): PromontoryPlan | null {
-  const radius = range(random, PROMONTORY.radius);
+  const radius = range(random, options.radius);
   const neckWidth = range(random, PROMONTORY.neck);
-  const heightM = range(random, PROMONTORY.heightM);
+  const heightM = range(random, options.heightM);
   const hook = PROMONTORY.hook;
   // Geometrie Ω (osa u podél trasy, v k ostrožně): pata ramene ve vzdálenosti e od středu šíje,
   // ohyb paty o poloměru hook, velký oblouk kolem středu (0, c).
@@ -166,7 +181,7 @@ export function planPromontory(
     if (!straight) continue;
     // Tůně a mělčiny (brody) zůstanou, kde jsou – smyčka nenahradí úsek s nimi.
     let keepsSpots = true;
-    for (let j = 0; j < base.length && keepsSpots; j++) {
+    for (let j = 0; j < base.length && keepsSpots && options.keepSpots; j++) {
       if (Math.abs(along[j]! - s0) > half + 1) continue;
       if (plan.pool[j] || plan.shallow[j]) keepsSpots = false;
     }
@@ -201,7 +216,7 @@ export function planPromontory(
       }
     }
   }
-  if (!best || best.score < PROMONTORY.hillMinM) return null;
+  if (!best || best.score < options.hillMinM) return null;
 
   const { origin, t, n, halfChord } = best;
   const world = (u: number, v: number): { x: number; y: number } => ({

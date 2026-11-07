@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  cameraTerrainLift,
   CLICK_SLOP_PX,
   DOUBLE_CLICK_MS,
   isDrag,
@@ -52,5 +53,28 @@ describe('pinchZoomFactor', () => {
     expect(pinchZoomFactor(100)).toBeCloseTo(Math.exp(0.25), 6);
     expect(pinchZoomFactor(-100)).toBeCloseTo(Math.exp(-0.25), 6);
     expect(pinchZoomFactor(3, 1)).toBeCloseTo(Math.exp(0.25), 6);
+  });
+});
+
+describe('cameraTerrainLift – kamera se nezaboří do hory', () => {
+  const orbit = { alpha: -Math.PI / 2, beta: 0.85, radius: 120 };
+  const target = { x: 0, y: 10, z: 0 };
+
+  it('nad rovinou (a nízkým terénem pod kamerou) nic nezvedá', () => {
+    expect(cameraTerrainLift(target, orbit, () => 10, 4)).toBe(0);
+    expect(cameraTerrainLift(target, orbit, () => 60, 4)).toBe(0);
+  });
+
+  it('svah hory pod kamerou: cíl se zvedne tak, aby kamera byla `clearance` nad zemí', () => {
+    // kamera stojí jižně od cíle (alpha −π/2 → z záporné) – tam je hora
+    const ground = (_x: number, z: number): number => (z < -50 ? 200 : 10);
+    const lift = cameraTerrainLift(target, orbit, ground, 4);
+    const cameraY = target.y + orbit.radius * Math.cos(orbit.beta);
+    expect(lift).toBeCloseTo(200 + 4 - cameraY, 9);
+    // po zvednutí už nic
+    expect(cameraTerrainLift({ ...target, y: target.y + lift }, orbit, ground, 4)).toBeCloseTo(
+      0,
+      9,
+    );
   });
 });

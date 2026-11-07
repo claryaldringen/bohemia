@@ -35,6 +35,7 @@ import {
   type SquareGrid,
   type TileCell,
   promontoriesOf,
+  premiumFeaturesOf,
 } from '@bohemia/game';
 import { GameView } from '@/components/game/GameView';
 import { CursorReason } from '@/components/game/hud/CursorReason';
@@ -88,6 +89,8 @@ import {
   type DevWeather,
 } from './dev-weather';
 import { promontoryFocus, promontoryOverlay } from './dev-promontory';
+import { premiumOverlay } from './dev-premium';
+import { premiumFocus } from '@/lib/scene/premium-sites-layout';
 import { demoOvergrowth, type OvergrowthDemo } from './dev-overgrowth';
 import { demoClearing, type ClearingDemo } from './dev-clearing';
 import { gameDayAt } from '@/lib/scene/smoke-schedule';
@@ -292,6 +295,9 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   // hospodaření podle polohy domů (fields.md): obrysy úseků a vzorec polí ze simulace jádra
   const [holdingsOn, setHoldingsOn] = useState(false);
   const [promontoryOn, setPromontoryOn] = useState(false);
+  // prvky prémiové krajiny (premium-landscapes.md, dev-premium.ts) – obrysy a kam se podívat
+  const [premiumOn, setPremiumOn] = useState(false);
+  const premiumView = useMemo(() => premiumFocus(decoded, premiumFeaturesOf(decoded)), [decoded]);
   const [simulated, setSimulated] = useState<Map<string, SimulatedPart> | null>(null);
   const [demo, setDemo] = useState(0);
   const nextId = useRef(1);
@@ -627,9 +633,16 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     const sectors = [
       ...(holdingsOn ? holdingsOverlay(decoded, dwellings, cells) : []),
       ...(promontoryOn ? promontoryOverlay(decoded) : []),
+      ...(premiumOn ? premiumOverlay(decoded) : []),
     ];
     scene.setHoldingsOverlay(sectors.length > 0 ? sectors : null);
-  }, [scene, holdingsOn, promontoryOn, decoded, dwellings, fields]);
+  }, [scene, holdingsOn, promontoryOn, premiumOn, decoded, dwellings, fields]);
+
+  // prémiová krajina: po načtení scény pohled na hlavní prvek typu (R vrátí pohled na ves)
+  useEffect(() => {
+    if (scene && premiumView)
+      scene.moveCameraTo(premiumView.x, premiumView.z, premiumView.radiusM, premiumView.alpha);
+  }, [scene, premiumView]);
 
   // čísla posledního výpočtu pěšin (přepočítají se odloženě po změně vsi)
   useEffect(() => {
@@ -2302,6 +2315,32 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
           data-testid="dev-promontory"
         >
           {promontoryOn ? 'Ostrožna ✓' : 'Ostrožna'}
+        </button>
+        <button
+          className={buttonClass}
+          disabled={!scene || !premiumView}
+          onClick={() => {
+            if (premiumView)
+              scene?.moveCameraTo(
+                premiumView.x,
+                premiumView.z,
+                premiumView.radiusM,
+                premiumView.alpha,
+              );
+          }}
+          title="Pohled na hlavní prvek prémiové krajiny (?premium=…)"
+          data-testid="dev-premium-focus"
+        >
+          Prvek
+        </button>
+        <button
+          className={buttonClass}
+          disabled={!scene || !premiumView}
+          onClick={() => setPremiumOn((on) => !on)}
+          title="Obrysy, osy a místa prvků prémiové krajiny v barvách minimapy"
+          data-testid="dev-premium-overlay"
+        >
+          {premiumOn ? 'Obrysy prvků ✓' : 'Obrysy prvků'}
         </button>
         <button
           className={buttonClass}

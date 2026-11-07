@@ -46,6 +46,136 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
   a vlastní verzí: **terén a voda → vegetace → úrodnost**, později bonusové vrstvy (černozem,
   naleziště, stezky, řeky). Díky tomu půjde po spuštění přidat novou vrstvu i do existujících
   krajin, aniž by se jim změnil terén.
+- **Prémiový průchod** ([premium-landscapes.md](premium-landscapes.md) – Generátor): typ prémie
+  lidského hráče je třetí vstup generátoru vedle seedu a verzí vrstev. Průchod typu upraví vrstvy
+  průměrné krajiny vlastním seedem (náhoda vrstev se nepřelosuje) a prvky typu (naleziště, brod,
+  průsmyk…) se z hotové krajiny počítají stejně na serveru i v prohlížeči. Verze průchodu se
+  ukládá ve verzích vrstev (`premium`, chybí = 1 – návrh Clauda); krajina bez typu se nemění.
+  Pásmo platí i pro prémiovou krajinu a navíc kontrola typu: prvek existuje a jeho obrys ani
+  osa nezasahují do 120 m od místa pro vesnici, stezka smí vést k okraji tohoto okruhu (návrh
+  Clauda). Druhy prvků, které popisují půdu a les kolem vsi (louka, les, svah, honitba, brtě),
+  okruh nemají – nejsou to stavby v cestě (návrh Clauda). **Pásmo prémiové krajiny** (návrh
+  Clauda): celé pásmo (horní i dolní meze) se měří na průměrné krajině pokusu – vrstvách před
+  prémiovým průchodem –, takže bonus typu nevytáhne do pásma základ, který by neprošel; na
+  prémiové krajině se kontrolují jen dolní meze (start není horší než průměrný) a kontrola typu.
+  Typ, který potřebuje jiný terén už při jeho generování (přirozená pevnost – jistá ostrožna),
+  dá generátoru vlastní meze terénu (`terrainOptions`): terén se pak generuje se stejným seedem
+  znovu s nimi, náhoda zůstane (návrh Clauda).
+- **Typy půdy a lesa** (`premium/soil-forest.ts`, hodnoty návrh Clauda – doladí kalibrace):
+  - **Velmi úrodná krajina:** přirozená úrodnost do 600 m od vsi +15 bodů (strop 100), za 600 m
+    plynule do 750 m. Prvek louka – kruh 600 m.
+  - **Doubravy a bučiny:** do 900 m od vsi ustoupí jedle a bříza buku (zůstane desetina jedlí
+    a pětina bříz), do 1000 m plynule zpět – dub a buk ≈ 90 % stromů lesa (průměrná krajina
+    ≈ 70 %). Duby jsou tytéž stromy jako v průměrné krajině – víc dubů by z lesa u vsi udělalo
+    samé posvátné háje (nekácí se, vyjmou se z polí a staveb), takže posvátné duby a háje vyjdou
+    jako v průměrné krajině. Mění se jen dřevina stromů vrstvy překážek, ne jejich místa. Prvek
+    les – kruh 900 m.
+  - **Rozsáhlé nivní louky:** louka v pásu ±60 m od vody podél celého potoka a louky do 600 m od
+    vsi o 30 % víc (nejnižší políčka nad potokem se zvlněným okrajem). Les ubraný nivou doroste
+    na suchých loukách daleko od vsi (nejvzdálenější první), podíl lesa zůstane – když suché
+    louky nestačí, je nižší nejvýš o pár procent. Prvek louka – osa potoka.
+  - **Teplé jižní svahy:** největší souvislý svah 5–15 % ke slunci (odchylka spádu od směru ke
+    slunci – `SUN_RAYS` – do 45°) do 500 m od vsi je louka, les z něj ustoupí na odvrácené svahy
+    do 600 m – louk u vsi je stejně. Svahová louka aspoň 2 ha, jinak pokus neprojde. Prvek svah –
+    obrys svahové louky.
+  - **Hojná zvěř a kožešiny:** honitba je největší souvislý les dál než 600 m od vsi, který sahá
+    k potoku, aspoň 60 ha. Paseky v ní do 1 ha zarostou, nízká rovina u vody podél ní je mokřad
+    (louka – rákosí). Prvek honitba – obrys lesa a osa mokřadu (úsek potoka podél honitby, aspoň
+    200 m).
+  - **Brtě a lesní včely:** 16 starých dubů s dutinou v lese do 900 m od vsi (30–90 m od okraje
+    lesa, aspoň 45 m od sebe), kolem každého 6,5 m volno; lípa nemá model, brtě jsou zatím duby.
+    Prvek brť – každý strom zvlášť, aspoň 12, jinak pokus neprojde.
+- **Typy vody** (`premium/water.ts`, řeka `premium/river.ts`, hodnoty návrh Clauda – doladí
+  kalibrace):
+  - **Řeka** (splavná řeka, vyvýšenina nad brodem, soutok): nový tok vedle potoka – potok
+    zůstane, jak byl (u soutoku jako přítok). Sdílená mřížka světa zatím není, proto řeka vstupuje
+    a vystupuje na náhodných okrajích (vývojová verze – před ostrým spuštěním ji nahradí kostra
+    světa). Vede po straně potoka s místem pro vesnici, údolími (nízko); trasa aspoň 300 m od vsi
+    a 135 m od potoka (s meandry osa nejblíž 270 m od vsi, voda 45 m od potoka), dál od okraje
+    mapy a kolem vsi (ne daleko u okraje).
+    Širší a hlubší než potok (spec): šířka aspoň 1,5× medián šířky potoka téže mapy, nikdy pod
+    25 m ani nad 45 m (i v brodu) – v tomto rozsahu ji určí seed řeky, podél toku se mění a každý
+    břeh má vlastní odchylku (plán psal 12–20 m, to je šířka potoka – medián 18 m). Mírné
+    meandry, hladina 1,2 m nade dnem (potok 0,6 m), údolí jako u potoka s rovnou nivou podél vody.
+    Brody jen na 1–2 místech (mělký úsek ≈ 45 m, o 40 % širší, nejvýš 45 m). Voda řeky je voda povrchu – pro vesnici
+    překážka jako potok (pěšiny, vozy, stavby) a stromy ani kameny vrstvy překážek v ní nestojí
+    (`watersCenterline` – osa vod pro rozmisťovače i pěšiny, krajina bez řeky má přesně osu
+    potoka). Rovinu kolem místa pro vesnici (17 políček, plně od 27) údolí ani ostrožna nemění,
+    vegetace a úrodnost se nad novým terénem spočítají znovu (louky a les u vsi jako v průměrné
+    krajině). Krajina nese osu řeky `Landscape.river` ve tvaru osy potoka (jde přenosem do
+    prohlížeče). Prvky: řeka (osa od okraje k okraji) a brody.
+  - **Splavná řeka:** niva podél vody široká 60 m (4 políčka). Prvek přístaviště – břeh na straně
+    vsi u místa řeky nejblíž vsi, 6 m od vody.
+  - **Vyvýšenina nad brodem se stezkou:** ostrožna 16–20 m nad hladinou brodu 105 m od brodu
+    podél řeky (plocha ≈ 90 × 65 m, svahy k vodě, šíje a hřbet do vnitrozemí), na břehu, kde se
+    vejde mimo rovinu vsi – obvykle za řekou. Stezka (prvek `route`) vede od okraje mapy kolem vsi
+    (obchází ji ≈ 200 m, nejblíž 150 m) k brodu, přes něj a za řekou k okraji – po souši mimo
+    břehy, sklon a les ji zdražují. Prvky: řeka, brody, ostrožna (`Promontory` druhu `ford-hill`),
+    stezka.
+  - **Soutok:** rameno řeky přitéká od okraje mapy k potoku pod vsí (po proudu, aspoň 360 m od vsi)
+    pod úhlem 25–80° od směru proti proudu potoka, řeka dál teče dolním tokem potoka (koryto na
+    šířku řeky – tůně potoka širší než řeka se zúží, voda mimo koryto je břeh těsně nad hladinou;
+    stěny u potoka zůstanou). Potok nad
+    soutokem zůstane jako přítok a končí v soutoku. V úhlu mezi ramenem a potokem ostrožna
+    10–14 m nad hladinou (`confluence`). Řeka vtéká a vytéká na různých okrajích. Prvky: řeka,
+    brody, soutok, ostrožna.
+  - **Zlatonosný potok:** 3–6 náplavů zlatonosného písku na vnitřní straně nejostřejších oblouků
+    potoka (stočení aspoň 0,6 rad na ± 40 m), 3 m za okrajem vody, aspoň 150 m od sebe a 200 m od
+    vsi; prvek náplav s obrysem čočky podél břehu (30 × 10 m). Krajina zůstane průměrná.
+  - **Solný pramen:** slanisko na rovné louce u potoka (6 m od vody) do 700 m od vsi (aspoň 200 m,
+    nejraději kolem 450 m, raději na straně vsi) – mimo pole a les vsi: mokrá louka u vody, kde se
+    pole nezakládá. Krajina zůstane průměrná.
+  - **Posvátný pramen:** na okraji lesa pod mírným svahem do 700 m od vsi (aspoň 200 m) dál od
+    vody, ve skalce – vrstva překážek přidá nad pramen do svahu skalní výchoz a kolem pramene tři
+    balvany (zdroj překážek `springRock`), do 4 m kolem pramene nic jiného. Les vsi to není:
+    pramen leží na okraji lesa ve skalce (háj by byl jen u dubů – návrh Clauda: skalka).
+- **Typy reliéfu a nalezišť** (`premium/relief.ts`, `premium/deposits.ts`, hodnoty návrh Clauda –
+  doladí kalibrace). Kde prvek leží, je čistá funkce vody a místa pro vesnici (plán prvku), takže
+  ho server při generování i prohlížeč v hotové krajině najdou stejně; terén mění jen server.
+  Úpravy reliéfu nemění rovinu kolem místa pro vesnici (17 políček, plně od 27 – jako řeka) ani
+  okolí vody (u vody nic, plně od 10 políček), vodu, potok ani místo vsi; vegetace a úrodnost se
+  nad novým terénem spočítají znovu. Úrodnost bere průměrnou výšku souše – hory ji zvednou a jinde
+  je půda o kousek lepší (dobré louky do 600 m medián +1 %, nejvýš +4 %; kalibrace).
+  - **Horský průsmyk se stezkou:** pohraniční hory – hřeben rovnoběžně s okrajem mapy 105 m od
+    něj, v hřebeni sedlo a po stranách dva hřbety 360–600 m dlouhé, 68–80 m nad sedlem (od sedla
+    stoupají na 180 m, na koncích dozní na 120 m, svahy 240 m). Sedlo 6–10 m nad nejvyšším
+    terénem kolem, na straně potoka se vsí; hřbet končí 180 m od vody (potok pohořím neprochází)
+    a hřeben je aspoň 840 m od vsi, takže pohoří leží za loukami vsi (louky do 600 m beze změny).
+    Stezka (prvek `route`) vede od okraje mapy za sedlem přes sedlo dolů kolem vsi (obchází ji
+    ≈ 200 m, nejblíž 150 m – jako stezka přes brod, `premium/route.ts`) k okraji za vsí, po souši
+    mimo břehy. Prvky: sedlo (`pass` – bod a osa hřebene obou hřbetů) a stezka. Plán vyjde na
+    ≈ 75 % pokusů (jinak pokus neprojde – voda nebo roh mapy nedá hřbetům místo).
+  - **Posvátná hora:** osamělý vrch 650–950 m od vsi (nejraději 800 m), aspoň 240 m od vody,
+    vrcholová plošina o poloměru 52 m (0,8 ha), úpatí 330 m od středu. Plošina 56–64 m nad
+    průměrem terénu na úpatí, svahy od plošiny strmé a k úpatí mírné. Prvek vrchol (`summit`) –
+    obrys plošiny (místa do 1 m pod vrcholem); kontrola: plošina aspoň 0,5 ha a 50 m nad úpatím,
+    nejvýš 1 km od vsi. Holý vrchol (návrh Clauda): les na temeni do 75 m od středu ustoupí louce
+    – v lese by plošinu i kamenný kruh ve scéně zakryly koruny.
+  - **Přirozená pevnost:** jistá ostrožna nad zaříznutým meandrem (Skály u potoka) s plochou
+    aspoň 1 ha. Terén se generuje se stejným seedem s jinými mezemi ostrožny
+    (`PremiumPass.terrainOptions` → `generateTerrain(…, options)`): smyčka o poloměru 6–6,8 políčka
+    (plocha 1,0–1,8 ha), plocha 10–14 m nad potokem, i v rovině (bez převýšení okolí) a smyčka smí
+    nahradit úsek s tůní nebo mělčinou. Místo chráněné bažinou se nedělá – ostrožna je jistější
+    a scéna ji umí (návrh Clauda). Prvek ostrožna (`promontory`) – obrys plochy; potok ji obtéká
+    z ≈ 90 % směrů. Ostrožna vyjde na ≈ 85 % terénů.
+  - **Stavební kámen a vápenec:** lom ve skalní stěně 550–900 m od vsi (nejraději 700 m), čelem
+    ke vsi – stěna 240 m dlouhá a 13–17 m vysoká (terén za hranou zvednutý, plně 75 m dozadu,
+    pak do 120 m dozní; čelo spadne na 12 m, konce stěny dozní na 60 m). Vrstva překážek: na
+    čele skalní výchozy po 8 m a pod ním suť (zdroj `quarryRock`), na čele nic jiného neroste.
+    Prvek lom (`quarry`) – pás od hrany stěny k úpatí se sutí; kontrola: stěna aspoň 10 m.
+  - **Hluboká ložiska drahých kovů:** skalnatý hřbet 330 m dlouhý bokem ke vsi 600–1000 m od ní
+    (nejraději 800 m), hřeben 24–32 m nad terénem (ke koncům o třetinu nižší), ostré svahy do
+    75 m. Podél hřebene žíla – rudné výchozy po 12 m a rudné balvany na svazích (zdroj
+    `oreRock`), na hřebeni nerostou stromy. Prvek naleziště (`deposit`) – žíla (osa) a pás 22 m
+    kolem ní; kontrola: hřeben aspoň 18 m nad úpatím.
+  - **Bohatá železná ruda:** rudiště (bažinná ruda s krevelem) na mokré rovné louce u potoka
+    200–480 m od vsi (nejraději 320 m) na straně vsi, nejraději u klidné vody – 9 m od okraje
+    vody. Prvek rudiště (`iron-ore`) – elipsa 36 × 20 m podél toku, celá do 500 m od vsi. Krajina
+    zůstane průměrná; kovář sem bude chodit kopat (účinky typu).
+  - **Dobrá keramická hlína:** hliniště na louce u potoka 200–480 m od vsi (nejraději 360 m) na
+    straně vsi, nejraději na vnitřní straně oblouku v klidné vodě (povodňová hlína) – 6 m od
+    okraje vody. Prvek hliniště (`clay`) – elipsa 40 × 16 m podél toku, celá do 500 m od vsi.
+    Krajina zůstane průměrná.
 - **Verze vrstev:** do ostrého spuštění se generátor smí měnit libovolně (krajiny se prostě
   vygenerují znovu jinak). Po spuštění nesmí změna existující vrstvy přepsat stávající krajiny –
   u sídla se ukládají verze vrstev (např. `{ terrain: 1, vegetation: 1, fertility: 1 }`) a nová
@@ -212,6 +342,46 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
 - **Výkon:** plynule (≈ 60 fps) na běžném notebooku; krajina se zobrazí do ≈ 2 s od načtení
   stránky. Generování ze seedu musí být rychlé (cíl desítky ms); případně si server hotovou
   krajinu drží v paměti.
+
+## Prémiové krajiny ve scéně
+
+Premium-landscapes.md – Vzhled („každý typ musí být vidět“); podrobnosti návrh Clauda. Jen vzhled
+– žádné překážky ani herní data; průměrná krajina vypadá bit po bitu jako dřív (výšková síť,
+ozdoby, ryby, povrch, minimapa i snímky obrazovky).
+
+- **Řeka** jde stejnou cestou jako potok: koryto, hladina, břehy, dno podle proudu, led, rákos,
+  lekníny, kmeny, ryby i zvuk vody. Koryto řeky je hlubší (2 m, potok 1 m), brod mělký jako
+  mělčina potoka. Řeka nemá tůně a teče aspoň jako středně rychlý potok (≈ 0,9 m/s) – v zimě
+  zamrzne jen u břehů, kalnější a klidnější než bystřina.
+- **Cena vody:** led se na hladině počítá jen v zimě (v létě je výsledek stejný) – voda je v létě
+  o ≈ 45 % levnější a řeka v záběru stojí méně než dnešní potok (GPU, 3024 × 1800 px: potok dřív
+  0,39–0,46 ms, řeka v záběru 0,26–0,31 ms; celá mapa s řekou 0,04–0,15 ms jako dřív 0,09–0,11).
+  Ověřeno znovu 7. 11. 2026 po sloučení s dnešním kódem (WebGPU, 1400 × 860 px, seed 42, stejná
+  kamera u přístaviště, 120 snímků): GPU s řekou 0,21–0,26 ms, průměrná krajina 0,21 ms
+  (v průměru +12 %, mez plánu 20 %), CPU snímku 1,4 ms proti 1,5 ms, nejdelší snímek 17,5–17,9 ms
+  v obou (takt obrazovky).
+- **Na terénu:** zlatonosný náplav – zlatavý písek na vnitřní straně oblouku; rudiště – rezavé
+  bahno s loužemi; hliniště – šedookrový jíl; slanisko – bílá solná krusta a tůňka solanky; lom –
+  světlá suť a vápenec ve stěně; žíla – okrová zvětralina (železný klobouk) a rezavé rudné
+  výchozy; pramen – tůňka a stružka po spádu; přístaviště – písčitý břeh, molo z prken na kůlech
+  a vydlabaný člun; brod – kůly s otýpkou slámy na obou březích; stezka přes brod a sedlo –
+  vyšlapaná cesta (lesem zatím pod korunami – průsek dostane s cestou vsi); sedlo – mohyla
+  z kamenů s kůlem; posvátná hora – holé temeno s kamenným kruhem; brtě – klátové úly na okraji
+  lesa nejblíž brti (brtě stojí 30–90 m v lese, pod korunami by nebyly vidět); honitba – rákosí
+  mokřadu, kaliště zvěře a zvěřní stezky; úrodná krajina – svěží hustá tráva a víc květů kolem
+  vsi; niva – svěží louky podél vody; jižní svahy – teplý suchý trávník s květy. Náplav
+  a slanisko scéna posune na břeh (vyhlazené koryto scény bývá širší než voda po políčkách).
+- **Horský průsmyk:** generátor vnější svah pohraničních hor u okraje mapy utne (≈ 60 % výšky
+  hřebene). Ve scéně terén u okraje s horami v posledních 90 m dobíhá k nejnižší výšce okraje –
+  hory nekončí svislou stěnou (data se nemění). Lepší by bylo vnější svah stáhnout k okraji už
+  v generátoru (nová verze průchodu, dokud se krajiny nezamknou). Kamera se do svahu hory nezaboří – cíl kamery se
+  zvedne, aby zůstala 4 m nad terénem (dřív byla u hřbetu pod terénem a ukazovala oblohu).
+- **Minimapa:** prvky v barvách podle druhu – naleziště obrysem s výplní, půda a les obrysem,
+  stezka a žíla čarou, místa (brod, přístaviště, pramen, sůl, sedlo, brtě) kosočtvercem; řeka je
+  voda obrázku krajiny.
+- **Vývojový náhled:** `/dev/landscape?seed=42&premium=mountain-pass` – odkazy všech typů
+  a „průměrná“ pro porovnání na stejném seedu; po načtení pohled na hlavní prvek od vsi,
+  tlačítka Prvek a Obrysy prvků.
 
 ## Den a noc
 

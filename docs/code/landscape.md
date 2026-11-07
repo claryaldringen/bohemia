@@ -68,3 +68,67 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `VILLAGE_CLEARING_TILES` – a samozřejmě generátor krajiny, ze které vrstva vychází.
   Pozor: `streamCenterline` (`deriveFlow`) řídí i vzhled vody a zvuk potoka – ladění vody
   přes osu potoka mění i vrstvu (vzhledovou část pak oddělit).
+
+- **Prémiové krajiny** ([premium-landscapes.md](docs/design/premium-landscapes.md)): typ prémie
+  (`PremiumType`, katalog `premium/catalog.ts`) je třetí vstup generátoru –
+  `generateLandscapeAttempt(seed, versions, premium?)` a
+  `generateAcceptedLandscape(seed, versions?, premium?)`; bez typu bit po bitu jako dřív (zlaté
+  otisky i s třetím parametrem `undefined`). Průchod typu (`PremiumPass` v `premium/generate.ts` – úpravy terénu, vegetace
+  a úrodnosti s vlastním seedem `deriveSeed(seed, 'premium')` a hledání prvků `sites`) se
+  zapisuje do `PREMIUM_PASSES`; typ bez průchodu nemá prvky a pásmem neprojde. Verze průchodu
+  `LayerVersions.premium` (`PREMIUM_LAYER_VERSION` = 1, chybí = 1), krajina nese
+  `Landscape.premium`. Prvky `premiumFeaturesOf(landscape)` – čistá funkce krajiny s přesností
+  prohlížeče, mezipaměť podle objektu jako `obstaclesOf`; složka `premium/` je v deterministické
+  vrstvě (ESLint). Kontrola typu `checkPremium` (prvek existuje, obrys ani osa nezasahuje do
+  120 m od místa vsi – `PREMIUM_VILLAGE_CLEARANCE_M`, stezka smí k okraji) je součástí
+  `checkBand` – počítá se až u pokusu, který jinak prošel, selhání `premium-<důvod>`. Přenos do
+  prohlížeče nese typ (`LandscapeTransfer.premium`). Test pásma po typech (300 seedů, ≥ 95 %,
+  `premium/__tests__/type-band.ts` – skupina typů má vlastní soubor, ostatní
+  `generate.test.ts`) se typu zapne sám, až má průchod. Druhy prvků půdy a lesa
+  (`PREMIUM_LAND_KINDS` – louka, les, svah, honitba, brtě) okruh vsi nemají. Pásmo s typem:
+  `generateAcceptedLandscape` měří celé pásmo na průměrné krajině pokusu (vrstvy před průchodem),
+  `checkBand` na prémiové krajině jen dolní meze a kontrolu typu; průchod dostane vlastní kopie
+  vrstev. **Typy půdy a lesa** (`premium/soil-forest.ts`, landscape.md – Typy půdy a lesa):
+  úrodnost a vegetace v průchodu; doubravy (`premiumForestLook` – jedle a bříza na buk, duby
+  beze změny) a brtě (`beeTreeSpots`, zdroj
+  překážek `beeTree`, kolem 6,5 m volno) v `premium/trees.ts` čtou rozmisťovače překážek podle
+  `landscape.premium` – krajina bez typu má vrstvu bit po bitu stejnou. Obrysy prvků
+  `premium/geometry.ts` (`cellsOutline`, `circleOutline`); úklid drobných skvrn povrchu je
+  v `patches.ts` (sdílí ho vegetace). **Typy vody** (`premium/water.ts`, landscape.md – Typy
+  vody): řeka (`premium/river.ts` – `addSideRiver` pro splavnou řeku a vyvýšeninu nad brodem,
+  `addConfluence` pro soutok) je průchod terénu – nový tok vedle potoka, šířka aspoň 1,5× medián
+  potoka téže mapy v mezích 25–45 m (`RIVER.width`, `riverMinWidthM`), osa `Landscape.river`
+  ve tvaru osy potoka (`Terrain.river`, přenos `LandscapeTransfer.river` / `riverBanks`,
+  `transferPrecision`), ostrožny nad brodem a soutokem jsou `Promontory` druhů `ford-hill`
+  a `confluence`. Osa řeky `riverCenterline(l)`, osa všech vod `watersCenterline(l)` (nejbližší
+  místo potoka i řeky, body osy potoka) – podle ní rozmisťovače překážek a terén pěšin, krajina bez
+  řeky má přesně `streamCenterline`. Stezka přes brod (`route`) a přístaviště se počítají v `sites`
+  z hotové krajiny (`fordRoute`, `cheapestPath`). Zlatonosný potok a solný pramen jen označí místa
+  v průměrné krajině; posvátný pramen (`sacredSpringSpot`) má ve vrstvě překážek skalku (zdroj
+  `springRock`, `obstacles/spring-rocks.ts`). Typ, který mění terén, nepočítá průměrné vrstvy
+  zbytečně: uložené sídlo každou vrstvu jednou, přijetí terén jednou (průchodu kopie
+  `cloneTerrain`) – hlídá `premium/__tests__/attempt-layers.test.ts`. Osa řeky nemá tůně a teče
+  aspoň rychlostí 0,5 (`RIVER_COURSE` – řeka 25–45 m by s prahy tůní potoka vyšla jako stojatá
+  voda), mezipaměť podle objektu; `nearestWaterPair` = dotaz osy vod i s tím, jestli je místo na
+  řece (scéna hloubí řece hlubší koryto). Stezky od okraje k okraji (brod, průsmyk) sdílí `premium/route.ts`
+  (`routeLeg`, `villageBypass`, `trailCellCost`, `smoothLine`, `lineToEdges`). **Typy reliéfu
+  a nalezišť** (landscape.md – Typy reliéfu a nalezišť): kde prvek leží, je čistá funkce vody
+  a místa vsi (`PlanInput` z terénu i z hotové krajiny – `planInputOfTerrain` / `planInputOf`;
+  `passPlan`, `mountainPlan`, `quarryPlan`, `veinPlan`, obecně `pickSite`), terén mění jen server
+  (`reliefKeep` – rovina vsi a okolí vody beze změny). `premium/relief.ts`: horský průsmyk
+  (pohoří podél okraje mapy, sedlo a dva hřbety ≥ 60 m nad ním, stezka `route` přes sedlo, prvek
+  `pass` s osou hřebene), posvátná hora (`summit` – plošina ≥ 0,5 ha ≥ 50 m nad úpatím do 1 km),
+  přirozená pevnost (ostrožna nad meandrem ≥ 1 ha – `PremiumPass.terrainOptions` →
+  `generateTerrain(seed, version, options)` a `planPromontory(…, options)` s jinými mezemi
+  `PromontoryOptions`; terén typu se generuje znovu ze seedu terénu, přijetí tedy terén dvakrát).
+  `premium/deposits.ts`: lom ve skalní stěně (`quarry`), skalnatý hřbet se žílou (`deposit`),
+  rudiště (`iron-ore`) a hliniště (`clay`) u potoka do 500 m od vsi (jen místa). Skály lomu a žíly
+  ve vrstvě překážek (`obstacles/premium-rocks.ts`, zdroje `quarryRock` a `oreRock`); skupiny
+  vrstvy jdou v pořadí zdrojů (`GROUP_ORDER`), kolem prémiových překážek uvolní místo `mapGroups`.
+  Posvátná hora má holý vrchol (průchod vegetace – les do `baldCells` od středu ustoupí louce).
+  Krajina bez typu (NPC, Vlkov, dnešní hráči) prémiovým průchodem neprojde – zlaté otisky všech
+  verzí i vrstvy překážek beze změny. **Vrstvu překážek krajiny s typem** mění i průchod typu
+  (`premium/`), `patches.ts` a rozmisťovače `obstacles/bee-trees.ts`, `spring-rocks.ts`
+  a `premium-rocks.ts` – po ostrém spuštění nová `PREMIUM_LAYER_VERSION`. Pravidla vsi a války
+  (`wildlife-land.ts`, `march-grid.ts`) zatím čtou jen osu potoka (`streamCenterline`), řeku ne –
+  účinky typů jsou až úloha 7 plánu.

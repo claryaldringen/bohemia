@@ -1,5 +1,6 @@
 export * from './types';
 export {
+  BandFailureError,
   generateAcceptedLandscape,
   generateLandscape,
   generateLandscapeAttempt,
@@ -22,11 +23,25 @@ export { buildForestField, type ForestField } from './forest-field';
 export { buildRelief, SUN_RAYS, type Relief } from './relief';
 export {
   BANK_REACH_M,
+  nearestWaterPair,
+  riverCenterline,
   streamCenterline,
   streamStations,
+  watersCenterline,
   type StreamCenterline,
   type StreamCenterPoint,
   type StreamSample,
   type StreamStation,
+  type WaterPair,
 } from './stream-geometry';
 export * from './obstacles';
+export * from './premium/types';
+export { PREMIUM_CATALOG, PREMIUM_TYPES } from './premium/catalog';
+export { hasPremiumPass, PREMIUM_LAYER_VERSION, premiumFeaturesOf } from './premium/generate';
+export {
+  checkPremium,
+  PREMIUM_LAND_KINDS,
+  PREMIUM_VILLAGE_CLEARANCE_M,
+  type PremiumCheck,
+  type PremiumFailure,
+} from './premium/check';

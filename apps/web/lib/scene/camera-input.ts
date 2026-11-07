@@ -58,3 +58,23 @@ export function pinchZoomFactor(deltaY: number, deltaMode = 0): number {
   const step = Math.max(-PINCH_MAX_STEP, Math.min(PINCH_MAX_STEP, px));
   return Math.exp(step / PINCH_DELTA_PER_E);
 }
+
+/**
+ * O kolik (m ve scéně) zvednout cíl kamery, aby kamera zůstala aspoň `clearance` nad terénem pod
+ * sebou – jinak 0. Kamera obíhá cíl jako Babylon ArcRotateCamera (alpha, beta, radius). Hory
+ * prémiových krajin (průsmyk, posvátná hora) jsou vyšší, než kamera ve výchozím přiblížení nad
+ * cílem letí: u úpatí by se zabořila do svahu a místo krajiny by byla vidět obloha. Kamera nad
+ * terénem (každá krajina, kde se do svahu nezaboří) se nemění.
+ */
+export function cameraTerrainLift(
+  target: { x: number; y: number; z: number },
+  orbit: { alpha: number; beta: number; radius: number },
+  groundHeight: (x: number, z: number) => number,
+  clearance: number,
+): number {
+  const across = orbit.radius * Math.sin(orbit.beta);
+  const x = target.x + across * Math.cos(orbit.alpha);
+  const z = target.z + across * Math.sin(orbit.alpha);
+  const y = target.y + orbit.radius * Math.cos(orbit.beta);
+  return Math.max(0, groundHeight(x, z) + clearance - y);
+}

@@ -7,7 +7,7 @@ import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import type { UniformBuffer } from '@babylonjs/core/Materials/uniformBuffer';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import type { Scene } from '@babylonjs/core/scene';
-import type { Landscape } from '@bohemia/game';
+import { premiumFeaturesOf, type Landscape } from '@bohemia/game';
 import {
   GROUND_LAYERS,
   groundWeights,
@@ -23,6 +23,7 @@ import {
   SEASON_UBO,
   bindSeasonUniforms,
 } from './season-materials';
+import { premiumMeadow } from './premium-sites-layout';
 import type { StreamCenterline } from './stream-geometry';
 import { TERRAIN_UV_GLSL, TERRAIN_UV_WGSL, terrainLayersCode } from './terrain-shader';
 
@@ -68,7 +69,8 @@ export function createTerrainMaterial(
 ): TerrainMaterial {
   const material = new StandardMaterial('terrain-material', scene);
   material.specularColor = Color3.Black();
-  const weights = groundWeights(l, stream, forest);
+  // louky prémiové krajiny (úrodná, niva, jižní svahy) – průměrná krajina beze změny
+  const weights = groundWeights(l, stream, forest, premiumMeadow(l, premiumFeaturesOf(l)));
   const [first, second, third] = packSplatTextures(weights);
   const resolution = weights.resolution;
   const splat = (data: Uint8Array, name: string): RawTexture => {

@@ -440,6 +440,9 @@ vWaterInfo = waterInfo;`,
     // Led: pokrytí podle rychlosti proudu u břehu a zimy, okraj trhá šum; tenký led u otevřené
     // vody tmavší, silný průsvitně šedomodrý s jinovatkou a sněhem. Na ledu vlnky stojí, slunce
     // se leskne méně a obloha se odráží slaběji. Kousek nad okrajem vody led končí (pod terénem).
+    // Bez zimy (seasonB.w = 0) je led nulový – šum ledu se vůbec nepočítá (podmínka na uniformě,
+    // levná): voda je pak o polovinu levnější a řeka prémiových krajin ji v létě nezdraží (výsledek
+    // stejný – led 0 do míchání barev nic nepřidá).
     if (wgsl) {
       return {
         CUSTOM_FRAGMENT_DEFINITIONS: `varying vWaterFlow: vec4f;
@@ -459,14 +462,19 @@ fn waterLayer(xz: vec2f, dir: vec2f, metersPerSecond: f32, repeatM: f32, time: f
 }`,
         CUSTOM_FRAGMENT_UPDATE_DIFFUSE: `let waterClarity = fragmentInputs.vWaterFlow.w;
 let waterVisibilityM = mix(uniforms.waterVisibility.x, uniforms.waterVisibility.y, waterClarity);
+var waterIce = 0.0;
+var waterIceColor = vec3f(0.0);
+var waterIceAlpha = 0.0;
+if (uniforms.seasonB.w > 0.0) {
 let waterIceXz = fragmentInputs.vPositionW.xz;
 let waterIceGrain = 0.55 * seasonNoise(waterIceXz * 0.18) + 0.3 * seasonNoise(waterIceTurn(waterIceXz) * 0.5 + 11.0) + 0.15 * seasonNoise(waterIceTurn(waterIceTurn(waterIceXz)) * 1.3 + 5.0);
-let waterIce = waterIceCover(fragmentInputs.vWaterFlow.z, fragmentInputs.vWaterInfo.w, uniforms.seasonB.w, waterIceGrain * 2.0 - 1.0);
+waterIce = waterIceCover(fragmentInputs.vWaterFlow.z, fragmentInputs.vWaterInfo.w, uniforms.seasonB.w, waterIceGrain * 2.0 - 1.0);
 let waterIceThick = smoothstep(0.3, 1.0, waterIce);
 let waterIceFrost = 0.7 * smoothstep(0.2, 0.9, 0.6 * seasonNoise(waterIceTurn(waterIceXz) * 0.6 + 3.0) + 0.4 * waterIceGrain);
-var waterIceColor = mix(vec3f(${rgb(ICE_THIN)}), mix(vec3f(${rgb(ICE_CLEAR)}), vec3f(${rgb(ICE_FROST)}), waterIceFrost), waterIceThick);
+waterIceColor = mix(vec3f(${rgb(ICE_THIN)}), mix(vec3f(${rgb(ICE_CLEAR)}), vec3f(${rgb(ICE_FROST)}), waterIceFrost), waterIceThick);
 waterIceColor = mix(waterIceColor, mix(seasonSnowColor(waterIceColor), waterIceColor, 0.15), waterIceSnow(waterIceXz, uniforms.seasonA.x * ${float(ICE_SNOW)}) * waterIceThick);
-let waterIceAlpha = mix(0.8, 0.97, waterIceThick) * (1.0 - smoothstep(0.0, 0.8, fragmentInputs.vWaterInfo.w));
+waterIceAlpha = mix(0.8, 0.97, waterIceThick) * (1.0 - smoothstep(0.0, 0.8, fragmentInputs.vWaterInfo.w));
+}
 baseColor = vec4f(mix(mix(uniforms.waterMurky, uniforms.waterClear, waterClarity), waterIceColor, waterIce), baseColor.a);
 alpha = mix(fragmentInputs.vWaterInfo.y * clamp(1.0 - exp(-fragmentInputs.vWaterInfo.x / waterVisibilityM), fragmentInputs.vWaterInfo.z, 1.0), waterIceAlpha, waterIce);
 var waterDry = 1.0;
@@ -508,14 +516,19 @@ vec2 waterLayer(vec2 xz, vec2 dir, float metersPerSecond, float repeatM, float t
 }`,
       CUSTOM_FRAGMENT_UPDATE_DIFFUSE: `float waterClarity = vWaterFlow.w;
 float waterVisibilityM = mix(waterVisibility.x, waterVisibility.y, waterClarity);
+float waterIce = 0.0;
+vec3 waterIceColor = vec3(0.0);
+float waterIceAlpha = 0.0;
+if (seasonB.w > 0.0) {
 vec2 waterIceXz = vPositionW.xz;
 float waterIceGrain = 0.55 * seasonNoise(waterIceXz * 0.18) + 0.3 * seasonNoise(waterIceTurn(waterIceXz) * 0.5 + 11.0) + 0.15 * seasonNoise(waterIceTurn(waterIceTurn(waterIceXz)) * 1.3 + 5.0);
-float waterIce = waterIceCover(vWaterFlow.z, vWaterInfo.w, seasonB.w, waterIceGrain * 2.0 - 1.0);
+waterIce = waterIceCover(vWaterFlow.z, vWaterInfo.w, seasonB.w, waterIceGrain * 2.0 - 1.0);
 float waterIceThick = smoothstep(0.3, 1.0, waterIce);
 float waterIceFrost = 0.7 * smoothstep(0.2, 0.9, 0.6 * seasonNoise(waterIceTurn(waterIceXz) * 0.6 + 3.0) + 0.4 * waterIceGrain);
-vec3 waterIceColor = mix(vec3(${rgb(ICE_THIN)}), mix(vec3(${rgb(ICE_CLEAR)}), vec3(${rgb(ICE_FROST)}), waterIceFrost), waterIceThick);
+waterIceColor = mix(vec3(${rgb(ICE_THIN)}), mix(vec3(${rgb(ICE_CLEAR)}), vec3(${rgb(ICE_FROST)}), waterIceFrost), waterIceThick);
 waterIceColor = mix(waterIceColor, mix(seasonSnowColor(waterIceColor), waterIceColor, 0.15), waterIceSnow(waterIceXz, seasonA.x * ${float(ICE_SNOW)}) * waterIceThick);
-float waterIceAlpha = mix(0.8, 0.97, waterIceThick) * (1.0 - smoothstep(0.0, 0.8, vWaterInfo.w));
+waterIceAlpha = mix(0.8, 0.97, waterIceThick) * (1.0 - smoothstep(0.0, 0.8, vWaterInfo.w));
+}
 baseColor.rgb = mix(mix(waterMurky, waterClear, waterClarity), waterIceColor, waterIce);
 alpha = mix(vWaterInfo.y * clamp(1.0 - exp(-vWaterInfo.x / waterVisibilityM), vWaterInfo.z, 1.0), waterIceAlpha, waterIce);
 float waterDry = 1.0;

@@ -8,8 +8,15 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactElement,
 } from 'react';
-import type { Landscape } from '@bohemia/game';
-import { drawMinimapView, drawMinimapVillage, minimapImage, minimapToWorld } from '@/lib/minimap';
+import { premiumFeaturesOf, type Landscape } from '@bohemia/game';
+import {
+  drawMinimapPremium,
+  drawMinimapView,
+  drawMinimapVillage,
+  minimapImage,
+  minimapToWorld,
+  premiumMinimapMarks,
+} from '@/lib/minimap';
 import type { ClearedForest } from '@/lib/scene/cleared-forest';
 import type { LandscapeScene, ViewFootprint } from '@/lib/scene/landscape-scene';
 import type { SceneVillage } from '@/lib/village-view';
@@ -21,8 +28,8 @@ const IMAGE_PX = 256;
 
 /**
  * Minimapa vlevo dole (jako v 0 A.D.): krajina sídla shora (voda, les – vykácený řídne do
- * paseky, louka, skála), pole, hřbitovy, sady, obydlí a obrys záběru kamery. Kliknutí nebo
- * tažení přesune pohled.
+ * paseky, louka, skála), prvky prémiové krajiny, pole, hřbitovy, sady, obydlí a obrys záběru
+ * kamery. Kliknutí nebo tažení přesune pohled.
  */
 export function Minimap({
   landscape,
@@ -69,6 +76,11 @@ export function Minimap({
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
     context.imageSmoothingEnabled = true;
     if (base) context.drawImage(base, 0, 0, SIZE_PX, SIZE_PX);
+    // prvky prémiové krajiny (naleziště, brod, stezka, pramen…) pod vsí
+    drawMinimapPremium(
+      context,
+      premiumMinimapMarks(landscape, premiumFeaturesOf(landscape), SIZE_PX),
+    );
     drawMinimapVillage(context, landscape, village, SIZE_PX);
     return image;
   }, [base, landscape, village]);

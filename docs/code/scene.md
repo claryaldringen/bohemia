@@ -432,3 +432,25 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   závoj 51 k); bez války 0. Ukázka **Bitva** na `/dev/landscape` (`dev-battle.ts`) běží
   skutečným `battleTick` (palisáda 6 × 6 čtverců s branou na jihu, dvě skupiny útočníků proti
   mužům u domů), druhý krok útěk vsi; e2e `e2e/battle-scene.spec.ts` (jen s `BATTLE_DEV_URL`).
+
+- **Prémiové krajiny ve scéně** (landscape.md – Prémiové krajiny ve scéně): řeka jde stejnou
+  cestou jako potok – `RenderSurface.stream` = `watersCenterline` (body osy potoka),
+  `RenderSurface.river` = osa řeky (stanice rákosu, leknínů, ryb a zvuk – `decorPlacements(l,
+stream, river)`, `fishSchools`, `AmbientEnvironment.river`), výšková síť přes
+  `nearestWaterPair` s hlubším korytem řeky (`RIVER_DEPTH_M`). Shader hladiny počítá led jen při
+  `seasonB.w > 0` (v létě stejný výsledek, voda o ≈ 45 % levnější – řeka ji nezdraží). Prvky
+  typu kreslí `premium-sites.ts` (`PremiumSites`, v `setLandscape`) z čistých funkcí
+  `premium-sites-layout.ts`: obtisky (`premiumDecals` – náplav, rudiště, hliniště, slanisko, lom,
+  žíla, stružka, přístaviště, stezka `route`, zvěřní stezky, kaliště, místo úlů), dřevo a tůňky
+  (`premiumProps` – molo a člun, kůly brodu, klátové úly na okraji lesa u brtí – `beeYard`, kůl na
+  mohyle, tůňky), ozdoby z modelů dekorací (`premiumDecor` – mohyla v sedle, kamenný kruh na
+  posvátné hoře, rákosí mokřadu; `DecorPlacement.group` `site` = vlastní mesh bez id), odstín skal
+  (`premiumRockTint` – `ore` / `limestone`, meshe `decor-<model>-<skupina>`) a louky
+  (`premiumMeadow` → 4. parametr `groundWeights`). Horský průsmyk: terén u okraje mapy s horami
+  ve scéně dobíhá k nejnižší výšce okraje (`fadeMountainEdges` v `render-surface.ts`, jen vzhled);
+  kamera se nezaboří do svahu (`cameraTerrainLift` v `camera-input.ts` – cíl se zvedne, kamera
+  4 m nad terénem). Minimapa: `premiumMinimapMarks` / `drawMinimapPremium` (`PREMIUM_COLORS`).
+  Průměrná krajina bit po bitu jako dřív (výšková síť, ozdoby, ryby, povrch, minimapa i snímky).
+  Náhled `/dev/landscape?seed=42&premium=<typ>` – odkazy 19 typů a „průměrná“, pohled na hlavní
+  prvek (`premiumFocus` – kamera od vsi k prvku, `moveCameraTo(x, z, radius, alpha)`), tlačítka
+  **Prvek** a **Obrysy prvků** (`app/dev/landscape/dev-premium.ts`).

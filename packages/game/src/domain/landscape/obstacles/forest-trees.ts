@@ -1,6 +1,7 @@
 import { createNoise2D } from 'simplex-noise';
 import { noiseRandom } from '../det-math';
 import { SURFACE_CODES } from '../types';
+import { premiumForestLook, type ForestLook } from '../premium/trees';
 import { heightAtWorld } from '../world';
 import { hashFor, nearVillageSite, seedFor, surfaceCodeAt, type ScatterContext } from './context';
 import { forestSpecies, pickForestLook, type ForestSpecies } from './species';
@@ -40,16 +41,19 @@ export function edgeDensityField(seed: number): EdgeDensity {
     Math.min(1.3, Math.max(0.15, 0.55 + 0.9 * clumps(worldX / 45, worldZ / 45)));
 }
 
-/** Společné pro okraj i vnitřek lesa: hustota shluků a skladba druhů ze seedu vrstvy. */
+/** Společné pro okraj i vnitřek lesa: hustota shluků, skladba druhů a výběr modelu. */
 export interface ForestScatter {
   edgeDensity: EdgeDensity;
   species: ForestSpecies;
+  /** Model stromu podle vah – průměrné krajiny, prémiový typ ho může změnit (doubravy). */
+  look: ForestLook;
 }
 
 export function forestScatter(ctx: ScatterContext): ForestScatter {
   return {
     edgeDensity: edgeDensityField(seedFor(ctx, 'edge-clumps')),
     species: forestSpecies(seedFor(ctx, 'species-clusters')),
+    look: premiumForestLook(ctx.landscape, pickForestLook),
   };
 }
 
@@ -93,7 +97,7 @@ export function edgeTreePlacements(
       placements.push({
         id: obstacleId('edgeTree', gz * cells + gx),
         kind: 'tree',
-        look: pickForestLook(hash(gx, gz, 6), weights, hash(gx, gz, 5)),
+        look: forest.look(hash(gx, gz, 6), weights, hash(gx, gz, 5), x, z),
         x,
         z,
         rotation: hash(gx, gz, 7) * Math.PI * 2,
@@ -134,7 +138,7 @@ export function impostorTreePlacements(
       placements.push({
         id: obstacleId('impostor', gz * count + gx),
         kind: 'tree',
-        look: pickForestLook(hash(gx, gz, 4), weights, hash(gx, gz, 5)),
+        look: forest.look(hash(gx, gz, 4), weights, hash(gx, gz, 5), x, z),
         x,
         z,
         rotation: hash(gx, gz, 6) * Math.PI * 2,

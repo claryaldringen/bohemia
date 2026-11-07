@@ -3,7 +3,10 @@ import type { Landscape } from './types';
 // Svět scény v metrech: osa X = sloupec políčka (x), osa Z = řádek (y), střed krajiny v počátku.
 // Stejné převody používá scéna (apps/web/lib/scene/tile-at.ts).
 
-function halfExtent(l: Landscape): number {
+/** Rozměr mřížky políček – stačí k převodům mezi políčky a světem. */
+export type TileGrid = Pick<Landscape, 'size' | 'cellSizeM'>;
+
+function halfExtent(l: TileGrid): number {
   return (l.size * l.cellSizeM) / 2;
 }
 
@@ -33,7 +36,7 @@ export function heightAtWorld(l: Landscape, x: number, z: number): number {
 
 /** Hodnota pole po políčkách (index y * size + x) v bodě světa – bilineárně mezi středy políček. */
 export function sampleTilesAtWorld(
-  l: Landscape,
+  l: TileGrid,
   values: ArrayLike<number>,
   x: number,
   z: number,

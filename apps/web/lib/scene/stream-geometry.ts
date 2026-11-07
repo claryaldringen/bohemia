@@ -1,15 +1,19 @@
 import type { StreamSample } from '@bohemia/game';
 
-// Osa potoka ve světě je v herním jádru (podle ní stojí stromy a kameny vrstvy překážek); tady
-// jen vzhled vody – průzračnost a viditelnost do hloubky.
+// Osa potoka (a řeky prémiových krajin) ve světě je v herním jádru (podle ní stojí stromy
+// a kameny vrstvy překážek); tady jen vzhled vody – průzračnost a viditelnost do hloubky.
 export {
   BANK_REACH_M,
+  nearestWaterPair,
+  riverCenterline,
   streamCenterline,
   streamStations,
+  watersCenterline,
   type StreamCenterline,
   type StreamCenterPoint as StreamPoint,
   type StreamSample,
   type StreamStation,
+  type WaterPair,
 } from '@bohemia/game';
 
 /** Viditelnost do hloubky (m): kalná voda nad bahnem → průzračná nad štěrkem. */

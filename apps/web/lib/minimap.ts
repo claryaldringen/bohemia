@@ -1,5 +1,6 @@
 import {
   buildRelief,
+  PREMIUM_LAND_KINDS,
   SACRED_BUILDINGS,
   dwellingShape,
   shapedFootprint,
@@ -8,6 +9,8 @@ import {
   type FieldSurface,
   type Landscape,
   type PartStage,
+  type PremiumFeatures,
+  type PremiumSiteKind,
 } from '@bohemia/game';
 import type { SceneSacred, SceneVillage } from './village-view';
 import { CLEARED_SHARE, type ClearedForest } from './scene/cleared-forest';
@@ -324,6 +327,125 @@ export function drawMinimapVillage(
     context.lineWidth = 1;
     context.fillRect(p.x - side / 2, p.y - side / 2, side, side);
     context.strokeRect(p.x - side / 2, p.y - side / 2, side, side);
+  }
+}
+
+/**
+ * Prvky prémiové krajiny na minimapě (premium-landscapes.md – Co hráč vidí: „Prvky typu na mapě
+ * a minimapě“) – barvy podle druhu: naleziště zlata zlatá, ruda rezavá, hlína okrová, sůl bílá,
+ * pramen a soutok modré, stezka, brod a přístaviště světle hnědé, posvátná hora okrová jako
+ * posvátná místa vsi, brtě medové. Řeka je voda v obrázku krajiny.
+ */
+export const PREMIUM_COLORS: Record<PremiumSiteKind, Rgb> = {
+  deposit: [236, 186, 56],
+  'gold-placer': [246, 206, 72],
+  river: COLORS.water,
+  port: [214, 178, 122],
+  ford: [226, 208, 160],
+  route: [232, 206, 150],
+  pass: [214, 204, 226],
+  summit: SACRED_COLOR,
+  spring: [126, 210, 236],
+  confluence: [126, 186, 226],
+  promontory: [222, 126, 62],
+  salt: [248, 248, 242],
+  'bee-trees': [246, 196, 44],
+  'hunting-ground': [168, 96, 72],
+  quarry: [222, 216, 202],
+  'iron-ore': [184, 88, 42],
+  clay: [204, 168, 116],
+  slope: [240, 206, 96],
+  meadow: [170, 220, 96],
+  woodland: [96, 150, 64],
+};
+
+/** Značka prvku na minimapě v px: plocha (obrys), čára (osa, stezka), bod (kosočtverec). */
+export type PremiumMark =
+  | { kind: 'area'; points: { x: number; y: number }[]; color: Rgb; fill: boolean }
+  | { kind: 'line'; points: { x: number; y: number }[]; color: Rgb; width: number }
+  | { kind: 'point'; x: number; y: number; color: Rgb; size: number };
+
+/** Druhy, které jsou na minimapě čárou (stezka, žíla) – ostatní obrysem nebo bodem. */
+const PREMIUM_LINE_KINDS: ReadonlySet<PremiumSiteKind> = new Set(['route', 'deposit']);
+/** Řeka a ostatní voda je v obrázku krajiny – značku nemá. */
+const PREMIUM_HIDDEN_KINDS: ReadonlySet<PremiumSiteKind> = new Set(['river']);
+
+/**
+ * Značky prvků prémiové krajiny pro minimapu o straně `sizePx`: plochy obrysem (půda a les jen
+ * obrysem, naleziště i s výplní), stezky a žíly čarou, místa (brod, přístaviště, pramen, sůl,
+ * sedlo, brtě…) kosočtvercem. Bez prvků prázdné.
+ */
+export function premiumMinimapMarks(
+  l: Landscape,
+  features: PremiumFeatures | null,
+  sizePx: number,
+): PremiumMark[] {
+  if (!features) return [];
+  const at = (x: number, z: number): { x: number; y: number } => worldToMinimap(l, x, z, sizePx);
+  const marks: PremiumMark[] = [];
+  const points: PremiumMark[] = [];
+  for (const site of features.sites) {
+    if (PREMIUM_HIDDEN_KINDS.has(site.kind)) continue;
+    const color = PREMIUM_COLORS[site.kind];
+    if (PREMIUM_LINE_KINDS.has(site.kind) && site.line && site.line.length > 1) {
+      marks.push({
+        kind: 'line',
+        points: site.line.map(([x, z]) => at(x, z)),
+        color,
+        width: site.kind === 'deposit' ? 2.5 : 1.5,
+      });
+      if (site.kind === 'route') continue;
+    }
+    if (site.outline && site.outline.length > 2 && site.kind !== 'deposit') {
+      marks.push({
+        kind: 'area',
+        points: site.outline.map(([x, z]) => at(x, z)),
+        color,
+        fill: !PREMIUM_LAND_KINDS.has(site.kind),
+      });
+      continue;
+    }
+    points.push({ kind: 'point', ...at(site.x, site.z), color, size: 4.5 });
+  }
+  // body navrch přes plochy a čáry
+  return [...marks, ...points];
+}
+
+/** Prvky prémiové krajiny na minimapu – pod vsí (kreslí se do vrstvy krajiny, Minimap.tsx). */
+export function drawMinimapPremium(context: MinimapContext, marks: readonly PremiumMark[]): void {
+  for (const mark of marks) {
+    const [r, g, b] = mark.color;
+    if (mark.kind === 'point') {
+      const half = mark.size / 2;
+      context.beginPath();
+      context.moveTo(mark.x, mark.y - half);
+      context.lineTo(mark.x + half, mark.y);
+      context.lineTo(mark.x, mark.y + half);
+      context.lineTo(mark.x - half, mark.y);
+      context.closePath();
+      context.fillStyle = `rgb(${r} ${g} ${b})`;
+      context.fill();
+      context.strokeStyle = '#2a1d10';
+      context.lineWidth = 1;
+      context.stroke();
+      continue;
+    }
+    context.beginPath();
+    mark.points.forEach((p, i) => (i === 0 ? context.moveTo(p.x, p.y) : context.lineTo(p.x, p.y)));
+    if (mark.kind === 'area') {
+      context.closePath();
+      if (mark.fill) {
+        context.fillStyle = `rgb(${r} ${g} ${b} / 0.4)`;
+        context.fill();
+      }
+      context.strokeStyle = `rgb(${r} ${g} ${b} / ${mark.fill ? 0.95 : 0.7})`;
+      context.lineWidth = 1;
+      context.stroke();
+    } else {
+      context.strokeStyle = `rgb(${r} ${g} ${b})`;
+      context.lineWidth = mark.width;
+      context.stroke();
+    }
   }
 }
 

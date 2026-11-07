@@ -35,7 +35,8 @@ export interface Relief {
   rockinessAt(worldX: number, worldZ: number): number;
 }
 
-export function buildRelief(l: Landscape): Relief {
+/** Tvar terénu stačí z výšek – krajina, nebo terén při generování (`transferHeights`). */
+export function buildRelief(l: Pick<Landscape, 'size' | 'cellSizeM' | 'heights'>): Relief {
   const { size, cellSizeM } = l;
   const slope = new Float32Array(size * size);
   const sunward = new Float32Array(size * size);

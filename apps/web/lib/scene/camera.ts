@@ -1,7 +1,7 @@
 import { ArcRotateCamera } from '@babylonjs/core/Cameras/arcRotateCamera';
 import { Matrix, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import type { Scene } from '@babylonjs/core/scene';
-import { isDrag, pinchZoomFactor } from './camera-input';
+import { cameraTerrainLift, isDrag, pinchZoomFactor } from './camera-input';
 import { CAMERA_ZOOM_M } from './constants';
 import { edgeScrollDirection } from './edge-scroll';
 
@@ -10,6 +10,8 @@ import { edgeScrollDirection } from './edge-scroll';
  * Změna = nový render atlasu impostorů (`tools/blender/impostors.py`).
  */
 const BETA = 0.85;
+/** Kamera zůstane aspoň tolik metrů (ve scéně) nad terénem pod sebou (`cameraTerrainLift`). */
+const TERRAIN_CLEARANCE_M = 4;
 /** Natočení kamery na začátku a po R – kamera stojí na −z a dívá se k +z (sever nahoře). */
 const HOME_ALPHA = -Math.PI / 2;
 /** Zorný úhel (svislý, rad) – 45° jako `fov` v 0 A.D. */
@@ -359,6 +361,8 @@ export function createRtsCamera(
 
     // Vstupy myši a setrvačnost – scéna se pak kreslí bez další aktualizace kamery.
     camera.update();
+    // Kamera se nezaboří do svahu hory (prémiové krajiny) – cíl se zvedne nad zem.
+    camera.target.y += cameraTerrainLift(camera.target, camera, groundHeight, TERRAIN_CLEARANCE_M);
     const view = camera.getViewMatrix(true);
     const changed = !hasView || !view.equals(lastView);
     lastView.copyFrom(view);

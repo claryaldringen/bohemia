@@ -1,6 +1,10 @@
 import { beforeAll, describe, it, expect } from 'vitest';
 import { BAND_V2, bandFor, checkBand } from '../band';
-import { generateAcceptedLandscape, generateLandscape } from '../generate';
+import {
+  generateAcceptedLandscape,
+  generateLandscape,
+  generateLandscapeAttempt,
+} from '../generate';
 import {
   CURRENT_LAYER_VERSIONS,
   INITIAL_LAYER_VERSIONS,
@@ -132,13 +136,29 @@ describe('generateLandscape', () => {
  * verze vědomě přepsat; po spuštění je potřeba nová verze vrstvy.
  */
 describe('verze vrstev – zlatý otisk krajiny', () => {
+  /**
+   * Přijatá krajina – a táž bez prémie (třetí parametr `undefined`): bez prémie bit po bitu jako
+   * dřív, bez typu v krajině.
+   */
+  const acceptedWithoutPremium = (
+    seed: number,
+    versions: LayerVersions,
+  ): { seed: number; landscape: Landscape } => {
+    const accepted = generateAcceptedLandscape(seed, versions);
+    const plain = generateAcceptedLandscape(seed, versions, undefined);
+    expect(plain.seed).toBe(accepted.seed);
+    expect(plain.landscape).toEqual(accepted.landscape);
+    expect('premium' in plain.landscape).toBe(false);
+    return plain;
+  };
+
   it.each([
     [1, 1, '0b76b6b6'],
     [42, 42, '04ebf1c1'],
     [123, 123, 'e8827a26'],
     [50, 51, '91561e91'],
   ])('verze 1, seed %i (přijatý pokus %i)', (seed, acceptedSeed, expected) => {
-    const accepted = generateAcceptedLandscape(seed, INITIAL_LAYER_VERSIONS);
+    const accepted = acceptedWithoutPremium(seed, INITIAL_LAYER_VERSIONS);
     expect(accepted.seed).toBe(acceptedSeed);
     expect(landscapeHash(accepted.landscape)).toBe(expected);
   });
@@ -150,7 +170,7 @@ describe('verze vrstev – zlatý otisk krajiny', () => {
     [123, 123, '22066e5f'],
     [14, 15, '26bd1903'],
   ])('verze 2, seed %i (přijatý pokus %i)', (seed, acceptedSeed, expected) => {
-    const accepted = generateAcceptedLandscape(seed, V2);
+    const accepted = acceptedWithoutPremium(seed, V2);
     expect(accepted.seed).toBe(acceptedSeed);
     expect(landscapeHash(accepted.landscape)).toBe(expected);
   });
@@ -163,9 +183,24 @@ describe('verze vrstev – zlatý otisk krajiny', () => {
     [123, 123, 'f4068e03'],
     [16, 16, '300a3e4c'],
   ])('verze 3 (terén 2), seed %i (přijatý pokus %i)', (seed, acceptedSeed, expected) => {
-    const accepted = generateAcceptedLandscape(seed, CURRENT_LAYER_VERSIONS);
+    const accepted = acceptedWithoutPremium(seed, CURRENT_LAYER_VERSIONS);
     expect(accepted.seed).toBe(acceptedSeed);
     expect(landscapeHash(accepted.landscape)).toBe(expected);
+  });
+
+  it('bez prémie bit po bitu jako dřív – pokus i přijatá krajina, i s ostrožnou', () => {
+    for (const [seed, expected] of [
+      [1, '238b9327'],
+      [16, '300a3e4c'],
+    ] as const) {
+      const attempt = generateLandscapeAttempt(seed, CURRENT_LAYER_VERSIONS, undefined);
+      expect(landscapeHash(attempt)).toBe(expected);
+      expect(attempt).toEqual(generateLandscapeAttempt(seed, CURRENT_LAYER_VERSIONS));
+      expect('premium' in attempt).toBe(false);
+      expect(landscapeHash(generateLandscape(seed, CURRENT_LAYER_VERSIONS, undefined))).toBe(
+        expected,
+      );
+    }
   });
 
   it('verze 1 padne do svého pásma a terén mají verze 1 a 2 stejný', () => {

@@ -6,6 +6,7 @@ import {
   type StreamSample,
   type StreamStation,
 } from './stream-geometry';
+import type { DecorGroup } from './premium-sites-layout';
 import { tileAt } from './tile-at';
 
 /**
@@ -32,6 +33,13 @@ export interface DecorPlacement {
   waterLevel?: number;
   /** Id překážky ve vrstvě překážek (ozdoby vody ho nemají). */
   id?: number;
+  /**
+   * Vlastní skupina (mesh) prémiové krajiny (premium-sites-layout.ts): odstín skály naleziště
+   * (`ore` rudný výchoz, `limestone` vápenec lomu – `premiumRockTint`), nebo ozdoba prvku bez id
+   * (`site` – mohyla, kamenný kruh, rákosí mokřadu; s překážkami stejného modelu se nemíchá,
+   * jinak by mesh přišel o id instancí). Bez údaje mesh modelu jako dřív.
+   */
+  group?: DecorGroup;
 }
 
 /** Krok podél osy potoka (m) pro shluky rákosí a leknínů. */
@@ -52,15 +60,39 @@ function hash(x: number, y: number, k: number): number {
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
 
+/** Stanice podél řeky mají vlastní čísla (hash) – shluky nesdílí vzor se stanicemi potoka. */
+const RIVER_STATION_BASE = 1_000_000;
+
 /**
  * Ozdoby vody jako v generátoru 0 A.D.: rákos a orobinec ve shlucích na kraji koryta, lekníny
  * na hladině, kmeny spadlé do klidné vody a balvany v korytě pod skalní stěnou (terén 2) –
- * deterministicky. Jen vzhled, žádné překážky.
+ * deterministicky. Jen vzhled, žádné překážky. `stream` = dotazy na vodu (potok i řeka – osa
+ * vod), stanice jdou po ose potoka a s řekou prémiové krajiny (`river`) i po ní.
  */
-export function decorPlacements(l: Landscape, stream: StreamCenterline): DecorPlacement[] {
+export function decorPlacements(
+  l: Landscape,
+  stream: StreamCenterline,
+  river: StreamCenterline | null = null,
+): DecorPlacement[] {
+  const placements = axisDecor(l, stream, stream, 0);
+  if (river) placements.push(...axisDecor(l, stream, river, RIVER_STATION_BASE));
+  return placements;
+}
+
+/** Ozdoby vody podél jedné osy (`axis` – stanice), dotazy na vodu přes `stream`. */
+function axisDecor(
+  l: Landscape,
+  stream: StreamCenterline,
+  axis: StreamCenterline,
+  stationBase: number,
+): DecorPlacement[] {
   const placements: DecorPlacement[] = [];
-  const reedClumps = createNoise2D(seededRandom(0xdec0));
+  const reedClumps = createNoise2D(seededRandom(0xdec0 + stationBase));
   const inMap = (x: number, z: number): boolean => tileAt(l, x, z) !== null;
+  const stations = (step: number): StreamStation[] =>
+    streamStations(axis, step).map((station) =>
+      stationBase === 0 ? station : { ...station, index: station.index + stationBase },
+    );
 
   // Stav potoka u břehu na dané straně stanice: šířka, proud, tůň, strana oblouku.
   const bank = (station: StreamStation, side: number): StreamSample =>
@@ -68,7 +100,7 @@ export function decorPlacements(l: Landscape, stream: StreamCenterline): DecorPl
 
   // Rákos a orobinec: shluky na kraji vody. V klidné vodě, v tůních a na vnitřních obloucích
   // hustě (orobinec hlavně ve stojaté vodě), v rychlém proudu nad štěrkem řídce.
-  for (const station of streamStations(stream, REED_STEP_M)) {
+  for (const station of stations(REED_STEP_M)) {
     for (const side of [-1, 1]) {
       const k = station.index * 2 + (side > 0 ? 1 : 0);
       const here = bank(station, side);
@@ -101,7 +133,7 @@ export function decorPlacements(l: Landscape, stream: StreamCenterline): DecorPl
   }
 
   // Lekníny jen v klidné vodě – hlavně v tůních, kde jich je víc.
-  for (const station of streamStations(stream, LILY_STEP_M)) {
+  for (const station of stations(LILY_STEP_M)) {
     const k = station.index;
     const side = hash(k, 2, 21) < 0.5 ? -1 : 1;
     const here = bank(station, side);
@@ -127,7 +159,7 @@ export function decorPlacements(l: Landscape, stream: StreamCenterline): DecorPl
   }
 
   // Kmeny v potoce: v klidné vodě u břehu, v tůních častěji, natočené zhruba po proudu.
-  for (const station of streamStations(stream, LOG_STEP_M)) {
+  for (const station of stations(LOG_STEP_M)) {
     const k = station.index;
     const side = hash(k, 1, 431) < 0.5 ? -1 : 1;
     const here = bank(station, side);
@@ -148,7 +180,7 @@ export function decorPlacements(l: Landscape, stream: StreamCenterline): DecorPl
   }
 
   // Balvany v korytě u paty skalní stěny (terén 2) – spadly ze stěny, voda je obtéká.
-  for (const station of streamStations(stream, BOULDER_STEP_M)) {
+  for (const station of stations(BOULDER_STEP_M)) {
     for (const side of [-1, 1]) {
       const k = station.index * 2 + (side > 0 ? 1 : 0);
       const here = bank(station, side);

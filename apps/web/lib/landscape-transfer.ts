@@ -1,11 +1,17 @@
-import type { Landscape, ObstacleLayerSeed, Promontory, StreamPoint } from '@bohemia/game';
+import type {
+  Landscape,
+  ObstacleLayerSeed,
+  PremiumType,
+  Promontory,
+  StreamPoint,
+} from '@bohemia/game';
 
 /** Čísel na bod osy potoka: x, y, levá a pravá poloviční šířka, hladina, mělčina (0/1). */
 const STREAM_FIELDS = 6;
 
 /**
  * Krajina ve tvaru, který jde poslat v props ze serveru do klientské komponenty (≈ 100 kB,
- * ≈ 50 kB po kompresi). Přesnost (výšky na cm, osa potoka i výšky stěn u potoka ve Float32) odpovídá
+ * ≈ 50 kB po kompresi). Přesnost (výšky na cm, osa potoka i řeky a výšky stěn u toků ve Float32) odpovídá
  * `transferPrecision` z herního jádra – vrstvu překážek (desítky tisíc stromů) si prohlížeč
  * vygeneruje sám ze seedu vrstvy a vyjde mu přesně stejná jako serveru.
  */
@@ -30,6 +36,18 @@ export interface LandscapeTransfer {
   banks?: string;
   /** Ostrožny (terén 2); u terénu 1 chybí. */
   promontories?: readonly Promontory[];
+  /**
+   * Base64 Float32 little-endian – osa řeky prémiové krajiny po STREAM_FIELDS číslech na bod,
+   * jako osa potoka; u krajiny bez řeky chybí.
+   */
+  river?: string;
+  /** Base64 Float32 – výšky stěn u řeky po dvou číslech na bod osy (vlevo, vpravo). */
+  riverBanks?: string;
+  /**
+   * Prémiový typ krajiny; u průměrné krajiny chybí. Prvky typu (`premiumFeaturesOf`) si prohlížeč
+   * spočítá sám jako vrstvu překážek – z typu a krajiny s přesností přenosu.
+   */
+  premium?: PremiumType;
 }
 
 export function encodeLandscape(l: Landscape): LandscapeTransfer {
@@ -48,6 +66,11 @@ export function encodeLandscape(l: Landscape): LandscapeTransfer {
       ? { banks: bytesToBase64(encodeBanks(l.stream)) }
       : {}),
     ...(l.promontories ? { promontories: l.promontories } : {}),
+    ...(l.river ? { river: bytesToBase64(encodeStream(l.river)) } : {}),
+    ...(l.river?.some((p) => p.bankLeft !== undefined)
+      ? { riverBanks: bytesToBase64(encodeBanks(l.river)) }
+      : {}),
+    ...(l.premium !== undefined ? { premium: l.premium } : {}),
   };
 }
 
@@ -69,6 +92,7 @@ function decode(t: LandscapeTransfer): Landscape {
   const heights = new Float32Array(t.size * t.size);
   for (let i = 0; i < heights.length; i++) heights[i] = view.getUint16(i * 2, true) / 100;
   const stream = decodeStream(base64ToBytes(t.stream));
+  const river = t.river !== undefined ? decodeStream(base64ToBytes(t.river)) : null;
   return {
     size: t.size,
     cellSizeM: t.cellSizeM,
@@ -79,6 +103,10 @@ function decode(t: LandscapeTransfer): Landscape {
     stream: t.banks ? withBanks(stream, base64ToBytes(t.banks)) : stream,
     obstacleLayer: t.obstacleLayer,
     ...(t.promontories ? { promontories: t.promontories } : {}),
+    ...(river
+      ? { river: t.riverBanks ? withBanks(river, base64ToBytes(t.riverBanks)) : river }
+      : {}),
+    ...(t.premium !== undefined ? { premium: t.premium } : {}),
   };
 }
 

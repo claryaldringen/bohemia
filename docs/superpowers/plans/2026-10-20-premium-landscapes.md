@@ -195,10 +195,10 @@ Naleziště jsou zatím jen data a vzhled, mechanika přijde později.
 
 **Rozhraní:** Spotřebuje `premiumFeaturesOf`. Řeka jde stejnou cestou jako potok (voda, koryto, brody).
 
-- [ ] **Krok 1:** `/dev/landscape?seed=42&premium=mountain-pass` ukáže typ. Tlačítka typů a „průměrná“ pro porovnání na stejném seedu.
-- [ ] **Krok 2:** Každý typ je z výchozí kamery poznat. Snímky všech 19 typů ulož do scratchpadu (harness `scratchpad/zoom-perf/harness/`).
-- [ ] **Krok 3:** Změř nejdelší snímek. Řeka nesmí zdražit vodu nad dnešní stav o víc než 20 %.
-- [ ] **Krok 4:** Commit `feat(web): prémiové krajiny ve scéně a ukázka na /dev/landscape`.
+- [x] **Krok 1:** `/dev/landscape?seed=42&premium=mountain-pass` ukáže typ. Tlačítka typů a „průměrná“ pro porovnání na stejném seedu.
+- [x] **Krok 2:** Každý typ je z výchozí kamery poznat. Snímky všech 19 typů ulož do scratchpadu (harness `scratchpad/zoom-perf/harness/`).
+- [x] **Krok 3:** Změř nejdelší snímek. Řeka nesmí zdražit vodu nad dnešní stav o víc než 20 %.
+- [x] **Krok 4:** Commit `feat(web): prémiové krajiny ve scéně a ukázka na /dev/landscape`.
 
 ### Úloha 7: Účinky „hned“ přes existující mechaniky
 

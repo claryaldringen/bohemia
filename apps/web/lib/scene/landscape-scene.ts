@@ -16,6 +16,7 @@ import {
   NO_OBSTACLE_CHANGES,
   OFFICIAL_WORLD,
   obstaclesOf,
+  premiumFeaturesOf,
   rotatedPlot,
   rotationTurn,
   surfaceAt,
@@ -109,6 +110,9 @@ import { VillageRenderer, type DraftRenderState } from './village-renderer';
 import type { SceneVillage, SceneWeather } from '../village-view';
 import type { PlacementHandlers, PlacementMode } from './village-types';
 import { createWaterMesh, type WaterSurface } from './water';
+import { PremiumSites } from './premium-sites';
+import { premiumDecor, premiumRockTint } from './premium-sites-layout';
+import type { DecorPlacement } from './decor-placement';
 
 type HoverListener = (tile: TileInfo | null) => void;
 /** Kliknutí do scény mimo umisťování: vybrané obydlí / pole, nebo null (zrušit výběr). */
@@ -282,6 +286,8 @@ export class LandscapeScene {
   private flashNow = 0;
   private disasterKey = '';
   private disasterDayOverride: number | null = null;
+  /** Prvky prémiové krajiny (premium-sites.ts) – obtisky, přístaviště, kůly, úly, tůňky. */
+  private premiumSites: PremiumSites | null = null;
   private village: VillageRenderer | null = null;
   /** Domácí zvířata vsi (ozdoba) – slepice u obydlí, stáda na loukách a v lese. */
   private livestock: VillageLivestock | null = null;
@@ -449,8 +455,14 @@ export class LandscapeScene {
     if (this.village.setObstacles(obstacles)) this.renderWhenReady();
     const scenery = obstacleScenery(obstacles);
     const trees = scenery.trees;
+    // prémiová krajina (premium-landscapes.md – Vzhled): skály nalezišť v odstínu, ozdoby prvků
+    const premium = premiumFeaturesOf(landscape);
     // ozdoby vody (rákos, lekníny, kmeny v potoce) nejsou překážky – jen vzhled scény
-    const decor = [...scenery.decor, ...decorPlacements(landscape, surface.stream)];
+    const decor = [
+      ...(premium ? scenery.decor.map(withRockTint) : scenery.decor),
+      ...decorPlacements(landscape, surface.stream, surface.river),
+      ...premiumDecor(landscape, premium, surface.stream),
+    ];
     this.felled = new FelledTrees(this.scene, {
       groundHeight,
       addShadowCaster: (mesh) => {
@@ -650,6 +662,14 @@ export class LandscapeScene {
     this.terrain = this.terrainGround.mesh;
     if (this.terrain.material) applyPitCut(this.terrain.material, this.pitCuts);
     this.water = createWaterMesh(this.scene, surface);
+    this.premiumSites?.dispose();
+    this.premiumSites = new PremiumSites(this.scene, landscape, premium, {
+      decalHeight: (x, z) => terrainMeshHeight(surface, x, z),
+      groundHeight,
+      waters: surface.stream,
+      addShadowCaster: (mesh) => this.addVillageCaster(mesh),
+      requestRender: () => this.renderWhenReady(),
+    });
     this.canopy = createForestCanopy(this.scene, surface, field);
     const site = tileCenter(landscape, landscape.villageSite.x, landscape.villageSite.y);
     this.rtsCamera = createRtsCamera(this.scene, this.canvas, {
@@ -746,7 +766,7 @@ export class LandscapeScene {
     this.rendering = true;
     // Zvuky se stahují až teď – nezdrží přípravu scény; mix sleduje pohled kamery ve frame().
     this.ambient = new AmbientSound({
-      environment: { stream: surface.stream, forest: field },
+      environment: { stream: surface.stream, river: surface.river, forest: field },
       enabled: this.soundEnabled,
       onStateChange: (state) => {
         this.canvas.dataset.sound = state;
@@ -1286,9 +1306,24 @@ export class LandscapeScene {
     return () => this.clearedListeners.delete(listener);
   }
 
-  /** Přesune pohled na bod krajiny (klik do minimapy). */
-  moveCameraTo(x: number, z: number): void {
+  /**
+   * Přesune pohled na bod krajiny (klik do minimapy); s `radiusM` i přiblížení a s `alpha`
+   * natočení kamery (vývojový náhled – prvek prémiové krajiny).
+   */
+  moveCameraTo(x: number, z: number, radiusM?: number, alpha?: number): void {
     this.rtsCamera?.moveTo(x, z);
+    const camera = this.rtsCamera?.camera;
+    if (camera && radiusM !== undefined) {
+      camera.radius = Math.min(
+        camera.upperRadiusLimit ?? radiusM,
+        Math.max(camera.lowerRadiusLimit ?? radiusM, radiusM),
+      );
+      camera.inertialRadiusOffset = 0;
+    }
+    if (camera && alpha !== undefined) {
+      camera.alpha = alpha;
+      camera.inertialAlphaOffset = 0;
+    }
     this.needsRender = true;
   }
 
@@ -1417,6 +1452,7 @@ export class LandscapeScene {
     this.wildlife?.dispose();
     this.villagers?.dispose();
     this.paths?.dispose();
+    this.premiumSites?.dispose();
     this.resizeObserver.disconnect();
     this.canvas.removeEventListener('pointermove', this.onPointerMove);
     this.canvas.removeEventListener('pointerleave', this.onPointerLeave);
@@ -2158,4 +2194,10 @@ function wagonPreviewKey(village: SceneVillage, roadId: number): string {
     village.woodLogs ?? 0,
     changes ? [changes.removed.length, changes.stumps.length, (changes.added ?? []).length] : 0,
   ]);
+}
+
+/** Skála prémiového naleziště v odstínu (rudný výchoz, vápenec lomu); ostatní beze změny. */
+function withRockTint(p: DecorPlacement): DecorPlacement {
+  const group = premiumRockTint(p.id);
+  return group ? { ...p, group } : p;
 }

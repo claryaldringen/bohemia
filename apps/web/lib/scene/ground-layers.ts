@@ -3,6 +3,7 @@ import { createNoise2D } from 'simplex-noise';
 import { cliffApronM, cliffFaceM } from './render-surface';
 import type { StreamCenterline } from './stream-geometry';
 import type { TreePlacement } from './obstacle-scenery';
+import type { MeadowTweak } from './premium-sites-layout';
 
 /**
  * Vrstvy povrchu terénu – pořadí odpovídá kanálům splat textur: první RGBA, druhá RG (+ stín
@@ -61,6 +62,18 @@ const FLOWER_MAX = 0.7;
  */
 const BANK_ROCK = { rock: { from: 2.5, to: 5 }, topM: { from: 3, to: 10 }, screeM: 1.5 };
 
+/**
+ * Louky prémiových krajin: svěží (`lush`) ubere suchou trávu, přidá květy a zbytek trávy převede
+ * na sytou; teplý trávník (`warm`) přidá suchou trávu a květy.
+ */
+const PREMIUM_MEADOW = {
+  lushDry: 0.85,
+  lushFlowers: 0.42,
+  lushGrass: 0.8,
+  warmDry: 0.55,
+  warmFlowers: 0.5,
+} as const;
+
 const LAYER = Object.fromEntries(GROUND_LAYERS.map((name, i) => [name, i])) as Record<
   GroundLayer,
   number
@@ -75,6 +88,7 @@ export function groundWeights(
   l: Landscape,
   stream?: StreamCenterline,
   forest?: ForestGround,
+  meadowTweak: ((x: number, z: number) => MeadowTweak) | null = null,
 ): GroundWeights {
   const tileWeights = weightsPerTile(l, !stream, !forest);
   const relief = buildRelief(l);
@@ -124,7 +138,7 @@ export function groundWeights(
         const convexity = relief.convexityAt(x, z);
         const rocky = ROCKY_MAX * relief.rockinessAt(x, z);
         const wet = near ? 1 - smoothstep(15, 40, near.bankDistance) : 0;
-        const dry =
+        let dry =
           DRY_MAX *
           (1 - wet) *
           Math.min(
@@ -135,7 +149,18 @@ export function groundWeights(
         const patches =
           0.65 * flowerNoise(x / FLOWER_SCALE_M, z / FLOWER_SCALE_M) +
           0.35 * flowerNoise(x / (FLOWER_SCALE_M / 3) + 17.3, z / (FLOWER_SCALE_M / 3) - 4.1);
-        const flowers = FLOWER_MAX * smoothstep(0.15, 0.5, patches) * (1 - 0.6 * dry);
+        let flowers = FLOWER_MAX * smoothstep(0.15, 0.5, patches) * (1 - 0.6 * dry);
+        // Prémiová krajina (premium-sites-layout.ts – `premiumMeadow`): svěží louky úrodné
+        // krajiny a nivy (méně suché trávy, víc květů), teplý trávník jižních svahů.
+        const tweak = meadowTweak?.(x, z);
+        if (tweak && (tweak.lush > 0 || tweak.warm > 0)) {
+          dry = dry * (1 - PREMIUM_MEADOW.lushDry * tweak.lush);
+          dry = dry + (DRY_MAX - dry) * PREMIUM_MEADOW.warmDry * tweak.warm;
+          flowers = Math.max(
+            flowers,
+            PREMIUM_MEADOW.lushFlowers * tweak.lush + PREMIUM_MEADOW.warmFlowers * tweak.warm,
+          );
+        }
         const keep = (1 - rocky) * (1 - dry) * (1 - flowers);
         const taken = meadow * (1 - keep);
         w[LAYER.grass] = w[LAYER.grass]! * (1 - taken);
@@ -144,6 +169,13 @@ export function groundWeights(
         w[LAYER.rocky] = grass * meadow * rocky;
         w[LAYER.dryGrass] = grass * meadow * (1 - rocky) * dry;
         w[LAYER.flowers] = grass * meadow * (1 - rocky) * (1 - dry) * flowers;
+        if (tweak && tweak.lush > 0) {
+          const lush = PREMIUM_MEADOW.lushGrass * tweak.lush * meadow;
+          const shift = lush * (w[LAYER.grass]! + w[LAYER.grassDirt]!);
+          w[LAYER.grass] = w[LAYER.grass]! * (1 - lush);
+          w[LAYER.grassDirt] = w[LAYER.grassDirt]! * (1 - lush);
+          w[LAYER.grassLush] = w[LAYER.grassLush]! + shift;
+        }
       }
       if (near) {
         const d = near.bankDistance;

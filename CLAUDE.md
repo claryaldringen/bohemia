@@ -103,7 +103,7 @@ název). Pravidla a rozhodnutí jsou v `docs/design/`.
 | Soubor                                | Co v něm je                                                                                                                          |
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `docs/code/accounts.md`               | herní kalendář, účty, dev mód a skok v čase                                                                                          |
-| `docs/code/landscape.md`              | generování krajiny, verze vrstev, skály u potoka, uložený seed, vrstva překážek (co vyžaduje novou verzi vrstvy)                     |
+| `docs/code/landscape.md`              | generování krajiny, verze vrstev, skály u potoka, uložený seed, vrstva překážek (nová verze vrstvy), prémiové krajiny                |
 | `docs/code/scene.md`                  | scéna krajiny – kreslení jen při změně, smyčka, terén, voda, dekorace, ořez po čtvercích, světlo, roční období, den a noc, zvuky     |
 | `docs/code/scene-village.md`          | scéna vsi – domácí zvířata, obydlí a jámy, pozemky a plot, hřbitov, sad, posvátná místa, dílny                                       |
 | `docs/code/village-core.md`           | jádro simulace – API, pořadí práce dne, hlad, determinismus, dopočet, čísla, meze, štěstí, les a dřevo, překážky, upozornění         |

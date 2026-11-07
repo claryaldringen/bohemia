@@ -5,7 +5,7 @@ import {
   length2,
   obstacleIndex,
   obstaclesNear,
-  streamCenterline,
+  watersCenterline,
   tileCenterWorld,
   type Landscape,
   type ObstacleKind,
@@ -179,7 +179,8 @@ export function buildPathTerrain(l: Landscape, window: PathWindow): PathTerrain 
   /** Rovina pro mokřinu (sklon do WETLAND.slope). */
   const flat = new Uint8Array(width * height);
   const edge = (l.size * l.cellSizeM) / 2 - EDGE_MARGIN_M;
-  const stream = l.stream.length >= 2 ? streamCenterline(l) : null;
+  // Potok i řeka prémiové krajiny – voda obou je pro vesnici překážkou (brody jen mělké a úzké).
+  const stream = l.stream.length >= 2 ? watersCenterline(l) : null;
   const field = buildForestField(l, { remember: false });
   const tile = (tx: number, ty: number): number =>
     Math.min(l.size - 1, Math.max(0, ty)) * l.size + Math.min(l.size - 1, Math.max(0, tx));

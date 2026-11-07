@@ -1,9 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import {
+  CURRENT_LAYER_VERSIONS,
   generateLandscape,
   generateObstacles,
   INITIAL_LAYER_VERSIONS,
   OBSTACLE_SOURCES,
+  obstaclesOf,
+  premiumFeaturesOf,
   promontoriesOf,
   transferPrecision,
   type ObstacleLayer,
@@ -111,5 +114,114 @@ describe('přenos krajiny se skalami u potoka (terén 2)', () => {
     const decoded = decodeLandscape(transfer);
     expect(decoded.stream.every((p) => !('bankLeft' in p))).toBe(true);
     expect('promontories' in decoded).toBe(false);
+  });
+});
+
+describe('přenos prémiové krajiny', () => {
+  // Přijatá krajina – pokus bez kontroly pásma by prvky typu mít nemusel.
+  const premium = generateLandscape(42, CURRENT_LAYER_VERSIONS, 'mountain-pass');
+
+  it('přenos nese prémiový typ', () => {
+    const transfer = encodeLandscape(premium);
+    expect(transfer.premium).toBe('mountain-pass');
+    expect(decodeLandscape(transfer).premium).toBe('mountain-pass');
+  });
+
+  it('prohlížeč dostane stejnou prémiovou krajinu – prvky typu i vrstvu překážek', () => {
+    const decoded = decodeLandscape(encodeLandscape(premium));
+    // Prvky musí existovat – jinak by se porovnávalo null s null.
+    expect(premiumFeaturesOf(premium)).not.toBeNull();
+    expect(premiumFeaturesOf(decoded)).toEqual(premiumFeaturesOf(premium));
+    const server = obstaclesOf(premium);
+    const browser = obstaclesOf(decoded);
+    expect(browser.count).toBe(server.count);
+    for (const key of ['id', 'x', 'z', 'kind', 'look', 'rotation', 'scale', 'impostor'] as const) {
+      expect(browser[key]).toEqual(server[key]);
+    }
+  });
+
+  // Typy s řekou: osa řeky jde přenosem ve Float32 jako osa potoka (i s výškami stěn).
+  for (const type of ['navigable-river', 'ford-hill', 'confluence'] as const) {
+    it(`${type} – přenos nese osu řeky, prohlížeč dostane stejné prvky i vrstvu překážek`, () => {
+      const server = generateLandscape(42, CURRENT_LAYER_VERSIONS, type);
+      expect(server.river?.length).toBeGreaterThan(100);
+      const transfer = encodeLandscape(server);
+      expect(transfer.river).toBeDefined();
+      const decoded = decodeLandscape(transfer);
+      expect(decoded.river).toEqual(transferPrecision(server).river);
+      expect(decoded.promontories).toEqual(server.promontories);
+      expect(premiumFeaturesOf(server)).not.toBeNull();
+      expect(premiumFeaturesOf(decoded)).toEqual(premiumFeaturesOf(server));
+      const a = obstaclesOf(server);
+      const b = obstaclesOf(decoded);
+      expect(b.count).toBe(a.count);
+      for (const key of ['id', 'x', 'z', 'kind', 'look', 'rotation', 'scale'] as const) {
+        expect(b[key]).toEqual(a[key]);
+      }
+    });
+  }
+
+  it('zlatonosný potok a prameny – prohlížeč dostane stejné prvky', () => {
+    for (const type of ['gold-stream', 'salt-spring'] as const) {
+      const server = generateLandscape(42, CURRENT_LAYER_VERSIONS, type);
+      expect(premiumFeaturesOf(server), type).not.toBeNull();
+      expect(premiumFeaturesOf(decodeLandscape(encodeLandscape(server))), type).toEqual(
+        premiumFeaturesOf(server),
+      );
+    }
+  });
+
+  it('rudiště a hliniště – prohlížeč dostane stejné prvky', () => {
+    for (const type of ['iron-ore', 'fine-clay'] as const) {
+      const server = generateLandscape(42, CURRENT_LAYER_VERSIONS, type);
+      expect(premiumFeaturesOf(server), type).not.toBeNull();
+      expect(premiumFeaturesOf(decodeLandscape(encodeLandscape(server))), type).toEqual(
+        premiumFeaturesOf(server),
+      );
+    }
+  });
+
+  // Typy, které mění vrstvu překážek (rozmisťovače čtou typ krajiny): dřeviny lesa, brtě,
+  // skalka posvátného pramene, skály lomu a rudné výchozy žíly; a typy, které mění terén (hora,
+  // pevnost) – prvky hledá prohlížeč ve výškách z přenosu.
+  for (const type of [
+    'oak-beech',
+    'wild-bees',
+    'sacred-spring',
+    'building-stone',
+    'deep-gold',
+    'sacred-mountain',
+    'natural-fortress',
+  ] as const) {
+    it(`${type} – prohlížeč dostane stejné prvky i vrstvu překážek jako server`, () => {
+      const server = generateLandscape(42, CURRENT_LAYER_VERSIONS, type);
+      const decoded = decodeLandscape(encodeLandscape(server));
+      expect(premiumFeaturesOf(server)).not.toBeNull();
+      expect(premiumFeaturesOf(decoded)).toEqual(premiumFeaturesOf(server));
+      const a = obstaclesOf(server);
+      const b = obstaclesOf(decoded);
+      expect(b.count).toBe(a.count);
+      for (const key of [
+        'id',
+        'x',
+        'z',
+        'kind',
+        'look',
+        'rotation',
+        'scale',
+        'impostor',
+      ] as const) {
+        expect(b[key]).toEqual(a[key]);
+      }
+    });
+  }
+
+  it('průměrná krajina jde přenosem bez typu', () => {
+    const transfer = encodeLandscape(generateLandscape(42));
+    expect('premium' in transfer).toBe(false);
+    expect('river' in transfer).toBe(false);
+    expect('river' in decodeLandscape(transfer)).toBe(false);
+    expect('premium' in decodeLandscape(transfer)).toBe(false);
+    expect(premiumFeaturesOf(decodeLandscape(transfer))).toBeNull();
   });
 });
