@@ -168,6 +168,7 @@ import { NoticeLines, type NoticeLine } from './hud/NoticeLines';
 import { SelectionPanel } from './hud/SelectionPanel';
 import type { HouseView } from '@/lib/house-view';
 import type { EscheatView, LevyDialogView } from '@bohemia/game';
+import { squarePoints } from '@bohemia/game';
 import { TopBar, type DevDisasterChoice } from './hud/TopBar';
 
 /** Stav vsi ze serveru: pohled na ves, ještě nezaložená (null), nebo chyba (svět neběží…). */
@@ -193,6 +194,7 @@ const SUBMIT_SQUARES: Partial<
       cells: TileCell[],
       grid?: SquareGrid,
       variant?: string,
+      geo?: { size: number; cellSizeM: number },
     ) => Promise<ActionResult>
   >
 > = {
@@ -210,14 +212,17 @@ const SUBMIT_SQUARES: Partial<
       species: penVariantSpecies(variant),
       ...(grid ? { grid } : {}),
     }),
-  // opevnění podle druhu (fortifications.md – Rozhraní): plot, palisáda, val z rozcestníku
-  fortification: (villageId, cells, grid, variant) =>
-    placeFortification({
+  // opevnění podle druhu (fortifications.md – Rozhraní): plot, palisáda, val z rozcestníku; server
+  // bere body obvodu – do UI bodů (další krok) z nakreslených čtverců (`squarePoints`)
+  fortification: (villageId, cells, grid, variant, geo) => {
+    const kind = fortVariantKind(variant);
+    const points = geo ? squarePoints(cells, grid ?? null, geo, kind) : null;
+    return placeFortification({
       villageId,
-      cells,
-      kind: fortVariantKind(variant),
-      ...(grid ? { grid } : {}),
-    }),
+      points: (points ?? []).map(([x, z]) => [x, z]),
+      kind,
+    });
+  },
 };
 
 /**
@@ -1172,7 +1177,9 @@ export function VillageGame({
         (result) => {
           const villageId = viewRef.current?.id;
           if (result.kind === 'squares' && villageId) {
-            void runBuildAction(() => submit(villageId, result.cells, result.grid, result.variant));
+            void runBuildAction(() =>
+              submit(villageId, result.cells, result.grid, result.variant, decoded),
+            );
           }
         },
       );

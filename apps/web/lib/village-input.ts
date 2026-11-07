@@ -181,18 +181,30 @@ export function parsePlacePenInput(
 const FORT_KINDS: readonly FortKind[] = ['fence', 'palisade', 'rampart'];
 const FORT_TOPS: readonly FortTop[] = ['fence', 'palisade'];
 
+/** Nejvíc bodů obvodu ve vstupu (fortifications.md – Čísla, Body obvodu – strop hlídá server). */
+const MAX_FORT_POINTS = 400;
+
 /**
- * Vstup stavby opevnění `{ cells, kind, grid? }` – čtverce plochy jako u pole (i v natočené
- * mřížce) a druh (fortifications.md – Druhy), jinak null. Tvar plochy (souvislost, 2 × 2) odmítne
- * až kontrola umístění s důvodem pro hráče.
+ * Vstup stavby opevnění `{ points, kind }` – body obvodu ve světě `[x, z]` (fortifications.md –
+ * Obvod) a druh (Druhy), jinak null. Tvar (ohyb, křížení, plocha) odmítne až kontrola umístění
+ * s důvodem pro hráče.
  */
 export function parsePlaceFortificationInput(
   value: unknown,
-): { cells: TileCell[]; kind: FortKind; grid?: SquareGrid } | null {
-  const input = parsePlaceFieldInput(value);
-  if (input === null || input.cells.length === 0 || !isRecord(value)) return null;
+): { points: [number, number][]; kind: FortKind } | null {
+  if (!isRecord(value) || !Array.isArray(value.points)) return null;
+  const raw: unknown[] = value.points;
+  if (raw.length === 0 || raw.length > MAX_FORT_POINTS) return null;
+  const points: [number, number][] = [];
+  for (const p of raw) {
+    if (!Array.isArray(p) || p.length !== 2) return null;
+    const [x, z]: unknown[] = p;
+    if (typeof x !== 'number' || typeof z !== 'number') return null;
+    if (!Number.isFinite(x) || !Number.isFinite(z)) return null;
+    points.push([x, z]);
+  }
   const kind = FORT_KINDS.find((k) => k === value.kind);
-  return kind ? { ...input, kind } : null;
+  return kind ? { points, kind } : null;
 }
 
 /**

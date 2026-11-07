@@ -93,7 +93,7 @@ describe('opevnění v katalogu staveb', () => {
     expect(short.cost).toBeNull();
   });
 
-  it('důvody z jádra: přes obydlí a nesouvislá plocha', () => {
+  it('důvody z jádra: přes obydlí a nesouvislá plocha (bez obvodu)', () => {
     const over = item.check(
       landscape,
       { ...village, dwellings: [{ type: 'zemnice', position: { x: 0, z: 0, rotation: 0 } }] },
@@ -109,7 +109,8 @@ describe('opevnění v katalogu staveb', () => {
       undefined,
       'fence',
     );
-    expect(split.check.reason).toBe('Plocha musí být souvislá.');
+    // nesouvislé čtverce nemají obvod – body chybí (UI bodů je další krok)
+    expect(split.check.reason).toBe('Obvod chce aspoň 4 body.');
     expect(split.blockedCells).toEqual([]);
   });
 });

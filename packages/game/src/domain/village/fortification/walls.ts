@@ -27,7 +27,7 @@ export interface FortWalls {
    * Body objížďky vně hladkého obvodu (po ≈ 5 m, 1 m za vnějším okrajem) – chůze kolem stěny
    * (`wallDetour`); obvod nemá ostré rohy, kolem kterých by se objížďka lámala.
    */
-  detour: Point[];
+  detour?: Point[];
 }
 
 /** Rozestup a odstup bodů objížďky vně obvodu (m). */

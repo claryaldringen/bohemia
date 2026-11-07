@@ -49,9 +49,7 @@ describe('palisáda', () => {
     const heights = new Set(stakes.map((s) => s.scaleY.toFixed(3)));
     expect(heights.size).toBeGreaterThan(10);
     expect(stakes.every((s) => s.scaleY >= 0.95 && s.scaleY <= 1.03)).toBe(true);
-    // kůly i na oblouku rohu (ne jen na rovných částech)
-    const arc = f.shapes.find((s) => s.arc)!.arc!;
-    expect(stakes.some((s) => Math.hypot(s.x - arc.x, s.z - arc.z) < arc.r)).toBe(true);
+    // obvod z bodů oblouky nemá (tětivy úseků) – kůly na obloucích ověří scéna obvodu z bodů
   });
 
   it('brána je mezera 4 m s dvěma křídly, kůly a trámem; otevřená dovnitř, zavřená napříč', () => {
@@ -214,7 +212,9 @@ describe('rohy pásu (fortifications.md – Obvod)', () => {
   const dist = (a: readonly [number, number], b: readonly [number, number]): number =>
     Math.hypot(b[0] - a[0], b[1] - a[1]);
 
-  it('val: vnitřní okraj 10 m od rovných částí, v rohu na oblouku r = 4 m; příkop drží 4 m', () => {
+  // obvod z bodů nemá oblouky rohů (úsek = tětiva křivky) – rohy pásu ve scéně přijdou se scénou
+  // obvodu z bodů (fortifications.md – Ve scéně, další krok)
+  it.skip('val: vnitřní okraj 10 m od rovných částí, v rohu na oblouku r = 4 m; příkop drží 4 m', () => {
     const f = val();
     const samples = perimeterSamples(f, RAMPART_RING_STEP_M);
     const band = fortBand(f);

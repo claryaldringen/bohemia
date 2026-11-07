@@ -3,6 +3,7 @@ import {
   CRAFT_BASE,
   autoGates,
   checkFortificationPlacement,
+  squarePoints,
   fortSegments,
   fortificationCost,
   logsFromClearedTrees,
@@ -555,12 +556,12 @@ export function fortificationPlacement(
   kind: FortKind,
   woodSupply: number,
 ): SquaresCheck {
+  // body obvodu z nakreslených čtverců – UI bodů je další krok (fortifications.md – Obvod)
   const check: FortPlacementCheck = checkFortificationPlacement(
     landscape,
     village,
     obstaclesOf(landscape),
-    cells,
-    grid ?? null,
+    squarePoints(cells, grid ?? null, landscape, kind) ?? [],
     kind,
   );
   const outline = check.outline;
@@ -574,14 +575,14 @@ export function fortificationPlacement(
   };
   if (!check.ok || !outline) {
     // neúplné kreslení (nesouvislá nebo malá plocha) je jen „ještě ne“, ostatní důvody červeně
-    const incomplete = check.reason !== null && /souvislá|2 × 2/.test(check.reason);
+    const incomplete = check.reason !== null && /aspoň 4 body|900 m²/.test(check.reason);
     const problem = problemMarks(check.where);
     return {
       check,
       // známé místo problému svítí červeně samo – plocha zůstane v barvě kreslení, ať značka
       // nezanikne v červené ploše
       blockedCells:
-        check.ok || incomplete || check.area === null || problem.length > 0 ? [] : cells,
+        check.ok || incomplete || check.outline === null || problem.length > 0 ? [] : cells,
       cost: null,
       ...preview,
       problem,
@@ -608,9 +609,7 @@ export function fortificationPlacement(
           : { ok: true, reason: null },
     blockedCells: [],
     // rozdělané čtverce pod valem oranžově – jen v mřížce opevnění
-    warningCells: check.takenLand
-      .filter((t) => sameGrid(t.grid, outline.area.grid ?? undefined))
-      .map((t) => t.cell),
+    warningCells: check.takenLand.filter((t) => sameGrid(t.grid, grid)).map((t) => t.cell),
     cost:
       missing > 0
         ? null

@@ -10,6 +10,7 @@ import {
   type Road,
   type TileCell,
   type VillageState,
+  squarePoints,
 } from '@bohemia/game';
 import { useUniqueClientIp } from './helpers';
 import {
@@ -46,7 +47,15 @@ function fortSpot(l: Landscape, state: VillageState): TileCell[] {
       for (let dx = -r; dx <= r; dx++) {
         if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
         const cells = block(home.x + dx, home.y + dy, 3, 3);
-        if (checkFortificationPlacement(l, village, obstaclesOf(l), cells, null, 'palisade').ok) {
+        if (
+          checkFortificationPlacement(
+            l,
+            village,
+            obstaclesOf(l),
+            squarePoints(cells, null, l, 'palisade') ?? [],
+            'palisade',
+          ).ok
+        ) {
           return cells;
         }
       }
@@ -215,8 +224,7 @@ test('palisáda, která zatarasí branku zemnice – důvod u kurzoru a červen�
             s.landscape,
             village,
             obstaclesOf(s.landscape),
-            candidate,
-            null,
+            squarePoints(candidate, null, s.landscape, 'palisade') ?? [],
             'palisade',
           );
           if (check.ok) continue;
@@ -270,8 +278,7 @@ test('palisáda, která zatarasí branku zemnice – důvod u kurzoru a červen�
       s.landscape,
       village,
       obstaclesOf(s.landscape),
-      cells,
-      null,
+      squarePoints(cells, null, s.landscape, 'palisade') ?? [],
       'palisade',
     ).where!.points![0]!;
     await page.evaluate((p) => window.__bohemiaE2E!.moveCameraTo!(p.x, p.z), gate);

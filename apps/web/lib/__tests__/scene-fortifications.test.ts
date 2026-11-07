@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   dayIndexOf,
   fortificationArea,
-  fortificationOutline,
+  areaOutline,
   fortSegments,
   foundVillage,
   generateLandscape,
@@ -40,7 +40,7 @@ describe('stěny opevnění ve scéně jako na serveru', () => {
     }
     const area = fortificationArea(cells, null, landscape);
     if ('error' in area) throw new Error('plocha opevnění testu');
-    const shapes = fortSegments(fortificationOutline(area, 'fence'));
+    const shapes = fortSegments(areaOutline(area, 'fence'));
     state.fortifications = [
       {
         id: 50,
@@ -84,7 +84,7 @@ describe('rozestavěné opevnění na 0 % ve scéně', () => {
     }
     const area = fortificationArea(cells, null, landscape);
     if ('error' in area) throw new Error('plocha opevnění testu');
-    const shapes = fortSegments(fortificationOutline(area, 'fence'));
+    const shapes = fortSegments(areaOutline(area, 'fence'));
     const fort: Fortification = {
       id: 60,
       grid: null,
