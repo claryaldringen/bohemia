@@ -12,6 +12,7 @@ import type {
   CampaignNotice,
   CampaignPlace,
   CampaignReturnReason,
+  IntentBody,
   CampaignState,
   CampaignStep,
   CampaignVillage,
@@ -44,6 +45,7 @@ import { marchGrid, type MarchGrid } from './march-grid';
 import { marchPath, marchPathToEdge, marchProgress, marchSpeed, type GroupPace } from './march';
 import { WAR } from './rules-war';
 import { frostDay } from './season';
+import { npcIntents, npcLeader } from './npc-commander';
 import { setGroupOrder } from './orders';
 import { dayOfTick, hoursPerTick, TICKS_PER_SECOND, tickRandom } from './ticks';
 import { edgeCrossing, worldRoute } from './world-route';
@@ -97,6 +99,8 @@ export interface NewCampaign {
   liveCommand: boolean;
   /** Přepadení bez opovědi (kronika nájezdu). */
   ambush?: boolean;
+  /** Domovské vsi mužů – kam jdou hloučky po rozpadu (`CampaignState.homes`). */
+  homes?: Record<string, CampaignPlace>;
 }
 
 /** Výchozí stav tažení ve shromaždišti (fáze `assembling`). */
@@ -133,6 +137,7 @@ export function newCampaign(input: NewCampaign, clock: WorldClock): CampaignStat
     captives: [],
     liveCommand: input.liveCommand,
     ...(input.ambush ? { ambush: true as const } : {}),
+    ...(input.homes ? { homes: structuredClone(input.homes) } : {}),
     discovered: [],
     returnReason: null,
   };
@@ -220,6 +225,13 @@ function campaignTick(
     dailyStep(s, out);
   }
   for (const intent of intents) applyIntent(s, intent, out);
+  command(s, tick, ctx, out);
+  if (npcLeads(s)) {
+    // NPC velitel rozhoduje ze stavu na začátku taktu; opevnění cíle musí být načtené
+    if (s.phase === 'raiding' && s.battle) battleFieldOf(s, ctx);
+    syncControl(s);
+    for (const body of npcIntents(s, ctx.world)) applyBody(s, body, out, true);
+  }
   switch (s.phase) {
     case 'assembling':
     case 'done':
@@ -346,9 +358,21 @@ function desert(s: CampaignState, out: TickOut): void {
   });
 }
 
-/** Záměr taktu – co ve fázi nedává smysl, se zahodí. */
+/**
+ * Záměr hráče v taktu – každý jeho záměr je i přítomnost u tažení (war.md – Velení: Hráč odejde
+ * od tažení); vrátí-li se, převezme velení od zástupce.
+ */
 function applyIntent(s: CampaignState, intent: CampaignIntent, out: TickOut): void {
-  const body = intent.body;
+  if (s.liveCommand) {
+    s.presenceTick = intent.tick;
+    delete s.absent;
+  }
+  applyBody(s, intent.body, out, false);
+}
+
+/** Úkon tažení od hráče, nebo od NPC velitele (`npc`) – co ve fázi nedává smysl, se zahodí. */
+function applyBody(s: CampaignState, body: IntentBody, out: TickOut, npc: boolean): void {
+  const leads = npc || s.liveCommand;
   switch (body.kind) {
     case 'set-out':
       if (s.phase !== 'assembling') return;
@@ -357,24 +381,28 @@ function applyIntent(s: CampaignState, intent: CampaignIntent, out: TickOut): vo
       chronicle(s, out, s.assembly.villageId, 'set-out');
       return;
     case 'march':
-      if (!s.liveCommand) return;
+      if (!leads) return;
       if (s.phase === 'raiding' && s.battle && sameCell(body.to.cell, s.target.cell)) {
-        commandFighter(s.battle, commanderFighter(s), { goal: body.to.pos });
+        commandFighter(s.battle, leaderFighter(s, npc), { goal: body.to.pos });
         return;
       }
       if (s.phase !== 'marching') return;
       for (const g of s.groups) sendGroup(g, body.to);
       return;
     case 'turn-back':
-      if (s.phase === 'marching' || s.phase === 'raiding') turnBack(s, 'order');
+      // vede-li jiný muž, hráč na tažení vliv nemá (war.md – Velení)
+      if (!leads) return;
+      if (s.phase === 'marching' || s.phase === 'raiding') {
+        turnBack(s, npc ? (body.reason ?? 'order') : 'order');
+      }
       return;
     case 'set-order':
       if (s.phase === 'done' || s.phase === 'disbanded') return;
       setGroupOrder(s, body.group, body.order, body.at ?? null);
       return;
     case 'strike':
-      if (s.phase === 'raiding' && s.battle && s.liveCommand) {
-        commandFighter(s.battle, commanderFighter(s), { strike: body.target });
+      if (s.phase === 'raiding' && s.battle && leads) {
+        commandFighter(s.battle, leaderFighter(s, npc), { strike: body.target });
       }
       return;
     case 'choose-surrendered':
@@ -383,7 +411,127 @@ function applyIntent(s: CampaignState, intent: CampaignIntent, out: TickOut): vo
       if (s.phase === 'done' || s.phase === 'disbanded' || s.raidDay !== undefined) return;
       s.surrendered = body.choice;
       return;
+    case 'presence':
+      return;
+    case 'plunder':
+      // jen NPC velitel: silné opevnění nenapadne a drží ves mimo útočiště (war.md – Velení)
+      if (!npc || s.phase !== 'raiding' || s.battle?.outcome !== 'ongoing') return;
+      s.battle.outcome = 'attackers';
+      s.battle.plundered = true;
+      return;
   }
+}
+
+/** Takty bez přítomnosti hráče, po kterých velení převezme zástupce (war.md – Čísla: 1 herní den). */
+function absentTicks(ctx: TickContext): number {
+  return Math.round((WAR.absentLeaderDays * 24) / hoursPerTick(ctx.world.clock));
+}
+
+/** Vede tažení NPC velitel? Velí jiný muž, velitel padl, nebo je hráč pryč a vede zástupce. */
+function npcLeads(s: CampaignState): boolean {
+  return (s.phase === 'marching' || s.phase === 'raiding') && (!s.liveCommand || s.absent === true);
+}
+
+/**
+ * Velení (war.md – Velení a příprava tažení; Ú6.12): padne-li nebo je-li zajat velitel, velí zástupce
+ * a vede NPC (hráč už vliv nemá); bez zástupce, nebo padne-li i on, se výprava rozpadne. Hráč, který
+ * je u živého vedení pryč déle než 1 herní den, předá velení zástupci (po návratu ho převezme);
+ * bez zástupce se výprava rozpadne.
+ */
+function command(s: CampaignState, tick: number, ctx: TickContext, out: TickOut): void {
+  if (s.phase === 'assembling' || s.phase === 'done' || s.phase === 'disbanded') return;
+  const commander = s.members.find((m) => sameRef(m.ref, s.commander));
+  const deputyRef = s.deputy;
+  const deputy = deputyRef ? s.members.find((m) => sameRef(m.ref, deputyRef)) : undefined;
+  const hasDeputy = deputy?.status === 'active';
+  if (commander && (commander.status === 'fallen' || commander.status === 'captive')) {
+    if (!hasDeputy) {
+      disband(s, out);
+      return;
+    }
+    s.liveCommand = false;
+    delete s.absent;
+    return;
+  }
+  if (!s.liveCommand || s.absent) return;
+  const since = (s.presenceTick ??= tick);
+  if (tick - since <= absentTicks(ctx)) return;
+  if (hasDeputy) s.absent = true;
+  else disband(s, out);
+}
+
+/**
+ * Rozpad výpravy (war.md – Velení: Rozpad; návrh Clauda): boj končí, lidé jdou domů po hloučcích
+ * podle vsí nejkratší cestou, nesou, co mají, a nebojují – jen se brání; ranění jdou s nimi.
+ * Hlouček se sejde u skupiny svého prvního muže. Kořist a odvedení dojdou do vsi shromaždiště
+ * jako při návratu. Kronika vsí: „Výprava Bořivoje se rozpadla.“, hráčům upozornění.
+ */
+function disband(s: CampaignState, out: TickOut): void {
+  if (s.phase === 'raiding') leaveBattle(s);
+  s.phase = 'disbanded';
+  delete s.absent;
+  const byHome = new Map<string, CampaignMember[]>();
+  for (const m of s.members) {
+    if (m.status !== 'active') continue;
+    byHome.set(m.ref.villageId, [...(byHome.get(m.ref.villageId) ?? []), m]);
+  }
+  const old = new Map(s.groups.map((g) => [g.id, g]));
+  let id = s.groups.reduce((max, g) => Math.max(max, g.id), -1) + 1;
+  const groups: CampaignGroup[] = [];
+  for (const [villageId, men] of byHome) {
+    const from = old.get(men[0]!.group) ?? s.groups[0];
+    if (!from) continue;
+    const g: CampaignGroup = {
+      id: id++,
+      order: 'follow-leader',
+      cell: { ...from.cell },
+      pos: { ...from.pos },
+      goal: null,
+      route: [],
+      leg: null,
+      arrived: true,
+    };
+    for (const m of men) m.group = g.id;
+    sendGroup(g, s.homes?.[villageId] ?? s.assembly);
+    groups.push(g);
+  }
+  s.groups = groups;
+  const villages = new Set([...s.members.map((m) => m.ref.villageId), s.assembly.villageId]);
+  for (const villageId of villages) chronicle(s, out, villageId, 'disbanded');
+  for (const playerId of new Set([s.playerId, ...s.members.map((m) => m.playerId)])) {
+    out.notices.push({
+      playerId,
+      kind: 'campaign-disbanded',
+      payload: { campaignId: s.id, leader: s.leaderName },
+      gameDay: s.day,
+    });
+  }
+}
+
+/**
+ * Kdo v boji poslouchá pokyny: NPC velitel řídí velitele, dokud bojuje, jinak zástupce
+ * (`npcLeader`); živé vedení jen hráčova muže. Ostatní útočníci jdou podle rozkazu skupiny.
+ */
+function syncControl(s: CampaignState): void {
+  const b = s.battle;
+  if (!b || b.outcome !== 'ongoing') return;
+  const id = npcLeads(s) ? (npcLeader(b)?.id ?? null) : s.liveCommand ? b.commander : null;
+  for (const f of b.fighters) {
+    if (f.side !== 'attack') continue;
+    const controlled = f.id === id;
+    if (f.controlled === controlled) continue;
+    f.controlled = controlled;
+    if (!controlled) {
+      f.chosen = null;
+      f.goal = null;
+    }
+  }
+}
+
+/** Id bojovníka, kterému jde pokyn: u NPC ten, koho řídí (`npcLeader`), jinak velitel tažení. */
+function leaderFighter(s: CampaignState, npc: boolean): string {
+  if (npc && s.battle) return npcLeader(s.battle)?.id ?? commanderFighter(s);
+  return commanderFighter(s);
 }
 
 /** Skupina vyrazí k místu `to` – trasa po mřížce světa, úsek mapy se spočte při pohybu. */
@@ -394,7 +542,7 @@ function sendGroup(g: CampaignGroup, to: CampaignPlace): void {
   g.arrived = false;
 }
 
-/** Obrat domů ke shromaždišti (rozpad po hloučcích do domovských vsí doplní Ú6.12). */
+/** Obrat domů ke shromaždišti (rozpad po hloučcích do domovských vsí – `disband`). */
 function turnBack(s: CampaignState, reason: CampaignReturnReason): void {
   if (s.phase === 'raiding') leaveBattle(s);
   s.phase = 'returning';
@@ -430,6 +578,7 @@ function raidTick(s: CampaignState, tick: number, ctx: TickContext, out: TickOut
       });
     }
   }
+  syncControl(s);
   battleTick(s.battle, field, tickRandom(s.seed, tick, 'battle'));
   const fallenBefore = new Set(s.members.flatMap((m, i) => (m.status === 'fallen' ? [i] : [])));
   syncMembers(s, s.battle);
@@ -578,6 +727,8 @@ function leaveBattle(s: CampaignState): void {
  */
 function finish(s: CampaignState, ctx: TickContext, out: TickOut): void {
   reportRaid(s, ctx, out);
+  // po rozpadu jen muži domů – kronika a upozornění šly už při rozpadu
+  const disbanded = s.phase === 'disbanded';
   s.phase = 'done';
   const homes = [...new Set(s.members.map((m) => m.ref.villageId))];
   const spoils =
@@ -587,8 +738,9 @@ function finish(s: CampaignState, ctx: TickContext, out: TickOut): void {
   if (spoils && !homes.includes(s.assembly.villageId)) homes.push(s.assembly.villageId);
   for (const villageId of homes) {
     post(s, out, villageId, { kind: 'campaign-return', result: returnOf(s, villageId) });
-    chronicle(s, out, villageId, 'returned');
+    if (!disbanded) chronicle(s, out, villageId, 'returned');
   }
+  if (disbanded) return;
   out.notices.push({
     playerId: s.playerId,
     kind: 'campaign-returned',
@@ -605,7 +757,7 @@ function chronicle(
   s: CampaignState,
   out: TickOut,
   villageId: string,
-  step: 'set-out' | 'returned',
+  step: 'set-out' | 'returned' | 'disbanded',
 ): void {
   const day = s.day + 1;
   villageEvent(s, out, villageId, day, {
@@ -752,9 +904,12 @@ function raidResultOf(
   if (!won) return { ...base, loot: noLoot(), pitsFound: [] };
   const refuge = new Set(shelter?.refuge ?? []);
   const surrendered = new Set(shelter?.surrendered ?? []);
-  const refugeTaken = [...refuge].some(
-    (id) => surrendered.has(id) || b.fighters.some((f) => f.side === 'defend' && f.ref === id),
-  );
+  // NPC velitel silné opevnění nenapadl – vzal jen, co je venku (`plunder`)
+  const refugeTaken =
+    b.plundered !== true &&
+    [...refuge].some(
+      (id) => surrendered.has(id) || b.fighters.some((f) => f.side === 'defend' && f.ref === id),
+    );
   const fit = s.members.filter((m) => m.status === 'active' && !m.wounded).length;
   const { loot, pitsFound } = raidLoot({
     village,
@@ -824,10 +979,12 @@ function paceOf(s: CampaignState, g: CampaignGroup): GroupPace {
     else if (m.wounded) pace.woundedOnFoot++;
     else pace.onFoot++;
   }
-  const commander = s.members.find(
-    (m) => m.ref.villageId === s.commander.villageId && m.ref.personId === s.commander.personId,
-  );
-  const herdGroup = commander?.group ?? s.groups[0]?.id;
+  // po rozpadu jde stádo s hloučkem do vsi shromaždiště (tam patří kořist)
+  const herdMan =
+    s.phase === 'disbanded'
+      ? s.members.find((m) => m.status === 'active' && m.ref.villageId === s.assembly.villageId)
+      : s.members.find((m) => sameRef(m.ref, s.commander));
+  const herdGroup = herdMan?.group ?? s.groups[0]?.id;
   if (g.id === herdGroup) pace.herd = s.loot.herd;
   return pace;
 }

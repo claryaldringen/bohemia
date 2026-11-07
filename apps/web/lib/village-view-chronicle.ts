@@ -522,9 +522,14 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
           return `Mír s ${instrumentalOf(event.other)}.`;
       }
     case 'campaign':
-      return event.step === 'set-out'
-        ? `Vojsko ${genitiveOf(event.leader)} vyrazilo.`
-        : `Vojsko ${genitiveOf(event.leader)} se vrátilo.`;
+      switch (event.step) {
+        case 'set-out':
+          return `Vojsko ${genitiveOf(event.leader)} vyrazilo.`;
+        case 'returned':
+          return `Vojsko ${genitiveOf(event.leader)} se vrátilo.`;
+        case 'disbanded':
+          return `Výprava ${genitiveOf(event.leader)} se rozpadla.`;
+      }
     case 'raid':
       return raidText(event);
     case 'negotiation-accepted':

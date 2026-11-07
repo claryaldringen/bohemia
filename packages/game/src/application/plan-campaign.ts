@@ -13,6 +13,7 @@ import {
   villageProtected,
   villagerStrength,
   WAR,
+  type CampaignPlace,
   type CampaignVillage,
   type SupplyPlan,
   type SurrenderOrder,
@@ -123,6 +124,16 @@ export const CAMPAIGN_REASONS = {
   tooHeavy: 'Tolik jídla vojsko neunese.',
   badFood: 'Jídlo musí být nezáporné číslo.',
 } as const;
+
+/** Místa domovských vsí mužů tažení – po rozpadu jdou hloučky domů (war.md – Velení: Rozpad). */
+export function homePlaces(prepared: PreparedCampaign): Record<string, CampaignPlace> {
+  const homes: Record<string, CampaignPlace> = {};
+  for (const v of prepared.villages) {
+    const place = villagePlace(v.player.settlement, v.landscape);
+    homes[v.player.village.id] = { cell: place.cell, pos: place.pos };
+  }
+  return homes;
+}
 
 /** Poloha vsi na mapě (m): střed políčka místa pro ves. */
 function villagePlace(

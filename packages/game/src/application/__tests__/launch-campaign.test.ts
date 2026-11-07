@@ -286,12 +286,16 @@ describe('vyslání tažení (launchCampaign)', () => {
     expect(second.people.find((q) => q.id === w.forcedSecond[0])!.away?.kind).toBe('campaign');
     expect(w.campaigns.rows.size).toBe(1);
     const state = JSON.parse(w.campaigns.rows.get('camp-1')!.state) as {
-      members: unknown[];
+      members: { ref: { villageId: string } }[];
       supplies: { foodKg: number };
       surrendered: string;
       liveCommand: boolean;
+      homes: Record<string, { cell: { x: number; y: number } }>;
     };
     expect(state.members).toHaveLength(7);
+    // domovské vsi mužů – kam jdou hloučky po rozpadu (Ú6.12)
+    const villages = [...new Set(state.members.map((m) => m.ref.villageId))].sort();
+    expect(Object.keys(state.homes).sort()).toEqual(villages);
     expect(state.supplies.foodKg).toBe(100);
     expect(state.surrendered).toBe('lead');
     expect(state.liveCommand).toBe(true);

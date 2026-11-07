@@ -73,11 +73,12 @@ async function stored(campaigns: InMemoryCampaigns, id = 'c1'): Promise<Campaign
 }
 
 describe('stepCampaigns', () => {
-  const whole = stepCampaign(campaign(), END, SET_OUT, worldOf());
+  // vede NPC velitel – smyčka nečeká na přítomnost hráče (živé vedení bez ní se rozpadne – Ú6.12)
+  const whole = stepCampaign(campaign({ liveCommand: false }), END, SET_OUT, worldOf());
 
   it('kola po 1 s s restartem uprostřed = vcelku; bod nejvýš po 40 taktech, události jednou', async () => {
     const { deps, campaigns, villages, notices } = setup();
-    await campaigns.create(campaign());
+    await campaigns.create(campaign({ liveCommand: false }));
     const intent = await queueCampaignIntent(
       { campaigns, world },
       {
@@ -104,7 +105,7 @@ describe('stepCampaigns', () => {
 
   it('pád po uložení bodu, před doručením – další kolo doručí, nic se nezdvojí', async () => {
     const { deps, campaigns, villages, notices } = setup();
-    await campaigns.create(campaign());
+    await campaigns.create(campaign({ liveCommand: false }));
     await campaigns.addIntent('c1', {
       tick: LAUNCH + 2,
       byPlayer: 'p1',
@@ -132,7 +133,7 @@ describe('stepCampaigns', () => {
 
   it('záměr s taktem nejvýš kontrolním bodem úložiště odmítne, teď + 2 použije přesně v něm', async () => {
     const { deps, campaigns } = setup();
-    await campaigns.create(campaign());
+    await campaigns.create(campaign({ liveCommand: false }));
     await rounds(deps, LAUNCH + 41, LAUNCH + 41);
     const at = (await stored(campaigns)).tick;
     expect(at).toBe(LAUNCH + 41);
@@ -147,14 +148,19 @@ describe('stepCampaigns', () => {
     await rounds(deps, at + 1, at + 1);
     await rounds(deps, at + 41, at + 41);
     const state = await stored(campaigns);
-    const expected = stepCampaign(campaign(), at + 41, [{ ...queued!, seq: 1 }], worldOf());
+    const expected = stepCampaign(
+      campaign({ liveCommand: false }),
+      at + 41,
+      [{ ...queued!, seq: 1 }],
+      worldOf(),
+    );
     expect(JSON.stringify(state)).toBe(JSON.stringify(expected.state));
     expect(state.phase).toBe('marching');
   });
 
   it('záměr do už spočteného (neuloženého) taktu – bod se neuloží, další kolo ho použije', async () => {
     const { deps, campaigns } = setup();
-    await campaigns.create(campaign());
+    await campaigns.create(campaign({ liveCommand: false }));
     // záměr „zpožděný“ – zapíše se, až worker takt spočítal (souběh webu), ale bod je pořád starší
     const late = { tick: LAUNCH + 2, byPlayer: 'p1', body: { kind: 'set-out' as const } };
     const realSave = campaigns.saveCheckpoint.bind(campaigns);

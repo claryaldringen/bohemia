@@ -7,6 +7,7 @@ import {
   campaign,
   intent,
   LAUNCH,
+  LIVE,
   SET_OUT,
   SUMMER,
   SUMMER_DATE,
@@ -58,7 +59,7 @@ describe('takty', () => {
 
 describe('stepCampaign', () => {
   const END = LAUNCH + 900;
-  const whole = stepCampaign(campaign(), END, SET_OUT, worldOf());
+  const whole = stepCampaign(campaign(), END, LIVE, worldOf());
 
   it('vyrazí, dojde na sousední mapu k cíli, obrátí se a vrátí domů', () => {
     expect(whole.waiting).toBeNull();
@@ -86,7 +87,7 @@ describe('stepCampaign', () => {
 
   it('po 1, 7, 40 a 400 taktech = vcelku (stejný JSON stavu i události)', () => {
     for (const chunk of [1, 7, 40, 400]) {
-      const parts = inChunks(campaign(), END, chunk, SET_OUT);
+      const parts = inChunks(campaign(), END, chunk, LIVE);
       expect(JSON.stringify(parts.state)).toBe(JSON.stringify(whole.state));
       expect(parts.villageEvents).toEqual(whole.villageEvents);
       expect(parts.notices).toEqual(whole.notices);
@@ -94,13 +95,13 @@ describe('stepCampaign', () => {
   });
 
   it('restart z kontrolního bodu uprostřed pochodu = bez restartu', () => {
-    const half = stepCampaign(campaign(), LAUNCH + 120, SET_OUT, worldOf());
+    const half = stepCampaign(campaign(), LAUNCH + 120, LIVE, worldOf());
     expect(half.state.phase).toBe('marching');
     const checkpoint = JSON.parse(JSON.stringify(half.state)) as CampaignState;
-    const rest = stepCampaign(checkpoint, END, SET_OUT, worldOf());
+    const rest = stepCampaign(checkpoint, END, LIVE, worldOf());
     expect(JSON.stringify(rest.state)).toBe(JSON.stringify(whole.state));
     // jsonb v úložišti vrátí klíče objektů v jiném pořadí – takt na pořadí nezávisí
-    const reordered = stepCampaign(reversedKeys(half.state), END, SET_OUT, worldOf());
+    const reordered = stepCampaign(reversedKeys(half.state), END, LIVE, worldOf());
     expect(reordered.state).toStrictEqual(whole.state);
     expect([...half.villageEvents, ...rest.villageEvents]).toEqual(whole.villageEvents);
   });
@@ -144,7 +145,7 @@ describe('stepCampaign', () => {
       foodKg: 0,
       target: { villageId: 'daleko', cell: { x: 3, y: 0 }, pos: { x: 0, z: 0 } },
     });
-    const step = stepCampaign(far, LAUNCH + 400, SET_OUT, worldOf());
+    const step = stepCampaign(far, LAUNCH + 400, LIVE, worldOf());
     expect(step.state.phase).toBe('returning');
     expect(step.state.returnReason).toBe('supplies');
   });
@@ -153,12 +154,12 @@ describe('stepCampaign', () => {
     const partial = stepCampaign(
       campaign(),
       END,
-      SET_OUT,
+      LIVE,
       worldOf((c) => c.x === 0),
     );
     expect(partial.waiting?.cells).toEqual([{ x: 1, y: 0 }]);
     expect(partial.state.tick).toBeLessThan(END);
-    const rest = stepCampaign(partial.state, END, SET_OUT, worldOf());
+    const rest = stepCampaign(partial.state, END, LIVE, worldOf());
     expect(JSON.stringify(rest.state)).toBe(JSON.stringify(whole.state));
     expect([...partial.villageEvents, ...rest.villageEvents]).toEqual(whole.villageEvents);
   });

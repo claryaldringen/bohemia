@@ -19,3 +19,4 @@ export * from './orders';
 export * from './raid-apply';
 export * from './surrender';
 export * from './captives';
+export * from './npc-commander';

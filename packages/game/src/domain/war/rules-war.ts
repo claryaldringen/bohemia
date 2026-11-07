@@ -54,6 +54,12 @@ export const WAR = {
   desertion: { perDay: 0.05, withKinPerDay: 0.15 },
   /** war.md – Čísla: hráč mimo tažení vydrží 1 herní den, pak zástupce, nebo rozpad. */
   absentLeaderDays: 1,
+  /**
+   * war.md – Velení a příprava tažení, Čísla (návrh Clauda): NPC velitel napadne skupinu domů,
+   * jen má-li aspoň 1,5 × sílu jejích obránců × násobek obrany (jako přesila u vzdání); obrátí se,
+   * když padne, je zajata nebo uteče aspoň polovina vojska.
+   */
+  npc: { attackRatio: 1.5, lostShare: 0.5 },
   /** war.md – Síla: válka jako výcvik – hodiny luku a boje za herní den (stropy: `ARMS_CAPS.war`). */
   trainingHours: { campaignDay: 2, fightDay: 6 },
   strength: {
