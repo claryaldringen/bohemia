@@ -1,4 +1,5 @@
 import { checkAidBundle } from '../vassalage/loan';
+import { checkBundle } from '../vassalage/terms';
 import { checkTermLines, linesOfTerms } from '../vassalage/terms';
 import type { PeaceLine, TermItem } from './types';
 
@@ -8,7 +9,7 @@ import type { PeaceLine, TermItem } from './types';
 export const PEACE_REASONS = {
   alone: 'Mírové jednání je samostatný řádek.',
   noWar: 'Mezi rody neběží válka.',
-  badFee: 'Poplatek smí být jen obilí, seno, dobytek, koně a klády.',
+  badFee: 'Poplatek smí být jen obilí, seno, dobytek, koně, klády a lidé.',
   badTribute: 'Tribut smí být jen obilí, seno, dobytek, koně a klády.',
   noPayer: 'Platící strana musí být jednou ze stran jednání.',
   badVassalage: 'Vazalem a pánem musí být strany jednání.',
@@ -34,7 +35,8 @@ export function checkPeaceItems(
   if (!line) return null;
   if (lines.length > 1 || items.length > 1) return PEACE_REASONS.alone;
   if (line.fee !== undefined) {
-    if (checkAidBundle(line.fee)) return PEACE_REASONS.badFee;
+    // poplatek smí být i lidé (war.md – Konec války: zboží, dobytek, lidé), jen ne robota
+    if (line.fee.laborDays !== 0 || checkBundle(line.fee)) return PEACE_REASONS.badFee;
     if (line.payer === undefined || !parties.includes(line.payer)) return PEACE_REASONS.noPayer;
   }
   if (line.tribute !== undefined) {

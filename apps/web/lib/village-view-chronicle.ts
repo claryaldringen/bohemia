@@ -540,6 +540,8 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return levyLine(event);
     case 'disobeyed':
       return `${event.name} neposlechl pána.`;
+    case 'tribute-short':
+      return `${event.payer} poslal tribut rodu ${event.recipient} neúplný.`;
     case 'passage-announced':
       return `${event.name} ohlásil průchod.`;
     case 'no-show':

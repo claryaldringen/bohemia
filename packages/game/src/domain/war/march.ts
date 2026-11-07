@@ -2,7 +2,13 @@ import { length2 } from '../landscape';
 import { PathHeap, quantizedStep } from '../village/paths/network-search';
 import type { Direction8 } from '../village/types';
 import { GRID_STEPS } from '../village/world-grid';
-import { marchCellAt, marchCellCenter, type MarchGrid, type Pos } from './march-grid';
+import {
+  MARCH_BUILDING,
+  marchCellAt,
+  marchCellCenter,
+  type MarchGrid,
+  type Pos,
+} from './march-grid';
 import { WAR } from './rules-war';
 import { isMarchWinter } from './season';
 
@@ -135,14 +141,46 @@ function pathOf(grid: MarchGrid, found: number[], from: Pos, to: Pos): MarchPath
   return { points, cells, meadowM, lengthM };
 }
 
+/** Nejdál (v buňkách) od stavby hledáme nejbližší volnou buňku pro start či cíl uvnitř stavby. */
+const BUILDING_REACH = 8;
+
+/**
+ * Start nebo cíl uvnitř stavby vsi (dům, pozemek, ohrada) se přesune na nejbližší průchodnou
+ * buňku – vojsko stavbou neprojde, ale k domu jako cíli dojde a z vsi vyjde. Nejbližší podle
+ * čtverce vzdálenosti, remíza – nižší index (determinismus). Ostatní buňky beze změny.
+ */
+function outOfBuilding(grid: MarchGrid, c: number): number {
+  if ((grid.flags[c]! & MARCH_BUILDING) === 0) return c;
+  const w = grid.width;
+  const ci = c % w;
+  const cj = (c - ci) / w;
+  let best = c;
+  let bestD = Infinity;
+  for (let dj = -BUILDING_REACH; dj <= BUILDING_REACH; dj++) {
+    for (let di = -BUILDING_REACH; di <= BUILDING_REACH; di++) {
+      const i = ci + di;
+      const j = cj + dj;
+      if (i < 0 || j < 0 || i >= w || j >= grid.height) continue;
+      const n = j * w + i;
+      if (grid.pace[n]! <= 0) continue;
+      const d = di * di + dj * dj;
+      if (d < bestD || (d === bestD && n < best)) {
+        bestD = d;
+        best = n;
+      }
+    }
+  }
+  return best;
+}
+
 /**
  * Trasa pochodu z bodu `from` do bodu `to` po mřížce mapy (war.md – Pohyb – Terén): nejlevnější
  * v metrech louky – hustý les čtyřikrát dražší, cesta levnější, voda jen přes brod, do opevněné vsi
  * branou, mezerou nebo přes val. Neprůchodný nebo nedosažitelný cíl null.
  */
 export function marchPath(grid: MarchGrid, from: Pos, to: Pos): MarchPath | null {
-  const start = marchCellAt(grid, from);
-  const target = marchCellAt(grid, to);
+  const start = outOfBuilding(grid, marchCellAt(grid, from));
+  const target = outOfBuilding(grid, marchCellAt(grid, to));
   if (target !== start && grid.pace[target]! <= 0) return null;
   const w = grid.width;
   const ti = target % w;

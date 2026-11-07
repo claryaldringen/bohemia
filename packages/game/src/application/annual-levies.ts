@@ -165,7 +165,19 @@ async function openTributeDialogs(
     }
     const waiting = await deps.dialogs.openFor(t.negotiationId, 'tribute-send');
     if (waiting) {
-      if (waiting.year < input.year) await deps.dialogs.bumpYears(waiting.key, input.year);
+      if (waiting.year >= input.year) continue;
+      const added = await deps.dialogs.bumpYears(waiting.key, input.year);
+      // každý zmeškaný 1. 11. je neplnění (zapsané ke dni, kdy se dalo odpovědět)
+      for (let i = 0; i < added; i++) {
+        const day = levyDay(waiting.year + 1 + i);
+        await tributeBreach(
+          deps,
+          `tribute-missed:${t.negotiationId}:${waiting.year + 1 + i}`,
+          payer,
+          recipient,
+          day,
+        );
+      }
       continue;
     }
     const created = await deps.dialogs.openOnce(`tribute:${t.negotiationId}:${input.year}`, {
@@ -717,8 +729,10 @@ async function answerTrade(
   const sender = await deps.houses.activeOf(input.playerId);
   if (!sender || sender.id !== body.fromHouseId) return { ok: false, reason: NOT_YOUR_DIALOG };
   for (const bundle of Object.values(input.split)) {
-    // rozsudek smí ukládat i lidi (vrácení lidí); obchod, poplatek a tribut jen zboží
-    if (dialog.kind !== 'judgment' && !isEmptyBundle(bundle) && checkAidBundle(bundle) !== null) {
+    // rozsudek smí ukládat i lidi (vrácení lidí) a poplatek z míru také (war.md – Konec války);
+    // obchod a tribut jen zboží
+    const withPeople = dialog.kind === 'judgment' || dialog.kind === 'fee-send';
+    if (!withPeople && !isEmptyBundle(bundle) && checkAidBundle(bundle) !== null) {
       return { ok: false, reason: TRADE_REASONS.badGoods };
     }
   }
@@ -756,6 +770,9 @@ async function answerTrade(
   if (dialog.kind === 'judgment' && short)
     await judgmentBreach(deps, dialog, body, sender, input.today);
   const partner = await deps.houses.byId(body.toHouseId);
+  if (dialog.kind === 'tribute-send' && short && partner) {
+    await tributeBreach(deps, `tribute:${dialog.id}`, sender, partner, input.today);
+  }
   if (partner?.playerId) {
     await deps.notices.post({
       playerId: partner.playerId,
@@ -794,6 +811,29 @@ async function judgmentBreach(
     day: today,
     kind: 'disobeyed',
     name: await houseName(deps, defendant),
+  });
+}
+
+/**
+ * Tribut z míru nesplněn celý (war.md – Konec války: „neplnění se zapíše a řešení je na hráčích“):
+ * záznam do kronik obou rodů a – trvá-li mezi nimi vazalství (plátce vazal příjemce) – i neplnění
+ * dohody. Nic se nevynucuje.
+ */
+async function tributeBreach(
+  deps: AnnualLevyDeps,
+  ref: string,
+  payer: House,
+  recipient: House,
+  day: number,
+): Promise<void> {
+  const list = await deps.vassalages.activeOf(payer.id);
+  const v = list.find((x) => x.lordHouseId === recipient.id && x.vassalHouseId === payer.id);
+  if (v) await deps.vassalages.addBreach(v.id, 'levy', day);
+  await chronicleHouses(deps, [payer, recipient], ref, {
+    day,
+    kind: 'tribute-short',
+    payer: await houseName(deps, payer),
+    recipient: await houseName(deps, recipient),
   });
 }
 

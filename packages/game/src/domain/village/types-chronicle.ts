@@ -173,6 +173,11 @@ export type ChronicleEvent = { day: number } & (
    * (vassalage.md – Mír a spory); text je neutrální.
    */
   | { kind: 'disobeyed'; name: string }
+  /**
+   * Plátce `payer` neposlal příjemci `recipient` celý tribut z míru (war.md – Konec války:
+   * neplnění se zapíše, řešení je na hráčích); text je neutrální, bez pána a vazala.
+   */
+  | { kind: 'tribute-short'; payer: string; recipient: string }
   /** Rod `name` ohlásil průchod vojska (war.md – Pohyb); do kronik obou rodů. */
   | { kind: 'passage-announced'; name: string }
   /** Vazal `name` nepřišel na svolání do války (vassalage.md – Svolání); do kronik obou rodů. */

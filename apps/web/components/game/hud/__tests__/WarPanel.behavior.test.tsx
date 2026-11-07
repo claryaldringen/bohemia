@@ -106,3 +106,24 @@ describe('WarPanel – postoupení vsí v míru', () => {
     expect(host.textContent).toContain('Hrádek');
   });
 });
+
+describe('WarPanel – lidé v poplatku', () => {
+  it('muži v poplatku se pošlou ve svazku poplatku s plátcem', async () => {
+    const onOfferPeace = vi.fn<(to: string, items: TermItem[], message: string | null) => void>();
+    act(() => root.render(<WarPanel view={VIEW} onClose={() => {}} onOfferPeace={onOfferPeace} />));
+    await click('war-offer-peace');
+    await act(async () => {
+      const input = host.querySelector<HTMLInputElement>('[data-testid="peace-fee-men"]')!;
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+      setter.call(input, '2');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await click('peace-send');
+    const items = onOfferPeace.mock.calls[0]![1];
+    expect(items[0]).toMatchObject({
+      kind: 'peace',
+      payer: 'h-me',
+      fee: { grainKg: 0, people: { men: 2, women: 0, families: 0 } },
+    });
+  });
+});

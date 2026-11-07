@@ -261,6 +261,18 @@ describe('mírové jednání', () => {
     });
   });
 
+  describe('lidé v poplatku (war.md – Konec války)', () => {
+    it('poplatek smí obsahovat lidi, robotu ne', async () => {
+      const w = await world();
+      const people = bundle({ grainKg: 0, people: { families: 0, men: 2, women: 0 } });
+      const ok = await agree(w, 'a', peace({ fee: people, payer: w.c }));
+      expect(ok.ok).toBe(true);
+      const w2 = await world();
+      const labor = await agree(w2, 'a', peace({ fee: bundle({ laborDays: 5 }), payer: w2.c }));
+      expect(labor).toMatchObject({ ok: false, reason: PEACE_REASONS.badFee });
+    });
+  });
+
   describe('tribut', () => {
     it('chodí v Odvodech 1. 11. jako dialog tribute-send plátci', async () => {
       const w = await world();
@@ -302,6 +314,64 @@ describe('mírové jednání', () => {
           { today: NOV_1 },
         ),
       ).toBe(0);
+    });
+  });
+
+  describe('neplnění tributu (war.md – Konec války)', () => {
+    const open = async (w: World, vassal: boolean): Promise<string> => {
+      await agree(w, 'a', peace({ tribute: { goods: bundle({ grainKg: 100 }), payer: w.c } }));
+      if (vassal) {
+        await w.vassalages.create({
+          lordHouseId: w.a,
+          vassalHouseId: w.c,
+          terms: {},
+          origin: 'negotiation',
+          sinceAt: new Date(0),
+          sinceDay: 0,
+        });
+      }
+      const levyDeps = {
+        dialogs: w.dialogs,
+        vassalages: w.vassalages,
+        houses: (w.deps as NegotiateDeps).houses,
+        notices: w.notices,
+        villages: w.villages,
+        tributes: {
+          peaceTributes: () => w.negotiations.peaceTributes(),
+          dayOf: () => NOV_1 - 30,
+        },
+      };
+      await openAnnualDialogs(levyDeps as never, { today: NOV_1 });
+      return w.dialogs.rows[0]!.id;
+    };
+    const chronicled = (w: World): number =>
+      (w.villages as InMemoryVillages).inbox.events.filter(
+        (e) => e.body.kind === 'chronicle' && e.body.event.kind === 'tribute-short',
+      ).length;
+
+    it('míň než domluveno: kronika obou rodů a neplnění vazalství', async () => {
+      const w = await world();
+      const id = await open(w, true);
+      const r = await answerLevy(w.deps, answer(id, 'player-c', w.villageC, { grainKg: 40 }));
+      expect(r.ok).toBe(true);
+      expect(chronicled(w)).toBe(2);
+      expect(w.vassalages.breachLog).toHaveLength(1);
+    });
+
+    it('celý tribut nic nezapíše', async () => {
+      const w = await world();
+      const id = await open(w, true);
+      await answerLevy(w.deps, answer(id, 'player-c', w.villageC, { grainKg: 100 }));
+      expect(chronicled(w)).toBe(0);
+      expect(w.vassalages.breachLog).toHaveLength(0);
+    });
+
+    it('bez vazalství jen kronika', async () => {
+      const w = await world();
+      const id = await open(w, false);
+      await answerLevy(w.deps, answer(id, 'player-c', w.villageC, {}));
+      expect(chronicled(w)).toBe(2);
+      expect(w.vassalages.breachLog).toHaveLength(0);
     });
   });
 

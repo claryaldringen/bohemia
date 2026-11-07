@@ -17,7 +17,14 @@ import type { GridGeometry } from '../village/square-grid';
 import type { GroupOrder } from './campaign-types';
 import { defenderPlan, type Defender } from './defenders';
 import { nearestForest } from './flight';
-import { MARCH_FOREST, MARCH_WALL, marchCellAt, type MarchGrid, type Pos } from './march-grid';
+import {
+  MARCH_BUILDING,
+  MARCH_FOREST,
+  MARCH_WALL,
+  marchCellAt,
+  type MarchGrid,
+  type Pos,
+} from './march-grid';
 import {
   attackerPlan,
   battleLeader,
@@ -446,10 +453,10 @@ function firstWall(p: Pos, q: Pos, walls: Walls): { fort: number; line: WallLine
 
 // --- Pohyb ------------------------------------------------------------------------------------
 
-/** Tempo buňky mřížky; stěny opevnění řeší úsečky, ne buňky. */
+/** Tempo buňky mřížky; stěny opevnění řeší úsečky, ne buňky; boj ve vsi stavby neblokují. */
 function paceAt(grid: MarchGrid, p: Pos): number {
   const c = marchCellAt(grid, p);
-  return (grid.flags[c]! & MARCH_WALL) !== 0 ? 1 : grid.pace[c]!;
+  return (grid.flags[c]! & (MARCH_WALL | MARCH_BUILDING)) !== 0 ? 1 : grid.pace[c]!;
 }
 
 function leashGap(leash: Leash, p: Pos): number {
