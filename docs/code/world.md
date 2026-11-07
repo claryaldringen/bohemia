@@ -53,8 +53,12 @@ hráč)`) a rod s `house.placed_at` null. Pozvaný je na mapě hned (`placed_at`
 - **Svobodný:** `startFree` stáhne žádosti (`withdrawn`) a umístí bez pána. **Týden:**
   `expireNewcomerWaits` v `runWorldTasks` (worker) – po `NEWCOMERS.waitDays` los
   `deriveSeed(accountSeed, 'lot')` mezi živými neodmítnutými (seřazenými podle id), jinak svobodný.
-- Web: server actions `startFreeAction`, `requestLordsAction` (`lib/house.ts`); rozhraní volby dělá
-  úloha 4. e2e: hráči bez pozvánky se umístí zápisem do `bohemia_test` (`e2e/placement.ts`).
+- **Panel rodu odříznutého:** adresář ho nezná, proto `WorldDirectory.isolatedEntriesOf` (sídlo
+  v místní mřížce) – vlastní rod v panelu a nováček v žádosti u pána. `HousePanelData.isolated`,
+  `inviteReason` (`INVITE_NEEDS_PLACEMENT`), `PanelNegotiation.newcomer`; `NewcomerRequest.lordName`.
+- Web: server actions `newcomerStatusAction`, `startFreeAction`, `requestLordsAction` (`lib/house.ts`),
+  rozhraní [web-ui.md](web-ui.md) – Nováček v rozhraní. e2e `e2e/newcomers.spec.ts`; ostatní e2e
+  umísťují hráče bez pozvánky zápisem do `bohemia_test` (`e2e/placement.ts`).
 - Testy: `__tests__/newcomers.test.ts`, db `newcomer-placement.db.test.ts` (souběh dvou pánů),
   `world-directory.db.test.ts` (odříznutý rod v adresáři není).
 

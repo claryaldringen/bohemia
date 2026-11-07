@@ -108,6 +108,7 @@ test('nováček vybere pána, staví v odříznuté krajině, pán přijme; svob
   const seatB = await seat(emailB);
   await found(b, villageSpots(seatB.landscape).dwelling, 'Ulrich');
   expect(await worldCellOf(emailB)).toBeNull();
+  await expect(b.getByTestId('minimap-panel')).toHaveAttribute('data-isolated', 'true');
   const panelB = await openHousePanel(b);
   await expect(panelB.getByTestId('house-newcomer')).toBeVisible();
   await expect(panelB.getByTestId(`newcomer-request-${houseA.id}`)).toHaveAttribute(
@@ -146,6 +147,7 @@ test('nováček vybere pána, staví v odříznuté krajině, pán přijme; svob
   const panelB2 = await openHousePanel(b);
   await expect(panelB2.getByTestId('house-lord')).toHaveCount(1);
   await expect(panelB2.getByTestId('house-newcomer')).toHaveCount(0);
+  await expect(b.getByTestId('minimap-panel')).not.toHaveAttribute('data-isolated', 'true');
 
   // C: Svobodný → hned na mapě světa, pak jméno vojvody
   const emailC = await enterAsNewcomer(c, 'nc-svobodny');

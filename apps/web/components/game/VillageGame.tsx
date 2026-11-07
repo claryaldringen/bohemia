@@ -1589,7 +1589,12 @@ export function VillageGame({
                   : null
               }
             />
-            <Minimap landscape={decoded} scene={scene} village={sceneVillage} />
+            <Minimap
+              landscape={decoded}
+              scene={scene}
+              village={sceneVillage}
+              isolated={house?.isolated === true}
+            />
             <SelectionPanel
               details={selectionDetails(view, sceneVillage, current, personState, draftState)}
               ennoble={{

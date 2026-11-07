@@ -22,5 +22,19 @@ describe('Minimap – statický render', () => {
     );
     expect(html).toContain('data-testid="minimap"');
     expect(html).toContain('width="196"');
+    expect(html).not.toContain('Odříznutá krajina');
+  });
+
+  it('odříznutý nováček má u minimapy popisek „Odříznutá krajina“', () => {
+    const html = renderToStaticMarkup(
+      <Minimap
+        landscape={landscape}
+        scene={null}
+        village={{ dwellings: [], fields: [] }}
+        isolated
+      />,
+    );
+    expect(html).toContain('data-isolated="true"');
+    expect(html).toContain('Odříznutá krajina');
   });
 });
