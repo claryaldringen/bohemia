@@ -382,3 +382,51 @@ export function marchGrid(
   }
   return grid;
 }
+
+/** Kolik nejnovějších dní mřížek drží paměť na krajinu, překážky a ves (tažení čte den a další). */
+const MEMO_DAYS = 2;
+/** Zástupný klíč za chybějící vrstvu překážek nebo ves (WeakMap nebere null). */
+const NONE: object = {};
+
+/**
+ * Mřížky pochodu napříč voláními `stepCampaign` (worker – docs/code/worker.md, Výkon – Tažení).
+ * Klíč je identita krajiny, vrstvy překážek a stavu vsi a den: `marchGrid` je čistá a stav vsi
+ * neměnný, takže tentýž objekt a den = tatáž mřížka. Objekty drží slabě (zahozená ves uvolní své
+ * mřížky), na jednu trojici nejvýš `MEMO_DAYS` nejnovějších dnů.
+ */
+export class MarchGridMemo {
+  private readonly grids = new WeakMap<
+    Landscape,
+    WeakMap<object, WeakMap<object, Map<number, MarchGrid>>>
+  >();
+
+  /** Mřížka jako `marchGrid(landscape, obstacles, village, { day })` – z paměti, je-li tam. */
+  gridOf(
+    landscape: Landscape,
+    obstacles: ObstacleLayer | null,
+    village: VillageState | null,
+    day: number,
+  ): MarchGrid {
+    let byObstacles = this.grids.get(landscape);
+    if (!byObstacles) {
+      byObstacles = new WeakMap();
+      this.grids.set(landscape, byObstacles);
+    }
+    let byVillage = byObstacles.get(obstacles ?? NONE);
+    if (!byVillage) {
+      byVillage = new WeakMap();
+      byObstacles.set(obstacles ?? NONE, byVillage);
+    }
+    let byDay = byVillage.get(village ?? NONE);
+    if (!byDay) {
+      byDay = new Map();
+      byVillage.set(village ?? NONE, byDay);
+    }
+    const known = byDay.get(day);
+    if (known) return known;
+    const grid = marchGrid(landscape, obstacles, village, { day });
+    byDay.set(day, grid);
+    if (byDay.size > MEMO_DAYS) byDay.delete(Math.min(...byDay.keys()));
+    return grid;
+  }
+}

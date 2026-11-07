@@ -7,6 +7,7 @@ import {
   LAUNCH,
   MEADOW,
   SET_OUT,
+  SUMMER,
   world,
   worldOf,
 } from '../../domain/war/__tests__/campaign-fixtures';
@@ -243,6 +244,40 @@ describe('stepCampaigns', () => {
         );
         // skončené tažení z paměti zmizí
         expect(memory.states.size).toBe(0);
+      },
+    );
+
+    it.each([4, 7])(
+      'nájezd na ves (mřížka s vsí z paměti) po %i taktech: tytéž body jako bez paměti',
+      async (every) => {
+        const runs: string[][] = [];
+        for (const memory of [undefined, newCampaignMemory()]) {
+          const { deps, campaigns, villages } = setup();
+          villages.records.set('knezice', {
+            id: 'knezice',
+            settlementId: 's-knezice',
+            name: 'Kněžice',
+            state: village([], [], { lastDay: SUMMER + 10 }),
+            version: 1,
+          });
+          const cells: CampaignCells = {
+            mapOf: (cell) =>
+              Promise.resolve(cell.x === 1 ? { ...MEADOW, villageIds: ['knezice'] } : MEADOW),
+          };
+          await campaigns.create(campaign({ liveCommand: false }));
+          await campaigns.addIntent('c1', {
+            tick: LAUNCH + 2,
+            byPlayer: 'p1',
+            body: { kind: 'set-out' },
+          });
+          const saves = recordSaves(campaigns);
+          const used = { ...deps, cells, ...(memory ? { memory } : {}) };
+          await rounds(used, LAUNCH + 1, END + 40, every);
+          runs.push(saves);
+        }
+        const [plain, remembering] = runs;
+        expect(plain!.some((s) => s.includes('"battle"'))).toBe(true);
+        expect(remembering).toEqual(plain);
       },
     );
 

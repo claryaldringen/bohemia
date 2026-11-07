@@ -5,6 +5,7 @@ import {
   campaignFinished,
   CHECKPOINT_TICKS,
   isHarmlessArmy,
+  MarchGridMemo,
   stepCampaign,
   tickOfMs,
   type CampaignIntent,
@@ -20,7 +21,7 @@ import type { NoticeRepository } from './notices';
 import { passageCovers, type PassageRepository } from './passages';
 import type { SettlementRepository } from './settlements';
 import type { VassalageRepository } from './vassalages';
-import type { VillageRepository } from './villages';
+import type { VillageRecord, VillageRepository } from './villages';
 
 // Takt workeru pro tažení (plán 2026-11-03 – Úloha 6.5, rozhodnutí 12): každé aktivní tažení
 // pod zámkem dopočte z kontrolního bodu do teď, nejvýš po 40 taktech (nebo s událostmi) uloží nový
@@ -68,11 +69,43 @@ export interface CampaignMemo {
 /** Paměť smyčky tažení napříč koly – drží ji vstupní bod (worker), jeden proces. */
 export interface CampaignMemory {
   states: Map<string, CampaignMemo>;
+  /** Mřížky pochodu napříč koly (klíč = identita krajiny, překážek a stavu vsi a den). */
+  grids: MarchGridMemo;
+  /**
+   * Vsi načtené v posledním kole: ves téže verze (a jména) dostane tentýž objekt stavu, takže
+   * její mřížky pochodu v `grids` platí dál (verze roste s každým uložením – stav je tentýž).
+   */
+  villages: Map<string, VillageRecord>;
+  /** Vsi načtené v tomto kole – ostatní se na konci kola zapomenou. */
+  seen: Set<string>;
 }
 
 /** Prázdná paměť smyčky tažení. */
 export function newCampaignMemory(): CampaignMemory {
-  return { states: new Map() };
+  return { states: new Map(), grids: new MarchGridMemo(), villages: new Map(), seen: new Set() };
+}
+
+/** Ves z úložiště – téže verze a jména jako v paměti = záznam z paměti (tentýž objekt stavu). */
+function recallVillage(
+  memory: CampaignMemory | undefined,
+  record: VillageRecord | null,
+): VillageRecord | null {
+  if (!memory || !record) return record;
+  memory.seen.add(record.id);
+  const known = memory.villages.get(record.id);
+  if (known && known.version === record.version && known.name === record.name) return known;
+  memory.villages.set(record.id, record);
+  return record;
+}
+
+/** Konec kola: zapomene skončená tažení a vsi, které kolo nenačetlo. */
+function forget(memory: CampaignMemory, active: readonly string[]): void {
+  const running = new Set(active);
+  for (const id of [...memory.states.keys()]) if (!running.has(id)) memory.states.delete(id);
+  for (const id of [...memory.villages.keys()]) {
+    if (!memory.seen.has(id)) memory.villages.delete(id);
+  }
+  memory.seen.clear();
 }
 
 /** Záměry, se kterými se počítalo do taktu `tick` – jiný seznam = paměť neplatí. */
@@ -158,12 +191,7 @@ export async function stepCampaigns(
       results.push({ campaignId, outcome: 'failed', error });
     }
   }
-  // skončená tažení z paměti pryč
-  const states = deps.memory?.states;
-  if (states && states.size > 0) {
-    const running = new Set(active);
-    for (const id of [...states.keys()]) if (!running.has(id)) states.delete(id);
-  }
+  if (deps.memory) forget(deps.memory, active);
   return results;
 }
 
@@ -248,7 +276,7 @@ async function stepOne(
  * čeká, ves se v dalším kole načte znovu.
  */
 export async function computeCampaign(
-  deps: Pick<StepCampaignsDeps, 'cells' | 'villages' | 'world' | 'watchers'>,
+  deps: Pick<StepCampaignsDeps, 'cells' | 'villages' | 'world' | 'watchers' | 'memory'>,
   state: CampaignState,
   toTick: number,
   intents: readonly CampaignIntent[],
@@ -279,6 +307,7 @@ export async function computeCampaign(
       const b = watchers.get(to);
       return a !== undefined && b !== undefined && a.playerId === b.playerId;
     },
+    ...(deps.memory ? { grids: deps.memory.grids } : {}),
   };
   const result: CampaignStep = { state, villageEvents: [], notices: [], waiting: null };
   for (let round = 0; round <= MAX_LOADS; round++) {
@@ -298,7 +327,7 @@ export async function computeCampaign(
       // ves bez potřebného dne se načte znovu – mezitím ji mohl worker posunout
       const firstTry = !tried.has(villageId);
       tried.add(villageId);
-      const record = await deps.villages.find(villageId);
+      const record = recallVillage(deps.memory, await deps.villages.find(villageId));
       if (!record) {
         if (firstTry) loaded = true;
         continue;
