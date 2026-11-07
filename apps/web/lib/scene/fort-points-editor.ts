@@ -25,6 +25,8 @@ const PREVIEW_INTERVAL_MS = 80;
 const HANDLE_M = 1.2;
 /** Bod jde chytit do tolika px od kurzoru (nejméně o kroužek dál). */
 const HANDLE_PICK_PX = 14;
+/** Bod jde chytit nejvýš do takového podílu vzdálenosti k sousednímu bodu. */
+const HANDLE_GAP_SHARE = 0.35;
 /** Klik do tolika m od vnějšího okraje přidá bod (nejméně; jinak šířka pásu). */
 const EDGE_PICK_M = 2;
 /** Obrys přes stromy – druhý obrys bez testu hloubky, průsvitný. */
@@ -354,15 +356,31 @@ export class FortPointsEditor implements ActivePlacement {
     }
   }
 
-  /** Bod obvodu pod kurzorem – do HANDLE_PICK_PX (převedeno na metry u kurzoru), nebo null. */
+  /**
+   * Bod obvodu pod kurzorem – do HANDLE_PICK_PX (převedeno na metry u kurzoru), nejvýš ale
+   * HANDLE_GAP_SHARE vzdálenosti k sousednímu bodu, ať klik na obvod mezi body při oddálené
+   * kameře přidá bod a nechytí sousední; nebo null.
+   */
   private handleAt(point: Point, screen: { x: number; y: number } | null): number | null {
-    if (!this.points) return null;
-    let radius = HANDLE_M * 1.5;
+    const points = this.points;
+    if (!points) return null;
+    const least = HANDLE_M * 1.5;
+    let radius = least;
     if (screen) {
       const side = this.context.pickGround(screen.x + HANDLE_PICK_PX, screen.y);
       if (side) radius = Math.max(radius, Math.hypot(side[0] - point[0], side[1] - point[1]));
     }
-    return nearestPoint(this.points, point[0], point[1], radius);
+    const index = nearestPoint(points, point[0], point[1], radius);
+    if (index === null) return null;
+    const n = points.length;
+    const p = points[index]!;
+    const gap = Math.min(
+      ...[points[(index + n - 1) % n]!, points[(index + 1) % n]!].map((q) =>
+        Math.hypot(q[0] - p[0], q[1] - p[1]),
+      ),
+    );
+    const reach = Math.max(least, Math.min(radius, gap * HANDLE_GAP_SHARE));
+    return Math.hypot(p[0] - point[0], p[1] - point[1]) <= reach ? index : null;
   }
 
   private updateCursorStyle(): void {

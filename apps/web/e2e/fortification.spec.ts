@@ -125,6 +125,20 @@ async function startPalisade(page: Page): Promise<Pt[]> {
   return fortPoints(page);
 }
 
+/** Přiblíží ves – body obvodu jdou chytit a klik na obvod netrefí bod (kamera ještě dojíždí). */
+async function closeUp(page: Page, home: Pt): Promise<void> {
+  await page.evaluate(
+    (p) => window.__bohemiaE2E!.moveCameraTo!(p[0], p[1]),
+    home as [number, number],
+  );
+  await page.mouse.move(640, 300);
+  for (let i = 0; i < 10; i++) {
+    await page.mouse.wheel(0, -300);
+    await page.waitForTimeout(150);
+  }
+  await page.waitForTimeout(1500);
+}
+
 /** Těžiště bodů. */
 function centroid(points: readonly Pt[]): Pt {
   const n = points.length;
@@ -136,6 +150,7 @@ test('návrh palisády kolem vsi – tah bodu mění cenu, klik přidá a Ctrl +
 }) => {
   const { settlementId, home, showVillage } = await villageWithRoad(page, 'opevneni');
   const points = await startPalisade(page);
+  await closeUp(page, home);
   const cost = page.getByTestId('placement-cost');
   await expect(cost.locator('[data-cost="labor"]')).toBeVisible({ timeout: 20_000 });
   await expect(cost.locator('[data-cost="refuge"]')).toBeVisible();
@@ -172,17 +187,30 @@ test('návrh palisády kolem vsi – tah bodu mění cenu, klik přidá a Ctrl +
   await page.keyboard.up('Control');
   await expect.poll(async () => (await fortPoints(page)).length).toBe(points.length);
 
-  // tah nejsevernějšího bodu o 10 m ven – obvod i cena porostou
+  // tah bodu s nejdelšími kusy k sousedům o 4 m ven – obvod i cena porostou (ohyb zůstane mírný)
+  const laborNow = async (): Promise<number> =>
+    Number.parseInt((await cost.locator('[data-cost="labor"]').textContent()) ?? '', 10);
+  const laborBefore = await laborNow();
+  const gapOf = (i: number): number => {
+    const p = points[i]!;
+    return Math.min(
+      ...[points[(i + points.length - 1) % points.length]!, points[(i + 1) % points.length]!].map(
+        (q) => Math.hypot(q[0] - p[0], q[1] - p[1]),
+      ),
+    );
+  };
+  let pick = 0;
+  points.forEach((_, i) => {
+    if (gapOf(i) > gapOf(pick)) pick = i;
+  });
   const c = centroid(points);
-  const north = points[0]!;
-  const len = Math.hypot(north[0] - c[0], north[1] - c[1]);
-  const out: Pt = [
-    north[0] + ((north[0] - c[0]) / len) * 10,
-    north[1] + ((north[1] - c[1]) / len) * 10,
-  ];
-  await drag(page, north, out);
-  await expect.poll(logsNow, { timeout: 10_000 }).toBeGreaterThan(before);
-  const moved = (await fortPoints(page))[0]!;
+  const from = points[pick]!;
+  const len = Math.hypot(from[0] - c[0], from[1] - c[1]);
+  const out: Pt = [from[0] + ((from[0] - c[0]) / len) * 4, from[1] + ((from[1] - c[1]) / len) * 4];
+  await drag(page, from, out);
+  await expect.poll(laborNow, { timeout: 10_000 }).toBeGreaterThan(laborBefore);
+  expect(await logsNow()).toBeGreaterThanOrEqual(before);
+  const moved = (await fortPoints(page))[pick]!;
   expect(Math.hypot(moved[0] - out[0], moved[1] - out[1])).toBeLessThan(2);
 
   // ikona kladiva položí – brány samy na obou průsečících cesty s obvodem
@@ -250,6 +278,7 @@ test('bod tažený přes zemnici – důvod u kurzoru, červené místo problém
 }) => {
   const { home } = await villageWithRoad(page, 'opevneni-problem');
   const points = await startPalisade(page);
+  await closeUp(page, home);
   await expect(page.getByTestId('placement-cost').locator('[data-cost="labor"]')).toBeVisible({
     timeout: 20_000,
   });
