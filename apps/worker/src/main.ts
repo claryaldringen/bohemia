@@ -126,6 +126,7 @@ async function main(): Promise<void> {
     }),
     villages: campaignVillages,
     notices: gameDeps.notices,
+    passages: gameDeps.passages,
     // upozornění „Cizí vojsko u …“ a neškodná vojska pána a vazalů (war.md – Obránci)
     watchers: villageWatchers({
       villages: campaignVillages,

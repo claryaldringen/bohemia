@@ -42,7 +42,7 @@ function launchDeps(): LaunchDeps {
     campaigns: deps.campaigns,
     seeds: deps.seeds,
     newId: randomUUID,
-    // útok po ohlášeném průchodu ohlášení zruší (war.md – Pohyb)
+    // útok po ohlášeném průchodu ohlášení zruší, vyslání ho naváže na tažení (war.md – Pohyb)
     passages: deps.passages,
     // přepadení přes rozsudek pána „mír“ = neposlušnost (vassalage.md – Mír a spory)
     disputes: deps.disputes,

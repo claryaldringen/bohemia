@@ -30,6 +30,8 @@ export const passage = pgTable(
     message: text('message').notNull(),
     announcedAt: timestamp('announced_at', { withTimezone: true }).notNull(),
     announcedDay: integer('announced_day').notNull(),
+    // tažení, pro které ohlášení platí; null – čeká na vyslání tažení rodu
+    campaignId: uuid('campaign_id'),
     trust: boolean('trust'),
     reply: text('reply'),
     answeredAt: timestamp('answered_at', { withTimezone: true }),
@@ -38,5 +40,6 @@ export const passage = pgTable(
   (t) => [
     index('passage_pair_idx').on(t.fromHouseId, t.toHouseId),
     index('passage_to_idx').on(t.toHouseId),
+    index('passage_campaign_idx').on(t.campaignId),
   ],
 );

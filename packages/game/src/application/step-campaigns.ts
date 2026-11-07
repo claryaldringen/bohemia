@@ -43,6 +43,8 @@ export interface StepCampaignsDeps {
    * (`isHarmlessArmy`).
    */
   watchers?: VillageWatchers;
+  /** Skončené tažení ukončí svá ohlášení průchodu (war.md – Pohyb). */
+  passages?: Pick<PassageRepository, 'voidOfCampaign'>;
 }
 
 /** Vlastník vsi a vztahy rodů pro obranu vsi. */
@@ -53,7 +55,12 @@ export interface VillageWatchers {
    * Je vojsko hráče `armyPlayerId` pro ves `villageId` hráče `ownerPlayerId` neškodné (vlastní,
    * pán, vazalové, platný ohlášený průchod její mapou bez „Nevěřit“)?
    */
-  harmless(armyPlayerId: string, ownerPlayerId: string, villageId: string): Promise<boolean>;
+  harmless(
+    armyPlayerId: string,
+    ownerPlayerId: string,
+    villageId: string,
+    campaignId: string,
+  ): Promise<boolean>;
 }
 
 /** Jak dopadlo jedno tažení v kole. */
@@ -91,7 +98,7 @@ export async function stepCampaigns(
   for (const campaignId of await deps.campaigns.active()) {
     try {
       const held = await deps.campaignLock.tryRun(campaignId, () =>
-        stepOne(deps, campaignId, toTick),
+        stepOne(deps, campaignId, toTick, input.nowMs),
       );
       results.push({ campaignId, outcome: held.ran ? held.value : 'busy' });
     } catch (error) {
@@ -101,10 +108,21 @@ export async function stepCampaigns(
   return results;
 }
 
+/** Rozpadlé nebo skončené tažení: jeho ohlášení průchodu přestanou platit (idempotentně). */
+async function endPassages(
+  deps: StepCampaignsDeps,
+  state: CampaignState,
+  nowMs: number,
+): Promise<void> {
+  if (state.phase !== 'done' && state.phase !== 'disbanded') return;
+  await deps.passages?.voidOfCampaign(state.id, new Date(nowMs));
+}
+
 async function stepOne(
   deps: StepCampaignsDeps,
   campaignId: string,
   toTick: number,
+  nowMs: number,
 ): Promise<CampaignOutcome> {
   const checkpoint = await deps.campaigns.checkpoint(campaignId);
   if (!checkpoint) return 'idle';
@@ -113,7 +131,11 @@ async function stepOne(
     await deliver(deps, checkpoint.outbox);
     await deps.campaigns.clearOutbox(campaignId, from.tick);
   }
-  if (campaignFinished(from) || toTick <= from.tick) return 'idle';
+  if (campaignFinished(from)) {
+    await endPassages(deps, from, nowMs);
+    return 'idle';
+  }
+  if (toTick <= from.tick) return 'idle';
 
   const intents = await deps.campaigns.intentsAfter(campaignId, from.tick);
   const step = await computeCampaign(deps, from, toTick, intents);
@@ -139,6 +161,7 @@ async function stepOne(
     outbox,
   });
   if (saved === 'stale') return 'stale';
+  await endPassages(deps, step.state, nowMs);
   if (outbox) {
     await deliver(deps, outbox);
     await deps.campaigns.clearOutbox(campaignId, step.state.tick);
@@ -216,7 +239,7 @@ export async function computeCampaign(
       const watcher = (await deps.watchers?.watcherOf(villageId)) ?? null;
       if (watcher) {
         watchers.set(villageId, { playerId: watcher.playerId, name: record.name });
-        if (await deps.watchers?.harmless(state.playerId, watcher.playerId, villageId)) {
+        if (await deps.watchers?.harmless(state.playerId, watcher.playerId, villageId, state.id)) {
           harmlessTo.set(villageId, true);
         }
       }
@@ -255,7 +278,7 @@ export function villageWatchers(deps: {
       const settlement = village ? await deps.settlements.find(village.settlementId) : null;
       return village && settlement ? { playerId: settlement.ownerId, name: village.name } : null;
     },
-    harmless: async (armyPlayerId, ownerPlayerId, villageId) => {
+    harmless: async (armyPlayerId, ownerPlayerId, villageId, campaignId) => {
       if (armyPlayerId === ownerPlayerId) return true;
       const [army, owner] = await Promise.all([
         deps.houses.activeOf(armyPlayerId),
@@ -272,7 +295,7 @@ export function villageWatchers(deps: {
       const village = await deps.villages.find(villageId);
       const settlement = village ? await deps.settlements.find(village.settlementId) : null;
       const cell = settlement?.worldCell;
-      return cell !== null && cell !== undefined && passageCovers(passages, cell);
+      return cell !== null && cell !== undefined && passageCovers(passages, cell, campaignId);
     },
   };
 }

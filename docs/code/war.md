@@ -538,7 +538,7 @@ war.md – Pohyb (Průchod územím neutrálního rodu), vassalage.md – Svolá
 
 - **Průchod** – port `application/passages.ts` (`Passage`, `PassageRepository`: `announce`, `byId`,
   podmíněné `answer` – jen bez odpovědi a platné, `validBetween`, `openTo`, `voidBetween` v obou
-  směrech; `passageCovers(passages, cell)` – platné ohlášení bez „Nevěřit“ na políčku). Use-case
+  směrech; `passageCovers(passages, cell, campaignId)` – platné ohlášení téhož tažení bez „Nevěřit“ na políčku; `Passage.campaignId` null = čeká na vyslání). Use-case
   `application/passage.ts`: `announcePassage(deps, { playerId, house, cells, eta, message, today })`
   (ne vlastní rod, ne ve válce, 1–`WAR.passage.maxCells` map, upozornění `passage-announced`,
   kronika obou rodů `passage-announced` „Bořivoj ohlásil průchod.“), `answerPassage(deps, {
@@ -547,8 +547,12 @@ playerId, passageId, trust, message, today })` (jen oslovený rod, jednou; `pass
   – `harmless(armyPlayerId, ownerPlayerId, villageId)` je true i pro ves na ohlášené mapě (sídlo
   `worldCell`); bez odpovědi platí (spící hráč nic nedělá), „Nevěřit“ = ves podle postoje (dny
   nájezdu, signál hrozby). **Zrušení:** `WarDeps.passages` – `declareWar` i `startWarByAttack`
-  (přepadení po ohlášení) zavolají `voidBetween`; web `launchDeps` ho předává. DB `schema/passage.ts`,
-  migrace `0035_passage`, adaptér `adapters/passage-repository.ts`.
+  (přepadení po ohlášení) zavolají `voidBetween`; web `launchDeps` ho předává. **Jedno tažení**
+  (Martin 7. 11. 2026): `launchCampaign` po `campaigns.create` zavolá `bindToCampaign(houseId,
+campaignId)` (čekající ohlášení rodu dostanou `campaignId`); `harmless(…, campaignId)` bere jen
+  ohlášení téhož tažení; `stepCampaigns` (`endPassages`, `StepCampaignsDeps.passages`) po uložení
+  tažení ve fázi `done` / `disbanded` (i u už skončeného) zavolá `voidOfCampaign`. DB `schema/passage.ts`,
+  migrace `0035_passage` + `0036` (`campaign_id`), adaptér `adapters/passage-repository.ts`.
 - **Svolání** – `application/summons.ts`, dialog `summons` (`SummonsBody`: válka a její strany,
   vazalství, pán, vazal, cílová ves, domluvení muži, dny; `forDialogId` u vazala vazalů; po odpovědi
   `sent`, `message`). `summonVassals(deps, { playerId, warId, vassalageIds, targetVillageId, days?,
