@@ -822,26 +822,26 @@ Data `SceneVillage.tornado` (den, síla, stopa, prvních pár dní vývraty) –
 ## Opevnění ve scéně (fortifications.md – Ve scéně; Ú5.7)
 
 - **Data:** `sceneFortifications(state, landscape, day)` (`lib/fort-view.ts`) dává ke každému
-  opevnění i tvar úseků z jádra (`shapes` – rovná část a oblouk rohu, `fortSegments`), vzhled
+  opevnění i tvar úseků z jádra (`shapes` – lomená čára křivky `path` a délka, `fortSegments`;
+  obvod z bodů – fortifications.md, Obvod), body obvodu (`points`), vzhled
   úseků (`looks` – stáří v letech, stáří nástavby, podíl práce úseku ve stavbě podle
   `fortSegmentProgress` – práce jde napřed do kácení, pak úsek po úseku), co se staví (`work`),
   výšku valu a `gatesClosed` (zatím jen ukázka – nájezd přinese F6). Vše, co scéna kreslí, se
   z toho odvozuje pevně podle id opevnění a pořadí kůlu (`hash01`), bez náhody.
 - **Rozmístění** (`lib/scene/fortification-layout.ts`, bez Babylonu, testy
-  `fortification-layout.test.ts`): `perimeterSamples` vzorkuje vnější okraj (rovné části po
-  krocích, oblouky po osminách) s normálou dovnitř a protějším bodem vnitřního okraje pásu
-  (`ix`, `iz`). **Rohy valu bez věží:** vnitřní okraj vnějšího rohu má poloměr vnitřního rohu
-  obvodu (`SceneFortification.corners` z jádra – val 4 m, palisáda 1,5 m, plot 0,5 m; nejméně
-  soustředný) se středem posunutým po ose rohu (val: 10 + 4 − 8 = 6 m), vnitřní roh (tvar L)
-  soustředně (+ pás). Kus vnějšího okraje od napojení před obloukem po napojení za ním se
-  rozloží po celém vnitřním oblouku; na rovné části je průřez kolmý (průchod brány rovně).
+  `fortification-layout.test.ts`): `perimeterSamples` vzorkuje vnější okraj po lomené čáře
+  křivky (`shape.path`, nejvýš po kroku) s normálou dovnitř (kolmo na tečnu z obou sousedů)
+  a protějším bodem vnitřního okraje pásu (`ix`, `iz`) o šířku pásu po normále. **Ostrý ohyb**
+  (val: ohyb 8 m, pás 10 m): posun se přehne do smyčky – `trimLoops` body smyčky sejde do jejího
+  průsečíku, vnitřní okraj se sejde do rohu (fortifications.md – Obvod), průřez se nepřehne
+  (Martin 7. 11. 2026 – obvod z bodů; dřív rohy valu na oblouku se středem po ose rohu).
   `insetPoint(p, d, fortBand(fort))`: příkop (prvních 4 m, u plotu a palisády celý pás) drží
   vzdálenost od vnějšího okraje, násep vede poměrně mezi koncem příkopu a vnitřním okrajem –
-  v rohu je širší (po ose ≈ 8,5 m místo 6 m), výška podle poměrné polohy, nic se nesbíhá do
-  kuželu. Dřív se pás u vnějšího oblouku stlačoval do jeho poloměru a násep se v rohu smrštil do
+  výška podle poměrné polohy, nic se nepřehne. Dřív se pás u vnějšího oblouku stlačoval do jeho poloměru a násep se v rohu smrštil do
   „věže“ (Martin 6. 11. 2026). `insetLine` dá čáru uvnitř pásu po stejných krocích – palisáda
-  0,75 m (polovina pásu 1,5 m), plot 0,5 m, koruna valu 7 m (v rohu oblouk r ≈ 4 m).
-  Brány: mezera 4 m kolem `offsetM` úseku.
+  0,75 m (polovina pásu 1,5 m), plot 0,5 m, koruna valu 7 m.
+  Brány: mezera 4 m kolem `offsetM` úseku – rovná tětiva, křídla a závora podél tečny obvodu
+  u brány (`tangentAt`); zavřené brány, prolamování a průlom (scéna války) jdou po týchž úsecích.
   - **Palisáda** (`palisadeLayout`): kůl po 0,25 m (4 na metr) i po obloucích, varianta (3),
     výška 0,95–1,03 × 3,5 m, natočení a drobný náklon pevně z id a pořadí; stáří – dřevo šedne
     (`woodTint` – barva instance), posledních 30 % životnosti se kůly naklánějí, za životností
@@ -874,7 +874,8 @@ Data `SceneVillage.tornado` (den, síla, stopa, prvních pár dní vývraty) –
   uniform – vec4 na úsečku, nejvýš `MAX_DITCH_CUTS` = 48; víc – ty nejblíž středu obvodu).
   Maska by byla 16. sampler terénu (má jich 15, WebGL 2 zaručuje jen 16) a musela by se
   překreslovat se stavbou; úseček je málo – změřeno: čtvercový val 350 m 20 úseček, s branou 21,
-  se dvěma 22 (rovné kusy sloučené, oblouky po čtvrtinách), mimo obdélník všech úseček stojí
+  se dvěma 22; obvod z bodů – osa příkopu zjednodušená Douglas–Peuckerem na 0,1 m
+  (`simplifyLine`), mimo obdélník všech úseček stojí
   test jedno porovnání. Úsečky
   jen tam, kde je příkop hlubší než 8 cm, konce souvislého kusu zkrácené o půl šířky (prořez
   kolem úsečky je zakulacený a nesmí do průchodu brány).

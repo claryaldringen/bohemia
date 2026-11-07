@@ -43,8 +43,8 @@ export const FORT_FENCE = {
   gateWidth: FORT_GATE_M,
 } as const;
 
-/** Kolik bodů má čtvrtkruh rohu při vzorkování obvodu. */
-const ARC_STEPS = 8;
+/** Jak daleko po obvodu (v šířkách pásu) se hledá smyčka vnitřního okraje v ostrém ohybu. */
+const LOOP_REACH_BANDS = 4;
 
 /** Díl modelu opevnění (models/fortifications/fortifications.glb). */
 export type FortPart =
@@ -126,192 +126,110 @@ export function segmentStarts(shapes: readonly Shape[]): { starts: number[]; len
   return { starts, length };
 }
 
-/** Znaménko oběhu obvodu v rovině (x, z): +1 proti směru os, −1 po směru. */
-function orientation(shapes: readonly Shape[]): number {
-  let area = 0;
-  const points = shapes.flatMap((s): [number, number][] => [
-    [s.line.x, s.line.z],
-    [s.line.x + s.line.dx * s.line.length, s.line.z + s.line.dz * s.line.length],
-  ]);
-  for (let i = 0; i < points.length; i++) {
-    const [ax, az] = points[i]!;
-    const [bx, bz] = points[(i + 1) % points.length]!;
-    area += ax * bz - bx * az;
-  }
-  return area >= 0 ? 1 : -1;
-}
-
-/** Je oblouk vnější (střed leží uvnitř plochy – dovnitř se poloměr zmenšuje)? */
-function convexArc(shape: Shape, sign: number): boolean {
-  const a = shape.arc;
-  if (!a) return false;
-  // začátek oblouku a jeho tečna (směr rovné části)
-  const px = a.x + a.r * a.ux;
-  const pz = a.z + a.r * a.uz;
-  const nx = sign > 0 ? -shape.line.dz : shape.line.dz;
-  const nz = sign > 0 ? shape.line.dx : -shape.line.dx;
-  return (a.x - px) * nx + (a.z - pz) * nz > 0;
+/** Průsečík úseček ab a cd (bez konců), nebo null. */
+function crossing(
+  a: readonly [number, number],
+  b: readonly [number, number],
+  c: readonly [number, number],
+  d: readonly [number, number],
+): [number, number] | null {
+  const rx = b[0] - a[0];
+  const rz = b[1] - a[1];
+  const sx = d[0] - c[0];
+  const sz = d[1] - c[1];
+  const den = rx * sz - rz * sx;
+  if (Math.abs(den) < 1e-12) return null;
+  const t = ((c[0] - a[0]) * sz - (c[1] - a[1]) * sx) / den;
+  const u = ((c[0] - a[0]) * rz - (c[1] - a[1]) * rx) / den;
+  if (t <= 1e-9 || t >= 1 - 1e-9 || u <= 1e-9 || u >= 1 - 1e-9) return null;
+  return [a[0] + rx * t, a[1] + rz * t];
 }
 
 /**
- * Oblouk rohu u vnitřního okraje pásu (fortifications.md – Obvod): u vnějšího rohu má vnitřní
- * okraj poloměr vnitřního rohu obvodu (u valu 4 m, u palisády 1,5 m, u plotu 0,5 m), nejméně
- * soustředný; jeho střed leží na ose rohu o `shift` dál dovnitř a vnitřní okraj se tak napojí
- * na rovné části `shift` m před obloukem a za ním. U vnitřního rohu (tvar L) je soustředný.
+ * Vnitřní okraj bez smyček: kde je ohyb ostřejší, než šířka pásu dovolí, posun o šířku pásu se
+ * přehne do smyčky – body mezi průsečíkem smyčky se sejdou v něm (vnitřní okraj do rohu –
+ * fortifications.md, Obvod). Hledá se jen kus obvodu dopředu (`reach` bodů).
  */
-interface InnerCorner {
-  shift: number;
-  x: number;
-  z: number;
-  r: number;
-}
-
-/** Rovné kusy obvodu – úseky od úseku za obloukem po úsek s obloukem (indexy po obvodu). */
-function straightRuns(shapes: readonly Shape[]): number[][] {
-  const n = shapes.length;
-  const first = shapes.findIndex((_, k) => shapes[(k + n - 1) % n]!.arc);
-  if (first < 0) return n > 0 ? [shapes.map((_, k) => k)] : [];
-  const runs: number[][] = [];
-  let k = first;
-  for (let done = 0; done < n;) {
-    const run: number[] = [];
-    for (let j = k; ; j = (j + 1) % n) {
-      run.push(j);
-      if (shapes[j]!.arc) break;
+function trimLoops(inner: [number, number][], reach: number): void {
+  const n = inner.length;
+  if (n < 4) return;
+  for (let i = 0; i < n; i++) {
+    const a = inner[i]!;
+    const b = inner[(i + 1) % n]!;
+    for (let k = 2; k <= Math.min(reach, n - 2); k++) {
+      const j = (i + k) % n;
+      const hit = crossing(a, b, inner[j]!, inner[(j + 1) % n]!);
+      if (!hit) continue;
+      for (let m = 1; m <= k; m++) inner[(i + m) % n] = hit;
+      break;
     }
-    runs.push(run);
-    done += run.length;
-    k = (run[run.length - 1]! + 1) % n;
   }
-  return runs;
-}
-
-/** Délka rovného kusu (m). */
-function runLength(shapes: readonly Shape[], run: readonly number[]): number {
-  return run.reduce((sum, k) => sum + shapes[k]!.line.length, 0);
 }
 
 /**
- * Oblouky vnitřního okraje pro rohy úseků (null – úsek bez oblouku). Posun napojení se u kusu
- * kratšího než oba posuny zmenší (val na pruhu širokém jeden čtverec – pás se tam stejně slije).
+ * Body vnějšího okraje po obvodu – lomená čára křivky (`shape.path`) nejvýš po `step` m
+ * (uzavřená čára – poslední bod nenavazuje sám na sebe). Každý bod nese normálu dovnitř (kolmo
+ * na tečnu z obou sousedů) a protější bod vnitřního okraje pásu – o šířku pásu po normále; kde je
+ * ohyb ostřejší než šířka pásu, sejde se vnitřní okraj do rohu (`trimLoops`).
  */
-function innerCorners(fort: FortEdges, sign: number, band: number): (InnerCorner | null)[] {
+export function perimeterSamples(fort: FortEdges, step: number): PerimeterSample[] {
   const { shapes } = fort;
-  const n = shapes.length;
-  const shifts = shapes.map((s) =>
-    convexArc(s, sign) ? Math.max(0, band + fort.corners.inner - s.arc!.r) : 0,
-  );
-  for (const run of straightRuns(shapes)) {
-    const start = (run[0]! + n - 1) % n;
-    const end = run[run.length - 1]!;
-    const length = runLength(shapes, run);
-    const need = (shapes[start]!.arc ? shifts[start]! : 0) + (shapes[end]!.arc ? shifts[end]! : 0);
-    if (need <= length) continue;
-    const scale = need > 0 ? length / need : 0;
-    shifts[start] = shifts[start]! * scale;
-    shifts[end] = shifts[end]! * scale;
-  }
-  return shapes.map((s, k) => {
-    const a = s.arc;
-    if (!a) return null;
-    const shift = shifts[k]!;
-    const convex = convexArc(s, sign);
-    return {
-      shift,
-      x: a.x - shift * (a.ux + a.vx),
-      z: a.z - shift * (a.uz + a.vz),
-      r: convex ? Math.max(0, a.r - band + shift) : a.r + band,
-    };
-  });
-}
-
-/**
- * Body vnějšího okraje po obvodu: rovné části nejvýš po `step` m, oblouky po osminách čtvrtkruhu
- * (uzavřená čára – poslední bod nenavazuje sám na sebe). Každý bod nese protější bod vnitřního
- * okraje pásu: na rovné části kolmo o šířku pásu, u rohu na oblouku vnitřního okraje – kus
- * vnějšího okraje od napojení před obloukem po napojení za ním se rozloží po celém vnitřním
- * oblouku (průřezy se v rohu rozevřou, nesbíhají se).
- */
-export function perimeterSamples(
-  fort: FortEdges,
-  step: number,
-  arcSteps = ARC_STEPS,
-): PerimeterSample[] {
-  const { shapes } = fort;
-  const sign = orientation(shapes);
   const { starts } = segmentStarts(shapes);
-  const n = shapes.length;
   const band = fortBand(fort).full;
-  const corners = innerCorners(fort, sign, band);
-  // poloha úseku na rovném kusu: začátek a délka kusu (m)
-  const place = new Map<number, { at: number; length: number; first: number; last: number }>();
-  for (const run of straightRuns(shapes)) {
-    const length = runLength(shapes, run);
-    const first = (run[0]! + n - 1) % n;
-    const last = run[run.length - 1]!;
-    let at = 0;
-    for (const k of run) {
-      place.set(k, { at, length, first, last });
-      at += shapes[k]!.line.length;
-    }
-  }
-  // bod vnitřního oblouku rohu `k` ve vzdálenosti `zeta` od napojení před obloukem
-  const innerAt = (k: number, zeta: number): [number, number] => {
-    const c = corners[k]!;
-    const a = shapes[k]!.arc!;
-    const zone = 2 * c.shift + a.r * (Math.PI / 2);
-    const th = zone > 0 ? (Math.min(Math.max(zeta, 0), zone) / zone) * (Math.PI / 2) : 0;
-    const cos = Math.cos(th);
-    const sin = Math.sin(th);
-    return [c.x + c.r * (a.ux * cos + a.vx * sin), c.z + c.r * (a.uz * cos + a.vz * sin)];
-  };
-  const out: PerimeterSample[] = [];
-  const normal = (dx: number, dz: number): [number, number] => (sign > 0 ? [-dz, dx] : [dz, -dx]);
+  const raw: { x: number; z: number; s: number; segment: number }[] = [];
   shapes.forEach((shape, k) => {
-    const { x, z, dx, dz, length } = shape.line;
-    const [nx, nz] = normal(dx, dz);
-    const run = place.get(k)!;
-    const before = corners[run.first]?.shift ?? 0;
-    const after = corners[run.last]?.shift ?? 0;
-    const count = Math.max(1, Math.ceil(length / step - 1e-9));
-    for (let i = 0; i < count; i++) {
-      const t = (i / count) * length;
-      const u = run.at + t;
-      const px = x + dx * t;
-      const pz = z + dz * t;
-      let [ix, iz] = [px + nx * band, pz + nz * band];
-      if (u < before) {
-        const prev = shapes[run.first]!.arc!;
-        [ix, iz] = innerAt(run.first, before + prev.r * (Math.PI / 2) + u);
-      } else if (u > run.length - after) {
-        [ix, iz] = innerAt(run.last, u - (run.length - after));
+    const path = shape.path;
+    let along = 0;
+    for (let i = 0; i + 1 < path.length; i++) {
+      const [ax, az] = path[i]!;
+      const [bx, bz] = path[i + 1]!;
+      const len = Math.hypot(bx - ax, bz - az);
+      const count = Math.max(1, Math.ceil(len / step - 1e-9));
+      for (let j = 0; j < count; j++) {
+        const t = j / count;
+        raw.push({
+          x: ax + (bx - ax) * t,
+          z: az + (bz - az) * t,
+          s: starts[k]! + along + len * t,
+          segment: k,
+        });
       }
-      out.push({ x: px, z: pz, nx, nz, s: starts[k]! + t, segment: k, ix, iz });
-    }
-    const a = shape.arc;
-    if (!a) return;
-    const shift = corners[k]!.shift;
-    for (let j = 0; j < arcSteps; j++) {
-      const th = (j / arcSteps) * (Math.PI / 2);
-      const cos = Math.cos(th);
-      const sin = Math.sin(th);
-      const tx = -a.ux * sin + a.vx * cos;
-      const tz = -a.uz * sin + a.vz * cos;
-      const [ax, az] = normal(tx, tz);
-      const [ix, iz] = innerAt(k, shift + a.r * th);
-      out.push({
-        x: a.x + a.r * (a.ux * cos + a.vx * sin),
-        z: a.z + a.r * (a.uz * cos + a.vz * sin),
-        nx: ax,
-        nz: az,
-        s: starts[k]! + length + a.r * th,
-        segment: k,
-        ix,
-        iz,
-      });
+      along += len;
     }
   });
-  return out;
+  const n = raw.length;
+  if (n < 3) return [];
+  // znaménko oběhu (shoelace): kladná plocha = proti směru os, dovnitř je vlevo od směru
+  let area = 0;
+  for (let i = 0; i < n; i++) {
+    const p = raw[i]!;
+    const q = raw[(i + 1) % n]!;
+    area += p.x * q.z - q.x * p.z;
+  }
+  const sign = area > 0 ? 1 : -1;
+  const normals = raw.map((_, i): [number, number] => {
+    const prev = raw[(i + n - 1) % n]!;
+    const next = raw[(i + 1) % n]!;
+    const dx = next.x - prev.x;
+    const dz = next.z - prev.z;
+    const len = Math.hypot(dx, dz) || 1;
+    return sign > 0 ? [-dz / len, dx / len] : [dz / len, -dx / len];
+  });
+  const inner = raw.map((p, i): [number, number] => [
+    p.x + normals[i]![0] * band,
+    p.z + normals[i]![1] * band,
+  ]);
+  trimLoops(inner, Math.ceil((LOOP_REACH_BANDS * band) / step));
+  return raw.map((p, i) => ({
+    x: p.x,
+    z: p.z,
+    nx: normals[i]![0],
+    nz: normals[i]![1],
+    s: p.s,
+    segment: p.segment,
+    ix: inner[i]![0],
+    iz: inner[i]![1],
+  }));
 }
 
 /**
@@ -372,6 +290,51 @@ export function insetLine(fort: FortEdges, d: number, step: number): LinePoint[]
     });
   }
   return out;
+}
+
+/** Odchylka osy příkopu od úseček prořezu (m) – křivka po ≈ 0,1 m jako dřív oblouky po čtvrtinách. */
+const DITCH_SIMPLIFY_M = 0.1;
+
+/** Douglas–Peucker: body otevřené čáry, od kterých se čára odchýlí nejvýš o `tol` m. */
+function simplifyLine(pts: readonly [number, number][], tol: number): [number, number][] {
+  if (pts.length <= 2) return [...pts];
+  const keep = new Array<boolean>(pts.length).fill(false);
+  keep[0] = true;
+  keep[pts.length - 1] = true;
+  const stack: [number, number][] = [[0, pts.length - 1]];
+  while (stack.length > 0) {
+    const [i, j] = stack.pop()!;
+    const [ax, az] = pts[i]!;
+    const [bx, bz] = pts[j]!;
+    const ex = bx - ax;
+    const ez = bz - az;
+    const len = Math.hypot(ex, ez);
+    let worst = -1;
+    let at = -1;
+    for (let k = i + 1; k < j; k++) {
+      const [px, pz] = pts[k]!;
+      const d =
+        len > 1e-9 ? Math.abs((px - ax) * ez - (pz - az) * ex) / len : Math.hypot(px - ax, pz - az);
+      if (d > worst) {
+        worst = d;
+        at = k;
+      }
+    }
+    if (worst > tol && at > 0) {
+      keep[at] = true;
+      stack.push([i, at], [at, j]);
+    }
+  }
+  return pts.filter((_, k) => keep[k]);
+}
+
+/** Směr podél obvodu v bodě `i` vzorků (jednotkový, z obou sousedů). */
+function tangentAt(samples: readonly PerimeterSample[], i: number): [number, number] {
+  const n = samples.length;
+  const a = samples[(i + n - 1) % n]!;
+  const b = samples[(i + 1) % n]!;
+  const len = Math.hypot(b.x - a.x, b.z - a.z) || 1;
+  return [(b.x - a.x) / len, (b.z - a.z) / len];
 }
 
 /** Úsek, ve kterém leží bod `s` obvodu. */
@@ -752,13 +715,15 @@ export function fortGateInstances(fort: SceneFortification): FortInstance[] {
     if (!layer) return;
     const age = b.ground?.age ?? b.top?.age ?? 0;
     const s = (starts[g.segment]! + g.offsetM) % length;
-    const sample = samples.reduce((best, p) =>
-      loopDistance(p.s, s, length) < loopDistance(best.s, s, length) ? p : best,
-    );
+    let at = 0;
+    samples.forEach((p, i) => {
+      if (loopDistance(p.s, s, length) < loopDistance(samples[at]!.s, s, length)) at = i;
+    });
+    const sample = samples[at]!;
     const inset = layer === 'rampart' ? RAMPART_CROWN_M : layerLine(fort, layer);
     const [cx, cz] = insetPoint(sample, inset, fortBand(fort));
-    const tx = shape.line.dx;
-    const tz = shape.line.dz;
+    // brána je rovná tětiva křivky (fortifications.md – Brány) – směr podél obvodu u brány
+    const [tx, tz] = tangentAt(samples, at);
     const nx = sample.nx;
     const nz = sample.nz;
     const yawOf = (dx: number, dz: number): number => Math.atan2(-dz, dx);
@@ -939,8 +904,7 @@ export function ditchCuts(fort: SceneFortification): DitchCut[] {
   if (fort.kind !== 'rampart') return [];
   const looks = rampartLooks(fort);
   const band = fortBand(fort);
-  // oblouky po čtvrtinách – osa příkopu (poloměr ≈ 6 m) se od tětiv odchýlí nejvýš o ≈ 0,1 m
-  const samples = perimeterSamples(fort, 0.5, 4);
+  const samples = perimeterSamples(fort, 0.5);
   const deep = samples.map(
     (p) => -rampartProfile(DITCH_AXIS_M, rampartAt(fort, looks, p.s)) > CUT_MIN_DEPTH_M,
   );
@@ -964,17 +928,9 @@ export function ditchCuts(fort: SceneFortification): DitchCut[] {
   const out: DitchCut[] = [];
   for (const r of runs) {
     const pts = full ? r : trimEnds(r, half);
-    // sloučení bodů na jedné přímce (rovné kusy) – úsečka jen tam, kde se čára láme
-    const kept: [number, number][] = [];
-    for (const p of pts) {
-      if (kept.length >= 2) {
-        const a = kept[kept.length - 2]!;
-        const b = kept[kept.length - 1]!;
-        const cross = (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0]);
-        if (Math.abs(cross) < 1e-3) kept.pop();
-      }
-      kept.push(p);
-    }
+    // zjednodušení čáry (Douglas–Peucker) – úsečka jen tam, kde se křivka odchýlí o víc než
+    // DITCH_SIMPLIFY_M, ať se osa příkopu vejde do mezí shaderu
+    const kept = simplifyLine(pts, DITCH_SIMPLIFY_M);
     for (let i = 0; i + 1 < kept.length; i++) {
       const [ax, az] = kept[i]!;
       const [bx, bz] = kept[i + 1]!;

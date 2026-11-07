@@ -50,13 +50,13 @@ export function missingLogsText(missing: number): string {
  */
 export interface SceneFortification extends Pick<
   Fortification,
-  'id' | 'grid' | 'cells' | 'kind' | 'top' | 'segments' | 'gates' | 'rampartHeight'
+  'id' | 'points' | 'grid' | 'cells' | 'kind' | 'top' | 'segments' | 'gates' | 'rampartHeight'
 > {
   building: boolean;
   outline: FortPoint[];
   band: FortPoint[][];
-  /** Tvar úseků v pořadí obvodu (jádro – `fortSegments`): rovná část a oblouk rohu. */
-  shapes: Pick<FortSegmentShape, 'index' | 'line' | 'arc' | 'lengthM'>[];
+  /** Tvar úseků v pořadí obvodu (jádro – `fortSegments`): lomená čára křivky a délka. */
+  shapes: Pick<FortSegmentShape, 'index' | 'path' | 'lengthM'>[];
   /** Poloměry rohů obvodu (jádro – `FortOutline.corners`): vnější a vnitřní roh, zmenšené. */
   corners: FortOutline['corners'];
   /** Stáří a stavba úseků ve scéně – stejné pořadí jako `shapes` (fortification-layout.ts). */
@@ -171,15 +171,16 @@ export function sceneFortification(
   const shapes = fortSegments(outline);
   return {
     id: fort.id,
-    grid: fort.grid,
-    cells: fort.cells,
+    ...(fort.points ? { points: fort.points } : {}),
+    ...(fort.grid !== undefined ? { grid: fort.grid } : {}),
+    ...(fort.cells ? { cells: fort.cells } : {}),
     kind: fort.kind,
     ...(fort.top ? { top: fort.top } : {}),
     segments: fort.segments,
     gates: fort.gates,
     ...(fort.rampartHeight !== undefined ? { rampartHeight: fort.rampartHeight } : {}),
     ...fortShape(outline),
-    shapes: shapes.map(({ index, line, arc, lengthM }) => ({ index, line, arc, lengthM })),
+    shapes: shapes.map(({ index, path, lengthM }) => ({ index, path, lengthM })),
     corners: outline.corners,
     looks,
     ...extra,
