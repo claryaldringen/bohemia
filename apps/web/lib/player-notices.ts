@@ -23,6 +23,11 @@ export function noticePanel(kind: PlayerNoticeKind): NoticePanel | null {
   switch (kind) {
     case 'invite-accepted':
     case 'invitee-played':
+    case 'newcomer-request':
+    case 'newcomer-accepted':
+    case 'newcomer-rejected-all':
+    case 'newcomer-assigned':
+    case 'newcomer-taken':
     case 'negotiation-offer':
     case 'negotiation-counter':
     case 'negotiation-accepted':
@@ -108,6 +113,19 @@ function textOf(n: PlayerNotice): string {
       return `${nameOf(n.payload)} přijal pozvánku – je tvým vazalem.`;
     case 'invitee-played':
       return `${nameOf(n.payload)} se rozehrál.`;
+    case 'newcomer-request':
+      return `${otherName(n.payload)} žádá o přijetí za vazala.`;
+    case 'newcomer-accepted':
+      return `${otherName(n.payload)} tě přijal za vazala.`;
+    case 'newcomer-rejected-all':
+      return 'Všichni vybraní páni žádost odmítli.';
+    case 'newcomer-assigned':
+      if (n.payload.houseId === null) return 'Týden uplynul – začínáš svobodný.';
+      return n.payload.asLord === true
+        ? `Los ti přidělil vazala: ${otherName(n.payload)}.`
+        : `Týden uplynul – los tě přidělil pánovi: ${otherName(n.payload)}.`;
+    case 'newcomer-taken':
+      return `${otherName(n.payload)} už má jiného pána.`;
     case 'negotiation-offer':
       return `${otherName(n.payload)} ti poslal návrh dohody.`;
     case 'negotiation-counter':
