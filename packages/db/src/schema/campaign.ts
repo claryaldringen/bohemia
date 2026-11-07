@@ -1,4 +1,4 @@
-import { index, integer, jsonb, pgTable, serial, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { bigint, index, jsonb, pgTable, serial, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 import type { CampaignOutbox, CampaignState, IntentBody } from '@bohemia/game';
 import { user } from './auth';
 import { war } from './war';
@@ -33,7 +33,7 @@ export const campaignCheckpoint = pgTable('campaign_checkpoint', {
   campaignId: uuid('campaign_id')
     .primaryKey()
     .references(() => campaign.id, { onDelete: 'cascade' }),
-  tick: integer('tick').notNull(),
+  tick: bigint('tick', { mode: 'number' }).notNull(),
   state: jsonb('state').$type<CampaignState>().notNull(),
   outbox: jsonb('outbox').$type<CampaignOutbox>(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -50,7 +50,7 @@ export const campaignIntent = pgTable(
     campaignId: uuid('campaign_id')
       .notNull()
       .references(() => campaign.id, { onDelete: 'cascade' }),
-    tick: integer('tick').notNull(),
+    tick: bigint('tick', { mode: 'number' }).notNull(),
     byPlayer: text('by_player').notNull(),
     body: jsonb('body').$type<IntentBody>().notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
