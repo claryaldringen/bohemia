@@ -9,12 +9,19 @@ import {
   type WarDeps,
 } from '../declare-war';
 import type { NegotiateDeps } from '../negotiate';
+import { InMemoryDisputes } from './in-memory-disputes';
 import { DAY_MS, NOW, oath, setup, type Setup } from './negotiation-fixture';
 
 const at = (days: number): Date => new Date(NOW.getTime() + days * DAY_MS);
 
 type Deps = NegotiateDeps & WarDeps;
-const depsOf = (s: Setup): Deps => ({ ...s.deps, wars: s.wars, notices: s.notices });
+const depsOf = (s: Setup): Deps => ({
+  ...s.deps,
+  wars: s.wars,
+  notices: s.notices,
+  disputes: new InMemoryDisputes(),
+  vassalages: s.vassalages,
+});
 
 const declare = (
   s: Setup,

@@ -112,6 +112,17 @@ export function planDefense(input: StanceInput): StancePlan {
         age: ageYears(p.bornDay, day),
       };
     });
+  // hosté z ochrany jednají se skupinou svého místa (útočiště, les, vzdání) jako dospělí
+  for (const d of input.defenders) {
+    if (d.guest) {
+      people.push({
+        id: d.personId,
+        pos: { ...d.pos },
+        group: d.houseGroup,
+        age: WAR.flight.adultFromYears,
+      });
+    }
+  }
   const fighterOf = new Map(input.defenders.map((d) => [d.personId, d]));
   const shelter: ShelterReport = {
     stance,

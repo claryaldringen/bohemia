@@ -5,6 +5,7 @@ import { dateOfDayIndex, type TermItem } from '@bohemia/game';
 import { formatGameDate } from '@/lib/game-date';
 import type { HouseView } from '@/lib/house-view';
 import { cedeBlockReason, type CedeVillage } from '@/lib/peace-cede';
+import type { ProtectionView } from '@/lib/protection';
 import type { PassageView } from '@/lib/summons';
 import { Tooltip } from './Tooltip';
 
@@ -256,6 +257,199 @@ function SummonList({
   );
 }
 
+const iconButton = 'hud-icon-button flex h-6 w-6 items-center justify-center disabled:opacity-40';
+
+function Icon({ src, size = 14 }: { src: string; size?: number }): ReactElement {
+  return <img src={src} alt="" width={size} height={size} draggable={false} />;
+}
+
+/**
+ * Ohlášení průchodu z války (war.md – Pohyb): rodům, kterými vojsko půjde, vzkaz a podání ruky;
+ * mapy (trasa k nepříteli) dopočte server.
+ */
+function PassageAnnounce({
+  houses,
+  warId,
+  onAnnounce,
+}: {
+  houses: readonly { houseId: string; lordName: string | null }[];
+  warId: string;
+  onAnnounce: (warId: string, house: string, message: string) => Promise<ActionResult>;
+}): ReactElement {
+  const [message, setMessage] = useState('');
+  const [status, setStatus] = useState<string | null>(null);
+  const [done, setDone] = useState<readonly string[]>([]);
+  return (
+    <div data-testid="war-passage-list" className="flex flex-col gap-1 pt-1">
+      <Tooltip content="Vzkaz">
+        <input
+          type="text"
+          data-testid="war-passage-message"
+          maxLength={500}
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          className="w-full rounded-sm border border-[#5c4526] bg-[#0f0b07] px-1 py-0.5 text-xs"
+        />
+      </Tooltip>
+      {houses.map((h) => (
+        <div key={h.houseId} className="flex items-center gap-1.5 text-xs">
+          <span className="min-w-0 flex-1 truncate">{h.lordName ?? 'Rod bez jména'}</span>
+          <Tooltip content={done.includes(h.houseId) ? 'Průchod ohlášen' : 'Ohlásit průchod'}>
+            <button
+              type="button"
+              aria-label="Ohlásit průchod"
+              data-testid="war-announce-passage"
+              data-house-id={h.houseId}
+              disabled={done.includes(h.houseId)}
+              className={iconButton}
+              onClick={() =>
+                void onAnnounce(warId, h.houseId, message).then((result) => {
+                  setStatus('error' in result ? result.error : null);
+                  if (!('error' in result)) setDone((d) => [...d, h.houseId]);
+                })
+              }
+            >
+              <Icon src={`${ICON}/passage.svg`} />
+            </button>
+          </Tooltip>
+        </div>
+      ))}
+      {status && <span className="text-xs text-[#e0a090]">{status}</span>}
+    </div>
+  );
+}
+
+/**
+ * Ochrana vojskem (vassalage.md – Ochrana vojskem): štít s muži pána na ochraně zobrazené vsi,
+ * žádost u pánů (sepjaté ruce), u vsí vazalů počet mužů, poslat a odvolat.
+ */
+function ProtectionRows({
+  protection,
+  onRequest,
+  onSend,
+  onRecall,
+}: {
+  protection: ProtectionView;
+  onRequest: (vassalageId: string) => Promise<ActionResult>;
+  onSend: (vassalageId: string, villageId: string, men: number) => Promise<ActionResult>;
+  onRecall: (vassalageId: string, villageId: string) => Promise<ActionResult>;
+}): ReactElement {
+  const [men, setMen] = useState<Record<string, number>>({});
+  const [status, setStatus] = useState<string | null>(null);
+  const [requested, setRequested] = useState<readonly string[]>([]);
+  const run = (action: Promise<ActionResult>, onOk?: () => void): void => {
+    void action.then((result) => {
+      setStatus('error' in result ? result.error : null);
+      if (!('error' in result)) onOk?.();
+    });
+  };
+  return (
+    <div
+      data-testid="war-protection"
+      className="mt-2 flex flex-col gap-1 border-t border-[#5c4526] pt-2"
+    >
+      <div className="flex items-center gap-1.5 text-xs">
+        <Tooltip content="Muži pána na ochraně této vsi">
+          <span tabIndex={0} data-testid="war-guards" className="inline-flex items-center gap-0.5">
+            <Icon src={`${ICON}/shield.svg`} />
+            {protection.guards}
+          </span>
+        </Tooltip>
+        {protection.lords.map((lord) => (
+          <Tooltip
+            key={lord.vassalageId}
+            content={
+              requested.includes(lord.vassalageId)
+                ? `Požádáno – ${lord.name}`
+                : `Požádat o ochranu – ${lord.name}`
+            }
+          >
+            <button
+              type="button"
+              aria-label="Požádat o ochranu"
+              data-testid="war-request-protection"
+              data-vassalage-id={lord.vassalageId}
+              disabled={requested.includes(lord.vassalageId)}
+              className={iconButton}
+              onClick={() =>
+                run(onRequest(lord.vassalageId), () =>
+                  setRequested((r) => [...r, lord.vassalageId]),
+                )
+              }
+            >
+              <Icon src={`${ICON}/hands.svg`} />
+            </button>
+          </Tooltip>
+        ))}
+      </div>
+      {protection.vassalVillages.map((v) => {
+        const key = `${v.vassalageId}:${v.villageId}`;
+        const count = Math.min(men[key] ?? 1, Math.max(1, protection.serviceMen));
+        return (
+          <div
+            key={key}
+            data-testid="war-guard-village"
+            data-village-id={v.villageId}
+            className="flex items-center gap-1.5 text-xs"
+          >
+            <span className="min-w-0 flex-1 truncate">{v.villageName}</span>
+            <Tooltip content="Tvoji muži na ochraně">
+              <span
+                tabIndex={0}
+                data-testid="war-guard-sent"
+                className="inline-flex items-center gap-0.5"
+              >
+                <Icon src={`${ICON}/shield.svg`} />
+                {v.sent}
+              </span>
+            </Tooltip>
+            <Tooltip content="Kolik mužů poslat">
+              <input
+                type="number"
+                data-testid="war-guard-count"
+                min={1}
+                max={Math.max(1, protection.serviceMen)}
+                value={count}
+                onChange={(e) => setMen((m) => ({ ...m, [key]: Number(e.target.value) || 1 }))}
+                className="w-10 rounded-sm border border-[#5c4526] bg-[#0f0b07] px-1 text-xs"
+              />
+            </Tooltip>
+            <Tooltip content="Poslat muže na ochranu">
+              <button
+                type="button"
+                aria-label="Poslat muže na ochranu"
+                data-testid="war-guard-send"
+                disabled={protection.serviceMen === 0}
+                className={iconButton}
+                onClick={() => run(onSend(v.vassalageId, v.villageId, count))}
+              >
+                <Icon src={`${ICON}/guard-send.svg`} />
+              </button>
+            </Tooltip>
+            <Tooltip content="Odvolat muže">
+              <button
+                type="button"
+                aria-label="Odvolat muže"
+                data-testid="war-guard-recall"
+                disabled={v.sent === 0}
+                className={iconButton}
+                onClick={() => run(onRecall(v.vassalageId, v.villageId))}
+              >
+                <Icon src={`${ICON}/guard-recall.svg`} />
+              </button>
+            </Tooltip>
+          </div>
+        );
+      })}
+      {status && (
+        <span data-testid="war-protection-error" className="text-xs text-[#e0a090]">
+          {status}
+        </span>
+      )}
+    </div>
+  );
+}
+
 /** Ohlášení průchodu (war.md – Pohyb): vzít na vědomí, nebo „Nevěřit“. */
 function PassageRows({
   passages,
@@ -321,7 +515,18 @@ export function WarPanel({
   passages = [],
   onAnswerPassage,
   ownVillages = [],
+  protection = null,
+  onRequestProtection,
+  onSendProtection,
+  onRecallProtection,
+  onAnnouncePassage,
 }: {
+  /** Ochrana vojskem (null – načítá se nebo není k dispozici). */
+  protection?: ProtectionView | null;
+  onRequestProtection?: (vassalageId: string) => Promise<ActionResult>;
+  onSendProtection?: (vassalageId: string, villageId: string, men: number) => Promise<ActionResult>;
+  onRecallProtection?: (vassalageId: string, villageId: string) => Promise<ActionResult>;
+  onAnnouncePassage?: (warId: string, house: string, message: string) => Promise<ActionResult>;
   view: HouseView | null;
   /** Vlastní vsi hráče (výběr vsí k postoupení v míru). */
   ownVillages?: readonly CedeVillage[];
@@ -336,6 +541,7 @@ export function WarPanel({
 }): ReactElement {
   const [offering, setOffering] = useState<string | null>(null);
   const [summoning, setSummoning] = useState<string | null>(null);
+  const [announcing, setAnnouncing] = useState<string | null>(null);
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
       if (event.code === 'Escape') onClose();
@@ -414,6 +620,32 @@ export function WarPanel({
                   )}
                 </>
               )}
+              {onAnnouncePassage && view && (
+                <>
+                  <Tooltip content="Ohlásit průchod">
+                    <button
+                      type="button"
+                      data-testid="war-passage-open"
+                      aria-label="Ohlásit průchod"
+                      className="hud-icon-button mt-1 flex h-6 w-6 items-center justify-center"
+                      onClick={() => setAnnouncing(announcing === war.warId ? null : war.warId)}
+                    >
+                      <Icon src={`${ICON}/passage.svg`} size={16} />
+                    </button>
+                  </Tooltip>
+                  {announcing === war.warId && (
+                    <PassageAnnounce
+                      warId={war.warId}
+                      houses={[...view.lords, ...view.vassals, ...view.others].filter(
+                        (h, i, all) =>
+                          h.houseId !== war.other.houseId &&
+                          all.findIndex((x) => x.houseId === h.houseId) === i,
+                      )}
+                      onAnnounce={onAnnouncePassage}
+                    />
+                  )}
+                </>
+              )}
               {onOfferPeace && (
                 <>
                   <Tooltip content="Nabídnout mír">
@@ -454,6 +686,20 @@ export function WarPanel({
         </ul>
       )}
       {onAnswerPassage && <PassageRows passages={passages} onAnswer={onAnswerPassage} />}
+      {protection &&
+        onRequestProtection &&
+        onSendProtection &&
+        onRecallProtection &&
+        (protection.lords.length > 0 ||
+          protection.vassalVillages.length > 0 ||
+          protection.guards > 0) && (
+          <ProtectionRows
+            protection={protection}
+            onRequest={onRequestProtection}
+            onSend={onSendProtection}
+            onRecall={onRecallProtection}
+          />
+        )}
       {error && (
         <p data-testid="war-error" role="alert" className="pt-1 text-xs text-[#e0a090]">
           {error}

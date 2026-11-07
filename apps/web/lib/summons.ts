@@ -1,6 +1,7 @@
 import {
   ageYears,
   announcePassage,
+  answerNpcSummons,
   answerPassage,
   answerSummons,
   houseName,
@@ -59,6 +60,7 @@ function summonsDeps(): SummonsDeps {
     villages: deps.villages,
     settlements: deps.settlements,
     shipments: levy.shipments,
+    stewardships: deps.stewardships,
     prepareVillage: levy.prepareVillage,
   };
 }
@@ -68,7 +70,11 @@ export async function summonsDialogsForPlayer(playerId: string): Promise<Summons
   const today = await playerToday(playerId);
   if (!today.ok) return [];
   const deps = summonsDeps();
-  const open = (await deps.dialogs.listOpen(playerId)).filter((d) => d.kind === 'summons');
+  // svolání NPC vazala drží svolávající, než ho NPC splní – hráči se neukazuje
+  const own = await deps.houses.activeOf(playerId);
+  const open = (await deps.dialogs.listOpen(playerId)).filter(
+    (d) => d.kind === 'summons' && summonsBody(d).vassalHouseId === own?.id,
+  );
   if (open.length === 0) return [];
   const men = await serviceMenOf(deps, { playerId, today: today.day });
   const candidates = men.map((m) => ({
@@ -100,13 +106,18 @@ export async function summonVassalsForPlayer(
   playerId: string,
   input: { warId: string; vassalageIds: string[]; targetVillageId: string },
 ): Promise<{ ok: true; opened: number; skipped: string[] } | { error: string }> {
-  const result = await summonVassalsActionForPlayer(playerId, input.targetVillageId, (ctx) =>
-    summonVassals(summonsDeps(), { playerId, ...input, today: ctx.day }),
-  );
-  if ('error' in result) return result;
-  return result.ok
-    ? { ok: true, opened: result.opened.length, skipped: result.skipped.map((s) => s.reason) }
-    : { error: result.reason };
+  const done = await summonVassalsActionForPlayer(playerId, input.targetVillageId, async (ctx) => ({
+    result: await summonVassals(summonsDeps(), { playerId, ...input, today: ctx.day }),
+    today: ctx.day,
+  }));
+  if ('error' in done) return done;
+  const { result, today } = done;
+  if (!result.ok) return { error: result.reason };
+  // NPC vazal plní hned a přesně – mimo zámek vsi (`sendMen` bere zámek držitele sám)
+  for (const dialogId of result.npcDialogIds) {
+    await answerNpcSummons(summonsDeps(), { dialogId, today });
+  }
+  return { ok: true, opened: result.opened.length, skipped: result.skipped.map((s) => s.reason) };
 }
 
 /** Vazal odpoví na Svolání – pošle vybrané muže rodu. */

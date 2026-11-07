@@ -120,6 +120,14 @@ export interface CampaignLoot {
 export type CampaignReturnReason = 'arrived' | 'supplies' | 'order' | 'routed';
 
 /** Tažení – celý stav, ze kterého se počítá další takt. */
+/** Host z ochrany v boji: záporné číslo bojovníka, domovská osoba a co potřebuje zajetí. */
+export interface CampaignGuard {
+  id: number;
+  ref: PersonRef;
+  name?: string;
+  noble?: true;
+}
+
 export interface CampaignState {
   id: string;
   warId: string;
@@ -157,6 +165,11 @@ export interface CampaignState {
   returnReason: CampaignReturnReason | null;
   /** Boj na mapě cíle (war.md – Boj; Ú6.8) – od prvního taktu nájezdu; chybí – zatím nebojovali. */
   battle?: BattleState;
+  /**
+   * Hosté z ochrany pánem, kteří se v boji bránili se vsí (vassalage.md – Ochrana vojskem): číslo
+   * v boji (záporné) → osoba v domovské vsi. Chybí – žádní hosté nebo boj ještě nezačal.
+   */
+  guards?: CampaignGuard[];
   /**
    * Dny nájezdu (Ú6.7 – war.md, Ves během nájezdu nepracuje): ves → poslední den, na který tažení
    * poslalo `raid-day` (vojsko na její mapě). Chybí – žádná ves vojsko neviděla.

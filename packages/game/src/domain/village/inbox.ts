@@ -11,9 +11,11 @@ import { pruneThreats } from './fortification/threat';
 import {
   applyCampaignReturn,
   applyFortificationBreach,
+  applyGuardLosses,
   applyLineManFell,
   applyRaidResult,
   type CampaignReturn,
+  type GuardLosses,
   type RaidResult,
 } from '../war/raid-apply';
 import { applyCaptiveReturns, type CaptiveReturns } from '../war/captives';
@@ -98,6 +100,11 @@ export type VillageEventBody =
   /** Muž rodu padl na tažení (war.md – Ztráty; `applyLineManFell`): smrt a nástupnictví. */
   | { kind: 'line-man-fell'; personId: number; campaignId: string }
   /**
+   * Ztráty mužů vsi, kteří bránili jinou ves jako hosté z ochrany pánem (`applyGuardLosses`):
+   * padlí (muž rodu – nástupnictví), ranění a zajatí.
+   */
+  | ({ kind: 'guard-losses' } & GuardLosses)
+  /**
    * Průlom opevnění (fortifications.md – Prolomení; `applyFortificationBreach`): úseky se stavem 0,
    * obyvatelé je přestaví přednostně.
    */
@@ -171,6 +178,8 @@ function applyEvent(state: VillageState, day: number, body: VillageEventBody): C
       return applyCaptiveReturns(state, day, body);
     case 'line-man-fell':
       return applyLineManFell(state, day, body);
+    case 'guard-losses':
+      return applyGuardLosses(state, day, body);
     case 'fortification-breach':
       applyFortificationBreach(state, day, body);
       return [];

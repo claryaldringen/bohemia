@@ -16,10 +16,12 @@ import {
 } from '../plan-campaign';
 import { NOT_PLAYER_VILLAGE } from '../player-villages';
 import { InMemoryCampaigns } from './in-memory-campaigns';
+import { InMemoryDisputes } from './in-memory-disputes';
 import { InMemoryHouses } from './in-memory-houses';
 import { InMemoryNotices } from './in-memory-notices';
 import { InMemorySettlements } from './in-memory-settlements';
 import { InMemoryVillages } from './in-memory-villages';
+import { InMemoryVassalages } from './in-memory-vassalages';
 import { InMemoryWars } from './in-memory-wars';
 
 // Příprava a vyslání tažení (war.md – Velení a příprava tažení; plán 2026-11-03 – Úloha 6.6).
@@ -45,6 +47,8 @@ async function world(
   campaigns: InMemoryCampaigns;
   wars: InMemoryWars;
   houses: InMemoryHouses;
+  disputes: InMemoryDisputes;
+  vassalages: InMemoryVassalages;
   ids: { home: string; second: string; target: string; foreign: string };
   plan: CampaignPlan;
   forcedHome: number[];
@@ -98,6 +102,8 @@ async function world(
   await houses.setLord(b.id, { villageId: target.id, personId: 10 });
   let n = 0;
   const campaigns = new InMemoryCampaigns();
+  const disputes = new InMemoryDisputes();
+  const vassalages = new InMemoryVassalages();
   const deps: LaunchDeps = {
     houses,
     wars,
@@ -109,6 +115,8 @@ async function world(
     campaigns,
     seeds: { nextSeed: () => 99 },
     newId: () => `camp-${++n}`,
+    disputes,
+    vassalages,
   };
   // nucení: první způsobilí, kteří se nepřihlásili sami (dobrovolníky losuje vlastní los)
   const forcedOf = (
@@ -143,6 +151,8 @@ async function world(
     campaigns,
     wars,
     houses,
+    disputes,
+    vassalages,
     ids: { home: home.id, second: second.id, target: target.id, foreign: foreign.id },
     plan,
     forcedHome,
@@ -309,6 +319,43 @@ describe('vyslání tažení (launchCampaign)', () => {
     const result = await launchCampaign(w.deps, input(w.plan));
     expect(result.ok).toBe(true);
     expect(w.wars.all[0]).toMatchObject({ how: 'ambush', status: 'active' });
+  });
+
+  it('přepadení tažením přes rozsudek „mír“ zapíše útočníkovi neposlušnost', async () => {
+    const w = await world();
+    const [a, b, c] = [
+      await w.houses.activeOf('pa'),
+      await w.houses.activeOf('pb'),
+      await w.houses.activeOf('pc'),
+    ];
+    // c je pán a i b a nařídil mezi nimi mír
+    const since = { sinceAt: NOW, sinceDay: START, origin: 'negotiation' as const };
+    const va = await w.vassalages.create({
+      lordHouseId: c!.id,
+      vassalHouseId: a!.id,
+      ...since,
+      terms: {} as never,
+    });
+    await w.vassalages.create({
+      lordHouseId: c!.id,
+      vassalHouseId: b!.id,
+      ...since,
+      terms: {} as never,
+    });
+    const filed = await w.disputes.file({
+      lordHouseId: c!.id,
+      plaintiffHouseId: b!.id,
+      defendantHouseId: a!.id,
+      message: 'Spor.',
+      filedAt: NOW,
+      filedDay: START - 2,
+    });
+    await w.disputes.judge(filed!.id, { kind: 'peace' }, START - 1, START + 1826);
+    const result = await launchCampaign(w.deps, input(w.plan));
+    expect(result.ok).toBe(true);
+    expect(w.wars.all[0]).toMatchObject({ how: 'ambush' });
+    expect(w.vassalages.breachLog).toMatchObject([{ id: va.id, kind: 'judgment', day: START }]);
+    expect(w.disputes.rows[0]!.brokenBy).toEqual([a!.id]);
   });
 
   it('cíl v ochraně se nevyšle – nikdo neodejde, válka nevznikne', async () => {

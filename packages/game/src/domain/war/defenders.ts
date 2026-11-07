@@ -2,7 +2,7 @@ import { isLineMan, lineMen } from '../village/dynasty';
 import { villageHappiness } from '../village/happiness';
 import { ageYears, isAway, isInjured } from '../village/people';
 import { AGE } from '../village/rules';
-import type { Dwelling, VillageState } from '../village/types';
+import type { Dwelling, Person, VillageState } from '../village/types';
 import type { Fighter } from './battle';
 import type { Pos } from './march-grid';
 import {
@@ -37,6 +37,18 @@ export interface Defender {
   atHouseOnly: boolean;
   /** Poslední muž rodu doma – neklesne pod 10 zdraví, nevzdá se a vždy uteče. */
   lastLine: boolean;
+  /** Host z ochrany pánem (`GuardGuest`) – `personId` je jeho záporné číslo v boji. */
+  guest?: true;
+}
+
+/**
+ * Muž pána, který je ve vsi hostem z ochrany (vassalage.md – Ochrana vojskem; war.md – Obránci):
+ * osoba je ve stavu domovské vsi, v boji vystupuje pod záporným číslem `id` (−1, −2, … – nikdy se
+ * nepotká s lidmi vsi).
+ */
+export interface GuardGuest {
+  id: number;
+  person: Person;
 }
 
 /** Volby soupisu obránců. */
@@ -46,6 +58,8 @@ export interface RosterOptions {
    * ves, a tak je posledním každý jediný muž rodu ve vsi (ochrana spícího hráče má přednost).
    */
   lineMenElsewhere?: number;
+  /** Hosté z ochrany pánem – brání se se vsí od dvorce (první obydlí) jako muži rodu s lukem. */
+  guests?: readonly GuardGuest[];
 }
 
 /**
@@ -117,6 +131,21 @@ export function defenderRoster(
       bow: line,
       atHouseOnly: !line && !man,
       lastLine: line && lastLine,
+    });
+  }
+  // hosté z ochrany (návrh Clauda): stojí u prvního obydlí, nejsou „poslední doma“ – nejsou doma
+  for (const g of options.guests ?? []) {
+    if (isInjured(g.person, day)) continue;
+    roster.push({
+      personId: g.id,
+      pos: fallback ? { x: fallback.position.x, z: fallback.position.z } : { x: 0, z: 0 },
+      houseGroup: fallback ? (groups.get(fallback.id) ?? 0) : 0,
+      strength: lineManStrength(g.person, null),
+      line: true,
+      bow: true,
+      atHouseOnly: false,
+      lastLine: false,
+      guest: true,
     });
   }
   return roster;

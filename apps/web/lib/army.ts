@@ -44,6 +44,9 @@ function launchDeps(): LaunchDeps {
     newId: randomUUID,
     // útok po ohlášeném průchodu ohlášení zruší (war.md – Pohyb)
     passages: deps.passages,
+    // přepadení přes rozsudek pána „mír“ = neposlušnost (vassalage.md – Mír a spory)
+    disputes: deps.disputes,
+    vassalages: deps.vassalages,
   };
 }
 

@@ -18,11 +18,11 @@ export interface WarDeps extends NegotiationVillages {
   wars: WarRepository;
   notices: NoticeRepository;
   /**
-   * Rozsudky pána (`disputes` + `vassalages`) (vassalage.md – Mír a spory): válka přes platný rozsudek „mír“ se zapíše jako
-   * neposlušnost; válku to nezakáže. Bez závislosti se nezapisuje nic.
+   * Rozsudky pána (`disputes` + `vassalages`) (vassalage.md – Mír a spory): válka přes platný
+   * rozsudek „mír“ – opověď i přepadení tažením – se zapíše jako neposlušnost; válku to nezakáže.
    */
-  disputes?: BrokenPeaceDeps['disputes'];
-  vassalages?: BrokenPeaceDeps['vassalages'];
+  disputes: BrokenPeaceDeps['disputes'];
+  vassalages: BrokenPeaceDeps['vassalages'];
   /**
    * Ohlášené průchody (war.md – Pohyb): válka mezi rody – opověď i útok po ohlášení – ohlášení
    * zruší pro všechny vsi rodu (návrh Clauda). Bez závislosti se nic neruší.
@@ -43,14 +43,13 @@ export const WAR_REASONS = {
 const DAYS_PER_YEAR = 365.25;
 const DAY_MS = 86_400_000;
 
-/** Válka přes rozsudek „mír“ (jen je-li zapojeno): zápis neposlušnosti agresora. */
+/** Válka přes rozsudek „mír“: zápis neposlušnosti agresora. */
 async function brokenPeace(
   deps: WarDeps,
   aggressorId: string,
   otherId: string,
   today: number,
 ): Promise<void> {
-  if (!deps.disputes || !deps.vassalages) return;
   await noteBrokenPeace(
     {
       villages: deps.villages,

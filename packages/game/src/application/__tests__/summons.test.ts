@@ -3,6 +3,7 @@ import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
 import { DAY, receiver, sender } from '../../domain/vassalage/__tests__/shipment-fixtures';
 import type { Person, VillageState } from '../../domain/village';
 import {
+  answerNpcSummons,
   answerSummons,
   lapseSummons,
   serviceMenOf,
@@ -17,6 +18,7 @@ import { InMemoryPlayerLock } from './in-memory-locks';
 import { InMemoryNotices } from './in-memory-notices';
 import { InMemorySettlements } from './in-memory-settlements';
 import { InMemoryShipments } from './in-memory-shipments';
+import { InMemoryStewardships } from './in-memory-stewardships';
 import { InMemoryVassalages } from './in-memory-vassalages';
 import { InMemoryVillages } from './in-memory-villages';
 import { InMemoryWars } from './in-memory-wars';
@@ -63,6 +65,8 @@ async function world(service = { men: 2, days: 30 }): Promise<{
   subVillage: string;
   vassalageId: string;
   subVassalageId: string;
+  npcVillage: string;
+  npcVassalageId: string;
 }> {
   const settlements = new InMemorySettlements();
   const villages = new InMemoryVillages();
@@ -120,6 +124,30 @@ async function world(service = { men: 2, days: 30 }): Promise<{
     terms: { service: { men: 1, days: 20 } },
     ...since,
   });
+  // povýšený šlechtic (NPC rod) spravuje pánovu ves Vrbno – jeho muži jsou v ní
+  const npc = await houses.create({ playerId: null, kind: 'npc', createdAt: NOW });
+  const npcState = withMen(sender(), 'Lupráč', []);
+  [921, 922, 923].forEach((id, i) =>
+    npcState.people.push({ ...lineMan(id, 20 + i, 10 + 10 * i), noble: { houseId: npc.id } }),
+  );
+  const npcVillage = await villages.add(await seat(LORD, 6, 5), 'Vrbno', npcState);
+  const nv = await vassalages.create({
+    lordHouseId: lord,
+    vassalHouseId: npc.id,
+    terms: { service: { men: 2, days: 30 } },
+    origin: 'ennoble',
+    sinceAt: NOW,
+    sinceDay: DAY - 400,
+  });
+  const stewardships = new InMemoryStewardships();
+  await stewardships.start({
+    villageId: npcVillage.id,
+    stewardHouseId: npc.id,
+    holderHouseId: lord,
+    kind: 'npc',
+    vassalageId: nv.id,
+    since: NOW,
+  });
   const { war } = await wars.start({
     houses: [lord, enemy],
     startedAt: NOW,
@@ -141,6 +169,7 @@ async function world(service = { men: 2, days: 30 }): Promise<{
       locks: new InMemoryPlayerLock(),
       now: () => NOW,
     },
+    stewardships,
     prepareVillage: () => Promise.resolve(null),
   };
   return {
@@ -155,6 +184,8 @@ async function world(service = { men: 2, days: 30 }): Promise<{
     subVillage: subVillage.id,
     vassalageId: v.id,
     subVassalageId: sv.id,
+    npcVillage: npcVillage.id,
+    npcVassalageId: nv.id,
   };
 }
 
@@ -231,6 +262,35 @@ describe('svolání vazalů', () => {
       today: DAY,
     });
     expect(again).toEqual({ ok: false, reason: SUMMONS_REASONS.answered });
+  });
+
+  it('NPC vazal pošle přesně domluvené muže – nejzdatnější muže rodu, bez dialogu', async () => {
+    const w = await world();
+    const summoned = await summonVassals(w.deps, {
+      playerId: LORD,
+      warId: w.warId,
+      vassalageIds: [w.npcVassalageId],
+      targetVillageId: w.lordVillage,
+      today: DAY,
+    });
+    if (!summoned.ok) throw new Error(summoned.reason);
+    expect(summoned.npcDialogIds).toHaveLength(1);
+    const dialogId = summoned.npcDialogIds[0]!;
+    const answered = await answerNpcSummons(w.deps, { dialogId, today: DAY });
+    expect(answered).toMatchObject({ ok: true, sent: 2, short: false });
+    // dva nejzdatnější šlechtici (ne vesničan, ne hlava vsi bez výcviku), třetí zůstal
+    const home = (await w.villages.find(w.npcVillage))!.state;
+    expect(home.people.filter((p) => p.away?.kind === 'service').map((p) => p.id)).toEqual([
+      922, 923,
+    ]);
+    expect(w.vassalages.breachLog).toEqual([]);
+    expect((await w.dialogs.listOpen(LORD)).filter((d) => d.kind === 'summons')).toEqual([]);
+    expect(summonsBody((await w.dialogs.byId(dialogId))!)).toMatchObject({ sent: 2 });
+    // opakování nic nezdvojí; dny služby se počítají jako u hráče
+    expect(await answerNpcSummons(w.deps, { dialogId, today: DAY })).toEqual({
+      ok: false,
+      reason: SUMMONS_REASONS.answered,
+    });
   });
 
   it('víc svolání do vyčerpání dnů služby za herní rok', async () => {

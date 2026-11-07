@@ -273,29 +273,92 @@ export function prisonerKey(campaignId: string, personId: number): string {
 }
 
 /**
+ * Klíč zajetí hosta z ochrany (`<tažení>:<ves>:<osoba>`) – osoba je z jiné vsi než napadená, číslo
+ * by se mohlo potkat s jejími lidmi.
+ */
+export function guardPrisonerKey(
+  campaignId: string,
+  ref: { villageId: string; personId: number },
+): string {
+  return `${campaignId}:${ref.villageId}:${ref.personId}`;
+}
+
+/** Zajme osobu (mutuje): `away` zajetí u věznitele; zajatý vojvoda – ves řídí správce. */
+function markCaptive(
+  state: VillageState,
+  day: number,
+  p: Person,
+  captorVillageId: string,
+  refId: string,
+): boolean {
+  if (p.away?.kind === 'captive') return false;
+  p.away = { kind: 'captive', hostVillageId: captorVillageId, refId };
+  if (p.id === currentLord(state)?.id && state.steward?.on !== true) {
+    setStewardOn(state, day, true);
+    state.steward!.byCaptivity = true;
+  }
+  return true;
+}
+
+/**
  * Zajatí muži rodu zůstanou ve stavu vsi jako pryč (`captive`, bez data návratu – končí propuštěním
  * nebo smrtí). Zajme-li útočník hráčova vojvodu, ves dál řídí formální správce (steward.md –
  * Správce je šlechtic): přepínač se zapne a po návratu vojvody vypne. Vrací počet zajatých.
  */
 function captureMen(state: VillageState, day: number, body: RaidResult): number {
   if (!body.captured || !body.captorVillageId) return 0;
-  const lordId = currentLord(state)?.id;
   let n = 0;
   for (const id of new Set(body.captured)) {
     const p = state.people.find((x) => x.id === id);
-    if (!p || p.away?.kind === 'captive') continue;
-    p.away = {
-      kind: 'captive',
-      hostVillageId: body.captorVillageId,
-      refId: prisonerKey(body.campaignId, id),
-    };
-    n++;
-    if (id === lordId && state.steward?.on !== true) {
-      setStewardOn(state, day, true);
-      state.steward!.byCaptivity = true;
-    }
+    if (!p) continue;
+    if (markCaptive(state, day, p, body.captorVillageId, prisonerKey(body.campaignId, id))) n++;
   }
   return n;
+}
+
+/** Ztráty mužů domovské vsi, kteří bránili jinou ves jako hosté z ochrany pánem. */
+export interface GuardLosses {
+  campaignId: string;
+  /** Domovská ves (do klíče zajetí). */
+  villageId: string;
+  fallen: number[];
+  wounded: number[];
+  captured: number[];
+  captorVillageId: string;
+}
+
+/**
+ * Ztráty hostů z ochrany v domovské vsi (mutuje stav; vassalage.md – Ochrana vojskem): padlí
+ * zemřou (bez pohřbu – padli v cizí vsi; muž rodu = nástupnictví jako u `line-man-fell`), ranění
+ * 60 dní nepracují (los smrti), zajatí jsou pryč u věznitele (klíč `guardPrisonerKey`). Kdo už ve
+ * vsi není, se přeskočí.
+ */
+export function applyGuardLosses(
+  state: VillageState,
+  day: number,
+  body: GuardLosses,
+): ChronicleEvent[] {
+  const byId = new Map(state.people.map((p) => [p.id, p]));
+  const events: ChronicleEvent[] = [];
+  const dead = new Set<number>();
+  for (const id of body.fallen) {
+    const p = byId.get(id);
+    if (!p || dead.has(id)) continue;
+    events.push(...warDeath(state, day, p, 'war', false));
+    dead.add(id);
+  }
+  for (const id of new Set(body.wounded)) {
+    const p = byId.get(id);
+    if (p && !dead.has(id)) wound(p, state.seed, day, day);
+  }
+  removePeople(state, dead);
+  for (const personId of new Set(body.captured)) {
+    const p = byId.get(personId);
+    if (!p || dead.has(personId)) continue;
+    const key = guardPrisonerKey(body.campaignId, { villageId: body.villageId, personId });
+    markCaptive(state, day, p, body.captorVillageId, key);
+  }
+  return events;
 }
 
 /** Zápis nájezdu do kroniky (obě strany – útočník ho dostane ze stejného výsledku). */
