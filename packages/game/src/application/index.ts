@@ -74,6 +74,8 @@ export * from './escheat';
 export * from './ennoble';
 export * from './wars';
 export * from './declare-war';
+export * from './disputes';
+export * from './judgment';
 export * from './war-chronicle';
 export * from './cell-landscape';
 export * from './cede-village';

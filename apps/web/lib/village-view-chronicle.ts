@@ -478,6 +478,8 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return `Vazalství mezi ${event.lord} (pán) a ${event.vassal} (vazal) skončilo vypovězením.`;
     case 'levy':
       return levyLine(event);
+    case 'disobeyed':
+      return `${event.name} neposlechl pána.`;
     case 'blocked':
       return `${event.blocker} zablokoval ${accusativeOf(event.blocked)}.`;
     case 'senior':

@@ -30,6 +30,15 @@ export type PlayerNoticeKind =
   | 'levy-sent'
   /** Vazalovi se otevřel dialog Odvody – payload `{ lordName, years }`. */
   | 'levy-pending'
+  /** Spor (vassalage.md – Mír a spory): pánovi dorazila žaloba – payload `{ disputeId, name, otherName }`. */
+  | 'complaint-filed'
+  /** Obžalovaný se vyjádřil – payload `{ disputeId, name }`. */
+  | 'complaint-answered'
+  /**
+   * Pán vynesl rozsudek – payload `{ disputeId, lordName, otherName, verdict, asDefendant }`
+   * (`verdict` = `Verdict['kind']`).
+   */
+  | 'judgment-given'
   /** Druhý rod tě zablokoval – payload `{ houseId, name }`. */
   | 'blocked'
   /** Rod ti opověděl válku (war.md – Začátek války) – payload `{ houseId, name }`. */

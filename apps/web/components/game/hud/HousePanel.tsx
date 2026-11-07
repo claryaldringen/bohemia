@@ -1,11 +1,19 @@
 'use client';
 
 import { Fragment, useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
-import { NEGOTIATION, type MacroSpare, type PanelAgreement, type TermItem } from '@bohemia/game';
+import {
+  NEGOTIATION,
+  type MacroSpare,
+  type PanelAgreement,
+  type TermItem,
+  type Verdict,
+} from '@bohemia/game';
 import {
   houseLinkOf,
   orderTree,
   type HouseLinkView,
+  type DisputeView,
+  type FellowView,
   type HouseView,
   type InviteView,
   type PortraitView,
@@ -13,6 +21,7 @@ import {
 import { breachLabel, emptyBundle, hungerLabel, termChips, termItemsOf } from '@/lib/terms-view';
 import type { HungerLevel } from '@bohemia/game';
 import { openingTerms, openingTrade, termRows, type NegotiationView } from '@/lib/negotiation-view';
+import { DisputeCard } from './DisputeCard';
 import { NegotiationCard, type NegotiationReply } from './NegotiationCard';
 import { Chip, TermsForm, type TermsContext } from './TermsForm';
 import { Tooltip } from './Tooltip';
@@ -338,18 +347,26 @@ function AgreementActions({
   ownHouseId,
   busy,
   context,
+  disputes = [],
   onNewTerms,
   onRenounce,
+  onAnswer,
+  onJudge,
 }: {
   agreement: PanelAgreement;
   house: HouseLinkView;
   ownHouseId: string;
   busy: boolean;
   context: TermsContext;
+  /** Spory tohoto vazala před hráčem jako pánem (tlačítko Rozsudek). */
+  disputes?: DisputeView[];
   onNewTerms: (items: TermItem[], message: string | null) => void;
   onRenounce: (message: string | null) => void;
+  onAnswer?: (disputeId: string, statement: string) => void;
+  onJudge?: (disputeId: string, verdict: Verdict) => void;
 }): ReactElement {
-  const [mode, setMode] = useState<'terms' | 'renounce' | 'aid' | null>(null);
+  const [mode, setMode] = useState<'terms' | 'renounce' | 'aid' | 'judgment' | null>(null);
+  const open = disputes.filter((d) => d.status === 'filed');
   const [message, setMessage] = useState('');
   return (
     <div data-testid="agreement-actions" className="flex w-full flex-col gap-1.5 pb-1">
@@ -370,6 +387,16 @@ function AgreementActions({
             reason={null}
             busy={busy}
             onClick={() => setMode(mode === 'aid' ? null : 'aid')}
+          />
+        )}
+        {context.lordIsOwn && (
+          <PlayerAction
+            label="Rozsudek"
+            icon="scales"
+            testId="agreement-judgment"
+            reason={open.length === 0 ? 'Žádný spor k souzení.' : null}
+            busy={busy}
+            onClick={() => setMode(mode === 'judgment' ? null : 'judgment')}
           />
         )}
         <PlayerAction
@@ -419,6 +446,19 @@ function AgreementActions({
           }}
         />
       )}
+      {mode === 'judgment' &&
+        open.map((d) => (
+          <DisputeCard
+            key={d.id}
+            dispute={d}
+            busy={busy}
+            onAnswer={(id, text) => onAnswer?.(id, text)}
+            onJudge={(id, verdict) => {
+              setMode(null);
+              onJudge?.(id, verdict);
+            }}
+          />
+        ))}
       {mode === 'renounce' && (
         <div data-testid="renounce-form" className="flex flex-col gap-1.5">
           <textarea
@@ -451,6 +491,60 @@ function AgreementActions({
               onClick={() => setMode(null)}
             />
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Spoluvazal: portrét a tlačítko Žaloba, které otevře vzkaz pánovi. */
+function FellowComplaint({
+  fellow,
+  busy,
+  onFile,
+}: {
+  fellow: FellowView;
+  busy: boolean;
+  onFile: (message: string) => void;
+}): ReactElement {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState('');
+  return (
+    <div data-testid="house-fellow" className="flex flex-col gap-1.5">
+      <div className="flex items-center gap-2">
+        <HouseLink house={fellow.house} testId="house-fellow-link" />
+        <PlayerAction
+          label="Žaloba"
+          icon="scales"
+          testId={`fellow-complain-${fellow.house.houseId}`}
+          reason={null}
+          busy={busy}
+          onClick={() => setOpen(!open)}
+        />
+      </div>
+      {open && (
+        <div data-testid="complaint-form" className="flex flex-col gap-1.5">
+          <textarea
+            aria-label="Žaloba"
+            data-testid="complaint-text"
+            value={text}
+            rows={2}
+            maxLength={NEGOTIATION.messageMaxChars}
+            onChange={(event) => setText(event.target.value)}
+            className="w-full resize-none rounded-sm border border-[#5c4526] bg-[#15100b] p-1 text-xs"
+          />
+          <PlayerAction
+            label="Podat žalobu"
+            icon="seal-pen"
+            testId="complaint-submit"
+            reason={text.trim() === '' ? 'Napiš pánovi, o co jde.' : null}
+            busy={busy}
+            onClick={() => {
+              setOpen(false);
+              onFile(text);
+              setText('');
+            }}
+          />
         </div>
       )}
     </div>
@@ -575,6 +669,9 @@ export function HousePanel({
   onRenounce,
   onDismissSteward,
   onOpenLevy,
+  onFileComplaint,
+  onAnswerComplaint,
+  onJudge,
   gameYear,
 }: {
   view: HouseView | null;
@@ -605,6 +702,12 @@ export function HousePanel({
   onDismissSteward?: (villageId: string) => Promise<unknown>;
   /** Otevře dialog Odvody. */
   onOpenLevy?: () => void;
+  /** Žaloba na spoluvazala (id rodu, vzkaz pánovi). */
+  onFileComplaint?: (against: string, message: string) => Promise<unknown>;
+  /** Vyjádření obžalovaného ke sporu. */
+  onAnswerComplaint?: (disputeId: string, statement: string) => Promise<unknown>;
+  /** Rozsudek pána. */
+  onJudge?: (disputeId: string, verdict: Verdict) => Promise<unknown>;
   /** Herní rok (výchozí rok první splátky půjčky). */
   gameYear?: number;
 }): ReactElement {
@@ -806,6 +909,18 @@ export function HousePanel({
                         ownHouseId={view.ownHouseId}
                         busy={busy}
                         context={contextFor(h.houseId, true)}
+                        disputes={view.disputes.filter(
+                          (d) =>
+                            d.role === 'lord' &&
+                            (d.plaintiff.houseId === h.houseId ||
+                              d.defendant.houseId === h.houseId),
+                        )}
+                        onAnswer={(id, text) =>
+                          run(() => onAnswerComplaint?.(id, text) ?? Promise.resolve())
+                        }
+                        onJudge={(id, verdict) =>
+                          run(() => onJudge?.(id, verdict) ?? Promise.resolve())
+                        }
                         onNewTerms={(items, message) => {
                           setPickedAgreement(null);
                           run(
@@ -826,6 +941,35 @@ export function HousePanel({
                 view.vassals.map((h) => (
                   <HouseLink key={h.houseId} house={h} testId="house-vassal" />
                 ))}
+            </Row>
+          )}
+          {(view.disputes.length > 0 || view.fellows.length > 0) && (
+            <Row label="Spory" testId="house-disputes" marker={<Icon name="scales" />}>
+              <div className="flex w-full flex-col gap-1.5">
+                {view.fellows.map((f) => (
+                  <FellowComplaint
+                    key={f.house.houseId}
+                    fellow={f}
+                    busy={busy}
+                    onFile={(message) =>
+                      run(() => onFileComplaint?.(f.house.houseId, message) ?? Promise.resolve())
+                    }
+                  />
+                ))}
+                {view.disputes.map((d) => (
+                  <DisputeCard
+                    key={d.id}
+                    dispute={d}
+                    busy={busy}
+                    onAnswer={(id, text) =>
+                      run(() => onAnswerComplaint?.(id, text) ?? Promise.resolve())
+                    }
+                    onJudge={(id, verdict) =>
+                      run(() => onJudge?.(id, verdict) ?? Promise.resolve())
+                    }
+                  />
+                ))}
+              </div>
             </Row>
           )}
           {view.negotiations.length > 0 && (

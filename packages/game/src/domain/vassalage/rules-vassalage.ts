@@ -71,4 +71,6 @@ export const VASSALAGE = {
   panelTreeDepth: 6,
   /** Rozsudek bez vyjádření: po 1 skutečném dni (ms). */
   verdictAfterMs: 86_400_000,
+  /** Rozsudek „mír“ platí tolik herních let (návrh Clauda – „mír na dobu“). */
+  judgmentPeaceYears: 5,
 } as const;

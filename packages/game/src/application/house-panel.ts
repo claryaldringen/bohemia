@@ -15,6 +15,8 @@ import type { StewardshipRepository } from './stewardships';
 import type { VassalageRepository } from './vassalages';
 import { houseProtectedUntil, protectedReason, protectionDaysLeft } from '../domain/war';
 import { WAR_REASONS } from './declare-war';
+import type { Dispute, DisputeRepository, Verdict } from './disputes';
+import { canJudgeNow } from './judgment';
 import { houseName, UNNAMED_HOUSE } from './negotiation-chronicle';
 import { warOpponent, type War, type WarHow, type WarRepository } from './wars';
 import type { VillageRepository } from './villages';
@@ -27,6 +29,10 @@ import {
 
 // Panel „Rod a vazalové“ – první verze (vassalage.md – Co hráč vidí): data pro rozhraní. Nese jen
 // to, co je o cizím rodu veřejné (jako adresář rodů) – žádná id účtů, zásoby ani výzbroj.
+
+/** Kolik sporů a spoluvazalů panel ukáže (návrh Clauda). */
+export const PANEL_DISPUTES_LIMIT = 20;
+export const PANEL_FELLOWS_LIMIT = 20;
 
 /** Kolik nejbližších cizích rodů panel ukáže v seznamu hráčů. */
 export const PANEL_OTHERS_LIMIT = 12;
@@ -115,6 +121,32 @@ export interface PanelPlayerActions {
   war: string | null;
 }
 
+/** Spor hráčova rodu (vassalage.md – Mír a spory): žaloba, vyjádření a rozsudek pána. */
+export interface PanelDispute {
+  id: string;
+  /** Hráčova role ve sporu. */
+  role: 'lord' | 'plaintiff' | 'defendant';
+  lord: PublicHouse;
+  plaintiff: PublicHouse;
+  defendant: PublicHouse;
+  message: string;
+  statement: string | null;
+  status: Dispute['status'];
+  /** Rozsudek (jen u rozsouzeného sporu). */
+  verdict: Verdict | null;
+  filedAt: Date;
+  /** Pán smí soudit už teď (vyjádření, nebo uplynul 1 skutečný den). */
+  canJudge: boolean;
+  /** Obžalovaný se smí vyjádřit. */
+  canAnswer: boolean;
+}
+
+/** Spoluvazal hráče: rod, který má s hráčem společného pána (smí ho žalovat). */
+export interface PanelFellow {
+  house: PublicHouse;
+  lordHouseId: string;
+}
+
 /** Aktivní válka hráčova rodu (panel války): s kým, od kdy a jak začala. */
 export interface PanelWar {
   warId: string;
@@ -172,6 +204,10 @@ export interface HousePanelData {
   stewardships: PanelStewardship[];
   /** Aktivní války hráčova rodu, nejstarší první. */
   wars: PanelWar[];
+  /** Spory hráčova rodu (jako pán, žalobce, obžalovaný), nejnovější první. */
+  disputes: PanelDispute[];
+  /** Spoluvazalové hráče (společný pán) – tlačítko žaloby. */
+  fellows: PanelFellow[];
   /** Do kdy trvá ochrana nového rodu (štít s hodinami); null – rod chráněn není. */
   protectedUntil: Date | null;
 }
@@ -191,6 +227,8 @@ export interface HousePanelDeps {
   villages?: Pick<VillageRepository, 'find' | 'digestsOf'>;
   /** Války a ochrana nováčka; bez nich panel válku nenese. */
   wars?: Pick<WarRepository, 'activeOf' | 'activeBetween' | 'ownAttackAt'>;
+  /** Spory a rozsudky pána (bez nich panel spory neukazuje). */
+  disputes?: Pick<DisputeRepository, 'listOf'>;
   now: () => Date;
 }
 
@@ -209,6 +247,8 @@ const EMPTY: HousePanelData = {
   actions: {},
   stewardships: [],
   wars: [],
+  disputes: [],
+  fellows: [],
   protectedUntil: null,
 };
 
@@ -303,6 +343,19 @@ export async function housePanel(
   }
 
   const activeWars: War[] = deps.wars ? await deps.wars.activeOf(own.id) : [];
+  const disputeRows = deps.disputes ? await deps.disputes.listOf(own.id, PANEL_DISPUTES_LIMIT) : [];
+  // spoluvazalové: ostatní vazalové pánů hráče (nejvýš PANEL_FELLOWS_LIMIT)
+  const fellowRows: { houseId: string; lordHouseId: string }[] = [];
+  if (deps.disputes) {
+    for (const lordId of lordIds) {
+      for (const v of await deps.vassalages.activeOf(lordId)) {
+        if (v.lordHouseId === lordId && v.vassalHouseId !== own.id) {
+          fellowRows.push({ houseId: v.vassalHouseId, lordHouseId: lordId });
+        }
+      }
+    }
+  }
+  const fellowsShown = fellowRows.slice(0, PANEL_FELLOWS_LIMIT);
   const wanted = [
     ...new Set([
       own.id,
@@ -312,6 +365,8 @@ export async function housePanel(
       ...open.map((n) => (n.initiatorHouseId === own.id ? n.recipientHouseId : n.initiatorHouseId)),
       ...[...usedHouseIds.values()].flatMap((id) => (id ? [id] : [])),
       ...activeWars.map((w) => warOpponent(w, own.id)),
+      ...disputeRows.flatMap((d) => [d.lordHouseId, d.plaintiffHouseId, d.defendantHouseId]),
+      ...fellowsShown.map((f) => f.houseId),
     ]),
   ];
   const entries = await deps.worldDirectory.entriesOf(wanted);
@@ -485,6 +540,26 @@ export async function housePanel(
       how: w.how,
       lastClashDay: w.lastClashDay,
     })),
+    disputes: disputeRows.map((d): PanelDispute => ({
+      id: d.id,
+      role:
+        d.lordHouseId === own.id
+          ? 'lord'
+          : d.plaintiffHouseId === own.id
+            ? 'plaintiff'
+            : 'defendant',
+      lord: publicOf(d.lordHouseId),
+      plaintiff: publicOf(d.plaintiffHouseId),
+      defendant: publicOf(d.defendantHouseId),
+      message: d.message,
+      statement: d.statement,
+      status: d.status,
+      verdict: d.verdict,
+      filedAt: d.filedAt,
+      canJudge: d.lordHouseId === own.id && canJudgeNow(d, now),
+      canAnswer: d.defendantHouseId === own.id && d.status === 'filed' && d.statement === null,
+    })),
+    fellows: fellowsShown.map((f) => ({ house: publicOf(f.houseId), lordHouseId: f.lordHouseId })),
     protectedUntil: deps.wars ? protectionEnd(own, await deps.wars.ownAttackAt(own.id), now) : null,
   };
 }
