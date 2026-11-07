@@ -103,8 +103,12 @@ closedGates })` → `MarchGrid` (buňky 10 m přes celou mapu 1 920 m, 192 × 19
   opevnění (`fortCells`): hotový plot, palisáda a val se stojící nástavbou neprůchodné, val bez
   nástavby `rampartAssaultPace`, průchozí otevřené brány (zavřené v `closedGates`) a mezery
   (`segmentIsGap` – nedostavěný, shnilý, prolomený úsek celým pásem). Buňky přes `fortWalls`
-  a `fortWallCells` (pěšiny); buňka, které se dotkne průchod, stěnou není. Domy, ploty ohrad
-  a pole vojsko neblokují.
+  a `fortWallCells` (pěšiny); buňka, které se dotkne průchod, stěnou není. Stavby vsi (`blockBuildings`, příznak
+  `MARCH_BUILDING`, tempo 0): obdélníky `villageBuildings` jako u pěšin (obydlí s pozemkem, dvorec,
+  dílna s dvorem, staveniště, milíř, modla, humno; buňka, které se obdélník dotkne) a hotová ohrada
+  celou plochou plotu kromě branky; pole zůstávají průchozí tempem louky (spec zpomalení neuvádí).
+  Start či cíl uvnitř stavby `marchPath` přesune na nejbližší volnou buňku (`outOfBuilding`);
+  v boji (`battle.ts` `paceAt`) stavby neblokují.
 - **Trasa** – `domain/war/march.ts`: `marchPath(grid, from, to)` (A* s oktilovým odhadem,
   úhlopříčně jen kolem průchodných rohů, ceny kroků po kvantech `quantizedStep`, remíza – vyšší
   index předchůdce; start průchodný vždy; nedosažitelný cíl `null`), `marchPathToEdge(grid,

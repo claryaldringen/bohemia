@@ -17,7 +17,19 @@ import {
 } from '../village/obstacles';
 import { fortWalls, segmentIsGap, segmentState } from '../village/fortification';
 import type { Fortification, FortSegment } from '../village/fortification/types';
-import { fortWallCells } from '../village/paths/network-grid';
+import {
+  buildingBounds,
+  cellsIn,
+  entranceCells,
+  fencedCells,
+  fortWallCells,
+  inBuilding,
+} from '../village/paths/network-grid';
+import { penGateToward, penSquaresEntrance } from '../village/paths/entrances';
+import { penPathSquares } from '../village/paths/network-keys';
+import { villageBuildings } from '../village/paths/network-search';
+import { pathVillageOf } from '../village/paths/village';
+import { PEN_FENCE_INSET_M } from '../village/rules';
 import { PATH_SLOPE_MAX } from '../village/paths/terrain';
 import type { VillageState } from '../village/types';
 import { WAR } from './rules-war';
@@ -44,6 +56,9 @@ export const MARCH_STEEP = 64;
 /** Buňka je stěna opevnění – plot, palisáda, val s nástavbou (neprůchodná). */
 export const MARCH_WALL = 128;
 
+/** Buňka je stavba vsi – obydlí s pozemkem, dvorec, dílna, milíř, humno, hotová ohrada (neprůchodná). */
+export const MARCH_BUILDING = 256;
+
 /** Mřížka pochodu jedné mapy: buňka (i, j) má index `j * width + i`. */
 export interface MarchGrid {
   readonly width: number;
@@ -55,7 +70,7 @@ export interface MarchGrid {
   /** Násobek tempa buňky proti louce (1); 0 = neprůchodná. */
   readonly pace: Float32Array;
   /** Příznaky `MARCH_*`. */
-  readonly flags: Uint8Array;
+  readonly flags: Uint16Array;
 }
 
 /** Bod ve světě mapy (m). */
@@ -257,6 +272,45 @@ function fortCells(
 }
 
 /**
+ * Stavby vsi vojsko neprojde (war.md – Pohyb – Terén): obydlí s pozemkem, dvorec a dílna s dvorem,
+ * staveniště, milíř, modla a humno (stejné obdélníky jako pěšiny – `villageBuildings`) a hotová
+ * ohrada celou plochou plotu kromě branky. Pole jsou průchozí beze změny tempa (spec jejich
+ * zpomalení neuvádí). Vyšší přednost než cesta pod stavbou.
+ */
+function blockBuildings(
+  grid: MarchGrid,
+  landscape: Landscape,
+  village: VillageState,
+  day: number,
+): void {
+  const block = (c: number): void => {
+    grid.pace[c] = 0;
+    grid.flags[c] = (grid.flags[c]! & ~MARCH_ROAD) | MARCH_BUILDING;
+  };
+  const pathVillage = pathVillageOf(village, day, landscape);
+  // blokuje se každá buňka, které se obdélník stavby dotkne (střed do půl buňky od obdélníku) –
+  // dům užší než buňka 10 m by jinak proklouzl mezi středy buněk
+  const reach = grid.cellM / 2;
+  for (const b of villageBuildings(pathVillage).all) {
+    const [x0, z0, x1, z1] = buildingBounds(b, reach);
+    cellsIn(grid, x0, z0, x1, z1, (c, x, z) => {
+      if (inBuilding(b, x, z, reach)) block(c);
+    });
+  }
+  for (const pen of pathVillage.pens ?? []) {
+    if (!pen.built) continue;
+    const squares = penPathSquares(pen);
+    const gate = entranceCells(
+      grid,
+      penSquaresEntrance(squares, penGateToward(squares, pathVillage.dwellings)),
+    );
+    for (const c of fencedCells(grid, squares, PEN_FENCE_INSET_M)) {
+      if (!gate.has(c)) block(c);
+    }
+  }
+}
+
+/**
  * Mřížka pochodu mapy (war.md – Pohyb – Terén): krajina, její vrstva překážek (bez ní les jen
  * z pole lesa) a ves na mapě (null = prázdné políčko). Ves přidá pevné cesty a zemskou stezku
  * (× 1,5 – i lesem a přes brod či lávku, kudy vede), opevnění a paseky (pokácené stromy).
@@ -277,7 +331,7 @@ export function marchGrid(
     originZ: t.originX,
     cellM: t.cellM,
     pace: new Float32Array(all),
-    flags: new Uint8Array(all),
+    flags: new Uint16Array(all),
   };
   const day = options.day ?? village?.lastDay ?? 0;
   const counts = obstacles
@@ -312,6 +366,7 @@ export function marchGrid(
     grid.pace[c] = WAR.pace.road;
     grid.flags[c] = (grid.flags[c]! & ~(MARCH_WATER | MARCH_STEEP)) | MARCH_ROAD;
   }
+  blockBuildings(grid, landscape, village, day);
   const closed = options.closedGates ?? new Set<number>();
   for (const fort of village.fortifications ?? []) {
     const cells = fortCells(grid, landscape, fort, day, closed);
