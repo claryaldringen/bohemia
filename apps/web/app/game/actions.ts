@@ -40,6 +40,14 @@ import {
   type PassageView,
   type SummonsDialogView,
 } from '@/lib/summons';
+import {
+  announceWarPassageForPlayer,
+  protectionViewForPlayer,
+  recallProtectionForPlayer,
+  requestProtectionForPlayer,
+  sendProtectionForPlayer,
+  type ProtectionView,
+} from '@/lib/protection';
 import { decidePrisonerForPlayer } from '@/lib/prisoners';
 import {
   consentEscheatForPlayer,
@@ -895,4 +903,81 @@ export async function consentEscheat(
   const parsed = parseConsentEscheatInput(input);
   if (parsed === null) return { error: INVALID_INPUT };
   return consentEscheatForPlayer(id, parsed);
+}
+
+/** Ochrana v panelu války pro zobrazenou ves `{ villageId }` (vassalage.md – Ochrana vojskem). */
+export async function protectionView(
+  input: unknown,
+): Promise<{ protection: ProtectionView } | { error: string }> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  if (!isRecord(input) || !(input.villageId === null || isId(input.villageId))) {
+    return { error: INVALID_INPUT };
+  }
+  return { protection: await protectionViewForPlayer(id, input.villageId) };
+}
+
+/** Vazal žádá pána o ochranu vsi: `{ vassalageId, villageId, message? }`. */
+export async function requestProtection(input: unknown): Promise<{ ok: true } | { error: string }> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  if (!isRecord(input) || !isId(input.vassalageId) || !isId(input.villageId)) {
+    return { error: INVALID_INPUT };
+  }
+  const message = input.message ?? '';
+  if (!isText(message)) return { error: INVALID_INPUT };
+  return requestProtectionForPlayer(id, {
+    vassalageId: input.vassalageId,
+    villageId: input.villageId,
+    message,
+  });
+}
+
+/** Pán pošle muže rodu na ochranu vsi vazala: `{ vassalageId, villageId, men }` (počet). */
+export async function sendProtection(
+  input: unknown,
+): Promise<{ ok: true; sent: number } | { error: string }> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  if (!isRecord(input) || !isId(input.vassalageId) || !isId(input.villageId)) {
+    return { error: INVALID_INPUT };
+  }
+  const men = input.men;
+  if (typeof men !== 'number' || !Number.isInteger(men) || men < 1 || men > 100) {
+    return { error: INVALID_INPUT };
+  }
+  return sendProtectionForPlayer(id, {
+    vassalageId: input.vassalageId,
+    villageId: input.villageId,
+    men,
+  });
+}
+
+/** Pán odvolá své muže z ochrany vsi vazala: `{ vassalageId, villageId }`. */
+export async function recallProtection(
+  input: unknown,
+): Promise<{ ok: true; men: number } | { error: string }> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  if (!isRecord(input) || !isId(input.vassalageId) || !isId(input.villageId)) {
+    return { error: INVALID_INPUT };
+  }
+  return recallProtectionForPlayer(id, {
+    vassalageId: input.vassalageId,
+    villageId: input.villageId,
+  });
+}
+
+/** Ohlášení průchodu z panelu války: `{ warId, house, message? }` – mapy dopočte server. */
+export async function announceWarPassage(
+  input: unknown,
+): Promise<{ ok: true } | { error: string }> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  if (!isRecord(input) || !isId(input.warId) || !isId(input.house)) {
+    return { error: INVALID_INPUT };
+  }
+  const message = input.message ?? '';
+  if (!isText(message)) return { error: INVALID_INPUT };
+  return announceWarPassageForPlayer(id, { warId: input.warId, house: input.house, message });
 }

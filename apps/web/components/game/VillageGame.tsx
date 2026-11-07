@@ -83,8 +83,14 @@ import {
   answerSummons,
   passagesToAnswer,
   answerPassage,
+  protectionView,
+  requestProtection,
+  sendProtection,
+  recallProtection,
+  announceWarPassage,
 } from '@/app/game/actions';
 import type { PassageView, SummonsDialogView } from '@/lib/summons';
+import type { ProtectionView } from '@/lib/protection';
 import { ArmyActionsContext, type ArmyActions } from '@/hooks/use-army';
 import { PanelOptionsContext, type PanelOptionsSource } from '@/hooks/use-panel-options';
 import type { PanelAsk, PanelOptions } from '@/lib/panel-options';
@@ -442,13 +448,40 @@ export function VillageGame({
       // ohlášení se ukážou při dalším otevření panelu
     }
   }, []);
+  // ochrana vojskem (vassalage.md – Ochrana vojskem) – pro zobrazenou ves
+  const [protection, setProtection] = useState<ProtectionView | null>(null);
+  const refreshProtection = useCallback(async (): Promise<void> => {
+    try {
+      const result = await protectionView({ villageId: viewRef.current?.id ?? null });
+      if ('protection' in result) setProtection(result.protection);
+    } catch {
+      // ochrana se ukáže při dalším otevření panelu
+    }
+  }, []);
+  /** Akce panelu války se serverem: chyba spojení = hláška, po úspěchu nové načtení ochrany. */
+  const warAction = useCallback(
+    async (
+      run: () => Promise<{ error: string } | object>,
+    ): Promise<{ ok: true } | { error: string }> => {
+      try {
+        const result = await run();
+        if ('error' in result) return { error: result.error };
+        void refreshProtection();
+        return { ok: true };
+      } catch {
+        return { error: CONNECTION_FAILED };
+      }
+    },
+    [refreshProtection],
+  );
   const openWar = useCallback((): void => {
     setMenuOpen(false);
     setHouseOpen(false);
     setWarOpen(true);
     void refreshHouse();
     void refreshPassages();
-  }, [refreshHouse, refreshPassages]);
+    void refreshProtection();
+  }, [refreshHouse, refreshPassages, refreshProtection]);
   const closeWar = useCallback((): void => setWarOpen(false), []);
   // Dialog Odvody (úloha 4.4): rozdělení po vsích se počítá až při otevření
   const [levyOpen, setLevyOpen] = useState(false);
@@ -1678,6 +1711,21 @@ export function VillageGame({
                     return { error: CONNECTION_FAILED };
                   }
                 }}
+                protection={protection}
+                onRequestProtection={(vassalageId) => {
+                  const villageId = viewRef.current?.id;
+                  if (!villageId) return Promise.resolve({ error: CONNECTION_FAILED });
+                  return warAction(() => requestProtection({ vassalageId, villageId }));
+                }}
+                onSendProtection={(vassalageId, villageId, men) =>
+                  warAction(() => sendProtection({ vassalageId, villageId, men }))
+                }
+                onRecallProtection={(vassalageId, villageId) =>
+                  warAction(() => recallProtection({ vassalageId, villageId }))
+                }
+                onAnnouncePassage={(warId, house, message) =>
+                  warAction(() => announceWarPassage({ warId, house, message }))
+                }
                 passages={passages}
                 onAnswerPassage={(passageId, trust) => {
                   void answerPassage({ passageId, trust })

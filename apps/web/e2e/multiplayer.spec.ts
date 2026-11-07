@@ -1157,3 +1157,60 @@ test('svolání: pán ve válce svolá vazala rohem, vazal dialog vidí, potvrd�
   });
   await Promise.all(ctxs.map((ctx) => ctx.close()));
 });
+
+test('ochrana: vazal požádá pána o ochranu, pán pošle muže rodu, vazal je ve vsi vidí', async ({
+  browser,
+}) => {
+  test.setTimeout(240_000);
+  await query(`UPDATE house SET ended_at = now() WHERE ended_at IS NULL`, []);
+  const ctxs = await Promise.all([browser.newContext(), browser.newContext()]);
+  for (const ctx of ctxs) await useUniqueClientIp(ctx);
+  const [a, b] = (await Promise.all(ctxs.map((ctx) => ctx.newPage()))) as [Page, Page];
+  for (const page of [a, b]) await page.setViewportSize({ width: 1280, height: 720 });
+  const { email: emailA, seat: seatA } = await newPlayer(a, 'ochranaa');
+  await found(a, villageSpots(seatA.landscape).dwelling, 'Bořivoj');
+  const { email: emailB, seat: seatB } = await newPlayer(b, 'ochranab');
+  await found(b, villageSpots(seatB.landscape).dwelling, 'Ctibor');
+  const idA = await houseIdOf(emailA);
+  const idB = await houseIdOf(emailB);
+  await query(
+    `INSERT INTO vassalage (lord_house_id, vassal_house_id, terms, origin, since_at, since_day)
+     VALUES ($1, $2, '{}'::jsonb, 'negotiation', now(), 0)`,
+    [idA, idB],
+  );
+
+  // B v panelu války sepjatýma rukama požádá pána o ochranu zobrazené vsi
+  await pollVillage(b);
+  await b.getByTestId('war-toggle').click();
+  const warB = b.getByTestId('war-panel');
+  await expect(warB.getByTestId('war-guards')).toHaveText('0', { timeout: 30_000 });
+  await warB.getByTestId('war-request-protection').click();
+  await expect(warB.getByTestId('war-protection-error')).toHaveCount(0);
+
+  // A dostane „Ctibor žádá o ochranu.“, v panelu války pošle k vsi vazala jednoho muže rodu
+  await pollVillage(a);
+  await expect(a.getByTestId('village-notice').filter({ hasText: 'žádá o ochranu' })).toBeVisible({
+    timeout: 60_000,
+  });
+  await a.getByTestId('war-toggle').click();
+  const warA = a.getByTestId('war-panel');
+  const row = warA.getByTestId('war-guard-village').first();
+  await expect(row).toBeVisible({ timeout: 30_000 });
+  await row.getByTestId('war-guard-send').click();
+  await expect(warA.getByTestId('war-protection-error')).toHaveCount(0);
+  await expect(row.getByTestId('war-guard-sent')).toHaveText('1', { timeout: 30_000 });
+
+  // B o pár dní později (cesta mezi mapami) vidí muže pána ve vsi
+  await query(
+    `INSERT INTO player_time_offset (player_id, offset_days)
+       SELECT id, 30 FROM "user" WHERE email = $1`,
+    [emailB],
+  );
+  await b.reload();
+  await expect(readyScene(b)).toBeVisible({ timeout: 60_000 });
+  await b.getByTestId('war-toggle').click();
+  await expect(b.getByTestId('war-panel').getByTestId('war-guards')).toHaveText('1', {
+    timeout: 60_000,
+  });
+  await Promise.all(ctxs.map((ctx) => ctx.close()));
+});

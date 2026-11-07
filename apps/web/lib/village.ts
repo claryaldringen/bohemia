@@ -1021,6 +1021,17 @@ export async function summonVassalsActionForPlayer<T>(
   return warResult(done);
 }
 
+export async function requestProtectionActionForPlayer<T>(
+  playerId: string,
+  villageId: string,
+  run: (ctx: WarContext) => Promise<T>,
+): Promise<T | { error: string }> {
+  const done = await guardedAction(playerId, villageId, 'requestProtection', (ctx) =>
+    run({ playerId: ctx.playerId, villageId: ctx.villageId, day: ctx.day }),
+  );
+  return warResult(done);
+}
+
 export async function launchCampaignActionForPlayer<T>(
   playerId: string,
   villageId: string,

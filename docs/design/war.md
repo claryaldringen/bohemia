@@ -405,7 +405,13 @@ a 12 vesničanů (8 dobrovolníků po 0,4, 4 nucení po 0,2 = 4,0), s kovárnou 
 - **Ves během nájezdu nepracuje** – dokud je cizí vojsko na mapě, lidé mimo les a útočiště se
   skrývají – ztracené dny práce (návrh Clauda).
 - **Ochrana pánem:** muži, které pán poslal vazalovi na žádost ([vazalství](vassalage.md) –
-  Ochrana vojskem), se brání s vsí podle jejího postoje.
+  Ochrana vojskem), se brání s vsí podle jejího postoje. Návrh Clauda: stojí u dvorce (prvního
+  obydlí) jako muži rodu s lukem, s jeho skupinou domů jdou do útočiště, do lesa nebo se vzdají;
+  „posledním mužem rodu doma“ nejsou (doma nejsou). Padlí zemřou doma bez pohřbu (muž rodu =
+  nástupnictví), zajatí jdou k útočníkovi jako muži rodu, obojí ochranu ve vsi ukončí; ranění
+  zůstanou hosty a léčí se ve chráněné vsi.
+- **Ohlášení průchodu z panelu války** (návrh Clauda): mapy = trasa od sídla rodu k sídlu
+  nepřítele (nejvýš 24 map), den = dnes – vojsko smí vyrazit hned.
 
 ## Vzdaní, zajetí a výkupné
 
