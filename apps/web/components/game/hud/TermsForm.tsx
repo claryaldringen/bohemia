@@ -85,6 +85,11 @@ export interface TermsContext {
   loadSpare?: (targetVillageId: string | null) => Promise<MacroSpare | null>;
   /** Opověď války: id napadeného rodu – formulář nabídne požadavek vazalství a smí být prázdný. */
   demandFor?: string;
+  /**
+   * Zajatci k výkupnému (war.md – Vzdaní, zajetí a výkupné): zajatci, které hráč drží – formulář
+   * pak nabídne řádek výkupného. Zda patří rodu protistrany, ověří server (`ransom.check`).
+   */
+  captives?: readonly { id: string; name: string | null; noble: boolean }[];
 }
 
 /** Platí tuhle podmínku hráčův rod? (dávku vazal, odměnu pán) */
@@ -638,22 +643,64 @@ function PeaceRow({ item, label }: TermRowProps): ReactElement {
   );
 }
 
-/** Výkupné zajatců: zajatci, cena a případné vazalství (jen ke čtení). */
-function RansomRow({ item, label }: TermRowProps): ReactElement {
+/** Výkupné zajatců: zajatci, cena a případné vazalství; s `onChange` se dá sestavit ve formuláři. */
+function RansomRow({ item, label, onChange, context }: TermRowProps): ReactElement {
   if (item.kind !== 'ransom') return <span />;
-  const parts = [
-    `zajatců ${item.prisonerIds.length}`,
-    `${Math.round(item.price.grainKg)} kg obilí`,
-  ];
-  if (item.vassalage) parts.push('vazalství');
+  if (!onChange) {
+    const parts = [
+      `zajatců ${item.prisonerIds.length}`,
+      `${Math.round(item.price.grainKg)} kg obilí`,
+    ];
+    if (item.vassalage) parts.push('vazalství');
+    return (
+      <div data-testid="term-row-ransom" className="flex items-center gap-1">
+        <Tooltip content={label}>
+          <span tabIndex={0} aria-label={label} className="inline-flex items-center gap-1">
+            <img src="/icons/war/captive.svg" alt="" width={20} height={20} />
+          </span>
+        </Tooltip>
+        <span className="text-xs">{parts.join(', ')}</span>
+      </div>
+    );
+  }
+  const captives = context?.captives ?? [];
+  const toggle = (id: string): void =>
+    onChange({
+      ...item,
+      prisonerIds: item.prisonerIds.includes(id)
+        ? item.prisonerIds.filter((x) => x !== id)
+        : [...item.prisonerIds, id],
+    });
   return (
-    <div data-testid="term-row-ransom" className="flex items-center gap-1">
+    <div data-testid="term-row-ransom" className="flex flex-wrap items-center gap-1.5">
       <Tooltip content={label}>
-        <span tabIndex={0} aria-label={label} className="inline-flex items-center gap-1">
-          <img src="/icons/war/captive.svg" alt="" width={20} height={20} />
+        <span tabIndex={0} aria-label={label} className="inline-flex">
+          <img src="/icons/war/captive.svg" alt="" width={22} height={22} />
         </span>
       </Tooltip>
-      <span className="text-xs">{parts.join(', ')}</span>
+      {captives.map((c) => {
+        const chosen = item.prisonerIds.includes(c.id);
+        const name = c.name ?? (c.noble ? 'Šlechtic' : 'Zajatec');
+        return (
+          <Tooltip key={c.id} content={name}>
+            <button
+              type="button"
+              aria-label={name}
+              aria-pressed={chosen}
+              data-testid={`term-ransom-prisoner-${c.id}`}
+              className={`hud-icon-button flex h-7 w-7 items-center justify-center ${chosen ? 'opacity-100' : 'opacity-40'}`}
+              onClick={() => toggle(c.id)}
+            >
+              <img src="/icons/war/captive.svg" alt="" width={18} height={18} />
+            </button>
+          </Tooltip>
+        );
+      })}
+      <GoodsInputs
+        goods={goodsOf(item.price)}
+        testPrefix="term-ransom"
+        onChange={(goods) => onChange({ ...item, price: { ...item.price, ...goods } })}
+      />
     </div>
   );
 }
@@ -723,17 +770,30 @@ export function TermRows({
   );
 }
 
-const ADDABLE: { kind: TermLine['kind'] | 'stewardship'; icon: string; label: string }[] = [
+const ADDABLE: {
+  kind: TermLine['kind'] | 'stewardship' | 'ransom';
+  icon: string;
+  label: string;
+}[] = [
   { kind: 'tribute', icon: 'grain', label: 'Přidat roční dávku' },
   { kind: 'service', icon: 'sword', label: 'Přidat vojenskou službu' },
   { kind: 'target-village', icon: 'village-key', label: 'Přidat správu vsi' },
   { kind: 'reward', icon: 'log', label: 'Přidat roční odměnu' },
   { kind: 'stewardship', icon: 'village-key', label: 'Svěřit správu vsi' },
+  { kind: 'ransom', icon: 'seal', label: 'Sjednat výkupné zajatců' },
 ];
 
 /** Nový řádek podmínky s rozumnou výchozí hodnotou, nebo null, když ho nejde přidat. */
-function newRow(kind: TermLine['kind'] | 'stewardship', context?: TermsContext): TermItem | null {
+function newRow(
+  kind: TermLine['kind'] | 'stewardship' | 'ransom',
+  context?: TermsContext,
+): TermItem | null {
   switch (kind) {
+    case 'ransom':
+      // výkupné je samostatný řádek a potřebuje zajatce k výběru
+      return context?.captives?.length
+        ? { kind, prisonerIds: [], price: { ...emptyBundle(), grainKg: 100 } }
+        : null;
     case 'tribute':
     case 'reward':
       return { kind, goods: { ...emptyBundle(), grainKg: 100 } };
@@ -811,6 +871,7 @@ export function TermsForm({
   const present = new Set(rows.map((r) => r.kind));
   const aidMode = rows.some((r) => isAid(r.item));
   const tradeMode = rows.some((r) => r.kind === 'trade');
+  const ransomMode = rows.some((r) => r.kind === 'ransom');
   return (
     <div data-testid="terms-form" className="flex w-full flex-col gap-1.5">
       <TermRows
@@ -875,8 +936,13 @@ export function TermsForm({
         </Tooltip>
       )}
       <div className="flex items-center gap-1.5">
-        {(aidMode || tradeMode ? [] : ADDABLE)
-          .filter((a) => !present.has(a.kind) && newRow(a.kind, context) !== null)
+        {(aidMode || tradeMode || ransomMode ? [] : ADDABLE)
+          .filter(
+            (a) =>
+              !present.has(a.kind) &&
+              (a.kind !== 'ransom' || rows.length === 0) &&
+              newRow(a.kind, context) !== null,
+          )
           .map((a) => (
             <Tooltip key={a.kind} content={a.label}>
               <button
@@ -913,7 +979,12 @@ export function TermsForm({
             type="button"
             aria-label={submitLabel}
             data-testid="terms-submit"
-            disabled={busy || tooLong || (rows.length === 0 && !allowEmpty)}
+            disabled={
+              busy ||
+              tooLong ||
+              (rows.length === 0 && !allowEmpty) ||
+              rows.some((r) => r.item.kind === 'ransom' && r.item.prisonerIds.length === 0)
+            }
             className="hud-icon-button flex h-8 w-10 items-center justify-center"
             onClick={() =>
               onSubmit(

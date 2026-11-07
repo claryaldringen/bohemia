@@ -1764,6 +1764,7 @@ export function VillageGame({
                 villages={(view?.villages ?? [])
                   .filter((v) => !v.stewarded)
                   .map((v) => ({ id: v.id, name: v.name }))}
+                captives={view?.manor?.prisoners ?? []}
                 gameYear={view ? dateOfDayIndex(view.dayIndex).year : undefined}
                 onSpare={async (toHouseId, targetVillageId) => {
                   try {

@@ -2,7 +2,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { MacroSpare, TermItem } from '@bohemia/game';
+import { checkRansomItems, type MacroSpare, type TermItem } from '@bohemia/game';
 import { emptyBundle } from '@/lib/terms-view';
 import { termRows } from '@/lib/negotiation-view';
 import { TermsForm, type TermsContext } from '../TermsForm';
@@ -132,5 +132,41 @@ describe('TermsForm – podmínky', () => {
   it('vazal cílovou ves přidat nemůže', () => {
     render(context({ lordIsOwn: false, villages: [{ id: 'v-1', name: 'Dub' }] }), [oath]);
     expect(has('terms-add-target-village')).toBe(false);
+  });
+});
+
+describe('TermsForm – výkupné zajatců', () => {
+  const captives = [
+    { id: 'z-1', name: 'Bořivoj', noble: true },
+    { id: 'z-2', name: null, noble: false },
+  ];
+
+  it('bez zajatců se výkupné nenabízí, se zajatci ano', () => {
+    render(context(), []);
+    expect(has('terms-add-ransom')).toBe(false);
+    render(context({ captives }), []);
+    expect(has('terms-add-ransom')).toBe(true);
+  });
+
+  it('sestaví řádek výkupného: vybraní zajatci a cena; bez zajatce nejde odeslat', () => {
+    const onSubmit = render(context({ captives }), []);
+    act(() => byId('terms-add-ransom').click());
+    // bez vybraného zajatce odeslání nejde
+    expect((byId('terms-submit') as HTMLButtonElement).disabled).toBe(true);
+    act(() => byId('term-ransom-prisoner-z-1').click());
+    act(() => byId('term-ransom-prisoner-z-2').click());
+    act(() => byId('term-ransom-prisoner-z-2').click());
+    type('term-ransom-grainKg', '300');
+    act(() => byId('terms-submit').click());
+    const items = onSubmit.mock.calls[0]![0] as TermItem[];
+    expect(items).toEqual([
+      {
+        kind: 'ransom',
+        prisonerIds: ['z-1'],
+        price: expect.objectContaining({ grainKg: 300 }),
+      },
+    ]);
+    // řádek projde kontrolou jednání (domény)
+    expect(checkRansomItems(items, ['h-a', 'h-b'])).toBeNull();
   });
 });

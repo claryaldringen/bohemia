@@ -565,7 +565,7 @@ function lordIsOwnIn(n: NegotiationView, view: HouseView): boolean {
 /** Rozpracovaná nabídka: komu a v které roli je hráč (pán / vazal). */
 interface Draft {
   house: HouseLinkView;
-  direction: 'offer' | 'request' | 'trade' | 'war';
+  direction: 'offer' | 'request' | 'trade' | 'war' | 'ransom';
 }
 
 /** Odkaz pozvánky: absolutní adresa registrace s kódem (z adresy prohlížeče). */
@@ -665,6 +665,7 @@ export function HousePanel({
   onUnblock,
   onDeclareWar,
   villages = [],
+  captives = [],
   onSpare,
   onRenounce,
   onDismissSteward,
@@ -694,6 +695,8 @@ export function HousePanel({
   onDeclareWar?: (to: string, items: TermItem[], message: string | null) => Promise<unknown>;
   /** Vsi hráče (výběr cílové vsi v podmínkách). */
   villages?: readonly { id: string; name: string }[];
+  /** Zajatci držení hráčem (výkupné; war.md – Vzdaní, zajetí a výkupné); bez nich se výkupné nenabízí. */
+  captives?: NonNullable<TermsContext['captives']>;
   /** Výhled „kolik můžu postrádat“ pro rod `toHouseId` (jen na vyžádání, při otevření formuláře). */
   onSpare?: (toHouseId: string, targetVillageId: string | null) => Promise<MacroSpare | null>;
   /** Vypoví dohodu `vassalageId` (platí hned) se vzkazem. */
@@ -724,6 +727,7 @@ export function HousePanel({
     lordIsOwn,
     ...(view ? { ownHouseId: view.ownHouseId } : {}),
     villages,
+    ...(captives.length > 0 ? { captives } : {}),
     ...(gameYear !== undefined ? { gameYear } : {}),
     ...(onSpare ? { loadSpare: (target) => onSpare(houseId, target) } : {}),
   });
@@ -1039,6 +1043,16 @@ export function HousePanel({
                         busy={busy}
                         onClick={() => setDraft({ house: h, direction: 'trade' })}
                       />
+                      {captives.length > 0 && (
+                        <PlayerAction
+                          label="Výkupné zajatců"
+                          icon="seal"
+                          testId="house-ransom"
+                          reason={null}
+                          busy={busy}
+                          onClick={() => setDraft({ house: h, direction: 'ransom' })}
+                        />
+                      )}
                       <PlayerAction
                         label="Opovědět válku"
                         icon="spears"
@@ -1081,7 +1095,15 @@ export function HousePanel({
                             ? openingTrade(view.ownHouseId, villages[0]?.id ?? null)
                             : draft.direction === 'war'
                               ? []
-                              : openingTerms(draft.direction, view.ownHouseId, h.houseId),
+                              : draft.direction === 'ransom'
+                                ? [
+                                    {
+                                      kind: 'ransom',
+                                      prisonerIds: [],
+                                      price: { ...emptyBundle(), grainKg: 100 },
+                                    },
+                                  ]
+                                : openingTerms(draft.direction, view.ownHouseId, h.houseId),
                           view.ownHouseId,
                           h,
                         )}
@@ -1092,7 +1114,9 @@ export function HousePanel({
                               ? 'Nabídnout obchod'
                               : draft.direction === 'war'
                                 ? 'Opovědět válku'
-                                : 'Požádat o přijetí'
+                                : draft.direction === 'ransom'
+                                  ? 'Nabídnout výkupné'
+                                  : 'Požádat o přijetí'
                         }
                         submitIcon={
                           draft.direction === 'offer'
@@ -1101,7 +1125,9 @@ export function HousePanel({
                               ? 'cart'
                               : draft.direction === 'war'
                                 ? 'spears'
-                                : 'hands'
+                                : draft.direction === 'ransom'
+                                  ? 'seal'
+                                  : 'hands'
                         }
                         allowEmpty={draft.direction === 'war'}
                         busy={busy}

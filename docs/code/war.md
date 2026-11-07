@@ -487,9 +487,10 @@ today })` (`hold` / `release` / `execute`, zajatec se hledá ve vsích hráče, 
   míru volá `ransom.release`. Kdo platí, je strana, která zajatce nedrží.
 - **Web**: `lib/prisoners.ts` (`decidePrisonerForPlayer`, `ransom()`), akce `decidePrisonerAction`,
   `VillageManor.prisoners` (`manor-view.ts`), `PrisonersPanel.tsx` (portrét s pouty, držet /
-  propustit / popravit; poprava druhým stiskem), ikony `public/icons/war/{captive,hold,release,execute}.svg`.
-- Nevykonáno (později): zajetí **útočníků** obráncem (raněné na bojišti), formulář výkupného ve
-  `TermsForm` (řádek se jen zobrazuje), zajatý hráčův muž nevede tažení díky `away` (`launch-campaign`).
+  propustit / popravit; poprava druhým stiskem), formulář výkupného: `TermsContext.captives` (zajatci vsi z
+  `VillageManor.prisoners`), v `TermsForm` řádek `RansomRow` (výběr zajatců, cena jako zboží) a v `HousePanel`
+  tlačítko `house-ransom` (směr `ransom`; zda zajatec patří protistraně, ověří server), ikony `public/icons/war/{captive,hold,release,execute}.svg`.
+- Nevykonáno (později): zajetí **útočníků** obráncem (raněné na bojišti), zajatý hráčův muž nevede tažení díky `away` (`launch-campaign`).
 - Testy: `war/__tests__/surrender.test.ts`, `captives-campaign.test.ts` (zajetí přes `stepCampaign`),
   `application/__tests__/prisoners.test.ts`, `ransom-negotiation.test.ts`, db test výše.
 
