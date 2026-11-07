@@ -4,6 +4,7 @@ import type { HouseRepository, House } from './houses';
 import { NO_HOUSE, openNegotiation, type NegotiateDeps } from './negotiate';
 import { houseName, type NegotiationVillages } from './negotiation-chronicle';
 import type { NoticeRepository } from './notices';
+import type { PassageRepository } from './passages';
 import { noteBrokenPeace, type BrokenPeaceDeps } from './judgment';
 import { chronicleWar } from './war-chronicle';
 import type { WarRepository } from './wars';
@@ -22,6 +23,11 @@ export interface WarDeps extends NegotiationVillages {
    */
   disputes?: BrokenPeaceDeps['disputes'];
   vassalages?: BrokenPeaceDeps['vassalages'];
+  /**
+   * Ohlášené průchody (war.md – Pohyb): válka mezi rody – opověď i útok po ohlášení – ohlášení
+   * zruší pro všechny vsi rodu (návrh Clauda). Bez závislosti se nic neruší.
+   */
+  passages?: Pick<PassageRepository, 'voidBetween'>;
 }
 
 export type WarResult = { ok: true; warId: string } | { ok: false; reason: string };
@@ -120,6 +126,7 @@ export async function declareWar(
     }
     await chronicleWar(deps, from, target, 'declared', `war-declared:${war.id}`, input.today);
     await brokenPeace(deps, from.id, target.id, input.today);
+    await deps.passages?.voidBetween(from.id, target.id, input.now);
   }
   return { ok: true, warId: war.id };
 }
@@ -155,6 +162,8 @@ export async function startWarByAttack(
   if (created) {
     await chronicleWar(deps, attacker, defender, 'ambush', `war-ambush:${war.id}`, input.today);
     await brokenPeace(deps, attacker.id, defender.id, input.today);
+    // útok po ohlášeném průchodu = přepadení; ohlášení tím přestane platit (war.md – Pohyb)
+    await deps.passages?.voidBetween(attacker.id, defender.id, input.now);
   } else {
     await deps.wars.touchClash(war.id, input.today);
   }

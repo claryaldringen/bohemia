@@ -69,11 +69,39 @@ export function createDialogRepository(db: Database): DialogRepository {
       const [row] = await db.select().from(dialog).where(eq(dialog.id, id)).limit(1);
       return row ? toDialog(row) : null;
     },
-    async answer(id, expectedStatus) {
+    async answer(id, expectedStatus, reply) {
       const updated = await db
         .update(dialog)
-        .set({ status: 'answered', answeredAt: new Date() })
+        .set({
+          status: 'answered',
+          answeredAt: new Date(),
+          ...(reply ? { body: sql`${dialog.body} || ${JSON.stringify(reply)}::jsonb` } : {}),
+        })
         .where(and(eq(dialog.id, id), eq(dialog.status, expectedStatus)))
+        .returning({ id: dialog.id });
+      return updated.length > 0;
+    },
+    async listFor(refId, kind) {
+      const rows = await db
+        .select()
+        .from(dialog)
+        .where(and(eq(dialog.refId, refId), eq(dialog.kind, kind)))
+        .orderBy(asc(dialog.createdAt), asc(dialog.id));
+      return rows.map(toDialog);
+    },
+    async openOfKind(kind) {
+      const rows = await db
+        .select()
+        .from(dialog)
+        .where(and(eq(dialog.kind, kind), eq(dialog.status, 'open')))
+        .orderBy(asc(dialog.createdAt), asc(dialog.id));
+      return rows.map(toDialog);
+    },
+    async lapse(id) {
+      const updated = await db
+        .update(dialog)
+        .set({ status: 'dropped' })
+        .where(and(eq(dialog.id, id), eq(dialog.status, 'open')))
         .returning({ id: dialog.id });
       return updated.length > 0;
     },

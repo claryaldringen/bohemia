@@ -17,6 +17,7 @@ import {
 import type { CampaignCells, CampaignLock, CampaignRepository } from './campaigns';
 import type { HouseRepository } from './houses';
 import type { NoticeRepository } from './notices';
+import { passageCovers, type PassageRepository } from './passages';
 import type { SettlementRepository } from './settlements';
 import type { VassalageRepository } from './vassalages';
 import type { VillageRepository } from './villages';
@@ -48,8 +49,11 @@ export interface StepCampaignsDeps {
 export interface VillageWatchers {
   /** Hráč, kterému ves patří, a jméno vsi; ves bez hráče null. */
   watcherOf(villageId: string): Promise<{ playerId: string; name: string } | null>;
-  /** Je vojsko hráče `armyPlayerId` pro hráče `ownerPlayerId` neškodné (vlastní, pán, vazalové)? */
-  harmless(armyPlayerId: string, ownerPlayerId: string): Promise<boolean>;
+  /**
+   * Je vojsko hráče `armyPlayerId` pro ves `villageId` hráče `ownerPlayerId` neškodné (vlastní,
+   * pán, vazalové, platný ohlášený průchod její mapou bez „Nevěřit“)?
+   */
+  harmless(armyPlayerId: string, ownerPlayerId: string, villageId: string): Promise<boolean>;
 }
 
 /** Jak dopadlo jedno tažení v kole. */
@@ -212,7 +216,7 @@ export async function computeCampaign(
       const watcher = (await deps.watchers?.watcherOf(villageId)) ?? null;
       if (watcher) {
         watchers.set(villageId, { playerId: watcher.playerId, name: record.name });
-        if (await deps.watchers?.harmless(state.playerId, watcher.playerId)) {
+        if (await deps.watchers?.harmless(state.playerId, watcher.playerId, villageId)) {
           harmlessTo.set(villageId, true);
         }
       }
@@ -242,6 +246,8 @@ export function villageWatchers(deps: {
   settlements: Pick<SettlementRepository, 'find'>;
   houses: Pick<HouseRepository, 'activeOf'>;
   vassalages: Pick<VassalageRepository, 'edgesNear'>;
+  /** Ohlášené průchody (war.md – Pohyb); bez nich ohlášené vojsko škodí jako každé cizí. */
+  passages?: Pick<PassageRepository, 'validBetween'>;
 }): VillageWatchers {
   return {
     watcherOf: async (villageId) => {
@@ -249,14 +255,24 @@ export function villageWatchers(deps: {
       const settlement = village ? await deps.settlements.find(village.settlementId) : null;
       return village && settlement ? { playerId: settlement.ownerId, name: village.name } : null;
     },
-    harmless: async (armyPlayerId, ownerPlayerId) => {
+    harmless: async (armyPlayerId, ownerPlayerId, villageId) => {
       if (armyPlayerId === ownerPlayerId) return true;
       const [army, owner] = await Promise.all([
         deps.houses.activeOf(armyPlayerId),
         deps.houses.activeOf(ownerPlayerId),
       ]);
       if (!army || !owner) return false;
-      return isHarmlessArmy(army.id, owner.id, await deps.vassalages.edgesNear(army.id, 8));
+      if (isHarmlessArmy(army.id, owner.id, await deps.vassalages.edgesNear(army.id, 8))) {
+        return true;
+      }
+      // ohlášený průchod mapou vsi – ves vojsko bere za neškodné, „Nevěřit“ = podle postoje
+      if (!deps.passages) return false;
+      const passages = await deps.passages.validBetween(army.id, owner.id);
+      if (passages.length === 0) return false;
+      const village = await deps.villages.find(villageId);
+      const settlement = village ? await deps.settlements.find(village.settlementId) : null;
+      const cell = settlement?.worldCell;
+      return cell !== null && cell !== undefined && passageCovers(passages, cell);
     },
   };
 }

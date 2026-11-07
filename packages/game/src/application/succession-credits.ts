@@ -11,6 +11,7 @@ import {
   type QuietWarsDeps,
 } from './declare-war';
 import { reconcileShipments, type ShipmentDeps } from './shipments';
+import { lapseSummons } from './summons';
 
 /** Port kreditů nástupnictví bez losu (vassalage.md – Pozvaný jako vazal). */
 export interface SuccessionCreditRepository {
@@ -64,6 +65,8 @@ export type WorldTaskDeps = SuccessionCreditDeps & {
   levies?: AnnualLevyDeps;
   /** Války a ochrana nováčka (war.md): utichání válek, upozornění na konec ochrany. */
   wars?: QuietWarsDeps & ProtectionNoticeDeps;
+  /** Svolání bez odpovědi propadne s koncem války (vassalage.md – Svolání). */
+  summons?: Parameters<typeof lapseSummons>[0];
 };
 
 /**
@@ -81,4 +84,5 @@ export async function runWorldTasks(
     await quietWars(deps.wars, input);
     await notifyProtectionEnding(deps.wars, input);
   }
+  if (deps.summons) await lapseSummons(deps.summons, input);
 }

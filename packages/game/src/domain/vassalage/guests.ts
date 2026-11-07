@@ -77,6 +77,33 @@ export function hostGuests(state: VillageState, day: number, guests: readonly Gu
 }
 
 /**
+ * Hosté `refs` druhu `kind` ves opustí hned (mutuje stav – odvolaná ochrana); neznámí se přeskočí.
+ */
+export function dismissGuests(
+  state: VillageState,
+  kind: AwayKind,
+  refs: readonly { villageId: string; personId: number }[],
+): void {
+  if (state.guests === undefined) return;
+  const gone = new Set(refs.map((r) => `${r.villageId}:${r.personId}`));
+  const staying = state.guests.filter(
+    (g) => !(g.kind === kind && gone.has(`${g.ref.villageId}:${g.ref.personId}`)),
+  );
+  if (staying.length === 0) delete state.guests;
+  else state.guests = staying;
+}
+
+/**
+ * Lidé pryč s odkazem `refId` bez dne návratu (ochrana do odvolání) se vrátí na začátku dne
+ * `untilDay` (mutuje stav; `returnHome`). Kdo den návratu už má, zůstane u něj.
+ */
+export function endAway(state: VillageState, refId: string, untilDay: number): void {
+  for (const p of state.people) {
+    if (p.away?.refId === refId && p.away.untilDay === undefined) p.away.untilDay = untilDay;
+  }
+}
+
+/**
  * Koho ves na robotu pošle (vassalage.md – Lidé a robota: „dospělí od 16 let, které ves nejméně
  * postrádá, ne muži rodu“), v pořadí výběru: dospělí od 16 let, kteří dnes pracují (ne zranění, ne
  * už pryč), mimo dvorec vojvody, ne muži rodu ani jejich ženy. Návrh Clauda: po kolech – v každém

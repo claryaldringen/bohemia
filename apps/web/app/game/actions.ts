@@ -30,6 +30,16 @@ import {
   type NegotiationActionResult,
 } from '@/lib/house';
 import { answerLevyForPlayer, levyDialogsForPlayer } from '@/lib/levies';
+import {
+  announcePassageForPlayer,
+  answerPassageForPlayer,
+  answerSummonsForPlayer,
+  passagesForPlayer,
+  summonsDialogsForPlayer,
+  summonVassalsForPlayer,
+  type PassageView,
+  type SummonsDialogView,
+} from '@/lib/summons';
 import { decidePrisonerForPlayer } from '@/lib/prisoners';
 import {
   consentEscheatForPlayer,
@@ -748,10 +758,100 @@ export async function dismissSteward(input: unknown): Promise<NegotiationActionR
 }
 
 /** Otevřené dialogy Odvody hráče s předvyplněným rozdělením po vsích (počítá se na vyžádání). */
-export async function levyDialogs(): Promise<{ dialogs: LevyDialogView[] } | { error: string }> {
+export async function levyDialogs(): Promise<
+  { dialogs: LevyDialogView[]; summons: SummonsDialogView[] } | { error: string }
+> {
   const id = await playerId();
   if (id === null) return { error: NOT_SIGNED_IN };
-  return levyDialogsForPlayer(id);
+  const levy = await levyDialogsForPlayer(id);
+  if ('error' in levy) return levy;
+  return { ...levy, summons: await summonsDialogsForPlayer(id) };
+}
+
+const isText = (v: unknown, max = 2000): v is string => typeof v === 'string' && v.length <= max;
+const isId = (v: unknown): v is string => isText(v, 100) && v !== '';
+const isRecord = (v: unknown): v is Record<string, unknown> =>
+  typeof v === 'object' && v !== null && !Array.isArray(v);
+
+/** Svolání vazalů: `{ warId, vassalageIds: string[], targetVillageId }` (vassalage.md – Svolání). */
+export async function summonVassals(
+  input: unknown,
+): Promise<{ ok: true; opened: number; skipped: string[] } | { error: string }> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  if (!isRecord(input) || !isId(input.warId) || !isId(input.targetVillageId)) {
+    return { error: INVALID_INPUT };
+  }
+  const ids = input.vassalageIds;
+  if (!Array.isArray(ids) || ids.length > 50 || !ids.every(isId)) return { error: INVALID_INPUT };
+  return summonVassalsForPlayer(id, {
+    warId: input.warId,
+    vassalageIds: ids,
+    targetVillageId: input.targetVillageId,
+  });
+}
+
+/** Odpověď na Svolání: `{ dialogId, men: [{ villageId, personId }], message? }`. */
+export async function answerSummons(
+  input: unknown,
+): Promise<{ ok: true; sent: number; arrivesDay: number | null } | { error: string }> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  if (!isRecord(input) || !isId(input.dialogId) || !Array.isArray(input.men)) {
+    return { error: INVALID_INPUT };
+  }
+  const men = input.men.filter(
+    (m): m is { villageId: string; personId: number } =>
+      isRecord(m) && isId(m.villageId) && Number.isInteger(m.personId),
+  );
+  if (men.length !== input.men.length || men.length > 100) return { error: INVALID_INPUT };
+  const message = input.message === undefined || input.message === null ? null : input.message;
+  if (message !== null && !isText(message)) return { error: INVALID_INPUT };
+  return answerSummonsForPlayer(id, {
+    dialogId: input.dialogId,
+    men: men.map((m) => ({ villageId: m.villageId, personId: m.personId })),
+    message,
+  });
+}
+
+/** Ohlášení průchodu, na která hráč může odpovědět (panel války). */
+export async function passagesToAnswer(): Promise<{ passages: PassageView[] } | { error: string }> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  return { passages: await passagesForPlayer(id) };
+}
+
+/** Ohlášení průchodu: `{ house, cells: [{ x, y }], eta, message }` (war.md – Pohyb). */
+export async function announcePassage(input: unknown): Promise<{ ok: true } | { error: string }> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  if (!isRecord(input) || !isId(input.house) || !Array.isArray(input.cells)) {
+    return { error: INVALID_INPUT };
+  }
+  const cells = input.cells.filter(
+    (c): c is { x: number; y: number } =>
+      isRecord(c) && Number.isInteger(c.x) && Number.isInteger(c.y),
+  );
+  if (cells.length !== input.cells.length || cells.length > 100) return { error: INVALID_INPUT };
+  if (!Number.isFinite(input.eta) || !isText(input.message)) return { error: INVALID_INPUT };
+  return announcePassageForPlayer(id, {
+    house: input.house,
+    cells: cells.map((c) => ({ x: c.x, y: c.y })),
+    eta: input.eta as number,
+    message: input.message,
+  });
+}
+
+/** Odpověď na ohlášení průchodu: `{ passageId, trust, message? }` (trust false = „Nevěřit“). */
+export async function answerPassage(input: unknown): Promise<{ ok: true } | { error: string }> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  if (!isRecord(input) || !isId(input.passageId) || typeof input.trust !== 'boolean') {
+    return { error: INVALID_INPUT };
+  }
+  const message = input.message === undefined ? '' : input.message;
+  if (!isText(message)) return { error: INVALID_INPUT };
+  return answerPassageForPlayer(id, { passageId: input.passageId, trust: input.trust, message });
 }
 
 /**

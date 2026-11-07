@@ -46,6 +46,27 @@ export type PlayerNoticeKind =
   /** Ochrana nového rodu brzy skončí (war.md – Ochrana nového hráče) – payload `{ daysLeft }`. */
   | 'protection-ending'
   /**
+   * Průchod (war.md – Pohyb): `passage-announced` – rod ohlásil průchod tvým územím, payload
+   * `{ passageId, houseId, name, etaDay }`; `passage-answered` – odpověď, `{ name, trust, message }`.
+   */
+  | 'passage-announced'
+  | 'passage-answered'
+  /**
+   * Svolání (vassalage.md – Svolání): `summons-open` – pán svolává, `{ name }`; `summons-sent` –
+   * vazal poslal muže, `{ name, men, message }`; `summons-lapsed` – nepřišel, `{ name }`.
+   */
+  | 'summons-open'
+  | 'summons-sent'
+  | 'summons-lapsed'
+  /**
+   * Ochrana pánem (vassalage.md – Ochrana vojskem): `protection-requested` – vazal žádá,
+   * `{ name, villageId, villageName, message }`; `protection-sent` – pán poslal muže, `{ name, men }`;
+   * `protection-recalled` – pán muže odvolal, `{ name }`.
+   */
+  | 'protection-requested'
+  | 'protection-sent'
+  | 'protection-recalled'
+  /**
    * Tažení (`stepCampaigns`): `campaign-returned` – vojsko se vrátilo domů, payload
    * `{ campaignId, reason }` (`CampaignReturnReason`).
    */

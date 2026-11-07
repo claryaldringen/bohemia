@@ -531,3 +531,64 @@ Rozpad). Čísla `WAR.npc` (`attackRatio` 1,5, `lostShare` 0,5) a `WAR.absentLea
 - Testy: `war/__tests__/npc-commander.test.ts` (nájezd NPC na bránící se ves po kouscích 1 / 7 / 100,
   silná ves za palisádou – kořist jen zvenku, obraty, přítomnost, zástupce, rozpad); živé testy
   tažení posílají přítomnost (`present`, `LIVE` v `campaign-fixtures.ts`).
+
+## Průchod, svolání a ochrana (Ú6.13)
+
+war.md – Pohyb (Průchod územím neutrálního rodu), vassalage.md – Svolání, Ochrana vojskem.
+
+- **Průchod** – port `application/passages.ts` (`Passage`, `PassageRepository`: `announce`, `byId`,
+  podmíněné `answer` – jen bez odpovědi a platné, `validBetween`, `openTo`, `voidBetween` v obou
+  směrech; `passageCovers(passages, cell)` – platné ohlášení bez „Nevěřit“ na políčku). Use-case
+  `application/passage.ts`: `announcePassage(deps, { playerId, house, cells, eta, message, today })`
+  (ne vlastní rod, ne ve válce, 1–`WAR.passage.maxCells` map, upozornění `passage-announced`,
+  kronika obou rodů `passage-announced` „Bořivoj ohlásil průchod.“), `answerPassage(deps, {
+playerId, passageId, trust, message, today })` (jen oslovený rod, jednou; `passage-answered`
+  ohlašujícímu), `passagesToAnswer` (panel války). **Neškodnost:** `villageWatchers({ …, passages })`
+  – `harmless(armyPlayerId, ownerPlayerId, villageId)` je true i pro ves na ohlášené mapě (sídlo
+  `worldCell`); bez odpovědi platí (spící hráč nic nedělá), „Nevěřit“ = ves podle postoje (dny
+  nájezdu, signál hrozby). **Zrušení:** `WarDeps.passages` – `declareWar` i `startWarByAttack`
+  (přepadení po ohlášení) zavolají `voidBetween`; web `launchDeps` ho předává. DB `schema/passage.ts`,
+  migrace `0035_passage`, adaptér `adapters/passage-repository.ts`.
+- **Svolání** – `application/summons.ts`, dialog `summons` (`SummonsBody`: válka a její strany,
+  vazalství, pán, vazal, cílová ves, domluvení muži, dny; `forDialogId` u vazala vazalů; po odpovědi
+  `sent`, `message`). `summonVassals(deps, { playerId, warId, vassalageIds, targetVillageId, days?,
+today })` – válka rodu, nebo otevřené svolání od pána se stejnou válkou (vazal vazalů – cíl se
+  převezme od pána); jen vlastní vazalové s `terms.service`, jedno čekající svolání na vazalství
+  (klíč `summons:<vazalství>:<pořadí>` – souběh projde jeden), dny = zbytek roku (součet `days`
+  nepropadlých svolání roku, `DialogRepository.listFor`) nebo menší `days`; upozornění
+  `summons-open`. `serviceMenOf` – muži rodu schopní služby ze všech vsí hráče (`lineCandidates`),
+  nejzdatnější první (`lineManStrength`). `answerSummons(deps, { playerId, dialogId, men, message,
+today })` – jen muži rodu schopní služby z vlastních vsí, podmíněné `answer` s odpovědí v těle,
+  pak `sendMen` (shipments.ts – `away` `service`, host `guests-arrive` na `days` dní, cesta 2 dny
+  na políčko tam i zpět, kronika `people-away`); míň než domluveno (i s muži vazalů na jeho
+  svolání – `forDialogId`) = `addBreach('summons')`; `summons-sent` pánovi. `lapseSummons` (úloha
+  světa ve `runWorldTasks.summons`, worker) – otevřené svolání po konci války `lapse` → neplnění,
+  kronika obou rodů `no-show` „Ctibor nepřišel do války.“, `summons-lapsed`.
+- **Ochrana pánem** – `application/protection.ts`: `requestProtection(deps, { playerId,
+  vassalageId, villageId, message, today })` (vazal, vlastní ves – upozornění
+  `protection-requested` pánovi), `sendProtection(deps, { playerId, vassalageId, villageId, men,
+  today })` (pán, jen muži rodu schopní služby z vlastních vsí, do vsi vazala – `sendMen` druhu
+  `protection` do odvolání: doma `away` bez `untilDay`, host do konce světa; `protection-sent`),
+  `recallProtection(deps, { playerId, vassalageId, villageId, today })` – schránka chráněné vsi
+  `guests-leave` (dnes, `dismissGuests`), domovské vsi `away-ends` (`endAway` – návrat za 2 dny na
+  políčko); `protection-recalled`. Odkaz `protectionRef` = `protection:<dohoda>:<ves>`.
+  **Nedodělek:** hosté zatím v boji nebojují – `defenderRoster` zná jen lidi vsi (osoba hosta je ve
+  stavu domovské vsi, výsledky boje by musely do ní); web pro ochranu (žádost v panelu rodu,
+  výběr mužů, odvolání) zatím chybí.
+- **Port dialogů** – nové `listFor(refId, kind)`, `openOfKind(kind)`, `lapse(id)`, `answer(id,
+expected, reply?)` (odpověď se přidá do `body` – `body || reply`).
+- **Web** – `lib/summons.ts` (composition root; `summonVassalsForPlayer` přes
+  `summonVassalsActionForPlayer` = `guardedAction` s `ACTION_RIGHTS.summonVassals` = `war` na cílové
+  vsi; odpověď na svolání jako u Odvodů bez zámku – `sendMen` bere zámek sám), server actions
+  `summonVassals`, `answerSummons`, `passagesToAnswer`, `announcePassage`, `answerPassage`;
+  `levyDialogs` vrací i `summons`. `WarPanel` – roh `war-summon` u války rozbalí přímé vazaly
+  (štít s muži schopnými služby `war-vassal-shield`, roh `war-summon-vassal`, bez služby zašedlý),
+  ohlášení průchodu `war-passage` (podání ruky – vzít na vědomí, zlomená pečeť – Nevěřit).
+  `LevyDialog` – řádek `summons-row` (muži rodu se zaškrtnutím, předvybraní nejzdatnější, štít
+  vybraní / domluvení, hodiny s dny, vzkaz, roh Odeslat). Ikona `house/horn.svg` (CC0).
+- **Testy** – `application/__tests__/summons.test.ts` (jen muži rodu, nejzdatnější první, víc svolání
+  do vyčerpání dnů, vazal vazala do služby B, míň = neplnění, propadnutí s koncem války – kronika
+  a neplnění jednou), `passage.test.ts` (ohlášení, neškodné na ohlášené mapě, „Nevěřit“, jedna
+  odpověď, útok = přepadení a zrušení), `db/adapters/__tests__/passage-repository.db.test.ts`
+  (souběh tří odpovědí – projde jedna, zrušení v obou směrech, odpověď dialogu v těle jednou),
+  e2e `multiplayer.spec.ts` („svolání: …“).

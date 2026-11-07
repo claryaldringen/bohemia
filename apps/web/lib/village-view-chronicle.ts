@@ -540,6 +540,10 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return levyLine(event);
     case 'disobeyed':
       return `${event.name} neposlechl pána.`;
+    case 'passage-announced':
+      return `${event.name} ohlásil průchod.`;
+    case 'no-show':
+      return `${event.name} nepřišel do války.`;
     case 'blocked':
       return `${event.blocker} zablokoval ${accusativeOf(event.blocked)}.`;
     case 'senior':

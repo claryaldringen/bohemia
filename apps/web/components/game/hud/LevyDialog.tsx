@@ -22,6 +22,7 @@ import {
   type BundleKey,
   type BundleSlot,
 } from '@/lib/terms-view';
+import type { SummonsDialogView } from '@/lib/summons';
 import { HouseIcon, TermIconImg } from './TermsForm';
 import { Tooltip } from './Tooltip';
 
@@ -353,12 +354,150 @@ function LevyRow({
 }
 
 /** Panel Odvody: jeden řádek na pána s čekajícím dialogem. */
+type SummonsAnswer = (input: {
+  dialogId: string;
+  men: { villageId: string; personId: number }[];
+  message: string | null;
+}) => Promise<{ ok: true; sent: number; arrivesDay: number | null } | { error: string }>;
+
+/**
+ * Svolání do války (vassalage.md – Svolání): muži rodu schopní služby, předvybraní nejzdatnější
+ * v domluveném počtu; vazal smí ubrat i přidat a připojit vzkaz.
+ */
+function SummonsRow({
+  dialog,
+  onAnswer,
+}: {
+  dialog: SummonsDialogView;
+  onAnswer: SummonsAnswer;
+}): ReactElement {
+  const key = (m: { villageId: string; personId: number }): string =>
+    `${m.villageId}:${m.personId}`;
+  const [picked, setPicked] = useState<Set<string>>(
+    () => new Set(dialog.candidates.slice(0, dialog.men).map(key)),
+  );
+  const [message, setMessage] = useState('');
+  const [state, setState] = useState<'idle' | 'sending' | 'sent'>('idle');
+  const [error, setError] = useState<string | null>(null);
+  const toggle = (k: string): void => {
+    const next = new Set(picked);
+    if (next.has(k)) next.delete(k);
+    else next.add(k);
+    setPicked(next);
+  };
+  const send = async (): Promise<void> => {
+    setState('sending');
+    const men = dialog.candidates
+      .filter((m) => picked.has(key(m)))
+      .map((m) => ({ villageId: m.villageId, personId: m.personId }));
+    const result = await onAnswer({
+      dialogId: dialog.dialogId,
+      men,
+      message: message.trim() === '' ? null : message.trim(),
+    });
+    if ('error' in result) {
+      setError(result.error);
+      setState('idle');
+    } else setState('sent');
+  };
+  return (
+    <div
+      data-testid="summons-row"
+      className="flex flex-col gap-1 border-t border-[#5c4526] py-2 text-sm first:border-t-0"
+    >
+      <div className="flex items-center gap-1.5">
+        <Tooltip content={`${dialog.lordName} svolává do vsi ${dialog.targetName}`}>
+          <span tabIndex={0} className="inline-flex items-center gap-1">
+            <img src="/icons/house/horn.svg" alt="" width={18} height={18} draggable={false} />
+            <span className="font-semibold">{dialog.lordName}</span>
+          </span>
+        </Tooltip>
+        <Tooltip content="Domluvení muži">
+          <span tabIndex={0} className="ml-auto inline-flex items-center gap-0.5 text-xs">
+            <img src="/icons/house/shield.svg" alt="" width={14} height={14} draggable={false} />
+            {picked.size}/{dialog.men}
+          </span>
+        </Tooltip>
+        <Tooltip content="Dny služby">
+          <span tabIndex={0} className="inline-flex items-center gap-0.5 text-xs">
+            <img src="/icons/house/hourglass.svg" alt="" width={14} height={14} draggable={false} />
+            {dialog.days}
+          </span>
+        </Tooltip>
+      </div>
+      {state === 'sent' ? (
+        <Tooltip content="Muži vyrazili.">
+          <span tabIndex={0} data-testid="summons-sent" className="inline-flex self-end">
+            <img src="/icons/house/shield.svg" alt="" width={18} height={18} draggable={false} />
+          </span>
+        </Tooltip>
+      ) : (
+        <>
+          <ul className="flex flex-col gap-0.5">
+            {dialog.candidates.map((m) => (
+              <li key={key(m)}>
+                <label className="flex items-center gap-1.5 text-xs">
+                  <input
+                    type="checkbox"
+                    data-testid="summons-man"
+                    checked={picked.has(key(m))}
+                    onChange={() => toggle(key(m))}
+                  />
+                  <span className="flex-1 truncate">{m.name ?? 'Bezejmenný'}</span>
+                  <span className="opacity-70">{m.age}</span>
+                  <Tooltip content="Síla">
+                    <span tabIndex={0} className="inline-flex items-center gap-0.5">
+                      <img
+                        src="/icons/house/sword.svg"
+                        alt=""
+                        width={12}
+                        height={12}
+                        draggable={false}
+                      />
+                      {m.strength}
+                    </span>
+                  </Tooltip>
+                </label>
+              </li>
+            ))}
+          </ul>
+          <textarea
+            aria-label="Vzkaz"
+            value={message}
+            maxLength={500}
+            onChange={(e) => setMessage(e.target.value)}
+            className="h-10 w-full resize-none rounded-sm border border-[#5c4526] bg-[#15100b] p-1 text-xs"
+          />
+          <Tooltip content="Odeslat">
+            <button
+              type="button"
+              aria-label="Odeslat"
+              data-testid="summons-send"
+              disabled={state === 'sending'}
+              onClick={() => void send()}
+              className="hud-icon-button flex h-8 w-10 items-center justify-center self-end disabled:opacity-40"
+            >
+              <img src="/icons/house/horn.svg" alt="" width={22} height={22} draggable={false} />
+            </button>
+          </Tooltip>
+        </>
+      )}
+      {error && <span className="text-xs text-red-400">{error}</span>}
+    </div>
+  );
+}
+
 export function LevyDialog({
   dialogs,
   error,
   onAnswer,
+  summons = [],
+  onAnswerSummons,
   onClose,
 }: {
+  /** Otevřená Svolání do války (vassalage.md – Svolání). */
+  summons?: readonly SummonsDialogView[];
+  onAnswerSummons?: SummonsAnswer;
   /** Otevřené dialogy; null = ještě se načítají. */
   dialogs: readonly LevyDialogView[] | null;
   error?: string | null;
@@ -417,6 +556,10 @@ export function LevyDialog({
           <LevyRow key={dialog.dialogId} dialog={dialog} onAnswer={onAnswer} />
         ))
       )}
+      {onAnswerSummons &&
+        summons.map((dialog) => (
+          <SummonsRow key={dialog.dialogId} dialog={dialog} onAnswer={onAnswerSummons} />
+        ))}
     </div>
   );
 }

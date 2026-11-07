@@ -1,12 +1,21 @@
 import {
   corveeGuests,
   dispatchCorvee,
+  sendAway,
   dispatchShipment,
   shipmentDays,
   type CorveeInput,
   type MacroBundle,
 } from '../domain/vassalage';
-import { isVillageAbandoned, isVillageExtinct, type ShipmentBody } from '../domain/village';
+import {
+  isVillageAbandoned,
+  isVillageExtinct,
+  type Guest,
+  type ShipmentBody,
+  type VillageState,
+} from '../domain/village';
+import { cloneState } from '../domain/village/clone';
+import { isAway } from '../domain/village/people';
 import type { Direction8 } from '../domain/village';
 import { GRID_STEPS, OPPOSITE } from '../domain/village/world-grid';
 import { TOTAL_GAME_DAYS } from '../domain/calendar';
@@ -393,6 +402,105 @@ async function sendCorveeLocked(
   return { ok: false, reason: 'Ves se mezitím změnila, zkus to znovu.' };
 }
 
+/**
+ * Pošle muže `personIds` z vsi `fromVillageId` na čas do vsi `toVillageId` – služba na svolání
+ * (`days` dní u hostitele, cesta se nepočítá) nebo ochrana (`days` null – vrátí je odvolání)
+ * (vassalage.md – Svolání, Ochrana vojskem). Zůstanou ve stavu domovské vsi s `away`, hostitel
+ * dostane `guests-arrive` v den příchodu. Pod zámkem držitele odesílatele, ves napřed dopočítá
+ * volající; opakování se stejným `refId` muže znovu nepošle, jen dopíše událost. Kdo už je pryč
+ * nebo ve vsi není, se odmítne.
+ */
+export async function sendMen(
+  deps: ShipmentDeps,
+  input: {
+    fromVillageId: string;
+    toVillageId: string;
+    personIds: readonly number[];
+    kind: 'service' | 'protection';
+    days: number | null;
+    refId: string;
+    today: number;
+  },
+): Promise<SendCorveeResult> {
+  const from = await deps.villages.find(input.fromVillageId);
+  if (!from) return { ok: false, reason: 'Odesílající ves neexistuje.' };
+  const fromPlace = await placeOf(deps, from);
+  if (!fromPlace) return { ok: false, reason: 'Odesílající ves nemá sídlo.' };
+  return deps.locks.run(fromPlace.ownerId, () => sendMenLocked(deps, input));
+}
+
+/** Hosté, které muži odeslaní s `refId` (ve stavu domovské vsi) dávají hostiteli. */
+function menGuests(
+  state: VillageState,
+  homeVillageId: string,
+  refId: string,
+  guestUntil: number,
+): Guest[] {
+  return state.people
+    .filter((p) => p.away?.refId === refId)
+    .map((p) => ({
+      ref: { villageId: homeVillageId, personId: p.id },
+      kind: p.away!.kind,
+      untilDay: guestUntil,
+      adult: true as const,
+    }));
+}
+
+async function sendMenLocked(
+  deps: ShipmentDeps,
+  input: Parameters<typeof sendMen>[1],
+): Promise<SendCorveeResult> {
+  if (input.fromVillageId === input.toVillageId) {
+    return { ok: false, reason: 'Muži nemohou jít do téže vsi.' };
+  }
+  const to = await deps.villages.find(input.toVillageId);
+  if (sleeps(to)) return { ok: false, reason: 'Cílová ves zanikla.' };
+  const toPlace = await placeOf(deps, to!);
+  if (!toPlace) return { ok: false, reason: 'Cílová ves nemá sídlo.' };
+  for (let attempt = 0; attempt < SAVE_ATTEMPTS; attempt++) {
+    const from = await deps.villages.find(input.fromVillageId);
+    if (sleeps(from)) return { ok: false, reason: 'Odesílající ves nevysílá.' };
+    const fromPlace = await placeOf(deps, from!);
+    if (!fromPlace) return { ok: false, reason: 'Odesílající ves nemá sídlo.' };
+    const travelDays = shipmentDays(cellDistance(fromPlace.cell, toPlace.cell)).arrive;
+    const arrivesDay = input.today + travelDays;
+    // ochrana trvá do odvolání – host do konce světa, doma bez dne návratu
+    const guestUntil = input.days === null ? FAR_DAY : arrivesDay + input.days;
+    const already = menGuests(from!.state, from!.id, input.refId, guestUntil);
+    if (already.length > 0) {
+      await postGuests(deps, to!.id, arrivesDay, from!, input.refId, already);
+      return { ok: true, arrivesDay };
+    }
+    const people = input.personIds.map((id) => from!.state.people.find((p) => p.id === id));
+    if (people.some((p) => p === undefined || isAway(p, input.today))) {
+      return { ok: false, reason: 'Někdo z mužů už ve vsi není.' };
+    }
+    if (people.length === 0) return { ok: true, arrivesDay };
+    const next = cloneState(from!.state);
+    sendAway(next, input.today, input.personIds, {
+      kind: input.kind,
+      ...(input.days === null ? {} : { untilDay: guestUntil + travelDays }),
+      hostVillageId: to!.id,
+      refId: input.refId,
+    });
+    if (input.days !== null) {
+      next.chronicle.push({
+        day: input.today,
+        kind: 'people-away',
+        away: input.kind,
+        people: people.length,
+        villageName: to!.name,
+        untilDay: guestUntil + travelDays,
+      });
+    }
+    if (!(await deps.villages.save(from!.id, next, from!.version))) continue;
+    const guests = menGuests(next, from!.id, input.refId, guestUntil);
+    await postGuests(deps, to!.id, arrivesDay, from!, input.refId, guests);
+    return { ok: true, arrivesDay };
+  }
+  return { ok: false, reason: 'Ves se mezitím změnila, zkus to znovu.' };
+}
+
 /** Událost `guests-arrive` do schránky hostitele (druhý zápis téhož `ref` se zahodí). */
 async function postGuests(
   deps: ShipmentDeps,
@@ -406,8 +514,13 @@ async function postGuests(
     villageId: hostVillageId,
     day,
     ref: `guests:${refId}`,
-    body: { kind: 'guests-arrive', fromVillageId: from.id, fromName: from.name, guests },
+    body: {
+      kind: 'guests-arrive',
+      fromVillageId: from.id,
+      fromName: from.name,
+      guests: [...guests],
+    },
   });
 }
 
-type CorveeGuests = ReturnType<typeof corveeGuests>;
+type CorveeGuests = readonly Guest[];

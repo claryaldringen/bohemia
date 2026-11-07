@@ -138,4 +138,9 @@ export const WAR = {
    * sekundu, záměr hráče platí od taktu teď + 2 (≈ 0,5 s), kontrolní bod každých 40 taktů (10 s).
    */
   campaign: { ticksPerSecond: 4, intentLeadTicks: 2, checkpointTicks: 40 },
+  /**
+   * war.md – Pohyb: Průchod územím neutrálního rodu – nejvýš tolik map v jednom ohlášení (mez
+   * vstupu, návrh Clauda).
+   */
+  passage: { maxCells: 24 },
 } as const;

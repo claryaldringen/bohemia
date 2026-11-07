@@ -320,6 +320,10 @@ tím, že nabídku vazala odsouhlasí, nebo dá protinabídku – bez jeho souhl
   a kronika zapíše „Ctibor nepřišel do války“ (návrh Clauda).
 - **Kolik:** za herní rok nejvýš domluvené dny služby; pán smí během války svolat i víckrát, dokud
   dny nevyčerpá (návrh Clauda).
+  Každé svolání vezme dny (zbytek roku, nebo méně, když pán určí) – i když vazal pošle míň mužů;
+  propadlé svolání dny nevezme. Na jednu dohodu čeká nejvýš jedno svolání (návrh Clauda).
+- **Míň mužů** než domluveno (i s muži jeho vazalů, kteří přišli na jeho svolání) se zapíše jako
+  neplnění, víc smí (návrh Clauda – jako u dávek).
 - **Cesta a jídlo** (návrh Clauda): pěšky nebo na svých koních ([koně](horses.md)), 2 herní dny
   na políčko; jídlo na cestu nesou z domova, během služby je **živí ves, kde slouží** (jako
   u roboty).

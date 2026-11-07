@@ -1095,3 +1095,65 @@ test('zajatec: věznitel ho vidí ve dvorci a propustí → rozhodnutí je zapsa
     .toBe('released');
   await ctx.close();
 });
+
+test('svolání: pán ve válce svolá vazala rohem, vazal dialog vidí, potvrdí a pán dostane upozornění', async ({
+  browser,
+}) => {
+  test.setTimeout(240_000);
+  await query(`UPDATE house SET ended_at = now() WHERE ended_at IS NULL`, []);
+  const ctxs = await Promise.all([browser.newContext(), browser.newContext()]);
+  for (const ctx of ctxs) await useUniqueClientIp(ctx);
+  const [a, b] = (await Promise.all(ctxs.map((ctx) => ctx.newPage()))) as [Page, Page];
+  for (const page of [a, b]) await page.setViewportSize({ width: 1280, height: 720 });
+  const { email: emailA, seat: seatA } = await newPlayer(a, 'svolania');
+  await found(a, villageSpots(seatA.landscape).dwelling, 'Bořivoj');
+  const { email: emailB, seat: seatB } = await newPlayer(b, 'svolanib');
+  await found(b, villageSpots(seatB.landscape).dwelling, 'Ctibor');
+  const idA = await houseIdOf(emailA);
+  const idB = await houseIdOf(emailB);
+
+  // B je vazalem A se službou 1 muže na 20 dní; A válčí s NPC rodem (zápis do databáze)
+  await query(
+    `INSERT INTO vassalage (lord_house_id, vassal_house_id, terms, origin, since_at, since_day)
+     VALUES ($1, $2, '{"service":{"men":1,"days":20}}'::jsonb, 'negotiation', now(), 0)`,
+    [idA, idB],
+  );
+  const [npc] = await query<{ id: string }>(
+    `INSERT INTO house (kind, created_at) VALUES ('npc', now()) RETURNING id`,
+    [],
+  );
+  const [low, high] = [idA, npc!.id].sort();
+  await query(
+    `INSERT INTO war (house_low, house_high, how, status, started_at, started_day, last_clash_day)
+     VALUES ($1, $2, 'declared', 'active', now(), 0, 0)`,
+    [low, high],
+  );
+
+  // A otevře panel války, rohem rozbalí vazaly – štít s muži schopnými služby – a svolá B
+  await pollVillage(a);
+  await a.getByTestId('war-count').click();
+  const war = a.getByTestId('war-panel');
+  await expect(war.getByTestId('war-row')).toHaveCount(1, { timeout: 30_000 });
+  await war.getByTestId('war-summon').click();
+  await expect(war.getByTestId('war-vassal-shield')).toBeVisible();
+  await war.getByTestId('war-summon-vassal').click();
+  await expect(war.getByTestId('war-summon-error')).toHaveCount(0);
+
+  // B dostane upozornění „Bořivoj svolává.“, otevře z něj dialog s předvybraným mužem a odešle
+  await pollVillage(b);
+  const notice = b.getByTestId('village-notice').filter({ hasText: 'svolává' });
+  await expect(notice).toBeVisible({ timeout: 60_000 });
+  await notice.click();
+  const dialog = b.getByRole('dialog', { name: 'Odvody' });
+  await expect(dialog.getByTestId('summons-row')).toBeVisible({ timeout: 30_000 });
+  await expect(dialog.getByTestId('summons-man').first()).toBeChecked();
+  await dialog.getByTestId('summons-send').click();
+  await expect(dialog.getByTestId('summons-sent')).toBeVisible({ timeout: 30_000 });
+
+  // pán vidí „Ctibor poslal 1 muže.“
+  await pollVillage(a);
+  await expect(a.getByTestId('village-notice').filter({ hasText: 'poslal 1 muže' })).toBeVisible({
+    timeout: 60_000,
+  });
+  await Promise.all(ctxs.map((ctx) => ctx.close()));
+});
