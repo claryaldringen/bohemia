@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import type { ReactElement } from 'react';
 import { VillageGame } from '@/components/game/VillageGame';
-import { gameEntryForPlayer, playerToday } from '@/lib/game';
+import { gameEntryForPlayer, languageChoiceForPlayer, playerToday } from '@/lib/game';
 import { encodeLandscape } from '@/lib/landscape-transfer';
 import { getSession } from '@/lib/session';
 import { villageViewForEntry } from '@/lib/village';
@@ -18,6 +18,7 @@ export default async function GamePage(): Promise<ReactElement> {
     playerToday(session.user.id),
   ]);
   const village = await villageViewForEntry(entry, today, session.user.id);
+  const languageChoice = await languageChoiceForPlayer(session.user.id, entry.villageId !== null);
 
   return (
     <main className="h-screen overflow-hidden select-none">
@@ -30,6 +31,7 @@ export default async function GamePage(): Promise<ReactElement> {
         timeOffsetDays={today.ok ? today.offsetDays : 0}
         devMode={session.user.devMode === true}
         email={session.user.email}
+        languageChoice={languageChoice}
         initialNowMs={Date.now()}
       />
     </main>

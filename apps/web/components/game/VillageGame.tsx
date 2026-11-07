@@ -94,6 +94,7 @@ import {
   sendProtection,
   recallProtection,
   announceWarPassage,
+  chooseLanguageAction,
 } from '@/app/game/actions';
 import type { PassageView, SummonsDialogView } from '@/lib/summons';
 import type { ProtectionView } from '@/lib/protection';
@@ -170,6 +171,7 @@ import { LevyDialog } from './hud/LevyDialog';
 import { EscheatDialog } from './hud/EscheatDialog';
 import { RightsProvider, VillageIdProvider, rightDeniedReason } from './hud/rights';
 import { Minimap } from './hud/Minimap';
+import { LanguageChoice } from './hud/LanguageChoice';
 import { LineNamePanel } from './hud/LineNamePanel';
 import { NoticeLines, type NoticeLine } from './hud/NoticeLines';
 import { SelectionPanel } from './hud/SelectionPanel';
@@ -366,6 +368,7 @@ export function VillageGame({
   devMode,
   email,
   initialNowMs,
+  languageChoice = false,
 }: {
   landscape: LandscapeTransfer;
   /** Seed krajiny sídla – podle něj hra navrhne jméno vsi. */
@@ -383,6 +386,8 @@ export function VillageGame({
   email: string;
   /** Čas serveru při renderu (datum v liště sedí s HTML ze serveru). */
   initialNowMs: number;
+  /** Účet přes Google bez založené vsi – v úvodu řádek ikon jazyků (newcomers.md). */
+  languageChoice?: boolean;
 }): ReactElement {
   const decoded = useMemo(() => decodeLandscape(landscape), [landscape]);
   const [scene, setScene] = useState<LandscapeScene | null>(null);
@@ -1703,6 +1708,13 @@ export function VillageGame({
               }
               onExpire={expireNotice}
             />
+            {foundingName && languageChoice && (
+              <LanguageChoice
+                onChoose={(language) =>
+                  chooseLanguageAction(language).then((r) => (r.ok ? null : r.error))
+                }
+              />
+            )}
             {foundingName && (
               <LineNamePanel
                 lord

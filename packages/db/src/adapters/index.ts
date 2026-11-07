@@ -6,7 +6,7 @@ export {
   type PlayerLockOptions,
 } from './player-lock';
 export { createHouseRepository } from './house-repository';
-export { createAccountLanguages } from './account-languages';
+export { createAccountLanguages, createAccountProviders } from './account-languages';
 export { createInviteRepository } from './invite-repository';
 export { createInboxRepository } from './inbox-repository';
 export { createNoticeRepository } from './notice-repository';
