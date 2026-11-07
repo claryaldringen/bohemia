@@ -277,6 +277,11 @@ export interface FenceOutline {
   maxZ: number;
   /** Leží bod uvnitř plotu? Ostré rohy – zakulacení leží celé do odstupu od plotu. */
   inside: (x: number, z: number) => boolean;
+  /**
+   * Vzdálenost bodu od čáry plotu jako `fenceDistance`, ale přesná jen pod `reach` (dál cokoli
+   * aspoň `reach`) – rychlé hledání u plotu se stovkami úseků (stěny opevnění – `wallOutline`).
+   */
+  near?: (x: number, z: number, reach: number) => number;
 }
 
 /**

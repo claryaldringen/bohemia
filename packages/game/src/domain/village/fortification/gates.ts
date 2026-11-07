@@ -39,6 +39,8 @@ export interface GateChord {
 
 /** Tolerance průsečíku na konci úsečky (m). */
 const HIT_EPSILON_M = 1e-9;
+/** Rezerva obalu úseku při hledání průsečíků s cestami (m) – jen zrychlení (`firstCrossing`). */
+const CROSSING_BOX_M = 1;
 
 /** Kolikrát se zpřesní poloviční délka oblouku, aby tětiva měřila šířku brány. */
 const CHORD_STEPS = 3;
@@ -125,10 +127,36 @@ export function distanceTo(segment: FortSegmentShape, x: number, z: number): num
 
 /** První průsečík cest `roads` s úsekem – poloha na úseku (m); bez průsečíku Infinity. */
 function firstCrossing(segment: FortSegmentShape, roads: readonly GatePolyline[]): number {
+  // obal úseku s rezervou – úsečka cesty mimo něj ho neprotne (tolerance HIT_EPSILON_M je
+  // zlomek délky, u úseček kratších než 1000 km pod 1 mm); jen zrychlení, výsledek týž
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minZ = Infinity;
+  let maxZ = -Infinity;
+  for (const [x, z] of segment.path) {
+    minX = Math.min(minX, x);
+    maxX = Math.max(maxX, x);
+    minZ = Math.min(minZ, z);
+    maxZ = Math.max(maxZ, z);
+  }
+  minX -= CROSSING_BOX_M;
+  maxX += CROSSING_BOX_M;
+  minZ -= CROSSING_BOX_M;
+  maxZ += CROSSING_BOX_M;
   let first = Infinity;
   for (const road of roads) {
     for (let k = 0; k + 1 < road.length; k++) {
-      for (const along of crossings(segment, road[k]!, road[k + 1]!)) {
+      const p = road[k]!;
+      const q = road[k + 1]!;
+      if (
+        Math.max(p.x, q.x) < minX ||
+        Math.min(p.x, q.x) > maxX ||
+        Math.max(p.z, q.z) < minZ ||
+        Math.min(p.z, q.z) > maxZ
+      ) {
+        continue;
+      }
+      for (const along of crossings(segment, p, q)) {
         first = Math.min(first, along);
       }
     }
