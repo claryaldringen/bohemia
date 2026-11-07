@@ -1,5 +1,6 @@
 import 'server-only';
 import {
+  createAccountLanguages,
   createActivityRepository,
   createHouseRepository,
   createInviteRepository,
@@ -23,6 +24,7 @@ import {
   type GameDeps,
 } from '@bohemia/server';
 import {
+  chooseLanguage,
   currentStewardViewStamp,
   currentVillageViewStamp,
   dynastyForVillage,
@@ -35,6 +37,7 @@ import {
   restartGame,
   settlementLandscape,
   skipTime,
+  type ChooseLanguageResult,
   type Direction8,
   type DynastyView,
   type EnterGameResult,
@@ -62,6 +65,7 @@ const landscapes = cachedLandscapes(LANDSCAPE_CACHE_SIZE);
  */
 export function enterGameForPlayer(playerId: string): Promise<EnterGameResult> {
   const db = getDatabase();
+  const accounts = createAccountLanguages(db);
   return enterGame(
     {
       settlements: createSettlementRepository(db),
@@ -75,11 +79,28 @@ export function enterGameForPlayer(playerId: string): Promise<EnterGameResult> {
           return day.ok ? day.day : 0;
         },
       },
+      accountLanguage: (id) => accounts.languageOf(id),
       now: () => new Date(),
       worldSeed: worldSeed(),
       landscapes,
     },
     playerId,
+  );
+}
+
+/** Volba jazyka skupiny (Google účty při prvním vstupu); chyba česky pro hráče. */
+export function chooseLanguageForPlayer(
+  playerId: string,
+  language: unknown,
+): Promise<ChooseLanguageResult> {
+  const db = getDatabase();
+  return chooseLanguage(
+    {
+      accounts: createAccountLanguages(db),
+      houses: createHouseRepository(db),
+      settlements: createSettlementRepository(db),
+    },
+    { playerId, language },
   );
 }
 

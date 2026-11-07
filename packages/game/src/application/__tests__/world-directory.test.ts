@@ -68,6 +68,7 @@ async function setup(): Promise<{
         successionDay: null,
         lastEnnobleYear: null,
         pendingDeparture: null,
+        language: 'cs',
       },
       seat: { x, y },
       digests,
@@ -114,6 +115,7 @@ describe('housesNear', () => {
     ]);
     expect(house?.lordName).toBe('Starý');
     expect(house?.villages).toBe(1);
+    expect(house?.language).toBe('cs');
   });
 
   it('řadí podle vzdálenosti, nejvýš limit, vlastní rod vynechá', async () => {

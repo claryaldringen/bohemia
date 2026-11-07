@@ -13,6 +13,7 @@ const other: PublicHouse = {
   distance: 2,
   men: [{ name: 'Ctibor', age: 30, villageName: 'Ves', villageId: 'v', personId: 1 }],
   villages: 1,
+  language: 'cs',
 };
 const negotiation = (over: Partial<PanelNegotiation> = {}): PanelNegotiation => ({
   id: 'n-1',

@@ -18,6 +18,26 @@ const ORIGIN = { x: 0, y: 0 };
 const NOW = new Date('2026-11-05T12:00:00Z');
 
 describe('enterGame', () => {
+  it('rod dostane jazyk účtu, bez portu češtinu', async () => {
+    const houses = new InMemoryHouses();
+    await enterGame(
+      {
+        settlements: new InMemorySettlements(),
+        worldSeed: WORLD_SEED,
+        houses,
+        now: () => NOW,
+        accountLanguage: async () => 'pl',
+      },
+      'hrac-1',
+    );
+    expect((await houses.activeOf('hrac-1'))?.language).toBe('pl');
+    await enterGame(
+      { settlements: new InMemorySettlements(), worldSeed: WORLD_SEED, houses, now: () => NOW },
+      'hrac-2',
+    );
+    expect((await houses.activeOf('hrac-2'))?.language).toBe('cs');
+  });
+
   it('první vstup založí sídelní sídlo ve středu světa s krajinou z jeho políčka a aktuálními verzemi vrstev', async () => {
     const settlements = new InMemorySettlements();
     const { settlement, landscape } = await enterGame(

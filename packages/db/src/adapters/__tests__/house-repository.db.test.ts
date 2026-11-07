@@ -35,6 +35,18 @@ describe('HouseRepository (Drizzle)', () => {
     expect((await houses.activeOf('p1'))?.id).toBe(created[0]!.id);
   });
 
+  it('rod dostane jazyk při založení, bez něj češtinu', async () => {
+    const polish = await houses.create({
+      playerId: 'p1',
+      kind: 'player',
+      createdAt: NOW,
+      language: 'pl',
+    });
+    expect((await houses.byId(polish.id))?.language).toBe('pl');
+    const npc = await houses.create({ playerId: null, kind: 'npc', createdAt: NOW });
+    expect(npc.language).toBe('cs');
+  });
+
   it('end uspěje jen jednou; po konci jde založit nový rod', async () => {
     const first = await houses.create({ playerId: 'p1', kind: 'player', createdAt: NOW });
     expect(await houses.end(first.id, NOW, 123)).toBe(true);

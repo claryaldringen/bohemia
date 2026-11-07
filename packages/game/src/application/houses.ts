@@ -1,4 +1,5 @@
 import type { PersonRef } from '../domain/village';
+import type { LanguageGroup } from '../domain/world';
 
 /** Odkaz na osobu ve vsi: ves a číslo osoby v jejím stavu (tvar z domény – i hosté vsí). */
 export type { PersonRef };
@@ -23,6 +24,8 @@ export interface House {
   pendingDeparture: PendingDeparture | null;
   /** Herní rok posledního povýšení vesničana (vassalage.md – Povýšení vesničana); null – dosud žádné. */
   lastEnnobleYear: number | null;
+  /** Jazyková skupina rodu – z účtu při založení, nemění se (newcomers.md – Jazyková skupina). */
+  language: LanguageGroup;
 }
 
 /**
@@ -46,11 +49,19 @@ export interface HouseRepository {
    * Založí rod. Hráč, který už živý rod má, dostane ten existující (souběžná volání dají
    * jediný rod).
    */
-  create(input: { playerId: string | null; kind: House['kind']; createdAt: Date }): Promise<House>;
+  create(input: {
+    playerId: string | null;
+    kind: House['kind'];
+    createdAt: Date;
+    /** Jazyk rodu; bez něj čeština. */
+    language?: LanguageGroup;
+  }): Promise<House>;
   /** Ukončí rod; true jen když rod byl živý (z více souběžných volání uspěje jedno). */
   end(houseId: string, at: Date, day: number): Promise<boolean>;
   /** Zapíše, nebo (null) vymaže hlavu rodu. */
   setLord(houseId: string, lord: PersonRef | null): Promise<void>;
+  /** Změní jazyk rodu (jen při volbě před založením vsi – languages.ts). */
+  setLanguage(houseId: string, language: LanguageGroup): Promise<void>;
   /** Zapíše, nebo (null) vymaže naposledy hlášeného seniora rodu. */
   setSenior(houseId: string, senior: PersonRef | null): Promise<void>;
   /**

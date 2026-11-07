@@ -17,6 +17,7 @@ const house = (houseId: string, lordName: string | null, ages: number[]): Public
     personId: i,
   })),
   villages: 1,
+  language: 'cs',
 });
 
 describe('houseView', () => {

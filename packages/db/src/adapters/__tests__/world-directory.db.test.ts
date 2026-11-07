@@ -52,6 +52,17 @@ async function player(id: string, x: number, y: number, extra = true): Promise<s
 }
 
 describe('WorldDirectory (Drizzle)', () => {
+  it('záznam rodu nese jeho jazyk', async () => {
+    const mine = await player('me', 0, 0);
+    const other = await player('de', 1, 0);
+    await db
+      .update(schema.house)
+      .set({ language: 'de' })
+      .where(sql`${schema.house.id} = ${other}`);
+    const [entry] = await directory.nearestHouses({ x: 0, y: 0 }, 5, mine);
+    expect(entry?.house.language).toBe('de');
+  });
+
   it('řadí podle Čebyševovy vzdálenosti, pak id; limit; vynechá vlastní rod', async () => {
     const mine = await player('me', 0, 0);
     const far = await player('far', 7, -2);

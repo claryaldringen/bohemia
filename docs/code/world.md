@@ -42,6 +42,9 @@ začátku svého dne, zápis zvedá verzi vsi) – `docs/code/village-core.md`, 
   `PublicHouse[]` podle vzdálenosti sídelních sídel od sídla diváka (vlastní rod vynechán).
   `publicHouseOf(entry, center, today)` skládá `PublicHouse` z jednoho záznamu; port má i
   `entriesOf(houseIds)` (záznamy konkrétních živých rodů – páni, vazalové, pozvaní, vlastní rod).
+- **Jazyk rodu je veřejný:** `house.language` (sloupec s výchozí `cs`, migrace `0037_language`) nese
+  `House.language` a `PublicHouse.language`; rod ho dostane z účtu při založení a nemění se.
+  Z adresáře ho použije pořadí nabídky pánů a umístění svobodného nováčka (newcomers.md).
 - **Co je veřejné** (vassalage.md – Přehled pána; Martin 2. 11. 2026: „rodokmeny šlechty jsou
   prakticky veřejné“): jméno hlavy rodu, poloha sídla, vzdálenost, počet aktivních vsí a muži rodu
   od 16 let (`PUBLIC_MAN_MIN_AGE`) s jménem, věkem a názvem vsi. **Nic dalšího** – zásoby, výzbroj,

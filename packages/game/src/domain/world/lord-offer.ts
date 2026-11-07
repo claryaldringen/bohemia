@@ -1,7 +1,5 @@
 import { deriveSeed } from '../landscape/random';
-
-// Dočasně: sjednotit s languages.ts (Úloha 1) při slučování.
-export type LanguageGroup = 'cs' | 'en' | 'de' | 'pl' | 'it' | 'fr' | 'es';
+import type { LanguageGroup } from './languages';
 
 /** Rod jako kandidát nabídky pánů (newcomers.md – Nabídka pánů). */
 export interface OfferCandidate {

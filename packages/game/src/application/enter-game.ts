@@ -4,7 +4,13 @@ import {
   generateLandscapeAttempt,
   type Landscape,
 } from '../domain/landscape';
-import { cellLandscapeSeed, placeNewPlayer, type PlacementRequest } from '../domain/world';
+import {
+  DEFAULT_LANGUAGE,
+  cellLandscapeSeed,
+  placeNewPlayer,
+  type LanguageGroup,
+  type PlacementRequest,
+} from '../domain/world';
 import type { GridCell } from '../domain/village/world-grid';
 import type { House, HouseRepository } from './houses';
 import type { InviteRepository } from './invites';
@@ -29,6 +35,8 @@ export interface EnterGameDeps {
   invitation?: InvitationDeps;
   settlements: SettlementRepository;
   houses: HouseRepository;
+  /** Jazyk účtu hráče (rod ho dostane při založení); bez portu čeština. */
+  accountLanguage?: (playerId: string) => Promise<LanguageGroup>;
   /** Skutečný čas – den založení rodu (doména čas nezná, přichází zvenku). */
   now: () => Date;
   /** Seed světa – krajina každého políčka mřížky se z něj odvozuje (`cellLandscapeSeed`). */
@@ -84,7 +92,8 @@ export async function enterGame(deps: EnterGameDeps, playerId: string): Promise<
 async function ensureHouse(deps: EnterGameDeps, playerId: string): Promise<House> {
   const existing = await deps.houses.activeOf(playerId);
   if (existing) return existing;
-  return deps.houses.create({ playerId, kind: 'player', createdAt: deps.now() });
+  const language = deps.accountLanguage ? await deps.accountLanguage(playerId) : DEFAULT_LANGUAGE;
+  return deps.houses.create({ playerId, kind: 'player', createdAt: deps.now(), language });
 }
 
 interface InvitingLord {

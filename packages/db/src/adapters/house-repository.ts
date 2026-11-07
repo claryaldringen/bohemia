@@ -25,6 +25,7 @@ export function toHouse(row: HouseRow): House {
     successionDay: row.successionDay,
     pendingDeparture: row.pendingDeparture,
     lastEnnobleYear: row.lastEnnobleYear,
+    language: row.language,
   };
 }
 
@@ -49,7 +50,12 @@ export function createHouseRepository(db: Database): HouseRepository {
       // Unikátní index (živý rod hráče) rozhodne souběh: poražený načte existující rod.
       const [row] = await db
         .insert(house)
-        .values({ playerId: input.playerId, kind: input.kind, createdAt: input.createdAt })
+        .values({
+          playerId: input.playerId,
+          kind: input.kind,
+          createdAt: input.createdAt,
+          language: input.language ?? 'cs',
+        })
         .onConflictDoNothing()
         .returning();
       if (row) return toHouse(row);
@@ -74,6 +80,9 @@ export function createHouseRepository(db: Database): HouseRepository {
           lordPersonId: lord?.personId ?? sql`NULL`,
         })
         .where(eq(house.id, houseId));
+    },
+    async setLanguage(houseId, language): Promise<void> {
+      await db.update(house).set({ language }).where(eq(house.id, houseId));
     },
     async setSenior(houseId, senior): Promise<void> {
       await db

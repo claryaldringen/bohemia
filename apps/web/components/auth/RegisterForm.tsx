@@ -3,6 +3,8 @@
 import { useState, type SubmitEvent, type ReactElement } from 'react';
 import { authClient } from '@/lib/auth-client';
 import { authErrorMessage } from '@/lib/auth-errors';
+import { LANGUAGE_GROUPS, DEFAULT_LANGUAGE } from '@bohemia/game';
+import { LANGUAGE_NAMES } from '@/lib/language-names';
 import { checkInviteAction } from '@/app/register/actions';
 import { Field, FormError, Notice, SubmitButton } from './form';
 
@@ -28,6 +30,7 @@ export function RegisterForm({ initialInvite = '' }: { initialInvite?: string })
       password: String(form.get('password')),
       // Jméno se při registraci nezadává – hráč si později pojmenuje rod.
       name: '',
+      language: String(form.get('language')),
       callbackURL: '/game',
     });
     setPending(false);
@@ -57,6 +60,20 @@ export function RegisterForm({ initialInvite = '' }: { initialInvite?: string })
         maxLength={128}
         required
       />
+      <label className="block">
+        <span className="mb-1 block text-sm text-stone-700 dark:text-stone-300">Jazyk</span>
+        <select
+          name="language"
+          defaultValue={DEFAULT_LANGUAGE}
+          className="w-full rounded border border-stone-300 bg-white px-3 py-2 text-stone-900 outline-none focus:border-stone-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+        >
+          {LANGUAGE_GROUPS.map((code) => (
+            <option key={code} value={code}>
+              {LANGUAGE_NAMES[code]}
+            </option>
+          ))}
+        </select>
+      </label>
       <Field
         label="Pozvánka"
         name="invite"

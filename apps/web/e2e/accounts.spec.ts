@@ -43,6 +43,29 @@ test('registrace → ověření e-mailu → herní plocha → odhlášení → p
   await expect(page).toHaveURL(/\/game$/);
 });
 
+test('jazyk z registrace dostane účet i rod', async ({ page }) => {
+  const email = uniqueEmail('jazyk');
+  await register(page, email, 'tajne-heslo-123', 'de');
+  await page.goto(await linkFromLastMail(email, /potvrď svůj e-mail/));
+  await expect(page).toHaveURL(/\/game$/);
+  const client = new Client({ connectionString: TEST_DATABASE_URL });
+  await client.connect();
+  try {
+    await expect
+      .poll(async () => {
+        const { rows } = await client.query(
+          `SELECT u.language AS account, h.language AS house FROM "user" u
+           LEFT JOIN house h ON h.player_id = u.id AND h.ended_at IS NULL WHERE u.email = $1`,
+          [email],
+        );
+        return rows[0] as { account: string; house: string | null } | undefined;
+      })
+      .toEqual({ account: 'de', house: 'de' });
+  } finally {
+    await client.end();
+  }
+});
+
 test('špatné heslo nepřihlásí', async ({ page }) => {
   const email = uniqueEmail('spatne-heslo');
   await register(page, email, 'spravne-heslo-1');
