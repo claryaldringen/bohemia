@@ -4,12 +4,13 @@ import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import path from 'node:path';
 import type { NegotiationTx, NewLoan } from '@bohemia/game';
 import { createDatabase } from '../../client';
+import { testDatabaseUrl } from '../../test-database';
 import { schema } from '../../index';
 import { createHouseRepository } from '../house-repository';
 import { createLoanRepository } from '../loan-repository';
 import { createNegotiationRepository } from '../negotiation-repository';
 
-const db = createDatabase('postgres://postgres@127.0.0.1:5432/bohemia_test');
+const db = createDatabase(testDatabaseUrl());
 const loans = createLoanRepository(db);
 const negotiations = createNegotiationRepository(db);
 const houses = createHouseRepository(db);

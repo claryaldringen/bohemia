@@ -3,13 +3,14 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { sql } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { createDatabase } from '../../client';
+import { testDatabaseUrl } from '../../test-database';
 import { schema } from '../../index';
 import { createHouseRepository } from '../house-repository';
 import { createWarRepository } from '../war-repository';
 
 // Války mezi rody (war.md): jedna aktivní válka na dvojici i při souběhu, utichnutí, vymření.
 
-const db = createDatabase('postgres://postgres@127.0.0.1:5432/bohemia_test');
+const db = createDatabase(testDatabaseUrl());
 const wars = createWarRepository(db);
 const houses = createHouseRepository(db);
 const NOW = new Date('2026-11-06T12:00:00Z');

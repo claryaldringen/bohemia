@@ -1,9 +1,12 @@
 import path from 'node:path';
 import { defineConfig, devices } from '@playwright/test';
+import { e2ePort, testDatabaseUrl } from '@bohemia/db/test-database';
 
-const PORT = 3011;
+// Port a testovací databáze z prostředí (`E2E_PORT`, výchozí 3011; `TEST_DATABASE`, výchozí
+// bohemia_test) – e2e tak jde pustit z víc pracovních stromů naráz (docs/code/web-ui.md – e2e).
+const PORT = e2ePort();
 export const BASE_URL = `http://localhost:${PORT}`;
-export const TEST_DATABASE_URL = 'postgres://postgres@127.0.0.1:5432/bohemia_test';
+export const TEST_DATABASE_URL = testDatabaseUrl();
 export const MAIL_OUTBOX_DIR = path.join(import.meta.dirname, 'e2e/.mail-outbox');
 
 /** Prostředí webu v testech – stejné dostane i worker v projektu `worker` (e2e/worker.spec.ts). */
