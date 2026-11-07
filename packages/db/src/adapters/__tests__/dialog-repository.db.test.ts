@@ -3,10 +3,11 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { sql } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { createDatabase } from '../../client';
+import { testDatabaseUrl } from '../../test-database';
 import { schema } from '../../index';
 import { createDialogRepository } from '../dialog-repository';
 
-const db = createDatabase('postgres://postgres@127.0.0.1:5432/bohemia_test');
+const db = createDatabase(testDatabaseUrl());
 const dialogs = createDialogRepository(db);
 
 const input = (refId = 'v1', playerId = 'hrac-1'): Parameters<typeof dialogs.openOnce>[1] => ({

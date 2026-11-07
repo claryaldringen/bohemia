@@ -2,6 +2,7 @@ import { afterAll, describe, expect, it, vi } from 'vitest';
 import { Pool } from 'pg';
 import type { PlayerLock } from '@bohemia/game';
 import { createLockPool } from '../../client';
+import { testDatabaseUrl } from '../../test-database';
 import {
   PLAYER_LOCK_NAMESPACE,
   PlayerLockTimeoutError,
@@ -11,7 +12,7 @@ import {
 
 // Dva pooly = dva „procesy“: advisory zámek patří spojení, takže web (pool 20) a worker (pool 2)
 // se vůči sobě chovají jako dva procesy serveru nad stejnou databází.
-const URL = 'postgres://postgres@127.0.0.1:5432/bohemia_test';
+const URL = testDatabaseUrl();
 const webPool = createLockPool(URL, 20);
 const workerPool = createLockPool(URL, 2);
 const timedPool = createLockPool(URL, 1);

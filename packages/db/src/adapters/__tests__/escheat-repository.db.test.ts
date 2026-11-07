@@ -4,6 +4,7 @@ import { sql } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { CURRENT_LAYER_VERSIONS, dayIndexOf, foundVillage, type VillageState } from '@bohemia/game';
 import { createDatabase } from '../../client';
+import { testDatabaseUrl } from '../../test-database';
 import { schema } from '../../index';
 import { createEscheatRepository } from '../escheat-repository';
 import { createHouseRepository } from '../house-repository';
@@ -13,7 +14,7 @@ import { createWorldQueue } from '../world-queue';
 
 // Odúmrť (vassalage.md – Vymření rodu – odúmrť): záznam odúmrti a převod držitele po krocích.
 
-const db = createDatabase('postgres://postgres@127.0.0.1:5432/bohemia_test');
+const db = createDatabase(testDatabaseUrl());
 const escheats = createEscheatRepository(db);
 const houses = createHouseRepository(db);
 const settlements = createSettlementRepository(db);

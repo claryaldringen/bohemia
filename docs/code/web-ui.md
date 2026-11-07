@@ -309,6 +309,17 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   Testy vývojové ukázky (`slaughter.spec.ts`, `wildlife-scene.spec.ts`) běží jen proti
   vývojovému serveru (`SLAUGHTER_DEV_URL`, `WILDLIFE_DEV_URL`), jinak se přeskočí.
 
+- **e2e a `test:db` souběžně z víc pracovních stromů:** port `next start` a testovací databázi
+  čtou `playwright.config.ts` (a přes něj e2e pomocníci i worker v e2e) a testy adaptérů
+  a souběhu z jednoho místa – `packages/db/src/test-database.ts` (`@bohemia/db/test-database`):
+  `E2E_PORT` (výchozí 3011) a `TEST_DATABASE` (výchozí `bohemia_test`). Bez proměnných se nic
+  nemění; souběžný strom dostane vlastní port i databázi, např.
+  `E2E_PORT=3012 TEST_DATABASE=bohemia_test_2 npm run test:e2e` a
+  `TEST_DATABASE=bohemia_test_2 npm run test:db`. globalSetup Playwrightu i `test:db` databázi
+  založí, když neexistuje, a zmigrují (ručně `npm run test:db:create`); `bohemia`,
+  `bohemia_measure` a systémové databáze odmítnou (testy vyprazdňují tabulky). Nepotřebnou
+  databázi stromu zruš `psql -U postgres -c 'DROP DATABASE bohemia_test_2'`.
+
 - **Zrušení rozestavěné stavby** (population.md – Zrušení rozestavěné stavby): server action
   `cancelConstruction({ villageId, constructionId })` → `cancelConstructionForPlayer`
   (`lib/village.ts`) → use-case `cancelUnfinishedConstruction`. Pohled `VillageView.constructions`

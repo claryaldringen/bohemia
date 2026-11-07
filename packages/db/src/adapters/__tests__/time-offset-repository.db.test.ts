@@ -3,10 +3,11 @@ import { afterAll, beforeAll, beforeEach, describe, it, expect } from 'vitest';
 import { eq, sql } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { createDatabase } from '../../client';
+import { testDatabaseUrl } from '../../test-database';
 import { schema } from '../../index';
 import { createTimeOffsetRepository } from '../time-offset-repository';
 
-const db = createDatabase('postgres://postgres@127.0.0.1:5432/bohemia_test');
+const db = createDatabase(testDatabaseUrl());
 const repository = createTimeOffsetRepository(db);
 
 beforeAll(async () => {

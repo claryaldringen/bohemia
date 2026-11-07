@@ -3,6 +3,7 @@ import { sql } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import path from 'node:path';
 import { createDatabase } from '../../client';
+import { testDatabaseUrl } from '../../test-database';
 import { schema } from '../../index';
 import { createActivityRepository } from '../activity-repository';
 import { createHouseRepository } from '../house-repository';
@@ -10,7 +11,7 @@ import { createInviteRepository } from '../invite-repository';
 import { createSuccessionCreditRepository } from '../succession-credit-repository';
 import { createVassalageRepository } from '../vassalage-repository';
 
-const db = createDatabase('postgres://postgres@127.0.0.1:5432/bohemia_test');
+const db = createDatabase(testDatabaseUrl());
 const vassalages = createVassalageRepository(db);
 const activity = createActivityRepository(db);
 const credits = createSuccessionCreditRepository(db);

@@ -15,6 +15,7 @@ import {
   createWorldQueue,
   schema,
 } from '@bohemia/db';
+import { testDatabaseUrl } from '@bohemia/db/test-database';
 import {
   CURRENT_LAYER_VERSIONS,
   advanceWorldStep,
@@ -40,7 +41,7 @@ import { createPlayerLocks } from '../deps';
 import { worldSeed } from '../world';
 import { cachedVillages, withVillageCache } from '../village-cache';
 
-const URL = 'postgres://postgres@127.0.0.1:5432/bohemia_test';
+const URL = testDatabaseUrl();
 const START = dayIndexOf({ year: 520, month: 3, day: 1 });
 const DAYS = 200;
 const END = START + DAYS;

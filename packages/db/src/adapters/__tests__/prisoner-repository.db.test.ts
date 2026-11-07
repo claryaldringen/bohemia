@@ -9,6 +9,7 @@ import {
   type PrisonerRecord,
 } from '@bohemia/game';
 import { createDatabase } from '../../client';
+import { testDatabaseUrl } from '../../test-database';
 import { schema } from '../../index';
 import { createPrisonerRepository } from '../prisoner-repository';
 import { createSettlementRepository } from '../settlement-repository';
@@ -17,7 +18,7 @@ import { createVillageRepository } from '../village-repository';
 // Rozhodnutí o zajatci (war.md – Vzdaní, zajetí a výkupné): o jednom zajetí projde jediné
 // rozhodnutí, i když přijdou souběžně (web × web × jednání).
 
-const db = createDatabase('postgres://postgres@127.0.0.1:5432/bohemia_test');
+const db = createDatabase(testDatabaseUrl());
 const prisoners = createPrisonerRepository(db);
 const DAY = dayIndexOf({ year: 503, month: 4, day: 12 });
 let villageId = '';

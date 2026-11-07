@@ -215,6 +215,9 @@ npx tsx apps/web/scripts/measure-scenery-culling.ts   # trojúhelníky a draw ca
 NODE_OPTIONS=--conditions=react-server npx tsx apps/web/scripts/measure-absence.ts --villages 1,5,20   # otevření hry a akce po nepřítomnosti s workerem a bez něj (DB bohemia_measure)
 ```
 
+`E2E_PORT` (výchozí 3011) a `TEST_DATABASE` (výchozí `bohemia_test`) mění port e2e a testovací
+databázi – souběžné e2e a `test:db` z víc pracovních stromů (`docs/code/web-ui.md` – e2e).
+
 Všechny příkazy jdou přes Turborepo do jednotlivých workspaces. Před commitem musí projít
 `typecheck`, `lint`, `test` a `format:check`; u změn adaptérů DB i `test:db`, u změn
 přihlašování, stránek nebo scény i `test:e2e`.
