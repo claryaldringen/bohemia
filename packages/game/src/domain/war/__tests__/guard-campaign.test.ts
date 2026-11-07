@@ -27,13 +27,17 @@ function guardMan(id: number, combat: number): Person {
 }
 
 /** Hrad pána: muži 20 a 21 jsou v Kněžicích na ochraně. */
-function hrad(): VillageState {
+function hrad(kind: 'protection' | 'service' = 'protection'): VillageState {
   const v = village([guardMan(20, 10), guardMan(21, 0)], undefined, { lastDay: SUMMER });
+  for (const p of v.people) if (p.away) p.away = { ...p.away, kind };
   return v;
 }
 
 /** Kněžice: jen žena a dítě, dva hosté z Hradu; postoj podle testu. */
-function knezice(stance: 'defend' | 'surrender'): VillageState {
+function knezice(
+  stance: 'defend' | 'surrender',
+  kind: 'protection' | 'service' = 'protection',
+): VillageState {
   const v = village(
     [
       kin({ id: 2, age: 28, sex: 'female' }, SUMMER),
@@ -45,7 +49,7 @@ function knezice(stance: 'defend' | 'surrender'): VillageState {
   v.dwellings[0]!.position = { x: -860, z: 30, rotation: 0 };
   v.guests = [20, 21].map((personId) => ({
     ref: { villageId: 'hrad', personId },
-    kind: 'protection' as const,
+    kind,
     untilDay: SUMMER + 100_000,
     adult: true as const,
   }));
@@ -80,6 +84,42 @@ const bodiesOf = (
   step.villageEvents
     .filter((e) => e.villageId === villageId && e.body.kind === kind)
     .map((e) => e.body);
+
+describe('muži ze svolání v boji', () => {
+  const runService = (home: VillageState): ReturnType<typeof stepCampaign> =>
+    stepCampaign(START, END, SET_OUT, raidWorld(knezice('surrender', 'service'), home));
+
+  it('hosté ze služby se brání se vsí a jejich ztráty dojdou domů', () => {
+    const whole = runService(hrad('service'));
+    expect(whole.state.guards?.map((g) => g.ref.personId)).toEqual([20, 21]);
+    const [losses] = bodiesOf(whole, 'hrad', 'guard-losses');
+    expect(losses).toMatchObject({ kind: 'guard-losses', captured: [20, 21] });
+    const [leave] = bodiesOf(whole, 'knezice', 'guests-leave');
+    expect(leave).toMatchObject({ kind: 'guests-leave', away: 'service' });
+  });
+
+  it('muži ze svolání na tažení se nebrání', () => {
+    const home = hrad('service');
+    for (const p of home.people) p.away = { ...p.away!, kind: 'campaign' };
+    const whole = runService(home);
+    expect(whole.state.guards).toBeUndefined();
+    expect(bodiesOf(whole, 'hrad', 'guard-losses')).toHaveLength(0);
+  });
+
+  it('po kouscích taktů = vcelku', () => {
+    const whole = runService(hrad('service'));
+    const w = raidWorld(knezice('surrender', 'service'), hrad('service'));
+    let s = START;
+    const events = [];
+    while (s.tick < END && s.phase !== 'done') {
+      const step = stepCampaign(s, Math.min(END, s.tick + 37), SET_OUT, w);
+      s = JSON.parse(JSON.stringify(step.state)) as typeof s;
+      events.push(...step.villageEvents);
+    }
+    expect(JSON.stringify(s)).toBe(JSON.stringify(whole.state));
+    expect(JSON.stringify(events)).toBe(JSON.stringify(whole.villageEvents));
+  });
+});
 
 describe('hosté z ochrany v boji', () => {
   it('„bránit se“: hosté bojují pod zápornými čísly, napadená ves dostane jen své lidi', () => {
