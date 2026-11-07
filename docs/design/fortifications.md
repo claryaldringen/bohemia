@@ -68,32 +68,45 @@ v Obraně.
 
 ## Obvod
 
-- **Kreslí ho hráč jako pole** (Martin 3. 11. 2026 – „Kreslení obvodu tak jak říkáš“): po
-  čtvercích 15 × 15 m stejně jako pole, hřbitov nebo ohradu – tah přidá obdélník, Ctrl ubere,
-  `[` / `]` otáčí mřížku po 15° (návrh Clauda – stejné ovládání, žádné nové). Opevnění vede po
-  **vnějším okraji nakreslené plochy**; **rohy jsou zakulacené** jako všude ve hře.
-- **Plocha** musí být souvislá stranou; díry v ní se zaplní – opevnění má jen vnější obvod
-  (návrh Clauda). Nejméně 2 × 2 čtverce (návrh Clauda).
+- **Hra obvod navrhne, hráč ho upraví** (Martin 7. 11. 2026 – „Jo, 3.“). Dřív ho hráč kreslil po
+  čtvercích jako pole (Martin 3. 11. 2026) a vycházel hranatý – Martin 7. 11. 2026: „teď je to
+  hrozně nepřirozené hranaté. Ve skutečnosti by se lidé snažili o co nejmenší obvod s co
+  největší plochou nebo by kopírovali terén.“
+- **Návrh:** nejkratší hladký obvod kolem **jádra vsi** – obydlí s pozemky, dvorec, dílny, humna,
+  obilné jámy a ohrady; pole a sady zůstanou venku (Martin 7. 11. 2026 – „ano“: opevnění chrání
+  lidi, zásoby a dobytek, úrodu ne). **Terén návrh nebere v úvahu** – svah ani voda obranu
+  nemění; terén využije hráč posunem bodů (Martin 7. 11. 2026 – „1“).
+  - Nejkratší hladký obvod = vypouklý obal jádra odsunutý o odstup – rovné úseky a oblouky kolem
+    krajních staveb (návrh Clauda). Odstup = šířka pásu + 3 m, mezi pásem a stavbou projde
+    člověk i vůz (návrh Clauda).
+  - Druhé opevnění v téže vsi: návrh obejme stavby jádra, které ještě nejsou uvnitř jiného; když
+    žádná nezbývá, nebo ves jádro nemá, je návrh kruh o poloměru 20 m u kurzoru a hráč ho
+    táhne, kam chce (návrh Clauda).
+- **Body:** obvod nese body nejvýš asi 15 m od sebe a je **hladká uzavřená křivka** přes ně
+  (návrh Clauda). Hráč bod **táhne**, **klik na obvod** přidá bod, **Ctrl + klik** bod ubere (jako
+  Ctrl ubírá u polí); nejméně 4 body. Tažením jde obvod i promáčknout dovnitř – tvar nemusí být
+  vypouklý. Enter nebo ikona kladiva stavbu položí, Esc návrh zahodí (návrh Clauda).
+- **Ohyb** nesmí být ostřejší než nejmenší poloměr druhu (tabulka níž) a obvod se nesmí křížit –
+  takové místo zčervená a stavbu nejde položit (návrh Clauda; oblouk místo ostrého rohu jako
+  všude ve hře).
+- **Plocha** uvnitř obvodu nejméně 900 m² – jako dřív 2 × 2 čtverce (návrh Clauda).
 - **Místo problému:** návrh Clauda: místo problému se při kreslení ukáže červeně – kroužek kolem
   zatarasené branky, obrys obydlí v pásu, políčka vody a čtverce jiného opevnění; pravidla se
   nemění, hráč jen vidí, co přesně je špatně.
-- **Pás opevnění** leží uvnitř nakreslené plochy podél okraje (návrh Clauda), takže mimo ni se
-  nic nemění:
+- **Pás opevnění** leží uvnitř obvodu podél křivky – křivka je jeho vnější okraj (návrh Clauda),
+  takže mimo ni se nic nemění:
 
-  | Druh                           | Šířka pásu                            | Poloměr vnějšího rohu |
-  | ------------------------------ | ------------------------------------- | --------------------- |
-  | polský plot                    | 1 m                                   | 1,25 m (jako pozemek) |
-  | palisáda                       | 1,5 m                                 | 3 m                   |
-  | val s příkopem (i s nástavbou) | 10 m – příkop 4 m vně, val 6 m u paty | 8 m                   |
+  | Druh                           | Šířka pásu                            | Nejmenší poloměr ohybu |
+  | ------------------------------ | ------------------------------------- | ---------------------- |
+  | polský plot                    | 1 m                                   | 1,25 m (jako pozemek)  |
+  | palisáda                       | 1,5 m                                 | 3 m                    |
+  | val s příkopem (i s nástavbou) | 10 m – příkop 4 m vně, val 6 m u paty | 8 m                    |
 
-  Vnitřní roh (tvar L) má u plotu 0,5 m jako pletený plot pozemků, u palisády a valu polovinu
-  vnějšího poloměru (návrh Clauda). Když se dva rohy nevejdou na jednu stranu čtverce (val na
-  pruhu širokém jeden čtverec – 2 × 8 m > 15 m), zmenší se všechny rohy obvodu stejným poměrem
-  (návrh Clauda).
+  Poloměr se měří na vnějším okraji v obou směrech ohybu; kde je ohyb ostřejší, než šířka pásu
+  dovolí, sejde se vnitřní okraj pásu do rohu (návrh Clauda).
 
-- **Délka obvodu** = délka vnějšího okraje se zakulacenými rohy – jedno číslo pro všechny druhy,
-  hráč ho vidí u kurzoru (návrh Clauda). Zakulacený roh ušetří proti ostrému (2 − π/2) × poloměr
-  ≈ 0,43 × poloměr.
+- **Délka obvodu** = délka křivky – jedno číslo pro všechny druhy, hráč ho vidí u kurzoru (návrh
+  Clauda).
 - **Kudy pás smí** (návrh Clauda): louka, křoviny a les (stromy a keře v pásu se pokácí jako
   u stavby v lese – klády na hromadu, [population.md](population.md) – Stavba v lese). Plot
   a palisáda smějí po okraji čtverců pole a sadu – stojí na mezi, díl zůstane. Val s příkopem díl
@@ -103,9 +116,8 @@ v Obraně.
   stavět dál uvnitř i vně.
 - **Víc opevnění v jedné vsi** smí, ale pásy se nesmějí protínat ani dotýkat a jedno nesmí ležet
   uvnitř druhého (návrh Clauda – předhradí Později).
-- **Úseky:** obvod se dělí na úseky – úsek je jedna strana okrajového čtverce (15 m), oblouk rohu
-  patří k úseku, ve kterém začíná (návrh Clauda). Úsek je jednotka stavby, stáří, přestavby
-  i průlomu.
+- **Úseky:** obvod se dělí na stejně dlouhé úseky asi po 15 m – délka ÷ zaokrouhlený počet
+  (návrh Clauda). Úsek je jednotka stavby, stáří, přestavby i průlomu.
 - **Celý obvod blokuje od zahájení stavby** (Martin 6. 11. 2026: „Ať celý obvod blokuje už od
   zahájení.“): od položení stavby chodci, vozy ani stáda pásem neprojdou – ani rozestavěným
   úsekem, ani úsekem na 0 % –, jen branou. Pás má šířku druhu, jak bude postaven; vylepšení plotu
@@ -121,9 +133,8 @@ v Obraně.
   mění den po dni, brána podle nich by putovala). Cesta postavená přes hotové i rozestavěné
   opevnění dostane bránu taky (návrh Clauda; rozestavěné blokuje od zahájení – Obvod).
 - **Hráč přidá další** kliknutím na obvod (Martin 3. 11. 2026); nejvýš jedna brána na úsek
-  (návrh Clauda). Klik platí do šířky pásu (nejméně 2 m) od vnějšího okraje; brána stojí celá na
-  rovné části úseku – průsečík cesty s obloukem rohu ji posune na konec rovné části (návrh
-  Clauda).
+  (návrh Clauda). Klik platí do šířky pásu (nejméně 2 m) od vnějšího okraje; brána je rovná 4 m
+  tětiva křivky se středem v průsečíku s cestou (návrh Clauda).
 - Obvod, který žádnou cestu neprotne, dostane jednu bránu v úseku nejblíž dvorci, bez dvorce
   nejblíž středu obydlí (návrh Clauda).
 - Brána je **4 m** široká – projde vůz se spřežením (návrh Clauda) –, je z prken a **nic navíc
@@ -330,11 +341,9 @@ a každý signál slábne s poločasem **10 herních let** (≈ 3,7 skutečného
   15, palisáda 20 let).
 - **Druh:** správce spočte přínos × horizont − cena pro plot, palisádu, val, val s plotem a val
   s palisádou a postaví nejlepší kladný; u stojícího opevnění počítá jen rozdíl vylepšení.
-- **Obvod správce:** nejmenší souvislá plocha čtverců v mřížce plánu sídla, která obsahuje
-  obydlí s pozemky, dvorec, dílny, humna, obilné jámy a ohrady, a pás opevnění navíc; pole
-  a sady vynechá – opevnění chrání lidi, zásoby a dobytek, úrodu ne. Útočiště musí pojmout lidi
-  a dobytek vsi + 20 % na růst, jinak plochu rozšíří o prstenec čtverců. Brány jen samy na
-  cestách.
+- **Obvod správce:** stejný návrh jako pro hráče – nejkratší hladký obvod kolem jádra vsi (Obvod);
+  útočiště musí pojmout lidi a dobytek vsi + 20 % na růst, jinak správce zvětší odstup po 5 m
+  (návrh Clauda). Brány jen samy na cestách.
 - **Hráčovo opevnění** správce nemění ani nevylepšuje – staví a vylepšuje jen svá (`steward.built`,
   správce – Přestavba vlastních staveb); přestavbu dožilých úseků dělají obyvatelé u všech.
 
@@ -345,11 +354,12 @@ obvod se kreslí jako pole, cena u kurzoru roste s délkou; panel opevnění: d�
 tlačítka „Vylepšit na palisádu“ a „Postavit na valu plot / palisádu“.
 
 - **Katalog** (návrh Clauda): ikona kůlů palisády je rozcestník jako u ohrad – kliknutí otevře
-  tři druhy, druh spustí malování po čtvercích, Esc rozcestník zavře.
-- **Malování:** u kurzoru obrys pásu se zakulacenými rohy, brány na cestách, **cena** (člověkodni,
-  klády) a **útočiště** (ikona lidí s počtem, kolik se vejde) rostou s plochou; důvod u kurzoru
-  červeně: „Opevnění nevede přes obydlí.“, „Opevnění nevede přes vodu.“, „Plocha musí být
-  souvislá.“, „Opevnění se nesmí dotknout jiného.“, „Chybí 40 klád.“ (návrh Clauda).
+  tři druhy, druh ukáže návrh obvodu s body (Obvod), Esc rozcestník zavře.
+- **Úprava návrhu:** obrys pásu s body, brány na cestách, **cena** (člověkodni, klády)
+  a **útočiště** (ikona lidí s počtem, kolik se vejde) se mění s tažením bodů; důvod u kurzoru
+  červeně: „Opevnění nevede přes obydlí.“, „Opevnění nevede přes vodu.“, „Ohyb je moc ostrý.“,
+  „Obvod se nesmí křížit.“, „Opevnění se nesmí dotknout jiného.“, „Chybí 40 klád.“ (návrh
+  Clauda) – Martin 3. 11. 2026 schválil kreslení „jako pole“, které tahle úprava nahrazuje.
 - **Panel opevnění** (výběr kliknutím na úsek – návrh Clauda): ikona druhu, délka (m), stav
   (nejslabší úsek v %, oranžově úseky za životností), brány (počet), útočiště (lidé a dobytek),
   násobek obrany (štít s číslem), průběh stavby; tlačítka „Vylepšit na palisádu“ (u plotu),
@@ -391,36 +401,45 @@ Podrobnosti (návrh Clauda):
 
 ## Čísla (návrh – do `rules-fortifications.ts`, `FORTIFICATIONS`)
 
-| Co                                    | Číslo                                                                  | Kdo           |
-| ------------------------------------- | ---------------------------------------------------------------------- | ------------- |
-| Násobek opevnění                      | plot 1,25; palisáda 2; val 1,5; val s plotem 2; s palisádou 3          | Martin 3. 11. |
-| Obránce za opevněním                  | × 1,5 (zná místo) × násobek opevnění                                   | návrh Clauda  |
-| Cena na 100 m                         | plot 20 čd + 15 klád; palisáda 80 + 70; val 150 čd                     | Martin 3. 11. |
-| Vylepšení plotu na palisádu           | 80 čd + 70 klád na 100 m, plot nevrací nic                             | Martin 3. 11. |
-| Životnost                             | plot 15 let, palisáda 20 let                                           | Martin 3. 11. |
-| Chátrání za životností bez dřeva      | stav 100 → 0 % za 5 let                                                | návrh Clauda  |
-| Val bez údržby                        | za 50 let výška 0,5, násobek 1,5 → 1,25                                | Martin 3. 11. |
-| Údržba valu                           | 2 čd na 100 m ročně; obnova pod 0,75 za ½ ceny                         | návrh Clauda  |
-| Útočiště                              | 10 m² na člověka, 20 m² na kus (ovce, koza, prase čtvrt)               | návrh Clauda  |
-| Pás                                   | plot 1 m, palisáda 1,5 m, val 10 m (příkop 4, val 6)                   | návrh Clauda  |
-| Poloměr vnějšího rohu                 | plot 1,25 m, palisáda 3 m, val 8 m; vnitřní plot 0,5 m, jinak polovina | návrh Clauda  |
-| Úsek                                  | strana okrajového čtverce, 15 m                                        | návrh Clauda  |
-| Plocha                                | souvislá, nejméně 2 × 2 čtverce                                        | návrh Clauda  |
-| Brána                                 | 4 m, nic navíc nestojí, nejvýš 1 na úsek                               | návrh Clauda  |
-| Brány se zavřou                       | první útočník do 30 m od brány                                         | návrh Clauda  |
-| Prolomení (mužohodin)                 | brána plotu 0, plot 2, brána palisády 12, palisáda 96                  | návrh Clauda  |
-| Na jedno místo prolomení              | nejvýš 4 muži, průlom 4 m                                              | návrh Clauda  |
-| Val útokem                            | čtvrtinové tempo přes pás                                              | návrh Clauda  |
-| Hrozba – váhy signálů                 | nájezd 1; ves rodu do 3 políček 0,5; vojsko 0,3; válka do 5 0,5        | návrh Clauda  |
-| Hrozba – poločas, paměť               | 10 herních let, 50 let                                                 | návrh Clauda  |
-| Ztráta nájezdu pro správce            | 20 mužů × 25 kg, 10 % dospělých                                        | návrh Clauda  |
-| Horizont správce (`rules-steward.ts`) | Růst 25 let, Obnova 5 let, nejvýš životnost; Nouze ne                  | návrh Clauda  |
-| Útočiště správce                      | lidé a dobytek vsi + 20 %                                              | návrh Clauda  |
+| Co                                    | Číslo                                                           | Kdo           |
+| ------------------------------------- | --------------------------------------------------------------- | ------------- |
+| Násobek opevnění                      | plot 1,25; palisáda 2; val 1,5; val s plotem 2; s palisádou 3   | Martin 3. 11. |
+| Obránce za opevněním                  | × 1,5 (zná místo) × násobek opevnění                            | návrh Clauda  |
+| Cena na 100 m                         | plot 20 čd + 15 klád; palisáda 80 + 70; val 150 čd              | Martin 3. 11. |
+| Vylepšení plotu na palisádu           | 80 čd + 70 klád na 100 m, plot nevrací nic                      | Martin 3. 11. |
+| Životnost                             | plot 15 let, palisáda 20 let                                    | Martin 3. 11. |
+| Chátrání za životností bez dřeva      | stav 100 → 0 % za 5 let                                         | návrh Clauda  |
+| Val bez údržby                        | za 50 let výška 0,5, násobek 1,5 → 1,25                         | Martin 3. 11. |
+| Údržba valu                           | 2 čd na 100 m ročně; obnova pod 0,75 za ½ ceny                  | návrh Clauda  |
+| Útočiště                              | 10 m² na člověka, 20 m² na kus (ovce, koza, prase čtvrt)        | návrh Clauda  |
+| Pás                                   | plot 1 m, palisáda 1,5 m, val 10 m (příkop 4, val 6)            | návrh Clauda  |
+| Nejmenší poloměr ohybu                | plot 1,25 m, palisáda 3 m, val 8 m (na vnějším okraji)          | návrh Clauda  |
+| Odstup návrhu od jádra                | šířka pásu + 3 m; správce po 5 m víc, nevejde-li se útočiště    | návrh Clauda  |
+| Body obvodu                           | nejvýš ≈ 15 m od sebe, nejméně 4                                | návrh Clauda  |
+| Úsek                                  | stejně dlouhé, ≈ 15 m                                           | návrh Clauda  |
+| Plocha                                | nejméně 900 m²                                                  | návrh Clauda  |
+| Brána                                 | 4 m, nic navíc nestojí, nejvýš 1 na úsek                        | návrh Clauda  |
+| Brány se zavřou                       | první útočník do 30 m od brány                                  | návrh Clauda  |
+| Prolomení (mužohodin)                 | brána plotu 0, plot 2, brána palisády 12, palisáda 96           | návrh Clauda  |
+| Na jedno místo prolomení              | nejvýš 4 muži, průlom 4 m                                       | návrh Clauda  |
+| Val útokem                            | čtvrtinové tempo přes pás                                       | návrh Clauda  |
+| Hrozba – váhy signálů                 | nájezd 1; ves rodu do 3 políček 0,5; vojsko 0,3; válka do 5 0,5 | návrh Clauda  |
+| Hrozba – poločas, paměť               | 10 herních let, 50 let                                          | návrh Clauda  |
+| Ztráta nájezdu pro správce            | 20 mužů × 25 kg, 10 % dospělých                                 | návrh Clauda  |
+| Horizont správce (`rules-steward.ts`) | Růst 25 let, Obnova 5 let, nejvýš životnost; Nouze ne           | návrh Clauda  |
+| Útočiště správce                      | lidé a dobytek vsi + 20 %                                       | návrh Clauda  |
 
 Změna čísla = i text v tomto návrhu (`CLAUDE.md`).
 
 ## Pro implementaci (poznámky, ne kód)
 
+- **Obvod z bodů (Martin 7. 11. 2026, nahrazuje čtverce):** obvod nese body, křivka přes ně
+  i návrh hry (vypouklý obal jádra s odstupem) jsou deterministická geometrie jen z `det-math.ts`
+  (žádné `Math.sin/cos/atan2`) – křivku navzorkovat do lomené čáry s krokem ≈ 1 m a z ní počítat
+  délku, plochu, pás, úseky, brány, blokování pro chůzi a scénu. Opevnění nakreslená po
+  čtvercích se při načtení převedou jednou a idempotentně – body z jejich okraje se
+  zakulacenými rohy, tvar zůstane (návrh Clauda). Další odrážka popisuje původní verzi
+  po čtvercích.
 - **Jádro – tvar obvodu je deterministická geometrie** (počítá ho server i prohlížeč ze stejné
   funkce): nové `packages/game/src/domain/village/fortification/` – obvod z čtverců v mřížce
   (`SquareGrid`, `square-grid.ts`; sjednocení, zaplnění děr, souvislost), rovné úseky a oblouky
