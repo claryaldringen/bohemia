@@ -87,7 +87,8 @@ vedle jména rodu).
 - **Ves běží** jako každá jiná – worker ji dopočítává, i když hráč není online. NPC sousedé
   a zemská stezka ([obchod](trade.md) – Sousedé bez simulace) fungují jako dnes (návrh Clauda –
   nejsou vázané na mapu světa). Ostatní hráči mu nemohou nic poslat ani nabídnout – v adresáři
-  rodů není.
+  rodů není. Pozvánku vydat nesmí, dokud není na mapě světa – pozvaný by neměl
+  kde začít (návrh Clauda).
 - **Shluk se nevejde** (návrh Clauda): hledá se nejbližší místo, kam se vejde celý shluk se
   stejnými odstupy od cizích map (2 políčka u vazala, 3 u svobodného).
 - **Jak dlouho:** Martin 7. 11. 2026: „**Týden normálního času. Pak se přiřadí náhodně
