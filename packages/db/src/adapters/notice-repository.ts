@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, inArray, isNull, lte } from 'drizzle-orm';
+import { and, asc, eq, gt, isNull, lte } from 'drizzle-orm';
 import type { NoticeRepository, PlayerNotice, PlayerNoticeKind } from '@bohemia/game';
 import type { Executor } from '../client';
 import { playerNotice } from '../schema';
@@ -33,18 +33,24 @@ export function createNoticeRepository(db: Executor): NoticeRepository {
       return rows.map(toNotice);
     },
     async takeUnread(playerId, limit): Promise<PlayerNotice[]> {
-      // Jedno UPDATE s podvýběrem; FOR UPDATE SKIP LOCKED, aby souběžné volání nevzalo totéž.
-      const pick = db
-        .select({ id: playerNotice.id })
-        .from(playerNotice)
-        .where(and(eq(playerNotice.playerId, playerId), isNull(playerNotice.readAt)))
-        .orderBy(asc(playerNotice.id))
-        .limit(limit)
-        .for('update', { skipLocked: true });
+      // Výběr v CTE s FOR UPDATE SKIP LOCKED: Postgres ho spustí právě jednou (CTE se zámkem se
+      // nevkládá do dotazu). Podvýběr s LIMIT ve `WHERE id IN (…)` by plánovač smel spustit
+      // opakovaně a označit víc řádků, než je limit – upozornění by zmizela nedoručená.
+      const picked = db.$with('picked').as(
+        db
+          .select({ id: playerNotice.id })
+          .from(playerNotice)
+          .where(and(eq(playerNotice.playerId, playerId), isNull(playerNotice.readAt)))
+          .orderBy(asc(playerNotice.id))
+          .limit(limit)
+          .for('update', { skipLocked: true }),
+      );
       const rows = await db
+        .with(picked)
         .update(playerNotice)
         .set({ readAt: new Date() })
-        .where(and(inArray(playerNotice.id, pick), isNull(playerNotice.readAt)))
+        .from(picked)
+        .where(eq(playerNotice.id, picked.id))
         .returning();
       return rows.map(toNotice).sort((a, b) => a.id - b.id);
     },
