@@ -1,0 +1,232 @@
+'use client';
+
+import { useEffect, useState, type ReactElement } from 'react';
+import {
+  formatRemaining,
+  MAX_NEWCOMER_REQUESTS,
+  MAX_REQUESTS_REASON,
+  type NewcomerStatusView,
+} from '@/lib/newcomer-view';
+import { LanguageIcon } from './LanguageChoice';
+import { Tooltip } from './Tooltip';
+
+// Panel nováčka v odříznuté krajině (newcomers.md – Rozhraní): dvě ikony „Vybrat pána“ a
+// „Svobodný“, nabídka rodů se zaškrtnutím nejvýš 5 a čekání na odpověď s odpočtem. Čistá
+// komponenta nad props – server volá až rodič (callbacky). Slova jen v popiscích (`Tooltip`).
+
+const ICON = '/icons/newcomer';
+const HOUSE_ICON = '/icons/house';
+
+type IsolatedStatus = Extract<NewcomerStatusView, { phase: 'isolated' }>;
+
+function IconButton({
+  label,
+  testId,
+  src,
+  onClick,
+  disabled = false,
+  size = 56,
+}: {
+  label: string;
+  testId: string;
+  src: string;
+  onClick: () => void;
+  disabled?: boolean;
+  size?: number;
+}): ReactElement {
+  return (
+    <Tooltip content={label} placement="below">
+      <button
+        type="button"
+        aria-label={label}
+        data-testid={testId}
+        disabled={disabled}
+        onClick={onClick}
+        className="hud-icon-button p-1 disabled:opacity-40"
+      >
+        <img src={src} alt="" width={size} height={size} />
+      </button>
+    </Tooltip>
+  );
+}
+
+export function NewcomerPanel({
+  status,
+  onRequest,
+  onStartFree,
+  now = Date.now,
+}: {
+  status: NewcomerStatusView;
+  /** Pošle žádosti vybraným rodům (nejvýš 5). */
+  onRequest: (houseIds: string[]) => void;
+  /** Začne svobodný (i „Stáhnout žádosti“). */
+  onStartFree: () => void;
+  /** Hodiny odpočtu (testy). */
+  now?: () => number;
+}): ReactElement | null {
+  const [offering, setOffering] = useState(false);
+  const [picked, setPicked] = useState<string[]>([]);
+  const [nowMs, setNowMs] = useState(() => now());
+  const deadline = status.phase === 'isolated' ? status.deadline : null;
+
+  useEffect(() => {
+    if (deadline === null) return;
+    const id = window.setInterval(() => setNowMs(now()), 1000);
+    return () => window.clearInterval(id);
+  }, [deadline, now]);
+
+  if (status.phase === 'placed') return null;
+  const isolated: IsolatedStatus = status;
+  const waiting = isolated.requests.some((r) => r.state === 'pending');
+
+  const shell = (children: ReactElement, testId: string): ReactElement => (
+    <div
+      role="dialog"
+      aria-label="Nováček"
+      data-testid={testId}
+      data-hud-block
+      className="hud-panel fixed top-1/3 left-1/2 z-30 flex max-w-[90vw] -translate-x-1/2 -translate-y-1/2 flex-col gap-2 p-3"
+    >
+      {children}
+    </div>
+  );
+
+  if (waiting) {
+    const remaining = deadline === null ? null : Date.parse(deadline) - nowMs;
+    return shell(
+      <>
+        <div className="flex items-center gap-2">
+          <Tooltip content="Do konce čekání" placement="above">
+            <span
+              tabIndex={0}
+              data-testid="newcomer-countdown"
+              className="inline-flex items-center gap-1 font-serif text-[#f3dfb0]"
+            >
+              <img src={`${HOUSE_ICON}/hourglass.svg`} alt="" width={24} height={24} />
+              {remaining === null ? '' : formatRemaining(remaining)}
+            </span>
+          </Tooltip>
+          <IconButton
+            label="Stáhnout žádosti"
+            testId="newcomer-withdraw"
+            src={`${ICON}/banner-free.svg`}
+            size={40}
+            onClick={onStartFree}
+          />
+        </div>
+        <ul className="flex flex-col gap-1">
+          {isolated.requests.map((request) => {
+            const offer = isolated.offer.find((o) => o.houseId === request.houseId);
+            const label = request.state === 'pending' ? 'Čeká na odpověď' : 'Odmítl';
+            return (
+              <li
+                key={request.houseId}
+                data-testid={`newcomer-request-${request.houseId}`}
+                data-state={request.state}
+                className="flex items-center gap-2 text-[#f3dfb0]"
+              >
+                <img src={`${HOUSE_ICON}/banner.svg`} alt="" width={24} height={24} />
+                <span className="font-serif">{offer?.lordName ?? ''}</span>
+                <Tooltip content={label} placement="above">
+                  <img
+                    src={`${HOUSE_ICON}/${request.state === 'pending' ? 'hourglass' : 'cross'}.svg`}
+                    alt={label}
+                    width={20}
+                    height={20}
+                    tabIndex={0}
+                  />
+                </Tooltip>
+              </li>
+            );
+          })}
+        </ul>
+      </>,
+      'newcomer-waiting',
+    );
+  }
+
+  const canOffer = isolated.offer.length > 0;
+  if (!offering || !canOffer) {
+    return shell(
+      <div className="flex items-center gap-3">
+        {canOffer && (
+          <IconButton
+            label="Vybrat pána"
+            testId="newcomer-choose-lord"
+            src={`${ICON}/banner-crown.svg`}
+            onClick={() => setOffering(true)}
+          />
+        )}
+        <IconButton
+          label="Svobodný"
+          testId="newcomer-free"
+          src={`${ICON}/banner-free.svg`}
+          onClick={onStartFree}
+        />
+      </div>,
+      'newcomer-choice',
+    );
+  }
+
+  const full = picked.length >= MAX_NEWCOMER_REQUESTS;
+  const toggle = (houseId: string): void =>
+    setPicked((current) =>
+      current.includes(houseId) ? current.filter((id) => id !== houseId) : [...current, houseId],
+    );
+
+  return shell(
+    <>
+      <ul className="flex flex-col gap-1">
+        {isolated.offer.map((row) => {
+          const on = picked.includes(row.houseId);
+          const blocked = full && !on;
+          return (
+            <li key={row.houseId}>
+              <Tooltip content={blocked ? MAX_REQUESTS_REASON : row.lordName} placement="above">
+                <button
+                  type="button"
+                  aria-pressed={on}
+                  aria-disabled={blocked}
+                  aria-label={row.lordName}
+                  data-testid={`newcomer-offer-${row.houseId}`}
+                  data-blocked={blocked || undefined}
+                  onClick={() => {
+                    if (!blocked) toggle(row.houseId);
+                  }}
+                  className={`hud-inset flex w-full items-center gap-2 rounded px-2 py-1 text-left text-[#f3dfb0] ${
+                    on ? 'outline-2 outline-[#f3cf86]' : ''
+                  } ${blocked ? 'opacity-40' : ''}`}
+                >
+                  <img src={`${HOUSE_ICON}/banner.svg`} alt="" width={24} height={24} />
+                  <span className="grow font-serif">{row.lordName}</span>
+                  <LanguageIcon language={row.language} />
+                </button>
+              </Tooltip>
+            </li>
+          );
+        })}
+      </ul>
+      <div className="flex items-center justify-end gap-2">
+        <IconButton
+          label="Zpět"
+          testId="newcomer-back"
+          src={`${HOUSE_ICON}/cross.svg`}
+          size={32}
+          onClick={() => {
+            setOffering(false);
+            setPicked([]);
+          }}
+        />
+        <IconButton
+          label="Požádat vybrané rody"
+          testId="newcomer-send"
+          src={`${HOUSE_ICON}/seal-pen.svg`}
+          size={40}
+          disabled={picked.length === 0}
+          onClick={() => onRequest(picked)}
+        />
+      </div>
+    </>,
+    'newcomer-offer',
+  );
+}
