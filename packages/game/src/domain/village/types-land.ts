@@ -283,6 +283,11 @@ export interface OrchardSquare {
   /** Dospělé stromy mezi překážkami – s vyklizením čtverce dají klády na hromadu (forest.md). */
   trees?: number;
   /**
+   * Čtverec na teplém jižním svahu prémiové krajiny (premium-landscapes.md – Teplé jižní svahy):
+   * úroda × PREMIUM_EFFECTS.southSlopeOrchard (`markSunnyOrchards`). Jinde chybí.
+   */
+  sunny?: true;
+  /**
    * Obnova (orchard.md – Obnova sadu): id stavby obnovy, do které vesničané čtverec zařadili.
    * Dokud na něj práce nedojde, stojí staré stromy (`plantedDay` výsadby, ze které rostou);
    * s první prací se staré stromy skácí a čtverec se sází znovu (`plantedDay` null, výsadba

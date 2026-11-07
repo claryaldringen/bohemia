@@ -433,20 +433,23 @@ export function sacredBuildingHappiness(kind: SacredBuildingKind): number {
  * Štěstí z posvátných míst vsi v den `day` (happiness.md): duby podle stáří 1–10, souš 1 (nejvýš
  * 3 – ty, které přidávají nejvíc; `sacredOakNow` z vrstvy překážek `obstacles`, bez ní jako
  * nejmladší dub), háje podle dubů (nejvýš 2 nejlepší), modly +8 (nejvýš 2), svatyně +25 (jedna) –
- * dohromady nejvýš +40. Počítají se jen hotové modly a svatyně.
+ * dohromady nejvýš +40. Počítají se jen hotové modly a svatyně. `premium` – štěstí posvátného
+ * místa prémiové krajiny (`premiumSacredHappiness` – posvátná hora, pramen) se počítá mezi háji.
  */
 export function sacredHappiness(
   state: Pick<VillageState, 'sacredOaks' | 'groves' | 'sacredBuildings'>,
   day: number,
   obstacles: ObstacleLayer | null,
+  premium = 0,
 ): number {
   const oaks = villageSacredOaks(state)
     .map((o) => sacredOakNow(obstacles, o.id, day).happiness)
     .sort((a, b) => b - a)
     .slice(0, SACRED_OAK.counted)
     .reduce((sum, v) => sum + v, 0);
-  const groves = villageGroves(state)
-    .map((g) => groveHappiness(g.oaks))
+  const groveValues = villageGroves(state).map((g) => groveHappiness(g.oaks));
+  if (premium > 0) groveValues.push(premium);
+  const groves = groveValues
     .sort((a, b) => b - a)
     .slice(0, GROVE.counted)
     .reduce((sum, v) => sum + v, 0);

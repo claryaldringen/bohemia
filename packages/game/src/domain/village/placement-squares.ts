@@ -68,6 +68,7 @@ import {
 } from './placement-geometry';
 import { SQUARE_SAMPLES, sacredInShape, sampledGround } from './placement-dwellings';
 import { squareObstacleCost, takenSquareLand } from './placement-land';
+import { premiumSpringShapes } from './premium-effects';
 
 type CellsShape = { ok: true; cells: TileCell[] } | { ok: false; reason: string };
 
@@ -289,6 +290,10 @@ export function squareFlags(
     landscape,
     (village?.threshingFloors ?? []).map((f) => freeShape(threshingFloorFootprint(f.position))),
   );
+  // pramen a slanisko prémiové krajiny jsou voda – pole, sad ani hřbitov na ně nesmí
+  const springShapes = premiumSpringShapes(landscape);
+  const springs =
+    springShapes.length > 0 ? new PolygonIndex(landscape, springShapes.map(freeShape)) : null;
   return (square) => {
     const ground = squareGround(landscape, square);
     const under = index.overlapping(square.corners, square.tile);
@@ -296,7 +301,9 @@ export function squareFlags(
     const woods = under.filter((u) => u.kind === 'wood');
     const woodExact = woods.some((w) => sameSquare(w, square));
     return {
-      water: ground.water,
+      water:
+        ground.water ||
+        (springs !== null && springs.overlapping(square.corners, square.tile).length > 0),
       // les krajiny i les vsi (fields.md – Les vsi)
       forest: ground.forest || woods.length > 0,
       dwelling: dwellings.overlapping(square.corners, square.tile).length > 0,

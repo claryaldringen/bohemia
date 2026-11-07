@@ -4,7 +4,7 @@ import {
   buildForestField,
   heightAtWorld,
   length2,
-  streamCenterline,
+  watersCenterline,
   type Landscape,
   type ObstacleLayer,
 } from '../landscape';
@@ -114,7 +114,8 @@ function marchTerrain(l: Landscape): MarchTerrain {
   const width = Math.round(extent / cellM);
   const originX = -extent / 2 + cellM / 2;
   const base = new Uint8Array(width * width);
-  const stream = l.stream.length >= 2 ? streamCenterline(l) : null;
+  // potok i řeka prémiové krajiny (`watersCenterline` – bez řeky přesně osa potoka)
+  const stream = l.stream.length >= 2 ? watersCenterline(l) : null;
   const field = buildForestField(l, { remember: false });
   const reach = (cellM * Math.SQRT2) / 2;
   const d = cellM / 2;

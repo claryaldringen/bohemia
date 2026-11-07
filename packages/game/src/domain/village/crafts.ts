@@ -20,6 +20,7 @@ import {
   type IronDeficit,
 } from './iron';
 import { FORGE, REFINE, SMELT, smeltOreKg } from './iron-rates';
+import { dugMaterialFactor } from './premium-effects';
 import { workshopSkill } from './craft-skill';
 import { isPlainShape, shapedFootprint, type DwellingShape } from './dwelling-shape';
 import { rectangleCorners, type Point } from './polygon';
@@ -1009,8 +1010,11 @@ function workPotter(
     batchDays: SMITH_SUPPLY.oreBatchDays,
     ...(cart ? { cart } : {}),
     ...(cartBatch ? { cartBatch: (site: OreSite) => cartBatch(dwelling, site, 'clay') } : {}),
-    needKg: (left) => potteryClayKg(left, labor.skill),
+    // dobrá hlína prémiové krajiny – méně hlíny na kg keramiky (premium-landscapes.md)
+    needKg: (left) =>
+      potteryClayKg(left, labor.skill) * dugMaterialFactor(workshop.claySite, 'clay'),
   });
+  const clayPerKg = CLAY.kgPerPotteryKg * dugMaterialFactor(workshop.claySite, 'clay');
   const output = workWithWood(
     state,
     dwelling,
@@ -1021,9 +1025,9 @@ function workPotter(
     // hrnčíř bez praxe točí a vypaluje pomaleji, kácí stejně (crafts.md – Učení řemesla)
     CRAFT_PRODUCTION.potteryManDaysPerKg / labor.skill,
     CRAFT_PRODUCTION.potteryKgPerTree,
-    (workshop.clayKg ?? 0) / CLAY.kgPerPotteryKg,
+    (workshop.clayKg ?? 0) / clayPerKg,
   );
-  workshop.clayKg = Math.max(0, (workshop.clayKg ?? 0) - output.producedKg * CLAY.kgPerPotteryKg);
+  workshop.clayKg = Math.max(0, (workshop.clayKg ?? 0) - output.producedKg * clayPerKg);
   stocks.potteryKg += output.producedKg;
   const dug = clay.dig > EPSILON || clay.carry > EPSILON || clay.ride > EPSILON;
   const activity: WorkshopActivity =
@@ -1206,7 +1210,10 @@ function workSmith(
     landscape,
     obstacles,
     batchDays: SMITH_SUPPLY.oreBatchDays,
-    needKg: smelting ? (l) => smeltOreKg(l) * rate : () => 0,
+    // bohatá ruda prémiové krajiny – méně rudy na kg houby (premium-landscapes.md)
+    needKg: smelting
+      ? (l) => smeltOreKg(l) * rate * dugMaterialFactor(workshop.oreSite, 'ore')
+      : () => 0,
     ...(oreCart ? { cart: oreCart } : {}),
     ...(cartBatch ? { cartBatch: (site: OreSite) => cartBatch(dwelling, site, 'ore') } : {}),
   });
@@ -1217,13 +1224,15 @@ function workSmith(
   fetch.push(...dugFetchEntries(state, dwelling.id, day, 'ore', ore));
   // 4. tavba v redukční peci
   const oreKg = workshop.oreKg ?? 0;
-  const smeltInput = { skill, wantedKg: deficit.bloomKg, oreKg, rate };
+  // tavba počítá rudu v kg obyčejné rudy – bohatá ruda vydá na kg houby víc
+  const oreFactor = dugMaterialFactor(workshop.oreSite, 'ore');
+  const smeltInput = { skill, wantedKg: deficit.bloomKg, oreKg: oreKg / oreFactor, rate };
   const smelt = smeltStep({ ...smeltInput, labor: left, charcoalKg: stocks.charcoalKg });
   want.smelt = smeltStep({ ...smeltInput, labor: wantLeft, charcoalKg: Infinity }).charcoalKg;
   if (smelt.kg > EPSILON) {
     stocks.bloomKg = (stocks.bloomKg ?? 0) + smelt.kg;
     stocks.charcoalKg = Math.max(0, stocks.charcoalKg - smelt.charcoalKg);
-    workshop.oreKg = Math.max(0, oreKg - smelt.kg * SMELT.oreKgPerKg);
+    workshop.oreKg = Math.max(0, oreKg - smelt.kg * SMELT.oreKgPerKg * oreFactor);
   }
   const making = forge.labor + refine.labor + smelt.labor;
   // činnost dne – krok, na který šlo nejvíc práce (napřed kování)

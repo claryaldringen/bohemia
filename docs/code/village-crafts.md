@@ -124,7 +124,13 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   300 kg/čd s přirážkou za chůzi (`clayDigManDaysPerKg`), koš 25 kg, hliniště `Workshop.claySite`
   (20 t), dávky `clayBatch` (30 dní, s vozem celý dvoukolák – `SmithSupply.cartBatch(…, 'clay')`,
   `clayCarts`), jámy v `orePits` s `clay`; hrnčíř točí jen z hlíny (`workWithWood(…, maxKg)`).
-  Starší dílny `migratePotter`. Činnosti `digging`, `no-clay` (`restingCrafters`); podíly práce
+  Starší dílny `migratePotter`. **Bohaté naleziště prémiové krajiny** (premium-landscapes.md –
+  Bohatá železná ruda, Dobrá keramická hlína; `premium-effects.ts`): `chooseDugSite` napřed zkusí
+  prvek typu (`premiumDugSpot` – rudiště `iron-ore`, hliniště `clay`), když tam nekope jiná dílna
+  a místo je volné; místo nese `OreSite.rich` – ložisko se nevyčerpá (po `depositKg` kope dál na
+  témž místě, do `oreSitesUsed` nejde), kovář taví se 4 kg rudy na kg nástrojů místo 8 a hrnčíř
+  potřebuje poloviční hlínu na kg keramiky (`dugMaterialFactor`, `PREMIUM_EFFECTS.richOre` /
+  `fineClay` – podle místa, kde dílna dnes kope). Činnosti `digging`, `no-clay` (`restingCrafters`); podíly práce
   `clay` (cíl `{ kind: 'clay', id, x, z }`) a `fetch`; vůz job `clay` (`CART_JOBS.clay`, pořadí po
   rudě). Web: panel `PotterClayStats` (`VillageWorkshop.clay` z `potterClaySummary`), upozornění
   „Hrnčíř nemá hlínu“, scéna jámy a hromada hlíny (`SceneOreSite.clay`, `SceneOrePit.clay` – barvy

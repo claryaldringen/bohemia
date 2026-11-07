@@ -753,7 +753,7 @@ export function swathRoadsInWork(state: VillageState): number[] {
 }
 
 /** Úseky prvních `count` kusů stezky dostanou svůj stupeň (mutuje stav). */
-function upgradePieces(state: VillageState, trail: Trail, count: number): void {
+export function upgradePieces(state: VillageState, trail: Trail, count: number): void {
   const roads = state.roads?.roads ?? [];
   for (const piece of trail.pieces.slice(0, count)) {
     const road = roads.find((r) => r.id === piece.roadId);

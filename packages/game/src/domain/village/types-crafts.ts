@@ -134,6 +134,12 @@ export interface OreSite {
   day: number;
   walkM: number;
   cart?: CartDrive | null;
+  /**
+   * Bohaté naleziště prémiové krajiny (premium-landscapes.md – Bohatá železná ruda, Dobrá
+   * keramická hlína): méně suroviny na kg výrobku (`dugMaterialFactor`), ložisko se nevyčerpá –
+   * po každých `depositKg` se kope dál na témž místě. Jinde chybí.
+   */
+  rich?: true;
 }
 /**
  * Rozdělaná dávka rudy (crafts.md – Uhlí a ruda kováře): kolik rudy kovář nakope (kg), kolik už

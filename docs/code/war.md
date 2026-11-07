@@ -95,7 +95,8 @@ vojska mapu po mapě (Ú6.4); tažení po taktech, boj a dohra přibývají v da
 - **Mřížka** – `domain/war/march-grid.ts`: `marchGrid(landscape, obstacles, village, { day,
 closedGates })` → `MarchGrid` (buňky 10 m přes celou mapu 1 920 m, 192 × 192; `pace` = násobek
   tempa, 0 neprůchodná; `flags` `MARCH_*`). Terén krajiny (`marchTerrain`, mezipaměť `WeakMap`
-  podle krajiny): buňka do půl úhlopříčky (≈ 7 m) od vody je voda – krok mezi středy ji
+  podle krajiny): buňka do půl úhlopříčky (≈ 7 m) od vody (potok i řeka prémiové krajiny –
+  `watersCenterline`) je voda – krok mezi středy ji
   nepřeskočí; brod = mělčina potoka (`StreamSample.shallow ≥ WAR.march.fordShallow`; úzký brod
   chodců `FORD` v `paths/terrain.ts` v krajinách nevychází, proto jen mělčina); sráz nad
   `PATH_SLOPE_MAX`. Hustý les (× ¼) = pole lesa > 0 a v okolí 3 × 3 buněk aspoň

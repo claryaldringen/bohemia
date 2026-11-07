@@ -243,3 +243,6 @@ algoritmus kostry světa, rozhraní dat – v mezích výše a determinismu kraj
 | Společná míra čd za rok, váha času e^(−t/200 let), cíl +15 % práce prvních 100 let                                                             | návrh Clauda                                                |
 | Prémie jedna na hráče (první mapa), typy kostry jen na mapách kostry, typy rovnoměrně                                                          | návrh Clauda                                                |
 | Stávající sídla beze změny                                                                                                                     | návrh Clauda                                                |
+| Účinky hned: bohatá ruda 4 kg na kg nástrojů (rudiště na prvku, nevyčerpá se), hlína poloviční na kg keramiky, sad na svahu × 1,25             | návrh Clauda                                                |
+| Posvátná hora a pramen = posvátné místo vsi +10 jako háj, mezi háji a do stropů; pramen a slanisko pole ani sad nesmí                          | návrh Clauda                                                |
+| Stezka kostry ve vsi jako upravená cesta s průsekem a hotová zemská stezka oběma směry od založení                                             | návrh Clauda                                                |

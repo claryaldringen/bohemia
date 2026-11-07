@@ -136,7 +136,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 
 - **Sad** (`orchard.ts`, orchard.md): staví se po čtvercích jako pole (`orchardPartsFromCells`,
   sad a hřbitov se nepřekrývají, na pole sad smí – Pole jako krajina, obydlí do sadu smí –
-  Obydlí na poli a v sadu). Výsadba je
+  Obydlí na poli a v sadu). Čtverec na teplém jižním svahu prémiové krajiny
+  (`OrchardSquare.sunny` – `markSunnyOrchards` v kroku dne, premium-landscapes.md) dá úrodu
+  × `PREMIUM_EFFECTS.southSlopeOrchard`. Výsadba je
   stavba ze společné práce jen v oknech
   jara a podzimu (`orchardPlantingNeed` mimo okna 0), čtverec dostane `plantedDay`. Rok sadu
   začíná 1. 3. (`orchardYear`), úroda `orchardYieldShare`. Sezónní práce celé vsi
