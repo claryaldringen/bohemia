@@ -1,5 +1,5 @@
 import { detCos, detSin, length2 } from '../det-math';
-import { distanceToMask } from '../grid';
+import { distanceToMask, smoothstep } from '../grid';
 import { createRandom, deriveSeed, type Random } from '../random';
 import { buildRelief } from '../relief';
 import { streamCenterline, streamStations } from '../stream-geometry';
@@ -160,18 +160,12 @@ function sculptQuarry(terrain: Terrain, plan: AxisPlan, random: Random): void {
     const y = Math.floor(i / size);
     const { u, v } = axisCoordinates(plan, x, y);
     if (u >= face || u <= -(backFull + backFade) || Math.abs(v) >= half + endFade) continue;
-    const along = 1 - smooth01((Math.abs(v) - half) / endFade);
-    const across = u > 0 ? 1 - smooth01(u / face) : 1 - smooth01((-u - backFull) / backFade);
+    const along = 1 - smoothstep((Math.abs(v) - half) / endFade);
+    const across = u > 0 ? 1 - smoothstep(u / face) : 1 - smoothstep((-u - backFull) / backFade);
     const raise = height * along * across;
     if (raise <= 0) continue;
     heights[i] = heights[i]! + raise * reliefKeep(x, y, villageSite, waterDistance[i]!);
   }
-}
-
-/** Smoothstep na [0, 1] (mimo něj oříznutý). */
-function smooth01(t: number): number {
-  const c = Math.min(1, Math.max(0, t));
-  return c * c * (3 - 2 * c);
 }
 
 /** Výška stěny lomu (m): průměr rozdílu terénu za hranou a pod čelem podél stěny. */

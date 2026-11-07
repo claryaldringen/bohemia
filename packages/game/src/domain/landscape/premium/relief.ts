@@ -112,6 +112,16 @@ export function cellPointWorld(
   return [-half + (x + 0.5) * l.cellSizeM, -half + (y + 0.5) * l.cellSizeM];
 }
 
+/** Ostrožna z dat krajiny jako prvek typu (střed a obrys plochy nahoře ve světě). */
+export function promontorySiteOf(
+  l: Pick<Landscape, 'size' | 'cellSizeM'>,
+  promontory: Promontory,
+): PremiumSite {
+  const world = (p: { x: number; y: number }): WorldPoint => cellPointWorld(l, p.x, p.y);
+  const [x, z] = world(promontory.center);
+  return { kind: 'promontory', x, z, outline: promontory.outline.map(world) };
+}
+
 /** Kde smí ležet prvek reliéfu (`pickSite`). */
 export interface SiteRule {
   /** Vzdálenost od místa pro vesnici (m) a nejraději. */
@@ -600,9 +610,7 @@ const naturalFortress = {
   sites({ landscape }: { landscape: Landscape }): readonly PremiumSite[] | null {
     const promontory = fortressPromontory(landscape);
     if (!promontory) return null;
-    const world = (p: { x: number; y: number }): WorldPoint => cellPointWorld(landscape, p.x, p.y);
-    const [x, z] = world(promontory.center);
-    return [{ kind: 'promontory', x, z, outline: promontory.outline.map(world) }];
+    return [promontorySiteOf(landscape, promontory)];
   },
 } satisfies PremiumPass;
 

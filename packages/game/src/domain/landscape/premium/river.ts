@@ -15,9 +15,10 @@ import { CELL_SIZE_M, type Promontory, type StreamPoint } from '../types';
 // Řeka prémiových krajin (premium-landscapes.md – Typy krajin, Kostra světa): splavná řeka,
 // vyvýšenina nad brodem a soutok. Řeka je nový tok vedle potoka – sdílená mřížka světa zatím
 // není, proto vstupuje a vystupuje na náhodných okrajích (vývojová verze). Terén řeky počítá jen
-// server při generování (výšky, voda a osa řeky jdou do prohlížeče hotové); složka premium/ je
-// v deterministické vrstvě, proto jen det-math – pomocné funkce osy potoka (`stream.ts`) se
-// použijí beze změny. Čísla jsou návrh Clauda, doladí je kalibrace.
+// server při generování (výšky, voda a osa řeky jdou do prohlížeče hotové). Soubor hlídá ESLint
+// jako deterministickou vrstvu (jen det-math), ale pomocné funkce osy potoka ze `stream.ts`
+// (`arcLengths`, `smoothPolyline`, `rasterize`) používají `Math.hypot` – smí, protože je volá
+// jen server při generování terénu. Čísla jsou návrh Clauda, doladí je kalibrace.
 
 /** Řeka (spec: širší a hlubší než potok, brody jen na 1–2 místech). */
 export const RIVER = {
@@ -933,8 +934,8 @@ function planFordHill(
     const sf = samples[f]!.s;
     if (sf < RIVER.fordSpan[0] * total || sf > RIVER.fordSpan[1] * total) continue;
     for (const along of [offset, -offset]) {
-      const k = samples.findIndex((p) => p.s >= sf + along / 1);
-      if (k < 0 || k >= samples.length) continue;
+      const k = samples.findIndex((p) => p.s >= sf + along);
+      if (k < 0) continue;
       const p = samples[k]!;
       for (const side of [1, -1] as const) {
         const half = side > 0 ? p.left : p.right;
