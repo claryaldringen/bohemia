@@ -27,9 +27,15 @@ export function laborPerDay(person: Person, day: number): number {
   return ageGroup(person, day) === 'adult' ? LABOR_PER_DAY.adult : 0;
 }
 
-/** Je člověk dnes zraněný na lovu (wildlife.md – Nebezpečí pro lidi)? */
-export function isInjured(person: Pick<Person, 'injuredUntilDay'>, day: number): boolean {
-  return (person.injuredUntilDay ?? 0) > day;
+/**
+ * Je člověk dnes zraněný na lovu (wildlife.md – Nebezpečí pro lidi), nebo raněný ve válce (war.md
+ * – Ztráty)? Nepracuje, necvičí, neloví ani nebojuje.
+ */
+export function isInjured(
+  person: Pick<Person, 'injuredUntilDay' | 'woundedUntil'>,
+  day: number,
+): boolean {
+  return (person.injuredUntilDay ?? 0) > day || (person.woundedUntil ?? 0) > day;
 }
 
 /**
@@ -59,9 +65,11 @@ export function guestFoodNeedPerDay(state: Pick<VillageState, 'guests'>, day: nu
   return (guestsToday(state, day) * FOOD_NEED_KG_PER_YEAR.adult) / FOOD_DAYS_PER_YEAR;
 }
 
-/** Práce hostů na den (čd) – dospělý 1 (`LABOR_PER_DAY.adult`). */
+/** Práce hostů na den (čd) – dospělý 1 (`LABOR_PER_DAY.adult`); zajatci nepracují. */
 export function guestLaborToday(state: Pick<VillageState, 'guests'>, day: number): number {
-  return guestsToday(state, day) * LABOR_PER_DAY.adult;
+  let n = 0;
+  for (const g of state.guests ?? []) if (g.untilDay > day && g.kind !== 'captive') n++;
+  return n * LABOR_PER_DAY.adult;
 }
 
 /**

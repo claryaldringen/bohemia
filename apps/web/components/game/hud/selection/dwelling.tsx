@@ -13,6 +13,7 @@ import type { DwellingResident } from '@/lib/person-view';
 import { Tooltip } from '../Tooltip';
 import { StewardToggle } from '../StewardToggle';
 import { ManorUpgrades } from '../ManorPanel';
+import type { PrisonerAction } from '../PrisonersPanel';
 import { TradePanel } from '../TradePanel';
 import { LeaveControls, RelocateButtons, RelocationProgress } from '../RelocationControls';
 import { Stat, Bar, ROW, Commands, WoodToFell } from './parts';
@@ -44,6 +45,7 @@ export interface ManorActions {
   onDeclareHunt?: () => Promise<string | null | void>;
   /** Nastaví postoj vsi před cizím vojskem (war.md – Obránci) – vrátí důvod odepření, nebo null. */
   onSetStance?: (stance: DefenseStance) => Promise<string | null | void>;
+  onDecidePrisoner?: (id: string, action: PrisonerAction) => Promise<string | null | void>;
   /**
    * Vyšle výpravu k sousedovi (server action) – hotovo, až se vrátí; vrátí důvod, proč ji server
    * odmítl, nebo null (panel obchodu ho ukáže pod tlačítkem).
@@ -67,6 +69,7 @@ export function DwellingBody({
   onBuildTrail,
   onDeclareHunt,
   onSetStance,
+  onDecidePrisoner,
   onSendExpedition,
   steward,
   onSetSteward,
@@ -131,6 +134,7 @@ export function DwellingBody({
               onBuildTrail={onBuildTrail}
               onDeclareHunt={onDeclareHunt}
               onSetStance={onSetStance}
+              onDecidePrisoner={onDecidePrisoner}
               trade={() => (
                 <TradePanel
                   neighbours={details.manor?.neighbours ?? []}

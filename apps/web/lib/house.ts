@@ -1,4 +1,5 @@
 import { escheatGift } from './escheats';
+import { ransom } from './prisoners';
 import {
   acceptNegotiation,
   blockPlayer,
@@ -6,6 +7,10 @@ import {
   dismissSteward,
   counterNegotiation,
   declareWar,
+  answerComplaint,
+  fileComplaint,
+  judgeDispute,
+  type Verdict,
   housePanel,
   houseSpareOutlook,
   issueInvite,
@@ -72,12 +77,15 @@ export async function openNegotiationForPlayer(
 ): Promise<NegotiationActionResult> {
   const today = await playerToday(playerId);
   if (!today.ok) return { error: today.error };
-  const result: NegotiateResult = await openNegotiation(gameDeps(), {
-    playerId,
-    ...input,
-    now: new Date(),
-    today: today.day,
-  });
+  const result: NegotiateResult = await openNegotiation(
+    { ...gameDeps(), ransom: ransom() },
+    {
+      playerId,
+      ...input,
+      now: new Date(),
+      today: today.day,
+    },
+  );
   return outcome(result);
 }
 
@@ -105,7 +113,7 @@ export async function answerNegotiationForPlayer(
   const today = await playerToday(playerId);
   if (!today.ok) return { error: today.error };
   const base = { playerId, negotiationId: input.negotiationId, now: new Date(), today: today.day };
-  const deps = gameDeps();
+  const deps = { ...gameDeps(), ransom: ransom() };
   switch (input.answer) {
     case 'accept':
       return outcome(
@@ -178,4 +186,40 @@ export async function dismissStewardForPlayer(
     dismissSteward(gameDeps(), { playerId, villageId }),
   );
   return outcome(result);
+}
+
+const judgmentOutcome = (
+  result: { ok: true } | { ok: false; reason: string },
+): NegotiationActionResult => (result.ok ? { ok: true } : { error: result.reason });
+
+/** Vazal žaluje spoluvazala před společným pánem (vassalage.md – Mír a spory). */
+export async function fileComplaintForPlayer(
+  playerId: string,
+  input: { against: string; message: string },
+): Promise<NegotiationActionResult> {
+  const today = await playerToday(playerId);
+  if (!today.ok) return { error: today.error };
+  return judgmentOutcome(await fileComplaint(gameDeps(), { playerId, ...input, today: today.day }));
+}
+
+/** Obžalovaný se vyjádří k žalobě. */
+export async function answerComplaintForPlayer(
+  playerId: string,
+  input: { disputeId: string; statement: string },
+): Promise<NegotiationActionResult> {
+  const today = await playerToday(playerId);
+  if (!today.ok) return { error: today.error };
+  return judgmentOutcome(
+    await answerComplaint(gameDeps(), { playerId, ...input, today: today.day }),
+  );
+}
+
+/** Pán vynese rozsudek (náhrada, vrácení lidí, mír, zamítnutí). */
+export async function judgeDisputeForPlayer(
+  playerId: string,
+  input: { disputeId: string; verdict: Verdict },
+): Promise<NegotiationActionResult> {
+  const today = await playerToday(playerId);
+  if (!today.ok) return { error: today.error };
+  return judgmentOutcome(await judgeDispute(gameDeps(), { playerId, ...input, today: today.day }));
 }

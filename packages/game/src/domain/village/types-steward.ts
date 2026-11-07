@@ -137,6 +137,11 @@ export interface StewardState {
    * změn: stavba hráče na plánovaném místě, odchod syna. Zmizí, když se začne počítat nový plán.
    */
   replan?: true;
+  /**
+   * Správce zapnul zajetí hráčova muže (war.md – Vzdaní, zajetí a výkupné: ves dál řídí formální
+   * správce); po jeho návratu domů se vypne zpět. Chybí – přepínač nastavil hráč.
+   */
+  byCaptivity?: true;
   departures?: StewardDeparture[];
   /** Co správce zkusil a nešlo (cesta, směr stezky) – nezkouší znovu do `untilDay`. */
   skips?: { kind: string; id: number; untilDay: number }[];

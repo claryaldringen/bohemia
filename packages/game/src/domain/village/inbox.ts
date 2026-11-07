@@ -8,6 +8,15 @@ import { settleNoble } from '../vassalage/ennoble';
 import { hostGuests } from '../vassalage/guests';
 import { receiveShipment } from '../vassalage/shipment';
 import { pruneThreats } from './fortification/threat';
+import {
+  applyCampaignReturn,
+  applyFortificationBreach,
+  applyLineManFell,
+  applyRaidResult,
+  type CampaignReturn,
+  type RaidResult,
+} from '../war/raid-apply';
+import { applyCaptiveReturns, type CaptiveReturns } from '../war/captives';
 import type { ChronicleEvent, Guest, ShipmentBody, ThreatSignal, VillageState } from './types';
 
 /**
@@ -55,7 +64,26 @@ export type VillageEventBody =
    * ves se podle postoje zachová dřív, než vojsko spatří (`VillageState.armySeen`). Signál hrozby
    * pro správce jde zvlášť (`threat-signal` druhu `army-seen`).
    */
-  | { kind: 'army-seen'; campaignId: string; fromVillageId: string };
+  | { kind: 'army-seen'; campaignId: string; fromVillageId: string }
+  /**
+   * Výsledek nájezdu v napadené vsi (war.md – Ztráty, Kořist; `applyRaidResult`): padlí, ranění,
+   * odvedení a kořist ze zásob a stád.
+   */
+  | { kind: 'raid-result'; result: RaidResult }
+  /** Tažení se vrátilo do vsi útočníka (`applyCampaignReturn`): muži, kořist, odvedení. */
+  | { kind: 'campaign-return'; result: CampaignReturn }
+  /**
+   * Konec zajetí (propuštění nebo výkupné; `applyCaptiveReturns`): zajatec jde domů, věznitelova ves
+   * ho přestane živit. Událost jde do obou vsí, každá použije svou stranu.
+   */
+  | ({ kind: 'captive-returns' } & CaptiveReturns)
+  /** Muž rodu padl na tažení (war.md – Ztráty; `applyLineManFell`): smrt a nástupnictví. */
+  | { kind: 'line-man-fell'; personId: number; campaignId: string }
+  /**
+   * Průlom opevnění (fortifications.md – Prolomení; `applyFortificationBreach`): úseky se stavem 0,
+   * obyvatelé je přestaví přednostně.
+   */
+  | { kind: 'fortification-breach'; fortificationId: number; segments: number[] };
 
 /**
  * Událost ve schránce vsi `villageId`. `day` = herní den, na jehož začátku se použije (nikdy ne
@@ -110,6 +138,17 @@ function applyEvent(state: VillageState, day: number, body: VillageEventBody): C
       return [];
     case 'army-seen':
       state.armySeen = { day, campaignId: body.campaignId, fromVillageId: body.fromVillageId };
+      return [];
+    case 'raid-result':
+      return applyRaidResult(state, day, structuredClone(body.result));
+    case 'campaign-return':
+      return applyCampaignReturn(state, day, structuredClone(body.result));
+    case 'captive-returns':
+      return applyCaptiveReturns(state, day, body);
+    case 'line-man-fell':
+      return applyLineManFell(state, day, body);
+    case 'fortification-breach':
+      applyFortificationBreach(state, day, body);
       return [];
     default:
       return unknownBody(body);

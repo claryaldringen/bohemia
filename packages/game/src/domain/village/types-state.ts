@@ -46,6 +46,7 @@ import type {
   DwellingRuin,
   Emigrant,
   Guest,
+  Prisoner,
   NeighborDirection,
   Person,
 } from './types-people';
@@ -278,6 +279,12 @@ export interface VillageState {
    * = žádní.
    */
   guests?: Guest[];
+  /**
+   * Zajatci ve vsi (war.md – Vzdaní, zajetí a výkupné): muži rodu a šlechtici, které tažení odvedlo
+   * (`campaign-return`). Jedí z jejích zásob (jako hosté druhu `captive`), nepracují a necvičí.
+   * Chybí – nikdo.
+   */
+  prisoners?: Prisoner[];
   /**
    * Hotová rádla vsi (oxen.md – Voli po kusech): pár vycvičených volů orá, jen když má rádlo; ves
    * staví rádlo s výcvikem nového páru k orbě. Chybí = žádné – u vsí uložených dřív jedno na každé

@@ -96,6 +96,16 @@ export interface Person {
    */
   injuredUntilDay?: number;
   /**
+   * Raněn ve válce (war.md – Ztráty): do tohoto dne nepracuje, necvičí ani nebojuje (`isInjured`).
+   * Chybí – zdráv.
+   */
+  woundedUntil?: number;
+  /**
+   * Den, kdy raněný zemře na rány (war.md – Ztráty: 1 z 5 do 30 dní; los ze seedu vsi a člověka
+   * – `woundRoll`). Chybí – rány přežije.
+   */
+  woundDeathDay?: number;
+  /**
    * Pryč jen na čas (plán 2026-11-03 – rozhodnutí 11; vassalage.md – Lidé a robota): robota,
    * služba, tažení, zajetí, ochrana. Zůstává ve stavu domovské vsi, ale doma nepracuje ani nejí
    * (`isAway`); vrátí se v den `untilDay` (`returnHome`). Chybí – doma.
@@ -138,6 +148,21 @@ export interface ArmsSkills {
   combat: number;
   riding: number;
   best?: { bow: number; combat: number; riding: number };
+}
+/**
+ * Zajatec ve vsi věznitele (war.md – Vzdaní, zajetí a výkupné): osoba zůstává ve stavu domovské
+ * vsi s `away` druhu `captive`; věznitelova ves ho vede, krmí ze svých zásob a nechá ho nepracovat
+ * ani necvičit. `id` je jedinečný klíč zajetí (`<tažení>:<osoba>`).
+ */
+export interface Prisoner {
+  id: string;
+  ref: PersonRef;
+  /** Jméno do přehledu dvorce; chybí – bezejmenný. */
+  name?: string;
+  /** Šlechtic (jinak muž rodu) – kvůli portrétu a výkupnému. */
+  noble?: true;
+  /** Den zajetí. */
+  sinceDay: number;
 }
 /**
  * Dcera, která se vdala pryč (kinship.md – Sňatky z okolí), nebo člověk, kterého ves dala sousedovi

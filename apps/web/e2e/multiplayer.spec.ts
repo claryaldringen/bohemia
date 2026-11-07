@@ -940,3 +940,158 @@ test('vojsko: A je ve válce s C, otevře panel Vojsko, naplánuje tažení na C
   expect(after.storesKg).toBeLessThan(4000);
   await Promise.all(ctxs.map((ctx) => ctx.close()));
 });
+
+test('rozsudek pána: spoluvazal žaluje druhého, ten se vyjádří, pán rozhodne náhradou → obžalovaný má dialog', async ({
+  browser,
+}) => {
+  test.setTimeout(240_000);
+  await query(`UPDATE house SET ended_at = now() WHERE ended_at IS NULL`, []);
+  const ctxs = await Promise.all([
+    browser.newContext(),
+    browser.newContext(),
+    browser.newContext(),
+  ]);
+  for (const ctx of ctxs) await useUniqueClientIp(ctx);
+  const [lord, plaintiff, defendant] = (await Promise.all(ctxs.map((ctx) => ctx.newPage()))) as [
+    Page,
+    Page,
+    Page,
+  ];
+  for (const page of [lord, plaintiff, defendant]) {
+    await page.setViewportSize({ width: 1280, height: 720 });
+  }
+  const { email: emailL, seat: seatL } = await newPlayer(lord, 'soudp');
+  await found(lord, villageSpots(seatL.landscape).dwelling, 'Bořivoj');
+  const { email: emailP, seat: seatP } = await newPlayer(plaintiff, 'soudz');
+  await found(plaintiff, villageSpots(seatP.landscape).dwelling, 'Dalibor');
+  const { email: emailD, seat: seatD } = await newPlayer(defendant, 'soudo');
+  await found(defendant, villageSpots(seatD.landscape).dwelling, 'Ctibor');
+  const [idL, idP, idD] = await Promise.all([
+    houseIdOf(emailL),
+    houseIdOf(emailP),
+    houseIdOf(emailD),
+  ]);
+
+  // oba jsou vazalové pána (dohody zapíšeme přímo; jednání pokrývají jiné testy)
+  for (const vassal of [idP, idD]) {
+    await query(
+      `INSERT INTO vassalage (lord_house_id, vassal_house_id, terms, origin, since_at, since_day)
+       VALUES ($1, $2, '{}', 'negotiation', now(), 1)`,
+      [idL, vassal],
+    );
+  }
+  // obžalovaný má co dát
+  await query(
+    `UPDATE village SET state = jsonb_set(state, '{commonLaborYearly}', '30'),
+            version = version + 1, digest_version = version + 1
+      WHERE settlement_id = $1`,
+    [seatD.settlementId],
+  );
+
+  // žalobce podá žalobu na spoluvazala
+  const panelP = await openHousePanel(plaintiff);
+  await panelP.getByTestId(`fellow-complain-${idD}`).click();
+  await panelP.getByTestId('complaint-text').fill('Vzal mi obilí.');
+  await panelP.getByTestId('complaint-submit').click();
+  await expect(panelP.getByTestId('dispute-card')).toBeVisible();
+
+  // obžalovaný se vyjádří
+  const panelD = await reopenHousePanel(defendant);
+  await expect(panelD.getByTestId('dispute-message')).toContainText('Vzal mi obilí.');
+  await panelD.getByTestId('statement-text').fill('Půjčil jsem si ho.');
+  await panelD.getByTestId('statement-submit').click();
+
+  // pán vidí žalobu i vyjádření a vynese rozsudek: náhrada 6 kg obilí
+  await pollVillage(lord);
+  await expect(lord.getByTestId('village-notice').filter({ hasText: 'žaluje' })).toBeVisible({
+    timeout: 60_000,
+  });
+  const panelL = await reopenHousePanel(lord);
+  const card = panelL.getByTestId('dispute-card');
+  await expect(card.getByTestId('dispute-statement')).toContainText('Půjčil jsem si ho.');
+  await card.getByTestId('verdict-grainKg').fill('6');
+  await card.getByTestId('verdict-submit').click();
+
+  // obžalovaný má dialog rozsudku a upozornění
+  await expect
+    .poll(
+      async () =>
+        (
+          await query<{ player_id: string }>(
+            `SELECT player_id FROM dialog WHERE kind = 'judgment' AND status = 'open'`,
+            [],
+          )
+        ).length,
+      { timeout: 30_000 },
+    )
+    .toBe(1);
+  await pollVillage(defendant);
+  await expect(
+    defendant.getByTestId('village-notice').filter({ hasText: 'uložil náhradu' }),
+  ).toBeVisible({ timeout: 60_000 });
+
+  await Promise.all(ctxs.map((ctx) => ctx.close()));
+});
+
+test('zajatec: věznitel ho vidí ve dvorci a propustí → rozhodnutí je zapsané a zajatec domů', async ({
+  browser,
+}) => {
+  test.setTimeout(240_000);
+  await query(`UPDATE house SET ended_at = now() WHERE ended_at IS NULL`, []);
+  const ctx = await browser.newContext();
+  await useUniqueClientIp(ctx);
+  const a = await ctx.newPage();
+  await a.setViewportSize({ width: 1280, height: 720 });
+  const { seat } = await newPlayer(a, 'zajatec');
+  const spots = villageSpots(seat.landscape);
+  await found(a, spots.dwelling, 'Bořivoj');
+
+  // zajatec připravený přímým zápisem do stavu vsi (zajetí z tažení je pokryté unit testy)
+  const [row] = await query<{ id: string }>(`SELECT id FROM village WHERE settlement_id = $1`, [
+    seat.settlementId,
+  ]);
+  const villageId = row!.id;
+  const state = withBuiltFirstDwelling(await villageState(seat.settlementId));
+  Object.assign(state, {
+    prisoners: [
+      {
+        id: 'e2e:7',
+        ref: { villageId, personId: 7 },
+        name: 'Ctibor',
+        sinceDay: state.lastDay,
+      },
+    ],
+  });
+  await writeVillageState(seat.settlementId, state);
+  await pollVillage(a);
+  await a.keyboard.press('r');
+  const panel = a.getByTestId('selection-panel');
+  await expect
+    .poll(
+      async () => {
+        const point = await a.evaluate(
+          (p) => window.__bohemiaE2E!.projectToScreen!(p.x, p.z),
+          spots.dwelling,
+        );
+        if (!point) return null;
+        await a.mouse.move(point.x - 3, point.y);
+        await a.mouse.click(point.x, point.y);
+        return panel.getByTestId('prisoner').count();
+      },
+      { timeout: 30_000 },
+    )
+    .toBe(1);
+
+  // propuštění: rozhodnutí se zapíše jednou (klíč zajetí)
+  await panel.getByTestId('prisoner-release').click();
+  await expect
+    .poll(
+      async () =>
+        (
+          await query<{ decision: string }>(`SELECT decision FROM prisoner WHERE id = 'e2e:7'`, [])
+        )[0]?.decision,
+      { timeout: 30_000 },
+    )
+    .toBe('released');
+  await ctx.close();
+});

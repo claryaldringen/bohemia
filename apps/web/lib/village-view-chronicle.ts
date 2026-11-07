@@ -26,6 +26,7 @@ import {
   type TradeGoods,
   type TradePeople,
   type DwellingType,
+  type RaidLoot,
   type SacredBuildingKind,
 } from '@bohemia/game';
 
@@ -381,6 +382,58 @@ export function ironTripWho(son: boolean, porters: number, byCart: boolean): str
   return `${who} šel ${porters === 1 ? 's 1 nosičem' : `se ${porters} nosiči`}`;
 }
 
+/**
+ * Nájezd věcně (war.md – Co hráč vidí: Kronika): „Nájezd Bořivoje z vsi Lhota na ves Kněžice bez
+ * opovědi: padli 3, raněni 2, odvedeno 5, vzato 400 kg obilí a 6 ovcí.“ Nulové části chybí.
+ */
+function raidText(event: Extract<ChronicleEvent, { kind: 'raid' }>): string {
+  const from = event.from === undefined ? '' : ` z vsi ${event.from}`;
+  const target = event.target === undefined ? '' : ` na ves ${event.target}`;
+  const head = `Nájezd ${genitiveOf(event.leader)}${from}${target}${event.declared ? '' : ' bez opovědi'}`;
+  const parts: string[] = [];
+  const n = (v: number): number => Math.round(v);
+  if (n(event.fallen) > 0) {
+    parts.push(`${plural(event.fallen, 'padl', 'padli', 'padlo')} ${formatInteger(event.fallen)}`);
+  }
+  if (n(event.wounded) > 0) {
+    parts.push(
+      `${plural(event.wounded, 'raněn', 'raněni', 'raněno')} ${formatInteger(event.wounded)}`,
+    );
+  }
+  if (n(event.led) > 0) {
+    parts.push(
+      `${plural(event.led, 'odveden', 'odvedeni', 'odvedeno')} ${formatInteger(event.led)}`,
+    );
+  }
+  const loot = lootItems(event.loot);
+  if (loot.length > 0) parts.push(`vzato ${listText(loot)}`);
+  return parts.length === 0 ? `${head}.` : `${head}: ${parts.join(', ')}.`;
+}
+
+/** Kořist po položkách: „400 kg obilí“, „6 ovcí“ (nulové chybí). */
+function lootItems(loot: RaidLoot): string[] {
+  const food: [number, string][] = [
+    [loot.grainKg, 'obilí'],
+    [loot.legumesKg, 'luštěnin'],
+    [loot.meatKg, 'masa'],
+    [loot.cheeseKg, 'sýra'],
+  ];
+  const items = food
+    .filter(([kg]) => Math.round(kg) > 0)
+    .map(([kg, what]) => `${formatInteger(kg)} kg ${what}`);
+  for (const species of ['sheep', 'goat', 'pig', 'cow'] as const) {
+    const animals = formatAnimals({ [species]: loot.livestock[species] });
+    if (animals !== '') items.push(animals);
+  }
+  return items;
+}
+
+/** Výčet „a, b a c“. */
+function listText(items: readonly string[]): string {
+  if (items.length <= 1) return items.join('');
+  return `${items.slice(0, -1).join(', ')} a ${items.at(-1)!}`;
+}
+
 /** 2. pád mužského jména rodu („vazalem Bořivoje“): jako 4. pád, jen -a → -y. */
 function genitiveOf(name: string): string {
   return name.endsWith('a') ? `${name.slice(0, -1)}y` : accusativeOf(name);
@@ -472,12 +525,16 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return event.step === 'set-out'
         ? `Vojsko ${genitiveOf(event.leader)} vyrazilo.`
         : `Vojsko ${genitiveOf(event.leader)} se vrátilo.`;
+    case 'raid':
+      return raidText(event);
     case 'negotiation-accepted':
       return `${event.vassal} se stal vazalem ${genitiveOf(event.lord)}.`;
     case 'vassalage-renounced':
       return `Vazalství mezi ${event.lord} (pán) a ${event.vassal} (vazal) skončilo vypovězením.`;
     case 'levy':
       return levyLine(event);
+    case 'disobeyed':
+      return `${event.name} neposlechl pána.`;
     case 'blocked':
       return `${event.blocker} zablokoval ${accusativeOf(event.blocked)}.`;
     case 'senior':
@@ -513,6 +570,8 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       if (event.cause === 'tornado') {
         return `${event.name ?? 'Jeden z vesničanů'} zahynul ve smršti.`;
       }
+      if (event.cause === 'war') return `${event.name ?? 'Jeden z vesničanů'} padl v boji.`;
+      if (event.cause === 'wounds') return `${event.name ?? 'Jeden z vesničanů'} zemřel na rány.`;
       return deathText(event.group, event.cause === 'hunger');
     case 'hunt-injury': {
       const prey = event.prey === 'bear' ? 'medvěda' : 'divočáka';

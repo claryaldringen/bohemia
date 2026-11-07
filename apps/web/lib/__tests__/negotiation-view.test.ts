@@ -58,6 +58,8 @@ describe('negotiationView', () => {
       stewardships: [],
       wars: [],
       protectedUntil: null,
+      disputes: [],
+      fellows: [],
       agreements: [],
       tree: [],
       status: {},

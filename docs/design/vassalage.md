@@ -381,7 +381,8 @@ tím, že nabídku vazala odsouhlasí, nebo dá protinabídku – bez jeho souhl
   4. **splnění** dialogem jako u dávek – celé, míň, nebo nic; hra nic nevynucuje, nesplnění se
      zapíše („Ctibor neposlechl pána“).
 - „Mír na dobu“ je rozsudek, ne pravidlo – kdo ho poruší, zapíše se jako neposlušný; válku hra
-  nezakáže (návrh Clauda).
+  nezakáže (návrh Clauda). Mír platí **5 herních let** od rozsudku a neposlušnost se zapíše agresorovi
+  při vypuknutí války, jednou na rozsudek (návrh Clauda).
 - **Zavede se spolu s válkou** (návrh Clauda) – bez ní rozsudek nemá de facto stránku.
 
 ## Hospodářství mezi hráči (Martin 2. 11. 2026)

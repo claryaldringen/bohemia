@@ -29,6 +29,8 @@ const VIEW: HouseView = {
   stewardships: [],
   wars: [],
   protectionDaysLeft: null,
+  disputes: [],
+  fellows: [],
   agreements: [],
   tree: [],
   status: {},

@@ -17,3 +17,5 @@ export * from './stewardship';
 export * from './escheat';
 export * from './war';
 export * from './campaign';
+export * from './dispute';
+export * from './prisoner';

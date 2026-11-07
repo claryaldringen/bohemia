@@ -391,4 +391,97 @@ návrat za 1 den), `WAR.surrenderRatio`, `WAR.pitFoundChance`.
 - Zjednodušení proti návrhu: rozhodnutí o postoji padá při otevření boje (všichni útočníci na mapě
   jsou „v dohledu“), utíkající lidé se nedohání, domy uvnitř obvodu (zásoby v bezpečí) se
   neodlišují od přibíhajících zvenku, vozy a koně se do útěku nepočítají (jen stáda ovcí, koz, prasat
-  a krav). Zásoby, jámy a návrat lidí do vsi aplikuje Ú6.10.
+  a krav). Zásoby a jámy aplikuje Ú6.10 (utečení lidé ve stavu vsi zůstávají).
+
+## Výsledky nájezdu a kořist (Ú6.10)
+
+`domain/war/raid-apply.ts` (war.md – Ztráty, Kořist; fortifications.md – Prolomení). Tažení spočte,
+co se stalo, a pošle to do schránek vsí na **následující den** (rozhodnutí 13, `post` v
+`campaign.ts`); vsi to použijí na začátku dne jako ostatní události schránky (`inbox.ts`).
+
+- **Kdy:** `reportRaid` na konci taktu, jakmile boj skončí (`attackers`, `defenders`, `withdrawn`),
+  jen jednou (`CampaignState.raidDay`); i z `finish`. Ves čte stavem `villageAt(cíl, s.day)` jako
+  bojiště (chybí-li, takt se zastaví – `MissingData`).
+- **`raid-result`** do napadené vsi (`RaidResult`): padlí a ranění obránci z bojovníků `down`
+  (`killed`); drží-li útočníci bojiště, i odvedení – vzdaní z `ShelterReport.surrendered` podle
+  `CampaignState.surrendered` (výchozí `lead`; `kill` = padlí; muže rodu a šlechtice zajme Ú6.11,
+  zatím zůstanou) – a kořist `raidLoot`:
+  - jídlo ze zásob (obilí, luštěniny, maso, sýr) do nosnosti `lootCapacity` – 25 kg na muže na
+    nohou (`WAR.carryKg.man`, raněný nenese) minus zbylé jídlo tažení; po druzích ve stejném poměru;
+  - zůstane: odnesené do lesa (`fleeParty` lesních), do útočiště, které útočník nedobyl (dobyté =
+    někdo z útočiště bojoval nebo se vzdal), osivo `reservedSeedKg` a zapečetěné jámy, které útočník
+    nenajde (`pitFound(seed tažení, jáma, dny boje)` – dny = takty boje × `hoursPerTick` ÷ 24);
+  - dobytek (ovce, kozy, prasata, krávy) celý kromě útočiště a lesa. Koně a voli zatím ne.
+- **`applyRaidResult`**: padlí zemřou (`death`, `cause: 'war'`) a pohřbí se (`bury`), ranění
+  `Person.woundedUntil` = den + 60 (`isInjured` – nepracují, necvičí, neloví, nebojují) a los
+  `woundDeathDayOf(seed vsi, člověk, den zranění)` – 1 z 5 do 30 dní (`Person.woundDeathDay`),
+  odvedení odejdou (`removePeople`), kořist ubude (nejvýš co ves má; nalezené jámy prázdné, zbytek
+  z otevřené jámy `drawGrainPits`; dobytek napřed dospělý). Kronika `raid` s tím, co se opravdu
+  stalo, a smrti padlých.
+- **`woundDeathsDay`** (simulate.ts – po schránce, před simulací dne): kdo má `woundDeathDay` dnes,
+  zemře (`cause: 'wounds'`), doma se pohřbí; muž rodu – `dynastyDay` ještě týž den.
+- **`fortification-breach`**: prolomené úseky (`BattleBreach.progress.breached`, opevnění podle
+  pořadí ve vsi → `id`) dostanou `breachedDay` a stav 0; `decideFortRebuilds` je přestaví
+  přednostně a stav průlomu nepřepisuje stářím; po přestavbě `breachedDay` zmizí.
+- **`line-man-fell`**: padlý muž rodu útočníka (`raidTick` po `syncMembers`) hned do domovské vsi –
+  smrt se jménem a id (nástupnictví vsi `dynastyDay`, nástupnictví hráče z `death.personId`), bez
+  pohřbu (padlí útočníci zůstanou na cizí mapě).
+- **Kronika obou rodů**: napadená ves z `applyRaidResult`, ves shromaždiště událostí `chronicle`
+  se stejným zápisem (`raidChronicle`). Jména vsí `CampaignVillage.name` a `CampaignState.ambush`
+  plní `plan-campaign.ts` / `launch-campaign.ts`; text `raidText` v `village-view-chronicle.ts`
+  („Nájezd Bořivoje z vsi Lhota na ves Kněžice bez opovědi: padli 3, …“).
+- **Kořist s vojskem**: `CampaignLoot.detail` (rozpis), `people` (snímky odvedených ke dni nájezdu),
+  `foodKg`/`herd` součty (stádo zpomalí návrat); odvedení i v `captives`.
+- **`campaign-return`** (`finish` – každé domovské vsi mužů, kořist a odvedení jen vsi
+  shromaždiště): `applyCampaignReturn` zruší `away` tažení mužům `back` (aktivní a dezertéři, ne
+  zajatí), raněným dá 60 dní od `CampaignMember.woundedDay` a los smrti, padlí vesničané zemřou bez
+  pohřbu, kořist do zásob a stád, odvedení přijdou s novými id (`rehomePeople`; rodina do
+  `newcomerHome`, děti k rodičům).
+- Testy: `war/__tests__/raid-apply.test.ts` (bilance, útočiště, jámy, ztráty, nástupnictví, ranění,
+  návrat, po kouscích), `raid-campaign.test.ts` (vzdaná ves přes `stepCampaign`, kronika obou rodů,
+  po kouscích taktů), průlom v `village/__tests__/fortification-decay.test.ts`.
+
+## Zajetí a výkupné (Ú6.11)
+
+Spec: [war.md](../design/war.md) – Vzdaní, zajetí a výkupné. Zajetí žije ve stavech vsí, DB drží jen
+rozhodnutí.
+
+- **Vzdání** – `domain/war/surrender.ts`: `surrenders(member, situation, rng)` – bezvýchodná situace
+  (`hopeless`) → `WAR.lineSurrenderChance` (80 %, los ze seedu); jezdec s volnou cestou uteče.
+  `reportRaid` (`campaign.ts`, `raidResultOf`) ho hází o raněné muže rodu na bojišti (hloučky
+  `shelter.surrendered` jsou bezvýchodné z definice). Poslední muž rodu doma se nevzdá ani nezajme.
+- **Co s nimi útočník** – muži rodu a šlechtici (`Person.line` / `noble`) vzdaných skupin: u NPC
+  velitele **vždy zajmout** (bez ohledu na `surrendered`), u živého podle `CampaignState.surrendered`
+  (`lead` = zajmout, `kill` = pobít, `leave` = nechat). Záměr `choose-surrendered { group; choice }`
+  (`applyIntent`) volbu nastaví, dokud boj neskončí (`group` jen ověřuje existující skupinu;
+  volba platí pro celé tažení). Ostatní vzdaní (ženy, děti, vesničané) dál `led` jako odvedení.
+- **Dva konce zajatců**: `RaidResult.captured` + `captorVillageId` (napadená ves: osoba **zůstává ve
+  stavu** s `away { kind: 'captive', hostVillageId, refId }` bez `untilDay`, `captureMen`; zajatý
+  vojvoda zapne správce se značkou `StewardState.byCaptivity` = formální správce řídí ves) a
+  `CampaignLoot.prisoners` → `CampaignReturn.prisoners` (ves shromaždiště: `VillageState.prisoners`
+  - host druhu `captive` s `untilDay = 1e9`, takže jí z jejích zásob – `villageFoodNeed` – a
+    `guestLaborToday` ho nepočítá; necvičí).
+- **Klíč zajetí** `<id tažení>:<číslo osoby>` (`prisonerKey`).
+- **Schránka `captive-returns { role: 'home' | 'captor'; prisonerId; personId }`**
+  (`domain/war/captives.ts`): `home` zruší `away` (+ vypne správce zapnutého zajetím, kronika
+  `people-back` druhu `captive`); `captor` odebere zajatce i hosta. Poprava = `captor` +
+  `line-man-fell` (smrt a nástupnictví `dynastyDay` / `resolvePlayerSuccession` jako u padlého).
+- **DB**: `schema/prisoner.ts`, migrace `0034_prisoner.sql`, `adapters/prisoner-repository.ts`:
+  `claim` = INSERT … ON CONFLICT DO NOTHING (primární klíč = klíč zajetí) – druhé souběžné
+  rozhodnutí neprojde (`prisoner-repository.db.test.ts`).
+- **Use-casy** (`application/prisoners.ts`): `decidePrisoner(deps, { playerId, prisonerId, action,
+today })` (`hold` / `release` / `execute`, zajatec se hledá ve vsích hráče, pod zámkem hráče;
+  propuštění pošle `captive-returns` home za `max(1, 2 × cellDistance)` dní) a `ransomHooks(deps)`
+  (`NegotiateDeps.ransom`): `check` (zajatce drží jedna strana jednání), `apply` (zásilka výkupného
+  z vsi platícího do vsi věznitele přes `sendShipment`, pak propuštění), `release` (mír).
+- **Jednání**: řádek `ransom { prisonerIds; price; vassalage? }` (`domain/negotiation/ransom.ts`),
+  samostatné jednání jako obchod (nevyžaduje vazalství; `open` / `counter` / `accept` v
+  `negotiate.ts`); vazalství z výkupného vznikne účinkem řádku. `peace.releasePrisoners` po přijetí
+  míru volá `ransom.release`. Kdo platí, je strana, která zajatce nedrží.
+- **Web**: `lib/prisoners.ts` (`decidePrisonerForPlayer`, `ransom()`), akce `decidePrisonerAction`,
+  `VillageManor.prisoners` (`manor-view.ts`), `PrisonersPanel.tsx` (portrét s pouty, držet /
+  propustit / popravit; poprava druhým stiskem), ikony `public/icons/war/{captive,hold,release,execute}.svg`.
+- Nevykonáno (později): zajetí **útočníků** obráncem (raněné na bojišti), formulář výkupného ve
+  `TermsForm` (řádek se jen zobrazuje), zajatý hráčův muž nevede tažení díky `away` (`launch-campaign`).
+- Testy: `war/__tests__/surrender.test.ts`, `captives-campaign.test.ts` (zajetí přes `stepCampaign`),
+  `application/__tests__/prisoners.test.ts`, `ransom-negotiation.test.ts`, db test výše.

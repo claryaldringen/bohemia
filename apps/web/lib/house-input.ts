@@ -9,6 +9,7 @@ import {
   type MacroGoods,
   type TermItem,
   type VassalTerms,
+  type Verdict,
 } from '@bohemia/game';
 
 // Vstup server actions panelu „Rod a vazalové“ – jen tvar, kód ověří až use-case.
@@ -377,6 +378,61 @@ export function parseBlockInput(input: unknown): { target: string } | null {
   return target === null ? null : { target };
 }
 
+/** `{ against, message }` – žaloba na spoluvazala (id rodu a vzkaz pánovi). */
+export function parseComplaintInput(input: unknown): { against: string; message: string } | null {
+  if (typeof input !== 'object' || input === null) return null;
+  const raw = input as { against?: unknown; message?: unknown };
+  const against = idOf(raw.against);
+  const message = typeof raw.message === 'string' ? raw.message : null;
+  return against !== null && message !== null ? { against, message } : null;
+}
+
+/** `{ disputeId, statement }` – vyjádření obžalovaného. */
+export function parseStatementInput(
+  input: unknown,
+): { disputeId: string; statement: string } | null {
+  if (typeof input !== 'object' || input === null) return null;
+  const raw = input as { disputeId?: unknown; statement?: unknown };
+  const disputeId = idOf(raw.disputeId);
+  const statement = typeof raw.statement === 'string' ? raw.statement : null;
+  return disputeId !== null && statement !== null ? { disputeId, statement } : null;
+}
+
+/** Rozsudek z klienta: tvar podle druhu, čísla ověří doména. */
+function parseVerdict(input: unknown): Verdict | null {
+  if (typeof input !== 'object' || input === null) return null;
+  const raw = input as { kind?: unknown; bundle?: unknown; people?: unknown };
+  switch (raw.kind) {
+    case 'peace':
+    case 'dismiss':
+      return { kind: raw.kind };
+    case 'compensation': {
+      const bundle = parseBundle(raw.bundle);
+      return bundle ? { kind: 'compensation', bundle } : null;
+    }
+    case 'return-people': {
+      const p = raw.people as Record<string, unknown> | null | undefined;
+      const families = num(p?.families);
+      const men = num(p?.men);
+      const women = num(p?.women);
+      return families !== null && men !== null && women !== null
+        ? { kind: 'return-people', people: { families, men, women } }
+        : null;
+    }
+    default:
+      return null;
+  }
+}
+
+/** `{ disputeId, verdict }` – rozsudek pána. */
+export function parseJudgeInput(input: unknown): { disputeId: string; verdict: Verdict } | null {
+  if (typeof input !== 'object' || input === null) return null;
+  const raw = input as { disputeId?: unknown; verdict?: unknown };
+  const disputeId = idOf(raw.disputeId);
+  const verdict = parseVerdict(raw.verdict);
+  return disputeId !== null && verdict !== null ? { disputeId, verdict } : null;
+}
+
 /** `{ vassalageId, message? }` – vypovězení dohody. */
 export function parseRenounceInput(
   input: unknown,
@@ -452,4 +508,16 @@ export function parseAnswerLevyInput(input: unknown): {
     split[id] = parsed;
   }
   return { dialogId, lines, split, message };
+}
+
+/** `{ prisonerId, action }` – rozhodnutí věznitele o zajatci (klíč zajetí `<tažení>:<osoba>`). */
+export function parsePrisonerInput(
+  input: unknown,
+): { prisonerId: string; action: 'hold' | 'release' | 'execute' } | null {
+  if (typeof input !== 'object' || input === null) return null;
+  const raw = input as { prisonerId?: unknown; action?: unknown };
+  const id = raw.prisonerId;
+  if (typeof id !== 'string' || !/^[\w-]{1,80}:\d{1,9}$/.test(id)) return null;
+  if (raw.action !== 'hold' && raw.action !== 'release' && raw.action !== 'execute') return null;
+  return { prisonerId: id, action: raw.action };
 }

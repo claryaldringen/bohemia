@@ -638,6 +638,26 @@ function PeaceRow({ item, label }: TermRowProps): ReactElement {
   );
 }
 
+/** Výkupné zajatců: zajatci, cena a případné vazalství (jen ke čtení). */
+function RansomRow({ item, label }: TermRowProps): ReactElement {
+  if (item.kind !== 'ransom') return <span />;
+  const parts = [
+    `zajatců ${item.prisonerIds.length}`,
+    `${Math.round(item.price.grainKg)} kg obilí`,
+  ];
+  if (item.vassalage) parts.push('vazalství');
+  return (
+    <div data-testid="term-row-ransom" className="flex items-center gap-1">
+      <Tooltip content={label}>
+        <span tabIndex={0} aria-label={label} className="inline-flex items-center gap-1">
+          <img src="/icons/war/captive.svg" alt="" width={20} height={20} />
+        </span>
+      </Tooltip>
+      <span className="text-xs">{parts.join(', ')}</span>
+    </div>
+  );
+}
+
 /** Registr řádků podle druhu podmínky. */
 export const TERM_ROWS: Record<TermItem['kind'], TermRowComponent> = {
   oath: OathRow,
@@ -653,6 +673,7 @@ export const TERM_ROWS: Record<TermItem['kind'], TermRowComponent> = {
   'village-gift': VillageGiftRow,
   'war-demand': WarDemandRow,
   peace: PeaceRow,
+  ransom: RansomRow,
 };
 
 /** Řádky podmínek (formulář i karta jednání); `onRemove` přidá křížek u řádků bez přísahy. */

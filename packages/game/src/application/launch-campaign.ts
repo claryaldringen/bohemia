@@ -84,6 +84,7 @@ export async function launchCampaign(
       members: membersOf(prepared, input.plan, input.playerId),
       foodKg: input.plan.food,
       liveCommand: prepared.liveCommand,
+      ambush: prepared.ambush,
     },
     deps.world,
   );

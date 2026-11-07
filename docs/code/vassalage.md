@@ -408,3 +408,36 @@ Pravidla: [vassalage.md](../design/vassalage.md) – Vymření rodu – odúmrť
 - **Známé meze:** hráč, jehož vsi přešly odúmrtí, při návratu rovnou začíná znovu (obrazovka konce rodu se
   ukáže jen v pohledu, kde rod skončil). Správa NPC ve vsi odúmrti drží `holder_house_id` vymřelého (ves
   řídí dál NPC, zámek je u držitele mapy).
+
+## Spory a rozsudek pána (`application/judgment.ts`, `disputes.ts`, úloha 6.16)
+
+Pravidla: vassalage.md – Mír a spory (Martin 2. 11. 2026: „Vyřeší se tím de iure stránka sporu, de facto
+se bude řešit až následně“). Rozsudek nic nevynucuje, nesplnění se jen zapíše.
+
+- **Port a tabulka:** `DisputeRepository` (`file`, `byId`, `answer`, `judge`, `listOf`, `peaceBetween`,
+  `markBroken`), tabulka `dispute` (migrace `0033_dispute`). **Jediný nerozsouzený spor na dvojici rodů**
+  (v obou směrech) hlídá jedinečný částečný index `dispute_running_uq` na seřazené dvojici (`pair_key`) –
+  `file` vrátí `null`. `answer` a `judge` jsou podmíněné zápisy (z více souběžných uspěje jedno).
+- **`fileComplaint(deps, { playerId, against, message, today })`:** žalovat smí jen rod, který má
+  s obžalovaným **společného pána** (`commonLord` z živých vazalství); pán dostane `complaint-filed`.
+  **`answerComplaint`** – jen obžalovaný, jednou (`complaint-answered` pánovi).
+- **`judgeDispute(deps, { playerId, disputeId, verdict, today })`:** soudí jen pán sporu, oba rody musí být
+  stále jeho vazalé, bez vyjádření až po `VASSALAGE.verdictAfterMs` (1 skutečný den, `canJudgeNow`).
+  `Verdict`: `compensation` (zboží bez lidí – `checkAidBundle`), `return-people`, `peace`, `dismiss`.
+  Obě strany dostanou `judgment-given` (`asDefendant`).
+- **Splnění:** náhrada a vrácení lidí otevřou obžalovanému dialog `judgment` (`openOnce` s klíčem
+  `judgment:<spor>`, `refId` = vazalství obžalovaného s pánem, takže s jeho koncem dialog zmizí). Odpověď
+  jde stejným `answerLevy` / `answerTrade` jako obchod (celé, míň, nic → `sendShipment` z vsí rodu do
+  hlavní vsi žalobce; lidé smí). **Míň než uloženo = `addBreach(vazalství, 'judgment', den)`** a zápis do
+  kronik obžalovaného a pána `disobeyed` („Ctibor neposlechl pána“, `types-chronicle.ts`). Upozornění
+  příjemci je `levy-sent` s `judgment: true`.
+- **Mír:** `peaceUntilDay` = den rozsudku + `VASSALAGE.judgmentPeaceYears` (5 let, návrh Clauda). Válku
+  nezakáže: `declareWar` a `startWarByAttack` při **vzniku** války (ne při dalších střetech) zavolají
+  `noteBrokenPeace` (jsou-li v `WarDeps` volitelné `disputes` a `vassalages`; `createGameDeps` je dává web
+  i worker, tažení musí `disputes` předat samo): platí-li mezi rody rozsudek „mír“, agresorovi se zapíše
+  `addBreach(…, 'judgment')` a `disobeyed`, jednou na rozsudek a rod (`markBroken`).
+- **Panel:** `housePanel` dává `disputes` (`PanelDispute`: role, rody, text, vyjádření, `canJudge`,
+  `canAnswer`) a `fellows` (spoluvazalé pro tlačítko Žaloba), jen při `HousePanelDeps.disputes`. Web:
+  server actions `fileComplaintAction` / `answerComplaintAction` / `judgeDisputeAction`
+  (`lib/house.ts`, `lib/house-input.ts`), `HousePanel` – řádek Spory (váhy), u vazala v dohodě tlačítko
+  Rozsudek, `DisputeCard.tsx` (vyjádření, rozsudek), dialog rozsudku v `LevyDialog` (váhy).

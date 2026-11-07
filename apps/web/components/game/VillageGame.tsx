@@ -25,6 +25,7 @@ import {
   buildTrail,
   declareHunt,
   setDefenseStance,
+  decidePrisonerAction,
   cancelConstruction,
   forceDevDisaster,
   foundVillage,
@@ -67,6 +68,9 @@ import {
   blockHouse,
   unblockHouse,
   declareWarOnHouse,
+  fileComplaintAction,
+  answerComplaintAction,
+  judgeDisputeAction,
   houseSpare,
   renounceVassalage,
   dismissSteward,
@@ -1535,6 +1539,15 @@ export function VillageGame({
                     })
                   : Promise.resolve(null);
               }}
+              onDecidePrisoner={(prisonerId, action) =>
+                decidePrisonerAction({ prisonerId, action }).then((result) => {
+                  if ('error' in result) {
+                    pushNotice({ kind: 'error', tone: 'error', text: result.error });
+                    return result.error;
+                  }
+                  return null;
+                })
+              }
               onSetStance={(stance) => {
                 const villageId = viewRef.current?.id;
                 return villageId
@@ -1653,6 +1666,15 @@ export function VillageGame({
                 onUnblock={(target) => negotiate(() => unblockHouse({ target }))}
                 onDeclareWar={(target, items, message) =>
                   negotiate(() => declareWarOnHouse({ target, items, message }))
+                }
+                onFileComplaint={(against, message) =>
+                  negotiate(() => fileComplaintAction({ against, message }))
+                }
+                onAnswerComplaint={(disputeId, statement) =>
+                  negotiate(() => answerComplaintAction({ disputeId, statement }))
+                }
+                onJudge={(disputeId, verdict) =>
+                  negotiate(() => judgeDisputeAction({ disputeId, verdict }))
                 }
                 villages={(view?.villages ?? [])
                   .filter((v) => !v.stewarded)

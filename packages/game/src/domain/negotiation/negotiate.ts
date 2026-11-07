@@ -37,6 +37,7 @@ export function termLinesOf(items: readonly TermItem[]): TermLine[] {
       i.kind !== 'village-gift' &&
       i.kind !== 'war-demand' &&
       i.kind !== 'peace' &&
+      i.kind !== 'ransom' &&
       !isAidLine(i),
   );
 }

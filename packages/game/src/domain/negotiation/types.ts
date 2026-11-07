@@ -16,7 +16,8 @@ export type TermItem =
   | StewardshipLine
   | VillageGiftLine
   | WarDemandLine
-  | PeaceLine;
+  | PeaceLine
+  | RansomLine;
 
 /**
  * Obchod mezi hráči (vassalage.md – Hospodářství mezi hráči): autor kola `give` pošle, `get`
@@ -69,7 +70,7 @@ export interface WarDemandLine {
  * jednorázový poplatek, který pošle `payer` (dialog `fee-send`); `vassalage` = vazalství z míru
  * (`lord` / `vassal` jsou strany jednání) s podmínkami; `tribute` = opakovaná platba bez vazalství
  * (chodí v Odvodech 1. 11.); `cede` = vsi, které strana s jejich vlastnictvím postupuje druhé
- * (ves přejde celá); `releasePrisoners` = zajatci k propuštění (zajetí přijde s úlohou 6.11).
+ * (ves přejde celá); `releasePrisoners` = klíče zajetí k propuštění po přijetí míru.
  */
 export interface PeaceLine {
   kind: 'peace';
@@ -79,6 +80,19 @@ export interface PeaceLine {
   tribute?: { goods: MacroBundle; payer: string };
   cede?: string[];
   releasePrisoners?: string[];
+}
+
+/**
+ * Výkupné zajatců (war.md – Vzdaní, zajetí a výkupné): věznitel nabídne rodu zajatců propuštění
+ * `prisonerIds` (klíče zajetí) za `price` (a případně vazalství `vassalage` – strany jsou strany
+ * jednání), stejným jednáním jako u vazalství; přijetí = zaplacení zboží a propuštění. Samostatné
+ * jednání (jako obchod) – vazalství mezi rody nevyžaduje. Je jediným řádkem kola.
+ */
+export interface RansomLine {
+  kind: 'ransom';
+  prisonerIds: string[];
+  price: MacroBundle;
+  vassalage?: { lord: string; vassal: string; terms: VassalTerms };
 }
 
 /** Jedno kolo jednání: podmínky jedné strany a volitelný vzkaz. */
