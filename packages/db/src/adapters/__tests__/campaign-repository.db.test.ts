@@ -98,6 +98,16 @@ describe('campaign repository', () => {
     expect(await campaigns.activeOf('b')).toEqual([]);
   });
 
+  it('tažení, ve kterém jdou muži vazala, je i jeho (panel Vojsko – Ú6.17)', async () => {
+    // v bodu záleží jen na hráči muže – zbytek muže test nepotřebuje
+    const member = (playerId: string): CampaignState['members'][number] =>
+      ({ ref: { villageId: 'v', personId: 1 }, playerId }) as CampaignState['members'][number];
+    await campaigns.create(state(100, { members: [member('a'), member('b')] }), NOW);
+    expect(await campaigns.activeOf('a')).toEqual([ID]);
+    expect(await campaigns.activeOf('b')).toEqual([ID]);
+    expect(await campaigns.activeOf('c')).toEqual([]);
+  });
+
   it('záměr s taktem nejvýš bodem odmítne, za bodem zapíše; seq roste', async () => {
     await campaigns.create(state(100), NOW);
     expect(await campaigns.addIntent(ID, { tick: 100, byPlayer: 'a', body: SET_OUT })).toBeNull();

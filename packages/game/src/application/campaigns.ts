@@ -31,7 +31,10 @@ export interface CampaignRepository {
   create(state: CampaignState, createdAt: Date): Promise<void>;
   /** Id tažení, která se počítají – aktivní, nebo s nedoručenými událostmi. */
   active(): Promise<string[]>;
-  /** Id běžících tažení, která vede hráč `playerId` (panel Vojsko – Ú6.14), od nejstaršího. */
+  /**
+   * Id běžících tažení, která hráč `playerId` vede nebo ve kterých jdou jeho muži (vazal ve
+   * službě) – panel Vojsko (Ú6.14, Ú6.17), od nejstaršího.
+   */
   activeOf(playerId: string): Promise<string[]>;
   checkpoint(campaignId: string): Promise<CampaignCheckpoint | null>;
   /** Záměry s taktem větším než `tick`, podle taktu a `seq`. */

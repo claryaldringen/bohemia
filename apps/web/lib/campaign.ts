@@ -1,5 +1,6 @@
 import 'server-only';
 import {
+  campaignsOf,
   campaignViewFor,
   commandCampaign,
   type CampaignCells,
@@ -61,15 +62,7 @@ export function commandCampaignForPlayer(
   return commandCampaign(commandDeps(), { playerId, campaignId, command, nowMs: Date.now() });
 }
 
-/** Běžící tažení, která hráč vede (panel Vojsko) – cíl a fáze. */
-export async function campaignsOfPlayer(playerId: string): Promise<CampaignSummary[]> {
-  const deps = gameDeps();
-  const out: CampaignSummary[] = [];
-  for (const id of await deps.campaigns.activeOf(playerId)) {
-    const point = await deps.campaigns.checkpoint(id);
-    if (!point) continue;
-    const s = point.state;
-    out.push({ id, targetName: s.target.name ?? null, phase: s.phase, liveCommand: s.liveCommand });
-  }
-  return out;
+/** Běžící tažení, která hráč vede nebo ve kterých jdou jeho muži (panel Vojsko). */
+export function campaignsOfPlayer(playerId: string): Promise<CampaignSummary[]> {
+  return campaignsOf({ campaigns: gameDeps().campaigns }, { playerId });
 }

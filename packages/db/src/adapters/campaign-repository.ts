@@ -45,10 +45,21 @@ export function createCampaignRepository(db: Database): CampaignRepository {
     },
 
     async activeOf(playerId: string): Promise<string[]> {
+      // vůdce, nebo hráč, jehož muži jdou v tažení (vazal ve službě) – muži jsou jen v bodu
+      const member = JSON.stringify([{ playerId }]);
       const rows = await db
         .select({ id: campaign.id })
         .from(campaign)
-        .where(and(eq(campaign.playerId, playerId), eq(campaign.status, 'active')))
+        .innerJoin(campaignCheckpoint, eq(campaignCheckpoint.campaignId, campaign.id))
+        .where(
+          and(
+            eq(campaign.status, 'active'),
+            or(
+              eq(campaign.playerId, playerId),
+              sql`${campaignCheckpoint.state}->'members' @> ${member}::jsonb`,
+            ),
+          ),
+        )
         .orderBy(asc(campaign.createdAt), asc(campaign.id));
       return rows.map((r) => r.id);
     },

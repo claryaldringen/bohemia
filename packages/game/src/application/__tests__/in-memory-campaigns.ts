@@ -38,10 +38,11 @@ export class InMemoryCampaigns implements CampaignRepository {
   activeOf(playerId: string): Promise<string[]> {
     return Promise.resolve(
       [...this.rows]
-        .filter(
-          ([, r]) =>
-            r.status === 'active' && (JSON.parse(r.state) as CampaignState).playerId === playerId,
-        )
+        .filter(([, r]) => {
+          if (r.status !== 'active') return false;
+          const s = JSON.parse(r.state) as CampaignState;
+          return s.playerId === playerId || s.members.some((m) => m.playerId === playerId);
+        })
         .map(([id]) => id),
     );
   }

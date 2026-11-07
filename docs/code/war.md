@@ -656,7 +656,12 @@ sinceTick })` – kontrolní bod z úložiště, mřížka mapy cíle jen při b
   důvodu): hráč, který živě nevede (vazal, cizí hráč, velí jiný muž, padlý či zajatý velitel), místo
   mimo mapu nebo dál než sousední políčko velitele (kromě mapy cíle), neobjevený dům, cizí muž mimo
   dohled nebo ležící, neznámá skupina. Přítomnost smí poslat jen vůdce živého tažení.
-- **Úložiště:** `CampaignRepository.activeOf(playerId)` – běžící tažení vůdce (panel Vojsko).
+- **Seznam v panelu Vojsko** (`campaignsOf` → `CampaignSummary` s `leads`; Úloha 6.17, návrh
+  Clauda v mezích specu – vlastní muže hráč vidí vždy): běžící tažení, která hráč vede, i ta, ve
+  kterých jdou jeho muži jako vazala ve službě. Vazal tažení otevře a sleduje svými muži (pohled
+  výš), vést smí jen vůdce (`liveCommand` jen u vůdce, tlačítko nese `data-leads`).
+- **Úložiště:** `CampaignRepository.activeOf(playerId)` – běžící tažení vůdce nebo s muži hráče
+  (`state->'members' @> [{ playerId }]` v kontrolním bodu).
 - **Cizí mapa** (`apps/web/lib/foreign-map.ts`): krajina políčka (veřejná – prázdné z
   `cellLandscapeSeed`, se vsí z uloženého seedu sídla přes `createCampaignCells`) jako
   `LandscapeTransfer`; vrstvu překážek si prohlížeč vygeneruje ze seedu vrstvy. Jen pro účastníka
@@ -665,3 +670,21 @@ sinceTick })` – kontrolní bod z úložiště, mřížka mapy cíle jen při b
   a zajatý velitel, neobjevený dům, obránce skrytý v lese, cizí hráč = null),
   `domain/war/__tests__/sight.test.ts`, `raid-campaign.test.ts` (objevený dům), e2e
   `multiplayer.spec.ts` („živé vedení: …“ – tažení zapsané přímo do DB, worker vedle).
+
+## Měření tažení a e2e celé války (Ú6.17)
+
+- **Měření** `apps/worker/scripts/measure-campaigns.ts` (v paměti) – tabulka a rozbor v
+  `docs/code/worker.md` – Výkon – Tažení. Změřeno 7. 11. 2026 (jedno jádro, smyčka jako worker):
+  pochod 1 / 5 / 20 tažení × 60 mužů 2,4 / 10,3 / **39,5 %** jádra (cíl ≤ 25 % pro 20 tažení
+  **nesplněn**), 5 tažení u opevněných vsí (15 průlomů, útočiště) 15,7 %; hledání cesty (A\*,
+  `worldRoute`) 0–2 %. Čas je v opakování taktů od kontrolního bodu (≈ 20× víc taktů, než
+  přibylo), v kopii stavu v každém taktu a u nájezdu v mřížce pochodu mapy cíle. Návrh: poslední
+  spočtený stav ve workeru v paměti (pokračovat od něj, dokud se bod a záměry nezmění).
+- **e2e** `apps/web/e2e/multiplayer-war.spec.ts`: A přepadne B (tažení zapsané rovnou u vsi B,
+  velí vesničan – NPC), B s výchozím postojem útěk uteče do lesa i se stádem
+  (`battle.shelter`), B má upozornění „Cizí vojsko u vsi …“, A po návratu (vojsko přenesené do
+  shromaždiště) „Vojsko se vrátilo domů.“; obě vsi den nájezdu dopočítají znovu i se schránkou
+  (`lastDay` o den zpět – herní den trvá v testech ≈ 4,8 h) a kronika obou má nájezd bez opovědi.
+  A pak nabídne mír s ročním tributem (platí B), B přijme – válka `peace`, tribut v přijatém kole,
+  kronika míru ve schránce obou vsí. Vedle `next start` běží worker se smyčkou tažení (jako test
+  živého vedení), mezi nájezdem a návratem se restartuje.
