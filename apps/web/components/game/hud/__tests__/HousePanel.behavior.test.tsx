@@ -167,6 +167,38 @@ describe('HousePanel', () => {
   });
 });
 
+describe('odříznutý nováček v panelu', () => {
+  it('čekání s odpočtem a žádostmi, pozvánka zašedlá s důvodem, Stáhnout žádosti = svobodný', async () => {
+    const onStartFree = vi.fn(async () => undefined);
+    render({
+      view: { ...VIEW, isolated: true, inviteReason: 'Nejdřív musíš být na mapě světa.' },
+      newcomer: {
+        phase: 'isolated',
+        offer: [],
+        requests: [{ houseId: 'h-lord', lordName: 'Boleslav', state: 'pending' }],
+        deadline: new Date(Date.now() + 3 * 86_400_000).toISOString(),
+      },
+      onStartFree,
+    });
+    const issue = host.querySelector<HTMLButtonElement>('[data-testid="house-invite-issue"]')!;
+    expect(issue.disabled).toBe(true);
+    expect(issue.getAttribute('data-reason')).toBe('Nejdřív musíš být na mapě světa.');
+    expect(host.querySelector('[data-testid="newcomer-countdown"]')?.textContent).toMatch(/^2 d /);
+    expect(
+      host.querySelector('[data-testid="newcomer-request-h-lord"]')?.getAttribute('data-state'),
+    ).toBe('pending');
+    await act(async () => {
+      host.querySelector<HTMLButtonElement>('[data-testid="newcomer-withdraw"]')!.click();
+    });
+    expect(onStartFree).toHaveBeenCalledOnce();
+  });
+
+  it('rody v panelu nesou ikonu jazyka', () => {
+    render({ view: { ...VIEW, others: [link('h-de', { language: 'de' })] } });
+    expect(host.querySelector('[data-testid="language-icon-de"]')).not.toBeNull();
+  });
+});
+
 describe('odblokování rodu', () => {
   it('zablokovaný rod má místo Blokovat tlačítko Odblokovat, které zavolá akci', async () => {
     const onUnblock = vi.fn(async () => undefined);

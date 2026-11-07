@@ -23,6 +23,9 @@ import type { HungerLevel } from '@bohemia/game';
 import { openingTerms, openingTrade, termRows, type NegotiationView } from '@/lib/negotiation-view';
 import { DisputeCard } from './DisputeCard';
 import { NegotiationCard, type NegotiationReply } from './NegotiationCard';
+import { LanguageIcon } from './LanguageChoice';
+import { NewcomerWaiting } from './NewcomerPanel';
+import { newcomerWaiting, type NewcomerStatusView } from '@/lib/newcomer-view';
 import { Chip, TermsForm, type TermsContext } from './TermsForm';
 import { Tooltip } from './Tooltip';
 
@@ -166,6 +169,10 @@ function HouseLink({
         className={`relative inline-flex rounded-sm ${selected ? 'outline-2 outline-[#f3cf86]' : ''}`}
       >
         <Portrait icon={house.icon} />
+        {/* jazyk rodu (newcomers.md – Jazyková skupina: v adresáři rodů ikonou) */}
+        <span className="absolute -top-1 -right-1.5 inline-flex">
+          <LanguageIcon language={house.language} size={12} />
+        </span>
         <span className="absolute -right-1.5 -bottom-1.5 flex h-5 w-5 items-center justify-center">
           <img
             src={`${ICON}/shield.svg`}
@@ -674,6 +681,8 @@ export function HousePanel({
   onAnswerComplaint,
   onJudge,
   gameYear,
+  newcomer = null,
+  onStartFree,
 }: {
   view: HouseView | null;
   error: string | null;
@@ -713,6 +722,10 @@ export function HousePanel({
   onJudge?: (disputeId: string, verdict: Verdict) => Promise<unknown>;
   /** Herní rok (výchozí rok první splátky půjčky). */
   gameYear?: number;
+  /** Stav odříznutého nováčka – čekání na pána (newcomers.md – Čekání); null – není nováček. */
+  newcomer?: NewcomerStatusView | null;
+  /** Stáhne žádosti nováčka a začne svobodný. */
+  onStartFree?: () => Promise<unknown>;
 }): ReactElement {
   const ref = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
@@ -745,6 +758,10 @@ export function HousePanel({
     setBusy(true);
     void task().finally(() => setBusy(false));
   };
+  // vlastní žádosti odříznutého nováčka ukazuje čekání (stav ikonou), ne karty jednání
+  const negotiations = (view?.negotiations ?? []).filter(
+    (n) => !(view?.isolated && n.newcomer && !n.myTurn),
+  );
   return (
     <div
       ref={ref}
@@ -785,6 +802,15 @@ export function HousePanel({
               </Tooltip>
             )}
           </Row>
+          {newcomer?.phase === 'isolated' && newcomerWaiting(newcomer) && (
+            <Row label="Čekání na pána" testId="house-newcomer" marker={<Icon name="hourglass" />}>
+              <NewcomerWaiting
+                status={newcomer}
+                busy={busy}
+                onWithdraw={() => run(() => onStartFree?.() ?? Promise.resolve())}
+              />
+            </Row>
+          )}
           <Row label="Páni" testId="house-lords" marker={<Icon name="banner" />}>
             {view.lords.length === 0 ? (
               <Tooltip content="Nezávislý">
@@ -979,10 +1005,10 @@ export function HousePanel({
               </div>
             </Row>
           )}
-          {view.negotiations.length > 0 && (
+          {negotiations.length > 0 && (
             <Row label="Jednání" testId="house-negotiations" marker={<Icon name="seal" />}>
               <div className="flex w-full flex-col gap-2">
-                {view.negotiations.map((n) => (
+                {negotiations.map((n) => (
                   <NegotiationCard
                     key={n.id}
                     negotiation={n}
@@ -1159,12 +1185,13 @@ export function HousePanel({
           )}
           <Row label="Pozvánky" testId="house-invites" marker={<Icon name="seal" />}>
             <div className="flex w-full flex-col gap-1.5">
-              <Tooltip content={error ?? 'Vydat pozvánku'}>
+              <Tooltip content={error ?? 'Vydat pozvánku'} denied={view.inviteReason}>
                 <button
                   type="button"
                   aria-label="Vydat pozvánku"
                   data-testid="house-invite-issue"
-                  disabled={busy || view.freeInviteSlots === 0}
+                  data-reason={view.inviteReason ?? undefined}
+                  disabled={busy || view.freeInviteSlots === 0 || view.inviteReason !== null}
                   className="hud-icon-button flex h-8 w-14 items-center justify-center gap-1"
                   onClick={() => run(onIssue)}
                 >

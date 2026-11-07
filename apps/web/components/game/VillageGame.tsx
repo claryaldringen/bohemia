@@ -1842,6 +1842,8 @@ export function VillageGame({
                 origin={typeof window === 'undefined' ? null : window.location.origin}
                 onIssue={issueHouseInvite}
                 onRevoke={revokeHouseInvite}
+                newcomer={newcomer}
+                onStartFree={() => negotiate(() => startFreeAction())}
                 onOpenNegotiation={(to, items, message) =>
                   negotiate(() => openNegotiation({ to, items, message }))
                 }
