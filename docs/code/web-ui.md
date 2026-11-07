@@ -662,6 +662,36 @@ accept | reject | withdraw | counter, items?, message? })`, `blockHouse({ target
   nabídne → B protinávrh → A přijme; C odmítne a A vidí „Odmítl – zkus zítra.“; C zablokuje A a A
   vidí „Zablokoval tě.“).
 
+## Nováček v rozhraní (newcomers.md – Rozhraní, `hud/NewcomerPanel.tsx`)
+
+Pravidla a use-casy: [world.md](world.md) – Vstup nováčka. Web jen zobrazuje a posílá záměr.
+
+- **Typ z jádra:** `lib/newcomer-view.ts` – `NewcomerStatusView` je `NewcomerStatus` z
+  `application/newcomers.ts` s `deadline` jako ISO čas (`newcomerStatusView`); `newcomerWaiting` /
+  `newcomerUndecided` (odříznutý bez čekající žádosti – i po odmítnutí všemi v témže týdnu).
+- **Server actions** (`app/game/actions.ts` → `lib/house.ts`): `newcomerStatusAction()`,
+  `requestLordsAction(houseIds)`, `startFreeAction()`.
+- **`VillageGame`:** `refreshHouse` načte panel rodu a u odříznutého rodu (`HouseView.isolated`) i stav
+  nováčka. Odříznutý bez rozhodnutí vidí `NewcomerPanel` (ikony „Vybrat pána“ / „Svobodný“, nabídka
+  s ikonou jazyka, nejvýš 5) **místo** `LineNamePanel`; jméno vojvody přijde po volbě. Panel jména
+  při zakládání čeká na načtený stav nováčka (při chybě se nečeká). Důvod odmítnutí ze serveru je
+  řádek `newcomer-error`. Po umístění panel zmizí.
+- **Čekání** je v panelu Rod a vazalové (`NewcomerWaiting` z `NewcomerPanel.tsx`, řádek
+  `house-newcomer`): odpočet do konce týdne, žádosti se stavem ikonou (přesýpací hodiny / křížek),
+  „Stáhnout žádosti“ = `startFreeAction`. Vlastní žádosti nováčka se mezi kartami jednání neopakují.
+  „Vydat pozvánku“ u odříznutého zašedne s důvodem (`HouseView.inviteReason`, `data-reason`).
+- **Pán:** karta jednání s `NegotiationView.newcomer` má jen **Přijmout** / **Odmítnout**
+  (`newcomer-accept` / `newcomer-reject`, bez protinávrhu); jméno a muži nováčka z
+  `WorldDirectory.isolatedEntriesOf`.
+- **Jazyk rodu:** `HouseLinkView.language` – malá ikona jazyka (`LanguageIcon`) u každého rodu
+  v panelu. **Minimapa** odříznutého (`Minimap isolated`) nese popisek „Odříznutá krajina“
+  (`data-isolated`); mapa světa v rozhraní zatím není, krajina vsi se kreslí dál.
+- Testy: `hud/__tests__/NewcomerPanel.behavior.test.tsx`, `HousePanel.behavior.test.tsx` (čekání,
+  pozvánka, ikona jazyka), `NegotiationCard.behavior.test.tsx`, `Minimap.test.tsx`; e2e
+  `e2e/newcomers.spec.ts` (A se 2 vsemi zápisem do DB; B `de` vybere A, staví v odříznuté krajině,
+  A přijme → vazal u mapy A; C „Svobodný“ → hned na mapě). Ostatní e2e umísťují hráče bez
+  pozvánky dál zápisem (`e2e/placement.ts`).
+
 ## Podmínky vazalství v panelu (úloha 4.2, `hud/TermsForm.tsx`, `hud/HousePanel.tsx`, `lib/terms-view.ts`)
 
 - `lib/terms-view.ts` (čistý modul): `BUNDLE_SLOTS` (11 políček svazku – obilí, seno, krávy, voli,

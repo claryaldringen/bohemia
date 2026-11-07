@@ -30,6 +30,12 @@ export interface WorldDirectory {
   /** Záznamy živých rodů hráčů s danými id (pořadí nezaručeno; rod bez sídelního sídla chybí). */
   entriesOf(houseIds: string[]): Promise<DirectoryEntry[]>;
   /**
+   * Záznamy živých odříznutých rodů hráčů (bez umístění na mapu světa, newcomers.md) s danými id;
+   * `seat` je místní poloha sídla. Jen pro vlastní panel rodu a žádost nováčka u pána – adresář
+   * a nabídka je nevidí.
+   */
+  isolatedEntriesOf(houseIds: string[]): Promise<DirectoryEntry[]>;
+  /**
    * Kandidáti nabídky pánů (newcomers.md): živé umístěné rody hráčů s počtem živých vsí (souhrn
    * současné verze, ves nevymřelá ani opuštěná); odříznuté rody ne.
    */

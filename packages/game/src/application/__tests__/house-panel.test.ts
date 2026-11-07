@@ -20,6 +20,8 @@ const TODAY = 100_000;
 const NOW = new Date('2026-11-05T12:00:00Z');
 const YEAR = 365.25;
 const bornAgo = (years: number): number => TODAY - Math.floor(years * YEAR) - 1;
+const worldDirectory = (deps: HousePanelDeps): InMemoryWorldDirectory =>
+  deps.worldDirectory as InMemoryWorldDirectory;
 
 function digest(
   id: string,
@@ -85,6 +87,52 @@ describe('housePanel', () => {
     const data = await housePanel(deps, { playerId: 'nikdo', today: TODAY });
     expect(data.hasHouse).toBe(false);
     expect(data.freeInviteSlots).toBe(0);
+  });
+
+  it('odříznutý nováček vidí vlastní rod, pozvánku nevydá; pán vidí jeho žádost', async () => {
+    const { deps, make, negotiations } = await setup();
+    const lord = await make('lord', 0, 0, [40]);
+    const newcomer = await deps.houses.create({
+      playerId: 'new',
+      kind: 'player',
+      createdAt: NOW,
+      placedAt: null,
+    });
+    await deps.settlements.createSeat({
+      ownerId: 'new',
+      landscapeSeed: 1,
+      layerVersions: {} as never,
+      localCell: { x: 0, y: 0 },
+    });
+    worldDirectory(deps).entries.push({
+      house: newcomer,
+      seat: { x: 0, y: 0 },
+      digests: [digest('v-new', [{ id: 1, name: 'Nováček', bornDay: bornAgo(30) }])],
+    });
+    await negotiations.transaction((tx) =>
+      tx.open({
+        initiatorHouseId: newcomer.id,
+        recipientHouseId: lord.id,
+        round: {
+          authorHouseId: newcomer.id,
+          items: [{ kind: 'oath', lord: lord.id, vassal: newcomer.id }],
+          message: null,
+          at: NOW,
+        },
+        newcomer: true,
+      }),
+    );
+    const own = await housePanel(deps, { playerId: 'new', today: TODAY });
+    expect(own.isolated).toBe(true);
+    expect(own.inviteReason).toBe('Nejdřív musíš být na mapě světa.');
+    expect(own.own?.men.map((m) => m.name)).toEqual(['Nováček']);
+    expect(own.others).toEqual([]);
+    const lords = await housePanel(deps, { playerId: 'lord', today: TODAY });
+    expect(lords.isolated).toBe(false);
+    expect(lords.inviteReason).toBeNull();
+    expect(lords.negotiations[0]).toMatchObject({ newcomer: true, myTurn: true });
+    expect(lords.negotiations[0]?.other.men.map((m) => m.name)).toEqual(['Nováček']);
+    expect(lords.others.map((h) => h.houseId)).not.toContain(newcomer.id);
   });
 
   it('páni, vazalové a ostatní se nepřekrývají, muži jsou od 16 let', async () => {

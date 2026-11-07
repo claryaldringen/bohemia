@@ -13,7 +13,7 @@ export class InMemoryWorldDirectory implements WorldDirectory {
   ): Promise<DirectoryEntry[]> {
     await Promise.resolve();
     return this.entries
-      .filter((e) => e.house.id !== excludeHouseId)
+      .filter((e) => e.house.id !== excludeHouseId && e.house.placedAt !== null)
       .sort(
         (a, b) =>
           cellDistance(center, a.seat) - cellDistance(center, b.seat) ||
@@ -24,7 +24,13 @@ export class InMemoryWorldDirectory implements WorldDirectory {
 
   async entriesOf(houseIds: string[]): Promise<DirectoryEntry[]> {
     await Promise.resolve();
-    return this.entries.filter((e) => houseIds.includes(e.house.id));
+    // odříznuté rody (bez umístění) adresář nezná – jako SQL v adaptéru
+    return this.entries.filter((e) => e.house.placedAt !== null && houseIds.includes(e.house.id));
+  }
+
+  async isolatedEntriesOf(houseIds: string[]): Promise<DirectoryEntry[]> {
+    await Promise.resolve();
+    return this.entries.filter((e) => e.house.placedAt === null && houseIds.includes(e.house.id));
   }
 
   async offerCandidates(): Promise<OfferCandidate[]> {

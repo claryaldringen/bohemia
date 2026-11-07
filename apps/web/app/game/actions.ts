@@ -23,6 +23,7 @@ import {
   issueInviteForPlayer,
   openNegotiationForPlayer,
   declareWarForPlayer,
+  newcomerStatusForPlayer,
   requestLordsForPlayer,
   startFreeForPlayer,
   fileComplaintForPlayer,
@@ -32,6 +33,7 @@ import {
   type NegotiationActionResult,
 } from '@/lib/house';
 import { answerLevyForPlayer, levyDialogsForPlayer } from '@/lib/levies';
+import type { NewcomerStatusView } from '@/lib/newcomer-view';
 import {
   announcePassageForPlayer,
   answerPassageForPlayer,
@@ -733,6 +735,13 @@ export async function declareWarOnHouse(input: unknown): Promise<NegotiationActi
   const parsed = parseDeclareWarInput(input);
   if (parsed === null) return { error: INVALID_INPUT };
   return declareWarForPlayer(id, parsed);
+}
+
+/** Stav nováčka: odříznutý (nabídka pánů, žádosti, konec týdne), nebo umístěný (newcomers.md). */
+export async function newcomerStatusAction(): Promise<NewcomerStatusView | { error: string }> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  return newcomerStatusForPlayer(id);
 }
 
 /** Odříznutý nováček začne svobodný – umístí se na mapu světa (newcomers.md). */

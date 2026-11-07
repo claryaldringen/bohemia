@@ -24,6 +24,8 @@ export interface NegotiationView {
   rounds: number;
   /** Popisek jednání: „Boleslav – na tahu jsi ty“. */
   label: string;
+  /** Žádost odříznutého nováčka o pána – jen Přijmout / Odmítnout (newcomers.md). */
+  newcomer: boolean;
 }
 
 /** Jméno druhé strany do popisků. */
@@ -140,6 +142,7 @@ export function negotiationView(
     ),
     message: n.message,
     rounds: n.rounds,
+    newcomer: n.newcomer,
     label: n.myTurn ? `${name} – čeká na tvou odpověď` : `${name} – čeká na odpověď`,
   };
 }

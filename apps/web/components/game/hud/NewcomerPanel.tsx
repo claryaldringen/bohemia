@@ -5,6 +5,7 @@ import {
   formatRemaining,
   MAX_NEWCOMER_REQUESTS,
   MAX_REQUESTS_REASON,
+  newcomerWaiting,
   type NewcomerStatusView,
 } from '@/lib/newcomer-view';
 import { LanguageIcon } from './LanguageChoice';
@@ -50,13 +51,94 @@ function IconButton({
   );
 }
 
+/**
+ * Čekání nováčka na odpověď pánů (newcomers.md – Čekání): odpočet do konce týdne, žádosti se
+ * stavem ikonou a „Stáhnout žádosti“ (= svobodný). Panel nováčka i panel Rod a vazalové.
+ */
+export function NewcomerWaiting({
+  status,
+  onWithdraw,
+  busy = false,
+  now = Date.now,
+}: {
+  status: IsolatedStatus;
+  /** Stáhne žádosti a začne svobodný. */
+  onWithdraw: () => void;
+  busy?: boolean;
+  /** Hodiny odpočtu (testy). */
+  now?: () => number;
+}): ReactElement {
+  const [nowMs, setNowMs] = useState(() => now());
+  const { deadline } = status;
+
+  useEffect(() => {
+    if (deadline === null) return;
+    const id = window.setInterval(() => setNowMs(now()), 1000);
+    return () => window.clearInterval(id);
+  }, [deadline, now]);
+
+  const remaining = deadline === null ? null : Date.parse(deadline) - nowMs;
+  return (
+    <div data-testid="newcomer-wait" className="flex flex-col gap-2">
+      <div className="flex items-center gap-2">
+        <Tooltip content="Do konce čekání" placement="above">
+          <span
+            tabIndex={0}
+            data-testid="newcomer-countdown"
+            className="inline-flex items-center gap-1 font-serif text-[#f3dfb0]"
+          >
+            <img src={`${HOUSE_ICON}/hourglass.svg`} alt="" width={24} height={24} />
+            {remaining === null ? '' : formatRemaining(remaining)}
+          </span>
+        </Tooltip>
+        <IconButton
+          label="Stáhnout žádosti"
+          testId="newcomer-withdraw"
+          src={`${ICON}/banner-free.svg`}
+          size={40}
+          disabled={busy}
+          onClick={onWithdraw}
+        />
+      </div>
+      <ul className="flex flex-col gap-1">
+        {status.requests.map((request) => {
+          const label = request.state === 'pending' ? 'Čeká na odpověď' : 'Odmítl';
+          return (
+            <li
+              key={request.houseId}
+              data-testid={`newcomer-request-${request.houseId}`}
+              data-state={request.state}
+              className="flex items-center gap-2 text-[#f3dfb0]"
+            >
+              <img src={`${HOUSE_ICON}/banner.svg`} alt="" width={24} height={24} />
+              <span className="font-serif">{request.lordName}</span>
+              <Tooltip content={label} placement="above">
+                <img
+                  src={`${HOUSE_ICON}/${request.state === 'pending' ? 'hourglass' : 'cross'}.svg`}
+                  alt={label}
+                  width={20}
+                  height={20}
+                  tabIndex={0}
+                />
+              </Tooltip>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 export function NewcomerPanel({
   status,
   onRequest,
   onStartFree,
+  error = null,
   now = Date.now,
 }: {
   status: NewcomerStatusView;
+  /** Důvod, proč server žádost nebo volbu odmítl (česky); null – bez chyby. */
+  error?: string | null;
   /** Pošle žádosti vybraným rodům (nejvýš 5). */
   onRequest: (houseIds: string[]) => void;
   /** Začne svobodný (i „Stáhnout žádosti“). */
@@ -66,18 +148,10 @@ export function NewcomerPanel({
 }): ReactElement | null {
   const [offering, setOffering] = useState(false);
   const [picked, setPicked] = useState<string[]>([]);
-  const [nowMs, setNowMs] = useState(() => now());
-  const deadline = status.phase === 'isolated' ? status.deadline : null;
 
-  useEffect(() => {
-    if (deadline === null) return;
-    const id = window.setInterval(() => setNowMs(now()), 1000);
-    return () => window.clearInterval(id);
-  }, [deadline, now]);
-
-  if (status.phase === 'placed') return null;
+  if (status.phase !== 'isolated') return null;
   const isolated: IsolatedStatus = status;
-  const waiting = isolated.requests.some((r) => r.state === 'pending');
+  const waiting = newcomerWaiting(isolated);
 
   const shell = (children: ReactElement, testId: string): ReactElement => (
     <div
@@ -85,62 +159,20 @@ export function NewcomerPanel({
       aria-label="Nováček"
       data-testid={testId}
       data-hud-block
-      className="hud-panel fixed top-1/3 left-1/2 z-30 flex max-w-[90vw] -translate-x-1/2 -translate-y-1/2 flex-col gap-2 p-3"
+      className="hud-panel fixed top-1/2 left-1/2 z-30 flex max-w-[90vw] -translate-x-1/2 -translate-y-1/2 flex-col gap-2 p-3"
     >
       {children}
+      {error !== null && (
+        <span role="alert" data-testid="newcomer-error" className="text-xs text-red-400">
+          {error}
+        </span>
+      )}
     </div>
   );
 
   if (waiting) {
-    const remaining = deadline === null ? null : Date.parse(deadline) - nowMs;
     return shell(
-      <>
-        <div className="flex items-center gap-2">
-          <Tooltip content="Do konce čekání" placement="above">
-            <span
-              tabIndex={0}
-              data-testid="newcomer-countdown"
-              className="inline-flex items-center gap-1 font-serif text-[#f3dfb0]"
-            >
-              <img src={`${HOUSE_ICON}/hourglass.svg`} alt="" width={24} height={24} />
-              {remaining === null ? '' : formatRemaining(remaining)}
-            </span>
-          </Tooltip>
-          <IconButton
-            label="Stáhnout žádosti"
-            testId="newcomer-withdraw"
-            src={`${ICON}/banner-free.svg`}
-            size={40}
-            onClick={onStartFree}
-          />
-        </div>
-        <ul className="flex flex-col gap-1">
-          {isolated.requests.map((request) => {
-            const offer = isolated.offer.find((o) => o.houseId === request.houseId);
-            const label = request.state === 'pending' ? 'Čeká na odpověď' : 'Odmítl';
-            return (
-              <li
-                key={request.houseId}
-                data-testid={`newcomer-request-${request.houseId}`}
-                data-state={request.state}
-                className="flex items-center gap-2 text-[#f3dfb0]"
-              >
-                <img src={`${HOUSE_ICON}/banner.svg`} alt="" width={24} height={24} />
-                <span className="font-serif">{offer?.lordName ?? ''}</span>
-                <Tooltip content={label} placement="above">
-                  <img
-                    src={`${HOUSE_ICON}/${request.state === 'pending' ? 'hourglass' : 'cross'}.svg`}
-                    alt={label}
-                    width={20}
-                    height={20}
-                    tabIndex={0}
-                  />
-                </Tooltip>
-              </li>
-            );
-          })}
-        </ul>
-      </>,
+      <NewcomerWaiting status={isolated} onWithdraw={onStartFree} now={now} />,
       'newcomer-waiting',
     );
   }

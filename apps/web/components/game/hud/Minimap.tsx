@@ -20,6 +20,7 @@ import {
 import type { ClearedForest } from '@/lib/scene/cleared-forest';
 import type { LandscapeScene, ViewFootprint } from '@/lib/scene/landscape-scene';
 import type { SceneVillage } from '@/lib/village-view';
+import { Tooltip } from './Tooltip';
 
 /** Strana minimapy v CSS px. */
 const SIZE_PX = 196;
@@ -29,16 +30,20 @@ const IMAGE_PX = 256;
 /**
  * Minimapa vlevo dole (jako v 0 A.D.): krajina sídla shora (voda, les – vykácený řídne do
  * paseky, louka, skála), prvky prémiové krajiny, pole, hřbitovy, sady, obydlí a obrys záběru
- * kamery. Kliknutí nebo tažení přesune pohled.
+ * kamery. Kliknutí nebo tažení přesune pohled. Odříznutý nováček (newcomers.md – Čekání) nemá
+ * kolem sebe mapu světa – popisek „Odříznutá krajina“.
  */
 export function Minimap({
   landscape,
   scene,
   village,
+  isolated = false,
 }: {
   landscape: Landscape;
   scene: LandscapeScene | null;
   village: SceneVillage;
+  /** Sídlo je jen v odříznuté krajině – ještě není na mapě světa. */
+  isolated?: boolean;
 }): ReactElement {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [view, setView] = useState<ViewFootprint | null>(null);
@@ -115,35 +120,49 @@ export function Minimap({
     scene.moveCameraTo(point.x, point.z);
   };
 
+  const canvas = (
+    <canvas
+      ref={canvasRef}
+      data-testid="minimap"
+      aria-label="Minimapa"
+      role="img"
+      width={SIZE_PX}
+      height={SIZE_PX}
+      className="hud-inset block cursor-pointer touch-none"
+      style={{ width: SIZE_PX, height: SIZE_PX }}
+      onPointerDown={(event) => {
+        if (event.button !== 0) return;
+        dragging.current = true;
+        event.currentTarget.setPointerCapture(event.pointerId);
+        moveTo(event);
+      }}
+      onPointerMove={(event) => {
+        if (dragging.current) moveTo(event);
+      }}
+      onPointerUp={(event) => {
+        dragging.current = false;
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }}
+      onPointerCancel={() => {
+        dragging.current = false;
+      }}
+      onContextMenu={(event) => event.preventDefault()}
+    />
+  );
   return (
-    <div data-hud-block className="hud-panel fixed bottom-2 left-2 z-20 p-1.5">
-      <canvas
-        ref={canvasRef}
-        data-testid="minimap"
-        aria-label="Minimapa"
-        role="img"
-        width={SIZE_PX}
-        height={SIZE_PX}
-        className="hud-inset block cursor-pointer touch-none"
-        style={{ width: SIZE_PX, height: SIZE_PX }}
-        onPointerDown={(event) => {
-          if (event.button !== 0) return;
-          dragging.current = true;
-          event.currentTarget.setPointerCapture(event.pointerId);
-          moveTo(event);
-        }}
-        onPointerMove={(event) => {
-          if (dragging.current) moveTo(event);
-        }}
-        onPointerUp={(event) => {
-          dragging.current = false;
-          event.currentTarget.releasePointerCapture(event.pointerId);
-        }}
-        onPointerCancel={() => {
-          dragging.current = false;
-        }}
-        onContextMenu={(event) => event.preventDefault()}
-      />
+    <div
+      data-hud-block
+      data-testid="minimap-panel"
+      data-isolated={isolated || undefined}
+      className="hud-panel fixed bottom-2 left-2 z-20 p-1.5"
+    >
+      {isolated ? (
+        <Tooltip content="Odříznutá krajina" placement="above">
+          {canvas}
+        </Tooltip>
+      ) : (
+        canvas
+      )}
     </div>
   );
 }

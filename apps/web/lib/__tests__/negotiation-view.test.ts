@@ -22,6 +22,7 @@ const negotiation = (over: Partial<PanelNegotiation> = {}): PanelNegotiation => 
   items: [{ kind: 'oath', lord: 'h-a', vassal: 'h-b' }],
   message: 'Pojď',
   rounds: 1,
+  newcomer: false,
   ...over,
 });
 
@@ -56,6 +57,8 @@ describe('negotiationView', () => {
   it('panel řadí jednání na tahu první a počítá je do čekajících věcí', () => {
     const data: HousePanelData = {
       hasHouse: true,
+      isolated: false,
+      inviteReason: null,
       stewardships: [],
       wars: [],
       protectedUntil: null,
