@@ -9,7 +9,7 @@ import {
   type Landscape,
   type StreamPoint,
 } from '../../landscape';
-import { addGate, fortificationArea, fortificationOutline, fortSegments } from '../../village';
+import { addGate, areaOutline, fortificationArea, fortSegments } from '../../village';
 import type { Fortification } from '../../village/fortification/types';
 import type { FortKind, FortTop, Road, TileCell, VillageState } from '../../village/types';
 import { village } from '../../village/__tests__/kin-fixtures';
@@ -163,7 +163,7 @@ function fort(kind: FortKind, top?: FortTop, gate = false): Fortification {
   for (let y = 62; y < 66; y++) for (let x = 62; x < 66; x++) cells.push({ x, y });
   const area = fortificationArea(cells, null, { size: SIZE, cellSizeM: 15 });
   if ('error' in area) throw new Error(area.error);
-  const outline = fortificationOutline(area, kind);
+  const outline = areaOutline(area, kind);
   const gates = gate ? addGate(outline, [], { x: 0, z: -30 }) : [];
   if (!Array.isArray(gates)) throw new Error(gates.error);
   return {

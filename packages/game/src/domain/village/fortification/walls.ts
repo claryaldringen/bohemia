@@ -1,11 +1,13 @@
 import type { Point } from '../polygon';
 import { FORTIFICATIONS } from '../rules-fortifications';
 import type { GridGeometry } from '../square-grid';
-import type { FortKind, SquareGrid, TileCell } from '../types';
-import { fortBandPieces } from './band';
-import type { FortGate } from './gates';
+import type { FortKind } from '../types';
+import { bandPieces } from './band';
+import { fortPointsOf, type FortShapeSource } from './convert';
+import { gateChord, type FortGate } from './gates';
 import { segmentStands } from './life';
-import { fortificationArea, fortificationOutline, type FortOutline } from './outline';
+import { fortificationOutline, outlinePointAt, type FortOutline } from './outline';
+import { fortSegments } from './segments';
 import type { FortBuildWork } from './types';
 
 // Stěny opevnění pro síť cest (fortifications.md – Obvod, Brány, Pro implementaci – Chůze a cesty):
@@ -21,13 +23,39 @@ export interface FortWalls {
   walls: Point[][];
   /** Otvory bran ve stojících úsecích – obdélník brány přes celou šířku pásu. */
   gates: Point[][];
+  /**
+   * Body objížďky vně hladkého obvodu (po ≈ 5 m, 1 m za vnějším okrajem) – chůze kolem stěny
+   * (`wallDetour`); obvod nemá ostré rohy, kolem kterých by se objížďka lámala.
+   */
+  detour: Point[];
+}
+
+/** Rozestup a odstup bodů objížďky vně obvodu (m). */
+const DETOUR_STEP_M = 5;
+const DETOUR_OFFSET_M = 1;
+
+/** Body objížďky vně obvodu – po `DETOUR_STEP_M`, `DETOUR_OFFSET_M` za vnějším okrajem. */
+function detourPoints(outline: FortOutline): Point[] {
+  const count = Math.max(4, Math.ceil(outline.lengthM / DETOUR_STEP_M));
+  const step = outline.lengthM / count;
+  const out: Point[] = [];
+  for (let k = 0; k < count; k++) {
+    const s = k * step;
+    const p = outlinePointAt(outline, s);
+    const a = outlinePointAt(outline, s - step / 4);
+    const b = outlinePointAt(outline, s + step / 4);
+    const dx = b[0] - a[0];
+    const dz = b[1] - a[1];
+    const len = Math.sqrt(dx * dx + dz * dz);
+    if (!(len > 0)) continue;
+    // ven = vlevo od směru po směru hodin
+    out.push([p[0] - (dz / len) * DETOUR_OFFSET_M, p[1] + (dx / len) * DETOUR_OFFSET_M]);
+  }
+  return out;
 }
 
 /** Co stěny potřebují znát (`Fortification` ze stavu vsi). */
-export interface WallFortification {
-  readonly grid: SquareGrid | null;
-  readonly cells: readonly TileCell[];
-  readonly kind: FortKind;
+export interface WallFortification extends FortShapeSource {
   readonly segments: readonly {
     readonly index: number;
     readonly builtDay: number | null;
@@ -93,15 +121,10 @@ export function fortBlockingSegments(
   });
 }
 
-/** Bod úsečky a → b v poměru t. */
-function lerp(a: Point, b: Point, t: number): [number, number] {
-  return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
-}
-
 /**
  * Stěny opevnění: pás každého blokujícího úseku (`segmentBlockKind` – stojící úsek i staveniště
- * běžící stavby `work`) se šířkou druhu, jak bude postaven; brána vyřízne z pásu strany obdélník
- * šířky brány (`FORTIFICATIONS.gate.widthM`) kolem svého středu. Plocha mimo mřížku nebo bez
+ * běžící stavby `work`) se šířkou druhu, jak bude postaven; brána vyřízne z pásu úseku kus pod svou
+ * tětivou (`gateChord`) a otvor brány je čtyřúhelník tětiva × šířka pásu. Bez bodů nebo bez
  * blokujícího úseku – žádné stěny.
  */
 export function fortWalls(
@@ -109,48 +132,44 @@ export function fortWalls(
   fort: WallFortification,
   work: FortBuildWork | null = null,
 ): FortWalls {
-  const area = fortificationArea(fort.cells, fort.grid, geo);
-  if ('error' in area) return { walls: [], gates: [] };
   const blocking = fortBlockingSegments(fort, work);
-  if (blocking.length === 0) return { walls: [], gates: [] };
-  // tvar podle druhu opevnění – poloha bran (`offsetM`) se měří od začátku jeho rovné části
-  const outline = fortificationOutline(area, fort.kind);
-  const outlines = new Map<FortKind, FortOutline>([[fort.kind, outline]]);
-  const outlineFor = (kind: FortKind): FortOutline => {
-    let known = outlines.get(kind);
-    if (!known) {
-      known = fortificationOutline(area, kind);
-      outlines.set(kind, known);
-    }
-    return known;
-  };
-  const size = area.geo.cellSizeM;
-  const sides = outline.sides;
-  const half = FORTIFICATIONS.gate.widthM / 2;
+  if (blocking.length === 0) return { walls: [], gates: [], detour: [] };
+  const points = fortPointsOf(geo, fort);
+  const outline = points ? fortificationOutline(points, fort.kind) : null;
+  if (!outline) return { walls: [], gates: [], detour: [] };
+  const shapes = fortSegments(outline);
   const walls: Point[][] = [];
   const gates: Point[][] = [];
   for (const segment of blocking) {
-    const index = segment.index;
-    const prev = sides[(index + sides.length - 1) % sides.length];
-    if (!prev || !sides[index]) continue;
-    const pieces = fortBandPieces(outlineFor(segment.kind)).filter((p) => p.index === index);
-    const gate = fort.gates.find((g) => g.segment === index);
-    pieces.forEach((piece, k) => {
-      // první kus je pás strany (rohy A, B na vnějším okraji, C, D na vnitřním), další roh tvaru L
-      if (k > 0 || !gate) {
-        walls.push(piece.corners);
-        return;
-      }
-      const [a, b, c, d] = piece.corners as [Point, Point, Point, Point];
-      const at = prev.endRadius + gate.offsetM;
-      const t0 = Math.max(0, (at - half) / size);
-      const t1 = Math.min(1, (at + half) / size);
-      if (t0 > 0) walls.push([a, lerp(a, b, t0), lerp(d, c, t0), d]);
-      if (t1 < 1) walls.push([lerp(a, b, t1), b, c, lerp(d, c, t1)]);
-      gates.push([lerp(a, b, t0), lerp(a, b, t1), lerp(d, c, t1), lerp(d, c, t0)]);
-    });
+    const shape = shapes[segment.index];
+    if (!shape) continue;
+    const band = FORTIFICATIONS.bandM[segment.kind];
+    const gate = fort.gates.find((g) => g.segment === segment.index);
+    if (!gate) {
+      for (const p of bandPieces(outline, band, segment.index)) walls.push(p.corners);
+      continue;
+    }
+    const chord = gateChord(outline, shape, gate);
+    for (const p of bandPieces(outline, band, segment.index, -Infinity, chord.fromM)) {
+      walls.push(p.corners);
+    }
+    for (const p of bandPieces(outline, band, segment.index, chord.toM, Infinity)) {
+      walls.push(p.corners);
+    }
+    const [ax, az] = chord.a;
+    const [bx, bz] = chord.b;
+    const len = Math.sqrt((bx - ax) * (bx - ax) + (bz - az) * (bz - az));
+    if (!(len > 0)) continue;
+    const nx = (bz - az) / len;
+    const nz = -(bx - ax) / len;
+    gates.push([
+      [ax, az],
+      [bx, bz],
+      [bx + nx * band, bz + nz * band],
+      [ax + nx * band, az + nz * band],
+    ]);
   }
-  return { walls, gates };
+  return { walls, gates, detour: detourPoints(outline) };
 }
 
 /**

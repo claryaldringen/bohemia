@@ -8,7 +8,15 @@ import {
   tileOfWorldPoint,
 } from '../../landscape';
 import { foundVillage } from '../actions';
-import { fortificationArea, fortificationOutline, villageThreat } from '../fortification';
+import {
+  fortificationOutline,
+  fortOutlineOf,
+  hullOffsetPoints,
+  villageThreat,
+} from '../fortification';
+import { fortificationCore } from '../fortification-proposal';
+import { pointInPolygon } from '../polygon';
+import { FORTIFICATIONS } from '../rules-fortifications';
 import { startFortification } from '../fortifications';
 import { applyInboxDay } from '../inbox';
 import { NO_CRAFTS } from '../productivity';
@@ -18,8 +26,7 @@ import { fortificationStep, extraSteps } from '../steward-extras';
 import {
   fortValue,
   refugeNeedM2,
-  stewardFortificationArea,
-  stewardFortificationCells,
+  stewardFortificationFor,
   stewardKgPerManDay,
 } from '../steward-fortification';
 import { planSettlement } from '../steward-plan';
@@ -140,10 +147,7 @@ describe('steward-fortification – opevnění podle hrozby', () => {
   it('nejlepší druh má kladnou hodnotu přínos × horizont − cena; slabší hrozba druh zmenší', () => {
     const s = threatened();
     const kg = stewardKgPerManDay(s, landscape, obstacles);
-    const cells = stewardFortificationCells(s, landscape)!;
-    const area = fortificationArea(cells, null, landscape);
-    if ('error' in area) throw new Error('obvod');
-    const length = fortificationOutline(area, 'fence').lengthM;
+    const length = stewardFortificationFor(s, landscape, obstacles, day, 'fence')!.lengthM;
     const input = { lengthM: length, kgPerManDay: kg, years: 25 };
     const fence = fortValue(s, day, 'fence', 1, input);
     const palisade = fortValue(s, day, 'palisade', 1, input);
@@ -161,45 +165,37 @@ describe('steward-fortification – opevnění podle hrozby', () => {
 
   it('obvod obsahuje obydlí, humna a ohrady, pole ne', () => {
     const s = structuredClone(grown);
-    const cells = stewardFortificationCells(s, landscape)!;
-    const has = (x: number, z: number): boolean => {
-      const t = tileOfWorldPoint(landscape, x, z)!;
-      return cells.some((c) => c.x === t.x && c.y === t.y);
-    };
-    for (const d of s.dwellings) expect(has(d.position.x, d.position.z)).toBe(true);
+    expect(stewardFortificationFor(s, landscape, obstacles, day, 'fence')).not.toBeNull();
+    const inside = (line: readonly (readonly [number, number])[], x: number, z: number): boolean =>
+      pointInPolygon([x, z], line);
+    const ring = (state: VillageState): (readonly [number, number])[] =>
+      fortificationOutline(hullOffsetPoints(fortificationCore(state, landscape), 4), 'fence')!
+        .polyline;
+    for (const d of s.dwellings) expect(inside(ring(s), d.position.x, d.position.z)).toBe(true);
     // ohrada a humno daleko od vsi vstoupí do obvodu, pole ne
     const home = s.dwellings[0]!.position;
     const far = { x: home.x + 60, z: home.z };
-    s.pens = [
-      { id: 7001, cell: { x: 0, y: 0 }, x: far.x, z: far.z, builtDay: 0, species: 'cattle' },
-    ];
+    const t = tileOfWorldPoint(landscape, far.x, far.z)!;
+    s.pens = [{ id: 7001, cell: t, x: far.x, z: far.z, builtDay: 0, species: 'cattle' }];
     s.threshingFloors = [
       { id: 7002, position: { ...home, x: home.x - 50, rotation: 0 }, builtDay: 0 },
     ];
-    const wider = stewardFortificationCells(s, landscape)!;
-    const hasIn = (x: number, z: number): boolean => {
-      const t = tileOfWorldPoint(landscape, x, z)!;
-      return wider.some((c) => c.x === t.x && c.y === t.y);
-    };
-    expect(hasIn(far.x, far.z)).toBe(true);
-    expect(hasIn(home.x - 50, home.z)).toBe(true);
-    // pole: díly polí do obvodu nepatří, jen leží-li mezi stavbami (políčko pole daleko od staveb ne)
-    const buildingTiles = new Set(
-      [...s.dwellings.map((d) => d.position), far, { x: home.x - 50, z: home.z }].map((p) => {
-        const t = tileOfWorldPoint(landscape, p.x, p.z)!;
-        return t.y * landscape.size + t.x;
-      }),
-    );
-    const farField = landscape.size * landscape.size - 1;
-    expect(buildingTiles.has(farField)).toBe(false);
-    expect(wider.some((c) => c.y * landscape.size + c.x === farField)).toBe(false);
-    expect(stewardFortificationArea(s, landscape)).not.toBeNull();
+    const wider = ring(s);
+    expect(inside(wider, far.x, far.z)).toBe(true);
+    expect(inside(wider, home.x - 50, home.z)).toBe(true);
+    // pole daleko od staveb do obvodu nepatří
+    const half = (landscape.size * landscape.cellSizeM) / 2;
+    expect(inside(wider, half - 5, half - 5)).toBe(false);
   });
 
   it('útočiště pojme lidi a dobytek + 20 %', () => {
     const s = withThreat(grown);
-    const bare = stewardFortificationArea(s, landscape, 0)!;
-    const cows = Math.ceil(fortificationOutline(bare, 'fence').innerAreaM2 / 20);
+    const offset = FORTIFICATIONS.bandM.fence + FORTIFICATIONS.proposal.clearanceM;
+    const bare = fortificationOutline(
+      hullOffsetPoints(fortificationCore(s, landscape), offset),
+      'fence',
+    )!;
+    const cows = Math.ceil(bare.innerAreaM2 / 20);
     s.livestock = {
       herds: { cow: cows, pig: 20, sheep: 40, goat: 0 },
       young: { cow: 0, pig: 0, sheep: 0, goat: 0 },
@@ -209,14 +205,13 @@ describe('steward-fortification – opevnění podle hrozby', () => {
     beasts += (s.looseOxen?.length ?? 0) + (s.looseHorses?.length ?? 0);
     const need = (s.people.length * 10 + (cows + 0.25 * 60 + beasts) * 20) * 1.2;
     expect(refugeNeedM2(s)).toBeCloseTo(need, 6);
-    // holý obvod útočiště nepojme, správce plochu o prstence rozšíří
-    expect(fortificationOutline(bare, 'fence').innerAreaM2).toBeLessThan(need);
+    // holý obvod útočiště nepojme, správce odstup po 5 m zvětší
+    expect(bare.innerAreaM2).toBeLessThan(need);
     fortificationStep(s, ctxOf(day));
     const fort = s.fortifications?.[0];
     expect(fort).toBeDefined();
-    const area = fortificationArea(fort!.cells, fort!.grid, landscape);
-    if ('error' in area) throw new Error('plocha');
-    expect(fortificationOutline(area, fort!.kind).innerAreaM2).toBeGreaterThanOrEqual(need);
+    expect(fort!.points).toBeDefined();
+    expect(fortOutlineOf(landscape, fort!)!.innerAreaM2).toBeGreaterThanOrEqual(need);
   });
 
   function withThreat(s: VillageState): VillageState {
@@ -227,12 +222,8 @@ describe('steward-fortification – opevnění podle hrozby', () => {
 
   it('hráčovo opevnění správce nemění a vedle něj nestaví', () => {
     const s = threatened();
-    const cells = stewardFortificationCells(s, landscape)!;
-    const r = startFortification(s, s.lastDay, landscape, obstacles, {
-      cells,
-      grid: null,
-      kind: 'fence',
-    });
+    const points = stewardFortificationFor(s, landscape, obstacles, day, 'fence')!.points;
+    const r = startFortification(s, s.lastDay, landscape, obstacles, { points, kind: 'fence' });
     if (!r.ok) throw new Error(r.reason);
     const player = r.state;
     // dostavěné hráčovo opevnění

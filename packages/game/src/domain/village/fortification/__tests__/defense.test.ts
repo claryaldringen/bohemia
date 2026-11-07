@@ -7,7 +7,7 @@ import {
   defenderMultiplier,
   fortGaps,
   fortificationArea,
-  fortificationOutline,
+  areaOutline,
   fortSegments,
   refugeAdmit,
   refugeCapacity,
@@ -28,7 +28,7 @@ function fort(kind: FortKind, top?: FortTop, extra: Partial<Fortification> = {})
   for (let y = 62; y < 66; y++) for (let x = 62; x < 66; x++) cells.push({ x, y });
   const area = fortificationArea(cells, null, GEO);
   if ('error' in area) throw new Error(area.error);
-  const shapes = fortSegments(fortificationOutline(area, kind));
+  const shapes = fortSegments(areaOutline(area, kind));
   return {
     id: 1,
     grid: null,
@@ -93,9 +93,9 @@ describe('násobky opevnění', () => {
     const f = fort('palisade');
     f.segments[0] = { ...seg0(f), breachedDay: 3 };
     expect(segmentMultiplier(f, seg0(f), NOW)).toBe(1);
-    const area = fortificationArea(f.cells, null, GEO);
+    const area = fortificationArea(f.cells!, null, GEO);
     if ('error' in area) throw new Error(area.error);
-    const s = fortSegments(fortificationOutline(area, 'palisade'))[0]!;
+    const s = fortSegments(areaOutline(area, 'palisade'))[0]!;
     const mid = s.line.length / 2;
     // těsně uvnitř středu mezery (směr dovnitř = doprava od směru úseku)
     const d = {
@@ -120,9 +120,9 @@ describe('násobky opevnění', () => {
 });
 
 describe('útočiště', () => {
-  it('4 × 4 čtverce: plot ≈ 336 lidí, val ≈ 160', () => {
-    expect(Math.floor(refugeCapacity(GEO, fort('fence')) / 10)).toBe(336);
-    expect(Math.round(refugeCapacity(GEO, fort('rampart')) / 10)).toBe(160);
+  it('4 × 4 čtverce (převedené na body): plot ≈ 337 lidí, val ≈ 162', () => {
+    expect(Math.floor(refugeCapacity(GEO, fort('fence')) / 10)).toBe(337);
+    expect(Math.round(refugeCapacity(GEO, fort('rampart')) / 10)).toBe(162);
   });
 
   const a = (kind: Arrival['kind'], count: number, tick = 1): Arrival => ({ kind, count, tick });
