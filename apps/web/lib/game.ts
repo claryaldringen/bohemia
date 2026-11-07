@@ -100,6 +100,7 @@ export function chooseLanguageForPlayer(
       accounts: createAccountLanguages(db),
       houses: createHouseRepository(db),
       settlements: createSettlementRepository(db),
+      villages: createVillageRepository(db),
     },
     { playerId, language },
   );
