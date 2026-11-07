@@ -183,3 +183,41 @@ Měřeno `--villages 1,5,20 --days 100 --scenarios B` (běh sám na stroji):
 |  20 |     0,72 s OK |   0,21 s OK | 1,08 s MIMO | **0,18 s OK** |
 
 Akce i otevření jsou s workerem v cíli pro 1 / 5 / 20 vsí a na počtu vsí už skoro nezávisí.
+
+### Tažení (Úloha 6.17)
+
+`apps/worker/scripts/measure-campaigns.ts` – v paměti (žádná databáze): 1 / 5 / 20 tažení × 60
+mužů (3 skupiny, NPC velitel) na pochodu přes skutečné krajiny prázdných políček
+(`emptyCellLandscape`) a 5 tažení u opevněných vsí (palisáda z bodů kolem jádra, postoj bránit –
+útočiště, prolamování). Smyčka napodobí worker: každé kolo (250 ms) načte bod z JSON, dopočítá
+do teď a uloží po ≥ 40 taktech nebo s událostí. `--ticks` (výchozí 480 = 2 min), `--profile` =
+podíl hledání cesty (vzorky pod `marchPath` / `marchPathToEdge` / `worldRoute`) a mřížky.
+
+```bash
+nice npx tsx apps/worker/scripts/measure-campaigns.ts --ticks 480 --profile
+```
+
+Změřeno 7. 11. 2026 (M-série, jedno jádro). „Takty/s“ = spočtené takty tažení za sekundu
+procesoru; „jádro“ = podíl jednoho jádra smyčkou jako ve workeru; „takt jednou“ = kdyby se
+každý takt počítal jen jednou (bez opakování od bodu).
+
+| scénář                | tažení | takty/s |           jádro | takt jednou | cesta (A\*) | mřížka |
+| --------------------- | -----: | ------: | --------------: | ----------: | ----------: | -----: |
+| pochod                |      1 |    3460 |           2,4 % |       0,1 % |         2 % |    0 % |
+| pochod                |      5 |    3954 |          10,3 % |       0,5 % |         1 % |    0 % |
+| pochod                |     20 |    4132 | **39,5 % MIMO** |       1,9 % |         1 % |    0 % |
+| opevněné vsi (nájezd) |      5 |    2501 |          15,7 % |       0,8 % |         0 % |   20 % |
+
+**Cíl ≤ 25 % jádra pro 20 tažení není splněn (39,5 %).** Hledání cesty je zanedbatelné
+(1–2 %). Čas je v **opakování taktů od kontrolního bodu**: bod se ukládá po 40 taktech, a než se
+uloží, každé kolo počítá znovu od něj (průměrně ≈ 20 taktů za kolo místo jednoho – „takt jednou“
+je ≈ 20× méně). V taktu samém vede **kopie celého stavu** (`structuredClone` v `campaignTick`,
+60–95 % vzorků), u nájezdu ještě **mřížka pochodu** mapy cíle (`marchGrid` 18–20 %), kterou
+`stepCampaign` staví v každém volání znovu (mezipaměť `ctx.grids` platí jen v jednom volání).
+
+**Návrh opravy (neprovedeno – čeká na schválení):** worker si drží poslední spočtený stav tažení
+v paměti (klíč id + takt bodu + počet záměrů za bodem) a další kolo pokračuje od něj; při jiném
+bodu nebo novém záměru počítá od bodu jako dnes (výsledek se nemění – po kouscích = vcelku).
+Odhad 20 tažení ≈ 2 % jádra. Dál volitelně mezipaměť mřížek pochodu napříč voláními (klíč políčko
+
+- den + verze vsi) a kopie stavu jednou na volání místo v každém taktu.
