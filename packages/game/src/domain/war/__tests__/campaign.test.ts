@@ -68,7 +68,9 @@ describe('stepCampaign', () => {
     expect(whole.state.supplies.foodKg).toBeLessThan(20);
     expect(whole.villageEvents.map((e) => [e.villageId, e.body.kind])).toEqual([
       ['lhota', 'chronicle'],
+      ['lhota', 'campaign-return'],
       ['lhota', 'chronicle'],
+      ['brod', 'campaign-return'],
       ['brod', 'chronicle'],
     ]);
     expect(whole.villageEvents[0]!.ref).toBe(`camp:c1:${LAUNCH + 2}:0`);

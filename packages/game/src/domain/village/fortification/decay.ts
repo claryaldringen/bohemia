@@ -75,7 +75,9 @@ export function decideFortRebuilds(
     if (!work) {
       for (const s of fort.segments) {
         const value = segmentState(fort, s, day);
-        if (s.builtDay !== null && s.state !== value) s.state = value;
+        // průlom drží stav 0, dokud ho obyvatelé nepřestaví
+        if (s.builtDay !== null && s.breachedDay === undefined && s.state !== value)
+          s.state = value;
       }
     }
     if (work) continue;

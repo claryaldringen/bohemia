@@ -128,6 +128,29 @@ describe('přestavba dožilých úseků', () => {
     expect(started[0]!.fortSegments![0]!.index).toBe(3);
   });
 
+  it('průlom z války (schránka) – úsek se stavem 0, přestaví se přednostně a zase stojí', () => {
+    const s = aged('fence', 0);
+    s.lastDay = DAY;
+    const breach = {
+      id: 'b1',
+      villageId: 'v1',
+      day: DAY + 1,
+      seq: 1,
+      body: { kind: 'fortification-breach' as const, fortificationId: fortOf(s).id, segments: [3] },
+    };
+    const next = advanceVillage(s, DAY + 1, EMPTY, landscape, [breach]);
+    const seg = fortOf(next).segments[3]!;
+    expect(seg).toMatchObject({ breachedDay: DAY + 1, state: 0 });
+    const work = next.constructions.filter((c) => c.kind === 'fortification');
+    expect(work[0]!.fortSegments![0]!.index).toBe(3);
+    let later = next;
+    for (let i = 0; i < 40 && rebuilds(later) > 0; i++) {
+      later = advanceVillage(later, later.lastDay + 5, EMPTY, landscape);
+    }
+    expect(fortOf(later).segments[3]!.breachedDay).toBeUndefined();
+    expect(fortOf(later).segments[3]!.state).toBe(1);
+  });
+
   it('opuštěná ves nepřestavuje', () => {
     const s = aged('fence', 15 * YEAR);
     s.people = [];

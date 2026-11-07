@@ -239,11 +239,13 @@ export async function prepareCampaign(
   const targetPlace = villagePlace(target.settlement, target.landscape);
   const assembly: CampaignVillage = {
     villageId: assemblyVillage.village.id,
+    name: assemblyVillage.village.name,
     cell: assemblyPlace.cell,
     pos: assemblyPlace.pos,
   };
   const targetVillage: CampaignVillage = {
     villageId: target.record.id,
+    name: target.record.name,
     cell: targetPlace.cell,
     pos: targetPlace.pos,
   };

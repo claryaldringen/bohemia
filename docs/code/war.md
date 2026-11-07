@@ -345,4 +345,52 @@ návrat za 1 den), `WAR.surrenderRatio`, `WAR.pitFoundChance`.
 - Zjednodušení proti návrhu: rozhodnutí o postoji padá při otevření boje (všichni útočníci na mapě
   jsou „v dohledu“), utíkající lidé se nedohání, domy uvnitř obvodu (zásoby v bezpečí) se
   neodlišují od přibíhajících zvenku, vozy a koně se do útěku nepočítají (jen stáda ovcí, koz, prasat
-  a krav). Zásoby, jámy a návrat lidí do vsi aplikuje Ú6.10.
+  a krav). Zásoby a jámy aplikuje Ú6.10 (utečení lidé ve stavu vsi zůstávají).
+
+## Výsledky nájezdu a kořist (Ú6.10)
+
+`domain/war/raid-apply.ts` (war.md – Ztráty, Kořist; fortifications.md – Prolomení). Tažení spočte,
+co se stalo, a pošle to do schránek vsí na **následující den** (rozhodnutí 13, `post` v
+`campaign.ts`); vsi to použijí na začátku dne jako ostatní události schránky (`inbox.ts`).
+
+- **Kdy:** `reportRaid` na konci taktu, jakmile boj skončí (`attackers`, `defenders`, `withdrawn`),
+  jen jednou (`CampaignState.raidDay`); i z `finish`. Ves čte stavem `villageAt(cíl, s.day)` jako
+  bojiště (chybí-li, takt se zastaví – `MissingData`).
+- **`raid-result`** do napadené vsi (`RaidResult`): padlí a ranění obránci z bojovníků `down`
+  (`killed`); drží-li útočníci bojiště, i odvedení – vzdaní z `ShelterReport.surrendered` podle
+  `CampaignState.surrendered` (výchozí `lead`; `kill` = padlí; muže rodu a šlechtice zajme Ú6.11,
+  zatím zůstanou) – a kořist `raidLoot`:
+  - jídlo ze zásob (obilí, luštěniny, maso, sýr) do nosnosti `lootCapacity` – 25 kg na muže na
+    nohou (`WAR.carryKg.man`, raněný nenese) minus zbylé jídlo tažení; po druzích ve stejném poměru;
+  - zůstane: odnesené do lesa (`fleeParty` lesních), do útočiště, které útočník nedobyl (dobyté =
+    někdo z útočiště bojoval nebo se vzdal), osivo `reservedSeedKg` a zapečetěné jámy, které útočník
+    nenajde (`pitFound(seed tažení, jáma, dny boje)` – dny = takty boje × `hoursPerTick` ÷ 24);
+  - dobytek (ovce, kozy, prasata, krávy) celý kromě útočiště a lesa. Koně a voli zatím ne.
+- **`applyRaidResult`**: padlí zemřou (`death`, `cause: 'war'`) a pohřbí se (`bury`), ranění
+  `Person.woundedUntil` = den + 60 (`isInjured` – nepracují, necvičí, neloví, nebojují) a los
+  `woundDeathDayOf(seed vsi, člověk, den zranění)` – 1 z 5 do 30 dní (`Person.woundDeathDay`),
+  odvedení odejdou (`removePeople`), kořist ubude (nejvýš co ves má; nalezené jámy prázdné, zbytek
+  z otevřené jámy `drawGrainPits`; dobytek napřed dospělý). Kronika `raid` s tím, co se opravdu
+  stalo, a smrti padlých.
+- **`woundDeathsDay`** (simulate.ts – po schránce, před simulací dne): kdo má `woundDeathDay` dnes,
+  zemře (`cause: 'wounds'`), doma se pohřbí; muž rodu – `dynastyDay` ještě týž den.
+- **`fortification-breach`**: prolomené úseky (`BattleBreach.progress.breached`, opevnění podle
+  pořadí ve vsi → `id`) dostanou `breachedDay` a stav 0; `decideFortRebuilds` je přestaví
+  přednostně a stav průlomu nepřepisuje stářím; po přestavbě `breachedDay` zmizí.
+- **`line-man-fell`**: padlý muž rodu útočníka (`raidTick` po `syncMembers`) hned do domovské vsi –
+  smrt se jménem a id (nástupnictví vsi `dynastyDay`, nástupnictví hráče z `death.personId`), bez
+  pohřbu (padlí útočníci zůstanou na cizí mapě).
+- **Kronika obou rodů**: napadená ves z `applyRaidResult`, ves shromaždiště událostí `chronicle`
+  se stejným zápisem (`raidChronicle`). Jména vsí `CampaignVillage.name` a `CampaignState.ambush`
+  plní `plan-campaign.ts` / `launch-campaign.ts`; text `raidText` v `village-view-chronicle.ts`
+  („Nájezd Bořivoje z vsi Lhota na ves Kněžice bez opovědi: padli 3, …“).
+- **Kořist s vojskem**: `CampaignLoot.detail` (rozpis), `people` (snímky odvedených ke dni nájezdu),
+  `foodKg`/`herd` součty (stádo zpomalí návrat); odvedení i v `captives`.
+- **`campaign-return`** (`finish` – každé domovské vsi mužů, kořist a odvedení jen vsi
+  shromaždiště): `applyCampaignReturn` zruší `away` tažení mužům `back` (aktivní a dezertéři, ne
+  zajatí), raněným dá 60 dní od `CampaignMember.woundedDay` a los smrti, padlí vesničané zemřou bez
+  pohřbu, kořist do zásob a stád, odvedení přijdou s novými id (`rehomePeople`; rodina do
+  `newcomerHome`, děti k rodičům).
+- Testy: `war/__tests__/raid-apply.test.ts` (bilance, útočiště, jámy, ztráty, nástupnictví, ranění,
+  návrat, po kouscích), `raid-campaign.test.ts` (vzdaná ves přes `stepCampaign`, kronika obou rodů,
+  po kouscích taktů), průlom v `village/__tests__/fortification-decay.test.ts`.

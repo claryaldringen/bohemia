@@ -27,9 +27,15 @@ export function laborPerDay(person: Person, day: number): number {
   return ageGroup(person, day) === 'adult' ? LABOR_PER_DAY.adult : 0;
 }
 
-/** Je člověk dnes zraněný na lovu (wildlife.md – Nebezpečí pro lidi)? */
-export function isInjured(person: Pick<Person, 'injuredUntilDay'>, day: number): boolean {
-  return (person.injuredUntilDay ?? 0) > day;
+/**
+ * Je člověk dnes zraněný na lovu (wildlife.md – Nebezpečí pro lidi), nebo raněný ve válce (war.md
+ * – Ztráty)? Nepracuje, necvičí, neloví ani nebojuje.
+ */
+export function isInjured(
+  person: Pick<Person, 'injuredUntilDay' | 'woundedUntil'>,
+  day: number,
+): boolean {
+  return (person.injuredUntilDay ?? 0) > day || (person.woundedUntil ?? 0) > day;
 }
 
 /**

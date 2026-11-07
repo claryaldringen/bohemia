@@ -96,6 +96,16 @@ export interface Person {
    */
   injuredUntilDay?: number;
   /**
+   * Raněn ve válce (war.md – Ztráty): do tohoto dne nepracuje, necvičí ani nebojuje (`isInjured`).
+   * Chybí – zdráv.
+   */
+  woundedUntil?: number;
+  /**
+   * Den, kdy raněný zemře na rány (war.md – Ztráty: 1 z 5 do 30 dní; los ze seedu vsi a člověka
+   * – `woundRoll`). Chybí – rány přežije.
+   */
+  woundDeathDay?: number;
+  /**
    * Pryč jen na čas (plán 2026-11-03 – rozhodnutí 11; vassalage.md – Lidé a robota): robota,
    * služba, tažení, zajetí, ochrana. Zůstává ve stavu domovské vsi, ale doma nepracuje ani nejí
    * (`isAway`); vrátí se v den `untilDay` (`returnHome`). Chybí – doma.

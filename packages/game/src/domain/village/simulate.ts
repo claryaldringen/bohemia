@@ -45,6 +45,7 @@ import { decideFortRebuilds } from './fortification/decay';
 import { gateRoadCrossings } from './fortifications';
 import { isVillageDormant } from './departure';
 import { applyInboxDay, inboxByDay, type VillageEvent } from './inbox';
+import { woundDeathsDay } from '../war/raid-apply';
 import { returnHome } from '../vassalage/guests';
 import { withAwaitingLord } from './appoint-lord';
 import { withArmsCaps } from './arms-caps';
@@ -197,6 +198,8 @@ export function* advanceVillageSteps(
     // události schránky dne – na začátku dne, před jeho simulací (village-core.md – Schránka vsi)
     const events = eventsByDay.get(day);
     if (events) next.chronicle.push(...applyInboxDay(next, day, events));
+    // úmrtí na rány z nájezdu (war.md – Ztráty) – nástupnictví po nich ještě týž den (`dynastyDay`)
+    next.chronicle.push(...woundDeathsDay(next, day));
     yield* simulateDaySteps(next, day, obstacles, landscape);
     yield day;
   }
