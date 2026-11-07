@@ -405,3 +405,30 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   uvést Wildfire Games, upravené soubory pod stejnou licencí). Zdroj a původní název každého
   souboru do `LICENSE.md` / `LICENSES.md` vedle něj. Převod stromů, atlas impostorů a render
   textury korun: `tools/blender/` (headless Blender 5, `blender -b --factory-startup --python …`).
+- **Vojsko, boj a mlha války** (war.md – Ve scéně; `army.ts`, `battle-fx.ts`, `fog-of-war.ts`
+  čisté, kreslí `army-renderer.ts`): `LandscapeScene.setWar(SceneWar | null)` – poslední snímek
+  boje po taktu (`sceneBattle(BattleState)` – `Pick<>` z `Fighter`, `BattleGroup`,
+  `BattleBreach`), pochod (`sceneMarch` – muži a skupiny `CampaignState`), útěk vsi a odehnané
+  stádo (`planFlight`, `fleeWalkAt`, `drivenHerd` ve `villager-plan.ts`), mlha z pohledu strany
+  a konec dne. Mezi takty se muži posouvají plynule v `animate()` (`battleFigures`, podíl
+  `TICK_MS`); při omezeném pohybu stojí na posledním snímku. Postavy jsou `man.glb` /
+  `woman.glb` (VAT jako lidé vsi, `createBakedFigure`) – zbraně z 0 A.D. už v klipech modelu
+  (`walk-spear`, `spear-thrust`, `sword-strike` + `shield-block` se štítem, `bow-draw` /
+  `bow-release`, licence `public/models/people/LICENSES.md`), muži rodu na koních (`ride`,
+  `ride-trot`, kůň `horse.glb` jako dobytek – `createAnimalMesh`), hloučky po skupinách
+  (`huddleSlots`, jezdci vpředu, ranění vzadu), ikona rozkazu nad středem skupiny (tři meshe
+  `army-order-*`, natočené ke kameře, kreslí se přes vše). Prolamující má sekeru (`fell`), padlý
+  leží tváří k zemi (matice instance) do konce dne (`fallenShown`), raněný sedí u domu (`sit`),
+  utečený zmizí. Rány se poznají ze dvou snímků (jádro v taktu rány nastaví `cooldown` na plný
+  interval – `strikesOf`): šíp letí obloukem (`arrowAt`, 45 m/s), srážka zvíří prach (`dustAt`).
+  Opevnění z boje: `battleFortifications` – zavřená brána (`gatesClosed`), hotový průlom jako
+  `breachedDay` úseku (vyvrácené kůly, rozsekaná brána – fortification-layout.ts). **Mlha
+  války texturou:** mřížka 10 m (`createFog`, `revealFog` – dohled 150 m, z lesa a do lesa 50 m,
+  objevené zůstane šeré), závoj je jeden přehozený mesh `fog-veil` (160 × 160 buněk, 2 m nad
+  terénem) s průhledností z RGBA textury – žádný vertex buffer navíc (postava jich má právě 8);
+  cizí muži mimo dohled se nekreslí. Stromy závojem prorůstají (návrh Clauda – závoj jen přes
+  zem). **Draw cally** (`measure-scenery-culling.ts`): ukázka Bitva – 22 mužů (2 na koních),
+  2 rozkazy, šípy, prach a mlha = **8 draw callů**, ≈ 123 k trojúhelníků (muž 3 102, kůň 1 666,
+  závoj 51 k); bez války 0. Ukázka **Bitva** na `/dev/landscape` (`dev-battle.ts`) běží
+  skutečným `battleTick` (palisáda 6 × 6 čtverců s branou na jihu, dvě skupiny útočníků proti
+  mužům u domů), druhý krok útěk vsi; e2e `e2e/battle-scene.spec.ts` (jen s `BATTLE_DEV_URL`).

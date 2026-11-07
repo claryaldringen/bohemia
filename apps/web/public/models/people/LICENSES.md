@@ -99,3 +99,9 @@ a `drum` dostaly džber, přeslici, stav, píšťalu a buben.
   nástroje v nůši, ryby, oko na zajíce, vařečka, džber a píšťala (`props/prop_weap.dds`), nádoby
   na zemi i v nůši a hrnec na ohništi (`props/vase_rome_1.dds`), přeslice, stav a buben
   (`props/prop_tools.dds`). Soubory GLB jako celek zůstávají pod CC BY-SA 3.0.
+
+Vojsko ve scéně (`apps/web/lib/scene/army-renderer.ts`, war.md – Ve scéně) používá tytéž soubory
+a klipy se zbraněmi – oštěp (`walk-spear`, `spear-thrust`, `props/weap_shaft_wood_a.dae`), štít
+s mečem (`sword-strike`, `shield-block`, `props/shield/round_noboss_f.dae`,
+`props/broadsword_celt.dae`) a luk (`bow-draw`, `bow-release`, `props/bow_long_indian_a.dae`);
+nové soubory nevznikly.
