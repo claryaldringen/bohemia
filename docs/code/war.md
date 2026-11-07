@@ -72,7 +72,9 @@ vojska mapu po mapě (Ú6.4); tažení po taktech, boj a dohra přibývají v da
   (`NegotiationRepository.peaceTributes()`, `peaceTributeOf`). `openAnnualDialogs` (`tributes` v
   `AnnualLevyDeps`, worker je zapojuje) otevře plátci 1. 11. dialog `tribute-send` (klíč
   `tribute:<jednání>:<rok>`); mír přijatý až po 1. 11. se ptá příště, čekající dialog jen naroste o rok.
-  Neplnění se nevymáhá (a nezapisuje jako porušení – není dohoda, na kterou by se vázalo).
+  Neplnění se nevymáhá, ale zapíše se (`tributeBreach` v `annual-levies.ts`): míň než domluveno při odpovědi
+  i každý zmeškaný 1. 11. → kronika obou rodů `tribute-short` a – trvá-li mezi nimi vazalství plátce → příjemce –
+  `addBreach('levy')`.
 - **Postoupení vsí** (`application/cede-village.ts`): `checkCede` – všechny vsi patří jedné straně a
   postupujícímu **zbývá živá ves na jiné mapě** (jinak `PEACE_REASONS.lastVillage`, „jen vazalství“;
   Martin 2. 11. 2026). `cedeVillages` po transakci: muži rodu (`isLineMan`) všech vsí postoupených
