@@ -92,6 +92,11 @@ export interface VillageRepository {
   /** Otisky všech vsí sídel `settlementIds` v pořadí založení – bez načtení stavu (levný dotaz). */
   stampsOf(settlementIds: readonly string[]): Promise<VillageStamp[]>;
   /**
+   * Otisky vsí `villageIds` – bez načtení stavu (levný dotaz). Neznámá ves ve výsledku chybí,
+   * pořadí výsledku nehraje roli. Smyčka tažení podle verze pozná, že ves v paměti je aktuální.
+   */
+  stampsOfVillages(villageIds: readonly string[]): Promise<VillageStamp[]>;
+  /**
    * Souhrny vsí `villageIds` bez stavu (levný dotaz – souhrn ukládá každé uložení vsi). Ves, která
    * souhrn současné verze nemá (uložená před ním, `isCurrentDigest`), ve výsledku chybí – volající
    * ji načte celou. Pořadí výsledku nehraje roli.

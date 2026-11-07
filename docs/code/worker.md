@@ -232,3 +232,40 @@ a čtení bodu z JSON (≈ 35 %). Kopii na hranici kola **neodstraňujeme** (ná
 splněn s rezervou 5×, zisk by byl ≈ 2 % jádra a takt by přišel o zahození rozpracované kopie,
 když mu uprostřed chybí mapa nebo ves (`MissingData`) – bez kopie by se musel přepočítat znovu
 od začátku volání a upozornění taktu by sdílela objekty se stavem, který další takty mění.
+
+**Načítání vsí z databáze** (7. 11. 2026). Měření v paměti výš to nezachytí: každé kolo (1× za
+sekundu) načetlo celé stavy vsí, kterých se tažení týká – mapa políčka (`listBySettlement`), ves
+pro takt (`find`) a vlastník vsi (`watcherOf` – `find`) –, tedy u velké vsi ≈ 3 × 3 MB na tažení
+a kolo, i když paměť workeru měla tentýž stav. Teď se kolo ptá jen na otisky:
+
+- `computeCampaign` → `loadVillages`: vsi, které paměť workeru zná, nejdřív levným dotazem
+  `VillageRepository.stampsOfVillages(ids)` (id, sídlo, jméno, verze, `last_day` bez stavu);
+  celý stav (`find`) jen u vsi, kterou paměť nemá nebo má jinou verzi či jméno. Každý zápis stavu
+  verzi zvedá (uložení i post do schránky – i události tažení samotného), přejmenování mění
+  jméno, takže výsledek je tentýž jako s `find` u každé vsi; bez paměti (web, testy) `find` jako
+  dřív.
+- `villageWatchers` (vlastník a průchod) a `deliver` (existuje ves?) jen přes `stampsOfVillages`,
+  mapa políčka se sídlem (`createCampaignCells`) bere id vsí z `stampsOf([sídlo])`.
+
+`apps/worker/scripts/measure-campaign-db.ts` – nad skutečnou databází `bohemia_measure` (nikdy
+`bohemia` pro zápis; zdrojová ves = největší ves `bohemia`, jen čtení): 20 tažení × 60 mužů, každé
+u vlastní kopie velké vsi (nájezd), tažení a body v paměti, vsi, sídla, rody a vazalství z DB,
+s pamětí workeru. Za kolo (4 takty) skutečný čas a bajty přečtené ze spojení poolu. Ves `bohemia`
+mezitím dopočítává worker – `--source <soubor>` drží zdroj pro srovnání před / po (otisk bodů musí
+sedět).
+
+```bash
+nice npx tsx apps/worker/scripts/measure-campaign-db.ts --rounds 20 --source /tmp/zdroj.json
+```
+
+Změřeno 7. 11. 2026 (ves 3,11 MB, 20 tažení, 20 kol; „další kola“ = průměr kol 2–20; otisk bodů
+před i po `e79f0cb0`):
+
+| kolo       |             před |                 po |
+| ---------- | ---------------: | -----------------: |
+| 1. kolo    | 3 824 ms, 311 MB |    1 574 ms, 62 MB |
+| další kola | 1 673 ms, 187 MB | **178 ms, 3,4 MB** |
+
+Před tím kolo trvalo déle než perioda smyčky (1 s). Zbylá data po zrychlení jsou skutečné změny:
+uložení bodu po 40 taktech doručí události nájezdu do schránek vsí (verze +1) a další kolo vsi
+jednou načte celé.

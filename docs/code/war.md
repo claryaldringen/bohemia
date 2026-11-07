@@ -180,7 +180,8 @@ notices, waiting }` – čistá, vstup nemění. Takt na kopii stavu: na začát
 - **Use-case** – `application/step-campaigns.ts`: `stepCampaigns(deps, { nowMs })` – pro každé
   `campaigns.active()` pod `CampaignLock.tryRun` (jinak `busy`): kontrolní bod → nejdřív doručí
   starý `outbox`, záměry `intentsAfter(tick)`, `computeCampaign` (načítá chybějící mapy
-  `CampaignCells.mapOf` a vsi a pokračuje, nejvýš 8 kol) do `tickOfMs(now)`. Bod se uloží, když
+  `CampaignCells.mapOf` a vsi a pokračuje, nejvýš 8 kol; s pamětí workeru vsi téže verze jen
+  otiskem `stampsOfVillages` – docs/code/worker.md – Výkon – Tažení) do `tickOfMs(now)`. Bod se uloží, když
   přibylo ≥ 40 taktů, vznikly události nebo tažení skončilo (jinak `computed` – další kolo počítá
   znovu z bodu, s pamětí workeru `memory` od posledního spočteného stavu, platí-li pro týž bod –
   otisk JSON – a tytéž záměry do jeho taktu; docs/code/worker.md – Výkon – Tažení); `saveCheckpoint` uloží stav i `outbox` (události a upozornění) atomicky a odmítne

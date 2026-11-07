@@ -159,6 +159,44 @@ describe('createVillageRepository', () => {
     expect(await villages.stampsOf([UNKNOWN])).toEqual([]);
   });
 
+  it('stampsOfVillages vrátí otisky vsí podle id – post do schránky zvedne verzi, jméno jde zvlášť', async () => {
+    const first = (await villages.create(settlementId, 'Libice', state()))!;
+    const second = await villageOnMap(1, 'Budeč', state());
+    const later = advanceVillage(state(), DAY + 5, null);
+    await villages.save(second.id, later, 1);
+    const stamps = await villages.stampsOfVillages([first.id, second.id, UNKNOWN, 'ne-uuid']);
+    expect(stamps.sort((a, b) => a.name.localeCompare(b.name))).toEqual([
+      {
+        id: second.id,
+        settlementId: second.settlementId,
+        name: 'Budeč',
+        version: 2,
+        lastDay: later.lastDay,
+        asleep: false,
+      },
+      {
+        id: first.id,
+        settlementId,
+        name: 'Libice',
+        version: 1,
+        lastDay: state().lastDay,
+        asleep: false,
+      },
+    ]);
+    expect(await villages.stampsOfVillages([])).toEqual([]);
+    expect(await villages.stampsOfVillages([UNKNOWN, 'ne-uuid'])).toEqual([]);
+    // tažení podle otisku pozná změnu: schránka zvedá verzi, přejmenování mění jméno
+    await villages.inbox.post({
+      villageId: first.id,
+      day: DAY + 1,
+      ref: 'stamp:1',
+      body: { kind: 'shipment', goods: {} } as never,
+    });
+    await villages.rename(first.id, 'Libuše');
+    const [after] = await villages.stampsOfVillages([first.id]);
+    expect(after).toMatchObject({ version: 2, name: 'Libuše', lastDay: state().lastDay });
+  });
+
   it('sloupce last_day a asleep se plní při každém zápisu a shodují se s pravidly domény', async () => {
     const awake = await villages.create(settlementId, 'Žije', state());
     const extinct = await villageOnMap(1, 'Vymřela', { ...state(), extinctDay: DAY + 3 });

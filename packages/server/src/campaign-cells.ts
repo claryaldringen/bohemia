@@ -20,7 +20,8 @@ export const CAMPAIGN_CELL_CACHE_SIZE = 16;
  */
 export function createCampaignCells(deps: {
   settlements: Pick<SettlementRepository, 'occupiedCells' | 'listActive'>;
-  villages: Pick<VillageRepository, 'listBySettlement'>;
+  /** Jen otisky – id vsí sídla bez načtení jejich stavu. */
+  villages: Pick<VillageRepository, 'stampsOf'>;
   landscapes: LandscapeSource;
   worldSeed: number;
   capacity?: number;
@@ -39,7 +40,7 @@ export function createCampaignCells(deps: {
             settlement.landscapeSeed,
             settlement.layerVersions,
           );
-          const villages = await deps.villages.listBySettlement(settlement.id);
+          const villages = await deps.villages.stampsOf([settlement.id]);
           return {
             landscape,
             obstacles: obstaclesOf(landscape),

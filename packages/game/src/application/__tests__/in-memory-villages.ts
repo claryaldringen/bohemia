@@ -154,14 +154,13 @@ export class InMemoryVillages implements VillageRepository {
     this.stampQueries++;
     return [...this.records.values()]
       .filter((r) => settlementIds.includes(r.settlementId))
-      .map((r) => ({
-        id: r.id,
-        settlementId: r.settlementId,
-        name: r.name,
-        version: r.version,
-        lastDay: r.state.lastDay,
-        asleep: r.state.extinctDay !== undefined || r.state.abandonedDay !== undefined,
-      }));
+      .map(stampOf);
+  }
+
+  async stampsOfVillages(villageIds: readonly string[]): Promise<VillageStamp[]> {
+    await Promise.resolve();
+    this.stampQueries++;
+    return [...this.records.values()].filter((r) => villageIds.includes(r.id)).map(stampOf);
   }
 
   async digestsOf(villageIds: readonly string[]): Promise<VillageDigestRecord[]> {
@@ -195,4 +194,16 @@ export class InMemoryVillages implements VillageRepository {
     this.records.set(record.id, record);
     return structuredClone(record);
   }
+}
+
+/** Otisk vsi bez stavu – jako sloupce `last_day` a `asleep` v databázi. */
+function stampOf(r: VillageRecord): VillageStamp {
+  return {
+    id: r.id,
+    settlementId: r.settlementId,
+    name: r.name,
+    version: r.version,
+    lastDay: r.state.lastDay,
+    asleep: r.state.extinctDay !== undefined || r.state.abandonedDay !== undefined,
+  };
 }
