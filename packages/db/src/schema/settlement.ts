@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import {
   boolean,
+  index,
   integer,
   jsonb,
   pgTable,
@@ -9,7 +10,7 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
-import type { LayerVersions } from '@bohemia/game';
+import type { LayerVersions, PremiumType } from '@bohemia/game';
 import { user } from './auth';
 
 /**
@@ -43,6 +44,12 @@ export const settlement = pgTable(
     // mimo mapu světa (`grid_*` null) a jeho vsi tvoří vlastní malou mřížku; umístění ji smaže.
     localX: integer('local_x'),
     localY: integer('local_y'),
+    // Prémiový typ krajiny (premium-landscapes.md – Kdo dostane jakou krajinu): jen sídelní sídlo
+    // lidského hráče založené při vstupu do hry; null = průměrná krajina (i sídla před prémiemi).
+    premiumType: text('premium_type').$type<PremiumType>(),
+    // Hráč, kterému typ patří (Typ patří hráči – Začít znovu ho nepřelosuje): převod sídla na
+    // jiného držitele (odúmrť, postoupení) ho nemění; smazaný účet → null.
+    premiumOwnerId: text('premium_owner_id').references(() => user.id, { onDelete: 'set null' }),
     // čekající držitel (odúmrť – 1. krok převodu `transferHolder`): sídlo nepočítá starý ani nový,
     // dokud ho nový pod svým zámkem nepřevezme (`acceptTransfers`)
     pendingOwnerId: text('pending_owner_id').references(() => user.id, { onDelete: 'cascade' }),
@@ -61,5 +68,9 @@ export const settlement = pgTable(
     uniqueIndex('settlement_local_idx')
       .on(table.ownerId, table.localX, table.localY)
       .where(sql`${table.archivedAt} IS NULL`),
+    // Typ hráče (`lastPremiumType`) a počty typů (`premiumTypeCounts`) – jen prémiová sídla.
+    index('settlement_premium_owner_idx')
+      .on(table.premiumOwnerId)
+      .where(sql`${table.premiumType} IS NOT NULL`),
   ],
 );

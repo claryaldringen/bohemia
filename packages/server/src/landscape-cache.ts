@@ -3,6 +3,7 @@ import {
   type Landscape,
   type LandscapeSource,
   type LayerVersions,
+  type PremiumType,
 } from '@bohemia/game';
 
 // Mezipaměť krajin sídel pro server: krajina je čistá funkce seedu a verzí vrstev, ale její
@@ -40,9 +41,11 @@ export class LruCache<K, V> {
   }
 }
 
-function landscapeKey(seed: number, versions: LayerVersions): string {
+function landscapeKey(seed: number, versions: LayerVersions, premium?: PremiumType): string {
   const { terrain, vegetation, fertility, obstacles = 1 } = versions;
-  return `${seed}|${terrain}.${vegetation}.${fertility}.${obstacles}`;
+  const base = `${seed}|${terrain}.${vegetation}.${fertility}.${obstacles}`;
+  // prémiová krajina (typ a verze průchodu) je jiná krajina než průměrná ze stejného seedu
+  return premium === undefined ? base : `${base}|${premium}.${versions.premium ?? 1}`;
 }
 
 /**
@@ -56,11 +59,11 @@ export function cachedLandscapes(
 ): LandscapeSource {
   const cache = new LruCache<string, Landscape>(capacity);
   return {
-    landscapeOf(seed, versions) {
-      const key = landscapeKey(seed, versions);
+    landscapeOf(seed, versions, premium) {
+      const key = landscapeKey(seed, versions, premium);
       const cached = cache.get(key);
       if (cached) return cached;
-      const landscape = generate(seed, versions);
+      const landscape = generate(seed, versions, premium);
       cache.set(key, landscape);
       return landscape;
     },

@@ -1,5 +1,5 @@
 import { checkBand } from './band';
-import { computeFertility } from './fertility';
+import { computeFertility, meanLandHeight } from './fertility';
 import {
   hasPremiumPass,
   PREMIUM_LAYER_VERSION,
@@ -151,12 +151,14 @@ function averageFertility(
   versions: LayerVersions,
   terrain: Terrain,
   surface: Uint8Array,
+  meanHeight?: number,
 ): Uint8Array {
   return computeFertility(
     deriveSeed(attemptSeed, 'fertility'),
     terrain,
     surface,
     versions.fertility,
+    meanHeight,
   );
 }
 
@@ -175,9 +177,18 @@ function premiumLayers(
   average: Layers | null,
 ): Layers {
   const pass = premiumGeneration(type, attemptSeed, versions);
-  const terrain = pass.changesTerrain
-    ? pass.terrain(passTerrain(attemptSeed, versions, pass, average))
+  const base = pass.changesTerrain
+    ? passTerrain(attemptSeed, versions, pass, average)
     : (average?.terrain ?? averageTerrain(attemptSeed, versions));
+  // Průměr souše průměrné krajiny pokusu (typy reliéfu) – spočítá se před průchodem, který terén
+  // upraví na místě; vlastní terén typu (`terrainOptions`) průměrný není, pak se průměrný terén
+  // u uloženého sídla spočítá navíc.
+  const meanHeight = pass.fertilityAverageMean
+    ? meanLandHeight(
+        average?.terrain ?? (pass.terrainOptions ? averageTerrain(attemptSeed, versions) : base),
+      )
+    : undefined;
+  const terrain = pass.changesTerrain ? pass.terrain(base) : base;
   const ownSurface = pass.changesTerrain || average === null;
   const baseSurface = ownSurface
     ? averageVegetation(attemptSeed, versions, terrain)
@@ -186,7 +197,7 @@ function premiumLayers(
   // Úrodnost průměrné krajiny platí, jen když terén i povrch zůstaly.
   const ownFertility = pass.changesTerrain || pass.changesVegetation || average === null;
   const baseFertility = ownFertility
-    ? averageFertility(attemptSeed, versions, terrain, surface)
+    ? averageFertility(attemptSeed, versions, terrain, surface, meanHeight)
     : average.fertility;
   const fertility = pass.fertility(
     ownFertility ? baseFertility : baseFertility.slice(),

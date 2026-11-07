@@ -47,8 +47,14 @@ export interface ObstacleGroups {
   oreRocks: ObstaclePlacement[];
 }
 
-/** Skupiny v pořadí vrstvy – zdroje překážek (a tedy id) rostou. */
-const GROUP_ORDER = [
+/** Seznam `L` obsahuje všechny klíče `K` – jinak `never` (pojistka úplnosti při kompilaci). */
+type Exhaustive<K, L extends readonly K[]> = [Exclude<K, L[number]>] extends [never] ? L : never;
+
+/**
+ * Skupiny v pořadí vrstvy – zdroje překážek (a tedy id) rostou. Nová skupina v `ObstacleGroups`,
+ * která tu chybí, je chyba typu (`Exhaustive`) – jinak by se jí nečistilo místo ani nepřidala.
+ */
+const GROUP_LIST = [
   'edge',
   'interior',
   'meadow',
@@ -62,6 +68,7 @@ const GROUP_ORDER = [
   'quarryRocks',
   'oreRocks',
 ] as const satisfies readonly (keyof ObstacleGroups)[];
+const GROUP_ORDER: Exhaustive<keyof ObstacleGroups, typeof GROUP_LIST> = GROUP_LIST;
 
 /**
  * Skupiny prémiových typů – v krajině je nejvýš jedna neprázdná; kolem jejích překážek se

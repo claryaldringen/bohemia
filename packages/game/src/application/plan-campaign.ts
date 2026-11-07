@@ -31,6 +31,7 @@ import type { House, HouseRepository } from './houses';
 import { NO_HOUSE } from './negotiate';
 import { houseName } from './negotiation-chronicle';
 import { findPlayerVillage, NOT_PLAYER_VILLAGE, type PlayerVillage } from './player-villages';
+import { settlementLandscape } from './enter-game';
 import type { LandscapeSource, SettlementRepository } from './settlements';
 import type { VillageRepository } from './villages';
 import type { WarRepository } from './wars';
@@ -215,10 +216,7 @@ export async function prepareCampaign(
     });
     if (!own) return fail(NOT_PLAYER_VILLAGE);
     if (!alive(own.village.state)) return fail(CAMPAIGN_REASONS.asleep);
-    const landscape = deps.landscapes.landscapeOf(
-      own.settlement.landscapeSeed,
-      own.settlement.layerVersions,
-    );
+    const landscape = settlementLandscape(own.settlement, deps.landscapes);
     const men = chooseMen(
       own.village.state,
       own.settlement.worldCell ?? { x: 0, y: 0 },
@@ -242,10 +240,7 @@ export async function prepareCampaign(
   const total = villages.reduce((n, v) => n + v.men.length, 0);
   if (total === 0) return fail(CAMPAIGN_REASONS.noMen);
 
-  const assemblyLandscape = deps.landscapes.landscapeOf(
-    assemblyVillage.settlement.landscapeSeed,
-    assemblyVillage.settlement.layerVersions,
-  );
+  const assemblyLandscape = settlementLandscape(assemblyVillage.settlement, deps.landscapes);
   const assemblyPlace = villagePlace(assemblyVillage.settlement, assemblyLandscape);
   const targetPlace = villagePlace(target.settlement, target.landscape);
   const assembly: CampaignVillage = {
@@ -365,7 +360,7 @@ async function loadTarget(
     settlement,
     house,
     cell: settlement.worldCell ?? { x: 0, y: 0 },
-    landscape: deps.landscapes.landscapeOf(settlement.landscapeSeed, settlement.layerVersions),
+    landscape: settlementLandscape(settlement, deps.landscapes),
     ambush: war === null,
   };
 }

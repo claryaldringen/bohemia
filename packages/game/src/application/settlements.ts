@@ -1,4 +1,4 @@
-import type { Landscape, LayerVersions } from '../domain/landscape';
+import type { Landscape, LayerVersions, PremiumType } from '../domain/landscape';
 import type { OccupiedCell } from '../domain/world';
 
 /** Políčko mřížky světa – sloupec x a řádek y (war.md – Svět, sousední mapy). */
@@ -29,8 +29,23 @@ export interface Settlement {
    * Chybí nebo null – sídlo není odříznuté.
    */
   localCell?: WorldCell | null;
+  /**
+   * Prémiový typ krajiny (premium-landscapes.md – Kdo dostane jakou krajinu): má ho jen sídelní
+   * sídlo lidského hráče založené při vstupu do hry; chybí nebo null – průměrná krajina (vsi synů,
+   * nové mapy, sídla z doby před prémiovými krajinami). Krajina se generuje s ním.
+   */
+  premiumType?: PremiumType | null;
   createdAt: Date;
 }
+
+/** Nové sídlo – seed přijatého pokusu, verze vrstev, poloha a prémiový typ (jen sídelní). */
+export type NewSettlement = {
+  ownerId: string;
+  landscapeSeed: number;
+  layerVersions: LayerVersions;
+  /** Prémiový typ krajiny; chybí nebo null = průměrná krajina. */
+  premiumType?: PremiumType | null;
+} & SettlementPlace;
 
 /**
  * Kde nové sídlo leží: na políčku mapy světa, nebo (odříznutý nováček) v místní mřížce rodu.
@@ -62,26 +77,14 @@ export interface SettlementRepository {
    * když už hráč sídelní sídlo má, vrátí ho beze změny. Políčko obsazené mapou jiného hráče → null
    * (nováček zkusí jiné).
    */
-  createSeat(
-    input: {
-      ownerId: string;
-      landscapeSeed: number;
-      layerVersions: LayerVersions;
-    } & SettlementPlace,
-  ): Promise<Settlement | null>;
+  createSeat(input: NewSettlement): Promise<Settlement | null>;
   /**
    * Založí další (nesídelní) sídlo hráče – novou mapu na políčku mřížky světa (odchod na novou
    * mapu, migration.md). Mřížka je společná všem hráčům: políčko je nejvýš jedno aktivní
    * sídlo kohokoli – obsazené → null. Odříznutý rod zakládá v místní mřížce (`localCell`), tam je
    * políčko nejvýš jedno aktivní sídlo hráče.
    */
-  create(
-    input: {
-      ownerId: string;
-      landscapeSeed: number;
-      layerVersions: LayerVersions;
-    } & SettlementPlace,
-  ): Promise<Settlement | null>;
+  create(input: NewSettlement): Promise<Settlement | null>;
   /** Aktivní mapy všech hráčů s polohou v mřížce světa – vstup umístění nového hráče. */
   occupiedCells(): Promise<OccupiedCell[]>;
   /**
@@ -101,6 +104,17 @@ export interface SettlementRepository {
    * (`owner_id` = on, sídelní nejsou). Idempotentní; vrací převzatá sídla.
    */
   acceptTransfers(ownerId: string): Promise<Settlement[]>;
+  /**
+   * Kolik hráčů má který prémiový typ (premium-landscapes.md – Jak hra vybírá) – každý hráč
+   * jednou, i s archivovanými sídly; chybějící typ = 0.
+   */
+  premiumTypeCounts(): Promise<Partial<Record<PremiumType, number>>>;
+  /**
+   * Prémiový typ, který hráč dostal (Typ patří hráči – Začít znovu ho nepřelosuje): z jeho
+   * nejnovějšího prémiového sídelního sídla, i archivovaného nebo převedeného na jiného
+   * držitele (odúmrť, postoupení); hráč bez typu null.
+   */
+  lastPremiumType(playerId: string): Promise<PremiumType | null>;
 }
 
 /** Port: zdroj nových seedů krajiny – náhoda přichází zvenku, doména je deterministická. */
@@ -114,5 +128,6 @@ export interface SeedSource {
  * ms – vstupní bod ji může držet v mezipaměti (krajina se pro daný seed a verze nemění).
  */
 export interface LandscapeSource {
-  landscapeOf(attemptSeed: number, versions: LayerVersions): Landscape;
+  /** `premium` – prémiový typ sídla (`Settlement.premiumType`); bez něj průměrná krajina. */
+  landscapeOf(attemptSeed: number, versions: LayerVersions, premium?: PremiumType): Landscape;
 }

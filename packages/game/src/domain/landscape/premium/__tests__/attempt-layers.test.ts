@@ -66,7 +66,10 @@ describe('vrstvy pokusu prémiové krajiny', () => {
     for (const type of TERRAIN_TYPES) {
       reset();
       generateLandscapeAttempt(3, CURRENT_LAYER_VERSIONS, type);
-      expect({ ...calls }, type).toEqual({ terrain: 1, vegetation: 1, fertility: 1 });
+      // přirozená pevnost má vlastní terén typu – úrodnost bere průměr souše průměrného terénu
+      // pokusu (typy reliéfu), ten se u uloženého sídla spočítá navíc
+      const terrain = type === 'natural-fortress' ? 2 : 1;
+      expect({ ...calls }, type).toEqual({ terrain, vegetation: 1, fertility: 1 });
     }
   });
 

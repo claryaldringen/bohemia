@@ -58,9 +58,14 @@ describe('enterGame s pozvánkou', () => {
     await enterPlaced(s.deps, 'pan', { x: 0, y: 0 });
     await enterPlaced(s.deps, 'nezavisly', { x: 3, y: 0 });
     await inviteFor(s, 'pan', 'host');
-    const { settlement } = await enterGame(s.deps, 'host');
+    const { settlement, landscape } = await enterGame(s.deps, 'host');
     // pozvaný je na mapě světa hned – umístěný od vstupu
     expect((await s.houses.activeOf('host'))?.placedAt).toEqual(NOW);
+    // i pozvaný dostane prémiovou krajinu – typ, který ve světě ještě nikdo nemá
+    const lordType = (await s.settlements.findSeat('pan'))?.premiumType;
+    expect(settlement.premiumType).toBeTruthy();
+    expect(settlement.premiumType).not.toBe(lordType);
+    expect(landscape.premium).toBe(settlement.premiumType);
 
     const lordSeat = s.settlements.settlements.find((x) => x.ownerId === 'pan')!;
     const others = s.settlements.settlements.filter((x) => x.ownerId !== 'host');

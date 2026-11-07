@@ -92,7 +92,8 @@ async function setup(language: LanguageGroup = 'cs'): Promise<{
   await settlements.createSeat({
     ownerId: 'player-n',
     landscapeSeed: 2,
-    layerVersions: layers,
+    layerVersions: { ...layers, premium: 1 },
+    premiumType: 'fertile',
     localCell: { x: 0, y: 0 },
   });
   await settlements.create({
@@ -235,6 +236,11 @@ describe('umístění nováčka', () => {
     expect(house?.placedAt).toEqual(NOW);
     const [seat, second] = await s.settlements.listActive('player-n');
     expect(seat?.localCell).toBeNull();
+    // umístění shluku krajinu nemění – sídelní sídlo si nechá seed i prémiový typ, ves syna průměrná
+    expect(seat).toMatchObject({ landscapeSeed: 2, premiumType: 'fertile' });
+    expect(second).toMatchObject({ landscapeSeed: 3 });
+    expect(second?.premiumType ?? null).toBeNull();
+    expect(await s.settlements.lastPremiumType('player-n')).toBe('fertile');
     expect(second!.worldCell!.x - seat!.worldCell!.x).toBe(1);
     expect(second!.worldCell!.y).toBe(seat!.worldCell!.y);
     for (const o of await s.settlements.occupiedCells()) {

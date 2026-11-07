@@ -9,12 +9,32 @@ import { SURFACE_CODES } from './types';
 const SITE_RADIUS = 17;
 const SITE_MIN_FERTILITY = 64;
 
-/** Vrstva úrodnosti 0–100: roviny v rozumné vzdálenosti od vody nejlepší, podmáčené a svahy horší. */
+/** Průměrná výška souše terénu (m) – nad ní úrodnost s výškou klesá. */
+export function meanLandHeight(terrain: Pick<Terrain, 'heights' | 'water'>): number {
+  const { heights, water } = terrain;
+  let landSum = 0;
+  let landCount = 0;
+  for (let i = 0; i < heights.length; i++) {
+    if (!water[i]) {
+      landSum += heights[i]!;
+      landCount++;
+    }
+  }
+  return landSum / landCount;
+}
+
+/**
+ * Vrstva úrodnosti 0–100: roviny v rozumné vzdálenosti od vody nejlepší, podmáčené a svahy horší.
+ * `meanHeight` – průměrná výška souše, nad kterou úrodnost klesá; bez ní z terénu
+ * (`meanLandHeight`). Typy reliéfu prémiových krajin dávají průměr průměrné krajiny pokusu, ať
+ * hora nezvedne úrodnost zbytku mapy (premium/generate.ts).
+ */
 export function computeFertility(
   seed: number,
   terrain: Terrain,
   surface: Uint8Array,
   version: 1 | 2,
+  meanHeight: number = meanLandHeight(terrain),
 ): Uint8Array {
   if (version !== 1 && version !== 2) {
     throw new RangeError(`Neznámá verze vrstvy úrodnosti: ${String(version)}`);
@@ -24,16 +44,6 @@ export function computeFertility(
   const noise = createNoise2D(() => random.next());
   const waterDistance = distanceToMask(water, size);
   const aboveStream = version === 2 ? heightAboveStream(water, heights, size) : null;
-
-  let landSum = 0;
-  let landCount = 0;
-  for (let i = 0; i < heights.length; i++) {
-    if (!water[i]) {
-      landSum += heights[i]!;
-      landCount++;
-    }
-  }
-  const meanHeight = landSum / landCount;
 
   const fertility = new Uint8Array(size * size);
   for (let y = 0; y < size; y++) {

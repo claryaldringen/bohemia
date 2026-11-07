@@ -1,9 +1,9 @@
 import { and, asc, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 import type {
-  LayerVersions,
+  NewSettlement,
   OccupiedCell,
+  PremiumType,
   Settlement,
-  SettlementPlace,
   SettlementRepository,
 } from '@bohemia/game';
 import type { Database } from '../client';
@@ -20,18 +20,23 @@ function toSettlement(row: SettlementRow): Settlement {
     layerVersions: row.layerVersions,
     worldCell: row.gridX === null || row.gridY === null ? null : { x: row.gridX, y: row.gridY },
     localCell: row.localX === null || row.localY === null ? null : { x: row.localX, y: row.localY },
+    premiumType: row.premiumType,
     createdAt: row.createdAt,
   };
 }
 
-/** Sloupce nového sídla – poloha na mapě světa, nebo v místní mřížce odříznutého rodu. */
-function placeValues(
-  input: { ownerId: string; landscapeSeed: number; layerVersions: LayerVersions } & SettlementPlace,
-): typeof settlement.$inferInsert {
+/**
+ * Sloupce nového sídla – poloha na mapě světa, nebo v místní mřížce odříznutého rodu; prémiový typ
+ * patří zakladateli.
+ */
+function placeValues(input: NewSettlement): typeof settlement.$inferInsert {
+  const premiumType = input.premiumType ?? null;
   const base = {
     ownerId: input.ownerId,
     landscapeSeed: input.landscapeSeed,
     layerVersions: input.layerVersions,
+    premiumType,
+    premiumOwnerId: premiumType ? input.ownerId : null,
   };
   return 'worldCell' in input
     ? { ...base, gridX: input.worldCell.x, gridY: input.worldCell.y }
@@ -141,6 +146,27 @@ export function createSettlementRepository(db: Database): SettlementRepository {
         .where(and(eq(settlement.id, settlementId), isNull(settlement.archivedAt)))
         .limit(1);
       return row ? toSettlement(row) : null;
+    },
+    async premiumTypeCounts(): Promise<Partial<Record<PremiumType, number>>> {
+      const rows = await db
+        .select({
+          type: settlement.premiumType,
+          players: sql<number>`count(distinct ${settlement.premiumOwnerId})::integer`,
+        })
+        .from(settlement)
+        .where(and(isNotNull(settlement.premiumType), isNotNull(settlement.premiumOwnerId)))
+        .groupBy(settlement.premiumType);
+      return Object.fromEntries(rows.flatMap((r) => (r.type ? [[r.type, r.players]] : [])));
+    },
+    async lastPremiumType(playerId): Promise<PremiumType | null> {
+      // i archivovaná a převedená sídla – typ patří hráči, ne mapě, kterou zrovna drží
+      const [row] = await db
+        .select({ type: settlement.premiumType })
+        .from(settlement)
+        .where(and(eq(settlement.premiumOwnerId, playerId), isNotNull(settlement.premiumType)))
+        .orderBy(desc(settlement.createdAt))
+        .limit(1);
+      return row?.type ?? null;
     },
     async assignWorldCell(settlementId, cell): Promise<Settlement | null> {
       // Jen sídlu bez polohy (podmíněný UPDATE) – souběžná volání ho neposunou dvakrát.

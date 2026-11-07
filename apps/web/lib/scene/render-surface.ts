@@ -105,7 +105,6 @@ export function buildRenderSurface(l: Landscape): RenderSurface {
       heights[v] = blendBanks(base, near, other, second ? RIVER_DEPTH_M : CHANNEL_DEPTH_M);
     }
   }
-  fadeMountainEdges(l, heights, waterLevel, resolution);
   const stream = watersCenterline(l);
 
   const position = (v: number): { x: number; z: number } => ({
@@ -158,53 +157,6 @@ function channelHeight(base: number, near: StreamSample, channelDepth: number): 
   const fade = smoothstep(BANK_FADE_M.from, BANK_FADE_M.to, beyond);
   const usual = bank + (base - bank) * fade;
   return near.bank > 0 ? cliffBank(usual, base, near) : usual;
-}
-
-/**
- * Horský průsmyk (prémiová krajina – pohraniční hory podél okraje mapy, hřeben 105 m od okraje):
- * generátor vnější svah hor u okraje mapy utne zhruba v 60 % výšky hřebene – za okrajem mapy
- * nic není a hora by tam končila svislou stěnou. Ve scéně se proto u okraje, kde jsou hory
- * (rozdíl výšek po okraji nad `riseM`), terén v posledních `fadeM` metrech stáhne k nejnižší
- * výšce na tom okraji – vnější svah hor dobíhá k okraji mapy (hřeben zůstane). Jen vzhled
- * (herní data krajiny se nemění), voda se nemění; ostatní krajiny beze změny.
- */
-const MOUNTAIN_EDGE = { fadeM: 90, riseM: 25 } as const;
-
-function fadeMountainEdges(
-  l: Landscape,
-  heights: Float32Array,
-  waterLevel: Float32Array,
-  resolution: number,
-): void {
-  if (l.premium !== 'mountain-pass') return;
-  const n = l.size;
-  const sides: { along: (k: number) => number; distance: (i: number, j: number) => number }[] = [
-    { along: (k) => l.heights[k * n]!, distance: (i) => i },
-    { along: (k) => l.heights[k * n + n - 1]!, distance: (i) => resolution - 1 - i },
-    { along: (k) => l.heights[k]!, distance: (_i, j) => j },
-    { along: (k) => l.heights[(n - 1) * n + k]!, distance: (_i, j) => resolution - 1 - j },
-  ];
-  const step = l.cellSizeM / RENDER_SUBDIVISION;
-  for (const side of sides) {
-    let floor = Infinity;
-    let peak = -Infinity;
-    for (let k = 0; k < n; k++) {
-      floor = Math.min(floor, side.along(k));
-      peak = Math.max(peak, side.along(k));
-    }
-    if (peak - floor < MOUNTAIN_EDGE.riseM) continue;
-    const reach = Math.ceil(MOUNTAIN_EDGE.fadeM / step);
-    for (let j = 0; j < resolution; j++) {
-      for (let i = 0; i < resolution; i++) {
-        const d = side.distance(i, j);
-        if (d > reach) continue;
-        const v = j * resolution + i;
-        if (Number.isFinite(waterLevel[v]!) || heights[v]! <= floor) continue;
-        const w = 1 - smoothstep(0, MOUNTAIN_EDGE.fadeM, d * step);
-        heights[v] = heights[v]! - (heights[v]! - floor) * w;
-      }
-    }
-  }
 }
 
 /** Šířka čela stěny (m) od okraje vody podle její výšky – podle ní i textura skály. */

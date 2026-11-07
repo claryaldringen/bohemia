@@ -1,8 +1,14 @@
 import {
+  BandFailureError,
+  choosePremiumType,
   CURRENT_LAYER_VERSIONS,
   generateAcceptedLandscape,
   generateLandscapeAttempt,
+  MAX_ATTEMPTS,
+  PREMIUM_LAYER_VERSION,
   type Landscape,
+  type LayerVersions,
+  type PremiumType,
 } from '../domain/landscape';
 import {
   DEFAULT_LANGUAGE,
@@ -78,27 +84,32 @@ export async function enterGame(deps: EnterGameDeps, playerId: string): Promise<
   // Pozvaný dostane nejbližší volné políčko společné mřížky; souběh dvou nováčků na témže
   // políčku rozhodne unikátní index – poražený zkusí znovu s čerstvou mapou obsazení. Nováček bez
   // pozvánky začne v odříznuté krajině (newcomers.md): sídlo jen v místní mřížce rodu (0, 0),
-  // krajina z vlastního seedu hráče, rod bez umístění na mapu světa.
+  // krajina z vlastního seedu hráče, rod bez umístění na mapu světa. Sídelní sídlo lidského
+  // hráče má prémiovou krajinu (premium-landscapes.md – Kdo dostane jakou krajinu): typ, který
+  // hráč už dostal (Začít znovu ho nepřelosuje), jinak nejméně zastoupený ve světě.
+  const owned = await deps.settlements.lastPremiumType(playerId);
   for (let attempt = 0; attempt < PLACEMENT_ATTEMPTS; attempt++) {
     const occupied = await deps.settlements.occupiedCells();
     const cell = request ? placeNewPlayer(occupied, request) : null;
-    const accepted = generateAcceptedLandscape(
-      cell
-        ? cellLandscapeSeed(deps.worldSeed, cell)
-        : isolatedLandscapeSeed(deps.worldSeed, playerId),
-    );
+    const seed = cell
+      ? cellLandscapeSeed(deps.worldSeed, cell)
+      : isolatedLandscapeSeed(deps.worldSeed, playerId);
+    const premium = owned ?? choosePremiumType(seed, await deps.settlements.premiumTypeCounts());
+    const accepted = acceptedPremiumLandscape(seed, premium);
     const settlement = await deps.settlements.createSeat({
       ownerId: playerId,
       landscapeSeed: accepted.seed,
-      layerVersions: CURRENT_LAYER_VERSIONS,
+      layerVersions: PREMIUM_LAYER_VERSIONS,
+      premiumType: premium,
       ...(cell ? { worldCell: cell } : { localCell: { x: 0, y: 0 } }),
     });
     if (!settlement) continue;
     const house = await ensureHouse(deps, playerId, isIsolated(settlement) ? null : undefined);
     if (lord) await becomeVassal(deps, lord.house, house);
-    // Při souběhu mohl sídlo založit jiný požadavek téhož hráče – platí uložené.
-    const landscape =
-      settlement.landscapeSeed === accepted.seed ? accepted.landscape : landscapeOf(settlement);
+    // Při souběhu mohl sídlo založit jiný požadavek téhož hráče – platí uložené (seed i typ).
+    const same =
+      settlement.landscapeSeed === accepted.seed && (settlement.premiumType ?? null) === premium;
+    const landscape = same ? accepted.landscape : landscapeOf(settlement);
     return { settlement, landscape };
   }
   throw new Error(`Hráči ${playerId} se nepodařilo najít volné místo ve světě.`);
@@ -174,13 +185,51 @@ async function becomeVassal(deps: EnterGameDeps, lord: House, vassal: House): Pr
 /** Kolikrát se nováček pokusí o místo, než se vzdá (souběh s jinými nováčky). */
 const PLACEMENT_ATTEMPTS = 5;
 
+/** Verze vrstev prémiové krajiny – průměrné vrstvy a prémiový průchod. */
+const PREMIUM_LAYER_VERSIONS: LayerVersions = {
+  ...CURRENT_LAYER_VERSIONS,
+  premium: PREMIUM_LAYER_VERSION,
+};
+
+/**
+ * Kolik oken po `MAX_ATTEMPTS` pokusech se zkusí, než se vstup vzdá – prémiový typ projde
+ * pásmem do `MAX_ATTEMPTS` pokusů aspoň na 95 % seedů (premium-landscapes.md – Generátor), takže
+ * na seedu, kde neprojde, se pokračuje dalšími seedy (seed + 16, + 32 …).
+ */
+const PREMIUM_SEED_WINDOWS = 4;
+
+/** Prémiová krajina sídelního sídla – první okno seedů, kde typ projde pásmem. */
+function acceptedPremiumLandscape(
+  seed: number,
+  premium: PremiumType,
+): { seed: number; landscape: Landscape } {
+  for (let window = 0; ; window++) {
+    try {
+      return generateAcceptedLandscape(
+        (seed + window * MAX_ATTEMPTS) >>> 0,
+        PREMIUM_LAYER_VERSIONS,
+        premium,
+      );
+    } catch (error) {
+      if (!(error instanceof BandFailureError) || window + 1 >= PREMIUM_SEED_WINDOWS) throw error;
+    }
+  }
+}
+
 /** Uložené sídlo má seed přijatého pokusu – krajina se generuje přesně z něj, bez pásma. */
 const GENERATED: LandscapeSource = { landscapeOf: generateLandscapeAttempt };
 
-/** Krajina uloženého sídla – z mezipaměti vstupního bodu, nebo vygenerovaná ze seedu. */
+/**
+ * Krajina uloženého sídla – z mezipaměti vstupního bodu, nebo vygenerovaná ze seedu; s prémiovým
+ * typem sídla (bez něj průměrná krajina bit po bitu jako dřív).
+ */
 export function settlementLandscape(
   settlement: Settlement,
   landscapes?: LandscapeSource,
 ): Landscape {
-  return (landscapes ?? GENERATED).landscapeOf(settlement.landscapeSeed, settlement.layerVersions);
+  return (landscapes ?? GENERATED).landscapeOf(
+    settlement.landscapeSeed,
+    settlement.layerVersions,
+    settlement.premiumType ?? undefined,
+  );
 }

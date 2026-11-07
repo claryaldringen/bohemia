@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   CURRENT_LAYER_VERSIONS,
+  generateAcceptedLandscape,
   generateLandscape,
+  generateLandscapeAttempt,
   riverCenterline,
   streamCenterline,
 } from '@bohemia/game';
@@ -64,43 +66,31 @@ describe('řeka ve scéně', () => {
 });
 
 describe('horský průsmyk – vnější svah u okraje mapy', () => {
-  it('u okraje s horami terén ve scéně dobíhá k nejnižší výšce okraje, hřeben zůstane', () => {
+  it('vnější svah dobíhá k okraji už v generátoru – scéna kreslí okraj podle dat, hřeben zůstane', () => {
     const pass = generateLandscape(42, CURRENT_LAYER_VERSIONS, 'mountain-pass');
+    const plain = generateLandscapeAttempt(
+      generateAcceptedLandscape(42, CURRENT_LAYER_VERSIONS, 'mountain-pass').seed,
+      CURRENT_LAYER_VERSIONS,
+    );
     const scene = buildRenderSurface(pass);
     const n = scene.resolution;
     const size = pass.size;
-    // okraj, kde jsou hory: největší rozdíl výšek po okraji
-    const edges = [
-      { data: (k: number) => pass.heights[k * size]!, scene: (k: number) => scene.heights[k * n]! },
-      {
-        data: (k: number) => pass.heights[k * size + size - 1]!,
-        scene: (k: number) => scene.heights[k * n + n - 1]!,
-      },
-      { data: (k: number) => pass.heights[k]!, scene: (k: number) => scene.heights[k]! },
-      {
-        data: (k: number) => pass.heights[(size - 1) * size + k]!,
-        scene: (k: number) => scene.heights[(n - 1) * n + k]!,
-      },
-    ];
-    const range = (f: (k: number) => number, count: number): [number, number] => {
-      let lo = Infinity;
-      let hi = -Infinity;
-      for (let k = 0; k < count; k++) {
-        lo = Math.min(lo, f(k));
-        hi = Math.max(hi, f(k));
+    // okraj mapy v datech jako v průměrné krajině (hora za okrajem nekončí stěnou)
+    for (let k = 0; k < size; k++) {
+      for (const i of [k * size, k * size + size - 1, k, (size - 1) * size + k]) {
+        expect(pass.heights[i]).toBe(plain.heights[i]);
       }
-      return [lo, hi];
-    };
-    const mountain = edges
-      .map((e) => ({ e, r: range(e.data, size) }))
-      .sort((a, b) => b.r[1] - b.r[0] - (a.r[1] - a.r[0]))[0]!;
-    expect(mountain.r[1] - mountain.r[0]).toBeGreaterThan(25);
-    const [lo, hi] = range(mountain.e.scene, n);
-    // na samém okraji ve scéně skoro rovina (dřív až ≈ 60 % výšky hřebene)
-    expect(hi - lo).toBeLessThan(2);
+    }
+    // scéna okraj nemění – střed krajního políčka v datech = krajní bod sítě (mimo vodu)
+    for (let k = 0; k < size; k += 9) {
+      const v = k * RENDER_SUBDIVISION * n;
+      if (Number.isFinite(scene.waterLevel[v]!)) continue;
+      expect(scene.heights[v]).toBeCloseTo(pass.heights[k * size]!, 4);
+    }
     // hřeben dál od okraje zůstane – nejvyšší místo scény jako v datech
     const top = (a: Float32Array): number => a.reduce((m, h) => Math.max(m, h), -Infinity);
     expect(top(scene.heights)).toBeGreaterThan(top(pass.heights) - 1);
+    expect(top(pass.heights)).toBeGreaterThan(top(plain.heights) + 30);
   });
 
   it('průměrná krajina téhož seedu okraje nemění', () => {

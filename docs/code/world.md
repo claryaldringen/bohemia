@@ -32,6 +32,8 @@ Pravidla: `docs/design/newcomers.md`. Use-casy v `application/newcomers.ts`.
 hráč)`) a rod s `house.placed_at` null. Pozvaný je na mapě hned (`placed_at` = založení).
   `Settlement.localCell`, `isIsolated(settlement)`; `House.placedAt`, `House.newcomerSince`.
   Migrace `0038_newcomers` (dosavadní rody `placed_at = created_at`, výchozí `now()`).
+  Sídelní sídlo (odříznuté i pozvaného) má prémiovou krajinu (`Settlement.premiumType` –
+  landscape.md, Přidělení typu); vsi synů průměrnou, umístění shluku typ nemění.
 - **Vsi syna** v odříznuté krajině: `targetSettlement` → `isolatedTarget` – soused v místní mřížce,
   seed `isolated:<rod>:x,y`, unikátní index `settlement_local_idx` (hráč + místní poloha).
 - **Nikdo ho nevidí:** adresář (`nearestHouses`, `entriesOf` – jen `placed_at IS NOT NULL` a sídlo
