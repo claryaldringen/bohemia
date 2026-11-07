@@ -34,6 +34,9 @@ vazalem se může stát. Případně začíná zcela svobodný.**“
 2. **Výběr pána z nabídky** – Nabídka pánů a Odříznutá krajina níž.
 3. **Svobodný** – Svobodný nováček níž.
 
+- **Začít znovu = nový rod** (návrh Clauda): projde stejnou cestou jako nováček bez pozvánky
+  (odříznutá krajina, volba pána nebo svobodný); jméno vojvody se dál předvyplní.
+
 Volba 2 nebo 3 padne při vstupu do hry, před stavbou vesnice (návrh Clauda – v úvodní obrazovce
 vedle jména rodu).
 
