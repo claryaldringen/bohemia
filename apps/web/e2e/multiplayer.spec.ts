@@ -1013,11 +1013,18 @@ test('rozsudek pána: spoluvazal žaluje druhého, ten se vyjádří, pán rozho
   await card.getByTestId('verdict-submit').click();
 
   // obžalovaný má dialog rozsudku a upozornění
-  const dialogs = await query<{ player_id: string }>(
-    `SELECT player_id FROM dialog WHERE kind = 'judgment' AND status = 'open'`,
-    [],
-  );
-  expect(dialogs).toHaveLength(1);
+  await expect
+    .poll(
+      async () =>
+        (
+          await query<{ player_id: string }>(
+            `SELECT player_id FROM dialog WHERE kind = 'judgment' AND status = 'open'`,
+            [],
+          )
+        ).length,
+      { timeout: 30_000 },
+    )
+    .toBe(1);
   await pollVillage(defendant);
   await expect(
     defendant.getByTestId('village-notice').filter({ hasText: 'uložil náhradu' }),
