@@ -1,6 +1,7 @@
 // Měření generátoru krajiny na vzorku seedů: npx tsx packages/game/scripts/measure-landscapes.ts 500
 // Druhý argument `initial` změří verze vrstev sídel založených do 18. 10. 2026, `previous` nová
-// sídla do 20. 10. 2026 (bez skal u potoka).
+// sídla do 20. 10. 2026 (bez skal u potoka), název typu prémiové krajiny (např. `iron-ore`)
+// změří prémiovou krajinu typu (premium-landscapes.md – Kalibrace).
 import {
   checkBand,
   CURRENT_LAYER_VERSIONS,
@@ -9,14 +10,19 @@ import {
   INITIAL_LAYER_VERSIONS,
   MAX_ATTEMPTS,
   measureLandscape,
+  PREMIUM_LAYER_VERSION,
+  PREMIUM_TYPES,
   PREVIOUS_LAYER_VERSIONS,
   promontoriesOf,
   type Landscape,
+  type PremiumType,
 } from '../src/domain/landscape';
 
 const count = Number(process.argv[2] ?? 500);
-const versions =
-  process.argv[3] === 'initial'
+const premium = PREMIUM_TYPES.find((type): type is PremiumType => type === process.argv[3]);
+const versions = premium
+  ? { ...CURRENT_LAYER_VERSIONS, premium: PREMIUM_LAYER_VERSION }
+  : process.argv[3] === 'initial'
     ? INITIAL_LAYER_VERSIONS
     : process.argv[3] === 'previous'
       ? PREVIOUS_LAYER_VERSIONS
@@ -54,7 +60,7 @@ const started = performance.now();
 
 for (let seed = 0; seed < count; seed++) {
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    const landscape = generateLandscapeAttempt((seed + attempt) >>> 0, versions);
+    const landscape = generateLandscapeAttempt((seed + attempt) >>> 0, versions, premium);
     const m = measureLandscape(landscape);
     if (attempt === 0) {
       firstAttempt.forestShare.push(m.forestShare);
@@ -103,7 +109,7 @@ const quantiles = (values: number[], qs = [0.05, 0.5, 0.95]): string => {
 };
 
 console.log(
-  `Vzorek: ${count} seedů, verze vrstev ${JSON.stringify(versions)} (metriky z 1. pokusu)`,
+  `Vzorek: ${count} seedů, verze vrstev ${JSON.stringify(versions)}${premium ? `, typ ${premium}` : ''} (metriky z 1. pokusu)`,
 );
 for (const [name, values] of Object.entries(firstAttempt))
   console.log(`  ${name.padEnd(19)} ${quantiles(values, [0.01, 0.05, 0.5, 0.95, 0.99])}`);
@@ -114,6 +120,11 @@ console.log(
 console.log(`  důvody neúspěchu pokusů:`, failures);
 console.log(`  průměrný čas jednoho pokusu ${(elapsed / totalAttempts).toFixed(1)} ms`);
 console.log(`Přijaté krajiny (${attempts.length}):`);
+const sortedMeadow = [...acceptedMetrics['louka do 600 m (ha)']].sort((a, b) => a - b);
+// jeden řádek pro tabulku v premium-landscapes.md (Kalibrace – výsledky měření)
+console.log(
+  `SOUHRN ${premium ?? 'průměrná'} | 1. pokus ${((attempts.filter((a) => a === 1).length / count) * 100).toFixed(0)} % | nesplněno ${count - attempts.length} | ${(elapsed / totalAttempts).toFixed(0)} ms/pokus | louka do 600 m medián ${(sortedMeadow[Math.floor(sortedMeadow.length / 2)] ?? 0).toFixed(1)} ha (p10 ${(sortedMeadow[Math.floor(sortedMeadow.length * 0.1)] ?? 0).toFixed(1)})`,
+);
 for (const [name, values] of Object.entries(acceptedMetrics))
   console.log(`  ${name.padEnd(26)} ${quantiles(values, [0.1, 0.5, 0.9])}`);
 

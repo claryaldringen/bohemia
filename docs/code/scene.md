@@ -454,3 +454,6 @@ stream, river)`, `fishSchools`, `AmbientEnvironment.river`), výšková síť p�
   Náhled `/dev/landscape?seed=42&premium=<typ>` – odkazy 19 typů a „průměrná“, pohled na hlavní
   prvek (`premiumFocus` – kamera od vsi k prvku, `moveCameraTo(x, z, radius, alpha)`), tlačítka
   **Prvek** a **Obrysy prvků** (`app/dev/landscape/dev-premium.ts`).
+  Výběr prvku kliknutím: `pickPremiumSite` (`premium-picking.ts`) v `pickTarget` až po
+  `pickVillageTarget` (nic ze vsi pod kurzorem) – cíl `premium-site` (typ, druh, pořadí prvku),
+  obrys výběru nekreslí (web-ui.md – Prémiová krajina v rozhraní).

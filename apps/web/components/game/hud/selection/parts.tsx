@@ -14,8 +14,8 @@ export function Portrait({
 }: {
   icon: string;
   name: string;
-  /** Složka ikon v `public/icons/` (zvěř je mezi surovinami). */
-  dir?: 'build' | 'resources';
+  /** Složka ikon v `public/icons/` (zvěř je mezi surovinami, typy krajiny v `premium/`). */
+  dir?: 'build' | 'resources' | 'premium';
 }): ReactElement {
   return (
     <div className="flex min-w-20 shrink-0 flex-col items-center gap-1">

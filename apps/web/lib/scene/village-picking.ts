@@ -4,6 +4,8 @@ import {
   SACRED_BUILDINGS,
   WORKSHOP_PORCH_M,
   threshingFloorFootprint,
+  type PremiumSiteKind,
+  type PremiumType,
   type TileCell,
 } from '@bohemia/game';
 import { isRotatedSquare, squareContains, type CellSquare } from './field-cells';
@@ -84,7 +86,12 @@ export type VillageTarget =
    */
   | { kind: 'plough-team'; team: number }
   /** Vůz vsi (id vozu – wagons.md, Výběr vozu): klik na vůz nebo jeho voly. */
-  | { kind: 'cart'; id: number };
+  | { kind: 'cart'; id: number }
+  /**
+   * Prvek prémiové krajiny (premium-landscapes.md – Co hráč vidí; vzor rudiště): typ krajiny,
+   * druh prvku a pořadí prvku v `premiumFeaturesOf(landscape).sites` – `premium-picking.ts`.
+   */
+  | { kind: 'premium-site'; type: PremiumType; site: PremiumSiteKind; index: number };
 
 export interface Vec3 {
   x: number;
@@ -444,6 +451,8 @@ export function targetExists(village: SceneVillage, target: VillageTarget): bool
   if (target.kind === 'cart') return (village.carts ?? []).some((c) => c.id === target.id);
   // zvíře ve scéně hlídá jeho vlastní výběr (W10); druh zvěře existuje, dokud ves má zvěř
   if (target.kind === 'wildlife') return true;
+  // prvek prémiové krajiny je v krajině pořád
+  if (target.kind === 'premium-site') return true;
   return village.fields.some((f) => f.id === target.id);
 }
 
