@@ -8,6 +8,7 @@ import { InMemoryHouses } from './in-memory-houses';
 import { InMemoryNotices } from './in-memory-notices';
 import { InMemoryPassages } from './in-memory-passages';
 import { InMemorySettlements } from './in-memory-settlements';
+import { InMemoryDisputes } from './in-memory-disputes';
 import { InMemoryVassalages } from './in-memory-vassalages';
 import { InMemoryVillages } from './in-memory-villages';
 import { InMemoryWars } from './in-memory-wars';
@@ -156,7 +157,13 @@ describe('ohlášený průchod', () => {
   it('útok po ohlášení = přepadení a ohlášení přestane platit pro všechny vsi rodu', async () => {
     const w = await world();
     await announce(w);
-    const warDeps = { ...w.deps, wars: w.wars, notices: w.notices };
+    const warDeps = {
+      ...w.deps,
+      wars: w.wars,
+      notices: w.notices,
+      disputes: new InMemoryDisputes(),
+      vassalages: new InMemoryVassalages(),
+    };
     const war = await startWarByAttack(warDeps, {
       attackerId: w.armyHouse,
       defenderId: w.neutralHouse,
