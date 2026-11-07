@@ -5,9 +5,10 @@ import { sql } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { CURRENT_LAYER_VERSIONS } from '@bohemia/game';
 import { createDatabase } from '../../client';
+import { testDatabaseUrl } from '../../test-database';
 import { schema } from '../../index';
 
-const db = createDatabase('postgres://postgres@127.0.0.1:5432/bohemia_test');
+const db = createDatabase(testDatabaseUrl());
 const folder = path.join(import.meta.dirname, '../../../drizzle');
 
 /** Příkazy migrace 0013 (společná mřížka světa) – převod dat, zrušení starého a nový index. */

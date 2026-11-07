@@ -7,6 +7,7 @@ import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { CURRENT_LAYER_VERSIONS, foundVillage, type CampaignState } from '@bohemia/game';
 import { createDatabase } from '../../client';
+import { testDatabaseUrl } from '../../test-database';
 import { schema } from '../../index';
 import { createCampaignRepository } from '../campaign-repository';
 import { createHouseRepository } from '../house-repository';
@@ -16,7 +17,7 @@ import { createVillageHolds, villagesNearCampaigns } from '../village-holds';
 import { createWarRepository } from '../war-repository';
 import { createWorldQueue } from '../world-queue';
 
-const db = createDatabase('postgres://postgres@127.0.0.1:5432/bohemia_test');
+const db = createDatabase(testDatabaseUrl());
 const holds = createVillageHolds(db);
 const NOW = new Date('2026-11-07T12:00:00Z');
 const DAY = 7300;

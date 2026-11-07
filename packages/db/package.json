@@ -7,6 +7,10 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./test-database": {
+      "types": "./src/test-database.ts",
+      "default": "./src/test-database.ts"
     }
   },
   "scripts": {
@@ -18,7 +22,8 @@
     "format:check": "prettier --check . --ignore-path ../../.gitignore",
     "format": "prettier --write . --ignore-path ../../.gitignore",
     "test": "vitest run --passWithNoTests",
-    "test:db": "vitest run --config vitest.db.config.ts"
+    "test:db": "vitest run --config vitest.db.config.ts",
+    "test:db:create": "tsx scripts/create-test-database.ts"
   },
   "dependencies": {
     "@bohemia/game": "*",
