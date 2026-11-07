@@ -866,6 +866,8 @@ test('když vymře rod po meči, hra skončí kronikou rodu – Začít znovu p�
   await defeat.getByRole('button', { name: 'Začít znovu' }).click();
   await reloaded;
   await expect(page.getByTestId('defeat-screen')).toHaveCount(0, { timeout: 30_000 });
+  // Nový rod je odříznutý nováček (newcomers.md – Tři cesty do světa): nejdřív volba cesty.
+  await page.getByTestId('newcomer-free').click({ timeout: 30_000 });
   const panel = page.getByTestId('line-name-panel');
   await expect(panel).toBeVisible({ timeout: 30_000 });
   await expect(panel.getByTestId('line-name-input')).toHaveValue('Ctibor');
@@ -910,6 +912,8 @@ test('nabídka hry (F10) zruší umisťování a Začít znovu se živou vsí po
   await expect(grid.getByRole('button')).toHaveCount(1);
   await expect(grid.getByRole('button', { name: 'Zemnice' })).toBeVisible();
   await expect(page.getByTestId('village-name')).toHaveCount(0);
+  // nový rod je odříznutý nováček: nejdřív volba cesty, pak panel jména
+  await page.getByTestId('newcomer-free').click({ timeout: 30_000 });
   // panel jména vojvody znovu, předvyplněný posledním jménem (lord.md – Kde se jméno zadává)
   await expect(page.getByTestId('line-name-input')).toHaveValue('Bořivoj');
 

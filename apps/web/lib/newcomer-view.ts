@@ -1,32 +1,40 @@
-import type { LanguageGroup } from '@bohemia/game';
+import type { LanguageGroup, NewcomerStatus } from '@bohemia/game';
 
 // Pohled nováčka pro panel (newcomers.md – Rozhraní). Čisté typy a pomocné funkce bez serveru.
+// Typy se odvozují z jádra (`NewcomerStatus`), jen konec týdne jde do klienta jako ISO čas.
+
+type IsolatedStatus = Extract<NewcomerStatus, { phase: 'isolated' }>;
 
 /** Řádek nabídky pánů: rod, jméno vojvody a jazyková skupina rodu. */
-export interface NewcomerOfferView {
-  houseId: string;
-  lordName: string;
-  language: LanguageGroup;
-}
+export type NewcomerOfferView = IsolatedStatus['offer'][number];
 
 /** Odeslaná žádost nováčka – čeká, nebo ji rod odmítl. */
-export interface NewcomerRequestView {
-  houseId: string;
-  state: 'pending' | 'rejected';
-}
+export type NewcomerRequestView = IsolatedStatus['requests'][number];
 
 /**
- * Stav nováčka. Odpovídá NewcomerStatus z application/newcomers.ts (Úloha 3) – sjednotit při
- * napojení. `deadline` je konec týdne čekání (ISO čas), null dokud žádná žádost neběží.
+ * Stav nováčka pro klienta: `NewcomerStatus` z jádra, `deadline` je konec týdne čekání (ISO čas),
+ * null dokud žádná žádost neběží.
  */
 export type NewcomerStatusView =
-  | {
-      phase: 'isolated';
-      offer: NewcomerOfferView[];
-      requests: NewcomerRequestView[];
-      deadline: string | null;
-    }
-  | { phase: 'placed' };
+  | (Omit<IsolatedStatus, 'deadline'> & { deadline: string | null })
+  | Exclude<NewcomerStatus, { phase: 'isolated' }>;
+
+/** Převod stavu z jádra na pohled pro klienta. */
+export function newcomerStatusView(status: NewcomerStatus): NewcomerStatusView {
+  return status.phase === 'isolated'
+    ? { ...status, deadline: status.deadline === null ? null : status.deadline.toISOString() }
+    : status;
+}
+
+/** Nováček čeká na odpověď pánů (aspoň jedna žádost bez odpovědi). */
+export function newcomerWaiting(status: NewcomerStatusView | null): boolean {
+  return status?.phase === 'isolated' && status.requests.some((r) => r.state === 'pending');
+}
+
+/** Odříznutý nováček ještě nerozhodl (nežádá, nebo ho všichni odmítli) – panel volby cesty. */
+export function newcomerUndecided(status: NewcomerStatusView | null): boolean {
+  return status?.phase === 'isolated' && !newcomerWaiting(status);
+}
 
 /** Nejvíc rodů, kterým smí nováček poslat žádost najednou. */
 export const MAX_NEWCOMER_REQUESTS = 5;

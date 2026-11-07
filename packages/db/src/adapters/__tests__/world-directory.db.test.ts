@@ -114,6 +114,9 @@ describe('WorldDirectory (Drizzle)', () => {
     });
     expect(await directory.nearestHouses({ x: 0, y: 0 }, 10, mine)).toEqual([]);
     expect(await directory.entriesOf([h!.id])).toEqual([]);
+    // vlastní panel rodu a žádost nováčka ho vidí – poloha sídla je místní
+    const isolated = await directory.isolatedEntriesOf([h!.id, mine]);
+    expect(isolated.map((e) => [e.house.id, e.seat])).toEqual([[h!.id, { x: 0, y: 0 }]]);
   });
 
   it('skončený rod a archivované sídlo v adresáři nejsou', async () => {

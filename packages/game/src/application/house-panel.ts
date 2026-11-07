@@ -7,7 +7,7 @@ import { INVITES, isInviteUnused } from '../domain/world';
 import type { ActivityRepository } from './activity';
 import type { DialogRepository } from './dialogs';
 import type { HouseRepository, PersonRef } from './houses';
-import type { InviteRepository } from './invites';
+import { INVITE_NEEDS_PLACEMENT, type InviteRepository } from './invites';
 import type { NegotiationRepository } from './negotiations';
 import type { SuccessionCreditRepository } from './succession-credits';
 import type { SettlementRepository } from './settlements';
@@ -74,6 +74,8 @@ export interface PanelNegotiation {
   message: string | null;
   /** Počet kol. */
   rounds: number;
+  /** Žádost odříznutého nováčka o pána (newcomers.md) – jen přijmout / odmítnout. */
+  newcomer: boolean;
 }
 
 /** Dohoda hráčova rodu s pánem nebo vazalem: podmínky a počet neplnění (zlomená pečeť). */
@@ -210,6 +212,10 @@ export interface HousePanelData {
   fellows: PanelFellow[];
   /** Do kdy trvá ochrana nového rodu (štít s hodinami); null – rod chráněn není. */
   protectedUntil: Date | null;
+  /** Rod je odříznutý nováček – ještě není na mapě světa (newcomers.md). */
+  isolated: boolean;
+  /** Důvod, proč teď nejde vydat pozvánku (odříznutý rod); null – smí. */
+  inviteReason: string | null;
 }
 
 export interface HousePanelDeps {
@@ -250,6 +256,8 @@ const EMPTY: HousePanelData = {
   disputes: [],
   fellows: [],
   protectedUntil: null,
+  isolated: false,
+  inviteReason: null,
 };
 
 /** Rod, kterého adresář nezná (bez sídelního sídla) – jen id. */
@@ -370,7 +378,15 @@ export async function housePanel(
       ...fellowsShown.map((f) => f.houseId),
     ]),
   ];
-  const entries = await deps.worldDirectory.entriesOf(wanted);
+  // odříznutý rod adresář nezná – vlastní panel a žádost nováčka u pána ho přesto ukážou
+  const newcomerIds = open
+    .filter((n) => n.newcomer)
+    .map((n) => (n.initiatorHouseId === own.id ? n.recipientHouseId : n.initiatorHouseId));
+  const isolatedIds = [...(own.placedAt === null ? [own.id] : []), ...newcomerIds];
+  const entries = [
+    ...(await deps.worldDirectory.entriesOf(wanted)),
+    ...(await deps.worldDirectory.isolatedEntriesOf(isolatedIds)),
+  ];
   const center = seat ?? { x: 0, y: 0 };
   // NPC rody (povýšení) adresář nezná – jméno hlavy je ve souhrnu vsi, kterou NPC rod spravuje
   const npcNames = await npcHeadNames(
@@ -452,6 +468,7 @@ export async function housePanel(
       items: last?.items ?? [],
       message: last?.message ?? null,
       rounds: n.rounds.length,
+      newcomer: n.newcomer,
     };
   });
 
@@ -562,6 +579,8 @@ export async function housePanel(
     })),
     fellows: fellowsShown.map((f) => ({ house: publicOf(f.houseId), lordHouseId: f.lordHouseId })),
     protectedUntil: deps.wars ? protectionEnd(own, await deps.wars.ownAttackAt(own.id), now) : null,
+    isolated: own.placedAt === null,
+    inviteReason: own.placedAt === null ? INVITE_NEEDS_PLACEMENT : null,
   };
 }
 

@@ -10,7 +10,7 @@ import { TermsForm } from '../TermsForm';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const view = (myTurn: boolean): NegotiationView => ({
+const view = (myTurn: boolean, newcomer = false): NegotiationView => ({
   id: 'n-1',
   other: {
     houseId: 'h-b',
@@ -18,6 +18,7 @@ const view = (myTurn: boolean): NegotiationView => ({
     lordName: 'Ctibor',
     men: 2,
     distance: 3,
+    language: 'cs',
     label: 'Ctibor – 2 muži',
   },
   myTurn,
@@ -30,6 +31,7 @@ const view = (myTurn: boolean): NegotiationView => ({
   ],
   message: 'Pojď pod můj prapor',
   rounds: 1,
+  newcomer,
   label: 'Ctibor – čeká na tvou odpověď',
 });
 
@@ -70,6 +72,26 @@ describe('NegotiationCard', () => {
     click('negotiation-accept');
     expect(onReply).toHaveBeenLastCalledWith('n-1', { answer: 'accept' });
     click('negotiation-reject');
+    expect(onReply).toHaveBeenLastCalledWith('n-1', { answer: 'reject' });
+  });
+
+  it('žádost nováčka: jen Přijmout a Odmítnout, bez protinávrhu', () => {
+    const onReply = vi.fn();
+    act(() =>
+      root.render(
+        <NegotiationCard
+          negotiation={view(true, true)}
+          portrait={<i />}
+          busy={false}
+          onReply={onReply}
+        />,
+      ),
+    );
+    expect(has('negotiation-counter')).toBe(false);
+    expect(has('negotiation-accept')).toBe(false);
+    click('newcomer-accept');
+    expect(onReply).toHaveBeenLastCalledWith('n-1', { answer: 'accept' });
+    click('newcomer-reject');
     expect(onReply).toHaveBeenLastCalledWith('n-1', { answer: 'reject' });
   });
 

@@ -95,6 +95,9 @@ import {
   recallProtection,
   announceWarPassage,
   chooseLanguageAction,
+  newcomerStatusAction,
+  requestLordsAction,
+  startFreeAction,
 } from '@/app/game/actions';
 import type { PassageView, SummonsDialogView } from '@/lib/summons';
 import type { ProtectionView } from '@/lib/protection';
@@ -174,9 +177,11 @@ import { RightsProvider, VillageIdProvider, rightDeniedReason } from './hud/righ
 import { Minimap } from './hud/Minimap';
 import { LanguageChoice } from './hud/LanguageChoice';
 import { LineNamePanel } from './hud/LineNamePanel';
+import { NewcomerPanel } from './hud/NewcomerPanel';
 import { NoticeLines, type NoticeLine } from './hud/NoticeLines';
 import { SelectionPanel } from './hud/SelectionPanel';
 import type { HouseView } from '@/lib/house-view';
+import { newcomerUndecided, type NewcomerStatusView } from '@/lib/newcomer-view';
 import type { EscheatView, LevyDialogView } from '@bohemia/game';
 import { TopBar, type DevDisasterChoice } from './hud/TopBar';
 
@@ -410,13 +415,25 @@ export function VillageGame({
   const [houseOpen, setHouseOpen] = useState(false);
   const [house, setHouse] = useState<HouseView | null>(null);
   const [houseError, setHouseError] = useState<string | null>(null);
+  // Odříznutý nováček (newcomers.md): stav volby pána se načte jen u odříznutého rodu
+  const [newcomer, setNewcomer] = useState<NewcomerStatusView | null>(null);
   const refreshHouse = useCallback(async (): Promise<void> => {
     try {
       const result = await housePanel();
-      if ('error' in result) setHouseError(result.error);
-      else setHouse(result);
+      if ('error' in result) {
+        setHouseError(result.error);
+        setNewcomer((known) => known ?? { phase: 'placed' });
+        return;
+      }
+      setHouse(result);
+      const status: NewcomerStatusView | { error: string } = result.isolated
+        ? await newcomerStatusAction()
+        : { phase: 'placed' };
+      setNewcomer((known) => ('error' in status ? (known ?? { phase: 'placed' }) : status));
     } catch {
       setHouseError(CONNECTION_FAILED);
+      // neznámý stav nováčka nesmí zablokovat založení vsi
+      setNewcomer((known) => known ?? { phase: 'placed' });
     }
   }, []);
   useEffect(() => {
@@ -568,6 +585,8 @@ export function VillageGame({
   const [namingId, setNamingId] = useState<number | null>(null);
   const [dismissedLord, setDismissedLord] = useState<string | null>(null);
   const foundingName = village === null && founderName === null && scene !== null;
+  // Odříznutý nováček bez rozhodnutí volí cestu (newcomers.md – Rozhraní) dřív než jméno vojvody
+  const newcomerChoice = !gameOver && newcomerUndecided(newcomer);
   const lineNotice = gameOver ? null : lineNameNotice(view);
   const unnamed = view?.dynasty?.unnamed ?? [];
   const unnamedLord = unnamed[0]?.lord ? unnamed[0] : undefined;
@@ -1580,7 +1599,12 @@ export function VillageGame({
                   : null
               }
             />
-            <Minimap landscape={decoded} scene={scene} village={sceneVillage} />
+            <Minimap
+              landscape={decoded}
+              scene={scene}
+              village={sceneVillage}
+              isolated={house?.isolated === true}
+            />
             <SelectionPanel
               details={selectionDetails(view, sceneVillage, current, personState, draftState)}
               ennoble={{
@@ -1721,11 +1745,23 @@ export function VillageGame({
             {foundingName && languageChoice && (
               <LanguageChoice
                 onChoose={(language) =>
-                  chooseLanguageAction(language).then((r) => (r.ok ? null : r.error))
+                  chooseLanguageAction(language).then((r) => {
+                    // jazyk mění pořadí nabídky pánů
+                    void refreshHouse();
+                    return r.ok ? null : r.error;
+                  })
                 }
               />
             )}
-            {foundingName && (
+            {newcomer && newcomerChoice && (
+              <NewcomerPanel
+                status={newcomer}
+                error={houseError}
+                onRequest={(houseIds) => void negotiate(() => requestLordsAction(houseIds))}
+                onStartFree={() => void negotiate(() => startFreeAction())}
+              />
+            )}
+            {foundingName && newcomer !== null && !newcomerChoice && (
               <LineNamePanel
                 lord
                 portrait="man"
@@ -1734,7 +1770,7 @@ export function VillageGame({
                 onConfirm={confirmFounderName}
               />
             )}
-            {!foundingName && namingTarget && (
+            {!foundingName && !newcomerChoice && namingTarget && (
               <LineNamePanel
                 key={namingTarget.id}
                 lord={namingTarget.lord}
@@ -1822,6 +1858,8 @@ export function VillageGame({
                 origin={typeof window === 'undefined' ? null : window.location.origin}
                 onIssue={issueHouseInvite}
                 onRevoke={revokeHouseInvite}
+                newcomer={newcomer}
+                onStartFree={() => negotiate(() => startFreeAction())}
                 onOpenNegotiation={(to, items, message) =>
                   negotiate(() => openNegotiation({ to, items, message }))
                 }

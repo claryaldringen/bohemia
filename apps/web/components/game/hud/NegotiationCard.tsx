@@ -98,7 +98,25 @@ export function NegotiationCard({
         />
       ) : (
         <div className="flex items-center gap-1.5">
-          {myTurn ? (
+          {myTurn && negotiation.newcomer ? (
+            // žádost nováčka (newcomers.md – Pán): jen přijmout, nebo odmítnout
+            <>
+              <ActionButton
+                label="Přijmout"
+                icon="handshake"
+                testId="newcomer-accept"
+                disabled={busy}
+                onClick={() => onReply(id, { answer: 'accept' })}
+              />
+              <ActionButton
+                label="Odmítnout"
+                icon="cross"
+                testId="newcomer-reject"
+                disabled={busy}
+                onClick={() => onReply(id, { answer: 'reject' })}
+              />
+            </>
+          ) : myTurn ? (
             <>
               <ActionButton
                 label="Přijmout"
