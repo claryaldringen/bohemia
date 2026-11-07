@@ -15,6 +15,7 @@ import type {
   CampaignVillage,
   CampaignWorld,
 } from './campaign-types';
+import { deserters } from './desertion';
 import {
   battleForts,
   battleTick,
@@ -199,7 +200,7 @@ function campaignTick(
   const day = dayOfTick(tick, ctx.world.clock);
   while (s.day < day) {
     s.day++;
-    dailyStep(s);
+    dailyStep(s, out);
   }
   for (const intent of intents) applyIntent(s, intent, out);
   switch (s.phase) {
@@ -229,7 +230,7 @@ function campaignTick(
  * shromaždišti se muži zotaví) a jídlo – 1 kg na muže a den. Když jídlo dojde na pochodu,
  * vojsko se obrátí domů (Martin 2. 11. 2026).
  */
-function dailyStep(s: CampaignState): void {
+function dailyStep(s: CampaignState, out: TickOut): void {
   const outside = s.phase !== 'assembling' && s.phase !== 'done';
   const active = s.members.filter((m) => m.status === 'active');
   for (const m of active) {
@@ -238,10 +239,31 @@ function dailyStep(s: CampaignState): void {
     m.vigor += delta.vigor;
   }
   if (!outside) return;
+  desert(s, out);
   const need = active.length * WAR.foodKgPerManDay;
   const eaten = Math.min(need, s.supplies.foodKg);
   s.supplies.foodKg -= eaten;
   if (eaten < need && s.phase === 'marching') turnBack(s, 'supplies');
+}
+
+/**
+ * Dezerce nucených (war.md – Vojsko): dezertér s příbuznými v cíli cíl varuje – ves dostane
+ * signál `army-seen` dřív, než vojsko dorazí (jeden za den, ať se nezdvojí).
+ */
+function desert(s: CampaignState, out: TickOut): void {
+  let warns = false;
+  for (const m of deserters(s)) {
+    m.status = 'deserted';
+    warns ||= m.kin === true;
+  }
+  if (!warns) return;
+  const day = s.day + 1;
+  out.events.push({
+    villageId: s.target.villageId,
+    day,
+    ref: `camp:${s.id}:${s.tick}:${out.events.length}`,
+    body: { kind: 'threat-signal', signal: { kind: 'army-seen', day: s.day } },
+  });
 }
 
 /** Záměr taktu – co ve fázi nedává smysl, se zahodí. */

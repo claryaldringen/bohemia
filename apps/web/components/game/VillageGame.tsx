@@ -52,6 +52,9 @@ import {
   restartGame,
   selectVillage,
   sendExpedition,
+  getArmyPanel,
+  planArmyCampaign,
+  launchArmyCampaign,
   skipTime,
   upgradeRoad,
   buildWagonRoad,
@@ -73,6 +76,7 @@ import {
   consentEscheat,
   answerLevy,
 } from '@/app/game/actions';
+import { ArmyActionsContext, type ArmyActions } from '@/hooks/use-army';
 import { PanelOptionsContext, type PanelOptionsSource } from '@/hooks/use-panel-options';
 import type { PanelAsk, PanelOptions } from '@/lib/panel-options';
 import { usePlacement } from '@/hooks/use-placement';
@@ -142,7 +146,7 @@ import { HousePanel } from './hud/HousePanel';
 import { WarPanel } from './hud/WarPanel';
 import { LevyDialog } from './hud/LevyDialog';
 import { EscheatDialog } from './hud/EscheatDialog';
-import { RightsProvider, rightDeniedReason } from './hud/rights';
+import { RightsProvider, VillageIdProvider, rightDeniedReason } from './hud/rights';
 import { Minimap } from './hud/Minimap';
 import { LineNamePanel } from './hud/LineNamePanel';
 import { NoticeLines, type NoticeLine } from './hud/NoticeLines';
@@ -1395,6 +1399,14 @@ export function VillageGame({
     },
     [viewId],
   );
+  const armyActions = useMemo<ArmyActions>(
+    () => ({
+      load: (input) => getArmyPanel(input),
+      plan: (plan) => planArmyCampaign({ plan }),
+      launch: (plan) => launchArmyCampaign({ plan }),
+    }),
+    [],
+  );
   const panelKey = view ? (view.stamp ?? `${view.id}:${view.dayIndex}`) : '';
   const panelSource = useMemo<PanelOptionsSource>(
     () => ({ key: panelKey, load: loadPanel }),
@@ -1415,321 +1427,334 @@ export function VillageGame({
   return (
     <PanelOptionsContext.Provider value={panelSource}>
       <RightsProvider value={view?.rights ?? null}>
-        <GameView landscape={landscape} onSceneReady={setScene} overlays={false} />
-        <TopBar
-          view={view}
-          world={clock}
-          initialNowMs={initialNowMs}
-          soundOn={soundOn}
-          onToggleSound={toggleSound}
-          menuOpen={menuShown}
-          onToggleMenu={() => (menuShown ? closeMenu() : openMenu())}
-          onRename={rename}
-          onSelectVillage={switchVillage}
-          onSetSteward={toggleSteward}
-          house={{
-            vassals: house?.vassals.length ?? 0,
-            waiting: house?.waiting ?? 0,
-            open: houseOpen,
-            onToggle: () => (houseOpen ? closeHouse() : openHouse()),
-          }}
-          war={{
-            wars: house?.wars.length ?? 0,
-            protectionDaysLeft: house?.protectionDaysLeft ?? null,
-            open: warOpen,
-            onToggle: () => (warOpen ? closeWar() : openWar()),
-          }}
-          devTime={devMode ? { pending: skipping, onSkip: skipTimeBy } : null}
-          devDisasters={
-            devMode && view && !view.extinct
-              ? { pending: forcingDisaster, onForce: forceDisasterChoice }
-              : null
-          }
-        />
-        <Minimap landscape={decoded} scene={scene} village={sceneVillage} />
-        <SelectionPanel
-          details={selectionDetails(view, sceneVillage, current, personState, draftState)}
-          ennoble={{
-            targets: (view?.villages ?? []).filter((v) => v.awaitingLord && v.id !== view?.id),
-            onEnnoble: ennoble,
-          }}
-          onSelectTarget={setSelected}
-          onSetSteward={(on) => {
-            const villageId = viewRef.current?.id;
-            return villageId ? toggleSteward(villageId, on) : Promise.resolve(CONNECTION_FAILED);
-          }}
-          onRelocate={relocate}
-          onLeave={leave}
-          onLeaveSon={leaveWithSon}
-          onPreviewSon={setSonPreview}
-          onCancelConstruction={(constructionId) => {
-            const villageId = viewRef.current?.id;
-            return villageId
-              ? runBuildAction(() => cancelConstruction({ villageId, constructionId }))
-              : Promise.resolve();
-          }}
-          gateFort={gateFort}
-          onGateMode={setGateFort}
-          onFortWork={(fortificationId, work, top?: FortTop) => {
-            const villageId = viewRef.current?.id;
-            return villageId
-              ? runBuildAction(() =>
-                  upgradeFortification({
-                    villageId,
-                    fortificationId,
-                    work,
-                    ...(top ? { top } : {}),
-                  }),
-                )
-              : Promise.resolve();
-          }}
-          onUpgradeRoad={(roadId, upgrade) => {
-            const villageId = viewRef.current?.id;
-            return villageId
-              ? runBuildAction(() => upgradeRoad({ villageId, roadId, upgrade }))
-              : Promise.resolve();
-          }}
-          onPlantRoadApples={(roadId) => {
-            const villageId = viewRef.current?.id;
-            return villageId
-              ? runBuildAction(() => plantRoadApples({ villageId, roadId }))
-              : Promise.resolve();
-          }}
-          onBuildWagonRoad={(roadId) => {
-            const villageId = viewRef.current?.id;
-            return villageId
-              ? runBuildAction(() => buildWagonRoad({ villageId, roadId }))
-              : Promise.resolve();
-          }}
-          wagonPlan={wagonPlan && wagonPlan.roadId === wagonRoadId ? wagonPlan.plan : null}
-          onBuildTrail={(direction) => {
-            const villageId = viewRef.current?.id;
-            return villageId
-              ? runBuildAction(() => buildTrail({ villageId, direction }))
-              : Promise.resolve();
-          }}
-          onDeclareHunt={() => {
-            const villageId = viewRef.current?.id;
-            // důvod odepření se ukáže řádkem nahoře (u kurzoru) a tlačítko ho má v popisku
-            return villageId
-              ? runAction(() => declareHunt({ villageId })).then((failure) => {
-                  if (failure !== null) pushNotice({ kind: 'error', tone: 'error', text: failure });
-                  return failure;
-                })
-              : Promise.resolve(null);
-          }}
-          onSetStance={(stance) => {
-            const villageId = viewRef.current?.id;
-            return villageId
-              ? runAction(() => setDefenseStance({ villageId, stance })).then((failure) => {
-                  if (failure !== null) pushNotice({ kind: 'error', tone: 'error', text: failure });
-                  return failure;
-                })
-              : Promise.resolve(null);
-          }}
-          onSendExpedition={(direction, give, get, people) => {
-            const villageId = viewRef.current?.id;
-            // chyba zůstane v panelu obchodu (vrácený důvod) i jako krátký řádek nahoře
-            return villageId
-              ? runAction(() =>
-                  sendExpedition({
-                    villageId,
-                    direction,
-                    give,
-                    get,
-                    givePeople: people.give,
-                    getPeople: people.get,
-                  }),
-                ).then((failure) => {
-                  if (failure !== null) pushNotice({ kind: 'error', tone: 'error', text: failure });
-                  return failure;
-                })
-              : Promise.resolve(null);
-          }}
-        />
-        <BuildGrid
-          options={options}
-          active={placement.active ? placingItem : null}
-          disabled={scene === null || foundingName}
-          group={buildGroup}
-          extendingVariant={extendingVariant}
-          onBuild={startBuild}
-        />
-        <NoticeLines
-          notices={notices}
-          status={villageError === null ? null : `Ves teď nejde zobrazit: ${villageError}`}
-          pinned={
-            lineNotice
-              ? {
-                  kind: lineNotice.kind,
-                  text: lineNotice.text,
-                  count: lineNotice.count,
-                  onOpen: () => setNamingId(lineNotice.personId),
+        <VillageIdProvider value={view?.id ?? null}>
+          <ArmyActionsContext.Provider value={armyActions}>
+            <GameView landscape={landscape} onSceneReady={setScene} overlays={false} />
+            <TopBar
+              view={view}
+              world={clock}
+              initialNowMs={initialNowMs}
+              soundOn={soundOn}
+              onToggleSound={toggleSound}
+              menuOpen={menuShown}
+              onToggleMenu={() => (menuShown ? closeMenu() : openMenu())}
+              onRename={rename}
+              onSelectVillage={switchVillage}
+              onSetSteward={toggleSteward}
+              house={{
+                vassals: house?.vassals.length ?? 0,
+                waiting: house?.waiting ?? 0,
+                open: houseOpen,
+                onToggle: () => (houseOpen ? closeHouse() : openHouse()),
+              }}
+              war={{
+                wars: house?.wars.length ?? 0,
+                protectionDaysLeft: house?.protectionDaysLeft ?? null,
+                open: warOpen,
+                onToggle: () => (warOpen ? closeWar() : openWar()),
+              }}
+              devTime={devMode ? { pending: skipping, onSkip: skipTimeBy } : null}
+              devDisasters={
+                devMode && view && !view.extinct
+                  ? { pending: forcingDisaster, onForce: forceDisasterChoice }
+                  : null
+              }
+            />
+            <Minimap landscape={decoded} scene={scene} village={sceneVillage} />
+            <SelectionPanel
+              details={selectionDetails(view, sceneVillage, current, personState, draftState)}
+              ennoble={{
+                targets: (view?.villages ?? []).filter((v) => v.awaitingLord && v.id !== view?.id),
+                onEnnoble: ennoble,
+              }}
+              onSelectTarget={setSelected}
+              onSetSteward={(on) => {
+                const villageId = viewRef.current?.id;
+                return villageId
+                  ? toggleSteward(villageId, on)
+                  : Promise.resolve(CONNECTION_FAILED);
+              }}
+              onRelocate={relocate}
+              onLeave={leave}
+              onLeaveSon={leaveWithSon}
+              onPreviewSon={setSonPreview}
+              onCancelConstruction={(constructionId) => {
+                const villageId = viewRef.current?.id;
+                return villageId
+                  ? runBuildAction(() => cancelConstruction({ villageId, constructionId }))
+                  : Promise.resolve();
+              }}
+              gateFort={gateFort}
+              onGateMode={setGateFort}
+              onFortWork={(fortificationId, work, top?: FortTop) => {
+                const villageId = viewRef.current?.id;
+                return villageId
+                  ? runBuildAction(() =>
+                      upgradeFortification({
+                        villageId,
+                        fortificationId,
+                        work,
+                        ...(top ? { top } : {}),
+                      }),
+                    )
+                  : Promise.resolve();
+              }}
+              onUpgradeRoad={(roadId, upgrade) => {
+                const villageId = viewRef.current?.id;
+                return villageId
+                  ? runBuildAction(() => upgradeRoad({ villageId, roadId, upgrade }))
+                  : Promise.resolve();
+              }}
+              onPlantRoadApples={(roadId) => {
+                const villageId = viewRef.current?.id;
+                return villageId
+                  ? runBuildAction(() => plantRoadApples({ villageId, roadId }))
+                  : Promise.resolve();
+              }}
+              onBuildWagonRoad={(roadId) => {
+                const villageId = viewRef.current?.id;
+                return villageId
+                  ? runBuildAction(() => buildWagonRoad({ villageId, roadId }))
+                  : Promise.resolve();
+              }}
+              wagonPlan={wagonPlan && wagonPlan.roadId === wagonRoadId ? wagonPlan.plan : null}
+              onBuildTrail={(direction) => {
+                const villageId = viewRef.current?.id;
+                return villageId
+                  ? runBuildAction(() => buildTrail({ villageId, direction }))
+                  : Promise.resolve();
+              }}
+              onDeclareHunt={() => {
+                const villageId = viewRef.current?.id;
+                // důvod odepření se ukáže řádkem nahoře (u kurzoru) a tlačítko ho má v popisku
+                return villageId
+                  ? runAction(() => declareHunt({ villageId })).then((failure) => {
+                      if (failure !== null)
+                        pushNotice({ kind: 'error', tone: 'error', text: failure });
+                      return failure;
+                    })
+                  : Promise.resolve(null);
+              }}
+              onSetStance={(stance) => {
+                const villageId = viewRef.current?.id;
+                return villageId
+                  ? runAction(() => setDefenseStance({ villageId, stance })).then((failure) => {
+                      if (failure !== null)
+                        pushNotice({ kind: 'error', tone: 'error', text: failure });
+                      return failure;
+                    })
+                  : Promise.resolve(null);
+              }}
+              onSendExpedition={(direction, give, get, people) => {
+                const villageId = viewRef.current?.id;
+                // chyba zůstane v panelu obchodu (vrácený důvod) i jako krátký řádek nahoře
+                return villageId
+                  ? runAction(() =>
+                      sendExpedition({
+                        villageId,
+                        direction,
+                        give,
+                        get,
+                        givePeople: people.give,
+                        getPeople: people.get,
+                      }),
+                    ).then((failure) => {
+                      if (failure !== null)
+                        pushNotice({ kind: 'error', tone: 'error', text: failure });
+                      return failure;
+                    })
+                  : Promise.resolve(null);
+              }}
+            />
+            <BuildGrid
+              options={options}
+              active={placement.active ? placingItem : null}
+              disabled={scene === null || foundingName}
+              group={buildGroup}
+              extendingVariant={extendingVariant}
+              onBuild={startBuild}
+            />
+            <NoticeLines
+              notices={notices}
+              status={villageError === null ? null : `Ves teď nejde zobrazit: ${villageError}`}
+              pinned={
+                lineNotice
+                  ? {
+                      kind: lineNotice.kind,
+                      text: lineNotice.text,
+                      count: lineNotice.count,
+                      onOpen: () => setNamingId(lineNotice.personId),
+                    }
+                  : null
+              }
+              onExpire={expireNotice}
+            />
+            {foundingName && (
+              <LineNamePanel
+                lord
+                portrait="man"
+                initialName={lastLordName()}
+                taken={[]}
+                onConfirm={confirmFounderName}
+              />
+            )}
+            {!foundingName && namingTarget && (
+              <LineNamePanel
+                key={namingTarget.id}
+                lord={namingTarget.lord}
+                portrait={personPortrait({ age: namingTarget.age, sex: 'male' })}
+                taken={view?.dynasty?.taken ?? []}
+                onConfirm={(name) => confirmLineName(namingTarget.id, namingTarget.lord, name)}
+                onClose={closeLineName}
+              />
+            )}
+            <CursorReason preview={placement.active ? placement.preview : null} />
+            {menuShown && (
+              <GameMenu
+                canRestart={view !== null}
+                email={email}
+                onClose={closeMenu}
+                onRestart={() => restart(true)}
+                onSignOut={signOut}
+              />
+            )}
+            {warOpen && !menuShown && (
+              <WarPanel
+                view={house}
+                error={houseError}
+                onClose={closeWar}
+                ownVillages={(view?.villages ?? [])
+                  .filter((v) => !v.stewarded)
+                  .map((v) => ({
+                    id: v.id,
+                    name: v.name,
+                    settlementId: v.settlementId,
+                    asleep: v.extinct || v.abandoned,
+                  }))}
+                onOfferPeace={(to, items, message) =>
+                  negotiate(() => openNegotiation({ to, items, message }))
                 }
-              : null
-          }
-          onExpire={expireNotice}
-        />
-        {foundingName && (
-          <LineNamePanel
-            lord
-            portrait="man"
-            initialName={lastLordName()}
-            taken={[]}
-            onConfirm={confirmFounderName}
-          />
-        )}
-        {!foundingName && namingTarget && (
-          <LineNamePanel
-            key={namingTarget.id}
-            lord={namingTarget.lord}
-            portrait={personPortrait({ age: namingTarget.age, sex: 'male' })}
-            taken={view?.dynasty?.taken ?? []}
-            onConfirm={(name) => confirmLineName(namingTarget.id, namingTarget.lord, name)}
-            onClose={closeLineName}
-          />
-        )}
-        <CursorReason preview={placement.active ? placement.preview : null} />
-        {menuShown && (
-          <GameMenu
-            canRestart={view !== null}
-            email={email}
-            onClose={closeMenu}
-            onRestart={() => restart(true)}
-            onSignOut={signOut}
-          />
-        )}
-        {warOpen && !menuShown && (
-          <WarPanel
-            view={house}
-            error={houseError}
-            onClose={closeWar}
-            ownVillages={(view?.villages ?? [])
-              .filter((v) => !v.stewarded)
-              .map((v) => ({
-                id: v.id,
-                name: v.name,
-                settlementId: v.settlementId,
-                asleep: v.extinct || v.abandoned,
-              }))}
-            onOfferPeace={(to, items, message) =>
-              negotiate(() => openNegotiation({ to, items, message }))
-            }
-          />
-        )}
-        {houseOpen && !menuShown && (
-          <HousePanel
-            view={house}
-            error={houseError}
-            origin={typeof window === 'undefined' ? null : window.location.origin}
-            onIssue={issueHouseInvite}
-            onRevoke={revokeHouseInvite}
-            onOpenNegotiation={(to, items, message) =>
-              negotiate(() => openNegotiation({ to, items, message }))
-            }
-            onReply={(negotiationId, reply) =>
-              negotiate(() => answerNegotiation({ negotiationId, ...reply }))
-            }
-            onBlock={(target) => negotiate(() => blockHouse({ target }))}
-            onUnblock={(target) => negotiate(() => unblockHouse({ target }))}
-            onDeclareWar={(target, items, message) =>
-              negotiate(() => declareWarOnHouse({ target, items, message }))
-            }
-            villages={(view?.villages ?? [])
-              .filter((v) => !v.stewarded)
-              .map((v) => ({ id: v.id, name: v.name }))}
-            gameYear={view ? dateOfDayIndex(view.dayIndex).year : undefined}
-            onSpare={async (toHouseId, targetVillageId) => {
-              try {
-                const result = await houseSpare({
-                  toHouseId,
-                  ...(targetVillageId !== null ? { targetVillageId } : {}),
-                });
-                return 'spare' in result ? result.spare : null;
-              } catch {
-                return null;
-              }
-            }}
-            onRenounce={(vassalageId, message) =>
-              negotiate(() => renounceVassalage({ vassalageId, message }))
-            }
-            onDismissSteward={(villageId) => negotiate(() => dismissSteward({ villageId }))}
-            onOpenLevy={() => void openLevy()}
-            onClose={closeHouse}
-            onSelectVillage={(villageId) => {
-              const target = view?.villages.find((v) => v.id === villageId);
-              if (target) switchVillage(target);
-            }}
-          />
-        )}
-        {escheats && !menuShown && (
-          <EscheatDialog
-            escheats={escheats}
-            onPropose={async (input) => {
-              const result = await proposeEscheat(input);
-              if ('ok' in result) {
-                void refreshHouse();
-                void refreshEscheats();
-              }
-              return result;
-            }}
-            onConsent={async (input) => {
-              const result = await consentEscheat(input);
-              if ('ok' in result) {
-                void refreshHouse();
-                void refreshEscheats();
-              }
-              return result;
-            }}
-            onClose={() => setEscheats(null)}
-          />
-        )}
-        {levyOpen && !menuShown && (
-          <LevyDialog
-            dialogs={levy}
-            error={levyError}
-            onAnswer={async (input) => {
-              const result = await answerLevy(input);
-              if ('ok' in result) void refreshHouse();
-              return result;
-            }}
-            onClose={closeLevy}
-          />
-        )}
-        {view?.journey && <JourneyBanner journey={view.journey} />}
-        {view?.pendingDeparture && !view.journey && (
-          <PlayerDeparturePanel
-            departure={view.pendingDeparture}
-            onPreview={setSonPreview}
-            onChoose={choosePlayerDepartureFromPanel}
-          />
-        )}
-        {gameOver && view?.lineEnded && (
-          <DefeatScreen
-            name={view.lineEnded.village}
-            lifespan={{
-              foundedYear: view.lineEnded.foundedYear,
-              extinctYear: view.lineEnded.endedYear,
-              years: view.lineEnded.years,
-            }}
-            line={view.lineEnded}
-            onRestart={() => restart(false)}
-          />
-        )}
-        {gameOver && !view?.lineEnded && view?.extinct && (
-          <DefeatScreen name={view.name} lifespan={view.extinct} onRestart={() => restart(false)} />
-        )}
-        {gameOver && !view?.lineEnded && !view?.extinct && view?.abandoned && (
-          <DefeatScreen
-            name={view.name}
-            lifespan={{
-              foundedYear: view.abandoned.foundedYear,
-              extinctYear: view.abandoned.abandonedYear,
-              years: view.abandoned.years,
-            }}
-            onRestart={() => restart(false)}
-          />
-        )}
+              />
+            )}
+            {houseOpen && !menuShown && (
+              <HousePanel
+                view={house}
+                error={houseError}
+                origin={typeof window === 'undefined' ? null : window.location.origin}
+                onIssue={issueHouseInvite}
+                onRevoke={revokeHouseInvite}
+                onOpenNegotiation={(to, items, message) =>
+                  negotiate(() => openNegotiation({ to, items, message }))
+                }
+                onReply={(negotiationId, reply) =>
+                  negotiate(() => answerNegotiation({ negotiationId, ...reply }))
+                }
+                onBlock={(target) => negotiate(() => blockHouse({ target }))}
+                onUnblock={(target) => negotiate(() => unblockHouse({ target }))}
+                onDeclareWar={(target, items, message) =>
+                  negotiate(() => declareWarOnHouse({ target, items, message }))
+                }
+                villages={(view?.villages ?? [])
+                  .filter((v) => !v.stewarded)
+                  .map((v) => ({ id: v.id, name: v.name }))}
+                gameYear={view ? dateOfDayIndex(view.dayIndex).year : undefined}
+                onSpare={async (toHouseId, targetVillageId) => {
+                  try {
+                    const result = await houseSpare({
+                      toHouseId,
+                      ...(targetVillageId !== null ? { targetVillageId } : {}),
+                    });
+                    return 'spare' in result ? result.spare : null;
+                  } catch {
+                    return null;
+                  }
+                }}
+                onRenounce={(vassalageId, message) =>
+                  negotiate(() => renounceVassalage({ vassalageId, message }))
+                }
+                onDismissSteward={(villageId) => negotiate(() => dismissSteward({ villageId }))}
+                onOpenLevy={() => void openLevy()}
+                onClose={closeHouse}
+                onSelectVillage={(villageId) => {
+                  const target = view?.villages.find((v) => v.id === villageId);
+                  if (target) switchVillage(target);
+                }}
+              />
+            )}
+            {escheats && !menuShown && (
+              <EscheatDialog
+                escheats={escheats}
+                onPropose={async (input) => {
+                  const result = await proposeEscheat(input);
+                  if ('ok' in result) {
+                    void refreshHouse();
+                    void refreshEscheats();
+                  }
+                  return result;
+                }}
+                onConsent={async (input) => {
+                  const result = await consentEscheat(input);
+                  if ('ok' in result) {
+                    void refreshHouse();
+                    void refreshEscheats();
+                  }
+                  return result;
+                }}
+                onClose={() => setEscheats(null)}
+              />
+            )}
+            {levyOpen && !menuShown && (
+              <LevyDialog
+                dialogs={levy}
+                error={levyError}
+                onAnswer={async (input) => {
+                  const result = await answerLevy(input);
+                  if ('ok' in result) void refreshHouse();
+                  return result;
+                }}
+                onClose={closeLevy}
+              />
+            )}
+            {view?.journey && <JourneyBanner journey={view.journey} />}
+            {view?.pendingDeparture && !view.journey && (
+              <PlayerDeparturePanel
+                departure={view.pendingDeparture}
+                onPreview={setSonPreview}
+                onChoose={choosePlayerDepartureFromPanel}
+              />
+            )}
+            {gameOver && view?.lineEnded && (
+              <DefeatScreen
+                name={view.lineEnded.village}
+                lifespan={{
+                  foundedYear: view.lineEnded.foundedYear,
+                  extinctYear: view.lineEnded.endedYear,
+                  years: view.lineEnded.years,
+                }}
+                line={view.lineEnded}
+                onRestart={() => restart(false)}
+              />
+            )}
+            {gameOver && !view?.lineEnded && view?.extinct && (
+              <DefeatScreen
+                name={view.name}
+                lifespan={view.extinct}
+                onRestart={() => restart(false)}
+              />
+            )}
+            {gameOver && !view?.lineEnded && !view?.extinct && view?.abandoned && (
+              <DefeatScreen
+                name={view.name}
+                lifespan={{
+                  foundedYear: view.abandoned.foundedYear,
+                  extinctYear: view.abandoned.abandonedYear,
+                  years: view.abandoned.years,
+                }}
+                onRestart={() => restart(false)}
+              />
+            )}
+          </ArmyActionsContext.Provider>
+        </VillageIdProvider>
       </RightsProvider>
     </PanelOptionsContext.Provider>
   );

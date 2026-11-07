@@ -10,6 +10,7 @@ import {
   readyScene,
   villageOnNextMap,
   villageSpots,
+  withBuiltFirstDwelling,
   villageState,
   writeVillageState,
 } from './village-helpers';
@@ -853,5 +854,89 @@ test('mír: A a C jsou ve válce, C nabídne mír s poplatkem, A přijme → vá
   await expect(c.getByTestId('village-notice').filter({ hasText: 'Mír s' })).toBeVisible({
     timeout: 60_000,
   });
+  await Promise.all(ctxs.map((ctx) => ctx.close()));
+});
+
+test('vojsko: A je ve válce s C, otevře panel Vojsko, naplánuje tažení na C a vyšle ho → tažení vznikne a muži jsou pryč', async ({
+  browser,
+}) => {
+  test.setTimeout(240_000);
+  await query(`UPDATE house SET ended_at = now() WHERE ended_at IS NULL`, []);
+  const ctxs = await Promise.all([browser.newContext(), browser.newContext()]);
+  for (const ctx of ctxs) await useUniqueClientIp(ctx);
+  const [a, c] = (await Promise.all(ctxs.map((ctx) => ctx.newPage()))) as [Page, Page];
+  for (const page of [a, c]) await page.setViewportSize({ width: 1280, height: 720 });
+  const { email: emailA, seat: seatA } = await newPlayer(a, 'vojska');
+  const spotsA = villageSpots(seatA.landscape);
+  await found(a, spotsA.dwelling, 'Bořivoj');
+  const { email: emailC, seat: seatC } = await newPlayer(c, 'vojskc');
+  await found(c, villageSpots(seatC.landscape).dwelling, 'Dalibor');
+  const idC = await houseIdOf(emailC);
+  const idA = await houseIdOf(emailA);
+
+  // ochrana vyprší a A opoví válku C
+  await query(
+    `UPDATE house SET created_at = now() - interval '30 days' WHERE ended_at IS NULL`,
+    [],
+  );
+  const panelA = await openHousePanel(a);
+  const bar = await pickPlayer(panelA, idC);
+  await bar.getByTestId('house-war').click();
+  await panelA.getByTestId('terms-submit').click();
+  await expect(a.getByTestId('war-count')).toHaveAttribute('data-wars', '1', { timeout: 30_000 });
+  // nová ves C je pět herních let pod ochranou – pro test ji „zestárneme“
+  const stateC = await villageState(seatC.settlementId);
+  await writeVillageState(seatC.settlementId, { ...stateC, foundedDay: stateC.foundedDay - 4000 });
+
+  // zásoby ve dvorci A a klik na dvorec – panel dvorce s tlačítkem Vojsko
+  const stateA = withBuiltFirstDwelling(await villageState(seatA.settlementId));
+  Object.assign(stateA, { storesKg: 4000 });
+  await writeVillageState(seatA.settlementId, stateA);
+  await pollVillage(a);
+  await a.keyboard.press('r');
+  const panel = a.getByTestId('selection-panel');
+  await expect
+    .poll(
+      async () => {
+        const point = await a.evaluate(
+          (p) => window.__bohemiaE2E!.projectToScreen!(p.x, p.z),
+          spotsA.dwelling,
+        );
+        if (!point) return null;
+        await a.mouse.move(point.x - 3, point.y);
+        await a.mouse.click(point.x, point.y);
+        return panel.getByTestId('manor-upgrades').count();
+      },
+      { timeout: 30_000 },
+    )
+    .toBe(1);
+  await panel.getByTestId('manor-army').click();
+
+  // cíl: ves C; velitel: hráčův muž; odhad síly a vyslání
+  const army = a.getByTestId('army-panel');
+  await expect(army.getByTestId('army-target')).toBeVisible({ timeout: 20_000 });
+  await army.getByTestId('army-target').selectOption({ index: 1 });
+  await expect(army.getByTestId('army-commander')).not.toHaveValue('', { timeout: 20_000 });
+  await expect(army.getByTestId('army-estimate')).toBeVisible({ timeout: 20_000 });
+  await army.getByTestId('army-launch').click();
+  await expect(a.getByTestId('army-panel')).toHaveCount(0, { timeout: 20_000 });
+
+  // tažení vzniklo ve válce A × C a hráčův muž je pryč
+  await expect
+    .poll(
+      async () =>
+        (
+          await query<{ status: string }>(
+            `SELECT c.status FROM campaign c JOIN war w ON w.id = c.war_id
+              WHERE w.house_low = ANY($1) AND w.house_high = ANY($1)`,
+            [[idA, idC]],
+          )
+        ).length,
+      { timeout: 30_000 },
+    )
+    .toBe(1);
+  const after = await villageState(seatA.settlementId);
+  expect(after.people.some((p) => p.away?.kind === 'campaign')).toBe(true);
+  expect(after.storesKg).toBeLessThan(4000);
   await Promise.all(ctxs.map((ctx) => ctx.close()));
 });

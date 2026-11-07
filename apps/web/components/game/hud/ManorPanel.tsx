@@ -5,7 +5,8 @@ import { useDismiss } from '@/hooks/use-dismiss';
 import type { VillageManor } from '@/lib/manor-view';
 import { DIRECTION_NAMES } from '@/lib/trade-names';
 import { formatDecimal, formatInteger } from '@/lib/village-format';
-import { useRightDenied } from './rights';
+import { useRightDenied, useVillageId } from './rights';
+import { ArmyPanel } from './ArmyPanel';
 import { Tooltip } from './Tooltip';
 
 // Dvorec vojvody v panelu výběru (trade.md – Dvorec vojvody): vylepšení celé vsi – zemská stezka
@@ -193,10 +194,11 @@ export function ManorUpgrades({
   onSetStance?: (stance: DefenseStance) => Promise<string | null | void>;
   trade?: (close: () => void) => ReactNode;
 }): ReactElement {
-  const [open, setOpen] = useState<'trail' | 'trade' | null>(null);
+  const [open, setOpen] = useState<'trail' | 'trade' | 'army' | null>(null);
+  const warDenied = useRightDenied('war');
+  const villageId = useVillageId();
   const [busy, setBusy] = useState(false);
   const huntDenied = useRightDenied('steward');
-  const warDenied = useRightDenied('war');
   const rootRef = useRef<HTMLDivElement>(null);
   useDismiss(open !== null, rootRef, () => setOpen(null));
   const build = (direction: Direction8): void => {
@@ -208,7 +210,8 @@ export function ManorUpgrades({
   // stezky do 8 směrů server spočítá až pro otevřený kompas (panel-options.ts)
   const asked = usePanelOptions(open === 'trail' ? { panel: 'trails' } : null);
   const trails = asked?.panel === 'trails' ? asked.trails : null;
-  const toggle = (what: 'trail' | 'trade'): void => setOpen((o) => (o === what ? null : what));
+  const toggle = (what: 'trail' | 'trade' | 'army'): void =>
+    setOpen((o) => (o === what ? null : what));
   return (
     <div ref={rootRef} data-testid="manor-upgrades" className="flex items-center gap-1.5">
       <Tooltip placement="above" content="Zemská stezka">
@@ -295,6 +298,28 @@ export function ManorUpgrades({
           />
         </button>
       </Tooltip>
+      <Tooltip placement="above" denied={warDenied} content="Vojsko">
+        <button
+          type="button"
+          data-testid="manor-army"
+          aria-label="Vojsko"
+          aria-expanded={open === 'army'}
+          disabled={villageId === null || warDenied !== null}
+          onClick={() => toggle('army')}
+          className={iconButton(false)}
+        >
+          <img
+            src="/icons/resources/boj.png"
+            alt=""
+            width={40}
+            height={40}
+            className="h-full w-full object-contain p-1"
+          />
+        </button>
+      </Tooltip>
+      {open === 'army' && villageId !== null && (
+        <ArmyPanel villageId={villageId} onClose={() => setOpen(null)} />
+      )}
       <div data-testid="manor-stance" className="ml-1 flex items-center gap-1.5">
         {STANCES.map((st) => (
           <Tooltip
