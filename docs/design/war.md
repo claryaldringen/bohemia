@@ -579,6 +579,9 @@ Martin 2. 11. 2026 – „ok“ (doplňky návrh Clauda):
 | Ranění                         | 60 dní bez práce, 1 z 5 zemře (Martin)                                                             |
 | Poslední muž rodu doma         | neklesne pod 10 zdraví, vždy uteče (Martin)                                                        |
 | Doslech rozkazu                | 30 m                                                                                               |
+| Dosah zblízka                  | 3 m – oštěp a sekera dosáhnou i přes palisádu (návrh Clauda)                                       |
+| Zda rána padne                 | los 1 : 1 každé rány (návrh Clauda)                                                                |
+| Dohled v lese                  | 50 m (jinak ≈ 150 m; návrh Clauda)                                                                 |
 
 Z 18. 10. beze změny: skupina domů 40 m, dohled 150 m, nosnost 25 kg, ochota a dezerce, kovárna
 × 1,5, obrana u domu × 1,5, nucený × 0,5 / 0,3, štěstí × 0,8–1,1.

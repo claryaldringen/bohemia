@@ -95,6 +95,7 @@ describe('lov a psi na dvorci', () => {
   it('dvorec v panelu obydlí nese řádek lovu', () => {
     const manor: VillageManor = {
       dwellingId: 1,
+      stance: 'flee',
       huntDenied: null,
       trailBuilt: false,
       neighbours: [],

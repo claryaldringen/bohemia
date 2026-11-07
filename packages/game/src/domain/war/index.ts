@@ -11,3 +11,8 @@ export * from './campaign';
 export * from './muster';
 export * from './supplies';
 export * from './desertion';
+export * from './battle';
+export * from './defenders';
+export * from './flight';
+export * from './stance';
+export * from './orders';

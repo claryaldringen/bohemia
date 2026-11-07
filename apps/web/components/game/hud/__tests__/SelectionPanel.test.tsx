@@ -862,7 +862,13 @@ describe('SelectionPanel – rozvržení', () => {
     const html = render(
       dwelling({
         type: 'dvorec',
-        manor: { dwellingId: 3, huntDenied: null, trailBuilt: false, neighbours: [] },
+        manor: {
+          dwellingId: 3,
+          stance: 'flee',
+          huntDenied: null,
+          trailBuilt: false,
+          neighbours: [],
+        },
       }),
     );
     expect(html).toMatch(/<h2 class="[^"]*whitespace-nowrap[^"]*">Dvorec vojvody<\/h2>/);
@@ -872,7 +878,13 @@ describe('SelectionPanel – rozvržení', () => {
     const html = render(
       dwelling({
         type: 'dvorec',
-        manor: { dwellingId: 3, huntDenied: null, trailBuilt: false, neighbours: [] },
+        manor: {
+          dwellingId: 3,
+          stance: 'flee',
+          huntDenied: null,
+          trailBuilt: false,
+          neighbours: [],
+        },
         leave: { households: [3], people: 4, foodKg: 50, cart: null, directions: [] },
       }),
     );

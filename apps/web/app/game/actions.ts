@@ -71,6 +71,7 @@ import {
   settleJourneyForPlayer,
   plantRoadApplesForPlayer,
   declareHuntForPlayer,
+  setDefenseStanceForPlayer,
   nameLineManForPlayer,
   ennobleVillagerForPlayer,
   setStewardForPlayer,
@@ -111,6 +112,7 @@ import {
   parseSettleJourneyInput,
   parsePlantRoadApplesInput,
   parseDeclareHuntInput,
+  parseSetDefenseStanceInput,
   parseNameLineManInput,
   parseEnnobleInput,
   parseSetStewardInput,
@@ -547,6 +549,13 @@ export async function setSteward(input: unknown): Promise<VillageActionResult> {
 export async function declareHunt(input: unknown): Promise<VillageActionResult> {
   return villageAction(input, parseDeclareHuntInput, (id, villageId) =>
     declareHuntForPlayer(id, villageId),
+  );
+}
+
+/** Postoj vsi před cizím vojskem (war.md – Obránci): `{ villageId, stance }`. */
+export async function setDefenseStance(input: unknown): Promise<VillageActionResult> {
+  return villageAction(input, parseSetDefenseStanceInput, (id, villageId, parsed) =>
+    setDefenseStanceForPlayer(id, villageId, parsed.stance),
   );
 }
 

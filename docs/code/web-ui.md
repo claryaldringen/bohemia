@@ -822,3 +822,12 @@ se vykreslí i v testech bez serveru.
   každé změně ptá serveru (`planCampaign`, odpověď nebo důvod červeně), **Vyslat** je zašedlé bez
   odhadu. Ověření a pravidla jsou na serveru – panel posílá jen plán (`war.md` kód – Ú6.6).
 - Testy: e2e `multiplayer.spec.ts` (vojsko); serverové `action-rights.test.ts` hlídá klíče práv.
+
+## Postoj vsi ve dvorci (úloha 6.9, `hud/ManorPanel.tsx`)
+
+`ManorUpgrades` má vedle stezky, lovu a obchodu tři ikony postoje (stěna štítů = bránit se, bílá
+vlajka = vzdát se při přesile, stromy = raději utéct; vlastní SVG v `public/icons/war/`, CC0,
+`LICENSES.md`); zvolená má `aria-pressed` a zlatý proužek, popis je v `Tooltip`. `VillageManor.stance`
+plní `manorView` (`stanceOf`), volba jde přes server action `setDefenseStance` → `setDefenseStanceForPlayer`
+(`lib/village.ts`, právo `war` – bez něj tlačítka zašednou s důvodem). Upozornění `foreign-army` →
+„Cizí vojsko u vsi Kněžice!“ (`lib/player-notices.ts`, panel války). Test: `ManorStance.behavior.test.tsx`.

@@ -73,8 +73,33 @@ export const WAR = {
     /** war.md – Síla: výzbroj z kovárny až × 1,5 s plným pokrytím nástroji (Martin 2. 11.). */
     smithMax: 1.5,
   },
-  /** war.md – Boj: zdraví 100, zásah 10 × síla ÷ násobek obrany, luk polovina; rány v sekundách. */
-  combat: { health: 100, hitPerStrength: 10, bowFactor: 0.5, meleeSeconds: 2, bowSeconds: 4 },
+  /**
+   * war.md – Boj: zdraví 100, zásah 10 × síla ÷ násobek obrany, luk polovina; rány v sekundách,
+   * luk na 20–60 m. Dosah zblízka (oštěp, sekera – i přes palisádu) 3 m a los, zda rána padne,
+   * 1 : 1 jsou návrh Clauda (war.md – Čísla).
+   */
+  combat: {
+    health: 100,
+    hitPerStrength: 10,
+    bowFactor: 0.5,
+    meleeSeconds: 2,
+    bowSeconds: 4,
+    bowMinM: 20,
+    bowMaxM: 60,
+    meleeM: 3,
+    hitChance: 0.5,
+  },
+  /** war.md – Mlha války: dohled ≈ 150 m (18. 10.), v hustém lese 50 m (návrh Clauda). */
+  sight: { openM: 150, forestM: 50 },
+  /** war.md – Boj – Dům od domu: domy blíž než 40 m tvoří skupinu domů (Martin 18. 10.). */
+  houseGroupM: 40,
+  /** war.md – Boj – Skupiny: držet místo – nevzdálí se od něj víc než ≈ 30 m (návrh Clauda). */
+  holdPlaceM: 30,
+  /**
+   * war.md – Síla (návrh Clauda): obránci – muži vsi 16–44 let silou vesničana; ženy, starší
+   * a chlapci od 14 let `strength.defenderOther` jen u domu.
+   */
+  defenderAges: { boyFrom: 14, manFrom: 16 },
   /** war.md – Boj: na nule zdraví padlý / raněný 1 : 1, muž rodu raněný 2 ze 3 (návrh Clauda). */
   downed: { killedShare: 0.5, lineWoundedShare: 2 / 3 },
   /** war.md – Boj: bod zlomu = padlí a ranění ÷ muži skupiny (Martin 3. 11.). */
@@ -84,6 +109,18 @@ export const WAR = {
   lineSurrenderChance: 0.8,
   /** war.md – Čísla: jáma po 1 herním dni ve skupině domů se najde s 30 %. */
   pitFoundChance: 0.3,
+  /**
+   * war.md – Obránci – včasný útěk (Martin 2. 11. 2026; čísla návrh Clauda): dospělý nese 25 kg,
+   * dítě 7–15 let 10 kg, mladší nic, dobytek jde celý; lidé se vrátí 1 herní den po odchodu vojska.
+   */
+  flight: {
+    adultKg: 25,
+    childKg: 10,
+    childFromYears: 7,
+    adultFromYears: 16,
+    returnDays: 1,
+    defaultStance: 'flee' as const,
+  },
   /** war.md – Ztráty: ranění 60 dní bez práce, 1 z 5 zemře (Martin 2. 11.). */
   wounded: { days: 60, deathShare: 0.2 },
   /** war.md – Čísla: poslední muž rodu doma neklesne pod 10 zdraví. */

@@ -452,6 +452,15 @@ export function parseDeclareHuntInput(value: unknown): Record<string, never> | n
   return isRecord(value) ? {} : null;
 }
 
+/** Vstup nastavení postoje vsi `{ stance }` (war.md – Obránci), jinak null. */
+export function parseSetDefenseStanceInput(
+  value: unknown,
+): { stance: 'defend' | 'surrender' | 'flee' } | null {
+  if (!isRecord(value)) return null;
+  const { stance } = value;
+  return stance === 'defend' || stance === 'surrender' || stance === 'flee' ? { stance } : null;
+}
+
 /** Vstup zrušení rozestavěné stavby `{ constructionId }`, jinak null. */
 export function parseCancelConstructionInput(value: unknown): { constructionId: number } | null {
   if (!isRecord(value)) return null;

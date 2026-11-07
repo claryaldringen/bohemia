@@ -4,6 +4,7 @@ import type { GridCell } from '../domain/village/world-grid';
 import {
   campaignFinished,
   CHECKPOINT_TICKS,
+  isHarmlessArmy,
   stepCampaign,
   tickOfMs,
   type CampaignIntent,
@@ -13,7 +14,10 @@ import {
   type CampaignStep,
 } from '../domain/war';
 import type { CampaignCells, CampaignLock, CampaignRepository } from './campaigns';
+import type { HouseRepository } from './houses';
 import type { NoticeRepository } from './notices';
+import type { SettlementRepository } from './settlements';
+import type { VassalageRepository } from './vassalages';
 import type { VillageRepository } from './villages';
 
 // Takt workeru pro tažení (plán 2026-11-03 – Úloha 6.5, rozhodnutí 12): každé aktivní tažení
@@ -31,6 +35,20 @@ export interface StepCampaignsDeps {
   villages: Pick<VillageRepository, 'find' | 'inbox'>;
   notices: Pick<NoticeRepository, 'post'>;
   world: WorldClock;
+  /**
+   * Kdo ves vlastní a čí vojsko je jí neškodné (war.md – Obránci). Bez toho nikdo není varován
+   * a každé vojsko škodí; composition root doplní vlastníka vsi a vztahy pána a vazalů
+   * (`isHarmlessArmy`).
+   */
+  watchers?: VillageWatchers;
+}
+
+/** Vlastník vsi a vztahy rodů pro obranu vsi. */
+export interface VillageWatchers {
+  /** Hráč, kterému ves patří, a jméno vsi; ves bez hráče null. */
+  watcherOf(villageId: string): Promise<{ playerId: string; name: string } | null>;
+  /** Je vojsko hráče `armyPlayerId` pro hráče `ownerPlayerId` neškodné (vlastní, pán, vazalové)? */
+  harmless(armyPlayerId: string, ownerPlayerId: string): Promise<boolean>;
 }
 
 /** Jak dopadlo jedno tažení v kole. */
@@ -125,19 +143,24 @@ async function stepOne(
  * od zastaveného taktu (výsledek je tentýž jako s daty předem).
  */
 export async function computeCampaign(
-  deps: Pick<StepCampaignsDeps, 'cells' | 'villages' | 'world'>,
+  deps: Pick<StepCampaignsDeps, 'cells' | 'villages' | 'world' | 'watchers'>,
   state: CampaignState,
   toTick: number,
   intents: readonly CampaignIntent[],
 ): Promise<CampaignStep> {
   const maps = new Map<string, CampaignMap>();
   const villages = new Map<string, VillageState>();
+  const watchers = new Map<string, { playerId: string; name: string }>();
+  const harmlessTo = new Map<string, boolean>();
   const key = (c: GridCell): string => `${c.x},${c.y}`;
   const world = {
     clock: deps.world,
     landscapeOf: (cell: GridCell): CampaignMap | null => maps.get(key(cell)) ?? null,
     // Ú6.5: stav vsi, jak ho úložiště má; bariéra (stav přesně ke dni) je Ú6.7
     villageAt: (villageId: string): VillageState | null => villages.get(villageId) ?? null,
+    watcherOf: (villageId: string): { playerId: string; name: string } | null =>
+      watchers.get(villageId) ?? null,
+    harmless: (villageId: string): boolean => harmlessTo.get(villageId) ?? false,
   };
   const result: CampaignStep = { state, villageEvents: [], notices: [], waiting: null };
   for (let round = 0; round <= MAX_LOADS; round++) {
@@ -157,6 +180,13 @@ export async function computeCampaign(
       const record = villages.has(villageId) ? null : await deps.villages.find(villageId);
       if (!record) continue;
       villages.set(villageId, record.state);
+      const watcher = (await deps.watchers?.watcherOf(villageId)) ?? null;
+      if (watcher) {
+        watchers.set(villageId, { playerId: watcher.playerId, name: record.name });
+        if (await deps.watchers?.harmless(state.playerId, watcher.playerId)) {
+          harmlessTo.set(villageId, true);
+        }
+      }
       loaded = true;
     }
     if (!loaded) break;
@@ -173,4 +203,32 @@ async function deliver(deps: StepCampaignsDeps, outbox: CampaignOutbox): Promise
     if (await deps.villages.find(event.villageId)) await deps.villages.inbox.post(event);
   }
   for (const notice of outbox.notices) await deps.notices.post(notice);
+}
+
+/**
+ * Vlastník vsi a neškodná vojska z portů (composition root): vlastník = majitel sídla vsi; vojsko
+ * je neškodné pro vlastního, pána i vazaly (`isHarmlessArmy` nad sítí vazalství do 8 kroků).
+ */
+export function villageWatchers(deps: {
+  villages: Pick<VillageRepository, 'find'>;
+  settlements: Pick<SettlementRepository, 'find'>;
+  houses: Pick<HouseRepository, 'activeOf'>;
+  vassalages: Pick<VassalageRepository, 'edgesNear'>;
+}): VillageWatchers {
+  return {
+    watcherOf: async (villageId) => {
+      const village = await deps.villages.find(villageId);
+      const settlement = village ? await deps.settlements.find(village.settlementId) : null;
+      return village && settlement ? { playerId: settlement.ownerId, name: village.name } : null;
+    },
+    harmless: async (armyPlayerId, ownerPlayerId) => {
+      if (armyPlayerId === ownerPlayerId) return true;
+      const [army, owner] = await Promise.all([
+        deps.houses.activeOf(armyPlayerId),
+        deps.houses.activeOf(ownerPlayerId),
+      ]);
+      if (!army || !owner) return false;
+      return isHarmlessArmy(army.id, owner.id, await deps.vassalages.edgesNear(army.id, 8));
+    },
+  };
 }

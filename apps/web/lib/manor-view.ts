@@ -17,6 +17,7 @@ import {
   canDeclareHunt,
   HUNT_DENIED_TEXT,
   lordFamily,
+  stanceOf,
   neighbourOf,
   neighbourStock,
   sellPrice,
@@ -28,6 +29,7 @@ import {
   villageManor,
   villageTrails,
   type CartKind,
+  type DefenseStance,
   type Direction8,
   type Landscape,
   type TradeGood,
@@ -154,6 +156,8 @@ function huntDeniedText(state: VillageState, day: number): string | null {
 
 /** Dvorec vojvody pro panel výběru. */
 export interface VillageManor {
+  /** Postoj vsi před cizím vojskem (war.md – Obránci); bez nastavení `flee`. */
+  stance: DefenseStance;
   /** Lov navíc na zítřek: důvod odepření česky, nebo null (lze vyhlásit; wildlife.md – Lov rodu). */
   huntDenied: string | null;
   /** Lov rodu letos a psi dvorce (wildlife.md – Co hráč vidí); bez psů a úlovku chybí. */
@@ -359,6 +363,7 @@ export function manorView(
   if (!manor || state.extinctDay !== undefined) return null;
   return {
     dwellingId: manor.id,
+    stance: stanceOf(state),
     huntDenied: huntDeniedText(state, day),
     ...huntField(state, day),
     trailBuilt: villageTrails(state).some((t) => t.builtDay !== null),

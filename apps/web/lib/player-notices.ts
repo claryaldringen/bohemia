@@ -35,6 +35,7 @@ export function noticePanel(kind: PlayerNoticeKind): NoticePanel | null {
     case 'war-declared':
     case 'protection-ending':
     case 'campaign-returned':
+    case 'foreign-army':
       return 'war';
     case 'levy-pending':
       return 'levy';
@@ -95,6 +96,9 @@ function textOf(n: PlayerNotice): string {
       return n.payload.reason === 'supplies'
         ? 'Vojsko se vrátilo – došlo jídlo.'
         : 'Vojsko se vrátilo domů.';
+    case 'foreign-army':
+      // jméno vsi se neskloňuje (2. pád jmen vsí nejde spolehlivě odvodit) – „u vsi Kněžice“
+      return `Cizí vojsko u vsi ${stringOf(n.payload.name) ?? ''}!`.replace(' !', '!');
     case 'vassalage-renounced': {
       const lord = stringOf(n.payload.lordName) ?? 'Pán';
       const vassal = stringOf(n.payload.vassalName) ?? 'Vazal';

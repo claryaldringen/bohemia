@@ -16,11 +16,24 @@ import type {
   CampaignWorld,
 } from './campaign-types';
 import { deserters } from './desertion';
+import {
+  battleForts,
+  battleTick,
+  commandFighter,
+  openBattle,
+  type BattleField,
+  type BattleFort,
+  type BattleState,
+} from './battle';
+import { defenderRoster } from './defenders';
+import { stanceOf } from './flight';
+import { planDefense } from './stance';
 import { marchGrid, type MarchGrid } from './march-grid';
 import { marchPath, marchPathToEdge, marchProgress, marchSpeed, type GroupPace } from './march';
 import { WAR } from './rules-war';
 import { frostDay } from './season';
-import { dayOfTick, TICKS_PER_SECOND } from './ticks';
+import { setGroupOrder } from './orders';
+import { dayOfTick, hoursPerTick, TICKS_PER_SECOND, tickRandom } from './ticks';
 import { edgeCrossing, worldRoute } from './world-route';
 
 // Tažení po taktech (plán 2026-11-03 – rozhodnutí 12, Úloha 6.5): čistá funkce výchozího stavu,
@@ -47,6 +60,8 @@ interface TickOut {
 interface TickContext {
   world: CampaignWorld;
   grids: Map<string, MarchGrid>;
+  /** Opevnění vsi pro bojiště (ves a den). */
+  forts: Map<string, BattleFort[]>;
 }
 
 const cellKey = (c: GridCell): string => `${c.x},${c.y}`;
@@ -127,7 +142,7 @@ export function stepCampaign(
   const pending = intents
     .filter((i) => i.tick > state.tick && i.tick <= toTick && i.byPlayer === state.playerId)
     .sort((a, b) => a.tick - b.tick || a.seq - b.seq);
-  const ctx: TickContext = { world, grids: new Map() };
+  const ctx: TickContext = { world, grids: new Map(), forts: new Map() };
   const villageEvents: NewVillageEvent[] = [];
   const notices: CampaignNotice[] = [];
   let current = state;
@@ -199,7 +214,7 @@ function campaignTick(
       }
       break;
     case 'raiding':
-      raidTick(s);
+      raidTick(s, tick, ctx, out);
       break;
     case 'returning':
     case 'disbanded':
@@ -262,11 +277,25 @@ function applyIntent(s: CampaignState, intent: CampaignIntent, out: TickOut): vo
       chronicle(s, out, s.assembly.villageId, 'set-out');
       return;
     case 'march':
-      if (s.phase !== 'marching' || !s.liveCommand) return;
+      if (!s.liveCommand) return;
+      if (s.phase === 'raiding' && s.battle && sameCell(body.to.cell, s.target.cell)) {
+        commandFighter(s.battle, commanderFighter(s), { goal: body.to.pos });
+        return;
+      }
+      if (s.phase !== 'marching') return;
       for (const g of s.groups) sendGroup(g, body.to);
       return;
     case 'turn-back':
       if (s.phase === 'marching' || s.phase === 'raiding') turnBack(s, 'order');
+      return;
+    case 'set-order':
+      if (s.phase === 'done' || s.phase === 'disbanded') return;
+      setGroupOrder(s, body.group, body.order, body.at ?? null);
+      return;
+    case 'strike':
+      if (s.phase === 'raiding' && s.battle && s.liveCommand) {
+        commandFighter(s.battle, commanderFighter(s), { strike: body.target });
+      }
       return;
   }
 }
@@ -281,17 +310,163 @@ function sendGroup(g: CampaignGroup, to: CampaignPlace): void {
 
 /** Obrat domů ke shromaždišti (rozpad po hloučcích do domovských vsí doplní Ú6.12). */
 function turnBack(s: CampaignState, reason: CampaignReturnReason): void {
+  if (s.phase === 'raiding') leaveBattle(s);
   s.phase = 'returning';
   s.returnReason = reason;
   for (const g of s.groups) sendGroup(g, s.assembly);
 }
 
 /**
- * Takt na mapě cíle. Úloha 6.5 boj nemá – vojsko se po příchodu obrátí. Sem se zapojí boj
- * (`battleTick` – Ú6.8), obránci a útěk (Ú6.9), kořist (Ú6.10) a vzdaní (Ú6.11).
+ * Takt na mapě cíle – boj muž po muži (war.md – Boj; Ú6.8). První takt postaví bojiště: obránce
+ * vsi ve výchozím postoji u domů (`defenderRoster`; postoje, včasný útěk a skryté jámy – Ú6.9)
+ * a muže tažení u jejich skupin; každý takt pak `battleTick` s náhodou taktu.
+ * Konec boje: útočníci drží bojiště → kořist a škody ve vsi (Ú6.10), zajetí raněných mužů rodu
+ * a vzdaných (Ú6.11), pak domů; útočníci poraženi → domů (rozpad po hloučcích, prchající domů
+ * a rozhodnutí NPC velitele – Ú6.12; raněné na bojišti zajme obránce – Ú6.11).
  */
-function raidTick(s: CampaignState): void {
-  turnBack(s, 'arrived');
+function raidTick(s: CampaignState, tick: number, ctx: TickContext, out: TickOut): void {
+  // vlastní vojska a vojska pána a vazalů jsou neškodná – nikdo neútočí ani neutíká
+  if (!s.battle && ctx.world.harmless?.(s.target.villageId, s.playerId)) {
+    turnBack(s, 'arrived');
+    return;
+  }
+  const field = battleFieldOf(s, ctx);
+  if (!s.battle) {
+    s.battle = campaignBattle(s, ctx, field);
+    // přítomný hráč se dozví, že u vsi stojí cizí vojsko (war.md – Obránci: Přítomný hráč)
+    const watcher = ctx.world.watcherOf?.(s.target.villageId);
+    if (watcher && watcher.playerId !== s.playerId) {
+      out.notices.push({
+        playerId: watcher.playerId,
+        kind: 'foreign-army',
+        payload: { villageId: s.target.villageId, name: watcher.name },
+        gameDay: s.day,
+      });
+    }
+  }
+  battleTick(s.battle, field, tickRandom(s.seed, tick, 'battle'));
+  syncMembers(s, s.battle);
+  // Ú6.10: padlí a ranění obránci a škody jdou do vsi jako vnější události (rozhodnutí 13)
+  if (s.battle.outcome === 'attackers') turnBack(s, 'arrived');
+  else if (s.battle.outcome === 'defenders') turnBack(s, 'routed');
+}
+
+/** Id bojovníka velitele tažení (pokyny hráče v boji). */
+function commanderFighter(s: CampaignState): string {
+  const i = s.members.findIndex((m) => sameRef(m.ref, s.commander));
+  return `a:${i}`;
+}
+
+const sameRef = (a: PersonRef, b: PersonRef): boolean =>
+  a.villageId === b.villageId && a.personId === b.personId;
+
+/** Bojiště v den `s.day`: mřížka mapy cíle a opevnění cílové vsi. */
+function battleFieldOf(s: CampaignState, ctx: TickContext): BattleField {
+  const grid = gridOf(s.target.cell, s.day, ctx);
+  const map = ctx.world.landscapeOf(s.target.cell);
+  if (map === null) throw new MissingData([{ ...s.target.cell }], []);
+  const key = `${s.target.villageId}@${s.day}`;
+  let forts = ctx.forts.get(key);
+  if (!forts && !map.villageIds.includes(s.target.villageId)) forts = [];
+  if (!forts) {
+    const village = ctx.world.villageAt(s.target.villageId, s.day);
+    if (village === null) throw new MissingData([], [s.target.villageId]);
+    forts = battleForts(map.landscape, village.fortifications ?? []);
+    ctx.forts.set(key, forts);
+  }
+  return {
+    grid,
+    geo: map.landscape,
+    forts,
+    day: s.day,
+    hoursPerTick: hoursPerTick(ctx.world.clock),
+  };
+}
+
+/** Výchozí boj: muži tažení na mapě cíle, kteří stojí na nohou, a obránci vsi. */
+function campaignBattle(s: CampaignState, ctx: TickContext, field: BattleField): BattleState {
+  // ves na mapě cíle už není (zanikla, odešla) – nikdo nebrání
+  const onMap = ctx.world.landscapeOf(s.target.cell)?.villageIds.includes(s.target.villageId);
+  const village = onMap ? ctx.world.villageAt(s.target.villageId, s.day) : null;
+  if (onMap && village === null) throw new MissingData([], [s.target.villageId]);
+  const groups = new Map(s.groups.map((g) => [g.id, g]));
+  const attackers = s.members.flatMap((m, member) => {
+    const g = groups.get(m.group);
+    if (m.status !== 'active' || m.wounded || !g || !sameCell(g.cell, s.target.cell)) return [];
+    return [{ member, group: m.group, m, g }];
+  });
+  // šik po skupinách – pět v řadě po 2 m, ať muži nestojí v jednom bodě
+  const rank = new Map<number, number>();
+  const fighters = attackers.map(({ member, group, m, g }) => {
+    const k = rank.get(group) ?? 0;
+    rank.set(group, k + 1);
+    return {
+      member,
+      group,
+      line: m.line,
+      mounted: m.mounted,
+      strength: m.strength * m.vigor,
+      health: m.health,
+      pos: { x: g.pos.x + ((k % 5) - 2) * 2, z: g.pos.z + Math.floor(k / 5) * 2 },
+    };
+  });
+  // Ú6.10 / aplikace: muži rodu v jiných vsích hráče (`lineMenElsewhere`) – zatím jen tato ves.
+  // Ves se podle postoje rozdělí dřív, než dojde na boj (útěk, útočiště, vzdání – Ú6.9).
+  const plan = village
+    ? planDefense({
+        state: village,
+        day: s.day,
+        stance: stanceOf(village),
+        defenders: defenderRoster(village, s.day),
+        attackers: fighters.map((a) => ({ pos: a.pos, mounted: a.mounted })),
+        field,
+      })
+    : null;
+  return openBattle({
+    attackers: fighters,
+    ...(plan ? { shelter: plan.shelter } : {}),
+    defenders: plan ? plan.fighters : [],
+    groups: s.groups.map((g) => ({ id: g.id, order: g.order, holdAt: g.holdAt ?? null })),
+    commander: indexOf(s, s.commander),
+    deputy: s.deputy ? indexOf(s, s.deputy) : null,
+    liveCommand: s.liveCommand,
+  });
+}
+
+function indexOf(s: CampaignState, ref: PersonRef): number | null {
+  const i = s.members.findIndex((m) => sameRef(m.ref, ref));
+  return i < 0 ? null : i;
+}
+
+/** Zdraví a ztráty mužů tažení z boje: padlý `fallen`, raněný `wounded` (zpomalí návrat). */
+function syncMembers(s: CampaignState, b: BattleState): void {
+  for (const f of b.fighters) {
+    const m = f.side === 'attack' ? s.members[f.ref] : undefined;
+    if (!m || m.status !== 'active') continue;
+    m.health = f.health;
+    if (f.state !== 'down') continue;
+    if (f.killed) m.status = 'fallen';
+    else m.wounded = true;
+  }
+}
+
+/**
+ * Konec boje pro tažení: skupiny se sejdou tam, kde stojí jejich muži (velitel, jinak první
+ * na nohou), a jdou odtud. Ustoupí-li velitel, jeho muži spořádaně s ním (war.md – Boj).
+ */
+function leaveBattle(s: CampaignState): void {
+  const b = s.battle;
+  if (!b) return;
+  if (b.outcome === 'ongoing') b.outcome = 'withdrawn';
+  syncMembers(s, b);
+  const lead = b.fighters.find((f) => f.id === b.commander && f.state !== 'down');
+  for (const g of s.groups) {
+    const men = b.fighters.filter(
+      (f) => f.side === 'attack' && f.group === g.id && f.state !== 'down',
+    );
+    const at = men.find((f) => f.id === lead?.id) ?? men[0];
+    if (at) g.pos = { ...at.pos };
+  }
 }
 
 /** Konec tažení: muži doma, zápis do kronik domovských vsí a upozornění vůdci. */
