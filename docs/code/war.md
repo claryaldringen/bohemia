@@ -331,7 +331,10 @@ Plán 2026-11-03 – rozhodnutí 13, Úloha 6.7. Ves čeká jen na tažení u se
 - **Tažení** – `computeCampaign`: `villageAt(v, d)` = uložený stav, má-li `lastDay ≥ d − 1`, jinak null
   (takt čeká; ves se v dalším kole načte znovu). Čeká-li tažení na ves a postoupilo, **bod se uloží
   hned** – mez vsi povyroste na den, na který tažení čeká (jinak by čekaly obě strany). Ves dopočtená
-  dál, než ji tažení drželo (dohánění po restartu), dá svůj stav.
+  dál, než ji tažení drželo, dá svůj stav (o den novější – výsledek pak závisí na tom, kdo počítal
+  dřív). U tažení, které stíhá hodiny, to nenastane: mez platí už na sousedním políčku a přejít
+  políčko (1920 m) trvá i jezdcům přes 4 herní dny. Zbývá den vyhlášení (vyrazí týž den – ves
+  shromaždiště mohla mít spočtený dnešek) a dohánění tažení po výpadku o víc dní – zatím otevřené.
 - **Dny nájezdu** – `watchVillages` po každém taktu (kromě shromáždění a konce): každá ves na mapě,
   kde stojí skupina s aktivním mužem a které vojsko škodí (`harmless`), dostane na každý den
   `raid-day { campaignId }` **na týž den** (bariéra ji před tím dnem drží) – `VillageState.raidDay`;
@@ -350,7 +353,8 @@ Plán 2026-11-03 – rozhodnutí 13, Úloha 6.7. Ves čeká jen na tažení u se
   neškodné vojsko, bariéra zastaví takt, posel jednou na další den, cizí rod, načtení vsí),
   `stance.test.ts` (posel – útočiště i s útočníky u brány), `apps/worker` `loop.test.ts` (krátký spánek),
   `packages/server/src/__tests__/campaign-race.db.test.ts` (souběh worker vsí + tažení + web = jeden
-  proces, do 60 s, dny nájezdu, posel, ves daleko na dnešku).
+  proces, do 60 s, dny nájezdu, posel, ves daleko na dnešku; oba světy mají pevný `weather_seed`
+  sídel – v DB je náhodný a jiné počasí by vsi rozešlo).
 
 ## Postoje vsi a včasný útěk (Ú6.9)
 

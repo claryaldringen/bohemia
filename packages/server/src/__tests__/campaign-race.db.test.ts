@@ -115,6 +115,10 @@ async function seedWorld(): Promise<Map<Label, string>> {
             layerVersions: CURRENT_LAYER_VERSIONS,
             worldCell: place.cell,
           });
+    // seed počasí kraje je v DB náhodný (`random()`) – oba světy scénáře ho musí mít stejný
+    await setup.execute(
+      sql`UPDATE settlement SET weather_seed = ${place.seed * 7919} WHERE id = ${settlement!.id}`,
+    );
     const founded = await foundVillageForSettlement(
       { villages, seeds: { nextSeed: () => seed++ } },
       {
@@ -295,7 +299,14 @@ async function snapshot(ids: Map<Label, string>): Promise<{
     states,
     // id války se v každém běhu liší (náhodné uuid)
     campaign: canonical({ ...checkpoint?.state, warId: 'war' }),
-    inbox: rows.rows.map((r) => ({ label: labelOf.get(r.village_id)!, day: r.day, kind: r.kind })),
+    // id vsí jsou náhodná uuid – pořadí podle jmenovky, uvnitř vsi podle dne a pořadí doručení
+    inbox: rows.rows
+      .map((r) => ({ label: labelOf.get(r.village_id)!, day: r.day, kind: r.kind }))
+      .sort(
+        (x, y) =>
+          PLACES.findIndex((p) => p.label === x.label) -
+          PLACES.findIndex((p) => p.label === y.label),
+      ),
   };
 }
 
@@ -343,7 +354,7 @@ describe('souběh vsí a tažení – bariéra (Úloha 6.7)', () => {
     ];
     for (let tick = T0 + STEP; tick <= T0 + TICKS; tick += STEP) {
       now = tick;
-      await sleep(4);
+      await sleep(30);
     }
     running = false;
     await Promise.all(loops);
