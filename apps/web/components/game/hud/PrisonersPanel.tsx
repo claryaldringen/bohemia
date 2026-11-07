@@ -1,0 +1,106 @@
+import { useState, type ReactElement } from 'react';
+import type { PrisonerView } from '@/lib/manor-view';
+import { Tooltip } from './Tooltip';
+
+// Zajatci ve dvorci (war.md – Vzdaní, zajetí a výkupné): portrét s pouty a tři rozhodnutí věznitele –
+// držet, propustit, popravit. Jako v 0 A.D. bez popisků: ikony, slova jen v popiscích. Poprava
+// vyžaduje potvrzení druhým stiskem téhož tlačítka (ne dialog prohlížeče).
+
+export type PrisonerAction = 'hold' | 'release' | 'execute';
+
+const button = 'hud-inset h-9 w-9 overflow-hidden rounded disabled:cursor-wait disabled:opacity-60';
+
+/** Řádek zajatce: portrét a tlačítka. `onDecide` vrací důvod odmítnutí, nebo nic. */
+function PrisonerRow({
+  prisoner,
+  onDecide,
+}: {
+  prisoner: PrisonerView;
+  onDecide: (id: string, action: PrisonerAction) => Promise<string | null | void>;
+}): ReactElement {
+  const [busy, setBusy] = useState(false);
+  const [confirm, setConfirm] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const run = (action: PrisonerAction): void => {
+    setBusy(true);
+    setError(null);
+    void onDecide(prisoner.id, action)
+      .then((reason) => setError(reason ?? null))
+      .finally(() => {
+        setBusy(false);
+        setConfirm(false);
+      });
+  };
+  const title = prisoner.name ?? (prisoner.noble ? 'Zajatý šlechtic' : 'Zajatý muž rodu');
+  return (
+    <div data-testid="prisoner" className="flex items-center gap-1.5">
+      <Tooltip placement="above" content={title}>
+        <img
+          src="/icons/war/captive.svg"
+          alt={title}
+          width={36}
+          height={36}
+          className="hud-inset h-9 w-9 rounded p-0.5"
+        />
+      </Tooltip>
+      <Tooltip placement="above" content="Držet v zajetí">
+        <button
+          type="button"
+          data-testid="prisoner-hold"
+          aria-label="Držet v zajetí"
+          disabled={busy}
+          onClick={() => run('hold')}
+          className={button}
+        >
+          <img src="/icons/war/hold.svg" alt="" width={36} height={36} />
+        </button>
+      </Tooltip>
+      <Tooltip placement="above" content="Propustit domů">
+        <button
+          type="button"
+          data-testid="prisoner-release"
+          aria-label="Propustit domů"
+          disabled={busy}
+          onClick={() => run('release')}
+          className={button}
+        >
+          <img src="/icons/war/release.svg" alt="" width={36} height={36} />
+        </button>
+      </Tooltip>
+      <Tooltip
+        placement="above"
+        content={confirm ? 'Stiskni znovu: popravit nevratně' : 'Popravit'}
+      >
+        <button
+          type="button"
+          data-testid="prisoner-execute"
+          aria-label={confirm ? 'Potvrdit popravu' : 'Popravit'}
+          disabled={busy}
+          onClick={() => (confirm ? run('execute') : setConfirm(true))}
+          className={`${button} ${confirm ? 'ring-2 ring-red-600' : ''}`}
+        >
+          <img src="/icons/war/execute.svg" alt="" width={36} height={36} />
+        </button>
+      </Tooltip>
+      {error !== null && <span className="text-xs text-red-500">{error}</span>}
+    </div>
+  );
+}
+
+/** Zajatci držení ve vsi; bez zajatců se nezobrazí. */
+export function PrisonersPanel({
+  prisoners,
+  onDecide,
+}: {
+  prisoners: readonly PrisonerView[];
+  onDecide: (id: string, action: PrisonerAction) => Promise<string | null | void>;
+}): ReactElement | null {
+  if (prisoners.length === 0) return null;
+  return (
+    <div data-testid="prisoners" className="ml-1 flex flex-col gap-1">
+      {prisoners.map((p) => (
+        <PrisonerRow key={p.id} prisoner={p} onDecide={onDecide} />
+      ))}
+    </div>
+  );
+}

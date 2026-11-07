@@ -25,6 +25,7 @@ import {
   buildTrail,
   declareHunt,
   setDefenseStance,
+  decidePrisonerAction,
   cancelConstruction,
   forceDevDisaster,
   foundVillage,
@@ -1538,6 +1539,15 @@ export function VillageGame({
                     })
                   : Promise.resolve(null);
               }}
+              onDecidePrisoner={(prisonerId, action) =>
+                decidePrisonerAction({ prisonerId, action }).then((result) => {
+                  if ('error' in result) {
+                    pushNotice({ kind: 'error', tone: 'error', text: result.error });
+                    return result.error;
+                  }
+                  return null;
+                })
+              }
               onSetStance={(stance) => {
                 const villageId = viewRef.current?.id;
                 return villageId

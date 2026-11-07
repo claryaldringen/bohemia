@@ -1,7 +1,7 @@
 import type { WorldClock } from '../calendar';
 import type { Landscape, ObstacleLayer } from '../landscape';
 import type { NewVillageEvent } from '../village/inbox';
-import type { Person, PersonRef, RaidLoot, VillageState } from '../village/types';
+import type { Person, PersonRef, Prisoner, RaidLoot, VillageState } from '../village/types';
 import type { GridCell } from '../village/world-grid';
 import type { BattleState } from './battle';
 import type { Pos } from './march-grid';
@@ -112,6 +112,8 @@ export interface CampaignLoot {
    * přijdou jako noví vesničané s novými id (`campaign-return`). Chybí – nikdo.
    */
   people?: Person[];
+  /** Zajatí muži rodu a šlechtici – přibudou do `VillageState.prisoners` vsi shromaždiště. */
+  prisoners?: Prisoner[];
 }
 
 /** Proč se tažení vrací; `routed` = útočníci v boji poraženi (war.md – Bod zlomu). */
@@ -168,7 +170,13 @@ export type IntentBody =
   /** Rozkaz skupině (war.md – Změna rozkazu); `at` = místo pro „držet místo“. */
   | { kind: 'set-order'; group: number; order: GroupOrder; at?: Pos }
   /** Velitel v boji napadne muže (id bojovníka – `Fighter.id`). */
-  | { kind: 'strike'; target: string };
+  | { kind: 'strike'; target: string }
+  /**
+   * Volba ke vzdaným (war.md – Velení, bod 8; Vzdaní, zajetí a výkupné): pobít / odvést / nechat
+   * – platí pro vzdané, které vojsko ve skupině `group` dostane; šlechtice a muže rodu u NPC
+   * velitele útočník vždy zajme.
+   */
+  | { kind: 'choose-surrendered'; group: number; choice: SurrenderOrder };
 
 /** Záměr s taktem, ve kterém platí (teď + 2), a pořadím zápisu `seq` (v taktu podle něj). */
 export interface CampaignIntent {

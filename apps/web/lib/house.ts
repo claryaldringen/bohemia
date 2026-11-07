@@ -1,4 +1,5 @@
 import { escheatGift } from './escheats';
+import { ransom } from './prisoners';
 import {
   acceptNegotiation,
   blockPlayer,
@@ -76,12 +77,15 @@ export async function openNegotiationForPlayer(
 ): Promise<NegotiationActionResult> {
   const today = await playerToday(playerId);
   if (!today.ok) return { error: today.error };
-  const result: NegotiateResult = await openNegotiation(gameDeps(), {
-    playerId,
-    ...input,
-    now: new Date(),
-    today: today.day,
-  });
+  const result: NegotiateResult = await openNegotiation(
+    { ...gameDeps(), ransom: ransom() },
+    {
+      playerId,
+      ...input,
+      now: new Date(),
+      today: today.day,
+    },
+  );
   return outcome(result);
 }
 
@@ -109,7 +113,7 @@ export async function answerNegotiationForPlayer(
   const today = await playerToday(playerId);
   if (!today.ok) return { error: today.error };
   const base = { playerId, negotiationId: input.negotiationId, now: new Date(), today: today.day };
-  const deps = gameDeps();
+  const deps = { ...gameDeps(), ransom: ransom() };
   switch (input.answer) {
     case 'accept':
       return outcome(

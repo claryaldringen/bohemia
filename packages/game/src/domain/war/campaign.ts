@@ -1,6 +1,8 @@
 import type { WorldClock } from '../calendar';
 import type { NewVillageEvent, VillageEventBody } from '../village/inbox';
-import type { Person, PersonRef, VillageState } from '../village/types';
+import type { Person, PersonRef, Prisoner, VillageState } from '../village/types';
+import { createRandom, deriveSeed } from '../landscape/random';
+import { surrenders } from './surrender';
 import { directionBetween, type GridCell } from '../village/world-grid';
 import type {
   CampaignGroup,
@@ -32,6 +34,7 @@ import {
   lootCapacity,
   lootTotals,
   noLoot,
+  prisonerKey,
   raidChronicle,
   raidLoot,
   type CampaignReturn,
@@ -311,6 +314,12 @@ function applyIntent(s: CampaignState, intent: CampaignIntent, out: TickOut): vo
         commandFighter(s.battle, commanderFighter(s), { strike: body.target });
       }
       return;
+    case 'choose-surrendered':
+      // jen živé vedení, jen existující skupina a jen než boj skončí
+      if (!s.liveCommand || !s.groups.some((g) => g.id === body.group)) return;
+      if (s.phase === 'done' || s.phase === 'disbanded' || s.raidDay !== undefined) return;
+      s.surrendered = body.choice;
+      return;
   }
 }
 
@@ -506,7 +515,10 @@ function finish(s: CampaignState, ctx: TickContext, out: TickOut): void {
   reportRaid(s, ctx, out);
   s.phase = 'done';
   const homes = [...new Set(s.members.map((m) => m.ref.villageId))];
-  const spoils = s.loot.detail !== undefined || (s.loot.people?.length ?? 0) > 0;
+  const spoils =
+    s.loot.detail !== undefined ||
+    (s.loot.people?.length ?? 0) > 0 ||
+    (s.loot.prisoners?.length ?? 0) > 0;
   if (spoils && !homes.includes(s.assembly.villageId)) homes.push(s.assembly.villageId);
   for (const villageId of homes) {
     post(s, out, villageId, { kind: 'campaign-return', result: returnOf(s, villageId) });
@@ -562,6 +574,7 @@ function returnOf(s: CampaignState, villageId: string): CampaignReturn {
     fallen: mine.filter((m) => m.status === 'fallen' && !m.line).map((m) => m.ref.personId),
     ...(home && s.loot.detail ? { loot: structuredClone(s.loot.detail) } : {}),
     ...(home && s.loot.people?.length ? { people: structuredClone(s.loot.people) } : {}),
+    ...(home && s.loot.prisoners?.length ? { prisoners: structuredClone(s.loot.prisoners) } : {}),
   };
 }
 
@@ -599,13 +612,17 @@ function reportRaid(s: CampaignState, ctx: TickContext, out: TickOut): void {
     event: raidChronicle(s.day + 1, result, counts),
   });
   const totals = lootTotals(result.loot);
+  const captured = result.captured ?? [];
   s.loot = {
     foodKg: s.loot.foodKg + totals.foodKg,
     herd: s.loot.herd + totals.herd,
     detail: structuredClone(result.loot),
     ...(result.led.length > 0 ? { people: ledPeople(village, result.led) } : {}),
+    ...(captured.length > 0 ? { prisoners: capturedPrisoners(s, village, captured) } : {}),
   };
-  for (const personId of result.led) s.captives.push({ villageId: s.target.villageId, personId });
+  for (const personId of [...result.led, ...captured]) {
+    s.captives.push({ villageId: s.target.villageId, personId });
+  }
 }
 
 /** Padlí, ranění, odvedení a kořist z boje a stavu napadené vsi v den konce boje. */
@@ -623,16 +640,37 @@ function raidResultOf(
   }
   const won = b.outcome === 'attackers';
   const led: number[] = [];
+  const captured: number[] = [];
   const shelter = b.shelter;
-  if (won && shelter) {
-    const order = s.surrendered ?? 'lead';
+  if (won) {
     const people = new Map(village.people.map((p) => [p.id, p]));
-    for (const id of shelter.surrendered) {
+    const order = s.surrendered ?? 'lead';
+    // vzdaný nebo raněný muž rodu / šlechtic: útočník ho zajme (NPC vždy), pobije, nebo nechá
+    const takeMan = (id: number): void => {
+      const choice = s.liveCommand ? order : 'lead';
+      const w = wounded.indexOf(id);
+      if (choice === 'lead') captured.push(id);
+      else if (choice === 'kill') fallen.push(id);
+      else return;
+      if (w >= 0) wounded.splice(w, 1);
+    };
+    for (const id of shelter?.surrendered ?? []) {
       const p = people.get(id);
-      // muže rodu a šlechtice zajme Ú6.11 – zatím zůstanou doma
-      if (!p || p.line || p.noble) continue;
-      if (order === 'lead') led.push(id);
+      if (!p) continue;
+      if (p.line || p.noble) takeMan(id);
+      else if (order === 'lead') led.push(id);
       else if (order === 'kill') fallen.push(id);
+    }
+    // raněný muž rodu na bojišti, kterého útočník obklíčil, se vzdá s pravděpodobností 80 %
+    for (const f of b.fighters) {
+      if (f.side !== 'defend' || f.state !== 'down' || f.killed) continue;
+      const p = people.get(f.ref);
+      if (!p || !(p.line || p.noble) || captured.includes(f.ref) || fallen.includes(f.ref))
+        continue;
+      const rng = createRandom(deriveSeed(s.seed, `surrender:${f.ref}`));
+      if (surrenders({ mounted: false }, { hopeless: true, freeRoute: false }, rng)) {
+        takeMan(f.ref);
+      }
     }
   }
   const base = {
@@ -644,6 +682,12 @@ function raidResultOf(
     fallen: fallen.sort((x, y) => x - y),
     wounded: wounded.sort((x, y) => x - y),
     led: led.sort((x, y) => x - y),
+    ...(captured.length > 0
+      ? {
+          captured: captured.sort((x, y) => x - y),
+          captorVillageId: s.assembly.villageId,
+        }
+      : {}),
   };
   if (!won) return { ...base, loot: noLoot(), pitsFound: [] };
   const refuge = new Set(shelter?.refuge ?? []);
@@ -677,6 +721,25 @@ function breachesOf(b: BattleState, village: VillageState): Map<number, number[]
   }
   for (const list of byFort.values()) list.sort((x, y) => x - y);
   return byFort;
+}
+
+/** Zajatci z nájezdu (muži rodu a šlechtici napadené vsi) pro ves shromaždiště. */
+function capturedPrisoners(
+  s: CampaignState,
+  village: VillageState,
+  ids: readonly number[],
+): Prisoner[] {
+  const wanted = new Set(ids);
+  return village.people
+    .filter((p) => wanted.has(p.id))
+    .sort((a, b) => a.id - b.id)
+    .map((p) => ({
+      id: prisonerKey(s.id, p.id),
+      ref: { villageId: s.target.villageId, personId: p.id },
+      ...(p.name === undefined ? {} : { name: p.name }),
+      ...(p.noble ? { noble: true as const } : {}),
+      sinceDay: s.day + 1,
+    }));
 }
 
 /** Snímek odvedených lidí ze stavu napadené vsi (v pořadí id). */

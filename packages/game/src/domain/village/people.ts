@@ -65,9 +65,11 @@ export function guestFoodNeedPerDay(state: Pick<VillageState, 'guests'>, day: nu
   return (guestsToday(state, day) * FOOD_NEED_KG_PER_YEAR.adult) / FOOD_DAYS_PER_YEAR;
 }
 
-/** Práce hostů na den (čd) – dospělý 1 (`LABOR_PER_DAY.adult`). */
+/** Práce hostů na den (čd) – dospělý 1 (`LABOR_PER_DAY.adult`); zajatci nepracují. */
 export function guestLaborToday(state: Pick<VillageState, 'guests'>, day: number): number {
-  return guestsToday(state, day) * LABOR_PER_DAY.adult;
+  let n = 0;
+  for (const g of state.guests ?? []) if (g.untilDay > day && g.kind !== 'captive') n++;
+  return n * LABOR_PER_DAY.adult;
 }
 
 /**
