@@ -1,5 +1,5 @@
 import type {
-  CampaignPhase,
+  CampaignSummary,
   CampaignView,
   CampaignViewAlly,
   CampaignViewBuilding,
@@ -14,6 +14,7 @@ import type {
 // kreslí polohu mezi posledními dvěma stavy, server je počítá po taktech (4 za sekundu).
 
 export type {
+  CampaignSummary,
   CampaignView,
   CampaignViewAlly,
   CampaignViewBuilding,
@@ -21,14 +22,6 @@ export type {
   CampaignViewGroup,
   CampaignViewMan,
 };
-
-/** Běžící tažení hráče v panelu Vojsko. */
-export interface CampaignSummary {
-  id: string;
-  targetName: string | null;
-  phase: CampaignPhase;
-  liveCommand: boolean;
-}
 
 /** Odpověď `GET /api/campaign/[id]` – pohled, nebo chyba (401 bez session, 404 cizí tažení). */
 export type CampaignResponse = { view: CampaignView } | { error: string };

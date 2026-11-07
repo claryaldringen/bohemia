@@ -4,7 +4,12 @@ import { tickOfMs } from '../../domain/war';
 import type { Dwelling } from '../../domain/village/types';
 import { attacker, battle, defender, land } from '../../domain/war/__tests__/battle-fixtures';
 import { campaign, member, world } from '../../domain/war/__tests__/campaign-fixtures';
-import { campaignViewFor, commandCampaign, type CampaignCommand } from '../campaign-view';
+import {
+  campaignsOf,
+  campaignViewFor,
+  commandCampaign,
+  type CampaignCommand,
+} from '../campaign-view';
 import type { VillageRecord } from '../villages';
 import { InMemoryCampaigns } from './in-memory-campaigns';
 
@@ -105,6 +110,33 @@ describe('campaignViewFor', () => {
     expect(await campaignViewFor(deps, { playerId: 'p1', campaignId: 'xx', sinceTick: 0 })).toBe(
       null,
     );
+  });
+});
+
+describe('campaignsOf', () => {
+  it('vazal ve službě vidí tažení se svými muži v seznamu, vést smí jen vůdce', async () => {
+    const { deps, campaigns } = await setup();
+    await campaigns.create({ ...raiding(), id: 'c2', playerId: 'p3', members: [] });
+    const lord = await campaignsOf({ campaigns }, { playerId: 'p1' });
+    expect(lord).toEqual([
+      { id: 'c1', targetName: null, phase: 'raiding', liveCommand: true, leads: true },
+    ]);
+    const vassal = await campaignsOf({ campaigns }, { playerId: 'p2' });
+    expect(vassal).toEqual([
+      { id: 'c1', targetName: null, phase: 'raiding', liveCommand: false, leads: false },
+    ]);
+    // pohled vazala: vlastní muž, vést nesmí
+    const view = await campaignViewFor(deps, { playerId: 'p2', campaignId: 'c1', sinceTick: 0 });
+    expect(view!.liveCommand).toBe(false);
+    const nowMs = world.startMs + raiding().tick * 250 + 10;
+    const order: CampaignCommand = { kind: 'order', group: 0, order: 'attack-all' };
+    const input = { campaignId: 'c1', command: order, nowMs };
+    expect(await commandCampaign(deps, { ...input, playerId: 'p2' })).toBe(false);
+    expect(await commandCampaign(deps, { ...input, playerId: 'p1' })).toBe(true);
+    // skončené tažení zmizí ze seznamu vůdci i vazalovi
+    campaigns.rows.get('c1')!.status = 'done';
+    expect(await campaignsOf({ campaigns }, { playerId: 'p2' })).toEqual([]);
+    expect(await campaignsOf({ campaigns }, { playerId: 'p1' })).toEqual([]);
   });
 });
 

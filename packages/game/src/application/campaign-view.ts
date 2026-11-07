@@ -76,6 +76,42 @@ async function sightGrid(deps: CampaignViewDeps, state: CampaignState): Promise<
   return grid;
 }
 
+/** Běžící tažení hráče v panelu Vojsko – cíl a fáze. */
+export interface CampaignSummary {
+  id: string;
+  targetName: string | null;
+  phase: CampaignState['phase'];
+  /** Tažení vede živě on sám (jinak velí jiný muž, nebo jde jako vazal ve službě). */
+  liveCommand: boolean;
+  /** Je vůdce tažení – vést smí jen on; vazal ve službě tažení jen sleduje svými muži. */
+  leads: boolean;
+}
+
+/**
+ * Běžící tažení, která hráč vede nebo ve kterých jdou jeho muži (vazal ve službě – vlastní muže
+ * hráč vidí vždy; plán 2026-11-03 – Úloha 6.17), od nejstaršího.
+ */
+export async function campaignsOf(
+  deps: { campaigns: Pick<CampaignRepository, 'activeOf' | 'checkpoint'> },
+  input: { playerId: string },
+): Promise<CampaignSummary[]> {
+  const out: CampaignSummary[] = [];
+  for (const id of await deps.campaigns.activeOf(input.playerId)) {
+    const point = await deps.campaigns.checkpoint(id);
+    if (!point || !isCampaignParticipant(point.state, input.playerId)) continue;
+    const s = point.state;
+    const leads = s.playerId === input.playerId;
+    out.push({
+      id,
+      targetName: s.target.name ?? null,
+      phase: s.phase,
+      liveCommand: leads && s.liveCommand,
+      leads,
+    });
+  }
+  return out;
+}
+
 /** Cíl velitele: místo na mapě, objevená stavba, cizí muž v dohledu, nebo domů (ústup). */
 export type LeaderTarget =
   | { kind: 'place'; place: CampaignPlace }

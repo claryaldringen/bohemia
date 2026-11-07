@@ -230,6 +230,7 @@ export function ArmyPanel({
             <button
               type="button"
               data-testid="army-campaign"
+              data-leads={c.leads ? 'true' : 'false'}
               aria-label={c.targetName ?? 'Tažení'}
               onClick={() => setOpenCampaign(c.id)}
               className="hud-inset rounded px-1.5"

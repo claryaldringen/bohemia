@@ -656,7 +656,12 @@ sinceTick })` – kontrolní bod z úložiště, mřížka mapy cíle jen při b
   důvodu): hráč, který živě nevede (vazal, cizí hráč, velí jiný muž, padlý či zajatý velitel), místo
   mimo mapu nebo dál než sousední políčko velitele (kromě mapy cíle), neobjevený dům, cizí muž mimo
   dohled nebo ležící, neznámá skupina. Přítomnost smí poslat jen vůdce živého tažení.
-- **Úložiště:** `CampaignRepository.activeOf(playerId)` – běžící tažení vůdce (panel Vojsko).
+- **Seznam v panelu Vojsko** (`campaignsOf` → `CampaignSummary` s `leads`; Úloha 6.17, návrh
+  Clauda v mezích specu – vlastní muže hráč vidí vždy): běžící tažení, která hráč vede, i ta, ve
+  kterých jdou jeho muži jako vazala ve službě. Vazal tažení otevře a sleduje svými muži (pohled
+  výš), vést smí jen vůdce (`liveCommand` jen u vůdce, tlačítko nese `data-leads`).
+- **Úložiště:** `CampaignRepository.activeOf(playerId)` – běžící tažení vůdce nebo s muži hráče
+  (`state->'members' @> [{ playerId }]` v kontrolním bodu).
 - **Cizí mapa** (`apps/web/lib/foreign-map.ts`): krajina políčka (veřejná – prázdné z
   `cellLandscapeSeed`, se vsí z uloženého seedu sídla přes `createCampaignCells`) jako
   `LandscapeTransfer`; vrstvu překážek si prohlížeč vygeneruje ze seedu vrstvy. Jen pro účastníka
