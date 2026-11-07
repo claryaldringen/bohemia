@@ -173,6 +173,10 @@ export type ChronicleEvent = { day: number } & (
    * (vassalage.md – Mír a spory); text je neutrální.
    */
   | { kind: 'disobeyed'; name: string }
+  /** Rod `name` ohlásil průchod vojska (war.md – Pohyb); do kronik obou rodů. */
+  | { kind: 'passage-announced'; name: string }
+  /** Vazal `name` nepřišel na svolání do války (vassalage.md – Svolání); do kronik obou rodů. */
+  | { kind: 'no-show'; name: string }
   /** Rod `blocker` zablokoval rod `blocked` (vassalage.md – Meze); zapisuje se do kronik obou. */
   | { kind: 'blocked'; blocker: string; blocked: string }
   /** Vedlejší manželka odešla z přeplněného dvorce do vlastního domu (lord.md – Manželky). */

@@ -49,11 +49,34 @@ export class InMemoryDialogs implements DialogRepository {
     return found ? structuredClone(found) : null;
   }
 
-  async answer(id: string, expectedStatus: DialogStatus): Promise<boolean> {
+  async answer(
+    id: string,
+    expectedStatus: DialogStatus,
+    reply?: Record<string, unknown>,
+  ): Promise<boolean> {
     await Promise.resolve();
     const found = this.rows.find((d) => d.id === id);
     if (!found || found.status !== expectedStatus) return false;
     found.status = 'answered';
+    if (reply) found.body = { ...found.body, ...structuredClone(reply) };
+    return true;
+  }
+
+  async listFor(refId: string, kind: DialogKind): Promise<Dialog[]> {
+    await Promise.resolve();
+    return structuredClone(this.rows.filter((d) => d.refId === refId && d.kind === kind));
+  }
+
+  async openOfKind(kind: DialogKind): Promise<Dialog[]> {
+    await Promise.resolve();
+    return structuredClone(this.rows.filter((d) => d.kind === kind && d.status === 'open'));
+  }
+
+  async lapse(id: string): Promise<boolean> {
+    await Promise.resolve();
+    const found = this.rows.find((d) => d.id === id);
+    if (!found || found.status !== 'open') return false;
+    found.status = 'dropped';
     return true;
   }
 

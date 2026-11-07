@@ -1,5 +1,5 @@
 // Dialogy hráče (vassalage.md – Roční dialog 1. 11.): otázky, na které hráč odpovídá, když se mu
-// to hodí – roční Odvody a jejich řádek splátek půjčky (`repay`), později poplatky, odúmrť, svolání a rozsudek. Dialog drží server, ne
+// to hodí – roční Odvody a jejich řádek splátek půjčky (`repay`), poplatky, odúmrť, svolání (`summons`) a rozsudek. Dialog drží server, ne
 // prohlížeč; odpověď je podmíněná (`answer`), takže ze souběžných odpovědí uspěje jedna.
 
 export type DialogKind =
@@ -54,8 +54,21 @@ export interface DialogRepository {
   /** Otevřené dialogy hráče, nejstarší první. */
   listOpen(playerId: string): Promise<Dialog[]>;
   byId(id: string): Promise<Dialog | null>;
-  /** Podmíněně označí dialog za zodpovězený: jen když má stav `expectedStatus`; true při změně. */
-  answer(id: string, expectedStatus: DialogStatus): Promise<boolean>;
+  /**
+   * Podmíněně označí dialog za zodpovězený: jen když má stav `expectedStatus`; true při změně.
+   * `reply` (odpověď – u Svolání počet poslaných mužů a vzkaz) se přidá do `body`.
+   */
+  answer(
+    id: string,
+    expectedStatus: DialogStatus,
+    reply?: Record<string, unknown>,
+  ): Promise<boolean>;
+  /** Všechny dialogy druhu `kind` k `refId` (v jakémkoli stavu), nejstarší první. */
+  listFor(refId: string, kind: DialogKind): Promise<Dialog[]>;
+  /** Všechny otevřené dialogy druhu `kind` (úloha světa – propadnutí Svolání s koncem války). */
+  openOfKind(kind: DialogKind): Promise<Dialog[]>;
+  /** Podmíněně nechá otevřený dialog propadnout (stav `dropped`); true při změně. */
+  lapse(id: string): Promise<boolean>;
   /** Otevřené dialogy k `refId` zmizí (stav `dropped`). */
   dropFor(refId: string): Promise<void>;
   /** Všechny otevřené dialogy hráče zmizí (jeho rod skončil). */

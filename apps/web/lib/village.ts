@@ -1009,6 +1009,18 @@ export async function planCampaignActionForPlayer<T>(
 }
 
 /** Vyslání tažení (war.md) ze shromaždiště `villageId` – stejně jako odhad, s vlastním právem. */
+/** Svolání vazalů do cílové vsi `villageId` – právo `war` (vassalage.md – Svolání). */
+export async function summonVassalsActionForPlayer<T>(
+  playerId: string,
+  villageId: string,
+  run: (ctx: WarContext) => Promise<T>,
+): Promise<T | { error: string }> {
+  const done = await guardedAction(playerId, villageId, 'summonVassals', (ctx) =>
+    run({ playerId: ctx.playerId, villageId: ctx.villageId, day: ctx.day }),
+  );
+  return warResult(done);
+}
+
 export async function launchCampaignActionForPlayer<T>(
   playerId: string,
   villageId: string,

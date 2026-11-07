@@ -7,6 +7,7 @@ import {
   createDialogRepository,
   createDisputeRepository,
   createPrisonerRepository,
+  createPassageRepository,
   createLoanRepository,
   createStewardshipRepository,
   createEscheatRepository,
@@ -32,6 +33,7 @@ import type {
   DialogRepository,
   DisputeRepository,
   PrisonerRepository,
+  PassageRepository,
   LoanRepository,
   StewardshipRepository,
   EscheatRepository,
@@ -125,6 +127,8 @@ export interface GameDeps {
   disputes: DisputeRepository;
   /** Rozhodnutí o zajatcích (`docs/code/war.md` – Zajetí a výkupné). */
   prisoners: PrisonerRepository;
+  /** Ohlášené průchody (`docs/code/war.md` – Průchod, svolání, ochrana). */
+  passages: PassageRepository;
   /** Války mezi rody a ochrana nováčka (`docs/code/war.md`). */
   wars: WarRepository;
   /** Tažení (vyslání z panelu Vojsko – `docs/code/war.md`). */
@@ -187,6 +191,7 @@ export function createGameDeps(
     escheats,
     wars,
     prisoners: createPrisonerRepository(db),
+    passages: createPassageRepository(db),
     disputes: createDisputeRepository(db),
     campaigns: createCampaignRepository(db),
     ending: {

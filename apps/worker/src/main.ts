@@ -74,6 +74,14 @@ async function main(): Promise<void> {
             villages: gameDeps.villages,
             notices: gameDeps.notices,
           },
+          summons: {
+            dialogs: gameDeps.dialogs,
+            wars: gameDeps.wars,
+            vassalages: gameDeps.vassalages,
+            houses: gameDeps.houses,
+            notices: gameDeps.notices,
+            villages: gameDeps.villages,
+          },
           levies: {
             dialogs: gameDeps.dialogs,
             vassalages: gameDeps.vassalages,
@@ -124,6 +132,7 @@ async function main(): Promise<void> {
       settlements: gameDeps.settlements,
       houses: gameDeps.houses,
       vassalages: gameDeps.vassalages,
+      passages: gameDeps.passages,
     }),
   };
   const campaignLoop: CampaignLoopDeps = {

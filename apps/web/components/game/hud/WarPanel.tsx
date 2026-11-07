@@ -5,6 +5,7 @@ import { dateOfDayIndex, type TermItem } from '@bohemia/game';
 import { formatGameDate } from '@/lib/game-date';
 import type { HouseView } from '@/lib/house-view';
 import { cedeBlockReason, type CedeVillage } from '@/lib/peace-cede';
+import type { PassageView } from '@/lib/summons';
 import { Tooltip } from './Tooltip';
 
 // Panel války (war.md – Co hráč vidí): textový přehled válek rodu – s kým, od kdy, jak začala
@@ -181,11 +182,144 @@ function PeaceForm({
 }
 
 /** Panel války; `view` je pohled na rod (války z panelu rodu). */
+type ActionResult = { ok: true } | { error: string };
+
+/**
+ * Svolání vazalů ve válce (vassalage.md – Svolání; war.md – Co hráč vidí): přímí vazalové se
+ * štítem s počtem mužů schopných služby a rohem ke svolání; bez domluvené služby zašedlý roh.
+ */
+function SummonList({
+  view,
+  warId,
+  onSummon,
+}: {
+  view: HouseView;
+  warId: string;
+  onSummon: (warId: string, vassalageIds: string[]) => Promise<ActionResult>;
+}): ReactElement {
+  const [status, setStatus] = useState<string | null>(null);
+  const vassals = view.tree.filter((n) => n.depth === 1);
+  if (vassals.length === 0) {
+    return <p className="pt-1 text-xs opacity-70">Nemáš vazaly.</p>;
+  }
+  const summon = async (ids: string[]): Promise<void> => {
+    const result = await onSummon(warId, ids);
+    setStatus('error' in result ? result.error : null);
+  };
+  return (
+    <div data-testid="war-summon-list" className="flex flex-col gap-1 pt-1">
+      {vassals.map((node) => {
+        const service = node.terms.service;
+        return (
+          <div key={node.vassalageId} className="flex items-center gap-1.5 text-xs">
+            <span className="min-w-0 flex-1 truncate">
+              {node.house.lordName ?? 'Rod bez jména'}
+            </span>
+            <Tooltip content="Muži schopní služby">
+              <span
+                tabIndex={0}
+                data-testid="war-vassal-shield"
+                className="inline-flex items-center gap-0.5"
+              >
+                <img src={`${ICON}/shield.svg`} alt="" width={14} height={14} draggable={false} />
+                {node.shield}
+              </span>
+            </Tooltip>
+            <Tooltip
+              content={
+                service
+                  ? `Svolat – ${service.men} mužů na ${service.days} dní`
+                  : 'Vazal službu nedomluvil.'
+              }
+            >
+              <button
+                type="button"
+                aria-label="Svolat"
+                data-testid="war-summon-vassal"
+                data-vassalage-id={node.vassalageId}
+                disabled={!service}
+                className="hud-icon-button flex h-6 w-6 items-center justify-center disabled:opacity-40"
+                onClick={() => void summon([node.vassalageId])}
+              >
+                <img src={`${ICON}/horn.svg`} alt="" width={14} height={14} draggable={false} />
+              </button>
+            </Tooltip>
+          </div>
+        );
+      })}
+      {status && (
+        <span data-testid="war-summon-error" className="text-xs text-[#e0a090]">
+          {status}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** Ohlášení průchodu (war.md – Pohyb): vzít na vědomí, nebo „Nevěřit“. */
+function PassageRows({
+  passages,
+  onAnswer,
+}: {
+  passages: readonly PassageView[];
+  onAnswer: (passageId: string, trust: boolean) => void;
+}): ReactElement | null {
+  if (passages.length === 0) return null;
+  return (
+    <ul className="flex flex-col gap-1 pt-2">
+      {passages.map((p) => (
+        <li
+          key={p.passageId}
+          data-testid="war-passage"
+          className="flex items-center gap-1.5 rounded-sm border border-[#5c4526] bg-[#15100b] px-2 py-1 text-xs"
+        >
+          <Tooltip content={p.message === '' ? 'Ohlášený průchod' : p.message}>
+            <span tabIndex={0} className="min-w-0 flex-1 truncate">
+              {p.name} – {formatGameDate(dateOfDayIndex(p.etaDay))}
+            </span>
+          </Tooltip>
+          <Tooltip content="Vzít na vědomí">
+            <button
+              type="button"
+              aria-label="Vzít na vědomí"
+              data-testid="war-passage-trust"
+              className="hud-icon-button flex h-6 w-6 items-center justify-center"
+              onClick={() => onAnswer(p.passageId, true)}
+            >
+              <img src={`${ICON}/handshake.svg`} alt="" width={14} height={14} draggable={false} />
+            </button>
+          </Tooltip>
+          <Tooltip content="Nevěřit">
+            <button
+              type="button"
+              aria-label="Nevěřit"
+              data-testid="war-passage-distrust"
+              className="hud-icon-button flex h-6 w-6 items-center justify-center"
+              onClick={() => onAnswer(p.passageId, false)}
+            >
+              <img
+                src={`${ICON}/seal-broken.svg`}
+                alt=""
+                width={14}
+                height={14}
+                draggable={false}
+              />
+            </button>
+          </Tooltip>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function WarPanel({
   view,
   error = null,
   onClose,
   onOfferPeace,
+  onSummon,
+  passages = [],
+  onAnswerPassage,
   ownVillages = [],
 }: {
   view: HouseView | null;
@@ -194,8 +328,14 @@ export function WarPanel({
   error?: string | null;
   onClose: () => void;
   onOfferPeace?: (to: string, items: TermItem[], message: string | null) => void;
+  /** Svolá vazaly do zobrazené vsi (vassalage.md – Svolání). */
+  onSummon?: (warId: string, vassalageIds: string[]) => Promise<ActionResult>;
+  /** Ohlášení průchodu, na která hráč může odpovědět. */
+  passages?: readonly PassageView[];
+  onAnswerPassage?: (passageId: string, trust: boolean) => void;
 }): ReactElement {
   const [offering, setOffering] = useState<string | null>(null);
+  const [summoning, setSummoning] = useState<string | null>(null);
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
       if (event.code === 'Escape') onClose();
@@ -250,6 +390,30 @@ export function WarPanel({
                 Od {formatGameDate(dateOfDayIndex(war.startedDay))} –{' '}
                 {war.how === 'declared' ? 'opověď' : 'přepadení bez opovědi'} – válčí se
               </span>
+              {onSummon && view && (
+                <>
+                  <Tooltip content="Svolat vazaly">
+                    <button
+                      type="button"
+                      data-testid="war-summon"
+                      aria-label="Svolat vazaly"
+                      className="hud-icon-button mt-1 flex h-6 w-6 items-center justify-center"
+                      onClick={() => setSummoning(summoning === war.warId ? null : war.warId)}
+                    >
+                      <img
+                        src={`${ICON}/horn.svg`}
+                        alt=""
+                        width={16}
+                        height={16}
+                        draggable={false}
+                      />
+                    </button>
+                  </Tooltip>
+                  {summoning === war.warId && (
+                    <SummonList view={view} warId={war.warId} onSummon={onSummon} />
+                  )}
+                </>
+              )}
               {onOfferPeace && (
                 <>
                   <Tooltip content="Nabídnout mír">
@@ -289,6 +453,7 @@ export function WarPanel({
           ))}
         </ul>
       )}
+      {onAnswerPassage && <PassageRows passages={passages} onAnswer={onAnswerPassage} />}
       {error && (
         <p data-testid="war-error" role="alert" className="pt-1 text-xs text-[#e0a090]">
           {error}

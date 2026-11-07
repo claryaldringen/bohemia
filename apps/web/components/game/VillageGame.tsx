@@ -79,7 +79,12 @@ import {
   proposeEscheat,
   consentEscheat,
   answerLevy,
+  summonVassals,
+  answerSummons,
+  passagesToAnswer,
+  answerPassage,
 } from '@/app/game/actions';
+import type { PassageView, SummonsDialogView } from '@/lib/summons';
 import { ArmyActionsContext, type ArmyActions } from '@/hooks/use-army';
 import { PanelOptionsContext, type PanelOptionsSource } from '@/hooks/use-panel-options';
 import type { PanelAsk, PanelOptions } from '@/lib/panel-options';
@@ -428,16 +433,27 @@ export function VillageGame({
   }, [refreshHouse, refreshEscheats]);
   const closeHouse = useCallback((): void => setHouseOpen(false), []);
   // Panel války (war.md – Co hráč vidí): textový přehled válek; data jsou v pohledu na rod
+  const [passages, setPassages] = useState<PassageView[]>([]);
+  const refreshPassages = useCallback(async (): Promise<void> => {
+    try {
+      const result = await passagesToAnswer();
+      if ('passages' in result) setPassages(result.passages);
+    } catch {
+      // ohlášení se ukážou při dalším otevření panelu
+    }
+  }, []);
   const openWar = useCallback((): void => {
     setMenuOpen(false);
     setHouseOpen(false);
     setWarOpen(true);
     void refreshHouse();
-  }, [refreshHouse]);
+    void refreshPassages();
+  }, [refreshHouse, refreshPassages]);
   const closeWar = useCallback((): void => setWarOpen(false), []);
   // Dialog Odvody (úloha 4.4): rozdělení po vsích se počítá až při otevření
   const [levyOpen, setLevyOpen] = useState(false);
   const [levy, setLevy] = useState<LevyDialogView[] | null>(null);
+  const [summons, setSummons] = useState<SummonsDialogView[]>([]);
   const [levyError, setLevyError] = useState<string | null>(null);
   const openLevy = useCallback(async (): Promise<void> => {
     setMenuOpen(false);
@@ -446,7 +462,10 @@ export function VillageGame({
     try {
       const result = await levyDialogs();
       if ('error' in result) setLevyError(result.error);
-      else setLevy(result.dialogs);
+      else {
+        setLevy(result.dialogs);
+        setSummons(result.summons);
+      }
     } catch {
       setLevyError(CONNECTION_FAILED);
     }
@@ -1647,6 +1666,24 @@ export function VillageGame({
                 onOfferPeace={(to, items, message) =>
                   negotiate(() => openNegotiation({ to, items, message }))
                 }
+                onSummon={async (warId, vassalageIds) => {
+                  const targetVillageId = viewRef.current?.id;
+                  if (!targetVillageId) return { error: CONNECTION_FAILED };
+                  try {
+                    const result = await summonVassals({ warId, vassalageIds, targetVillageId });
+                    if ('error' in result) return result;
+                    void refreshHouse();
+                    return { ok: true };
+                  } catch {
+                    return { error: CONNECTION_FAILED };
+                  }
+                }}
+                passages={passages}
+                onAnswerPassage={(passageId, trust) => {
+                  void answerPassage({ passageId, trust })
+                    .then(() => refreshPassages())
+                    .catch(() => undefined);
+                }}
               />
             )}
             {houseOpen && !menuShown && (
@@ -1731,6 +1768,12 @@ export function VillageGame({
                 error={levyError}
                 onAnswer={async (input) => {
                   const result = await answerLevy(input);
+                  if ('ok' in result) void refreshHouse();
+                  return result;
+                }}
+                summons={summons}
+                onAnswerSummons={async (input) => {
+                  const result = await answerSummons(input);
                   if ('ok' in result) void refreshHouse();
                   return result;
                 }}

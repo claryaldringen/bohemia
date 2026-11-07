@@ -319,6 +319,9 @@ a 12 vesničanů (8 dobrovolníků po 0,4, 4 nucení po 0,2 = 4,0), s kovárnou 
   o všem) udělá záznam, ale řešení bude na hráčích**“. Kronika zapíše jen události (ohlášený
   průchod, útok), žádné hodnocení; útok začne válku bez opovědi a ohlášení tím přestane platit
   pro všechny vsi rodu (návrh Clauda).
+- **Platnost ohlášení** (návrh Clauda): ohlášení kryje ohlášené mapy, dokud mezi rody nezačne
+  válka – útokem i opovědí; „zhruba kdy“ je jen informace pro hráče a platnost neomezuje. Ve válce
+  průchod ohlásit nejde. Bez odpovědi ohlášení platí (spící hráč nic nedělá); odpovědět jde jednou.
 - **Vlastní vojska** (návrh Clauda): vojsko vlastního rodu a muži pána nebo vazalů ve službě či
   na ochraně jsou pro ves vždy neškodní; jiné neohlášené vojsko je cizí.
 
@@ -677,44 +680,45 @@ Z 18. 10. beze změny: skupina domů 40 m, dohled 150 m, nosnost 25 kg, ochota a
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                        | Kdo              |
-| ------------------------------------------------------------------------------------------------- | ---------------- |
-| Vazalem se stává jednáním; vypovědět smí hned; neplnícího vazala pán přinutí nebo vypoví          | Martin 2. 11.    |
-| Válka je vztah dvou rodů, všechny vsi; bez zemského míru; bývalý pán smí táhnout kdykoli          | Martin 2. 11.    |
-| Opověď smí, nemusí; přepadení bez opovědi bez trestu, jen v kronice                               | Martin 2. 11.    |
-| Ochrana nového hráče 7 dní, končí vlastním útokem; nájezdy bez omezení                            | Martin 2. 11.    |
-| Zima: pomalejší pochod, píce; zásoby tažení, bez nich návrat nebo kořist                          | Martin 2. 11.    |
-| Zima: únava z mrazu místo ležení, zastávky ve vsích, sníh × 0,75; bod zlomu podle počtu mužů      | Martin 3. 11.    |
-| Vesničan pevná síla 0,4, nucený × 0,5; dovednost lov vesničana se nezavádí                        | Martin 3. 11.    |
-| Vesničané smějí i do útoku se slabou silou; vazalové ve službě jen muži rodu                      | Martin 2. 11.    |
-| Vůdce vybere vazaly, vsi a shromaždiště; živě jen tažení vedené hráčovým mužem, jinak NPC         | Martin 2. 11.    |
-| Zástupce velitele; bez něj se výprava při odchodu hráče nebo smrti velitele rozpadne              | Martin 2. 11.    |
-| Stropy výcviku 50 / lov 70 / válka; dvě stupnice síly; kůň až × 1,5; výzbroj zatím koeficient     | Martin 2. 11.    |
-| Tempo ≈ 3–4 m/s, 1 km ≈ 3 dny, táž poloha ve scéně i simulaci; mapu po mapě                       | Martin 2. 11.    |
-| Boj muž po muži se zdravím; hráč řídí svého muže, ostatní rozkaz před bitvou; skupiny             | Martin 2. 11.    |
-| Bod zlomu 30 % / 45 % po skupinách; muži rodu utíkají jako ostatní, velitel jen na pokyn          | Martin 2. 11.    |
-| Včasný útěk s 25 kg a stády do lesa, jámy skryté; útěk při bodu zlomu                             | Martin 2. 11.    |
-| Muži rodu se v bezvýchodné situaci vzdávají; zajetí a výkupné jednáním; zajatý hráčův muž         | Martin 2. 11.    |
-| Ranění 60 dní, 1 z 5 zemře; poslední muž rodu doma vždy uteče; kořist                             | Martin 2. 11.    |
-| Mírové jednání – poplatek, vazalství, tribut, postoupení vsí (poslední ne); mír na dobu neurčitou | Martin 2. 11.    |
-| Průchod neutrálním územím s ohlášením; útok po něm jen věcně v kronice                            | Martin 2.–3. 11. |
-| Postoje dopředu i při obraně: bránit se do bodu zlomu, vzdát se při 1,5×, raději utéct (výchozí)  | Martin 3. 11.    |
-| Opevnění samostatně (`fortifications.md`); horní lišta, panel války, textový panel Vojsko         | Martin 2. 11.    |
-| Násobky, útočiště, brány a prolomení z [opevnění](fortifications.md)                              | Martin 3. 11.    |
-| Upozornění, kronika věcně, scéna                                                                  | Martin 2. 11.    |
-| Ochrana vojskem na žádost vazala; rozsudek pána řeší spor de iure                                 | Martin 2. 11.    |
-| Dobrovolníci a rozkaz, dům od domu, sevřená ves, pobít nebo odvést, mlha války, les a brody       | Martin 18. 10.   |
-| Podoba opovědi, začátek války prvním útokem, válka utichne po 3 letech                            | návrh Clauda     |
-| Ochrana nové vsi 5 let; zrušení dosahu 3 políčka                                                  | návrh Clauda     |
-| Zimní čísla, jídlo 1 kg, nosnost koně a vozu, tempo skupin                                        | návrh Clauda     |
-| Rozkazy skupin, doslech 30 m, zdraví a zásah, luk, padlý / raněný, 30 % pro tažení                | návrh Clauda     |
-| Vojenská zkušenost = průměr boje a luku; válka jako výcvik; den lovu se stropem 70                | návrh Clauda     |
-| Zimní únava −3 zdraví a −2 % síly za den, ve vsi +10 a +5 %; vesničan 0,4                         | návrh Clauda     |
-| NPC velitel, rozpad, hráč mimo tažení 1 den                                                       | návrh Clauda     |
-| Ohlášení se vsím předá samo, Nevěřit; vlastní vojska neškodná                                     | návrh Clauda     |
-| Dítě 10 kg, jáma 30 %, bez lesa jako při přesile, posel; vzdání muže rodu 80 %                    | návrh Clauda     |
-| Tribut v dialogu 1. 11., propuštění zajatců jako podmínka                                         | návrh Clauda     |
-| Obránce za opevněním × 1,5 × násobek opevnění; zástupnou palisádu nahradil `fortifications.md`    | návrh Clauda     |
+| Rozhodnutí                                                                                          | Kdo              |
+| --------------------------------------------------------------------------------------------------- | ---------------- |
+| Vazalem se stává jednáním; vypovědět smí hned; neplnícího vazala pán přinutí nebo vypoví            | Martin 2. 11.    |
+| Válka je vztah dvou rodů, všechny vsi; bez zemského míru; bývalý pán smí táhnout kdykoli            | Martin 2. 11.    |
+| Opověď smí, nemusí; přepadení bez opovědi bez trestu, jen v kronice                                 | Martin 2. 11.    |
+| Ochrana nového hráče 7 dní, končí vlastním útokem; nájezdy bez omezení                              | Martin 2. 11.    |
+| Zima: pomalejší pochod, píce; zásoby tažení, bez nich návrat nebo kořist                            | Martin 2. 11.    |
+| Zima: únava z mrazu místo ležení, zastávky ve vsích, sníh × 0,75; bod zlomu podle počtu mužů        | Martin 3. 11.    |
+| Vesničan pevná síla 0,4, nucený × 0,5; dovednost lov vesničana se nezavádí                          | Martin 3. 11.    |
+| Vesničané smějí i do útoku se slabou silou; vazalové ve službě jen muži rodu                        | Martin 2. 11.    |
+| Vůdce vybere vazaly, vsi a shromaždiště; živě jen tažení vedené hráčovým mužem, jinak NPC           | Martin 2. 11.    |
+| Zástupce velitele; bez něj se výprava při odchodu hráče nebo smrti velitele rozpadne                | Martin 2. 11.    |
+| Stropy výcviku 50 / lov 70 / válka; dvě stupnice síly; kůň až × 1,5; výzbroj zatím koeficient       | Martin 2. 11.    |
+| Tempo ≈ 3–4 m/s, 1 km ≈ 3 dny, táž poloha ve scéně i simulaci; mapu po mapě                         | Martin 2. 11.    |
+| Boj muž po muži se zdravím; hráč řídí svého muže, ostatní rozkaz před bitvou; skupiny               | Martin 2. 11.    |
+| Bod zlomu 30 % / 45 % po skupinách; muži rodu utíkají jako ostatní, velitel jen na pokyn            | Martin 2. 11.    |
+| Včasný útěk s 25 kg a stády do lesa, jámy skryté; útěk při bodu zlomu                               | Martin 2. 11.    |
+| Muži rodu se v bezvýchodné situaci vzdávají; zajetí a výkupné jednáním; zajatý hráčův muž           | Martin 2. 11.    |
+| Ranění 60 dní, 1 z 5 zemře; poslední muž rodu doma vždy uteče; kořist                               | Martin 2. 11.    |
+| Mírové jednání – poplatek, vazalství, tribut, postoupení vsí (poslední ne); mír na dobu neurčitou   | Martin 2. 11.    |
+| Průchod neutrálním územím s ohlášením; útok po něm jen věcně v kronice                              | Martin 2.–3. 11. |
+| Postoje dopředu i při obraně: bránit se do bodu zlomu, vzdát se při 1,5×, raději utéct (výchozí)    | Martin 3. 11.    |
+| Opevnění samostatně (`fortifications.md`); horní lišta, panel války, textový panel Vojsko           | Martin 2. 11.    |
+| Násobky, útočiště, brány a prolomení z [opevnění](fortifications.md)                                | Martin 3. 11.    |
+| Upozornění, kronika věcně, scéna                                                                    | Martin 2. 11.    |
+| Ochrana vojskem na žádost vazala; rozsudek pána řeší spor de iure                                   | Martin 2. 11.    |
+| Dobrovolníci a rozkaz, dům od domu, sevřená ves, pobít nebo odvést, mlha války, les a brody         | Martin 18. 10.   |
+| Podoba opovědi, začátek války prvním útokem, válka utichne po 3 letech                              | návrh Clauda     |
+| Ochrana nové vsi 5 let; zrušení dosahu 3 políčka                                                    | návrh Clauda     |
+| Zimní čísla, jídlo 1 kg, nosnost koně a vozu, tempo skupin                                          | návrh Clauda     |
+| Rozkazy skupin, doslech 30 m, zdraví a zásah, luk, padlý / raněný, 30 % pro tažení                  | návrh Clauda     |
+| Vojenská zkušenost = průměr boje a luku; válka jako výcvik; den lovu se stropem 70                  | návrh Clauda     |
+| Zimní únava −3 zdraví a −2 % síly za den, ve vsi +10 a +5 %; vesničan 0,4                           | návrh Clauda     |
+| NPC velitel, rozpad, hráč mimo tažení 1 den                                                         | návrh Clauda     |
+| Ohlášení se vsím předá samo, Nevěřit; vlastní vojska neškodná                                       | návrh Clauda     |
+| Ohlášení platí do války mezi rody (útok i opověď), jedna odpověď; svolání: jedno čekající na dohodu | návrh Clauda     |
+| Dítě 10 kg, jáma 30 %, bez lesa jako při přesile, posel; vzdání muže rodu 80 %                      | návrh Clauda     |
+| Tribut v dialogu 1. 11., propuštění zajatců jako podmínka                                           | návrh Clauda     |
+| Obránce za opevněním × 1,5 × násobek opevnění; zástupnou palisádu nahradil `fortifications.md`      | návrh Clauda     |
 
 ## Odpovědi Martina 2. 11. 2026
 

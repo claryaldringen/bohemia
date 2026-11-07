@@ -99,6 +99,7 @@ export const ACTION_RIGHTS = {
   // vojsko a tažení (war.md) – jen držitel vlastní vsi; správce cizí vsi válčit nesmí
   planCampaign: 'war',
   launchCampaign: 'war',
+  summonVassals: 'war',
   // postoj vsi před cizím vojskem (war.md – Obránci) – obrana je válka: jen držitel vsi
   setDefenseStance: 'war',
 } as const satisfies Record<string, VillageRight>;

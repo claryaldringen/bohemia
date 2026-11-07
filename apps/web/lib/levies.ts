@@ -15,7 +15,7 @@ import { gameDeps, landscapeOfSettlement, playerToday } from './game';
 type LevyDeps = Parameters<typeof levyDialogs>[0];
 
 /** Závislosti Odvodů: zásilky a dopočet odesílající vsi do dneška. */
-function levyDeps(): LevyDeps {
+export function levyDeps(): LevyDeps {
   const deps = gameDeps();
   return {
     dialogs: deps.dialogs,

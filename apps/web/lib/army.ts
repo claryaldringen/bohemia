@@ -42,6 +42,8 @@ function launchDeps(): LaunchDeps {
     campaigns: deps.campaigns,
     seeds: deps.seeds,
     newId: randomUUID,
+    // útok po ohlášeném průchodu ohlášení zruší (war.md – Pohyb)
+    passages: deps.passages,
   };
 }
 

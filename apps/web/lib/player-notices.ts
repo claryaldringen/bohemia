@@ -37,11 +37,19 @@ export function noticePanel(kind: PlayerNoticeKind): NoticePanel | null {
       return 'house';
     case 'war-declared':
     case 'protection-ending':
+    case 'passage-announced':
+    case 'passage-answered':
+    case 'summons-sent':
+    case 'summons-lapsed':
+    case 'protection-requested':
+    case 'protection-sent':
+    case 'protection-recalled':
     case 'campaign-returned':
     case 'campaign-disbanded':
     case 'foreign-army':
       return 'war';
     case 'levy-pending':
+    case 'summons-open':
       return 'levy';
     case 'player-succession':
       return null;
@@ -122,6 +130,24 @@ function textOf(n: PlayerNotice): string {
       return `${otherName(n.payload)} opověděl válku.`;
     case 'protection-ending':
       return 'Ochrana končí za 1 den.';
+    case 'passage-announced':
+      return `${otherName(n.payload)} ohlásil průchod.`;
+    case 'passage-answered':
+      return n.payload.trust === false
+        ? `${otherName(n.payload)} nevěří ohlášení průchodu.`
+        : `${otherName(n.payload)} vzal ohlášení průchodu na vědomí.`;
+    case 'summons-open':
+      return `${otherName(n.payload)} svolává.`;
+    case 'summons-sent':
+      return `${otherName(n.payload)} poslal ${menText(n.payload.men)}.`;
+    case 'summons-lapsed':
+      return `${otherName(n.payload)} nepřišel do války.`;
+    case 'protection-requested':
+      return `${otherName(n.payload)} žádá o ochranu.`;
+    case 'protection-sent':
+      return `${otherName(n.payload)} poslal ${menText(n.payload.men)} na ochranu.`;
+    case 'protection-recalled':
+      return `${otherName(n.payload)} odvolal muže z ochrany.`;
     case 'campaign-returned':
       return n.payload.reason === 'supplies'
         ? 'Vojsko se vrátilo – došlo jídlo.'
@@ -222,3 +248,9 @@ export function isVillageNone(result: unknown): result is WithPlayerNotices<Vill
 
 /** Výsledek dotazu na ves s doručenými upozorněními (jen když o ně klient požádal). */
 export type WithPlayerNotices<T> = T & { playerNotices?: PlayerNotice[] };
+
+/** „1 muže“, „3 muže“, „5 mužů“ (4. pád). */
+function menText(value: unknown): string {
+  const n = typeof value === 'number' && Number.isFinite(value) ? value : 0;
+  return `${n} ${n >= 1 && n <= 4 ? 'muže' : 'mužů'}`;
+}
