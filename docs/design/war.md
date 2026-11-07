@@ -215,6 +215,22 @@ přítomný hráč velí obraně sám; mřížka map s přechodem okrajem.
 - **Rozpad** (návrh Clauda): lidé se vracejí domů po hloučcích podle vsí nejkratší cestou, nesou,
   co mají, a nebojují – jen se brání; ranění jdou s nimi. Kronika: „Výprava Bořivoje se
   rozpadla.“
+- **Podrobnosti NPC velitele a rozpadu** (návrh Clauda, Ú6.12):
+  - **napadne** skupinu domů, má-li vojsko (součet sil mužů v boji) aspoň **1,5 × sílu jejích
+    obránců × násobek obrany** (u domu 1,5, za opevněním 1,5 × násobek opevnění – jako přesila
+    u vzdání); „v dohledu“ = do 150 m od kteréhokoli muže vojska; nevidí-li nikoho, jde ke vsi;
+  - **nenapadne-li ani nejslabší skupinu:** stojí-li všichni obránci za opevněním, vezme, co je
+    venku (útočiště i s tím, co do něj lidé odnesli, zůstane nedobyté); brání-li se silná skupina
+    bez opevnění, obrátí se bez kořisti – venku nic nehlídaného není;
+  - **polovina vojska** = padlí, zajatí, dezertéři a v boji prchající ÷ všichni muži tažení (ranění
+    se nepočítají); **plná nosnost** = kořist jídla dosáhne nosnosti (25 kg na muže na nohou spolu
+    s vlastním jídlem); **jídlo na cestu domů** = vzdušnou čarou do shromaždiště tempem 3,5 m/s;
+  - **přítomnost** = otevřené tažení ve hře nebo jakýkoli pokyn hráče; 1 herní den ≈ 345 taktů
+    (≈ 86 s); vede-li jiný muž, hráč tažení neobrátí (nemá vliv);
+  - **hlouček** se sejde u skupiny svého prvního muže; kořist, stádo a odvedení jdou s hloučkem vsi
+    shromaždiště (jako při návratu); zápis o rozpadu dostanou domovské vsi i shromaždiště,
+    upozornění „Výprava se rozpadla.“ vůdce i vazalové, jejichž muži šli;
+  - **raněný velitel** velí dál; v boji, dokud leží, řídí NPC zástupce.
 
 ## Síla
 
@@ -566,6 +582,7 @@ Martin 2. 11. 2026 – „ok“ (doplňky návrh Clauda):
 | Dobrovolníci (nábor)           | 30 % + 0,5 % za bod štěstí nad 50, hlad +15 %, vdovská domácnost × 0,5, nejvýš 95 % (návrh Clauda) |
 | Dezerce nucených               | 5 % denně, s příbuznými v cíli 15 % (návrh Clauda – výchozí z 18. 10.)                             |
 | Hráč mimo tažení               | 1 herní den, pak zástupce, nebo rozpad                                                             |
+| NPC velitel                    | napadne při síle ≥ 1,5 × obránci × násobek obrany; obrat při padlé či uprchlé polovině vojska      |
 | Stropy dovedností              | výcvik doma 50, lov 70, válka 100 (Martin)                                                         |
 | Válka jako výcvik              | den tažení 2 h, den se soubojem 6 h; lov rodu se stropem 70                                        |
 | Síla vesničana                 | 0,4, nucený × 0,5, štěstí × 0,8–1,1 (Martin 3. 11.)                                                |

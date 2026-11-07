@@ -170,6 +170,18 @@ export interface CampaignState {
   throughDay?: number;
   /** Posel do cílové vsi už šel (`army-seen` – war.md, Obránci: Kdy); chybí – ještě ne. */
   messengerSent?: true;
+  /**
+   * Domovské vsi mužů (id vsi → místo) – kam jdou hloučky po rozpadu (war.md – Velení: Rozpad);
+   * ves, která tu chybí, nahradí shromaždiště.
+   */
+  homes?: Record<string, CampaignPlace>;
+  /**
+   * Poslední takt, kdy byl hráč u tažení (záměr `presence` nebo jiný jeho záměr) – živé vedení
+   * (war.md – Velení: Hráč odejde od tažení). Chybí – počítá se od prvního taktu pochodu.
+   */
+  presenceTick?: number;
+  /** Hráč je pryč déle než 1 herní den a vede zástupce (NPC); po návratu hráč velení převezme. */
+  absent?: true;
 }
 
 /**
@@ -179,7 +191,8 @@ export interface CampaignState {
 export type IntentBody =
   | { kind: 'set-out' }
   | { kind: 'march'; to: CampaignPlace }
-  | { kind: 'turn-back' }
+  /** Obrat domů; `reason` dává NPC velitel (bod zlomu, jídlo, nosnost), hráč obrací rozkazem. */
+  | { kind: 'turn-back'; reason?: CampaignReturnReason }
   /** Rozkaz skupině (war.md – Změna rozkazu); `at` = místo pro „držet místo“. */
   | { kind: 'set-order'; group: number; order: GroupOrder; at?: Pos }
   /** Velitel v boji napadne muže (id bojovníka – `Fighter.id`). */
@@ -189,7 +202,14 @@ export type IntentBody =
    * – platí pro vzdané, které vojsko ve skupině `group` dostane; šlechtice a muže rodu u NPC
    * velitele útočník vždy zajme.
    */
-  | { kind: 'choose-surrendered'; group: number; choice: SurrenderOrder };
+  | { kind: 'choose-surrendered'; group: number; choice: SurrenderOrder }
+  /** Hráč je u tažení (otevřené tažení ve hře – Ú6.14); bez něj 1 herní den → zástupce, nebo rozpad. */
+  | { kind: 'presence' }
+  /**
+   * Jen NPC velitel (Ú6.12): silné opevnění nenapadne a vezme, co je venku – boj končí, útočníci
+   * drží ves mimo útočiště (war.md – Velení; fortifications.md – Postoje vsi s opevněním).
+   */
+  | { kind: 'plunder' };
 
 /** Záměr s taktem, ve kterém platí (teď + 2), a pořadím zápisu `seq` (v taktu podle něj). */
 export interface CampaignIntent {
@@ -239,7 +259,7 @@ export interface CampaignWorld {
 }
 
 /** Druhy upozornění tažení (aplikace je přidá do `PlayerNoticeKind`). */
-export type CampaignNoticeKind = 'campaign-returned' | 'foreign-army';
+export type CampaignNoticeKind = 'campaign-returned' | 'foreign-army' | 'campaign-disbanded';
 
 /** Upozornění pro hráče z taktu tažení. */
 export interface CampaignNotice {

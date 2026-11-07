@@ -64,6 +64,9 @@ describe('playerNoticeLine', () => {
     const back = notice({ kind: 'campaign-returned', payload: { reason: 'supplies' } });
     expect(playerNoticeLine(back).text).toBe('Vojsko se vrátilo – došlo jídlo.');
     expect(noticePanel('campaign-returned')).toBe('war');
+    const apart = notice({ kind: 'campaign-disbanded', payload: { campaignId: 'c1' } });
+    expect(playerNoticeLine(apart).text).toBe('Výprava se rozpadla.');
+    expect(noticePanel('campaign-disbanded')).toBe('war');
   });
 
   it('x, panel války', () => {

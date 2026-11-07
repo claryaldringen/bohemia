@@ -162,7 +162,7 @@ notices, waiting }` – čistá, vstup nemění. Takt na kopii stavu: na začát
   skupina bez cesty nebo bez mužů stojí. Trasa po světě `worldRoute` (bez zákazů – průchod Ú6.13).
   Všechny skupiny na mapě cíle → `raiding`; **`raidTick` počítá boj** (Ú6.8 – Boj muž po muži;
   Ú6.9 obránci, Ú6.10 kořist, Ú6.11 vzdaní). Návrat ke shromaždišti
-  (rozpad po hloučcích Ú6.12) → `done`: zápis „Vojsko Bořivoje se vrátilo.“ do kroniky každé
+  (rozpad po hloučcích – NPC velitel, zástupce a rozpad, Ú6.12) → `done`: zápis „Vojsko Bořivoje se vrátilo.“ do kroniky každé
   domovské vsi a upozornění `campaign-returned { campaignId, reason }`; při vyrazení „Vojsko
   Bořivoje vyrazilo.“ do shromaždiště. Události jdou do schránky na **následující den** (rozhodnutí
   13), `ref` = `camp:<id>:<takt>:<n>`. Stádo kořisti jde se skupinou velitele.
@@ -266,7 +266,8 @@ lese 50 m), `WAR.houseGroupM`, `WAR.holdPlaceM`, `WAR.defenderAges`, `WAR.downed
   dál než 6 m; napadne, kdo útočí na velitele nebo na něj), `attack-all` (nejbližší viditelný
   i prchající, nikoho nevidí → nejbližší vůbec – projdou ves), `hold-place` (`holdAt`, jinak kde
   skupina stojí; nepřítel do 30 m + dosah zblízka od místa, lukem kdo je na dostřel, vodítko 30 m).
-  Bez velitele a pro NPC velitele (bez `liveCommand`) „útočit na vše“ – rozhodování NPC Ú6.12.
+  Bez velitele „útočit na vše“; NPC velitel řídí velitele (jinak zástupce) jako řízeného muže
+  (`syncControl` – NPC velitel, zástupce a rozpad, Ú6.12).
   `controlledPlan` – hráčem řízený muž: `chosen` (pokyn `strike`), jinak `goal` (pokyn `march` na
   mapě cíle), brání se jen tomu, kdo na něj útočí na dosah. `battleLeader` = velitel, když bojuje,
   jinak zástupce; `orderHeard` = bojující muž skupiny do 30 m od velitele; `setGroupOrder(state,
@@ -485,3 +486,48 @@ today })` (`hold` / `release` / `execute`, zajatec se hledá ve vsích hráče, 
   `TermsForm` (řádek se jen zobrazuje), zajatý hráčův muž nevede tažení díky `away` (`launch-campaign`).
 - Testy: `war/__tests__/surrender.test.ts`, `captives-campaign.test.ts` (zajetí přes `stepCampaign`),
   `application/__tests__/prisoners.test.ts`, `ransom-negotiation.test.ts`, db test výše.
+
+## NPC velitel, zástupce a rozpad (Ú6.12)
+
+Spec: [war.md](../design/war.md) – Velení a příprava tažení (NPC velitel, Hráč odejde od tažení,
+Rozpad). Čísla `WAR.npc` (`attackRatio` 1,5, `lostShare` 0,5) a `WAR.absentLeaderDays`.
+
+- **Kdy vede NPC** (`campaign.ts`, `npcLeads`): ve fázi `marching` / `raiding`, když velí jiný muž
+  (`liveCommand = false`), nebo je hráč pryč a vede zástupce (`CampaignState.absent`). Po záměrech
+  hráče a kontrole velení (`command`) takt spočte `npcIntents(state, world)` a použije je jako
+  záměry NPC (`applyBody(…, npc = true)` – stejné úkony jako hráč, navíc `plunder`). Rozhoduje jen
+  ze stavu a světa v taktu, takže výsledek nezávisí na kouscích taktů; před rozhodnutím na mapě
+  cíle se načte opevnění (`battleFieldOf`, jinak `MissingData`).
+- **`domain/war/npc-commander.ts`** – `npcIntents`: obrat (`turn-back { reason }`) při bodu zlomu
+  skupiny velícího muže (`routed`), padlé / zajaté / dezertované nebo v boji prchající polovině
+  vojska (`routed`), plné nosnosti – kořist jídla ≥ `lootCapacity` (`arrived`) –, nebo když jídla
+  zbývá jen na cestu domů (`daysHome` – vzdušnou čarou do shromaždiště 3,5 m/s; `supplies`).
+  Pochod: skupiny, které hráč poslal jinam, pošle k cíli (`march`); trasa je pochod Ú6.4 (A*
+  obchází hustý les, potoky po brodech). Nájezd: `npcLeader` (velitel, dokud bojuje i prolamuje,
+  jinak zástupce) – drží napadeného, dokud bojuje; jinak skupiny domů obránců v dohledu (150 m od
+  kteréhokoli útočníka) poměří silou obránců × `defenderMultiplier` (u domu 1,5, za opevněním
+  1,5 × násobek) a napadne nejslabší (`strike` na nejbližšího jejího muže), má-li vojsko aspoň
+  1,5 × její sílu. Jinak: všichni obránci za opevněním → `plunder` (boj `attackers` +
+  `BattleState.plundered` → `raidResultOf` bere útočiště za nedobyté – kořist jen zvenku), jinak
+  `turn-back { reason: 'order' }`. Nevidí-li nikoho, jde k nejbližšímu obránci (`march`). Průchod
+  opevněním volí boj (`approach` – mezera / brána / průlom, jinak místo s nejmenší prací).
+- **Řízení v boji** – `syncControl`: `controlled` má jen muž, kterého řídí NPC (`npcLeader`), nebo
+  při živém vedení velitel tažení; kdo řízení ztratí, zapomene `chosen` a `goal`.
+- **Přítomnost** – záměr `presence` (web pošle z otevřeného tažení – Ú6.14) i každý jiný záměr
+  hráče nastaví `presenceTick` a zruší `absent`. `command`: živé vedení bez přítomnosti déle než
+  1 herní den (`absentTicks` = 24 h ÷ `hoursPerTick` ≈ 345 taktů) → se zástupcem `absent = true`
+  (vede NPC, po návratu hráč převezme), bez zástupce rozpad. Padlý nebo zajatý velitel → živý
+  zástupce převezme velení (`liveCommand = false` – hráč už vliv nemá), jinak rozpad (i když padl
+  i zástupce). Vede-li jiný muž, hráčův `turn-back` se zahodí.
+- **Rozpad** (`disband`): boj končí (`leaveBattle`), `phase = 'disbanded'`, živí muži se rozdělí do
+  hloučků podle domovské vsi (nová id skupin, hlouček stojí u skupiny svého prvního muže) a jdou
+  domů – `CampaignState.homes` (místa vsí z přípravy, `homePlaces` v `plan-campaign.ts`), chybí-li,
+  do shromaždiště. Kronika všech domovských vsí a shromaždiště `campaign { step: 'disbanded' }` →
+  „Výprava Bořivoje se rozpadla.“ (`village-view-chronicle.ts`), upozornění `campaign-disbanded
+{ campaignId, leader }` vůdci i vazalům, jejichž muži jdou („Výprava se rozpadla.“ –
+  `player-notices.ts`, panel války). Hloučky nebojují; doma `finish` pošle jen `campaign-return`
+  (bez zápisu „vrátilo se“ a bez `campaign-returned`). Kořist a stádo jdou s hloučkem vsi
+  shromaždiště.
+- Testy: `war/__tests__/npc-commander.test.ts` (nájezd NPC na bránící se ves po kouscích 1 / 7 / 100,
+  silná ves za palisádou – kořist jen zvenku, obraty, přítomnost, zástupce, rozpad); živé testy
+  tažení posílají přítomnost (`present`, `LIVE` v `campaign-fixtures.ts`).

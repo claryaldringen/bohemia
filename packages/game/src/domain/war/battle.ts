@@ -128,6 +128,11 @@ export interface BattleState {
   ticks: number;
   /** Kdo ze vsi odešel před bojem: útočiště, les, vzdaní, odnesené zásoby (Ú6.10 je použije). */
   shelter?: ShelterReport;
+  /**
+   * NPC velitel silné opevnění nenapadl a vzal, co je venku (Ú6.12) – výsledek `attackers`, ale
+   * útočiště zůstalo nedobyté.
+   */
+  plundered?: true;
 }
 
 /** Opevnění na bojišti s tvarem úseků (pořadí jako ve vsi). */

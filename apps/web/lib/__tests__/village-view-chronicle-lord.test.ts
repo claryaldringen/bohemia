@@ -23,6 +23,9 @@ describe('kronika – vojvodova rodina', () => {
     expect(
       chronicleText({ day: 5, kind: 'campaign', step: 'returned', leader: 'Bořivoj' }, 'Ves'),
     ).toBe('Vojsko Bořivoje se vrátilo.');
+    expect(
+      chronicleText({ day: 6, kind: 'campaign', step: 'disbanded', leader: 'Bořivoj' }, 'Ves'),
+    ).toBe('Výprava Bořivoje se rozpadla.');
   });
 
   it('jméno muže rodu v 1. pádu (lord.md – Jména)', () => {

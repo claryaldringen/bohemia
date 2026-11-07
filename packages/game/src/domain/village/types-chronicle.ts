@@ -133,9 +133,10 @@ export type ChronicleEvent = { day: number } & (
     }
   /**
    * Tažení (war.md – Velení a příprava tažení): vojsko vůdce `leader` vyrazilo ze shromaždiště
-   * (`set-out`), nebo se vrátilo domů (`returned`) – věcně, bez hodnocení.
+   * (`set-out`), vrátilo se domů (`returned`), nebo se rozpadlo (`disbanded` – Ú6.12) – věcně, bez
+   * hodnocení.
    */
-  | { kind: 'campaign'; step: 'set-out' | 'returned'; leader: string }
+  | { kind: 'campaign'; step: 'set-out' | 'returned' | 'disbanded'; leader: string }
   /**
    * Nájezd (war.md – Co hráč vidí: Kronika) – věcný zápis do kronik obou rodů: vůdce `leader` ze
    * vsi `from` na ves `target`, bez opovědi (`declared` false), padlí, ranění a odvedení obránci

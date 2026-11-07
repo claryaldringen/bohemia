@@ -8,6 +8,7 @@ import { houseName } from './negotiation-chronicle';
 import { startWarByAttack, type WarDeps } from './declare-war';
 import { queueCampaignIntent, type CampaignRepository } from './campaigns';
 import {
+  homePlaces,
   prepareCampaign,
   type CampaignPlan,
   type PlanDeps,
@@ -85,6 +86,7 @@ export async function launchCampaign(
       foodKg: input.plan.food,
       liveCommand: prepared.liveCommand,
       ambush: prepared.ambush,
+      homes: homePlaces(prepared),
     },
     deps.world,
   );

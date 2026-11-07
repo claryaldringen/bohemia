@@ -94,3 +94,16 @@ export function intent(
 }
 
 export const SET_OUT = [intent(LAUNCH + 2, 1, { kind: 'set-out' })];
+
+/**
+ * Hráč u tažení (živé vedení – war.md, Velení): záměr `presence` každých `every` taktů od `from`
+ * do `to`; bez přítomnosti se výprava po 1 herním dni předá zástupci, nebo rozpadne.
+ */
+export function present(from: number, to: number, every = 100): CampaignIntent[] {
+  const out: CampaignIntent[] = [];
+  for (let tick = from; tick <= to; tick += every) out.push(intent(tick, 1, { kind: 'presence' }));
+  return out;
+}
+
+/** Vyslání a hráč u tažení po celou dobu testu. */
+export const LIVE = [...SET_OUT, ...present(LAUNCH + 100, LAUNCH + 5000)];
