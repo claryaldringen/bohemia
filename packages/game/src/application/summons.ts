@@ -1,16 +1,17 @@
 import { dateOfDayIndex } from '../domain/calendar';
 import { NEGOTIATION } from '../domain/negotiation';
 import type { PersonRef } from '../domain/village';
-import { lineCandidates, lineManStrength } from '../domain/war';
+import { lineCandidates, lineManStrength, nobleLineCandidates } from '../domain/war';
 import type { Dialog, DialogRepository } from './dialogs';
-import type { HouseRepository } from './houses';
+import type { House, HouseRepository } from './houses';
 import { NO_HOUSE } from './negotiate';
 import { chronicleHouses, houseName, type NegotiationVillages } from './negotiation-chronicle';
 import type { NoticeRepository } from './notices';
 import { findPlayerVillage } from './player-villages';
 import type { SettlementRepository } from './settlements';
 import { sendMen, type ShipmentDeps } from './shipments';
-import type { VassalageRepository } from './vassalages';
+import type { StewardshipRepository } from './stewardships';
+import type { Vassalage, VassalageRepository } from './vassalages';
 import type { VillageRepository } from './villages';
 import type { WarRepository } from './wars';
 
@@ -20,7 +21,8 @@ import type { WarRepository } from './wars';
 // domluvené, míň nebo víc mužů rodu (se vzkazem), míň = neplnění. Dny služby za herní rok jsou
 // strop, pán smí svolat víckrát, dokud je nevyčerpá. Bez odpovědi dialog propadne s koncem války –
 // kronika „Ctibor nepřišel do války“ a neplnění. Vazal B smí na svolání pána A svolat své vazaly
-// s cílem rovnou u A; jejich muži se počítají do služby B.
+// s cílem rovnou u A; jejich muži se počítají do služby B. NPC vazal (povýšený) plní přesně a bez
+// dialogu (vassalage.md – Povýšení vesničana) – `answerNpcSummons`.
 
 export const SUMMONS_REASONS = {
   notAtWar: 'Svolávat smíš jen ve válce.',
@@ -70,6 +72,8 @@ export interface SummonsDeps extends NegotiationVillages {
   villages: VillageRepository;
   settlements: SettlementRepository;
   shipments: ShipmentDeps;
+  /** Vsi, které NPC rod spravuje – v nich žijí jeho muži. */
+  stewardships: Pick<StewardshipRepository, 'listByStewardHouse'>;
   /** Dopočítá ves k dnešku před odesláním mužů (jako u Odvodů). */
   prepareVillage: (villageId: string, today: number) => Promise<unknown>;
 }
@@ -110,7 +114,13 @@ async function warFor(
 }
 
 export type SummonResult =
-  | { ok: true; opened: Dialog[]; skipped: { vassalageId: string; reason: string }[] }
+  | {
+      ok: true;
+      opened: Dialog[];
+      skipped: { vassalageId: string; reason: string }[];
+      /** Svolání NPC vazalů – vstupní bod je hned splní `answerNpcSummons` (mimo zámek vsi). */
+      npcDialogIds: string[];
+    }
   | { ok: false; reason: string };
 
 /**
@@ -150,6 +160,7 @@ export async function summonVassals(
   const year = dateOfDayIndex(input.today).year;
   const lordName = await houseName(deps, lord);
   const opened: Dialog[] = [];
+  const npcDialogIds: string[] = [];
   const skipped: { vassalageId: string; reason: string }[] = [];
   for (const vassalageId of new Set(input.vassalageIds)) {
     const skip = (reason: string): void => {
@@ -166,7 +177,8 @@ export async function summonVassals(
       continue;
     }
     const vassal = await deps.houses.byId(v.vassalHouseId);
-    if (!vassal || vassal.endedAt !== null || vassal.playerId === null) {
+    const npc = vassal?.kind === 'npc';
+    if (!vassal || vassal.endedAt !== null || (vassal.playerId === null && !npc)) {
       skip(SUMMONS_REASONS.ended);
       continue;
     }
@@ -193,8 +205,9 @@ export async function summonVassals(
       ...(war.forDialog ? { forDialogId: war.forDialog.id } : {}),
     };
     // klíč podle pořadí svolání vazalství – ze dvou souběžných svolání projde jedno
+    // NPC rod hráče nemá – dialog drží svolávající (hned se splní, nikdo ho neuvidí otevřený)
     const dialog = await deps.dialogs.openOnce(`summons:${v.id}:${used.count}`, {
-      playerId: vassal.playerId,
+      playerId: vassal.playerId ?? input.playerId,
       kind: 'summons',
       refId: v.id,
       year,
@@ -205,6 +218,10 @@ export async function summonVassals(
       continue;
     }
     opened.push(dialog);
+    if (vassal.playerId === null) {
+      npcDialogIds.push(dialog.id);
+      continue;
+    }
     await deps.notices.post({
       playerId: vassal.playerId,
       kind: 'summons-open',
@@ -213,7 +230,7 @@ export async function summonVassals(
     });
   }
   if (opened.length === 0) return fail(skipped[0]?.reason ?? SUMMONS_REASONS.noVassals);
-  return { ok: true, opened, skipped };
+  return { ok: true, opened, skipped, npcDialogIds };
 }
 
 /** Muž rodu schopný služby – do dialogu Svolání (předvyplnění podle výcviku). */
@@ -301,9 +318,25 @@ export async function answerSummons(
   if (message.length > NEGOTIATION.messageMaxChars) return fail(SUMMONS_REASONS.messageTooLong);
 
   // jen muži rodu schopní služby z vlastních vsí (Martin: „nikdo jiný vojenské zkušenosti nemá“)
+  const byVillage = refsByVillage(input.men);
+  for (const [villageId, ids] of byVillage) {
+    const own = await findPlayerVillage(deps, { playerId: input.playerId, villageId });
+    if (!own) return fail(SUMMONS_REASONS.notLineMan);
+    const fit = new Set(lineCandidates(own.village.state, input.today).map((p) => p.id));
+    if (ids.some((id) => !fit.has(id))) return fail(SUMMONS_REASONS.notLineMan);
+  }
+  return dispatchSummons(
+    deps,
+    { dialog, body, vassal, vassalage: v, byVillage, message },
+    input.today,
+  );
+}
+
+/** Odkazy na muže po vsích (každý muž jednou). */
+function refsByVillage(refs: readonly PersonRef[]): Map<string, number[]> {
   const byVillage = new Map<string, number[]>();
   const seen = new Set<string>();
-  for (const ref of input.men) {
+  for (const ref of refs) {
     const key = `${ref.villageId}:${ref.personId}`;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -311,49 +344,108 @@ export async function answerSummons(
     list.push(ref.personId);
     byVillage.set(ref.villageId, list);
   }
-  for (const [villageId, ids] of byVillage) {
-    const own = await findPlayerVillage(deps, { playerId: input.playerId, villageId });
-    if (!own) return fail(SUMMONS_REASONS.notLineMan);
-    const fit = new Set(lineCandidates(own.village.state, input.today).map((p) => p.id));
-    if (ids.some((id) => !fit.has(id))) return fail(SUMMONS_REASONS.notLineMan);
-  }
-  const sent = seen.size;
-  if (!(await deps.dialogs.answer(dialog.id, 'open', { sent, message: message || null }))) {
+  return byVillage;
+}
+
+/**
+ * Odpověď na Svolání: podmíněné `answer` s počtem a vzkazem, pak muži odejdou do cílové vsi
+ * (`sendMen` – služba na dny svolání). Míň než domluveno (i se svými vazaly) = neplnění; pán
+ * dostane „Ctibor poslal 3 muže.“.
+ */
+async function dispatchSummons(
+  deps: SummonsDeps,
+  a: {
+    dialog: Dialog;
+    body: SummonsBody;
+    vassal: House;
+    vassalage: Vassalage;
+    byVillage: Map<string, number[]>;
+    message: string;
+  },
+  today: number,
+): Promise<AnswerSummonsResult> {
+  let sent = 0;
+  for (const ids of a.byVillage.values()) sent += ids.length;
+  if (!(await deps.dialogs.answer(a.dialog.id, 'open', { sent, message: a.message || null }))) {
     return fail(SUMMONS_REASONS.answered);
   }
   let arrivesDay: number | null = null;
-  for (const [villageId, ids] of byVillage) {
-    await deps.prepareVillage(villageId, input.today);
+  for (const [villageId, ids] of a.byVillage) {
+    await deps.prepareVillage(villageId, today);
     const result = await sendMen(deps.shipments, {
       fromVillageId: villageId,
-      toVillageId: body.targetVillageId,
+      toVillageId: a.body.targetVillageId,
       personIds: ids,
       kind: 'service',
-      days: body.days,
-      refId: `summons:${dialog.id}`,
-      today: input.today,
+      days: a.body.days,
+      refId: `summons:${a.dialog.id}`,
+      today,
     });
     if (!result.ok) return fail(result.reason);
     arrivesDay = Math.max(arrivesDay ?? 0, result.arrivesDay);
   }
-  const relayed = await relayedMen(deps, vassal.id, dialog.id);
-  const short = sent + relayed < body.men;
-  if (short) await deps.vassalages.addBreach(v.id, 'summons', input.today);
-  const lord = await deps.houses.byId(body.lordHouseId);
+  const relayed = await relayedMen(deps, a.vassal.id, a.dialog.id);
+  const short = sent + relayed < a.body.men;
+  if (short) await deps.vassalages.addBreach(a.vassalage.id, 'summons', today);
+  const lord = await deps.houses.byId(a.body.lordHouseId);
   if (lord?.playerId) {
     await deps.notices.post({
       playerId: lord.playerId,
       kind: 'summons-sent',
       payload: {
-        dialogId: dialog.id,
-        name: await houseName(deps, vassal),
+        dialogId: a.dialog.id,
+        name: await houseName(deps, a.vassal),
         men: sent,
-        message: message || null,
+        message: a.message || null,
       },
-      gameDay: input.today,
+      gameDay: today,
     });
   }
   return { ok: true, sent, arrivesDay, short };
+}
+
+/**
+ * NPC vazal splní Svolání přesně a bez dialogu (vassalage.md – Povýšení vesničana: „NPC rod vždy
+ * přijme a plní přesně – neposílá míň ani víc“): pošle domluvený počet nejzdatnějších mužů rodu
+ * ze vsí, které spravuje (jako předvyplnění dialogu u hráče). Nemá-li jich tolik, pošle všechny
+ * a chybějící = neplnění jako u každého vazala (návrh Clauda). Vstupní bod volá hned po
+ * `summonVassals` mimo zámek vsi (`sendMen` bere zámek sám); opakování nic nezdvojí.
+ */
+export async function answerNpcSummons(
+  deps: SummonsDeps,
+  input: { dialogId: string; today: number },
+): Promise<AnswerSummonsResult> {
+  const dialog = await deps.dialogs.byId(input.dialogId);
+  if (!dialog || dialog.kind !== 'summons') return fail(SUMMONS_REASONS.notFound);
+  if (dialog.status !== 'open') return fail(SUMMONS_REASONS.answered);
+  const body = summonsBody(dialog);
+  const npc = await deps.houses.byId(body.vassalHouseId);
+  if (!npc || npc.kind !== 'npc' || npc.endedAt !== null) return fail(SUMMONS_REASONS.notFound);
+  const war = await deps.wars.activeBetween(body.warHouses[0], body.warHouses[1]);
+  if (war?.id !== body.warId) return fail(SUMMONS_REASONS.warOver);
+  const v = await deps.vassalages.byId(body.vassalageId);
+  if (!v || v.endedAt !== null) return fail(SUMMONS_REASONS.ended);
+  const pool: ServiceMan[] = [];
+  for (const s of await deps.stewardships.listByStewardHouse(npc.id)) {
+    await deps.prepareVillage(s.villageId, input.today);
+    const village = await deps.villages.find(s.villageId);
+    if (!village) continue;
+    for (const p of nobleLineCandidates(village.state, input.today, npc.id)) {
+      pool.push({
+        ref: { villageId: village.id, personId: p.id },
+        name: p.name ?? null,
+        bornDay: p.bornDay,
+        strength: lineManStrength(p, null),
+      });
+    }
+  }
+  pool.sort((x, y) => y.strength - x.strength);
+  const byVillage = refsByVillage(pool.slice(0, body.men).map((m) => m.ref));
+  return dispatchSummons(
+    deps,
+    { dialog, body, vassal: npc, vassalage: v, byVillage, message: '' },
+    input.today,
+  );
 }
 
 /**

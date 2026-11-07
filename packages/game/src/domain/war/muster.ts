@@ -31,6 +31,18 @@ export function lineCandidates(state: Pick<VillageState, 'people'>, day: number)
   return state.people.filter((p) => isLineMan(p) && p.noble === undefined && fit(p, day));
 }
 
+/**
+ * Muži NPC rodu `houseId` schopní služby – povýšený a jeho synové (vassalage.md – Povýšení
+ * vesničana: „jeho muži slouží ve válce“); od 16 let, ne pryč, ne zranění.
+ */
+export function nobleLineCandidates(
+  state: Pick<VillageState, 'people'>,
+  day: number,
+  houseId: string,
+): Person[] {
+  return state.people.filter((p) => isLineMan(p) && p.noble?.houseId === houseId && fit(p, day));
+}
+
 /** Vesničané schopní tažení: muži 16–44 let mimo rod (war.md – Vojsko). */
 export function villagerCandidates(state: Pick<VillageState, 'people'>, day: number): Person[] {
   return state.people.filter(
