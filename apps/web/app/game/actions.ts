@@ -86,6 +86,9 @@ import {
   type VillageUnchanged,
   type VillageView,
 } from '@/lib/village';
+import { armyPanelForPlayer, launchCampaignForPlayer, planCampaignForPlayer } from '@/lib/army';
+import type { ArmyPanelData, CampaignEstimate } from '@/lib/army-view';
+import { parseArmyPanelInput, parseCampaignPlanInput } from '@/lib/army-input';
 import {
   parseBuildTrailInput,
   parseCancelConstructionInput,
@@ -461,6 +464,40 @@ export async function buildTrail(input: unknown): Promise<VillageActionResult> {
  */
 export async function sendExpedition(input: unknown): Promise<VillageActionResult> {
   return villageAction(input, parseSendExpeditionInput, sendExpeditionForPlayer);
+}
+
+/**
+ * Panel Vojsko (war.md): `{ villageId, targetVillageId }` – vsi rodu s muži, cíle ve válce a
+ * (s vybraným cílem) dobrovolníci po vsích. Jen s právem `war` ve vsi `villageId`.
+ */
+export async function getArmyPanel(input: unknown): Promise<ArmyPanelData | { error: string }> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const parsed = parseArmyPanelInput(input);
+  if (parsed === null) return { error: INVALID_INPUT };
+  return withVillageCache(() => armyPanelForPlayer(id, parsed));
+}
+
+/** Odhad tažení `{ plan }` (síla, cesta, zásoby), nebo důvod odmítnutí; nic nemění. */
+export async function planArmyCampaign(
+  input: unknown,
+): Promise<CampaignEstimate | { error: string }> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const parsed = parseCampaignPlanInput(input);
+  if (parsed === null) return { error: INVALID_INPUT };
+  return withVillageCache(() => planCampaignForPlayer(id, parsed.plan));
+}
+
+/** Vyšle tažení `{ plan }`: muži odejdou, jídlo se odečte a tažení vyrazí ze shromaždiště. */
+export async function launchArmyCampaign(
+  input: unknown,
+): Promise<{ ok: true } | { error: string }> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const parsed = parseCampaignPlanInput(input);
+  if (parsed === null) return { error: INVALID_INPUT };
+  return withVillageCache(() => launchCampaignForPlayer(id, parsed.plan));
 }
 
 /**

@@ -12,6 +12,16 @@ const RightsContext = createContext<VillageRightsView | null>(null);
 
 export const RightsProvider = RightsContext.Provider;
 
+const VillageIdContext = createContext<string | null>(null);
+
+/** Id zobrazené vsi pro panely, které nad ní volají server samy (panel Vojsko). */
+export const VillageIdProvider = VillageIdContext.Provider;
+
+/** Id zobrazené vsi, nebo null, dokud žádná není. */
+export function useVillageId(): string | null {
+  return useContext(VillageIdContext);
+}
+
 /** Důvod, proč `right` v téhle vsi chybí; null, když ho hráč má (nebo práva nejsou známá). */
 export function rightDeniedReason(
   rights: VillageRightsView | null | undefined,

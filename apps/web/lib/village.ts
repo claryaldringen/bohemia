@@ -979,3 +979,43 @@ export async function settleJourneyForPlayer(
     }),
   );
 }
+
+/** Kontext akce války: držitel (hráč), shromaždiště a dnešní den – bez krajiny a pohledu. */
+export interface WarContext {
+  playerId: string;
+  villageId: string;
+  day: number;
+}
+
+/** Výsledek `guardedAction` akce války: hodnota, nebo chyba česky (konec hry = chyba). */
+function warResult<T>(done: Awaited<ReturnType<typeof guardedAction<T>>>): T | { error: string } {
+  if (done.ok) return done.value;
+  return 'error' in done.result ? { error: done.result.error } : { error: 'Hra skončila.' };
+}
+
+/**
+ * Odhad tažení (war.md) nad shromaždištěm `villageId`, kterou smí hráč řídit s právem `war` – pod
+ * zámkem hráče jako ostatní akce. Chyba (cizí ves, správce, konec hry) jako `{ error }` česky.
+ */
+export async function planCampaignActionForPlayer<T>(
+  playerId: string,
+  villageId: string,
+  run: (ctx: WarContext) => Promise<T>,
+): Promise<T | { error: string }> {
+  const done = await guardedAction(playerId, villageId, 'planCampaign', (ctx) =>
+    run({ playerId: ctx.playerId, villageId: ctx.villageId, day: ctx.day }),
+  );
+  return warResult(done);
+}
+
+/** Vyslání tažení (war.md) ze shromaždiště `villageId` – stejně jako odhad, s vlastním právem. */
+export async function launchCampaignActionForPlayer<T>(
+  playerId: string,
+  villageId: string,
+  run: (ctx: WarContext) => Promise<T>,
+): Promise<T | { error: string }> {
+  const done = await guardedAction(playerId, villageId, 'launchCampaign', (ctx) =>
+    run({ playerId: ctx.playerId, villageId: ctx.villageId, day: ctx.day }),
+  );
+  return warResult(done);
+}

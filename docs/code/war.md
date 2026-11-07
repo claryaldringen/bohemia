@@ -202,6 +202,51 @@ campaignId, playerId, body, nowMs })` – záměr na takt `tickOfMs(now) + 2`; �
   (bod bit po bitu, odmítnutí záměru, `stale`, `outbox`, souběh záměru s uložením, dva workery –
   tažení počítá jen jeden).
 
+## Příprava a vyslání tažení (Ú6.6)
+
+Panel Vojsko (`web-ui.md`) posílá **plán** (`CampaignPlan`, `application/plan-campaign.ts`): velitel
+(`PersonRef` – muž rodu od 16 let), volitelně zástupce, vsi rodu s výběrem (`lineMen`, přihlášení
+`villagers`, nucení `forced`), shromaždiště, cíl, `groups` (`together` / `by-village`), rozkaz
+ke vzdaným (`surrendered`: `kill` / `lead` / `leave`, uloží se do `CampaignState.surrendered`)
+a `food` (kg obilí ze zásob shromaždiště).
+
+- **`prepareCampaign`** je jediné ověření, které používá odhad i vyslání: rod hráče, jen **vlastní
+  vsi** (`findPlayerVillage` přes aktivní sídla držitele – ves spravovaná cizí hráčem sem nepatří,
+  právo `war` ve `STEWARD_RIGHTS` chybí), žijící vsi, velitel a zástupce mezi vybranými muži rodu,
+  cíl (ves cizího rodu, žijící; **cíl v ochraně se odmítne** – nová ves `villageProtected`, rod
+  nováčka `houseProtectedUntil` + `protectedReason`, ochrana rodu platí jen když mezi rody neběží
+  válka), jídlo (nejvýš zásoba shromaždiště bez osiva a nosnost mužů). Odhad: `CampaignEstimate`
+  (síla `armyStrength` po vsích s pokrytím nástroji, počty mužů, cesta ve dnech vzdušnou čarou
+  ≈ 3,5 m/s, na kolik dní vystačí jídlo, `ambush`, `liveCommand`).
+- **`musterOf`** (`domain/war/muster.ts`): vesničané 16–44 let (`villagerCandidates`); příbuzní
+  v cíli (`kinInTarget` – příchozí ze sousední mapy ve směru cíle: muž, jeho žena nebo rodiče) →
+  neochotný; ostatní losují vlastním losem (`musterSeed` = seed vsi + cíl) s pravděpodobností
+  `volunteerShare` (30 % + 0,5 % za bod štěstí nad 50, hlad +15 %, vdovská domácnost × 0,5 – čísla
+  `WAR.muster`). `volunteers` jsou id přihlášených, `others` ostatní způsobilí (kandidáti na rozkaz).
+  Server přijme v `villagers` jen dobrovolníky a v `forced` jen ostatní způsobilé.
+- **`launchCampaign`** (`application/launch-campaign.ts`; **volající drží zámek hráče** – web
+  `guardedAction`): ověří, `startWarByAttack` (mezi rody neběží válka = přepadení, válka začne
+  vysláním), pro každou ves **verzovaným zápisem** pošle muže pryč (`sendAway`, `away: campaign`
+  s `refId` = id tažení, bez `untilDay` – návrat řeší tažení; doma pak nepracují ani nejí), shromaždiště
+  odečte jídlo, nařízený útok na příbuzné (nucený, nebo muž rodu s příbuznými v cíli) přidá vsi
+  `{ day, points: 5 }` do `happiness.deaths` (−5 štěstí na rok za každého, strop úmrtí 20), založí
+  tažení (`newCampaign`, seed z `SeedSource`) a záměr `set-out` (`queueCampaignIntent`). Nepovede-li
+  se uložit další ves, vrátí muže, jídlo i štěstí do vsí, kam už sáhl (`release`). Koně zůstávají
+  ve vsi (jezdec má `mounted`, síla z koně se počítá).
+- **Zásoby** (`domain/war/supplies.ts`): `campaignSupplies(men, horses, carts, days)` → potřeba
+  1 kg/muž/den, nosnost 25 / 80 / 400 kg. Zatím se vezou jen muži (koně a vozy v plánu nejsou).
+- **Dezerce** (`domain/war/desertion.ts`, `desert` v `campaign.ts`): v denním kroku venku nucený
+  (`CampaignMember.forced`) dezertuje s los ze seedu tažení, dne a pořadí muže – 5 % denně, s příbuznými
+  v cíli (`CampaignMember.kin`) 15 % (`WAR.desertion`); `status: 'deserted'`. Dezertér s příbuznými
+  v cíli cíl varuje: do schránky cílové vsi jde `threat-signal` s `army-seen` (den po dni dezerce;
+  body `army-seen` vlastní schránka zatím nemá – signál hrozby je stávající tělo).
+- Právo: `ACTION_RIGHTS` `planCampaign` a `launchCampaign` = `war`; ve web `lib/village.ts`
+  `planCampaignActionForPlayer` / `launchCampaignActionForPlayer` (přes `guardedAction`),
+  `lib/army.ts` je skládá s `LaunchDeps` (`GameDeps.campaigns`).
+- Testy: `domain/war/__tests__/muster.test.ts` (nábor, zásoby, dezerce, varování),
+  `application/__tests__/launch-campaign.test.ts` (plán, vlastní vsi, velitel, ochrana, jídlo,
+  vyslání, přepadení, štěstí, vrácení při selhání), e2e `multiplayer.spec.ts` (panel Vojsko).
+
 ## Boj muž po muži (Ú6.8)
 
 war.md – Boj, Ztráty; fortifications.md – Obrana, Prolomení. Čísla ve `WAR.combat` (zdraví,

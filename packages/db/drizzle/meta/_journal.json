@@ -218,6 +218,13 @@
       "when": 1793997807462,
       "tag": "0030_campaign",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1794029443458,
+      "tag": "0031_campaign_tick_bigint",
+      "breakpoints": true
     }
   ]
 }
