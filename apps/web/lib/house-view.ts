@@ -5,6 +5,7 @@ import {
   formatInviteCode,
   type HousePanelData,
   type HungerLevel,
+  type LanguageGroup,
   type PanelAgreement,
   type PanelDispute,
   type Verdict,
@@ -41,6 +42,8 @@ export interface HouseLinkView {
   lordName: string | null;
   men: number;
   distance: number;
+  /** Jazyková skupina rodu (ikona jazyka – newcomers.md, Jazyková skupina). */
+  language: LanguageGroup;
   /** Popisek: „Boleslav – 3 muži, 12 polí daleko“. */
   label: string;
   /** Akce vůči rodu (jen v seznamu hráčů): důvody zašednutí, null = smí. */
@@ -154,6 +157,10 @@ export interface HouseView {
   protectionDaysLeft: number | null;
   /** Čekající věci (jednání, kde je hráč na tahu, a Odvody pánům) – pečeť v liště. */
   waiting: number;
+  /** Rod je odříznutý nováček – ještě není na mapě světa (newcomers.md). */
+  isolated: boolean;
+  /** Důvod, proč teď nejde vydat pozvánku; null – smí. */
+  inviteReason: string | null;
 }
 
 /** Počet let k popisku („1 rok“, „2 roky“, „5 let“). */
@@ -201,6 +208,7 @@ export function houseLinkOf(house: PublicHouse, actions?: PanelPlayerActions): H
     lordName: house.lordName,
     men,
     distance: house.distance,
+    language: house.language,
     label: `${name} – ${men} ${plural(men, 'muž', 'muži', 'mužů')}`,
     ...(actions
       ? {
@@ -243,6 +251,8 @@ export function houseView(data: HousePanelData, nowMs: number): HouseView {
   return {
     hasHouse: data.hasHouse,
     ownHouseId: data.own?.houseId ?? '',
+    isolated: data.isolated,
+    inviteReason: data.inviteReason,
     // nejstarší první (seniorát je podle věku)
     own: [...(data.own?.men ?? [])]
       .sort((a, b) => b.age - a.age)

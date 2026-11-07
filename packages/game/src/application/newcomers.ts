@@ -68,6 +68,8 @@ export interface OfferHouse {
 
 export interface NewcomerRequest {
   houseId: string;
+  /** Jméno hlavy žádaného rodu (prázdné, když rod už v adresáři není). */
+  lordName: string;
   state: 'pending' | 'rejected';
 }
 
@@ -98,10 +100,13 @@ export function newcomerDeadline(house: Pick<House, 'newcomerSince'>): Date | nu
     : new Date(house.newcomerSince.getTime() + NEWCOMERS.waitDays * DAY_MS);
 }
 
-/** Žádosti nováčka: čekající a odmítnuté (stažené a zaniklé se nepočítají). */
-async function requestsOf(deps: NewcomerDeps, house: House): Promise<NewcomerRequest[]> {
+/** Žádosti nováčka: čekající a odmítnuté (stažené a zaniklé se nepočítají), bez jmen pánů. */
+async function requestsOf(
+  deps: NewcomerDeps,
+  house: House,
+): Promise<Omit<NewcomerRequest, 'lordName'>[]> {
   const records = await deps.negotiations.newcomerRequestsOf(house.id);
-  return records.flatMap((r): NewcomerRequest[] =>
+  return records.flatMap((r): Omit<NewcomerRequest, 'lordName'>[] =>
     r.status === 'open'
       ? [{ houseId: r.recipientHouseId, state: 'pending' }]
       : r.status === 'rejected'
@@ -143,15 +148,25 @@ export async function newcomerStatus(
   const requests = await requestsOf(deps, house);
   const ids = await offerIds(deps, house, new Set(requests.map((r) => r.houseId)));
   const entries = new Map(
-    (await deps.worldDirectory.entriesOf(ids)).map((e) => [e.house.id, e] as const),
+    (await deps.worldDirectory.entriesOf([...ids, ...requests.map((r) => r.houseId)])).map(
+      (e) => [e.house.id, e] as const,
+    ),
   );
+  const nameOf = (id: string): string | null => {
+    const entry = entries.get(id);
+    return entry ? (publicHouseOf(entry, entry.seat, 0).lordName ?? '') : null;
+  };
   const offer = ids.flatMap((id): OfferHouse[] => {
     const entry = entries.get(id);
     if (!entry) return [];
-    const lordName = publicHouseOf(entry, entry.seat, 0).lordName ?? '';
-    return [{ houseId: id, lordName, language: entry.house.language }];
+    return [{ houseId: id, lordName: nameOf(id) ?? '', language: entry.house.language }];
   });
-  return { phase: 'isolated', offer, requests, deadline: newcomerDeadline(house) };
+  return {
+    phase: 'isolated',
+    offer,
+    requests: requests.map((r) => ({ ...r, lordName: nameOf(r.houseId) ?? '' })),
+    deadline: newcomerDeadline(house),
+  };
 }
 
 /**

@@ -69,6 +69,33 @@ export function createWorldDirectory(db: Database): WorldDirectory {
         );
       return entriesFor(db, rows);
     },
+    async isolatedEntriesOf(houseIds): Promise<DirectoryEntry[]> {
+      if (houseIds.length === 0) return [];
+      // odříznutý rod: bez `placed_at`, sídlo jen v místní mřížce – poloha sídla je místní
+      const rows = await db
+        .select({ house, gridX: settlement.localX, gridY: settlement.localY })
+        .from(house)
+        .innerJoin(
+          settlement,
+          and(
+            eq(settlement.ownerId, house.playerId),
+            eq(settlement.isSeat, true),
+            isNull(settlement.archivedAt),
+          ),
+        )
+        .where(
+          and(
+            eq(house.kind, 'player'),
+            isNull(house.endedAt),
+            isNull(house.placedAt),
+            inArray(house.id, houseIds),
+          ),
+        );
+      return entriesFor(
+        db,
+        rows.map((r) => ({ ...r, gridX: r.gridX ?? 0, gridY: r.gridY ?? 0 })),
+      );
+    },
     async offerCandidates(): Promise<OfferCandidate[]> {
       // živé vsi = souhrn k uložené verzi stavu, současná verze souhrnu, ves nevymřelá ani
       // opuštěná (jako `publicHouseOf`); odříznuté rody (bez `placed_at`) se nenabízejí

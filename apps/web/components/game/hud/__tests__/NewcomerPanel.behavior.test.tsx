@@ -90,8 +90,8 @@ describe('NewcomerPanel', () => {
       phase: 'isolated',
       offer: (offer(2) as Extract<NewcomerStatusView, { phase: 'isolated' }>).offer,
       requests: [
-        { houseId: 'h1', state: 'pending' },
-        { houseId: 'h2', state: 'rejected' },
+        { houseId: 'h1', lordName: 'Pán 1', state: 'pending' },
+        { houseId: 'h2', lordName: 'Pán 2', state: 'rejected' },
       ],
       deadline: new Date(10_000 + (2 * 86400 + 3 * 3600) * 1000).toISOString(),
     };
@@ -108,6 +108,7 @@ describe('NewcomerPanel', () => {
     expect(q('newcomer-countdown')!.textContent).toBe('2 d 3 h');
     expect(q('newcomer-request-h1')!.getAttribute('data-state')).toBe('pending');
     expect(q('newcomer-request-h2')!.getAttribute('data-state')).toBe('rejected');
+    expect(q('newcomer-request-h1')!.textContent).toContain('Pán 1');
     click('newcomer-withdraw');
     expect(onStartFree).toHaveBeenCalledTimes(1);
   });

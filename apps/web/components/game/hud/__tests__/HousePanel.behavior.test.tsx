@@ -20,12 +20,15 @@ const link = (houseId: string, over: Partial<HouseLinkView> = {}): HouseLinkView
   lordName: 'Boleslav',
   men: 3,
   distance: 4,
+  language: 'cs',
   label: 'Boleslav – 3 muži',
   ...over,
 });
 const VIEW: HouseView = {
   hasHouse: true,
   ownHouseId: 'h-me',
+  isolated: false,
+  inviteReason: null,
   stewardships: [],
   wars: [],
   protectionDaysLeft: null,

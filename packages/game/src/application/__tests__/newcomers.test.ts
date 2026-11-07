@@ -285,7 +285,7 @@ describe('umístění nováčka', () => {
     expect(s.notices.notices.some((n) => n.kind === 'newcomer-rejected-all')).toBe(true);
     const status = await newcomerStatus(s.deps, 'player-n');
     expect(status.phase === 'isolated' && status.requests).toEqual([
-      { houseId: s.ids.a, state: 'rejected' },
+      { houseId: s.ids.a, lordName: expect.any(String) as string, state: 'rejected' },
     ]);
     // odmítnutý se znovu nenabízí; po týdnu nový výběr nejde
     expect(status.phase === 'isolated' && status.offer.map((o) => o.houseId)).toEqual([s.ids.b]);

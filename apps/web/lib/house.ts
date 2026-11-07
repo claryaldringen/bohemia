@@ -16,6 +16,7 @@ import {
   issueInvite,
   openNegotiation,
   rejectNegotiation,
+  newcomerStatus,
   requestLords,
   startFree,
   renounceVassalage,
@@ -32,6 +33,7 @@ import { getPlayerLock } from './db';
 import { aidDeps } from './levies';
 import type { NegotiationAnswer } from './house-input';
 import { houseView, type HouseView } from './house-view';
+import { newcomerStatusView, type NewcomerStatusView } from './newcomer-view';
 import type { TermItem } from '@bohemia/game';
 
 // Composition root panelu „Rod a vazalové“: use-casy nad skutečnými repozitáři. Herní logika je
@@ -105,6 +107,11 @@ export async function declareWarForPlayer(
     today: today.day,
   });
   return result.ok ? { ok: true } : { error: result.reason };
+}
+
+/** Stav nováčka (newcomers.md): odříznutý – nabídka pánů, žádosti a konec týdne; jinak umístěný. */
+export async function newcomerStatusForPlayer(playerId: string): Promise<NewcomerStatusView> {
+  return newcomerStatusView(await newcomerStatus(gameDeps(), playerId));
 }
 
 /** Nováček začne svobodný (newcomers.md) – stáhne žádosti a umístí se k rodům svého jazyka. */
