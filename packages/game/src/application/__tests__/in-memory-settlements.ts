@@ -1,12 +1,6 @@
-import type { Settlement, SettlementPlace, SettlementRepository, WorldCell } from '../settlements';
-import type { LayerVersions } from '../../domain/landscape';
+import type { NewSettlement, Settlement, SettlementRepository, WorldCell } from '../settlements';
+import type { LayerVersions, PremiumType } from '../../domain/landscape';
 import type { OccupiedCell } from '../../domain/world';
-
-type NewSettlement = {
-  ownerId: string;
-  landscapeSeed: number;
-  layerVersions: LayerVersions;
-} & SettlementPlace;
 
 /**
  * Repozitář sídel v paměti – createSeat a archive se chovají atomicky jako databáze (unikátní
@@ -15,6 +9,8 @@ type NewSettlement = {
 export class InMemorySettlements implements SettlementRepository {
   readonly settlements: Settlement[] = [];
   readonly archived = new Set<string>();
+  /** Prémiové sídlo → hráč, kterému typ patří (převod sídla na jiného držitele ho nemění). */
+  private readonly premiumOwners = new Map<string, string>();
   private nextId = 1;
 
   async findSeat(ownerId: string): Promise<Settlement | null> {
@@ -99,10 +95,35 @@ export class InMemorySettlements implements SettlementRepository {
       layerVersions: input.layerVersions,
       worldCell: worldCell ? { x: worldCell.x, y: worldCell.y } : null,
       localCell: localCell ? { x: localCell.x, y: localCell.y } : null,
+      ...(input.premiumType ? { premiumType: input.premiumType } : {}),
       createdAt: new Date(0),
     };
     this.settlements.push(settlement);
+    if (settlement.premiumType) this.premiumOwners.set(settlement.id, input.ownerId);
     return settlement;
+  }
+
+  async premiumTypeCounts(): Promise<Partial<Record<PremiumType, number>>> {
+    await Promise.resolve();
+    const players = new Map<PremiumType, Set<string>>();
+    for (const s of this.settlements) {
+      const owner = this.premiumOwners.get(s.id);
+      if (!s.premiumType || owner === undefined) continue;
+      const set = players.get(s.premiumType) ?? new Set<string>();
+      set.add(owner);
+      players.set(s.premiumType, set);
+    }
+    return Object.fromEntries([...players].map(([type, set]) => [type, set.size]));
+  }
+
+  async lastPremiumType(playerId: string): Promise<PremiumType | null> {
+    await Promise.resolve();
+    // nejnovější = poslední vložené (createdAt je v paměti pro všechna stejné)
+    for (let i = this.settlements.length - 1; i >= 0; i--) {
+      const s = this.settlements[i]!;
+      if (s.premiumType && this.premiumOwners.get(s.id) === playerId) return s.premiumType;
+    }
+    return null;
   }
 
   private localTaken(ownerId: string, cell: WorldCell): boolean {
@@ -147,6 +168,7 @@ export class InMemorySettlements implements SettlementRepository {
     ownerId: string;
     landscapeSeed: number;
     layerVersions: LayerVersions;
+    premiumType?: PremiumType | null;
   }): Promise<Settlement> {
     const seat = await this.createSeat({ ...input, worldCell: { x: 0, y: 0 } });
     if (!seat) throw new Error('Políčko (0, 0) je obsazené.');

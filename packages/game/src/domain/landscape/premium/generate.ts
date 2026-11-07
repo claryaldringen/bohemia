@@ -58,6 +58,12 @@ export interface PremiumPass {
   readonly terrainOptions?: TerrainOptions;
   /** Terén před vegetací – výšky, voda, potok, místo pro vesnici (smí upravit předaný objekt). */
   readonly terrain?: (terrain: Terrain, ctx: PremiumPassContext) => Terrain;
+  /**
+   * Úrodnost se počítá s průměrnou výškou souše průměrné krajiny pokusu, ne upraveného terénu
+   * (typy reliéfu – hora zvedne průměr a zbytek mapy by vyšel úrodnější; výhoda nesouvisející
+   * s typem pryč).
+   */
+  readonly fertilityAverageMean?: true;
   /** Povrch (kódy `SURFACE_CODES`) před úrodností. */
   readonly vegetation?: (
     surface: Uint8Array,
@@ -109,6 +115,8 @@ export interface PremiumGeneration {
    * průměrné krajiny); null = terén průměrné krajiny.
    */
   readonly terrainOptions: TerrainOptions | null;
+  /** Úrodnost s průměrnou výškou souše průměrné krajiny pokusu (`PremiumPass.fertilityAverageMean`). */
+  readonly fertilityAverageMean: boolean;
   terrain(terrain: Terrain): Terrain;
   vegetation(surface: Uint8Array, terrain: Terrain): Uint8Array;
   fertility(fertility: Uint8Array, terrain: Terrain, surface: Uint8Array): Uint8Array;
@@ -135,6 +143,7 @@ export function premiumGeneration(
     changesTerrain: pass?.terrain !== undefined || pass?.terrainOptions !== undefined,
     changesVegetation: pass?.vegetation !== undefined,
     terrainOptions: pass?.terrainOptions ?? null,
+    fertilityAverageMean: pass?.fertilityAverageMean === true,
     terrain: (terrain) => pass?.terrain?.(terrain, ctx) ?? terrain,
     vegetation: (surface, terrain) => pass?.vegetation?.(surface, terrain, ctx) ?? surface,
     fertility: (fertility, terrain, surface) =>

@@ -2,7 +2,7 @@ import path from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, it, expect } from 'vitest';
 import { sql } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
-import { CURRENT_LAYER_VERSIONS, type Settlement } from '@bohemia/game';
+import { CURRENT_LAYER_VERSIONS, type NewSettlement, type Settlement } from '@bohemia/game';
 import { createDatabase } from '../../client';
 import { testDatabaseUrl } from '../../test-database';
 import { schema } from '../../index';
@@ -33,7 +33,7 @@ const origin = { x: 0, y: 0 };
 const seat = { ...base, worldCell: origin };
 
 /** Sídelní sídlo na volném políčku – v testech, kde na umístění nezáleží. */
-const createdSeat = async (input: typeof seat = seat): Promise<Settlement> => {
+const createdSeat = async (input: NewSettlement = seat): Promise<Settlement> => {
   const created = await repository.createSeat(input);
   if (!created) throw new Error('Políčko je obsazené.');
   return created;
@@ -207,6 +207,42 @@ describe('createSettlementRepository', () => {
     expect(await repository.occupiedCells()).toHaveLength(2);
     await repository.archive(second!.id);
     expect(await repository.occupiedCells()).toEqual([{ ownerId: 'hrac-1', cell: origin }]);
+  });
+
+  it('prémiový typ: sídlo ho nese, nesídelní bez něj má null', async () => {
+    const premium = { ...seat, layerVersions: { ...CURRENT_LAYER_VERSIONS, premium: 1 as const } };
+    const created = await createdSeat({ ...premium, premiumType: 'salt-spring' });
+    expect(created).toMatchObject({
+      premiumType: 'salt-spring',
+      layerVersions: premium.layerVersions,
+    });
+    expect(await repository.findSeat('hrac-1')).toEqual(created);
+    const other = await repository.create({ ...base, worldCell: { x: 1, y: 0 } });
+    expect(other?.premiumType).toBeNull();
+    expect(await repository.lastPremiumType('hrac-1')).toBe('salt-spring');
+    expect(await repository.lastPremiumType('nikdo')).toBeNull();
+  });
+
+  it('lastPremiumType i z archivovaného a převedeného sídla; počty typů po hráčích', async () => {
+    await addPlayer('hrac-2');
+    await addPlayer('pan');
+    const first = await createdSeat({ ...seat, premiumType: 'fertile' });
+    await repository.archive(first.id);
+    // restart: nové sídlo hráče se stejným typem – hráč se v počtech počítá jednou
+    const second = await createdSeat({ ...seat, landscapeSeed: 77, premiumType: 'fertile' });
+    expect(await repository.lastPremiumType('hrac-1')).toBe('fertile');
+    // odúmrť: sídlo převzal pán – typ dál patří hráči, pánovi ne
+    expect(await repository.transferHolder(second.id, 'hrac-1', 'pan')).toBe(true);
+    await repository.acceptTransfers('pan');
+    expect(await repository.lastPremiumType('hrac-1')).toBe('fertile');
+    expect(await repository.lastPremiumType('pan')).toBeNull();
+    await createdSeat({
+      ...seat,
+      ownerId: 'hrac-2',
+      worldCell: { x: 5, y: 5 },
+      premiumType: 'iron-ore',
+    });
+    expect(await repository.premiumTypeCounts()).toEqual({ fertile: 1, 'iron-ore': 1 });
   });
 
   it('smazání hráče smaže i jeho sídla', async () => {

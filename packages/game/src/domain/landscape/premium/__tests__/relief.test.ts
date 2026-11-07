@@ -3,7 +3,8 @@
 // přijatých krajinách proti průměrné krajině téhož seedu.
 import { describe, expect, it } from 'vitest';
 import { streamCenterline } from '../../stream-geometry';
-import { promontoriesOf, SURFACE_CODES, type Landscape } from '../../types';
+import { generateLandscapeAttempt } from '../../generate';
+import { CURRENT_LAYER_VERSIONS, promontoriesOf, SURFACE_CODES, type Landscape } from '../../types';
 import { heightAtWorld } from '../../world';
 import {
   edgeSide,
@@ -223,6 +224,64 @@ describe('natural-fortress – přirozená pevnost', () => {
         expect(premium.villageSite).toEqual(average.villageSite);
         expect(nearMeadow(premium)).toBeGreaterThanOrEqual(0.97 * nearMeadow(average));
         expect(Math.abs(forestShare(premium) - forestShare(average))).toBeLessThanOrEqual(0.02);
+      }
+    },
+    TIMEOUT_MS,
+  );
+});
+
+describe('úrodnost typů reliéfu', () => {
+  it(
+    'počítá s průměrnou výškou souše průměrné krajiny – mimo horu je úrodnost stejná jako bez typu',
+    () => {
+      for (const type of ['mountain-pass', 'sacred-mountain'] as const) {
+        let compared = 0;
+        for (let seed = 1; seed <= 3; seed++) {
+          const average = generateLandscapeAttempt(seed, CURRENT_LAYER_VERSIONS);
+          const premium = generateLandscapeAttempt(seed, CURRENT_LAYER_VERSIONS, type);
+          const n = average.size;
+          for (let y = 1; y < n - 1; y++) {
+            for (let x = 1; x < n - 1; x++) {
+              let same = true;
+              for (let dy = -1; dy <= 1 && same; dy++) {
+                for (let dx = -1; dx <= 1 && same; dx++) {
+                  const j = (y + dy) * n + x + dx;
+                  same = average.heights[j] === premium.heights[j];
+                }
+              }
+              const i = y * n + x;
+              if (!same || average.surface[i] !== premium.surface[i]) continue;
+              expect(premium.fertility[i], `${type} ${seed} (${x}, ${y})`).toBe(
+                average.fertility[i],
+              );
+              compared++;
+            }
+          }
+        }
+        expect(compared).toBeGreaterThan(1000);
+      }
+    },
+    TIMEOUT_MS,
+  );
+});
+
+describe('horský průsmyk – vnější svah', () => {
+  it(
+    'dobíhá k terénu na okraji mapy – okraj mapy zůstane jako v průměrné krajině, hřeben je vysoko',
+    () => {
+      for (let seed = 1; seed <= 3; seed++) {
+        const average = generateLandscapeAttempt(seed, CURRENT_LAYER_VERSIONS);
+        const premium = generateLandscapeAttempt(seed, CURRENT_LAYER_VERSIONS, 'mountain-pass');
+        const n = average.size;
+        let raised = 0;
+        for (let i = 0; i < n * n; i++) {
+          const x = i % n;
+          const y = Math.floor(i / n);
+          const edge = x === 0 || y === 0 || x === n - 1 || y === n - 1;
+          if (edge) expect(premium.heights[i], `${seed} (${x}, ${y})`).toBe(average.heights[i]);
+          else if (premium.heights[i]! > average.heights[i]! + 30) raised++;
+        }
+        expect(raised).toBeGreaterThan(100);
       }
     },
     TIMEOUT_MS,

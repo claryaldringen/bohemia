@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { dayIndexOf } from '../../domain/calendar';
-import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
+import { CURRENT_LAYER_VERSIONS, type PremiumType } from '../../domain/landscape';
 import { isLineMan, type Position, type VillageState } from '../../domain/village';
 import { removePeople } from '../../domain/village/kinship';
 import { block, makeLandscape } from '../../domain/village/__tests__/placement-fixtures';
@@ -35,8 +35,14 @@ function seedsFrom(...values: number[]): SeedSource {
   return { nextSeed: () => values[next++ % values.length]! };
 }
 
-/** Hráč se sídlem (seed krajiny 11) a založenou vsí; `kill` ji nechá vymřít. */
-async function playerWithVillage(kill: boolean): Promise<{
+/**
+ * Hráč se sídlem (seed krajiny 11, volitelně s prémiovým typem) a založenou vsí; `kill` ji nechá
+ * vymřít.
+ */
+async function playerWithVillage(
+  kill: boolean,
+  premiumType: PremiumType | null = null,
+): Promise<{
   settlements: InMemorySettlements;
   villages: InMemoryVillages;
   settlementId: string;
@@ -48,6 +54,7 @@ async function playerWithVillage(kill: boolean): Promise<{
     ownerId: PLAYER,
     landscapeSeed: 11,
     layerVersions: CURRENT_LAYER_VERSIONS,
+    premiumType,
   });
   const founded = await foundVillageForSettlement(
     { villages, seeds: seedsFrom(4242) },
@@ -234,6 +241,47 @@ describe('restartGame', () => {
     );
     expect(again.ok).toBe(true);
   }, 30_000);
+
+  it('Začít znovu nepřelosuje prémiový typ – nové sídlo má typ hráče, i když je ve světě vzácnější', async () => {
+    const { settlements, villages, settlementId } = await playerWithVillage(true, 'iron-ore');
+    // jiný hráč s jiným typem – nejméně zastoupený by byl kterýkoli třetí, ne železná ruda
+    await settlements.create({
+      ownerId: 'hrac-2',
+      landscapeSeed: 5,
+      layerVersions: CURRENT_LAYER_VERSIONS,
+      premiumType: 'fertile',
+      worldCell: { x: 9, y: 9 },
+    });
+    const asked: (PremiumType | undefined)[] = [];
+    const result = await restartGame(
+      {
+        settlements,
+        villages,
+        landscapes: {
+          landscapeOf: (_seed, _versions, premium) => {
+            asked.push(premium);
+            return landscape;
+          },
+        },
+        worldSeed: 4242,
+        houses: new InMemoryHouses(),
+        now: () => NOW,
+      },
+      { playerId: PLAYER, today: TODAY },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.settlement.id).not.toBe(settlementId);
+    expect(result.settlement).toMatchObject({
+      isSeat: true,
+      premiumType: 'iron-ore',
+      layerVersions: { ...CURRENT_LAYER_VERSIONS, premium: 1 },
+    });
+    expect(result.landscape.premium).toBe('iron-ore');
+    expect(asked.every((p) => p === 'iron-ore')).toBe(true);
+    expect(await settlements.lastPremiumType(PLAYER)).toBe('iron-ore');
+    expect(await settlements.premiumTypeCounts()).toEqual({ 'iron-ore': 1, fertile: 1 });
+  }, 60_000);
 
   it('se živou vsí restart odmítne a nic nezmění', async () => {
     const { settlements, villages, settlementId } = await playerWithVillage(false);

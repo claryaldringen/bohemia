@@ -2,6 +2,7 @@ import {
   emptyCellLandscape,
   obstaclesOf,
   SEAT_CELL,
+  settlementLandscape,
   type CampaignCells,
   type CampaignMap,
   type LandscapeSource,
@@ -36,10 +37,7 @@ export function createCampaignCells(deps: {
           same(s.worldCell ?? SEAT_CELL),
         );
         if (settlement) {
-          const landscape = deps.landscapes.landscapeOf(
-            settlement.landscapeSeed,
-            settlement.layerVersions,
-          );
+          const landscape = settlementLandscape(settlement, deps.landscapes);
           const villages = await deps.villages.stampsOf([settlement.id]);
           return {
             landscape,

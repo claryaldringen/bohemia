@@ -62,7 +62,13 @@ async function player(isolated = false): Promise<{
 }> {
   const settlements = new InMemorySettlements();
   const villages = new InMemoryVillages();
-  const seatInput = { ownerId: PLAYER, landscapeSeed: 11, layerVersions: CURRENT_LAYER_VERSIONS };
+  // sídelní sídlo s prémiovou krajinou – nové mapy synů jsou průměrné (premium-landscapes.md)
+  const seatInput = {
+    ownerId: PLAYER,
+    landscapeSeed: 11,
+    layerVersions: CURRENT_LAYER_VERSIONS,
+    premiumType: 'fertile' as const,
+  };
   const seat = isolated
     ? (await settlements.createSeat({ ...seatInput, localCell: { x: 0, y: 0 } }))!
     : await settlements.seatAtOrigin(seatInput);
@@ -176,6 +182,10 @@ describe('leaveVillage – na novou mapu', () => {
     const seat = deps.settlements.settlements.find((s) => s.id === settlementId)!;
     expect(seat.worldCell).toEqual({ x: 0, y: 0 });
     expect(result.settlement).toMatchObject({ isSeat: false, worldCell: { x: 0, y: 1 } });
+    // prémie patří první mapě – nová mapa na mapě světa je průměrná
+    expect(seat.premiumType).toBe('fertile');
+    expect(result.settlement.premiumType ?? null).toBeNull();
+    expect(result.settlement.layerVersions).toEqual(CURRENT_LAYER_VERSIONS);
     const journey = result.to.state.journey!;
     expect(journey.direction).toBe('N');
     expect(journey.arrivalDay - journey.departedDay).toBeGreaterThanOrEqual(1);
@@ -244,6 +254,9 @@ describe('leaveVillage – na novou mapu', () => {
       isolatedLandscapeSeed(deps.worldSeed, `${PLAYER}:1,0`),
     );
     expect(result.settlement.landscapeSeed).toBe(accepted.seed);
+    // nová mapa v místní mřížce je průměrná (prémie patří první mapě)
+    expect(result.settlement.premiumType ?? null).toBeNull();
+    expect(result.settlement.layerVersions).toEqual(CURRENT_LAYER_VERSIONS);
     // mapa světa zůstane prázdná – nikdo odříznutý rod nevidí
     expect(await deps.settlements.occupiedCells()).toEqual([]);
     // tímtéž směrem znovu: vlastní ves už tam stojí

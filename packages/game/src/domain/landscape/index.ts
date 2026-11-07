@@ -37,6 +37,7 @@ export {
 export * from './obstacles';
 export * from './premium/types';
 export { PREMIUM_CATALOG, PREMIUM_TYPES } from './premium/catalog';
+export { choosePremiumType } from './premium/assign';
 export { hasPremiumPass, PREMIUM_LAYER_VERSION, premiumFeaturesOf } from './premium/generate';
 export {
   checkPremium,

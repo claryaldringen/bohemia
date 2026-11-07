@@ -6,6 +6,7 @@ import {
   type Landscape,
   type LayerVersions,
   type ObstacleLayer,
+  type PremiumType,
 } from '../domain/landscape';
 import { marchGrid, type MarchGrid } from '../domain/war';
 import { cellLandscapeSeed } from '../domain/world';
@@ -33,12 +34,13 @@ export function emptyCellLandscape(
   return { ...accepted, obstacles: obstaclesOf(accepted.landscape) };
 }
 
-/** Krajina políčka se vsí – z uloženého seedu sídla a verzí jeho vrstev. */
+/** Krajina políčka se vsí – z uloženého seedu sídla, verzí jeho vrstev a prémiového typu. */
 export function settledCellLandscape(
   landscapeSeed: number,
   versions: LayerVersions,
+  premium?: PremiumType,
 ): CellLandscape {
-  const landscape = generateLandscapeAttempt(landscapeSeed, versions);
+  const landscape = generateLandscapeAttempt(landscapeSeed, versions, premium);
   return { seed: landscapeSeed, landscape, obstacles: obstaclesOf(landscape) };
 }
 

@@ -369,6 +369,8 @@ interface BankRule {
   /** Obrys – elipsa podél toku. */
   readonly halfLengthM: number;
   readonly halfWidthM: number;
+  /** Kontrola typu: celé místo (obrys) nejvýš tolik m od vsi. */
+  readonly maxDistanceM: number;
 }
 
 /**
@@ -400,8 +402,12 @@ export const FINE_CLAY = {
   edgeM: 60,
   halfLengthM: 20,
   halfWidthM: 8,
+  /** Kontrola typu: celé hliniště nejvýš tolik m od vsi. */
   maxDistanceM: 500,
 } as const;
+
+/** Rezerva (m) mezi nejvzdálenějším bodem obrysu místa a `maxDistanceM` – zaokrouhlení. */
+const BANK_DISTANCE_SLACK_M = 0.01;
 
 /**
  * Místo na louce u potoka na straně vsi: po stanicích osy po 15 m na obou březích; skóre podle
@@ -430,6 +436,9 @@ function bankSite(
       if (Math.abs(x) > halfMap || Math.abs(z) > halfMap) continue;
       const d = length2(x - village.x, z - village.z);
       if (d < rule.distanceM[0] || d > rule.distanceM[1]) continue;
+      // obrys sahá nejvýš o půl délky dál než střed – celé místo do `maxDistanceM` (s rezervou
+      // na zaokrouhlení vrcholů obrysu)
+      if (d + rule.halfLengthM > rule.maxDistanceM - BANK_DISTANCE_SLACK_M) continue;
       const tile = tileOfWorldPoint(l, x, z);
       if (!tile) continue;
       const i = tile.y * l.size + tile.x;

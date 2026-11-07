@@ -1,11 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import {
   checkBand,
+  choosePremiumType,
   CURRENT_LAYER_VERSIONS,
   generateLandscape,
   generateLandscapeAttempt,
   INITIAL_LAYER_VERSIONS,
+  PREMIUM_TYPES,
 } from '../../domain/landscape';
+import { landscapeHash } from '../../domain/landscape/__tests__/landscape-checks';
 import { enterGame } from '../enter-game';
 import { isolatedLandscapeSeed } from '../../domain/world';
 import type { LandscapeSource } from '../settlements';
@@ -16,6 +19,9 @@ const WORLD_SEED = 4242;
 const ORIGIN = { x: 0, y: 0 };
 
 const NOW = new Date('2026-11-05T12:00:00Z');
+
+/** Verze vrstev prémiového sídelního sídla. */
+const PREMIUM_VERSIONS = { ...CURRENT_LAYER_VERSIONS, premium: 1 } as const;
 
 describe('enterGame', () => {
   it('rod dostane jazyk účtu, bez portu češtinu', async () => {
@@ -45,16 +51,22 @@ describe('enterGame', () => {
       { settlements, worldSeed: WORLD_SEED, houses, now: () => NOW },
       'hrac-1',
     );
+    const seed = isolatedLandscapeSeed(WORLD_SEED, 'hrac-1');
+    const premium = choosePremiumType(seed, {});
     expect(settlement).toMatchObject({
       ownerId: 'hrac-1',
       isSeat: true,
       worldCell: null,
       localCell: ORIGIN,
-      layerVersions: CURRENT_LAYER_VERSIONS,
+      layerVersions: PREMIUM_VERSIONS,
+      premiumType: premium,
     });
     expect(settlements.settlements).toHaveLength(1);
     expect(await settlements.occupiedCells()).toEqual([]);
-    expect(landscape).toEqual(generateLandscape(isolatedLandscapeSeed(WORLD_SEED, 'hrac-1')));
+    expect(landscape.premium).toBe(premium);
+    expect(landscapeHash(landscape)).toBe(
+      landscapeHash(generateLandscape(seed, PREMIUM_VERSIONS, premium)),
+    );
     expect(houses.houses[0]).toMatchObject({ placedAt: null, newcomerSince: null });
   });
 
@@ -139,14 +151,18 @@ describe('enterGame', () => {
       { settlements, worldSeed, houses: new InMemoryHouses(), now: () => NOW },
       'hrac-1',
     );
+    const premium = settlement.premiumType ?? undefined;
+    expect(premium).toBeDefined();
     expect(settlement.landscapeSeed).not.toBe(drawn);
     expect(
       checkBand(
-        generateLandscapeAttempt(settlement.landscapeSeed, CURRENT_LAYER_VERSIONS),
-        CURRENT_LAYER_VERSIONS,
+        generateLandscapeAttempt(settlement.landscapeSeed, PREMIUM_VERSIONS, premium),
+        PREMIUM_VERSIONS,
       ).ok,
     ).toBe(true);
-    expect(landscape).toEqual(generateLandscape(drawn));
+    expect(landscapeHash(landscape)).toBe(
+      landscapeHash(generateLandscape(drawn, PREMIUM_VERSIONS, premium)),
+    );
   }, 30_000);
 
   it('uložené sídlo se načte bez kontroly pásma – ladění pásma krajinu nezmění', async () => {
@@ -238,4 +254,67 @@ describe('enterGame', () => {
     expect(landscape).toBe(cached);
     expect(asked).toEqual([7]);
   });
+  it('sídlo bez prémiového typu (před prémiemi) se načte jako dřív a typ nedostane', async () => {
+    const settlements = new InMemorySettlements();
+    await settlements.seatAtOrigin({
+      ownerId: 'hrac-1',
+      landscapeSeed: 7,
+      layerVersions: CURRENT_LAYER_VERSIONS,
+    });
+    const { settlement, landscape } = await enterGame(
+      { settlements, worldSeed: WORLD_SEED, houses: new InMemoryHouses(), now: () => NOW },
+      'hrac-1',
+    );
+    expect(settlement.premiumType ?? null).toBeNull();
+    expect(landscape.premium).toBeUndefined();
+    expect(landscapeHash(landscape)).toBe(
+      landscapeHash(generateLandscapeAttempt(7, CURRENT_LAYER_VERSIONS)),
+    );
+  });
+
+  it('prémiové sídlo dá krajinu s typem i přes LandscapeSource (mezipaměť webu)', async () => {
+    const settlements = new InMemorySettlements();
+    const first = await enterGame(
+      { settlements, worldSeed: WORLD_SEED, houses: new InMemoryHouses(), now: () => NOW },
+      'hrac-1',
+    );
+    const asked: (string | undefined)[] = [];
+    const landscapes: LandscapeSource = {
+      landscapeOf: (seed, versions, premium) => {
+        asked.push(premium);
+        return generateLandscapeAttempt(seed, versions, premium);
+      },
+    };
+    const again = await enterGame(
+      {
+        settlements,
+        worldSeed: WORLD_SEED,
+        houses: new InMemoryHouses(),
+        now: () => NOW,
+        landscapes,
+      },
+      'hrac-1',
+    );
+    expect(asked).toEqual([first.settlement.premiumType]);
+    expect(landscapeHash(again.landscape)).toBe(landscapeHash(first.landscape));
+  });
+
+  it('typy se rozdělí rovnoměrně – 19 odříznutých nováčků dostane 19 různých typů', async () => {
+    const deps = {
+      settlements: new InMemorySettlements(),
+      worldSeed: WORLD_SEED,
+      houses: new InMemoryHouses(),
+      now: () => NOW,
+    };
+    const types = new Set<string>();
+    for (let i = 0; i < PREMIUM_TYPES.length; i++) {
+      const { settlement, landscape } = await enterGame(deps, `hrac-${i}`);
+      expect(landscape.premium).toBe(settlement.premiumType);
+      types.add(settlement.premiumType ?? 'průměrná');
+    }
+    expect([...types].sort()).toEqual([...PREMIUM_TYPES].sort());
+    expect(Object.values(await deps.settlements.premiumTypeCounts())).toEqual(
+      PREMIUM_TYPES.map(() => 1),
+    );
+  }, 120_000);
 });

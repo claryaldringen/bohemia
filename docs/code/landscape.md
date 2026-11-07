@@ -124,7 +124,25 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `premium/deposits.ts`: lom ve skalní stěně (`quarry`), skalnatý hřbet se žílou (`deposit`),
   rudiště (`iron-ore`) a hliniště (`clay`) u potoka do 500 m od vsi (jen místa). Skály lomu a žíly
   ve vrstvě překážek (`obstacles/premium-rocks.ts`, zdroje `quarryRock` a `oreRock`); skupiny
-  vrstvy jdou v pořadí zdrojů (`GROUP_ORDER`), kolem prémiových překážek uvolní místo `mapGroups`.
+  vrstvy jdou v pořadí zdrojů (`GROUP_ORDER` – chybějící skupina `ObstacleGroups` je chyba typu,
+  `Exhaustive`), kolem prémiových překážek uvolní místo `mapGroups`. Rudiště a hliniště leží celé
+  (obrys) do `maxDistanceM` od vsi. Vnější svah průsmyku dobíhá k terénu na okraji mapy už
+  v generátoru (`sculptPass` – vnější svah na `crestCells`, vnitřní na `flankCells`). Úrodnost typů
+  reliéfu (`PremiumPass.fertilityAverageMean`) počítá s průměrnou výškou souše průměrné krajiny
+  pokusu (`computeFertility(…, meanHeight)`, `meanLandHeight`) – hora nezvedne úrodnost zbytku
+  mapy; uložené sídlo přirozené pevnosti proto generuje terén dvakrát (vlastní terén typu
+  a průměrný pro průměr). **Přidělení typu** (premium-landscapes.md – Kdo dostane jakou krajinu):
+  `choosePremiumType(seed, counts)` (`premium/assign.ts`) – nejméně zastoupený typ, při shodě
+  podle seedu krajiny. `enterGame` dá sídelnímu sídlu (odříznutému i pozvanému)
+  `lastPremiumType(hráč) ?? choosePremiumType(seed, premiumTypeCounts())`, verze vrstev
+  s `premium: 1`; typ, který neprojde pásmem do `MAX_ATTEMPTS`, zkusí další okna seedů (+16, +32,
+  `PREMIUM_SEED_WINDOWS`). Začít znovu jde přes `enterGame` – stejný typ. Vsi synů (`targetSettlement`
+  na mapě světa i v místní mřížce), NPC rody a sídla z doby před prémiemi mají `premiumType` null
+  (průměrná krajina); umístění odříznutého shluku typ ani krajinu nemění. Sloupce
+  `settlement.premium_type` a `premium_owner_id` (hráč, kterému typ patří – převod sídla
+  odúmrtí nebo postoupením ho nemění; z něj `lastPremiumType` i počty `premiumTypeCounts` po
+  hráčích), migrace `0039_premium_type`. Krajina sídla jde vždy přes `settlementLandscape`
+  (`LandscapeSource.landscapeOf(seed, verze, typ)`, klíč mezipaměti serveru s typem).
   Posvátná hora má holý vrchol (průchod vegetace – les do `baldCells` od středu ustoupí louce).
   Krajina bez typu (NPC, Vlkov, dnešní hráči) prémiovým průchodem neprojde – zlaté otisky všech
   verzí i vrstvy překážek beze změny. **Vrstvu překážek krajiny s typem** mění i průchod typu

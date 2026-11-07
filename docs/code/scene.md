@@ -446,8 +446,8 @@ stream, river)`, `fishSchools`, `AmbientEnvironment.river`), výšková síť p�
   mohyle, tůňky), ozdoby z modelů dekorací (`premiumDecor` – mohyla v sedle, kamenný kruh na
   posvátné hoře, rákosí mokřadu; `DecorPlacement.group` `site` = vlastní mesh bez id), odstín skal
   (`premiumRockTint` – `ore` / `limestone`, meshe `decor-<model>-<skupina>`) a louky
-  (`premiumMeadow` → 4. parametr `groundWeights`). Horský průsmyk: terén u okraje mapy s horami
-  ve scéně dobíhá k nejnižší výšce okraje (`fadeMountainEdges` v `render-surface.ts`, jen vzhled);
+  (`premiumMeadow` → 4. parametr `groundWeights`). Horský průsmyk: vnější svah hor dobíhá k terénu
+  na okraji mapy už v generátoru (`sculptPass` v `premium/relief.ts`), scéna terén nemění;
   kamera se nezaboří do svahu (`cameraTerrainLift` v `camera-input.ts` – cíl se zvedne, kamera
   4 m nad terénem). Minimapa: `premiumMinimapMarks` / `drawMinimapPremium` (`PREMIUM_COLORS`).
   Průměrná krajina bit po bitu jako dřív (výšková síť, ozdoby, ryby, povrch, minimapa i snímky).

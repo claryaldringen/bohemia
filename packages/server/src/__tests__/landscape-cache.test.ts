@@ -54,4 +54,18 @@ describe('cachedLandscapes', () => {
     source.landscapeOf(7, { ...CURRENT_LAYER_VERSIONS, terrain: 1 } as unknown as LayerVersions);
     expect(calls).toEqual(['7/2', '8/2', '7/1']);
   });
+
+  it('prémiový typ je jiná krajina než průměrná ze stejného seedu', () => {
+    const calls: string[] = [];
+    const source = cachedLandscapes(4, (seed, _versions, premium) => {
+      calls.push(`${seed}/${premium ?? '-'}`);
+      return fake(seed);
+    });
+    const premium = { ...CURRENT_LAYER_VERSIONS, premium: 1 } as const;
+    source.landscapeOf(7, CURRENT_LAYER_VERSIONS);
+    source.landscapeOf(7, premium, 'fertile');
+    source.landscapeOf(7, premium, 'iron-ore');
+    source.landscapeOf(7, premium, 'fertile');
+    expect(calls).toEqual(['7/-', '7/fertile', '7/iron-ore']);
+  });
 });

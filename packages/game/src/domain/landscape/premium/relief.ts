@@ -163,7 +163,8 @@ export function pickSite(input: PlanInput, rule: SiteRule): { x: number; y: numb
  * Horský průsmyk se stezkou (návrh Clauda): pohoří rovnoběžně s okrajem mapy (pohraniční hory
  * jako kolem Čech), hřeben `crestCells` políček od okraje. V hřebeni sedlo, po stranách dva
  * hřbety aspoň `minRidgeCells` políček dlouhé (nejvýš `maxRidgeCells`), `ridgeRiseM` nad sedlem –
- * od sedla stoupají na `riseCells`, na koncích dozní na `endCells`. Hřbet končí `waterGapCells`
+ * od sedla stoupají na `riseCells`, na koncích dozní na `endCells`; vnější svah dobíhá až
+ * k terénu na okraji mapy (`crestCells`), vnitřní na `flankCells`. Hřbet končí `waterGapCells`
  * od vody (potok pohořím neprochází) a celé pohoří (i se svahy `flankCells`) leží za loukami vsi –
  * hřeben aspoň `villageMinCells` od místa vsi. Sedlo `saddleRiseM` nad nejvyšším terénem kolem
  * (`saddleAroundCells`) – stezka přes něj vede od okraje k okraji kolem vsi.
@@ -206,18 +207,20 @@ function crestCell(side: Side, t: number, size: number): { x: number; y: number 
   return { x: size - 1 - c, y: t };
 }
 
-/** Souřadnice políčka podél hřebene a kolmo od něj (políčka). */
+/**
+ * Souřadnice políčka podél hřebene a kolmo od něj (políčka); `outer` – políčko leží mezi hřebenem
+ * a okrajem mapy (vnější svah).
+ */
 function crestCoordinates(
   side: Side,
   x: number,
   y: number,
   size: number,
-): { along: number; across: number } {
+): { along: number; across: number; outer: boolean } {
   const c = MOUNTAIN_PASS.crestCells;
-  if (side === 0) return { along: x, across: Math.abs(y - c) };
-  if (side === 1) return { along: x, across: Math.abs(size - 1 - c - y) };
-  if (side === 2) return { along: y, across: Math.abs(x - c) };
-  return { along: y, across: Math.abs(size - 1 - c - x) };
+  const d =
+    side === 0 ? c - y : side === 1 ? y - (size - 1 - c) : side === 2 ? c - x : x - (size - 1 - c);
+  return { along: side < 2 ? x : y, across: Math.abs(d), outer: d > 0 };
 }
 
 /** Políčko okraje mapy za sedlem (kolmo k hřebeni). */
@@ -288,13 +291,16 @@ function sculptPass(terrain: Terrain, plan: PassPlan, random: Random): void {
     for (let x = 0; x < size; x++) {
       const i = y * size + x;
       if (terrain.water[i]) continue;
-      const { along, across } = crestCoordinates(plan.side, x, y, size);
+      const { along, across, outer } = crestCoordinates(plan.side, x, y, size);
       const t = along - plan.t;
       const length = t < 0 ? plan.before : plan.after;
-      if (Math.abs(t) > length || across >= P.flankCells) continue;
+      // vnější svah dobíhá k terénu na okraji mapy (za okrajem nic není – jinak by hora
+      // končila stěnou), vnitřní k loukám po `flankCells`
+      const flank = outer ? P.crestCells : P.flankCells;
+      if (Math.abs(t) > length || across >= flank) continue;
       const crest = saddle + (ridge - saddle) * smoothstep(0, P.riseCells, Math.abs(t));
       const share =
-        (1 - smoothstep(0, P.flankCells, across)) * smoothstep(0, P.endCells, length - Math.abs(t));
+        (1 - smoothstep(0, flank, across)) * smoothstep(0, P.endCells, length - Math.abs(t));
       const ground = heights[i]!;
       const target = ground + (crest - ground) * share;
       if (target <= ground) continue;
@@ -388,6 +394,7 @@ export function mountainPassSites(l: Landscape): PremiumSite[] | null {
 }
 
 const mountainPass = {
+  fertilityAverageMean: true,
   terrain(terrain: Terrain, ctx: PremiumPassContext): Terrain {
     const plan = passPlan(planInputOfTerrain(terrain));
     if (plan) sculptPass(terrain, plan, createRandom(deriveSeed(ctx.seed, 'mountain-pass')));
@@ -530,6 +537,7 @@ export function sacredMountainSites(l: Landscape): PremiumSite[] | null {
 }
 
 const sacredMountain = {
+  fertilityAverageMean: true,
   terrain(terrain: Terrain, ctx: PremiumPassContext): Terrain {
     const center = mountainPlan(planInputOfTerrain(terrain));
     if (center) {
@@ -587,6 +595,7 @@ export function fortressPromontory(l: Landscape): Promontory | null {
 }
 
 const naturalFortress = {
+  fertilityAverageMean: true,
   terrainOptions: { promontory: NATURAL_FORTRESS.promontory },
   sites({ landscape }: { landscape: Landscape }): readonly PremiumSite[] | null {
     const promontory = fortressPromontory(landscape);
