@@ -1032,3 +1032,66 @@ test('rozsudek pána: spoluvazal žaluje druhého, ten se vyjádří, pán rozho
 
   await Promise.all(ctxs.map((ctx) => ctx.close()));
 });
+
+test('zajatec: věznitel ho vidí ve dvorci a propustí → rozhodnutí je zapsané a zajatec domů', async ({
+  browser,
+}) => {
+  test.setTimeout(240_000);
+  await query(`UPDATE house SET ended_at = now() WHERE ended_at IS NULL`, []);
+  const ctx = await browser.newContext();
+  await useUniqueClientIp(ctx);
+  const a = await ctx.newPage();
+  await a.setViewportSize({ width: 1280, height: 720 });
+  const { seat } = await newPlayer(a, 'zajatec');
+  const spots = villageSpots(seat.landscape);
+  await found(a, spots.dwelling, 'Bořivoj');
+
+  // zajatec připravený přímým zápisem do stavu vsi (zajetí z tažení je pokryté unit testy)
+  const [row] = await query<{ id: string }>(`SELECT id FROM village WHERE settlement_id = $1`, [
+    seat.settlementId,
+  ]);
+  const villageId = row!.id;
+  const state = withBuiltFirstDwelling(await villageState(seat.settlementId));
+  Object.assign(state, {
+    prisoners: [
+      {
+        id: 'e2e:7',
+        ref: { villageId, personId: 7 },
+        name: 'Ctibor',
+        sinceDay: state.lastDay,
+      },
+    ],
+  });
+  await writeVillageState(seat.settlementId, state);
+  await pollVillage(a);
+  await a.keyboard.press('r');
+  const panel = a.getByTestId('selection-panel');
+  await expect
+    .poll(
+      async () => {
+        const point = await a.evaluate(
+          (p) => window.__bohemiaE2E!.projectToScreen!(p.x, p.z),
+          spots.dwelling,
+        );
+        if (!point) return null;
+        await a.mouse.move(point.x - 3, point.y);
+        await a.mouse.click(point.x, point.y);
+        return panel.getByTestId('prisoner').count();
+      },
+      { timeout: 30_000 },
+    )
+    .toBe(1);
+
+  // propuštění: rozhodnutí se zapíše jednou (klíč zajetí)
+  await panel.getByTestId('prisoner-release').click();
+  await expect
+    .poll(
+      async () =>
+        (
+          await query<{ decision: string }>(`SELECT decision FROM prisoner WHERE id = 'e2e:7'`, [])
+        )[0]?.decision,
+      { timeout: 30_000 },
+    )
+    .toBe('released');
+  await ctx.close();
+});

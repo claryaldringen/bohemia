@@ -64,6 +64,8 @@ export function termRowLabel(
       return item.items.length > 0 ? 'Opověď války s požadavkem' : 'Opověď války';
     case 'peace':
       return 'Mírové jednání';
+    case 'ransom':
+      return 'Výkupné zajatců';
     case 'village-gift':
       return `Věnování z odúmrti: vsí ${item.villageIds.length}, vazalů ${item.vassalIds.length}`;
   }

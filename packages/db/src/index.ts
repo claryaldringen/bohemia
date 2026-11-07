@@ -9,6 +9,7 @@ export {
   createShipmentRepository,
   createDialogRepository,
   createDisputeRepository,
+  createPrisonerRepository,
   createLoanRepository,
   createStewardshipRepository,
   createEscheatRepository,

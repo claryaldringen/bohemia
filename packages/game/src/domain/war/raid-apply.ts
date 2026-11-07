@@ -1,12 +1,22 @@
 import { createRandom, deriveSeed } from '../landscape/random';
 import { bury } from '../village/cemetery';
 import { drawGrainPits } from '../village/grain-pits';
+import { currentLord } from '../village/dynasty';
 import { removePeople } from '../village/kinship';
 import { ensureLivestock } from '../village/livestock';
 import { ageGroup, ageYears, isAway } from '../village/people';
 import { newcomerHome } from '../village/people-trade';
+import { setStewardOn } from '../village/steward-state';
 import { rehomePeople } from '../village/transfer-people';
-import type { ChronicleEvent, HerdSpecies, Person, RaidLoot, VillageState } from '../village/types';
+import type {
+  ChronicleEvent,
+  HerdSpecies,
+  Person,
+  Prisoner,
+  RaidLoot,
+  VillageState,
+} from '../village/types';
+import { hostGuests } from '../vassalage/guests';
 import { fleeParty, pitFound } from './flight';
 import { WAR } from './rules-war';
 import type { ShelterReport } from './stance';
@@ -35,6 +45,12 @@ export interface RaidResult {
   wounded: number[];
   /** Odvedení (vzdaní) – odejdou s vojskem. */
   led: number[];
+  /**
+   * Zajatí muži rodu a šlechtici (war.md – Vzdaní, zajetí a výkupné): zůstávají ve stavu vsi
+   * s `away` druhu `captive` u vsi shromaždiště `captorVillageId`; klíč zajetí je `<tažení>:<osoba>`.
+   */
+  captured?: number[];
+  captorVillageId?: string;
   /** Co útočník vzal ze zásob a stád (`raidLoot`). */
   loot: RaidLoot;
   /** Zapečetěné jámy, které útočník našel (`pitFound`) – jejich zrno je v `loot.grainKg`. */
@@ -54,6 +70,8 @@ export interface CampaignReturn {
   loot?: RaidLoot;
   /** Odvedení lidé (snímek ze stavu napadené vsi) – přijdou jako noví vesničané s novými id. */
   people?: Person[];
+  /** Zajatci z nájezdu (war.md – Vzdaní, zajetí a výkupné) – přibudou do `VillageState.prisoners`. */
+  prisoners?: Prisoner[];
 }
 
 /** Kořist bez ničeho. */
@@ -243,8 +261,41 @@ export function applyRaidResult(
   }
   const led = new Set(body.led.filter((id) => byId.has(id) && !dead.has(id)));
   removePeople(state, new Set([...dead, ...led]));
+  const captured = captureMen(state, day, body);
   const loot = takeLoot(state, body.loot, body.pitsFound);
-  return [raidChronicle(day, body, { fallen: dead.size, wounded, led: led.size, loot }), ...deaths];
+  const counts = { fallen: dead.size, wounded, led: led.size + captured, loot };
+  return [raidChronicle(day, body, counts), ...deaths];
+}
+
+/** Klíč zajetí osoby `personId` z tažení `campaignId`. */
+export function prisonerKey(campaignId: string, personId: number): string {
+  return `${campaignId}:${personId}`;
+}
+
+/**
+ * Zajatí muži rodu zůstanou ve stavu vsi jako pryč (`captive`, bez data návratu – končí propuštěním
+ * nebo smrtí). Zajme-li útočník hráčova vojvodu, ves dál řídí formální správce (steward.md –
+ * Správce je šlechtic): přepínač se zapne a po návratu vojvody vypne. Vrací počet zajatých.
+ */
+function captureMen(state: VillageState, day: number, body: RaidResult): number {
+  if (!body.captured || !body.captorVillageId) return 0;
+  const lordId = currentLord(state)?.id;
+  let n = 0;
+  for (const id of new Set(body.captured)) {
+    const p = state.people.find((x) => x.id === id);
+    if (!p || p.away?.kind === 'captive') continue;
+    p.away = {
+      kind: 'captive',
+      hostVillageId: body.captorVillageId,
+      refId: prisonerKey(body.campaignId, id),
+    };
+    n++;
+    if (id === lordId && state.steward?.on !== true) {
+      setStewardOn(state, day, true);
+      state.steward!.byCaptivity = true;
+    }
+  }
+  return n;
 }
 
 /** Zápis nájezdu do kroniky (obě strany – útočník ho dostane ze stejného výsledku). */
@@ -375,8 +426,22 @@ export function applyCampaignReturn(
   removePeople(state, dead);
   if (body.loot) addLoot(state, body.loot);
   if (body.people && body.people.length > 0) settleLed(state, body.people);
+  for (const pr of body.prisoners ?? []) holdPrisoner(state, day, pr);
   return events;
 }
+
+/** Zajatec dorazil do vsi věznitele: zapíše se a jí z jeho zásob (host druhu `captive`). */
+function holdPrisoner(state: VillageState, day: number, prisoner: Prisoner): void {
+  const list = (state.prisoners ??= []);
+  if (list.some((x) => x.id === prisoner.id)) return;
+  list.push(structuredClone(prisoner));
+  hostGuests(state, day, [
+    { ref: { ...prisoner.ref }, kind: 'captive', untilDay: CAPTIVITY_OPEN_END, adult: true },
+  ]);
+}
+
+/** Zajetí nemá datum konce – host druhu `captive` neodchází, dokud ho nepropustí rozhodnutí. */
+const CAPTIVITY_OPEN_END = 1_000_000_000;
 
 /** Kořist do zásob a stád (dobytek jako dospělé kusy). */
 function addLoot(state: VillageState, loot: RaidLoot): void {

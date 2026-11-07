@@ -509,3 +509,15 @@ export function parseAnswerLevyInput(input: unknown): {
   }
   return { dialogId, lines, split, message };
 }
+
+/** `{ prisonerId, action }` – rozhodnutí věznitele o zajatci (klíč zajetí `<tažení>:<osoba>`). */
+export function parsePrisonerInput(
+  input: unknown,
+): { prisonerId: string; action: 'hold' | 'release' | 'execute' } | null {
+  if (typeof input !== 'object' || input === null) return null;
+  const raw = input as { prisonerId?: unknown; action?: unknown };
+  const id = raw.prisonerId;
+  if (typeof id !== 'string' || !/^[\w-]{1,80}:\d{1,9}$/.test(id)) return null;
+  if (raw.action !== 'hold' && raw.action !== 'release' && raw.action !== 'execute') return null;
+  return { prisonerId: id, action: raw.action };
+}

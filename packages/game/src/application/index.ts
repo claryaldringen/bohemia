@@ -75,6 +75,7 @@ export * from './ennoble';
 export * from './wars';
 export * from './declare-war';
 export * from './disputes';
+export * from './prisoners';
 export * from './judgment';
 export * from './war-chronicle';
 export * from './cell-landscape';

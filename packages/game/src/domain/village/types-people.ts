@@ -150,6 +150,21 @@ export interface ArmsSkills {
   best?: { bow: number; combat: number; riding: number };
 }
 /**
+ * Zajatec ve vsi věznitele (war.md – Vzdaní, zajetí a výkupné): osoba zůstává ve stavu domovské
+ * vsi s `away` druhu `captive`; věznitelova ves ho vede, krmí ze svých zásob a nechá ho nepracovat
+ * ani necvičit. `id` je jedinečný klíč zajetí (`<tažení>:<osoba>`).
+ */
+export interface Prisoner {
+  id: string;
+  ref: PersonRef;
+  /** Jméno do přehledu dvorce; chybí – bezejmenný. */
+  name?: string;
+  /** Šlechtic (jinak muž rodu) – kvůli portrétu a výkupnému. */
+  noble?: true;
+  /** Den zajetí. */
+  sinceDay: number;
+}
+/**
  * Dcera, která se vdala pryč (kinship.md – Sňatky z okolí), nebo člověk, kterého ves dala sousedovi
  * (trade.md – Výměna lidí): jen záznam v rodokmenu, nesimuluje se –
  * id, pohlaví, den narození, rodiče a směr vsi, kam odešla (war.md – muži s příbuznými v cílové

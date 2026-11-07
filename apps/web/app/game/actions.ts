@@ -30,6 +30,7 @@ import {
   type NegotiationActionResult,
 } from '@/lib/house';
 import { answerLevyForPlayer, levyDialogsForPlayer } from '@/lib/levies';
+import { decidePrisonerForPlayer } from '@/lib/prisoners';
 import {
   consentEscheatForPlayer,
   escheatDialogsForPlayer,
@@ -41,6 +42,7 @@ import type { EscheatView, LevyDialogView, MacroSpare } from '@bohemia/game';
 import {
   parseAnswerLevyInput,
   parseBlockInput,
+  parsePrisonerInput,
   parseComplaintInput,
   parseStatementInput,
   parseJudgeInput,
@@ -692,6 +694,16 @@ export async function blockHouse(input: unknown): Promise<NegotiationActionResul
   const parsed = parseBlockInput(input);
   if (parsed === null) return { error: INVALID_INPUT };
   return blockHouseForPlayer(id, parsed.target);
+}
+
+/** Věznitel rozhodne o zajatci: `{ prisonerId, action: 'hold' | 'release' | 'execute' }`. */
+export async function decidePrisonerAction(input: unknown): Promise<NegotiationActionResult> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const parsed = parsePrisonerInput(input);
+  if (parsed === null) return { error: INVALID_INPUT };
+  const result = await decidePrisonerForPlayer(id, parsed);
+  return result.ok ? { ok: true } : { error: result.reason };
 }
 
 /** Zruší zablokování rodu: `{ target }`. */

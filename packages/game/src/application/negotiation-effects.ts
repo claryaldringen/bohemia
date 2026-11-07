@@ -5,6 +5,8 @@ import {
   checkVillageGiftItems,
   checkWarDemandItems,
   PEACE_REASONS,
+  RANSOM_REASONS,
+  checkRansomItems,
   termLinesOf,
   type TermItem,
 } from '../domain/negotiation';
@@ -170,6 +172,29 @@ export const NEGOTIATION_EFFECTS: { [K in TermItem['kind']]: NegotiationEffect<K
         vassalHouseId: v.vassal,
         terms: v.terms,
         origin: 'peace',
+        sinceAt: ctx.now,
+        sinceDay: ctx.day,
+      });
+    },
+  },
+  // výkupné: v transakci vznikne jen vazalství z výkupného; zaplacení a propuštění dělá
+  // `acceptNegotiation` po ní (zásilka jede pod zámkem, propuštění ve schránkách)
+  ransom: {
+    check: async (tx, item) => {
+      const v = item.vassalage;
+      if (v && wouldBeMutual(await tx.vassalages.edgesNear(v.lord, 1), v.lord, v.vassal)) {
+        return RANSOM_REASONS.isYourLord;
+      }
+      return checkRansomItems([item], v ? [v.lord, v.vassal] : []);
+    },
+    apply: async (tx, item, ctx) => {
+      const v = item.vassalage;
+      if (!v) return;
+      await tx.vassalages.create({
+        lordHouseId: v.lord,
+        vassalHouseId: v.vassal,
+        terms: v.terms,
+        origin: 'negotiation',
         sinceAt: ctx.now,
         sinceDay: ctx.day,
       });

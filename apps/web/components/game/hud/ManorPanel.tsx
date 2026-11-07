@@ -8,6 +8,7 @@ import { formatDecimal, formatInteger } from '@/lib/village-format';
 import { useRightDenied, useVillageId } from './rights';
 import { ArmyPanel } from './ArmyPanel';
 import { Tooltip } from './Tooltip';
+import { PrisonersPanel, type PrisonerAction } from './PrisonersPanel';
 
 // Dvorec vojvody v panelu výběru (trade.md – Dvorec vojvody): vylepšení celé vsi – zemská stezka
 // do jednoho z 8 směrů (růžice šipek) a obchod se sousedy po hotových stezkách. Jako v 0 A.D.:
@@ -186,12 +187,15 @@ export function ManorUpgrades({
   onBuildTrail,
   onDeclareHunt,
   onSetStance,
+  onDecidePrisoner,
   trade,
 }: {
   manor: VillageManor;
   onBuildTrail?: (direction: Direction8) => Promise<void>;
   onDeclareHunt?: () => Promise<string | null | void>;
   onSetStance?: (stance: DefenseStance) => Promise<string | null | void>;
+  /** Rozhodnutí o zajatci (držet, propustit, popravit); vrací důvod odmítnutí. */
+  onDecidePrisoner?: (id: string, action: PrisonerAction) => Promise<string | null | void>;
   trade?: (close: () => void) => ReactNode;
 }): ReactElement {
   const [open, setOpen] = useState<'trail' | 'trade' | 'army' | null>(null);
@@ -357,6 +361,9 @@ export function ManorUpgrades({
           </Tooltip>
         ))}
       </div>
+      {manor.prisoners && onDecidePrisoner && (
+        <PrisonersPanel prisoners={manor.prisoners} onDecide={onDecidePrisoner} />
+      )}
       {open === 'trail' && (
         <div className="hud-panel hud-popup p-2" data-hud-block>
           {trails && <TrailCompass trails={trails} busy={busy} onBuild={build} />}

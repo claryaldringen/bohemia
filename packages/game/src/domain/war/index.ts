@@ -17,3 +17,5 @@ export * from './flight';
 export * from './stance';
 export * from './orders';
 export * from './raid-apply';
+export * from './surrender';
+export * from './captives';

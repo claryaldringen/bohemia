@@ -154,8 +154,17 @@ function huntDeniedText(state: VillageState, day: number): string | null {
   return denied === null ? null : HUNT_DENIED_TEXT[denied];
 }
 
+/** Zajatec ve dvorci (war.md – Vzdaní, zajetí a výkupné): klíč zajetí a jméno do portrétu. */
+export interface PrisonerView {
+  id: string;
+  name: string | null;
+  noble: boolean;
+}
+
 /** Dvorec vojvody pro panel výběru. */
 export interface VillageManor {
+  /** Zajatci držení ve vsi; bez zajatců chybí. */
+  prisoners?: PrisonerView[];
   /** Postoj vsi před cizím vojskem (war.md – Obránci); bez nastavení `flee`. */
   stance: DefenseStance;
   /** Lov navíc na zítřek: důvod odepření česky, nebo null (lze vyhlásit; wildlife.md – Lov rodu). */
@@ -363,6 +372,15 @@ export function manorView(
   if (!manor || state.extinctDay !== undefined) return null;
   return {
     dwellingId: manor.id,
+    ...(state.prisoners?.length
+      ? {
+          prisoners: state.prisoners.map((p) => ({
+            id: p.id,
+            name: p.name ?? null,
+            noble: p.noble === true,
+          })),
+        }
+      : {}),
     stance: stanceOf(state),
     huntDenied: huntDeniedText(state, day),
     ...huntField(state, day),

@@ -16,6 +16,7 @@ import {
   type CampaignReturn,
   type RaidResult,
 } from '../war/raid-apply';
+import { applyCaptiveReturns, type CaptiveReturns } from '../war/captives';
 import type { ChronicleEvent, Guest, ShipmentBody, ThreatSignal, VillageState } from './types';
 
 /**
@@ -59,6 +60,11 @@ export type VillageEventBody =
   | { kind: 'raid-result'; result: RaidResult }
   /** Tažení se vrátilo do vsi útočníka (`applyCampaignReturn`): muži, kořist, odvedení. */
   | { kind: 'campaign-return'; result: CampaignReturn }
+  /**
+   * Konec zajetí (propuštění nebo výkupné; `applyCaptiveReturns`): zajatec jde domů, věznitelova ves
+   * ho přestane živit. Událost jde do obou vsí, každá použije svou stranu.
+   */
+  | ({ kind: 'captive-returns' } & CaptiveReturns)
   /** Muž rodu padl na tažení (war.md – Ztráty; `applyLineManFell`): smrt a nástupnictví. */
   | { kind: 'line-man-fell'; personId: number; campaignId: string }
   /**
@@ -119,6 +125,8 @@ function applyEvent(state: VillageState, day: number, body: VillageEventBody): C
       return applyRaidResult(state, day, structuredClone(body.result));
     case 'campaign-return':
       return applyCampaignReturn(state, day, structuredClone(body.result));
+    case 'captive-returns':
+      return applyCaptiveReturns(state, day, body);
     case 'line-man-fell':
       return applyLineManFell(state, day, body);
     case 'fortification-breach':
