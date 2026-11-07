@@ -66,6 +66,7 @@ import {
 } from './livestock';
 import { ploughCapacityPerDay, ploughPairsHome, villageOxen } from './oxen';
 import { fireFighting } from './firefighting';
+import { raidHiding } from './raid-day';
 import { morningWater, ploughWindowsToday, villagersToday } from './morning-water';
 import { surplusFieldDay, surplusWantsTeam } from './surplus-fields';
 import { threshingFloorHaulPoints } from './threshing-floors';
@@ -472,7 +473,9 @@ export function work(
   // v den požáru hasí i řemeslníci – dílny dnes stojí (disasters.md – Hašení)
   // uhlíř hasí taky: milíř ten den stojí bez dozoru (pálení se o den odloží, nic se nezkazí),
   // proto se zruší i plán dne (vytahání uhlí, začátek milíře) – návrh Clauda
-  if (fireFighting(state, day)) {
+  // v den nájezdu se skrývají všichni – dílny a milíře stojí jako při požáru (war.md – Ves během
+  // nájezdu nepracuje)
+  if (fireFighting(state, day) || raidHiding(state, day)) {
     burners.clear();
     for (const d of state.dwellings) if (d.workshop) resting.set(d.id, 'resting');
   }

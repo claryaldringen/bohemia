@@ -54,6 +54,7 @@ import {
   type VillageState,
   type VillageYearRow,
 } from '../domain/village';
+import { heldDay } from './village-holds';
 import type { Pause, VillageRecord, VillageRepository, VillageResult } from './villages';
 
 /** Kolikrát se akce zkusí znovu, když ves mezitím uložil jiný požadavek. */
@@ -197,7 +198,9 @@ async function withPauses(
  * Před dopočtem si vyžádá události schránky vsi z dopočítávaných dnů (`villages.inbox` –
  * village-core.md, Schránka vsi) a dopočet je použije na začátku jejich dne. Zápis do schránky
  * zvedá verzi vsi, takže událost zapsaná během dopočtu se projeví konfliktem verze při uložení
- * a další pokus ji načte znovu s čerstvým stavem – použije se právě jednou.
+ * a další pokus ji načte znovu s čerstvým stavem – použije se právě jednou. Ves, u které stojí
+ * tažení, se dopočítá nejvýš do meze bariéry (`villages.holds` – village-holds.ts; ves dál už
+ * spočítaná počká) a akce `change` dostane ves k tomu dni.
  */
 export async function updateVillage(
   villages: VillageRepository,
@@ -212,6 +215,10 @@ export async function updateVillage(
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const record = await villages.find(villageId);
     if (record === null) return { ok: false, reason: NO_VILLAGE };
+    // bariéra ves × tažení (village-holds.ts): s tažením u vsi nejvýš do jeho meze – při každém
+    // pokusu znovu, mez mezitím mohla povyrůst
+    const limits = await villages.holds?.limitOf([villageId]);
+    const day = heldDay(today, record.state.lastDay, limits?.get(villageId));
     // seed počasí mapy se nemění – stačí se zeptat jednou
     weatherSeed ??= await villages.weatherSeedOf(record.settlementId);
     // vsi rodu na téže mapě jsou zrušené (migration.md) – zbytky se zahodí
@@ -272,9 +279,9 @@ export async function updateVillage(
             ),
           ),
         ),
-        today,
+        day,
       ),
-      today,
+      day,
     );
     // dvorec vojvody – starší ves ho dostane (nejstarší obydlí, trade.md); spřežení ohrad uložených
     // dřív se převedou na voly po kusech (oxen.md – Voli po kusech); ves z doby před vyšlapaností ji
@@ -323,10 +330,8 @@ export async function updateVillage(
     // události schránky z dnů, které se budou dopočítávat (village-core.md – Schránka vsi); po
     // načtení vsi – zápis mezi načtením a uložením zvedne verzi a pokus se zopakuje
     const inbox =
-      attached.lastDay < today
-        ? await villages.inbox.pending(villageId, attached.lastDay, today)
-        : [];
-    const logged = await advancedWithYearLog(attached, today, obstacles, landscape, pause, inbox);
+      attached.lastDay < day ? await villages.inbox.pending(villageId, attached.lastDay, day) : [];
+    const logged = await advancedWithYearLog(attached, day, obstacles, landscape, pause, inbox);
     const advanced = logged.state;
     // ves uložená před trasami (nebo s trasami jiného rozložení) si je spočítá – i když se jen
     // zobrazuje, ať je scéna má (paths.md – Kdy se trasy počítají a co se ukládá)

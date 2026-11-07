@@ -6,6 +6,7 @@ import { settleSuccessionOf } from './player-departure';
 import { closeDynastyDay, type DynastyDeps } from './restart-game';
 import { settleStewardDeparturesSafely } from './settle-steward-departures';
 import type { Settlement } from './settlements';
+import { heldDay } from './village-holds';
 import type { VillageRecord, VillageStamp } from './villages';
 import type { WorldQueue } from './world-queue';
 
@@ -70,7 +71,8 @@ export interface PlayerStep {
 /**
  * Dávka jednoho hráče: cílový den `T = min(dnešek, nejstarší lastDay + stepDays)`; každá nespící
  * ves aktivního sídla s `lastDay < T` (v pořadí jako `dynastyStatus`) se zvlášť pod zámkem hráče
- * (`tryRun`) dopočte do `T` (`loadVillage` – s přestávkami `pause`) a vybaví se její odchozí
+ * (`tryRun`) dopočte do `T` (`loadVillage` – s přestávkami `pause`; ves s tažením u ní nejvýš do
+ * meze bariéry `VillageHolds` – ves na mezi se do nejstaršího dne nepočítá) a vybaví se její odchozí
  * schránky správce (`settleStewardDeparturesSafely` – nová ves syna vznikne v den odchodu a je
  * pozadu, vezme ji další kolo). Ves na cestě se posouvá jako každá jiná – se správcem ji založí
  * simulace v den příjezdu, bez něj čeká na hráče. Když se něco posunulo, jedno závěrečné držení
@@ -106,14 +108,22 @@ export async function advancePlayer(
     }
     const { settlements, stamps } = await stampsOfPlayer(deps, input.playerId);
     const awake = stamps.filter((s) => !s.asleep);
-    const oldest = Math.min(input.today, ...awake.map((s) => s.lastDay));
+    // bariéra ves × tažení (village-holds.ts): ves s tažením u ní jen do jeho meze; ves na mezi
+    // nečeká na ostatní vsi hráče ani je nebrzdí (do nejstaršího dne se nepočítá)
+    const limits = deps.villages.holds
+      ? await deps.villages.holds.limitOf(awake.map((s) => s.id))
+      : new Map<string, number>();
+    const dayOf = (s: VillageStamp): number => heldDay(input.today, s.lastDay, limits.get(s.id));
+    const open = awake.filter((s) => s.lastDay < dayOf(s));
+    const oldest = Math.min(input.today, ...open.map((s) => s.lastDay));
     const target = Math.min(input.today, oldest + input.stepDays);
     step.targetDay = target;
     // záznamy dopočtené v této dávce – závěrečné zjištění konce rodu je nenačítá znovu
     const advanced = new Map<string, VillageRecord>();
     let failure: { villageId: string; cause: unknown } | null = null;
     for (const stamp of awake) {
-      if (stamp.lastDay >= target) continue;
+      const to = Math.min(target, dayOf(stamp));
+      if (stamp.lastDay >= to) continue;
       villageId = stamp.id;
       try {
         const settlement = settlements.find((s) => s.id === stamp.settlementId);
@@ -122,7 +132,7 @@ export async function advancePlayer(
         const held = await deps.locks.tryRun(input.playerId, async () => {
           const village = await loadVillage(deps, {
             villageId: stamp.id,
-            today: target,
+            today: to,
             landscape,
           });
           if (!village || pendingStewardDepartures(village.state).length === 0) {
@@ -235,10 +245,16 @@ export interface WorldStep {
    * (nebo posunem času hráče, novou vsí); jinak worker pokračuje hned dalším kolem.
    */
   idle: boolean;
+  /**
+   * Kolik vsí drží tažení u nich (`priorityVillages`) – jejich mez roste s taktem tažení, ne s herním
+   * dnem, a tak worker s nimi nespí do dalšího dne, jen krátce.
+   */
+  held: number;
 }
 
 /**
- * Kolo workeru: z fronty (`WorldQueue.behind` – nejvíc pozadu první) vezme nejvýš `limit` hráčů
+ * Kolo workeru: z fronty (`WorldQueue.behind` – hráči s přednostní vsí pod mezí bariéry, pak nejvíc
+ * pozadu; `priorityVillages` a jejich meze `VillageHolds.limitOf`) vezme nejvýš `limit` hráčů
  * bez odkladu a každému posune vsi o dávku (`advancePlayer`). Chyba u jednoho hráče ostatní
  * nezastaví – vrátí se v jeho `PlayerStep` (`failed`). Celý worker bez procesu kolem.
  */
@@ -247,7 +263,13 @@ export async function advanceWorldStep(
   input: WorldStepInput,
 ): Promise<WorldStep> {
   const skip = input.skip ?? new Set<string>();
-  const queue = await deps.queue.behind(input.worldDay, input.limit + skip.size);
+  // vsi s tažením u nich jdou přednostně – tažení čeká na jejich předchozí den (village-holds.ts)
+  const priority = await deps.queue.priorityVillages();
+  const holds =
+    priority.length > 0 && deps.villages.holds
+      ? await deps.villages.holds.limitOf(priority)
+      : new Map<string, number>();
+  const queue = await deps.queue.behind(input.worldDay, input.limit + skip.size, holds);
   const due = queue.filter((p) => !skip.has(p.playerId)).slice(0, input.limit);
   const players: PlayerStep[] = [];
   for (const player of due) {
@@ -265,5 +287,6 @@ export async function advanceWorldStep(
     villages: players.reduce((sum, p) => sum + p.villages, 0),
     days: players.reduce((sum, p) => sum + p.days, 0),
     idle: due.length === 0,
+    held: priority.length,
   };
 }

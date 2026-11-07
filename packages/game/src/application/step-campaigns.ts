@@ -12,6 +12,7 @@ import {
   type CampaignOutbox,
   type CampaignState,
   type CampaignStep,
+  type CampaignWorld,
 } from '../domain/war';
 import type { CampaignCells, CampaignLock, CampaignRepository } from './campaigns';
 import type { HouseRepository } from './houses';
@@ -118,9 +119,12 @@ async function stepOne(
     step.villageEvents.length > 0 || step.notices.length > 0
       ? { villageEvents: step.villageEvents, notices: step.notices }
       : null;
+  // tažení čeká na ves (bariéra Ú6.7) – bod se uloží hned, ať mez vsi povyroste a ves smí
+  // spočítat den, na který tažení čeká (jinak by obě strany čekaly navzájem)
   const due =
     outbox !== null ||
     campaignFinished(step.state) ||
+    (step.waiting?.villageIds.length ?? 0) > 0 ||
     step.state.tick - from.tick >= CHECKPOINT_TICKS;
   if (!due) return step.waiting ? 'waiting' : 'computed';
 
@@ -140,7 +144,9 @@ async function stepOne(
 
 /**
  * Dopočet tažení s načítáním dat: když takt chybí mapa nebo ves, načtou se a výpočet pokračuje
- * od zastaveného taktu (výsledek je tentýž jako s daty předem).
+ * od zastaveného taktu (výsledek je tentýž jako s daty předem). Ves pro den `d` je její uložený
+ * stav, má-li už spočtený den `d − 1` (bariéra Ú6.7 – `VillageHolds` ji dál nepustí); jinak takt
+ * čeká, ves se v dalším kole načte znovu.
  */
 export async function computeCampaign(
   deps: Pick<StepCampaignsDeps, 'cells' | 'villages' | 'world' | 'watchers'>,
@@ -150,17 +156,30 @@ export async function computeCampaign(
 ): Promise<CampaignStep> {
   const maps = new Map<string, CampaignMap>();
   const villages = new Map<string, VillageState>();
+  /** Vsi, které se už zkusily načíst (i neexistující) – pro posla. */
+  const tried = new Set<string>();
   const watchers = new Map<string, { playerId: string; name: string }>();
   const harmlessTo = new Map<string, boolean>();
   const key = (c: GridCell): string => `${c.x},${c.y}`;
-  const world = {
+  const world: CampaignWorld = {
     clock: deps.world,
     landscapeOf: (cell: GridCell): CampaignMap | null => maps.get(key(cell)) ?? null,
-    // Ú6.5: stav vsi, jak ho úložiště má; bariéra (stav přesně ke dni) je Ú6.7
-    villageAt: (villageId: string): VillageState | null => villages.get(villageId) ?? null,
+    // bariéra (Ú6.7): stav ke konci dne `day − 1` – ves bez toho dne ještě není
+    villageAt: (villageId: string, day: number): VillageState | null => {
+      const state = villages.get(villageId);
+      return state && state.lastDay >= day - 1 ? state : null;
+    },
     watcherOf: (villageId: string): { playerId: string; name: string } | null =>
       watchers.get(villageId) ?? null,
     harmless: (villageId: string): boolean => harmlessTo.get(villageId) ?? false,
+    // posel jde z jiné vsi téhož hráče (rodu) jako cíl; bez `watchers` se nic neví – posel nejde
+    messengerTo: (from: string, to: string): boolean | null => {
+      if (!deps.watchers) return false;
+      if (!tried.has(from) || !tried.has(to)) return null;
+      const a = watchers.get(from);
+      const b = watchers.get(to);
+      return a !== undefined && b !== undefined && a.playerId === b.playerId;
+    },
   };
   const result: CampaignStep = { state, villageEvents: [], notices: [], waiting: null };
   for (let round = 0; round <= MAX_LOADS; round++) {
@@ -177,9 +196,19 @@ export async function computeCampaign(
       loaded = true;
     }
     for (const villageId of step.waiting.villageIds) {
-      const record = villages.has(villageId) ? null : await deps.villages.find(villageId);
-      if (!record) continue;
+      // ves bez potřebného dne se načte znovu – mezitím ji mohl worker posunout
+      const firstTry = !tried.has(villageId);
+      tried.add(villageId);
+      const record = await deps.villages.find(villageId);
+      if (!record) {
+        if (firstTry) loaded = true;
+        continue;
+      }
+      const cached = villages.get(villageId);
+      if (cached && record.state.lastDay <= cached.lastDay) continue;
       villages.set(villageId, record.state);
+      loaded = true;
+      if (cached) continue;
       const watcher = (await deps.watchers?.watcherOf(villageId)) ?? null;
       if (watcher) {
         watchers.set(villageId, { playerId: watcher.playerId, name: record.name });
@@ -187,7 +216,6 @@ export async function computeCampaign(
           harmlessTo.set(villageId, true);
         }
       }
-      loaded = true;
     }
     if (!loaded) break;
   }

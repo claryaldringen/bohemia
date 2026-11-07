@@ -348,3 +348,40 @@ describe('advanceWorldStep – krok světa', () => {
     expect((await world.step()).idle).toBe(true);
   });
 });
+
+describe('bariéra ves × tažení (Úloha 6.7)', () => {
+  it('ves u tažení jen do meze, ostatní vsi hráče do dneška; přednostní hráč první', async () => {
+    const world = new World();
+    world.villages.withHolds();
+    const queue = world.deps.queue as InMemoryWorldQueue;
+    // hráč „a“ víc pozadu, „b“ má ves u tažení – jde přesto první
+    await world.player('a', [tracked(FAMILY, TODAY - 9)]);
+    const [held, free] = await world.player('b', [
+      tracked(FAMILY, TODAY - 5),
+      tracked(FAMILY, TODAY - 5),
+    ]);
+    world.villages.holdLimits.set(held!, TODAY - 3);
+    queue.priority = [held!];
+    const first = await advanceWorldStep(world.deps, {
+      worldDay: TODAY,
+      stepDays: WORLD_STEP_DAYS,
+      limit: 1,
+    });
+    expect(first.players.map((p) => p.playerId)).toEqual(['b']);
+    expect(first.held).toBe(1);
+    expect((await world.villages.find(held!))!.state.lastDay).toBe(TODAY - 3);
+    expect((await world.villages.find(free!))!.state.lastDay).toBe(TODAY);
+    // ves na mezi není pozadu – hráč „b“ už ve frontě není, hráč „a“ ano
+    const second = await world.step();
+    expect(second.players.map((p) => p.playerId)).toEqual(['a']);
+    expect((await world.step()).idle).toBe(true);
+    // mez povyrostla (tažení spočítalo další den) – ves pokračuje, nikdy dál než mez
+    world.villages.holdLimits.set(held!, TODAY - 2);
+    await world.step();
+    expect((await world.villages.find(held!))!.state.lastDay).toBe(TODAY - 2);
+    // ves dopočtená dál než mez (dřív, než k ní tažení došlo) počká – nepočítá se zpět
+    world.villages.holdLimits.set(held!, TODAY - 4);
+    const view = await loadVillage(world.deps, { villageId: held!, today: TODAY, landscape });
+    expect(view?.state.lastDay).toBe(TODAY - 2);
+  });
+});

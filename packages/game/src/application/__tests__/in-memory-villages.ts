@@ -6,6 +6,7 @@ import type {
   VillageStamp,
 } from '../villages';
 import { InMemoryVillageInbox } from './in-memory-inbox';
+import type { VillageHolds } from '../village-holds';
 
 /**
  * Repozitář vsí v paměti – create a save se chovají atomicky jako databáze. Vsi dostávají id
@@ -30,6 +31,28 @@ export class InMemoryVillages implements VillageRepository {
   readonly yearLog = new Map<string, Map<number, VillageYearRow>>();
   /** Schránka vsí – zápis zvedá verzi vsi tady (in-memory-inbox.ts). */
   readonly inbox: InMemoryVillageInbox = new InMemoryVillageInbox(this);
+  /**
+   * Meze bariéry ves × tažení (village-holds.ts) – test je nastaví v `holdLimits` a bariéru zapne
+   * `withHolds()`. Bez ní `holds` chybí jako v kalibraci: dopočet se na mez neptá (souběžné testy
+   * mají stejné prokládání jako dřív).
+   */
+  readonly holdLimits = new Map<string, number>();
+  holds?: VillageHolds;
+
+  withHolds(): this {
+    this.holds = {
+      limitOf: async (ids) => {
+        await Promise.resolve();
+        const limits = new Map<string, number>();
+        for (const id of ids) {
+          const limit = this.holdLimits.get(id);
+          if (limit !== undefined) limits.set(id, limit);
+        }
+        return limits;
+      },
+    };
+    return this;
+  }
   private nextId = 1;
 
   async weatherSeedOf(settlementId: string): Promise<number | null> {

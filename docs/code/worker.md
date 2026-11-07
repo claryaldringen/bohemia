@@ -21,7 +21,8 @@ vstupní bod (composition root) jako web – žádná herní logika, jen plánov
 - `src/main.ts` – skládání: pool hlavní a pool zámků (`WORKER_LOCK_POOL_SIZE` = 2),
   `createGameDeps` (obsahuje i `queue` = `createWorldQueue`), signály, zavření poolů.
 - `src/loop.ts` – `runLoop(deps, options, signal)`: kolo `advanceWorldStep` → při práci pauza
-  `pauseMs`, při `idle` spánek `nextWakeMs`; souhrn do logu jednou za minutu; chyba kola ani jednoho
+  `pauseMs`, při `idle` spánek `nextWakeMs` (drží-li tažení vsi – `WorldStep.held` – nejvýš
+  `HELD_WAKE_MS` = 250 ms, viz Přednostní vsi); souhrn do logu jednou za minutu; chyba kola ani jednoho
   hráče smyčku nezastaví. Hodiny, spánek i krok se v testech nahrazují (`LoopDeps`). Mezi koly pouští
   `runWorldTasks` (kredity nástupnictví, `world.md`) nejvýš jednou za minutu (`WORLD_TASKS_MS`, podle
   hodin `deps.now`); jejich chyba kolo nezastaví.
@@ -47,6 +48,21 @@ celá skupina procesů a `tsx` ho přepošle) – signál do `REPEATED_SIGNAL_MS
 témuž stisku a ignoruje se. Pod `npm run dev` ukončuje dítě i `tsx watch`: na opakovaný signál ho
 po chvíli zabije („Force killing…“) – ověřeno 1. 11. 2026, worker stihl dávku dokončit a vypsat
 „worker skončil“; nedokončená dávka by se jen zahodila (zámek padne se spojením).
+
+## Přednostní vsi (bariéra tažení)
+
+Plán 2026-11-03 – Úloha 6.7; `docs/code/war.md` – Bariéra dopočtu. Ves, u které stojí tažení
+(skupina na mapě vsi nebo políčko od ní), se dopočítá jen do meze tažení a tažení čeká na její
+předchozí den – worker ji proto bere **přednostně**:
+
+- `advanceWorldStep` se na začátku kola zeptá `WorldQueue.priorityVillages()` (adaptér
+  `villagesNearCampaigns` – políčka skupin aktivních bodů × sídla do políčka od nich) a jejich mezí
+  `VillageHolds.limitOf`; meze předá `queue.behind(worldDay, limit, holds)`: ves na své mezi není
+  pozadu (žádné kolo naprázdno, nezabírá místo ve frontě), hráč s přednostní vsí pod mezí jde první,
+  pak podle zpoždění. Bez tažení stejný dotaz i pořadí jako dřív.
+- `WorldStep.held` = počet přednostních vsí; nic pozadu a `held > 0` → smyčka spí jen `HELD_WAKE_MS`
+  (mez roste s taktem tažení – tažení uloží bod hned, když na ves čeká –, ne s herním dnem).
+- Vsi bez tažení se dopočítají jako dřív (bariéra je nenačte – `limitOf` je nevrátí).
 
 ## Výjimky a omezení
 
