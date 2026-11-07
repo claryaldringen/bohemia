@@ -25,6 +25,7 @@ import {
   MARCH_WATER,
   marchCellAt,
   marchGrid,
+  MarchGridMemo,
   type MarchGrid,
 } from '../march-grid';
 import {
@@ -396,5 +397,49 @@ describe('stavby vsi pochod blokují (war.md – Pohyb – Terén)', () => {
   it('opevnění: branou projde, jinak obejde (stavby ho nerozbijí)', () => {
     const grid = marchGrid(flat(), null, fortVillage(fort('palisade', undefined, true)));
     expect(marchPath(grid, OUT, IN)).not.toBeNull();
+  });
+});
+
+describe('mřížky pochodu napříč voláními (worker – Výkon – Tažení)', () => {
+  const same = (a: MarchGrid, b: MarchGrid): void => {
+    expect({ ...a, pace: [...a.pace], flags: [...a.flags] }).toEqual({
+      ...b,
+      pace: [...b.pace],
+      flags: [...b.flags],
+    });
+  };
+
+  it('mřížka z paměti = nově postavená; tentýž vstup = tatáž mřížka', () => {
+    const land = flat();
+    const fortified = fortVillage(fort('palisade', undefined, true));
+    const memo = new MarchGridMemo();
+    const first = memo.gridOf(land, null, fortified, SUMMER);
+    same(first, marchGrid(land, null, fortified, { day: SUMMER }));
+    expect(memo.gridOf(land, null, fortified, SUMMER)).toBe(first);
+    const empty = memo.gridOf(land, null, null, SUMMER);
+    same(empty, marchGrid(land, null, null, { day: SUMMER }));
+    expect(empty).not.toBe(first);
+  });
+
+  it('jiný stav vsi, jiný den nebo jiná krajina = nová mřížka; drží jen dva dny', () => {
+    const land = flat();
+    const fortified = fortVillage(fort('palisade', undefined, true));
+    const memo = new MarchGridMemo();
+    const first = memo.gridOf(land, null, fortified, SUMMER);
+    // nová verze vsi (jiný objekt stavu) – brána zavřená zbořením: mřížka se staví znovu
+    const without = { ...fortified, fortifications: [] };
+    const rebuilt = memo.gridOf(land, null, without, SUMMER);
+    expect(rebuilt).not.toBe(first);
+    same(rebuilt, marchGrid(land, null, without, { day: SUMMER }));
+    expect(memo.gridOf(flat(), null, fortified, SUMMER)).not.toBe(first);
+    const next = memo.gridOf(land, null, fortified, SUMMER + 1);
+    expect(next).not.toBe(first);
+    expect(memo.gridOf(land, null, fortified, SUMMER)).toBe(first);
+    // třetí den vytlačí nejstarší (drží se dva nejnovější)
+    memo.gridOf(land, null, fortified, SUMMER + 2);
+    expect(memo.gridOf(land, null, fortified, SUMMER + 1)).toBe(next);
+    const again = memo.gridOf(land, null, fortified, SUMMER);
+    expect(again).not.toBe(first);
+    same(again, first);
   });
 });

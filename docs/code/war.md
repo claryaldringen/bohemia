@@ -163,7 +163,8 @@ notices, waiting }` – čistá, vstup nemění. Takt na kopii stavu: na začát
   jídla na pochodu obrat `supplies`), záměry taktu podle `seq` (záměr s taktem ≤ `state.tick`
   a cizí hráč se zahodí), pak fáze. **Pohyb:** skupina jde tempem `marchSpeed ÷ 4` metrů louky za
   takt po `leg` (`marchPathToEdge` k okraji ve směru `route[0]`, na posledním políčku `marchPath`
-  k cíli; úsek se plánuje na mřížce `marchGrid` políčka a dne – mezipaměť jen v rámci volání);
+  k cíli; úsek se plánuje na mřížce `marchGrid` políčka a dne – mezipaměť v rámci volání, napříč
+  voláními `CampaignWorld.grids` – `MarchGridMemo`, klíč identita krajiny, překážek, stavu vsi a den);
   konec úseku na okraji = `edgeCrossing` na sousední mapu (zbytek taktu propadne), v cíli stojí;
   skupina bez cesty nebo bez mužů stojí. Trasa po světě `worldRoute` (bez zákazů – průchod Ú6.13).
   Všechny skupiny na mapě cíle → `raiding`; **`raidTick` počítá boj** (Ú6.8 – Boj muž po muži;
@@ -181,7 +182,8 @@ notices, waiting }` – čistá, vstup nemění. Takt na kopii stavu: na začát
   starý `outbox`, záměry `intentsAfter(tick)`, `computeCampaign` (načítá chybějící mapy
   `CampaignCells.mapOf` a vsi a pokračuje, nejvýš 8 kol) do `tickOfMs(now)`. Bod se uloží, když
   přibylo ≥ 40 taktů, vznikly události nebo tažení skončilo (jinak `computed` – další kolo počítá
-  znovu z bodu); `saveCheckpoint` uloží stav i `outbox` (události a upozornění) atomicky a odmítne
+  znovu z bodu, s pamětí workeru `memory` od posledního spočteného stavu, platí-li pro týž bod –
+  otisk JSON – a tytéž záměry do jeho taktu; docs/code/worker.md – Výkon – Tažení); `saveCheckpoint` uloží stav i `outbox` (události a upozornění) atomicky a odmítne
   (`stale`), když se bod posunul nebo přibyl záměr do spočtených taktů (počet záměrů v rozsahu ≠
   `seenIntents`). Po uložení doručí `outbox` (`villages.inbox.post` – stejný `ref` podruhé zahozen,
   `notices.post`) a smaže ho (`clearOutbox`); pád mezi uložením a doručením → další kolo doručí
@@ -673,13 +675,13 @@ sinceTick })` – kontrolní bod z úložiště, mřížka mapy cíle jen při b
 
 ## Měření tažení a e2e celé války (Ú6.17)
 
-- **Měření** `apps/worker/scripts/measure-campaigns.ts` (v paměti) – tabulka a rozbor v
-  `docs/code/worker.md` – Výkon – Tažení. Změřeno 7. 11. 2026 (jedno jádro, smyčka jako worker):
-  pochod 1 / 5 / 20 tažení × 60 mužů 2,4 / 10,3 / **39,5 %** jádra (cíl ≤ 25 % pro 20 tažení
-  **nesplněn**), 5 tažení u opevněných vsí (15 průlomů, útočiště) 15,7 %; hledání cesty (A\*,
-  `worldRoute`) 0–2 %. Čas je v opakování taktů od kontrolního bodu (≈ 20× víc taktů, než
-  přibylo), v kopii stavu v každém taktu a u nájezdu v mřížce pochodu mapy cíle. Návrh: poslední
-  spočtený stav ve workeru v paměti (pokračovat od něj, dokud se bod a záměry nezmění).
+- **Měření** `apps/worker/scripts/measure-campaigns.ts` (v paměti, skutečné `stepCampaigns`) –
+  tabulka a rozbor v `docs/code/worker.md` – Výkon – Tažení. Změřeno 7. 11. 2026 (jedno jádro):
+  pochod 1 / 5 / 20 tažení × 60 mužů 0,4 / 1,6 / **4,4 %** jádra (cíl ≤ 25 % pro 20 tažení
+  **splněn**; bez paměti workeru 2,4 / 10,5 / 39,7 %), 5 tažení u opevněných vsí (15 průlomů,
+  útočiště) 2,5 % (dřív 16,2 %). Zrychlení: worker pokračuje od posledního spočteného stavu místo
+  opakování taktů od kontrolního bodu a mřížky pochodu drží napříč koly (`MarchGridMemo`); kopie
+  stavu v každém taktu zůstává (≈ 45 % zbytku – proč, viz worker.md).
 - **e2e** `apps/web/e2e/multiplayer-war.spec.ts`: A přepadne B (tažení zapsané rovnou u vsi B,
   velí vesničan – NPC), B s výchozím postojem útěk uteče do lesa i se stádem
   (`battle.shelter`), B má upozornění „Cizí vojsko u vsi …“, A po návratu (vojsko přenesené do

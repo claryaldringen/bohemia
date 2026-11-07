@@ -4,7 +4,7 @@ import type { NewVillageEvent } from '../village/inbox';
 import type { Person, PersonRef, Prisoner, RaidLoot, VillageState } from '../village/types';
 import type { GridCell } from '../village/world-grid';
 import type { BattleState } from './battle';
-import type { Pos } from './march-grid';
+import type { MarchGridMemo, Pos } from './march-grid';
 
 // Stav tažení (war.md – Velení a příprava tažení, Pohyb; plán 2026-11-03 – Úloha 6.5). Stav je
 // JSON (kontrolní bod v úložišti): po načtení z JSON musí tažení pokračovat bit po bitu stejně.
@@ -269,6 +269,11 @@ export interface CampaignWorld {
    * a obě se načtou). Neví-li svět vůbec, nikdo posla neposílá.
    */
   messengerTo?(passedVillageId: string, targetVillageId: string): boolean | null;
+  /**
+   * Mřížky pochodu napříč voláními (worker) – jen zrychlení; bez ní se mřížka staví jednou na
+   * volání.
+   */
+  grids?: MarchGridMemo;
 }
 
 /** Druhy upozornění tažení (aplikace je přidá do `PlayerNoticeKind`). */

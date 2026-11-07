@@ -33,7 +33,8 @@ vstupní bod (composition root) jako web – žádná herní logika, jen plánov
   migrací) smyčku nezastaví, stejná chyba se do logu opakuje nejvýš jednou za minutu. Bez tažení je
   kolo jeden dotaz (`active()`). Zámek tažení má vlastní pool (`CAMPAIGN_LOCK_POOL_SIZE` = 2), vsi
   tažení jdou úložištěm bez paměti dávky (`createVillageRepository`), mapy políček
-  `createCampaignCells` (`packages/server`).
+  `createCampaignCells` (`packages/server`). Paměť tažení napříč koly (`newCampaignMemory` – poslední
+  spočtený stav a mřížky pochodu, Výkon – Tažení) drží proces; restart ji zahodí (počítá od bodu).
 - `src/wake.ts` – `nextWakeMs` (do 1 s po začátku dalšího herního dne, nejvýš `idleMs`) a
   `SkipTable` (odklady: zámek ve webu 2 s, chyba 1 min zdvojováním do 15 min; use-case dostane
   množinu `skip`).
@@ -189,35 +190,45 @@ Akce i otevření jsou s workerem v cíli pro 1 / 5 / 20 vsí a na počtu vsí u
 `apps/worker/scripts/measure-campaigns.ts` – v paměti (žádná databáze): 1 / 5 / 20 tažení × 60
 mužů (3 skupiny, NPC velitel) na pochodu přes skutečné krajiny prázdných políček
 (`emptyCellLandscape`) a 5 tažení u opevněných vsí (palisáda z bodů kolem jádra, postoj bránit –
-útočiště, prolamování). Smyčka napodobí worker: každé kolo (250 ms) načte bod z JSON, dopočítá
-do teď a uloží po ≥ 40 taktech nebo s událostí. `--ticks` (výchozí 480 = 2 min), `--profile` =
-podíl hledání cesty (vzorky pod `marchPath` / `marchPathToEdge` / `worldRoute`) a mřížky.
+útočiště, prolamování). Smyčka je skutečné `stepCampaigns` každých 250 ms nad porty v paměti
+(kontrolní bod jako JSON – jsonb, bod po ≥ 40 taktech nebo s událostí) s pamětí workeru;
+`--no-memory` = bez ní (každé kolo znovu od bodu – stav do 7. 11. 2026). „Otisk“ uložených bodů
+musí být s pamětí i bez ní tentýž. `--ticks` (výchozí 480 = 2 min), `--profile` = podíl hledání
+cesty (vzorky pod `marchPath` / `marchPathToEdge` / `worldRoute`) a mřížky.
 
 ```bash
 nice npx tsx apps/worker/scripts/measure-campaigns.ts --ticks 480 --profile
+nice npx tsx apps/worker/scripts/measure-campaigns.ts --ticks 480 --no-memory   # stav před
 ```
 
-Změřeno 7. 11. 2026 (M-série, jedno jádro). „Takty/s“ = spočtené takty tažení za sekundu
-procesoru; „jádro“ = podíl jednoho jádra smyčkou jako ve workeru; „takt jednou“ = kdyby se
-každý takt počítal jen jednou (bez opakování od bodu).
+Změřeno 7. 11. 2026 (M-série, jedno jádro). „Jádro“ = podíl jednoho jádra smyčkou jako ve
+workeru; „před“ = bez paměti workeru (`--no-memory`, stejné body i otisk).
 
-| scénář                | tažení | takty/s |           jádro | takt jednou | cesta (A\*) | mřížka |
-| --------------------- | -----: | ------: | --------------: | ----------: | ----------: | -----: |
-| pochod                |      1 |    3460 |           2,4 % |       0,1 % |         2 % |    0 % |
-| pochod                |      5 |    3954 |          10,3 % |       0,5 % |         1 % |    0 % |
-| pochod                |     20 |    4132 | **39,5 % MIMO** |       1,9 % |         1 % |    0 % |
-| opevněné vsi (nájezd) |      5 |    2501 |          15,7 % |       0,8 % |         0 % |   20 % |
+| scénář                | tažení |   před |        po | cesta (A\*) | mřížka |
+| --------------------- | -----: | -----: | --------: | ----------: | -----: |
+| pochod                |      1 |  2,4 % |     0,4 % |        15 % |    0 % |
+| pochod                |      5 | 10,5 % |     1,6 % |        13 % |    1 % |
+| pochod                |     20 | 39,7 % | **4,4 %** |        13 % |    0 % |
+| opevněné vsi (nájezd) |      5 | 16,2 % |     2,5 % |         0 % |    1 % |
 
-**Cíl ≤ 25 % jádra pro 20 tažení není splněn (39,5 %).** Hledání cesty je zanedbatelné
-(1–2 %). Čas je v **opakování taktů od kontrolního bodu**: bod se ukládá po 40 taktech, a než se
-uloží, každé kolo počítá znovu od něj (průměrně ≈ 20 taktů za kolo místo jednoho – „takt jednou“
-je ≈ 20× méně). V taktu samém vede **kopie celého stavu** (`structuredClone` v `campaignTick`,
-60–95 % vzorků), u nájezdu ještě **mřížka pochodu** mapy cíle (`marchGrid` 18–20 %), kterou
-`stepCampaign` staví v každém volání znovu (mezipaměť `ctx.grids` platí jen v jednom volání).
+**Cíl ≤ 25 % jádra pro 20 tažení je splněn (4,4 %).** Dřív byl čas v **opakování taktů od
+kontrolního bodu**: bod se ukládá po 40 taktech, a než se uložil, každé kolo počítalo znovu od
+něj (průměrně ≈ 20 taktů za kolo místo jednoho), u nájezdu ještě v **mřížce pochodu** mapy cíle
+(`marchGrid` 18–20 %), která se stavěla v každém volání znovu. Oprava:
 
-**Návrh opravy (neprovedeno – čeká na schválení):** worker si drží poslední spočtený stav tažení
-v paměti (klíč id + takt bodu + počet záměrů za bodem) a další kolo pokračuje od něj; při jiném
-bodu nebo novém záměru počítá od bodu jako dnes (výsledek se nemění – po kouscích = vcelku).
-Odhad 20 tažení ≈ 2 % jádra. Dál volitelně mezipaměť mřížek pochodu napříč voláními (klíč políčko
+- **Paměť workeru** (`newCampaignMemory`, `StepCampaignsDeps.memory` – `apps/worker/src/main.ts`):
+  poslední spočtený, ještě neuložený stav tažení (`CampaignMemo` – otisk bodu = JSON jeho stavu,
+  záměry do jeho taktu `seq@takt`). Další kolo pokračuje od něj, platí-li pro načtený bod i záměry
+  a není-li za teď; jinak počítá od bodu jako dřív. Uložení bodu, `stale` i chyba paměť tažení
+  zahodí, skončená tažení se zapomenou na konci kola. Výsledek je tentýž (po kouscích = vcelku);
+  zápis bodu, `CampaignLock`, bariéra a `outbox` beze změny – bod se ukládá stejně často.
+- **Mřížky pochodu napříč koly** (`MarchGridMemo` v `domain/war/march-grid.ts`,
+  `CampaignWorld.grids`): klíč = identita krajiny, překážek a stavu vsi a den (dva nejnovější dny).
+  Paměť workeru dá vsi téže verze a jména tentýž objekt stavu (`recallVillage`; vsi, které kolo
+  nenačetlo, zapomene), krajiny a mapy prázdných políček jsou sdílené (`createCampaignCells`).
 
-- den + verze vsi) a kopie stavu jednou na volání místo v každém taktu.
+Zbývá **kopie celého stavu v každém taktu** (`structuredClone` v `campaignTick`, ≈ 45 % vzorků)
+a čtení bodu z JSON (≈ 35 %). Kopii na hranici kola **neodstraňujeme** (návrh Clauda): cíl je
+splněn s rezervou 5×, zisk by byl ≈ 2 % jádra a takt by přišel o zahození rozpracované kopie,
+když mu uprostřed chybí mapa nebo ves (`MissingData`) – bez kopie by se musel přepočítat znovu
+od začátku volání a upozornění taktu by sdílela objekty se stavem, který další takty mění.

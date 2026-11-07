@@ -5,6 +5,7 @@ import {
   campaignFinished,
   CHECKPOINT_TICKS,
   isHarmlessArmy,
+  MarchGridMemo,
   stepCampaign,
   tickOfMs,
   type CampaignIntent,
@@ -20,7 +21,7 @@ import type { NoticeRepository } from './notices';
 import { passageCovers, type PassageRepository } from './passages';
 import type { SettlementRepository } from './settlements';
 import type { VassalageRepository } from './vassalages';
-import type { VillageRepository } from './villages';
+import type { VillageRecord, VillageRepository } from './villages';
 
 // Takt workeru pro tažení (plán 2026-11-03 – Úloha 6.5, rozhodnutí 12): každé aktivní tažení
 // pod zámkem dopočte z kontrolního bodu do teď, nejvýš po 40 taktech (nebo s událostmi) uloží nový
@@ -45,6 +46,90 @@ export interface StepCampaignsDeps {
   watchers?: VillageWatchers;
   /** Skončené tažení ukončí svá ohlášení průchodu (war.md – Pohyb). */
   passages?: Pick<PassageRepository, 'voidOfCampaign'>;
+  /**
+   * Paměť workeru napříč koly (`newCampaignMemory`) – jen zrychlení: bez ní se každé kolo
+   * počítá od kontrolního bodu, s ní od posledního spočteného stavu se stejným výsledkem.
+   */
+  memory?: CampaignMemory;
+}
+
+/**
+ * Poslední spočtený, ještě neuložený stav tažení (docs/code/worker.md – Výkon – Tažení). Platí,
+ * dokud stojí týž kontrolní bod (otisk jeho stavu) a záměry do `state.tick` jsou tytéž – pak je
+ * pokračování od něj tentýž výpočet jako od bodu (stav po taktech nezávisí na kouscích).
+ */
+export interface CampaignMemo {
+  /** Otisk kontrolního bodu, od kterého se počítalo (JSON jeho stavu). */
+  checkpoint: string;
+  /** Záměry s taktem do `state.tick`, se kterými se počítalo (`seq@takt`). */
+  intents: string;
+  state: CampaignState;
+}
+
+/** Paměť smyčky tažení napříč koly – drží ji vstupní bod (worker), jeden proces. */
+export interface CampaignMemory {
+  states: Map<string, CampaignMemo>;
+  /** Mřížky pochodu napříč koly (klíč = identita krajiny, překážek a stavu vsi a den). */
+  grids: MarchGridMemo;
+  /**
+   * Vsi načtené v posledním kole: ves téže verze (a jména) dostane tentýž objekt stavu, takže
+   * její mřížky pochodu v `grids` platí dál (verze roste s každým uložením – stav je tentýž).
+   */
+  villages: Map<string, VillageRecord>;
+  /** Vsi načtené v tomto kole – ostatní se na konci kola zapomenou. */
+  seen: Set<string>;
+}
+
+/** Prázdná paměť smyčky tažení. */
+export function newCampaignMemory(): CampaignMemory {
+  return { states: new Map(), grids: new MarchGridMemo(), villages: new Map(), seen: new Set() };
+}
+
+/** Ves z úložiště – téže verze a jména jako v paměti = záznam z paměti (tentýž objekt stavu). */
+function recallVillage(
+  memory: CampaignMemory | undefined,
+  record: VillageRecord | null,
+): VillageRecord | null {
+  if (!memory || !record) return record;
+  memory.seen.add(record.id);
+  const known = memory.villages.get(record.id);
+  if (known && known.version === record.version && known.name === record.name) return known;
+  memory.villages.set(record.id, record);
+  return record;
+}
+
+/** Konec kola: zapomene skončená tažení a vsi, které kolo nenačetlo. */
+function forget(memory: CampaignMemory, active: readonly string[]): void {
+  const running = new Set(active);
+  for (const id of [...memory.states.keys()]) if (!running.has(id)) memory.states.delete(id);
+  for (const id of [...memory.villages.keys()]) {
+    if (!memory.seen.has(id)) memory.villages.delete(id);
+  }
+  memory.seen.clear();
+}
+
+/** Záměry, se kterými se počítalo do taktu `tick` – jiný seznam = paměť neplatí. */
+function intentsKey(intents: readonly CampaignIntent[], tick: number): string {
+  return intents
+    .filter((i) => i.tick <= tick)
+    .map((i) => `${i.seq}@${i.tick}`)
+    .join(',');
+}
+
+/**
+ * Stav, od kterého kolo počítá: zapamatovaný, když platí pro bod `from` a záměry a není za
+ * `toTick` (hodiny se nevracejí, ale bod nesmí předběhnout teď); jinak bod sám.
+ */
+function startOf(
+  memo: CampaignMemo | undefined,
+  from: CampaignState,
+  fingerprint: () => string,
+  intents: readonly CampaignIntent[],
+  toTick: number,
+): CampaignState {
+  if (!memo || memo.state.tick > toTick || memo.state.tick <= from.tick) return from;
+  if (memo.intents !== intentsKey(intents, memo.state.tick)) return from;
+  return memo.checkpoint === fingerprint() ? memo.state : from;
 }
 
 /** Vlastník vsi a vztahy rodů pro obranu vsi. */
@@ -95,7 +180,8 @@ export async function stepCampaigns(
 ): Promise<CampaignResult[]> {
   const toTick = tickOfMs(input.nowMs, deps.world);
   const results: CampaignResult[] = [];
-  for (const campaignId of await deps.campaigns.active()) {
+  const active = await deps.campaigns.active();
+  for (const campaignId of active) {
     try {
       const held = await deps.campaignLock.tryRun(campaignId, () =>
         stepOne(deps, campaignId, toTick, input.nowMs),
@@ -105,6 +191,7 @@ export async function stepCampaigns(
       results.push({ campaignId, outcome: 'failed', error });
     }
   }
+  if (deps.memory) forget(deps.memory, active);
   return results;
 }
 
@@ -138,7 +225,13 @@ async function stepOne(
   if (toTick <= from.tick) return 'idle';
 
   const intents = await deps.campaigns.intentsAfter(campaignId, from.tick);
-  const step = await computeCampaign(deps, from, toTick, intents);
+  // paměť workeru: pokračovat od posledního spočteného stavu (bez událostí – jinak by se uložil)
+  const states = deps.memory?.states;
+  let fingerprint: string | null = null;
+  const fingerprintOf = (): string => (fingerprint ??= JSON.stringify(from));
+  const start = startOf(states?.get(campaignId), from, fingerprintOf, intents, toTick);
+  states?.delete(campaignId);
+  const step = await computeCampaign(deps, start, toTick, intents);
   if (step.state.tick === from.tick) return 'waiting';
 
   const outbox: CampaignOutbox | null =
@@ -152,7 +245,14 @@ async function stepOne(
     campaignFinished(step.state) ||
     (step.waiting?.villageIds.length ?? 0) > 0 ||
     step.state.tick - from.tick >= CHECKPOINT_TICKS;
-  if (!due) return step.waiting ? 'waiting' : 'computed';
+  if (!due) {
+    states?.set(campaignId, {
+      checkpoint: fingerprintOf(),
+      intents: intentsKey(intents, step.state.tick),
+      state: step.state,
+    });
+    return step.waiting ? 'waiting' : 'computed';
+  }
 
   const saved = await deps.campaigns.saveCheckpoint(campaignId, {
     fromTick: from.tick,
@@ -176,7 +276,7 @@ async function stepOne(
  * čeká, ves se v dalším kole načte znovu.
  */
 export async function computeCampaign(
-  deps: Pick<StepCampaignsDeps, 'cells' | 'villages' | 'world' | 'watchers'>,
+  deps: Pick<StepCampaignsDeps, 'cells' | 'villages' | 'world' | 'watchers' | 'memory'>,
   state: CampaignState,
   toTick: number,
   intents: readonly CampaignIntent[],
@@ -207,6 +307,7 @@ export async function computeCampaign(
       const b = watchers.get(to);
       return a !== undefined && b !== undefined && a.playerId === b.playerId;
     },
+    ...(deps.memory ? { grids: deps.memory.grids } : {}),
   };
   const result: CampaignStep = { state, villageEvents: [], notices: [], waiting: null };
   for (let round = 0; round <= MAX_LOADS; round++) {
@@ -226,7 +327,7 @@ export async function computeCampaign(
       // ves bez potřebného dne se načte znovu – mezitím ji mohl worker posunout
       const firstTry = !tried.has(villageId);
       tried.add(villageId);
-      const record = await deps.villages.find(villageId);
+      const record = recallVillage(deps.memory, await deps.villages.find(villageId));
       if (!record) {
         if (firstTry) loaded = true;
         continue;

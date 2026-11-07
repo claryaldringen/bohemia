@@ -74,7 +74,7 @@ interface TickOut {
   notices: CampaignNotice[];
 }
 
-/** Mřížky pochodu jednoho volání (políčko a den) – stejný vstup, stejná mřížka. */
+/** Mřížky pochodu jednoho volání (políčko a den; napříč voláními `world.grids`). */
 interface TickContext {
   world: CampaignWorld;
   grids: Map<string, MarchGrid>;
@@ -1200,7 +1200,9 @@ function gridOf(cell: GridCell, day: number, ctx: TickContext): MarchGrid {
     village = ctx.world.villageAt(villageId, day);
     if (village === null) throw new MissingData([], [villageId]);
   }
-  const grid = marchGrid(map.landscape, map.obstacles, village, { day });
+  const grid = ctx.world.grids
+    ? ctx.world.grids.gridOf(map.landscape, map.obstacles, village, day)
+    : marchGrid(map.landscape, map.obstacles, village, { day });
   ctx.grids.set(key, grid);
   return grid;
 }
