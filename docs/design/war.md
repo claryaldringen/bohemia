@@ -413,6 +413,9 @@ a 12 vesničanů (8 dobrovolníků po 0,4, 4 nucení po 0,2 = 4,0), s kovárnou 
   „posledním mužem rodu doma“ nejsou (doma nejsou). Padlí zemřou doma bez pohřbu (muž rodu =
   nástupnictví), zajatí jdou k útočníkovi jako muži rodu, obojí ochranu ve vsi ukončí; ranění
   zůstanou hosty a léčí se ve chráněné vsi.
+- **Muži ze svolání:** muži, které do vsi přivedli vazalové na svolání a kteří tam čekají, se s ní
+  při útoku brání podle jejího postoje stejně jako muži z ochrany (Martin 7. 11. 2026: „ano,
+  samozřejmě“); ti, kdo už odešli s tažením, jsou na tažení a nebrání.
 - **Ohlášení průchodu z panelu války** (návrh Clauda): mapy = trasa od sídla rodu k sídlu
   nepřítele (nejvýš 24 map), den = dnes – vojsko smí vyrazit hned.
 

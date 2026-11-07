@@ -11,13 +11,14 @@ import {
   type VillageState,
 } from '@bohemia/game';
 import { createDatabase } from '../../client';
+import { testDatabaseUrl } from '../../test-database';
 import { schema } from '../../index';
 import { createSettlementRepository } from '../settlement-repository';
 import { createTimeOffsetRepository } from '../time-offset-repository';
 import { createVillageRepository } from '../village-repository';
 import { createWorldQueue } from '../world-queue';
 
-const db = createDatabase('postgres://postgres@127.0.0.1:5432/bohemia_test');
+const db = createDatabase(testDatabaseUrl());
 const settlements = createSettlementRepository(db);
 const villages = createVillageRepository(db);
 const offsets = createTimeOffsetRepository(db);

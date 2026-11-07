@@ -4,6 +4,7 @@ import { sql } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import type { CampaignState } from '@bohemia/game';
 import { createDatabase, createLockPool } from '../../client';
+import { testDatabaseUrl } from '../../test-database';
 import { schema } from '../../index';
 import { createCampaignLock } from '../campaign-lock';
 import { createCampaignRepository } from '../campaign-repository';
@@ -13,7 +14,7 @@ import { createWarRepository } from '../war-repository';
 // Úložiště a zámek tažení (Úloha 6.5, Review bod 5): kontrolní bod beze ztráty přesnosti, záměr
 // v minulosti odmítnut, záměr do spočtených taktů bod zastaví, tažení počítá jen jeden worker.
 
-const URL = 'postgres://postgres@127.0.0.1:5432/bohemia_test';
+const URL = testDatabaseUrl();
 const db = createDatabase(URL);
 const campaigns = createCampaignRepository(db);
 const houses = createHouseRepository(db);

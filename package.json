@@ -21,7 +21,8 @@
     "db:generate": "npm run db:generate -w @bohemia/db",
     "village-log": "npm run village-log -w @bohemia/db --",
     "db:seed-dev": "npm run seed:dev -w @bohemia/web",
-    "test:db": "npm run test:db -w @bohemia/db && npm run test:db -w @bohemia/server"
+    "test:db": "npm run test:db -w @bohemia/db && npm run test:db -w @bohemia/server",
+    "test:db:create": "npm run test:db:create -w @bohemia/db"
   },
   "devDependencies": {
     "turbo": "^2.11.8"
