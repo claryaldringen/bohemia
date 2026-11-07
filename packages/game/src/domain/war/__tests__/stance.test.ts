@@ -49,6 +49,7 @@ function plan(
   attackers: Sighted[],
   fort = false,
   forest = true,
+  warned = false,
 ): ReturnType<typeof planDefense> {
   return planDefense({
     state,
@@ -57,6 +58,7 @@ function plan(
     defenders: defenderRoster(state, DAY),
     attackers,
     field: field(fort ? [palisade(true)] : [], forest ? forestEast : undefined),
+    warned,
   });
 }
 
@@ -230,6 +232,17 @@ describe('postoje s opevněním (fortifications.md – Postoje vsi s opevněním
     const flee = plan(far, 'flee', attackers, true);
     expect(flee.shelter.refuge).toEqual([]);
     expect(flee.shelter.forest).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it('posel ohlásil vojsko předem – do útočiště doběhnou všichni, i když jsou útočníci u brány', () => {
+    // Ú6.7: posel z jiné vsi rodu spustí postoj dřív (war.md – Obránci, Kdy)
+    const far = eastVillage();
+    const attackers = foes(2, { x: 0, z: -60 });
+    for (const stance of ['defend', 'flee'] as const) {
+      const warned = plan(far, stance, attackers, true, true, true);
+      expect(warned.shelter.refuge).toEqual([1, 2, 3, 4, 5]);
+      expect(warned.shelter.forest).toEqual([]);
+    }
   });
 
   it('kdo se nevejde, zůstane venku', () => {

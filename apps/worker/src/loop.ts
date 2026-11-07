@@ -41,6 +41,11 @@ export interface Totals {
 }
 
 const SUMMARY_MS = 60_000;
+/**
+ * Spánek bez práce, když tažení drží vsi (plán 2026-11-03 – Úloha 6.7): jeden takt tažení – mez
+ * vsi povyroste, jakmile tažení uloží bod na konci dne, a worker ji má hned dopočítat.
+ */
+export const HELD_WAKE_MS = 250;
 /** Nejkratší odstup úloh světa (podle hodin z `LoopDeps.now`). */
 export const WORLD_TASKS_MS = 60_000;
 
@@ -88,6 +93,7 @@ export async function runLoop(
     const world = deps.world();
     const worldDay = deps.worldDay(nowMs, world);
     let idle = true;
+    let held = false;
     if (worldDay !== null && deps.worldTasks && nowMs >= tasksAt) {
       tasksAt = nowMs + WORLD_TASKS_MS;
       try {
@@ -108,6 +114,7 @@ export async function runLoop(
           shouldStop: () => signal.aborted,
         });
         idle = step.idle;
+        held = step.held > 0;
         total.rounds++;
         window.rounds++;
         for (const player of step.players) {
@@ -140,7 +147,9 @@ export async function runLoop(
     }
     flush(false);
     if (signal.aborted) break;
-    const wait = idle ? nextWakeMs(deps.now(), worldDay, world, options.idleMs) : options.pauseMs;
+    // vsi u tažení: mez bariéry roste s taktem tažení, ne s herním dnem – spí se jen krátce
+    const wake = (): number => nextWakeMs(deps.now(), worldDay, world, options.idleMs);
+    const wait = idle ? (held ? Math.min(HELD_WAKE_MS, wake()) : wake()) : options.pauseMs;
     if (idle) deps.log.debug(`nic pozadu, spím ${wait} ms`);
     await deps.sleep(wait, signal);
   }

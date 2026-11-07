@@ -52,6 +52,12 @@ export interface StanceInput {
   defenders: readonly Defender[];
   attackers: readonly Sighted[];
   field: BattleField;
+  /**
+   * Posel z jiné vsi rodu ohlásil vojsko předem (war.md – Obránci, Kdy; `VillageState.armySeen`):
+   * ves se zachovala podle postoje dřív, než vojsko spatřila – do útočiště doběhnou všichni, kdo se
+   * vejdou (brány se zavřou až za nimi).
+   */
+  warned?: boolean;
 }
 
 export interface StancePlan {
@@ -134,7 +140,7 @@ export function planDefense(input: StanceInput): StancePlan {
     const herdFort = nearest({ x: centre.x, z: centre.z });
     let livestockLeft = fleeParty(state, day).livestock;
     for (const [fort, members] of byFort) {
-      const close = gateCloseTick(fort.bf, attackers);
+      const close = input.warned ? Infinity : gateCloseTick(fort.bf, attackers);
       const arrivals: Arrival[] = [];
       const order = members
         .map((p) => ({ p, tick: ticksFor(Math.sqrt(dist2(p.pos, fort.bf.center))) }))

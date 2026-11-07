@@ -1,6 +1,6 @@
 import type { PlayerStep, WorldClock, WorldStep } from '@bohemia/game';
 import { describe, expect, it } from 'vitest';
-import { runLoop, type LoopDeps } from '../loop';
+import { HELD_WAKE_MS, runLoop, type LoopDeps } from '../loop';
 
 const world: WorldClock = { startMs: 0, endMs: 365 * 24 * 3600 * 1000 };
 const options = { stepDays: 10, limit: 50, idleMs: 5000, pauseMs: 20 };
@@ -19,12 +19,13 @@ function player(id: string, outcome: PlayerStep['outcome'], days = 10): PlayerSt
   };
 }
 
-function step(players: PlayerStep[], idle: boolean): WorldStep {
+function step(players: PlayerStep[], idle: boolean, held = 0): WorldStep {
   return {
     players,
     villages: players.reduce((s, p) => s + p.villages, 0),
     days: players.reduce((s, p) => s + p.days, 0),
     idle,
+    held,
   };
 }
 
@@ -70,6 +71,13 @@ describe('runLoop', () => {
     expect(h.sleeps[0]).toBe(20);
     expect(h.sleeps[1]).toBeGreaterThanOrEqual(0);
     expect(h.sleeps[1]).toBeLessThanOrEqual(5000);
+  });
+
+  it('vsi u tažení (bariéra): bez práce spí jen jeden takt, ne do dalšího dne', async () => {
+    const stop = new AbortController();
+    const h = harness([step([], true, 2), step([], true)], stop);
+    await runLoop(h.deps, options, stop.signal);
+    expect(h.sleeps[0]).toBeLessThanOrEqual(HELD_WAKE_MS);
   });
 
   it('signál ukončí smyčku po dokončené dávce, bez dalšího spánku', async () => {

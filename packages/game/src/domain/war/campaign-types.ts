@@ -133,6 +133,19 @@ export interface CampaignState {
   returnReason: CampaignReturnReason | null;
   /** Boj na mapě cíle (war.md – Boj; Ú6.8) – od prvního taktu nájezdu; chybí – zatím nebojovali. */
   battle?: BattleState;
+  /**
+   * Dny nájezdu (Ú6.7 – war.md, Ves během nájezdu nepracuje): ves → poslední den, na který tažení
+   * poslalo `raid-day` (vojsko na její mapě). Chybí – žádná ves vojsko neviděla.
+   */
+  raidDays?: Record<string, number>;
+  /**
+   * Poslední den, jehož takty jsou do `tick` všechny spočtené (`dayOfTick(tick + 1) − 1`) – mez
+   * bariéry vsí u tažení (Ú6.7, `holdDay`); úložiště ji čte bez hodin. Chybí (bod z doby před
+   * Ú6.7) – bere se `day − 1` a doplní ji první takt.
+   */
+  throughDay?: number;
+  /** Posel do cílové vsi už šel (`army-seen` – war.md, Obránci: Kdy); chybí – ještě ne. */
+  messengerSent?: true;
 }
 
 /**
@@ -172,7 +185,10 @@ export interface CampaignMap {
 export interface CampaignWorld {
   clock: WorldClock;
   landscapeOf(cell: GridCell): CampaignMap | null;
-  /** Stav vsi pro den `day` (Ú6.7: ke konci dne `day − 1`, jinak null). */
+  /**
+   * Stav vsi pro den `day` – ke konci dne `day − 1` (bariéra Ú6.7: ves ještě bez dne `day − 1`
+   * → null). Ves dopočtená dál (dřív, než ji tažení drželo) dá svůj stav.
+   */
   villageAt(villageId: string, day: number): VillageState | null;
   /**
    * Hráč, kterému ves na mapě cíle patří (upozornění „Cizí vojsko u …!“), a jméno vsi; neví-li
@@ -184,6 +200,12 @@ export interface CampaignWorld {
    * Neví-li svět, vojsko škodí.
    */
   harmless?(villageId: string, armyPlayerId: string): boolean;
+  /**
+   * Pošle ves `passedVillageId`, kterou vojsko prošlo, posla do cílové vsi `targetVillageId` – je to
+   * jiná ves téhož rodu (war.md – Obránci, Kdy)? `null` = svět vsi ještě nenačetl (takt se zastaví
+   * a obě se načtou). Neví-li svět vůbec, nikdo posla neposílá.
+   */
+  messengerTo?(passedVillageId: string, targetVillageId: string): boolean | null;
 }
 
 /** Druhy upozornění tažení (aplikace je přidá do `PlayerNoticeKind`). */

@@ -43,7 +43,19 @@ export type VillageEventBody =
    * ves je zapíše do `VillageState.guests` (`hostGuests`) – jedí z jejích zásob a pracují jí, odejdou
    * v pevný den (`returnHome`). Osoby zůstávají ve stavu domovské vsi `fromVillageId`.
    */
-  | { kind: 'guests-arrive'; fromVillageId: string; fromName: string; guests: Guest[] };
+  | { kind: 'guests-arrive'; fromVillageId: string; fromName: string; guests: Guest[] }
+  /**
+   * Den nájezdu (war.md – Ves během nájezdu nepracuje; plán 2026-11-03 – Úloha 6.7): cizí vojsko je
+   * dnes na mapě vsi – lidé se skrývají a ves dnes nepracuje (`VillageState.raidDay`). Tažení ho
+   * pošle na každý den, kdy na mapě stojí; den po odchodu vojska ves pracuje.
+   */
+  | { kind: 'raid-day'; campaignId: string }
+  /**
+   * Posel z jiné vsi rodu, kterou cizí vojsko tažení `campaignId` prošlo (war.md – Obránci, Kdy):
+   * ves se podle postoje zachová dřív, než vojsko spatří (`VillageState.armySeen`). Signál hrozby
+   * pro správce jde zvlášť (`threat-signal` druhu `army-seen`).
+   */
+  | { kind: 'army-seen'; campaignId: string; fromVillageId: string };
 
 /**
  * Událost ve schránce vsi `villageId`. `day` = herní den, na jehož začátku se použije (nikdy ne
@@ -93,6 +105,12 @@ function applyEvent(state: VillageState, day: number, body: VillageEventBody): C
       return [];
     case 'guests-arrive':
       return arriveGuests(state, day, body);
+    case 'raid-day':
+      state.raidDay = day;
+      return [];
+    case 'army-seen':
+      state.armySeen = { day, campaignId: body.campaignId, fromVillageId: body.fromVillageId };
+      return [];
     default:
       return unknownBody(body);
   }

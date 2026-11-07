@@ -101,5 +101,6 @@ export function cachedVillages(inner: VillageRepository): VillageRepository {
     weatherSeedOf: (settlementId) => inner.weatherSeedOf(settlementId),
     // schránka se nepamatuje – zápis zvedá verzi vsi, takže zapamatovaný záznam neprojde otiskem
     inbox: inner.inbox,
+    ...(inner.holds ? { holds: inner.holds } : {}),
   };
 }

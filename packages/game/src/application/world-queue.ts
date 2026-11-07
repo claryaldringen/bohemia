@@ -7,7 +7,10 @@ export interface PlayerBehind {
   playerId: string;
   /** Dnešní den hráče – den světa + posun času, nejvýš poslední den světa (`playerDay`). */
   today: number;
-  /** Nejstarší `lastDay` jeho nespící vsi na aktivním sídle (vždy < `today`). */
+  /**
+   * Nejstarší `lastDay` jeho nespící vsi na aktivním sídle, která má co dopočítat (vždy < `today`;
+   * ves na mezi bariéry se nepočítá).
+   */
   oldestDay: number;
 }
 
@@ -16,7 +19,18 @@ export interface WorldQueue {
   /**
    * Nejvýš `limit` hráčů s nespící vsí aktivního sídla, jejíž `lastDay` je před dneškem hráče,
    * seřazených podle zpoždění (`today − oldestDay`) sestupně, pak podle id hráče (pořadí bajtů).
-   * Spící vsi (vymřelé, opuštěné) a archivovaná sídla se nepočítají.
+   * Spící vsi (vymřelé, opuštěné) a archivovaná sídla se nepočítají. `holds` = meze bariéry vsí
+   * s tažením u nich (`VillageHolds.limitOf` přednostních vsí): ves na své mezi není pozadu a hráč
+   * s přednostní vsí pod mezí jde před ostatními.
    */
-  behind(worldDay: number, limit: number): Promise<PlayerBehind[]>;
+  behind(
+    worldDay: number,
+    limit: number,
+    holds?: ReadonlyMap<string, number>,
+  ): Promise<PlayerBehind[]>;
+  /**
+   * Vsi, u kterých stojí tažení (skupina na mapě vsi nebo políčko od ní – `VillageHolds`): worker
+   * je bere přednostně, ať tažení nečeká (plán 2026-11-03 – Úloha 6.7). Pořadí nehraje roli.
+   */
+  priorityVillages(): Promise<string[]>;
 }

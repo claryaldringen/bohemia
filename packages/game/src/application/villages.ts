@@ -1,3 +1,4 @@
+import type { VillageHolds } from './village-holds';
 import type { VillageDigest, VillageState, VillageYearRow } from '../domain/village';
 import type { VillageInbox } from './inbox';
 
@@ -106,6 +107,11 @@ export interface VillageRepository {
    * (`updateVillage`) z ní musí číst vždy; každý dopočet přes úložiště ji tak má.
    */
   readonly inbox: VillageInbox;
+  /**
+   * Bariéra ves × tažení (village-holds.ts) – dopočet (`updateVillage`) se ptá, do kterého dne smí
+   * ves počítat, když u ní stojí tažení. Chybí (testy, kalibrace) – žádná tažení, žádná mez.
+   */
+  readonly holds?: VillageHolds;
 }
 
 /**

@@ -11,6 +11,7 @@ import {
 } from '@bohemia/game';
 import type { Database } from '../client';
 import { createInboxRepository } from './inbox-repository';
+import { createVillageHolds } from './village-holds';
 import { settlement, village, villageYear } from '../schema';
 
 type VillageRow = typeof village.$inferSelect;
@@ -105,6 +106,8 @@ export function createVillageRepository(db: Database): VillageRepository {
   return {
     // schránka vsí nad tabulkou `village_inbox` (docs/code/world.md – Schránka vsi)
     inbox: createInboxRepository(db),
+    // bariéra ves × tažení (village-holds.ts) – dopočet vsi nepředběhne tažení u ní
+    holds: createVillageHolds(db),
 
     async find(villageId): Promise<VillageRecord | null> {
       // id vsi přichází i zvenku (cookie, vstup akce) – jiný řetězec než UUID by dotaz shodil

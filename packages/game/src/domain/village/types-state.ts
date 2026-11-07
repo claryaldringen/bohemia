@@ -77,6 +77,13 @@ export interface VillageDefense {
   stance: DefenseStance;
 }
 
+/** Zpráva posla o cizím vojsku (`VillageState.armySeen`): den příchodu, tažení a odkud posel šel. */
+export interface ArmySeen {
+  day: number;
+  campaignId: string;
+  fromVillageId: string;
+}
+
 export interface VillageState {
   seed: number;
   foundedDay: number;
@@ -477,6 +484,18 @@ export interface VillageState {
    * dopředu. Chybí = výchozí `flee` (raději utéct).
    */
   defense?: VillageDefense;
+  /**
+   * Den nájezdu (war.md – Ves během nájezdu nepracuje): poslední den, kdy bylo na mapě vsi cizí
+   * vojsko – lidé se ten den skrývají a ves nepracuje (`raidHiding`). Zapisuje ho schránka
+   * (`raid-day`) na začátku dne; chybí – ves nájezd nezažila.
+   */
+  raidDay?: number;
+  /**
+   * Posel z jiné vsi rodu, kterou prošlo cizí vojsko (war.md – Obránci, Kdy): ves se podle postoje
+   * zachová dřív, než vojsko spatří (`planDefense` – `warned`), u tažení `campaignId`. Zapisuje
+   * schránka (`army-seen`); chybí – žádný posel.
+   */
+  armySeen?: ArmySeen;
   /**
    * Klíč založení vsi ze schránky odchodu syna (`settleStewardDepartures` – mateřská ves a id
    * záznamu): podle něj úložiště ves nezaloží dvakrát. Simulace ho nečte. Chybí – ves vznikla jinak.

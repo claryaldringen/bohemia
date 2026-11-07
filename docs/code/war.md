@@ -168,8 +168,8 @@ notices, waiting }` – čistá, vstup nemění. Takt na kopii stavu: na začát
   13), `ref` = `camp:<id>:<takt>:<n>`. Stádo kořisti jde se skupinou velitele.
 - **Svět tažení** – `CampaignWorld { clock, landscapeOf(cell), villageAt(villageId, day) }`
   (synchronní): `null` = data ještě nejsou → takt se zastaví a `waiting` vrátí chybějící políčka /
-  vsi; výsledek se tím nezmění. Mřížka bere cesty a opevnění **první** vsi mapy; `villageAt` v Ú6.5
-  vrací stav, jak ho má úložiště – stav přesně ke dni (bariéra) a víc vsí na mapě je Ú6.7.
+  vsi; výsledek se tím nezmění. Mřížka bere cesty a opevnění **první** vsi mapy; `villageAt` dá stav
+  vsi ke konci dne `d − 1` (bariéra – Ú6.7).
 - **Use-case** – `application/step-campaigns.ts`: `stepCampaigns(deps, { nowMs })` – pro každé
   `campaigns.active()` pod `CampaignLock.tryRun` (jinak `busy`): kontrolní bod → nejdřív doručí
   starý `outbox`, záměry `intentsAfter(tick)`, `computeCampaign` (načítá chybějící mapy
@@ -264,6 +264,48 @@ group, order, at)` – před bitvou kdykoli, v boji jen na doslech (jinak false)
   1 / 7 / 40 taktech přes JSON = vcelku, ztráty v mužích), `orders.test.ts` (za velitelem, obrana
   velitele, útočit na vše mimo dohled, držet místo ≤ 30 m, změna rozkazu na doslech),
   `defenders.test.ts` (skupiny domů, soupis, poslední muž rodu); přípravky `battle-fixtures.ts`.
+
+## Bariéra dopočtu a dny nájezdu (Ú6.7)
+
+Plán 2026-11-03 – rozhodnutí 13, Úloha 6.7. Ves čeká jen na tažení u sebe, tažení jen na ves ke dni
+`d − 1` – obě strany se střídají, cyklus čekání nevznikne.
+
+- **Mez vsi** – port `application/village-holds.ts`: `VillageHolds.limitOf(villageIds)` → mapa ves →
+  den, do kterého se smí dopočítat; ves bez tažení chybí. Tažení drží ves, když jeho skupina stojí
+  na mapě vsi nebo políčko od ní: mez = `CampaignState.throughDay` (poslední den, jehož takty jsou
+  všechny spočtené – `dayOfTick(tick + 1) − 1`, počítá ho každý takt, úložiště tak hodiny nepotřebuje;
+  bod bez něj → `day − 1`), nedoručené události `outbox` mez sníží na svůj den − 1 (i u vsi daleko –
+  posel, kronika). `holdDay`, `heldDay(today, lastDay, limit)` (nikdy pod spočítaný `lastDay`).
+  Adaptér `db/adapters/village-holds.ts` (`createVillageHolds` – CTE nad aktivními body:
+  `state->'groups'` a `outbox` se rozbalí jednou na tažení; `villagesNearCampaigns`), úložiště vsí ho
+  nese jako `VillageRepository.holds` (patří k dopočtu jako schránka; `cachedVillages` ho propouští).
+- **Dopočet vsi** – `updateVillage` se zeptá na mez při každém pokusu a dopočítá ves jen do
+  `heldDay`; akce `change` dostane ves k tomu dni. `advancePlayer` vezme meze všech vsí hráče jedním
+  dotazem: ves na mezi se nenačítá a do nejstaršího dne dávky se nepočítá (nebrzdí ostatní vsi);
+  `closeAtDay` počká, až vsi doběhnou (všechny na cílovém dni).
+- **Tažení** – `computeCampaign`: `villageAt(v, d)` = uložený stav, má-li `lastDay ≥ d − 1`, jinak null
+  (takt čeká; ves se v dalším kole načte znovu). Čeká-li tažení na ves a postoupilo, **bod se uloží
+  hned** – mez vsi povyroste na den, na který tažení čeká (jinak by čekaly obě strany). Ves dopočtená
+  dál, než ji tažení drželo (dohánění po restartu), dá svůj stav.
+- **Dny nájezdu** – `watchVillages` po každém taktu (kromě shromáždění a konce): každá ves na mapě,
+  kde stojí skupina s aktivním mužem a které vojsko škodí (`harmless`), dostane na každý den
+  `raid-day { campaignId }` **na týž den** (bariéra ji před tím dnem drží) – `VillageState.raidDay`;
+  `raidHiding(state, day)` (`domain/village/raid-day.ts`) zastaví práci jako hašení požáru (dílny,
+  milíře, `villagersToday` prázdné). Den po odchodu vojska ves pracuje. Poprvé i `threat-signal`
+  `army-seen` (správce staví podle hrozby). Paměť `CampaignState.raidDays` (ves → poslední den).
+- **Posel** – ves, kterou vojsko prošlo a patří témuž hráči jako cíl (`CampaignWorld.messengerTo` –
+  `null` = vsi se ještě nenačetly, takt čeká), pošle do cíle `army-seen { campaignId, fromVillageId }`
+  a `threat-signal` na následující den, jednou (`messengerSent`). Cíl si ho zapíše
+  (`VillageState.armySeen`); při otevření boje `planDefense({ warned })` – postoj platí dřív, do
+  útočiště doběhnou všichni, kdo se vejdou (brány se zavřou až za nimi).
+- **Worker** – přednostní vsi `WorldQueue.priorityVillages()` a jejich meze jdou do
+  `behind(worldDay, limit, holds)` (docs/code/worker.md – Přednostní vsi).
+- **Testy** – `domain/village/__tests__/raid-day.test.ts` (den nájezdu bez práce, den nato práce, po
+  kouscích = vcelku, posel), `domain/war/__tests__/raid-watch.test.ts` (dny nájezdu, signál jednou,
+  neškodné vojsko, bariéra zastaví takt, posel jednou na další den, cizí rod, načtení vsí),
+  `stance.test.ts` (posel – útočiště i s útočníky u brány), `apps/worker` `loop.test.ts` (krátký spánek),
+  `packages/server/src/__tests__/campaign-race.db.test.ts` (souběh worker vsí + tažení + web = jeden
+  proces, do 60 s, dny nájezdu, posel, ves daleko na dnešku).
 
 ## Postoje vsi a včasný útěk (Ú6.9)
 

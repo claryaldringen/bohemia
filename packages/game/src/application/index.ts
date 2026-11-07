@@ -54,6 +54,7 @@ export * from './advance-dynasty';
 export * from './dynasty-for-village';
 export * from './locks';
 export * from './world-queue';
+export * from './village-holds';
 export * from './advance-world';
 export * from './player-villages';
 export * from './rights';

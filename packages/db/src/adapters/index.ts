@@ -21,6 +21,7 @@ export { createDialogRepository } from './dialog-repository';
 export { createLoanRepository } from './loan-repository';
 export { createWorldDirectory } from './world-directory';
 export { createWorldQueue } from './world-queue';
+export { createVillageHolds } from './village-holds';
 export { createStewardshipRepository } from './stewardship-repository';
 export { createEscheatRepository } from './escheat-repository';
 export { createWarRepository } from './war-repository';

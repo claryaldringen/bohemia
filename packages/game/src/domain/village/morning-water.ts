@@ -4,6 +4,7 @@ import { ironTravellers } from './crafts';
 import { fireFighting } from './firefighting';
 import { huntFootIds } from './hunt-party';
 import { isAdult } from './people';
+import { raidHiding } from './raid-day';
 import { householdWater, type HouseholdWater } from './labor';
 import { familyHomes, lordApartIds, trainingFamily } from './lord';
 import { MORNING_WATER } from './rules';
@@ -31,6 +32,8 @@ export function villagersToday(
   const hunting = huntFootIds(state, day);
   // v den požáru hasí všichni dospělí a nedělají nic jiného (disasters.md – Hašení)
   const fighting = fireFighting(state, day);
+  // v den nájezdu se lidé skrývají – nikdo ve vsi nepracuje (war.md – Ves během nájezdu nepracuje)
+  if (raidHiding(state, day)) return { villagers: [], manorSkip: familyHomes(family) };
   const villagers =
     crafts.size > 0 || travelling.size > 0 || apart.size > 0 || hunting.size > 0 || fighting
       ? state.people.filter(

@@ -1,5 +1,5 @@
 import type { WorldClock } from '../calendar';
-import type { NewVillageEvent } from '../village/inbox';
+import type { NewVillageEvent, VillageEventBody } from '../village/inbox';
 import type { PersonRef } from '../village/types';
 import { directionBetween, type GridCell } from '../village/world-grid';
 import type {
@@ -103,6 +103,7 @@ export function newCampaign(input: NewCampaign, clock: WorldClock): CampaignStat
     seed: input.seed,
     tick: input.tick,
     day: dayOfTick(input.tick, clock),
+    throughDay: dayOfTick(input.tick + 1, clock) - 1,
     phase: 'assembling',
     playerId: input.playerId,
     leaderName: input.leaderName,
@@ -197,6 +198,7 @@ function campaignTick(
   const s = structuredClone(state);
   s.tick = tick;
   const day = dayOfTick(tick, ctx.world.clock);
+  s.throughDay = dayOfTick(tick + 1, ctx.world.clock) - 1;
   while (s.day < day) {
     s.day++;
     dailyStep(s);
@@ -221,7 +223,68 @@ function campaignTick(
       if (allArrived(s)) finish(s, out);
       break;
   }
+  if (s.phase !== 'assembling' && s.phase !== 'done') watchVillages(s, ctx, out);
   return s;
+}
+
+/**
+ * Vsi, na jejichž mapě vojsko po taktu stojí (Ú6.7 – war.md, Ves během nájezdu nepracuje a Obránci:
+ * Kdy). Ves, které vojsko škodí, dostane na každý den, kdy na její mapě stojí, `raid-day` na týž
+ * den (bariéra drží ves před tím dnem – ještě ho nespočítala) a poprvé i signál hrozby `army-seen`
+ * pro správce. Jiná ves téhož rodu jako cíl pošle do cíle posla – `army-seen` a signál hrozby na
+ * následující den (rozhodnutí 13), jednou za tažení.
+ */
+function watchVillages(s: CampaignState, ctx: TickContext, out: TickOut): void {
+  const cells = new Map<string, GridCell>();
+  for (const g of s.groups) {
+    if (!s.members.some((m) => m.group === g.id && m.status === 'active')) continue;
+    cells.set(cellKey(g.cell), g.cell);
+  }
+  for (const cell of cells.values()) {
+    const map = ctx.world.landscapeOf(cell);
+    if (map === null) throw new MissingData([{ ...cell }], []);
+    for (const villageId of map.villageIds) {
+      if (ctx.world.villageAt(villageId, s.day) === null) throw new MissingData([], [villageId]);
+      if (ctx.world.harmless?.(villageId, s.playerId)) continue;
+      const days = (s.raidDays ??= {});
+      if (days[villageId] !== s.day) {
+        const first = days[villageId] === undefined;
+        days[villageId] = s.day;
+        villageEvent(s, out, villageId, s.day, { kind: 'raid-day', campaignId: s.id });
+        if (first) {
+          const signal = { kind: 'army-seen' as const, day: s.day };
+          villageEvent(s, out, villageId, s.day, { kind: 'threat-signal', signal });
+        }
+      }
+      if (s.messengerSent || villageId === s.target.villageId) continue;
+      const ask = ctx.world.messengerTo;
+      const messenger = ask ? ask(villageId, s.target.villageId) : false;
+      if (messenger === null) throw new MissingData([], [villageId, s.target.villageId]);
+      if (!messenger) continue;
+      s.messengerSent = true;
+      const target = s.target.villageId;
+      villageEvent(s, out, target, s.day + 1, {
+        kind: 'army-seen',
+        campaignId: s.id,
+        fromVillageId: villageId,
+      });
+      villageEvent(s, out, target, s.day + 1, {
+        kind: 'threat-signal',
+        signal: { kind: 'army-seen', day: s.day },
+      });
+    }
+  }
+}
+
+/** Událost do schránky vsi – `ref` je jedinečný: takt a pořadí v něm. */
+function villageEvent(
+  s: CampaignState,
+  out: TickOut,
+  villageId: string,
+  day: number,
+  body: VillageEventBody,
+): void {
+  out.events.push({ villageId, day, ref: `camp:${s.id}:${s.tick}:${out.events.length}`, body });
 }
 
 /**
@@ -398,6 +461,8 @@ function campaignBattle(s: CampaignState, ctx: TickContext, field: BattleField):
         defenders: defenderRoster(village, s.day),
         attackers: fighters.map((a) => ({ pos: a.pos, mounted: a.mounted })),
         field,
+        // posel z jiné vsi rodu, kterou toto vojsko prošlo – postoj dřív (Ú6.7)
+        warned: village.armySeen?.campaignId === s.id,
       })
     : null;
   return openBattle({
@@ -471,11 +536,9 @@ function chronicle(
   step: 'set-out' | 'returned',
 ): void {
   const day = s.day + 1;
-  out.events.push({
-    villageId,
-    day,
-    ref: `camp:${s.id}:${s.tick}:${out.events.length}`,
-    body: { kind: 'chronicle', event: { day, kind: 'campaign', step, leader: s.leaderName } },
+  villageEvent(s, out, villageId, day, {
+    kind: 'chronicle',
+    event: { day, kind: 'campaign', step, leader: s.leaderName },
   });
 }
 
