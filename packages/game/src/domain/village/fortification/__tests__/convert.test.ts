@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { Construction, TileCell } from '../../types';
-import { fortificationOutline, fortSegments, withFortPoints, type Fortification } from '..';
+import type { Construction, Fortification, TileCell } from '../../types';
+import { fortificationOutline, fortSegments, withFortPoints } from '..';
 import { fortificationArea, squareOutline } from '../squares-outline';
 import { squareSegments } from '../squares-segments';
 
