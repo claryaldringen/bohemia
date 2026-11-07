@@ -650,8 +650,10 @@ function scenePlacementVillage(scene: SceneVillage): PlacementVillage {
       ? {
           fortifications: scene.forts.map((f) => ({
             id: f.id,
-            grid: f.grid,
-            cells: f.cells,
+            // body obvodu (převedená opevnění je mají vždy), staré čtverce jen pro převod
+            ...(f.points ? { points: f.points } : {}),
+            ...(f.grid !== undefined ? { grid: f.grid } : {}),
+            ...(f.cells ? { cells: f.cells } : {}),
             kind: f.kind,
             segments: f.segments,
           })),

@@ -85,6 +85,7 @@ export * from './campaigns';
 export * from './step-campaigns';
 export * from './plan-campaign';
 export * from './launch-campaign';
+export * from './campaign-view';
 export * from './passages';
 export * from './passage';
 export * from './summons';

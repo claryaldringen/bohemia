@@ -573,13 +573,17 @@ export function fortificationStep(state: VillageState, ctx: StewardContext): voi
     const areas = new Map<string, ReturnType<typeof stewardFortificationFor>>();
     for (const plan of FORT_PLANS) {
       const base = planBase(plan);
-      if (!areas.has(base)) areas.set(base, stewardFortificationFor(state, ctx.landscape, base));
+      if (!areas.has(base)) {
+        areas.set(
+          base,
+          stewardFortificationFor(state, ctx.landscape, ctx.obstacles, ctx.day, base),
+        );
+      }
       const area = areas.get(base);
       if (!area) continue;
       consider(plan, null, area.lengthM, {
         kind: 'fortification',
-        cells: area.cells,
-        grid: null,
+        points: area.points,
         fortKind: base,
       });
     }

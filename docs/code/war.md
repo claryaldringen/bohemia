@@ -59,7 +59,7 @@ vojska mapu po mapě (Ú6.4); tažení po taktech, boj a dohra přibývají v da
   `{ fee?, payer?, vassalage?: { lord, vassal, terms }, tribute?: { goods, payer }, cede?, releasePrisoners? }`;
   všechno volitelné, mír bez podmínek smí. Otevře, protinávrhuje, přijímá a odmítá se jako běžné jednání
   (`openNegotiation` / `counterNegotiation` / `acceptNegotiation`; stejně jako `war-demand` nepotřebuje
-  přísahu ani dohodu). `checkPeaceItems` hlídá tvar (poplatek a tribut jen zboží bez lidí, plátce je strana,
+  přísahu ani dohodu). `checkPeaceItems` hlídá tvar (poplatek smí být zboží i lidé (ne robota; `answerTrade` je u `fee-send` povolí jako u rozsudku), tribut jen zboží bez lidí, plátce je strana,
   vazalství mezi stranami), `checkPeaceRound` v `negotiate.ts` navíc běžící válku a postoupení vsí.
   `termLinesOf` řádek míru nezahrnuje.
 - **Přijetí** (`PEACE` účinek v `negotiation-effects.ts`, v transakci): válka `peace` (`wars.end`, souběžné
@@ -72,7 +72,9 @@ vojska mapu po mapě (Ú6.4); tažení po taktech, boj a dohra přibývají v da
   (`NegotiationRepository.peaceTributes()`, `peaceTributeOf`). `openAnnualDialogs` (`tributes` v
   `AnnualLevyDeps`, worker je zapojuje) otevře plátci 1. 11. dialog `tribute-send` (klíč
   `tribute:<jednání>:<rok>`); mír přijatý až po 1. 11. se ptá příště, čekající dialog jen naroste o rok.
-  Neplnění se nevymáhá (a nezapisuje jako porušení – není dohoda, na kterou by se vázalo).
+  Neplnění se nevymáhá, ale zapíše se (`tributeBreach` v `annual-levies.ts`): míň než domluveno při odpovědi
+  i každý zmeškaný 1. 11. → kronika obou rodů `tribute-short` a – trvá-li mezi nimi vazalství plátce → příjemce –
+  `addBreach('levy')`.
 - **Postoupení vsí** (`application/cede-village.ts`): `checkCede` – všechny vsi patří jedné straně a
   postupujícímu **zbývá živá ves na jiné mapě** (jinak `PEACE_REASONS.lastVillage`, „jen vazalství“;
   Martin 2. 11. 2026). `cedeVillages` po transakci: muži rodu (`isLineMan`) všech vsí postoupených
@@ -82,7 +84,7 @@ vojska mapu po mapě (Ú6.4); tažení po taktech, boj a dohra přibývají v da
   idempotentní. Háčky `CedeHooks` (`check`, `apply`) skládá `createGameDeps` (`deps.cede`).
 - **Propuštění zajatců:** `releasePrisoners` se zatím jen nese (kontrola tvaru); zajetí přijde v Ú6.11.
 - **Web:** `WarPanel.tsx` – u každé války pečeť **Nabídnout mír** (`war-offer-peace`) a mini-formulář
-  (`peace-form`: poplatek, tribut, vazalství; `peace-send`); řádek `term-row-peace` (`TermsForm.tsx`)
+  (`peace-form`: poplatek (obilí a lidé – `peace-fee-men/women/families`), tribut, vazalství; `peace-send`); řádek `term-row-peace` (`TermsForm.tsx`)
   v kartě jednání; `parsePeace` v `lib/house-input.ts`. Dialogy poplatku a tributu zobrazuje `LevyDialog`.
 
 ## Pohyb vojska (Ú6.4)
@@ -103,8 +105,12 @@ closedGates })` → `MarchGrid` (buňky 10 m přes celou mapu 1 920 m, 192 × 19
   opevnění (`fortCells`): hotový plot, palisáda a val se stojící nástavbou neprůchodné, val bez
   nástavby `rampartAssaultPace`, průchozí otevřené brány (zavřené v `closedGates`) a mezery
   (`segmentIsGap` – nedostavěný, shnilý, prolomený úsek celým pásem). Buňky přes `fortWalls`
-  a `fortWallCells` (pěšiny); buňka, které se dotkne průchod, stěnou není. Domy, ploty ohrad
-  a pole vojsko neblokují.
+  a `fortWallCells` (pěšiny); buňka, které se dotkne průchod, stěnou není. Stavby vsi (`blockBuildings`, příznak
+  `MARCH_BUILDING`, tempo 0): obdélníky `villageBuildings` jako u pěšin (obydlí s pozemkem, dvorec,
+  dílna s dvorem, staveniště, milíř, modla, humno; buňka, které se obdélník dotkne) a hotová ohrada
+  celou plochou plotu kromě branky; pole zůstávají průchozí tempem louky (spec zpomalení neuvádí).
+  Start či cíl uvnitř stavby `marchPath` přesune na nejbližší volnou buňku (`outOfBuilding`);
+  v boji (`battle.ts` `paceAt`) stavby neblokují.
 - **Trasa** – `domain/war/march.ts`: `marchPath(grid, from, to)` (A* s oktilovým odhadem,
   úhlopříčně jen kolem průchodných rohů, ceny kroků po kvantech `quantizedStep`, remíza – vyšší
   index předchůdce; start průchodný vždy; nedosažitelný cíl `null`), `marchPathToEdge(grid,
@@ -481,9 +487,10 @@ today })` (`hold` / `release` / `execute`, zajatec se hledá ve vsích hráče, 
   míru volá `ransom.release`. Kdo platí, je strana, která zajatce nedrží.
 - **Web**: `lib/prisoners.ts` (`decidePrisonerForPlayer`, `ransom()`), akce `decidePrisonerAction`,
   `VillageManor.prisoners` (`manor-view.ts`), `PrisonersPanel.tsx` (portrét s pouty, držet /
-  propustit / popravit; poprava druhým stiskem), ikony `public/icons/war/{captive,hold,release,execute}.svg`.
-- Nevykonáno (později): zajetí **útočníků** obráncem (raněné na bojišti), formulář výkupného ve
-  `TermsForm` (řádek se jen zobrazuje), zajatý hráčův muž nevede tažení díky `away` (`launch-campaign`).
+  propustit / popravit; poprava druhým stiskem), formulář výkupného: `TermsContext.captives` (zajatci vsi z
+  `VillageManor.prisoners`, jen rodu protistrany – `houseId` doplní `viewOf` ve `lib/village.ts` z vsi původu), v `TermsForm` řádek `RansomRow` (výběr zajatců, cena jako zboží) a v `HousePanel`
+  tlačítko `house-ransom` (směr `ransom`; zda zajatec patří protistraně, ověří server), ikony `public/icons/war/{captive,hold,release,execute}.svg`.
+- Nevykonáno (později): zajetí **útočníků** obráncem (raněné na bojišti), zajatý hráčův muž nevede tažení díky `away` (`launch-campaign`).
 - Testy: `war/__tests__/surrender.test.ts`, `captives-campaign.test.ts` (zajetí přes `stepCampaign`),
   `application/__tests__/prisoners.test.ts`, `ransom-negotiation.test.ts`, db test výše.
 
@@ -627,3 +634,34 @@ expected, reply?)` (odpověď se přidá do `body` – `body || reply`).
   e2e `multiplayer.spec.ts` („svolání: …“, „ochrana: …“), `domain/war/__tests__/guard-campaign.test.ts`
   (hosté „bránit se“ / „vzdát se“, ztráty domů, po kouscích = vcelku, padlý host = nástupnictví),
   `summons.test.ts` (NPC vazal přesně), `launch-campaign.test.ts` (přepadení přes rozsudek).
+
+## Živé vedení a pohled na tažení (Ú6.14)
+
+- **Mlha války** (`domain/war/sight.ts`): `inSight(grid, z, na)` – dohled `WAR.sight` 150 m, stojí-li
+  kterýkoli z dvojice v lese (`MARCH_FOREST` mřížky pochodu) 50 m; bez mřížky lesní dohled (raději
+  skryje víc). Bere ho i boj (`battle.ts` – `sees`). `discoverBuildings` přidá k `discovered` domy
+  cílové vsi, na které dohlédne kterýkoli muž; `stepCampaign` ho volá v každém taktu nájezdu
+  (`raidTick` → `discover`, muži útoku ve stavu `fight` / `breach`) – objevené zůstane.
+- **Pohled** (`domain/war/view.ts` – `campaignView`, typy `CampaignView*`): vlastní muži celí (zdraví,
+  raněný, velitel, zástupce, stav v boji), muži vazalů ve službě jen poloha (`allies`), obránci jen
+  v dohledu vlastních mužů na nohou na mapě cíle (`foreign`), domy jen objevené (`discovered` – id,
+  druh, poloha); nic dalšího o cizí vsi. `fresh` = stav je novější než `sinceTick` dotazu.
+  `leadsLive` = hráč je vůdce, velí jeho muž a ten stojí na nohou (padlý, zajatý, dezertér = ne);
+  hráč bez vůdcovství i bez vlastního muže dostane null.
+- **Use-casy** (`application/campaign-view.ts`): `campaignViewFor(deps, { playerId, campaignId,
+sinceTick })` – kontrolní bod z úložiště, mřížka mapy cíle jen při boji (mezipaměť `grids`, klíč
+  `tažení@den`), domy cílové vsi jen s něčím objeveným. `commandCampaign` – pokyn
+  (`CampaignCommand`: `lead` s cílem `place` / `building` / `fighter` / `home`, `order`,
+  `surrendered`, `presence`) → záměr na takt teď + 2 (`queueCampaignIntent`). Odmítne (`false`, bez
+  důvodu): hráč, který živě nevede (vazal, cizí hráč, velí jiný muž, padlý či zajatý velitel), místo
+  mimo mapu nebo dál než sousední políčko velitele (kromě mapy cíle), neobjevený dům, cizí muž mimo
+  dohled nebo ležící, neznámá skupina. Přítomnost smí poslat jen vůdce živého tažení.
+- **Úložiště:** `CampaignRepository.activeOf(playerId)` – běžící tažení vůdce (panel Vojsko).
+- **Cizí mapa** (`apps/web/lib/foreign-map.ts`): krajina políčka (veřejná – prázdné z
+  `cellLandscapeSeed`, se vsí z uloženého seedu sídla přes `createCampaignCells`) jako
+  `LandscapeTransfer`; vrstvu překážek si prohlížeč vygeneruje ze seedu vrstvy. Jen pro účastníka
+  a jen mapu cíle, políčko vlastního muže a jeho sousedy; stavby nese jen `CampaignView.discovered`.
+- **Testy:** `application/__tests__/campaign-view.test.ts` (Review Focus 4 – cizí muž, mrtvý
+  a zajatý velitel, neobjevený dům, obránce skrytý v lese, cizí hráč = null),
+  `domain/war/__tests__/sight.test.ts`, `raid-campaign.test.ts` (objevený dům), e2e
+  `multiplayer.spec.ts` („živé vedení: …“ – tažení zapsané přímo do DB, worker vedle).

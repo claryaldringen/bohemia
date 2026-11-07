@@ -95,8 +95,10 @@ import { swathBands } from './swath-bands';
 import { tileAt, tileCenter } from './tile-at';
 import { addTrees } from './trees';
 import { FieldPainter } from './field-painting';
+import { FortPointsEditor } from './fort-points-editor';
 import { PlacementOutlines } from './placement-outlines-view';
 import { HoldingsOverlay, type HoldingsOverlaySector } from './holdings-overlay';
+import { ArmyRenderer, type SceneWar } from './army-renderer';
 import { SelectionHighlight } from './selection-highlight';
 import type { PersonFigureState } from '../person-activity';
 import { sameDraftState, type DraftFigureState } from '../draft-activity';
@@ -273,6 +275,9 @@ export class LandscapeScene {
   private storm: StormRenderer | null = null;
   /** Trychtýř smrště (tornado-funnel.ts) – ztmavení smrště jde se silou bouřky (`stormNow`). */
   private tornadoFunnel: TornadoFunnel | null = null;
+  /** Vojsko, boj a mlha války (war.md – Ve scéně; army-renderer.ts). */
+  private army: ArmyRenderer | null = null;
+  private war: SceneWar | null = null;
   private stormNow = 0;
   private flashNow = 0;
   private disasterKey = '';
@@ -489,6 +494,22 @@ export class LandscapeScene {
       groundHeight: (x, z) => terrainMeshHeight(surface, x, z),
     });
     if (this.daylight) this.storm.setSky(this.daylight.waterSky);
+    this.army?.dispose();
+    this.army = new ArmyRenderer(this.scene, {
+      groundHeight: (x, z) => terrainMeshHeight(surface, x, z),
+      forestAt: (x, z) => {
+        const half = (landscape.size * landscape.cellSizeM) / 2;
+        const tx = Math.floor((x + half) / landscape.cellSizeM);
+        const ty = Math.floor((z + half) / landscape.cellSizeM);
+        if (tx < 0 || ty < 0 || tx >= landscape.size || ty >= landscape.size) return false;
+        return surfaceAt(landscape, tx, ty) === 'forest';
+      },
+      extentM: landscape.size * landscape.cellSizeM,
+      onLoaded: () => {
+        this.needsRender = true;
+      },
+    });
+    if (this.war) this.army.set(this.war, Date.now(), !!this.reducedMotion?.matches, null);
     this.tornadoFunnel?.dispose();
     this.tornadoFunnel = new TornadoFunnel(this.scene, {
       groundHeight: (x, z) => terrainMeshHeight(surface, x, z),
@@ -816,6 +837,24 @@ export class LandscapeScene {
   }
 
   /** Vývojové vynucení dne světa pro krupobití a povodeň (null = podle hodin světa). */
+  /**
+   * Válka ve scéně (war.md – Ve scéně): poslední snímek boje po taktu, pochod, útěk vsi, odehnané
+   * stádo a mlha války; null – nic. Mezi takty se muži posouvají plynule v `animate()`.
+   */
+  setWar(war: SceneWar | null): void {
+    this.war = war;
+    if (
+      this.army?.set(war, Date.now(), !!this.reducedMotion?.matches, this.rtsCamera?.camera ?? null)
+    ) {
+      this.needsRender = true;
+    }
+  }
+
+  /** Meshe vojska, které se kreslí, a počty instancí (e2e, měření). */
+  armyStats(): { name: string; count: number }[] {
+    return this.army?.stats() ?? [];
+  }
+
   setDisasterDay(day: number | null): void {
     this.disasterDayOverride = day;
     this.updateDisasters();
@@ -926,12 +965,11 @@ export class LandscapeScene {
       onPreview: handlers.onPreview ? (preview) => handlers.onPreview?.(preview) : undefined,
     };
     const controller: ActivePlacement =
-      mode.kind === 'squares'
-        ? new FieldPainter(
+      mode.kind === 'fort-points'
+        ? new FortPointsEditor(
             {
               scene: this.scene,
               canvas: this.canvas,
-              landscape,
               pickGround: (x, y) => this.pickGround(x, y),
               decalHeight: (x, z) => village.decalHeight(x, z),
               requestRender,
@@ -939,57 +977,73 @@ export class LandscapeScene {
             mode,
             controlled,
           )
-        : new PlacementController(
-            {
-              scene: this.scene,
-              canvas: this.canvas,
-              pickGround: (x, y) => this.pickGround(x, y),
-              decalHeight: (x, z) => village.decalHeight(x, z),
-              cameraAlpha: () => camera.camera.alpha,
-              cellAt: (x, z) => {
-                const cell = tileAt(landscape, x, z);
-                if (!cell) return null;
-                const center = tileCenter(landscape, cell.x, cell.y);
-                return { cell, x: center.worldX, z: center.worldZ, size: landscape.cellSizeM };
+        : mode.kind === 'squares'
+          ? new FieldPainter(
+              {
+                scene: this.scene,
+                canvas: this.canvas,
+                landscape,
+                pickGround: (x, y) => this.pickGround(x, y),
+                decalHeight: (x, z) => village.decalHeight(x, z),
+                requestRender,
               },
-              plotAt: (x, z, rotation, variant) => {
-                // natočený pozemek (fields.md – Natočené stavby): po 90° políčko pod kurzorem,
-                // jinak čtverec se středem pod kurzorem – v ukládané podobě jako na serveru
-                let cx = x;
-                let cz = z;
-                if ((rotationTurn(rotation) ?? 0) % GRID_TURNS === 0) {
+              mode,
+              controlled,
+            )
+          : new PlacementController(
+              {
+                scene: this.scene,
+                canvas: this.canvas,
+                pickGround: (x, y) => this.pickGround(x, y),
+                decalHeight: (x, z) => village.decalHeight(x, z),
+                cameraAlpha: () => camera.camera.alpha,
+                cellAt: (x, z) => {
                   const cell = tileAt(landscape, x, z);
                   if (!cell) return null;
                   const center = tileCenter(landscape, cell.x, cell.y);
-                  cx = center.worldX;
-                  cz = center.worldZ;
-                }
-                const plot = rotatedPlot(landscape, { x: cx, z: cz, rotation }, variant);
-                if (!plot) return null;
-                const size = landscape.cellSizeM;
-                if (plot.square) return { plot, square: { ...plot.square, size } };
-                const center = tileCenter(landscape, plot.cell.x, plot.cell.y);
-                return { plot, square: { x: center.worldX, z: center.worldZ, size } };
+                  return { cell, x: center.worldX, z: center.worldZ, size: landscape.cellSizeM };
+                },
+                plotAt: (x, z, rotation, variant) => {
+                  // natočený pozemek (fields.md – Natočené stavby): po 90° políčko pod kurzorem,
+                  // jinak čtverec se středem pod kurzorem – v ukládané podobě jako na serveru
+                  let cx = x;
+                  let cz = z;
+                  if ((rotationTurn(rotation) ?? 0) % GRID_TURNS === 0) {
+                    const cell = tileAt(landscape, x, z);
+                    if (!cell) return null;
+                    const center = tileCenter(landscape, cell.x, cell.y);
+                    cx = center.worldX;
+                    cz = center.worldZ;
+                  }
+                  const plot = rotatedPlot(landscape, { x: cx, z: cz, rotation }, variant);
+                  if (!plot) return null;
+                  const size = landscape.cellSizeM;
+                  if (plot.square) return { plot, square: { ...plot.square, size } };
+                  const center = tileCenter(landscape, plot.cell.x, plot.cell.y);
+                  return { plot, square: { x: center.worldX, z: center.worldZ, size } };
+                },
+                ghostModel: (type) => village.ghostModel(type),
+                baseHeight: (type, position) => {
+                  if (type === 'idol' || type === 'shrine') {
+                    return village.sacredBaseHeight(type, position);
+                  }
+                  // milíř uhlíře se měří u svého místa – `position` je poloha zemnice
+                  if (type === 'milir') return village.milirBaseHeight(position);
+                  const base = mode.kind === 'workshop' ? mode.type : null;
+                  return village.baseHeight({ type: base ?? (type as DwellingType), position });
+                },
+                requestRender,
               },
-              ghostModel: (type) => village.ghostModel(type),
-              baseHeight: (type, position) => {
-                if (type === 'idol' || type === 'shrine') {
-                  return village.sacredBaseHeight(type, position);
-                }
-                // milíř uhlíře se měří u svého místa – `position` je poloha zemnice
-                if (type === 'milir') return village.milirBaseHeight(position);
-                const base = mode.kind === 'workshop' ? mode.type : null;
-                return village.baseHeight({ type: base ?? (type as DwellingType), position });
-              },
-              requestRender,
-            },
-            mode,
-            controlled,
-          );
+              mode,
+              controlled,
+            );
     this.placement = controller;
-    if (mode.kind === 'squares') this.outlines?.show(this.villageState);
-    else this.outlines?.hide();
-    if (mode.kind !== 'squares') {
+    if (mode.kind === 'squares' || mode.kind === 'fort-points') {
+      this.outlines?.show(this.villageState);
+    } else {
+      this.outlines?.hide();
+    }
+    if (mode.kind !== 'squares' && mode.kind !== 'fort-points') {
       // Model ducha se načte (jednou) a pak naskočí pod kurzorem.
       const models =
         mode.kind === 'sacred'
@@ -1377,6 +1431,7 @@ export class LandscapeScene {
     this.rain?.dispose();
     this.storm?.dispose();
     this.tornadoFunnel?.dispose();
+    this.army?.dispose();
     this.rtsCamera?.dispose();
     this.perf?.dispose();
     if (this.loopHandle !== 0) cancelAnimationFrame(this.loopHandle);
@@ -1836,6 +1891,8 @@ export class LandscapeScene {
     }
     // lidé ve vsi – skutečný čas jako zvířata
     if (this.villagers?.animate(epochMs, camera)) animated = true;
+    // vojsko a boj – mezi takty plynule, šípy a prach (army-renderer.ts)
+    if (this.army?.animate(epochMs, camera)) animated = true;
     // divoká zvěř – skutečný čas; po lidech, před kterými utíká
     if (this.wildlife?.animate(epochMs, camera)) animated = true;
     // voli a krávy v ohradách a spřežení na poli (oxen.md) – skutečný čas jako zvířata

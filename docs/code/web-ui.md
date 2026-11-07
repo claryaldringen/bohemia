@@ -743,24 +743,34 @@ Návrh: [fortifications.md – Rozhraní](../design/fortifications.md); jádro a
 [village-fortifications.md](village-fortifications.md).
 
 - **Místo problému:** `checkFortificationPlacement` (a `checkFootprintFree`, `blockedGates`)
-  vrací u neprošlé kontroly `where` (`PlacementWhere` – body bran, obrysy, čtverce); `fortificationPlacement`
-  z něj složí čáry (`lib/problem-marks.ts`, čistá funkce) do `SquaresPreview.problem` a `field-painting.ts`
-  je kreslí červeně (kroužky kolem bran, obrysy staveb, vody a cizího opevnění). E2E háček `paintProblems`.
+  vrací u neprošlé kontroly `where` (`PlacementWhere` – body ohybu, křížení a bran, obrysy, čtverce);
+  `fortPointsPlacement` z něj složí čáry (`lib/problem-marks.ts`, čistá funkce) do
+  `FortPointsPreview.problem` a editor je kreslí červeně i přes terén (kroužky kolem ohybu, křížení
+  a bran, obrysy staveb, vody a cizího opevnění). E2E háček `paintProblems`.
 - **Katalog staveb** (`lib/build-items.ts`): záznam `fortification` (zkratka **P**, ikona
-  `build/opevneni.png`) je rozcestník druhů `FORT_VARIANTS` (plot, palisáda, val – ikony
-  `resources/fort-*.png`) jako ohrady. `BuildKind` v jádru **zůstává beze změny** (cena opevnění
-  není pevná, počítá se podle délky – `fortificationCost`), proto má web vlastní `WebBuildKind =
-BuildKind | 'fortification'`; nabídka (`options`) má pro opevnění `null` (bez ceny v popisku).
-  `VillageGame.tsx`: `SUBMIT_SQUARES.fortification` → `placeFortification` (druh z `fortVariantKind`).
-- **Kreslení** = malování po čtvercích jako pole (`FieldPainter`, natáčení `[` `]`). Kontrola
-  `fortificationPlacement(landscape, village, cells, grid, kind, woodSupply)` volá
-  `checkFortificationPlacement` z jádra (stejně jako server), cena u kurzoru je práce a klády
-  (`fortificationCost` podle `outline.lengthM`) a útočiště (lidé – `refugePlaces`); chybí-li dřevo
-  (`VillageView.woodSupply` = klády + stromy ke kácení, `villageStock`), místo ceny červeně „Chybí N
-  klád.“. Nesouvislá nebo malá plocha je jen „ještě ne“ (žlutě), ostatní důvody červeně.
-  `SquaresPreview.outline` / `.gates` kreslí `FieldPainter` čarou nad čtverci (obrys se
-  zakulacenými rohy, obdélníky pásu, brány z `autoGates` podle `PlacementVillage.walkRoads`).
-  `PlacementCost.logs` a `.refuge` ukazuje `CursorReason`.
+  `build/opevneni.png`, `placement: 'fort-points'`) je rozcestník druhů `FORT_VARIANTS` (plot,
+  palisáda, val – ikony `resources/fort-*.png`) jako ohrady. `BuildKind` v jádru **zůstává beze
+  změny** (cena opevnění není pevná, počítá se podle délky – `fortificationCost`), proto má web
+  vlastní `WebBuildKind = BuildKind | 'fortification'`; nabídka (`options`) má pro opevnění `null`.
+  `propose` volá `proposeFortificationIn` z jádra (stejný návrh jako server, nad `PlacementVillage`
+  - obilné jámy ze scény), `check` = `fortPointsPlacement`.
+- **Úprava návrhu** (`lib/scene/fort-points-editor.ts`, `FortPointsEditor`, režim `fort-points`
+  v `PlacementMode`; Martin 7. 11. 2026): druh v rozcestníku spustí editor, ten u prvního bodu
+  kurzoru zavolá `propose` (jádro bez staveb uvnitř jiného opevnění, jinak kruh 20 m u kurzoru).
+  Body se **táhnou** (stisk a tažení – myš i trackpad, bez pravého tlačítka), **klik na obvod** (do
+  šířky pásu, nejméně 2 m od vnějšího okraje) přidá bod na křivku, **Ctrl / Cmd + klik** bod ubere
+  (nejméně 4), Backspace / Ctrl+Z vrátí úpravu, Esc vrátí rozběhnutý tah nebo návrh zahodí,
+  **Enter** nebo **ikona kladiva** (`hud/FortConfirm.tsx`, zašedlá s důvodem v popisku) pošle body
+  do `placeFortification` (`points`). Čisté funkce bodů v `lib/fort-points.ts` (`insertPoint` –
+  mezi body s nejmenší zajížďkou, `removePoint`, `movePoint`, `nearestPoint`, `nearestOnLoop`).
+  Kontrola `fortPointsPlacement(landscape, village, points, kind, woodSupply)` volá
+  `checkFortificationPlacement` z jádra (stejně jako server) nejvýš po 80 ms tažení; cena u kurzoru
+  je práce a klády (`fortificationCost` podle `outline.lengthM`) a útočiště (lidé – `refugePlaces`);
+  chybí-li dřevo (`VillageView.woodSupply`), místo ceny červeně „Chybí N klád.“. Všechny důvody
+  červeně. Obrys = vnější okraj a vnitřní okraj pásu (zelený / červený), brány z `autoGates` podle
+  `PlacementVillage.walkRoads` bíle, body jako kroužky (bod pod kurzorem větší, s Ctrl červený).
+  E2E háček `fortPoints` vrací body návrhu. Malování po čtvercích a `squarePoints` v rozhraní
+  skončily – čtverce zůstaly jen pro převod starých opevnění (`withFortPoints`).
 - **Data pro scénu** (`SceneVillage.forts`, `SceneFortification` – jádro `Fortification` + `building`,
   uzavřený `outline` a `band` po úsecích, počítá `sceneFortifications`): minimapa (`drawMinimapVillage`,
   obvod čarou v barvě druhu `FORT_COLORS`), výběr (`pickVillageTarget` – pás nebo do `FORT_PICK_M`
@@ -776,10 +786,12 @@ staví až na hotovém.`, `Val už nástavbu má.`), ikona brány (`aria-pressed
   obvod (`LandscapeScene.setGatePick`: další levé kliknutí pošle bod terénu do `addFortificationGate`,
   pravé a Esc zruší, změna výběru režim vypne). Akce jdou přes `upgradeFortification`
   a `addFortificationGate`.
-- Testy: `lib/__tests__/build-items-fortification.test.ts` (cena roste s plochou, důvody),
+- Testy: `lib/__tests__/build-items-fortification.test.ts` (návrh, tažení mění cenu, místo problému),
   `components/game/hud/__tests__/FortificationPanel.test.tsx`, `lib/scene/__tests__/fort-picking.test.ts`;
-  e2e `e2e/fortification.spec.ts` (nakreslit palisádu 3 × 3 přes pevnou cestu → brány na cestě,
-  cena u kurzoru, Enter, panel; snímek do `FORT_UI_SHOT`).
+  `lib/__tests__/fort-points.test.ts` (přidání, ubrání, nejméně 4 body, posun);
+  e2e `e2e/fortification.spec.ts` (návrh palisády kolem zemnice přes pevnou cestu, posun bodu
+  zvedne cenu, ikona kladiva položí → brány na cestě, panel; posun bodu přes zemnici → důvod
+  a červená značka; snímek do `FORT_UI_SHOT`).
 - Modely opevnění ve scéně jsou úloha 5.7.
 
 ## Pomoc a půjčky v rozhraní (úloha 4.6)
@@ -822,6 +834,27 @@ se vykreslí i v testech bez serveru.
   každé změně ptá serveru (`planCampaign`, odpověď nebo důvod červeně), **Vyslat** je zašedlé bez
   odhadu. Ověření a pravidla jsou na serveru – panel posílá jen plán (`war.md` kód – Ú6.6).
 - Testy: e2e `multiplayer.spec.ts` (vojsko); serverové `action-rights.test.ts` hlídá klíče práv.
+
+## Dotazování na tažení a mapa tažení (úloha 6.14, `hooks/use-campaign.ts`, `hud/CampaignMap.tsx`)
+
+- **Route** `GET /api/campaign/<id>?since=<takt>` (`app/api/campaign/[id]/route.ts`, `no-store`,
+  session povinná) → `{ view: CampaignView }`; `?map=<x>,<y>` → `{ map: ForeignMap }` (krajina
+  políčka, `lib/foreign-map.ts`). Cizí i neexistující tažení = stejná 404. Route Handler, ne server
+  action – server actions jednoho klienta jdou za sebou a dotaz by čekal za pokynem.
+- **`useCampaign(id, presence)`**: dotaz 2× za sekundu (`CAMPAIGN_POLL_MS`, `usePolling` – ve
+  skrytém panelu prohlížeče stojí), polohy mezi dvěma stavy interpoluje `interpolateCampaign`
+  (`lib/campaign-view.ts` – typy z jádra pro scénu); `view` se překreslí po 100 ms, scéna si bere
+  `sample(performance.now())`. Vůdce otevřeného tažení posílá `presence` hned a pak po 20 s
+  (`PRESENCE_EVERY_MS`) jen při viditelném panelu – zavřená stránka = žádná přítomnost.
+- **Server actions** (`app/game/actions.ts`, vstup `lib/campaign-input.ts`, composition root
+  `lib/campaign.ts`): `getMyCampaigns`, `commandLeader` (`{ campaignId, target }`), `setGroupOrder`,
+  `chooseSurrendered`, `presence`; odmítnutí vždy „Rozkaz nelze dát.“ (nic neprozradí).
+- **Mapa tažení** (minimální, scénu vojska kreslí `lib/scene`): v panelu Vojsko řádek běžících
+  tažení (`army-campaign`, ikona s cílem v popisku) → `CampaignMap` – pohled shora na mapu velitele
+  (SVG v metrech mapy): velitel (`campaign-commander`, `data-x` / `data-z`), vlastní muži, spojenci,
+  cizí v dohledu (klik = napadni), objevené domy (klik = jdi k domu), cíl (`campaign-goal`); klik
+  na mapu = velitel jde. Ikony Domů, tři rozkazy skupiny velitele a v boji Pobít / Odvést / Nechat,
+  slova jen v `Tooltip`; nevede-li hráč živě, vše zašedlé („Velí jiný muž.“).
 
 ## Postoj vsi ve dvorci (úloha 6.9, `hud/ManorPanel.tsx`)
 

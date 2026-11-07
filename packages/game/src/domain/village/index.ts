@@ -54,6 +54,7 @@ export * from './lord';
 export * from './arms-caps';
 export * from './cancel-construction';
 export * from './fortifications';
+export * from './fortification-proposal';
 export * from './relocation';
 export * from './departure';
 export * from './digest';

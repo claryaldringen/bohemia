@@ -3,6 +3,7 @@ import { dayIndexOf } from '../../calendar';
 import { packObstacles } from '../../landscape';
 import { foundVillage } from '../../village/actions';
 import { startFortification } from '../../village/fortifications';
+import { squarePoints } from '../../village/fortification/convert';
 import { block, makeLandscape } from '../../village/__tests__/placement-fixtures';
 import { withBuiltFirstDwelling } from '../../village/__tests__/village-fixtures';
 import { villageFoodNeed } from '../../village/diet';
@@ -198,8 +199,7 @@ describe('robota (dispatchCorvee, returnHome, hostGuests)', () => {
     );
     base.woodLogs = 200;
     const started = startFortification(base, base.lastDay, landscape, empty, {
-      cells: block(8, 8, 4, 4),
-      grid: null,
+      points: squarePoints(block(8, 8, 4, 4), null, landscape, 'rampart')!,
       kind: 'rampart',
     });
     if (!started.ok) throw new Error(started.reason);

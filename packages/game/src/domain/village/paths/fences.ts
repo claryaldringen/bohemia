@@ -91,7 +91,12 @@ export function villageFences(
   // stojící úseky opevnění – stěny a brány (fortifications.md – Brány); bez opevnění nic
   for (const fort of v.fortifications ?? []) {
     const outline = wallOutline(fort.walls);
-    if (outline) out.push({ outline, gate: null, wall: { walls: fort.walls, gates: fort.gates } });
+    if (outline)
+      out.push({
+        outline,
+        gate: null,
+        wall: { walls: fort.walls, gates: fort.gates, detour: fort.detour },
+      });
   }
   if (!plots) return out;
   for (const d of v.dwellings) {

@@ -1,14 +1,16 @@
-// Opevnění (fortifications.md) – obvod, úseky, brány a cena; čísla v `rules-fortifications.ts`.
+// Opevnění (fortifications.md) – obvod z bodů, úseky, brány a cena; čísla v `rules-fortifications.ts`.
 export {
-  fortificationArea,
   fortificationOutline,
-  type FortArea,
-  type FortAreaError,
-  type FortCorner,
+  fortShapeError,
+  outlinePointAt,
   type FortOutline,
   type FortRun,
-  type FortSide,
+  type FortShapeError,
 } from './outline';
+export { fortificationArea, type FortArea, type FortAreaError } from './squares-outline';
+export * from './curve';
+export * from './convert';
+export * from './proposal';
 export * from './segments';
 export * from './gates';
 export * from './cost';

@@ -59,11 +59,13 @@ export {
 export type { ThreshingFloorPlacementCheck } from './placement-sacred';
 export {
   checkFortificationPlacement,
-  FORT_BAD_GRID,
-  FORT_NOT_CONNECTED,
+  FORT_BAD_POINTS,
+  FORT_CROSSING,
   FORT_OUTSIDE,
   FORT_OVER_BUILDING,
   FORT_OVER_WATER,
+  FORT_SHARP,
+  FORT_TOO_FEW,
   FORT_TOO_SMALL,
   FORT_TOUCHES,
 } from './placement-fortifications';

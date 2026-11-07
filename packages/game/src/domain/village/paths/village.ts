@@ -402,7 +402,7 @@ export function pathFortificationsOf(
 
 /**
  * Klíč opevnění pro mapy tras (`routeMapKey`, `fenceLayoutKey`, `villageBlockedAt`): jen co mění
- * stěny (`fortWalls`) – plocha, druh (tvar obvodu pro polohu bran), blokující úseky s druhem pásu
+ * stěny (`fortWalls`) – body obvodu, druh (tvar obvodu pro polohu bran), blokující úseky s druhem pásu
  * (`fortBlockingSegments`) a brány. Ne den dokončení, průběh stavby ani stav úseků, který
  * blokování nemění – dokončení úseku klíč nezmění (Martin 6. 11. 2026). Ves bez opevnění null –
  * klíče vsí bez opevnění se nemění.
@@ -416,8 +416,9 @@ export function fortLayoutKey(
     forts.map((f) => [
       f.id,
       f.kind,
-      f.grid,
-      f.cells.map((c) => `${c.x},${c.y}`).join(';'),
+      f.points
+        ? f.points.map((p) => `${p[0]},${p[1]}`).join(';')
+        : [f.grid ?? null, (f.cells ?? []).map((c) => `${c.x},${c.y}`).join(';')],
       fortBlockingSegments(f, fortRunningWork(state, f.id))
         .map((s) => `${s.index}:${s.kind}`)
         .join(','),

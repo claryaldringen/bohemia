@@ -74,6 +74,12 @@ export interface SquaresPreview {
 }
 
 /**
+ * Náhled obvodu opevnění z bodů (fortifications.md – Obvod, Rozhraní): kontrola, cena a čáry –
+ * obrys pásu, brány na cestách a místo problému (červeně).
+ */
+export type FortPointsPreview = Omit<SquaresPreview, 'blockedCells' | 'warningCells'>;
+
+/**
  * Druh stavby po čtvercích, který hráč vybere v rozcestníku mřížky staveb (ohrada – druh zvířat,
  * oxen.md): id, ikona
  * (`public/icons/resources/<icon>.png`) a název do popisku.
@@ -136,6 +142,19 @@ export type PlacementMode =
       grid?: SquareGrid;
     }
   | {
+      /**
+       * Obvod opevnění z bodů (fortifications.md – Obvod): hra obvod navrhne u prvního bodu
+       * kurzoru (`propose`), hráč body táhne, klik na obvod přidá bod, Ctrl + klik ubere.
+       */
+      kind: 'fort-points';
+      /** Druh opevnění z rozcestníku (plot, palisáda, val). */
+      variant: SquaresVariant;
+      /** Šířka pásu druhu (m) – klik do ní od vnějšího okraje přidá bod. */
+      bandM: number;
+      propose(at: readonly [number, number]): readonly (readonly [number, number])[];
+      preview(points: readonly (readonly [number, number])[]): FortPointsPreview;
+    }
+  | {
       /** Modla nebo svatyně (happiness.md) – čtvercový půdorys u kurzoru jako obydlí. */
       kind: 'sacred';
       type: SacredBuildingKind;
@@ -168,6 +187,7 @@ export type PlacementResult =
   | { kind: 'dwelling'; type: DwellingType; position: Position; plot?: DwellingPlot }
   | { kind: 'squares'; cells: TileCell[]; grid?: SquareGrid; variant?: string }
   | { kind: 'sacred'; type: SacredBuildingKind; position: Position }
+  | { kind: 'fort-points'; points: [number, number][]; variant: string }
   | { kind: 'workshop'; craft: Craft; position: Position }
   | { kind: 'threshing-floor'; position: Position };
 

@@ -820,3 +820,103 @@ export {
   planFunerals,
   planWeddings,
 } from './villager-plan-events';
+
+// ——— Napadená ves (war.md – Ve scéně): útěk k lesu a odehnané stádo ———
+
+/** Kdo utíká: dům, druh postavy a jestli nese zásoby (dospělý 25 kg, dítě 10 kg – `fleeParty`). */
+export interface FleeingPerson {
+  id: number;
+  home: { x: number; z: number };
+  kind: 'man' | 'woman';
+  /** Dítě – menší postava. */
+  child: boolean;
+  carries: boolean;
+}
+
+/** Útěk jednoho člověka: od domu k okraji lesa, tempo a klip (s nůší zásob `carry`). */
+export interface FleeWalk {
+  id: number;
+  kind: 'man' | 'woman';
+  child: boolean;
+  from: { x: number; z: number };
+  to: { x: number; z: number };
+  /** Odchod (s od začátku útěku) – lidé vycházejí jeden po druhém. */
+  startS: number;
+  speed: number;
+  clip: 'carry' | 'walk';
+}
+
+/** Tempo útěku (m/s) – svižná chůze, s nůší pomaleji (návrh Clauda). */
+export const FLEE_M_S = { light: 1.7, carrying: 1.35 } as const;
+/** Rozptyl lidí u okraje lesa (m) – nestojí na jednom místě. */
+const FLEE_SPREAD_M = 9;
+/** Odstup odchodů z domů (s). */
+const FLEE_STAGGER_S = 0.8;
+
+/**
+ * Útěk vsi k lesu při včasném varování (war.md – Napadená ves; jádro – `fleeParty`,
+ * `nearestForest`): každý jde od svého domu k okraji lesa `forest`, kdo nese zásoby, s nůší.
+ * Cíle se rozprostřou kolem okraje lesa podle pořadí (stejný vstup = stejný plán).
+ */
+export function planFlight(
+  people: readonly FleeingPerson[],
+  forest: { x: number; z: number },
+): FleeWalk[] {
+  return people.map((p, i) => {
+    const a = i * 2.399963;
+    const r = FLEE_SPREAD_M * Math.sqrt((i + 1) / Math.max(1, people.length));
+    return {
+      id: p.id,
+      kind: p.kind,
+      child: p.child,
+      from: { x: p.home.x, z: p.home.z },
+      to: { x: forest.x + r * Math.cos(a), z: forest.z + r * Math.sin(a) },
+      startS: i * FLEE_STAGGER_S,
+      speed: p.carries ? FLEE_M_S.carrying : FLEE_M_S.light,
+      clip: p.carries ? 'carry' : 'walk',
+    };
+  });
+}
+
+/** Poloha na útěku v čase `t` (s od začátku útěku): u domu, na cestě, nebo u lesa (stojí). */
+export function fleeWalkAt(
+  walk: FleeWalk,
+  t: number,
+): { x: number; z: number; hx: number; hz: number; moving: boolean } {
+  const dx = walk.to.x - walk.from.x;
+  const dz = walk.to.z - walk.from.z;
+  const length = Math.hypot(dx, dz) || 1;
+  const done = Math.min(1, Math.max(0, ((t - walk.startS) * walk.speed) / length));
+  return {
+    x: walk.from.x + dx * done,
+    z: walk.from.z + dz * done,
+    hx: dx / length,
+    hz: dz / length,
+    moving: done > 0 && done < 1,
+  };
+}
+
+/** Rozestup kusů odehnaného stáda za vojskem (m) – návrh Clauda. */
+export const DRIVEN_HERD_M = { behind: 6, spacing: 2.4 } as const;
+
+/**
+ * Odehnané stádo jde s vojskem (war.md – Napadená ves): kusy v hloučku za skupinou ve směru
+ * chůze `heading` – řady po třech, každá o rozestup dál.
+ */
+export function drivenHerd(
+  lead: { x: number; z: number },
+  heading: { x: number; z: number },
+  count: number,
+): { x: number; z: number }[] {
+  const out: { x: number; z: number }[] = [];
+  for (let i = 0; i < count; i++) {
+    const row = Math.floor(i / 3);
+    const side = ((i % 3) - 1) * DRIVEN_HERD_M.spacing + (row % 2 ? DRIVEN_HERD_M.spacing / 2 : 0);
+    const back = DRIVEN_HERD_M.behind + row * DRIVEN_HERD_M.spacing;
+    out.push({
+      x: lead.x - heading.x * back + heading.z * side,
+      z: lead.z - heading.z * back - heading.x * side,
+    });
+  }
+  return out;
+}

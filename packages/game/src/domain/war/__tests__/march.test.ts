@@ -9,11 +9,13 @@ import {
   type Landscape,
   type StreamPoint,
 } from '../../landscape';
-import { addGate, fortificationArea, fortificationOutline, fortSegments } from '../../village';
+import { addGate, areaOutline, fortificationArea, fortSegments } from '../../village';
 import type { Fortification } from '../../village/fortification/types';
 import type { FortKind, FortTop, Road, TileCell, VillageState } from '../../village/types';
-import { village } from '../../village/__tests__/kin-fixtures';
+import { dwelling, village } from '../../village/__tests__/kin-fixtures';
+import { horsePen } from '../../village/__tests__/horse-fixtures';
 import {
+  MARCH_BUILDING,
   MARCH_FORD,
   MARCH_FOREST,
   MARCH_GATE,
@@ -163,7 +165,7 @@ function fort(kind: FortKind, top?: FortTop, gate = false): Fortification {
   for (let y = 62; y < 66; y++) for (let x = 62; x < 66; x++) cells.push({ x, y });
   const area = fortificationArea(cells, null, { size: SIZE, cellSizeM: 15 });
   if ('error' in area) throw new Error(area.error);
-  const outline = fortificationOutline(area, kind);
+  const outline = areaOutline(area, kind);
   const gates = gate ? addGate(outline, [], { x: 0, z: -30 }) : [];
   if (!Array.isArray(gates)) throw new Error(gates.error);
   return {
@@ -352,5 +354,47 @@ describe('zlatá cesta a determinismus (skutečné krajiny)', () => {
     expect(east.lengthM).toBeCloseTo(955, -1);
     const ne = marchPathToEdge(grid, { x: 0, z: 0 }, 'NE')!;
     expect(ne.points[ne.points.length - 1]).toEqual({ x: 955, z: 955 });
+  });
+});
+
+describe('stavby vsi pochod blokují (war.md – Pohyb – Terén)', () => {
+  const W = { x: -60, z: 0 };
+  const E = { x: 60, z: 0 };
+
+  it('dvorec vojsko obejde, dílna s dvorem také', () => {
+    const house = { ...dwelling(1, 'dvorec'), position: { x: 0, z: 0, rotation: 0 } };
+    const grid = marchGrid(flat(), null, village([], [house]));
+    expect(grid.flags[marchCellAt(grid, { x: 0, z: 0 })]! & MARCH_BUILDING).toBeTruthy();
+    const path = marchPath(grid, W, E)!;
+    for (const c of path.cells) expect(grid.flags[c]! & MARCH_BUILDING).toBe(0);
+    // bez vsi přímo, se stavbou oklikou
+    const straight = marchPath(marchGrid(flat(), null, null), W, E)!.lengthM;
+    expect(path.lengthM).toBeGreaterThan(straight + 3);
+    const smith = { ...house, workshop: { craft: 'smith' as const } };
+    const withYard = marchGrid(flat(), null, village([], [smith as typeof house]));
+    expect(marchPath(withYard, W, E)).not.toBeNull();
+  });
+
+  it('cíl i start uvnitř domu se přesunou k nejbližší volné buňce', () => {
+    const house = { ...dwelling(1, 'dvorec'), position: { x: 0, z: 0, rotation: 0 } };
+    const grid = marchGrid(flat(), null, village([], [house]));
+    const into = marchPath(grid, W, { x: 0, z: 0 });
+    expect(into).not.toBeNull();
+    expect(into!.points[into!.points.length - 1]).toEqual({ x: 0, z: 0 });
+    expect(marchPath(grid, { x: 0, z: 0 }, E)).not.toBeNull();
+  });
+
+  it('ohrada je neprůchodná, pole průchozí tempem louky', () => {
+    const pen = village([], [], { pens: [horsePen(90, [], 3)] });
+    const grid = marchGrid(flat(), null, pen);
+    const blocked = [...grid.flags].filter((f) => (f & MARCH_BUILDING) !== 0).length;
+    expect(blocked).toBeGreaterThan(0);
+    const around = marchPath(grid, { x: -20, z: 0 }, { x: 80, z: 0 })!;
+    for (const c of around.cells) expect(grid.flags[c]! & MARCH_BUILDING).toBe(0);
+  });
+
+  it('opevnění: branou projde, jinak obejde (stavby ho nerozbijí)', () => {
+    const grid = marchGrid(flat(), null, fortVillage(fort('palisade', undefined, true)));
+    expect(marchPath(grid, OUT, IN)).not.toBeNull();
   });
 });

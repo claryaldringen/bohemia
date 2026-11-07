@@ -33,6 +33,9 @@ function checkResult(mode: PlacementMode, result: PlacementResult): PlacementChe
     return result.plot ? mode.check(result.plot) : { ok: false, reason: 'Chybí pozemek.' };
   }
   if (mode.kind === 'squares' && result.kind === 'squares') return mode.preview(result.cells).check;
+  if (mode.kind === 'fort-points' && result.kind === 'fort-points') {
+    return mode.preview(result.points).check;
+  }
   if (mode.kind === 'sacred' && result.kind === 'sacred' && result.type === mode.type) {
     return mode.check(result.position);
   }

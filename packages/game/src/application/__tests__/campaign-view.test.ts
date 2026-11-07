@@ -1,0 +1,196 @@
+import { describe, expect, it } from 'vitest';
+import type { CampaignMap, CampaignState } from '../../domain/war';
+import { tickOfMs } from '../../domain/war';
+import type { Dwelling } from '../../domain/village/types';
+import { attacker, battle, defender, land } from '../../domain/war/__tests__/battle-fixtures';
+import { campaign, member, world } from '../../domain/war/__tests__/campaign-fixtures';
+import { campaignViewFor, commandCampaign, type CampaignCommand } from '../campaign-view';
+import type { VillageRecord } from '../villages';
+import { InMemoryCampaigns } from './in-memory-campaigns';
+
+// Živé vedení a pohled na tažení (plán 2026-11-03 – Úloha 6.14, Review Focus 4): podvržený záměr
+// server odmítne a pohled neprozradí nic mimo dohled vlastních mužů.
+
+/** Les na mapě cíle severně od bojiště (z ≈ 80–130 m). */
+const forest = (tx: number, ty: number): boolean => tx >= 58 && tx <= 70 && ty >= 69 && ty <= 72;
+const TARGET_MAP: CampaignMap = { landscape: land(forest), obstacles: null, villageIds: [] };
+
+const house = (id: number, x: number, z: number): Dwelling =>
+  ({ id, type: 'zemnice', position: { x, z, rotation: 0 } }) as unknown as Dwelling;
+
+/** Tažení na mapě cíle: p1 vede živě (muži 0 a 1), vazal p2 má muže 2; tři obránci. */
+function raiding(overrides: Partial<CampaignState> = {}): CampaignState {
+  const base = campaign({
+    members: [member(1, 0, true), member(2, 0, false), { ...member(11, 0, false), playerId: 'p2' }],
+  });
+  return {
+    ...base,
+    phase: 'raiding',
+    groups: base.groups.map((g) => ({ ...g, cell: { ...base.target.cell }, pos: { x: 0, z: 0 } })),
+    battle: battle({
+      attackers: [
+        attacker(0, { x: 0, z: 0 }, { line: true, mounted: true }),
+        attacker(1, { x: 5, z: 0 }),
+        attacker(2, { x: -5, z: 0 }),
+      ],
+      defenders: [
+        // v otevřené krajině v dohledu
+        defender(101, { x: 100, z: 0 }),
+        // v lese 100 m od mužů – les zkrátí dohled na 50 m
+        defender(102, { x: 0, z: 100 }),
+        // daleko
+        defender(103, { x: 400, z: 0 }),
+      ],
+      commander: 0,
+      live: true,
+    }),
+    discovered: [7],
+    ...overrides,
+  };
+}
+
+async function setup(state: CampaignState = raiding()): Promise<{
+  deps: Parameters<typeof commandCampaign>[0];
+  campaigns: InMemoryCampaigns;
+  nowMs: number;
+}> {
+  const campaigns = new InMemoryCampaigns();
+  await campaigns.create(state);
+  const target = {
+    id: state.target.villageId,
+    state: { dwellings: [house(7, 300, 0), house(8, -500, 0)] },
+  } as unknown as VillageRecord;
+  const deps = {
+    campaigns,
+    cells: { mapOf: (): Promise<CampaignMap> => Promise.resolve(TARGET_MAP) },
+    villages: {
+      find: (id: string): Promise<VillageRecord | null> =>
+        Promise.resolve(id === target.id ? target : null),
+    },
+    world,
+  };
+  return { deps, campaigns, nowMs: world.startMs + state.tick * 250 + 10 };
+}
+
+describe('campaignViewFor', () => {
+  it('vlastní muži celí, vazal jen poloha, cizí jen v dohledu, stavby jen objevené', async () => {
+    const { deps } = await setup();
+    const view = await campaignViewFor(deps, { playerId: 'p1', campaignId: 'c1', sinceTick: 0 });
+    expect(view).not.toBeNull();
+    expect(view!.men.map((m) => m.member)).toEqual([0, 1]);
+    expect(view!.men[0]).toMatchObject({ commander: true, health: 100, line: true });
+    expect(view!.allies.map((m) => m.member)).toEqual([2]);
+    expect(view!.allies[0]).not.toHaveProperty('health');
+    // obránce v lese ani daleko pohled nenese
+    expect(view!.foreign.map((f) => f.id)).toEqual(['d:101']);
+    expect(view!.discovered).toEqual([{ id: 7, type: 'zemnice', pos: { x: 300, z: 0 } }]);
+    expect(view!.liveCommand).toBe(true);
+    expect(view!.fresh).toBe(true);
+    const again = await campaignViewFor(deps, {
+      playerId: 'p1',
+      campaignId: 'c1',
+      sinceTick: view!.tick,
+    });
+    expect(again!.fresh).toBe(false);
+  });
+
+  it('vazal vidí svým mužem a živě nevede; cizí hráč a neznámé tažení = null', async () => {
+    const { deps } = await setup();
+    const vassal = await campaignViewFor(deps, { playerId: 'p2', campaignId: 'c1', sinceTick: 0 });
+    expect(vassal!.men.map((m) => m.member)).toEqual([2]);
+    expect(vassal!.liveCommand).toBe(false);
+    expect(await campaignViewFor(deps, { playerId: 'p3', campaignId: 'c1', sinceTick: 0 })).toBe(
+      null,
+    );
+    expect(await campaignViewFor(deps, { playerId: 'p1', campaignId: 'xx', sinceTick: 0 })).toBe(
+      null,
+    );
+  });
+});
+
+describe('commandCampaign', () => {
+  const lead = (target: Extract<CampaignCommand, { kind: 'lead' }>['target']): CampaignCommand => ({
+    kind: 'lead',
+    target,
+  });
+  const place = lead({ kind: 'place', place: { cell: { x: 1, y: 0 }, pos: { x: 50, z: -20 } } });
+
+  it('vlastní velitel jde na místo – záměr na takt teď + 2', async () => {
+    const { deps, campaigns, nowMs } = await setup();
+    const input = { playerId: 'p1', campaignId: 'c1', nowMs };
+    expect(await commandCampaign(deps, { ...input, command: place })).toBe(true);
+    expect(campaigns.intents).toHaveLength(1);
+    expect(campaigns.intents[0]).toMatchObject({
+      tick: tickOfMs(nowMs, world) + 2,
+      byPlayer: 'p1',
+      body: { kind: 'march', to: { cell: { x: 1, y: 0 }, pos: { x: 50, z: -20 } } },
+    });
+    expect(
+      await commandCampaign(deps, { ...input, command: lead({ kind: 'fighter', id: 'd:101' }) }),
+    ).toBe(true);
+    expect(
+      await commandCampaign(deps, { ...input, command: lead({ kind: 'building', id: 7 }) }),
+    ).toBe(true);
+    expect(await commandCampaign(deps, { ...input, command: { kind: 'presence' } })).toBe(true);
+    expect(
+      await commandCampaign(deps, {
+        ...input,
+        command: { kind: 'order', group: 0, order: 'hold-place', at: { x: 10, z: 10 } },
+      }),
+    ).toBe(true);
+    expect(
+      await commandCampaign(deps, {
+        ...input,
+        command: { kind: 'surrendered', group: 0, choice: 'lead' },
+      }),
+    ).toBe(true);
+    expect(campaigns.intents.map((i) => i.body.kind)).toEqual([
+      'march',
+      'strike',
+      'march',
+      'presence',
+      'set-order',
+      'choose-surrendered',
+    ]);
+  });
+
+  it('záměr za cizího muže, za mrtvého a na neznámý cíl server odmítne', async () => {
+    const { deps, campaigns, nowMs } = await setup();
+    const as = (playerId: string, command: CampaignCommand): Promise<boolean> =>
+      commandCampaign(deps, { playerId, campaignId: 'c1', command, nowMs });
+    // vazal ve službě ani cizí hráč tažení nevede
+    expect(await as('p2', place)).toBe(false);
+    expect(await as('p2', { kind: 'presence' })).toBe(false);
+    expect(await as('p3', place)).toBe(false);
+    // obránce v lese mimo dohled, neobjevená stavba, neznámý muž, místo mimo dosah a mimo mapu
+    expect(await as('p1', lead({ kind: 'fighter', id: 'd:102' }))).toBe(false);
+    expect(await as('p1', lead({ kind: 'fighter', id: 'd:103' }))).toBe(false);
+    expect(await as('p1', lead({ kind: 'building', id: 8 }))).toBe(false);
+    expect(await as('p1', lead({ kind: 'building', id: 99 }))).toBe(false);
+    const far = { cell: { x: 5, y: 5 }, pos: { x: 0, z: 0 } };
+    expect(await as('p1', lead({ kind: 'place', place: far }))).toBe(false);
+    const off = { cell: { x: 1, y: 0 }, pos: { x: 5000, z: 0 } };
+    expect(await as('p1', lead({ kind: 'place', place: off }))).toBe(false);
+    expect(await as('p1', { kind: 'order', group: 9, order: 'attack-all' })).toBe(false);
+    expect(campaigns.intents).toHaveLength(0);
+  });
+
+  it('padlý nebo zajatý velitel a tažení vedené jiným mužem – žádný pokyn', async () => {
+    const base = raiding();
+    const fallen = raiding({
+      members: base.members.map((m, i) => (i === 0 ? { ...m, status: 'fallen' as const } : m)),
+    });
+    for (const state of [fallen, raiding({ liveCommand: false })]) {
+      const { deps, campaigns, nowMs } = await setup(state);
+      const input = { playerId: 'p1', campaignId: 'c1', nowMs };
+      expect(await commandCampaign(deps, { ...input, command: place })).toBe(false);
+      expect(
+        await commandCampaign(deps, {
+          ...input,
+          command: { kind: 'surrendered', group: 0, choice: 'kill' },
+        }),
+      ).toBe(false);
+      expect(campaigns.intents).toHaveLength(0);
+    }
+  });
+});

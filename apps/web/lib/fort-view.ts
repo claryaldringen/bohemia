@@ -32,7 +32,6 @@ import {
 export type FortPoint = readonly [number, number];
 
 /** Kolik bodů má oblouk rohu v obrysu (čtvrtkruh). */
-const ARC_POINTS = 6;
 
 /** Důvody, proč se tlačítko panelu nedá použít (bez čísla). */
 export const FORT_BUSY_TEXT = 'Stavba už běží.';
@@ -51,13 +50,13 @@ export function missingLogsText(missing: number): string {
  */
 export interface SceneFortification extends Pick<
   Fortification,
-  'id' | 'grid' | 'cells' | 'kind' | 'top' | 'segments' | 'gates' | 'rampartHeight'
+  'id' | 'points' | 'grid' | 'cells' | 'kind' | 'top' | 'segments' | 'gates' | 'rampartHeight'
 > {
   building: boolean;
   outline: FortPoint[];
   band: FortPoint[][];
-  /** Tvar úseků v pořadí obvodu (jádro – `fortSegments`): rovná část a oblouk rohu. */
-  shapes: Pick<FortSegmentShape, 'index' | 'line' | 'arc' | 'lengthM'>[];
+  /** Tvar úseků v pořadí obvodu (jádro – `fortSegments`): lomená čára křivky a délka. */
+  shapes: Pick<FortSegmentShape, 'index' | 'path' | 'lengthM'>[];
   /** Poloměry rohů obvodu (jádro – `FortOutline.corners`): vnější a vnitřní roh, zmenšené. */
   corners: FortOutline['corners'];
   /** Stáří a stavba úseků ve scéně – stejné pořadí jako `shapes` (fortification-layout.ts). */
@@ -124,21 +123,9 @@ export interface VillageFortification {
   tops?: { top: FortTop; option: FortWorkOption }[];
 }
 
-/** Uzavřený obrys vnějšího okraje – body rovných kusů a oblouků po směru hodin. */
-export function fortOutlinePolyline(shapes: readonly FortSegmentShape[]): FortPoint[] {
-  const points: FortPoint[] = [];
-  for (const s of shapes) {
-    points.push([s.line.x, s.line.z]);
-    points.push([s.line.x + s.line.dx * s.line.length, s.line.z + s.line.dz * s.line.length]);
-    const a = s.arc;
-    if (!a) continue;
-    for (let i = 1; i <= ARC_POINTS; i++) {
-      const t = (i / ARC_POINTS) * (Math.PI / 2);
-      const cos = Math.cos(t);
-      const sin = Math.sin(t);
-      points.push([a.x + a.r * (a.ux * cos + a.vx * sin), a.z + a.r * (a.uz * cos + a.vz * sin)]);
-    }
-  }
+/** Uzavřený obrys vnějšího okraje – lomená čára křivky po směru hodin, první bod i na konci. */
+export function fortOutlinePolyline(outline: FortOutline): FortPoint[] {
+  const points = outline.polyline.map(([x, z]): FortPoint => [x, z]);
   if (points.length > 0) points.push(points[0]!);
   return points;
 }
@@ -146,7 +133,7 @@ export function fortOutlinePolyline(shapes: readonly FortSegmentShape[]): FortPo
 /** Obrys a pás hotového tvaru `outline`. */
 export function fortShape(outline: FortOutline): Pick<SceneFortification, 'outline' | 'band'> {
   return {
-    outline: fortOutlinePolyline(fortSegments(outline)),
+    outline: fortOutlinePolyline(outline),
     band: fortBandPieces(outline).map((p) => p.corners.map(([x, z]): FortPoint => [x, z])),
   };
 }
@@ -184,15 +171,16 @@ export function sceneFortification(
   const shapes = fortSegments(outline);
   return {
     id: fort.id,
-    grid: fort.grid,
-    cells: fort.cells,
+    ...(fort.points ? { points: fort.points } : {}),
+    ...(fort.grid !== undefined ? { grid: fort.grid } : {}),
+    ...(fort.cells ? { cells: fort.cells } : {}),
     kind: fort.kind,
     ...(fort.top ? { top: fort.top } : {}),
     segments: fort.segments,
     gates: fort.gates,
     ...(fort.rampartHeight !== undefined ? { rampartHeight: fort.rampartHeight } : {}),
     ...fortShape(outline),
-    shapes: shapes.map(({ index, line, arc, lengthM }) => ({ index, line, arc, lengthM })),
+    shapes: shapes.map(({ index, path, lengthM }) => ({ index, path, lengthM })),
     corners: outline.corners,
     looks,
     ...extra,

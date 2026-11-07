@@ -5,6 +5,7 @@ import { foundVillage } from '../actions';
 import { FORTIFICATIONS } from '../rules-fortifications';
 import { decideFortRebuilds, rampartMaintenance, segmentState } from '../fortification/decay';
 import { fortWalls } from '../fortification/walls';
+import { squarePoints } from '../fortification/convert';
 import {
   finishFortification,
   outlineOf,
@@ -36,8 +37,7 @@ function village(logs = 400): VillageState {
 /** Opevnění `kind` s úseky dokončenými před `ageDays` dny (bez simulace stavby). */
 function aged(kind: FortKind, ageDays: number, logs = 400): VillageState {
   const result = startFortification(village(), DAY, landscape, EMPTY, {
-    cells: AREA,
-    grid: null,
+    points: squarePoints(AREA, null, landscape, kind)!,
     kind,
   });
   if (!result.ok) throw new Error(result.reason);

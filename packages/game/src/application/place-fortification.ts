@@ -1,11 +1,5 @@
 import { obstaclesOf, type Landscape } from '../domain/landscape';
-import {
-  startFortification,
-  villageRoadWalk,
-  type FortKind,
-  type SquareGrid,
-  type TileCell,
-} from '../domain/village';
+import { startFortification, villageRoadWalk, type FortKind } from '../domain/village';
 import { updateLivingVillage } from './update-village';
 import type { VillageRepository, VillageResult } from './villages';
 
@@ -15,10 +9,8 @@ export interface PlaceFortificationInput {
   landscape: Landscape;
   /** Dnešní herní den (index dne). */
   today: number;
-  /** Nakreslené čtverce plochy – políčka krajiny, nebo čtverce natočené mřížky `grid`. */
-  cells: TileCell[];
-  /** Natočená mřížka (fields.md – Natočené stavby); bez ní mřížka krajiny. */
-  grid?: SquareGrid;
+  /** Body obvodu ve světě (m) – návrh hry upravený hráčem; tvar a kontroly přepočítá server. */
+  points: (readonly [number, number])[];
   kind: FortKind;
 }
 
@@ -43,7 +35,7 @@ export function placeFortification(
         state.lastDay,
         input.landscape,
         obstaclesOf(input.landscape),
-        { cells: input.cells, grid: input.grid ?? null, kind: input.kind },
+        { points: input.points, kind: input.kind },
         villageRoadWalk(state, input.landscape),
       ),
   );

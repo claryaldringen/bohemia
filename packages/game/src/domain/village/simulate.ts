@@ -2,6 +2,7 @@ import { TOTAL_GAME_DAYS, dateOfDayIndex } from '../calendar';
 import type { Landscape, ObstacleLayer } from '../landscape';
 import { abandonmentCheck, abandonmentDay } from './abandonment';
 import { retireCarts, withFourWheelReach } from './carts';
+import { withFortPoints } from './fortification/convert';
 import { updateOrePits } from './smith-supply';
 import { finishPurchases, startPurchases } from './craft-buying';
 import { withCraftSkill } from './craft-skill';
@@ -189,6 +190,9 @@ export function* advanceVillageSteps(
   if (cleared !== next) Object.assign(next, cleared);
   // dosahy čtyřkoláku z doby „jen po pevných cestách“ se spočítají znovu (wagons.md)
   withFourWheelReach(next);
+  // opevnění nakreslená po čtvercích dostanou body obvodu (fortifications.md – Pro implementaci –
+  // Obvod z bodů) – jednou, idempotentně; potřebují rozměry krajiny
+  if (landscape) withFortPoints(next, landscape);
   const eventsByDay = inboxByDay(inbox);
   // vymřelá, opuštěná a ves na cestě se nesimulují – jen se posune den (migration.md)
   for (let day = next.lastDay + 1; day <= toDay && !isVillageDormant(next); day++) {

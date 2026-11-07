@@ -347,3 +347,30 @@ describe('podmínky vazalství v panelu', () => {
     expect(onRenounce).toHaveBeenLastCalledWith('va-3', null);
   });
 });
+
+describe('výkupné zajatců', () => {
+  it('tlačítko je jen u rodu, jemuž zajatec patří', async () => {
+    const other = link('h-o', {
+      actions: { offer: null, request: null, blocked: false, war: null },
+    });
+    const captives = [{ id: 'z-1', name: 'Bořivoj', noble: true, houseId: 'h-o' }];
+    const open = async (): Promise<void> => {
+      await act(async () => {
+        host
+          .querySelector<HTMLElement>('[data-testid="house-other"][data-house-id="h-o"]')!
+          .click();
+      });
+    };
+    render({ view: { ...VIEW, others: [other] }, captives });
+    await open();
+    expect(host.querySelector('[data-testid="house-ransom"]')).not.toBeNull();
+    act(() => root.unmount());
+    root = createRoot(host);
+    render({
+      view: { ...VIEW, others: [other] },
+      captives: [{ ...captives[0]!, houseId: 'h-jiny' }],
+    });
+    await open();
+    expect(host.querySelector('[data-testid="house-ransom"]')).toBeNull();
+  });
+});

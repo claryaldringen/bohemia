@@ -20,3 +20,5 @@ export * from './raid-apply';
 export * from './surrender';
 export * from './captives';
 export * from './npc-commander';
+export * from './sight';
+export * from './view';

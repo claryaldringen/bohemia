@@ -244,6 +244,24 @@ async function viewOf(
     mapsBlocked:
       !stewarding && from && from.worldCell === null && !from.isSeat ? NO_WORLD_CELL : null,
   });
+  // rod zajatců (výkupné jen rodu protistrany): ves původu → majitel → jeho živý rod
+  const prisoners = view.manor?.prisoners;
+  if (view.manor && prisoners) {
+    const deps = gameDeps();
+    const owners = new Map<string, string | undefined>();
+    for (const p of prisoners) {
+      if (!owners.has(p.homeVillageId)) {
+        const home = await deps.villages.find(p.homeVillageId);
+        const settlement = home ? await deps.settlements.find(home.settlementId) : null;
+        const house = settlement?.ownerId ? await deps.houses.activeOf(settlement.ownerId) : null;
+        owners.set(p.homeVillageId, house?.id);
+      }
+    }
+    view.manor.prisoners = prisoners.map((p) => {
+      const houseId = owners.get(p.homeVillageId);
+      return houseId ? { ...p, houseId } : p;
+    });
+  }
   // otisk z vsí hráče, jak je pohled vidí – stejný spočítá levný dotaz (currentViewStampOfPlayer),
   // když by pohled nic nepočítal; u spravované vsi otisk správce (jen to, co správce vidí)
   if (!listed) return view;
@@ -745,15 +763,14 @@ export function placePenForPlayer(
 }
 
 /**
- * Stavba opevnění (fortifications.md – Obvod, Cena a stavba): čtverce plochy (i natočené – `grid`)
- * a druh. Server umístění ověří znovu (`checkFortificationPlacement`).
+ * Stavba opevnění (fortifications.md – Obvod, Cena a stavba): body obvodu a druh. Server tvar
+ * a umístění spočítá a ověří znovu (`checkFortificationPlacement`).
  */
 export function placeFortificationForPlayer(
   playerId: string,
   villageId: string,
-  input: { cells: TileCell[]; kind: FortKind; grid?: SquareGrid },
+  input: { points: [number, number][]; kind: FortKind },
 ): Promise<VillageActionResult> {
-  const grid = input.grid;
   return actOn(playerId, villageId, 'placeFortification', (ctx) =>
     placeFortification(
       { villages: villages() },
@@ -761,9 +778,8 @@ export function placeFortificationForPlayer(
         villageId: ctx.villageId,
         landscape: ctx.landscape,
         today: ctx.day,
-        cells: input.cells,
+        points: input.points,
         kind: input.kind,
-        ...(grid ? { grid } : {}),
       },
     ),
   );

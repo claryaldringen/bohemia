@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   addGate,
   fortificationArea,
-  fortificationOutline,
+  areaOutline,
   fortSegments,
   fortWalls,
   type FortGate,
@@ -34,7 +34,7 @@ import {
 const CELLS = Array.from({ length: 16 }, (_, k) => ({ x: 8 + (k % 4), y: 8 + Math.floor(k / 4) }));
 const AREA = fortificationArea(CELLS, null, LANDSCAPE);
 if ('error' in AREA) throw new Error('plocha opevnění testu');
-const OUTLINE = fortificationOutline(AREA, 'palisade');
+const OUTLINE = areaOutline(AREA, 'palisade');
 
 function fort(gates: readonly PathPoint[]): Fortification {
   let list: FortGate[] = [];

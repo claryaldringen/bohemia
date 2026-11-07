@@ -159,6 +159,10 @@ export interface PrisonerView {
   id: string;
   name: string | null;
   noble: boolean;
+  /** Ves, odkud zajatec pochází (war.md – výkupné); rod z ní doplní server (`houseId`). */
+  homeVillageId: string;
+  /** Rod zajatce (výkupné se nabízí jen zajatcům protistrany); chybí, nezná-li ho server. */
+  houseId?: string;
 }
 
 /** Dvorec vojvody pro panel výběru. */
@@ -378,6 +382,7 @@ export function manorView(
             id: p.id,
             name: p.name ?? null,
             noble: p.noble === true,
+            homeVillageId: p.ref.villageId,
           })),
         }
       : {}),

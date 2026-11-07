@@ -16,66 +16,89 @@ a stavba po úsecích (Ú5.2) – níž; stěny a brány v síti cest (Ú5.3) �
 rozhraní opevnění (katalog, kreslení, panel, minimapa) je v
 [web-ui.md – Opevnění v rozhraní](web-ui.md), modely ve scéně zatím nejsou.
 
-## Plocha a obvod (`outline.ts`)
+## Obvod z bodů (`curve.ts`, `outline.ts`; Martin 7. 11. 2026)
 
-- **`fortificationArea(cells, grid, geo)`** – čtverce v mřížce stavby (`SquareGrid`, null = mřížka
-  krajiny; `geo` = `GridGeometry` krajiny – strana políčka) → `FortArea { grid, geo, cells,
-squares }`, nebo `{ error: 'empty' | 'disconnected' | 'too-small' }`. Opakované čtverce sloučí,
-  souvislost stranou (dotyk rohem nestačí), díry zaplní (prázdné čtverce, kam se zvenku stranou
-  nedostane), nejméně jeden blok 2 × 2. `squares` (`EntranceSquare` – střed ve světě, strana,
-  natočení) jsou podklad pro `fenceOutline`.
-- **`fortificationOutline(area, kind)`** → `FortOutline`:
-  - `sides` – strany okrajových čtverců **po směru hodin** (plocha vpravo), začátek na
-    nejsevernějším středu strany (sever = +z), při shodě nejzápadnějším; roh na konci strany
-    `outer` / `inner` / null a jeho poloměr. Obrys je jedna smyčka – po zaplnění děr se dva čtverce
-    jen rohem nedotýkají.
-  - `corners` – poloměry rohů vnějšího okraje z `FORTIFICATIONS.cornerM` (plot 1,25 / 0,5 m,
-    palisáda 3 / 1,5 m, val 8 / 4 m). Když se dva rohy nevejdou na rovný kus mezi sebou (val na
-    pruhu širokém jeden čtverec: 2 × 8 m > 15 m), zmenší se všechny stejným poměrem
-    (`fittedCorners` – 7,5 / 3,75 m).
-  - `runs` – rovné kusy vnějšího okraje (přes víc stran na přímce, zkrácené o tečny) a oblouk
-    rohu na konci každého (`FenceSegment`, `FenceArc` z `paths/entrances.ts`). Stejné kusy
-    a oblouky dá `fenceOutline(area.squares, 0, outline.corners)` (test) – plot pozemků má poloměry
-    parametrem `corners` (výchozí `WOVEN_FENCE_CORNER_M`, dnešní volání beze změny).
-  - `lengthM` – délka vnějšího okraje se zakulacenými rohy (obvod − (2 − π/2) × poloměr za roh).
-  - `bandM` – pás uvnitř plochy (1 / 1,5 / 10 m).
-  - `innerAreaM2` – útočiště uvnitř vnitřní hrany pásu (`innerArea`): ostrá eroze plochy čtvercem
-    ± pás přesně na stlačené mřížce (zlomy na hranách čtverců ± pás), pak zakulacení na jejích
-    rozích – vnější roh poloměrem max(vnější − pás, 0), vnitřní (vnitřní + pás), (1 − π/4) × r².
-    Pruh užší než dva pásy (val na pruhu jednoho čtverce) zmizí sám.
-- **Zlaté hodnoty** (4 × 4 čtverce, `__tests__/outline.test.ts`): délka plot 237,854 m, palisáda
-  234,850 m, val 226,266 m; útočiště 3 363,95 / 3 247,07 / 1 600 m². Natočená mřížka dá tutéž
-  délku i plochu.
+Obvod nese body (`Fortification.points`), vnější okraj je **hladká uzavřená křivka** přes ně.
+Dřívější obvod po čtvercích zůstal jen pro převod (`squares-outline.ts`, `squares-segments.ts` –
+`fortificationArea`, `squareOutline`, `squareSegments`; testy `squares-outline.test.ts`).
+
+- **`curve.ts`** – `normalizeFortPoints` (po směru hodin, začátek v nejsevernějším bodě – sever =
+  +z, při shodě nejzápadnější; body bližší než 0,1 m se sloučí – výsledek nezávisí na začátku ani
+  směru zadání), centripetální Catmull-Rom jako Hermitova kubika (uzly po odmocnině vzdáleností),
+  `sampleCurve` (krok ≈ `FORTIFICATIONS.outline.sampleStepM` 1,5 m, nejméně 2 vzorky na kus),
+  `curveBend` (poloměr z derivací |v|³ ÷ |x′z″ − z′x″|), `polylineLength`, `polylineArea`
+  (shoelace), `steinerInnerArea` (A − L·b + π·b², ≥ 0) a `selfCrossing`.
+- **`fortificationOutline(points, kind)`** → `FortOutline | null` (méně než 3 různé body null):
+  `points` (v pevném pořadí), `polyline` + `stations` (navzorkovaná křivka a poloha bodů na obvodu),
+  `runs` (krátké `FenceSegment`, `arc: null`), `corners` (nejmenší poloměr druhu – pro scénu),
+  `lengthM`, `areaM2`, `bandM`, `innerAreaM2` (Steiner) a `segmentStarts` (hranice úseků vložené do
+  lomené čáry). `outlinePointAt(outline, s)` – bod v dané vzdálenosti po obvodu.
+- **`fortShapeError(outline)`** – `too-few` (< 4 body), `sharp` (ohyb ostřejší než
+  `FORTIFICATIONS.minBendM`: plot 1,25, palisáda 3, val 8 m), `crossing`, `too-small` (< 900 m²);
+  u ohybu a křížení `at` (místo problému). **Ohyb se měří v měřítku poloměru druhu**
+  (`outlineBend` – kružnice přes body o poloměr druhu po obvodu před a za každým bodem lomené čáry;
+  návrh Clauda): spline na přechodu z rovného kusu do oblouku krátce zakolísá (poloměr
+  z derivací až o ~50 % menší), takže by s ním neprošel ani návrh hry; roh ostřejší než poloměr
+  se pozná dál.
+- **Zlaté hodnoty** (`__tests__/curve.test.ts`): kruh r = 30 m (16 bodů) 188,4219 m / 2 824,63 m²,
+  ovál 40 × 25 m 206,8273 m / 3 138,97 m², promáčknutý kruh 179,4080 m / 2 223,32 m²; útočiště
+  plot / palisáda / val a počty úseků (13, 14, 12) tamtéž. 4 × 4 čtverce převedené na body: plot
+  237,829 m (dřív 237,854), útočiště plot 3 374,5 m² (dřív 3 363,95), val 1 615,7 m² (dřív 1 600).
+
+## Návrh obvodu (`proposal.ts`, `fortification-proposal.ts`)
+
+- **`hullOffsetPoints(polygons, offsetM)`** – vypouklý obal rohů jádra (`convexHull`, Andrew, po
+  směru hodin) odsunutý o odstup: u rohu obalu oblouk (tečny a střed; oblouk nad 45° nebo
+  s tětivou nad 15 m se dál půlí – směry půlením, bez úhlů), na rovných kusech body po nejvýš
+  15 m. `circlePoints(center, r)` – kruh po nejvýš 15 m, od severu.
+- **`fortificationCore(state, geo)`** – obrysy jádra: pozemky obydlí (i dvorce a dílny; obydlí bez
+  pozemku čtverec 10 m), humna (`threshingFloorFootprint`), obilné jámy (2 m) a čtverce ohrad.
+- **`proposeFortification(state, day, landscape, obstacles, kind, at)`** – jádro bez staveb uvnitř
+  jiného opevnění; odstup šířka pásu + 3 m, neprojde-li `checkFortificationPlacement`, po 1 m víc
+  (nejvýš +20 m – `FORTIFICATIONS.proposal`); nic neprojde → návrh s výchozím odstupem a důvodem.
+  Bez jádra kruh 20 m kolem `at`. `proposeFortificationIn(landscape, village, …)` – totéž nad
+  `PlacementVillage` (+ obilné jámy); volá ho prohlížeč (`build-items.ts` – web-ui.md, Opevnění).
+- **`stewardFortificationProposal`** – celé jádro, odstup po 5 m (nejvýš `STEWARD.fortMaxRings`
+  kroků), dokud návrh neprojde kontrolou a útočiště nepojme `refugeNeedM2`.
+
+## Převod opevnění po čtvercích (`convert.ts`)
+
+- **`withFortPoints(state, geo)`** na začátku `advanceVillage` (za `withFourWheelReach`, jen
+  s krajinou) – jednou a idempotentně: `squarePoints` (tečny a středy oblouků zakulaceného okraje
+  druhu, na rovných kusech po ≤ 15 m) → `points`, `grid` a `cells` zmizí. Nový úsek převezme stav
+  (`builtDay`, `state`, `breachedDay`, `kind`, `topBuiltDay`) starého úseku, ve kterém leží jeho
+  střed; brány podle polohy (nejvýš jedna na nový úsek). Plán rozestavěné stavby (`fortSegments`)
+  se přerozdělí: práce starého úseku mezi nové úseky s jeho středem podle délky, bez nich na
+  další – součet práce zůstane. Test `__tests__/convert.test.ts`.
+- **`fortPointsOf` / `fortOutlineOf(geo, fort, kind?)`** – body uložené, nebo u nepřevedeného
+  opevnění ze čtverců; `outlineOf` (`fortifications.ts`) a všichni konzumenti jdou přes ně.
+  `areaOutline(area, kind)` – obvod z bodů staré plochy (testy).
 
 ## Úseky (`segments.ts`)
 
-- **`fortSegments(outline)`** → `FortSegmentShape[]` – úsek = jedna strana okrajového čtverce,
-  pořadí z `outline.sides` (po směru hodin od severu, pevné – nezávisí na pořadí čtverců). `line` –
-  rovná část bez tečen oblouků, `arc` – oblouk rohu na konci (patří k úseku, ve kterém začíná),
-  `lengthM` – součet délek = `outline.lengthM`. Úsek je jednotka stavby, stáří, přestavby i průlomu
-  (další úlohy F5).
+- **`fortSegments(outline)`** → `FortSegmentShape[]` – stejně dlouhé úseky ≈ 15 m (délka ÷
+  zaokrouhlený počet), pořadí po směru hodin od nejsevernějšího bodu. `path` (lomená čára úseku),
+  `startM`, `lengthM`, `mid` (střed na křivce), `line` = tětiva úseku a `arc: null` (kompatibilita
+  se scénou, která zatím kreslí tětivy). `nearestOnSegment` / `nearestOnPath` – vzdálenost
+  a poloha po čáře.
 
 ## Brány (`gates.ts`)
 
-- **`autoGates(outline, roads, anchor)`** – `roads` jsou osy cest (`RoadPoint[]`; které cesty –
-  pevná, vozová, zemská stezka – vybírá volající, pěšiny ne). Průsečíky s rovnou částí i obloukem
-  úseku, nejvýš jedna brána na úsek (první po směru hodin). Bez průsečíku jedna brána uprostřed
-  úseku nejblíž `anchor` (dvorec, bez něj střed obydlí; při shodě menší pořadí).
-- **`addGate(outline, gates, pos)`** – úsek nejblíž kliku do vzdálenosti max(pás, půl brány) od
-  vnějšího okraje, jinak `{ error: 'off-outline' }`; úsek s bránou `{ error: 'segment-taken' }`.
-  Vrací nové pole seřazené podle úseku.
-- `FortGate { segment, offsetM, x, z }` – střed brány na rovné části úseku. Brána 4 m stojí celá
-  na rovné části: průsečík na oblouku nebo u konce se posune (`gateAt`), kratší rovná část než
-  brána – střed.
-- **`roadGates(outline, gates, roads, standing)`** (Ú5.3) – stojící úsek bez brány, který protne
-  cesta, dostane bránu u prvního průsečíku jako v `autoGates`; bez nové brány vrátí totéž pole.
-  Volá ji denní `gateRoadCrossings` (`fortifications.ts`) – cesta přes hotové opevnění dostane
-  bránu (síť cest: [village-roads.md](village-roads.md#brány-opevnění-v-síti-ú53-6-11-2026)).
+- **`autoGates(outline, roads, anchor)`** – průsečíky os cest s lomenou čarou úseku, nejvýš jedna
+  brána na úsek (první po směru hodin); bez průsečíku jedna uprostřed úseku nejblíž `anchor`.
+- `FortGate { segment, offsetM, x, z }` – střed brány na křivce (`offsetM` po obvodu od začátku
+  úseku); brána se celá vejde do úseku (střed nejméně půl brány od konců). **`gateChord`** – rovná
+  4 m tětiva se středem v bodě brány (konce stejně daleko po obvodu, zpřesněné na šířku brány).
+- **`addGate`** (klik do max(pás, půl brány) od křivky, `off-outline` / `segment-taken`) a
+  **`roadGates`** (Ú5.3) jako dřív.
 
 ## Stěny (`walls.ts`, Ú5.3)
 
-- **`fortWalls(geo, fort, work)`** – stěny (pás blokujících úseků bez otvorů bran) a otvory bran
-  jako čtyřúhelníky ve světě; `quadTouchesSquare` a `insideQuad` pro buňky mřížek a obrys plotu.
+- **`fortWalls(geo, fort, work)`** – stěny (kusy pásu blokujících úseků – `bandPieces` – bez části
+  pod tětivou brány), otvory bran (tětiva × šířka pásu) a `detour` – body vně křivky po ≈ 5 m, 1 m
+  za okrajem: hladký obvod nemá ostré rohy, kolem kterých by se lámala objížďka chůze
+  (`walk-walls.ts` je přidá do grafu objížďky). `quadTouchesSquare` a `insideQuad` pro buňky mřížek
+  a obrys plotu.
 - **Celý obvod blokuje od zahájení** (Martin 6. 11. 2026): `segmentBlockKind(fort, seg, work)` –
   druh pásu, kterým úsek blokuje, nebo null: nehotový úsek blokuje při běžící stavbě či vylepšení
   (`work` = `fortRunningWork(state, id)` – `Construction.fortWork` stavby na opevnění), stojící
@@ -95,10 +118,11 @@ squares }`, nebo `{ error: 'empty' | 'disconnected' | 'too-small' }`. Opakované
 
 ## Pás (`band.ts`)
 
-- **`fortBandPieces(outline)`** – pás jako obdélníky: strana okrajového čtverce × šířka pásu dovnitř
-  plochy (plocha vpravo od směru obvodu), u vnitřního rohu navíc čtverec šířky pásu za koncem
-  strany. U vnějšího rohu obdélník zahrne i špičku za obloukem – kontrola je o kus přísnější.
-  `fortBandPolygons` – jen mnohoúhelníky.
+- **`bandPieces(outline, band, index, fromM?, toM?)`** – pás úseku po kusech lomené čáry:
+  čtyřúhelník kus × šířka pásu dovnitř s vnitřními rohy na ose ohybu (sousední kusy sdílejí hranu,
+  pás nemá mezery); kde se vnitřní rohy zkříží (ohyb ostřejší, než pás dovolí), trojúhelník – vnitřní
+  okraj se sejde do rohu. Kusy přesahují o 5 cm, ať úsečka po společné hraně neprojde mezi nimi.
+  `fortBandPieces` / `fortBandPolygons` – celý obvod.
 - **`fortificationBand(geo, fort, building)`** – pás, který zabírá místo jiným stavbám: hotové
   úseky, a dokud na opevnění běží stavba, celý obvod. `checkFootprintFree` (`placement-land.ts`)
   ho bere u každé stavby s půdorysem (`PlacementVillage.fortifications`, důvod
@@ -107,9 +131,10 @@ squares }`, nebo `{ error: 'empty' | 'disconnected' | 'too-small' }`. Opakované
 ## Stav vsi (Ú5.2)
 
 - **`VillageState.fortifications?: Fortification[]`** (`fortification/types.ts`, přes
-  `types-fortifications.ts` v `types.ts`) – volitelné, starší vsi ho nemají a nic se nepřevádí.
-  `Fortification { id, grid (null = krajina), cells, kind, top?, segments, gates, rampartHeight? }`;
-  tvar (obvod, úseky, pás) se z `cells` a `grid` vždy spočítá znovu (`outlineOf`).
+  `types-fortifications.ts` v `types.ts`) – volitelné, starší vsi ho nemají.
+  `Fortification { id, points?, grid?, cells?, kind, top?, segments, gates, rampartHeight? }` –
+  `points` od obvodu z bodů, `grid` a `cells` jen u opevnění po čtvercích do převodu
+  (`withFortPoints`); tvar (křivka, úseky, pás) se z bodů vždy spočítá znovu (`outlineOf`).
 - **`FortSegment { index, builtDay (null = nestojí), topBuiltDay?, state, breachedDay?, kind? }`** –
   `kind` jen u rozdělaného vylepšení (úsek s hotovou palisádou `'palisade'`, `segmentKind`).
   `state` plní chátrání (Ú5.4), `breachedDay` válka (další úlohy F5).
@@ -120,17 +145,18 @@ squares }`, nebo `{ error: 'empty' | 'disconnected' | 'too-small' }`. Opakované
 
 ## Stavba po úsecích (`fortifications.ts`)
 
-- **`checkFortificationPlacement(landscape, village, obstacles, cells, grid, kind)`**
-  (`placement-fortifications.ts`) → `FortPlacementCheck` (plocha, obvod, překážky v pásu,
-  `clearedTrees`, `takenLand`). Pořadí: neplatné čtverce a mřížka, plocha (`FORT_NOT_CONNECTED`,
-  `FORT_TOO_SMALL`), pás uvnitř krajiny (`FORT_OUTSIDE`), dotyk s jiným opevněním – čtverce ploch
-  zvětšené o 5 cm (`FORT_TOUCHES`, i plocha uvnitř jiné), voda pod pásem (`FORT_OVER_WATER`),
+- **`checkFortificationPlacement(landscape, village, obstacles, points, kind)`**
+  (`placement-fortifications.ts`) → `FortPlacementCheck` (obvod, překážky v pásu, `clearedTrees`,
+  `takenLand`). Pořadí: neplatné body (`FORT_BAD_POINTS` – konečná čísla, nejvýš 400), tvar
+  (`fortShapeError` – `FORT_TOO_FEW`, `FORT_SHARP` a `FORT_CROSSING` s místem problému,
+  `FORT_TOO_SMALL`), pás uvnitř krajiny (`FORT_OUTSIDE`), dotyk s jiným opevněním – překryv křivek
+  nebo bližší než 5 cm (`FORT_TOUCHES`, i obvod uvnitř jiného), voda pod pásem (`FORT_OVER_WATER`),
   `checkFootprintFree` s `DWELLING_LAND` (obydlí → `FORT_OVER_BUILDING`, jinak důvod překryvu –
   hřbitov, ohrada, humno, modla, svatyně, milíř, branka souseda), skalní výchoz, posvátný háj a dub.
   Obilné jámy kontrola nezná – stejně jako u ostatních staveb (`placementVillageOf`). Val vezme
   kusy polí a sadů pod pásem (`takenLandUnder`), plot a palisáda ne – překážky dílů pod nimi patří
   poli a sadu.
-- **`startFortification(state, day, landscape, obstacles, { cells, grid, kind }, walk?)`** – brány
+- **`startFortification(state, day, landscape, obstacles, { points, kind }, walk?)`** – brány
   samy (`autoGates` s osami všech pevných cest vsi `state.roads.roads`, kotva dvorec, bez něj
   průměr poloh obydlí), val ubere pole a sady (`giveWayToBuilding(…, 'fortification')` – sad
   ustoupí valu jako obydlí), překážky pásu osadníci odstraní hned (`recordClearedObstacles`,
@@ -223,12 +249,14 @@ men, hours)` (nejvýš 4 muži), `surrenderThreshold(defenders, fortMultiplier)`
   (`addFortificationGate`) – `updateLivingVillage` v den `state.lastDay`, chůze ke stromům
   `villageRoadWalk`. Testy `application/__tests__/fortification-use-cases.test.ts`, doména
   `domain/village/__tests__/fortifications.test.ts`, adaptér `village-repository.db.test.ts`.
-- Web: server actions `placeFortification`, `upgradeFortification`, `addFortificationGate`
-  (`apps/web/app/game/actions.ts`, vstupy `parse…FortificationInput` v `village-input.ts`),
+- Web: server actions `placeFortification` (vstup `{ points: [x, z][], kind }`),
+  `upgradeFortification`, `addFortificationGate` (`apps/web/app/game/actions.ts`, vstupy
+  `parse…FortificationInput` v `village-input.ts`; body posílá editor návrhu – web-ui.md),
   `…ForPlayer` přes `actOn` s právem `build` (`ACTION_RIGHTS`). Tlačítka a kreslení – Ú5.6; cena
   v katalogu (`BUILD_COSTS`) také až s ním – opevnění nemá pevnou cenu, jen `fortificationCost`.
 
 ## Správce a hrozba (Ú5.8)
 
 - `fortification/threat.ts`: `villageThreat(signals, day)`, `threatWeight`, `pruneThreats`, `halfLifeFactor` (poločas bez `Math.pow`); `ThreatSignal` (`fortification/types.ts`) žije ve `VillageState.threats`, zapisuje ho schránka (`threat-signal`). Čísla `FORTIFICATIONS.threat` / `raidLoss` / `stewardRefugeMargin`, horizonty `STEWARD.fortPaybackYears`.
-- Rozhodování, obvod a útočiště správce: `steward-fortification.ts`, krok `fortificationStep` v `steward-extras.ts` – podrobnosti `docs/code/village-steward.md` (Opevnění podle hrozby).
+- Rozhodování a útočiště správce: `steward-fortification.ts`, krok `fortificationStep` v `steward-extras.ts` – podrobnosti `docs/code/village-steward.md` (Opevnění podle hrozby).
+- **Obvod správce** `stewardFortificationFor(state, landscape, obstacles, day, kind)` → `{ points, lengthM }` – návrh kolem celého jádra vsi (`stewardFortificationProposal`), odstup po 5 m, dokud návrh neprojde kontrolou a útočiště nepojme lidi a dobytek + 20 %; záměr `{ kind: 'fortification', points, fortKind }`.

@@ -1,12 +1,13 @@
+import type { Point } from '../polygon';
 import type { FortKind, FortTop, SquareGrid, TileCell } from '../types';
 import type { FortGate } from './gates';
 
-// Opevnění ve stavu vsi (fortifications.md – Obvod, Cena a stavba): plocha po čtvercích, druh,
-// nástavba, úseky se dnem dokončení a brány. Tvar (obvod, úseky, pás) se z plochy vždy znovu
-// spočítá stejnou funkcí (`fortificationArea`, `fortificationOutline`, `fortSegments`) – ukládá
-// se jen to, co tvar neurčí.
+// Opevnění ve stavu vsi (fortifications.md – Obvod, Cena a stavba): body obvodu, druh, nástavba,
+// úseky se dnem dokončení a brány. Tvar (křivka, úseky, pás) se z bodů vždy znovu spočítá stejnou
+// funkcí (`fortificationOutline`, `fortSegments`) – ukládá se jen to, co tvar neurčí. Opevnění
+// nakreslená dřív po čtvercích (`grid`, `cells`) se při načtení vsi převedou na body (`convert.ts`).
 
-/** Úsek opevnění ve stavu vsi – jedna strana okrajového čtverce (`FortSegmentShape.index`). */
+/** Úsek opevnění ve stavu vsi – `FortSegmentShape.index` (stejně dlouhé úseky ≈ 15 m). */
 export interface FortSegment {
   index: number;
   /** Den dokončení úseku (stáří); dokud se staví nebo po zrušení stavby nedostavěný, null. */
@@ -27,10 +28,15 @@ export interface FortSegment {
 /** Opevnění vsi – hotové i rozestavěné (úseky s `builtDay` null). */
 export interface Fortification {
   id: number;
-  /** Mřížka čtverců plochy; null = mřížka krajiny. */
-  grid: SquareGrid | null;
-  /** Nakreslené čtverce plochy (díry se zaplní při výpočtu tvaru). */
-  cells: TileCell[];
+  /**
+   * Body obvodu – hladká uzavřená křivka přes ně je vnější okraj (Obvod; Martin 7. 11. 2026).
+   * Chybí jen u opevnění po čtvercích, která se ještě nepřevedla (`withFortPoints`).
+   */
+  points?: Point[];
+  /** Staré opevnění po čtvercích – mřížka čtverců plochy (null = krajina); po převodu chybí. */
+  grid?: SquareGrid | null;
+  /** Staré opevnění po čtvercích – nakreslené čtverce plochy; po převodu chybí. */
+  cells?: TileCell[];
   kind: FortKind;
   /** Plot nebo palisáda na koruně valu (jen u valu); chybí = val bez nástavby. */
   top?: FortTop;

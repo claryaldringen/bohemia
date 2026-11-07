@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../domain/calendar';
-import { FORT_NOT_FENCE, FORT_GATE_OFF } from '../../domain/village';
+import { FORT_NOT_FENCE, FORT_GATE_OFF, squarePoints } from '../../domain/village';
 import { withBuiltFirstDwelling } from '../../domain/village/__tests__/village-fixtures';
 import { block, makeLandscape } from '../../domain/village/__tests__/placement-fixtures';
 import { addFortificationGate } from '../add-fortification-gate';
@@ -40,7 +40,13 @@ describe('opevnění – use-casy', () => {
     const { villages, villageId } = await settled();
     const placed = await placeFortification(
       { villages },
-      { villageId, landscape, today: TODAY + 1, cells: block(9, 9, 4, 4), kind: 'palisade' },
+      {
+        villageId,
+        landscape,
+        today: TODAY + 1,
+        points: squarePoints(block(9, 9, 4, 4), null, landscape, 'palisade')!,
+        kind: 'palisade',
+      },
     );
     if (!placed.ok) throw new Error(placed.reason);
     const state = placed.village.state;
@@ -54,7 +60,13 @@ describe('opevnění – use-casy', () => {
     const { villages, villageId } = await settled();
     const placed = await placeFortification(
       { villages },
-      { villageId, landscape, today: TODAY + 1, cells: block(9, 9, 4, 4), kind: 'rampart' },
+      {
+        villageId,
+        landscape,
+        today: TODAY + 1,
+        points: squarePoints(block(9, 9, 4, 4), null, landscape, 'rampart')!,
+        kind: 'rampart',
+      },
     );
     if (!placed.ok) throw new Error(placed.reason);
     const fortificationId = placed.village.state.fortifications![0]!.id;

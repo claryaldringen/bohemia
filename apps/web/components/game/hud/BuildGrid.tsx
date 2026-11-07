@@ -179,7 +179,9 @@ export function BuildGrid({
 }): ReactElement {
   const hub = group === null ? null : (BUILD_ITEMS.find((item) => item.kind === group) ?? null);
   const hubVariants =
-    hub?.placement === 'squares' && hub.kind in options ? hub.variants : undefined;
+    (hub?.placement === 'squares' || hub?.placement === 'fort-points') && hub.kind in options
+      ? hub.variants
+      : undefined;
   const items = BUILD_ITEMS.filter((item) => item.kind in options);
   const slots = hub && hubVariants ? 1 + hubVariants.length : items.length;
   const empty = Math.max(0, GRID_SLOTS - slots);

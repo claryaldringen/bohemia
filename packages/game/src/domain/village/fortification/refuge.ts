@@ -1,19 +1,13 @@
 import { FORTIFICATIONS } from '../rules-fortifications';
 import type { GridGeometry } from '../square-grid';
-import { fortificationArea, fortificationOutline } from './outline';
-import type { Fortification } from './types';
+import { fortOutlineOf, type FortShapeSource } from './convert';
 
 // Útočiště (fortifications.md – Útočiště): kdo stihne doběhnout, schová se i s dobytkem, dokud
 // je místo; plocha z nakresleného obvodu. Čistá doména pro válku.
 
 /** Plocha útočiště v m² – uvnitř vnitřní hrany pásu; bez platné plochy 0. */
-export function refugeCapacity(
-  geo: GridGeometry,
-  fort: Pick<Fortification, 'cells' | 'grid' | 'kind'>,
-): number {
-  const area = fortificationArea(fort.cells, fort.grid, geo);
-  if ('error' in area) return 0;
-  return fortificationOutline(area, fort.kind).innerAreaM2;
+export function refugeCapacity(geo: GridGeometry, fort: FortShapeSource): number {
+  return fortOutlineOf(geo, fort)?.innerAreaM2 ?? 0;
 }
 
 /** Kdo přichází do útočiště. */

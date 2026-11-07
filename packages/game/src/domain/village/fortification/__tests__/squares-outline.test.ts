@@ -5,11 +5,11 @@ import { turnRotation } from '../../square-grid';
 import type { FortKind, SquareGrid, TileCell } from '../../types';
 import {
   fortificationArea,
-  fortificationOutline,
-  fortSegments,
+  squareOutline,
   type FortArea,
-  type FortOutline,
-} from '..';
+  type SquareOutline,
+} from '../squares-outline';
+import { squareSegments } from '../squares-segments';
 
 // Obvod opevnění (fortifications.md – Obvod): plocha po čtvercích, vnější okraj se zakulacenými
 // rohy, délka, pás a útočiště; úseky po stranách okrajových čtverců.
@@ -37,8 +37,8 @@ function outline(
   cells: readonly TileCell[],
   kind: FortKind,
   grid: SquareGrid | null = null,
-): FortOutline {
-  return fortificationOutline(area(cells, grid), kind);
+): SquareOutline {
+  return squareOutline(area(cells, grid), kind);
 }
 
 /** Tvar L – 4 × 4 bez čtverce 2 × 2 v severovýchodním rohu (5 vnějších rohů, 1 vnitřní). */
@@ -59,7 +59,7 @@ describe('plocha opevnění', () => {
     const ring = rect(4, 4).filter((c) => !(c.x >= 63 && c.x <= 64 && c.y >= 63 && c.y <= 64));
     const a = area(ring);
     expect(a.cells).toHaveLength(16);
-    expect(fortificationOutline(a, 'palisade').lengthM).toBeCloseTo(
+    expect(squareOutline(a, 'palisade').lengthM).toBeCloseTo(
       outline(rect(4, 4), 'palisade').lengthM,
       9,
     );
@@ -164,7 +164,7 @@ describe('obvod opevnění', () => {
 describe('úseky opevnění', () => {
   it('4 × 4 – 16 úseků po 15 m po směru hodin od severu, oblouk k úseku, kde začíná', () => {
     const o = outline(rect(4, 4), 'palisade');
-    const segments = fortSegments(o);
+    const segments = squareSegments(o);
     expect(segments).toHaveLength(16);
     expect(segments.map((s) => s.index)).toEqual([...Array(16).keys()]);
     // sever (y = 65) od západu k východu, východ (x = 65) od severu k jihu, jih, západ
@@ -204,8 +204,8 @@ describe('úseky opevnění', () => {
   });
 
   it('pořadí úseků je pevné – nezávisí na pořadí čtverců', () => {
-    const a = fortSegments(outline(L_SHAPE, 'fence'));
-    const b = fortSegments(outline([...L_SHAPE].reverse(), 'fence'));
+    const a = squareSegments(outline(L_SHAPE, 'fence'));
+    const b = squareSegments(outline([...L_SHAPE].reverse(), 'fence'));
     expect(b).toEqual(a);
     expect(a).toHaveLength(16);
   });

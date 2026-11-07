@@ -4,8 +4,7 @@ import {
   breachStep,
   breachWork,
   defenderMultiplier,
-  fortificationArea,
-  fortificationOutline,
+  fortOutlineOf,
   fortSegments,
   segmentIsGap,
   type BreachProgress,
@@ -18,7 +17,7 @@ import type { GridGeometry } from '../village/square-grid';
 import type { GroupOrder } from './campaign-types';
 import { defenderPlan, type Defender } from './defenders';
 import { nearestForest } from './flight';
-import { MARCH_FOREST, MARCH_WALL, marchCellAt, type MarchGrid, type Pos } from './march-grid';
+import { MARCH_BUILDING, MARCH_WALL, marchCellAt, type MarchGrid, type Pos } from './march-grid';
 import {
   attackerPlan,
   battleLeader,
@@ -30,6 +29,7 @@ import {
   type PlanContext,
 } from './orders';
 import { WAR } from './rules-war';
+import { inSight } from './sight';
 import type { ShelterReport } from './stance';
 import { TICKS_PER_SECOND } from './ticks';
 
@@ -186,14 +186,14 @@ export function hitDamage(strength: number, multiplier: number, bow: boolean): n
 /** Opevnění vsi s tvarem úseků pro bojiště. */
 export function battleForts(geo: GridGeometry, forts: readonly Fortification[]): BattleFort[] {
   return forts.map((fort) => {
-    const area = fortificationArea(fort.cells, fort.grid, geo);
-    if ('error' in area) return { fort, shapes: [], center: { x: 0, z: 0 } };
-    const shapes = fortSegments(fortificationOutline(area, fort.kind));
+    const outline = fortOutlineOf(geo, fort);
+    if (!outline) return { fort, shapes: [], center: { x: 0, z: 0 } };
+    const shapes = fortSegments(outline);
     let x = 0;
     let z = 0;
     for (const s of shapes) {
-      x += s.line.x + (s.line.dx * s.line.length) / 2;
-      z += s.line.z + (s.line.dz * s.line.length) / 2;
+      x += s.mid[0];
+      z += s.mid[1];
     }
     const n = Math.max(1, shapes.length);
     return { fort, shapes, center: { x: x / n, z: z / n } };
@@ -447,10 +447,10 @@ function firstWall(p: Pos, q: Pos, walls: Walls): { fort: number; line: WallLine
 
 // --- Pohyb ------------------------------------------------------------------------------------
 
-/** Tempo buňky mřížky; stěny opevnění řeší úsečky, ne buňky. */
+/** Tempo buňky mřížky; stěny opevnění řeší úsečky, ne buňky; boj ve vsi stavby neblokují. */
 function paceAt(grid: MarchGrid, p: Pos): number {
   const c = marchCellAt(grid, p);
-  return (grid.flags[c]! & MARCH_WALL) !== 0 ? 1 : grid.pace[c]!;
+  return (grid.flags[c]! & (MARCH_WALL | MARCH_BUILDING)) !== 0 ? 1 : grid.pace[c]!;
 }
 
 function leashGap(leash: Leash, p: Pos): number {
@@ -753,13 +753,7 @@ export function battleTick(b: BattleState, field: BattleField, rng: Random): voi
     fighters: b.fighters,
     byId,
     leader: battleLeader(b, byId),
-    sees: (p, q) => {
-      const forest =
-        (field.grid.flags[marchCellAt(field.grid, p)]! & MARCH_FOREST) !== 0 ||
-        (field.grid.flags[marchCellAt(field.grid, q)]! & MARCH_FOREST) !== 0;
-      const r = forest ? WAR.sight.forestM : WAR.sight.openM;
-      return dist2(p, q) <= r * r;
-    },
+    sees: (p, q) => inSight(field.grid, p, q),
     houses: (g) => houses.get(g) ?? [],
   };
   for (const f of b.fighters) {

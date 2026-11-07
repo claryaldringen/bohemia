@@ -31,6 +31,8 @@ export interface CampaignRepository {
   create(state: CampaignState, createdAt: Date): Promise<void>;
   /** Id tažení, která se počítají – aktivní, nebo s nedoručenými událostmi. */
   active(): Promise<string[]>;
+  /** Id běžících tažení, která vede hráč `playerId` (panel Vojsko – Ú6.14), od nejstaršího. */
+  activeOf(playerId: string): Promise<string[]>;
   checkpoint(campaignId: string): Promise<CampaignCheckpoint | null>;
   /** Záměry s taktem větším než `tick`, podle taktu a `seq`. */
   intentsAfter(campaignId: string, tick: number): Promise<CampaignIntent[]>;
@@ -77,10 +79,10 @@ export interface CampaignCells {
 /**
  * Záměr hráče do tažení na takt teď + 2 (rozhodnutí 12) – nezávisí na tom, kdy ho worker
  * uvidí. Úložiště odmítne takt, který už je za kontrolním bodem (null). Ověření, smí-li hráč
- * záměr dát (vlastní muž, dohled, mlha války), doplní Ú6.14.
+ * záměr dát (vlastní muž, dohled, mlha války), dělá `commandCampaign` (Ú6.14).
  */
 export async function queueCampaignIntent(
-  deps: { campaigns: CampaignRepository; world: WorldClock },
+  deps: { campaigns: Pick<CampaignRepository, 'addIntent'>; world: WorldClock },
   input: { campaignId: string; playerId: string; body: IntentBody; nowMs: number },
 ): Promise<CampaignIntent | null> {
   return deps.campaigns.addIntent(input.campaignId, {

@@ -3,7 +3,7 @@ import { foundVillage } from '../../actions';
 import {
   addGate,
   fortificationArea,
-  fortificationOutline,
+  areaOutline,
   fortSegments,
   fortWalls,
   type FortGate,
@@ -105,15 +105,16 @@ describe('ves bez opevnění – zlatý otisk sítě beze změny', () => {
 const CELLS = Array.from({ length: 16 }, (_, k) => ({ x: 8 + (k % 4), y: 8 + Math.floor(k / 4) }));
 const AREA = fortificationArea(CELLS, null, LANDSCAPE);
 if ('error' in AREA) throw new Error('plocha opevnění testu');
-const OUTLINE: FortOutline = fortificationOutline(AREA, 'palisade');
+const OUTLINE: FortOutline = areaOutline(AREA, 'palisade');
 const NORTH = { x: -7.5, z: -30 };
 const EAST = { x: 30, z: 7.5 };
-const EAST_SIDE = OUTLINE.sides.flatMap((s, i) => (s.x === 30 && s.dx === 0 ? [i] : []));
+const SHAPES = fortSegments(OUTLINE);
+const EAST_SIDE = SHAPES.flatMap((s) => (Math.abs(s.mid[0] - 30) < 1.5 ? [s.index] : []));
 /** Úsek východní strany přes z. */
 const eastAt = (z: number): number =>
   EAST_SIDE.find((i) => {
-    const s = OUTLINE.sides[i]!;
-    return Math.min(s.z, s.z + s.dz * 15) <= z && z <= Math.max(s.z, s.z + s.dz * 15);
+    const zs = SHAPES[i]!.path.map((p) => p[1]);
+    return Math.min(...zs) <= z && z <= Math.max(...zs);
   })!;
 
 function gatesAt(points: readonly { x: number; z: number }[]): FortGate[] {

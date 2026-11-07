@@ -9,6 +9,12 @@ import type { ProtectionView } from '@/lib/protection';
 import type { PassageView } from '@/lib/summons';
 import { Tooltip } from './Tooltip';
 
+const PEOPLE = [
+  { key: 'men', icon: 'man', label: 'Poplatek: muži' },
+  { key: 'women', icon: 'woman', label: 'Poplatek: ženy' },
+  { key: 'families', icon: 'family', label: 'Poplatek: rodiny' },
+] as const;
+
 // Panel války (war.md – Co hráč vidí): textový přehled válek rodu – s kým, od kdy, jak začala
 // a v jakém je stavu. Panel je textový záměrně (výjimka z pravidla „bez popisků“ stejně jako
 // panel Vojsko); mírové jednání a svolání vazalů přibudou s dalšími úlohami války.
@@ -43,6 +49,7 @@ function PeaceForm({
   onSubmit: (items: TermItem[]) => void;
 }): ReactElement {
   const [fee, setFee] = useState('');
+  const [people, setPeople] = useState({ men: '', women: '', families: '' });
   const [payer, setPayer] = useState<'own' | 'other'>('own');
   const [tribute, setTribute] = useState('');
   const [vassalage, setVassalage] = useState<'none' | 'lord' | 'vassal'>('none');
@@ -59,8 +66,14 @@ function PeaceForm({
     const payerId = payer === 'own' ? ownHouseId : otherId;
     const line: Extract<TermItem, { kind: 'peace' }> = { kind: 'peace' };
     const feeKg = Number(fee);
-    if (feeKg > 0) {
-      line.fee = { ...NO_BUNDLE, grainKg: feeKg };
+    const count = (v: string): number => Math.max(0, Math.floor(Number(v)) || 0);
+    const feePeople = {
+      men: count(people.men),
+      women: count(people.women),
+      families: count(people.families),
+    };
+    if (feeKg > 0 || feePeople.men + feePeople.women + feePeople.families > 0) {
+      line.fee = { ...NO_BUNDLE, grainKg: feeKg > 0 ? feeKg : 0, people: feePeople };
       line.payer = payerId;
     }
     const tributeKg = Number(tribute);
@@ -99,6 +112,30 @@ function PeaceForm({
           <option value="other">platí on</option>
         </select>
       </label>
+      <div className="flex items-center gap-1">
+        {PEOPLE.map((p) => (
+          <Tooltip key={p.key} content={p.label}>
+            <label className="flex items-center gap-0.5">
+              <img
+                src={`/icons/resources/${p.icon}.png`}
+                alt=""
+                width={16}
+                height={16}
+                draggable={false}
+              />
+              <input
+                data-testid={`peace-fee-${p.key}`}
+                type="number"
+                min={0}
+                aria-label={p.label}
+                className="w-12 rounded-sm border border-[#5c4526] bg-[#15100b] px-1"
+                value={people[p.key]}
+                onChange={(e) => setPeople((cur) => ({ ...cur, [p.key]: e.target.value }))}
+              />
+            </label>
+          </Tooltip>
+        ))}
+      </div>
       <label className="flex items-center gap-1">
         <img src={`${ICON}/grain.svg`} alt="" width={16} height={16} draggable={false} />
         <input
