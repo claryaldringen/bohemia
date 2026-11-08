@@ -140,7 +140,7 @@ describe('WorldDirectory (Drizzle)', () => {
       SELECT 'u' || g, true, g, ${layers}::jsonb, (g % 40) - 20, (g / 40) + 1 FROM generate_series(1, 1000) g`);
     await db.execute(sql`
       INSERT INTO village (settlement_id, name, state, digest, digest_version)
-      SELECT id, 'Ves', '{}'::jsonb, '{"v":3,"publicLineMen":[]}'::jsonb, 1 FROM settlement WHERE owner_id <> 'me'`);
+      SELECT id, 'Ves', '{}'::jsonb, '{"v":4,"publicLineMen":[]}'::jsonb, 1 FROM settlement WHERE owner_id <> 'me'`);
     await db.execute(sql`ANALYZE`);
     await directory.nearestHouses({ x: 0, y: 0 }, 20, mine); // zahřátí
     const times: number[] = [];

@@ -86,7 +86,7 @@ async function setup(
     const digests = Array.from({ length: count }, (_, i) => ({
       id: i === 0 ? `village-${key}` : `village-${key}${i}`,
       name: `Ves ${key}`,
-      digest: { v: 3, publicLineMen: [{ id: 1, name: key.toUpperCase(), bornDay: 0 }] },
+      digest: { v: 4, publicLineMen: [{ id: 1, name: key.toUpperCase(), bornDay: 0 }] },
     }));
     directory.entries.push({
       house: (await houses.byId(house.id))!,

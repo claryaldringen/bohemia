@@ -1,3 +1,4 @@
+import { domainFoodReadyYear, villageFoodBalance } from '../vassalage/domain-food';
 import { isVillageTravelling } from './departure';
 import { lineMen } from './dynasty';
 import { lineFacts, type LineFacts } from './extinction';
@@ -15,7 +16,7 @@ import type { VillageState } from './types-state';
 // nese souhrn jako vstup pravidla (`weatherSeed`, `disasters`), ne jako výsledek.
 
 /** Verze tvaru souhrnu – souhrn jiné verze se nepoužije (ves se načte celá a souhrn se obnoví). */
-export const VILLAGE_DIGEST_VERSION = 3;
+export const VILLAGE_DIGEST_VERSION = 4;
 
 /** Místní pohromy v kronice – poslední z nich ukáže přepínač vsí (disasters.md – Co hráč vidí). */
 export const LOCAL_DISASTER_KINDS: ReadonlySet<ChronicleEvent['kind']> = new Set([
@@ -67,6 +68,13 @@ export interface VillageDigest extends LineFacts {
   steward: boolean;
   /** Ves čeká na vojvodu a nikdo k ní zatím nejde (`awaitingLord` bez `appointee`) – povýšení ji smí obsadit. */
   awaitingLord: boolean;
+  /**
+   * Rok, jestli je ves po výmlatu letošní sklizně a smí dát jídlo domény (`domainFoodReadyYear`
+   * ve dni vsi); jinak null. Od verze 4 (8. 11. 2026, hradiště).
+   */
+  domainReadyYear: number | null;
+  /** Kolik ves vypěstuje a potřebuje obilí z pole (`villageFoodBalance`); bez lidí nebo pole null. */
+  food: { growsKg: number; needsKg: number } | null;
   /** Vstupy počasí roku (`weatherView` v den pohledu): seed počasí kraje… */
   weatherSeed?: number;
   /**
@@ -125,6 +133,8 @@ export function villageDigest(state: VillageState): VillageDigest {
     threshingEmergency: threshingStatus(state, state.lastDay).emergency,
     steward: isStewardOn(state),
     awaitingLord: state.awaitingLord !== undefined && state.awaitingLord.appointee === undefined,
+    domainReadyYear: domainFoodReadyYear(state, state.lastDay),
+    food: villageFoodBalance(state, state.lastDay),
     ...lineFacts(state),
     publicLineMen: lineMen(state)
       .filter((p) => !p.noble)
