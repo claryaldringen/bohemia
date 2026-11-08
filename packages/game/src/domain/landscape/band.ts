@@ -1,5 +1,6 @@
 import { distanceToMask, maxStep } from './grid';
 import { checkPremium } from './premium/check';
+import { portTile } from './skeleton/ports-map';
 import { SURFACE_CODES, type Landscape, type LayerVersions } from './types';
 
 // Pásmo srovnatelnosti startovních krajin (docs/design/landscape.md).
@@ -8,6 +9,11 @@ export const VILLAGE_SITE_MAX_WATER_DISTANCE_CELLS = 20;
 export const FLAT_MAX_STEP_M = 1.0;
 /** Okolí vsi, kde hospodaří – 600 m (40 políček) od místa pro vesnici (fields.md). */
 export const NEAR_SITE_RADIUS_CELLS = 40;
+/**
+ * Koryto a niva řeky kostry (world-skeleton.md – Mapa z kostry, pásmo): voda řeky a souš do tolika
+ * políček od ní. Celomapové meze (podíl lesa, úrodná políčka) se na mapě s řekou měří bez nich.
+ */
+export const RIVER_CORRIDOR_CELLS = 8;
 
 /** Meze pásma – každá krajina musí do všech padnout (dolní i horní mez). */
 export interface Band {
@@ -71,18 +77,53 @@ export interface LandscapeMetrics {
   nearGoodMeadowCells: number;
 }
 
+/**
+ * Koryto a niva řek kostry (1 = políčko patří k řece): vodní políčka u os řek (`rivers`) a souš do
+ * `RIVER_CORRIDOR_CELLS` od nich. Mapa bez řek kostry dá prázdnou masku.
+ */
+export function riverCorridorMask(l: Landscape): Uint8Array {
+  const { size } = l;
+  const corridor = new Uint8Array(size * size);
+  const rivers = l.rivers ?? [];
+  if (rivers.length === 0) return corridor;
+  const axis = new Uint8Array(size * size);
+  let half = 0;
+  for (const course of rivers) {
+    for (const p of course) {
+      axis[Math.round(p.y) * size + Math.round(p.x)] = 1;
+      half = Math.max(half, p.halfWidthLeft, p.halfWidthRight);
+    }
+  }
+  const toAxis = distanceToMask(axis, size);
+  const riverWater = new Uint8Array(size * size);
+  for (let i = 0; i < riverWater.length; i++) {
+    if (l.surface[i] === SURFACE_CODES.water && toAxis[i]! <= half + 1.5) riverWater[i] = 1;
+  }
+  const toWater = distanceToMask(riverWater, size);
+  for (let i = 0; i < corridor.length; i++) {
+    if (toWater[i]! <= RIVER_CORRIDOR_CELLS) corridor[i] = 1;
+  }
+  return corridor;
+}
+
 export function measureLandscape(l: Landscape): LandscapeMetrics {
   const { size } = l;
   const water = l.surface.map((v) => (v === SURFACE_CODES.water ? 1 : 0));
+  // Mapa s řekou kostry: podíl lesa a úrodná políčka bez koryta a nivy řeky (návrh Clauda) – řeka
+  // úrodnou nivu přidá navíc, zbytek mapy má stejné meze jako suchá mapa.
+  const corridor = riverCorridorMask(l);
   let forest = 0;
   let fertileCells = 0;
+  let counted = 0;
   let min = Infinity;
   let max = -Infinity;
   for (let i = 0; i < l.surface.length; i++) {
-    if (l.surface[i] === SURFACE_CODES.forest) forest++;
-    if (l.fertility[i]! >= VILLAGE_SITE_MIN_FERTILITY) fertileCells++;
     min = Math.min(min, l.heights[i]!);
     max = Math.max(max, l.heights[i]!);
+    if (corridor[i]) continue;
+    counted++;
+    if (l.surface[i] === SURFACE_CODES.forest) forest++;
+    if (l.fertility[i]! >= VILLAGE_SITE_MIN_FERTILITY) fertileCells++;
   }
 
   const waterDistance = distanceToMask(water, size);
@@ -108,8 +149,10 @@ export function measureLandscape(l: Landscape): LandscapeMetrics {
   }
 
   return {
-    waterSpansEdges: spansOppositeEdges(water, size),
-    forestShare: forest / l.surface.length,
+    waterSpansEdges: l.rivers?.length
+      ? streamReachesOutflow(l, water)
+      : spansOppositeEdges(water, size),
+    forestShare: forest / Math.max(1, counted),
     villageSiteCells: largestComponent(site, size),
     reliefM: max - min,
     fertileCells,
@@ -132,9 +175,11 @@ export function checkBand(
   const band = bandFor(versions);
   const lowerOnly = l.premium !== undefined;
   const m = measureLandscape(l);
+  const riversOk = skeletonRiversOk(l);
   const within = (value: number, range: readonly [number, number] | null): boolean =>
     range === null || (value >= range[0] && (lowerOnly || value <= range[1]));
   const failures = [
+    !riversOk && 'skeleton-rivers',
     !m.waterSpansEdges && 'water-edges',
     !within(m.forestShare, band.forestShare) && 'forest-share',
     !within(m.villageSiteCells, band.villageSiteCells) && 'village-site',
@@ -150,6 +195,17 @@ export function checkBand(
   return { ok: failures.length === 0, failures };
 }
 
+/**
+ * Mapa z výřezu s řekou má řeky kostry – hlavní tok a přítok za každý další vtok (terén z kostry
+ * bez řeky = trasa nevedla, pokus neprojde).
+ */
+function skeletonRiversOk(l: Landscape): boolean {
+  const ports = l.skeleton?.rivers ?? [];
+  if (ports.length === 0) return true;
+  const inflows = ports.filter((p) => p.flow === 'in').length;
+  return (l.rivers?.length ?? 0) === Math.max(1, inflows);
+}
+
 function neighbours8(i: number, size: number): number[] {
   const x = i % size;
   const y = Math.floor(i / size);
@@ -162,6 +218,34 @@ function neighbours8(i: number, size: number): number[] {
     }
   }
   return result;
+}
+
+/**
+ * Mapa s řekou kostry: potok teče do řeky a ta z mapy vytéká – voda od začátku potoka souvisí
+ * s políčkem výtoku řeky (u mapy s řekou místo „voda od okraje k okraji“).
+ */
+function streamReachesOutflow(l: Landscape, water: Uint8Array): boolean {
+  const { size } = l;
+  const out = l.skeleton?.rivers.find((p) => p.flow === 'out');
+  const first = l.stream[0];
+  if (!out || !first) return false;
+  const goal = portTile(out.side, out.at, size);
+  const start = Math.round(first.y) * size + Math.round(first.x);
+  if (!water[start]) return false;
+  const seen = new Uint8Array(water.length);
+  const queue = [start];
+  seen[start] = 1;
+  for (let k = 0; k < queue.length; k++) {
+    const i = queue[k]!;
+    if (i === goal.y * size + goal.x) return true;
+    for (const n of neighbours8(i, size)) {
+      if (water[n] && !seen[n]) {
+        seen[n] = 1;
+        queue.push(n);
+      }
+    }
+  }
+  return false;
 }
 
 function spansOppositeEdges(water: Uint8Array, size: number): boolean {

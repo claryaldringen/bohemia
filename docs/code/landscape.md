@@ -172,7 +172,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `planRiverCourses(heights, size, slice, random)` (`river-course.ts`) – trasy `cheapestPath`
   s cenou jako `routeSideRiver` (nízká místa, přirážka u okraje): hlavní tok od nejširšího vtoku
   (u pramene od bodu uvnitř mapy) k výtoku, přítoky k políčku hlavního toku ≥ 20 od okraje
-  (`joins`), přes rovné úseky jiných bodů trasa nevede; null = trasa nevede.
+  (`joins`; hlavní tok u rohu mapy, který se od okraje na 20 políček nevzdálí – W 24 → S 24 –,
+  přijme přítok v nejhlubším místě), přes rovné úseky jiných bodů trasa nevede; null = trasa
+  nevede.
   `carveRiverCourses(terrain, plans, seed, { floodplainCells })` (`rivers.ts`) – na místě:
   `shapeChannel` s profilem šířky (lineárně vtok → výtok ± 10 %, v bodech okraje přesně),
   meandry jako řeka prémie (u dotyku sebe sama bez meandrů), 1–2 brody (ne do 8 políček od
@@ -181,3 +183,31 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   nekončí pod dnem soutoku (`bedFloor`). Osy jdou do `Terrain.rivers` / `Landscape.rivers`
   (hlavní tok první), všechny řeky mapy dá `riversOf` (i řeku prémie `river`). Testy
   `skeleton/__tests__/river-course.test.ts` (rovně, ohyb, soutok, pramen na umělém svahu).
+  **Terén mapy s řekou** (Úloha 5): `generateSkeletonTerrain(seed, version, slice, options?)`
+  (`skeleton/terrain.ts`; `options.floodplainCells` pro prémie na kostře) – výřez bez řeky dá
+  `generateTerrain` beze změny; s řekou „řeka první“: `terrainStart` (šum, převýšení, sesypání –
+  stejné losy jako suchá mapa) → náklon k výtoku (`SKELETON_MAP.tiltM` 8 m: podíl vzdálenosti
+  od výtoku k součtu vzdáleností od výtoku a nejbližšího vtoku; u pramene roste od výtoku dál,
+  nejvýš 2 × `tiltM`, ať potok k prameni teče z kopce – řeka tak má spád i se vtokem v nejnižším
+  místě) → `planRiverCourses` + `carveRiverCourses` → potok mapy (`routeStream(…, goal)`: start
+  na okraji ≥ 20 políček od bodů i vody řeky, zkouší se `streamStartTries` startů nejdál od řeky
+  s losem; cíl souš hned u vody řeky, u pramene okolí počátku řeky; voda řeky neprůchozí, pás
+  2 × `RIVER.streamGapCells` kolem ní dražší, po okraji mapy nevede; start musí být výš než ústí)
+  → `chooseVillageSite(…, allowed)` ≥ `RIVER.villageMinCells` + 0,75 od os řek → ostrožna potoka
+  (terén 2, smyčka ne k řece) → rovina kolem vsi bez zásahu do údolí řeky
+  (`villageFlattenRiverCells` 3–11 políček od vody) → `carveStream(…, bedFloor)` s hladinou ústí
+  rovnou hladině řeky → skály u potoka (voda řeky se netesá) → výšky od nejnižšího políčka (i
+  hladiny řek). Když trasa řeky či potoka nevede, vrátí terén suché mapy bez `rivers` – pokus
+  neprojde (`skeleton-rivers`). **Generátor:** čtvrtý parametr `skeleton?: SkeletonSlice | null`
+  u `generateAcceptedLandscape`, `generateLandscape`, `generateLandscapeAttempt`; prázdný výřez =
+  null; verze `LayerVersions.skeleton?: 1` (`SKELETON_LAYER_VERSION`) jen s neprázdným výřezem –
+  výřez bez verze, verze bez výřezu i prémie s výřezem (do `premium: 2`) = `RangeError`. Krajina
+  nese `skeleton` (výřez) a `rivers`; suchá mapa bit po bitu jako dřív. **Pásmo** (`band.ts`):
+  mapa s řekou kostry projde celým pásmem; podíl lesa a úrodná políčka se měří bez
+  `riverCorridorMask` (voda řek a souš do `RIVER_CORRIDOR_CELLS` = 8 políček od ní – úrodná
+  počtem mimo masku, bez přepočtu), okolí vsi beze změny; „voda od okraje k okraji“ nahradí
+  „potok souvisí s výtokem řeky“ a `skeleton-rivers` hlídá počet řek (hlavní tok + přítok za
+  každý další vtok). Testy `skeleton/__tests__/terrain.test.ts`, `golden.test.ts` (zlaté otisky
+  4 výřezů × 2 seedy) a pásmo `skeleton-band.ts` (300 seedů, ≥ 95 % do `MAX_ATTEMPTS`;
+  `skeleton-band-river.test.ts`, `skeleton-band-junction.test.ts`). Měření:
+  `measure-landscapes.ts 30 --skeleton straight|corner|junction|source|trail|ford`.

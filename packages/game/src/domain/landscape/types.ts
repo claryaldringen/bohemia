@@ -1,4 +1,5 @@
 import type { PremiumType } from './premium/types';
+import type { SkeletonSlice } from './skeleton/types';
 
 export const LANDSCAPE_SIZE = 128;
 export const CELL_SIZE_M = 15;
@@ -29,7 +30,15 @@ export interface LayerVersions {
    * typem, chybí = 1. Průměrná krajina (bez typu) ho nemá a nic se jí nemění.
    */
   premium?: 1;
+  /**
+   * Mapa z kostry světa (world-skeleton.md – Uložení, verze vrstev): 1 = terén „řeka první“
+   * z výřezu (`skeleton/terrain.ts`). Jen u map s neprázdným výřezem – suchá mapa ji nemá
+   * a generuje se jako dřív; výřez bez verze nebo verze bez výřezu = `RangeError`.
+   */
+  skeleton?: 1;
 }
+/** Verze vrstvy kostry pro nové mapy s výřezem. */
+export const SKELETON_LAYER_VERSION = 1;
 /** Verze vrstev pro nová sídla. */
 export const CURRENT_LAYER_VERSIONS: LayerVersions = {
   terrain: 2,
@@ -132,6 +141,11 @@ export interface Landscape {
    * Chybí = mapa bez řeky kostry. Všechny řeky mapy (i prémiovou) dá `riversOf`.
    */
   readonly rivers?: readonly (readonly StreamPoint[])[];
+  /**
+   * Výřez kostry světa, ze kterého mapa vznikla (řeky a stezky na okraji); chybí = suchá mapa.
+   * Mapa jen se stezkou má terén suché mapy a výřez nese pro stezku.
+   */
+  readonly skeleton?: SkeletonSlice;
   /**
    * Vrstva překážek se negeneruje s krajinou (stovky ms) – až když je potřeba, ze seedu a verze
    * (`obstaclesOf`). null = krajina bez překážek (ručně vyrobená krajina v testech).

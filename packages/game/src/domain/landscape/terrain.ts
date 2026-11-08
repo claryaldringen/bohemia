@@ -44,7 +44,7 @@ const VALLEY_SLOPE = 0.9;
 /** Největší pokles dna mezi sousedními políčky potoka (schodovitý šikmý úsek má 2 kroky na √2). */
 const MAX_BED_DROP = 0.7 * VALLEY_SLOPE;
 /** Hloubka vody nad dnem v ose potoka (m) – tůně prohloubí až vykreslení. */
-const WATER_DEPTH_M = 0.6;
+export const WATER_DEPTH_M = 0.6;
 /** Terén: vrstvený šum (fBm) – základní vlnová délka (políčka), počet oktáv a jejich útlum. */
 const NOISE_BASE_WAVELENGTH = 48;
 const NOISE_OCTAVES = 4;
@@ -82,12 +82,7 @@ export function generateTerrain(
     throw new RangeError(`Neznámá verze vrstvy terénu: ${String(version)}`);
   }
   const size = LANDSCAPE_SIZE;
-  const random = createRandom(seed);
-  const noise = createNoise2D(() => random.next());
-  const relief = RELIEF_RANGE_M[0] + random.next() * (RELIEF_RANGE_M[1] - RELIEF_RANGE_M[0]);
-
-  const heights = baseHeights(noise, size, relief);
-  relaxSlopes(heights, size);
+  const { random, relief, heights } = terrainStart(seed, size);
   const path = routeStream(heights, size, relief, random);
   const plan = planStream(path, heights, size, random);
   let { samples, water } = buildStream(plan, heights, size, null)!;
@@ -144,14 +139,34 @@ export function generateTerrain(
     : { size, heights, water, villageSite, stream };
 }
 
+/**
+ * Začátek terénu ze seedu – náhoda, převýšení a výšky po sesypání svahů (`generateTerrain`,
+ * terén mapy z kostry). Losy jdou ve stejném pořadí jako dřív.
+ */
+export function terrainStart(
+  seed: number,
+  size: number,
+): { random: Random; relief: number; heights: Float32Array } {
+  const random = createRandom(seed);
+  const noise = createNoise2D(() => random.next());
+  const relief = RELIEF_RANGE_M[0] + random.next() * (RELIEF_RANGE_M[1] - RELIEF_RANGE_M[0]);
+  const heights = baseHeights(noise, size, relief);
+  relaxSlopes(heights, size);
+  return { random, relief, heights };
+}
+
 /** Místo pro vesnici zůstane po vložení smyčky ve stejné vzdálenosti od vody jako při výběru. */
-function siteKeepsWater(water: Uint8Array, size: number, site: { x: number; y: number }): boolean {
+export function siteKeepsWater(
+  water: Uint8Array,
+  size: number,
+  site: { x: number; y: number },
+): boolean {
   const d = distanceToMask(water, size)[site.y * size + site.x]!;
   return d >= SITE_WATER_DISTANCE[0] && d <= SITE_WATER_DISTANCE[1];
 }
 
 /** Vrstvený šum (fBm) škálovaný na převýšení relief. */
-function baseHeights(noise: NoiseFunction2D, size: number, relief: number): Float32Array {
+export function baseHeights(noise: NoiseFunction2D, size: number, relief: number): Float32Array {
   const heights = new Float32Array(size * size);
   let min = Infinity;
   let max = -Infinity;
@@ -179,7 +194,7 @@ function baseHeights(noise: NoiseFunction2D, size: number, relief: number): Floa
  * Termální eroze: kde se sousední políčka liší víc než MAX_SLOPE_M, přesune se materiál
  * z vyššího na nižší, dokud svahy nejsou dost mírné. Zvlnění ve středních měřítkách zůstane.
  */
-function relaxSlopes(heights: Float32Array, size: number): void {
+export function relaxSlopes(heights: Float32Array, size: number): void {
   for (let pass = 0; pass < 80; pass++) {
     let moved = false;
     for (let y = 0; y < size; y++) {
@@ -203,36 +218,60 @@ function relaxSlopes(heights: Float32Array, size: number): void {
 }
 
 /**
+ * Cíl trasy potoka na mapě z kostry (`skeleton/terrain.ts`): start na okraji, cíl (břeh řeky
+ * nebo pramen) a přirážka kroku (`Infinity` = tudy nejde). Okraje mapy zdražují všechny strany.
+ */
+export interface StreamGoal {
+  readonly start: number;
+  readonly isGoal: (i: number) => boolean;
+  readonly extraCost: (i: number) => number;
+}
+
+/**
  * Trasa potoka jako nejlevnější cesta (Dijkstra, 8 směrů) od jednoho okraje k protilehlému –
  * preferuje nízko položená místa a vyhýbá se stoupání a bočním okrajům mapy. Tvar koryta
- * (meandry, šířka, tůně) z ní udělá shapeStream.
+ * (meandry, šířka, tůně) z ní udělá shapeStream. S cílem `goal` (mapa z kostry) vede od jeho
+ * startu k jeho cíli bez losů; [] = cíl nedosažitelný.
  */
-function routeStream(
+export function routeStream(
   heights: Float32Array,
   size: number,
   relief: number,
   random: Random,
+  goal?: StreamGoal,
 ): number[] {
-  const horizontal = random.next() < 0.5;
-  const along = Math.floor(size * 0.3 + random.next() * size * 0.4);
-  const start = horizontal ? along * size : along;
-  const isGoal = (i: number): boolean =>
-    horizontal ? i % size === size - 1 : Math.floor(i / size) === size - 1;
-  const sideDistance = (i: number): number => {
-    const across = horizontal ? Math.floor(i / size) : i % size;
-    return Math.min(across, size - 1 - across);
-  };
+  let start: number;
+  let isGoal: (i: number) => boolean;
+  let sideDistance: (i: number) => number;
+  if (goal) {
+    start = goal.start;
+    isGoal = goal.isGoal;
+    sideDistance = (i) => {
+      const x = i % size;
+      const y = Math.floor(i / size);
+      return Math.min(x, y, size - 1 - x, size - 1 - y);
+    };
+  } else {
+    const horizontal = random.next() < 0.5;
+    const along = Math.floor(size * 0.3 + random.next() * size * 0.4);
+    start = horizontal ? along * size : along;
+    isGoal = (i) => (horizontal ? i % size === size - 1 : Math.floor(i / size) === size - 1);
+    sideDistance = (i) => {
+      const across = horizontal ? Math.floor(i / size) : i % size;
+      return Math.min(across, size - 1 - across);
+    };
+  }
 
   const cost = new Float64Array(size * size).fill(Infinity);
   const previous = new Int32Array(size * size).fill(-1);
   const heap = new MinHeap();
   cost[start] = 0;
   heap.push(start, 0);
-  let goal = -1;
+  let found = -1;
   while (heap.size > 0) {
     const i = heap.pop();
     if (isGoal(i)) {
-      goal = i;
+      found = i;
       break;
     }
     const x = i % size;
@@ -247,7 +286,10 @@ function routeStream(
         const length = dx !== 0 && dy !== 0 ? Math.SQRT2 : 1;
         const uphill = Math.max(0, heights[n]! - heights[i]!);
         const edgePenalty = Math.max(0, 24 - sideDistance(n)) * 0.25;
-        const stepCost = length * (1 + (4 * heights[n]!) / relief + edgePenalty) + 6 * uphill;
+        const extra = goal ? goal.extraCost(n) : 0;
+        if (extra === Infinity) continue;
+        const stepCost =
+          length * (1 + (4 * heights[n]!) / relief + edgePenalty + extra) + 6 * uphill;
         if (cost[i]! + stepCost < cost[n]!) {
           cost[n] = cost[i]! + stepCost;
           previous[n] = i;
@@ -257,17 +299,22 @@ function routeStream(
     }
   }
 
+  if (found === -1) return [];
   const path: number[] = [];
-  for (let i = goal; i !== -1; i = previous[i]!) path.push(i);
+  for (let i = found; i !== -1; i = previous[i]!) path.push(i);
   return path.reverse();
 }
 
-/** Nejklidnější místo v přiměřené vzdálenosti od potoka, uprostřed mapy. */
-function chooseVillageSite(
+/**
+ * Nejklidnější místo v přiměřené vzdálenosti od potoka, uprostřed mapy. `allowed` (mapa z kostry –
+ * dál od řek) vyloučí políčka s 0; los se u nich nespotřebuje.
+ */
+export function chooseVillageSite(
   heights: Float32Array,
   water: Uint8Array,
   size: number,
   random: Random,
+  allowed?: Uint8Array,
 ): { x: number; y: number } {
   const distance = distanceToMask(water, size);
   let best = { x: size / 2, y: size / 2 };
@@ -276,6 +323,7 @@ function chooseVillageSite(
     for (let x = SITE_AREA_MARGIN; x < size - SITE_AREA_MARGIN; x++) {
       const d = distance[y * size + x]!;
       if (d < SITE_WATER_DISTANCE[0] || d > SITE_WATER_DISTANCE[1]) continue;
+      if (allowed && !allowed[y * size + x]) continue;
       const score = roughness(heights, size, x, y, 24) + random.next() * 0.5;
       if (score < bestScore) {
         bestScore = score;
@@ -305,7 +353,11 @@ function roughness(
 }
 
 /** Vyrovná terén kolem místa pro vesnici na průměrnou výšku a plynule ho napojí na okolí. */
-function flattenAround(heights: Float32Array, size: number, site: { x: number; y: number }): void {
+export function flattenAround(
+  heights: Float32Array,
+  size: number,
+  site: { x: number; y: number },
+): void {
   let sum = 0;
   let count = 0;
   for (let y = site.y - 6; y <= site.y + 6; y++) {
@@ -329,14 +381,15 @@ function flattenAround(heights: Float32Array, size: number, site: { x: number; y
  * Koryto potoka teče po spádu: dno podél osy vede od pramene jako klesající minimum terénu
  * (prořízne sedla), vodní políčko dostane dno nejbližšího bodu osy a okolní terén se ke korytu
  * svažuje nejvýš o VALLEY_SLOPE na políčko – vzniká údolí s nivou kolem meandrů. Vrací hladinu
- * v každém bodě osy.
+ * v každém bodě osy. `bedFloor` (mapa z kostry – ústí do řeky) je nejnižší dno potoka.
  */
-function carveStream(
+export function carveStream(
   heights: Float32Array,
   water: Uint8Array,
   samples: readonly ChannelSample[],
   size: number,
   depth: number,
+  bedFloor = -Infinity,
 ): number[] {
   const bed: number[] = [];
   let level = Infinity;
@@ -346,7 +399,7 @@ function carveStream(
       level,
       lowestAround(heights, size, p, Math.max(p.left, p.right) + 1.5) - depth,
     );
-    bed.push(level);
+    bed.push(Math.max(level, bedFloor));
   }
   // Dno nesmí klesat rychleji, než stoupají svahy údolí – jinak by kužel z níže položeného
   // úseku podřízl břeh horního úseku a voda by „visela“ nad svahem. Kde terén spadne

@@ -193,9 +193,14 @@ kdekoli“ → jen na suchých mapách):
   bodu na okraji kolem vsi (nejblíž 150 m, obejití jako dnes u stezky přes brod) k dalším bodům;
   větve křižovatky se potkají u vsi, konec stezky končí u vsi.
 - **S řekou** se terén staví v jiném pořadí – řeka první:
-  1. výšky a sesypání svahů jako dnes;
+  1. výšky a sesypání svahů jako dnes, pak **náklon k výtoku** – u vtoku o 8 m výš než u výtoku,
+     mezi nimi plynule; u pramene terén roste od výtoku i za bod pramene (nejvýš o 16 m), ať
+     potok k prameni teče z kopce. Řeka tak má spád, i když vtok leží v nejnižším místě terénu
+     (bez náklonu by měla po celé délce stejnou hladinu a zařízla by se – návrh Clauda);
   2. **koryta řek:** nejlevnější cesta nízkými místy od každého vtoku k výtoku, přítok do
-     hlavního toku (soutok aspoň 20 políček od okraje); pramen začíná uvnitř mapy, 40 políček od
+     hlavního toku (soutok aspoň 20 políček od okraje; hlavní tok u rohu mapy, který se od okraje
+     tak daleko nedostane – např. W 24 → S 24 –, přijme přítok ve svém nejhlubším místě, jinak by
+     výřez nešel – návrh Clauda); pramen začíná uvnitř mapy, 40 políček od
      výtoku (podél strany ± 12 ze seedu). Tok vtéká a vytéká kolmo k okraji (rovný úsek
      6 políček). Tvar koryta, meandry, 1–2 brody (ne do 8 políček od soutoku), hloubka a niva jako
      dnešní řeka (`RIVER` v `premium/river.ts`), šířka plynule od šířky vtoku k šířce výtoku,
@@ -211,7 +216,10 @@ kdekoli“ → jen na suchých mapách):
 - **Pásmo srovnatelnosti:** mapa s řekou musí projít **celým** pásmem (`band.ts`) včetně horních
   mezí, aby řeka nedala vsím synů a NPC lepší okolí vsi. Celomapové meze (podíl lesa, úrodná
   políčka celé mapy) se na ní měří bez koryta a nivy řeky; okolí vsi (louka do 600 m, úrodná
-  louka) beze změny. Navíc **kontrola kostry**: řeka spojuje body výřezu, stezka také, nic z toho
+  louka) beze změny. Koryto a niva = voda řeky a souš do 8 políček (120 m) od ní; úrodná
+  políčka se počítají jen mimo ně, bez přepočtu na plochu (úrodnost dává hlavně blízkost vody –
+  mimo 120 m od řeky má mapa s řekou podobně úrodné půdy jako suchá, návrh Clauda podle měření).
+  Místo „voda od okraje k okraji“ musí potok souviset s výtokem řeky. Navíc **kontrola kostry**: řeka spojuje body výřezu, stezka také, nic z toho
   do 120 m od vsi. Cíl jako u prémií – ≥ 95 % seedů projde do `MAX_ATTEMPTS` (16) pokusů.
 - **Prémie na kostře** (nová verze průchodu `premium: 2`) už vlastní řeku ani stezku nepřidává,
   bere je z kostry:
@@ -225,6 +233,28 @@ kdekoli“ → jen na suchých mapách):
 
 - **Co průměrná mapa na kostře nemá:** širokou nivu s přístavištěm, ostrožnu nad brodem nebo
   soutokem, sedlo s hřbety. Brod má – stezka přes řeku vést musí.
+
+### Výsledky měření generátoru
+
+`measure-landscapes.ts 30 --skeleton …` (8. 11. 2026, Úloha 5 – terén s řekou, stezka zatím jen
+ve výřezu): 30 seedů, ukázkové výřezy jako v testech – rovně N 60 → S 70, ohyb W 40 → S 90,
+soutok N 50 + E 64 → S 80, pramen → S 64, stezka E 40 – W 90, brod = rovně + stezka. Louka do
+600 m a úrodná políčka (mimo koryto a nivu řeky) u přijatých krajin, čas pokusu včetně kontroly
+pásma.
+
+| Výřez               | 1. pokus | ms / pokus | Louka do 600 m (medián) | Úrodná (medián) |
+| ------------------- | -------- | ---------- | ----------------------- | --------------- |
+| suchá mapa          | 90 %     | 113        | 60,6 ha                 | 2 984           |
+| rovně (`straight`)  | 70 %     | 179        | 61,0 ha                 | 2 901           |
+| ohyb (`corner`)     | 73 %     | 165        | 60,3 ha                 | 3 240           |
+| soutok (`junction`) | 67 %     | 178        | 60,9 ha                 | 3 165           |
+| pramen (`source`)   | 73 %     | 143        | 60,7 ha                 | 2 820           |
+| stezka (`trail`)    | 90 %     | 131        | 60,6 ha                 | 2 984           |
+| brod (`ford`)       | 70 %     | 140        | 61,0 ha                 | 2 901           |
+
+Všechny seedy prošly do 16 pokusů; pásmo 300 seedů (`skeleton-band.ts`) projde u všech čtyř
+výřezů s řekou. Mapy s řekou nejčastěji padnou na horní mezi úrodné louky do 600 m (řeka bývá
+v okolí vsi) a na úrodných políčkách. Krajina s řekou trvá ≈ 1,3–1,6 × suchá.
 
 ## Stezka kostry = hotová dálková cesta
 

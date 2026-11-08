@@ -13,6 +13,8 @@ export {
   checkBand,
   measureLandscape,
   NEAR_SITE_RADIUS_CELLS,
+  RIVER_CORRIDOR_CELLS,
+  riverCorridorMask,
   type Band,
   type LandscapeMetrics,
 } from './band';
