@@ -9,7 +9,8 @@ s podmínkami, vojenská služba a svolání, ochrana, vypovězení, rozsudek), 
 rodinu](lord.md) (výcvik), [koně](horses.md), [divokou zvěř](wildlife.md) (lov),
 [stěhování](migration.md) (mřížka map) a [obchod](trade.md) (dvorec, zemská stezka). Opevnění
 popisuje samostatný návrh [fortifications.md](fortifications.md) (schválen 3. 11. 2026) – válka
-z něj bere násobky obrany, útočiště a prolomení. Historické opory:
+z něj bere ~~násobky obrany~~ obranu hradeb (od 8. 11. 2026 bez násobku – [fortifications.md](fortifications.md#hradby-a-obrana-8-11-2026)), útočiště
+a prolomení. Historické opory:
 [rešerše](research/2026-11-02-war.md).
 
 ## Proč
@@ -46,6 +47,7 @@ z něj bere násobky obrany, útočiště a prolomení. Historické opory:
 | Utéct jen do lesa do 300 m; ztratí se podíl zásob        | **Včasný útěk** se zásobami a stády do nejbližšího lesa, jámy skryté; útěk při bodu zlomu    | Martin 2. 11.      |
 | Konec války přijetím výzvy = vazalství; mír bez podmínek | **Mírové jednání**: poplatek, vazalství, tribut, postoupení vsí; mír na dobu neurčitou       | Martin 2. 11.      |
 | Palisáda kolem dvorce jako hotový návrh                  | Opevnění samostatně ([fortifications.md](fortifications.md)) – násobky, útočiště, prolomení  | Martin 2. a 3. 11. |
+| Násobek obrany za opevněním                              | **Hradba jako překážka** – žebříky, oheň, kopání, ochoz, souboj u žebříku, obsazení          | Martin 8. 11.      |
 | Průchod a střet s třetím rodem – Později                 | Průchod neutrálním územím smí, s **ohlášením**                                               | Martin 2. 11.      |
 
 **Platí dál (Martin 18. 10. 2026):** dobrovolníci a rozkaz; libovolný počet mužů a práce doma
@@ -217,8 +219,9 @@ přítomný hráč velí obraně sám; mřížka map s přechodem okrajem.
   rozpadla.“
 - **Podrobnosti NPC velitele a rozpadu** (návrh Clauda, Ú6.12):
   - **napadne** skupinu domů, má-li vojsko (součet sil mužů v boji) aspoň **1,5 × sílu jejích
-    obránců × násobek obrany** (u domu 1,5, za opevněním 1,5 × násobek opevnění – jako přesila
-    u vzdání); „v dohledu“ = do 150 m od kteréhokoli muže vojska; nevidí-li nikoho, jde ke vsi;
+    obránců × násobek obrany** (u domu 1,5, ~~za opevněním 1,5 × násobek opevnění~~ – jako přesila
+    u vzdání; opevněnou ves napadne, trvá-li nejrychlejší postup přes hradbu nejvýš 1 herní den –
+    [fortifications.md](fortifications.md#hradby-a-obrana-8-11-2026), 8. 11. 2026); „v dohledu“ = do 150 m od kteréhokoli muže vojska; nevidí-li nikoho, jde ke vsi;
   - **nenapadne-li ani nejslabší skupinu:** stojí-li všichni obránci za opevněním, vezme, co je
     venku (útočiště i s tím, co do něj lidé odnesli, zůstane nedobyté); brání-li se silná skupina
     bez opevnění, obrátí se bez kořisti – venku nic nehlídaného není;
@@ -252,18 +255,18 @@ přítomný hráč velí obraně sám; mřížka map s přechodem okrajem.
     stejnou (a malou) bojovou hodnotu.“ Dovednost lov u vesničanů se **nezavádí**; vesničan má
     pevnou sílu (návrh Clauda: **0,4**).
 
-| Kdo / co                                  | Síla                                                                                                                                                                                     |
-| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Vesničan (muž 16–44) pěšky                | **0,4**, pevně (Martin 3. 11.; číslo návrh Clauda)                                                                                                                                       |
-| Muž rodu pěšky                            | **1 + 2 × vojenská zkušenost ÷ 100** – od 1 do 3 (Martin 2. 11.)                                                                                                                         |
-| Muž rodu na koni                          | × **(1 + 0,5 × jízda na koni ÷ 100)**, jízda na koni = jízda × (0,4 + 0,6 × výcvik koně) ([koně](horses.md)) – až **× 1,5** (Martin 2. 11.)                                              |
-| Vesničan na koni                          | nebojuje (Martin 2. 11.)                                                                                                                                                                 |
-| Výzbroj – kovárna                         | × **1,5** s plným pokrytím nástroji (Martin 18. 10. a 2. 11. – zatím koeficient)                                                                                                         |
-| Štěstí vsi (vesničané)                    | × **0,8–1,1** jako práce (18. 10.)                                                                                                                                                       |
-| Nucený vesničan                           | × **0,5** (Martin 3. 11.), s příbuznými v cílové vsi × **0,3** (18. 10.)                                                                                                                 |
-| Ženy, starší a chlapci 14–15 let v obraně | **0,1**, brání se jen u domu (návrh Clauda)                                                                                                                                              |
-| Obrana u domu                             | × **1,5** (18. 10. – znají místo)                                                                                                                                                        |
-| Za opevněním (Opevnění)                   | × 1,5 × **násobek opevnění** ([fortifications.md](fortifications.md) – Obrana): plot 1,25, palisáda 2, val 1,5, val s plotem 2, val s palisádou 3 (Martin 3. 11.; násobení návrh Clauda) |
+| Kdo / co                                  | Síla                                                                                                                                                                                |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Vesničan (muž 16–44) pěšky                | **0,4**, pevně (Martin 3. 11.; číslo návrh Clauda)                                                                                                                                  |
+| Muž rodu pěšky                            | **1 + 2 × vojenská zkušenost ÷ 100** – od 1 do 3 (Martin 2. 11.)                                                                                                                    |
+| Muž rodu na koni                          | × **(1 + 0,5 × jízda na koni ÷ 100)**, jízda na koni = jízda × (0,4 + 0,6 × výcvik koně) ([koně](horses.md)) – až **× 1,5** (Martin 2. 11.)                                         |
+| Vesničan na koni                          | nebojuje (Martin 2. 11.)                                                                                                                                                            |
+| Výzbroj – kovárna                         | × **1,5** s plným pokrytím nástroji (Martin 18. 10. a 2. 11. – zatím koeficient)                                                                                                    |
+| Štěstí vsi (vesničané)                    | × **0,8–1,1** jako práce (18. 10.)                                                                                                                                                  |
+| Nucený vesničan                           | × **0,5** (Martin 3. 11.), s příbuznými v cílové vsi × **0,3** (18. 10.)                                                                                                            |
+| Ženy, starší a chlapci 14–15 let v obraně | **0,1**, brání se jen u domu (návrh Clauda)                                                                                                                                         |
+| Obrana u domu                             | × **1,5** (18. 10. – znají místo)                                                                                                                                                   |
+| Za opevněním (Opevnění)                   | ~~× 1,5 × násobek opevnění~~ – **bez násobku** (Martin 8. 11.): překážka, ochoz, souboj u žebříku, únava po valu ([fortifications.md](fortifications.md#hradby-a-obrana-8-11-2026)) |
 
 Příklady (Martin 2. 11. 2026: „i vojvoda vycvičený na 10 musí být výš, než lovící vesničan“):
 vesničan 0,4, nucený 0,2; muž rodu se zkušeností 10 → 1,2, s 50 (strop výcviku doma) → 2, se 70
@@ -348,10 +351,10 @@ a 12 vesničanů (8 dobrovolníků po 0,4, 4 nucení po 0,2 = 4,0), s kovárnou 
   velitel na doslech (≈ 30 m) – rozkazy nesou hlasy, ne kurzor. NPC velitel stejně.
 - **Souboj mužů** (Martin 2. 11. 2026 – „ok“; čísla návrh Clauda):
   - každý má **zdraví 100**; zásah ubere **10 × síla útočníka ÷ násobek obrany** zasaženého
-    (u domu 1,5, za opevněním 1,5 × násobek opevnění – [fortifications.md](fortifications.md),
-    Obrana);
+    (u domu 1,5 – otázka, zda zůstane; ~~za opevněním 1,5 × násobek opevnění~~ – zrušeno 8. 11.
+    2026, za hradbou platí [fortifications.md](fortifications.md#hradby-a-obrana-8-11-2026): kryt předprsní, lezec × 0,5, únava po valu);
   - **luk na dálku** (20–60 m) – poloviční zásah ≈ každé 4 s; luk mají jen muži rodu, vesničané
-    bojují zblízka; **zblízka oštěp nebo sekera** – plný zásah ≈ každé 2 s;
+    bojují zblízka, z ochozu hradby házejí kameny a oštěpy do ≈ 15 m (Martin 8. 11. 2026); **zblízka oštěp nebo sekera** – plný zásah ≈ každé 2 s;
   - zda rána padne, určí **los ze seedu** války, tažení a okamžiku – server počítá
     deterministicky, výsledek nezávisí na tom, kdo se dívá;
   - příklad: muž rodu se silou 2 srazí vesničana se silou 0,4 pěti ranami, vesničan jeho
@@ -517,16 +520,18 @@ Martin 2. 11. 2026 – „ok“ (podrobnosti návrh Clauda):
   Martinem 3. 11. 2026 („ano“). Zástupná palisáda kolem dvorce, se kterou válka počítala do té
   doby, odpadá.
 - **Válka z něj bere** (čísla jen v `FORTIFICATIONS`, válka je neopakuje):
-  - **násobek obrany** – obránce uvnitř obvodu proti útočníkovi vně, v bráně nebo v průlomu má
-    × 1,5 (zná místo) × násobek úseku: polský plot 1,25, palisáda 2, val 1,5, val s plotem 2, val
-    s palisádou 3 (Martin 3. 11. 2026; násobení návrh Clauda); útočník uvnitř obvodu jen proti
-    × 1,5 u domu; násobek klesá se stavem úseku;
+  - ~~**násobek obrany** – obránce uvnitř obvodu proti útočníkovi vně má × 1,5 × násobek úseku~~ –
+    nahrazeno 8. 11. 2026 (Martin: „Násobek obrany je píčovina. Ta mechanika musí fungovat
+    jinak.“): **hradba jako překážka** – kudy a jak dlouho ji útočník přechází, kdo přes ni koho
+    zasáhne, ochoz, souboj u žebříku, únava po valu a obsazení ≈ 5 m na obránce ([fortifications.md](fortifications.md#hradby-a-obrana-8-11-2026));
+    útočník uvnitř obvodu bojuje jako u domů;
   - **útočiště** – plocha z obvodu, 10 m² na člověka a 20 m² na kus dobytka; kdo stihne doběhnout
     a vejde se, schová se se zásobami a dobytkem; brány se zavřou, když je první útočník do 30 m;
   - **postoje vsi** platí dál – opevnění je pro všechny tři úkrytem bližším než les; přesila
-    u „vzdát se“ se poměří s násobkem opevnění;
+    ~~u „vzdát se“ se poměří s násobkem opevnění~~ – za opevněním se skupina nevzdá, dokud
+    útočník nestojí uvnitř (8. 11. 2026);
   - **prolomení** – útočník projde jen branou, mezerou nebo průlomem; brána plotu hned, brána
-    palisády ≈ 3 h a palisáda ≈ 1 den se 4 muži, val útokem do kopce čtvrtinovým tempem;
+    palisády ≈ 3 h a palisáda ≈ 1 den se 4 muži, val útokem do kopce čtvrtinovým tempem; od 8. 11. 2026 i žebříky, oheň, odkopání, podkop a zasypání příkopu;
   - **NPC velitel** útočí na nejslabší místo, nebo silné opevnění nenapadne a vezme, co je venku.
 - Průlom zůstane po odchodu vojska ve vsi jako mezera a obyvatelé ho přednostně přestaví;
   nájezdy a cizí vojska spatřená u vsi zvedají **hrozbu**, podle které staví opevnění správce
@@ -597,14 +602,14 @@ Martin 2. 11. 2026 – „ok“ (doplňky návrh Clauda):
 | Dobrovolníci (nábor)           | 30 % + 0,5 % za bod štěstí nad 50, hlad +15 %, vdovská domácnost × 0,5, nejvýš 95 % (návrh Clauda) |
 | Dezerce nucených               | 5 % denně, s příbuznými v cíli 15 % (návrh Clauda – výchozí z 18. 10.)                             |
 | Hráč mimo tažení               | 1 herní den, pak zástupce, nebo rozpad                                                             |
-| NPC velitel                    | napadne při síle ≥ 1,5 × obránci × násobek obrany; obrat při padlé či uprchlé polovině vojska      |
+| NPC velitel                    | ≥ 1,5 × obránci × 1,5 u domu; hradbu při postupu ≤ 1 den (8. 11.); obrat při ztrátě ½ vojska       |
 | Stropy dovedností              | výcvik doma 50, lov 70, válka 100 (Martin)                                                         |
 | Válka jako výcvik              | den tažení 2 h, den se soubojem 6 h; lov rodu se stropem 70                                        |
 | Síla vesničana                 | 0,4, nucený × 0,5, štěstí × 0,8–1,1 (Martin 3. 11.)                                                |
 | Síla muže rodu                 | 1 + 2 × (boj + luk) ÷ 200 (Martin; průměr návrh Clauda)                                            |
 | Kůň                            | × (1 + 0,5 × jízda na koni ÷ 100), až × 1,5 (Martin)                                               |
 | Zdraví a zásah                 | 100; 10 × síla ÷ násobek obrany; luk polovina                                                      |
-| Násobek obrany                 | u domu 1,5; za opevněním 1,5 × násobek opevnění (`FORTIFICATIONS`)                                 |
+| Násobek obrany                 | u domu 1,5 (otázka); ~~za opevněním 1,5 × násobek opevnění~~ – zrušeno 8. 11. (`FORTIFICATIONS`)   |
 | Rány                           | zblízka ≈ 2 s, luk ≈ 4 s na 20–60 m                                                                |
 | Na nule zdraví                 | padlý / raněný 1 : 1, muž rodu raněný 2 : 3                                                        |
 | Bod zlomu                      | 30 % v útoku, 45 % v obraně, po skupinách; padlí a ranění ÷ muži                                   |
@@ -615,7 +620,7 @@ Martin 2. 11. 2026 – „ok“ (doplňky návrh Clauda):
 | Ranění                         | 60 dní bez práce, 1 z 5 zemře (Martin)                                                             |
 | Poslední muž rodu doma         | neklesne pod 10 zdraví, vždy uteče (Martin)                                                        |
 | Doslech rozkazu                | 30 m                                                                                               |
-| Dosah zblízka                  | 3 m – oštěp a sekera dosáhnou i přes palisádu (návrh Clauda)                                       |
+| Dosah zblízka                  | 3 m – oštěp a sekera dosáhnou přes plot, ~~i přes palisádu~~ přes palisádu ne (Martin 8. 11.)      |
 | Zda rána padne                 | los 1 : 1 každé rány (návrh Clauda)                                                                |
 | Dohled v lese                  | 50 m (jinak ≈ 150 m; návrh Clauda)                                                                 |
 
@@ -627,7 +632,7 @@ Z 18. 10. beze změny: skupina domů 40 m, dohled 150 m, nosnost 25 kg, ochota a
 - **Předpoklady:** společná mřížka světa a víc hráčů na ní ([vazalství](vassalage.md) – Místo na
   mapě světa), mřížka map ze stěhování, [příbuzenství](kinship.md) pro dobrovolníky, dovednosti
   rodu (lord.md), nová dovednost lov u vesničanů a [opevnění](fortifications.md) (stavba, brány
-  v síti cest, násobky a útočiště).
+  v síti cest, ~~násobky~~ obrana hradeb a útočiště).
 - **První mechanika ve skutečném čase:** tažení a boj počítá server **po taktech** (např. 4 za
   sekundu) deterministicky ze seedu války a čísla taktu – worker je dopočítává, i když nikdo není
   online; poloha vojska je funkce taktu, klient ji jen kreslí a posílá záměry (pohyb hráčova
@@ -640,7 +645,8 @@ Z 18. 10. beze změny: skupina domů 40 m, dohled 150 m, nosnost 25 kg, ochota a
   (`det-math.ts`) jako síť cest; na mapě vsi navíc hotové úseky opevnění jako překážka s branami,
   mezerami a průlomy ([fortifications.md](fortifications.md) – Pro implementaci).
 - **Opevnění v boji:** tažení dostane při vstupu na mapu opevnění se stavem vsi (obvod, úseky
-  a jejich stav, brány); boj bere násobek obrany, vstup do útočiště a práci prolomení z
+  a jejich stav, brány); boj bere ~~násobek obrany~~ překážku hradby, ochoz a dosahy (8. 11.
+  2026), vstup do útočiště a práci prolomení z
   `domain/village/fortification` – válka čísla opevnění neopakuje. Průlom, zavřené brány
   a signály hrozby (nájezd, spatřené vojsko) jdou do vsi jako vnější události.
 - **Use-casy:** `declareWar` (opověď s požadavkem), `offerPeace` / `answerPeace` (jednání
@@ -661,7 +667,7 @@ Z 18. 10. beze změny: skupina domů 40 m, dohled 150 m, nosnost 25 kg, ochota a
 - **Testy:** opověď a přepadení (kronika), ochrana nového rodu a vsi, válka uvnitř stromu
   dovolená, tempo a zima, zásoby a návrat, ohlášený průchod a Nevěřit, souboj a determinismus
   (stejný výsledek po libovolných kouscích), bod zlomu po skupinách, zástupce a rozpad, postoje
-  a včasný útěk (25 kg, jámy), útok na opevnění (násobek, útočiště podle plochy, brána palisády
+  a včasný útěk (25 kg, jámy), útok na opevnění (~~násobek~~ žebříky, oheň, obsazení, útočiště podle plochy, brána palisády
   ≈ 3 h a zeď ≈ 1 den se 4 muži, průlom ve vsi), vzdání mužů rodu a zajetí, výkupné, pojistka
   posledního muže rodu, kořist do nosnosti, mír s podmínkami (poslední ves nejde postoupit),
   svolání (jen muži rodu), ochrana pánem, rozsudek.
@@ -669,8 +675,8 @@ Z 18. 10. beze změny: skupina domů 40 m, dohled 150 m, nosnost 25 kg, ochota a
 ## Později
 
 - **NPC vojvodové** jako cíl (Martin 18. 10. – hrají jako hráč; čeká na simulaci sousedů).
-- **Obléhání hladem**, hlad v útočišti, zapálení palisády – [opevnění](fortifications.md),
-  Později.
+- **Obléhání hladem**, hlad v útočišti, ~~zapálení palisády~~ (oheň v návrhu hradeb 8. 11. 2026)
+  – [opevnění](fortifications.md), Později.
 - **Zbraně, štíty a zbroj** jako věci – „Reálné věci budeme řešit někdy později vlastní mechanikou“
   (Martin 2. 11. 2026).
 - **Družina** – vycvičení vesničané v dvorci, živení z dávek (rešerše 4 – Ibrahim).
@@ -688,7 +694,8 @@ Z 18. 10. beze změny: skupina domů 40 m, dohled 150 m, nosnost 25 kg, ochota a
 - [Stěhování](migration.md), [obchod](trade.md), [vozy](wagons.md) – mřížka map, zemská stezka,
   náklad.
 - [Pohromy](disasters.md) – ochrana nové vsi.
-- [Opevnění](fortifications.md) – násobky obrany, útočiště, brány, prolomení, hrozba pro správce.
+- [Opevnění](fortifications.md) – ~~násobky obrany~~ obrana hradeb (8. 11. 2026), útočiště, brány,
+  prolomení, hrozba pro správce.
 
 ## Rozhodnutí
 
@@ -715,7 +722,7 @@ Z 18. 10. beze změny: skupina domů 40 m, dohled 150 m, nosnost 25 kg, ochota a
 | Průchod neutrálním územím s ohlášením; útok po něm jen věcně v kronice                                                         | Martin 2.–3. 11.      |
 | Postoje dopředu i při obraně: bránit se do bodu zlomu, vzdát se při 1,5×, raději utéct (výchozí)                               | Martin 3. 11.         |
 | Opevnění samostatně (`fortifications.md`); horní lišta, panel války, textový panel Vojsko                                      | Martin 2. 11.         |
-| Násobky, útočiště, brány a prolomení z [opevnění](fortifications.md)                                                           | Martin 3. 11.         |
+| ~~Násobky~~, útočiště, brány a prolomení z [opevnění](fortifications.md)                                                       | Martin 3. 11.         |
 | Upozornění, kronika věcně, scéna                                                                                               | Martin 2. 11.         |
 | Ochrana vojskem na žádost vazala; rozsudek pána řeší spor de iure                                                              | Martin 2. 11.         |
 | Dobrovolníci a rozkaz, dům od domu, sevřená ves, pobít nebo odvést, mlha války, les a brody                                    | Martin 18. 10.        |
@@ -730,7 +737,8 @@ Z 18. 10. beze změny: skupina domů 40 m, dohled 150 m, nosnost 25 kg, ochota a
 | Ohlášení platí jen pro jedno tažení – po návratu domů skončí (Martin 7. 11.); jedna odpověď; svolání: jedno čekající na dohodu | Martin / návrh Clauda |
 | Dítě 10 kg, jáma 30 %, bez lesa jako při přesile, posel; vzdání muže rodu 80 %                                                 | návrh Clauda          |
 | Tribut v dialogu 1. 11., propuštění zajatců jako podmínka                                                                      | návrh Clauda          |
-| Obránce za opevněním × 1,5 × násobek opevnění; zástupnou palisádu nahradil `fortifications.md`                                 | návrh Clauda          |
+| ~~Obránce za opevněním × 1,5 × násobek opevnění;~~ zástupnou palisádu nahradil `fortifications.md`                             | návrh Clauda          |
+| Násobek obrany za opevněním zrušen – hradba jako překážka (fortifications.md – Hradby a obrana)                                | Martin 8. 11.         |
 
 ## Odpovědi Martina 2. 11. 2026
 
@@ -900,6 +908,11 @@ dokumentu výš je podle nich přepsané (3. 11. 2026)**; při rozporu platí te
 
 ## Otázky na Martina
 
-Žádné otevřené. Otázky z 2. 11. 2026 jsou zodpovězené výš; poslední tři (lovecká zkušenost
+Otevřené od 8. 11. 2026 jsou jen otázky k obraně hradeb – [fortifications.md – Otevřené otázky
+k hradbám](fortifications.md#otevřené-otázky-k-hradbám); pro válku je hlavní **otázka 1: zůstane
+obráncům u domu násobek × 1,5?** (doporučení Clauda: zrušit – výhodu obránce nese bod zlomu 45 %
+proti 30 %, útěk a skryté jámy).
+
+Otázky z 2. 11. 2026 jsou zodpovězené výš; poslední tři (lovecká zkušenost
 vesničana, zimní noc, bod zlomu podle počtu mužů) Martin zodpověděl 3. 11. 2026 (viz Odpovědi
 výše): vesničan má pevnou sílu, zima = únava z mrazu, bod zlomu podle počtu mužů.

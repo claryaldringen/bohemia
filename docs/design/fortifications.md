@@ -1,6 +1,8 @@
 # Opevnění
 
-Stav: **schváleno** (Martin 3. 11. 2026: „ano“). Implementace zatím není.
+Stav: **schváleno** (Martin 3. 11. 2026: „ano“). Implementace zatím není. **Obranu a nové druhy
+od 8. 11. 2026 popisuje [Hradby a obrana](#hradby-a-obrana-8-11-2026)** (návrh) – násobek obrany
+v ní zrušen; nahrazené věty níž jsou přeškrtnuté.
 Závazný je oddíl [Odpovědi Martina 3. 11. 2026](#odpovědi-martina-3-11-2026) na konci; tělo
 z něj vychází. Co níž není výslovně Martinovo, je **návrh Clauda**. Navazuje na [válku](war.md)
 (obrana, útočiště, bod zlomu, postoje vsi), [vazalství](vassalage.md) (robota na veřejných
@@ -31,13 +33,348 @@ stavbách), [obyvatele](population.md) (práce vsi, chátrání a přestavba), [
 - **Cíl:** velká stavba, na kterou ves sama dlouho šetří, se s **robotou vazalů** a dávkami klád
   postaví rychleji (Martin 2. 11. 2026).
 - **Ne-cíl (první verze):** bonus za terén (ostrožny, mokřady – Martin 3. 11. 2026), obléhání
-  hladem (Martin 3. 11. 2026 – Později), věže, kamenné hradby, zapálení palisády, vodní příkop,
-  opevnění uvnitř opevnění (předhradí), hradiště jako stupeň sídla.
+  hladem (Martin 3. 11. 2026 – Později), ~~věže, kamenné hradby, zapálení palisády, vodní
+  příkop,~~ (nahrazeno 8. 11. 2026 – věž nad branou, hradby s kamennou plentou, oheň a vodní
+  příkop jsou v [Hradby a obrana](#hradby-a-obrana-8-11-2026)) opevnění uvnitř opevnění
+  (předhradí), hradiště jako stupeň sídla.
 - **Anti-cíl:** nedobytné opevnění – každé jde prolomit, jen to trvá (Martin 3. 11. 2026).
 - **Anti-cíl:** opevnění, které zavře vlastní ves – brány vzniknou samy, kde obvod protne cestu
   (Martin 3. 11. 2026), a obvod má vždy aspoň jednu (návrh Clauda).
 - **Anti-cíl:** opevnění, které spadne skokem – stárne a chátrá postupně, vidět je to ve scéně
   i v panelu (návrh Clauda podle [opuštěných staveb](abandonment.md)).
+
+## Hradby a obrana (8. 11. 2026)
+
+Stav: **návrh** (8. 11. 2026) – čeká na [otevřené otázky](#otevřené-otázky-k-hradbám). Oddíl
+**ruší násobek obrany**, přidává nové druhy a vylepšení po úsecích; starší oddíly níž platí, kde
+nejsou přeškrtnuté. Citace jsou z rozhovoru s Martinem 8. 11. 2026; co není jeho, je **návrh
+Clauda**. Podklad: [rešerše hradeb](research/2026-11-08-ramparts.md).
+
+Martin 8. 11. 2026: „**To, že vesnice hradbu nepostaví, je spíš věcí správce – prostě usoudí, že
+se mu nevyplatí. Násobek obrany je píčovina. Ta mechanika musí fungovat jinak.**“
+
+- **Cíl:** výhodu obránce dělá **hradba jako fyzická překážka** – kudy a jak dlouho ji útočník
+  přechází, kdo přes ni koho zasáhne a kolik obránců ji obsadí –, ne číslo, které násobí sílu.
+- **Cíl** (Martin 8. 11. 2026): polský plot dává slabou obranu a ekonomicky se nevyplatí; palisáda
+  se vyplatí jen velkým vsím těsně pod stropem mapy (≈ 150 lidí, strop ≈ 185–195); vyšší hradby
+  klasická ves neutáhne – stavbou, obranou ani údržbou.
+- **Ne-cíl:** beran a obléhací stroje, hašení ohně, obléhání hladem (Později).
+
+### Druhy a postup vylepšení
+
+Martin 8. 11. 2026: „**Když postavím val s příkopem, mohu ho vylepšit postupně o 1. polský
+plot 2. palisádu 3. palisádu s ochozem 4. roštovou hradbu 5. komorovou hradbu. Polský plot,
+palisádu a obě hradby sice mohu postavit samostatně, ale pak bych měl mít možnost doplnit to o val
+s příkopem.**“ Mezistupeň je „**palisáda s valem z vnitřní strany tak, aby se vytvořil ochoz, ze
+kterého se dá palisáda aktivně bránit**“ a vzniká jen vylepšením palisády (Martin – „A“).
+
+| Stupeň | Hradba             | Jak vzniká                                            | Pás bez valu / s valem | Nejmenší ohyb |
+| ------ | ------------------ | ----------------------------------------------------- | ---------------------- | ------------- |
+| 1      | polský plot        | nový, i na valu                                       | 1 / 10 m               | 1,25 m        |
+| 2      | palisáda           | nová, vylepšením plotu, i na valu                     | 1,5 / 10 m             | 3 m           |
+| 3      | palisáda s ochozem | jen vylepšením palisády – násyp zevnitř 4 m           | 5,5 / 12,5 m           | 4 m           |
+| 4      | roštová hradba     | nová i vylepšením; rošt z klád, hlína, kamenná plenta | 7 / 14 m               | 8 m           |
+| 5      | komorová hradba    | nová i vylepšením; srubové komory, kamenná čelní zeď  | 8 / 15 m               | 10 m          |
+| –      | val s příkopem     | samotný, pod kterýkoli stupeň, i dodatečně            | 10 m                   | 8 m           |
+
+Šířky a ohyby nových druhů jsou návrh Clauda podle rešerše (ochoz 1,5 m pod špičkami kůlů,
+roštová ≈ 7 m, komorová ≈ 8 m, komory po 5–6 m).
+
+- **Úsek má dvě vrstvy** (návrh Clauda): hradbu (stupeň 1–5, nebo žádnou) a val s příkopem (je –
+  není, suchý – s vodou). Val stačí i sám (Martin 3. 11. 2026) a **doplnit ho jde i pod stojící
+  hradbu** – nahrazuje návrh Clauda z 3. 11. „val pod stojící plot nebo palisádu nejde“. Doplněný
+  val leží vně hradby, ta stojí a brání dál; vnější okraj pásu se posune ven a nový pás musí
+  splnit [Kudy pás smí](#obvod).
+- **Pás s valem** = příkop 4 m + vnější svah valu 3 m + hradba na koruně, nejméně 10 m jako
+  samotný val (návrh Clauda).
+- **Po úsecích mezi branami** (Martin 8. 11. 2026 – [bourání](demolition.md): „Hráč pak bude
+  moci každý z těch úseků zbořit nebo vylepšit.“): vylepšení i doplnění valu se zadává na úsek;
+  obvod smí mít po úsecích různé druhy, rozhraní je vždy brána. „Vylepšit vše“ zadá všechny úseky.
+- **Vylepšení** jde na kterýkoli vyšší stupeň za cenu cílového a nižší stupeň nic nevrací – jako
+  plot → palisáda (Martin 3. 11. 2026); výjimkou je ochoz – přístavba, palisáda zůstane. Starý
+  stupeň stojí a brání, dokud nový úsek není hotový (návrh Clauda; skok o víc stupňů – otázka 6).
+- **Kterákoli ves** smí postavit kterýkoli druh – že se běžné vsi hradba nevyplatí, usoudí správce
+  (Martin výš); nahrazuje doporučení rešerše „roštová a komorová jen pro hradiště“.
+- **Vodní příkop** – Martin: „**Další možnost bude napojení příkopu na vodní zdroj. Pak nelze
+  příkopem projít, pokud se nezasype.**“ Návrh Clauda: úsek valu, jehož příkop je do 30 m od
+  potoka, řeky nebo tůně, jde napustit strouhou (¼ čd na 1 m); voda se rozlije do souvislých
+  úseků příkopu, jejichž dno leží pod hladinou zdroje, ostatní zůstanou suché (deterministicky
+  z terénu).
+
+### Kámen
+
+- Martin 8. 11. 2026 – kámen je **nová surovina** z kamenů odklizených z polí a staveb a ze skal
+  („A“): „**I roštová hradba měla plentu z nasucho vyskládaných kamenů.**“
+- **Spotřeba na 100 m** (návrh Clauda): roštová **100 m³** (plenta nasucho ≈ 2 m vysoká, 0,5 m
+  silná), komorová **320 m³** (čelní zeď 4 × 0,8 m – rešerše).
+- Odkud kámen, kolik dá kámen z pole, balvan a skála a jak vypadá hromada kamene – samostatný
+  krátký návrh suroviny (návrh Clauda); tady jen spotřeba.
+
+### Obrana bez násobku
+
+**Násobek obrany za opevněním se ruší** – Martinovy násobky z 3. 11. 2026 i jejich násobení „zná
+místo“ (návrh Clauda) neplatí. Zásah zůstává `10 × síla útočníka` ([válka](war.md) – Boj); dům
+× 1,5 je [otázka 1](#otevřené-otázky-k-hradbám). Výhoda obránce vzniká ze šesti věcí:
+
+1. **Překážka – kudy a jak dlouho.** Útočník projde jen branou, mezerou nebo průlomem, nebo
+   hradbu přeleze, prosekne, odkope, podkope či vypálí – podle druhu (časy v [Přechod
+   hradby](#přechod-hradby-návrh-clauda)). Kdo leze nebo prolamuje, nebojuje.
+   - **Polský plot** – Martin: „**útočník ho může zničit pomocí seker (později mečů) nebo
+     jednoduše přelézt. Jde poměrně snadno probodnout z obou stran, čili je to jen fyzická
+     bariéra bránící v průchodu.**“
+   - **Palisáda** – Martin: „**Palisáda se dá přelézt po žebříku nebo prosekat sekerami. Nejde
+     probodnout ani z jedné strany. Pokud palisáda nemá ochoz, je potřeba postavit jeden žebřík
+     na palisádu a druhý žebřík z palisády dolů. Palisáda půjde také zničit ohněm nebo odkopat.
+     Ničení ohněm si představuju tak, že útočníci nanosí k patě palisády otepi dříví, které
+     zapálí. Následně budou přikládat, dokud palisáda nevyhoří.**“
+   - **Palisáda s ochozem** – Martin: „**Stejně jako s palisádou bez ochozu, akorát útočník
+     nepotřebuje druhý žebřík a obránce může palisádu aktivně bránit.**“
+   - **Roštová hradba** – Martin: „**se dá jen přelézt po žebříku nebo podkopat**“ – neprosekne se
+     a nevypálí (kamenná plenta).
+   - **Komorová hradba** – jako roštová; Martin: „**jde také odkopat, ale bude to trvat 1,5
+     násobek času, co by trvalo odkopání roštové hradby**“.
+   - **Val s příkopem** – Martin: „**Sestup do valu bude pomalý, výstup z valu bude taky pomalý.
+     (…) Pokud hned pod palisádou bude val, nelze k palisádě vršit otepi dřeva a bude potřeba
+     val napřed v tom místě zasypat. Odkopávání půjde normálně, to jde i ze dna příkopu.**“
+     Vodním příkopem neprojde nikdo, dokud ho v místě nezasype (Martin) – návrh Clauda: ani
+     odkopat, podkopat nebo zapálit tam nejde dřív.
+2. **Kdo přes hradbu koho zasáhne** (Martin u plotu a palisády, zbytek návrh Clauda):
+
+   | Hradba              | Zblízka přes hradbu               | Ven střílí a hází          | Útočník zespodu |
+   | ------------------- | --------------------------------- | -------------------------- | --------------- |
+   | polský plot         | oštěp a sekera z obou stran (3 m) | luk z obou stran           | bez krytu       |
+   | palisáda bez ochozu | nikdo                             | nikdo – za kůly není vidět | nikoho nevidí   |
+   | palisáda s ochozem  | z ochozu na lezce a kameny k patě | luk 20–60 m, hod do 15 m   | kryt předprsní  |
+   | roštová, komorová   | z koruny jako z ochozu            | jako z ochozu              | kryt předprsní  |
+   | věž nad branou      | shora kameny na muže u vrat       | luk do 80 m, dohled 250 m  | kryt předprsní  |
+
+3. **Aktivní obrana z ochozu** – ochoz je nové chování v boji (Martin – „B“): „**Luk je
+   jasný**“ – muži rodu jako ve [válce](war.md) (20–60 m); vesničané házejí kameny a oštěpy do
+   ≈ 15 m a shazují žebříky (Martin – „ano“). Návrh Clauda: hod vesničana je poloviční zásah jako
+   luk (≈ každé 4 s), na muže u paty hradby (do 3 m) shazuje kameny plným zásahem (≈ každé 2 s);
+   kameny a oštěpy na ochozu nedojdou. Obránce na ochozu kryje předprseň – střela nebo hod
+   zespodu na něj padne jen s losem 1 : 3 místo 1 : 1 (otázka 2). Ochoz má palisáda s ochozem,
+   koruna roštové a komorové hradby, ramena klešťové brány a věž.
+4. **Souboj u žebříku** (Martin – „A“): lezec je znevýhodněný – slabší a neuhne; obránce ho může
+   shodit i se žebříkem; nahoru se dostane jen přes sraženého obránce nebo na neobsazeném místě.
+   Návrh Clauda: lezec má sílu × 0,5 a každá rána obránce na něj padne; místo rány smí obránce
+   žebřík shodit – uspěje s losem 1 : 3 s lezcem, 1 : 1 bez něj; shozený lezec ztratí 20 zdraví
+   a žebřík jde znovu opřít. Na žebříku je jeden lezec naráz, žebříky nejméně 1 m od sebe. Totéž
+   platí uvnitř palisády bez ochozu: slézající je lezec a obránce zevnitř shodí i vnitřní žebřík.
+5. **Únava po valu** (Martin: „**Člověk, který musí překonat val, bude o něco více unavený a bude
+   tak mít o kousek menší bojovou hodnotu.**“): návrh Clauda – po přechodu příkopu a valu síla
+   × 0,85, vrací se lineárně za 30 s (120 taktů). Sestup do příkopu i výstup na val jde
+   čtvrtinovým tempem (jako dosud).
+6. **Obsazení** (Martin: „**Ano tak to reálně je**“): obránce brání **≈ 5 m** hradby – 2,5 m na
+   každou stranu (návrh Clauda); **neobsazený úsek je jen překážka** – žebříky se opřou a vylezou
+   bez boje a prolamující nikdo neruší. Dlouhá hradba s málo muži má díry – proto ji malá ves
+   neutáhne.
+   - **Rozestavění a přesun** (návrh Clauda): když ves spatří vojsko, muži 16–44 obsadí napřed
+     brány (po 2) a věže (muži rodu), zbytek rovnoměrně obvod. Pak jde každý k nejbližšímu
+     žebříku nebo místu prolamování, kde je obránců míň než útočníků – za hradbou plným tempem, po
+     ochozu polovičním. Přítomný hráč smí obránce přeskupit sám ([válka](war.md) – Obránci).
+
+- **Beze změny:** mezera (rozestavěný úsek, úsek na 0 %, průlom, zbořený díl) je průchod jako
+  otevřená brána; brány se zavřou, když je první útočník do 30 m; útočník uvnitř obvodu bojuje
+  s obránci jako u domů – hradba mu nepřekáží.
+- **Stav úseku** (návrh Clauda): práce i hoření prolomení se násobí stavem – palisáda na 50 % se
+  prosekne za polovinu, na 0 % je mezera. Výška valu `v` (0,5–1): tempo přes val ÷ (1 + 3 × v),
+  únava × (1 − 0,15 × v) – nahrazuje „násobek podle stavu“.
+- **Postoj Vzdát se při přesile** (návrh Clauda, nahrazuje „1,5 × obránců × násobek“): skupina za
+  opevněním se nevzdá, dokud útočník nestojí uvnitř obvodu; pak platí 1,5× jako u domů.
+- **NPC velitel** (návrh Clauda, nahrazuje „1,5 × obránci × násobek“): odhadne nejrychlejší
+  postup – mezera, žebříky na neobsazeném úseku, brána, oheň, sekání, odkopání, podkop – a napadne,
+  je-li jeho síla aspoň 1,5 × síla obránců v dohledu a postup trvá nejvýš 1 herní den práce; jinak
+  vezme, co je venku, a odejde. Žebříky si vyrobí u nejbližšího lesa.
+
+### Přechod hradby (návrh Clauda)
+
+Nejvýš 4 muži na jedno místo (brána nebo 4 m hradby) jako dosud; herní hodina ≈ 3,6 s. Řádky
+z [Prolomení](#prolomení) (3. 11.) zůstávají, nové navazují.
+
+| Postup                              | Hradba                 | Práce (mužohodin)                    | 4 muži  | Skutečně |
+| ----------------------------------- | ---------------------- | ------------------------------------ | ------- | -------- |
+| prosekat bránu plotu, závora valu   | plot, val              | 0                                    | hned    | hned     |
+| prosekat plot                       | plot                   | 2                                    | ½ h     | ≈ 2 s    |
+| prosekat bránu                      | palisáda (i s ochozem) | 12                                   | 3 h     | ≈ 11 s   |
+| prosekat bránu                      | roštová, komorová      | 24                                   | 6 h     | ≈ 22 s   |
+| vypálit bránu                       | každá                  | otepi 8 + 4 h hoření (2 přikládají)  | 6 h     | ≈ 22 s   |
+| prosekat palisádu                   | palisáda               | 96                                   | 1 den   | ≈ 86 s   |
+| odkopat palisádu (i ze dna příkopu) | palisáda               | 80                                   | 20 h    | ≈ 72 s   |
+| vypálit palisádu                    | palisáda               | otepi 16 + 8 h hoření (2 přikládají) | 12 h    | ≈ 43 s   |
+| podkopat                            | roštová                | 480                                  | 5 dní   | ≈ 7 min  |
+| podkopat (1,5 × roštová – Martin)   | komorová               | 720                                  | 7,5 dne | ≈ 11 min |
+| zasypat val pro oheň (4 m)          | val pod palisádou      | 80                                   | 20 h    | ≈ 72 s   |
+| zasypat vodní příkop (4 m)          | vodní příkop           | 48                                   | 12 h    | ≈ 43 s   |
+| vyrobit žebřík                      | strom v lese           | 4                                    | 1 h     | ≈ 4 s    |
+
+| Pohyb jednoho muže (skutečný čas)                               | Čas                      |
+| --------------------------------------------------------------- | ------------------------ |
+| přelézt polský plot                                             | 2 s                      |
+| opřít žebřík                                                    | 2 s                      |
+| vylézt na palisádu / roštovou / komorovou hradbu                | 4 / 5 / 6 s              |
+| přetáhnout druhý žebřík přes palisádu bez ochozu                | 4 s, jednou              |
+| dolů dovnitř – žebřík z palisády / násyp ochozu / koruna hradby | 4 / 2 / 3 s              |
+| příkop a val (pás 10 m)                                         | čtvrtinové tempo, ≈ 11 s |
+
+- **Oheň:** otepi z lesa, keřů nebo dříví vsi do 100 m (dál úměrně déle); vyhoří 4 m a zbude
+  průlom. Nehoří plot (prosekne se rychleji) ani roštová a komorová hradba; brána každá. Vypálení
+  brány pod věží zapálí i věž.
+- **Podkop:** po pětině práce jsou kopáči pod zemí a obránci je nezasáhnou; podkop se zřítí
+  a nechá průlom 4 m.
+- **S valem:** sekat a pálit se dá jen po výstupu na val a pálit až po zasypání; odkopat
+  a podkopat jde ze dna příkopu (Martin). Vodní příkop napřed zasypat.
+- Proč takové pořadí: bez valu je nejrychlejší oheň (≈ ½ sekání), s valem odkopání – hráč
+  i NPC velitel volí podle hradby. Podkop hradeb trvá dny, takže **hradba se bere hlavně
+  žebříky přes neobsazená místa** – a tam rozhoduje obsazení.
+
+### Brány
+
+Martin 8. 11. 2026: „**brána se dá prosekat nebo vypálit. Od palisády výše může hráč či NPC
+vylepšit bránu ve dvou úrovních 1. klešťová brána (za opevněním však musí být dost místa) 2.
+dřevěná věž nad samotnou branou.**“ Výklad níž Martin schválil („Ano“).
+
+- **Klešťová brána** (1. úroveň): ramena hradby zatažená dovnitř podél cesty, mezi nimi ulička
+  a vrata na jejím vnitřním konci. Útočník v uličce je v dosahu obránců z obou ramen a k vratům se
+  vejde jen pár útočníků. Návrh Clauda: ulička 4 m široká a 12 m dlouhá, k vratům nejvýš 4 muži;
+  ramena mají vždy ochoz (u palisády v ceně brány); za vnitřním okrajem pásu musí být 12 m volného
+  místa podél cesty – jinak zašedlé „Za branou není místo.“. **Cena:** 24 m hradby druhu úseku
+  s ochozem – u palisády ≈ 110 čd + 20 klád.
+- **Věž nad branou** (2. úroveň, po klešťové): shora zasahuje ty, kdo vrata sekají nebo
+  zapalují, dál vidí a dostřelí. Návrh Clauda: nejvýš 4 obránci, dohled 250 m (jinak 150 m), luk
+  do 80 m (jinak 60 m), kryt jako ochoz; **cena** 120 čd komplet + 30 klád; hoří s branou.
+- Bránu plotu ani val bez hradby vylepšit nejde („od palisády výše“).
+
+### Cena
+
+Martin 8. 11. 2026 – ceny „**komplet, včetně kácení a odvozu**“: palisáda **30**, roštová
+**105**, komorová **145** člověkohodin na 1 m (čd = 10 h).
+
+| Na 100 m                   | Práce komplet            | Klády | Kámen  | Kdo                                  |
+| -------------------------- | ------------------------ | ----- | ------ | ------------------------------------ |
+| polský plot                | ≈ 35 čd (20 čd + kácení) | 15    | –      | Martin 3. 11.                        |
+| palisáda                   | 300 čd                   | 70    | –      | Martin 8. 11. (klády 3. 11.)         |
+| ochoz (vylepšení palisády) | 150 čd                   | 10    | –      | návrh Clauda                         |
+| palisáda s ochozem celkem  | 450 čd                   | 80    | –      | návrh Clauda                         |
+| val s příkopem             | 150 čd                   | –     | –      | Martin 3. 11.                        |
+| roštová hradba             | 1 050 čd                 | 330   | 100 m³ | Martin 8. 11. (klády, kámen rešerše) |
+| komorová hradba            | 1 450 čd                 | 350   | 320 m³ | Martin 8. 11. (klády, kámen rešerše) |
+
+- **Ochoz 15 h na 1 m** (návrh Clauda z rešerše): násyp zevnitř ≈ 450 m³ hlíny na 100 m ≈ 110 čd,
+  pochozí fošny a schůdky ≈ 10 čd + 10 klád, s kácením ≈ 130 čd → zaokrouhleno 150 čd. Palisáda
+  s ochozem tak stojí 45 h na 1 m – blíž palisádě (30) než roštové (105), protože je to palisáda
+  s hliněným náspem, ne nová konstrukce.
+- **Kláda z hromady ušetří 1 čd** – kácení a svoz jednoho stromu (návrh Clauda; dřív navržené
+  2 čd by roštovou hradbu z hromady srazily na 390 čd, méně než její zemní práce ≈ 500 čd podle
+  rešerše – otázka 5). **Kámen z hromady ušetří 1 čd na m³** (rešerše: lámání a vození ≈ 1,4 čd
+  na m³, kladení zůstane).
+- **Zablokovat smí jen cena předem** (`CLAUDE.md`): klády i kámen musí být na hromadě nebo k mání
+  v krajině sídla, jako dosud u klád; práce se nečeká, jen trvá.
+- **Doplnění valu** stojí cenu valu (150 čd na 100 m), **vodní příkop** strouhu (¼ čd na 1 m).
+
+### Životnost a údržba
+
+| Druh            | Životnost                        | Údržba (čd na 100 m ročně) | Přestavba dožilého úseku     |
+| --------------- | -------------------------------- | -------------------------- | ---------------------------- |
+| polský plot     | 15 let (Martin)                  | 1                          | plná cena                    |
+| palisáda        | 20 let (Martin)                  | 1                          | plná cena                    |
+| ochoz           | násyp nehnije, fošny s palisádou | +1                         | s palisádou                  |
+| val s příkopem  | nehnije                          | 2 (dosud)                  | obnova pod 0,75 za ½ (dosud) |
+| roštová hradba  | ≈ 30 let (rešerše)               | 5                          | ⅓ ceny, kámen zůstane        |
+| komorová hradba | ≈ 50 let (rešerše)               | 5                          | ⅓ ceny, plenta zůstane       |
+| věž nad branou  | 20 let                           | 1 za věž                   | plná cena                    |
+
+Vše kromě Martinových životností je návrh Clauda.
+
+- **Údržba po úsecích** ze společné práce hned po opravách obydlí, jako dosud val. Úsek, na
+  jehož údržbu práce nestačí, **stárne ten rok dvakrát** (hradba) nebo se snižuje (val, dosud);
+  nedodělek se rozdělí na úseky rovným dílem. Přestavba dožilých úseků a chátrání bez dřeva
+  zůstávají ([Životnost a oprava](#životnost-a-oprava)) – stav ale místo násobku mění čas
+  prolomení (Obrana bez násobku).
+- Údržba je třetí cena hradby vedle stavby a obsazení – u komorové hradby kolem velké vsi
+  (≈ 400 m) 20 čd ročně, u palisády s ochozem 8 čd.
+
+### Správce
+
+- Martin: „**To, že vesnice hradbu nepostaví, je spíš věcí správce – prostě usoudí, že se mu
+  nevyplatí.**“ Žádný druh není zakázaný; správce ho nepostaví, protože mu vyjde nevýhodný.
+- **Ochrana druhu** (návrh Clauda, nahrazuje `1 − 1 ÷ násobek` v [Hrozbě](#hrozba--jak-se-počítá-návrh-clauda)):
+  podíl ztráty nájezdu, který opevnění ušetří = **pasivní + aktivní × obsazenost**, obsazenost
+  = min(1, muži 16–44 × 5 m ÷ délka obvodu). Výchozí čísla: plot 0 + 0,1; palisáda 0,2 + 0,2;
+  s ochozem 0,2 + 0,5; roštová 0,3 + 0,55; komorová 0,35 + 0,55; val přidá 0,05 + 0,1.
+  **Přínos za rok** = H × ztráta nájezdu × ochrana; horizont nejvýš životnost druhu (roštová 30,
+  komorová 50 let); cena = stavba + údržba za horizont.
+- Ochrana se doladí **měřením nájezdů NPC** na vsi s hradbou (jen na pokyn), aby platily Martinovy
+  cíle: plot se nevyplatí, palisáda jen velké vsi pod stropem mapy, hradby běžná ves ne.
+- Správce staví nový druh, vylepšení, ochoz, doplnění valu i vodní příkop – vždy celý obvod;
+  klešťovou bránu a věž v první verzi jen hráč (návrh Clauda).
+
+### Rozhraní a scéna
+
+- **Panel úseku** (UI jako 0 A.D.): štít s násobkem nahradí ikony postupů útočníka (žebřík,
+  sekera, oheň, rýč) – zašedlá, kde postup nejde, v popisku čas se 4 muži; ikona obsazení (muži
+  × 5 m ÷ délka obvodu). Tlačítka **Vylepšit** (nabídka vyšších stupňů), **Doplnit val**,
+  **Napustit příkop**, u brány **Klešťová brána** a **Věž**; důvod u kurzoru („Chybí 100 m³
+  kamene.“, „Příkop nedosáhne k vodě.“, „Za branou není místo.“).
+- **Scéna:** násyp ochozu s fošnami za kůly, rošt s kamennou plentou, srubové komory s čelní
+  zdí, ramena a věž brány, voda v příkopu; v boji žebříky, otepi a oheň, průlom po ohni
+  ohořelý. Modely jako dosud (Blender CC0, předlohy z 0 A.D.).
+
+### Pro implementaci (poznámky, ne kód)
+
+- `domain/village/fortification/defense.ts` ztratí násobky (`segmentMultiplier`,
+  `defenderMultiplier`) a `breach.ts` práh s násobkem (`surrenderThreshold`); úsek dostane hradbu
+  a val zvlášť, tabulky přechodu a dosahů do `FORTIFICATIONS`. Starší opevnění se převedou jednou
+  a idempotentně (val s palisádou = val + palisáda).
+- Válka: pohyb vojska po hradbě (žebříky, sestup, val, voda), souboj s lezcem, krytem a únavou,
+  hody vesničanů z ochozu, obsazení a přesun obránců, volba postupu NPC velitele – vše
+  deterministicky po taktech ([válka](war.md) – Pro implementaci).
+- Testy: časy přechodu po druzích a stavu, zasypání a vodní příkop, souboj u žebříku, obsazení
+  (neobsazený úsek bez boje), ochrana pro správce, převod starých opevnění.
+
+### Čísla hradeb (návrh – do `FORTIFICATIONS`)
+
+| Co                          | Číslo                                                                                                  | Kdo                           |
+| --------------------------- | ------------------------------------------------------------------------------------------------------ | ----------------------------- |
+| Násobek obrany za opevněním | žádný                                                                                                  | Martin 8. 11.                 |
+| Cena na 1 m komplet         | palisáda 30 h, roštová 105 h, komorová 145 h                                                           | Martin 8. 11.                 |
+| Ochoz (vylepšení palisády)  | 15 h na 1 m + 10 klád na 100 m (palisáda s ochozem 45 h)                                               | návrh Clauda                  |
+| Klády na 100 m              | palisáda 70 (Martin 3. 11.), ochoz 10, roštová 330, komorová 350                                       | návrh Clauda                  |
+| Kámen na 100 m              | roštová 100 m³, komorová 320 m³                                                                        | návrh Clauda                  |
+| Z hromady ušetří            | kláda 1 čd, kámen 1 čd na m³                                                                           | návrh Clauda                  |
+| Klešťová brána              | ulička 4 × 12 m, k vratům 4 muži; cena 24 m hradby s ochozem                                           | návrh Clauda                  |
+| Věž nad branou              | 4 obránci, dohled 250 m, luk 80 m; 120 čd + 30 klád                                                    | návrh Clauda                  |
+| Vodní příkop                | do 30 m od vody, strouha ¼ čd na 1 m                                                                   | návrh Clauda                  |
+| Přechod hradby              | práce a časy – tabulky v [Přechod hradby](#přechod-hradby-návrh-clauda); podkop komorové 1,5 × roštová | návrh Clauda (1,5 × Martin)   |
+| Pás a nejmenší ohyb         | tabulka v [Druhy a postup vylepšení](#druhy-a-postup-vylepšení); s valem 7 m + hradba, nejméně 10 m    | návrh Clauda                  |
+| Lezec                       | síla × 0,5, rána obránce padne vždy; shození 1 : 3 s lezcem, 1 : 1 bez; pád −20 zdraví                 | návrh Clauda                  |
+| Hod vesničana z ochozu      | kameny a oštěpy do 15 m poloviční zásah ≈ 4 s; k patě plný ≈ 2 s                                       | návrh Clauda                  |
+| Kryt předprsní              | střela a hod zespodu padne 1 : 3                                                                       | návrh Clauda                  |
+| Únava po valu               | síla × 0,85, zpět za 30 s; tempo přes val ÷ (1 + 3 × výška)                                            | návrh Clauda                  |
+| Obsazení                    | obránce brání ≈ 5 m; brány po 2 mužích                                                                 | návrh Clauda (Martin – „Ano“) |
+| Životnost                   | roštová 30 let, komorová 50 let, věž 20 let                                                            | návrh Clauda                  |
+| Údržba na 100 m ročně       | plot 1, palisáda 1, ochoz +1, val 2, roštová 5, komorová 5 čd                                          | návrh Clauda                  |
+| Přestavba hradby            | roštová a komorová ⅓ ceny, kámen zůstane                                                               | návrh Clauda                  |
+| Ochrana pro správce         | pasivní + aktivní × obsazenost (výchozí v Správce)                                                     | návrh Clauda                  |
+
+### Otevřené otázky k hradbám
+
+Jedna otázka = jedno rozhodnutí, doporučení Clauda u každé.
+
+1. **Dům × 1,5** – zůstane obráncům u domu násobek „znají místo“, když za hradbou žádný není?
+   Doporučení: **zrušit i ten**; výhodu obránce u domů nese vyšší bod zlomu (45 % proti 30 %),
+   útěk a skryté jámy. NPC velitel pak napadne skupinu domů při 1,5 × síle obránců.
+2. **Kryt předprsní** – smí střela nebo hod zespodu na obránce na ochozu padnout jen 1 : 3? Je to
+   fyzický kryt jen proti střelám, ne násobek síly. Doporučení: **ano**.
+3. **Časy přechodu** – platí tabulka (bez valu nejrychlejší oheň, s valem odkopání, podkop hradeb
+   dny, žebřík sekundy)? Doporučení: **ano** a doladit na první bitvě ve scéně.
+4. **Cena ochozu** – 15 h na 1 m (palisáda s ochozem 45 h na 1 m komplet)? Doporučení: **ano**.
+5. **Kláda z hromady** ušetří 1 čd, ne 2 čd? Doporučení: **1 čd**, jinak by hradba z hromady
+   stála míň než její zemní práce.
+6. **Vylepšit o víc stupňů najednou** (palisáda rovnou na komorovou za cenu komorové)?
+   Doporučení: **ano** – postupně je jen pořadí stupňů, mezistupeň by stál navíc a nic nevrátil.
+7. **Vodní příkop v zimě** – zamrzne (1. 12. – konec února) a jde přejít jako suchý?
+   Doporučení: **ano** – zima je i ve válce roční doba nájezdů s vlastními pravidly.
 
 ## Druhy
 
@@ -48,23 +385,26 @@ odkopaná z příkopu vytvoří val. Na koruně valu pak budu moci postavit pols
 palisádu.**“ Plot nebo palisáda na valu je volitelná – „**hráč se může rozhodnout, že val
 stačí**“.
 
-| Druh            | Jak vzniká                                     | Násobek | Cena na 100 m      | Životnost         |
-| --------------- | ---------------------------------------------- | ------- | ------------------ | ----------------- |
-| polský plot     | pletený plot jako u pozemků, kolem části vsi   | × 1,25  | 20 čd + 15 klád    | ≈ 15 let          |
-| palisáda        | nová, nebo vylepšením plotu (plot nevrací nic) | × 2     | 80 čd + 70 klád    | ≈ 20 let          |
-| val s příkopem  | hlína z příkopu tvoří val                      | × 1,5   | 150 čd (jen hlína) | nehnije, údržba   |
-| val s plotem    | val + plot na koruně                           | × 2     | val + plot         | val / plot zvlášť |
-| val s palisádou | val + palisáda na koruně                       | × 3     | val + palisáda     | val / palisáda    |
+| Druh            | Jak vzniká                                     | Násobek    | Cena na 100 m              | Životnost         |
+| --------------- | ---------------------------------------------- | ---------- | -------------------------- | ----------------- |
+| polský plot     | pletený plot jako u pozemků, kolem části vsi   | ~~× 1,25~~ | 20 čd + 15 klád            | ≈ 15 let          |
+| palisáda        | nová, nebo vylepšením plotu (plot nevrací nic) | ~~× 2~~    | ~~80 čd~~ 300 čd + 70 klád | ≈ 20 let          |
+| val s příkopem  | hlína z příkopu tvoří val                      | ~~× 1,5~~  | 150 čd (jen hlína)         | nehnije, údržba   |
+| val s plotem    | val + plot na koruně                           | ~~× 2~~    | val + plot                 | val / plot zvlášť |
+| val s palisádou | val + palisáda na koruně                       | ~~× 3~~    | val + palisáda             | val / palisáda    |
 
-Násobky, ceny a životnosti jsou Martinovy (3. 11. 2026); jak násobek působí v boji, je
-v Obraně.
+Násobky, ceny a životnosti jsou Martinovy (3. 11. 2026); ~~jak násobek působí v boji, je
+v Obraně.~~ Nahrazeno 8. 11. 2026: násobky zrušeny, palisáda 300 čd komplet (Martin), nové druhy
+palisáda s ochozem, roštová a komorová hradba a postup vylepšení – [Hradby a
+obrana](#hradby-a-obrana-8-11-2026).
 
 - **Vylepšení plotu na palisádu** stojí jako nová palisáda (80 čd + 70 klád na 100 m) a plot nic
   nevrací (Martin 3. 11. 2026). Postupuje po úsecích; plot úseku stojí, dokud jeho palisáda není
   hotová (návrh Clauda).
 - **Plot nebo palisáda na valu** se staví na hotový val, kdykoli později, po úsecích, za cenu
-  samotného plotu nebo palisády (Martin 3. 11. 2026). Val pod stojící plot nebo palisádu
-  dodatečně nejde – val je nové opevnění se svým obvodem (návrh Clauda).
+  samotného plotu nebo palisády (Martin 3. 11. 2026). ~~Val pod stojící plot nebo palisádu
+  dodatečně nejde – val je nové opevnění se svým obvodem (návrh Clauda).~~ Nahrazeno 8. 11. 2026:
+  val s příkopem jde doplnit i ke stojící hradbě (Martin – Druhy a postup vylepšení).
 
 ## Obvod
 
@@ -103,7 +443,8 @@ v Obraně.
   | val s příkopem (i s nástavbou) | 10 m – příkop 4 m vně, val 6 m u paty | 8 m                    |
 
   Poloměr se měří na vnějším okraji v obou směrech ohybu; kde je ohyb ostřejší, než šířka pásu
-  dovolí, sejde se vnitřní okraj pásu do rohu (návrh Clauda).
+  dovolí, sejde se vnitřní okraj pásu do rohu (návrh Clauda). Pás a ohyb nových druhů a hradby na
+  valu (8. 11. 2026) – [Druhy a postup vylepšení](#druhy-a-postup-vylepšení).
 
 - **Délka obvodu** = délka křivky – jedno číslo pro všechny druhy, hráč ho vidí u kurzoru (návrh
   Clauda).
@@ -142,39 +483,30 @@ v Obraně.
 - Zrušit bránu zatím nejde (návrh Clauda).
 - **Víc bran = pohodlnější cesty, slabší obrana** (Martin 3. 11. 2026) – každá brána je místo,
   kudy se útočník dostane dovnitř rychleji (Prolomení).
+- **Prosekat, vypálit, klešťová brána a věž** (Martin 8. 11. 2026) – [Hradby a obrana –
+  Brány](#brány).
 
 ## Obrana
 
-- **Násobek síly obránců** (Martin 3. 11. 2026 – „ok“): polský plot × 1,25, palisáda × 2, val
-  × 1,5, val s plotem × 2, val s palisádou × 3. **Útočník projde jen branou, nebo opevnění musí
-  napřed prolomit** (trvá).
-- **Jak násobek působí** (návrh Clauda): obránce **uvnitř obvodu** proti útočníkovi **vně, v bráně
-  nebo v průlomu** má **× 1,5 (zná místo, jako u domu – [válka](war.md), Síla) × násobek úseku**,
-  u kterého stojí (nejbližší úsek). Zásah do něj je `10 × síla útočníka ÷ násobek` (válka – Boj).
-  Násobky se násobí, protože polský plot × 1,25 by sám byl slabší než obrana u domu × 1,5
-  a nikdo by ho nestavěl; palisáda pak dá × 3 – stará vojenská zkušenost, že na opevněné místo je
-  potřeba trojnásobná přesila. Útočník, který je už **uvnitř obvodu**, má proti sobě obránce jen
-  s × 1,5 u domu – opevnění mu nepřekáží.
+**Nahrazeno 8. 11. 2026** – násobek obrany zrušen (Martin: „Ta mechanika musí fungovat
+jinak.“), nový model je v [Obrana bez násobku](#obrana-bez-násobku). Z tohoto oddílu platí jen
+nepřeškrtnuté věty.
 
-  | Za čím obránce stojí | Násobek opevnění (Martin) | Celkem s „zná místo“ × 1,5 |
-  | -------------------- | ------------------------- | -------------------------- |
-  | nic (u domu)         | –                         | 1,5                        |
-  | polský plot          | 1,25                      | 1,875                      |
-  | val                  | 1,5                       | 2,25                       |
-  | palisáda             | 2                         | 3                          |
-  | val s plotem         | 2                         | 3                          |
-  | val s palisádou      | 3                         | 4,5                        |
-
+- ~~**Násobek síly obránců** (Martin 3. 11. 2026 – „ok“): polský plot × 1,25, palisáda × 2, val
+  × 1,5, val s plotem × 2, val s palisádou × 3.~~ **Útočník projde jen branou, nebo opevnění musí
+  napřed prolomit** (trvá) – nově i přelézt (žebříky).
+- ~~**Jak násobek působí** (návrh Clauda): obránce uvnitř obvodu proti útočníkovi vně má × 1,5
+  (zná místo) × násobek úseku; zásah `10 × síla útočníka ÷ násobek`; tabulka násobků.~~ Útočník,
+  který je už **uvnitř obvodu**, bojuje s obránci jako u domů – opevnění mu nepřekáží.
 - **Mezera** – rozestavěný úsek, úsek shnilý na nulu nebo průlom – je průchod jako otevřená
-  brána: útočník jí projde bez prolamování a obránci v ní mají jen násobek sousedních úseků
+  brána: útočník jí projde bez prolamování ~~a obránci v ní mají jen násobek sousedních úseků~~
   (návrh Clauda). Rozestavěné opevnění tak brání jen tam, kde už stojí.
 - **Brány se zavřou**, když je první útočník do 30 m od brány; kdo do té doby nedoběhl, zůstane
-  venku (návrh Clauda). Zavřená brána brání s násobkem svého úseku – slabá je jen v tom, že se
+  venku (návrh Clauda). ~~Zavřená brána brání s násobkem svého úseku~~ – slabá je jen v tom, že se
   prolomí rychleji (Martin 3. 11. 2026: „obránci ji zavřou a brání“).
-- **Násobek podle stavu** (návrh Clauda – Životnost a oprava): úsek bez valu `1 + (násobek − 1) ×
-stav`; úsek valu `v × (1 + (násobek ÷ 1,5 − 1) × stav nástavby)`, kde `v = 1 + 0,5 × výška`
-  (výška valu 1 = plná, bez údržby nejníž 0,5) – čerstvý val s palisádou 1,5 × 2 = 3, se shnilou
-  palisádou jen val 1,5, snížený val s palisádou 1,25 × 2 = 2,5.
+- ~~**Násobek podle stavu** (návrh Clauda): úsek bez valu `1 + (násobek − 1) × stav`, úsek valu
+  podle výšky.~~ Nahrazeno: stav úseku násobí čas prolomení, výška valu zpomalení a únavu
+  ([Obrana bez násobku](#obrana-bez-násobku)).
 
 ### Postoje vsi s opevněním
 
@@ -184,9 +516,10 @@ tři **úkrytem bližším než les** a liší se jen ti, kdo se do něj nevejdo
 
 - **Bránit se** – lidé do útočiště, muži 16–44 let na obvod a k branám; kdo zůstal venku, brání
   se u domů jako dnes. Bod zlomu 45 % (válka).
-- **Vzdát se při přesile** – stejně, ale přesila se poměří s opevněním: skupina za opevněním se
-  vzdá, je-li útočníků v dohledu víc než **1,5 × obránců × násobek opevnění** (návrh Clauda;
-  20 obránců za palisádou se vzdá až před 61 útočníky).
+- **Vzdát se při přesile** – ~~stejně, ale přesila se poměří s opevněním: skupina za opevněním se
+  vzdá, je-li útočníků v dohledu víc než 1,5 × obránců × násobek opevnění (návrh Clauda;
+  20 obránců za palisádou se vzdá až před 61 útočníky).~~ Nahrazeno 8. 11. 2026: skupina za
+  opevněním se nevzdá, dokud útočník nestojí uvnitř obvodu, pak 1,5× jako u domů (návrh Clauda).
 - **Raději utéct** (výchozí) – do útočiště místo do lesa (blíž, i s dobytkem); kdo se nevejde
   nebo nestihne, do lesa jako dnes. V útočišti už není kam utéct, takže muži uvnitř se brání; při
   bodu zlomu 45 % unikne skupina branou odvrácenou od útočníka do lesa, je-li volná, jinak se
@@ -216,9 +549,11 @@ tři **úkrytem bližším než les** a liší se jen ti, kdo se do něj nevejdo
 ## Cena a stavba
 
 - **Cena na 100 m obvodu** (Martin 3. 11. 2026 – „ano“): polský plot 20 čd + 15 klád; palisáda
-  80 čd + 70 klád; val s příkopem 150 čd (jen hlína); plot nebo palisáda na valu jako samotné;
-  vylepšení plotu na palisádu 80 čd + 70 klád (plot nevrací nic). Cena roste s délkou úměrně –
-  i rohy a brány se počítají délkou (návrh Clauda).
+  ~~80 čd + 70 klád~~; val s příkopem 150 čd (jen hlína); plot nebo palisáda na valu jako samotné;
+  vylepšení plotu na palisádu ~~80 čd + 70 klád~~ (plot nevrací nic). Cena roste s délkou úměrně –
+  i rohy a brány se počítají délkou (návrh Clauda). Nahrazeno 8. 11. 2026: palisáda **300 čd
+  komplet** (30 h na 1 m, Martin), 70 klád; nové druhy a kámen – [Cena](#cena). Příklady palisády
+  níž počítají s cenou z 3. 11.
 - **Příklady** (návrh Clauda – zaokrouhleno):
 
   | Plocha               | Druh     | Délka   | Cena                | Pro srovnání                                  |
@@ -253,7 +588,8 @@ tři **úkrytem bližším než les** a liší se jen ti, kdo se do něj nevejdo
 
 Martin 3. 11. 2026 – „ok“: polský plot ≈ 15 let, palisáda ≈ 20 let (kůly hnijí); val nehnije,
 bez údržby se za 50 let sníží a jeho násobek obrany klesne na polovinu; oprava **přestavbou jako
-ostatní stavby**.
+ostatní stavby**. Bez násobku (8. 11. 2026) klesne na polovinu přínos valu – zpomalení a únava;
+nové druhy a roční údržba po úsecích – [Životnost a údržba](#životnost-a-údržba).
 
 - **Stáří po úsecích** (návrh Clauda): každý úsek stárne od svého dokončení. Na konci životnosti
   ho **obyvatelé sami přestaví** jako dožilé obydlí ([population.md](population.md) – Chátrání
@@ -262,13 +598,13 @@ ostatní stavby**.
   a u hráčova opevnění to platí stejně.
 - **Plot a palisáda hnijí, i když se kolem chodí** (Martin – „kůly hnijí“) – na rozdíl od
   obydleného domu, který opravy drží (návrh Clauda). Nemá-li ves na přestavbu dřevo, úsek stojí
-  za životností dál, ale **chátrá**: stav klesá rovnoměrně ze 100 % na nulu za 5 let a násobek
-  s ním (Obrana); na nule je z úseku mezera. Přestaví se, až bude dřevo (návrh Clauda).
+  za životností dál, ale **chátrá**: stav klesá rovnoměrně ze 100 % na nulu za 5 let a ~~násobek~~
+  čas prolomení s ním (Obrana bez násobku); na nule je z úseku mezera. Přestaví se, až bude dřevo (návrh Clauda).
 - **Val** (návrh Clauda): údržba **2 čd na 100 m ročně** ze společné práce hned po opravách
   obydlí; když na ni práce nestačí, nedodělek se neodkládá a val se o jeho podíl sníží – za 50
-  let bez údržby výška klesne na 0,5 a násobek valu z 1,5 na 1,25. „Polovina“ z Martinovy
+  let bez údržby výška klesne na 0,5 ~~a násobek valu z 1,5 na 1,25. „Polovina“ z Martinovy
   odpovědi je polovina přínosu valu (× 1,5 → × 1,25), ne polovina násobku – × 0,75 by obránce
-  oslabil. Výšku vrátí jen **obnova valu** – obyvatelé ji sami udělají, když výška klesne pod
+  oslabil.~~ a s ní zpomalení a únava (Obrana bez násobku, 8. 11. 2026). Výšku vrátí jen **obnova valu** – obyvatelé ji sami udělají, když výška klesne pod
   0,75, za polovinu ceny valu (vyhloubit příkop a navršit).
 - **Průlom** z války (Prolomení) obyvatelé přestaví sami **přednostně** před ostatními stavbami
   vsi, jakmile cizí vojsko odejde z mapy (návrh Clauda).
@@ -279,7 +615,9 @@ ostatní stavby**.
 
 Martin 3. 11. 2026 – „ok, zkusíme to takhle a uvidíme“: podle síly opevnění a počtu mužů – brána
 v plotu hned, brána v palisádě sekerami za pár herních hodin, palisáda mimo bránu za ≈ den
-(podhrabání, vysekání), val se zdolá útokem do kopce (proto násobek obrany).
+(podhrabání, vysekání), val se zdolá útokem do kopce (proto násobek obrany). Od 8. 11. 2026
+doplňuje a mění [Přechod hradby](#přechod-hradby-návrh-clauda) – žebříky, oheň, odkopání,
+podkop, zasypání; řádky tabulky níž platí dál.
 
 | Místo                                 | Práce (mužohodin) | 4 muži        | Skutečný čas se 4 muži |
 | ------------------------------------- | ----------------- | ------------- | ---------------------- |
@@ -292,17 +630,20 @@ v plotu hned, brána v palisádě sekerami za pár herních hodin, palisáda mim
 počítá po taktech, 344 taktů = 1 herní den).
 
 - **Nejvýš 4 muži na jedno místo** (brána nebo 4 m zdi); víc mužů prolamuje víc míst najednou
-  (návrh Clauda). Prolamující muži nebojují a obránci za opevněním na ně útočí s násobkem.
+  (návrh Clauda). Prolamující muži nebojují ~~a obránci za opevněním na ně útočí s násobkem~~;
+  zasáhnout je smí jen obránce, který na ně dosáhne (Obrana bez násobku – 8. 11. 2026).
 - **Průlom** je 4 m široký a je to mezera (Obrana) – útočník jím projde dovnitř. Po odchodu vojska
   zůstane jako úsek se stavem 0, než ho obyvatelé přestaví (Životnost a oprava).
 - **Val** se neprolamuje (Martin – útok do kopce): útočník přejde příkop a val kdekoli
-  **čtvrtinovým tempem** (pás 10 m) a celou dobu ho obránci na koruně zasahují s násobkem valu
-  (návrh Clauda). Val bez nástavby má v bráně jen závoru z kůlů. U valu s plotem nebo palisádou
+  **čtvrtinovým tempem** (pás 10 m) ~~a celou dobu ho obránci na koruně zasahují s násobkem valu~~
+  (návrh Clauda) – zasahují ho jen ti, kdo na něj dosáhnou, a po přechodu je unavený (8. 11. 2026). Val bez nástavby má v bráně jen závoru z kůlů. U valu s plotem nebo palisádou
   musí útočník napřed na val a pak prolomit plot nebo palisádu na koruně.
 - **NPC velitel** ([válka](war.md) – NPC velitel, návrh Clauda): u opevněné vsi zaútočí na
-  nejslabší místo – mezeru, jinak bránu s nejkratším prolomením. Je-li odhad síly vojska menší
-  než 1,5 × síla obránců v dohledu × násobek opevnění, opevnění nenapadne – vezme, co je venku
-  (dobytek a domy mimo obvod), a odejde.
+  nejslabší místo – mezeru, jinak bránu s nejkratším prolomením. ~~Je-li odhad síly vojska menší
+  než 1,5 × síla obránců v dohledu × násobek opevnění, opevnění nenapadne~~ – vezme, co je venku
+  (dobytek a domy mimo obvod), a odejde. Nahrazeno 8. 11. 2026: volí nejrychlejší postup včetně
+  žebříků a ohně a napadne při 1,5 × síle obránců, trvá-li postup nejvýš 1 herní den (Obrana bez
+  násobku).
 - **Obléhání hladem** – Později (Martin 3. 11. 2026).
 
 ## Správce
@@ -330,17 +671,19 @@ a každý signál slábne s poločasem **10 herních let** (≈ 3,7 skutečného
 - `H = min(1, Σ váha × ½^(stáří ÷ 10 let))`. Vlastní vojska a vojska pána a vazalů se
   nepočítají. Ves si pamatuje signály posledních 50 let.
 - Rod bez válek a nájezdů má hrozbu 0 a správce opevnění nestaví – **než bude válka, nikdy**.
-- **Přínos za rok** = `H × ztráta nájezdu × (1 − 1 ÷ násobek)` – opevnění s násobkem 2 ušetří
-  polovinu toho, co by nájezd vzal.
+- **Přínos za rok** = ~~`H × ztráta nájezdu × (1 − 1 ÷ násobek)` – opevnění s násobkem 2 ušetří
+  polovinu toho, co by nájezd vzal.~~ `H × ztráta nájezdu × ochrana` – ochrana podle druhu
+  a obsazení ([Hradby a obrana – Správce](#správce), 8. 11. 2026).
 - **Ztráta nájezdu** v kg obilí: kořist, kterou by vojsko odneslo (25 kg na muže, odhad 20 mužů,
   nejvýš zásoby vsi), dobytek venku (podle cen u sousedů – [obchod](trade.md)) a lidé – 10 %
   dospělých × práce dospělého za rok v obilí. Na člověkodny se převede kg za člověkoden
   z hodnoty čtverce pole (`squareValue`, správce – Kdy není kam).
 - **Cena** = práce stavby + klády (práce kácení a svozu jako u cest) + u valu údržba za horizont.
 - **Horizont** jako u posvátných míst: Růst 25 let, Obnova 5 let, nejvýš životnost druhu (plot
-  15, palisáda 20 let).
+  15, palisáda 20 let; od 8. 11. 2026 i roštová 30, komorová 50 let).
 - **Druh:** správce spočte přínos × horizont − cena pro plot, palisádu, val, val s plotem a val
-  s palisádou a postaví nejlepší kladný; u stojícího opevnění počítá jen rozdíl vylepšení.
+  s palisádou (od 8. 11. 2026 i palisádu s ochozem, roštovou a komorovou hradbu, doplnění valu
+  a vodní příkop) a postaví nejlepší kladný; u stojícího opevnění počítá jen rozdíl vylepšení.
 - **Obvod správce:** stejný návrh jako pro hráče – nejkratší hladký obvod kolem jádra vsi (Obvod);
   útočiště musí pojmout lidi a dobytek vsi + 20 % na růst, jinak správce zvětší odstup po 5 m
   (návrh Clauda). Brány jen samy na cestách.
@@ -362,7 +705,8 @@ tlačítka „Vylepšit na palisádu“ a „Postavit na valu plot / palisádu�
   Clauda) – Martin 3. 11. 2026 schválil kreslení „jako pole“, které tahle úprava nahrazuje.
 - **Panel opevnění** (výběr dvojklikem na obvod – Martin 8. 11. 2026): ikona druhu, délka (m), stav
   (nejslabší úsek v %, oranžově úseky za životností), brány (počet), útočiště (lidé a dobytek),
-  násobek obrany (štít s číslem), průběh stavby; tlačítka „Vylepšit na palisádu“ (u plotu),
+  ~~násobek obrany (štít s číslem)~~ (8. 11. 2026: ikony postupů útočníka a obsazení – [Rozhraní a
+  scéna](#rozhraní-a-scéna)), průběh stavby; tlačítka „Vylepšit na palisádu“ (u plotu),
   „Postavit na valu plot“ a „Postavit na valu palisádu“ (u valu) – zašedlé s důvodem u kurzoru
   („Chybí 120 klád.“, „Stavba už běží.“); ikona brány – další klik na obvod přidá bránu.
 - **Úseky** ([demolition.md](demolition.md) – Opevnění; Martin 8. 11. 2026: „Hradba bude fungovat
@@ -373,7 +717,8 @@ tlačítka „Vylepšit na palisádu“ a „Postavit na valu plot / palisádu�
   životností), stáří nejstaršího dílu a ikona Zbořit (popisek: práce a klády zpět, u valu napřed
   nástavba, pak srovnat val), zašedlá s důvodem („V úseku stojí jen brána – brány zůstávají.“,
   „Úsek už je zbořený.“, „Stavba už běží.“). Ve scéně se úsek rozebírá jako staveniště pozpátku,
-  zbořený díl je mezera (návrh Clauda). Vylepšit po úsecích – později.
+  zbořený díl je mezera (návrh Clauda). ~~Vylepšit po úsecích – později.~~ Vylepšit po úsecích –
+  [Druhy a postup vylepšení](#druhy-a-postup-vylepšení) (8. 11. 2026).
 - **Výběr brány, úseku a celé hradby** (Martin 8. 11. 2026: „nemůžu označit brány tak jako
   křižovatky u cesty. Žluté označení nesedí s tvarem označené hradby. Na označeném úseku vidím
   parametry celé hradby. Chtěl bych označit celou hradbu včetně bran dvojklikem, tak jak je to
@@ -384,7 +729,7 @@ tlačítka „Vylepšit na palisádu“ a „Postavit na valu plot / palisádu�
     branou vede (klik ji vybere) – návrh Clauda; zrušit bránu zatím nejde (Brány);
   - **úsek** začíná a končí na okraji brány, ne na hranici dílu – brána stojí uvnitř svého dílu,
     takže díl s branou patří napůl k sousednímu úseku (návrh Clauda); délka a stav dílů jsou jen
-    úseku, parametry celé hradby (délka obvodu, brány, útočiště, násobek, vylepšení celého
+    úseku, parametry celé hradby (délka obvodu, brány, útočiště, ~~násobek~~, vylepšení celého
     opevnění) panel úseku neukazuje;
   - **dvojklik** na úsek nebo bránu vybere celou hradbu včetně bran – zvýrazní se celý pás obvodu,
     panel celého opevnění (Panel opevnění výš). Přidat bránu jde z panelu úseku i celé hradby
@@ -427,35 +772,36 @@ Podrobnosti (návrh Clauda):
 
 ## Čísla (návrh – do `rules-fortifications.ts`, `FORTIFICATIONS`)
 
-| Co                                    | Číslo                                                           | Kdo           |
-| ------------------------------------- | --------------------------------------------------------------- | ------------- |
-| Násobek opevnění                      | plot 1,25; palisáda 2; val 1,5; val s plotem 2; s palisádou 3   | Martin 3. 11. |
-| Obránce za opevněním                  | × 1,5 (zná místo) × násobek opevnění                            | návrh Clauda  |
-| Cena na 100 m                         | plot 20 čd + 15 klád; palisáda 80 + 70; val 150 čd              | Martin 3. 11. |
-| Vylepšení plotu na palisádu           | 80 čd + 70 klád na 100 m, plot nevrací nic                      | Martin 3. 11. |
-| Životnost                             | plot 15 let, palisáda 20 let                                    | Martin 3. 11. |
-| Chátrání za životností bez dřeva      | stav 100 → 0 % za 5 let                                         | návrh Clauda  |
-| Val bez údržby                        | za 50 let výška 0,5, násobek 1,5 → 1,25                         | Martin 3. 11. |
-| Údržba valu                           | 2 čd na 100 m ročně; obnova pod 0,75 za ½ ceny                  | návrh Clauda  |
-| Útočiště                              | 10 m² na člověka, 20 m² na kus (ovce, koza, prase čtvrt)        | návrh Clauda  |
-| Pás                                   | plot 1 m, palisáda 1,5 m, val 10 m (příkop 4, val 6)            | návrh Clauda  |
-| Nejmenší poloměr ohybu                | plot 1,25 m, palisáda 3 m, val 8 m (na vnějším okraji)          | návrh Clauda  |
-| Odstup návrhu od jádra                | šířka pásu + 3 m; správce po 5 m víc, nevejde-li se útočiště    | návrh Clauda  |
-| Body obvodu                           | nejvýš ≈ 15 m od sebe, nejméně 4                                | návrh Clauda  |
-| Úsek                                  | stejně dlouhé, ≈ 15 m                                           | návrh Clauda  |
-| Plocha                                | nejméně 900 m²                                                  | návrh Clauda  |
-| Brána                                 | 4 m, nic navíc nestojí, nejvýš 1 na úsek                        | návrh Clauda  |
-| Brány se zavřou                       | první útočník do 30 m od brány                                  | návrh Clauda  |
-| Prolomení (mužohodin)                 | brána plotu 0, plot 2, brána palisády 12, palisáda 96           | návrh Clauda  |
-| Na jedno místo prolomení              | nejvýš 4 muži, průlom 4 m                                       | návrh Clauda  |
-| Val útokem                            | čtvrtinové tempo přes pás                                       | návrh Clauda  |
-| Hrozba – váhy signálů                 | nájezd 1; ves rodu do 3 políček 0,5; vojsko 0,3; válka do 5 0,5 | návrh Clauda  |
-| Hrozba – poločas, paměť               | 10 herních let, 50 let                                          | návrh Clauda  |
-| Ztráta nájezdu pro správce            | 20 mužů × 25 kg, 10 % dospělých                                 | návrh Clauda  |
-| Horizont správce (`rules-steward.ts`) | Růst 25 let, Obnova 5 let, nejvýš životnost; Nouze ne           | návrh Clauda  |
-| Útočiště správce                      | lidé a dobytek vsi + 20 %                                       | návrh Clauda  |
+| Co                                    | Číslo                                                                              | Kdo           |
+| ------------------------------------- | ---------------------------------------------------------------------------------- | ------------- |
+| ~~Násobek opevnění~~                  | ~~plot 1,25; palisáda 2; val 1,5; val s plotem 2; s palisádou 3~~ – zrušeno 8. 11. | Martin 3. 11. |
+| ~~Obránce za opevněním~~              | ~~× 1,5 (zná místo) × násobek opevnění~~ – zrušeno 8. 11.                          | návrh Clauda  |
+| Cena na 100 m                         | plot 20 čd + 15 klád; palisáda ~~80~~ 300 čd komplet + 70 (8. 11.); val 150 čd     | Martin 3. 11. |
+| Vylepšení plotu na palisádu           | ~~80 čd~~ cena palisády + 70 klád na 100 m, plot nevrací nic                       | Martin 3. 11. |
+| Životnost                             | plot 15 let, palisáda 20 let                                                       | Martin 3. 11. |
+| Chátrání za životností bez dřeva      | stav 100 → 0 % za 5 let                                                            | návrh Clauda  |
+| Val bez údržby                        | za 50 let výška 0,5, ~~násobek 1,5 → 1,25~~ přínos valu na polovinu                | Martin 3. 11. |
+| Údržba valu                           | 2 čd na 100 m ročně; obnova pod 0,75 za ½ ceny                                     | návrh Clauda  |
+| Útočiště                              | 10 m² na člověka, 20 m² na kus (ovce, koza, prase čtvrt)                           | návrh Clauda  |
+| Pás                                   | plot 1 m, palisáda 1,5 m, val 10 m (příkop 4, val 6)                               | návrh Clauda  |
+| Nejmenší poloměr ohybu                | plot 1,25 m, palisáda 3 m, val 8 m (na vnějším okraji)                             | návrh Clauda  |
+| Odstup návrhu od jádra                | šířka pásu + 3 m; správce po 5 m víc, nevejde-li se útočiště                       | návrh Clauda  |
+| Body obvodu                           | nejvýš ≈ 15 m od sebe, nejméně 4                                                   | návrh Clauda  |
+| Úsek                                  | stejně dlouhé, ≈ 15 m                                                              | návrh Clauda  |
+| Plocha                                | nejméně 900 m²                                                                     | návrh Clauda  |
+| Brána                                 | 4 m, nic navíc nestojí, nejvýš 1 na úsek                                           | návrh Clauda  |
+| Brány se zavřou                       | první útočník do 30 m od brány                                                     | návrh Clauda  |
+| Prolomení (mužohodin)                 | brána plotu 0, plot 2, brána palisády 12, palisáda 96                              | návrh Clauda  |
+| Na jedno místo prolomení              | nejvýš 4 muži, průlom 4 m                                                          | návrh Clauda  |
+| Val útokem                            | čtvrtinové tempo přes pás                                                          | návrh Clauda  |
+| Hrozba – váhy signálů                 | nájezd 1; ves rodu do 3 políček 0,5; vojsko 0,3; válka do 5 0,5                    | návrh Clauda  |
+| Hrozba – poločas, paměť               | 10 herních let, 50 let                                                             | návrh Clauda  |
+| Ztráta nájezdu pro správce            | 20 mužů × 25 kg, 10 % dospělých                                                    | návrh Clauda  |
+| Horizont správce (`rules-steward.ts`) | Růst 25 let, Obnova 5 let, nejvýš životnost; Nouze ne                              | návrh Clauda  |
+| Útočiště správce                      | lidé a dobytek vsi + 20 %                                                          | návrh Clauda  |
 
-Změna čísla = i text v tomto návrhu (`CLAUDE.md`).
+Změna čísla = i text v tomto návrhu (`CLAUDE.md`). Čísla nových druhů, přechodu hradby a obrany
+bez násobku (8. 11. 2026) – [Čísla hradeb](#čísla-hradeb-návrh--do-fortifications).
 
 ## Pro implementaci (poznámky, ne kód)
 
@@ -495,8 +841,9 @@ Změna čísla = i text v tomto návrhu (`CLAUDE.md`).
   cestou, vozovou cestou a zemskou stezkou. Nový `WALK_VERSION`; **ves bez opevnění má síť pěšin
   bit po bitu stejnou** (zlatý otisk). Postavy ve scéně jdou po síti (`villager-plan.ts`), takže
   kudy chodí, se změní samo.
-- **Válka:** `domain/village/fortification/defense.ts` – násobek úseku podle stavu, násobek
-  obránce proti útočníkovi podle poloh, kapacita a vstup do útočiště, práce prolomení; tažení
+- **Válka:** `domain/village/fortification/defense.ts` – ~~násobek úseku podle stavu, násobek
+  obránce proti útočníkovi podle poloh,~~ (8. 11. 2026 bez násobků – Hradby a obrana, Pro
+  implementaci) kapacita a vstup do útočiště, práce prolomení; tažení
   dostane opevnění se stavem vsi při vstupu na mapu; pohyb vojska bere hotové úseky jako překážku
   s branami, mezerami a průlomy; průlom jde do vsi vnější událostí a obyvatelé úsek přestaví.
   Válka čísla opevnění neopakuje ([válka](war.md) – Opevnění).
@@ -512,8 +859,8 @@ Změna čísla = i text v tomto návrhu (`CLAUDE.md`).
   Kreslí se jen při změně; kůly ořezem po čtvercích.
 - **Testy:** zlaté délky a plochy (rohy, natočená mřížka, díry), cena podle délky a vylepšení,
   stavba po úsecích „po kouscích“ (1, 3, 10 dní + zbytek = vcelku), staré vsi beze změny (JSON
-  i síť pěšin), brány v síti pěšin i vozů, stáří a přestavba úseků, val bez údržby, násobky podle
-  tabulky a stavu, útočiště (kapacita, pořadí, zásoby), časy prolomení, správce (hrozba 0 –
+  i síť pěšin), brány v síti pěšin i vozů, stáří a přestavba úseků, val bez údržby, ~~násobky podle
+  tabulky a stavu~~ (8. 11. 2026: časy přechodu, souboj u žebříku, obsazení), útočiště (kapacita, pořadí, zásoby), časy prolomení, správce (hrozba 0 –
   nestaví; s hrozbou vybere druh a obvod).
 
 ## Později
@@ -522,16 +869,20 @@ Změna čísla = i text v tomto návrhu (`CLAUDE.md`).
   prémiové terény, tak není moc důvod to řešit“ – Martin 3. 11. 2026; [prémiové
   krajiny](premium-landscapes.md)).
 - **Obléhání hladem** – hlad v útočišti, zásoby obránců proti zásobám vojska (Martin 3. 11. 2026).
-- **Věže a brány s věží**, ochoz, střílny.
-- **Kamenné hradby** a zděné stavby.
+- ~~**Věže a brány s věží**, ochoz,~~ střílny (věž nad branou a ochoz – 8. 11. 2026, Hradby
+  a obrana).
+- ~~**Kamenné hradby**~~ a zděné stavby (hradby s kamennou plentou – 8. 11. 2026).
+- **Hašení ohně** obránci, beran a obléhací stroje (návrh Clauda, 8. 11. 2026).
 - **Hradiště jako stupeň sídla** ([vize](vision.md)) – val s palisádou kolem dvorce, předhradí
   (opevnění uvnitř opevnění), tvrz.
-- Zapálení palisády nájezdem, povodeň a val, vodní příkop; plot jako ochrana před šelmami
+- ~~Zapálení palisády nájezdem,~~ povodeň a val, ~~vodní příkop;~~ (oheň a vodní příkop – 8. 11.
+  2026, Hradby a obrana) plot jako ochrana před šelmami
   ([divoká zvěř](wildlife.md)).
 
 ## Navazuje
 
-- [Válka](war.md) – násobky obrany, útočiště, postoje vsi, prolomení, NPC velitel, kořist.
+- [Válka](war.md) – ~~násobky obrany~~ souboj u hradby (8. 11. 2026), útočiště, postoje vsi,
+  prolomení, NPC velitel, kořist.
 - [Vazalství](vassalage.md) – robota a dávky klád na veřejné stavby.
 - [Obyvatelé](population.md) – práce vsi, chátrání a přestavba; [opuštěné
   stavby](abandonment.md).
@@ -542,22 +893,30 @@ Změna čísla = i text v tomto návrhu (`CLAUDE.md`).
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                 | Kdo           |
-| ------------------------------------------------------------------------------------------ | ------------- |
-| Druhy: polský plot, palisáda (i vylepšením plotu), val s příkopem, plot / palisáda na valu | Martin 3. 11. |
-| Obvod kreslí hráč jako pole, zakulacené rohy, brány samy na cestách a klikem               | Martin 3. 11. |
-| Násobky, cena na 100 m, životnost, prolomení, útočiště podle plochy                        | Martin 3. 11. |
-| Správce staví opevnění jako jinou stavbu; ve scéně a v rozhraní podle odpovědí             | Martin 3. 11. |
-| Bez terénu, bez obléhání hladem                                                            | Martin 3. 11. |
-| Obránce × 1,5 × násobek; útočník uvnitř jen × 1,5; mezera jako otevřená brána              | návrh Clauda  |
-| Pás uvnitř plochy, šířky a poloměry, úsek 15 m, brána 4 m zdarma, aspoň jedna brána        | návrh Clauda  |
-| Postoje s opevněním, přesila × násobek, brány se zavřou na 30 m                            | návrh Clauda  |
-| Útočiště – drobný dobytek čtvrt kusu, pořadí, zásoby, jámy                                 | návrh Clauda  |
-| Stavba po úsecích od brány, dřevo jako obydlí, robota napřed do opevnění                   | návrh Clauda  |
-| Přestavba úseků obyvateli, chátrání bez dřeva za 5 let, údržba a obnova valu, průlom       | návrh Clauda  |
-| Časy prolomení, 4 muži na místo, val čtvrtinovým tempem, NPC velitel                       | návrh Clauda  |
-| Hrozba ze signálů s poločasem 10 let, přínos, horizont, obvod správce                      | návrh Clauda  |
-| Celý obvod blokuje chůzi od zahájení stavby; vytyčení a výběr od 0 %                       | Martin 6. 11. |
+| Rozhodnutí                                                                                                                      | Kdo                   |
+| ------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| Druhy: polský plot, palisáda (i vylepšením plotu), val s příkopem, plot / palisáda na valu                                      | Martin 3. 11.         |
+| Obvod kreslí hráč jako pole, zakulacené rohy, brány samy na cestách a klikem                                                    | Martin 3. 11.         |
+| ~~Násobky~~, cena na 100 m, životnost, prolomení, útočiště podle plochy                                                         | Martin 3. 11.         |
+| Správce staví opevnění jako jinou stavbu; ve scéně a v rozhraní podle odpovědí                                                  | Martin 3. 11.         |
+| Bez terénu, bez obléhání hladem                                                                                                 | Martin 3. 11.         |
+| ~~Obránce × 1,5 × násobek;~~ útočník uvnitř jen × 1,5; mezera jako otevřená brána                                               | návrh Clauda          |
+| Pás uvnitř plochy, šířky a poloměry, úsek 15 m, brána 4 m zdarma, aspoň jedna brána                                             | návrh Clauda          |
+| Postoje s opevněním, ~~přesila × násobek,~~ brány se zavřou na 30 m                                                             | návrh Clauda          |
+| Útočiště – drobný dobytek čtvrt kusu, pořadí, zásoby, jámy                                                                      | návrh Clauda          |
+| Stavba po úsecích od brány, dřevo jako obydlí, robota napřed do opevnění                                                        | návrh Clauda          |
+| Přestavba úseků obyvateli, chátrání bez dřeva za 5 let, údržba a obnova valu, průlom                                            | návrh Clauda          |
+| Časy prolomení, 4 muži na místo, val čtvrtinovým tempem, NPC velitel                                                            | návrh Clauda          |
+| Hrozba ze signálů s poločasem 10 let, přínos, horizont, obvod správce                                                           | návrh Clauda          |
+| Celý obvod blokuje chůzi od zahájení stavby; vytyčení a výběr od 0 %                                                            | Martin 6. 11.         |
+| Násobek obrany zrušen – hradba jako překážka, správce usoudí, zda se vyplatí                                                    | Martin 8. 11.         |
+| Stupně na valu: plot, palisáda, palisáda s ochozem (jen vylepšením), roštová, komorová; val i dodatečně                         | Martin 8. 11.         |
+| Ceny komplet: palisáda 30, roštová 105, komorová 145 h na 1 m; kámen nová surovina                                              | Martin 8. 11.         |
+| Přechod podle druhu: plot přelézt / prosekat; palisáda žebříky, sekání, oheň, odkopání; hradby žebřík a podkop (komorová 1,5 ×) | Martin 8. 11.         |
+| Val: pomalý sestup a výstup, únava, oheň až po zasypání, odkopání ze dna; vodní příkop                                          | Martin 8. 11.         |
+| Ochoz – luk mužů rodu, kameny a oštěpy vesničanů, shazování žebříků; lezec znevýhodněný („A“); obsazení                         | Martin 8. 11.         |
+| Brány prosekat nebo vypálit; klešťová brána a věž od palisády výš                                                               | Martin 8. 11.         |
+| Čísla přechodu, souboje, krytu, únavy, obsazení 5 m, ochozu, údržby a ochrany pro správce                                       | návrh Clauda (8. 11.) |
 
 ## Odpovědi Martina 3. 11. 2026
 

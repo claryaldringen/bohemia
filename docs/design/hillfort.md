@@ -137,8 +137,11 @@ přirozený cíl nájezdu – zásoby celé domény na jednom místě – a dův
 
 Roštová a komorová hradba (Martin) – nový druh [opevnění](fortifications.md) nad val s palisádou,
 dražší stavba i údržba. Martin 8. 11. 2026: „Hradbu proberem později“ – samostatný doplněk návrhu
-opevnění po rešerši. Do té doby má hradiště dnešní druhy opevnění.
+opevnění po rešerši. Do té doby má hradiště dnešní druhy opevnění. Návrh je hotový (8. 11. 2026) –
+[opevnění – Hradby a obrana](fortifications.md#hradby-a-obrana-8-11-2026): roštová a komorová hradba
+smí stát u kterékoli vsi, že se jí nevyplatí, usoudí správce (Martin 8. 11. 2026).
 
 ## Otevřené otázky
 
-- Roštová a komorová hradba – později (viz výš).
+- ~~Roštová a komorová hradba – později (viz výš).~~ Návrh 8. 11. 2026 – otázky v [opevnění –
+  Otevřené otázky k hradbám](fortifications.md#otevřené-otázky-k-hradbám).

@@ -81,7 +81,9 @@ vylepšit jen celé.
 - Kliknutím na obvod hráč vybere úsek mezi branami (zvýrazní se) – tlačítka **Vylepšit**
   a **Zbořit**.
 - **Vylepšit** podle dnešních druhů a cen za délku úseku: plot → palisáda, val → val s plotem nebo
-  val s palisádou, val s plotem → val s palisádou ([opevnění](fortifications.md) – Druhy).
+  val s palisádou, val s plotem → val s palisádou ([opevnění](fortifications.md) – Druhy). Od 8. 11. 2026 stupně plot → palisáda → palisáda s ochozem → roštová → komorová hradba a doplnění
+  valu s příkopem i ke stojící hradbě (Martin) – [opevnění – Druhy a postup
+  vylepšení](fortifications.md#druhy-a-postup-vylepšení) (návrh).
 - **Zbořit:** jako bourání stavby – čtvrtina práce, polovina klád × stav. U valu s plotem nebo
   palisádou se zboří jen dřevo, val zůstane; další Zbořit srovná val (čtvrtina jeho práce).
   Zbořený úsek je **mezera** – průchod jako průlom ([opevnění](fortifications.md) – Prolomení).
