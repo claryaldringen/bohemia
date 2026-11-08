@@ -29,6 +29,15 @@ export interface FortSegment {
    */
   demolishedDay?: number;
   /**
+   * Den zboření části dílu s branou před bránou (od začátku dílu po okraj brány) – zboření
+   * úseku sousedního s dílem brány zboří jen hradbu úseku, brána a zbytek dílu stojí
+   * (demolition.md – Opevnění; návrh Clauda). Mezera jako zbořený díl; chybí = část stojí.
+   * Mají ji jen díly s branou.
+   */
+  demolishedBeforeGate?: number;
+  /** Totéž pro část dílu za bránou (od okraje brány po konec dílu). */
+  demolishedAfterGate?: number;
+  /**
    * Nástavba valu na dílu, když se liší od `Fortification.top` – `'none'` = nástavba zbořená
    * (val bez nástavby). Chybí = nástavba opevnění (`segmentTop`).
    */
@@ -70,6 +79,10 @@ export type FortBuildWork =
 export interface FortSegmentWork {
   index: number;
   cost: number;
+  /**
+   * Zboření jen části dílu s branou (`before` – před bránou, `after` – za ní); chybí = celý díl.
+   */
+  part?: 'before' | 'after';
   /**
    * Zboření (`demolish`): klády dílu zpět, necelé – podíl × klády dílu × stav v den zahájení
    * (demolition.md – Čísla); celé se dají na hromadu jednou za celou stavbu. Jinak chybí.

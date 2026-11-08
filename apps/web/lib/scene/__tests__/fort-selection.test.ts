@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FORTIFICATIONS } from '@bohemia/game';
+import { FORTIFICATIONS, sectionPieces } from '@bohemia/game';
 import {
   FORT_GATE_HALF_M,
   alongFrom,
@@ -136,6 +136,27 @@ describe('obrys úseku = pás úseku mezi branami', () => {
       const along = alongFrom(from, onCurve(gone, p).s, fortPerimeter(lengths).total);
       expect(along < 0.05 || along > lengths[middle]! - 0.05).toBe(true);
     }
+  });
+
+  it('zbořený úsek (celé díly i kusy dílů bran) nemá co zvýraznit, druhý úsek zůstane', () => {
+    const f = gated();
+    const lengths = f.shapes.map((x) => x.lengthM);
+    const pieces = sectionPieces(lengths, f.gates, 0);
+    expect(pieces.some((x) => x.part === 'after')).toBe(true);
+    const gone: SceneFortification = {
+      ...f,
+      segments: f.segments.map((s) => {
+        const mine = pieces.filter((x) => x.index === s.index);
+        return {
+          ...s,
+          ...(mine.some((x) => x.part === undefined) ? { demolishedDay: 5 } : {}),
+          ...(mine.some((x) => x.part === 'before') ? { demolishedBeforeGate: 5 } : {}),
+          ...(mine.some((x) => x.part === 'after') ? { demolishedAfterGate: 5 } : {}),
+        };
+      }),
+    };
+    expect(fortSectionRings(gone, 0)).toEqual([]);
+    expect(fortSectionRings(gone, 2).length).toBeGreaterThan(0);
   });
 
   it('brána má vlastní obrys kolem brány, celý obvod jsou dva uzavřené okraje pásu', () => {

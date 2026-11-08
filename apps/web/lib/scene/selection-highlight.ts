@@ -91,8 +91,8 @@ const FORT_RING_STEP_M = 0.5;
 /** Obrys brány kousek za pásem a za okraji brány (m). */
 const FORT_GATE_RING_M = 0.5;
 
-/** Opevnění pro obrys pásu: tvar obvodu, druh (šířka pásu) a zbořené díly. */
-export type FortRingSource = FortEdges & Pick<SceneFortification, 'segments'>;
+/** Opevnění pro obrys pásu: tvar obvodu, druh (šířka pásu), zbořené díly a brány. */
+export type FortRingSource = FortEdges & Pick<SceneFortification, 'segments' | 'gates'>;
 
 /** Bod vzorků pásu v poloze `s` obvodu délky `total` (mezi sousedními vzorky lineárně). */
 function sampleAt(samples: readonly PerimeterSample[], s: number, total: number): PerimeterSample {
@@ -121,17 +121,28 @@ function sampleAt(samples: readonly PerimeterSample[], s: number, total: number)
 function standingPieces(fort: FortRingSource, fromM: number, lengthM: number): [number, number][] {
   const { starts, total } = fortPerimeter(fort.shapes.map((x) => x.lengthM));
   const gaps: [number, number][] = [];
+  /** Mezera [od, do] (m od začátku dílu 0); po směru obvodu od začátku kusu, i přes začátek dílu 0. */
+  const addGap = (a: number, b: number): void => {
+    const from = alongFrom(fromM, a, total);
+    gaps.push(
+      [fromM + from, fromM + from + (b - a)],
+      [fromM + from - total, fromM + from + b - a - total],
+    );
+  };
   for (const seg of fort.segments) {
-    if (seg.demolishedDay === undefined) continue;
     const a = starts[seg.index];
     const len = fort.shapes[seg.index]?.lengthM;
     if (a === undefined || len === undefined) continue;
-    // mezera po směru obvodu od začátku kusu (i přes začátek dílu 0)
-    const from = alongFrom(fromM, a, total);
-    gaps.push(
-      [fromM + from, fromM + from + len],
-      [fromM + from - total, fromM + from + len - total],
-    );
+    if (seg.demolishedDay !== undefined) {
+      addGap(a, a + len);
+      continue;
+    }
+    // část dílu s branou zbořená se sousedním úsekem – od okraje dílu po okraj brány
+    const gate = fort.gates.find((g) => g.segment === seg.index);
+    if (!gate) continue;
+    const center = a + gate.offsetM;
+    if (seg.demolishedBeforeGate !== undefined) addGap(a, center - FORT_GATE_HALF_M);
+    if (seg.demolishedAfterGate !== undefined) addGap(center + FORT_GATE_HALF_M, a + len);
   }
   gaps.sort((p, q) => p[0] - q[0]);
   const pieces: [number, number][] = [];
@@ -165,7 +176,12 @@ export function fortBandRings(
   const outerOf = (p: PerimeterSample): Point => [p.x - p.nx * margin, p.z - p.nz * margin];
   const innerOf = (p: PerimeterSample): Point => [p.ix + p.nx * margin, p.iz + p.nz * margin];
   const whole = lengthM >= total - 1e-6;
-  const gone = fort.segments.some((x) => x.demolishedDay !== undefined);
+  const gone = fort.segments.some(
+    (x) =>
+      x.demolishedDay !== undefined ||
+      x.demolishedBeforeGate !== undefined ||
+      x.demolishedAfterGate !== undefined,
+  );
   if (whole && !gone) {
     const outer = samples.map(outerOf);
     const inner = samples.map(innerOf);
@@ -176,8 +192,8 @@ export function fortBandRings(
   }
   // celý obvod s mezerami začne za první mezerou, ať se kus přes začátek dílu 0 nerozdělí
   let from = fromM - margin;
-  if (whole) {
-    const first = fort.segments.find((x) => x.demolishedDay !== undefined)!;
+  const first = fort.segments.find((x) => x.demolishedDay !== undefined);
+  if (whole && first) {
     const { starts } = fortPerimeter(fort.shapes.map((x) => x.lengthM));
     from = (starts[first.index] ?? 0) + (fort.shapes[first.index]?.lengthM ?? 0);
   }
