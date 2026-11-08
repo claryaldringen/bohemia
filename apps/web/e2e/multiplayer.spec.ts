@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
-import { test, expect, type Locator, type Page } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { newCampaign, resolveWorldClock, tickOfMs, type CampaignMember } from '@bohemia/game';
 import { E2E_ENV } from '../playwright.config';
 import { registerAndEnterGame, uniqueEmail, useUniqueClientIp } from './helpers';
@@ -117,22 +117,25 @@ test('pozvánka: pozvaný je vazal, pozvatel má vazala a upozornění, cizí hr
 });
 
 /**
- * Upozornění vsi hráče: opakovaně se zeptá na ves (háček dotazování), dokud upozornění není vidět.
- * Jediný dotaz nestačí – pod zátěží může být zrovna rozběhnutý starší dotaz a nový se s ním
- * sloučí, takže odpověď s čerstvým upozorněním nepřijde.
+ * Upozornění vsi hráče po dotazu na ves; `click` ho rovnou otevře. Upozornění se přináší jednou
+ * a v rozhraní mizí po pár sekundách, takže po každém dotazu se čeká jen krátce na jeho zobrazení
+ * (a klik jde hned) a dotaz se případně zopakuje – jediný dotaz pod zátěží někdy čerstvé
+ * upozornění nepřinese (sloučí se s běžícím dotazem), ale čekání na zobrazení v jedné smyčce
+ * s dotazy by upozornění nechalo vypršet dřív, než ho test uvidí.
  */
-async function noticeAfterPoll(page: Page, text: string): Promise<Locator> {
-  const notice = page.getByTestId('village-notice').filter({ hasText: text });
-  await expect
-    .poll(
-      async () => {
-        await pollVillage(page);
-        return notice.count();
-      },
-      { timeout: 90_000 },
-    )
-    .toBeGreaterThan(0);
-  return notice;
+async function noticeAfterPoll(page: Page, text: string, click = false): Promise<void> {
+  const notice = page.getByTestId('village-notice').filter({ hasText: text }).first();
+  const deadline = Date.now() + 90_000;
+  for (;;) {
+    await pollVillage(page);
+    try {
+      await notice.waitFor({ state: 'visible', timeout: 5_000 });
+      if (click) await notice.click({ timeout: 3_000 });
+      return;
+    } catch (error) {
+      if (Date.now() > deadline) throw error;
+    }
+  }
 }
 
 /** Obnoví panel (data se načítají při otevření): zavře ho a otevře znovu. */
@@ -561,7 +564,7 @@ test('obchod mezi hráči: A nabídne C obilí za klády, C přijme → oba maj�
   expect(dialogs).toHaveLength(2);
 
   // A otevře dialog z upozornění a pošle celé
-  await (await noticeAfterPoll(a, 'čeká odeslání zboží')).click();
+  await noticeAfterPoll(a, 'čeká odeslání zboží', true);
   const dialogA = a.getByRole('dialog', { name: 'Odvody' });
   await expect(dialogA).toBeVisible();
   await dialogA.locator('input[type="range"]').fill('6');
@@ -569,7 +572,7 @@ test('obchod mezi hráči: A nabídne C obilí za klády, C přijme → oba maj�
   await expect(dialogA.locator('[data-testid$="-sent"]')).toBeVisible({ timeout: 30_000 });
 
   // C pošle míň (2 z 4 klád)
-  await (await noticeAfterPoll(c, 'čeká odeslání zboží')).click();
+  await noticeAfterPoll(c, 'čeká odeslání zboží', true);
   const dialogC = c.getByRole('dialog', { name: 'Odvody' });
   await expect(dialogC).toBeVisible();
   await dialogC.locator('input[type="range"]').fill('2');
