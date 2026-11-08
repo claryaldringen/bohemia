@@ -268,7 +268,8 @@ mimo ni (zásilky, tažení), mosty a mýto (mechaniky prémií), plavba po řec
 
 ## Otevřené otázky
 
-1. **Řeky tečou k jihu.** Ve světě bez hranic nemají řeky kam dotéct; návrh: všechny tečou
+1. ~~**Řeky tečou k jihu.**~~ Rozhodnuto 8. 11. 2026 (Martin: „Zatím jen A“) – k jihu, bez jezer
+   a moře; jezera a moře možná později. Ve světě bez hranic nemají řeky kam dotéct; návrh: všechny tečou
    zhruba k jihu (s dlouhými oblouky na východ a západ), nikdy nekončí a jen se slévají. Druhá
    možnost: jezera, do kterých řeky ústí – nový druh krajiny navíc a „díry“ v mřížce.
    **Doporučení:** k jihu, bez jezer.
