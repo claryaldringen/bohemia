@@ -162,6 +162,11 @@ export interface Construction {
    * hotový, když práce stavby přejde jeho konec (`workFortification`).
    */
   fortSegments?: FortSegmentWork[];
+  /**
+   * Zboření úseku opevnění (`fortWork` `demolish`): střed úseku (m) – klády zboření jdou na
+   * hromadu u cesty nejblíž (`addLogs`). U ostatních staveb chybí.
+   */
+  fortLogsAt?: { x: number; z: number };
 }
 /**
  * Oprava stavby (abandonment.md – Oprava): druh a id stavby (modla a svatyně – id stavby,

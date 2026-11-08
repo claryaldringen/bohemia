@@ -417,9 +417,10 @@ export function finishConstructions(state: VillageState, day: number): void {
       continue;
     }
     if (c.kind === 'fortification') {
-      // dostavěné opevnění, vylepšení na palisádu nebo nástavba na valu (fortifications.md)
-      finishFortification(state, c, day);
-      state.chronicle.push(finishedEvent(day, c, null));
+      // dostavěné opevnění, vylepšení na palisádu, nástavba na valu (fortifications.md) nebo
+      // zbořený úsek – ten má vlastní událost kroniky (demolition.md – Opevnění)
+      const demolished = finishFortification(state, c, day);
+      state.chronicle.push(demolished ?? finishedEvent(day, c, null));
       continue;
     }
     if (c.kind === 'threshing-floor') {

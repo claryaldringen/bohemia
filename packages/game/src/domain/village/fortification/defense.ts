@@ -3,7 +3,7 @@ import { pointInPolygon } from '../polygon';
 import type { GridGeometry } from '../square-grid';
 import type { FortKind, RoadPoint } from '../types';
 import { distanceTo, type FortGate } from './gates';
-import { segmentState } from './life';
+import { segmentIsOpen, segmentState, segmentTop } from './life';
 import { fortOutlineOf } from './convert';
 import type { FortOutline } from './outline';
 import { fortSegments } from './segments';
@@ -13,7 +13,10 @@ import type { Fortification, FortSegment } from './types';
 // kombinace se „zná místo“ a mezery v obvodu. Čistá doména pro válku – žádná simulace.
 
 /** Co funkce obrany potřebují znát z úseku (`FortSegment` ze stavu vsi). */
-type SegmentLike = Pick<FortSegment, 'kind' | 'builtDay' | 'topBuiltDay' | 'breachedDay'>;
+type SegmentLike = Pick<
+  FortSegment,
+  'kind' | 'builtDay' | 'topBuiltDay' | 'breachedDay' | 'demolishedDay' | 'top'
+>;
 type FortLike = Pick<Fortification, 'kind' | 'top' | 'rampartHeight'>;
 
 /** Druh, který na úseku stojí. */
@@ -21,9 +24,12 @@ function kindOf(fort: Pick<Fortification, 'kind'>, seg: Pick<FortSegment, 'kind'
   return seg.kind ?? fort.kind;
 }
 
-/** Úsek, kterým se prochází bez prolamování: nedostavěný, prolomený nebo plot/palisáda shnilé na nulu. */
+/**
+ * Úsek, kterým se prochází bez prolamování: nedostavěný, prolomený, zbořený nebo plot/palisáda
+ * shnilé na nulu.
+ */
 export function segmentIsGap(fort: FortLike, seg: SegmentLike, day: number): boolean {
-  if (seg.builtDay === null || seg.breachedDay !== undefined) return true;
+  if (segmentIsOpen(seg)) return true;
   return kindOf(fort, seg) !== 'rampart' && segmentState(fort, seg, day) <= 0;
 }
 
@@ -48,12 +54,13 @@ export function segmentMultiplier(fort: FortLike, seg: SegmentLike, day: number)
   }
   const v = 1 + FORTIFICATIONS.rampartHeightBonus * (fort.rampartHeight ?? 1);
   const topBuilt = seg.topBuiltDay !== undefined && seg.topBuiltDay !== null;
-  if (!fort.top || !topBuilt) return v;
+  const top = segmentTop(fort, seg);
+  if (!top || !topBuilt) return v;
   const topState = segmentState(fort, seg, day);
-  return v * (1 + (topMultiplier(fort.top) / FORTIFICATIONS.multiplier.rampart - 1) * topState);
+  return v * (1 + (topMultiplier(top) / FORTIFICATIONS.multiplier.rampart - 1) * topState);
 }
 
-/** Mezera v obvodu: otevřená brána, nedostavěný / shnilý úsek nebo průlom. */
+/** Mezera v obvodu: otevřená brána, nedostavěný / shnilý / zbořený úsek nebo průlom. */
 export interface Gap {
   kind: 'gate' | 'gap' | 'breach';
   segment: number;
@@ -65,8 +72,8 @@ export interface Gap {
 
 /**
  * Průchody obvodem (Obrana – Mezera): otevřené brány stojících úseků (zavřené jsou v
- * `closedGates` – indexy úseků), a celé úseky, které nestojí – rozestavěné či shnilé (`gap`)
- * a prolomené (`breach`, šířka průlomu 4 m).
+ * `closedGates` – indexy úseků), a celé úseky, které nestojí – rozestavěné, shnilé či zbořené
+ * (`gap`, celou délkou úseku) a prolomené (`breach`, šířka průlomu 4 m).
  */
 export function fortGaps(
   geo: GridGeometry,

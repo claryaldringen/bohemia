@@ -1439,6 +1439,20 @@ describe('kronika – opuštěné díly pole (fields.md – Opuštěný díl)', 
   });
 });
 
+describe('kronika – zbořený úsek opevnění (demolition.md – Opevnění)', () => {
+  it('klády na hromadu, bez klád, srovnaný val', () => {
+    const text = (logs: number, level?: true): string =>
+      chronicleText(
+        { day: DAY, kind: 'fortification-demolished', logs, ...(level ? { level } : {}) },
+        'X',
+      );
+    expect(text(1)).toBe('Úsek opevnění zbořen – 1 kláda na hromadu.');
+    expect(text(12)).toBe('Úsek opevnění zbořen – 12 klád na hromadu.');
+    expect(text(0)).toBe('Úsek opevnění zbořen.');
+    expect(text(0, true)).toBe('Val úseku opevnění srovnán.');
+  });
+});
+
 describe('kronika – hlad a vymření', () => {
   it('úmrtí hladem a vymření vsi', () => {
     expect(chronicleText({ day: DAY, kind: 'death', group: 'child', cause: 'hunger' }, 'X')).toBe(

@@ -23,6 +23,16 @@ export interface FortSegment {
    * na palisádu (úsek s hotovou palisádou `'palisade'`, ostatní dál plot). Chybí = druh opevnění.
    */
   kind?: FortKind;
+  /**
+   * Den zboření dílu hráčem (demolition.md – Opevnění): plot a palisáda zbořené, val srovnaný.
+   * Zbořený díl je mezera jako průlom, nestárne a obyvatelé ho nepřestaví. Chybí = nezbořený.
+   */
+  demolishedDay?: number;
+  /**
+   * Nástavba valu na dílu, když se liší od `Fortification.top` – `'none'` = nástavba zbořená
+   * (val bez nástavby). Chybí = nástavba opevnění (`segmentTop`).
+   */
+  top?: FortTop | 'none';
 }
 
 /** Opevnění vsi – hotové i rozestavěné (úseky s `builtDay` null). */
@@ -50,14 +60,21 @@ export interface Fortification {
 
 /**
  * Co stavba opevnění dělá (`Construction.fortWork`): nové opevnění, vylepšení plotu na palisádu,
- * nástavba na val, přestavba dožilých úseků (`rebuild`) a obnova valu (`restore`).
+ * nástavba na val, přestavba dožilých úseků (`rebuild`), obnova valu (`restore`), zboření plotu,
+ * palisády či nástavby valu (`demolish`) a srovnání valu (`level`) v úseku mezi branami.
  */
-export type FortBuildWork = 'build' | 'upgrade' | 'top' | 'rebuild' | 'restore';
+export type FortBuildWork =
+  'build' | 'upgrade' | 'top' | 'rebuild' | 'restore' | 'demolish' | 'level';
 
 /** Úsek v plánu stavby – pořadí práce a práce úseku (čd bez kácení). */
 export interface FortSegmentWork {
   index: number;
   cost: number;
+  /**
+   * Zboření (`demolish`): klády dílu zpět, necelé – podíl × klády dílu × stav v den zahájení
+   * (demolition.md – Čísla); celé se dají na hromadu jednou za celou stavbu. Jinak chybí.
+   */
+  logs?: number;
 }
 
 /**

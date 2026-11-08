@@ -127,13 +127,17 @@ export function fortBandPolygons(outline: FortOutline): Point[][] {
 
 /** Co pás stojícího opevnění potřebuje znát (`Fortification` ze stavu vsi i z pohledu na ves). */
 export interface BandFortification extends FortShapeSource {
-  readonly segments: readonly { readonly index: number; readonly builtDay: number | null }[];
+  readonly segments: readonly {
+    readonly index: number;
+    readonly builtDay: number | null;
+    readonly demolishedDay?: number;
+  }[];
 }
 
 /**
- * Pás opevnění, který zabírá místo jiným stavbám: hotové úseky, a dokud se opevnění staví
- * (`building`), celý obvod – nedostavěný úsek po zrušení stavby je mezera (fortifications.md –
- * Cena a stavba).
+ * Pás opevnění, který zabírá místo jiným stavbám: hotové nezbořené úseky, a dokud se opevnění
+ * staví (`building`), celý obvod – nedostavěný úsek po zrušení stavby i zbořený díl je mezera
+ * (fortifications.md – Cena a stavba; demolition.md – Opevnění).
  */
 export function fortificationBand(
   geo: GridGeometry,
@@ -142,7 +146,11 @@ export function fortificationBand(
 ): Point[][] {
   const outline = fortOutlineOf(geo, fort);
   if (!outline) return [];
-  const built = new Set(fort.segments.filter((s) => s.builtDay !== null).map((s) => s.index));
+  const built = new Set(
+    fort.segments
+      .filter((s) => s.builtDay !== null && s.demolishedDay === undefined)
+      .map((s) => s.index),
+  );
   return fortBandPieces(outline)
     .filter((p) => building || built.has(p.index))
     .map((p) => p.corners);
