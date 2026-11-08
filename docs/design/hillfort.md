@@ -84,9 +84,17 @@ z dovezeného jídla a její muži rodu se věnují výcviku místo pole.
 - **Kam – automaticky** do každé vsi domény, které chybí (Martin – „B“), ne jen do „hradišť“.
   Chybí = výhled jídla vsi do příští sklizně nevychází – týž výhled, ze kterého správce kupuje
   obilí (návrh Clauda – nový odhad nevzniká).
-- **Kolik dá ves:** jen svůj přebytek – výhled přebytku vsi z vazalství
-  ([vazalství](vassalage.md) – Výhled přebytku), tedy nad vlastní stravu, osivo a pojistku (návrh
-  Clauda; Martin 8. 11. 2026: „Ohledně obilí ano“).
+- **Kolik a kdy dá ves – jednou ročně po žních** (Martin 8. 11. 2026: „vesnice pošle po žních.
+  Spočítá max množství, které musí nechat na osev (teoreticky stejné jako v minulém roce), spočítá
+  množství, které si musí nechat na jídlo, spočítá, kolik potřebuje na doplnění rezervy a zbytek
+  pošle.“):
+  1. **osivo** – nejvýš tolik, kolik zasela minulý rok (ozim i jař příštího osevu);
+  2. **jídlo** do příštích žní;
+  3. **doplnění pojistky** (rezervy vsi – [vazalství](vassalage.md) – Výhled přebytku) do plné
+     výše;
+  4. **zbytek pošle.**
+     Den po dokončení výmlatu sklizně, nejpozději k 1. 10. (návrh Clauda – výmlat trvá
+     i v září).
 - **Co se veze: obilí a dobytek** (Martin 8. 11. 2026: „Ať vsi posílají i dobytek“) – dobytek jen
   nad chovné jádro stáda. **Seno ne:** „je objemné a špatně se převáží. Navíc hradiště ho zase
   tolik nepotřebuje – max. pro válečné koně družiny, pokud by to nedokázala pořešit vlastní
@@ -99,8 +107,6 @@ z dovezeného jídla a její muži rodu se věnují výcviku místo pole.
 - **Doprava jako dávky** (Martin – „A“): nosiči a vozy z dávající vsi, cesta trvá dny podle
   vzdálenosti, nosiči ten čas nepracují ([vazalství](vassalage.md) – Doprava dávek). Hradiště se
   tak vyplatí mít blízko vsí, které ho živí.
-- **Kdy:** rozdělení se přepočítá jednou za 30 dní a pošle se, co v tu chvíli chybí a je
-  k dispozici (návrh Clauda – plynule, ne jedna velká zásilka za rok).
 - **Dávky vazalů** jdou do cílové vsi jako dnes; co tam přebývá, rozdělení pošle dál (návrh
   Clauda – podmínky vazalství se nemění).
 - **Víc času:** dovezené jídlo leží v zásobách vsi a osev se podle zásob řídí už dnes
