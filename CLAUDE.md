@@ -117,8 +117,8 @@ název). Pravidla a rozhodnutí jsou v `docs/design/`.
 | `docs/code/village-steward.md`        | správce vsi – stav, příkaz stavby, mapa hodnot a plán, den správce, přestavba a veto, synové a schránka odchodů, rozhraní, měření    |
 | `docs/code/village-wildlife.md`       | divoká zvěř – stav, stropy z krajiny, roční přepočet, škody na polích, šelmy, psi a lov rodu, hlídky polí, ryby a oka, převod, Vlkov |
 | `docs/code/village-disasters.md`      | počasí kraje – seed počasí mapy, roční los, shlukování, povodeň kraje, odhalení, ochrana nové vsi                                    |
-| `docs/code/village-fortifications.md` | opevnění – plocha a obvod, zakulacené rohy, pás a útočiště, úseky, brány na cestách, cena podle délky                                |
-| `docs/code/war.md`                    | válka – stropy výcviku, převod starých vsí, síla vojska (muž rodu, vesničan, kůň, výzbroj)                                           |
+| `docs/code/village-fortifications.md` | opevnění – obvod a pás, druhy hradeb a vrstvy, cena komplet, vylepšení po úsecích, val a vodní příkop, klešťová brána a věž, údržba  |
+| `docs/code/war.md`                    | válka – síla, tažení po taktech, boj muž po muži, žebříky a prolomení, obránci na hradbě, brány v bitvě, kořist, zajetí, NPC velitel |
 | `docs/code/worker.md`                 | worker – smyčka, odklady, spánek do dalšího dne, uspání nečinných, konfigurace, spuštění a ukončení                                  |
 | `docs/code/world.md`                  | svět pro víc hráčů – mřížka a umístění, rod hráče, adresář rodů (co je veřejné), schránka vsi, vstup nováčka, kostra světa           |
 | `docs/code/vassalage.md`              | vazalství – makrokomodity, výhled přebytku vsi a rodu, doprava dávek do cílové vsi, podmínky, vypovězení, neplnění                   |

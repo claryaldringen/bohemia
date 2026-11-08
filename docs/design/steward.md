@@ -1,7 +1,7 @@
 # Správce vsi – autopilot vsí rodu (#9, fáze 3)
 
-Stav: **schváleno v hrubých rysech Martinem 30. 10. 2026, podrobnosti návrh Clauda.** Implementace
-zatím není. Navazuje na [vojvodovu rodinu](lord.md) – Dělení vsi (fáze 2: odchod syna s poměrnou
+Stav: **schváleno v hrubých rysech Martinem 30. 10. 2026, podrobnosti návrh Clauda.** **Implementováno**
+(sloučeno ≈ 31. 10. 2026, další rozšíření do 8. 11. 2026, kód viz [village-steward.md](../code/village-steward.md)). Navazuje na [vojvodovu rodinu](lord.md) – Dělení vsi (fáze 2: odchod syna s poměrnou
 částí vsi) a na [stěhování](migration.md) – Víc vsí jednoho hráče. Co níž není výslovně
 Martinovo, je návrh Clauda.
 
@@ -76,7 +76,7 @@ postavit, vylepšit nebo může vesnici úplně vystěhovat a založit jinde.**�
 ## Kde správce běží (návrh Clauda)
 
 - **Krok simulovaného dne, ne use-case workeru.** Ves se dopočítává zpětně při načtení a akci
-  (worker zatím neexistuje) a výsledek nesmí záviset na kouscích dopočtu. Správce proto rozhoduje
+  (dopočet po kouscích dělá i worker) a výsledek nesmí záviset na kouscích dopočtu. Správce proto rozhoduje
   uvnitř `simulateDay` (`simulate.ts`) jako vesničané v `decideRebuilds`: krok
   **`stewardDay(state, day, landscape, obstacles)`** hned za `occupyEmptyDwellings`, před
   `updateRuins` a kontrolou obilných jam (`moveGrainFromCoveredPits`) – nové stavby správce tak

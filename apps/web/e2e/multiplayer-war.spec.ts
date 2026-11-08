@@ -22,6 +22,17 @@ import {
   withBuiltFirstDwelling,
   writeVillageState,
 } from './village-helpers';
+// nájezd na ves s palisádou s ochozem (plán hradeb – Úloha 22), test na konci souboru
+import {
+  dayOfTick,
+  fortSegments,
+  obstaclesOf,
+  outlineOf,
+  proposeFortification,
+  startFortification,
+  villageFortifications,
+  type Fighter,
+} from '@bohemia/game';
 
 // Válka dvou hráčů celá (plán 2026-11-03 – Úloha 6.17): A přepadne B (velí NPC – jiný muž než
 // hráč), B má výchozí postoj útěk – lidé i dobytek utečou do lesa, B dostane upozornění „Cizí
@@ -405,6 +416,249 @@ test('válka dvou hráčů: A přepadne B, B uteče do lesa i s dobytkem, kronik
     await expect(page.getByTestId('war-count')).toHaveAttribute('data-wars', '0', {
       timeout: 30_000,
     });
+  }
+  await Promise.all(ctxs.map((ctx) => ctx.close()));
+});
+
+/** Leží bod uvnitř mnohoúhelníku (paprsek ve směru +x)? */
+function insidePolygon(p: { x: number; z: number }, poly: readonly (readonly number[])[]): boolean {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, zi] = poly[i] as [number, number];
+    const [xj, zj] = poly[j] as [number, number];
+    if (zi > p.z !== zj > p.z && p.x < ((xj - xi) * (p.z - zi)) / (zj - zi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+/**
+ * Vrátí ves na den před `fromDay`: dny od něj dopočítá znovu i s událostmi schránky (ty, které
+ * tažení zapsalo za dnešek, přesune na dnešek) – jako `replayToday`, jen boj mohl začít včera.
+ */
+async function replayFrom(
+  settlementId: string,
+  villageId: string,
+  fromDay: number,
+  today: number,
+): Promise<void> {
+  const state = await villageState(settlementId);
+  state.lastDay = Math.min(fromDay, today) - 1;
+  await writeVillageState(settlementId, state);
+  await query(`UPDATE village_inbox SET day = $2 WHERE village_id = $1 AND day > $2`, [
+    villageId,
+    today,
+  ]);
+}
+
+// Nájezd na ves s palisádou s ochozem (plán hradeb – Úloha 22): muži vsi B obsadí hradbu, NPC
+// velitel A zvolí postup přes ni sám (palisáda je bez bran, zbývají žebříky, oheň a kopání –
+// nejrychlejší jsou žebříky z lesa), útočníci se dostanou dovnitř a výsledek nájezdu zapíšou
+// kroniky obou vsí. Výroba žebříku trvá 4 herní hodiny – v pomalém světě testů ≈ 11 500 taktů
+// (48 min) –, proto tažení začne o 16 000 taktů (≈ 67 min) dřív a worker boj dožene najednou.
+test('nájezd na ves s palisádou s ochozem: obránci na hradbě, útočníci přes ni, kronika obou vsí', async ({
+  browser,
+}) => {
+  test.setTimeout(600_000);
+  await query(`UPDATE house SET ended_at = now() WHERE ended_at IS NULL`, []);
+  const ctxs = await Promise.all([browser.newContext(), browser.newContext()]);
+  for (const ctx of ctxs) await useUniqueClientIp(ctx);
+  const [a, b] = (await Promise.all(ctxs.map((ctx) => ctx.newPage()))) as [Page, Page];
+  for (const page of [a, b]) await page.setViewportSize({ width: 1280, height: 720 });
+  const { email: emailA, seat: seatA } = await newPlayer(a, 'hradbaa');
+  const spotsA = villageSpots(seatA.landscape);
+  await found(a, spotsA.dwelling, 'Soběslav');
+  const { email: emailB, seat: seatB } = await newPlayer(b, 'hradbab');
+  await found(b, villageSpots(seatB.landscape).dwelling, 'Vratislav');
+  const [idA, idB] = [await houseIdOf(emailA), await houseIdOf(emailB)];
+  const [placeA, placeB] = [await placeOf(seatA.settlementId), await placeOf(seatB.settlementId)];
+  const [playerA] = await query<{ id: string }>(`SELECT id FROM "user" WHERE email = $1`, [emailA]);
+
+  // ves B: dostavěná zemnice a kolem vsi hotová palisáda s ochozem – bez bran, ať útočníci
+  // musí přes hradbu (brána by se prosekla dřív, než se vyrobí žebřík)
+  const builtB = withBuiltFirstDwelling(await villageState(seatB.settlementId));
+  const d = builtB.dwellings[0]!;
+  const sq = d.plot?.square;
+  const home = sq ? { x: sq.x, z: sq.z } : { x: d.position.x, z: d.position.z };
+  const obstacles = obstaclesOf(seatB.landscape);
+  const proposal = proposeFortification(
+    builtB,
+    builtB.lastDay,
+    seatB.landscape,
+    obstacles,
+    'palisade',
+    home,
+  );
+  expect(proposal.check.reason).toBeNull();
+  const started = startFortification(builtB, builtB.lastDay, seatB.landscape, obstacles, {
+    points: proposal.points,
+    kind: 'palisade',
+  });
+  if (!started.ok) throw new Error(started.reason);
+  const stateB = started.state;
+  stateB.constructions = stateB.constructions.filter((c) => c.kind !== 'fortification');
+  const fort = villageFortifications(stateB)[0]!;
+  fort.kind = 'walkway';
+  fort.gates = [];
+  for (const seg of fort.segments) {
+    seg.builtDay = stateB.lastDay;
+    seg.state = 1;
+  }
+  await writeVillageState(seatB.settlementId, stateB);
+  const ring = fortSegments(outlineOf(seatB.landscape, fort)!).map((s) => s.mid);
+  const stateA = withBuiltFirstDwelling(await villageState(seatA.settlementId));
+  await writeVillageState(seatA.settlementId, stateA);
+  const today = Math.max(stateA.lastDay, stateB.lastDay);
+
+  // tažení A začne před 16 000 takty 40 m vně hradby; velí vesničan – rozhoduje NPC velitel
+  const world = resolveWorldClock(E2E_ENV);
+  const tick = tickOfMs(Date.now(), world) - 16_000;
+  const startDay = dayOfTick(tick, world);
+  const [war] = await query<{ id: string }>(
+    `INSERT INTO war (house_low, house_high, how, started_at, started_day, last_clash_day)
+     VALUES (LEAST($1::uuid, $2::uuid), GREATEST($1::uuid, $2::uuid), 'ambush', now(), $3, $3)
+     RETURNING id`,
+    [idA, idB, Math.min(startDay, today)],
+  );
+  const lord = stateA.people[0]!;
+  const man = (personId: number, line: boolean, strength: number): CampaignMember => ({
+    ref: { villageId: placeA.villageId, personId },
+    playerId: playerA!.id,
+    line,
+    mounted: false,
+    forced: false,
+    strength,
+    health: 100,
+    vigor: 1,
+    wounded: false,
+    group: 0,
+    status: 'active',
+  });
+  const villager = lord.id + 100_000;
+  const homeA = { x: spotsA.dwelling.x, z: spotsA.dwelling.z };
+  const at = { x: Math.max(...ring.map((p) => p[0])) + 40, z: home.z };
+  expect(insidePolygon(at, ring)).toBe(false);
+  const campaignId = randomUUID();
+  const base = newCampaign(
+    {
+      id: campaignId,
+      warId: war!.id,
+      seed: 22,
+      tick,
+      playerId: playerA!.id,
+      leaderName: 'Soběslav',
+      commander: { villageId: placeA.villageId, personId: villager },
+      deputy: null,
+      assembly: { villageId: placeA.villageId, cell: placeA.cell, pos: homeA, name: 'Lhota' },
+      target: { villageId: placeB.villageId, cell: placeB.cell, pos: at, name: 'Hradec' },
+      members: [
+        man(villager, false, 1),
+        man(lord.id, true, 2),
+        ...[1, 2, 3, 4, 5, 6].map((i) => man(villager + i, false, 1)),
+      ],
+      foodKg: 80,
+      liveCommand: false,
+    },
+    world,
+  );
+  const state: CampaignState = {
+    ...base,
+    phase: 'marching',
+    ambush: true,
+    presenceTick: tick,
+    groups: base.groups.map((g) => ({
+      ...g,
+      cell: { ...placeB.cell },
+      pos: { ...at },
+      goal: { cell: { ...placeB.cell }, pos: { ...at } },
+      arrived: true,
+    })),
+  };
+  await query(`UPDATE campaign SET status = 'done' WHERE status = 'active'`, []);
+  await query(
+    `INSERT INTO campaign (id, war_id, player_id, status, created_at)
+     VALUES ($1, $2, $3, 'active', now())`,
+    [campaignId, war!.id, playerA!.id],
+  );
+  await query(
+    `INSERT INTO campaign_checkpoint (campaign_id, tick, state) VALUES ($1, $2, $3::jsonb)`,
+    [campaignId, tick, JSON.stringify(state)],
+  );
+
+  let worker = await startWorker();
+  let raidDay = today;
+  try {
+    // boj doběhne: B v útočišti, muži na hradbě, útočníci přes hradbu, výsledek odejde do vsí
+    await expect
+      .poll(
+        async () => {
+          const point = await checkpointOf(campaignId);
+          return point.state.raidDay !== undefined && point.outbox === null;
+        },
+        { timeout: 420_000, intervals: [2_000], message: worker.output() },
+      )
+      .toBe(true);
+    await worker.stop();
+    const point = await checkpointOf(campaignId);
+    raidDay = point.state.raidDay!;
+    const battle = point.state.battle!;
+    const near = (p: { x: number; z: number }): boolean =>
+      ring.some((m) => (m[0] - p.x) ** 2 + (m[1] - p.z) ** 2 < 10 * 10);
+    const side = (s: Fighter['side']): Fighter[] => battle.fighters.filter((f) => f.side === s);
+    // muži vsi B dostali stanoviště na hradbě (1 m za její čarou)
+    expect(side('defend').some((f) => f.post !== undefined && near(f.post))).toBe(true);
+    // útočníci volili postup sami – na palisádu s ochozem bez bran žebříky – a dostali se dovnitř
+    expect(battle.ladders?.length ?? 0).toBeGreaterThan(0);
+    expect(side('attack').some((f) => insidePolygon(f.pos, ring))).toBe(true);
+
+    // vojsko obrátilo – zkrátíme cestu domů: skupiny rovnou ve shromaždišti
+    const back: CampaignState = {
+      ...point.state,
+      phase: 'returning',
+      returnReason: point.state.returnReason ?? 'arrived',
+      groups: point.state.groups.map((g) => ({
+        ...g,
+        cell: { ...placeA.cell },
+        pos: { ...homeA },
+        goal: { cell: { ...placeA.cell }, pos: { ...homeA } },
+        route: [],
+        leg: null,
+        arrived: true,
+      })),
+    };
+    await query(`UPDATE campaign_checkpoint SET state = $2::jsonb WHERE campaign_id = $1`, [
+      campaignId,
+      JSON.stringify(back),
+    ]);
+    worker = await startWorker();
+    await expect
+      .poll(async () => (await checkpointOf(campaignId)).status, {
+        timeout: 60_000,
+        message: worker.output(),
+      })
+      .toBe('done');
+    await expect.poll(async () => (await checkpointOf(campaignId)).outbox).toBeNull();
+  } finally {
+    await worker.stop();
+    await query(`UPDATE campaign SET status = 'done' WHERE id = $1`, [campaignId]);
+  }
+
+  // kronika obou rodů: nájezd bez opovědi (dny od nájezdu se dopočítají znovu i se schránkou)
+  await replayFrom(seatA.settlementId, placeA.villageId, raidDay, today);
+  await replayFrom(seatB.settlementId, placeB.villageId, raidDay, today);
+  for (const [page, seat] of [
+    [a, seatA],
+    [b, seatB],
+  ] as const) {
+    await pollVillage(page);
+    await expect
+      .poll(
+        async () =>
+          (await villageState(seat.settlementId)).chronicle.some(
+            (e) => e.kind === 'raid' && !e.declared && e.leader === 'Soběslav',
+          ),
+        { timeout: 60_000 },
+      )
+      .toBe(true);
   }
   await Promise.all(ctxs.map((ctx) => ctx.close()));
 });

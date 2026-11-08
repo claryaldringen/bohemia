@@ -1,8 +1,11 @@
 # Opevnění
 
-Stav: **schváleno** (Martin 3. 11. 2026: „ano“). Implementace zatím není. **Obranu a nové druhy
-od 8. 11. 2026 popisuje [Hradby a obrana](#hradby-a-obrana-8-11-2026)** (návrh) – násobek obrany
-v ní zrušen; nahrazené věty níž jsou přeškrtnuté.
+Stav: **schváleno** (Martin 3. 11. 2026: „ano“), **implementováno**
+([plán 2026-11-03](../superpowers/plans/2026-11-03-multiplayer-vassalage-war.md), Úloha 5).
+**Obranu a nové druhy od 8. 11. 2026 popisuje [Hradby a obrana](#hradby-a-obrana-8-11-2026)**
+(schváleno a implementováno 8. 11. 2026) – násobek obrany v ní zrušen; nahrazené věty níž jsou
+přeškrtnuté. Kód: [docs/code/village-fortifications.md](../code/village-fortifications.md)
+a [docs/code/war.md](../code/war.md).
 Závazný je oddíl [Odpovědi Martina 3. 11. 2026](#odpovědi-martina-3-11-2026) na konci; tělo
 z něj vychází. Co níž není výslovně Martinovo, je **návrh Clauda**. Navazuje na [válku](war.md)
 (obrana, útočiště, bod zlomu, postoje vsi), [vazalství](vassalage.md) (robota na veřejných
@@ -46,10 +49,11 @@ stavbách), [obyvatele](population.md) (práce vsi, chátrání a přestavba), [
 ## Hradby a obrana (8. 11. 2026)
 
 Stav: **schváleno 8. 11. 2026** (Martin: „Schvaluji.“) – odpovědi na otevřené otázky níž.
+**Implementováno 8. 11. 2026** – [plán hradeb](../superpowers/plans/2026-11-08-ramparts.md),
+Úlohy 1–22 (e2e: nájezd na ves s palisádou s ochozem v `apps/web/e2e/multiplayer-war.spec.ts`).
 
-Stav: **návrh** (8. 11. 2026) – čeká na [otevřené otázky](#otevřené-otázky-k-hradbám). Oddíl
-**ruší násobek obrany**, přidává nové druhy a vylepšení po úsecích; starší oddíly níž platí, kde
-nejsou přeškrtnuté. Citace jsou z rozhovoru s Martinem 8. 11. 2026; co není jeho, je **návrh
+Oddíl **ruší násobek obrany**, přidává nové druhy a vylepšení po úsecích; starší oddíly níž platí,
+kde nejsou přeškrtnuté. Citace jsou z rozhovoru s Martinem 8. 11. 2026; co není jeho, je **návrh
 Clauda**. Podklad: [rešerše hradeb](research/2026-11-08-ramparts.md).
 
 Martin 8. 11. 2026: „**To, že vesnice hradbu nepostaví, je spíš věcí správce – prostě usoudí, že
@@ -238,7 +242,11 @@ místo“ (návrh Clauda) neplatí. Zásah zůstává `10 × síla útočníka` 
 - **NPC velitel** (návrh Clauda, nahrazuje „1,5 × obránci × násobek“): odhadne nejrychlejší
   postup – mezera, žebříky na neobsazeném úseku, brána, oheň, sekání, odkopání, podkop – a napadne,
   je-li jeho síla aspoň 1,5 × síla obránců v dohledu a postup trvá nejvýš 1 herní den práce; jinak
-  vezme, co je venku, a odejde. Žebříky si vyrobí u nejbližšího lesa.
+  vezme, co je venku, a odejde. Žebříky si vyrobí u nejbližšího lesa. Návrh Clauda k provedení:
+  do postupu počítá i cestu k místu (vybere nejmenší součet cesty a postupu), 1 herní den hlídá jen
+  postup od hradby; zavřenou bránu bere jako zavřenou (zavře se, než k ní dojde); místo pro žebřík
+  je neobsazené i půl metru na obě strany; k místu vede skupinu kolem hradby (obchází ji po kruhu
+  5 m za nejvzdálenějším rohem) a odtud napadá – postup na místě volí muži sami (nejrychlejší).
 
 ### Přechod hradby (návrh Clauda)
 
@@ -865,8 +873,10 @@ tlačítka „Vylepšit na palisádu“ a „Postavit na valu plot / palisádu�
   - **dvojklik** na úsek nebo bránu vybere celou hradbu včetně bran – zvýrazní se celý pás obvodu,
     panel celého opevnění (Panel opevnění výš). Přidat bránu jde z panelu úseku i celé hradby
     (návrh Clauda).
-  - Zbořit úsek dál boří celé díly mezi díly bran (díly s branou zůstávají) – kus hradby mezi
-    okrajem brány a koncem dílu brány zůstane stát (otázka na Martina, zda dělit díly u brány).
+  - ~~Zbořit úsek dál boří celé díly mezi díly bran (díly s branou zůstávají) – kus hradby mezi
+    okrajem brány a koncem dílu brány zůstane stát (otázka na Martina, zda dělit díly u
+    brány).~~ Rozhodnuto 8. 11. 2026 (Martin: „Hradba je hradba, brána je brána.“): zboření
+    i vylepšení sahá přesně po okraj brány ([Druhy a postup vylepšení](#druhy-a-postup-vylepšení)).
 - **Minimapa:** obvod čarou v barvě druhu (návrh Clauda).
 - Slova jen v popiscích (`Tooltip`), žádná výjimka z pravidla.
 

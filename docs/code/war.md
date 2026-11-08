@@ -1,8 +1,9 @@
 # Válka – kód
 
 Pravidla: [docs/design/war.md](../design/war.md). Hotová je síla vojska a stropy výcviku
-(Ú6.1), válka mezi rody s ochranou nováčka a opovědí (Ú6.2), mírové jednání (Ú6.3) a pohyb
-vojska mapu po mapě (Ú6.4); tažení po taktech, boj a dohra přibývají v dalších úlohách.
+(Ú6.1), válka mezi rody s ochranou nováčka a opovědí (Ú6.2), mírové jednání (Ú6.3), pohyb
+vojska mapu po mapě (Ú6.4), tažení po taktech, boj a dohra (Ú6.5–Ú6.17) a boj u hradby
+(plán hradeb 2026-11-08 – obránci na hradbě, prolomení, brány, NPC velitel).
 
 ## Stropy výcviku
 
@@ -281,7 +282,10 @@ lese 50 m), `WAR.houseGroupM`, `WAR.holdPlaceM`, `WAR.defenderAges`, `WAR.downed
 - **Rozkazy** – `domain/war/orders.ts`: `attackerPlan` – `follow-leader` (jde za velitelem, když je
   dál než 6 m; napadne, kdo útočí na velitele nebo na něj), `attack-all` (nejbližší viditelný
   i prchající, nikoho nevidí → nejbližší vůbec – projdou ves), `hold-place` (`holdAt`, jinak kde
-  skupina stojí; nepřítel do 30 m + dosah zblízka od místa, lukem kdo je na dostřel, vodítko 30 m).
+  skupina stojí; nepřítel do 30 m + dosah zblízka od místa, lukem kdo je na dostřel, vodítko 30 m;
+  jen na koho přes hradby dosáhne – `PlanContext.reaches` = `reachable` v `battle.ts`: každá stěna
+  na čáře k cíli musí ránu pustit (`canStrikeAcross` – luk na dostřel, jinak zblízka), ať skupina
+  kvůli cíli za palisádou místo neopustí, nepřeleze ani neprolomí – hradby Ú20).
   Bez velitele „útočit na vše“; NPC velitel řídí velitele (jinak zástupce) jako řízeného muže
   (`syncControl` – NPC velitel, zástupce a rozpad, Ú6.12).
   `controlledPlan` – hráčem řízený muž: `chosen` (pokyn `strike`), jinak `goal` (pokyn `march` na
@@ -725,13 +729,45 @@ Rozpad). Čísla `WAR.npc` (`attackRatio` 1,5, `lostShare` 0,5) a `WAR.absentLea
   Pochod: skupiny, které hráč poslal jinam, pošle k cíli (`march`); trasa je pochod Ú6.4 (A*
   obchází hustý les, potoky po brodech). Nájezd: `npcLeader` (velitel, dokud bojuje i prolamuje,
   jinak zástupce) – drží napadeného, dokud bojuje; jinak skupiny domů obránců v dohledu (150 m od
-  kteréhokoli útočníka) poměří součtem sil obránců (bez násobku – 8. 11. 2026) a napadne nejslabší
-  (`strike` na nejbližšího jejího muže), má-li vojsko aspoň 1,5 × její sílu. Jinak: všichni
-  obránci uvnitř obvodu opevnění, ve kterém velitel není (`behindWalls` – `fortsContaining`; přechod
-  hradby přidá Úloha 20 plánu hradeb) → `plunder` (boj `attackers` +
-  `BattleState.plundered` → `raidResultOf` bere útočiště za nedobyté – kořist jen zvenku), jinak
-  `turn-back { reason: 'order' }`. Nevidí-li nikoho, jde k nejbližšímu obránci (`march`). Průchod
-  opevněním volí boj (`approach` – mezera / brána / průlom, jinak místo s nejmenší prací).
+  kteréhokoli útočníka) poměří součtem sil obránců (bez násobku – 8. 11. 2026); nejslabší napadne
+  (`strike` na nejbližšího jejího muže), má-li vojsko aspoň 1,5 × její sílu, jinak se obrátí
+  (`turn-back { reason: 'order' }`). Stojí-li všichni obránci uvnitř obvodu opevnění, ve kterém
+  velitel není (`behindWalls` – `fortsContaining` nad opevněním bojiště), napadne jen se silou
+  a postupem přes hradbu nejvýš `WAR.npc.maxAssaultHours` (24 h – NPC velitel u hradby níž),
+  jinak `plunder` (boj `attackers` + `BattleState.plundered` → `raidResultOf` bere útočiště za
+  nedobyté – kořist jen zvenku). Nevidí-li nikoho, jde k nejbližšímu obránci (`march`).
+  `npcIntents(state, world, field)` – `field` je bojiště nájezdu (`battleFieldOf` v `campaign.ts`);
+  bez něj (testy) velitel o hradbě neví.
+- **NPC velitel u hradby (hradby Ú20)** – `domain/war/npc-assault.ts`, `fastestApproach(field, b,
+men, from)` → `{ fort, segment, at, method, hours }` | null. Mezery, průlomy boje a nejrychlejší
+  místo prolomení každého opevnění bere z boje – `fortPassages` v `battle.ts` (stejné `wallsOf`
+  a `chooseSpot` jako takt, brány zavřené, `min(4, muži)`, oheň jen s otepi z lesa či dříví vsi;
+  `Opening.segment`; u vrat klešťové brány nejvýš `maxMen` a velitel stojí před ústím uličky –
+  k vratům dojdou muži v boji sami), žebřík přes vodní příkop z nich vynechá. Sám odhadne přelézt plot (`climb`)
+  a žebříky jen na neobsazeném místě (`occupied` v bodě i ±0,5 m – ne škvíra mezi obránci 5 m od
+  sebe; mimo vrata a u klešťové brány mimo ramena – uličku 2 m + rameno 5,5 m + 1 m od
+  středu brány, i na sousedním úseku; 1 m od stojících žebříků): volný žebřík opevnění jen výstup, nový = výroba 4 h
+  - do nejbližšího lesa (od středu úseku, `nearestForestOf`, mezipaměť na mřížku a tvar) a zpět
+  - výstup (`climbTicks`), zasypání příkopu `assaultHours` bez výroby. Vybere nejmenší
+    `hours + cesta od from` (3,5 m/s; při shodě první v pořadí); `hours` je jen postup.
+    `approachStep(field, from, way)` – další bod cesty velitele: do 5 m od místa rovnou k němu, jinak
+    k bodu 4 m dál od středu opevnění (ať nejde těsně podél hradby a nestojí na její čáře – tam by
+    ho `fortsContaining` měl za uvnitř) přes `leadTo`: vede-li přímka přes obvod (úseky i tětivy
+    rohů, blokuje vše), napřed radiálně ven na kruh obchůzky (nejvzdálenější roh + 5 m), pak po
+    kruhu (půlením k nejdelší tětivě bez hradby) – boj sám kolem hradby nechodí (`stepToward` jen
+    klouže podél stěny a na rohu uvízne). `raidIntents`: u místa (do 3 m) `strike` na nejbližšího
+    obránce nejslabší skupiny (u hradby muži volí postup místa sami – `startCrossing`,
+    `chooseSpot`), jinak `march` na `approachStep` (nový bod, až se posune o víc než 3 m).
+    `insideOrders` (před záměry velitele, i když drží napadeného): stojí-li obránci uvnitř obvodu
+    a průchod je otevřený (`passageOpen` – lezec nahoře: `over` / `down` / vrchol žebříku, útočník
+    uvnitř obvodu, nebo mezera či průlom z `fortPassages`), pošle skupiny, které ho slyší
+    (`orderHeard`) a nemají „útočit na vše“, dovnitř – `set-order` `attack-all`; velitel sám
+    (lučištník) smí zůstat u průchodu (návrh Clauda). Testy:
+    `war/__tests__/npc-assault.test.ts` (palisáda se 6 obránci → žebříky na neobsazeném místě, bez
+    lesa s dřívím vsi oheň 12 h a bez otepí odkopání 20 h, plně obsazená roštová → podkop 120 h →
+    `plunder`, mezera po průlomu, obchůzka hradby, obrat, „držet místo“ za palisádu nejde, lučištník
+    na ochoz střílí), `npc-commander.test.ts` (silnější vojsko u palisády obejde hradbu k bráně,
+    prosekne ji, skupina jde dovnitř a bitvu vyhraje; po kouscích 1 / 7 / 100).
 - **Řízení v boji** – `syncControl`: `controlled` má jen muž, kterého řídí NPC (`npcLeader`), nebo
   při živém vedení velitel tažení; kdo řízení ztratí, zapomene `chosen` a `goal`.
 - **Přítomnost** – záměr `presence` (web pošle z otevřeného tažení – Ú6.14) i každý jiný záměr
@@ -940,3 +976,12 @@ Scéna hry ukazuje **mapu sídla hráče** – vojsko je v ní vidět, když na 
   A pak nabídne mír s ročním tributem (platí B), B přijme – válka `peace`, tribut v přijatém kole,
   kronika míru ve schránce obou vsí. Vedle `next start` běží worker se smyčkou tažení (jako test
   živého vedení), mezi nájezdem a návratem se restartuje.
+- **e2e hradby** (plán hradeb, Úloha 22) – druhý test téhož souboru: ves B má kolem vsi hotovou
+  palisádu s ochozem (`proposeFortification` + `startFortification`, díly dostavěné, `kind:
+'walkway'`) **bez bran** – brána by se prosekla dřív, než se vyrobí žebřík. Tažení A (8 mužů,
+  velí vesničan – NPC) stojí 40 m vně hradby; NPC velitel volí postup sám (`fastestApproach` –
+  žebříky z lesa). Výroba žebříku trvá 4 herní hodiny, v pomalém světě testů ≈ 11 500 taktů, proto
+  kontrolní bod začne o 16 000 taktů (≈ 67 min) dřív a worker boj dopočítá najednou. Test ověří
+  stanoviště obránců u čáry hradby (`Fighter.post`), žebříky v `BattleState.ladders`, útočníka
+  uvnitř obvodu (bod v mnohoúhelníku středů dílů) a nájezd bez opovědi v kronice obou vsí – vsi
+  se dopočítají znovu ode dne nájezdu (`replayFrom`; boj mohl začít i včera).

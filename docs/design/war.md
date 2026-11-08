@@ -1,7 +1,7 @@
 # Válka
 
 Stav: **schváleno** – Martin 3. 11. 2026 na otázku „Schvaluješ návrhy seniorátu, vazalství a války jako celek, abych podle nich připravil plán implementace?“: „ano“. Původní stav:
-Stav: **návrh** (3. 11. 2026). Implementace zatím není. Tělo je přepsané podle oddílu
+Stav: **návrh** (3. 11. 2026). **Implementováno** (sloučeno ≈ 7. 11. 2026, kód viz [war.md](../code/war.md)). Tělo je přepsané podle oddílu
 [Odpovědi Martina 2. 11. 2026](#odpovědi-martina-2-11-2026) (několik odpovědí je z 3. 11.) – ty
 jsou závazné. Co z nájezdu na sousední ves platí dál, je označené „Martin 18. 10.“; co níž není
 výslovně Martinovo, je **návrh Clauda**. Navazuje na [vazalství](vassalage.md) (jednání
@@ -10,7 +10,9 @@ rodinu](lord.md) (výcvik), [koně](horses.md), [divokou zvěř](wildlife.md) (l
 [stěhování](migration.md) (mřížka map) a [obchod](trade.md) (dvorec, zemská stezka). Opevnění
 popisuje samostatný návrh [fortifications.md](fortifications.md) (schválen 3. 11. 2026) – válka
 z něj bere ~~násobky obrany~~ obranu hradeb (od 8. 11. 2026 bez násobku – [fortifications.md](fortifications.md#hradby-a-obrana-8-11-2026)), útočiště
-a prolomení. Historické opory:
+a prolomení; hradby a obrana jsou implementované 8. 11. 2026
+([plán hradeb](../superpowers/plans/2026-11-08-ramparts.md); kód [docs/code/war.md](../code/war.md) –
+Přechod hradby, Prolomení, Obránci na hradbě, Brány v bitvě, NPC velitel). Historické opory:
 [rešerše](research/2026-11-02-war.md).
 
 ## Proč
@@ -345,7 +347,9 @@ a 12 vesničanů (8 dobrovolníků po 0,4, 4 nucení po 0,2 = 4,0), s kovárnou 
   - **útočit na vše** – na každého nepřítele, který se brání, i na prchající; vzdané nechají
     (o nich rozhodne velitel – Vzdaní) (návrh Clauda);
   - **držet místo** (brod, brána, kraj lesa) – brání určené místo a nevzdálí se od něj víc než
-    ≈ 30 m (návrh Clauda).
+    ≈ 30 m (návrh Clauda). Napadá jen nepřítele, na kterého z místa dosáhne – střelou, nebo
+    zblízka přes hradbu, přes kterou se tak dá bít (plot); za hradbu kvůli nikomu nechodí, nepřeleze
+    ji ani neprolomí (návrh Clauda, 8. 11. 2026).
 - **Ustoupit není rozkaz** – Martin 2. 11. 2026: „**když ustoupí velitel, jeho muži spořádaně
   ustoupí s ním**“.
 - **Změna rozkazu** (návrh Clauda): před bitvou kterékoli skupině; během boje jen skupině, u níž je
