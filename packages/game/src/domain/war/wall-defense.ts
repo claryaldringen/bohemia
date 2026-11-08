@@ -377,7 +377,7 @@ function places(w: WallWorld): Place[] {
     if (bf) out.push({ fort: l.fort, ...placeAt(bf, l.top), attackers: 1 });
   }
   for (const br of w.b.breaches) {
-    if (br.progress.breached) continue;
+    if (br.phase === 'done') continue;
     const men = w.b.fighters.filter((f) => f.state === 'breach' && f.breachAt === br.key).length;
     const bf = w.forts[br.fort];
     if (men > 0 && bf) out.push({ fort: br.fort, ...placeAt(bf, br.at), attackers: men });

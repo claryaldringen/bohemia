@@ -84,7 +84,8 @@ export function nearest(from: Pos, candidates: readonly Fighter[]): Fighter | nu
  * (war.md – Bod zlomu: pronásledují je jen skupiny útočit na vše) a pro hráčem řízeného muže.
  */
 export function canAttack(f: Fighter, e: Fighter, pursue: boolean): boolean {
-  if (e.side === f.side) return false;
+  // kopáč v podkopu je pod zemí – nikdo ho nezasáhne (fortifications.md – Přechod hradby)
+  if (e.side === f.side || e.underground) return false;
   return inFight(e) || (pursue && e.state === 'flee');
 }
 

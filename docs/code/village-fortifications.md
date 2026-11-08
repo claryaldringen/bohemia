@@ -165,7 +165,7 @@ platí dál, staré vsi se nepřevádějí.
   mezera: hradba brání, stárne a hnije podle svého dne (`segmentState`, `segmentIsOld`,
   `segmentStands`). **Žádné čtení `builtDay === null` mimo vrstvy** – převedené jsou
   `fortifications.ts` (vylepšení, nástavba, zboření, `segmentDone` – stavba čte základ
-  `segmentRampart ?? segmentWall`), `decay.ts`, `defense.ts`, `breach.ts`, `walls.ts`, `band.ts`,
+  `segmentRampart ?? segmentWall`), `decay.ts`, `defense.ts`, `walls.ts`, `band.ts`,
   `war/march-grid.ts`, `war/battle.ts` (`blocks` = stojí hradba), `war/raid-apply.ts`,
   `steward-extras.ts` (rozdělaná stavba = některá vrstva nedostavěná), `apps/web/lib/fort-view.ts`
   (`partBuiltDay` – den valu, jinak hradby) a scéna (`segmentBuild`). Scéna dál dostává surové
@@ -341,8 +341,8 @@ walk?)`** – úsek s dílem `segment` (`sectionOf`), `null` = „Vylepšit vše
 - **`sectionUpgrades(state, day, landscape, obstacles, { fortificationId, segment }, walk?)`** →
   `FortUpgradeOption { target, laborManDays, logs, stoneM3, block }[]` – stupně, na které by se
   v úseku něco změnilo (vyšší než nejnižší stojící hradba; na mezeře a holém valu všechny), cena
-  bez kácení a lámání a důvod z `startSectionUpgrade` (na klonu). Rozhraní ji zatím nevolá
-  (tlačítka Vylepšit – Úloha 17).
+  bez kácení a lámání a důvod z `startSectionUpgrade` (na klonu). Rozhraní ji volá pro každý úsek
+  a pro celé opevnění (`fortificationViews` – [web-ui.md](web-ui.md), Opevnění v rozhraní).
 - **Práce** – `segmentDone` / `workFortification` pro stavbu s `fortTarget`: díl (kus dílu brány
   podle `gatePartView`) je hotový, když na něm stojí cílová hradba (`upgradeDone`).
   `completeUpgrade(fort, seg, target, day, part?)` – s `part` totéž na pohledu kusu a zápis zpět
@@ -359,7 +359,7 @@ walk?)`** – úsek s dílem `segment` (`sectionOf`), `null` = „Vylepšit vše
 - **Akce** – `upgradeFortification` (use-case) a záměr `fortification-upgrade` (`build-intent.ts`)
   s `target` (a `segment`) volají `startSectionUpgrade`, bez něj starší `startFortificationUpgrade`
   (správce, panel celého opevnění) beze změny výsledku.
-- **Rozhraní** (minimum, plné ve Úloze 17): `VillageFortSection` nese průběh, práci a id stavby na
+- **Rozhraní** (plné v Úloze 17 – [web-ui.md](web-ui.md), Opevnění v rozhraní): `VillageFortSection` nese průběh, práci a id stavby na
   dílech úseku (`selectionDetails` je dá panelu úseku – zrušení té správné stavby);
   `SceneFortSegment.work` – práce stavby dílu, když na opevnění běží víc staveb (`segmentBuild`
   čte `look.work ?? fort.work`). Scéna nových druhů ve stavbě a vytyčení po dílech – Úloha 18.
@@ -447,8 +447,12 @@ scéně.
   s tempem 0, buňky brány zůstanou průchozí. `assaultSteps` – zasypat vodní příkop jen mimo bránu
   (brána má hráz či most – návrh Clauda).
 - **Akce**: use-casy `addFortificationRampart`, `fillFortificationMoat`
-  (`application/fortification-rampart.ts`); tlačítka a server actions – Úloha 17. Testy
-  `fortification/__tests__/rampart-addition.test.ts` a `moat.test.ts`.
+  (`application/fortification-rampart.ts`, právo `build`), server actions
+  `addFortificationRampart` a `fillFortificationMoat`, tlačítka Doplnit val a Napustit příkop
+  v panelu úseku ([web-ui.md](web-ui.md)). Druhý klik na Doplnit val vrátí `FORT_RAMPART_DONE`
+  (val se do dílů zapíše hned se staveništěm), druhé Napustit `FORT_BUSY`. Testy
+  `fortification/__tests__/rampart-addition.test.ts`, `moat.test.ts`
+  a `application/__tests__/fortification-section-actions.test.ts`.
 
 ## Klešťová brána a věž (`fortification-gate.ts`, `fortification/pincer.ts`)
 
@@ -502,8 +506,11 @@ tlačítka Úloha 17.
   přičte za každou hotovou věž (díl bez stavby) `tower.upkeepManDaysYear` (1 čd ročně); nedodělek
   ji postarší jako hradbu. Ramena klešťové brány nestárnou zvlášť – patří k dílu brány (návrh
   Clauda).
-- **Akce**: use-case `upgradeFortificationGate` (`application/upgrade-fortification-gate.ts`).
-  Testy `fortification/__tests__/gate-upgrade.test.ts`.
+- **Akce**: use-case `upgradeFortificationGate` (`application/upgrade-fortification-gate.ts`, právo
+  `build`), server action `upgradeFortificationGate`, tlačítka Klešťová brána a Věž v panelu brány.
+  Testy `fortification/__tests__/gate-upgrade.test.ts`
+  a `application/__tests__/fortification-section-actions.test.ts` (dvojklik `FORT_BUSY`, plot
+  `FORT_GATE_LOW`).
 
 ## Úseky pro hráče a zboření (`sections.ts`, `fortifications.ts`; demolition.md – Opevnění)
 
@@ -523,7 +530,7 @@ part?, lengthM }[]` – kusy dílů téhož úseku: celé díly mezi branami a z
   (jen díly bran; brána a zbytek dílu stojí, kus je mezera; volitelné, starší vsi beze změny);
   `top` – nástavba dílu, když se liší od `Fortification.top` (`'none'` = zbořená nástavba).
   **`segmentTop(fort, seg)`** (`life.ts`) = `seg.top ?? fort.top`, `'none'` → null – čtou ji
-  `rotting` (stáří nástavby), `breachWork`, `fortCells` (march-grid),
+  `rotting` (stáří nástavby), `crossingLayers`, `fortCells` (march-grid),
   `blocks` (battle) a cena přestavby nástavby (`decay.ts`). **`segmentIsOpen(seg)`** – díl bez stěny
   (nedostavěný, prolomený, zbořený); používá ho `segmentStands` a `segmentIsGap` (defense.ts).
   Bez nových údajů bit po bitu jako dřív (`fortification-paths`, válečné testy beze změny).
@@ -703,8 +710,9 @@ points: [x, z][], target }` – body mezi konci, `parseRerouteFortificationSecti
 
 ## Obrana, útočiště a prolomení (Ú5.5)
 
-Čistá doména pro válku (F6), nic ji zatím nevolá; soubory `fortification/{defense,refuge,breach}.ts`,
-testy `__tests__/defense.test.ts`. Funkce berou `geo` (`GridGeometry`) jako ostatní.
+Čistá doména pro válku (F6); soubory `fortification/{defense,refuge}.ts`, testy
+`__tests__/defense.test.ts`. Funkce berou `geo` (`GridGeometry`) jako ostatní. Prolomení počítá
+od 8. 11. 2026 `assault.ts` (Přechod hradby níž; boj – `docs/code/war.md`, Prolomení v boji).
 
 - **`defense.ts`** – **násobek obrany zrušen 8. 11. 2026** (fortifications.md – Obrana bez násobku;
   `segmentMultiplier` a `defenderMultiplier` pryč). Mezera `segmentIsGap` (nedostavěný, prolomený,
@@ -716,10 +724,14 @@ testy `__tests__/defense.test.ts`. Funkce berou `geo` (`GridGeometry`) jako osta
 gateCloseTick)` (bere plochu místo opevnění): příchozí po zavření brány venku; ostatní podle
   přednosti lidé → koně a voli → skot → drobný dobytek (uvnitř skupiny podle taktu příchodu);
   `homeInside` lidé nic nenesou, zvenku 25 / 10 kg (`carriedKg`).
-- **`breach.ts`** – `breachWork(fort, seg, 'gate' | 'wall')` (0 / 2 / 12 / 96; val podle nástavby,
-  holý val 0), `breachPace` (val `rampartAssaultPace` = 0,25), `breachStart`, `breachStep(progress,
-men, hours)` (nejvýš 4 muži). Práh vzdání s násobkem (`surrenderThreshold`) je od 8. 11. 2026
+- **Prolomení** – `breach.ts` (`breachWork`, `breachPace`, `breachStep`), `breachManHours`
+  a `rampartAssaultPace` jsou pryč (plán hradeb Úloha 14) – nahradil je `assault.ts`, testy
+  prolomení se přesunuly do `assault.test.ts`; zůstává `FORTIFICATIONS.breach.widthM` (4 m – průlom
+  i zasypaný kus příkopu). Práh vzdání s násobkem (`surrenderThreshold`) je od 8. 11. 2026
   pryč – za opevněním se skupina nevzdá, dokud útočník nestojí uvnitř obvodu (`war/stance.ts`).
+- **Průlom po boji** – `applyFortificationBreach` (`war/raid-apply.ts`): prolomené díly stav 0
+  a `breachedDay`; vypálené (`burned`) navíc `burnedDay`, vypálená brána (`gatesBurned`) smaže
+  věž (`towerDay`). Přestavba a zboření dílu `breachedDay` i `burnedDay` smažou.
 - **Odchylky od plánu:** funkce navíc berou `geo`; `refugeAdmit` bere kapacitu, ne opevnění;
   `closedGates` je množina indexů úseků; pozice jsou `{ x, z }`. Čísla navíc v `FORTIFICATIONS`:
   `refuge.carryKgAdult/Child` (`rampartHeightBonus`, `surrenderOddsPerDefender`
@@ -745,6 +757,7 @@ men, hours)` (nejvýš 4 muži). Práh vzdání s násobkem (`surrenderThreshold
   `rampartPace` = 1 ÷ (1 + 3 v), `rampartFatigue` = 1 − 0,15 v, `fatigueFactor` (zpět za 120
   taktů), `moatFrozen` (měsíce 12, 1, 2), `fortOccupancy` (1 obránce na 5 m ochozu).
 - `manHours` žebříku je jeden žebřík (4); druhý u palisády bez ochozu počítá bitva.
+- Bitva po fázích (zasypat, otepi, hoření, práce) – `docs/code/war.md`, Prolomení v boji.
 
 ## Akce
 

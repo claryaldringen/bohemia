@@ -312,8 +312,10 @@ describe('únava po valu (Obrana bez násobku 5)', () => {
 
 describe('bitva se žebříky po kouscích (Review Focus 4)', () => {
   it('stejný výsledek po kouscích taktů 1 / 7 / 40 přes JSON jako vcelku', () => {
-    const start = (): BattleState =>
-      battle({
+    // plán hradeb Úloha 14: šest mužů by palisádu s ochozem nejrychleji vypálilo (les do 100 m) –
+    // test žebříků si postup vynutí rozkazem skupiny
+    const start = (): BattleState => {
+      const b = battle({
         attackers: Array.from({ length: 6 }, (_, i) => attacker(i, { x: i * 3 - 8, z: -45 })),
         defenders: [
           defender(1, { x: 0, z: -26 }, { strength: 0.4 }),
@@ -321,6 +323,9 @@ describe('bitva se žebříky po kouscích (Review Focus 4)', () => {
           defender(3, { x: 0, z: 0 }, { atHouseOnly: true, strength: 0.1 }),
         ],
       });
+      b.groups[0]!.assault = 'ladder';
+      return b;
+    };
     const f = field([fortOf('walkway')], forestSouth);
     const TICKS = 900;
     const whole = start();

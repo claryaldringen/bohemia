@@ -106,9 +106,16 @@ export type VillageEventBody =
   | ({ kind: 'guard-losses' } & GuardLosses)
   /**
    * Průlom opevnění (fortifications.md – Prolomení; `applyFortificationBreach`): úseky se stavem 0,
-   * obyvatelé je přestaví přednostně.
+   * obyvatelé je přestaví přednostně. `burned` – díly prolomené ohněm (scéna – ohořelý průlom),
+   * `gatesBurned` – díly s vypálenou branou (věž nad ní shoří; Přechod hradby – Oheň); chybí = žádné.
    */
-  | { kind: 'fortification-breach'; fortificationId: number; segments: number[] };
+  | {
+      kind: 'fortification-breach';
+      fortificationId: number;
+      segments: number[];
+      burned?: number[];
+      gatesBurned?: number[];
+    };
 
 /**
  * Událost ve schránce vsi `villageId`. `day` = herní den, na jehož začátku se použije (nikdy ne

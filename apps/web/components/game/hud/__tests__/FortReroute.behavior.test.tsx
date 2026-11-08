@@ -17,9 +17,19 @@ const gate = (over: Partial<Gate> = {}): Gate => ({
   kind: 'fortification-gate',
   id: 7,
   fortKind: 'palisade',
-  gate: { segment: 2, state: 1, old: false, ageYears: 3 },
+  gate: { segment: 2, state: 1, old: false, ageYears: 3, pincer: null, tower: null, assault: [] },
   road: null,
-  reroutes: [{ segment: 2, target: 'palisade' }],
+  reroutes: [
+    {
+      segment: 2,
+      target: 'palisade',
+      others: [
+        { target: 'fence', blocked: null },
+        { target: 'crib', blocked: 'Roštová hradba až od roku 790.' },
+        { target: 'chamber', blocked: 'Komorová hradba až od roku 830.' },
+      ],
+    },
+  ],
   busy: false,
   ...over,
 });
@@ -53,6 +63,17 @@ it('brána u zbořeného úseku – Postavit jinudy otevře editor s dílem úse
   expect(button.getAttribute('aria-label')).toContain('Postavit úsek jinudy');
   act(() => button.click());
   expect(onReroute).toHaveBeenCalledWith(7, 2, 'palisade');
+});
+
+it('druh nového úseku na výběr – plot pošle plot, roštová před rokem 790 zašedlá s důvodem', () => {
+  const onReroute = vi.fn();
+  render(gate(), onReroute);
+  const fence = host.querySelector<HTMLButtonElement>('[data-testid="fort-reroute-fence"]')!;
+  const crib = host.querySelector<HTMLButtonElement>('[data-testid="fort-reroute-crib"]')!;
+  expect(crib.disabled).toBe(true);
+  expect(host.textContent).toContain('Roštová hradba až od roku 790.');
+  act(() => fence.click());
+  expect(onReroute).toHaveBeenCalledWith(7, 2, 'fence');
 });
 
 it('na opevnění se staví nebo se u hradby bojuje – zašedlé; bez zbořeného úseku tlačítko není', () => {

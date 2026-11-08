@@ -826,18 +826,51 @@ Návrh: [fortifications.md – Rozhraní](../design/fortifications.md); jádro a
 - **Panel** (`SelectionDetails` druh `fortification` = `VillageFortification` z
   `fortificationViews`): ikona druhu, délka, stav nejslabšího úseku (oranžově, má-li úseky za
   životností), brány, ~~násobek obrany (štít)~~ (zrušen 8. 11. 2026), útočiště (lidé, dobytek), průběh stavby (zrušení přes
-  `cancelConstructionId`). Příkazy: „Vylepšit na palisádu“ (plot), „Postavit na valu plot“ /
-  „… palisádu“ (val) – zašedlé s důvodem v popisku (`Chybí N klád.`, `Stavba už běží.`, `Na valu se
-staví až na hotovém.`, `Val už nástavbu má.`), ikona brány (`aria-pressed`) zapne režim klikání na
+  `cancelConstructionId`). Příkazy: ~~„Vylepšit na palisádu“ (plot), „Postavit na valu plot“ /
+  „… palisádu“ (val)~~ – od Úlohy 17 „Vylepšit vše“ a Doplnit val (níž), ikona brány (`aria-pressed`) zapne režim klikání na
   obvod (`LandscapeScene.setGatePick`: další levé kliknutí pošle bod terénu do `addFortificationGate`,
   pravé a Esc zruší, změna výběru režim vypne). Akce jdou přes `upgradeFortification`
   a `addFortificationGate`.
+- **Panel úseku, celé hradby a brány** (Úloha 17 plánu hradeb; fortifications.md – Hradby a obrana,
+  Rozhraní a scéna): `fortificationViews(state, landscape, day, woodSupply, obstacles?)` počítá
+  z jádra na klonu stavu – `VillageFortSection.upgrades` (`sectionUpgrades` – nabídka Vylepšit,
+  `FortUpgradeView { target, option }`, cena práce, klády a kámen, důvod z jádra; `FORT_BUSY` jako
+  „Stavba už běží.“), `rampartAdd` (`startRampartAddition`; úsek s valem null), `moat`
+  (`startMoatFill`; bez valu či napuštěný null), `assault` (`FortAssaultView[]` v pořadí
+  `FORT_ASSAULT_ICONS` – žebřík, sekera, oheň, rýč: u každé ikony nejrychlejší místo úseku
+  `assaultSteps(crossingLayers(…))` a `assaultHours` se 4 muži a otepmi do 100 m – návrh Clauda;
+  `climb` pod ikonou žebříku, `mine` pod rýčem; postup, který nikde nejde, null – zašedlý);
+  `VillageFortification.upgrades` a `rampartAdd` pro celé opevnění (segment null – „Vylepšit vše“,
+  nahradily starší `upgrade` a `tops`), `occupancy` (`fortDefenders` – muži 16–44 let, délka obvodu,
+  `fortOccupancy`); `VillageFortGate.pincer` / `tower` (`gateUpgrade` + `startGateUpgrade` kvůli
+  dřevu a kameni; hotové null) a `assault` přes bránu. Panel (`hud/selection/fortification.tsx`):
+  úsek – ikony postupů s časem (`selection-fort-assault-<ladder|cut|burn|dig>`, popisek „Žebříky –
+  2 h se 4 muži“, `formatAssaultHours`), obsazení (`selection-fort-occupancy`, popisek „Obsazení
+  hradby – N mužů na M m“, červeně pod 100 %), první řádek příkazů nabídka Vylepšit
+  (`fort-upgrade-<druh>`), druhý Doplnit val (`fort-rampart-add`), Napustit příkop (`fort-moat`),
+  Zbořit a Přidat bránu; celé opevnění `fort-upgrade-all-<druh>`, `fort-rampart-add`, obsazení;
+  brána `fort-gate-pincer`, `fort-gate-tower` a postupy přes bránu. Popisek tlačítka: název, práce,
+  klády, kámen (`resources/stone.svg`) a důvod červeně. Jedna obsluha `onFortAction(fortificationId,
+segment | null, FortAction)` (`upgrade` s `target`, `rampart`, `moat`, `gate` s `level`) –
+  `VillageGame` ji rozešle na server actions `upgradeFortification` (`target`, `segment`),
+  `addFortificationRampart`, `fillFortificationMoat`, `upgradeFortificationGate` (vstupy
+  `parseUpgradeFortificationInput`, `parseFortificationRampartInput`,
+  `parseDemolishFortificationSectionInput`, `parseFortificationGateUpgradeInput`; práva `build`).
+  Ikony druhů `FORT_ICON_SRC` (celá cesta; ochoz, roštová a komorová vlastní SVG), ikony akcí
+  a postupů vlastní SVG (CC0) v `public/icons/resources/`. **Postavit jinudy** v panelu brány
+  nabízí i druh nového úseku (`reroutes[].others` – plot, palisáda, roštová, komorová kromě výchozí
+  `rerouteTarget`; `fort-reroute-<druh>`, roštová a komorová před svým rokem zašedlé s důvodem
+  `wallYearReason`).
 - Testy: `lib/__tests__/build-items-fortification.test.ts` (návrh, tažení mění cenu, místo problému),
-  `components/game/hud/__tests__/FortificationPanel.test.tsx`, `lib/scene/__tests__/fort-picking.test.ts`;
+  `components/game/hud/__tests__/FortificationPanel.test.tsx`, `FortSection.behavior.test.tsx` (nabídka
+  Vylepšit, val, příkop, postupy, obsazení, brána), `lib/__tests__/scene-fortifications.test.ts`
+  (panel úseku plotu), `lib/scene/__tests__/fort-picking.test.ts`;
   `lib/__tests__/fort-points.test.ts` (přidání, ubrání, nejméně 4 body, posun);
   e2e `e2e/fortification.spec.ts` (návrh palisády kolem zemnice přes pevnou cestu, posun bodu
   zvedne cenu, ikona kladiva položí → brány na cestě, panel; posun bodu přes zemnici → důvod
-  a červená značka; snímek do `FORT_UI_SHOT`).
+  a červená značka; snímek do `FORT_UI_SHOT`; panel úseku palisády – ochoz jen v úseku, Doplnit val
+  u druhého úseku, brána s klešťovou bránou a věží, u plotu klešťová zašedlá; snímek panelu do
+  `FORT_SECTION_SHOT`).
 - Modely opevnění ve scéně jsou úloha 5.7.
 
 ## Pomoc a půjčky v rozhraní (úloha 4.6)

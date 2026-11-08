@@ -41,6 +41,7 @@ import { penPathSquares } from '../village/paths/network-keys';
 import { villageBuildings } from '../village/paths/network-search';
 import { pathVillageOf } from '../village/paths/village';
 import { PEN_FENCE_INSET_M } from '../village/rules';
+import { FORTIFICATIONS } from '../village/rules-fortifications';
 import { PATH_SLOPE_MAX } from '../village/paths/terrain';
 import type { VillageState } from '../village/types';
 import { WAR } from './rules-war';
@@ -194,6 +195,41 @@ export function marchCellAt(grid: MarchGrid, p: Pos): number {
   const i = Math.min(grid.width - 1, Math.max(0, Math.round((p.x - grid.originX) / grid.cellM)));
   const j = Math.min(grid.height - 1, Math.max(0, Math.round((p.z - grid.originZ) / grid.cellM)));
   return j * grid.width + i;
+}
+
+/**
+ * Zasypaný kus vodního příkopu v boji (fortifications.md – Přechod hradby – S valem): pruh široký
+ * jako průlom (4 m) od `from` (kde zasypávající stál – za vodou) přes hradbu dál dovnitř po `to`.
+ */
+export interface MoatFill {
+  from: Pos;
+  to: Pos;
+}
+
+/** Čtverec vzdálenosti bodu `p` od úsečky a → b. */
+function segmentDist2(p: Pos, a: Pos, b: Pos): number {
+  const dx = b.x - a.x;
+  const dz = b.z - a.z;
+  const len2 = dx * dx + dz * dz;
+  const t =
+    len2 <= 1e-12 ? 0 : Math.min(1, Math.max(0, ((p.x - a.x) * dx + (p.z - a.z) * dz) / len2));
+  const qx = a.x + dx * t - p.x;
+  const qz = a.z + dz * t - p.z;
+  return qx * qx + qz * qz;
+}
+
+/**
+ * Tempo v bodě `p` se zasypanými kusy vodního příkopu: voda v pruhu zasypání se přejde jako suchý
+ * příkop s plným valem (`rampartPace(1)` – čtvrtinově); jinak tempo buňky. Mřížka se nemění –
+ * zasypání je stav boje, ne vsi.
+ */
+export function moatFillPace(grid: MarchGrid, p: Pos, fills: readonly MoatFill[]): number {
+  const c = marchCellAt(grid, p);
+  const pace = grid.pace[c]!;
+  if (pace > 0 || (grid.flags[c]! & MARCH_WATER) === 0) return pace;
+  const r = FORTIFICATIONS.breach.widthM / 2;
+  for (const f of fills) if (segmentDist2(p, f.from, f.to) <= r * r) return rampartPace(1);
+  return pace;
 }
 
 /** Střed buňky ve světě. */

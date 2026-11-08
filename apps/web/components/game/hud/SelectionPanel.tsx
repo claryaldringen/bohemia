@@ -1,5 +1,5 @@
 import { type ReactElement } from 'react';
-import { CART_NAMES, RoadUpgrade, WagonRoadPlan, type FortTop, type WallKind } from '@bohemia/game';
+import { CART_NAMES, RoadUpgrade, WagonRoadPlan, type WallKind } from '@bohemia/game';
 import { useOverflowScroll } from '@/hooks/use-overflow-scroll';
 import { VillageTarget } from '@/lib/scene/village-picking';
 import { fieldPartName, orchardSquareName, type SelectionDetails } from '@/lib/selection-details';
@@ -47,7 +47,8 @@ import { PREMIUM_TEXTS } from '@/lib/premium-view';
 import {
   FORT_GATE_ICON,
   FORT_GATE_NAMES,
-  FORT_ICONS,
+  FORT_ICON_SRC,
+  type FortActionHandler,
   FORT_NAMES,
   FortGateBody,
   FortSectionBody,
@@ -100,7 +101,7 @@ export function SelectionPanel({
   onDecidePrisoner,
   onSendExpedition,
   onSetSteward,
-  onFortWork,
+  onFortAction,
   onFortDemolish,
   onFortReroute,
   gateFort = null,
@@ -117,8 +118,11 @@ export function SelectionPanel({
   onAbandonPart?: (partId: number, abandon: boolean) => Promise<void>;
   /** Povýšení vesničana (vassalage.md): cílové vsi bez vojvody a akce – klíč v panelu muže. */
   ennoble?: EnnobleActions;
-  /** Zadá vylepšení opevnění (server action) – hotovo, až se vrátí. */
-  onFortWork?: (fortificationId: number, work: 'upgrade' | 'top', top?: FortTop) => Promise<void>;
+  /**
+   * Akce panelu opevnění (server action) – vylepšit úsek či vše, doplnit val, napustit příkop,
+   * vylepšit bránu; hotovo, až se vrátí.
+   */
+  onFortAction?: FortActionHandler;
   /** Zboří úsek opevnění s dílem `segment` (server action – demolition.md, Opevnění). */
   onFortDemolish?: (fortificationId: number, segment: number) => Promise<void>;
   /** Úsek od brány k bráně jinudy (demolition.md – Rozhodnutí) – otevře editor trasy. */
@@ -203,18 +207,14 @@ export function SelectionPanel({
     body = <QuarryBody details={details} onOrder={onOrderQuarrying} />;
   } else if (details.kind === 'fortification') {
     portrait = (
-      <Portrait
-        icon={FORT_ICONS[details.fortKind]}
-        name={FORT_NAMES[details.fortKind]}
-        dir="resources"
-      />
+      <Portrait icon="" src={FORT_ICON_SRC[details.fortKind]} name={FORT_NAMES[details.fortKind]} />
     );
     body = (
       <FortificationBody
         key={details.id}
         details={details}
         gateMode={gateFort === details.id}
-        onWork={onFortWork}
+        onAction={onFortAction}
         onGateMode={onGateMode}
       />
     );
@@ -222,9 +222,9 @@ export function SelectionPanel({
     // úsek mezi branami – portrét druhu, popisek „Úsek“ (fortifications.md – Rozhraní, Úseky)
     portrait = (
       <Portrait
-        icon={FORT_ICONS[details.fortKind]}
+        icon=""
+        src={FORT_ICON_SRC[details.fortKind]}
         name={`${FORT_NAMES[details.fortKind]} – úsek`}
-        dir="resources"
       />
     );
     body = (
@@ -233,13 +233,19 @@ export function SelectionPanel({
         details={details}
         gateMode={gateFort === details.id}
         onDemolish={onFortDemolish}
+        onAction={onFortAction}
         onGateMode={onGateMode}
       />
     );
   } else if (details.kind === 'fortification-gate') {
     portrait = <Portrait icon="" src={FORT_GATE_ICON} name={FORT_GATE_NAMES[details.fortKind]} />;
     body = (
-      <FortGateBody details={details} onSelectTarget={onSelectTarget} onReroute={onFortReroute} />
+      <FortGateBody
+        details={details}
+        onSelectTarget={onSelectTarget}
+        onReroute={onFortReroute}
+        onAction={onFortAction}
+      />
     );
   } else if (details.kind === 'grain-pit') {
     portrait = <Portrait icon="obilna-jama" name="Obilná jáma" />;

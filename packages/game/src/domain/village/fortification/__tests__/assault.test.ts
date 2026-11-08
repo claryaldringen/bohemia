@@ -11,6 +11,7 @@ import {
   rampartFatigue,
   rampartPace,
   type AssaultMethod,
+  type AssaultStep,
   type CrossingLayers,
 } from '..';
 import type { WallKind } from '../../types';
@@ -166,5 +167,32 @@ describe('crossingLayers', () => {
     const b = crossingLayers(fort, { ...seg, breachedDay: 5 }, 10, false);
     expect(b.wall).toBeNull();
     expect(b.rampart).toBeNull();
+  });
+});
+
+// dřív `breachWork` a `breachStep` v defense.test.ts (plán hradeb Úloha 14 – `breach.ts` nahradil
+// `assault.ts`): práce prolomení z vrstev skutečného úseku
+describe('prolomení podle vrstev úseku', () => {
+  const fortOf = (kind: Fortification['kind'], top?: WallKind): Fortification =>
+    ({ id: 1, kind, ...(top ? { top } : {}), segments: [], gates: [] }) as unknown as Fortification;
+  const seg = { index: 0, builtDay: 0, topBuiltDay: 0, state: 1 } as FortSegment;
+  const cut = (fort: Fortification, atGate: boolean): number | null =>
+    assaultSteps(crossingLayers(fort, seg, 10, atGate)).find((s) => s.method === 'cut')?.manHours ??
+    null;
+  it('práce 0 / 2 / 12 / 96, val podle nástavby', () => {
+    expect([cut(fortOf('fence'), true), cut(fortOf('fence'), false)]).toEqual([0, 2]);
+    expect([cut(fortOf('palisade'), true), cut(fortOf('palisade'), false)]).toEqual([12, 96]);
+    const bare = assaultSteps(crossingLayers(fortOf('rampart'), seg, 10, false));
+    expect(bare.map((s) => s.method)).toEqual(['open']);
+    expect(cut(fortOf('rampart', 'palisade'), false)).toBe(96);
+  });
+  it('brána palisády se 4 muži za 3 hodiny, zeď za den, pátý muž nezrychlí', () => {
+    const steps = (atGate: boolean): AssaultStep =>
+      assaultSteps(crossingLayers(fortOf('palisade'), seg, 10, atGate)).find(
+        (s) => s.method === 'cut',
+      )!;
+    expect(assaultHours(steps(true), 4, 0)).toBe(3);
+    expect(assaultHours(steps(false), 4, 0)).toBe(24);
+    expect(assaultHours(steps(false), 5, 0)).toBe(24);
   });
 });

@@ -1,8 +1,9 @@
 import type { Random } from '../landscape/random';
 import {
-  breachStart,
-  breachStep,
-  breachWork,
+  assaultHours,
+  assaultSteps,
+  crossingLayers,
+  mineUnderground,
   gatePartView,
   hasGateParts,
   wallSpotSegment,
@@ -12,8 +13,7 @@ import {
   layerBuilt,
   segmentIsGap,
   segmentWall,
-  type BreachProgress,
-  type BreachSpot,
+  type AssaultStep,
   type FortSegmentShape,
 } from '../village/fortification';
 import type { Fortification, FortSegment } from '../village/fortification/types';
@@ -28,6 +28,7 @@ import {
   climbStep,
   defendLadder,
   fighterStrength,
+  nearestForestOf,
   onLadder,
   outward,
   rampartFatigueStep,
@@ -38,7 +39,15 @@ import {
   type ClimbWorld,
   type FighterClimb,
 } from './ladders';
-import { MARCH_BUILDING, MARCH_WALL, marchCellAt, type MarchGrid, type Pos } from './march-grid';
+import {
+  MARCH_BUILDING,
+  MARCH_WALL,
+  marchCellAt,
+  moatFillPace,
+  type MarchGrid,
+  type MoatFill,
+  type Pos,
+} from './march-grid';
 import {
   attackerPlan,
   battleLeader,
@@ -69,7 +78,8 @@ import {
 // padlý, nebo raněný; skupina uteče při bodu zlomu podle počtu; velitel sám neuteče; poslední muž
 // rodu doma neklesne pod 10 zdraví a vždy uteče. Opevnění: stěny úseků jsou úsečky, kterými se
 // neprojde – jen branou, mezerou nebo průlomem, nebo přes ně (plot přelézt, žebřík – `ladders.ts`);
-// prolamující nebojují. Rána přes stěnu jen podle druhu hradby, obránci v opevnění na stanovištích
+// prolamující nebojují a volí nejrychlejší postup místa – sekat, vypálit, odkopat, podkopat, napřed
+// zasypat val či vodní příkop (`assault.ts`; Prolomení v boji). Rána přes stěnu jen podle druhu hradby, obránci v opevnění na stanovištích
 // po hradbě a s posilami k žebříkům a průlomům (`wall-defense.ts`). Stav je JSON, takt čte jen
 // stav, bojiště a náhodu taktu – výsledek nezávisí na kouscích taktů. Jen det-math.
 
@@ -136,6 +146,11 @@ export interface Fighter {
   post?: Pos;
   /** Stojí na ochozu či koruně hradby – kryje ho předprseň, chodí polovičním tempem; jinak chybí. */
   onWall?: boolean;
+  /**
+   * Kopáč v podkopu po pětině práce (fortifications.md – Přechod hradby – Podkop): obránci ho
+   * nevidí ani nezasáhnou; jinak chybí. Nastaví práce na průlomech v taktu (`breachWorkStep`).
+   */
+  underground?: true;
 }
 
 /** Skupina v boji – skupina tažení s rozkazem, nebo skupina domů obránců (rozkaz null). */
@@ -151,6 +166,26 @@ export interface BattleGroup {
   assault?: GroupAssault;
 }
 
+/** Kde se prolamuje: brána, nebo zeď (4 m úseku mimo bránu). */
+export type BreachSpot = 'gate' | 'wall';
+
+/**
+ * Postup prolomení místa (`assaultSteps`; fortifications.md – Přechod hradby): prosekat, vypálit,
+ * odkopat, podkopat; `ladder` – jen zasypat vodní příkop, přes který pak půjdou žebříky.
+ */
+export type BreachMethod = 'cut' | 'burn' | 'dig' | 'mine' | 'ladder';
+
+/** Fáze prolomení: zasypat (val, vodní příkop), nanosit otepi, hoří, práce (sekat, kopat), hotovo. */
+export type BreachPhase = 'fill' | 'fuel' | 'burn' | 'work' | 'done';
+
+/** Průběh prolomení: odvedená a potřebná práce (součet fází, `BattleBreach.need`), hotový průlom. */
+export interface BreachProgress {
+  done: number;
+  required: number;
+  /** Průlom hotový – mezera 4 m (zasypání pro žebříky průlom nedělá). */
+  breached: boolean;
+}
+
 /** Rozdělaný průlom – úsek `segment` opevnění `fort` (pořadí ve vsi), brána nebo zeď. */
 export interface BattleBreach {
   key: string;
@@ -159,6 +194,15 @@ export interface BattleBreach {
   spot: BreachSpot;
   /** Kde prolamující stojí (venku u stěny). */
   at: Pos;
+  method: BreachMethod;
+  phase: BreachPhase;
+  /**
+   * Práce fází v mužohodinách po sobě: zasypat, nanosit otepi (× vzdálenost lesa či dříví), hořet
+   * (hodiny × 2 přikládající), prolomit. Fáze končí, když `progress.done` dosáhne součtu.
+   */
+  need: { fill: number; fuel: number; burn: number; work: number };
+  /** Zasypává se vodní příkop: kde zasypávající stojí (za vodou) a kam zasypaný pruh sahá. */
+  moat?: MoatFill;
   progress: BreachProgress;
 }
 
@@ -204,6 +248,11 @@ export interface BattleField {
   day: number;
   /** Herní hodiny jednoho taktu (prolamování je v mužohodinách). */
   hoursPerTick: number;
+  /**
+   * Dříví vsi na otepi – hromady klád (`logStacks`); les bere oheň z mřížky (`MARCH_FOREST`).
+   * Chybí = jen les.
+   */
+  fuel?: readonly Pos[];
 }
 
 /** Útočník do boje – muž tažení. */
@@ -378,21 +427,26 @@ interface Opening {
   in: Pos;
 }
 
-/** Místo, kde jde opevnění prolomit. */
+/** Místo, kde jde opevnění prolomit: postupy místa (`assaultSteps`) a vnější normála hradby. */
 interface Spot {
   key: string;
   fort: number;
   segment: number;
   spot: BreachSpot;
   at: Pos;
-  work: number;
+  out: Pos;
+  steps: AssaultStep[];
 }
 
-/** Stěny, průchody a místa prolomení každého opevnění v tomto taktu. */
+/**
+ * Stěny, průchody a místa prolomení každého opevnění v tomto taktu; zasypané kusy vodního příkopu
+ * (průchozí jako suchý příkop – `moatFillPace`).
+ */
 interface Walls {
   lines: WallLine[][];
   openings: Opening[][];
   spots: Spot[][];
+  fills: MoatFill[];
 }
 
 /**
@@ -402,6 +456,25 @@ interface Walls {
 function blocks(fort: Fortification, seg: FortSegment, day: number): boolean {
   if (segmentIsGap(fort, seg, day)) return false;
   return layerBuilt(segmentWall(fort, seg));
+}
+
+/**
+ * Nejbližší zasypaný kus vodního příkopu opevnění `fort` k `from`: úsek a bod na čáře hradby
+ * (střed pruhu zasypání); žádný null.
+ */
+function filledNear(b: BattleState, fort: number, from: Pos): { segment: number; at: Pos } | null {
+  let best: { segment: number; at: Pos } | null = null;
+  let bestD = Infinity;
+  for (const br of b.breaches) {
+    if (br.fort !== fort || !br.moat || br.progress.done < br.need.fill - 1e-9) continue;
+    const at = { x: (br.moat.from.x + br.moat.to.x) / 2, z: (br.moat.from.z + br.moat.to.z) / 2 };
+    const d = dist2(from, at);
+    if (d < bestD) {
+      bestD = d;
+      best = { segment: br.segment, at };
+    }
+  }
+  return best;
 }
 
 /** Opevnění s průlomy boje (prolomený úsek je mezera – `breachedDay`). */
@@ -421,8 +494,35 @@ function breachedForts(field: BattleField, b: BattleState): BattleFort[] {
   }));
 }
 
-function wallsOf(forts: readonly BattleFort[], closed: ReadonlySet<string>, day: number): Walls {
-  const walls: Walls = { lines: [], openings: [], spots: [] };
+/** Postupy prolomení místa: prosekat, vypálit, odkopat, podkopat; žebřík jen přes vodní příkop. */
+function breachSteps(
+  fort: Fortification,
+  seg: FortSegment,
+  day: number,
+  gate: boolean,
+): AssaultStep[] {
+  return assaultSteps(crossingLayers(fort, seg, day, gate)).filter(
+    (p) =>
+      p.method !== 'open' && p.method !== 'climb' && (p.method !== 'ladder' || p.fill === 'moat'),
+  );
+}
+
+/** Zasypané kusy vodního příkopu – průlomy po fázi zasypání. */
+function moatFills(b: BattleState): MoatFill[] {
+  const out: MoatFill[] = [];
+  for (const br of b.breaches) {
+    if (br.moat && br.progress.done >= br.need.fill - 1e-9) out.push(br.moat);
+  }
+  return out;
+}
+
+function wallsOf(
+  forts: readonly BattleFort[],
+  closed: ReadonlySet<string>,
+  day: number,
+  fills: MoatFill[],
+): Walls {
+  const walls: Walls = { lines: [], openings: [], spots: [], fills };
   forts.forEach((bf, fi) => {
     const lines: WallLine[] = [];
     const openings: Opening[] = [];
@@ -486,7 +586,8 @@ function wallsOf(forts: readonly BattleFort[], closed: ReadonlySet<string>, day:
           segment: shape.index,
           spot: 'gate',
           at: shift({ x: gate.x, z: gate.z }, 1),
-          work: breachWork(bf.fort, seg, 'gate'),
+          out: { x: nx, z: nz },
+          steps: breachSteps(bf.fort, seg, day, true),
         });
       }
       const wallT = gate
@@ -500,7 +601,8 @@ function wallsOf(forts: readonly BattleFort[], closed: ReadonlySet<string>, day:
         segment: shape.index,
         spot: 'wall',
         at: shift(at(wallT), 1),
-        work: breachWork(bf.fort, wallSpotSegment(bf.fort.gates, seg, l.length), 'wall'),
+        out: { x: nx, z: nz },
+        steps: breachSteps(bf.fort, wallSpotSegment(bf.fort.gates, seg, l.length), day, false),
       });
     });
     walls.lines.push(lines);
@@ -534,10 +636,14 @@ function firstWall(p: Pos, q: Pos, walls: Walls): { fort: number; line: WallLine
 
 // --- Pohyb ------------------------------------------------------------------------------------
 
-/** Tempo buňky mřížky; stěny opevnění řeší úsečky, ne buňky; boj ve vsi stavby neblokují. */
-function paceAt(grid: MarchGrid, p: Pos): number {
+/**
+ * Tempo buňky mřížky; stěny opevnění řeší úsečky, ne buňky; boj ve vsi stavby neblokují; zasypaný
+ * kus vodního příkopu se přejde jako suchý (`moatFillPace`).
+ */
+function paceAt(grid: MarchGrid, p: Pos, fills: readonly MoatFill[]): number {
   const c = marchCellAt(grid, p);
-  return (grid.flags[c]! & (MARCH_WALL | MARCH_BUILDING)) !== 0 ? 1 : grid.pace[c]!;
+  if ((grid.flags[c]! & (MARCH_WALL | MARCH_BUILDING)) !== 0) return 1;
+  return fills.length > 0 ? moatFillPace(grid, p, fills) : grid.pace[c]!;
 }
 
 function leashGap(leash: Leash, p: Pos): number {
@@ -561,7 +667,7 @@ function stepToward(
   const dz = to.z - f.pos.z;
   const d = Math.sqrt(dx * dx + dz * dz);
   if (d < 1e-9) return false;
-  const here = paceAt(field.grid, f.pos);
+  const here = paceAt(field.grid, f.pos, walls.fills);
   const speed =
     (WAR.pace.metersPerSecond / TICKS_PER_SECOND) *
     (f.mounted ? WAR.pace.riders : 1) *
@@ -581,7 +687,7 @@ function stepToward(
     const along = ((ux * lx + uz * lz) / len) * step;
     q = { x: f.pos.x + (lx / len) * along, z: f.pos.z + (lz / len) * along };
   }
-  if (paceAt(field.grid, q) <= 0 || firstWall(f.pos, q, walls)) return false;
+  if (paceAt(field.grid, q, walls.fills) <= 0 || firstWall(f.pos, q, walls)) return false;
   if (leash) {
     const gap = leashGap(leash, q);
     if (gap > leash.radiusM * leash.radiusM && gap >= leashGap(leash, f.pos)) return false;
@@ -709,22 +815,208 @@ function closeGates(b: BattleState, forts: readonly BattleFort[]): void {
   });
 }
 
-/** Volné místo prolomení: nejméně zbývající práce, pak nejblíž; nejvýš 4 muži na místo. */
-function chooseSpot(w: TickWorld, fort: number, from: Pos): Spot | null {
-  let best: Spot | null = null;
+const A = FORTIFICATIONS.assault;
+/** Fáze prolomení po sobě (`BattleBreach.need`). */
+const PHASES = ['fill', 'fuel', 'burn', 'work'] as const;
+
+/** Nejbližší les k místu (čtverec m) – jednou na mřížku a místo (místa se v boji nehýbou). */
+const forestNear = new WeakMap<MarchGrid, Map<string, number>>();
+
+/**
+ * Kolik metrů nosí otepi (fortifications.md – Přechod hradby – Oheň): nejbližší buňka hustého lesa
+ * nebo hromada klád vsi (`BattleField.fuel`); nic – nekonečno (oheň nejde).
+ */
+function fuelDistanceM(field: BattleField, at: Pos): number {
+  let cache = forestNear.get(field.grid);
+  if (!cache) {
+    cache = new Map();
+    forestNear.set(field.grid, cache);
+  }
+  const key = `${at.x},${at.z}`;
+  let best = cache.get(key);
+  if (best === undefined) {
+    const p = nearestForestOf(field.grid, at);
+    best = p ? dist2(p, at) : Infinity;
+    cache.set(key, best);
+  }
+  for (const p of field.fuel ?? []) best = Math.min(best, dist2(p, at));
+  return Math.sqrt(best);
+}
+
+/** Práce fází postupu s otepi z `fuelM` metrů – součty jako `assaultHours`. */
+function stepNeed(step: AssaultStep, fuelM: number): BattleBreach['need'] {
+  return {
+    fill: step.fillManHours,
+    fuel: step.fuelManHours * Math.max(1, fuelM / A.burn.fuelM),
+    burn: step.burnHours * A.burn.lighters,
+    work: step.method === 'ladder' ? 0 : step.manHours,
+  };
+}
+
+/** Fáze podle odvedené práce; hotový průlom (zasypání pro žebříky průlom nedělá). */
+function syncPhase(br: BattleBreach): void {
+  let end = 0;
+  for (const phase of PHASES) {
+    end += br.need[phase];
+    if (br.progress.done < end - 1e-9) {
+      br.phase = phase;
+      return;
+    }
+  }
+  br.phase = 'done';
+  br.progress.done = br.progress.required;
+  br.progress.breached = br.method !== 'ladder';
+}
+
+/** Průlom uložený před přechodem hradby (plán hradeb Úloha 14) – bez postupu a fází: sekání. */
+function upgradeBreaches(b: BattleState): void {
+  for (const br of b.breaches) {
+    if ((br as Partial<BattleBreach>).need) continue;
+    br.method = 'cut';
+    br.need = { fill: 0, fuel: 0, burn: 0, work: br.progress.required };
+    syncPhase(br);
+  }
+}
+
+/** Zbývající hodiny průlomu s `men` muži (nejvýš 4, hoří 2 přikládající) – jako `assaultHours`. */
+function breachHoursLeft(br: BattleBreach, men: number): number {
+  let left = 0;
+  let start = 0;
+  for (const phase of PHASES) {
+    const need = br.need[phase];
+    const rest = Math.max(0, Math.min(need, start + need - br.progress.done));
+    if (rest > 0) left += rest / Math.min(men, phase === 'burn' ? A.burn.lighters : A.maxMen);
+    start += need;
+  }
+  return left;
+}
+
+/**
+ * Práce `men` mužů za `hours` herních hodin: fáze po sobě – zasypat, nanosit otepi a prolomit
+ * nejvýš 4 muži, hoří s nejvýš 2 přikládajícími (bez nich oheň nepostoupí). Po zasypání vodního
+ * příkopu takt končí – muži přejdou zasypaným kusem k hradbě. Vrací, zda je hotovo.
+ */
+function advanceBreach(br: BattleBreach, men: number, hours: number): boolean {
+  let h = hours;
+  let end = 0;
+  for (const phase of PHASES) {
+    end += br.need[phase];
+    if (br.progress.done >= end - 1e-9) continue;
+    const rate = Math.min(men, phase === 'burn' ? A.burn.lighters : A.maxMen);
+    if (rate <= 0 || h <= 0) break;
+    const t = Math.min(h, (end - br.progress.done) / rate);
+    br.progress.done = Math.min(end, br.progress.done + t * rate);
+    h -= t;
+    if (br.progress.done < end - 1e-9) break;
+    br.progress.done = end;
+    if (phase === 'fill' && br.moat) break;
+  }
+  syncPhase(br);
+  return br.phase === 'done';
+}
+
+/** Kde prolamující stojí: při zasypávání vodního příkopu za vodou, jinak u hradby. */
+function standOf(br: BattleBreach): Pos {
+  return br.moat && br.phase === 'fill' ? br.moat.from : br.at;
+}
+
+/** Nejdál, kam se od hradby hledá suché místo za vodním příkopem (m). */
+const MOAT_REACH_M = 40;
+
+/**
+ * Pruh zasypání vodního příkopu u místa: od prvního suchého bodu ven od hradby (po metru) přes
+ * hradbu stejně daleko dovnitř; bez suchého bodu od místa samého.
+ */
+function moatStrip(grid: MarchGrid, spot: Spot): MoatFill {
+  const line = { x: spot.at.x - spot.out.x, z: spot.at.z - spot.out.z };
+  let k = 1;
+  for (; k <= MOAT_REACH_M; k++) {
+    const p = { x: line.x + spot.out.x * k, z: line.z + spot.out.z * k };
+    if (grid.pace[marchCellAt(grid, p)]! > 0) break;
+  }
+  if (k > MOAT_REACH_M) k = 1;
+  return {
+    from: { x: line.x + spot.out.x * k, z: line.z + spot.out.z * k },
+    to: { x: line.x - spot.out.x * k, z: line.z - spot.out.z * k },
+  };
+}
+
+/** Nový průlom místa postupem `step`; práce 0 (brána plotu, závora valu) je prolomená hned. */
+function openBreach(w: TickWorld, spot: Spot, step: AssaultStep): BattleBreach {
+  const need = stepNeed(step, step.method === 'burn' ? fuelDistanceM(w.field, spot.at) : 0);
+  const br: BattleBreach = {
+    key: spot.key,
+    fort: spot.fort,
+    segment: spot.segment,
+    spot: spot.spot,
+    at: { ...spot.at },
+    method: step.method as BreachMethod,
+    phase: 'fill',
+    need,
+    progress: {
+      done: 0,
+      required: need.fill + need.fuel + need.burn + need.work,
+      breached: false,
+    },
+  };
+  if (step.fill === 'moat') br.moat = moatStrip(w.field.grid, spot);
+  syncPhase(br);
+  return br;
+}
+
+/** Místo a postup prolomení; `step` null = rozdělaný průlom; `hours` – zbývá se 4 muži. */
+interface SpotChoice {
+  spot: Spot;
+  step: AssaultStep | null;
+  hours: number;
+}
+
+/**
+ * Volné místo prolomení a postup (fortifications.md – Přechod hradby): nejméně hodin s `men` muži
+ * (rozdělaný průlom – zbývajících), pak nejblíž; nejvýš 4 muži na místo. Postup skupiny (`assault`)
+ * má přednost, nabízí-li ho místo; oheň jen s otepi (les, dříví vsi).
+ */
+function chooseSpot(
+  w: TickWorld,
+  fort: number,
+  from: Pos,
+  assault: GroupAssault | undefined,
+  men: number,
+): SpotChoice | null {
+  let best: SpotChoice | null = null;
   let bestKey: [number, number, string] | null = null;
   for (const spot of w.walls.spots[fort] ?? []) {
-    const men = w.b.fighters.filter((f) => f.state === 'breach' && f.breachAt === spot.key).length;
-    if (men >= FORTIFICATIONS.breach.maxMen) continue;
+    const there = w.b.fighters.filter(
+      (f) => f.state === 'breach' && f.breachAt === spot.key,
+    ).length;
+    if (there >= A.maxMen) continue;
     const started = w.b.breaches.find((x) => x.key === spot.key);
-    const left = started ? started.progress.required - started.progress.done : spot.work;
-    const k: [number, number, string] = [left, dist2(from, spot.at), spot.key];
+    let choice: SpotChoice | null = null;
+    if (started) {
+      if (started.phase !== 'done') {
+        choice = { spot, step: null, hours: breachHoursLeft(started, Math.max(men, there + 1)) };
+      }
+    } else {
+      const fuelM = spot.steps.some((p) => p.method === 'burn')
+        ? fuelDistanceM(w.field, spot.at)
+        : Infinity;
+      let steps = spot.steps.filter((p) => p.method !== 'burn' || Number.isFinite(fuelM));
+      if (assault && steps.some((p) => p.method === assault)) {
+        steps = steps.filter((p) => p.method === assault);
+      }
+      for (const step of steps) {
+        const hours = assaultHours(step, men, step.method === 'burn' ? fuelM : 0);
+        if (!choice || hours < choice.hours) choice = { spot, step, hours };
+      }
+    }
+    if (!choice) continue;
+    const k: [number, number, string] = [choice.hours, dist2(from, spot.at), spot.key];
     if (
       bestKey === null ||
       k[0] < bestKey[0] ||
       (k[0] === bestKey[0] && (k[1] < bestKey[1] || (k[1] === bestKey[1] && k[2] < bestKey[2])))
     ) {
-      best = spot;
+      best = choice;
       bestKey = k;
     }
   }
@@ -767,31 +1059,28 @@ function approach(f: Fighter, goal: Pos, key: string, w: TickWorld, leash: Leash
         stepToward(f, f.route[0]!, w.field, w.walls, leash);
         return;
       }
-      const spot = chooseSpot(w, wall.fort, f.pos);
-      const started = spot ? w.b.breaches.find((x) => x.key === spot.key) : undefined;
-      const left = started ? started.progress.required - started.progress.done : spot?.work;
-      const breachHours = left === undefined ? null : left / FORTIFICATIONS.breach.maxMen;
       const group = w.b.groups.find((g) => g.side === 'attack' && g.id === f.group);
+      // nejrychlejší pro skupinu – s tolika muži, kolik jich ze skupiny bojuje (nejvýš 4 na místo)
+      const mates = w.b.fighters.filter(
+        (x) => x.side === 'attack' && x.group === f.group && inFight(x),
+      ).length;
+      const choice = chooseSpot(w, wall.fort, f.pos, group?.assault, Math.min(A.maxMen, mates));
+      const breachHours = choice ? choice.hours : null;
       if (startCrossing(f, wall.fort, wall.line.segment, group?.assault, breachHours, w.climb)) {
         return;
       }
-      if (spot) {
-        if (!w.b.breaches.some((x) => x.key === spot.key)) {
-          w.b.breaches.push({
-            key: spot.key,
-            fort: spot.fort,
-            segment: spot.segment,
-            spot: spot.spot,
-            at: { ...spot.at },
-            progress: breachStart(spot.work),
-          });
+      if (choice) {
+        let br = w.b.breaches.find((x) => x.key === choice.spot.key);
+        if (!br) {
+          br = openBreach(w, choice.spot, choice.step!);
+          w.b.breaches.push(br);
         }
         f.state = 'breach';
-        f.breachAt = spot.key;
+        f.breachAt = br.key;
         f.aim = null;
         f.route = [];
         f.routeFor = null;
-        stepToward(f, spot.at, w.field, w.walls, null);
+        stepToward(f, standOf(br), w.field, w.walls, null);
         return;
       }
     }
@@ -821,34 +1110,48 @@ function fightStep(f: Fighter, w: TickWorld, ctx: PlanContext): void {
 /** Prolamující jde k místu; když opevnění mezitím průchod má, vrátí se do boje. */
 function breachStepOf(f: Fighter, w: TickWorld): void {
   const br = w.b.breaches.find((x) => x.key === f.breachAt);
-  if (!br || br.progress.breached || (w.walls.openings[br.fort]?.length ?? 0) > 0) {
+  if (!br || br.phase === 'done' || (w.walls.openings[br.fort]?.length ?? 0) > 0) {
     f.state = 'fight';
     f.breachAt = null;
     return;
   }
-  if (dist2(f.pos, br.at) > AT_SPOT_M * AT_SPOT_M) stepToward(f, br.at, w.field, w.walls, null);
+  const stand = standOf(br);
+  if (dist2(f.pos, stand) > AT_SPOT_M * AT_SPOT_M) stepToward(f, stand, w.field, w.walls, null);
 }
 
-/** Práce na průlomech v taktu – nejvýš 4 muži na místo (`breachStep`). */
+/**
+ * Práce na průlomech v taktu – nejvýš 4 muži na místo, hoří 2 přikládající (`advanceBreach`). Po
+ * průlomu (či zasypání pro žebříky) se prolamující vrátí do boje. Kopáč podkopu po pětině práce je
+ * pod zemí (`Fighter.underground`).
+ */
 function breachWorkStep(w: TickWorld): void {
+  const near = (f: Fighter, p: Pos): boolean => dist2(f.pos, p) <= AT_SPOT_M * AT_SPOT_M;
   for (const br of w.b.breaches) {
-    if (br.progress.breached) continue;
+    if (br.phase === 'done') continue;
+    const stand = standOf(br);
     const men = w.b.fighters.filter(
-      (f) =>
-        f.state === 'breach' &&
-        f.breachAt === br.key &&
-        dist2(f.pos, br.at) <= AT_SPOT_M * AT_SPOT_M,
+      (f) => f.state === 'breach' && f.breachAt === br.key && near(f, stand),
     ).length;
     if (men === 0) continue;
-    br.progress = breachStep(br.progress, men, w.field.hoursPerTick);
-    if (!br.progress.breached) continue;
-    // průlom je mezera – prolamující se vrátí do boje
+    if (!advanceBreach(br, men, w.field.hoursPerTick)) continue;
     for (const f of w.b.fighters) {
       if (f.state === 'breach' && f.breachAt === br.key) {
         f.state = 'fight';
         f.breachAt = null;
       }
     }
+  }
+  for (const f of w.b.fighters) {
+    const br = f.state === 'breach' ? w.b.breaches.find((x) => x.key === f.breachAt) : undefined;
+    const before = br ? br.need.fill + br.need.fuel + br.need.burn : 0;
+    const under =
+      br !== undefined &&
+      br.method === 'mine' &&
+      br.phase === 'work' &&
+      near(f, br.at) &&
+      mineUnderground(br.progress.done - before, br.need.work);
+    if (under) f.underground = true;
+    else delete f.underground;
   }
 }
 
@@ -883,9 +1186,10 @@ function takeHit(t: Fighter, damage: number, w: TickWorld, rng: Random): void {
 export function battleTick(b: BattleState, field: BattleField, rng: Random): void {
   if (b.outcome !== 'ongoing') return;
   b.ticks++;
+  upgradeBreaches(b);
   const forts = breachedForts(field, b);
   closeGates(b, forts);
-  const walls = wallsOf(forts, new Set(b.closedGates), field.day);
+  const walls = wallsOf(forts, new Set(b.closedGates), field.day, moatFills(b));
   const w: TickWorld = {
     field,
     forts,
@@ -897,6 +1201,7 @@ export function battleTick(b: BattleState, field: BattleField, rng: Random): voi
       forts,
       walk: (f, to) => stepToward(f, to, field, walls, null),
       hasOpening: (fort) => (walls.openings[fort]?.length ?? 0) > 0,
+      moatFilled: (fort, from) => filledNear(b, fort, from),
     },
     wall: {
       b,

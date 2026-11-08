@@ -4,6 +4,26 @@
 // nepočítá znovu; tvar umí spočítat i prohlížeč (náhled při kreslení) ze stejných funkcí.
 
 import {
+  assaultHours,
+  assaultSteps,
+  crossingLayers,
+  fortDefenders,
+  fortOccupancy,
+  FORT_MOAT_DONE,
+  FORT_MOAT_NO_RAMPART,
+  FORT_PINCER_DONE,
+  FORT_RAMPART_DONE,
+  FORT_TOWER_DONE,
+  gateUpgrade,
+  obstaclesOf,
+  sectionUpgrades,
+  startGateUpgrade,
+  startMoatFill,
+  startRampartAddition,
+  villageRoadWalk,
+  type AssaultMethod,
+  type GateLevel,
+  type ObstacleLayer,
   FORTIFICATIONS,
   FORT_DAYS_PER_YEAR,
   fortBandPieces,
@@ -21,8 +41,6 @@ import {
   partKey,
   sectionPieces,
   type SectionPiece,
-  fortificationCost,
-  layerBuilt,
   outlineOf,
   sectionDemolition,
   segmentBuilt,
@@ -42,6 +60,7 @@ import {
   type FortSegment,
   type FortSegmentShape,
   type FortTop,
+  type FortUpgradeOption,
   type Fortification,
   type Landscape,
   type VillageState,
@@ -56,8 +75,6 @@ export type FortPoint = readonly [number, number];
 
 /** Důvody, proč se tlačítko panelu nedá použít (bez čísla). */
 export const FORT_BUSY_TEXT = 'Stavba už běží.';
-export const FORT_UNFINISHED_TEXT = 'Na valu se staví až na hotovém.';
-export const FORT_TOP_DONE_TEXT = 'Val už nástavbu má.';
 
 /** Text „Chybí N klád.“ – chybějící klády stavby (zaokrouhleno nahoru). */
 export function missingLogsText(missing: number): string {
@@ -142,6 +159,8 @@ export interface SceneFortSegment {
 export interface FortWorkCost {
   laborManDays: number;
   logs: number;
+  /** Kámen předem (m³); chybí – bez kamene. */
+  stoneM3?: number;
 }
 
 /** Jedno tlačítko vylepšení v panelu: cena a důvod, proč nejde (null = jde). */
@@ -173,6 +192,39 @@ export interface FortPartsState {
   ageYears: number | null;
 }
 
+/** Ikona postupu útočníka v panelu (fortifications.md – Rozhraní a scéna): žebřík, sekera, oheň, rýč. */
+export type FortAssaultIcon = 'ladder' | 'cut' | 'burn' | 'dig';
+
+/** Pořadí ikon postupů v panelu. */
+export const FORT_ASSAULT_ICONS: readonly FortAssaultIcon[] = ['ladder', 'cut', 'burn', 'dig'];
+
+/**
+ * Postup útočníka přes úsek či bránu (Přechod hradby): nejrychlejší místo se 4 muži v herních
+ * hodinách (otepi do 100 m – návrh Clauda); `method` – postup jádra pod ikonou (žebřík či
+ * přelezení plotu, odkopání či podkop); null – postup tu nejde (ikona zašedlá).
+ */
+export interface FortAssaultView {
+  icon: FortAssaultIcon;
+  method: AssaultMethod | null;
+  hours4: number | null;
+}
+
+/**
+ * Obsazení hradby (Hradby a obrana – Správce, obsazenost): muži 16–44 let (`fortDefenders`) na délku
+ * obvodu a podíl obsazených 5 m ochozu (`fortOccupancy`, nejvýš 1).
+ */
+export interface FortOccupancyView {
+  men: number;
+  lengthM: number;
+  share: number;
+}
+
+/** Vylepšení na hradbu `target` v nabídce Vylepšit – cena a důvod, proč nejde. */
+export interface FortUpgradeView {
+  target: WallKind;
+  option: FortWorkOption;
+}
+
 /**
  * Úsek opevnění mezi branami pro panel (fortifications.md – Rozhraní, Úseky): hradba mezi okraji
  * bran (`fortSectionSpans`) – délka a stav dílů, kterých se dotkne – a zboření úseku jádra
@@ -185,6 +237,14 @@ export interface VillageFortSection extends FortPartsState {
   /** Délka hradby úseku mezi okraji bran (m). */
   lengthM: number;
   demolish: FortDemolishOption;
+  /** Nabídka Vylepšit – vyšší stupně úseku (`sectionUpgrades`). */
+  upgrades: FortUpgradeView[];
+  /** Postupy útočníka přes úsek (ikony v pořadí `FORT_ASSAULT_ICONS`). */
+  assault: FortAssaultView[];
+  /** Doplnit val s příkopem pod hradbu úseku; null – úsek val už má. */
+  rampartAdd: FortWorkOption | null;
+  /** Napustit příkop úseku; null – úsek nemá val, nebo je příkop napuštěný. */
+  moat: FortWorkOption | null;
   /** Stavba, která na dílech úseku běží (průběh, práce, id pro zrušení); chybí – žádná. */
   progress?: number;
   work?: FortBuildWork;
@@ -201,6 +261,12 @@ export interface VillageFortGate {
   old: boolean;
   /** Stáří dílu brány v celých letech; null – díl ještě nestojí. */
   ageYears: number | null;
+  /** Klešťová brána (Hradby a obrana – Brány); null – brána už je klešťová. */
+  pincer: FortWorkOption | null;
+  /** Věž nad branou; null – brána věž už má. */
+  tower: FortWorkOption | null;
+  /** Postupy útočníka přes bránu. */
+  assault: FortAssaultView[];
 }
 
 /** Opevnění pro panel výběru (fortifications.md – Rozhraní). */
@@ -229,10 +295,12 @@ export interface VillageFortification {
   work?: FortBuildWork;
   /** Id stavby (zrušení rozestavěného). */
   constructionId?: number;
-  /** Plot na palisádu (jen plot). */
-  upgrade?: FortWorkOption;
-  /** Nástavby na valu (jen val): plot a palisáda. */
-  tops?: { top: FortTop; option: FortWorkOption }[];
+  /** „Vylepšit vše“ – vyšší stupně všech úseků (`sectionUpgrades` bez úseku). */
+  upgrades: FortUpgradeView[];
+  /** Doplnit val pod celé opevnění; null – val už mají všechny úseky. */
+  rampartAdd: FortWorkOption | null;
+  /** Obsazení hradby muži vsi. */
+  occupancy: FortOccupancyView;
   /** Úseky mezi branami se zbořením – panel úseku ukáže vybraný úsek. */
   sections: VillageFortSection[];
   /** Brány v pořadí dílů – panel brány. */
@@ -424,32 +492,6 @@ export function sceneFortifications(
 }
 
 /**
- * Cena práce nad úseky `indices` obvodu opevnění na hradbu `kind` z hradby `from` (null = hradba
- * na valu) – práce bez kácení a klády (`fortificationCost`, ceny komplet).
- */
-function workCost(
-  shapes: readonly FortSegmentShape[],
-  indices: readonly number[],
-  kind: FortKind,
-  from: WallKind | null,
-): FortWorkCost {
-  let laborManDays = 0;
-  let logs = 0;
-  for (const i of indices) {
-    const cost = fortificationCost(kind, shapes[i]!.lengthM, from);
-    laborManDays += cost.laborManDays;
-    logs += cost.logs;
-  }
-  return { laborManDays, logs };
-}
-
-/** Důvod, proč tlačítko nejde – dřevo, které chybí, nebo null. */
-function woodBlocked(cost: FortWorkCost, woodSupply: number): string | null {
-  const missing = Math.ceil(cost.logs - 1e-9) - woodSupply;
-  return missing > 0 ? missingLogsText(missing) : null;
-}
-
-/**
  * Zboření úseku s dílem `segment` (jádro – `sectionDemolition`): cena, nebo důvod z jádra (běžící
  * stavba stejným textem jako ostatní tlačítka panelu).
  */
@@ -474,6 +516,132 @@ function demolishOption(
   };
 }
 
+/** Důvod z jádra pro tlačítko panelu – běžící stavba stejným textem jako ostatní tlačítka. */
+function reasonText(reason: string): string {
+  return reason === FORT_BUSY ? FORT_BUSY_TEXT : reason;
+}
+
+const NO_COST: FortWorkCost = { laborManDays: 0, logs: 0 };
+
+/** Cena v panelu z ceny jádra (práce, klády, kámen – kámen jen nenulový). */
+function workCostOf(cost: { laborManDays: number; logs: number; stoneM3: number }): FortWorkCost {
+  return {
+    laborManDays: cost.laborManDays,
+    logs: cost.logs,
+    ...(cost.stoneM3 > 0 ? { stoneM3: cost.stoneM3 } : {}),
+  };
+}
+
+/**
+ * Tlačítko akce nad úsekem (doplnit val, napustit příkop) z výsledku akce jádra na klonu stavu:
+ * cena přidané stavby (práce), nebo důvod; důvody `hidden` (už hotové, nedává smysl) – null, tlačítko
+ * se neukáže.
+ */
+function actionOption(
+  state: VillageState,
+  result: { ok: true; state: VillageState } | { ok: false; reason: string },
+  hidden: readonly string[],
+): FortWorkOption | null {
+  if (!result.ok) {
+    return hidden.includes(result.reason)
+      ? null
+      : { cost: NO_COST, blocked: reasonText(result.reason) };
+  }
+  const added = result.state.constructions[state.constructions.length];
+  return { cost: { laborManDays: added?.cost ?? 0, logs: 0 }, blocked: null };
+}
+
+/** Nabídka Vylepšit z jádra (`sectionUpgrades`) pro panel. */
+function upgradeViews(options: readonly FortUpgradeOption[]): FortUpgradeView[] {
+  return options.map((o) => ({
+    target: o.target,
+    option: { cost: workCostOf(o), blocked: o.block === null ? null : reasonText(o.block) },
+  }));
+}
+
+/**
+ * Vylepšení brány v dílu `segment` na úroveň `level`: cena (`gateUpgrade`) a důvod včetně dřeva
+ * a kamene (`startGateUpgrade` na klonu); hotové (`done`) – null.
+ */
+function gateOption(
+  ctx: FortViewContext,
+  fortificationId: number,
+  segment: number,
+  level: GateLevel,
+  done: string,
+): FortWorkOption | null {
+  const input = { fortificationId, segment, level };
+  const cost = gateUpgrade(ctx.state, ctx.landscape, input);
+  if ('reason' in cost) {
+    return cost.reason === done ? null : { cost: NO_COST, blocked: reasonText(cost.reason) };
+  }
+  const started = startGateUpgrade(
+    ctx.state,
+    ctx.day,
+    ctx.landscape,
+    ctx.obstacles,
+    input,
+    ctx.walk(),
+  );
+  return { cost: workCostOf(cost), blocked: started.ok ? null : reasonText(started.reason) };
+}
+
+/** Ikona postupu jádra; mezera (`open`) ikonu nemá. */
+const ASSAULT_ICON: Record<AssaultMethod, FortAssaultIcon | null> = {
+  open: null,
+  climb: 'ladder',
+  ladder: 'ladder',
+  cut: 'cut',
+  burn: 'burn',
+  dig: 'dig',
+  mine: 'dig',
+};
+
+/**
+ * Postupy útočníka přes díly `parts` ke dni `day` (Přechod hradby – `assaultSteps`): u každé ikony
+ * nejrychlejší místo se 4 muži (`assaultHours`, otepi do 100 m); postup, který nikde nejde, null.
+ */
+function assaultViews(
+  fort: Fortification,
+  parts: readonly FortSegment[],
+  day: number,
+  atGate: boolean,
+): FortAssaultView[] {
+  const A = FORTIFICATIONS.assault;
+  const best = new Map<FortAssaultIcon, { method: AssaultMethod; hours: number }>();
+  for (const seg of parts) {
+    for (const step of assaultSteps(crossingLayers(fort, seg, day, atGate))) {
+      const icon = ASSAULT_ICON[step.method];
+      if (icon === null) continue;
+      const hours = assaultHours(step, A.maxMen, A.burn.fuelM);
+      const prev = best.get(icon);
+      if (!prev || hours < prev.hours) best.set(icon, { method: step.method, hours });
+    }
+  }
+  return FORT_ASSAULT_ICONS.map((icon) => {
+    const b = best.get(icon);
+    return { icon, method: b?.method ?? null, hours4: b ? b.hours : null };
+  });
+}
+
+/** Společné vstupy panelu opevnění – stav, krajina, den, překážky a síť cest (líně, jednou). */
+interface FortViewContext {
+  state: VillageState;
+  landscape: Landscape;
+  day: number;
+  obstacles: ObstacleLayer;
+  walk: () => ReturnType<typeof villageRoadWalk>;
+}
+
+/** Kusy úseku jako díly – celé díly a z dílů s branou pohled na kus (`gatePartView`). */
+function pieceParts(fort: Fortification, pieces: readonly SectionPiece[]): FortSegment[] {
+  return pieces.flatMap((p) => {
+    const s = fort.segments.find((x) => x.index === p.index);
+    if (!s) return [];
+    return [p.part === undefined ? s : gatePartView(s, p.part)];
+  });
+}
+
 /** Den dokončení dílu – val, bez dostavěného valu hradba; nic nestojí – null. */
 function partBuiltDay(fort: Fortification, s: FortSegment): number | null {
   return segmentRampart(fort, s)?.builtDay ?? segmentWall(fort, s)?.builtDay ?? null;
@@ -488,11 +656,7 @@ function partsState(
   pieces: readonly SectionPiece[],
   day: number,
 ): FortPartsState {
-  const parts = pieces.flatMap((p) => {
-    const s = fort.segments.find((x) => x.index === p.index);
-    if (!s) return [];
-    return [p.part === undefined ? s : gatePartView(s, p.part)];
-  });
+  const parts = pieceParts(fort, pieces);
   const built = parts.filter((s) => segmentBuilt(s) && s.demolishedDay === undefined);
   const oldest = Math.min(...built.map((s) => partBuiltDay(fort, s) ?? day));
   return {
@@ -524,8 +688,18 @@ export function fortificationViews(
   landscape: Landscape,
   day: number,
   woodSupply: number,
+  obstacles: ObstacleLayer = obstaclesOf(landscape),
 ): VillageFortification[] {
   const result: VillageFortification[] = [];
+  let walk: ReturnType<typeof villageRoadWalk> | undefined;
+  const ctx: FortViewContext = {
+    state,
+    landscape,
+    day,
+    obstacles,
+    walk: () => (walk ??= villageRoadWalk(state, landscape)),
+  };
+  const men = fortDefenders(state, day);
   for (const fort of villageFortifications(state)) {
     const outline = outlineOf(landscape, fort);
     if (!outline) continue;
@@ -553,6 +727,30 @@ export function fortificationViews(
       gates: fort.gates.length,
       refugePeople: places.people,
       refugeCattle: places.cattle,
+      occupancy: { men, lengthM: outline.lengthM, share: fortOccupancy(men, outline.lengthM) },
+      // „Vylepšit vše“ a val pod celé opevnění (fortifications.md – Druhy a postup vylepšení)
+      upgrades: upgradeViews(
+        sectionUpgrades(
+          state,
+          day,
+          landscape,
+          obstacles,
+          { fortificationId: fort.id, segment: null },
+          ctx.walk(),
+        ),
+      ),
+      rampartAdd: actionOption(
+        state,
+        startRampartAddition(
+          state,
+          day,
+          landscape,
+          obstacles,
+          { fortificationId: fort.id, segment: null },
+          ctx.walk(),
+        ),
+        [FORT_RAMPART_DONE],
+      ),
       sections: fortSections(fort).map((section) => {
         const span = spans.find((x) => x.gateSegment === section.gateSegment);
         const found = sectionPieces(
@@ -577,12 +775,27 @@ export function fortificationViews(
               ),
             ),
         );
+        const segment = section.segments[0]!;
+        const sectionInput = { fortificationId: fort.id, segment };
         return {
           segments: [...section.segments],
           gateSegment: section.gateSegment,
           lengthM: span?.lengthM ?? 0,
           ...partsState(fort, pieces, day),
-          demolish: demolishOption(state, landscape, fort.id, section.segments[0]!),
+          demolish: demolishOption(state, landscape, fort.id, segment),
+          upgrades: upgradeViews(
+            sectionUpgrades(state, day, landscape, obstacles, sectionInput, ctx.walk()),
+          ),
+          assault: assaultViews(fort, pieceParts(fort, pieces), day, false),
+          rampartAdd: actionOption(
+            state,
+            startRampartAddition(state, day, landscape, obstacles, sectionInput, ctx.walk()),
+            [FORT_RAMPART_DONE],
+          ),
+          moat: actionOption(state, startMoatFill(state, day, landscape, sectionInput), [
+            FORT_MOAT_NO_RAMPART,
+            FORT_MOAT_DONE,
+          ]),
           ...(own
             ? {
                 progress: own.cost > 0 ? Math.min(1, own.done / own.cost) : 1,
@@ -604,6 +817,9 @@ export function fortificationViews(
             ageYears: stands
               ? Math.floor(Math.max(0, day - (partBuiltDay(fort, seg) ?? day)) / FORT_DAYS_PER_YEAR)
               : null,
+            pincer: gateOption(ctx, fort.id, gate.segment, 'pincer', FORT_PINCER_DONE),
+            tower: gateOption(ctx, fort.id, gate.segment, 'tower', FORT_TOWER_DONE),
+            assault: seg ? assaultViews(fort, [seg], day, true) : [],
           };
         }),
       ...(work
@@ -614,39 +830,6 @@ export function fortificationViews(
           }
         : {}),
     };
-    const busy = work !== undefined;
-    if (fort.kind === 'fence') {
-      const todo = fort.segments
-        .filter((s) => segmentWall(fort, s)?.kind !== 'palisade')
-        .map((s) => s.index);
-      const cost = workCost(shapes, todo, 'palisade', 'fence');
-      view.upgrade = {
-        cost,
-        blocked: busy ? FORT_BUSY_TEXT : woodBlocked(cost, woodSupply),
-      };
-    } else if (fort.kind === 'rampart') {
-      const unfinished = fort.segments.some((s) => segmentRampart(fort, s)?.builtDay === null);
-      const todo = fort.segments
-        .filter((s) => !layerBuilt(segmentWall(fort, s)))
-        .map((s) => s.index);
-      view.tops = (['fence', 'palisade'] as const).map((top) => {
-        const cost = workCost(shapes, todo, top, null);
-        const taken = todo.length === 0 || (fort.top !== undefined && fort.top !== top);
-        return {
-          top,
-          option: {
-            cost,
-            blocked: busy
-              ? FORT_BUSY_TEXT
-              : unfinished
-                ? FORT_UNFINISHED_TEXT
-                : taken
-                  ? FORT_TOP_DONE_TEXT
-                  : woodBlocked(cost, woodSupply),
-          },
-        };
-      });
-    }
     result.push(view);
   }
   return result;
