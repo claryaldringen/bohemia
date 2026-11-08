@@ -335,7 +335,7 @@ afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Sc
   10 m místo po 5 m (`DETOUR_STEP_M`, `fortification/walls.ts`) – graf objížďky je zhruba o třetinu
   menší (testovací palisáda 4 × 4 čtverce 47 → 33 bodů, malý čtverec 23 → 20); vesničané obcházejí
   palisádu o kus méně přesně, výsledek vsí s opevněním se mění, vsi bez opevnění ne. Samotných
-  10 m protnulo zeď na rozích (test „bez pěšiny na straně cíle“ padal), proto návrh Claudea:
+  10 m protnulo zeď na rozích (test „bez pěšiny na straně cíle“ padal), proto návrh Clauda:
   zhušťování jen tam, kde to hrana potřebuje – kde úsečka mezi sousedními body řízne stěnu, vloží se
   bod doprostřed (půlí se až na ≈ 2,5 m) a před každou bránu se bod klade vždy. Větší odstup u
   ostrých míst jsem nezvolil: odsouvá bod od zdi a zhoršuje objížďku, zhušťování je jednodušší a
