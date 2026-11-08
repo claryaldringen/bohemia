@@ -88,7 +88,8 @@ export function strikesOf(
   const byId = new Map(cur.fighters.map((f) => [f.id, f]));
   const hurt = cur.fighters.filter((f) => {
     const was = before.get(f.id);
-    return was !== undefined && f.health < was.health;
+    // rána: méně zdraví, nebo víc zásahů (cizí muž ze serveru nese jen počet zásahů)
+    return was !== undefined && (f.health < was.health || (f.hits ?? 0) > (was.hits ?? 0));
   });
   const c = WAR.combat;
   const footM = FORTIFICATIONS.defense.footStoneM;

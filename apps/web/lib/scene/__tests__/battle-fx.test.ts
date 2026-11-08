@@ -75,6 +75,19 @@ describe('hody z ochozu', () => {
     expect(arrowAt(shot, 100.51)).toBeNull();
   });
 
+  it('cizí muž bez zdraví ze serveru: ránu pozná podle počtu zásahů', () => {
+    const foe = man('a:0', { side: 'attack', pos: { x: 0, z: -10 } });
+    const thrower = man('d:1', { onWall: true, aim: 'a:0' });
+    const prev = snap(4, [thrower, foe]);
+    const cur = snap(5, [
+      { ...thrower, cooldown: THROW_TICKS },
+      { ...foe, hits: 1 },
+    ]);
+    const { shots } = strikesOf(prev, cur, 100);
+    // zasažen – hod letí k němu, ne za něj na zem
+    expect(shots[0]?.to).toEqual({ x: 0, z: -10 });
+  });
+
   it('kámen k patě hradby místo srážky; lezec na žebříku bez prachu', () => {
     const below = man('a:0', { side: 'attack', pos: { x: 0, z: -1 } });
     const guard = man('d:1', { onWall: true, aim: 'a:0' });

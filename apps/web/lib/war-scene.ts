@@ -1,5 +1,10 @@
 import 'server-only';
-import { warSceneFor, type MarchGrid, type WarSceneView } from '@bohemia/game';
+import {
+  warSceneFor,
+  type MarchGrid,
+  type WarSceneDefender,
+  type WarSceneView,
+} from '@bohemia/game';
 import { LruCache } from '@bohemia/server';
 import { campaignCells } from './campaign';
 import { gameDeps } from './game';
@@ -9,6 +14,8 @@ import { gameDeps } from './game';
 
 /** Mřížky mapy napadené vsi pro dohled v lese – scéna se ptá 2× za sekundu. */
 const SIGHT_GRIDS = new LruCache<string, MarchGrid>(4);
+/** Domy a opevnění napadených vsí po herních dnech – stav vsi se nečte při každém dotazu. */
+const DEFENDERS = new LruCache<string, WarSceneDefender>(16);
 
 /** Válka na mapě sídla hráče, kterou vidí ve scéně; null = žádná (nebo sídlo není jeho). */
 export function warSceneForPlayer(
@@ -23,6 +30,7 @@ export function warSceneForPlayer(
       campaigns: deps.campaigns,
       cells: campaignCells(),
       grids: SIGHT_GRIDS,
+      defenders: DEFENDERS,
     },
     { playerId, settlementId },
   );

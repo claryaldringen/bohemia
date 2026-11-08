@@ -19,7 +19,11 @@ import { inSight } from './sight';
 // vidí hráč na mapě, kterou má právě ve 3D scéně – vlastní stranu celou, druhou jen v dohledu
 // vlastních očí (mlha války jako `campaignView`). Server je jediná autorita, scéna jen kreslí.
 
-/** Bojovník pro scénu – jen co scéna kreslí (žádné `ref`, síla, cíle ani trasy). */
+/**
+ * Bojovník pro scénu – jen co scéna kreslí (žádné `ref`, síla, cíle ani trasy). Zdraví jen u vlastní
+ * strany; cizí muž nese hrubý stav (`state` – na nohou / `down`, `killed` – padlý) a počet zásahů
+ * `hits` (scéna pozná ránu; přesné zdraví pohled na tažení tají – `CampaignViewForeign`).
+ */
 export type WarSceneFighter = Pick<
   Fighter,
   | 'id'
@@ -28,7 +32,7 @@ export type WarSceneFighter = Pick<
   | 'line'
   | 'bow'
   | 'mounted'
-  | 'health'
+  | 'hits'
   | 'pos'
   | 'home'
   | 'state'
@@ -40,7 +44,10 @@ export type WarSceneFighter = Pick<
   | 'onWall'
   | 'underground'
   | 'climb'
->;
+> & {
+  /** Zdraví 0–100 – jen vlastní strana. */
+  health?: number;
+};
 
 /** Rozdělaný průlom pro scénu (bez cílů a dalších údajů boje). */
 export type WarSceneBreach = Pick<
@@ -192,7 +199,8 @@ function battleView(b: BattleState, day: number, input: WarSceneInput): WarScene
       line: f.line,
       bow: f.bow,
       mounted: f.mounted,
-      health: f.health,
+      ...(own ? { health: f.health } : {}),
+      ...(f.hits ? { hits: f.hits } : {}),
       pos: { x: f.pos.x, z: f.pos.z },
       // domov cizího muže se neprozradí – raněný sedí, kde je
       home: own ? { x: f.home.x, z: f.home.z } : { x: f.pos.x, z: f.pos.z },

@@ -28,6 +28,13 @@ const fighter = (id: string, side: 'attack' | 'defend', x: number): WarSceneFigh
   breachAt: null,
 });
 
+/** Cizí muž, jak ho pošle server – bez zdraví. */
+const foreign = (id: string, x: number): WarSceneFighter => {
+  const man = fighter(id, 'attack', x);
+  delete man.health;
+  return man;
+};
+
 const BASE: Omit<WarSceneView, 'battle' | 'march'> = {
   campaignId: 'c1',
   tick: 40,
@@ -59,7 +66,7 @@ describe('sceneWarOf', () => {
         battle: {
           ticks: 40,
           outcome: 'ongoing',
-          fighters: [fighter('d:1', 'defend', 10), fighter('a:0', 'attack', 60)],
+          fighters: [fighter('d:1', 'defend', 10), { ...foreign('a:0', 60), hits: 1 }],
           groups: [{ side: 'defend', id: 0, order: 'attack-all', broken: false }],
           closedGates: ['0:2'],
           breaches: [],
@@ -71,6 +78,8 @@ describe('sceneWarOf', () => {
     );
     expect(war?.battle?.fighters.map((f) => f.id)).toEqual(['d:1', 'a:0']);
     expect(war?.battle?.fighters[0]).toMatchObject({ health: 80, home: { x: 10, z: 5 } });
+    // cizí muž bez zdraví (mlha války) – scéna ho kreslí celého, ránu pozná podle zásahů
+    expect(war?.battle?.fighters[1]).toMatchObject({ health: 100, hits: 1 });
     expect(war?.battle?.walls).toEqual([wall]);
     expect(war?.battle?.closedGates).toEqual(['0:2']);
     expect(war?.march).toBeNull();

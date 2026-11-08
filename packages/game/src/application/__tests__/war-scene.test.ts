@@ -4,8 +4,8 @@ import type { Dwelling } from '../../domain/village/types';
 import { attacker, battle, defender, land } from '../../domain/war/__tests__/battle-fixtures';
 import { campaign, member } from '../../domain/war/__tests__/campaign-fixtures';
 import type { Settlement } from '../settlements';
-import type { VillageRecord } from '../villages';
-import { warSceneFor, type WarSceneDeps } from '../war-scene';
+import type { VillageRecord, VillageStamp } from '../villages';
+import { warSceneFor, type WarSceneDefender, type WarSceneDeps } from '../war-scene';
 import { InMemoryCampaigns } from './in-memory-campaigns';
 
 // Válka ve scéně vlastní mapy (war.md – Ve scéně): obránce vidí svou ves celou a útočníky jen
@@ -42,7 +42,7 @@ const settlement = (id: string, ownerId: string, x: number): Settlement =>
 async function setup(
   state: CampaignState,
   dwellings: Dwelling[],
-): Promise<{ deps: WarSceneDeps; campaigns: InMemoryCampaigns }> {
+): Promise<{ deps: WarSceneDeps; campaigns: InMemoryCampaigns; reads: string[] }> {
   const campaigns = new InMemoryCampaigns();
   await campaigns.create(state);
   const villages: Record<string, VillageRecord> = {
@@ -53,16 +53,28 @@ async function setup(
     s9: settlement('s9', 'p9', 1),
     s1: settlement('s1', 'p1', 0),
   };
+  const reads: string[] = [];
+  const cache = new Map<string, WarSceneDefender>();
   const deps: WarSceneDeps = {
     settlements: { find: (id) => Promise.resolve(settlements[id] ?? null) },
     villages: {
-      listBySettlement: (id) => Promise.resolve(villages[id] ? [villages[id]] : []),
-      find: (id) => Promise.resolve(Object.values(villages).find((v) => v.id === id) ?? null),
+      // otisk bez stavu – ves sídla
+      stampsOf: (ids) =>
+        Promise.resolve(
+          ids.flatMap((id) =>
+            villages[id] ? [{ id: villages[id].id, settlementId: id } as VillageStamp] : [],
+          ),
+        ),
+      find: (id) => {
+        reads.push(id);
+        return Promise.resolve(Object.values(villages).find((v) => v.id === id) ?? null);
+      },
     },
     campaigns,
     cells: { mapOf: () => Promise.resolve(MAP) },
+    defenders: { get: (k) => cache.get(k), set: (k, v) => cache.set(k, v) },
   };
-  return { deps, campaigns };
+  return { deps, campaigns, reads };
 }
 
 describe('warSceneFor', () => {
@@ -78,6 +90,32 @@ describe('warSceneFor', () => {
     expect(a0.home).toEqual(a0.pos);
     expect(view!.battle!.fighters[0]).not.toHaveProperty('ref');
     expect(view!.battle!.fighters[0]).not.toHaveProperty('strength');
+  });
+
+  it('cizí muž bez zdraví – jen hrubý stav a počet zásahů; vlastní se zdravím', async () => {
+    const state = raiding([defender(101, { x: 100, z: 0 })]);
+    const a1 = state.battle!.fighters.find((f) => f.id === 'a:1')!;
+    a1.health = 37;
+    a1.hits = 2;
+    const { deps } = await setup(state, []);
+    const view = await warSceneFor(deps, { playerId: 'p9', settlementId: 's9' });
+    const seen = new Map(view!.battle!.fighters.map((f) => [f.id, f]));
+    expect(seen.get('a:1')).not.toHaveProperty('health');
+    expect(seen.get('a:1')).toMatchObject({ hits: 2, state: 'fight', killed: false });
+    expect(seen.get('d:101')!.health).toBe(100);
+  });
+
+  it('dva dotazy v tomtéž herním dni čtou ves jen jednou, nový den znovu', async () => {
+    const { deps, campaigns, reads } = await setup(raiding([defender(101, { x: 100, z: 0 })]), [
+      house(7, 60, 0),
+    ]);
+    await warSceneFor(deps, { playerId: 'p9', settlementId: 's9' });
+    await warSceneFor(deps, { playerId: 'p9', settlementId: 's9' });
+    expect(reads).toEqual(['knezice']);
+    const point = await campaigns.checkpoint('c1');
+    await campaigns.create({ ...point!.state, day: point!.state.day + 1 });
+    await warSceneFor(deps, { playerId: 'p9', settlementId: 's9' });
+    expect(reads).toEqual(['knezice', 'knezice']);
   });
 
   it('mlha: útočníci mimo dohled obránců i domů nejsou; mířit na ně nejde vidět', async () => {

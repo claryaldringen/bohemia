@@ -36,6 +36,7 @@ export type SceneFighter = Pick<
   | 'bow'
   | 'mounted'
   | 'health'
+  | 'hits'
   | 'pos'
   | 'home'
   | 'state'
@@ -139,7 +140,9 @@ export function sceneBattle(b: SceneBattleSource, walls: readonly SceneWall[] = 
       line: f.line,
       bow: f.bow,
       mounted: f.mounted,
-      health: f.health,
+      // cizí muž ze serveru zdraví nemá (mlha války) – ránu pozná scéna podle `hits`
+      health: f.health ?? 100,
+      ...(f.hits ? { hits: f.hits } : {}),
       pos: { x: f.pos.x, z: f.pos.z },
       home: { x: f.home.x, z: f.home.z },
       state: f.state,

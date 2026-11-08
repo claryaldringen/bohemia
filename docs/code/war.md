@@ -934,7 +934,9 @@ Scéna hry ukazuje **mapu sídla hráče** – vojsko je v ní vidět, když na 
   celé vojsko tažení i s muži vazalů), druhá jen v dohledu (`inSight`) vlastních bojovníků na
   nohou a očí `eyes` – u obránce domy vsi (návrh Clauda: ves vidí i tehdy, když lidé utekli do
   lesa). Bojovník jen se vším, co scéna kreslí (`WarSceneFighter` – bez `ref`, síly, cílů a tras);
-  cizímu se domov nahradí polohou a cíl (`aim`, `climber`) mimo dohled se smaže. Průlomy
+  zdraví jen vlastní strana, cizí muž nese hrubý stav (`state`, `killed`) a počet zásahů `hits`
+  (`Fighter.hits` – přičte `takeHit`; scéna podle něj pozná ránu – `strikesOf`); cizímu se domov
+  nahradí polohou a cíl (`aim`, `climber`) mimo dohled se smaže. Průlomy
   a žebříky obránce vidí v dohledu, zavřené brány a hradby všichni (stavba, ne vojsko). Boj jen na
   mapě cíle a jen běžící (`outcome = 'ongoing'`), jinak pochod – skupiny na mapě a jejich aktivní
   muži se směrem chůze (`heading`). Hradby bojiště počítá `battleWallsOf` (web `battleWalls` ji
@@ -944,6 +946,8 @@ Scéna hry ukazuje **mapu sídla hráče** – vojsko je v ní vidět, když na 
   (`CampaignRepository.activeAgainst` – `state->'target'->>'villageId'`) z pohledu obránce (mřížka
   pro dohled v lese `sightGrid`, opevnění `battleForts` jen při boji), pak tažení hráče
   (`activeOf`) z pohledu útočníka. Boj má přednost, napadení před vlastním vojskem; jeden pohled.
+  Ves sídla se hledá otiskem bez stavu (`stampsOf`); domy a opevnění obránce (`WarSceneDefender`)
+  se čtou ze stavu vsi jednou za herní den – mezipaměť `defenders` (klíč `ves@den`, web LRU 16).
 - **Web:** route `GET /api/war-scene/<sídlo>` (`lib/war-scene.ts`, `no-store`) → `{ war }`; cizí
   sídlo i mapa bez války = `{ war: null }`. `useWarScene` (web-ui.md – Dotazování na tažení)
   a `sceneWarOf` (`lib/war-scene-view.ts`) → `LandscapeScene.setWar` ve `VillageGame`. Na vlastní
@@ -954,8 +958,9 @@ Scéna hry ukazuje **mapu sídla hráče** – vojsko je v ní vidět, když na 
   poskočí po 0,5 s), rány mezi dvěma dotazy (dotaz nese každý druhý takt – `strikesOf` vidí jen
   údery v taktu snímku).
 - **Testy:** `application/__tests__/war-scene.test.ts` (obránce – útočníci v dohledu mužů i domů,
-  mlha, cíl mimo dohled; po boji pochod; útočník na své mapě; cizí sídlo), web
-  `lib/__tests__/war-scene-view.test.ts`, e2e `multiplayer-war.spec.ts` (napadená ves B má ve
+  mlha, cíl mimo dohled, cizí bez zdraví se zásahy, ves jednou za herní den; po boji pochod;
+  útočník na své mapě; cizí sídlo), web `lib/__tests__/war-scene-view.test.ts`,
+  `battle-fx.test.ts` (rána podle zásahů), e2e `multiplayer-war.spec.ts` (napadená ves B má ve
   scéně vojsko – `data-war-men` na plátně, vojsko doma u A, B ho pak nevidí), db
   `campaign-repository.db.test.ts` (`activeAgainst`).
 
