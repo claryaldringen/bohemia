@@ -8,6 +8,18 @@ import { WORLD } from '../world/rules-world';
  * po odmítnutí v `NEGOTIATION`. Doprava je stejná jako k sousedům (Doprava a cílová ves – „jako
  * k sousedům“), proto jen odkazuje na čísla obchodu (`TRADE`, `CARTS`).
  */
+/**
+ * Jídlo domény (hillfort.md – Jídlo domény; čísla návrh Clauda): ves je po žních připravená, když
+ * jí zbývá vymlátit nejvýš `sheavesDoneKg` snopů, nejpozději `readyBy` (konec okna výmlatu,
+ * `THRESH_END_DAY`); jídlo chybí od `minNeedKg` (jako výprava správce za obilím – aspoň jeden
+ * nosič, `TRADE.porterKg`).
+ */
+export const DOMAIN_FOOD = {
+  readyBy: { month: 10, day: 1 },
+  sheavesDoneKg: 1,
+  minNeedKg: TRADE.porterKg,
+} as const;
+
 export const VASSALAGE = {
   /** Roční dialog Odvody (Roční dialog 1. 11.; Martin: „1. listopad je ok“), čeká na vazala. */
   annualDialog: { month: 11, day: 1 },

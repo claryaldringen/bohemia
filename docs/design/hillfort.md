@@ -117,6 +117,12 @@ přirozený cíl nájezdu – zásoby celé domény na jednom místě – a dův
   ([pole](fields.md) – Osev podle zásob) – ves oseje méně a lidé mají čas na řemesla a stavby
   (Martin).
 
+- **Čísla** (návrh Clauda, `DOMAIN_FOOD` v `rules-vassalage.ts`): ves je připravená, když jí
+  zbývá vymlátit nejvýš 1 kg snopů, nejpozději 1. 10. (`readyBy`); jídlo chybí od 25 kg
+  (`minNeedKg` = nosič, jako výprava správce za obilím). Osivo, jídlo do žní a doplnění pojistky
+  dohromady dávají pojistku vazalství – `VASSALAGE.reserveYears` (2) ročních potřeb osiva a jídla
+  z pole; dobytek se bere jako kus = 72 kg obilí (120 kg masa × 0,6).
+
 ## Přehled jídla domény (rozhraní jako 0 A.D.)
 
 - V panelu rodu řádek za každé sídlo domény: kolik vypěstuje (průměrná sklizeň), kolik potřebuje

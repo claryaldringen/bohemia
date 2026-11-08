@@ -441,3 +441,25 @@ se bude řešit až následně“). Rozsudek nic nevynucuje, nesplnění se jen 
   server actions `fileComplaintAction` / `answerComplaintAction` / `judgeDisputeAction`
   (`lib/house.ts`, `lib/house-input.ts`), `HousePanel` – řádek Spory (váhy), u vazala v dohodě tlačítko
   Rozsudek, `DisputeCard.tsx` (vyjádření, rozsudek), dialog rozsudku v `LevyDialog` (váhy).
+
+## Jídlo domény – ves (`domain/vassalage/domain-food.ts`, hradiště – úloha 3)
+
+Čisté funkce, vstupní stav nemění (hillfort.md – Jídlo domény). Rozdělení mezi vsi je v dalším
+kroku (`domain-allocation.ts`), rozhodnutí a doprava v kroku světa.
+
+- `domainFoodReadyYear(state, day)` – rok, když je ves po výmlatu letošní sklizně: plán u výmlatu
+  (`threshingSeason`, od konce žní do 1. 10.) a snopů nejvýš `DOMAIN_FOOD.sheavesDoneKg`, nebo den
+  od `DOMAIN_FOOD.readyBy` (1. 10.) do konce roku; jinak null.
+- `lastSowingSeedKg` – osivo obilí minulého osevu (součet `seedKg` plodin setých z obilí v plánu
+  u výmlatu); po 1. 10. osev, který ves zvládne (jako `grainSpareKg` ve `spare.ts`).
+- `domainOffer` – obilí `⌊zásoby + snopy − VASSALAGE.reserveYears × (yearlyFieldNeed + osivo)⌋`
+  (osivo, jídlo do žní a doplnění pojistky dohromady = pojistka vazalství, návrh Clauda k otázce 1
+  plánu) a dobytek `cattleSpare` (nad chovné jádro; export ze `spare.ts`). Ves v hladu nic.
+  Pravidlo „napřed obilí, dobytek jen na to, co obilí nepokryje“ (otázka 2) patří do rozdělení.
+- `domainNeedKg` – `fieldSowingTargets(…).shortKg`, týž výhled jako správce v nouzi; ves bez lidí 0.
+  Mezi vsemi se bere jen potřeba od `DOMAIN_FOOD.minNeedKg` (rozdělení).
+- `cattleFoodKg` – kus dobytka = `meatEnergy(LIVESTOCK.meatKg.cow)` kg obilí (72).
+- `villageFoodBalance` – `{ growsKg, needsKg }` pro panel rodu: průměrná čistá sklizeň
+  (`fieldCapacity`) proti potřebě z pole a obilí koní a psů dvorce; bez `stewardOutlook`, volá se
+  při každém uložení vsi. Ves bez lidí nebo bez pole null.
+- Čísla: `DOMAIN_FOOD` v `rules-vassalage.ts`.
