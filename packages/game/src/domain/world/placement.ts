@@ -1,5 +1,5 @@
 import type { GridCell } from '../village/world-grid';
-import { SEAT_CELL, sameCell } from '../village/world-grid';
+import { SEAT_CELL } from '../village/world-grid';
 import { WORLD } from './rules-world';
 
 /** Obsazené políčko mřížky světa a hráč, jemuž patří. */
@@ -44,6 +44,26 @@ function placementTargets(request: PlacementRequest): readonly GridCell[] {
     : [SEAT_CELL];
 }
 
+/** Číselný klíč políčka (souřadnice do ±2^25). */
+function cellKey(x: number, y: number): number {
+  return (x + 33554432) * 67108864 + (y + 33554432);
+}
+
+/** Množina obsazených políček pro test odstupu v O(gap²) místo O(počet obsazených). */
+function occupiedKeys(occupied: readonly OccupiedCell[]): Set<number> {
+  const keys = new Set<number>();
+  for (const o of occupied) keys.add(cellKey(o.cell.x, o.cell.y));
+  return keys;
+}
+
+/** Je políčko obsazené nebo blíž než `gap` kroků k obsazenému? */
+function isBlocked(keys: ReadonlySet<number>, x: number, y: number, gap: number): boolean {
+  const r = Math.max(gap - 1, 0);
+  for (let dx = -r; dx <= r; dx++)
+    for (let dy = -r; dy <= r; dy++) if (keys.has(cellKey(x + dx, y + dy))) return true;
+  return false;
+}
+
 /**
  * Nejbližší posun shluku vsí (místní souřadnice, první = sídlo), kde mají všechny buňky shluku
  * odstup aspoň `gap` od cizích políček. Hledá po prstencích kolem cílů (víc cílů = nejblíž
@@ -65,15 +85,20 @@ export function placeCluster(
     for (const o of occupied) limit = Math.max(limit, cellDistance(t, o.cell) + gap);
   const extent = local.reduce((m, l) => Math.max(m, cellDistance(l, { x: 0, y: 0 })), 0);
   limit += extent;
+  // Obsazená políčka v množině; zakázané je to do `gap - 1` kroků od obsazeného.
+  const keys = occupiedKeys(occupied);
   for (let radius = 0; radius <= limit; radius++) {
     for (const target of targets) {
       for (const seat of ringCells(target, radius)) {
-        const cells = local.map((l) => ({ x: seat.x + l.x, y: seat.y + l.y }));
-        const fits = cells.every(
-          (cell) =>
-            !occupied.some((o) => sameCell(o.cell, cell) || cellDistance(o.cell, cell) < gap),
-        );
-        if (fits) return { offset: seat, cells };
+        let fits = true;
+        for (const l of local) {
+          if (isBlocked(keys, seat.x + l.x, seat.y + l.y, gap)) {
+            fits = false;
+            break;
+          }
+        }
+        if (fits)
+          return { offset: seat, cells: local.map((l) => ({ x: seat.x + l.x, y: seat.y + l.y })) };
       }
     }
   }
