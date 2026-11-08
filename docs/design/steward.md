@@ -230,6 +230,8 @@ roky – pro pole a lidi rozhoduje **trvalé hrdlo** (půda, nebo práce): **udr
 
 #### Kapacita mapy (Martin 6. 11. 2026)
 
+_Výjimka: v převzatém hradišti správce syny neposílá ([hillfort.md](hillfort.md) – Hradiště staví hráč)._
+
 Martin 6. 11. 2026: „Tak podle velikosti mapy umíme určit maximální velikost obdělávané půdy,
 podle toho maximální velikost sklizně a podle toho i maximální velikost populace. Čili správce
 bude rozšiřovat vesnici a pole, dokud mu to mapa dovolí, a když populace přesáhne např. 80 % toho,

@@ -256,6 +256,11 @@ export const STEWARD = {
    */
   departureHungerDays: 8,
   /**
+   * Převzaté hradiště (hillfort.md – Hradiště staví hráč; návrh Clauda): ves je pro správce
+   * hradištěm, když do ní doména dovezla jídlo za posledních tolik dní (rozdělení je roční).
+   */
+  hillfortImportDays: 365,
+  /**
    * Krok 2 – Kdy není kam: čtverec pole má smysl, jen když uživí víc, než sní ten, kdo ho dělá –
    * kg čisté úrody na člověkoden aspoň 1,5 × denní potřeba obilí dospělého (`FOOD_NEED_KG_PER_YEAR`).
    */

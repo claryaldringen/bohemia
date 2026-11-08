@@ -142,6 +142,12 @@ export interface StewardState {
    * správce); po jeho návratu domů se vypne zpět. Chybí – přepínač nastavil hráč.
    */
   byCaptivity?: true;
+  /**
+   * Správce převzal hradiště (hillfort.md – Hradiště staví hráč): do vsi v den zapnutí dovážela
+   * jídlo doména (`importsDomainFood`). Syny z ní neposílá; zmizí s vypnutím správce, zapnutí
+   * posoudí znovu. Chybí – obyčejná ves.
+   */
+  hillfort?: true;
   departures?: StewardDeparture[];
   /** Co správce zkusil a nešlo (cesta, směr stezky) – nezkouší znovu do `untilDay`. */
   skips?: { kind: string; id: number; untilDay: number }[];
