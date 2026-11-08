@@ -698,24 +698,28 @@ Rozpad). Čísla `WAR.npc` (`attackRatio` 1,5, `lostShare` 0,5) a `WAR.absentLea
   `npcIntents(state, world, field)` – `field` je bojiště nájezdu (`battleFieldOf` v `campaign.ts`);
   bez něj (testy) velitel o hradbě neví.
 - **NPC velitel u hradby (hradby Ú20)** – `domain/war/npc-assault.ts`, `fastestApproach(field, b,
-men, from)` → `{ fort, segment, at, method, hours }` | null: na každém úseku mezera (0 h, i průlom
-  boje `progress.breached`), plot (`climb`), žebřík jen na neobsazeném místě (`occupied` v bodě
-  i ±0,5 m – ne škvíra mezi obránci 5 m od sebe; mimo vrata; 1 m od stojících žebříků): volný
-  žebřík opevnění jen výstup, nový = výroba 4 h + do nejbližšího lesa (od středu úseku,
-  `nearestForestOf`, mezipaměť na mřížku a tvar) a zpět + výstup (`climbTicks`); stěna a brána
-  podle `assaultSteps(crossingLayers(…))` → `assaultHours` se `min(4, muži)` (otepi z lesa, bez lesa
-  100 m). Místo stěny jako v boji (střed úseku, u brány čtvrtina na druhé straně), brána vždy
-  zavřená. Vybere nejmenší `hours + cesta od from` (tempo 3,5 m/s; při shodě první v pořadí);
-  `hours` je jen postup. `leadTo(field, from, to)` – vede-li přímka přes obvod (úseky i tětivy rohů,
-  blokuje vše), napřed radiálně ven na kruh obchůzky (nejvzdálenější roh + 5 m), pak po kruhu
-  (půlením k nejdelší tětivě bez hradby) a k místu, až na něj vidí – boj sám kolem hradby nechodí
-  (`stepToward` jen klouže podél stěny a na rohu uvízne). `raidIntents`: u místa (do 3 m) `strike`
-  na nejbližšího obránce nejslabší skupiny (u hradby muži volí postup místa sami – `startCrossing`,
-  `chooseSpot`), jinak `march` na další bod `leadTo` (nový, až se posune o víc než 3 m). Testy:
-  `war/__tests__/npc-assault.test.ts` (palisáda se 6 obránci → žebříky na neobsazeném místě, bez
-  lesa oheň 12 h, plně obsazená roštová → podkop 120 h → `plunder`, mezera po průlomu, obrat,
-  „držet místo“ za palisádu nejde, lučištník na ochoz střílí), `npc-commander.test.ts` (silnější
-  vojsko u palisády obejde hradbu k bráně, prosekne ji a vyhraje; po kouscích 1 / 7 / 100).
+men, from)` → `{ fort, segment, at, method, hours }` | null. Mezery, průlomy boje a nejrychlejší
+  místo prolomení každého opevnění bere z boje – `fortPassages` v `battle.ts` (stejné `wallsOf`
+  a `chooseSpot` jako takt, brány zavřené, `min(4, muži)`, oheň jen s otepi z lesa či dříví vsi;
+  `Opening.segment`), žebřík přes vodní příkop z nich vynechá. Sám odhadne přelézt plot (`climb`)
+  a žebříky jen na neobsazeném místě (`occupied` v bodě i ±0,5 m – ne škvíra mezi obránci 5 m od
+  sebe; mimo vrata; 1 m od stojících žebříků): volný žebřík opevnění jen výstup, nový = výroba 4 h
+  - do nejbližšího lesa (od středu úseku, `nearestForestOf`, mezipaměť na mřížku a tvar) a zpět
+  - výstup (`climbTicks`), zasypání příkopu `assaultHours` bez výroby. Vybere nejmenší
+    `hours + cesta od from` (3,5 m/s; při shodě první v pořadí); `hours` je jen postup.
+    `approachStep(field, from, way)` – další bod cesty velitele: do 5 m od místa rovnou k němu, jinak
+    k bodu 4 m dál od středu opevnění (ať nejde těsně podél hradby a nestojí na její čáře – tam by
+    ho `fortsContaining` měl za uvnitř) přes `leadTo`: vede-li přímka přes obvod (úseky i tětivy
+    rohů, blokuje vše), napřed radiálně ven na kruh obchůzky (nejvzdálenější roh + 5 m), pak po
+    kruhu (půlením k nejdelší tětivě bez hradby) – boj sám kolem hradby nechodí (`stepToward` jen
+    klouže podél stěny a na rohu uvízne). `raidIntents`: u místa (do 3 m) `strike` na nejbližšího
+    obránce nejslabší skupiny (u hradby muži volí postup místa sami – `startCrossing`,
+    `chooseSpot`), jinak `march` na `approachStep` (nový bod, až se posune o víc než 3 m). Testy:
+    `war/__tests__/npc-assault.test.ts` (palisáda se 6 obránci → žebříky na neobsazeném místě, bez
+    lesa s dřívím vsi oheň 12 h a bez otepí odkopání 20 h, plně obsazená roštová → podkop 120 h →
+    `plunder`, mezera po průlomu, obchůzka hradby, obrat, „držet místo“ za palisádu nejde, lučištník
+    na ochoz střílí), `npc-commander.test.ts` (silnější vojsko u palisády obejde hradbu k bráně
+    a prosekne ji; po kouscích 1 / 7 / 100).
 - **Řízení v boji** – `syncControl`: `controlled` má jen muž, kterého řídí NPC (`npcLeader`), nebo
   při živém vedení velitel tažení; kdo řízení ztratí, zapomene `chosen` a `goal`.
 - **Přítomnost** – záměr `presence` (web pošle z otevřeného tažení – Ú6.14) i každý jiný záměr

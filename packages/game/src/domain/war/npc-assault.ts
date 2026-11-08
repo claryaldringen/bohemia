@@ -10,7 +10,13 @@ import {
 } from '../village/fortification';
 import { FORTIFICATIONS } from '../village/rules-fortifications';
 import type { WallKind } from '../village/types';
-import type { BattleField, BattleFort, BattleState, Fighter } from './battle';
+import {
+  fortPassages,
+  type BattleField,
+  type BattleFort,
+  type BattleState,
+  type Fighter,
+} from './battle';
 import { nearestForestOf, outward } from './ladders';
 import type { MarchGrid, Pos } from './march-grid';
 import { dist2 } from './orders';
@@ -19,16 +25,15 @@ import { TICKS_PER_SECOND } from './ticks';
 import { occupied } from './wall-defense';
 
 // NPC velitel u hradby (fortifications.md – Obrana bez násobku, NPC velitel; Přechod hradby;
-// Prolomení; plán hradeb – Úloha 20): odhadne nejrychlejší postup přes opevnění bojiště – mezera,
-// přelézt plot, žebříky jen na neobsazeném místě (výroba v nejbližším lese a výstup), brána
-// a stěna podle `assaultSteps` se `min(4, muži)` na místo. Velitel (`npc-commander.ts`) napadne,
-// trvá-li postup nejvýš 1 herní den, a vede skupinu k místu postupu; u hradby pak každý muž volí
-// nejrychlejší postup místa sám (`ladders.ts`, boj). Jen odhad – stav ani bojiště nemění. Jen
-// det-math.
+// Prolomení; plán hradeb – Úloha 20): odhadne nejrychlejší postup přes opevnění bojiště – mezera
+// a prolomení brány či stěny jako v boji (`fortPassages`), přelézt plot, žebříky jen na
+// neobsazeném místě (výroba v nejbližším lese a výstup). Velitel (`npc-commander.ts`) napadne,
+// trvá-li postup nejvýš 1 herní den, a vede skupinu k místu postupu kolem hradby (`leadTo`); u
+// hradby pak každý muž volí nejrychlejší postup místa sám (boj). Jen odhad – stav ani bojiště
+// nemění. Jen det-math.
 
-const A = FORTIFICATIONS.assault;
 const D = FORTIFICATIONS.defense;
-/** Pata žebříku a místo prolamování stojí metr před čarou hradby (jako v boji). */
+/** Pata žebříku a místo u plotu stojí metr před čarou hradby (jako v boji). */
 const FOOT_M = 1;
 
 /** Nejrychlejší postup přes opevnění bojiště. */
@@ -113,13 +118,13 @@ function freeLadderTop(c: Ctx, bf: BattleFort, fi: number, shape: FortSegmentSha
 
 /**
  * Nejrychlejší postup přes opevnění bojiště pro `men` mužů od `from` (fortifications.md – Obrana
- * bez násobku, NPC velitel): na každém úseku mezera (0 h; i průlom boje), přelézt plot, žebříky
- * jen na neobsazeném místě (volný žebřík u hradby jen výstup, jinak výroba – 4 h jednoho muže –
- * a cesta do nejbližšího lesa a zpět a výstup), brána a stěna podle `assaultSteps` – `assaultHours`
- * se `min(4, muži)` na místo, otepi z nejbližšího lesa (bez lesa ze vsi do 100 m). Zavřená brána
- * se počítá vždy – zavře se, než k ní vojsko dojde. Vybere nejmenší součet cesty k místu a postupu
- * (při shodě první v pořadí opevnění, úseků a postupů); `hours` je jen postup. Null – bez mužů
- * nebo bez opevnění.
+ * bez násobku, NPC velitel): mezery, průlomy boje a nejrychlejší místo prolomení každého opevnění
+ * jako v boji (`fortPassages` – `wallsOf`, `chooseSpot`: brána a stěna podle `assaultSteps` se
+ * `min(4, muži)`, oheň jen s otepi z lesa či dříví vsi), k tomu přelézt plot a žebříky jen na
+ * neobsazeném místě (volný žebřík u hradby jen výstup, jinak výroba – 4 h jednoho muže –, cesta
+ * do nejbližšího lesa a zpět a výstup). Brány zavřené – zavřou se, než k nim vojsko dojde. Vybere
+ * nejmenší součet cesty k místu a postupu (při shodě první v pořadí); `hours` je jen postup. Null
+ * – bez mužů nebo bez opevnění.
  */
 export function fastestApproach(
   field: BattleField,
@@ -129,9 +134,6 @@ export function fastestApproach(
 ): Approach | null {
   if (men <= 0) return null;
   const defenders = b.fighters.filter((f) => f.side === 'defend' && f.state === 'fight');
-  const breached = new Set(
-    b.breaches.filter((x) => x.progress.breached).map((x) => `${x.fort}:${x.segment}`),
-  );
   let best: Approach | null = null;
   let bestKey = Infinity;
   const consider = (
@@ -147,6 +149,11 @@ export function fastestApproach(
     best = { fort, segment, at, method, hours };
     bestKey = key;
   };
+  for (const p of fortPassages(field, b, from, men)) {
+    // žebřík přes vodní příkop – zasypání, výrobu i výstup počítá odhad žebříků níž
+    if (p.method !== 'ladder') consider(p.fort, p.segment, p.at, p.method, p.hours);
+  }
+  // přelézt plot a žebříky – boj je volí sám u hradby (`startCrossing`), mimo místa prolomení
   const c: Ctx = { field, b, men, from, defenders, consider };
   field.forts.forEach((bf, fi) => {
     const forests = segmentForests(field.grid, bf);
@@ -154,50 +161,22 @@ export function fastestApproach(
       const seg = bf.fort.segments.find((s) => s.index === shape.index);
       if (!seg) return;
       const l = shape.line;
-      const n = outward(bf, l);
-      const out = (p: Pos): Pos => ({ x: p.x + n.x * FOOT_M, z: p.z + n.z * FOOT_M });
-      const along = (t: number): Pos => out({ x: l.x + l.dx * t, z: l.z + l.dz * t });
-      const forest = forests[k] ?? null;
-      const fuelM = (p: Pos): number => (forest ? Math.sqrt(dist2(p, forest)) : A.burn.fuelM);
-      const gate = bf.fort.gates.find((g) => g.segment === shape.index);
-      // místo prolamování stěny – jako v boji: střed úseku, u brány čtvrtina na druhé straně
-      const wallT = gate
-        ? gate.offsetM > l.length / 2
-          ? l.length / 4
-          : (3 * l.length) / 4
-        : l.length / 2;
-      if (breached.has(`${fi}:${shape.index}`)) {
-        consider(fi, shape.index, along(wallT), 'open', 0);
-        return;
-      }
-      const wallLayers = crossingLayers(
+      const layers = crossingLayers(
         bf.fort,
         wallSpotSegment(bf.fort.gates, seg, l.length),
         field.day,
         false,
       );
-      const wallSteps = assaultSteps(wallLayers);
-      for (const step of wallSteps) {
-        const kind = wallLayers.wall?.kind;
-        if (step.method === 'ladder' && kind) {
-          ladderSteps(c, bf, fi, shape, step, kind, forest);
-          continue;
-        }
-        if (step.method === 'climb') {
-          const t = Math.min(l.length, Math.max(0, (from.x - l.x) * l.dx + (from.z - l.z) * l.dz));
-          const hours = assaultHours(step, men, 0) + climbTicks('fence').up * field.hoursPerTick;
-          consider(fi, shape.index, along(t), 'climb', hours);
-          continue;
-        }
-        const at = along(wallT);
-        consider(fi, shape.index, at, step.method, assaultHours(step, men, fuelM(at)));
-      }
-      if (!gate) return;
-      const atGate = out({ x: gate.x, z: gate.z });
-      for (const step of assaultSteps(crossingLayers(bf.fort, seg, field.day, true))) {
-        // žebřík u brány je žebřík na stěně dílu (výš)
-        if (step.method === 'ladder') continue;
-        consider(fi, shape.index, atGate, step.method, assaultHours(step, men, fuelM(atGate)));
+      const kind = layers.wall?.kind;
+      if (!kind) return;
+      for (const step of assaultSteps(layers)) {
+        if (step.method === 'ladder') ladderSteps(c, bf, fi, shape, step, kind, forests[k] ?? null);
+        if (step.method !== 'climb') continue;
+        const n = outward(bf, l);
+        const t = Math.min(l.length, Math.max(0, (from.x - l.x) * l.dx + (from.z - l.z) * l.dz));
+        const at = { x: l.x + l.dx * t + n.x * FOOT_M, z: l.z + l.dz * t + n.z * FOOT_M };
+        const hours = assaultHours(step, men, 0) + climbTicks('fence').up * field.hoursPerTick;
+        consider(fi, shape.index, at, 'climb', hours);
       }
     });
   });
@@ -311,4 +290,26 @@ export function leadTo(field: BattleField, from: Pos, to: Pos): Pos {
     return p;
   }
   return { ...to };
+}
+
+/** Velitel jde k místu postupu přes bod o tolik metrů dál od hradby (ne podél ní). */
+const STAGE_M = 4;
+
+/**
+ * Další bod cesty velitele k místu postupu `way`: napřed k bodu 4 m dál od středu opevnění než
+ * místo (ať nejde těsně podél hradby a nestojí na její čáře), kolem hradby `leadTo`; od něj
+ * rovnou k místu.
+ */
+export function approachStep(field: BattleField, from: Pos, way: Approach): Pos {
+  if (dist2(from, way.at) <= (STAGE_M + 1) * (STAGE_M + 1)) return { ...way.at };
+  const c = field.forts[way.fort]?.center ?? way.at;
+  const d = Math.sqrt(dist2(way.at, c));
+  const stage =
+    d < 1e-9
+      ? { ...way.at }
+      : {
+          x: way.at.x + ((way.at.x - c.x) / d) * STAGE_M,
+          z: way.at.z + ((way.at.z - c.z) / d) * STAGE_M,
+        };
+  return leadTo(field, from, stage);
 }

@@ -421,10 +421,11 @@ interface WallLine {
   kind?: WallKind | null;
 }
 
-/** Průchod opevněním – brána, mezera, průlom; body vně a uvnitř. */
+/** Průchod opevněním – brána, mezera, průlom; body vně a uvnitř, úsek. */
 interface Opening {
   out: Pos;
   in: Pos;
+  segment: number;
 }
 
 /** Místo, kde jde opevnění prolomit: postupy místa (`assaultSteps`) a vnější normála hradby. */
@@ -533,7 +534,11 @@ function wallsOf(
       const mid = at(l.length / 2);
       const { x: nx, z: nz } = outward(bf, l);
       const shift = (p: Pos, m: number): Pos => ({ x: p.x + nx * m, z: p.z + nz * m });
-      const opening = (p: Pos): Opening => ({ out: shift(p, 3), in: shift(p, -3) });
+      const opening = (p: Pos): Opening => ({
+        out: shift(p, 3),
+        in: shift(p, -3),
+        segment: shape.index,
+      });
       const part = (from: number, to: number): void => {
         if (to - from <= 1e-6) return;
         const a = at(from);
@@ -977,7 +982,7 @@ interface SpotChoice {
  * má přednost, nabízí-li ho místo; oheň jen s otepi (les, dříví vsi).
  */
 function chooseSpot(
-  w: TickWorld,
+  w: Pick<TickWorld, 'field' | 'walls' | 'b'>,
   fort: number,
   from: Pos,
   assault: GroupAssault | undefined,
@@ -1021,6 +1026,55 @@ function chooseSpot(
     }
   }
   return best;
+}
+
+/** Průchod opevněním pro NPC velitele: mezera, nebo místo a postup prolomení s hodinami. */
+export interface FortPassage {
+  fort: number;
+  segment: number;
+  /** Kde se stojí – vně před průchodem či místem prolomení. */
+  at: Pos;
+  method: 'open' | BreachMethod;
+  /** Herní hodiny prolomení se `min(4, muži)` (rozdělaný průlom – zbývající); mezera 0. */
+  hours: number;
+}
+
+/**
+ * Průchody opevněním bojiště pro NPC velitele (`npc-assault.ts` – plán hradeb, Úloha 20): mezery
+ * a průlomy boje (`openings`) a na každém opevnění nejrychlejší místo prolomení – stejné stěny
+ * a volba jako v taktu (`wallsOf`, `chooseSpot`); brány zavřené – zavřou se, než k nim vojsko
+ * dojde. Stav ani bojiště nemění.
+ */
+export function fortPassages(
+  field: BattleField,
+  b: BattleState,
+  from: Pos,
+  men: number,
+): FortPassage[] {
+  // průlom uložený před Úlohou 14 – takt ho převede až po rozhodnutí velitele; stav se nemění
+  if (b.breaches.some((x) => !(x as Partial<BattleBreach>).need)) {
+    b = structuredClone(b);
+    upgradeBreaches(b);
+  }
+  const forts = breachedForts(field, b);
+  const closed = new Set<string>();
+  forts.forEach((bf, fi) => {
+    for (const g of bf.fort.gates) closed.add(`${fi}:${g.segment}`);
+  });
+  const walls = wallsOf(forts, closed, field.day, moatFills(b));
+  const out: FortPassage[] = [];
+  forts.forEach((_, fi) => {
+    for (const o of walls.openings[fi] ?? []) {
+      out.push({ fort: fi, segment: o.segment, at: { ...o.out }, method: 'open', hours: 0 });
+    }
+    const c = chooseSpot({ field, walls, b }, fi, from, undefined, Math.min(A.maxMen, men));
+    if (!c) return;
+    const method = c.step
+      ? (c.step.method as BreachMethod)
+      : b.breaches.find((x) => x.key === c.spot.key)!.method;
+    out.push({ fort: fi, segment: c.spot.segment, at: { ...c.spot.at }, method, hours: c.hours });
+  });
+  return out;
 }
 
 /**

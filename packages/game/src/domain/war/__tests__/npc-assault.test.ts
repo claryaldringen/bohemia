@@ -4,7 +4,7 @@ import type { BattleField, BattleState } from '../battle';
 import type { CampaignState } from '../campaign-types';
 import { outward } from '../ladders';
 import type { Pos } from '../march-grid';
-import { fastestApproach } from '../npc-assault';
+import { approachStep, fastestApproach } from '../npc-assault';
 import { npcIntents } from '../npc-commander';
 import { dist2 } from '../orders';
 import { WAR } from '../rules-war';
@@ -76,11 +76,14 @@ describe('nejrychlejší postup přes hradbu (fastestApproach)', () => {
     const n = outward(bf, bf.shapes.find((s) => s.index === way.segment)!.line);
     const top = { x: way.at.x - n.x, z: way.at.z - n.z };
     expect(occupied(bf, top, b.fighters)).toBe(false);
-    // 10 × 0,4 = 4 ≥ 1,5 × 6 × 0,4 = 3,6 → velitel vede skupinu k místu žebříků
+    // 10 × 0,4 = 4 ≥ 1,5 × 6 × 0,4 = 3,6 → velitel vede skupinu k místu žebříků – přes bod 4 m
+    // dál od hradby (ne podél ní)
     const leader = fighter(b, 'a:0').pos;
     const lead = fastestApproach(f, b, 10, leader)!;
+    const stage = approachStep(f, leader, lead);
+    expect(Math.sqrt(dist2(stage, lead.at))).toBeCloseTo(4, 6);
     expect(npcIntents(raiding(b), worldOf(), f)).toEqual([
-      { kind: 'march', to: { cell: TARGET.cell, pos: lead.at } },
+      { kind: 'march', to: { cell: TARGET.cell, pos: stage } },
     ]);
     // u místa napadne nejbližšího obránce
     fighter(b, 'a:0').pos = { ...lead.at };
@@ -88,11 +91,15 @@ describe('nejrychlejší postup přes hradbu (fastestApproach)', () => {
     expect(intent?.kind).toBe('strike');
   });
 
-  it('bez lesa a bez valu je nejrychlejší oheň – otepi ze vsi (12 h)', () => {
-    const f = field([fortOf('palisade')]);
+  it('bez lesa: s dřívím vsi oheň (12 h), bez otepí odkopat (20 h) – jako v boji', () => {
+    const bare = field([fortOf('palisade')]);
+    const f: BattleField = { ...bare, fuel: [{ x: 0, z: 0 }] };
     const way = fastestApproach(f, siege(f, 10, wallPosts(f.forts, 6)), 10, FROM)!;
     expect(way.method).toBe('burn');
     expect(way.hours).toBeCloseTo(16 / 4 + 8, 6);
+    const dig = fastestApproach(bare, siege(bare, 10, wallPosts(bare.forts, 6)), 10, FROM)!;
+    expect(dig.method).toBe('dig');
+    expect(dig.hours).toBeCloseTo(80 / 4, 6);
   });
 
   it('roštová plně obsazená bez mezery → podkop 5 dní > 1 den → vezme, co je venku', () => {
@@ -129,9 +136,29 @@ describe('nejrychlejší postup přes hradbu (fastestApproach)', () => {
       segment: k,
       spot: 'wall',
       at: { x: 0, z: -31 },
+      method: 'cut',
+      phase: 'done',
+      need: { fill: 0, fuel: 0, burn: 0, work: 96 },
       progress: { done: 96, required: 96, breached: true },
     });
     expect(fastestApproach(plain, b, 10, FROM)).toMatchObject({ method: 'open', segment: k });
+  });
+
+  it('rozdělaný průlom uložený před Úlohou 14 (bez fází) – odhad projde, stav se nemění', () => {
+    const f = field([fortOf('palisade')], forestNear);
+    const b = siege(f, 10, wallPosts(f.forts, 6));
+    const k = segmentNear(f, { x: 0, z: -30 });
+    b.breaches.push({
+      key: `0:${k}:wall`,
+      fort: 0,
+      segment: k,
+      spot: 'wall',
+      at: { x: 0, z: -31 },
+      progress: { done: 90, required: 96, breached: false },
+    } as unknown as BattleState['breaches'][number]);
+    const before = JSON.stringify(b);
+    expect(fastestApproach(f, b, 10, FROM)).not.toBeNull();
+    expect(JSON.stringify(b)).toBe(before);
   });
 
   it('slabší vojsko než 1,5 × obránci → obrat; ves bez hradby se silnějším vojskem napadne', () => {
@@ -142,6 +169,27 @@ describe('nejrychlejší postup přes hradbu (fastestApproach)', () => {
     ]);
     const [intent] = npcIntents(raiding(siege(f, 9, posts)), worldOf(), f);
     expect(intent?.kind).toBe('strike');
+  });
+
+  it('k místu za rohem velitel obejde hradbu – napřed od ní ven, pak kolem, ne přes ni', () => {
+    const f = field([fortOf('palisade')], forestNear);
+    const way = {
+      fort: 0,
+      segment: segmentNear(f, { x: 0, z: -30 }),
+      at: { x: 0, z: -31 },
+      method: 'cut' as const,
+      hours: 24,
+    };
+    // u západní hradby – napřed od ní ven (dál než nejvzdálenější roh + 5 m)
+    const out = approachStep(f, { x: -31, z: 0 }, way);
+    expect(Math.sqrt(dist2(out, f.forts[0]!.center))).toBeGreaterThan(40);
+    expect(out.x).toBeLessThan(-31);
+    // z kruhu kolem – bod, kam vidí bez hradby, blíž k místu
+    const around = approachStep(f, out, way);
+    expect(around.z).toBeLessThan(out.z);
+    expect(Math.sqrt(dist2(around, way.at))).toBeLessThan(Math.sqrt(dist2(out, way.at)));
+    // u místa rovnou k němu
+    expect(approachStep(f, { x: 1, z: -34 }, way)).toEqual(way.at);
   });
 
   it('bez mužů není postup; stejný výsledek při opakování (determinismus)', () => {

@@ -8,7 +8,7 @@ import type {
   CampaignWorld,
   IntentBody,
 } from './campaign-types';
-import { fastestApproach, leadTo } from './npc-assault';
+import { approachStep, fastestApproach } from './npc-assault';
 import { dist2, inFight, nearest } from './orders';
 import { lootCapacity } from './raid-apply';
 import { WAR } from './rules-war';
@@ -184,8 +184,8 @@ function raidIntents(s: CampaignState, field: BattleField | null): IntentBody[] 
   if (dist2(leader.pos, way.at) <= AT_APPROACH_M * AT_APPROACH_M) {
     return [{ kind: 'strike', target: target.id }];
   }
-  // k místu kolem hradby (`leadTo`); novou cestu dá, až se cíl kroku posune o víc než 3 m
-  const next = leadTo(field, leader.pos, way.at);
+  // k místu kolem hradby (`approachStep`); nový bod dá, až se posune o víc než 3 m
+  const next = approachStep(field, leader.pos, way);
   if (leader.goal && dist2(leader.goal, next) <= AT_APPROACH_M * AT_APPROACH_M) return [];
   return [{ kind: 'march', to: { cell: { ...s.target.cell }, pos: next } }];
 }
