@@ -136,7 +136,10 @@ vylepšit jen celé.
   část té zdi od brány k bráně. Hráč bude bourat, pokud zjistí, že potřebuje vést část hradby
   jinudy.“): v mezeře po zbořeném úseku hráč postaví novou část hradby mezi dvěma branami – po
   původní trase, nebo novou trasou z bodů jako při stavbě obvodu (fortifications.md – Obvod; konce
-  drží brány). Cena a stavba podle délky nového úseku a druhu (návrh Clauda).
+  drží brány). Cena a stavba podle délky nového úseku a druhu (návrh Clauda). Implementováno 8. 11. 2026 (plán hradeb, Úloha 16): jen celý zbořený úsek a jen když na opevnění nic neběží
+  (nový tvar přečísluje díly); nový úsek dostane hradbu dílu brány (ochoz a holý val – palisádu,
+  val se doplní potom); zbořený úsek nejde kliknout, proto **Postavit jinudy** nese panel brány
+  u něj (návrh Clauda).
 
 - **Chátrání humna, obilné jámy a sadu** (Martin 8. 11. 2026):
   - **Humno** zaroste trávou za 10 let – a to nejen opuštěné: stačí, když na něm po tu dobu

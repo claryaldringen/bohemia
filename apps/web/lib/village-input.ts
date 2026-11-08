@@ -11,6 +11,7 @@ import {
   type Craft,
   type Direction8,
   type FortKind,
+  type WallKind,
   type FortTop,
   type TradeGood,
   type TradeGoods,
@@ -252,6 +253,34 @@ export function parseDemolishFortificationSectionInput(
     return null;
   }
   return { fortificationId, segment: segment as number };
+}
+
+const WALL_KINDS: readonly WallKind[] = ['fence', 'palisade', 'walkway', 'crib', 'chamber'];
+
+/**
+ * Vstup stavby úseku jinudy `{ fortificationId, segment, points, target }` (demolition.md –
+ * Rozhodnutí): díl ve zbořeném úseku, body nové trasy `[x, z]` mezi branami (bez konců, i žádný)
+ * a hradba nového úseku. Tvar a umístění ověří server s důvodem pro hráče. Jinak null.
+ */
+export function parseRerouteFortificationSectionInput(value: unknown): {
+  fortificationId: number;
+  segment: number;
+  points: [number, number][];
+  target: WallKind;
+} | null {
+  const section = parseDemolishFortificationSectionInput(value);
+  if (!section || !isRecord(value) || !Array.isArray(value.points)) return null;
+  const raw: unknown[] = value.points;
+  if (raw.length > MAX_FORT_POINTS) return null;
+  const points: [number, number][] = [];
+  for (const p of raw) {
+    if (!Array.isArray(p) || p.length !== 2) return null;
+    const [x, z]: unknown[] = p;
+    if (!isFiniteNumber(x) || !isFiniteNumber(z)) return null;
+    points.push([x, z]);
+  }
+  const target = WALL_KINDS.find((k) => k === value.target);
+  return target ? { ...section, points, target } : null;
 }
 
 /** Vstup vylepšení pevné cesty `{ roadId, upgrade }` (roads.md), jinak null. */

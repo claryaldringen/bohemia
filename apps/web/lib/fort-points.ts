@@ -36,14 +36,18 @@ export function nearestPoint(
   return best;
 }
 
-/** Nejbližší bod uzavřené lomené čáry k bodu (x, z) a vzdálenost k němu (m). */
+/**
+ * Nejbližší bod uzavřené lomené čáry k bodu (x, z) a vzdálenost k němu (m); `open` – čára bez
+ * spojnice posledního bodu s prvním (trasa úseku jinudy s konci v branách).
+ */
 export function nearestOnLoop(
   loop: readonly FortEditPoint[],
   x: number,
   z: number,
+  open = false,
 ): { point: FortEditPoint; distance: number } | null {
   let best: { point: FortEditPoint; distance: number } | null = null;
-  for (let k = 0; k < loop.length; k++) {
+  for (let k = 0; k < loop.length - (open ? 1 : 0); k++) {
     const a = loop[k]!;
     const b = loop[(k + 1) % loop.length]!;
     const ex = b[0] - a[0];
@@ -60,16 +64,17 @@ export function nearestOnLoop(
 /**
  * Přidá bod `at` na obvod – mezi ty dva sousední body, mezi kterými obvod nejméně prodlouží (bod
  * na křivce tak padne mezi body, mezi nimiž křivka vede). Nejvýš `FORTIFICATIONS.outline.maxPoints`
- * bodů – víc vrátí null.
+ * bodů – víc vrátí null. `open` – trasa s konci (bod nepřibude mezi poslední a první).
  */
 export function insertPoint(
   points: readonly FortEditPoint[],
   at: FortEditPoint,
+  open = false,
 ): FortEditPoint[] | null {
   if (points.length >= FORTIFICATIONS.outline.maxPoints || points.length === 0) return null;
   let best = 0;
   let bestDetour = Infinity;
-  for (let i = 0; i < points.length; i++) {
+  for (let i = 0; i < points.length - (open ? 1 : 0); i++) {
     const a = points[i]!;
     const b = points[(i + 1) % points.length]!;
     const detour = dist(a, at) + dist(at, b) - dist(a, b);
@@ -81,12 +86,13 @@ export function insertPoint(
   return [...points.slice(0, best + 1), at, ...points.slice(best + 1)];
 }
 
-/** Ubere bod `index`; obvod by měl méně než 4 body – null (bod zůstane). */
+/** Ubere bod `index`; obvod by měl méně než `min` bodů (obvod 4) – null (bod zůstane). */
 export function removePoint(
   points: readonly FortEditPoint[],
   index: number,
+  min = FORT_MIN_POINTS,
 ): FortEditPoint[] | null {
-  if (points.length <= FORT_MIN_POINTS || index < 0 || index >= points.length) return null;
+  if (points.length <= min || index < 0 || index >= points.length) return null;
   return points.filter((_, i) => i !== index);
 }
 

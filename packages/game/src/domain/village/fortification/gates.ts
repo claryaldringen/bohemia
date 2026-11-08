@@ -61,8 +61,11 @@ function clampOffset(segment: FortSegmentShape, along: number): number {
   return len <= 2 * half ? len / 2 : Math.min(len - half, Math.max(half, along));
 }
 
-/** Brána úseku nejblíž polohy `along` (m od začátku úseku). */
-function gateAt(outline: FortOutline, segment: FortSegmentShape, along: number): FortGate {
+/**
+ * Brána úseku nejblíž polohy `along` (m od začátku úseku) – celá v úseku (`clampOffset`); i převzetí
+ * brány na nový tvar obvodu (`rerouteFortification`).
+ */
+export function gateAt(outline: FortOutline, segment: FortSegmentShape, along: number): FortGate {
   const offsetM = clampOffset(segment, along);
   const [x, z] = outlinePointAt(outline, segment.startM + offsetM);
   return { segment: segment.index, offsetM, x, z };

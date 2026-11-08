@@ -1,5 +1,5 @@
 import { type ReactElement } from 'react';
-import { CART_NAMES, RoadUpgrade, WagonRoadPlan, type FortTop } from '@bohemia/game';
+import { CART_NAMES, RoadUpgrade, WagonRoadPlan, type FortTop, type WallKind } from '@bohemia/game';
 import { useOverflowScroll } from '@/hooks/use-overflow-scroll';
 import { VillageTarget } from '@/lib/scene/village-picking';
 import { fieldPartName, orchardSquareName, type SelectionDetails } from '@/lib/selection-details';
@@ -102,6 +102,7 @@ export function SelectionPanel({
   onSetSteward,
   onFortWork,
   onFortDemolish,
+  onFortReroute,
   gateFort = null,
   onGateMode,
   ennoble,
@@ -120,6 +121,8 @@ export function SelectionPanel({
   onFortWork?: (fortificationId: number, work: 'upgrade' | 'top', top?: FortTop) => Promise<void>;
   /** Zboří úsek opevnění s dílem `segment` (server action – demolition.md, Opevnění). */
   onFortDemolish?: (fortificationId: number, segment: number) => Promise<void>;
+  /** Úsek od brány k bráně jinudy (demolition.md – Rozhodnutí) – otevře editor trasy. */
+  onFortReroute?: (fortificationId: number, segment: number, target: WallKind) => void;
   /** Opevnění, kterému se právě přidává brána kliknutím na obvod; null = nic. */
   gateFort?: number | null;
   /** Zapne / vypne přidávání brány kliknutím na obvod (null = vypnout). */
@@ -235,7 +238,9 @@ export function SelectionPanel({
     );
   } else if (details.kind === 'fortification-gate') {
     portrait = <Portrait icon="" src={FORT_GATE_ICON} name={FORT_GATE_NAMES[details.fortKind]} />;
-    body = <FortGateBody details={details} onSelectTarget={onSelectTarget} />;
+    body = (
+      <FortGateBody details={details} onSelectTarget={onSelectTarget} onReroute={onFortReroute} />
+    );
   } else if (details.kind === 'grain-pit') {
     portrait = <Portrait icon="obilna-jama" name="Obilná jáma" />;
     body = <GrainPitBody details={details} />;

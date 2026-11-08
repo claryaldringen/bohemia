@@ -155,6 +155,11 @@ export type PlacementMode =
       bandM: number;
       propose(at: readonly [number, number]): readonly (readonly [number, number])[];
       preview(points: readonly (readonly [number, number])[]): FortPointsPreview;
+      /**
+       * Trasa úseku jinudy (demolition.md – Rozhodnutí): body jsou otevřená trasa, první a poslední
+       * leží pevně v okrajích bran – nejdou táhnout ani ubrat, bod přibude jen mezi ně.
+       */
+      fixedEnds?: true;
     }
   | {
       /** Modla nebo svatyně (happiness.md) – čtvercový půdorys u kurzoru jako obydlí. */

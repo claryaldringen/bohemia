@@ -5,6 +5,7 @@ import { Color3 } from '@babylonjs/core/Maths/math.color';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
 import {
+  FORT_MIN_POINTS,
   insertPoint,
   movePoint,
   nearestOnLoop,
@@ -71,7 +72,9 @@ interface Press {
  * + klik bod ubere (nejméně 4). Enter (nebo ikona kladiva v rozhraní) obvod položí, Esc vrátí
  * rozběhnutý tah nebo návrh zahodí, Backspace / Ctrl+Z vrátí poslední úpravu, pravé kliknutí
  * zruší jako u ostatních staveb. Obrys pásu je zelený (projde) / červený (neprojde) a místo
- * problému z kontroly jádra svítí červeně; cena a útočiště jdou do bubliny u kurzoru.
+ * problému z kontroly jádra svítí červeně; cena a útočiště jdou do bubliny u kurzoru. S pevnými
+ * konci (`mode.fixedEnds` – úsek jinudy, demolition.md – Rozhodnutí) jsou body otevřená trasa
+ * od brány k bráně: konce nejdou chytit ani ubrat, bod přibude jen na trase.
  */
 export class FortPointsEditor implements ActivePlacement {
   private points: FortEditPoint[] | null = null;
@@ -254,16 +257,17 @@ export class FortPointsEditor implements ActivePlacement {
     if (!points) return;
     if (press.index !== null) {
       // Ctrl + klik na bod ho ubere (nejméně 4); klik bez Ctrl bod jen chytí
-      const fewer = press.remove ? removePoint(points, press.index) : null;
+      const fewer = press.remove ? removePoint(points, press.index, this.minPoints()) : null;
       if (fewer) this.edit(fewer);
       return;
     }
     if (press.remove) return;
     // klik na obvod (do šířky pásu, nejméně 2 m od vnějšího okraje) přidá bod na křivku
+    const open = this.mode.fixedEnds === true;
     const edge = this.preview?.outline?.[0];
-    const near = edge ? nearestOnLoop(edge, press.at[0], press.at[1]) : null;
+    const near = edge ? nearestOnLoop(edge, press.at[0], press.at[1], open) : null;
     if (!near || near.distance > Math.max(EDGE_PICK_M, this.mode.bandM)) return;
-    const more = insertPoint(points, near.point);
+    const more = insertPoint(points, near.point, open);
     if (more) this.edit(more);
   };
 
@@ -330,6 +334,11 @@ export class FortPointsEditor implements ActivePlacement {
     this.updateCursorStyle();
   }
 
+  /** Nejméně bodů – obvod 4, trasa úseku jinudy jen pevné konce. */
+  private minPoints(): number {
+    return this.mode.fixedEnds ? 2 : FORT_MIN_POINTS;
+  }
+
   private edit(points: FortEditPoint[]): void {
     if (this.points) this.history.push(this.points);
     this.points = points;
@@ -373,6 +382,8 @@ export class FortPointsEditor implements ActivePlacement {
     const index = nearestPoint(points, point[0], point[1], radius);
     if (index === null) return null;
     const n = points.length;
+    // konce trasy úseku jinudy leží pevně v branách
+    if (this.mode.fixedEnds && (index === 0 || index === n - 1)) return null;
     const p = points[index]!;
     const gap = Math.min(
       ...[points[(index + n - 1) % n]!, points[(index + 1) % n]!].map((q) =>
@@ -424,7 +435,7 @@ export class FortPointsEditor implements ActivePlacement {
     const active = this.press?.index ?? this.hover;
     const rings = points.map(([x, z], i) => ring(x, z, i === active ? HANDLE_M * 1.4 : HANDLE_M));
     this.meshes.push(this.lineMesh('fort-edit-points', rings, 'handle', 0.3, true, true));
-    if (active !== null && this.removeHeld && points.length > 4) {
+    if (active !== null && this.removeHeld && points.length > this.minPoints()) {
       const [x, z] = points[active]!;
       this.meshes.push(
         this.lineMesh('fort-edit-remove', [ring(x, z, HANDLE_M * 1.4)], 'bad', 0.4, false, true),

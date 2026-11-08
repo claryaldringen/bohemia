@@ -566,6 +566,54 @@ part?, lengthM }[]` – kusy dílů téhož úseku: celé díly mezi branami a z
   `fortSitePhase(vrstva, 1 − průběh)` pro plot a palisádu u země i nástavbu (`demolish`), hlína
   valu `1 − průběh` (`level`). Nástavba dílu přes `segmentTop` (`top: 'none'` – val bez ní).
 
+## Úsek jinudy (`fortification/reroute.ts`, `fortification-reroute.ts`; Úloha 16 plánu hradeb)
+
+demolition.md – Rozhodnutí (Martin 8. 11. 2026: „Můžu postavit jen část té zdi od brány k bráně.
+Hráč bude bourat, pokud zjistí, že potřebuje vést část hradby jinudy.“).
+
+- **Tvar** – `rerouteFortification(fort, geo, section, points, day)` (čistá doména): jen úsek, ve
+  kterém nic nestojí – každý kus `sectionPieces` je nedostavěný nebo zbořený (jinak
+  `FORT_SECTION_STANDS` „Úsek ještě stojí – napřed ho zbořte.“); obvod bez brány
+  `FORT_REROUTE_GATELESS`. Body obvodu uvnitř úseku (poloha bodu na staré křivce –
+  `nearestOnPath`) zmizí; přibudou okraj brány na začátku a na konci úseku a u obou bran i střed
+  a druhý okraj (brána tak na nové křivce zůstane – Catmull-Rom vede body), mezi okraji body hráče.
+  Nový obvod: křížení `FORT_REROUTE_CROSSING`, obejití opevnění (po směru hodin od okraje brány
+  napřed střed brány místo nové trasy – `normalizeFortPoints` by obvod obrátil)
+  `FORT_REROUTE_AROUND`, plocha pod 900 m² `FORT_REROUTE_SMALL`.
+- **Díly** se rozdělí znovu (délka se změní, díl 0 začíná na nejsevernějším bodě): brána se
+  převezme podle polohy (`gateAt` – díl s jejím středem, celá v dílu; nanejvýš o půl brány),
+  dvě brány v jednom dílu `FORT_REROUTE_GATES`. Díl s branou převezme stav dílu, ve kterém brána
+  ležela (i kusy před bránou a za ní); díly mezi branami nového úseku jsou mezera
+  (`builtDay: null`, `state: 0`, `demolishedDay: day`) a kusy dílů bran do úseku taky
+  (`demolishedAfterGate` / `demolishedBeforeGate`, pahýl pod 5 cm ne); ostatní díly převezmou stav
+  dílu staré křivky mimo úsek, na kterém leží jejich střed (bez kusů u brány – díl nemá bránu).
+  Převod podle středu je přibližný: krajní díly sousedních úseků se mohou posunout o kus dílu.
+- **Stavba** – `startSectionReroute(state, day, landscape, obstacles, { fortificationId, segment,
+points, target: WallKind }, walk?)`: jen když na opevnění nic neběží (`FORT_BUSY` – nový tvar
+  přečísluje díly, rozdělaná stavba by držela staré indexy; návrh Clauda), pak tvar a nad klonem
+  s novým tvarem `startSectionUpgrade` na úsek od nové brány – mezery dostanou cílovou hradbu za
+  cenu nové (ohyb cílového druhu a pás jen na dílech úseku, rok, ochoz jen vylepšením palisády,
+  klády a kámen předem, stavba `upgrade` s `fortTarget`). Zrušená stavba nechá novou trasu jako
+  mezeru (zbořený úsek – jde znovu jinudy i Vylepšit). Val s příkopem se k nové trase doplní
+  potom (doplnění valu).
+- `rerouteProposal(fort, geo, section)` – návrh pro editor: okraj brány, body obvodu v úseku
+  (bez nich střed úseku) a okraj druhé brány; `rerouteTarget(fort, gateSegment)` – hradba nového
+  úseku = hradba dílu brány (ochoz a holý val → palisáda; návrh Clauda).
+- **Akce** – use-case `rerouteFortificationSection` (`application/reroute-fortification-section.ts`,
+  právo `build`), server action `rerouteFortificationSection` (vstup `{ fortificationId, segment,
+points: [x, z][], target }` – body mezi konci, `parseRerouteFortificationSectionInput`).
+- **Rozhraní** (návrh Clauda): zbořený úsek je mezera a klik ho nevybere, proto **Postavit
+  jinudy** (`data-testid="fort-reroute"`, ikona hradby) nese panel brány u zbořeného úseku
+  (`FortGateBody` – `reroutes` v detailu brány: úsek za branou a před ní, jen celý zbořený –
+  zboření hlásí `FORT_SECTION_GONE`; během stavby na opevnění zašedlé). Klik otevře editor bodů
+  s pevnými konci (`fixedEnds` v režimu `fort-points`, `FortPointsEditor`): body jsou otevřená
+  trasa, konce v okrajích bran nejdou chytit ani ubrat, klik na čáru nového úseku přidá bod jen
+  mezi konce (`insertPoint(…, open)`); náhled `fortReroutePreview` (`lib/fort-reroute.ts`) – čára
+  nového úseku, důvod u kurzoru, cena hradby podle délky úseku. Kladivo / Enter pošle body mezi
+  konci. Testy `fortification/__tests__/reroute.test.ts`,
+  `application/__tests__/reroute-fortification-section.test.ts`,
+  `hud/__tests__/FortReroute.behavior.test.tsx`, e2e `fortification.spec.ts` (úsek jinudy).
+
 ## Stáří, přestavba a údržba valu (Ú5.4)
 
 - **`fortification/life.ts`** (čistá matematika, bez stavu vsi): `segmentState(fort, seg, day)` –

@@ -8,8 +8,11 @@ import {
   suggestVillageName,
   type Direction8,
   type FortTop,
+  type WallKind,
   type Craft,
   FORTIFICATIONS,
+  rerouteProposal,
+  sectionOf,
   type DwellingPlot,
   type BuildableDwellingType,
   type DwellingType,
@@ -48,6 +51,7 @@ import {
   placeFortification,
   upgradeFortification,
   demolishFortificationSection,
+  rerouteFortificationSection,
   addFortificationGate,
   placeSacred,
   placeThreshingFloor,
@@ -121,6 +125,7 @@ import {
   penVariantSpecies,
   type WebBuildKind,
 } from '@/lib/build-items';
+import { fortReroutePreview } from '@/lib/fort-reroute';
 import { setE2EHook } from '@/lib/e2e-hooks';
 import { keepSceneData, knownSceneData, lostSceneData } from '@/lib/scene-routes';
 import { cartRoutesRequest, withCartRouteResult, withCartRoutes } from '@/lib/cart-routes';
@@ -943,6 +948,56 @@ export function VillageGame({
     return placementVillageFromScene(scene);
   }, []);
 
+  /**
+   * Úsek od brány k bráně jinudy (demolition.md – Rozhodnutí): editor trasy s konci pevně
+   * v okrajích bran – návrh je původní trasa úseku, hráč body táhne a přidává, Enter (kladivo)
+   * pošle body mezi konci serveru.
+   */
+  const startReroute = (fortificationId: number, segment: number, target: WallKind): void => {
+    const fort = sceneVillageRef.current?.forts?.find((f) => f.id === fortificationId);
+    const section = fort ? sectionOf(fort, segment) : null;
+    const proposal = fort && section ? rerouteProposal(fort, decoded, section) : null;
+    const item = buildItem('fortification');
+    if (!scene || !fort || !proposal || item.placement !== 'fort-points') return;
+    const variant =
+      item.variants.find((v) => fortVariantKind(v.id) === target) ?? item.variants[0]!;
+    setBuildGroup(null);
+    setSelected(null);
+    setPlacingItem('fortification');
+    placement.start(
+      {
+        kind: 'fort-points',
+        variant,
+        bandM: FORTIFICATIONS.bandM[target],
+        fixedEnds: true,
+        propose: () => proposal,
+        preview: (points) =>
+          fortReroutePreview(decoded, placementVillage(), points, {
+            fort,
+            segment,
+            target,
+            day: viewRef.current?.dayIndex ?? 0,
+            woodSupply: viewRef.current?.woodSupply ?? 0,
+            ...(viewRef.current?.stoneSupply ? { stoneSupply: viewRef.current.stoneSupply } : {}),
+          }),
+      },
+      (result) => {
+        const villageId = viewRef.current?.id;
+        if (result.kind === 'fort-points' && villageId) {
+          void runBuildAction(() =>
+            rerouteFortificationSection({
+              villageId,
+              fortificationId,
+              segment,
+              points: result.points.slice(1, -1),
+              target,
+            }),
+          );
+        }
+      },
+    );
+  };
+
   const setPendingList = (list: PendingSite[]): void => {
     pendingRef.current = list;
     setPending(list);
@@ -1666,6 +1721,7 @@ export function VillageGame({
                     )
                   : Promise.resolve();
               }}
+              onFortReroute={startReroute}
               onFortDemolish={(fortificationId, segment) => {
                 const villageId = viewRef.current?.id;
                 return villageId

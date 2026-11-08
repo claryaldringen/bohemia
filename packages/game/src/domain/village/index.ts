@@ -59,6 +59,7 @@ export * from './fortification-upgrade';
 export * from './fortification-rampart';
 export * from './fortification-gate';
 export * from './fortification-proposal';
+export * from './fortification-reroute';
 export * from './relocation';
 export * from './departure';
 export * from './digest';

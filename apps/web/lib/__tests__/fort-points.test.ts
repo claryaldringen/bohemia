@@ -65,4 +65,25 @@ describe('body obvodu opevnění', () => {
     expect(near?.point).toEqual([10, 0]);
     expect(near?.distance).toBeCloseTo(3, 9);
   });
+
+  it('trasa úseku jinudy (konce v branách): bod nepřibude mezi konce, ubrat jde až po konce', () => {
+    const route: FortEditPoint[] = [
+      [0, 0],
+      [10, 5],
+      [20, 0],
+    ];
+    // nejblíž spojnici konců (jako u obvodu) – na otevřené trase mezi sousední body
+    expect(insertPoint(route, [10, -1], true)).toEqual([
+      [0, 0],
+      [10, -1],
+      [10, 5],
+      [20, 0],
+    ]);
+    expect(nearestOnLoop(route, 10, -1, true)?.distance).toBeGreaterThan(5);
+    expect(removePoint(route, 1, 2)).toEqual([
+      [0, 0],
+      [20, 0],
+    ]);
+    expect(removePoint([route[0]!, route[2]!], 0, 2)).toBeNull();
+  });
 });

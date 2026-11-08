@@ -41,6 +41,7 @@ import {
   upgradeFortification,
   addFortificationGate,
   demolishFortificationSection,
+  rerouteFortificationSection,
   placeSacredBuilding,
   placeThreshingFloor,
   placeQuarry,
@@ -75,6 +76,7 @@ import {
   type PenSpecies,
   type FortKind,
   type FortTop,
+  type WallKind,
 } from '@bohemia/game';
 import { getDatabase, getPlayerLock } from './db';
 import { exclusivePlayer } from './exclusive';
@@ -923,6 +925,31 @@ export function demolishFortificationSectionForPlayer(
         today: ctx.day,
         fortificationId: input.fortificationId,
         segment: input.segment,
+      },
+    ),
+  );
+}
+
+/**
+ * Úsek od brány k bráně jinudy (demolition.md – Rozhodnutí): zbořený úsek s dílem `segment` po nové
+ * trase z bodů – tvar, umístění a cenu spočítá server znovu (`startSectionReroute`).
+ */
+export function rerouteFortificationSectionForPlayer(
+  playerId: string,
+  villageId: string,
+  input: { fortificationId: number; segment: number; points: [number, number][]; target: WallKind },
+): Promise<VillageActionResult> {
+  return actOn(playerId, villageId, 'rerouteFortificationSection', (ctx) =>
+    rerouteFortificationSection(
+      { villages: villages() },
+      {
+        villageId: ctx.villageId,
+        landscape: ctx.landscape,
+        today: ctx.day,
+        fortificationId: input.fortificationId,
+        segment: input.segment,
+        points: input.points,
+        target: input.target,
       },
     ),
   );

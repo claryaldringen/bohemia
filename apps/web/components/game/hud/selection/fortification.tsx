@@ -3,9 +3,9 @@
  * a vylepšeními, úsek mezi branami (klik) se zbořením a brána (klik jako na křižovatku).
  */
 import { useState, type ReactElement } from 'react';
-import type { FortKind, FortTop } from '@bohemia/game';
+import type { FortKind, FortTop, WallKind } from '@bohemia/game';
 import type { SelectionDetails } from '@/lib/selection-details';
-import type { FortDemolishOption, FortWorkOption } from '@/lib/fort-view';
+import { FORT_BUSY_TEXT, type FortDemolishOption, type FortWorkOption } from '@/lib/fort-view';
 import type { VillageTarget } from '@/lib/scene/village-picking';
 import { formatInteger, formatPercent } from '@/lib/village-format';
 import { ROAD_KIND_NAMES } from '@/lib/village-view';
@@ -414,12 +414,20 @@ export function FortSectionBody({
 export function FortGateBody({
   details,
   onSelectTarget,
+  onReroute,
 }: {
   details: Extract<SelectionDetails, { kind: 'fortification-gate' }>;
   onSelectTarget?: ((target: VillageTarget) => void) | undefined;
+  /**
+   * Postaví zbořený úsek s dílem `segment` jinudy (demolition.md – Rozhodnutí) – otevře editor
+   * trasy s konci v branách.
+   */
+  onReroute?: (fortificationId: number, segment: number, target: WallKind) => void;
 }): ReactElement {
   const { gate, road } = details;
-  return (
+  const denied = useRightDenied('build');
+  const reroutes = details.reroutes ?? [];
+  const body = (
     <div className="flex min-w-0 flex-col justify-center gap-1.5">
       <div className={ROW}>
         <Stat
@@ -446,6 +454,36 @@ export function FortGateBody({
           />
         )}
       </div>
+    </div>
+  );
+  if (reroutes.length === 0) return body;
+  return (
+    <div className="hud-split">
+      {body}
+      <Commands row>
+        {reroutes.map((r) => (
+          <CommandButton
+            key={r.segment}
+            testId="fort-reroute"
+            name={`Postavit úsek jinudy – ${FORT_NAMES[r.target].toLowerCase()}, body od brány k bráně`}
+            icon={`/icons/resources/${FORT_ICONS[r.target]}.png`}
+            tooltip={
+              <span className="flex flex-col gap-0.5">
+                <span>{`Postavit úsek jinudy – ${FORT_NAMES[r.target].toLowerCase()}`}</span>
+                {details.busy && (
+                  <span data-testid="fort-blocked" className="font-semibold text-red-400">
+                    {FORT_BUSY_TEXT}
+                  </span>
+                )}
+              </span>
+            }
+            disabled={details.busy === true || !onReroute}
+            busy={false}
+            denied={denied}
+            onClick={() => onReroute?.(details.id, r.segment, r.target)}
+          />
+        ))}
+      </Commands>
     </div>
   );
 }
