@@ -35,6 +35,8 @@ export const NEWCOMER_REASONS = {
   notPlaced: 'Nejdřív musíš být na mapě světa.',
   /** Cíl (jednání, válka, zásilka) je odříznutý rod – nikdo ho nevidí. */
   isolatedTarget: 'Ten rod není na mapě světa.',
+  /** Odříznutý nováček zakládá ves až po volbě cesty (newcomers.md – Tři cesty do světa). */
+  choosePath: 'Nejdřív si vyber pána, nebo začni svobodný.',
 } as const;
 
 /**
@@ -100,6 +102,31 @@ export function newcomerDeadline(house: Pick<House, 'newcomerSince'>): Date | nu
     : new Date(house.newcomerSince.getTime() + NEWCOMERS.waitDays * DAY_MS);
 }
 
+/**
+ * Kdy rozhodne los: týden od první žádosti; odříznutý rod, který cestu ještě nezvolil, týden od
+ * založení rodu (pojistka – začne svobodný; návrh Clauda, newcomers.md).
+ */
+function newcomerLotAt(house: Pick<House, 'newcomerSince' | 'createdAt'>): Date {
+  return (
+    newcomerDeadline(house) ?? new Date(house.createdAt.getTime() + NEWCOMERS.waitDays * DAY_MS)
+  );
+}
+
+/**
+ * Smí hráč založit ves? Odříznutý nováček nejdřív zvolí cestu – pošle žádost o pána
+ * (`newcomerSince`), nebo začne svobodný (pak už je na mapě světa). newcomers.md: „Volba 2 nebo 3
+ * padne při vstupu do hry, před stavbou vesnice“. Vrací důvod odmítnutí, nebo null.
+ */
+export async function newcomerFoundingReason(
+  houses: Pick<HouseRepository, 'activeOf'>,
+  playerId: string,
+): Promise<string | null> {
+  const house = await houses.activeOf(playerId);
+  return house && house.placedAt === null && house.newcomerSince === null
+    ? NEWCOMER_REASONS.choosePath
+    : null;
+}
+
 /** Žádosti nováčka: čekající a odmítnuté (stažené a zaniklé se nepočítají), bez jmen pánů. */
 async function requestsOf(
   deps: NewcomerDeps,
@@ -128,7 +155,7 @@ async function offerIds(deps: NewcomerDeps, house: House, asked: Set<string>): P
 
 /** Odříznutý živý rod hráče, nebo důvod, proč nováček nic volit nemůže. */
 async function isolatedHouse(
-  deps: NewcomerDeps,
+  deps: Pick<NegotiateDeps, 'houses'>,
   playerId: string,
 ): Promise<{ ok: true; house: House } | { ok: false; reason: string }> {
   const house = await deps.houses.activeOf(playerId);
@@ -213,7 +240,7 @@ export async function requestLords(
 
 /** Nováček začne svobodný: stáhne žádosti a umístí se k rodům svého jazyka. */
 export async function startFree(
-  deps: NewcomerDeps,
+  deps: Pick<NegotiateDeps, 'houses' | 'villages' | 'negotiations'>,
   input: { playerId: string; now: Date; today: number },
 ): Promise<NewcomerResult> {
   const found = await isolatedHouse(deps, input.playerId);
@@ -355,15 +382,15 @@ export async function closeNewcomerRequests(
 /**
  * Úloha světa (worker): nováček, kterému uplynul týden od první žádosti, dostane losem (seed účtu)
  * pána mezi vybranými živými rody, které žádost neodmítly; nezbude-li žádný, začne svobodný.
- * Souběh s přijetím pánem rozhodne podmíněné umístění – vyhraje jeden.
+ * Odříznutý rod, který týden od založení cestu nezvolil, začne svobodný (pojistka). Souběh
+ * s přijetím pánem rozhodne podmíněné umístění – vyhraje jeden.
  */
 export async function expireNewcomerWaits(
   deps: NewcomerDeps,
   input: { now: Date; today: number },
 ): Promise<void> {
   for (const house of await deps.houses.waitingNewcomers()) {
-    const deadline = newcomerDeadline(house);
-    if (!deadline || input.now.getTime() < deadline.getTime()) continue;
+    if (input.now.getTime() < newcomerLotAt(house).getTime()) continue;
     const open = (await deps.negotiations.newcomerRequestsOf(house.id)).filter(
       (r) => r.status === 'open',
     );

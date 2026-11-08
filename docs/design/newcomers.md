@@ -38,7 +38,10 @@ vazalem se může stát. Případně začíná zcela svobodný.**“
   (odříznutá krajina, volba pána nebo svobodný); jméno vojvody se dál předvyplní.
 
 Volba 2 nebo 3 padne při vstupu do hry, před stavbou vesnice (návrh Clauda – v úvodní obrazovce
-vedle jména rodu).
+vedle jména rodu). Hlídá to i server (návrh Clauda): odříznutý hráč založí ves až po odeslané
+žádosti o pána nebo po volbě Svobodný. Pojistka (návrh Clauda): odříznutý rod, který týden
+(`NEWCOMERS.waitDays`) od založení rodu žádnou žádost neposlal, začne svobodný – nikdo nezůstane
+odříznutý navždy.
 
 ## Nabídka pánů
 
@@ -135,7 +138,7 @@ Návrh Clauda:
   „Svobodný“ (popisky v `Tooltip`). „Vybrat pána“ otevře nabídku: řádky rodů (praporec, jméno,
   ikona jazyka), zaškrtnutí nejvýš 5, tlačítko žádosti.
 - **Čekání:** v panelu Rod a vazalové žádosti s odpočtem do konce týdne, „Stáhnout žádosti“
-  a „Začít svobodný“; minimapa světa je prázdná s nápisem v popisku „Odříznutá krajina“.
+  a „Začít svobodný“ (stažení i jediné žádosti = svobodný – stáhnou se všechny, návrh Clauda); minimapa světa je prázdná s nápisem v popisku „Odříznutá krajina“.
 - **Pán:** žádost v panelu Rod a vazalové jako dnešní žádost o vazalství, jen „Přijmout“
   a „Odmítnout“; upozornění „Nováček žádá o přijetí za vazala“.
 

@@ -55,10 +55,7 @@ export class InMemoryHouses implements HouseRepository {
   }
 
   async waitingNewcomers(): Promise<House[]> {
-    return this.houses.filter(
-      (h) =>
-        h.kind === 'player' && this.alive(h) && h.placedAt === null && h.newcomerSince !== null,
-    );
+    return this.houses.filter((h) => h.kind === 'player' && this.alive(h) && h.placedAt === null);
   }
 
   async playerHousesSince(since: Date): Promise<House[]> {

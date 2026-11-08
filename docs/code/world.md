@@ -55,9 +55,13 @@ hráč)`) a rod s `house.placed_at` null. Pozvaný je na mapě hned (`placed_at`
   `newcomer-lot`. `acceptNegotiation` ho volá **před** změnou stavu jednání; ostatní žádosti zavře
   `closeNewcomerRequests` až po transakci (jiné řádky jednání se v ní nezamykají – bez uváznutí;
   zaniklé `ended` → pozdější přijetí „Nováček už má pána.“, pánům `newcomer-taken`).
-- **Svobodný:** `startFree` stáhne žádosti (`withdrawn`) a umístí bez pána. **Týden:**
-  `expireNewcomerWaits` v `runWorldTasks` (worker) – po `NEWCOMERS.waitDays` los
-  `deriveSeed(accountSeed, 'lot')` mezi živými neodmítnutými (seřazenými podle id), jinak svobodný.
+- **Svobodný:** `startFree` stáhne žádosti (`withdrawn`) a umístí bez pána; `withdrawNegotiation`
+  na otevřenou žádost odříznutého (`withdrawNewcomerRequest`) = `startFree`. **Volba cesty před
+  vsí:** `newcomerFoundingReason` (`choosePath`) – `foundVillageForPlayer` odmítne založit ves
+  odříznutému bez `newcomerSince`. **Týden:** `expireNewcomerWaits` v `runWorldTasks` (worker) –
+  `waitingNewcomers` = všechny odříznuté rody; po `NEWCOMERS.waitDays` od první žádosti los
+  `deriveSeed(accountSeed, 'lot')` mezi živými neodmítnutými (seřazenými podle id), jinak svobodný;
+  rod bez žádosti týden od založení (`newcomerLotAt`) začne svobodný.
 - **Panel rodu odříznutého:** adresář ho nezná, proto `WorldDirectory.isolatedEntriesOf` (sídlo
   v místní mřížce) – vlastní rod v panelu a nováček v žádosti u pána. `HousePanelData.isolated`,
   `inviteReason` (`INVITE_NEEDS_PLACEMENT`), `PanelNegotiation.newcomer`; `NewcomerRequest.lordName`.

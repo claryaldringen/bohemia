@@ -6,11 +6,13 @@ import {
   counterNegotiation,
   openNegotiation,
   rejectNegotiation,
+  withdrawNegotiation,
   type NegotiateDeps,
 } from '../negotiate';
 import {
   expireNewcomerWaits,
   NEWCOMER_REASONS,
+  newcomerFoundingReason,
   newcomerStatus,
   requestLords,
   startFree,
@@ -334,7 +336,65 @@ describe('umístění nováčka', () => {
   });
 });
 
+describe('volba cesty a stažení žádosti', () => {
+  it('odříznutý založí ves až po volbě cesty – žádost nebo svobodný (newcomers.md)', async () => {
+    const s = await setup();
+    expect(await newcomerFoundingReason(s.houses, 'player-n')).toBe(NEWCOMER_REASONS.choosePath);
+    expect(await newcomerFoundingReason(s.houses, 'player-a')).toBeNull();
+    await requestLords(s.deps, { playerId: 'player-n', houseIds: [s.ids.a!], now: NOW, today: 1 });
+    expect(await newcomerFoundingReason(s.houses, 'player-n')).toBeNull();
+    const t = await setup();
+    await startFree(t.deps, { playerId: 'player-n', now: NOW, today: TODAY });
+    expect(await newcomerFoundingReason(t.houses, 'player-n')).toBeNull();
+  });
+
+  it('stažení žádosti nováčka = svobodný: stáhne všechny a umístí ho bez pána', async () => {
+    const s = await setup();
+    await requestLords(s.deps, {
+      playerId: 'player-n',
+      houseIds: [s.ids.a!, s.ids.b!],
+      now: NOW,
+      today: TODAY,
+    });
+    const done = await withdrawNegotiation(s.deps, {
+      playerId: 'player-n',
+      negotiationId: requestTo(s, 'a'),
+      now: NOW,
+      today: TODAY,
+    });
+    expect(done.ok).toBe(true);
+    const requests = s.negotiations.records.filter((r) => r.newcomer);
+    expect(requests.map((r) => r.status)).toEqual(['withdrawn', 'withdrawn']);
+    expect((await s.houses.byId(s.ids.n!))?.placedAt).toEqual(NOW);
+    expect(s.vassalages.vassalages).toHaveLength(0);
+    // nový výběr po stažení už nejde – nováček je na mapě světa
+    expect(
+      await requestLords(s.deps, {
+        playerId: 'player-n',
+        houseIds: [s.ids.c!],
+        now: NOW,
+        today: TODAY,
+      }),
+    ).toEqual({ ok: false, reason: NEWCOMER_REASONS.placed });
+  });
+});
+
 describe('expireNewcomerWaits', () => {
+  it('odříznutý bez žádosti po týdnu od založení rodu začne svobodný, dřív nic', async () => {
+    const s = await setup();
+    await expireNewcomerWaits(s.deps, {
+      now: new Date(NOW.getTime() + (NEWCOMERS.waitDays - 1) * DAY_MS),
+      today: TODAY,
+    });
+    expect((await s.houses.byId(s.ids.n!))?.placedAt).toBeNull();
+    const late = new Date(NOW.getTime() + NEWCOMERS.waitDays * DAY_MS);
+    await expireNewcomerWaits(s.deps, { now: late, today: TODAY });
+    expect((await s.houses.byId(s.ids.n!))?.placedAt).toEqual(late);
+    expect(s.vassalages.vassalages).toHaveLength(0);
+    const seat = await s.settlements.findSeat('player-n');
+    expect(seat?.worldCell).not.toBeNull();
+  });
+
   it('po týdnu los mezi neodmítnutými (deterministicky); před koncem týdne nic', async () => {
     const s = await setup();
     await requestLords(s.deps, {

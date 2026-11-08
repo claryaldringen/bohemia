@@ -100,6 +100,9 @@ export interface HouseRepository {
    * umístěný); vrací platný začátek týdne (zapsaný, nebo dřívější), null – rod je umístěný.
    */
   markNewcomerSince(houseId: string, at: Date): Promise<Date | null>;
-  /** Živé odříznuté rody hráčů, které už požádaly o pána (`newcomerSince` není null). */
+  /**
+   * Živé odříznuté rody hráčů – čekající na pána (`newcomerSince`) i ty, které cestu ještě nezvolily
+   * (pojistka losu po týdnu od založení – newcomers.md).
+   */
   waitingNewcomers(): Promise<House[]>;
 }

@@ -58,6 +58,7 @@ import {
   closeNewcomerRequests,
   newcomerDeadline,
   placeNewcomer,
+  startFree,
 } from './newcomers';
 
 // Use-casy jednání mezi hráči (vassalage.md – Vznik a jednání, Meze). Strany jsou rody; hráč jedná
@@ -1033,11 +1034,34 @@ export async function rejectNegotiation(
   return result;
 }
 
+/**
+ * Stažení žádosti odříznutého nováčka = Svobodný (newcomers.md – „Stáhnout žádosti = svobodný“):
+ * stáhne všechny žádosti a umístí ho bez pána (`startFree`), jinak by obešel „nový výběr jen po
+ * odmítnutí všemi“. Vrací null, když nejde o otevřenou žádost odříznutého hráče.
+ */
+async function withdrawNewcomerRequest(
+  deps: NegotiateDeps,
+  input: { playerId: string; negotiationId: string; now: Date; today: number },
+): Promise<NegotiateResult | null> {
+  const own = await deps.houses.activeOf(input.playerId);
+  if (!own || own.placedAt !== null) return null;
+  const record = (await deps.negotiations.newcomerRequestsOf(own.id)).find(
+    (r) => r.id === input.negotiationId && r.status === 'open' && r.initiatorHouseId === own.id,
+  );
+  if (!record) return null;
+  const freed = await startFree(deps, input);
+  return freed.ok
+    ? { ok: true, negotiation: { ...record, status: 'withdrawn', resolvedAt: input.now } }
+    : freed;
+}
+
 /** Stažení posledního kola – smí jen jeho autor, dokud druhý neodpověděl. */
 export async function withdrawNegotiation(
   deps: NegotiateDeps,
   input: { playerId: string; negotiationId: string; now: Date; today: number },
 ): Promise<NegotiateResult> {
+  const freed = await withdrawNewcomerRequest(deps, input);
+  if (freed) return freed;
   let actors: Actors | null = null;
   const result = await deps.negotiations.transaction(async (tx): Promise<NegotiateResult> => {
     const loaded = await loadForResponse(deps, tx, input.playerId, input.negotiationId);
