@@ -10,11 +10,7 @@ import { FieldDamage, ManorHunt } from '../selection/wildlife';
 
 const render = (details: SelectionDetails): string =>
   renderToStaticMarkup(
-    <SelectionPanel
-      details={details}
-      onRelocate={() => undefined}
-      onCancelConstruction={() => Promise.resolve()}
-    />,
+    <SelectionPanel details={details} onCancelConstruction={() => Promise.resolve()} />,
   );
 
 const text = (html: string, testId: string): string | undefined =>

@@ -311,8 +311,6 @@ describe('selectionDetails', () => {
       overcrowded: false,
       rebuild: null,
       workshop: null,
-      relocation: null,
-      relocate: view.relocation,
       manor: null,
       lordWifeHome: null,
       // odejít smí: 4 lidé, unesou 3 od 7 let (75 kg), díl zásob 4/6 by byl víc
@@ -332,30 +330,26 @@ describe('selectionDetails', () => {
     });
   });
 
-  it('obydlí, jehož domácnost se stěhuje: průběh stavby nového domu, přestěhovat znovu nejde', () => {
-    expect(selectionDetails(view, scene, { kind: 'dwelling', id: 2 })).toMatchObject({
-      kind: 'dwelling',
-      relocation: { constructionId: 9, progress: 0.4 },
-      relocate: null,
-    });
+  it('obydlí, jehož domácnost se stěhuje: panel bez stěhování a bez Odejít (demolition.md)', () => {
+    const details = selectionDetails(view, scene, { kind: 'dwelling', id: 2 });
+    expect(details).toMatchObject({ kind: 'dwelling', leave: null });
+    expect(details).not.toHaveProperty('relocation');
+    expect(details).not.toHaveProperty('relocate');
   });
 
-  it('víc obydlí: domácnosti, lidé a kdo se může přestěhovat (migration.md)', () => {
+  it('víc obydlí: domácnosti a lidé, odejít smí jen kdo se nestěhuje (migration.md)', () => {
     expect(selectionDetails(view, scene, { kind: 'dwellings', ids: [1, 2, 77] })).toEqual({
       kind: 'dwellings',
       ids: [1, 2],
       households: 2,
       people: 6,
-      relocatable: [1],
-      relocate: view.relocation,
       // domácnost, která si staví nový dům, zůstává
       leave: { households: [1], people: 4, foodKg: 75, cart: null, directions: LEAVE_DIRECTIONS },
     });
     expect(selectionDetails(view, scene, { kind: 'dwellings', ids: [77, 78] })).toBeNull();
-    // jen stěhující se domácnost – přestěhovat nejde
+    // jen stěhující se domácnost – odejít nejde
     expect(selectionDetails(view, scene, { kind: 'dwellings', ids: [2, 9] })).toMatchObject({
-      relocatable: [],
-      relocate: null,
+      leave: null,
     });
   });
 

@@ -82,7 +82,6 @@ export const ACTION_RIGHTS = {
   abandonFieldParts: 'build',
   // první zemnice nové vsi po příchodu lidí – stavba
   settleJourney: 'build',
-  relocateHousehold: 'evacuate',
   // odchod domácností (i celé vsi) na novou mapu
   leaveHouseholds: 'evacuate',
   leaveWithSon: 'sendSons',

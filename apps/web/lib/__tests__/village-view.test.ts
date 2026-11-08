@@ -734,7 +734,6 @@ describe('buildVillageView', () => {
         ages: [25, 25, 13, 12],
         residents: expect.any(Array),
         ageYears: 0,
-        relocation: null,
         relocationBlock: null,
       },
     ]);
@@ -2188,25 +2187,16 @@ describe('buildVillageView – víc vsí a přestěhování (migration.md)', () 
     ]);
   });
 
-  it('přestěhování domácnosti: cena bez lidí k osídlení, průběh a stavba u domácnosti', () => {
+  it('rozestavěné přestěhování ze starší vsi: stavba nese relocates a domácnost je relocating', () => {
     const s = settled();
     s.woodLogs = 20;
     const before = buildVillageView(record(s), landscape, DAY);
-    // nové obydlí nemá kdo osídlit, přestěhovat se domácnost může
-    expect(before.build.zemnice.affordable).toBe(false);
-    expect(before.relocation.zemnice).toMatchObject({ affordable: true, blocked: null });
-    expect(before.relocation.zemnice.upfront).toEqual([
-      { resource: 'wood', amount: 7, missing: 0 },
-    ]);
     expect(before.households[0]?.relocationBlock).toBeNull();
     const moving = startRelocation(s, DAY, 1, 'zemnice', { x: 60, z: 60, rotation: 0 }, 0);
     const view = buildVillageView(record(moving), landscape, DAY);
     const site = view.constructions.find((c) => c.relocates === 1);
     expect(site).toMatchObject({ kind: 'dwelling', dwellingType: 'zemnice', progress: 0 });
-    expect(view.households[0]).toMatchObject({
-      relocation: { constructionId: site?.id, type: 'zemnice', progress: 0 },
-      relocationBlock: 'relocating',
-    });
+    expect(view.households[0]).toMatchObject({ relocationBlock: 'relocating' });
     expect(view.chronicle[0]?.text).toBe(
       'Domácnost si začala stavět novou zemnici – přestěhuje se.',
     );

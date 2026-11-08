@@ -88,8 +88,6 @@ describe('SonsRow – statické vykreslení', () => {
       overcrowded: false,
       rebuild: null,
       workshop: null,
-      relocation: null,
-      relocate: null,
       manor: null,
       leave: null,
       sons: SONS,

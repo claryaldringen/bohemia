@@ -415,22 +415,6 @@ function parsePositiveInt(value: unknown): number | null {
 }
 
 /**
- * Vstup přestěhování domácnosti `{ dwellingId, type, position, plot? }` – nový dům jako stavba
- * obydlí (migration.md), jinak null.
- */
-export function parseRelocateHouseholdInput(value: unknown): {
-  dwellingId: number;
-  type: BuildableDwellingType;
-  position: Position;
-  plot?: DwellingPlot;
-} | null {
-  if (!isRecord(value)) return null;
-  const dwellingId = parsePositiveInt(value.dwellingId);
-  const dwelling = parsePlaceDwellingInput(value);
-  return dwellingId !== null && dwelling !== null ? { dwellingId, ...dwelling } : null;
-}
-
-/**
  * Vstup pojmenování muže rodu `{ personId, name }` (lord.md – Jména; jestli jméno smí být, ověří
  * use-case), jinak null.
  */

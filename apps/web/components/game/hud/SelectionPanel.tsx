@@ -69,13 +69,11 @@ export { ROAD_KIND_ICONS } from './selection/roads';
  * a výcvik (cvičí se samo); pevná cesta: délka, stáří, stromy,
  * vylepšení (`onUpgradeRoad`), vozová cesta (`onBuildWagonRoad` s náhledem `wagonPlan`)
  * a výsadba jabloní (`onPlantRoadApples`). Obydlí a víc vybraných
- * obydlí: Přestěhovat (`onRelocate`), Odejít (zatím zašedlé) a průběh stěhování se zrušením
- * (`onCancelConstruction` – migration.md).
+ * obydlí: Odejít (`onLeave` – migration.md); staveniště: Zrušit (`onCancelConstruction`).
  */
 export function SelectionPanel({
   details,
   onSelectTarget,
-  onRelocate,
   onCancelConstruction,
   onLeave,
   onLeaveSon,
@@ -283,7 +281,7 @@ export function SelectionPanel({
     );
   } else if (details.kind === 'dwellings') {
     portrait = <Portrait icon="zemnice" name={`Obydlí (${details.ids.length})`} />;
-    body = <DwellingsBody details={details} onRelocate={onRelocate} onLeave={onLeave} />;
+    body = <DwellingsBody details={details} onLeave={onLeave} />;
   } else {
     // dvorec vojvody (trade.md) – i když je to zatím zemnice zakladatelů
     portrait = details.manor ? (
@@ -302,8 +300,6 @@ export function SelectionPanel({
       <DwellingBody
         details={details}
         onSelectTarget={onSelectTarget}
-        onRelocate={onRelocate}
-        onCancelConstruction={onCancelConstruction}
         onLeave={onLeave}
         onLeaveSon={onLeaveSon}
         onPreviewSon={onPreviewSon}

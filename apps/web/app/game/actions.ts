@@ -96,7 +96,6 @@ import {
   placeSacredForPlayer,
   placeThreshingFloorForPlayer,
   placeWorkshopForPlayer,
-  relocateHouseholdForPlayer,
   leaveVillageForPlayer,
   choosePlayerDepartureForPlayer,
   settleJourneyForPlayer,
@@ -146,7 +145,6 @@ import {
   parsePlaceSacredInput,
   parsePlaceThreshingFloorInput,
   parsePlaceWorkshopInput,
-  parseRelocateHouseholdInput,
   parseLeaveVillageInput,
   parseChoosePlayerDepartureInput,
   parseSettleJourneyInput,
@@ -366,14 +364,6 @@ export async function forceDevDisaster(input: unknown): Promise<VillageActionRes
  */
 export async function placeDwelling(input: unknown): Promise<VillageActionResult> {
   return villageAction(input, parsePlaceDwellingInput, placeDwellingForPlayer);
-}
-
-/**
- * Přestěhování domácnosti (migration.md): `{ villageId, dwellingId, type, position, plot? }` –
- * nový dům jako stavba obydlí, bez lidí k osídlení. Server umístění ověří znovu.
- */
-export async function relocateHousehold(input: unknown): Promise<VillageActionResult> {
-  return villageAction(input, parseRelocateHouseholdInput, relocateHouseholdForPlayer);
 }
 
 /** Zrušení rozestavěné stavby: `{ villageId, constructionId }` – nespotřebované dřevo zpět na hromadu. */
