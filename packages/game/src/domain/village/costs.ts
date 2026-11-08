@@ -83,19 +83,20 @@ function workshopBuildCost(craft: Craft): BuildCost {
 }
 
 /**
- * Ceny staveb – práce se platí postupně (u obydlí i s kácením blízkého lesa); obydlí a řemeslné
- * dílny chtějí dřevo a jednu domácnost k osídlení, pole, sad a hřbitov nic.
+ * Ceny staveb – práce se platí postupně (u obydlí i s kácením blízkého lesa); obydlí chtějí jen
+ * dřevo (jdou postavit i bez lidí k osídlení – demolition.md, Martin 8. 11. 2026), řemeslné dílny
+ * dřevo a jednu domácnost k osídlení, pole, sad a hřbitov nic.
  */
 export const BUILD_COSTS: Record<BuildKind, BuildCost> = {
   zemnice: {
     laborManDays: DWELLINGS.zemnice.cost,
     perHa: false,
-    upfront: { wood: DWELLING_TREES.zemnice, settlers: 1 },
+    upfront: { wood: DWELLING_TREES.zemnice },
   },
   polozemnice: {
     laborManDays: DWELLINGS.polozemnice.cost,
     perHa: false,
-    upfront: { wood: DWELLING_TREES.polozemnice, settlers: 1 },
+    upfront: { wood: DWELLING_TREES.polozemnice },
   },
   potter: workshopBuildCost('potter'),
   smith: workshopBuildCost('smith'),

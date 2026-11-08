@@ -41,10 +41,10 @@ function untilFinished(s: VillageState, id: number): VillageState {
 }
 
 describe('startReplacement', () => {
-  it('nový dům domácnosti je stavba bez lidí k osídlení – běžné obydlí ne', () => {
+  it('nový dům domácnosti je stavba bez lidí k osídlení – běžné obydlí od 8. 11. 2026 taky', () => {
     const s = settled();
     expect(availableSettlers(s, DAY)).toBeLessThanOrEqual(0);
-    expect(() => startNewDwelling(s, DAY, 'zemnice', NEW_HOME, 0)).toThrow(RangeError);
+    expect(() => startNewDwelling(s, DAY, 'zemnice', NEW_HOME, 0)).not.toThrow();
     const next = startReplacement(s, DAY, household(s), 'zemnice', NEW_HOME, 4);
     const site = next.constructions.at(-1);
     expect(site).toMatchObject({
@@ -99,10 +99,10 @@ describe('startReplacement', () => {
     expect(() => startReplacement(rebuilding, DAY, id, 'zemnice', NEW_HOME, 0)).toThrow(RangeError);
   });
 
-  it('cena předem je jen dřevo – lidi k osídlení nechce', () => {
+  it('cena předem je jen dřevo – lidi k osídlení nechce ani běžné obydlí', () => {
     const s = settled();
     for (const type of ['zemnice', 'polozemnice'] as const) {
-      expect(buildAffordability(s, type).missing.settlers).toBeGreaterThan(0);
+      expect(buildAffordability(s, type).missing.settlers).toBeUndefined();
       expect(replacementAffordability(s, type)).toEqual({ affordable: true, missing: {} });
     }
   });

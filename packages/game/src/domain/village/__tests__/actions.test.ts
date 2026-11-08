@@ -168,14 +168,13 @@ describe('startNewDwelling', () => {
     return s;
   };
 
-  it('obydlí jde začít, jen když je kým ho osadit – startovní ves (zemnice se staví) ne', () => {
-    expect(() => startNewDwelling(start(), DAY, 'zemnice', POSITION, 0)).toThrow(RangeError);
-    // ani s dostavěnou zemnicí – 4 lidé, 2 dospělí, žádný pár navíc
+  it('obydlí jde začít i bez lidí k osídlení – startovní ves i ves bez páru navíc', () => {
+    expect(() => startNewDwelling(start(), DAY, 'zemnice', POSITION, 0)).not.toThrow();
     const settled = withBuiltFirstDwelling(start());
-    expect(() => startNewDwelling(settled, DAY, 'polozemnice', POSITION, 0)).toThrow(RangeError);
+    expect(() => startNewDwelling(settled, DAY, 'polozemnice', POSITION, 0)).not.toThrow();
   });
 
-  it('při 6 lidech se 4 dospělými projde jedna stavba, druhá na stejný pár ne', () => {
+  it('při 6 lidech se 4 dospělými projde jedna stavba i druhá (lidi k osídlení obydlí nechce)', () => {
     const s = sixPeople();
     const next = startNewDwelling(s, DAY, 'polozemnice', POSITION, 15);
     const added = next.constructions.at(-1);
@@ -189,7 +188,7 @@ describe('startNewDwelling', () => {
       fieldId: null,
     });
     expect(added?.position).toEqual(POSITION);
-    expect(() => startNewDwelling(next, DAY, 'zemnice', POSITION, 0)).toThrow(RangeError);
+    expect(() => startNewDwelling(next, DAY, 'zemnice', POSITION, 0)).not.toThrow();
   });
 
   it('záporné náklady na překážky vyhodí RangeError', () => {

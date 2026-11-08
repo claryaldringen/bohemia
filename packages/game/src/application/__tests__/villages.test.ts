@@ -355,25 +355,24 @@ describe('loadVillage', () => {
 });
 
 describe('placeDwelling', () => {
-  it('obydlí bez lidí k osídlení odmítne česky a ves nezmění', async () => {
+  it('obydlí jde postavit i bez lidí k osídlení – zamluví jen dřevo', async () => {
     const villages = await foundedVillages();
+    villages.edit(VID, (state) => {
+      state.woodLogs = 40;
+    });
     const deps = { villages };
     const base = { villageId: VID, landscape, today: TODAY + 1 };
-    // čerstvá ves: zakladatelé si teprve staví zemnici, nikdo další nečeká
+    // čerstvá ves: zakladatelé si teprve staví zemnici, nikdo další nečeká – obydlí přesto jde
     const fresh = await placeDwelling(deps, { ...base, type: 'zemnice', position: at(-80, -50) });
-    expect(fresh).toEqual({ ok: false, reason: NO_SETTLERS });
-    // plná domácnost dá jeden pár – první stavba projde, druhá ne
-    villages.edit(VID, makeFullHousehold);
-    const first = await placeDwelling(deps, { ...base, type: 'zemnice', position: at(-80, -50) });
-    expect(first.ok).toBe(true);
+    expect(fresh.ok).toBe(true);
+    // polozemnice bez pozemku se odmítne dál
     const version = villages.records.get(VID)?.version;
-    const second = await placeDwelling(deps, {
+    const bad = await placeDwelling(deps, {
       ...base,
       type: 'polozemnice',
       position: at(-80, -80),
-      plot: { cell: { x: 2, y: 2 }, variant: 'center' },
     });
-    expect(second).toEqual({ ok: false, reason: NO_SETTLERS });
+    expect(bad.ok).toBe(false);
     expect(villages.records.get(VID)?.version).toBe(version);
   });
 
