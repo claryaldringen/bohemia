@@ -223,7 +223,8 @@ export async function confirmPlacement(page: Page, result: PlacementResult): Pro
     () => typeof window.__bohemiaE2E?.confirmPlacement === 'function',
     null,
     {
-      timeout: 60_000,
+      // pod zátěží stroje se scéna připravuje i přes minutu
+      timeout: 120_000,
     },
   );
   await page.evaluate((r) => window.__bohemiaE2E!.confirmPlacement!(r), result);
@@ -235,7 +236,8 @@ export async function newPlayer(
   prefix: string,
 ): Promise<{ email: string; seat: Seat }> {
   const email = await registerAndEnterGame(page, prefix);
-  await expect(readyScene(page)).toBeVisible({ timeout: 60_000 });
+  // Softwarové kreslení + načtení modelů pod zátěží stroje (víc souběžných e2e) přesáhlo 60 s.
+  await expect(readyScene(page)).toBeVisible({ timeout: 150_000 });
   return { email, seat: await seat(email) };
 }
 
@@ -262,9 +264,10 @@ export async function found(
   await confirmPlacement(page, { kind: 'dwelling', type: 'zemnice', position: dwelling });
   // ves zakládají 4 lidé – v den založení se ale může narodit dítě, proto aspoň 4
   const people = page.getByTestId('village-people');
-  await expect(people).toHaveText(/^\d+( \/ ≈ \d+)?$/, { timeout: 30_000 });
+  // založení vsi je server action + dopočet – pod zátěží stroje trvá déle než 30 s
+  await expect(people).toHaveText(/^\d+( \/ ≈ \d+)?$/, { timeout: 90_000 });
   await expect
-    .poll(async () => Number.parseInt((await people.textContent()) ?? '', 10), { timeout: 30_000 })
+    .poll(async () => Number.parseInt((await people.textContent()) ?? '', 10), { timeout: 90_000 })
     .toBeGreaterThanOrEqual(4);
 }
 

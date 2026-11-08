@@ -246,7 +246,8 @@ const TERMS_SCREENSHOT = process.env.TERMS_SCREENSHOT;
 test('podmínky vazalství: ikony v panelu, nové podmínky odmítnuty, vypovězení', async ({
   browser,
 }) => {
-  test.setTimeout(240_000);
+  // dva hráči (registrace, scéna, založení vsi) – pod zátěží stroje 240 s nestačí
+  test.setTimeout(480_000);
   await query(`UPDATE house SET ended_at = now() WHERE ended_at IS NULL`, []);
   const ctxs = await Promise.all([browser.newContext(), browser.newContext()]);
   for (const ctx of ctxs) await useUniqueClientIp(ctx);
@@ -290,6 +291,8 @@ test('podmínky vazalství: ikony v panelu, nové podmínky odmítnuty, vypověz
   await panelA2.getByTestId('agreement-new-terms').click();
   await panelA2.getByTestId('term-tribute-grainKg').fill('900');
   await panelA2.getByTestId('terms-submit').click();
+  // protinávrh je uložený – jinak by B panel otevřel dřív a jednání v něm nebylo
+  await expect(panelA2.getByTestId('house-negotiation')).toHaveAttribute('data-my-turn', 'false');
   const panelB2 = await reopenHousePanel(b);
   await expect(panelB2.getByTestId('house-negotiation')).toHaveAttribute('data-my-turn', 'true');
   await panelB2.getByTestId('negotiation-reject').click();
@@ -485,7 +488,8 @@ test('pomoc na žádost: B požádá A o obilí, A dá půjčku, B přijme → z
 test('obchod mezi hráči: A nabídne C obilí za klády, C přijme → oba mají dialog, A pošle celé, C míň', async ({
   browser,
 }) => {
-  test.setTimeout(240_000);
+  // dva hráči (registrace, scéna, založení vsi) – pod zátěží stroje 240 s nestačí
+  test.setTimeout(480_000);
   await query(`UPDATE house SET ended_at = now() WHERE ended_at IS NULL`, []);
   const ctxs = await Promise.all([browser.newContext(), browser.newContext()]);
   for (const ctx of ctxs) await useUniqueClientIp(ctx);
@@ -522,6 +526,8 @@ test('obchod mezi hráči: A nabídne C obilí za klády, C přijme → oba maj�
   await panelA.getByTestId('term-trade-give-grainKg').fill('6');
   await panelA.getByTestId('term-trade-get-logs').fill('4');
   await panelA.getByTestId('terms-submit').click();
+  // nabídka je uložená – jinak by C panel otevřel dřív a jednání v něm nebylo
+  await expect(panelA.getByTestId('house-negotiation')).toHaveAttribute('data-my-turn', 'false');
 
   // C vidí obchod z druhé strany (dá klády, dostane obilí) a přijme
   const panelC = await reopenHousePanel(c);
@@ -804,7 +810,8 @@ test('válka: nový rod je pod ochranou, po jejím vypršení A opoví válku C 
 test('mír: A a C jsou ve válce, C nabídne mír s poplatkem, A přijme → válka skončila mírem a C má dialog poplatku', async ({
   browser,
 }) => {
-  test.setTimeout(240_000);
+  // dva hráči (registrace, scéna, založení vsi) – pod zátěží stroje 240 s nestačí
+  test.setTimeout(480_000);
   await query(`UPDATE house SET ended_at = now() WHERE ended_at IS NULL`, []);
   const ctxs = await Promise.all([browser.newContext(), browser.newContext()]);
   for (const ctx of ctxs) await useUniqueClientIp(ctx);
@@ -840,6 +847,21 @@ test('mír: A a C jsou ve válce, C nabídne mír s poplatkem, A přijme → vá
   await c.getByTestId('peace-cede-side').selectOption('none');
   await c.getByTestId('peace-fee').fill('4');
   await c.getByTestId('peace-send').click();
+  // formulář se zavře hned a nabídka se posílá na pozadí – počkat, až je jednání uložené,
+  // jinak by A panel otevřel dřív a jednání v něm nebylo
+  await expect
+    .poll(
+      async () =>
+        (
+          await query(
+            `SELECT 1 FROM negotiation WHERE status = 'open'
+              AND party_low = ANY($1) AND party_high = ANY($1)`,
+            [[idA, idC]],
+          )
+        ).length,
+      { timeout: 30_000 },
+    )
+    .toBe(1);
 
   // A vidí mírové jednání a přijme
   const panelA2 = await reopenHousePanel(a);
