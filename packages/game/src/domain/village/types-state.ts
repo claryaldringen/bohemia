@@ -83,6 +83,22 @@ export interface LogStack {
   logs: number;
 }
 
+/**
+ * Hromada kamene (fortifications.md – Hradby a obrana, Kámen): kámen odklizený z polí, staveb
+ * a ze skal složený u cesty jako klády (`stone.ts`). Podmnožina `stoneM3`.
+ */
+export interface StoneStack {
+  /** Z `nextStoneStackId` – ne z `nextId`, aby se neposunula id ostatních věcí vsi. */
+  id: number;
+  /** Místo hromady (m, svět) – určí se při vzniku a nemění se. */
+  x: number;
+  z: number;
+  /** Kámen na hromadě (m³), i neceločíselně (kámen z pole po desetinách). */
+  m3: number;
+  /** Bod osy cesty, u které hromada leží; chybí = hromada u místa sběru. */
+  road?: { x: number; z: number };
+}
+
 /** Postoj vsi: bránit se (stěna štítů), vzdát se při přesile (bílá vlajka), raději utéct (stromy). */
 export type DefenseStance = 'defend' | 'surrender' | 'flee';
 
@@ -195,6 +211,15 @@ export interface VillageState {
    * logs má jen ves před převodem `withRoadLogPiles`). Chybí = žádné.
    */
   logStacks?: LogStack[];
+  /**
+   * Kámen vsi celkem v m³ (fortifications.md – Hradby a obrana, Kámen) – stavby hradeb ho berou
+   * (`takeStone`). U vsí bez kamene chybí (= 0).
+   */
+  stoneM3?: number;
+  /** Hromady kamene u cest – podmnožina `stoneM3` (`stone.ts`). Chybí = žádné. */
+  stoneStacks?: StoneStack[];
+  /** Id další hromady kamene (`StoneStack.id`); chybí = 1. */
+  nextStoneStackId?: number;
   /**
    * Rozdělení práce posledního odsimulovaného dne (labor-report.ts) – pro zobrazení; simulace ho
    * čte jen přes síť pěšin (kam se chodí – vzdálenost chůze dílů, paths.md). U vsí uložených

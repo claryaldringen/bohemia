@@ -160,6 +160,7 @@ export * from './summary';
 export * from './names';
 export * from './costs';
 export * from './wood';
+export * from './stone';
 export * from './forest-clearing';
 export * from './log-piles';
 export * from './log-piles-migration';

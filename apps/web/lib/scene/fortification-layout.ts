@@ -2,7 +2,7 @@
 // brány, val s příkopem a staveniště po úsecích. Tvar obvodu (úseky – rovná část a oblouk rohu)
 // je z jádra (`SceneFortification.shapes`); vše ostatní se odvozuje pevně z id opevnění a indexu
 // úseku, takže se při každém kreslení vyjde stejně. Souřadnice světa scény v metrech (x, z).
-import { FORTIFICATIONS, segmentTop, type FortTop } from '@bohemia/game';
+import { FORTIFICATIONS, segmentRampart, segmentWall, type WallKind } from '@bohemia/game';
 import type { SceneFortification, SceneFortSegment } from '../fort-view';
 import {
   FORT_SITE_DONE,
@@ -389,6 +389,14 @@ export function hash01(a: number, b: number, c: number): number {
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
 
+/** Hradba, jak ji scéna kreslí – vyšší stupně zatím jako palisáda (modely přidá další úloha). */
+type SceneWall = 'fence' | 'palisade';
+
+/** Hradba úseku pro scénu: plot jako plot, ostatní stupně jako palisáda. */
+function sceneWall(kind: WallKind): SceneWall {
+  return kind === 'fence' ? 'fence' : 'palisade';
+}
+
 /** Co na úseku stojí a v jaké fázi: vrstva u země, nástavba na valu, val. */
 export interface SegmentBuild {
   /** Plot či palisáda u země (bez valu); null – nic. */
@@ -396,7 +404,7 @@ export interface SegmentBuild {
   /** Rozdělané vylepšení plotu na palisádu – palisáda vedle stojícího plotu. */
   upgrade: { phase: FortSitePhase } | null;
   /** Plot či palisáda na koruně valu; null – bez nástavby. */
-  top: { layer: FortTop; phase: FortSitePhase; age: number } | null;
+  top: { layer: SceneWall; phase: FortSitePhase; age: number } | null;
   /** Val: podíl hlíny 0–1 (staveniště roste) a stáří; null – úsek není val. */
   rampart: { earth: number; age: number } | null;
   /** Stav úseku 0–1 (chátrání za životností – mezery). */
@@ -408,8 +416,8 @@ export interface SegmentBuild {
  * Co stojí na úseku `index` (stáří, stavba, vylepšení, nástavba, zboření). Zbořený díl
  * (demolition.md – Opevnění) je mezera – nestojí na něm nic, srovnaný val nemá násep ani příkop.
  * Bouraný díl se rozebírá jako staveniště pozpátku (`fortSitePhase(vrstva, 1 − průběh)`): plot
- * a palisáda u země, na valu nástavba (`demolish`), val sám se srovnává (`level`). Nástavba dílu
- * je `segmentTop` – `top: 'none'` je val bez nástavby.
+ * a palisáda u země, na valu nástavba (`demolish`), val sám se srovnává (`level`). Vrstvy dílu
+ * z jádra (`segmentWall`, `segmentRampart`) – `top: 'none'` je val bez nástavby.
  */
 export function segmentBuild(fort: SceneFortification, index: number): SegmentBuild {
   const segment = fort.segments.find((s) => s.index === index);
@@ -417,7 +425,8 @@ export function segmentBuild(fort: SceneFortification, index: number): SegmentBu
   const state = segment?.state ?? 1;
   const breached = segment?.breachedDay !== undefined;
   const progress = look.progress;
-  const kind = segment?.kind ?? fort.kind;
+  const layers = segment ?? { builtDay: null };
+  const wall = segmentWall(fort, layers);
   const result: SegmentBuild = {
     ground: null,
     upgrade: null,
@@ -430,7 +439,7 @@ export function segmentBuild(fort: SceneFortification, index: number): SegmentBu
   /** Kolik z dílu ještě stojí při zboření `work` (1 − průběh); null – díl se tak nebourá. */
   const left = (work: 'demolish' | 'level'): number | null =>
     fort.work === work && progress !== undefined ? 1 - progress : null;
-  if (kind === 'rampart') {
+  if (segmentRampart(fort, layers)) {
     const level = left('level');
     const earth =
       look.age !== null
@@ -439,7 +448,7 @@ export function segmentBuild(fort: SceneFortification, index: number): SegmentBu
           ? progress
           : 0;
     result.rampart = { earth, age: look.age ?? 0 };
-    const top = segmentTop(fort, segment ?? {});
+    const top = wall ? sceneWall(wall.kind) : null;
     if (top && earth >= 1) {
       const down = left('demolish');
       if (look.topAge !== undefined && look.topAge !== null)
@@ -453,7 +462,8 @@ export function segmentBuild(fort: SceneFortification, index: number): SegmentBu
     }
     return result;
   }
-  const layer: 'fence' | 'palisade' = kind;
+  if (!wall) return result;
+  const layer = sceneWall(wall.kind);
   const down = left('demolish');
   if (look.age !== null)
     result.ground = {
@@ -615,7 +625,7 @@ export function fortStakingLines(fort: SceneFortification): [number, number][][]
   const offsets =
     fort.kind === 'rampart'
       ? [RAMPART_STAKING_INSET_M, RAMPART_BAND_M - RAMPART_STAKING_INSET_M]
-      : [layerLine(fort, work === 'upgrade' ? 'palisade' : fort.kind)];
+      : [layerLine(fort, work === 'upgrade' ? 'palisade' : sceneWall(fort.kind))];
   const { starts, length } = segmentStarts(fort.shapes);
   const gates = gatePositions(fort);
   const builds = fort.shapes.map((s) => segmentBuild(fort, s.index));

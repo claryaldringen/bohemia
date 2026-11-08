@@ -1,9 +1,9 @@
 import { FORTIFICATIONS } from '../rules-fortifications';
 import { pointInPolygon } from '../polygon';
 import type { GridGeometry } from '../square-grid';
-import type { FortKind, RoadPoint } from '../types';
+import type { RoadPoint, WallKind } from '../types';
 import { distanceTo, gateChord, type FortGate } from './gates';
-import { segmentIsOpen, segmentState, segmentTop } from './life';
+import { layerBuilt, segmentIsOpen, segmentRampart, segmentState, segmentWall } from './life';
 import { fortOutlineOf } from './convert';
 import { outlinePointAt, type FortOutline } from './outline';
 import { fortSegments } from './segments';
@@ -15,26 +15,34 @@ import type { Fortification, FortSegment } from './types';
 /** Co funkce obrany potřebují znát z úseku (`FortSegment` ze stavu vsi). */
 type SegmentLike = Pick<
   FortSegment,
-  'kind' | 'builtDay' | 'topBuiltDay' | 'breachedDay' | 'demolishedDay' | 'top'
+  | 'kind'
+  | 'builtDay'
+  | 'topBuiltDay'
+  | 'breachedDay'
+  | 'demolishedDay'
+  | 'top'
+  | 'rampartHeight'
+  | 'rampartOutside'
+  | 'moatDay'
 >;
 type FortLike = Pick<Fortification, 'kind' | 'top' | 'rampartHeight'>;
 
-/** Druh, který na úseku stojí. */
-function kindOf(fort: Pick<Fortification, 'kind'>, seg: Pick<FortSegment, 'kind'>): FortKind {
-  return seg.kind ?? fort.kind;
-}
-
 /**
- * Úsek, kterým se prochází bez prolamování: nedostavěný, prolomený, zbořený nebo plot/palisáda
- * shnilé na nulu.
+ * Úsek, kterým se prochází bez prolamování: nedostavěný, prolomený, zbořený nebo – bez
+ * dostavěného valu – hradba shnilá na nulu.
  */
 export function segmentIsGap(fort: FortLike, seg: SegmentLike, day: number): boolean {
   if (segmentIsOpen(seg)) return true;
-  return kindOf(fort, seg) !== 'rampart' && segmentState(fort, seg, day) <= 0;
+  return !layerBuilt(segmentRampart(fort, seg)) && segmentState(fort, seg, day) <= 0;
 }
 
-/** Násobek nástavby valu (druh nástavby → násobek celku valu s ní). */
-function topMultiplier(top: 'fence' | 'palisade'): number {
+/** Násobek hradby bez valu – nové stupně zatím jako palisáda (násobek ruší další úloha). */
+function wallMultiplier(kind: WallKind): number {
+  return kind === 'fence' ? FORTIFICATIONS.multiplier.fence : FORTIFICATIONS.multiplier.palisade;
+}
+
+/** Násobek hradby na valu (druh hradby → násobek celku valu s ní; nové stupně jako palisáda). */
+function topMultiplier(top: WallKind): number {
   return top === 'fence'
     ? FORTIFICATIONS.multiplier.rampartFence
     : FORTIFICATIONS.multiplier.rampartPalisade;
@@ -48,16 +56,16 @@ function topMultiplier(top: 'fence' | 'palisade'): number {
  */
 export function segmentMultiplier(fort: FortLike, seg: SegmentLike, day: number): number {
   if (segmentIsGap(fort, seg, day)) return 1;
-  const kind = kindOf(fort, seg);
-  if (kind !== 'rampart') {
-    return 1 + (FORTIFICATIONS.multiplier[kind] - 1) * segmentState(fort, seg, day);
+  const wall = segmentWall(fort, seg);
+  const rampart = segmentRampart(fort, seg);
+  if (rampart === null || rampart.builtDay === null) {
+    // hradba bez valu (i na valu, který se teprve staví)
+    return wall ? 1 + (wallMultiplier(wall.kind) - 1) * segmentState(fort, seg, day) : 1;
   }
-  const v = 1 + FORTIFICATIONS.rampartHeightBonus * (fort.rampartHeight ?? 1);
-  const topBuilt = seg.topBuiltDay !== undefined && seg.topBuiltDay !== null;
-  const top = segmentTop(fort, seg);
-  if (!top || !topBuilt) return v;
+  const v = 1 + FORTIFICATIONS.rampartHeightBonus * rampart.height;
+  if (!wall || wall.builtDay === null) return v;
   const topState = segmentState(fort, seg, day);
-  return v * (1 + (topMultiplier(top) / FORTIFICATIONS.multiplier.rampart - 1) * topState);
+  return v * (1 + (topMultiplier(wall.kind) / FORTIFICATIONS.multiplier.rampart - 1) * topState);
 }
 
 /** Mezera v obvodu: otevřená brána, nedostavěný / shnilý / zbořený úsek nebo průlom. */

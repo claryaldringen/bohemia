@@ -11,12 +11,16 @@ import {
   fortSections,
   fortSegments,
   fortificationCost,
+  layerBuilt,
   outlineOf,
   sectionDemolition,
+  segmentBuilt,
   segmentIsOld,
   segmentMultiplier,
+  segmentRampart,
   segmentState,
   segmentStands,
+  segmentWall,
   villageFortifications,
   villageStock,
   woodFellingCost,
@@ -24,6 +28,7 @@ import {
   type FortBuildWork,
   type FortKind,
   type FortOutline,
+  type FortSegment,
   type FortSegmentShape,
   type FortTop,
   type Fortification,
@@ -336,11 +341,16 @@ function demolishOption(
   };
 }
 
+/** Den dokončení dílu – val, bez dostavěného valu hradba; nic nestojí – null. */
+function partBuiltDay(fort: Fortification, s: FortSegment): number | null {
+  return segmentRampart(fort, s)?.builtDay ?? segmentWall(fort, s)?.builtDay ?? null;
+}
+
 /** Stav dílů `indices` opevnění ke dni `day` pro panel úseku. */
 function partsState(fort: Fortification, indices: readonly number[], day: number): FortPartsState {
   const parts = fort.segments.filter((s) => indices.includes(s.index));
-  const built = parts.filter((s) => s.builtDay !== null && s.demolishedDay === undefined);
-  const oldest = Math.min(...built.map((s) => s.builtDay ?? day));
+  const built = parts.filter((s) => segmentBuilt(s) && s.demolishedDay === undefined);
+  const oldest = Math.min(...built.map((s) => partBuiltDay(fort, s) ?? day));
   return {
     builtParts: built.length,
     parts: parts.length,
@@ -383,7 +393,7 @@ export function fortificationViews(
     const work = state.constructions.find(
       (c) => c.kind === 'fortification' && c.fortificationId === fort.id,
     );
-    const built = fort.segments.filter((s) => s.builtDay !== null);
+    const built = fort.segments.filter((s) => segmentBuilt(s));
     const standing = fort.segments.filter((s) => segmentStands(fort, s));
     const weakest =
       built.length === 0 ? 1 : Math.min(...built.map((s) => segmentState(fort, s, day)));
@@ -414,13 +424,13 @@ export function fortificationViews(
         .sort((a, b) => a.segment - b.segment)
         .map((gate) => {
           const seg = fort.segments.find((x) => x.index === gate.segment);
-          const stands = seg !== undefined && seg.builtDay !== null;
+          const stands = seg !== undefined && segmentBuilt(seg);
           return {
             segment: gate.segment,
             state: stands ? segmentState(fort, seg, day) : 1,
             old: stands && segmentIsOld(fort, seg, day),
             ageYears: stands
-              ? Math.floor(Math.max(0, day - (seg.builtDay ?? day)) / FORT_DAYS_PER_YEAR)
+              ? Math.floor(Math.max(0, day - (partBuiltDay(fort, seg) ?? day)) / FORT_DAYS_PER_YEAR)
               : null,
           };
         }),
@@ -438,16 +448,18 @@ export function fortificationViews(
     };
     const busy = work !== undefined;
     if (fort.kind === 'fence') {
-      const todo = fort.segments.filter((s) => s.kind !== 'palisade').map((s) => s.index);
+      const todo = fort.segments
+        .filter((s) => segmentWall(fort, s)?.kind !== 'palisade')
+        .map((s) => s.index);
       const cost = workCost(shapes, todo, 'palisade', 'upgrade');
       view.upgrade = {
         cost,
         blocked: busy ? FORT_BUSY_TEXT : woodBlocked(cost, woodSupply),
       };
     } else if (fort.kind === 'rampart') {
-      const unfinished = fort.segments.some((s) => s.builtDay === null);
+      const unfinished = fort.segments.some((s) => segmentRampart(fort, s)?.builtDay === null);
       const todo = fort.segments
-        .filter((s) => s.topBuiltDay === undefined || s.topBuiltDay === null)
+        .filter((s) => !layerBuilt(segmentWall(fort, s)))
         .map((s) => s.index);
       view.tops = (['fence', 'palisade'] as const).map((top) => {
         const cost = workCost(shapes, todo, top, 'top');

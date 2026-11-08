@@ -6,8 +6,9 @@ import {
   defenderMultiplier,
   fortOutlineOf,
   fortSegments,
+  layerBuilt,
   segmentIsGap,
-  segmentTop,
+  segmentWall,
   type BreachProgress,
   type BreachSpot,
   type FortSegmentShape,
@@ -324,13 +325,13 @@ interface Walls {
   spots: Spot[][];
 }
 
-/** Úsek blokuje: stojí a není to holý val (ten se přejde čtvrtinovým tempem – mřížka). */
+/**
+ * Úsek blokuje: stojí a stojí na něm hradba – holý val (i s nedostavěnou či zbořenou hradbou) se
+ * přejde čtvrtinovým tempem (mřížka).
+ */
 function blocks(fort: Fortification, seg: FortSegment, day: number): boolean {
   if (segmentIsGap(fort, seg, day)) return false;
-  if ((seg.kind ?? fort.kind) !== 'rampart') return true;
-  return (
-    segmentTop(fort, seg) !== null && seg.topBuiltDay !== undefined && seg.topBuiltDay !== null
-  );
+  return layerBuilt(segmentWall(fort, seg));
 }
 
 /** Opevnění s průlomy boje (prolomený úsek je mezera – `breachedDay`). */

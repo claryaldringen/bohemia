@@ -6,6 +6,7 @@ import { removePeople } from '../village/kinship';
 import { ensureLivestock } from '../village/livestock';
 import { ageGroup, ageYears, isAway } from '../village/people';
 import { newcomerHome } from '../village/people-trade';
+import { segmentBuilt } from '../village/fortification';
 import { setStewardOn } from '../village/steward-state';
 import { rehomePeople } from '../village/transfer-people';
 import type {
@@ -434,7 +435,7 @@ export function applyFortificationBreach(
   const segments = new Set(body.segments);
   for (const s of fort.segments) {
     // zbořený díl je už mezera – není co prolomit
-    if (!segments.has(s.index) || s.builtDay === null || s.demolishedDay !== undefined) continue;
+    if (!segments.has(s.index) || !segmentBuilt(s) || s.demolishedDay !== undefined) continue;
     s.breachedDay ??= day;
     s.state = 0;
   }

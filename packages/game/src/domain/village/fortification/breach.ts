@@ -1,6 +1,5 @@
 import { FORTIFICATIONS } from '../rules-fortifications';
-import type { FortKind, FortTop } from '../types';
-import { segmentTop } from './life';
+import { segmentRampart, segmentWall } from './life';
 import type { Fortification, FortSegment } from './types';
 
 // Prolomení opevnění (fortifications.md – Prolomení): práce v mužohodinách podle druhu a místa,
@@ -19,29 +18,28 @@ export interface BreachProgress {
 }
 
 /**
- * Práce průlomu v mužohodinách (0 / 2 / 12 / 96). Plot, palisáda i nástavba valu podle druhu;
- * holý val se neprolamuje a brána (závora z kůlů) nestojí nic – přechod valu řeší
- * `breachPace`.
+ * Práce průlomu v mužohodinách (0 / 2 / 12 / 96). Hradba úseku (i na valu) podle druhu – nové
+ * stupně zatím jako palisáda (tabulky přechodu přidá další úloha); holý val se neprolamuje
+ * a brána (závora z kůlů) nestojí nic – přechod valu řeší `breachPace`.
  */
 export function breachWork(
   fort: Pick<Fortification, 'kind' | 'top'>,
-  seg: Pick<FortSegment, 'kind' | 'top'>,
+  seg: Pick<FortSegment, 'kind' | 'top' | 'builtDay' | 'topBuiltDay'>,
   at: BreachSpot,
 ): number {
-  const kind: FortKind = seg.kind ?? fort.kind;
   const w = FORTIFICATIONS.breachManHours;
-  const top: FortTop | null = kind === 'rampart' ? segmentTop(fort, seg) : kind;
-  if (!top) return 0;
-  if (top === 'fence') return at === 'gate' ? w.fenceGate : w.fence;
+  const wall = segmentWall(fort, seg);
+  if (!wall) return 0;
+  if (wall.kind === 'fence') return at === 'gate' ? w.fenceGate : w.fence;
   return at === 'gate' ? w.palisadeGate : w.palisade;
 }
 
 /** Tempo přechodu úseku: val čtvrtinové (útok do kopce přes pás), jinak plné. */
 export function breachPace(
   fort: Pick<Fortification, 'kind'>,
-  seg: Pick<FortSegment, 'kind'>,
+  seg: Pick<FortSegment, 'kind' | 'builtDay'>,
 ): number {
-  return (seg.kind ?? fort.kind) === 'rampart' ? FORTIFICATIONS.rampartAssaultPace : 1;
+  return segmentRampart(fort, seg) !== null ? FORTIFICATIONS.rampartAssaultPace : 1;
 }
 
 /** Nový průlom s potřebnou prací; nulová práce je prolomená hned. */

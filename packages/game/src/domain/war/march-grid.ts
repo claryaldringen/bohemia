@@ -15,7 +15,14 @@ import {
   obstacleStatus,
   type ObstacleChanges,
 } from '../village/obstacles';
-import { fortWalls, segmentIsGap, segmentState, segmentTop } from '../village/fortification';
+import {
+  fortWalls,
+  layerBuilt,
+  segmentIsGap,
+  segmentRampart,
+  segmentState,
+  segmentWall,
+} from '../village/fortification';
 import type { Fortification, FortSegment } from '../village/fortification/types';
 import {
   buildingBounds,
@@ -241,12 +248,9 @@ function fortCells(
   const rampart: FortSegment[] = [];
   const gaps: FortSegment[] = [];
   for (const seg of fort.segments) {
-    const isRampart = (seg.kind ?? fort.kind) === 'rampart';
-    if (isRampart && seg.builtDay !== null && seg.demolishedDay === undefined) {
+    if (layerBuilt(segmentRampart(fort, seg)) && seg.demolishedDay === undefined) {
       const topStands =
-        segmentTop(fort, seg) !== null &&
-        seg.topBuiltDay !== undefined &&
-        seg.topBuiltDay !== null &&
+        layerBuilt(segmentWall(fort, seg)) &&
         seg.breachedDay === undefined &&
         segmentState(fort, seg, day) > 0;
       (topStands ? wall : rampart).push(withoutBreach(seg));

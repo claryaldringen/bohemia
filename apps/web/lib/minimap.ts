@@ -7,6 +7,7 @@ import {
   SURFACE_CODES,
   rotatedSquareCorners,
   type FieldSurface,
+  type FortKind,
   type Landscape,
   type PartStage,
   type PremiumFeatures,
@@ -64,10 +65,16 @@ export const ORCHARD_COLOR: Rgb = [78, 118, 52];
 
 /** Posvátná místa na minimapě – teplá okrová (obětiny, oheň), dobře odlišená od zeleně. */
 export const SACRED_COLOR: Rgb = [232, 164, 64];
-/** Obvod opevnění na minimapě podle druhu – plot světlý, palisáda hnědá, val tmavý (návrh Clauda). */
-export const FORT_COLORS: Record<'fence' | 'palisade' | 'rampart', Rgb> = {
+/**
+ * Obvod opevnění na minimapě podle druhu – plot světlý, palisáda hnědá, val tmavý, hradby
+ * s kamenem šedohnědé (návrh Clauda).
+ */
+export const FORT_COLORS: Record<FortKind, Rgb> = {
   fence: [226, 196, 140],
   palisade: [166, 108, 52],
+  walkway: [150, 98, 48],
+  crib: [128, 112, 96],
+  chamber: [112, 104, 96],
   rampart: [96, 64, 36],
 };
 
@@ -303,7 +310,7 @@ export function drawMinimapVillage(
   for (const fort of village.forts ?? []) {
     const [r, g, b] = FORT_COLORS[fort.kind];
     context.strokeStyle = `rgb(${r} ${g} ${b} / ${fort.building ? 0.6 : 1})`;
-    context.lineWidth = fort.kind === 'rampart' ? 2.5 : fort.kind === 'palisade' ? 2 : 1.5;
+    context.lineWidth = fort.kind === 'rampart' ? 2.5 : fort.kind === 'fence' ? 1.5 : 2;
     context.beginPath();
     fort.outline.forEach(([x, z], i) => {
       const p = at(x, z);

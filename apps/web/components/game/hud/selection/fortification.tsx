@@ -18,13 +18,22 @@ import { ROAD_KIND_ICONS } from './roads';
 export const FORT_NAMES: Record<FortKind, string> = {
   fence: 'Polský plot',
   palisade: 'Palisáda',
+  walkway: 'Palisáda s ochozem',
+  crib: 'Roštová hradba',
+  chamber: 'Komorová hradba',
   rampart: 'Val s příkopem',
 };
 
-/** Ikony druhů (`/icons/resources/<ikona>.png`) – portrét panelu, rozcestník a tlačítka. */
+/**
+ * Ikony druhů (`/icons/resources/<ikona>.png`) – portrét panelu, rozcestník a tlačítka. Vyšší
+ * stupně hradby zatím s ikonou palisády (vlastní ikony přidá další úloha).
+ */
 export const FORT_ICONS: Record<FortKind, string> = {
   fence: 'fort-fence',
   palisade: 'fort-palisade',
+  walkway: 'fort-palisade',
+  crib: 'fort-palisade',
+  chamber: 'fort-palisade',
   rampart: 'fort-rampart',
 };
 
@@ -32,6 +41,9 @@ export const FORT_ICONS: Record<FortKind, string> = {
 export const FORT_GATE_NAMES: Record<FortKind, string> = {
   fence: 'Brána plotu',
   palisade: 'Brána palisády',
+  walkway: 'Brána palisády',
+  crib: 'Brána hradby',
+  chamber: 'Brána hradby',
   rampart: 'Brána valu',
 };
 
@@ -42,6 +54,9 @@ export const FORT_GATE_ICON = '/icons/house/gate.svg';
 const TOP_NAMES: Record<FortTop, string> = {
   fence: 'Postavit na valu plot',
   palisade: 'Postavit na valu palisádu',
+  walkway: 'Postavit na valu palisádu s ochozem',
+  crib: 'Postavit na valu roštovou hradbu',
+  chamber: 'Postavit na valu komorovou hradbu',
 };
 
 /** Barva úseků za životností (oranžově – fortifications.md – Rozhraní). */

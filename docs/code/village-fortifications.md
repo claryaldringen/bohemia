@@ -128,6 +128,57 @@ Dřívější obvod po čtvercích zůstal jen pro převod (`squares-outline.ts`
   ho bere u každé stavby s půdorysem (`PlacementVillage.fortifications`, důvod
   `OVERLAPS_FORTIFICATION` „Stojí tu opevnění.“).
 
+## Druhy hradeb a vrstvy úseku (`life.ts`, `band.ts`, `stone.ts`)
+
+Hradby a obrana (fortifications.md, 8. 11. 2026) – Úloha 1 plánu
+`docs/superpowers/plans/2026-11-08-ramparts.md`: refaktor bez změny výsledku, uložené hodnoty
+platí dál, staré vsi se nepřevádějí.
+
+- **Druhy** (`types-fortifications.ts`): `WallKind` = `fence` | `palisade` | `walkway` (palisáda
+  s ochozem) | `crib` (roštová) | `chamber` (komorová), `FortKind = WallKind | 'rampart'`,
+  `FortTop = WallKind`; pořadí stupňů 1–5 `WALL_ORDER` (`life.ts`). Nové druhy zatím nikde
+  nevznikají – katalog (`village-input.ts`) a nabídka nástavby dál jen plot, palisáda a val; scéna
+  je kreslí jako palisádu (`sceneWall` ve `fortification-layout.ts`), panel s ikonou palisády,
+  obrana, prolomení a správce je počítají jako palisádu, dokud je nepřepíšou další úlohy.
+- **Vrstvy úseku** – `segmentWall(fort, seg): WallLayer | null` (`{ kind, builtDay, state }`; bez
+  valu úsek sám, na valu nástavba `segmentTop` s `topBuiltDay`; holý val či zbořená nástavba null)
+  a `segmentRampart(fort, seg): RampartLayer | null` (`{ builtDay, height, outside, water }` – výška
+  `seg.rampartHeight ?? fort.rampartHeight ?? 1`, `rampartOutside`, `moatDay`). `segmentKind` (druh
+  základu – val, jinak hradba) je jediné čtení `seg.kind ?? fort.kind`; `layerBuilt(layer)` – vrstva
+  je a je dostavěná.
+- **Otevřený díl** – `segmentBuilt(seg)` stojí aspoň jedna vrstva (`builtDay`, nebo `topBuiltDay`);
+  `segmentIsOpen` = nic nestojí, průlom nebo zboření. Kombinace „hradba stojí, val pod ní se staví“
+  (`kind: 'rampart'`, `builtDay: null`, `topBuiltDay: den` – doplnění valu, další úloha) tak není
+  mezera: hradba brání, stárne a hnije podle svého dne (`segmentState`, `segmentIsOld`,
+  `segmentStands`). **Žádné čtení `builtDay === null` mimo vrstvy** – převedené jsou
+  `fortifications.ts` (vylepšení, nástavba, zboření, `segmentDone` – stavba čte základ
+  `segmentRampart ?? segmentWall`), `decay.ts`, `defense.ts`, `breach.ts`, `walls.ts`, `band.ts`,
+  `war/march-grid.ts`, `war/battle.ts` (`blocks` = stojí hradba), `war/raid-apply.ts`,
+  `steward-extras.ts` (rozdělaná stavba = některá vrstva nedostavěná), `apps/web/lib/fort-view.ts`
+  (`partBuiltDay` – den valu, jinak hradby) a scéna (`segmentBuild`). Scéna dál dostává surové
+  `age` / `topAge` (`sceneFortifications`).
+- **`segmentBand(fort, seg): { inM, outM }`** (`band.ts`) – pás od křivky: hradba bez valu `bandM`
+  (1 / 1,5 / 5,5 / 7 / 8 m), hradba na valu `wallOnRampartBandM` (10 / 10 / 12,5 / 14 / 15), holý
+  val 10; val doplněný vně (`rampartOutside`) 7 m ven a dovnitř šířka hradby, nejméně 3 m. Zatím ho
+  nečte nic kromě testů – stěny, pochod a scéna dál kreslí pás dovnitř podle druhu.
+- **Nová pole stavu (volitelná)**: `FortSegment.rampartOutside?`, `rampartHeight?`, `moatDay?`,
+  `extraAgeDays?`, `burnedDay?`; `FortGate.pincerDay?` / `towerDay?` (null = staví se);
+  `Construction.fortTarget?: WallKind` (chybí – `upgrade` na palisádu, `top` = `fort.top`)
+  a `fortGate?: { segment, level: 'pincer' | 'tower' }`; `FortBuildWork` + `rampart` | `moat` |
+  `gate`. Nic z toho zatím nevzniká.
+- **Čísla** (`FORTIFICATIONS`): `bandM`, `minBendM`, `cornerM`, `lifeYears` (s ochozem 20,
+  roštová 30, komorová 50) a `costPer100M` (s ochozem 450 čd + 80 klád, roštová 1 050 + 330
+  - 100 m³ kamene, komorová 1 450 + 350 + 320 m³ – `FortCostPer100M.stoneM3?`) pro nové druhy;
+    `wallOnRampartBandM`, `rampartOutside { outM: 7, minInM: 3 }`, `wallFromYear { crib: 790,
+chamber: 830 }`, `walkwayAddPer100M` (150 čd + 10 klád), `pileSaves { logManDays: 1,
+stoneManDaysPerM3: 1 }`. Ceny plotu a palisády komplet přepíše Úloha 5.
+- **Kámen** (`stone.ts`): `VillageState.stoneM3?` (zásoba m³), `stoneStacks?: StoneStack[]`
+  (`{ id, x, z, m3, road? }`, podmnožina zásoby) a `nextStoneStackId?` – vlastní čítač, ne `nextId`
+  (jinak by se posunula id ostatních věcí a zlaté otisky). `stoneOnHand(state)`, `takeStone(state,
+m3, at)` – z hromad od nejbližší k `at` (při shodě menší id), prázdná hromada zmizí, zbytek ze
+  zásoby bez hromady; `quarryNear(obstacles, at)` – nejbližší skalní výchoz na mapě sídla
+  `{ x, z, distanceM }`, bez výchozu null. Zdroje kamene zatím nejsou (Úloha 4).
+
 ## Stav vsi (Ú5.2)
 
 - **`VillageState.fortifications?: Fortification[]`** (`fortification/types.ts`, přes
@@ -135,9 +186,10 @@ Dřívější obvod po čtvercích zůstal jen pro převod (`squares-outline.ts`
   `Fortification { id, points?, grid?, cells?, kind, top?, segments, gates, rampartHeight? }` –
   `points` od obvodu z bodů, `grid` a `cells` jen u opevnění po čtvercích do převodu
   (`withFortPoints`); tvar (křivka, úseky, pás) se z bodů vždy spočítá znovu (`outlineOf`).
-- **`FortSegment { index, builtDay (null = nestojí), topBuiltDay?, state, breachedDay?, kind? }`** –
+- **`FortSegment { index, builtDay (null = základ nestojí), topBuiltDay?, state, breachedDay?, kind? }`** –
   `kind` jen u rozdělaného vylepšení (úsek s hotovou palisádou `'palisade'`, `segmentKind`).
-  `state` plní chátrání (Ú5.4), `breachedDay` válka (další úlohy F5).
+  `state` plní chátrání (Ú5.4), `breachedDay` válka (další úlohy F5). Čte se jen přes vrstvy –
+  [Druhy hradeb a vrstvy úseku](#druhy-hradeb-a-vrstvy-úseku-lifets-bandts-stonets).
 - **Stavba `'fortification'`** (`ConstructionKind`, `LandTaker`) s `fortificationId`, `fortWork`
   (`FortBuildWork`: `build` | `upgrade` | `top` | `rebuild` | `restore`),
   `segmentIndex` (nepoužité – přestavba je jedna stavba pro všechny dožilé úseky opevnění) a `fortSegments` (`FortSegmentWork { index, cost }` –
