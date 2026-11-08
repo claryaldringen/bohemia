@@ -63,7 +63,8 @@ export class InMemoryHouses implements HouseRepository {
       (h) =>
         h.kind === 'player' &&
         this.alive(h) &&
-        (h.placedAt ?? h.createdAt).getTime() > since.getTime(),
+        h.placedAt !== null &&
+        h.placedAt.getTime() > since.getTime(),
     );
   }
 

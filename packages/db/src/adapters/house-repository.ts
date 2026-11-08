@@ -137,8 +137,8 @@ export function createHouseRepository(db: Database): HouseRepository {
           and(
             eq(house.kind, 'player'),
             isNull(house.endedAt),
-            // ochrana běží od umístění na mapu světa – odříznutý rod ji ještě nemá
-            gt(sql`coalesce(${house.placedAt}, ${house.createdAt})`, since),
+            // ochrana běží od umístění na mapu světa – odříznutý rod (chráněn vždy) tu není
+            gt(house.placedAt, since),
           ),
         );
       return rows.map(toHouse);

@@ -77,8 +77,21 @@ hráč)`) a rod s `house.placed_at` null. Pozvaný je na mapě hned (`placed_at`
 - Web: server actions `newcomerStatusAction`, `startFreeAction`, `requestLordsAction` (`lib/house.ts`),
   rozhraní [web-ui.md](web-ui.md) – Nováček v rozhraní. e2e `e2e/newcomers.spec.ts`; ostatní e2e
   umísťují hráče bez pozvánky zápisem do `bohemia_test` (`e2e/placement.ts`).
-- Testy: `__tests__/newcomers.test.ts`, db `newcomer-placement.db.test.ts` (souběh dvou pánů),
-  `world-directory.db.test.ts` (odříznutý rod v adresáři není).
+- **Souběžný zápis do mřížky:** pozvaný (`enterGame`) a odchod ve světě (`targetSettlement`)
+  zapisují bez zámku umisťování – `moveIsolated` běží v úložném bodě (savepoint) a obsazené políčko
+  (unikátní index) vrátí false; `placeNewcomer` zkusí `PLACEMENT_ATTEMPTS` (3) s čerstvou mapou
+  obsazení, pak výjimka (zruší i `claim`). `expireNewcomerWaits` chybu jednoho rodu nepřeruší.
+- Ochrana: upozornění „ochrana končí“ (`playerHousesSince`) jen u rodů s `placed_at`, od umístění.
+  `update-user` (Better Auth) jazyk nemění – `databaseHooks.user.update.before` pole `language`
+  zahodí (`lib/auth-hooks.ts`); mění ho jen registrace a `chooseLanguage`.
+- **Známé omezení – výkon `placeCluster`:** hledá po prstencích od každého cíle a u každého posunu
+  kontroluje každou buňku shluku proti všem obsazeným mapám (`occupied.some` – lineárně),
+  poloměr až k nejvzdálenější mapě + odstup. S tisíci map a mnoha cíli (`sameLanguage`) to roste
+  zhruba kubicky a běží pod globálním zámkem umisťování uvnitř transakce jednání – umístění se
+  řadí za sebe. Zatím neopraveno (index obsazení podle políček by stačil).
+- Testy: `__tests__/newcomers.test.ts`, db `newcomer-placement.db.test.ts` (souběh dvou pánů,
+  souběžné žádosti, úložný bod přesunu), `world-directory.db.test.ts` (odříznutý rod v adresáři
+  není).
 
 ## Rod
 

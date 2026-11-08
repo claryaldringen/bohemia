@@ -252,6 +252,21 @@ describe('upozornění na konec ochrany', () => {
     expect(s.notices.notices.filter((n) => n.kind === 'protection-ending')).toHaveLength(3);
   });
 
+  it('odříznutý rod „ochrana končí“ nedostane – až týden od umístění (newcomers.md)', async () => {
+    const s = await setup();
+    const isolated = (await s.houses.byId(s.ids.a!))!;
+    isolated.placedAt = null;
+    const deps = { houses: s.houses, wars: s.wars, notices: s.notices };
+    expect(await notifyProtectionEnding(deps, { now: at(6.5), today: 10 })).toBe(2);
+    isolated.placedAt = at(20);
+    expect(await notifyProtectionEnding(deps, { now: at(25), today: 10 })).toBe(0);
+    expect(await notifyProtectionEnding(deps, { now: at(26.5), today: 10 })).toBe(1);
+    const own = s.notices.notices.filter(
+      (n) => n.kind === 'protection-ending' && n.playerId === isolated.playerId,
+    );
+    expect(own).toHaveLength(1);
+  });
+
   it('rod, který ochranu ukončil sám, upozornění nedostane', async () => {
     const s = await setup();
     await s.wars.markAttack(s.ids.a!, at(1));

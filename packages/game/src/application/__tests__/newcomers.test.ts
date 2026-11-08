@@ -418,6 +418,34 @@ describe('souběh výběru a umístění', () => {
   });
 });
 
+describe('umístění × souběžný zápis do mřížky', () => {
+  it('políčko mezitím obsadil pozvaný → umístění se zopakuje s čerstvou mapou obsazení', async () => {
+    const s = await setup();
+    await requestLords(s.deps, { playerId: 'player-n', houseIds: [s.ids.a!], now: NOW, today: 1 });
+    const placement = s.negotiations.placement!;
+    const move = placement.moveIsolated.bind(placement);
+    const taken: { x: number; y: number }[] = [];
+    placement.moveIsolated = async (ownerId, shift) => {
+      if (taken.length === 0) {
+        // sídlo nováčka je v místní mřížce na (0, 0) – cíl přesunu je přímo `shift`
+        taken.push({ ...shift });
+        await s.settlements.create({
+          ownerId: 'player-z',
+          landscapeSeed: 9,
+          layerVersions: layers,
+          worldCell: shift,
+        });
+      }
+      return move(ownerId, shift);
+    };
+    expect((await accept(s, 'a')).ok).toBe(true);
+    const seat = await s.settlements.findSeat('player-n');
+    expect(seat?.worldCell).not.toBeNull();
+    expect(seat?.worldCell).not.toEqual(taken[0]);
+    expect(s.vassalages.vassalages).toHaveLength(1);
+  });
+});
+
 describe('odchod syna × umístění (newcomers.md)', () => {
   it('rod umístěný během odchodu: sídlo v místní mřížce nevznikne, odchod pokračuje ve světě', async () => {
     const s = await setup();

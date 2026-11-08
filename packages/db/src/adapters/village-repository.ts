@@ -307,7 +307,7 @@ export function createVillageRepository(db: Database): VillageRepository {
 }
 
 /** Porušení unikátního indexu (PostgreSQL 23505) – Drizzle chybu někdy obalí (`cause`). */
-function isUniqueViolation(error: unknown): boolean {
+export function isUniqueViolation(error: unknown): boolean {
   for (let e: unknown = error, depth = 0; e && depth < 3; depth++) {
     const code = (e as { code?: unknown }).code;
     if (code === '23505') return true;

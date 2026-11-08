@@ -21,6 +21,9 @@ import { publicHouseOf, type WorldDirectory } from './world-directory';
 
 const DAY_MS = 86_400_000;
 
+/** Kolikrát zkusit umístit shluk, když políčko mezitím obsadí souběžný zápis do mřížky. */
+const PLACEMENT_ATTEMPTS = 3;
+
 /** Vylosovaná žádost se mezi čtením a transakcí losu změnila (odmítnutí) – los příště znovu. */
 const LOT_STALE = 'Žádost se mezitím změnila.';
 
@@ -65,8 +68,11 @@ export interface PlacementTx {
   languageCells(language: LanguageGroup): Promise<WorldCell[]>;
   /** Poloha sídelního sídla hráče na mapě světa; null – nemá (odříznutý, bez sídla). */
   seatCell(ownerId: string): Promise<WorldCell | null>;
-  /** Přesune odříznutá sídla hráče na mapu světa (místní poloha + `shift`) a místní smaže. */
-  moveIsolated(ownerId: string, shift: WorldCell): Promise<void>;
+  /**
+   * Přesune odříznutá sídla hráče na mapu světa (místní poloha + `shift`) a místní smaže; false –
+   * cílové políčko mezitím obsadil souběžný zápis do mřížky (nic se nepřesunulo).
+   */
+  moveIsolated(ownerId: string, shift: WorldCell): Promise<boolean>;
 }
 
 /** Rod v nabídce pánů – jen veřejné údaje (praporec kreslí web podle `houseId`). */
@@ -317,11 +323,18 @@ export async function placeNewcomer(
     const request: PlacementRequest = lordSeat
       ? { kind: 'invited', lordSeat }
       : { kind: 'independent', sameLanguage: await tx.placement.languageCells(house.language) };
-    const { offset } = placeCluster(await tx.placement.occupiedCells(), cluster, request);
-    await tx.placement.moveIsolated(house.playerId, {
-      x: offset.x - first.x,
-      y: offset.y - first.y,
-    });
+    // pozvaný a odchod ve světě zapisují do mřížky bez zámku umisťování – obsazené políčko →
+    // znovu s čerstvou mapou obsazení
+    let moved = false;
+    for (let attempt = 0; attempt < PLACEMENT_ATTEMPTS && !moved; attempt++) {
+      const { offset } = placeCluster(await tx.placement.occupiedCells(), cluster, request);
+      moved = await tx.placement.moveIsolated(house.playerId, {
+        x: offset.x - first.x,
+        y: offset.y - first.y,
+      });
+    }
+    // umístění už je zapsané (`claim`) – výjimka zruší celou transakci
+    if (!moved) throw new Error(`Nováčka ${house.id} se nepodařilo umístit na mapu světa.`);
   }
 
   if (lord && lordSeat) {

@@ -2,6 +2,7 @@ import { and, asc, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 import type { OccupiedCell, PlacementTx, WorldCell } from '@bohemia/game';
 import type { Executor } from '../client';
 import { house, settlement } from '../schema';
+import { isUniqueViolation } from './village-repository';
 
 /**
  * Klíč zámku umisťování nováčků (`pg_advisory_xact_lock(int4, int4)`) – jmenný prostor „Newc“
@@ -89,25 +90,35 @@ export function createPlacementTx(db: Executor): PlacementTx {
         .limit(1);
       return row && row.x !== null && row.y !== null ? { x: row.x, y: row.y } : null;
     },
-    async moveIsolated(ownerId, shift): Promise<void> {
-      // jedním příkazem – obsazené políčko (unikátní index) zruší celý přesun i transakci
-      await db
-        .update(settlement)
-        .set({
-          gridX: sql`${settlement.localX} + ${shift.x}`,
-          gridY: sql`${settlement.localY} + ${shift.y}`,
-          localX: null,
-          localY: null,
-        })
-        .where(
-          and(
-            eq(settlement.ownerId, ownerId),
-            isNull(settlement.archivedAt),
-            // stejný výběr jako `isolatedCells` – přesouvá se jen to, s čím počítal `placeCluster`
-            isNull(settlement.pendingOwnerId),
-            isNotNull(settlement.localX),
-          ),
-        );
+    async moveIsolated(ownerId, shift): Promise<boolean> {
+      // jedním příkazem v úložném bodě (savepoint) – obsazené políčko (unikátní index; pozvaný
+      // nebo odchod ve světě zapisují do mřížky bez zámku umisťování) zruší jen přesun, transakce
+      // jednání žije dál a umístění se zkusí znovu
+      try {
+        await db.transaction(async (sp) => {
+          await sp
+            .update(settlement)
+            .set({
+              gridX: sql`${settlement.localX} + ${shift.x}`,
+              gridY: sql`${settlement.localY} + ${shift.y}`,
+              localX: null,
+              localY: null,
+            })
+            .where(
+              and(
+                eq(settlement.ownerId, ownerId),
+                isNull(settlement.archivedAt),
+                // stejný výběr jako `isolatedCells` – přesouvá se jen to, s čím počítal `placeCluster`
+                isNull(settlement.pendingOwnerId),
+                isNotNull(settlement.localX),
+              ),
+            );
+        });
+        return true;
+      } catch (error) {
+        if (isUniqueViolation(error)) return false;
+        throw error;
+      }
     },
   };
 }

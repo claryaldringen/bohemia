@@ -17,6 +17,7 @@ import { testDatabaseUrl } from '../../test-database';
 import { schema } from '../../index';
 import { createHouseRepository } from '../house-repository';
 import { createNegotiationRepository } from '../negotiation-repository';
+import { createPlacementTx } from '../newcomer-placement';
 import { createSettlementRepository } from '../settlement-repository';
 import { createWorldDirectory } from '../world-directory';
 
@@ -157,5 +158,21 @@ describe('umístění nováčka (Drizzle)', () => {
       localCell: { x: 2, y: 0 },
     });
     expect(created).toBeNull();
+  });
+
+  it('obsazené políčko při přesunu shluku → false v úložném bodě, transakce žije dál', async () => {
+    await lord('z', 5);
+    await newcomer();
+    await db.transaction(async (tx) => {
+      const placement = createPlacementTx(tx);
+      // sídlo (0, 0) by přistálo na (5, 0) – tam už je cizí mapa
+      expect(await placement.moveIsolated('n', { x: 5, y: 0 })).toBe(false);
+      expect(await placement.moveIsolated('n', { x: 7, y: 0 })).toBe(true);
+    });
+    const cells = (await settlements.listActive('n')).map((x) => x.worldCell);
+    expect(cells).toEqual([
+      { x: 7, y: 0 },
+      { x: 8, y: 0 },
+    ]);
   });
 });

@@ -93,7 +93,10 @@ export interface HouseRepository {
    * ještě nepovýšil; true jen když zapsal (ze souběžných volání uspěje jedno).
    */
   claimEnnoble(houseId: string, year: number): Promise<boolean>;
-  /** Živé hráčovy rody založené po `since` (ochrana nováčka – upozornění na konec). */
+  /**
+   * Živé hráčovy rody umístěné na mapu světa po `since` (ochrana nováčka běží od umístění –
+   * upozornění na konec); odříznuté rody ne.
+   */
   playerHousesSince(since: Date): Promise<House[]>;
   /**
    * Zapíše první žádost nováčka o pána (podmíněně – jen když ještě žádná nebyla a rod není

@@ -61,6 +61,20 @@ test('jazyk z registrace dostane účet i rod', async ({ page }) => {
         return rows[0] as { account: string; house: string | null } | undefined;
       })
       .toEqual({ account: 'de', house: 'de' });
+    // změna účtu přes Better Auth jazyk nezmění (mění ho jen volba jazyka ve hře)
+    const status = await page.evaluate(async () => {
+      const response = await fetch('/api/auth/update-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'Jazykový test', language: 'cs' }),
+      });
+      return response.status;
+    });
+    expect(status).toBe(200);
+    const { rows } = await client.query(`SELECT name, language FROM "user" WHERE email = $1`, [
+      email,
+    ]);
+    expect(rows[0]).toEqual({ name: 'Jazykový test', language: 'de' });
   } finally {
     await client.end();
   }
