@@ -38,9 +38,12 @@ hráč)`) a rod s `house.placed_at` null. Pozvaný je na mapě hned (`placed_at`
   seed `isolated:<rod>:x,y`, unikátní index `settlement_local_idx` (hráč + místní poloha).
 - **Nikdo ho nevidí:** adresář (`nearestHouses`, `entriesOf` – jen `placed_at IS NOT NULL` a sídlo
   s `grid_*`), `openNegotiation` (odříznutý jen žádá o pána – `newcomer: true`; na odříznutý cíl
-  `NEWCOMER_REASONS.isolatedTarget`), `declareWar` (cíl i útočník), zásilky mezi hráči
-  (`crossesIsolation` v `shipments.ts`), `issueInvite` (`INVITE_NEEDS_PLACEMENT`). Ochrana nováčka
-  běží od `placedAt` (`houseProtectedUntil`, `playerHousesSince`).
+  `NEWCOMER_REASONS.isolatedTarget`), `declareWar`, `prepareCampaign` (plán i vyslání tažení –
+  útočník `notPlaced`, cíl `isolatedTarget`, poloha vsí jen z mapy světa, žádné `?? (0, 0)`),
+  `announcePassage` (oba rody), zásilky mezi hráči (`crossesIsolation` v `shipments.ts`),
+  `issueInvite` (`INVITE_NEEDS_PLACEMENT`). Ochrana nováčka: dokud `placedAt` null, je rod chráněn
+  vždy (`houseProtectedUntil` → `ISOLATED_PROTECTION_UNTIL`, štít v panelu se neukáže), pak běží od
+  `placedAt` (`playerHousesSince`).
 - **Žádosti:** `requestLords` – 1–5 rodů z `newcomerStatus().offer` (`WorldDirectory.offerCandidates`
   → `lordOffer`, bez už žádaných), jednání `negotiation.newcomer` s holou přísahou; první úspěšná
   žádost zapíše `newcomer_since` (`markNewcomerSince`). Pán jen přijme / odmítne

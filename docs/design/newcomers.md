@@ -102,7 +102,8 @@ vedle jména rodu).
 - **Umístění po výběru pána:** jako pozvaný – volné políčko nejblíž mapě vlastní vsi pána, aspoň
   2 políčka od map ostatních hráčů ([vazalství](vassalage.md) – Místo na mapě světa).
 - **Ochrana nováčka** (7 dní – [válka](war.md)) začne až umístěním na mapu světa (návrh Clauda –
-  v odříznuté krajině ho nikdo napadnout nemůže).
+  v odříznuté krajině ho nikdo napadnout nemůže). Dokud odříznutý je, nikdo na něj netáhne ani mu
+  neohlásí průchod a on sám také ne – ani když je od založení rodu déle než týden.
 
 ## Svobodný nováček
 

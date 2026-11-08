@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
 import { DAY, sender } from '../../domain/vassalage/__tests__/shipment-fixtures';
 import { startWarByAttack } from '../declare-war';
+import { NEWCOMER_REASONS } from '../newcomers';
 import { announcePassage, answerPassage, PASSAGE_REASONS, type PassageDeps } from '../passage';
 import { villageWatchers } from '../step-campaigns';
 import { InMemoryHouses } from './in-memory-houses';
@@ -28,6 +29,7 @@ async function world(): Promise<{
   notices: InMemoryNotices;
   villages: InMemoryVillages;
   wars: InMemoryWars;
+  houses: InMemoryHouses;
   watchers: ReturnType<typeof villageWatchers>;
   armyHouse: string;
   neutralHouse: string;
@@ -65,6 +67,7 @@ async function world(): Promise<{
     notices,
     villages,
     wars,
+    houses,
     watchers: villageWatchers({ villages, settlements, houses, vassalages, passages }),
     armyHouse: army.id,
     neutralHouse: neutral.id,
@@ -84,6 +87,17 @@ const announce = (w: Awaited<ReturnType<typeof world>>): ReturnType<typeof annou
   });
 
 describe('ohlášený průchod', () => {
+  it('odříznutý rod (newcomers.md) průchod neohlásí ani nedostane – ani po týdnu ochrany', async () => {
+    const w = await world();
+    const [army, neutral] = [await w.houses.byId(w.armyHouse), await w.houses.byId(w.neutralHouse)];
+    neutral!.placedAt = null;
+    expect(await announce(w)).toEqual({ ok: false, reason: NEWCOMER_REASONS.isolatedTarget });
+    neutral!.placedAt = OLD;
+    army!.placedAt = null;
+    expect(await announce(w)).toEqual({ ok: false, reason: NEWCOMER_REASONS.notPlaced });
+    expect(w.notices.notices).toHaveLength(0);
+  });
+
   it('ohlášení: upozornění a kronika obou rodů; vlastnímu rodu ani bez map ohlásit nejde', async () => {
     const w = await world();
     const done = await announce(w);
