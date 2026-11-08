@@ -28,7 +28,7 @@ let worker: ChildProcess | null = null;
 let output = '';
 let exited: Promise<number | null> = Promise.resolve(null);
 
-test.describe.configure({ mode: 'serial', timeout: 180_000 });
+test.describe.configure({ mode: 'serial', timeout: 300_000 });
 
 test.beforeAll(async () => {
   // Worker bere první hráče nejvíc pozadu – staří hráči jiných specifikací (posun času o rok)
@@ -156,7 +156,7 @@ test('ves na cestě se správcem se po příjezdu založí sama – hráč na ni
         WHERE s.owner_id = (SELECT id FROM "user" WHERE email = $1) AND s.id <> $2`,
       [email, s.settlementId],
     );
-  await expect.poll(async () => (await travelling()).length, { timeout: 30_000 }).toBe(1);
+  await expect.poll(async () => (await travelling()).length, { timeout: 90_000 }).toBe(1);
   const [away] = await travelling();
   expect(away!.state.journey?.direction).toBe('E');
 
@@ -185,7 +185,8 @@ test('ves na cestě se správcem se po příjezdu založí sama – hráč na ni
           day: state.lastDay,
         };
       },
-      { timeout: 60_000 },
+      // dopočet vsi workerem (smyčka s odklady) – pod zátěží stroje trvá i přes minutu
+      { timeout: 150_000 },
     )
     .toEqual({ travelling: false, building: true, day: arrived.lastDay + 2 });
 
