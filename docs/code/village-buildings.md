@@ -333,3 +333,29 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 - **Vrátit** (`restoreStructure`): smaže `disusedDay`; modla, svatyně, ohrada přestanou chátrat
   (`wear = { condition }`) a stavba `repair` je opraví ze zchátralého stavu; obydlí stav nezvedá
   a znovu se osídlí.
+
+## Bourání
+
+[demolition.md](../design/demolition.md) – Bourání (Martin 8. 11. 2026). Modul `demolition.ts`:
+bourání je stavba `demolition` (`Construction.demolition = { structure, id }`) ze společné práce
+vsi jako `repair`. API: `demolitionCost(state, ref, day)` (`{ laborManDays, logs }`),
+`demolitionBlock`, `demolishStructure` (hráč; vstup nemění), `startDemolition` (bez kontrol, pro
+správce Ú6), `demolitionOf` (v `disused.ts`, kvůli cyklům), `demolitionNeed`, `isDemolitionFinished`,
+`finishDemolition(next, day, c)` (vrací událost `structure-demolished` s `logs`). Texty
+`ALREADY_DEMOLISHING`, `DEMOLISHING` (Vrátit při bourání, `structure-use.ts`).
+
+- **Založení:** ještě neopuštěná stavba se napřed opustí (`disuseBlock` – obydlí s lidmi musí mít
+  volná místa, Ú2); opuštěná se rovnou boří. Dvorec a hřbitov nejdou. Práce =
+  `DEMOLITION.laborShare` × `BUILD_COSTS` (obydlí podle typu, dílna podle řemesla, ohrada
+  `PEN.laborManDays`, modla a svatyně `SACRED_BUILDINGS`); stavba má `position` stavby (místo
+  práce, `labor-report` ji počítá jako stavbu na staveništi).
+- **Dokončení** (`finishConstructions` → `finishDemolition`): stavba zmizí bez zříceniny (obydlí
+  z `dwellings`, ohrada z `pens` včetně rozestavěných rozšíření a rádla, modla a svatyně bez
+  `sacredRuins`); klády `floor(logShare × stromy × stav v den dokončení)` na hromadu u cesty
+  (`addLogs`). Stavba, která mezitím zanikla (prázdné obydlí zchátralo, ohrada spadla): `need` 0,
+  bourání skončí bez klád, bez kroniky a bez chyby.
+- **Zrušení** (`cancelConstruction`): stavba zůstane opuštěná, práce propadne, kronika
+  `construction-cancelled` s `constructionKind: 'demolition'` (návrh Clauda).
+- **Návrh Clauda:** klády ohrady se počítají z `PEN.trees` bez ohledu na počet čtverců; obydlí,
+  kde by při dokončení ještě někdo bydlel (nemělo by nastat), se znovu vystěhuje, a nejde-li to,
+  zůstane stát. Web zatím jen jméno „Bourání“ a text kroniky, panely a scéna dál Ú10 a Ú11.

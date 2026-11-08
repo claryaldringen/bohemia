@@ -3,7 +3,7 @@
 
 import type { Craft } from './types-crafts';
 import type { FortBuildWork, FortSegmentWork } from './fortification/types';
-import type { AbandonedStructure, Crop } from './types-land';
+import type { AbandonedStructure, Crop, UsableStructure } from './types-land';
 import type { HorseGood } from './types-trade';
 import type { TradedHorse } from './types-livestock';
 import type { DwellingPlot, DwellingType, Position } from './types-people';
@@ -39,7 +39,12 @@ export type ConstructionKind =
    * Opevnění (fortifications.md – Cena a stavba): stavba, vylepšení nebo nástavba opevnění
    * `fortificationId` po úsecích (`fortSegments`) – co dělá, říká `fortWork`.
    */
-  | 'fortification';
+  | 'fortification'
+  /**
+   * Bourání stavby (demolition.md – Bourání): společná práce vsi, po dokončení stavba zmizí a dá
+   * klády na hromadu u cesty – co se bourá, říká `demolition`.
+   */
+  | 'demolition';
 /**
  * Co může vzít půdu poli (fields.md – Pole jako krajina; Martin 18. 10. 2026): obydlí (i dílna),
  * sad, hřbitov, ohrada, modla, svatyně, jabloně u cesty a stromy u cesty – cokoli kromě pole.
@@ -145,6 +150,8 @@ export interface Construction {
    * stavby roste s prací. Jen u stavby `repair`, u ostatních chybí.
    */
   repair?: StructureRepair;
+  /** Bourání (demolition.md): která stavba se boří; jen u stavby `demolition`. */
+  demolition?: DemolitionTarget;
   /**
    * Stavba rozšiřuje už stojící pole, ohradu nebo hřbitov (ne vlastní nová entita) – značka
    * „postavil správce“ pak nepřejde na celek (steward.md – Stav správce). Jinak chybí.
@@ -167,6 +174,11 @@ export interface Construction {
  * Oprava stavby (abandonment.md – Oprava): druh a id stavby (modla a svatyně – id stavby,
  * hřbitov, ohrada) a stav, ze kterého oprava začala. Práce stavby = plná oprava × (1 − `from`).
  */
+/** Zbourání se týká stavby – druh a id (jako `UsableRef` ze structure-use.ts). */
+export interface DemolitionTarget {
+  structure: UsableStructure;
+  id: number;
+}
 export interface StructureRepair {
   structure: AbandonedStructure;
   id: number;

@@ -19,6 +19,7 @@ import { mergeRoadChains } from './paths/roads';
 import { roadWalk, walkGroundOf } from './paths/walking';
 import { finishRoadApples, workRoadApples, roadApplesNeed } from './road-apples';
 import { finishRoadUpgrade } from './road-upgrades';
+import { demolitionNeed, finishDemolition, isDemolitionFinished } from './demolition';
 import { finishRepair, isRepairFinished, repairNeed, workRepair } from './repair';
 import { copyPlot, relocationPlot } from './plots';
 import { finishThreshingFloor } from './threshing-floors';
@@ -97,6 +98,8 @@ export function constructionNeed(
   if (c.kind === 'road-apples') return roadApplesNeed(c, day);
   // oprava stavby, která mezitím přestala stát, práci nebere (abandonment.md – Oprava)
   if (c.kind === 'repair') return repairNeed(state, c);
+  // bourání stavby, která mezitím zanikla, práci nebere (demolition.md – Bourání)
+  if (c.kind === 'demolition') return demolitionNeed(state, c);
   if (c.kind !== 'field') return Math.max(0, c.cost - c.done);
   return foundingParts(founding, c).reduce((sum, p) => sum + clearingNeedToday(p, day), 0);
 }
@@ -338,6 +341,7 @@ export function isFinished(state: VillageState, c: Construction, founding: Found
   if (c.kind === 'field') return foundingParts(founding, c).length === 0;
   if (c.kind === 'orchard') return isOrchardPlanted(state, c);
   if (c.kind === 'repair') return isRepairFinished(state, c);
+  if (c.kind === 'demolition') return isDemolitionFinished(state, c);
   return c.done >= c.cost;
 }
 
@@ -366,6 +370,12 @@ export function finishConstructions(state: VillageState, day: number): void {
     if (c.kind === 'cemetery') {
       finishCemetery(state, day, c);
       state.chronicle.push(finishedEvent(day, c, null));
+      continue;
+    }
+    if (c.kind === 'demolition') {
+      // zbouraná stavba zmizí a dá klády na hromadu (demolition.md – Bourání)
+      const demolished = finishDemolition(state, day, c);
+      if (demolished) state.chronicle.push(demolished);
       continue;
     }
     if (c.kind === 'repair') {

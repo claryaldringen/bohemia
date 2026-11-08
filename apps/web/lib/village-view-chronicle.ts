@@ -828,6 +828,10 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return 'Opuštěná stavba vrácena do užívání.';
     case 'structure-repaired':
       return STRUCTURE_REPAIRED_TEXTS[event.structure];
+    case 'structure-demolished':
+      return event.logs > 0
+        ? `Stavba zbourána, ${event.logs} klád na hromadě.`
+        : 'Stavba zbourána.';
     case 'weather':
       return weatherText(event.summer, event.winter);
     case 'fire':
@@ -888,6 +892,7 @@ export function constructionLabel(c: ConstructionSummary): string {
   if (c.kind === 'road-apples') return 'Jabloně u cesty';
   if (c.kind === 'threshing-floor') return 'Humno';
   if (c.kind === 'fortification') return 'Opevnění';
+  if (c.kind === 'demolition') return 'Bourání';
   if (c.kind === 'repair') return `Oprava – ${REPAIR_NAMES[c.repair?.structure ?? 'idol']}`;
   const type = c.dwellingType ?? 'zemnice';
   if (c.kind === 'rebuild') return `Přestavba na ${DWELLING_NAMES[type].accusative}`;
