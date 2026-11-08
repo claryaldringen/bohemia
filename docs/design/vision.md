@@ -107,7 +107,7 @@ Mechaniky probereme postupně. Zatím nerozhodnuto:
    dávky z makrokomodit podle výhledu vazala, pomoc a ochrana na žádost, rozsudek pána
    ([vazalství](vassalage.md)); otevřené zbývají podrobnosti tam.
 5. **Smrt, dědictví a nástupnictví** – co když rod vymře? Co když hráč dlouho není online a
-   mezitím uběhnou generace? (Zčásti rozhodnuto: když hráči vymřou všechny vesnice, hra pro něj
+   mezitím uběhnou generace? – rozhodnuto 8. 11. 2026 ([dlouhá nepřítomnost](absence.md)). (Zčásti rozhodnuto: když hráči vymřou všechny vesnice, hra pro něj
    končí a začíná znovu; začít znovu může i sám z nabídky hry – Martin, 18. 10. 2026,
    [populace](population.md).)
 6. **Hospodářství a stavby** – suroviny, obyvatelstvo, postup vesnice → hradiště → tvrz → hrad
