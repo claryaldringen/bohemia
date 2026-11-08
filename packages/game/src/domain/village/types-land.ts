@@ -434,6 +434,11 @@ export interface SacredBuilding {
   builtDay: number;
   /** Chátrání opuštěné stavby (abandonment.md); chybí = celá. */
   wear?: StructureWear;
+  /**
+   * Den pokynu „Opustit“ (demolition.md – Opuštění): od něj se stavba nepoužívá, ale stojí. Chybí =
+   * stavba se používá. Vrátit stavbu = záznam smazat.
+   */
+  disusedDay?: number;
 }
 
 /**
@@ -441,6 +446,9 @@ export interface SacredBuilding {
  * hřbitova a ohrada.
  */
 export type AbandonedStructure = 'idol' | 'shrine' | 'cemetery-fence' | 'pen';
+
+/** Stavby, které jde opustit a vrátit (demolition.md – Opuštění); Ú7 přidá humno, jámu a sad. */
+export type UsableStructure = 'dwelling' | 'pen' | 'idol' | 'shrine';
 
 /**
  * Chátrání stavby (abandonment.md – Chátrání): stav 0–1 a od kdy je stavba opuštěná. Opuštěná

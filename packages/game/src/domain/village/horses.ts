@@ -1,3 +1,4 @@
+import { isDisused } from './disused';
 import { HORSES, PEN_PLACES_PER_SQUARE } from './rules';
 import { builtPenSquares, penSpecies } from './pens';
 import type { Horse, Pen, VillageState } from './types';
@@ -13,7 +14,7 @@ export type HorseKind = 'foal' | 'mare' | 'riding';
 
 /** Ohrady koní vsi. */
 export function horsePens(state: Pick<VillageState, 'pens'>): Pen[] {
-  return (state.pens ?? []).filter((pen) => penSpecies(pen) === 'horse');
+  return (state.pens ?? []).filter((pen) => penSpecies(pen) === 'horse' && !isDisused(pen));
 }
 
 /** Koně ohrady (bez údaje žádní). */

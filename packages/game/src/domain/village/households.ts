@@ -1,3 +1,4 @@
+import { isDisused } from './disused';
 // Domácnosti po rodinách (kinship.md – Domácnosti; population.md – Nové obydlí, Martin 17.–18. 10.
 // 2026: „plná domácnost → nová domácnost v novém obydlí“, „Pokud už jsou rodiče neplodní, tak ano,
 // má [nejstarší zůstat]“, „pokud se lidé v domě tísní a je tam nejstarší dítě, nejstarší dítě může
@@ -183,7 +184,10 @@ export function settleNewDwelling(state: VillageState, day: number, dwellingId: 
 export function occupyEmptyDwellings(state: VillageState, day: number): void {
   const empty = (): Dwelling[] => {
     const occupied = new Set(state.people.map((p) => p.dwellingId));
-    return state.dwellings.filter((d) => !occupied.has(d.id)).sort((a, b) => a.id - b.id);
+    // opuštěné obydlí se neosídlí (demolition.md – Opuštění)
+    return state.dwellings
+      .filter((d) => !occupied.has(d.id) && !isDisused(d))
+      .sort((a, b) => a.id - b.id);
   };
   for (const d of empty()) settleNewDwelling(state, day, d.id);
   for (const d of empty()) {
@@ -221,7 +225,9 @@ export function availableSettlers(state: VillageState, day: number): number {
   const building = state.constructions.filter(
     (c) => c.kind === 'dwelling' && c.dwellingId === null && c.relocates === undefined,
   ).length;
-  const empty = state.dwellings.filter((d) => occupants(state, d.id).length === 0).length;
+  const empty = state.dwellings.filter(
+    (d) => occupants(state, d.id).length === 0 && !isDisused(d),
+  ).length;
   // ves z doby před příbuzenstvím se počítá, jako by už měla pohlaví a manžele (`withKinship`)
   return possibleNewHouseholds(withKinship(state, day), day) - building - empty;
 }

@@ -806,6 +806,10 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return newcomerText(event.direction, event.group, event.people);
     case 'structure-fell':
       return STRUCTURE_FELL_TEXTS[event.structure];
+    case 'structure-abandoned':
+      return 'Stavba opuštěna.';
+    case 'structure-restored':
+      return 'Opuštěná stavba vrácena do užívání.';
     case 'structure-repaired':
       return STRUCTURE_REPAIRED_TEXTS[event.structure];
     case 'weather':

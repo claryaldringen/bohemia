@@ -1,3 +1,4 @@
+import { isDisused } from './disused';
 import { cloneState } from './clone';
 import { dateOfDayIndex } from '../calendar';
 import type { ObstacleLayer } from '../landscape';
@@ -78,7 +79,7 @@ export function villagePens(state: Pick<VillageState, 'pens'>): Pen[] {
 
 /** Ohrady volů (oxen.md – Ohrada volů; v kódu druh `team`). */
 export function oxPens(state: Pick<VillageState, 'pens'>): Pen[] {
-  return villagePens(state).filter((pen) => penSpecies(pen) === 'team');
+  return villagePens(state).filter((pen) => penSpecies(pen) === 'team' && !isDisused(pen));
 }
 
 /** Voli ohrady – vycvičení i telata ve výcviku. */

@@ -306,3 +306,30 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`relocation.ts`) vrací `fromPile + felled − floor(trees × done / cost)` klád. Kronika:
   `construction-cancelled` (stěhování dál `relocation-cancelled`). Use-case:
   `application/cancel-construction.ts`.
+
+## Opuštění a vrácení stavby
+
+[demolition.md](../design/demolition.md) – Opuštění (Martin 8. 11. 2026). Stavba má volitelný
+`disusedDay` (`Dwelling`, `Pen`, `SacredBuilding`): od něj stojí, ale nepoužívá se. Čte ho
+`isDisused` (`disused.ts`, bez závislostí kvůli cyklům). Akce v `structure-use.ts`:
+`disuseBlock(state, ref)` (důvod odmítnutí česky), `beginDisuse` (mutuje klon), `abandonStructure`,
+`restoreStructure` (vstup nemění, kronika `structure-abandoned` / `structure-restored`).
+`DEMOLITION` (čísla bourání, využije Ú3) je v `rules-buildings.ts`.
+
+- **Opuštění nic nestojí.** Obydlí zruší svou rozestavěnou přestavbu (dřevo na hromadu); modla,
+  svatyně a ohrada zruší opravu a dostanou `wear = { condition, abandonedDay: den pokynu }` –
+  chátrají a padnou jako opuštěná stavba (abandonment.md).
+- **Filtry užívání:** `penOccupancy`, `oxPens`, `horsePens` (a tím místa a `looseOxenDay` /
+  `looseHorsesDay`) opuštěnou ohradu nevidí; `sacredHappiness` nepočítá opuštěnou modlu ani svatyni
+  (`hasShrine` dál počítá, stojí); `occupyEmptyDwellings`, `availableSettlers` a `newcomerHome`
+  opuštěné obydlí neosídlí ani nepočítají mezi prázdná (prázdné obydlí chátrá dál podle dnešního
+  pravidla a zanikne se zříceninou). Kreslení, kolize a umístění berou všechny stavby.
+- **Roční kontrola** (`abandonmentCheck`): nepoužívaná stavba nemá provoz (`on = false`), nikdy se
+  neopraví sama – vrátí ji jen hráč.
+- **Návrh Clauda:** zvířata z opuštěné ohrady zůstanou ve vsi bez ohrady – koně v `looseHorses`,
+  voli v `looseOxen` (přejdou do jiné ohrady, až bude); stádo bez ohrady jako dnes. Obydlí
+  s obyvateli jde dočasně opustit jen prázdné (`DWELLING_OCCUPIED`), volná místa v jiných obydlích
+  přidá Ú2.
+- **Vrátit** (`restoreStructure`): smaže `disusedDay`; modla, svatyně, ohrada přestanou chátrat
+  (`wear = { condition }`) a stavba `repair` je opraví ze zchátralého stavu; obydlí stav nezvedá
+  a znovu se osídlí.

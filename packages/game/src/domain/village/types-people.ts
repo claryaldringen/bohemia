@@ -253,6 +253,11 @@ export interface Dwelling {
    * chybí – tvar je varianta podle polohy (`dwellingShape`).
    */
   plainShape?: true;
+  /**
+   * Den pokynu „Opustit“ (demolition.md – Opuštění): od něj se stavba nepoužívá, ale stojí. Chybí =
+   * stavba se používá. Vrátit stavbu = záznam smazat.
+   */
+  disusedDay?: number;
 }
 /**
  * Zbytek jámy po zaniklém obydlí: zarostlá prohlubeň s kopřivami a pár trámy (population.md –

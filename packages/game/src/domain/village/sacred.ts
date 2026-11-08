@@ -1,3 +1,4 @@
+import { isDisused } from './disused';
 import {
   length2,
   obstacleKind,
@@ -453,7 +454,8 @@ export function sacredHappiness(
     .sort((a, b) => b - a)
     .slice(0, GROVE.counted)
     .reduce((sum, v) => sum + v, 0);
-  const buildings = villageSacredBuildings(state);
+  // opuštěná modla ani svatyně štěstí nedává (demolition.md – Opuštění)
+  const buildings = villageSacredBuildings(state).filter((b) => !isDisused(b));
   let built = 0;
   for (const kind of ['idol', 'shrine'] as const) {
     const count = buildings.filter((b) => b.kind === kind).length;
