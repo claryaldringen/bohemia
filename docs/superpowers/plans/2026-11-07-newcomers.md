@@ -30,7 +30,7 @@ a čekání. Odříznuté sídlo má `worldCell = null` a místní souřadnice v
 - Hexagon: doména a use-casy bez I/O, čas a náhoda parametrem (CLAUDE.md); komentáře česky,
   en dash „–“, nikdy „—“; UI jako 0 A.D. (slova jen v `Tooltip`; výjimka: registrační formulář
   mimo hru má popisky jako dnes).
-- Migrace číslovat od **0037**; DB `bohemia` migruje jen koordinátor.
+- Migrace číslovat od **0037**; DB `bohemia` migruje jen Claude v hlavní relaci.
 
 ## Review Focus
 
