@@ -341,8 +341,38 @@ afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Sc
   ostrých míst jsem nezvolil: odsouvá bod od zdi a zhoršuje objížďku, zhušťování je jednodušší a
   nechává běžné rovné úseky řídké. Čas roku Vlkova: změří se (měření na zatíženém stroji
   nic neříkalo).
-  Souběžné požadavky téhož hráče dopočet nezdvojují: web je řadí do fronty (`apps/web/lib/exclusive.ts`,
-  web-ui.md – Jeden dopočet vsí naráz), druhý jen dopočte zbytek do svého dne.
+  **Kolo 4 (8. 11. 2026, rok Vlkova pod 10 s bez změny výsledku):** stav z DB 8. 11. (26 lidí,
+  palisáda z bodů, 47f58434) – rok 21,6–23,0 s, z toho 9 dní po 1,6–2,9 s (23. 5., 1. 11., 12. 12., 17. 12., 20. 12., 6. 2., 1. 3., 1. 4., 1. 5.) ≈ 78 %. Všech 9 je přepočet mapy tras se skutečnou
+  změnou klíče (`routeMapKey`): ohrady (5×), pevné cesty (1. 3.–1. 5.), pařezy k 1. 11., opevnění
+  (23. 5.); jinak drahé dny nejsou. Jeden přepočet ≈ 1,7 s: síť pěšin ≈ 1,1 s – 367 hledání
+  (A* k bráně každé domácnosti zvlášť, Dijkstra u jediné, dvě kola) po mřížce 375 × 375, ≈ 5,5 mil.
+  vyjmutí z haldy (29 % zastaralých); hledání jde po sobě, každá trasa hned mění ceny buněk, takže
+  se nedá rozdělit ani převzít z minulého přepočtu (počáteční ceny se mezi přepočty liší jen
+  v 21–3 000 buňkách ze 140 tisíc, ale váhy cest se stářím domácností mění provoz a ceny po
+  trasách). Vzdálenosti chůze ≈ 0,55 s, z toho objížďky stěn ≈ 0,45 s: 174 tisíc úseček rovně
+  z obydlí k dílům a uzlům sítě, 82 % protne palisádu (pole leží vně). Změna – **paměť objížděk**
+  (`wallCrossing`, walk-walls.ts): průchod stěnou i body objížďky podle úsečky v číselné tabulce
+  (`SegmentMemo`) u stěn – `walkWallsOf` vrací pro tytéž stěny tentýž objekt a úsečky se mezi
+  přepočty opakují (za rok 1,54 mil. dotazů, 146 tisíc různých; paměť ≈ 15 MB na stěny, nejvýš
+  2^18 úseček, pak začne znovu – drží ji jen stěny z `walkWallsOf`, posledních 8). Mez `limit` výsledek v paměti
+  nemění: konce objížďky se zkoušejí v pořadí dolní meze nezávisle na ní, takže body objížďky
+  i 'none' platí pro každou mez nad uloženou hranicí `at` (pod ní 'far'); 'far' z menší meze se pro
+  větší dopočítá. Test `paměť objížděk` porovná paměť s výpočtem bez ní pro čtyři meze. Chůze
+  přepočtu 4,9 → 2,4 s za rok. Otisk roku `5b5fccae7d5b` týž před i po – po dnech (každý den),
+  vcelku i po 37 dnech. Rok Vlkova třikrát střídavě před / po (stroj vytížený jinými procesy,
+  zátěž 40–98, proto i cykly procesu z `time -l`): 22,4–36,2 s → 20,3–36,5 s (nejlepší běh
+  22,4 → 20,3 s, CPU 27,6–32,3 → 24,5–29,5 s), cykly 88,8–96,0 → 79,2–86,9 mld. (≈ −10 %).
+  Zkoušeno bez úspory (počet instrukcí i cyklů sítě beze změny nebo horší, zahozeno): Floydovo
+  prosévání haldy, `quantizedStep` přes `floor` a násobení kvantem, vnitřní buňky hledání bez
+  hlídání okraje. **Cíl < 10 s splněn není** – hledání sítě pěšin je ≈ 70 % přepočtu a bit po
+  bitu ho zrychlit neumím. Návrhy Clauda (mění výsledek, jen na pokyn): (a) přepočet mapy tras až
+  1. dne dalšího měsíce (změny měsíce najednou) – Vlkov 9 → 6 přepočtů, ≈ −5 s (−25 %); (b) jedno
+     kolo hledání místo dvou (`PASSES` 2 → 1) – hledání −50 %, ≈ −5 s, pěšiny se slévají jen
+     v rámci kola; (c) hrubší mřížka sítě pěšin (`PATH_GRID_PER_TILE` 4 → 3 – buněk −44 %, hledání
+     ≈ −40 %, ≈ −4 s; nová verze tras, pěšiny ve scéně hrubší); (d) silnější odhad A*
+     (`A_STAR_WEIGHT` 0,5 → 1) jen −8 % instrukcí sítě – nevyplatí se.
+     Souběžné požadavky téhož hráče dopočet nezdvojují: web je řadí do fronty (`apps/web/lib/exclusive.ts`,
+     web-ui.md – Jeden dopočet vsí naráz), druhý jen dopočte zbytek do svého dne.
 
 - **Čísla** pravidel jsou jen v `rules*.ts` (u každého odkaz na sekci návrhu); změna čísla = i
   text v návrhu. Kalibrace: `measure-village.ts` nasimuluje stovky vsí a vypíše cíle z Kalibrace

@@ -4,9 +4,8 @@ import type { RoadGrade, RoadGround, RoadLining } from '../types';
 import { roadBridged } from '../types-roads';
 import type { FortWalls } from '../fortification/walls';
 import {
-  cutsWall,
   GATE_SLACK_M,
-  wallDetour,
+  wallCrossing,
   walkWallsOf,
   WALL_CLIMB_M,
   type WalkWalls,
@@ -159,8 +158,9 @@ function walledStraight(
   length: (from: PathPoint, to: PathPoint) => number,
   limit = Infinity,
 ): { cost: number; via: PathPoint[] | null } {
-  if (!cutsWall(walls, a, b)) return { cost: length(a, b), via: null };
-  const via = wallDetour(walls, a, b, 0, limit);
+  // úsečky se opakují každý přepočet tras – průchod stěnou i objížďka z paměti stěn
+  const via = wallCrossing(walls, a, b, 0, limit);
+  if (via === null) return { cost: length(a, b), via: null };
   if (via === 'far') return { cost: Infinity, via: null };
   if (via === 'none') return { cost: length(a, b) + WALL_CLIMB_M, via: null };
   let cost = 0;
@@ -772,8 +772,8 @@ export function walkGraph(
     slack: number,
   ): number => {
     const a = prev >= 0 ? { x: graph.x[prev]!, z: graph.z[prev]! } : null;
-    const cut = a !== null && walls !== null && cutsWall(walls, a, p, slack);
-    const found = cut ? wallDetour(walls!, a!, p, slack) : null;
+    const found = a !== null && walls !== null ? wallCrossing(walls, a, p, slack) : null;
+    const cut = found !== null;
     const via = Array.isArray(found) ? found : null;
     const viaIds = (via ?? []).map((v) => node(v, false));
     chain.push(...viaIds);

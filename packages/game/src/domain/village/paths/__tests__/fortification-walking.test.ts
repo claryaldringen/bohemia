@@ -15,7 +15,7 @@ import type { PathPoint, PathVillage } from '../network-types';
 import { routePaths } from '../route-paths';
 import { storedRoutes } from '../routes';
 import { pathFortificationsOf } from '../village';
-import { WALL_CLIMB_M, cutsWall } from '../walk-walls';
+import { WALL_CLIMB_M, cutsWall, wallCrossing, wallDetour } from '../walk-walls';
 import {
   walkGraph,
   walkingDistances,
@@ -158,6 +158,44 @@ describe('objížďka stěn po 10 m – hrany nikdy neřežou zeď (návrh Claud
       });
       // před bránou stojí bod, ze kterého je vidět do jejího středu
       for (const c of w.centers) expect(w.detour.some((p) => !cutsWall(w, p, c))).toBe(true);
+    });
+  }
+});
+
+describe('paměť objížděk (`wallCrossing`) – týž výsledek jako bez paměti', () => {
+  const sq = (n: number, m: number): { x: number; y: number }[] =>
+    Array.from({ length: n * m }, (_, k) => ({ x: 8 + (k % n), y: 8 + Math.floor(k / n) }));
+  const shapes: [string, { x: number; y: number }[], PathPoint | null][] = [
+    ['čtverec 4 × 4 s bránou', sq(4, 4), { x: -7.5, z: -30 }],
+    ['pás 8 × 2 bez brány', sq(8, 2), null],
+  ];
+  // body uvnitř i vně stěn; meze od malé (jen 'far') po žádnou, napřed malé – 'far' se pak
+  // pro větší mez dopočítá
+  const pts: PathPoint[] = [];
+  for (let x = -60; x <= 60; x += 15) for (let z = -60; z <= 60; z += 15) pts.push({ x, z });
+  const limits = [5, 40, 120, Infinity];
+  for (const [name, cells, gate] of shapes) {
+    it(name, () => {
+      const walls = withFortWalk(
+        PLAIN_GROUND,
+        pathFortificationsOf(
+          { fortifications: [shapedFort(cells, gate)], constructions: [] },
+          LANDSCAPE,
+        ),
+      ).walls!;
+      const kinds = new Set<string>();
+      for (const limit of limits) {
+        for (const [slack, a, b] of pts.flatMap((a) =>
+          pts.map((b) => [a.x % 2 ? 1 : 0, a, b] as const),
+        )) {
+          const fresh = cutsWall(walls, a, b, slack) ? wallDetour(walls, a, b, slack, limit) : null;
+          const memo = wallCrossing(walls, a, b, slack, limit);
+          expect(memo).toEqual(fresh);
+          kinds.add(fresh === null ? 'clear' : Array.isArray(fresh) ? 'via' : fresh);
+        }
+      }
+      // zkouška pokryla všechny druhy výsledku
+      expect([...kinds].sort()).toEqual(['clear', 'far', 'none', 'via']);
     });
   }
 });
