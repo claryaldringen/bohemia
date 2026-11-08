@@ -80,6 +80,7 @@ import { parsePanelAsk, type PanelOptions } from '@/lib/panel-options';
 import {
   buildTrailForPlayer,
   buildWagonRoadForPlayer,
+  abandonFieldPartsForPlayer,
   cancelConstructionForPlayer,
   sendExpeditionForPlayer,
   forceDevDisasterForPlayer,
@@ -129,6 +130,7 @@ import {
 } from '@/lib/campaign-input';
 import {
   parseBuildTrailInput,
+  parseAbandonFieldPartsInput,
   parseCancelConstructionInput,
   parseDevDisasterInput,
   parseSendExpeditionInput,
@@ -377,6 +379,14 @@ export async function relocateHousehold(input: unknown): Promise<VillageActionRe
 /** Zrušení rozestavěné stavby: `{ villageId, constructionId }` – nespotřebované dřevo zpět na hromadu. */
 export async function cancelConstruction(input: unknown): Promise<VillageActionResult> {
   return villageAction(input, parseCancelConstructionInput, cancelConstructionForPlayer);
+}
+
+/**
+ * Opuštění dílů pole, nebo vrácení do osevu (fields.md – Opuštěný díl): `{ villageId, partIds,
+ * abandon }`. Server díly ověří znovu.
+ */
+export async function abandonFieldParts(input: unknown): Promise<VillageActionResult> {
+  return villageAction(input, parseAbandonFieldPartsInput, abandonFieldPartsForPlayer);
 }
 
 /**

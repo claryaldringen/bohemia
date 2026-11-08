@@ -825,6 +825,11 @@ export interface VillageFieldPart {
   next?: NextCrop;
   /** Úhor: odpočinek k 95 % (setiny) a roky do osevu (≈). */
   rest?: { share: number; years: number };
+  /**
+   * Opuštěný díl (fields.md – Opuštěný díl): neoseje se a zarůstá; osetý se opustí po žních.
+   * Díl v osevu chybí.
+   */
+  abandoned?: true;
   /** Zakládaný díl: průběh 0–1 (setiny), zbývající práce (člověkodny) a dospělé stromy na klády. */
   founding?: {
     progress: number;

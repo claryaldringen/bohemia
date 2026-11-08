@@ -89,6 +89,8 @@ export function partRotation(
   const waiting = (part: FieldPart, extraYears: number, from: number): PartRotation => {
     const kind = nextSowing(part);
     if (kind !== null && onTurn(kind)) return { next: cropOf(kind, from) };
+    // opuštěný díl leží ladem napořád – odpočinek k osevu nemá (fields.md – Opuštěný díl)
+    if (part.abandoned) return { next: 'fallow' };
     return { next: 'fallow', rest: restOf(part, extraYears) };
   };
   for (const part of state.parts) {

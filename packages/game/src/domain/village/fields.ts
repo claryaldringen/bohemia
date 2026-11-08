@@ -209,10 +209,11 @@ export function endOfSeason(part: FieldPart, day: number): void {
  * Skupina dílu v pořadí přílohové soustavy (fields.md – Přílohová soustava): 1 osévaný díl, který
  * smí dál (≥ 0,7) – i připravený díl po prvním osevu oběhu (`FieldPart.next`, fields.md – Osevní
  * postup po dílech) –, 2 čerstvě založený (připravený), 3 příloh zotavený aspoň na 0,95, 4 příloh
- * 0,7–0,95; jiný díl (zakládaný, vyčerpaný příloh) null.
+ * 0,7–0,95; jiný díl (zakládaný, vyčerpaný příloh, opuštěný – fields.md, Opuštěný díl) null.
  */
 export type SowingGroup = 1 | 2 | 3 | 4;
 export function sowingGroup(p: FieldPart): SowingGroup | null {
+  if (p.abandoned) return null;
   const sowable = isSowableFertility(p);
   if (p.state === 'sown') return sowable ? 1 : null;
   if (p.state === 'ready') return p.next ? 1 : 2;
@@ -228,11 +229,12 @@ export function isSowableFertility(p: FieldPart): boolean {
 /**
  * Příloh pod 70 % přirozené úrodnosti, ale aspoň na 40 % – ves ho smí osít jen v nouzi, když díly
  * od 70 % nepokryjí potřebný osev (fields.md – Přílohová soustava, Nouzový osev). Pod 40 % díl
- * leží, dokud se nezotaví.
+ * leží, dokud se nezotaví. Opuštěný díl nikdy (fields.md – Opuštěný díl).
  */
 export function isEmergencyFallow(p: FieldPart): boolean {
   return (
     p.state === 'fallow' &&
+    !p.abandoned &&
     !isSowableFertility(p) &&
     p.fertilityShare >= FERTILITY.emergencyMin - EPSILON
   );

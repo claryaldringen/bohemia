@@ -725,9 +725,9 @@ domů a ta se po založení nemění.
   na lepším místě a starou, kam se přestane chodit, nechá chátrat a rozpadnout
   ([opuštěné stavby](abandonment.md)) – bourat ji nemusí. Hřbitov s hroby zůstává vždy.
 - **Pole:** díly, které správce založil a které mají v plánu hodnotu pod polovinou průměru, by
-  šlo „vypustit“ – dnes taková akce není ani pro hráče (zrušit jde jen rozestavěná stavba). Návrh:
-  doménová akce **vypustit díly** (díly vypadnou z oběhu a zarostou – fields.md, Zarůstání), stejná
-  pro hráče i správce – viz Otevřené otázky. Do odpovědi správce díly nevypouští.
+  šlo „vypustit“. Akce **opustit díl** (díly vypadnou z oběhu a zarostou – fields.md, Opuštěný
+  díl) je stejná pro hráče i správce (Martin 8. 11. 2026: „A“ – Otevřené otázky, bod 1); hráč ji
+  už má, správce ji začne používat v navazující úloze – do té doby díly nevypouští.
 
 ## Soužití s hráčem (návrh Clauda)
 
@@ -1076,9 +1076,10 @@ kód, který se pak zahřeje, stojí ≈ 3× víc než zahřátý).
 
 ## Otevřené otázky
 
-1. **Vypustit díly pole** – má přibýt akce (pro hráče i správce), kterou díly vypadnou z oběhu
-   a zarostou? Bez ní správce špatná pole, která sám založil, nepřestaví – jen staví lépe dál.
-   Návrh Clauda: ano, stejná akce pro oba.
+1. ~~**Vypustit díly pole**~~ – rozhodnuto (Martin 8. 11. 2026: „A“ – „Vypustit díly pole – akce
+   pro hráče i správce, kterou díly vypadnou z oběhu a zarostou; stejná akce pro oba.“). Pravidla
+   v [polích – Opuštěný díl](fields.md); akce hráče je hotová, správce ji použije v navazující
+   úloze.
 2. **Odchod bez syna** – ves přerostla, ale syn, který smí vést, není (nebo bude za ≥ 2 roky).
    Návrh Clauda: správce počká a ves srovná hlad; alternativa – odchod nejbližších obydlí
    (vojvodou nejstarší muž rodu mezi nimi) jako hráč.

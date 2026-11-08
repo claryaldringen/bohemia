@@ -1427,6 +1427,18 @@ describe('kronika – zarůstání (fields.md)', () => {
   });
 });
 
+describe('kronika – opuštěné díly pole (fields.md – Opuštěný díl)', () => {
+  it('jeden díl krátce, víc dílů s počtem, vrácení do osevu', () => {
+    const text = (kind: 'parts-abandoned' | 'parts-returned', parts: number): string =>
+      chronicleText({ day: DAY, kind, parts }, 'X');
+    expect(text('parts-abandoned', 1)).toBe('Díl pole opuštěn – zaroste.');
+    expect(text('parts-abandoned', 3)).toBe('Opuštěny 3 díly pole – zarostou.');
+    expect(text('parts-abandoned', 5)).toBe('Opuštěno 5 dílů pole – zarostou.');
+    expect(text('parts-returned', 1)).toBe('Díl pole vrácen do osevu.');
+    expect(text('parts-returned', 6)).toBe('Vráceno 6 dílů pole do osevu.');
+  });
+});
+
 describe('kronika – hlad a vymření', () => {
   it('úmrtí hladem a vymření vsi', () => {
     expect(chronicleText({ day: DAY, kind: 'death', group: 'child', cause: 'hunger' }, 'X')).toBe(

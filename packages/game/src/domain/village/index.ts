@@ -52,6 +52,7 @@ export * from './dwellings';
 export * from './manor';
 export * from './lord';
 export * from './arms-caps';
+export * from './abandon-parts';
 export * from './cancel-construction';
 export * from './fortifications';
 export * from './fortification-proposal';

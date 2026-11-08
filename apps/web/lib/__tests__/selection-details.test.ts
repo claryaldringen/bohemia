@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { ABANDON_FOUNDING } from '@bohemia/game';
+import type { VillageFieldPart } from '../village-view-types';
 import { fieldPartName, orchardSquareName, selectionDetails } from '../selection-details';
 import type { SceneVillage, VillageView } from '../village-view';
 
@@ -568,6 +570,9 @@ describe('selectionDetails – díl pole a čtverec sadu (klik – fields.md, Co
       kind: 'field-part',
       id: 5,
       cell: { x: 2, y: 0 },
+      partId: 51,
+      abandoned: false,
+      abandonBlock: null,
       look: 'ripe',
       stage: 'sown',
       legume: true,
@@ -597,6 +602,27 @@ describe('selectionDetails – díl pole a čtverec sadu (klik – fields.md, Co
     expect(fieldPartName(details as Extract<typeof details, { kind: 'field-part' }>)).toBe(
       'Zralé luštěniny',
     );
+  });
+
+  it('opuštěný díl a nezaložený díl (fields.md – Opuštěný díl)', () => {
+    const withPart = (over: Partial<VillageFieldPart>): VillageView => ({
+      ...partView,
+      fields: partView.fields.map((f) => ({
+        ...f,
+        parts: f.parts.map((p) => (p.id === 52 ? { ...p, ...over } : p)),
+      })),
+    });
+    const target = { kind: 'field-part' as const, id: 5, cell: { x: 3, y: 0 } };
+    expect(selectionDetails(withPart({ abandoned: true }), partScene, target)).toMatchObject({
+      partId: 52,
+      abandoned: true,
+      abandonBlock: null,
+    });
+    const founding = { progress: 0.5, laborLeft: 3, trees: 0 };
+    expect(selectionDetails(withPart({ founding }), partScene, target)).toMatchObject({
+      abandoned: false,
+      abandonBlock: ABANDON_FOUNDING,
+    });
   });
 
   it('příloh: roky ladem, zarůstání a pastva ze scény, seč; bez hospodářství', () => {

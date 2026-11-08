@@ -78,6 +78,8 @@ export const ACTION_RIGHTS = {
   plantRoadApples: 'build',
   buildTrail: 'build',
   cancelConstruction: 'build',
+  // opuštění dílu pole a vrácení do osevu (fields.md – Opuštěný díl) – jako zakládání pole
+  abandonFieldParts: 'build',
   // první zemnice nové vsi po příchodu lidí – stavba
   settleJourney: 'build',
   relocateHousehold: 'evacuate',

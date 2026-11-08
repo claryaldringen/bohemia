@@ -15,6 +15,7 @@ import {
   leaveVillage,
   choosePlayerDeparture,
   settleJourney,
+  abandonVillageFieldParts,
   cancelUnfinishedConstruction,
   foundVillageForSettlement,
   newcomerFoundingReason,
@@ -533,6 +534,20 @@ export function cancelConstructionForPlayer(
 ): Promise<VillageActionResult> {
   return actOn(playerId, villageId, 'cancelConstruction', (ctx) =>
     cancelUnfinishedConstruction(
+      { villages: villages() },
+      { villageId: ctx.villageId, landscape: ctx.landscape, today: ctx.day, ...input },
+    ),
+  );
+}
+
+/** Opuštění dílů pole, nebo jejich vrácení do osevu (abandon-field-parts.ts). */
+export function abandonFieldPartsForPlayer(
+  playerId: string,
+  villageId: string,
+  input: { partIds: number[]; abandon: boolean },
+): Promise<VillageActionResult> {
+  return actOn(playerId, villageId, 'abandonFieldParts', (ctx) =>
+    abandonVillageFieldParts(
       { villages: villages() },
       { villageId: ctx.villageId, landscape: ctx.landscape, today: ctx.day, ...input },
     ),

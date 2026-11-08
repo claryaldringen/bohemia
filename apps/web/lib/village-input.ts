@@ -480,6 +480,28 @@ export function parseCancelConstructionInput(value: unknown): { constructionId: 
   return constructionId !== null ? { constructionId } : null;
 }
 
+/** Nejvíc dílů pole v jednom opuštění, které server vůbec přijme (pravidla povolí méně). */
+const MAX_RAW_ABANDON_PARTS = 5000;
+
+/**
+ * Vstup opuštění dílů pole `{ partIds, abandon }` (fields.md – Opuštěný díl): neprázdný seznam
+ * kladných id bez opakování a `abandon` true (opustit) / false (vrátit do osevu), jinak null.
+ */
+export function parseAbandonFieldPartsInput(
+  value: unknown,
+): { partIds: number[]; abandon: boolean } | null {
+  if (!isRecord(value) || typeof value.abandon !== 'boolean') return null;
+  const raw = value.partIds;
+  if (!Array.isArray(raw) || raw.length === 0 || raw.length > MAX_RAW_ABANDON_PARTS) return null;
+  const partIds: number[] = [];
+  for (const item of raw) {
+    const id = parsePositiveInt(item);
+    if (id === null || partIds.includes(id)) return null;
+    partIds.push(id);
+  }
+  return { partIds, abandon: value.abandon };
+}
+
 /** Nejvíc obydlí v jednom odchodu, které server vůbec přijme. */
 const MAX_LEAVING_DWELLINGS = 200;
 
