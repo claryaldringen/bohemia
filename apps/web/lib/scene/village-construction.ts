@@ -4,7 +4,7 @@
 // fázích obydlí (hrnčíř a kovář polozemnice, uhlíř zemnice) a přidávají své. Souřadnice modelu
 // jako `localToWorld` (x napříč, z k vchodu).
 import { PIT_SHAPES } from './dwelling-pit';
-import type { DwellingType } from '@bohemia/game';
+import type { DwellingType, WallKind } from '@bohemia/game';
 
 /**
  * Řemeslné stavby (docs/design/crafts.md): hrnčíř, kovář, tesař (docs/design/wagons.md – Tesař),
@@ -410,7 +410,8 @@ export function ramp(p: number, from: number, to: number): number {
  * Vrstva opevnění, která na úseku stojí nebo se staví (fortifications.md – Ve scéně): pletený
  * plot, palisáda, nebo hliněný val s příkopem (nástavba valu je plot či palisáda na koruně).
  */
-export type FortLayer = 'fence' | 'palisade' | 'rampart';
+/** Vrstva úseku opevnění pro staveniště – hradba (pět stupňů), nebo val. */
+export type FortLayer = WallKind | 'rampart';
 
 /**
  * Staveniště úseku opevnění (fortifications.md – Ve scéně, Stavba po úsecích): co z úseku stojí,
@@ -418,13 +419,20 @@ export type FortLayer = 'fence' | 'palisade' | 'rampart';
  * takže kůly přibývají od brány.
  */
 export interface FortSitePhase {
-  /** Kůly plotu nebo palisády – podíl délky úseku. */
+  /**
+   * Kůly plotu nebo palisády (i s ochozem), srubové komory komorové hradby – podíl délky úseku;
+   * roštová hradba jen 1 = hotová (brána).
+   */
   posts: number;
   /** Plot: podíl výšek proplétaných větví (až stojí všechny kůly úseku). */
   rails: number;
   /** Palisáda: vykopaný žlab – podíl délky úseku. */
   trench: number;
-  /** Val: hloubka příkopu a výška náspu – podíl plné (příkop se prohlubuje a val roste). */
+  /**
+   * Val: hloubka příkopu a výška náspu – podíl plné (příkop se prohlubuje a val roste). Ochoz:
+   * násyp roste a fošny přibývají od začátku úseku; roštová hradba roste po patrech (výška),
+   * komorová – plnění komor a čelní zeď (výška).
+   */
   earth: number;
 }
 
@@ -433,7 +441,9 @@ export const FORT_SITE_DONE: FortSitePhase = { posts: 1, rails: 1, trench: 0, ea
 
 /**
  * Fáze úseku opevnění podle průběhu jeho práce 0–1: plot – kůly (první polovina), pak větve
- * zdola nahoru; palisáda – žlab (první 30 %), pak kůly; val – příkop a násep rostou spolu.
+ * zdola nahoru; palisáda – žlab (první 30 %), pak kůly; palisáda s ochozem – žlab, kůly, pak
+ * násyp s fošnami (od 60 %); roštová hradba roste po patrech; komorová – komory od začátku
+ * úseku (první polovina), pak plnění a čelní zeď; val – příkop a násep rostou spolu.
  */
 export function fortSitePhase(layer: FortLayer, progress: number): FortSitePhase {
   if (progress >= 1) return FORT_SITE_DONE;
@@ -442,6 +452,11 @@ export function fortSitePhase(layer: FortLayer, progress: number): FortSitePhase
     return { posts: ramp(p, 0, 0.5), rails: ramp(p, 0.5, 1), trench: 0, earth: 0 };
   if (layer === 'palisade')
     return { posts: ramp(p, 0.3, 1), rails: 0, trench: ramp(p, 0, 0.3), earth: 0 };
+  if (layer === 'walkway')
+    return { posts: ramp(p, 0.2, 0.6), rails: 0, trench: ramp(p, 0, 0.2), earth: ramp(p, 0.6, 1) };
+  if (layer === 'crib') return { posts: 0, rails: 0, trench: 0, earth: p };
+  if (layer === 'chamber')
+    return { posts: ramp(p, 0, 0.5), rails: 0, trench: 0, earth: ramp(p, 0.5, 1) };
   return { posts: 0, rails: 0, trench: 0, earth: p };
 }
 

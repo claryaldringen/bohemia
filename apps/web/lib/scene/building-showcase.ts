@@ -69,7 +69,7 @@ import {
   setSeasonShaderState,
 } from './season-materials';
 import type { DitchCut } from './fortification-layout';
-import { SHOWCASE_FORTS, showcaseFortifications } from './fortification-showcase';
+import { SHOWCASE_FORTS, SHOWCASE_WALLS, showcaseFortifications } from './fortification-showcase';
 import { ShowcaseSites } from './showcase-sites';
 import { addSunShadows, type SunShadows } from './sun-shadows';
 import { prepareTreeMaterial } from './trees';
@@ -346,6 +346,7 @@ export class BuildingShowcase {
       SHOWCASE_VARIANTS,
       SHOWCASE_CRAFT_YARDS,
       SHOWCASE_FORTS,
+      SHOWCASE_WALLS,
     ].find((b) => b.id === id);
     if (!target) return;
     this.setView(target.focus);

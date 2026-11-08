@@ -43,6 +43,82 @@ export const FORT_FENCE = {
   gateWidth: FORT_GATE_M,
 } as const;
 
+/**
+ * Palisáda s ochozem ve scéně (fortifications.md – Hradby a obrana, Druhy; rešerše hradeb – ochoz
+ * 1,5 m pod špičkami kůlů): vzdálenosti od čáry kůlů dovnitř (m). Fošny ochozu na sloupcích
+ * za kůly, pod nimi a za nimi násyp zevnitř až k vnitřnímu okraji pásu 5,5 m, schůdky z násypu
+ * na ochoz jednou v úseku (≈ po 15 m). Rozměry dílů z tools/blender/fortifications.py.
+ */
+export const WALKWAY = {
+  /** Vrch fošen nad zemí – 1,5 m pod špičkami kůlů. */
+  deckM: STAKE_HEIGHT_M - 1.5,
+  /** Osa ochozu za čárou kůlů a jeho šířka (fošny vedle sebe – měřítko dílu napříč). */
+  deckInM: 0.65,
+  deckWidthM: 0.9,
+  /** Fošna `walk-plank`: délka, šířka a tloušťka modelu. */
+  plankM: 2,
+  plankWidthM: 0.3,
+  plankThickM: 0.05,
+  /** Sloupek `walk-post` (výška modelu) – na vnitřní hraně ochozu, na spoji fošen. */
+  postM: 1.6,
+  postInM: 1,
+  /** Násyp: výška, koruna od kůlů po `bankCrownToM`, pata na vnitřním okraji pásu 5,5 m. */
+  bankM: 1.2,
+  bankFromM: 0.12,
+  bankCrownToM: 1.75,
+  bankFootM: FORTIFICATIONS.bandM.walkway - FORTIFICATIONS.bandM.palisade / 2,
+  /** Schůdky `walk-steps`: délka a výška modelu, poloha v úseku (podíl délky – mimo bránu). */
+  stepsRunM: 2,
+  stepsM: 2,
+  stepsAt: 0.25,
+} as const;
+
+/**
+ * Roštová hradba ve scéně (rešerše hradeb – Roštová: rošt 6 pater po 0,5 m, kamenná plenta vně,
+ * stupňovitý týl): vzdálenosti od vnějšího okraje hradby dovnitř (m), pás 7 m.
+ */
+export const CRIB = {
+  heightM: 3,
+  /** Kamenná plenta `facing-stone-a/-b`: tloušťka, modul po obvodu a výška modelu. */
+  facingM: 0.5,
+  facingStepM: 1,
+  facingModuleM: 2,
+  /** Příčné klády `crib-log` (4 m) na koruně po 2 m – středy napříč. */
+  logM: 4,
+  logStepM: 2,
+  crossAtM: [2.5, 4.6],
+  /** Týl: podélná kláda v každém patře, patro o 0,2 m dál dovnitř než nižší. */
+  layers: 6,
+  layerM: 0.5,
+  rearStepM: 0.2,
+  /** Hliněné jádro: od plenty po korunu, pak týl k zemi na konci pásu. */
+  coreFromM: 0.5,
+  coreTopToM: 5.6,
+  bandM: FORTIFICATIONS.bandM.crib,
+} as const;
+
+/**
+ * Komorová hradba ve scéně (rešerše hradeb – Komorová: srubové komory po 5–6 m plněné zeminou
+ * a kamenem, kamenná čelní zeď): vzdálenosti od vnějšího okraje hradby dovnitř (m), pás 8 m.
+ */
+export const CHAMBER = {
+  heightM: 4,
+  /** Čelní zeď `chamber-face`: tloušťka a modul po obvodu (výška modelu = výška hradby). */
+  faceM: 0.8,
+  faceStepM: 1,
+  /** Komora `chamber-box`: délka po obvodu, hloubka modelu, roztažená napříč přes celý pás. */
+  boxM: 5,
+  boxDepthM: 3,
+  /** Výplň komor (hlína a kámen) – vnitřní líc srubů a výška. */
+  fillFromM: 1.5,
+  fillToM: 7.3,
+  fillM: 3.85,
+  bandM: FORTIFICATIONS.bandM.chamber,
+} as const;
+
+/** Předprseň `parapet` na koruně roštové a komorové hradby – délka modelu (m). */
+const PARAPET_M = 2;
+
 /** Jak daleko po obvodu (v šířkách pásu) se hledá smyčka vnitřního okraje v ostrém ohybu. */
 const LOOP_REACH_BANDS = 4;
 
@@ -55,13 +131,23 @@ export type FortPart =
   | 'gate-beam'
   | 'gate-planks'
   | 'gate-wicker'
-  | 'gate-bar';
+  | 'gate-bar'
+  | 'walk-plank'
+  | 'walk-post'
+  | 'walk-steps'
+  | 'crib-log'
+  | 'facing-stone-a'
+  | 'facing-stone-b'
+  | 'chamber-box'
+  | 'chamber-face'
+  | 'parapet';
 export const STAKE_PARTS: readonly FortPart[] = ['stake-a', 'stake-b', 'stake-c'];
 
 /**
  * Instance dílu: pata ve světě (výška = terén + `lift`), natočení kolem svislé osy (Babylon:
  * +x → (cos θ, 0, −sin θ)), náklon (kam se vrchol vychýlí na metr výšky), svislé měřítko a barva
- * (násobí barvu materiálu – šednutí dřeva).
+ * (násobí barvu materiálu – šednutí dřeva). Vodorovné měřítko dílu podél jeho osy x (`scaleX`)
+ * a napříč (`scaleZ`) – fošny ochozu, komory; chybí = 1.
  */
 export interface FortInstance {
   part: FortPart;
@@ -71,6 +157,8 @@ export interface FortInstance {
   yaw: number;
   lean: readonly [number, number];
   scaleY: number;
+  scaleX?: number;
+  scaleZ?: number;
   color: readonly [number, number, number];
 }
 
@@ -389,22 +477,14 @@ export function hash01(a: number, b: number, c: number): number {
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
 
-/** Hradba, jak ji scéna kreslí – vyšší stupně zatím jako palisáda (modely přidá další úloha). */
-type SceneWall = 'fence' | 'palisade';
-
-/** Hradba úseku pro scénu: plot jako plot, ostatní stupně jako palisáda. */
-function sceneWall(kind: WallKind): SceneWall {
-  return kind === 'fence' ? 'fence' : 'palisade';
-}
-
 /** Co na úseku stojí a v jaké fázi: vrstva u země, nástavba na valu, val. */
 export interface SegmentBuild {
-  /** Plot či palisáda u země (bez valu); null – nic. */
-  ground: { layer: 'fence' | 'palisade'; phase: FortSitePhase; age: number } | null;
+  /** Hradba u země (bez valu) – plot, palisáda, s ochozem, roštová, komorová; null – nic. */
+  ground: { layer: WallKind; phase: FortSitePhase; age: number } | null;
   /** Rozdělané vylepšení plotu na palisádu – palisáda vedle stojícího plotu. */
   upgrade: { phase: FortSitePhase } | null;
-  /** Plot či palisáda na koruně valu; null – bez nástavby. */
-  top: { layer: SceneWall; phase: FortSitePhase; age: number } | null;
+  /** Hradba na koruně valu; null – bez nástavby. */
+  top: { layer: WallKind; phase: FortSitePhase; age: number } | null;
   /** Val: podíl hlíny 0–1 (staveniště roste) a stáří; null – úsek není val. */
   rampart: { earth: number; age: number } | null;
   /** Stav úseku 0–1 (chátrání za životností – mezery). */
@@ -448,7 +528,7 @@ export function segmentBuild(fort: SceneFortification, index: number): SegmentBu
           ? progress
           : 0;
     result.rampart = { earth, age: look.age ?? 0 };
-    const top = wall ? sceneWall(wall.kind) : null;
+    const top = wall?.kind ?? null;
     if (top && earth >= 1) {
       const down = left('demolish');
       if (look.topAge !== undefined && look.topAge !== null)
@@ -463,7 +543,7 @@ export function segmentBuild(fort: SceneFortification, index: number): SegmentBu
     return result;
   }
   if (!wall) return result;
-  const layer = sceneWall(wall.kind);
+  const layer = wall.kind;
   const down = left('demolish');
   if (look.age !== null)
     result.ground = {
@@ -479,14 +559,14 @@ export function segmentBuild(fort: SceneFortification, index: number): SegmentBu
 }
 
 /** Barva dřeva podle stáří: čerstvé hnědé (1, 1, 1) → šedé a tmavé ke konci životnosti. */
-export function woodTint(age: number, layer: 'fence' | 'palisade'): [number, number, number] {
+export function woodTint(age: number, layer: WallKind): [number, number, number] {
   const t = Math.min(1, Math.max(0, age / FORTIFICATIONS.lifeYears[layer]));
   // šednutí: méně červené, víc modré, celkově tmavší
   return [1 - 0.36 * t, 1 - 0.2 * t, 1 + 0.12 * t];
 }
 
 /** Náklon ke konci životnosti (na metr výšky) – posledních 30 % let se kůly naklánějí. */
-function ageLean(age: number, layer: 'fence' | 'palisade'): number {
+function ageLean(age: number, layer: WallKind): number {
   const t = age / FORTIFICATIONS.lifeYears[layer];
   return t <= 0.7 ? 0 : Math.min(1, (t - 0.7) / 0.3) * 0.12;
 }
@@ -508,11 +588,12 @@ function stake(
   age: number,
   lift: number,
   fallen: boolean,
+  layer: WallKind,
 ): FortInstance {
   const h = (salt: number): number => hash01(fort.id, k, salt);
   const variant = STAKE_PARTS[Math.floor(h(1) * 3)]!;
   const angle = h(2) * Math.PI * 2;
-  const tilt = 0.012 + 0.014 * h(3) + ageLean(age, 'palisade') * (0.4 + 0.6 * h(4));
+  const tilt = 0.012 + 0.014 * h(3) + ageLean(age, layer) * (0.4 + 0.6 * h(4));
   let lean: [number, number] = [Math.cos(angle) * tilt, Math.sin(angle) * tilt];
   if (fallen) {
     // vyvrácený kůl leží ven z opevnění (≈ 80°)
@@ -527,7 +608,7 @@ function stake(
     yaw: h(6) * Math.PI * 2,
     lean,
     scaleY: 0.95 + 0.08 * h(7),
-    color: woodTint(age, 'palisade'),
+    color: woodTint(age, layer),
   };
 }
 
@@ -536,10 +617,20 @@ function inBreach(u: number, lengthM: number): boolean {
   return Math.abs(u - 0.5) * lengthM < FORTIFICATIONS.breach.widthM / 2;
 }
 
-/** Kde stojí palisáda nebo plot: u země, nebo na koruně valu. */
-function layerLine(fort: SceneFortification, layer: 'fence' | 'palisade'): number {
+/**
+ * Čelo hradby (m od vnějšího okraje): kůly plotu a palisády (i s ochozem) uprostřed jejich pásu,
+ * u roštové a komorové střed kamenného čela; na valu čára koruny.
+ */
+function layerLine(fort: SceneFortification, layer: WallKind): number {
+  if (layer === 'crib') return wallBase(fort) + CRIB.facingM / 2;
+  if (layer === 'chamber') return wallBase(fort) + CHAMBER.faceM / 2;
   if (fort.kind === 'rampart') return RAMPART_CROWN_M;
-  return FORTIFICATIONS.bandM[layer] / 2;
+  return FORTIFICATIONS.bandM[layer === 'walkway' ? 'palisade' : layer] / 2;
+}
+
+/** Hradba s kůly palisády – palisáda a palisáda s ochozem (ochoz je přístavba). */
+function staked(layer: WallKind): boolean {
+  return layer === 'palisade' || layer === 'walkway';
 }
 
 /** Pás pro posun dovnitř (`insetPoint`): u valu drží vzdálenost příkop, jinak celý pás. */
@@ -576,9 +667,10 @@ export function palisadeLayout(fort: SceneFortification, crown: CrownLift): Pali
     const u = along(fort, starts, p);
     let phase: FortSitePhase | null = null;
     let age = 0;
-    if (b.ground?.layer === 'palisade') ({ phase, age } = b.ground);
+    let layer: WallKind = 'palisade';
+    if (b.ground && staked(b.ground.layer)) ({ phase, age, layer } = b.ground);
     else if (b.upgrade) phase = b.upgrade.phase;
-    else if (b.top?.layer === 'palisade') ({ phase, age } = b.top);
+    else if (b.top && staked(b.top.layer)) ({ phase, age, layer } = b.top);
     if (!phase) return;
     const next = line[(k + 1) % line.length]!;
     if (u >= phase.posts && u < phase.trench) trench.push([p.x, p.z, next.x, next.z]);
@@ -588,21 +680,370 @@ export function palisadeLayout(fort: SceneFortification, crown: CrownLift): Pali
     const fallen = b.breached && inBreach(u, fort.shapes[p.segment]!.lengthM);
     if (fallen && hash01(fort.id, k, 10) < 0.4) return;
     const lift = fort.kind === 'rampart' ? crown(p.s) : 0;
-    stakes.push(stake(fort, p, k, age, lift, fallen));
+    stakes.push(stake(fort, p, k, age, lift, fallen, layer));
   });
   return { stakes, trench };
+}
+
+/** Hradba druhu `kind` na úseku – u země, nebo na koruně valu; null – úsek ji nemá. */
+function wallOf(b: SegmentBuild, kind: WallKind): { phase: FortSitePhase; age: number } | null {
+  if (b.ground?.layer === kind) return b.ground;
+  if (b.top?.layer === kind) return b.top;
+  return null;
+}
+
+/** Začátek pásu hradby (m od vnějšího okraje): u země okraj, na valu koruna. */
+function wallBase(fort: Pick<SceneFortification, 'kind'>): number {
+  return fort.kind === 'rampart' ? RAMPART_CROWN_M : 0;
+}
+
+/**
+ * Odkud se měří průřez hradby `kind` (m od vnějšího okraje): ochoz od čáry kůlů palisády,
+ * roštová a komorová od začátku pásu hradby (na valu od koruny).
+ */
+export function wallCoreLine(fort: SceneFortification, kind: WallKind): number {
+  return kind === 'walkway' ? layerLine(fort, 'walkway') : wallBase(fort);
+}
+
+/**
+ * Výška zeminy hradby nad patou v hloubce `d` průřezu (`wallCoreLine`) – plná stavba: násyp
+ * ochozu (koruna za kůly, svah k vnitřnímu okraji), hliněné jádro roštové hradby (koruna
+ * od plenty, týl k zemi), výplň komor komorové hradby. Ostatní druhy nic.
+ */
+export function wallCoreProfile(kind: WallKind, d: number): number {
+  if (kind === 'walkway') {
+    if (d < WALKWAY.bankFromM || d >= WALKWAY.bankFootM) return 0;
+    if (d <= WALKWAY.bankCrownToM) return WALKWAY.bankM;
+    return (WALKWAY.bankM * (WALKWAY.bankFootM - d)) / (WALKWAY.bankFootM - WALKWAY.bankCrownToM);
+  }
+  if (kind === 'crib') {
+    if (d < CRIB.coreFromM || d >= CRIB.bandM) return 0;
+    if (d <= CRIB.coreTopToM) return CRIB.heightM;
+    return (CRIB.heightM * (CRIB.bandM - d)) / (CRIB.bandM - CRIB.coreTopToM);
+  }
+  if (kind === 'chamber') return d >= CHAMBER.fillFromM && d <= CHAMBER.fillToM ? CHAMBER.fillM : 0;
+  return 0;
+}
+
+/** Zemina hradby v místě obvodu (síť `wallCoreMeshData`). */
+export interface WallCore {
+  kind: 'walkway' | 'crib' | 'chamber';
+  /** Odkud se měří průřez (`wallCoreLine`). */
+  line: number;
+  /** Podíl stavby 0–1 (výška zeminy) a stáří (tráva na násypu). */
+  earth: number;
+  age: number;
+}
+
+/**
+ * Zemina hradby v bodě obvodu `s` úseku `segment`: násyp ochozu u země (na valu je násypem val),
+ * jádro roštové a výplň komorové hradby; v bráně a ve zbořené části nic.
+ */
+export function wallCoreAt(
+  fort: SceneFortification,
+): (p: { s: number; segment: number }) => WallCore | null {
+  const { starts, length } = segmentStarts(fort.shapes);
+  const gates = gatePositions(fort);
+  const builds = fort.shapes.map((s) => segmentBuild(fort, s.index));
+  const kinds = ['walkway', 'crib', 'chamber'] as const;
+  return (p) => {
+    const b = builds[p.segment];
+    if (!b) return null;
+    const kind = kinds.find((k) => wallOf(b, k) && !(k === 'walkway' && fort.kind === 'rampart'));
+    if (!kind) return null;
+    if (gates.some((g) => loopDistance(p.s, g, length) < FORT_GATE_M / 2 + 0.5)) return null;
+    if (inGoneGatePart(fort, starts, p.segment, p.s)) return null;
+    const wall = wallOf(b, kind)!;
+    return { kind, line: wallCoreLine(fort, kind), earth: wall.phase.earth, age: wall.age };
+  };
+}
+
+/** Natočení dílu podél čáry v bodě `k` (osa x dílu po směru čáry). */
+function alongYaw(line: readonly LinePoint[], k: number): number {
+  const n = line.length;
+  const a = line[(k + n - 1) % n]!;
+  const b = line[(k + 1) % n]!;
+  return Math.atan2(-(b.z - a.z), b.x - a.x);
+}
+
+/** Natočení dílu napříč pásem (osa x dílu po normále – příčné klády). */
+function acrossYaw(p: LinePoint): number {
+  return Math.atan2(-p.nz, p.nx);
+}
+
+/**
+ * Natočení dílu, jehož osa −z (+Y Blenderu) míří ven z opevnění: schůdky stoupají ke kůlům,
+ * předprseň má příčku uvnitř.
+ */
+function outwardYaw(p: LinePoint): number {
+  return Math.atan2(p.nx, p.nz);
+}
+
+/** Bod `d` m od čáry dovnitř (po normále bodu čáry). */
+function offsetPoint(p: LinePoint, d: number): [number, number] {
+  return [p.x + p.nx * d, p.z + p.nz * d];
+}
+
+/** Přípravy pro díly hradby po čáře: úseky, brány a zda díl o poloviční délce `half` padne do brány. */
+function wallContext(fort: SceneFortification): {
+  starts: number[];
+  builds: SegmentBuild[];
+  blocked: (p: LinePoint, half: number) => boolean;
+  u: (p: LinePoint) => number;
+  /** Díl chybí – za životností řídne (stav úseku), v průlomu (uprostřed úseku) není. */
+  missing: (b: SegmentBuild, p: LinePoint, k: number, salt: number) => boolean;
+} {
+  const { starts, length } = segmentStarts(fort.shapes);
+  const gates = gatePositions(fort);
+  const builds = fort.shapes.map((s) => segmentBuild(fort, s.index));
+  const u = (p: LinePoint): number => along(fort, starts, p);
+  return {
+    starts,
+    builds,
+    u,
+    blocked: (p, half) =>
+      gates.some((g) => loopDistance(p.s, g, length) < FORT_GATE_M / 2 + half) ||
+      inGoneGatePart(fort, starts, p.segment, p.s),
+    missing: (b, p, k, salt) =>
+      hash01(fort.id, k, salt) < (1 - b.state) * 0.92 ||
+      (b.breached && inBreach(u(p), fort.shapes[p.segment]!.lengthM)),
+  };
+}
+
+/**
+ * Palisáda s ochozem (fortifications.md – Hradby a obrana, Druhy; Rozhraní a scéna): kůly kreslí
+ * `palisadeLayout`, tady za nimi fošny ochozu po 2 m na sloupcích (vrch 1,5 m pod špičkami kůlů)
+ * a schůdky z násypu jednou v úseku (≈ po 15 m). Násyp je síť (`wallCoreMeshData`). Staveniště:
+ * fošny přibývají od začátku úseku s násypem (`FortSitePhase.earth`), stáří – šednutí dřeva,
+ * za životností a v průlomu fošny chybí. Na valu stojí na koruně – vše se zvedne o korunu.
+ */
+export function walkwayLayout(fort: SceneFortification, crown: CrownLift): FortInstance[] {
+  const ctx = wallContext(fort);
+  if (!ctx.builds.some((b) => wallOf(b, 'walkway'))) return [];
+  const stakes = layerLine(fort, 'walkway');
+  const looks = fort.kind === 'rampart' ? rampartLooks(fort) : null;
+  /** Zem pod dílem `rel` m za kůly: koruna valu (svah), jinak násyp ochozu. */
+  const ground = (s: number, rel: number, earth: number): number =>
+    looks
+      ? rampartProfile(stakes + rel, rampartAt(fort, looks, s))
+      : wallCoreProfile('walkway', rel) * earth;
+  const line = insetLine(fort, stakes + WALKWAY.deckInM, WALKWAY.plankM);
+  const out: FortInstance[] = [];
+  const stepsDone = new Set<number>();
+  line.forEach((p, k) => {
+    const b = ctx.builds[p.segment]!;
+    const wall = wallOf(b, 'walkway');
+    if (!wall || ctx.blocked(p, WALKWAY.plankM / 2)) return;
+    const u = ctx.u(p);
+    if (u >= wall.phase.earth || ctx.missing(b, p, k, 31)) return;
+    const color = woodTint(wall.age, 'walkway');
+    const base = { lean: [0, 0] as const, scaleY: 1, color };
+    const deck = crown(p.s) + WALKWAY.deckM;
+    const yaw = alongYaw(line, k);
+    out.push({
+      ...base,
+      part: 'walk-plank',
+      x: p.x,
+      z: p.z,
+      lift: deck - WALKWAY.plankThickM,
+      yaw,
+      scaleZ: WALKWAY.deckWidthM / WALKWAY.plankWidthM,
+    });
+    // sloupek na spoji s další fošnou, na vnitřní hraně ochozu – od zeminy pod ním k fošně
+    const next = line[(k + 1) % line.length]!;
+    const postIn = WALKWAY.postInM - WALKWAY.deckInM;
+    const [jx, jz] = [(p.x + next.x) / 2 + p.nx * postIn, (p.z + next.z) / 2 + p.nz * postIn];
+    const postLift = ground(p.s, WALKWAY.postInM, wall.phase.earth);
+    out.push({
+      ...base,
+      part: 'walk-post',
+      x: jx,
+      z: jz,
+      lift: postLift,
+      yaw,
+      scaleY: Math.max(0.1, (deck - WALKWAY.plankThickM - postLift) / WALKWAY.postM),
+    });
+    if (stepsDone.has(p.segment) || u < WALKWAY.stepsAt) return;
+    // schůdky: pata za ochozem, stoupají ven ke kůlům až k fošnám
+    stepsDone.add(p.segment);
+    const rel = WALKWAY.deckInM + WALKWAY.deckWidthM / 2 + WALKWAY.stepsRunM;
+    const [sx, sz] = offsetPoint(p, rel - WALKWAY.deckInM);
+    const stepsLift = ground(p.s, rel, wall.phase.earth);
+    out.push({
+      ...base,
+      part: 'walk-steps',
+      x: sx,
+      z: sz,
+      lift: stepsLift,
+      yaw: outwardYaw(p),
+      scaleY: Math.max(0.1, (deck - stepsLift) / WALKWAY.stepsM),
+    });
+  });
+  return out;
+}
+
+/** Předprseň po koruně hradby `kind` – díly po 2 m `rel` m za čelem, ve výšce koruny. */
+function parapets(
+  fort: SceneFortification,
+  ctx: ReturnType<typeof wallContext>,
+  kind: WallKind,
+  rel: number,
+  height: number,
+  crown: CrownLift,
+): FortInstance[] {
+  const line = insetLine(fort, wallBase(fort) + rel, PARAPET_M);
+  const out: FortInstance[] = [];
+  line.forEach((p, k) => {
+    const b = ctx.builds[p.segment]!;
+    const wall = wallOf(b, kind);
+    if (!wall || wall.phase !== FORT_SITE_DONE || ctx.blocked(p, PARAPET_M / 2)) return;
+    if (ctx.missing(b, p, k, 41)) return;
+    out.push({
+      part: 'parapet',
+      x: p.x,
+      z: p.z,
+      lift: crown(p.s) + height,
+      yaw: outwardYaw(p),
+      lean: [0, 0],
+      scaleY: 1,
+      color: woodTint(wall.age, kind),
+    });
+  });
+  return out;
+}
+
+/** Kamenné čelo po 1 m `rel` m od začátku pásu – plenta roštové, čelní zeď komorové hradby. */
+function stoneFace(
+  fort: SceneFortification,
+  ctx: ReturnType<typeof wallContext>,
+  kind: 'crib' | 'chamber',
+  crown: CrownLift,
+): FortInstance[] {
+  const crib = kind === 'crib';
+  const step = crib ? CRIB.facingStepM : CHAMBER.faceStepM;
+  const line = insetLine(fort, layerLine(fort, kind), step);
+  const out: FortInstance[] = [];
+  line.forEach((p, k) => {
+    const b = ctx.builds[p.segment]!;
+    const wall = wallOf(b, kind);
+    if (!wall || ctx.blocked(p, step / 2)) return;
+    const rise = wall.phase.earth;
+    if (rise <= 0 || ctx.missing(b, p, k, 51)) return;
+    // plenta ani čelní zeď nestárne; výška roste se stavbou
+    out.push({
+      part: crib
+        ? hash01(fort.id, k, 52) < 0.5
+          ? 'facing-stone-a'
+          : 'facing-stone-b'
+        : 'chamber-face',
+      x: p.x,
+      z: p.z,
+      lift: crown(p.s),
+      yaw: alongYaw(line, k),
+      lean: [0, 0],
+      scaleY: crib ? (CRIB.heightM / CRIB.facingModuleM) * rise : rise,
+      color: [1, 1, 1],
+    });
+  });
+  return out;
+}
+
+/**
+ * Roštová hradba (fortifications.md – Hradby a obrana, Druhy; Rozhraní a scéna): kamenná plenta
+ * po 1 m na vnější hraně pásu 7 m, na koruně příčné klády roštu po 2 m, stupňovitý týl
+ * z podélných klád po patrech a předprseň. Hliněné jádro je síť (`wallCoreMeshData`).
+ * Staveniště roste po patrech (`FortSitePhase.earth`), dřevo šedne, plenta nestárne.
+ */
+export function cribLayout(fort: SceneFortification, crown: CrownLift): FortInstance[] {
+  const ctx = wallContext(fort);
+  if (!ctx.builds.some((b) => wallOf(b, 'crib'))) return [];
+  const base = wallBase(fort);
+  const out = stoneFace(fort, ctx, 'crib', crown);
+  const line = insetLine(fort, base + CRIB.crossAtM[0], CRIB.logStepM);
+  line.forEach((p, k) => {
+    const b = ctx.builds[p.segment]!;
+    const wall = wallOf(b, 'crib');
+    if (!wall || ctx.blocked(p, 1) || ctx.missing(b, p, k, 61)) return;
+    const height = CRIB.heightM * wall.phase.earth;
+    if (height <= 0) return;
+    const common = { lean: [0, 0] as const, scaleY: 1, color: woodTint(wall.age, 'crib') };
+    const lift = crown(p.s);
+    // příčné klády roštu na koruně – napůl v hlíně
+    for (const at of CRIB.crossAtM) {
+      const [x, z] = offsetPoint(p, at - CRIB.crossAtM[0]);
+      out.push({
+        ...common,
+        part: 'crib-log',
+        x,
+        z,
+        lift: lift + height - 0.15,
+        yaw: acrossYaw(p),
+      });
+    }
+    // týl: podélné klády po 4 m (každý druhý bod), patro po patře o kus dovnitř
+    if (k % 2 !== 0) return;
+    for (let layer = 0; layer < CRIB.layers; layer++) {
+      if ((layer + 1) * CRIB.layerM > height + 1e-9) break;
+      const rel = CRIB.bandM - 0.15 - layer * CRIB.rearStepM;
+      const [x, z] = offsetPoint(p, rel - CRIB.crossAtM[0]);
+      out.push({
+        ...common,
+        part: 'crib-log',
+        x,
+        z,
+        lift: lift + layer * CRIB.layerM,
+        yaw: alongYaw(line, k),
+      });
+    }
+  });
+  out.push(...parapets(fort, ctx, 'crib', CRIB.facingM + 0.1, CRIB.heightM, crown));
+  return out;
+}
+
+/**
+ * Komorová hradba (fortifications.md – Hradby a obrana, Druhy; Rozhraní a scéna): srubové komory
+ * po 5 m roztažené přes celý pás 8 m, kamenná čelní zeď po 1 m vně a předprseň. Výplň komor je
+ * síť (`wallCoreMeshData`). Staveniště: komory od začátku úseku (`FortSitePhase.posts`), pak
+ * výplň a čelní zeď rostou (`earth`); dřevo šedne, kámen nestárne.
+ */
+export function chamberLayout(fort: SceneFortification, crown: CrownLift): FortInstance[] {
+  const ctx = wallContext(fort);
+  if (!ctx.builds.some((b) => wallOf(b, 'chamber'))) return [];
+  const base = wallBase(fort);
+  const out = stoneFace(fort, ctx, 'chamber', crown);
+  const center = (CHAMBER.faceM + CHAMBER.bandM) / 2;
+  const line = insetLine(fort, base + center, CHAMBER.boxM);
+  line.forEach((p, k) => {
+    const b = ctx.builds[p.segment]!;
+    const wall = wallOf(b, 'chamber');
+    if (!wall || ctx.blocked(p, CHAMBER.boxM / 2)) return;
+    if (ctx.u(p) >= wall.phase.posts || ctx.missing(b, p, k, 71)) return;
+    out.push({
+      part: 'chamber-box',
+      x: p.x,
+      z: p.z,
+      lift: crown(p.s),
+      yaw: alongYaw(line, k),
+      lean: [0, 0],
+      scaleY: 1,
+      scaleZ: (CHAMBER.bandM - CHAMBER.faceM) / CHAMBER.boxDepthM,
+      color: woodTint(wall.age, 'chamber'),
+    });
+  });
+  out.push(...parapets(fort, ctx, 'chamber', CHAMBER.faceM + 0.1, CHAMBER.heightM, crown));
+  return out;
 }
 
 /** Okraje pásu valu pro vytyčení – kousek od vnějšího okraje příkopu a od paty valu (m). */
 const RAMPART_STAKING_INSET_M = 0.3;
 
-/** Začala už na bodě `u` (0–1 úseku) práce staveniště – kůly, žlab? */
+/** Začala už na bodě `u` (0–1 úseku) práce staveniště – kůly, žlab, patra roštu? */
 function siteStarted(phase: FortSitePhase | undefined, u: number): boolean {
-  return phase !== undefined && u < Math.max(phase.posts, phase.trench);
+  return phase !== undefined && (u < Math.max(phase.posts, phase.trench) || phase.earth > 0);
 }
 
 /** Je bod `p` čáry vytyčený (nehotový úsek, na kterém se ještě nepracuje)? */
-function staked(fort: SceneFortification, b: SegmentBuild, u: number): boolean {
+function markedOut(fort: SceneFortification, b: SegmentBuild, u: number): boolean {
   if (fort.work === 'upgrade')
     return b.ground?.layer === 'fence' && !siteStarted(b.upgrade?.phase, u);
   if (b.rampart) return b.rampart.earth <= 0;
@@ -625,7 +1066,7 @@ export function fortStakingLines(fort: SceneFortification): [number, number][][]
   const offsets =
     fort.kind === 'rampart'
       ? [RAMPART_STAKING_INSET_M, RAMPART_BAND_M - RAMPART_STAKING_INSET_M]
-      : [layerLine(fort, work === 'upgrade' ? 'palisade' : sceneWall(fort.kind))];
+      : [layerLine(fort, work === 'upgrade' ? 'palisade' : fort.kind)];
   const { starts, length } = segmentStarts(fort.shapes);
   const gates = gatePositions(fort);
   const builds = fort.shapes.map((s) => segmentBuild(fort, s.index));
@@ -637,7 +1078,7 @@ export function fortStakingLines(fort: SceneFortification): [number, number][][]
       (p) =>
         !gates.some((g) => loopDistance(p.s, g, length) < half) &&
         !inGoneGatePart(fort, starts, p.segment, p.s) &&
-        staked(fort, builds[p.segment]!, along(fort, starts, p)),
+        markedOut(fort, builds[p.segment]!, along(fort, starts, p)),
     );
     // souvislé vytyčené kusy obvodu; kus přes začátek čáry se spojí s posledním
     const runs: [number, number][][] = [];
@@ -815,11 +1256,12 @@ export function fortGateInstances(fort: SceneFortification): FortInstance[] {
       return;
     }
     const half = FORT_GATE_M / 2;
-    const leafPart: FortPart = layer === 'palisade' ? 'gate-planks' : 'gate-wicker';
+    // vyšší stupně mají bránu jako palisáda (klešťová brána a věž – Úloha 18)
+    const leafPart: FortPart = layer === 'fence' ? 'gate-wicker' : 'gate-planks';
     for (const side of [-1, 1] as const) {
       const hx = cx + tx * half * side;
       const hz = cz + tz * half * side;
-      if (layer === 'palisade')
+      if (layer !== 'fence')
         out.push({
           ...base,
           part: 'gate-post',
@@ -841,7 +1283,7 @@ export function fortGateInstances(fort: SceneFortification): FortInstance[] {
       }
       out.push({ ...base, part: leafPart, x: hx, z: hz, yaw: yawOf(dir[0], dir[1]), lean });
     }
-    if (layer === 'palisade')
+    if (layer !== 'fence')
       out.push({
         ...base,
         part: 'gate-beam',

@@ -1,7 +1,8 @@
-// Opevnění ve scéně (fortifications.md – Ve scéně): palisáda a brány v instancích dílů
-// models/fortifications/fortifications.glb (tools/blender/fortifications.py) s ořezem po
-// čtvercích (jména `fort-…` – CULLED_MESHES), polský plot jako pletený plot pozemků
-// (WovenFenceRenderer), val s příkopem jako síť podél obvodu (rampart-mesh.ts), prořez terénu
+// Opevnění ve scéně (fortifications.md – Ve scéně): palisáda (i s ochozem), roštová a komorová
+// hradba a brány v instancích dílů models/fortifications/fortifications.glb
+// (tools/blender/fortifications.py) s ořezem po čtvercích (jména `fort-…` – CULLED_MESHES), polský
+// plot jako pletený plot pozemků (WovenFenceRenderer), val s příkopem, násyp ochozu, jádro roštu
+// a výplň komor jako sítě podél obvodu (rampart-mesh.ts), prořez terénu
 // pod příkopem (pit-cut.ts) a vytyčení nehotových úseků kolíky a provázkem jako u ostatních
 // stavenišť (staking.ts). Rozmístění počítá fortification-layout.ts; kreslí se jen při změně.
 import type { Material } from '@babylonjs/core/Materials/material';
@@ -20,13 +21,22 @@ import {
   fortGateInstances,
   fortStakingLines,
   palisadeLayout,
+  walkwayLayout,
+  cribLayout,
+  chamberLayout,
   type DitchCut,
   type FortInstance,
   type FortPart,
 } from './fortification-layout';
 import { loadModelParts, setStaticInstances, type ModelInstance } from './instanced-model';
 import type { PitCuts } from './pit-cut';
-import { rampartMeshData, trenchMeshData, type MeshArrays } from './rampart-mesh';
+import {
+  rampartMeshData,
+  trenchMeshData,
+  wallCoreMeshData,
+  type MeshArrays,
+  type RampartMeshData,
+} from './rampart-mesh';
 import { applySeasonGround } from './season-materials';
 import { StakingPegs, createStringMaterial, createStringMesh, pegInstances } from './staking';
 import { stripSegments } from './village-layout';
@@ -74,13 +84,13 @@ const LEAN = new Quaternion();
 const ROTATION = new Quaternion();
 const UP = new Vector3();
 
-/** Matice instance dílu s patou ve výšce `y`: natočení, pak náklon a svislé měřítko. */
+/** Matice instance dílu s patou ve výšce `y`: natočení, pak náklon a měřítko (svislé, vodorovné). */
 export function fortInstanceMatrix(inst: FortInstance, y: number, out: Matrix): Matrix {
   Quaternion.RotationAxisToRef(Vector3.UpReadOnly, inst.yaw, YAW);
   UP.set(inst.lean[0], 1, inst.lean[1]).normalize();
   Quaternion.FromUnitVectorsToRef(Vector3.UpReadOnly, UP, LEAN);
   LEAN.multiplyToRef(YAW, ROTATION);
-  SCALE.set(1, inst.scaleY, 1);
+  SCALE.set(inst.scaleX ?? 1, inst.scaleY, inst.scaleZ ?? 1);
   POSITION.set(inst.x, y, inst.z);
   return Matrix.ComposeToRef(SCALE, ROTATION, POSITION, out);
 }
@@ -149,21 +159,20 @@ export class FortificationRenderer {
   private build(fort: SceneFortification, key: string): FortMeshes {
     const crown = crownLift(fort);
     const palisade = palisadeLayout(fort, crown);
-    const instances = [...palisade.stakes, ...fortGateInstances(fort)];
+    const instances = [
+      ...palisade.stakes,
+      ...walkwayLayout(fort, crown),
+      ...cribLayout(fort, crown),
+      ...chamberLayout(fort, crown),
+      ...fortGateInstances(fort),
+    ];
     this.context.fences.set(fenceOwner(fort.id), fortFenceStage(fort, crown));
     const meshes: Mesh[] = [];
     const rim = this.context.decalHeight;
-    if (fort.kind === 'rampart') {
-      const data = rampartMeshData(fort, rim);
-      const earth = this.mesh(
-        `village-rampart-${fort.id}`,
-        data.earth,
-        this.context.earthMaterial(),
-      );
-      const grass = this.mesh(`village-rampart-grass-${fort.id}`, data.grass, this.grassMaterial());
-      if (earth) meshes.push(earth);
-      if (grass) meshes.push(grass);
-    }
+    if (fort.kind === 'rampart')
+      meshes.push(...this.earthMeshes('rampart', fort.id, rampartMeshData(fort, rim)));
+    // násyp ochozu, jádro roštové a výplň komorové hradby
+    meshes.push(...this.earthMeshes('fort-core', fort.id, wallCoreMeshData(fort, rim)));
     if (palisade.trench.length > 0) {
       const trench = this.mesh(
         `village-fort-trench-${fort.id}`,
@@ -193,6 +202,13 @@ export class FortificationRenderer {
     }
     const pegs = staking.length > 0 ? pegInstances(staking, rim) : [];
     return { key, meshes, instances, cuts: ditchCuts(fort), pegs };
+  }
+
+  /** Hlína a tráva sítě podél obvodu (val, zemina hradby). */
+  private earthMeshes(name: string, id: number, data: RampartMeshData): Mesh[] {
+    const earth = this.mesh(`village-${name}-${id}`, data.earth, this.context.earthMaterial());
+    const grass = this.mesh(`village-${name}-grass-${id}`, data.grass, this.grassMaterial());
+    return [earth, grass].filter((m): m is Mesh => m !== null);
   }
 
   private drop(id: number): void {

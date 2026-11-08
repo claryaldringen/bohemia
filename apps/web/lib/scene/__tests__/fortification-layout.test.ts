@@ -18,11 +18,25 @@ import {
   rampartLooks,
   rampartProfile,
   segmentBuild,
+  walkwayLayout,
+  cribLayout,
+  chamberLayout,
+  woodTint,
+  CRIB,
+  CHAMBER,
+  STAKE_HEIGHT_M,
+  WALKWAY,
   MAX_DITCH_CUTS,
+  type FortInstance,
 } from '../fortification-layout';
 import type { SceneFortification } from '../../fort-view';
 import { demoFortification, type DemoFort, SHOWCASE_FORT_GEO } from '../fortification-showcase';
-import { RAMPART_COLUMNS, RAMPART_RING_STEP_M, rampartMeshData } from '../rampart-mesh';
+import {
+  RAMPART_COLUMNS,
+  RAMPART_RING_STEP_M,
+  rampartMeshData,
+  wallCoreMeshData,
+} from '../rampart-mesh';
 import { fortSitePhase } from '../village-construction';
 
 // Opevnění ve scéně (fortifications.md – Ve scéně): kůly, plot, brány, val a prořez příkopu.
@@ -363,5 +377,172 @@ describe('rohy pásu (fortifications.md – Obvod)', () => {
         expect(Math.abs(best - d)).toBeLessThan(0.03);
       }
     }
+  });
+});
+
+// Hradby a obrana (fortifications.md – Hradby a obrana, Rozhraní a scéna): palisáda s ochozem,
+// roštová a komorová hradba po dílech podle `segmentWall`.
+describe('palisáda s ochozem, roštová a komorová hradba', () => {
+  /** Vzdálenost bodu od vnějšího okraje (lomené čáry úseků) a nejbližší úsek. */
+  const edge = (f: SceneFortification, x: number, z: number): { d: number; segment: number } => {
+    let best = { d: Infinity, segment: -1 };
+    f.shapes.forEach((shape, k) => {
+      for (let i = 0; i + 1 < shape.path.length; i++) {
+        const [ax, az] = shape.path[i]!;
+        const [bx, bz] = shape.path[i + 1]!;
+        const len2 = (bx - ax) ** 2 + (bz - az) ** 2;
+        const t = Math.min(1, Math.max(0, ((x - ax) * (bx - ax) + (z - az) * (bz - az)) / len2));
+        const d = Math.hypot(x - ax - (bx - ax) * t, z - az - (bz - az) * t);
+        if (d < best.d) best = { d, segment: k };
+      }
+    });
+    return best;
+  };
+  /** Rovný úsek ≈ 15 m (tětiva skoro celá délka – bez oblouku rohu) – jeho index. */
+  const straight = (f: SceneFortification): number =>
+    f.shapes.findIndex((s) => {
+      const [ax, az] = s.path[0]!;
+      const [bx, bz] = s.path[s.path.length - 1]!;
+      return Math.abs(s.lengthM - 15) < 1 && Math.hypot(bx - ax, bz - az) > s.lengthM * 0.999;
+    });
+  const parts = (list: FortInstance[], part: string): FortInstance[] =>
+    list.filter((i) => i.part.startsWith(part));
+  const inSegment = (f: SceneFortification, list: FortInstance[], k: number): FortInstance[] =>
+    list.filter((i) => edge(f, i.x, i.z).segment === k);
+
+  it('ochoz: 15 m – 60 kůlů a 7–8 fošen 1,5 m pod špičkami, sloupky k fošnám, schůdky jednou v úseku', () => {
+    const f = fort({ kind: 'walkway' });
+    const k = straight(f);
+    expect(k).toBeGreaterThanOrEqual(0);
+    const { stakes } = palisadeLayout(f, flat);
+    const walk = walkwayLayout(f, flat);
+    const len = f.shapes[k]!.lengthM;
+    expect(Math.abs(inSegment(f, stakes, k).length - len * STAKES_PER_M)).toBeLessThanOrEqual(2);
+    const planks = parts(walk, 'walk-plank');
+    expect(inSegment(f, planks, k).length).toBeGreaterThanOrEqual(7);
+    expect(inSegment(f, planks, k).length).toBeLessThanOrEqual(8);
+    for (const p of planks) {
+      expect(p.lift + WALKWAY.plankThickM).toBeCloseTo(STAKE_HEIGHT_M - 1.5, 5);
+      // za kůly (0,75 m od okraje), uvnitř pásu 5,5 m
+      expect(edge(f, p.x, p.z).d).toBeGreaterThan(1);
+      expect(edge(f, p.x, p.z).d).toBeLessThan(2);
+    }
+    // sloupek stojí na násypu a sahá k fošně
+    for (const post of parts(walk, 'walk-post'))
+      expect(post.lift + post.scaleY * WALKWAY.postM).toBeCloseTo(
+        WALKWAY.deckM - WALKWAY.plankThickM,
+        5,
+      );
+    expect(parts(walk, 'walk-steps')).toHaveLength(f.shapes.length);
+    expect(walkwayLayout(f, flat)).toEqual(walk);
+    // palisáda bez ochozu nemá fošny
+    expect(walkwayLayout(fort(), flat)).toEqual([]);
+  });
+
+  it('roštová 15 m: plenta po 1 m na vnější hraně pásu 7 m, klády roštu po 2 m, předprseň', () => {
+    const f = fort({ kind: 'crib' });
+    const k = straight(f);
+    const crib = cribLayout(f, flat);
+    const facing = parts(crib, 'facing-stone');
+    expect(Math.abs(inSegment(f, facing, k).length - f.shapes[k]!.lengthM)).toBeLessThanOrEqual(1);
+    for (const s of inSegment(f, facing, k)) {
+      expect(edge(f, s.x, s.z).d).toBeCloseTo(CRIB.facingM / 2, 1);
+      expect(s.scaleY * CRIB.facingModuleM).toBeCloseTo(CRIB.heightM, 5);
+    }
+    const logs = parts(crib, 'crib-log');
+    expect(Math.max(...logs.map((l) => edge(f, l.x, l.z).d))).toBeLessThanOrEqual(CRIB.bandM);
+    // na koruně dvě příčné klády po 2 m
+    const top = logs.filter((l) => l.lift > CRIB.heightM - 0.5);
+    expect(Math.abs(inSegment(f, top, k).length - f.shapes[k]!.lengthM)).toBeLessThanOrEqual(2);
+    const parapets = parts(crib, 'parapet');
+    expect(parapets.length).toBeGreaterThan(0);
+    expect(parapets.every((p) => p.lift === CRIB.heightM)).toBe(true);
+  });
+
+  it('komorová: 15 m – 3 komory přes pás 8 m, čelní zeď vně', () => {
+    const f = fort({ kind: 'chamber' });
+    const k = straight(f);
+    const chamber = chamberLayout(f, flat);
+    const boxes = parts(chamber, 'chamber-box');
+    expect(inSegment(f, boxes, k)).toHaveLength(3);
+    for (const b of boxes)
+      expect((b.scaleZ ?? 1) * CHAMBER.boxDepthM).toBeCloseTo(CHAMBER.bandM - CHAMBER.faceM, 5);
+    const face = parts(chamber, 'chamber-face');
+    expect(Math.abs(inSegment(f, face, k).length - f.shapes[k]!.lengthM)).toBeLessThanOrEqual(1);
+    for (const s of inSegment(f, face, k))
+      expect(edge(f, s.x, s.z).d).toBeCloseTo(CHAMBER.faceM / 2, 1);
+    expect(parts(chamber, 'parapet').every((p) => p.lift === CHAMBER.heightM)).toBe(true);
+  });
+
+  it('na valu se vše zvedne o korunu, hradba začíná na koruně', () => {
+    const crown = (): number => 2;
+    const walk = walkwayLayout(fort({ kind: 'rampart', top: 'walkway' }), crown);
+    const planks = parts(walk, 'walk-plank');
+    expect(planks.length).toBeGreaterThan(0);
+    expect(planks.every((p) => Math.abs(p.lift - (2 + WALKWAY.deckM - 0.05)) < 1e-9)).toBe(true);
+    const cribFort = fort({ kind: 'rampart', top: 'crib' });
+    const facing = parts(cribLayout(cribFort, crown), 'facing-stone');
+    expect(facing.every((s) => s.lift === 2)).toBe(true);
+    const onCrown = inSegment(cribFort, facing, straight(cribFort));
+    expect(onCrown.length).toBeGreaterThan(10);
+    for (const s of onCrown)
+      expect(edge(cribFort, s.x, s.z).d).toBeCloseTo(RAMPART_CROWN_M + CRIB.facingM / 2, 1);
+    const boxes = parts(
+      chamberLayout(fort({ kind: 'rampart', top: 'chamber' }), crown),
+      'chamber-box',
+    );
+    expect(boxes.length).toBeGreaterThan(0);
+    expect(boxes.every((b) => b.lift === 2)).toBe(true);
+  });
+
+  it('staveniště podle fáze úseku, dřevo šedne, kámen nestárne', () => {
+    const building = (kind: 'walkway' | 'crib' | 'chamber', p: number): SceneFortification =>
+      fort({
+        kind,
+        age: () => null,
+        work: { kind: 'build', progress: (s) => (s === 0 ? p : undefined) },
+      });
+    // ochoz: kůly stojí, fošny od začátku úseku s násypem
+    const walk = building('walkway', 0.8);
+    const len = walk.shapes[0]!.lengthM;
+    expect(palisadeLayout(walk, flat).stakes.length).toBeGreaterThan(len * 0.9 * STAKES_PER_M);
+    const planks = parts(walkwayLayout(walk, flat), 'walk-plank');
+    expect(planks.length).toBeGreaterThan(0);
+    expect(planks.length).toBeLessThan(len / 2 / 2 + 1.5);
+    // roštová roste po patrech – plenta do poloviny, bez předprsně
+    const crib = cribLayout(building('crib', 0.5), flat);
+    expect(parts(crib, 'facing-stone').every((s) => s.scaleY === 0.75)).toBe(true);
+    expect(parts(crib, 'parapet')).toEqual([]);
+    // komorová: napřed komory od začátku úseku, čelní zeď až potom
+    const chamber = chamberLayout(building('chamber', 0.25), flat);
+    expect(parts(chamber, 'chamber-box').length).toBeGreaterThan(0);
+    expect(parts(chamber, 'chamber-box').length).toBeLessThan(len / 5);
+    expect(parts(chamber, 'chamber-face')).toEqual([]);
+    // stáří: klády šednou, plenta ne
+    const old = cribLayout(fort({ kind: 'crib', age: () => 25 }), flat);
+    expect(parts(old, 'crib-log')[0]!.color).toEqual(woodTint(25, 'crib'));
+    expect(parts(old, 'facing-stone')[0]!.color).toEqual([1, 1, 1]);
+  });
+
+  it('zemina: násyp ochozu, jádro roštu a výplň komor ve výšce druhu, v bráně nic', () => {
+    const top = (kind: 'walkway' | 'crib' | 'chamber'): number => {
+      const data = wallCoreMeshData(fort({ kind, gates: [{ segment: 2 }] }), flat);
+      const ys = [...data.earth.positions, ...data.grass.positions].filter((_, i) => i % 3 === 1);
+      expect(data.earth.indices.length + data.grass.indices.length).toBeGreaterThan(0);
+      return Math.max(...ys) - 0.02;
+    };
+    expect(top('walkway')).toBeCloseTo(WALKWAY.bankM, 5);
+    expect(top('crib')).toBeCloseTo(CRIB.heightM, 5);
+    expect(top('chamber')).toBeCloseTo(CHAMBER.fillM, 5);
+    const none = wallCoreMeshData(fort(), flat);
+    expect(none.earth.indices).toEqual([]);
+    // v průchodu brány zemina není
+    const f = fort({ kind: 'crib', gates: [{ segment: 2 }] });
+    const gate = f.gates[0]!;
+    const data = wallCoreMeshData(f, flat);
+    const p = data.earth.positions;
+    for (let i = 0; i < p.length; i += 3)
+      if (Math.hypot(p[i]! - gate.x, p[i + 2]! - gate.z) < 1.5)
+        expect(p[i + 1]!).toBeLessThan(0.03);
   });
 });
