@@ -146,12 +146,11 @@ test('nový hráč založí ves umístěním zemnice, přejmenuje ji a vybere ze
   const name = page.getByTestId('village-name');
   await expect(name).toHaveText(suggestVillageName(s.seed));
   await expect(grid.getByRole('button')).toHaveCount(14);
-  // Nové obydlí ani dílnu nemá kdo osídlit – zakladatelé si stavějí vlastní zemnici. Hřbitov,
-  // sad, modla, svatyně ani ohrada lidi nechtějí (modla a svatyně dospělé duby, ohrada stromy –
-  // krajina je má).
-  await expect(grid.getByRole('button', { name: 'Polozemnice' })).toBeDisabled();
+  // Obydlí ani dílny lidi k osídlení nechtějí (demolition.md) – stavba stojí jen dřevo a stromy
+  // krajina má. Hřbitov, sad, modla, svatyně ani ohrada lidi nechtějí taky.
+  await expect(grid.getByRole('button', { name: 'Polozemnice' })).toBeEnabled();
   for (const craft of ['Hrnčíř', 'Kovář', 'Uhlíř', 'Tesař']) {
-    await expect(grid.getByRole('button', { name: craft })).toBeDisabled();
+    await expect(grid.getByRole('button', { name: craft })).toBeEnabled();
   }
   await expect(grid.getByRole('button', { name: 'Hřbitov' })).toBeEnabled();
   await expect(grid.getByRole('button', { name: 'Sad' })).toBeEnabled();

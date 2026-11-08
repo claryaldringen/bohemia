@@ -1,12 +1,6 @@
 import { dateOfDayIndex, dayIndexOf, type GameDate } from '../calendar';
 import { SURFACE_CODES, tileCenterWorld, type Landscape, type ObstacleLayer } from '../landscape';
-import {
-  applyBuildIntent,
-  CANNOT_AFFORD,
-  NO_SETTLERS,
-  NO_WOOD,
-  type BuildIntent,
-} from './build-intent';
+import { applyBuildIntent, CANNOT_AFFORD, NO_WOOD, type BuildIntent } from './build-intent';
 import { HORSE_PEN_NO_SURPLUS } from './horse-pen-payment';
 import { buildAffordability } from './costs';
 import { craftCoverage } from './crafts';
@@ -60,7 +54,7 @@ import type {
 const DAYS_PER_YEAR = 365;
 const FIELD_TASKS: readonly FieldTask[] = ['dig', 'sow', 'weed', 'harvest', 'thresh'];
 /** Důvody odmítnutí, za které nemůže místo – další slot by dopadl stejně. */
-const NOT_THE_SLOT = new Set([NO_SETTLERS, CANNOT_AFFORD, NO_WOOD, HORSE_PEN_NO_SURPLUS]);
+const NOT_THE_SLOT = new Set([CANNOT_AFFORD, NO_WOOD, HORSE_PEN_NO_SURPLUS]);
 
 /** Režim správce (steward.md – Cíl „Růst se zásobou“, Režim správce). */
 export type StewardMode = 'emergency' | 'recovery' | 'growth';

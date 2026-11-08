@@ -13,6 +13,7 @@ import {
   smithsCharcoalPerYear,
   smithsForgeCharcoalKg,
   newWorkshop,
+  occupiedWorkshops,
   wearCraftStocks,
   workCrafts,
   workshopFootprints,
@@ -133,7 +134,7 @@ describe('řemeslná dílna – cena a stavba (crafts.md – Budovy)', () => {
     expect(BUILD_COSTS.smith).toEqual({
       laborManDays: 286,
       perHa: false,
-      upfront: { wood: 23, settlers: 1 },
+      upfront: { wood: 23 },
     });
   });
 
@@ -153,10 +154,18 @@ describe('řemeslná dílna – cena a stavba (crafts.md – Budovy)', () => {
     expect(site.cost).toBeCloseTo(workshopBuildLabor('smith') + 3 + 23 * 2, 9);
   });
 
-  it('bez mladého páru k osídlení dílna nejde', () => {
+  it('bez mladého páru dílna jde postavit – po dostavění stojí prázdná a nevyrábí', () => {
     const s = fullVillage();
     s.people = s.people.slice(0, 2);
-    expect(() => startWorkshop(s, DAY, 'potter', WORKSHOP_SITE, 0)).toThrow(RangeError);
+    const next = startWorkshop(s, DAY, 'potter', WORKSHOP_SITE, 0);
+    const site = next.constructions.at(-1)!;
+    site.done = site.cost;
+    site.wood!.felled = site.wood!.fell.length;
+    const after = advanceVillage(next, DAY + 1, null);
+    const workshop = after.dwellings.find((d) => d.workshop);
+    expect(workshop?.workshop?.craft).toBe('potter');
+    expect(after.people.filter((p) => p.dwellingId === workshop?.id)).toHaveLength(0);
+    expect(occupiedWorkshops(after, 'potter')).toEqual([]);
   });
 
   it('po dostavění se do dílny nastěhuje mladý pár a řemeslo patří budově', () => {

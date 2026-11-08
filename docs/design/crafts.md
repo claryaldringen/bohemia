@@ -63,7 +63,8 @@ Vzhled podle Martina (modely se připravují v `tools/blender/`):
   uhlíř z práce milíře ([Milíř u skácených buků](#milíř-u-skácených-buků)). Umisťuje se jako
   obydlí.
 - **Kdo se nastěhuje:** stejně jako do nového obydlí – mladý pár z přeplněné domácnosti
-  ([populace](population.md)). Prázdná dílna nic nevyrábí (Martin). Když domácnost vymře nebo
+  ([populace](population.md)). Prázdná dílna nic nevyrábí (Martin). Dílnu jde postavit i bez rodiny k osídlení (Martin 8. 11. 2026: „A“) – stojí pak
+  prázdná, dokud se do ní někdo nenastěhuje (přednost mají dočasně ubytovaní). Když domácnost vymře nebo
   odejde, řemeslo přebírá další, kdo se nastěhuje – řemeslo patří budově. Lidé se stěhují až po
   práci dne, proto dílna v den nastěhování v dílně ještě nepracuje – panel ukáže „Právě se
   nastěhovali – v dílně začnou zítra“ (ne „Prázdná“ – Martin 20. 10. 2026: „Proč mi tesař hlásí, že

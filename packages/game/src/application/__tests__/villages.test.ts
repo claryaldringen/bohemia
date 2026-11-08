@@ -37,7 +37,7 @@ import { withBuiltFirstDwelling } from '../../domain/village/__tests__/village-f
 import { foundVillageForSettlement, type FoundVillageInput } from '../found-village';
 import { loadVillage } from '../load-village';
 import { placeCemetery } from '../place-cemetery';
-import { NO_PLOT, NO_SETTLERS, NO_WOOD, placeDwelling } from '../place-dwelling';
+import { NO_PLOT, NO_WOOD, placeDwelling } from '../place-dwelling';
 import { placeField } from '../place-field';
 import { placeOrchard } from '../place-orchard';
 import { UNKNOWN_CRAFT, placeWorkshop } from '../place-workshop';
@@ -533,13 +533,11 @@ describe('placeDwelling', () => {
 });
 
 describe('placeWorkshop', () => {
-  it('dílna se staví jako obydlí – chce mladý pár a změří vodu', async () => {
+  it('dílna se staví jako obydlí a změří vodu', async () => {
     const villages = await foundedVillages();
     const deps = { villages };
     const base = { villageId: VID, landscape, today: TODAY + 1 };
-    const fresh = await placeWorkshop(deps, { ...base, craft: 'burner', position: at(-80, -50) });
-    expect(fresh).toEqual({ ok: false, reason: NO_SETTLERS });
-    villages.edit(VID, makeFullHousehold);
+    villages.edit(VID, makeFullHousehold); // klády na hromadě (krajina testů nemá stromy)
     const unknown = await placeWorkshop(deps, {
       ...base,
       craft: 'weaver' as never,

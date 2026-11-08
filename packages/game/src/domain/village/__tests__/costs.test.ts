@@ -9,6 +9,7 @@ import {
   type BuildCost,
   type BuildKind,
 } from '../costs';
+import { availableSettlers } from '../households';
 import { DWELLING_TREES, DWELLINGS, FOUNDING_COST_PER_HA } from '../rules';
 import type { Person, VillageState } from '../types';
 import { withBuiltFirstDwelling } from './village-fixtures';
@@ -63,7 +64,7 @@ describe('ceny staveb', () => {
     const s = start();
     s.storesKg = 0;
     // bez vrstvy překážek (testy, kalibrace) se kácí bez polohy – stromů neomezeně
-    expect(villageStock(s)).toEqual({ grain: 0, wood: Infinity, oaks: Infinity, settlers: 0 });
+    expect(villageStock(s)).toEqual({ grain: 0, wood: Infinity, oaks: Infinity });
     for (const kind of ['zemnice', 'polozemnice'] as const) {
       expect(buildAffordability(s, kind)).toEqual({ affordable: true, missing: {} });
     }
@@ -72,35 +73,31 @@ describe('ceny staveb', () => {
 
   it('plná domácnost dá jednoho k osídlení; rozestavěné obydlí ho zamluví', () => {
     const s = fullHousehold();
-    expect(villageStock(s).settlers).toBe(1);
+    expect(availableSettlers(s, s.lastDay)).toBe(1);
     expect(buildAffordability(s, 'polozemnice')).toEqual({ affordable: true, missing: {} });
     const building = startNewDwelling(s, DAY, 'zemnice', { ...POSITION, x: 40 }, 0);
-    expect(villageStock(building).settlers).toBe(0);
+    expect(availableSettlers(building, building.lastDay)).toBe(0);
     // dřevo stačí – rozestavěné obydlí další obydlí nezablokuje
     expect(buildAffordability(building, 'polozemnice').affordable).toBe(true);
-    // dílna lidi k osídlení dál chce
-    expect(buildAffordability(building, 'potter').missing).toEqual({ settlers: 1 });
+    // ani dílna lidi k osídlení nechce (demolition.md – Martin 8. 11. 2026)
+    expect(buildAffordability(building, 'potter').missing).toEqual({});
   });
 
-  it('prázdné hotové obydlí čeká na pár taky – další obydlí jde, dílna ne', () => {
+  it('prázdné hotové obydlí čeká na pár – další obydlí i dílna jdou', () => {
     const s = fullHousehold();
     s.dwellings.push({ id: 50, type: 'zemnice', builtDay: DAY, condition: 1, position: POSITION });
-    expect(villageStock(s).settlers).toBe(0);
+    expect(availableSettlers(s, s.lastDay)).toBe(0);
     expect(buildAffordability(s, 'zemnice').affordable).toBe(true);
-    expect(buildAffordability(s, 'potter').affordable).toBe(false);
+    expect(buildAffordability(s, 'potter').affordable).toBe(true);
   });
 });
 
 describe('affordability', () => {
   it('chybějící část po surovinách', () => {
-    const stock = (
-      grain: number,
-      wood = 0,
-    ): Record<'grain' | 'wood' | 'oaks' | 'settlers', number> => ({
+    const stock = (grain: number, wood = 0): Record<'grain' | 'wood' | 'oaks', number> => ({
       grain,
       wood,
       oaks: 0,
-      settlers: 0,
     });
     expect(affordability(stock(30), { grain: 50 })).toEqual({
       affordable: false,
@@ -111,9 +108,9 @@ describe('affordability', () => {
       missing: {},
     });
     expect(affordability(stock(0), {})).toEqual({ affordable: true, missing: {} });
-    expect(affordability(stock(0), { grain: 5, settlers: 1 })).toEqual({
+    expect(affordability(stock(0), { grain: 5, oaks: 1 })).toEqual({
       affordable: false,
-      missing: { grain: 5, settlers: 1 },
+      missing: { grain: 5, oaks: 1 },
     });
     expect(affordability(stock(0, 4), { wood: 7 })).toEqual({
       affordable: false,

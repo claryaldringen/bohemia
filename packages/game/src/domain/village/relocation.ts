@@ -44,17 +44,15 @@ export function relocationBlock(state: VillageState, householdId: number): Reloc
 }
 
 /**
- * Má ves na nový dům domácnosti suroviny předem? Jako cena obydlí (`BUILD_COSTS`), ale bez lidí
- * k osídlení – domácnost už existuje, jen si staví nový dům (migration.md, návrh Clauda).
+ * Má ves na nový dům domácnosti suroviny předem? Stejná cena jako u obydlí (`BUILD_COSTS` – jen dřevo; lidi k osídlení
+ * nechce nic, demolition.md); domácnost už existuje, jen si staví nový dům (migration.md, návrh Clauda).
  */
 export function replacementAffordability(
   state: VillageState,
   type: BuildableDwellingType,
   obstacles?: ObstacleLayer | null,
 ): Affordability {
-  const { settlers, ...upfront } = BUILD_COSTS[type].upfront;
-  void settlers; // lidé k osídlení se u přestěhování neplatí
-  return affordability(villageStock(state, obstacles), upfront);
+  return affordability(villageStock(state, obstacles), BUILD_COSTS[type].upfront);
 }
 
 /**

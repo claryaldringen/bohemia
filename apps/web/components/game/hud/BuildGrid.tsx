@@ -17,7 +17,6 @@ export const RESOURCE_ICONS: Record<StockResource, { src: string; unit: string; 
   grain: { src: '/icons/resources/food.png', unit: 'kg', name: 'Obilí' },
   wood: { src: '/icons/resources/wood.png', unit: '', name: 'Dřevo (stromy)' },
   oaks: { src: '/icons/build/dub.png', unit: '', name: 'Dospělé duby' },
-  settlers: { src: '/icons/resources/people.png', unit: '', name: 'Lidé k osídlení' },
 };
 
 /**

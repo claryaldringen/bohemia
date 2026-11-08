@@ -140,11 +140,12 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   souš už posvátným dubem není (panel, výběr, štěstí), místo ale zůstává chráněné vrstvou.
 
 - **Hráč staví kdy chce** (Martin) – stavbu smí zablokovat jen **cena předem** (`costs.ts`:
-  `BUILD_COSTS`, `buildAffordability`): suroviny ze zásob (dřevo u obydlí a dílen) a u **dílen** lidé
-  k osídlení (obydlí zemnice a polozemnice je od 8. 11. 2026 nechtějí – demolition.md; `settlers` = `availableSettlers` v `households.ts`: možné nové domácnosti
-  `possibleNewHouseholds` − prázdná − rozestavěná nová obydlí); pole, hřbitov a obydlí lidi nechtějí.
+  `BUILD_COSTS`, `buildAffordability`): suroviny ze zásob (dřevo u obydlí a dílen). Lidi k osídlení nechce žádná stavba (obydlí
+  i dílny od 8. 11. 2026 – demolition.md; `availableSettlers` v `households.ts`: možné nové domácnosti
+  `possibleNewHouseholds` − prázdná − rozestavěná nová obydlí – už není cena, jen počet čekajících rodin pro
+  správce a upozornění); prázdná dílna nevyrábí (`occupiedWorkshops`), rodina do ní nastoupí v `occupyEmptyDwellings`.
   Tlačítko je pak zašedlé, zkratka nic nespustí, v popisku chybějící část červeně; server odmítne
-  (`NO_SETTLERS` jen u dílny, `NO_WOOD`, `CANNOT_AFFORD`). `waitingHouseholds` (upozornění „Rodina čeká na dům“, dřív
+  (`NO_WOOD`, `CANNOT_AFFORD`). `waitingHouseholds` (upozornění „Rodina čeká na dům“, dřív
   „Domácnost je plná“; `VillageSummary.fullHousehold`) = kladní lidé k osídlení.
 
 - **Determinismus:** simulace jde den po dni v pevném pořadí kroků (`simulate.ts`), náhoda dne
