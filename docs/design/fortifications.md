@@ -200,7 +200,8 @@ místo“ (návrh Clauda) neplatí. Zásah zůstává `10 × síla útočníka` 
    jasný**“ – muži rodu jako ve [válce](war.md) (20–60 m); vesničané házejí kameny a oštěpy do
    ≈ 15 m a shazují žebříky (Martin – „ano“). Návrh Clauda: hod vesničana je poloviční zásah jako
    luk (≈ každé 4 s), na muže u paty hradby (do 3 m) shazuje kameny plným zásahem (≈ každé 2 s);
-   kameny a oštěpy na ochozu nedojdou. Obránce na ochozu kryje předprseň – střela nebo hod
+   kameny a oštěpy na ochozu nedojdou; muž rodu, na kterého je útočník pod 20 m na luk blízko, hází
+   jako vesničan (návrh Clauda). Obránce na ochozu kryje předprseň – střela nebo hod
    zespodu na něj padne jen s losem 1 : 3 místo 1 : 1 (otázka 2). Ochoz má palisáda s ochozem,
    koruna roštové a komorové hradby, ramena klešťové brány a věž.
 4. **Souboj u žebříku** (Martin – „A“): lezec je znevýhodněný – slabší a neuhne; obránce ho může
@@ -426,7 +427,7 @@ Vše kromě Martinových životností je návrh Clauda.
 | Hod vesničana z ochozu      | kameny a oštěpy do 15 m poloviční zásah ≈ 4 s; k patě plný ≈ 2 s                                       | návrh Clauda                  |
 | Kryt předprsní              | střela a hod zespodu padne 1 : 3                                                                       | návrh Clauda                  |
 | Únava po valu               | síla × 0,85, zpět za 30 s; tempo přes val ÷ (1 + 3 × výška)                                            | návrh Clauda                  |
-| Obsazení                    | obránce brání ≈ 5 m; brány po 2 mužích                                                                 | návrh Clauda (Martin – „Ano“) |
+| Obsazení                    | obránce brání ≈ 5 m; brány po 2 mužích; stanoviště 1 m za čarou hradby                                 | návrh Clauda (Martin – „Ano“) |
 | Životnost                   | roštová 30 let, komorová 50 let, věž 20 let                                                            | návrh Clauda                  |
 | Údržba na 100 m ročně       | plot 1, palisáda 1, ochoz +1, val 2, roštová 5, komorová 5 čd                                          | návrh Clauda                  |
 | Přestavba hradby            | roštová a komorová ⅓ ceny, kámen zůstane                                                               | návrh Clauda                  |

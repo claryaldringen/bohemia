@@ -11,6 +11,7 @@ import {
   returnDayAfter,
   stanceOf,
 } from '../flight';
+import { dist2 } from '../orders';
 import { planDefense, type Sighted } from '../stance';
 import { DAY, field, palisade } from './battle-fixtures';
 
@@ -204,13 +205,22 @@ describe('postoje s opevněním (fortifications.md – Postoje vsi s opevněním
     );
 
   it.each(['defend', 'surrender', 'flee'] as const)(
-    'postoj %s: kdo stihne doběhnout, je v útočišti a muži se brání u středu',
+    'postoj %s: kdo stihne doběhnout, je v útočišti a muži obsadí hradbu',
     (stance) => {
       const r = plan(near(), stance, foes(3, { x: 0, z: -800 }), true);
       expect(r.shelter.refuge).toHaveLength(6);
       expect(r.shelter.forest).toEqual([]);
       expect(r.fighters.map((f) => f.personId)).toEqual([1, 2, 3, 4, 5]);
-      for (const f of r.fighters) expect(Math.abs(f.pos.x) + Math.abs(f.pos.z)).toBeLessThan(40);
+      // plán hradeb Úloha 12 (dřív „muži se brání u středu“): napřed brána na jihu po 2, pak obvod;
+      // za palisádou bez ochozu stojí na zemi 1 m za stěnou (palisáda −30…30 m)
+      for (const f of r.fighters) {
+        expect(f.post).toEqual(f.pos);
+        expect(f.onWall).toBeUndefined();
+        expect(Math.max(Math.abs(f.pos.x), Math.abs(f.pos.z))).toBeGreaterThan(26);
+        expect(Math.max(Math.abs(f.pos.x), Math.abs(f.pos.z))).toBeLessThan(29.5);
+      }
+      const gate = { x: 0, z: -30 };
+      for (const f of r.fighters.slice(0, 2)) expect(dist2(f.pos, gate)).toBeLessThan(2 * 2);
       expect(r.shelter.livestockRefuge.sheep).toBe(12);
     },
   );

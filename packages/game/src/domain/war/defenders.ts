@@ -16,6 +16,7 @@ import {
 } from './orders';
 import { WAR } from './rules-war';
 import { bowSkillOf, lineManStrength, villagerStrength } from './strength';
+import { wallDefenderPlan, type WallWorld } from './wall-defense';
 
 // Obránci vsi (war.md – Boj – Dům od domu, Síla; Ztráty – Poslední muž rodu doma): kdo ves brání,
 // jakou silou a u kterého domu. Domy blíž než 40 m od sebe tvoří skupinu domů – její obránci se
@@ -41,6 +42,10 @@ export interface Defender {
   lastLine: boolean;
   /** Host z ochrany pánem (`GuardGuest`) – `personId` je jeho záporné číslo v boji. */
   guest?: true;
+  /** Muž v opevnění: stanoviště na hradbě, nebo záloha ve středu (`planDefense`); jinak chybí. */
+  post?: Pos;
+  /** Stanoviště je na ochozu či koruně hradby (`crownAt`). */
+  onWall?: true;
 }
 
 /**
@@ -159,10 +164,12 @@ export function defenderRoster(
  * Plán obránce ve výchozím postoji – u domů (war.md – Dům od domu): muž napadne útočníka, kterého
  * vidí u domů své skupiny (do 40 m od některého) nebo který útočí na něj, a od domů skupiny se
  * nevzdálí víc než 40 m; ženy, starší a chlapci brání jen svůj dům – útočníka na dosah. Prchající
- * útočníky obránci nehoní. Hráčem řízený obránce (Ú6.14) jde podle hráče.
+ * útočníky obránci nehoní. Hráčem řízený obránce (Ú6.14) jde podle hráče. Muž v opevnění se
+ * stanovištěm brání hradbu (`wallDefenderPlan`; `wall` – takt boje).
  */
-export function defenderPlan(f: Fighter, ctx: PlanContext): FighterPlan {
+export function defenderPlan(f: Fighter, ctx: PlanContext, wall?: WallWorld): FighterPlan {
   if (f.controlled) return controlledPlan(f, ctx);
+  if (f.post && wall) return wallDefenderPlan(f, ctx, wall);
   if (f.atHouseOnly) {
     const reach = WAR.combat.meleeM;
     const foes = ctx.fighters.filter(
