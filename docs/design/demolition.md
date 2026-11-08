@@ -125,6 +125,16 @@ vylepšit jen celé.
 
 ## Rozhodnutí
 
+- **Chátrání humna, obilné jámy a sadu** (Martin 8. 11. 2026):
+  - **Humno** zaroste trávou za 10 let – a to nejen opuštěné: stačí, když na něm po tu dobu
+    neprobíhá výmlat (Martin: „nemusí být jen cíleně opuštěné – stačí, když na něm nebude po
+    nějakou dobu probíhat výmlat“). Rok bez výmlatu = rok chátrání, výmlat chátrání vynuluje
+    (návrh Clauda – jako louka a pastva u zarůstání).
+  - **Obilná jáma** se zasype a zarovná za 5 let (Martin: „ok“).
+  - **Sad** se přestane ošetřovat a sklízet; stromy dožijí stářím, ale zároveň vyrostou nové –
+    „časem to bude takový neuspořádaný les, ve kterém budou převažovat jabloně a trocha jiných
+    stromů“ (Martin).
+
 - **Obydlí jde postavit i bez lidí k osídlení** (Martin 8. 11. 2026: „A“). Je-li ve vsi rodina,
   která se může oddělit, stavba ji zamluví a nastěhuje se jako dnes; jinak dům po dostavění
   zůstane prázdný, dokud se do něj někdo nenastěhuje – typicky obyvatelé zbouraného nebo
