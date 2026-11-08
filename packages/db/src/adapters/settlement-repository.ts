@@ -71,6 +71,17 @@ export function createSettlementRepository(db: Database): SettlementRepository {
         .orderBy(desc(settlement.isSeat), asc(settlement.createdAt), asc(settlement.id));
       return rows.map(toSettlement);
     },
+    async ownersWithManyActive(): Promise<string[]> {
+      const rows = await db
+        .select({ ownerId: settlement.ownerId })
+        .from(settlement)
+        // aktivní sídla jako `listActive` (bez archivu a čekajícího převodu)
+        .where(and(isNull(settlement.archivedAt), isNull(settlement.pendingOwnerId)))
+        .groupBy(settlement.ownerId)
+        .having(sql`count(*) >= 2`)
+        .orderBy(asc(settlement.ownerId));
+      return rows.map((r) => r.ownerId);
+    },
     async transferHolder(settlementId, fromOwnerId, toOwnerId): Promise<boolean> {
       // 1. krok převodu – podmíněný UPDATE: z více souběžných volání uspěje jedno; sídlo přestane
       // být sídelní (vymřelý hráč dostane při novém začátku nové)

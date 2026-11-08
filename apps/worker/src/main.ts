@@ -12,7 +12,10 @@ import {
 import {
   advanceWorldStep,
   newCampaignMemory,
+  loadVillage,
   runWorldTasks,
+  settlementLandscape,
+  type VillageRecord,
   stepCampaigns,
   villageWatchers,
 } from '@bohemia/game';
@@ -58,6 +61,21 @@ async function main(): Promise<void> {
     locks,
   });
   const stepDeps = { ...gameDeps, now: () => performance.now() };
+
+  // jídlo domény: dopočet vsi do dneška (uloží ji) a pokusy dárců, které nevyšly (1× za herní den)
+  const domainFoodAttempts = new Map<string, number>();
+  const loadDomainVillage = async (
+    villageId: string,
+    today: number,
+  ): Promise<VillageRecord | null> => {
+    const village = await gameDeps.villages.find(villageId);
+    const settlement = village ? await gameDeps.settlements.find(village.settlementId) : null;
+    if (!village || !settlement) return null;
+    return loadVillage(
+      { villages: gameDeps.villages, pause: gameDeps.pause },
+      { villageId, today, landscape: settlementLandscape(settlement, gameDeps.landscapes) },
+    );
+  };
 
   const loop: LoopDeps = {
     world: currentWorld,
@@ -116,6 +134,21 @@ async function main(): Promise<void> {
             settlements: gameDeps.settlements,
             locks,
             now: () => new Date(),
+          },
+          domainFood: {
+            settlements: gameDeps.settlements,
+            villages: gameDeps.villages,
+            loadVillage: loadDomainVillage,
+            shipments: {
+              shipments: gameDeps.shipments,
+              villages: gameDeps.villages,
+              settlements: gameDeps.settlements,
+              locks,
+              now: () => new Date(),
+            },
+            rounds: gameDeps.domainFood,
+            attempts: domainFoodAttempts,
+            log: (message) => log.warn(message),
           },
         },
         input,

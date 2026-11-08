@@ -3,6 +3,7 @@ import {
   createLockPool,
   createPlayerLock,
   createActivityRepository,
+  createDomainFoodRepository,
   createShipmentRepository,
   createDialogRepository,
   createDisputeRepository,
@@ -30,6 +31,7 @@ import {
 import { cedeVillages, checkCede, type CedeHooks, type LanguageGroup } from '@bohemia/game';
 import type {
   ActivityRepository,
+  DomainFoodRepository,
   ShipmentRepository,
   DialogRepository,
   DisputeRepository,
@@ -116,6 +118,8 @@ export interface GameDeps {
   successionCredits: SuccessionCreditRepository;
   /** Zásilky mezi vsemi hráčů na cestě (`docs/code/vassalage.md`). */
   shipments: ShipmentRepository;
+  /** Kola jídla domény – rozhodnutí vsí na rok (`docs/code/vassalage.md`). */
+  domainFood: DomainFoodRepository;
   /** Dialogy hráče – roční Odvody (`docs/code/vassalage.md`). */
   dialogs: DialogRepository;
   /** Půjčky mezi rody – splátky v Odvodech (`docs/code/vassalage.md`). */
@@ -189,6 +193,7 @@ export function createGameDeps(
     activity: createActivityRepository(db),
     successionCredits: createSuccessionCreditRepository(db),
     shipments: createShipmentRepository(db),
+    domainFood: createDomainFoodRepository(db),
     dialogs,
     loans,
     stewardships,

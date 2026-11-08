@@ -1,10 +1,4 @@
-import type {
-  NewSettlement,
-  Settlement,
-  SettlementOwners,
-  SettlementRepository,
-  WorldCell,
-} from '../settlements';
+import type { NewSettlement, Settlement, SettlementRepository, WorldCell } from '../settlements';
 import type { LayerVersions, PremiumType } from '../../domain/landscape';
 import type { OccupiedCell } from '../../domain/world';
 
@@ -12,7 +6,7 @@ import type { OccupiedCell } from '../../domain/world';
  * Repozitář sídel v paměti – createSeat a archive se chovají atomicky jako databáze (unikátní
  * index, podmíněný UPDATE). Archivovaná sídla zůstávají v `settlements`, jejich id v `archived`.
  */
-export class InMemorySettlements implements SettlementRepository, SettlementOwners {
+export class InMemorySettlements implements SettlementRepository {
   readonly settlements: Settlement[] = [];
   readonly archived = new Set<string>();
   /** Prémiové sídlo → hráč, kterému typ patří (převod sídla na jiného držitele ho nemění). */

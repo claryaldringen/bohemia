@@ -528,9 +528,26 @@ HEAD_KG = cattleFoodKg(1 kráva))`.
   nedá díky řádku (ves, rok) v `DomainFoodRepository` (`decided`).
 - **Dávky vazalů** jdou dál do cílové vsi (Doprava a cílová ves); ta je po svém výmlatu pošle
   s přebytkem dál jako každá ves domény (hillfort.md – Jídlo domény).
-- Porty: `DomainFoodRepository` (`decided`, `reserve`, `unfinished`, `finish`), `SettlementOwners`
-  (`ownersWithManyActive` – zatím zvlášť od `SettlementRepository`, adaptér DB přibude v úloze 8),
-  `loadVillage` (composition root jako `prepareVillage` Odvodů), `ShipmentDeps`. Polohu vsi pro
+- **Dárce, který nevyšel** (návrh Clauda, úloha 8): ukáže-li souhrn „připravená“, ale po dopočtu už
+  ne (na cestě, snopy), nebo se ves nenačte (`loadVillage` → null), krok zapíše pokus do
+  `DomainFoodDeps.attempts` (ves → herní den) a dárce zkusí znovu **nejdřív další herní den**. Důvod:
+  krok běží 1× za minutu a herní den trvá ≈ 86 s, ale zkouška znamená dopočet všech vsí domény (a u
+  nenačtené vsi se souhrn nezmění, takže by se zkoušelo pořád). Plán se přitom **nezapisuje** –
+  rozhodnutí roku (`decided`) je jen skutečný plán; nevyšlý dárce se pozná znovu, až bude připravený.
+  Pokusy drží paměť workeru; po restartu se zkusí jednou navíc (nic se nezdvojí, plán chrání řádek
+  ves × rok). Bez mapy `attempts` (testy) se neomezuje.
+- Porty: `DomainFoodRepository` (`decided`, `reserve`, `unfinished`, `finish`),
+  `SettlementRepository.ownersWithManyActive` (`GROUP BY owner_id HAVING count(*) >= 2` nad sídly
+  bez archivu a bez čekajícího převodu jako `listActive`), `loadVillage` (worker: dopočet do dneška
+  a uložení, `main.ts`), `ShipmentDeps`. Polohu vsi pro
   vzdálenost dává `settlementCell` (`application/shipments.ts`, sdílené se zásilkami).
 - Testy: `application/__tests__/domain-food.test.ts` (in-memory `InMemoryDomainFood`,
   `InMemorySettlements.ownersWithManyActive`).
+- **Databáze** (migrace `0040_domain_food`, tabulka `domain_food_round`, schéma `schema/domain-food.ts`,
+  adaptér `adapters/domain-food-repository.ts`, `createGameDeps().domainFood`): `village_id` →
+  `village` `ON DELETE CASCADE`, `year`, `day`, `deliveries` jsonb (`DomainDelivery[]`),
+  `created_at`, `finished_at`; PK `(village_id, year)`, index na `created_at`. `reserve` =
+  `INSERT … ON CONFLICT DO NOTHING` a při konfliktu přečte stávající řádek (platí první plán);
+  `unfinished` = `finished_at IS NULL` podle `created_at`; `finish` jen poprvé. Testy adaptéru:
+  `adapters/__tests__/domain-food-repository.db.test.ts`, `ownersWithManyActive` v
+  `settlement-repository.db.test.ts`.

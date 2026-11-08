@@ -20,3 +20,4 @@ export * from './campaign';
 export * from './dispute';
 export * from './prisoner';
 export * from './passage';
+export * from './domain-food';
