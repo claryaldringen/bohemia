@@ -89,6 +89,13 @@ trailId: -1, give, porters, days = 4 × cells, cost = porters × days }` – nos
   poráží – jako v obchodě), lidé `settleNewcomers` s novými místními id (los věku a pohlaví podle
   `body.key`, `origin` = směr odesílatele). Kronika: `shipment-sent` (u odesílatele) a
   `shipment-received` (`returned: true` u vrácené).
+- **Jídlo domény** (`ShipmentBody.domain`, `sendShipment(…, { purpose: 'domain-food', domain: true })`;
+  hillfort.md – Jídlo domény, Martin 8. 11. 2026): `receiveShipment` s `domain` dá obilí do `storesKg`
+  jako dnes, ale každý kus dobytka se hned poráží – `meatKg += LIVESTOCK.meatKg.cow` (120 kg), do stád
+  ani ohrad nejde (žádné `addCattle`, `ensureLivestock`) – a zapíše `domainFoodDay = day` (kdy
+  naposledy přišlo jídlo domény; čte správce hradiště). Vrácená zásilka (cíl zanikl) `domain`
+  ztrácí – dobytek se odesílateli vrátí živý. Kronika webu (`purpose === 'domain-food'`):
+  odesílatel „Jídlo pro ves {jméno}: …“, příjemce „Jídlo z vsi {jméno}: …, dobytek poražen“ (návrh Clauda).
 - **Bilance** (testy `shipment.test.ts`): odesílatel + příjemce = konstanta pro obilí, seno, klády,
   krávy, voly, koně i počet lidí. Dvě odchylky podle pravidel obchodu: voli přijdou s výcvikem
   `boughtOxTrainedDay` (ne s původním), koně dostanou nová id; věk a pohlaví lidí se na druhé straně

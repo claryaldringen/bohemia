@@ -244,6 +244,11 @@ export interface ShipmentBody {
   purpose?: string;
   /** Zásilka se vrací odesílateli (cíl zanikl) – kronika to řekne. */
   returned?: true;
+  /**
+   * Jídlo domény (hillfort.md – Jídlo domény; Martin 8. 11. 2026): dobytek se v cílové vsi hned
+   * porazí do zásob masa a do stád se nepřidá. Chybí = obyčejná zásilka.
+   */
+  domain?: true;
   grainKg: number;
   hayKg: number;
   logs: number;

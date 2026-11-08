@@ -124,6 +124,11 @@ export interface VillageState {
    */
   reservedSeedUntilDay?: number;
   /**
+   * Den, kdy do vsi naposledy přišlo jídlo domény (zásilka s `domain`; hillfort.md – Hradiště
+   * staví hráč). Chybí = nikdy.
+   */
+  domainFoodDay?: number;
+  /**
    * Nedodělek domácí výroby – jen ve vsích uložených před 19. 10. 2026; domácí výroba z práce
    * vsi nebere (population.md – Práce), simulace ho nečte ani nepíše.
    */
