@@ -547,7 +547,10 @@ Clauda.
   synech jdou vedlejší manželky z přeplněného dvorce (Manželky – Přednost při osídlení), pak
   ostatní jako dosud. Odejde se ženami a dětmi hned ten den, kdy je obydlí prázdné nebo
   dostavěné. Od odchodu pracuje jako rolník a dovednosti
-  mu klesají (Výcvik a zkušenost – −5 % ročně, nejníž polovina nejvyšší dosažené).
+  mu klesají (Výcvik a zkušenost – −5 % ročně, nejníž polovina nejvyšší dosažené). **Platí jen
+  pro syna vedlejší manželky** – syn z linie hlavních manželek je elita a cvičí celý život i ve
+  vlastním domě ([hradiště](hillfort.md) – Elita; Martin 8. 11. 2026: „Elitou budou automaticky
+  všichni muži rodu pocházející z hlavních manželek“).
 - Ženatý syn se smí i **přiženit k vdově nebo dědičce**, která drží dům ([příbuzenství](kinship.md)
   – Sňatky) – dědicem dvorce není.
 - **Svobodní synové z dvorce sami neodcházejí** (návrh Clauda – výjimka z „nejstarší dítě smí

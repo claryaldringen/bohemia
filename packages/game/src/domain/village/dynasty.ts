@@ -42,6 +42,38 @@ export function currentLord(state: Pick<VillageState, 'people' | 'dynasty'>): Pe
 }
 
 /**
+ * Je `p` elita (hillfort.md – Elita)? Muž rodu s příznakem `elite`, nebo dnešní vojvoda (vojvoda
+ * cvičí celý život, i když je synem vedlejší manželky).
+ */
+export function isElite(state: Pick<VillageState, 'people' | 'dynasty'>, p: Person): boolean {
+  if (!isLineMan(p)) return false;
+  return p.elite === true || currentLord(state)?.id === p.id;
+}
+
+/**
+ * Denní pravidlo elity (hillfort.md – Elita; Martin 8. 11. 2026: „Elitou budou automaticky všichni
+ * muži rodu pocházející z hlavních manželek“): žijící muž rodu – syn hlavní manželky (`mainWifeSon`),
+ * jehož žijící otec je vojvoda nebo elita, dostane trvalý příznak `elite`. Opakuje se do ustálení,
+ * aby jedno volání označilo i vnuka, jehož otec příznak právě dostal. Bez převodu starších vsí
+ * (Martin: „Ten převádět nemusíš“) – pravidlo platí ode dne nasazení. Ves bez rodu – nic. Mutuje
+ * stav, idempotentní.
+ */
+export function markElite(state: VillageState): void {
+  if (!isDynastyTracked(state)) return;
+  const byId = new Map(state.people.map((p) => [p.id, p]));
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const p of state.people) {
+      if (p.elite === true || p.mainWifeSon !== true || !isLineMan(p)) continue;
+      const father = p.fatherId === undefined ? undefined : byId.get(p.fatherId);
+      if (!father || !isElite(state, father)) continue;
+      p.elite = true;
+      grew = true;
+    }
+  }
+}
+
+/**
  * Drží `p` dvorec vsi s rodem (lord.md – Nástupnictví)? Vojvoda, který v dvorci bydlí, a za
  * nezletilého vojvodu (do 16 let) jeho matka z dvorce – při svatbě se druhý přistěhuje k nim
  * (`weddingHome`; ženich matky se přižení jako k vdově, která drží dům – kinship.md).

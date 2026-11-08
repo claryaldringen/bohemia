@@ -128,6 +128,21 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     `sowingCapacity`) a v `manorLabor` kryjí minimum svého domu, nekryté platí ves (`uncovered`),
     zbytek jen do `free` (pole při hladu), ne do `freeMen` (osev, žeň). Do „4 dospělých mimo
     rodinu“ se nepočítají. Jejich děti pracují se vsí. Vojvoda cvičí celý život (3 h).
+    **Elita** (hillfort.md – Elita): `Person.elite` je trvalý příznak, dává ho `markElite`
+    (`dynasty.ts`, na konci `dynastyDay` po nástupnictví – nový vojvoda označí syny týž den; bez
+    převodu starších vsí) žijícímu muži rodu s `mainWifeSon`, jehož žijící otec je `isElite`
+    (příznak, nebo dnešní vojvoda); opakuje do ustálení (vnuk týž den jako otec). `eliteHomes`
+    (`dynastyFamily` – `eliteHomesOf`) = obydlí mimo dvorec, kde bydlí elitní muž od
+    `AGE.fertile`, bez dílny (`workshop` má přednost) a bez domů `wivesApart`; druhý průchod je
+    třídí jako dvorec: muži rodu od 7 let → `trainees` (i synové vedlejších manželek, dokud
+    neodejdou), ženy a dcery mužů rodu → `household`, ostatní → `others`. Elita se tak počítá do
+    rodiny i do „4 dospělých mimo rodinu“ (`familyTrains` beze změny). `familyHomes` vrací i
+    `eliteHomes` (minimum domu mimo minimum vsi), `lordApartIds` jejich lidi z rodiny.
+    `manorLabor` počítá po domech `[dvorec, ...eliteHomes]`: minimum domu (`homeNeed`) kryje
+    kapacita lidí rodiny z toho domu (napřed `household`, pak `trainees`), `free += cap − min`,
+    `freeMen += min(cap − min, muži)`; ke dvorci patří, kdo nebydlí v domě elity – samotný dvorec
+    vychází bit po bitu jako před elitou (`lord-elite.test.ts`). Vedlejší manželky elitního muže
+    v jiném domě pracují se vsí; `wivesApart` (a návštěvy ve scéně) zůstává jen vojvodovi.
   - **Manželky** (`dynasty-wives.ts`, lord.md – Manželky): `spouseId` je **asymetrický** – žena
     ukazuje na muže (i vedlejší), muž jen na hlavní; manželky muže = ženy s jeho id. Vedlejší
     manželka se za živého muže nevdává (`isSingle`), smrt muže ovdoví všechny (`removePeople`),

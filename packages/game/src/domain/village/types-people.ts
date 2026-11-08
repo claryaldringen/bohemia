@@ -91,6 +91,12 @@ export interface Person {
    */
   mainWifeSon?: true;
   /**
+   * Elita (hillfort.md – Elita): muž rodu z linie hlavních manželek – syn hlavní manželky vojvody
+   * nebo elitního muže. Cvičí celý život jako vojvoda, i po sňatku ve vlastním domě. Trvalý;
+   * dává ho denní pravidlo rodu (`markElite`), starší vsi se nepřevádějí. Chybí – ne.
+   */
+  elite?: true;
+  /**
    * Zraněn na lovu (wildlife.md – Nebezpečí pro lidi): do tohoto dne (výjimečně) nepracuje, necvičí
    * ani neloví. Chybí – zdráv.
    */
